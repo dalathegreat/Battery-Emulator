@@ -50,18 +50,23 @@ uint16_t TemperatureMax = 50; //Todo, read from LEAF pack, uint not ok
 uint16_t TemperatureMin = 60; //Todo, read from LEAF pack, uint not ok
 
 // Store the data into the array
-//uint16_t p101_data[] = {21321, 1, 16985, 17408, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 16985, 17440, 16993, 29812, 25970, 31021, 17007, 30752, 20594, 25965, 26997, 27936, 18518, 0, 0, 0, 13614, 12288, 0, 0, 0, 0, 0, 0, 13102, 12598, 0, 0, 0, 0, 0, 0, 20581, 27756, 25856, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0};
-uint16_t p101_data[] = {8373, 1}; //SI
-uint16_t p103_data[] = {6689, 6832, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0}; //BY D
-uint16_t p119_data[] = {6689, 6832, 6697, 116116, 101114, 12145, 66111, 12032, 80114, 101109, 105117, 10932, 7286, 0, 0, 0}; //BY D  Ba tt er y- Bo x  Pr em iu m  HV
-uint16_t p135_data[] = {5346, 48, 0, 0, 0, 0, 0, 0, 5146, 4954, 0, 0, 0, 0, 0, 0}; //5.0 3.16
-uint16_t p151_data[] = {0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0};
-uint16_t p167_data[] = {1, 0};
+//16-bit int in these modbus-register, two letters at a time. Example p101[1]....(ascii for S) * 256 + (ascii for I) = 21321
+uint16_t p101_data[] = {21321, 1, 16985, 17408, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 16985, 17408, 16993, 29812, 25970, 31021, 17007, 30720, 20594, 25965, 26997, 27904, 18518, 0, 0, 0, 13614, 12288, 0, 0, 0, 0, 0, 0, 13102, 12598, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0};
+//uint16_t p101_data[] = {21321, 1, 16985, 17408, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 16985, 17440!17408, 16993, 29812, 25970, 31021, 17007, 30752!30720, 20594, 25965, 26997, 27936!27904, 18518, 0, 0, 0, 13614, 12288, 0, 0, 0, 0, 0, 0, 13102, 12598, 0, 0, 0, 0, 0, 0, 20581, 27756, 25856, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0};
+//Delete the following lines once we know this works :)
+//uint16_t p101_data[] = {21321, 1}; //SI
+//uint16_t p103_data[] = {16985, 17408, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0}; //BY D 
+//uint16_t p119_data[] = {16985, 17408, 16993, 29812, 25970, 31021, 17007, 30720, 20594, 25965, 26997, 27904, 18518, 0, 0, 0}; //BY D  Ba tt er y- Bo x  Pr em iu m  HV
+//uint16_t p135_data[] = {13614, 12288, 0, 0, 0, 0, 0, 0, 13102, 12598, 0, 0, 0, 0, 0, 0}; //5.0 3.16
+//uint16_t p151_data[] = {0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0}; //Serial number for battery
+//uint16_t p167_data[] = {1, 0};
 uint16_t p201_data[] = {0, 0, capacity_Wh_startup, MaxPower, MaxPower, MaxVoltage, MinVoltage, 53248, 10, 53248, 10, 0, 0};
 uint16_t p301_data[] = {Status, 0, 128, SOC, capacity_Wh, remaining_capacity_Wh, max_target_discharge_power, max_target_charge_power, 0, 0, 2058, 0, TemperatureMin, TemperatureMax, 0, 0, 16, 22741, 0, 0, 13, 52064, 80, 9900};
+//These registers get written to
 uint16_t p401_data[] = {1, 255, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0};
 uint16_t p1001_data[] = {0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0};
 uint16_t i;
+
 // Create a ModbusRTU server instance listening on Serial2 with 2000ms timeout
 ModbusServerRTU MBserver(Serial2, 2000);
 
@@ -128,18 +133,22 @@ void handle_modbus(){
   { //every 10s
     previousMillisModbus = currentMillis;
 
-    //Print value of holting register 40001
+    //Print value of holfing register 40001
     Serial.println(mbPV[0]);
-    //Set value of holting register 40002
-    
-    for (i = 0; i < (sizeof(p101_data) / sizeof(p101_data[0])); i++) {
-      mbPV[i] = p101_data[i];
+
+    i = 0;
+    // Copy the contents of the original arrays uint16_to the new array
+    for (uint16_t j = 0; j < sizeof(p101_data) / sizeof(uint16_t); j++) {
+        mbPV[i] = p101_data[j];
+        i++;
     }
-    for (i = 0; i < (sizeof(p103_data) / sizeof(p103_data[0])); i++) {
-      mbPV[i] = p103_data[i];
+    for (uint16_t j = 0; j < sizeof(p201_data) / sizeof(uint16_t); j++) {
+        mbPV[i] = p201_data[j];
+        i++;
     }
-    for (i = 0; i < (sizeof(p119_data) / sizeof(p119_data[0])); i++) {
-      mbPV[i] = p119_data[i];
+    for (uint16_t j = 0; j < sizeof(p301_data) / sizeof(uint16_t); j++) {
+        mbPV[i] = p301_data[j];
+        i++;
     }
   }
 }
