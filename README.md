@@ -5,12 +5,12 @@ This software converts the LEAF CAN into Modbus RTU registers understood by sola
 This code fits on the LilyGo ESP32 T-CAN485 devboard , see https://github.com/Xinyuan-LilyGO/T-CAN485
 
 ## Installation
-Connect one end of the LilyGo RS485 to the Gen24 Modbus
-Connect the other end of the LilyGo to the CAN side of a LEAF battery
-Wire up high voltage cable between the Gen24 and the LEAF battery
-Add a 12V power source to power the LilyGo and the LEAF battery (uninterruptible PSU or 12V lead acid recommended in parallel)
-Manually handle pre-charge circuit + positive/negative contactor on LEAF battery for now (circuit will be improved soon)
-Enjoy a big cheap grid connected battery!
+1. Connect one end of the LilyGo RS485 to the Gen24 Modbus
+2. Connect the other end of the LilyGo to the CAN side of a LEAF battery
+3. Wire up high voltage cable between the Gen24 and the LEAF battery
+4. Add a 12V power source to power the LilyGo and the LEAF battery (uninterruptible PSU or 12V lead acid recommended in parallel)
+5. Manually handle pre-charge circuit + positive/negative contactor on LEAF battery for now (circuit will be improved soon)
+6. Enjoy a big cheap grid connected battery!
 
 ## How to compile the software
 1. Download the Arduino IDE: https://www.arduino.cc/en/software
