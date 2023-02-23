@@ -13,6 +13,8 @@
 #define RS485_RX_PIN 21 // 22
 #define RS485_SE_PIN 19 // 22 /SHDN
 
+
+
 #define SD_MISO_PIN 2
 #define SD_MOSI_PIN 15
 #define SD_SCLK_PIN 14
