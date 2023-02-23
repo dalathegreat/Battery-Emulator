@@ -7,6 +7,9 @@
 #include "ESP32CAN.h"
 #include "CAN_config.h"
 
+//Battery size
+#define BATTERY_WH_MAX 30000
+
 //CAN parameters
 CAN_device_t CAN_cfg;             // CAN Config
 unsigned long previousMillis10 = 0; // will store last time a 10ms CAN Message was send
@@ -22,10 +25,10 @@ byte mprun100 = 0;                 //counter 0-3
 int LB_Discharge_Power_Limit = 0; //Limit in kW
 int LB_MAX_POWER_FOR_CHARGER = 0; //Limit in kW
 int LB_SOC = 0; //0 - 100.0 % (0-1000)
-int LB_kWh = 0; //Amount of energy in battery, in kWh
-long LB_Wh = 0; //Amount of energy in battery, in Wh
+long LB_Wh_Remaining = 0; //Amount of energy in battery, in Wh
 int LB_GIDS = 0;
-int LB_max_gids = 0;
+int LB_MAX = 0;
+int LB_Max_GIDS = 273; //Startup in 24kWh mode
 int LB_Current = 0; //Current in kW going in/out of battery
 int LB_Total_Voltage = 0; //Battery voltage (0-450V)
 
@@ -33,16 +36,16 @@ int LB_Total_Voltage = 0; //Battery voltage (0-450V)
 const int intervalModbusTask = 10000; //Interval at which to refresh modbus registers
 unsigned long previousMillisModbus = 0; //will store last time a modbus register refresh
 uint16_t mbPV[30000]; // process variable memory: produced by sensors, etc., cyclic read by PLC via modbus TCP
-uint16_t capacity_kWh_startup = 30000; //30kWh
+uint16_t capacity_Wh_startup = BATTERY_WH_MAX; 
 uint16_t MaxPower = 40960; //41kW TODO, fetch from LEAF battery (or does it matter, polled after startup?)
 uint16_t MaxVoltage = 4672; //(467.2V), if higher charging is not possible (goes into forced discharge)
 uint16_t MinVoltage = 3200; //Min Voltage (320.0V), if lower Gen24 disables battery
 uint16_t Status = 3; //ACTIVE - [0..5]<>[STANDBY,INACTIVE,DARKSTART,ACTIVE,FAULT,UPDATING]
-uint16_t SOC = 5000; //SOC 0-100.00% TODO, fetch from LEAF battery
-uint16_t capacity_kWh = 30000; //30kWh TODO, fetch from LEAF battery
-uint16_t remaining_capacity_kWh = 30000; //TODO, fetch from LEAF battery 59E
-uint16_t max_target_discharge_power = 0; //0W (0W > restricts to no discharge)
-uint16_t max_target_charge_power = 4312; //4.3kW (during charge), both 307&308 can be set (>0) at the same time
+uint16_t SOC = 5000; //SOC 0-100.00% //Updates later on from CAN
+uint16_t capacity_Wh = BATTERY_WH_MAX; //Updates later on from CAN
+uint16_t remaining_capacity_Wh = BATTERY_WH_MAX; //Updates later on from CAN
+uint16_t max_target_discharge_power = 0; //0W (0W > restricts to no discharge) //Updates later on from CAN
+uint16_t max_target_charge_power = 4312; //4.3kW (during charge), both 307&308 can be set (>0) at the same time //Updates later on from CAN
 uint16_t TemperatureMax = 50; //Todo, read from LEAF pack, uint not ok
 uint16_t TemperatureMin = 60; //Todo, read from LEAF pack, uint not ok
 
@@ -54,8 +57,10 @@ uint16_t p119_data[] = {6689, 6832, 6697, 116116, 101114, 12145, 66111, 12032, 8
 uint16_t p135_data[] = {5346, 48, 0, 0, 0, 0, 0, 0, 5146, 4954, 0, 0, 0, 0, 0, 0}; //5.0 3.16
 uint16_t p151_data[] = {0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0};
 uint16_t p167_data[] = {1, 0};
-uint16_t p201_data[] = {0, 0, capacity_kWh_startup, MaxPower, MaxPower, MaxVoltage, MinVoltage, 53248, 10, 53248, 10, 0, 0};
-uint16_t p301_data[] = {Status, 0, 128, SOC, capacity_kWh, remaining_capacity_kWh, max_target_discharge_power, max_target_charge_power, 0, 0, 2058, 0, TemperatureMin, TemperatureMax, 0, 0, 16, 22741, 0, 0, 13, 52064, 80, 9900};
+uint16_t p201_data[] = {0, 0, capacity_Wh_startup, MaxPower, MaxPower, MaxVoltage, MinVoltage, 53248, 10, 53248, 10, 0, 0};
+uint16_t p301_data[] = {Status, 0, 128, SOC, capacity_Wh, remaining_capacity_Wh, max_target_discharge_power, max_target_charge_power, 0, 0, 2058, 0, TemperatureMin, TemperatureMax, 0, 0, 16, 22741, 0, 0, 13, 52064, 80, 9900};
+uint16_t p401_data[] = {1, 255, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0};
+uint16_t p1001_data[] = {0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0};
 uint16_t i;
 // Create a ModbusRTU server instance listening on Serial2 with 2000ms timeout
 ModbusServerRTU MBserver(Serial2, 2000);
@@ -99,10 +104,22 @@ void setup() {
   MBserver.start();
 }
 
-// loop() - nothing done here today!
+// perform main program functions
 void loop() {
   handle_modbus();
   handle_can();
+  update_values();
+}
+
+void update_values(){
+  MaxPower = (LB_Discharge_Power_Limit*1000); //kW to W
+  SOC = (LB_SOC * 10); //increase range from 0-100.0 -> 100.00
+  capacity_Wh = (LB_Max_GIDS * WH_PER_GID);
+  remaining_capacity_Wh = LB_Wh_Remaining;
+  max_target_discharge_power = (LB_Discharge_Power_Limit*1000); //kW to W
+  max_target_charge_power = (LB_MAX_POWER_FOR_CHARGER*1000); //kW to W
+  TemperatureMin = 50; //hardcoded, todo, read from 5C0
+  TemperatureMax = 60; //hardcoded, todo, read from 5C0
 }
 
 void handle_modbus(){
@@ -117,6 +134,12 @@ void handle_modbus(){
     
     for (i = 0; i < (sizeof(p101_data) / sizeof(p101_data[0])); i++) {
       mbPV[i] = p101_data[i];
+    }
+    for (i = 0; i < (sizeof(p103_data) / sizeof(p103_data[0])); i++) {
+      mbPV[i] = p103_data[i];
+    }
+    for (i = 0; i < (sizeof(p119_data) / sizeof(p119_data[0])); i++) {
+      mbPV[i] = p119_data[i];
     }
   }
 }
@@ -146,22 +169,23 @@ void handle_can() {
           LB_SOC = (rx_frame.data.u8[0] << 2 | rx_frame.data.u8[1] >> 6);
         break;
         case 0x5BC:
-          LB_max_gids = ((rx_frame.data.u8[5] & 0x10) >> 4);
-          if(LB_max_gids)
+          LB_MAX = ((rx_frame.data.u8[5] & 0x10) >> 4);
+          if(LB_MAX)
           {
+            LB_Max_GIDS = (rx_frame.data.u8[0] << 2) | ((rx_frame.data.u8[1] & 0xC0) >> 6);
             //Max gids active, do nothing
             //Only the 30/40/62kWh packs have this mux
           }
           else
           { //Normal current GIDS value is transmitted
             LB_GIDS = (rx_frame.data.u8[0] << 2) | ((rx_frame.data.u8[1] & 0xC0) >> 6);
-            LB_Wh = (LB_GIDS * WH_PER_GID);
-            LB_kWh = ((LB_Wh) / 1000);
+            LB_Wh_Remaining = (LB_GIDS * WH_PER_GID);
           }
           break;
         case 0x59E: //This message is only present on 2013+ AZE0 and upwards
           break;
         case 0x5C0:
+        //todo read batt temp from here (or from active polling later)
           break;
         default:
           break;
