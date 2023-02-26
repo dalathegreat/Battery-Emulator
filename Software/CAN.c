@@ -171,6 +171,7 @@ int CAN_init() {
 
 	// enable module
 	DPORT_SET_PERI_REG_MASK(DPORT_PERIP_CLK_EN_REG, DPORT_CAN_CLK_EN);
+	DPORT_SET_PERI_REG_MASK(DPORT_PERIP_RST_EN_REG, DPORT_CAN_RST); //Added https://github.com/miwagner/ESP32-Arduino-CAN/pull/37/commits/feccb722866fbdcc7628b941efe9f79295b0cf81
 	DPORT_CLEAR_PERI_REG_MASK(DPORT_PERIP_RST_EN_REG, DPORT_CAN_RST);
 
 	// configure TX pin

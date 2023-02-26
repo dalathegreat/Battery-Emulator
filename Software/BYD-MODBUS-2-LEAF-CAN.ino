@@ -20,6 +20,10 @@ const int rx_queue_size = 10; // Receive Queue size
 byte mprun10 = 0; //counter 0-3
 byte mprun100 = 0; //counter 0-3
 
+CAN_frame_t LEAF_1F2 = {.MsgID = 0x1F2, LEAF_1F2.FIR.B.DLC = 8, LEAF_1F2.FIR.B.FF = CAN_frame_std, LEAF_1F2.data.u8[0] = 0x64, LEAF_1F2.data.u8[1] = 0x64,LEAF_1F2.data.u8[2] = 0x32, LEAF_1F2.data.u8[3] = 0xA0,LEAF_1F2.data.u8[4] = 0x00,LEAF_1F2.data.u8[5] = 0x0A};
+CAN_frame_t LEAF_50B = {.MsgID = 0x50B, LEAF_50B.FIR.B.DLC = 8, LEAF_50B.FIR.B.FF = CAN_frame_std, LEAF_50B.data.u8[0] = 0x00, LEAF_50B.data.u8[1] = 0x00,LEAF_50B.data.u8[2] = 0x06, LEAF_50B.data.u8[3] = 0xC0,LEAF_50B.data.u8[4] = 0x00,LEAF_50B.data.u8[5] = 0x00};
+CAN_frame_t LEAF_50C = {.MsgID = 0x50C, LEAF_50C.FIR.B.DLC = 8, LEAF_50C.FIR.B.FF = CAN_frame_std, LEAF_50C.data.u8[0] = 0x00, LEAF_50C.data.u8[1] = 0x00,LEAF_50C.data.u8[2] = 0x00, LEAF_50C.data.u8[3] = 0x00,LEAF_50C.data.u8[4] = 0x00,LEAF_50C.data.u8[5] = 0x00};
+
 //Nissan LEAF battery parameters from CAN
 #define WH_PER_GID 77 //One GID is this amount of Watt hours
 int LB_Discharge_Power_Limit = 0; //Limit in kW
@@ -77,7 +81,6 @@ uint16_t p1001_data[] = {
 	0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0
 };
 uint16_t i;
-static unsigned long currentMillis;
 
 // Create a ModbusRTU server instance listening on Serial2 with 2000ms timeout
 ModbusServerRTU MBserver(Serial2, 2000);
@@ -129,12 +132,11 @@ void setup()
 void loop()
 {
 	handle_can();
-	update_values();
-	currentMillis = millis();
-	if (currentMillis - previousMillisModbus >= intervalModbusTask)
+  //every 10s
+	if (millis() - previousMillisModbus >= intervalModbusTask)
 	{
-		//every 10s
-		previousMillisModbus = currentMillis;
+		previousMillisModbus = millis();
+    update_values();
 		handle_UpdateDataModbus();
 	}
 }
@@ -206,19 +208,19 @@ void handle_UpdateDataModbus()
 
 void handle_can()
 {
-	CAN_frame_t rx_frame;
+  CAN_frame_t rx_frame;
+  unsigned long currentMillis = millis();
 
-	static unsigned long currentMillis = millis();
-
-	// Receive next CAN frame from queue
-	if (xQueueReceive(CAN_cfg.rx_queue, &rx_frame, 3 * portTICK_PERIOD_MS) == pdTRUE)
-	{
-		if (rx_frame.FIR.B.FF == CAN_frame_std)
-		{
-			//printf("New standard frame");
-			switch (rx_frame.MsgID)
+  // Receive next CAN frame from queue
+  if (xQueueReceive(CAN_cfg.rx_queue, &rx_frame, 3 * portTICK_PERIOD_MS) == pdTRUE)
+  {
+    if (rx_frame.FIR.B.FF == CAN_frame_std)
+    {
+      //printf("New standard frame");
+      switch (rx_frame.MsgID)
 			{
-			case 0x1DB:
+      case 0x1DB:
+        //printf("1DB \n");
 				LB_Current = (rx_frame.data.u8[0] << 3) | (rx_frame.data.u8[1] & 0xe0) >> 5;
 				LB_Total_Voltage = ((rx_frame.data.u8[2] << 2) | (rx_frame.data.u8[3] & 0xc0) >> 6) / 2;
 				break;
@@ -245,135 +247,86 @@ void handle_can()
 					LB_Wh_Remaining = (LB_GIDS * WH_PER_GID);
 				}
 				break;
-			case 0x59E: //This message is only present on 2013+ AZE0 and upwards
+      default:
 				break;
-			case 0x5C0:
-				//todo read batt temp from here (or from active polling later)
-				break;
-			default:
-				break;
-			}
-		}
-		else
-		{
-			//printf("New extended frame");
-		}
-
-		// if (rx_frame.FIR.B.RTR == CAN_RTR)
-		// {
-		//   printf(" RTR from 0x%08X, DLC %d\r\n", rx_frame.MsgID, rx_frame.FIR.B.DLC);
-		// }
-		// else
-		// {
-		//   printf(" from 0x%08X, DLC %d, Data ", rx_frame.MsgID, rx_frame.FIR.B.DLC);
-		//   for (int i = 0; i < rx_frame.FIR.B.DLC; i++)
-		//   {
-		//     printf("0x%02X ", rx_frame.data.u8[i]);
-		//   }
-		//   printf("\n");
-		// }
-	}
+      }      
+    }
+    else
+    {
+      //printf("New extended frame");
+    }
+  }
 	// Send 100ms CAN Message
 	if (currentMillis - previousMillis100 >= interval100)
 	{
 		previousMillis100 = currentMillis;
+
+    ESP32Can.CANWriteFrame(&LEAF_50B); //Always send 50B as a static message
+
 		mprun100++;
 		if (mprun100 > 3)
 		{
 			mprun100 = 0;
 		}
 
-		CAN_frame_t tx_frame;
-		tx_frame.FIR.B.FF = CAN_frame_std;
-		tx_frame.MsgID = 0x50B;
-		tx_frame.FIR.B.DLC = 8;
-		tx_frame.data.u8[0] = 0x00;
-		tx_frame.data.u8[1] = 0x00;
-		tx_frame.data.u8[2] = 0x06;
-		tx_frame.data.u8[3] = 0xC0; //HCM_WakeUpSleepCmd = Wakeup
-		tx_frame.data.u8[4] = 0x00;
-		tx_frame.data.u8[5] = 0x00;
-		tx_frame.data.u8[6] = 0x00;
-		tx_frame.data.u8[7] = 0x00;
-
-		ESP32Can.CANWriteFrame(&tx_frame);
-		Serial.println("CAN send 50B done");
-
-		tx_frame.MsgID = 0x50C;
-		tx_frame.FIR.B.DLC = 8;
-		tx_frame.data.u8[0] = 0x00;
-		tx_frame.data.u8[1] = 0x00;
-		tx_frame.data.u8[2] = 0x00;
-		tx_frame.data.u8[3] = 0x00;
-		tx_frame.data.u8[4] = 0x00;
 		if (mprun100 == 0)
 		{
-			tx_frame.data.u8[5] = 0x00;
-			tx_frame.data.u8[6] = 0x5D;
-			tx_frame.data.u8[7] = 0xC8;
+			LEAF_50C.data.u8[5] = 0x00;
+			LEAF_50C.data.u8[6] = 0x5D;
+			LEAF_50C.data.u8[7] = 0xC8;
 		}
-		if (mprun100 == 1)
+		else if(mprun100 == 1)
 		{
-			tx_frame.data.u8[5] = 0x01;
-			tx_frame.data.u8[6] = 0x5D;
-			tx_frame.data.u8[7] = 0x5F;
+			LEAF_50C.data.u8[5] = 0x01;
+			LEAF_50C.data.u8[6] = 0x5D;
+			LEAF_50C.data.u8[7] = 0x5F;
 		}
-		if (mprun100 == 2)
+		else if(mprun100 == 2)
 		{
-			tx_frame.data.u8[5] = 0x02;
-			tx_frame.data.u8[6] = 0x5D;
-			tx_frame.data.u8[7] = 0x63;
+			LEAF_50C.data.u8[5] = 0x02;
+			LEAF_50C.data.u8[6] = 0x5D;
+			LEAF_50C.data.u8[7] = 0x63;
 		}
-		if (mprun100 == 3)
+		else if(mprun100 == 3)
 		{
-			tx_frame.data.u8[5] = 0x03;
-			tx_frame.data.u8[6] = 0x5D;
-			tx_frame.data.u8[7] = 0xF4;
+			LEAF_50C.data.u8[5] = 0x03;
+			LEAF_50C.data.u8[6] = 0x5D;
+			LEAF_50C.data.u8[7] = 0xF4;
 		}
-		ESP32Can.CANWriteFrame(&tx_frame);
-		Serial.println("CAN send 50C done");
+		ESP32Can.CANWriteFrame(&LEAF_50C);
 	}
-
+  //Send 10ms message
 	if (currentMillis - previousMillis10 >= interval10)
-	{
+	{ 
 		previousMillis10 = currentMillis;
+
+    if(mprun10 == 0)
+    {
+      LEAF_1F2.data.u8[6] = 0x00;
+      LEAF_1F2.data.u8[7] = 0x8F;
+    }
+    else if(mprun10 == 1)
+    {
+      LEAF_1F2.data.u8[6] = 0x01;
+      LEAF_1F2.data.u8[7] = 0x80;
+    }
+    else if(mprun10 == 2)
+    {
+      LEAF_1F2.data.u8[6] = 0x02;
+      LEAF_1F2.data.u8[7] = 0x81;
+    }
+    else if(mprun10 == 3)
+    {
+      LEAF_1F2.data.u8[6] = 0x03;
+      LEAF_1F2.data.u8[7] = 0x82;
+    }
+    ESP32Can.CANWriteFrame(&LEAF_1F2);
+
 		mprun10++;
 		if (mprun10 > 3)
 		{
 			mprun10 = 0;
 		}
-
-		CAN_frame_t tx_frame;
-		tx_frame.FIR.B.FF = CAN_frame_std;
-		tx_frame.MsgID = 0x1F2;
-		tx_frame.FIR.B.DLC = 8;
-		tx_frame.data.u8[0] = 0x64;
-		tx_frame.data.u8[1] = 0x64;
-		tx_frame.data.u8[2] = 0x32;
-		tx_frame.data.u8[3] = 0xA0;
-		tx_frame.data.u8[4] = 0x00;
-		tx_frame.data.u8[5] = 0x0A;
-		if (mprun10 == 0)
-		{
-			tx_frame.data.u8[6] = 0x00;
-			tx_frame.data.u8[7] = 0x8F;
-		}
-		if (mprun10 == 1)
-		{
-			tx_frame.data.u8[6] = 0x01;
-			tx_frame.data.u8[7] = 0x80;
-		}
-		if (mprun10 == 2)
-		{
-			tx_frame.data.u8[6] = 0x02;
-			tx_frame.data.u8[7] = 0x81;
-		}
-		if (mprun10 == 3)
-		{
-			tx_frame.data.u8[6] = 0x03;
-			tx_frame.data.u8[7] = 0x82;
-		}
-		ESP32Can.CANWriteFrame(&tx_frame);
-		Serial.println("CAN send 1F2 done");
+		//Serial.println("CAN 10ms done");
 	}
 }
