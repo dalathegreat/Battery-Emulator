@@ -26,15 +26,15 @@ CAN_frame_t LEAF_50C = {.MsgID = 0x50C, LEAF_50C.FIR.B.DLC = 8, LEAF_50C.FIR.B.F
 
 //Nissan LEAF battery parameters from CAN
 #define WH_PER_GID 77 //One GID is this amount of Watt hours
-int LB_Discharge_Power_Limit = 0; //Limit in kW
-int LB_MAX_POWER_FOR_CHARGER = 0; //Limit in kW
-int LB_SOC = 0; //0 - 100.0 % (0-1000)
-long LB_Wh_Remaining = 0; //Amount of energy in battery, in Wh
-int LB_GIDS = 0;
-int LB_MAX = 0;
-int LB_Max_GIDS = 273; //Startup in 24kWh mode
-int16_t LB_Current = 0; //Current in kW going in/out of battery
-int LB_Total_Voltage = 370; //Battery voltage (0-450V)
+uint16_t LB_Discharge_Power_Limit = 0; //Limit in kW
+uint16_t LB_MAX_POWER_FOR_CHARGER = 0; //Limit in kW
+uint16_t LB_SOC = 0; //0 - 100.0 % (0-1000)
+uint16_t LB_Wh_Remaining = 0; //Amount of energy in battery, in Wh
+uint16_t LB_GIDS = 0;
+uint16_t LB_MAX = 0;
+uint16_t LB_Max_GIDS = 273; //Startup in 24kWh mode
+int16_t LB_Current = 0; //Current in A going in/out of battery
+uint16_t LB_Total_Voltage = 370; //Battery voltage (0-450V)
 
 // global Modbus memory registers
 const int intervalModbusTask = 4800; //Interval at which to refresh modbus registers
@@ -132,8 +132,22 @@ void update_values()
 	SOC = (LB_SOC * 10); //increase range from 0-100.0 -> 100.00
 	capacity_Wh = (LB_Max_GIDS * WH_PER_GID);
 	remaining_capacity_Wh = LB_Wh_Remaining;
-	max_target_discharge_power = (LB_Discharge_Power_Limit * 1000); //kW to W
-	max_target_charge_power = (LB_MAX_POWER_FOR_CHARGER * 1000); //kW to W
+  if(LB_Discharge_Power_Limit > 60) //if >60kW can be pulled from battery
+  {
+    max_target_discharge_power = 60000; //cap value so we don't go over 16bits
+  }
+  else
+  {
+    max_target_discharge_power = (LB_Discharge_Power_Limit * 1000); //kW to W
+  }
+  if(LB_MAX_POWER_FOR_CHARGER > 60)
+  {
+    max_target_charge_power = 60000; //cap value so we don't go over 16bits
+  }
+  else
+  {
+    max_target_charge_power = (LB_MAX_POWER_FOR_CHARGER * 1000); //kW to W
+  }
 	TemperatureMin = 50; //hardcoded, todo, read from 5C0
 	TemperatureMax = 60; //hardcoded, todo, read from 5C0
 }
@@ -179,12 +193,12 @@ void handle_update_data_modbusp201() {
 void handle_update_data_modbusp301() {
   // Store the data into the array
   static uint16_t battery_data[23];
-  if (LB_Current > 0) {
-    bms_char_dis_status = 1;  //Discharging
-  } else if (LB_Current < 0) {
-    bms_char_dis_status = 2;  //Charging
+  if (LB_Current > 0) { //Positive value = Charging on LEAF 
+    bms_char_dis_status = 2; //Charging
+  } else if (LB_Current < 0) { //Negative value = Discharging on LEAF
+    bms_char_dis_status = 1; //Discharging
   } else { //LB_Current == 0
-    bms_char_dis_status = 0;
+    bms_char_dis_status = 0; //idle
   }
 
   bms_status = 3; //Todo add logic here
@@ -236,20 +250,17 @@ void handle_can()
       switch (rx_frame.MsgID)
 			{
       case 0x1DB:
-        printf("1DB \n");
-				LB_Current = (rx_frame.data.u8[0] << 3) | (rx_frame.data.u8[1] & 0xe0) >> 5; //TODO TEST THIS
-        if (LB_Current & 0x0400)//TODO TEST THIS
+				LB_Current = (rx_frame.data.u8[0] << 3) | (rx_frame.data.u8[1] & 0xe0) >> 5;
+        if (LB_Current & 0x0400)
         {
           // negative so extend the sign bit
-          LB_Current |= 0xf800; //TODO TEST THIS
+          LB_Current |= 0xf800;
         }
-        Serial.println(LB_Current);//TODO TEST THIS
 				LB_Total_Voltage = ((rx_frame.data.u8[2] << 2) | (rx_frame.data.u8[3] & 0xc0) >> 6) / 2;
 				break;
 			case 0x1DC:
 				LB_Discharge_Power_Limit = ((rx_frame.data.u8[0] << 2 | rx_frame.data.u8[1] >> 6) / 4.0);
-				LB_MAX_POWER_FOR_CHARGER = ((((rx_frame.data.u8[2] & 0x0F) << 6 | rx_frame.data.u8[3] >> 2) / 10.0) -
-					10); //check if -10 is correct offset
+				LB_MAX_POWER_FOR_CHARGER = ((((rx_frame.data.u8[2] & 0x0F) << 6 | rx_frame.data.u8[3] >> 2) / 10.0) - 10);
 				break;
 			case 0x55B:
 				LB_SOC = (rx_frame.data.u8[0] << 2 | rx_frame.data.u8[1] >> 6);
