@@ -5,10 +5,6 @@
 #ifndef _EMODBUS_OPTIONS_H
 #define _EMODBUS_OPTIONS_H
 
-#ifndef RXFIFO_FULL_THRHD_PATCHED
-#define RXFIFO_FULL_THRHD_PATCHED 0
-#endif
-
 /* === ESP32 DEFINITIONS AND MACROS === */
 #if defined(ESP32) 
 #include <Arduino.h>

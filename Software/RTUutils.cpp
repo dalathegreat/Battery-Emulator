@@ -102,65 +102,18 @@ void RTUutils::addCRC(ModbusMessage& raw) {
 }
 
 // calculateInterval: determine the minimal gap time between messages
-uint32_t RTUutils::calculateInterval(HardwareSerial& s, uint32_t overwrite) {
+uint32_t RTUutils::calculateInterval(uint32_t baudRate) {
   uint32_t interval = 0;
 
   // silent interval is at least 3.5x character time
-  interval = 35000000UL / s.baudRate();  // 3.5 * 10 bits * 1000 µs * 1000 ms / baud
+  interval = 35000000UL / baudRate;  // 3.5 * 10 bits * 1000 µs * 1000 ms / baud
   if (interval < 1750) interval = 1750;       // lower limit according to Modbus RTU standard
-  // User overwrite?
-  if (overwrite > interval) {
-    interval = overwrite;
-  }
+  LOG_V("Calc interval(%u)=%u\n", baudRate, interval);
   return interval;
 }
 
-// UARTinit: modify the UART FIFO copy trigger threshold 
-// This is normally set to 112 by default, resulting in short messages not being 
-// recognized fast enough for higher Modbus bus speeds
-// Our default is 1 - every single byte arriving will have the UART FIFO
-// copied to the serial buffer.
-int RTUutils::UARTinit(HardwareSerial& serial, int thresholdBytes) {
-  int rc = 0;
-#if NEED_UART_PATCH
-  // Is the threshold value valid? The UART FIFO is 128 bytes only
-  if (thresholdBytes > 0 && thresholdBytes < 128) {
-    // Yes, it is. Try to identify the Serial/Serial1/Serial2 the user has provided.
-    uart_dev_t *uart = nullptr;
-    uint8_t uart_num = 99;
-    if (&serial == &Serial) {
-      uart_num = 0;
-      uart = &UART0;
-    } else {
-      if (&serial == &Serial1) {
-        uart_num = 1;
-        uart = &UART1;
-      } else {
-        if (&serial == &Serial2) {
-          uart_num = 2;
-          uart = &UART2;
-        }
-      }
-    }
-    // Is it a defined serial?
-    if (uart_num != 99) {
-      // Yes. get the current value and set ours instead
-      rc = uart->conf1.rxfifo_full_thrhd;
-      uart->conf1.rxfifo_full_thrhd = thresholdBytes;
-      LOG_D("Serial%u FIFO threshold set to %d (was %d)\n", uart_num, thresholdBytes, rc);
-    } else {
-      LOG_W("Unable to identify serial\n");
-    }
-  } else {
-    LOG_E("Threshold must be between 1 and 127! (was %d)", thresholdBytes);
-  }
-#endif
-  // Return the previous value in case someone likes to see it.
-  return rc;
-}
-
 // send: send a message via Serial, watching interval times - including CRC!
-void RTUutils::send(HardwareSerial& serial, unsigned long& lastMicros, uint32_t interval, RTScallback rts, const uint8_t *data, uint16_t len, bool ASCIImode) {
+void RTUutils::send(Stream& serial, unsigned long& lastMicros, uint32_t interval, RTScallback rts, const uint8_t *data, uint16_t len, bool ASCIImode) {
   // Clear serial buffers
   while (serial.available()) serial.read();
   
@@ -223,12 +176,12 @@ void RTUutils::send(HardwareSerial& serial, unsigned long& lastMicros, uint32_t 
 }
 
 // send: send a message via Serial, watching interval times - including CRC!
-void RTUutils::send(HardwareSerial& serial, unsigned long& lastMicros, uint32_t interval, RTScallback rts, ModbusMessage raw, bool ASCIImode) {
+void RTUutils::send(Stream& serial, unsigned long& lastMicros, uint32_t interval, RTScallback rts, ModbusMessage raw, bool ASCIImode) {
   send(serial, lastMicros, interval, rts, raw.data(), raw.size(), ASCIImode);
 }
 
 // receive: get (any) message from Serial, taking care of timeout and interval
-ModbusMessage RTUutils::receive(HardwareSerial& serial, uint32_t timeout, unsigned long& lastMicros, uint32_t interval, bool ASCIImode, bool skipLeadingZeroBytes) {
+ModbusMessage RTUutils::receive(uint8_t caller, Stream& serial, uint32_t timeout, unsigned long& lastMicros, uint32_t interval, bool ASCIImode, bool skipLeadingZeroBytes) {
   // Allocate initial receive buffer size: 1 block of BUFBLOCKSIZE bytes
   const uint16_t BUFBLOCKSIZE(512);
   uint8_t *buffer = new uint8_t[BUFBLOCKSIZE];
@@ -270,6 +223,7 @@ ModbusMessage RTUutils::receive(HardwareSerial& serial, uint32_t timeout, unsign
           // Do we need to skip it, if it is zero?
           if (b > 0 || !skipLeadingZeroBytes) {
             // No, we can go process it regularly
+            buffer[bufferPtr++] = b;
             state = IN_PACKET;
           } 
         } else {
@@ -283,17 +237,12 @@ ModbusMessage RTUutils::receive(HardwareSerial& serial, uint32_t timeout, unsign
         break;
       // IN_PACKET: read data until a gap of at least _interval time passed without another byte arriving
       case IN_PACKET:
-        // Are we past the interval gap without another byte?
-        if (micros() - lastMicros >= interval) {
-          // Yes, terminate reading
-          LOG_V("%ldus without data\n", micros() - lastMicros);
-          state = DATA_READ;
-        } else {
-          // No, still in reading sequence
-          // Did we get a byte?
-          if (b >= 0) {
+        // tight loop until finished reading or error
+        while (state == IN_PACKET) {
+          // Is there a byte?
+          while (serial.available()) {
             // Yes, collect it
-            buffer[bufferPtr++] = b;
+            buffer[bufferPtr++] = serial.read();
             // Mark time of last byte
             lastMicros = micros();
             // Buffer full?
@@ -303,15 +252,24 @@ ModbusMessage RTUutils::receive(HardwareSerial& serial, uint32_t timeout, unsign
               state = FINISHED;
               break;
             }
+          } 
+          // No more byte read
+          if (state == IN_PACKET) {
+            // Are we past the interval gap?
+            if (micros() - lastMicros >= interval) {
+              // Yes, terminate reading
+              LOG_V("%c/%ldus without data after %u\n", (const char)caller, micros() - lastMicros, bufferPtr);
+              state = DATA_READ;
+              break;
+            }
           }
-          // Buffer has space left - try to read another byte
-          b = serial.read();
         }
         break;
       // DATA_READ: successfully gathered some data. Prepare return object.
       case DATA_READ:
         // Did we get a sensible buffer length?
-        HEXDUMP_D("Raw buffer received", buffer, bufferPtr);
+        LOG_V("%c/", (const char)caller);
+        HEXDUMP_V("Raw buffer received", buffer, bufferPtr);
         if (bufferPtr >= 4)
         {
           // Yes. Check CRC
@@ -431,7 +389,8 @@ ModbusMessage RTUutils::receive(HardwareSerial& serial, uint32_t timeout, unsign
             case A_WAIT_LEAD_OUT:
               if (b == 0xF2) {
                 // Lead-out byte 2 received. Transfer buffer to returned message
-                HEXDUMP_D("Raw buffer received", buffer, bufferPtr);
+                LOG_V("%c/", (const char)caller);
+                HEXDUMP_V("Raw buffer received", buffer, bufferPtr);
                 // Did we get a sensible buffer length?
                 if (bufferPtr >= 3)
                 {
@@ -474,6 +433,7 @@ ModbusMessage RTUutils::receive(HardwareSerial& serial, uint32_t timeout, unsign
   // Deallocate buffer
   delete[] buffer;
 
+  LOG_D("%c/", (const char)caller);
   HEXDUMP_D("Received packet", rv.data(), rv.size());
 
   return rv;

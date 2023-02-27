@@ -10,7 +10,7 @@
 #if HAS_FREERTOS
 
 #include "ModbusClient.h"
-#include "HardwareSerial.h"
+#include "Stream.h"
 #include "RTUutils.h"
 #include <queue>
 #include <vector>
@@ -22,16 +22,18 @@ using std::queue;
 class ModbusClientRTU : public ModbusClient {
 public:
   // Constructor takes Serial reference and optional DE/RE pin and queue limit
-  explicit ModbusClientRTU(HardwareSerial& serial, int8_t rtsPin = -1, uint16_t queueLimit = 100);
+  explicit ModbusClientRTU(int8_t rtsPin = -1, uint16_t queueLimit = 100);
 
   // Alternative Constructor takes Serial reference and RTS line toggle callback
-  explicit ModbusClientRTU(HardwareSerial& serial, RTScallback rts, uint16_t queueLimit = 100);
+  explicit ModbusClientRTU(RTScallback rts, uint16_t queueLimit = 100);
 
   // Destructor: clean up queue, task etc.
   ~ModbusClientRTU();
 
   // begin: start worker task
-  void begin(int coreID = -1, uint32_t interval = 0);
+  void begin(Stream& serial, uint32_t baudrate, int coreID = -1);
+  // Special variant for HardwareSerial
+  void begin(HardwareSerial& serial, int coreID = -1);
 
   // end: stop the worker
   void end();
@@ -81,12 +83,15 @@ protected:
   // receive: get response via Serial
   ModbusMessage receive(const ModbusMessage request);
 
+  // start background task
+  void doBegin(uint32_t baudRate, int coreID);
+
   void isInstance() { return; }   // make class instantiable
   queue<RequestEntry> requests;   // Queue to hold requests to be processed
   #if USE_MUTEX
   mutex qLock;                    // Mutex to protect queue
   #endif
-  HardwareSerial& MR_serial;      // Ptr to the serial interface used
+  Stream *MR_serial;              // Ptr to the serial interface used
   unsigned long MR_lastMicros;    // Microseconds since last bus activity
   uint32_t MR_interval;           // Modbus RTU bus quiet time
   int8_t MR_rtsPin;               // GPIO pin to toggle RS485 DE/RE line. -1 if none.

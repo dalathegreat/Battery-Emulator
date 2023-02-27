@@ -33,18 +33,22 @@ long LB_Wh_Remaining = 0; //Amount of energy in battery, in Wh
 int LB_GIDS = 0;
 int LB_MAX = 0;
 int LB_Max_GIDS = 273; //Startup in 24kWh mode
-int LB_Current = 0; //Current in kW going in/out of battery
-int LB_Total_Voltage = 0; //Battery voltage (0-450V)
+int16_t LB_Current = 0; //Current in kW going in/out of battery
+int LB_Total_Voltage = 370; //Battery voltage (0-450V)
 
 // global Modbus memory registers
-const int intervalModbusTask = 10000; //Interval at which to refresh modbus registers
+const int intervalModbusTask = 4800; //Interval at which to refresh modbus registers
 unsigned long previousMillisModbus = 0; //will store last time a modbus register refresh
-uint16_t mbPV[30000]; // process variable memory: produced by sensors, etc., cyclic read by PLC via modbus TCP
+// ModbusRTU Server
+#define MB_RTU_NUM_VALUES 30000
+//#define MB_RTU_DIVICE_ID 21
+uint16_t mbPV[MB_RTU_NUM_VALUES];          // process variable memory: produced by sensors, etc., cyclic read by PLC via modbus TCP
+
 uint16_t capacity_Wh_startup = BATTERY_WH_MAX;
 uint16_t MaxPower = 40960; //41kW TODO, fetch from LEAF battery (or does it matter, polled after startup?)
 uint16_t MaxVoltage = 4672; //(467.2V), if higher charging is not possible (goes into forced discharge)
 uint16_t MinVoltage = 3200; //Min Voltage (320.0V), if lower Gen24 disables battery
-uint16_t Status = 3; //ACTIVE - [0..5]<>[STANDBY,INACTIVE,DARKSTART,ACTIVE,FAULT,UPDATING]
+
 uint16_t SOC = 5000; //SOC 0-100.00% //Updates later on from CAN
 uint16_t capacity_Wh = BATTERY_WH_MAX; //Updates later on from CAN
 uint16_t remaining_capacity_Wh = BATTERY_WH_MAX; //Updates later on from CAN
@@ -53,34 +57,8 @@ uint16_t max_target_charge_power = 4312;
 //4.3kW (during charge), both 307&308 can be set (>0) at the same time //Updates later on from CAN
 uint16_t TemperatureMax = 50; //Todo, read from LEAF pack, uint not ok
 uint16_t TemperatureMin = 60; //Todo, read from LEAF pack, uint not ok
-
-// Store the data into the array
-//16-bit int in these modbus-register, two letters at a time. Example p101[1]....(ascii for S) * 256 + (ascii for I) = 21321
-//uint16_t p101_data[] = {21321, 1, 16985, 17408, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 16985, 17408, 16993, 29812, 25970, 31021, 17007, 30720, 20594, 25965, 26997, 27904, 18518, 0, 0, 0, 13614, 12288, 0, 0, 0, 0, 0, 0, 13102, 12598, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0};
-//Delete the following lines once we know this works :)
-uint16_t p101_data[] = {21321, 1}; //SI
-uint16_t p103_data[] = {16985, 17408, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0}; //BY D 
-uint16_t p119_data[] = {
-	16985, 17440, 16993, 29812, 25970, 31021, 17007, 30752, 20594, 25965, 26997, 27936, 18518, 0, 0, 0
-}; //BY D  Ba tt er y- Bo x  Pr em iu m  HV
-uint16_t p135_data[] = {13614, 12288, 0, 0, 0, 0, 0, 0, 13102, 12598, 0, 0, 0, 0, 0, 0}; //5.0 3.16
-uint16_t p151_data[] = {0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0}; //Serial number for battery
-uint16_t p167_data[] = {1, 0};
-uint16_t p201_data[] = {
-	0, 0, capacity_Wh_startup, MaxPower, MaxPower, MaxVoltage, MinVoltage, 53248, 10, 53248, 10, 0, 0
-};
-uint16_t p301_data[] = {
-	Status, 0, 128, SOC, capacity_Wh, remaining_capacity_Wh, max_target_discharge_power, max_target_charge_power, 0, 0,
-	2058, 0, TemperatureMin, TemperatureMax, 0, 0, 16, 22741, 0, 0, 13, 52064, 80, 9900
-};
-//These registers get written to
-uint16_t p401_data[] = {1, 255, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0};
-uint16_t p1001_data[] = {
-	0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
-	0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
-	0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0
-};
-uint16_t i;
+uint16_t bms_char_dis_status; //0 idle, 1 discharging, 2, charging
+uint16_t bms_status = 0; //ACTIVE - [0..5]<>[STANDBY,INACTIVE,DARKSTART,ACTIVE,FAULT,UPDATING]
 
 // Create a ModbusRTU server instance listening on Serial2 with 2000ms timeout
 ModbusServerRTU MBserver(Serial2, 2000);
@@ -99,33 +77,39 @@ void setup()
 	ESP32Can.CANInit();
 	Serial.println(CAN_cfg.speed);
 
-	//Modbus pins
-	pinMode(RS485_EN_PIN, OUTPUT);
-	digitalWrite(RS485_EN_PIN, HIGH);
-
-	pinMode(RS485_SE_PIN, OUTPUT);
-	digitalWrite(RS485_SE_PIN, HIGH);
-
-	pinMode(PIN_5V_EN, OUTPUT);
-	digitalWrite(PIN_5V_EN, HIGH);
 	// Init Serial monitor
 	Serial.begin(9600);
 	while (!Serial)
 	{
 	}
 	Serial.println("__ OK __");
-	// Init Static data to the RTU Modbus
-	handle_StaticDataModbus();
-	// Init Serial2 connected to the RTU Modbus
-	// (Fill in your data here!)
-	Serial2.begin(9600, SERIAL_8N1, RS485_RX_PIN, RS485_TX_PIN);
-	// Register served function code worker for server id 21, FC 0x03
-	MBserver.registerWorker(MBTCP_ID, READ_HOLD_REGISTER, &FC03);
-	MBserver.registerWorker(MBTCP_ID, WRITE_HOLD_REGISTER, &FC06);
-	MBserver.registerWorker(MBTCP_ID, WRITE_MULT_REGISTERS, &FC16);
-	MBserver.registerWorker(MBTCP_ID, R_W_MULT_REGISTERS, &FC23);
-	// Start ModbusRTU background task
-	MBserver.start();
+
+  //Set up Modbus RTU Server
+  Serial.println("Set ModbusRtu PIN");
+  pinMode(RS485_EN_PIN, OUTPUT);
+  digitalWrite(RS485_EN_PIN, HIGH);
+
+  pinMode(RS485_SE_PIN, OUTPUT);
+  digitalWrite(RS485_SE_PIN, HIGH);
+
+  pinMode(PIN_5V_EN, OUTPUT);
+  digitalWrite(PIN_5V_EN, HIGH);
+
+  // Init Static data to the RTU Modbus
+  handle_static_data_modbus();
+
+  // Init Serial2 connected to the RTU Modbus
+  RTUutils::prepareHardwareSerial(Serial2);
+  Serial2.begin(9600, SERIAL_8N1, RS485_RX_PIN, RS485_TX_PIN);
+
+  // Register served function code worker for server
+  MBserver.registerWorker(MBTCP_ID, READ_HOLD_REGISTER, &FC03);
+  MBserver.registerWorker(MBTCP_ID, WRITE_HOLD_REGISTER, &FC06);
+  MBserver.registerWorker(MBTCP_ID, WRITE_MULT_REGISTERS, &FC16);
+  MBserver.registerWorker(MBTCP_ID, R_W_MULT_REGISTERS, &FC23);
+
+  // Start ModbusRTU background task
+  MBserver.begin(Serial2);
 }
 
 // perform main program functions
@@ -137,7 +121,8 @@ void loop()
 	{
 		previousMillisModbus = millis();
     update_values();
-		handle_UpdateDataModbus();
+    handle_update_data_modbusp201();  //Updata for ModbusRTU Server for GEN24
+    handle_update_data_modbusp301();  //Updata for ModbusRTU Server for GEN24
 	}
 }
 
@@ -153,57 +138,88 @@ void update_values()
 	TemperatureMax = 60; //hardcoded, todo, read from 5C0
 }
 
-void handle_StaticDataModbus()
-{
-	i = 100;
-	// --- Copy the contents of the static data from the original arrays to the new modbus array ---
-	for (uint16_t j = 0; j < sizeof(p101_data) / sizeof(uint16_t); j++)
-	{
-		mbPV[i] = p101_data[j];
-		i++;
-	}
-	for (uint16_t j = 0; j < sizeof(p103_data) / sizeof(uint16_t); j++)
-	{
-		mbPV[i] = p103_data[j];
-		i++;
-	}
-	for (uint16_t j = 0; j < sizeof(p119_data) / sizeof(uint16_t); j++)
-	{
-		mbPV[i] = p119_data[j];
-		i++;
-	}
-	for (uint16_t j = 0; j < sizeof(p135_data) / sizeof(uint16_t); j++)
-	{
-		mbPV[i] = p135_data[j];
-		i++;
-	}
-	for (uint16_t j = 0; j < sizeof(p151_data) / sizeof(uint16_t); j++)
-	{
-		mbPV[i] = p151_data[j];
-		i++;
-	}
-	for (uint16_t j = 0; j < sizeof(p167_data) / sizeof(uint16_t); j++)
-	{
-		mbPV[i] = p167_data[j];
-		i++;
-	}
+void handle_static_data_modbus() {
+  // Store the data into the array
+  static uint16_t si_data[] = { 21321, 1 };
+  static uint16_t byd_data[] = { 16985, 17408, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 };
+  static uint16_t battery_data[] = { 16985, 17440, 16993, 29812, 25970, 31021, 17007, 30752, 20594, 25965, 26997, 27936, 18518, 0, 0, 0 };
+  static uint16_t volt_data[] = { 13614, 12288, 0, 0, 0, 0, 0, 0, 13102, 12598, 0, 0, 0, 0, 0, 0 };
+  static uint16_t serial_data[] = { 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 };
+  static uint16_t static_data[] = { 1, 0 };
+  static uint16_t* data_array_pointers[] = { si_data, byd_data, battery_data, volt_data, serial_data, static_data };
+  static uint16_t data_sizes[] = { sizeof(si_data), sizeof(byd_data), sizeof(battery_data), sizeof(volt_data), sizeof(serial_data), sizeof(static_data) };
+  static uint16_t i = 100;
+  for (uint8_t arr_idx = 0; arr_idx < sizeof(data_array_pointers) / sizeof(uint16_t*); arr_idx++) {
+    uint16_t data_size = data_sizes[arr_idx];
+    memcpy(&mbPV[i], data_array_pointers[arr_idx], data_size);
+    i += data_size / sizeof(uint16_t);
+  }
 }
 
-void handle_UpdateDataModbus()
-{
-	i = 200;
-	// --- Copy the data contents arrays to the new modbus array ---
-	for (uint16_t j = 0; j < sizeof(p201_data) / sizeof(uint16_t); j++)
-	{
-		mbPV[i] = p201_data[j];
-		i++;
-	}
-	i = 300;
-	for (uint16_t j = 0; j < sizeof(p301_data) / sizeof(uint16_t); j++)
-	{
-		mbPV[i] = p301_data[j];
-		i++;
-	}
+void handle_update_data_modbusp201() {
+  // Store the data into the array
+  static uint16_t system_data[13];
+  system_data[0] = 0;                                                          // Id.: p201 Value.: 0 Scaled value.: 0 Comment.: Always 0
+  system_data[1] = 0;                                                          // Id.: p202 Value.: 0 Scaled value.: 0 Comment.: Always 0
+  system_data[2] = (capacity_Wh_startup);                                      // Id.: p203 Value.: 32000 Scaled value.: 32kWh Comment.: Capacity rated
+  system_data[3] = (capacity_Wh_startup);                                      // Id.: p204 Value.: 32000 Scaled value.: 32kWh Comment.: Nominal capacity
+  system_data[4] = (MaxPower);                                                 // Id.: p205 Value.: 14500 Scaled value.: 30,42kW  Comment.: Max Charge/Discharge Power=10.24kW
+  system_data[5] = (MaxVoltage);                                               // Id.: p206 Value.: 3667 Scaled value.: 362,7VDC Comment.: Max Voltage, if higher charging is not possible (goes into forced discharge)
+  system_data[6] = (MinVoltage);                                               // Id.: p207 Value.: 2776 Scaled value.: 277,6VDC Comment.: Min Voltage, if lower Gen24 disables battery
+  system_data[7] = 53248;                                                      // Id.: p208 Value.: 53248 Scaled value.: 53248 Comment.: Always 53248 for this BYD, Peak Charge power?
+  system_data[8] = 10;                                                         // Id.: p209 Value.: 10 Scaled value.: 10 Comment.: Always 10
+  system_data[9] = 53248;                                                      // Id.: p210 Value.: 53248 Scaled value.: 53248 Comment.: Always 53248 for this BYD, Peak Discharge power?
+  system_data[10] = 10;                                                        // Id.: p211 Value.: 10 Scaled value.: 10 Comment.: Always 10
+  system_data[11] = 0;                                                         // Id.: p212 Value.: 0 Scaled value.: 0 Comment.: Always 0
+  system_data[12] = 0;                                                         // Id.: p213 Value.: 0 Scaled value.: 0 Comment.: Always 0
+  static uint16_t i = 200;
+  memcpy(&mbPV[i], system_data, sizeof(system_data));
+}
+
+void handle_update_data_modbusp301() {
+  // Store the data into the array
+  static uint16_t battery_data[23];
+  if (LB_Current > 0) {
+    bms_char_dis_status = 1;  //Discharging
+  } else if (LB_Current < 0) {
+    bms_char_dis_status = 2;  //Charging
+  } else { //LB_Current == 0
+    bms_char_dis_status = 0;
+  }
+
+  bms_status = 3; //Todo add logic here
+
+  if (bms_status == 3) {
+    battery_data[8] = LB_Total_Voltage;  // Id.: p309 Value.: 3161 Scaled value.: 316,1VDC Comment.: Batt Voltage outer (0 if status !=3, maybe a contactor closes when active): 173.4V
+  } else {
+    battery_data[8] = 0;
+  }
+  battery_data[0] = bms_status;                          // Id.: p301 Value.: 3 Scaled value.: 3 Comment.: status(*): ACTIVE - [0..5]<>[STANDBY,INACTIVE,DARKSTART,ACTIVE,FAULT,UPDATING]
+  battery_data[1] = 0;                                   // Id.: p302 Value.: 0 Scaled value.: 0 Comment.: always 0
+  battery_data[2] = 128 + bms_char_dis_status;           // Id.: p303 Value.: 130 Scaled value.: 130 Comment.: mode(*): normal
+  battery_data[3] = SOC;                                 // Id.: p304 Value.: 1700 Scaled value.: 17% Comment.: soc: 32%
+  battery_data[4] = capacity_Wh;                         // Id.: p305 Value.: 32000 Scaled value.: 32kWh Comment.: tot cap:
+  battery_data[5] = remaining_capacity_Wh;               // Id.: p306 Value.: 13260 Scaled value.: 13,26kWh Comment.: remaining cap: 7.68kWh
+  battery_data[6] = max_target_discharge_power;          // Id.: p307 Value.: 25604 Scaled value.: 25,604kW Comment.: max/target discharge power: 0W (0W > restricts to no discharge)
+  battery_data[7] = max_target_charge_power;             // Id.: p308 Value.: 25604 Scaled value.: 25,604kW Comment.: max/target charge power: 4.3kW (during charge), both 307&308 can be set (>0) at the same time
+  //Battery_data[8] set previously in function           // Id.: p309 Value.: 3161 Scaled value.: 316,1VDC Comment.: Batt Voltage outer (0 if status !=3, maybe a contactor closes when active): 173.4V
+  battery_data[9] = 2000;                                // Id.: p310 Value.: 64121 Scaled value.: 6412,1W Comment.: Current Power to API: if>32768... -(65535-61760)=3775W
+  battery_data[10] = LB_Total_Voltage;                   // Id.: p311 Value.: 3161 Scaled value.: 316,1VDC Comment.: Batt Voltage inner: 173.2V
+  battery_data[11] = 2000;                               // Id.: p312 Value.: 64121 Scaled value.: 6412,1W Comment.: p310
+  battery_data[12] = TemperatureMin;                     // Id.: p313 Value.: 75 Scaled value.: 7,5 Comment.: temp min: 14 degrees (if below 0....65535-t)
+  battery_data[13] = TemperatureMax;                     // Id.: p314 Value.: 95 Scaled value.: 9,5 Comment.: temp max: 15 degrees (if below 0....65535-t)
+  battery_data[14] = 0;                                  // Id.: p315 Value.: 0 Scaled value.: 0 Comment.: always 0
+  battery_data[15] = 0;                                  // Id.: p316 Value.: 0 Scaled value.: 0 Comment.: always 0
+  battery_data[16] = 16;                                 // Id.: p317 Value.: 0 Scaled value.: 0 Comment.: counter charge hi
+  battery_data[17] = 22741;                              // Id.: p318 Value.: 0 Scaled value.: 0 Comment.: counter charge lo....65536*101+9912 = 6629048 Wh?
+  battery_data[18] = 0;                                  // Id.: p319 Value.: 0 Scaled value.: 0 Comment.: always 0
+  battery_data[19] = 0;                                  // Id.: p320 Value.: 0 Scaled value.: 0 Comment.: always 0
+  battery_data[20] = 13;                                 // Id.: p321 Value.: 0 Scaled value.: 0 Comment.: counter discharge hi
+  battery_data[21] = 52064;                              // Id.: p322 Value.: 0 Scaled value.: 0 Comment.: counter discharge lo....65536*92+7448 = 6036760 Wh?
+  battery_data[22] = 80;                                 // Id.: p323 Value.: 0 Scaled value.: 0 Comment.: temp? (23 degrees)
+  battery_data[23] = 9900;                               // Id.: p324 Value.: 0 Scaled value.: 0 Comment.: unknown
+  static uint16_t i = 300;
+  memcpy(&mbPV[i], battery_data, sizeof(battery_data));
 }
 
 void handle_can()
@@ -220,8 +236,14 @@ void handle_can()
       switch (rx_frame.MsgID)
 			{
       case 0x1DB:
-        //printf("1DB \n");
-				LB_Current = (rx_frame.data.u8[0] << 3) | (rx_frame.data.u8[1] & 0xe0) >> 5;
+        printf("1DB \n");
+				LB_Current = (rx_frame.data.u8[0] << 3) | (rx_frame.data.u8[1] & 0xe0) >> 5; //TODO TEST THIS
+        if (LB_Current & 0x0400)//TODO TEST THIS
+        {
+          // negative so extend the sign bit
+          LB_Current |= 0xf800; //TODO TEST THIS
+        }
+        Serial.println(LB_Current);//TODO TEST THIS
 				LB_Total_Voltage = ((rx_frame.data.u8[2] << 2) | (rx_frame.data.u8[3] & 0xc0) >> 6) / 2;
 				break;
 			case 0x1DC:
