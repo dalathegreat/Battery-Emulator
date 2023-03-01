@@ -21,20 +21,35 @@ byte mprun10 = 0; //counter 0-3
 byte mprun100 = 0; //counter 0-3
 
 CAN_frame_t LEAF_1F2 = {.MsgID = 0x1F2, LEAF_1F2.FIR.B.DLC = 8, LEAF_1F2.FIR.B.FF = CAN_frame_std, LEAF_1F2.data.u8[0] = 0x64, LEAF_1F2.data.u8[1] = 0x64,LEAF_1F2.data.u8[2] = 0x32, LEAF_1F2.data.u8[3] = 0xA0,LEAF_1F2.data.u8[4] = 0x00,LEAF_1F2.data.u8[5] = 0x0A};
-CAN_frame_t LEAF_50B = {.MsgID = 0x50B, LEAF_50B.FIR.B.DLC = 8, LEAF_50B.FIR.B.FF = CAN_frame_std, LEAF_50B.data.u8[0] = 0x00, LEAF_50B.data.u8[1] = 0x00,LEAF_50B.data.u8[2] = 0x06, LEAF_50B.data.u8[3] = 0xC0,LEAF_50B.data.u8[4] = 0x00,LEAF_50B.data.u8[5] = 0x00};
+CAN_frame_t LEAF_50B = {.MsgID = 0x50B, LEAF_50B.FIR.B.DLC = 7, LEAF_50B.FIR.B.FF = CAN_frame_std, LEAF_50B.data.u8[0] = 0x00, LEAF_50B.data.u8[1] = 0x00,LEAF_50B.data.u8[2] = 0x06, LEAF_50B.data.u8[3] = 0xC0,LEAF_50B.data.u8[4] = 0x00,LEAF_50B.data.u8[5] = 0x00};
 CAN_frame_t LEAF_50C = {.MsgID = 0x50C, LEAF_50C.FIR.B.DLC = 8, LEAF_50C.FIR.B.FF = CAN_frame_std, LEAF_50C.data.u8[0] = 0x00, LEAF_50C.data.u8[1] = 0x00,LEAF_50C.data.u8[2] = 0x00, LEAF_50C.data.u8[3] = 0x00,LEAF_50C.data.u8[4] = 0x00,LEAF_50C.data.u8[5] = 0x00};
 
 //Nissan LEAF battery parameters from CAN
 #define WH_PER_GID 77 //One GID is this amount of Watt hours
 uint16_t LB_Discharge_Power_Limit = 0; //Limit in kW
 uint16_t LB_MAX_POWER_FOR_CHARGER = 0; //Limit in kW
-uint16_t LB_SOC = 0; //0 - 100.0 % (0-1000)
+uint16_t LB_SOC = 500; //0 - 100.0 % (0-1000)
 uint16_t LB_Wh_Remaining = 0; //Amount of energy in battery, in Wh
 uint16_t LB_GIDS = 0;
 uint16_t LB_MAX = 0;
 uint16_t LB_Max_GIDS = 273; //Startup in 24kWh mode
-int16_t LB_Current = 0; //Current in A going in/out of battery
 uint16_t LB_Total_Voltage = 370; //Battery voltage (0-450V)
+int16_t LB_Current = 0; //Current in A going in/out of battery
+uint8_t LB_HistData_Temperature_MAX = 0; //-40 to 86*C
+uint8_t LB_HistData_Temperature_MIN = 0; //-40 to 86*C
+uint8_t LB_Relay_Cut_Request = 0; //LB_FAIL
+uint8_t LB_Failsafe_Status = 0; //LB_STATUS = 000b = normal start Request
+                                            //001b = Main Relay OFF Request
+                                            //010b = Charging Mode Stop Request
+                                            //011b =  Main Relay OFF Request
+                                            //100b = Caution Lamp Request
+                                            //101b = Caution Lamp Request &  Main Relay OFF Request
+                                            //110b = Caution Lamp Request & Charging Mode Stop Request
+                                            //111b = Caution Lamp Request & Main Relay OFF Request
+byte LB_Interlock = 0; //Contains info on if HV leads are seated
+byte LB_Full_CHARGE_flag = 0; //LB_FCHGEND , Goes to 1 if battery is fully charged
+byte LB_MainRelayOn_flag = 0; //No-Permission=0, Main Relay On Permission=1
+byte LB_Capacity_Empty = 0; //LB_EMPTY, , Goes to 1 if battery is empty
 
 // global Modbus memory registers
 const int intervalModbusTask = 4800; //Interval at which to refresh modbus registers
@@ -46,8 +61,8 @@ uint16_t mbPV[MB_RTU_NUM_VALUES];          // process variable memory: produced 
 
 uint16_t capacity_Wh_startup = BATTERY_WH_MAX;
 uint16_t MaxPower = 40960; //41kW TODO, fetch from LEAF battery (or does it matter, polled after startup?)
-uint16_t MaxVoltage = 4672; //(467.2V), if higher charging is not possible (goes into forced discharge)
-uint16_t MinVoltage = 3200; //Min Voltage (320.0V), if lower Gen24 disables battery
+uint16_t MaxVoltage = 4040; //(404.4V), if higher charging is not possible (goes into forced discharge)
+uint16_t MinVoltage = 3100; //Min Voltage (310.0V), if lower Gen24 disables battery
 
 uint16_t SOC = 5000; //SOC 0-100.00% //Updates later on from CAN
 uint16_t capacity_Wh = BATTERY_WH_MAX; //Updates later on from CAN
@@ -257,6 +272,13 @@ void handle_can()
           LB_Current |= 0xf800;
         }
 				LB_Total_Voltage = ((rx_frame.data.u8[2] << 2) | (rx_frame.data.u8[3] & 0xc0) >> 6) / 2;
+        
+        //Collect various data from the BMS
+        LB_Relay_Cut_Request = ((rx_frame.data.u8[1] & 0x18) >> 3);
+        LB_Failsafe_Status = (rx_frame.data.u8[1] & 0x07);
+        LB_MainRelayOn_flag = (byte) ((rx_frame.data.u8[3] & 0x20) >> 5);
+        LB_Full_CHARGE_flag = (byte) ((rx_frame.data.u8[3] & 0x10) >> 4);
+        LB_Interlock = (byte) ((rx_frame.data.u8[3] & 0x08) >> 3);
 				break;
 			case 0x1DC:
 				LB_Discharge_Power_Limit = ((rx_frame.data.u8[0] << 2 | rx_frame.data.u8[1] >> 6) / 4.0);
@@ -280,6 +302,16 @@ void handle_can()
 					LB_Wh_Remaining = (LB_GIDS * WH_PER_GID);
 				}
 				break;
+      case 0x5C0:
+        if ((rx_frame.data.u8[0]>>6) == 1)
+        { // Battery Temperature. Effectively has only 7-bit precision, as the bottom bit is always 0.
+          LB_HistData_Temperature_MAX = ((rx_frame.data.u8[2] / 2) - 40);
+        }
+        if ((rx_frame.data.u8[0]>>6) == 3)
+        { // Battery Temperature. Effectively has only 7-bit precision, as the bottom bit is always 0.
+          LB_HistData_Temperature_MIN = ((rx_frame.data.u8[2] / 2) - 40);
+        }
+        break;
       default:
 				break;
       }      
@@ -294,7 +326,7 @@ void handle_can()
 	{
 		previousMillis100 = currentMillis;
 
-    ESP32Can.CANWriteFrame(&LEAF_50B); //Always send 50B as a static message
+    ESP32Can.CANWriteFrame(&LEAF_50B); //Always send 50B as a static message (Contains HCM_WakeUpSleepCommand == 11b == WakeUp, and CANMASK = 1)
 
 		mprun100++;
 		if (mprun100 > 3)
@@ -353,7 +385,7 @@ void handle_can()
       LEAF_1F2.data.u8[6] = 0x03;
       LEAF_1F2.data.u8[7] = 0x82;
     }
-    ESP32Can.CANWriteFrame(&LEAF_1F2);
+    ESP32Can.CANWriteFrame(&LEAF_1F2); //Contains (CHG_STA_RQ == 1 == Normal Charge)
 
 		mprun10++;
 		if (mprun10 > 3)
