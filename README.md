@@ -1,9 +1,11 @@
 # BYD-Battery-Emulator-For-Gen24
-This software converts the LEAF CAN into Modbus RTU registers understood by solar inverters that accept the BYD 11kWh HVM battery
+This software converts the LEAF CAN into Modbus RTU registers understood by solar inverters that accept the BYD 11kWh HVM battery. This enables a very easy way to use EV batteries for plug'n'play storage solutions.
 
 ## Hardware requirements
 This code fits on the LilyGo ESP32 T-CAN485 devboard , see https://github.com/Xinyuan-LilyGO/T-CAN485
+
 You will also need a Nissan LEAF battery, any model year will do
+
 Finally, you will need a hybrid solar inverter that accepts the BYD battery communication standard, for example the Fronius Gen24
 
 ## Installation basics
