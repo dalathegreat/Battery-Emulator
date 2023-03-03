@@ -7,9 +7,12 @@
 #include "ESP32CAN.h"
 #include "CAN_config.h"
 
-//Battery size
-#define BATTERY_WH_MAX 30000
+/* User definable settings */
+#define BATTERY_WH_MAX 30000 //Battery size in Wh
+#define MAXPERCENTAGE 800 //80.0% , Max percentage the battery will charge to (App will show 100% once this value is reached)
+#define MINPERCENTAGE 200 //20.0% , Min percentage the battery will discharge to (App will show 0% once this value is reached)
 
+/* Do not change code below unless you are sure what you are doing */
 //CAN parameters
 CAN_device_t CAN_cfg; // CAN Config
 unsigned long previousMillis10 = 0; // will store last time a 10ms CAN Message was send
@@ -25,10 +28,12 @@ CAN_frame_t LEAF_50B = {.MsgID = 0x50B, LEAF_50B.FIR.B.DLC = 7, LEAF_50B.FIR.B.F
 CAN_frame_t LEAF_50C = {.MsgID = 0x50C, LEAF_50C.FIR.B.DLC = 8, LEAF_50C.FIR.B.FF = CAN_frame_std, LEAF_50C.data.u8[0] = 0x00, LEAF_50C.data.u8[1] = 0x00,LEAF_50C.data.u8[2] = 0x00, LEAF_50C.data.u8[3] = 0x00,LEAF_50C.data.u8[4] = 0x00,LEAF_50C.data.u8[5] = 0x00};
 
 //Nissan LEAF battery parameters from CAN
-#define WH_PER_GID 77 //One GID is this amount of Watt hours
+#define WH_PER_GID 77   //One GID is this amount of Watt hours
+#define LB_MAX_SOC 1000  //LEAF BMS never goes over this value. We use this info to rescale SOC% sent to Fronius
+#define LB_MIN_SOC 0   //LEAF BMS never goes below this value. We use this info to rescale SOC% sent to Fronius
 uint16_t LB_Discharge_Power_Limit = 0; //Limit in kW
 uint16_t LB_MAX_POWER_FOR_CHARGER = 0; //Limit in kW
-uint16_t LB_SOC = 500; //0 - 100.0 % (0-1000)
+int16_t LB_SOC = 500; //0 - 100.0 % (0-1000)
 uint16_t LB_Wh_Remaining = 0; //Amount of energy in battery, in Wh
 uint16_t LB_GIDS = 0;
 uint16_t LB_MAX = 0;
@@ -142,9 +147,21 @@ void loop()
 }
 
 void update_values()
-{
+{ //This function maps all the values fetched via CAN to the correct parameters used for modbus
+
+  //Calculate the SOC% value to send to Fronius
+  LB_SOC = LB_MIN_SOC + (LB_MAX_SOC - LB_MIN_SOC) * (LB_SOC - MINPERCENTAGE) / (MAXPERCENTAGE - MINPERCENTAGE); 
+  if (LB_SOC < 0)
+  { //We are in the real SOC% range of 0-20%, always set SOC sent to Fronius as 0%
+      LB_SOC = 0;
+  }
+  if (LB_SOC > 1000)
+  { //We are in the real SOC% range of 80-100%, always set SOC sent to Fronius as 100%
+      LB_SOC = 1000;
+  }
+  SOC = (LB_SOC * 10); //increase range from 0-100.0 -> 100.00
+
 	MaxPower = (LB_Discharge_Power_Limit * 1000); //kW to W
-	SOC = (LB_SOC * 10); //increase range from 0-100.0 -> 100.00
 	capacity_Wh = (LB_Max_GIDS * WH_PER_GID);
 	remaining_capacity_Wh = LB_Wh_Remaining;
   if(LB_Discharge_Power_Limit > 60) //if >60kW can be pulled from battery
