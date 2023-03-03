@@ -1,6 +1,8 @@
 # BYD-Battery-Emulator-For-Gen24 ⚡🔋
 This software converts the LEAF CAN into Modbus RTU registers understood by solar inverters that accept the BYD 11kWh HVM battery. This enables a very easy way to use EV batteries for plug'n'play storage solutions.
 
+![alt text](https://github.com/dalathegreat/BYD-Battery-Emulator-For-Gen24/blob/main/Images/Fronius.png)
+
 ## Hardware requirements 📜
 This code fits on the LilyGo ESP32 T-CAN485 devboard , see https://github.com/Xinyuan-LilyGO/T-CAN485
 
