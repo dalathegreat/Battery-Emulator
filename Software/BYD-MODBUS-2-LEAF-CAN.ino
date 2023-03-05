@@ -11,6 +11,7 @@
 #define BATTERY_WH_MAX 30000 //Battery size in Wh (Maximum value Fronius accepts is 60000 [60kWh])
 #define MAXPERCENTAGE 800 //80.0% , Max percentage the battery will charge to (App will show 100% once this value is reached)
 #define MINPERCENTAGE 200 //20.0% , Min percentage the battery will discharge to (App will show 0% once this value is reached)
+byte printValues = 1; //Should modbus values be printed to serial output? 
 
 /* Do not change code below unless you are sure what you are doing */
 //CAN parameters
@@ -32,7 +33,7 @@ CAN_frame_t LEAF_50C = {.MsgID = 0x50C, LEAF_50C.FIR.B.DLC = 8, LEAF_50C.FIR.B.F
 #define LB_MAX_SOC 1000  //LEAF BMS never goes over this value. We use this info to rescale SOC% sent to Fronius
 #define LB_MIN_SOC 0   //LEAF BMS never goes below this value. We use this info to rescale SOC% sent to Fronius
 uint16_t LB_Discharge_Power_Limit = 0; //Limit in kW
-uint16_t LB_MAX_POWER_FOR_CHARGER = 0; //Limit in kW
+int16_t LB_MAX_POWER_FOR_CHARGER = 0; //Limit in kW
 int16_t LB_SOC = 500; //0 - 100.0 % (0-1000)
 uint16_t LB_Wh_Remaining = 0; //Amount of energy in battery, in Wh
 uint16_t LB_GIDS = 0;
@@ -52,7 +53,7 @@ uint8_t LB_Failsafe_Status = 0; //LB_STATUS = 000b = normal start Request
                                             //101b = Caution Lamp Request &  Main Relay OFF Request
                                             //110b = Caution Lamp Request & Charging Mode Stop Request
                                             //111b = Caution Lamp Request & Main Relay OFF Request
-byte LB_Interlock = 0; //Contains info on if HV leads are seated
+byte LB_Interlock = 0; //Contains info on if HV leads are seated (Note, to use this both HV connectors need to be inserted)
 byte LB_Full_CHARGE_flag = 0; //LB_FCHGEND , Goes to 1 if battery is fully charged
 byte LB_MainRelayOn_flag = 0; //No-Permission=0, Main Relay On Permission=1
 byte LB_Capacity_Empty = 0; //LB_EMPTY, , Goes to 1 if battery is empty
@@ -66,18 +67,18 @@ unsigned long previousMillisModbus = 0; //will store last time a modbus register
 uint16_t mbPV[MB_RTU_NUM_VALUES];          // process variable memory: produced by sensors, etc., cyclic read by PLC via modbus TCP
 
 uint16_t capacity_Wh_startup = BATTERY_WH_MAX;
-uint16_t MaxPower = 40960; //41kW TODO, fetch from LEAF battery (or does it matter, polled after startup?)
-uint16_t MaxVoltage = 4040; //(404.4V), if higher charging is not possible (goes into forced discharge)
-uint16_t MinVoltage = 3100; //Min Voltage (310.0V), if lower Gen24 disables battery
-uint16_t BatteryVoltage = 3700;
+uint16_t max_power = 40960; //41kW 
+uint16_t max_voltage = 4040; //(404.4V), if higher charging is not possible (goes into forced discharge)
+uint16_t min_voltage = 3100; //Min Voltage (310.0V), if lower Gen24 disables battery
+uint16_t battery_voltage = 3700;
 uint16_t SOC = 5000; //SOC 0-100.00% //Updates later on from CAN
 uint16_t SOH = 9900; //SOH 0-100.00% //Updates later on from CAN
 uint16_t capacity_Wh = BATTERY_WH_MAX; //Updates later on from CAN
 uint16_t remaining_capacity_Wh = BATTERY_WH_MAX; //Updates later on from CAN
 uint16_t max_target_discharge_power = 0; //0W (0W > restricts to no discharge) //Updates later on from CAN
 uint16_t max_target_charge_power = 4312; //4.3kW (during charge), both 307&308 can be set (>0) at the same time //Updates later on from CAN
-uint16_t TemperatureMax = 50; //Todo, read from LEAF pack, uint not ok
-uint16_t TemperatureMin = 60; //Todo, read from LEAF pack, uint not ok
+uint16_t temperature_max = 50; //Todo, read from LEAF pack, uint not ok
+uint16_t temperature_min = 60; //Todo, read from LEAF pack, uint not ok
 uint16_t bms_char_dis_status; //0 idle, 1 discharging, 2, charging
 uint16_t bms_status = 0; //ACTIVE - [0..5]<>[STANDBY,INACTIVE,DARKSTART,ACTIVE,FAULT,UPDATING]
 
@@ -150,6 +151,7 @@ void loop()
 void update_values_leaf_battery()
 { //This function maps all the values fetched via CAN to the correct parameters used for modbus
   SOH = (LB_SOH * 100); //Increase range from 99% -> 99.00%
+
   //Calculate the SOC% value to send to Fronius
   LB_SOC = LB_MIN_SOC + (LB_MAX_SOC - LB_MIN_SOC) * (LB_SOC - MINPERCENTAGE) / (MAXPERCENTAGE - MINPERCENTAGE); 
   if (LB_SOC < 0)
@@ -160,32 +162,55 @@ void update_values_leaf_battery()
   { //We are in the real SOC% range of 80-100%, always set SOC sent to Fronius as 100%
       LB_SOC = 1000;
   }
-  SOC = (LB_SOC * 10); //increase range from 0-100.0 -> 100.00
+  SOC = (LB_SOC * 10); //increase LB_SOC range from 0-100.0 -> 100.00
 
-  BatteryVoltage = (LB_Total_Voltage*10); //One more decimal needed
+  battery_voltage = (LB_Total_Voltage*10); //One more decimal needed
 
-	MaxPower = (LB_Discharge_Power_Limit * 1000); //kW to W
 	capacity_Wh = (LB_Max_GIDS * WH_PER_GID);
+
 	remaining_capacity_Wh = LB_Wh_Remaining;
-  if(LB_Discharge_Power_Limit > 30) //if >60kW can be pulled from battery
+
+  if(LB_Discharge_Power_Limit > 30) //if >30kW can be pulled from battery
   {
-    max_target_discharge_power = 30000; //cap value so we don't go the Fronius limits
+    max_target_discharge_power = 30000; //cap value so we don't go over the Fronius limits
   }
   else
   {
     max_target_discharge_power = (LB_Discharge_Power_Limit * 1000); //kW to W
   }
-  Serial.println(max_target_discharge_power);
-  if(LB_MAX_POWER_FOR_CHARGER > 60)
+
+  if(LB_MAX_POWER_FOR_CHARGER > 30) //if >30kW can be put into the battery
   {
-    max_target_charge_power = 60000; //cap value so we don't go over 16bits
+    max_target_charge_power = 30000; //cap value so we don't go over the Fronius limits
+  }
+  if(LB_MAX_POWER_FOR_CHARGER < 0) //LB_MAX_POWER_FOR_CHARGER can actually go to -10kW
+  {
+    max_target_charge_power = 0; //cap calue so we dont do under the Fronius limits
   }
   else
   {
     max_target_charge_power = (LB_MAX_POWER_FOR_CHARGER * 1000); //kW to W
   }
-	TemperatureMin = 50; //hardcoded, todo, read from 5C0
-	TemperatureMax = 60; //hardcoded, todo, read from 5C0
+
+	temperature_min = 50; //hardcoded, todo, read from 5C0
+
+	temperature_max = 60; //hardcoded, todo, read from 5C0
+
+  if(printValues)
+  {
+    Serial.println("SOH%: ");
+    Serial.println(SOH);
+    Serial.println("SOC%: ");
+    Serial.println(SOC);
+    Serial.println("Max discharge power: ");
+    Serial.println(max_target_discharge_power);
+    Serial.println("Max discharge power: ");
+    Serial.println(max_target_charge_power);
+    Serial.println("Temperature Min: ");
+    Serial.println(temperature_min);
+    Serial.println("Temperature Max: ");
+    Serial.println(temperature_max);
+  }
 }
 
 void handle_static_data_modbus() {
@@ -212,10 +237,10 @@ void handle_update_data_modbusp201() {
   system_data[0] = 0;                                                          // Id.: p201 Value.: 0 Scaled value.: 0 Comment.: Always 0
   system_data[1] = 0;                                                          // Id.: p202 Value.: 0 Scaled value.: 0 Comment.: Always 0
   system_data[2] = (capacity_Wh_startup);                                      // Id.: p203 Value.: 32000 Scaled value.: 32kWh Comment.: Capacity rated, maximum value is 60000 (60kWh)
-  system_data[3] = (capacity_Wh_startup);                                      // Id.: p204 Value.: 32000 Scaled value.: 32kWh Comment.: Nominal capacity
-  system_data[4] = (MaxPower);                                                 // Id.: p205 Value.: 14500 Scaled value.: 30,42kW  Comment.: Max Charge/Discharge Power=10.24kW
-  system_data[5] = (MaxVoltage);                                               // Id.: p206 Value.: 3667 Scaled value.: 362,7VDC Comment.: Max Voltage, if higher charging is not possible (goes into forced discharge)
-  system_data[6] = (MinVoltage);                                               // Id.: p207 Value.: 2776 Scaled value.: 277,6VDC Comment.: Min Voltage, if lower Gen24 disables battery
+  system_data[3] = (max_power);                                                // Id.: p204 Value.: 32000 Scaled value.: 32kWh Comment.: Nominal capacity
+  system_data[4] = (max_power);                                                // Id.: p205 Value.: 14500 Scaled value.: 30,42kW  Comment.: Max Charge/Discharge Power=10.24kW (lowest value of 204 and 205 will be enforced by Gen24)
+  system_data[5] = (max_voltage);                                              // Id.: p206 Value.: 3667 Scaled value.: 362,7VDC Comment.: Max Voltage, if higher charging is not possible (goes into forced discharge)
+  system_data[6] = (min_voltage);                                              // Id.: p207 Value.: 2776 Scaled value.: 277,6VDC Comment.: Min Voltage, if lower Gen24 disables battery
   system_data[7] = 53248;                                                      // Id.: p208 Value.: 53248 Scaled value.: 53248 Comment.: Always 53248 for this BYD, Peak Charge power?
   system_data[8] = 10;                                                         // Id.: p209 Value.: 10 Scaled value.: 10 Comment.: Always 10
   system_data[9] = 53248;                                                      // Id.: p210 Value.: 53248 Scaled value.: 53248 Comment.: Always 53248 for this BYD, Peak Discharge power?
@@ -240,7 +265,7 @@ void handle_update_data_modbusp301() {
   bms_status = 3; //Todo add logic here
 
   if (bms_status == 3) {
-    battery_data[8] = BatteryVoltage;  // Id.: p309 Value.: 3161 Scaled value.: 316,1VDC Comment.: Batt Voltage outer (0 if status !=3, maybe a contactor closes when active): 173.4V
+    battery_data[8] = battery_voltage;  // Id.: p309 Value.: 3161 Scaled value.: 316,1VDC Comment.: Batt Voltage outer (0 if status !=3, maybe a contactor closes when active): 173.4V
   } else {
     battery_data[8] = 0;
   }
@@ -254,10 +279,10 @@ void handle_update_data_modbusp301() {
   battery_data[7] = max_target_charge_power;             // Id.: p308 Value.: 25604 Scaled value.: 25,604kW Comment.: max/target charge power: 4.3kW (during charge), both 307&308 can be set (>0) at the same time
   //Battery_data[8] set previously in function           // Id.: p309 Value.: 3161 Scaled value.: 316,1VDC Comment.: Batt Voltage outer (0 if status !=3, maybe a contactor closes when active): 173.4V
   battery_data[9] = 2000;                                // Id.: p310 Value.: 64121 Scaled value.: 6412,1W Comment.: Current Power to API: if>32768... -(65535-61760)=3775W
-  battery_data[10] = BatteryVoltage;                     // Id.: p311 Value.: 3161 Scaled value.: 316,1VDC Comment.: Batt Voltage inner: 173.2V (LEAF voltage is in whole volts, need to add a decimal)
+  battery_data[10] = battery_voltage;                    // Id.: p311 Value.: 3161 Scaled value.: 316,1VDC Comment.: Batt Voltage inner: 173.2V (LEAF voltage is in whole volts, need to add a decimal)
   battery_data[11] = 2000;                               // Id.: p312 Value.: 64121 Scaled value.: 6412,1W Comment.: p310
-  battery_data[12] = TemperatureMin;                     // Id.: p313 Value.: 75 Scaled value.: 7,5 Comment.: temp min: 14 degrees (if below 0....65535-t)
-  battery_data[13] = TemperatureMax;                     // Id.: p314 Value.: 95 Scaled value.: 9,5 Comment.: temp max: 15 degrees (if below 0....65535-t)
+  battery_data[12] = temperature_min;                    // Id.: p313 Value.: 75 Scaled value.: 7,5 Comment.: temp min: 14 degrees (if below 0....65535-t)
+  battery_data[13] = temperature_max;                    // Id.: p314 Value.: 95 Scaled value.: 9,5 Comment.: temp max: 15 degrees (if below 0....65535-t)
   battery_data[14] = 0;                                  // Id.: p315 Value.: 0 Scaled value.: 0 Comment.: always 0
   battery_data[15] = 0;                                  // Id.: p316 Value.: 0 Scaled value.: 0 Comment.: always 0
   battery_data[16] = 16;                                 // Id.: p317 Value.: 0 Scaled value.: 0 Comment.: counter charge hi
@@ -266,7 +291,7 @@ void handle_update_data_modbusp301() {
   battery_data[19] = 0;                                  // Id.: p320 Value.: 0 Scaled value.: 0 Comment.: always 0
   battery_data[20] = 13;                                 // Id.: p321 Value.: 0 Scaled value.: 0 Comment.: counter discharge hi
   battery_data[21] = 52064;                              // Id.: p322 Value.: 0 Scaled value.: 0 Comment.: counter discharge lo....65536*92+7448 = 6036760 Wh?
-  battery_data[22] = 80;                                 // Id.: p323 Value.: 0 Scaled value.: 0 Comment.: temp? (23 degrees)
+  battery_data[22] = 230;                                // Id.: p323 Value.: 0 Scaled value.: 0 Comment.: device temperature (23 degrees)
   battery_data[23] = SOH;                                // Id.: p324 Value.: 9900 Scaled value.: 99% Comment.: SOH
   static uint16_t i = 300;
   memcpy(&mbPV[i], battery_data, sizeof(battery_data));
