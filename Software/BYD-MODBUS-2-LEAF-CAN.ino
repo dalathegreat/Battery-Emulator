@@ -11,7 +11,7 @@
 #define BATTERY_WH_MAX 30000 //Battery size in Wh (Maximum value Fronius accepts is 60000 [60kWh])
 #define MAXPERCENTAGE 800 //80.0% , Max percentage the battery will charge to (App will show 100% once this value is reached)
 #define MINPERCENTAGE 200 //20.0% , Min percentage the battery will discharge to (App will show 0% once this value is reached)
-byte printValues = 1; //Should modbus values be printed to serial output? 
+byte printValues = 0; //Should modbus values be printed to serial output? 
 
 /* Do not change code below unless you are sure what you are doing */
 //CAN parameters
@@ -33,6 +33,7 @@ CAN_frame_t LEAF_50C = {.MsgID = 0x50C, LEAF_50C.FIR.B.DLC = 8, LEAF_50C.FIR.B.F
 #define LB_MAX_SOC 1000  //LEAF BMS never goes over this value. We use this info to rescale SOC% sent to Fronius
 #define LB_MIN_SOC 0   //LEAF BMS never goes below this value. We use this info to rescale SOC% sent to Fronius
 uint16_t LB_Discharge_Power_Limit = 0; //Limit in kW
+uint16_t LB_Charge_Power_Limit = 0; //Limit in kW
 int16_t LB_MAX_POWER_FOR_CHARGER = 0; //Limit in kW
 int16_t LB_SOC = 500; //0 - 100.0 % (0-1000)
 uint16_t LB_Wh_Remaining = 0; //Amount of energy in battery, in Wh
@@ -42,8 +43,9 @@ uint16_t LB_Max_GIDS = 273; //Startup in 24kWh mode
 uint16_t LB_SOH = 99; //State of health %
 uint16_t LB_Total_Voltage = 370; //Battery voltage (0-450V)
 int16_t LB_Current = 0; //Current in A going in/out of battery
-uint8_t LB_HistData_Temperature_MAX = 60; //-40 to 86*C
-uint8_t LB_HistData_Temperature_MIN = 50; //-40 to 86*C
+int16_t LB_Power = 0; //Watts going in/out of battery
+int16_t LB_HistData_Temperature_MAX = 60; //-40 to 86*C
+int16_t LB_HistData_Temperature_MIN = 50; //-40 to 86*C
 uint8_t LB_Relay_Cut_Request = 0; //LB_FAIL
 uint8_t LB_Failsafe_Status = 0; //LB_STATUS = 000b = normal start Request
                                             //001b = Main Relay OFF Request
@@ -81,6 +83,7 @@ uint16_t temperature_max = 50; //Todo, read from LEAF pack, uint not ok
 uint16_t temperature_min = 60; //Todo, read from LEAF pack, uint not ok
 uint16_t bms_char_dis_status; //0 idle, 1 discharging, 2, charging
 uint16_t bms_status = 0; //ACTIVE - [0..5]<>[STANDBY,INACTIVE,DARKSTART,ACTIVE,FAULT,UPDATING]
+uint16_t stat_batt_power = 0; //power going in/out of battery
 
 // Create a ModbusRTU server instance listening on Serial2 with 2000ms timeout
 ModbusServerRTU MBserver(Serial2, 2000);
@@ -170,6 +173,7 @@ void update_values_leaf_battery()
 
 	remaining_capacity_Wh = LB_Wh_Remaining;
 
+  /* Define power able to be discharged from battery */
   if(LB_Discharge_Power_Limit > 30) //if >30kW can be pulled from battery
   {
     max_target_discharge_power = 30000; //cap value so we don't go over the Fronius limits
@@ -178,7 +182,12 @@ void update_values_leaf_battery()
   {
     max_target_discharge_power = (LB_Discharge_Power_Limit * 1000); //kW to W
   }
+  if(SOC == 10000) //Scaled SOC% value is 100.00%
+  {
+    max_target_discharge_power = 0; //No need to charge further, set max power to 0
+  }
 
+  /* Define power able to be put into the battery */
   if(LB_MAX_POWER_FOR_CHARGER > 30) //if >30kW can be put into the battery
   {
     max_target_charge_power = 30000; //cap value so we don't go over the Fronius limits
@@ -191,13 +200,23 @@ void update_values_leaf_battery()
   {
     max_target_charge_power = (LB_MAX_POWER_FOR_CHARGER * 1000); //kW to W
   }
+  if(SOC == 0) //Scaled SOC% value is 0.00%, we should not discharge battery further
+  {
+    max_target_charge_power = 0;
+  }
 
-	temperature_min = 50; //hardcoded, todo, read from 5C0
+  LB_Power = LB_Total_Voltage * LB_Current;//P = U * I
+  stat_batt_power = convert2unsignedint16(LB_Power); //add sign if needed
 
-	temperature_max = 60; //hardcoded, todo, read from 5C0
+
+  LB_HistData_Temperature_MIN = (LB_HistData_Temperature_MIN * 10); //increase range to fit the Fronius
+	temperature_min = convert2unsignedint16(LB_HistData_Temperature_MIN); //add sign if needed
+
+  LB_HistData_Temperature_MAX = (LB_HistData_Temperature_MAX * 10); //increase range to fit the Fronius
+	temperature_max = convert2unsignedint16(LB_HistData_Temperature_MAX);
 
   if(printValues)
-  {
+  {  //values heading towards the modbus registers
     Serial.println("SOH%: ");
     Serial.println(SOH);
     Serial.println("SOC%: ");
@@ -281,8 +300,8 @@ void handle_update_data_modbusp301() {
   battery_data[9] = 2000;                                // Id.: p310 Value.: 64121 Scaled value.: 6412,1W Comment.: Current Power to API: if>32768... -(65535-61760)=3775W
   battery_data[10] = battery_voltage;                    // Id.: p311 Value.: 3161 Scaled value.: 316,1VDC Comment.: Batt Voltage inner: 173.2V (LEAF voltage is in whole volts, need to add a decimal)
   battery_data[11] = 2000;                               // Id.: p312 Value.: 64121 Scaled value.: 6412,1W Comment.: p310
-  battery_data[12] = temperature_min;                    // Id.: p313 Value.: 75 Scaled value.: 7,5 Comment.: temp min: 14 degrees (if below 0....65535-t)
-  battery_data[13] = temperature_max;                    // Id.: p314 Value.: 95 Scaled value.: 9,5 Comment.: temp max: 15 degrees (if below 0....65535-t)
+  battery_data[12] = temperature_min;                    // Id.: p313 Value.: 75 Scaled value.: 7,5 Comment.: temp min: 7 degrees (if below 0....65535-t)
+  battery_data[13] = temperature_max;                    // Id.: p314 Value.: 95 Scaled value.: 9,5 Comment.: temp max: 9 degrees (if below 0....65535-t)
   battery_data[14] = 0;                                  // Id.: p315 Value.: 0 Scaled value.: 0 Comment.: always 0
   battery_data[15] = 0;                                  // Id.: p316 Value.: 0 Scaled value.: 0 Comment.: always 0
   battery_data[16] = 16;                                 // Id.: p317 Value.: 0 Scaled value.: 0 Comment.: counter charge hi
@@ -317,6 +336,9 @@ void handle_can_leaf_battery()
           // negative so extend the sign bit
           LB_Current |= 0xf800;
         }
+        Serial.println("LB_Current: ");
+        Serial.println(LB_Current);
+
 				LB_Total_Voltage = ((rx_frame.data.u8[2] << 2) | (rx_frame.data.u8[3] & 0xc0) >> 6) / 2;
         
         //Collect various data from the BMS
@@ -328,6 +350,7 @@ void handle_can_leaf_battery()
 				break;
 			case 0x1DC:
 				LB_Discharge_Power_Limit = ((rx_frame.data.u8[0] << 2 | rx_frame.data.u8[1] >> 6) / 4.0);
+        LB_Charge_Power_Limit = (((rx_frame.data.u8[1] & 0x3F) << 2 | rx_frame.data.u8[2] >> 4) / 4.0);
 				LB_MAX_POWER_FOR_CHARGER = ((((rx_frame.data.u8[2] & 0x0F) << 6 | rx_frame.data.u8[3] >> 2) / 10.0) - 10);
 				break;
 			case 0x55B:
@@ -443,4 +466,16 @@ void handle_can_leaf_battery()
 		}
 		//Serial.println("CAN 10ms done");
 	}
+}
+
+uint16_t convert2unsignedint16(uint16_t signed_value)
+{
+  if(signed_value < 0)
+  {
+    return(65535 + signed_value);
+  }
+  else
+  {
+    return signed_value;
+  }
 }
