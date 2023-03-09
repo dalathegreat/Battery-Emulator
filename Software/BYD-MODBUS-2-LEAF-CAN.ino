@@ -155,17 +155,10 @@ void update_values_leaf_battery()
 { //This function maps all the values fetched via CAN to the correct parameters used for modbus
   SOH = (LB_SOH * 100); //Increase range from 99% -> 99.00%
 
-  //Calculate the SOC% value to send to Fronius
-  LB_SOC = LB_MIN_SOC + (LB_MAX_SOC - LB_MIN_SOC) * (LB_SOC - MINPERCENTAGE) / (MAXPERCENTAGE - MINPERCENTAGE); 
-  if (LB_SOC < 0)
-  { //We are in the real SOC% range of 0-20%, always set SOC sent to Fronius as 0%
-      LB_SOC = 0;
-  }
-  if (LB_SOC > 1000)
-  { //We are in the real SOC% range of 80-100%, always set SOC sent to Fronius as 100%
-      LB_SOC = 1000;
-  }
-  SOC = (LB_SOC * 10); //increase LB_SOC range from 0-100.0 -> 100.00
+  //Calculate the SOC% value to send to Fronius rescale 0-100%.
+  //We are in the real SOC% range of 0-20%, always set SOC sent to Fronius as 0%
+  //We are in the real SOC% range of 80-100%, always set SOC sent to Fronius as 100%
+  SOC = (scale(LB_SOC, MINPERCENTAGE, MAXPERCENTAGE, LB_MIN_SOC, LB_MAX_SOC) * 10); //increase LB_SOC range from 0-100.0 -> 100.00
 
   battery_voltage = (LB_Total_Voltage*10); //One more decimal needed
 
@@ -478,4 +471,8 @@ uint16_t convert2unsignedint16(uint16_t signed_value)
   {
     return signed_value;
   }
+}
+
+uint16_t scale(uint16_t iinput, uint16_t iinput_low, uint16_t iinput_high, uint16_t ioutput_low, uint16_t ioutput_high) {
+  return (ioutput_high - ioutput_low) / (iinput_high - iinput_low) * (constrain(iinput, iinput_low, iinput_high) - iinput_low) + ioutput_low;
 }
