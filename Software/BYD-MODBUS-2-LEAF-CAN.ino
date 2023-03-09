@@ -182,11 +182,11 @@ void update_values_leaf_battery()
   {
     max_target_discharge_power = (LB_Discharge_Power_Limit * 1000); //kW to W
   }
-  if(SOC == 10000) //Scaled SOC% value is 100.00%
+  if(SOC == 0) //Scaled SOC% value is 0.00%, we should not discharge battery further
   {
-    max_target_discharge_power = 0; //No need to charge further, set max power to 0
+    max_target_discharge_power = 0;
   }
-
+	
   /* Define power able to be put into the battery */
   if(LB_MAX_POWER_FOR_CHARGER > 30) //if >30kW can be put into the battery
   {
@@ -200,11 +200,11 @@ void update_values_leaf_battery()
   {
     max_target_charge_power = (LB_MAX_POWER_FOR_CHARGER * 1000); //kW to W
   }
-  if(SOC == 0) //Scaled SOC% value is 0.00%, we should not discharge battery further
+  if(SOC == 10000) //Scaled SOC% value is 100.00%
   {
-    max_target_charge_power = 0;
+    max_target_charge_power = 0; //No need to charge further, set max power to 0
   }
-
+	
   LB_Power = LB_Total_Voltage * LB_Current;//P = U * I
   stat_batt_power = convert2unsignedint16(LB_Power); //add sign if needed
 
