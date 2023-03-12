@@ -11,6 +11,7 @@
 #define BATTERY_WH_MAX 30000 //Battery size in Wh (Maximum value Fronius accepts is 60000 [60kWh])
 #define MAXPERCENTAGE 800 //80.0% , Max percentage the battery will charge to (App will show 100% once this value is reached)
 #define MINPERCENTAGE 200 //20.0% , Min percentage the battery will discharge to (App will show 0% once this value is reached)
+//#define INTERLOCK_REQUIRED //Uncomment this line to skip requiring both high voltage connectors to be seated on the LEAF battery
 byte printValues = 1; //Should modbus values be printed to serial output? 
 
 /* Do not change code below unless you are sure what you are doing */
@@ -54,10 +55,10 @@ uint8_t LB_Failsafe_Status = 0; //LB_STATUS = 000b = normal start Request
                                             //010b = Charging Mode Stop Request
                                             //011b =  Main Relay OFF Request
                                             //100b = Caution Lamp Request
-                                            //101b = Caution Lamp Request &  Main Relay OFF Request
+                                            //101b = Caution Lamp Request & Main Relay OFF Request
                                             //110b = Caution Lamp Request & Charging Mode Stop Request
                                             //111b = Caution Lamp Request & Main Relay OFF Request
-byte LB_Interlock = 0; //Contains info on if HV leads are seated (Note, to use this both HV connectors need to be inserted)
+byte LB_Interlock = 1; //Contains info on if HV leads are seated (Note, to use this both HV connectors need to be inserted)
 byte LB_Full_CHARGE_flag = 0; //LB_FCHGEND , Goes to 1 if battery is fully charged
 byte LB_MainRelayOn_flag = 0; //No-Permission=0, Main Relay On Permission=1
 byte LB_Capacity_Empty = 0; //LB_EMPTY, , Goes to 1 if battery is empty
@@ -84,7 +85,7 @@ uint16_t max_target_charge_power = 4312; //4.3kW (during charge), both 307&308 c
 uint16_t temperature_max = 50; //Todo, read from LEAF pack, uint not ok
 uint16_t temperature_min = 60; //Todo, read from LEAF pack, uint not ok
 uint16_t bms_char_dis_status; //0 idle, 1 discharging, 2, charging
-uint16_t bms_status = 0; //ACTIVE - [0..5]<>[STANDBY,INACTIVE,DARKSTART,ACTIVE,FAULT,UPDATING]
+uint16_t bms_status = 3; //ACTIVE - [0..5]<>[STANDBY,INACTIVE,DARKSTART,ACTIVE,FAULT,UPDATING]
 uint16_t stat_batt_power = 0; //power going in/out of battery
 
 // Create a ModbusRTU server instance listening on Serial2 with 2000ms timeout
@@ -208,15 +209,79 @@ void update_values_leaf_battery()
   }
 
   /*Extra safeguards*/
-  if(LB_GIDS < 10) //1kWh left in battery
-  { //Battery is running abnormally low, some other safety might have failed. Zero it all out.
+  if(LB_GIDS < 10) //800Wh left in battery
+  { //Battery is running abnormally low, some discharge logic might have failed. Zero it all out.
     SOC = 0;
     max_target_discharge_power = 0;
   }
+
+  if(LB_Full_CHARGE_flag)
+  { //Battery reports that it is fully charged stop all further charging incase it hasn't already
+    max_target_charge_power = 0;
+  }
+  
+  if(LB_Relay_Cut_Request)
+  { //LB_FAIL, BMS requesting shutdown and contactors to be opened
+    Serial.println("Battery requesting immediate shutdown and contactors to be opened!");
+    bms_status = 4; //Fault
+    SOC = 0;
+    max_target_discharge_power = 0;
+    max_target_charge_power = 0;
+  }
+
+  if(LB_Failsafe_Status > 0) // 0 is normal, start charging/discharging
+  {
+    switch(LB_Failsafe_Status)
+    {
+		case(1):
+      //Normal Stop Request
+      //This means that battery is fully discharged and it's OK to stop the session. For stationary storage we don't disconnect contactors, so we do nothing here.
+			break;
+		case(2):
+      //Charging Mode Stop Request
+      //This means that battery is fully charged and it's OK to stop the session. For stationary storage we don't disconnect contactors, so we do nothing here.
+    	break;
+		case(3):
+      //Charging Mode Stop Request & Normal Stop Request
+      //Normal stop request. For stationary storage we don't disconnect contactors, so we ignore this.
+			break;
+		case(4):
+      //Caution Lamp Request
+      Serial.println("Battery raised caution indicator. Inspect battery status!");
+    	break;
+		case(5):
+      //Caution Lamp Request & Normal Stop Request
+      bms_status = 4; //Fault
+      Serial.println("Battery raised caution indicator AND requested discharge stop. Inspect battery status!");
+			break;
+		case(6):
+      //Caution Lamp Request & Charging Mode Stop Request
+      bms_status = 4; //Fault
+      Serial.println("Battery raised caution indicator AND requested charge stop. Inspect battery status!");
+    	break;
+		case(7):
+      //Caution Lamp Request & Charging Mode Stop Request & Normal Stop Request
+      bms_status = 4; //Fault
+      Serial.println("Battery raised caution indicator AND requested charge/discharge stop. Inspect battery status!");
+			break;
+    default:
+			break;
+    }      
+  }
+
+  #ifdef INTERLOCK_REQUIRED
+  if(!LB_Interlock)
+  {
+    Serial.println("Battery interlock loop broken. Check that high voltage connectors are seated. Battery will be disabled!");
+    bms_status = 4; //Fault
+    SOC = 0;
+    max_target_discharge_power = 0;
+    max_target_charge_power = 0;
+  }
+  #endif
 	
   LB_Power = LB_Total_Voltage * LB_Current;//P = U * I
   stat_batt_power = convert2unsignedint16(LB_Power); //add sign if needed
-
 
   LB_HistData_Temperature_MIN = (LB_HistData_Temperature_MIN * 10); //increase range to fit the Fronius
 	temperature_min = convert2unsignedint16(LB_HistData_Temperature_MIN); //add sign if needed
@@ -292,8 +357,6 @@ void handle_update_data_modbusp301() {
   } else { //LB_Current == 0
     bms_char_dis_status = 0; //idle
   }
-
-  bms_status = 3; //Todo add logic here
 
   if (bms_status == 3) {
     battery_data[8] = battery_voltage;  // Id.: p309 Value.: 3161 Scaled value.: 316,1VDC Comment.: Batt Voltage outer (0 if status !=3, maybe a contactor closes when active): 173.4V
