@@ -22,6 +22,7 @@ unsigned long previousMillis100 = 0; // will store last time a 100ms CAN Message
 const int interval10 = 10; // interval (ms) at which send CAN Messages
 const int interval100 = 100; // interval (ms) at which send CAN Messages
 const int rx_queue_size = 10; // Receive Queue size
+uint8_t stillAlive = 6; //counter for checking if CAN is still alive 
 uint8_t mprun10r = 0; //counter 0-20 for 0x1F2 message
 byte mprun10 = 0; //counter 0-3
 byte mprun100 = 0; //counter 0-3
@@ -71,6 +72,12 @@ unsigned long previousMillisModbus = 0; //will store last time a modbus register
 //#define MB_RTU_DIVICE_ID 21
 uint16_t mbPV[MB_RTU_NUM_VALUES];          // process variable memory: produced by sensors, etc., cyclic read by PLC via modbus TCP
 
+#define STANDBY 0
+#define INACTIVE 1
+#define DARKSTART 2
+#define ACTIVE 3
+#define FAULT 4
+#define UPDATING 5
 uint16_t capacity_Wh_startup = BATTERY_WH_MAX;
 uint16_t max_power = 40960; //41kW 
 uint16_t max_voltage = 4040; //(404.4V), if higher charging is not possible (goes into forced discharge)
@@ -85,7 +92,7 @@ uint16_t max_target_charge_power = 4312; //4.3kW (during charge), both 307&308 c
 uint16_t temperature_max = 50; //Todo, read from LEAF pack, uint not ok
 uint16_t temperature_min = 60; //Todo, read from LEAF pack, uint not ok
 uint16_t bms_char_dis_status; //0 idle, 1 discharging, 2, charging
-uint16_t bms_status = 3; //ACTIVE - [0..5]<>[STANDBY,INACTIVE,DARKSTART,ACTIVE,FAULT,UPDATING]
+uint16_t bms_status = ACTIVE; //ACTIVE - [0..5]<>[STANDBY,INACTIVE,DARKSTART,ACTIVE,FAULT,UPDATING]
 uint16_t stat_batt_power = 0; //power going in/out of battery
 
 // Create a ModbusRTU server instance listening on Serial2 with 2000ms timeout
@@ -223,7 +230,7 @@ void update_values_leaf_battery()
   if(LB_Relay_Cut_Request)
   { //LB_FAIL, BMS requesting shutdown and contactors to be opened
     Serial.println("Battery requesting immediate shutdown and contactors to be opened!");
-    bms_status = 4; //Fault
+    bms_status = FAULT;
     SOC = 0;
     max_target_discharge_power = 0;
     max_target_charge_power = 0;
@@ -251,17 +258,17 @@ void update_values_leaf_battery()
     	break;
 		case(5):
       //Caution Lamp Request & Normal Stop Request
-      bms_status = 4; //Fault
+      bms_status = FAULT;
       Serial.println("Battery raised caution indicator AND requested discharge stop. Inspect battery status!");
 			break;
 		case(6):
       //Caution Lamp Request & Charging Mode Stop Request
-      bms_status = 4; //Fault
+      bms_status = FAULT;
       Serial.println("Battery raised caution indicator AND requested charge stop. Inspect battery status!");
     	break;
 		case(7):
       //Caution Lamp Request & Charging Mode Stop Request & Normal Stop Request
-      bms_status = 4; //Fault
+      bms_status = FAULT;
       Serial.println("Battery raised caution indicator AND requested charge/discharge stop. Inspect battery status!");
 			break;
     default:
@@ -273,12 +280,23 @@ void update_values_leaf_battery()
   if(!LB_Interlock)
   {
     Serial.println("Battery interlock loop broken. Check that high voltage connectors are seated. Battery will be disabled!");
-    bms_status = 4; //Fault
+    bms_status = FAULT;
     SOC = 0;
     max_target_discharge_power = 0;
     max_target_charge_power = 0;
   }
   #endif
+
+  /* Check if the BMS is still sending CAN messages. If we go 60s without messages we raise an error*/
+  if(!stillAlive)
+  {
+    bms_status = FAULT;
+    Serial.println("No CAN communication detected for 60s. Shutting down battery control.");
+  }
+  else
+  {
+    stillAlive--;
+  }
 	
   LB_Power = LB_Total_Voltage * LB_Current;//P = U * I
   stat_batt_power = convert2unsignedint16(LB_Power); //add sign if needed
@@ -358,7 +376,7 @@ void handle_update_data_modbusp301() {
     bms_char_dis_status = 0; //idle
   }
 
-  if (bms_status == 3) {
+  if (bms_status == ACTIVE) {
     battery_data[8] = battery_voltage;  // Id.: p309 Value.: 3161 Scaled value.: 316,1VDC Comment.: Batt Voltage outer (0 if status !=3, maybe a contactor closes when active): 173.4V
   } else {
     battery_data[8] = 0;
@@ -432,6 +450,8 @@ void handle_can_leaf_battery()
 				LB_SOC = (rx_frame.data.u8[0] << 2 | rx_frame.data.u8[1] >> 6);
 				break;
 			case 0x5BC:
+        stillAlive = 6; //Indicate that we are still getting CAN messages from the BMS
+
 				LB_MAX = ((rx_frame.data.u8[5] & 0x10) >> 4);
 				if (LB_MAX)
 				{
