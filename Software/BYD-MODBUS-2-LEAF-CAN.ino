@@ -367,7 +367,7 @@ void handle_update_data_modbusp201() {
 
 void handle_update_data_modbusp301() {
   // Store the data into the array
-  static uint16_t battery_data[23];
+  static uint16_t battery_data[24];
   if (LB_Current > 0) { //Positive value = Charging on LEAF 
     bms_char_dis_status = 2; //Charging
   } else if (LB_Current < 0) { //Negative value = Discharging on LEAF
