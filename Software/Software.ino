@@ -276,6 +276,14 @@ void update_values_leaf_battery()
     }      
   }
 
+  if(LB_SOH < 25)
+  { //Battery is extremely degraded, not fit for secondlifestorage. Zero it all out.
+    Serial.println("State of health critically low. Battery internal resistance too high to continue. Recycle battery.");
+    bms_status = FAULT;
+    max_target_discharge_power = 0;
+    max_target_charge_power = 0;    
+  }
+
   #ifdef INTERLOCK_REQUIRED
   if(!LB_Interlock)
   {
