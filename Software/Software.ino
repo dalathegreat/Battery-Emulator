@@ -27,10 +27,10 @@ uint8_t mprun10r = 0; //counter 0-20 for 0x1F2 message
 byte mprun10 = 0; //counter 0-3
 byte mprun100 = 0; //counter 0-3
 
-CAN_frame_t LEAF_1F2 = {.MsgID = 0x1F2, LEAF_1F2.FIR.B.DLC = 8, LEAF_1F2.FIR.B.FF = CAN_frame_std, LEAF_1F2.data.u8[0] = 0x10, LEAF_1F2.data.u8[1] = 0x64,LEAF_1F2.data.u8[2] = 0x00, LEAF_1F2.data.u8[3] = 0xB0,LEAF_1F2.data.u8[4] = 0x00,LEAF_1F2.data.u8[5] = 0x1E};
-CAN_frame_t LEAF_50B = {.MsgID = 0x50B, LEAF_50B.FIR.B.DLC = 7, LEAF_50B.FIR.B.FF = CAN_frame_std, LEAF_50B.data.u8[0] = 0x00, LEAF_50B.data.u8[1] = 0x00,LEAF_50B.data.u8[2] = 0x06, LEAF_50B.data.u8[3] = 0xC0,LEAF_50B.data.u8[4] = 0x00,LEAF_50B.data.u8[5] = 0x00};
-CAN_frame_t LEAF_50C = {.MsgID = 0x50C, LEAF_50C.FIR.B.DLC = 8, LEAF_50C.FIR.B.FF = CAN_frame_std, LEAF_50C.data.u8[0] = 0x00, LEAF_50C.data.u8[1] = 0x00,LEAF_50C.data.u8[2] = 0x00, LEAF_50C.data.u8[3] = 0x00,LEAF_50C.data.u8[4] = 0x00,LEAF_50C.data.u8[5] = 0x00};
-CAN_frame_t LEAF_1D4 = {.MsgID = 0x1D4, LEAF_1D4.FIR.B.DLC = 8, LEAF_1D4.FIR.B.FF = CAN_frame_std, LEAF_1D4.data.u8[0] = 0x6E, LEAF_1D4.data.u8[1] = 0x6E,LEAF_1D4.data.u8[2] = 0x00, LEAF_1D4.data.u8[3] = 0x00,LEAF_1D4.data.u8[4] = 0x00,LEAF_1D4.data.u8[5] = 0x00};
+CAN_frame_t LEAF_1F2 = {.FIR = {.B = {.DLC = 8,.FF = CAN_frame_std,}},.MsgID = 0x1F2,.data = {0x10, 0x64, 0x00, 0xB0, 0x00, 0x1E, 0x00, 0x8F}};
+CAN_frame_t LEAF_50B = {.FIR = {.B = {.DLC = 7,.FF = CAN_frame_std,}},.MsgID = 0x50B,.data = {0x00, 0x00, 0x06, 0xC0, 0x00, 0x00, 0x00}};
+CAN_frame_t LEAF_50C = {.FIR = {.B = {.DLC = 6,.FF = CAN_frame_std,}},.MsgID = 0x50C,.data = {0x00, 0x00, 0x00, 0x00, 0x00, 0x00}};
+CAN_frame_t LEAF_1D4 = {.FIR = {.B = {.DLC = 8,.FF = CAN_frame_std,}},.MsgID = 0x1D4,.data = {0x6E, 0x6E, 0x00, 0x04, 0x07, 0x46, 0xE0, 0x44}};
 
 //Nissan LEAF battery parameters from CAN
 #define WH_PER_GID 77   //One GID is this amount of Watt hours
@@ -511,27 +511,27 @@ void handle_can_leaf_battery()
 
 		if (mprun100 == 0)
 		{
-			LEAF_50C.data.u8[5] = 0x00;
-			LEAF_50C.data.u8[6] = 0x5D;
-			LEAF_50C.data.u8[7] = 0xC8;
+			LEAF_50C.data.u8[3] = 0x00;
+			LEAF_50C.data.u8[4] = 0x5D;
+			LEAF_50C.data.u8[5] = 0xC8;
 		}
 		else if(mprun100 == 1)
 		{
-			LEAF_50C.data.u8[5] = 0x01;
-			LEAF_50C.data.u8[6] = 0x5D;
-			LEAF_50C.data.u8[7] = 0x5F;
+			LEAF_50C.data.u8[3] = 0x01;
+			LEAF_50C.data.u8[4] = 0xB2;
+			LEAF_50C.data.u8[5] = 0x31;
 		}
 		else if(mprun100 == 2)
 		{
-			LEAF_50C.data.u8[5] = 0x02;
-			LEAF_50C.data.u8[6] = 0x5D;
-			LEAF_50C.data.u8[7] = 0x63;
+			LEAF_50C.data.u8[3] = 0x02;
+			LEAF_50C.data.u8[4] = 0x5D;
+			LEAF_50C.data.u8[5] = 0x63;
 		}
 		else if(mprun100 == 3)
 		{
-			LEAF_50C.data.u8[5] = 0x03;
-			LEAF_50C.data.u8[6] = 0x5D;
-			LEAF_50C.data.u8[7] = 0xF4;
+			LEAF_50C.data.u8[3] = 0x03;
+			LEAF_50C.data.u8[4] = 0xB2;
+			LEAF_50C.data.u8[5] = 0x9A;
 		}
 		ESP32Can.CANWriteFrame(&LEAF_50C);
 	}
@@ -543,30 +543,22 @@ void handle_can_leaf_battery()
     if(mprun10 == 0)
     {
       LEAF_1D4.data.u8[4] = 0x07;
-      LEAF_1D4.data.u8[5] = 0x46;
-      LEAF_1D4.data.u8[6] = 0x01;
-      LEAF_1D4.data.u8[7] = 0x44;
+      LEAF_1D4.data.u8[7] = 0x12;
     }
     else if(mprun10 == 1)
     {
       LEAF_1D4.data.u8[4] = 0x47;
-      LEAF_1D4.data.u8[5] = 0x46;
-      LEAF_1D4.data.u8[6] = 0x01;
-      LEAF_1D4.data.u8[7] = 0x44;
+      LEAF_1D4.data.u8[7] = 0xD5;
     }
     else if(mprun10 == 2)
     {
       LEAF_1D4.data.u8[4] = 0x87;
-      LEAF_1D4.data.u8[5] = 0x46;
-      LEAF_1D4.data.u8[6] = 0x01;
-      LEAF_1D4.data.u8[7] = 0x88;
+      LEAF_1D4.data.u8[7] = 0x19;
     }
     else if(mprun10 == 3)
     {
       LEAF_1D4.data.u8[4] = 0xC7;
-      LEAF_1D4.data.u8[5] = 0x46;
-      LEAF_1D4.data.u8[6] = 0x01;
-      LEAF_1D4.data.u8[7] = 0x4F;
+      LEAF_1D4.data.u8[7] = 0xDE;
     }
     ESP32Can.CANWriteFrame(&LEAF_1D4); 
 
