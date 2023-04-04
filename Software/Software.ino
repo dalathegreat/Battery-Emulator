@@ -22,7 +22,8 @@ unsigned long previousMillis100 = 0; // will store last time a 100ms CAN Message
 const int interval10 = 10; // interval (ms) at which send CAN Messages
 const int interval100 = 100; // interval (ms) at which send CAN Messages
 const int rx_queue_size = 10; // Receive Queue size
-uint8_t stillAlive = 6; //counter for checking if CAN is still alive 
+uint8_t stillAlive = 12; //counter for checking if CAN is still alive 
+uint8_t errorCode = 0; //stores if we have an error code active from battery control logic
 uint8_t mprun10r = 0; //counter 0-20 for 0x1F2 message
 byte mprun10 = 0; //counter 0-3
 byte mprun100 = 0; //counter 0-3
@@ -151,7 +152,7 @@ void setup()
 void loop()
 {
 	handle_can_leaf_battery();
-  //every 10s
+  //every 5s
 	if (millis() - previousMillisModbus >= intervalModbusTask)
 	{
 		previousMillisModbus = millis();
@@ -231,6 +232,7 @@ void update_values_leaf_battery()
   { //LB_FAIL, BMS requesting shutdown and contactors to be opened
     Serial.println("Battery requesting immediate shutdown and contactors to be opened!");
     bms_status = FAULT;
+    errorCode = 1;
     SOC = 0;
     max_target_discharge_power = 0;
     max_target_charge_power = 0;
@@ -259,16 +261,19 @@ void update_values_leaf_battery()
 		case(5):
       //Caution Lamp Request & Normal Stop Request
       bms_status = FAULT;
+      errorCode = 2;
       Serial.println("Battery raised caution indicator AND requested discharge stop. Inspect battery status!");
 			break;
 		case(6):
       //Caution Lamp Request & Charging Mode Stop Request
       bms_status = FAULT;
+      errorCode = 3;
       Serial.println("Battery raised caution indicator AND requested charge stop. Inspect battery status!");
     	break;
 		case(7):
       //Caution Lamp Request & Charging Mode Stop Request & Normal Stop Request
       bms_status = FAULT;
+      errorCode = 4;
       Serial.println("Battery raised caution indicator AND requested charge/discharge stop. Inspect battery status!");
 			break;
     default:
@@ -280,6 +285,7 @@ void update_values_leaf_battery()
   { //Battery is extremely degraded, not fit for secondlifestorage. Zero it all out.
     Serial.println("State of health critically low. Battery internal resistance too high to continue. Recycle battery.");
     bms_status = FAULT;
+    errorCode = 5;
     max_target_discharge_power = 0;
     max_target_charge_power = 0;    
   }
@@ -289,6 +295,7 @@ void update_values_leaf_battery()
   {
     Serial.println("Battery interlock loop broken. Check that high voltage connectors are seated. Battery will be disabled!");
     bms_status = FAULT;
+    errorCode = 6;
     SOC = 0;
     max_target_discharge_power = 0;
     max_target_charge_power = 0;
@@ -299,6 +306,7 @@ void update_values_leaf_battery()
   if(!stillAlive)
   {
     bms_status = FAULT;
+    errorCode = 7;
     Serial.println("No CAN communication detected for 60s. Shutting down battery control.");
   }
   else
@@ -317,21 +325,43 @@ void update_values_leaf_battery()
 
   if(printValues)
   {  //values heading towards the modbus registers
-    Serial.println("SOH%: ");
-    Serial.println(SOH);
-    Serial.println("SOC% to Fronius: ");
-    Serial.println(SOC);
-    Serial.println("Max discharge power: ");
+    if(errorCode > 0)
+      {
+        Serial.print("ERROR CODE ACTIVE IN SYSTEM. NUMBER: ");
+        Serial.println(errorCode);
+      }
+    Serial.print("BMS Status (3=OK): ");
+    Serial.println(bms_status);
+    switch (bms_char_dis_status)
+			{
+      case 0:
+        Serial.println("Battery Idle");
+        break;
+      case 1:
+        Serial.println("Battery Discharging");
+        break;
+      case 2:
+        Serial.println("Battery Charging");
+        break;
+      default:
+        break;
+      }
+    Serial.print("Power: ");
+    Serial.println(LB_Power);
+    Serial.print("Max discharge power: ");
     Serial.println(max_target_discharge_power);
-    Serial.println("Max charge power: ");
+    Serial.print("Max charge power: ");
     Serial.println(max_target_charge_power);
-    Serial.println("Temperature Min: ");
+    Serial.print("SOH%: ");
+    Serial.println(SOH);
+    Serial.print("SOC% to Fronius: ");
+    Serial.println(SOC);
+    Serial.print("Temperature Min: ");
     Serial.println(temperature_min);
-    Serial.println("Temperature Max: ");
+    Serial.print("Temperature Max: ");
     Serial.println(temperature_max);
-    Serial.println("GIDS: ");
+    Serial.print("GIDS: ");
     Serial.println(LB_GIDS);
-    
   }
 }
 
@@ -437,8 +467,6 @@ void handle_can_leaf_battery()
           // negative so extend the sign bit
           LB_Current |= 0xf800;
         }
-        //Serial.println("LB_Current: ");
-        //Serial.println(LB_Current);
 
 				LB_Total_Voltage = ((rx_frame.data.u8[2] << 2) | (rx_frame.data.u8[3] & 0xc0) >> 6) / 2;
         
@@ -458,7 +486,7 @@ void handle_can_leaf_battery()
 				LB_SOC = (rx_frame.data.u8[0] << 2 | rx_frame.data.u8[1] >> 6);
 				break;
 			case 0x5BC:
-        stillAlive = 6; //Indicate that we are still getting CAN messages from the BMS
+        stillAlive = 12; //Indicate that we are still getting CAN messages from the BMS
 
 				LB_MAX = ((rx_frame.data.u8[5] & 0x10) >> 4);
 				if (LB_MAX)
