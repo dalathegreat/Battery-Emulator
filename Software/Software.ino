@@ -22,7 +22,7 @@ unsigned long previousMillis100 = 0; // will store last time a 100ms CAN Message
 const int interval10 = 10; // interval (ms) at which send CAN Messages
 const int interval100 = 100; // interval (ms) at which send CAN Messages
 const int rx_queue_size = 10; // Receive Queue size
-uint8_t stillAlive = 12; //counter for checking if CAN is still alive 
+uint8_t CANstillAlive = 12; //counter for checking if CAN is still alive 
 uint8_t errorCode = 0; //stores if we have an error code active from battery control logic
 uint8_t mprun10r = 0; //counter 0-20 for 0x1F2 message
 byte mprun10 = 0; //counter 0-3
@@ -45,7 +45,7 @@ uint16_t LB_Wh_Remaining = 0; //Amount of energy in battery, in Wh
 uint16_t LB_GIDS = 0;
 uint16_t LB_MAX = 0;
 uint16_t LB_Max_GIDS = 273; //Startup in 24kWh mode
-uint16_t LB_SOH = 99; //State of health %
+uint16_t LB_StateOfHealth = 99; //State of health %
 uint16_t LB_Total_Voltage = 370; //Battery voltage (0-450V)
 int16_t LB_Current = 0; //Current in A going in/out of battery
 int16_t LB_Power = 0; //Watts going in/out of battery
@@ -85,7 +85,7 @@ uint16_t max_voltage = 4040; //(404.4V), if higher charging is not possible (goe
 uint16_t min_voltage = 3100; //Min Voltage (310.0V), if lower Gen24 disables battery
 uint16_t battery_voltage = 3700;
 uint16_t SOC = 5000; //SOC 0-100.00% //Updates later on from CAN
-uint16_t SOH = 9900; //SOH 0-100.00% //Updates later on from CAN
+uint16_t StateOfHealth = 9900; //SOH 0-100.00% //Updates later on from CAN
 uint16_t capacity_Wh = BATTERY_WH_MAX; //Updates later on from CAN
 uint16_t remaining_capacity_Wh = BATTERY_WH_MAX; //Updates later on from CAN
 uint16_t max_target_discharge_power = 0; //0W (0W > restricts to no discharge) //Updates later on from CAN
@@ -164,7 +164,7 @@ void loop()
 
 void update_values_leaf_battery()
 { //This function maps all the values fetched via CAN to the correct parameters used for modbus
-  SOH = (LB_SOH * 100); //Increase range from 99% -> 99.00%
+  StateOfHealth = (LB_StateOfHealth * 100); //Increase range from 99% -> 99.00%
 
   //Calculate the SOC% value to send to Fronius
   LB_SOC = LB_MIN_SOC + (LB_MAX_SOC - LB_MIN_SOC) * (LB_SOC - MINPERCENTAGE) / (MAXPERCENTAGE - MINPERCENTAGE); 
@@ -231,9 +231,8 @@ void update_values_leaf_battery()
   if(LB_Relay_Cut_Request)
   { //LB_FAIL, BMS requesting shutdown and contactors to be opened
     Serial.println("Battery requesting immediate shutdown and contactors to be opened!");
-    bms_status = FAULT;
+    //Note, this is sometimes triggered during the night while idle, and the BMS recovers after a while. Removed latching from this scenario
     errorCode = 1;
-    SOC = 0;
     max_target_discharge_power = 0;
     max_target_charge_power = 0;
   }
@@ -281,7 +280,7 @@ void update_values_leaf_battery()
     }      
   }
 
-  if(LB_SOH < 25)
+  if(LB_StateOfHealth < 25)
   { //Battery is extremely degraded, not fit for secondlifestorage. Zero it all out.
     Serial.println("State of health critically low. Battery internal resistance too high to continue. Recycle battery.");
     bms_status = FAULT;
@@ -303,7 +302,7 @@ void update_values_leaf_battery()
   #endif
 
   /* Check if the BMS is still sending CAN messages. If we go 60s without messages we raise an error*/
-  if(!stillAlive)
+  if(!CANstillAlive)
   {
     bms_status = FAULT;
     errorCode = 7;
@@ -311,7 +310,7 @@ void update_values_leaf_battery()
   }
   else
   {
-    stillAlive--;
+    CANstillAlive--;
   }
 	
   LB_Power = LB_Total_Voltage * LB_Current;//P = U * I
@@ -353,7 +352,7 @@ void update_values_leaf_battery()
     Serial.print("Max charge power: ");
     Serial.println(max_target_charge_power);
     Serial.print("SOH%: ");
-    Serial.println(SOH);
+    Serial.println(StateOfHealth);
     Serial.print("SOC% to Fronius: ");
     Serial.println(SOC);
     Serial.print("Temperature Min: ");
@@ -442,7 +441,7 @@ void handle_update_data_modbusp301() {
   battery_data[20] = 13;                                 // Id.: p321 Value.: 0 Scaled value.: 0 Comment.: counter discharge hi
   battery_data[21] = 52064;                              // Id.: p322 Value.: 0 Scaled value.: 0 Comment.: counter discharge lo....65536*92+7448 = 6036760 Wh?
   battery_data[22] = 230;                                // Id.: p323 Value.: 0 Scaled value.: 0 Comment.: device temperature (23 degrees)
-  battery_data[23] = SOH;                                // Id.: p324 Value.: 9900 Scaled value.: 99% Comment.: SOH
+  battery_data[23] = StateOfHealth;                      // Id.: p324 Value.: 9900 Scaled value.: 99% Comment.: SOH
   static uint16_t i = 300;
   memcpy(&mbPV[i], battery_data, sizeof(battery_data));
 }
@@ -486,7 +485,7 @@ void handle_can_leaf_battery()
 				LB_SOC = (rx_frame.data.u8[0] << 2 | rx_frame.data.u8[1] >> 6);
 				break;
 			case 0x5BC:
-        stillAlive = 12; //Indicate that we are still getting CAN messages from the BMS
+        CANstillAlive = 12; //Indicate that we are still getting CAN messages from the BMS
 
 				LB_MAX = ((rx_frame.data.u8[5] & 0x10) >> 4);
 				if (LB_MAX)
@@ -501,7 +500,7 @@ void handle_can_leaf_battery()
 					LB_GIDS = (rx_frame.data.u8[0] << 2) | ((rx_frame.data.u8[1] & 0xC0) >> 6);
 					LB_Wh_Remaining = (LB_GIDS * WH_PER_GID);
 				}
-        LB_SOH = (rx_frame.data.u8[4] >> 1); //Collect state of health from battery
+        LB_StateOfHealth = (rx_frame.data.u8[4] >> 1); //Collect state of health from battery
 				break;
       case 0x5C0: //This method only works for 2011-2017 LEAF packs, the mux is different on 2018+ 40/62kWH packs
         if ((rx_frame.data.u8[0]>>6) == 1)
