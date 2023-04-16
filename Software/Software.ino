@@ -34,6 +34,10 @@ CAN_frame_t LEAF_50C = {.FIR = {.B = {.DLC = 6,.FF = CAN_frame_std,}},.MsgID = 0
 CAN_frame_t LEAF_1D4 = {.FIR = {.B = {.DLC = 8,.FF = CAN_frame_std,}},.MsgID = 0x1D4,.data = {0x6E, 0x6E, 0x00, 0x04, 0x07, 0x46, 0xE0, 0x44}};
 
 //Nissan LEAF battery parameters from CAN
+#define ZE0_BATTERY 0
+#define AZE0_BATTERY 1
+#define ZE1_BATTERY 2
+uint8_t LEAF_Battery_Type = ZE0_BATTERY;
 #define WH_PER_GID 77   //One GID is this amount of Watt hours
 #define LB_MAX_SOC 1000  //LEAF BMS never goes over this value. We use this info to rescale SOC% sent to Fronius
 #define LB_MIN_SOC 0   //LEAF BMS never goes below this value. We use this info to rescale SOC% sent to Fronius
@@ -49,8 +53,8 @@ uint16_t LB_StateOfHealth = 99; //State of health %
 uint16_t LB_Total_Voltage = 370; //Battery voltage (0-450V)
 int16_t LB_Current = 0; //Current in A going in/out of battery
 int16_t LB_Power = 0; //Watts going in/out of battery
-int16_t LB_HistData_Temperature_MAX = 60; //-40 to 86*C
-int16_t LB_HistData_Temperature_MIN = 50; //-40 to 86*C
+int16_t LB_HistData_Temperature_MAX = 6; //-40 to 86*C
+int16_t LB_HistData_Temperature_MIN = 5; //-40 to 86*C
 uint8_t LB_Relay_Cut_Request = 0; //LB_FAIL
 uint8_t LB_Failsafe_Status = 0; //LB_STATUS = 000b = normal start Request
                                             //001b = Main Relay OFF Request
@@ -164,6 +168,8 @@ void loop()
 
 void update_values_leaf_battery()
 { //This function maps all the values fetched via CAN to the correct parameters used for modbus
+  bms_status = ACTIVE; //Startout in active mode
+  
   StateOfHealth = (LB_StateOfHealth * 100); //Increase range from 99% -> 99.00%
 
   //Calculate the SOC% value to send to Fronius
@@ -316,11 +322,8 @@ void update_values_leaf_battery()
   LB_Power = LB_Total_Voltage * LB_Current;//P = U * I
   stat_batt_power = convert2unsignedint16(LB_Power); //add sign if needed
 
-  LB_HistData_Temperature_MIN = (LB_HistData_Temperature_MIN * 10); //increase range to fit the Fronius
-	temperature_min = convert2unsignedint16(LB_HistData_Temperature_MIN); //add sign if needed
-
-  LB_HistData_Temperature_MAX = (LB_HistData_Temperature_MAX * 10); //increase range to fit the Fronius
-	temperature_max = convert2unsignedint16(LB_HistData_Temperature_MAX);
+	temperature_min = convert2unsignedint16((LB_HistData_Temperature_MIN * 10)); //add sign if needed and increase range
+	temperature_max = convert2unsignedint16((LB_HistData_Temperature_MAX * 10));
 
   if(printValues)
   {  //values heading towards the modbus registers
@@ -502,17 +505,24 @@ void handle_can_leaf_battery()
 				}
         LB_StateOfHealth = (rx_frame.data.u8[4] >> 1); //Collect state of health from battery
 				break;
-      case 0x5C0: //This method only works for 2011-2017 LEAF packs, the mux is different on 2018+ 40/62kWH packs
-        if ((rx_frame.data.u8[0]>>6) == 1)
-        { // Battery Temperature. Effectively has only 7-bit precision, as the bottom bit is always 0.
-          LB_HistData_Temperature_MAX = ((rx_frame.data.u8[2] / 2) - 40);
-          //Serial.println(LB_HistData_Temperature_MAX);
+      case 0x5C0: //This method only works for 2013-2017 AZE0 LEAF packs, the mux is different on other generations
+        if(LEAF_Battery_Type == AZE0_BATTERY)
+        {
+          if ((rx_frame.data.u8[0]>>6) == 1)
+          { // Battery Temperature. Effectively has only 7-bit precision, as the bottom bit is always 0.
+            LB_HistData_Temperature_MAX = ((rx_frame.data.u8[2] / 2) - 40);
+            //Serial.println(LB_HistData_Temperature_MAX);
+          }
+          if ((rx_frame.data.u8[0]>>6) == 3)
+          { // Battery Temperature. Effectively has only 7-bit precision, as the bottom bit is always 0.
+            LB_HistData_Temperature_MIN = ((rx_frame.data.u8[2] / 2) - 40);
+            //Serial.println(LB_HistData_Temperature_MIN);
+          }
         }
-        if ((rx_frame.data.u8[0]>>6) == 3)
-        { // Battery Temperature. Effectively has only 7-bit precision, as the bottom bit is always 0.
-          LB_HistData_Temperature_MIN = ((rx_frame.data.u8[2] / 2) - 40);
-          //Serial.println(LB_HistData_Temperature_MIN);
-        }
+        break;
+      case 0x59E:
+        //AZE0 2013-2017 or ZE1 2018-2023 battery detected
+        LEAF_Battery_Type = AZE0_BATTERY;
         break;
       default:
 				break;
