@@ -45,6 +45,7 @@ uint16_t LB_Discharge_Power_Limit = 0; //Limit in kW
 uint16_t LB_Charge_Power_Limit = 0; //Limit in kW
 int16_t LB_MAX_POWER_FOR_CHARGER = 0; //Limit in kW
 int16_t LB_SOC = 500; //0 - 100.0 % (0-1000)
+uint16_t LB_TEMP = 0; //Temporary value used in status checks
 uint16_t LB_Wh_Remaining = 0; //Amount of energy in battery, in Wh
 uint16_t LB_GIDS = 0;
 uint16_t LB_MAX = 0;
@@ -288,11 +289,14 @@ void update_values_leaf_battery()
 
   if(LB_StateOfHealth < 25)
   { //Battery is extremely degraded, not fit for secondlifestorage. Zero it all out.
-    Serial.println("State of health critically low. Battery internal resistance too high to continue. Recycle battery.");
-    bms_status = FAULT;
-    errorCode = 5;
-    max_target_discharge_power = 0;
-    max_target_charge_power = 0;    
+    if(LB_StateOfHealth != 0)
+    { //Extra check to see that we actually have a SOH Value available
+      Serial.println("State of health critically low. Battery internal resistance too high to continue. Recycle battery.");
+      bms_status = FAULT;
+      errorCode = 5;
+      max_target_discharge_power = 0;
+      max_target_charge_power = 0;
+    }
   }
 
   #ifdef INTERLOCK_REQUIRED
@@ -364,6 +368,8 @@ void update_values_leaf_battery()
     Serial.println(temperature_max);
     Serial.print("GIDS: ");
     Serial.println(LB_GIDS);
+    Serial.print("LEAF battery gen: ");
+    Serial.println(LEAF_Battery_Type);
   }
 }
 
@@ -485,7 +491,11 @@ void handle_can_leaf_battery()
 				LB_MAX_POWER_FOR_CHARGER = ((((rx_frame.data.u8[2] & 0x0F) << 6 | rx_frame.data.u8[3] >> 2) / 10.0) - 10);
 				break;
 			case 0x55B:
-				LB_SOC = (rx_frame.data.u8[0] << 2 | rx_frame.data.u8[1] >> 6);
+        LB_TEMP = (rx_frame.data.u8[0] << 2 | rx_frame.data.u8[1] >> 6);
+        if (LB_TEMP != 0x3ff) //3FF is unavailable value
+        {
+          LB_SOC = LB_TEMP;
+        }
 				break;
 			case 0x5BC:
         CANstillAlive = 12; //Indicate that we are still getting CAN messages from the BMS
@@ -509,20 +519,38 @@ void handle_can_leaf_battery()
         if(LEAF_Battery_Type == AZE0_BATTERY)
         {
           if ((rx_frame.data.u8[0]>>6) == 1)
-          { // Battery Temperature. Effectively has only 7-bit precision, as the bottom bit is always 0.
+          { // Battery MAX temperature. Effectively has only 7-bit precision, as the bottom bit is always 0.
             LB_HistData_Temperature_MAX = ((rx_frame.data.u8[2] / 2) - 40);
-            //Serial.println(LB_HistData_Temperature_MAX);
           }
           if ((rx_frame.data.u8[0]>>6) == 3)
-          { // Battery Temperature. Effectively has only 7-bit precision, as the bottom bit is always 0.
+          { // Battery MIN temperature. Effectively has only 7-bit precision, as the bottom bit is always 0.
             LB_HistData_Temperature_MIN = ((rx_frame.data.u8[2] / 2) - 40);
-            //Serial.println(LB_HistData_Temperature_MIN);
+          }
+        }
+        if(LEAF_Battery_Type == ZE1_BATTERY)
+        { //note different mux location in first frame
+          if ((rx_frame.data.u8[0] & 0x0F) == 1) 
+          {
+            LB_HistData_Temperature_MAX = ((rx_frame.data.u8[2] / 2) - 40);
+          }
+          if ((rx_frame.data.u8[0] & 0x0F) == 3) 
+          {
+            LB_HistData_Temperature_MIN = ((rx_frame.data.u8[2] / 2) - 40);
           }
         }
         break;
       case 0x59E:
         //AZE0 2013-2017 or ZE1 2018-2023 battery detected
-        LEAF_Battery_Type = AZE0_BATTERY;
+        //Only detect as AZE0 if not already set as ZE1
+        if(LEAF_Battery_Type != ZE1_BATTERY)
+        {
+          LEAF_Battery_Type = AZE0_BATTERY;
+        }
+        break;
+      case 0x1ED:
+      case 0x1C2:
+        //ZE1 2018-2023 battery detected!
+        LEAF_Battery_Type = ZE1_BATTERY;
         break;
       default:
 				break;
