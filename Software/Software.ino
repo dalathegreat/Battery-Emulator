@@ -164,7 +164,7 @@ void setup()
 // perform main program functions
 void loop()
 {
-	//handle_can_leaf_battery(); //runs as fast as possible
+	handle_can_leaf_battery(); //runs as fast as possible
 
 	if (millis() - previousMillisModbus >= intervalModbusTask) //every 5s
 	{ 
