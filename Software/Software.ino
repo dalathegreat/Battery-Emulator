@@ -106,8 +106,11 @@ uint16_t stat_batt_power = 0; //power going in/out of battery
 ModbusServerRTU MBserver(Serial2, 2000);
 
 // LED control
-#define NUMPIXELS   1
-Adafruit_NeoPixel pixels(NUMPIXELS, WS2812_PIN, NEO_GRB + NEO_KHZ800);
+Adafruit_NeoPixel pixels(1, WS2812_PIN, NEO_GRB + NEO_KHZ800);
+unsigned long previousMillis10ms = 0;
+static int green = 0;
+static bool rampUp = true;
+const int maxBrightness = 255;
 
 // Setup() - initialization happens here
 void setup()
@@ -166,13 +169,18 @@ void loop()
 {
 	handle_can_leaf_battery(); //runs as fast as possible
 
+  if (millis() - previousMillis10ms >= interval10) //every 10ms
+	{ 
+		previousMillis10ms = millis();
+    handle_LED_state();               //Set the LED color according to state
+  }
+
 	if (millis() - previousMillisModbus >= intervalModbusTask) //every 5s
 	{ 
 		previousMillisModbus = millis();
     update_values_leaf_battery();     //Map the values to the correct registers
     handle_update_data_modbusp201();  //Updata for ModbusRTU Server for GEN24
     handle_update_data_modbusp301();  //Updata for ModbusRTU Server for GEN24
-    handle_LED_state();               //Set the LED color according to state
 	}
 }
 
@@ -778,10 +786,28 @@ uint16_t convert2unsignedint16(uint16_t signed_value)
 
 void handle_LED_state()
 {
-  pixels.setPixelColor(0, pixels.Color(0, 80, 0)); // Green LED medium brightness
+  // Determine how bright the green LED should be
+  if (rampUp && green < maxBrightness)
+  {
+    green++;
+  } 
+  else if (rampUp && green == maxBrightness)
+  {
+    rampUp = false;
+  } 
+  else if (!rampUp && green > 0)
+  {
+    green--;
+  } else if (!rampUp && green == 0)
+  {
+    rampUp = true;
+  }
+  pixels.setPixelColor(0, pixels.Color(0, green, 0)); // Set LED to green according to calculated value
+
   if(bms_status == FAULT)
   {
     pixels.setPixelColor(0, pixels.Color(255, 0, 0)); // Red LED full brightness
   }
+
   pixels.show(); // This sends the updated pixel color to the hardware.
 }
