@@ -6,6 +6,7 @@
 #include "ModbusServerRTU.h"
 #include "ESP32CAN.h"
 #include "CAN_config.h"
+#include "Adafruit_NeoPixel.h"
 
 /* User definable settings */
 #define BATTERY_WH_MAX 30000 //Battery size in Wh (Maximum value Fronius accepts is 60000 [60kWh])
@@ -104,6 +105,10 @@ uint16_t stat_batt_power = 0; //power going in/out of battery
 // Create a ModbusRTU server instance listening on Serial2 with 2000ms timeout
 ModbusServerRTU MBserver(Serial2, 2000);
 
+// LED control
+#define NUMPIXELS   1
+Adafruit_NeoPixel pixels(NUMPIXELS, WS2812_PIN, NEO_GRB + NEO_KHZ800);
+
 // Setup() - initialization happens here
 void setup()
 {
@@ -151,19 +156,23 @@ void setup()
 
   // Start ModbusRTU background task
   MBserver.begin(Serial2);
+
+  // Init LED control
+  pixels.begin();
 }
 
 // perform main program functions
 void loop()
 {
-	handle_can_leaf_battery();
-  //every 5s
-	if (millis() - previousMillisModbus >= intervalModbusTask)
-	{
+	//handle_can_leaf_battery(); //runs as fast as possible
+
+	if (millis() - previousMillisModbus >= intervalModbusTask) //every 5s
+	{ 
 		previousMillisModbus = millis();
-    update_values_leaf_battery();
+    update_values_leaf_battery();     //Map the values to the correct registers
     handle_update_data_modbusp201();  //Updata for ModbusRTU Server for GEN24
     handle_update_data_modbusp301();  //Updata for ModbusRTU Server for GEN24
+    handle_LED_state();               //Set the LED color according to state
 	}
 }
 
@@ -513,7 +522,12 @@ void handle_can_leaf_battery()
 					LB_GIDS = (rx_frame.data.u8[0] << 2) | ((rx_frame.data.u8[1] & 0xC0) >> 6);
 					LB_Wh_Remaining = (LB_GIDS * WH_PER_GID);
 				}
-        LB_StateOfHealth = (rx_frame.data.u8[4] >> 1); //Collect state of health from battery
+
+        LB_TEMP = (rx_frame.data.u8[4] >> 1);
+        if (LB_TEMP != 0)
+        {
+          LB_StateOfHealth = LB_TEMP; //Collect state of health from battery
+        }
 				break;
       case 0x5C0: //This method only works for 2013-2017 AZE0 LEAF packs, the mux is different on other generations
         if(LEAF_Battery_Type == AZE0_BATTERY)
@@ -760,4 +774,14 @@ uint16_t convert2unsignedint16(uint16_t signed_value)
   {
     return signed_value;
   }
+}
+
+void handle_LED_state()
+{
+  pixels.setPixelColor(0, pixels.Color(0, 80, 0)); // Green LED medium brightness
+  if(bms_status == FAULT)
+  {
+    pixels.setPixelColor(0, pixels.Color(255, 0, 0)); // Red LED full brightness
+  }
+  pixels.show(); // This sends the updated pixel color to the hardware.
 }
