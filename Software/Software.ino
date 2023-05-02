@@ -58,7 +58,6 @@ int16_t LB_Power = 0; //Watts going in/out of battery
 int16_t LB_HistData_Temperature_MAX = 6; //-40 to 86*C
 int16_t LB_HistData_Temperature_MIN = 5; //-40 to 86*C
 uint8_t LB_Relay_Cut_Request = 0; //LB_FAIL
-uint8_t LB_Relay_Cut_Request_Counter = 0; //Keeps track of how many consecutive error messages have been sent
 uint8_t LB_Failsafe_Status = 0; //LB_STATUS = 000b = normal start Request
                                             //001b = Main Relay OFF Request
                                             //010b = Charging Mode Stop Request
@@ -66,8 +65,7 @@ uint8_t LB_Failsafe_Status = 0; //LB_STATUS = 000b = normal start Request
                                             //100b = Caution Lamp Request
                                             //101b = Caution Lamp Request & Main Relay OFF Request
                                             //110b = Caution Lamp Request & Charging Mode Stop Request
-                                            //111b = Caution Lamp Request & Main Relay OFF Request
-uint8_t LB_Failsafe_Status_Counter = 0; //Keeps track of how many consecutive error messages have been sent                                       
+                                            //111b = Caution Lamp Request & Main Relay OFF Request                                     
 byte LB_Interlock = 1; //Contains info on if HV leads are seated (Note, to use this both HV connectors need to be inserted)
 byte LB_Full_CHARGE_flag = 0; //LB_FCHGEND , Goes to 1 if battery is fully charged
 byte LB_MainRelayOn_flag = 0; //No-Permission=0, Main Relay On Permission=1
@@ -256,78 +254,54 @@ void update_values_leaf_battery()
   
   if(LB_Relay_Cut_Request)
   { //LB_FAIL, BMS requesting shutdown and contactors to be opened
-    if(LB_Relay_Cut_Request_Counter < 2)
-    {
-      LB_Relay_Cut_Request_Counter++;
-    }
-    
-    if(LB_Relay_Cut_Request_Counter == 2) //Only trigger on two consecutive messages
-    {
-      Serial.println("Battery requesting immediate shutdown and contactors to be opened!");
-      //Note, this is sometimes triggered during the night while idle, and the BMS recovers after a while. Removed latching from this scenario
-      errorCode = 1;
-      max_target_discharge_power = 0;
-      max_target_charge_power = 0;
-    }
-  }
-  else
-  { //Reset amount of times failsafe messages has been requested
-    LB_Relay_Cut_Request_Counter = 0;
+    Serial.println("Battery requesting immediate shutdown and contactors to be opened!");
+    //Note, this is sometimes triggered during the night while idle, and the BMS recovers after a while. Removed latching from this scenario
+    errorCode = 1;
+    max_target_discharge_power = 0;
+    max_target_charge_power = 0;
   }
 
   if(LB_Failsafe_Status > 0) // 0 is normal, start charging/discharging
   {
-    if(LB_Failsafe_Status_Counter < 2)
+    switch(LB_Failsafe_Status)
     {
-      LB_Failsafe_Status_Counter++;
-    }
-    
-    if(LB_Failsafe_Status_Counter == 2) //Only trigger on two consecutive messages
-    {
-      switch(LB_Failsafe_Status)
-      {
-      case(1):
-        //Normal Stop Request
-        //This means that battery is fully discharged and it's OK to stop the session. For stationary storage we don't disconnect contactors, so we do nothing here.
-        break;
-      case(2):
-        //Charging Mode Stop Request
-        //This means that battery is fully charged and it's OK to stop the session. For stationary storage we don't disconnect contactors, so we do nothing here.
-        break;
-      case(3):
-        //Charging Mode Stop Request & Normal Stop Request
-        //Normal stop request. For stationary storage we don't disconnect contactors, so we ignore this.
-        break;
-      case(4):
-        //Caution Lamp Request
-        Serial.println("Battery raised caution indicator. Inspect battery status!");
-        break;
-      case(5):
-        //Caution Lamp Request & Normal Stop Request
-        bms_status = FAULT;
-        errorCode = 2;
-        Serial.println("Battery raised caution indicator AND requested discharge stop. Inspect battery status!");
-        break;
-      case(6):
-        //Caution Lamp Request & Charging Mode Stop Request
-        bms_status = FAULT;
-        errorCode = 3;
-        Serial.println("Battery raised caution indicator AND requested charge stop. Inspect battery status!");
-        break;
-      case(7):
-        //Caution Lamp Request & Charging Mode Stop Request & Normal Stop Request
-        bms_status = FAULT;
-        errorCode = 4;
-        Serial.println("Battery raised caution indicator AND requested charge/discharge stop. Inspect battery status!");
-        break;
-      default:
-        break;
-      }      
-    }
-  }
-  else
-  { //Reset amount of times failsafe messages has been requested
-    LB_Failsafe_Status_Counter = 0;
+    case(1):
+    //Normal Stop Request
+    //This means that battery is fully discharged and it's OK to stop the session. For stationary storage we don't disconnect contactors, so we do nothing here.
+    break;
+    case(2):
+    //Charging Mode Stop Request
+    //This means that battery is fully charged and it's OK to stop the session. For stationary storage we don't disconnect contactors, so we do nothing here.
+    break;
+    case(3):
+    //Charging Mode Stop Request & Normal Stop Request
+    //Normal stop request. For stationary storage we don't disconnect contactors, so we ignore this.
+    break;
+    case(4):
+    //Caution Lamp Request
+    Serial.println("Battery raised caution indicator. Inspect battery status!");
+    break;
+    case(5):
+    //Caution Lamp Request & Normal Stop Request
+    bms_status = FAULT;
+    errorCode = 2;
+    Serial.println("Battery raised caution indicator AND requested discharge stop. Inspect battery status!");
+    break;
+    case(6):
+    //Caution Lamp Request & Charging Mode Stop Request
+    bms_status = FAULT;
+    errorCode = 3;
+    Serial.println("Battery raised caution indicator AND requested charge stop. Inspect battery status!");
+    break;
+    case(7):
+    //Caution Lamp Request & Charging Mode Stop Request & Normal Stop Request
+    bms_status = FAULT;
+    errorCode = 4;
+    Serial.println("Battery raised caution indicator AND requested charge/discharge stop. Inspect battery status!");
+    break;
+    default:
+    break;
+    }      
   }
 
   if(LB_StateOfHealth < 25)
