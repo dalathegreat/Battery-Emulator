@@ -28,6 +28,9 @@ Here's how to connect the high voltage lines
 Here's how to wire up battery low voltage wiring
 ![alt text](https://github.com/dalathegreat/BYD-Battery-Emulator-For-Gen24/blob/main/Images/BatteryControlWiring.png)
 
+For more examples showing wiring, see the Example#####.jpg pictures in the 'Images' folder
+https://github.com/dalathegreat/BYD-Battery-Emulator-For-Gen24/tree/main/Images
+
 ## How to compile the software 💻
 1. Download the Arduino IDE: https://www.arduino.cc/en/software
 2. When the Arduino IDE has been started;
