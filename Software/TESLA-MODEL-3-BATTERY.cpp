@@ -3,8 +3,7 @@
 #include "CAN_config.h"
 
 /* User definable settings for the Tesla Model 3 battery */
-#define MAXPERCENTAGE 800   //800 = 80.0% , Max percentage the battery will charge to (App will show 100% once this value is reached)
-#define MINPERCENTAGE 200   //200 = 20.0% , Min percentage the battery will discharge to (App will show 0% once this value is reached)
+
 
 /* Do not change code below unless you are sure what you are doing */
 static unsigned long previousMillis10 = 0; // will store last time a 10ms CAN Message was send
@@ -15,11 +14,13 @@ static uint8_t stillAliveCAN = 6; //counter for checking if CAN is still alive
 
 void update_values_tesla_model_3_battery()
 { //This function maps all the values fetched via CAN to the correct parameters used for modbus
-	SOH; 
+	StateOfHealth; 
 	
 	SOC;
 
 	battery_voltage;
+
+  battery_current;
 
 	capacity_Wh;
 

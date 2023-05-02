@@ -12,24 +12,31 @@
 #define BATTERY_TYPE_LEAF         // See NISSAN-LEAF-BATTERY.cpp for more LEAF battery settings
 //#define TESLA_MODEL_3_BATTERY   // See TESLA-MODEL-3-BATTERY.cpp for more Tesla battery settings
 
-/* Do not change code below unless you are sure what you are doing */
-
+/* Tweak LEAF battery settings if needed */
 #ifdef BATTERY_TYPE_LEAF
-#include "NISSAN-LEAF-BATTERY.h"
-#define ABSOLUTE_MAX_VOLTAGE 4040 // 404.4V,if battery voltage goes over this, charging is not possible (goes into forced discharge)
-#define ABSOLUTE_MIN_VOLTAGE 3100 // 310.0V if battery voltage goes under this, discharging further is disabled
+  #define BATTERY_WH_MAX 30000 //Battery size in Wh (Maximum value Fronius accepts is 60000 [60kWh])
+  #define ABSOLUTE_MAX_VOLTAGE 4040 // 404.4V,if battery voltage goes over this, charging is not possible (goes into forced discharge)
+  #define ABSOLUTE_MIN_VOLTAGE 3100 // 310.0V if battery voltage goes under this, discharging further is disabled
+  #include "NISSAN-LEAF-BATTERY.h" //See this file for more LEAF battery settings
 #endif
 
+/* Tweak Tesla battery settings if needed */
 #ifdef TESLA_MODEL_3_BATTERY
-#include "TESLA-MODEL-3-BATTERY.h"
+  #define MAXPERCENTAGE 800   //800 = 80.0% , Max percentage the battery will charge to (App will show 100% once this value is reached)
+  #define MINPERCENTAGE 200   //200 = 20.0% , Min percentage the battery will discharge to (App will show 0% once this value is reached)
+  #include "TESLA-MODEL-3-BATTERY.h" //See this file for more Tesla battery settings
 #endif
 
+/* Do not change code below unless you are sure what you are doing */
 //CAN parameters
 CAN_device_t CAN_cfg; // CAN Config
 const int rx_queue_size = 10; // Receive Queue size
 
-//ModbusRTU parameters
+//Interval settings
 const int intervalModbusTask = 4800; //Interval at which to refresh modbus registers
+const int interval10 = 10;
+
+//ModbusRTU parameters
 unsigned long previousMillisModbus = 0; //will store last time a modbus register refresh
 #define MB_RTU_NUM_VALUES 30000
 uint16_t mbPV[MB_RTU_NUM_VALUES];          // process variable memory: produced by sensors, etc., cyclic read by PLC via modbus TCP
@@ -46,6 +53,7 @@ uint16_t max_power = 40960; //41kW
 const uint16_t max_voltage = ABSOLUTE_MAX_VOLTAGE; //if higher charging is not possible (goes into forced discharge)
 const uint16_t min_voltage = ABSOLUTE_MIN_VOLTAGE; //if lower Gen24 disables battery
 uint16_t battery_voltage = 3700;
+uint16_t battery_current = 0;
 uint16_t SOC = 5000; //SOC 0-100.00% //Updates later on from CAN
 uint16_t StateOfHealth = 9900; //SOH 0-100.00% //Updates later on from CAN
 uint16_t capacity_Wh = BATTERY_WH_MAX; //Updates later on from CAN
@@ -126,7 +134,10 @@ void loop()
 	#ifdef BATTERY_TYPE_LEAF
 	handle_can_leaf_battery(); //runs as fast as possible
 	#endif
-
+  #ifdef TESLA_MODEL_3_BATTERY
+  handle_can_tesla_model_3_battery(); //runs as fast as possible
+  #endif
+  
   if (millis() - previousMillis10ms >= interval10) //every 10ms
 	{ 
 		previousMillis10ms = millis();
@@ -136,15 +147,16 @@ void loop()
 	if (millis() - previousMillisModbus >= intervalModbusTask) //every 5s
 	{ 
 		previousMillisModbus = millis();
-	#ifdef BATTERY_TYPE_LEAF
+	  #ifdef BATTERY_TYPE_LEAF
     update_values_leaf_battery();     //Map the values to the correct registers
-	#endif
+	  #endif 
+    #ifdef TESLA_MODEL_3_BATTERY
+    update_values_tesla_model_3_battery(); //Map the values to the correct registers
+    #endif
     handle_update_data_modbusp201();  //Updata for ModbusRTU Server for GEN24
     handle_update_data_modbusp301();  //Updata for ModbusRTU Server for GEN24
 	}
 }
-
-
 
 void handle_static_data_modbus() {
   // Store the data into the array
@@ -187,11 +199,11 @@ void handle_update_data_modbusp201() {
 void handle_update_data_modbusp301() {
   // Store the data into the array
   static uint16_t battery_data[24];
-  if (LB_Current > 0) { //Positive value = Charging on LEAF 
+  if (battery_current > 0) { //Positive value = Charging
     bms_char_dis_status = 2; //Charging
-  } else if (LB_Current < 0) { //Negative value = Discharging on LEAF
+  } else if (battery_current < 0) { //Negative value = Discharging
     bms_char_dis_status = 1; //Discharging
-  } else { //LB_Current == 0
+  } else { //battery_current == 0
     bms_char_dis_status = 0; //idle
   }
 

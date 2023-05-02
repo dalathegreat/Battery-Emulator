@@ -4,7 +4,7 @@
 
 // These parameters need to be mapped for the Gen24
 extern uint16_t SOC;
-extern uint16_t SOH;
+extern uint16_t StateOfHealth;
 extern uint16_t battery_voltage;
 extern uint16_t capacity_Wh;
 extern uint16_t remaining_capacity_Wh;

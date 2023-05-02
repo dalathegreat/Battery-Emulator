@@ -2,13 +2,6 @@
 #include "ESP32CAN.h"
 #include "CAN_config.h"
 
-/* User definable settings for the LEAF battery */
-#define BATTERY_WH_MAX 30000 //Battery size in Wh (Maximum value Fronius accepts is 60000 [60kWh])
-#define MAXPERCENTAGE 800 //80.0% , Max percentage the battery will charge to (App will show 100% once this value is reached)
-#define MINPERCENTAGE 200 //20.0% , Min percentage the battery will discharge to (App will show 0% once this value is reached)
-//#define INTERLOCK_REQUIRED //Uncomment this line to skip requiring both high voltage connectors to be seated on the LEAF battery
-byte printValues = 1; //Should modbus values be printed to serial output? 
-
 /* Do not change code below unless you are sure what you are doing */
 unsigned long previousMillis10 = 0; // will store last time a 10ms CAN Message was send
 unsigned long previousMillis100 = 0; // will store last time a 100ms CAN Message was send
@@ -82,6 +75,8 @@ void update_values_leaf_battery()
   SOC = (LB_SOC * 10); //increase LB_SOC range from 0-100.0 -> 100.00
 
   battery_voltage = (LB_Total_Voltage*10); //One more decimal needed
+
+  battery_current = LB_Current;
 
 	capacity_Wh = (LB_Max_GIDS * WH_PER_GID);
 
