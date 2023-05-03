@@ -38,7 +38,8 @@ Click "File" in the upper left corner -> Preferences -> Additional Development >
 3. Go to "Boards Manager", and install the ESP32 package by Espressif Systems
 4. The arduino settings should be set to "ESP32 Dev Module" with the following settings;
 ![alt text](https://github.com/Xinyuan-LilyGO/T-CAN485/blob/main/img/arduino_setting.png)
-5. Press Verify and Upload to send the sketch to the board
+5. Select which battery type you will use, along with other optional settings
+6. Press Verify and Upload to send the sketch to the board.
 
 ## Dependencies 📖
 This code uses two libraries, ESP32-Arduino-CAN (https://github.com/miwagner/ESP32-Arduino-CAN/) slightly modified for this usecase, and the eModbus library (https://github.com/eModbus/eModbus). Both these are already located in the Software folder for an easy start.
