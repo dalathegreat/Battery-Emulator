@@ -1,24 +1,24 @@
 # BYD-Battery-Emulator-For-Gen24 ⚡🔋
-This software converts the LEAF CAN into Modbus RTU registers understood by solar inverters that accept the BYD 11kWh HVM battery. This enables a very easy way to use EV batteries for plug'n'play storage solutions.
+This software enables EV battery packs to be used for stationary storage in combination with solar inverters. It achieves this by converting EV battery CAN data into Modbus RTU registers, that emulate a BYD 11kWh HVM battery. This makes it extremely easy to use EV batteries in a true plug'n'play fashion.
 
 ![alt text](https://github.com/dalathegreat/BYD-Battery-Emulator-For-Gen24/blob/main/Images/Fronius.png)
 
 ## Hardware requirements 📜
 This code fits on the LilyGo ESP32 T-CAN485 devboard , see https://github.com/Xinyuan-LilyGO/T-CAN485
 
-You will also need a Nissan LEAF battery, any model year will do
+You will also need a complete EV battery. See the battery compability list on which are supported.
 
 Finally, you will need a hybrid solar inverter that accepts the BYD battery communication standard, for example the Fronius Gen24
 
 ## Installation basics 🪛
 1. Connect one end of the LilyGo RS485 to the Gen24 Modbus
-2. Connect the other end of the LilyGo to the CAN side of a LEAF battery
-3. Wire up high voltage cable between the Gen24 and the LEAF battery
-4. Add a 12V power source to power the LilyGo and the LEAF battery (uninterruptible PSU or 12V lead acid recommended in parallel)
-5. Manually handle pre-charge circuit + positive/negative contactor on LEAF battery for now (circuit will be improved soon)
+2. Connect the other end of the LilyGo to the CAN side of the battery
+3. Wire up high voltage cable between the Gen24 and the battery
+4. Add a 12V power source to power the LilyGo and the battery (uninterruptible PSU or 12V lead acid recommended in parallel)
+5. Some batteries need manual pre-charge circuit and positive/negative contactor control. Others are automatic. See the wiki for more info.
 6. Enjoy a big cheap grid connected battery!
 
-## Wiring examples 💡
+## Wiring example, LEAF battery 💡
 Here's how to wire up the communication between the components.
 ![alt text](https://github.com/dalathegreat/BYD-Battery-Emulator-For-Gen24/blob/main/Images/Wiring.png)
 
