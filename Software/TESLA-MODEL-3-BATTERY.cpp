@@ -13,14 +13,30 @@ static uint8_t stillAliveCAN = 6; //counter for checking if CAN is still alive
 
 CAN_frame_t TESLA_221 = {.FIR = {.B = {.DLC = 8,.FF = CAN_frame_std,}},.MsgID = 0x221,.data = {0x40, 0x41, 0x05, 0x15, 0x00, 0x50, 0x71, 0x7f}};
 
-uint16_t volts = 0;
-uint16_t amps = 0;
-int16_t max_temp = 0;
-int16_t min_temp = 0;
+uint16_t volts = 0;   // V
+uint16_t amps = 0;    // A
+uint16_t raw_amps = 0;// A
+int16_t max_temp = 6; // C*
+int16_t min_temp = 5; // C*
+uint16_t battery_charge_time_remaining = 0; // Minutes
+uint16_t regenerative_limit = 0;
+uint16_t discharge_limit = 0;
+uint16_t max_heat_park = 0;
+uint16_t hvac_max_power = 0;
+uint8_t contactor = 0; //State of contactor
+uint8_t hvil_status = 0;
+uint8_t packContNegativeState = 0;
+uint8_t packContPositiveState = 0;
+uint8_t packContactorSetState = 0;
+uint8_t packCtrsClosingAllowed = 0;
+uint8_t pyroTestInProgress = 0;
+const char* contactorText[] = {"UNKNOWN0","OPEN","CLOSING","BLOCKED","OPENING","CLOSED","UNKNOWN6","WELDED","POS_CL","NEG_CL","UNKNOWN10","UNKNOWN11","UNKNOWN12"};
+const char* contactorState[] = {"SNA","OPEN","PRECHARGE","BLOCKED","PULLED_IN","OPENING","ECONOMIZED","WELDED"};
+
 
 void update_values_tesla_model_3_battery()
 { //This function maps all the values fetched via CAN to the correct parameters used for modbus
-	StateOfHealth; 
+	StateOfHealth = 9900; //Hardcoded to 99%SOH
 	
 	SOC;
 
@@ -38,9 +54,9 @@ void update_values_tesla_model_3_battery()
 	
 	stat_batt_power;
 
-	temperature_min; 
+	temperature_min = min_temp;
 
-	temperature_max;
+	temperature_max = max_temp;
 
 	/* Check if the BMS is still sending CAN messages. If we go 60s without messages we raise an error*/
 	if(!stillAliveCAN)
@@ -52,6 +68,32 @@ void update_values_tesla_model_3_battery()
 	{
 	stillAliveCAN--;
 	}
+
+  if(printValues)
+  {
+    if (packCtrsClosingAllowed == 0)
+    {
+      Serial.println("Check high voltage connectors and interlock circuit! Closing contactor not allowed! Values: ");
+    }
+    if (pyroTestInProgress == 1)
+    {
+      Serial.println("Please wait for Pyro Connection check to finish, HV cables successfully seated!");
+    }
+
+    Serial.print("Contactor: ");
+    Serial.print(contactorText[contactor]); //Display what state the contactor is in
+    Serial.print(" , NegativeState: ");
+    Serial.print(contactorState[packContNegativeState]);
+    Serial.print(" , PositiveState: ");
+    Serial.print(contactorState[packContPositiveState]);
+    Serial.print(", setState: ");
+    Serial.print(contactorState[packContactorSetState]);
+    Serial.print(", close allowed: ");
+    Serial.print(packCtrsClosingAllowed);
+    Serial.print(", Pyrotest: ");
+    Serial.print(pyroTestInProgress);
+
+  }
 }
 
 void handle_can_tesla_model_3_battery()
@@ -75,17 +117,33 @@ void handle_can_tesla_model_3_battery()
 				break;
       case 0x20A:
         //Contactor state
+        contactor = rx_frame.data.u8[1] & 0x0F;
+        hvil_status = rx_frame.data.u8[5] & 0x0F;
+        packContNegativeState = rx_frame.data.u8[0] & 0x07;
+        packContPositiveState = (rx_frame.data.u8[0] & 0x38) >> 3;
+        packContactorSetState = rx_frame.data.u8[1] & 0x0F;
+        packCtrsClosingAllowed = (rx_frame.data.u8[4] & 0x38) >> 3; 
+        pyroTestInProgress = (rx_frame.data.u8[4] & 0x20) >> 5;
+        break;
+      case 0x252:
+        //Limits
+        regenerative_limit = ((rx_frame.data.u8[1] << 8) | rx_frame.data.u8[0]) * 0.01; //TODO, check if message is properly joined 
+        discharge_limit = ((rx_frame.data.u8[3] << 8) | rx_frame.data.u8[2]) * 0.013; //TODO, check if message is properly joined
+        max_heat_park = (((rx_frame.data.u8[5] & 0x03) << 8) | rx_frame.data.u8[4]) * 0.01; //TODO, check if message is properly joined
+        hvac_max_power = (((rx_frame.data.u8[7] << 6) | ((rx_frame.data.u8[6] & 0xFC) >> 2))) * 0.02; //TODO, check if message is properly joined
+
         break;
       case 0x132:
         //battery amps/volts 
-        volts = ((rx_frame.data.u8[0] << 8) | rx_frame.data.u8[1]) * 0.01;
-        amps = ((rx_frame.data.u8[2] << 8) | rx_frame.data.u8[3]);
+        volts = ((rx_frame.data.u8[1] << 8) | rx_frame.data.u8[0]) * 0.01; //TODO, check if message is properly joined
+        amps = ((rx_frame.data.u8[3] << 8) | rx_frame.data.u8[2]); //TODO, check if message is properly joined
         if (amps > 32768)
         {
           amps = - (65535 - amps);
         }
         amps = amps * 0.1;
-
+        raw_amps = ((rx_frame.data.u8[5] << 8) | rx_frame.data.u8[4]) * -0.05; //TODO, check if message is properly joined
+        battery_charge_time_remaining = (((rx_frame.data.u8[7] & 0x0F) << 8) | rx_frame.data.u8[6]) * 0.1; //TODO, check if message is properly joined
         break;
       case 0x3D2:
         // total charge/discharge kwh 
@@ -133,8 +191,11 @@ void handle_can_tesla_model_3_battery()
 	{ 
 		previousMillis10 = currentMillis;
 
-    //Command contactor to close
-		ESP32Can.CANWriteFrame(&TESLA_221);
+    if(packCtrsClosingAllowed)
+    {
+      //Command contactor to close
+      ESP32Can.CANWriteFrame(&TESLA_221);
+    }
 	}
 	//Send 10ms message
 	if (currentMillis - previousMillis10 >= interval10)
