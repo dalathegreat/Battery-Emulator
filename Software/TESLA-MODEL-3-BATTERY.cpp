@@ -91,7 +91,20 @@ void update_values_tesla_model_3_battery()
     Serial.print(", close allowed: ");
     Serial.print(packCtrsClosingAllowed);
     Serial.print(", Pyrotest: ");
-    Serial.print(pyroTestInProgress);
+    Serial.println(pyroTestInProgress);
+
+
+    Serial.print("Volt: ");
+    Serial.print(volts);
+    Serial.print(", Discharge limit: ");
+    Serial.print(discharge_limit);
+    Serial.print(", Charge limit: ");
+    Serial.print(regenerative_limit);
+    Serial.print(", Max temp: ");
+    Serial.print(max_temp);
+    Serial.print(", Min temp: ");
+    Serial.print(max_temp);
+    
 
   }
 }

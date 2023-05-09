@@ -9,8 +9,8 @@
 #include "Adafruit_NeoPixel.h"
 
 /* Select battery used */
-#define BATTERY_TYPE_LEAF         // See NISSAN-LEAF-BATTERY.cpp for more LEAF battery settings
-//#define TESLA_MODEL_3_BATTERY   // See TESLA-MODEL-3-BATTERY.cpp for more Tesla battery settings
+//#define BATTERY_TYPE_LEAF         // See NISSAN-LEAF-BATTERY.cpp for more LEAF battery settings
+#define TESLA_MODEL_3_BATTERY   // See TESLA-MODEL-3-BATTERY.cpp for more Tesla battery settings
 
 /* Tweak LEAF battery settings if needed */
 #ifdef BATTERY_TYPE_LEAF
@@ -22,8 +22,9 @@
 
 /* Tweak Tesla battery settings if needed */
 #ifdef TESLA_MODEL_3_BATTERY
-  #define MAXPERCENTAGE 800   //800 = 80.0% , Max percentage the battery will charge to (App will show 100% once this value is reached)
-  #define MINPERCENTAGE 200   //200 = 20.0% , Min percentage the battery will discharge to (App will show 0% once this value is reached)
+  #define BATTERY_WH_MAX 60000 //Battery size in Wh (Maximum value Fronius accepts is 60000 [60kWh])
+  #define ABSOLUTE_MAX_VOLTAGE 4040 // 404.4V,if battery voltage goes over this, charging is not possible (goes into forced discharge)
+  #define ABSOLUTE_MIN_VOLTAGE 3100 // 310.0V if battery voltage goes under this, discharging further is disabled
   #include "TESLA-MODEL-3-BATTERY.h" //See this file for more Tesla battery settings
 #endif
 
