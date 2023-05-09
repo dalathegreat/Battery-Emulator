@@ -18,6 +18,13 @@ uint16_t amps = 0;    // A
 uint16_t raw_amps = 0;// A
 int16_t max_temp = 6; // C*
 int16_t min_temp = 5; // C*
+uint16_t energy_buffer = 0;
+uint16_t energy_to_charge_complete = 0;
+uint16_t expected_energy_remaining = 0;
+uint8_t full_charge_complete = 0;
+uint16_t ideal_energy_remaining = 0;
+uint16_t nominal_energy_remaining = 0;
+uint16_t nominal_full_pack_energy = 0;
 uint16_t battery_charge_time_remaining = 0; // Minutes
 uint16_t regenerative_limit = 0;
 uint16_t discharge_limit = 0;
@@ -127,6 +134,16 @@ void handle_can_tesla_model_3_battery()
 			{
 			case 0x352:
         //SOC
+        energy_buffer = (((rx_frame.data.u8[7] & 0x7F) << 1) | ((rx_frame.data.u8[6] & 0x80) >> 7)) * 0.1;
+        energy_to_charge_complete = (((rx_frame.data.u8[6] & 0x7F) << 4) | ((rx_frame.data.u8[5] & 0xF0) >> 4)) * 0.1;
+        expected_energy_remaining = (((rx_frame.data.u8[4] & 0x01) << 10) | rx_frame.data.u8[3] << 2 | ((rx_frame.data.u8[2] & 0xC0) >> 6)) * 0.1;
+        full_charge_complete = rx_frame.data.u8[7] & 0x80;
+        //ideal_energy_remaining = extract_k_bits(msg.data, 33, 11, True) * 0.1
+        //nominal_energy_remaining = extract_k_bits(msg.data, 11, 11, True) * 0.1
+        //nominal_full_pack_energy = extract_k_bits(msg.data, 0, 11, True) * 0.1
+
+        //soc = round(expected_energy_remaining / nominal_full_pack_energy * 100)
+
 				break;
       case 0x20A:
         //Contactor state
