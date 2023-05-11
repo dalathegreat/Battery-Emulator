@@ -30,6 +30,12 @@ uint16_t regenerative_limit = 0;
 uint16_t discharge_limit = 0;
 uint16_t max_heat_park = 0;
 uint16_t hvac_max_power = 0;
+float calculated_soc_float = 0;
+uint16_t calculated_soc = 0;
+uint16_t min_voltage = 0;
+uint16_t max_discharge_current = 0;
+uint16_t max_charge_current = 0;
+uint16_t max_voltage = 0;
 uint8_t contactor = 0; //State of contactor
 uint8_t hvil_status = 0;
 uint8_t packContNegativeState = 0;
@@ -45,13 +51,17 @@ void update_values_tesla_model_3_battery()
 { //This function maps all the values fetched via CAN to the correct parameters used for modbus
 	StateOfHealth = 9900; //Hardcoded to 99%SOH
 	
-	SOC;
+	SOC = calculated_soc;
 
 	battery_voltage;
 
   battery_current;
 
-	capacity_Wh;
+	capacity_Wh = (nominal_full_pack_energy * 100); //Scale up 75.2kWh -> 75200Wh
+  if(capacity_Wh > 60000)
+  {
+    capacity_Wh = 60000;
+  }
 
 	remaining_capacity_Wh;
 
@@ -111,7 +121,31 @@ void update_values_tesla_model_3_battery()
     Serial.print(max_temp);
     Serial.print(", Min temp: ");
     Serial.print(max_temp);
-    
+    Serial.print(", Nominal full energy: ");
+    Serial.print(nominal_full_pack_energy);
+    Serial.print(", Nominal energy remain: ");
+    Serial.print(nominal_energy_remaining);
+    Serial.print(", Expected energy remain: ");
+    Serial.print(expected_energy_remaining);
+    Serial.print(", Ideal energy remaining: ");
+    Serial.print(ideal_energy_remaining);
+    Serial.print(", Energy to charge complete: ");
+    Serial.print(energy_to_charge_complete);
+    Serial.print(", Energy buffer: ");
+    Serial.print(energy_buffer);
+    Serial.print(", Fully charged?: ");
+    Serial.println(full_charge_complete);
+    Serial.print("SOC: ");
+    Serial.println(calculated_soc);
+
+    Serial.print("Min voltage: ");
+    Serial.print(min_voltage);
+    Serial.print(", Max voltage: ");
+    Serial.print(max_voltage);
+    Serial.print(", Max charge current: ");
+    Serial.print(max_charge_current);
+    Serial.print(", Max discharge current: ");
+    Serial.println(max_discharge_current);
 
   }
 }
@@ -134,46 +168,57 @@ void handle_can_tesla_model_3_battery()
 			{
 			case 0x352:
         //SOC
-        energy_buffer = (((rx_frame.data.u8[7] & 0x7F) << 1) | ((rx_frame.data.u8[6] & 0x80) >> 7)) * 0.1;
-        energy_to_charge_complete = (((rx_frame.data.u8[6] & 0x7F) << 4) | ((rx_frame.data.u8[5] & 0xF0) >> 4)) * 0.1;
-        expected_energy_remaining = (((rx_frame.data.u8[4] & 0x01) << 10) | rx_frame.data.u8[3] << 2 | ((rx_frame.data.u8[2] & 0xC0) >> 6)) * 0.1;
-        full_charge_complete = rx_frame.data.u8[7] & 0x80;
-        //ideal_energy_remaining = extract_k_bits(msg.data, 33, 11, True) * 0.1
-        //nominal_energy_remaining = extract_k_bits(msg.data, 11, 11, True) * 0.1
-        //nominal_full_pack_energy = extract_k_bits(msg.data, 0, 11, True) * 0.1
+        nominal_full_pack_energy =  (((rx_frame.data.u8[1] & 0x0F) << 8) | (rx_frame.data.u8[0])); //Example 752 (75.2kWh)
+        nominal_energy_remaining =  (((rx_frame.data.u8[2] & 0x3F) << 5) | ((rx_frame.data.u8[1] & 0xF8) >> 3)) * 0.1; //Example 1247 * 0.1 = 124.7kWh
+        expected_energy_remaining = (((rx_frame.data.u8[4] & 0x01) << 10) | (rx_frame.data.u8[3] << 2) | ((rx_frame.data.u8[2] & 0xC0) >> 6)); //Example 622 (62.2kWh)
+        ideal_energy_remaining =    (((rx_frame.data.u8[5] & 0x0F) << 7) | ((rx_frame.data.u8[4] & 0xFE) >> 1)) * 0.1; //Example 311 * 0.1 = 31.1kWh
+        energy_to_charge_complete = (((rx_frame.data.u8[6] & 0x7F) << 4) | ((rx_frame.data.u8[5] & 0xF0) >> 4)) * 0.1; //Example 147 * 0.1 = 14.7kWh
+        energy_buffer =             (((rx_frame.data.u8[7] & 0x7F) << 1) | ((rx_frame.data.u8[6] & 0x80) >> 7)) * 0.1; //Example 1 * 0.1 = 0
+        full_charge_complete =      (rx_frame.data.u8[7] & 0x80);
 
-        //soc = round(expected_energy_remaining / nominal_full_pack_energy * 100)
-
+        if(nominal_full_pack_energy > 0)
+        { //Avoid division by 0
+          calculated_soc_float = ((float)expected_energy_remaining / nominal_full_pack_energy) * 10000;
+          calculated_soc = calculated_soc_float;
+        }
+        else
+        {
+          calculated_soc = 0;
+        }
 				break;
       case 0x20A:
         //Contactor state
-        contactor = rx_frame.data.u8[1] & 0x0F;
-        hvil_status = rx_frame.data.u8[5] & 0x0F;
-        packContNegativeState = rx_frame.data.u8[0] & 0x07;
-        packContPositiveState = (rx_frame.data.u8[0] & 0x38) >> 3;
-        packContactorSetState = rx_frame.data.u8[1] & 0x0F;
-        packCtrsClosingAllowed = (rx_frame.data.u8[4] & 0x38) >> 3; 
-        pyroTestInProgress = (rx_frame.data.u8[4] & 0x20) >> 5;
+        packContNegativeState =   (rx_frame.data.u8[0] & 0x07);
+        packContPositiveState =   (rx_frame.data.u8[0] & 0x38) >> 3;
+        contactor =               (rx_frame.data.u8[1] & 0x0F);
+        packContactorSetState =   (rx_frame.data.u8[1] & 0x0F);
+        packCtrsClosingAllowed =  (rx_frame.data.u8[4] & 0x38) >> 3; 
+        pyroTestInProgress =      (rx_frame.data.u8[4] & 0x20) >> 5;
+        hvil_status =             (rx_frame.data.u8[5] & 0x0F);
         break;
       case 0x252:
         //Limits
-        regenerative_limit = ((rx_frame.data.u8[1] << 8) | rx_frame.data.u8[0]) * 0.01; //TODO, check if message is properly joined 
-        discharge_limit = ((rx_frame.data.u8[3] << 8) | rx_frame.data.u8[2]) * 0.013; //TODO, check if message is properly joined
-        max_heat_park = (((rx_frame.data.u8[5] & 0x03) << 8) | rx_frame.data.u8[4]) * 0.01; //TODO, check if message is properly joined
-        hvac_max_power = (((rx_frame.data.u8[7] << 6) | ((rx_frame.data.u8[6] & 0xFC) >> 2))) * 0.02; //TODO, check if message is properly joined
-
+        regenerative_limit =  ((rx_frame.data.u8[1] << 8) | rx_frame.data.u8[0]) * 0.01; //Example 4715 * 0.01 = 47.15kW
+        discharge_limit =     ((rx_frame.data.u8[3] << 8) | rx_frame.data.u8[2]) * 0.013; //Example 2009 * 0.013 = 26.117???
+        max_heat_park =       (((rx_frame.data.u8[5] & 0x03) << 8) | rx_frame.data.u8[4]) * 0.01; //Example 500 * 0.01 = 5kW
+        hvac_max_power =      (((rx_frame.data.u8[7] << 6) | ((rx_frame.data.u8[6] & 0xFC) >> 2))) * 0.02; //Example 1000 * 0.02 = 20kW?
         break;
       case 0x132:
         //battery amps/volts 
-        volts = ((rx_frame.data.u8[1] << 8) | rx_frame.data.u8[0]) * 0.01; //TODO, check if message is properly joined
-        amps = ((rx_frame.data.u8[3] << 8) | rx_frame.data.u8[2]); //TODO, check if message is properly joined
+        volts = ((rx_frame.data.u8[1] << 8) | rx_frame.data.u8[0]) * 0.01; //Example 37030mv * 0.01 = 370.3V
+        amps =  ((rx_frame.data.u8[3] << 8) | rx_frame.data.u8[2]); //Example 65492 (-4.3A) OR 225 (22.5A)
         if (amps > 32768)
         {
           amps = - (65535 - amps);
         }
         amps = amps * 0.1;
-        raw_amps = ((rx_frame.data.u8[5] << 8) | rx_frame.data.u8[4]) * -0.05; //TODO, check if message is properly joined
-        battery_charge_time_remaining = (((rx_frame.data.u8[7] & 0x0F) << 8) | rx_frame.data.u8[6]) * 0.1; //TODO, check if message is properly joined
+        raw_amps = ((rx_frame.data.u8[5] << 8) | rx_frame.data.u8[4]) * -0.05; //Example 10425 * -0.05 = ?
+        battery_charge_time_remaining = (((rx_frame.data.u8[7] & 0x0F) << 8) | rx_frame.data.u8[6]) * 0.1; //Example 228 * 0.1 = 22.8min
+        if(battery_charge_time_remaining == 4095)
+        {
+          battery_charge_time_remaining = 0;
+        }
+
         break;
       case 0x3D2:
         // total charge/discharge kwh 
@@ -190,14 +235,18 @@ void handle_can_tesla_model_3_battery()
         if(mux == 0)//Temperature sensors
         {
           temp = rx_frame.data.u8[2];
-          max_temp = (temp * 0.5) - 40; //in celcius
+          max_temp = (temp * 0.5) - 40; //in celcius, Example 24
 
           temp = rx_frame.data.u8[3];
-          min_temp = (volts * 0.5) - 40; //in celcius
+          min_temp = (volts * 0.5) - 40; //in celcius , Example 24
         }
         break;
-      case 0x401:
-        //cell voltages 
+      case 0x2d2:
+        //Min / max limits
+        min_voltage =           ((rx_frame.data.u8[1] << 8) | rx_frame.data.u8[0]) * 0.01 * 2; //Example 24148mv * 0.01 = 241.48 V
+        max_voltage =           ((rx_frame.data.u8[3] << 8) | rx_frame.data.u8[2]) * 0.01 * 2; //Example 40282mv * 0.01 = 402.82 V
+        max_charge_current =    (((rx_frame.data.u8[5] & 0x3F) << 8) | rx_frame.data.u8[4]) * 0.1; //Example 1301? * 0.1 = 130.1?
+        max_discharge_current = (((rx_frame.data.u8[7] & 0x3F) << 8) | rx_frame.data.u8[6]) * 0.128; //Example 430? * 0.128 = 55.4?
         break;
 			default:
 				break;
