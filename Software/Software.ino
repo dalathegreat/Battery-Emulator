@@ -23,8 +23,8 @@
 /* Tweak Tesla battery settings if needed */
 #ifdef TESLA_MODEL_3_BATTERY
   #define BATTERY_WH_MAX 60000 //Battery size in Wh (Maximum value Fronius accepts is 60000 [60kWh])
-  #define ABSOLUTE_MAX_VOLTAGE 4040 // 404.4V,if battery voltage goes over this, charging is not possible (goes into forced discharge)
-  #define ABSOLUTE_MIN_VOLTAGE 3100 // 310.0V if battery voltage goes under this, discharging further is disabled
+  #define ABSOLUTE_MAX_VOLTAGE 4030 // 403.0V,if battery voltage goes over this, charging is not possible (goes into forced discharge)
+  #define ABSOLUTE_MIN_VOLTAGE 2450 // 245.0V if battery voltage goes under this, discharging further is disabled
   #include "TESLA-MODEL-3-BATTERY.h" //See this file for more Tesla battery settings
 #endif
 

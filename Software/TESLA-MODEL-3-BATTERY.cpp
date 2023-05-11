@@ -11,7 +11,12 @@ static const int interval30 = 30; // interval (ms) at which send CAN Messages
 static const int interval100 = 100; // interval (ms) at which send CAN Messages
 static uint8_t stillAliveCAN = 6; //counter for checking if CAN is still alive
 
-CAN_frame_t TESLA_221 = {.FIR = {.B = {.DLC = 8,.FF = CAN_frame_std,}},.MsgID = 0x221,.data = {0x40, 0x41, 0x05, 0x15, 0x00, 0x50, 0x71, 0x7f}};
+CAN_frame_t TESLA_221_1 = {.FIR = {.B = {.DLC = 8,.FF = CAN_frame_std,}},.MsgID = 0x221,.data = {0x40, 0x41, 0x05, 0x15, 0x00, 0x50, 0x71, 0x7f}};
+CAN_frame_t TESLA_221_2 = {.FIR = {.B = {.DLC = 8,.FF = CAN_frame_std,}},.MsgID = 0x221,.data = {0x60, 0x55, 0x55, 0x15, 0x54, 0x51, 0xd1, 0xb8}};
+CAN_frame_t TESLA_332_1 = {.FIR = {.B = {.DLC = 8,.FF = CAN_frame_std,}},.MsgID = 0x332,.data = {0x61, 0x05, 0x55, 0x55, 0x00, 0x00, 0xe0, 0x13}};
+CAN_frame_t TESLA_332_2 = {.FIR = {.B = {.DLC = 6,.FF = CAN_frame_std,}},.MsgID = 0x332,.data = {0x3C, 0x0C, 0x85, 0x80, 0x89, 0x86}};
+uint8_t alternate221 = 0;
+uint8_t alternate332 = 0;
 
 uint16_t volts = 0;   // V
 uint16_t amps = 0;    // A
@@ -63,7 +68,7 @@ void update_values_tesla_model_3_battery()
     capacity_Wh = 60000;
   }
 
-	remaining_capacity_Wh;
+	remaining_capacity_Wh = (expected_energy_remaining * 100); //Scale up 60.3kWh -> 60300Wh
 
 	max_target_discharge_power;
 
@@ -71,9 +76,9 @@ void update_values_tesla_model_3_battery()
 	
 	stat_batt_power;
 
-	temperature_min = min_temp;
+	temperature_min = convert2unsignedint16(min_temp);
 
-	temperature_max = max_temp;
+	temperature_max = convert2unsignedint16(max_temp);
 
 	/* Check if the BMS is still sending CAN messages. If we go 60s without messages we raise an error*/
 	if(!stillAliveCAN)
@@ -231,6 +236,7 @@ void handle_can_tesla_model_3_battery()
         if(mux == 1) //Cell voltages
         {
           //todo handle cell voltages
+          //not required by the Gen24, but nice stats located here!
         }
         if(mux == 0)//Temperature sensors
         {
@@ -270,10 +276,21 @@ void handle_can_tesla_model_3_battery()
 	{ 
 		previousMillis10 = currentMillis;
 
-    if(packCtrsClosingAllowed)
+    if(packCtrsClosingAllowed > 0) //Command contactor to close
     {
-      //Command contactor to close
-      ESP32Can.CANWriteFrame(&TESLA_221);
+      alternate221++;
+      if (alternate221 > 1)
+      {
+        alternate221 = 0;
+      }
+      if(alternate221 == 0)
+      {
+        ESP32Can.CANWriteFrame(&TESLA_221_1);
+      }
+      else //alternate221 == 1
+      {
+        ESP32Can.CANWriteFrame(&TESLA_221_2);
+      }
     }
 	}
 	//Send 10ms message
