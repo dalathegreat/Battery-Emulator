@@ -3,8 +3,8 @@
 #include <Arduino.h>
 
 /* User definable settings for the Tesla Model 3 battery */
-#define MAXPERCENTAGE 800 //80.0% , Max percentage the battery will charge to (App will show 100% once this value is reached)
-#define MINPERCENTAGE 200 //20.0% , Min percentage the battery will discharge to (App will show 0% once this value is reached)
+#define MAXPERCENTAGE 950 //95.0% , Max percentage the battery will charge to (App will show 100% once this value is reached)
+#define MINPERCENTAGE 150 //15.0% , Min percentage the battery will discharge to (App will show 0% once this value is reached)
 static byte printValues = 1; //Should modbus values be printed to serial output? 
 
 // These parameters need to be mapped for the Gen24

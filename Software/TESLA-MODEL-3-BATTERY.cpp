@@ -11,16 +11,13 @@ static const int interval30 = 30; // interval (ms) at which send CAN Messages
 static const int interval100 = 100; // interval (ms) at which send CAN Messages
 static uint8_t stillAliveCAN = 6; //counter for checking if CAN is still alive
 
-CAN_frame_t TESLA_221_1 = {.FIR = {.B = {.DLC = 8,.FF = CAN_frame_std,}},.MsgID = 0x221,.data = {0x40, 0x41, 0x05, 0x15, 0x00, 0x50, 0x71, 0x7f}};
-CAN_frame_t TESLA_221_2 = {.FIR = {.B = {.DLC = 8,.FF = CAN_frame_std,}},.MsgID = 0x221,.data = {0x60, 0x55, 0x55, 0x15, 0x54, 0x51, 0xd1, 0xb8}};
-CAN_frame_t TESLA_332_1 = {.FIR = {.B = {.DLC = 8,.FF = CAN_frame_std,}},.MsgID = 0x332,.data = {0x61, 0x05, 0x55, 0x55, 0x00, 0x00, 0xe0, 0x13}};
-CAN_frame_t TESLA_332_2 = {.FIR = {.B = {.DLC = 6,.FF = CAN_frame_std,}},.MsgID = 0x332,.data = {0x3C, 0x0C, 0x85, 0x80, 0x89, 0x86}};
+CAN_frame_t TESLA_221_1 = {.FIR = {.B = {.DLC = 8,.FF = CAN_frame_std,}},.MsgID = 0x221,.data = {0x41, 0x11, 0x01, 0x00, 0x00, 0x00, 0x20, 0x96}};
+CAN_frame_t TESLA_221_2 = {.FIR = {.B = {.DLC = 8,.FF = CAN_frame_std,}},.MsgID = 0x221,.data = {0x61, 0x15, 0x01, 0x00, 0x00, 0x00, 0x20, 0xBA}};
 uint8_t alternate221 = 0;
-uint8_t alternate332 = 0;
 
 uint16_t volts = 0;   // V
-uint16_t amps = 0;    // A
-uint16_t raw_amps = 0;// A
+int16_t amps = 0;    // A
+uint16_t raw_amps = 0; // A
 int16_t max_temp = 6; // C*
 int16_t min_temp = 5; // C*
 uint16_t energy_buffer = 0;
@@ -41,6 +38,9 @@ uint16_t min_voltage = 0;
 uint16_t max_discharge_current = 0;
 uint16_t max_charge_current = 0;
 uint16_t max_voltage = 0;
+uint16_t high_voltage = 0;
+uint16_t low_voltage = 0;
+uint16_t output_current = 0;
 uint8_t contactor = 0; //State of contactor
 uint8_t hvil_status = 0;
 uint8_t packContNegativeState = 0;
@@ -51,16 +51,28 @@ uint8_t pyroTestInProgress = 0;
 const char* contactorText[] = {"UNKNOWN0","OPEN","CLOSING","BLOCKED","OPENING","CLOSED","UNKNOWN6","WELDED","POS_CL","NEG_CL","UNKNOWN10","UNKNOWN11","UNKNOWN12"};
 const char* contactorState[] = {"SNA","OPEN","PRECHARGE","BLOCKED","PULLED_IN","OPENING","ECONOMIZED","WELDED"};
 
+#define MAX_SOC 1000  //BMS never goes over this value. We use this info to rescale SOC% sent to Fronius
+#define MIN_SOC 0     //BMS never goes below this value. We use this info to rescale SOC% sent to Fronius
 
 void update_values_tesla_model_3_battery()
 { //This function maps all the values fetched via CAN to the correct parameters used for modbus
 	StateOfHealth = 9900; //Hardcoded to 99%SOH
-	
-	SOC = calculated_soc;
 
-	battery_voltage;
+  //Calculate the SOC% value to send to Fronius
+  calculated_soc = MIN_SOC + (MAX_SOC - MIN_SOC) * (calculated_soc - MINPERCENTAGE) / (MAXPERCENTAGE - MINPERCENTAGE); 
+  if (calculated_soc < 0)
+  { //We are in the real SOC% range of 0-20%, always set SOC sent to Fronius as 0%
+      calculated_soc = 0;
+  }
+  if (calculated_soc > 1000)
+  { //We are in the real SOC% range of 80-100%, always set SOC sent to Fronius as 100%
+      calculated_soc = 1000;
+  }
+  SOC = (calculated_soc * 10); //increase SOC range from 0-100.0 -> 100.00
 
-  battery_current;
+	battery_voltage = (volts*10); //One more decimal needed (370 -> 3700)
+
+  battery_current = amps; //TODO, this needs verifying if scaling is right
 
 	capacity_Wh = (nominal_full_pack_energy * 100); //Scale up 75.2kWh -> 75200Wh
   if(capacity_Wh > 60000)
@@ -74,7 +86,7 @@ void update_values_tesla_model_3_battery()
 
 	max_target_charge_power;
 	
-	stat_batt_power;
+	stat_batt_power = (volts * amps); //TODO, check if scaling is OK
 
 	temperature_min = convert2unsignedint16(min_temp);
 
@@ -118,6 +130,8 @@ void update_values_tesla_model_3_battery()
 
     Serial.print("Volt: ");
     Serial.print(volts);
+    Serial.print(" Amps: ");
+    Serial.print(amps);
     Serial.print(", Discharge limit: ");
     Serial.print(discharge_limit);
     Serial.print(", Charge limit: ");
@@ -152,6 +166,12 @@ void update_values_tesla_model_3_battery()
     Serial.print(", Max discharge current: ");
     Serial.println(max_discharge_current);
 
+    Serial.print("HighVoltage Output Pins: ");
+    Serial.print(high_voltage);
+    Serial.print("V, Low Voltage:");
+    Serial.print(low_voltage);
+    Serial.print("V, Current Output:");
+    Serial.println(output_current);
   }
 }
 
@@ -197,7 +217,7 @@ void handle_can_tesla_model_3_battery()
         packContPositiveState =   (rx_frame.data.u8[0] & 0x38) >> 3;
         contactor =               (rx_frame.data.u8[1] & 0x0F);
         packContactorSetState =   (rx_frame.data.u8[1] & 0x0F);
-        packCtrsClosingAllowed =  (rx_frame.data.u8[4] & 0x38) >> 3; 
+        packCtrsClosingAllowed =  (rx_frame.data.u8[4] & 0x08) >> 3;
         pyroTestInProgress =      (rx_frame.data.u8[4] & 0x20) >> 5;
         hvil_status =             (rx_frame.data.u8[5] & 0x0F);
         break;
@@ -210,7 +230,7 @@ void handle_can_tesla_model_3_battery()
         break;
       case 0x132:
         //battery amps/volts 
-        volts = ((rx_frame.data.u8[1] << 8) | rx_frame.data.u8[0]) * 0.01; //Example 37030mv * 0.01 = 370.3V
+        volts = ((rx_frame.data.u8[1] << 8) | rx_frame.data.u8[0]) * 0.01; //Example 37030mv * 0.01 = 370V
         amps =  ((rx_frame.data.u8[3] << 8) | rx_frame.data.u8[2]); //Example 65492 (-4.3A) OR 225 (22.5A)
         if (amps > 32768)
         {
@@ -244,7 +264,7 @@ void handle_can_tesla_model_3_battery()
           max_temp = (temp * 0.5) - 40; //in celcius, Example 24
 
           temp = rx_frame.data.u8[3];
-          min_temp = (volts * 0.5) - 40; //in celcius , Example 24
+          min_temp = (temp * 0.5) - 40; //in celcius , Example 24
         }
         break;
       case 0x2d2:
@@ -253,6 +273,11 @@ void handle_can_tesla_model_3_battery()
         max_voltage =           ((rx_frame.data.u8[3] << 8) | rx_frame.data.u8[2]) * 0.01 * 2; //Example 40282mv * 0.01 = 402.82 V
         max_charge_current =    (((rx_frame.data.u8[5] & 0x3F) << 8) | rx_frame.data.u8[4]) * 0.1; //Example 1301? * 0.1 = 130.1?
         max_discharge_current = (((rx_frame.data.u8[7] & 0x3F) << 8) | rx_frame.data.u8[6]) * 0.128; //Example 430? * 0.128 = 55.4?
+        break;
+      case 0x2b4:
+        low_voltage =     (((rx_frame.data.u8[1] & 0x03) << 8) | rx_frame.data.u8[0]) * 0.0390625;
+        high_voltage =    (((rx_frame.data.u8[2] << 6) | ((rx_frame.data.u8[1] & 0xFC) >> 2))) * 0.146484;
+        output_current =  (((rx_frame.data.u8[4] & 0x0F) << 8) | rx_frame.data.u8[3]) / 100;
         break;
 			default:
 				break;
@@ -274,24 +299,11 @@ void handle_can_tesla_model_3_battery()
   //Send 30ms message
 	if (currentMillis - previousMillis30 >= interval30)
 	{ 
-		previousMillis10 = currentMillis;
+		previousMillis30 = currentMillis;
+    //Todo add logic so this can only be sent if HVIL is clear
+    ESP32Can.CANWriteFrame(&TESLA_221_1);
 
-    if(packCtrsClosingAllowed > 0) //Command contactor to close
-    {
-      alternate221++;
-      if (alternate221 > 1)
-      {
-        alternate221 = 0;
-      }
-      if(alternate221 == 0)
-      {
-        ESP32Can.CANWriteFrame(&TESLA_221_1);
-      }
-      else //alternate221 == 1
-      {
-        ESP32Can.CANWriteFrame(&TESLA_221_2);
-      }
-    }
+    ESP32Can.CANWriteFrame(&TESLA_221_2);
 	}
 	//Send 10ms message
 	if (currentMillis - previousMillis10 >= interval10)
