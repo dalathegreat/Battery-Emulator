@@ -116,6 +116,8 @@ void update_values_tesla_model_3_battery()
 
     Serial.print("Contactor: ");
     Serial.print(contactorText[contactor]); //Display what state the contactor is in
+    Serial.print(" , HVIL: ");
+    Serial.print(hvil_status);
     Serial.print(" , NegativeState: ");
     Serial.print(contactorState[packContNegativeState]);
     Serial.print(" , PositiveState: ");
@@ -300,10 +302,14 @@ void handle_can_tesla_model_3_battery()
 	if (currentMillis - previousMillis30 >= interval30)
 	{ 
 		previousMillis30 = currentMillis;
-    //Todo add logic so this can only be sent if HVIL is clear
-    ESP32Can.CANWriteFrame(&TESLA_221_1);
+    
+    if(packCtrsClosingAllowed)
+    {
+      ESP32Can.CANWriteFrame(&TESLA_221_1);
 
-    ESP32Can.CANWriteFrame(&TESLA_221_2);
+      ESP32Can.CANWriteFrame(&TESLA_221_2);
+    }
+
 	}
 	//Send 10ms message
 	if (currentMillis - previousMillis10 >= interval10)
