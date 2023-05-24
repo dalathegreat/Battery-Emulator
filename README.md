@@ -13,7 +13,7 @@ Finally, you will need a hybrid solar inverter that accepts the BYD battery comm
 ## Installation basics 🪛
 1. Connect one end of the LilyGo RS485 to the Gen24 Modbus
 2. Connect the other end of the LilyGo to the CAN side of a LEAF battery
-3. Wire up high voltage cable between the Gen24 and the LEAF battery
+3. Wire up high voltage cable between the Gen24 and the LEAF battery. Install a DC high voltage fuse.
 4. Add a 12V power source to power the LilyGo and the LEAF battery (uninterruptible PSU or 12V lead acid recommended in parallel)
 5. Manually handle pre-charge circuit + positive/negative contactor on LEAF battery for now (circuit will be improved soon)
 6. Enjoy a big cheap grid connected battery!
