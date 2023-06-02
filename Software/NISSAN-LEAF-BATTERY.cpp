@@ -8,6 +8,7 @@ unsigned long previousMillis100 = 0; // will store last time a 100ms CAN Message
 const int interval10 = 10; // interval (ms) at which send CAN Messages
 const int interval100 = 100; // interval (ms) at which send CAN Messages
 const int rx_queue_size = 10; // Receive Queue size
+uint16_t CANerror = 0; //counter on how many CAN errors encountered
 uint8_t CANstillAlive = 12; //counter for checking if CAN is still alive 
 uint8_t errorCode = 0; //stores if we have an error code active from battery control logic
 uint8_t mprun10r = 0; //counter 0-20 for 0x1F2 message
@@ -18,6 +19,15 @@ CAN_frame_t LEAF_1F2 = {.FIR = {.B = {.DLC = 8,.FF = CAN_frame_std,}},.MsgID = 0
 CAN_frame_t LEAF_50B = {.FIR = {.B = {.DLC = 7,.FF = CAN_frame_std,}},.MsgID = 0x50B,.data = {0x00, 0x00, 0x06, 0xC0, 0x00, 0x00, 0x00}};
 CAN_frame_t LEAF_50C = {.FIR = {.B = {.DLC = 6,.FF = CAN_frame_std,}},.MsgID = 0x50C,.data = {0x00, 0x00, 0x00, 0x00, 0x00, 0x00}};
 CAN_frame_t LEAF_1D4 = {.FIR = {.B = {.DLC = 8,.FF = CAN_frame_std,}},.MsgID = 0x1D4,.data = {0x6E, 0x6E, 0x00, 0x04, 0x07, 0x46, 0xE0, 0x44}};
+
+uint8_t	crctable[256] = {0,133,143,10,155,30,20,145,179,54,60,185,40,173,167,34,227,102,108,233,120,253,247,114,80,213,223,90,203,78,68,193,67,
+                        198,204,73,216,93,87,210,240,117,127,250,107,238,228,97,160,37,47,170,59,190,180,49,19,150,156,25,136,13,7,130,134,3,9,
+                        140,29,152,146,23,53,176,186,63,174,43,33,164,101,224,234,111,254,123,113,244,214,83,89,220,77,200,194,71,197,64,74,207,
+                        94,219,209,84,118,243,249,124,237,104,98,231,38,163,169,44,189,56,50,183,149,16,26,159,14,139,129,4,137,12,6,131,18,151,
+                        157,24,58,191,181,48,161,36,46,171,106,239,229,96,241,116,126,251,217,92,86,211,66,199,205,72,202,79,69,192,81,212,222,
+                        91,121,252,246,115,226,103,109,232,41,172,166,35,178,55,61,184,154,31,21,144,1,132,142,11,15,138,128,5,148,17,27,158,188,
+                        57,51,182,39,162,168,45,236,105,99,230,119,242,248,125,95,218,208,85,196,65,75,206,76,201,195,70,215,82,88,221,255,122,
+                        112,245,100,225,235,110,175,42,32,165,52,177,187,62,28,153,147,22,135,2,8,141};
 
 //Nissan LEAF battery parameters from CAN
 #define ZE0_BATTERY 0
@@ -278,6 +288,11 @@ void handle_can_leaf_battery()
       switch (rx_frame.MsgID)
 			{
       case 0x1DB:
+        if(is_message_corrupt(rx_frame))
+        {
+          CANerror++;
+          break; //Message content malformed, abort reading data from it
+        }
 				LB_Current = (rx_frame.data.u8[0] << 3) | (rx_frame.data.u8[1] & 0xe0) >> 5;
         if (LB_Current & 0x0400)
         {
@@ -295,11 +310,21 @@ void handle_can_leaf_battery()
         LB_Interlock = (byte) ((rx_frame.data.u8[3] & 0x08) >> 3);
 				break;
 			case 0x1DC:
+        if(is_message_corrupt(rx_frame))
+        {
+          CANerror++;
+          break; //Message content malformed, abort reading data from it
+        }
 				LB_Discharge_Power_Limit = ((rx_frame.data.u8[0] << 2 | rx_frame.data.u8[1] >> 6) / 4.0);
         LB_Charge_Power_Limit = (((rx_frame.data.u8[1] & 0x3F) << 2 | rx_frame.data.u8[2] >> 4) / 4.0);
 				LB_MAX_POWER_FOR_CHARGER = ((((rx_frame.data.u8[2] & 0x0F) << 6 | rx_frame.data.u8[3] >> 2) / 10.0) - 10);
 				break;
 			case 0x55B:
+        if(is_message_corrupt(rx_frame))
+        {
+          CANerror++;
+          break; //Message content malformed, abort reading data from it
+        }
         LB_TEMP = (rx_frame.data.u8[0] << 2 | rx_frame.data.u8[1] >> 6);
         if (LB_TEMP != 0x3ff) //3FF is unavailable value
         {
@@ -574,4 +599,14 @@ uint16_t convert2unsignedint16(uint16_t signed_value)
 	{
 		return signed_value;
 	}
+}
+
+bool is_message_corrupt(CAN_frame_t rx_frame)
+{
+  uint8_t crc = 0;
+  for (uint8_t j = 0; j < 7; j++)
+  {
+      crc = crctable[(crc ^ static_cast<uint8_t>(rx_frame.data.u8[j])) % 256];
+  }
+  return crc != rx_frame.data.u8[7];
 }

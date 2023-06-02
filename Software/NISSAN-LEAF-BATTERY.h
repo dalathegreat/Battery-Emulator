@@ -1,11 +1,12 @@
 #ifndef NISSAN_LEAF_BATTERY_H
 #define NISSAN_LEAF_BATTERY_H
 #include <Arduino.h>
+#include "ESP32CAN.h"
 
 #define MAXPERCENTAGE 800 //80.0% , Max percentage the battery will charge to (App will show 100% once this value is reached)
 #define MINPERCENTAGE 200 //20.0% , Min percentage the battery will discharge to (App will show 0% once this value is reached)
 //#define INTERLOCK_REQUIRED //Uncomment this line to skip requiring both high voltage connectors to be seated on the LEAF battery
-static byte printValues = 1; //Should modbus values be printed to serial output? 
+static byte printValues = 0; //Should modbus values be printed to serial output? 
 
 // These parameters need to be mapped for the Gen24
 extern uint16_t SOC;
@@ -21,6 +22,7 @@ extern uint16_t bms_char_dis_status;
 extern uint16_t stat_batt_power;
 extern uint16_t temperature_min;
 extern uint16_t temperature_max;
+extern uint16_t CANerror;
 // Definitions for BMS status
 #define STANDBY 0
 #define INACTIVE 1
@@ -32,5 +34,6 @@ extern uint16_t temperature_max;
 void update_values_leaf_battery();
 void handle_can_leaf_battery();
 uint16_t convert2unsignedint16(uint16_t signed_value);
+bool is_message_corrupt(CAN_frame_t rx_frame);
 
 #endif

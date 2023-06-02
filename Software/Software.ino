@@ -9,8 +9,8 @@
 #include "Adafruit_NeoPixel.h"
 
 /* Select battery used */
-//#define BATTERY_TYPE_LEAF         // See NISSAN-LEAF-BATTERY.cpp for more LEAF battery settings
-#define TESLA_MODEL_3_BATTERY   // See TESLA-MODEL-3-BATTERY.cpp for more Tesla battery settings
+#define BATTERY_TYPE_LEAF         // See NISSAN-LEAF-BATTERY.cpp for more LEAF battery settings
+//#define TESLA_MODEL_3_BATTERY   // See TESLA-MODEL-3-BATTERY.cpp for more Tesla battery settings
 
 /* Tweak LEAF battery settings if needed */
 #ifdef BATTERY_TYPE_LEAF
@@ -30,6 +30,7 @@
 
 /* Do not change code below unless you are sure what you are doing */
 //CAN parameters
+#define MAX_CAN_FAILURES 5000 //Amount of malformed CAN messages to allow before raising a warning
 CAN_device_t CAN_cfg; // CAN Config
 const int rx_queue_size = 10; // Receive Queue size
 
@@ -260,6 +261,11 @@ void handle_LED_state()
     rampUp = true;
   }
   pixels.setPixelColor(0, pixels.Color(0, green, 0)); // Set LED to green according to calculated value
+
+  if(CANerror > MAX_CAN_FAILURES)
+  {
+    pixels.setPixelColor(0, pixels.Color(255, 255, 0)); // Yellow LED full brightness
+  }
 
   if(bms_status == FAULT)
   {

@@ -21,6 +21,7 @@ extern uint16_t bms_char_dis_status;
 extern uint16_t stat_batt_power;
 extern uint16_t temperature_min;
 extern uint16_t temperature_max;
+extern uint16_t CANerror;
 // Definitions for BMS status
 #define STANDBY 0
 #define INACTIVE 1
