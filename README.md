@@ -48,6 +48,7 @@ It is also based on the info found in the following excellent repositories:
 - https://gitlab.com/pelle8/gen24
 - https://github.com/burra/byd_battery
 - https://github.com/flodorn/TeslaBMSV2
+- https://github.com/SunshadeCorp/can-service
 
 ## Like this project? 💖
 Leave a ⭐ If you think this project is useful. Consider hopping onto my Patreon to encourage more open-source projects!

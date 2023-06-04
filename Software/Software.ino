@@ -12,9 +12,13 @@
 #define BATTERY_TYPE_LEAF         // See NISSAN-LEAF-BATTERY.cpp for more LEAF battery settings
 //#define TESLA_MODEL_3_BATTERY   // See TESLA-MODEL-3-BATTERY.cpp for more Tesla battery settings
 
+/* Select extra inverter communication protocol. See Wiki for which to use with your inverter: https://github.com/dalathegreat/BYD-Battery-Emulator-For-Gen24/wiki */
+#define MODBUS_BYD      //Enable this line to turn on BYD 11kWh HVM battery over Modbus RTU
+//#define CAN_BYD       //Enable this line to send BYD Battery-Box Premium HVS over CAN Bus
+
 /* Tweak LEAF battery settings if needed */
 #ifdef BATTERY_TYPE_LEAF
-  #define BATTERY_WH_MAX 30000 //Battery size in Wh (Maximum value Fronius accepts is 60000 [60kWh])
+  #define BATTERY_WH_MAX 30000 //Battery size in Wh (Maximum value Fronius accepts is 60000 [60kWh] you can use larger batteries but do not exceed this value)
   #define ABSOLUTE_MAX_VOLTAGE 4040 // 404.4V,if battery voltage goes over this, charging is not possible (goes into forced discharge)
   #define ABSOLUTE_MIN_VOLTAGE 3100 // 310.0V if battery voltage goes under this, discharging further is disabled
   #include "NISSAN-LEAF-BATTERY.h" //See this file for more LEAF battery settings
@@ -22,7 +26,7 @@
 
 /* Tweak Tesla battery settings if needed */
 #ifdef TESLA_MODEL_3_BATTERY
-  #define BATTERY_WH_MAX 60000 //Battery size in Wh (Maximum value Fronius accepts is 60000 [60kWh])
+  #define BATTERY_WH_MAX 60000 //Battery size in Wh (Maximum value Fronius accepts is 60000 [60kWh] you can use larger batteries but do not exceed this value)
   #define ABSOLUTE_MAX_VOLTAGE 4030 // 403.0V,if battery voltage goes over this, charging is not possible (goes into forced discharge)
   #define ABSOLUTE_MIN_VOLTAGE 2450 // 245.0V if battery voltage goes under this, discharging further is disabled
   #include "TESLA-MODEL-3-BATTERY.h" //See this file for more Tesla battery settings
