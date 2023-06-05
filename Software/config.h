@@ -13,7 +13,9 @@
 #define RS485_RX_PIN 21 // 22
 #define RS485_SE_PIN 19 // 22 /SHDN
 
-
+#define POSITIVE_CONTACTOR_PIN 32
+#define NEGATIVE_CONTACTOR_PIN 33
+#define PRECHARGE_PIN 34
 
 #define SD_MISO_PIN 2
 #define SD_MOSI_PIN 15

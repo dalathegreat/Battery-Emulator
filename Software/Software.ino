@@ -12,9 +12,9 @@
 #define BATTERY_TYPE_LEAF         // See NISSAN-LEAF-BATTERY.cpp for more LEAF battery settings
 //#define TESLA_MODEL_3_BATTERY   // See TESLA-MODEL-3-BATTERY.cpp for more Tesla battery settings
 
-/* Select extra inverter communication protocol. See Wiki for which to use with your inverter: https://github.com/dalathegreat/BYD-Battery-Emulator-For-Gen24/wiki */
-#define MODBUS_BYD      //Enable this line to turn on BYD 11kWh HVM battery over Modbus RTU
-//#define CAN_BYD       //Enable this line to send BYD Battery-Box Premium HVS over CAN Bus
+/* Select inverter communication protocol. See Wiki for which to use with your inverter: https://github.com/dalathegreat/BYD-Battery-Emulator-For-Gen24/wiki */
+#define MODBUS_BYD      //Enable this line to emulate a "BYD 11kWh HVM battery" over Modbus RTU
+//#define CAN_BYD       //Enable this line to emulate a "BYD Battery-Box Premium HVS" over CAN Bus
 
 /* Tweak LEAF battery settings if needed */
 #ifdef BATTERY_TYPE_LEAF
@@ -82,6 +82,18 @@ static int green = 0;
 static bool rampUp = true;
 const int maxBrightness = 255;
 
+//Contactor parameters
+enum State {
+  PRECHARGE,
+  NEGATIVE,
+  POSITIVE,
+  PRECHARGE_OFF,
+  COMPLETED
+};
+State contactorStatus = PRECHARGE;
+unsigned long prechargeStartTime = 0;
+unsigned long negativeStartTime = 0;
+
 // Setup() - initialization happens here
 void setup()
 {
@@ -95,6 +107,14 @@ void setup()
 	// Init CAN Module
 	ESP32Can.CANInit();
 	Serial.println(CAN_cfg.speed);
+
+  //Init contactor pins
+  pinMode(POSITIVE_CONTACTOR_PIN, OUTPUT);
+	digitalWrite(POSITIVE_CONTACTOR_PIN, LOW);
+  pinMode(NEGATIVE_CONTACTOR_PIN, OUTPUT);
+	digitalWrite(NEGATIVE_CONTACTOR_PIN, LOW);
+  pinMode(PRECHARGE_PIN, OUTPUT);
+	digitalWrite(PRECHARGE_PIN, LOW);
 
 	// Init Serial monitor
 	Serial.begin(9600);
@@ -137,22 +157,34 @@ void setup()
 // perform main program functions
 void loop()
 {
-	#ifdef BATTERY_TYPE_LEAF
-	handle_can_leaf_battery(); //runs as fast as possible
-	#endif
-  #ifdef TESLA_MODEL_3_BATTERY
-  handle_can_tesla_model_3_battery(); //runs as fast as possible
-  #endif
+  handle_can(); //runs as fast as possible, handle CAN routines
   
   if (millis() - previousMillis10ms >= interval10) //every 10ms
 	{ 
 		previousMillis10ms = millis();
-    handle_LED_state();               //Set the LED color according to state
+    handle_LED_state();   //Set the LED color according to state
+    handle_contactors();  //Take care of startup precharge/contactor closing
   }
 
 	if (millis() - previousMillisModbus >= intervalModbusTask) //every 5s
-	{ 
+	{
 		previousMillisModbus = millis();
+    handle_modbus(); //Update values heading towards modbus
+	}
+}
+
+void handle_can()
+{
+  #ifdef BATTERY_TYPE_LEAF
+	handle_can_leaf_battery(); 
+	#endif
+  #ifdef TESLA_MODEL_3_BATTERY
+  handle_can_tesla_model_3_battery(); 
+  #endif
+}
+
+void handle_modbus()
+{
 	  #ifdef BATTERY_TYPE_LEAF
     update_values_leaf_battery();     //Map the values to the correct registers
 	  #endif 
@@ -161,7 +193,46 @@ void loop()
     #endif
     handle_update_data_modbusp201();  //Updata for ModbusRTU Server for GEN24
     handle_update_data_modbusp301();  //Updata for ModbusRTU Server for GEN24
-	}
+}
+
+void handle_contactors()
+{
+  if(contactorStatus == COMPLETED)
+  {
+    return;
+  }
+
+  unsigned long currentTime = millis();
+  
+  switch (contactorStatus) {
+    case PRECHARGE:
+      digitalWrite(PRECHARGE_PIN, HIGH);
+      prechargeStartTime = currentTime;
+      contactorStatus = NEGATIVE;
+      break;
+
+    case NEGATIVE:
+      if (currentTime - prechargeStartTime >= 60) {
+        digitalWrite(NEGATIVE_CONTACTOR_PIN, HIGH);
+        negativeStartTime = currentTime;
+        contactorStatus = POSITIVE;
+      }
+      break;
+
+    case POSITIVE:
+      if (currentTime - negativeStartTime >= 100) {
+        digitalWrite(POSITIVE_CONTACTOR_PIN, HIGH);
+        contactorStatus = PRECHARGE_OFF;
+      }
+      break;
+
+    case PRECHARGE_OFF:
+      if (currentTime - negativeStartTime >= 300) {
+        digitalWrite(PRECHARGE_PIN, LOW);
+        contactorStatus = COMPLETED;
+      }
+      break;
+  }
 }
 
 void handle_static_data_modbus() {

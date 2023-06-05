@@ -3,19 +3,25 @@
 #include "CAN_config.h"
 
 /* Do not change code below unless you are sure what you are doing */
-unsigned long previousMillis2s = 0; // will store last time a 10ms CAN Message was send
-unsigned long previousMillis60s = 0; // will store last time a 100ms CAN Message was send
+unsigned long previousMillis2s = 0; // will store last time a 2s CAN Message was send
+unsigned long previousMillis10s = 0; // will store last time a 10s CAN Message was send
+unsigned long previousMillis60s = 0; // will store last time a 60s CAN Message was send
 const int interval2s = 2000; // interval (ms) at which send CAN Messages
+const int interval10s = 10000; // interval (ms) at which send CAN Messages
 const int interval60s = 60000; // interval (ms) at which send CAN Messages
 const int rx_queue_size = 10; // Receive Queue size
 
 const CAN_frame_t BYD_250 = {.FIR = {.B = {.DLC = 8,.FF = CAN_frame_std,}},.MsgID = 0x250,.data = {0x03, 0x16, 0x00, 0x66, 0x00, 0x33, 0x02, 0x09}};
-CAN_frame_t BYD_290 = {.FIR = {.B = {.DLC = 8,.FF = CAN_frame_std,}},.MsgID = 0x290,.data = {0x06, 0x37, 0x10, 0xD9, 0x00, 0x00, 0x00, 0x00}};
+const CAN_frame_t BYD_290 = {.FIR = {.B = {.DLC = 8,.FF = CAN_frame_std,}},.MsgID = 0x290,.data = {0x06, 0x37, 0x10, 0xD9, 0x00, 0x00, 0x00, 0x00}};
+CAN_frame_t BYD_110 = {.FIR = {.B = {.DLC = 8,.FF = CAN_frame_std,}},.MsgID = 0x110,.data = {0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00}};
 
+int charge_max_current = 0;
 
 void update_values_can_byd()
 { //This function maps all the values fetched via CAN to the correct CAN messages
-  
+  charge_max_current = max_target_charge_power;
+  BYD_110.data.u8[4] = (charge_max_current && 0x00FF) >> 8;
+  BYD_110.data.u8[5] = 0xB4;
 }
 
 void handle_can_byd()
@@ -51,7 +57,7 @@ void handle_can_byd()
 	{
 		previousMillis2s = currentMillis;
 
-    //ESP32Can.CANWriteFrame(&LEAF_50B);
+    ESP32Can.CANWriteFrame(&BYD_110);
 	}
   //Send 60s message
 	if (currentMillis - previousMillis60s >= interval60s)
