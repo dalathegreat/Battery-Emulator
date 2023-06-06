@@ -88,7 +88,8 @@ enum State {
   NEGATIVE,
   POSITIVE,
   PRECHARGE_OFF,
-  COMPLETED
+  COMPLETED,
+  SHUTDOWN
 };
 State contactorStatus = PRECHARGE;
 unsigned long prechargeStartTime = 0;
@@ -124,7 +125,6 @@ void setup()
 	Serial.println("__ OK __");
 
   //Set up Modbus RTU Server
-  Serial.println("Set ModbusRtu PIN");
   pinMode(RS485_EN_PIN, OUTPUT);
   digitalWrite(RS485_EN_PIN, HIGH);
 
@@ -152,6 +152,14 @@ void setup()
 
   // Init LED control
   pixels.begin();
+
+  //Inform user what setup is used
+  #ifdef BATTERY_TYPE_LEAF
+  Serial.println("Nissan LEAF battery selected");
+  #endif 
+  #ifdef TESLA_MODEL_3_BATTERY
+  Serial.println("Tesla Model 3 battery selected");
+  #endif 
 }
 
 // perform main program functions
@@ -197,6 +205,14 @@ void handle_modbus()
 
 void handle_contactors()
 {
+  if(contactorStatus == SHUTDOWN)
+  {
+    digitalWrite(PRECHARGE_PIN, LOW);
+    digitalWrite(NEGATIVE_CONTACTOR_PIN, LOW);
+    digitalWrite(POSITIVE_CONTACTOR_PIN, LOW);
+    return;
+  }
+
   if(contactorStatus == COMPLETED)
   {
     return;
@@ -232,6 +248,8 @@ void handle_contactors()
         contactorStatus = COMPLETED;
       }
       break;
+    default:
+    break;
   }
 }
 
