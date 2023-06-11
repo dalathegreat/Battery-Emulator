@@ -8,6 +8,10 @@ uint16_t CANerror = 0; //counter on how many CAN errors encountered
 uint8_t CANstillAlive = 12; //counter for checking if CAN is still alive 
 uint8_t errorCode = 0; //stores if we have an error code active from battery control logic
 
+static int16_t LB_SOC = 0;
+static int16_t LB_SOH = 0;
+static int16_t LB_TEMPERATURE = 0;
+
 void update_values_zoe_battery()
 { //This function maps all the values fetched via CAN to the correct parameters used for modbus
   bms_status = ACTIVE; //Startout in active mode
@@ -111,7 +115,15 @@ void handle_can_zoe_battery()
       //printf("New standard frame");
       switch (rx_frame.MsgID)
 			{
-      case 0xABC:
+      case 0x654:
+        CANstillAlive = 12; //Indicate that we are still getting CAN messages from the BMS
+        LB_SOC = rx_frame.data.u8[4];
+        break;
+      case 0x658:
+        LB_SOH = (rx_frame.data.u8[4] & 0x7F);
+        break;
+      case 0x42E:
+        LB_TEMPERATURE = ((rx_frame.data.u8[5] & 0x7F) - 40);
         break;
       default:
 				break;
