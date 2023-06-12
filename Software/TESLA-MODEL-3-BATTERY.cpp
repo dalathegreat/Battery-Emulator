@@ -180,7 +180,7 @@ void update_values_tesla_model_3_battery()
 void handle_can_tesla_model_3_battery()
 {
   CAN_frame_t rx_frame;
-  unsigned long currentMillis = millis();
+  static unsigned long currentMillis = millis();
   static int mux = 0;
   static int temp = 0;
 

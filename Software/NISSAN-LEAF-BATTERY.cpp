@@ -3,10 +3,10 @@
 #include "CAN_config.h"
 
 /* Do not change code below unless you are sure what you are doing */
-unsigned long previousMillis10 = 0; // will store last time a 10ms CAN Message was send
-unsigned long previousMillis100 = 0; // will store last time a 100ms CAN Message was send
-const int interval10 = 10; // interval (ms) at which send CAN Messages
-const int interval100 = 100; // interval (ms) at which send CAN Messages
+static unsigned long previousMillis10 = 0; // will store last time a 10ms CAN Message was send
+static unsigned long previousMillis100 = 0; // will store last time a 100ms CAN Message was send
+static const int interval10 = 10; // interval (ms) at which send CAN Messages
+static const int interval100 = 100; // interval (ms) at which send CAN Messages
 const int rx_queue_size = 10; // Receive Queue size
 uint16_t CANerror = 0; //counter on how many CAN errors encountered
 static uint8_t CANstillAlive = 12; //counter for checking if CAN is still alive 
@@ -277,7 +277,7 @@ void update_values_leaf_battery()
 void handle_can_leaf_battery()
 {
   CAN_frame_t rx_frame;
-  unsigned long currentMillis = millis();
+  static unsigned long currentMillis = millis();
 
   // Receive next CAN frame from queue
   if (xQueueReceive(CAN_cfg.rx_queue, &rx_frame, 3 * portTICK_PERIOD_MS) == pdTRUE)

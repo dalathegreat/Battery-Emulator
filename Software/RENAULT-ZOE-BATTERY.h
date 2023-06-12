@@ -8,7 +8,7 @@
 #define ABSOLUTE_MIN_VOLTAGE 3100 // 310.0V if battery voltage goes under this, discharging further is disabled
 #define MAXPERCENTAGE_ZOE 800 //80.0% , Max percentage the battery will charge to (App will show 100% once this value is reached)
 #define MINPERCENTAGE_ZOE 200 //20.0% , Min percentage the battery will discharge to (App will show 0% once this value is reached)
-static byte printValues = 0; //Should modbus values be printed to serial output? 
+static byte printValues = 1; //Should modbus values be printed to serial output? 
 
 // These parameters need to be mapped for the Gen24
 extern uint16_t SOC;
