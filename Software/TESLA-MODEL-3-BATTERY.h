@@ -3,6 +3,9 @@
 #include <Arduino.h>
 
 /* User definable settings for the Tesla Model 3 battery */
+#define BATTERY_WH_MAX 60000 //Battery size in Wh (Maximum value Fronius accepts is 60000 [60kWh] you can use larger 65/75/90 batteries but do set value over 60000!
+#define ABSOLUTE_MAX_VOLTAGE 4030 // 403.0V,if battery voltage goes over this, charging is not possible (goes into forced discharge)
+#define ABSOLUTE_MIN_VOLTAGE 2450 // 245.0V if battery voltage goes under this, discharging further is disabled
 #define MAXPERCENTAGE 950 //95.0% , Max percentage the battery will charge to (App will show 100% once this value is reached)
 #define MINPERCENTAGE 150 //15.0% , Min percentage the battery will discharge to (App will show 0% once this value is reached)
 static byte printValues = 1; //Should modbus values be printed to serial output? 

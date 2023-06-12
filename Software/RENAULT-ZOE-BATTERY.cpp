@@ -3,14 +3,16 @@
 #include "CAN_config.h"
 
 /* Do not change code below unless you are sure what you are doing */
+#define LB_MAX_SOC 1000  //BMS never goes over this value. We use this info to rescale SOC% sent to Fronius
+#define LB_MIN_SOC 0   //BMS never goes below this value. We use this info to rescale SOC% sent to Fronius
 const int rx_queue_size = 10; // Receive Queue size
-uint16_t CANerror = 0; //counter on how many CAN errors encountered
-uint8_t CANstillAlive = 12; //counter for checking if CAN is still alive 
-uint8_t errorCode = 0; //stores if we have an error code active from battery control logic
-
+static uint8_t CANstillAlive = 12; //counter for checking if CAN is still alive 
+static uint8_t errorCode = 0; //stores if we have an error code active from battery control logic
 static int16_t LB_SOC = 0;
 static int16_t LB_SOH = 0;
 static int16_t LB_TEMPERATURE = 0;
+static uint16_t LB_Discharge_Power_Limit = 0;
+static uint16_t LB_Charge_Power_Limit = 0;
 
 void update_values_zoe_battery()
 { //This function maps all the values fetched via CAN to the correct parameters used for modbus
@@ -19,7 +21,7 @@ void update_values_zoe_battery()
   StateOfHealth;
 
   //Calculate the SOC% value to send to Fronius
-  LB_SOC = LB_MIN_SOC + (LB_MAX_SOC - LB_MIN_SOC) * (LB_SOC - MINPERCENTAGE) / (MAXPERCENTAGE - MINPERCENTAGE); 
+  LB_SOC = LB_MIN_SOC + (LB_MAX_SOC - LB_MIN_SOC) * (LB_SOC - MINPERCENTAGE_ZOE) / (MAXPERCENTAGE_ZOE - MINPERCENTAGE_ZOE); 
   if (LB_SOC < 0)
   { //We are in the real SOC% range of 0-20%, always set SOC sent to Fronius as 0%
       LB_SOC = 0;
@@ -134,16 +136,4 @@ void handle_can_zoe_battery()
       //printf("New extended frame");
     }
   }
-}
-
-uint16_t convert2unsignedint16(uint16_t signed_value)
-{
-	if(signed_value < 0)
-	{
-		return(65535 + signed_value);
-	}
-	else
-	{
-		return signed_value;
-	}
 }
