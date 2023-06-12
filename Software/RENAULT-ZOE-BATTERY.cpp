@@ -127,6 +127,14 @@ void handle_can_zoe_battery()
       case 0x42E:
         LB_TEMPERATURE = ((rx_frame.data.u8[5] & 0x7F) - 40);
         break;
+      #ifdef CAN_BYD
+      case 0x151: //Message originating from BYD HVS compatible inverter. Send CAN identifier!
+        if(rx_frame.data.u8[0] & 0x01)
+        {
+          send_intial_data();
+        }
+      #endif
+      break;
       default:
 				break;
       }      

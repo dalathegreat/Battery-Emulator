@@ -1,13 +1,3 @@
-#include <Arduino.h>
-#include "HardwareSerial.h"
-#include "config.h"
-#include "logging.h"
-#include "mbServerFCs.h"
-#include "ModbusServerRTU.h"
-#include "ESP32CAN.h"
-#include "CAN_config.h"
-#include "Adafruit_NeoPixel.h"
-
 /* Select battery used */
 //#define BATTERY_TYPE_LEAF         // See NISSAN-LEAF-BATTERY.h for more LEAF battery settings
 //#define TESLA_MODEL_3_BATTERY   // See TESLA-MODEL-3-BATTERY.h for more Tesla battery settings
@@ -18,7 +8,19 @@
 //#define CAN_BYD       //Enable this line to emulate a "BYD Battery-Box Premium HVS" over CAN Bus
 
 /* Do not change any code below this line unless you are sure what you are doing */
+/* Only change battery specific settings and limits in their respective .h files */
+
+#include <Arduino.h>
+#include "HardwareSerial.h"
+#include "config.h"
+#include "logging.h"
+#include "mbServerFCs.h"
+#include "ModbusServerRTU.h"
+#include "ESP32CAN.h"
+#include "CAN_config.h"
+#include "Adafruit_NeoPixel.h"
 #include "BATTERIES.h"
+#include "BYD-CAN.h"
 //CAN parameters
 #define MAX_CAN_FAILURES 5000 //Amount of malformed CAN messages to allow before raising a warning
 CAN_device_t CAN_cfg; // CAN Config
@@ -44,6 +46,8 @@ uint16_t capacity_Wh_startup = BATTERY_WH_MAX;
 uint16_t max_power = 40960; //41kW 
 const uint16_t max_voltage = ABSOLUTE_MAX_VOLTAGE; //if higher charging is not possible (goes into forced discharge)
 const uint16_t min_voltage = ABSOLUTE_MIN_VOLTAGE; //if lower Gen24 disables battery
+uint16_t min_volt_byd_can = min_voltage;
+uint16_t max_volt_byd_can = max_voltage;
 uint16_t battery_voltage = 3700;
 uint16_t battery_current = 0;
 uint16_t SOC = 5000; //SOC 0-100.00% //Updates later on from CAN
@@ -168,7 +172,10 @@ void loop()
 }
 
 void handle_can()
-{
+{ //Depending on which parts are used, handle their respective CAN routines
+  #ifdef CAN_BYD
+  handle_can_byd();
+  #endif
   #ifdef BATTERY_TYPE_LEAF
 	handle_can_leaf_battery(); 
 	#endif

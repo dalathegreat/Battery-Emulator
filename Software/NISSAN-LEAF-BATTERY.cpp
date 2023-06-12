@@ -391,6 +391,14 @@ void handle_can_leaf_battery()
         //ZE1 2018-2023 battery detected!
         LEAF_Battery_Type = ZE1_BATTERY;
         break;
+      #ifdef CAN_BYD
+      case 0x151: //Message originating from BYD HVS compatible inverter. Send CAN identifier!
+        if(rx_frame.data.u8[0] & 0x01)
+        {
+          send_intial_data();
+        }
+      break;
+      #endif
       default:
 				break;
       }      

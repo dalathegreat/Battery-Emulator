@@ -26,14 +26,16 @@ CAN_frame_t BYD_190 = {.FIR = {.B = {.DLC = 8,.FF = CAN_frame_std,}},.MsgID = 0x
 CAN_frame_t BYD_1D0 = {.FIR = {.B = {.DLC = 8,.FF = CAN_frame_std,}},.MsgID = 0x1D0,.data = {0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x03, 0x08}};
 CAN_frame_t BYD_210 = {.FIR = {.B = {.DLC = 8,.FF = CAN_frame_std,}},.MsgID = 0x210,.data = {0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00}};
 
+
+
 void update_values_can_byd()
 { //This function maps all the values fetched from battery CAN to the correct CAN messages
   //Maxvoltage (eg 400.0V = 4000 , 16bits long)
-  BYD_110.data.u8[0] = (max_voltage >> 8);
-  BYD_110.data.u8[1] = (max_voltage & 0x00FF);
+  BYD_110.data.u8[0] = (max_volt_byd_can >> 8);
+  BYD_110.data.u8[1] = (max_volt_byd_can & 0x00FF);
   //Minvoltage (eg 300.0V = 3000 , 16bits long)
-  BYD_110.data.u8[2] = (min_voltage >> 8);
-  BYD_110.data.u8[3] = (min_voltage & 0x00FF);
+  BYD_110.data.u8[2] = (min_volt_byd_can >> 8);
+  BYD_110.data.u8[3] = (min_volt_byd_can & 0x00FF);
   //Maximum charge power allowed (TODO, CHECK IF POWER OR CURRENT SHOULD BE USED)
   BYD_110.data.u8[4] = (max_target_charge_power >> 8);
   BYD_110.data.u8[5] = (max_target_charge_power & 0x00FF);
@@ -74,32 +76,7 @@ void update_values_can_byd()
 
 void handle_can_byd()
 {
-  CAN_frame_t rx_frame;
   unsigned long currentMillis = millis();
-
-  // Receive next CAN frame from queue
-  if (xQueueReceive(CAN_cfg.rx_queue, &rx_frame, 3 * portTICK_PERIOD_MS) == pdTRUE)
-  {
-    if (rx_frame.FIR.B.FF == CAN_frame_std)
-    {
-      //printf("New standard frame");
-      switch (rx_frame.MsgID)
-			{
-      case 0x151:
-        if(rx_frame.data.u8[0] & 0x01)
-        {
-          send_intial_data();
-        }
-        break;
-      default:
-				break;
-      }      
-    }
-    else
-    {
-      //printf("New extended frame");
-    }
-  }
 	// Send 2s CAN Message
 	if (currentMillis - previousMillis2s >= interval2s)
 	{
