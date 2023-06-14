@@ -150,6 +150,9 @@ void setup()
   #ifdef TESLA_MODEL_3_BATTERY
   Serial.println("Tesla Model 3 battery selected");
   #endif 
+  #ifdef RENAULT_ZOE_BATTERY
+  Serial.println("Renault Zoe battery selected");
+  #endif 
 }
 
 // perform main program functions
@@ -178,19 +181,25 @@ void handle_can()
   #endif
   #ifdef BATTERY_TYPE_LEAF
 	handle_can_leaf_battery(); 
-	#endif
+	#endif 
   #ifdef TESLA_MODEL_3_BATTERY
   handle_can_tesla_model_3_battery(); 
+  #endif
+  #ifdef RENAULT_ZOE_BATTERY
+  handle_can_zoe_battery();
   #endif
 }
 
 void handle_modbus()
 {
 	  #ifdef BATTERY_TYPE_LEAF
-    update_values_leaf_battery();     //Map the values to the correct registers
+    update_values_leaf_battery(); //Map the values to the correct registers
 	  #endif 
     #ifdef TESLA_MODEL_3_BATTERY
     update_values_tesla_model_3_battery(); //Map the values to the correct registers
+    #endif
+    #ifdef RENAULT_ZOE_BATTERY
+    update_values_zoe_battery(); //Map the values to the correct registers
     #endif
     handle_update_data_modbusp201();  //Updata for ModbusRTU Server for GEN24
     handle_update_data_modbusp301();  //Updata for ModbusRTU Server for GEN24
