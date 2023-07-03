@@ -3,7 +3,6 @@
 #include <Arduino.h>
 #include "ESP32CAN.h"
 
-// These parameters need to be mapped for the Gen24
 extern uint16_t SOC;
 extern uint16_t StateOfHealth;
 extern uint16_t battery_voltage;
@@ -18,8 +17,8 @@ extern uint16_t stat_batt_power;
 extern uint16_t temperature_min;
 extern uint16_t temperature_max;
 extern uint16_t CANerror;
-extern uint16_t max_voltage;
-extern uint16_t min_voltage;
+extern uint16_t min_volt_byd_can;
+extern uint16_t max_volt_byd_can;
 // Definitions for BMS status
 #define STANDBY 0
 #define INACTIVE 1

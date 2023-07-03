@@ -180,7 +180,7 @@ void update_values_tesla_model_3_battery()
 void handle_can_tesla_model_3_battery()
 {
   CAN_frame_t rx_frame;
-  unsigned long currentMillis = millis();
+  static unsigned long currentMillis = millis();
   static int mux = 0;
   static int temp = 0;
 
@@ -281,6 +281,14 @@ void handle_can_tesla_model_3_battery()
         high_voltage =    (((rx_frame.data.u8[2] << 6) | ((rx_frame.data.u8[1] & 0xFC) >> 2))) * 0.146484;
         output_current =  (((rx_frame.data.u8[4] & 0x0F) << 8) | rx_frame.data.u8[3]) / 100;
         break;
+      #ifdef CAN_BYD
+      case 0x151: //Message originating from BYD HVS compatible inverter. Send CAN identifier!
+        if(rx_frame.data.u8[0] & 0x01)
+        {
+          send_intial_data();
+        }
+      break;
+      #endif
 			default:
 				break;
 			}

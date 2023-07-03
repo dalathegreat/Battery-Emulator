@@ -1,15 +1,14 @@
-#ifndef NISSAN_LEAF_BATTERY_H
-#define NISSAN_LEAF_BATTERY_H
+#ifndef RENAULT_ZOE_BATTERY_H
+#define RENAULT_ZOE_BATTERY_H
 #include <Arduino.h>
 #include "ESP32CAN.h"
 
-#define BATTERY_WH_MAX 30000 //Battery size in Wh (Maximum value Fronius accepts is 60000 [60kWh] you can use larger batteries but do set value over 60000
+#define BATTERY_WH_MAX 22000 //Battery size in Wh (Maximum value Fronius accepts is 60000 [60kWh] you can use larger batteries but do set value over 60000
 #define ABSOLUTE_MAX_VOLTAGE 4040 // 404.4V,if battery voltage goes over this, charging is not possible (goes into forced discharge)
 #define ABSOLUTE_MIN_VOLTAGE 3100 // 310.0V if battery voltage goes under this, discharging further is disabled
-#define MAXPERCENTAGE 800 //80.0% , Max percentage the battery will charge to (App will show 100% once this value is reached)
-#define MINPERCENTAGE 200 //20.0% , Min percentage the battery will discharge to (App will show 0% once this value is reached)
-//#define INTERLOCK_REQUIRED //Uncomment this line to skip requiring both high voltage connectors to be seated on the LEAF battery
-static byte printValues = 0; //Should modbus values be printed to serial output? 
+#define MAXPERCENTAGE_ZOE 800 //80.0% , Max percentage the battery will charge to (App will show 100% once this value is reached)
+#define MINPERCENTAGE_ZOE 200 //20.0% , Min percentage the battery will discharge to (App will show 0% once this value is reached)
+static byte printValues = 1; //Should modbus values be printed to serial output? 
 
 // These parameters need to be mapped for the Gen24
 extern uint16_t SOC;
@@ -34,9 +33,8 @@ extern uint16_t CANerror;
 #define FAULT 4
 #define UPDATING 5
 
-void update_values_leaf_battery();
-void handle_can_leaf_battery();
+void update_values_zoe_battery();
+void handle_can_zoe_battery();
 uint16_t convert2unsignedint16(uint16_t signed_value);
-bool is_message_corrupt(CAN_frame_t rx_frame);
 
 #endif

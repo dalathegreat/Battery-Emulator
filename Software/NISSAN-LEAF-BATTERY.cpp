@@ -3,24 +3,24 @@
 #include "CAN_config.h"
 
 /* Do not change code below unless you are sure what you are doing */
-unsigned long previousMillis10 = 0; // will store last time a 10ms CAN Message was send
-unsigned long previousMillis100 = 0; // will store last time a 100ms CAN Message was send
-const int interval10 = 10; // interval (ms) at which send CAN Messages
-const int interval100 = 100; // interval (ms) at which send CAN Messages
+static unsigned long previousMillis10 = 0; // will store last time a 10ms CAN Message was send
+static unsigned long previousMillis100 = 0; // will store last time a 100ms CAN Message was send
+static const int interval10 = 10; // interval (ms) at which send CAN Messages
+static const int interval100 = 100; // interval (ms) at which send CAN Messages
 const int rx_queue_size = 10; // Receive Queue size
 uint16_t CANerror = 0; //counter on how many CAN errors encountered
-uint8_t CANstillAlive = 12; //counter for checking if CAN is still alive 
-uint8_t errorCode = 0; //stores if we have an error code active from battery control logic
-uint8_t mprun10r = 0; //counter 0-20 for 0x1F2 message
-byte mprun10 = 0; //counter 0-3
-byte mprun100 = 0; //counter 0-3
+static uint8_t CANstillAlive = 12; //counter for checking if CAN is still alive 
+static uint8_t errorCode = 0; //stores if we have an error code active from battery control logic
+static uint8_t mprun10r = 0; //counter 0-20 for 0x1F2 message
+static byte mprun10 = 0; //counter 0-3
+static byte mprun100 = 0; //counter 0-3
 
 CAN_frame_t LEAF_1F2 = {.FIR = {.B = {.DLC = 8,.FF = CAN_frame_std,}},.MsgID = 0x1F2,.data = {0x10, 0x64, 0x00, 0xB0, 0x00, 0x1E, 0x00, 0x8F}};
 CAN_frame_t LEAF_50B = {.FIR = {.B = {.DLC = 7,.FF = CAN_frame_std,}},.MsgID = 0x50B,.data = {0x00, 0x00, 0x06, 0xC0, 0x00, 0x00, 0x00}};
 CAN_frame_t LEAF_50C = {.FIR = {.B = {.DLC = 6,.FF = CAN_frame_std,}},.MsgID = 0x50C,.data = {0x00, 0x00, 0x00, 0x00, 0x00, 0x00}};
 CAN_frame_t LEAF_1D4 = {.FIR = {.B = {.DLC = 8,.FF = CAN_frame_std,}},.MsgID = 0x1D4,.data = {0x6E, 0x6E, 0x00, 0x04, 0x07, 0x46, 0xE0, 0x44}};
 
-uint8_t	crctable[256] = {0,133,143,10,155,30,20,145,179,54,60,185,40,173,167,34,227,102,108,233,120,253,247,114,80,213,223,90,203,78,68,193,67,
+static uint8_t	crctable[256] = {0,133,143,10,155,30,20,145,179,54,60,185,40,173,167,34,227,102,108,233,120,253,247,114,80,213,223,90,203,78,68,193,67,
                         198,204,73,216,93,87,210,240,117,127,250,107,238,228,97,160,37,47,170,59,190,180,49,19,150,156,25,136,13,7,130,134,3,9,
                         140,29,152,146,23,53,176,186,63,174,43,33,164,101,224,234,111,254,123,113,244,214,83,89,220,77,200,194,71,197,64,74,207,
                         94,219,209,84,118,243,249,124,237,104,98,231,38,163,169,44,189,56,50,183,149,16,26,159,14,139,129,4,137,12,6,131,18,151,
@@ -33,27 +33,27 @@ uint8_t	crctable[256] = {0,133,143,10,155,30,20,145,179,54,60,185,40,173,167,34,
 #define ZE0_BATTERY 0
 #define AZE0_BATTERY 1
 #define ZE1_BATTERY 2
-uint8_t LEAF_Battery_Type = ZE0_BATTERY;
+static uint8_t LEAF_Battery_Type = ZE0_BATTERY;
 #define WH_PER_GID 77   //One GID is this amount of Watt hours
 #define LB_MAX_SOC 1000  //LEAF BMS never goes over this value. We use this info to rescale SOC% sent to Fronius
 #define LB_MIN_SOC 0   //LEAF BMS never goes below this value. We use this info to rescale SOC% sent to Fronius
-uint16_t LB_Discharge_Power_Limit = 0; //Limit in kW
-uint16_t LB_Charge_Power_Limit = 0; //Limit in kW
-int16_t LB_MAX_POWER_FOR_CHARGER = 0; //Limit in kW
-int16_t LB_SOC = 500; //0 - 100.0 % (0-1000)
-uint16_t LB_TEMP = 0; //Temporary value used in status checks
-uint16_t LB_Wh_Remaining = 0; //Amount of energy in battery, in Wh
-uint16_t LB_GIDS = 0;
-uint16_t LB_MAX = 0;
-uint16_t LB_Max_GIDS = 273; //Startup in 24kWh mode
-uint16_t LB_StateOfHealth = 99; //State of health %
-uint16_t LB_Total_Voltage = 370; //Battery voltage (0-450V)
-int16_t LB_Current = 0; //Current in A going in/out of battery
-int16_t LB_Power = 0; //Watts going in/out of battery
-int16_t LB_HistData_Temperature_MAX = 6; //-40 to 86*C
-int16_t LB_HistData_Temperature_MIN = 5; //-40 to 86*C
-uint8_t LB_Relay_Cut_Request = 0; //LB_FAIL
-uint8_t LB_Failsafe_Status = 0; //LB_STATUS = 000b = normal start Request
+static uint16_t LB_Discharge_Power_Limit = 0; //Limit in kW
+static uint16_t LB_Charge_Power_Limit = 0; //Limit in kW
+static int16_t LB_MAX_POWER_FOR_CHARGER = 0; //Limit in kW
+static int16_t LB_SOC = 500; //0 - 100.0 % (0-1000)
+static uint16_t LB_TEMP = 0; //Temporary value used in status checks
+static uint16_t LB_Wh_Remaining = 0; //Amount of energy in battery, in Wh
+static uint16_t LB_GIDS = 0;
+static uint16_t LB_MAX = 0;
+static uint16_t LB_Max_GIDS = 273; //Startup in 24kWh mode
+static uint16_t LB_StateOfHealth = 99; //State of health %
+static uint16_t LB_Total_Voltage = 370; //Battery voltage (0-450V)
+static int16_t LB_Current = 0; //Current in A going in/out of battery
+static int16_t LB_Power = 0; //Watts going in/out of battery
+static int16_t LB_HistData_Temperature_MAX = 6; //-40 to 86*C
+static int16_t LB_HistData_Temperature_MIN = 5; //-40 to 86*C
+static uint8_t LB_Relay_Cut_Request = 0; //LB_FAIL
+static uint8_t LB_Failsafe_Status = 0; //LB_STATUS = 000b = normal start Request
                                             //001b = Main Relay OFF Request
                                             //010b = Charging Mode Stop Request
                                             //011b =  Main Relay OFF Request
@@ -61,10 +61,10 @@ uint8_t LB_Failsafe_Status = 0; //LB_STATUS = 000b = normal start Request
                                             //101b = Caution Lamp Request & Main Relay OFF Request
                                             //110b = Caution Lamp Request & Charging Mode Stop Request
                                             //111b = Caution Lamp Request & Main Relay OFF Request                                     
-byte LB_Interlock = 1; //Contains info on if HV leads are seated (Note, to use this both HV connectors need to be inserted)
-byte LB_Full_CHARGE_flag = 0; //LB_FCHGEND , Goes to 1 if battery is fully charged
-byte LB_MainRelayOn_flag = 0; //No-Permission=0, Main Relay On Permission=1
-byte LB_Capacity_Empty = 0; //LB_EMPTY, , Goes to 1 if battery is empty
+static byte LB_Interlock = 1; //Contains info on if HV leads are seated (Note, to use this both HV connectors need to be inserted)
+static byte LB_Full_CHARGE_flag = 0; //LB_FCHGEND , Goes to 1 if battery is fully charged
+static byte LB_MainRelayOn_flag = 0; //No-Permission=0, Main Relay On Permission=1
+static byte LB_Capacity_Empty = 0; //LB_EMPTY, , Goes to 1 if battery is empty
 
 void update_values_leaf_battery()
 { //This function maps all the values fetched via CAN to the correct parameters used for modbus
@@ -277,7 +277,7 @@ void update_values_leaf_battery()
 void handle_can_leaf_battery()
 {
   CAN_frame_t rx_frame;
-  unsigned long currentMillis = millis();
+  static unsigned long currentMillis = millis();
 
   // Receive next CAN frame from queue
   if (xQueueReceive(CAN_cfg.rx_queue, &rx_frame, 3 * portTICK_PERIOD_MS) == pdTRUE)
@@ -391,6 +391,14 @@ void handle_can_leaf_battery()
         //ZE1 2018-2023 battery detected!
         LEAF_Battery_Type = ZE1_BATTERY;
         break;
+      #ifdef CAN_BYD
+      case 0x151: //Message originating from BYD HVS compatible inverter. Send CAN identifier!
+        if(rx_frame.data.u8[0] & 0x01)
+        {
+          send_intial_data();
+        }
+      break;
+      #endif
       default:
 				break;
       }      
