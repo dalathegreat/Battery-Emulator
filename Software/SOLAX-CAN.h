@@ -27,7 +27,7 @@ extern uint16_t max_volt_byd_can;
 #define FAULT 4
 #define UPDATING 5
 
-void update_values_can_byd();
+void update_values_can_solax();
 void send_can_solax();
 void receive_can_solax(CAN_frame_t rx_frame);
 #endif

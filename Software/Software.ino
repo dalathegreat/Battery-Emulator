@@ -28,7 +28,7 @@ CAN_device_t CAN_cfg; // CAN Config
 const int rx_queue_size = 10; // Receive Queue size
 
 //Interval settings
-const int intervalModbusTask = 4800; //Interval at which to refresh modbus registers
+const int intervalInverterTask = 4800; //Interval at which to refresh modbus registers / inverter values
 const int interval10 = 10;
 
 //ModbusRTU parameters
@@ -58,7 +58,7 @@ uint16_t StateOfHealth = 9900; //SOH 0-100.00% //Updates later on from CAN
 uint16_t capacity_Wh = BATTERY_WH_MAX; //Updates later on from CAN
 uint16_t remaining_capacity_Wh = BATTERY_WH_MAX; //Updates later on from CAN
 uint16_t max_target_discharge_power = 0; //0W (0W > restricts to no discharge) //Updates later on from CAN
-uint16_t max_target_charge_power = 4312; //4.3kW (during charge), both 307&308 can be set (>0) at the same time //Updates later on from CAN
+uint16_t max_target_charge_power = 4312; //4.3kW (during charge), both 307&308 can be set (>0) at the same time //Updates later on from CAN. Max value is 30000W
 uint16_t temperature_max = 50; //reads from battery later
 uint16_t temperature_min = 60; //reads from battery later
 uint16_t bms_char_dis_status; //0 idle, 1 discharging, 2, charging
@@ -170,10 +170,10 @@ void loop()
     handle_contactors();  //Take care of startup precharge/contactor closing
   }
 
-	if (millis() - previousMillisModbus >= intervalModbusTask) //every 5s
+	if (millis() - previousMillisModbus >= intervalInverterTask) //every 5s
 	{
 		previousMillisModbus = millis();
-    handle_modbus(); //Update values heading towards modbus
+    handle_inverter(); //Update values heading towards inverter
 	}
 }
 
@@ -227,7 +227,7 @@ void handle_can()
   #endif
 }
 
-void handle_modbus()
+void handle_inverter()
 {
 	  #ifdef BATTERY_TYPE_LEAF
     update_values_leaf_battery(); //Map the values to the correct registers
@@ -238,8 +238,16 @@ void handle_modbus()
     #ifdef RENAULT_ZOE_BATTERY
     update_values_zoe_battery(); //Map the values to the correct registers
     #endif
-    handle_update_data_modbusp201();  //Updata for ModbusRTU Server for GEN24
-    handle_update_data_modbusp301();  //Updata for ModbusRTU Server for GEN24
+    #ifdef SOLAX_CAN
+    update_values_can_solax();
+    #endif
+    #ifdef CAN_BYD
+    update_values_can_byd();
+    #endif
+    
+    //Updata for ModbusRTU Server for GEN24
+    handle_update_data_modbusp201();
+    handle_update_data_modbusp301(); 
 }
 
 void handle_contactors()
