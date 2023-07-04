@@ -120,54 +120,35 @@ void update_values_zoe_battery()
   }
 }
 
-void handle_can_zoe_battery()
+void receive_can_zoe_battery(CAN_frame_t rx_frame)
 {
-  CAN_frame_t rx_frame;
-  static unsigned long currentMillis = millis();
-
-  // Receive next CAN frame from queue
-  if (xQueueReceive(CAN_cfg.rx_queue, &rx_frame, 3 * portTICK_PERIOD_MS) == pdTRUE)
+  switch (rx_frame.MsgID)
   {
-    if (rx_frame.FIR.B.FF == CAN_frame_std)
-    {
-      //printf("New standard frame");
-      switch (rx_frame.MsgID)
-			{
-      case 0x155: //BMS1
-        CANstillAlive = 12; //Indicate that we are still getting CAN messages from the BMS
-        //LB_Max_Charge_Amps = 
-        //LB_Current = (((rx_frame.data.u8[1] & 0xF8) << 5) | (rx_frame.data.u8[2]));
-        LB_SOC = ((rx_frame.data.u8[4] << 8) | (rx_frame.data.u8[5]));
-        break;
-      case 0x424: //BMS2
-        LB_Charge_Power_Limit = (rx_frame.data.u8[2]);
-        LB_Discharge_Power_Limit = (rx_frame.data.u8[3]);
-        LB_SOH = (rx_frame.data.u8[5]);
-        LB_MIN_TEMPERATURE = ((rx_frame.data.u8[4] & 0x7F) - 40);
-        LB_MAX_TEMPERATURE = ((rx_frame.data.u8[7] & 0x7F) - 40);
-        break;
-      case 0x425: //BMS3 (could also be 445?)
-        //LB_kWh_Remaining = 
-        //LB_Cell_Max_Voltage = 
-        //LB_Cell_Min_Voltage = 
-        break;
-      #ifdef CAN_BYD
-      case 0x151: //Message originating from BYD HVS compatible inverter. Send CAN identifier!
-        if(rx_frame.data.u8[0] & 0x01)
-        {
-          send_intial_data();
-        }
-      #endif
-      break;
-      default:
-				break;
-      }      
-    }
-    else
-    {
-      //printf("New extended frame");
-    }
+  case 0x155: //BMS1
+    CANstillAlive = 12; //Indicate that we are still getting CAN messages from the BMS
+    //LB_Max_Charge_Amps = 
+    //LB_Current = (((rx_frame.data.u8[1] & 0xF8) << 5) | (rx_frame.data.u8[2]));
+    LB_SOC = ((rx_frame.data.u8[4] << 8) | (rx_frame.data.u8[5]));
+    break;
+  case 0x424: //BMS2
+    LB_Charge_Power_Limit = (rx_frame.data.u8[2]);
+    LB_Discharge_Power_Limit = (rx_frame.data.u8[3]);
+    LB_SOH = (rx_frame.data.u8[5]);
+    LB_MIN_TEMPERATURE = ((rx_frame.data.u8[4] & 0x7F) - 40);
+    LB_MAX_TEMPERATURE = ((rx_frame.data.u8[7] & 0x7F) - 40);
+    break;
+  case 0x425: //BMS3 (could also be 445?)
+    //LB_kWh_Remaining = 
+    //LB_Cell_Max_Voltage = 
+    //LB_Cell_Min_Voltage = 
+    break;
+  default:
+    break;
   }
+}
+void send_can_zoe_battery()
+{
+  static unsigned long currentMillis = millis();
   // Send 100ms CAN Message
 	if (currentMillis - previousMillis100 >= interval100)
 	{

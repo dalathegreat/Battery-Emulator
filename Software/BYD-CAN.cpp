@@ -3,13 +3,12 @@
 #include "CAN_config.h"
 
 /* Do not change code below unless you are sure what you are doing */
-unsigned long previousMillis2s = 0; // will store last time a 2s CAN Message was send
-unsigned long previousMillis10s = 0; // will store last time a 10s CAN Message was send
-unsigned long previousMillis60s = 0; // will store last time a 60s CAN Message was send
-const int interval2s = 2000; // interval (ms) at which send CAN Messages
-const int interval10s = 10000; // interval (ms) at which send CAN Messages
-const int interval60s = 60000; // interval (ms) at which send CAN Messages
-const int rx_queue_size = 10; // Receive Queue size
+static unsigned long previousMillis2s = 0; // will store last time a 2s CAN Message was send
+static unsigned long previousMillis10s = 0; // will store last time a 10s CAN Message was send
+static unsigned long previousMillis60s = 0; // will store last time a 60s CAN Message was send
+static const int interval2s = 2000; // interval (ms) at which send CAN Messages
+static const int interval10s = 10000; // interval (ms) at which send CAN Messages
+static const int interval60s = 60000; // interval (ms) at which send CAN Messages
 
 //Constant startup messages
 const CAN_frame_t BYD_250 = {.FIR = {.B = {.DLC = 8,.FF = CAN_frame_std,}},.MsgID = 0x250,.data = {0x03, 0x16, 0x00, 0x66, 0x00, 0x33, 0x02, 0x09}};
@@ -74,7 +73,22 @@ void update_values_can_byd()
   BYD_210.data.u8[3] = (temperature_min & 0x00FF);
 }
 
-void handle_can_byd()
+void receive_can_byd(CAN_frame_t rx_frame)
+{
+  switch (rx_frame.MsgID)
+  {
+    case 0x151: //Message originating from BYD HVS compatible inverter. Reply with CAN identifier!
+    if(rx_frame.data.u8[0] & 0x01)
+    {
+      send_intial_data();
+    }
+    break;
+    default:
+    break;
+  }
+}
+
+void send_can_byd()
 {
   unsigned long currentMillis = millis();
 	// Send 2s CAN Message
