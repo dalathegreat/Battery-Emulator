@@ -274,140 +274,121 @@ void update_values_leaf_battery()
   }
 }
 
-void handle_can_leaf_battery()
+void receive_can_leaf_battery(CAN_frame_t rx_frame)
 {
-  CAN_frame_t rx_frame;
-  static unsigned long currentMillis = millis();
-
-  // Receive next CAN frame from queue
-  if (xQueueReceive(CAN_cfg.rx_queue, &rx_frame, 3 * portTICK_PERIOD_MS) == pdTRUE)
+  switch (rx_frame.MsgID)
   {
-    if (rx_frame.FIR.B.FF == CAN_frame_std)
+  case 0x1DB:
+    if(is_message_corrupt(rx_frame))
     {
-      //printf("New standard frame");
-      switch (rx_frame.MsgID)
-			{
-      case 0x1DB:
-        if(is_message_corrupt(rx_frame))
-        {
-          CANerror++;
-          break; //Message content malformed, abort reading data from it
-        }
-				LB_Current = (rx_frame.data.u8[0] << 3) | (rx_frame.data.u8[1] & 0xe0) >> 5;
-        if (LB_Current & 0x0400)
-        {
-          // negative so extend the sign bit
-          LB_Current |= 0xf800;
-        }
+      CANerror++;
+      break; //Message content malformed, abort reading data from it
+    }
+    LB_Current = (rx_frame.data.u8[0] << 3) | (rx_frame.data.u8[1] & 0xe0) >> 5;
+    if (LB_Current & 0x0400)
+    {
+      // negative so extend the sign bit
+      LB_Current |= 0xf800;
+    }
 
-				LB_Total_Voltage = ((rx_frame.data.u8[2] << 2) | (rx_frame.data.u8[3] & 0xc0) >> 6) / 2;
-        
-        //Collect various data from the BMS
-        LB_Relay_Cut_Request = ((rx_frame.data.u8[1] & 0x18) >> 3);
-        LB_Failsafe_Status = (rx_frame.data.u8[1] & 0x07);
-        LB_MainRelayOn_flag = (byte) ((rx_frame.data.u8[3] & 0x20) >> 5);
-        LB_Full_CHARGE_flag = (byte) ((rx_frame.data.u8[3] & 0x10) >> 4);
-        LB_Interlock = (byte) ((rx_frame.data.u8[3] & 0x08) >> 3);
-				break;
-			case 0x1DC:
-        if(is_message_corrupt(rx_frame))
-        {
-          CANerror++;
-          break; //Message content malformed, abort reading data from it
-        }
-				LB_Discharge_Power_Limit = ((rx_frame.data.u8[0] << 2 | rx_frame.data.u8[1] >> 6) / 4.0);
-        LB_Charge_Power_Limit = (((rx_frame.data.u8[1] & 0x3F) << 2 | rx_frame.data.u8[2] >> 4) / 4.0);
-				LB_MAX_POWER_FOR_CHARGER = ((((rx_frame.data.u8[2] & 0x0F) << 6 | rx_frame.data.u8[3] >> 2) / 10.0) - 10);
-				break;
-			case 0x55B:
-        if(is_message_corrupt(rx_frame))
-        {
-          CANerror++;
-          break; //Message content malformed, abort reading data from it
-        }
-        LB_TEMP = (rx_frame.data.u8[0] << 2 | rx_frame.data.u8[1] >> 6);
-        if (LB_TEMP != 0x3ff) //3FF is unavailable value
-        {
-          LB_SOC = LB_TEMP;
-        }
-				break;
-			case 0x5BC:
-        CANstillAlive = 12; //Indicate that we are still getting CAN messages from the BMS
+    LB_Total_Voltage = ((rx_frame.data.u8[2] << 2) | (rx_frame.data.u8[3] & 0xc0) >> 6) / 2;
+    
+    //Collect various data from the BMS
+    LB_Relay_Cut_Request = ((rx_frame.data.u8[1] & 0x18) >> 3);
+    LB_Failsafe_Status = (rx_frame.data.u8[1] & 0x07);
+    LB_MainRelayOn_flag = (byte) ((rx_frame.data.u8[3] & 0x20) >> 5);
+    LB_Full_CHARGE_flag = (byte) ((rx_frame.data.u8[3] & 0x10) >> 4);
+    LB_Interlock = (byte) ((rx_frame.data.u8[3] & 0x08) >> 3);
+    break;
+  case 0x1DC:
+    if(is_message_corrupt(rx_frame))
+    {
+      CANerror++;
+      break; //Message content malformed, abort reading data from it
+    }
+    LB_Discharge_Power_Limit = ((rx_frame.data.u8[0] << 2 | rx_frame.data.u8[1] >> 6) / 4.0);
+    LB_Charge_Power_Limit = (((rx_frame.data.u8[1] & 0x3F) << 2 | rx_frame.data.u8[2] >> 4) / 4.0);
+    LB_MAX_POWER_FOR_CHARGER = ((((rx_frame.data.u8[2] & 0x0F) << 6 | rx_frame.data.u8[3] >> 2) / 10.0) - 10);
+    break;
+  case 0x55B:
+    if(is_message_corrupt(rx_frame))
+    {
+      CANerror++;
+      break; //Message content malformed, abort reading data from it
+    }
+    LB_TEMP = (rx_frame.data.u8[0] << 2 | rx_frame.data.u8[1] >> 6);
+    if (LB_TEMP != 0x3ff) //3FF is unavailable value
+    {
+      LB_SOC = LB_TEMP;
+    }
+    break;
+  case 0x5BC:
+    CANstillAlive = 12; //Indicate that we are still getting CAN messages from the BMS
 
-				LB_MAX = ((rx_frame.data.u8[5] & 0x10) >> 4);
-				if (LB_MAX)
-				{
-					LB_Max_GIDS = (rx_frame.data.u8[0] << 2) | ((rx_frame.data.u8[1] & 0xC0) >> 6);
-					//Max gids active, do nothing
-					//Only the 30/40/62kWh packs have this mux
-				}
-				else
-				{
-					//Normal current GIDS value is transmitted
-					LB_GIDS = (rx_frame.data.u8[0] << 2) | ((rx_frame.data.u8[1] & 0xC0) >> 6);
-					LB_Wh_Remaining = (LB_GIDS * WH_PER_GID);
-				}
-
-        LB_TEMP = (rx_frame.data.u8[4] >> 1);
-        if (LB_TEMP != 0)
-        {
-          LB_StateOfHealth = LB_TEMP; //Collect state of health from battery
-        }
-				break;
-      case 0x5C0: //This method only works for 2013-2017 AZE0 LEAF packs, the mux is different on other generations
-        if(LEAF_Battery_Type == AZE0_BATTERY)
-        {
-          if ((rx_frame.data.u8[0]>>6) == 1)
-          { // Battery MAX temperature. Effectively has only 7-bit precision, as the bottom bit is always 0.
-            LB_HistData_Temperature_MAX = ((rx_frame.data.u8[2] / 2) - 40);
-          }
-          if ((rx_frame.data.u8[0]>>6) == 3)
-          { // Battery MIN temperature. Effectively has only 7-bit precision, as the bottom bit is always 0.
-            LB_HistData_Temperature_MIN = ((rx_frame.data.u8[2] / 2) - 40);
-          }
-        }
-        if(LEAF_Battery_Type == ZE1_BATTERY)
-        { //note different mux location in first frame
-          if ((rx_frame.data.u8[0] & 0x0F) == 1) 
-          {
-            LB_HistData_Temperature_MAX = ((rx_frame.data.u8[2] / 2) - 40);
-          }
-          if ((rx_frame.data.u8[0] & 0x0F) == 3) 
-          {
-            LB_HistData_Temperature_MIN = ((rx_frame.data.u8[2] / 2) - 40);
-          }
-        }
-        break;
-      case 0x59E:
-        //AZE0 2013-2017 or ZE1 2018-2023 battery detected
-        //Only detect as AZE0 if not already set as ZE1
-        if(LEAF_Battery_Type != ZE1_BATTERY)
-        {
-          LEAF_Battery_Type = AZE0_BATTERY;
-        }
-        break;
-      case 0x1ED:
-      case 0x1C2:
-        //ZE1 2018-2023 battery detected!
-        LEAF_Battery_Type = ZE1_BATTERY;
-        break;
-      #ifdef CAN_BYD
-      case 0x151: //Message originating from BYD HVS compatible inverter. Send CAN identifier!
-        if(rx_frame.data.u8[0] & 0x01)
-        {
-          send_intial_data();
-        }
-      break;
-      #endif
-      default:
-				break;
-      }      
+    LB_MAX = ((rx_frame.data.u8[5] & 0x10) >> 4);
+    if (LB_MAX)
+    {
+      LB_Max_GIDS = (rx_frame.data.u8[0] << 2) | ((rx_frame.data.u8[1] & 0xC0) >> 6);
+      //Max gids active, do nothing
+      //Only the 30/40/62kWh packs have this mux
     }
     else
     {
-      //printf("New extended frame");
+      //Normal current GIDS value is transmitted
+      LB_GIDS = (rx_frame.data.u8[0] << 2) | ((rx_frame.data.u8[1] & 0xC0) >> 6);
+      LB_Wh_Remaining = (LB_GIDS * WH_PER_GID);
     }
-  }
+
+    LB_TEMP = (rx_frame.data.u8[4] >> 1);
+    if (LB_TEMP != 0)
+    {
+      LB_StateOfHealth = LB_TEMP; //Collect state of health from battery
+    }
+    break;
+  case 0x5C0: //This method only works for 2013-2017 AZE0 LEAF packs, the mux is different on other generations
+    if(LEAF_Battery_Type == AZE0_BATTERY)
+    {
+      if ((rx_frame.data.u8[0]>>6) == 1)
+      { // Battery MAX temperature. Effectively has only 7-bit precision, as the bottom bit is always 0.
+        LB_HistData_Temperature_MAX = ((rx_frame.data.u8[2] / 2) - 40);
+      }
+      if ((rx_frame.data.u8[0]>>6) == 3)
+      { // Battery MIN temperature. Effectively has only 7-bit precision, as the bottom bit is always 0.
+        LB_HistData_Temperature_MIN = ((rx_frame.data.u8[2] / 2) - 40);
+      }
+    }
+    if(LEAF_Battery_Type == ZE1_BATTERY)
+    { //note different mux location in first frame
+      if ((rx_frame.data.u8[0] & 0x0F) == 1) 
+      {
+        LB_HistData_Temperature_MAX = ((rx_frame.data.u8[2] / 2) - 40);
+      }
+      if ((rx_frame.data.u8[0] & 0x0F) == 3) 
+      {
+        LB_HistData_Temperature_MIN = ((rx_frame.data.u8[2] / 2) - 40);
+      }
+    }
+    break;
+  case 0x59E:
+    //AZE0 2013-2017 or ZE1 2018-2023 battery detected
+    //Only detect as AZE0 if not already set as ZE1
+    if(LEAF_Battery_Type != ZE1_BATTERY)
+    {
+      LEAF_Battery_Type = AZE0_BATTERY;
+    }
+    break;
+  case 0x1ED:
+  case 0x1C2:
+    //ZE1 2018-2023 battery detected!
+    LEAF_Battery_Type = ZE1_BATTERY;
+    break;
+  default:
+    break;
+  }      
+}
+void send_can_leaf_battery()
+{
+  unsigned long currentMillis = millis();
 	// Send 100ms CAN Message
 	if (currentMillis - previousMillis100 >= interval100)
 	{

@@ -1,6 +1,7 @@
 #ifndef TESLA_MODEL_3_BATTERY_H
 #define TESLA_MODEL_3_BATTERY_H
 #include <Arduino.h>
+#include "ESP32CAN.h"
 
 /* User definable settings for the Tesla Model 3 battery */
 #define BATTERY_WH_MAX 60000 //Battery size in Wh (Maximum value Fronius accepts is 60000 [60kWh] you can use larger 65/75/90 batteries but do set value over 60000!
@@ -34,7 +35,8 @@ extern uint16_t CANerror;
 #define UPDATING 5
 
 void update_values_tesla_model_3_battery();
-void handle_can_tesla_model_3_battery();
+void receive_can_tesla_model_3_battery(CAN_frame_t rx_frame);
+void send_can_tesla_model_3_battery();
 uint16_t convert2unsignedint16(uint16_t signed_value);
 
 #endif

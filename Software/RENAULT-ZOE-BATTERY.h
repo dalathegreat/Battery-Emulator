@@ -34,7 +34,8 @@ extern uint16_t CANerror;
 #define UPDATING 5
 
 void update_values_zoe_battery();
-void handle_can_zoe_battery();
+void receive_can_zoe_battery(CAN_frame_t rx_frame);
+void send_can_zoe_battery();
 uint16_t convert2unsignedint16(uint16_t signed_value);
 
 #endif

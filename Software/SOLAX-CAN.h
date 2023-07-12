@@ -1,5 +1,5 @@
-#ifndef BYD_CAN_H
-#define BYD_CAN_H
+#ifndef SOLAX_CAN_H
+#define SOLAX_CAN_H
 #include <Arduino.h>
 #include "ESP32CAN.h"
 
@@ -27,9 +27,7 @@ extern uint16_t max_volt_byd_can;
 #define FAULT 4
 #define UPDATING 5
 
-void update_values_can_byd();
-void send_can_byd();
-void receive_can_byd(CAN_frame_t rx_frame);
-void send_intial_data();
-
+void update_values_can_solax();
+void send_can_solax();
+void receive_can_solax(CAN_frame_t rx_frame);
 #endif
