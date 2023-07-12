@@ -278,7 +278,7 @@ void receive_can_tesla_model_3_battery(CAN_frame_t rx_frame)
 }
 void send_can_tesla_model_3_battery()
 {
-  static unsigned long currentMillis = millis();
+  unsigned long currentMillis = millis();
 	// Send 100ms CAN Message
 	if (currentMillis - previousMillis100 >= interval100)
 	{

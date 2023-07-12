@@ -4,9 +4,9 @@
 //#define RENAULT_ZOE_BATTERY     // See RENAULT-ZOE-BATTERY.h for more Zoe battery settings
 
 /* Select inverter communication protocol. See Wiki for which to use with your inverter: https://github.com/dalathegreat/BYD-Battery-Emulator-For-Gen24/wiki */
-//#define MODBUS_BYD      //Enable this line to emulate a "BYD 11kWh HVM battery" over Modbus RTU
+#define MODBUS_BYD      //Enable this line to emulate a "BYD 11kWh HVM battery" over Modbus RTU
 //#define CAN_BYD       //Enable this line to emulate a "BYD Battery-Box Premium HVS" over CAN Bus
-#define SOLAX_CAN       //Enable this line to emulate a "SolaX Triple Power LFP" over CAN bus
+//#define SOLAX_CAN       //Enable this line to emulate a "SolaX Triple Power LFP" over CAN bus
 
 /* Do not change any code below this line unless you are sure what you are doing */
 /* Only change battery specific settings and limits in their respective .h files */
