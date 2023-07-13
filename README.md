@@ -51,6 +51,7 @@ It is also based on the info found in the following excellent repositories:
 - https://github.com/SunshadeCorp/can-service
 - https://github.com/openvehicles/Open-Vehicle-Monitoring-System-3
 - https://github.com/dalathegreat/leaf_can_bus_messages
+- https://github.com/rand12345/solax_can_bus
 - Renault Zoe CAN Matrix https://docs.google.com/spreadsheets/u/0/d/1Qnk-yzzcPiMArO-QDzO4a8ptAS2Sa4HhVu441zBzlpM/edit?pli=1#gid=0
 
 ## Like this project? 💖
