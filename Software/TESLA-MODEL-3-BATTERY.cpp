@@ -41,6 +41,10 @@ uint16_t max_voltage = 0;
 uint16_t high_voltage = 0;
 uint16_t low_voltage = 0;
 uint16_t output_current = 0;
+uint16_t soc_min = 0;
+uint16_t soc_max = 0;
+uint16_t soc_vi = 0;
+uint16_t soc_ave = 0;
 uint8_t contactor = 0; //State of contactor
 uint8_t hvil_status = 0;
 uint8_t packContNegativeState = 0;
@@ -59,16 +63,16 @@ void update_values_tesla_model_3_battery()
 	StateOfHealth = 9900; //Hardcoded to 99%SOH
 
   //Calculate the SOC% value to send to Fronius
-  calculated_soc = MIN_SOC + (MAX_SOC - MIN_SOC) * (calculated_soc - MINPERCENTAGE) / (MAXPERCENTAGE - MINPERCENTAGE); 
-  if (calculated_soc < 0)
+  soc_vi = MIN_SOC + (MAX_SOC - MIN_SOC) * (soc_vi - MINPERCENTAGE) / (MAXPERCENTAGE - MINPERCENTAGE); 
+  if (soc_vi < 0)
   { //We are in the real SOC% range of 0-20%, always set SOC sent to Fronius as 0%
-      calculated_soc = 0;
+      soc_vi = 0;
   }
-  if (calculated_soc > 1000)
+  if (soc_vi > 1000)
   { //We are in the real SOC% range of 80-100%, always set SOC sent to Fronius as 100%
-      calculated_soc = 1000;
+      soc_vi = 1000;
   }
-  SOC = (calculated_soc * 10); //increase SOC range from 0-100.0 -> 100.00
+  SOC = (soc_vi * 10); //increase SOC range from 0-100.0 -> 100.00
 
 	battery_voltage = (volts*10); //One more decimal needed (370 -> 3700)
 
@@ -274,6 +278,12 @@ void receive_can_tesla_model_3_battery(CAN_frame_t rx_frame)
       high_voltage =    (((rx_frame.data.u8[2] << 6) | ((rx_frame.data.u8[1] & 0xFC) >> 2))) * 0.146484;
       output_current =  (((rx_frame.data.u8[4] & 0x0F) << 8) | rx_frame.data.u8[3]) / 100;
       break;
+    case 0x292:
+      soc_min = (((rx_frame.data.u8[1] & 0x03) << 8) | rx_frame.data.u8[0]);
+      soc_vi =  (((rx_frame.data.u8[2] & 0x0F) << 6) | ((rx_frame.data.u8[1] & 0xFC) >> 2));
+      soc_max = (((rx_frame.data.u8[3] & 0x3F) << 4) | ((rx_frame.data.u8[2] & 0xF0) >> 4));
+      soc_ave = ((rx_frame.data.u8[4] << 2) | ((rx_frame.data.u8[3] & 0xC0) >> 6));
+    break;
     default:
       break;
   }
