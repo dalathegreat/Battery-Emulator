@@ -180,6 +180,15 @@ void update_values_tesla_model_3_battery()
     Serial.print(low_voltage);
     Serial.print("V, Current Output:");
     Serial.println(output_current);
+
+    Serial.print("Min SOC: ");
+    Serial.print(soc_min);
+    Serial.print(", Max SOC: ");
+    Serial.print(soc_max);
+    Serial.print(", Avg SOC: ");
+    Serial.print(soc_ave);
+    Serial.print(", Vi SOC: ");
+    Serial.println(soc_vi);
   }
 }
 
@@ -198,7 +207,7 @@ void receive_can_tesla_model_3_battery(CAN_frame_t rx_frame)
       ideal_energy_remaining =    (((rx_frame.data.u8[5] & 0x0F) << 7) | ((rx_frame.data.u8[4] & 0xFE) >> 1)) * 0.1; //Example 311 * 0.1 = 31.1kWh
       energy_to_charge_complete = (((rx_frame.data.u8[6] & 0x7F) << 4) | ((rx_frame.data.u8[5] & 0xF0) >> 4)) * 0.1; //Example 147 * 0.1 = 14.7kWh
       energy_buffer =             (((rx_frame.data.u8[7] & 0x7F) << 1) | ((rx_frame.data.u8[6] & 0x80) >> 7)) * 0.1; //Example 1 * 0.1 = 0
-      full_charge_complete =      (rx_frame.data.u8[7] & 0x80);
+      full_charge_complete =      ((rx_frame.data.u8[7] & 0x80) >> 7);
 
       if(nominal_full_pack_energy > 0)
       { //Avoid division by 0
