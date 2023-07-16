@@ -15,6 +15,8 @@ CAN_frame_t TESLA_221_1 = {.FIR = {.B = {.DLC = 8,.FF = CAN_frame_std,}},.MsgID 
 CAN_frame_t TESLA_221_2 = {.FIR = {.B = {.DLC = 8,.FF = CAN_frame_std,}},.MsgID = 0x221,.data = {0x61, 0x15, 0x01, 0x00, 0x00, 0x00, 0x20, 0xBA}};
 uint8_t alternate221 = 0;
 
+uint32_t total_discharge = 0;
+uint32_t total_charge = 0;
 uint16_t volts = 0;   // V
 int16_t amps = 0;    // A
 uint16_t raw_amps = 0; // A
@@ -86,9 +88,9 @@ void update_values_tesla_model_3_battery()
 
 	remaining_capacity_Wh = (expected_energy_remaining * 100); //Scale up 60.3kWh -> 60300Wh
 
-	max_target_discharge_power;
+	max_target_discharge_power = max_discharge_current;
 
-	max_target_charge_power;
+	max_target_charge_power = max_charge_current;
 	
 	stat_batt_power = (volts * amps); //TODO, check if scaling is OK
 
@@ -148,7 +150,7 @@ void update_values_tesla_model_3_battery()
     Serial.print(max_temp);
     Serial.print(", Min temp: ");
     Serial.print(max_temp);
-    Serial.print(", Nominal full energy: ");
+    Serial.print(", Nominal full energy (XX.XkWh): ");
     Serial.print(nominal_full_pack_energy);
     Serial.print(", Nominal energy remain: ");
     Serial.print(nominal_energy_remaining);
@@ -254,7 +256,9 @@ void receive_can_tesla_model_3_battery(CAN_frame_t rx_frame)
 
       break;
     case 0x3D2:
-      // total charge/discharge kwh 
+      // total charge/discharge kwh
+      total_discharge = ((rx_frame.data.u8[3] << 24) | (rx_frame.data.u8[2] << 16) | (rx_frame.data.u8[1] << 8) | rx_frame.data.u8[0]) * 0.001;
+      total_charge = ((rx_frame.data.u8[7] << 24) | (rx_frame.data.u8[6] << 16) | (rx_frame.data.u8[5] << 8) | rx_frame.data.u8[4]) * 0.001;
       break;
     case 0x332:
       //min/max hist values
