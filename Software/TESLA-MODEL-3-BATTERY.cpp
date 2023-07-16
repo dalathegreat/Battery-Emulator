@@ -15,6 +15,8 @@ CAN_frame_t TESLA_221_1 = {.FIR = {.B = {.DLC = 8,.FF = CAN_frame_std,}},.MsgID 
 CAN_frame_t TESLA_221_2 = {.FIR = {.B = {.DLC = 8,.FF = CAN_frame_std,}},.MsgID = 0x221,.data = {0x61, 0x15, 0x01, 0x00, 0x00, 0x00, 0x20, 0xBA}};
 uint8_t alternate221 = 0;
 
+uint32_t total_discharge = 0;
+uint32_t total_charge = 0;
 uint16_t volts = 0;   // V
 int16_t amps = 0;    // A
 uint16_t raw_amps = 0; // A
@@ -41,6 +43,10 @@ uint16_t max_voltage = 0;
 uint16_t high_voltage = 0;
 uint16_t low_voltage = 0;
 uint16_t output_current = 0;
+uint16_t soc_min = 0;
+uint16_t soc_max = 0;
+uint16_t soc_vi = 0;
+uint16_t soc_ave = 0;
 uint8_t contactor = 0; //State of contactor
 uint8_t hvil_status = 0;
 uint8_t packContNegativeState = 0;
@@ -59,16 +65,16 @@ void update_values_tesla_model_3_battery()
 	StateOfHealth = 9900; //Hardcoded to 99%SOH
 
   //Calculate the SOC% value to send to Fronius
-  calculated_soc = MIN_SOC + (MAX_SOC - MIN_SOC) * (calculated_soc - MINPERCENTAGE) / (MAXPERCENTAGE - MINPERCENTAGE); 
-  if (calculated_soc < 0)
+  soc_vi = MIN_SOC + (MAX_SOC - MIN_SOC) * (soc_vi - MINPERCENTAGE) / (MAXPERCENTAGE - MINPERCENTAGE); 
+  if (soc_vi < 0)
   { //We are in the real SOC% range of 0-20%, always set SOC sent to Fronius as 0%
-      calculated_soc = 0;
+      soc_vi = 0;
   }
-  if (calculated_soc > 1000)
+  if (soc_vi > 1000)
   { //We are in the real SOC% range of 80-100%, always set SOC sent to Fronius as 100%
-      calculated_soc = 1000;
+      soc_vi = 1000;
   }
-  SOC = (calculated_soc * 10); //increase SOC range from 0-100.0 -> 100.00
+  SOC = (soc_vi * 10); //increase SOC range from 0-100.0 -> 100.00
 
 	battery_voltage = (volts*10); //One more decimal needed (370 -> 3700)
 
@@ -82,14 +88,16 @@ void update_values_tesla_model_3_battery()
 
 	remaining_capacity_Wh = (expected_energy_remaining * 100); //Scale up 60.3kWh -> 60300Wh
 
-	max_target_discharge_power;
+	max_target_discharge_power = max_discharge_current;
 
-	max_target_charge_power;
+	max_target_charge_power = max_charge_current;
 	
 	stat_batt_power = (volts * amps); //TODO, check if scaling is OK
 
+  min_temp = (min_temp * 10);
 	temperature_min = convert2unsignedint16(min_temp);
 
+  max_temp = (max_temp * 10);
 	temperature_max = convert2unsignedint16(max_temp);
 
 	/* Check if the BMS is still sending CAN messages. If we go 60s without messages we raise an error*/
@@ -142,7 +150,7 @@ void update_values_tesla_model_3_battery()
     Serial.print(max_temp);
     Serial.print(", Min temp: ");
     Serial.print(max_temp);
-    Serial.print(", Nominal full energy: ");
+    Serial.print(", Nominal full energy (XX.XkWh): ");
     Serial.print(nominal_full_pack_energy);
     Serial.print(", Nominal energy remain: ");
     Serial.print(nominal_energy_remaining);
@@ -174,6 +182,15 @@ void update_values_tesla_model_3_battery()
     Serial.print(low_voltage);
     Serial.print("V, Current Output:");
     Serial.println(output_current);
+
+    Serial.print("Min SOC: ");
+    Serial.print(soc_min);
+    Serial.print(", Max SOC: ");
+    Serial.print(soc_max);
+    Serial.print(", Avg SOC: ");
+    Serial.print(soc_ave);
+    Serial.print(", Vi SOC: ");
+    Serial.println(soc_vi);
   }
 }
 
@@ -192,7 +209,7 @@ void receive_can_tesla_model_3_battery(CAN_frame_t rx_frame)
       ideal_energy_remaining =    (((rx_frame.data.u8[5] & 0x0F) << 7) | ((rx_frame.data.u8[4] & 0xFE) >> 1)) * 0.1; //Example 311 * 0.1 = 31.1kWh
       energy_to_charge_complete = (((rx_frame.data.u8[6] & 0x7F) << 4) | ((rx_frame.data.u8[5] & 0xF0) >> 4)) * 0.1; //Example 147 * 0.1 = 14.7kWh
       energy_buffer =             (((rx_frame.data.u8[7] & 0x7F) << 1) | ((rx_frame.data.u8[6] & 0x80) >> 7)) * 0.1; //Example 1 * 0.1 = 0
-      full_charge_complete =      (rx_frame.data.u8[7] & 0x80);
+      full_charge_complete =      ((rx_frame.data.u8[7] & 0x80) >> 7);
 
       if(nominal_full_pack_energy > 0)
       { //Avoid division by 0
@@ -239,7 +256,9 @@ void receive_can_tesla_model_3_battery(CAN_frame_t rx_frame)
 
       break;
     case 0x3D2:
-      // total charge/discharge kwh 
+      // total charge/discharge kwh
+      total_discharge = ((rx_frame.data.u8[3] << 24) | (rx_frame.data.u8[2] << 16) | (rx_frame.data.u8[1] << 8) | rx_frame.data.u8[0]) * 0.001;
+      total_charge = ((rx_frame.data.u8[7] << 24) | (rx_frame.data.u8[6] << 16) | (rx_frame.data.u8[5] << 8) | rx_frame.data.u8[4]) * 0.001;
       break;
     case 0x332:
       //min/max hist values
@@ -272,6 +291,12 @@ void receive_can_tesla_model_3_battery(CAN_frame_t rx_frame)
       high_voltage =    (((rx_frame.data.u8[2] << 6) | ((rx_frame.data.u8[1] & 0xFC) >> 2))) * 0.146484;
       output_current =  (((rx_frame.data.u8[4] & 0x0F) << 8) | rx_frame.data.u8[3]) / 100;
       break;
+    case 0x292:
+      soc_min = (((rx_frame.data.u8[1] & 0x03) << 8) | rx_frame.data.u8[0]);
+      soc_vi =  (((rx_frame.data.u8[2] & 0x0F) << 6) | ((rx_frame.data.u8[1] & 0xFC) >> 2));
+      soc_max = (((rx_frame.data.u8[3] & 0x3F) << 4) | ((rx_frame.data.u8[2] & 0xF0) >> 4));
+      soc_ave = ((rx_frame.data.u8[4] << 2) | ((rx_frame.data.u8[3] & 0xC0) >> 6));
+    break;
     default:
       break;
   }
