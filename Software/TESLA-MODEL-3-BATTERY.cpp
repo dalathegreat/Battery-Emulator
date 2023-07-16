@@ -88,8 +88,10 @@ void update_values_tesla_model_3_battery()
 	
 	stat_batt_power = (volts * amps); //TODO, check if scaling is OK
 
+  min_temp = (min_temp * 10);
 	temperature_min = convert2unsignedint16(min_temp);
 
+  max_temp = (max_temp * 10);
 	temperature_max = convert2unsignedint16(max_temp);
 
 	/* Check if the BMS is still sending CAN messages. If we go 60s without messages we raise an error*/
