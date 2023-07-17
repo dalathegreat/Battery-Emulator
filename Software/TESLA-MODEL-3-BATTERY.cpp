@@ -198,6 +198,8 @@ void receive_can_tesla_model_3_battery(CAN_frame_t rx_frame)
 {
   static int mux = 0;
   static int temp = 0;
+  
+  stillAliveCAN = 12; //We are getting CAN messages, set the CAN detect counter
 
   switch (rx_frame.MsgID)
     {
