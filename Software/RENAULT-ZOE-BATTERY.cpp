@@ -24,6 +24,7 @@ static unsigned long previousMillis10 = 0; // will store last time a 10ms CAN Me
 static unsigned long previousMillis100 = 0; // will store last time a 100ms CAN Message was sent
 static const int interval10 = 10; // interval (ms) at which send CAN Messages
 static const int interval100 = 100; // interval (ms) at which send CAN Messages
+static int BMSPollCounter = 0;
 
 void update_values_zoe_battery()
 { //This function maps all the values fetched via CAN to the correct parameters used for modbus
@@ -153,7 +154,15 @@ void send_can_zoe_battery()
 	if (currentMillis - previousMillis100 >= interval100)
 	{
 		previousMillis100 = currentMillis;
+    BMSPollCounter++; //GKOE
 
-    ESP32Can.CANWriteFrame(&ZOE_423); //Send 0x423 every 100ms to keep BMS happy!
+    if (BMSPollCounter < 46)  //GKOE
+    {  //The Kangoo batteries (also Zoe?) dont like getting this message continously, so we pause after 4.6s, and resume after 40s
+      ESP32Can.CANWriteFrame(&ZOE_423); //Send 0x423 to keep BMS happy
+    } 
+    if (BMSPollCounter > 400) //GKOE
+    {
+      BMSPollCounter = 0;
+    }
   }
 }
