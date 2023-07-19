@@ -5,8 +5,10 @@
 /* Do not change code below unless you are sure what you are doing */
 static unsigned long previousMillis10 = 0; // will store last time a 10ms CAN Message was send
 static unsigned long previousMillis100 = 0; // will store last time a 100ms CAN Message was send
+static unsigned long previousMillis10s = 0; // will store last time a 1s CAN Message was send
 static const int interval10 = 10; // interval (ms) at which send CAN Messages
 static const int interval100 = 100; // interval (ms) at which send CAN Messages
+static const int interval10s = 10000; // interval (ms) at which send CAN Messages
 const int rx_queue_size = 10; // Receive Queue size
 uint16_t CANerror = 0; //counter on how many CAN errors encountered
 static uint8_t CANstillAlive = 12; //counter for checking if CAN is still alive 
@@ -19,6 +21,16 @@ CAN_frame_t LEAF_1F2 = {.FIR = {.B = {.DLC = 8,.FF = CAN_frame_std,}},.MsgID = 0
 CAN_frame_t LEAF_50B = {.FIR = {.B = {.DLC = 7,.FF = CAN_frame_std,}},.MsgID = 0x50B,.data = {0x00, 0x00, 0x06, 0xC0, 0x00, 0x00, 0x00}};
 CAN_frame_t LEAF_50C = {.FIR = {.B = {.DLC = 6,.FF = CAN_frame_std,}},.MsgID = 0x50C,.data = {0x00, 0x00, 0x00, 0x00, 0x00, 0x00}};
 CAN_frame_t LEAF_1D4 = {.FIR = {.B = {.DLC = 8,.FF = CAN_frame_std,}},.MsgID = 0x1D4,.data = {0x6E, 0x6E, 0x00, 0x04, 0x07, 0x46, 0xE0, 0x44}};
+//These CAN messages need to be sent towards the battery to keep it alive
+
+const CAN_frame_t LEAF_VOLTAGE_REQUEST = {.FIR = {.B = {.DLC = 8,.FF = CAN_frame_std,}},.MsgID = 0x79B,.data = {2, 0x21, 2, 0, 0, 0, 0, 0}};
+const CAN_frame_t LEAF_NEXT_LINE_REQUEST = {.FIR = {.B = {.DLC = 8,.FF = CAN_frame_std,}},.MsgID = 0x79B,.data = {0x30, 1, 0, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF}};
+// The Li-ion battery controller only accepts a multi-message query. In fact, the LBC transmits many
+// groups: the first one contains lots of High Voltage battery data as SOC, currents, and voltage; the second
+// replies with all the battery’s cells voltages in millivolt, the third and the fifth one are still unknown, the
+// fourth contains the four battery packs temperatures, and the last one tells which cell has the shunt active.
+// There are also two more groups: group 61, which replies with lots of CAN messages (up to 48); here we
+// found the SOH value, and group 84 that replies with the HV battery production serial.
 
 static uint8_t	crctable[256] = {0,133,143,10,155,30,20,145,179,54,60,185,40,173,167,34,227,102,108,233,120,253,247,114,80,213,223,90,203,78,68,193,67,
                         198,204,73,216,93,87,210,240,117,127,250,107,238,228,97,160,37,47,170,59,190,180,49,19,150,156,25,136,13,7,130,134,3,9,
@@ -29,11 +41,13 @@ static uint8_t	crctable[256] = {0,133,143,10,155,30,20,145,179,54,60,185,40,173,
                         57,51,182,39,162,168,45,236,105,99,230,119,242,248,125,95,218,208,85,196,65,75,206,76,201,195,70,215,82,88,221,255,122,
                         112,245,100,225,235,110,175,42,32,165,52,177,187,62,28,153,147,22,135,2,8,141};
 
-//Nissan LEAF battery parameters from CAN
+//Nissan LEAF battery parameters from constantly sent CAN
 #define ZE0_BATTERY 0
 #define AZE0_BATTERY 1
 #define ZE1_BATTERY 2
 static uint8_t LEAF_Battery_Type = ZE0_BATTERY;
+#define MAX_CELL_VOLTAGE 4250 //Battery is put into emergency stop if one cell goes over this value
+#define MIN_CELL_VOLTAGE 2700 //Battery is put into emergency stop if one cell goes below this value
 #define WH_PER_GID 77   //One GID is this amount of Watt hours
 #define LB_MAX_SOC 1000  //LEAF BMS never goes over this value. We use this info to rescale SOC% sent to Fronius
 #define LB_MIN_SOC 0   //LEAF BMS never goes below this value. We use this info to rescale SOC% sent to Fronius
@@ -65,6 +79,16 @@ static byte LB_Interlock = 1; //Contains info on if HV leads are seated (Note, t
 static byte LB_Full_CHARGE_flag = 0; //LB_FCHGEND , Goes to 1 if battery is fully charged
 static byte LB_MainRelayOn_flag = 0; //No-Permission=0, Main Relay On Permission=1
 static byte LB_Capacity_Empty = 0; //LB_EMPTY, , Goes to 1 if battery is empty
+
+// Nissan LEAF battery data from polled CAN messages
+static uint8_t battery_request_idx	= 0;
+static uint8_t ignore_7bb	= 0;
+static uint8_t stop_battery_query	= 0;
+static uint16_t	cell_voltages[97]; //array with all the cellvoltages
+static uint16_t	cellcounter	= 0; 
+static uint16_t	min_max_voltage[2]; //contains cell min[0] and max[1] values in mV
+static uint16_t	cell_deviation_mV = 0; //contains the deviation between highest and lowest cell in mV
+
 
 void update_values_leaf_battery()
 { //This function maps all the values fetched via CAN to the correct parameters used for modbus
@@ -271,6 +295,12 @@ void update_values_leaf_battery()
     Serial.println(LB_GIDS);
     Serial.print("LEAF battery gen: ");
     Serial.println(LEAF_Battery_Type);
+    Serial.print("Min cell voltage: ");
+    Serial.println(min_max_voltage[0]);
+    Serial.print("Max cell voltage: ");
+    Serial.println(min_max_voltage[1]);
+    Serial.print("Cell deviation: ");
+    Serial.println(cell_deviation_mV);
   }
 }
 
@@ -381,6 +411,65 @@ void receive_can_leaf_battery(CAN_frame_t rx_frame)
   case 0x1C2:
     //ZE1 2018-2023 battery detected!
     LEAF_Battery_Type = ZE1_BATTERY;
+    break;
+  case 0x79B:
+    stop_battery_query = 1; //Someone is trying to read data with Leafspy, stop our own polling!
+    break;
+  case 0x7BB:
+    //The second group replies with all the individual cell voltages, in millivolt
+    if(rx_frame.data.u8[0] == 0x10){
+      ignore_7bb = 0;
+      if(rx_frame.data.u8[3] != 2) ignore_7bb = 1;
+    }
+
+    if(ignore_7bb) break;
+
+    if(!stop_battery_query)
+    {
+      ESP32Can.CANWriteFrame(&LEAF_NEXT_LINE_REQUEST);
+    }
+
+    if(rx_frame.data.u8[0] == 0x10){ //first frame is anomalous
+      battery_request_idx = 0;					
+      cell_voltages[battery_request_idx++] = (rx_frame.data.u8[4] << 8) | rx_frame.data.u8[5];
+      cell_voltages[battery_request_idx++] = (rx_frame.data.u8[6] << 8) | rx_frame.data.u8[7];
+      break;
+    }
+    if(rx_frame.data.u8[6] == 0xFF && rx_frame.data.u8[0] == 0x2C){  //Last frame
+      //Last frame does not contain any cell data, calculate the result
+      min_max_voltage[0] = 9999;
+      min_max_voltage[1] = 0;
+      for(cellcounter = 0; cellcounter < 96; cellcounter++){
+        if(min_max_voltage[0] > cell_voltages[cellcounter]) min_max_voltage[0] = cell_voltages[cellcounter];
+        if(min_max_voltage[1] < cell_voltages[cellcounter]) min_max_voltage[1] = cell_voltages[cellcounter];
+      }					
+
+      cell_deviation_mV = (min_max_voltage[1] - min_max_voltage[0]);
+      
+      if(min_max_voltage[1] >= MAX_CELL_VOLTAGE){ 
+        bms_status = FAULT;
+        errorCode = 8;
+        Serial.println("CELL OVERVOLTAGE!!! Stopping battery charging and discharging. Inspect battery!");
+      }
+      if(min_max_voltage[0] <= MIN_CELL_VOLTAGE){ 
+        bms_status = FAULT;
+        errorCode = 9;
+        Serial.println("CELL UNDERVOLTAGE!!! Stopping battery charging and discharging. Inspect battery!");
+      }
+      break;
+    }
+
+    if((rx_frame.data.u8[0] % 2) == 0){ //even frames
+      cell_voltages[battery_request_idx++]  |= rx_frame.data.u8[1];
+      cell_voltages[battery_request_idx++]	= (rx_frame.data.u8[2] << 8) | rx_frame.data.u8[3];
+      cell_voltages[battery_request_idx++]	= (rx_frame.data.u8[4] << 8) | rx_frame.data.u8[5];
+      cell_voltages[battery_request_idx++]	= (rx_frame.data.u8[6] << 8) | rx_frame.data.u8[7];
+    } else { //odd frames
+      cell_voltages[battery_request_idx++]	= (rx_frame.data.u8[1] << 8) | rx_frame.data.u8[2];
+      cell_voltages[battery_request_idx++]	= (rx_frame.data.u8[3] << 8) | rx_frame.data.u8[4];
+      cell_voltages[battery_request_idx++]	= (rx_frame.data.u8[5] << 8) | rx_frame.data.u8[6];
+      cell_voltages[battery_request_idx]		= (rx_frame.data.u8[7] << 8);
+    }
     break;
   default:
     break;
@@ -576,6 +665,18 @@ void send_can_leaf_battery()
     }
 		//Serial.println("CAN 10ms done");
 	}
+  //Send 10s CAN messages
+  if (currentMillis - previousMillis10s >= interval10s)
+	{
+    previousMillis10s = currentMillis;
+
+    //Every 10s, ask diagnostic data from the battery. Don't ask if someone is already polling on the bus (Leafspy?)
+    if(!stop_battery_query)
+    {
+      ESP32Can.CANWriteFrame(&LEAF_VOLTAGE_REQUEST);
+    }
+    stop_battery_query = 0;
+  }
 }
 
 uint16_t convert2unsignedint16(uint16_t signed_value)
