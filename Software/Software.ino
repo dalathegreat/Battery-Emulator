@@ -52,6 +52,9 @@ uint16_t min_volt_byd_can = min_voltage;
 uint16_t max_volt_byd_can = max_voltage;
 uint16_t min_volt_solax_can = min_voltage;
 uint16_t max_volt_solax_can = max_voltage;
+uint16_t min_volt_pylon_can = min_voltage;
+uint16_t max_volt_pylon_can = max_voltage;
+
 uint16_t battery_voltage = 3700;
 uint16_t battery_current = 0;
 uint16_t SOC = 5000; //SOC 0-100.00% //Updates later on from CAN
