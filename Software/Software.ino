@@ -7,6 +7,7 @@
 #define MODBUS_BYD      //Enable this line to emulate a "BYD 11kWh HVM battery" over Modbus RTU
 //#define CAN_BYD       //Enable this line to emulate a "BYD Battery-Box Premium HVS" over CAN Bus
 //#define SOLAX_CAN       //Enable this line to emulate a "SolaX Triple Power LFP" over CAN bus
+//#define PYLON_CAN		//Enable this line to emulate a "Pylontech battery" over CAN bus
 
 /* Do not change any code below this line unless you are sure what you are doing */
 /* Only change battery specific settings and limits in their respective .h files */
@@ -51,6 +52,9 @@ uint16_t min_volt_byd_can = min_voltage;
 uint16_t max_volt_byd_can = max_voltage;
 uint16_t min_volt_solax_can = min_voltage;
 uint16_t max_volt_solax_can = max_voltage;
+uint16_t min_volt_pylon_can = min_voltage;
+uint16_t max_volt_pylon_can = max_voltage;
+
 uint16_t battery_voltage = 3700;
 uint16_t battery_current = 0;
 uint16_t SOC = 5000; //SOC 0-100.00% //Updates later on from CAN
@@ -198,6 +202,7 @@ void handle_can()
       #ifdef CAN_BYD
       receive_can_byd(rx_frame);
       #endif
+
     }
     else
     {
@@ -205,6 +210,9 @@ void handle_can()
       #ifdef SOLAX_CAN
       receive_can_solax(rx_frame);
       #endif
+	  #ifdef PYLON_CAN
+	  receive_can_pylon(rx_frame);
+	  #endif
     }
   }
   //When we are done checking if a CAN message has arrived, we can focus on sending CAN messages
@@ -243,6 +251,9 @@ void handle_inverter()
     #endif
     #ifdef CAN_BYD
     update_values_can_byd();
+    #endif
+    #ifdef PYLON_CAN
+    update_values_can_pylon();
     #endif
     
     //Updata for ModbusRTU Server for GEN24

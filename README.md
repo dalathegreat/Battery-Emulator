@@ -44,7 +44,7 @@ Click "File" in the upper left corner -> Preferences -> Additional Development >
 ## Dependencies 📖
 This code uses two libraries, ESP32-Arduino-CAN (https://github.com/miwagner/ESP32-Arduino-CAN/) slightly modified for this usecase, and the eModbus library (https://github.com/eModbus/eModbus). Both these are already located in the Software folder for an easy start.
 
-It is also based on the info found in the following excellent repositories:
+It is also based on the info found in the following excellent repositories/websites:
 - https://gitlab.com/pelle8/gen24
 - https://github.com/burra/byd_battery
 - https://github.com/flodorn/TeslaBMSV2
@@ -53,6 +53,7 @@ It is also based on the info found in the following excellent repositories:
 - https://github.com/dalathegreat/leaf_can_bus_messages
 - https://github.com/rand12345/solax_can_bus
 - Renault Zoe CAN Matrix https://docs.google.com/spreadsheets/u/0/d/1Qnk-yzzcPiMArO-QDzO4a8ptAS2Sa4HhVu441zBzlpM/edit?pli=1#gid=0
+- Pylon hacking https://www.eevblog.com/forum/programming/pylontech-sc0500-protocol-hacking/
 
 ## Like this project? 💖
 Leave a ⭐ If you think this project is useful. Consider hopping onto my Patreon to encourage more open-source projects!

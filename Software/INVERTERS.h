@@ -9,4 +9,8 @@
   #include "BYD-CAN.h"
 #endif
 
+#ifdef PYLON_CAN
+  #include "PYLON-CAN.h"
+#endif
+
 #endif
