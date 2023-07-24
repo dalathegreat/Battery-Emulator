@@ -6,16 +6,15 @@
 static unsigned long previousMillis100 = 0; // will store last time a 100ms CAN Message was send
 static const int interval100 = 100; // interval (ms) at which send CAN Messages
 const int rx_queue_size = 10; // Receive Queue size
-uint16_t CANerror = 0; //counter on how many CAN errors encountered
 static uint8_t CANstillAlive = 12; //counter for checking if CAN is still alive 
 static uint8_t errorCode = 0; //stores if we have an error code active from battery control logic
 
-CAN_frame_t CHADEMO_108 = {.FIR = {.B = {.DLC = 8,.FF = CAN_frame_std,}},.MsgID = 0x108,.data = {0x10, 0x64, 0x00, 0xB0, 0x00, 0x1E, 0x00, 0x8F}};
-CAN_frame_t CHADEMO_109 = {.FIR = {.B = {.DLC = 8,.FF = CAN_frame_std,}},.MsgID = 0x109,.data = {0x10, 0x64, 0x00, 0xB0, 0x00, 0x1E, 0x00, 0x8F}};
+CAN_frame_t CHADEMO_108 = {.FIR = {.B = {.DLC = 8,.FF = CAN_frame_std,}},.MsgID = 0x108,.data = {0x01, 0xF4, 0x01, 0x0F, 0xB3, 0x01, 0x00, 0x00}};
+CAN_frame_t CHADEMO_109 = {.FIR = {.B = {.DLC = 8,.FF = CAN_frame_std,}},.MsgID = 0x109,.data = {0x02, 0x00, 0x00, 0x00, 0x01, 0x20, 0xFF, 0xFF}};
 //For chademo v2.0 only
 CAN_frame_t CHADEMO_118 = {.FIR = {.B = {.DLC = 8,.FF = CAN_frame_std,}},.MsgID = 0x118,.data = {0x10, 0x64, 0x00, 0xB0, 0x00, 0x1E, 0x00, 0x8F}};
-CAN_frame_t CHADEMO_208 = {.FIR = {.B = {.DLC = 8,.FF = CAN_frame_std,}},.MsgID = 0x208,.data = {0x10, 0x64, 0x00, 0xB0, 0x00, 0x1E, 0x00, 0x8F}};
-CAN_frame_t CHADEMO_209 = {.FIR = {.B = {.DLC = 8,.FF = CAN_frame_std,}},.MsgID = 0x209,.data = {0x10, 0x64, 0x00, 0xB0, 0x00, 0x1E, 0x00, 0x8F}};
+CAN_frame_t CHADEMO_208 = {.FIR = {.B = {.DLC = 8,.FF = CAN_frame_std,}},.MsgID = 0x208,.data = {0xFF, 0xF4, 0x01, 0xF0, 0x00, 0x00, 0xFA, 0x00}};
+CAN_frame_t CHADEMO_209 = {.FIR = {.B = {.DLC = 8,.FF = CAN_frame_std,}},.MsgID = 0x209,.data = {0x02, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00}};
 
 //H100
 uint8_t MinimumChargeCurrent = 0;
@@ -55,16 +54,25 @@ uint16_t AvailableVehicleEnergy = 0;
 uint8_t AutomakerCode = 0;
 uint32_t OptionalContent = 0;
 //H118
-uint8_t DynamicControl = 0;
-uint8_t HighCurrentControl = 0;
-uint8_t HighVoltageControl = 0;
+uint8_t DynamicControlStatus = 0;
+uint8_t HighCurrentControlStatus = 0;
+uint8_t HighVoltageControlStatus = 0;
 
 
 void update_values_chademo_battery()
 { //This function maps all the values fetched via CAN to the correct parameters used for the inverter
   bms_status = ACTIVE; //Startout in active mode
   
- 
+  SOC = ChargingRate;
+
+  max_target_discharge_power = (MaximumDischargeCurrent*MaximumBatteryVoltage) //In Watts, Convert A to P
+
+  battery_voltage = TargetBatteryVoltage; //Todo, scaling?
+
+	capacity_Wh = ((RatedBatteryCapacity/0.11)*1000); //(Added in CHAdeMO v1.0.1), maybe handle hardcoded on lower protocol version?
+
+	remaining_capacity_Wh = (SOC/100)*capacity_Wh;
+
   /* Check if the Vehicle is still sending CAN messages. If we go 60s without messages we raise an error*/
   if(!CANstillAlive)
   {
@@ -100,8 +108,6 @@ void update_values_chademo_battery()
       default:
         break;
       }
-    Serial.print("Power: ");
-    Serial.println(LB_Power);
     Serial.print("Max discharge power: ");
     Serial.println(max_target_discharge_power);
     Serial.print("Max charge power: ");
@@ -119,12 +125,57 @@ void update_values_chademo_battery()
 
 void receive_can_chademo_battery(CAN_frame_t rx_frame)
 {
-  CANstillAlive == 12; //We are getting CAN messages, inform the watchdog
+  CANstillAlive == 12; //We are getting CAN messages from the vehicle, inform the watchdog
 
   switch (rx_frame.MsgID)
   {
   case 0x100:
+    MinimumChargeCurrent = rx_frame.data.u8[0];
+    MinumumBatteryVoltage = ((rx_frame.data.u8[2] << 8) | rx_frame.data.u8[3]);
+    MaximumBatteryVoltage = ((rx_frame.data.u8[4] << 8) | rx_frame.data.u8[5]);
+    ConstantOfChargingRateIndication = rx_frame.data.u8[6];
     break;
+  case 0x101:
+    MaxChargingTime10sBit = rx_frame.data.u8[1];
+    MaxChargingTime1minBit = rx_frame.data.u8[2];
+    EstimatedChargingTime = rx_frame.data.u8[3];
+    RatedBatteryCapacity = ((rx_frame.data.u8[5] << 8) | rx_frame.data.u8[6]);
+    break;
+  case 0x102:
+    ControlProtocolNumberEV = rx_frame.data.u8[0];
+    TargetBatteryVoltage = ((rx_frame.data.u8[1] << 8) | rx_frame.data.u8[2]);
+    ChargingCurrentRequest = rx_frame.data.u8[3];
+    FaultBatteryOvervoltage = (rx_frame.data.u8[4] & 0x01);
+    FaultBatteryUndervoltage = (rx_frame.data.u8[4] & 0x02) >> 1;
+    FaultBatteryCurrentDeviation = (rx_frame.data.u8[4] & 0x04) >> 2;
+    FaultHighBatteryTemperature = (rx_frame.data.u8[4] & 0x08) >> 3;
+    FaultBatteryVoltageDeviation =  (rx_frame.data.u8[4] & 0x10) >> 4;
+    StatusVehicleCharging = (rx_frame.data.u8[5] & 0x01);
+    StatusVehicleShifterPosition = (rx_frame.data.u8[5] & 0x02) >> 1;
+    StatusChargingSystem = (rx_frame.data.u8[5] & 0x04) >> 2;
+    StatusVehicle = (rx_frame.data.u8[5] & 0x08) >> 3;
+    StatusNormalStopRequest =  (rx_frame.data.u8[5] & 0x10) >> 4;
+    ChargingRate = rx_frame.data.u8[6];
+    break;
+  case 0x200: //For V2X
+    MaximumDischargeCurrent = rx_frame.data.u8[0];
+    MinimumDischargeVoltage = ((rx_frame.data.u8[4] << 8) | rx_frame.data.u8[5]);
+    MinimumBatteryDischargeLevel = rx_frame.data.u8[6];
+    MaxRemainingCapacityForCharging = rx_frame.data.u8[7];
+    break;
+  case 0x201: //For V2X
+    V2HchargeDischargeSequenceNum = rx_frame.data.u8[0];
+    ApproxDischargeCompletionTime = ((rx_frame.data.u8[1] << 8) | rx_frame.data.u8[2]);
+    AvailableVehicleEnergy = ((rx_frame.data.u8[3] << 8) | rx_frame.data.u8[4]);
+    break;
+  case 0x700:
+    AutomakerCode = rx_frame.data.u8[0];
+    OptionalContent = ((rx_frame.data.u8[1] << 8) | rx_frame.data.u8[2]); //Actually more bytes, but not needed for our purpose
+    break;
+  case 0x110: //Only present on Chademo v2.0
+    DynamicControlStatus = (rx_frame.data.u8[0] & 0x01);
+    HighCurrentControlStatus = (rx_frame.data.u8[0] & 0x02) >> 1;
+    HighVoltageControlStatus = (rx_frame.data.u8[0] & 0x04) >> 2;
   default:
     break;
   }      
@@ -137,6 +188,15 @@ void send_can_chademo_battery()
 	{
 		previousMillis100 = currentMillis;
 
-		ESP32Can.CANWriteFrame(&LEAF_50B); 
+		ESP32Can.CANWriteFrame(&CHADEMO_108); 
+    ESP32Can.CANWriteFrame(&CHADEMO_109);
+    ESP32Can.CANWriteFrame(&CHADEMO_208);
+    ESP32Can.CANWriteFrame(&CHADEMO_209);
+    
+    if(ControlProtocolNumberEV >= 0x03)
+    { //Only send the following on Chademo 2.0 vehicles?
+      ESP32Can.CANWriteFrame(&CHADEMO_118);
+    }
+
 	}
 }
