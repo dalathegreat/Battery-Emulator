@@ -27,6 +27,7 @@ CAN_frame_t BYD_210 = {.FIR = {.B = {.DLC = 8,.FF = CAN_frame_std,}},.MsgID = 0x
 
 static int discharge_current = 0;
 static int charge_current = 0;
+static int initialDataSent = 0;
 
 void update_values_can_byd()
 { //This function maps all the values fetched from battery CAN to the correct CAN messages
@@ -101,6 +102,12 @@ void receive_can_byd(CAN_frame_t rx_frame)
 void send_can_byd()
 {
   unsigned long currentMillis = millis();
+  // Send initial CAN data once on bootup
+  if (!initialDataSent)
+  {
+    send_intial_data();
+    initialDataSent = 1;
+  }
 	// Send 2s CAN Message
 	if (currentMillis - previousMillis2s >= interval2s)
 	{
