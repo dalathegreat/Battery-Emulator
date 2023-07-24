@@ -13,4 +13,8 @@
   #include "RENAULT-ZOE-BATTERY.h" //See this file for more Zoe battery settings
 #endif
 
+#ifdef CHADEMO
+	#include "CHADEMO-BATTERY.h" //See this file for more Chademo settings
+#endif
+
 #endif
