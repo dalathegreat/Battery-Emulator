@@ -2,6 +2,7 @@
 #define BATTERY_TYPE_LEAF         // See NISSAN-LEAF-BATTERY.h for more LEAF battery settings
 //#define TESLA_MODEL_3_BATTERY   // See TESLA-MODEL-3-BATTERY.h for more Tesla battery settings
 //#define RENAULT_ZOE_BATTERY     // See RENAULT-ZOE-BATTERY.h for more Zoe battery settings
+//#define CHADEMO                 // See CHADEMO.h for more Chademo related settings
 
 /* Select inverter communication protocol. See Wiki for which to use with your inverter: https://github.com/dalathegreat/BYD-Battery-Emulator-For-Gen24/wiki */
 #define MODBUS_BYD      //Enable this line to emulate a "BYD 11kWh HVM battery" over Modbus RTU
@@ -202,7 +203,9 @@ void handle_can()
       #ifdef CAN_BYD
       receive_can_byd(rx_frame);
       #endif
-
+	  #ifdef CHADEMO
+      receive_can_chademo(rx_frame);
+      #endif
     }
     else
     {
@@ -233,6 +236,9 @@ void handle_can()
   #ifdef RENAULT_ZOE_BATTERY
   send_can_zoe_battery();
   #endif
+  #ifdef CHADEMO
+  send_can_chademo_battery();
+  #endif
 }
 
 void handle_inverter()
@@ -254,6 +260,9 @@ void handle_inverter()
     #endif
     #ifdef PYLON_CAN
     update_values_can_pylon();
+    #endif
+	#ifdef CHADEMO
+    update_values_can_chademo();
     #endif
     
     //Updata for ModbusRTU Server for GEN24
