@@ -19,28 +19,44 @@ const CAN_frame_t BYD_3D0_1 = {.FIR = {.B = {.DLC = 8,.FF = CAN_frame_std,}},.Ms
 const CAN_frame_t BYD_3D0_2 = {.FIR = {.B = {.DLC = 8,.FF = CAN_frame_std,}},.MsgID = 0x3D0,.data = {0x02, 0x65, 0x6D, 0x69, 0x75, 0x6D, 0x20, 0x48}}; //emium H
 const CAN_frame_t BYD_3D0_3 = {.FIR = {.B = {.DLC = 8,.FF = CAN_frame_std,}},.MsgID = 0x3D0,.data = {0x03, 0x56, 0x53, 0x00, 0x00, 0x00, 0x00, 0x00}}; //VS
 //Actual content messages
-CAN_frame_t BYD_110 = {.FIR = {.B = {.DLC = 8,.FF = CAN_frame_std,}},.MsgID = 0x110,.data = {0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00}};
-CAN_frame_t BYD_150 = {.FIR = {.B = {.DLC = 8,.FF = CAN_frame_std,}},.MsgID = 0x150,.data = {0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00}};
-CAN_frame_t BYD_190 = {.FIR = {.B = {.DLC = 8,.FF = CAN_frame_std,}},.MsgID = 0x190,.data = {0x00, 0x00, 0x00, 0x03, 0x00, 0x00, 0x00, 0x00}};
+CAN_frame_t BYD_110 = {.FIR = {.B = {.DLC = 8,.FF = CAN_frame_std,}},.MsgID = 0x110,.data = {0x01, 0x90, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00}};
+CAN_frame_t BYD_150 = {.FIR = {.B = {.DLC = 8,.FF = CAN_frame_std,}},.MsgID = 0x150,.data = {0x00, 0x00, 0x00, 0x00, 0x10, 0x27, 0x00, 0x00}};
+CAN_frame_t BYD_190 = {.FIR = {.B = {.DLC = 8,.FF = CAN_frame_std,}},.MsgID = 0x190,.data = {0x00, 0x00, 0x03, 0x00, 0x00, 0x00, 0x00, 0x00}};
 CAN_frame_t BYD_1D0 = {.FIR = {.B = {.DLC = 8,.FF = CAN_frame_std,}},.MsgID = 0x1D0,.data = {0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x03, 0x08}};
 CAN_frame_t BYD_210 = {.FIR = {.B = {.DLC = 8,.FF = CAN_frame_std,}},.MsgID = 0x210,.data = {0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00}};
 
-
+static int discharge_current = 0;
+static int charge_current = 0;
+static int initialDataSent = 0;
+static int temperature_average = 0;
 
 void update_values_can_byd()
 { //This function maps all the values fetched from battery CAN to the correct CAN messages
+  //Calculate values
+  charge_current = ((max_target_charge_power*10)/max_volt_byd_can); //Charge power in W , max volt in V+1decimal (P=UI, solve for I)
+  //The above calculation results in (30 000*10)/3700=81A
+  charge_current = (charge_current*10); //Value needs a decimal before getting sent to inverter (81.0A)
+
+  discharge_current = ((max_target_discharge_power*10)/max_volt_byd_can); //Charge power in W , max volt in V+1decimal (P=UI, solve for I)
+  //The above calculation results in (30 000*10)/3700=81A
+  discharge_current = (discharge_current*10); //Value needs a decimal before getting sent to inverter (81.0A)
+
+  temperature_average = ((temperature_max + temperature_min)/2);
+  
+
+  //Map values to CAN messages
   //Maxvoltage (eg 400.0V = 4000 , 16bits long)
   BYD_110.data.u8[0] = (max_volt_byd_can >> 8);
   BYD_110.data.u8[1] = (max_volt_byd_can & 0x00FF);
   //Minvoltage (eg 300.0V = 3000 , 16bits long)
   BYD_110.data.u8[2] = (min_volt_byd_can >> 8);
   BYD_110.data.u8[3] = (min_volt_byd_can & 0x00FF);
-  //Maximum charge power allowed (TODO, CHECK IF POWER OR CURRENT SHOULD BE USED)
-  BYD_110.data.u8[4] = (max_target_charge_power >> 8);
-  BYD_110.data.u8[5] = (max_target_charge_power & 0x00FF);
-  //Maximum discharge power allowed (TODO, CHECK IF POWER OR CURRENT SHOULD BE USED)
-  BYD_110.data.u8[6] = (max_target_discharge_power >> 8);
-  BYD_110.data.u8[7] = (max_target_discharge_power & 0x00FF);
+  //Maximum charge power allowed (Unit: A+1)
+  BYD_110.data.u8[4] = (charge_current >> 8);
+  BYD_110.data.u8[5] = (charge_current & 0x00FF);
+  //Maximum discharge power allowed (Unit: A+1)
+  BYD_110.data.u8[6] = (discharge_current >> 8);
+  BYD_110.data.u8[7] = (discharge_current & 0x00FF);
 
   //SOC (100.00%)
   BYD_150.data.u8[0] = (SOC >> 8);
@@ -48,12 +64,12 @@ void update_values_can_byd()
   //StateOfHealth (100.00%)
   BYD_150.data.u8[2] = (StateOfHealth >> 8);
   BYD_150.data.u8[3] = (StateOfHealth & 0x00FF);
-  //Maximum charge power allowed (TODO, CHECK IF POWER OR CURRENT SHOULD BE USED)
-  BYD_150.data.u8[4] = (max_target_charge_power >> 8);
-  BYD_150.data.u8[5] = (max_target_charge_power & 0x00FF);
-  //Maximum discharge power allowed (TODO, CHECK IF POWER OR CURRENT SHOULD BE USED)
-  BYD_150.data.u8[6] = (max_target_discharge_power >> 8);
-  BYD_150.data.u8[7] = (max_target_discharge_power & 0x00FF);
+  //Maximum charge power allowed (Unit: A+1)
+  BYD_150.data.u8[4] = (charge_current >> 8);
+  BYD_150.data.u8[5] = (charge_current & 0x00FF);
+  //Maximum discharge power allowed (Unit: A+1)
+  BYD_150.data.u8[6] = (discharge_current >> 8);
+  BYD_150.data.u8[7] = (discharge_current & 0x00FF);
 
   //Voltage (370.0)
   BYD_1D0.data.u8[0] = (battery_voltage >> 8);
@@ -61,9 +77,9 @@ void update_values_can_byd()
   //Current (TODO, SIGNED?)
   BYD_1D0.data.u8[2] = (battery_current >> 8);
   BYD_1D0.data.u8[3] = (battery_current & 0x00FF);
-  //Temperature average (max used, todo add avg)
-  BYD_1D0.data.u8[2] = (temperature_max >> 8);
-  BYD_1D0.data.u8[3] = (temperature_max & 0x00FF);
+  //Temperature average
+  BYD_1D0.data.u8[4] = (temperature_average >> 8);
+  BYD_1D0.data.u8[5] = (temperature_average & 0x00FF);
 
   //Temperature max
   BYD_210.data.u8[0] = (temperature_max >> 8);
@@ -91,6 +107,12 @@ void receive_can_byd(CAN_frame_t rx_frame)
 void send_can_byd()
 {
   unsigned long currentMillis = millis();
+  // Send initial CAN data once on bootup
+  if (!initialDataSent)
+  {
+    send_intial_data();
+    initialDataSent = 1;
+  }
 	// Send 2s CAN Message
 	if (currentMillis - previousMillis2s >= interval2s)
 	{
