@@ -28,6 +28,7 @@ CAN_frame_t BYD_210 = {.FIR = {.B = {.DLC = 8,.FF = CAN_frame_std,}},.MsgID = 0x
 static int discharge_current = 0;
 static int charge_current = 0;
 static int initialDataSent = 0;
+static int temperature_average = 0;
 
 void update_values_can_byd()
 { //This function maps all the values fetched from battery CAN to the correct CAN messages
@@ -35,9 +36,13 @@ void update_values_can_byd()
   charge_current = ((max_target_charge_power*10)/max_volt_byd_can); //Charge power in W , max volt in V+1decimal (P=UI, solve for I)
   //The above calculation results in (30 000*10)/3700=81A
   charge_current = (charge_current*10); //Value needs a decimal before getting sent to inverter (81.0A)
+
   discharge_current = ((max_target_discharge_power*10)/max_volt_byd_can); //Charge power in W , max volt in V+1decimal (P=UI, solve for I)
   //The above calculation results in (30 000*10)/3700=81A
   discharge_current = (discharge_current*10); //Value needs a decimal before getting sent to inverter (81.0A)
+
+  temperature_average = ((temperature_max + temperature_min)/2);
+  
 
   //Map values to CAN messages
   //Maxvoltage (eg 400.0V = 4000 , 16bits long)
@@ -72,9 +77,9 @@ void update_values_can_byd()
   //Current (TODO, SIGNED?)
   BYD_1D0.data.u8[2] = (battery_current >> 8);
   BYD_1D0.data.u8[3] = (battery_current & 0x00FF);
-  //Temperature average (max used, todo add avg)
-  BYD_1D0.data.u8[2] = (temperature_max >> 8);
-  BYD_1D0.data.u8[3] = (temperature_max & 0x00FF);
+  //Temperature average
+  BYD_1D0.data.u8[4] = (temperature_average >> 8);
+  BYD_1D0.data.u8[5] = (temperature_average & 0x00FF);
 
   //Temperature max
   BYD_210.data.u8[0] = (temperature_max >> 8);
