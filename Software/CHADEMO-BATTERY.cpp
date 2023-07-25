@@ -65,7 +65,7 @@ void update_values_chademo_battery()
   
   SOC = ChargingRate;
 
-  max_target_discharge_power = (MaximumDischargeCurrent*MaximumBatteryVoltage) //In Watts, Convert A to P
+  max_target_discharge_power = (MaximumDischargeCurrent*MaximumBatteryVoltage); //In Watts, Convert A to P
 
   battery_voltage = TargetBatteryVoltage; //Todo, scaling?
 
