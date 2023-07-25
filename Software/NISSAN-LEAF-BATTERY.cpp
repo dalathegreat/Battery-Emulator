@@ -327,6 +327,14 @@ void receive_can_leaf_battery(CAN_frame_t rx_frame)
     LB_Relay_Cut_Request = ((rx_frame.data.u8[1] & 0x18) >> 3);
     LB_Failsafe_Status = (rx_frame.data.u8[1] & 0x07);
     LB_MainRelayOn_flag = (byte) ((rx_frame.data.u8[3] & 0x20) >> 5);
+    if(LB_MainRelayOn_flag)
+    {
+      batteryAllowsContactorClosing = 1;
+    }
+    else
+    {
+      batteryAllowsContactorClosing = 0;
+    }
     LB_Full_CHARGE_flag = (byte) ((rx_frame.data.u8[3] & 0x10) >> 4);
     LB_Interlock = (byte) ((rx_frame.data.u8[3] & 0x08) >> 3);
     break;
