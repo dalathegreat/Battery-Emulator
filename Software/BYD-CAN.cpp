@@ -87,16 +87,6 @@ void update_values_can_byd()
   //Temperature min
   BYD_210.data.u8[2] = (temperature_min >> 8);
   BYD_210.data.u8[3] = (temperature_min & 0x00FF);
-
-  //Indicate to inverter if BMS has encountered issues
-  if(bms_status == FAULT)
-  {
-    BYD_190.data.u8[2] = 0x00; //We are not sure what this means, but battery control will be stopped for 5minutes if this is sent
-  }                            //Todo, maybe try other values and see if the inverter stops permanently until next reboot?
-  else
-  {
-    BYD_190.data.u8[2] = 0x03; //Indicates battery is OK to continue
-  }
 }
 
 void receive_can_byd(CAN_frame_t rx_frame)
@@ -123,31 +113,35 @@ void send_can_byd()
     send_intial_data();
     initialDataSent = 1;
   }
-	// Send 2s CAN Message
-	if (currentMillis - previousMillis2s >= interval2s)
-	{
-		previousMillis2s = currentMillis;
 
-    ESP32Can.CANWriteFrame(&BYD_110);
-	}
-  // Send 10s CAN Message
-	if (currentMillis - previousMillis10s >= interval10s)
-	{
-		previousMillis10s = currentMillis;
+  if(bms_status != FAULT)
+  { // Send CAN messages towards inverter if battery is OK
+    // Send 2s CAN Message
+    if (currentMillis - previousMillis2s >= interval2s)
+    {
+      previousMillis2s = currentMillis;
 
-    ESP32Can.CANWriteFrame(&BYD_150);
-    ESP32Can.CANWriteFrame(&BYD_1D0);
-    ESP32Can.CANWriteFrame(&BYD_210);
-    //Serial.println("CAN 10s done");
-	}
-  //Send 60s message
-	if (currentMillis - previousMillis60s >= interval60s)
-	{ 
-		previousMillis60s = currentMillis;
+      ESP32Can.CANWriteFrame(&BYD_110);
+    }
+    // Send 10s CAN Message
+    if (currentMillis - previousMillis10s >= interval10s)
+    {
+      previousMillis10s = currentMillis;
 
-    ESP32Can.CANWriteFrame(&BYD_190); 
-		//Serial.println("CAN 60s done");
-	}
+      ESP32Can.CANWriteFrame(&BYD_150);
+      ESP32Can.CANWriteFrame(&BYD_1D0);
+      ESP32Can.CANWriteFrame(&BYD_210);
+      //Serial.println("CAN 10s done");
+    }
+    //Send 60s message
+    if (currentMillis - previousMillis60s >= interval60s)
+    { 
+      previousMillis60s = currentMillis;
+
+      ESP32Can.CANWriteFrame(&BYD_190); 
+      //Serial.println("CAN 60s done");
+    }
+  }
 }
 
 void send_intial_data()
