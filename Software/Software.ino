@@ -31,7 +31,8 @@ const int rx_queue_size = 10; // Receive Queue size
 
 //Interval settings
 const int intervalInverterTask = 4800; //Interval at which to refresh modbus registers / inverter values
-const int interval10 = 10;
+const int interval10 = 10; //Interval for 10ms tasks
+unsigned long previousMillis10ms = 50;
 
 //ModbusRTU parameters
 unsigned long previousMillisModbus = 0; //will store last time a modbus register refresh
@@ -75,7 +76,6 @@ ModbusServerRTU MBserver(Serial2, 2000);
 
 // LED control
 Adafruit_NeoPixel pixels(1, WS2812_PIN, NEO_GRB + NEO_KHZ800);
-unsigned long previousMillis10ms = 0;
 static int green = 0;
 static bool rampUp = true;
 const int maxBrightness = 255;
@@ -156,6 +156,8 @@ void setup()
 
   // Init LED control
   pixels.begin();
+  pixels.setPixelColor(0, pixels.Color(0, 0, 255)); // Blue LED full brightness while battery and CAN is starting. 
+  pixels.show();                                    // Incase of crash due to CAN polarity / termination, LED will remain BLUE
 
   //Inform user what setup is used
   #ifdef BATTERY_TYPE_LEAF
