@@ -113,31 +113,35 @@ void send_can_byd()
     send_intial_data();
     initialDataSent = 1;
   }
-	// Send 2s CAN Message
-	if (currentMillis - previousMillis2s >= interval2s)
-	{
-		previousMillis2s = currentMillis;
 
-    ESP32Can.CANWriteFrame(&BYD_110);
-	}
-  // Send 10s CAN Message
-	if (currentMillis - previousMillis10s >= interval10s)
-	{
-		previousMillis10s = currentMillis;
+  if(bms_status != FAULT)
+  { // Send CAN messages towards inverter if battery is OK
+    // Send 2s CAN Message
+    if (currentMillis - previousMillis2s >= interval2s)
+    {
+      previousMillis2s = currentMillis;
 
-    ESP32Can.CANWriteFrame(&BYD_150);
-    ESP32Can.CANWriteFrame(&BYD_1D0);
-    ESP32Can.CANWriteFrame(&BYD_210);
-    //Serial.println("CAN 10s done");
-	}
-  //Send 60s message
-	if (currentMillis - previousMillis60s >= interval60s)
-	{ 
-		previousMillis60s = currentMillis;
+      ESP32Can.CANWriteFrame(&BYD_110);
+    }
+    // Send 10s CAN Message
+    if (currentMillis - previousMillis10s >= interval10s)
+    {
+      previousMillis10s = currentMillis;
 
-    ESP32Can.CANWriteFrame(&BYD_190); 
-		//Serial.println("CAN 60s done");
-	}
+      ESP32Can.CANWriteFrame(&BYD_150);
+      ESP32Can.CANWriteFrame(&BYD_1D0);
+      ESP32Can.CANWriteFrame(&BYD_210);
+      //Serial.println("CAN 10s done");
+    }
+    //Send 60s message
+    if (currentMillis - previousMillis60s >= interval60s)
+    { 
+      previousMillis60s = currentMillis;
+
+      ESP32Can.CANWriteFrame(&BYD_190); 
+      //Serial.println("CAN 60s done");
+    }
+  }
 }
 
 void send_intial_data()

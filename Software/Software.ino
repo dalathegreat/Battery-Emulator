@@ -82,16 +82,22 @@ const int maxBrightness = 255;
 
 //Contactor parameters
 enum State {
+  WAITING_FOR_BATTERY,
   PRECHARGE,
   NEGATIVE,
   POSITIVE,
   PRECHARGE_OFF,
   COMPLETED,
-  SHUTDOWN
+  SHUTDOWN_REQUESTED
 };
-State contactorStatus = PRECHARGE;
+State contactorStatus = WAITING_FOR_BATTERY;
+#define PRECHARGE_TIME_MS 160
+#define NEGATIVE_CONTACTOR_TIME_MS 1000
+#define POSITIVE_CONTACTOR_TIME_MS 2000
 unsigned long prechargeStartTime = 0;
 unsigned long negativeStartTime = 0;
+unsigned long timeSpentInFaultedMode = 0;
+uint8_t batteryAllowsContactorClosing = 0;
 
 // Setup() - initialization happens here
 void setup()
@@ -272,7 +278,16 @@ void handle_inverter()
 
 void handle_contactors()
 {
-  if(contactorStatus == SHUTDOWN)
+  //First check if we have any active errors, incase we do, turn off the battery after 15 seconds
+  if(bms_status == FAULT)
+  {
+    timeSpentInFaultedMode++;
+  }
+  if(timeSpentInFaultedMode > 1500)
+  {
+    contactorStatus = SHUTDOWN_REQUESTED;
+  }
+  if(contactorStatus == SHUTDOWN_REQUESTED)
   {
     digitalWrite(PRECHARGE_PIN, LOW);
     digitalWrite(NEGATIVE_CONTACTOR_PIN, LOW);
@@ -280,13 +295,22 @@ void handle_contactors()
     return;
   }
 
-  if(contactorStatus == COMPLETED)
+  //After that, check if we are OK to start turning on the battery
+  if(contactorStatus == WAITING_FOR_BATTERY)
   {
+    if(batteryAllowsContactorClosing)
+    {
+      contactorStatus = PRECHARGE;
+    }
+  }
+
+  if(contactorStatus == COMPLETED)
+  { //Skip running the state machine below if it has already completed
     return;
   }
 
   unsigned long currentTime = millis();
-  
+  //Handle actual state machine. This first turns on Precharge, then Negative, then Positive, and finally turns OFF precharge
   switch (contactorStatus) {
     case PRECHARGE:
       digitalWrite(PRECHARGE_PIN, HIGH);
@@ -295,7 +319,7 @@ void handle_contactors()
       break;
 
     case NEGATIVE:
-      if (currentTime - prechargeStartTime >= 60) {
+      if (currentTime - prechargeStartTime >= PRECHARGE_TIME_MS) {
         digitalWrite(NEGATIVE_CONTACTOR_PIN, HIGH);
         negativeStartTime = currentTime;
         contactorStatus = POSITIVE;
@@ -303,14 +327,14 @@ void handle_contactors()
       break;
 
     case POSITIVE:
-      if (currentTime - negativeStartTime >= 100) {
+      if (currentTime - negativeStartTime >= NEGATIVE_CONTACTOR_TIME_MS) {
         digitalWrite(POSITIVE_CONTACTOR_PIN, HIGH);
         contactorStatus = PRECHARGE_OFF;
       }
       break;
 
     case PRECHARGE_OFF:
-      if (currentTime - negativeStartTime >= 300) {
+      if (currentTime - negativeStartTime >= POSITIVE_CONTACTOR_TIME_MS) {
         digitalWrite(PRECHARGE_PIN, LOW);
         contactorStatus = COMPLETED;
       }
