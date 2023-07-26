@@ -89,7 +89,7 @@ void update_values_can_byd()
   BYD_210.data.u8[3] = (temperature_min & 0x00FF);
 
   //Indicate to inverter if BMS has encountered issues
-  if(bms_status == FAULT;)
+  if(bms_status == FAULT)
   {
     BYD_190.data.u8[2] = 0x00; //We are not sure what this means, but battery control will be stopped for 5minutes if this is sent
   }                            //Todo, maybe try other values and see if the inverter stops permanently until next reboot?
