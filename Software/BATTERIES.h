@@ -13,6 +13,10 @@
   #include "RENAULT-ZOE-BATTERY.h" //See this file for more Zoe battery settings
 #endif
 
+#ifdef IMIEV_ION_CZERO_BATTERY
+  #include "IMIEV-CZERO-ION-BATTERY.h" //See this file for more triplet battery settings
+#endif
+
 #ifdef CHADEMO
 	#include "CHADEMO-BATTERY.h" //See this file for more Chademo settings
 #endif

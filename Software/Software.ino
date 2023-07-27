@@ -2,6 +2,7 @@
 #define BATTERY_TYPE_LEAF         // See NISSAN-LEAF-BATTERY.h for more LEAF battery settings
 //#define TESLA_MODEL_3_BATTERY   // See TESLA-MODEL-3-BATTERY.h for more Tesla battery settings
 //#define RENAULT_ZOE_BATTERY     // See RENAULT-ZOE-BATTERY.h for more Zoe battery settings
+//#define IMIEV_ION_CZERO_BATTERY // See IMIEV-CZERO-ION-BATTERY.h for more triplet battery settings
 //#define CHADEMO                 // See CHADEMO.h for more Chademo related settings
 
 /* Select inverter communication protocol. See Wiki for which to use with your inverter: https://github.com/dalathegreat/BYD-Battery-Emulator-For-Gen24/wiki */
@@ -167,8 +168,11 @@ void setup()
   Serial.println("Tesla Model 3 battery selected");
   #endif 
   #ifdef RENAULT_ZOE_BATTERY
-  Serial.println("Renault Zoe battery selected");
+  Serial.println("Renault Zoe / Kangoo battery selected");
   #endif 
+  #ifdef IMIEV_ION_CZERO_BATTERY
+  Serial.println("Mitsubishi i-MiEV / Citroen C-Zero / Peugeot Ion battery selected");
+  #endif
 }
 
 // perform main program functions
@@ -208,12 +212,16 @@ void handle_can()
       #ifdef RENAULT_ZOE_BATTERY
       receive_can_zoe_battery(rx_frame);
       #endif
+      #ifdef IMIEV_ION_CZERO_BATTERY
+      receive_can_imiev_battery(rx_frame);
+      #endif
       #ifdef CAN_BYD
       receive_can_byd(rx_frame);
       #endif
-	  #ifdef CHADEMO
+	    #ifdef CHADEMO
       receive_can_chademo(rx_frame);
       #endif
+
     }
     else
     {
@@ -244,6 +252,9 @@ void handle_can()
   #ifdef RENAULT_ZOE_BATTERY
   send_can_zoe_battery();
   #endif
+  #ifdef IMIEV_ION_CZERO_BATTERY
+  send_can_imiev_battery();
+  #endif
   #ifdef CHADEMO
   send_can_chademo_battery();
   #endif
@@ -260,6 +271,9 @@ void handle_inverter()
     #ifdef RENAULT_ZOE_BATTERY
     update_values_zoe_battery(); //Map the values to the correct registers
     #endif
+    #ifdef IMIEV_ION_CZERO_BATTERY
+    update_values_imiev_battery(); //Map the values to the correct registers
+    #endif
     #ifdef SOLAX_CAN
     update_values_can_solax();
     #endif
@@ -269,7 +283,7 @@ void handle_inverter()
     #ifdef PYLON_CAN
     update_values_can_pylon();
     #endif
-	#ifdef CHADEMO
+	  #ifdef CHADEMO
     update_values_can_chademo();
     #endif
     
