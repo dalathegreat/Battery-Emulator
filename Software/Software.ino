@@ -71,6 +71,8 @@ uint16_t temperature_min = 60; //reads from battery later
 uint16_t bms_char_dis_status; //0 idle, 1 discharging, 2, charging
 uint16_t bms_status = ACTIVE; //ACTIVE - [0..5]<>[STANDBY,INACTIVE,DARKSTART,ACTIVE,FAULT,UPDATING]
 uint16_t stat_batt_power = 0; //power going in/out of battery
+uint16_t cell_max_voltage = 3700; //Stores the highest cell voltage value in the system
+uint16_t cell_min_voltage = 3700; //Stores the minimum cell voltage value in the system
 
 // Create a ModbusRTU server instance listening on Serial2 with 2000ms timeout
 ModbusServerRTU MBserver(Serial2, 2000);

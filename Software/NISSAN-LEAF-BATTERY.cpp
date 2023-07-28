@@ -450,8 +450,10 @@ void receive_can_leaf_battery(CAN_frame_t rx_frame)
       for(cellcounter = 0; cellcounter < 96; cellcounter++){
         if(min_max_voltage[0] > cell_voltages[cellcounter]) min_max_voltage[0] = cell_voltages[cellcounter];
         if(min_max_voltage[1] < cell_voltages[cellcounter]) min_max_voltage[1] = cell_voltages[cellcounter];
-      }					
+      }			
 
+      cell_min_voltage = min_max_voltage[0];
+      cell_max_voltage = min_max_voltage[1];
       cell_deviation_mV = (min_max_voltage[1] - min_max_voltage[0]);
       
       if(min_max_voltage[1] >= MAX_CELL_VOLTAGE){ 
