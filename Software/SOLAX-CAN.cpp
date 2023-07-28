@@ -5,9 +5,9 @@
 /* Do not change code below unless you are sure what you are doing */
 static unsigned long previousMillis100ms = 0; // will store last time a 100ms CAN Message was sent
 static const int interval100ms = 100; // interval (ms) at which send CAN Messages
-static int temp = 0; //Temporary variable used for bitshifting
 static int max_charge_rate_amp = 0;
 static int max_discharge_rate_amp = 0;
+static int temperature_average = 0;
 
 //CAN message translations from this amazing repository: https://github.com/rand12345/solax_can_bus 
 
@@ -27,9 +27,8 @@ CAN_frame_t SOLAX_100A001 = {.FIR = {.B = {.DLC = 8,.FF = CAN_frame_ext,}},.MsgI
 void update_values_can_solax()
 { //This function maps all the values fetched from battery CAN to the correct CAN messages
   
-  //SOC (100.00%)
-  temp = SOC/100; //Remove decimals, inverter takes only integer in a byte
-  SOLAX_1873.data.u8[4] = temp;
+  //Calculate the required values
+  temperature_average = ((temperature_max + temperature_min)/2);
 
   //max_target_charge_power (30000W max)
   if(SOC > 9999) //99.99%
@@ -50,10 +49,6 @@ void update_values_can_solax()
   //Increase decimal amount
   max_charge_rate_amp = max_charge_rate_amp*10;
 
-  //Write the calculated charge rate to the CAN message
-  SOLAX_1872.data.u8[4] = (uint8_t) max_charge_rate_amp; //TODO, test that values are OK
-  SOLAX_1872.data.u8[5] = (max_charge_rate_amp << 8);
-
   //max_target_discharge_power (30000W max)
   if(SOC < 100) //1.00%
   { //Additional safety incase SOC% is below 1, then do not charge battery further
@@ -73,18 +68,55 @@ void update_values_can_solax()
   //Increase decimal amount
   max_discharge_rate_amp = max_discharge_rate_amp*10;
 
-  //Write the calculated charge rate to the CAN message
-  SOLAX_1872.data.u8[6] = (uint8_t) max_discharge_rate_amp; //TODO, test that values are OK
+  //Put the values into the CAN messages
+
+  //BMS_Limits
+  SOLAX_1872.data.u8[0] = (uint8_t) max_volt_solax_can; //Todo, scaling OK?
+  SOLAX_1872.data.u8[1] = (max_volt_solax_can << 8);
+  SOLAX_1872.data.u8[2] = (uint8_t) min_volt_solax_can; //Todo, scaling OK?
+  SOLAX_1872.data.u8[3] = (min_volt_solax_can << 8);
+  SOLAX_1872.data.u8[4] = (uint8_t) max_charge_rate_amp; //Todo, scaling OK?
+  SOLAX_1872.data.u8[5] = (max_charge_rate_amp << 8);
+  SOLAX_1872.data.u8[6] = (uint8_t) max_discharge_rate_amp; //Todo, scaling OK?
   SOLAX_1872.data.u8[7] = (max_discharge_rate_amp << 8);
 
-  //Todo (ranked in priority)
-  //Add current
-  //Add voltage
-  //Add remaining kWh
-  //Add temperature
-  //Add cell voltages
-  //Add pack voltage min/max for alarms
-  //Add cell voltage min/max for alarms
+  //BMS_PackData
+  SOLAX_1873.data.u8[0] = (uint8_t) battery_voltage; //Todo, scaling OK?
+  SOLAX_1873.data.u8[1] = (battery_voltage << 8);
+  SOLAX_1873.data.u8[2] = (uint8_t) stat_batt_power; //Todo, scaling OK?
+  SOLAX_1873.data.u8[3] = (stat_batt_power << 8);
+  SOLAX_1873.data.u8[4] = (uint8_t) (SOC/100); //SOC (100.00%)
+  //SOLAX_1873.data.u8[5] = //Seems like this is not required? Or shall we put SOC decimals here?
+  SOLAX_1873.data.u8[6] = (uint8_t) remaining_capacity_Wh; //Todo, scaling OK?
+  SOLAX_1873.data.u8[7] = (remaining_capacity_Wh << 8);
+
+  //BMS_CellData
+  SOLAX_1874.data.u8[0] = (uint8_t) temperature_max; //Todo, scaling OK?
+  SOLAX_1874.data.u8[1] = (temperature_max << 8);
+  SOLAX_1874.data.u8[2] = (uint8_t) temperature_min; //Todo, scaling OK?
+  SOLAX_1874.data.u8[3] = (temperature_min << 8);
+  SOLAX_1874.data.u8[4] = (uint8_t) cell_max_voltage; //Todo, scaling OK?
+  SOLAX_1874.data.u8[5] = (cell_max_voltage << 8); 
+  SOLAX_1874.data.u8[6] = (uint8_t) cell_min_voltage; //Todo, scaling OK?
+  SOLAX_1874.data.u8[7] = (cell_min_voltage << 8);
+
+  //BMS_Status
+  SOLAX_1875.data.u8[0] = (uint8_t) temperature_average; //Todo, scaling OK?
+  SOLAX_1875.data.u8[1] = (temperature_average << 8);
+
+  //BMS_PackTemps (strange name, since it has voltages?)
+  SOLAX_1876.data.u8[2] = (uint8_t) cell_max_voltage; //Todo, scaling OK?
+  SOLAX_1876.data.u8[3] = (cell_max_voltage << 8);
+
+  SOLAX_1876.data.u8[6] = (uint8_t) (cell_min_voltage << 8);
+  SOLAX_1876.data.u8[7] = (cell_min_voltage << 8);
+
+  //BMS_PackStats
+  SOLAX_1878.data.u8[0] = (uint8_t) battery_voltage; //TODO, should this be max or current voltage?
+  SOLAX_1878.data.u8[1] = (battery_voltage << 8);
+
+  SOLAX_1878.data.u8[4] = (uint8_t) capacity_Wh; //TODO, check that scaling is OK
+  SOLAX_1878.data.u8[5] = (capacity_Wh << 8);
 
 }
 
