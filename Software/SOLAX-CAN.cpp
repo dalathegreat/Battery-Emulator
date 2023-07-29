@@ -3,8 +3,6 @@
 #include "CAN_config.h"
 
 /* Do not change code below unless you are sure what you are doing */
-static unsigned long previousMillis100ms = 0; // will store last time a 100ms CAN Message was sent
-static const int interval100ms = 100; // interval (ms) at which send CAN Messages
 static int max_charge_rate_amp = 0;
 static int max_discharge_rate_amp = 0;
 static int temperature_average = 0;
@@ -22,7 +20,7 @@ CAN_frame_t SOLAX_1879 = {.FIR = {.B = {.DLC = 8,.FF = CAN_frame_ext,}},.MsgID =
 CAN_frame_t SOLAX_1801 = {.FIR = {.B = {.DLC = 8,.FF = CAN_frame_ext,}},.MsgID = 0x1801,.data = {0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0}};
 CAN_frame_t SOLAX_1881 = {.FIR = {.B = {.DLC = 8,.FF = CAN_frame_ext,}},.MsgID = 0x1881,.data = {0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0}}; // E.g.: 0 6 S B M S F A
 CAN_frame_t SOLAX_1882 = {.FIR = {.B = {.DLC = 8,.FF = CAN_frame_ext,}},.MsgID = 0x1882,.data = {0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0}}; // E.g.: 0 2 3 A B 0 5 2
-CAN_frame_t SOLAX_100A001 = {.FIR = {.B = {.DLC = 8,.FF = CAN_frame_ext,}},.MsgID = 0x100A001,.data = {0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0}};
+CAN_frame_t SOLAX_100A001 = {.FIR = {.B = {.DLC = 0,.FF = CAN_frame_ext,}},.MsgID = 0x100A001,.data = {}};
 
 void update_values_can_solax()
 { //This function maps all the values fetched from battery CAN to the correct CAN messages
@@ -99,7 +97,8 @@ void update_values_can_solax()
   //BMS_Status
   SOLAX_1875.data.u8[0] = (uint8_t) temperature_average; 
   SOLAX_1875.data.u8[1] = (temperature_average >> 8);
-  SOLAX_1875.data.u8[2] = (2); // Contactor, 0=off, 2=on //Todo, base this on what variable?
+  SOLAX_1875.data.u8[2] = (0x00); // Number of slave batteries?
+  SOLAX_1875.data.u8[4] = (0x01); // Contactor? 0=off, 1=on.
 
   //BMS_PackTemps (strange name, since it has voltages?)
   SOLAX_1876.data.u8[2] = (uint8_t) cell_max_voltage; //Todo, scaling OK?
@@ -109,9 +108,9 @@ void update_values_can_solax()
   SOLAX_1876.data.u8[7] = (cell_min_voltage >> 8);
 
   //Unknown
-  SOLAX_1877.data.u8[4] = (uint8_t) 1; // ID?
-  SOLAX_1877.data.u8[6] = (uint8_t) 1; // byte1?
-  SOLAX_1877.data.u8[7] = (uint8_t) 1; // byte2?
+  SOLAX_1877.data.u8[4] = (uint8_t) 0; // Battery brand?
+  SOLAX_1877.data.u8[6] = (uint8_t) 0x22; // Firmware version?
+  SOLAX_1877.data.u8[7] = (uint8_t) 2; // Location of the above firmware? 02 = Master, 10,20,30,40 = Slave1-4
 
   //BMS_PackStats
   SOLAX_1878.data.u8[0] = (uint8_t) battery_voltage; //TODO, should this be max or current voltage?
@@ -119,16 +118,23 @@ void update_values_can_solax()
 
   SOLAX_1878.data.u8[4] = (uint8_t) capacity_Wh; //TODO, scaling OK?
   SOLAX_1878.data.u8[5] = (capacity_Wh >> 8);
+
+  // BMS_Answer
+  SOLAX_1801.data.u8[0] = 2;
+  SOLAX_1801.data.u8[2] = 1;
+  SOLAX_1801.data.u8[4] = 1;
 }
 
-void send_can_solax()
-{
-  unsigned long currentMillis = millis();
-	// Send 100ms CAN Message
-	if (currentMillis - previousMillis100ms >= interval100ms)
-	{
-		previousMillis100ms = currentMillis;
+void send_can_solax() {
+  // Obsolete
+}
 
+// Todo: handle the startup process. Everything needs live testing.
+// All transmissions should be initiated when inverter is polling.
+
+void receive_can_solax(CAN_frame_t rx_frame)
+{
+  if (rx_frame.MsgID == 0x1871) {
     ESP32Can.CANWriteFrame(&SOLAX_1872);
     ESP32Can.CANWriteFrame(&SOLAX_1873);
     ESP32Can.CANWriteFrame(&SOLAX_1874);
@@ -136,14 +142,8 @@ void send_can_solax()
     ESP32Can.CANWriteFrame(&SOLAX_1876);
     ESP32Can.CANWriteFrame(&SOLAX_1877);
     ESP32Can.CANWriteFrame(&SOLAX_1878);
-
-    //Todo, how often should the messages be sent? And the other messages, only on bootup?
-	}
-}
-
-void receive_can_solax(CAN_frame_t rx_frame)
-{
-  //Serial.println("Inverter sending CAN message");
-  //0x1871 [0x01, 0x00, 0x01, 0x00, 0x00, 0x00, 0x00, 0x00]
-  //Todo, should we respond with something once the inverter sends a message?
+    
+    //ESP32Can.CANWriteFrame(&SOLAX_100A001);
+    //ESP32Can.CANWriteFrame(&SOLAX_1801);
+  }
 }
