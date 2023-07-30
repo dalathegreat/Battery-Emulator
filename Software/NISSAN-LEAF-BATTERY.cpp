@@ -23,7 +23,7 @@ CAN_frame_t LEAF_50C = {.FIR = {.B = {.DLC = 6,.FF = CAN_frame_std,}},.MsgID = 0
 CAN_frame_t LEAF_1D4 = {.FIR = {.B = {.DLC = 8,.FF = CAN_frame_std,}},.MsgID = 0x1D4,.data = {0x6E, 0x6E, 0x00, 0x04, 0x07, 0x46, 0xE0, 0x44}};
 //These CAN messages need to be sent towards the battery to keep it alive
 
-const CAN_frame_t LEAF_VOLTAGE_REQUEST = {.FIR = {.B = {.DLC = 8,.FF = CAN_frame_std,}},.MsgID = 0x79B,.data = {2, 0x21, 2, 0, 0, 0, 0, 0}};
+CAN_frame_t LEAF_GROUP_REQUEST = {.FIR = {.B = {.DLC = 8,.FF = CAN_frame_std,}},.MsgID = 0x79B,.data = {2, 0x21, 1, 0, 0, 0, 0, 0}};
 const CAN_frame_t LEAF_NEXT_LINE_REQUEST = {.FIR = {.B = {.DLC = 8,.FF = CAN_frame_std,}},.MsgID = 0x79B,.data = {0x30, 1, 0, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF}};
 // The Li-ion battery controller only accepts a multi-message query. In fact, the LBC transmits many
 // groups: the first one contains lots of High Voltage battery data as SOC, currents, and voltage; the second
@@ -82,12 +82,22 @@ static byte LB_Capacity_Empty = 0; //LB_EMPTY, , Goes to 1 if battery is empty
 
 // Nissan LEAF battery data from polled CAN messages
 static uint8_t battery_request_idx	= 0;
-static uint8_t ignore_7bb	= 0;
+static uint8_t group_7bb = 0;
+static uint8_t group = 0;
 static uint8_t stop_battery_query	= 0;
 static uint16_t	cell_voltages[97]; //array with all the cellvoltages
 static uint16_t	cellcounter	= 0; 
 static uint16_t	min_max_voltage[2]; //contains cell min[0] and max[1] values in mV
 static uint16_t	cell_deviation_mV = 0; //contains the deviation between highest and lowest cell in mV
+static uint16_t HX = 0; //Internal resistance
+static uint16_t insulation = 0; //Insulation resistance
+static int32_t Battery_current_1 = 0; //High Voltage battery current; it’s positive if discharged, negative when charging
+static int32_t Battery_current_2 = 0; //High Voltage battery current; it’s positive if discharged, negative when charging (unclear why two values exist)
+static uint16_t temp_raw_1 = 0;
+static uint16_t temp_raw_2_highnibble = 0;
+static uint16_t temp_raw_2 = 0;
+static uint16_t temp_raw_3 = 0;
+static uint16_t temp_raw_4 = 0;
 
 
 void update_values_leaf_battery()
@@ -285,7 +295,7 @@ void update_values_leaf_battery()
     Serial.println(max_target_charge_power);
     Serial.print("SOH%: ");
     Serial.println(StateOfHealth);
-    Serial.print("SOC% to Fronius: ");
+    Serial.print("SOC% to Inverter: ");
     Serial.println(SOC);
     Serial.print("Temperature Min: ");
     Serial.println(temperature_min);
@@ -301,6 +311,18 @@ void update_values_leaf_battery()
     Serial.println(min_max_voltage[1]);
     Serial.print("Cell deviation: ");
     Serial.println(cell_deviation_mV);
+    Serial.print("Raw temp1: ");
+    Serial.println(temp_raw_1);
+    Serial.print("Raw temp2: ");
+    Serial.println(temp_raw_2);
+    Serial.print("Raw temp3: ");
+    Serial.println(temp_raw_3);
+    Serial.print("Raw temp4: ");
+    Serial.println(temp_raw_4);
+    Serial.print("Current 1: ");
+    Serial.println(Battery_current_1);
+    Serial.print("Current 2: ");
+    Serial.println(Battery_current_2);
   }
 }
 
@@ -424,60 +446,115 @@ void receive_can_leaf_battery(CAN_frame_t rx_frame)
     stop_battery_query = 1; //Someone is trying to read data with Leafspy, stop our own polling!
     break;
   case 0x7BB:
-    //The second group replies with all the individual cell voltages, in millivolt
-    if(rx_frame.data.u8[0] == 0x10){
-      ignore_7bb = 0;
-      if(rx_frame.data.u8[3] != 2) ignore_7bb = 1;
+    //First check which group data we are getting
+    if (rx_frame.data.u8[0] == 0x10) { //First message of a group
+      group_7bb = rx_frame.data.u8[3];
+      if (group_7bb != 1 && group_7bb != 2 && group_7bb != 4) { //We are only interested in groups 1,2 and 4
+          break;
+      }
     }
 
-    if(ignore_7bb) break;
+    if(!stop_battery_query){
+      ESP32Can.CANWriteFrame(&LEAF_NEXT_LINE_REQUEST); //TODO, should this be moved to bottom? Seems to work as-is
+    }
 
-    if(!stop_battery_query)
+    if(group_7bb == 1) //High precision SOC, Current, voltages etc.
     {
-      ESP32Can.CANWriteFrame(&LEAF_NEXT_LINE_REQUEST);
-    }
-
-    if(rx_frame.data.u8[0] == 0x10){ //first frame is anomalous
-      battery_request_idx = 0;					
-      cell_voltages[battery_request_idx++] = (rx_frame.data.u8[4] << 8) | rx_frame.data.u8[5];
-      cell_voltages[battery_request_idx++] = (rx_frame.data.u8[6] << 8) | rx_frame.data.u8[7];
-      break;
-    }
-    if(rx_frame.data.u8[6] == 0xFF && rx_frame.data.u8[0] == 0x2C){  //Last frame
-      //Last frame does not contain any cell data, calculate the result
-      min_max_voltage[0] = 9999;
-      min_max_voltage[1] = 0;
-      for(cellcounter = 0; cellcounter < 96; cellcounter++){
-        if(min_max_voltage[0] > cell_voltages[cellcounter]) min_max_voltage[0] = cell_voltages[cellcounter];
-        if(min_max_voltage[1] < cell_voltages[cellcounter]) min_max_voltage[1] = cell_voltages[cellcounter];
-      }					
-
-      cell_deviation_mV = (min_max_voltage[1] - min_max_voltage[0]);
-      
-      if(min_max_voltage[1] >= MAX_CELL_VOLTAGE){ 
-        bms_status = FAULT;
-        errorCode = 8;
-        Serial.println("CELL OVERVOLTAGE!!! Stopping battery charging and discharging. Inspect battery!");
+      if(rx_frame.data.u8[0] == 0x10){ //First frame
+        Battery_current_1 = (rx_frame.data.u8[4] << 24) | (rx_frame.data.u8[5] << 16 | ((rx_frame.data.u8[6] << 8) | rx_frame.data.u8[7]));
+        if(Battery_current_1 & 0x8000000 == 0x8000000){
+          Battery_current_1 = (( Battery_current_1 | -0x100000000 ) / 1024);
+        }
+        else{
+          Battery_current_1 = (Battery_current_1 / 1024);
+        }
       }
-      if(min_max_voltage[0] <= MIN_CELL_VOLTAGE){ 
-        bms_status = FAULT;
-        errorCode = 9;
-        Serial.println("CELL UNDERVOLTAGE!!! Stopping battery charging and discharging. Inspect battery!");
+
+      if(rx_frame.data.u8[0] == 0x21){ //Second frame
+        Battery_current_2 = (rx_frame.data.u8[3] << 24) | (rx_frame.data.u8[4] << 16 | ((rx_frame.data.u8[5] << 8) | rx_frame.data.u8[6]));
+        if(Battery_current_2 & 0x8000000 == 0x8000000){
+          Battery_current_2 = (( Battery_current_2 | -0x100000000 ) / 1024);
+        }
+        else{
+          Battery_current_2 = (Battery_current_2 / 1024);
+        }
       }
-      break;
+
+      if(rx_frame.data.u8[0] == 0x23){ // Fourth frame
+        insulation = (uint16_t) ((rx_frame.data.u8[5] << 8) | rx_frame.data.u8[6]);
+      }
+
+      if(rx_frame.data.u8[0] == 0x24){ // Fifth frame
+        HX = (uint16_t) ((rx_frame.data.u8[4] << 8) | rx_frame.data.u8[5]) / 102.4;
+      }
+
     }
 
-    if((rx_frame.data.u8[0] % 2) == 0){ //even frames
-      cell_voltages[battery_request_idx++]  |= rx_frame.data.u8[1];
-      cell_voltages[battery_request_idx++]	= (rx_frame.data.u8[2] << 8) | rx_frame.data.u8[3];
-      cell_voltages[battery_request_idx++]	= (rx_frame.data.u8[4] << 8) | rx_frame.data.u8[5];
-      cell_voltages[battery_request_idx++]	= (rx_frame.data.u8[6] << 8) | rx_frame.data.u8[7];
-    } else { //odd frames
-      cell_voltages[battery_request_idx++]	= (rx_frame.data.u8[1] << 8) | rx_frame.data.u8[2];
-      cell_voltages[battery_request_idx++]	= (rx_frame.data.u8[3] << 8) | rx_frame.data.u8[4];
-      cell_voltages[battery_request_idx++]	= (rx_frame.data.u8[5] << 8) | rx_frame.data.u8[6];
-      cell_voltages[battery_request_idx]		= (rx_frame.data.u8[7] << 8);
+    if(group_7bb == 2) //Cell Voltages
+    {
+      if(rx_frame.data.u8[0] == 0x10){ //first frame is anomalous
+        battery_request_idx = 0;					
+        cell_voltages[battery_request_idx++] = (rx_frame.data.u8[4] << 8) | rx_frame.data.u8[5];
+        cell_voltages[battery_request_idx++] = (rx_frame.data.u8[6] << 8) | rx_frame.data.u8[7];
+        break;
+      }
+      if(rx_frame.data.u8[6] == 0xFF && rx_frame.data.u8[0] == 0x2C){  //Last frame
+        //Last frame does not contain any cell data, calculate the result
+        min_max_voltage[0] = 9999;
+        min_max_voltage[1] = 0;
+        for(cellcounter = 0; cellcounter < 96; cellcounter++){
+          if(min_max_voltage[0] > cell_voltages[cellcounter]) min_max_voltage[0] = cell_voltages[cellcounter];
+          if(min_max_voltage[1] < cell_voltages[cellcounter]) min_max_voltage[1] = cell_voltages[cellcounter];
+        }					
+
+        cell_deviation_mV = (min_max_voltage[1] - min_max_voltage[0]);
+        
+        if(min_max_voltage[1] >= MAX_CELL_VOLTAGE){ 
+          bms_status = FAULT;
+          errorCode = 8;
+          Serial.println("CELL OVERVOLTAGE!!! Stopping battery charging and discharging. Inspect battery!");
+        }
+        if(min_max_voltage[0] <= MIN_CELL_VOLTAGE){ 
+          bms_status = FAULT;
+          errorCode = 9;
+          Serial.println("CELL UNDERVOLTAGE!!! Stopping battery charging and discharging. Inspect battery!");
+        }
+        break;
+      }
+
+      if((rx_frame.data.u8[0] % 2) == 0){ //even frames
+        cell_voltages[battery_request_idx++]  |= rx_frame.data.u8[1];
+        cell_voltages[battery_request_idx++]	= (rx_frame.data.u8[2] << 8) | rx_frame.data.u8[3];
+        cell_voltages[battery_request_idx++]	= (rx_frame.data.u8[4] << 8) | rx_frame.data.u8[5];
+        cell_voltages[battery_request_idx++]	= (rx_frame.data.u8[6] << 8) | rx_frame.data.u8[7];
+      } else { //odd frames
+        cell_voltages[battery_request_idx++]	= (rx_frame.data.u8[1] << 8) | rx_frame.data.u8[2];
+        cell_voltages[battery_request_idx++]	= (rx_frame.data.u8[3] << 8) | rx_frame.data.u8[4];
+        cell_voltages[battery_request_idx++]	= (rx_frame.data.u8[5] << 8) | rx_frame.data.u8[6];
+        cell_voltages[battery_request_idx]		= (rx_frame.data.u8[7] << 8);
+      }
     }
+
+    if(group_7bb == 4) //Temperatures
+    {
+      if (rx_frame.data.u8[0] == 0x10) { //First message
+        temp_raw_1 = (rx_frame.data.u8[4] << 8) | rx_frame.data.u8[5];
+        temp_raw_2_highnibble = rx_frame.data.u8[7];
+      }
+      if (rx_frame.data.u8[0] == 0x21) { //Second message
+        temp_raw_2 = (temp_raw_2_highnibble << 8) | rx_frame.data.u8[1];
+        temp_raw_3 = (rx_frame.data.u8[3] << 8) | rx_frame.data.u8[4];
+        temp_raw_4 = (rx_frame.data.u8[6] << 8) | rx_frame.data.u8[7];
+      }
+      if (rx_frame.data.u8[0] == 0x22) { //Third message
+        //All values read, convert the raw values to celcius
+        //Only 2011-2012 ZE0 packs have the temp3 sensor
+        //Todo add code to convert raw values to *C
+
+      }
+
+    }
+
     break;
   default:
     break;
@@ -681,7 +758,13 @@ void send_can_leaf_battery()
     //Every 10s, ask diagnostic data from the battery. Don't ask if someone is already polling on the bus (Leafspy?)
     if(!stop_battery_query)
     {
-      ESP32Can.CANWriteFrame(&LEAF_VOLTAGE_REQUEST);
+      group++; //Cycle between group 1-4
+      if (group > 4)
+      {
+        group = 1;
+      }
+      LEAF_GROUP_REQUEST.data.u8[2] = group;
+      ESP32Can.CANWriteFrame(&LEAF_GROUP_REQUEST);
     }
     stop_battery_query = 0;
   }
