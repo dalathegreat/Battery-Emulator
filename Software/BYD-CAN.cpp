@@ -30,6 +30,10 @@ static int charge_current = 0;
 static int initialDataSent = 0;
 static int temperature_average = 0;
 
+static int inverter_voltage = 0;
+static int inverter_SOC = 0;
+static long inverter_timestamp = 0;
+
 void update_values_can_byd()
 { //This function maps all the values fetched from battery CAN to the correct CAN messages
   //Calculate values
@@ -94,10 +98,19 @@ void receive_can_byd(CAN_frame_t rx_frame)
   switch (rx_frame.MsgID)
   {
     case 0x151: //Message originating from BYD HVS compatible inverter. Reply with CAN identifier!
-    if(rx_frame.data.u8[0] & 0x01)
-    {
-      send_intial_data();
-    }
+      if(rx_frame.data.u8[0] & 0x01)
+      {
+        send_intial_data();
+      }
+    break;
+    case 0x091:
+      inverter_voltage = ((rx_frame.data.u8[1] << 8) | rx_frame.data.u8[0]) * 0.1;
+    break;
+    case 0x0D1:
+      inverter_SOC = ((rx_frame.data.u8[1] << 8) | rx_frame.data.u8[0]) * 0.1;
+    break;
+    case 0x111:
+      inverter_timestamp = ((rx_frame.data.u8[3] << 24) | (rx_frame.data.u8[2] << 16) | (rx_frame.data.u8[1] << 8) | rx_frame.data.u8[0]);
     break;
     default:
     break;
