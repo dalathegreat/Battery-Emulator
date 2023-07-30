@@ -17,6 +17,10 @@
   #include "IMIEV-CZERO-ION-BATTERY.h" //See this file for more triplet battery settings
 #endif
 
+#ifdef KIA_HYUNDAI_64_BATTERY
+  #include "KIA-HYUNDAI-64-BATTERY.h" //See this file for more 64kWh battery settings
+#endif
+
 #ifdef CHADEMO
 	#include "CHADEMO-BATTERY.h" //See this file for more Chademo settings
 #endif
