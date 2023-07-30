@@ -51,12 +51,12 @@ void update_values_can_byd()
   //Minvoltage (eg 300.0V = 3000 , 16bits long)
   BYD_110.data.u8[2] = (min_volt_byd_can >> 8);
   BYD_110.data.u8[3] = (min_volt_byd_can & 0x00FF);
-  //Maximum charge power allowed (Unit: A+1)
-  BYD_110.data.u8[4] = (charge_current >> 8);
-  BYD_110.data.u8[5] = (charge_current & 0x00FF);
   //Maximum discharge power allowed (Unit: A+1)
-  BYD_110.data.u8[6] = (discharge_current >> 8);
-  BYD_110.data.u8[7] = (discharge_current & 0x00FF);
+  BYD_110.data.u8[4] = (discharge_current >> 8);
+  BYD_110.data.u8[5] = (discharge_current & 0x00FF);
+  //Maximum charge power allowed (Unit: A+1)
+  BYD_110.data.u8[6] = (charge_current >> 8);
+  BYD_110.data.u8[7] = (charge_current & 0x00FF);
 
   //SOC (100.00%)
   BYD_150.data.u8[0] = (SOC >> 8);
