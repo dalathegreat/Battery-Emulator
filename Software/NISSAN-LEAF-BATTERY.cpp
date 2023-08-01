@@ -94,10 +94,14 @@ static uint16_t insulation = 0; //Insulation resistance
 static int32_t Battery_current_1 = 0; //High Voltage battery current; it’s positive if discharged, negative when charging
 static int32_t Battery_current_2 = 0; //High Voltage battery current; it’s positive if discharged, negative when charging (unclear why two values exist)
 static uint16_t temp_raw_1 = 0;
-static uint16_t temp_raw_2_highnibble = 0;
+static uint8_t temp_raw_2_highnibble = 0;
 static uint16_t temp_raw_2 = 0;
 static uint16_t temp_raw_3 = 0;
 static uint16_t temp_raw_4 = 0;
+static uint16_t temp_raw_max = 0;
+static uint16_t temp_raw_min = 0;
+static int16_t temp_polled_max = 0;
+static int16_t temp_polled_min = 0;
 
 
 void update_values_leaf_battery()
@@ -261,8 +265,20 @@ void update_values_leaf_battery()
   LB_Power = LB_Total_Voltage * LB_Current;//P = U * I
   stat_batt_power = convert2unsignedint16(LB_Power); //add sign if needed
 
-	temperature_min = convert2unsignedint16((LB_HistData_Temperature_MIN * 10)); //add sign if needed and increase range
-	temperature_max = convert2unsignedint16((LB_HistData_Temperature_MAX * 10));
+  //Update temperature readings
+  if(temp_raw_max != 0)
+  { //We have a polled value available, this is the best method that works on all LEAF batteries
+    temp_polled_min = (temp_raw_min - 360);
+    temp_polled_max = (temp_raw_max - 360);
+    temperature_min = convert2unsignedint16((temp_polled_min)); //add sign if needed
+	  temperature_max = convert2unsignedint16((temp_polled_max));
+  }
+  else
+  { //Use the less accurate value sent constantly via CAN (only available on 2013-2017)
+    temperature_min = convert2unsignedint16((LB_HistData_Temperature_MIN * 10)); //add sign if needed and increase range
+	  temperature_max = convert2unsignedint16((LB_HistData_Temperature_MAX * 10));
+  }
+
 
   if(printValues)
   {  //values heading towards the modbus registers
@@ -311,14 +327,10 @@ void update_values_leaf_battery()
     Serial.println(min_max_voltage[1]);
     Serial.print("Cell deviation: ");
     Serial.println(cell_deviation_mV);
-    Serial.print("Raw temp1: ");
-    Serial.println(temp_raw_1);
-    Serial.print("Raw temp2: ");
-    Serial.println(temp_raw_2);
-    Serial.print("Raw temp3: ");
-    Serial.println(temp_raw_3);
-    Serial.print("Raw temp4: ");
-    Serial.println(temp_raw_4);
+    Serial.print("Raw temp min: ");
+    Serial.println(temp_raw_min);
+    Serial.print("Raw temp max: ");
+    Serial.println(temp_raw_max);
     Serial.print("Current 1: ");
     Serial.println(Battery_current_1);
     Serial.print("Current 2: ");
@@ -455,7 +467,7 @@ void receive_can_leaf_battery(CAN_frame_t rx_frame)
     }
 
     if(!stop_battery_query){
-      ESP32Can.CANWriteFrame(&LEAF_NEXT_LINE_REQUEST); //TODO, should this be moved to bottom? Seems to work as-is
+      ESP32Can.CANWriteFrame(&LEAF_NEXT_LINE_REQUEST); //TODO, should this be moved to bottom after each group request is handled? Works as-is atleast :)
     }
 
     if(group_7bb == 1) //High precision SOC, Current, voltages etc.
@@ -547,12 +559,63 @@ void receive_can_leaf_battery(CAN_frame_t rx_frame)
         temp_raw_4 = (rx_frame.data.u8[6] << 8) | rx_frame.data.u8[7];
       }
       if (rx_frame.data.u8[0] == 0x22) { //Third message
-        //All values read, convert the raw values to celcius
-        //Only 2011-2012 ZE0 packs have the temp3 sensor
-        //Todo add code to convert raw values to *C
+        //All values read, let's figure out the min/max!
 
+        if(temp_raw_3 == 65535)
+        { //We are on a 2013+ pack that only has three temp sensors. 
+          //Start with finding max value
+          temp_raw_max = temp_raw_1;
+          if(temp_raw_2 > temp_raw_max)
+          {
+            temp_raw_max = temp_raw_2;
+          }
+          if(temp_raw_4 > temp_raw_max)
+          {
+            temp_raw_max = temp_raw_4;
+          }
+          //Then find min
+          temp_raw_min = temp_raw_1;
+          if(temp_raw_2 < temp_raw_min)
+          {
+            temp_raw_min = temp_raw_2;
+          }
+          if(temp_raw_4 < temp_raw_min)
+          {
+            temp_raw_min = temp_raw_4;
+          }
+        }
+        else
+        { //All 4 temp sensors available on 2011-2012
+          //Start with finding max value
+          temp_raw_max = temp_raw_1;
+          if(temp_raw_2 > temp_raw_max)
+          {
+            temp_raw_max = temp_raw_2;
+          }
+          if(temp_raw_3 > temp_raw_max)
+          {
+            temp_raw_max = temp_raw_3;
+          }
+          if(temp_raw_4 > temp_raw_max)
+          {
+            temp_raw_max = temp_raw_4;
+          }
+          //Then find min
+          temp_raw_min = temp_raw_1;
+          if(temp_raw_2 < temp_raw_min)
+          {
+            temp_raw_min = temp_raw_2;
+          }
+          if(temp_raw_3 < temp_raw_min)
+          {
+            temp_raw_min = temp_raw_2;
+          }
+          if(temp_raw_4 < temp_raw_min)
+          {
+            temp_raw_min = temp_raw_4;
+          }
+        }
       }
-
     }
 
     break;
