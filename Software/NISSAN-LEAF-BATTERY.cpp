@@ -304,20 +304,16 @@ void update_values_leaf_battery()
         break;
       }
     Serial.print("Power: ");
-    Serial.println(LB_Power);
-    Serial.print("Max discharge power: ");
-    Serial.println(max_target_discharge_power);
-    Serial.print("Max charge power: ");
-    Serial.println(max_target_charge_power);
-    Serial.print("SOH%: ");
-    Serial.println(StateOfHealth);
-    Serial.print("SOC% to Inverter: ");
-    Serial.println(SOC);
-    Serial.print("Temperature Min: ");
-    Serial.println(temperature_min);
-    Serial.print("Temperature Max: ");
-    Serial.println(temperature_max);
-    Serial.print("GIDS: ");
+    Serial.print(LB_Power);
+    Serial.print(" Max discharge power: ");
+    Serial.print(max_target_discharge_power);
+    Serial.print(" Max charge power: ");
+    Serial.print(max_target_charge_power);
+    Serial.print(" SOH%: ");
+    Serial.print(StateOfHealth);
+    Serial.print(" SOC% to Inverter: ");
+    Serial.print(SOC);
+    Serial.print(" GIDS: ");
     Serial.println(LB_GIDS);
     Serial.print("LEAF battery gen: ");
     Serial.println(LEAF_Battery_Type);
@@ -327,13 +323,17 @@ void update_values_leaf_battery()
     Serial.println(min_max_voltage[1]);
     Serial.print("Cell deviation: ");
     Serial.println(cell_deviation_mV);
-    Serial.print("Raw temp min: ");
-    Serial.println(temp_raw_min);
-    Serial.print("Raw temp max: ");
-    Serial.println(temp_raw_max);
+    Serial.print("Temperatures; Polled temp min: ");
+    Serial.print(temp_polled_min);
+    Serial.print(" Polled temp max: ");
+    Serial.print(temp_polled_max);
+    Serial.print(" 5C0 temp max: ");
+    Serial.print(LB_HistData_Temperature_MAX);
+    Serial.print(" 5C0 temp min: ");
+    Serial.println(LB_HistData_Temperature_MIN);
     Serial.print("Current 1: ");
-    Serial.println(Battery_current_1);
-    Serial.print("Current 2: ");
+    Serial.print(Battery_current_1);
+    Serial.print(" Current 2: ");
     Serial.println(Battery_current_2);
   }
 }
