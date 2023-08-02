@@ -1,8 +1,8 @@
 /* Select battery used */
-//#define BATTERY_TYPE_LEAF         // See NISSAN-LEAF-BATTERY.h for more LEAF battery settings
+#define BATTERY_TYPE_LEAF         // See NISSAN-LEAF-BATTERY.h for more LEAF battery settings
 //#define TESLA_MODEL_3_BATTERY   // See TESLA-MODEL-3-BATTERY.h for more Tesla battery settings
 //#define RENAULT_ZOE_BATTERY     // See RENAULT-ZOE-BATTERY.h for more Zoe battery settings
-#define BMW_I3_BATTERY          // See BMW-I3-BATTERY.h for more i3 battery settings
+//#define BMW_I3_BATTERY          // See BMW-I3-BATTERY.h for more i3 battery settings
 //#define IMIEV_ION_CZERO_BATTERY // See IMIEV-CZERO-ION-BATTERY.h for more triplet battery settings
 //#define KIA_HYUNDAI_64_BATTERY  // See KIA-HYUNDAI-64-BATTERY.h for more battery settings
 //#define CHADEMO                 // See CHADEMO.h for more Chademo related settings
