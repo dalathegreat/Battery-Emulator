@@ -13,6 +13,10 @@
   #include "RENAULT-ZOE-BATTERY.h" //See this file for more Zoe battery settings
 #endif
 
+#ifdef BMW_I3_BATTERY
+  #include "BMW-I3-BATTERY.h" //See this file for more i3 battery settings
+#endif
+
 #ifdef IMIEV_ION_CZERO_BATTERY
   #include "IMIEV-CZERO-ION-BATTERY.h" //See this file for more triplet battery settings
 #endif

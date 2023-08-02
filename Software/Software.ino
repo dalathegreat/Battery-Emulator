@@ -2,6 +2,7 @@
 #define BATTERY_TYPE_LEAF         // See NISSAN-LEAF-BATTERY.h for more LEAF battery settings
 //#define TESLA_MODEL_3_BATTERY   // See TESLA-MODEL-3-BATTERY.h for more Tesla battery settings
 //#define RENAULT_ZOE_BATTERY     // See RENAULT-ZOE-BATTERY.h for more Zoe battery settings
+//#define BMW_I3_BATTERY          // See BMW-I3-BATTERY.h for more i3 battery settings
 //#define IMIEV_ION_CZERO_BATTERY // See IMIEV-CZERO-ION-BATTERY.h for more triplet battery settings
 //#define KIA_HYUNDAI_64_BATTERY  // See KIA-HYUNDAI-64-BATTERY.h for more battery settings
 //#define CHADEMO                 // See CHADEMO.h for more Chademo related settings
@@ -170,7 +171,10 @@ void setup()
   #endif 
   #ifdef RENAULT_ZOE_BATTERY
   Serial.println("Renault Zoe / Kangoo battery selected");
-  #endif 
+  #endif
+  #ifdef BMW_I3_BATTERY
+  Serial.println("BMW i3 battery selected");
+  #endif
   #ifdef IMIEV_ION_CZERO_BATTERY
   Serial.println("Mitsubishi i-MiEV / Citroen C-Zero / Peugeot Ion battery selected");
   #endif
@@ -216,6 +220,9 @@ void handle_can()
       #ifdef RENAULT_ZOE_BATTERY
       receive_can_zoe_battery(rx_frame);
       #endif
+      #ifdef BMW_I3_BATTERY
+      receive_can_i3_battery(rx_frame);
+      #endif
       #ifdef IMIEV_ION_CZERO_BATTERY
       receive_can_imiev_battery(rx_frame);
       #endif
@@ -259,6 +266,9 @@ void handle_can()
   #ifdef RENAULT_ZOE_BATTERY
   send_can_zoe_battery();
   #endif
+  #ifdef BMW_I3_BATTERY
+  send_can_i3_battery();
+  #endif
   #ifdef IMIEV_ION_CZERO_BATTERY
   send_can_imiev_battery();
   #endif
@@ -280,6 +290,9 @@ void handle_inverter()
     #endif
     #ifdef RENAULT_ZOE_BATTERY
     update_values_zoe_battery(); //Map the values to the correct registers
+    #endif
+    #ifdef BMW_I3_BATTERY
+    update_values_i3_battery(); //Map the values to the correct registers
     #endif
     #ifdef IMIEV_ION_CZERO_BATTERY
     update_values_imiev_battery(); //Map the values to the correct registers
