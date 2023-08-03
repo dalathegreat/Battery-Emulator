@@ -112,12 +112,10 @@ void update_values_leaf_battery()
 
   //Calculate the SOC% value to send to Fronius
   LB_SOC = LB_MIN_SOC + (LB_MAX_SOC - LB_MIN_SOC) * (LB_SOC - MINPERCENTAGE) / (MAXPERCENTAGE - MINPERCENTAGE); 
-  if (LB_SOC < 0)
-  { //We are in the real SOC% range of 0-20%, always set SOC sent to Fronius as 0%
+  if (LB_SOC < 0){ //We are in the real SOC% range of 0-20%, always set SOC sent to Fronius as 0%
       LB_SOC = 0;
   }
-  if (LB_SOC > 1000)
-  { //We are in the real SOC% range of 80-100%, always set SOC sent to Fronius as 100%
+  if (LB_SOC > 1000){ //We are in the real SOC% range of 80-100%, always set SOC sent to Fronius as 100%
       LB_SOC = 1000;
   }
   SOC = (LB_SOC * 10); //increase LB_SOC range from 0-100.0 -> 100.00
@@ -131,30 +129,24 @@ void update_values_leaf_battery()
 	remaining_capacity_Wh = LB_Wh_Remaining;
 
   /* Define power able to be discharged from battery */
-  if(LB_Discharge_Power_Limit > 30) //if >30kW can be pulled from battery
-  {
+  if(LB_Discharge_Power_Limit > 30) { //if >30kW can be pulled from battery
     max_target_discharge_power = 30000; //cap value so we don't go over the Fronius limits
   }
-  else
-  {
+  else{
     max_target_discharge_power = (LB_Discharge_Power_Limit * 1000); //kW to W
   }
-  if(SOC == 0) //Scaled SOC% value is 0.00%, we should not discharge battery further
-  {
+  if(SOC == 0){ //Scaled SOC% value is 0.00%, we should not discharge battery further
     max_target_discharge_power = 0;
   }
 	
   /* Define power able to be put into the battery */
-  if(LB_Charge_Power_Limit > 30) //if >30kW can be put into the battery
-  {
+  if(LB_Charge_Power_Limit > 30){ //if >30kW can be put into the battery
     max_target_charge_power = 30000; //cap value so we don't go over the Fronius limits
   }
-  if(LB_Charge_Power_Limit < 0) //LB_MAX_POWER_FOR_CHARGER can actually go to -10kW
-  {
+  if(LB_Charge_Power_Limit < 0){ //LB_MAX_POWER_FOR_CHARGER can actually go to -10kW
     max_target_charge_power = 0; //cap calue so we dont do under the Fronius limits
   }
-  else
-  {
+  else{
     max_target_charge_power = (LB_Charge_Power_Limit * 1000); //kW to W
   }
   if(SOC == 10000) //Scaled SOC% value is 100.00%
@@ -343,14 +335,12 @@ void receive_can_leaf_battery(CAN_frame_t rx_frame)
   switch (rx_frame.MsgID)
   {
   case 0x1DB:
-    if(is_message_corrupt(rx_frame))
-    {
+    if(is_message_corrupt(rx_frame)){
       CANerror++;
       break; //Message content malformed, abort reading data from it
     }
     LB_Current = (rx_frame.data.u8[0] << 3) | (rx_frame.data.u8[1] & 0xe0) >> 5;
-    if (LB_Current & 0x0400)
-    {
+    if (LB_Current & 0x0400){
       // negative so extend the sign bit
       LB_Current |= 0xf800;
     }
@@ -361,20 +351,17 @@ void receive_can_leaf_battery(CAN_frame_t rx_frame)
     LB_Relay_Cut_Request = ((rx_frame.data.u8[1] & 0x18) >> 3);
     LB_Failsafe_Status = (rx_frame.data.u8[1] & 0x07);
     LB_MainRelayOn_flag = (byte) ((rx_frame.data.u8[3] & 0x20) >> 5);
-    if(LB_MainRelayOn_flag)
-    {
+    if(LB_MainRelayOn_flag){
       batteryAllowsContactorClosing = 1;
     }
-    else
-    {
+    else{
       batteryAllowsContactorClosing = 0;
     }
     LB_Full_CHARGE_flag = (byte) ((rx_frame.data.u8[3] & 0x10) >> 4);
     LB_Interlock = (byte) ((rx_frame.data.u8[3] & 0x08) >> 3);
     break;
   case 0x1DC:
-    if(is_message_corrupt(rx_frame))
-    {
+    if(is_message_corrupt(rx_frame)){
       CANerror++;
       break; //Message content malformed, abort reading data from it
     }
@@ -383,14 +370,12 @@ void receive_can_leaf_battery(CAN_frame_t rx_frame)
     LB_MAX_POWER_FOR_CHARGER = ((((rx_frame.data.u8[2] & 0x0F) << 6 | rx_frame.data.u8[3] >> 2) / 10.0) - 10);
     break;
   case 0x55B:
-    if(is_message_corrupt(rx_frame))
-    {
+    if(is_message_corrupt(rx_frame)){
       CANerror++;
       break; //Message content malformed, abort reading data from it
     }
     LB_TEMP = (rx_frame.data.u8[0] << 2 | rx_frame.data.u8[1] >> 6);
-    if (LB_TEMP != 0x3ff) //3FF is unavailable value
-    {
+    if (LB_TEMP != 0x3ff) { //3FF is unavailable value
       LB_SOC = LB_TEMP;
     }
     break;
@@ -398,45 +383,35 @@ void receive_can_leaf_battery(CAN_frame_t rx_frame)
     CANstillAlive = 12; //Indicate that we are still getting CAN messages from the BMS
 
     LB_MAX = ((rx_frame.data.u8[5] & 0x10) >> 4);
-    if (LB_MAX)
-    {
+    if (LB_MAX){
       LB_Max_GIDS = (rx_frame.data.u8[0] << 2) | ((rx_frame.data.u8[1] & 0xC0) >> 6);
       //Max gids active, do nothing
       //Only the 30/40/62kWh packs have this mux
     }
-    else
-    {
-      //Normal current GIDS value is transmitted
+    else{ //Normal current GIDS value is transmitted
       LB_GIDS = (rx_frame.data.u8[0] << 2) | ((rx_frame.data.u8[1] & 0xC0) >> 6);
       LB_Wh_Remaining = (LB_GIDS * WH_PER_GID);
     }
 
     LB_TEMP = (rx_frame.data.u8[4] >> 1);
-    if (LB_TEMP != 0)
-    {
+    if (LB_TEMP != 0){
       LB_StateOfHealth = LB_TEMP; //Collect state of health from battery
     }
     break;
   case 0x5C0: //This method only works for 2013-2017 AZE0 LEAF packs, the mux is different on other generations
-    if(LEAF_Battery_Type == AZE0_BATTERY)
-    {
-      if ((rx_frame.data.u8[0]>>6) == 1)
-      { // Battery MAX temperature. Effectively has only 7-bit precision, as the bottom bit is always 0.
+    if(LEAF_Battery_Type == AZE0_BATTERY){
+      if ((rx_frame.data.u8[0]>>6) == 1){ // Battery MAX temperature. Effectively has only 7-bit precision, as the bottom bit is always 0.
         LB_HistData_Temperature_MAX = ((rx_frame.data.u8[2] / 2) - 40);
       }
-      if ((rx_frame.data.u8[0]>>6) == 3)
-      { // Battery MIN temperature. Effectively has only 7-bit precision, as the bottom bit is always 0.
+      if ((rx_frame.data.u8[0]>>6) == 3){ // Battery MIN temperature. Effectively has only 7-bit precision, as the bottom bit is always 0.
         LB_HistData_Temperature_MIN = ((rx_frame.data.u8[2] / 2) - 40);
       }
     }
-    if(LEAF_Battery_Type == ZE1_BATTERY)
-    { //note different mux location in first frame
-      if ((rx_frame.data.u8[0] & 0x0F) == 1) 
-      {
+    if(LEAF_Battery_Type == ZE1_BATTERY){ //note different mux location in first frame
+      if ((rx_frame.data.u8[0] & 0x0F) == 1) {
         LB_HistData_Temperature_MAX = ((rx_frame.data.u8[2] / 2) - 40);
       }
-      if ((rx_frame.data.u8[0] & 0x0F) == 3) 
-      {
+      if ((rx_frame.data.u8[0] & 0x0F) == 3) {
         LB_HistData_Temperature_MIN = ((rx_frame.data.u8[2] / 2) - 40);
       }
     }
@@ -444,8 +419,7 @@ void receive_can_leaf_battery(CAN_frame_t rx_frame)
   case 0x59E:
     //AZE0 2013-2017 or ZE1 2018-2023 battery detected
     //Only detect as AZE0 if not already set as ZE1
-    if(LEAF_Battery_Type != ZE1_BATTERY)
-    {
+    if(LEAF_Battery_Type != ZE1_BATTERY){
       LEAF_Battery_Type = AZE0_BATTERY;
     }
     break;
@@ -547,8 +521,7 @@ void receive_can_leaf_battery(CAN_frame_t rx_frame)
       }
     }
 
-    if(group_7bb == 4) //Temperatures
-    {
+    if(group_7bb == 4) { //Temperatures
       if (rx_frame.data.u8[0] == 0x10) { //First message
         temp_raw_1 = (rx_frame.data.u8[4] << 8) | rx_frame.data.u8[5];
         temp_raw_2_highnibble = rx_frame.data.u8[7];
@@ -561,57 +534,45 @@ void receive_can_leaf_battery(CAN_frame_t rx_frame)
       if (rx_frame.data.u8[0] == 0x22) { //Third message
         //All values read, let's figure out the min/max!
 
-        if(temp_raw_3 == 65535)
-        { //We are on a 2013+ pack that only has three temp sensors. 
+        if(temp_raw_3 == 65535){ //We are on a 2013+ pack that only has three temp sensors. 
           //Start with finding max value
           temp_raw_max = temp_raw_1;
-          if(temp_raw_2 > temp_raw_max)
-          {
+          if(temp_raw_2 > temp_raw_max){
             temp_raw_max = temp_raw_2;
           }
-          if(temp_raw_4 > temp_raw_max)
-          {
+          if(temp_raw_4 > temp_raw_max){
             temp_raw_max = temp_raw_4;
           }
           //Then find min
           temp_raw_min = temp_raw_1;
-          if(temp_raw_2 < temp_raw_min)
-          {
+          if(temp_raw_2 < temp_raw_min){
             temp_raw_min = temp_raw_2;
           }
-          if(temp_raw_4 < temp_raw_min)
-          {
+          if(temp_raw_4 < temp_raw_min){
             temp_raw_min = temp_raw_4;
           }
         }
-        else
-        { //All 4 temp sensors available on 2011-2012
+        else{ //All 4 temp sensors available on 2011-2012
           //Start with finding max value
           temp_raw_max = temp_raw_1;
-          if(temp_raw_2 > temp_raw_max)
-          {
+          if(temp_raw_2 > temp_raw_max){
             temp_raw_max = temp_raw_2;
           }
-          if(temp_raw_3 > temp_raw_max)
-          {
+          if(temp_raw_3 > temp_raw_max){
             temp_raw_max = temp_raw_3;
           }
-          if(temp_raw_4 > temp_raw_max)
-          {
+          if(temp_raw_4 > temp_raw_max){
             temp_raw_max = temp_raw_4;
           }
           //Then find min
           temp_raw_min = temp_raw_1;
-          if(temp_raw_2 < temp_raw_min)
-          {
+          if(temp_raw_2 < temp_raw_min){
             temp_raw_min = temp_raw_2;
           }
-          if(temp_raw_3 < temp_raw_min)
-          {
+          if(temp_raw_3 < temp_raw_min){
             temp_raw_min = temp_raw_2;
           }
-          if(temp_raw_4 < temp_raw_min)
-          {
+          if(temp_raw_4 < temp_raw_min){
             temp_raw_min = temp_raw_4;
           }
         }
@@ -634,31 +595,26 @@ void send_can_leaf_battery()
     ESP32Can.CANWriteFrame(&LEAF_50B); //Always send 50B as a static message (Contains HCM_WakeUpSleepCommand == 11b == WakeUp, and CANMASK = 1)
 
 		mprun100++;
-		if (mprun100 > 3)
-		{
+		if (mprun100 > 3){
 			mprun100 = 0;
 		}
 
-		if (mprun100 == 0)
-		{
+		if (mprun100 == 0){
 			LEAF_50C.data.u8[3] = 0x00;
 			LEAF_50C.data.u8[4] = 0x5D;
 			LEAF_50C.data.u8[5] = 0xC8;
 		}
-		else if(mprun100 == 1)
-		{
+		else if(mprun100 == 1){
 			LEAF_50C.data.u8[3] = 0x01;
 			LEAF_50C.data.u8[4] = 0xB2;
 			LEAF_50C.data.u8[5] = 0x31;
 		}
-		else if(mprun100 == 2)
-		{
+		else if(mprun100 == 2){
 			LEAF_50C.data.u8[3] = 0x02;
 			LEAF_50C.data.u8[4] = 0x5D;
 			LEAF_50C.data.u8[5] = 0x63;
 		}
-		else if(mprun100 == 3)
-		{
+		else if(mprun100 == 3){
 			LEAF_50C.data.u8[3] = 0x03;
 			LEAF_50C.data.u8[4] = 0xB2;
 			LEAF_50C.data.u8[5] = 0x9A;
@@ -670,31 +626,26 @@ void send_can_leaf_battery()
 	{ 
 		previousMillis10 = currentMillis;
 
-    if(mprun10 == 0)
-    {
+    if(mprun10 == 0){
       LEAF_1D4.data.u8[4] = 0x07;
       LEAF_1D4.data.u8[7] = 0x12;
     }
-    else if(mprun10 == 1)
-    {
+    else if(mprun10 == 1){
       LEAF_1D4.data.u8[4] = 0x47;
       LEAF_1D4.data.u8[7] = 0xD5;
     }
-    else if(mprun10 == 2)
-    {
+    else if(mprun10 == 2){
       LEAF_1D4.data.u8[4] = 0x87;
       LEAF_1D4.data.u8[7] = 0x19;
     }
-    else if(mprun10 == 3)
-    {
+    else if(mprun10 == 3){
       LEAF_1D4.data.u8[4] = 0xC7;
       LEAF_1D4.data.u8[7] = 0xDE;
     }
     ESP32Can.CANWriteFrame(&LEAF_1D4); 
 
 		mprun10++;
-		if (mprun10 > 3)
-		{
+		if (mprun10 > 3){
 			mprun10 = 0;
 		}
 
@@ -807,11 +758,9 @@ void send_can_leaf_battery()
     ESP32Can.CANWriteFrame(&LEAF_1F2); //Contains (CHG_STA_RQ == 1 == Normal Charge)
 
     mprun10r++;
-    if(mprun10r > 19)	// 0x1F2 patter repeats after 20 messages,
-    {
+    if(mprun10r > 19){ // 0x1F2 patter repeats after 20 messages,
     mprun10r = 0;
     }
-		//Serial.println("CAN 10ms done");
 	}
   //Send 10s CAN messages
   if (currentMillis - previousMillis10s >= interval10s)
@@ -819,11 +768,14 @@ void send_can_leaf_battery()
     previousMillis10s = currentMillis;
 
     //Every 10s, ask diagnostic data from the battery. Don't ask if someone is already polling on the bus (Leafspy?)
-    if(!stop_battery_query)
-    {
-      group++; //Cycle between group 1-4
-      if (group > 4)
-      {
+    if(!stop_battery_query){
+      if (group == 1){ // Cycle between group 1, 2, and 4 using bit manipulation
+        group = 2;
+      }
+      else if (group == 2){
+        group = 4;
+      }
+      else if (group == 4){
         group = 1;
       }
       LEAF_GROUP_REQUEST.data.u8[2] = group;
@@ -835,12 +787,10 @@ void send_can_leaf_battery()
 
 uint16_t convert2unsignedint16(uint16_t signed_value)
 {
-	if(signed_value < 0)
-	{
+	if(signed_value < 0){
 		return(65535 + signed_value);
 	}
-	else
-	{
+	else{
 		return signed_value;
 	}
 }
@@ -848,8 +798,7 @@ uint16_t convert2unsignedint16(uint16_t signed_value)
 bool is_message_corrupt(CAN_frame_t rx_frame)
 {
   uint8_t crc = 0;
-  for (uint8_t j = 0; j < 7; j++)
-  {
+  for (uint8_t j = 0; j < 7; j++){
       crc = crctable[(crc ^ static_cast<uint8_t>(rx_frame.data.u8[j])) % 256];
   }
   return crc != rx_frame.data.u8[7];
