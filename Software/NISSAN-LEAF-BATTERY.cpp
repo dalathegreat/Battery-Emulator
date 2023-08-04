@@ -83,7 +83,7 @@ static byte LB_Capacity_Empty = 0; //LB_EMPTY, , Goes to 1 if battery is empty
 // Nissan LEAF battery data from polled CAN messages
 static uint8_t battery_request_idx	= 0;
 static uint8_t group_7bb = 0;
-static uint8_t group = 0;
+static uint8_t group = 1;
 static uint8_t stop_battery_query	= 0;
 static uint16_t	cell_voltages[97]; //array with all the cellvoltages
 static uint16_t	cellcounter	= 0; 
