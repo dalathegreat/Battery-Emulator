@@ -9,8 +9,8 @@ static unsigned long previousMillis10s = 0; // will store last time a 1s CAN Mes
 static const int interval10 = 10; // interval (ms) at which send CAN Messages
 static const int interval100 = 100; // interval (ms) at which send CAN Messages
 static const int interval10s = 10000; // interval (ms) at which send CAN Messages
-const int rx_queue_size = 10; // Receive Queue size
 uint16_t CANerror = 0; //counter on how many CAN errors encountered
+#define MAX_CAN_FAILURES 5000 //Amount of malformed CAN messages to allow before raising a warning
 static uint8_t CANstillAlive = 12; //counter for checking if CAN is still alive 
 static uint8_t errorCode = 0; //stores if we have an error code active from battery control logic
 static uint8_t mprun10r = 0; //counter 0-20 for 0x1F2 message
@@ -48,6 +48,7 @@ static uint8_t	crctable[256] = {0,133,143,10,155,30,20,145,179,54,60,185,40,173,
 static uint8_t LEAF_Battery_Type = ZE0_BATTERY;
 #define MAX_CELL_VOLTAGE 4250 //Battery is put into emergency stop if one cell goes over this value
 #define MIN_CELL_VOLTAGE 2700 //Battery is put into emergency stop if one cell goes below this value
+#define MAX_CELL_DEVIATION 500 //LED turns yellow on the board if mv delta exceeds this value
 #define WH_PER_GID 77   //One GID is this amount of Watt hours
 #define LB_MAX_SOC 1000  //LEAF BMS never goes over this value. We use this info to rescale SOC% sent to Fronius
 #define LB_MIN_SOC 0   //LEAF BMS never goes below this value. We use this info to rescale SOC% sent to Fronius
@@ -105,8 +106,10 @@ static int16_t temp_polled_min = 0;
 
 
 void update_values_leaf_battery()
-{ //This function maps all the values fetched via CAN to the correct parameters used for modbus
+{ /* This function maps all the values fetched via CAN to the correct parameters used for modbus */
   bms_status = ACTIVE; //Startout in active mode
+
+  /* Start with mapping all values */
   
   StateOfHealth = (LB_StateOfHealth * 100); //Increase range from 99% -> 99.00%
 
@@ -128,7 +131,24 @@ void update_values_leaf_battery()
 
 	remaining_capacity_Wh = LB_Wh_Remaining;
 
-  /* Define power able to be discharged from battery */
+  LB_Power = LB_Total_Voltage * LB_Current;//P = U * I
+  stat_batt_power = convert2unsignedint16(LB_Power); //add sign if needed
+
+  //Update temperature readings
+  if(temp_raw_max != 0)
+  { //We have a polled value available, this is the best method that works on all LEAF batteries
+    temp_polled_min = (temp_raw_min - 360);
+    temp_polled_max = (temp_raw_max - 360);
+    temperature_min = convert2unsignedint16((temp_polled_min)); //add sign if needed
+	  temperature_max = convert2unsignedint16((temp_polled_max));
+  }
+  else
+  { //Use the less accurate value sent constantly via CAN (only available on 2013-2017)
+    temperature_min = convert2unsignedint16((LB_HistData_Temperature_MIN * 10)); //add sign if needed and increase range
+	  temperature_max = convert2unsignedint16((LB_HistData_Temperature_MAX * 10));
+  }
+
+  // Define power able to be discharged from battery
   if(LB_Discharge_Power_Limit > 30) { //if >30kW can be pulled from battery
     max_target_discharge_power = 30000; //cap value so we don't go over the Fronius limits
   }
@@ -139,7 +159,7 @@ void update_values_leaf_battery()
     max_target_discharge_power = 0;
   }
 	
-  /* Define power able to be put into the battery */
+  // Define power able to be put into the battery
   if(LB_Charge_Power_Limit > 30){ //if >30kW can be put into the battery
     max_target_charge_power = 30000; //cap value so we don't go over the Fronius limits
   }
@@ -154,7 +174,7 @@ void update_values_leaf_battery()
     max_target_charge_power = 0; //No need to charge further, set max power to 0
   }
 
-  /*Extra safeguards*/
+  /*Extra safety functions below*/
   if(LB_GIDS < 10) //800Wh left in battery
   { //Battery is running abnormally low, some discharge logic might have failed. Zero it all out.
     SOC = 0;
@@ -253,27 +273,14 @@ void update_values_leaf_battery()
   {
     CANstillAlive--;
   }
-	
-  LB_Power = LB_Total_Voltage * LB_Current;//P = U * I
-  stat_batt_power = convert2unsignedint16(LB_Power); //add sign if needed
-
-  //Update temperature readings
-  if(temp_raw_max != 0)
-  { //We have a polled value available, this is the best method that works on all LEAF batteries
-    temp_polled_min = (temp_raw_min - 360);
-    temp_polled_max = (temp_raw_max - 360);
-    temperature_min = convert2unsignedint16((temp_polled_min)); //add sign if needed
-	  temperature_max = convert2unsignedint16((temp_polled_max));
-  }
-  else
-  { //Use the less accurate value sent constantly via CAN (only available on 2013-2017)
-    temperature_min = convert2unsignedint16((LB_HistData_Temperature_MIN * 10)); //add sign if needed and increase range
-	  temperature_max = convert2unsignedint16((LB_HistData_Temperature_MAX * 10));
+  if(CANerror > MAX_CAN_FAILURES) //Also check if we have recieved too many malformed CAN messages. If so, signal via LED
+  {
+    LEDcolor = YELLOW;
   }
 
-
+  /*Finally print out values to serial if configured to do so*/
   if(printValues)
-  {  //values heading towards the modbus registers
+  {  
     if(errorCode > 0)
       {
         Serial.print("ERROR CODE ACTIVE IN SYSTEM. NUMBER: ");
@@ -494,6 +501,11 @@ void receive_can_leaf_battery(CAN_frame_t rx_frame)
         }					
 
         cell_deviation_mV = (min_max_voltage[1] - min_max_voltage[0]);
+
+        if(cell_deviation_mV > MAX_CELL_DEVIATION){
+          LEDcolor = YELLOW;
+          Serial.println("HIGH CELL DEVIATION!!! Inspect battery!");
+        }
         
         if(min_max_voltage[1] >= MAX_CELL_VOLTAGE){ 
           bms_status = FAULT;

@@ -26,7 +26,6 @@
 #include "BATTERIES.h"
 #include "INVERTERS.h"
 //CAN parameters
-#define MAX_CAN_FAILURES 5000 //Amount of malformed CAN messages to allow before raising a warning
 CAN_device_t CAN_cfg; // CAN Config
 const int rx_queue_size = 10; // Receive Queue size
 
@@ -76,10 +75,14 @@ uint16_t stat_batt_power = 0; //power going in/out of battery
 ModbusServerRTU MBserver(Serial2, 2000);
 
 // LED control
+#define GREEN 0
+#define YELLOW 1
+#define RED 2
 Adafruit_NeoPixel pixels(1, WS2812_PIN, NEO_GRB + NEO_KHZ800);
-static int green = 0;
+static uint8_t brightness = 0;
 static bool rampUp = true;
-const int maxBrightness = 255;
+const uint8_t maxBrightness = 255;
+uint8_t LEDcolor = GREEN;
 
 //Contactor parameters
 enum State {
@@ -444,29 +447,35 @@ void handle_update_data_modbusp301() {
 
 void handle_LED_state()
 {
-  // Determine how bright the green LED should be
-  if (rampUp && green < maxBrightness)
-  {
-    green++;
+  // Determine how bright the LED should be
+  if (rampUp && brightness < maxBrightness){
+    brightness++;
   } 
-  else if (rampUp && green == maxBrightness)
-  {
+  else if (rampUp && brightness == maxBrightness){
     rampUp = false;
   } 
-  else if (!rampUp && green > 0)
-  {
-    green--;
-  } else if (!rampUp && green == 0)
-  {
+  else if (!rampUp && brightness > 0){
+    brightness--;
+  } 
+  else if (!rampUp && brightness == 0){
     rampUp = true;
   }
-  pixels.setPixelColor(0, pixels.Color(0, green, 0)); // Set LED to green according to calculated value
-
-  if(CANerror > MAX_CAN_FAILURES)
+  switch (LEDcolor)
   {
-    pixels.setPixelColor(0, pixels.Color(255, 255, 0)); // Yellow LED full brightness
+    case GREEN:
+    pixels.setPixelColor(0, pixels.Color(0, brightness, 0)); // Green pulsing LED
+    break;
+    case YELLOW:
+    pixels.setPixelColor(0, pixels.Color(brightness, brightness, 0)); // Yellow pulsing LED
+    break;
+    case RED:
+    pixels.setPixelColor(0, pixels.Color(255, 0, 0)); // Red LED full brightness
+    break;
+    default:
+    break;
   }
 
+  //BMS in fault state overrides everything
   if(bms_status == FAULT)
   {
     pixels.setPixelColor(0, pixels.Color(255, 0, 0)); // Red LED full brightness
