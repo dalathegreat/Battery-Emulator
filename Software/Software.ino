@@ -102,6 +102,7 @@ unsigned long prechargeStartTime = 0;
 unsigned long negativeStartTime = 0;
 unsigned long timeSpentInFaultedMode = 0;
 uint8_t batteryAllowsContactorClosing = 0;
+uint8_t inverterAllowsContactorClosing = 1; //Startup with always allowing closing from inverter side. Only a few inverters disallow it
 
 // Setup() - initialization happens here
 void setup()
@@ -163,6 +164,17 @@ void setup()
   pixels.setPixelColor(0, pixels.Color(0, 0, 255)); // Blue LED full brightness while battery and CAN is starting. 
   pixels.show();                                    // Incase of crash due to CAN polarity / termination, LED will remain BLUE
 
+  //Inverter Setup
+  #ifdef SOLAX_CAN
+  inverterAllowsContactorClosing = 0; //The inverter needs to allow first!
+  Serial.println("SOLAX CAN protocol selected");
+  #endif
+  #ifdef MODBUS_BYD
+  Serial.println("BYD Modbus RTU protocol selected");
+  #endif
+  #ifdef CAN_BYD
+  Serial.println("BYD CAN protocol selected");
+  #endif
   //Inform user what setup is used
   #ifdef BATTERY_TYPE_LEAF
   Serial.println("Nissan LEAF battery selected");
@@ -317,7 +329,7 @@ void handle_contactors()
   //After that, check if we are OK to start turning on the battery
   if(contactorStatus == WAITING_FOR_BATTERY)
   {
-    if(batteryAllowsContactorClosing)
+    if(batteryAllowsContactorClosing && inverterAllowsContactorClosing)
     {
       contactorStatus = PRECHARGE;
     }
