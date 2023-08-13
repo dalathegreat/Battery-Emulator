@@ -139,21 +139,21 @@ void update_values_leaf_battery()
   if(LEAF_Battery_Type == ZE0_BATTERY){
     //Since we only have average value, send the minimum as -1.0 degrees below average
     temperature_min = convert2unsignedint16((LB_AverageTemperature * 10)-10); //add sign if negative and increase range
-    temperature_max = convert2unsignedint16((LB_AverageTemperature * 10));    //add sign if negative and increase range
+    temperature_max = convert2unsignedint16((LB_AverageTemperature * 10));    
+  }
+  else if(LEAF_Battery_Type == AZE0_BATTERY){
+    //Use the value sent constantly via CAN in 5C0 (only available on AZE0)
+    temperature_min = convert2unsignedint16((LB_HistData_Temperature_MIN * 10)); //add sign if negative and increase range
+    temperature_max = convert2unsignedint16((LB_HistData_Temperature_MAX * 10));
   }
   else
-  { //We are on AZE0 / ZE1
-    if(temp_raw_min != 0) //We have a polled value available, this is the best method that works on all LEAF batteries
+  { // ZE1 (TODO: Once the muxed value in 5C0 becomes known, switch to using that instead of this complicated polled value)
+    if(temp_raw_min != 0) //We have a polled value available
     { 
       temp_polled_min = ((Temp_fromRAW_to_F(temp_raw_min) - 320 ) * 5) / 9; //Convert from F to C
       temp_polled_max = ((Temp_fromRAW_to_F(temp_raw_max) - 320 ) * 5) / 9; //Convert from F to C
       temperature_min = convert2unsignedint16((temp_polled_min)); //add sign if negative
       temperature_max = convert2unsignedint16((temp_polled_max));
-    }
-    else
-    { //Use the less accurate value sent constantly via CAN (only available on AZE0)
-      temperature_min = convert2unsignedint16((LB_HistData_Temperature_MIN * 10)); //add sign if negative and increase range
-      temperature_max = convert2unsignedint16((LB_HistData_Temperature_MAX * 10));
     }
   }
 
@@ -424,14 +424,6 @@ void receive_can_leaf_battery(CAN_frame_t rx_frame)
         LB_HistData_Temperature_MAX = ((rx_frame.data.u8[2] / 2) - 40);
       }
       if ((rx_frame.data.u8[0]>>6) == 3){ // Battery MIN temperature. Effectively has only 7-bit precision, as the bottom bit is always 0.
-        LB_HistData_Temperature_MIN = ((rx_frame.data.u8[2] / 2) - 40);
-      }
-    }
-    if(LEAF_Battery_Type == ZE1_BATTERY){ //note different mux location in first frame
-      if ((rx_frame.data.u8[0] & 0x0F) == 1) {
-        LB_HistData_Temperature_MAX = ((rx_frame.data.u8[2] / 2) - 40);
-      }
-      if ((rx_frame.data.u8[0] & 0x0F) == 3) {
         LB_HistData_Temperature_MIN = ((rx_frame.data.u8[2] / 2) - 40);
       }
     }
