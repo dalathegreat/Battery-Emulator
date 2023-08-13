@@ -135,16 +135,16 @@ void update_values_leaf_battery()
   stat_batt_power = convert2unsignedint16(LB_Power); //add sign if needed
 
   //Update temperature readings
-  if(temp_raw_max != 0)
-  { //We have a polled value available, this is the best method that works on all LEAF batteries
-    temp_polled_min = (temp_raw_min - 360);
-    temp_polled_max = (temp_raw_max - 360);
-    temperature_min = convert2unsignedint16((temp_polled_min)); //add sign if needed
+  if(temp_raw_min != 0) //We have a polled value available, this is the best method that works on all LEAF batteries
+  { 
+    temp_polled_min = ((Temp_fromRAW_to_F(temp_raw_min) - 320 ) * 5) / 9; //Convert from F to C
+    temp_polled_max = ((Temp_fromRAW_to_F(temp_raw_max) - 320 ) * 5) / 9; //Convert from F to C
+    temperature_min = convert2unsignedint16((temp_polled_min)); //add sign if negative
 	  temperature_max = convert2unsignedint16((temp_polled_max));
   }
   else
   { //Use the less accurate value sent constantly via CAN (only available on 2013-2017)
-    temperature_min = convert2unsignedint16((LB_HistData_Temperature_MIN * 10)); //add sign if needed and increase range
+    temperature_min = convert2unsignedint16((LB_HistData_Temperature_MIN * 10)); //add sign if negative and increase range
 	  temperature_max = convert2unsignedint16((LB_HistData_Temperature_MAX * 10));
   }
 
@@ -448,7 +448,7 @@ void receive_can_leaf_battery(CAN_frame_t rx_frame)
     }
 
     if(!stop_battery_query){
-      ESP32Can.CANWriteFrame(&LEAF_NEXT_LINE_REQUEST); //TODO, should this be moved to bottom after each group request is handled? Works as-is atleast :)
+      ESP32Can.CANWriteFrame(&LEAF_NEXT_LINE_REQUEST); //Request the next frame for the group
     }
 
     if(group_7bb == 1) //High precision SOC, Current, voltages etc.
@@ -814,4 +814,36 @@ bool is_message_corrupt(CAN_frame_t rx_frame)
       crc = crctable[(crc ^ static_cast<uint8_t>(rx_frame.data.u8[j])) % 256];
   }
   return crc != rx_frame.data.u8[7];
+}
+
+uint16_t Temp_fromRAW_to_F(uint16_t temperature)
+{ //This function feels horrible, but apparently works well
+  if (temperature == 1021) {
+      return 10;
+  } else if (temperature >= 589) {
+      return static_cast<uint16_t>(1620 - temperature * 1.81);
+  } else if (temperature >= 569) {
+      return static_cast<uint16_t>(572 + (579 - temperature) * 1.80);
+  } else if (temperature >= 558) {
+      return static_cast<uint16_t>(608 + (558 - temperature) * 1.6363636363636364);
+  } else if (temperature >= 548) {
+      return static_cast<uint16_t>(626 + (548 - temperature) * 1.80);
+  } else if (temperature >= 537) {
+      return static_cast<uint16_t>(644 + (537 - temperature) * 1.6363636363636364);
+  } else if (temperature >= 447) {
+      return static_cast<uint16_t>(662 + (527 - temperature) * 1.8);
+  } else if (temperature >= 438) {
+      return static_cast<uint16_t>(824 + (438 - temperature) * 2);
+  } else if (temperature >= 428) {
+      return static_cast<uint16_t>(842 + (428 - temperature) * 1.80);
+  } else if (temperature >= 365) {
+      return static_cast<uint16_t>(860 + (419 - temperature) * 2.0); 
+  } else if (temperature >= 357) {
+      return static_cast<uint16_t>(986 + (357 - temperature) * 2.25);
+  } else if (temperature >= 348) {
+      return static_cast<uint16_t>(1004 + (348 - temperature) * 2); 
+  } else if (temperature >= 316) {
+      return static_cast<uint16_t>(1022 + (340 - temperature) * 2.25); 
+  }
+  return static_cast<uint16_t>(1094 + (309 - temperature) * 2.5714285714285715);
 }

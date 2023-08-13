@@ -43,6 +43,7 @@ void update_values_leaf_battery();
 void receive_can_leaf_battery(CAN_frame_t rx_frame);
 void send_can_leaf_battery();
 uint16_t convert2unsignedint16(uint16_t signed_value);
+uint16_t Temp_fromRAW_to_F(uint16_t temperature);
 bool is_message_corrupt(CAN_frame_t rx_frame);
 
 #endif
