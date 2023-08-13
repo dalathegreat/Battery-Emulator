@@ -28,7 +28,6 @@
 #include "BATTERIES.h"
 #include "INVERTERS.h"
 //CAN parameters
-#define MAX_CAN_FAILURES 5000 //Amount of malformed CAN messages to allow before raising a warning
 CAN_device_t CAN_cfg; // CAN Config
 const int rx_queue_size = 10; // Receive Queue size
 
@@ -78,10 +77,14 @@ uint16_t stat_batt_power = 0; //power going in/out of battery
 ModbusServerRTU MBserver(Serial2, 2000);
 
 // LED control
+#define GREEN 0
+#define YELLOW 1
+#define RED 2
 Adafruit_NeoPixel pixels(1, WS2812_PIN, NEO_GRB + NEO_KHZ800);
-static int green = 0;
+static uint8_t brightness = 0;
 static bool rampUp = true;
-const int maxBrightness = 255;
+const uint8_t maxBrightness = 255;
+uint8_t LEDcolor = GREEN;
 
 //Contactor parameters
 enum State {
@@ -101,6 +104,7 @@ unsigned long prechargeStartTime = 0;
 unsigned long negativeStartTime = 0;
 unsigned long timeSpentInFaultedMode = 0;
 uint8_t batteryAllowsContactorClosing = 0;
+uint8_t inverterAllowsContactorClosing = 1; //Startup with always allowing closing from inverter side. Only a few inverters disallow it
 
 // Setup() - initialization happens here
 void setup()
@@ -162,6 +166,17 @@ void setup()
   pixels.setPixelColor(0, pixels.Color(0, 0, 255)); // Blue LED full brightness while battery and CAN is starting. 
   pixels.show();                                    // Incase of crash due to CAN polarity / termination, LED will remain BLUE
 
+  //Inverter Setup
+  #ifdef SOLAX_CAN
+  inverterAllowsContactorClosing = 0; //The inverter needs to allow first!
+  Serial.println("SOLAX CAN protocol selected");
+  #endif
+  #ifdef MODBUS_BYD
+  Serial.println("BYD Modbus RTU protocol selected");
+  #endif
+  #ifdef CAN_BYD
+  Serial.println("BYD CAN protocol selected");
+  #endif
   //Inform user what setup is used
   #ifdef BATTERY_TYPE_LEAF
   Serial.println("Nissan LEAF battery selected");
@@ -340,7 +355,7 @@ void handle_contactors()
   //After that, check if we are OK to start turning on the battery
   if(contactorStatus == WAITING_FOR_BATTERY)
   {
-    if(batteryAllowsContactorClosing)
+    if(batteryAllowsContactorClosing && inverterAllowsContactorClosing)
     {
       contactorStatus = PRECHARGE;
     }
@@ -470,29 +485,35 @@ void handle_update_data_modbusp301() {
 
 void handle_LED_state()
 {
-  // Determine how bright the green LED should be
-  if (rampUp && green < maxBrightness)
-  {
-    green++;
+  // Determine how bright the LED should be
+  if (rampUp && brightness < maxBrightness){
+    brightness++;
   } 
-  else if (rampUp && green == maxBrightness)
-  {
+  else if (rampUp && brightness == maxBrightness){
     rampUp = false;
   } 
-  else if (!rampUp && green > 0)
-  {
-    green--;
-  } else if (!rampUp && green == 0)
-  {
+  else if (!rampUp && brightness > 0){
+    brightness--;
+  } 
+  else if (!rampUp && brightness == 0){
     rampUp = true;
   }
-  pixels.setPixelColor(0, pixels.Color(0, green, 0)); // Set LED to green according to calculated value
-
-  if(CANerror > MAX_CAN_FAILURES)
+  switch (LEDcolor)
   {
-    pixels.setPixelColor(0, pixels.Color(255, 255, 0)); // Yellow LED full brightness
+    case GREEN:
+    pixels.setPixelColor(0, pixels.Color(0, brightness, 0)); // Green pulsing LED
+    break;
+    case YELLOW:
+    pixels.setPixelColor(0, pixels.Color(brightness, brightness, 0)); // Yellow pulsing LED
+    break;
+    case RED:
+    pixels.setPixelColor(0, pixels.Color(255, 0, 0)); // Red LED full brightness
+    break;
+    default:
+    break;
   }
 
+  //BMS in fault state overrides everything
   if(bms_status == FAULT)
   {
     pixels.setPixelColor(0, pixels.Color(255, 0, 0)); // Red LED full brightness
