@@ -67,6 +67,7 @@ static int16_t LB_Current = 0; //Current in A going in/out of battery
 static int16_t LB_Power = 0; //Watts going in/out of battery
 static int16_t LB_HistData_Temperature_MAX = 6; //-40 to 86*C
 static int16_t LB_HistData_Temperature_MIN = 5; //-40 to 86*C
+static int16_t LB_AverageTemperature = 6; //Only available on ZE0, in celcius, -40 to +55
 static uint8_t LB_Relay_Cut_Request = 0; //LB_FAIL
 static uint8_t LB_Failsafe_Status = 0; //LB_STATUS = 000b = normal start Request
                                             //001b = Main Relay OFF Request
@@ -134,18 +135,26 @@ void update_values_leaf_battery()
   LB_Power = LB_Total_Voltage * LB_Current;//P = U * I
   stat_batt_power = convert2unsignedint16(LB_Power); //add sign if needed
 
-  //Update temperature readings
-  if(temp_raw_min != 0) //We have a polled value available, this is the best method that works on all LEAF batteries
-  { 
-    temp_polled_min = ((Temp_fromRAW_to_F(temp_raw_min) - 320 ) * 5) / 9; //Convert from F to C
-    temp_polled_max = ((Temp_fromRAW_to_F(temp_raw_max) - 320 ) * 5) / 9; //Convert from F to C
-    temperature_min = convert2unsignedint16((temp_polled_min)); //add sign if negative
-	  temperature_max = convert2unsignedint16((temp_polled_max));
+  //Update temperature readings. Method depends on which generation LEAF battery is used
+  if(LEAF_Battery_Type == ZE0_BATTERY){
+    //Since we only have average value, send the minimum as -1.0 degrees below average
+    temperature_min = convert2unsignedint16((LB_AverageTemperature * 10)-10); //add sign if negative and increase range
+    temperature_max = convert2unsignedint16((LB_AverageTemperature * 10));    //add sign if negative and increase range
   }
   else
-  { //Use the less accurate value sent constantly via CAN (only available on 2013-2017)
-    temperature_min = convert2unsignedint16((LB_HistData_Temperature_MIN * 10)); //add sign if negative and increase range
-	  temperature_max = convert2unsignedint16((LB_HistData_Temperature_MAX * 10));
+  { //We are on AZE0 / ZE1
+    if(temp_raw_min != 0) //We have a polled value available, this is the best method that works on all LEAF batteries
+    { 
+      temp_polled_min = ((Temp_fromRAW_to_F(temp_raw_min) - 320 ) * 5) / 9; //Convert from F to C
+      temp_polled_max = ((Temp_fromRAW_to_F(temp_raw_max) - 320 ) * 5) / 9; //Convert from F to C
+      temperature_min = convert2unsignedint16((temp_polled_min)); //add sign if negative
+      temperature_max = convert2unsignedint16((temp_polled_max));
+    }
+    else
+    { //Use the less accurate value sent constantly via CAN (only available on AZE0)
+      temperature_min = convert2unsignedint16((LB_HistData_Temperature_MIN * 10)); //add sign if negative and increase range
+      temperature_max = convert2unsignedint16((LB_HistData_Temperature_MAX * 10));
+    }
   }
 
   // Define power able to be discharged from battery
@@ -398,6 +407,10 @@ void receive_can_leaf_battery(CAN_frame_t rx_frame)
     else{ //Normal current GIDS value is transmitted
       LB_GIDS = (rx_frame.data.u8[0] << 2) | ((rx_frame.data.u8[1] & 0xC0) >> 6);
       LB_Wh_Remaining = (LB_GIDS * WH_PER_GID);
+    }
+
+    if(LEAF_Battery_Type == ZE0_BATTERY){
+      LB_AverageTemperature = (rx_frame.data.u8[3] - 40); //In celcius, -40 to +55
     }
 
     LB_TEMP = (rx_frame.data.u8[4] >> 1);
