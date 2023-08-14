@@ -126,7 +126,7 @@ void update_values_leaf_battery()
 
   battery_voltage = (LB_Total_Voltage*10); //One more decimal needed
 
-  battery_current = LB_Current;
+  battery_current = (LB_Current*10); //One more decimal needed
 
 	capacity_Wh = (LB_Max_GIDS * WH_PER_GID);
 
