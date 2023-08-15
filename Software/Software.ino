@@ -28,19 +28,24 @@ const int rx_queue_size = 10; // Receive Queue size
 const int intervalInverterTask = 800; //Interval at which to refresh modbus registers / inverter values
 const int interval10 = 10; //Interval for 10ms tasks
 unsigned long previousMillis10ms = 50;
+unsigned long previousMillisInverter = 0; 
 
 //ModbusRTU parameters
-unsigned long previousMillisModbus = 0; //will store last time a modbus register refresh
+#ifdef MODBUS_BYD
 #define MB_RTU_NUM_VALUES 30000
 uint16_t mbPV[MB_RTU_NUM_VALUES];          // process variable memory: produced by sensors, etc., cyclic read by PLC via modbus TCP
+// Create a ModbusRTU server instance listening on Serial2 with 2000ms timeout
+ModbusServerRTU MBserver(Serial2, 2000);
+#endif
 
-//Gen24 parameters
+//Inverter states
 #define STANDBY 0
 #define INACTIVE 1
 #define DARKSTART 2
 #define ACTIVE 3
 #define FAULT 4
 #define UPDATING 5
+//Common inverter parameters
 uint16_t capacity_Wh_startup = BATTERY_WH_MAX;
 uint16_t max_power = 40960; //41kW 
 const uint16_t max_voltage = ABSOLUTE_MAX_VOLTAGE; //if higher charging is not possible (goes into forced discharge)
@@ -51,7 +56,6 @@ uint16_t min_volt_solax_can = min_voltage;
 uint16_t max_volt_solax_can = max_voltage;
 uint16_t min_volt_pylon_can = min_voltage;
 uint16_t max_volt_pylon_can = max_voltage;
-
 uint16_t battery_voltage = 3700;
 uint16_t battery_current = 0;
 uint16_t SOC = 5000; //SOC 0-100.00% //Updates later on from CAN
@@ -67,9 +71,6 @@ uint16_t bms_status = ACTIVE; //ACTIVE - [0..5]<>[STANDBY,INACTIVE,DARKSTART,ACT
 uint16_t stat_batt_power = 0; //power going in/out of battery
 uint16_t cell_max_voltage = 3700; //Stores the highest cell voltage value in the system
 uint16_t cell_min_voltage = 3700; //Stores the minimum cell voltage value in the system
-
-// Create a ModbusRTU server instance listening on Serial2 with 2000ms timeout
-ModbusServerRTU MBserver(Serial2, 2000);
 
 // LED control
 #define GREEN 0
@@ -155,28 +156,25 @@ void setup()
   //Set up Modbus RTU Server
   pinMode(RS485_EN_PIN, OUTPUT);
   digitalWrite(RS485_EN_PIN, HIGH);
-
   pinMode(RS485_SE_PIN, OUTPUT);
   digitalWrite(RS485_SE_PIN, HIGH);
-
   pinMode(PIN_5V_EN, OUTPUT);
   digitalWrite(PIN_5V_EN, HIGH);
 
+  #ifdef MODBUS_BYD
   // Init Static data to the RTU Modbus
-  handle_static_data_modbus();
-
+  handle_static_data_modbus_byd();
   // Init Serial2 connected to the RTU Modbus
   RTUutils::prepareHardwareSerial(Serial2);
   Serial2.begin(9600, SERIAL_8N1, RS485_RX_PIN, RS485_TX_PIN);
-
   // Register served function code worker for server
   MBserver.registerWorker(MBTCP_ID, READ_HOLD_REGISTER, &FC03);
   MBserver.registerWorker(MBTCP_ID, WRITE_HOLD_REGISTER, &FC06);
   MBserver.registerWorker(MBTCP_ID, WRITE_MULT_REGISTERS, &FC16);
   MBserver.registerWorker(MBTCP_ID, R_W_MULT_REGISTERS, &FC23);
-
   // Start ModbusRTU background task
   MBserver.begin(Serial2);
+  #endif
 
   // Init LED control
   pixels.begin();
@@ -218,9 +216,9 @@ void loop()
     handle_contactors();  //Take care of startup precharge/contactor closing
   }
 
-	if (millis() - previousMillisModbus >= intervalInverterTask) //every 5s
+	if (millis() - previousMillisInverter >= intervalInverterTask) //every 5s
 	{
-		previousMillisModbus = millis();
+		previousMillisInverter = millis();
     handle_inverter(); //Update values heading towards inverter
 	}
 }
@@ -365,10 +363,12 @@ void handle_inverter()
 	  #ifdef CHADEMO
     update_values_can_chademo();
     #endif
-    
-    //Updata for ModbusRTU Server for GEN24
-    handle_update_data_modbusp201();
-    handle_update_data_modbusp301(); 
+
+    #ifdef MODBUS_BYD
+    //Updata for ModbusRTU Server for BYD
+    handle_update_data_modbusp201_byd();
+    handle_update_data_modbusp301_byd(); 
+    #endif
 }
 
 void handle_contactors()
@@ -447,7 +447,8 @@ void handle_contactors()
   }
 }
 
-void handle_static_data_modbus() {
+#ifdef MODBUS_BYD
+void handle_static_data_modbus_byd() {
   // Store the data into the array
   static uint16_t si_data[] = { 21321, 1 };
   static uint16_t byd_data[] = { 16985, 17408, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 };
@@ -465,7 +466,7 @@ void handle_static_data_modbus() {
   }
 }
 
-void handle_update_data_modbusp201() {
+void handle_update_data_modbusp201_byd() {
   // Store the data into the array
   static uint16_t system_data[13];
   system_data[0] = 0;                                                          // Id.: p201 Value.: 0 Scaled value.: 0 Comment.: Always 0
@@ -485,7 +486,7 @@ void handle_update_data_modbusp201() {
   memcpy(&mbPV[i], system_data, sizeof(system_data));
 }
 
-void handle_update_data_modbusp301() {
+void handle_update_data_modbusp301_byd() {
   // Store the data into the array
   static uint16_t battery_data[24];
   if (battery_current > 0) { //Positive value = Charging
@@ -528,6 +529,7 @@ void handle_update_data_modbusp301() {
   static uint16_t i = 300;
   memcpy(&mbPV[i], battery_data, sizeof(battery_data));
 }
+#endif
 
 void handle_LED_state()
 {
