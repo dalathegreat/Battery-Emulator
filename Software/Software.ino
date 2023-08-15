@@ -1,21 +1,5 @@
-/* Select battery used */
-#define BATTERY_TYPE_LEAF         // See NISSAN-LEAF-BATTERY.h for more LEAF battery settings
-//#define TESLA_MODEL_3_BATTERY   // See TESLA-MODEL-3-BATTERY.h for more Tesla battery settings
-//#define RENAULT_ZOE_BATTERY     // See RENAULT-ZOE-BATTERY.h for more Zoe battery settings
-//#define BMW_I3_BATTERY          // See BMW-I3-BATTERY.h for more i3 battery settings
-//#define IMIEV_ION_CZERO_BATTERY // See IMIEV-CZERO-ION-BATTERY.h for more triplet battery settings
-//#define KIA_HYUNDAI_64_BATTERY  // See KIA-HYUNDAI-64-BATTERY.h for more battery settings
-//#define CHADEMO                 // See CHADEMO.h for more Chademo related settings
-
-/* Select inverter communication protocol. See Wiki for which to use with your inverter: https://github.com/dalathegreat/BYD-Battery-Emulator-For-Gen24/wiki */
-#define MODBUS_BYD      //Enable this line to emulate a "BYD 11kWh HVM battery" over Modbus RTU
-//#define CAN_BYD       //Enable this line to emulate a "BYD Battery-Box Premium HVS" over CAN Bus
-//#define SOLAX_CAN       //Enable this line to emulate a "SolaX Triple Power LFP" over CAN bus
-//#define PYLON_CAN		//Enable this line to emulate a "Pylontech battery" over CAN bus
-
 /* Do not change any code below this line unless you are sure what you are doing */
 /* Only change battery specific settings and limits in their respective .h files */
-
 #include <Arduino.h>
 #include "HardwareSerial.h"
 #include "config.h"
@@ -27,12 +11,21 @@
 #include "Adafruit_NeoPixel.h"
 #include "BATTERIES.h"
 #include "INVERTERS.h"
+
+#ifdef DUAL_CAN
+  #include <ACAN2515.h>
+  static const uint32_t QUARTZ_FREQUENCY = 8UL * 1000UL * 1000UL ; // 8 MHz
+  ACAN2515 can(MCP2515_CS, SPI, MCP2515_INT);
+  static ACAN2515_Buffer16 gBuffer;
+#endif
+
 //CAN parameters
+#define MAX_CAN_FAILURES 5000 //Amount of malformed CAN messages to allow before raising a warning
 CAN_device_t CAN_cfg; // CAN Config
 const int rx_queue_size = 10; // Receive Queue size
 
 //Interval settings
-const int intervalInverterTask = 4800; //Interval at which to refresh modbus registers / inverter values
+const int intervalInverterTask = 800; //Interval at which to refresh modbus registers / inverter values
 const int interval10 = 10; //Interval for 10ms tasks
 unsigned long previousMillis10ms = 50;
 
@@ -72,6 +65,8 @@ uint16_t temperature_min = 60; //reads from battery later
 uint16_t bms_char_dis_status; //0 idle, 1 discharging, 2, charging
 uint16_t bms_status = ACTIVE; //ACTIVE - [0..5]<>[STANDBY,INACTIVE,DARKSTART,ACTIVE,FAULT,UPDATING]
 uint16_t stat_batt_power = 0; //power going in/out of battery
+uint16_t cell_max_voltage = 3700; //Stores the highest cell voltage value in the system
+uint16_t cell_min_voltage = 3700; //Stores the minimum cell voltage value in the system
 
 // Create a ModbusRTU server instance listening on Serial2 with 2000ms timeout
 ModbusServerRTU MBserver(Serial2, 2000);
@@ -83,12 +78,12 @@ ModbusServerRTU MBserver(Serial2, 2000);
 Adafruit_NeoPixel pixels(1, WS2812_PIN, NEO_GRB + NEO_KHZ800);
 static uint8_t brightness = 0;
 static bool rampUp = true;
-const uint8_t maxBrightness = 255;
+const uint8_t maxBrightness = 100;
 uint8_t LEDcolor = GREEN;
 
 //Contactor parameters
 enum State {
-  WAITING_FOR_BATTERY,
+  DISCONNECTED,
   PRECHARGE,
   NEGATIVE,
   POSITIVE,
@@ -96,19 +91,32 @@ enum State {
   COMPLETED,
   SHUTDOWN_REQUESTED
 };
-State contactorStatus = WAITING_FOR_BATTERY;
+State contactorStatus = DISCONNECTED;
+
 #define PRECHARGE_TIME_MS 160
 #define NEGATIVE_CONTACTOR_TIME_MS 1000
 #define POSITIVE_CONTACTOR_TIME_MS 2000
+#define PWM_Freq 20000 // 20 kHz frequency, beyond audible range
+#define PWM_Res 10 // 10 Bit resolution 0 to 1023, maps 'nicely' to 0% 100%
+#define PWM_Hold_Duty 250
+#define POSITIVE_PWM_Ch 0
+#define NEGATIVE_PWM_Ch 1
 unsigned long prechargeStartTime = 0;
 unsigned long negativeStartTime = 0;
 unsigned long timeSpentInFaultedMode = 0;
 uint8_t batteryAllowsContactorClosing = 0;
-uint8_t inverterAllowsContactorClosing = 1; //Startup with always allowing closing from inverter side. Only a few inverters disallow it
+uint8_t inverterAllowsContactorClosing = 0;
 
 // Setup() - initialization happens here
 void setup()
 {
+  // Init Serial monitor
+	Serial.begin(9600);
+	while (!Serial)
+	{
+	}
+	Serial.println("__ OK __");
+
 	//CAN pins
 	pinMode(CAN_SE_PIN, OUTPUT);
 	digitalWrite(CAN_SE_PIN, LOW);
@@ -120,20 +128,29 @@ void setup()
 	ESP32Can.CANInit();
 	Serial.println(CAN_cfg.speed);
 
+  #ifdef DUAL_CAN
+    gBuffer.initWithSize(25);
+    SPI.begin(MCP2515_SCK, MCP2515_MISO, MCP2515_MOSI);
+    Serial.println ("Configure ACAN2515") ;
+    ACAN2515Settings settings (QUARTZ_FREQUENCY, 500UL * 1000UL) ; // CAN bit rate 500 kb/s
+    settings.mRequestedMode = ACAN2515Settings::NormalMode ; // Select loopback mode
+    can.begin (settings, [] { can.isr (); });
+  #endif
+
   //Init contactor pins
-  pinMode(POSITIVE_CONTACTOR_PIN, OUTPUT);
-	digitalWrite(POSITIVE_CONTACTOR_PIN, LOW);
-  pinMode(NEGATIVE_CONTACTOR_PIN, OUTPUT);
-	digitalWrite(NEGATIVE_CONTACTOR_PIN, LOW);
+   
+  ledcAttachPin(POSITIVE_CONTACTOR_PIN, POSITIVE_PWM_Ch); // Attach Positive Contactor Pin to Hardware PWM Channel
+  ledcAttachPin(NEGATIVE_CONTACTOR_PIN, NEGATIVE_PWM_Ch); // Attach Positive Contactor Pin to Hardware PWM Channel
+  
+  ledcSetup(POSITIVE_PWM_Ch, PWM_Freq, PWM_Res); // Setup PWM Channel Frequency and Resolution
+  ledcSetup(NEGATIVE_PWM_Ch, PWM_Freq, PWM_Res); // Setup PWM Channel Frequency and Resolution
+  
+  ledcWrite(POSITIVE_PWM_Ch, 0); // Set Positive PWM to 0%
+  ledcWrite(NEGATIVE_PWM_Ch, 0); // Set Negative PWM to 0%
+
   pinMode(PRECHARGE_PIN, OUTPUT);
 	digitalWrite(PRECHARGE_PIN, LOW);
 
-	// Init Serial monitor
-	Serial.begin(9600);
-	while (!Serial)
-	{
-	}
-	Serial.println("__ OK __");
 
   //Set up Modbus RTU Server
   pinMode(RS485_EN_PIN, OUTPUT);
@@ -166,35 +183,22 @@ void setup()
   pixels.setPixelColor(0, pixels.Color(0, 0, 255)); // Blue LED full brightness while battery and CAN is starting. 
   pixels.show();                                    // Incase of crash due to CAN polarity / termination, LED will remain BLUE
 
-  //Inverter Setup
-  #ifdef SOLAX_CAN
-  inverterAllowsContactorClosing = 0; //The inverter needs to allow first!
-  Serial.println("SOLAX CAN protocol selected");
-  #endif
-  #ifdef MODBUS_BYD
-  Serial.println("BYD Modbus RTU protocol selected");
-  #endif
-  #ifdef CAN_BYD
-  Serial.println("BYD CAN protocol selected");
-  #endif
   //Inform user what setup is used
+  #ifdef DUAL_CAN
+    Serial.println("Dual CAN Bus (ESP32+MCP2515) selected");
+  #endif
+
   #ifdef BATTERY_TYPE_LEAF
   Serial.println("Nissan LEAF battery selected");
-  #endif 
+  #endif
   #ifdef TESLA_MODEL_3_BATTERY
   Serial.println("Tesla Model 3 battery selected");
   #endif 
   #ifdef RENAULT_ZOE_BATTERY
   Serial.println("Renault Zoe / Kangoo battery selected");
-  #endif
-  #ifdef BMW_I3_BATTERY
-  Serial.println("BMW i3 battery selected");
-  #endif
+  #endif 
   #ifdef IMIEV_ION_CZERO_BATTERY
   Serial.println("Mitsubishi i-MiEV / Citroen C-Zero / Peugeot Ion battery selected");
-  #endif
-  #ifdef KIA_HYUNDAI_64_BATTERY
-  Serial.println("Kia Niro / Hyundai Kona 64kWh battery selected");
   #endif
 }
 
@@ -202,6 +206,10 @@ void setup()
 void loop()
 {
   handle_can(); //runs as fast as possible, handle CAN routines
+ 
+  #ifdef DUAL_CAN
+    handle_can2();
+  #endif
   
   if (millis() - previousMillis10ms >= interval10) //every 10ms
 	{ 
@@ -235,14 +243,8 @@ void handle_can()
       #ifdef RENAULT_ZOE_BATTERY
       receive_can_zoe_battery(rx_frame);
       #endif
-      #ifdef BMW_I3_BATTERY
-      receive_can_i3_battery(rx_frame);
-      #endif
       #ifdef IMIEV_ION_CZERO_BATTERY
       receive_can_imiev_battery(rx_frame);
-      #endif
-      #ifdef KIA_HYUNDAI_64_BATTERY
-      receive_can_kiaHyundai_64_battery(rx_frame);
       #endif
       #ifdef CAN_BYD
       receive_can_byd(rx_frame);
@@ -258,9 +260,9 @@ void handle_can()
       #ifdef SOLAX_CAN
       receive_can_solax(rx_frame);
       #endif
-	  #ifdef PYLON_CAN
-	  receive_can_pylon(rx_frame);
-	  #endif
+	    #ifdef PYLON_CAN
+	    receive_can_pylon(rx_frame);
+	    #endif
     }
   }
   //When we are done checking if a CAN message has arrived, we can focus on sending CAN messages
@@ -281,39 +283,75 @@ void handle_can()
   #ifdef RENAULT_ZOE_BATTERY
   send_can_zoe_battery();
   #endif
-  #ifdef BMW_I3_BATTERY
-  send_can_i3_battery();
-  #endif
   #ifdef IMIEV_ION_CZERO_BATTERY
   send_can_imiev_battery();
-  #endif
-  #ifdef KIA_HYUNDAI_64_BATTERY 
-  send_can_kiaHyundai_64_battery();
   #endif
   #ifdef CHADEMO
   send_can_chademo_battery();
   #endif
 }
 
+#ifdef DUAL_CAN
+  void handle_can2()
+{ //This function is similar to handle_can, but just takes care of inverters in the 2nd bus.
+  //Depending on which inverter is selected, we forward this to their respective CAN routines
+  CAN_frame_t rx_frame2; //Struct with ESP32Can library format, compatible with the rest of the program
+  CANMessage MCP2515Frame; //Struct with ACAN2515 library format, needed to use thw MCP2515 library
+  
+  if ( can.available() )
+  {
+    can.receive(MCP2515Frame);
+
+    rx_frame2.MsgID = MCP2515Frame.id;
+    rx_frame2.FIR.B.FF = MCP2515Frame.ext ? CAN_frame_ext : CAN_frame_std;
+    rx_frame2.FIR.B.RTR = MCP2515Frame.rtr ? CAN_RTR : CAN_no_RTR;
+    rx_frame2.FIR.B.DLC = MCP2515Frame.len;
+    for (uint8_t i=0 ; i<MCP2515Frame.len ; i++) {
+          rx_frame2.data.u8[i] = MCP2515Frame.data[i] ;
+        }
+
+    if (rx_frame2.FIR.B.FF == CAN_frame_std)
+    {
+      //Serial.println("New standard frame");
+      #ifdef CAN_BYD
+      receive_can_byd(rx_frame2);
+      #endif
+    }
+    else
+    {
+      //Serial.println("New extended frame");
+      #ifdef SOLAX_CAN
+      receive_can_solax(rx_frame2);
+      #endif
+	    #ifdef PYLON_CAN
+	    receive_can_pylon(rx_frame2);
+	    #endif
+    }
+  }
+  //When we are done checking if a CAN message has arrived, we can focus on sending CAN messages
+  //Inverter sending
+  #ifdef CAN_BYD
+  send_can_byd();
+  #endif
+  #ifdef SOLAX_CAN
+  send_can_solax();
+  #endif
+}
+#endif
+
 void handle_inverter()
 {
 	  #ifdef BATTERY_TYPE_LEAF
     update_values_leaf_battery(); //Map the values to the correct registers
-	  #endif 
+    #endif
     #ifdef TESLA_MODEL_3_BATTERY
     update_values_tesla_model_3_battery(); //Map the values to the correct registers
     #endif
     #ifdef RENAULT_ZOE_BATTERY
     update_values_zoe_battery(); //Map the values to the correct registers
     #endif
-    #ifdef BMW_I3_BATTERY
-    update_values_i3_battery(); //Map the values to the correct registers
-    #endif
     #ifdef IMIEV_ION_CZERO_BATTERY
     update_values_imiev_battery(); //Map the values to the correct registers
-    #endif
-    #ifdef KIA_HYUNDAI_64_BATTERY
-    update_values_kiaHyundai_64_battery(); //Map the values to the correct registers
     #endif
     #ifdef SOLAX_CAN
     update_values_can_solax();
@@ -335,12 +373,12 @@ void handle_inverter()
 
 void handle_contactors()
 {
-  //First check if we have any active errors, incase we do, turn off the battery after 15 seconds
+  //First check if we have any active errors, incase we do, turn off the battery after 5 seconds
   if(bms_status == FAULT)
   {
     timeSpentInFaultedMode++;
   }
-  if(timeSpentInFaultedMode > 1500)
+  if(timeSpentInFaultedMode > 500)
   {
     contactorStatus = SHUTDOWN_REQUESTED;
   }
@@ -353,8 +391,12 @@ void handle_contactors()
   }
 
   //After that, check if we are OK to start turning on the battery
-  if(contactorStatus == WAITING_FOR_BATTERY)
+  if(contactorStatus == DISCONNECTED)
   {
+    digitalWrite(PRECHARGE_PIN, LOW);
+    ledcWrite(POSITIVE_PWM_Ch, 0);
+    ledcWrite(NEGATIVE_PWM_Ch, 0);
+
     if(batteryAllowsContactorClosing && inverterAllowsContactorClosing)
     {
       contactorStatus = PRECHARGE;
@@ -362,7 +404,9 @@ void handle_contactors()
   }
 
   if(contactorStatus == COMPLETED)
-  { //Skip running the state machine below if it has already completed
+  {
+    if (!inverterAllowsContactorClosing) contactorStatus = DISCONNECTED;
+    //Skip running the state machine below if it has already completed
     return;
   }
 
@@ -377,7 +421,7 @@ void handle_contactors()
 
     case NEGATIVE:
       if (currentTime - prechargeStartTime >= PRECHARGE_TIME_MS) {
-        digitalWrite(NEGATIVE_CONTACTOR_PIN, HIGH);
+        ledcWrite(NEGATIVE_PWM_Ch, 1023);
         negativeStartTime = currentTime;
         contactorStatus = POSITIVE;
       }
@@ -385,7 +429,7 @@ void handle_contactors()
 
     case POSITIVE:
       if (currentTime - negativeStartTime >= NEGATIVE_CONTACTOR_TIME_MS) {
-        digitalWrite(POSITIVE_CONTACTOR_PIN, HIGH);
+        ledcWrite(POSITIVE_PWM_Ch, 1023);
         contactorStatus = PRECHARGE_OFF;
       }
       break;
@@ -393,6 +437,8 @@ void handle_contactors()
     case PRECHARGE_OFF:
       if (currentTime - negativeStartTime >= POSITIVE_CONTACTOR_TIME_MS) {
         digitalWrite(PRECHARGE_PIN, LOW);
+        ledcWrite(NEGATIVE_PWM_Ch, PWM_Hold_Duty);
+        ledcWrite(POSITIVE_PWM_Ch, PWM_Hold_Duty);
         contactorStatus = COMPLETED;
       }
       break;
