@@ -81,10 +81,12 @@ uint16_t stat_batt_power = 0; //power going in/out of battery
 #define GREEN 0
 #define YELLOW 1
 #define RED 2
+#define BLUE 3
+
 Adafruit_NeoPixel pixels(1, WS2812_PIN, NEO_GRB + NEO_KHZ800);
 static uint8_t brightness = 0;
 static bool rampUp = true;
-const uint8_t maxBrightness = 255;
+const uint8_t maxBrightness = 100;
 uint8_t LEDcolor = GREEN;
 
 //Contactor parameters
@@ -161,8 +163,6 @@ void setup()
 
   // Init LED control
   pixels.begin();
-  pixels.setPixelColor(0, pixels.Color(0, 0, 255)); // Blue LED full brightness while battery and CAN is starting. 
-  pixels.show();                                    // Incase of crash due to CAN polarity / termination, LED will remain BLUE
 
   //Inverter Setup
   #ifdef SOLAX_CAN
@@ -508,8 +508,11 @@ void handle_LED_state()
     case YELLOW:
     pixels.setPixelColor(0, pixels.Color(brightness, brightness, 0)); // Yellow pulsing LED
     break;
+    case BLUE:
+    pixels.setPixelColor(0, pixels.Color(0, 0, brightness)); //Blue pulsing LED
+    break;
     case RED:
-    pixels.setPixelColor(0, pixels.Color(255, 0, 0)); // Red LED full brightness
+    pixels.setPixelColor(0, pixels.Color(150, 0, 0)); // Red LED full brightness
     break;
     default:
     break;
