@@ -6,8 +6,8 @@
 #define BATTERY_WH_MAX 30000 //Battery size in Wh (Maximum value Fronius accepts is 60000 [60kWh] you can use larger batteries but do set value over 60000
 #define ABSOLUTE_MAX_VOLTAGE 4040 // 404.4V,if battery voltage goes over this, charging is not possible (goes into forced discharge)
 #define ABSOLUTE_MIN_VOLTAGE 3100 // 310.0V if battery voltage goes under this, discharging further is disabled
-#define MAXPERCENTAGE 800 //80.0% , Max percentage the battery will charge to (App will show 100% once this value is reached)
-#define MINPERCENTAGE 200 //20.0% , Min percentage the battery will discharge to (App will show 0% once this value is reached)
+#define MAXPERCENTAGE 960 //96.0% , Max percentage the battery will charge to (App will show 100% once this value is reached) - 96% is the maximum the battery reaches while in the car
+#define MINPERCENTAGE 60 //6.0% , Min percentage the battery will discharge to (App will show 0% once this value is reached) - 6% is the minimum the battery reaches while in the car - turtle mode
 //#define INTERLOCK_REQUIRED //Uncomment this line to skip requiring both high voltage connectors to be seated on the LEAF battery
 static byte printValues = 0; //Should modbus values be printed to serial output? 
 

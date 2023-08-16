@@ -142,12 +142,13 @@ void setup()
 
   //Init contactor pins
    
-  ledcAttachPin(POSITIVE_CONTACTOR_PIN, POSITIVE_PWM_Ch); // Attach Positive Contactor Pin to Hardware PWM Channel
-  ledcAttachPin(NEGATIVE_CONTACTOR_PIN, NEGATIVE_PWM_Ch); // Attach Positive Contactor Pin to Hardware PWM Channel
-  
+ 
   ledcSetup(POSITIVE_PWM_Ch, PWM_Freq, PWM_Res); // Setup PWM Channel Frequency and Resolution
   ledcSetup(NEGATIVE_PWM_Ch, PWM_Freq, PWM_Res); // Setup PWM Channel Frequency and Resolution
-  
+
+  ledcAttachPin(POSITIVE_CONTACTOR_PIN, POSITIVE_PWM_Ch); // Attach Positive Contactor Pin to Hardware PWM Channel
+  ledcAttachPin(NEGATIVE_CONTACTOR_PIN, NEGATIVE_PWM_Ch); // Attach Positive Contactor Pin to Hardware PWM Channel
+
   ledcWrite(POSITIVE_PWM_Ch, 0); // Set Positive PWM to 0%
   ledcWrite(NEGATIVE_PWM_Ch, 0); // Set Negative PWM to 0%
 
