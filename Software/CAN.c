@@ -271,10 +271,7 @@ int CAN_write_frame(const CAN_frame_t *p_frame) {
 	// Write the frame to the controller
 	CAN_write_frame_phy(p_frame);
 
-	// wait for the frame tx to complete
-	xSemaphoreTake(sem_tx_complete, portMAX_DELAY);
-
-	return 0;
+	return xSemaphoreTake(sem_tx_complete, 20) == pdTRUE ? 0 : -1;
 }
 
 int CAN_stop() {
