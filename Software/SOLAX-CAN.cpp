@@ -24,7 +24,7 @@ CAN_frame_t SOLAX_1882 = {.FIR = {.B = {.DLC = 8,.FF = CAN_frame_ext,}},.MsgID =
 CAN_frame_t SOLAX_100A001 = {.FIR = {.B = {.DLC = 0,.FF = CAN_frame_ext,}},.MsgID = 0x100A001,.data = {}};
 
 // __builtin_bswap64 needed to convert to ESP32 little endian format
-// Byte[4] defines the requested con-tactor state: 1 = Closed , 0 = Open
+// Byte[4] defines the requested contactor state: 1 = Closed , 0 = Open
 #define Contactor_Open_Payload  __builtin_bswap64(0x0200010000000000)
 #define Contactor_Close_Payload  __builtin_bswap64(0x0200010001000000) 
 
@@ -48,7 +48,7 @@ void CAN_WriteFrame(CAN_frame_t* tx_frame)
 
 void update_values_can_solax()
 { //This function maps all the values fetched from battery CAN to the correct CAN messages
-  // If not receiveing any communication from the inverter, open contactos and return to announce stage
+  // If not receiveing any communication from the inverter, open contactors and return to battery announce state
   if (millis() - LastFrameTime >= SolaxTimeout)
   {
     inverterAllowsContactorClosing = 0;
