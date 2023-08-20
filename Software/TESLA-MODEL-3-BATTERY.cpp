@@ -136,6 +136,9 @@ void update_values_tesla_model_3_battery()
     {
       Serial.println("Please wait for Pyro Connection check to finish, HV cables successfully seated!");
     }
+	#ifdef HVIL_OMITTED
+	Serial.println("!!! High voltage interlock check skipped. Proceed with caution, limits estimated with no cell monitoring!!!");
+	#endif
 
     Serial.print("Contactor: ");
     Serial.print(contactorText[contactor]); //Display what state the contactor is in
@@ -155,9 +158,9 @@ void update_values_tesla_model_3_battery()
     Serial.println("Battery values: ");
     Serial.print(" Vi SOC: ");
     Serial.print(soc_vi);
-    Serial.print("Battery voltage: ");
+    Serial.print(", Battery voltage: ");
     Serial.print(volts);
-    Serial.print("Battery amps: ");
+    Serial.print(", Battery amps: ");
     Serial.print(amps);
     Serial.print(", Discharge limit battery (kW): ");
     Serial.print(discharge_limit);
@@ -188,9 +191,9 @@ void update_values_tesla_model_3_battery()
 
     Serial.print("HighVoltage Output Pins: ");
     Serial.print(high_voltage);
-    Serial.print("V, Low Voltage:");
+    Serial.print(", V, Low Voltage:");
     Serial.print(low_voltage);
-    Serial.print("V, Current Output:");
+    Serial.print(", V, Current Output:");
     Serial.println(output_current);
 
     Serial.println("Values heading towards inverter: ");
