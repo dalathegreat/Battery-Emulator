@@ -13,65 +13,63 @@ static uint8_t stillAliveCAN = 6; //counter for checking if CAN is still alive
 
 CAN_frame_t TESLA_221_1 = {.FIR = {.B = {.DLC = 8,.FF = CAN_frame_std,}},.MsgID = 0x221,.data = {0x41, 0x11, 0x01, 0x00, 0x00, 0x00, 0x20, 0x96}};
 CAN_frame_t TESLA_221_2 = {.FIR = {.B = {.DLC = 8,.FF = CAN_frame_std,}},.MsgID = 0x221,.data = {0x61, 0x15, 0x01, 0x00, 0x00, 0x00, 0x20, 0xBA}};
-uint8_t alternate221 = 0;
+static uint8_t alternate221 = 0;
 
-uint32_t total_discharge = 0;
-uint32_t total_charge = 0;
-uint16_t volts = 0;   // V
-int16_t amps = 0;    // A
-uint16_t raw_amps = 0; // A
-int16_t max_temp = 6; // C*
-int16_t min_temp = 5; // C*
-uint16_t energy_buffer = 0;
-uint16_t energy_to_charge_complete = 0;
-uint16_t expected_energy_remaining = 0;
-uint8_t full_charge_complete = 0;
-uint16_t ideal_energy_remaining = 0;
-uint16_t nominal_energy_remaining = 0;
-uint16_t nominal_full_pack_energy = 0;
-uint16_t battery_charge_time_remaining = 0; // Minutes
-uint16_t regenerative_limit = 0;
-uint16_t discharge_limit = 0;
-uint16_t max_heat_park = 0;
-uint16_t hvac_max_power = 0;
-float calculated_soc_float = 0;
-uint16_t calculated_soc = 0;
-uint16_t min_voltage = 0;
-uint16_t max_discharge_current = 0;
-uint16_t max_charge_current = 0;
-uint16_t max_voltage = 0;
-uint16_t high_voltage = 0;
-uint16_t low_voltage = 0;
-uint16_t output_current = 0;
-uint16_t soc_min = 0;
-uint16_t soc_max = 0;
-uint16_t soc_vi = 0;
-uint16_t soc_ave = 0;
-uint8_t contactor = 0; //State of contactor
-uint8_t hvil_status = 0;
-uint8_t packContNegativeState = 0;
-uint8_t packContPositiveState = 0;
-uint8_t packContactorSetState = 0;
-uint8_t packCtrsClosingAllowed = 0;
-uint8_t pyroTestInProgress = 0;
-const char* contactorText[] = {"UNKNOWN0","OPEN","CLOSING","BLOCKED","OPENING","CLOSED","UNKNOWN6","WELDED","POS_CL","NEG_CL","UNKNOWN10","UNKNOWN11","UNKNOWN12"};
-const char* contactorState[] = {"SNA","OPEN","PRECHARGE","BLOCKED","PULLED_IN","OPENING","ECONOMIZED","WELDED"};
+static uint32_t total_discharge = 0;
+static uint32_t total_charge = 0;
+static uint16_t volts = 0;   // V
+static int16_t amps = 0;    // A
+static uint16_t raw_amps = 0; // A
+static int16_t max_temp = 6; // C*
+static int16_t min_temp = 5; // C*
+static uint16_t energy_buffer = 0;
+static uint16_t energy_to_charge_complete = 0;
+static uint16_t expected_energy_remaining = 0;
+static uint8_t full_charge_complete = 0;
+static uint16_t ideal_energy_remaining = 0;
+static uint16_t nominal_energy_remaining = 0;
+static uint16_t nominal_full_pack_energy = 0;
+static uint16_t battery_charge_time_remaining = 0; // Minutes
+static uint16_t regenerative_limit = 0;
+static uint16_t discharge_limit = 0;
+static uint16_t max_heat_park = 0;
+static uint16_t hvac_max_power = 0;
+static uint16_t min_voltage = 0;
+static uint16_t max_discharge_current = 0;
+static uint16_t max_charge_current = 0;
+static uint16_t max_voltage = 0;
+static uint16_t high_voltage = 0;
+static uint16_t low_voltage = 0;
+static uint16_t output_current = 0;
+static uint16_t soc_min = 0;
+static uint16_t soc_max = 0;
+static uint16_t soc_vi = 0;
+static uint16_t soc_ave = 0;
+static uint8_t contactor = 0; //State of contactor
+static uint8_t hvil_status = 0;
+static uint8_t packContNegativeState = 0;
+static uint8_t packContPositiveState = 0;
+static uint8_t packContactorSetState = 0;
+static uint8_t packCtrsClosingAllowed = 0;
+static uint8_t pyroTestInProgress = 0;
+static const char* contactorText[] = {"UNKNOWN0","OPEN","CLOSING","BLOCKED","OPENING","CLOSED","UNKNOWN6","WELDED","POS_CL","NEG_CL","UNKNOWN10","UNKNOWN11","UNKNOWN12"};
+static const char* contactorState[] = {"SNA","OPEN","PRECHARGE","BLOCKED","PULLED_IN","OPENING","ECONOMIZED","WELDED"};
 
-#define MAX_SOC 1000  //BMS never goes over this value. We use this info to rescale SOC% sent to Fronius
-#define MIN_SOC 0     //BMS never goes below this value. We use this info to rescale SOC% sent to Fronius
+#define MAX_SOC 1000  //BMS never goes over this value. We use this info to rescale SOC% sent to inverter
+#define MIN_SOC 0     //BMS never goes below this value. We use this info to rescale SOC% sent to inverter
 
 void update_values_tesla_model_3_battery()
 { //This function maps all the values fetched via CAN to the correct parameters used for modbus
 	StateOfHealth = 9900; //Hardcoded to 99%SOH
 
-  //Calculate the SOC% value to send to Fronius
+  //Calculate the SOC% value to send to inverter
   soc_vi = MIN_SOC + (MAX_SOC - MIN_SOC) * (soc_vi - MINPERCENTAGE) / (MAXPERCENTAGE - MINPERCENTAGE); 
   if (soc_vi < 0)
-  { //We are in the real SOC% range of 0-20%, always set SOC sent to Fronius as 0%
+  { //We are in the real SOC% range of 0-20%, always set SOC sent to Inverter as 0%
       soc_vi = 0;
   }
   if (soc_vi > 1000)
-  { //We are in the real SOC% range of 80-100%, always set SOC sent to Fronius as 100%
+  { //We are in the real SOC% range of 80-100%, always set SOC sent to Inverter as 100%
       soc_vi = 1000;
   }
   SOC = (soc_vi * 10); //increase SOC range from 0-100.0 -> 100.00
@@ -91,6 +89,23 @@ void update_values_tesla_model_3_battery()
 	max_target_discharge_power = max_discharge_current;
 
 	max_target_charge_power = max_charge_current;
+
+  #ifdef HVIL_OMITTED
+  //When HVIL is not available, battery will send 0W charge allowed. Luckily SOC% is still available, so we use this to estimate charge limits
+  if(SOC > 9900){ // 99%
+    max_target_charge_power = 0;
+  }
+  else{
+    max_target_charge_power = 10000;
+  }
+
+  if(SOC < 500){ // 5%
+    max_target_discharge_power = 0;
+  }
+  else{
+    max_target_discharge_power = 10000;
+  }
+  #endif
 	
 	stat_batt_power = (volts * amps); //TODO, check if scaling is OK
 
@@ -121,6 +136,9 @@ void update_values_tesla_model_3_battery()
     {
       Serial.println("Please wait for Pyro Connection check to finish, HV cables successfully seated!");
     }
+	#ifdef HVIL_OMITTED
+	Serial.println("!!! High voltage interlock check skipped. Proceed with caution, limits estimated with no cell monitoring!!!");
+	#endif
 
     Serial.print("Contactor: ");
     Serial.print(contactorText[contactor]); //Display what state the contactor is in
@@ -137,19 +155,17 @@ void update_values_tesla_model_3_battery()
     Serial.print(", Pyrotest: ");
     Serial.println(pyroTestInProgress);
 
-
-    Serial.print("Volt: ");
+    Serial.println("Battery values: ");
+    Serial.print(" Vi SOC: ");
+    Serial.print(soc_vi);
+    Serial.print(", Battery voltage: ");
     Serial.print(volts);
-    Serial.print(" Amps: ");
+    Serial.print(", Battery amps: ");
     Serial.print(amps);
-    Serial.print(", Discharge limit: ");
+    Serial.print(", Discharge limit battery (kW): ");
     Serial.print(discharge_limit);
-    Serial.print(", Charge limit: ");
+    Serial.print(", Charge limit battery (kW): ");
     Serial.print(regenerative_limit);
-    Serial.print(", Max temp: ");
-    Serial.print(max_temp);
-    Serial.print(", Min temp: ");
-    Serial.print(max_temp);
     Serial.print(", Nominal full energy (XX.XkWh): ");
     Serial.print(nominal_full_pack_energy);
     Serial.print(", Nominal energy remain: ");
@@ -163,34 +179,34 @@ void update_values_tesla_model_3_battery()
     Serial.print(", Energy buffer: ");
     Serial.print(energy_buffer);
     Serial.print(", Fully charged?: ");
-    Serial.println(full_charge_complete);
-    Serial.print("SOC: ");
-    Serial.println(calculated_soc);
-
-    Serial.print("Min voltage: ");
+    Serial.print(full_charge_complete);
+    Serial.print(", Min discharge voltage allowed: ");
     Serial.print(min_voltage);
-    Serial.print(", Max voltage: ");
+    Serial.print(", Max charge voltage allowed: ");
     Serial.print(max_voltage);
-    Serial.print(", Max charge current: ");
+    Serial.print(", Max charge current (A): ");
     Serial.print(max_charge_current);
-    Serial.print(", Max discharge current: ");
+    Serial.print(", Max discharge current (A): ");
     Serial.println(max_discharge_current);
 
     Serial.print("HighVoltage Output Pins: ");
     Serial.print(high_voltage);
-    Serial.print("V, Low Voltage:");
+    Serial.print(", V, Low Voltage:");
     Serial.print(low_voltage);
-    Serial.print("V, Current Output:");
+    Serial.print(", V, Current Output:");
     Serial.println(output_current);
 
-    Serial.print("Min SOC: ");
-    Serial.print(soc_min);
-    Serial.print(", Max SOC: ");
-    Serial.print(soc_max);
-    Serial.print(", Avg SOC: ");
-    Serial.print(soc_ave);
-    Serial.print(", Vi SOC: ");
-    Serial.println(soc_vi);
+    Serial.println("Values heading towards inverter: ");
+    Serial.print(" SOC% (XX.XX%): ");
+    Serial.print(SOC);
+    Serial.print(" Max discharge power (W): ");
+    Serial.print(max_target_discharge_power);
+    Serial.print(" Max charge power (W): ");
+    Serial.print(max_target_charge_power);
+    Serial.print(" Max temperature (C): ");
+    Serial.print(temperature_max);
+    Serial.print(" Min temperature (C): ");
+    Serial.println(temperature_min);
   }
 }
 
@@ -212,16 +228,6 @@ void receive_can_tesla_model_3_battery(CAN_frame_t rx_frame)
       energy_to_charge_complete = (((rx_frame.data.u8[6] & 0x7F) << 4) | ((rx_frame.data.u8[5] & 0xF0) >> 4)) * 0.1; //Example 147 * 0.1 = 14.7kWh
       energy_buffer =             (((rx_frame.data.u8[7] & 0x7F) << 1) | ((rx_frame.data.u8[6] & 0x80) >> 7)) * 0.1; //Example 1 * 0.1 = 0
       full_charge_complete =      ((rx_frame.data.u8[7] & 0x80) >> 7);
-
-      if(nominal_full_pack_energy > 0)
-      { //Avoid division by 0
-        calculated_soc_float = ((float)expected_energy_remaining / nominal_full_pack_energy) * 10000;
-        calculated_soc = calculated_soc_float;
-      }
-      else
-      {
-        calculated_soc = 0;
-      }
       break;
     case 0x20A:
       //Contactor state
