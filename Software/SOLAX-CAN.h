@@ -4,12 +4,9 @@
 #include "ESP32CAN.h"
 #include "config.h"
 
-//#define DUAL_CAN //Enable this line to activate an isolated secondary CAN Bus using add-on MCP2515 controller (Needed for FoxESS inverters)
-
-#ifdef DUAL_CAN
-#include "ACAN2515.h"  //If this file is missing, install the ACAN2515 library
+#include "ACAN2515.h"
 extern ACAN2515 can;
-#endif
+extern bool dual_can;
 
 extern uint16_t SOC;
 extern uint16_t StateOfHealth;

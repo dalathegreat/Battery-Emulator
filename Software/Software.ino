@@ -36,11 +36,15 @@
 //CAN parameters
 CAN_device_t CAN_cfg; // CAN Config
 const int rx_queue_size = 10; // Receive Queue size
+
 #ifdef DUAL_CAN
-  #include <ACAN2515.h>
+  const bool dual_can = 1;
+  #include "ACAN2515.h"
   static const uint32_t QUARTZ_FREQUENCY = 8UL * 1000UL * 1000UL ; // 8 MHz
   ACAN2515 can(MCP2515_CS, SPI, MCP2515_INT);
   static ACAN2515_Buffer16 gBuffer;
+#else
+  const bool dual_can = 0;
 #endif
 
 //Interval settings
