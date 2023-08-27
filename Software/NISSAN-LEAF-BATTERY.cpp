@@ -55,7 +55,8 @@ static uint8_t LEAF_Battery_Type = ZE0_BATTERY;
 static uint16_t LB_Discharge_Power_Limit = 0; //Limit in kW
 static uint16_t LB_Charge_Power_Limit = 0; //Limit in kW
 static int16_t LB_MAX_POWER_FOR_CHARGER = 0; //Limit in kW
-static int16_t LB_SOC = 500; //0 - 100.0 % (0-1000)
+static int16_t LB_SOC = 500; //0 - 100.0 % (0-1000) The real SOC% in the battery
+static int16_t CalculatedSOC = 0; // Temporary value used for calculating SOC
 static uint16_t LB_TEMP = 0; //Temporary value used in status checks
 static uint16_t LB_Wh_Remaining = 0; //Amount of energy in battery, in Wh
 static uint16_t LB_GIDS = 0;
@@ -115,14 +116,15 @@ void update_values_leaf_battery()
   StateOfHealth = (LB_StateOfHealth * 100); //Increase range from 99% -> 99.00%
 
   //Calculate the SOC% value to send to Fronius
-  LB_SOC = LB_MIN_SOC + (LB_MAX_SOC - LB_MIN_SOC) * (LB_SOC - MINPERCENTAGE) / (MAXPERCENTAGE - MINPERCENTAGE); 
-  if (LB_SOC < 0){ //We are in the real SOC% range of 0-20%, always set SOC sent to Fronius as 0%
-      LB_SOC = 0;
+  CalculatedSOC = LB_SOC;
+  CalculatedSOC = LB_MIN_SOC + (LB_MAX_SOC - LB_MIN_SOC) * (CalculatedSOC - MINPERCENTAGE) / (MAXPERCENTAGE - MINPERCENTAGE); 
+  if (CalculatedSOC < 0){ //We are in the real SOC% range of 0-20%, always set SOC sent to Fronius as 0%
+      CalculatedSOC = 0;
   }
-  if (LB_SOC > 1000){ //We are in the real SOC% range of 80-100%, always set SOC sent to Fronius as 100%
-      LB_SOC = 1000;
+  if (CalculatedSOC > 1000){ //We are in the real SOC% range of 80-100%, always set SOC sent to Fronius as 100%
+      CalculatedSOC = 1000;
   }
-  SOC = (LB_SOC * 10); //increase LB_SOC range from 0-100.0 -> 100.00
+  SOC = (CalculatedSOC * 10); //increase CalculatedSOC range from 0-100.0 -> 100.00
 
   battery_voltage = (LB_Total_Voltage*10); //One more decimal needed
 
@@ -319,8 +321,10 @@ void update_values_leaf_battery()
     Serial.print(max_target_charge_power);
     Serial.print(" SOH%: ");
     Serial.print(StateOfHealth);
-    Serial.print(" SOC% to Inverter: ");
+    Serial.print(" SOC% to inverter: ");
     Serial.print(SOC);
+    Serial.print(" SOC% of battery: ");
+    Serial.print(LB_SOC);
     Serial.print(" GIDS: ");
     Serial.println(LB_GIDS);
     Serial.print("LEAF battery gen: ");
