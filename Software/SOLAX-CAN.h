@@ -4,7 +4,7 @@
 #include "ESP32CAN.h"
 #include "config.h"
 #ifdef DUAL_CAN
-  #include "ACAN2515.h"
+  #include "ACAN2515.h" //If this file is missing, install the ACAN2515 library
   extern ACAN2515 can;
 #endif
 
@@ -35,10 +35,9 @@ extern uint8_t inverterAllowsContactorClosing;
 #define BATTERY_ANNOUNCE 0
 #define WAITING_FOR_CONTACTOR 1
 #define CONTACTOR_CLOSED 2
-#define FAULT 3
+#define FAULT_SOLAX 3
 #define UPDATING_FW 4
 
 void update_values_can_solax();
-void send_can_solax();
 void receive_can_solax(CAN_frame_t rx_frame);
 #endif

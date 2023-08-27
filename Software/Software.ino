@@ -15,7 +15,7 @@
 
 /* Other options */
 #define CONTACTOR_CONTROL     //Enable this line to have pins 25,32,33 handle precharge/contactor+/contactor- closing sequence
-#define PWM_CONTACTOR_CONTROL //Enable this line to use PWM logic for contactors, which lower power consumption and heat generation
+//#define PWM_CONTACTOR_CONTROL //Enable this line to use PWM logic for contactors, which lower power consumption and heat generation
 //#define DUAL_CAN              //Enable this line to activate an isolated secondary CAN Bus using add-on MCP2515 controller (Needed for FoxESS inverters)
 
 /* Do not change any code below this line unless you are sure what you are doing */
@@ -46,7 +46,7 @@ CAN_device_t CAN_cfg; // CAN Config
 const int rx_queue_size = 10; // Receive Queue size
 
 //Interval settings
-const int intervalInverterTask = 800; //Interval at which to refresh modbus registers / inverter values
+int intervalInverterTask = 4800; //Interval at which to refresh modbus registers / inverter values
 const int interval10 = 10; //Interval for 10ms tasks
 unsigned long previousMillis10ms = 50;
 unsigned long previousMillisInverter = 0; 
@@ -211,6 +211,7 @@ void setup()
   //Inform user what Inverter is used
   #ifdef SOLAX_CAN
   inverterAllowsContactorClosing = 0; //The inverter needs to allow first on this protocol
+  intervalInverterTask = 800; //This protocol also requires the values to be updated faster
   Serial.println("SOLAX CAN protocol selected");
   #endif
   #ifdef MODBUS_BYD
@@ -283,8 +284,14 @@ void handle_can()
       #ifdef RENAULT_ZOE_BATTERY
       receive_can_zoe_battery(rx_frame);
       #endif
+      #ifdef BMW_I3_BATTERY
+      receive_can_i3_battery(rx_frame);
+      #endif
       #ifdef IMIEV_ION_CZERO_BATTERY
       receive_can_imiev_battery(rx_frame);
+      #endif
+      #ifdef KIA_HYUNDAI_64_BATTERY
+      receive_can_kiaHyundai_64_battery(rx_frame);
       #endif
       #ifdef CAN_BYD
       receive_can_byd(rx_frame);
@@ -300,18 +307,15 @@ void handle_can()
       #ifdef SOLAX_CAN
       receive_can_solax(rx_frame);
       #endif
-	    #ifdef PYLON_CAN
-	    receive_can_pylon(rx_frame);
-	    #endif
+	  #ifdef PYLON_CAN
+	  receive_can_pylon(rx_frame);
+	  #endif
     }
   }
   //When we are done checking if a CAN message has arrived, we can focus on sending CAN messages
   //Inverter sending
   #ifdef CAN_BYD
   send_can_byd();
-  #endif
-  #ifdef SOLAX_CAN
-  send_can_solax();
   #endif
   //Battery sending
   #ifdef BATTERY_TYPE_LEAF
@@ -323,8 +327,14 @@ void handle_can()
   #ifdef RENAULT_ZOE_BATTERY
   send_can_zoe_battery();
   #endif
+  #ifdef BMW_I3_BATTERY
+  send_can_i3_battery();
+  #endif
   #ifdef IMIEV_ION_CZERO_BATTERY
   send_can_imiev_battery();
+  #endif
+  #ifdef KIA_HYUNDAI_64_BATTERY 
+  send_can_kiaHyundai_64_battery();
   #endif
   #ifdef CHADEMO
   send_can_chademo_battery();
@@ -373,9 +383,6 @@ void handle_can()
   #ifdef CAN_BYD
   send_can_byd();
   #endif
-  #ifdef SOLAX_CAN
-  send_can_solax();
-  #endif
 }
 #endif
 
@@ -383,15 +390,21 @@ void handle_inverter()
 {
 	  #ifdef BATTERY_TYPE_LEAF
     update_values_leaf_battery(); //Map the values to the correct registers
-    #endif
+	  #endif 
     #ifdef TESLA_MODEL_3_BATTERY
     update_values_tesla_model_3_battery(); //Map the values to the correct registers
     #endif
     #ifdef RENAULT_ZOE_BATTERY
     update_values_zoe_battery(); //Map the values to the correct registers
     #endif
+    #ifdef BMW_I3_BATTERY
+    update_values_i3_battery(); //Map the values to the correct registers
+    #endif
     #ifdef IMIEV_ION_CZERO_BATTERY
     update_values_imiev_battery(); //Map the values to the correct registers
+    #endif
+    #ifdef KIA_HYUNDAI_64_BATTERY
+    update_values_kiaHyundai_64_battery(); //Map the values to the correct registers
     #endif
     #ifdef SOLAX_CAN
     update_values_can_solax();
