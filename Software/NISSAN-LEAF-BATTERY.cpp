@@ -154,8 +154,14 @@ void update_values_leaf_battery()
     { 
       temp_polled_min = ((Temp_fromRAW_to_F(temp_raw_min) - 320 ) * 5) / 9; //Convert from F to C
       temp_polled_max = ((Temp_fromRAW_to_F(temp_raw_max) - 320 ) * 5) / 9; //Convert from F to C
-      temperature_min = convert2unsignedint16((temp_polled_min)); //add sign if negative
-      temperature_max = convert2unsignedint16((temp_polled_max));
+      if(temp_polled_min < temp_polled_max){ //Catch any edge cases from Temp_fromRAW_to_F function
+        temperature_min = convert2unsignedint16((temp_polled_min));
+        temperature_max = convert2unsignedint16((temp_polled_max));
+      }
+      else{
+        temperature_min = convert2unsignedint16((temp_polled_max));
+        temperature_max = convert2unsignedint16((temp_polled_min));
+      }
     }
   }
 
