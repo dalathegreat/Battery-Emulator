@@ -31,18 +31,18 @@ CAN_frame_t SOLAX_100A001 = {.FIR = {.B = {.DLC = 0,.FF = CAN_frame_ext,}},.MsgI
 void CAN_WriteFrame(CAN_frame_t* tx_frame)
 {
 #ifdef DUAL_CAN
-    CANMessage MCP2515Frame; //Struct with ACAN2515 library format, needed to use the MCP2515 library
-    MCP2515Frame.id = tx_frame->MsgID;
-    MCP2515Frame.ext = tx_frame->FIR.B.FF;
-    MCP2515Frame.len = tx_frame->FIR.B.DLC;
-    for (uint8_t i=0 ; i<MCP2515Frame.len ; i++) {
-          MCP2515Frame.data[i] = tx_frame->data.u8[i];
-        }
-    can.tryToSend(MCP2515Frame);
-    //Serial.println("Solax CAN Frame sent in Bus 2");
+  CANMessage MCP2515Frame; //Struct with ACAN2515 library format, needed to use the MCP2515 library
+  MCP2515Frame.id = tx_frame->MsgID;
+  MCP2515Frame.ext = tx_frame->FIR.B.FF;
+  MCP2515Frame.len = tx_frame->FIR.B.DLC;
+  for (uint8_t i=0 ; i<MCP2515Frame.len ; i++) {
+        MCP2515Frame.data[i] = tx_frame->data.u8[i];
+      }
+  can.tryToSend(MCP2515Frame);
+  //Serial.println("Solax CAN Frame sent in Bus 2");
 #else
-    ESP32Can.CANWriteFrame(tx_frame);
-    //Serial.println("Solax CAN Frame sent in Bus 1");
+  ESP32Can.CANWriteFrame(tx_frame);
+  //Serial.println("Solax CAN Frame sent in Bus 1");
 #endif
 }
 
@@ -92,7 +92,6 @@ void update_values_can_solax()
   }
   
   //Put the values into the CAN messages
-
   //BMS_Limits
   SOLAX_1872.data.u8[0] = (uint8_t) max_volt_solax_can; //Todo, scaling OK?
   SOLAX_1872.data.u8[1] = (max_volt_solax_can >> 8);
@@ -154,11 +153,6 @@ void update_values_can_solax()
   SOLAX_1801.data.u8[4] = 1;
 
 }
-
-void send_can_solax() {
-  // Deprecated - All transmissions should be initiated in response to inverter polling.
-}
-
 
 void receive_can_solax(CAN_frame_t rx_frame)
 {

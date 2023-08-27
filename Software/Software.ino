@@ -1,5 +1,26 @@
+/* Select battery used */
+#define BATTERY_TYPE_LEAF         // See NISSAN-LEAF-BATTERY.h for more LEAF battery settings
+//#define TESLA_MODEL_3_BATTERY   // See TESLA-MODEL-3-BATTERY.h for more Tesla battery settings
+//#define RENAULT_ZOE_BATTERY     // See RENAULT-ZOE-BATTERY.h for more Zoe battery settings
+//#define BMW_I3_BATTERY          // See BMW-I3-BATTERY.h for more i3 battery settings
+//#define IMIEV_ION_CZERO_BATTERY // See IMIEV-CZERO-ION-BATTERY.h for more triplet battery settings
+//#define KIA_HYUNDAI_64_BATTERY  // See KIA-HYUNDAI-64-BATTERY.h for more battery settings
+//#define CHADEMO                 // See CHADEMO.h for more Chademo related settings
+
+/* Select inverter communication protocol. See Wiki for which to use with your inverter: https://github.com/dalathegreat/BYD-Battery-Emulator-For-Gen24/wiki */
+#define MODBUS_BYD      //Enable this line to emulate a "BYD 11kWh HVM battery" over Modbus RTU
+//#define CAN_BYD       //Enable this line to emulate a "BYD Battery-Box Premium HVS" over CAN Bus
+//#define SOLAX_CAN       //Enable this line to emulate a "SolaX Triple Power LFP" over CAN bus
+//#define PYLON_CAN		//Enable this line to emulate a "Pylontech battery" over CAN bus
+
+/* Other options */
+#define CONTACTOR_CONTROL     //Enable this line to have pins 25,32,33 handle precharge/contactor+/contactor- closing sequence
+#define PWM_CONTACTOR_CONTROL //Enable this line to use PWM logic for contactors, which lower power consumption and heat generation
+//#define DUAL_CAN              //Enable this line to activate an isolated secondary CAN Bus using add-on MCP2515 controller (Needed for FoxESS inverters)
+
 /* Do not change any code below this line unless you are sure what you are doing */
 /* Only change battery specific settings and limits in their respective .h files */
+
 #include <Arduino.h>
 #include "HardwareSerial.h"
 #include "config.h"
@@ -96,6 +117,7 @@ enum State {
 };
 State contactorStatus = DISCONNECTED;
 
+#define MAX_ALLOWED_FAULT_TICKS 500
 #define PRECHARGE_TIME_MS 160
 #define NEGATIVE_CONTACTOR_TIME_MS 1000
 #define POSITIVE_CONTACTOR_TIME_MS 2000
@@ -108,7 +130,7 @@ unsigned long prechargeStartTime = 0;
 unsigned long negativeStartTime = 0;
 unsigned long timeSpentInFaultedMode = 0;
 uint8_t batteryAllowsContactorClosing = 0;
-uint8_t inverterAllowsContactorClosing = 0;
+uint8_t inverterAllowsContactorClosing = 1;
 
 // Setup() - initialization happens here
 void setup()
@@ -132,6 +154,7 @@ void setup()
 	Serial.println(CAN_cfg.speed);
 
   #ifdef DUAL_CAN
+    Serial.println("Dual CAN Bus (ESP32+MCP2515) selected");
     gBuffer.initWithSize(25);
     SPI.begin(MCP2515_SCK, MCP2515_MISO, MCP2515_MOSI);
     Serial.println ("Configure ACAN2515") ;
@@ -141,19 +164,22 @@ void setup()
   #endif
 
   //Init contactor pins
-   
- 
-  ledcSetup(POSITIVE_PWM_Ch, PWM_Freq, PWM_Res); // Setup PWM Channel Frequency and Resolution
-  ledcSetup(NEGATIVE_PWM_Ch, PWM_Freq, PWM_Res); // Setup PWM Channel Frequency and Resolution
-
-  ledcAttachPin(POSITIVE_CONTACTOR_PIN, POSITIVE_PWM_Ch); // Attach Positive Contactor Pin to Hardware PWM Channel
-  ledcAttachPin(NEGATIVE_CONTACTOR_PIN, NEGATIVE_PWM_Ch); // Attach Positive Contactor Pin to Hardware PWM Channel
-
-  ledcWrite(POSITIVE_PWM_Ch, 0); // Set Positive PWM to 0%
-  ledcWrite(NEGATIVE_PWM_Ch, 0); // Set Negative PWM to 0%
-
+  #ifdef CONTACTOR_CONTROL
+  pinMode(POSITIVE_CONTACTOR_PIN, OUTPUT);
+	digitalWrite(POSITIVE_CONTACTOR_PIN, LOW);
+  pinMode(NEGATIVE_CONTACTOR_PIN, OUTPUT);
+	digitalWrite(NEGATIVE_CONTACTOR_PIN, LOW);
+    #ifdef PWM_CONTACTOR_CONTROL
+    ledcSetup(POSITIVE_PWM_Ch, PWM_Freq, PWM_Res); // Setup PWM Channel Frequency and Resolution
+    ledcSetup(NEGATIVE_PWM_Ch, PWM_Freq, PWM_Res); // Setup PWM Channel Frequency and Resolution
+    ledcAttachPin(POSITIVE_CONTACTOR_PIN, POSITIVE_PWM_Ch); // Attach Positive Contactor Pin to Hardware PWM Channel
+    ledcAttachPin(NEGATIVE_CONTACTOR_PIN, NEGATIVE_PWM_Ch); // Attach Positive Contactor Pin to Hardware PWM Channel
+    ledcWrite(POSITIVE_PWM_Ch, 0); // Set Positive PWM to 0%
+    ledcWrite(NEGATIVE_PWM_Ch, 0); // Set Negative PWM to 0%
+    #endif
   pinMode(PRECHARGE_PIN, OUTPUT);
 	digitalWrite(PRECHARGE_PIN, LOW);
+  #endif
 
 
   //Set up Modbus RTU Server
@@ -182,22 +208,35 @@ void setup()
   // Init LED control
   pixels.begin();
 
-  //Inform user what setup is used
-  #ifdef DUAL_CAN
-    Serial.println("Dual CAN Bus (ESP32+MCP2515) selected");
+  //Inform user what Inverter is used
+  #ifdef SOLAX_CAN
+  inverterAllowsContactorClosing = 0; //The inverter needs to allow first on this protocol
+  Serial.println("SOLAX CAN protocol selected");
   #endif
-
+  #ifdef MODBUS_BYD
+  Serial.println("BYD Modbus RTU protocol selected");
+  #endif
+  #ifdef CAN_BYD
+  Serial.println("BYD CAN protocol selected");
+  #endif
+  //Inform user what battery is used
   #ifdef BATTERY_TYPE_LEAF
   Serial.println("Nissan LEAF battery selected");
-  #endif
+  #endif 
   #ifdef TESLA_MODEL_3_BATTERY
   Serial.println("Tesla Model 3 battery selected");
   #endif 
   #ifdef RENAULT_ZOE_BATTERY
   Serial.println("Renault Zoe / Kangoo battery selected");
-  #endif 
+  #endif
+  #ifdef BMW_I3_BATTERY
+  Serial.println("BMW i3 battery selected");
+  #endif
   #ifdef IMIEV_ION_CZERO_BATTERY
   Serial.println("Mitsubishi i-MiEV / Citroen C-Zero / Peugeot Ion battery selected");
+  #endif
+  #ifdef KIA_HYUNDAI_64_BATTERY
+  Serial.println("Kia Niro / Hyundai Kona 64kWh battery selected");
   #endif
 }
 
@@ -214,7 +253,9 @@ void loop()
 	{ 
 		previousMillis10ms = millis();
     handle_LED_state();   //Set the LED color according to state
+    #ifdef CONTACTOR_CONTROL
     handle_contactors();  //Take care of startup precharge/contactor closing
+    #endif
   }
 
 	if (millis() - previousMillisInverter >= intervalInverterTask) //every 5s
@@ -372,14 +413,18 @@ void handle_inverter()
     #endif
 }
 
+#ifdef CONTACTOR_CONTROL
 void handle_contactors()
 {
-  //First check if we have any active errors, incase we do, turn off the battery after 5 seconds
-  if(bms_status == FAULT)
-  {
+  //First check if we have any active errors, incase we do, turn off the battery
+  if(bms_status == FAULT){
     timeSpentInFaultedMode++;
   }
-  if(timeSpentInFaultedMode > 500)
+  else{
+    timeSpentInFaultedMode = 0;
+  }
+
+  if(timeSpentInFaultedMode > MAX_ALLOWED_FAULT_TICKS)
   {
     contactorStatus = SHUTDOWN_REQUESTED;
   }
@@ -388,15 +433,17 @@ void handle_contactors()
     digitalWrite(PRECHARGE_PIN, LOW);
     digitalWrite(NEGATIVE_CONTACTOR_PIN, LOW);
     digitalWrite(POSITIVE_CONTACTOR_PIN, LOW);
-    return;
+    return; //A fault scenario latches the contactor control. It is not possible to recover without a powercycle (and investigation why fault occured)
   }
 
   //After that, check if we are OK to start turning on the battery
   if(contactorStatus == DISCONNECTED)
   {
     digitalWrite(PRECHARGE_PIN, LOW);
-    ledcWrite(POSITIVE_PWM_Ch, 0);
-    ledcWrite(NEGATIVE_PWM_Ch, 0);
+    #ifdef PWM_CONTACTOR_CONTROL
+      ledcWrite(POSITIVE_PWM_Ch, 0);
+      ledcWrite(NEGATIVE_PWM_Ch, 0);
+    #endif
 
     if(batteryAllowsContactorClosing && inverterAllowsContactorClosing)
     {
@@ -404,6 +451,7 @@ void handle_contactors()
     }
   }
 
+  //Incase the inverter requests contactors to open, set the state accordingly
   if(contactorStatus == COMPLETED)
   {
     if (!inverterAllowsContactorClosing) contactorStatus = DISCONNECTED;
@@ -422,7 +470,10 @@ void handle_contactors()
 
     case NEGATIVE:
       if (currentTime - prechargeStartTime >= PRECHARGE_TIME_MS) {
-        ledcWrite(NEGATIVE_PWM_Ch, 1023);
+        digitalWrite(NEGATIVE_CONTACTOR_PIN, HIGH);
+        #ifdef PWM_CONTACTOR_CONTROL
+          ledcWrite(NEGATIVE_PWM_Ch, 1023);
+        #endif
         negativeStartTime = currentTime;
         contactorStatus = POSITIVE;
       }
@@ -430,7 +481,10 @@ void handle_contactors()
 
     case POSITIVE:
       if (currentTime - negativeStartTime >= NEGATIVE_CONTACTOR_TIME_MS) {
-        ledcWrite(POSITIVE_PWM_Ch, 1023);
+        digitalWrite(POSITIVE_CONTACTOR_PIN, HIGH);
+        #ifdef PWM_CONTACTOR_CONTROL
+          ledcWrite(POSITIVE_PWM_Ch, 1023);
+        #endif
         contactorStatus = PRECHARGE_OFF;
       }
       break;
@@ -438,8 +492,10 @@ void handle_contactors()
     case PRECHARGE_OFF:
       if (currentTime - negativeStartTime >= POSITIVE_CONTACTOR_TIME_MS) {
         digitalWrite(PRECHARGE_PIN, LOW);
-        ledcWrite(NEGATIVE_PWM_Ch, PWM_Hold_Duty);
-        ledcWrite(POSITIVE_PWM_Ch, PWM_Hold_Duty);
+        #ifdef PWM_CONTACTOR_CONTROL
+          ledcWrite(NEGATIVE_PWM_Ch, PWM_Hold_Duty);
+          ledcWrite(POSITIVE_PWM_Ch, PWM_Hold_Duty);
+        #endif
         contactorStatus = COMPLETED;
       }
       break;
@@ -447,6 +503,7 @@ void handle_contactors()
     break;
   }
 }
+#endif
 
 #ifdef MODBUS_BYD
 void handle_static_data_modbus_byd() {
