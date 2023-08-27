@@ -33,17 +33,15 @@
 #include "BATTERIES.h"
 #include "INVERTERS.h"
 
+//CAN parameters
+CAN_device_t CAN_cfg; // CAN Config
+const int rx_queue_size = 10; // Receive Queue size
 #ifdef DUAL_CAN
   #include <ACAN2515.h>
   static const uint32_t QUARTZ_FREQUENCY = 8UL * 1000UL * 1000UL ; // 8 MHz
   ACAN2515 can(MCP2515_CS, SPI, MCP2515_INT);
   static ACAN2515_Buffer16 gBuffer;
 #endif
-
-//CAN parameters
-#define MAX_CAN_FAILURES 5000 //Amount of malformed CAN messages to allow before raising a warning
-CAN_device_t CAN_cfg; // CAN Config
-const int rx_queue_size = 10; // Receive Queue size
 
 //Interval settings
 int intervalInverterTask = 4800; //Interval at which to refresh modbus registers / inverter values
