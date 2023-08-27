@@ -1,12 +1,12 @@
 #include "SOLAX-CAN.h"
 
 /* Do not change code below unless you are sure what you are doing */
-static int max_charge_rate_amp = 0;
-static int max_discharge_rate_amp = 0;
-static int temperature_average = 0;
+static uint16_t max_charge_rate_amp = 0;
+static uint16_t max_discharge_rate_amp = 0;
+static uint16_t temperature_average = 0;
 static int STATE = BATTERY_ANNOUNCE;
 static unsigned long LastFrameTime = 0;
-static unsigned short BatteryModuleFirmware = 2;
+static const uint8_t BatteryModuleFirmware = 2;
 
 //CAN message translations from this amazing repository: https://github.com/rand12345/solax_can_bus 
 
