@@ -180,9 +180,6 @@ void update_values_leaf_battery()
   if(LB_Charge_Power_Limit > 30){ //if >30kW can be put into the battery
     max_target_charge_power = 30000; //cap value so we don't go over the Fronius limits
   }
-  if(LB_Charge_Power_Limit < 0){ //LB_MAX_POWER_FOR_CHARGER can actually go to -10kW
-    max_target_charge_power = 0; //cap calue so we dont do under the Fronius limits
-  }
   else{
     max_target_charge_power = (LB_Charge_Power_Limit * 1000); //kW to W
   }
