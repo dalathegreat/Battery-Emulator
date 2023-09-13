@@ -325,12 +325,9 @@ void send_can_tesla_model_3_battery()
 	{ 
 		previousMillis30 = currentMillis;
     
-    if(packCtrsClosingAllowed)
-    {
       ESP32Can.CANWriteFrame(&TESLA_221_1);
 
       ESP32Can.CANWriteFrame(&TESLA_221_2);
-    }
 
 	}
 	//Send 10ms message
