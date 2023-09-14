@@ -1,4 +1,4 @@
-#ifndef __CINFIG_H__
+#ifndef __CONFIG_H__
 #define __CONFIG_H__
 
 // PIN mappings, do not change these unless you are adding on extra hardware to the PCB
