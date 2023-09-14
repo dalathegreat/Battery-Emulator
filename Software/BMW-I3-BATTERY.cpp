@@ -100,8 +100,7 @@ void update_values_i3_battery()
 	  CANstillAlive--;
 	}
 
-  if(printValues)
-  {  //values heading towards the inverter
+  #ifdef DEBUG_VIA_USB
     Serial.print("SOC% battery: ");
     Serial.print(Display_SOC);
     Serial.print(" SOC% sent to inverter: ");
@@ -114,7 +113,7 @@ void update_values_i3_battery()
     Serial.print(max_target_charge_power);
     Serial.print(" Max discharge power: ");
     Serial.print(max_target_discharge_power);
-  }
+  #endif
 }
 
 void receive_can_i3_battery(CAN_frame_t rx_frame)

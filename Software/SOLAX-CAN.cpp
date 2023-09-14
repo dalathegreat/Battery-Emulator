@@ -30,7 +30,7 @@ CAN_frame_t SOLAX_100A001 = {.FIR = {.B = {.DLC = 0,.FF = CAN_frame_ext,}},.MsgI
 
 void CAN_WriteFrame(CAN_frame_t* tx_frame)
 {
-if(dual_can){
+  #ifdef DUAL_CAN
   CANMessage MCP2515Frame; //Struct with ACAN2515 library format, needed to use the MCP2515 library
   MCP2515Frame.id = tx_frame->MsgID;
   MCP2515Frame.ext = tx_frame->FIR.B.FF;
@@ -39,10 +39,9 @@ if(dual_can){
         MCP2515Frame.data[i] = tx_frame->data.u8[i];
       }
   can.tryToSend(MCP2515Frame);
-  }
-  else{
+  #else
   ESP32Can.CANWriteFrame(tx_frame);
-  }
+  #endif
 }
 
 void update_values_can_solax()

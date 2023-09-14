@@ -293,8 +293,7 @@ void update_values_leaf_battery()
   }
 
   /*Finally print out values to serial if configured to do so*/
-  if(printValues)
-  {  
+  #ifdef DEBUG_VIA_USB 
     if(errorCode > 0)
       {
         Serial.print("ERROR CODE ACTIVE IN SYSTEM. NUMBER: ");
@@ -350,7 +349,7 @@ void update_values_leaf_battery()
     Serial.print(Battery_current_1);
     Serial.print(" Current 2: ");
     Serial.println(Battery_current_2);
-  }
+  #endif
 }
 
 void receive_can_leaf_battery(CAN_frame_t rx_frame)

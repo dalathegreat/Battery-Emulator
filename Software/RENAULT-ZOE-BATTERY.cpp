@@ -33,7 +33,7 @@ void update_values_zoe_battery()
   StateOfHealth = (LB_SOH * 100); //Increase range from 99% -> 99.00% 
 
   //Calculate the SOC% value to send to Fronius
-  LB_SOC = LB_MIN_SOC + (LB_MAX_SOC - LB_MIN_SOC) * (LB_SOC - MINPERCENTAGE_ZOE) / (MAXPERCENTAGE_ZOE - MINPERCENTAGE_ZOE); 
+  LB_SOC = LB_MIN_SOC + (LB_MAX_SOC - LB_MIN_SOC) * (LB_SOC - MINPERCENTAGE) / (MAXPERCENTAGE - MINPERCENTAGE); 
   if (LB_SOC < 0)
   { //We are in the real SOC% range of 0-20%, always set SOC sent to Fronius as 0%
       LB_SOC = 0;
@@ -98,8 +98,7 @@ void update_values_zoe_battery()
 	temperature_min;
 	temperature_max;
 
-  if(printValues)
-  {  //values heading towards the modbus registers
+  #ifdef DEBUG_VIA_USB
     Serial.print("BMS Status (3=OK): ");
     Serial.println(bms_status);
     Serial.print("Max discharge power: ");
@@ -118,7 +117,7 @@ void update_values_zoe_battery()
     Serial.println(temperature_min);
     Serial.print("Temperature Max: ");
     Serial.println(temperature_max);
-  }
+  #endif
 }
 
 void receive_can_zoe_battery(CAN_frame_t rx_frame)

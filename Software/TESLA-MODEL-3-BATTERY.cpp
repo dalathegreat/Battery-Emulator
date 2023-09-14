@@ -126,8 +126,7 @@ void update_values_tesla_model_3_battery()
 	stillAliveCAN--;
 	}
 
-  if(printValues)
-  {
+  #ifdef DEBUG_VIA_USB
     if (packCtrsClosingAllowed == 0)
     {
       Serial.println("Check high voltage connectors and interlock circuit! Closing contactor not allowed! Values: ");
@@ -207,7 +206,7 @@ void update_values_tesla_model_3_battery()
     Serial.print(temperature_max);
     Serial.print(" Min temperature (C): ");
     Serial.println(temperature_min);
-  }
+  #endif
 }
 
 void receive_can_tesla_model_3_battery(CAN_frame_t rx_frame)

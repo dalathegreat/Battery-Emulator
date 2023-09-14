@@ -85,8 +85,7 @@ void update_values_chademo_battery()
     CANstillAlive--;
   }
 
-  if(printValues)
-  {  //values heading towards the modbus registers
+  #ifdef DEBUG_VIA_USB
     if(errorCode > 0)
       {
         Serial.print("ERROR CODE ACTIVE IN SYSTEM. NUMBER: ");
@@ -120,7 +119,7 @@ void update_values_chademo_battery()
     Serial.println(temperature_min);
     Serial.print("Temperature Max: ");
     Serial.println(temperature_max);
-  }
+  #endif
 }
 
 void receive_can_chademo_battery(CAN_frame_t rx_frame)
