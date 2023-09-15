@@ -40,6 +40,10 @@ static uint16_t soc_min = 0;
 static uint16_t soc_max = 0;
 static uint16_t soc_vi = 0;
 static uint16_t soc_ave = 0;
+static uint16_t cell_max_v = 0;
+static uint16_t cell_min_v = 0;
+static uint8_t max_vno = 0;
+static uint8_t min_vno = 0;
 static uint8_t contactor = 0; //State of contactor
 static uint8_t hvil_status = 0;
 static uint8_t packContNegativeState = 0;
@@ -165,6 +169,15 @@ void update_values_tesla_model_3_battery()
     Serial.print(", Max discharge current (A): ");
     Serial.println(max_discharge_current);
 
+    Serial.print("Cellstats, Max mV: ");
+    Serial.print(cell_max_v);
+    Serial.print(", on cell no#: ");
+    Serial.print(max_vno);
+    Serial.print(", Min mV: ");
+    Serial.print(cell_min_v);
+    Serial.print(", on cell no#: ");
+    Serial.println(min_vno);
+
     Serial.print("HighVoltage Output Pins: ");
     Serial.print(high_voltage);
     Serial.print(", V, Low Voltage:");
@@ -246,13 +259,18 @@ void receive_can_tesla_model_3_battery(CAN_frame_t rx_frame)
       break;
     case 0x332:
       //min/max hist values
-      mux = rx_frame.data.u8[0];
-      mux = mux & 0x03;
+      mux = (rx_frame.data.u8[0] & 0x03);
 
       if(mux == 1) //Cell voltages
       {
-        //todo handle cell voltages
-        //not required by the Gen24, but nice stats located here!
+        temp = ((rx_frame.data.u8[1] << 6) | (rx_frame.data.u8[0] >> 2));
+        temp = (temp & 0xFFF);
+        cell_max_v = temp*2;
+        temp = ((rx_frame.data.u8[3] << 8) | rx_frame.data.u8[2]);
+        temp = (temp & 0xFFF);
+        cell_min_v = temp*2;
+        max_vno = 1 + (rx_frame.data.u8[4] & 0x7F); //This cell has highest voltage
+        min_vno = 1 + (rx_frame.data.u8[5] & 0x7F); //This cell has lowest voltage
       }
       if(mux == 0)//Temperature sensors
       {
