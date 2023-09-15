@@ -73,15 +73,14 @@ void update_values_imiev_battery()
     CANstillAlive--;
   }
 	
-  if(printValues)
-  {  //values heading towards the modbus registers
+  #ifdef DEBUG_VIA_USB
     Serial.print("BMU SOC: ");
     Serial.println(BMU_SOC);
     Serial.print("BMU Current: ");
     Serial.println(BMU_Current);
     Serial.print("BMU Battery Voltage: ");
     Serial.println(BMU_PackVoltage);
-  }
+  #endif
 }
 
 void receive_can_imiev_battery(CAN_frame_t rx_frame)

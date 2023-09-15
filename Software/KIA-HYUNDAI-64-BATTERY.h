@@ -2,13 +2,10 @@
 #define KIA_HYUNDAI_64_BATTERY_H
 #include <Arduino.h>
 #include "ESP32CAN.h"
+#include "USER_SETTINGS.h"
 
-#define BATTERY_WH_MAX 60000 //Battery size in Wh (Maximum value Fronius accepts is 60000 [60kWh] you can use larger batteries but do set value over 60000
 #define ABSOLUTE_MAX_VOLTAGE 4040 // 404.4V,if battery voltage goes over this, charging is not possible (goes into forced discharge)
 #define ABSOLUTE_MIN_VOLTAGE 3100 // 310.0V if battery voltage goes under this, discharging further is disabled
-#define MAXPERCENTAGE 800 //80.0% , Max percentage the battery will charge to (App will show 100% once this value is reached)
-#define MINPERCENTAGE 200 //20.0% , Min percentage the battery will discharge to (App will show 0% once this value is reached)
-static byte printValues = 1; //Should debug values be printed to serial output? 
 
 // These parameters need to be mapped for the Gen24
 extern uint16_t SOC;

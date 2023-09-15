@@ -1,28 +1,9 @@
-/* Select battery used */
-#define BATTERY_TYPE_LEAF         // See NISSAN-LEAF-BATTERY.h for more LEAF battery settings
-//#define TESLA_MODEL_3_BATTERY   // See TESLA-MODEL-3-BATTERY.h for more Tesla battery settings
-//#define RENAULT_ZOE_BATTERY     // See RENAULT-ZOE-BATTERY.h for more Zoe battery settings
-//#define BMW_I3_BATTERY          // See BMW-I3-BATTERY.h for more i3 battery settings
-//#define IMIEV_ION_CZERO_BATTERY // See IMIEV-CZERO-ION-BATTERY.h for more triplet battery settings
-//#define KIA_HYUNDAI_64_BATTERY  // See KIA-HYUNDAI-64-BATTERY.h for more battery settings
-//#define CHADEMO                 // See CHADEMO.h for more Chademo related settings
-
-/* Select inverter communication protocol. See Wiki for which to use with your inverter: https://github.com/dalathegreat/BYD-Battery-Emulator-For-Gen24/wiki */
-#define MODBUS_BYD      //Enable this line to emulate a "BYD 11kWh HVM battery" over Modbus RTU
-//#define CAN_BYD       //Enable this line to emulate a "BYD Battery-Box Premium HVS" over CAN Bus
-//#define SOLAX_CAN       //Enable this line to emulate a "SolaX Triple Power LFP" over CAN bus
-//#define PYLON_CAN		//Enable this line to emulate a "Pylontech battery" over CAN bus
-
-/* Other options */
-#define CONTACTOR_CONTROL     //Enable this line to have pins 25,32,33 handle precharge/contactor+/contactor- closing sequence
-//#define PWM_CONTACTOR_CONTROL //Enable this line to use PWM logic for contactors, which lower power consumption and heat generation
-//#define DUAL_CAN              //Enable this line to activate an isolated secondary CAN Bus using add-on MCP2515 controller (Needed for FoxESS inverters)
-
 /* Do not change any code below this line unless you are sure what you are doing */
-/* Only change battery specific settings and limits in their respective .h files */
+/* Only change battery specific settings in "USER_SETTINGS.h" and limits in their respective .h files */
 
 #include <Arduino.h>
 #include "HardwareSerial.h"
+#include "USER_SETTINGS.h"
 #include "config.h"
 #include "Logging.h"
 #include "mbServerFCs.h"
@@ -38,13 +19,10 @@ CAN_device_t CAN_cfg; // CAN Config
 const int rx_queue_size = 10; // Receive Queue size
 
 #ifdef DUAL_CAN
-  bool dual_can = 1;
   #include "ACAN2515.h"
   static const uint32_t QUARTZ_FREQUENCY = 8UL * 1000UL * 1000UL ; // 8 MHz
   ACAN2515 can(MCP2515_CS, SPI, MCP2515_INT);
   static ACAN2515_Buffer16 gBuffer;
-#else
-  bool dual_can = 0;
 #endif
 
 //Interval settings

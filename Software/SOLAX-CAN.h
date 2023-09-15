@@ -3,10 +3,10 @@
 #include <Arduino.h>
 #include "ESP32CAN.h"
 #include "config.h"
+#include "USER_SETTINGS.h"
 
 #include "ACAN2515.h"
 extern ACAN2515 can;
-extern bool dual_can;
 
 extern uint16_t SOC;
 extern uint16_t StateOfHealth;

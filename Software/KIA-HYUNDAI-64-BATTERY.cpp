@@ -51,15 +51,14 @@ void update_values_kiaHyundai_64_battery()
 	CANstillAlive--;
 	}
 
-  if(printValues)
-  {  //values heading towards the inverter
+  #ifdef DEBUG_VIA_USB
     Serial.print("SOC% candidate 1: ");
     Serial.println(SOC_1);
     Serial.print("SOC% candidate 2: ");
     Serial.println(SOC_2);
     Serial.print("SOC% candidate 3: ");
     Serial.println(SOC_3);
-  }
+  #endif
 }
 
 void receive_can_kiaHyundai_64_battery(CAN_frame_t rx_frame)

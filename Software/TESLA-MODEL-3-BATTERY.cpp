@@ -3,17 +3,12 @@
 #include "CAN_config.h"
 
 /* Do not change code below unless you are sure what you are doing */
-static unsigned long previousMillis10 = 0; // will store last time a 10ms CAN Message was send
 static unsigned long previousMillis30 = 0; // will store last time a 30ms CAN Message was send
-static unsigned long previousMillis100 = 0; // will store last time a 100ms CAN Message was send
-static const int interval10 = 10; // interval (ms) at which send CAN Messages
 static const int interval30 = 30; // interval (ms) at which send CAN Messages
-static const int interval100 = 100; // interval (ms) at which send CAN Messages
 static uint8_t stillAliveCAN = 6; //counter for checking if CAN is still alive
 
 CAN_frame_t TESLA_221_1 = {.FIR = {.B = {.DLC = 8,.FF = CAN_frame_std,}},.MsgID = 0x221,.data = {0x41, 0x11, 0x01, 0x00, 0x00, 0x00, 0x20, 0x96}};
 CAN_frame_t TESLA_221_2 = {.FIR = {.B = {.DLC = 8,.FF = CAN_frame_std,}},.MsgID = 0x221,.data = {0x61, 0x15, 0x01, 0x00, 0x00, 0x00, 0x20, 0xBA}};
-static uint8_t alternate221 = 0;
 
 static uint32_t total_discharge = 0;
 static uint32_t total_charge = 0;
@@ -89,23 +84,6 @@ void update_values_tesla_model_3_battery()
 	max_target_discharge_power = max_discharge_current;
 
 	max_target_charge_power = max_charge_current;
-
-  #ifdef HVIL_OMITTED
-  //When HVIL is not available, battery will send 0W charge allowed. Luckily SOC% is still available, so we use this to estimate charge limits
-  if(SOC > 9900){ // 99%
-    max_target_charge_power = 0;
-  }
-  else{
-    max_target_charge_power = 10000;
-  }
-
-  if(SOC < 500){ // 5%
-    max_target_discharge_power = 0;
-  }
-  else{
-    max_target_discharge_power = 10000;
-  }
-  #endif
 	
 	stat_batt_power = (volts * amps); //TODO, check if scaling is OK
 
@@ -114,6 +92,8 @@ void update_values_tesla_model_3_battery()
 
   max_temp = (max_temp * 10);
 	temperature_max = convert2unsignedint16(max_temp);
+
+  bms_status = ACTIVE; //Startout in active mode before checking if we have any faults
 
 	/* Check if the BMS is still sending CAN messages. If we go 60s without messages we raise an error*/
 	if(!stillAliveCAN)
@@ -126,8 +106,7 @@ void update_values_tesla_model_3_battery()
 	stillAliveCAN--;
 	}
 
-  if(printValues)
-  {
+  #ifdef DEBUG_VIA_USB
     if (packCtrsClosingAllowed == 0)
     {
       Serial.println("Check high voltage connectors and interlock circuit! Closing contactor not allowed! Values: ");
@@ -136,9 +115,6 @@ void update_values_tesla_model_3_battery()
     {
       Serial.println("Please wait for Pyro Connection check to finish, HV cables successfully seated!");
     }
-	#ifdef HVIL_OMITTED
-	Serial.println("!!! High voltage interlock check skipped. Proceed with caution, limits estimated with no cell monitoring!!!");
-	#endif
 
     Serial.print("Contactor: ");
     Serial.print(contactorText[contactor]); //Display what state the contactor is in
@@ -207,7 +183,7 @@ void update_values_tesla_model_3_battery()
     Serial.print(temperature_max);
     Serial.print(" Min temperature (C): ");
     Serial.println(temperature_min);
-  }
+  #endif
 }
 
 void receive_can_tesla_model_3_battery(CAN_frame_t rx_frame)
@@ -312,29 +288,13 @@ void receive_can_tesla_model_3_battery(CAN_frame_t rx_frame)
 void send_can_tesla_model_3_battery()
 {
   unsigned long currentMillis = millis();
-	// Send 100ms CAN Message
-	if (currentMillis - previousMillis100 >= interval100)
-	{
-		previousMillis100 = currentMillis;
-
-		//ESP32Can.CANWriteFrame(&message100);
-
-	}
   //Send 30ms message
 	if (currentMillis - previousMillis30 >= interval30)
 	{ 
 		previousMillis30 = currentMillis;
-    
+    if(bms_status != FAULT){
       ESP32Can.CANWriteFrame(&TESLA_221_1);
-
       ESP32Can.CANWriteFrame(&TESLA_221_2);
-
-	}
-	//Send 10ms message
-	if (currentMillis - previousMillis10 >= interval10)
-	{ 
-		previousMillis10 = currentMillis;
-
-		//ESP32Can.CANWriteFrame(&message10); 
+    }
 	}
 }
