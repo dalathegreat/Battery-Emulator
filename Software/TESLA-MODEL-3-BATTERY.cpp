@@ -51,8 +51,10 @@ static uint8_t packContPositiveState = 0;
 static uint8_t packContactorSetState = 0;
 static uint8_t packCtrsClosingAllowed = 0;
 static uint8_t pyroTestInProgress = 0;
-static const char* contactorText[] = {"UNKNOWN0","OPEN","CLOSING","BLOCKED","OPENING","CLOSED","UNKNOWN6","WELDED","POS_CL","NEG_CL","UNKNOWN10","UNKNOWN11","UNKNOWN12"};
-static const char* contactorState[] = {"SNA","OPEN","PRECHARGE","BLOCKED","PULLED_IN","OPENING","ECONOMIZED","WELDED"};
+static const char* contactorText[] = {"UNKNOWN(0)","OPEN","CLOSING","BLOCKED","OPENING","CLOSED","UNKNOWN(6)","WELDED","POS_CL","NEG_CL","UNKNOWN(10)","UNKNOWN(11)","UNKNOWN(12)"};
+static const char* contactorState[] = {"SNA","OPEN","PRECHARGE","BLOCKED","PULLED_IN","OPENING","ECONOMIZED","WELDED","UNKNOWN(8)","UNKNOWN(9)","UNKNOWN(10)","UNKNOWN(11)"};
+static const char* hvilStatusState[] = {"NOT OK","STATUS_OK","CURRENT_SOURCE_FAULT","INTERNAL_OPEN_FAULT","VEHICLE_OPEN_FAULT","PENTHOUSE_LID_OPEN_FAULT","UNKNOWN_LOCATION_OPEN_FAULT","VEHICLE_NODE_FAULT","NO_12V_SUPPLY","VEHICLE_OR_PENTHOUSE_LID_OPENFAULT","UNKNOWN(10)","UNKNOWN(11)","UNKNOWN(12)","UNKNOWN(13)","UNKNOWN(14)","UNKNOWN(15)"};
+
 
 #define MAX_SOC 1000  //BMS never goes over this value. We use this info to rescale SOC% sent to inverter
 #define MIN_SOC 0     //BMS never goes below this value. We use this info to rescale SOC% sent to inverter
@@ -123,7 +125,7 @@ void update_values_tesla_model_3_battery()
     Serial.print("Contactor: ");
     Serial.print(contactorText[contactor]); //Display what state the contactor is in
     Serial.print(" , HVIL: ");
-    Serial.print(hvil_status);
+    Serial.print(hvilStatusState[hvil_status]);
     Serial.print(" , NegativeState: ");
     Serial.print(contactorState[packContNegativeState]);
     Serial.print(" , PositiveState: ");
