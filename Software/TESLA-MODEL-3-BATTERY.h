@@ -4,14 +4,10 @@
 #include "ESP32CAN.h"
 #include "USER_SETTINGS.h"
 
-/* User definable settings for the Tesla Model 3 battery */
-//#define HVIL_OMITTED //Uncomment this line to allow battery to function without HVIL condition fulfilled. NOTE: Some values not available in this mode, see wiki
-// NOTE: Omitting this has consequences, battery cannot request a stop incase a cell over/undercharges!!! So try to fix HVIL as soon as possible
-
 #define ABSOLUTE_MAX_VOLTAGE 4030 // 403.0V,if battery voltage goes over this, charging is not possible (goes into forced discharge)
 #define ABSOLUTE_MIN_VOLTAGE 2450 // 245.0V if battery voltage goes under this, discharging further is disabled
 
-// These parameters need to be mapped for the Gen24
+// These parameters need to be mapped for the Inverter
 extern uint16_t SOC;
 extern uint16_t StateOfHealth;
 extern uint16_t battery_voltage;
