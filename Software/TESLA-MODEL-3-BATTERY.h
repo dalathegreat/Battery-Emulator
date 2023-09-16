@@ -22,6 +22,7 @@ extern uint16_t stat_batt_power;
 extern uint16_t temperature_min;
 extern uint16_t temperature_max;
 extern uint16_t CANerror;
+extern uint8_t LEDcolor;
 // Definitions for BMS status
 #define STANDBY 0
 #define INACTIVE 1
@@ -29,6 +30,10 @@ extern uint16_t CANerror;
 #define ACTIVE 3
 #define FAULT 4
 #define UPDATING 5
+// LED colors
+#define GREEN 0
+#define YELLOW 1
+#define RED 2
 
 void update_values_tesla_model_3_battery();
 void receive_can_tesla_model_3_battery(CAN_frame_t rx_frame);

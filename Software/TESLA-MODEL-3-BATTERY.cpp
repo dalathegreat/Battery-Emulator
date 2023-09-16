@@ -43,6 +43,7 @@ static uint16_t soc_vi = 0;
 static uint16_t soc_ave = 0;
 static uint16_t cell_max_v = 0;
 static uint16_t cell_min_v = 0;
+static uint16_t	cell_deviation_mV = 0; //contains the deviation between highest and lowest cell in mV
 static uint8_t max_vno = 0;
 static uint8_t min_vno = 0;
 static uint8_t contactor = 0; //State of contactor
@@ -59,6 +60,9 @@ static const char* hvilStatusState[] = {"NOT OK","STATUS_OK","CURRENT_SOURCE_FAU
 
 #define MAX_SOC 1000  //BMS never goes over this value. We use this info to rescale SOC% sent to inverter
 #define MIN_SOC 0     //BMS never goes below this value. We use this info to rescale SOC% sent to inverter
+#define MAX_CELL_VOLTAGE 4250 //Battery is put into emergency stop if one cell goes over this value
+#define MIN_CELL_VOLTAGE 2700 //Battery is put into emergency stop if one cell goes below this value
+#define MAX_CELL_DEVIATION 500 //LED turns yellow on the board if mv delta exceeds this value
 
 void update_values_tesla_model_3_battery()
 { //This function maps all the values fetched via CAN to the correct parameters used for modbus
@@ -126,6 +130,22 @@ void update_values_tesla_model_3_battery()
 	{
 	stillAliveCAN--;
 	}
+
+  if(cell_max_v >= MAX_CELL_VOLTAGE){ 
+    bms_status = FAULT;
+    Serial.println("CELL OVERVOLTAGE!!! Stopping battery charging and discharging. Inspect battery!");
+  }
+  if(cell_min_v <= MIN_CELL_VOLTAGE){ 
+    bms_status = FAULT;
+    Serial.println("CELL UNDERVOLTAGE!!! Stopping battery charging and discharging. Inspect battery!");
+  }
+
+  cell_deviation_mV = (cell_max_v - cell_min_v);
+
+  if(cell_deviation_mV > MAX_CELL_DEVIATION){
+    LEDcolor = YELLOW;
+    Serial.println("HIGH CELL DEVIATION!!! Inspect battery!");
+  }
 
   #ifdef DEBUG_VIA_USB
     if (packCtrsClosingAllowed == 0)
