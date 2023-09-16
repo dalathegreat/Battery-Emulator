@@ -10,6 +10,7 @@ static uint8_t stillAliveCAN = 6; //counter for checking if CAN is still alive
 CAN_frame_t TESLA_221_1 = {.FIR = {.B = {.DLC = 8,.FF = CAN_frame_std,}},.MsgID = 0x221,.data = {0x41, 0x11, 0x01, 0x00, 0x00, 0x00, 0x20, 0x96}};
 CAN_frame_t TESLA_221_2 = {.FIR = {.B = {.DLC = 8,.FF = CAN_frame_std,}},.MsgID = 0x221,.data = {0x61, 0x15, 0x01, 0x00, 0x00, 0x00, 0x20, 0xBA}};
 
+static uint32_t temporaryvariable = 0;
 static uint32_t total_discharge = 0;
 static uint32_t total_charge = 0;
 static uint16_t volts = 0;   // V
@@ -87,10 +88,24 @@ void update_values_tesla_model_3_battery()
 
 	remaining_capacity_Wh = (expected_energy_remaining * 100); //Scale up 60.3kWh -> 60300Wh
 
-	max_target_discharge_power = max_discharge_current;
+  //Calculate the allowed discharge power, cap it if it gets too large
+  temporaryvariable = (max_discharge_current * volts);
+  if(temporaryvariable > 60000){
+    max_target_discharge_power = 60000;
+  }
+  else{
+    max_target_discharge_power = temporaryvariable;
+  }
 
-	max_target_charge_power = max_charge_current;
-	
+  //Calculate the allowed charge power, cap it if it gets too large
+	temporaryvariable = (max_charge_current * volts);
+	if(temporaryvariable > 60000){
+    max_target_charge_power = 60000;
+  }
+  else{
+    max_target_charge_power = temporaryvariable;
+  }
+
 	stat_batt_power = (volts * amps); //TODO, check if scaling is OK
 
   min_temp = (min_temp * 10);
