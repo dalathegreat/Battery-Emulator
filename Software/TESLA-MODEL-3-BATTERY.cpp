@@ -60,8 +60,8 @@ static const char* hvilStatusState[] = {"NOT OK","STATUS_OK","CURRENT_SOURCE_FAU
 
 #define MAX_SOC 1000  //BMS never goes over this value. We use this info to rescale SOC% sent to inverter
 #define MIN_SOC 0     //BMS never goes below this value. We use this info to rescale SOC% sent to inverter
-#define MAX_CELL_VOLTAGE 4250 //Battery is put into emergency stop if one cell goes over this value
-#define MIN_CELL_VOLTAGE 2700 //Battery is put into emergency stop if one cell goes below this value
+#define MAX_CELL_VOLTAGE 4250 //Battery is put into emergency stop if one cell goes over this value (These values might need tweaking based on chemistry)
+#define MIN_CELL_VOLTAGE 2950 //Battery is put into emergency stop if one cell goes below this value (These values might need tweaking based on chemistry)
 #define MAX_CELL_DEVIATION 500 //LED turns yellow on the board if mv delta exceeds this value
 
 void update_values_tesla_model_3_battery()
