@@ -3,12 +3,14 @@
 #include "CAN_config.h"
 
 /* Do not change code below unless you are sure what you are doing */
+/* Credits: Most of the code comes from Per Carlen's bms_comms_tesla_model3.py (https://gitlab.com/pelle8/batt2gen24/) */
+
 static unsigned long previousMillis30 = 0; // will store last time a 30ms CAN Message was send
 static const int interval30 = 30; // interval (ms) at which send CAN Messages
 static uint8_t stillAliveCAN = 6; //counter for checking if CAN is still alive
 
-CAN_frame_t TESLA_221_1 = {.FIR = {.B = {.DLC = 8,.FF = CAN_frame_std,}},.MsgID = 0x221,.data = {0x41, 0x11, 0x01, 0x00, 0x00, 0x00, 0x20, 0x96}};
-CAN_frame_t TESLA_221_2 = {.FIR = {.B = {.DLC = 8,.FF = CAN_frame_std,}},.MsgID = 0x221,.data = {0x61, 0x15, 0x01, 0x00, 0x00, 0x00, 0x20, 0xBA}};
+CAN_frame_t TESLA_221_1 = {.FIR = {.B = {.DLC = 8,.FF = CAN_frame_std,}},.MsgID = 0x221,.data = {0x41, 0x11, 0x01, 0x00, 0x00, 0x00, 0x20, 0x96}}; //Contactor frame 221 - close contactors
+CAN_frame_t TESLA_221_2 = {.FIR = {.B = {.DLC = 8,.FF = CAN_frame_std,}},.MsgID = 0x221,.data = {0x61, 0x15, 0x01, 0x00, 0x00, 0x00, 0x20, 0xBA}}; //Contactor Frame 221 - hv_up_for_drive
 
 static uint32_t temporaryvariable = 0;
 static uint32_t total_discharge = 0;
@@ -53,6 +55,7 @@ static uint8_t packContPositiveState = 0;
 static uint8_t packContactorSetState = 0;
 static uint8_t packCtrsClosingAllowed = 0;
 static uint8_t pyroTestInProgress = 0;
+static uint8_t send221still = 10;
 static const char* contactorText[] = {"UNKNOWN(0)","OPEN","CLOSING","BLOCKED","OPENING","CLOSED","UNKNOWN(6)","WELDED","POS_CL","NEG_CL","UNKNOWN(10)","UNKNOWN(11)","UNKNOWN(12)"};
 static const char* contactorState[] = {"SNA","OPEN","PRECHARGE","BLOCKED","PULLED_IN","OPENING","ECONOMIZED","WELDED","UNKNOWN(8)","UNKNOWN(9)","UNKNOWN(10)","UNKNOWN(11)"};
 static const char* hvilStatusState[] = {"NOT OK","STATUS_OK","CURRENT_SOURCE_FAULT","INTERNAL_OPEN_FAULT","VEHICLE_OPEN_FAULT","PENTHOUSE_LID_OPEN_FAULT","UNKNOWN_LOCATION_OPEN_FAULT","VEHICLE_NODE_FAULT","NO_12V_SUPPLY","VEHICLE_OR_PENTHOUSE_LID_OPENFAULT","UNKNOWN(10)","UNKNOWN(11)","UNKNOWN(12)","UNKNOWN(13)","UNKNOWN(14)","UNKNOWN(15)"};
@@ -340,14 +343,30 @@ void receive_can_tesla_model_3_battery(CAN_frame_t rx_frame)
 }
 void send_can_tesla_model_3_battery()
 {
+/*From bielec: My fist 221 message, to close the contactors is 0x41, 0x11, 0x01, 0x00, 0x00, 0x00, 0x20, 0x96 and then, 
+to cause "hv_up_for_drive" I send an additional 221 message 0x61, 0x15, 0x01, 0x00, 0x00, 0x00, 0x20, 0xBA  so 
+two 221 messages are being continuously transmitted.   When I want to shut down, I stop the second message and only send 
+the first, for a few cycles, then stop all  messages which causes the contactor to open. */
+
   unsigned long currentMillis = millis();
   //Send 30ms message
 	if (currentMillis - previousMillis30 >= interval30)
 	{ 
 		previousMillis30 = currentMillis;
-    if(bms_status != FAULT){
+
+    if(bms_status == ACTIVE){
+      send221still = 10;
       ESP32Can.CANWriteFrame(&TESLA_221_1);
       ESP32Can.CANWriteFrame(&TESLA_221_2);
+    }
+    else if(bms_status == FAULT){
+      if(send221still > 0){
+        ESP32Can.CANWriteFrame(&TESLA_221_1);
+        send221still--;
+      }
+    }
+    else{
+      //Updating or some other state we dont use
     }
 	}
 }
