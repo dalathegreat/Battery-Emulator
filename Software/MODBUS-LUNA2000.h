@@ -32,5 +32,6 @@ extern uint16_t max_volt_modbus_byd;
 extern uint16_t min_volt_modbus_byd;
 
 void update_modbus_registers_luna2000();
+void handle_update_data_modbus32051();
 void handle_update_data_modbus39500();
 #endif
