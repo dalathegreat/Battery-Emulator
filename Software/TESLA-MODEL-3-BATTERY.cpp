@@ -105,13 +105,12 @@ void update_values_tesla_model_3_battery()
     max_target_discharge_power = temporaryvariable;
   }
 
-  //Calculate the allowed charge power, cap it if it gets too large
-	temporaryvariable = (max_charge_current * volts);
-	if(temporaryvariable > 60000){
-    max_target_charge_power = 60000;
+  //The allowed charge power behaves strangely. We instead estimate this value
+	if(SOC == 10000){
+    max_target_charge_power = 0; //When battery is 100% full, set allowed charge W to 0
   }
   else{
-    max_target_charge_power = temporaryvariable;
+    max_target_charge_power = 15000; //Otherwise we can push 15kW into the pack!
   }
 
 	stat_batt_power = (volts * amps); //TODO, check if scaling is OK
