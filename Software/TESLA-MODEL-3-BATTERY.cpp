@@ -364,14 +364,11 @@ the first, for a few cycles, then stop all  messages which causes the contactor 
       ESP32Can.CANWriteFrame(&TESLA_221_1);
       ESP32Can.CANWriteFrame(&TESLA_221_2);
     }
-    else if(bms_status == FAULT){
+    else{ //bms_status == FAULT
       if(send221still > 0){
         ESP32Can.CANWriteFrame(&TESLA_221_1);
         send221still--;
       }
-    }
-    else{
-      //Updating or some other state we dont use
     }
 	}
 }
