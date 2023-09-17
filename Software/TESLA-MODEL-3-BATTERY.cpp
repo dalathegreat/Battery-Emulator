@@ -121,6 +121,10 @@ void update_values_tesla_model_3_battery()
   max_temp = (max_temp * 10);
 	temperature_max = convert2unsignedint16(max_temp);
 
+  cell_max_voltage = cell_max_v;
+
+  cell_min_voltage = cell_min_v;
+
   /* Value mapping is completed. Start to check all safeties */
 
   bms_status = ACTIVE; //Startout in active mode before checking if we have any faults
