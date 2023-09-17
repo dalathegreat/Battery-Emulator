@@ -66,6 +66,7 @@ static const char* hvilStatusState[] = {"NOT OK","STATUS_OK","CURRENT_SOURCE_FAU
 
 void update_values_tesla_model_3_battery()
 { //This function maps all the values fetched via CAN to the correct parameters used for modbus
+  //After values are mapped, we perform some safety checks, and do some serial printouts
 	StateOfHealth = 9900; //Hardcoded to 99%SOH
 
   //Calculate the SOC% value to send to inverter
@@ -118,6 +119,8 @@ void update_values_tesla_model_3_battery()
   max_temp = (max_temp * 10);
 	temperature_max = convert2unsignedint16(max_temp);
 
+  /* Value mapping is completed. Start to check all safeties */
+
   bms_status = ACTIVE; //Startout in active mode before checking if we have any faults
 
 	/* Check if the BMS is still sending CAN messages. If we go 60s without messages we raise an error*/
@@ -146,6 +149,8 @@ void update_values_tesla_model_3_battery()
     LEDcolor = YELLOW;
     Serial.println("HIGH CELL DEVIATION!!! Inspect battery!");
   }
+
+  /* Safeties verified. Perform USB serial printout if configured to do so */
 
   #ifdef DEBUG_VIA_USB
     if (packCtrsClosingAllowed == 0)
@@ -234,8 +239,6 @@ void receive_can_tesla_model_3_battery(CAN_frame_t rx_frame)
 {
   static int mux = 0;
   static int temp = 0;
-  
-  stillAliveCAN = 12; //We are getting CAN messages, set the CAN detect counter
 
   switch (rx_frame.MsgID)
     {
@@ -325,6 +328,7 @@ void receive_can_tesla_model_3_battery(CAN_frame_t rx_frame)
       output_current =  (((rx_frame.data.u8[4] & 0x0F) << 8) | rx_frame.data.u8[3]) / 100;
       break;
     case 0x292:
+      stillAliveCAN = 12; //We are getting CAN messages from the BMS, set the CAN detect counter
       soc_min = (((rx_frame.data.u8[1] & 0x03) << 8) | rx_frame.data.u8[0]);
       soc_vi =  (((rx_frame.data.u8[2] & 0x0F) << 6) | ((rx_frame.data.u8[1] & 0xFC) >> 2));
       soc_max = (((rx_frame.data.u8[3] & 0x3F) << 4) | ((rx_frame.data.u8[2] & 0xF0) >> 4));
