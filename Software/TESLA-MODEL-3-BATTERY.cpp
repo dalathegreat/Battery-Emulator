@@ -137,6 +137,11 @@ void update_values_tesla_model_3_battery()
 	stillAliveCAN--;
 	}
 
+  if (hvil_status == 3){ //INTERNAL_OPEN_FAULT - Someone disconnected a high voltage cable while battery was in use
+    bms_status = FAULT;
+    Serial.println("High voltage cable removed while battery running. Opening contactors!");
+  } 
+
   if(cell_max_v >= MAX_CELL_VOLTAGE){ 
     bms_status = FAULT;
     Serial.println("CELL OVERVOLTAGE!!! Stopping battery charging and discharging. Inspect battery!");
