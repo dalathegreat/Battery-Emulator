@@ -32,8 +32,13 @@ unsigned long previousMillis10ms = 50;
 unsigned long previousMillisInverter = 0; 
 
 //ModbusRTU parameters
-#if defined(MODBUS_BYD) || defined(MODBUS_LUNA2000)
+#if defined(MODBUS_BYD)
 #define MB_RTU_NUM_VALUES 30000
+#endif
+#if defined(MODBUS_LUNA2000)
+#define MB_RTU_NUM_VALUES 50000
+#endif
+#if defined(MODBUS_BYD) || defined(MODBUS_LUNA2000)
 uint16_t mbPV[MB_RTU_NUM_VALUES];  // process variable memory
 // Create a ModbusRTU server instance listening on Serial2 with 2000ms timeout
 ModbusServerRTU MBserver(Serial2, 2000);
