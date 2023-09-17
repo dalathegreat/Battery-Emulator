@@ -504,7 +504,10 @@ void handle_contactors()
     break;
   }
 }
+<<<<<<< HEAD
 #endif
+=======
+>>>>>>> 7f91c449a364880f15f0be13e4db9c1682526feb
 
 void handle_LED_state()
 {
