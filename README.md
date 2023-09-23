@@ -14,7 +14,7 @@ Finally, you will need a [compatible hybrid solar inverter](https://github.com/d
 1. Connect one end of the LilyGo RS485 to the Gen24 Modbus
 2. Connect the other end of the LilyGo to the CAN side of the battery
 3. Wire up high voltage cable between the Gen24 and the battery
-4. Add a 12V power source to power the LilyGo and the battery (uninterruptible PSU or 12V lead acid recommended in parallel)
+4. Add a 5-12V power source to power the LilyGo and 12V to the battery (uninterruptible PSU or 12V lead acid recommended in parallel)
 5. Some batteries need manual pre-charge circuit and positive/negative contactor control. Others are automatic. See the wiki for more info.
 6. Enjoy a big cheap grid connected battery!
 
@@ -40,6 +40,9 @@ Click "File" in the upper left corner -> Preferences -> Additional Development >
 ![alt text](https://github.com/Xinyuan-LilyGO/T-CAN485/blob/main/img/arduino_setting.png)
 5. Select which battery type you will use, along with other optional settings
 6. Press Verify and Upload to send the sketch to the board.
+NOTE: In some cases, the LilyGo must be powered through the main power connector instead of USB-C
+      when performing the initial firsmware upload.
+NOTE: On Mac, the following USB driver may need to be installed: https://github.com/WCHSoftGroup/ch34xser_macos
 
 ## Dependencies 📖
 This code uses two libraries, ESP32-Arduino-CAN (https://github.com/miwagner/ESP32-Arduino-CAN/) slightly modified for this usecase, and the eModbus library (https://github.com/eModbus/eModbus). Both these are already located in the Software folder for an easy start.
