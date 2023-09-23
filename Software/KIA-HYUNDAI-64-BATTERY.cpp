@@ -12,15 +12,14 @@ static uint8_t CANstillAlive = 12; //counter for checking if CAN is still alive
 #define LB_MAX_SOC 1000  //BMS never goes over this value. We use this info to rescale SOC% sent to Inverter
 #define LB_MIN_SOC 0   //BMS never goes below this value. We use this info to rescale SOC% sent to Inverter
 
-static int SOC_1 = 0;
-static int SOC_2 = 0;
-static int SOC_3 = 0;
+static int SOC_BMS = 0;
+static int SOC_Display = 0;
 
 void update_values_kiaHyundai_64_battery()
 { //This function maps all the values fetched via CAN to the correct parameters used for modbus
 	bms_status = ACTIVE; //Startout in active mode
 
-	SOC;
+	SOC = (SOC_Display * 100); //Increase decimals from 50% -> 50.00%
 
 	battery_voltage;
 
@@ -52,12 +51,14 @@ void update_values_kiaHyundai_64_battery()
 	}
 
   #ifdef DEBUG_VIA_USB
-    Serial.print("SOC% candidate 1: ");
-    Serial.println(SOC_1);
-    Serial.print("SOC% candidate 2: ");
-    Serial.println(SOC_2);
-    Serial.print("SOC% candidate 3: ");
-    Serial.println(SOC_3);
+    Serial.println("Values from battery: ");
+    Serial.print("SOC% BMS: ");
+    Serial.print(SOC_BMS);
+    Serial.print(" SOC% Display: ");
+    Serial.println(SOC_Display);
+    Serial.println("Values heading towards inverter: ");
+    Serial.print("SOC%: ");
+    Serial.print(SOC);
   #endif
 }
 
@@ -83,10 +84,10 @@ void receive_can_kiaHyundai_64_battery(CAN_frame_t rx_frame)
   	case 0x4E2:
 	break;
   	case 0x542:
-    SOC_1 = rx_frame.data.u8[0];
+    SOC_BMS = (rx_frame.data.u8[0] / 2);
 	break;
   	case 0x594:
-    SOC_2 = rx_frame.data.u8[5];
+    SOC_Display = (rx_frame.data.u8[5] / 2);
 	break;
   	case 0x595:
 	break;
@@ -95,7 +96,6 @@ void receive_can_kiaHyundai_64_battery(CAN_frame_t rx_frame)
   	case 0x597:
 	break;
   	case 0x598:
-    SOC_3 = (rx_frame.data.u8[4] * 256.0 + rx_frame.data.u8[5]);
 	break;
   	case 0x599:
 	break;
