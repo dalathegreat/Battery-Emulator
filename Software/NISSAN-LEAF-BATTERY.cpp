@@ -513,6 +513,9 @@ void receive_can_leaf_battery(CAN_frame_t rx_frame)
 
         cell_deviation_mV = (min_max_voltage[1] - min_max_voltage[0]);
 
+        cell_max_voltage = min_max_voltage[1]; 
+        cell_min_voltage = min_max_voltage[0];
+
         if(cell_deviation_mV > MAX_CELL_DEVIATION){
           LEDcolor = YELLOW;
           Serial.println("HIGH CELL DEVIATION!!! Inspect battery!");

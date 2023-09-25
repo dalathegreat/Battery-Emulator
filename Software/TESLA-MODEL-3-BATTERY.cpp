@@ -3,12 +3,14 @@
 #include "CAN_config.h"
 
 /* Do not change code below unless you are sure what you are doing */
+/* Credits: Most of the code comes from Per Carlen's bms_comms_tesla_model3.py (https://gitlab.com/pelle8/batt2gen24/) */
+
 static unsigned long previousMillis30 = 0; // will store last time a 30ms CAN Message was send
 static const int interval30 = 30; // interval (ms) at which send CAN Messages
 static uint8_t stillAliveCAN = 6; //counter for checking if CAN is still alive
 
-CAN_frame_t TESLA_221_1 = {.FIR = {.B = {.DLC = 8,.FF = CAN_frame_std,}},.MsgID = 0x221,.data = {0x41, 0x11, 0x01, 0x00, 0x00, 0x00, 0x20, 0x96}};
-CAN_frame_t TESLA_221_2 = {.FIR = {.B = {.DLC = 8,.FF = CAN_frame_std,}},.MsgID = 0x221,.data = {0x61, 0x15, 0x01, 0x00, 0x00, 0x00, 0x20, 0xBA}};
+CAN_frame_t TESLA_221_1 = {.FIR = {.B = {.DLC = 8,.FF = CAN_frame_std,}},.MsgID = 0x221,.data = {0x41, 0x11, 0x01, 0x00, 0x00, 0x00, 0x20, 0x96}}; //Contactor frame 221 - close contactors
+CAN_frame_t TESLA_221_2 = {.FIR = {.B = {.DLC = 8,.FF = CAN_frame_std,}},.MsgID = 0x221,.data = {0x61, 0x15, 0x01, 0x00, 0x00, 0x00, 0x20, 0xBA}}; //Contactor Frame 221 - hv_up_for_drive
 
 static uint32_t temporaryvariable = 0;
 static uint32_t total_discharge = 0;
@@ -53,6 +55,7 @@ static uint8_t packContPositiveState = 0;
 static uint8_t packContactorSetState = 0;
 static uint8_t packCtrsClosingAllowed = 0;
 static uint8_t pyroTestInProgress = 0;
+static uint8_t send221still = 10;
 static const char* contactorText[] = {"UNKNOWN(0)","OPEN","CLOSING","BLOCKED","OPENING","CLOSED","UNKNOWN(6)","WELDED","POS_CL","NEG_CL","UNKNOWN(10)","UNKNOWN(11)","UNKNOWN(12)"};
 static const char* contactorState[] = {"SNA","OPEN","PRECHARGE","BLOCKED","PULLED_IN","OPENING","ECONOMIZED","WELDED","UNKNOWN(8)","UNKNOWN(9)","UNKNOWN(10)","UNKNOWN(11)"};
 static const char* hvilStatusState[] = {"NOT OK","STATUS_OK","CURRENT_SOURCE_FAULT","INTERNAL_OPEN_FAULT","VEHICLE_OPEN_FAULT","PENTHOUSE_LID_OPEN_FAULT","UNKNOWN_LOCATION_OPEN_FAULT","VEHICLE_NODE_FAULT","NO_12V_SUPPLY","VEHICLE_OR_PENTHOUSE_LID_OPENFAULT","UNKNOWN(10)","UNKNOWN(11)","UNKNOWN(12)","UNKNOWN(13)","UNKNOWN(14)","UNKNOWN(15)"};
@@ -66,6 +69,7 @@ static const char* hvilStatusState[] = {"NOT OK","STATUS_OK","CURRENT_SOURCE_FAU
 
 void update_values_tesla_model_3_battery()
 { //This function maps all the values fetched via CAN to the correct parameters used for modbus
+  //After values are mapped, we perform some safety checks, and do some serial printouts
 	StateOfHealth = 9900; //Hardcoded to 99%SOH
 
   //Calculate the SOC% value to send to inverter
@@ -101,13 +105,12 @@ void update_values_tesla_model_3_battery()
     max_target_discharge_power = temporaryvariable;
   }
 
-  //Calculate the allowed charge power, cap it if it gets too large
-	temporaryvariable = (max_charge_current * volts);
-	if(temporaryvariable > 60000){
-    max_target_charge_power = 60000;
+  //The allowed charge power behaves strangely. We instead estimate this value
+	if(SOC == 10000){
+    max_target_charge_power = 0; //When battery is 100% full, set allowed charge W to 0
   }
   else{
-    max_target_charge_power = temporaryvariable;
+    max_target_charge_power = 15000; //Otherwise we can push 15kW into the pack!
   }
 
 	stat_batt_power = (volts * amps); //TODO, check if scaling is OK
@@ -117,6 +120,12 @@ void update_values_tesla_model_3_battery()
 
   max_temp = (max_temp * 10);
 	temperature_max = convert2unsignedint16(max_temp);
+
+  cell_max_voltage = cell_max_v;
+
+  cell_min_voltage = cell_min_v;
+
+  /* Value mapping is completed. Start to check all safeties */
 
   bms_status = ACTIVE; //Startout in active mode before checking if we have any faults
 
@@ -130,6 +139,11 @@ void update_values_tesla_model_3_battery()
 	{
 	stillAliveCAN--;
 	}
+
+  if (hvil_status == 3){ //INTERNAL_OPEN_FAULT - Someone disconnected a high voltage cable while battery was in use
+    bms_status = FAULT;
+    Serial.println("High voltage cable removed while battery running. Opening contactors!");
+  } 
 
   if(cell_max_v >= MAX_CELL_VOLTAGE){ 
     bms_status = FAULT;
@@ -146,6 +160,8 @@ void update_values_tesla_model_3_battery()
     LEDcolor = YELLOW;
     Serial.println("HIGH CELL DEVIATION!!! Inspect battery!");
   }
+
+  /* Safeties verified. Perform USB serial printout if configured to do so */
 
   #ifdef DEBUG_VIA_USB
     if (packCtrsClosingAllowed == 0)
@@ -234,8 +250,6 @@ void receive_can_tesla_model_3_battery(CAN_frame_t rx_frame)
 {
   static int mux = 0;
   static int temp = 0;
-  
-  stillAliveCAN = 12; //We are getting CAN messages, set the CAN detect counter
 
   switch (rx_frame.MsgID)
     {
@@ -325,6 +339,7 @@ void receive_can_tesla_model_3_battery(CAN_frame_t rx_frame)
       output_current =  (((rx_frame.data.u8[4] & 0x0F) << 8) | rx_frame.data.u8[3]) / 100;
       break;
     case 0x292:
+      stillAliveCAN = 12; //We are getting CAN messages from the BMS, set the CAN detect counter
       soc_min = (((rx_frame.data.u8[1] & 0x03) << 8) | rx_frame.data.u8[0]);
       soc_vi =  (((rx_frame.data.u8[2] & 0x0F) << 6) | ((rx_frame.data.u8[1] & 0xFC) >> 2));
       soc_max = (((rx_frame.data.u8[3] & 0x3F) << 4) | ((rx_frame.data.u8[2] & 0xF0) >> 4));
@@ -336,14 +351,27 @@ void receive_can_tesla_model_3_battery(CAN_frame_t rx_frame)
 }
 void send_can_tesla_model_3_battery()
 {
+/*From bielec: My fist 221 message, to close the contactors is 0x41, 0x11, 0x01, 0x00, 0x00, 0x00, 0x20, 0x96 and then, 
+to cause "hv_up_for_drive" I send an additional 221 message 0x61, 0x15, 0x01, 0x00, 0x00, 0x00, 0x20, 0xBA  so 
+two 221 messages are being continuously transmitted.   When I want to shut down, I stop the second message and only send 
+the first, for a few cycles, then stop all  messages which causes the contactor to open. */
+
   unsigned long currentMillis = millis();
   //Send 30ms message
 	if (currentMillis - previousMillis30 >= interval30)
 	{ 
 		previousMillis30 = currentMillis;
-    if(bms_status != FAULT){
+
+    if(bms_status == ACTIVE){
+      send221still = 10;
       ESP32Can.CANWriteFrame(&TESLA_221_1);
       ESP32Can.CANWriteFrame(&TESLA_221_2);
+    }
+    else{ //bms_status == FAULT
+      if(send221still > 0){
+        ESP32Can.CANWriteFrame(&TESLA_221_1);
+        send221still--;
+      }
     }
 	}
 }
