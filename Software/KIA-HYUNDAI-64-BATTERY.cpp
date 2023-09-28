@@ -27,17 +27,9 @@ static double SOC_Display = 0;
 static int SOC_1 = 0;
 static int SOC_2 = 0;
 static int SOC_3 = 0;
-static int RES_WS0 = 0;
+static int leakSens = 0;
 static int tempSensH = 0;
 static double aux12volt = 0;
-static int testdata0 = 0x0;
-static int testdata1 = 0x0;
-static int testdata2 = 0x0;
-static int testdata3 = 0x0;
-static int testdata4 = 0x0;
-static int testdata5 = 0x0;
-static int testdata6 = 0x0;
-static int CoolWaterSensor = 0;
 static int poll_data_pid = 0;
 static int battSOH = 0;
 static int CellVoltMax = 0;
@@ -48,6 +40,13 @@ static int allowedDischargePower = 0;
 static int allowedChargePower = 0;
 static double battVolts = 0;
 static double battAmps = 0;
+static int tempMax = 0;
+static int tempMin = 0;
+static int temp1 = 0;
+static int temp2 =0;
+static int temp3 =0;
+static int temp4 = 0;
+static int tempinlet =0;
 
 void update_values_kiaHyundai_64_battery()
 { //This function maps all the values fetched via CAN to the correct parameters used for modbus
@@ -84,27 +83,22 @@ void update_values_kiaHyundai_64_battery()
 	CANstillAlive--;
 	}
 
-  if(printValues)
+  if(printValues)  
   {  //values heading towards the inverter
+    Serial.println(""); //sepatator
     Serial.println("Values from battery: ");
-    Serial.print("SOC% BMS: ");
+    Serial.print("SOC BMS: ");
     Serial.print(SOC_BMS);
-    Serial.print("  |  SOC% Display: ");
-    Serial.println(SOC_Display);
-    Serial.print("SOC%*100: ");
-    Serial.println(SOC);
-    Serial.print("BatteryCurrent: ");
-    Serial.println(SOC_3);  
-    Serial.print("Vattensensor: ");
-    Serial.println(RES_WS0);
-    Serial.print("HighestTemp: ");
-    Serial.print(tempSensH);
-    Serial.println("°C");
+    Serial.print("%  |  SOC Display: ");
+    Serial.print(SOC_Display);
+    Serial.print("%  |  SOH*10 ");
+    Serial.print(battSOH);
+    Serial.println("%");
     Serial.print("Aux12volt: ");
     Serial.print(aux12volt);
     Serial.println("V");
-    Serial.print("SOH*10 ");
-    Serial.println(battSOH);
+    Serial.print("LeakSensor: ");
+    Serial.println(leakSens);
     Serial.print("MaxCellVolt ");
     Serial.print(CellVoltMax);
     Serial.print(" mV  No  ");
@@ -113,9 +107,6 @@ void update_values_kiaHyundai_64_battery()
     Serial.print(CellVoltMin);
     Serial.print(" mV  No  ");
     Serial.println(CellVminNo);
-    Serial.print("CoolingWaterSensor ");
-    Serial.print(CoolWaterSensor);
-    Serial.println("°C");
     Serial.print("Allowed Chargepower ");
     Serial.print(allowedChargePower);
     Serial.print(" W  |  Allowed Dischargepower ");
@@ -125,6 +116,21 @@ void update_values_kiaHyundai_64_battery()
     Serial.print(" Amps  |  ");
     Serial.print(battVolts);
     Serial.println(" Volts");
+    Serial.print("BattHi ");
+    Serial.print(tempMax);
+    Serial.print("°C  BattLo ");
+    Serial.print(tempMin);
+    Serial.print("°C   Temp1 ");
+    Serial.print(temp1);
+    Serial.print("°C  Temp2 ");
+    Serial.print(temp2);
+    Serial.print("°C  Temp3 ");
+    Serial.print(temp3);
+    Serial.print("°C  Temp4 ");
+    Serial.print(temp4);
+    Serial.print("°C  WaterInlet ");
+    Serial.print(tempinlet);
+    Serial.println("°C");
   }
 }
 
@@ -158,8 +164,8 @@ void receive_can_kiaHyundai_64_battery(CAN_frame_t rx_frame)
   	case 0x595:
 	break;
   	case 0x596:
-    aux12volt = (rx_frame.data.u8[1] / 10.00);
-    tempSensH = (rx_frame.data.u8[7]);
+    aux12volt = (rx_frame.data.u8[1] / 10.00); //12v Battery Volts
+    tempSensH = (rx_frame.data.u8[7]); //Highest temp from passive data
 	break;
   	case 0x597:
 	break;
@@ -174,10 +180,10 @@ void receive_can_kiaHyundai_64_battery(CAN_frame_t rx_frame)
   	case 0x5A3:
 	break;
   	case 0x5D5:
-    RES_WS0 = rx_frame.data.u8[3]; // water sensor
+    leakSens = rx_frame.data.u8[3];  //Water sensor inside pack, value 164 is no water --> 0 is short
 	break;
   	case 0x5D6:
-    SOC_3 = (((rx_frame.data.u8[3] << 8) + rx_frame.data.u8[2]) / 10.0); //strömsensor
+    //SOC_3 = (((rx_frame.data.u8[3] << 8) + rx_frame.data.u8[2]) / 10.0); //strömsensor
 	break;
   	case 0x5D7:
 	break;
@@ -196,29 +202,33 @@ void receive_can_kiaHyundai_64_battery(CAN_frame_t rx_frame)
            allowedChargePower = ((rx_frame.data.u8[3] << 8) + rx_frame.data.u8[4]);
            allowedDischargePower = ((rx_frame.data.u8[5] << 8) + rx_frame.data.u8[6]);
          }
-         if (poll_data_pid == 6){
-           CoolWaterSensor = rx_frame.data.u8[2];
-         }
       break;
         case 0x22:  //Second datarow in PID group
          if (poll_data_pid == 1){
            battAmps = (((rx_frame.data.u8[1] << 8) + rx_frame.data.u8[2]) / 10.0);
            battVolts = (((rx_frame.data.u8[3] << 8) + rx_frame.data.u8[4]) / 10.0);
+           tempMax = rx_frame.data.u8[5];
+           tempMin = rx_frame.data.u8[6];
+           temp1 = rx_frame.data.u8[7];
          }
       break;
         case 0x23:  //Third datarow in PID group
          if (poll_data_pid == 1){
-         CellVoltMax = (rx_frame.data.u8[7] * 20);  //(volts *50) *20 =mV
+           temp2 = rx_frame.data.u8[1];
+           temp3 = rx_frame.data.u8[2];
+           temp4 = rx_frame.data.u8[3];
+           tempinlet = rx_frame.data.u8[6];
+           CellVoltMax = (rx_frame.data.u8[7] * 20);  //(volts *50) *20 =mV
          }
       break;
         case 0x24:  //Fourth datarow in PID group
          if (poll_data_pid == 1){
-         CellVmaxNo = rx_frame.data.u8[1];
-         CellVminNo = rx_frame.data.u8[3];
-         CellVoltMin = (rx_frame.data.u8[2] * 20);  //(volts *50) *20 =mV
+           CellVmaxNo = rx_frame.data.u8[1];
+           CellVminNo = rx_frame.data.u8[3];
+           CellVoltMin = (rx_frame.data.u8[2] * 20);  //(volts *50) *20 =mV
          }
-         if (poll_data_pid == 5){
-         battSOH = ((rx_frame.data.u8[2] << 8) + rx_frame.data.u8[3]);
+         else if (poll_data_pid == 5){
+           battSOH = ((rx_frame.data.u8[2] << 8) + rx_frame.data.u8[3]);
          }
       break;
         case 0x25:  //Fifth datarow in PID group
