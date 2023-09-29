@@ -340,18 +340,10 @@ void update_values_leaf_battery()
     Serial.println(min_max_voltage[1]);
     Serial.print("Cell deviation: ");
     Serial.println(cell_deviation_mV);
-    Serial.print("Temperatures; Polled temp min: ");
-    Serial.print(temp_polled_min);
-    Serial.print(" Polled temp max: ");
-    Serial.print(temp_polled_max);
-    Serial.print(" 5C0 temp max: ");
-    Serial.print(LB_HistData_Temperature_MAX);
-    Serial.print(" 5C0 temp min: ");
-    Serial.println(LB_HistData_Temperature_MIN);
-    Serial.print("Current 1: ");
-    Serial.print(Battery_current_1);
-    Serial.print(" Current 2: ");
-    Serial.println(Battery_current_2);
+    Serial.print("Temperature to inverter; min: ");
+    Serial.print(temperature_min);
+    Serial.print(" max: ");
+    Serial.println(temperature_max);
   #endif
 }
 
