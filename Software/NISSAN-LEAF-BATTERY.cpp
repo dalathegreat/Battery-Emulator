@@ -87,7 +87,8 @@ static byte LB_Capacity_Empty = 0; //LB_EMPTY, , Goes to 1 if battery is empty
 static uint8_t battery_request_idx	= 0;
 static uint8_t group_7bb = 0;
 static uint8_t group = 1;
-static uint8_t stop_battery_query	= 0;
+static uint8_t stop_battery_query	= 1;
+static uint8_t hold_off_with_polling_10seconds = 10;
 static uint16_t	cell_voltages[97]; //array with all the cellvoltages
 static uint16_t	cellcounter	= 0; 
 static uint16_t	min_max_voltage[2]; //contains cell min[0] and max[1] values in mV
@@ -289,7 +290,9 @@ void update_values_leaf_battery()
   }
   if(CANerror > MAX_CAN_FAILURES) //Also check if we have recieved too many malformed CAN messages. If so, signal via LED
   {
+    errorCode = 10;
     LEDcolor = YELLOW;
+    Serial.println("High amount of corrupted CAN messages detected. Check CAN wire shielding!");
   }
 
   /*Finally print out values to serial if configured to do so*/
@@ -337,18 +340,10 @@ void update_values_leaf_battery()
     Serial.println(min_max_voltage[1]);
     Serial.print("Cell deviation: ");
     Serial.println(cell_deviation_mV);
-    Serial.print("Temperatures; Polled temp min: ");
-    Serial.print(temp_polled_min);
-    Serial.print(" Polled temp max: ");
-    Serial.print(temp_polled_max);
-    Serial.print(" 5C0 temp max: ");
-    Serial.print(LB_HistData_Temperature_MAX);
-    Serial.print(" 5C0 temp min: ");
-    Serial.println(LB_HistData_Temperature_MIN);
-    Serial.print("Current 1: ");
-    Serial.print(Battery_current_1);
-    Serial.print(" Current 2: ");
-    Serial.println(Battery_current_2);
+    Serial.print("Temperature to inverter; min: ");
+    Serial.print(temperature_min);
+    Serial.print(" max: ");
+    Serial.println(temperature_max);
   #endif
 }
 
@@ -366,6 +361,8 @@ void receive_can_leaf_battery(CAN_frame_t rx_frame)
       // negative so extend the sign bit
       LB_Current |= 0xf800;
     }
+    // Scale down the value by 0.5
+    LB_Current /= 2;
 
     LB_Total_Voltage = ((rx_frame.data.u8[2] << 2) | (rx_frame.data.u8[3] & 0xc0) >> 6) / 2;
     
@@ -448,6 +445,7 @@ void receive_can_leaf_battery(CAN_frame_t rx_frame)
     break;
   case 0x79B:
     stop_battery_query = 1; //Someone is trying to read data with Leafspy, stop our own polling!
+    hold_off_with_polling_10seconds = 10; //Polling is paused for 100s
     break;
   case 0x7BB:
     //First check which group data we are getting
@@ -458,9 +456,11 @@ void receive_can_leaf_battery(CAN_frame_t rx_frame)
       }
     }
 
-    if(!stop_battery_query){
-      ESP32Can.CANWriteFrame(&LEAF_NEXT_LINE_REQUEST); //Request the next frame for the group
+    if(stop_battery_query){ //Leafspy is active, stop our own polling
+      break;
     }
+
+    ESP32Can.CANWriteFrame(&LEAF_NEXT_LINE_REQUEST); //Request the next frame for the group
 
     if(group_7bb == 1) //High precision SOC, Current, voltages etc.
     {
@@ -807,7 +807,14 @@ void send_can_leaf_battery()
       LEAF_GROUP_REQUEST.data.u8[2] = group;
       ESP32Can.CANWriteFrame(&LEAF_GROUP_REQUEST);
     }
-    stop_battery_query = 0;
+
+    if(hold_off_with_polling_10seconds > 0){
+      hold_off_with_polling_10seconds--;
+    }
+    else
+    {
+      stop_battery_query = 0;
+    }
   }
 }
 
