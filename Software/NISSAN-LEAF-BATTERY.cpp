@@ -87,7 +87,8 @@ static byte LB_Capacity_Empty = 0; //LB_EMPTY, , Goes to 1 if battery is empty
 static uint8_t battery_request_idx	= 0;
 static uint8_t group_7bb = 0;
 static uint8_t group = 1;
-static uint8_t stop_battery_query	= 0;
+static uint8_t stop_battery_query	= 1;
+static uint8_t hold_off_with_polling_10seconds = 10;
 static uint16_t	cell_voltages[97]; //array with all the cellvoltages
 static uint16_t	cellcounter	= 0; 
 static uint16_t	min_max_voltage[2]; //contains cell min[0] and max[1] values in mV
@@ -289,7 +290,9 @@ void update_values_leaf_battery()
   }
   if(CANerror > MAX_CAN_FAILURES) //Also check if we have recieved too many malformed CAN messages. If so, signal via LED
   {
+    errorCode = 10;
     LEDcolor = YELLOW;
+    Serial.println("High amount of corrupted CAN messages detected. Check CAN wire shielding!");
   }
 
   /*Finally print out values to serial if configured to do so*/
@@ -448,6 +451,7 @@ void receive_can_leaf_battery(CAN_frame_t rx_frame)
     break;
   case 0x79B:
     stop_battery_query = 1; //Someone is trying to read data with Leafspy, stop our own polling!
+    hold_off_with_polling_10seconds = 10; //Polling is paused for 100s
     break;
   case 0x7BB:
     //First check which group data we are getting
@@ -458,9 +462,11 @@ void receive_can_leaf_battery(CAN_frame_t rx_frame)
       }
     }
 
-    if(!stop_battery_query){
-      ESP32Can.CANWriteFrame(&LEAF_NEXT_LINE_REQUEST); //Request the next frame for the group
+    if(stop_battery_query){ //Leafspy is active, stop our own polling
+      break;
     }
+
+    ESP32Can.CANWriteFrame(&LEAF_NEXT_LINE_REQUEST); //Request the next frame for the group
 
     if(group_7bb == 1) //High precision SOC, Current, voltages etc.
     {
@@ -807,7 +813,14 @@ void send_can_leaf_battery()
       LEAF_GROUP_REQUEST.data.u8[2] = group;
       ESP32Can.CANWriteFrame(&LEAF_GROUP_REQUEST);
     }
-    stop_battery_query = 0;
+
+    if(hold_off_with_polling_10seconds > 0){
+      hold_off_with_polling_10seconds--;
+    }
+    else
+    {
+      stop_battery_query = 0;
+    }
   }
 }
 
