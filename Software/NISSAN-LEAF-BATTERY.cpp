@@ -369,6 +369,8 @@ void receive_can_leaf_battery(CAN_frame_t rx_frame)
       // negative so extend the sign bit
       LB_Current |= 0xf800;
     }
+    // Scale down the value by 0.5
+    LB_Current /= 2;
 
     LB_Total_Voltage = ((rx_frame.data.u8[2] << 2) | (rx_frame.data.u8[3] & 0xc0) >> 6) / 2;
     
