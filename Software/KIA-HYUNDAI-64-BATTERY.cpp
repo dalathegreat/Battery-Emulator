@@ -22,55 +22,59 @@ CAN_frame_t KIA64_7E4_ack = {.FIR = {.B = {.DLC = 8,.FF = CAN_frame_std,}},.MsgI
 #define LB_MAX_SOC 1000  //BMS never goes over this value. We use this info to rescale SOC% sent to Inverter
 #define LB_MIN_SOC 0   //BMS never goes below this value. We use this info to rescale SOC% sent to Inverter
 
-static double SOC_BMS = 0;
-static double SOC_Display = 0;
-static int SOC_1 = 0;
-static int SOC_2 = 0;
-static int SOC_3 = 0;
-static int leakSens = 0;
-static int tempSensH = 0;
-static double aux12volt = 0;
-static int poll_data_pid = 0;
-static int battSOH = 0;
-static int CellVoltMax = 0;
-static int CellVmaxNo = 0;
-static int CellVoltMin = 0;
-static int CellVminNo = 0;
-static int allowedDischargePower = 0;
-static int allowedChargePower = 0;
-static double battVolts = 0;
-static double battAmps = 0;
-static int tempMax = 0;
-static int tempMin = 0;
-static int temp1 = 0;
-static int temp2 =0;
-static int temp3 =0;
-static int temp4 = 0;
-static int tempinlet =0;
+static int16_t SOC_BMS = 0;
+static int16_t SOC_Display = 0;
+static int16_t battSOH = 0;
+static int16_t leakSens = 0;
+static int16_t tempSensH = 0;
+static int16_t aux12volt = 0;
+static int16_t CellVoltMax = 0;
+static int16_t CellVmaxNo = 0;
+static int16_t CellVoltMin = 0;
+static int16_t CellVminNo = 0;
+static int16_t allowedDischargePower = 0;
+static int16_t allowedChargePower = 0;
+static int16_t battVolts = 0;
+static int16_t battAmps = -12;
+static int16_t tempMax = 0;
+static int16_t tempMin = 0;
+static int16_t temp1 = 0;
+static int16_t temp2 = 0;
+static int16_t temp3 = 0;
+static int16_t temp4 = 0;
+static int16_t tempinlet = 0;
+static int16_t chmode = 0;
+static int16_t poll_data_pid = 0;
 
 void update_values_kiaHyundai_64_battery()
 { //This function maps all the values fetched via CAN to the correct parameters used for modbus
-	bms_status = ACTIVE; //Startout in active mode
+    bms_status = ACTIVE; //Startout in active mode
 
-	SOC = (SOC_Display * 100); //Increase decimals from 50% -> 50.00%
+    SOC = (SOC_Display * 10); //Increase decimals from 50.0% -> 50.00%
+    
+    StateOfHealth = (battSOH * 10); //Increase decimals from 100.0% -> 100.00%
 
-	battery_voltage;
+    battery_voltage = (uint16_t)battVolts; //value is *10
 
-	battery_current;
+    battery_current = (int16_t)battAmps; //value is *10 //Todo, the signed part breaks something here for sure
 
-	capacity_Wh = BATTERY_WH_MAX;
+    capacity_Wh = BATTERY_WH_MAX;
 
-	remaining_capacity_Wh;
+    remaining_capacity_Wh = ((SOC/10000)*BATTERY_WH_MAX);
 
-  max_target_discharge_power;
+    max_target_discharge_power = (uint16_t)allowedDischargePower * 10; //From kW*100 to Watts
 
-  max_target_charge_power;
+    max_target_charge_power = (uint16_t)allowedChargePower * 10; //From kW*100 to Watts
 
-  stat_batt_power;
+    stat_batt_power = ((uint16_t)battVolts * (int16_t)battAmps) / 100; //Power in watts, Negative = charging batt. //Todo, the signed part will break something here
 
-	temperature_min;
-	
-	temperature_max;
+    temperature_min = (tempMin * 10); //Increase decimals, 17C -> 17.0C
+    
+    temperature_max = (tempMax * 10); //Increase decimals, 18C -> 18.0C
+    
+    cell_max_voltage = CellVoltMax; //in millivolt
+    
+    cell_min_voltage = CellVoltMin; //in millivolt
 	
 	/* Check if the BMS is still sending CAN messages. If we go 60s without messages we raise an error*/
 	if(!CANstillAlive)
@@ -85,18 +89,18 @@ void update_values_kiaHyundai_64_battery()
 
   if(printValues)  
   {  //values heading towards the inverter
-    Serial.println(""); //sepatator
+    Serial.println(); //sepatator
     Serial.println("Values from battery: ");
     Serial.print("SOC BMS: ");
-    Serial.print(SOC_BMS);
+    Serial.print((int16_t)SOC_BMS / 10.0, 1);
     Serial.print("%  |  SOC Display: ");
-    Serial.print(SOC_Display);
-    Serial.print("%  |  SOH*10 ");
-    Serial.print(battSOH);
+    Serial.print((int16_t)SOC_Display / 10.0, 1);
+    Serial.print("%  |  SOH ");
+    Serial.print((int16_t)battSOH / 10.0, 1);
     Serial.println("%");
     Serial.print("Aux12volt: ");
-    Serial.print(aux12volt);
-    Serial.println("V");
+    Serial.print((int16_t)aux12volt / 10.0, 1);
+    Serial.print("V  |  ");
     Serial.print("LeakSensor: ");
     Serial.println(leakSens);
     Serial.print("MaxCellVolt ");
@@ -108,19 +112,21 @@ void update_values_kiaHyundai_64_battery()
     Serial.print(" mV  No  ");
     Serial.println(CellVminNo);
     Serial.print("Allowed Chargepower ");
-    Serial.print(allowedChargePower);
+    Serial.print((uint16_t)allowedChargePower * 10);
     Serial.print(" W  |  Allowed Dischargepower ");
-    Serial.print(allowedDischargePower);
+    Serial.print((uint16_t)allowedDischargePower * 10);
     Serial.println(" W");
-    Serial.print(battAmps);
+    Serial.print((int16_t)battAmps / 10.0, 1);
     Serial.print(" Amps  |  ");
-    Serial.print(battVolts);
-    Serial.println(" Volts");
+    Serial.print((int16_t)battVolts / 10.0, 1);
+    Serial.print(" Volts  |  ");
+    Serial.print((int16_t)stat_batt_power);
+    Serial.println(" Watts");
     Serial.print("BattHi ");
     Serial.print(tempMax);
     Serial.print("°C  BattLo ");
     Serial.print(tempMin);
-    Serial.print("°C   Temp1 ");
+    Serial.print("°C  Temp1 ");
     Serial.print(temp1);
     Serial.print("°C  Temp2 ");
     Serial.print(temp2);
@@ -131,6 +137,7 @@ void update_values_kiaHyundai_64_battery()
     Serial.print("°C  WaterInlet ");
     Serial.print(tempinlet);
     Serial.println("°C");
+    //Serial.println(chmode, BIN); //Bit0 - BMS relay Bit 5 - normal charge, bit 6 rapid charge, bit 7 charging
   }
 }
 
@@ -156,16 +163,16 @@ void receive_can_kiaHyundai_64_battery(CAN_frame_t rx_frame)
   	case 0x4E2:
 	break;
   	case 0x542:
-    SOC_Display = (rx_frame.data.u8[0] / 2.00);
+    SOC_Display = rx_frame.data.u8[0] * 5; //100% = 200 ( 200 * 5 = 1000 )
 	break;
   	case 0x594:
-    SOC_BMS = (rx_frame.data.u8[5] / 2.00);
+    SOC_BMS = rx_frame.data.u8[5] * 5; //100% = 200 ( 200 * 5 = 1000 )
 	break;
   	case 0x595:
 	break;
   	case 0x596:
-    aux12volt = (rx_frame.data.u8[1] / 10.00); //12v Battery Volts
-    tempSensH = (rx_frame.data.u8[7]); //Highest temp from passive data
+    aux12volt = rx_frame.data.u8[1]; //12v Battery Volts
+    tempSensH = rx_frame.data.u8[7]; //Highest temp from passive data
 	break;
   	case 0x597:
 	break;
@@ -201,12 +208,13 @@ void receive_can_kiaHyundai_64_battery(CAN_frame_t rx_frame)
          if (poll_data_pid == 1){
            allowedChargePower = ((rx_frame.data.u8[3] << 8) + rx_frame.data.u8[4]);
            allowedDischargePower = ((rx_frame.data.u8[5] << 8) + rx_frame.data.u8[6]);
+           chmode = rx_frame.data.u8[7];
          }
       break;
         case 0x22:  //Second datarow in PID group
          if (poll_data_pid == 1){
-           battAmps = (((rx_frame.data.u8[1] << 8) + rx_frame.data.u8[2]) / 10.0);
-           battVolts = (((rx_frame.data.u8[3] << 8) + rx_frame.data.u8[4]) / 10.0);
+           battAmps = (rx_frame.data.u8[1] << 8) + rx_frame.data.u8[2];
+           battVolts = (rx_frame.data.u8[3] << 8) + rx_frame.data.u8[4];
            tempMax = rx_frame.data.u8[5];
            tempMin = rx_frame.data.u8[6];
            temp1 = rx_frame.data.u8[7];
