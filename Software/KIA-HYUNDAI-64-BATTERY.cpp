@@ -36,13 +36,13 @@ static int16_t allowedDischargePower = 0;
 static int16_t allowedChargePower = 0;
 static int16_t battVolts = 0;
 static int16_t battAmps = -12;
-static int16_t tempMax = 0;
-static int16_t tempMin = 0;
-static int16_t temp1 = 0;
-static int16_t temp2 = 0;
-static int16_t temp3 = 0;
-static int16_t temp4 = 0;
-static int16_t tempinlet = 0;
+static int8_t tempMax = 0;
+static int8_t tempMin = 0;
+static int8_t temp1 = 0;
+static int8_t temp2 = 0;
+static int8_t temp3 = 0;
+static int8_t temp4 = 0;
+static int8_t tempinlet = 0;
 static int16_t chmode = 0;
 static int16_t poll_data_pid = 0;
 
@@ -68,9 +68,9 @@ void update_values_kiaHyundai_64_battery()
 
     stat_batt_power = ((uint16_t)battVolts * (int16_t)battAmps) / 100; //Power in watts, Negative = charging batt. //Todo, the signed part will break something here
 
-    temperature_min = (tempMin * 10); //Increase decimals, 17C -> 17.0C
+    temperature_min = ((int8_t)tempMin * 10); //Increase decimals, 17C -> 17.0C
     
-    temperature_max = (tempMax * 10); //Increase decimals, 18C -> 18.0C
+    temperature_max = ((int8_t)tempMax * 10); //Increase decimals, 18C -> 18.0C
     
     cell_max_voltage = CellVoltMax; //in millivolt
     
@@ -123,19 +123,19 @@ void update_values_kiaHyundai_64_battery()
     Serial.print((int16_t)stat_batt_power);
     Serial.println(" Watts");
     Serial.print("BattHi ");
-    Serial.print(tempMax);
+    Serial.print((int8_t)tempMax);
     Serial.print("°C  BattLo ");
-    Serial.print(tempMin);
+    Serial.print((int8_t)tempMin);
     Serial.print("°C  Temp1 ");
-    Serial.print(temp1);
+    Serial.print((int8_t)temp1);
     Serial.print("°C  Temp2 ");
-    Serial.print(temp2);
+    Serial.print((int8_t)temp2);
     Serial.print("°C  Temp3 ");
-    Serial.print(temp3);
+    Serial.print((int8_t)temp3);
     Serial.print("°C  Temp4 ");
-    Serial.print(temp4);
+    Serial.print((int8_t)temp4);
     Serial.print("°C  WaterInlet ");
-    Serial.print(tempinlet);
+    Serial.print((int8_t)tempinlet);
     Serial.println("°C");
     //Serial.println(chmode, BIN); //Bit0 - BMS relay Bit 5 - normal charge, bit 6 rapid charge, bit 7 charging
   }
@@ -148,7 +148,7 @@ void receive_can_kiaHyundai_64_battery(CAN_frame_t rx_frame)
 	{
 	  case 0x3F6:
 	break;
-  	case 0x491:
+	case 0x491:
 	break;
   	case 0x493:
 	break;
@@ -190,7 +190,6 @@ void receive_can_kiaHyundai_64_battery(CAN_frame_t rx_frame)
     leakSens = rx_frame.data.u8[3];  //Water sensor inside pack, value 164 is no water --> 0 is short
 	break;
   	case 0x5D6:
-    //SOC_3 = (((rx_frame.data.u8[3] << 8) + rx_frame.data.u8[2]) / 10.0); //strömsensor
 	break;
   	case 0x5D7:
 	break;
