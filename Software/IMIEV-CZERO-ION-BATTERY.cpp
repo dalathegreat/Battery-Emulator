@@ -85,9 +85,9 @@ void update_values_imiev_battery()
 
 void receive_can_imiev_battery(CAN_frame_t rx_frame)
 {
+CANstillAlive = 12; //Todo, move this inside a known message ID to prevent CAN inverter from keeping battery alive detection going
   switch (rx_frame.MsgID)
   {
-  CANstillAlive = 12; //Todo, move this inside a known message ID to prevent CAN inverter from keeping battery alive detection going
   case 0x374: //BMU message, 10ms - SOC
     BMU_SOC = ((rx_frame.data.u8[1] - 10) / 2);
     break;
