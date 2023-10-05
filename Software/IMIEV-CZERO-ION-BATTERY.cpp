@@ -36,21 +36,25 @@ static double BMU_PackVoltage = 0;
 static double BMU_Power = 0;
 static uint16_t cell_voltages[89]; //array with all the cellvoltages //Todo, what is max array size? 80/88 cells?
 static uint16_t cell_temperatures[89]; //array with all the celltemperatures //Todo, what is max array size? 80/88cells?
+static uint16_t max_volt_cel = 3700;
+static uint16_t min_volt_cel = 3700;
+static uint16_t max_temp_cel = 100;
+static uint16_t min_temp_cel = 100;
 
 
 void update_values_imiev_battery()
 { //This function maps all the values fetched via CAN to the correct parameters used for modbus
   bms_status = ACTIVE; //Startout in active mode
 
-  SOC = BMU_SOC; //Todo, scaling?
+  SOC = (uint16_t)(BMU_SOC * 100); //increase BMU_SOC range from 0-100 -> 100.00
 
-  battery_voltage = (BMU_PackVoltage*10); //Todo, scaling?
+  battery_voltage = (uint16_t)(BMU_PackVoltage/10); //Todo, scaling? 
 
   battery_current = (BMU_Current*10); //Todo, scaling?
 
   capacity_Wh = BATTERY_WH_MAX; //Hardcoded to header value
 
-  remaining_capacity_Wh = (SOC/100)*capacity_Wh;
+  remaining_capacity_Wh = (uint16_t)((SOC/100)*capacity_Wh);
 
   max_target_charge_power; //TODO, map
 
@@ -61,6 +65,35 @@ void update_values_imiev_battery()
   temperature_min; //TODO, map
 
   temperature_max; //TODO, map
+  
+  static int n = sizeof(cell_voltages) / sizeof(cell_voltages[0]);
+  max_volt_cel = cell_voltages[0]; // Initialize max with the first element of the array
+    for (int i = 1; i < n; i++) {
+      if (cell_voltages[i] > max_volt_cel) {
+          max_volt_cel = cell_voltages[i];  // Update max if we find a larger element
+      }
+  }
+  min_volt_cel = cell_voltages[0]; // Initialize max with the first element of the array
+    for (int i = 1; i < n; i++) {
+      if (cell_voltages[i] < min_volt_cel) {
+          min_volt_cel = cell_voltages[i];  // Update max if we find a smaller element
+      }
+  }
+
+  static int m = sizeof(cell_voltages) / sizeof(cell_temperatures[0]);
+  max_temp_cel = cell_temperatures[0]; // Initialize max with the first element of the array
+    for (int i = 1; i < n; i++) {
+      if (cell_temperatures[i] > max_temp_cel) {
+          max_temp_cel = cell_temperatures[i];  // Update max if we find a larger element
+      }
+  }
+  min_temp_cel = cell_temperatures[0]; // Initialize max with the first element of the array
+    for (int i = 1; i < n; i++) {
+      if (cell_temperatures[i] < min_temp_cel) {
+          min_temp_cel = cell_temperatures[i];  // Update max if we find a smaller element
+      }
+  }
+
 
   /* Check if the BMS is still sending CAN messages. If we go 60s without messages we raise an error*/
   if(!CANstillAlive)
@@ -74,12 +107,39 @@ void update_values_imiev_battery()
   }
 	
   #ifdef DEBUG_VIA_USB
+    Serial.println("Battery Values");
     Serial.print("BMU SOC: ");
-    Serial.println(BMU_SOC);
-    Serial.print("BMU Current: ");
-    Serial.println(BMU_Current);
-    Serial.print("BMU Battery Voltage: ");
-    Serial.println(BMU_PackVoltage);
+    Serial.print(BMU_SOC);
+    Serial.print(" BMU Current: ");
+    Serial.print(BMU_Current);
+    Serial.print(" BMU Battery Voltage: ");
+    Serial.print(BMU_PackVoltage);
+    Serial.print(" BMU_Power: ");
+    Serial.print(BMU_Power);
+    Serial.print(" Cell max voltage: ");
+    Serial.print(max_volt_cel);
+    Serial.print(" Cell min voltage: ");
+    Serial.println(min_volt_cel);
+	
+	Serial.println("Values sent to inverter");
+	Serial.print("SOC% (0-100.00): ");
+	Serial.print(SOC);
+	Serial.print(" Voltage (0-400.0): ");
+	Serial.print(battery_voltage);
+	Serial.print(" Capacity WH full (0-60000): ");
+	Serial.print(capacity_Wh);
+	Serial.print(" Capacity WH remain (0-60000): ");
+	Serial.print(remaining_capacity_Wh);
+	Serial.print(" Max charge power W (0-20000): ");
+	Serial.print(max_target_charge_power);
+	Serial.print(" Max discharge power W (0-20000): ");
+	Serial.print(max_target_discharge_power);
+	Serial.print(" Temp max ");
+	Serial.print(temperature_max);
+	Serial.print(" Temp min ");
+	Serial.print(temperature_min);
+	
+	
   #endif
 }
 
