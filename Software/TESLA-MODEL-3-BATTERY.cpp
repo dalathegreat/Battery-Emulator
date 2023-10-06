@@ -67,6 +67,22 @@ static const char* hvilStatusState[] = {"NOT OK","STATUS_OK","CURRENT_SOURCE_FAU
 #define MIN_CELL_VOLTAGE 2950 //Battery is put into emergency stop if one cell goes below this value (These values might need tweaking based on chemistry)
 #define MAX_CELL_DEVIATION 500 //LED turns yellow on the board if mv delta exceeds this value
 
+void print_int_with_units(char *header, int value, char *units) {
+    Serial.print(header);
+    Serial.print(value);
+    Serial.print(units);
+}
+void print_SOC(char *header, int SOC) {
+  Serial.print(header);
+  Serial.print(SOC / 100);
+  Serial.print(".");
+  int hundredth = SOC % 100;
+  if(hundredth < 10)
+    Serial.print(0);
+  Serial.print(hundredth);
+  Serial.println("%");
+}
+
 void update_values_tesla_model_3_battery()
 { //This function maps all the values fetched via CAN to the correct parameters used for modbus
   //After values are mapped, we perform some safety checks, and do some serial printouts
@@ -133,7 +149,7 @@ void update_values_tesla_model_3_battery()
 	if(!stillAliveCAN)
 	{
 	bms_status = FAULT;
-	Serial.println("No CAN communication detected for 60s. Shutting down battery control.");
+	Serial.println("ERROR: No CAN communication detected for 60s. Shutting down battery control.");
 	}
 	else
 	{
@@ -142,23 +158,23 @@ void update_values_tesla_model_3_battery()
 
   if (hvil_status == 3){ //INTERNAL_OPEN_FAULT - Someone disconnected a high voltage cable while battery was in use
     bms_status = FAULT;
-    Serial.println("High voltage cable removed while battery running. Opening contactors!");
+    Serial.println("ERROR: High voltage cable removed while battery running. Opening contactors!");
   } 
 
   if(cell_max_v >= MAX_CELL_VOLTAGE){ 
     bms_status = FAULT;
-    Serial.println("CELL OVERVOLTAGE!!! Stopping battery charging and discharging. Inspect battery!");
+    Serial.println("ERROR: CELL OVERVOLTAGE!!! Stopping battery charging and discharging. Inspect battery!");
   }
   if(cell_min_v <= MIN_CELL_VOLTAGE){ 
     bms_status = FAULT;
-    Serial.println("CELL UNDERVOLTAGE!!! Stopping battery charging and discharging. Inspect battery!");
+    Serial.println("ERROR: CELL UNDERVOLTAGE!!! Stopping battery charging and discharging. Inspect battery!");
   }
 
   cell_deviation_mV = (cell_max_v - cell_min_v);
 
   if(cell_deviation_mV > MAX_CELL_DEVIATION){
     LEDcolor = YELLOW;
-    Serial.println("HIGH CELL DEVIATION!!! Inspect battery!");
+    Serial.println("ERROR: HIGH CELL DEVIATION!!! Inspect battery!");
   }
 
   /* Safeties verified. Perform USB serial printout if configured to do so */
@@ -166,20 +182,20 @@ void update_values_tesla_model_3_battery()
   #ifdef DEBUG_VIA_USB
     if (packCtrsClosingAllowed == 0)
     {
-      Serial.println("Check high voltage connectors and interlock circuit! Closing contactor not allowed! Values: ");
+      Serial.println("ERROR: Check high voltage connectors and interlock circuit! Closing contactor not allowed! Values: ");
     }
     if (pyroTestInProgress == 1)
     {
-      Serial.println("Please wait for Pyro Connection check to finish, HV cables successfully seated!");
+      Serial.println("ERROR: Please wait for Pyro Connection check to finish, HV cables successfully seated!");
     }
 
-    Serial.print("Contactor: ");
+    Serial.print("STATUS: Contactor: ");
     Serial.print(contactorText[contactor]); //Display what state the contactor is in
-    Serial.print(" , HVIL: ");
+    Serial.print(", HVIL: ");
     Serial.print(hvilStatusState[hvil_status]);
-    Serial.print(" , NegativeState: ");
+    Serial.print(", NegativeState: ");
     Serial.print(contactorState[packContNegativeState]);
-    Serial.print(" , PositiveState: ");
+    Serial.print(", PositiveState: ");
     Serial.print(contactorState[packContPositiveState]);
     Serial.print(", setState: ");
     Serial.print(contactorState[packContactorSetState]);
@@ -188,61 +204,64 @@ void update_values_tesla_model_3_battery()
     Serial.print(", Pyrotest: ");
     Serial.println(pyroTestInProgress);
 
-    Serial.println("Battery values: ");
+    Serial.print("Battery values: ");
     Serial.print(" Vi SOC: ");
     Serial.print(soc_vi);
-    Serial.print(" SOC max: ");
+    Serial.print(", SOC max: ");
     Serial.print(soc_max);
-    Serial.print(" SOC min: ");
+    Serial.print(", SOC min: ");
     Serial.print(soc_min);
-    Serial.print(" SOC avg: ");
+    Serial.print(", SOC avg: ");
     Serial.print(soc_ave);
-    Serial.print(", Battery voltage: ");
-    Serial.print(volts);
-    Serial.print(", Battery amps: ");
-    Serial.print(amps);
-    Serial.print(", Discharge limit battery (kW): ");
-    Serial.print(discharge_limit);
-    Serial.print(", Charge limit battery (kW): ");
-    Serial.print(regenerative_limit);
+    print_int_with_units(", Battery voltage: ", volts, "V");
+    print_int_with_units(", Battery current: ", amps, "A");
+    Serial.println("");
+    print_int_with_units("Discharge limit battery: ", discharge_limit, "kW");
+    Serial.print(", ");
+    print_int_with_units("Charge limit battery: ", regenerative_limit, "kW");
+    Serial.print("kW");
     Serial.print(", Fully charged?: ");
-    Serial.print(full_charge_complete);
-    Serial.print(", Min discharge voltage allowed: ");
-    Serial.print(min_voltage);
-    Serial.print(", Max charge voltage allowed: ");
-    Serial.print(max_voltage);
-    Serial.print(", Max charge current (A): ");
-    Serial.print(max_charge_current);
-    Serial.print(", Max discharge current (A): ");
-    Serial.println(max_discharge_current);
-
-    Serial.print("Cellstats, Max mV: ");
+    if(full_charge_complete)
+      Serial.print("YES, ");
+    else
+      Serial.print("NO, ");
+    print_int_with_units("Min voltage allowed: ", min_voltage, "V");
+    Serial.print(", ");
+    print_int_with_units("Max voltage allowed: ", max_voltage, "V");
+    Serial.println("");
+    print_int_with_units("Max charge current: ", max_charge_current, "A");
+    Serial.print(", ");
+    print_int_with_units("Max discharge current: ", max_discharge_current, "A");
+    Serial.println("");
+    Serial.print("Cellstats, Max: ");
     Serial.print(cell_max_v);
-    Serial.print(", on cell no#: ");
+    Serial.print("mV (cell ");
     Serial.print(max_vno);
-    Serial.print(", Min mV: ");
+    Serial.print("), Min: ");
     Serial.print(cell_min_v);
-    Serial.print(", on cell no#: ");
-    Serial.println(min_vno);
+    Serial.print("mV (cell ");
+    Serial.print(min_vno);
+    Serial.print("), Imbalance: ");
+    Serial.print(cell_deviation_mV);
+    Serial.println("mV.");
 
-    Serial.print("HighVoltage Output Pins: ");
-    Serial.print(high_voltage);
-    Serial.print(", V, Low Voltage:");
-    Serial.print(low_voltage);
-    Serial.print(", V, Current Output:");
-    Serial.println(output_current);
+    print_int_with_units("High Voltage Output Pins: ", high_voltage, "V");
+    Serial.print(", ");
+    print_int_with_units("Low Voltage: ", low_voltage, "V");
+    Serial.println("");
+    print_int_with_units("Current Output: ", output_current, "A");
+    Serial.println("");
 
-    Serial.println("Values heading towards inverter: ");
-    Serial.print(" SOC% (XX.XX%): ");
-    Serial.print(SOC);
-    Serial.print(" Max discharge power (W): ");
-    Serial.print(max_target_discharge_power);
-    Serial.print(" Max charge power (W): ");
-    Serial.print(max_target_charge_power);
-    Serial.print(" Max temperature (C): ");
-    Serial.print(temperature_max);
-    Serial.print(" Min temperature (C): ");
-    Serial.println(temperature_min);
+    Serial.println("Values passed to the inverter: ");
+    print_SOC(" SOC: ", SOC);
+    print_int_with_units(" Max discharge power: ", max_target_discharge_power, "W");
+    Serial.print(", ");
+    print_int_with_units(" Max charge power: ", max_target_charge_power, "W");
+    Serial.println("");
+    print_int_with_units(" Max temperature: ", temperature_max, "C");
+    Serial.print(", ");
+    print_int_with_units(" Min temperature: ", temperature_min, "C");
+    Serial.println("");
   #endif
 }
 
