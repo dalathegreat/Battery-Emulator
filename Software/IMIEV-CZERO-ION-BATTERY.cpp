@@ -34,8 +34,8 @@ static double voltage2 = 0;
 static double BMU_Current = 0;
 static double BMU_PackVoltage = 0;
 static double BMU_Power = 0;
-static uint16_t cell_voltages[89]; //array with all the cellvoltages //Todo, what is max array size? 80/88 cells?
-static uint16_t cell_temperatures[89]; //array with all the celltemperatures //Todo, what is max array size? 80/88cells?
+static double cell_voltages[89]; //array with all the cellvoltages //Todo, what is max array size? 80/88 cells?
+static double cell_temperatures[89]; //array with all the celltemperatures //Todo, what is max array size? 80/88cells?
 static uint16_t max_volt_cel = 3700;
 static uint16_t min_volt_cel = 3700;
 static uint16_t max_temp_cel = 100;
@@ -48,17 +48,28 @@ void update_values_imiev_battery()
 
   SOC = (uint16_t)(BMU_SOC * 100); //increase BMU_SOC range from 0-100 -> 100.00
 
-  battery_voltage = (uint16_t)(BMU_PackVoltage/10); //Todo, scaling? 
+  battery_voltage = (uint16_t)(BMU_PackVoltage * 10); // Multiply by 10 and cast to uint16_t
 
   battery_current = (BMU_Current*10); //Todo, scaling?
 
   capacity_Wh = BATTERY_WH_MAX; //Hardcoded to header value
 
-  remaining_capacity_Wh = (uint16_t)((SOC/100)*capacity_Wh);
+  remaining_capacity_Wh = (uint16_t)((SOC/10000)*capacity_Wh);
 
-  max_target_charge_power; //TODO, map
+  //We do not know if the max charge power is sent by the battery. So we estimate the value based on SOC%
+	if(SOC == 10000){ //100.00%
+    max_target_charge_power = 0; //When battery is 100% full, set allowed charge W to 0
+  }
+  else{
+    max_target_charge_power = 10000; //Otherwise we can push 10kW into the pack!
+  }
 
-  max_target_discharge_power; //TODO, map
+  if(SOC < 200){ //2.00%
+    max_target_discharge_power = 0; //When battery is empty (below 2%), set allowed discharge W to 0
+  }
+  else{
+    max_target_discharge_power = 10000; //Otherwise we can discharge 10kW from the pack!
+  }
 
   stat_batt_power = BMU_Power; //TODO, Scaling?
 
@@ -73,22 +84,22 @@ void update_values_imiev_battery()
           max_volt_cel = cell_voltages[i];  // Update max if we find a larger element
       }
   }
-  min_volt_cel = cell_voltages[0]; // Initialize max with the first element of the array
+  min_volt_cel = cell_voltages[0]; // Initialize min with the first element of the array
     for (int i = 1; i < n; i++) {
       if (cell_voltages[i] < min_volt_cel) {
-          min_volt_cel = cell_voltages[i];  // Update max if we find a smaller element
+          min_volt_cel = cell_voltages[i];  // Update min if we find a smaller element
       }
   }
 
   static int m = sizeof(cell_voltages) / sizeof(cell_temperatures[0]);
   max_temp_cel = cell_temperatures[0]; // Initialize max with the first element of the array
-    for (int i = 1; i < n; i++) {
+    for (int i = 1; i < m; i++) {
       if (cell_temperatures[i] > max_temp_cel) {
           max_temp_cel = cell_temperatures[i];  // Update max if we find a larger element
       }
   }
-  min_temp_cel = cell_temperatures[0]; // Initialize max with the first element of the array
-    for (int i = 1; i < n; i++) {
+  min_temp_cel = cell_temperatures[0]; // Initialize min with the first element of the array
+    for (int i = 1; i < m; i++) {
       if (cell_temperatures[i] < min_temp_cel) {
           min_temp_cel = cell_temperatures[i];  // Update max if we find a smaller element
       }
@@ -130,15 +141,14 @@ void update_values_imiev_battery()
 	Serial.print(capacity_Wh);
 	Serial.print(" Capacity WH remain (0-60000): ");
 	Serial.print(remaining_capacity_Wh);
-	Serial.print(" Max charge power W (0-20000): ");
+	Serial.print(" Max charge power W (0-10000): ");
 	Serial.print(max_target_charge_power);
-	Serial.print(" Max discharge power W (0-20000): ");
+	Serial.print(" Max discharge power W (0-10000): ");
 	Serial.print(max_target_discharge_power);
 	Serial.print(" Temp max ");
 	Serial.print(temperature_max);
 	Serial.print(" Temp min ");
 	Serial.print(temperature_min);
-	
 	
   #endif
 }
