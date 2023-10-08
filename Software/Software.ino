@@ -116,7 +116,7 @@ uint8_t inverterAllowsContactorClosing = 1;
 void setup()
 {
   // Init Serial monitor
-	Serial.begin(9600);
+	Serial.begin(115200);
 	while (!Serial)
 	{
 	}
@@ -540,12 +540,14 @@ void handle_update_data_modbusp201_byd() {
 void handle_update_data_modbusp301_byd() {
   // Store the data into the array
   static uint16_t battery_data[24];
-  if (battery_current > 0) { //Positive value = Charging
+  if (battery_current == 0){ //idle
+    bms_char_dis_status = 0;
+  }
+  else if(battery_current < 32768){ //Positive value = Charging
     bms_char_dis_status = 2; //Charging
-  } else if (battery_current < 0) { //Negative value = Discharging
+  }
+  else if(battery_current > 32768){ //Negative value = Discharging
     bms_char_dis_status = 1; //Discharging
-  } else { //battery_current == 0
-    bms_char_dis_status = 0; //idle
   }
 
   if (bms_status == ACTIVE) {
