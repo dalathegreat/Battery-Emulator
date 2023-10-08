@@ -129,7 +129,7 @@ void update_values_leaf_battery()
 
   battery_voltage = (LB_Total_Voltage*10); //One more decimal needed
 
-  battery_current = (LB_Current*10); //One more decimal needed
+  battery_current = convert2unsignedint16(LB_Current*10); //One more decimal needed, sign if needed
 
 	capacity_Wh = (LB_Max_GIDS * WH_PER_GID);
 
@@ -818,13 +818,13 @@ void send_can_leaf_battery()
   }
 }
 
-uint16_t convert2unsignedint16(uint16_t signed_value)
+uint16_t convert2unsignedint16(int16_t signed_value)
 {
 	if(signed_value < 0){
 		return(65535 + signed_value);
 	}
 	else{
-		return signed_value;
+		return (uint16_t)signed_value;
 	}
 }
 
