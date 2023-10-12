@@ -3,23 +3,27 @@
 #include "CAN_config.h"
 
 /* Do not change code below unless you are sure what you are doing */
-static unsigned long previousMillis2s = 0; // will store last time a 2s CAN Message was send
-static unsigned long previousMillis10s = 0; // will store last time a 10s CAN Message was send
-static unsigned long previousMillis60s = 0; // will store last time a 60s CAN Message was send
-static const int interval2s = 2000; // interval (ms) at which send CAN Messages
-static const int interval10s = 10000; // interval (ms) at which send CAN Messages
-static const int interval60s = 60000; // interval (ms) at which send CAN Messages
-
-//Constant startup messages
-const CAN_frame_t SMA_618 = {.FIR = {.B = {.DLC = 8,.FF = CAN_frame_std,}},.MsgID = 0x618,.data = {0x03, 0x16, 0x00, 0x66, 0x00, 0x33, 0x02, 0x09}};
+static unsigned long previousMillisXs = 0; // will store last time a Xs CAN Message was send
+static const int intervalXs = 600; // interval (ms) at which send CAN Messages
 
 //Actual content messages
-CAN_frame_t SMA_110 = {.FIR = {.B = {.DLC = 8,.FF = CAN_frame_std,}},.MsgID = 0x110,.data = {0x01, 0x90, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00}};
+static const CAN_frame_t SMA_558 = {.FIR = {.B = {.DLC = 8,.FF = CAN_frame_std,}},.MsgID = 0x558,.data = {0x03, 0x12, 0x00, 0x04, 0x00, 0x59, 0x07, 0x07}}; //7x BYD modules, Vendor ID 7 BYD
+static const CAN_frame_t SMA_598 = {.FIR = {.B = {.DLC = 8,.FF = CAN_frame_std,}},.MsgID = 0x598,.data = {0x00, 0x00, 0x12, 0x34, 0x5A, 0xDE, 0x07, 0x4F}}; //B0-4 Serial, rest unknown
+static const CAN_frame_t SMA_5D8 = {.FIR = {.B = {.DLC = 8,.FF = CAN_frame_std,}},.MsgID = 0x5D8,.data = {0x00, 0x42, 0x59, 0x44, 0x00, 0x00, 0x00, 0x00}}; //B Y D
+static const CAN_frame_t SMA_618_1 = {.FIR = {.B = {.DLC = 8,.FF = CAN_frame_std,}},.MsgID = 0x618,.data = {0x00, 0x42, 0x61, 0x74, 0x74, 0x65, 0x72, 0x79}}; //0 B A T T E R Y
+static const CAN_frame_t SMA_618_2 = {.FIR = {.B = {.DLC = 8,.FF = CAN_frame_std,}},.MsgID = 0x618,.data = {0x01, 0x2D, 0x42, 0x6F, 0x78, 0x20, 0x48, 0x39}}; //1 - B O X   H
+static const CAN_frame_t SMA_618_3 = {.FIR = {.B = {.DLC = 8,.FF = CAN_frame_std,}},.MsgID = 0x618,.data = {0x02, 0x2E, 0x30, 0x00, 0x00, 0x00, 0x00, 0x00}}; //2 - 0
+CAN_frame_t SMA_358 = {.FIR = {.B = {.DLC = 8,.FF = CAN_frame_std,}},.MsgID = 0x358,.data = {0x0F, 0x6C, 0x06, 0x20, 0x00, 0x00, 0x00, 0x00}}; //B0-1 Max charge V (394.8)
+CAN_frame_t SMA_3D8 = {.FIR = {.B = {.DLC = 8,.FF = CAN_frame_std,}},.MsgID = 0x3D8,.data = {0x04, 0x10, 0x27, 0x10, 0x00, 0x18, 0xF9, 0x00}};
+CAN_frame_t SMA_458 = {.FIR = {.B = {.DLC = 8,.FF = CAN_frame_std,}},.MsgID = 0x458,.data = {0x00, 0x00, 0x06, 0x75, 0x00, 0x00, 0x05, 0xD6}};
+CAN_frame_t SMA_518 = {.FIR = {.B = {.DLC = 8,.FF = CAN_frame_std,}},.MsgID = 0x518,.data = {0x00, 0x00, 0x00, 0x00, 0xFF, 0xFF, 0xFF, 0xFF}};
+CAN_frame_t SMA_4D8 = {.FIR = {.B = {.DLC = 8,.FF = CAN_frame_std,}},.MsgID = 0x4D8,.data = {0x09, 0xFD, 0x00, 0x00, 0x00, 0xA8, 0x02, 0x08}};
+CAN_frame_t SMA_158 = {.FIR = {.B = {.DLC = 8,.FF = CAN_frame_std,}},.MsgID = 0x158,.data = {0xAA, 0xAA, 0xAA, 0xAA, 0xAA, 0x6A, 0xAA, 0xAA}};
+
 
 static int discharge_current = 0;
 static int charge_current = 0;
 static int temperature_average = 0;
-
 static int inverter_voltage = 0;
 static int inverter_SOC = 0;
 
@@ -101,28 +105,22 @@ void send_can_sma()
 {
   unsigned long currentMillis = millis();
 
-	// Send 2s CAN Message
-	if (currentMillis - previousMillis2s >= interval2s)
+	// Send CAN Message every X ms, 1000 for testing
+	if (currentMillis - previousMillisXs >= intervalXs)
 	{
-	  previousMillis2s = currentMillis;
+	  previousMillisXs = currentMillis;
 
-	  //ESP32Can.CANWriteFrame(&BYD_110);
-	}
-	// Send 10s CAN Message
-	if (currentMillis - previousMillis10s >= interval10s)
-	{
-	  previousMillis10s = currentMillis;
-
-	  //ESP32Can.CANWriteFrame(&BYD_150);
-	  //ESP32Can.CANWriteFrame(&BYD_1D0);
-	  //ESP32Can.CANWriteFrame(&BYD_210);
-	}
-	//Send 60s message
-	if (currentMillis - previousMillis60s >= interval60s)
-	{ 
-	  previousMillis60s = currentMillis;
-
-	  //ESP32Can.CANWriteFrame(&BYD_190); 
-	  //Serial.println("CAN 60s done");
+	  ESP32Can.CANWriteFrame(&SMA_558);
+    ESP32Can.CANWriteFrame(&SMA_598);
+    ESP32Can.CANWriteFrame(&SMA_5D8);
+    ESP32Can.CANWriteFrame(&SMA_618_1);
+    ESP32Can.CANWriteFrame(&SMA_618_2);
+    ESP32Can.CANWriteFrame(&SMA_618_3);
+    ESP32Can.CANWriteFrame(&SMA_358);
+    ESP32Can.CANWriteFrame(&SMA_3D8);
+    ESP32Can.CANWriteFrame(&SMA_458);
+    ESP32Can.CANWriteFrame(&SMA_518);
+    ESP32Can.CANWriteFrame(&SMA_4D8);
+    ESP32Can.CANWriteFrame(&SMA_158);
 	}
 }
