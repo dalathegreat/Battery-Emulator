@@ -24,8 +24,7 @@ CAN_frame_t SMA_158 = {.FIR = {.B = {.DLC = 8,.FF = CAN_frame_std,}},.MsgID = 0x
 static int discharge_current = 0;
 static int charge_current = 0;
 static int temperature_average = 0;
-static int inverter_voltage = 0;
-static int inverter_SOC = 0;
+static int ampere_hours_remaining = 0;
 
 void update_values_can_sma()
 { //This function maps all the values fetched from battery CAN to the correct CAN messages
@@ -39,8 +38,9 @@ void update_values_can_sma()
   discharge_current = (discharge_current*10); //Value needs a decimal before getting sent to inverter (81.0A)
 
   temperature_average = ((temperature_max + temperature_min)/2);
-  
 
+  ampere_hours_remaining = ((remaining_capacity_Wh/battery_voltage)*100); //(WH[10000] * V+1[3600])*100 = 270 (27.0Ah) 
+  
   //Map values to CAN messages
   //Maxvoltage (eg 400.0V = 4000 , 16bits long)
   SMA_358.data.u8[0] = (max_volt_sma_can >> 8);
@@ -62,10 +62,8 @@ void update_values_can_sma()
   SMA_3D8.data.u8[2] = (StateOfHealth >> 8);
   SMA_3D8.data.u8[3] = (StateOfHealth & 0x00FF);
   //State of charge (AH, 0.1)
-  //SMA_3D8.data.u8[4] = //Todo, calc it
-  //SMA_3D8.data.u8[5] = //Todo, calc it
-  //Todo, calc it
-
+  SMA_3D8.data.u8[4] = (ampere_hours_remaining >> 8);
+  SMA_3D8.data.u8[5] = (ampere_hours_remaining & 0x00FF);
 
   //Voltage (370.0)
   SMA_4D8.data.u8[0] = (battery_voltage >> 8);
