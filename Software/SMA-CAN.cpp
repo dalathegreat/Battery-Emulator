@@ -13,7 +13,7 @@ static const CAN_frame_t SMA_5D8 = {.FIR = {.B = {.DLC = 8,.FF = CAN_frame_std,}
 static const CAN_frame_t SMA_618_1 = {.FIR = {.B = {.DLC = 8,.FF = CAN_frame_std,}},.MsgID = 0x618,.data = {0x00, 0x42, 0x61, 0x74, 0x74, 0x65, 0x72, 0x79}}; //0 B A T T E R Y
 static const CAN_frame_t SMA_618_2 = {.FIR = {.B = {.DLC = 8,.FF = CAN_frame_std,}},.MsgID = 0x618,.data = {0x01, 0x2D, 0x42, 0x6F, 0x78, 0x20, 0x48, 0x39}}; //1 - B O X   H
 static const CAN_frame_t SMA_618_3 = {.FIR = {.B = {.DLC = 8,.FF = CAN_frame_std,}},.MsgID = 0x618,.data = {0x02, 0x2E, 0x30, 0x00, 0x00, 0x00, 0x00, 0x00}}; //2 - 0
-CAN_frame_t SMA_358 = {.FIR = {.B = {.DLC = 8,.FF = CAN_frame_std,}},.MsgID = 0x358,.data = {0x0F, 0x6C, 0x06, 0x20, 0x00, 0x00, 0x00, 0x00}}; //B0-1 Max charge V (394.8)
+CAN_frame_t SMA_358 = {.FIR = {.B = {.DLC = 8,.FF = CAN_frame_std,}},.MsgID = 0x358,.data = {0x0F, 0x6C, 0x06, 0x20, 0x00, 0x00, 0x00, 0x00}};
 CAN_frame_t SMA_3D8 = {.FIR = {.B = {.DLC = 8,.FF = CAN_frame_std,}},.MsgID = 0x3D8,.data = {0x04, 0x10, 0x27, 0x10, 0x00, 0x18, 0xF9, 0x00}};
 CAN_frame_t SMA_458 = {.FIR = {.B = {.DLC = 8,.FF = CAN_frame_std,}},.MsgID = 0x458,.data = {0x00, 0x00, 0x06, 0x75, 0x00, 0x00, 0x05, 0xD6}};
 CAN_frame_t SMA_518 = {.FIR = {.B = {.DLC = 8,.FF = CAN_frame_std,}},.MsgID = 0x518,.data = {0x00, 0x00, 0x00, 0x00, 0xFF, 0xFF, 0xFF, 0xFF}};
@@ -43,47 +43,43 @@ void update_values_can_sma()
 
   //Map values to CAN messages
   //Maxvoltage (eg 400.0V = 4000 , 16bits long)
-  //BYD_110.data.u8[0] = (max_volt_byd_can >> 8);
-  //BYD_110.data.u8[1] = (max_volt_byd_can & 0x00FF);
-  //Minvoltage (eg 300.0V = 3000 , 16bits long)
-  //BYD_110.data.u8[2] = (min_volt_byd_can >> 8);
-  //BYD_110.data.u8[3] = (min_volt_byd_can & 0x00FF);
-  //Maximum discharge power allowed (Unit: A+1)
-  //BYD_110.data.u8[4] = (discharge_current >> 8);
-  //BYD_110.data.u8[5] = (discharge_current & 0x00FF);
-  //Maximum charge power allowed (Unit: A+1)
-  //BYD_110.data.u8[6] = (charge_current >> 8);
-  //BYD_110.data.u8[7] = (charge_current & 0x00FF);
+  SMA_358.data.u8[0] = (max_volt_sma_can >> 8);
+  SMA_358.data.u8[1] = (max_volt_sma_can & 0x00FF);
+  //Minvoltage (eg 300.0V = 3000 , 16bits long) 
+  SMA_358.data.u8[2] = (min_volt_sma_can >> 8); //Minvoltage behaves strange on SMA, cuts out at 56% of the set value?
+  SMA_358.data.u8[3] = (min_volt_sma_can & 0x00FF);
+  //Discharge limited current, 500 = 50A, (0.1, A)
+  SMA_358.data.u8[4] = (discharge_current >> 8);
+  SMA_358.data.u8[5] = (discharge_current & 0x00FF);
+  //Charge limited current, 125 =12.5A (0.1, A)
+  SMA_358.data.u8[6] = (charge_current >> 8);
+  SMA_358.data.u8[7] = (charge_current & 0x00FF);
 
   //SOC (100.00%)
-  //BYD_150.data.u8[0] = (SOC >> 8);
-  //BYD_150.data.u8[1] = (SOC & 0x00FF);
+  SMA_3D8.data.u8[0] = (SOC >> 8);
+  SMA_3D8.data.u8[1] = (SOC & 0x00FF);
   //StateOfHealth (100.00%)
-  //BYD_150.data.u8[2] = (StateOfHealth >> 8);
-  //BYD_150.data.u8[3] = (StateOfHealth & 0x00FF);
-  //Maximum charge power allowed (Unit: A+1)
-  //BYD_150.data.u8[4] = (charge_current >> 8);
-  //BYD_150.data.u8[5] = (charge_current & 0x00FF);
-  //Maximum discharge power allowed (Unit: A+1)
-  //BYD_150.data.u8[6] = (discharge_current >> 8);
-  //BYD_150.data.u8[7] = (discharge_current & 0x00FF);
+  SMA_3D8.data.u8[2] = (StateOfHealth >> 8);
+  SMA_3D8.data.u8[3] = (StateOfHealth & 0x00FF);
+  //State of charge (AH, 0.1)
+  //SMA_3D8.data.u8[4] = //Todo, calc it
+  //SMA_3D8.data.u8[5] = //Todo, calc it
+  //Todo, calc it
+
 
   //Voltage (370.0)
-  //BYD_1D0.data.u8[0] = (battery_voltage >> 8);
-  //BYD_1D0.data.u8[1] = (battery_voltage & 0x00FF);
-  //Current (TODO, SIGNED?)
-  //BYD_1D0.data.u8[2] = (battery_current >> 8);
-  //BYD_1D0.data.u8[3] = (battery_current & 0x00FF);
+  SMA_4D8.data.u8[0] = (battery_voltage >> 8);
+  SMA_4D8.data.u8[1] = (battery_voltage & 0x00FF);
+  //Current (TODO, signed OK?)
+  SMA_4D8.data.u8[2] = (battery_current >> 8);
+  SMA_4D8.data.u8[3] = (battery_current & 0x00FF);
   //Temperature average
-  //BYD_1D0.data.u8[4] = (temperature_average >> 8);
-  //BYD_1D0.data.u8[5] = (temperature_average & 0x00FF);
+  SMA_4D8.data.u8[4] = (temperature_average >> 8);
+  SMA_4D8.data.u8[5] = (temperature_average & 0x00FF);
 
-  //Temperature max
-  //BYD_210.data.u8[0] = (temperature_max >> 8);
-  //BYD_210.data.u8[1] = (temperature_max & 0x00FF);
-  //Temperature min
-  //BYD_210.data.u8[2] = (temperature_min >> 8);
-  //BYD_210.data.u8[3] = (temperature_min & 0x00FF);
+  //Error bits
+  //SMA_158.data.u8[0] = //bit12 Fault high temperature, bit34Battery cellundervoltage, bit56 Battery cell overvoltage, bit78 batterysystemdefect
+  //TODO, add all error bits
 }
 
 void receive_can_sma(CAN_frame_t rx_frame)
