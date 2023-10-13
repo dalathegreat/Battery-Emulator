@@ -3,8 +3,30 @@
 #include "CAN_config.h"
 
 /* Do not change code below unless you are sure what you are doing */
-static unsigned long previousMillisXs = 0; // will store last time a Xs CAN Message was send
-static const int intervalXs = 600; // interval (ms) at which send CAN Messages
+static unsigned long previousMillis1s = 0; // will store last time a Xs CAN Message was send
+static unsigned long previousMillis2s = 0; // will store last time a Xs CAN Message was send
+static unsigned long previousMillis3s = 0; // will store last time a Xs CAN Message was send
+static unsigned long previousMillis4s = 0; // will store last time a Xs CAN Message was send
+static unsigned long previousMillis5s = 0; // will store last time a Xs CAN Message was send
+static unsigned long previousMillis6s = 0; // will store last time a Xs CAN Message was send
+static unsigned long previousMillis7s = 0; // will store last time a Xs CAN Message was send
+static unsigned long previousMillis8s = 0; // will store last time a Xs CAN Message was send
+static unsigned long previousMillis9s = 0; // will store last time a Xs CAN Message was send
+static unsigned long previousMillis10s = 0; // will store last time a Xs CAN Message was send
+static unsigned long previousMillis11s = 0; // will store last time a Xs CAN Message was send
+static unsigned long previousMillis12s = 0; // will store last time a Xs CAN Message was send
+static const int interval1s = 100; // interval (ms) at which send CAN Messages
+static const int interval2s = 102; // interval (ms) at which send CAN Messages
+static const int interval3s = 104; // interval (ms) at which send CAN Messages
+static const int interval4s = 106; // interval (ms) at which send CAN Messages
+static const int interval5s = 108; // interval (ms) at which send CAN Messages
+static const int interval6s = 110; // interval (ms) at which send CAN Messages
+static const int interval7s = 112; // interval (ms) at which send CAN Messages
+static const int interval8s = 114; // interval (ms) at which send CAN Messages
+static const int interval9s = 116; // interval (ms) at which send CAN Messages
+static const int interval10s = 118; // interval (ms) at which send CAN Messages
+static const int interval11s = 120; // interval (ms) at which send CAN Messages
+static const int interval12s = 122; // interval (ms) at which send CAN Messages
 
 //Actual content messages
 static const CAN_frame_t SMA_558 = {.FIR = {.B = {.DLC = 8,.FF = CAN_frame_std,}},.MsgID = 0x558,.data = {0x03, 0x12, 0x00, 0x04, 0x00, 0x59, 0x07, 0x07}}; //7x BYD modules, Vendor ID 7 BYD
@@ -19,7 +41,6 @@ CAN_frame_t SMA_458 = {.FIR = {.B = {.DLC = 8,.FF = CAN_frame_std,}},.MsgID = 0x
 CAN_frame_t SMA_518 = {.FIR = {.B = {.DLC = 8,.FF = CAN_frame_std,}},.MsgID = 0x518,.data = {0x00, 0x00, 0x00, 0x00, 0xFF, 0xFF, 0xFF, 0xFF}};
 CAN_frame_t SMA_4D8 = {.FIR = {.B = {.DLC = 8,.FF = CAN_frame_std,}},.MsgID = 0x4D8,.data = {0x09, 0xFD, 0x00, 0x00, 0x00, 0xA8, 0x02, 0x08}};
 CAN_frame_t SMA_158 = {.FIR = {.B = {.DLC = 8,.FF = CAN_frame_std,}},.MsgID = 0x158,.data = {0xAA, 0xAA, 0xAA, 0xAA, 0xAA, 0x6A, 0xAA, 0xAA}};
-
 
 static int discharge_current = 0;
 static int charge_current = 0;
@@ -100,21 +121,77 @@ void send_can_sma()
   unsigned long currentMillis = millis();
 
 	// Send CAN Message every X ms, 1000 for testing
-	if (currentMillis - previousMillisXs >= intervalXs)
+	if (currentMillis - previousMillis1s >= interval1s)
 	{
-	  previousMillisXs = currentMillis;
+	  previousMillis1s = currentMillis;
 
 	  ESP32Can.CANWriteFrame(&SMA_558);
-    ESP32Can.CANWriteFrame(&SMA_598);
-    ESP32Can.CANWriteFrame(&SMA_5D8);
-    ESP32Can.CANWriteFrame(&SMA_618_1);
-    ESP32Can.CANWriteFrame(&SMA_618_2);
-    ESP32Can.CANWriteFrame(&SMA_618_3);
-    ESP32Can.CANWriteFrame(&SMA_358);
-    ESP32Can.CANWriteFrame(&SMA_3D8);
-    ESP32Can.CANWriteFrame(&SMA_458);
-    ESP32Can.CANWriteFrame(&SMA_518);
-    ESP32Can.CANWriteFrame(&SMA_4D8);
-    ESP32Can.CANWriteFrame(&SMA_158);
 	}
+	if (currentMillis - previousMillis2s >= interval2s)
+	{
+	  previousMillis2s = currentMillis;
+
+	  ESP32Can.CANWriteFrame(&SMA_598);
+	}
+	if (currentMillis - previousMillis3s >= interval3s)
+	{
+	  previousMillis3s = currentMillis;
+
+	  ESP32Can.CANWriteFrame(&SMA_5D8);
+	}
+	if (currentMillis - previousMillis4s >= interval4s)
+	{
+	  previousMillis4s = currentMillis;
+
+	  ESP32Can.CANWriteFrame(&SMA_618_1);
+	}
+	if (currentMillis - previousMillis5s >= interval5s)
+	{
+	  previousMillis5s = currentMillis;
+
+	  ESP32Can.CANWriteFrame(&SMA_618_2);
+	}
+	if (currentMillis - previousMillis6s >= interval6s)
+	{
+	  previousMillis6s = currentMillis;
+
+	  ESP32Can.CANWriteFrame(&SMA_618_3);
+	}
+	if (currentMillis - previousMillis7s >= interval7s)
+	{
+	  previousMillis7s = currentMillis;
+
+	  ESP32Can.CANWriteFrame(&SMA_358);
+	}
+	if (currentMillis - previousMillis8s >= interval8s)
+  {
+	  previousMillis8s = currentMillis;
+
+	  ESP32Can.CANWriteFrame(&SMA_3D8);
+	}
+	if (currentMillis - previousMillis9s >= interval9s)
+	{
+	  previousMillis9s = currentMillis;
+
+	  ESP32Can.CANWriteFrame(&SMA_458);
+	}
+	if (currentMillis - previousMillis10s >= interval10s)
+	{
+	  previousMillis10s = currentMillis;
+
+	  ESP32Can.CANWriteFrame(&SMA_518);
+	}
+	if (currentMillis - previousMillis11s >= interval11s)
+	{
+	  previousMillis11s = currentMillis;
+
+	  ESP32Can.CANWriteFrame(&SMA_4D8);
+	}
+  if (currentMillis - previousMillis12s >= interval12s)
+	{
+	  previousMillis12s = currentMillis;
+
+	  ESP32Can.CANWriteFrame(&SMA_158);
+	}
+
 }
