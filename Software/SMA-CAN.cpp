@@ -2,6 +2,8 @@
 #include "ESP32CAN.h"
 #include "CAN_config.h"
 
+//TODO, change CAN sending routine once confirmed that 500ms interval is OK for this battery type
+
 /* Do not change code below unless you are sure what you are doing */
 static unsigned long previousMillis1s = 0; // will store last time a Xs CAN Message was send
 static unsigned long previousMillis2s = 0; // will store last time a Xs CAN Message was send
