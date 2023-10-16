@@ -132,10 +132,10 @@ void update_values_tesla_model_3_battery()
 	stat_batt_power = (volts * amps); //TODO, check if scaling is OK
 
   min_temp = (min_temp * 10);
-	temperature_min = convert2unsignedint16(min_temp);
+	temperature_min = convert2unsignedInt16(min_temp);
 
   max_temp = (max_temp * 10);
-	temperature_max = convert2unsignedint16(max_temp);
+	temperature_max = convert2unsignedInt16(max_temp);
 
   cell_max_voltage = cell_max_v;
 
@@ -392,5 +392,14 @@ the first, for a few cycles, then stop all  messages which causes the contactor 
         send221still--;
       }
     }
+	}
+}
+uint16_t convert2unsignedInt16(int16_t signed_value)
+{
+	if(signed_value < 0){
+		return(65535 + signed_value);
+	}
+	else{
+		return (uint16_t)signed_value;
 	}
 }
