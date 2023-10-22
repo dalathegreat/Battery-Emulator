@@ -10,8 +10,8 @@ static const int interval2s = 2000; // interval (ms) at which send CAN Messages
 static const int interval10s = 10000; // interval (ms) at which send CAN Messages
 static const int interval60s = 60000; // interval (ms) at which send CAN Messages
 
-//Constant startup messages
-const CAN_frame_t BYD_250 = {.FIR = {.B = {.DLC = 8,.FF = CAN_frame_std,}},.MsgID = 0x250,.data = {0x03, 0x16, 0x00, 0x66, 0x00, 0x33, 0x02, 0x09}};
+//Startup messages
+const CAN_frame_t BYD_250 = {.FIR = {.B = {.DLC = 8,.FF = CAN_frame_std,}},.MsgID = 0x250,.data = {0x03, 0x16, 0x00, 0x66, (uint8_t)((BATTERY_WH_MAX/100) >> 8), (uint8_t)(BATTERY_WH_MAX/100), 0x02, 0x09}}; //3.16 FW , Capacity kWh byte4&5 (example 24kWh = 240)
 const CAN_frame_t BYD_290 = {.FIR = {.B = {.DLC = 8,.FF = CAN_frame_std,}},.MsgID = 0x290,.data = {0x06, 0x37, 0x10, 0xD9, 0x00, 0x00, 0x00, 0x00}};
 const CAN_frame_t BYD_2D0 = {.FIR = {.B = {.DLC = 8,.FF = CAN_frame_std,}},.MsgID = 0x2D0,.data = {0x00, 0x42, 0x59, 0x44, 0x00, 0x00, 0x00, 0x00}}; //BYD
 const CAN_frame_t BYD_3D0_0 = {.FIR = {.B = {.DLC = 8,.FF = CAN_frame_std,}},.MsgID = 0x3D0,.data = {0x00, 0x42, 0x61, 0x74, 0x74, 0x65, 0x72, 0x79}}; //Battery
@@ -75,10 +75,10 @@ void update_values_can_byd()
   BYD_150.data.u8[6] = (discharge_current >> 8);
   BYD_150.data.u8[7] = (discharge_current & 0x00FF);
 
-  //Voltage (370.0)
+  //Voltage (ex 370.0)
   BYD_1D0.data.u8[0] = (battery_voltage >> 8);
   BYD_1D0.data.u8[1] = (battery_voltage & 0x00FF);
-  //Current (TODO, SIGNED?)
+  //Current (ex 81.0A)
   BYD_1D0.data.u8[2] = (battery_current >> 8);
   BYD_1D0.data.u8[3] = (battery_current & 0x00FF);
   //Temperature average
