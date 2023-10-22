@@ -30,11 +30,7 @@ Here's how to wire up the communication between the components.
 Here's how to connect the high voltage lines
 ![alt text](https://github.com/dalathegreat/BYD-Battery-Emulator-For-Gen24/blob/main/Images/HighVoltageWiring.png)
 
-Here's how to wire up battery low voltage wiring
-![alt text](https://github.com/dalathegreat/BYD-Battery-Emulator-For-Gen24/blob/main/Images/BatteryControlWiring.png)
-
-For more examples showing wiring, see the Example#####.jpg pictures in the 'Images' folder
-https://github.com/dalathegreat/BYD-Battery-Emulator-For-Gen24/tree/main/Images
+For more examples showing wiring, see each battery types own Wiki page. For instance the [Nissan LEAF page](https://github.com/dalathegreat/BYD-Battery-Emulator-For-Gen24/wiki/Nissan-LEAF-battery#wiring-diagram)
 
 ## How to compile the software 💻
 1. Download the Arduino IDE: https://www.arduino.cc/en/software
