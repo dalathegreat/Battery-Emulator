@@ -122,8 +122,13 @@ void update_values_imiev_battery()
   {
     CANstillAlive--;
   }
+
+  if(!BMU_Detected){
+    Serial.println("BMU not detected, check wiring!");
+  }
 	
   #ifdef DEBUG_VIA_USB
+
     Serial.println("Battery Values");
     Serial.print("BMU SOC: ");
     Serial.print(BMU_SOC);
