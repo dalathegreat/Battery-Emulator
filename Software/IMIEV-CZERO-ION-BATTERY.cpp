@@ -2,11 +2,8 @@
 #include "ESP32CAN.h"
 #include "CAN_config.h"
 
-//Code still very WIP
-//TODO: Add CMU warning incase we detect a direct connection to the CMUs. It wont be safe to use the battery in this mode
-//Map the missing values
-//Check scaling of all values
-//Generate messages towards BMU to keep it happy?
+//Code still work in progress, TODO:
+//Figure out if CAN messages need to be sent to keep the system happy?
 
 /* Do not change code below unless you are sure what you are doing */
 #define BMU_MAX_SOC 1000  //BMS never goes over this value. We use this info to rescale SOC% sent to inverter
@@ -25,7 +22,8 @@ static int pid_index = 0;
 static int cmu_id = 0;
 static int voltage_index = 0;
 static int temp_index = 0;
-static int BMU_SOC = 0;
+static uint8_t BMU_SOC = 0;
+static int temp_value = 0;
 static double temp1 = 0;
 static double temp2 = 0;
 static double temp3 = 0;
@@ -34,33 +32,82 @@ static double voltage2 = 0;
 static double BMU_Current = 0;
 static double BMU_PackVoltage = 0;
 static double BMU_Power = 0;
-static uint16_t cell_voltages[89]; //array with all the cellvoltages //Todo, what is max array size? 80/88 cells?
-static uint16_t cell_temperatures[89]; //array with all the celltemperatures //Todo, what is max array size? 80/88cells?
+static double cell_voltages[89]; //array with all the cellvoltages //Todo, what is max array size? 80/88 cells?
+static double cell_temperatures[89]; //array with all the celltemperatures //Todo, what is max array size? 80/88cells?
+static double max_volt_cel = 3.70;
+static double min_volt_cel = 3.70;
+static double max_temp_cel = 20.00;
+static double min_temp_cel = 19.00;
 
 
 void update_values_imiev_battery()
 { //This function maps all the values fetched via CAN to the correct parameters used for modbus
   bms_status = ACTIVE; //Startout in active mode
 
-  SOC = BMU_SOC; //Todo, scaling?
+  SOC = (uint16_t)(BMU_SOC * 100); //increase BMU_SOC range from 0-100 -> 100.00
 
-  battery_voltage = (BMU_PackVoltage*10); //Todo, scaling?
+  battery_voltage = (uint16_t)(BMU_PackVoltage * 10); // Multiply by 10 and cast to uint16_t
 
   battery_current = (BMU_Current*10); //Todo, scaling?
 
   capacity_Wh = BATTERY_WH_MAX; //Hardcoded to header value
 
-  remaining_capacity_Wh = (SOC/100)*capacity_Wh;
+  remaining_capacity_Wh = (uint16_t)((SOC/10000)*capacity_Wh);
 
-  max_target_charge_power; //TODO, map
+  //We do not know if the max charge power is sent by the battery. So we estimate the value based on SOC%
+	if(SOC == 10000){ //100.00%
+    max_target_charge_power = 0; //When battery is 100% full, set allowed charge W to 0
+  }
+  else{
+    max_target_charge_power = 10000; //Otherwise we can push 10kW into the pack!
+  }
 
-  max_target_discharge_power; //TODO, map
+  if(SOC < 200){ //2.00%
+    max_target_discharge_power = 0; //When battery is empty (below 2%), set allowed discharge W to 0
+  }
+  else{
+    max_target_discharge_power = 10000; //Otherwise we can discharge 10kW from the pack!
+  }
 
   stat_batt_power = BMU_Power; //TODO, Scaling?
+  
+  static int n = sizeof(cell_voltages) / sizeof(cell_voltages[0]);
+  max_volt_cel = cell_voltages[0]; // Initialize max with the first element of the array
+    for (int i = 1; i < n; i++) {
+      if (cell_voltages[i] > max_volt_cel) {
+          max_volt_cel = cell_voltages[i];  // Update max if we find a larger element
+      }
+  }
+  min_volt_cel = cell_voltages[0]; // Initialize min with the first element of the array
+    for (int i = 1; i < n; i++) {
+      if (cell_voltages[i] < min_volt_cel) {
+          min_volt_cel = cell_voltages[i];  // Update min if we find a smaller element
+      }
+  }
 
-  temperature_min; //TODO, map
+  static int m = sizeof(cell_voltages) / sizeof(cell_temperatures[0]);
+  max_temp_cel = cell_temperatures[0]; // Initialize max with the first element of the array
+    for (int i = 1; i < m; i++) {
+      if (cell_temperatures[i] > max_temp_cel) {
+          max_temp_cel = cell_temperatures[i];  // Update max if we find a larger element
+      }
+  }
+  min_temp_cel = cell_temperatures[0]; // Initialize min with the first element of the array
+    for (int i = 1; i < m; i++) {
+      if (cell_temperatures[i] < min_temp_cel) {
+          if(min_temp_cel != -50.00){ //-50.00 means this sensor not connected
+            min_temp_cel = cell_temperatures[i];  // Update max if we find a smaller element
+          }
+      }
+  }
+  
+  cell_max_voltage = (uint16_t)(max_volt_cel*1000);
 
-  temperature_max; //TODO, map
+  cell_min_voltage = (uint16_t)(min_volt_cel*1000);
+
+  temperature_min = (uint16_t)(min_temp_cel*1000);
+
+  temperature_max = (uint16_t)(max_temp_cel*1000);
 
   /* Check if the BMS is still sending CAN messages. If we go 60s without messages we raise an error*/
   if(!CANstillAlive)
@@ -72,14 +119,53 @@ void update_values_imiev_battery()
   {
     CANstillAlive--;
   }
+
+  if(!BMU_Detected){
+    Serial.println("BMU not detected, check wiring!");
+  }
 	
   #ifdef DEBUG_VIA_USB
+
+    Serial.println("Battery Values");
     Serial.print("BMU SOC: ");
-    Serial.println(BMU_SOC);
-    Serial.print("BMU Current: ");
-    Serial.println(BMU_Current);
-    Serial.print("BMU Battery Voltage: ");
-    Serial.println(BMU_PackVoltage);
+    Serial.print(BMU_SOC);
+    Serial.print(" BMU Current: ");
+    Serial.print(BMU_Current);
+    Serial.print(" BMU Battery Voltage: ");
+    Serial.print(BMU_PackVoltage);
+    Serial.print(" BMU_Power: ");
+    Serial.print(BMU_Power);
+    Serial.print(" Cell max voltage: ");
+    Serial.print(max_volt_cel);
+    Serial.print(" Cell min voltage: ");
+    Serial.print(min_volt_cel);
+	  Serial.print(" Cell max temp: ");
+    Serial.print(max_temp_cel);
+    Serial.print(" Cell min temp: ");
+    Serial.println(min_temp_cel);
+	
+	Serial.println("Values sent to inverter");
+	Serial.print("SOC% (0-100.00): ");
+	Serial.print(SOC);
+	Serial.print(" Voltage (0-400.0): ");
+	Serial.print(battery_voltage);
+	Serial.print(" Capacity WH full (0-60000): ");
+	Serial.print(capacity_Wh);
+	Serial.print(" Capacity WH remain (0-60000): ");
+	Serial.print(remaining_capacity_Wh);
+	Serial.print(" Max charge power W (0-10000): ");
+	Serial.print(max_target_charge_power);
+	Serial.print(" Max discharge power W (0-10000): ");
+	Serial.print(max_target_discharge_power);
+	Serial.print(" Temp max ");
+	Serial.print(temperature_max);
+	Serial.print(" Temp min ");
+	Serial.print(temperature_min);
+	Serial.print(" Cell mV max ");
+	Serial.print(cell_max_voltage);
+	Serial.print(" Cell mV min ");
+	Serial.print(cell_min_voltage);
+	
   #endif
 }
 
@@ -89,7 +175,10 @@ CANstillAlive = 12; //Todo, move this inside a known message ID to prevent CAN i
   switch (rx_frame.MsgID)
   {
   case 0x374: //BMU message, 10ms - SOC
-    BMU_SOC = ((rx_frame.data.u8[1] - 10) / 2);
+    temp_value = ((rx_frame.data.u8[1] - 10) / 2);
+    if(temp_value >= 0 && temp_value <= 101){
+      BMU_SOC = temp_value;
+    }
     break;
   case 0x373: //BMU message, 100ms - Pack Voltage and current
     BMU_Current =  ((((((rx_frame.data.u8[2] * 256.0) + rx_frame.data.u8[3])) - 32768)) * 0.01);
