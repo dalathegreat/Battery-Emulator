@@ -25,7 +25,8 @@ static int pid_index = 0;
 static int cmu_id = 0;
 static int voltage_index = 0;
 static int temp_index = 0;
-static int BMU_SOC = 0;
+static uint8_t BMU_SOC = 0;
+static int temp_value = 0;
 static double temp1 = 0;
 static double temp2 = 0;
 static double temp3 = 0;
@@ -36,10 +37,10 @@ static double BMU_PackVoltage = 0;
 static double BMU_Power = 0;
 static double cell_voltages[89]; //array with all the cellvoltages //Todo, what is max array size? 80/88 cells?
 static double cell_temperatures[89]; //array with all the celltemperatures //Todo, what is max array size? 80/88cells?
-static double max_volt_cel = 3700;
-static double min_volt_cel = 3700;
-static double max_temp_cel = 100;
-static double min_temp_cel = 100;
+static double max_volt_cel = 3.70;
+static double min_volt_cel = 3.70;
+static double max_temp_cel = 20.00;
+static double min_temp_cel = 19.00;
 
 
 void update_values_imiev_battery()
@@ -72,10 +73,6 @@ void update_values_imiev_battery()
   }
 
   stat_batt_power = BMU_Power; //TODO, Scaling?
-
-  temperature_min; //TODO, map
-
-  temperature_max; //TODO, map
   
   static int n = sizeof(cell_voltages) / sizeof(cell_voltages[0]);
   max_volt_cel = cell_voltages[0]; // Initialize max with the first element of the array
@@ -101,10 +98,19 @@ void update_values_imiev_battery()
   min_temp_cel = cell_temperatures[0]; // Initialize min with the first element of the array
     for (int i = 1; i < m; i++) {
       if (cell_temperatures[i] < min_temp_cel) {
-          min_temp_cel = cell_temperatures[i];  // Update max if we find a smaller element
+          if(min_temp_cel != -50.00){ //-50.00 means this sensor not connected
+            min_temp_cel = cell_temperatures[i];  // Update max if we find a smaller element
+          }
       }
   }
+  
+  cell_max_voltage = (uint16_t)(max_volt_cel*1000);
 
+  cell_min_voltage = (uint16_t)(min_volt_cel*1000);
+
+  temperature_min = (uint16_t)(min_temp_cel*1000);
+
+  temperature_max = (uint16_t)(max_temp_cel*1000);
 
   /* Check if the BMS is still sending CAN messages. If we go 60s without messages we raise an error*/
   if(!CANstillAlive)
@@ -130,7 +136,11 @@ void update_values_imiev_battery()
     Serial.print(" Cell max voltage: ");
     Serial.print(max_volt_cel);
     Serial.print(" Cell min voltage: ");
-    Serial.println(min_volt_cel);
+    Serial.print(min_volt_cel);
+	  Serial.print(" Cell max temp: ");
+    Serial.print(max_temp_cel);
+    Serial.print(" Cell min temp: ");
+    Serial.println(min_temp_cel);
 	
 	Serial.println("Values sent to inverter");
 	Serial.print("SOC% (0-100.00): ");
@@ -149,6 +159,10 @@ void update_values_imiev_battery()
 	Serial.print(temperature_max);
 	Serial.print(" Temp min ");
 	Serial.print(temperature_min);
+	Serial.print(" Cell mV max ");
+	Serial.print(cell_max_voltage);
+	Serial.print(" Cell mV min ");
+	Serial.print(cell_min_voltage);
 	
   #endif
 }
@@ -159,7 +173,10 @@ CANstillAlive = 12; //Todo, move this inside a known message ID to prevent CAN i
   switch (rx_frame.MsgID)
   {
   case 0x374: //BMU message, 10ms - SOC
-    BMU_SOC = ((rx_frame.data.u8[1] - 10) / 2);
+    temp_value = ((rx_frame.data.u8[1] - 10) / 2);
+    if(temp_value >= 0 && temp_value <= 101){
+      BMU_SOC = temp_value;
+    }
     break;
   case 0x373: //BMU message, 100ms - Pack Voltage and current
     BMU_Current =  ((((((rx_frame.data.u8[2] * 256.0) + rx_frame.data.u8[3])) - 32768)) * 0.01);
