@@ -2,11 +2,8 @@
 #include "ESP32CAN.h"
 #include "CAN_config.h"
 
-//Code still very WIP
-//TODO: Add CMU warning incase we detect a direct connection to the CMUs. It wont be safe to use the battery in this mode
-//Map the missing values
-//Check scaling of all values
-//Generate messages towards BMU to keep it happy?
+//Code still work in progress, TODO:
+//Figure out if CAN messages need to be sent to keep the system happy?
 
 /* Do not change code below unless you are sure what you are doing */
 #define BMU_MAX_SOC 1000  //BMS never goes over this value. We use this info to rescale SOC% sent to inverter
