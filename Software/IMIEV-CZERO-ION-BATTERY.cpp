@@ -36,10 +36,10 @@ static double BMU_PackVoltage = 0;
 static double BMU_Power = 0;
 static double cell_voltages[89]; //array with all the cellvoltages //Todo, what is max array size? 80/88 cells?
 static double cell_temperatures[89]; //array with all the celltemperatures //Todo, what is max array size? 80/88cells?
-static uint16_t max_volt_cel = 3700;
-static uint16_t min_volt_cel = 3700;
-static uint16_t max_temp_cel = 100;
-static uint16_t min_temp_cel = 100;
+static double max_volt_cel = 3700;
+static double min_volt_cel = 3700;
+static double max_temp_cel = 100;
+static double min_temp_cel = 100;
 
 
 void update_values_imiev_battery()
