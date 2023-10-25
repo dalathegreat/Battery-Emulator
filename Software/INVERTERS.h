@@ -17,4 +17,12 @@
   #include "PYLON-CAN.h"
 #endif
 
+#ifdef MODBUS_BYD
+  #include "MODBUS-BYD.h"
+#endif
+
+#ifdef MODBUS_LUNA2000
+  #include "MODBUS-LUNA2000.h"
+#endif
+
 #endif
