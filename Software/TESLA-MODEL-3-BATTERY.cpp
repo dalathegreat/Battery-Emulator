@@ -3,12 +3,14 @@
 #include "CAN_config.h"
 
 /* Do not change code below unless you are sure what you are doing */
+/* Credits: Most of the code comes from Per Carlen's bms_comms_tesla_model3.py (https://gitlab.com/pelle8/batt2gen24/) */
+
 static unsigned long previousMillis30 = 0; // will store last time a 30ms CAN Message was send
 static const int interval30 = 30; // interval (ms) at which send CAN Messages
 static uint8_t stillAliveCAN = 6; //counter for checking if CAN is still alive
 
-CAN_frame_t TESLA_221_1 = {.FIR = {.B = {.DLC = 8,.FF = CAN_frame_std,}},.MsgID = 0x221,.data = {0x41, 0x11, 0x01, 0x00, 0x00, 0x00, 0x20, 0x96}};
-CAN_frame_t TESLA_221_2 = {.FIR = {.B = {.DLC = 8,.FF = CAN_frame_std,}},.MsgID = 0x221,.data = {0x61, 0x15, 0x01, 0x00, 0x00, 0x00, 0x20, 0xBA}};
+CAN_frame_t TESLA_221_1 = {.FIR = {.B = {.DLC = 8,.FF = CAN_frame_std,}},.MsgID = 0x221,.data = {0x41, 0x11, 0x01, 0x00, 0x00, 0x00, 0x20, 0x96}}; //Contactor frame 221 - close contactors
+CAN_frame_t TESLA_221_2 = {.FIR = {.B = {.DLC = 8,.FF = CAN_frame_std,}},.MsgID = 0x221,.data = {0x61, 0x15, 0x01, 0x00, 0x00, 0x00, 0x20, 0xBA}}; //Contactor Frame 221 - hv_up_for_drive
 
 static uint32_t temporaryvariable = 0;
 static uint32_t total_discharge = 0;
@@ -41,8 +43,8 @@ static uint16_t soc_min = 0;
 static uint16_t soc_max = 0;
 static uint16_t soc_vi = 0;
 static uint16_t soc_ave = 0;
-static uint16_t cell_max_v = 0;
-static uint16_t cell_min_v = 0;
+static uint16_t cell_max_v = 3700;
+static uint16_t cell_min_v = 3700;
 static uint16_t	cell_deviation_mV = 0; //contains the deviation between highest and lowest cell in mV
 static uint8_t max_vno = 0;
 static uint8_t min_vno = 0;
@@ -53,6 +55,7 @@ static uint8_t packContPositiveState = 0;
 static uint8_t packContactorSetState = 0;
 static uint8_t packCtrsClosingAllowed = 0;
 static uint8_t pyroTestInProgress = 0;
+static uint8_t send221still = 10;
 static const char* contactorText[] = {"UNKNOWN(0)","OPEN","CLOSING","BLOCKED","OPENING","CLOSED","UNKNOWN(6)","WELDED","POS_CL","NEG_CL","UNKNOWN(10)","UNKNOWN(11)","UNKNOWN(12)"};
 static const char* contactorState[] = {"SNA","OPEN","PRECHARGE","BLOCKED","PULLED_IN","OPENING","ECONOMIZED","WELDED","UNKNOWN(8)","UNKNOWN(9)","UNKNOWN(10)","UNKNOWN(11)"};
 static const char* hvilStatusState[] = {"NOT OK","STATUS_OK","CURRENT_SOURCE_FAULT","INTERNAL_OPEN_FAULT","VEHICLE_OPEN_FAULT","PENTHOUSE_LID_OPEN_FAULT","UNKNOWN_LOCATION_OPEN_FAULT","VEHICLE_NODE_FAULT","NO_12V_SUPPLY","VEHICLE_OR_PENTHOUSE_LID_OPENFAULT","UNKNOWN(10)","UNKNOWN(11)","UNKNOWN(12)","UNKNOWN(13)","UNKNOWN(14)","UNKNOWN(15)"};
@@ -64,8 +67,25 @@ static const char* hvilStatusState[] = {"NOT OK","STATUS_OK","CURRENT_SOURCE_FAU
 #define MIN_CELL_VOLTAGE 2950 //Battery is put into emergency stop if one cell goes below this value (These values might need tweaking based on chemistry)
 #define MAX_CELL_DEVIATION 500 //LED turns yellow on the board if mv delta exceeds this value
 
+void print_int_with_units(char *header, int value, char *units) {
+    Serial.print(header);
+    Serial.print(value);
+    Serial.print(units);
+}
+void print_SOC(char *header, int SOC) {
+  Serial.print(header);
+  Serial.print(SOC / 100);
+  Serial.print(".");
+  int hundredth = SOC % 100;
+  if(hundredth < 10)
+    Serial.print(0);
+  Serial.print(hundredth);
+  Serial.println("%");
+}
+
 void update_values_tesla_model_3_battery()
 { //This function maps all the values fetched via CAN to the correct parameters used for modbus
+  //After values are mapped, we perform some safety checks, and do some serial printouts
 	StateOfHealth = 9900; //Hardcoded to 99%SOH
 
   //Calculate the SOC% value to send to inverter
@@ -101,22 +121,27 @@ void update_values_tesla_model_3_battery()
     max_target_discharge_power = temporaryvariable;
   }
 
-  //Calculate the allowed charge power, cap it if it gets too large
-	temporaryvariable = (max_charge_current * volts);
-	if(temporaryvariable > 60000){
-    max_target_charge_power = 60000;
+  //The allowed charge power behaves strangely. We instead estimate this value
+	if(SOC == 10000){
+    max_target_charge_power = 0; //When battery is 100% full, set allowed charge W to 0
   }
   else{
-    max_target_charge_power = temporaryvariable;
+    max_target_charge_power = 15000; //Otherwise we can push 15kW into the pack!
   }
 
 	stat_batt_power = (volts * amps); //TODO, check if scaling is OK
 
   min_temp = (min_temp * 10);
-	temperature_min = convert2unsignedint16(min_temp);
+	temperature_min = convert2unsignedInt16(min_temp);
 
   max_temp = (max_temp * 10);
-	temperature_max = convert2unsignedint16(max_temp);
+	temperature_max = convert2unsignedInt16(max_temp);
+
+  cell_max_voltage = cell_max_v;
+
+  cell_min_voltage = cell_min_v;
+
+  /* Value mapping is completed. Start to check all safeties */
 
   bms_status = ACTIVE; //Startout in active mode before checking if we have any faults
 
@@ -124,46 +149,53 @@ void update_values_tesla_model_3_battery()
 	if(!stillAliveCAN)
 	{
 	bms_status = FAULT;
-	Serial.println("No CAN communication detected for 60s. Shutting down battery control.");
+	Serial.println("ERROR: No CAN communication detected for 60s. Shutting down battery control.");
 	}
 	else
 	{
 	stillAliveCAN--;
 	}
 
+  if (hvil_status == 3){ //INTERNAL_OPEN_FAULT - Someone disconnected a high voltage cable while battery was in use
+    bms_status = FAULT;
+    Serial.println("ERROR: High voltage cable removed while battery running. Opening contactors!");
+  } 
+
   if(cell_max_v >= MAX_CELL_VOLTAGE){ 
     bms_status = FAULT;
-    Serial.println("CELL OVERVOLTAGE!!! Stopping battery charging and discharging. Inspect battery!");
+    Serial.println("ERROR: CELL OVERVOLTAGE!!! Stopping battery charging and discharging. Inspect battery!");
   }
   if(cell_min_v <= MIN_CELL_VOLTAGE){ 
     bms_status = FAULT;
-    Serial.println("CELL UNDERVOLTAGE!!! Stopping battery charging and discharging. Inspect battery!");
+    Serial.println("ERROR: CELL UNDERVOLTAGE!!! Stopping battery charging and discharging. Inspect battery!");
   }
 
   cell_deviation_mV = (cell_max_v - cell_min_v);
 
   if(cell_deviation_mV > MAX_CELL_DEVIATION){
     LEDcolor = YELLOW;
-    Serial.println("HIGH CELL DEVIATION!!! Inspect battery!");
+    Serial.println("ERROR: HIGH CELL DEVIATION!!! Inspect battery!");
   }
+
+  /* Safeties verified. Perform USB serial printout if configured to do so */
 
   #ifdef DEBUG_VIA_USB
     if (packCtrsClosingAllowed == 0)
     {
-      Serial.println("Check high voltage connectors and interlock circuit! Closing contactor not allowed! Values: ");
+      Serial.println("ERROR: Check high voltage connectors and interlock circuit! Closing contactor not allowed! Values: ");
     }
     if (pyroTestInProgress == 1)
     {
-      Serial.println("Please wait for Pyro Connection check to finish, HV cables successfully seated!");
+      Serial.println("ERROR: Please wait for Pyro Connection check to finish, HV cables successfully seated!");
     }
 
-    Serial.print("Contactor: ");
+    Serial.print("STATUS: Contactor: ");
     Serial.print(contactorText[contactor]); //Display what state the contactor is in
-    Serial.print(" , HVIL: ");
+    Serial.print(", HVIL: ");
     Serial.print(hvilStatusState[hvil_status]);
-    Serial.print(" , NegativeState: ");
+    Serial.print(", NegativeState: ");
     Serial.print(contactorState[packContNegativeState]);
-    Serial.print(" , PositiveState: ");
+    Serial.print(", PositiveState: ");
     Serial.print(contactorState[packContPositiveState]);
     Serial.print(", setState: ");
     Serial.print(contactorState[packContactorSetState]);
@@ -172,61 +204,64 @@ void update_values_tesla_model_3_battery()
     Serial.print(", Pyrotest: ");
     Serial.println(pyroTestInProgress);
 
-    Serial.println("Battery values: ");
+    Serial.print("Battery values: ");
     Serial.print(" Vi SOC: ");
     Serial.print(soc_vi);
-    Serial.print(" SOC max: ");
+    Serial.print(", SOC max: ");
     Serial.print(soc_max);
-    Serial.print(" SOC min: ");
+    Serial.print(", SOC min: ");
     Serial.print(soc_min);
-    Serial.print(" SOC avg: ");
+    Serial.print(", SOC avg: ");
     Serial.print(soc_ave);
-    Serial.print(", Battery voltage: ");
-    Serial.print(volts);
-    Serial.print(", Battery amps: ");
-    Serial.print(amps);
-    Serial.print(", Discharge limit battery (kW): ");
-    Serial.print(discharge_limit);
-    Serial.print(", Charge limit battery (kW): ");
-    Serial.print(regenerative_limit);
+    print_int_with_units(", Battery voltage: ", volts, "V");
+    print_int_with_units(", Battery current: ", amps, "A");
+    Serial.println("");
+    print_int_with_units("Discharge limit battery: ", discharge_limit, "kW");
+    Serial.print(", ");
+    print_int_with_units("Charge limit battery: ", regenerative_limit, "kW");
+    Serial.print("kW");
     Serial.print(", Fully charged?: ");
-    Serial.print(full_charge_complete);
-    Serial.print(", Min discharge voltage allowed: ");
-    Serial.print(min_voltage);
-    Serial.print(", Max charge voltage allowed: ");
-    Serial.print(max_voltage);
-    Serial.print(", Max charge current (A): ");
-    Serial.print(max_charge_current);
-    Serial.print(", Max discharge current (A): ");
-    Serial.println(max_discharge_current);
-
-    Serial.print("Cellstats, Max mV: ");
+    if(full_charge_complete)
+      Serial.print("YES, ");
+    else
+      Serial.print("NO, ");
+    print_int_with_units("Min voltage allowed: ", min_voltage, "V");
+    Serial.print(", ");
+    print_int_with_units("Max voltage allowed: ", max_voltage, "V");
+    Serial.println("");
+    print_int_with_units("Max charge current: ", max_charge_current, "A");
+    Serial.print(", ");
+    print_int_with_units("Max discharge current: ", max_discharge_current, "A");
+    Serial.println("");
+    Serial.print("Cellstats, Max: ");
     Serial.print(cell_max_v);
-    Serial.print(", on cell no#: ");
+    Serial.print("mV (cell ");
     Serial.print(max_vno);
-    Serial.print(", Min mV: ");
+    Serial.print("), Min: ");
     Serial.print(cell_min_v);
-    Serial.print(", on cell no#: ");
-    Serial.println(min_vno);
+    Serial.print("mV (cell ");
+    Serial.print(min_vno);
+    Serial.print("), Imbalance: ");
+    Serial.print(cell_deviation_mV);
+    Serial.println("mV.");
 
-    Serial.print("HighVoltage Output Pins: ");
-    Serial.print(high_voltage);
-    Serial.print(", V, Low Voltage:");
-    Serial.print(low_voltage);
-    Serial.print(", V, Current Output:");
-    Serial.println(output_current);
+    print_int_with_units("High Voltage Output Pins: ", high_voltage, "V");
+    Serial.print(", ");
+    print_int_with_units("Low Voltage: ", low_voltage, "V");
+    Serial.println("");
+    print_int_with_units("Current Output: ", output_current, "A");
+    Serial.println("");
 
-    Serial.println("Values heading towards inverter: ");
-    Serial.print(" SOC% (XX.XX%): ");
-    Serial.print(SOC);
-    Serial.print(" Max discharge power (W): ");
-    Serial.print(max_target_discharge_power);
-    Serial.print(" Max charge power (W): ");
-    Serial.print(max_target_charge_power);
-    Serial.print(" Max temperature (C): ");
-    Serial.print(temperature_max);
-    Serial.print(" Min temperature (C): ");
-    Serial.println(temperature_min);
+    Serial.println("Values passed to the inverter: ");
+    print_SOC(" SOC: ", SOC);
+    print_int_with_units(" Max discharge power: ", max_target_discharge_power, "W");
+    Serial.print(", ");
+    print_int_with_units(" Max charge power: ", max_target_charge_power, "W");
+    Serial.println("");
+    print_int_with_units(" Max temperature: ", temperature_max, "C");
+    Serial.print(", ");
+    print_int_with_units(" Min temperature: ", temperature_min, "C");
+    Serial.println("");
   #endif
 }
 
@@ -234,8 +269,6 @@ void receive_can_tesla_model_3_battery(CAN_frame_t rx_frame)
 {
   static int mux = 0;
   static int temp = 0;
-  
-  stillAliveCAN = 12; //We are getting CAN messages, set the CAN detect counter
 
   switch (rx_frame.MsgID)
     {
@@ -325,6 +358,7 @@ void receive_can_tesla_model_3_battery(CAN_frame_t rx_frame)
       output_current =  (((rx_frame.data.u8[4] & 0x0F) << 8) | rx_frame.data.u8[3]) / 100;
       break;
     case 0x292:
+      stillAliveCAN = 12; //We are getting CAN messages from the BMS, set the CAN detect counter
       soc_min = (((rx_frame.data.u8[1] & 0x03) << 8) | rx_frame.data.u8[0]);
       soc_vi =  (((rx_frame.data.u8[2] & 0x0F) << 6) | ((rx_frame.data.u8[1] & 0xFC) >> 2));
       soc_max = (((rx_frame.data.u8[3] & 0x3F) << 4) | ((rx_frame.data.u8[2] & 0xF0) >> 4));
@@ -336,14 +370,36 @@ void receive_can_tesla_model_3_battery(CAN_frame_t rx_frame)
 }
 void send_can_tesla_model_3_battery()
 {
+/*From bielec: My fist 221 message, to close the contactors is 0x41, 0x11, 0x01, 0x00, 0x00, 0x00, 0x20, 0x96 and then, 
+to cause "hv_up_for_drive" I send an additional 221 message 0x61, 0x15, 0x01, 0x00, 0x00, 0x00, 0x20, 0xBA  so 
+two 221 messages are being continuously transmitted.   When I want to shut down, I stop the second message and only send 
+the first, for a few cycles, then stop all  messages which causes the contactor to open. */
+
   unsigned long currentMillis = millis();
   //Send 30ms message
 	if (currentMillis - previousMillis30 >= interval30)
 	{ 
 		previousMillis30 = currentMillis;
-    if(bms_status != FAULT){
+
+    if(bms_status == ACTIVE){
+      send221still = 10;
       ESP32Can.CANWriteFrame(&TESLA_221_1);
       ESP32Can.CANWriteFrame(&TESLA_221_2);
     }
+    else{ //bms_status == FAULT
+      if(send221still > 0){
+        ESP32Can.CANWriteFrame(&TESLA_221_1);
+        send221still--;
+      }
+    }
+	}
+}
+uint16_t convert2unsignedInt16(int16_t signed_value)
+{
+	if(signed_value < 0){
+		return(65535 + signed_value);
+	}
+	else{
+		return (uint16_t)signed_value;
 	}
 }

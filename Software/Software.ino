@@ -64,6 +64,8 @@ uint16_t min_volt_pylon_can = min_voltage;
 uint16_t max_volt_pylon_can = max_voltage;
 uint16_t min_volt_modbus_byd = min_voltage;
 uint16_t max_volt_modbus_byd = max_voltage;
+uint16_t min_volt_sma_can = min_voltage;
+uint16_t max_volt_sma_can = max_voltage;
 uint16_t battery_voltage = 3700;
 uint16_t battery_current = 0;
 uint16_t SOC = 5000; //SOC 0-100.00% //Updates later on from CAN
@@ -123,7 +125,7 @@ uint8_t inverterAllowsContactorClosing = 1;
 void setup()
 {
   // Init Serial monitor
-	Serial.begin(9600);
+	Serial.begin(115200);
 	while (!Serial)
 	{
 	}
@@ -212,6 +214,9 @@ void setup()
   #ifdef CAN_BYD
   Serial.println("BYD CAN protocol selected");
   #endif
+  #ifdef SMA_CAN
+  Serial.println("SMA CAN protocol selected");
+  #endif
   //Inform user what battery is used
   #ifdef BATTERY_TYPE_LEAF
   Serial.println("Nissan LEAF battery selected");
@@ -288,6 +293,9 @@ void handle_can()
       #ifdef CAN_BYD
       receive_can_byd(rx_frame);
       #endif
+      #ifdef SMA_CAN
+      receive_can_sma(rx_frame);
+      #endif
 	    #ifdef CHADEMO
       receive_can_chademo(rx_frame);
       #endif
@@ -308,6 +316,9 @@ void handle_can()
   //Inverter sending
   #ifdef CAN_BYD
   send_can_byd();
+  #endif
+  #ifdef SMA_CAN
+  send_can_sma();
   #endif
   //Battery sending
   #ifdef BATTERY_TYPE_LEAF
@@ -403,6 +414,9 @@ void handle_inverter()
     #endif
     #ifdef CAN_BYD
     update_values_can_byd();
+    #endif
+    #ifdef SMA_CAN
+    update_values_can_sma();
     #endif
     #ifdef PYLON_CAN
     update_values_can_pylon();

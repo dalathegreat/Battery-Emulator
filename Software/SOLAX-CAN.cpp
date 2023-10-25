@@ -6,7 +6,7 @@ static uint16_t max_discharge_rate_amp = 0;
 static uint16_t temperature_average = 0;
 static int STATE = BATTERY_ANNOUNCE;
 static unsigned long LastFrameTime = 0;
-static const uint8_t BatteryModuleFirmware = 2;
+static int number_of_batteries = 1;
 
 //CAN message translations from this amazing repository: https://github.com/rand12345/solax_can_bus 
 
@@ -19,8 +19,8 @@ CAN_frame_t SOLAX_1876 = {.FIR = {.B = {.DLC = 8,.FF = CAN_frame_ext,}},.MsgID =
 CAN_frame_t SOLAX_1877 = {.FIR = {.B = {.DLC = 8,.FF = CAN_frame_ext,}},.MsgID = 0x1877,.data = {0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0}};
 CAN_frame_t SOLAX_1878 = {.FIR = {.B = {.DLC = 8,.FF = CAN_frame_ext,}},.MsgID = 0x1878,.data = {0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0}}; //BMS_PackStats
 CAN_frame_t SOLAX_1879 = {.FIR = {.B = {.DLC = 8,.FF = CAN_frame_ext,}},.MsgID = 0x1879,.data = {0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0}};
-CAN_frame_t SOLAX_1881 = {.FIR = {.B = {.DLC = 8,.FF = CAN_frame_ext,}},.MsgID = 0x1881,.data = {0x00, 0x36, 0x53, 0x42, 0x4D, 0x53, 0x46, 0x41}}; // E.g.: 0 6 S B M S F A
-CAN_frame_t SOLAX_1882 = {.FIR = {.B = {.DLC = 8,.FF = CAN_frame_ext,}},.MsgID = 0x1882,.data = {0x00, 0x32, 0x33, 0x41, 0x42, 0x30, 0x35, 0x32}}; // E.g.: 0 2 3 A B 0 5 2
+CAN_frame_t SOLAX_1881 = {.FIR = {.B = {.DLC = 8,.FF = CAN_frame_ext,}},.MsgID = 0x1881,.data = {0x10, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0}}; // E.g.: 0 6 S B M S F A
+CAN_frame_t SOLAX_1882 = {.FIR = {.B = {.DLC = 8,.FF = CAN_frame_ext,}},.MsgID = 0x1882,.data = {0x10, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0}}; // E.g.: 0 2 3 A B 0 5 2
 CAN_frame_t SOLAX_100A001 = {.FIR = {.B = {.DLC = 0,.FF = CAN_frame_ext,}},.MsgID = 0x100A001,.data = {}};
 
 // __builtin_bswap64 needed to convert to ESP32 little endian format
@@ -99,12 +99,12 @@ void update_values_can_solax()
   SOLAX_1872.data.u8[5] = ((max_charge_rate_amp*10) >> 8);
   SOLAX_1872.data.u8[6] = (uint8_t) (max_discharge_rate_amp*10); //Todo, scaling OK?
   SOLAX_1872.data.u8[7] = ((max_discharge_rate_amp*10) >> 8);
-
+  
   //BMS_PackData
-  SOLAX_1873.data.u8[0] = (uint8_t) battery_voltage; //Todo, scaling OK?
+  SOLAX_1873.data.u8[0] = (uint8_t) battery_voltage; // OK
   SOLAX_1873.data.u8[1] = (battery_voltage >> 8);
-  SOLAX_1873.data.u8[2] = (int8_t) stat_batt_power; //Todo, scaling OK? Signed?
-  SOLAX_1873.data.u8[3] = (stat_batt_power >> 8);
+  SOLAX_1873.data.u8[2] = (int8_t) battery_current; // OK, Signed (Active current in Amps x 10) 
+  SOLAX_1873.data.u8[3] = (battery_current >> 8);
   SOLAX_1873.data.u8[4] = (uint8_t) (SOC/100); //SOC (100.00%)
   //SOLAX_1873.data.u8[5] = //Seems like this is not required? Or shall we put SOC decimals here?
   SOLAX_1873.data.u8[6] = (uint8_t) (remaining_capacity_Wh/100); //Todo, scaling OK?
@@ -134,13 +134,13 @@ void update_values_can_solax()
   SOLAX_1876.data.u8[7] = (cell_min_voltage >> 8);
 
   //Unknown
-  SOLAX_1877.data.u8[4] = (uint8_t) 0x53;
-  SOLAX_1877.data.u8[6] = (BatteryModuleFirmware >> 8);
-  SOLAX_1877.data.u8[7] = (uint8_t) BatteryModuleFirmware;
+  SOLAX_1877.data.u8[4] = (uint8_t) 0x50; // Battery type
+  SOLAX_1877.data.u8[6] = (uint8_t) 0x22; // Firmware version?
+  SOLAX_1877.data.u8[7] = (uint8_t) 0x02; // The above firmware version applies to:02 = Master BMS, 10 = S1, 20 = S2, 30 = S3, 40 = S4
 
   //BMS_PackStats
-  SOLAX_1878.data.u8[0] = (uint8_t) (battery_voltage/10); //TODO, should this be max or current voltage?
-  SOLAX_1878.data.u8[1] = ((battery_voltage/10) >> 8);
+  SOLAX_1878.data.u8[0] = (uint8_t) (battery_voltage); //TODO, should this be max or current voltage?
+  SOLAX_1878.data.u8[1] = ((battery_voltage) >> 8);
 
   SOLAX_1878.data.u8[4] = (uint8_t) capacity_Wh; //TODO, scaling OK?
   SOLAX_1878.data.u8[5] = (capacity_Wh >> 8);
@@ -154,7 +154,7 @@ void update_values_can_solax()
 
 void receive_can_solax(CAN_frame_t rx_frame)
 {
-  if (rx_frame.MsgID == 0x1871) {
+  if (rx_frame.MsgID == 0x1871 && rx_frame.data.u8[0] == (0x01) || rx_frame.MsgID == 0x1871 && rx_frame.data.u8[0] == (0x02)) {
     LastFrameTime = millis();
     switch(STATE)
     {
@@ -162,14 +162,16 @@ void receive_can_solax(CAN_frame_t rx_frame)
         Serial.println("Solax Battery State: Announce");
         inverterAllowsContactorClosing = 0;
         SOLAX_1875.data.u8[4] = (0x00); // Inform Inverter: Contactor 0=off, 1=on.
+        for (int i=0; i <= number_of_batteries; i++) {
+          CAN_WriteFrame(&SOLAX_1872);
+          CAN_WriteFrame(&SOLAX_1873);
+          CAN_WriteFrame(&SOLAX_1874);
+          CAN_WriteFrame(&SOLAX_1875);
+          CAN_WriteFrame(&SOLAX_1876);
+          CAN_WriteFrame(&SOLAX_1877);
+          CAN_WriteFrame(&SOLAX_1878);
+        }
         CAN_WriteFrame(&SOLAX_100A001); //BMS Announce
-        CAN_WriteFrame(&SOLAX_1872);
-        CAN_WriteFrame(&SOLAX_1873);
-        CAN_WriteFrame(&SOLAX_1874);
-        CAN_WriteFrame(&SOLAX_1875);
-        CAN_WriteFrame(&SOLAX_1876);
-        CAN_WriteFrame(&SOLAX_1877);
-        CAN_WriteFrame(&SOLAX_1878);
         // Message from the inverter to proceed to contactor closing
         // Byte 4 changes from 0 to 1
         if (rx_frame.data.u64 == Contactor_Close_Payload)
@@ -207,4 +209,14 @@ void receive_can_solax(CAN_frame_t rx_frame)
       break;
     }
   }
+   
+  if (rx_frame.MsgID == 0x1871 && rx_frame.data.u64 == __builtin_bswap64(0x0500010000000000)) {
+    CAN_WriteFrame(&SOLAX_1881);
+    CAN_WriteFrame(&SOLAX_1882);
+    Serial.println("1871 05-frame received from inverter");
+  }
+  if (rx_frame.MsgID == 0x1871 && rx_frame.data.u8[0] == (0x03)) {
+    Serial.println("1871 03-frame received from inverter"); 
+  }
+  
 }

@@ -87,7 +87,8 @@ static byte LB_Capacity_Empty = 0; //LB_EMPTY, , Goes to 1 if battery is empty
 static uint8_t battery_request_idx	= 0;
 static uint8_t group_7bb = 0;
 static uint8_t group = 1;
-static uint8_t stop_battery_query	= 0;
+static uint8_t stop_battery_query	= 1;
+static uint8_t hold_off_with_polling_10seconds = 10;
 static uint16_t	cell_voltages[97]; //array with all the cellvoltages
 static uint16_t	cellcounter	= 0; 
 static uint16_t	min_max_voltage[2]; //contains cell min[0] and max[1] values in mV
@@ -106,6 +107,11 @@ static uint16_t temp_raw_min = 0;
 static int16_t temp_polled_max = 0;
 static int16_t temp_polled_min = 0;
 
+void print_with_units(char *header, int value, char *units) {
+    Serial.print(header);
+    Serial.print(value);
+    Serial.print(units);
+}
 
 void update_values_leaf_battery()
 { /* This function maps all the values fetched via CAN to the correct parameters used for modbus */
@@ -128,7 +134,7 @@ void update_values_leaf_battery()
 
   battery_voltage = (LB_Total_Voltage*10); //One more decimal needed
 
-  battery_current = (LB_Current*10); //One more decimal needed
+  battery_current = convert2unsignedint16(LB_Current*10); //One more decimal needed, sign if needed
 
 	capacity_Wh = (LB_Max_GIDS * WH_PER_GID);
 
@@ -227,25 +233,25 @@ void update_values_leaf_battery()
     break;
     case(4):
     //Caution Lamp Request
-    Serial.println("Battery raised caution indicator. Inspect battery status!");
+    Serial.println("ERROR: Battery raised caution indicator. Inspect battery status!");
     break;
     case(5):
     //Caution Lamp Request & Normal Stop Request
     bms_status = FAULT;
     errorCode = 2;
-    Serial.println("Battery raised caution indicator AND requested discharge stop. Inspect battery status!");
+    Serial.println("ERROR: Battery raised caution indicator AND requested discharge stop. Inspect battery status!");
     break;
     case(6):
     //Caution Lamp Request & Charging Mode Stop Request
     bms_status = FAULT;
     errorCode = 3;
-    Serial.println("Battery raised caution indicator AND requested charge stop. Inspect battery status!");
+    Serial.println("ERROR: Battery raised caution indicator AND requested charge stop. Inspect battery status!");
     break;
     case(7):
     //Caution Lamp Request & Charging Mode Stop Request & Normal Stop Request
     bms_status = FAULT;
     errorCode = 4;
-    Serial.println("Battery raised caution indicator AND requested charge/discharge stop. Inspect battery status!");
+    Serial.println("ERROR: Battery raised caution indicator AND requested charge/discharge stop. Inspect battery status!");
     break;
     default:
     break;
@@ -256,7 +262,7 @@ void update_values_leaf_battery()
   { //Battery is extremely degraded, not fit for secondlifestorage. Zero it all out.
     if(LB_StateOfHealth != 0)
     { //Extra check to see that we actually have a SOH Value available
-      Serial.println("State of health critically low. Battery internal resistance too high to continue. Recycle battery.");
+      Serial.println("ERROR: State of health critically low. Battery internal resistance too high to continue. Recycle battery.");
       bms_status = FAULT;
       errorCode = 5;
       max_target_discharge_power = 0;
@@ -267,7 +273,7 @@ void update_values_leaf_battery()
   #ifdef INTERLOCK_REQUIRED
   if(!LB_Interlock)
   {
-    Serial.println("Battery interlock loop broken. Check that high voltage connectors are seated. Battery will be disabled!");
+    Serial.println("ERROR: Battery interlock loop broken. Check that high voltage connectors are seated. Battery will be disabled!");
     bms_status = FAULT;
     errorCode = 6;
     SOC = 0;
@@ -281,7 +287,7 @@ void update_values_leaf_battery()
   {
     bms_status = FAULT;
     errorCode = 7;
-    Serial.println("No CAN communication detected for 60s. Shutting down battery control.");
+    Serial.println("ERROR: No CAN communication detected for 60s. Shutting down battery control.");
   }
   else
   {
@@ -289,66 +295,57 @@ void update_values_leaf_battery()
   }
   if(CANerror > MAX_CAN_FAILURES) //Also check if we have recieved too many malformed CAN messages. If so, signal via LED
   {
+    errorCode = 10;
     LEDcolor = YELLOW;
+    Serial.println("ERROR: High amount of corrupted CAN messages detected. Check CAN wire shielding!");
   }
 
   /*Finally print out values to serial if configured to do so*/
   #ifdef DEBUG_VIA_USB 
-    if(errorCode > 0)
-      {
-        Serial.print("ERROR CODE ACTIVE IN SYSTEM. NUMBER: ");
-        Serial.println(errorCode);
-      }
-    Serial.print("BMS Status (3=OK): ");
-    Serial.println(bms_status);
-    switch (bms_char_dis_status)
-			{
+      if(errorCode > 0)
+    {
+      Serial.print("ERROR CODE ACTIVE IN SYSTEM. NUMBER: ");
+      Serial.println(errorCode);
+    }
+    Serial.println("Values going to inverter");
+    print_with_units("SOH%: ", (StateOfHealth*0.01), "% ");
+    print_with_units(", SOC% scaled: ", (SOC*0.01), "% ");
+    print_with_units(", Voltage: ", LB_Total_Voltage, "V ");
+    print_with_units(", Max discharge power: ", max_target_discharge_power, "W ");
+    print_with_units(", Max charge power: ", max_target_charge_power, "W ");
+    print_with_units(", Max temp: ", (temperature_max*0.1), "°C ");
+    print_with_units(", Min temp: ", (temperature_min*0.1), "°C ");
+    Serial.println("");
+    Serial.print("BMS Status: ");
+    if(bms_status == 3){
+      Serial.print("Active, ");
+    }
+    else{
+      Serial.print("FAULT, ");
+    }
+    switch (bms_char_dis_status){
       case 0:
-        Serial.println("Battery Idle");
+        Serial.print("Idle");
         break;
       case 1:
-        Serial.println("Battery Discharging");
+        Serial.print("Discharging");
         break;
       case 2:
-        Serial.println("Battery Charging");
+        Serial.print("Charging");
         break;
       default:
         break;
       }
-    Serial.print("Power: ");
-    Serial.print(LB_Power);
-    Serial.print(" Max discharge power: ");
-    Serial.print(max_target_discharge_power);
-    Serial.print(" Max charge power: ");
-    Serial.print(max_target_charge_power);
-    Serial.print(" SOH%: ");
-    Serial.print(StateOfHealth);
-    Serial.print(" SOC% to inverter: ");
-    Serial.print(SOC);
-    Serial.print(" SOC% of battery: ");
-    Serial.print(LB_SOC);
-    Serial.print(" GIDS: ");
-    Serial.println(LB_GIDS);
-    Serial.print("LEAF battery gen: ");
-    Serial.println(LEAF_Battery_Type);
-    Serial.print("Min cell voltage: ");
-    Serial.println(min_max_voltage[0]);
-    Serial.print("Max cell voltage: ");
-    Serial.println(min_max_voltage[1]);
-    Serial.print("Cell deviation: ");
-    Serial.println(cell_deviation_mV);
-    Serial.print("Temperatures; Polled temp min: ");
-    Serial.print(temp_polled_min);
-    Serial.print(" Polled temp max: ");
-    Serial.print(temp_polled_max);
-    Serial.print(" 5C0 temp max: ");
-    Serial.print(LB_HistData_Temperature_MAX);
-    Serial.print(" 5C0 temp min: ");
-    Serial.println(LB_HistData_Temperature_MIN);
-    Serial.print("Current 1: ");
-    Serial.print(Battery_current_1);
-    Serial.print(" Current 2: ");
-    Serial.println(Battery_current_2);
+    print_with_units(", Power: ", LB_Power, "W ");
+    Serial.println("");
+    Serial.println("Values from battery");
+    print_with_units("Real SOC%: ", (LB_SOC*0.1), "% ");
+    print_with_units(", GIDS: ", LB_GIDS, " (x77Wh) ");
+    print_with_units(", Battery gen: ", LEAF_Battery_Type, " ");
+    print_with_units(", Max cell voltage: ", min_max_voltage[1], "mV ");
+    print_with_units(", Min cell voltage: ", min_max_voltage[0], "mV ");
+    print_with_units(", Cell deviation: ", cell_deviation_mV, "mV ");
+
   #endif
 }
 
@@ -366,6 +363,8 @@ void receive_can_leaf_battery(CAN_frame_t rx_frame)
       // negative so extend the sign bit
       LB_Current |= 0xf800;
     }
+    // Scale down the value by 0.5
+    LB_Current /= 2;
 
     LB_Total_Voltage = ((rx_frame.data.u8[2] << 2) | (rx_frame.data.u8[3] & 0xc0) >> 6) / 2;
     
@@ -448,6 +447,7 @@ void receive_can_leaf_battery(CAN_frame_t rx_frame)
     break;
   case 0x79B:
     stop_battery_query = 1; //Someone is trying to read data with Leafspy, stop our own polling!
+    hold_off_with_polling_10seconds = 10; //Polling is paused for 100s
     break;
   case 0x7BB:
     //First check which group data we are getting
@@ -458,9 +458,11 @@ void receive_can_leaf_battery(CAN_frame_t rx_frame)
       }
     }
 
-    if(!stop_battery_query){
-      ESP32Can.CANWriteFrame(&LEAF_NEXT_LINE_REQUEST); //Request the next frame for the group
+    if(stop_battery_query){ //Leafspy is active, stop our own polling
+      break;
     }
+
+    ESP32Can.CANWriteFrame(&LEAF_NEXT_LINE_REQUEST); //Request the next frame for the group
 
     if(group_7bb == 1) //High precision SOC, Current, voltages etc.
     {
@@ -512,6 +514,9 @@ void receive_can_leaf_battery(CAN_frame_t rx_frame)
         }					
 
         cell_deviation_mV = (min_max_voltage[1] - min_max_voltage[0]);
+
+        cell_max_voltage = min_max_voltage[1]; 
+        cell_min_voltage = min_max_voltage[0];
 
         if(cell_deviation_mV > MAX_CELL_DEVIATION){
           LEDcolor = YELLOW;
@@ -804,17 +809,24 @@ void send_can_leaf_battery()
       LEAF_GROUP_REQUEST.data.u8[2] = group;
       ESP32Can.CANWriteFrame(&LEAF_GROUP_REQUEST);
     }
-    stop_battery_query = 0;
+
+    if(hold_off_with_polling_10seconds > 0){
+      hold_off_with_polling_10seconds--;
+    }
+    else
+    {
+      stop_battery_query = 0;
+    }
   }
 }
 
-uint16_t convert2unsignedint16(uint16_t signed_value)
+uint16_t convert2unsignedint16(int16_t signed_value)
 {
 	if(signed_value < 0){
 		return(65535 + signed_value);
 	}
 	else{
-		return signed_value;
+		return (uint16_t)signed_value;
 	}
 }
 
