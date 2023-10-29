@@ -55,7 +55,7 @@ void update_values_imiev_battery()
   remaining_capacity_Wh = (uint16_t)((SOC/10000)*capacity_Wh);
 
   //We do not know if the max charge power is sent by the battery. So we estimate the value based on SOC%
-	if(SOC == 10000){ //100.00%
+  if(SOC == 10000){ //100.00%
     max_target_charge_power = 0; //When battery is 100% full, set allowed charge W to 0
   }
   else{
@@ -123,7 +123,7 @@ void update_values_imiev_battery()
   if(!BMU_Detected){
     Serial.println("BMU not detected, check wiring!");
   }
-	
+  
   #ifdef DEBUG_VIA_USB
 
     Serial.println("Battery Values");
@@ -139,33 +139,33 @@ void update_values_imiev_battery()
     Serial.print(max_volt_cel);
     Serial.print(" Cell min voltage: ");
     Serial.print(min_volt_cel);
-	  Serial.print(" Cell max temp: ");
+    Serial.print(" Cell max temp: ");
     Serial.print(max_temp_cel);
     Serial.print(" Cell min temp: ");
     Serial.println(min_temp_cel);
-	
-	Serial.println("Values sent to inverter");
-	Serial.print("SOC% (0-100.00): ");
-	Serial.print(SOC);
-	Serial.print(" Voltage (0-400.0): ");
-	Serial.print(battery_voltage);
-	Serial.print(" Capacity WH full (0-60000): ");
-	Serial.print(capacity_Wh);
-	Serial.print(" Capacity WH remain (0-60000): ");
-	Serial.print(remaining_capacity_Wh);
-	Serial.print(" Max charge power W (0-10000): ");
-	Serial.print(max_target_charge_power);
-	Serial.print(" Max discharge power W (0-10000): ");
-	Serial.print(max_target_discharge_power);
-	Serial.print(" Temp max ");
-	Serial.print(temperature_max);
-	Serial.print(" Temp min ");
-	Serial.print(temperature_min);
-	Serial.print(" Cell mV max ");
-	Serial.print(cell_max_voltage);
-	Serial.print(" Cell mV min ");
-	Serial.print(cell_min_voltage);
-	
+  
+  Serial.println("Values sent to inverter");
+  Serial.print("SOC% (0-100.00): ");
+  Serial.print(SOC);
+  Serial.print(" Voltage (0-400.0): ");
+  Serial.print(battery_voltage);
+  Serial.print(" Capacity WH full (0-60000): ");
+  Serial.print(capacity_Wh);
+  Serial.print(" Capacity WH remain (0-60000): ");
+  Serial.print(remaining_capacity_Wh);
+  Serial.print(" Max charge power W (0-10000): ");
+  Serial.print(max_target_charge_power);
+  Serial.print(" Max discharge power W (0-10000): ");
+  Serial.print(max_target_discharge_power);
+  Serial.print(" Temp max ");
+  Serial.print(temperature_max);
+  Serial.print(" Temp min ");
+  Serial.print(temperature_min);
+  Serial.print(" Cell mV max ");
+  Serial.print(cell_max_voltage);
+  Serial.print(" Cell mV min ");
+  Serial.print(cell_min_voltage);
+  
   #endif
 }
 
@@ -235,8 +235,8 @@ void send_can_imiev_battery()
 {
   unsigned long currentMillis = millis();
   // Send 100ms CAN Message
-	if (currentMillis - previousMillis100 >= interval100)
-	{
-		previousMillis100 = currentMillis;
+  if (currentMillis - previousMillis100 >= interval100)
+  {
+    previousMillis100 = currentMillis;
   }
 }

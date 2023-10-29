@@ -45,7 +45,7 @@ static uint16_t soc_vi = 0;
 static uint16_t soc_ave = 0;
 static uint16_t cell_max_v = 3700;
 static uint16_t cell_min_v = 3700;
-static uint16_t	cell_deviation_mV = 0; //contains the deviation between highest and lowest cell in mV
+static uint16_t cell_deviation_mV = 0; //contains the deviation between highest and lowest cell in mV
 static uint8_t max_vno = 0;
 static uint8_t min_vno = 0;
 static uint8_t contactor = 0; //State of contactor
@@ -86,7 +86,7 @@ void print_SOC(char *header, int SOC) {
 void update_values_tesla_model_3_battery()
 { //This function maps all the values fetched via CAN to the correct parameters used for modbus
   //After values are mapped, we perform some safety checks, and do some serial printouts
-	StateOfHealth = 9900; //Hardcoded to 99%SOH
+  StateOfHealth = 9900; //Hardcoded to 99%SOH
 
   //Calculate the SOC% value to send to inverter
   soc_vi = MIN_SOC + (MAX_SOC - MIN_SOC) * (soc_vi - MINPERCENTAGE) / (MAXPERCENTAGE - MINPERCENTAGE); 
@@ -100,17 +100,17 @@ void update_values_tesla_model_3_battery()
   }
   SOC = (soc_vi * 10); //increase SOC range from 0-100.0 -> 100.00
 
-	battery_voltage = (volts*10); //One more decimal needed (370 -> 3700)
+  battery_voltage = (volts*10); //One more decimal needed (370 -> 3700)
 
   battery_current = amps; //TODO, this needs verifying if scaling is right
 
-	capacity_Wh = (nominal_full_pack_energy * 100); //Scale up 75.2kWh -> 75200Wh
+  capacity_Wh = (nominal_full_pack_energy * 100); //Scale up 75.2kWh -> 75200Wh
   if(capacity_Wh > 60000)
   {
     capacity_Wh = 60000;
   }
 
-	remaining_capacity_Wh = (expected_energy_remaining * 100); //Scale up 60.3kWh -> 60300Wh
+  remaining_capacity_Wh = (expected_energy_remaining * 100); //Scale up 60.3kWh -> 60300Wh
 
   //Calculate the allowed discharge power, cap it if it gets too large
   temporaryvariable = (max_discharge_current * volts);
@@ -122,20 +122,20 @@ void update_values_tesla_model_3_battery()
   }
 
   //The allowed charge power behaves strangely. We instead estimate this value
-	if(SOC == 10000){
+  if(SOC == 10000){
     max_target_charge_power = 0; //When battery is 100% full, set allowed charge W to 0
   }
   else{
     max_target_charge_power = 15000; //Otherwise we can push 15kW into the pack!
   }
 
-	stat_batt_power = (volts * amps); //TODO, check if scaling is OK
+  stat_batt_power = (volts * amps); //TODO, check if scaling is OK
 
   min_temp = (min_temp * 10);
-	temperature_min = convert2unsignedInt16(min_temp);
+  temperature_min = convert2unsignedInt16(min_temp);
 
   max_temp = (max_temp * 10);
-	temperature_max = convert2unsignedInt16(max_temp);
+  temperature_max = convert2unsignedInt16(max_temp);
 
   cell_max_voltage = cell_max_v;
 
@@ -145,16 +145,16 @@ void update_values_tesla_model_3_battery()
 
   bms_status = ACTIVE; //Startout in active mode before checking if we have any faults
 
-	/* Check if the BMS is still sending CAN messages. If we go 60s without messages we raise an error*/
-	if(!stillAliveCAN)
-	{
-	bms_status = FAULT;
-	Serial.println("ERROR: No CAN communication detected for 60s. Shutting down battery control.");
-	}
-	else
-	{
-	stillAliveCAN--;
-	}
+  /* Check if the BMS is still sending CAN messages. If we go 60s without messages we raise an error*/
+  if(!stillAliveCAN)
+  {
+  bms_status = FAULT;
+  Serial.println("ERROR: No CAN communication detected for 60s. Shutting down battery control.");
+  }
+  else
+  {
+  stillAliveCAN--;
+  }
 
   if (hvil_status == 3){ //INTERNAL_OPEN_FAULT - Someone disconnected a high voltage cable while battery was in use
     bms_status = FAULT;
@@ -377,9 +377,9 @@ the first, for a few cycles, then stop all  messages which causes the contactor 
 
   unsigned long currentMillis = millis();
   //Send 30ms message
-	if (currentMillis - previousMillis30 >= interval30)
-	{ 
-		previousMillis30 = currentMillis;
+  if (currentMillis - previousMillis30 >= interval30)
+  { 
+    previousMillis30 = currentMillis;
 
     if(bms_status == ACTIVE){
       send221still = 10;
@@ -392,14 +392,14 @@ the first, for a few cycles, then stop all  messages which causes the contactor 
         send221still--;
       }
     }
-	}
+  }
 }
 uint16_t convert2unsignedInt16(int16_t signed_value)
 {
-	if(signed_value < 0){
-		return(65535 + signed_value);
-	}
-	else{
-		return (uint16_t)signed_value;
-	}
+  if(signed_value < 0){
+    return(65535 + signed_value);
+  }
+  else{
+    return (uint16_t)signed_value;
+  }
 }

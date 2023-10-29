@@ -46,8 +46,8 @@ void update_values_zoe_battery()
 
   battery_voltage;
   battery_current;
-	capacity_Wh = BATTERY_WH_MAX;
-	remaining_capacity_Wh;
+  capacity_Wh = BATTERY_WH_MAX;
+  remaining_capacity_Wh;
 
   LB_Discharge_Power_Limit_Watts = (LB_Discharge_Power_Limit * 500); //Convert value fetched from battery to watts
   /* Define power able to be discharged from battery */
@@ -63,7 +63,7 @@ void update_values_zoe_battery()
   {
     max_target_discharge_power = 0;
   }
-	
+  
   LB_Charge_Power_Limit_Watts = (LB_Charge_Power_Limit * 500); //Convert value fetched from battery to watts
   /* Define power able to be put into the battery */
   if(LB_Charge_Power_Limit_Watts > 30000) //if >30kW can be put into the battery
@@ -93,10 +93,10 @@ void update_values_zoe_battery()
   {
     CANstillAlive--;
   }
-	
+  
   stat_batt_power;
-	temperature_min;
-	temperature_max;
+  temperature_min;
+  temperature_max;
 
   #ifdef DEBUG_VIA_USB
     Serial.print("BMS Status (3=OK): ");
@@ -150,9 +150,9 @@ void send_can_zoe_battery()
 {
   unsigned long currentMillis = millis();
   // Send 100ms CAN Message
-	if (currentMillis - previousMillis100 >= interval100)
-	{
-		previousMillis100 = currentMillis;
+  if (currentMillis - previousMillis100 >= interval100)
+  {
+    previousMillis100 = currentMillis;
     BMSPollCounter++; //GKOE
 
     if (BMSPollCounter < 46)  //GKOE

@@ -69,9 +69,9 @@ void update_values_chademo_battery()
 
   battery_voltage = TargetBatteryVoltage; //Todo, scaling?
 
-	capacity_Wh = ((RatedBatteryCapacity/0.11)*1000); //(Added in CHAdeMO v1.0.1), maybe handle hardcoded on lower protocol version?
+  capacity_Wh = ((RatedBatteryCapacity/0.11)*1000); //(Added in CHAdeMO v1.0.1), maybe handle hardcoded on lower protocol version?
 
-	remaining_capacity_Wh = (SOC/100)*capacity_Wh;
+  remaining_capacity_Wh = (SOC/100)*capacity_Wh;
 
   /* Check if the Vehicle is still sending CAN messages. If we go 60s without messages we raise an error*/
   if(!CANstillAlive)
@@ -94,7 +94,7 @@ void update_values_chademo_battery()
     Serial.print("BMS Status (3=OK): ");
     Serial.println(bms_status);
     switch (bms_char_dis_status)
-			{
+      {
       case 0:
         Serial.println("Battery Idle");
         break;
@@ -182,12 +182,12 @@ void receive_can_chademo_battery(CAN_frame_t rx_frame)
 void send_can_chademo_battery()
 {
   unsigned long currentMillis = millis();
-	// Send 100ms CAN Message
-	if (currentMillis - previousMillis100 >= interval100)
-	{
-		previousMillis100 = currentMillis;
+  // Send 100ms CAN Message
+  if (currentMillis - previousMillis100 >= interval100)
+  {
+    previousMillis100 = currentMillis;
 
-		ESP32Can.CANWriteFrame(&CHADEMO_108); 
+    ESP32Can.CANWriteFrame(&CHADEMO_108); 
     ESP32Can.CANWriteFrame(&CHADEMO_109);
     ESP32Can.CANWriteFrame(&CHADEMO_208);
     ESP32Can.CANWriteFrame(&CHADEMO_209);
@@ -197,5 +197,5 @@ void send_can_chademo_battery()
       ESP32Can.CANWriteFrame(&CHADEMO_118);
     }
 
-	}
+  }
 }

@@ -17,8 +17,8 @@ static uint8_t CANstillAlive = 12; //counter for checking if CAN is still alive
 #define LB_MIN_SOC 0   //BMS never goes below this value. We use this info to rescale SOC% sent to Inverter
 
 CAN_frame_t BMW_10B = {.FIR = {.B = {.DLC = 3,.FF = CAN_frame_std,}},.MsgID = 0x10B,.data = {0xCD, 0x01, 0xFC}};
-CAN_frame_t BMW_512 = {.FIR = {.B = {.DLC = 8,.FF = CAN_frame_std,}},.MsgID = 0x512,.data = {0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x12}}; //0x512 	Network management edme 	VCU
-//CAN_frame_t BMW_12F //Might be needed,  	Wake up ,VCU 100ms
+CAN_frame_t BMW_512 = {.FIR = {.B = {.DLC = 8,.FF = CAN_frame_std,}},.MsgID = 0x512,.data = {0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x12}}; //0x512  Network management edme   VCU
+//CAN_frame_t BMW_12F //Might be needed,    Wake up ,VCU 100ms
 //These CAN messages need to be sent towards the battery to keep it alive
 
 static const uint8_t BMW_10B_0[15] = {0xCD,0x19,0x94,0x6D,0xE0,0x34,0x78,0xDB,0x97,0x43,0x0F,0xF6,0xBA,0x6E,0x81};
@@ -40,7 +40,7 @@ static int16_t Battery_Power = 0;
 
 void update_values_i3_battery()
 { //This function maps all the values fetched via CAN to the correct parameters used for modbus
-	bms_status = ACTIVE; //Startout in active mode
+  bms_status = ACTIVE; //Startout in active mode
 
   //Calculate the SOC% value to send to inverter
   Calculated_SOC = (Display_SOC * 10); //Increase decimal amount
@@ -55,13 +55,13 @@ void update_values_i3_battery()
   }
   SOC = (Calculated_SOC * 10); //increase LB_SOC range from 0-100.0 -> 100.00
 
-	battery_voltage = Battery_Volts; //Unit V+1 (5000 = 500.0V)
+  battery_voltage = Battery_Volts; //Unit V+1 (5000 = 500.0V)
 
-	battery_current = Battery_Current;
+  battery_current = Battery_Current;
 
-	capacity_Wh = BATTERY_WH_MAX;
+  capacity_Wh = BATTERY_WH_MAX;
 
-	remaining_capacity_Wh = (Battery_Capacity_kWh * 1000);
+  remaining_capacity_Wh = (Battery_Capacity_kWh * 1000);
 
   if(SOC > 9900) //If Soc is over 99%, stop charging
   {
@@ -83,22 +83,22 @@ void update_values_i3_battery()
 
   Battery_Power = (Battery_Current * (Battery_Volts/10)); 
 
-	stat_batt_power = Battery_Power; //TODO, is mapping OK?
+  stat_batt_power = Battery_Power; //TODO, is mapping OK?
 
-	temperature_min; //hardcoded to 5*C in startup, TODO, find from battery CAN later
-	
-	temperature_max; //hardcoded to 6*C in startup, TODO, find from battery CAN later
-	
-	/* Check if the BMS is still sending CAN messages. If we go 60s without messages we raise an error*/
-	if(!CANstillAlive)
-	{
+  temperature_min; //hardcoded to 5*C in startup, TODO, find from battery CAN later
+  
+  temperature_max; //hardcoded to 6*C in startup, TODO, find from battery CAN later
+  
+  /* Check if the BMS is still sending CAN messages. If we go 60s without messages we raise an error*/
+  if(!CANstillAlive)
+  {
     bms_status = FAULT;
     Serial.println("No CAN communication detected for 60s. Shutting down battery control.");
-	}
-	else
-	{
-	  CANstillAlive--;
-	}
+  }
+  else
+  {
+    CANstillAlive--;
+  }
 
   #ifdef DEBUG_VIA_USB
     Serial.print("SOC% battery: ");
@@ -118,75 +118,75 @@ void update_values_i3_battery()
 
 void receive_can_i3_battery(CAN_frame_t rx_frame)
 {
-	CANstillAlive = 12;
-	switch (rx_frame.MsgID)
-	{
+  CANstillAlive = 12;
+  switch (rx_frame.MsgID)
+  {
   case 0x431: //Battery capacity [200ms]
     Battery_Capacity_kWh = (((rx_frame.data.u8[1] & 0x0F) << 8 | rx_frame.data.u8[5])) / 50;
-	break;
-	case 0x432: //SOC% charged [200ms]
+  break;
+  case 0x432: //SOC% charged [200ms]
     Voltage_Setpoint = ((rx_frame.data.u8[1] << 4 | rx_frame.data.u8[0] >> 4)) / 10;
     Low_SOC = (rx_frame.data.u8[2] / 2);
     High_SOC = (rx_frame.data.u8[3] / 2);
     Display_SOC = (rx_frame.data.u8[4] / 2);
-	break;
-	case 0x112: //BMS status [10ms]
+  break;
+  case 0x112: //BMS status [10ms]
     CANstillAlive = 12;
     Battery_Current = ((rx_frame.data.u8[1] << 8 | rx_frame.data.u8[0]) / 10) - 819; //Amps
     Battery_Volts = (rx_frame.data.u8[3] << 8 | rx_frame.data.u8[2]); //500.0 V
     HVBatt_SOC = ((rx_frame.data.u8[5] & 0x0F) << 4 | rx_frame.data.u8[4]) / 10;
     Battery_Status = (rx_frame.data.u8[6] & 0x0F);
     DC_link = rx_frame.data.u8[7];
-	break;
+  break;
   case 0x430:
-	break;
-	case 0x1FA:
-	break;
+  break;
+  case 0x1FA:
+  break;
   case 0x40D:
-	break;
-	case 0x2FF:
-	break;
-	case 0x239:
-	break;
-	case 0x2BD:
-	break;
-	case 0x2F5:
-	break;
-	case 0x3EB:
-	break;
+  break;
+  case 0x2FF:
+  break;
+  case 0x239:
+  break;
+  case 0x2BD:
+  break;
+  case 0x2F5:
+  break;
+  case 0x3EB:
+  break;
   case 0x363:
-	break;
-	case 0x507:
-	break;
-	case 0x41C:
-	break;
-	default:
-	break;
-	}      
+  break;
+  case 0x507:
+  break;
+  case 0x41C:
+  break;
+  default:
+  break;
+  }      
 }
 void send_can_i3_battery()
 {
   unsigned long currentMillis = millis();
-	// Send 600ms CAN Message
-	if (currentMillis - previousMillis600 >= interval600)
-	{
-		previousMillis600 = currentMillis;
-		
-		ESP32Can.CANWriteFrame(&BMW_512); 
-	}
-	//Send 20ms message
-	if (currentMillis - previousMillis20 >= interval20)
-	{ 
-		previousMillis20 = currentMillis;
-		
-		BMW_10B.data.u8[0] = BMW_10B_0[BMW_10B_counter];
-		BMW_10B.data.u8[1] = BMW_10B_1[BMW_10B_counter];
-		BMW_10B_counter++;
-		if(BMW_10B_counter > 14)
-		{
-			BMW_10B_counter = 0;
-		}
-		
-		ESP32Can.CANWriteFrame(&BMW_10B); 
-	}
+  // Send 600ms CAN Message
+  if (currentMillis - previousMillis600 >= interval600)
+  {
+    previousMillis600 = currentMillis;
+    
+    ESP32Can.CANWriteFrame(&BMW_512); 
+  }
+  //Send 20ms message
+  if (currentMillis - previousMillis20 >= interval20)
+  { 
+    previousMillis20 = currentMillis;
+    
+    BMW_10B.data.u8[0] = BMW_10B_0[BMW_10B_counter];
+    BMW_10B.data.u8[1] = BMW_10B_1[BMW_10B_counter];
+    BMW_10B_counter++;
+    if(BMW_10B_counter > 14)
+    {
+      BMW_10B_counter = 0;
+    }
+    
+    ESP32Can.CANWriteFrame(&BMW_10B); 
+  }
 }

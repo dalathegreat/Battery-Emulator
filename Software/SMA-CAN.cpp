@@ -122,78 +122,78 @@ void send_can_sma()
 {
   unsigned long currentMillis = millis();
 
-	// Send CAN Message every X ms, 1000 for testing
-	if (currentMillis - previousMillis1s >= interval1s)
-	{
-	  previousMillis1s = currentMillis;
-
-	  ESP32Can.CANWriteFrame(&SMA_558);
-	}
-	if (currentMillis - previousMillis2s >= interval2s)
-	{
-	  previousMillis2s = currentMillis;
-
-	  ESP32Can.CANWriteFrame(&SMA_598);
-	}
-	if (currentMillis - previousMillis3s >= interval3s)
-	{
-	  previousMillis3s = currentMillis;
-
-	  ESP32Can.CANWriteFrame(&SMA_5D8);
-	}
-	if (currentMillis - previousMillis4s >= interval4s)
-	{
-	  previousMillis4s = currentMillis;
-
-	  ESP32Can.CANWriteFrame(&SMA_618_1);
-	}
-	if (currentMillis - previousMillis5s >= interval5s)
-	{
-	  previousMillis5s = currentMillis;
-
-	  ESP32Can.CANWriteFrame(&SMA_618_2);
-	}
-	if (currentMillis - previousMillis6s >= interval6s)
-	{
-	  previousMillis6s = currentMillis;
-
-	  ESP32Can.CANWriteFrame(&SMA_618_3);
-	}
-	if (currentMillis - previousMillis7s >= interval7s)
-	{
-	  previousMillis7s = currentMillis;
-
-	  ESP32Can.CANWriteFrame(&SMA_358);
-	}
-	if (currentMillis - previousMillis8s >= interval8s)
+  // Send CAN Message every X ms, 1000 for testing
+  if (currentMillis - previousMillis1s >= interval1s)
   {
-	  previousMillis8s = currentMillis;
+    previousMillis1s = currentMillis;
 
-	  ESP32Can.CANWriteFrame(&SMA_3D8);
-	}
-	if (currentMillis - previousMillis9s >= interval9s)
-	{
-	  previousMillis9s = currentMillis;
+    ESP32Can.CANWriteFrame(&SMA_558);
+  }
+  if (currentMillis - previousMillis2s >= interval2s)
+  {
+    previousMillis2s = currentMillis;
 
-	  ESP32Can.CANWriteFrame(&SMA_458);
-	}
-	if (currentMillis - previousMillis10s >= interval10s)
-	{
-	  previousMillis10s = currentMillis;
+    ESP32Can.CANWriteFrame(&SMA_598);
+  }
+  if (currentMillis - previousMillis3s >= interval3s)
+  {
+    previousMillis3s = currentMillis;
 
-	  ESP32Can.CANWriteFrame(&SMA_518);
-	}
-	if (currentMillis - previousMillis11s >= interval11s)
-	{
-	  previousMillis11s = currentMillis;
+    ESP32Can.CANWriteFrame(&SMA_5D8);
+  }
+  if (currentMillis - previousMillis4s >= interval4s)
+  {
+    previousMillis4s = currentMillis;
 
-	  ESP32Can.CANWriteFrame(&SMA_4D8);
-	}
+    ESP32Can.CANWriteFrame(&SMA_618_1);
+  }
+  if (currentMillis - previousMillis5s >= interval5s)
+  {
+    previousMillis5s = currentMillis;
+
+    ESP32Can.CANWriteFrame(&SMA_618_2);
+  }
+  if (currentMillis - previousMillis6s >= interval6s)
+  {
+    previousMillis6s = currentMillis;
+
+    ESP32Can.CANWriteFrame(&SMA_618_3);
+  }
+  if (currentMillis - previousMillis7s >= interval7s)
+  {
+    previousMillis7s = currentMillis;
+
+    ESP32Can.CANWriteFrame(&SMA_358);
+  }
+  if (currentMillis - previousMillis8s >= interval8s)
+  {
+    previousMillis8s = currentMillis;
+
+    ESP32Can.CANWriteFrame(&SMA_3D8);
+  }
+  if (currentMillis - previousMillis9s >= interval9s)
+  {
+    previousMillis9s = currentMillis;
+
+    ESP32Can.CANWriteFrame(&SMA_458);
+  }
+  if (currentMillis - previousMillis10s >= interval10s)
+  {
+    previousMillis10s = currentMillis;
+
+    ESP32Can.CANWriteFrame(&SMA_518);
+  }
+  if (currentMillis - previousMillis11s >= interval11s)
+  {
+    previousMillis11s = currentMillis;
+
+    ESP32Can.CANWriteFrame(&SMA_4D8);
+  }
   if (currentMillis - previousMillis12s >= interval12s)
-	{
-	  previousMillis12s = currentMillis;
+  {
+    previousMillis12s = currentMillis;
 
-	  ESP32Can.CANWriteFrame(&SMA_158);
-	}
+    ESP32Can.CANWriteFrame(&SMA_158);
+  }
 
 }

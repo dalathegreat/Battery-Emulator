@@ -32,7 +32,7 @@ const CAN_frame_t LEAF_NEXT_LINE_REQUEST = {.FIR = {.B = {.DLC = 8,.FF = CAN_fra
 // There are also two more groups: group 61, which replies with lots of CAN messages (up to 48); here we
 // found the SOH value, and group 84 that replies with the HV battery production serial.
 
-static uint8_t	crctable[256] = {0,133,143,10,155,30,20,145,179,54,60,185,40,173,167,34,227,102,108,233,120,253,247,114,80,213,223,90,203,78,68,193,67,
+static uint8_t  crctable[256] = {0,133,143,10,155,30,20,145,179,54,60,185,40,173,167,34,227,102,108,233,120,253,247,114,80,213,223,90,203,78,68,193,67,
                         198,204,73,216,93,87,210,240,117,127,250,107,238,228,97,160,37,47,170,59,190,180,49,19,150,156,25,136,13,7,130,134,3,9,
                         140,29,152,146,23,53,176,186,63,174,43,33,164,101,224,234,111,254,123,113,244,214,83,89,220,77,200,194,71,197,64,74,207,
                         94,219,209,84,118,243,249,124,237,104,98,231,38,163,169,44,189,56,50,183,149,16,26,159,14,139,129,4,137,12,6,131,18,151,
@@ -84,15 +84,15 @@ static byte LB_MainRelayOn_flag = 0; //No-Permission=0, Main Relay On Permission
 static byte LB_Capacity_Empty = 0; //LB_EMPTY, , Goes to 1 if battery is empty
 
 // Nissan LEAF battery data from polled CAN messages
-static uint8_t battery_request_idx	= 0;
+static uint8_t battery_request_idx  = 0;
 static uint8_t group_7bb = 0;
 static uint8_t group = 1;
-static uint8_t stop_battery_query	= 1;
+static uint8_t stop_battery_query = 1;
 static uint8_t hold_off_with_polling_10seconds = 10;
-static uint16_t	cell_voltages[97]; //array with all the cellvoltages
-static uint16_t	cellcounter	= 0; 
-static uint16_t	min_max_voltage[2]; //contains cell min[0] and max[1] values in mV
-static uint16_t	cell_deviation_mV = 0; //contains the deviation between highest and lowest cell in mV
+static uint16_t cell_voltages[97]; //array with all the cellvoltages
+static uint16_t cellcounter = 0; 
+static uint16_t min_max_voltage[2]; //contains cell min[0] and max[1] values in mV
+static uint16_t cell_deviation_mV = 0; //contains the deviation between highest and lowest cell in mV
 static uint16_t HX = 0; //Internal resistance
 static uint16_t insulation = 0; //Insulation resistance
 static int32_t Battery_current_1 = 0; //High Voltage battery current; it’s positive if discharged, negative when charging
@@ -136,9 +136,9 @@ void update_values_leaf_battery()
 
   battery_current = convert2unsignedint16(LB_Current*10); //One more decimal needed, sign if needed
 
-	capacity_Wh = (LB_Max_GIDS * WH_PER_GID);
+  capacity_Wh = (LB_Max_GIDS * WH_PER_GID);
 
-	remaining_capacity_Wh = LB_Wh_Remaining;
+  remaining_capacity_Wh = LB_Wh_Remaining;
 
   LB_Power = LB_Total_Voltage * LB_Current;//P = U * I
   stat_batt_power = convert2unsignedint16(LB_Power); //add sign if needed
@@ -181,7 +181,7 @@ void update_values_leaf_battery()
   if(SOC == 0){ //Scaled SOC% value is 0.00%, we should not discharge battery further
     max_target_discharge_power = 0;
   }
-	
+  
   // Define power able to be put into the battery
   if(LB_Charge_Power_Limit > 30){ //if >30kW can be put into the battery
     max_target_charge_power = 30000; //cap value so we don't go over the Fronius limits
@@ -499,7 +499,7 @@ void receive_can_leaf_battery(CAN_frame_t rx_frame)
     if(group_7bb == 2) //Cell Voltages
     {
       if(rx_frame.data.u8[0] == 0x10){ //first frame is anomalous
-        battery_request_idx = 0;					
+        battery_request_idx = 0;          
         cell_voltages[battery_request_idx++] = (rx_frame.data.u8[4] << 8) | rx_frame.data.u8[5];
         cell_voltages[battery_request_idx++] = (rx_frame.data.u8[6] << 8) | rx_frame.data.u8[7];
         break;
@@ -511,7 +511,7 @@ void receive_can_leaf_battery(CAN_frame_t rx_frame)
         for(cellcounter = 0; cellcounter < 96; cellcounter++){
           if(min_max_voltage[0] > cell_voltages[cellcounter]) min_max_voltage[0] = cell_voltages[cellcounter];
           if(min_max_voltage[1] < cell_voltages[cellcounter]) min_max_voltage[1] = cell_voltages[cellcounter];
-        }					
+        }         
 
         cell_deviation_mV = (min_max_voltage[1] - min_max_voltage[0]);
 
@@ -538,14 +538,14 @@ void receive_can_leaf_battery(CAN_frame_t rx_frame)
 
       if((rx_frame.data.u8[0] % 2) == 0){ //even frames
         cell_voltages[battery_request_idx++]  |= rx_frame.data.u8[1];
-        cell_voltages[battery_request_idx++]	= (rx_frame.data.u8[2] << 8) | rx_frame.data.u8[3];
-        cell_voltages[battery_request_idx++]	= (rx_frame.data.u8[4] << 8) | rx_frame.data.u8[5];
-        cell_voltages[battery_request_idx++]	= (rx_frame.data.u8[6] << 8) | rx_frame.data.u8[7];
+        cell_voltages[battery_request_idx++]  = (rx_frame.data.u8[2] << 8) | rx_frame.data.u8[3];
+        cell_voltages[battery_request_idx++]  = (rx_frame.data.u8[4] << 8) | rx_frame.data.u8[5];
+        cell_voltages[battery_request_idx++]  = (rx_frame.data.u8[6] << 8) | rx_frame.data.u8[7];
       } else { //odd frames
-        cell_voltages[battery_request_idx++]	= (rx_frame.data.u8[1] << 8) | rx_frame.data.u8[2];
-        cell_voltages[battery_request_idx++]	= (rx_frame.data.u8[3] << 8) | rx_frame.data.u8[4];
-        cell_voltages[battery_request_idx++]	= (rx_frame.data.u8[5] << 8) | rx_frame.data.u8[6];
-        cell_voltages[battery_request_idx]		= (rx_frame.data.u8[7] << 8);
+        cell_voltages[battery_request_idx++]  = (rx_frame.data.u8[1] << 8) | rx_frame.data.u8[2];
+        cell_voltages[battery_request_idx++]  = (rx_frame.data.u8[3] << 8) | rx_frame.data.u8[4];
+        cell_voltages[battery_request_idx++]  = (rx_frame.data.u8[5] << 8) | rx_frame.data.u8[6];
+        cell_voltages[battery_request_idx]    = (rx_frame.data.u8[7] << 8);
       }
     }
 
@@ -615,44 +615,44 @@ void receive_can_leaf_battery(CAN_frame_t rx_frame)
 void send_can_leaf_battery()
 {
   unsigned long currentMillis = millis();
-	// Send 100ms CAN Message
-	if (currentMillis - previousMillis100 >= interval100)
-	{
-		previousMillis100 = currentMillis;
+  // Send 100ms CAN Message
+  if (currentMillis - previousMillis100 >= interval100)
+  {
+    previousMillis100 = currentMillis;
 
     ESP32Can.CANWriteFrame(&LEAF_50B); //Always send 50B as a static message (Contains HCM_WakeUpSleepCommand == 11b == WakeUp, and CANMASK = 1)
 
-		mprun100++;
-		if (mprun100 > 3){
-			mprun100 = 0;
-		}
+    mprun100++;
+    if (mprun100 > 3){
+      mprun100 = 0;
+    }
 
-		if (mprun100 == 0){
-			LEAF_50C.data.u8[3] = 0x00;
-			LEAF_50C.data.u8[4] = 0x5D;
-			LEAF_50C.data.u8[5] = 0xC8;
-		}
-		else if(mprun100 == 1){
-			LEAF_50C.data.u8[3] = 0x01;
-			LEAF_50C.data.u8[4] = 0xB2;
-			LEAF_50C.data.u8[5] = 0x31;
-		}
-		else if(mprun100 == 2){
-			LEAF_50C.data.u8[3] = 0x02;
-			LEAF_50C.data.u8[4] = 0x5D;
-			LEAF_50C.data.u8[5] = 0x63;
-		}
-		else if(mprun100 == 3){
-			LEAF_50C.data.u8[3] = 0x03;
-			LEAF_50C.data.u8[4] = 0xB2;
-			LEAF_50C.data.u8[5] = 0x9A;
-		}
-		ESP32Can.CANWriteFrame(&LEAF_50C);
-	}
+    if (mprun100 == 0){
+      LEAF_50C.data.u8[3] = 0x00;
+      LEAF_50C.data.u8[4] = 0x5D;
+      LEAF_50C.data.u8[5] = 0xC8;
+    }
+    else if(mprun100 == 1){
+      LEAF_50C.data.u8[3] = 0x01;
+      LEAF_50C.data.u8[4] = 0xB2;
+      LEAF_50C.data.u8[5] = 0x31;
+    }
+    else if(mprun100 == 2){
+      LEAF_50C.data.u8[3] = 0x02;
+      LEAF_50C.data.u8[4] = 0x5D;
+      LEAF_50C.data.u8[5] = 0x63;
+    }
+    else if(mprun100 == 3){
+      LEAF_50C.data.u8[3] = 0x03;
+      LEAF_50C.data.u8[4] = 0xB2;
+      LEAF_50C.data.u8[5] = 0x9A;
+    }
+    ESP32Can.CANWriteFrame(&LEAF_50C);
+  }
   //Send 10ms message
-	if (currentMillis - previousMillis10 >= interval10)
-	{ 
-		previousMillis10 = currentMillis;
+  if (currentMillis - previousMillis10 >= interval10)
+  { 
+    previousMillis10 = currentMillis;
 
     if(mprun10 == 0){
       LEAF_1D4.data.u8[4] = 0x07;
@@ -672,116 +672,116 @@ void send_can_leaf_battery()
     }
     ESP32Can.CANWriteFrame(&LEAF_1D4); 
 
-		mprun10++;
-		if (mprun10 > 3){
-			mprun10 = 0;
-		}
+    mprun10++;
+    if (mprun10 > 3){
+      mprun10 = 0;
+    }
 
     switch(mprun10r)
     {
-		case(0):	
-			LEAF_1F2.data.u8[3] = 0xB0;
-			LEAF_1F2.data.u8[6] = 0x00;
-			LEAF_1F2.data.u8[7] = 0x8F;
-			break;
-		case(1):
-			LEAF_1F2.data.u8[3] = 0xB0;
-			LEAF_1F2.data.u8[6] = 0x01;
-			LEAF_1F2.data.u8[7] = 0x80;
-			break;
-		case(2):
-			LEAF_1F2.data.u8[3] = 0xB0;
-			LEAF_1F2.data.u8[6] = 0x02;
-			LEAF_1F2.data.u8[7] = 0x81;
-			break;
-		case(3):
-			LEAF_1F2.data.u8[3] = 0xB0;
-			LEAF_1F2.data.u8[6] = 0x03;
-			LEAF_1F2.data.u8[7] = 0x82;
-			break;
-		case(4):
-			LEAF_1F2.data.u8[3] = 0xB0;
-			LEAF_1F2.data.u8[6] = 0x00;
-			LEAF_1F2.data.u8[7] = 0x8F;
-			break;
-		case(5):	// Set 2
-			LEAF_1F2.data.u8[3] = 0xB4;
-			LEAF_1F2.data.u8[6] = 0x01;
-			LEAF_1F2.data.u8[7] = 0x84;
-			break;
-		case(6):
-			LEAF_1F2.data.u8[3] = 0xB4;
-			LEAF_1F2.data.u8[6] = 0x02;
-			LEAF_1F2.data.u8[7] = 0x85;
-			break;
-		case(7):
-			LEAF_1F2.data.u8[3] = 0xB4;
-			LEAF_1F2.data.u8[6] = 0x03;
-			LEAF_1F2.data.u8[7] = 0x86;
-			break;
-		case(8):
-			LEAF_1F2.data.u8[3] = 0xB4;
-			LEAF_1F2.data.u8[6] = 0x00;
-			LEAF_1F2.data.u8[7] = 0x83;
-			break;
-		case(9):
-			LEAF_1F2.data.u8[3] = 0xB4;
-			LEAF_1F2.data.u8[6] = 0x01;
-			LEAF_1F2.data.u8[7] = 0x84;
-			break;
-		case(10):	// Set 3
-			LEAF_1F2.data.u8[3] = 0xB0;
-			LEAF_1F2.data.u8[6] = 0x02;
-			LEAF_1F2.data.u8[7] = 0x81;
-			break;
-		case(11):
-			LEAF_1F2.data.u8[3] = 0xB0;
-			LEAF_1F2.data.u8[6] = 0x03;
-			LEAF_1F2.data.u8[7] = 0x82;
-			break;
-		case(12):
-			LEAF_1F2.data.u8[3] = 0xB0;
-			LEAF_1F2.data.u8[6] = 0x00;
-			LEAF_1F2.data.u8[7] = 0x8F;
-			break;
-		case(13):
-			LEAF_1F2.data.u8[3] = 0xB0;
-			LEAF_1F2.data.u8[6] = 0x01;
-			LEAF_1F2.data.u8[7] = 0x80;
-			break;
-		case(14):
-			LEAF_1F2.data.u8[3] = 0xB0;
-			LEAF_1F2.data.u8[6] = 0x02;
-			LEAF_1F2.data.u8[7] = 0x81;
-			break;
-		case(15):	// Set 4
-			LEAF_1F2.data.u8[3] = 0xB4;
-			LEAF_1F2.data.u8[6] = 0x03;
-			LEAF_1F2.data.u8[7] = 0x86;
-			break;
-		case(16):
-			LEAF_1F2.data.u8[3] = 0xB4;
-			LEAF_1F2.data.u8[6] = 0x00;
-			LEAF_1F2.data.u8[7] = 0x83;
-			break;
-		case(17):
-			LEAF_1F2.data.u8[3] = 0xB4;
-			LEAF_1F2.data.u8[6] = 0x01;
-			LEAF_1F2.data.u8[7] = 0x84;
-			break;
-		case(18):
-			LEAF_1F2.data.u8[3] = 0xB4;
-			LEAF_1F2.data.u8[6] = 0x02;
-			LEAF_1F2.data.u8[7] = 0x85;
-			break;
-		case(19):
-			LEAF_1F2.data.u8[3] = 0xB4;
-			LEAF_1F2.data.u8[6] = 0x03;
-			LEAF_1F2.data.u8[7] = 0x86;
-			break;
-		default:
-			break;
-	  }
+    case(0):  
+      LEAF_1F2.data.u8[3] = 0xB0;
+      LEAF_1F2.data.u8[6] = 0x00;
+      LEAF_1F2.data.u8[7] = 0x8F;
+      break;
+    case(1):
+      LEAF_1F2.data.u8[3] = 0xB0;
+      LEAF_1F2.data.u8[6] = 0x01;
+      LEAF_1F2.data.u8[7] = 0x80;
+      break;
+    case(2):
+      LEAF_1F2.data.u8[3] = 0xB0;
+      LEAF_1F2.data.u8[6] = 0x02;
+      LEAF_1F2.data.u8[7] = 0x81;
+      break;
+    case(3):
+      LEAF_1F2.data.u8[3] = 0xB0;
+      LEAF_1F2.data.u8[6] = 0x03;
+      LEAF_1F2.data.u8[7] = 0x82;
+      break;
+    case(4):
+      LEAF_1F2.data.u8[3] = 0xB0;
+      LEAF_1F2.data.u8[6] = 0x00;
+      LEAF_1F2.data.u8[7] = 0x8F;
+      break;
+    case(5):  // Set 2
+      LEAF_1F2.data.u8[3] = 0xB4;
+      LEAF_1F2.data.u8[6] = 0x01;
+      LEAF_1F2.data.u8[7] = 0x84;
+      break;
+    case(6):
+      LEAF_1F2.data.u8[3] = 0xB4;
+      LEAF_1F2.data.u8[6] = 0x02;
+      LEAF_1F2.data.u8[7] = 0x85;
+      break;
+    case(7):
+      LEAF_1F2.data.u8[3] = 0xB4;
+      LEAF_1F2.data.u8[6] = 0x03;
+      LEAF_1F2.data.u8[7] = 0x86;
+      break;
+    case(8):
+      LEAF_1F2.data.u8[3] = 0xB4;
+      LEAF_1F2.data.u8[6] = 0x00;
+      LEAF_1F2.data.u8[7] = 0x83;
+      break;
+    case(9):
+      LEAF_1F2.data.u8[3] = 0xB4;
+      LEAF_1F2.data.u8[6] = 0x01;
+      LEAF_1F2.data.u8[7] = 0x84;
+      break;
+    case(10): // Set 3
+      LEAF_1F2.data.u8[3] = 0xB0;
+      LEAF_1F2.data.u8[6] = 0x02;
+      LEAF_1F2.data.u8[7] = 0x81;
+      break;
+    case(11):
+      LEAF_1F2.data.u8[3] = 0xB0;
+      LEAF_1F2.data.u8[6] = 0x03;
+      LEAF_1F2.data.u8[7] = 0x82;
+      break;
+    case(12):
+      LEAF_1F2.data.u8[3] = 0xB0;
+      LEAF_1F2.data.u8[6] = 0x00;
+      LEAF_1F2.data.u8[7] = 0x8F;
+      break;
+    case(13):
+      LEAF_1F2.data.u8[3] = 0xB0;
+      LEAF_1F2.data.u8[6] = 0x01;
+      LEAF_1F2.data.u8[7] = 0x80;
+      break;
+    case(14):
+      LEAF_1F2.data.u8[3] = 0xB0;
+      LEAF_1F2.data.u8[6] = 0x02;
+      LEAF_1F2.data.u8[7] = 0x81;
+      break;
+    case(15): // Set 4
+      LEAF_1F2.data.u8[3] = 0xB4;
+      LEAF_1F2.data.u8[6] = 0x03;
+      LEAF_1F2.data.u8[7] = 0x86;
+      break;
+    case(16):
+      LEAF_1F2.data.u8[3] = 0xB4;
+      LEAF_1F2.data.u8[6] = 0x00;
+      LEAF_1F2.data.u8[7] = 0x83;
+      break;
+    case(17):
+      LEAF_1F2.data.u8[3] = 0xB4;
+      LEAF_1F2.data.u8[6] = 0x01;
+      LEAF_1F2.data.u8[7] = 0x84;
+      break;
+    case(18):
+      LEAF_1F2.data.u8[3] = 0xB4;
+      LEAF_1F2.data.u8[6] = 0x02;
+      LEAF_1F2.data.u8[7] = 0x85;
+      break;
+    case(19):
+      LEAF_1F2.data.u8[3] = 0xB4;
+      LEAF_1F2.data.u8[6] = 0x03;
+      LEAF_1F2.data.u8[7] = 0x86;
+      break;
+    default:
+      break;
+    }
 
     ESP32Can.CANWriteFrame(&LEAF_1F2); //Contains (CHG_STA_RQ == 1 == Normal Charge)
 
@@ -789,10 +789,10 @@ void send_can_leaf_battery()
     if(mprun10r > 19){ // 0x1F2 patter repeats after 20 messages,
     mprun10r = 0;
     }
-	}
+  }
   //Send 10s CAN messages
   if (currentMillis - previousMillis10s >= interval10s)
-	{
+  {
     previousMillis10s = currentMillis;
 
     //Every 10s, ask diagnostic data from the battery. Don't ask if someone is already polling on the bus (Leafspy?)
@@ -822,12 +822,12 @@ void send_can_leaf_battery()
 
 uint16_t convert2unsignedint16(int16_t signed_value)
 {
-	if(signed_value < 0){
-		return(65535 + signed_value);
-	}
-	else{
-		return (uint16_t)signed_value;
-	}
+  if(signed_value < 0){
+    return(65535 + signed_value);
+  }
+  else{
+    return (uint16_t)signed_value;
+  }
 }
 
 bool is_message_corrupt(CAN_frame_t rx_frame)

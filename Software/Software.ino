@@ -125,22 +125,22 @@ uint8_t inverterAllowsContactorClosing = 1;
 void setup()
 {
   // Init Serial monitor
-	Serial.begin(115200);
-	while (!Serial)
-	{
-	}
-	Serial.println("__ OK __");
+  Serial.begin(115200);
+  while (!Serial)
+  {
+  }
+  Serial.println("__ OK __");
 
-	//CAN pins
-	pinMode(CAN_SE_PIN, OUTPUT);
-	digitalWrite(CAN_SE_PIN, LOW);
-	CAN_cfg.speed = CAN_SPEED_500KBPS;
-	CAN_cfg.tx_pin_id = GPIO_NUM_27;
-	CAN_cfg.rx_pin_id = GPIO_NUM_26;
-	CAN_cfg.rx_queue = xQueueCreate(rx_queue_size, sizeof(CAN_frame_t));
-	// Init CAN Module
-	ESP32Can.CANInit();
-	Serial.println(CAN_cfg.speed);
+  //CAN pins
+  pinMode(CAN_SE_PIN, OUTPUT);
+  digitalWrite(CAN_SE_PIN, LOW);
+  CAN_cfg.speed = CAN_SPEED_500KBPS;
+  CAN_cfg.tx_pin_id = GPIO_NUM_27;
+  CAN_cfg.rx_pin_id = GPIO_NUM_26;
+  CAN_cfg.rx_queue = xQueueCreate(rx_queue_size, sizeof(CAN_frame_t));
+  // Init CAN Module
+  ESP32Can.CANInit();
+  Serial.println(CAN_cfg.speed);
 
   #ifdef DUAL_CAN
     Serial.println("Dual CAN Bus (ESP32+MCP2515) selected");
@@ -155,9 +155,9 @@ void setup()
   //Init contactor pins
   #ifdef CONTACTOR_CONTROL
   pinMode(POSITIVE_CONTACTOR_PIN, OUTPUT);
-	digitalWrite(POSITIVE_CONTACTOR_PIN, LOW);
+  digitalWrite(POSITIVE_CONTACTOR_PIN, LOW);
   pinMode(NEGATIVE_CONTACTOR_PIN, OUTPUT);
-	digitalWrite(NEGATIVE_CONTACTOR_PIN, LOW);
+  digitalWrite(NEGATIVE_CONTACTOR_PIN, LOW);
     #ifdef PWM_CONTACTOR_CONTROL
     ledcSetup(POSITIVE_PWM_Ch, PWM_Freq, PWM_Res); // Setup PWM Channel Frequency and Resolution
     ledcSetup(NEGATIVE_PWM_Ch, PWM_Freq, PWM_Res); // Setup PWM Channel Frequency and Resolution
@@ -167,7 +167,7 @@ void setup()
     ledcWrite(NEGATIVE_PWM_Ch, 0); // Set Negative PWM to 0%
     #endif
   pinMode(PRECHARGE_PIN, OUTPUT);
-	digitalWrite(PRECHARGE_PIN, LOW);
+  digitalWrite(PRECHARGE_PIN, LOW);
   #endif
 
 
@@ -248,19 +248,19 @@ void loop()
   #endif
   
   if (millis() - previousMillis10ms >= interval10) //every 10ms
-	{ 
-		previousMillis10ms = millis();
+  { 
+    previousMillis10ms = millis();
     handle_LED_state();   //Set the LED color according to state
     #ifdef CONTACTOR_CONTROL
     handle_contactors();  //Take care of startup precharge/contactor closing
     #endif
   }
 
-	if (millis() - previousMillisInverter >= intervalInverterTask) //every 5s
-	{
-		previousMillisInverter = millis();
+  if (millis() - previousMillisInverter >= intervalInverterTask) //every 5s
+  {
+    previousMillisInverter = millis();
     handle_inverter(); //Update values heading towards inverter
-	}
+  }
 }
 
 void handle_can()
@@ -296,7 +296,7 @@ void handle_can()
       #ifdef SMA_CAN
       receive_can_sma(rx_frame);
       #endif
-	    #ifdef CHADEMO
+      #ifdef CHADEMO
       receive_can_chademo(rx_frame);
       #endif
 
@@ -307,9 +307,9 @@ void handle_can()
       #ifdef SOLAX_CAN
       receive_can_solax(rx_frame);
       #endif
-	  #ifdef PYLON_CAN
-	  receive_can_pylon(rx_frame);
-	  #endif
+    #ifdef PYLON_CAN
+    receive_can_pylon(rx_frame);
+    #endif
     }
   }
   //When we are done checking if a CAN message has arrived, we can focus on sending CAN messages
@@ -323,7 +323,7 @@ void handle_can()
   //Battery sending
   #ifdef BATTERY_TYPE_LEAF
   send_can_leaf_battery();
-	#endif 
+  #endif 
   #ifdef TESLA_MODEL_3_BATTERY
   send_can_tesla_model_3_battery(); 
   #endif
@@ -376,9 +376,9 @@ void handle_can()
       #ifdef SOLAX_CAN
       receive_can_solax(rx_frame2);
       #endif
-	    #ifdef PYLON_CAN
-	    receive_can_pylon(rx_frame2);
-	    #endif
+      #ifdef PYLON_CAN
+      receive_can_pylon(rx_frame2);
+      #endif
     }
   }
   //When we are done checking if a CAN message has arrived, we can focus on sending CAN messages
@@ -391,9 +391,9 @@ void handle_can()
 
 void handle_inverter()
 {
-	  #ifdef BATTERY_TYPE_LEAF
+    #ifdef BATTERY_TYPE_LEAF
     update_values_leaf_battery(); //Map the values to the correct registers
-	  #endif 
+    #endif 
     #ifdef TESLA_MODEL_3_BATTERY
     update_values_tesla_model_3_battery(); //Map the values to the correct registers
     #endif
@@ -421,7 +421,7 @@ void handle_inverter()
     #ifdef PYLON_CAN
     update_values_can_pylon();
     #endif
-	  #ifdef CHADEMO
+    #ifdef CHADEMO
     update_values_can_chademo();
     #endif
 
