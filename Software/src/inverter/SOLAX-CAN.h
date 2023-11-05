@@ -5,7 +5,7 @@
 #include "../../config.h"
 #include "../../USER_SETTINGS.h"
 
-#include "../../ACAN2515.h"
+#include "../../src/lib/pierremolinaro-acan2515/ACAN2515.h"
 extern ACAN2515 can;
 
 extern uint16_t SOC;
