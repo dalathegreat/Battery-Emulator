@@ -1,7 +1,7 @@
 #ifndef SMA_CAN_H
 #define SMA_CAN_H
 #include <Arduino.h>
-#include "../../ESP32CAN.h"
+#include "../devboard/can/ESP32CAN.h"
 #include "../../USER_SETTINGS.h"
 
 extern uint16_t SOC;						            //SOC%, 0-100.00 (0-10000)

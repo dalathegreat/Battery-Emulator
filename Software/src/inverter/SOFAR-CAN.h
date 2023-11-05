@@ -1,7 +1,7 @@
 #ifndef SOFAR_CAN_H
 #define SOFAR_CAN_H
 #include <Arduino.h>
-#include "../../ESP32CAN.h"
+#include "../devboard/can/ESP32CAN.h"
 #include "../../USER_SETTINGS.h"
 
 // These parameters need to be mapped for the inverter

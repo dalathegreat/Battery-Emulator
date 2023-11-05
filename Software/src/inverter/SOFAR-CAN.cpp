@@ -1,5 +1,5 @@
 #include "SOFAR-CAN.h"
-#include "../../ESP32CAN.h"
+#include "../devboard/can/ESP32CAN.h"
 #include "../lib/ThomasBarth-ESP32-CAN-Driver/CAN_config.h"
 
 /* This implementation of the SOFAR can protocol is halfway done. What's missing is implementing the inverter replies, all the CAN messages are listed, but the can sending is missing. */

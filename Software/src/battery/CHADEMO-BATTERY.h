@@ -1,7 +1,7 @@
 #ifndef CHADEMO_BATTERY_H
 #define CHADEMO_BATTERY_H
 #include <Arduino.h>
-#include "../../ESP32CAN.h"
+#include "../devboard/can/ESP32CAN.h"
 #include "../../USER_SETTINGS.h"
 
 #define ABSOLUTE_MAX_VOLTAGE 4040 // 404.4V,if battery voltage goes over this, charging is not possible (goes into forced discharge)

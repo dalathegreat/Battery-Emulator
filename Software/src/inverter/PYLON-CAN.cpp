@@ -1,5 +1,5 @@
 #include "PYLON-CAN.h"
-#include "../../ESP32CAN.h"
+#include "../devboard/can/ESP32CAN.h"
 #include "../lib/ThomasBarth-ESP32-CAN-Driver/CAN_config.h"
 
 #define SEND_0 //If defined, the messages will have ID ending with 0 (useful for some inverters)
