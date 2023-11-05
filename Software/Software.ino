@@ -9,7 +9,7 @@
 #include "mbServerFCs.h"
 #include "ModbusServerRTU.h"
 #include "ESP32CAN.h"
-#include "CAN_config.h"
+#include "src/lib/ThomasBarth-ESP32-CAN-Driver/CAN_config.h"
 #include "src/lib/adafruit-Adafruit_NeoPixel/Adafruit_NeoPixel.h"
 #include "src/battery/BATTERIES.h"
 #include "src/inverter/INVERTERS.h"
