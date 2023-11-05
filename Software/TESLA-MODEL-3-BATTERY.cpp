@@ -42,6 +42,7 @@ static uint16_t output_current = 0;
 static uint16_t soc_min = 0;
 static uint16_t soc_max = 0;
 static uint16_t soc_vi = 0;
+static uint16_t soc_calculated = 0;
 static uint16_t soc_ave = 0;
 static uint16_t cell_max_v = 3700;
 static uint16_t cell_min_v = 3700;
@@ -89,16 +90,17 @@ void update_values_tesla_model_3_battery()
 	StateOfHealth = 9900; //Hardcoded to 99%SOH
 
   //Calculate the SOC% value to send to inverter
-  soc_vi = MIN_SOC + (MAX_SOC - MIN_SOC) * (soc_vi - MINPERCENTAGE) / (MAXPERCENTAGE - MINPERCENTAGE); 
-  if (soc_vi < 0)
+  soc_calculated = soc_vi;
+  soc_calculated = MIN_SOC + (MAX_SOC - MIN_SOC) * (soc_calculated - MINPERCENTAGE) / (MAXPERCENTAGE - MINPERCENTAGE); 
+  if (soc_calculated < 0)
   { //We are in the real SOC% range of 0-20%, always set SOC sent to Inverter as 0%
-      soc_vi = 0;
+      soc_calculated = 0;
   }
-  if (soc_vi > 1000)
+  if (soc_calculated > 1000)
   { //We are in the real SOC% range of 80-100%, always set SOC sent to Inverter as 100%
-      soc_vi = 1000;
+      soc_calculated = 1000;
   }
-  SOC = (soc_vi * 10); //increase SOC range from 0-100.0 -> 100.00
+  SOC = (soc_calculated * 10); //increase SOC range from 0-100.0 -> 100.00
 
 	battery_voltage = (volts*10); //One more decimal needed (370 -> 3700)
 
@@ -205,21 +207,14 @@ void update_values_tesla_model_3_battery()
     Serial.println(pyroTestInProgress);
 
     Serial.print("Battery values: ");
-    Serial.print(" Vi SOC: ");
+    Serial.print("Real SOC: ");
     Serial.print(soc_vi);
-    Serial.print(", SOC max: ");
-    Serial.print(soc_max);
-    Serial.print(", SOC min: ");
-    Serial.print(soc_min);
-    Serial.print(", SOC avg: ");
-    Serial.print(soc_ave);
     print_int_with_units(", Battery voltage: ", volts, "V");
     print_int_with_units(", Battery current: ", amps, "A");
     Serial.println("");
     print_int_with_units("Discharge limit battery: ", discharge_limit, "kW");
     Serial.print(", ");
     print_int_with_units("Charge limit battery: ", regenerative_limit, "kW");
-    Serial.print("kW");
     Serial.print(", Fully charged?: ");
     if(full_charge_complete)
       Serial.print("YES, ");
