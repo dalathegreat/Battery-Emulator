@@ -1,8 +1,8 @@
 #ifndef NISSAN_LEAF_BATTERY_H
 #define NISSAN_LEAF_BATTERY_H
 #include <Arduino.h>
-#include "ESP32CAN.h"
-#include "USER_SETTINGS.h"
+#include "../../ESP32CAN.h"
+#include "../../USER_SETTINGS.h"
 
 #define ABSOLUTE_MAX_VOLTAGE 4040 // 404.4V,if battery voltage goes over this, charging is not possible (goes into forced discharge)
 #define ABSOLUTE_MIN_VOLTAGE 3100 // 310.0V if battery voltage goes under this, discharging further is disabled

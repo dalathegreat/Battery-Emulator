@@ -11,7 +11,7 @@
 #include "ESP32CAN.h"
 #include "CAN_config.h"
 #include "Adafruit_NeoPixel.h"
-#include "BATTERIES.h"
+#include "src/battery/BATTERIES.h"
 #include "INVERTERS.h"
 
 //CAN parameters
