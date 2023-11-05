@@ -12,7 +12,7 @@
 #include "CAN_config.h"
 #include "Adafruit_NeoPixel.h"
 #include "src/battery/BATTERIES.h"
-#include "INVERTERS.h"
+#include "src/inverter/INVERTERS.h"
 
 //CAN parameters
 CAN_device_t CAN_cfg; // CAN Config

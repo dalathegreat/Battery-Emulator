@@ -1,8 +1,8 @@
-#ifndef PYLON_CAN_H
-#define PYLON_CAN_H
+#ifndef BYD_CAN_H
+#define BYD_CAN_H
 #include <Arduino.h>
-#include "ESP32CAN.h"
-#include "USER_SETTINGS.h"
+#include "../../ESP32CAN.h"
+#include "../../USER_SETTINGS.h"
 
 extern uint16_t SOC;
 extern uint16_t StateOfHealth;
@@ -18,8 +18,8 @@ extern uint16_t stat_batt_power;
 extern uint16_t temperature_min;
 extern uint16_t temperature_max;
 extern uint16_t CANerror;
-extern uint16_t min_volt_pylon_can;
-extern uint16_t max_volt_pylon_can;
+extern uint16_t min_volt_byd_can;
+extern uint16_t max_volt_byd_can;
 // Definitions for BMS status
 #define STANDBY 0
 #define INACTIVE 1
@@ -28,9 +28,9 @@ extern uint16_t max_volt_pylon_can;
 #define FAULT 4
 #define UPDATING 5
 
-void update_values_can_pylon();
-void receive_can_pylon(CAN_frame_t rx_frame);
-void send_system_data();
-void send_setup_info();
+void update_values_can_byd();
+void send_can_byd();
+void receive_can_byd(CAN_frame_t rx_frame);
+void send_intial_data();
 
 #endif

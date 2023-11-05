@@ -1,6 +1,6 @@
 #include "SMA-CAN.h"
-#include "ESP32CAN.h"
-#include "CAN_config.h"
+#include "../../ESP32CAN.h"
+#include "../../CAN_config.h"
 
 //TODO, change CAN sending routine once confirmed that 500ms interval is OK for this battery type
 
