@@ -57,6 +57,58 @@ static uint8_t packContactorSetState = 0;
 static uint8_t packCtrsClosingAllowed = 0;
 static uint8_t pyroTestInProgress = 0;
 static uint8_t send221still = 10;
+//Fault codes 
+static uint8_t WatchdogReset = 0; //Warns if the processor has experienced a reset due to watchdog reset.
+static uint8_t PowerLossReset = 0; //Warns if the processor has experienced a reset due to power loss.
+static uint8_t SwAssertion = 0; //An internal software assertion has failed.
+static uint8_t CrashEvent = 0; //Warns if the crash signal is detected by HVP
+static uint8_t OverDchgCurrentFault = 0; //Warns if the pack discharge is above max discharge current limit
+static uint8_t OverChargeCurrentFault = 0;  //Warns if the pack discharge current is above max charge current limit
+static uint8_t OverCurrentFault = 0; //Warns if the pack current (discharge or charge) is above max current limit.
+static uint8_t OverTemperatureFault = 0; //A pack module temperature is above maximum temperature limit
+static uint8_t OverVoltageFault= 0; //A brick voltage is above maximum voltage limit
+static uint8_t UnderVoltageFault = 0; //A brick voltage is below minimum voltage limit
+static uint8_t PrimaryBmbMiaFault = 0; //Warns if the voltage and temperature readings from primary BMB chain are mia
+static uint8_t SecondaryBmbMiaFault = 0; //Warns if the voltage and temperature readings from secondary BMB chain are mia
+static uint8_t BmbMismatchFault = 0; //Warns if the primary and secondary BMB chain readings don't match with each other
+static uint8_t BmsHviMiaFault = 0; //Warns if the BMS node is mia on HVS or HVI CAN
+static uint8_t CpMiaFault = 0; //Warns if the CP node is mia on HVS CAN
+static uint8_t PcsMiaFault = 0; //The PCS node is mia on HVS CAN
+static uint8_t BmsFault = 0; //Warns if the BMS ECU has faulted
+static uint8_t PcsFault = 0; //Warns if the PCS ECU has faulted
+static uint8_t CpFault = 0; //Warns if the CP ECU has faulted
+static uint8_t ShuntHwMiaFault = 0; //Warns if the shunt current reading is not available
+static uint8_t PyroMiaFault = 0; //Warns if the pyro squib is not connected
+static uint8_t hvsMiaFault = 0; //Warns if the pack contactor hw fault
+static uint8_t hviMiaFault = 0; //Warns if the FC contactor hw fault
+static uint8_t Supply12vFault = 0; //Warns if the low voltage (12V) battery is below minimum voltage threshold
+static uint8_t VerSupplyFault = 0; //Warns if the Energy reserve voltage supply is below minimum voltage threshold
+static uint8_t HvilFault = 0; //Warn if a High Voltage Inter Lock fault is detected
+static uint8_t BmsHvsMiaFault = 0; //Warns if the BMS node is mia on HVS or HVI CAN
+static uint8_t PackVoltMismatchFault = 0; //Warns if the pack voltage doesn't match approximately with sum of brick voltages
+static uint8_t EnsMiaFault = 0; //Warns if the ENS line is not connected to HVC
+static uint8_t PackPosCtrArcFault = 0; //Warns if the HVP detectes series arc at pack contactor
+static uint8_t packNegCtrArcFault = 0; //Warns if the HVP detectes series arc at FC contactor
+static uint8_t ShuntHwAndBmsMiaFault = 0;
+static uint8_t fcContHwFault = 0;
+static uint8_t robinOverVoltageFault = 0;
+static uint8_t packContHwFault = 0;
+static uint8_t pyroFuseBlown = 0;
+static uint8_t pyroFuseFailedToBlow = 0;
+static uint8_t CpilFault = 0;
+static uint8_t PackContactorFellOpen = 0;
+static uint8_t FcContactorFellOpen = 0;
+static uint8_t packCtrCloseBlocked = 0;
+static uint8_t fcCtrCloseBlocked = 0;
+static uint8_t packContactorForceOpen = 0;
+static uint8_t fcContactorForceOpen = 0;
+static uint8_t dcLinkOverVoltage = 0;
+static uint8_t shuntOverTemperature = 0;
+static uint8_t passivePyroDeploy = 0;
+static uint8_t logUploadRequest = 0;
+static uint8_t packCtrCloseFailed = 0;
+static uint8_t fcCtrCloseFailed = 0;
+static uint8_t shuntThermistorMia = 0;
 static const char* contactorText[] = {"UNKNOWN(0)","OPEN","CLOSING","BLOCKED","OPENING","CLOSED","UNKNOWN(6)","WELDED","POS_CL","NEG_CL","UNKNOWN(10)","UNKNOWN(11)","UNKNOWN(12)"};
 static const char* contactorState[] = {"SNA","OPEN","PRECHARGE","BLOCKED","PULLED_IN","OPENING","ECONOMIZED","WELDED","UNKNOWN(8)","UNKNOWN(9)","UNKNOWN(10)","UNKNOWN(11)"};
 static const char* hvilStatusState[] = {"NOT OK","STATUS_OK","CURRENT_SOURCE_FAULT","INTERNAL_OPEN_FAULT","VEHICLE_OPEN_FAULT","PENTHOUSE_LID_OPEN_FAULT","UNKNOWN_LOCATION_OPEN_FAULT","VEHICLE_NODE_FAULT","NO_12V_SUPPLY","VEHICLE_OR_PENTHOUSE_LID_OPENFAULT","UNKNOWN(10)","UNKNOWN(11)","UNKNOWN(12)","UNKNOWN(13)","UNKNOWN(14)","UNKNOWN(15)"};
@@ -67,22 +119,6 @@ static const char* hvilStatusState[] = {"NOT OK","STATUS_OK","CURRENT_SOURCE_FAU
 #define MAX_CELL_VOLTAGE 4250 //Battery is put into emergency stop if one cell goes over this value (These values might need tweaking based on chemistry)
 #define MIN_CELL_VOLTAGE 2950 //Battery is put into emergency stop if one cell goes below this value (These values might need tweaking based on chemistry)
 #define MAX_CELL_DEVIATION 500 //LED turns yellow on the board if mv delta exceeds this value
-
-void print_int_with_units(char *header, int value, char *units) {
-    Serial.print(header);
-    Serial.print(value);
-    Serial.print(units);
-}
-void print_SOC(char *header, int SOC) {
-  Serial.print(header);
-  Serial.print(SOC / 100);
-  Serial.print(".");
-  int hundredth = SOC % 100;
-  if(hundredth < 10)
-    Serial.print(0);
-  Serial.print(hundredth);
-  Serial.println("%");
-}
 
 void update_values_tesla_model_3_battery()
 { //This function maps all the values fetched via CAN to the correct parameters used for modbus
@@ -182,14 +218,8 @@ void update_values_tesla_model_3_battery()
   /* Safeties verified. Perform USB serial printout if configured to do so */
 
   #ifdef DEBUG_VIA_USB
-    if (packCtrsClosingAllowed == 0)
-    {
-      Serial.println("ERROR: Check high voltage connectors and interlock circuit! Closing contactor not allowed! Values: ");
-    }
-    if (pyroTestInProgress == 1)
-    {
-      Serial.println("ERROR: Please wait for Pyro Connection check to finish, HV cables successfully seated!");
-    }
+
+    printFaultCodesIfActive();
 
     Serial.print("STATUS: Contactor: ");
     Serial.print(contactorText[contactor]); //Display what state the contactor is in
@@ -359,6 +389,59 @@ void receive_can_tesla_model_3_battery(CAN_frame_t rx_frame)
       soc_max = (((rx_frame.data.u8[3] & 0x3F) << 4) | ((rx_frame.data.u8[2] & 0xF0) >> 4));
       soc_ave = ((rx_frame.data.u8[4] << 2) | ((rx_frame.data.u8[3] & 0xC0) >> 6));
     break;
+    case 0x3aa: //HVP_alertMatrix1
+      WatchdogReset =          (rx_frame.data.u8[0] & 0x01);
+      PowerLossReset =        ((rx_frame.data.u8[0] & 0x02) >> 1);
+      SwAssertion =           ((rx_frame.data.u8[0] & 0x04) >> 2);
+      CrashEvent =            ((rx_frame.data.u8[0] & 0x08) >> 3);
+      OverDchgCurrentFault =  ((rx_frame.data.u8[0] & 0x10) >> 4);
+      OverChargeCurrentFault =((rx_frame.data.u8[0] & 0x20) >> 5);
+      OverCurrentFault =      ((rx_frame.data.u8[0] & 0x40) >> 6);
+      OverTemperatureFault =  ((rx_frame.data.u8[1] & 0x80) >> 7);
+      OverVoltageFault =      (rx_frame.data.u8[1] & 0x01);
+      UnderVoltageFault =     ((rx_frame.data.u8[1] & 0x02) >> 1);
+      PrimaryBmbMiaFault =    ((rx_frame.data.u8[1] & 0x04) >> 2);
+      SecondaryBmbMiaFault =  ((rx_frame.data.u8[1] & 0x08) >> 3);
+      BmbMismatchFault =      ((rx_frame.data.u8[1] & 0x10) >> 4);
+      BmsHviMiaFault =        ((rx_frame.data.u8[1] & 0x20) >> 5);
+      CpMiaFault =            ((rx_frame.data.u8[1] & 0x40) >> 6);
+      PcsMiaFault =           ((rx_frame.data.u8[1] & 0x80) >> 7);
+      BmsFault =              (rx_frame.data.u8[2] & 0x01);
+      PcsFault =              ((rx_frame.data.u8[2] & 0x02) >> 1);
+      CpFault =               ((rx_frame.data.u8[2] & 0x04) >> 2);
+      ShuntHwMiaFault =       ((rx_frame.data.u8[2] & 0x08) >> 3);
+      PyroMiaFault =          ((rx_frame.data.u8[2] & 0x10) >> 4);
+      hvsMiaFault =           ((rx_frame.data.u8[2] & 0x20) >> 5);
+      hviMiaFault =           ((rx_frame.data.u8[2] & 0x40) >> 6);
+      Supply12vFault =        ((rx_frame.data.u8[2] & 0x80) >> 7);
+      VerSupplyFault =        (rx_frame.data.u8[3] & 0x01);
+      HvilFault =             ((rx_frame.data.u8[3] & 0x02) >> 1);
+      BmsHvsMiaFault =        ((rx_frame.data.u8[3] & 0x04) >> 2);
+      PackVoltMismatchFault = ((rx_frame.data.u8[3] & 0x08) >> 3);
+      EnsMiaFault =           ((rx_frame.data.u8[3] & 0x10) >> 4);
+      PackPosCtrArcFault =    ((rx_frame.data.u8[3] & 0x20) >> 5);
+      packNegCtrArcFault =    ((rx_frame.data.u8[3] & 0x40) >> 6);
+      ShuntHwAndBmsMiaFault = ((rx_frame.data.u8[3] & 0x80) >> 7);
+      fcContHwFault =         (rx_frame.data.u8[4] & 0x01);
+      robinOverVoltageFault = ((rx_frame.data.u8[4] & 0x02) >> 1);
+      packContHwFault =       ((rx_frame.data.u8[4] & 0x04) >> 2);
+      pyroFuseBlown =         ((rx_frame.data.u8[4] & 0x08) >> 3);
+      pyroFuseFailedToBlow =  ((rx_frame.data.u8[4] & 0x10) >> 4);
+      CpilFault =             ((rx_frame.data.u8[4] & 0x20) >> 5);
+      PackContactorFellOpen = ((rx_frame.data.u8[4] & 0x40) >> 6);
+      FcContactorFellOpen =   ((rx_frame.data.u8[4] & 0x80) >> 7);
+      packCtrCloseBlocked =   (rx_frame.data.u8[5] & 0x01);
+      fcCtrCloseBlocked =     ((rx_frame.data.u8[5] & 0x02) >> 1);
+      packContactorForceOpen =((rx_frame.data.u8[5] & 0x04) >> 2);
+      fcContactorForceOpen =  ((rx_frame.data.u8[5] & 0x08) >> 3);
+      dcLinkOverVoltage =     ((rx_frame.data.u8[5] & 0x10) >> 4);
+      shuntOverTemperature =  ((rx_frame.data.u8[5] & 0x20) >> 5);
+      passivePyroDeploy =     ((rx_frame.data.u8[5] & 0x40) >> 6);
+      logUploadRequest =      ((rx_frame.data.u8[5] & 0x80) >> 7);
+      packCtrCloseFailed =    (rx_frame.data.u8[6] & 0x01);
+      fcCtrCloseFailed =      ((rx_frame.data.u8[6] & 0x02) >> 1);
+      shuntThermistorMia =    ((rx_frame.data.u8[6] & 0x04) >> 2);
+    break;
     default:
       break;
   }
@@ -397,4 +480,91 @@ uint16_t convert2unsignedInt16(int16_t signed_value)
 	else{
 		return (uint16_t)signed_value;
 	}
+}
+
+void print_int_with_units(char *header, int value, char *units) {
+    Serial.print(header);
+    Serial.print(value);
+    Serial.print(units);
+}
+
+void print_SOC(char *header, int SOC) {
+  Serial.print(header);
+  Serial.print(SOC / 100);
+  Serial.print(".");
+  int hundredth = SOC % 100;
+  if(hundredth < 10)
+    Serial.print(0);
+  Serial.print(hundredth);
+  Serial.println("%");
+}
+
+void printFaultCodesIfActive(){
+  if (packCtrsClosingAllowed == 0)
+  {
+    Serial.println("ERROR: Check high voltage connectors and interlock circuit! Closing contactor not allowed! Values: ");
+  }
+  if (pyroTestInProgress == 1)
+  {
+    Serial.println("ERROR: Please wait for Pyro Connection check to finish, HV cables successfully seated!");
+  }
+
+  // Check each symbol and print debug information if its value is 1
+  printDebugIfActive(WatchdogReset, "ERROR: The processor has experienced a reset due to watchdog reset");
+  printDebugIfActive(PowerLossReset, "ERROR: The processor has experienced a reset due to power loss");
+  printDebugIfActive(SwAssertion, "ERROR: An internal software assertion has failed");
+  printDebugIfActive(CrashEvent, "ERROR: crash signal is detected by HVP");
+  printDebugIfActive(OverDchgCurrentFault, "ERROR: pack discharge is above max discharge current limit!");
+  printDebugIfActive(OverChargeCurrentFault, "ERROR: pack discharge current is above max charge current limit!");
+  printDebugIfActive(OverCurrentFault, "ERROR: Pack current (discharge or charge) is above max current limit!");
+  printDebugIfActive(OverTemperatureFault, "ERROR: A pack module temperature is above the max temperature limit!");
+  printDebugIfActive(OverVoltageFault, "ERROR: A brick voltage is above maximum voltage limit");
+  printDebugIfActive(UnderVoltageFault, "ERROR: A brick voltage is below minimum voltage limit");
+  printDebugIfActive(PrimaryBmbMiaFault, "ERROR: voltage and temperature readings from primary BMB chain are mia");
+  printDebugIfActive(SecondaryBmbMiaFault, "ERROR: voltage and temperature readings from secondary BMB chain are mia");
+  printDebugIfActive(BmbMismatchFault, "ERROR: primary and secondary BMB chain readings don't match with each other");
+  printDebugIfActive(BmsHviMiaFault, "ERROR: BMS node is mia on HVS or HVI CAN");
+  printDebugIfActive(CpMiaFault, "ERROR: CP node is mia on HVS CAN");
+  printDebugIfActive(PcsMiaFault, "ERROR: PCS node is mia on HVS CAN");
+  printDebugIfActive(BmsFault, "ERROR: BmsFault is active");
+  printDebugIfActive(PcsFault, "ERROR: PcsFault is active");
+  printDebugIfActive(CpFault, "ERROR: CpFault is active");
+  printDebugIfActive(ShuntHwMiaFault, "ERROR: shunt current reading is not available");
+  printDebugIfActive(PyroMiaFault, "ERROR: pyro squib is not connected");
+  printDebugIfActive(hvsMiaFault, "ERROR: pack contactor hw fault");
+  printDebugIfActive(hviMiaFault, "ERROR: FC contactor hw fault");
+  printDebugIfActive(Supply12vFault, "ERROR: Low voltage (12V) battery is below minimum voltage threshold");
+  printDebugIfActive(VerSupplyFault, "ERROR: Energy reserve voltage supply is below minimum voltage threshold");
+  printDebugIfActive(HvilFault, "ERROR: High Voltage Inter Lock fault is detected");
+  printDebugIfActive(BmsHvsMiaFault, "ERROR: BMS node is mia on HVS or HVI CAN");
+  printDebugIfActive(PackVoltMismatchFault, "ERROR: Pack voltage doesn't match approximately with sum of brick voltages");
+  printDebugIfActive(EnsMiaFault, "ERROR: ENS line is not connected to HVC");
+  printDebugIfActive(PackPosCtrArcFault, "ERROR: HVP detectes series arc at pack contactor");
+  printDebugIfActive(packNegCtrArcFault, "ERROR: HVP detectes series arc at FC contactor");
+  printDebugIfActive(ShuntHwAndBmsMiaFault, "ERROR: ShuntHwAndBmsMiaFault is active");
+  printDebugIfActive(fcContHwFault, "ERROR: fcContHwFault is active");
+  printDebugIfActive(robinOverVoltageFault, "ERROR: robinOverVoltageFault is active");
+  printDebugIfActive(packContHwFault, "ERROR: packContHwFault is active");
+  printDebugIfActive(pyroFuseBlown, "ERROR: pyroFuseBlown is active");
+  printDebugIfActive(pyroFuseFailedToBlow, "ERROR: pyroFuseFailedToBlow is active");
+  printDebugIfActive(CpilFault, "ERROR: CpilFault is active");
+  printDebugIfActive(PackContactorFellOpen, "ERROR: PackContactorFellOpen is active");
+  printDebugIfActive(FcContactorFellOpen, "ERROR: FcContactorFellOpen is active");
+  printDebugIfActive(packCtrCloseBlocked, "ERROR: packCtrCloseBlocked is active");
+  printDebugIfActive(fcCtrCloseBlocked, "ERROR: fcCtrCloseBlocked is active");
+  printDebugIfActive(packContactorForceOpen, "ERROR: packContactorForceOpen is active");
+  printDebugIfActive(fcContactorForceOpen, "ERROR: fcContactorForceOpen is active");
+  printDebugIfActive(dcLinkOverVoltage, "ERROR: dcLinkOverVoltage is active");
+  printDebugIfActive(shuntOverTemperature, "ERROR: shuntOverTemperature is active");
+  printDebugIfActive(passivePyroDeploy, "ERROR: passivePyroDeploy is active");
+  printDebugIfActive(logUploadRequest, "ERROR: logUploadRequest is active");
+  printDebugIfActive(packCtrCloseFailed, "ERROR: packCtrCloseFailed is active");
+  printDebugIfActive(fcCtrCloseFailed, "ERROR: fcCtrCloseFailed is active");
+  printDebugIfActive(shuntThermistorMia, "ERROR: shuntThermistorMia is active");
+}
+
+void printDebugIfActive(uint8_t symbol, const char* message) {
+  if (symbol == 1) {
+    Serial.println(message);
+  }
 }
