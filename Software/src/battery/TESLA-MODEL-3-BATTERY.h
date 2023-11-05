@@ -40,6 +40,10 @@ extern uint8_t LEDcolor;
 void update_values_tesla_model_3_battery();
 void receive_can_tesla_model_3_battery(CAN_frame_t rx_frame);
 void send_can_tesla_model_3_battery();
+void printFaultCodesIfActive();
+void printDebugIfActive(uint8_t symbol, const char* message);
+void print_int_with_units(char *header, int value, char *units);
+void print_SOC(char *header, int SOC);
 uint16_t convert2unsignedInt16(int16_t signed_value);
 
 #endif
