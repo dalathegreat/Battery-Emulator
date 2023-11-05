@@ -217,6 +217,9 @@ void setup()
   #ifdef SMA_CAN
   Serial.println("SMA CAN protocol selected");
   #endif
+  #ifdef SOFAR_CAN
+  Serial.println("SOFAR CAN protocol selected");
+  #endif
   //Inform user what battery is used
   #ifdef BATTERY_TYPE_LEAF
   Serial.println("Nissan LEAF battery selected");
@@ -296,10 +299,9 @@ void handle_can()
       #ifdef SMA_CAN
       receive_can_sma(rx_frame);
       #endif
-	    #ifdef CHADEMO
+	  #ifdef CHADEMO
       receive_can_chademo(rx_frame);
       #endif
-
     }
     else
     {
@@ -310,6 +312,9 @@ void handle_can()
 	  #ifdef PYLON_CAN
 	  receive_can_pylon(rx_frame);
 	  #endif
+	  #ifdef SOFAR_CAN
+      receive_can_sofar(rx_frame);
+      #endif
     }
   }
   //When we are done checking if a CAN message has arrived, we can focus on sending CAN messages
@@ -319,6 +324,9 @@ void handle_can()
   #endif
   #ifdef SMA_CAN
   send_can_sma();
+  #endif
+  #ifdef SOFAR_CAN
+  send_can_sofar();
   #endif
   //Battery sending
   #ifdef BATTERY_TYPE_LEAF

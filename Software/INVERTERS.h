@@ -13,6 +13,10 @@
   #include "SMA-CAN.h"
 #endif
 
+#ifdef SOFAR_CAN
+  #include "SOFAR-CAN.h"
+#endif
+
 #ifdef PYLON_CAN
   #include "PYLON-CAN.h"
 #endif

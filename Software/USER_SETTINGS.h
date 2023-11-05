@@ -20,7 +20,8 @@
 //#define CAN_BYD      //Enable this line to emulate a "BYD Battery-Box Premium HVS" over CAN Bus
 //#define SOLAX_CAN    //Enable this line to emulate a "SolaX Triple Power LFP" over CAN bus
 //#define PYLON_CAN		 //Enable this line to emulate a "Pylontech battery" over CAN bus
-//#define SMA_CAN		//Enable this line to emulate a "BYD Battery-Box H 8.9kWh, 7 mod" over CAN bus
+//#define SMA_CAN		  //Enable this line to emulate a "BYD Battery-Box H 8.9kWh, 7 mod" over CAN bus
+//#define SOFAR_CAN   //Enable this line to emulate a "Sofar Energy Storage Inverter High Voltage BMS General Protocol (Extended Frame)" over CAN bus
 
 /* Battery settings */
 #define BATTERY_WH_MAX 30000 //Battery size in Wh (Maximum value for most inverters is 60000 [60kWh], you can use larger batteries but do set value over 60000!
