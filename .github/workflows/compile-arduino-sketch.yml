@@ -1,0 +1,33 @@
+name: Compile Arduino Sketch
+on:
+  - push
+  - pull_request
+
+jobs:
+  build-for-esp32:
+    runs-on: ubuntu-latest
+
+    strategy:
+      matrix:
+        fqbn:
+          - esp32:esp32:esp32
+          # further ESP32 chips
+          #- esp32:esp32:esp32c3
+          #- esp32:esp32:esp32c2
+          #- esp32:esp32:esp32c6
+          #- esp32:esp32:esp32h2
+          #- esp32:esp32:esp32s3
+
+    steps:
+      - uses: actions/checkout@v4
+      - uses: arduino/compile-sketches@v1
+        with:
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          fqbn: ${{ matrix.fqbn }}
+          platforms: |
+            - name: esp32:esp32
+              source-url: https://raw.githubusercontent.com/espressif/arduino-esp32/gh-pages/package_esp32_index.json
+          sketch-paths: |
+            - Software
+          cli-compile-flags: |
+            - --warnings="none"
