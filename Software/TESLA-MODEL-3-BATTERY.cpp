@@ -57,6 +57,7 @@ static uint8_t packContactorSetState = 0;
 static uint8_t packCtrsClosingAllowed = 0;
 static uint8_t pyroTestInProgress = 0;
 static uint8_t send221still = 10;
+static uint8_t LFP_Chemistry = 0;
 //Fault codes 
 static uint8_t WatchdogReset = 0; //Warns if the processor has experienced a reset due to watchdog reset.
 static uint8_t PowerLossReset = 0; //Warns if the processor has experienced a reset due to power loss.
@@ -116,9 +117,13 @@ static const char* hvilStatusState[] = {"NOT OK","STATUS_OK","CURRENT_SOURCE_FAU
 
 #define MAX_SOC 1000  //BMS never goes over this value. We use this info to rescale SOC% sent to inverter
 #define MIN_SOC 0     //BMS never goes below this value. We use this info to rescale SOC% sent to inverter
-#define MAX_CELL_VOLTAGE 4250 //Battery is put into emergency stop if one cell goes over this value (These values might need tweaking based on chemistry)
-#define MIN_CELL_VOLTAGE 2950 //Battery is put into emergency stop if one cell goes below this value (These values might need tweaking based on chemistry)
-#define MAX_CELL_DEVIATION 500 //LED turns yellow on the board if mv delta exceeds this value
+#define MAX_CELL_VOLTAGE_NCA_NCM 4250 //Battery is put into emergency stop if one cell goes over this value
+#define MIN_CELL_VOLTAGE_NCA_NCM 2950 //Battery is put into emergency stop if one cell goes below this value
+#define MAX_CELL_DEVIATION_NCA_NCM 500 //LED turns yellow on the board if mv delta exceeds this value
+
+#define MAX_CELL_VOLTAGE_LFP 3450 //Battery is put into emergency stop if one cell goes over this value
+#define MIN_CELL_VOLTAGE_LFP 2800 //Battery is put into emergency stop if one cell goes over this value
+#define MAX_CELL_DEVIATION_LFP 150 //LED turns yellow on the board if mv delta exceeds this value
 
 void update_values_tesla_model_3_battery()
 { //This function maps all the values fetched via CAN to the correct parameters used for modbus
@@ -199,21 +204,47 @@ void update_values_tesla_model_3_battery()
     Serial.println("ERROR: High voltage cable removed while battery running. Opening contactors!");
   } 
 
-  if(cell_max_v >= MAX_CELL_VOLTAGE){ 
-    bms_status = FAULT;
-    Serial.println("ERROR: CELL OVERVOLTAGE!!! Stopping battery charging and discharging. Inspect battery!");
-  }
-  if(cell_min_v <= MIN_CELL_VOLTAGE){ 
-    bms_status = FAULT;
-    Serial.println("ERROR: CELL UNDERVOLTAGE!!! Stopping battery charging and discharging. Inspect battery!");
-  }
-
   cell_deviation_mV = (cell_max_v - cell_min_v);
 
-  if(cell_deviation_mV > MAX_CELL_DEVIATION){
-    LEDcolor = YELLOW;
-    Serial.println("ERROR: HIGH CELL DEVIATION!!! Inspect battery!");
+  //Determine which chemistry battery pack is using (crude method, TODO, replace with real CAN data later)
+  if(soc_vi > 900){ //When SOC% is over 90.0%, we can use max cell voltage to estimate what chemistry is used
+    if(cell_max_v < 3450){
+      LFP_Chemistry = 1;
+    }
+    if(cell_max_v > 3700){
+      LFP_Chemistry = 0;
+    }
   }
+
+  if(LFP_Chemistry){ //LFP limits used for voltage safeties
+    if(cell_max_v >= MAX_CELL_VOLTAGE_LFP){ 
+      bms_status = FAULT;
+      Serial.println("ERROR: CELL OVERVOLTAGE!!! Stopping battery charging and discharging. Inspect battery!");
+    }
+    if(cell_min_v <= MIN_CELL_VOLTAGE_LFP){ 
+      bms_status = FAULT;
+      Serial.println("ERROR: CELL UNDERVOLTAGE!!! Stopping battery charging and discharging. Inspect battery!");
+    }
+    if(cell_deviation_mV > MAX_CELL_DEVIATION_LFP){
+      LEDcolor = YELLOW;
+      Serial.println("ERROR: HIGH CELL DEVIATION!!! Inspect battery!");
+    }
+  }
+  else{ //NCA/NCM limits used
+    if(cell_max_v >= MAX_CELL_VOLTAGE_NCA_NCM){ 
+      bms_status = FAULT;
+      Serial.println("ERROR: CELL OVERVOLTAGE!!! Stopping battery charging and discharging. Inspect battery!");
+    }
+    if(cell_min_v <= MIN_CELL_VOLTAGE_NCA_NCM){ 
+      bms_status = FAULT;
+      Serial.println("ERROR: CELL UNDERVOLTAGE!!! Stopping battery charging and discharging. Inspect battery!");
+    }
+    if(cell_deviation_mV > MAX_CELL_DEVIATION_NCA_NCM){
+      LEDcolor = YELLOW;
+      Serial.println("ERROR: HIGH CELL DEVIATION!!! Inspect battery!");
+    }
+  }
+
 
   /* Safeties verified. Perform USB serial printout if configured to do so */
 
@@ -514,8 +545,8 @@ void printFaultCodesIfActive(){
   printDebugIfActive(PowerLossReset, "ERROR: The processor has experienced a reset due to power loss");
   printDebugIfActive(SwAssertion, "ERROR: An internal software assertion has failed");
   printDebugIfActive(CrashEvent, "ERROR: crash signal is detected by HVP");
-  printDebugIfActive(OverDchgCurrentFault, "ERROR: pack discharge is above max discharge current limit!");
-  printDebugIfActive(OverChargeCurrentFault, "ERROR: pack discharge current is above max charge current limit!");
+  printDebugIfActive(OverDchgCurrentFault, "ERROR: Pack discharge current is above the safe max discharge current limit!");
+  printDebugIfActive(OverChargeCurrentFault, "ERROR: Pack charge current is above the safe max charge current limit!");
   printDebugIfActive(OverCurrentFault, "ERROR: Pack current (discharge or charge) is above max current limit!");
   printDebugIfActive(OverTemperatureFault, "ERROR: A pack module temperature is above the max temperature limit!");
   printDebugIfActive(OverVoltageFault, "ERROR: A brick voltage is above maximum voltage limit");
