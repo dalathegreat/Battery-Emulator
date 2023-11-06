@@ -3,14 +3,14 @@
 
 #include <Arduino.h>
 #include "HardwareSerial.h"
+#include "src/lib/adafruit-Adafruit_NeoPixel/Adafruit_NeoPixel.h"
+#include "src/lib/eModbus-eModbus/Logging.h"
+#include "src/lib/eModbus-eModbus/ModbusServerRTU.h"
+#include "src/lib/ThomasBarth-ESP32-CAN-Driver/CAN_config.h"
 #include "USER_SETTINGS.h"
 #include "src/devboard/config.h"
-#include "src/lib/eModbus-eModbus/Logging.h"
 #include "src/devboard/modbus/mbServerFCs.h"
-#include "src/lib/eModbus-eModbus/ModbusServerRTU.h"
 #include "src/devboard/can/ESP32CAN.h"
-#include "src/lib/ThomasBarth-ESP32-CAN-Driver/CAN_config.h"
-#include "src/lib/adafruit-Adafruit_NeoPixel/Adafruit_NeoPixel.h"
 #include "src/battery/BATTERIES.h"
 #include "src/inverter/INVERTERS.h"
 
