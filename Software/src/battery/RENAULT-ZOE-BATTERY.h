@@ -1,9 +1,13 @@
-#ifndef PYLON_CAN_H
-#define PYLON_CAN_H
+#ifndef RENAULT_ZOE_BATTERY_H
+#define RENAULT_ZOE_BATTERY_H
 #include <Arduino.h>
-#include "ESP32CAN.h"
-#include "USER_SETTINGS.h"
+#include "../devboard/can/ESP32CAN.h"
+#include "../../USER_SETTINGS.h"
 
+#define ABSOLUTE_MAX_VOLTAGE 4040 // 404.4V,if battery voltage goes over this, charging is not possible (goes into forced discharge)
+#define ABSOLUTE_MIN_VOLTAGE 3100 // 310.0V if battery voltage goes under this, discharging further is disabled
+
+// These parameters need to be mapped for the Gen24
 extern uint16_t SOC;
 extern uint16_t StateOfHealth;
 extern uint16_t battery_voltage;
@@ -18,8 +22,6 @@ extern uint16_t stat_batt_power;
 extern uint16_t temperature_min;
 extern uint16_t temperature_max;
 extern uint16_t CANerror;
-extern uint16_t min_volt_pylon_can;
-extern uint16_t max_volt_pylon_can;
 // Definitions for BMS status
 #define STANDBY 0
 #define INACTIVE 1
@@ -28,9 +30,9 @@ extern uint16_t max_volt_pylon_can;
 #define FAULT 4
 #define UPDATING 5
 
-void update_values_can_pylon();
-void receive_can_pylon(CAN_frame_t rx_frame);
-void send_system_data();
-void send_setup_info();
+void update_values_zoe_battery();
+void receive_can_zoe_battery(CAN_frame_t rx_frame);
+void send_can_zoe_battery();
+uint16_t convert2unsignedint16(uint16_t signed_value);
 
 #endif

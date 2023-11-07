@@ -3,23 +3,23 @@
 
 #include <Arduino.h>
 #include "HardwareSerial.h"
+#include "src/lib/adafruit-Adafruit_NeoPixel/Adafruit_NeoPixel.h"
+#include "src/lib/eModbus-eModbus/Logging.h"
+#include "src/lib/eModbus-eModbus/ModbusServerRTU.h"
+#include "src/lib/ThomasBarth-ESP32-CAN-Driver/CAN_config.h"
 #include "USER_SETTINGS.h"
-#include "config.h"
-#include "Logging.h"
-#include "mbServerFCs.h"
-#include "ModbusServerRTU.h"
-#include "ESP32CAN.h"
-#include "CAN_config.h"
-#include "Adafruit_NeoPixel.h"
-#include "BATTERIES.h"
-#include "INVERTERS.h"
+#include "src/devboard/config.h"
+#include "src/devboard/modbus/mbServerFCs.h"
+#include "src/devboard/can/ESP32CAN.h"
+#include "src/battery/BATTERIES.h"
+#include "src/inverter/INVERTERS.h"
 
 //CAN parameters
 CAN_device_t CAN_cfg; // CAN Config
 const int rx_queue_size = 10; // Receive Queue size
 
 #ifdef DUAL_CAN
-  #include "ACAN2515.h"
+  #include "src/lib/pierremolinaro-acan2515/ACAN2515.h"
   static const uint32_t QUARTZ_FREQUENCY = 8UL * 1000UL * 1000UL ; // 8 MHz
   ACAN2515 can(MCP2515_CS, SPI, MCP2515_INT);
   static ACAN2515_Buffer16 gBuffer;

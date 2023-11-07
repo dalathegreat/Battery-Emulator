@@ -1,11 +1,11 @@
 #ifndef SOLAX_CAN_H
 #define SOLAX_CAN_H
 #include <Arduino.h>
-#include "ESP32CAN.h"
-#include "config.h"
-#include "USER_SETTINGS.h"
+#include "../devboard/can/ESP32CAN.h"
+#include "../devboard/config.h"
+#include "../../USER_SETTINGS.h"
 
-#include "ACAN2515.h"
+#include "../lib/pierremolinaro-acan2515/ACAN2515.h"
 extern ACAN2515 can;
 
 extern uint16_t SOC;

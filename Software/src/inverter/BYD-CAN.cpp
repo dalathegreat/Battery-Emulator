@@ -1,6 +1,6 @@
 #include "BYD-CAN.h"
-#include "ESP32CAN.h"
-#include "CAN_config.h"
+#include "../devboard/can/ESP32CAN.h"
+#include "../lib/ThomasBarth-ESP32-CAN-Driver/CAN_config.h"
 
 /* Do not change code below unless you are sure what you are doing */
 static unsigned long previousMillis2s = 0; // will store last time a 2s CAN Message was send

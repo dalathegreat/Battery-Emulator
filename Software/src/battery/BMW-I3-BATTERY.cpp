@@ -1,6 +1,6 @@
 #include "BMW-I3-BATTERY.h"
-#include "ESP32CAN.h"
-#include "CAN_config.h"
+#include "../devboard/can/ESP32CAN.h"
+#include "../lib/ThomasBarth-ESP32-CAN-Driver/CAN_config.h"
 
 //TODO before using
 // Map the final values in update_values_i3_battery, set some to static values if not available (current, discharge max , charge max)
