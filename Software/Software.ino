@@ -209,6 +209,9 @@ void setup()
   #ifdef LUNA2000_MODBUS
   Serial.println("Luna2000 Modbus RTU protocol selected");
   #endif
+  #ifdef PYLON_CAN
+  Serial.println("PYLON CAN protocol selected") 
+  #endif
   #ifdef SMA_CAN
   Serial.println("SMA CAN protocol selected");
   #endif
@@ -223,6 +226,9 @@ void setup()
   //Inform user what battery is used
   #ifdef BMW_I3_BATTERY
   Serial.println("BMW i3 battery selected");
+  #endif
+  #ifdef CHADEMO_BATTERY
+  Serial.println("Chademo battery selected");
   #endif
   #ifdef IMIEV_CZERO_ION_BATTERY
   Serial.println("Mitsubishi i-MiEV / Citroen C-Zero / Peugeot Ion battery selected");
