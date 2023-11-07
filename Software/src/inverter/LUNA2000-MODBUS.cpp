@@ -1,4 +1,4 @@
-#include "MODBUS-LUNA2000.h"
+#include "LUNA2000-MODBUS.h"
 
 void update_modbus_registers_luna2000()
 {

@@ -32,13 +32,13 @@ unsigned long previousMillis10ms = 50;
 unsigned long previousMillisInverter = 0; 
 
 //ModbusRTU parameters
-#if defined(MODBUS_BYD)
+#if defined(BYD_MODBUS)
 #define MB_RTU_NUM_VALUES 30000
 #endif
-#if defined(MODBUS_LUNA2000)
+#if defined(LUNA2000_MODBUS)
 #define MB_RTU_NUM_VALUES 50000
 #endif
-#if defined(MODBUS_BYD) || defined(MODBUS_LUNA2000)
+#if defined(BYD_MODBUS) || defined(LUNA2000_MODBUS)
 uint16_t mbPV[MB_RTU_NUM_VALUES];  // process variable memory
 // Create a ModbusRTU server instance listening on Serial2 with 2000ms timeout
 ModbusServerRTU MBserver(Serial2, 2000);
@@ -179,11 +179,11 @@ void setup()
   pinMode(PIN_5V_EN, OUTPUT);
   digitalWrite(PIN_5V_EN, HIGH);
 
-  #ifdef MODBUS_BYD
+  #ifdef BYD_MODBUS
   // Init Static data to the RTU Modbus
   handle_static_data_modbus_byd();
   #endif
-  #if defined(MODBUS_BYD) || defined(MODBUS_LUNA2000)
+  #if defined(BYD_MODBUS) || defined(LUNA2000_MODBUS)
   // Init Serial2 connected to the RTU Modbus
   RTUutils::prepareHardwareSerial(Serial2);
   Serial2.begin(9600, SERIAL_8N1, RS485_RX_PIN, RS485_TX_PIN);
@@ -205,13 +205,13 @@ void setup()
   intervalInverterTask = 800; //This protocol also requires the values to be updated faster
   Serial.println("SOLAX CAN protocol selected");
   #endif
-  #ifdef MODBUS_BYD
+  #ifdef BYD_MODBUS
   Serial.println("BYD Modbus RTU protocol selected");
   #endif
-  #ifdef MODBUS_LUNA2000
+  #ifdef LUNA2000_MODBUS
   Serial.println("Luna2000 Modbus RTU protocol selected");
   #endif
-  #ifdef CAN_BYD
+  #ifdef BYD_CAN
   Serial.println("BYD CAN protocol selected");
   #endif
   #ifdef SMA_CAN
@@ -221,7 +221,7 @@ void setup()
   Serial.println("SOFAR CAN protocol selected");
   #endif
   //Inform user what battery is used
-  #ifdef BATTERY_TYPE_LEAF
+  #ifdef NISSAN_LEAF_BATTERY
   Serial.println("Nissan LEAF battery selected");
   #endif 
   #ifdef TESLA_MODEL_3_BATTERY
@@ -233,7 +233,7 @@ void setup()
   #ifdef BMW_I3_BATTERY
   Serial.println("BMW i3 battery selected");
   #endif
-  #ifdef IMIEV_ION_CZERO_BATTERY
+  #ifdef IMIEV_CZERO_ION_BATTERY
   Serial.println("Mitsubishi i-MiEV / Citroen C-Zero / Peugeot Ion battery selected");
   #endif
   #ifdef KIA_HYUNDAI_64_BATTERY
@@ -275,7 +275,7 @@ void handle_can()
     if (rx_frame.FIR.B.FF == CAN_frame_std)
     {
       //printf("New standard frame");
-      #ifdef BATTERY_TYPE_LEAF
+      #ifdef NISSAN_LEAF_BATTERY
       receive_can_leaf_battery(rx_frame);
       #endif 
       #ifdef TESLA_MODEL_3_BATTERY
@@ -287,19 +287,19 @@ void handle_can()
       #ifdef BMW_I3_BATTERY
       receive_can_i3_battery(rx_frame);
       #endif
-      #ifdef IMIEV_ION_CZERO_BATTERY
+      #ifdef IMIEV_CZERO_ION_BATTERY
       receive_can_imiev_battery(rx_frame);
       #endif
       #ifdef KIA_HYUNDAI_64_BATTERY
       receive_can_kiaHyundai_64_battery(rx_frame);
       #endif
-      #ifdef CAN_BYD
+      #ifdef BYD_CAN
       receive_can_byd(rx_frame);
       #endif
       #ifdef SMA_CAN
       receive_can_sma(rx_frame);
       #endif
-	  #ifdef CHADEMO
+	  #ifdef CHADEMO_BATTERY
       receive_can_chademo(rx_frame);
       #endif
     }
@@ -319,7 +319,7 @@ void handle_can()
   }
   //When we are done checking if a CAN message has arrived, we can focus on sending CAN messages
   //Inverter sending
-  #ifdef CAN_BYD
+  #ifdef BYD_CAN
   send_can_byd();
   #endif
   #ifdef SMA_CAN
@@ -329,7 +329,7 @@ void handle_can()
   send_can_sofar();
   #endif
   //Battery sending
-  #ifdef BATTERY_TYPE_LEAF
+  #ifdef NISSAN_LEAF_BATTERY
   send_can_leaf_battery();
 	#endif 
   #ifdef TESLA_MODEL_3_BATTERY
@@ -341,13 +341,13 @@ void handle_can()
   #ifdef BMW_I3_BATTERY
   send_can_i3_battery();
   #endif
-  #ifdef IMIEV_ION_CZERO_BATTERY
+  #ifdef IMIEV_CZERO_ION_BATTERY
   send_can_imiev_battery();
   #endif
   #ifdef KIA_HYUNDAI_64_BATTERY 
   send_can_kiaHyundai_64_battery();
   #endif
-  #ifdef CHADEMO
+  #ifdef CHADEMO_BATTERY
   send_can_chademo_battery();
   #endif
 }
@@ -374,7 +374,7 @@ void handle_can()
     if (rx_frame2.FIR.B.FF == CAN_frame_std)
     {
       //Serial.println("New standard frame");
-      #ifdef CAN_BYD
+      #ifdef BYD_CAN
       receive_can_byd(rx_frame2);
       #endif
     }
@@ -391,7 +391,7 @@ void handle_can()
   }
   //When we are done checking if a CAN message has arrived, we can focus on sending CAN messages
   //Inverter sending
-  #ifdef CAN_BYD
+  #ifdef BYD_CAN
   send_can_byd();
   #endif
 }
@@ -399,7 +399,7 @@ void handle_can()
 
 void handle_inverter()
 {
-	  #ifdef BATTERY_TYPE_LEAF
+	  #ifdef NISSAN_LEAF_BATTERY
     update_values_leaf_battery(); //Map the values to the correct registers
 	  #endif 
     #ifdef TESLA_MODEL_3_BATTERY
@@ -411,7 +411,7 @@ void handle_inverter()
     #ifdef BMW_I3_BATTERY
     update_values_i3_battery(); //Map the values to the correct registers
     #endif
-    #ifdef IMIEV_ION_CZERO_BATTERY
+    #ifdef IMIEV_CZERO_ION_BATTERY
     update_values_imiev_battery(); //Map the values to the correct registers
     #endif
     #ifdef KIA_HYUNDAI_64_BATTERY
@@ -420,7 +420,7 @@ void handle_inverter()
     #ifdef SOLAX_CAN
     update_values_can_solax();
     #endif
-    #ifdef CAN_BYD
+    #ifdef BYD_CAN
     update_values_can_byd();
     #endif
     #ifdef SMA_CAN
@@ -429,14 +429,14 @@ void handle_inverter()
     #ifdef PYLON_CAN
     update_values_can_pylon();
     #endif
-	  #ifdef CHADEMO
+	  #ifdef CHADEMO_BATTERY
     update_values_can_chademo();
     #endif
 
-    #ifdef MODBUS_BYD
+    #ifdef BYD_MODBUS
     update_modbus_registers_byd();
     #endif
-    #ifdef MODBUS_LUNA2000
+    #ifdef LUNA2000_MODBUS
     update_modbus_registers_luna2000();
     #endif
 }
