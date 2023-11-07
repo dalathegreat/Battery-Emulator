@@ -555,11 +555,11 @@ void printFaultCodesIfActive(){
   printDebugIfActive(SecondaryBmbMiaFault, "ERROR: voltage and temperature readings from secondary BMB chain are mia");
   printDebugIfActive(BmbMismatchFault, "ERROR: primary and secondary BMB chain readings don't match with each other");
   printDebugIfActive(BmsHviMiaFault, "ERROR: BMS node is mia on HVS or HVI CAN");
-  printDebugIfActive(CpMiaFault, "ERROR: CP node is mia on HVS CAN");
+  //printDebugIfActive(CpMiaFault, "ERROR: CP node is mia on HVS CAN"); //Uncommented due to not affecting usage
   printDebugIfActive(PcsMiaFault, "ERROR: PCS node is mia on HVS CAN");
-  printDebugIfActive(BmsFault, "ERROR: BmsFault is active");
+  //printDebugIfActive(BmsFault, "ERROR: BmsFault is active"); //Uncommented due to not affecting usage
   printDebugIfActive(PcsFault, "ERROR: PcsFault is active");
-  printDebugIfActive(CpFault, "ERROR: CpFault is active");
+  //printDebugIfActive(CpFault, "ERROR: CpFault is active"); //Uncommented due to not affecting usage
   printDebugIfActive(ShuntHwMiaFault, "ERROR: shunt current reading is not available");
   printDebugIfActive(PyroMiaFault, "ERROR: pyro squib is not connected");
   printDebugIfActive(hvsMiaFault, "ERROR: pack contactor hw fault");
@@ -569,7 +569,7 @@ void printFaultCodesIfActive(){
   printDebugIfActive(HvilFault, "ERROR: High Voltage Inter Lock fault is detected");
   printDebugIfActive(BmsHvsMiaFault, "ERROR: BMS node is mia on HVS or HVI CAN");
   printDebugIfActive(PackVoltMismatchFault, "ERROR: Pack voltage doesn't match approximately with sum of brick voltages");
-  printDebugIfActive(EnsMiaFault, "ERROR: ENS line is not connected to HVC");
+  //printDebugIfActive(EnsMiaFault, "ERROR: ENS line is not connected to HVC"); //Uncommented due to not affecting usage
   printDebugIfActive(PackPosCtrArcFault, "ERROR: HVP detectes series arc at pack contactor");
   printDebugIfActive(packNegCtrArcFault, "ERROR: HVP detectes series arc at FC contactor");
   printDebugIfActive(ShuntHwAndBmsMiaFault, "ERROR: ShuntHwAndBmsMiaFault is active");
@@ -578,7 +578,7 @@ void printFaultCodesIfActive(){
   printDebugIfActive(packContHwFault, "ERROR: packContHwFault is active");
   printDebugIfActive(pyroFuseBlown, "ERROR: pyroFuseBlown is active");
   printDebugIfActive(pyroFuseFailedToBlow, "ERROR: pyroFuseFailedToBlow is active");
-  printDebugIfActive(CpilFault, "ERROR: CpilFault is active");
+  //printDebugIfActive(CpilFault, "ERROR: CpilFault is active"); //Uncommented due to not affecting usage
   printDebugIfActive(PackContactorFellOpen, "ERROR: PackContactorFellOpen is active");
   printDebugIfActive(FcContactorFellOpen, "ERROR: FcContactorFellOpen is active");
   printDebugIfActive(packCtrCloseBlocked, "ERROR: packCtrCloseBlocked is active");
