@@ -1,8 +1,8 @@
 #ifndef BYD_CAN_H
 #define BYD_CAN_H
 #include <Arduino.h>
-#include "../devboard/can/ESP32CAN.h"
 #include "../../USER_SETTINGS.h"
+#include "../devboard/can/ESP32CAN.h"
 
 extern uint16_t SOC;
 extern uint16_t StateOfHealth;

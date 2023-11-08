@@ -3,27 +3,101 @@
 #include "../lib/ThomasBarth-ESP32-CAN-Driver/CAN_config.h"
 
 /* Do not change code below unless you are sure what you are doing */
-static unsigned long previousMillis2s = 0; // will store last time a 2s CAN Message was send
-static unsigned long previousMillis10s = 0; // will store last time a 10s CAN Message was send
-static unsigned long previousMillis60s = 0; // will store last time a 60s CAN Message was send
-static const int interval2s = 2000; // interval (ms) at which send CAN Messages
-static const int interval10s = 10000; // interval (ms) at which send CAN Messages
-static const int interval60s = 60000; // interval (ms) at which send CAN Messages
+static unsigned long previousMillis2s = 0;   // will store last time a 2s CAN Message was send
+static unsigned long previousMillis10s = 0;  // will store last time a 10s CAN Message was send
+static unsigned long previousMillis60s = 0;  // will store last time a 60s CAN Message was send
+static const int interval2s = 2000;          // interval (ms) at which send CAN Messages
+static const int interval10s = 10000;        // interval (ms) at which send CAN Messages
+static const int interval60s = 60000;        // interval (ms) at which send CAN Messages
 
 //Startup messages
-const CAN_frame_t BYD_250 = {.FIR = {.B = {.DLC = 8,.FF = CAN_frame_std,}},.MsgID = 0x250,.data = {0x03, 0x16, 0x00, 0x66, (uint8_t)((BATTERY_WH_MAX/100) >> 8), (uint8_t)(BATTERY_WH_MAX/100), 0x02, 0x09}}; //3.16 FW , Capacity kWh byte4&5 (example 24kWh = 240)
-const CAN_frame_t BYD_290 = {.FIR = {.B = {.DLC = 8,.FF = CAN_frame_std,}},.MsgID = 0x290,.data = {0x06, 0x37, 0x10, 0xD9, 0x00, 0x00, 0x00, 0x00}};
-const CAN_frame_t BYD_2D0 = {.FIR = {.B = {.DLC = 8,.FF = CAN_frame_std,}},.MsgID = 0x2D0,.data = {0x00, 0x42, 0x59, 0x44, 0x00, 0x00, 0x00, 0x00}}; //BYD
-const CAN_frame_t BYD_3D0_0 = {.FIR = {.B = {.DLC = 8,.FF = CAN_frame_std,}},.MsgID = 0x3D0,.data = {0x00, 0x42, 0x61, 0x74, 0x74, 0x65, 0x72, 0x79}}; //Battery
-const CAN_frame_t BYD_3D0_1 = {.FIR = {.B = {.DLC = 8,.FF = CAN_frame_std,}},.MsgID = 0x3D0,.data = {0x01, 0x2D, 0x42, 0x6F, 0x78, 0x20, 0x50, 0x72}}; //-Box Pr
-const CAN_frame_t BYD_3D0_2 = {.FIR = {.B = {.DLC = 8,.FF = CAN_frame_std,}},.MsgID = 0x3D0,.data = {0x02, 0x65, 0x6D, 0x69, 0x75, 0x6D, 0x20, 0x48}}; //emium H
-const CAN_frame_t BYD_3D0_3 = {.FIR = {.B = {.DLC = 8,.FF = CAN_frame_std,}},.MsgID = 0x3D0,.data = {0x03, 0x56, 0x53, 0x00, 0x00, 0x00, 0x00, 0x00}}; //VS
+const CAN_frame_t BYD_250 = {
+    .FIR = {.B =
+                {
+                    .DLC = 8,
+                    .FF = CAN_frame_std,
+                }},
+    .MsgID = 0x250,
+    .data = {0x03, 0x16, 0x00, 0x66, (uint8_t)((BATTERY_WH_MAX / 100) >> 8), (uint8_t)(BATTERY_WH_MAX / 100), 0x02,
+             0x09}};  //3.16 FW , Capacity kWh byte4&5 (example 24kWh = 240)
+const CAN_frame_t BYD_290 = {.FIR = {.B =
+                                         {
+                                             .DLC = 8,
+                                             .FF = CAN_frame_std,
+                                         }},
+                             .MsgID = 0x290,
+                             .data = {0x06, 0x37, 0x10, 0xD9, 0x00, 0x00, 0x00, 0x00}};
+const CAN_frame_t BYD_2D0 = {.FIR = {.B =
+                                         {
+                                             .DLC = 8,
+                                             .FF = CAN_frame_std,
+                                         }},
+                             .MsgID = 0x2D0,
+                             .data = {0x00, 0x42, 0x59, 0x44, 0x00, 0x00, 0x00, 0x00}};  //BYD
+const CAN_frame_t BYD_3D0_0 = {.FIR = {.B =
+                                           {
+                                               .DLC = 8,
+                                               .FF = CAN_frame_std,
+                                           }},
+                               .MsgID = 0x3D0,
+                               .data = {0x00, 0x42, 0x61, 0x74, 0x74, 0x65, 0x72, 0x79}};  //Battery
+const CAN_frame_t BYD_3D0_1 = {.FIR = {.B =
+                                           {
+                                               .DLC = 8,
+                                               .FF = CAN_frame_std,
+                                           }},
+                               .MsgID = 0x3D0,
+                               .data = {0x01, 0x2D, 0x42, 0x6F, 0x78, 0x20, 0x50, 0x72}};  //-Box Pr
+const CAN_frame_t BYD_3D0_2 = {.FIR = {.B =
+                                           {
+                                               .DLC = 8,
+                                               .FF = CAN_frame_std,
+                                           }},
+                               .MsgID = 0x3D0,
+                               .data = {0x02, 0x65, 0x6D, 0x69, 0x75, 0x6D, 0x20, 0x48}};  //emium H
+const CAN_frame_t BYD_3D0_3 = {.FIR = {.B =
+                                           {
+                                               .DLC = 8,
+                                               .FF = CAN_frame_std,
+                                           }},
+                               .MsgID = 0x3D0,
+                               .data = {0x03, 0x56, 0x53, 0x00, 0x00, 0x00, 0x00, 0x00}};  //VS
 //Actual content messages
-CAN_frame_t BYD_110 = {.FIR = {.B = {.DLC = 8,.FF = CAN_frame_std,}},.MsgID = 0x110,.data = {0x01, 0x90, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00}};
-CAN_frame_t BYD_150 = {.FIR = {.B = {.DLC = 8,.FF = CAN_frame_std,}},.MsgID = 0x150,.data = {0x00, 0x00, 0x00, 0x00, 0x10, 0x27, 0x00, 0x00}};
-CAN_frame_t BYD_190 = {.FIR = {.B = {.DLC = 8,.FF = CAN_frame_std,}},.MsgID = 0x190,.data = {0x00, 0x00, 0x03, 0x00, 0x00, 0x00, 0x00, 0x00}};
-CAN_frame_t BYD_1D0 = {.FIR = {.B = {.DLC = 8,.FF = CAN_frame_std,}},.MsgID = 0x1D0,.data = {0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x03, 0x08}};
-CAN_frame_t BYD_210 = {.FIR = {.B = {.DLC = 8,.FF = CAN_frame_std,}},.MsgID = 0x210,.data = {0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00}};
+CAN_frame_t BYD_110 = {.FIR = {.B =
+                                   {
+                                       .DLC = 8,
+                                       .FF = CAN_frame_std,
+                                   }},
+                       .MsgID = 0x110,
+                       .data = {0x01, 0x90, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00}};
+CAN_frame_t BYD_150 = {.FIR = {.B =
+                                   {
+                                       .DLC = 8,
+                                       .FF = CAN_frame_std,
+                                   }},
+                       .MsgID = 0x150,
+                       .data = {0x00, 0x00, 0x00, 0x00, 0x10, 0x27, 0x00, 0x00}};
+CAN_frame_t BYD_190 = {.FIR = {.B =
+                                   {
+                                       .DLC = 8,
+                                       .FF = CAN_frame_std,
+                                   }},
+                       .MsgID = 0x190,
+                       .data = {0x00, 0x00, 0x03, 0x00, 0x00, 0x00, 0x00, 0x00}};
+CAN_frame_t BYD_1D0 = {.FIR = {.B =
+                                   {
+                                       .DLC = 8,
+                                       .FF = CAN_frame_std,
+                                   }},
+                       .MsgID = 0x1D0,
+                       .data = {0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x03, 0x08}};
+CAN_frame_t BYD_210 = {.FIR = {.B =
+                                   {
+                                       .DLC = 8,
+                                       .FF = CAN_frame_std,
+                                   }},
+                       .MsgID = 0x210,
+                       .data = {0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00}};
 
 static int discharge_current = 0;
 static int charge_current = 0;
@@ -34,27 +108,27 @@ static int inverter_voltage = 0;
 static int inverter_SOC = 0;
 static long inverter_timestamp = 0;
 
-void update_values_can_byd()
-{ //This function maps all the values fetched from battery CAN to the correct CAN messages
+void update_values_can_byd() {  //This function maps all the values fetched from battery CAN to the correct CAN messages
   //Calculate values
-  charge_current = ((max_target_charge_power*10)/max_volt_byd_can); //Charge power in W , max volt in V+1decimal (P=UI, solve for I)
+  charge_current = ((max_target_charge_power * 10) /
+                    max_volt_byd_can);  //Charge power in W , max volt in V+1decimal (P=UI, solve for I)
   //The above calculation results in (30 000*10)/3700=81A
-  charge_current = (charge_current*10); //Value needs a decimal before getting sent to inverter (81.0A)
-  if(charge_current > MAXCHARGEAMP)
-  {
-	  charge_current = MAXCHARGEAMP; //Cap the value to the max allowed Amp. Some inverters cannot handle large values.
+  charge_current = (charge_current * 10);  //Value needs a decimal before getting sent to inverter (81.0A)
+  if (charge_current > MAXCHARGEAMP) {
+    charge_current = MAXCHARGEAMP;  //Cap the value to the max allowed Amp. Some inverters cannot handle large values.
   }
 
-  discharge_current = ((max_target_discharge_power*10)/max_volt_byd_can); //Charge power in W , max volt in V+1decimal (P=UI, solve for I)
+  discharge_current = ((max_target_discharge_power * 10) /
+                       max_volt_byd_can);  //Charge power in W , max volt in V+1decimal (P=UI, solve for I)
   //The above calculation results in (30 000*10)/3700=81A
-  discharge_current = (discharge_current*10); //Value needs a decimal before getting sent to inverter (81.0A)
-  if(discharge_current > MAXDISCHARGEAMP)
-  {
-	  discharge_current = MAXDISCHARGEAMP; //Cap the value to the max allowed Amp. Some inverters cannot handle large values.
+  discharge_current = (discharge_current * 10);  //Value needs a decimal before getting sent to inverter (81.0A)
+  if (discharge_current > MAXDISCHARGEAMP) {
+    discharge_current =
+        MAXDISCHARGEAMP;  //Cap the value to the max allowed Amp. Some inverters cannot handle large values.
   }
 
-  temperature_average = ((temperature_max + temperature_min)/2);
-  
+  temperature_average = ((temperature_max + temperature_min) / 2);
+
   //Map values to CAN messages
   //Maxvoltage (eg 400.0V = 4000 , 16bits long)
   BYD_110.data.u8[0] = (max_volt_byd_can >> 8);
@@ -100,50 +174,44 @@ void update_values_can_byd()
   BYD_210.data.u8[3] = (temperature_min & 0x00FF);
 }
 
-void receive_can_byd(CAN_frame_t rx_frame)
-{
-  switch (rx_frame.MsgID)
-  {
-    case 0x151: //Message originating from BYD HVS compatible inverter. Reply with CAN identifier!
-      if(rx_frame.data.u8[0] & 0x01)
-      {
+void receive_can_byd(CAN_frame_t rx_frame) {
+  switch (rx_frame.MsgID) {
+    case 0x151:  //Message originating from BYD HVS compatible inverter. Reply with CAN identifier!
+      if (rx_frame.data.u8[0] & 0x01) {
         send_intial_data();
       }
-    break;
+      break;
     case 0x091:
       inverter_voltage = ((rx_frame.data.u8[1] << 8) | rx_frame.data.u8[0]) * 0.1;
-    break;
+      break;
     case 0x0D1:
       inverter_SOC = ((rx_frame.data.u8[1] << 8) | rx_frame.data.u8[0]) * 0.1;
-    break;
+      break;
     case 0x111:
-      inverter_timestamp = ((rx_frame.data.u8[3] << 24) | (rx_frame.data.u8[2] << 16) | (rx_frame.data.u8[1] << 8) | rx_frame.data.u8[0]);
-    break;
+      inverter_timestamp = ((rx_frame.data.u8[3] << 24) | (rx_frame.data.u8[2] << 16) | (rx_frame.data.u8[1] << 8) |
+                            rx_frame.data.u8[0]);
+      break;
     default:
-    break;
+      break;
   }
 }
 
-void send_can_byd()
-{
+void send_can_byd() {
   unsigned long currentMillis = millis();
   // Send initial CAN data once on bootup
-  if (!initialDataSent)
-  {
+  if (!initialDataSent) {
     send_intial_data();
     initialDataSent = 1;
   }
 
   // Send 2s CAN Message
-  if (currentMillis - previousMillis2s >= interval2s)
-  {
+  if (currentMillis - previousMillis2s >= interval2s) {
     previousMillis2s = currentMillis;
 
     ESP32Can.CANWriteFrame(&BYD_110);
   }
   // Send 10s CAN Message
-  if (currentMillis - previousMillis10s >= interval10s)
-  {
+  if (currentMillis - previousMillis10s >= interval10s) {
     previousMillis10s = currentMillis;
 
     ESP32Can.CANWriteFrame(&BYD_150);
@@ -152,17 +220,15 @@ void send_can_byd()
     //Serial.println("CAN 10s done");
   }
   //Send 60s message
-  if (currentMillis - previousMillis60s >= interval60s)
-  { 
+  if (currentMillis - previousMillis60s >= interval60s) {
     previousMillis60s = currentMillis;
 
-    ESP32Can.CANWriteFrame(&BYD_190); 
+    ESP32Can.CANWriteFrame(&BYD_190);
     //Serial.println("CAN 60s done");
   }
 }
 
-void send_intial_data()
-{
+void send_intial_data() {
   ESP32Can.CANWriteFrame(&BYD_250);
   ESP32Can.CANWriteFrame(&BYD_290);
   ESP32Can.CANWriteFrame(&BYD_2D0);

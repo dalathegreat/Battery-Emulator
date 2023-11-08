@@ -1,11 +1,12 @@
 #ifndef TESLA_MODEL_3_BATTERY_H
 #define TESLA_MODEL_3_BATTERY_H
 #include <Arduino.h>
-#include "../devboard/can/ESP32CAN.h"
 #include "../../USER_SETTINGS.h"
+#include "../devboard/can/ESP32CAN.h"
 
-#define ABSOLUTE_MAX_VOLTAGE 4030 // 403.0V,if battery voltage goes over this, charging is not possible (goes into forced discharge)
-#define ABSOLUTE_MIN_VOLTAGE 2450 // 245.0V if battery voltage goes under this, discharging further is disabled
+#define ABSOLUTE_MAX_VOLTAGE \
+  4030  // 403.0V,if battery voltage goes over this, charging is not possible (goes into forced discharge)
+#define ABSOLUTE_MIN_VOLTAGE 2450  // 245.0V if battery voltage goes under this, discharging further is disabled
 
 // These parameters need to be mapped for the Inverter
 extern uint16_t SOC;
@@ -42,8 +43,8 @@ void receive_can_tesla_model_3_battery(CAN_frame_t rx_frame);
 void send_can_tesla_model_3_battery();
 void printFaultCodesIfActive();
 void printDebugIfActive(uint8_t symbol, const char* message);
-void print_int_with_units(char *header, int value, char *units);
-void print_SOC(char *header, int SOC);
+void print_int_with_units(char* header, int value, char* units);
+void print_SOC(char* header, int SOC);
 uint16_t convert2unsignedInt16(int16_t signed_value);
 
 #endif
