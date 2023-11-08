@@ -40,14 +40,21 @@ void update_values_can_byd()
   charge_current = ((max_target_charge_power*10)/max_volt_byd_can); //Charge power in W , max volt in V+1decimal (P=UI, solve for I)
   //The above calculation results in (30 000*10)/3700=81A
   charge_current = (charge_current*10); //Value needs a decimal before getting sent to inverter (81.0A)
+  if(charge_current > MAXCHARGEAMP)
+  {
+	  charge_current = MAXCHARGEAMP; //Cap the value to the max allowed Amp. Some inverters cannot handle large values.
+  }
 
   discharge_current = ((max_target_discharge_power*10)/max_volt_byd_can); //Charge power in W , max volt in V+1decimal (P=UI, solve for I)
   //The above calculation results in (30 000*10)/3700=81A
   discharge_current = (discharge_current*10); //Value needs a decimal before getting sent to inverter (81.0A)
+  if(discharge_current > MAXDISCHARGEAMP)
+  {
+	  discharge_current = MAXDISCHARGEAMP; //Cap the value to the max allowed Amp. Some inverters cannot handle large values.
+  }
 
   temperature_average = ((temperature_max + temperature_min)/2);
   
-
   //Map values to CAN messages
   //Maxvoltage (eg 400.0V = 4000 , 16bits long)
   BYD_110.data.u8[0] = (max_volt_byd_can >> 8);

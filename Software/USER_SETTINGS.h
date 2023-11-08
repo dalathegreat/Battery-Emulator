@@ -24,9 +24,11 @@
 //#define SOLAX_CAN        //Enable this line to emulate a "SolaX Triple Power LFP" over CAN bus
 
 /* Battery settings */
-#define BATTERY_WH_MAX 30000 //Battery size in Wh (Maximum value for most inverters is 60000 [60kWh], you can use larger batteries but do set value over 60000!
+#define BATTERY_WH_MAX 30000 //Battery size in Wh (Maximum value for most inverters is 60000 [60kWh], you can use larger batteries but do not set value over 60000!
 #define MAXPERCENTAGE 800 //80.0% , Max percentage the battery will charge to (App will show 100% once this value is reached)
 #define MINPERCENTAGE 200 //20.0% , Min percentage the battery will discharge to (App will show 0% once this value is reached)
+#define MAXCHARGEAMP 300 //30.0A , BYD CAN specific setting, Max charge speed in Amp (Some inverters needs to be artificially limited)
+#define MAXDISCHARGEAMP 300 //30.0A , BYD CAN specific setting, Max discharge speed in Amp (Some inverters needs to be artificially limited)
 //define INTERLOCK_REQUIRED //Nissan LEAF specific setting, if enabled requires both high voltage conenctors to be seated before starting
 
 /* Other options */
