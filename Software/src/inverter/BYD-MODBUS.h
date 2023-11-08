@@ -1,8 +1,8 @@
-#ifndef MODBUS_LUNA2000_H
-#define MODBUS_LUNA2000_H
+#ifndef BYD_MODBUS_H
+#define BYD_MODBUS_H
 #include <Arduino.h>
 
-#define MB_RTU_NUM_VALUES 50000
+#define MB_RTU_NUM_VALUES 30000
 // Definitions for BMS status
 #define STANDBY 0
 #define INACTIVE 1
@@ -31,7 +31,8 @@ extern uint16_t max_power;
 extern uint16_t max_volt_modbus_byd;
 extern uint16_t min_volt_modbus_byd;
 
-void update_modbus_registers_luna2000();
-void handle_update_data_modbus32051();
-void handle_update_data_modbus39500();
+void handle_static_data_modbus_byd();
+void handle_update_data_modbusp201_byd();
+void handle_update_data_modbusp301_byd();
+void update_modbus_registers_byd();
 #endif
