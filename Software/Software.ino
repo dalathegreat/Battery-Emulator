@@ -199,11 +199,10 @@ void setup() {
   Serial.println("Luna2000 Modbus RTU protocol selected");
 #endif
 #ifdef PYLON_CAN
-  Serial
-      .println("PYLON CAN protocol selected")
+  Serial.println("PYLON CAN protocol selected");
 #endif
 #ifdef SMA_CAN
-          Serial.println("SMA CAN protocol selected");
+  Serial.println("SMA CAN protocol selected");
 #endif
 #ifdef SOFAR_CAN
   Serial.println("SOFAR CAN protocol selected");
@@ -272,7 +271,7 @@ void handle_can() {  //This section checks if we have a complete CAN message inc
       receive_can_i3_battery(rx_frame);
 #endif
 #ifdef CHADEMO_BATTERY
-      receive_can_chademo(rx_frame);
+      receive_can_chademo_battery(rx_frame);
 #endif
 #ifdef IMIEV_CZERO_ION_BATTERY
       receive_can_imiev_battery(rx_frame);
@@ -390,7 +389,7 @@ void handle_inverter() {
   update_values_i3_battery();  //Map the values to the correct registers
 #endif
 #ifdef CHADEMO_BATTERY
-  update_values_can_chademo();
+  update_values_chademo_battery();
 #endif
 #ifdef IMIEV_CZERO_ION_BATTERY
   update_values_imiev_battery();  //Map the values to the correct registers
