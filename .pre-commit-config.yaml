@@ -1,0 +1,12 @@
+# This pre-commit configuration file configures clang-format to run upon running the command line command 'git commit'.
+# The pre-commit git hook is installed using the command line command 'pre-commit install'.
+
+exclude: '^Software/src/lib/'  # don't run hooks on external libraries
+
+repos:
+- repo: https://github.com/pre-commit/mirrors-clang-format
+  rev: v17.0.4
+  hooks:
+  - id: clang-format
+    args: [-Werror]  # change formatting warnings to errors, hook includes -i (Inplace edit) by default
+    types_or: [c++, c]  # override default file types to only C and CPP files
