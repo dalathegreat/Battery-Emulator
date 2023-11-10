@@ -199,11 +199,10 @@ void setup() {
   Serial.println("Luna2000 Modbus RTU protocol selected");
 #endif
 #ifdef PYLON_CAN
-  Serial
-      .println("PYLON CAN protocol selected")
+  Serial.println("PYLON CAN protocol selected");
 #endif
 #ifdef SMA_CAN
-          Serial.println("SMA CAN protocol selected");
+  Serial.println("SMA CAN protocol selected");
 #endif
 #ifdef SOFAR_CAN
   Serial.println("SOFAR CAN protocol selected");
