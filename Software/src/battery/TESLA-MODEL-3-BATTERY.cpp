@@ -309,10 +309,6 @@ void update_values_tesla_model_3_battery() {  //This function maps all the value
   Serial.print(", ");
   print_int_with_units("Max voltage allowed: ", max_voltage, "V");
   Serial.println("");
-  print_int_with_units("Max charge current: ", max_charge_current, "A");
-  Serial.print(", ");
-  print_int_with_units("Max discharge current: ", max_discharge_current, "A");
-  Serial.println("");
   Serial.print("Cellstats, Max: ");
   Serial.print(cell_max_v);
   Serial.print("mV (cell ");
