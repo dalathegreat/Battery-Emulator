@@ -110,8 +110,8 @@ static long inverter_timestamp = 0;
 
 void update_values_can_byd() {  //This function maps all the values fetched from battery CAN to the correct CAN messages
   //Calculate values
-  charge_current = ((max_target_charge_power * 10) /
-                    max_volt_byd_can);  //Charge power in W , max volt in V+1decimal (P=UI, solve for I)
+  charge_current =
+      ((max_target_charge_power * 10) / max_voltage);  //Charge power in W , max volt in V+1decimal (P=UI, solve for I)
   //The above calculation results in (30 000*10)/3700=81A
   charge_current = (charge_current * 10);  //Value needs a decimal before getting sent to inverter (81.0A)
   if (charge_current > MAXCHARGEAMP) {
@@ -119,7 +119,7 @@ void update_values_can_byd() {  //This function maps all the values fetched from
   }
 
   discharge_current = ((max_target_discharge_power * 10) /
-                       max_volt_byd_can);  //Charge power in W , max volt in V+1decimal (P=UI, solve for I)
+                       max_voltage);  //Charge power in W , max volt in V+1decimal (P=UI, solve for I)
   //The above calculation results in (30 000*10)/3700=81A
   discharge_current = (discharge_current * 10);  //Value needs a decimal before getting sent to inverter (81.0A)
   if (discharge_current > MAXDISCHARGEAMP) {
@@ -131,11 +131,11 @@ void update_values_can_byd() {  //This function maps all the values fetched from
 
   //Map values to CAN messages
   //Maxvoltage (eg 400.0V = 4000 , 16bits long)
-  BYD_110.data.u8[0] = (max_volt_byd_can >> 8);
-  BYD_110.data.u8[1] = (max_volt_byd_can & 0x00FF);
+  BYD_110.data.u8[0] = (max_voltage >> 8);
+  BYD_110.data.u8[1] = (max_voltage & 0x00FF);
   //Minvoltage (eg 300.0V = 3000 , 16bits long)
-  BYD_110.data.u8[2] = (min_volt_byd_can >> 8);
-  BYD_110.data.u8[3] = (min_volt_byd_can & 0x00FF);
+  BYD_110.data.u8[2] = (min_voltage >> 8);
+  BYD_110.data.u8[3] = (min_voltage & 0x00FF);
   //Maximum discharge power allowed (Unit: A+1)
   BYD_110.data.u8[4] = (discharge_current >> 8);
   BYD_110.data.u8[5] = (discharge_current & 0x00FF);

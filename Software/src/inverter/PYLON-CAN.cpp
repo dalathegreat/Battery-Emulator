@@ -200,16 +200,16 @@ void update_values_can_pylon() {  //This function maps all the values fetched fr
   PYLON_4211.data.u8[7] = (StateOfHealth * 0.01);
 
   //Minvoltage (eg 300.0V = 3000 , 16bits long) Charge Cutoff Voltage
-  PYLON_4220.data.u8[0] = (min_volt_pylon_can >> 8);
-  PYLON_4220.data.u8[1] = (min_volt_pylon_can & 0x00FF);
-  PYLON_4221.data.u8[0] = (min_volt_pylon_can >> 8);
-  PYLON_4221.data.u8[1] = (min_volt_pylon_can & 0x00FF);
+  PYLON_4220.data.u8[0] = (min_voltage >> 8);
+  PYLON_4220.data.u8[1] = (min_voltage & 0x00FF);
+  PYLON_4221.data.u8[0] = (min_voltage >> 8);
+  PYLON_4221.data.u8[1] = (min_voltage & 0x00FF);
 
   //Maxvoltage (eg 400.0V = 4000 , 16bits long) Discharge Cutoff Voltage
-  PYLON_4220.data.u8[2] = (max_volt_pylon_can >> 8);
-  PYLON_4220.data.u8[3] = (max_volt_pylon_can & 0x00FF);
-  PYLON_4221.data.u8[2] = (max_volt_pylon_can >> 8);
-  PYLON_4221.data.u8[3] = (max_volt_pylon_can & 0x00FF);
+  PYLON_4220.data.u8[2] = (max_voltage >> 8);
+  PYLON_4220.data.u8[3] = (max_voltage & 0x00FF);
+  PYLON_4221.data.u8[2] = (max_voltage >> 8);
+  PYLON_4221.data.u8[3] = (max_voltage & 0x00FF);
 
   //In case we run into any errors/faults, we can set charge / discharge forbidden
   if (bms_status == FAULT) {

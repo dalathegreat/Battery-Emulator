@@ -25,11 +25,10 @@ extern uint16_t bms_char_dis_status;
 extern uint16_t stat_batt_power;
 extern uint16_t temperature_min;
 extern uint16_t temperature_max;
-
 extern uint16_t capacity_Wh_startup;
 extern uint16_t max_power;
-extern uint16_t max_volt_modbus_byd;
-extern uint16_t min_volt_modbus_byd;
+extern uint16_t max_voltage;
+extern uint16_t min_voltage;
 
 void handle_static_data_modbus_byd();
 void handle_update_data_modbusp201_byd();

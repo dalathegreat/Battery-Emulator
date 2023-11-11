@@ -37,9 +37,9 @@ void handle_update_data_modbusp201_byd() {
   system_data[4] =
       (max_power);  // Id.: p205 Value.: 14500 Scaled value.: 30,42kW  Comment.: Max Charge/Discharge Power=10.24kW (lowest value of 204 and 205 will be enforced by Gen24)
   system_data[5] =
-      (max_volt_modbus_byd);  // Id.: p206 Value.: 3667 Scaled value.: 362,7VDC Comment.: Max Voltage, if higher charging is not possible (goes into forced discharge)
+      (max_voltage);  // Id.: p206 Value.: 3667 Scaled value.: 362,7VDC Comment.: Max Voltage, if higher charging is not possible (goes into forced discharge)
   system_data[6] =
-      (min_volt_modbus_byd);  // Id.: p207 Value.: 2776 Scaled value.: 277,6VDC Comment.: Min Voltage, if lower Gen24 disables battery
+      (min_voltage);  // Id.: p207 Value.: 2776 Scaled value.: 277,6VDC Comment.: Min Voltage, if lower Gen24 disables battery
   system_data[7] =
       53248;  // Id.: p208 Value.: 53248 Scaled value.: 53248 Comment.: Always 53248 for this BYD, Peak Charge power?
   system_data[8] = 10;  // Id.: p209 Value.: 10 Scaled value.: 10 Comment.: Always 10
