@@ -125,13 +125,13 @@ static int ampere_hours_remaining = 0;
 
 void update_values_can_sma() {  //This function maps all the values fetched from battery CAN to the correct CAN messages
   //Calculate values
-  charge_current = ((max_target_charge_power * 10) /
-                    max_volt_sma_can);  //Charge power in W , max volt in V+1decimal (P=UI, solve for I)
+  charge_current =
+      ((max_target_charge_power * 10) / max_voltage);  //Charge power in W , max volt in V+1decimal (P=UI, solve for I)
   //The above calculation results in (30 000*10)/3700=81A
   charge_current = (charge_current * 10);  //Value needs a decimal before getting sent to inverter (81.0A)
 
   discharge_current = ((max_target_discharge_power * 10) /
-                       max_volt_sma_can);  //Charge power in W , max volt in V+1decimal (P=UI, solve for I)
+                       max_voltage);  //Charge power in W , max volt in V+1decimal (P=UI, solve for I)
   //The above calculation results in (30 000*10)/3700=81A
   discharge_current = (discharge_current * 10);  //Value needs a decimal before getting sent to inverter (81.0A)
 
@@ -142,11 +142,11 @@ void update_values_can_sma() {  //This function maps all the values fetched from
 
   //Map values to CAN messages
   //Maxvoltage (eg 400.0V = 4000 , 16bits long)
-  SMA_358.data.u8[0] = (max_volt_sma_can >> 8);
-  SMA_358.data.u8[1] = (max_volt_sma_can & 0x00FF);
+  SMA_358.data.u8[0] = (max_voltage >> 8);
+  SMA_358.data.u8[1] = (max_voltage & 0x00FF);
   //Minvoltage (eg 300.0V = 3000 , 16bits long)
-  SMA_358.data.u8[2] = (min_volt_sma_can >> 8);  //Minvoltage behaves strange on SMA, cuts out at 56% of the set value?
-  SMA_358.data.u8[3] = (min_volt_sma_can & 0x00FF);
+  SMA_358.data.u8[2] = (min_voltage >> 8);  //Minvoltage behaves strange on SMA, cuts out at 56% of the set value?
+  SMA_358.data.u8[3] = (min_voltage & 0x00FF);
   //Discharge limited current, 500 = 50A, (0.1, A)
   SMA_358.data.u8[4] = (discharge_current >> 8);
   SMA_358.data.u8[5] = (discharge_current & 0x00FF);

@@ -22,8 +22,8 @@ extern uint16_t cell_max_voltage;  //mV,   0-4350
 extern uint16_t cell_min_voltage;  //mV,   0-4350
 extern uint8_t batteryAllowsContactorClosing;  //Bool, 1=true, 0=false
 extern uint8_t LEDcolor;                       //Enum, 0-2
-extern uint16_t min_volt_sofar_can;
-extern uint16_t max_volt_sofar_can;
+extern uint16_t min_voltage;
+extern uint16_t max_voltage;
 // Definitions for BMS status
 #define STANDBY 0
 #define INACTIVE 1

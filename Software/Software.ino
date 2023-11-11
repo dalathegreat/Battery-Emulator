@@ -53,19 +53,9 @@ ModbusServerRTU MBserver(Serial2, 2000);
 #define UPDATING 5
 //Common inverter parameters
 uint16_t capacity_Wh_startup = BATTERY_WH_MAX;
-uint16_t max_power = 40960;                         //41kW
-const uint16_t max_voltage = ABSOLUTE_MAX_VOLTAGE;  //if higher charging is not possible (goes into forced discharge)
-const uint16_t min_voltage = ABSOLUTE_MIN_VOLTAGE;  //if lower Gen24 disables battery
-uint16_t min_volt_byd_can = min_voltage;
-uint16_t max_volt_byd_can = max_voltage;
-uint16_t min_volt_solax_can = min_voltage;
-uint16_t max_volt_solax_can = max_voltage;
-uint16_t min_volt_pylon_can = min_voltage;
-uint16_t max_volt_pylon_can = max_voltage;
-uint16_t min_volt_modbus_byd = min_voltage;
-uint16_t max_volt_modbus_byd = max_voltage;
-uint16_t min_volt_sma_can = min_voltage;
-uint16_t max_volt_sma_can = max_voltage;
+uint16_t max_power = 40960;                   //41kW
+uint16_t max_voltage = ABSOLUTE_MAX_VOLTAGE;  //if higher charging is not possible (goes into forced discharge)
+uint16_t min_voltage = ABSOLUTE_MIN_VOLTAGE;  //if lower Gen24 disables battery
 uint16_t battery_voltage = 3700;
 uint16_t battery_current = 0;
 uint16_t SOC = 5000;                              //SOC 0-100.00% //Updates later on from CAN
