@@ -1,5 +1,5 @@
 #include "mbServerFCs.h"
-#include "../../lib/eModbus-eModbus/Logging.h"
+#include "../Logging.h"
 
 //modbus register memory - declared in main.cpp
 
