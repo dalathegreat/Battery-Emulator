@@ -2,7 +2,7 @@
 #define SOFAR_CAN_H
 #include <Arduino.h>
 #include "../../USER_SETTINGS.h"
-#include "../devboard/can/ESP32CAN.h"
+#include "../lib/miwagner-ESP32-Arduino-CAN/ESP32CAN.h"
 
 // These parameters need to be mapped for the inverter
 extern uint16_t SOC;                         //SOC%, 0-100.00 (0-10000)

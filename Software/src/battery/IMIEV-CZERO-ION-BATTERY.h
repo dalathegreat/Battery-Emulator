@@ -2,7 +2,7 @@
 #define IMIEV_CZERO_ION_BATTERY_H
 #include <Arduino.h>
 #include "../../USER_SETTINGS.h"
-#include "../devboard/can/ESP32CAN.h"
+#include "../lib/miwagner-ESP32-Arduino-CAN/ESP32CAN.h"
 
 #define ABSOLUTE_MAX_VOLTAGE \
   4040  // 404.4V,if battery voltage goes over this, charging is not possible (goes into forced discharge)

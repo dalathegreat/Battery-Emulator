@@ -2,10 +2,10 @@
 #define SOLAX_CAN_H
 #include <Arduino.h>
 #include "../../USER_SETTINGS.h"
-#include "../devboard/can/ESP32CAN.h"
 #include "../devboard/config.h"
-
+#include "../lib/miwagner-ESP32-Arduino-CAN/ESP32CAN.h"
 #include "../lib/pierremolinaro-acan2515/ACAN2515.h"
+
 extern ACAN2515 can;
 
 extern uint16_t SOC;

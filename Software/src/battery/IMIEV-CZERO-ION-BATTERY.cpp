@@ -1,6 +1,6 @@
 #include "IMIEV-CZERO-ION-BATTERY.h"
-#include "../devboard/can/ESP32CAN.h"
-#include "../lib/ThomasBarth-ESP32-CAN-Driver/CAN_config.h"
+#include "../lib/miwagner-ESP32-Arduino-CAN/CAN_config.h"
+#include "../lib/miwagner-ESP32-Arduino-CAN/ESP32CAN.h"
 
 //Code still work in progress, TODO:
 //Figure out if CAN messages need to be sent to keep the system happy?

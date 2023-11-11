@@ -1,6 +1,6 @@
 #include "KIA-HYUNDAI-64-BATTERY.h"
-#include "../devboard/can/ESP32CAN.h"
-#include "../lib/ThomasBarth-ESP32-CAN-Driver/CAN_config.h"
+#include "../lib/miwagner-ESP32-Arduino-CAN/CAN_config.h"
+#include "../lib/miwagner-ESP32-Arduino-CAN/ESP32CAN.h"
 
 /* Do not change code below unless you are sure what you are doing */
 static unsigned long previousMillis10 = 0;   // will store last time a 10ms CAN Message was send
