@@ -1,1 +1,2 @@
-Software/.vscode/
+# Ignore any .vscode folder
+*.vscode/
