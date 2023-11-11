@@ -2,7 +2,7 @@
 ![GitHub release (with filter)](https://img.shields.io/github/v/release/dalathegreat/BYD-Battery-Emulator-For-Gen24?color=%23008000)
 ![GitHub Repo stars](https://img.shields.io/github/stars/dalathegreat/BYD-Battery-Emulator-For-Gen24?color=%23008000)
 ![GitHub forks](https://img.shields.io/github/forks/dalathegreat/BYD-Battery-Emulator-For-Gen24?color=%23008000)
-![GitHub actions](https://img.shields.io/github/actions/workflow/status/dalathegreat/BYD-Battery-Emulator-For-Gen24/compile-all-batteries.yml)
+![GitHub actions](https://img.shields.io/github/actions/workflow/status/dalathegreat/BYD-Battery-Emulator-For-Gen24/compile-all-batteries.yml?color=0E810E)
 ![Static Badge](https://img.shields.io/badge/made-with_love-blue?color=%23008000)
 
 This software enables EV battery packs to be used for stationary storage in combination with solar inverters. It achieves this by converting EV battery CAN data into Modbus RTU registers, that emulate a BYD 11kWh HVM battery. This makes it extremely easy to use EV batteries in a true plug'n'play fashion.
