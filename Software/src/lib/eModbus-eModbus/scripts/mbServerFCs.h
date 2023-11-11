@@ -1,4 +1,4 @@
-#include "../../lib/eModbus-eModbus/ModbusServerRTU.h"
+#include "../ModbusServerRTU.h"
 
 #define MBTCP_ID 21  // modbus TCP server ID
 #define MBPV_MAX 30000
