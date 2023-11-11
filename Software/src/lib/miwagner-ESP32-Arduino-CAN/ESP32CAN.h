@@ -1,8 +1,8 @@
 #ifndef ESP32CAN_H
 #define ESP32CAN_H
 
-#include "../../lib/ThomasBarth-ESP32-CAN-Driver/CAN.h"
-#include "../../lib/ThomasBarth-ESP32-CAN-Driver/CAN_config.h"
+#include "../../lib/miwagner-ESP32-Arduino-CAN/CAN.h"
+#include "../../lib/miwagner-ESP32-Arduino-CAN/CAN_config.h"
 extern uint8_t LEDcolor;
 
 class ESP32CAN {

@@ -1,6 +1,6 @@
 #include "SOFAR-CAN.h"
-#include "../devboard/can/ESP32CAN.h"
-#include "../lib/ThomasBarth-ESP32-CAN-Driver/CAN_config.h"
+#include "../lib/miwagner-ESP32-Arduino-CAN/CAN_config.h"
+#include "../lib/miwagner-ESP32-Arduino-CAN/ESP32CAN.h"
 
 /* This implementation of the SOFAR can protocol is halfway done. What's missing is implementing the inverter replies, all the CAN messages are listed, but the can sending is missing. */
 
