@@ -29,4 +29,7 @@
 #include "TESLA-MODEL-3-BATTERY.h"  //See this file for more Tesla battery settings
 #endif
 
+#ifdef TEST_FAKE_BATTERY
+#include "TEST-FAKE-BATTERY.h"  //See this file for more Fake battery settings
+#endif
 #endif

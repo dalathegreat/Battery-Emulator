@@ -286,6 +286,9 @@ void inform_user_on_battery() {
 #ifdef TESLA_MODEL_3_BATTERY
   Serial.println("Tesla Model 3 battery selected");
 #endif
+#ifdef TEST_FAKE_BATTERY
+  Serial.println("Test mode with fake battery selected");
+#endif
 }
 
 // Functions
@@ -316,6 +319,9 @@ void receive_can() {  // This section checks if we have a complete CAN message i
 #endif
 #ifdef TESLA_MODEL_3_BATTERY
       receive_can_tesla_model_3_battery(rx_frame);
+#endif
+#ifdef TEST_FAKE_BATTERY
+      receive_can_test_battery(rx_frame);
 #endif
       // Inverter
 #ifdef BYD_CAN
@@ -372,6 +378,9 @@ void send_can() {
 #endif
 #ifdef TESLA_MODEL_3_BATTERY
   send_can_tesla_model_3_battery();
+#endif
+#ifdef TEST_FAKE_BATTERY
+  send_can_test_battery();
 #endif
 }
 
@@ -562,6 +571,9 @@ void update_values() {
 #endif
 #ifdef TESLA_MODEL_3_BATTERY
   update_values_tesla_model_3_battery();  // Map the values to the correct registers
+#endif
+#ifdef TEST_FAKE_BATTERY
+  update_values_test_battery();  // Map the fake values to the correct registers
 #endif
   // Inverter
 #ifdef BYD_CAN
