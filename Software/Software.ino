@@ -14,6 +14,12 @@
 #include "src/lib/miwagner-ESP32-Arduino-CAN/CAN_config.h"
 #include "src/lib/miwagner-ESP32-Arduino-CAN/ESP32CAN.h"
 
+//Interval settings
+int intervalUpdateValues = 4800;  //Interval at which to refresh modbus registers / inverter values
+const int interval10 = 10;        //Interval for 10ms tasks
+unsigned long previousMillis10ms = 50;
+unsigned long previousMillisUpdateVal = 0;
+
 //CAN parameters
 CAN_device_t CAN_cfg;          // CAN Config
 const int rx_queue_size = 10;  // Receive Queue size
@@ -24,12 +30,6 @@ static const uint32_t QUARTZ_FREQUENCY = 8UL * 1000UL * 1000UL;  // 8 MHz
 ACAN2515 can(MCP2515_CS, SPI, MCP2515_INT);
 static ACAN2515_Buffer16 gBuffer;
 #endif
-
-//Interval settings
-int intervalUpdateValues = 4800;  //Interval at which to refresh modbus registers / inverter values
-const int interval10 = 10;        //Interval for 10ms tasks
-unsigned long previousMillis10ms = 50;
-unsigned long previousMillisUpdateVal = 0;
 
 //ModbusRTU parameters
 #if defined(BYD_MODBUS)
@@ -132,6 +132,9 @@ void setup() {
   can.begin(settings, [] { can.isr(); });
 #endif
 
+  // Init LED control
+  pixels.begin();
+
 //Init contactor pins
 #ifdef CONTACTOR_CONTROL
   pinMode(POSITIVE_CONTACTOR_PIN, OUTPUT);
@@ -174,9 +177,6 @@ void setup() {
   // Start ModbusRTU background task
   MBserver.begin(Serial2);
 #endif
-
-  // Init LED control
-  pixels.begin();
 
 //Inform user what Inverter is used
 #ifdef BYD_CAN
