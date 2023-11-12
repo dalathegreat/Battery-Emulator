@@ -107,125 +107,19 @@ uint8_t inverterAllowsContactorClosing = 1;
 
 // Initialization
 void setup() {
-  // Init Serial monitor
-  Serial.begin(115200);
-  while (!Serial) {}
-  Serial.println("__ OK __");
+  init_serial();
 
-  // CAN pins
-  pinMode(CAN_SE_PIN, OUTPUT);
-  digitalWrite(CAN_SE_PIN, LOW);
-  CAN_cfg.speed = CAN_SPEED_500KBPS;
-  CAN_cfg.tx_pin_id = GPIO_NUM_27;
-  CAN_cfg.rx_pin_id = GPIO_NUM_26;
-  CAN_cfg.rx_queue = xQueueCreate(rx_queue_size, sizeof(CAN_frame_t));
-  // Init CAN Module
-  ESP32Can.CANInit();
-  Serial.println(CAN_cfg.speed);
+  init_CAN();
 
-#ifdef DUAL_CAN
-  Serial.println("Dual CAN Bus (ESP32+MCP2515) selected");
-  gBuffer.initWithSize(25);
-  SPI.begin(MCP2515_SCK, MCP2515_MISO, MCP2515_MOSI);
-  Serial.println("Configure ACAN2515");
-  ACAN2515Settings settings(QUARTZ_FREQUENCY, 500UL * 1000UL);  // CAN bit rate 500 kb/s
-  settings.mRequestedMode = ACAN2515Settings::NormalMode;       // Select loopback mode
-  can.begin(settings, [] { can.isr(); });
-#endif
+  init_LED();
 
-  // Init LED control
-  pixels.begin();
+  init_contactors();
 
-  // Init contactor pins
-#ifdef CONTACTOR_CONTROL
-  pinMode(POSITIVE_CONTACTOR_PIN, OUTPUT);
-  digitalWrite(POSITIVE_CONTACTOR_PIN, LOW);
-  pinMode(NEGATIVE_CONTACTOR_PIN, OUTPUT);
-  digitalWrite(NEGATIVE_CONTACTOR_PIN, LOW);
-#ifdef PWM_CONTACTOR_CONTROL
-  ledcSetup(POSITIVE_PWM_Ch, PWM_Freq, PWM_Res);           // Setup PWM Channel Frequency and Resolution
-  ledcSetup(NEGATIVE_PWM_Ch, PWM_Freq, PWM_Res);           // Setup PWM Channel Frequency and Resolution
-  ledcAttachPin(POSITIVE_CONTACTOR_PIN, POSITIVE_PWM_Ch);  // Attach Positive Contactor Pin to Hardware PWM Channel
-  ledcAttachPin(NEGATIVE_CONTACTOR_PIN, NEGATIVE_PWM_Ch);  // Attach Positive Contactor Pin to Hardware PWM Channel
-  ledcWrite(POSITIVE_PWM_Ch, 0);                           // Set Positive PWM to 0%
-  ledcWrite(NEGATIVE_PWM_Ch, 0);                           // Set Negative PWM to 0%
-#endif
-  pinMode(PRECHARGE_PIN, OUTPUT);
-  digitalWrite(PRECHARGE_PIN, LOW);
-#endif
+  init_modbus();
 
-  // Set up Modbus RTU Server
-  pinMode(RS485_EN_PIN, OUTPUT);
-  digitalWrite(RS485_EN_PIN, HIGH);
-  pinMode(RS485_SE_PIN, OUTPUT);
-  digitalWrite(RS485_SE_PIN, HIGH);
-  pinMode(PIN_5V_EN, OUTPUT);
-  digitalWrite(PIN_5V_EN, HIGH);
+  inform_user_on_inverter();
 
-#ifdef BYD_MODBUS
-  // Init Static data to the RTU Modbus
-  handle_static_data_modbus_byd();
-#endif
-#if defined(BYD_MODBUS) || defined(LUNA2000_MODBUS)
-  // Init Serial2 connected to the RTU Modbus
-  RTUutils::prepareHardwareSerial(Serial2);
-  Serial2.begin(9600, SERIAL_8N1, RS485_RX_PIN, RS485_TX_PIN);
-  // Register served function code worker for server
-  MBserver.registerWorker(MBTCP_ID, READ_HOLD_REGISTER, &FC03);
-  MBserver.registerWorker(MBTCP_ID, WRITE_HOLD_REGISTER, &FC06);
-  MBserver.registerWorker(MBTCP_ID, WRITE_MULT_REGISTERS, &FC16);
-  MBserver.registerWorker(MBTCP_ID, R_W_MULT_REGISTERS, &FC23);
-  // Start ModbusRTU background task
-  MBserver.begin(Serial2);
-#endif
-
-  // Inform user what Inverter is used
-#ifdef BYD_CAN
-  Serial.println("BYD CAN protocol selected");
-#endif
-#ifdef BYD_MODBUS
-  Serial.println("BYD Modbus RTU protocol selected");
-#endif
-#ifdef LUNA2000_MODBUS
-  Serial.println("Luna2000 Modbus RTU protocol selected");
-#endif
-#ifdef PYLON_CAN
-  Serial.println("PYLON CAN protocol selected");
-#endif
-#ifdef SMA_CAN
-  Serial.println("SMA CAN protocol selected");
-#endif
-#ifdef SOFAR_CAN
-  Serial.println("SOFAR CAN protocol selected");
-#endif
-#ifdef SOLAX_CAN
-  inverterAllowsContactorClosing = 0;  // The inverter needs to allow first on this protocol
-  intervalUpdateValues = 800;          // This protocol also requires the values to be updated faster
-  Serial.println("SOLAX CAN protocol selected");
-#endif
-
-  // Inform user what battery is used
-#ifdef BMW_I3_BATTERY
-  Serial.println("BMW i3 battery selected");
-#endif
-#ifdef CHADEMO_BATTERY
-  Serial.println("Chademo battery selected");
-#endif
-#ifdef IMIEV_CZERO_ION_BATTERY
-  Serial.println("Mitsubishi i-MiEV / Citroen C-Zero / Peugeot Ion battery selected");
-#endif
-#ifdef KIA_HYUNDAI_64_BATTERY
-  Serial.println("Kia Niro / Hyundai Kona 64kWh battery selected");
-#endif
-#ifdef NISSAN_LEAF_BATTERY
-  Serial.println("Nissan LEAF battery selected");
-#endif
-#ifdef RENAULT_ZOE_BATTERY
-  Serial.println("Renault Zoe / Kangoo battery selected");
-#endif
-#ifdef TESLA_MODEL_3_BATTERY
-  Serial.println("Tesla Model 3 battery selected");
-#endif
+  inform_user_on_battery();
 }
 
 // Perform main program functions
@@ -256,6 +150,141 @@ void loop() {
   send_can();  // Send CAN messages
 #ifdef DUAL_CAN
   send_can2();
+#endif
+}
+
+// Initialization functions
+void init_serial() {
+  // Init Serial monitor
+  Serial.begin(115200);
+  while (!Serial) {}
+  Serial.println("__ OK __");
+}
+
+void init_CAN() {
+  // CAN pins
+  pinMode(CAN_SE_PIN, OUTPUT);
+  digitalWrite(CAN_SE_PIN, LOW);
+  CAN_cfg.speed = CAN_SPEED_500KBPS;
+  CAN_cfg.tx_pin_id = GPIO_NUM_27;
+  CAN_cfg.rx_pin_id = GPIO_NUM_26;
+  CAN_cfg.rx_queue = xQueueCreate(rx_queue_size, sizeof(CAN_frame_t));
+  // Init CAN Module
+  ESP32Can.CANInit();
+  Serial.println(CAN_cfg.speed);
+
+#ifdef DUAL_CAN
+  Serial.println("Dual CAN Bus (ESP32+MCP2515) selected");
+  gBuffer.initWithSize(25);
+  SPI.begin(MCP2515_SCK, MCP2515_MISO, MCP2515_MOSI);
+  Serial.println("Configure ACAN2515");
+  ACAN2515Settings settings(QUARTZ_FREQUENCY, 500UL * 1000UL);  // CAN bit rate 500 kb/s
+  settings.mRequestedMode = ACAN2515Settings::NormalMode;       // Select loopback mode
+  can.begin(settings, [] { can.isr(); });
+#endif
+}
+
+void init_LED() {
+  // Init LED control
+  pixels.begin();
+}
+
+void init_contactors() {
+  // Init contactor pins
+#ifdef CONTACTOR_CONTROL
+  pinMode(POSITIVE_CONTACTOR_PIN, OUTPUT);
+  digitalWrite(POSITIVE_CONTACTOR_PIN, LOW);
+  pinMode(NEGATIVE_CONTACTOR_PIN, OUTPUT);
+  digitalWrite(NEGATIVE_CONTACTOR_PIN, LOW);
+#ifdef PWM_CONTACTOR_CONTROL
+  ledcSetup(POSITIVE_PWM_Ch, PWM_Freq, PWM_Res);           // Setup PWM Channel Frequency and Resolution
+  ledcSetup(NEGATIVE_PWM_Ch, PWM_Freq, PWM_Res);           // Setup PWM Channel Frequency and Resolution
+  ledcAttachPin(POSITIVE_CONTACTOR_PIN, POSITIVE_PWM_Ch);  // Attach Positive Contactor Pin to Hardware PWM Channel
+  ledcAttachPin(NEGATIVE_CONTACTOR_PIN, NEGATIVE_PWM_Ch);  // Attach Positive Contactor Pin to Hardware PWM Channel
+  ledcWrite(POSITIVE_PWM_Ch, 0);                           // Set Positive PWM to 0%
+  ledcWrite(NEGATIVE_PWM_Ch, 0);                           // Set Negative PWM to 0%
+#endif
+  pinMode(PRECHARGE_PIN, OUTPUT);
+  digitalWrite(PRECHARGE_PIN, LOW);
+#endif
+}
+
+void init_modbus() {
+  // Set up Modbus RTU Server
+  pinMode(RS485_EN_PIN, OUTPUT);
+  digitalWrite(RS485_EN_PIN, HIGH);
+  pinMode(RS485_SE_PIN, OUTPUT);
+  digitalWrite(RS485_SE_PIN, HIGH);
+  pinMode(PIN_5V_EN, OUTPUT);
+  digitalWrite(PIN_5V_EN, HIGH);
+
+#ifdef BYD_MODBUS
+  // Init Static data to the RTU Modbus
+  handle_static_data_modbus_byd();
+#endif
+#if defined(BYD_MODBUS) || defined(LUNA2000_MODBUS)
+  // Init Serial2 connected to the RTU Modbus
+  RTUutils::prepareHardwareSerial(Serial2);
+  Serial2.begin(9600, SERIAL_8N1, RS485_RX_PIN, RS485_TX_PIN);
+  // Register served function code worker for server
+  MBserver.registerWorker(MBTCP_ID, READ_HOLD_REGISTER, &FC03);
+  MBserver.registerWorker(MBTCP_ID, WRITE_HOLD_REGISTER, &FC06);
+  MBserver.registerWorker(MBTCP_ID, WRITE_MULT_REGISTERS, &FC16);
+  MBserver.registerWorker(MBTCP_ID, R_W_MULT_REGISTERS, &FC23);
+  // Start ModbusRTU background task
+  MBserver.begin(Serial2);
+#endif
+}
+
+void inform_user_on_inverter() {
+  // Inform user what Inverter is used
+#ifdef BYD_CAN
+  Serial.println("BYD CAN protocol selected");
+#endif
+#ifdef BYD_MODBUS
+  Serial.println("BYD Modbus RTU protocol selected");
+#endif
+#ifdef LUNA2000_MODBUS
+  Serial.println("Luna2000 Modbus RTU protocol selected");
+#endif
+#ifdef PYLON_CAN
+  Serial.println("PYLON CAN protocol selected");
+#endif
+#ifdef SMA_CAN
+  Serial.println("SMA CAN protocol selected");
+#endif
+#ifdef SOFAR_CAN
+  Serial.println("SOFAR CAN protocol selected");
+#endif
+#ifdef SOLAX_CAN
+  inverterAllowsContactorClosing = 0;  // The inverter needs to allow first on this protocol
+  intervalUpdateValues = 800;          // This protocol also requires the values to be updated faster
+  Serial.println("SOLAX CAN protocol selected");
+#endif
+}
+
+void inform_user_on_battery() {
+  // Inform user what battery is used
+#ifdef BMW_I3_BATTERY
+  Serial.println("BMW i3 battery selected");
+#endif
+#ifdef CHADEMO_BATTERY
+  Serial.println("Chademo battery selected");
+#endif
+#ifdef IMIEV_CZERO_ION_BATTERY
+  Serial.println("Mitsubishi i-MiEV / Citroen C-Zero / Peugeot Ion battery selected");
+#endif
+#ifdef KIA_HYUNDAI_64_BATTERY
+  Serial.println("Kia Niro / Hyundai Kona 64kWh battery selected");
+#endif
+#ifdef NISSAN_LEAF_BATTERY
+  Serial.println("Nissan LEAF battery selected");
+#endif
+#ifdef RENAULT_ZOE_BATTERY
+  Serial.println("Renault Zoe / Kangoo battery selected");
+#endif
+#ifdef TESLA_MODEL_3_BATTERY
+  Serial.println("Tesla Model 3 battery selected");
 #endif
 }
 
