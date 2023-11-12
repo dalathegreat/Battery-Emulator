@@ -250,6 +250,7 @@ void loop() {
   }
 }
 
+// Functions
 void handle_can() {  //This section checks if we have a complete CAN message incoming
   //Depending on which battery/inverter is selected, we forward this to their respective CAN routines
   CAN_frame_t rx_frame;
@@ -373,48 +374,40 @@ void handle_can2() {  //This function is similar to handle_can, but just takes c
 }
 #endif
 
-void handle_inverter() {
-  // battery
-#ifdef BMW_I3_BATTERY
-  update_values_i3_battery();  //Map the values to the correct registers
-#endif
-#ifdef CHADEMO_BATTERY
-  update_values_chademo_battery();
-#endif
-#ifdef IMIEV_CZERO_ION_BATTERY
-  update_values_imiev_battery();  //Map the values to the correct registers
-#endif
-#ifdef KIA_HYUNDAI_64_BATTERY
-  update_values_kiaHyundai_64_battery();  //Map the values to the correct registers
-#endif
-#ifdef NISSAN_LEAF_BATTERY
-  update_values_leaf_battery();  //Map the values to the correct registers
-#endif
-#ifdef RENAULT_ZOE_BATTERY
-  update_values_zoe_battery();  //Map the values to the correct registers
-#endif
-#ifdef TESLA_MODEL_3_BATTERY
-  update_values_tesla_model_3_battery();  //Map the values to the correct registers
-#endif
-// inverter
-#ifdef BYD_CAN
-  update_values_can_byd();
-#endif
-#ifdef BYD_MODBUS
-  update_modbus_registers_byd();
-#endif
-#ifdef LUNA2000_MODBUS
-  update_modbus_registers_luna2000();
-#endif
-#ifdef PYLON_CAN
-  update_values_can_pylon();
-#endif
-#ifdef SMA_CAN
-  update_values_can_sma();
-#endif
-#ifdef SOLAX_CAN
-  update_values_can_solax();
-#endif
+void handle_LED_state() {
+  // Determine how bright the LED should be
+  if (rampUp && brightness < maxBrightness) {
+    brightness++;
+  } else if (rampUp && brightness == maxBrightness) {
+    rampUp = false;
+  } else if (!rampUp && brightness > 0) {
+    brightness--;
+  } else if (!rampUp && brightness == 0) {
+    rampUp = true;
+  }
+  switch (LEDcolor) {
+    case GREEN:
+      pixels.setPixelColor(0, pixels.Color(0, brightness, 0));  // Green pulsing LED
+      break;
+    case YELLOW:
+      pixels.setPixelColor(0, pixels.Color(brightness, brightness, 0));  // Yellow pulsing LED
+      break;
+    case BLUE:
+      pixels.setPixelColor(0, pixels.Color(0, 0, brightness));  //Blue pulsing LED
+      break;
+    case RED:
+      pixels.setPixelColor(0, pixels.Color(150, 0, 0));  // Red LED full brightness
+      break;
+    default:
+      break;
+  }
+
+  //BMS in fault state overrides everything
+  if (bms_status == FAULT) {
+    pixels.setPixelColor(0, pixels.Color(255, 0, 0));  // Red LED full brightness
+  }
+
+  pixels.show();  // This sends the updated pixel color to the hardware.
 }
 
 #ifdef CONTACTOR_CONTROL
@@ -503,38 +496,46 @@ void handle_contactors() {
 }
 #endif
 
-void handle_LED_state() {
-  // Determine how bright the LED should be
-  if (rampUp && brightness < maxBrightness) {
-    brightness++;
-  } else if (rampUp && brightness == maxBrightness) {
-    rampUp = false;
-  } else if (!rampUp && brightness > 0) {
-    brightness--;
-  } else if (!rampUp && brightness == 0) {
-    rampUp = true;
-  }
-  switch (LEDcolor) {
-    case GREEN:
-      pixels.setPixelColor(0, pixels.Color(0, brightness, 0));  // Green pulsing LED
-      break;
-    case YELLOW:
-      pixels.setPixelColor(0, pixels.Color(brightness, brightness, 0));  // Yellow pulsing LED
-      break;
-    case BLUE:
-      pixels.setPixelColor(0, pixels.Color(0, 0, brightness));  //Blue pulsing LED
-      break;
-    case RED:
-      pixels.setPixelColor(0, pixels.Color(150, 0, 0));  // Red LED full brightness
-      break;
-    default:
-      break;
-  }
-
-  //BMS in fault state overrides everything
-  if (bms_status == FAULT) {
-    pixels.setPixelColor(0, pixels.Color(255, 0, 0));  // Red LED full brightness
-  }
-
-  pixels.show();  // This sends the updated pixel color to the hardware.
+void handle_inverter() {
+  // battery
+#ifdef BMW_I3_BATTERY
+  update_values_i3_battery();  //Map the values to the correct registers
+#endif
+#ifdef CHADEMO_BATTERY
+  update_values_chademo_battery();
+#endif
+#ifdef IMIEV_CZERO_ION_BATTERY
+  update_values_imiev_battery();  //Map the values to the correct registers
+#endif
+#ifdef KIA_HYUNDAI_64_BATTERY
+  update_values_kiaHyundai_64_battery();  //Map the values to the correct registers
+#endif
+#ifdef NISSAN_LEAF_BATTERY
+  update_values_leaf_battery();  //Map the values to the correct registers
+#endif
+#ifdef RENAULT_ZOE_BATTERY
+  update_values_zoe_battery();  //Map the values to the correct registers
+#endif
+#ifdef TESLA_MODEL_3_BATTERY
+  update_values_tesla_model_3_battery();  //Map the values to the correct registers
+#endif
+// inverter
+#ifdef BYD_CAN
+  update_values_can_byd();
+#endif
+#ifdef BYD_MODBUS
+  update_modbus_registers_byd();
+#endif
+#ifdef LUNA2000_MODBUS
+  update_modbus_registers_luna2000();
+#endif
+#ifdef PYLON_CAN
+  update_values_can_pylon();
+#endif
+#ifdef SMA_CAN
+  update_values_can_sma();
+#endif
+#ifdef SOLAX_CAN
+  update_values_can_solax();
+#endif
 }
