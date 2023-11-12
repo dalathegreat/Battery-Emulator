@@ -228,12 +228,13 @@ void setup() {
 
 // perform main program functions
 void loop() {
-  handle_can();  //runs as fast as possible, handle CAN routines
-
+  // Input
+  receive_can();  // Receive CAN messages. Runs as fast as possible
 #ifdef DUAL_CAN
-  handle_can2();
+  receive_can2();
 #endif
 
+  // Process
   if (millis() - previousMillis10ms >= interval10)  //every 10ms
   {
     previousMillis10ms = millis();
@@ -248,10 +249,16 @@ void loop() {
     previousMillisInverter = millis();
     handle_inverter();  //Update values heading towards inverter
   }
+
+  // Output
+  send_can();  // Send CAN messages
+#ifdef DUAL_CAN
+  send_can2();
+#endif
 }
 
 // Functions
-void handle_can() {  //This section checks if we have a complete CAN message incoming
+void receive_can() {  //This section checks if we have a complete CAN message incoming
   //Depending on which battery/inverter is selected, we forward this to their respective CAN routines
   CAN_frame_t rx_frame;
   if (xQueueReceive(CAN_cfg.rx_queue, &rx_frame, 3 * portTICK_PERIOD_MS) == pdTRUE) {
@@ -299,6 +306,9 @@ void handle_can() {  //This section checks if we have a complete CAN message inc
 #endif
     }
   }
+}
+
+void send_can() {
 //When we are done checking if a CAN message has arrived, we can focus on sending CAN messages
 //Inverter sending
 #ifdef BYD_CAN
@@ -335,7 +345,7 @@ void handle_can() {  //This section checks if we have a complete CAN message inc
 }
 
 #ifdef DUAL_CAN
-void handle_can2() {  //This function is similar to handle_can, but just takes care of inverters in the 2nd bus.
+void receive_can2() {  //This function is similar to receive_can, but just takes care of inverters in the 2nd bus.
   //Depending on which inverter is selected, we forward this to their respective CAN routines
   CAN_frame_t rx_frame2;    //Struct with ESP32Can library format, compatible with the rest of the program
   CANMessage MCP2515Frame;  //Struct with ACAN2515 library format, needed to use thw MCP2515 library
@@ -366,6 +376,9 @@ void handle_can2() {  //This function is similar to handle_can, but just takes c
 #endif
     }
   }
+}
+
+void send_can2() {
 //When we are done checking if a CAN message has arrived, we can focus on sending CAN messages
 //Inverter sending
 #ifdef BYD_CAN
