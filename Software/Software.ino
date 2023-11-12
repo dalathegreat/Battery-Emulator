@@ -26,10 +26,10 @@ static ACAN2515_Buffer16 gBuffer;
 #endif
 
 //Interval settings
-int intervalInverterTask = 4800;  //Interval at which to refresh modbus registers / inverter values
+int intervalUpdateValues = 4800;  //Interval at which to refresh modbus registers / inverter values
 const int interval10 = 10;        //Interval for 10ms tasks
 unsigned long previousMillis10ms = 50;
-unsigned long previousMillisInverter = 0;
+unsigned long previousMillisUpdateVal = 0;
 
 //ModbusRTU parameters
 #if defined(BYD_MODBUS)
@@ -199,7 +199,7 @@ void setup() {
 #endif
 #ifdef SOLAX_CAN
   inverterAllowsContactorClosing = 0;  //The inverter needs to allow first on this protocol
-  intervalInverterTask = 800;          //This protocol also requires the values to be updated faster
+  intervalUpdateValues = 800;          //This protocol also requires the values to be updated faster
   Serial.println("SOLAX CAN protocol selected");
 #endif
 //Inform user what battery is used
@@ -244,10 +244,10 @@ void loop() {
 #endif
   }
 
-  if (millis() - previousMillisInverter >= intervalInverterTask)  //every 5s
+  if (millis() - previousMillisUpdateVal >= intervalUpdateValues)  //every 5s
   {
-    previousMillisInverter = millis();
-    handle_inverter();  //Update values heading towards inverter
+    previousMillisUpdateVal = millis();
+    update_values();  // Update values heading towards inverter. Prepare for sending on CAN, or write directly to Modbus.
   }
 
   // Output
@@ -509,7 +509,7 @@ void handle_contactors() {
 }
 #endif
 
-void handle_inverter() {
+void update_values() {
   // battery
 #ifdef BMW_I3_BATTERY
   update_values_i3_battery();  //Map the values to the correct registers
