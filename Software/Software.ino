@@ -79,6 +79,7 @@ uint16_t cell_min_voltage = 3700;  // Stores the minimum cell voltage value in t
 #define YELLOW 1
 #define RED 2
 #define BLUE 3
+#define TEST_ALL_COLORS 10
 
 Adafruit_NeoPixel pixels(1, WS2812_PIN, NEO_GRB + NEO_KHZ800);
 static uint8_t brightness = 0;
@@ -450,6 +451,9 @@ void handle_LED_state() {
       break;
     case RED:
       pixels.setPixelColor(0, pixels.Color(150, 0, 0));  // Red LED full brightness
+      break;
+    case TEST_ALL_COLORS:
+      pixels.setPixelColor(0, pixels.Color(brightness, abs((100 - brightness)), abs((50 - brightness))));  // RGB
       break;
     default:
       break;

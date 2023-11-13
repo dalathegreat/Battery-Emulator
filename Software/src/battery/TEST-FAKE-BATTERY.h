@@ -38,6 +38,7 @@ extern uint8_t LEDcolor;                       //Enum, 0-2
 #define YELLOW 1
 #define RED 2
 #define BLUE 3
+#define TEST_ALL_COLORS 10
 
 void update_values_test_battery();
 void receive_can_test_battery(CAN_frame_t rx_frame);
