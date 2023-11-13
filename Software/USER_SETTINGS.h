@@ -13,7 +13,7 @@
 //#define NISSAN_LEAF_BATTERY
 //#define RENAULT_ZOE_BATTERY
 //#define TESLA_MODEL_3_BATTERY
-#define TEST_FAKE_BATTERY
+//#define TEST_FAKE_BATTERY
 
 /* Select inverter communication protocol. See Wiki for which to use with your inverter: https://github.com/dalathegreat/BYD-Battery-Emulator-For-Gen24/wiki */
 //#define BYD_CAN          //Enable this line to emulate a "BYD Battery-Box Premium HVS" over CAN Bus
