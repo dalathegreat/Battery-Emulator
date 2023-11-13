@@ -177,7 +177,7 @@ void update_values_tesla_model_3_battery() {  //This function maps all the value
 
   battery_voltage = (volts * 10);  //One more decimal needed (370 -> 3700)
 
-  battery_current = amps;  //TODO, this needs verifying if scaling is right
+  battery_current = (amps * 10);  //Increase decimal (13A -> 13.0A)
 
   capacity_Wh = (nominal_full_pack_energy * 100);  //Scale up 75.2kWh -> 75200Wh
   if (capacity_Wh > 60000) {
