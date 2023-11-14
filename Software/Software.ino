@@ -87,6 +87,7 @@ const uint8_t maxBrightness = 100;
 uint8_t LEDcolor = GREEN;
 
 // Contactor parameters
+#ifdef CONTACTOR_CONTROL
 enum State { DISCONNECTED, PRECHARGE, NEGATIVE, POSITIVE, PRECHARGE_OFF, COMPLETED, SHUTDOWN_REQUESTED };
 State contactorStatus = DISCONNECTED;
 
@@ -94,14 +95,17 @@ State contactorStatus = DISCONNECTED;
 #define PRECHARGE_TIME_MS 160
 #define NEGATIVE_CONTACTOR_TIME_MS 1000
 #define POSITIVE_CONTACTOR_TIME_MS 2000
+#ifdef PWM_CONTACTOR_CONTROL
 #define PWM_Freq 20000  // 20 kHz frequency, beyond audible range
 #define PWM_Res 10      // 10 Bit resolution 0 to 1023, maps 'nicely' to 0% 100%
 #define PWM_Hold_Duty 250
 #define POSITIVE_PWM_Ch 0
 #define NEGATIVE_PWM_Ch 1
+#endif
 unsigned long prechargeStartTime = 0;
 unsigned long negativeStartTime = 0;
 unsigned long timeSpentInFaultedMode = 0;
+#endif
 uint8_t batteryAllowsContactorClosing = 0;
 uint8_t inverterAllowsContactorClosing = 1;
 
