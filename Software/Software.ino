@@ -1,4 +1,4 @@
-/* Do not change any code below this line unless you are sure what you are doing */
+/* Do not change any code below this lc:\Git\BYD-Battery-Emulator-For-Gen24\Software\src\battery\NISSAN-LEAF-BATTERY.hine unless you are sure what you are doing */
 /* Only change battery specific settings in "USER_SETTINGS.h" */
 
 #include <Arduino.h>
@@ -75,12 +75,6 @@ uint16_t cell_max_voltage = 3700;  // Stores the highest cell voltage value in t
 uint16_t cell_min_voltage = 3700;  // Stores the minimum cell voltage value in the system
 
 // LED parameters
-#define GREEN 0
-#define YELLOW 1
-#define RED 2
-#define BLUE 3
-#define TEST_ALL_COLORS 10
-
 Adafruit_NeoPixel pixels(1, WS2812_PIN, NEO_GRB + NEO_KHZ800);
 static uint8_t brightness = 0;
 static bool rampUp = true;

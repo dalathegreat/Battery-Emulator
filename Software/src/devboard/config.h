@@ -32,4 +32,11 @@
 #define SD_CS_PIN 13
 #define WS2812_PIN 4
 
+// LED definitions for the board
+#define GREEN 0
+#define YELLOW 1
+#define RED 2
+#define BLUE 3
+#define TEST_ALL_COLORS 10
+
 #endif

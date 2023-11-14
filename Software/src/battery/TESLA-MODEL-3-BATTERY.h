@@ -2,6 +2,7 @@
 #define TESLA_MODEL_3_BATTERY_H
 #include <Arduino.h>
 #include "../../USER_SETTINGS.h"
+#include "../devboard/config.h"  // Needed for LED defines
 #include "../lib/miwagner-ESP32-Arduino-CAN/ESP32CAN.h"
 
 #define ABSOLUTE_MAX_VOLTAGE \
@@ -33,10 +34,6 @@ extern uint8_t LEDcolor;
 #define ACTIVE 3
 #define FAULT 4
 #define UPDATING 5
-// LED colors
-#define GREEN 0
-#define YELLOW 1
-#define RED 2
 
 void update_values_tesla_model_3_battery();
 void receive_can_tesla_model_3_battery(CAN_frame_t rx_frame);

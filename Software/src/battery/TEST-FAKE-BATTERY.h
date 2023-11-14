@@ -2,6 +2,7 @@
 #define TEST_FAKE_BATTERY_H
 #include <Arduino.h>
 #include "../../USER_SETTINGS.h"
+#include "../devboard/config.h"  // Needed for LED defines
 #include "../lib/miwagner-ESP32-Arduino-CAN/ESP32CAN.h"
 
 #define ABSOLUTE_MAX_VOLTAGE \
@@ -25,7 +26,7 @@ extern uint16_t temperature_max;   //C+1,  Goes thru convert2unsignedint16 funct
 extern uint16_t cell_max_voltage;  //mV,   0-4350
 extern uint16_t cell_min_voltage;  //mV,   0-4350
 extern uint8_t batteryAllowsContactorClosing;  //Bool, 1=true, 0=false
-extern uint8_t LEDcolor;                       //Enum, 0-2
+extern uint8_t LEDcolor;                       //Enum, 0-10
 // Definitions for bms_status
 #define STANDBY 0
 #define INACTIVE 1
@@ -33,12 +34,6 @@ extern uint8_t LEDcolor;                       //Enum, 0-2
 #define ACTIVE 3
 #define FAULT 4
 #define UPDATING 5
-// LED colors
-#define GREEN 0
-#define YELLOW 1
-#define RED 2
-#define BLUE 3
-#define TEST_ALL_COLORS 10
 
 void update_values_test_battery();
 void receive_can_test_battery(CAN_frame_t rx_frame);
