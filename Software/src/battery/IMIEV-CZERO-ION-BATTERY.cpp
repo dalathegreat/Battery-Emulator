@@ -32,8 +32,8 @@ static double voltage2 = 0;
 static double BMU_Current = 0;
 static double BMU_PackVoltage = 0;
 static double BMU_Power = 0;
-static double cell_voltages[89];      //array with all the cellvoltages //Todo, what is max array size? 80/88 cells?
-static double cell_temperatures[89];  //array with all the celltemperatures //Todo, what is max array size? 80/88cells?
+static double cell_voltages[89];      //array with all the cellvoltages //TODO: what is max array size? 80/88 cells?
+static double cell_temperatures[89];  //array with all the celltemperatures //TODO: what is max array size? 80/88cells?
 static double max_volt_cel = 3.70;
 static double min_volt_cel = 3.70;
 static double max_temp_cel = 20.00;
@@ -65,7 +65,7 @@ void update_values_imiev_battery() {  //This function maps all the values fetche
     max_target_discharge_power = 10000;  //Otherwise we can discharge 10kW from the pack!
   }
 
-  stat_batt_power = BMU_Power;  //TODO, Scaling?
+  stat_batt_power = BMU_Power;  //TODO: Scaling?
 
   static int n = sizeof(cell_voltages) / sizeof(cell_voltages[0]);
   max_volt_cel = cell_voltages[0];  // Initialize max with the first element of the array
@@ -164,7 +164,7 @@ void update_values_imiev_battery() {  //This function maps all the values fetche
 
 void receive_can_imiev_battery(CAN_frame_t rx_frame) {
   CANstillAlive =
-      12;  //Todo, move this inside a known message ID to prevent CAN inverter from keeping battery alive detection going
+      12;  //TODO: move this inside a known message ID to prevent CAN inverter from keeping battery alive detection going
   switch (rx_frame.MsgID) {
     case 0x374:  //BMU message, 10ms - SOC
       temp_value = ((rx_frame.data.u8[1] - 10) / 2);

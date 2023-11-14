@@ -2,7 +2,7 @@
 #include "../lib/miwagner-ESP32-Arduino-CAN/CAN_config.h"
 #include "../lib/miwagner-ESP32-Arduino-CAN/ESP32CAN.h"
 
-//TODO before using
+//TODO: before using
 // Map the final values in update_values_i3_battery, set some to static values if not available (current, discharge max , charge max)
 // Check if I3 battery stays alive with only 10B and 512. If not, add 12F. If that doesn't help, add more from CAN log (ask Dala)
 
@@ -80,7 +80,7 @@ void update_values_i3_battery() {  //This function maps all the values fetched v
   {
     max_target_charge_power = 0;
   } else {
-    max_target_charge_power = 5000;  //Hardcoded value for testing. TODO, read real value from battery when discovered
+    max_target_charge_power = 5000;  //Hardcoded value for testing. TODO: read real value from battery when discovered
   }
 
   if (SOC < 500)  //If Soc is under 5%, stop dicharging
@@ -88,16 +88,16 @@ void update_values_i3_battery() {  //This function maps all the values fetched v
     max_target_discharge_power = 0;
   } else {
     max_target_discharge_power =
-        5000;  //Hardcoded value for testing. TODO, read real value from battery when discovered
+        5000;  //Hardcoded value for testing. TODO: read real value from battery when discovered
   }
 
   Battery_Power = (Battery_Current * (Battery_Volts / 10));
 
-  stat_batt_power = Battery_Power;  //TODO, is mapping OK?
+  stat_batt_power = Battery_Power;  //TODO:, is mapping OK?
 
-  temperature_min;  //hardcoded to 5*C in startup, TODO, find from battery CAN later
+  temperature_min;  //hardcoded to 5*C in startup, TODO:, find from battery CAN later
 
-  temperature_max;  //hardcoded to 6*C in startup, TODO, find from battery CAN later
+  temperature_max;  //hardcoded to 6*C in startup, TODO:, find from battery CAN later
 
   /* Check if the BMS is still sending CAN messages. If we go 60s without messages we raise an error*/
   if (!CANstillAlive) {
