@@ -1,4 +1,4 @@
-/* Do not change any code below this lc:\Git\BYD-Battery-Emulator-For-Gen24\Software\src\battery\NISSAN-LEAF-BATTERY.hine unless you are sure what you are doing */
+/* Do not change any code below this line unless you are sure what you are doing */
 /* Only change battery specific settings in "USER_SETTINGS.h" */
 
 #include <Arduino.h>
