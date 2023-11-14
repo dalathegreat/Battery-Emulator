@@ -71,7 +71,7 @@ static uint8_t packContactorSetState = 0;
 static uint8_t packCtrsClosingAllowed = 0;
 static uint8_t pyroTestInProgress = 0;
 static uint8_t send221still = 10;
-static uint8_t LFP_Chemistry = 0;
+static uint8_t LFP_Chemistry = false;
 //Fault codes
 static uint8_t WatchdogReset = 0;           //Warns if the processor has experienced a reset due to watchdog reset.
 static uint8_t PowerLossReset = 0;          //Warns if the processor has experienced a reset due to power loss.
@@ -235,10 +235,10 @@ void update_values_tesla_model_3_battery() {  //This function maps all the value
   //Determine which chemistry battery pack is using (crude method, TODO: replace with real CAN data later)
   if (soc_vi > 900) {  //When SOC% is over 90.0%, we can use max cell voltage to estimate what chemistry is used
     if (cell_max_v < 3450) {
-      LFP_Chemistry = 1;
+      LFP_Chemistry = true;
     }
     if (cell_max_v > 3700) {
-      LFP_Chemistry = 0;
+      LFP_Chemistry = false;
     }
   }
 

@@ -106,8 +106,8 @@ unsigned long prechargeStartTime = 0;
 unsigned long negativeStartTime = 0;
 unsigned long timeSpentInFaultedMode = 0;
 #endif
-uint8_t batteryAllowsContactorClosing = 0;
-uint8_t inverterAllowsContactorClosing = 1;
+uint8_t batteryAllowsContactorClosing = false;
+uint8_t inverterAllowsContactorClosing = true;
 
 // Initialization
 void setup() {
@@ -261,8 +261,8 @@ void inform_user_on_inverter() {
   Serial.println("SOFAR CAN protocol selected");
 #endif
 #ifdef SOLAX_CAN
-  inverterAllowsContactorClosing = 0;  // The inverter needs to allow first on this protocol
-  intervalUpdateValues = 800;          // This protocol also requires the values to be updated faster
+  inverterAllowsContactorClosing = false;  // The inverter needs to allow first on this protocol
+  intervalUpdateValues = 800;              // This protocol also requires the values to be updated faster
   Serial.println("SOLAX CAN protocol selected");
 #endif
 }
