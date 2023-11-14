@@ -106,8 +106,8 @@ unsigned long prechargeStartTime = 0;
 unsigned long negativeStartTime = 0;
 unsigned long timeSpentInFaultedMode = 0;
 #endif
-uint8_t batteryAllowsContactorClosing = false;
-uint8_t inverterAllowsContactorClosing = true;
+bool batteryAllowsContactorClosing = false;
+bool inverterAllowsContactorClosing = true;
 
 // Initialization
 void setup() {

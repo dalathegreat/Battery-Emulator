@@ -71,7 +71,7 @@ static uint8_t packContactorSetState = 0;
 static uint8_t packCtrsClosingAllowed = 0;
 static uint8_t pyroTestInProgress = 0;
 static uint8_t send221still = 10;
-static uint8_t LFP_Chemistry = false;
+static bool LFP_Chemistry = false;
 //Fault codes
 static uint8_t WatchdogReset = 0;           //Warns if the processor has experienced a reset due to watchdog reset.
 static uint8_t PowerLossReset = 0;          //Warns if the processor has experienced a reset due to power loss.

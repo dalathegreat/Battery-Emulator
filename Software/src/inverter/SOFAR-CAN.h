@@ -20,8 +20,8 @@ extern uint16_t temperature_min;   //C+1,  Goes thru convert2unsignedint16 funct
 extern uint16_t temperature_max;   //C+1,  Goes thru convert2unsignedint16 function (15.0C = 150, -15.0C =  65385)
 extern uint16_t cell_max_voltage;  //mV,   0-4350
 extern uint16_t cell_min_voltage;  //mV,   0-4350
-extern uint8_t batteryAllowsContactorClosing;  //Bool, 1=true, 0=false
-extern uint8_t LEDcolor;                       //Enum, 0-2
+extern bool batteryAllowsContactorClosing;  //Bool, 1=true, 0=false
+extern uint8_t LEDcolor;                    //Enum, 0-2
 extern uint16_t min_voltage;
 extern uint16_t max_voltage;
 // Definitions for BMS status

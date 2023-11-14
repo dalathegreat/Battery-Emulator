@@ -26,7 +26,7 @@ extern uint16_t min_voltage;
 extern uint16_t max_voltage;
 extern uint16_t cell_max_voltage;
 extern uint16_t cell_min_voltage;
-extern uint8_t inverterAllowsContactorClosing;
+extern bool inverterAllowsContactorClosing;
 
 // Timeout in milliseconds
 #define SolaxTimeout 2000
