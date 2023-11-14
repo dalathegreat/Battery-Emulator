@@ -405,9 +405,9 @@ void receive_can_leaf_battery(CAN_frame_t rx_frame) {
       LB_Failsafe_Status = (rx_frame.data.u8[1] & 0x07);
       LB_MainRelayOn_flag = (byte)((rx_frame.data.u8[3] & 0x20) >> 5);
       if (LB_MainRelayOn_flag) {
-        batteryAllowsContactorClosing = 1;
+        batteryAllowsContactorClosing = true;
       } else {
-        batteryAllowsContactorClosing = 0;
+        batteryAllowsContactorClosing = false;
       }
       LB_Full_CHARGE_flag = (byte)((rx_frame.data.u8[3] & 0x10) >> 4);
       LB_Interlock = (byte)((rx_frame.data.u8[3] & 0x08) >> 3);

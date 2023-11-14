@@ -118,7 +118,7 @@ void CAN_WriteFrame(CAN_frame_t* tx_frame) {
 void update_values_can_solax() {  //This function maps all the values fetched from battery CAN to the correct CAN messages
   // If not receiveing any communication from the inverter, open contactors and return to battery announce state
   if (millis() - LastFrameTime >= SolaxTimeout) {
-    inverterAllowsContactorClosing = 0;
+    inverterAllowsContactorClosing = false;
     STATE = BATTERY_ANNOUNCE;
   }
   //Calculate the required values
@@ -220,7 +220,7 @@ void receive_can_solax(CAN_frame_t rx_frame) {
     switch (STATE) {
       case (BATTERY_ANNOUNCE):
         Serial.println("Solax Battery State: Announce");
-        inverterAllowsContactorClosing = 0;
+        inverterAllowsContactorClosing = false;
         SOLAX_1875.data.u8[4] = (0x00);  // Inform Inverter: Contactor 0=off, 1=on.
         for (int i = 0; i <= number_of_batteries; i++) {
           CAN_WriteFrame(&SOLAX_1872);
@@ -253,7 +253,7 @@ void receive_can_solax(CAN_frame_t rx_frame) {
         break;
 
       case (CONTACTOR_CLOSED):
-        inverterAllowsContactorClosing = 1;
+        inverterAllowsContactorClosing = true;
         SOLAX_1875.data.u8[4] = (0x01);  // Inform Inverter: Contactor 0=off, 1=on.
         CAN_WriteFrame(&SOLAX_1872);
         CAN_WriteFrame(&SOLAX_1873);
