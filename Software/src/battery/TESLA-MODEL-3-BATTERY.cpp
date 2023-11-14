@@ -201,7 +201,7 @@ void update_values_tesla_model_3_battery() {  //This function maps all the value
     max_target_charge_power = 15000;  //Otherwise we can push 15kW into the pack!
   }
 
-  stat_batt_power = (volts * amps);  //TODO, check if scaling is OK
+  stat_batt_power = (volts * amps);  //TODO: check if scaling is OK
 
   min_temp = (min_temp * 10);
   temperature_min = convert2unsignedInt16(min_temp);
@@ -232,7 +232,7 @@ void update_values_tesla_model_3_battery() {  //This function maps all the value
 
   cell_deviation_mV = (cell_max_v - cell_min_v);
 
-  //Determine which chemistry battery pack is using (crude method, TODO, replace with real CAN data later)
+  //Determine which chemistry battery pack is using (crude method, TODO: replace with real CAN data later)
   if (soc_vi > 900) {  //When SOC% is over 90.0%, we can use max cell voltage to estimate what chemistry is used
     if (cell_max_v < 3450) {
       LFP_Chemistry = 1;

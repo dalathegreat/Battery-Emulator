@@ -185,7 +185,7 @@ void update_values_can_pylon() {  //This function maps all the values fetched fr
   PYLON_4211.data.u8[0] = (battery_voltage >> 8);
   PYLON_4211.data.u8[1] = (battery_voltage & 0x00FF);
 
-  //Current (TODO, SIGNED? Or looks like it could be just offset, in that case the below line wont work)
+  //Current (TODO: SIGNED? Or looks like it could be just offset, in that case the below line wont work)
   PYLON_4210.data.u8[2] = (battery_current >> 8);
   PYLON_4210.data.u8[3] = (battery_current & 0x00FF);
   PYLON_4211.data.u8[2] = (battery_current >> 8);

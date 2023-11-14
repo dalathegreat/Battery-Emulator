@@ -2,7 +2,7 @@
 #include "../lib/miwagner-ESP32-Arduino-CAN/CAN_config.h"
 #include "../lib/miwagner-ESP32-Arduino-CAN/ESP32CAN.h"
 
-//TODO, change CAN sending routine once confirmed that 500ms interval is OK for this battery type
+//TODO: change CAN sending routine once confirmed that 500ms interval is OK for this battery type
 
 /* Do not change code below unless you are sure what you are doing */
 static unsigned long previousMillis1s = 0;   // will store last time a Xs CAN Message was send
@@ -167,7 +167,7 @@ void update_values_can_sma() {  //This function maps all the values fetched from
   //Voltage (370.0)
   SMA_4D8.data.u8[0] = (battery_voltage >> 8);
   SMA_4D8.data.u8[1] = (battery_voltage & 0x00FF);
-  //Current (TODO, signed OK?)
+  //Current (TODO: signed OK?)
   SMA_4D8.data.u8[2] = (battery_current >> 8);
   SMA_4D8.data.u8[3] = (battery_current & 0x00FF);
   //Temperature average
@@ -176,7 +176,7 @@ void update_values_can_sma() {  //This function maps all the values fetched from
 
   //Error bits
   //SMA_158.data.u8[0] = //bit12 Fault high temperature, bit34Battery cellundervoltage, bit56 Battery cell overvoltage, bit78 batterysystemdefect
-  //TODO, add all error bits
+  //TODO: add all error bits
 }
 
 void receive_can_sma(CAN_frame_t rx_frame) {
