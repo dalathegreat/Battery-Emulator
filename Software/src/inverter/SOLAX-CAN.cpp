@@ -118,7 +118,7 @@ void CAN_WriteFrame(CAN_frame_t* tx_frame) {
 void update_values_can_solax() {  //This function maps all the values fetched from battery CAN to the correct CAN messages
   // If not receiveing any communication from the inverter, open contactors and return to battery announce state
   if (millis() - LastFrameTime >= SolaxTimeout) {
-    inverterAllowsContactorClosing = 0;
+    inverterAllowsContactorClosing = false;
     STATE = BATTERY_ANNOUNCE;
   }
   //Calculate the required values
@@ -150,13 +150,13 @@ void update_values_can_solax() {  //This function maps all the values fetched fr
 
   //Put the values into the CAN messages
   //BMS_Limits
-  SOLAX_1872.data.u8[0] = (uint8_t)max_voltage;  //Todo, scaling OK?
+  SOLAX_1872.data.u8[0] = (uint8_t)max_voltage;  //TODO: scaling OK?
   SOLAX_1872.data.u8[1] = (max_voltage >> 8);
-  SOLAX_1872.data.u8[2] = (uint8_t)min_voltage;  //Todo, scaling OK?
+  SOLAX_1872.data.u8[2] = (uint8_t)min_voltage;  //TODO: scaling OK?
   SOLAX_1872.data.u8[3] = (min_voltage >> 8);
-  SOLAX_1872.data.u8[4] = (uint8_t)(max_charge_rate_amp * 10);  //Todo, scaling OK?
+  SOLAX_1872.data.u8[4] = (uint8_t)(max_charge_rate_amp * 10);  //TODO: scaling OK?
   SOLAX_1872.data.u8[5] = ((max_charge_rate_amp * 10) >> 8);
-  SOLAX_1872.data.u8[6] = (uint8_t)(max_discharge_rate_amp * 10);  //Todo, scaling OK?
+  SOLAX_1872.data.u8[6] = (uint8_t)(max_discharge_rate_amp * 10);  //TODO: scaling OK?
   SOLAX_1872.data.u8[7] = ((max_discharge_rate_amp * 10) >> 8);
 
   //BMS_PackData
@@ -166,7 +166,7 @@ void update_values_can_solax() {  //This function maps all the values fetched fr
   SOLAX_1873.data.u8[3] = (battery_current >> 8);
   SOLAX_1873.data.u8[4] = (uint8_t)(SOC / 100);  //SOC (100.00%)
   //SOLAX_1873.data.u8[5] = //Seems like this is not required? Or shall we put SOC decimals here?
-  SOLAX_1873.data.u8[6] = (uint8_t)(remaining_capacity_Wh / 100);  //Todo, scaling OK?
+  SOLAX_1873.data.u8[6] = (uint8_t)(remaining_capacity_Wh / 100);  //TODO: scaling OK?
   SOLAX_1873.data.u8[7] = ((remaining_capacity_Wh / 100) >> 8);
 
   //BMS_CellData
@@ -175,10 +175,10 @@ void update_values_can_solax() {  //This function maps all the values fetched fr
   SOLAX_1874.data.u8[2] = (uint8_t)temperature_min;
   SOLAX_1874.data.u8[3] = (temperature_min >> 8);
   SOLAX_1874.data.u8[4] =
-      (uint8_t)(cell_max_voltage);  //Todo, scaling OK? Supposed to be alarm trigger absolute cell max?
+      (uint8_t)(cell_max_voltage);  //TODO: scaling OK? Supposed to be alarm trigger absolute cell max?
   SOLAX_1874.data.u8[5] = (cell_max_voltage >> 8);
   SOLAX_1874.data.u8[6] =
-      (uint8_t)(cell_min_voltage);  //Todo, scaling OK? Supposed to be alarm trigger absolute cell min?
+      (uint8_t)(cell_min_voltage);  //TODO: scaling OK? Supposed to be alarm trigger absolute cell min?
   SOLAX_1874.data.u8[7] = (cell_min_voltage >> 8);
 
   //BMS_Status
@@ -188,10 +188,10 @@ void update_values_can_solax() {  //This function maps all the values fetched fr
   SOLAX_1875.data.u8[4] = (uint8_t)0;  // Contactor Status 0=off, 1=on.
 
   //BMS_PackTemps (strange name, since it has voltages?)
-  SOLAX_1876.data.u8[2] = (uint8_t)cell_max_voltage;  //Todo, scaling OK?
+  SOLAX_1876.data.u8[2] = (uint8_t)cell_max_voltage;  //TODO: scaling OK?
   SOLAX_1876.data.u8[3] = (cell_min_voltage >> 8);
 
-  SOLAX_1876.data.u8[6] = (uint8_t)cell_min_voltage;  //Todo, scaling OK?
+  SOLAX_1876.data.u8[6] = (uint8_t)cell_min_voltage;  //TODO: scaling OK?
   SOLAX_1876.data.u8[7] = (cell_min_voltage >> 8);
 
   //Unknown
@@ -201,10 +201,10 @@ void update_values_can_solax() {  //This function maps all the values fetched fr
       (uint8_t)0x02;  // The above firmware version applies to:02 = Master BMS, 10 = S1, 20 = S2, 30 = S3, 40 = S4
 
   //BMS_PackStats
-  SOLAX_1878.data.u8[0] = (uint8_t)(battery_voltage);  //TODO, should this be max or current voltage?
+  SOLAX_1878.data.u8[0] = (uint8_t)(battery_voltage);  //TODO: should this be max or current voltage?
   SOLAX_1878.data.u8[1] = ((battery_voltage) >> 8);
 
-  SOLAX_1878.data.u8[4] = (uint8_t)capacity_Wh;  //TODO, scaling OK?
+  SOLAX_1878.data.u8[4] = (uint8_t)capacity_Wh;  //TODO: scaling OK?
   SOLAX_1878.data.u8[5] = (capacity_Wh >> 8);
 
   // BMS_Answer
@@ -220,7 +220,7 @@ void receive_can_solax(CAN_frame_t rx_frame) {
     switch (STATE) {
       case (BATTERY_ANNOUNCE):
         Serial.println("Solax Battery State: Announce");
-        inverterAllowsContactorClosing = 0;
+        inverterAllowsContactorClosing = false;
         SOLAX_1875.data.u8[4] = (0x00);  // Inform Inverter: Contactor 0=off, 1=on.
         for (int i = 0; i <= number_of_batteries; i++) {
           CAN_WriteFrame(&SOLAX_1872);
@@ -253,7 +253,7 @@ void receive_can_solax(CAN_frame_t rx_frame) {
         break;
 
       case (CONTACTOR_CLOSED):
-        inverterAllowsContactorClosing = 1;
+        inverterAllowsContactorClosing = true;
         SOLAX_1875.data.u8[4] = (0x01);  // Inform Inverter: Contactor 0=off, 1=on.
         CAN_WriteFrame(&SOLAX_1872);
         CAN_WriteFrame(&SOLAX_1873);

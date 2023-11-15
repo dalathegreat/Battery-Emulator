@@ -307,7 +307,7 @@ void update_values_can_sofar() {  //This function maps all the values fetched fr
 }
 
 void receive_can_sofar(CAN_frame_t rx_frame) {
-  switch (rx_frame.MsgID) {  //In here we need to respond to the inverter. TODO make logic
+  switch (rx_frame.MsgID) {  //In here we need to respond to the inverter. TODO: make logic
     case 0x605:
       //frame1_605 = rx_frame.data.u8[1];
       //frame3_605 = rx_frame.data.u8[3];

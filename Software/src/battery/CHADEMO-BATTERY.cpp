@@ -95,7 +95,7 @@ void update_values_chademo_battery() {  //This function maps all the values fetc
 
   max_target_discharge_power = (MaximumDischargeCurrent * MaximumBatteryVoltage);  //In Watts, Convert A to P
 
-  battery_voltage = TargetBatteryVoltage;  //Todo, scaling?
+  battery_voltage = TargetBatteryVoltage;  //TODO: scaling?
 
   capacity_Wh = ((RatedBatteryCapacity / 0.11) *
                  1000);  //(Added in CHAdeMO v1.0.1), maybe handle hardcoded on lower protocol version?

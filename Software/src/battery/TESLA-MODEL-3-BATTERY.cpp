@@ -71,7 +71,7 @@ static uint8_t packContactorSetState = 0;
 static uint8_t packCtrsClosingAllowed = 0;
 static uint8_t pyroTestInProgress = 0;
 static uint8_t send221still = 10;
-static uint8_t LFP_Chemistry = 0;
+static bool LFP_Chemistry = false;
 //Fault codes
 static uint8_t WatchdogReset = 0;           //Warns if the processor has experienced a reset due to watchdog reset.
 static uint8_t PowerLossReset = 0;          //Warns if the processor has experienced a reset due to power loss.
@@ -177,7 +177,7 @@ void update_values_tesla_model_3_battery() {  //This function maps all the value
 
   battery_voltage = (volts * 10);  //One more decimal needed (370 -> 3700)
 
-  battery_current = amps;  //TODO, this needs verifying if scaling is right
+  battery_current = (amps * 10);  //Increase decimal (13A -> 13.0A)
 
   capacity_Wh = (nominal_full_pack_energy * 100);  //Scale up 75.2kWh -> 75200Wh
   if (capacity_Wh > 60000) {
@@ -201,7 +201,7 @@ void update_values_tesla_model_3_battery() {  //This function maps all the value
     max_target_charge_power = 15000;  //Otherwise we can push 15kW into the pack!
   }
 
-  stat_batt_power = (volts * amps);  //TODO, check if scaling is OK
+  stat_batt_power = (volts * amps);  //TODO: check if scaling is OK
 
   min_temp = (min_temp * 10);
   temperature_min = convert2unsignedInt16(min_temp);
@@ -232,13 +232,13 @@ void update_values_tesla_model_3_battery() {  //This function maps all the value
 
   cell_deviation_mV = (cell_max_v - cell_min_v);
 
-  //Determine which chemistry battery pack is using (crude method, TODO, replace with real CAN data later)
+  //Determine which chemistry battery pack is using (crude method, TODO: replace with real CAN data later)
   if (soc_vi > 900) {  //When SOC% is over 90.0%, we can use max cell voltage to estimate what chemistry is used
     if (cell_max_v < 3450) {
-      LFP_Chemistry = 1;
+      LFP_Chemistry = true;
     }
     if (cell_max_v > 3700) {
-      LFP_Chemistry = 0;
+      LFP_Chemistry = false;
     }
   }
 
