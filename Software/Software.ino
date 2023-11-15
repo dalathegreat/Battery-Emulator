@@ -6,6 +6,7 @@
 #include "USER_SETTINGS.h"
 #include "src/battery/BATTERIES.h"
 #include "src/devboard/config.h"
+#include "src/devboard/webserver/webserver.h"
 #include "src/inverter/INVERTERS.h"
 #include "src/lib/adafruit-Adafruit_NeoPixel/Adafruit_NeoPixel.h"
 #include "src/lib/eModbus-eModbus/Logging.h"
@@ -108,6 +109,8 @@ bool inverterAllowsContactorClosing = true;
 // Initialization
 void setup() {
   init_serial();
+
+  init_webserver();
 
   init_CAN();
 
