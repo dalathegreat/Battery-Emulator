@@ -75,11 +75,6 @@ uint16_t cell_max_voltage = 3700;  // Stores the highest cell voltage value in t
 uint16_t cell_min_voltage = 3700;  // Stores the minimum cell voltage value in the system
 
 // LED parameters
-#define GREEN 0
-#define YELLOW 1
-#define RED 2
-#define BLUE 3
-
 Adafruit_NeoPixel pixels(1, WS2812_PIN, NEO_GRB + NEO_KHZ800);
 static uint8_t brightness = 0;
 static bool rampUp = true;
@@ -290,6 +285,9 @@ void inform_user_on_battery() {
 #ifdef TESLA_MODEL_3_BATTERY
   Serial.println("Tesla Model 3 battery selected");
 #endif
+#ifdef TEST_FAKE_BATTERY
+  Serial.println("Test mode with fake battery selected");
+#endif
 }
 
 // Functions
@@ -320,6 +318,9 @@ void receive_can() {  // This section checks if we have a complete CAN message i
 #endif
 #ifdef TESLA_MODEL_3_BATTERY
       receive_can_tesla_model_3_battery(rx_frame);
+#endif
+#ifdef TEST_FAKE_BATTERY
+      receive_can_test_battery(rx_frame);
 #endif
       // Inverter
 #ifdef BYD_CAN
@@ -376,6 +377,9 @@ void send_can() {
 #endif
 #ifdef TESLA_MODEL_3_BATTERY
   send_can_tesla_model_3_battery();
+#endif
+#ifdef TEST_FAKE_BATTERY
+  send_can_test_battery();
 #endif
 }
 
@@ -445,6 +449,9 @@ void handle_LED_state() {
       break;
     case RED:
       pixels.setPixelColor(0, pixels.Color(150, 0, 0));  // Red LED full brightness
+      break;
+    case TEST_ALL_COLORS:
+      pixels.setPixelColor(0, pixels.Color(brightness, abs((100 - brightness)), abs((50 - brightness))));  // RGB
       break;
     default:
       break;
@@ -566,6 +573,9 @@ void update_values() {
 #endif
 #ifdef TESLA_MODEL_3_BATTERY
   update_values_tesla_model_3_battery();  // Map the values to the correct registers
+#endif
+#ifdef TEST_FAKE_BATTERY
+  update_values_test_battery();  // Map the fake values to the correct registers
 #endif
   // Inverter
 #ifdef BYD_CAN

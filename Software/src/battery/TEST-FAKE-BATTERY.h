@@ -1,8 +1,13 @@
-#ifndef SOFAR_CAN_H
-#define SOFAR_CAN_H
+#ifndef TEST_FAKE_BATTERY_H
+#define TEST_FAKE_BATTERY_H
 #include <Arduino.h>
 #include "../../USER_SETTINGS.h"
+#include "../devboard/config.h"  // Needed for LED defines
 #include "../lib/miwagner-ESP32-Arduino-CAN/ESP32CAN.h"
+
+#define ABSOLUTE_MAX_VOLTAGE \
+  4040  // 404.4V,if battery voltage goes over this, charging is not possible (goes into forced discharge)
+#define ABSOLUTE_MIN_VOLTAGE 3100  // 310.0V if battery voltage goes under this, discharging further is disabled
 
 // These parameters need to be mapped for the inverter
 extern uint16_t SOC;                         //SOC%, 0-100.00 (0-10000)
@@ -20,12 +25,9 @@ extern uint16_t temperature_min;   //C+1,  Goes thru convert2unsignedint16 funct
 extern uint16_t temperature_max;   //C+1,  Goes thru convert2unsignedint16 function (15.0C = 150, -15.0C =  65385)
 extern uint16_t cell_max_voltage;  //mV,   0-4350
 extern uint16_t cell_min_voltage;  //mV,   0-4350
-extern uint8_t LEDcolor;           //Enum, 0-10
 extern bool batteryAllowsContactorClosing;  //Bool, 1=true, 0=false
-
-extern uint16_t min_voltage;
-extern uint16_t max_voltage;
-// Definitions for BMS status
+extern uint8_t LEDcolor;                    //Enum, 0-10
+// Definitions for bms_status
 #define STANDBY 0
 #define INACTIVE 1
 #define DARKSTART 2
@@ -33,8 +35,8 @@ extern uint16_t max_voltage;
 #define FAULT 4
 #define UPDATING 5
 
-void update_values_can_sofar();
-void send_can_sofar();
-void receive_can_sofar(CAN_frame_t rx_frame);
+void update_values_test_battery();
+void receive_can_test_battery(CAN_frame_t rx_frame);
+void send_can_test_battery();
 
 #endif
