@@ -17,7 +17,9 @@
 
 // Interval settings
 int intervalUpdateValues = 4800;  // Interval at which to update inverter values / Modbus registers
+const int interval1 = 1;          // Interval for 1ms tasks
 const int interval10 = 10;        // Interval for 10ms tasks
+unsigned long previousMillis1ms = 0;
 unsigned long previousMillis10ms = 50;
 unsigned long previousMillisUpdateVal = 0;
 
@@ -129,6 +131,9 @@ void loop() {
 #ifdef DUAL_CAN
   receive_can2();
 #endif
+#ifdef SERIAL_LINK_TRANSMITTER_INVERTER
+  receive_serial();
+#endif
 
   // Process
   if (millis() - previousMillis10ms >= interval10)  // Every 10ms
@@ -150,6 +155,9 @@ void loop() {
   send_can();  // Send CAN messages
 #ifdef DUAL_CAN
   send_can2();
+#endif
+#ifdef SERIAL_LINK_RECEIVER_FROM_BATTERY
+  send_serial();
 #endif
 }
 
@@ -217,6 +225,13 @@ void init_modbus() {
   digitalWrite(RS485_SE_PIN, HIGH);
   pinMode(PIN_5V_EN, OUTPUT);
   digitalWrite(PIN_5V_EN, HIGH);
+
+#if defined(SERIAL_LINK_RECEIVER_FROM_BATTERY) || defined(SERIAL_LINK_TRANSMITTER_INVERTER)
+  Serial2.begin(9600);  // If the Modbus RTU port will be used for serial link
+#if defined(BYD_MODBUS) || defined(LUNA2000_MODBUS)
+#error Modbus pins cannot be used for Serial and Modbus at the same time!
+#endif
+#endif
 
 #ifdef BYD_MODBUS
   // Init Static data to the RTU Modbus
@@ -382,6 +397,22 @@ void send_can() {
 #ifdef TEST_FAKE_BATTERY
   send_can_test_battery();
 #endif
+}
+
+void send_serial() {
+  static unsigned long currentMillis = millis();
+  if (currentMillis - previousMillis1ms >= interval1) {
+    previousMillis1ms = currentMillis;
+    manageSerialLinkReceiver();
+  }
+}
+
+void receive_serial() {
+  static unsigned long currentMillis = millis();
+  if (currentMillis - previousMillis1ms >= interval1) {
+    previousMillis1ms = currentMillis;
+    manageSerialLinkTransmitter();
+  }
 }
 
 #ifdef DUAL_CAN
