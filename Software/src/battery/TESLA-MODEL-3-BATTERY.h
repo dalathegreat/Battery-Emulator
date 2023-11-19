@@ -7,7 +7,8 @@
 
 #define ABSOLUTE_MAX_VOLTAGE \
   4030  // 403.0V,if battery voltage goes over this, charging is not possible (goes into forced discharge)
-#define ABSOLUTE_MIN_VOLTAGE 2450  // 245.0V if battery voltage goes under this, discharging further is disabled
+#define ABSOLUTE_MIN_VOLTAGE 2450    // 245.0V if battery voltage goes under this, discharging further is disabled
+#define MAXCHARGEPOWERALLOWED 15000  // 15000W we use a define since the value supplied by Tesla is always 0
 
 // These parameters need to be mapped for the Inverter
 extern uint16_t SOC;

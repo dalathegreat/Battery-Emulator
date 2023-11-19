@@ -196,9 +196,11 @@ void update_values_tesla_model_3_battery() {  //This function maps all the value
 
   //The allowed charge power behaves strangely. We instead estimate this value
   if (SOC == 10000) {
-    max_target_charge_power = 0;  //When battery is 100% full, set allowed charge W to 0
-  } else {
-    max_target_charge_power = 15000;  //Otherwise we can push 15kW into the pack!
+    max_target_charge_power = 0;            // When battery is 100% full, set allowed charge W to 0
+  } else if (SOC >= 9500 && SOC <= 9999) {  // When battery is between 95-99.99%, ramp the value between Max<->0
+    max_target_charge_power = MAXCHARGEPOWERALLOWED * (1 - (SOC - 9500) / 500);
+  } else {  // Outside the specified SOC range, set the charge power to the maximum
+    max_target_charge_power = MAXCHARGEPOWERALLOWED;
   }
 
   stat_batt_power = (volts * amps);  //TODO: check if scaling is OK
