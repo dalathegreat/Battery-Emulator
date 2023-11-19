@@ -11,6 +11,7 @@
 #include "src/lib/eModbus-eModbus/Logging.h"
 #include "src/lib/eModbus-eModbus/ModbusServerRTU.h"
 #include "src/lib/eModbus-eModbus/scripts/mbServerFCs.h"
+#include "src/lib/mackelec-SerialDataLink/SerialDataLink.h"
 #include "src/lib/miwagner-ESP32-Arduino-CAN/CAN_config.h"
 #include "src/lib/miwagner-ESP32-Arduino-CAN/ESP32CAN.h"
 
