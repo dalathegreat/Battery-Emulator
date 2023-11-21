@@ -157,7 +157,7 @@ static const char* hvilStatusState[] = {"NOT OK",
 #define MAX_CELL_DEVIATION_NCA_NCM 500  //LED turns yellow on the board if mv delta exceeds this value
 
 #define MAX_CELL_VOLTAGE_LFP 3500   //Battery is put into emergency stop if one cell goes over this value
-#define MIN_CELL_VOLTAGE_LFP 2800   //Battery is put into emergency stop if one cell goes over this value
+#define MIN_CELL_VOLTAGE_LFP 2800   //Battery is put into emergency stop if one cell goes below this value
 #define MAX_CELL_DEVIATION_LFP 150  //LED turns yellow on the board if mv delta exceeds this value
 
 void update_values_tesla_model_3_battery() {  //This function maps all the values fetched via CAN to the correct parameters used for modbus
@@ -195,12 +195,12 @@ void update_values_tesla_model_3_battery() {  //This function maps all the value
   }
 
   //The allowed charge power behaves strangely. We instead estimate this value
-  if (SOC == 10000) {
-    max_target_charge_power = 0;  // When battery is 100% full, set allowed charge W to 0
-  } else if (SOC > 9500) {        // When battery is between 95-99.99%, ramp the value between Max<->0
-    max_target_charge_power = MAXCHARGEPOWERALLOWED * (1 - (SOC - 9500) / 500.0);
-  } else {  // Outside the specified SOC range, set the charge power to the maximum
-    max_target_charge_power = MAXCHARGEPOWERALLOWED;
+  max_target_charge_power = MAXCHARGEPOWERALLOWED;
+  if (soc_vi > 950) {  // When battery is between 95-99.99% real SOC, ramp the value between Max<->0
+    max_target_charge_power = MAXCHARGEPOWERALLOWED * (1 - (soc_vi - 950) / 50.0);
+  }
+  if (SOC == 10000) {  // When battery is defined as 100% full, set allowed charge W to 0
+    max_target_charge_power = 0;
   }
 
   stat_batt_power = (volts * amps);  //TODO: check if scaling is OK
