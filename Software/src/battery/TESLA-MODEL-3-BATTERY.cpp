@@ -193,6 +193,9 @@ void update_values_tesla_model_3_battery() {  //This function maps all the value
   } else {
     max_target_discharge_power = temporaryvariable;
   }
+  if (SOC < 20) {  // When battery is lower than 0.20% , set allowed discharge W to 0
+    max_target_discharge_power = 0;
+  }
 
   //The allowed charge power behaves strangely. We instead estimate this value
   max_target_charge_power = MAXCHARGEPOWERALLOWED;
