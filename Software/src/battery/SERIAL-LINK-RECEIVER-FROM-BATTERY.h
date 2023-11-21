@@ -5,14 +5,14 @@
 
 #include <Arduino.h>
 #include "../../USER_SETTINGS.h"
-#include "../lib/SerialDataLink/SerialDataLink.h"
+#include "../devboard/config.h"  // Needed for LED defines
+#include "../lib/mackelec-SerialDataLink/SerialDataLink.h"
 
 //  https://github.com/mackelec/SerialDataLink
 
 #define ABSOLUTE_MAX_VOLTAGE \
   4040  // 404.4V,if battery voltage goes over this, charging is not possible (goes into forced discharge)
 #define ABSOLUTE_MIN_VOLTAGE 3100  // 310.0V if battery voltage goes under this, discharging further is disabled
-
 
 // These parameters need to be mapped for the inverter
 extern uint16_t SOC;                         //SOC%, 0-100.00 (0-10000)
@@ -31,21 +31,8 @@ extern uint16_t temperature_max;   //C+1,  Goes thru convert2unsignedint16 funct
 extern uint16_t cell_max_voltage;  //mV,   0-4350
 extern uint16_t cell_min_voltage;  //mV,   0-4350
 extern bool batteryAllowsContactorClosing;  //Bool, 1=true, 0=false
-
-
-
-
-
+extern uint8_t LEDcolor;                    //Enum, 0-10
 
 void manageSerialLinkReceiver();
-
-
-
-
-
-
-
-
-
 
 #endif

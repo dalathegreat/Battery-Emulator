@@ -399,6 +399,7 @@ void send_can() {
 #endif
 }
 
+#ifdef SERIAL_LINK_RECEIVER_FROM_BATTERY
 void send_serial() {
   static unsigned long currentMillis = millis();
   if (currentMillis - previousMillis1ms >= interval1) {
@@ -406,7 +407,9 @@ void send_serial() {
     manageSerialLinkReceiver();
   }
 }
+#endif
 
+#ifdef SERIAL_LINK_TRANSMITTER_INVERTER
 void receive_serial() {
   static unsigned long currentMillis = millis();
   if (currentMillis - previousMillis1ms >= interval1) {
@@ -414,6 +417,7 @@ void receive_serial() {
     manageSerialLinkTransmitter();
   }
 }
+#endif
 
 #ifdef DUAL_CAN
 void receive_can2() {  // This function is similar to receive_can, but just takes care of inverters in the 2nd bus.
