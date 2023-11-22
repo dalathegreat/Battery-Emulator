@@ -3,6 +3,9 @@
 // Create AsyncWebServer object on port 80
 AsyncWebServer server(80);
 
+// Measure OTA progress
+unsigned long ota_progress_millis = 0;
+
 const char index_html[] PROGMEM = R"rawliteral(
 <!DOCTYPE HTML><html>
 <head>
@@ -49,7 +52,11 @@ void init_webserver() {
             [](AsyncWebServerRequest* request) { request->send_P(200, "text/html", index_html, processor); });
 
   // Send a GET request to <ESP_IP>/update
-  server.on("/update", HTTP_GET, [](AsyncWebServerRequest* request) { request->send(200, "text/plain", "OK"); });
+  server.on("/debug", HTTP_GET,
+            [](AsyncWebServerRequest* request) { request->send(200, "text/plain", "Debug: all OK."); });
+
+  // Initialize ElegantOTA
+  init_ElegantOTA();
 
   // Start server
   server.begin();
@@ -102,6 +109,14 @@ void init_WiFi_STA(const char* ssid, const char* password) {
   }
 }
 
+void init_ElegantOTA() {
+  ElegantOTA.begin(&server);  // Start ElegantOTA
+  // ElegantOTA callbacks
+  ElegantOTA.onStart(onOTAStart);
+  ElegantOTA.onProgress(onOTAProgress);
+  ElegantOTA.onEnd(onOTAEnd);
+}
+
 String processor(const String& var) {
   if (var == "PLACEHOLDER") {
     String content = "";
@@ -135,4 +150,28 @@ String processor(const String& var) {
     return content;
   }
   return String();
+}
+
+void onOTAStart() {
+  // Log when OTA has started
+  Serial.println("OTA update started!");
+  // <Add your own code here>
+}
+
+void onOTAProgress(size_t current, size_t final) {
+  // Log every 1 second
+  if (millis() - ota_progress_millis > 1000) {
+    ota_progress_millis = millis();
+    Serial.printf("OTA Progress Current: %u bytes, Final: %u bytes\n", current, final);
+  }
+}
+
+void onOTAEnd(bool success) {
+  // Log when OTA has finished
+  if (success) {
+    Serial.println("OTA update finished successfully!");
+  } else {
+    Serial.println("There was an error during OTA update!");
+  }
+  // <Add your own code here>
 }

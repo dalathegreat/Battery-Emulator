@@ -4,6 +4,7 @@
 // Load Wi-Fi library
 #include <WiFi.h>
 #include "../../../USER_SETTINGS.h"  // Needed for WiFi ssid and password
+#include "../../lib/ayushsharma82-ElegantOTA/src/ElegantOTA.h"
 #include "../../lib/me-no-dev-AsyncTCP/src/AsyncTCP.h"
 #include "../../lib/me-no-dev-ESPAsyncWebServer/src/ESPAsyncWebServer.h"
 #include "../config.h"  // Needed for LED defines
@@ -43,12 +44,49 @@ void init_WiFi_AP();
 void init_WiFi_STA(const char* ssid, const char* password);
 
 /**
- * @brief Replaces placeholder with content section in web page
+ * @brief Initialization function for ElegantOTA.
+ *
+ * @param[in] void
  * 
+ * @return void
+ */
+void init_ElegantOTA();
+
+/**
+ * @brief Replaces placeholder with content section in web page
+ *
  * @param[in] var
  *
  * @return String
  */
 String processor(const String& var);
+
+/**
+ * @brief Executes on OTA start 
+ *
+ * @param[in] void
+ *
+ * @return void
+ */
+void onOTAStart();
+
+/**
+ * @brief Executes on OTA progress 
+ * 
+ * @param[in] current Current bytes
+ * @param[in] final Final bytes
+ *
+ * @return void
+ */
+void onOTAProgress(size_t current, size_t final);
+
+/**
+ * @brief Executes on OTA end 
+ *
+ * @param[in] void
+ * 
+ * @return bool success: success = true, failed = false
+ */
+void onOTAEnd(bool success);
 
 #endif

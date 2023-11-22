@@ -127,6 +127,9 @@ void setup() {
 
 // Perform main program functions
 void loop() {
+  // Over-the-air updates by ElegantOTA
+  ElegantOTA.loop();
+
   // Input
   receive_can();  // Receive CAN messages. Runs as fast as possible
 #ifdef DUAL_CAN
