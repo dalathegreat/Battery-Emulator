@@ -105,7 +105,12 @@ void init_WiFi_STA(const char* ssid, const char* password) {
 String processor(const String& var) {
   if (var == "PLACEHOLDER") {
     String content = "";
-    content += "<h4>Output</h4>";
+    // Display ssid of network connected to and, if connected to the WiFi, its own IP
+    content += "<h4>SSID: " + String(ssid) + "</h4>";
+    content += "<h4>status: " + wifi_state + "</h4>";
+    if (wifi_connected == true) {
+      content += "<h4>IP: " + WiFi.localIP().toString() + "</h4>";
+    }
     return content;
   }
   return String();
