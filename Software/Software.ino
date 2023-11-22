@@ -288,6 +288,9 @@ void inform_user_on_battery() {
 #ifdef TEST_FAKE_BATTERY
   Serial.println("Test mode with fake battery selected");
 #endif
+#if !defined(ABSOLUTE_MAX_VOLTAGE)
+#error No battery selected! Choose one from the USER_SETTINGS.h file
+#endif
 }
 
 // Functions
