@@ -30,10 +30,10 @@
 
 #ifdef ESP32
 #include <WiFi.h>
-#include <AsyncTCP.h>
+#include "../../me-no-dev-AsyncTCP/src/AsyncTCP.h"
 #elif defined(ESP8266)
 #include <ESP8266WiFi.h>
-#include <ESPAsyncTCP.h>
+#include "../../me-no-dev-AsyncTCP/src/AsyncTCP.h"
 #else
 #error Platform not supported
 #endif
@@ -57,7 +57,7 @@ class AsyncStaticWebHandler;
 class AsyncCallbackWebHandler;
 class AsyncResponseStream;
 
-#ifndef WEBSERVER_H
+#ifndef ESPWEBSERVER_H
 typedef enum {
   HTTP_GET     = 0b00000001,
   HTTP_POST    = 0b00000010,
