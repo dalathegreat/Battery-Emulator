@@ -105,6 +105,27 @@ void init_WiFi_STA(const char* ssid, const char* password) {
 String processor(const String& var) {
   if (var == "PLACEHOLDER") {
     String content = "";
+    // Display LED color
+    content += "<h4>LED color: ";
+    switch (LEDcolor) {
+      case GREEN:
+        content += "GREEN</h4>";
+        break;
+      case YELLOW:
+        content += "YELLOW</h4>";
+        break;
+      case BLUE:
+        content += "BLUE</h4>";
+        break;
+      case RED:
+        content += "RED</h4>";
+        break;
+      case TEST_ALL_COLORS:
+        content += "RAINBOW</h4>";
+        break;
+      default:
+        break;
+    }
     // Display ssid of network connected to and, if connected to the WiFi, its own IP
     content += "<h4>SSID: " + String(ssid) + "</h4>";
     content += "<h4>status: " + wifi_state + "</h4>";
