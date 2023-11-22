@@ -1,0 +1,21 @@
+{
+  "name": "ElegantOTA",
+  "keywords": "ElegantOTA, OTA, Update, ESP8266, ESP32, over, the, air, firmware, filesystem, littlefs, spiffs",
+  "description": "OTA updates made slick and simple for everyone!",
+  "repository":
+  {
+    "type": "git",
+    "url": "https://github.com/ayushsharma82/ElegantOTA.git"
+  },
+  "authors":
+  [
+    {
+      "name": "Ayush Sharma",
+      "email": "asrocks5@gmail.com",
+      "maintainer": true
+    }
+  ],
+  "version": "3.1.0",
+  "frameworks": "arduino",
+  "platforms": ["espressif8266", "espressif32", "raspberrypi"]
+}
