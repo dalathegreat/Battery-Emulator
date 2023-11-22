@@ -26,7 +26,6 @@ CAN_frame_t TESLA_221_2 = {
     .MsgID = 0x221,
     .data = {0x61, 0x15, 0x01, 0x00, 0x00, 0x00, 0x20, 0xBA}};  //Contactor Frame 221 - hv_up_for_drive
 
-static uint32_t temporaryvariable = 0;
 static uint32_t total_discharge = 0;
 static uint32_t total_charge = 0;
 static uint16_t volts = 0;     // V
@@ -186,15 +185,13 @@ void update_values_tesla_model_3_battery() {  //This function maps all the value
 
   remaining_capacity_Wh = (expected_energy_remaining * 100);  //Scale up 60.3kWh -> 60300Wh
 
-  //Calculate the allowed discharge power, cap it if it gets too large
-  temporaryvariable = (max_discharge_current * volts);
-  if (temporaryvariable > 60000) {
-    max_target_discharge_power = 60000;
-  } else {
-    max_target_discharge_power = temporaryvariable;
-  }
-  if (SOC < 20) {  // When battery is lower than 0.20% , set allowed discharge W to 0
+  // Define the allowed discharge power
+  max_target_discharge_power = (max_discharge_current * volts);
+  // Cap the allowed discharge power if battery is empty, or discharge power is higher than the maximum discharge power allowed
+  if (SOC == 0) {
     max_target_discharge_power = 0;
+  } else if (max_target_discharge_power > MAXDISCHARGEPOWERALLOWED) {
+    max_target_discharge_power = MAXDISCHARGEPOWERALLOWED;
   }
 
   //The allowed charge power behaves strangely. We instead estimate this value
@@ -202,7 +199,7 @@ void update_values_tesla_model_3_battery() {  //This function maps all the value
     max_target_charge_power = 0;
   } else if (soc_vi > 950) {  // When real SOC is between 95-99.99%, ramp the value between Max<->0
     max_target_charge_power = MAXCHARGEPOWERALLOWED * (1 - (soc_vi - 950) / 50.0);
-  } else { // No limits, max charging power allowed
+  } else {  // No limits, max charging power allowed
     max_target_charge_power = MAXCHARGEPOWERALLOWED;
   }
 
