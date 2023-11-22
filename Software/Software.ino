@@ -40,7 +40,7 @@ static ACAN2515_Buffer16 gBuffer;
 #define MB_RTU_NUM_VALUES 30000
 #endif
 #if defined(LUNA2000_MODBUS)
-#define MB_RTU_NUM_VALUES 50000
+#define MB_RTU_NUM_VALUES 30000
 #endif
 #if defined(BYD_MODBUS) || defined(LUNA2000_MODBUS)
 uint16_t mbPV[MB_RTU_NUM_VALUES];  // Process variable memory
