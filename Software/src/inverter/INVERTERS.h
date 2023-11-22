@@ -29,4 +29,8 @@
 #include "SOLAX-CAN.h"
 #endif
 
+#ifdef SERIAL_LINK_TRANSMITTER_INVERTER
+#include "SERIAL-LINK-TRANSMITTER-INVERTER.h"
+#endif
+
 #endif
