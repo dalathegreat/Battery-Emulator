@@ -49,27 +49,62 @@ void updateData() {
 */
 
 void manageSerialLinkReceiver() {
+  static bool lasterror = false;
+  static unsigned long lastGood;
+  static uint16_t lastGoodMaxCharge;
+  static uint16_t lastGoodMaxDischarge;
+  static bool initLink = false;
+
+  unsigned long currentTime = millis();
+
+  if (!initLink) {
+    initLink = true;
+    // sends variables every 5000mS even if no change
+    dataLinkReceive.setUpdateInterval(5000);
+#ifdef SERIALDATALINK_MUTEACK
+    dataLinkReceive.muteACK(true);
+#endif
+  }
   dataLinkReceive.run();
   bool readError = dataLinkReceive.checkReadError(true);  // check for error & clear error flag
   LEDcolor = GREEN;
   if (readError) {
     LEDcolor = RED;
-    Serial.println("ERROR: Serial Data Link - Read Error");
+    bms_status = 4;  //FAULT
+    Serial.print(currentTime);
+    Serial.println(" - ERROR: Serial Data Link - Read Error");
+    lasterror = true;
+  } else {
+    if (lasterror) {
+      lasterror = false;
+      Serial.print(currentTime);
+      Serial.println(" - RECOVERY: Serial Data Link - Read GOOD");
+    }
+    lastGood = currentTime;
   }
   if (dataLinkReceive.checkNewData(true))  // true = clear Flag
   {
     __getData();
+    lastGoodMaxCharge = max_target_charge_power;
+    lastGoodMaxDischarge = max_target_discharge_power;
   }
 
-#ifdef INVERTER_SEND_NUM_VARIABLES
-  static bool initLink = false;
-  static unsigned long updateTime = 0;
-  if (!initLink) {
-    initLink = true;
-    // sends variables every 5000mS even if no change
-    dataLinkReceive.setUpdateInterval(5000);
+  unsigned long minutesLost = (currentTime - lastGood) / 60000UL;
+  ;
+  if (minutesLost > 0 && lastGood > 0) {
+    //   lose 25% each minute of data loss
+    if (minutesLost < 4) {
+      max_target_charge_power = (lastGoodMaxCharge * (4 - minutesLost)) / 4;
+      max_target_discharge_power = (lastGoodMaxDischarge * (4 - minutesLost)) / 4;
+    } else {
+      max_target_charge_power = 0;
+      max_target_discharge_power = 0;
+    }
   }
-  unsigned long currentTime = millis();
+
+  static unsigned long updateTime = 0;
+
+#ifdef INVERTER_SEND_NUM_VARIABLES
   if (currentTime - updateTime > 100) {
     updateTime = currentTime;
     dataLinkReceive.run();

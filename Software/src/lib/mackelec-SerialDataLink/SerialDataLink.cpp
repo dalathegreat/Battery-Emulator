@@ -124,8 +124,31 @@ bool SerialDataLink::checkNewData(bool resetFlag) {
   return currentStatus;
 }
 
+void SerialDataLink::muteACK(bool mute)
+{
+  muteAcknowledgement = mute;
+}
+
 void SerialDataLink::run() 
 {
+    unsigned long currentTime = millis();
+    static DataLinkState oldstate;
+
+    
+    // Check if state has not changed for a prolonged period
+    if (oldstate != currentState)
+    {
+      lastStateChangeTime = currentTime;
+      oldstate = currentState;
+    }
+    if ((currentTime - lastStateChangeTime) > stateChangeTimeout) {
+        // Reset the state to Idle and perform necessary cleanup
+        currentState = DataLinkState::Idle;
+        // Perform any additional cleanup or reinitialization here
+        // ...
+
+        lastStateChangeTime = currentTime; // Reset the last state change time
+    }
     switch (currentState) 
     {
       case DataLinkState::Idle:
@@ -146,7 +169,12 @@ void SerialDataLink::run()
           {
               
               constructPacket(); // Construct a new packet if not currently transmitting
-              
+
+              if (muteAcknowledgement)
+              {
+                needToACK = false;
+                needToNACK = false;
+              }
               uint8_t ack; 
               // now it is known which acknoledge need sending since last Reception
               if (needToACK)
@@ -212,6 +240,15 @@ void SerialDataLink::run()
 
         default:
           currentState = DataLinkState::Idle;
+    }
+}
+
+void SerialDataLink::updateState(DataLinkState newState) 
+{
+    if (currentState != newState) 
+    {
+        currentState = newState;
+        lastStateChangeTime = millis();
     }
 }
 

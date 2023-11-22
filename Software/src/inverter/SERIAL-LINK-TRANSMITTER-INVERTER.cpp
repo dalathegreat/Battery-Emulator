@@ -31,6 +31,7 @@ void _getData() {
 void manageSerialLinkTransmitter() {
   static bool initLink = false;
   static unsigned long updateTime = 0;
+  static bool lasterror = false;
 
   dataLinkTransmit.run();
 
@@ -53,9 +54,16 @@ void manageSerialLinkTransmitter() {
     LEDcolor = GREEN;
     if (sendError) {
       LEDcolor = RED;
-      Serial.println("ERROR: Serial Data Link - SEND Error");
+      Serial.print(millis());
+      Serial.println(" - ERROR: Serial Data Link - SEND Error");
+      lasterror = true;
+    } else {
+      if (lasterror) {
+        lasterror = false;
+        Serial.print(millis());
+        Serial.println(" - RECOVERY: Serial Data Link - Send GOOD");
+      }
     }
-    // todo   some error management - LEDS etc
 
     dataLinkTransmit.updateData(0, SOC);
     dataLinkTransmit.updateData(1, StateOfHealth);
