@@ -241,6 +241,15 @@ void update_values_leaf_battery() { /* This function maps all the values fetched
     max_target_discharge_power = 0;
   }
 
+  //Check if SOC% is plausible
+  if (battery_voltage >
+      (ABSOLUTE_MAX_VOLTAGE - 100)) {  // When pack voltage is close to max, and SOC% is still low, raise FAULT
+    if (LB_SOC < 650) {
+      bms_status = FAULT;
+      Serial.println("ERROR: SOC% reported by battery not plausible. Restart battery!");
+    }
+  }
+
   if (LB_Full_CHARGE_flag) {  //Battery reports that it is fully charged stop all further charging incase it hasn't already
     max_target_charge_power = 0;
   }
