@@ -50,12 +50,7 @@ This video explains all the above mentioned steps:
 https://youtu.be/_mH2AjnAjDk
 
 ## Dependencies 📖
-This code uses the following libraries, already located in the lib folder for an easy start:
-- ESP32-Arduino-CAN (https://github.com/miwagner/ESP32-Arduino-CAN/) slightly modified for this usecase
-- eModbus library (https://github.com/eModbus/eModbus)
-- Adafruit Neopixel (https://github.com/adafruit/Adafruit_NeoPixel)
-- mackelec SerialDataLink (https://github.com/mackelec/SerialDataLink)
-- pierremolinaro acan2515 (https://github.com/pierremolinaro/acan2515)
+This code uses two libraries, ESP32-Arduino-CAN (https://github.com/miwagner/ESP32-Arduino-CAN/) slightly modified for this usecase, and the eModbus library (https://github.com/eModbus/eModbus). Both these are already located in the Software folder for an easy start.
 
 It is also based on the info found in the following excellent repositories/websites:
 - https://gitlab.com/pelle8/gen24
