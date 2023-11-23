@@ -32,6 +32,10 @@ void manageSerialLinkTransmitter() {
   static bool initLink = false;
   static unsigned long updateTime = 0;
   static bool lasterror = false;
+  static unsigned long lastNoError = 0;
+  static unsigned long transmitGoodSince = 0;
+
+  unsigned long currentTime = millis();
 
   dataLinkTransmit.run();
 
@@ -43,27 +47,55 @@ void manageSerialLinkTransmitter() {
   }
 #endif
 
-  if (millis() - updateTime > 100) {
-    updateTime = millis();
+  if (currentTime - updateTime > 100) {
+    updateTime = currentTime;
     if (!initLink) {
       initLink = true;
       // sends variables every 5000mS even if no change
       dataLinkTransmit.setUpdateInterval(5000);
     }
     bool sendError = dataLinkTransmit.checkTransmissionError(true);
-    LEDcolor = GREEN;
     if (sendError) {
-      LEDcolor = RED;
-      Serial.print(millis());
+      Serial.print(currentTime);
       Serial.println(" - ERROR: Serial Data Link - SEND Error");
       lasterror = true;
+      transmitGoodSince = currentTime;
     } else {
       if (lasterror) {
         lasterror = false;
-        Serial.print(millis());
+        Serial.print(currentTime);
         Serial.println(" - RECOVERY: Serial Data Link - Send GOOD");
       }
+      lastNoError = currentTime;
     }
+
+    //--- reporting every 60 seconds that transmission is good
+    if (currentTime - transmitGoodSince > 60000) {
+      transmitGoodSince = currentTime;
+      Serial.print(currentTime);
+      Serial.println(" - Transmit Good");
+    }
+
+    //--- report that Errors been ocurring for > 60 seconds
+    if (currentTime - lastNoError > 60000)  // 60 seconds
+    {
+      Serial.print(currentTime);
+      Serial.println(" - Transmit Failed : 60 seconds");
+      bms_status = 4;  //FAULT
+      LEDcolor = RED;
+      // throw error
+    }
+    /*
+		//  lastMessageReceived from CAN bus (Battery)
+		if (currentTime - lastMessageReceived > (5 * 60000) )  // 5 minutes
+		{
+			Serial.print(millis());
+			Serial.println(" - Data Stale : 5 minutes");
+			// throw error
+			
+			// stop transmitting until fresh
+		}
+		*/
 
     dataLinkTransmit.updateData(0, SOC);
     dataLinkTransmit.updateData(1, StateOfHealth);

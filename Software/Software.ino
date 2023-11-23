@@ -131,7 +131,7 @@ void loop() {
 #ifdef DUAL_CAN
   receive_can2();
 #endif
-#ifdef SERIAL_LINK_TRANSMITTER_INVERTER
+#ifdef SERIAL_LINK_RECEIVER
   receive_serial();
 #endif
 
@@ -156,7 +156,7 @@ void loop() {
 #ifdef DUAL_CAN
   send_can2();
 #endif
-#ifdef SERIAL_LINK_RECEIVER_FROM_BATTERY
+#ifdef SERIAL_LINK_TRANSMITTER
   send_serial();
 #endif
 }
@@ -226,8 +226,8 @@ void init_modbus() {
   pinMode(PIN_5V_EN, OUTPUT);
   digitalWrite(PIN_5V_EN, HIGH);
 
-#if defined(SERIAL_LINK_RECEIVER_FROM_BATTERY) || defined(SERIAL_LINK_TRANSMITTER_INVERTER)
-  Serial2.begin(9600);  // If the Modbus RTU port will be used for serial link
+#if defined(SERIAL_LINK_RECEIVER) || defined(SERIAL_LINK_TRANSMITTER)
+  Serial2.begin(9600, SERIAL_8N1, RS485_RX_PIN, RS485_TX_PIN);  // If the Modbus RTU port will be used for serial link
 #if defined(BYD_MODBUS) || defined(LUNA2000_MODBUS)
 #error Modbus pins cannot be used for Serial and Modbus at the same time!
 #endif
@@ -399,20 +399,22 @@ void send_can() {
 #endif
 }
 
-#ifdef SERIAL_LINK_RECEIVER_FROM_BATTERY
-void send_serial() {
+#ifdef SERIAL_LINK_RECEIVER
+//---- Receives serial data and transfers to the Inverter
+void receive_serial() {
   static unsigned long currentMillis = millis();
-  if (currentMillis - previousMillis1ms >= interval1) {
+  if (currentMillis - previousMillis1ms > interval1) {  //--- try 2 second
     previousMillis1ms = currentMillis;
     manageSerialLinkReceiver();
   }
 }
 #endif
 
-#ifdef SERIAL_LINK_TRANSMITTER_INVERTER
-void receive_serial() {
+#ifdef SERIAL_LINK_TRANSMITTER
+//---- Gets data from Battery and serial Transmits the data to the Receiver
+void send_serial() {
   static unsigned long currentMillis = millis();
-  if (currentMillis - previousMillis1ms >= interval1) {
+  if (currentMillis - previousMillis1ms > interval1) {  //--- try 2 second
     previousMillis1ms = currentMillis;
     manageSerialLinkTransmitter();
   }

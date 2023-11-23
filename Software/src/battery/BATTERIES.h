@@ -33,7 +33,7 @@
 #include "TEST-FAKE-BATTERY.h"  //See this file for more Fake battery settings
 #endif
 
-#ifdef SERIAL_LINK_RECEIVER_FROM_BATTERY
+#ifdef SERIAL_LINK_RECEIVER
 #include "SERIAL-LINK-RECEIVER-FROM-BATTERY.h"
 #endif
 

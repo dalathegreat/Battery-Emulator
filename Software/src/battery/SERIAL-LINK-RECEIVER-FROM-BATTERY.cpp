@@ -50,6 +50,7 @@ void updateData() {
 
 void manageSerialLinkReceiver() {
   static bool lasterror = false;
+  static unsigned long last_minutesLost = 0;
   static unsigned long lastGood;
   static uint16_t lastGoodMaxCharge;
   static uint16_t lastGoodMaxDischarge;
@@ -67,10 +68,8 @@ void manageSerialLinkReceiver() {
   }
   dataLinkReceive.run();
   bool readError = dataLinkReceive.checkReadError(true);  // check for error & clear error flag
-  LEDcolor = GREEN;
+
   if (readError) {
-    LEDcolor = RED;
-    bms_status = 4;  //FAULT
     Serial.print(currentTime);
     Serial.println(" - ERROR: Serial Data Link - Read Error");
     lasterror = true;
@@ -80,13 +79,13 @@ void manageSerialLinkReceiver() {
       Serial.print(currentTime);
       Serial.println(" - RECOVERY: Serial Data Link - Read GOOD");
     }
-    lastGood = currentTime;
   }
   if (dataLinkReceive.checkNewData(true))  // true = clear Flag
   {
     __getData();
     lastGoodMaxCharge = max_target_charge_power;
     lastGoodMaxDischarge = max_target_discharge_power;
+    lastGood = currentTime;
   }
 
   unsigned long minutesLost = (currentTime - lastGood) / 60000UL;
@@ -99,6 +98,20 @@ void manageSerialLinkReceiver() {
     } else {
       max_target_charge_power = 0;
       max_target_discharge_power = 0;
+      bms_status = 4;  //Fault state
+      LEDcolor = RED;
+      //----- Throw Error
+    }
+    // report Lost data & Max charge / Discharge reductions
+    if (minutesLost != last_minutesLost) {
+      last_minutesLost = minutesLost;
+      Serial.print(currentTime);
+      Serial.print(" - Minutes without data : ");
+      Serial.print(minutesLost);
+      Serial.print(", max Charge = ");
+      Serial.print(max_target_charge_power);
+      Serial.print(", max Discharge = ");
+      Serial.println(max_target_discharge_power);
     }
   }
 

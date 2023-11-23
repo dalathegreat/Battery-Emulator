@@ -50,6 +50,8 @@
 
 #include <Arduino.h>
 
+
+
 class SerialDataLink {
 public:
     // Constructor
@@ -128,12 +130,12 @@ private:
     bool    dataUpdated[dataArraySizeTX];
     unsigned long lastSent[dataArraySizeTX];
     
-    unsigned long updateInterval = 500;
-    unsigned long ACK_TIMEOUT = 100;
-    unsigned long PACKET_TIMEOUT = 100; // Timeout in milliseconds
+    unsigned long updateInterval = 1000;
+    unsigned long ACK_TIMEOUT = 200;
+    unsigned long PACKET_TIMEOUT = 200; // Timeout in milliseconds
 
     unsigned long lastStateChangeTime = 0;
-    unsigned long stateChangeTimeout = 200;
+    unsigned long stateChangeTimeout = 300;
 
     // Special characters for packet framing
     char headerChar = '<';
