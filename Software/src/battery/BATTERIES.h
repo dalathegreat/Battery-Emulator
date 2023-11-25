@@ -34,7 +34,7 @@
 #endif
 
 #ifdef SERIAL_LINK_RECEIVER
-#include "SERIAL-LINK-RECEIVER-FROM-BATTERY.h"
+#include "SERIAL-LINK-RECEIVER-FROM-BATTERY.h" //See this file for more Serial-battery settings
 #endif
 
 #endif

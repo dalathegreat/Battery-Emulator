@@ -189,7 +189,7 @@ void update_values_can_solax() {  //This function maps all the values fetched fr
 
   //BMS_PackTemps (strange name, since it has voltages?)
   SOLAX_1876.data.u8[2] = (uint8_t)cell_max_voltage;  //TODO: scaling OK?
-  SOLAX_1876.data.u8[3] = (cell_min_voltage >> 8);
+  SOLAX_1876.data.u8[3] = (cell_max_voltage >> 8);
 
   SOLAX_1876.data.u8[6] = (uint8_t)cell_min_voltage;  //TODO: scaling OK?
   SOLAX_1876.data.u8[7] = (cell_min_voltage >> 8);
