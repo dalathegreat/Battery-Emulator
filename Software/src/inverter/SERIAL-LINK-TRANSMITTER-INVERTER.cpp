@@ -82,6 +82,8 @@ void manageSerialLinkTransmitter() {
       Serial.print(currentTime);
       Serial.println(" - Transmit Failed : 60 seconds");
       bms_status = 4;  //FAULT
+      max_target_discharge_power = 0;
+      max_target_charge_power = 0;
       LEDcolor = RED;
       // throw error
     }

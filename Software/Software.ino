@@ -16,7 +16,9 @@
 
 // Interval settings
 int intervalUpdateValues = 4800;  // Interval at which to update inverter values / Modbus registers
+const int interval1 = 1;          // Interval for 1ms tasks
 const int interval10 = 10;        // Interval for 10ms tasks
+unsigned long previousMillis1ms = 0;
 unsigned long previousMillis10ms = 50;
 unsigned long previousMillisUpdateVal = 0;
 
@@ -128,12 +130,9 @@ void loop() {
 #ifdef DUAL_CAN
   receive_can2();
 #endif
-<<<<<<< HEAD
 #ifdef SERIAL_LINK_RECEIVER
   receive_serial();
 #endif
-=======
->>>>>>> main
 
   // Process
   if (millis() - previousMillis10ms >= interval10)  // Every 10ms
@@ -156,12 +155,9 @@ void loop() {
 #ifdef DUAL_CAN
   send_can2();
 #endif
-<<<<<<< HEAD
 #ifdef SERIAL_LINK_TRANSMITTER
   send_serial();
 #endif
-=======
->>>>>>> main
 }
 
 // Initialization functions
@@ -229,7 +225,6 @@ void init_modbus() {
   pinMode(PIN_5V_EN, OUTPUT);
   digitalWrite(PIN_5V_EN, HIGH);
 
-<<<<<<< HEAD
 #if defined(SERIAL_LINK_RECEIVER) || defined(SERIAL_LINK_TRANSMITTER)
   Serial2.begin(9600, SERIAL_8N1, RS485_RX_PIN, RS485_TX_PIN);  // If the Modbus RTU port will be used for serial link
 #if defined(BYD_MODBUS) || defined(LUNA2000_MODBUS)
@@ -237,8 +232,6 @@ void init_modbus() {
 #endif
 #endif
 
-=======
->>>>>>> main
 #ifdef BYD_MODBUS
   // Init Static data to the RTU Modbus
   handle_static_data_modbus_byd();
@@ -408,7 +401,6 @@ void send_can() {
 #endif
 }
 
-<<<<<<< HEAD
 #ifdef SERIAL_LINK_RECEIVER
 //---- Receives serial data and transfers to the Inverter
 void receive_serial() {
@@ -424,15 +416,15 @@ void receive_serial() {
 //---- Gets data from Battery and serial Transmits the data to the Receiver
 void send_serial() {
   static unsigned long currentMillis = millis();
-  if (currentMillis - previousMillis1ms > interval1) {  //--- try 2 second
-    previousMillis1ms = currentMillis;
-    manageSerialLinkTransmitter();
+  if (bms_status == ACTIVE) {
+    if (currentMillis - previousMillis1ms > interval1) {  //--- try 2 second
+      previousMillis1ms = currentMillis;
+      manageSerialLinkTransmitter();
+    }
   }
 }
 #endif
 
-=======
->>>>>>> main
 #ifdef DUAL_CAN
 void receive_can2() {  // This function is similar to receive_can, but just takes care of inverters in the 2nd bus.
   // Depending on which inverter is selected, we forward this to their respective CAN routines
