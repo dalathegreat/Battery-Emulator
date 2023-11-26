@@ -31,6 +31,7 @@ extern uint16_t max_voltage;
 extern uint16_t min_voltage;
 
 void handle_static_data_modbus_byd();
+void verify_temperature_modbus();
 void handle_update_data_modbusp201_byd();
 void handle_update_data_modbusp301_byd();
 void update_modbus_registers_byd();
