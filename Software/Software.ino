@@ -6,7 +6,6 @@
 #include "USER_SETTINGS.h"
 #include "src/battery/BATTERIES.h"
 #include "src/devboard/config.h"
-#include "src/devboard/webserver/webserver.h"
 #include "src/inverter/INVERTERS.h"
 #include "src/lib/adafruit-Adafruit_NeoPixel/Adafruit_NeoPixel.h"
 #include "src/lib/eModbus-eModbus/Logging.h"
@@ -14,6 +13,10 @@
 #include "src/lib/eModbus-eModbus/scripts/mbServerFCs.h"
 #include "src/lib/miwagner-ESP32-Arduino-CAN/CAN_config.h"
 #include "src/lib/miwagner-ESP32-Arduino-CAN/ESP32CAN.h"
+
+#ifdef WEBSERVER
+#include "src/devboard/webserver/webserver.h"
+#endif
 
 // Interval settings
 int intervalUpdateValues = 4800;  // Interval at which to update inverter values / Modbus registers
@@ -110,7 +113,9 @@ bool inverterAllowsContactorClosing = true;
 void setup() {
   init_serial();
 
+#ifdef WEBSERVER
   init_webserver();
+#endif
 
   init_CAN();
 
@@ -127,8 +132,10 @@ void setup() {
 
 // Perform main program functions
 void loop() {
+#ifdef WEBSERVER
   // Over-the-air updates by ElegantOTA
   ElegantOTA.loop();
+#endif
 
   // Input
   receive_can();  // Receive CAN messages. Runs as fast as possible
