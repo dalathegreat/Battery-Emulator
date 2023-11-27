@@ -405,7 +405,6 @@ void send_can() {
 //---- Receives serial data and transfers to the Inverter
 void receive_serial() {
   unsigned long currentMillis = millis();
-  Serial.println(currentMillis);
   if (currentMillis - previousMillis1ms >= interval1) {  //--- try 2 second
     previousMillis1ms = currentMillis;
     manageSerialLinkReceiver();

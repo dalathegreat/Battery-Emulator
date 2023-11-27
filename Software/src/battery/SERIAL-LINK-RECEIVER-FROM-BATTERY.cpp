@@ -125,22 +125,39 @@ void manageSerialLinkReceiver() {
 }
 
 void update_values_serial_link() {
+  Serial.println("Values from battery: ");
   Serial.print("SOC: ");
-  Serial.println(SOC);
-  Serial.println(StateOfHealth);
-  Serial.println(battery_voltage);
-  Serial.println(battery_current);
-  Serial.println(capacity_Wh);
-  Serial.println(remaining_capacity_Wh);
-  Serial.println(max_target_discharge_power);
-  Serial.println(max_target_charge_power);
-  Serial.println(bms_status);
-  Serial.println(bms_char_dis_status);
-  Serial.println(stat_batt_power);
-  Serial.println(temperature_min);
-  Serial.println(temperature_max);
-  Serial.println(cell_max_voltage);
-  Serial.println(cell_min_voltage);
-  Serial.println(batteryAllowsContactorClosing);
-  Serial.println(inverterAllowsContactorClosing);
+  Serial.print(SOC);
+  Serial.print(" SOH: ");
+  Serial.print(StateOfHealth);
+  Serial.print(" Voltage: ");
+  Serial.print(battery_voltage);
+  Serial.print(" Current: ");
+  Serial.print(battery_current);
+  Serial.print(" Capacity: ");
+  Serial.print(capacity_Wh);
+  Serial.print(" Remain cap: ");
+  Serial.print(remaining_capacity_Wh);
+  Serial.print(" Max discharge W: ");
+  Serial.print(max_target_discharge_power);
+  Serial.print(" Max charge W: ");
+  Serial.print(max_target_charge_power);
+  Serial.print(" BMS status: ");
+  Serial.print(bms_status);
+  Serial.print(" BMS status dis/cha: ");
+  Serial.print(bms_char_dis_status);
+  Serial.print(" Power: ");
+  Serial.print(stat_batt_power);
+  Serial.print(" Temp min: ");
+  Serial.print(temperature_min);
+  Serial.print(" Temp max: ");
+  Serial.print(temperature_max);
+  Serial.print(" Cell max: ");
+  Serial.print(cell_max_voltage);
+  Serial.print(" Cell min: ");
+  Serial.print(cell_min_voltage);
+  Serial.print(" batteryAllowsContactorClosing: ");
+  Serial.print(batteryAllowsContactorClosing);
+  Serial.print(" inverterAllowsContactorClosing: ");
+  Serial.print(inverterAllowsContactorClosing);
 }
