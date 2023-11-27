@@ -404,8 +404,9 @@ void send_can() {
 #ifdef SERIAL_LINK_RECEIVER
 //---- Receives serial data and transfers to the Inverter
 void receive_serial() {
-  static unsigned long currentMillis = millis();
-  if (currentMillis - previousMillis1ms > interval1) {  //--- try 2 second
+  unsigned long currentMillis = millis();
+  Serial.println(currentMillis);
+  if (currentMillis - previousMillis1ms >= interval1) {  //--- try 2 second
     previousMillis1ms = currentMillis;
     manageSerialLinkReceiver();
   }
@@ -415,9 +416,9 @@ void receive_serial() {
 #ifdef SERIAL_LINK_TRANSMITTER
 //---- Gets data from Battery and serial Transmits the data to the Receiver
 void send_serial() {
-  static unsigned long currentMillis = millis();
+  unsigned long currentMillis = millis();
   if (bms_status == ACTIVE) {
-    if (currentMillis - previousMillis1ms > interval1) {  //--- try 2 second
+    if (currentMillis - previousMillis1ms >= interval1) {  //--- try 2 second
       previousMillis1ms = currentMillis;
       manageSerialLinkTransmitter();
     }

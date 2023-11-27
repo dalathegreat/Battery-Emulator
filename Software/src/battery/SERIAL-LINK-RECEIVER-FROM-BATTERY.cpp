@@ -125,6 +125,7 @@ void manageSerialLinkReceiver() {
 }
 
 void update_values_serial_link() {
+  Serial.print("SOC: ");
   Serial.println(SOC);
   Serial.println(StateOfHealth);
   Serial.println(battery_voltage);
