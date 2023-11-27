@@ -35,5 +35,6 @@ extern bool batteryAllowsContactorClosing;   //Bool, 1=true, 0=false
 extern bool inverterAllowsContactorClosing;  //Bool, 1=true, 0=false
 
 void manageSerialLinkReceiver();
+void update_values_serial_link();
 
 #endif

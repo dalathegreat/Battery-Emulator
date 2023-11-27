@@ -638,4 +638,7 @@ void update_values() {
 #ifdef SOLAX_CAN
   update_values_can_solax();
 #endif
+#ifdef SERIAL_LINK_RECEIVER
+  update_values_serial_link();
+#endif
 }

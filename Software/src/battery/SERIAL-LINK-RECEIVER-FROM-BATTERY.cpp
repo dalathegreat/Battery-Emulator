@@ -87,7 +87,6 @@ void manageSerialLinkReceiver() {
   }
 
   unsigned long minutesLost = (currentTime - lastGood) / 60000UL;
-  ;
   if (minutesLost > 0 && lastGood > 0) {
     //   lose 25% each minute of data loss
     if (minutesLost < 4) {
@@ -123,4 +122,24 @@ void manageSerialLinkReceiver() {
     updateData();
   }
 #endif
+}
+
+void update_values_serial_link() {
+  Serial.println(SOC);
+  Serial.println(StateOfHealth);
+  Serial.println(battery_voltage);
+  Serial.println(battery_current);
+  Serial.println(capacity_Wh);
+  Serial.println(remaining_capacity_Wh);
+  Serial.println(max_target_discharge_power);
+  Serial.println(max_target_charge_power);
+  Serial.println(bms_status);
+  Serial.println(bms_char_dis_status);
+  Serial.println(stat_batt_power);
+  Serial.println(temperature_min);
+  Serial.println(temperature_max);
+  Serial.println(cell_max_voltage);
+  Serial.println(cell_min_voltage);
+  Serial.println(batteryAllowsContactorClosing);
+  Serial.println(inverterAllowsContactorClosing);
 }
