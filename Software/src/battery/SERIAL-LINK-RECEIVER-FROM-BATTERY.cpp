@@ -2,7 +2,7 @@
 
 #include "SERIAL-LINK-RECEIVER-FROM-BATTERY.h"
 
-//#define INVERTER_SEND_NUM_VARIABLES   3		//---  comment out if nothing to send
+#define INVERTER_SEND_NUM_VARIABLES 1
 #define INVERTER_RECV_NUM_VARIABLES 16
 
 #ifdef INVERTER_SEND_NUM_VARIABLES
@@ -36,11 +36,9 @@ void __getData() {
 
 void updateData() {
   // --- update with fresh data
-  /*
-	dataLinkReceive.updateData(0,var1);
-	dataLinkReceive.updateData(1,var2);
-	dataLinkReceive.updateData(2,var3);
-	*/
+  dataLinkReceive.updateData(0, inverterAllowsContactorClosing);
+  //dataLinkReceive.updateData(1,var2);
+  //dataLinkReceive.updateData(2,var3);
 }
 
 /*

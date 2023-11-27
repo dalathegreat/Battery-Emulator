@@ -9,7 +9,7 @@
 */
 
 #define BATTERY_SEND_NUM_VARIABLES 16
-//#define BATTERY_RECV_NUM_VARIABLES   3		//--- comment out if nothing to receive
+#define BATTERY_RECV_NUM_VARIABLES 1
 
 #ifdef BATTERY_RECV_NUM_VARIABLES
 const uint8_t receivingNumVariables = BATTERY_RECV_NUM_VARIABLES;
@@ -21,11 +21,9 @@ const uint8_t receivingNumVariables = 0;
 SerialDataLink dataLinkTransmit(Serial2, 0x01, 0, BATTERY_SEND_NUM_VARIABLES, receivingNumVariables);
 
 void _getData() {
-  /*
-	var1 = dataLinkTransmit.getReceivedData(0);
-	var2 = dataLinkTransmit.getReceivedData(1);
-	var3 = dataLinkTransmit.getReceivedData(2);
-	*/
+  inverterAllowsContactorClosing = dataLinkTransmit.getReceivedData(0);
+  //var2 = dataLinkTransmit.getReceivedData(1);
+  //var3 = dataLinkTransmit.getReceivedData(2);
 }
 
 void manageSerialLinkTransmitter() {
