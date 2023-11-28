@@ -104,7 +104,7 @@ unsigned long negativeStartTime = 0;
 unsigned long timeSpentInFaultedMode = 0;
 #endif
 bool batteryAllowsContactorClosing = false;
-bool inverterAllowsContactorClosing = true;
+bool inverterAllowsContactorClosing = false;
 
 // Initialization
 void setup() {
@@ -254,24 +254,36 @@ void inform_user_on_inverter() {
   // Inform user what Inverter is used
 #ifdef BYD_CAN
   Serial.println("BYD CAN protocol selected");
+  bool inverterAllowsContactorClosing =
+      true;  // The inverter does not care when contactors are actuated, OK to start with them ON
 #endif
 #ifdef BYD_MODBUS
   Serial.println("BYD Modbus RTU protocol selected");
+  bool inverterAllowsContactorClosing =
+      true;  // The inverter does not care when contactors are actuated, OK to start with them ON
 #endif
 #ifdef LUNA2000_MODBUS
   Serial.println("Luna2000 Modbus RTU protocol selected");
+  bool inverterAllowsContactorClosing =
+      true;  // The inverter does not care when contactors are actuated, OK to start with them ON
 #endif
 #ifdef PYLON_CAN
   Serial.println("PYLON CAN protocol selected");
+  bool inverterAllowsContactorClosing =
+      true;  // The inverter does not care when contactors are actuated, OK to start with them ON
 #endif
 #ifdef SMA_CAN
   Serial.println("SMA CAN protocol selected");
+  bool inverterAllowsContactorClosing =
+      true;  // The inverter does not care when contactors are actuated, OK to start with them ON
 #endif
 #ifdef SOFAR_CAN
   Serial.println("SOFAR CAN protocol selected");
+  bool inverterAllowsContactorClosing =
+      true;  // The inverter does not care when contactors are actuated, OK to start with them ON
 #endif
 #ifdef SOLAX_CAN
-  inverterAllowsContactorClosing = false;  // The inverter needs to allow first on this protocol
+  inverterAllowsContactorClosing = false;  // The inverter needs to allow first on this protocol!
   intervalUpdateValues = 800;              // This protocol also requires the values to be updated faster
   Serial.println("SOLAX CAN protocol selected");
 #endif
