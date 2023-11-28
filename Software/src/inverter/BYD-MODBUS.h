@@ -29,6 +29,7 @@ extern uint16_t capacity_Wh_startup;
 extern uint16_t max_power;
 extern uint16_t max_voltage;
 extern uint16_t min_voltage;
+extern bool LFP_Chemistry;
 
 void handle_static_data_modbus_byd();
 void verify_temperature_modbus();

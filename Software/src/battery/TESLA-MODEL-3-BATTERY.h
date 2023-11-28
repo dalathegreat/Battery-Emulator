@@ -30,6 +30,7 @@ extern uint16_t CANerror;
 extern uint16_t cell_max_voltage;
 extern uint16_t cell_min_voltage;
 extern uint8_t LEDcolor;
+extern bool LFP_Chemistry;
 // Definitions for BMS status
 #define STANDBY 0
 #define INACTIVE 1
