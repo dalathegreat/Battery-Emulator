@@ -176,7 +176,7 @@ void update_values_tesla_model_3_battery() {  //This function maps all the value
 
   battery_voltage = (volts * 10);  //One more decimal needed (370 -> 3700)
 
-  battery_current = (amps * 10);  //Increase decimal (13A -> 13.0A)
+  battery_current = convert2unsignedInt16(amps);  //13.0A
 
   capacity_Wh = (nominal_full_pack_energy * 100);  //Scale up 75.2kWh -> 75200Wh
   if (capacity_Wh > 60000) {
@@ -297,7 +297,7 @@ void update_values_tesla_model_3_battery() {  //This function maps all the value
   Serial.print("Real SOC: ");
   Serial.print(soc_vi);
   print_int_with_units(", Battery voltage: ", volts, "V");
-  print_int_with_units(", Battery current: ", amps, "A");
+  print_int_with_units(", Battery current: ", (amps * 0.1), "A");
   Serial.println("");
   print_int_with_units("Discharge limit battery: ", discharge_limit, "kW");
   Serial.print(", ");
@@ -383,12 +383,8 @@ void receive_can_tesla_model_3_battery(CAN_frame_t rx_frame) {
       break;
     case 0x132:
       //battery amps/volts
-      volts = ((rx_frame.data.u8[1] << 8) | rx_frame.data.u8[0]) * 0.01;  //Example 37030mv * 0.01 = 370V
-      amps = ((rx_frame.data.u8[3] << 8) | rx_frame.data.u8[2]);          //Example 65492 (-4.3A) OR 225 (22.5A)
-      if (amps > 32768) {
-        amps = -(65535 - amps);
-      }
-      amps = amps * 0.1;
+      volts = ((rx_frame.data.u8[1] << 8) | rx_frame.data.u8[0]) * 0.01;      //Example 37030mv * 0.01 = 370V
+      amps = ((rx_frame.data.u8[3] << 8) | rx_frame.data.u8[2]);              //Example 65492 (-4.3A) OR 225 (22.5A)
       raw_amps = ((rx_frame.data.u8[5] << 8) | rx_frame.data.u8[4]) * -0.05;  //Example 10425 * -0.05 = ?
       battery_charge_time_remaining =
           (((rx_frame.data.u8[7] & 0x0F) << 8) | rx_frame.data.u8[6]) * 0.1;  //Example 228 * 0.1 = 22.8min
