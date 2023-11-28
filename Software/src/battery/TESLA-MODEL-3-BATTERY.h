@@ -29,7 +29,8 @@ extern uint16_t temperature_max;   //C+1,  Goes thru convert2unsignedint16 funct
 extern uint16_t cell_max_voltage;  //mV,   0-4350
 extern uint16_t cell_min_voltage;  //mV,   0-4350
 extern uint8_t LEDcolor;           //Enum, 0-10
-extern bool batteryAllowsContactorClosing;  //Bool, 1=true, 0=false
+extern bool batteryAllowsContactorClosing;   //Bool, 1=true, 0=false
+extern bool inverterAllowsContactorClosing;  //Bool, 1=true, 0=false
 // Definitions for BMS status
 #define STANDBY 0
 #define INACTIVE 1

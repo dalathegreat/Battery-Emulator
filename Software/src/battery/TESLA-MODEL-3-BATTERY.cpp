@@ -519,16 +519,18 @@ the first, for a few cycles, then stop all  messages which causes the contactor 
   if (currentMillis - previousMillis30 >= interval30) {
     previousMillis30 = currentMillis;
 
-    if (bms_status == ACTIVE) {
-      send221still = 50;
-      batteryAllowsContactorClosing = true;
-      ESP32Can.CANWriteFrame(&TESLA_221_1);
-      ESP32Can.CANWriteFrame(&TESLA_221_2);
-    } else {  //bms_status == FAULT
-      if (send221still > 0) {
-        batteryAllowsContactorClosing = false;
+    if (inverterAllowsContactorClosing == 1) {
+      if (bms_status == ACTIVE) {
+        send221still = 50;
+        batteryAllowsContactorClosing = true;
         ESP32Can.CANWriteFrame(&TESLA_221_1);
-        send221still--;
+        ESP32Can.CANWriteFrame(&TESLA_221_2);
+      } else {  //bms_status == FAULT or inverter requested opening contactors
+        if (send221still > 0) {
+          batteryAllowsContactorClosing = false;
+          ESP32Can.CANWriteFrame(&TESLA_221_1);
+          send221still--;
+        }
       }
     }
   }
