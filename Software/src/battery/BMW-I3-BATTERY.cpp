@@ -8,8 +8,10 @@
 
 /* Do not change code below unless you are sure what you are doing */
 static unsigned long previousMillis20 = 0;   // will store last time a 20ms CAN Message was send
+static unsigned long previousMillis100 = 0;  // will store last time a 20ms CAN Message was send
 static unsigned long previousMillis600 = 0;  // will store last time a 600ms CAN Message was send
 static const int interval20 = 20;            // interval (ms) at which send CAN Messages
+static const int interval100 = 100;          // interval (ms) at which send CAN Messages
 static const int interval600 = 600;          // interval (ms) at which send CAN Messages
 static uint8_t CANstillAlive = 12;           //counter for checking if CAN is still alive
 
@@ -23,15 +25,28 @@ CAN_frame_t BMW_10B = {.FIR = {.B =
                                    }},
                        .MsgID = 0x10B,
                        .data = {0xCD, 0x01, 0xFC}};
-CAN_frame_t BMW_512 = {
-    .FIR = {.B =
-                {
-                    .DLC = 8,
-                    .FF = CAN_frame_std,
-                }},
-    .MsgID = 0x512,
-    .data = {0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x12}};  //0x512   Network management edme   VCU
-//CAN_frame_t BMW_12F //Might be needed,    Wake up ,VCU 100ms
+CAN_frame_t BMW_512 = {.FIR = {.B =
+                                   {
+                                       .DLC = 8,
+                                       .FF = CAN_frame_std,
+                                   }},
+                       .MsgID = 0x512,
+                       .data = {0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x12}};  //0x512 Network management edme VCU
+CAN_frame_t BMW_12F = {.FIR = {.B =
+                                   {
+                                       .DLC = 8,
+                                       .FF = CAN_frame_std,
+                                   }},
+                       .MsgID = 0x12F,
+                       .data = {0xE8, 0x28, 0x86, 0x1C, 0xF1, 0x31, 0x33, 0x00}};  //0x12F Wakeup VCU
+CAN_frame_t BMW_1A1 = {.FIR = {.B =
+                                   {
+                                       .DLC = 5,
+                                       .FF = CAN_frame_std,
+                                   }},
+                       .MsgID = 0x1A1,
+                       .data = {0x08, 0xC1, 0x00, 0x00, 0x81}};  //0x1A1 Vehicle speed
+
 //These CAN messages need to be sent towards the battery to keep it alive
 
 static const uint8_t BMW_10B_0[15] = {0xCD, 0x19, 0x94, 0x6D, 0xE0, 0x34, 0x78, 0xDB,
@@ -171,12 +186,6 @@ void receive_can_i3_battery(CAN_frame_t rx_frame) {
 }
 void send_can_i3_battery() {
   unsigned long currentMillis = millis();
-  // Send 600ms CAN Message
-  if (currentMillis - previousMillis600 >= interval600) {
-    previousMillis600 = currentMillis;
-
-    ESP32Can.CANWriteFrame(&BMW_512);
-  }
   //Send 20ms message
   if (currentMillis - previousMillis20 >= interval20) {
     previousMillis20 = currentMillis;
@@ -189,5 +198,18 @@ void send_can_i3_battery() {
     }
 
     ESP32Can.CANWriteFrame(&BMW_10B);
+    ESP32Can.CANWriteFrame(&BMW_1A1);
+  }
+  // Send 100ms CAN Message
+  if (currentMillis - previousMillis100 >= interval100) {
+    previousMillis100 = currentMillis;
+
+    ESP32Can.CANWriteFrame(&BMW_12F);
+  }
+  // Send 600ms CAN Message
+  if (currentMillis - previousMillis600 >= interval600) {
+    previousMillis600 = currentMillis;
+
+    ESP32Can.CANWriteFrame(&BMW_512);
   }
 }
