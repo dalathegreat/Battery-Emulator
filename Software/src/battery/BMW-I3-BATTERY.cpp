@@ -7,15 +7,17 @@
 // Check if I3 battery stays alive with only 10B and 512. If not, add 12F. If that doesn't help, add more from CAN log (ask Dala)
 
 /* Do not change code below unless you are sure what you are doing */
-static unsigned long previousMillis10 = 0;   // will store last time a 20ms CAN Message was send
-static unsigned long previousMillis20 = 0;   // will store last time a 20ms CAN Message was send
-static unsigned long previousMillis100 = 0;  // will store last time a 20ms CAN Message was send
-static unsigned long previousMillis600 = 0;  // will store last time a 600ms CAN Message was send
-static const int interval10 = 10;            // interval (ms) at which send CAN Messages
-static const int interval20 = 20;            // interval (ms) at which send CAN Messages
-static const int interval100 = 100;          // interval (ms) at which send CAN Messages
-static const int interval600 = 600;          // interval (ms) at which send CAN Messages
-static uint8_t CANstillAlive = 12;           //counter for checking if CAN is still alive
+static unsigned long previousMillis10 = 0;    // will store last time a 20ms CAN Message was send
+static unsigned long previousMillis20 = 0;    // will store last time a 20ms CAN Message was send
+static unsigned long previousMillis100 = 0;   // will store last time a 20ms CAN Message was send
+static unsigned long previousMillis600 = 0;   // will store last time a 600ms CAN Message was send
+static unsigned long previousMillis1000 = 0;  // will store last time a 1000ms CAN Message was send
+static const int interval10 = 10;             // interval (ms) at which send CAN Messages
+static const int interval20 = 20;             // interval (ms) at which send CAN Messages
+static const int interval100 = 100;           // interval (ms) at which send CAN Messages
+static const int interval600 = 600;           // interval (ms) at which send CAN Messages
+static const int interval1000 = 1000;         // interval (ms) at which send CAN Messages
+static uint8_t CANstillAlive = 12;            //counter for checking if CAN is still alive
 
 #define LB_MAX_SOC 1000  //BMS never goes over this value. We use this info to rescale SOC% sent to Inverter
 #define LB_MIN_SOC 0     //BMS never goes below this value. We use this info to rescale SOC% sent to Inverter
@@ -55,6 +57,13 @@ CAN_frame_t BMW_1A1 = {.FIR = {.B =
                                    }},
                        .MsgID = 0x1A1,
                        .data = {0x08, 0xC1, 0x00, 0x00, 0x81}};  //0x1A1 Vehicle speed
+CAN_frame_t BMW_3F9 = {.FIR = {.B =
+                                   {
+                                       .DLC = 8,
+                                       .FF = CAN_frame_std,
+                                   }},
+                       .MsgID = 0x3F9,
+                       .data = {0x1F, 0x34, 0x00, 0xE2, 0xA6, 0x30, 0xC3, 0xFF}};
 
 //These CAN messages need to be sent towards the battery to keep it alive
 
@@ -226,5 +235,11 @@ void send_can_i3_battery() {
     previousMillis600 = currentMillis;
 
     ESP32Can.CANWriteFrame(&BMW_512);
+  }
+  // Send 1000ms CAN Message
+  if (currentMillis - previousMillis1000 >= interval1000) {
+    previousMillis1000 = currentMillis;
+
+    ESP32Can.CANWriteFrame(&BMW_3F9);
   }
 }
