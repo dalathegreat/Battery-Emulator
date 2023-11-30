@@ -7,9 +7,11 @@
 // Check if I3 battery stays alive with only 10B and 512. If not, add 12F. If that doesn't help, add more from CAN log (ask Dala)
 
 /* Do not change code below unless you are sure what you are doing */
+static unsigned long previousMillis10 = 0;   // will store last time a 20ms CAN Message was send
 static unsigned long previousMillis20 = 0;   // will store last time a 20ms CAN Message was send
 static unsigned long previousMillis100 = 0;  // will store last time a 20ms CAN Message was send
 static unsigned long previousMillis600 = 0;  // will store last time a 600ms CAN Message was send
+static const int interval10 = 10;            // interval (ms) at which send CAN Messages
 static const int interval20 = 20;            // interval (ms) at which send CAN Messages
 static const int interval100 = 100;          // interval (ms) at which send CAN Messages
 static const int interval600 = 600;          // interval (ms) at which send CAN Messages
@@ -18,6 +20,13 @@ static uint8_t CANstillAlive = 12;           //counter for checking if CAN is st
 #define LB_MAX_SOC 1000  //BMS never goes over this value. We use this info to rescale SOC% sent to Inverter
 #define LB_MIN_SOC 0     //BMS never goes below this value. We use this info to rescale SOC% sent to Inverter
 
+CAN_frame_t BMW_BB = {.FIR = {.B =
+                                  {
+                                      .DLC = 3,
+                                      .FF = CAN_frame_std,
+                                  }},
+                      .MsgID = 0xBB,
+                      .data = {0x7D, 0xFF, 0xFF}};
 CAN_frame_t BMW_10B = {.FIR = {.B =
                                    {
                                        .DLC = 3,
@@ -186,6 +195,12 @@ void receive_can_i3_battery(CAN_frame_t rx_frame) {
 }
 void send_can_i3_battery() {
   unsigned long currentMillis = millis();
+  //Send 10ms message
+  if (currentMillis - previousMillis10 >= interval10) {
+    previousMillis10 = currentMillis;
+
+    ESP32Can.CANWriteFrame(&BMW_BB);
+  }
   //Send 20ms message
   if (currentMillis - previousMillis20 >= interval20) {
     previousMillis20 = currentMillis;
