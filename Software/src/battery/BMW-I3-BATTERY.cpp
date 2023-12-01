@@ -4,7 +4,7 @@
 
 //TODO: before using
 // Map the final values in update_values_i3_battery, set some to static values if not available (current, discharge max , charge max)
-// Check if I3 battery stays alive with only 10B and 512. If not, add 12F. If that doesn't help, add more from CAN log (ask Dala)
+// 0x2A0 / 0x397 / 0x540 / 0x560 / 0x510 / 0x2FC / 0x2F1 skipped since not in logs
 
 /* Do not change code below unless you are sure what you are doing */
 static unsigned long previousMillis10 = 0;    // will store last time a 20ms CAN Message was send
@@ -60,7 +60,7 @@ CAN_frame_t BMW_12F = {.FIR = {.B =
                                        .FF = CAN_frame_std,
                                    }},
                        .MsgID = 0x12F,
-                       .data = {0xE8, 0x28, 0x86, 0x1C, 0xF1, 0x31, 0x33, 0x00}};  //0x12F Wakeup VCU
+                       .data = {0xE8, 0x28, 0x8A, 0x1C, 0xF1, 0x31, 0x33, 0x00}};  //0x12F Wakeup VCU
 CAN_frame_t BMW_1A1 = {.FIR = {.B =
                                    {
                                        .DLC = 5,
@@ -68,6 +68,13 @@ CAN_frame_t BMW_1A1 = {.FIR = {.B =
                                    }},
                        .MsgID = 0x1A1,
                        .data = {0x08, 0xC1, 0x00, 0x00, 0x81}};  //0x1A1 Vehicle speed
+CAN_frame_t BMW_2FA = {.FIR = {.B =
+                                   {
+                                       .DLC = 6,
+                                       .FF = CAN_frame_std,
+                                   }},
+                       .MsgID = 0x2FA,
+                       .data = {0x0F, 0x00, 0xFF, 0xFF, 0xFF, 0xFF}};
 CAN_frame_t BMW_3F9 = {.FIR = {.B =
                                    {
                                        .DLC = 8,
@@ -89,6 +96,13 @@ CAN_frame_t BMW_3E8 = {.FIR = {.B =
                                    }},
                        .MsgID = 0x3E8,
                        .data = {0xF1, 0xFF}};  //1000ms OBD reset
+CAN_frame_t BMW_3E9 = {.FIR = {.B =
+                                   {
+                                       .DLC = 8,
+                                       .FF = CAN_frame_std,
+                                   }},
+                       .MsgID = 0x3E9,
+                       .data = {0xB0, 0x81, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00}};
 CAN_frame_t BMW_328 = {.FIR = {.B =
                                    {
                                        .DLC = 6,
@@ -96,6 +110,13 @@ CAN_frame_t BMW_328 = {.FIR = {.B =
                                    }},
                        .MsgID = 0x328,
                        .data = {0xB0, 0x33, 0xBF, 0x0C, 0xD3, 0x20}};
+CAN_frame_t BMW_330 = {.FIR = {.B =
+                                   {
+                                       .DLC = 8,
+                                       .FF = CAN_frame_std,
+                                   }},
+                       .MsgID = 0x330,
+                       .data = {0x27, 0x33, 0x01, 0x00, 0x00, 0x00, 0x4D, 0x02}};
 CAN_frame_t BMW_51A = {.FIR = {.B =
                                    {
                                        .DLC = 8,
@@ -216,27 +237,27 @@ void receive_can_i3_battery(CAN_frame_t rx_frame) {
       Battery_Status = (rx_frame.data.u8[6] & 0x0F);
       DC_link = rx_frame.data.u8[7];
       break;
-    case 0x430:
+    case 0x430:  //BMS
       break;
-    case 0x1FA:
+    case 0x1FA:  //BMS
       break;
-    case 0x40D:
+    case 0x40D:  //BMS
       break;
-    case 0x2FF:
+    case 0x2FF:  //BMS
       break;
-    case 0x239:
+    case 0x239:  //BMS
       break;
-    case 0x2BD:
+    case 0x2BD:  //BMS
       break;
-    case 0x2F5:
+    case 0x2F5:  //BMS
       break;
-    case 0x3EB:
+    case 0x3EB:  //BMS
       break;
-    case 0x363:
+    case 0x363:  //BMS
       break;
     case 0x507:
       break;
-    case 0x41C:
+    case 0x41C:  //BMS
       break;
     default:
       break;
@@ -275,12 +296,14 @@ void send_can_i3_battery() {
     previousMillis200 = currentMillis;
 
     ESP32Can.CANWriteFrame(&BMW_03C);
+    ESP32Can.CANWriteFrame(&BMW_3E9);
   }
   // Send 600ms CAN Message
   if (currentMillis - previousMillis600 >= interval600) {
     previousMillis600 = currentMillis;
 
     ESP32Can.CANWriteFrame(&BMW_512);
+    ESP32Can.CANWriteFrame(&BMW_51A);
   }
   // Send 1000ms CAN Message
   if (currentMillis - previousMillis1000 >= interval1000) {
@@ -293,14 +316,15 @@ void send_can_i3_battery() {
     BMW_328.data.u8[3] = BMW_328_counter << 24;
 
     ESP32Can.CANWriteFrame(&BMW_328);
-    ESP32Can.CANWriteFrame(&BMW_51A);
     ESP32Can.CANWriteFrame(&BMW_3F9);
     ESP32Can.CANWriteFrame(&BMW_3E8);
+    ESP32Can.CANWriteFrame(&BMW_2FA);
   }
   // Send 5000ms CAN Message
   if (currentMillis - previousMillis5000 >= interval5000) {
     previousMillis5000 = currentMillis;
 
     ESP32Can.CANWriteFrame(&BMW_3A0);
+    ESP32Can.CANWriteFrame(&BMW_330);
   }
 }
