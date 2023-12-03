@@ -4,7 +4,7 @@
 
 //TODO: before using
 // Map the final values in update_values_i3_battery, set some to static values if not available (current, discharge max , charge max)
-// Possible future improvements: Better 13E handling , 2B7 , 2E2 , 2B3, 3A4, add 0x59A
+// Possible future improvements: Better 13E handling , 2B7 , 2E2 , 2B3, 3A4, add 0x59A 0x515
 
 /* Do not change code below unless you are sure what you are doing */
 static unsigned long previousMillis10 = 0;     // will store last time a 10ms CAN Message was send
@@ -132,6 +132,13 @@ CAN_frame_t BMW_2B7 = {.FIR = {.B =
                                    }},
                        .MsgID = 0x2B7,
                        .data = {0x18, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00}};
+CAN_frame_t BMW_2CA = {.FIR = {.B =
+                                   {
+                                       .DLC = 2,
+                                       .FF = CAN_frame_std,
+                                   }},
+                       .MsgID = 0x2CA,
+                       .data = {0x74, 0x75}};
 CAN_frame_t BMW_2E2 = {.FIR = {.B =
                                    {
                                        .DLC = 8,
@@ -160,6 +167,13 @@ CAN_frame_t BMW_32F = {.FIR = {.B =
                                    }},
                        .MsgID = 0x32F,
                        .data = {0x42, 0x44, 0x43, 0x00, 0x44, 0x44, 0x56, 0x92}};
+CAN_frame_t BMW_326 = {.FIR = {.B =
+                                   {
+                                       .DLC = 8,
+                                       .FF = CAN_frame_std,
+                                   }},
+                       .MsgID = 0x326,
+                       .data = {0x00, 0x00, 0xE0, 0x15, 0x00, 0x00, 0x00, 0x64}};
 CAN_frame_t BMW_512 = {.FIR = {.B =
                                    {
                                        .DLC = 8,
@@ -265,6 +279,13 @@ CAN_frame_t BMW_3C9 = {.FIR = {.B =
                                    }},
                        .MsgID = 0x3C9,
                        .data = {0xAC, 0x13, 0x09, 0x0A, 0x92, 0x00, 0xF0, 0x39}};
+CAN_frame_t BMW_3D0 = {.FIR = {.B =
+                                   {
+                                       .DLC = 2,
+                                       .FF = CAN_frame_std,
+                                   }},
+                       .MsgID = 0x3D0,
+                       .data = {0xFD, 0xFF}};
 CAN_frame_t BMW_3E5 = {.FIR = {.B =
                                    {
                                        .DLC = 3,
@@ -796,6 +817,7 @@ void send_can_i3_battery() {
     }
 
     ESP32Can.CANWriteFrame(&BMW_19E);
+    ESP32Can.CANWriteFrame(&BMW_326);
   }
   // Send 600ms CAN Message
   if (currentMillis - previousMillis600 >= interval600) {
@@ -844,6 +866,8 @@ void send_can_i3_battery() {
     ESP32Can.CANWriteFrame(&BMW_3EC);
     ESP32Can.CANWriteFrame(&BMW_418);
     ESP32Can.CANWriteFrame(&BMW_41D);
+    ESP32Can.CANWriteFrame(&BMW_3D0);
+    ESP32Can.CANWriteFrame(&BMW_2CA);
   }
   // Send 5000ms CAN Message
   if (currentMillis - previousMillis5000 >= interval5000) {
