@@ -118,6 +118,13 @@ CAN_frame_t BMW_197 = {.FIR = {.B =
                                    }},
                        .MsgID = 0x197,
                        .data = {0x64, 0xE0, 0x0E, 0xC0}};
+CAN_frame_t BMW_211 = {.FIR = {.B =
+                                   {
+                                       .DLC = 7,
+                                       .FF = CAN_frame_std,
+                                   }},
+                       .MsgID = 0x211,
+                       .data = {0x00, 0xFF, 0xFF, 0x44, 0x00, 0x00, 0x00}};
 CAN_frame_t BMW_2B3 = {.FIR = {.B =
                                    {
                                        .DLC = 8,
@@ -230,6 +237,13 @@ CAN_frame_t BMW_192 = {.FIR = {.B =
                                    }},
                        .MsgID = 0x192,
                        .data = {0xFF, 0xFF, 0xA3, 0x8F, 0x93, 0xFF, 0xFF, 0xFF}};
+CAN_frame_t BMW_150 = {.FIR = {.B =
+                                   {
+                                       .DLC = 8,
+                                       .FF = CAN_frame_std,
+                                   }},
+                       .MsgID = 0x150,
+                       .data = {0x21, 0x00, 0x00, 0x00, 0x00, 0xFF, 0x07, 0x00}};
 CAN_frame_t BMW_105 = {.FIR = {.B =
                                    {
                                        .DLC = 8,
@@ -686,6 +700,7 @@ void send_can_i3_battery() {
     ESP32Can.CANWriteFrame(&BMW_A5);
     ESP32Can.CANWriteFrame(&BMW_AD);
     ESP32Can.CANWriteFrame(&BMW_105);
+    ESP32Can.CANWriteFrame(&BMW_150);
     ESP32Can.CANWriteFrame(&BMW_13D);
   }
   //Send 20ms message
@@ -780,6 +795,7 @@ void send_can_i3_battery() {
     ESP32Can.CANWriteFrame(&BMW_2B3);
     ESP32Can.CANWriteFrame(&BMW_3FD);
     ESP32Can.CANWriteFrame(&BMW_2E3);
+    ESP32Can.CANWriteFrame(&BMW_211);
   }
   // Send 200ms CAN Message
   if (currentMillis - previousMillis200 >= interval200) {
