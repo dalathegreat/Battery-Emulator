@@ -4,14 +4,13 @@
 
 //TODO: before using
 // Map the final values in update_values_i3_battery, set some to static values if not available (current, discharge max , charge max)
-// Possible future improvements: Better 13E handling , 2B7 , 2E2 , 2B3, 3A4
-//Next up is 41D
+// Possible future improvements: Better 13E handling , 2B7 , 2E2 , 2B3, 3A4, add 0x59A
 
 /* Do not change code below unless you are sure what you are doing */
 static unsigned long previousMillis10 = 0;     // will store last time a 10ms CAN Message was send
 static unsigned long previousMillis20 = 0;     // will store last time a 20ms CAN Message was send
 static unsigned long previousMillis30 = 0;     // will store last time a 30ms CAN Message was send
-static unsigned long previousMillis60 = 0;     // will store last time a 60ms CAN Message was send
+static unsigned long previousMillis50 = 0;     // will store last time a 50ms CAN Message was send
 static unsigned long previousMillis100 = 0;    // will store last time a 100ms CAN Message was send
 static unsigned long previousMillis200 = 0;    // will store last time a 200ms CAN Message was send
 static unsigned long previousMillis500 = 0;    // will store last time a 500ms CAN Message was send
@@ -22,7 +21,7 @@ static unsigned long previousMillis10000 = 0;  // will store last time a 10000ms
 static const int interval10 = 10;              // interval (ms) at which send CAN Messages
 static const int interval20 = 20;              // interval (ms) at which send CAN Messages
 static const int interval30 = 30;              // interval (ms) at which send CAN Messages
-static const int interval60 = 60;              // interval (ms) at which send CAN Messages
+static const int interval50 = 50;              // interval (ms) at which send CAN Messages
 static const int interval100 = 100;            // interval (ms) at which send CAN Messages
 static const int interval200 = 200;            // interval (ms) at which send CAN Messages
 static const int interval500 = 500;            // interval (ms) at which send CAN Messages
@@ -42,6 +41,13 @@ CAN_frame_t BMW_BB = {.FIR = {.B =
                                   }},
                       .MsgID = 0xBB,
                       .data = {0x00, 0xFF, 0xFF}};
+CAN_frame_t BMW_AA = {.FIR = {.B =
+                                  {
+                                      .DLC = 8,
+                                      .FF = CAN_frame_std,
+                                  }},
+                      .MsgID = 0xAA,
+                      .data = {0x00, 0xFC, 0x00, 0x7C, 0xC0, 0x5D, 0xD0, 0xF7}};
 CAN_frame_t BMW_AD = {.FIR = {.B =
                                   {
                                       .DLC = 8,
@@ -49,6 +55,13 @@ CAN_frame_t BMW_AD = {.FIR = {.B =
                                   }},
                       .MsgID = 0xAD,
                       .data = {0xFF, 0xFF, 0x7F, 0x00, 0x00, 0x00, 0xF0, 0xFF}};
+CAN_frame_t BMW_A5 = {.FIR = {.B =
+                                  {
+                                      .DLC = 8,
+                                      .FF = CAN_frame_std,
+                                  }},
+                      .MsgID = 0xA5,
+                      .data = {0x47, 0xF0, 0xFF, 0xFF, 0xFF, 0x00, 0x00, 0xFF}};
 CAN_frame_t BMW_100_0 = {.FIR = {.B =
                                      {
                                          .DLC = 8,
@@ -77,6 +90,13 @@ CAN_frame_t BMW_10B = {.FIR = {.B =
                                    }},
                        .MsgID = 0x10B,
                        .data = {0xCD, 0x01, 0xFC}};
+CAN_frame_t BMW_10E = {.FIR = {.B =
+                                   {
+                                       .DLC = 8,
+                                       .FF = CAN_frame_std,
+                                   }},
+                       .MsgID = 0x10E,
+                       .data = {0xFE, 0xE7, 0x7F, 0x00, 0x00, 0x7D, 0x00, 0xF0}};
 CAN_frame_t BMW_13E = {.FIR = {.B =
                                    {
                                        .DLC = 8,
@@ -119,6 +139,13 @@ CAN_frame_t BMW_2E2 = {.FIR = {.B =
                                    }},
                        .MsgID = 0x2E2,
                        .data = {0x4B, 0xDB, 0x7F, 0xB8, 0x57, 0x51, 0xFF, 0x00}};
+CAN_frame_t BMW_2E3 = {.FIR = {.B =
+                                   {
+                                       .DLC = 8,
+                                       .FF = CAN_frame_std,
+                                   }},
+                       .MsgID = 0x2E3,
+                       .data = {0xFE, 0x00, 0x0F, 0x00, 0xFF, 0xFF, 0xFF, 0xFF}};
 CAN_frame_t BMW_2E8 = {.FIR = {.B =
                                    {
                                        .DLC = 8,
@@ -336,6 +363,13 @@ CAN_frame_t BMW_41D = {.FIR = {.B =
                                    }},
                        .MsgID = 0x41D,
                        .data = {0xFF, 0xF7, 0x7F, 0xFF}};
+CAN_frame_t BMW_429 = {.FIR = {.B =
+                                   {
+                                       .DLC = 3,
+                                       .FF = CAN_frame_std,
+                                   }},
+                       .MsgID = 0x429,
+                       .data = {0x00, 0xF0, 0x00}};
 CAN_frame_t BMW_51A = {.FIR = {.B =
                                    {
                                        .DLC = 8,
@@ -366,7 +400,8 @@ CAN_frame_t BMW_560 = {.FIR = {.B =
                        .data = {0x0, 0x0, 0x0, 0x0, 0xFE, 0x00, 0x00, 0x60}};
 
 //These CAN messages need to be sent towards the battery to keep it alive
-
+static const uint8_t BMW_A5_0[15] = {0x47, 0x1A, 0xFD, 0xA0, 0x2E, 0x73, 0x94, 0xC9,
+                                     0x95, 0xC8, 0x2F, 0x72, 0xFC, 0xA1, 0x46};
 static const uint8_t BMW_10B_0[15] = {0xCD, 0x19, 0x94, 0x6D, 0xE0, 0x34, 0x78, 0xDB,
                                       0x97, 0x43, 0x0F, 0xF6, 0xBA, 0x6E, 0x81};
 static const uint8_t BMW_10B_1[15] = {0x01, 0x02, 0x33, 0x34, 0x05, 0x06, 0x07, 0x08,
@@ -391,6 +426,8 @@ static const uint8_t BMW_3EC_0[15] = {0xF5, 0xA8, 0x4F, 0x12, 0x9C, 0xC1, 0x26, 
                                       0x27, 0x7A, 0x9D, 0xC0, 0x4E, 0x13, 0xF4};
 static const uint8_t BMW_3FD_0[15] = {0x84, 0x19, 0xA3, 0x3E, 0xCA, 0x57, 0xED, 0x70,
                                       0x18, 0x85, 0x3F, 0xA2, 0x56, 0xCB, 0x71};
+static const uint8_t BMW_2E3_0[15] = {0xFE, 0xA3, 0x44, 0x19, 0x97, 0xCA, 0x2D, 0x70,
+                                      0x2C, 0x71, 0x96, 0xCB, 0x45, 0x18, 0xFF};
 static const uint8_t BMW_F0_FE[15] = {0xF0, 0xF1, 0xF2, 0xF3, 0xF4, 0xF5, 0xF6, 0xF7,
                                       0xF8, 0xF9, 0xFA, 0xFB, 0xFC, 0xFD, 0xFE};
 static const uint8_t BMW_A0_AE[15] = {0xA0, 0xA1, 0xA2, 0xA3, 0xA4, 0xA5, 0xA6, 0xA7,
@@ -405,7 +442,7 @@ static const uint8_t BMW_19E_0[6] = {0x05, 0x00, 0x05, 0x07, 0x0A, 0x0A};
 static uint8_t BMW_10B_counter = 0;
 static uint8_t BMW_100_0_counter = 0;
 static uint8_t BMW_100_1_counter = 0;
-static uint8_t BMW_105_counter = 0;
+static uint8_t BMW_10ms_counter = 0;
 static uint8_t BMW_153_counter = 0;
 static uint8_t BMW_1D0_counter = 0;
 static uint8_t BMW_197_counter = 0;
@@ -413,10 +450,11 @@ static uint8_t BMW_19E_counter = 0;
 static uint8_t BMW_10_counter = 0;
 static uint8_t BMW_13D_counter = 0;
 static uint8_t BMW_13E_counter = 0;
-static uint8_t BMW_2E8_counter = 0;
+static uint8_t BMW_100ms_counter = 0;
 static uint8_t BMW_3F9_counter = 0;
 static uint8_t BMW_3FC_counter = 0;
 static uint8_t BMW_3A4_counter = 0;
+static uint8_t BMW_429_counter = 0;
 static uint32_t BMW_328_counter = 0;
 
 static int16_t Battery_Current = 0;
@@ -554,12 +592,15 @@ void send_can_i3_battery() {
   if (currentMillis - previousMillis10 >= interval10) {
     previousMillis10 = currentMillis;
 
-    BMW_105.data.u8[0] = BMW_105_0[BMW_105_counter];
-    BMW_105.data.u8[1] = BMW_F0_FE[BMW_105_counter];
+    BMW_105.data.u8[0] = BMW_105_0[BMW_10ms_counter];
+    BMW_105.data.u8[1] = BMW_F0_FE[BMW_10ms_counter];
 
-    BMW_105_counter++;
-    if (BMW_105_counter > 14) {
-      BMW_105_counter = 0;
+    BMW_A5.data.u8[0] = BMW_A5_0[BMW_10ms_counter];
+    BMW_A5.data.u8[1] = BMW_F0_FE[BMW_10ms_counter];
+
+    BMW_10ms_counter++;
+    if (BMW_10ms_counter > 14) {
+      BMW_10ms_counter = 0;
     }
 
     BMW_10_counter++;  //The three first frames of these messages are special
@@ -620,8 +661,10 @@ void send_can_i3_battery() {
     }
 
     ESP32Can.CANWriteFrame(&BMW_BB);
-    ESP32Can.CANWriteFrame(&BMW_105);
+    ESP32Can.CANWriteFrame(&BMW_AA);
+    ESP32Can.CANWriteFrame(&BMW_A5);
     ESP32Can.CANWriteFrame(&BMW_AD);
+    ESP32Can.CANWriteFrame(&BMW_105);
     ESP32Can.CANWriteFrame(&BMW_13D);
   }
   //Send 20ms message
@@ -659,6 +702,7 @@ void send_can_i3_battery() {
     ESP32Can.CANWriteFrame(&BMW_1A1);
     ESP32Can.CANWriteFrame(&BMW_153);
     ESP32Can.CANWriteFrame(&BMW_13E);
+    ESP32Can.CANWriteFrame(&BMW_10E);
   }
   //Send 30ms message
   if (currentMillis - previousMillis30 >= interval30) {
@@ -673,23 +717,38 @@ void send_can_i3_battery() {
 
     ESP32Can.CANWriteFrame(&BMW_197);
   }
-  //Send 60ms message
-  if (currentMillis - previousMillis60 >= interval60) {
-    previousMillis60 = currentMillis;
+  //Send 50ms message
+  if (currentMillis - previousMillis50 >= interval50) {
+    previousMillis50 = currentMillis;
+
+    ESP32Can.CANWriteFrame(&BMW_429);
+
+    BMW_429_counter++;
+    if (BMW_429_counter < 2) {
+      BMW_429.data.u8[0] = 0x88;
+      BMW_429.data.u8[1] = 0xF8;
+    } else {
+      BMW_429.data.u8[0] = 0x2C;
+      BMW_429.data.u8[1] = 0xF8;
+      BMW_429_counter = 3;  //stop the counter
+    }
   }
   // Send 100ms CAN Message
   if (currentMillis - previousMillis100 >= interval100) {
     previousMillis100 = currentMillis;
 
-    BMW_2E8.data.u8[6] = BMW_F0_FE[BMW_2E8_counter];
-    BMW_2E8.data.u8[7] = BMW_2E8_7[BMW_2E8_counter];
+    BMW_2E8.data.u8[6] = BMW_F0_FE[BMW_100ms_counter];
+    BMW_2E8.data.u8[7] = BMW_2E8_7[BMW_100ms_counter];
 
-    BMW_3FD.data.u8[0] = BMW_3FD_0[BMW_2E8_counter];
-    BMW_3FD.data.u8[1] = BMW_2E8_counter;
+    BMW_3FD.data.u8[0] = BMW_3FD_0[BMW_100ms_counter];
+    BMW_3FD.data.u8[1] = BMW_100ms_counter;
 
-    BMW_2E8_counter++;
-    if (BMW_2E8_counter > 14) {
-      BMW_2E8_counter = 0;
+    BMW_2E3.data.u8[0] = BMW_2E3_0[BMW_100ms_counter];
+    BMW_2E3.data.u8[1] = BMW_100ms_counter;
+
+    BMW_100ms_counter++;
+    if (BMW_100ms_counter > 14) {
+      BMW_100ms_counter = 0;
     }
 
     ESP32Can.CANWriteFrame(&BMW_12F);
@@ -699,6 +758,7 @@ void send_can_i3_battery() {
     ESP32Can.CANWriteFrame(&BMW_2E8);
     ESP32Can.CANWriteFrame(&BMW_2B3);
     ESP32Can.CANWriteFrame(&BMW_3FD);
+    ESP32Can.CANWriteFrame(&BMW_2E3);
   }
   // Send 200ms CAN Message
   if (currentMillis - previousMillis200 >= interval200) {
