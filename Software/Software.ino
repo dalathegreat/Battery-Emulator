@@ -14,6 +14,10 @@
 #include "src/lib/miwagner-ESP32-Arduino-CAN/CAN_config.h"
 #include "src/lib/miwagner-ESP32-Arduino-CAN/ESP32CAN.h"
 
+#ifdef WEBSERVER
+#include "src/devboard/webserver/webserver.h"
+#endif
+
 // Interval settings
 int intervalUpdateValues = 4800;  // Interval at which to update inverter values / Modbus registers
 const int interval10 = 10;        // Interval for 10ms tasks
@@ -36,7 +40,7 @@ static ACAN2515_Buffer16 gBuffer;
 #define MB_RTU_NUM_VALUES 30000
 #endif
 #if defined(LUNA2000_MODBUS)
-#define MB_RTU_NUM_VALUES 50000
+#define MB_RTU_NUM_VALUES 30000
 #endif
 #if defined(BYD_MODBUS) || defined(LUNA2000_MODBUS)
 uint16_t mbPV[MB_RTU_NUM_VALUES];  // Process variable memory
@@ -109,6 +113,10 @@ bool inverterAllowsContactorClosing = true;
 void setup() {
   init_serial();
 
+#ifdef WEBSERVER
+  init_webserver();
+#endif
+
   init_CAN();
 
   init_LED();
@@ -124,6 +132,11 @@ void setup() {
 
 // Perform main program functions
 void loop() {
+#ifdef WEBSERVER
+  // Over-the-air updates by ElegantOTA
+  ElegantOTA.loop();
+#endif
+
   // Input
   receive_can();  // Receive CAN messages. Runs as fast as possible
 #ifdef DUAL_CAN

@@ -2,7 +2,7 @@
 #define LUNA2000_MODBUS_H
 #include <Arduino.h>
 
-#define MB_RTU_NUM_VALUES 50000
+#define MB_RTU_NUM_VALUES 30000
 // Definitions for BMS status
 #define STANDBY 0
 #define INACTIVE 1
