@@ -36,6 +36,12 @@ static uint8_t CANstillAlive = 12;             //counter for checking if CAN is 
 #define LB_MAX_SOC 1000  //BMS never goes over this value. We use this info to rescale SOC% sent to Inverter
 #define LB_MIN_SOC 0     //BMS never goes below this value. We use this info to rescale SOC% sent to Inverter
 
+/*
+Extra CAN Info
+0x29E Only broadcasted during fastcharging - Sent by LIM
+0x2B2 Only broadcasted during fastcharging - Sent by LIM
+*/
+
 CAN_frame_t BMW_AA = {.FIR = {.B =
                                   {
                                       .DLC = 8,
@@ -360,11 +366,11 @@ CAN_frame_t BMW_105 = {.FIR = {.B =
                        .data = {0x03, 0xF0, 0x7F, 0xE0, 0x2E, 0x00, 0xFC, 0x0F}};
 CAN_frame_t BMW_2FA = {.FIR = {.B =
                                    {
-                                       .DLC = 6,
+                                       .DLC = 8,
                                        .FF = CAN_frame_std,
                                    }},
                        .MsgID = 0x2FA,
-                       .data = {0x0F, 0x00, 0xFF, 0xFF, 0xFF, 0xFF}};
+                       .data = {0xFD, 0xFF, 0x00, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF}};
 CAN_frame_t BMW_2FC = {.FIR = {.B =
                                    {
                                        .DLC = 8,
@@ -448,7 +454,7 @@ CAN_frame_t BMW_3E9 = {.FIR = {.B =
                                        .FF = CAN_frame_std,
                                    }},
                        .MsgID = 0x3E9,
-                       .data = {0xB0, 0x81, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00}};
+                       .data = {0x5C, 0x8F, 0x21, 0x51, 0x07, 0x00, 0x20, 0xFE}};
 CAN_frame_t BMW_3EC = {.FIR = {.B =
                                    {
                                        .DLC = 8,
@@ -996,7 +1002,7 @@ void send_can_i3_battery() {
       BMW_380_counter--;
     }
 
-    ESP32Can.CANWriteFrame(&BMW_12F);
+    ESP32Can.CANWriteFrame(&BMW_12F);  //2013 i3 switched on
     ESP32Can.CANWriteFrame(&BMW_2FC);
     ESP32Can.CANWriteFrame(&BMW_108);
     ESP32Can.CANWriteFrame(&BMW_2B7);
@@ -1027,7 +1033,7 @@ void send_can_i3_battery() {
     ESP32Can.CANWriteFrame(&BMW_2A0);  //Only in LIM code
     ESP32Can.CANWriteFrame(&BMW_397);  //Only in LIM code
     ESP32Can.CANWriteFrame(&BMW_510);  //Only in LIM code
-    ESP32Can.CANWriteFrame(&BMW_540);  //Only in LIM code
+    ESP32Can.CANWriteFrame(&BMW_540);  //Only in LIM code , 2013 i3 switched ON
     ESP32Can.CANWriteFrame(&BMW_560);  //Only in LIM code
     ESP32Can.CANWriteFrame(&BMW_32F);
     ESP32Can.CANWriteFrame(&BMW_3A4);
@@ -1115,8 +1121,8 @@ void send_can_i3_battery() {
 
     BMW_3FC.data.u8[1] = BMW_C0_CE[BMW_3FC_counter];
 
-    ESP32Can.CANWriteFrame(&BMW_3A0);
-    ESP32Can.CANWriteFrame(&BMW_330);
+    ESP32Can.CANWriteFrame(&BMW_3A0);  //2013 i3 switched on
+    ESP32Can.CANWriteFrame(&BMW_330);  //2013 i3 switched on
     ESP32Can.CANWriteFrame(&BMW_3FC);
   }
   // Send 10000ms CAN Message
