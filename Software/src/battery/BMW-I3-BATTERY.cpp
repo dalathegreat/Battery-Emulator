@@ -133,6 +133,14 @@ CAN_frame_t BMW_10E = {.FIR = {.B =
                                    }},
                        .MsgID = 0x10E,
                        .data = {0xFE, 0xE7, 0x7F, 0x00, 0x00, 0x7D, 0x00, 0xF0}};
+CAN_frame_t BMW_112 = {.FIR = {.B =
+                                   {
+                                       .DLC = 8,
+                                       .FF = CAN_frame_std,
+                                   }},
+                       .MsgID = 0x112,
+                       .data = {0xF9, 0x1F, 0x8B, 0x0E, 0xA6, 0x71, 0x65, 0x5D}};
+//Alternatively 00000112,false,Rx,0,8,DA,24,E8,0E,0D,71,85,5F,
 CAN_frame_t BMW_13E = {.FIR = {.B =
                                    {
                                        .DLC = 8,
@@ -279,7 +287,7 @@ CAN_frame_t BMW_12F = {.FIR = {.B =
                                        .FF = CAN_frame_std,
                                    }},
                        .MsgID = 0x12F,
-                       .data = {0xC2, 0x50, 0x8A, 0xDD, 0xF4, 0x35, 0x30, 0xC1}};  //0x12F Wakeup VCU
+                       .data = {0xF5, 0x28, 0x88, 0x1D, 0xF1, 0x35, 0x30, 0x80}};  //0x12F Wakeup VCU
 CAN_frame_t BMW_13D = {.FIR = {.B =
                                    {
                                        .DLC = 8,
@@ -667,6 +675,7 @@ static uint8_t BMW_380_counter = 4;
 static uint8_t BMW_429_counter = 0;
 static uint32_t BMW_328_counter = 0;
 
+static bool Message112detected = false;
 static int16_t Battery_Current = 0;
 static uint16_t Battery_Capacity_kWh = 0;
 static uint16_t Voltage_Setpoint = 0;
@@ -764,6 +773,7 @@ void receive_can_i3_battery(CAN_frame_t rx_frame) {
       Display_SOC = (rx_frame.data.u8[4] / 2);
       break;
     case 0x112:  //BMS status [10ms] (NOT IN 94AH!)
+      Message112detected = true;
       Battery_Current = ((rx_frame.data.u8[1] << 8 | rx_frame.data.u8[0]) / 10) - 819;  //Amps
       Battery_Volts = (rx_frame.data.u8[3] << 8 | rx_frame.data.u8[2]);                 //500.0 V
       HVBatt_SOC = ((rx_frame.data.u8[5] & 0x0F) << 4 | rx_frame.data.u8[4]) / 10;
@@ -849,6 +859,10 @@ void send_can_i3_battery() {
       BMW_13D.data.u8[5] = 0x0A;
       BMW_13D.data.u8[6] = 0xF6;
       BMW_13D.data.u8[7] = 0xFF;
+    }
+
+    if (!Message112detected) {  //Battery should send this according to some info, but incase it is not, we send
+      ESP32Can.CANWriteFrame(&BMW_112);
     }
 
     ESP32Can.CANWriteFrame(&BMW_C3);
@@ -1003,7 +1017,7 @@ void send_can_i3_battery() {
     }
 
     ESP32Can.CANWriteFrame(&BMW_12F);  //2013 i3 switched on
-    ESP32Can.CANWriteFrame(&BMW_2FC);
+
     ESP32Can.CANWriteFrame(&BMW_108);
     ESP32Can.CANWriteFrame(&BMW_2B7);
     ESP32Can.CANWriteFrame(&BMW_2E8);
@@ -1030,8 +1044,6 @@ void send_can_i3_battery() {
 
     ESP32Can.CANWriteFrame(&BMW_03C);
     ESP32Can.CANWriteFrame(&BMW_3E9);
-    ESP32Can.CANWriteFrame(&BMW_2A0);  //Only in LIM code
-    ESP32Can.CANWriteFrame(&BMW_397);  //Only in LIM code
     ESP32Can.CANWriteFrame(&BMW_510);  //Only in LIM code
     ESP32Can.CANWriteFrame(&BMW_540);  //Only in LIM code , 2013 i3 switched ON
     ESP32Can.CANWriteFrame(&BMW_560);  //Only in LIM code
@@ -1093,6 +1105,7 @@ void send_can_i3_battery() {
       BMW_3F9_counter = 0;
     }
 
+    ESP32Can.CANWriteFrame(&BMW_397);  //Only in LIM code
     ESP32Can.CANWriteFrame(&BMW_328);
     ESP32Can.CANWriteFrame(&BMW_3E8);
     ESP32Can.CANWriteFrame(&BMW_2FA);
@@ -1121,6 +1134,8 @@ void send_can_i3_battery() {
 
     BMW_3FC.data.u8[1] = BMW_C0_CE[BMW_3FC_counter];
 
+    ESP32Can.CANWriteFrame(&BMW_2A0);  //Only in LIM code
+    ESP32Can.CANWriteFrame(&BMW_2FC);
     ESP32Can.CANWriteFrame(&BMW_3A0);  //2013 i3 switched on
     ESP32Can.CANWriteFrame(&BMW_330);  //2013 i3 switched on
     ESP32Can.CANWriteFrame(&BMW_3FC);
