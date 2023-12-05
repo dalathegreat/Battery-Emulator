@@ -4,7 +4,7 @@
 
 //TODO: before using
 // Map the final values in update_values_i3_battery, set some to static values if not available (current, discharge max , charge max)
-// Possible future improvements: Better 13E handling , 2B7 , 2E2 , 2B3, 3A4, 59A 55E 3E4 3C2
+// Possible future improvements: Better 13E handling , 2B7 , 2E2 , 2B3, 3A4, 59A 55E 3E4
 
 /* Do not change code below unless you are sure what you are doing */
 static unsigned long previousMillis10 = 0;     // will store last time a 10ms CAN Message was send
@@ -211,13 +211,6 @@ CAN_frame_t BMW_2E8 = {.FIR = {.B =
                                    }},
                        .MsgID = 0x2E8,
                        .data = {0xC0, 0xE8, 0xC3, 0xFF, 0xFF, 0xF4, 0xF0, 0x09}};
-CAN_frame_t BMW_3C2 = {.FIR = {.B =
-                                   {
-                                       .DLC = 8,
-                                       .FF = CAN_frame_std,
-                                   }},
-                       .MsgID = 0x3C2,
-                       .data = {0x10, 0x83, 0x18, 0x86, 0x61, 0x18, 0x86, 0x61}};
 CAN_frame_t BMW_32F = {.FIR = {.B =
                                    {
                                        .DLC = 8,
@@ -752,50 +745,52 @@ void update_values_i3_battery() {  //This function maps all the values fetched v
 }
 
 void receive_can_i3_battery(CAN_frame_t rx_frame) {
-  CANstillAlive = 12;
-
-  Serial.print(rx_frame.MsgID);
-  Serial.print(" ");
 
   switch (rx_frame.MsgID) {
-    case 0x431:  //Battery capacity [200ms]
+    case 0x431:  //Battery capacity [200ms] (94AH)
       Battery_Capacity_kWh = (((rx_frame.data.u8[1] & 0x0F) << 8 | rx_frame.data.u8[5])) / 50;
       break;
-    case 0x432:  //SOC% charged [200ms]
+    case 0x432:  //SOC% charged [200ms] (94AH)
+      CANstillAlive = 12;
       Voltage_Setpoint = ((rx_frame.data.u8[1] << 4 | rx_frame.data.u8[0] >> 4)) / 10;
       Low_SOC = (rx_frame.data.u8[2] / 2);
       High_SOC = (rx_frame.data.u8[3] / 2);
       Display_SOC = (rx_frame.data.u8[4] / 2);
       break;
-    case 0x112:  //BMS status [10ms]
-      CANstillAlive = 12;
+    case 0x112:  //BMS status [10ms] (NOT IN 94AH!)
       Battery_Current = ((rx_frame.data.u8[1] << 8 | rx_frame.data.u8[0]) / 10) - 819;  //Amps
       Battery_Volts = (rx_frame.data.u8[3] << 8 | rx_frame.data.u8[2]);                 //500.0 V
       HVBatt_SOC = ((rx_frame.data.u8[5] & 0x0F) << 4 | rx_frame.data.u8[4]) / 10;
       Battery_Status = (rx_frame.data.u8[6] & 0x0F);
       DC_link = rx_frame.data.u8[7];
       break;
-    case 0x430:  //BMS
+    case 0x430:  //BMS (94AH)
       break;
-    case 0x1FA:  //BMS
+    case 0x1FA:  //BMS (94AH)
       break;
-    case 0x40D:  //BMS
+    case 0x40D:  //BMS (94AH)
       break;
-    case 0x2FF:  //BMS
+    case 0x2FF:  //BMS (94AH)
       break;
-    case 0x239:  //BMS
+    case 0x239:  //BMS (94AH)
       break;
-    case 0x2BD:  //BMS
+    case 0x2BD:  //BMS (94AH)
       break;
-    case 0x2F5:  //BMS
+    case 0x2F5:  //BMS (94AH)
       break;
-    case 0x3EB:  //BMS
+    case 0x3C2:  //BMS (94AH)
       break;
-    case 0x363:  //BMS
+    case 0x3EB:  //BMS (94AH)
       break;
-    case 0x507:
+    case 0x363:  //BMS (94AH)
       break;
-    case 0x41C:  //BMS
+    case 0x507:  //BMS (94AH)
+      break;
+    case 0x587:  //BMS (94AH)
+      break;
+    case 0x41C:  //BMS (94AH)
+      break;
+    case 0x607:  //BMS (94AH)
       break;
     default:
       break;
@@ -1022,8 +1017,6 @@ void send_can_i3_battery() {
     BMW_19B.data.u8[0] = BMW_19B_0[BMW_200ms_counter];
     BMW_19B.data.u8[1] = BMW_40_4E[BMW_200ms_counter];
 
-    BMW_3C2.data.u8[1] = BMW_10_1E[BMW_200ms_counter];
-
     BMW_200ms_counter++;
     if (BMW_200ms_counter > 14) {
       BMW_200ms_counter = 0;
@@ -1041,7 +1034,6 @@ void send_can_i3_battery() {
     ESP32Can.CANWriteFrame(&BMW_3C9);
     ESP32Can.CANWriteFrame(&BMW_59A);
     ESP32Can.CANWriteFrame(&BMW_19B);
-    ESP32Can.CANWriteFrame(&BMW_3C2);
   }
   // Send 500ms CAN Message
   if (currentMillis - previousMillis500 >= interval500) {
