@@ -610,6 +610,9 @@ void update_values() {
 #ifdef SMA_CAN
   update_values_can_sma();
 #endif
+#ifdef SOFAR_CAN
+  update_values_can_sofar();
+#endif
 #ifdef SOLAX_CAN
   update_values_can_solax();
 #endif
