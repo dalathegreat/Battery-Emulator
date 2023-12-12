@@ -870,7 +870,7 @@ void receive_can_i3_battery(CAN_frame_t rx_frame) {
 
   switch (rx_frame.MsgID) {
     case 0x431:  //Battery capacity [200ms] (94AH)
-      Battery_Capacity_kWh = (((rx_frame.data.u8[1] & 0x0F) << 8 | rx_frame.data.u8[5])) / 50;
+      Battery_Capacity_kWh = (((rx_frame.data.u8[6] & 0x0F) << 8 | rx_frame.data.u8[5])) / 50;
       break;
     case 0x432:  //SOC% charged [200ms] (94AH)
       CANstillAlive = 12;
@@ -1317,7 +1317,7 @@ void send_can_i3_battery() {
     ESP32Can.CANWriteFrame(&BMW_2A0);  //Only in LIM code
     ESP32Can.CANWriteFrame(&BMW_2FC);
     ESP32Can.CANWriteFrame(&BMW_3A0);  //2013 i3 switched on
-    ESP32Can.CANWriteFrame(&BMW_330);  //2013 i3 switched on
+    ESP32Can.CANWriteFrame(&BMW_330);  //2013 i3 switched on ODOmeter range info
     ESP32Can.CANWriteFrame(&BMW_3FC);
   }
   // Send 10000ms CAN Message
