@@ -306,7 +306,7 @@ void update_values_tesla_model_3_battery() {  //This function maps all the value
     Serial.print("YES, ");
   else
     Serial.print("NO, ");
-  if(LFP_Chemistry){
+  if (LFP_Chemistry) {
     Serial.print("LFP chemistry detected!");
   }
   Serial.println("");
