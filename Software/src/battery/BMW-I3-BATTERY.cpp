@@ -360,6 +360,13 @@ CAN_frame_t BMW_1D0 = {.FIR = {.B =
                                    }},
                        .MsgID = 0x1D0,
                        .data = {0x4D, 0xF0, 0xAE, 0xF8, 0xFF, 0xFF, 0xFF, 0xFF}};
+CAN_frame_t BMW_1D6 = {.FIR = {.B =
+                                   {
+                                       .DLC = 2,
+                                       .FF = CAN_frame_std,
+                                   }},
+                       .MsgID = 0x1D6,
+                       .data = {0xF0, 0xC0}};
 CAN_frame_t BMW_19E = {.FIR = {.B =
                                    {
                                        .DLC = 8,
@@ -409,6 +416,13 @@ CAN_frame_t BMW_105 = {.FIR = {.B =
                                    }},
                        .MsgID = 0x105,
                        .data = {0x03, 0xF0, 0x7F, 0xE0, 0x2E, 0x00, 0xFC, 0x0F}};
+CAN_frame_t BMW_1EE = {.FIR = {.B =
+                                   {
+                                       .DLC = 8,
+                                       .FF = CAN_frame_std,
+                                   }},
+                       .MsgID = 0x1EE,
+                       .data = {0x00, 0xFC}};
 CAN_frame_t BMW_2FA = {.FIR = {.B =
                                    {
                                        .DLC = 8,
@@ -1302,6 +1316,9 @@ void send_can_i3_battery() {
     ESP32Can.CANWriteFrame(&BMW_2CA);
     ESP32Can.CANWriteFrame(&BMW_3CA);
     ESP32Can.CANWriteFrame(&BMW_3E4);
+    ESP32Can.CANWriteFrame(&BMW_1D6);
+    ESP32Can.CANWriteFrame(&BMW_1EE);
+    
   }
   // Send 5000ms CAN Message
   if (currentMillis - previousMillis5000 >= interval5000) {
@@ -1315,7 +1332,7 @@ void send_can_i3_battery() {
     BMW_3FC.data.u8[1] = BMW_C0_CE[BMW_3FC_counter];
 
     ESP32Can.CANWriteFrame(&BMW_2A0);  //Only in LIM code
-    ESP32Can.CANWriteFrame(&BMW_2FC);
+    ESP32Can.CANWriteFrame(&BMW_2FC);  //Door, lock, boot, chargeflap status
     ESP32Can.CANWriteFrame(&BMW_3A0);  //2013 i3 switched on
     ESP32Can.CANWriteFrame(&BMW_330);  //2013 i3 switched on ODOmeter range info
     ESP32Can.CANWriteFrame(&BMW_3FC);
