@@ -68,6 +68,7 @@ public:
 
     // Check for  errors
     bool checkTransmissionError(bool resetFlag);
+    int getLastAcknowledge(bool resetFlag);
     bool checkReadError(bool resetFlag);
 
     // Setter methods for various parameters and special characters
@@ -84,9 +85,12 @@ private:
   enum class DataLinkState 
   {
     Idle,
+    WaitTobuildPacket,
     Transmitting,
     WaitingForAck,
     Receiving,
+    SendingAck,
+    Wait,
     Error
   };
 
@@ -117,6 +121,7 @@ private:
     bool readComplete = false;
     bool retransmitEnabled;
     bool transmissionError = false;
+    int  lastAcknowledgeStatus = 0;
     bool readError = false;
     bool muteAcknowledgement  = false;
 
@@ -129,13 +134,15 @@ private:
     int16_t dataArrayRX[dataArraySizeRX];
     bool    dataUpdated[dataArraySizeTX];
     unsigned long lastSent[dataArraySizeTX];
-    
+
+    // times in milliseconds
     unsigned long updateInterval = 1000;
     unsigned long ACK_TIMEOUT = 200;
-    unsigned long PACKET_TIMEOUT = 200; // Timeout in milliseconds
-
-    unsigned long lastStateChangeTime = 0;
+    unsigned long PACKET_TIMEOUT = 200; 
     unsigned long stateChangeTimeout = 300;
+    
+    unsigned long lastStateChangeTime = 0;
+    
 
     // Special characters for packet framing
     char headerChar = '<';

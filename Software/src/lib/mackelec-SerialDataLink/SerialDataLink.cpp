@@ -109,6 +109,16 @@ bool SerialDataLink::checkTransmissionError(bool resetFlag)
   return currentStatus;
 }
 
+int SerialDataLink::getLastAcknowledge(bool resetFlag) 
+{
+    int result = lastAcknowledgeStatus;
+    if (resetFlag) 
+    {
+        lastAcknowledgeStatus = 0; // Reset to default state
+    }
+    return result;
+}
+
 bool SerialDataLink::checkReadError(bool reset) 
 {
   bool error = readError;
@@ -134,115 +144,135 @@ void SerialDataLink::muteACK(bool mute)
 
 void SerialDataLink::run() 
 {
-    unsigned long currentTime = millis();
-    static DataLinkState oldstate;
-
-    
-    // Check if state has not changed for a prolonged period
-    if (oldstate != currentState)
-    {
-      lastStateChangeTime = currentTime;
-      oldstate = currentState;
-    }
-    if ((currentTime - lastStateChangeTime) > stateChangeTimeout) {
-        // Reset the state to Idle and perform necessary cleanup
-        currentState = DataLinkState::Idle;
-        // Perform any additional cleanup or reinitialization here
-        // ...
-
-        lastStateChangeTime = currentTime; // Reset the last state change time
-    }
-    switch (currentState) 
-    {
-      case DataLinkState::Idle:
-          // Decide if the device should start transmitting
-          currentState = DataLinkState::Receiving;
-          if (shouldTransmit())
-          {
-              currentState = DataLinkState::Transmitting;
-          }
-          break;
-
-        case DataLinkState::Transmitting:
-          if (isTransmitting) 
-          {
-              sendNextByte(); // Continue sending the current data
-          } 
-          else 
-          {
-              constructPacket(); // Construct a new packet if not currently transmitting
-              
-              if (muteAcknowledgement  && (needToACK || needToNACK))
-              {
-                needToACK = false;
-                needToNACK = false;
-              }
-              uint8_t ack; 
-              // now it is known which acknoledge need sending since last Reception
-              if (needToACK)
-              {
-                needToACK = false;
-                ack = (txBufferIndex > 5) ? ACK_RTT_CODE : ACK_CODE;
-                serial.write(ack);
-              }
-              if (needToNACK)
-              {
-                needToNACK = false;
-                ack = (txBufferIndex > 5) ? NACK_RTT_CODE : NACK_CODE;
-                serial.write(ack);
-              }
-          }
-
-          if (maxIndexTX < 1) 
-          {
-            currentState = DataLinkState::Receiving;
-          }
-          // Check if the transmission is complete
-          if (transmissionComplete) 
-          {
-            transmissionComplete = false;
-            isTransmitting = false;
-            currentState = DataLinkState::WaitingForAck; // Move to WaitingForAck state
-          }
-          break;
-
-
-        case DataLinkState::WaitingForAck:
-          if (ackTimeout())
-          {
-            // Handle ACK timeout scenario
-            transmissionError = true;
-            isTransmitting = false;
-            //handleAckTimeout();
-            //--- if no ACK's etc received may as well move to Transmitting
-            currentState = DataLinkState::Transmitting;
-          }
-          if (ackReceived()) 
-          {
-            // No data to send from the other device
-            currentState = DataLinkState::Transmitting;
-          }
-          if (requestToSend)
-          {
-            // The other device has data to send (indicated by ACK+RTT)
-            currentState = DataLinkState::Receiving;
-          }
-          break;
-
-          
-        case DataLinkState::Receiving:
-          read();
-          if (readComplete) 
-          {
-            readComplete = false;
-            // transition to transmit mode
-            currentState = DataLinkState::Transmitting;
-          }
-          break;
-
-        default:
+  unsigned long currentTime = millis();
+  static DataLinkState oldstate;
+  
+  
+  // Check if state has not changed for a prolonged period
+  if (oldstate != currentState)
+  {
+    lastStateChangeTime = currentTime;
+    oldstate = currentState;
+  }
+  if ((currentTime - lastStateChangeTime) > stateChangeTimeout) {
+      // Reset the state to Idle and perform necessary cleanup
+      currentState = DataLinkState::Idle;
+      // Perform any additional cleanup or reinitialization here
+      // ...
+  
+      lastStateChangeTime = currentTime; // Reset the last state change time
+  }
+  
+  switch (currentState) 
+  {
+    case DataLinkState::Idle:
+        // Decide if the device should start transmitting
+        currentState = DataLinkState::Receiving;
+        if (shouldTransmit())
+        {
+            currentState = DataLinkState::WaitTobuildPacket;
+        }
+        break;
+  
+      case DataLinkState::WaitTobuildPacket:
+        constructPacket();
+        if  (isTransmitting)
+        {
+          currentState = DataLinkState::Transmitting;
+        }
+        break;
+      
+      case DataLinkState::Transmitting:
+        sendNextByte(); 
+        
+        // Check if the transmission is complete
+        if (transmissionComplete) 
+        {
+          transmissionComplete = false;
+          isTransmitting = false;
+          currentState = DataLinkState::WaitingForAck; // Move to WaitingForAck state
+        }
+        break;
+  
+      case DataLinkState::WaitingForAck:
+        
+        if (ackTimeout())
+        {
+          // Handle ACK timeout scenario
+          transmissionError = true;
+          lastAcknowledgeStatus = -1;
+          //--- if no ACK's etc received may as well move to Transmitting
           currentState = DataLinkState::Idle;
-    }
+        }
+        if (ackReceived()) 
+        {
+          // No data to send from the other device
+          currentState = DataLinkState::Idle;
+        }
+        if (requestToSend)
+        {
+          // The other device has data to send (indicated by ACK+RTT)
+          currentState = DataLinkState::Receiving;
+          requestToSend = false;
+        }
+        break;
+  
+        
+      case DataLinkState::Receiving:
+        read();
+        if (readComplete) 
+        {
+          readComplete = false;
+          currentState = DataLinkState::SendingAck;
+        }
+        break;
+        
+      case DataLinkState::SendingAck:
+      
+        constructPacket();
+        
+        if (muteAcknowledgement  && (needToACK || needToNACK))
+        {
+          needToACK = false;
+          needToNACK = false;
+        }
+        uint8_t ack; 
+        // now it is known which acknoledge need sending since last Reception
+        if (needToACK)
+        {
+          needToACK = false;
+          ack = (txBufferIndex > 5) ? ACK_RTT_CODE : ACK_CODE;
+          serial.write(ack);
+        }
+        if (needToNACK)
+        {
+          needToNACK = false;
+          ack = (txBufferIndex > 5) ? NACK_RTT_CODE : NACK_CODE;
+          serial.write(ack);
+        }
+
+        currentState = DataLinkState::Idle;
+        if (isTransmitting)
+        {
+          currentState = DataLinkState::Wait;
+        }
+        break;
+
+      case DataLinkState::Wait:  
+        {
+          static unsigned long waitTimer=0;
+          if (waitTimer == 0) waitTimer = currentTime;
+          if (currentTime - waitTimer > 20)
+          {
+            waitTimer=0;
+            currentState = DataLinkState::Transmitting;
+          }
+        }
+        break;
+      
+      default:
+        currentState = DataLinkState::Idle;
+  }
 }
 
 void SerialDataLink::updateState(DataLinkState newState) 
@@ -343,42 +373,48 @@ bool SerialDataLink::sendNextByte()
 
 bool SerialDataLink::ackReceived()
 {
+  
     // Check if there is data available to read
-    if (serial.available() > 0) 
+    int count = 0;
+    if (serial.available() )
     {
-        // Peek at the next byte without removing it from the buffer
-        uint8_t nextByte = serial.peek();
+      count++;
+      // Peek at the next byte without removing it from the buffer
+      uint8_t nextByte = serial.peek();
 
-        if (nextByte == headerChar) 
-        {
-            requestToSend = true;
-            transmissionError = true;
-            return false;
-        }
-
-        uint8_t receivedByte = serial.read();
-
-        switch (receivedByte) 
-        {
-          case ACK_CODE:
-              // Handle standard ACK
-              return true;
-      
-          case ACK_RTT_CODE:
-              // Handle ACK with request to transmit
-              requestToSend = true;
-              return true;
-
-          case NACK_RTT_CODE:
-              requestToSend = true;
-          case NACK_CODE:
-              transmissionError = true;
-              return true;
-      
-          default:
-              break;
+      if (nextByte == headerChar) 
+      {
+          requestToSend = true;
+          transmissionError = true;
+          return false;
       }
+
+      uint8_t receivedByte = serial.read();
+
+      switch (receivedByte) 
+      {
+        case ACK_CODE:
+            // Handle standard ACK
+          lastAcknowledgeStatus = 1;
+          return true;
+    
+        case ACK_RTT_CODE:
+            // Handle ACK with request to transmit
+          requestToSend = true;
+          lastAcknowledgeStatus = 1;
+          return true;
+
+        case NACK_RTT_CODE:
+            requestToSend = true;
+        case NACK_CODE:
+            transmissionError = true;
+            lastAcknowledgeStatus = -2;
+            return true;
+            break;
+        default:
+            break;
     }
+  }
 
     return false; // No ACK, NACK, or new packet received
 }

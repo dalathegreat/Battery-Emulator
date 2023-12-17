@@ -14,11 +14,13 @@
 #include "src/lib/miwagner-ESP32-Arduino-CAN/CAN_config.h"
 #include "src/lib/miwagner-ESP32-Arduino-CAN/ESP32CAN.h"
 
+#ifdef WEBSERVER
+#include "src/devboard/webserver/webserver.h"
+#endif
+
 // Interval settings
 int intervalUpdateValues = 4800;  // Interval at which to update inverter values / Modbus registers
-const int interval1 = 1;          // Interval for 1ms tasks
 const int interval10 = 10;        // Interval for 10ms tasks
-unsigned long previousMillis1ms = 0;
 unsigned long previousMillis10ms = 50;
 unsigned long previousMillisUpdateVal = 0;
 
@@ -38,7 +40,7 @@ static ACAN2515_Buffer16 gBuffer;
 #define MB_RTU_NUM_VALUES 30000
 #endif
 #if defined(LUNA2000_MODBUS)
-#define MB_RTU_NUM_VALUES 50000
+#define MB_RTU_NUM_VALUES 30000
 #endif
 #if defined(BYD_MODBUS) || defined(LUNA2000_MODBUS)
 uint16_t mbPV[MB_RTU_NUM_VALUES];  // Process variable memory
@@ -75,6 +77,7 @@ uint16_t bms_status = ACTIVE;      // ACTIVE - [0..5]<>[STANDBY,INACTIVE,DARKSTA
 uint16_t stat_batt_power = 0;      // Power going in/out of battery
 uint16_t cell_max_voltage = 3700;  // Stores the highest cell voltage value in the system
 uint16_t cell_min_voltage = 3700;  // Stores the minimum cell voltage value in the system
+bool LFP_Chemistry = false;
 
 // LED parameters
 Adafruit_NeoPixel pixels(1, WS2812_PIN, NEO_GRB + NEO_KHZ800);
@@ -104,11 +107,15 @@ unsigned long negativeStartTime = 0;
 unsigned long timeSpentInFaultedMode = 0;
 #endif
 bool batteryAllowsContactorClosing = false;
-bool inverterAllowsContactorClosing = false;
+bool inverterAllowsContactorClosing = true;
 
 // Initialization
 void setup() {
   init_serial();
+
+#ifdef WEBSERVER
+  init_webserver();
+#endif
 
   init_CAN();
 
@@ -117,6 +124,7 @@ void setup() {
   init_contactors();
 
   init_modbus();
+  init_serialDataLink();
 
   inform_user_on_inverter();
 
@@ -125,13 +133,17 @@ void setup() {
 
 // Perform main program functions
 void loop() {
+
+  runSerialDataLink();
+#ifdef WEBSERVER
+  // Over-the-air updates by ElegantOTA
+  ElegantOTA.loop();
+#endif
+
   // Input
   receive_can();  // Receive CAN messages. Runs as fast as possible
 #ifdef DUAL_CAN
   receive_can2();
-#endif
-#ifdef SERIAL_LINK_RECEIVER
-  receive_serial();
 #endif
 
   // Process
@@ -154,9 +166,6 @@ void loop() {
   send_can();  // Send CAN messages
 #ifdef DUAL_CAN
   send_can2();
-#endif
-#ifdef SERIAL_LINK_TRANSMITTER
-  send_serial();
 #endif
 }
 
@@ -225,13 +234,6 @@ void init_modbus() {
   pinMode(PIN_5V_EN, OUTPUT);
   digitalWrite(PIN_5V_EN, HIGH);
 
-#if defined(SERIAL_LINK_RECEIVER) || defined(SERIAL_LINK_TRANSMITTER)
-  Serial2.begin(9600, SERIAL_8N1, RS485_RX_PIN, RS485_TX_PIN);  // If the Modbus RTU port will be used for serial link
-#if defined(BYD_MODBUS) || defined(LUNA2000_MODBUS)
-#error Modbus pins cannot be used for Serial and Modbus at the same time!
-#endif
-#endif
-
 #ifdef BYD_MODBUS
   // Init Static data to the RTU Modbus
   handle_static_data_modbus_byd();
@@ -254,36 +256,24 @@ void inform_user_on_inverter() {
   // Inform user what Inverter is used
 #ifdef BYD_CAN
   Serial.println("BYD CAN protocol selected");
-  bool inverterAllowsContactorClosing =
-      true;  // The inverter does not care when contactors are actuated, OK to start with them ON
 #endif
 #ifdef BYD_MODBUS
   Serial.println("BYD Modbus RTU protocol selected");
-  bool inverterAllowsContactorClosing =
-      true;  // The inverter does not care when contactors are actuated, OK to start with them ON
 #endif
 #ifdef LUNA2000_MODBUS
   Serial.println("Luna2000 Modbus RTU protocol selected");
-  bool inverterAllowsContactorClosing =
-      true;  // The inverter does not care when contactors are actuated, OK to start with them ON
 #endif
 #ifdef PYLON_CAN
   Serial.println("PYLON CAN protocol selected");
-  bool inverterAllowsContactorClosing =
-      true;  // The inverter does not care when contactors are actuated, OK to start with them ON
 #endif
 #ifdef SMA_CAN
   Serial.println("SMA CAN protocol selected");
-  bool inverterAllowsContactorClosing =
-      true;  // The inverter does not care when contactors are actuated, OK to start with them ON
 #endif
 #ifdef SOFAR_CAN
   Serial.println("SOFAR CAN protocol selected");
-  bool inverterAllowsContactorClosing =
-      true;  // The inverter does not care when contactors are actuated, OK to start with them ON
 #endif
 #ifdef SOLAX_CAN
-  inverterAllowsContactorClosing = false;  // The inverter needs to allow first on this protocol!
+  inverterAllowsContactorClosing = false;  // The inverter needs to allow first on this protocol
   intervalUpdateValues = 800;              // This protocol also requires the values to be updated faster
   Serial.println("SOLAX CAN protocol selected");
 #endif
@@ -314,6 +304,9 @@ void inform_user_on_battery() {
 #endif
 #ifdef TEST_FAKE_BATTERY
   Serial.println("Test mode with fake battery selected");
+#endif
+#ifdef SERIAL_LINK_RECEIVER
+  Serial.println("SERIAL_DATA_LINK_RECEIVER selected");
 #endif
 #if !defined(ABSOLUTE_MAX_VOLTAGE)
 #error No battery selected! Choose one from the USER_SETTINGS.h file
@@ -412,30 +405,6 @@ void send_can() {
   send_can_test_battery();
 #endif
 }
-
-#ifdef SERIAL_LINK_RECEIVER
-//---- Receives serial data and transfers to the Inverter
-void receive_serial() {
-  unsigned long currentMillis = millis();
-  if (currentMillis - previousMillis1ms >= interval1) {  //--- try 2 second
-    previousMillis1ms = currentMillis;
-    manageSerialLinkReceiver();
-  }
-}
-#endif
-
-#ifdef SERIAL_LINK_TRANSMITTER
-//---- Gets data from Battery and serial Transmits the data to the Receiver
-void send_serial() {
-  unsigned long currentMillis = millis();
-  if (bms_status == ACTIVE) {
-    if (currentMillis - previousMillis1ms >= interval1) {  //--- try 2 second
-      previousMillis1ms = currentMillis;
-      manageSerialLinkTransmitter();
-    }
-  }
-}
-#endif
 
 #ifdef DUAL_CAN
 void receive_can2() {  // This function is similar to receive_can, but just takes care of inverters in the 2nd bus.
@@ -647,10 +616,34 @@ void update_values() {
 #ifdef SMA_CAN
   update_values_can_sma();
 #endif
+#ifdef SOFAR_CAN
+  update_values_can_sofar();
+#endif
 #ifdef SOLAX_CAN
   update_values_can_solax();
 #endif
+}
+
+void runSerialDataLink() {
+  static unsigned long sdlTimer = 0;
+  unsigned long currentMillis = millis();
 #ifdef SERIAL_LINK_RECEIVER
-  update_values_serial_link();
+  if (currentMillis - sdlTimer >= 1) {  //--- try 2 second
+    sdlTimer = currentMillis;
+    manageSerialLinkReceiver();
+  }
+#endif
+
+#ifdef SERIAL_LINK_TRANSMITTER
+  if (currentMillis - sdlTimer >= 1) {  //--- try 2 second
+    sdlTimer = currentMillis;
+    manageSerialLinkTransmitter();
+  }
+#endif
+}
+
+void init_serialDataLink() {
+#if defined(SERIAL_LINK_RECEIVER) || defined(SERIAL_LINK_TRANSMITTER)
+  Serial2.begin(9600, SERIAL_8N1, RS485_RX_PIN, RS485_TX_PIN);
 #endif
 }

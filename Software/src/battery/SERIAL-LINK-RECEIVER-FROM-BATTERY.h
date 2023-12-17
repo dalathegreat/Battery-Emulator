@@ -31,8 +31,22 @@ extern uint16_t temperature_max;   //C+1,  Goes thru convert2unsignedint16 funct
 extern uint16_t cell_max_voltage;  //mV,   0-4350
 extern uint16_t cell_min_voltage;  //mV,   0-4350
 extern uint8_t LEDcolor;           //Enum, 0-10
-extern bool batteryAllowsContactorClosing;   //Bool, 1=true, 0=false
+
+extern bool LFP_Chemistry;
+extern uint16_t CANerror;
+
+extern bool batteryAllowsContactorClosing;  //Bool, 1=true, 0=false
+
+// Parameters to send to the transmitter
 extern bool inverterAllowsContactorClosing;  //Bool, 1=true, 0=false
+
+// Definitions for bms_status
+#define STANDBY 0
+#define INACTIVE 1
+#define DARKSTART 2
+#define ACTIVE 3
+#define FAULT 4
+#define UPDATING 5
 
 void manageSerialLinkReceiver();
 void update_values_serial_link();
