@@ -134,7 +134,6 @@ void setup() {
 // Perform main program functions
 void loop() {
 
-  runSerialDataLink();
 #ifdef WEBSERVER
   // Over-the-air updates by ElegantOTA
   ElegantOTA.loop();
@@ -144,6 +143,9 @@ void loop() {
   receive_can();  // Receive CAN messages. Runs as fast as possible
 #ifdef DUAL_CAN
   receive_can2();
+#endif
+#if defined(SERIAL_LINK_RECEIVER) || defined(SERIAL_LINK_TRANSMITTER)
+  runSerialDataLink();
 #endif
 
   // Process

@@ -31,6 +31,8 @@ extern uint16_t cell_min_voltage;  //mV,   0-4350
 extern uint8_t LEDcolor;           //Enum, 0-10
 extern bool batteryAllowsContactorClosing;   //Bool, 1=true, 0=false
 extern bool inverterAllowsContactorClosing;  //Bool, 1=true, 0=false
+extern bool LFP_Chemistry;
+
 // Definitions for BMS status
 #define STANDBY 0
 #define INACTIVE 1
