@@ -4,33 +4,30 @@
 
 //TODO: before using
 // Map the final values in update_values_i3_battery, set some to static values if not available (current, discharge max , charge max)
-// Possible future improvements: Better 13E handling , 2B7 , 2E2 , 2B3, 3A4, 59A 55E 3E4
 
 /* Do not change code below unless you are sure what you are doing */
 static unsigned long previousMillis10 = 0;     // will store last time a 10ms CAN Message was send
 static unsigned long previousMillis20 = 0;     // will store last time a 20ms CAN Message was send
 static unsigned long previousMillis30 = 0;     // will store last time a 30ms CAN Message was send
-static unsigned long previousMillis40 = 0;     // will store last time a 40ms CAN Message was send
 static unsigned long previousMillis50 = 0;     // will store last time a 50ms CAN Message was send
 static unsigned long previousMillis100 = 0;    // will store last time a 100ms CAN Message was send
-static unsigned long previousMillis160 = 0;    // will store last time a 160ms CAN Message was send
 static unsigned long previousMillis200 = 0;    // will store last time a 200ms CAN Message was send
 static unsigned long previousMillis500 = 0;    // will store last time a 500ms CAN Message was send
-static unsigned long previousMillis600 = 0;    // will store last time a 600ms CAN Message was send
+static unsigned long previousMillis640 = 0;    // will store last time a 600ms CAN Message was send
 static unsigned long previousMillis1000 = 0;   // will store last time a 1000ms CAN Message was send
+static unsigned long previousMillis2000 = 0;   // will store last time a 2000ms CAN Message was send
 static unsigned long previousMillis5000 = 0;   // will store last time a 5000ms CAN Message was send
 static unsigned long previousMillis10000 = 0;  // will store last time a 10000ms CAN Message was send
 static const int interval10 = 10;              // interval (ms) at which send CAN Messages
 static const int interval20 = 20;              // interval (ms) at which send CAN Messages
 static const int interval30 = 30;              // interval (ms) at which send CAN Messages
-static const int interval40 = 40;              // interval (ms) at which send CAN Messages
 static const int interval50 = 50;              // interval (ms) at which send CAN Messages
 static const int interval100 = 100;            // interval (ms) at which send CAN Messages
-static const int interval160 = 160;            // interval (ms) at which send CAN Messages
 static const int interval200 = 200;            // interval (ms) at which send CAN Messages
 static const int interval500 = 500;            // interval (ms) at which send CAN Messages
-static const int interval600 = 600;            // interval (ms) at which send CAN Messages
+static const int interval640 = 640;            // interval (ms) at which send CAN Messages
 static const int interval1000 = 1000;          // interval (ms) at which send CAN Messages
+static const int interval2000 = 2000;          // interval (ms) at which send CAN Messages
 static const int interval5000 = 5000;          // interval (ms) at which send CAN Messages
 static const int interval10000 = 10000;        // interval (ms) at which send CAN Messages
 static uint8_t CANstillAlive = 12;             //counter for checking if CAN is still alive
@@ -38,96 +35,69 @@ static uint8_t CANstillAlive = 12;             //counter for checking if CAN is 
 #define LB_MAX_SOC 1000  //BMS never goes over this value. We use this info to rescale SOC% sent to Inverter
 #define LB_MIN_SOC 0     //BMS never goes below this value. We use this info to rescale SOC% sent to Inverter
 
-/*
-Extra CAN Info
-0x29E Only broadcasted during fastcharging - Sent by LIM
-0x2B2 Only broadcasted during fastcharging - Sent by LIM
-*/
-
-CAN_frame_t BMW_AA = {.FIR = {.B =
+CAN_frame_t BMW_0A5 = {.FIR = {.B =
                                   {
                                       .DLC = 8,
                                       .FF = CAN_frame_std,
                                   }},
-                      .MsgID = 0xAA,
-                      .data = {0x00, 0xFC, 0x00, 0x7C, 0xC0, 0x5D, 0xD0, 0xF7}};
-CAN_frame_t BMW_AC = {.FIR = {.B =
-                                  {
-                                      .DLC = 2,
-                                      .FF = CAN_frame_std,
-                                  }},
-                      .MsgID = 0xAC,
-                      .data = {0x00, 0xF0}};
-CAN_frame_t BMW_AD = {.FIR = {.B =
+                      .MsgID = 0x0A5,
+                      .data = {0x47, 0xF0, 0xFF, 0xFF, 0xFF, 0x00, 0x00, 0xFF}};
+CAN_frame_t BMW_0A8 = {.FIR = {.B =
                                   {
                                       .DLC = 8,
                                       .FF = CAN_frame_std,
                                   }},
-                      .MsgID = 0xAD,
-                      .data = {0xFF, 0xFF, 0x7F, 0x00, 0x00, 0x00, 0xF0, 0xFF}};
-CAN_frame_t BMW_A5 = {.FIR = {.B =
+                      .MsgID = 0x0A8,
+                      .data = {0xD1, 0xF2, 0xFF, 0xBF, 0x5D, 0xE8, 0xD3, 0xC3}};
+CAN_frame_t BMW_0AA = {.FIR = {.B =
                                   {
                                       .DLC = 8,
                                       .FF = CAN_frame_std,
                                   }},
-                      .MsgID = 0xA5,
-                      .data = {0x52, 0xFC, 0xFF, 0xF7, 0x7F, 0x00, 0x00, 0xC1}};
-CAN_frame_t BMW_BB = {.FIR = {.B =
+                      .MsgID = 0x0AA,
+                      .data = {0x00, 0xFC, 0x00, 0x7D, 0xC0, 0x5D, 0xD0, 0xF7}};
+CAN_frame_t BMW_0AD = {.FIR = {.B =
+                                  {
+                                      .DLC = 8,
+                                      .FF = CAN_frame_std,
+                                  }},
+                      .MsgID = 0x0AD,
+                      .data = {0xFF, 0xFF, 0xFE, 0xE7, 0x7F, 0xFE, 0x7F, 0xFF}};
+CAN_frame_t BMW_0BB = {.FIR = {.B =
                                   {
                                       .DLC = 3,
                                       .FF = CAN_frame_std,
                                   }},
-                      .MsgID = 0xBB,
-                      .data = {0x00, 0xFF, 0xFF}};
-CAN_frame_t BMW_C3 = {.FIR = {.B =
+                      .MsgID = 0x0BB,
+                      .data = {0x7D, 0xFF, 0xFF}};
+CAN_frame_t BMW_0CD = {.FIR = {.B =
                                   {
                                       .DLC = 8,
                                       .FF = CAN_frame_std,
                                   }},
-                      .MsgID = 0xC3,
-                      .data = {0x2E, 0x76, 0x00, 0x40, 0x00, 0x7D, 0xFF, 0xFF}};
-CAN_frame_t BMW_3C = {.FIR = {.B =
-                                  {
-                                      .DLC = 8,
-                                      .FF = CAN_frame_std,
-                                  }},
-                      .MsgID = 0x3C,
-                      .data = {0xFF, 0x5F, 0x00, 0x00, 0x00, 0x00, 0xFF, 0xFF}};
-CAN_frame_t BMW_D9 = {.FIR = {.B =
-                                  {
-                                      .DLC = 8,
-                                      .FF = CAN_frame_std,
-                                  }},
-                      .MsgID = 0xD9,
-                      .data = {0x76, 0xF6, 0x00, 0x10, 0x00, 0xF0, 0x7F, 0xC0}};
-CAN_frame_t BMW_EF = {.FIR = {.B =
-                                  {
-                                      .DLC = 8,
-                                      .FF = CAN_frame_std,
-                                  }},
-                      .MsgID = 0xEF,
-                      .data = {0x3A, 0xF0, 0x00, 0x7D, 0x21, 0x00, 0x7D, 0xFF}};
-CAN_frame_t BMW_F3 = {.FIR = {.B =
-                                  {
-                                      .DLC = 8,
-                                      .FF = CAN_frame_std,
-                                  }},
-                      .MsgID = 0xF3,
-                      .data = {0x8B, 0x00, 0x00, 0xFF, 0xF0, 0xC0, 0xFF, 0xFF}};
+                      .MsgID = 0x0CD,
+                      .data = {0xFF, 0xFF, 0xD0, 0xF7, 0xFF, 0xFF, 0xFF, 0xFF}};
 CAN_frame_t BMW_100 = {.FIR = {.B =
                                    {
                                        .DLC = 8,
                                        .FF = CAN_frame_std,
                                    }},
                        .MsgID = 0x100,
-                       .data = {0x95, 0xF0, 0x7F, 0xC0, 0x5D, 0xB7, 0x86, 0x70}};
+                       .data = {0x9D, 0xF0, 0x7F, 0xC0, 0x5D, 0xA1, 0x87, 0x70}};
+CAN_frame_t BMW_105 = {.FIR = {.B =
+                                   {
+                                       .DLC = 8,
+                                       .FF = CAN_frame_std,
+                                   }},
+                       .MsgID = 0x105,
+                       .data = {0x03, 0xF0, 0x7F, 0xE0, 0x2E, 0x00, 0xFC, 0x0F}};
 CAN_frame_t BMW_108 = {.FIR = {.B =
                                    {
                                        .DLC = 8,
                                        .FF = CAN_frame_std,
                                    }},
                        .MsgID = 0x108,
-                       .data = {0x00, 0x7D, 0xFF, 0xFF, 0x07, 0xF1, 0xFF, 0xFF}};
+                       .data = {0xDD, 0x7D, 0xFF, 0x2C, 0x48, 0xF3, 0xFF, 0xFF}};
 CAN_frame_t BMW_10B = {.FIR = {.B =
                                    {
                                        .DLC = 3,
@@ -141,106 +111,154 @@ CAN_frame_t BMW_10E = {.FIR = {.B =
                                        .FF = CAN_frame_std,
                                    }},
                        .MsgID = 0x10E,
-                       .data = {0xFE, 0xE7, 0x7F, 0x00, 0x00, 0x7D, 0x00, 0xF0}};
-CAN_frame_t BMW_112 = {.FIR = {.B =
+                       .data = {0xFE, 0xE7, 0x7F, 0x19, 0x00, 0x7D, 0x00, 0xF0}};
+CAN_frame_t BMW_12F = {.FIR = {.B =
                                    {
                                        .DLC = 8,
                                        .FF = CAN_frame_std,
                                    }},
-                       .MsgID = 0x112,
-                       .data = {0xF9, 0x1F, 0x8B, 0x0E, 0xA6, 0x71, 0x65, 0x5D}};
-//Alternatively 00000112,false,Rx,0,8,DA,24,E8,0E,0D,71,85,5F,
-CAN_frame_t BMW_13A = {.FIR = {.B =
+                       .MsgID = 0x12F,
+                       .data = {0xE6, 0x24, 0x86, 0x1A, 0xF1, 0x31, 0x30, 0x00}};  //0x12F Wakeup VCU
+CAN_frame_t BMW_13D = {.FIR = {.B =
                                    {
                                        .DLC = 8,
                                        .FF = CAN_frame_std,
                                    }},
-                       .MsgID = 0x13A,
-                       .data = {0xFF, 0x2D, 0x00, 0x00, 0x00, 0x0E, 0xFF, 0xFF}};
+                       .MsgID = 0x13D,
+                       .data = {0xFF, 0xFF, 0xFE, 0xE7, 0x7F, 0xFE, 0x7F, 0xFF}};
 CAN_frame_t BMW_13E = {.FIR = {.B =
                                    {
                                        .DLC = 8,
                                        .FF = CAN_frame_std,
                                    }},
                        .MsgID = 0x13E,
-                       .data = {0xFF, 0x2D, 0xFA, 0xFA, 0xFA, 0xFA, 0x00, 0x00}};
+                       .data = {0xFF, 0x35, 0xFA, 0xFA, 0xFA, 0xFA, 0x07, 0x00}};
+CAN_frame_t BMW_150 = {.FIR = {.B =
+                                   {
+                                       .DLC = 8,
+                                       .FF = CAN_frame_std,
+                                   }},
+                       .MsgID = 0x150,
+                       .data = {0x12, 0x00, 0x00, 0x58, 0x0F, 0xFF, 0x07, 0x00}};
 CAN_frame_t BMW_153 = {.FIR = {.B =
                                    {
                                        .DLC = 8,
                                        .FF = CAN_frame_std,
                                    }},
                        .MsgID = 0x153,
-                       .data = {0x00, 0x00, 0x0F, 0x00, 0x00, 0x00, 0x00, 0xF0}};
-CAN_frame_t BMW_15F = {.FIR = {.B =
+                       .data = {0x00, 0x00, 0x02, 0x00, 0x00, 0x00, 0xF6, 0xF0}};
+CAN_frame_t BMW_192 = {.FIR = {.B =
                                    {
                                        .DLC = 8,
                                        .FF = CAN_frame_std,
                                    }},
-                       .MsgID = 0x15F,
-                       .data = {0x42, 0xF0, 0x00, 0x7D, 0x00, 0xEE, 0x00, 0x7D}};
+                       .MsgID = 0x192,
+                       .data = {0xFF, 0xFF, 0xA3, 0x8F, 0x93, 0xFF, 0xFF, 0xFF}};
 CAN_frame_t BMW_197 = {.FIR = {.B =
                                    {
                                        .DLC = 4,
                                        .FF = CAN_frame_std,
                                    }},
                        .MsgID = 0x197,
-                       .data = {0x64, 0xE0, 0x0E, 0xC0}};
-CAN_frame_t BMW_19B = {.FIR = {.B =
+                       .data = {0x89, 0x00, 0x0E, 0xC0}}; //TODO content wrong
+CAN_frame_t BMW_19E = {.FIR = {.B =
                                    {
                                        .DLC = 8,
                                        .FF = CAN_frame_std,
                                    }},
-                       .MsgID = 0x19B,
-                       .data = {0x20, 0x40, 0x40, 0x55, 0xFD, 0xFF, 0xFF, 0xFF}};
-CAN_frame_t BMW_206 = {.FIR = {.B =
+                       .MsgID = 0x19E,
+                       .data = {0x05, 0x00, 0x00, 0x04, 0x00, 0x00, 0xFF, 0xFF}};
+CAN_frame_t BMW_1A1 = {.FIR = {.B =
+                                   {
+                                       .DLC = 5,
+                                       .FF = CAN_frame_std,
+                                   }},
+                       .MsgID = 0x1A1,
+                       .data = {0x08, 0xC1, 0x00, 0x00, 0x8A}};  //0x1A1 Vehicle speed
+CAN_frame_t BMW_1AA = {.FIR = {.B =
                                    {
                                        .DLC = 8,
                                        .FF = CAN_frame_std,
                                    }},
-                       .MsgID = 0x206,
-                       .data = {0x36, 0x20, 0x68, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF}};
+                       .MsgID = 0x11A,
+                       .data = {0xAC, 0x0D, 0x90, 0xC6, 0x08, 0xA0, 0xF0, 0xFF}};
+CAN_frame_t BMW_1D0 = {.FIR = {.B =
+                                   {
+                                       .DLC = 8,
+                                       .FF = CAN_frame_std,
+                                   }},
+                       .MsgID = 0x1D0,
+                       .data = {0x4D, 0xF0, 0xAE, 0xF8, 0xFF, 0xFF, 0xFF, 0xFF}};
 CAN_frame_t BMW_211 = {.FIR = {.B =
                                    {
                                        .DLC = 7,
                                        .FF = CAN_frame_std,
                                    }},
                        .MsgID = 0x211,
-                       .data = {0x00, 0xFF, 0xFF, 0x44, 0x00, 0x00, 0x00}};
-CAN_frame_t BMW_2BB = {.FIR = {.B =
+                       .data = {0xDD, 0xFF, 0xFF, 0x39, 0xC7, 0x00, 0x00}};
+CAN_frame_t BMW_29B = {.FIR = {.B =
                                    {
-                                       .DLC = 5,
+                                       .DLC = 8,
                                        .FF = CAN_frame_std,
                                    }},
-                       .MsgID = 0x2BB,
-                       .data = {0x58, 0xF5, 0x48, 0x25, 0xF2}};
+                       .MsgID = 0x29B,
+                       .data = {0x00, 0x00, 0x00, 0x60, 0x53, 0x00, 0x00, 0x00}};
+CAN_frame_t BMW_29C = {.FIR = {.B =
+                                   {
+                                       .DLC = 8,
+                                       .FF = CAN_frame_std,
+                                   }},
+                       .MsgID = 0x29C,
+                       .data = {0xa2, 0x01, 0x0E, 0x0F, 0xF0, 0xFF, 0xFF, 0xFF}};
+CAN_frame_t BMW_29D = {.FIR = {.B =
+                                   {
+                                       .DLC = 8,
+                                       .FF = CAN_frame_std,
+                                   }},
+                       .MsgID = 0x29D,
+                       .data = {0x37, 0x0D, 0x80, 0x38, 0xD0, 0xC7, 0x00, 0x7A}};
 CAN_frame_t BMW_2B3 = {.FIR = {.B =
                                    {
                                        .DLC = 8,
                                        .FF = CAN_frame_std,
                                    }},
                        .MsgID = 0x2B3,
-                       .data = {0x00, 0x08, 0x08, 0x08, 0x0F, 0x21, 0x81, 0x05}};
+                       .data = {0x00, 0x08, 0x08, 0x00, 0x0F, 0xE0, 0x7F, 0x00}};
 CAN_frame_t BMW_2B7 = {.FIR = {.B =
                                    {
                                        .DLC = 8,
                                        .FF = CAN_frame_std,
                                    }},
                        .MsgID = 0x2B7,
-                       .data = {0x18, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00}};
+                       .data = {0x1A, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00}};
+CAN_frame_t BMW_2BE = {.FIR = {.B =
+                                   {
+                                       .DLC = 8,
+                                       .FF = CAN_frame_std,
+                                   }},
+                       .MsgID = 0x2BE,
+                       .data = {0x9B, 0x90, 0xF0, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF}};
+CAN_frame_t BMW_2C0 = {.FIR = {.B =
+                                   {
+                                       .DLC = 8,
+                                       .FF = CAN_frame_std,
+                                   }},
+                       .MsgID = 0x2C0,
+                       .data = {0x79, 0x08, 0x80, 0x26, 0x13, 0xFF, 0x36, 0xFF}};                    
 CAN_frame_t BMW_2CA = {.FIR = {.B =
                                    {
                                        .DLC = 2,
                                        .FF = CAN_frame_std,
                                    }},
                        .MsgID = 0x2CA,
-                       .data = {0x74, 0x75}};
+                       .data = {0x5E, 0x5E}};
 CAN_frame_t BMW_2E2 = {.FIR = {.B =
                                    {
                                        .DLC = 8,
                                        .FF = CAN_frame_std,
                                    }},
                        .MsgID = 0x2E2,
-                       .data = {0x4B, 0xDB, 0x7F, 0xB8, 0x57, 0x51, 0xFF, 0x00}};
+                       .data = {0xD0, 0xD7, 0x7F, 0xB0, 0x17, 0x51, 0x05, 0x00}};
 CAN_frame_t BMW_2E3 = {.FIR = {.B =
                                    {
                                        .DLC = 8,
@@ -255,237 +273,48 @@ CAN_frame_t BMW_2E8 = {.FIR = {.B =
                                    }},
                        .MsgID = 0x2E8,
                        .data = {0xC0, 0xE8, 0xC3, 0xFF, 0xFF, 0xF4, 0xF0, 0x09}};
-CAN_frame_t BMW_32F = {.FIR = {.B =
+CAN_frame_t BMW_2EC = {.FIR = {.B =
                                    {
-                                       .DLC = 8,
+                                       .DLC = 2,
                                        .FF = CAN_frame_std,
                                    }},
-                       .MsgID = 0x32F,
-                       .data = {0x42, 0x44, 0x43, 0x00, 0x44, 0x44, 0x56, 0x92}};
+                       .MsgID = 0x2EC,
+                       .data = {0xFC, 0xFF}};
 CAN_frame_t BMW_326 = {.FIR = {.B =
                                    {
                                        .DLC = 8,
                                        .FF = CAN_frame_std,
                                    }},
                        .MsgID = 0x326,
-                       .data = {0x00, 0x00, 0xE0, 0x15, 0x00, 0x00, 0x00, 0x64}};
+                       .data = {0x00, 0x00, 0xE0, 0x15, 0x01, 0x00, 0x00, 0x64}};
+CAN_frame_t BMW_328 = {.FIR = {.B =
+                                   {
+                                       .DLC = 6,
+                                       .FF = CAN_frame_std,
+                                   }},
+                       .MsgID = 0x328,
+                       .data = {0xB0, 0xE4, 0x87, 0x0E, 0x30, 0x22}};
+CAN_frame_t BMW_32F = {.FIR = {.B =
+                                   {
+                                       .DLC = 8,
+                                       .FF = CAN_frame_std,
+                                   }},
+                       .MsgID = 0x32F,
+                       .data = {0x38, 0x3C, 0x37, 0x00, 0x3B, 0x3A, 0x05, 0x00}};
+CAN_frame_t BMW_330 = {.FIR = {.B =
+                                   {
+                                       .DLC = 8,
+                                       .FF = CAN_frame_std,
+                                   }},
+                       .MsgID = 0x330,
+                       .data = {0x89, 0xAE, 0x01, 0x00, 0x00, 0x00, 0x2D, 0x05}};
 CAN_frame_t BMW_380 = {.FIR = {.B =
                                    {
                                        .DLC = 7,
                                        .FF = CAN_frame_std,
                                    }},
                        .MsgID = 0x380,
-                       .data = {0x56, 0x33, 0x31, 0x30, 0x30, 0x34, 0x32}};
-CAN_frame_t BMW_3CA = {.FIR = {.B =
-                                   {
-                                       .DLC = 8,
-                                       .FF = CAN_frame_std,
-                                   }},
-                       .MsgID = 0x3CA,
-                       .data = {0x78, 0x50, 0x18, 0x09, 0x09, 0x81, 0xFF, 0xFF}};
-CAN_frame_t BMW_3B4 = {.FIR = {.B =
-                                   {
-                                       .DLC = 8,
-                                       .FF = CAN_frame_std,
-                                   }},
-                       .MsgID = 0x3B4,
-                       .data = {0x00, 0x00, 0x0C, 0xF0, 0x98, 0xFF, 0x00, 0x00}};
-CAN_frame_t BMW_512 = {.FIR = {.B =
-                                   {
-                                       .DLC = 8,
-                                       .FF = CAN_frame_std,
-                                   }},
-                       .MsgID = 0x512,
-                       .data = {0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x12}};  //0x512 Network management edme VCU
-CAN_frame_t BMW_59A = {.FIR = {.B =
-                                   {
-                                       .DLC = 8,
-                                       .FF = CAN_frame_std,
-                                   }},
-                       .MsgID = 0x59A,
-                       .data = {0x65, 0x02, 0xFF, 0x08, 0x00, 0x00, 0xFF, 0x03}};
-CAN_frame_t BMW_03C = {.FIR = {.B =
-                                   {
-                                       .DLC = 8,
-                                       .FF = CAN_frame_std,
-                                   }},
-                       .MsgID = 0x03C,
-                       .data = {0xFF, 0x5F, 0x00, 0x00, 0x00, 0x00, 0xFF, 0xFF}};
-CAN_frame_t BMW_1AA = {.FIR = {.B =
-                                   {
-                                       .DLC = 8,
-                                       .FF = CAN_frame_std,
-                                   }},
-                       .MsgID = 0x11A,
-                       .data = {0xAC, 0x0D, 0x40, 0x06, 0x05, 0x8C, 0xF0, 0xFF}};
-CAN_frame_t BMW_12F = {.FIR = {.B =
-                                   {
-                                       .DLC = 8,
-                                       .FF = CAN_frame_std,
-                                   }},
-                       .MsgID = 0x12F,
-                       .data = {0xF5, 0x28, 0x88, 0x1D, 0xF1, 0x35, 0x30, 0x80}};  //0x12F Wakeup VCU
-CAN_frame_t BMW_13D = {.FIR = {.B =
-                                   {
-                                       .DLC = 8,
-                                       .FF = CAN_frame_std,
-                                   }},
-                       .MsgID = 0x13D,
-                       .data = {0xFF, 0xFF, 0x00, 0x60, 0x41, 0x16, 0xF4, 0xFF}};
-CAN_frame_t BMW_140 = {.FIR = {.B =
-                                   {
-                                       .DLC = 8,
-                                       .FF = CAN_frame_std,
-                                   }},
-                       .MsgID = 0x140,
-                       .data = {0x58, 0x60, 0x40, 0x9C, 0x00, 0x00, 0x94, 0xFF}};
-CAN_frame_t BMW_141 = {.FIR = {.B =
-                                   {
-                                       .DLC = 8,
-                                       .FF = CAN_frame_std,
-                                   }},
-                       .MsgID = 0x141,
-                       .data = {0x49, 0x70, 0x40, 0x9C, 0x00, 0x00, 0xF4, 0xFF}};
-CAN_frame_t BMW_1A1 = {.FIR = {.B =
-                                   {
-                                       .DLC = 5,
-                                       .FF = CAN_frame_std,
-                                   }},
-                       .MsgID = 0x1A1,
-                       .data = {0x08, 0xC1, 0x00, 0x00, 0x8A}};  //0x1A1 Vehicle speed
-CAN_frame_t BMW_1D0 = {.FIR = {.B =
-                                   {
-                                       .DLC = 8,
-                                       .FF = CAN_frame_std,
-                                   }},
-                       .MsgID = 0x1D0,
-                       .data = {0x4D, 0xF0, 0xAE, 0xF8, 0xFF, 0xFF, 0xFF, 0xFF}};
-CAN_frame_t BMW_1D6 = {.FIR = {.B =
-                                   {
-                                       .DLC = 2,
-                                       .FF = CAN_frame_std,
-                                   }},
-                       .MsgID = 0x1D6,
-                       .data = {0xF0, 0xC0}};
-CAN_frame_t BMW_19E = {.FIR = {.B =
-                                   {
-                                       .DLC = 8,
-                                       .FF = CAN_frame_std,
-                                   }},
-                       .MsgID = 0x19E,
-                       .data = {0x05, 0x00, 0x00, 0x04, 0x00, 0x00, 0xFF, 0xFF}};
-CAN_frame_t BMW_192 = {.FIR = {.B =
-                                   {
-                                       .DLC = 8,
-                                       .FF = CAN_frame_std,
-                                   }},
-                       .MsgID = 0x192,
-                       .data = {0xFF, 0xFF, 0xA3, 0x8F, 0x93, 0xFF, 0xFF, 0xFF}};
-CAN_frame_t BMW_199 = {.FIR = {.B =
-                                   {
-                                       .DLC = 6,
-                                       .FF = CAN_frame_std,
-                                   }},
-                       .MsgID = 0x199,
-                       .data = {0xFF, 0xFF, 0xD6, 0x7E, 0xFF, 0x3F}};
-CAN_frame_t BMW_19A = {.FIR = {.B =
-                                   {
-                                       .DLC = 6,
-                                       .FF = CAN_frame_std,
-                                   }},
-                       .MsgID = 0x19A,
-                       .data = {0xFF, 0xFF, 0xFE, 0x7F, 0xFF, 0x3F}};
-CAN_frame_t BMW_19F = {.FIR = {.B =
-                                   {
-                                       .DLC = 6,
-                                       .FF = CAN_frame_std,
-                                   }},
-                       .MsgID = 0x19F,
-                       .data = {0xFF, 0xFF, 0x0C, 0x80, 0xFF, 0x2F}};
-CAN_frame_t BMW_150 = {.FIR = {.B =
-                                   {
-                                       .DLC = 8,
-                                       .FF = CAN_frame_std,
-                                   }},
-                       .MsgID = 0x150,
-                       .data = {0x21, 0x00, 0x00, 0x00, 0x00, 0xFF, 0x07, 0x00}};
-CAN_frame_t BMW_105 = {.FIR = {.B =
-                                   {
-                                       .DLC = 8,
-                                       .FF = CAN_frame_std,
-                                   }},
-                       .MsgID = 0x105,
-                       .data = {0x03, 0xF0, 0x7F, 0xE0, 0x2E, 0x00, 0xFC, 0x0F}};
-CAN_frame_t BMW_1EE = {.FIR = {.B =
-                                   {
-                                       .DLC = 8,
-                                       .FF = CAN_frame_std,
-                                   }},
-                       .MsgID = 0x1EE,
-                       .data = {0x00, 0xFC}};
-CAN_frame_t BMW_2FA = {.FIR = {.B =
-                                   {
-                                       .DLC = 8,
-                                       .FF = CAN_frame_std,
-                                   }},
-                       .MsgID = 0x2FA,
-                       .data = {0xFD, 0xFF, 0x00, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF}};
-CAN_frame_t BMW_2FC = {.FIR = {.B =
-                                   {
-                                       .DLC = 8,
-                                       .FF = CAN_frame_std,
-                                   }},
-                       .MsgID = 0x2FC,
-                       .data = {0x81, 0x00, 0x04, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF}};
-CAN_frame_t BMW_2A0 = {.FIR = {.B =
-                                   {
-                                       .DLC = 8,
-                                       .FF = CAN_frame_std,
-                                   }},
-                       .MsgID = 0x2A0,
-                       .data = {0x88, 0x88, 0xF8, 0x0F, 0xFF, 0xFF, 0xFF, 0xFF}};
-CAN_frame_t BMW_2BE = {.FIR = {.B =
-                                   {
-                                       .DLC = 8,
-                                       .FF = CAN_frame_std,
-                                   }},
-                       .MsgID = 0x2BE,
-                       .data = {0x9B, 0x90, 0xF0, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF}};
-CAN_frame_t BMW_254 = {.FIR = {.B =
-                                   {
-                                       .DLC = 8,
-                                       .FF = CAN_frame_std,
-                                   }},
-                       .MsgID = 0x254,
-                       .data = {0xFF, 0x7F, 0xFF, 0x7F, 0xFF, 0x7F, 0xFF, 0x7F}};
-CAN_frame_t BMW_258 = {.FIR = {.B =
-                                   {
-                                       .DLC = 2,
-                                       .FF = CAN_frame_std,
-                                   }},
-                       .MsgID = 0x258,
-                       .data = {0x11, 0x11}};
-CAN_frame_t BMW_289 = {.FIR = {.B =
-                                   {
-                                       .DLC = 8,
-                                       .FF = CAN_frame_std,
-                                   }},
-                       .MsgID = 0x289,
-                       .data = {0x86, 0xF8, 0xE0, 0xFF, 0xFD, 0x00, 0xEC, 0x01}};
-CAN_frame_t BMW_302 = {.FIR = {.B =
-                                   {
-                                       .DLC = 7,
-                                       .FF = CAN_frame_std,
-                                   }},
-                       .MsgID = 0x302,
-                       .data = {0xFF, 0xFF, 0x54, 0xB0, 0xF1, 0xFF, 0xFF}};
-CAN_frame_t BMW_3A0 = {.FIR = {.B =
-                                   {
-                                       .DLC = 8,
-                                       .FF = CAN_frame_std,
-                                   }},
-                       .MsgID = 0x3A0,
-                       .data = {0xFF, 0xFF, 0xC0, 0xFF, 0xFF, 0xFF, 0xFF, 0xFC}};
+                       .data = {0x56, 0x5A, 0x37, 0x39, 0x34, 0x34, 0x34}};
 CAN_frame_t BMW_3A4 = {.FIR = {.B =
                                    {
                                        .DLC = 8,
@@ -493,20 +322,27 @@ CAN_frame_t BMW_3A4 = {.FIR = {.B =
                                    }},
                        .MsgID = 0x3A4,
                        .data = {0xCA, 0xA0, 0x5A, 0x03, 0x30, 0xFF, 0x1F, 0x2E}};
-CAN_frame_t BMW_3E4 = {.FIR = {.B =
+CAN_frame_t BMW_3A7 = {.FIR = {.B =
                                    {
-                                       .DLC = 6,
+                                       .DLC = 7,
                                        .FF = CAN_frame_std,
                                    }},
-                       .MsgID = 0x3E4,
-                       .data = {0x25, 0x14, 0x00, 0x00, 0xFF, 0xFF}};
+                       .MsgID = 0x3A7,
+                       .data = {0x4D, 0xF0, 0x0A, 0x00, 0x4F, 0x11, 0xF0}};       
 CAN_frame_t BMW_3C9 = {.FIR = {.B =
                                    {
                                        .DLC = 8,
                                        .FF = CAN_frame_std,
                                    }},
                        .MsgID = 0x3C9,
-                       .data = {0xAC, 0x13, 0x09, 0x0A, 0x92, 0x00, 0xF0, 0x39}};
+                       .data = {0xB4, 0x4D, 0x09, 0x0A, 0x95, 0x00, 0xF0, 0x28}};
+CAN_frame_t BMW_3CA = {.FIR = {.B =
+                                   {
+                                       .DLC = 8,
+                                       .FF = CAN_frame_std,
+                                   }},
+                       .MsgID = 0x3CA,
+                       .data = {0x78, 0x60, 0x30, 0x09, 0x09, 0x83, 0xFF, 0xFF}};
 CAN_frame_t BMW_3D0 = {.FIR = {.B =
                                    {
                                        .DLC = 2,
@@ -534,7 +370,7 @@ CAN_frame_t BMW_3E9 = {.FIR = {.B =
                                        .FF = CAN_frame_std,
                                    }},
                        .MsgID = 0x3E9,
-                       .data = {0x5C, 0x8F, 0x21, 0x51, 0x07, 0x00, 0x20, 0xFE}};
+                       .data = {0x08, 0x52, 0x21, 0x11, 0x04, 0x00, 0x00, 0x5E}};
 CAN_frame_t BMW_3EC = {.FIR = {.B =
                                    {
                                        .DLC = 8,
@@ -542,34 +378,20 @@ CAN_frame_t BMW_3EC = {.FIR = {.B =
                                    }},
                        .MsgID = 0x3EC,
                        .data = {0xF5, 0x10, 0x00, 0x00, 0x80, 0x25, 0x0F, 0xFC}};
-CAN_frame_t BMW_31C = {.FIR = {.B =
-                                   {
-                                       .DLC = 8,
-                                       .FF = CAN_frame_std,
-                                   }},
-                       .MsgID = 0x31C,
-                       .data = {0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF}};
-CAN_frame_t BMW_33B = {.FIR = {.B =
-                                   {
-                                       .DLC = 6,
-                                       .FF = CAN_frame_std,
-                                   }},
-                       .MsgID = 0x33B,
-                       .data = {0xFF, 0xFF, 0xDC, 0xFF, 0xFF, 0xFF}};
 CAN_frame_t BMW_3F9 = {.FIR = {.B =
                                    {
                                        .DLC = 8,
                                        .FF = CAN_frame_std,
                                    }},
-                       .MsgID = 0x3F9,
-                       .data = {0x76, 0x30, 0x00, 0xE2, 0xA6, 0x30, 0xC3, 0xFF}};
+                       .MsgID = 0x3F9, //TODO data wrong
+                       .data = {0x4B, 0x00, 0x80, 0xE0, 0x36, 0x31, 0xC3, 0xFF}};
 CAN_frame_t BMW_3FB = {.FIR = {.B =
                                    {
                                        .DLC = 6,
                                        .FF = CAN_frame_std,
                                    }},
                        .MsgID = 0x3FB,
-                       .data = {0xFF, 0xFF, 0xFF, 0xFF, 0x5F, 0x00}};
+                       .data = {0xFF, 0xFF, 0xFF, 0xFF, 0x1F, 0x00}};
 CAN_frame_t BMW_3FC = {.FIR = {.B =
                                    {
                                        .DLC = 3,
@@ -577,34 +399,6 @@ CAN_frame_t BMW_3FC = {.FIR = {.B =
                                    }},
                        .MsgID = 0x3FC,
                        .data = {0xC0, 0xF9, 0x0F}};
-CAN_frame_t BMW_328 = {.FIR = {.B =
-                                   {
-                                       .DLC = 6,
-                                       .FF = CAN_frame_std,
-                                   }},
-                       .MsgID = 0x328,
-                       .data = {0xB0, 0x33, 0xBF, 0x0C, 0xD3, 0x20}};
-CAN_frame_t BMW_330 = {.FIR = {.B =
-                                   {
-                                       .DLC = 8,
-                                       .FF = CAN_frame_std,
-                                   }},
-                       .MsgID = 0x330,
-                       .data = {0x27, 0x33, 0x01, 0x00, 0x00, 0x00, 0x4D, 0x02}};
-CAN_frame_t BMW_36E = {.FIR = {.B =
-                                   {
-                                       .DLC = 5,
-                                       .FF = CAN_frame_std,
-                                   }},
-                       .MsgID = 0x36E,
-                       .data = {0xC9, 0xF0, 0xFE, 0xFF, 0x14}};
-CAN_frame_t BMW_397 = {.FIR = {.B =
-                                   {
-                                       .DLC = 7,
-                                       .FF = CAN_frame_std,
-                                   }},
-                       .MsgID = 0x397,
-                       .data = {0x00, 0x2A, 0x00, 0x6C, 0x0F, 0x55, 0x00}};
 CAN_frame_t BMW_3FD = {.FIR = {.B =
                                    {
                                        .DLC = 5,
@@ -612,20 +406,13 @@ CAN_frame_t BMW_3FD = {.FIR = {.B =
                                    }},
                        .MsgID = 0x3FD,
                        .data = {0x84, 0x00, 0x20, 0x00, 0xFF}};
-CAN_frame_t BMW_433 = {.FIR = {.B =
-                                   {
-                                       .DLC = 4,
-                                       .FF = CAN_frame_std,
-                                   }},
-                       .MsgID = 0x433,
-                       .data = {0xFF, 0x00, 0x0F, 0xFF}};
 CAN_frame_t BMW_418 = {.FIR = {.B =
                                    {
                                        .DLC = 8,
                                        .FF = CAN_frame_std,
                                    }},
                        .MsgID = 0x418,
-                       .data = {0xFF, 0x7C, 0xFF, 0x00, 0xC0, 0x3F, 0xFF, 0xFF}};
+                       .data = {0xFF, 0x3C, 0xFF, 0x00, 0xC0, 0x0F, 0xFF, 0xFF}};
 CAN_frame_t BMW_41D = {.FIR = {.B =
                                    {
                                        .DLC = 4,
@@ -639,21 +426,35 @@ CAN_frame_t BMW_429 = {.FIR = {.B =
                                        .FF = CAN_frame_std,
                                    }},
                        .MsgID = 0x429,
-                       .data = {0x00, 0xF0, 0x00}};
-CAN_frame_t BMW_51A = {.FIR = {.B =
+                       .data = {0x12, 0xF8, 0x00}};
+CAN_frame_t BMW_433 = {.FIR = {.B =
+                                   {
+                                       .DLC = 4,
+                                       .FF = CAN_frame_std,
+                                   }},
+                       .MsgID = 0x433,
+                       .data = {0xFF, 0x01, 0x0F, 0xFF}};
+CAN_frame_t BMW_509 = {.FIR = {.B =
                                    {
                                        .DLC = 8,
                                        .FF = CAN_frame_std,
                                    }},
-                       .MsgID = 0x51A,
-                       .data = {0x0, 0x0, 0x0, 0x0, 0x50, 0x0, 0x0, 0x1A}};
-CAN_frame_t BMW_510 = {.FIR = {.B =
+                       .MsgID = 0x509,
+                       .data = {0x00, 0x00, 0x00, 0x00, 0xFF, 0xFF, 0x00, 0x09}};
+CAN_frame_t BMW_50A = {.FIR = {.B =
                                    {
                                        .DLC = 8,
                                        .FF = CAN_frame_std,
                                    }},
-                       .MsgID = 0x510,
-                       .data = {0x40, 0x10, 0x20, 0x0, 0x0, 0x0, 0x0, 0x0}};
+                       .MsgID = 0x50A,
+                       .data = {0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x0A}};
+CAN_frame_t BMW_512 = {.FIR = {.B =
+                                   {
+                                       .DLC = 8,
+                                       .FF = CAN_frame_std,
+                                   }},
+                       .MsgID = 0x512,
+                       .data = {0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x12}};  //0x512 Network management edme VCU
 CAN_frame_t BMW_515 = {.FIR = {.B =
                                    {
                                        .DLC = 8,
@@ -661,41 +462,36 @@ CAN_frame_t BMW_515 = {.FIR = {.B =
                                    }},
                        .MsgID = 0x515,
                        .data = {0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x15}};
-CAN_frame_t BMW_540 = {.FIR = {.B =
+CAN_frame_t BMW_51A = {.FIR = {.B =
                                    {
                                        .DLC = 8,
                                        .FF = CAN_frame_std,
                                    }},
-                       .MsgID = 0x540,
-                       .data = {0x0, 0x0, 0x0, 0x0, 0xFD, 0x3C, 0xFF, 0x40}};
-CAN_frame_t BMW_560 = {.FIR = {.B =
+                       .MsgID = 0x51A,
+                       .data = {0x0, 0x0, 0x0, 0x0, 0x50, 0x0, 0x0, 0x1A}};
+CAN_frame_t BMW_55E = {.FIR = {.B =
                                    {
                                        .DLC = 8,
                                        .FF = CAN_frame_std,
                                    }},
-                       .MsgID = 0x560,
-                       .data = {0x0, 0x0, 0x0, 0x0, 0xFE, 0x00, 0x00, 0x60}};
+                       .MsgID = 0x55E,
+                       .data = {0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x5E}};
+CAN_frame_t BMW_59A = {.FIR = {.B =
+                                   {
+                                       .DLC = 8,
+                                       .FF = CAN_frame_std,
+                                   }},
+                       .MsgID = 0x59A,
+                       .data = {0x6F, 0x1A, 0xFF, 0xFF, 0x00, 0x00, 0x00, 0x00}};
 
 //These CAN messages need to be sent towards the battery to keep it alive
 
-static const uint8_t BMW_33B_0[15] = {0xCA, 0xA0, 0x1E, 0x74, 0x7F, 0x15, 0xAB, 0xC1,
-                                      0xBD, 0xD7, 0x69, 0x03, 0x08, 0x62, 0xDC};
-static const uint8_t BMW_36E_0[15] = {0xC9, 0x54, 0xEE, 0x73, 0x87, 0x1A, 0xA0, 0x3D,
-                                      0x55, 0xC8, 0x72, 0xEF, 0x1B, 0x86, 0x3C};
 static const uint8_t BMW_289_0[15] = {0x54, 0x09, 0xEE, 0xB3, 0x3D, 0x60, 0x87, 0xDA,
                                       0x86, 0xDB, 0x3C, 0x61, 0xEF, 0xB2, 0x55};
 static const uint8_t BMW_13A_0[15] = {0x39, 0x83, 0x50, 0xEA, 0xEB, 0x51, 0x82, 0x38,
                                       0x64, 0xDE, 0x0D, 0xB7, 0xB6, 0x0C, 0xDF};
-static const uint8_t BMW_19F_0[15] = {0x17, 0x04, 0x24, 0x00, 0x0B, 0x15, 0xF5, 0x00,
-                                      0xFA, 0x1D, 0x29, 0x2C, 0x02, 0x19, 0xF9};
-static const uint8_t BMW_19A_0[15] = {0x00, 0xF6, 0x00, 0x0A, 0x0A, 0xF6, 0x0A, 0x14,
-                                      0x0A, 0xF6, 0x14, 0x0A, 0x14, 0x14, 0x0A};
-static const uint8_t BMW_206_0[15] = {0x36, 0x6B, 0x8C, 0xD1, 0x5F, 0x02, 0xE5, 0xB8,
-                                      0xE4, 0xB9, 0x5E, 0xC6, 0x8D, 0xD0, 0x37};
 static const uint8_t BMW_1A1_0[15] = {0x5A, 0x7D, 0x14, 0x33, 0xC6, 0xE1, 0x88, 0xAF,
                                       0xC7, 0xE0, 0x89, 0xAE, 0x5B, 0x7C, 0x15};
-static const uint8_t BMW_15F_0[15] = {0x42, 0x1F, 0xF8, 0xA5, 0x2B, 0x76, 0x91, 0xCC,
-                                      0x90, 0xCD, 0x2A, 0x77, 0xF9, 0xA4, 0x43};
 static const uint8_t BMW_F3_0[15] = {0x8B, 0xD6, 0x31, 0x6C, 0xE2, 0xBF, 0x58, 0x05,
                                      0x59, 0x04, 0xE3, 0xBE, 0x30, 0x6D, 0x8A};
 static const uint8_t BMW_D9_0[15] = {0xA5, 0xF8, 0x1F, 0x42, 0xCC, 0x91, 0x76, 0x2B,
@@ -704,22 +500,14 @@ static const uint8_t BMW_EF_0[15] = {0x3A, 0x67, 0x80, 0xDD, 0x53, 0x0E, 0xE9, 0
                                      0xE8, 0xB5, 0x52, 0x0F, 0x81, 0xDC, 0x3B};
 static const uint8_t BMW_C3_0[15] = {0xFD, 0xA0, 0x47, 0x1A, 0x94, 0xC9, 0x2E, 0x73,
                                      0x2F, 0x72, 0x95, 0xC8, 0x46, 0x1B, 0xFC};
-static const uint8_t BMW_A5_0[15] = {0x47, 0x1A, 0xFD, 0xA0, 0x2E, 0x73, 0x94, 0xC9,
+static const uint8_t BMW_0A5_0[15] = {0x47, 0x1A, 0xFD, 0xA0, 0x2E, 0x73, 0x94, 0xC9,
                                      0x95, 0xC8, 0x2F, 0x72, 0xFC, 0xA1, 0x46};
 static const uint8_t BMW_10B_0[15] = {0xCD, 0x19, 0x94, 0x6D, 0xE0, 0x34, 0x78, 0xDB,
                                       0x97, 0x43, 0x0F, 0xF6, 0xBA, 0x6E, 0x81};
 static const uint8_t BMW_10B_1[15] = {0x01, 0x02, 0x33, 0x34, 0x05, 0x06, 0x07, 0x08,
                                       0x09, 0x0A, 0x0B, 0x0C, 0x0D, 0x0E, 0x00};
-static const uint8_t BMW_140_0[15] = {0x58, 0xE2, 0x31, 0x8B, 0x8A, 0x30, 0xE3, 0x59,
-                                      0x05, 0xBF, 0x6C, 0xD6, 0xD7, 0x6D, 0xBE};
-static const uint8_t BMW_141_0[15] = {0x49, 0xF3, 0x20, 0x9A, 0x9B, 0x21, 0xF2, 0x48,
-                                      0x14, 0xAE, 0x7D, 0xC7, 0xC6, 0x7C, 0xAD};
 static const uint8_t BMW_197_0[15] = {0x89, 0x06, 0x8A, 0x05, 0x8F, 0x00, 0x8C, 0x03,
                                       0x85, 0x0A, 0x86, 0x09, 0x83, 0x0C, 0x80};
-static const uint8_t BMW_199_0[15] = {0xD6, 0xCC, 0xE0, 0xD6, 0xD6, 0xD6, 0xD6, 0xD6,
-                                      0xE0, 0xD6, 0xD6, 0xD6, 0xCC, 0xD6, 0xD6};
-static const uint8_t BMW_19B_0[15] = {0x20, 0x7D, 0x9A, 0xC7, 0x49, 0x14, 0xF3, 0xAE,
-                                      0xF2, 0xAF, 0x48, 0x15, 0x9B, 0xC6, 0x21};
 static const uint8_t BMW_12F_0[15] = {0xC2, 0x9F, 0x78, 0x25, 0xAB, 0xF6, 0x11, 0x4C,
                                       0x10, 0x4D, 0xAA, 0xF7, 0x79, 0x24, 0xC3};
 static const uint8_t BMW_105_0[15] = {0x03, 0x5E, 0xB9, 0xE4, 0x6A, 0x37, 0xD0, 0x8D,
@@ -770,33 +558,27 @@ static const uint8_t BMW_70_7E_spec[15] = {0x70, 0x72, 0x74, 0x76, 0x78, 0x7A, 0
 static const uint8_t BMW_C0_CE_spec[15] = {0xC0, 0xC2, 0xC4, 0xC6, 0xC8, 0xCA, 0xCC, 0xCE,
                                            0xC1, 0xC3, 0xC5, 0xC7, 0xC9, 0xCB, 0xCD};
 static const uint8_t BMW_19E_0[6] = {0x05, 0x00, 0x05, 0x07, 0x0A, 0x0A};
-static const uint8_t BMW_2BB_0[3] = {0x58, 0x8B, 0x30};
-static const uint8_t BMW_2BB_1[3] = {0xF5, 0xF0, 0xFA};
 
-static uint8_t BMW_3B4_counter = 0;
-static uint8_t BMW_36E_counter = 0;
-static uint8_t BMW_540_counter = 0;
-static uint8_t BMW_2BB_counter = 0;
 static uint8_t BMW_20ms_counter = 0;
 static uint8_t BMW_1AA_counter = 0;
-static uint8_t BMW_206_counter = 0;
 static uint8_t BMW_10ms_counter = 0;
 static uint8_t BMW_153_counter = 0;
 static uint8_t BMW_1D0_counter = 0;
 static uint8_t BMW_197_counter = 0;
 static uint8_t BMW_19E_counter = 0;
 static uint8_t BMW_10_counter = 0;
-static uint8_t BMW_13D_counter = 0;
 static uint8_t BMW_13E_counter = 0;
 static uint8_t BMW_100ms_counter = 0;
 static uint8_t BMW_3F9_counter = 0;
 static uint8_t BMW_3FC_counter = 0;
 static uint8_t BMW_200ms_counter = 0;
-static uint8_t BMW_380_counter = 4;
+static uint8_t BMW_380_counter = 0;
 static uint8_t BMW_429_counter = 0;
 static uint32_t BMW_328_counter = 0;
 
-static bool Message112detected = false;
+static uint8_t timer_640 = 0;
+
+
 static int16_t Battery_Current = 0;
 static uint16_t Battery_Capacity_kWh = 0;
 static uint16_t Voltage_Setpoint = 0;
@@ -894,7 +676,6 @@ void receive_can_i3_battery(CAN_frame_t rx_frame) {
       Display_SOC = (rx_frame.data.u8[4] / 2);
       break;
     case 0x112:  //BMS status [10ms] (NOT IN 94AH!)
-      Message112detected = true;
       Battery_Current = ((rx_frame.data.u8[1] << 8 | rx_frame.data.u8[0]) / 10) - 819;  //Amps
       Battery_Volts = (rx_frame.data.u8[3] << 8 | rx_frame.data.u8[2]);                 //500.0 V
       HVBatt_SOC = ((rx_frame.data.u8[5] & 0x0F) << 4 | rx_frame.data.u8[4]) / 10;
@@ -942,11 +723,8 @@ void send_can_i3_battery() {
     BMW_105.data.u8[0] = BMW_105_0[BMW_10ms_counter];
     BMW_105.data.u8[1] = BMW_F0_FE[BMW_10ms_counter];
 
-    BMW_A5.data.u8[0] = BMW_A5_0[BMW_10ms_counter];
-    BMW_A5.data.u8[1] = BMW_F0_FE[BMW_10ms_counter];
-
-    BMW_C3.data.u8[0] = BMW_C3_0[BMW_10ms_counter];
-    BMW_C3.data.u8[1] = BMW_70_7E[BMW_10ms_counter];
+    BMW_0A5.data.u8[0] = BMW_0A5_0[BMW_10ms_counter];
+    BMW_0A5.data.u8[1] = BMW_F0_FE[BMW_10ms_counter];
 
     BMW_100.data.u8[0] = BMW_100_0[BMW_10ms_counter];
     BMW_100.data.u8[1] = BMW_F0_FE[BMW_10ms_counter];
@@ -960,41 +738,25 @@ void send_can_i3_battery() {
     if (BMW_10_counter > 3) {
       BMW_10_counter = 3;
 
-      BMW_BB.data.u8[0] = 0x7D;
+      BMW_0BB.data.u8[0] = 0x7D;
 
-      BMW_AD.data.u8[2] = 0xFE;
-      BMW_AD.data.u8[3] = 0xE7;
-      BMW_AD.data.u8[4] = 0x7F;
-      BMW_AD.data.u8[5] = 0xFE;
+      BMW_0AD.data.u8[2] = 0xFE;
+      BMW_0AD.data.u8[3] = 0xE7;
+      BMW_0AD.data.u8[4] = 0x7F;
+      BMW_0AD.data.u8[5] = 0xFE;
     }
 
-    BMW_13D_counter++;
-
-    if (BMW_13D_counter > 3) {
-      BMW_13D_counter = 5;
-      BMW_13D.data.u8[0] = 0xFF;
-      BMW_13D.data.u8[1] = 0xFF;
-      BMW_13D.data.u8[2] = 0xFE;
-      BMW_13D.data.u8[3] = 0x27;
-      BMW_13D.data.u8[4] = 0x9F;
-      BMW_13D.data.u8[5] = 0x0A;
-      BMW_13D.data.u8[6] = 0xF6;
-      BMW_13D.data.u8[7] = 0xFF;
-    }
-
-    if (!Message112detected) {  //Battery should send this according to some info, but incase it is not, we send
-      ESP32Can.CANWriteFrame(&BMW_112);
-    }
-
-    ESP32Can.CANWriteFrame(&BMW_C3);
-    ESP32Can.CANWriteFrame(&BMW_BB);
-    ESP32Can.CANWriteFrame(&BMW_AA);
-    ESP32Can.CANWriteFrame(&BMW_A5);
-    ESP32Can.CANWriteFrame(&BMW_AD);
-    ESP32Can.CANWriteFrame(&BMW_100);
+    ESP32Can.CANWriteFrame(&BMW_0AA);
     ESP32Can.CANWriteFrame(&BMW_105);
-    ESP32Can.CANWriteFrame(&BMW_150);
     ESP32Can.CANWriteFrame(&BMW_13D);
+    ESP32Can.CANWriteFrame(&BMW_0BB);
+    ESP32Can.CANWriteFrame(&BMW_0AD);
+    ESP32Can.CANWriteFrame(&BMW_0A5);
+    ESP32Can.CANWriteFrame(&BMW_150);
+    ESP32Can.CANWriteFrame(&BMW_100);
+    ESP32Can.CANWriteFrame(&BMW_0CD);
+    ESP32Can.CANWriteFrame(&BMW_0A8);
+    
   }
   //Send 20ms message
   if (currentMillis - previousMillis20 >= interval20) {
@@ -1003,35 +765,8 @@ void send_can_i3_battery() {
     BMW_10B.data.u8[0] = BMW_10B_0[BMW_20ms_counter];
     BMW_10B.data.u8[1] = BMW_10B_1[BMW_20ms_counter];
 
-    BMW_EF.data.u8[0] = BMW_EF_0[BMW_20ms_counter];
-    BMW_EF.data.u8[1] = BMW_F0_FE[BMW_20ms_counter];
-
-    BMW_140.data.u8[0] = BMW_140_0[BMW_20ms_counter];
-    BMW_140.data.u8[1] = BMW_60_6E_spec[BMW_20ms_counter];
-
-    BMW_141.data.u8[0] = BMW_141_0[BMW_20ms_counter];
-    BMW_141.data.u8[1] = BMW_70_7E_spec[BMW_20ms_counter];
-
-    BMW_D9.data.u8[0] = BMW_D9_0[BMW_20ms_counter];
-    BMW_D9.data.u8[1] = BMW_F0_FE[BMW_20ms_counter];
-
-    BMW_F3.data.u8[0] = BMW_F3_0[BMW_20ms_counter];
-    BMW_F3.data.u8[1] = BMW_20ms_counter;
-
-    BMW_15F.data.u8[0] = BMW_15F_0[BMW_20ms_counter];
-    BMW_15F.data.u8[1] = BMW_F0_FE[BMW_20ms_counter];
-
     BMW_1A1.data.u8[0] = BMW_1A1_0[BMW_20ms_counter];
     BMW_1A1.data.u8[1] = BMW_C0_CE_spec[BMW_20ms_counter];
-
-    BMW_13A.data.u8[0] = BMW_13A_0[BMW_20ms_counter];
-    BMW_13A.data.u8[1] = BMW_F0_FE[BMW_20ms_counter];
-
-    BMW_199.data.u8[2] = BMW_199_0[BMW_20ms_counter];
-
-    BMW_19A.data.u8[2] = BMW_19A_0[BMW_20ms_counter];
-
-    BMW_19F.data.u8[2] = BMW_19F_0[BMW_20ms_counter];
 
     BMW_20ms_counter++;
     if (BMW_20ms_counter > 14) {
@@ -1060,22 +795,9 @@ void send_can_i3_battery() {
 
     ESP32Can.CANWriteFrame(&BMW_10B);
     ESP32Can.CANWriteFrame(&BMW_1A1);
-    ESP32Can.CANWriteFrame(&BMW_153);
-    ESP32Can.CANWriteFrame(&BMW_13E);
     ESP32Can.CANWriteFrame(&BMW_10E);
-    ESP32Can.CANWriteFrame(&BMW_EF);
-    ESP32Can.CANWriteFrame(&BMW_140);
-    ESP32Can.CANWriteFrame(&BMW_141);
-    ESP32Can.CANWriteFrame(&BMW_199);
-    ESP32Can.CANWriteFrame(&BMW_19A);
-    ESP32Can.CANWriteFrame(&BMW_D9);
-    ESP32Can.CANWriteFrame(&BMW_AC);
-    ESP32Can.CANWriteFrame(&BMW_19F);
-    ESP32Can.CANWriteFrame(&BMW_F3);
-    ESP32Can.CANWriteFrame(&BMW_15F);
-    ESP32Can.CANWriteFrame(&BMW_254);
-    ESP32Can.CANWriteFrame(&BMW_13A);
-    ESP32Can.CANWriteFrame(&BMW_258);
+    ESP32Can.CANWriteFrame(&BMW_153);
+
   }
   //Send 30ms message
   if (currentMillis - previousMillis30 >= interval30) {
@@ -1089,20 +811,6 @@ void send_can_i3_battery() {
     }
 
     ESP32Can.CANWriteFrame(&BMW_197);
-  }
-  //Send 40ms message
-  if (currentMillis - previousMillis40 >= interval40) {
-    previousMillis40 = currentMillis;
-
-    BMW_206.data.u8[0] = BMW_206_0[BMW_206_counter];
-    BMW_206.data.u8[1] = BMW_20_2E[BMW_206_counter];
-    BMW_206_counter++;
-    if (BMW_206_counter > 14) {
-      BMW_206_counter = 0;
-    }
-
-    ESP32Can.CANWriteFrame(&BMW_302);
-    ESP32Can.CANWriteFrame(&BMW_206);
   }
   //Send 50ms message
   if (currentMillis - previousMillis50 >= interval50) {
@@ -1148,54 +856,27 @@ void send_can_i3_battery() {
     BMW_12F.data.u8[0] = BMW_12F_0[BMW_100ms_counter];
     BMW_12F.data.u8[1] = BMW_50_5E[BMW_100ms_counter];
 
-    BMW_289.data.u8[0] = BMW_289_0[BMW_100ms_counter];
-    BMW_289.data.u8[1] = BMW_F0_FE[BMW_100ms_counter];
 
     BMW_100ms_counter++;
     if (BMW_100ms_counter > 14) {
       BMW_100ms_counter = 0;
     }
 
-    if (BMW_380_counter > 0) {
-      ESP32Can.CANWriteFrame(&BMW_380);
-      BMW_380_counter--;
-    }
-
-    BMW_2BB.data.u8[0] = BMW_2BB_0[BMW_2BB_counter];
-    BMW_2BB.data.u8[1] = BMW_2BB_1[BMW_2BB_counter];
-
-    if (BMW_2BB_counter > 2) {
-      BMW_2BB_counter = 0;
-    }
-    BMW_2BB_counter++;
-
-    ESP32Can.CANWriteFrame(&BMW_12F);  //2013 i3 switched on
-
-    ESP32Can.CANWriteFrame(&BMW_108);
-    ESP32Can.CANWriteFrame(&BMW_2B7);
-    ESP32Can.CANWriteFrame(&BMW_2E8);
+    ESP32Can.CANWriteFrame(&BMW_12F);
+    ESP32Can.CANWriteFrame(&BMW_59A);
+    ESP32Can.CANWriteFrame(&BMW_2E3);
+    ESP32Can.CANWriteFrame(&BMW_2BE);
+    ESP32Can.CANWriteFrame(&BMW_211);
     ESP32Can.CANWriteFrame(&BMW_2B3);
     ESP32Can.CANWriteFrame(&BMW_3FD);
-    ESP32Can.CANWriteFrame(&BMW_2E3);
-    ESP32Can.CANWriteFrame(&BMW_211);
-    ESP32Can.CANWriteFrame(&BMW_2BE);
-    ESP32Can.CANWriteFrame(&BMW_2BB);
-    ESP32Can.CANWriteFrame(&BMW_289);
-    ESP32Can.CANWriteFrame(&BMW_3C);
-  }
-  // Send 160ms CAN Message
-  if (currentMillis - previousMillis160 >= interval160) {
-    previousMillis160 = currentMillis;
+    ESP32Can.CANWriteFrame(&BMW_2E8);
+    ESP32Can.CANWriteFrame(&BMW_2B7);
+    ESP32Can.CANWriteFrame(&BMW_108);
+    ESP32Can.CANWriteFrame(&BMW_29D);
+    ESP32Can.CANWriteFrame(&BMW_29C);
+    ESP32Can.CANWriteFrame(&BMW_29B);
+    ESP32Can.CANWriteFrame(&BMW_2C0);
 
-    BMW_36E.data.u8[0] = BMW_36E_0[BMW_36E_counter];
-    BMW_36E.data.u8[1] = BMW_F0_FE[BMW_36E_counter];
-
-    BMW_36E_counter++;
-    if (BMW_36E_counter > 14) {
-      BMW_36E_counter = 0;
-    }
-
-    ESP32Can.CANWriteFrame(&BMW_36E);
   }
   // Send 200ms CAN Message
   if (currentMillis - previousMillis200 >= interval200) {
@@ -1204,37 +885,15 @@ void send_can_i3_battery() {
     BMW_3A4.data.u8[0] = BMW_3A4_0[BMW_200ms_counter];
     BMW_3A4.data.u8[1] = BMW_A0_AE[BMW_200ms_counter];
 
-    BMW_19B.data.u8[0] = BMW_19B_0[BMW_200ms_counter];
-    BMW_19B.data.u8[1] = BMW_40_4E[BMW_200ms_counter];
-
-    BMW_33B.data.u8[0] = BMW_33B_0[BMW_200ms_counter];
-    BMW_33B.data.u8[1] = BMW_F0_FE[BMW_200ms_counter];
-
     BMW_200ms_counter++;
     if (BMW_200ms_counter > 14) {
       BMW_200ms_counter = 0;
     }
 
-    BMW_3B4_counter++;
-    if (BMW_3B4_counter > 30) {
-      BMW_3B4.data.u8[2] = 0x0D;
-      BMW_3B4.data.u8[3] = 0xF4;
-      BMW_3B4.data.u8[4] = 0xBD;
-      BMW_3B4_counter = 30;
-    }
-
-    ESP32Can.CANWriteFrame(&BMW_03C);
+    ESP32Can.CANWriteFrame(&BMW_330);
     ESP32Can.CANWriteFrame(&BMW_3E9);
-    ESP32Can.CANWriteFrame(&BMW_510);  //Only in LIM code
-    ESP32Can.CANWriteFrame(&BMW_560);  //Only in LIM code
     ESP32Can.CANWriteFrame(&BMW_32F);
-    ESP32Can.CANWriteFrame(&BMW_3A4);
-    ESP32Can.CANWriteFrame(&BMW_3C9);
-    ESP32Can.CANWriteFrame(&BMW_59A);
-    ESP32Can.CANWriteFrame(&BMW_19B);
-    ESP32Can.CANWriteFrame(&BMW_31C);
-    ESP32Can.CANWriteFrame(&BMW_33B);
-    ESP32Can.CANWriteFrame(&BMW_3B4);
+
   }
   // Send 500ms CAN Message
   if (currentMillis - previousMillis500 >= interval500) {
@@ -1252,24 +911,19 @@ void send_can_i3_battery() {
     ESP32Can.CANWriteFrame(&BMW_19E);
     ESP32Can.CANWriteFrame(&BMW_326);
   }
-  // Send 600ms CAN Message
-  if (currentMillis - previousMillis600 >= interval600) {
-    previousMillis600 = currentMillis;
+  // Send 640ms CAN Message
+  if (currentMillis - previousMillis640 >= interval640) {
+    previousMillis640 = currentMillis;
 
-    if (BMW_540_counter == 0) {
-      BMW_540.data.u8[4] = 0xFD;
-      BMW_540.data.u8[5] = 0x3C;
-      BMW_540_counter = 1;
-    } else {
-      BMW_540.data.u8[4] = 0xFF;
-      BMW_540.data.u8[5] = 0x3B;
-      BMW_540_counter = 0;
+    if(timer_640 < 4){ //Stops after 5x messages sent
+        timer_640++;
+        ESP32Can.CANWriteFrame(&BMW_55E);
+        ESP32Can.CANWriteFrame(&BMW_515);
+        ESP32Can.CANWriteFrame(&BMW_509);
     }
-
-    ESP32Can.CANWriteFrame(&BMW_512);
-    ESP32Can.CANWriteFrame(&BMW_515);
-    ESP32Can.CANWriteFrame(&BMW_51A);
-    ESP32Can.CANWriteFrame(&BMW_540);  //Only in LIM code , 2013 i3 switched ON
+    ESP32Can.CANWriteFrame(&BMW_50A); 
+    ESP32Can.CANWriteFrame(&BMW_51A); 
+    ESP32Can.CANWriteFrame(&BMW_512); 
   }
   // Send 1000ms CAN Message
   if (currentMillis - previousMillis1000 >= interval1000) {
@@ -1299,26 +953,31 @@ void send_can_i3_battery() {
       BMW_3F9_counter = 0;
     }
 
-    ESP32Can.CANWriteFrame(&BMW_397);  //Only in LIM code
-    ESP32Can.CANWriteFrame(&BMW_328);
     ESP32Can.CANWriteFrame(&BMW_3E8);
-    ESP32Can.CANWriteFrame(&BMW_2FA);
-    ESP32Can.CANWriteFrame(&BMW_1D0);
-    ESP32Can.CANWriteFrame(&BMW_433);
-    ESP32Can.CANWriteFrame(&BMW_192);
-    ESP32Can.CANWriteFrame(&BMW_2E2);
+    ESP32Can.CANWriteFrame(&BMW_328);
     ESP32Can.CANWriteFrame(&BMW_3F9);
-    ESP32Can.CANWriteFrame(&BMW_3FB);
-    ESP32Can.CANWriteFrame(&BMW_3EC);
-    ESP32Can.CANWriteFrame(&BMW_418);
+    ESP32Can.CANWriteFrame(&BMW_2E2);
+    ESP32Can.CANWriteFrame(&BMW_3C9);
+    ESP32Can.CANWriteFrame(&BMW_3A4);
     ESP32Can.CANWriteFrame(&BMW_41D);
     ESP32Can.CANWriteFrame(&BMW_3D0);
-    ESP32Can.CANWriteFrame(&BMW_2CA);
     ESP32Can.CANWriteFrame(&BMW_3CA);
-    ESP32Can.CANWriteFrame(&BMW_3E4);
-    ESP32Can.CANWriteFrame(&BMW_1D6);
-    ESP32Can.CANWriteFrame(&BMW_1EE);
+    ESP32Can.CANWriteFrame(&BMW_3A7);
+    ESP32Can.CANWriteFrame(&BMW_2CA);
+    ESP32Can.CANWriteFrame(&BMW_3FB);
+    ESP32Can.CANWriteFrame(&BMW_418);
+    ESP32Can.CANWriteFrame(&BMW_1D0);
+    ESP32Can.CANWriteFrame(&BMW_3EC);
+    ESP32Can.CANWriteFrame(&BMW_192);
+    ESP32Can.CANWriteFrame(&BMW_13E);
+    ESP32Can.CANWriteFrame(&BMW_433);
     
+  }
+  // Send 20000ms CAN Message
+  if (currentMillis - previousMillis2000 >= interval2000) {
+    previousMillis2000 = currentMillis;
+
+    ESP32Can.CANWriteFrame(&BMW_2EC);
   }
   // Send 5000ms CAN Message
   if (currentMillis - previousMillis5000 >= interval5000) {
@@ -1331,11 +990,12 @@ void send_can_i3_battery() {
 
     BMW_3FC.data.u8[1] = BMW_C0_CE[BMW_3FC_counter];
 
-    ESP32Can.CANWriteFrame(&BMW_2A0);  //Only in LIM code
-    ESP32Can.CANWriteFrame(&BMW_2FC);  //Door, lock, boot, chargeflap status
-    ESP32Can.CANWriteFrame(&BMW_3A0);  //2013 i3 switched on
-    ESP32Can.CANWriteFrame(&BMW_330);  //2013 i3 switched on ODOmeter range info
     ESP32Can.CANWriteFrame(&BMW_3FC);
+
+    if (BMW_380_counter < 3) {
+      ESP32Can.CANWriteFrame(&BMW_380); // This message stops after 3 times on startup
+      BMW_380_counter++;
+    }
   }
   // Send 10000ms CAN Message
   if (currentMillis - previousMillis10000 >= interval10000) {
