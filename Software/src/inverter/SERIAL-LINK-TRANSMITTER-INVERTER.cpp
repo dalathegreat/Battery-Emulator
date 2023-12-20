@@ -24,7 +24,7 @@ void printSendingValues();
 
 void _getData() {
   inverterAllowsContactorClosing = dataLinkTransmit.getReceivedData(0);
-  //var2 = dataLinkTransmit.getReceivedData(1); // For future expansion, 
+  //var2 = dataLinkTransmit.getReceivedData(1); // For future expansion,
   //var3 = dataLinkTransmit.getReceivedData(2); // if inverter needs to send data to battery
 }
 

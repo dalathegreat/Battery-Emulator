@@ -53,7 +53,7 @@ void __getData() {
 void updateData() {
   // --- update with fresh data
   dataLinkReceive.updateData(0, inverterAllowsContactorClosing);
-  //dataLinkReceive.updateData(1,var2); // For future expansion, 
+  //dataLinkReceive.updateData(1,var2); // For future expansion,
   //dataLinkReceive.updateData(2,var3); // if inverter needs to send data to battery
 }
 

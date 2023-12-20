@@ -242,10 +242,10 @@ void init_modbus() {
   handle_static_data_modbus_byd();
 #endif
 #if defined(BYD_MODBUS) || defined(LUNA2000_MODBUS)
-  #if defined(SERIAL_LINK_RECEIVER) || defined(SERIAL_LINK_TRANSMITTER)
-    // Check that Dual LilyGo via RS485 option isn't enabled, this collides with Modbus!
-    #error MODBUS CANNOT BE USED IN DOUBLE LILYGO SETUPS! CHECK USER SETTINGS!
-  #endif
+#if defined(SERIAL_LINK_RECEIVER) || defined(SERIAL_LINK_TRANSMITTER)
+// Check that Dual LilyGo via RS485 option isn't enabled, this collides with Modbus!
+#error MODBUS CANNOT BE USED IN DOUBLE LILYGO SETUPS! CHECK USER SETTINGS!
+#endif
 
   // Init Serial2 connected to the RTU Modbus
   RTUutils::prepareHardwareSerial(Serial2);
