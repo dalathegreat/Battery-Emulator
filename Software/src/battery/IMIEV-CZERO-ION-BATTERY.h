@@ -25,7 +25,8 @@ extern uint16_t temperature_max;
 extern uint16_t CANerror;
 extern uint16_t cell_max_voltage;
 extern uint16_t cell_min_voltage;
-extern bool batteryAllowsContactorClosing;
+extern bool batteryAllowsContactorClosing;   //Bool, 1=true, 0=false
+extern bool inverterAllowsContactorClosing;  //Bool, 1=true, 0=false
 extern uint8_t LEDcolor;
 // Definitions for BMS status
 #define STANDBY 0

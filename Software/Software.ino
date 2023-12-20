@@ -125,6 +125,8 @@ void setup() {
 
   init_modbus();
 
+  init_serialDataLink();
+
   inform_user_on_inverter();
 
   inform_user_on_battery();
@@ -132,6 +134,7 @@ void setup() {
 
 // Perform main program functions
 void loop() {
+
 #ifdef WEBSERVER
   // Over-the-air updates by ElegantOTA
   ElegantOTA.loop();
@@ -141,6 +144,9 @@ void loop() {
   receive_can();  // Receive CAN messages. Runs as fast as possible
 #ifdef DUAL_CAN
   receive_can2();
+#endif
+#if defined(SERIAL_LINK_RECEIVER) || defined(SERIAL_LINK_TRANSMITTER)
+  runSerialDataLink();
 #endif
 
   // Process
@@ -236,6 +242,11 @@ void init_modbus() {
   handle_static_data_modbus_byd();
 #endif
 #if defined(BYD_MODBUS) || defined(LUNA2000_MODBUS)
+#if defined(SERIAL_LINK_RECEIVER) || defined(SERIAL_LINK_TRANSMITTER)
+// Check that Dual LilyGo via RS485 option isn't enabled, this collides with Modbus!
+#error MODBUS CANNOT BE USED IN DOUBLE LILYGO SETUPS! CHECK USER SETTINGS!
+#endif
+
   // Init Serial2 connected to the RTU Modbus
   RTUutils::prepareHardwareSerial(Serial2);
   Serial2.begin(9600, SERIAL_8N1, RS485_RX_PIN, RS485_TX_PIN);
@@ -301,6 +312,9 @@ void inform_user_on_battery() {
 #endif
 #ifdef TEST_FAKE_BATTERY
   Serial.println("Test mode with fake battery selected");
+#endif
+#ifdef SERIAL_LINK_RECEIVER
+  Serial.println("SERIAL_DATA_LINK_RECEIVER selected");
 #endif
 #if !defined(ABSOLUTE_MAX_VOLTAGE)
 #error No battery selected! Choose one from the USER_SETTINGS.h file
@@ -615,5 +629,29 @@ void update_values() {
 #endif
 #ifdef SOLAX_CAN
   update_values_can_solax();
+#endif
+}
+
+void runSerialDataLink() {
+  static unsigned long updateTime = 0;
+  unsigned long currentMillis = millis();
+#ifdef SERIAL_LINK_RECEIVER
+  if ((currentMillis - updateTime) > 1) {  //Every 2ms
+    updateTime = currentMillis;
+    manageSerialLinkReceiver();
+  }
+#endif
+
+#ifdef SERIAL_LINK_TRANSMITTER
+  if ((currentMillis - updateTime) > 1) {  //Every 2ms
+    updateTime = currentMillis;
+    manageSerialLinkTransmitter();
+  }
+#endif
+}
+
+void init_serialDataLink() {
+#if defined(SERIAL_LINK_RECEIVER) || defined(SERIAL_LINK_TRANSMITTER)
+  Serial2.begin(9600, SERIAL_8N1, RS485_RX_PIN, RS485_TX_PIN);
 #endif
 }
