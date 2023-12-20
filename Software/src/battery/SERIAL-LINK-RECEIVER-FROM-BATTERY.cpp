@@ -19,8 +19,6 @@ const uint8_t sendingNumVariables = 0;
 #define SerialReceiver Serial2
 #endif
 
-#define REPORT_SDL_DATA 1
-
 //                                          txid,rxid,  num_send,num_recv
 SerialDataLink dataLinkReceive(SerialReceiver, 0, 0x01, sendingNumVariables,
                                INVERTER_RECV_NUM_VARIABLES);  // ...
@@ -55,8 +53,8 @@ void __getData() {
 void updateData() {
   // --- update with fresh data
   dataLinkReceive.updateData(0, inverterAllowsContactorClosing);
-  //dataLinkReceive.updateData(1,var2);
-  //dataLinkReceive.updateData(2,var3);
+  //dataLinkReceive.updateData(1,var2); // For future expansion, 
+  //dataLinkReceive.updateData(2,var3); // if inverter needs to send data to battery
 }
 
 /*
@@ -156,7 +154,7 @@ void manageSerialLinkReceiver() {
 // --- printUsefullData();
 //Serial.print("SOC = ");
 //Serial.println(SOC);
-#ifdef REPORT_SDL_DATA
+#ifdef DEBUG_VIA_USB
     update_values_serial_link();
 #endif
   }

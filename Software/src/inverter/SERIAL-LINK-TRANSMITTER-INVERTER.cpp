@@ -17,8 +17,6 @@ const uint8_t receivingNumVariables = BATTERY_RECV_NUM_VARIABLES;
 const uint8_t receivingNumVariables = 0;
 #endif
 
-//#define REPORT_SDL_DATA 1
-
 //                                     txid,rxid,num_tx,num_rx
 SerialDataLink dataLinkTransmit(Serial2, 0x01, 0, BATTERY_SEND_NUM_VARIABLES, receivingNumVariables);
 
@@ -26,8 +24,8 @@ void printSendingValues();
 
 void _getData() {
   inverterAllowsContactorClosing = dataLinkTransmit.getReceivedData(0);
-  //var2 = dataLinkTransmit.getReceivedData(1);
-  //var3 = dataLinkTransmit.getReceivedData(2);
+  //var2 = dataLinkTransmit.getReceivedData(1); // For future expansion, 
+  //var3 = dataLinkTransmit.getReceivedData(2); // if inverter needs to send data to battery
 }
 
 void manageSerialLinkTransmitter() {
@@ -92,7 +90,7 @@ void manageSerialLinkTransmitter() {
       Serial.print(currentTime);
       Serial.println(" - Transmit Good");
 //  printUsefullData();
-#ifdef REPORT_SDL_DATA
+#ifdef DEBUG_VIA_USB
       void printSendingValues();
 #endif
     }

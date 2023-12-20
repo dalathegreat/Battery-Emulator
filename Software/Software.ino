@@ -124,6 +124,7 @@ void setup() {
   init_contactors();
 
   init_modbus();
+
   init_serialDataLink();
 
   inform_user_on_inverter();
@@ -241,6 +242,11 @@ void init_modbus() {
   handle_static_data_modbus_byd();
 #endif
 #if defined(BYD_MODBUS) || defined(LUNA2000_MODBUS)
+  #if defined(SERIAL_LINK_RECEIVER) || defined(SERIAL_LINK_TRANSMITTER)
+    // Check that Dual LilyGo via RS485 option isn't enabled, this collides with Modbus!
+    #error MODBUS CANNOT BE USED IN DOUBLE LILYGO SETUPS! CHECK USER SETTINGS!
+  #endif
+
   // Init Serial2 connected to the RTU Modbus
   RTUutils::prepareHardwareSerial(Serial2);
   Serial2.begin(9600, SERIAL_8N1, RS485_RX_PIN, RS485_TX_PIN);
@@ -627,18 +633,18 @@ void update_values() {
 }
 
 void runSerialDataLink() {
-  static unsigned long sdlTimer = 0;
+  static unsigned long updateTime = 0;
   unsigned long currentMillis = millis();
 #ifdef SERIAL_LINK_RECEIVER
-  if (currentMillis - sdlTimer >= 1) {  //--- try 2 second
-    sdlTimer = currentMillis;
+  if ((currentMillis - updateTime) > 1) {  //Every 2ms
+    updateTime = currentMillis;
     manageSerialLinkReceiver();
   }
 #endif
 
 #ifdef SERIAL_LINK_TRANSMITTER
-  if (currentMillis - sdlTimer >= 1) {  //--- try 2 second
-    sdlTimer = currentMillis;
+  if ((currentMillis - updateTime) > 1) {  //Every 2ms
+    updateTime = currentMillis;
     manageSerialLinkTransmitter();
   }
 #endif
