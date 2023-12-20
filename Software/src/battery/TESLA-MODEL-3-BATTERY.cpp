@@ -306,9 +306,9 @@ void update_values_tesla_model_3_battery() {  //This function maps all the value
     Serial.print("YES, ");
   else
     Serial.print("NO, ");
-  print_int_with_units("Min voltage allowed: ", min_voltage, "V");
-  Serial.print(", ");
-  print_int_with_units("Max voltage allowed: ", max_voltage, "V");
+  if (LFP_Chemistry) {
+    Serial.print("LFP chemistry detected!");
+  }
   Serial.println("");
   Serial.print("Cellstats, Max: ");
   Serial.print(cell_max_v);
