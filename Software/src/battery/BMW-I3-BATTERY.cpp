@@ -590,6 +590,11 @@ static uint16_t HVBatt_SOC = 0;
 static uint16_t Battery_Status = 0;
 static uint16_t DC_link = 0;
 static int16_t Battery_Power = 0;
+static uint16_t TemperatureMaxMaybe = 0;
+static uint16_t MaxChargingVoltage = 0;
+static uint16_t MaxDischargeVoltage = 0;
+static uint16_t MaxChargeWattMaybe = 0;
+static uint16_t MaxDischargeWattMaybe = 0;
 
 void update_values_i3_battery() {  //This function maps all the values fetched via CAN to the correct parameters used for modbus
   bms_status = ACTIVE;             //Startout in active mode
@@ -646,14 +651,32 @@ void update_values_i3_battery() {  //This function maps all the values fetched v
   }
 
 #ifdef DEBUG_VIA_USB
-  Serial.print("SOC% battery: ");
+  Serial.print("Battery values: ");
+  Serial.print("SOC% raw: ");
   Serial.print(Display_SOC);
-  Serial.print(" SOC% sent to inverter: ");
+  Serial.print(" Voltage: ");
+  Serial.print(Battery_Volts);
+  Serial.print(" Current: ");
+  Serial.print(Battery_Current);
+  Serial.print(" kWh remaining: ");
+  Serial.print(Battery_Capacity_kWh);
+  Serial.print(" Temperature: ");
+  Serial.print(TemperatureMaxMaybe / 10);
+  Serial.print(" Max charge voltage: ");
+  Serial.print(MaxChargingVoltage / 10);
+  Serial.print(" Max discharge voltage: ");
+  Serial.print(MaxDischargeVoltage / 10);
+  Serial.print(" Max charge Watt: ");
+  Serial.print(MaxChargeWattMaybe);
+  Serial.print(" Max discharge Watt: ");
+  Serial.print(MaxDischargeWattMaybe);
+  Serial.print(" Battery Status: ");
+  Serial.print(Battery_Status);
+
+  Serial.println(" ");
+  Serial.print("Values sent to inverter: ");
+  Serial.print("SOC%: ");
   Serial.print(SOC);
-  Serial.print(" Battery voltage: ");
-  Serial.print(battery_voltage);
-  Serial.print(" Remaining Wh: ");
-  Serial.print(remaining_capacity_Wh);
   Serial.print(" Max charge power: ");
   Serial.print(max_target_charge_power);
   Serial.print(" Max discharge power: ");
@@ -664,50 +687,55 @@ void update_values_i3_battery() {  //This function maps all the values fetched v
 void receive_can_i3_battery(CAN_frame_t rx_frame) {
 
   switch (rx_frame.MsgID) {
-    case 0x431:  //Battery capacity [200ms] (94AH)
-      Battery_Capacity_kWh = (((rx_frame.data.u8[6] & 0x0F) << 8 | rx_frame.data.u8[5])) / 50;
-      break;
-    case 0x432:  //SOC% charged [200ms] (94AH)
-      CANstillAlive = 12;
-      Voltage_Setpoint = ((rx_frame.data.u8[1] << 4 | rx_frame.data.u8[0] >> 4)) / 10;
-      Low_SOC = (rx_frame.data.u8[2] / 2);
-      High_SOC = (rx_frame.data.u8[3] / 2);
-      Display_SOC = (rx_frame.data.u8[4] / 2);
-      break;
-    case 0x112:  //BMS status [10ms] (NOT IN 94AH!)
+    case 0x112:            //BMS status [10ms]
+      CANstillAlive = 12;  //This message is only sent if 30C signal is active
       Battery_Current = ((rx_frame.data.u8[1] << 8 | rx_frame.data.u8[0]) / 10) - 819;  //Amps
       Battery_Volts = (rx_frame.data.u8[3] << 8 | rx_frame.data.u8[2]);                 //500.0 V
       HVBatt_SOC = ((rx_frame.data.u8[5] & 0x0F) << 4 | rx_frame.data.u8[4]) / 10;
       Battery_Status = (rx_frame.data.u8[6] & 0x0F);
       DC_link = rx_frame.data.u8[7];
       break;
-    case 0x430:  //BMS (94AH)
+    case 0x239:  //BMS [200ms]
+      TemperatureMaxMaybe = rx_frame.data.u8[2];
       break;
-    case 0x1FA:  //BMS (94AH)
+    case 0x2F5:                                                                          //BMS [100ms]
+      MaxChargingVoltage = (((rx_frame.data.u8[1] & 0x0F) << 8 | rx_frame.data.u8[0]));  //Voltage + 1decimal
+      MaxChargeWattMaybe = ((rx_frame.data.u8[3] << 8) | rx_frame.data.u8[2]);
+      MaxDischargeVoltage = (((rx_frame.data.u8[5] & 0x0F) << 8 | rx_frame.data.u8[4]));  //Voltage + 1decimal
+      MaxDischargeWattMaybe = ((rx_frame.data.u8[7] << 8) | rx_frame.data.u8[6]);
       break;
-    case 0x40D:  //BMS (94AH)
+    case 0x431:  //Battery capacity [200ms]
+      Battery_Capacity_kWh = (((rx_frame.data.u8[6] & 0x0F) << 8 | rx_frame.data.u8[5])) / 50;
       break;
-    case 0x2FF:  //BMS (94AH)
+    case 0x432:  //SOC% charged [200ms]
+      Voltage_Setpoint = ((rx_frame.data.u8[1] << 4 | rx_frame.data.u8[0] >> 4)) / 10;
+      Low_SOC = (rx_frame.data.u8[2] / 2);
+      High_SOC = (rx_frame.data.u8[3] / 2);
+      Display_SOC = (rx_frame.data.u8[4] / 2);
       break;
-    case 0x239:  //BMS (94AH)
+    case 0x2BD:  //BMS
       break;
-    case 0x2BD:  //BMS (94AH)
+    case 0x430:  //BMS
       break;
-    case 0x2F5:  //BMS (94AH)
+    case 0x1FA:  //BMS
       break;
-    case 0x3C2:  //BMS (94AH)
+    case 0x40D:  //BMS
       break;
-    case 0x3EB:  //BMS (94AH)
+    case 0x2FF:  //BMS
       break;
-    case 0x363:  //BMS (94AH)
+    case 0x3C2:  //BMS (94AH exclusive)
       break;
-    case 0x507:  //BMS (94AH)
+    case 0x3EB:  //BMS
       break;
-    case 0x587:  //BMS (94AH)
+    case 0x363:  //BMS
       break;
-    case 0x41C:  //BMS (94AH)
+    case 0x507:  //BMS
       break;
-    case 0x607:  //BMS (94AH)
+    case 0x587:  //BMS
+      break;
+    case 0x41C:  //BMS
+      break;
+    case 0x607:  //BMS
       break;
     default:
       break;
