@@ -26,7 +26,7 @@
 
 /* Battery settings */
 #define BATTERY_WH_MAX \
-  30000  //Battery size in Wh (Maximum value for most inverters is 60000 [60kWh], you can use larger batteries but do not set value over 60000!
+  30000  //Battery size in Wh (Maximum value for most inverters is 65000 [65kWh], you can use larger batteries but do not set value over 65000!
 #define MAXPERCENTAGE \
   800  //80.0% , Max percentage the battery will charge to (App will show 100% once this value is reached)
 #define MINPERCENTAGE \
