@@ -93,7 +93,7 @@ void init_WiFi_STA(const char* ssid, const char* password) {
   }
   if (WiFi.status() == WL_CONNECTED) {  // WL_CONNECTED is assigned when connected to a WiFi network
     wifi_connected = true;
-    wifi_state = "connected";
+    wifi_state = "Connected";
     // Print local IP address and start web server
     Serial.println("");
     Serial.print("Connected to WiFi network: ");
@@ -102,7 +102,7 @@ void init_WiFi_STA(const char* ssid, const char* password) {
     Serial.println(WiFi.localIP());
   } else {
     wifi_connected = false;
-    wifi_state = "not connected";
+    wifi_state = "Not connected";
     Serial.print("Not connected to WiFi network: ");
     Serial.println(ssid);
     Serial.println("Please check WiFi network name and password, and if WiFi network is available.");
@@ -125,6 +125,9 @@ String processor(const String& var) {
     content += "body { background-color: black; color: white; }";
     content += "</style>";
 
+    // Start a new block with a specific background color
+    content += "<div style='background-color: #303E47; padding: 10px; margin-bottom: 10px;'>";
+
     // Display LED color
     content += "<h4>LED color: ";
     switch (LEDcolor) {
@@ -141,23 +144,86 @@ String processor(const String& var) {
         content += "RED</h4>";
         break;
       case TEST_ALL_COLORS:
-        content += "RAINBOW</h4>";
+        content += "RGB Testing loop</h4>";
         break;
       default:
         break;
     }
     // Display ssid of network connected to and, if connected to the WiFi, its own IP
     content += "<h4>SSID: " + String(ssid) + "</h4>";
-    content += "<h4>status: " + wifi_state + "</h4>";
+    content += "<h4>Wifi status: " + wifi_state + "</h4>";
     if (wifi_connected == true) {
       content += "<h4>IP: " + WiFi.localIP().toString() + "</h4>";
     }
-    // Assuming SOC is an integer
-    float socFloat = static_cast<float>(SOC) / 100.0; // Convert to float and divide by 100
-    float sohFloat = static_cast<float>(StateOfHealth) / 100.0; // Convert to float and divide by 100
-    float voltageFloat = static_cast<float>(battery_voltage) / 10.0; // Convert to float and divide by 10
-    float tempMaxFloat = static_cast<float>(temperature_max) / 10.0; // Convert to float and divide by 10
-    float tempMinFloat = static_cast<float>(temperature_min) / 10.0; // Convert to float and divide by 10
+    // Close the block
+    content += "</div>";
+
+    // Start a new block with a specific background color
+    content += "<div style='background-color: #2D3F2F; padding: 10px; margin-bottom: 10px;'>";
+
+    // Display which components are used
+    content += "<h4 style='color: white;'>Inverter protocol: ";
+#ifdef BYD_CAN
+    content += "BYD Battery-Box Premium HVS over CAN Bus";
+#endif
+#ifdef BYD_MODBUS
+    content += "BYD 11kWh HVM battery over Modbus RTU";
+#endif
+#ifdef LUNA2000_MODBUS
+    content += "Luna2000 battery over Modbus RTU";
+#endif
+#ifdef PYLON_CAN
+    content += "Pylontech battery over CAN bus";
+#endif
+#ifdef SMA_CAN
+    content += "BYD Battery-Box H 8.9kWh, 7 mod over CAN bus";
+#endif
+#ifdef SOFAR_CAN
+    content += "Sofar Energy Storage Inverter High Voltage BMS General Protocol (Extended Frame) over CAN bus";
+#endif
+#ifdef SOLAX_CAN
+    content += "SolaX Triple Power LFP over CAN bus";
+#endif
+    content += "</h4>";
+
+    content += "<h4 style='color: white;'>Battery protocol: ";
+#ifdef BMW_I3_BATTERY
+    content += "BMW i3";
+#endif
+#ifdef CHADEMO_BATTERY
+    content += "Chademo V2X mode";
+#endif
+#ifdef IMIEV_CZERO_ION_BATTERY
+    content += "I-Miev / C-Zero / Ion Triplet";
+#endif
+#ifdef KIA_HYUNDAI_64_BATTERY
+    content += "Kia/Hyundai 64kWh";
+#endif
+#ifdef NISSAN_LEAF_BATTERY
+    content += "Nissan LEAF";
+#endif
+#ifdef RENAULT_ZOE_BATTERY
+    content += "Renault Zoe / Kangoo";
+#endif
+#ifdef TESLA_MODEL_3_BATTERY
+    content += "Tesla Model S/3/X/Y";
+#endif
+#ifdef TEST_FAKE_BATTERY
+    content += "Fake battery for testing purposes";
+#endif
+    content += "</h4>";
+    // Close the block
+    content += "</div>";
+
+    // Start a new block with a specific background color
+    content += "<div style='background-color: #333; padding: 10px; margin-bottom: 10px;'>";
+
+    // Display battery statistics within this block
+    float socFloat = static_cast<float>(SOC) / 100.0;                 // Convert to float and divide by 100
+    float sohFloat = static_cast<float>(StateOfHealth) / 100.0;       // Convert to float and divide by 100
+    float voltageFloat = static_cast<float>(battery_voltage) / 10.0;  // Convert to float and divide by 10
+    float tempMaxFloat = static_cast<float>(temperature_max) / 10.0;  // Convert to float and divide by 10
+    float tempMinFloat = static_cast<float>(temperature_min) / 10.0;  // Convert to float and divide by 10
     char socString[10];
     char sohString[10];
     char voltageString[10];
@@ -171,12 +237,11 @@ String processor(const String& var) {
     dtostrf(tempMaxFloat, 6, 1, tempMaxString);
     dtostrf(tempMinFloat, 6, 1, tempMinString);
 
-    //Display battery statistics
-    content += "<h4>SOC: " + String(socString) +"</h4>";
-    content += "<h4>SOH: " + String(sohString) +"</h4>";
-    content += "<h4>Voltage: " + String(voltageString) + " V</h4>";
-    content += "<h4>Current: " + String(battery_current) + " A</h4>";
-    content += "<h4>Power: " + String(stat_batt_power) + " W</h4>";
+    content += "<h4 style='color: white;'>SOC: " + String(socString) + "</h4>";
+    content += "<h4 style='color: white;'>SOH: " + String(sohString) + "</h4>";
+    content += "<h4 style='color: white;'>Voltage: " + String(voltageString) + " V</h4>";
+    content += "<h4 style='color: white;'>Current: " + String(battery_current) + " A</h4>";
+    content += "<h4 style='color: white;'>Power: " + String(stat_batt_power) + " W</h4>";
     content += "<h4>Total capacity: " + String(capacity_Wh) + " Wh</h4>";
     content += "<h4>Remaining capacity: " + String(remaining_capacity_Wh) + " Wh</h4>";
     content += "<h4>Max discharge power: " + String(max_target_discharge_power) + " W</h4>";
@@ -185,32 +250,29 @@ String processor(const String& var) {
     content += "<h4>Cell min: " + String(cell_min_voltage) + " mV</h4>";
     content += "<h4>Temperature max: " + String(tempMaxString) + " C</h4>";
     content += "<h4>Temperature min: " + String(tempMinString) + " C</h4>";
-    content += "<h4>BMS Status: " + String(bms_status) + " -</h4>";
-    if(bms_status == 3){
+    if (bms_status == 3) {
       content += "<h4>BMS Status: OK </h4>";
-    }
-    else{
+    } else {
       content += "<h4>BMS Status: FAULT </h4>";
     }
-    if(bms_char_dis_status == 2){ 
+    if (bms_char_dis_status == 2) {
       content += "<h4>Battery charging!</h4>";
-    }
-    else if (bms_char_dis_status == 1){
-      content += "<h4>Battery discharging!</h4>";  
-    }
-    else{ //0 idle
+    } else if (bms_char_dis_status == 1) {
+      content += "<h4>Battery discharging!</h4>";
+    } else {  //0 idle
       content += "<h4>Battery idle</h4>";
     }
+    // Close the block
+    content += "</div>";
 
     content += "<button onclick='goToUpdatePage()'>Perform OTA update</button>";
     content += "<script>";
     content += "function goToUpdatePage() { window.location.href = '/update'; }";
     content += "</script>";
 
-
     //Script for refreshing page
     content += "<script>";
-    content += "setTimeout(function(){ location.reload(true); }, 5000);";
+    content += "setTimeout(function(){ location.reload(true); }, 10000);";
     content += "</script>";
 
     return content;
