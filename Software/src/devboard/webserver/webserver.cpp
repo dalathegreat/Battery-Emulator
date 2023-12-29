@@ -9,9 +9,9 @@ unsigned long ota_progress_millis = 0;
 const char index_html[] PROGMEM = R"rawliteral(
 <!DOCTYPE HTML><html>
 <head>
-  <title>Battery Emulator Web Server</title>
+  <title>Battery Emulator</title>
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <link rel="icon" href="data:,">
+  <link rel="icon" type="image/png" href="favicon.png">
   <style>
     html {font-family: Arial; display: inline-block; text-align: center;}
     h2 {font-size: 3.0rem;}
@@ -26,7 +26,7 @@ const char index_html[] PROGMEM = R"rawliteral(
   </style>
 </head>
 <body>
-  <h2>Battery Emulator Web Server</h2>
+  <h2>Battery Emulator</h2>
   %PLACEHOLDER%
 </script>
 </body>
@@ -120,6 +120,11 @@ void init_ElegantOTA() {
 String processor(const String& var) {
   if (var == "PLACEHOLDER") {
     String content = "";
+    //Page format
+    content += "<style>";
+    content += "body { background-color: black; color: white; }";
+    content += "</style>";
+
     // Display LED color
     content += "<h4>LED color: ";
     switch (LEDcolor) {
@@ -147,6 +152,67 @@ String processor(const String& var) {
     if (wifi_connected == true) {
       content += "<h4>IP: " + WiFi.localIP().toString() + "</h4>";
     }
+    // Assuming SOC is an integer
+    float socFloat = static_cast<float>(SOC) / 100.0; // Convert to float and divide by 100
+    float sohFloat = static_cast<float>(StateOfHealth) / 100.0; // Convert to float and divide by 100
+    float voltageFloat = static_cast<float>(battery_voltage) / 10.0; // Convert to float and divide by 10
+    float tempMaxFloat = static_cast<float>(temperature_max) / 10.0; // Convert to float and divide by 10
+    float tempMinFloat = static_cast<float>(temperature_min) / 10.0; // Convert to float and divide by 10
+    char socString[10];
+    char sohString[10];
+    char voltageString[10];
+    char tempMaxString[10];
+    char tempMinString[10];
+
+    // Format decimals
+    dtostrf(socFloat, 6, 2, socString);
+    dtostrf(sohFloat, 6, 2, sohString);
+    dtostrf(voltageFloat, 6, 1, voltageString);
+    dtostrf(tempMaxFloat, 6, 1, tempMaxString);
+    dtostrf(tempMinFloat, 6, 1, tempMinString);
+
+    //Display battery statistics
+    content += "<h4>SOC: " + String(socString) +"</h4>";
+    content += "<h4>SOH: " + String(sohString) +"</h4>";
+    content += "<h4>Voltage: " + String(voltageString) + " V</h4>";
+    content += "<h4>Current: " + String(battery_current) + " A</h4>";
+    content += "<h4>Power: " + String(stat_batt_power) + " W</h4>";
+    content += "<h4>Total capacity: " + String(capacity_Wh) + " Wh</h4>";
+    content += "<h4>Remaining capacity: " + String(remaining_capacity_Wh) + " Wh</h4>";
+    content += "<h4>Max discharge power: " + String(max_target_discharge_power) + " W</h4>";
+    content += "<h4>Max charge power: " + String(max_target_charge_power) + " W</h4>";
+    content += "<h4>Cell max: " + String(cell_max_voltage) + " mV</h4>";
+    content += "<h4>Cell min: " + String(cell_min_voltage) + " mV</h4>";
+    content += "<h4>Temperature max: " + String(tempMaxString) + " C</h4>";
+    content += "<h4>Temperature min: " + String(tempMinString) + " C</h4>";
+    content += "<h4>BMS Status: " + String(bms_status) + " -</h4>";
+    if(bms_status == 3){
+      content += "<h4>BMS Status: OK </h4>";
+    }
+    else{
+      content += "<h4>BMS Status: FAULT </h4>";
+    }
+    if(bms_char_dis_status == 2){ 
+      content += "<h4>Battery charging!</h4>";
+    }
+    else if (bms_char_dis_status == 1){
+      content += "<h4>Battery discharging!</h4>";  
+    }
+    else{ //0 idle
+      content += "<h4>Battery idle</h4>";
+    }
+
+    content += "<button onclick='goToUpdatePage()'>Perform OTA update</button>";
+    content += "<script>";
+    content += "function goToUpdatePage() { window.location.href = '/update'; }";
+    content += "</script>";
+
+
+    //Script for refreshing page
+    content += "<script>";
+    content += "setTimeout(function(){ location.reload(true); }, 5000);";
+    content += "</script>";
+
     return content;
   }
   return String();
