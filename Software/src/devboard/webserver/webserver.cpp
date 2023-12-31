@@ -159,7 +159,7 @@ String processor(const String& var) {
     content += "</div>";
 
     // Start a new block with a specific background color
-    content += "<div style='background-color: #2D3F2F; padding: 10px; margin-bottom: 10px; border-radius: 50px'>";
+    content += "<div style='background-color: #333; padding: 10px; margin-bottom: 10px; border-radius: 50px'>";
 
     // Display which components are used
     content += "<h4 style='color: white;'>Inverter protocol: ";
@@ -215,8 +215,27 @@ String processor(const String& var) {
     // Close the block
     content += "</div>";
 
-    // Start a new block with a specific background color
-    content += "<div style='background-color: #333; padding: 10px; margin-bottom: 10px; border-radius: 50px'>";
+    // Start a new block with a specific background color. Color changes depending on BMS status
+    switch (LEDcolor) {
+      case GREEN:
+        content += "<div style='background-color: #2D3F2F; padding: 10px; margin-bottom: 10px; border-radius: 50px'>";
+        break;
+      case YELLOW:
+        content += "<div style='background-color: #F5CC00; padding: 10px; margin-bottom: 10px; border-radius: 50px'>";
+        break;
+      case BLUE:
+        content += "<div style='background-color: #2B35AF; padding: 10px; margin-bottom: 10px; border-radius: 50px'>";
+        break;
+      case RED:
+        content += "<div style='background-color: #A70107; padding: 10px; margin-bottom: 10px; border-radius: 50px'>";
+        break;
+      case TEST_ALL_COLORS:  //Blue in test mode
+        content += "<div style='background-color: #2B35AF; padding: 10px; margin-bottom: 10px; border-radius: 50px'>";
+        break;
+      default:  //Some new color, make background green
+        content += "<div style='background-color: #2D3F2F; padding: 10px; margin-bottom: 10px; border-radius: 50px'>";
+        break;
+    }
 
     // Display battery statistics within this block
     float socFloat = static_cast<float>(SOC) / 100.0;                 // Convert to float and divide by 100
@@ -228,7 +247,12 @@ String processor(const String& var) {
     } else {
       currentFloat = static_cast<float>(battery_current) / 10.0;  // Convert to float and divide by 10
     }
-
+    float powerFloat = 0;
+    if (stat_batt_power > 32767) {  //Handle negative values on this unsigned value
+      powerFloat = static_cast<float>(-(65535 - stat_batt_power));
+    } else {
+      powerFloat = static_cast<float>(stat_batt_power);
+    }
     float tempMaxFloat = 0;
     float tempMinFloat = 0;
     if (temperature_max > 32767) {  //Handle negative values on this unsigned value
@@ -241,35 +265,19 @@ String processor(const String& var) {
     } else {
       tempMinFloat = static_cast<float>(temperature_min) / 10.0;  // Convert to float and divide by 10
     }
-
-    char socString[10];
-    char sohString[10];
-    char currentString[10];
-    char voltageString[10];
-    char tempMaxString[10];
-    char tempMinString[10];
-
-    // Format decimals
-    dtostrf(socFloat, 6, 2, socString);
-    dtostrf(sohFloat, 6, 2, sohString);
-    dtostrf(voltageFloat, 6, 1, voltageString);
-    dtostrf(currentFloat, 6, 1, currentString);
-    dtostrf(tempMaxFloat, 6, 1, tempMaxString);
-    dtostrf(tempMinFloat, 6, 1, tempMinString);
-
-    content += "<h4 style='color: white;'>SOC: " + String(socString) + "</h4>";
-    content += "<h4 style='color: white;'>SOH: " + String(sohString) + "</h4>";
-    content += "<h4 style='color: white;'>Voltage: " + String(voltageString) + " V</h4>";
-    content += "<h4 style='color: white;'>Current: " + String(currentString) + " A</h4>";
-    content += "<h4 style='color: white;'>Power: " + String(stat_batt_power) + " W</h4>";
+    content += "<h4 style='color: white;'>SOC: " + String(socFloat, 2) + "</h4>";
+    content += "<h4 style='color: white;'>SOH: " + String(sohFloat, 2) + "</h4>";
+    content += "<h4 style='color: white;'>Voltage: " + String(voltageFloat, 1) + " V</h4>";
+    content += "<h4 style='color: white;'>Current: " + String(currentFloat, 1) + " A</h4>";
+    content += "<h4 style='color: white;'>Power: " + String(powerFloat, 0) + " W</h4>";
     content += "<h4>Total capacity: " + String(capacity_Wh) + " Wh</h4>";
     content += "<h4>Remaining capacity: " + String(remaining_capacity_Wh) + " Wh</h4>";
     content += "<h4>Max discharge power: " + String(max_target_discharge_power) + " W</h4>";
     content += "<h4>Max charge power: " + String(max_target_charge_power) + " W</h4>";
     content += "<h4>Cell max: " + String(cell_max_voltage) + " mV</h4>";
     content += "<h4>Cell min: " + String(cell_min_voltage) + " mV</h4>";
-    content += "<h4>Temperature max: " + String(tempMaxString) + " C</h4>";
-    content += "<h4>Temperature min: " + String(tempMinString) + " C</h4>";
+    content += "<h4>Temperature max: " + String(tempMaxFloat, 1) + " C</h4>";
+    content += "<h4>Temperature min: " + String(tempMinFloat, 1) + " C</h4>";
     if (bms_status == 3) {
       content += "<h4>BMS Status: OK </h4>";
     } else {

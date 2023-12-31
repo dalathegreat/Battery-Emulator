@@ -490,6 +490,7 @@ void handle_LED_state() {
 
   // BMS in fault state overrides everything
   if (bms_status == FAULT) {
+    LEDcolor = RED;
     pixels.setPixelColor(0, pixels.Color(255, 0, 0));  // Red LED full brightness
   }
 
