@@ -30,6 +30,7 @@ static uint32_t total_discharge = 0;
 static uint32_t total_charge = 0;
 static uint16_t volts = 0;     // V
 static int16_t amps = 0;       // A
+static int16_t power = 0;      // W
 static uint16_t raw_amps = 0;  // A
 static int16_t max_temp = 6;   // C*
 static int16_t min_temp = 5;   // C*
@@ -202,7 +203,8 @@ void update_values_tesla_model_3_battery() {  //This function maps all the value
     max_target_charge_power = MAXCHARGEPOWERALLOWED;
   }
 
-  stat_batt_power = (volts * amps);  //TODO: check if scaling is OK
+  power = ((volts / 10) * amps);
+  stat_batt_power = convert2unsignedInt16(power);
 
   min_temp = (min_temp * 10);
   temperature_min = convert2unsignedInt16(min_temp);
