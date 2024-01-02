@@ -203,7 +203,7 @@ void update_values_tesla_model_3_battery() {  //This function maps all the value
     max_target_charge_power = MAXCHARGEPOWERALLOWED;
   }
 
-  power = (volts * amps);
+  power = ((volts / 10) * amps);
   stat_batt_power = convert2unsignedInt16(power);
 
   min_temp = (min_temp * 10);
