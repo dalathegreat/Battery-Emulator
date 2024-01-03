@@ -120,10 +120,13 @@ static uint8_t LB_Failsafe_Status = 0;           //LB_STATUS = 000b = normal sta
                                                  //110b = Caution Lamp Request & Charging Mode Stop Request
                                                  //111b = Caution Lamp Request & Main Relay OFF Request
 static byte LB_Interlock =
-    1;  //Contains info on if HV leads are seated (Note, to use this both HV connectors need to be inserted)
-static byte LB_Full_CHARGE_flag = 0;  //LB_FCHGEND , Goes to 1 if battery is fully charged
-static byte LB_MainRelayOn_flag = 0;  //No-Permission=0, Main Relay On Permission=1
-static byte LB_Capacity_Empty = 0;    //LB_EMPTY, , Goes to 1 if battery is empty
+    true;  //Contains info on if HV leads are seated (Note, to use this both HV connectors need to be inserted)
+static byte LB_Full_CHARGE_flag = false;  //LB_FCHGEND , Goes to 1 if battery is fully charged
+static byte LB_MainRelayOn_flag = false;  //No-Permission=0, Main Relay On Permission=1
+static byte LB_Capacity_Empty = false;    //LB_EMPTY, , Goes to 1 if battery is empty
+static byte LB_HeatExist = false;         //LB_HEATEXIST, Specifies if battery pack is equipped with heating elements
+static byte LB_Heating_Stop = false;      //When transitioning from 0->1, signals a STOP heat request
+static byte LB_Heating_Start = false;     //When transitioning from 1->0, signals a START heat request
 
 // Nissan LEAF battery data from polled CAN messages
 static uint8_t battery_request_idx = 0;
@@ -385,6 +388,7 @@ void update_values_leaf_battery() { /* This function maps all the values fetched
   print_with_units("Real SOC%: ", (LB_SOC * 0.1), "% ");
   print_with_units(", GIDS: ", LB_GIDS, " (x77Wh) ");
   print_with_units(", Battery gen: ", LEAF_Battery_Type, " ");
+  print_with_units(", Has heater: ", LB_HeatExist, " ");
   print_with_units(", Max cell voltage: ", min_max_voltage[1], "mV ");
   print_with_units(", Min cell voltage: ", min_max_voltage[0], "mV ");
   print_with_units(", Cell deviation: ", cell_deviation_mV, "mV ");
@@ -462,7 +466,8 @@ void receive_can_leaf_battery(CAN_frame_t rx_frame) {
         LB_StateOfHealth = LB_TEMP;  //Collect state of health from battery
       }
       break;
-    case 0x5C0:  //This method only works for 2013-2017 AZE0 LEAF packs, the mux is different on other generations
+    case 0x5C0:
+      //This temperature only works for 2013-2017 AZE0 LEAF packs, the mux is different on other generations
       if (LEAF_Battery_Type == AZE0_BATTERY) {
         if ((rx_frame.data.u8[0] >> 6) ==
             1) {  // Battery MAX temperature. Effectively has only 7-bit precision, as the bottom bit is always 0.
@@ -473,6 +478,11 @@ void receive_can_leaf_battery(CAN_frame_t rx_frame) {
           LB_HistData_Temperature_MIN = ((rx_frame.data.u8[2] / 2) - 40);
         }
       }
+
+      LB_HeatExist = (rx_frame.data.u8[4] & 0x01);
+      LB_Heating_Stop = ((rx_frame.data.u8[0] & 0x10) >> 4);
+      LB_Heating_Start = ((rx_frame.data.u8[0] & 0x20) >> 5);
+
       break;
     case 0x59E:
       //AZE0 2013-2017 or ZE1 2018-2023 battery detected
