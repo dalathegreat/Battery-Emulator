@@ -127,6 +127,7 @@ static byte LB_Capacity_Empty = false;    //LB_EMPTY, , Goes to 1 if battery is 
 static byte LB_HeatExist = false;         //LB_HEATEXIST, Specifies if battery pack is equipped with heating elements
 static byte LB_Heating_Stop = false;      //When transitioning from 0->1, signals a STOP heat request
 static byte LB_Heating_Start = false;     //When transitioning from 1->0, signals a START heat request
+static byte Batt_Heater_Mail_Send_Request = false;  //Stores info when a heat request is happening
 
 // Nissan LEAF battery data from polled CAN messages
 static uint8_t battery_request_idx = 0;
@@ -392,6 +393,12 @@ void update_values_leaf_battery() { /* This function maps all the values fetched
   print_with_units(", Max cell voltage: ", min_max_voltage[1], "mV ");
   print_with_units(", Min cell voltage: ", min_max_voltage[0], "mV ");
   print_with_units(", Cell deviation: ", cell_deviation_mV, "mV ");
+  if (LB_Heating_Stop) {
+    Serial.println("Battery requesting heating pads to stop. The battery is now warm enough.");
+  }
+  if (LB_Heating_Start) {
+    Serial.println("COLD BATTERY! Battery requesting heating pads to activate");
+  }
 
 #endif
 }
@@ -482,6 +489,7 @@ void receive_can_leaf_battery(CAN_frame_t rx_frame) {
       LB_HeatExist = (rx_frame.data.u8[4] & 0x01);
       LB_Heating_Stop = ((rx_frame.data.u8[0] & 0x10) >> 4);
       LB_Heating_Start = ((rx_frame.data.u8[0] & 0x20) >> 5);
+      Batt_Heater_Mail_Send_Request = (rx_frame.data.u8[1] & 0x01);
 
       break;
     case 0x59E:
@@ -669,8 +677,15 @@ void send_can_leaf_battery() {
   if (currentMillis - previousMillis100 >= interval100) {
     previousMillis100 = currentMillis;
 
-    ESP32Can.CANWriteFrame(
-        &LEAF_50B);  //Always send 50B as a static message (Contains HCM_WakeUpSleepCommand == 11b == WakeUp, and CANMASK = 1)
+    //When battery requests heating pack status change, ack this
+    if (Batt_Heater_Mail_Send_Request) {
+      LEAF_50B.data.u8[6] = 0x20;  //Batt_Heater_Mail_Send_OK
+    } else {
+      LEAF_50B.data.u8[6] = 0x00;  //Batt_Heater_Mail_Send_NG
+    }
+
+    // VCM message, containing info if battery should sleep or stay awake
+    ESP32Can.CANWriteFrame(&LEAF_50B);  // HCM_WakeUpSleepCommand == 11b == WakeUp, and CANMASK = 1
 
     mprun100++;
     if (mprun100 > 3) {
