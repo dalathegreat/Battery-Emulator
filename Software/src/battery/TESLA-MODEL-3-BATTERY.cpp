@@ -243,6 +243,15 @@ void update_values_tesla_model_3_battery() {  //This function maps all the value
     }
   }
 
+  //Check if SOC% is plausible
+  if (battery_voltage >
+      (ABSOLUTE_MAX_VOLTAGE - 100)) {  // When pack voltage is close to max, and SOC% is still low, raise FAULT
+    if (SOC < 6500) {                  //When SOC is less than 65.00% when approaching max voltage
+      bms_status = FAULT;
+      Serial.println("ERROR: SOC% reported by battery not plausible. Restart battery!");
+    }
+  }
+
   if (LFP_Chemistry) {  //LFP limits used for voltage safeties
     if (cell_max_v >= MAX_CELL_VOLTAGE_LFP) {
       bms_status = FAULT;
@@ -269,6 +278,11 @@ void update_values_tesla_model_3_battery() {  //This function maps all the value
       LEDcolor = YELLOW;
       Serial.println("ERROR: HIGH CELL DEVIATION!!! Inspect battery!");
     }
+  }
+
+  if (bms_status == FAULT) {  //Incase we enter a critical fault state, zero out the allowed limits
+    max_target_charge_power = 0;
+    max_target_discharge_power = 0;
   }
 
   /* Safeties verified. Perform USB serial printout if configured to do so */
