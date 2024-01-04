@@ -178,12 +178,10 @@ void update_values_tesla_model_3_battery() {  //This function maps all the value
 
   battery_current = convert2unsignedInt16(amps);  //13.0A
 
-  capacity_Wh = (nominal_full_pack_energy * 100);  //Scale up 75.2kWh -> 75200Wh
-  if (capacity_Wh > 60000) {
-    capacity_Wh = 60000;
-  }
+  capacity_Wh = BATTERY_WH_MAX;  //Use the configured value to avoid overflows
 
-  remaining_capacity_Wh = (expected_energy_remaining * 100);  //Scale up 60.3kWh -> 60300Wh
+  //Calculate the remaining Wh amount from SOC% and max Wh value.
+  remaining_capacity_Wh = remaining_capacity_Wh = static_cast<int>((static_cast<double>(SOC) / 10000) * BATTERY_WH_MAX);
 
   // Define the allowed discharge power
   max_target_discharge_power = (max_discharge_current * volts);
