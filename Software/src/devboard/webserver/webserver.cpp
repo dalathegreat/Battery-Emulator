@@ -42,10 +42,15 @@ unsigned long wifi_connect_current_time;
 const long wifi_connect_timeout = 5000;  // Timeout for WiFi connect in milliseconds
 
 void init_webserver() {
-  // Configure WiFi
-  WiFi.mode(WIFI_AP_STA);  // Simultaneous WiFi Access Point and WiFi STAtion
+// Configure WiFi
+#ifdef ENABLE_AP
+  WiFi.mode(WIFI_AP_STA);  // Simultaneous WiFi AP and Router connection
   init_WiFi_AP();
   init_WiFi_STA(ssid, password);
+#else
+  WiFi.mode(WIFI_STA);  // Only Router connection
+  init_WiFi_STA(ssid, password);
+#endif
 
   // Route for root / web page
   server.on("/", HTTP_GET,
