@@ -138,15 +138,14 @@ void update_values_zoe_battery() {  //This function maps all the values fetched 
 #endif
 }
 
-void receive_can_zoe_battery(CAN_frame_t rx_frame)
-{
+void receive_can_zoe_battery(CAN_frame_t rx_frame) {
 
   switch (rx_frame.MsgID) {
-    case 0x42E: //HV SOC & Battery Temp & Charging Power
+    case 0x42E:  //HV SOC & Battery Temp & Charging Power
       break;
-    case 0x430: //HVBatteryCoolingState & HVBatteryEvapTemp & HVBatteryEvapSetpoint
+    case 0x430:  //HVBatteryCoolingState & HVBatteryEvapTemp & HVBatteryEvapSetpoint
       break;
-    case 0x432: //BatVEShutDownAlert & HVBatCondPriorityLevel & HVBatteryLevelAlert & HVBatCondPriorityLevel & HVBatteryConditioningMode
+    case 0x432:  //BatVEShutDownAlert & HVBatCondPriorityLevel & HVBatteryLevelAlert & HVBatCondPriorityLevel & HVBatteryConditioningMode
       break;
     default:
       break;
@@ -156,13 +155,13 @@ void receive_can_zoe_battery(CAN_frame_t rx_frame)
 void send_can_zoe_battery() {
   unsigned long currentMillis = millis();
   // Send 100ms CAN Message
-  if (currentMillis - previousMillis100 >= interval100){
+  if (currentMillis - previousMillis100 >= interval100) {
     previousMillis100 = currentMillis;
     //ESP32Can.CANWriteFrame(&ZOE_423);
   }
   // 1000ms CAN handling
-  if (currentMillis - previousMillis1000 >= interval1000){
+  if (currentMillis - previousMillis1000 >= interval1000) {
     previousMillis1000 = currentMillis;
-	//ESP32Can.CANWriteFrame(&ZOE_423);
+    //ESP32Can.CANWriteFrame(&ZOE_423);
   }
 }

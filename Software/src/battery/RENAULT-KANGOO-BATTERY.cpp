@@ -6,7 +6,6 @@
 #define LB_MAX_SOC 1000  //BMS never goes over this value. We use this info to rescale SOC% sent to Fronius
 #define LB_MIN_SOC 0     //BMS never goes below this value. We use this info to rescale SOC% sent to Fronius
 
-
 static uint32_t LB_Battery_Voltage = 3700;
 static uint32_t LB_Charge_Power_Limit_Watts = 0;
 static uint32_t LB_Discharge_Power_Limit_Watts = 0;
@@ -22,33 +21,32 @@ static uint16_t LB_kWh_Remaining = 0;
 static uint16_t LB_Cell_Max_Voltage = 3700;
 static uint16_t LB_Cell_Min_Voltage = 3700;
 static uint16_t cell_deviation_mV = 0;  //contains the deviation between highest and lowest cell in mV
-static uint8_t CANstillAlive = 12;  //counter for checking if CAN is still alive
+static uint8_t CANstillAlive = 12;      //counter for checking if CAN is still alive
 static uint8_t LB_Discharge_Power_Limit_Byte1 = 0;
 static uint8_t GVI_Pollcounter = 0;
 static bool GVB_79B_Continue = false;
 
-
 CAN_frame_t KANGOO_423 = {.FIR = {.B =
-                                   {
-                                       .DLC = 8,
-                                       .FF = CAN_frame_std,
-                                   }},
-                       .MsgID = 0x423,
-                       .data = {0x33, 0x00, 0xFF, 0xFF, 0x00, 0xE0, 0x00, 0x00}};
+                                      {
+                                          .DLC = 8,
+                                          .FF = CAN_frame_std,
+                                      }},
+                          .MsgID = 0x423,
+                          .data = {0x33, 0x00, 0xFF, 0xFF, 0x00, 0xE0, 0x00, 0x00}};
 CAN_frame_t KANGOO_79B = {.FIR = {.B =
-                                   {
-                                       .DLC = 8,
-                                       .FF = CAN_frame_std,
-                                   }},
-                       .MsgID = 0x79B,
-                       .data = {0x02, 0x21, 0x01, 0x00, 0x00, 0xE0, 0x00, 0x00}};
+                                      {
+                                          .DLC = 8,
+                                          .FF = CAN_frame_std,
+                                      }},
+                          .MsgID = 0x79B,
+                          .data = {0x02, 0x21, 0x01, 0x00, 0x00, 0xE0, 0x00, 0x00}};
 CAN_frame_t KANGOO_79B_Continue = {.FIR = {.B =
-                                            {
-                                                .DLC = 8,
-                                                .FF = CAN_frame_std,
-                                            }},
-                                .MsgID = 0x79B,
-                                .data = {0x030, 0x01, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00}};
+                                               {
+                                                   .DLC = 8,
+                                                   .FF = CAN_frame_std,
+                                               }},
+                                   .MsgID = 0x79B,
+                                   .data = {0x030, 0x01, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00}};
 
 static unsigned long previousMillis10 = 0;    // will store last time a 10ms CAN Message was sent
 static unsigned long previousMillis100 = 0;   // will store last time a 100ms CAN Message was sent
@@ -59,7 +57,7 @@ static const int interval100 = 100;    // interval (ms) at which send CAN Messag
 static const int interval1000 = 1000;  // interval (ms) at which send CAN Messages
 
 void update_values_kangoo_battery() {  //This function maps all the values fetched via CAN to the correct parameters used for modbus
-  bms_status = ACTIVE;              //Startout in active mode
+  bms_status = ACTIVE;                 //Startout in active mode
 
   StateOfHealth = (LB_SOH * 100);  //Increase range from 99% -> 99.00%
 
@@ -179,7 +177,7 @@ void update_values_kangoo_battery() {  //This function maps all the values fetch
 #endif
 }
 
-void receive_can_kangoo_battery(CAN_frame_t rx_frame) //GKOE reworked
+void receive_can_kangoo_battery(CAN_frame_t rx_frame)  //GKOE reworked
 {
 
   switch (rx_frame.MsgID) {
