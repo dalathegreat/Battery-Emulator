@@ -1,5 +1,5 @@
-#ifndef RENAULT_ZOE_BATTERY_H
-#define RENAULT_ZOE_BATTERY_H
+#ifndef RENAULT_KANGOO_BATTERY_H
+#define RENAULT_KANGOO_BATTERY_H
 #include <Arduino.h>
 #include "../../USER_SETTINGS.h"
 #include "../devboard/config.h"  // Needed for LED defines
@@ -43,8 +43,9 @@ extern bool inverterAllowsContactorClosing;  //Bool, 1=true, 0=false
 #define FAULT 4
 #define UPDATING 5
 
-void update_values_zoe_battery();
-void receive_can_zoe_battery(CAN_frame_t rx_frame);
-void send_can_zoe_battery();
+void update_values_kangoo_battery();
+void receive_can_kangoo_battery(CAN_frame_t rx_frame);
+void send_can_kangoo_battery();
+uint16_t convert2uint16(int16_t signed_value);
 
 #endif

@@ -8,9 +8,9 @@
 
 static uint8_t CANstillAlive = 12;  //counter for checking if CAN is still alive
 static uint8_t errorCode = 0;       //stores if we have an error code active from battery control logic
-static uint16_t LB_SOC = 0;
+static uint16_t LB_SOC = 50;
 static uint16_t soc_calculated = 0;
-static uint16_t LB_SOH = 0;
+static uint16_t LB_SOH = 99;
 static int16_t LB_MIN_TEMPERATURE = 0;
 static int16_t LB_MAX_TEMPERATURE = 0;
 static uint16_t LB_Discharge_Power_Limit = 0;
@@ -24,8 +24,6 @@ static uint16_t LB_Cell_Min_Voltage = 3700;
 static uint16_t cell_deviation_mV = 0;  //contains the deviation between highest and lowest cell in mV
 static uint32_t LB_Battery_Voltage = 3700;
 static uint8_t LB_Discharge_Power_Limit_Byte1 = 0;
-static bool GVB_79B_Continue = false;
-static uint8_t GVI_Pollcounter = 0;
 
 CAN_frame_t ZOE_423 = {.FIR = {.B =
                                    {
@@ -34,20 +32,6 @@ CAN_frame_t ZOE_423 = {.FIR = {.B =
                                    }},
                        .MsgID = 0x423,
                        .data = {0x33, 0x00, 0xFF, 0xFF, 0x00, 0xE0, 0x00, 0x00}};
-CAN_frame_t ZOE_79B = {.FIR = {.B =
-                                   {
-                                       .DLC = 8,
-                                       .FF = CAN_frame_std,
-                                   }},
-                       .MsgID = 0x79B,
-                       .data = {0x02, 0x21, 0x01, 0x00, 0x00, 0xE0, 0x00, 0x00}};
-CAN_frame_t ZOE_79B_Continue = {.FIR = {.B =
-                                            {
-                                                .DLC = 8,
-                                                .FF = CAN_frame_std,
-                                            }},
-                                .MsgID = 0x79B,
-                                .data = {0x030, 0x01, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00}};
 
 static unsigned long previousMillis10 = 0;    // will store last time a 10ms CAN Message was sent
 static unsigned long previousMillis100 = 0;   // will store last time a 100ms CAN Message was sent
@@ -78,48 +62,24 @@ void update_values_zoe_battery() {  //This function maps all the values fetched 
 
   battery_current = LB_Current;
 
-  capacity_Wh = BATTERY_WH_MAX;  //Hardcoded to header value
+  capacity_Wh = BATTERY_WH_MAX;  //Use the configured value to avoid overflows
 
-  remaining_capacity_Wh = (uint16_t)((SOC / 10000) * capacity_Wh);
+  //Calculate the remaining Wh amount from SOC% and max Wh value.
+  remaining_capacity_Wh = static_cast<int>((static_cast<double>(SOC) / 10000) * BATTERY_WH_MAX);
 
-  LB_Discharge_Power_Limit_Watts = (LB_Discharge_Power_Limit * 500);  //Convert value fetched from battery to watts
-  /* Define power able to be discharged from battery */
-  if (LB_Discharge_Power_Limit_Watts > 30000)  //if >30kW can be pulled from battery
-  {
-    max_target_discharge_power = 30000;  //cap value so we don't go over the Fronius limits
-  } else {
-    max_target_discharge_power = LB_Discharge_Power_Limit_Watts;
-  }
-  if (SOC == 0)  //Scaled SOC% value is 0.00%, we should not discharge battery further
-  {
-    max_target_discharge_power = 0;
-  }
+  max_target_discharge_power;
 
-  LB_Charge_Power_Limit_Watts = (LB_Charge_Power_Limit * 500);  //Convert value fetched from battery to watts
-  /* Define power able to be put into the battery */
-  if (LB_Charge_Power_Limit_Watts > 30000)  //if >30kW can be put into the battery
-  {
-    max_target_charge_power = 30000;  //cap value so we don't go over the Fronius limits
-  }
-  if (LB_Charge_Power_Limit_Watts < 0) {
-    max_target_charge_power = 0;  //cap calue so we dont do under the Fronius limits
-  } else {
-    max_target_charge_power = LB_Charge_Power_Limit_Watts;
-  }
-  if (SOC == 10000)  //Scaled SOC% value is 100.00%
-  {
-    max_target_charge_power = 0;  //No need to charge further, set max power to 0
-  }
+  max_target_charge_power;
 
-  stat_batt_power = (battery_voltage * LB_Current);  //TODO: check if scaling is OK
+  stat_batt_power;
 
-  temperature_min = convert2uint16(LB_MIN_TEMPERATURE * 10);
+  temperature_min;
 
-  temperature_max = convert2uint16(LB_MAX_TEMPERATURE * 10);
+  temperature_max;
 
-  cell_min_voltage = LB_Cell_Min_Voltage;
+  cell_min_voltage;
 
-  cell_max_voltage = LB_Cell_Max_Voltage;
+  cell_max_voltage;
 
   cell_deviation_mV = (cell_max_voltage - cell_min_voltage);
 
@@ -178,64 +138,15 @@ void update_values_zoe_battery() {  //This function maps all the values fetched 
 #endif
 }
 
-void receive_can_zoe_battery(CAN_frame_t rx_frame)  //GKOE reworked
+void receive_can_zoe_battery(CAN_frame_t rx_frame)
 {
 
   switch (rx_frame.MsgID) {
-    case 0x155:            //BMS1
-      CANstillAlive = 12;  //Indicate that we are still getting CAN messages from the BMS
-      LB_Current = word((rx_frame.data.u8[1] & 0xF), rx_frame.data.u8[2]) * 0.25 - 500;  //OK!
-
-      LB_SOC = ((rx_frame.data.u8[4] << 8) | (rx_frame.data.u8[5])) * 0.0025;  //OK!
+    case 0x42E: //HV SOC & Battery Temp & Charging Power
       break;
-
-    case 0x424:            //BMS2
-      CANstillAlive = 12;  //Indicate that we are still getting CAN messages from the BMS
-      LB_SOH = (rx_frame.data.u8[5]);
-      LB_MIN_TEMPERATURE = ((rx_frame.data.u8[4]) - 40);  //OK!
-      LB_MAX_TEMPERATURE = ((rx_frame.data.u8[7]) - 40);  //OK!
+    case 0x430: //HVBatteryCoolingState & HVBatteryEvapTemp & HVBatteryEvapSetpoint
       break;
-
-    case 0x425:
-      CANstillAlive = 12;  //Indicate that we are still getting CAN messages from the BMS
-      LB_kWh_Remaining = word((rx_frame.data.u8[0] & 0x1), rx_frame.data.u8[1]) / 10;  //OK!
-      break;
-
-    case 0x445:
-      CANstillAlive = 12;  //Indicate that we are still getting CAN messages from the BMS
-      LB_Cell_Max_Voltage = 1000 + word((rx_frame.data.u8[3] & 0x1), rx_frame.data.u8[4]) * 10;  //OK!
-      LB_Cell_Min_Voltage = 1000 + (word(rx_frame.data.u8[5], rx_frame.data.u8[6]) >> 7) * 10;   //OK!
-
-      if ((LB_Cell_Max_Voltage == 6110) or (LB_Cell_Min_Voltage == 6110)) {  //Read Error
-        LB_Cell_Max_Voltage = 3880;
-        LB_Cell_Min_Voltage = 3880;
-        break;
-      }
-
-      // LB_Battery_Voltage = (LB_Cell_Max_Voltage * 80 + LB_Cell_Min_Voltage * 20) / 100 * 96; // GKOE just as long as we don't have the real pack voltage... ?
-      break;
-    case 0x7BB:
-      CANstillAlive = 12;  //Indicate that we are still getting CAN messages from the BMS
-
-      if (rx_frame.data.u8[0] == 0x10) {  //1st response Bytes 0-7
-        GVB_79B_Continue = true;
-      }
-      if (rx_frame.data.u8[0] == 0x21) {  //2nd response Bytes 8-15
-        GVB_79B_Continue = true;
-      }
-      if (rx_frame.data.u8[0] == 0x22) {  //3rd response Bytes 16-23
-        GVB_79B_Continue = true;
-      }
-      if (rx_frame.data.u8[0] == 0x23) {                                               //4th response Bytes 16-23
-        LB_Charge_Power_Limit = word(rx_frame.data.u8[5], rx_frame.data.u8[6]) * 100;  //OK!
-        LB_Discharge_Power_Limit_Byte1 = rx_frame.data.u8[7];
-        GVB_79B_Continue = true;
-      }
-      if (rx_frame.data.u8[0] == 0x24) {  //5th response Bytes 24-31
-        LB_Discharge_Power_Limit = word(LB_Discharge_Power_Limit_Byte1, rx_frame.data.u8[1]) * 100;  //OK!
-        LB_Battery_Voltage = word(rx_frame.data.u8[2], rx_frame.data.u8[3]) * 10;                    //OK!
-        GVB_79B_Continue = false;
-      }
+    case 0x432: //BatVEShutDownAlert & HVBatCondPriorityLevel & HVBatteryLevelAlert & HVBatCondPriorityLevel & HVBatteryConditioningMode
       break;
     default:
       break;
@@ -244,31 +155,14 @@ void receive_can_zoe_battery(CAN_frame_t rx_frame)  //GKOE reworked
 
 void send_can_zoe_battery() {
   unsigned long currentMillis = millis();
-  // Send 100ms CAN Message (for 2.4s, then pause 10s)
-  if ((currentMillis - previousMillis100) >= (interval100 + GVL_pause)) {
+  // Send 100ms CAN Message
+  if (currentMillis - previousMillis100 >= interval100){
     previousMillis100 = currentMillis;
-    ESP32Can.CANWriteFrame(&ZOE_423);
-    GVI_Pollcounter++;
-    GVL_pause = 0;
-    if (GVI_Pollcounter >= 24) {
-      GVI_Pollcounter = 0;
-      GVL_pause = 10000;
-    }
+    //ESP32Can.CANWriteFrame(&ZOE_423);
   }
   // 1000ms CAN handling
-  if (currentMillis - previousMillis1000 >= interval1000) {
+  if (currentMillis - previousMillis1000 >= interval1000){
     previousMillis1000 = currentMillis;
-    if (GVB_79B_Continue)
-      ESP32Can.CANWriteFrame(&ZOE_79B_Continue);
-  } else {
-    ESP32Can.CANWriteFrame(&ZOE_79B);
-  }
-}
-
-uint16_t convert2uint16(int16_t signed_value) {
-  if (signed_value < 0) {
-    return (65535 + signed_value);
-  } else {
-    return (uint16_t)signed_value;
+	//ESP32Can.CANWriteFrame(&ZOE_423);
   }
 }
