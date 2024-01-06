@@ -26,7 +26,7 @@
 
 /* Battery settings */
 #define BATTERY_WH_MAX \
-  30000  //Battery size in Wh (Maximum value for most inverters is 60000 [60kWh], you can use larger batteries but do not set value over 60000!
+  30000  //Battery size in Wh (Maximum value for most inverters is 65000 [65kWh], you can use larger batteries but do not set value over 65000!
 #define MAXPERCENTAGE \
   800  //80.0% , Max percentage the battery will charge to (App will show 100% once this value is reached)
 #define MINPERCENTAGE \
@@ -42,5 +42,8 @@
 //#define CONTACTOR_CONTROL     //Enable this line to have pins 25,32,33 handle automatic precharge/contactor+/contactor- closing sequence
 //#define PWM_CONTACTOR_CONTROL //Enable this line to use PWM logic for contactors, which lower power consumption and heat generation
 //#define DUAL_CAN              //Enable this line to activate an isolated secondary CAN Bus using add-on MCP2515 controller (Needed for FoxESS inverters)
+//#define SERIAL_LINK_RECEIVER  //Enable this line to receive battery data over RS485 pins from another Lilygo (This LilyGo interfaces with inverter)
+//#define SERIAL_LINK_TRANSMITTER  //Enable this line to send battery data over RS485 pins to another Lilygo (This LilyGo interfaces with battery)
+//#define WEBSERVER  //Enable this line to enable WiFi, and to run the webserver. See USER_SETTINGS.cpp for the Wifi settings.
 
 #endif

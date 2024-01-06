@@ -2,6 +2,7 @@
 
 void update_modbus_registers_byd() {
   //Updata for ModbusRTU Server for BYD
+  verify_temperature_modbus();
   handle_update_data_modbusp201_byd();
   handle_update_data_modbusp301_byd();
 }
@@ -105,4 +106,24 @@ void handle_update_data_modbusp301_byd() {
   battery_data[23] = StateOfHealth;  // Id.: p324 Value.: 9900 Scaled value.: 99% Comment.: SOH
   static uint16_t i = 300;
   memcpy(&mbPV[i], battery_data, sizeof(battery_data));
+}
+
+void verify_temperature_modbus() {
+  if (LFP_Chemistry) {
+    return;  // Skip the following section
+  }
+  // This section checks if the battery temperature is negative, and incase it falls between -9.0 and -20.0C degrees
+  // The Fronius Gen24 (and other Fronius inverters also affected), will stop charge/discharge if the battery gets colder than -10°C.
+  // This is due to the original battery pack (BYD HVM), is a lithium iron phosphate battery, that cannot be charged in cold weather.
+  // When using EV packs with NCM/LMO/NCA chemsitry, this is not a problem, since these chemistries are OK for outdoor cold use.
+  if (temperature_min > 32768) {                               // Signed value on negative side
+    if (temperature_min < 65445 && temperature_min > 65335) {  // Between -9.0 and -20.0C degrees
+      temperature_min = 65445;                                 //Cap value to -9.0C
+    }
+  }
+  if (temperature_max > 32768) {                               // Signed value on negative side
+    if (temperature_max < 65445 && temperature_max > 65335) {  // Between -9.0 and -20.0C degrees
+      temperature_max = 65445;                                 //Cap value to -9.0C
+    }
+  }
 }

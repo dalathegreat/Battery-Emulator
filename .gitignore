@@ -1,2 +1,5 @@
 # Ignore any .vscode folder
 *.vscode/
+
+# Ignore any files in the build folder
+Software/build/

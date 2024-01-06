@@ -2,7 +2,7 @@
 #define LUNA2000_MODBUS_H
 #include <Arduino.h>
 
-#define MB_RTU_NUM_VALUES 50000
+#define MB_RTU_NUM_VALUES 30000
 // Definitions for BMS status
 #define STANDBY 0
 #define INACTIVE 1
@@ -29,6 +29,8 @@ extern uint16_t capacity_Wh_startup;
 extern uint16_t max_power;
 extern uint16_t max_voltage;
 extern uint16_t min_voltage;
+extern bool batteryAllowsContactorClosing;   //Bool, 1=true, 0=false
+extern bool inverterAllowsContactorClosing;  //Bool, 1=true, 0=false
 
 void update_modbus_registers_luna2000();
 void handle_update_data_modbus32051();

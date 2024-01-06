@@ -14,6 +14,10 @@
 #include "src/lib/miwagner-ESP32-Arduino-CAN/CAN_config.h"
 #include "src/lib/miwagner-ESP32-Arduino-CAN/ESP32CAN.h"
 
+#ifdef WEBSERVER
+#include "src/devboard/webserver/webserver.h"
+#endif
+
 // Interval settings
 int intervalUpdateValues = 4800;  // Interval at which to update inverter values / Modbus registers
 const int interval10 = 10;        // Interval for 10ms tasks
@@ -36,7 +40,7 @@ static ACAN2515_Buffer16 gBuffer;
 #define MB_RTU_NUM_VALUES 30000
 #endif
 #if defined(LUNA2000_MODBUS)
-#define MB_RTU_NUM_VALUES 50000
+#define MB_RTU_NUM_VALUES 30000
 #endif
 #if defined(BYD_MODBUS) || defined(LUNA2000_MODBUS)
 uint16_t mbPV[MB_RTU_NUM_VALUES];  // Process variable memory
@@ -73,6 +77,7 @@ uint16_t bms_status = ACTIVE;      // ACTIVE - [0..5]<>[STANDBY,INACTIVE,DARKSTA
 uint16_t stat_batt_power = 0;      // Power going in/out of battery
 uint16_t cell_max_voltage = 3700;  // Stores the highest cell voltage value in the system
 uint16_t cell_min_voltage = 3700;  // Stores the minimum cell voltage value in the system
+bool LFP_Chemistry = false;
 
 // LED parameters
 Adafruit_NeoPixel pixels(1, WS2812_PIN, NEO_GRB + NEO_KHZ800);
@@ -108,6 +113,10 @@ bool inverterAllowsContactorClosing = true;
 void setup() {
   init_serial();
 
+#ifdef WEBSERVER
+  init_webserver();
+#endif
+
   init_CAN();
 
   init_LED();
@@ -116,6 +125,8 @@ void setup() {
 
   init_modbus();
 
+  init_serialDataLink();
+
   inform_user_on_inverter();
 
   inform_user_on_battery();
@@ -123,10 +134,19 @@ void setup() {
 
 // Perform main program functions
 void loop() {
+
+#ifdef WEBSERVER
+  // Over-the-air updates by ElegantOTA
+  ElegantOTA.loop();
+#endif
+
   // Input
   receive_can();  // Receive CAN messages. Runs as fast as possible
 #ifdef DUAL_CAN
   receive_can2();
+#endif
+#if defined(SERIAL_LINK_RECEIVER) || defined(SERIAL_LINK_TRANSMITTER)
+  runSerialDataLink();
 #endif
 
   // Process
@@ -222,6 +242,11 @@ void init_modbus() {
   handle_static_data_modbus_byd();
 #endif
 #if defined(BYD_MODBUS) || defined(LUNA2000_MODBUS)
+#if defined(SERIAL_LINK_RECEIVER) || defined(SERIAL_LINK_TRANSMITTER)
+// Check that Dual LilyGo via RS485 option isn't enabled, this collides with Modbus!
+#error MODBUS CANNOT BE USED IN DOUBLE LILYGO SETUPS! CHECK USER SETTINGS!
+#endif
+
   // Init Serial2 connected to the RTU Modbus
   RTUutils::prepareHardwareSerial(Serial2);
   Serial2.begin(9600, SERIAL_8N1, RS485_RX_PIN, RS485_TX_PIN);
@@ -287,6 +312,12 @@ void inform_user_on_battery() {
 #endif
 #ifdef TEST_FAKE_BATTERY
   Serial.println("Test mode with fake battery selected");
+#endif
+#ifdef SERIAL_LINK_RECEIVER
+  Serial.println("SERIAL_DATA_LINK_RECEIVER selected");
+#endif
+#if !defined(ABSOLUTE_MAX_VOLTAGE)
+#error No battery selected! Choose one from the USER_SETTINGS.h file
 #endif
 }
 
@@ -459,6 +490,7 @@ void handle_LED_state() {
 
   // BMS in fault state overrides everything
   if (bms_status == FAULT) {
+    LEDcolor = RED;
     pixels.setPixelColor(0, pixels.Color(255, 0, 0));  // Red LED full brightness
   }
 
@@ -593,7 +625,34 @@ void update_values() {
 #ifdef SMA_CAN
   update_values_can_sma();
 #endif
+#ifdef SOFAR_CAN
+  update_values_can_sofar();
+#endif
 #ifdef SOLAX_CAN
   update_values_can_solax();
+#endif
+}
+
+void runSerialDataLink() {
+  static unsigned long updateTime = 0;
+  unsigned long currentMillis = millis();
+#ifdef SERIAL_LINK_RECEIVER
+  if ((currentMillis - updateTime) > 1) {  //Every 2ms
+    updateTime = currentMillis;
+    manageSerialLinkReceiver();
+  }
+#endif
+
+#ifdef SERIAL_LINK_TRANSMITTER
+  if ((currentMillis - updateTime) > 1) {  //Every 2ms
+    updateTime = currentMillis;
+    manageSerialLinkTransmitter();
+  }
+#endif
+}
+
+void init_serialDataLink() {
+#if defined(SERIAL_LINK_RECEIVER) || defined(SERIAL_LINK_TRANSMITTER)
+  Serial2.begin(9600, SERIAL_8N1, RS485_RX_PIN, RS485_TX_PIN);
 #endif
 }
