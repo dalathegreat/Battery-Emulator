@@ -48,35 +48,24 @@ uint16_t mbPV[MB_RTU_NUM_VALUES];  // Process variable memory
 ModbusServerRTU MBserver(Serial2, 2000);
 #endif
 
-// Inverter parameters
-// Inverter states
-#define STANDBY 0
-#define INACTIVE 1
-#define DARKSTART 2
-#define ACTIVE 3
-#define FAULT 4
-#define UPDATING 5
-// Common inverter parameters
-uint16_t capacity_Wh_startup = BATTERY_WH_MAX;
-uint16_t max_power = 40960;                   // 41kW
+// Common inverter parameters. Batteries map their values to these variables
 uint16_t max_voltage = ABSOLUTE_MAX_VOLTAGE;  // If higher charging is not possible (goes into forced discharge)
-uint16_t min_voltage = ABSOLUTE_MIN_VOLTAGE;  // If lower Gen24 disables battery
-uint16_t battery_voltage = 3700;
+uint16_t min_voltage = ABSOLUTE_MIN_VOLTAGE;  // If lower disables discharging battery
+uint16_t battery_voltage = 3700;              //V+1,  0-500.0 (0-5000)
 uint16_t battery_current = 0;
-uint16_t SOC = 5000;                              // SOC 0-100.00% // Updates later on from CAN
-uint16_t StateOfHealth = 9900;                    // SOH 0-100.00% // Updates later on from CAN
-uint16_t capacity_Wh = BATTERY_WH_MAX;            // Updates later on from CAN
-uint16_t remaining_capacity_Wh = BATTERY_WH_MAX;  // Updates later on from CAN
-uint16_t max_target_discharge_power = 0;          // 0W (0W > restricts to no discharge) // Updates later on from CAN
-uint16_t max_target_charge_power =
-    4312;  // 4.3kW (during charge), both 307&308 can be set (>0) at the same time // Updates later on from CAN. Max value is 30000W
-uint16_t temperature_max = 50;     // Reads from battery later
-uint16_t temperature_min = 60;     // Reads from battery later
-uint16_t bms_char_dis_status;      // 0 idle, 1 discharging, 2, charging
-uint16_t bms_status = ACTIVE;      // ACTIVE - [0..5]<>[STANDBY,INACTIVE,DARKSTART,ACTIVE,FAULT,UPDATING]
-uint16_t stat_batt_power = 0;      // Power going in/out of battery
-uint16_t cell_max_voltage = 3700;  // Stores the highest cell voltage value in the system
-uint16_t cell_min_voltage = 3700;  // Stores the minimum cell voltage value in the system
+uint16_t SOC = 5000;                              //SOC%, 0-100.00 (0-10000)
+uint16_t StateOfHealth = 9900;                    //SOH%, 0-100.00 (0-10000)
+uint16_t capacity_Wh = BATTERY_WH_MAX;            //Wh,   0-60000
+uint16_t remaining_capacity_Wh = BATTERY_WH_MAX;  //Wh,   0-60000
+uint16_t max_target_discharge_power = 0;          // 0W (0W > restricts to no discharge), Updates later on from CAN
+uint16_t max_target_charge_power = 4312;          // Init to 4.3kW, Updates later on from CAN
+uint16_t temperature_max = 50;          //C+1,  Goes thru convert2unsignedint16 function (15.0C = 150, -15.0C =  65385)
+uint16_t temperature_min = 60;          // Reads from battery later
+uint8_t bms_char_dis_status = STANDBY;  // 0 standby, 1 discharging, 2, charging
+uint8_t bms_status = ACTIVE;            // ACTIVE - [0..5]<>[STANDBY,INACTIVE,DARKSTART,ACTIVE,FAULT,UPDATING]
+uint16_t stat_batt_power = 0;           // Power going in/out of battery
+uint16_t cell_max_voltage = 3700;       // Stores the highest cell voltage value in the system
+uint16_t cell_min_voltage = 3700;       // Stores the minimum cell voltage value in the system
 bool LFP_Chemistry = false;
 
 // LED parameters

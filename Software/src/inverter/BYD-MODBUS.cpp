@@ -33,10 +33,10 @@ void handle_update_data_modbusp201_byd() {
   system_data[0] = 0;  // Id.: p201 Value.: 0 Scaled value.: 0 Comment.: Always 0
   system_data[1] = 0;  // Id.: p202 Value.: 0 Scaled value.: 0 Comment.: Always 0
   system_data[2] =
-      (capacity_Wh_startup);  // Id.: p203 Value.: 32000 Scaled value.: 32kWh Comment.: Capacity rated, maximum value is 60000 (60kWh)
-  system_data[3] = (max_power);  // Id.: p204 Value.: 32000 Scaled value.: 32kWh Comment.: Nominal capacity
+      (capacity_Wh);  // Id.: p203 Value.: 32000 Scaled value.: 32kWh Comment.: Capacity rated, maximum value is 60000 (60kWh)
+  system_data[3] = MAX_POWER;  // Id.: p204 Value.: 32000 Scaled value.: 32kWh Comment.: Nominal capacity
   system_data[4] =
-      (max_power);  // Id.: p205 Value.: 14500 Scaled value.: 30,42kW  Comment.: Max Charge/Discharge Power=10.24kW (lowest value of 204 and 205 will be enforced by Gen24)
+      MAX_POWER;  // Id.: p205 Value.: 14500 Scaled value.: 30,42kW  Comment.: Max Charge/Discharge Power=10.24kW (lowest value of 204 and 205 will be enforced by Gen24)
   system_data[5] =
       (max_voltage);  // Id.: p206 Value.: 3667 Scaled value.: 362,7VDC Comment.: Max Voltage, if higher charging is not possible (goes into forced discharge)
   system_data[6] =
@@ -56,12 +56,12 @@ void handle_update_data_modbusp201_byd() {
 void handle_update_data_modbusp301_byd() {
   // Store the data into the array
   static uint16_t battery_data[24];
-  if (battery_current > 0) {         //Positive value = Charging
-    bms_char_dis_status = 2;         //Charging
-  } else if (battery_current < 0) {  //Negative value = Discharging
-    bms_char_dis_status = 1;         //Discharging
-  } else {                           //battery_current == 0
-    bms_char_dis_status = 0;         //idle
+  if (battery_current == 0) {
+    bms_char_dis_status = STANDBY;
+  } else if (battery_current > 32768) {  //Negative value = Discharging
+    bms_char_dis_status = DISCHARGING;
+  } else {  //Positive value = Charging
+    bms_char_dis_status = CHARGING;
   }
 
   if (bms_status == ACTIVE) {

@@ -39,4 +39,14 @@
 #define BLUE 3
 #define TEST_ALL_COLORS 10
 
+// Inverter definitions
+#define STANDBY 0
+#define INACTIVE 1
+#define DARKSTART 2
+#define ACTIVE 3
+#define FAULT 4
+#define UPDATING 5
+#define DISCHARGING 1
+#define CHARGING 2
+
 #endif
