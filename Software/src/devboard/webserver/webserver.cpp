@@ -316,6 +316,7 @@ String processor(const String& var) {
 void onOTAStart() {
   // Log when OTA has started
   Serial.println("OTA update started!");
+  ESP32Can.CANStop();
   bms_status = 5;  //Inform inverter that we are updating
   LEDcolor = BLUE;
 }
