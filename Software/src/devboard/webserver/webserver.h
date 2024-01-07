@@ -7,8 +7,8 @@
 #include "../../lib/ayushsharma82-ElegantOTA/src/ElegantOTA.h"
 #include "../../lib/me-no-dev-AsyncTCP/src/AsyncTCP.h"
 #include "../../lib/me-no-dev-ESPAsyncWebServer/src/ESPAsyncWebServer.h"
-#include "../config.h"  // Needed for LED defines
 #include "../../lib/miwagner-ESP32-Arduino-CAN/ESP32CAN.h"
+#include "../config.h"  // Needed for LED defines
 
 extern uint16_t SOC;                         //SOC%, 0-100.00 (0-10000)
 extern uint16_t StateOfHealth;               //SOH%, 0-100.00 (0-10000)
