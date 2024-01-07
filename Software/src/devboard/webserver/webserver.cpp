@@ -316,7 +316,8 @@ String processor(const String& var) {
 void onOTAStart() {
   // Log when OTA has started
   Serial.println("OTA update started!");
-  // <Add your own code here>
+  bms_status = 5;  //Inform inverter that we are updating
+  LEDcolor = BLUE;
 }
 
 void onOTAProgress(size_t current, size_t final) {
@@ -324,6 +325,8 @@ void onOTAProgress(size_t current, size_t final) {
   if (millis() - ota_progress_millis > 1000) {
     ota_progress_millis = millis();
     Serial.printf("OTA Progress Current: %u bytes, Final: %u bytes\n", current, final);
+    bms_status = 5;  //Inform inverter that we are updating
+    LEDcolor = BLUE;
   }
 }
 
@@ -334,5 +337,6 @@ void onOTAEnd(bool success) {
   } else {
     Serial.println("There was an error during OTA update!");
   }
-  // <Add your own code here>
+  bms_status = 5;  //Inform inverter that we are updating
+  LEDcolor = BLUE;
 }
