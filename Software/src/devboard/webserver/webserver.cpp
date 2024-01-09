@@ -319,10 +319,14 @@ String processor(const String& var) {
 void onOTAStart() {
   // Log when OTA has started
   Serial.println("OTA update started!");
-  // <Add your own code here>
+  ESP32Can.CANStop();
+  bms_status = 5;  //Inform inverter that we are updating
+  LEDcolor = BLUE;
 }
 
 void onOTAProgress(size_t current, size_t final) {
+  bms_status = 5;  //Inform inverter that we are updating
+  LEDcolor = BLUE;
   // Log every 1 second
   if (millis() - ota_progress_millis > 1000) {
     ota_progress_millis = millis();
@@ -337,5 +341,6 @@ void onOTAEnd(bool success) {
   } else {
     Serial.println("There was an error during OTA update!");
   }
-  // <Add your own code here>
+  bms_status = 5;  //Inform inverter that we are updating
+  LEDcolor = BLUE;
 }
