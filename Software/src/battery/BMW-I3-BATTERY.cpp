@@ -35,6 +35,14 @@ static uint8_t CANstillAlive = 12;             //counter for checking if CAN is 
 #define LB_MAX_SOC 1000  //BMS never goes over this value. We use this info to rescale SOC% sent to Inverter
 #define LB_MIN_SOC 0     //BMS never goes below this value. We use this info to rescale SOC% sent to Inverter
 
+
+CAN_frame_t BMW_000 = {.FIR = {.B =
+                                   {
+                                       .DLC = 4,
+                                       .FF = CAN_frame_std,
+                                   }},
+                       .MsgID = 0x000,
+                       .data = {0x10, 0x44, 0x00, 0x01}};
 CAN_frame_t BMW_0A5 = {.FIR = {.B =
                                    {
                                        .DLC = 8,
@@ -559,6 +567,8 @@ static const uint8_t BMW_C0_CE_spec[15] = {0xC0, 0xC2, 0xC4, 0xC6, 0xC8, 0xCA, 0
                                            0xC1, 0xC3, 0xC5, 0xC7, 0xC9, 0xCB, 0xCD};
 static const uint8_t BMW_19E_0[6] = {0x05, 0x00, 0x05, 0x07, 0x0A, 0x0A};
 
+static uint8_t sent_100 = 0;
+static uint8_t BMW_000_counter = 0;
 static uint8_t BMW_20ms_counter = 0;
 static uint8_t BMW_1AA_counter = 0;
 static uint8_t BMW_10ms_counter = 0;
@@ -744,8 +754,16 @@ void receive_can_i3_battery(CAN_frame_t rx_frame) {
 void send_can_i3_battery() {
   unsigned long currentMillis = millis();
   //Send 10ms message
-  if (currentMillis - previousMillis10 >= interval10) {
+  if (currentMillis - previousMillis10 >= interval10) { 
     previousMillis10 = currentMillis;
+
+    if(!sent_100){
+      BMW_000_counter++;
+      if (BMW_000_counter > 6) {
+        ESP32Can.CANWriteFrame(&BMW_000);
+        sent_100 = 1;
+      }
+    }
 
     BMW_105.data.u8[0] = BMW_105_0[BMW_10ms_counter];
     BMW_105.data.u8[1] = BMW_F0_FE[BMW_10ms_counter];
