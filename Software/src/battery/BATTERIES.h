@@ -21,6 +21,10 @@
 #include "NISSAN-LEAF-BATTERY.h"  //See this file for more LEAF battery settings
 #endif
 
+#ifdef RENAULT_KANGOO_BATTERY
+#include "RENAULT-KANGOO-BATTERY.h"  //See this file for more Kangoo battery settings
+#endif
+
 #ifdef RENAULT_ZOE_BATTERY
 #include "RENAULT-ZOE-BATTERY.h"  //See this file for more Zoe battery settings
 #endif
