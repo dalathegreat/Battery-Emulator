@@ -4,9 +4,9 @@
 
 /* Do not change code below unless you are sure what you are doing */
 static unsigned long previousMillis10 = 0;   // will store last time a 10ms CAN Message was send
-static unsigned long previousMillis100 = 0;  // will store last time a 100ms CAN Message was send
+static unsigned long previousMillis10s = 0;  // will store last time a 100ms CAN Message was send
 static const int interval10 = 10;            // interval (ms) at which send CAN Messages
-static const int interval100 = 100;          // interval (ms) at which send CAN Messages
+static const int interval10s = 10000;          // interval (ms) at which send CAN Messages
 static uint8_t CANstillAlive = 12;           //counter for checking if CAN is still alive
 
 #define LB_MAX_SOC 1000  //BMS never goes over this value. We use this info to rescale SOC% sent to Inverter
@@ -15,6 +15,33 @@ static uint8_t CANstillAlive = 12;           //counter for checking if CAN is st
 static int SOC_1 = 0;
 static int SOC_2 = 0;
 static int SOC_3 = 0;
+
+CAN_frame_t KIA_HYUNDAI_200 = {.FIR = {.B =
+                                    {
+                                        .DLC = 8,
+                                        .FF = CAN_frame_std,
+                                    }},
+                        .MsgID = 0x200,
+                        //.data = {0x00, 0x00, 0x00, 0x04, 0x00, 0x50, 0xD0, 0x00}}; //Initial value
+                        .data = {0x00, 0x80, 0xD8, 0x04, 0x00, 0x17, 0xD0, 0x00}}; //Mid log value
+CAN_frame_t KIA_HYUNDAI_523 = {.FIR = {.B =
+                                    {
+                                        .DLC = 8,
+                                        .FF = CAN_frame_std,
+                                    }},
+                        .MsgID = 0x523,
+                        //.data = {0x00, 0x38, 0x28, 0x28, 0x28, 0x28, 0x00, 0x01}}; //Initial value
+                        .data = {0x08, 0x38, 0x36, 0x36, 0x33, 0x34, 0x00, 0x01}}; //Mid log value
+CAN_frame_t KIA_HYUNDAI_524 = {.FIR = {.B =
+                                    {
+                                        .DLC = 8,
+                                        .FF = CAN_frame_std,
+                                    }},
+                        .MsgID = 0x524,
+                        //.data = {0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00}}; //Initial value
+                        .data = {0x88, 0x01, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00}}; //Mid log value
+
+static uint8_t counter_200 = 0;
 
 void update_values_kiaHyundai_64_battery() {  //This function maps all the values fetched via CAN to the correct parameters used for modbus
   bms_status = ACTIVE;                        //Startout in active mode
@@ -113,12 +140,38 @@ void receive_can_kiaHyundai_64_battery(CAN_frame_t rx_frame) {
 }
 void send_can_kiaHyundai_64_battery() {
   unsigned long currentMillis = millis();
-  // Send 100ms CAN Message
-  if (currentMillis - previousMillis100 >= interval100) {
-    previousMillis100 = currentMillis;
-  }
   //Send 10ms message
   if (currentMillis - previousMillis10 >= interval10) {
     previousMillis10 = currentMillis;
+  }
+  // Send 10s CAN Message
+  if (currentMillis - previousMillis10s >= interval10s) {
+    previousMillis10s = currentMillis;
+
+  switch (counter_200) {
+    case 0:
+        KIA_HYUNDAI_200.data.u8[5] = 0x17;
+        ++counter_200;
+        break;
+    case 1:
+        KIA_HYUNDAI_200.data.u8[5] = 0x57;
+        ++counter_200;
+        break;
+    case 2:
+        KIA_HYUNDAI_200.data.u8[5] = 0x97;
+        ++counter_200;
+        break;
+    case 3:
+        KIA_HYUNDAI_200.data.u8[5] = 0xD7;
+        counter_200 = 0;
+        break;
+  }
+
+  ESP32Can.CANWriteFrame(&KIA_HYUNDAI_200);
+
+  ESP32Can.CANWriteFrame(&KIA_HYUNDAI_523);
+
+  ESP32Can.CANWriteFrame(&KIA_HYUNDAI_524);
+
   }
 }
