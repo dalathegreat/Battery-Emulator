@@ -103,7 +103,7 @@ void receive_can_kiaHyundai_64_battery(CAN_frame_t rx_frame) {
       break;
     case 0x4E2:
       break;
-    case 0x542:
+    case 0x542: //BMS SOC
       SOC_1 = rx_frame.data.u8[0];
       break;
     case 0x594:
@@ -163,7 +163,28 @@ void send_can_kiaHyundai_64_battery() {
         break;
     case 3:
         KIA_HYUNDAI_200.data.u8[5] = 0xD7;
-        counter_200 = 0;
+        ++counter_200;
+        break;
+    case 4:
+        KIA_HYUNDAI_200.data.u8[3] = 0x10;
+        KIA_HYUNDAI_200.data.u8[5] = 0xFF;
+        ++counter_200;
+        break;
+    case 5:
+        KIA_HYUNDAI_200.data.u8[5] = 0x3B;
+        ++counter_200;
+        break;
+    case 6:
+        KIA_HYUNDAI_200.data.u8[5] = 0x7B;
+        ++counter_200;
+        break;
+    case 7:
+        KIA_HYUNDAI_200.data.u8[5] = 0xBB;
+        ++counter_200;
+        break;
+    case 8:
+        KIA_HYUNDAI_200.data.u8[5] = 0xFB;
+        counter_200 = 5;
         break;
   }
 
