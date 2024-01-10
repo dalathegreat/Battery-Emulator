@@ -29,6 +29,10 @@
 #include "RENAULT-ZOE-BATTERY.h"  //See this file for more Zoe battery settings
 #endif
 
+#ifdef SANTA_FE_PHEV_BATTERY
+#include "SANTA-FE-PHEV-BATTERY.h"  //See this file for more Santa Fe PHEV battery settings
+#endif
+
 #ifdef TESLA_MODEL_3_BATTERY
 #include "TESLA-MODEL-3-BATTERY.h"  //See this file for more Tesla battery settings
 #endif
