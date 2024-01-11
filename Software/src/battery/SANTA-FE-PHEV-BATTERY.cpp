@@ -5,6 +5,10 @@
 /* Credits go to maciek16c for these findings!
 https://github.com/maciek16c/hyundai-santa-fe-phev-battery
 https://openinverter.org/forum/viewtopic.php?p=62256
+
+TODO: Check if contactors close
+TODO: Check if CRC function works like it should
+TODO: Map all values from battery CAN messages
 */
 
 /* Do not change code below unless you are sure what you are doing */
@@ -20,6 +24,8 @@ static uint8_t CANstillAlive = 12;           //counter for checking if CAN is st
 static int SOC_1 = 0;
 static int SOC_2 = 0;
 static int SOC_3 = 0;
+static uint8_t counter_200 = 0;
+static uint8_t checksum_200 = 0;
 
 CAN_frame_t SANTAFE_200 = {.FIR = {.B =
                                        {
@@ -27,7 +33,7 @@ CAN_frame_t SANTAFE_200 = {.FIR = {.B =
                                            .FF = CAN_frame_std,
                                        }},
                            .MsgID = 0x200,
-                           .data = {0x00, 0x00, 0x00, 0x00, 0x80, 0x30, 0x00, 0x00}};
+                           .data = {0x00, 0x00, 0x00, 0x00, 0x80, 0x10, 0x00, 0x00}};
 CAN_frame_t SANTAFE_2A1 = {.FIR = {.B =
                                        {
                                            .DLC = 8,
@@ -51,8 +57,7 @@ CAN_frame_t SANTAFE_523 = {.FIR = {.B =
                            .data = {0x60, 0x00, 0x60, 0, 0, 0, 0, 0}};
 
 void update_values_santafe_phev_battery() {  //This function maps all the values fetched via CAN to the correct parameters used for modbus
-  bms_status = ACTIVE;                       //Startout in active mode
-
+  
   SOC;
 
   battery_voltage;
@@ -73,6 +78,8 @@ void update_values_santafe_phev_battery() {  //This function maps all the values
 
   temperature_max;
 
+  bms_status = ACTIVE;  //Startout in active mode, then check safeties
+
   /* Check if the BMS is still sending CAN messages. If we go 60s without messages we raise an error*/
   if (!CANstillAlive) {
     bms_status = FAULT;
@@ -82,12 +89,7 @@ void update_values_santafe_phev_battery() {  //This function maps all the values
   }
 
 #ifdef DEBUG_VIA_USB
-  Serial.print("SOC% candidate 1: ");
-  Serial.println(SOC_1);
-  Serial.print("SOC% candidate 2: ");
-  Serial.println(SOC_2);
-  Serial.print("SOC% candidate 3: ");
-  Serial.println(SOC_3);
+
 #endif
 }
 
@@ -132,11 +134,22 @@ void send_can_santafe_phev_battery() {
   if (currentMillis - previousMillis10 >= interval10) {
     previousMillis10 = currentMillis;
 
+    SANTAFE_200.data.u8[6] = (counter_200 << 1);
+
+    checksum_200 = CalculateCRC8(SANTAFE_200);
+
+    SANTAFE_200.data.u8[7] = checksum_200;
+
     ESP32Can.CANWriteFrame(&SANTAFE_200);
 
     ESP32Can.CANWriteFrame(&SANTAFE_2A1);
 
     ESP32Can.CANWriteFrame(&SANTAFE_2F0);
+
+    counter_200++;
+    if(counter_200 > 0xF){
+      counter_200 = 0;
+    }
   }
   // Send 100ms CAN Message
   if (currentMillis - previousMillis100 >= interval100) {
@@ -147,12 +160,12 @@ void send_can_santafe_phev_battery() {
 }
 
 uint8_t CalculateCRC8(CAN_frame_t rx_frame) {
-  uint8_t crc = 0;
+  int crc = 0;
 
-  for (int framepos = 0; framepos < 8; framepos++) {
-    crc ^= rx_frame.data[framepos];
+  for (uint8_t framepos = 0; framepos < 8; framepos++) {
+    crc ^= rx_frame.data.u8[framepos];
 
-    for (int j = 0; j < 8; j++) {
+    for (uint8_t j = 0; j < 8; j++) {
       if ((crc & 0x80) != 0) {
         crc = (crc << 1) ^ 0x1;
       } else {
@@ -160,5 +173,5 @@ uint8_t CalculateCRC8(CAN_frame_t rx_frame) {
       }
     }
   }
-  return crc;
+  return (uint8_t)crc;
 }

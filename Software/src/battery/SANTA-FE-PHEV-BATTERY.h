@@ -30,5 +30,6 @@ extern bool inverterAllowsContactorClosing;  //Bool, 1=true, 0=false
 void update_values_santafe_phev_battery();
 void receive_can_santafe_phev_battery(CAN_frame_t rx_frame);
 void send_can_santafe_phev_battery();
+uint8_t CalculateCRC8(CAN_frame_t rx_frame);
 
 #endif
