@@ -57,7 +57,7 @@ CAN_frame_t SANTAFE_523 = {.FIR = {.B =
                            .data = {0x60, 0x00, 0x60, 0, 0, 0, 0, 0}};
 
 void update_values_santafe_phev_battery() {  //This function maps all the values fetched via CAN to the correct parameters used for modbus
-  
+
   SOC;
 
   battery_voltage;
@@ -147,7 +147,7 @@ void send_can_santafe_phev_battery() {
     ESP32Can.CANWriteFrame(&SANTAFE_2F0);
 
     counter_200++;
-    if(counter_200 > 0xF){
+    if (counter_200 > 0xF) {
       counter_200 = 0;
     }
   }
