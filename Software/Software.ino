@@ -296,6 +296,9 @@ void inform_user_on_battery() {
 #ifdef RENAULT_KANGOO_BATTERY
   Serial.println("Renault Kangoo battery selected");
 #endif
+#ifdef SANTA_FE_PHEV_BATTERY
+  Serial.println("Hyundai Santa Fe PHEV battery selected");
+#endif
 #ifdef RENAULT_ZOE_BATTERY
   Serial.println("Renault Zoe battery selected");
 #endif
@@ -338,6 +341,9 @@ void receive_can() {  // This section checks if we have a complete CAN message i
 #endif
 #ifdef RENAULT_KANGOO_BATTERY
       receive_can_kangoo_battery(rx_frame);
+#endif
+#ifdef SANTA_FE_PHEV_BATTERY
+      receive_can_santafe_phev_battery(rx_frame);
 #endif
 #ifdef RENAULT_ZOE_BATTERY
       receive_can_zoe_battery(rx_frame);
@@ -400,6 +406,9 @@ void send_can() {
 #endif
 #ifdef RENAULT_KANGOO_BATTERY
   send_can_kangoo_battery();
+#endif
+#ifdef SANTA_FE_PHEV_BATTERY
+  send_can_santafe_phev_battery();
 #endif
 #ifdef RENAULT_ZOE_BATTERY
   send_can_zoe_battery();
@@ -600,6 +609,9 @@ void update_values() {
 #endif
 #ifdef RENAULT_KANGOO_BATTERY
   update_values_kangoo_battery();  // Map the values to the correct registers
+#endif
+#ifdef SANTA_FE_PHEV_BATTERY
+  update_values_santafe_phev_battery();  // Map the values to the correct registers
 #endif
 #ifdef RENAULT_ZOE_BATTERY
   update_values_zoe_battery();  // Map the values to the correct registers
