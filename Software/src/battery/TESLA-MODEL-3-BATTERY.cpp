@@ -40,7 +40,8 @@ static uint16_t expected_energy_remaining = 0;
 static uint8_t full_charge_complete = 0;
 static uint16_t ideal_energy_remaining = 0;
 static uint16_t nominal_energy_remaining = 0;
-static uint16_t nominal_full_pack_energy = 0;
+static uint16_t nominal_full_pack_energy = 600;
+static uint16_t bat_beginning_of_life = 600;
 static uint16_t battery_charge_time_remaining = 0;  // Minutes
 static uint16_t regenerative_limit = 0;
 static uint16_t discharge_limit = 0;
@@ -161,7 +162,11 @@ static const char* hvilStatusState[] = {"NOT OK",
 
 void update_values_tesla_model_3_battery() {  //This function maps all the values fetched via CAN to the correct parameters used for modbus
   //After values are mapped, we perform some safety checks, and do some serial printouts
-  StateOfHealth = 9900;  //Hardcoded to 99%SOH
+  //Calculate the SOH% to send to inverter
+  if (bat_beginning_of_life != 0) {  //div/0 safeguard
+    StateOfHealth =
+        static_cast<uint16_t>((static_cast<double>(nominal_full_pack_energy) / bat_beginning_of_life) * 10000.0);
+  }
 
   //Calculate the SOC% value to send to inverter
   soc_calculated = soc_vi;
@@ -181,7 +186,7 @@ void update_values_tesla_model_3_battery() {  //This function maps all the value
   capacity_Wh = BATTERY_WH_MAX;  //Use the configured value to avoid overflows
 
   //Calculate the remaining Wh amount from SOC% and max Wh value.
-  remaining_capacity_Wh = remaining_capacity_Wh = static_cast<int>((static_cast<double>(SOC) / 10000) * BATTERY_WH_MAX);
+  remaining_capacity_Wh = static_cast<uint16_t>((static_cast<double>(SOC) / 10000) * BATTERY_WH_MAX);
 
   // Define the allowed discharge power
   max_target_discharge_power = (max_discharge_current * volts);
@@ -250,6 +255,12 @@ void update_values_tesla_model_3_battery() {  //This function maps all the value
       bms_status = FAULT;
       Serial.println("ERROR: SOC% reported by battery not plausible. Restart battery!");
     }
+  }
+
+  //Check if BMS is in need of recalibration
+  if (nominal_full_pack_energy < 20) {
+    Serial.println("ERROR: kWh remaining reported by battery not plausible. Battery needs cycling or is broken!");
+    LEDcolor = YELLOW;
   }
 
   if (LFP_Chemistry) {  //LFP limits used for voltage safeties
@@ -455,6 +466,7 @@ void receive_can_tesla_model_3_battery(CAN_frame_t rx_frame) {
       break;
     case 0x292:
       stillAliveCAN = 12;  //We are getting CAN messages from the BMS, set the CAN detect counter
+      bat_beginning_of_life = (((rx_frame.data.u8[6] & 0x03) << 8) | rx_frame.data.u8[5]);
       soc_min = (((rx_frame.data.u8[1] & 0x03) << 8) | rx_frame.data.u8[0]);
       soc_vi = (((rx_frame.data.u8[2] & 0x0F) << 6) | ((rx_frame.data.u8[1] & 0xFC) >> 2));
       soc_max = (((rx_frame.data.u8[3] & 0x3F) << 4) | ((rx_frame.data.u8[2] & 0xF0) >> 4));
