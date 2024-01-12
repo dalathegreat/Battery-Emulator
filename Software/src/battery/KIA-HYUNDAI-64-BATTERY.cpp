@@ -288,9 +288,9 @@ void update_values_kiaHyundai_64_battery() {  //This function maps all the value
   }
 
   if (bitRead((uint8_t)batteryRelay, 0) == 1) {
-    Serial.print("  |  BMS Output ON");
+    Serial.print("  |  PowerRelay ON");
   } else {
-    Serial.print("  |  BMS Output OFF");
+    Serial.print("  |  PowerRelay OFF");
   }
   Serial.print("  |  Inverter ");
   Serial.print(inverterVoltage);
@@ -313,7 +313,7 @@ void receive_can_kiaHyundai_64_battery(CAN_frame_t rx_frame) {
     case 0x595:
       batteryVoltage = (rx_frame.data.u8[7] << 8) + rx_frame.data.u8[6];
       batteryAmps = (rx_frame.data.u8[5] << 8) + rx_frame.data.u8[4];
-      if (counter > 51) {
+      if (counter_200 > 3) {
         KIA_HYUNDAI_524.data.u8[0] = (uint8_t)(batteryVoltage / 10);
         KIA_HYUNDAI_524.data.u8[1] = (uint8_t)((batteryVoltage / 10) >> 8);
       }  //VCU measured voltage sent back to bms
@@ -331,9 +331,7 @@ void receive_can_kiaHyundai_64_battery(CAN_frame_t rx_frame) {
       powerRelayTemperature = rx_frame.data.u8[7];
       break;
     case 0x5D8:
-      if (counter < 200) {
-        counter++;
-      }
+      counter = 1;
 
       //PID data is polled after last message sent from battery:
       if (poll_data_pid >= 10) {  //polling one of ten PIDs at 100ms, resolution = 1s
@@ -443,7 +441,12 @@ void send_can_kiaHyundai_64_battery() {
         break;
       case 3:
         KIA_HYUNDAI_200.data.u8[5] = 0xD7;
-        ++counter_200;
+        if (counter == 1) {
+          ++counter_200;
+        }
+        else {
+          counter_200 = 0;
+        }
         break;
       case 4:
         KIA_HYUNDAI_200.data.u8[3] = 0x10;
