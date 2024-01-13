@@ -36,24 +36,11 @@ static int8_t temperature_water_inlet = 0;
 static uint8_t batteryManagementMode = 0;
 static uint8_t BMS_ign = 0;
 static int16_t poll_data_pid = 0;
-static int16_t poll109 = 0;
-static int16_t pollA2A = 0;
-static int16_t poll200 = 0;
-static int16_t poll201 = 0;
-static int16_t poll2B0 = 0;
-static int16_t poll450 = 0;
-static int16_t poll471 = 0;
-static int16_t poll523 = 0;
 static int8_t heatertemp = 0;
 static uint8_t batteryRelay = 0;
 static int8_t powerRelayTemperature = 0;
 static uint16_t inverterVoltageFrameHigh = 0;
 static uint16_t inverterVoltage = 0;
-static int8_t radiatorTemperature = 0;
-static int8_t chargeTemperature = 0;
-static int8_t fanMode = 0;
-static int8_t fanSpeed = 0;
-static int8_t state3F6 = 0;
 static uint8_t counter = 0;
 static uint8_t counter_200 = 0;
 
@@ -282,9 +269,9 @@ void update_values_kiaHyundai_64_battery() {  //This function maps all the value
   Serial.print("BmsManagementMode ");
   Serial.print((uint8_t)batteryManagementMode, BIN);
   if (bitRead((uint8_t)BMS_ign, 2) == 1) {
-    Serial.print("  |  BmsIgnitionON");
+    Serial.print("  |  BmsIgnition ON");
   } else {
-    Serial.print("  |  BmsIgnitionOFF");
+    Serial.print("  |  BmsIgnition OFF");
   }
 
   if (bitRead((uint8_t)batteryRelay, 0) == 1) {
@@ -301,7 +288,6 @@ void update_values_kiaHyundai_64_battery() {  //This function maps all the value
 void receive_can_kiaHyundai_64_battery(CAN_frame_t rx_frame) {
   switch (rx_frame.MsgID) {
     case 0x4DE:
-      radiatorTemperature = rx_frame.data.u8[4];  //-15
       break;
     case 0x542:                               //BMS SOC
       CANstillAlive = 12;                     //We use this message to verify that BMS is still alive
@@ -324,7 +310,6 @@ void receive_can_kiaHyundai_64_battery(CAN_frame_t rx_frame) {
       temperatureMax = rx_frame.data.u8[7];          //Highest temp in battery
       break;
     case 0x598:
-      chargeTemperature = rx_frame.data.u8[7];  //ChargeportTemperature
       break;
     case 0x5D5:
       waterleakageSensor = rx_frame.data.u8[3];  //Water sensor inside pack, value 164 is no water --> 0 is short
@@ -376,7 +361,6 @@ void receive_can_kiaHyundai_64_battery(CAN_frame_t rx_frame) {
             CellVoltMax_mV = (rx_frame.data.u8[7] * 20);  //(volts *50) *20 =mV
           }
           if (poll_data_pid == 5) {
-            //airbag = rx_frame.data.u8[6]; Not needed
             heatertemp = rx_frame.data.u8[7];
           }
           break;
@@ -385,8 +369,6 @@ void receive_can_kiaHyundai_64_battery(CAN_frame_t rx_frame) {
             CellVmaxNo = rx_frame.data.u8[1];
             CellVminNo = rx_frame.data.u8[3];
             CellVoltMin_mV = (rx_frame.data.u8[2] * 20);  //(volts *50) *20 =mV
-            fanMode = rx_frame.data.u8[4];
-            fanSpeed = rx_frame.data.u8[5];
           } else if (poll_data_pid == 5) {
             batterySOH = ((rx_frame.data.u8[2] << 8) + rx_frame.data.u8[3]);
           }
@@ -443,8 +425,7 @@ void send_can_kiaHyundai_64_battery() {
         KIA_HYUNDAI_200.data.u8[5] = 0xD7;
         if (counter == 1) {
           ++counter_200;
-        }
-        else {
+        } else {
           counter_200 = 0;
         }
         break;
