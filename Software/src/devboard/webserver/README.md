@@ -22,9 +22,6 @@ To update the software over the air:
 ## Future work
 This section lists a number of features that can be implemented as part of the webserver in the future.
 
-- TODO: display state of charge
-- TODO: display battery hardware selected
-- TODO: display emulated inverter communication protocol selected
 - TODO: list all available ssids: scan WiFi Networks https://randomnerdtutorials.com/esp32-useful-wi-fi-functions-arduino/
 - TODO: add option to add/change ssid and password and save, connect to the new ssid (Option: save ssid and password using Preferences.h library https://randomnerdtutorials.com/esp32-save-data-permanently-preferences/)
 - TODO: display WiFi connection strength (https://randomnerdtutorials.com/esp32-useful-wi-fi-functions-arduino/)

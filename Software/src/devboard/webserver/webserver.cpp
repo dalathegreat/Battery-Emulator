@@ -60,6 +60,13 @@ void init_webserver() {
   server.on("/debug", HTTP_GET,
             [](AsyncWebServerRequest* request) { request->send(200, "text/plain", "Debug: all OK."); });
 
+  // Route to handle reboot command
+  server.on("/reboot", HTTP_GET, [](AsyncWebServerRequest* request) {
+    request->send(200, "text/plain", "Rebooting server...");
+    delay(1000);
+    ESP.restart();
+  });
+
   // Initialize ElegantOTA
   init_ElegantOTA();
 
@@ -159,6 +166,47 @@ String processor(const String& var) {
     content += "<h4>Wifi status: " + wifi_state + "</h4>";
     if (wifi_connected == true) {
       content += "<h4>IP: " + WiFi.localIP().toString() + "</h4>";
+      // Get and display the signal strength (RSSI)
+      //content += "<h4>Signal Strength: " + String(WiFi.RSSI()) + " dBm</h4>";
+
+      // Get and display the signal strength (RSSI) as a 0-5 bar visualization
+      //int rssiValue = WiFi.RSSI();
+      //int signalStrengthBars = map(rssiValue, -100, -50, 0, 5);
+      //signalStrengthBars = constrain(signalStrengthBars, 0, 5);
+      //content += "<h4>Signal Strength: " + String(signalStrengthBars) + " out of 5 bars</h4>";
+
+      // Get and display the signal strength (RSSI) as Unicode blocks
+      int rssiValue = WiFi.RSSI();
+      int signalStrengthBars = map(rssiValue, -100, -50, 0, 5);
+      signalStrengthBars = constrain(signalStrengthBars, 0, 5);
+      String filledBlock = "&#x2588;";  // Unicode for a filled block
+      String emptyBlock = "&#x2591;";   // Unicode for an empty block
+
+      String signalStrengthText = "";
+      switch (signalStrengthBars) {
+        case 0:
+          signalStrengthText = emptyBlock + emptyBlock + emptyBlock + emptyBlock + emptyBlock;
+          break;
+        case 1:
+          signalStrengthText = filledBlock + emptyBlock + emptyBlock + emptyBlock + emptyBlock;
+          break;
+        case 2:
+          signalStrengthText = filledBlock + filledBlock + emptyBlock + emptyBlock + emptyBlock;
+          break;
+        case 3:
+          signalStrengthText = filledBlock + filledBlock + filledBlock + emptyBlock + emptyBlock;
+          break;
+        case 4:
+          signalStrengthText = filledBlock + filledBlock + filledBlock + filledBlock + emptyBlock;
+          break;
+        case 5:
+          signalStrengthText = filledBlock + filledBlock + filledBlock + filledBlock + filledBlock;
+          break;
+        default:
+          signalStrengthText = "Invalid signal strength";
+      }
+
+      content += "<h4>Signal Strength: [" + signalStrengthText + "]</h4>";
     }
     // Close the block
     content += "</div>";
@@ -179,6 +227,9 @@ String processor(const String& var) {
 #endif
 #ifdef PYLON_CAN
     content += "Pylontech battery over CAN bus";
+#endif
+#ifdef SERIAL_LINK_TRANSMITTER
+    content += "Serial link to another LilyGo board";
 #endif
 #ifdef SMA_CAN
     content += "BYD Battery-Box H 8.9kWh, 7 mod over CAN bus";
@@ -212,6 +263,9 @@ String processor(const String& var) {
 #endif
 #ifdef RENAULT_ZOE_BATTERY
     content += "Renault Zoe";
+#endif
+#ifdef SERIAL_LINK_RECEIVER
+    content += "Serial link to another LilyGo board";
 #endif
 #ifdef TESLA_MODEL_3_BATTERY
     content += "Tesla Model S/3/X/Y";
@@ -302,8 +356,17 @@ String processor(const String& var) {
     content += "</div>";
 
     content += "<button onclick='goToUpdatePage()'>Perform OTA update</button>";
+    content += "<button onclick='promptToReboot()'>Reboot Emulator</button>";
     content += "<script>";
     content += "function goToUpdatePage() { window.location.href = '/update'; }";
+    content +=
+        "function promptToReboot() { if (window.confirm('Are you sure you want to reboot the emulator?')) { "
+        "rebootServer(); } }";
+    content += "function rebootServer() {";
+    content += "  var xhr = new XMLHttpRequest();";
+    content += "  xhr.open('GET', '/reboot', true);";
+    content += "  xhr.send();";
+    content += "}";
     content += "</script>";
 
     //Script for refreshing page
