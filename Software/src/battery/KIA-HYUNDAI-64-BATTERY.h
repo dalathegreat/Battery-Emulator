@@ -26,11 +26,12 @@ extern uint16_t temperature_max;   //C+1,  Goes thru convert2unsignedint16 funct
 extern uint16_t cell_max_voltage;  //mV,   0-4350
 extern uint16_t cell_min_voltage;  //mV,   0-4350
 extern uint8_t LEDcolor;           //Enum, 0-10
-extern bool batteryAllowsContactorClosing;  //Bool, 1=true, 0=false
+extern bool batteryAllowsContactorClosing;   //Bool, 1=true, 0=false
 extern bool inverterAllowsContactorClosing;  //Bool, 1=true, 0=false
 
 void update_values_kiaHyundai_64_battery();
 void receive_can_kiaHyundai_64_battery(CAN_frame_t rx_frame);
 void send_can_kiaHyundai_64_battery();
+uint16_t convertToUnsignedInt16(int16_t signed_value);
 
 #endif

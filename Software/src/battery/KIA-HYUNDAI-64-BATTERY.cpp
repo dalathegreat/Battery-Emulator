@@ -30,8 +30,9 @@ static int16_t allowedDischargePower = 0;
 static int16_t allowedChargePower = 0;
 static uint16_t batteryVoltage = 0;
 static int16_t batteryAmps = 0;
-static int8_t temperatureMax = 0;
-static int8_t temperatureMin = 0;
+static int16_t powerWatt = 0;
+static int16_t temperatureMax = 0;
+static int16_t temperatureMin = 0;
 static int8_t temperature_water_inlet = 0;
 static uint8_t batteryManagementMode = 0;
 static uint8_t BMS_ign = 0;
@@ -41,7 +42,7 @@ static uint8_t batteryRelay = 0;
 static int8_t powerRelayTemperature = 0;
 static uint16_t inverterVoltageFrameHigh = 0;
 static uint16_t inverterVoltage = 0;
-static uint8_t counter = 0;
+static uint8_t startedUp = false;
 static uint8_t counter_200 = 0;
 
 CAN_frame_t KIA_HYUNDAI_200 = {.FIR = {.B =
@@ -159,9 +160,9 @@ void update_values_kiaHyundai_64_battery() {  //This function maps all the value
 
   StateOfHealth = (batterySOH * 10);  //Increase decimals from 100.0% -> 100.00%
 
-  battery_voltage = batteryVoltage;  //value is *10
+  battery_voltage = batteryVoltage;  //value is *10 (3700 = 370.0)
 
-  battery_current = (int16_t)batteryAmps;  //value is *10 //Todo, the signed part breaks something here for sure
+  battery_current = convertToUnsignedInt16(batteryAmps);  //value is *10 (150 = 15.0)
 
   capacity_Wh = BATTERY_WH_MAX;
 
@@ -171,12 +172,13 @@ void update_values_kiaHyundai_64_battery() {  //This function maps all the value
 
   max_target_charge_power = (uint16_t)allowedChargePower * 10;  //From kW*100 to Watts
 
-  stat_batt_power = (batteryVoltage * (int16_t)batteryAmps) /
-                    100;  //Power in watts, Negative = charging batt. //Todo, the signed part will break something here
+  powerWatt = ((batteryVoltage * batteryAmps) / 100);
 
-  temperature_min = ((int8_t)temperatureMin * 10);  //Increase decimals, 17C -> 17.0C
+  stat_batt_power = convertToUnsignedInt16(powerWatt);  //Power in watts, Negative = charging batt
 
-  temperature_max = ((int8_t)temperatureMax * 10);  //Increase decimals, 18C -> 18.0C
+  temperature_min = convertToUnsignedInt16(temperatureMin * 10);  //Increase decimals, 17C -> 17.0C
+
+  temperature_max = convertToUnsignedInt16(temperatureMax * 10);  //Increase decimals, 18C -> 18.0C
 
   cell_max_voltage = CellVoltMax_mV;
 
@@ -255,9 +257,9 @@ void update_values_kiaHyundai_64_battery() {  //This function maps all the value
   Serial.print(" mV  No  ");
   Serial.println(CellVminNo);
   Serial.print("TempHi ");
-  Serial.print((int8_t)temperatureMax);
+  Serial.print((int16_t)temperatureMax);
   Serial.print("°C  TempLo ");
-  Serial.print((int8_t)temperatureMin);
+  Serial.print((int16_t)temperatureMin);
   Serial.print("°C  WaterInlet ");
   Serial.print((int8_t)temperature_water_inlet);
   Serial.print("°C  PowerRelay ");
@@ -316,7 +318,7 @@ void receive_can_kiaHyundai_64_battery(CAN_frame_t rx_frame) {
       powerRelayTemperature = rx_frame.data.u8[7];
       break;
     case 0x5D8:
-      counter = 1;
+      startedUp = 1;
 
       //PID data is polled after last message sent from battery:
       if (poll_data_pid >= 10) {  //polling one of ten PIDs at 100ms, resolution = 1s
@@ -423,7 +425,7 @@ void send_can_kiaHyundai_64_battery() {
         break;
       case 3:
         KIA_HYUNDAI_200.data.u8[5] = 0xD7;
-        if (counter == 1) {
+        if (startedUp) {
           ++counter_200;
         } else {
           counter_200 = 0;
@@ -457,5 +459,13 @@ void send_can_kiaHyundai_64_battery() {
     ESP32Can.CANWriteFrame(&KIA_HYUNDAI_523);
 
     ESP32Can.CANWriteFrame(&KIA_HYUNDAI_524);
+  }
+}
+
+uint16_t convertToUnsignedInt16(int16_t signed_value) {
+  if (signed_value < 0) {
+    return (65535 + signed_value);
+  } else {
+    return (uint16_t)signed_value;
   }
 }
