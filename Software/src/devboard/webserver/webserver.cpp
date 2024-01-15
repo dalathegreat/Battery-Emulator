@@ -56,6 +56,70 @@ void init_webserver() {
   server.on("/", HTTP_GET,
             [](AsyncWebServerRequest* request) { request->send_P(200, "text/html", index_html, processor); });
 
+  // Route for going to settings web page
+  server.on("/settings", HTTP_GET,
+            [](AsyncWebServerRequest* request) { request->send_P(200, "text/html", index_html, settings_processor); });
+
+  // Route for editing Wh
+  server.on("/updateBatterySize", HTTP_GET, [](AsyncWebServerRequest* request) {
+    if (request->hasParam("value")) {
+      String value = request->getParam("value")->value();
+      // Convert the string to an integer and update the variable
+      BATTERY_WH_MAX = value.toInt();
+      request->send(200, "text/plain", "Updated successfully");
+    } else {
+      request->send(400, "text/plain", "Bad Request");
+    }
+  });
+
+  // Route for editing SOCMax
+  server.on("/updateSocMax", HTTP_GET, [](AsyncWebServerRequest* request) {
+    if (request->hasParam("value")) {
+      String value = request->getParam("value")->value();
+      // Convert the string to an integer and update the variable
+      MAXPERCENTAGE = value.toInt();
+      request->send(200, "text/plain", "Updated successfully");
+    } else {
+      request->send(400, "text/plain", "Bad Request");
+    }
+  });
+
+  // Route for editing SOCMin
+  server.on("/updateSocMin", HTTP_GET, [](AsyncWebServerRequest* request) {
+    if (request->hasParam("value")) {
+      String value = request->getParam("value")->value();
+      // Convert the string to an integer and update the variable
+      MINPERCENTAGE = value.toInt();
+      request->send(200, "text/plain", "Updated successfully");
+    } else {
+      request->send(400, "text/plain", "Bad Request");
+    }
+  });
+
+  // Route for editing MaxChargeA
+  server.on("/updateMaxChargeA", HTTP_GET, [](AsyncWebServerRequest* request) {
+    if (request->hasParam("value")) {
+      String value = request->getParam("value")->value();
+      // Convert the string to an integer and update the variable
+      MAXCHARGEAMP = value.toInt();
+      request->send(200, "text/plain", "Updated successfully");
+    } else {
+      request->send(400, "text/plain", "Bad Request");
+    }
+  });
+
+  // Route for editing MaxDischargeA
+  server.on("/updateMaxDischargeA", HTTP_GET, [](AsyncWebServerRequest* request) {
+    if (request->hasParam("value")) {
+      String value = request->getParam("value")->value();
+      // Convert the string to an integer and update the variable
+      MAXDISCHARGEAMP = value.toInt();
+      request->send(200, "text/plain", "Updated successfully");
+    } else {
+      request->send(400, "text/plain", "Bad Request");
+    }
+  });
+
   // Send a GET request to <ESP_IP>/update
   server.on("/debug", HTTP_GET,
             [](AsyncWebServerRequest* request) { request->send(200, "text/plain", "Debug: all OK."); });
@@ -63,6 +127,7 @@ void init_webserver() {
   // Route to handle reboot command
   server.on("/reboot", HTTP_GET, [](AsyncWebServerRequest* request) {
     request->send(200, "text/plain", "Rebooting server...");
+    //TODO: Should we handle contactors gracefully? Ifdef CONTACTOR_CONTROL then what?
     delay(1000);
     ESP.restart();
   });
@@ -140,6 +205,9 @@ String processor(const String& var) {
     // Start a new block with a specific background color
     content += "<div style='background-color: #303E47; padding: 10px; margin-bottom: 10px;border-radius: 50px'>";
 
+    // Show version number
+    content += "<h4>Software version: " + String(versionNumber) + "</h4>";
+
     // Display LED color
     content += "<h4>LED color: ";
     switch (LEDcolor) {
@@ -167,46 +235,7 @@ String processor(const String& var) {
     if (wifi_connected == true) {
       content += "<h4>IP: " + WiFi.localIP().toString() + "</h4>";
       // Get and display the signal strength (RSSI)
-      //content += "<h4>Signal Strength: " + String(WiFi.RSSI()) + " dBm</h4>";
-
-      // Get and display the signal strength (RSSI) as a 0-5 bar visualization
-      //int rssiValue = WiFi.RSSI();
-      //int signalStrengthBars = map(rssiValue, -100, -50, 0, 5);
-      //signalStrengthBars = constrain(signalStrengthBars, 0, 5);
-      //content += "<h4>Signal Strength: " + String(signalStrengthBars) + " out of 5 bars</h4>";
-
-      // Get and display the signal strength (RSSI) as Unicode blocks
-      int rssiValue = WiFi.RSSI();
-      int signalStrengthBars = map(rssiValue, -100, -50, 0, 5);
-      signalStrengthBars = constrain(signalStrengthBars, 0, 5);
-      String filledBlock = "&#x2588;";  // Unicode for a filled block
-      String emptyBlock = "&#x2591;";   // Unicode for an empty block
-
-      String signalStrengthText = "";
-      switch (signalStrengthBars) {
-        case 0:
-          signalStrengthText = emptyBlock + emptyBlock + emptyBlock + emptyBlock + emptyBlock;
-          break;
-        case 1:
-          signalStrengthText = filledBlock + emptyBlock + emptyBlock + emptyBlock + emptyBlock;
-          break;
-        case 2:
-          signalStrengthText = filledBlock + filledBlock + emptyBlock + emptyBlock + emptyBlock;
-          break;
-        case 3:
-          signalStrengthText = filledBlock + filledBlock + filledBlock + emptyBlock + emptyBlock;
-          break;
-        case 4:
-          signalStrengthText = filledBlock + filledBlock + filledBlock + filledBlock + emptyBlock;
-          break;
-        case 5:
-          signalStrengthText = filledBlock + filledBlock + filledBlock + filledBlock + filledBlock;
-          break;
-        default:
-          signalStrengthText = "Invalid signal strength";
-      }
-
-      content += "<h4>Signal Strength: [" + signalStrengthText + "]</h4>";
+      content += "<h4>Signal Strength: " + String(WiFi.RSSI()) + " dBm</h4>";
     }
     // Close the block
     content += "</div>";
@@ -356,11 +385,16 @@ String processor(const String& var) {
     content += "</div>";
 
     content += "<button onclick='goToUpdatePage()'>Perform OTA update</button>";
+    content += " ";
+    content += "<button onclick='goToSettingsPage()'>Change Battery Settings</button>";
+    content += " ";
     content += "<button onclick='promptToReboot()'>Reboot Emulator</button>";
     content += "<script>";
     content += "function goToUpdatePage() { window.location.href = '/update'; }";
+    content += "function goToSettingsPage() { window.location.href = '/settings'; }";
     content +=
-        "function promptToReboot() { if (window.confirm('Are you sure you want to reboot the emulator?')) { "
+        "function promptToReboot() { if (window.confirm('Are you sure you want to reboot the emulator? NOTE: If "
+        "Emulator is handling contactors, they will open during reboot!')) { "
         "rebootServer(); } }";
     content += "function rebootServer() {";
     content += "  var xhr = new XMLHttpRequest();";
@@ -379,16 +413,114 @@ String processor(const String& var) {
   return String();
 }
 
+String settings_processor(const String& var) {
+  if (var == "PLACEHOLDER") {
+    String content = "";
+    //Page format
+    content += "<style>";
+    content += "body { background-color: black; color: white; }";
+    content += "</style>";
+
+    // Start a new block with a specific background color
+    content += "<div style='background-color: #303E47; padding: 10px; margin-bottom: 10px;border-radius: 50px'>";
+
+    // Show current settings with edit buttons and input fields
+    content += "<h4 style='color: white;'>Battery size in Wh: <span id='BATTERY_WH_MAX'>" + String(BATTERY_WH_MAX) +
+               "</span> <button onclick='editWh()'>Edit</button></h4>";
+    content += "<h4 style='color: white;'>SOC max percentage: " + String(MAXPERCENTAGE) +
+               " </span> <button onclick='editSocMax()'>Edit</button></h4>";
+    content += "<h4 style='color: white;'>SOC min percentage: " + String(MINPERCENTAGE) +
+               " </span> <button onclick='editSocMin()'>Edit</button></h4>";
+    content += "<h4 style='color: white;'>Max charge speed: " + String(MAXCHARGEAMP) +
+               " A </span> <button onclick='editMaxChargeA()'>Edit</button></h4>";
+    content += "<h4 style='color: white;'>Max discharge speed: " + String(MAXDISCHARGEAMP) +
+               " A </span> <button onclick='editMaxDischargeA()'>Edit</button></h4>";
+
+    content += "<script>";
+    content += "function editWh() {";
+    content += "var value = prompt('Enter new Wh value (1-65000):');";
+    content += "if (value !== null) {";
+    content += "  if (value >= 1 && value <= 65000) {";
+    content += "    var xhr = new XMLHttpRequest();";
+    content += "    xhr.open('GET', '/updateBatterySize?value=' + value, true);";
+    content += "    xhr.send();";
+    content += "  } else {";
+    content += "    alert('Invalid value. Please enter a value between 1 and 65000.');";
+    content += "  }";
+    content += "}";
+    content += "}";
+    content += "function editSocMax() {";
+    content += "var value = prompt('Enter new maximum SOC value that battery will charge to (500-1000):');";
+    content += "if (value !== null) {";
+    content += "  if (value >= 500 && value <= 1000) {";
+    content += "    var xhr = new XMLHttpRequest();";
+    content += "    xhr.open('GET', '/updateSocMax?value=' + value, true);";
+    content += "    xhr.send();";
+    content += "  } else {";
+    content += "    alert('Invalid value. Please enter a value between 500 and 1000.');";
+    content += "  }";
+    content += "}";
+    content += "}";
+    content += "function editSocMin() {";
+    content += "var value = prompt('Enter new minimum SOC value that battery will discharge to (0-500):');";
+    content += "if (value !== null) {";
+    content += "  if (value >= 0 && value <= 500) {";
+    content += "    var xhr = new XMLHttpRequest();";
+    content += "    xhr.open('GET', '/updateSocMin?value=' + value, true);";
+    content += "    xhr.send();";
+    content += "  } else {";
+    content += "    alert('Invalid value. Please enter a value between 0 and 500.');";
+    content += "  }";
+    content += "}";
+    content += "}";
+    content += "function editMaxChargeA() {";
+    content += "var value = prompt('Enter new maximum charge current in A (0-10000):');";
+    content += "if (value !== null) {";
+    content += "  if (value >= 0 && value <= 10000) {";
+    content += "    var xhr = new XMLHttpRequest();";
+    content += "    xhr.open('GET', '/updateMaxChargeA?value=' + value, true);";
+    content += "    xhr.send();";
+    content += "  } else {";
+    content += "    alert('Invalid value. Please enter a value between 0 and 10000.');";
+    content += "  }";
+    content += "}";
+    content += "}";
+    content += "function editMaxDischargeA() {";
+    content += "var value = prompt('Enter new maximum discharge current in A (0-10000):');";
+    content += "if (value !== null) {";
+    content += "  if (value >= 0 && value <= 10000) {";
+    content += "    var xhr = new XMLHttpRequest();";
+    content += "    xhr.open('GET', '/updateMaxDischargeA?value=' + value, true);";
+    content += "    xhr.send();";
+    content += "  } else {";
+    content += "    alert('Invalid value. Please enter a value between 0 and 10000.');";
+    content += "  }";
+    content += "}";
+    content += "}";
+    content += "</script>";
+
+    // Close the block
+    content += "</div>";
+
+    content += "<button onclick='goToMainPage()'>Back to main page</button>";
+    content += "<script>";
+    content += "function goToMainPage() { window.location.href = '/'; }";
+    content += "</script>";
+    return content;
+  }
+  return String();
+}
+
 void onOTAStart() {
   // Log when OTA has started
   Serial.println("OTA update started!");
   ESP32Can.CANStop();
-  bms_status = 5;  //Inform inverter that we are updating
+  bms_status = UPDATING;  //Inform inverter that we are updating
   LEDcolor = BLUE;
 }
 
 void onOTAProgress(size_t current, size_t final) {
-  bms_status = 5;  //Inform inverter that we are updating
+  bms_status = UPDATING;  //Inform inverter that we are updating
   LEDcolor = BLUE;
   // Log every 1 second
   if (millis() - ota_progress_millis > 1000) {
@@ -404,6 +536,6 @@ void onOTAEnd(bool success) {
   } else {
     Serial.println("There was an error during OTA update!");
   }
-  bms_status = 5;  //Inform inverter that we are updating
+  bms_status = UPDATING;  //Inform inverter that we are updating
   LEDcolor = BLUE;
 }

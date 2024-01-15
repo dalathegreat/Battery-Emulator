@@ -1,9 +1,11 @@
 #ifndef __USER_SETTINGS_H__
 #define __USER_SETTINGS_H__
+#include <stdint.h>
 
-/* This file contains all the user configurable settings for the Battery-Emulator software */
+/* This file contains all the battery/inverter protocol settings Battery-Emulator software */
 /* To switch between batteries/inverters, uncomment a line to enable, comment out to disable. */
 /* There are also some options for battery limits and extra functionality */
+/* To edit battery specific limits, see also the USER_SETTINGS.cpp file*/
 
 /* Select battery used */
 //#define BMW_I3_BATTERY
@@ -26,21 +28,9 @@
 //#define SOFAR_CAN        //Enable this line to emulate a "Sofar Energy Storage Inverter High Voltage BMS General Protocol (Extended Frame)" over CAN bus
 //#define SOLAX_CAN        //Enable this line to emulate a "SolaX Triple Power LFP" over CAN bus
 
-/* Battery settings */
-#define BATTERY_WH_MAX \
-  30000  //Battery size in Wh (Maximum value for most inverters is 65000 [65kWh], you can use larger batteries but do not set value over 65000!
-#define MAXPERCENTAGE \
-  800  //80.0% , Max percentage the battery will charge to (App will show 100% once this value is reached)
-#define MINPERCENTAGE \
-  200  //20.0% , Min percentage the battery will discharge to (App will show 0% once this value is reached)
-#define MAXCHARGEAMP \
-  300  //30.0A , BYD CAN specific setting, Max charge speed in Amp (Some inverters needs to be artificially limited)
-#define MAXDISCHARGEAMP \
-  300  //30.0A , BYD CAN specific setting, Max discharge speed in Amp (Some inverters needs to be artificially limited)
-//define INTERLOCK_REQUIRED //Nissan LEAF specific setting, if enabled requires both high voltage conenctors to be seated before starting
-
 /* Other options */
 #define DEBUG_VIA_USB  //Enable this line to have the USB port output serial diagnostic data while program runs
+//define INTERLOCK_REQUIRED //Nissan LEAF specific setting, if enabled requires both high voltage conenctors to be seated before starting
 //#define CONTACTOR_CONTROL     //Enable this line to have pins 25,32,33 handle automatic precharge/contactor+/contactor- closing sequence
 //#define PWM_CONTACTOR_CONTROL //Enable this line to use PWM logic for contactors, which lower power consumption and heat generation
 //#define DUAL_CAN              //Enable this line to activate an isolated secondary CAN Bus using add-on MCP2515 controller (Needed for FoxESS inverters)
@@ -48,4 +38,10 @@
 //#define SERIAL_LINK_TRANSMITTER  //Enable this line to send battery data over RS485 pins to another Lilygo (This LilyGo interfaces with battery)
 //#define WEBSERVER  //Enable this line to enable WiFi, and to run the webserver. See USER_SETTINGS.cpp for the Wifi settings.
 
+/* Battery limits: These are set in the USER_SETTINGS.cpp file, or later on via the Webserver */
+extern volatile uint16_t BATTERY_WH_MAX;
+extern volatile uint16_t MAXPERCENTAGE;
+extern volatile uint16_t MINPERCENTAGE;
+extern volatile uint16_t MAXCHARGEAMP;
+extern volatile uint16_t MAXDISCHARGEAMP;
 #endif
