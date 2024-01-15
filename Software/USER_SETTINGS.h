@@ -44,4 +44,5 @@ extern volatile uint16_t MAXPERCENTAGE;
 extern volatile uint16_t MINPERCENTAGE;
 extern volatile uint16_t MAXCHARGEAMP;
 extern volatile uint16_t MAXDISCHARGEAMP;
+extern volatile uint8_t AccessPointEnabled;
 #endif

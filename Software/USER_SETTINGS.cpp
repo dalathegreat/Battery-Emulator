@@ -16,10 +16,11 @@ volatile uint16_t MAXDISCHARGEAMP =
     300;  //30.0A , BYD CAN specific setting, Max discharge speed in Amp (Some inverters needs to be artificially limited)
 
 #ifdef WEBSERVER
-#define ENABLE_AP                                     // Comment out this line to turn off the broadcasted AP
+volatile uint8_t AccessPointEnabled =
+    true;  //Set to either true or false incase you want the board to enable a direct wifi access point
 const char* ssid = "REPLACE_WITH_YOUR_SSID";          // Maximum of 63 characters;
 const char* password = "REPLACE_WITH_YOUR_PASSWORD";  // Minimum of 8 characters;
 const char* ssidAP = "Battery Emulator";              // Maximum of 63 characters;
 const char* passwordAP = "123456789";  // Minimum of 8 characters; set to NULL if you want the access point to be open
-const char* versionNumber = "4.3.0";   // The current software version, shown on webserver
+const char* versionNumber = "4.4.0";   // The current software version, shown on webserver
 #endif

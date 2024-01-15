@@ -42,15 +42,15 @@ unsigned long wifi_connect_current_time;
 const long wifi_connect_timeout = 5000;  // Timeout for WiFi connect in milliseconds
 
 void init_webserver() {
-// Configure WiFi
-#ifdef ENABLE_AP
-  WiFi.mode(WIFI_AP_STA);  // Simultaneous WiFi AP and Router connection
-  init_WiFi_AP();
-  init_WiFi_STA(ssid, password);
-#else
-  WiFi.mode(WIFI_STA);  // Only Router connection
-  init_WiFi_STA(ssid, password);
-#endif
+  // Configure WiFi
+  if (AccessPointEnabled) {
+    WiFi.mode(WIFI_AP_STA);  // Simultaneous WiFi AP and Router connection
+    init_WiFi_AP();
+    init_WiFi_STA(ssid, password);
+  } else {
+    WiFi.mode(WIFI_STA);  // Only Router connection
+    init_WiFi_STA(ssid, password);
+  }
 
   // Route for root / web page
   server.on("/", HTTP_GET,
@@ -64,7 +64,6 @@ void init_webserver() {
   server.on("/updateBatterySize", HTTP_GET, [](AsyncWebServerRequest* request) {
     if (request->hasParam("value")) {
       String value = request->getParam("value")->value();
-      // Convert the string to an integer and update the variable
       BATTERY_WH_MAX = value.toInt();
       request->send(200, "text/plain", "Updated successfully");
     } else {
@@ -76,8 +75,7 @@ void init_webserver() {
   server.on("/updateSocMax", HTTP_GET, [](AsyncWebServerRequest* request) {
     if (request->hasParam("value")) {
       String value = request->getParam("value")->value();
-      // Convert the string to an integer and update the variable
-      MAXPERCENTAGE = value.toInt();
+      MAXPERCENTAGE = value.toInt() * 10;
       request->send(200, "text/plain", "Updated successfully");
     } else {
       request->send(400, "text/plain", "Bad Request");
@@ -88,8 +86,7 @@ void init_webserver() {
   server.on("/updateSocMin", HTTP_GET, [](AsyncWebServerRequest* request) {
     if (request->hasParam("value")) {
       String value = request->getParam("value")->value();
-      // Convert the string to an integer and update the variable
-      MINPERCENTAGE = value.toInt();
+      MINPERCENTAGE = value.toInt() * 10;
       request->send(200, "text/plain", "Updated successfully");
     } else {
       request->send(400, "text/plain", "Bad Request");
@@ -100,8 +97,7 @@ void init_webserver() {
   server.on("/updateMaxChargeA", HTTP_GET, [](AsyncWebServerRequest* request) {
     if (request->hasParam("value")) {
       String value = request->getParam("value")->value();
-      // Convert the string to an integer and update the variable
-      MAXCHARGEAMP = value.toInt();
+      MAXCHARGEAMP = value.toInt() * 10;
       request->send(200, "text/plain", "Updated successfully");
     } else {
       request->send(400, "text/plain", "Bad Request");
@@ -112,8 +108,7 @@ void init_webserver() {
   server.on("/updateMaxDischargeA", HTTP_GET, [](AsyncWebServerRequest* request) {
     if (request->hasParam("value")) {
       String value = request->getParam("value")->value();
-      // Convert the string to an integer and update the variable
-      MAXDISCHARGEAMP = value.toInt();
+      MAXDISCHARGEAMP = value.toInt() * 10;
       request->send(200, "text/plain", "Updated successfully");
     } else {
       request->send(400, "text/plain", "Bad Request");
@@ -394,7 +389,7 @@ String processor(const String& var) {
     content += "function goToSettingsPage() { window.location.href = '/settings'; }";
     content +=
         "function promptToReboot() { if (window.confirm('Are you sure you want to reboot the emulator? NOTE: If "
-        "Emulator is handling contactors, they will open during reboot!')) { "
+        "emulator is handling contactors, they will open during reboot!')) { "
         "rebootServer(); } }";
     content += "function rebootServer() {";
     content += "  var xhr = new XMLHttpRequest();";
@@ -425,20 +420,20 @@ String settings_processor(const String& var) {
     content += "<div style='background-color: #303E47; padding: 10px; margin-bottom: 10px;border-radius: 50px'>";
 
     // Show current settings with edit buttons and input fields
-    content += "<h4 style='color: white;'>Battery size in Wh: <span id='BATTERY_WH_MAX'>" + String(BATTERY_WH_MAX) +
-               "</span> <button onclick='editWh()'>Edit</button></h4>";
-    content += "<h4 style='color: white;'>SOC max percentage: " + String(MAXPERCENTAGE) +
+    content += "<h4 style='color: white;'>Battery capacity: <span id='BATTERY_WH_MAX'>" + String(BATTERY_WH_MAX) +
+               " Wh </span> <button onclick='editWh()'>Edit</button></h4>";
+    content += "<h4 style='color: white;'>SOC max percentage: " + String(MAXPERCENTAGE / 10.0, 1) +
                " </span> <button onclick='editSocMax()'>Edit</button></h4>";
-    content += "<h4 style='color: white;'>SOC min percentage: " + String(MINPERCENTAGE) +
+    content += "<h4 style='color: white;'>SOC min percentage: " + String(MINPERCENTAGE / 10.0, 1) +
                " </span> <button onclick='editSocMin()'>Edit</button></h4>";
-    content += "<h4 style='color: white;'>Max charge speed: " + String(MAXCHARGEAMP) +
+    content += "<h4 style='color: white;'>Max charge speed: " + String(MAXCHARGEAMP / 10.0, 1) +
                " A </span> <button onclick='editMaxChargeA()'>Edit</button></h4>";
-    content += "<h4 style='color: white;'>Max discharge speed: " + String(MAXDISCHARGEAMP) +
+    content += "<h4 style='color: white;'>Max discharge speed: " + String(MAXDISCHARGEAMP / 10.0, 1) +
                " A </span> <button onclick='editMaxDischargeA()'>Edit</button></h4>";
 
     content += "<script>";
     content += "function editWh() {";
-    content += "var value = prompt('Enter new Wh value (1-65000):');";
+    content += "var value = prompt('How much energy the battery can store. Enter new Wh value (1-65000):');";
     content += "if (value !== null) {";
     content += "  if (value >= 1 && value <= 65000) {";
     content += "    var xhr = new XMLHttpRequest();";
@@ -450,50 +445,58 @@ String settings_processor(const String& var) {
     content += "}";
     content += "}";
     content += "function editSocMax() {";
-    content += "var value = prompt('Enter new maximum SOC value that battery will charge to (500-1000):');";
+    content +=
+        "var value = prompt('Inverter will see fully charged (100pct)SOC when this value is reached. Enter new maximum "
+        "SOC value that battery will charge to (50.0-100.0):');";
     content += "if (value !== null) {";
-    content += "  if (value >= 500 && value <= 1000) {";
+    content += "  if (value >= 50 && value <= 100) {";
     content += "    var xhr = new XMLHttpRequest();";
     content += "    xhr.open('GET', '/updateSocMax?value=' + value, true);";
     content += "    xhr.send();";
     content += "  } else {";
-    content += "    alert('Invalid value. Please enter a value between 500 and 1000.');";
+    content += "    alert('Invalid value. Please enter a value between 50.0 and 100.0');";
     content += "  }";
     content += "}";
     content += "}";
     content += "function editSocMin() {";
-    content += "var value = prompt('Enter new minimum SOC value that battery will discharge to (0-500):');";
+    content +=
+        "var value = prompt('Inverter will see completely discharged (0pct)SOC when this value is reached. Enter new "
+        "minimum SOC value that battery will discharge to (0-50.0):');";
     content += "if (value !== null) {";
-    content += "  if (value >= 0 && value <= 500) {";
+    content += "  if (value >= 0 && value <= 50) {";
     content += "    var xhr = new XMLHttpRequest();";
     content += "    xhr.open('GET', '/updateSocMin?value=' + value, true);";
     content += "    xhr.send();";
     content += "  } else {";
-    content += "    alert('Invalid value. Please enter a value between 0 and 500.');";
+    content += "    alert('Invalid value. Please enter a value between 0 and 50.0');";
     content += "  }";
     content += "}";
     content += "}";
     content += "function editMaxChargeA() {";
-    content += "var value = prompt('Enter new maximum charge current in A (0-10000):');";
+    content +=
+        "var value = prompt('BYD CAN specific setting, some inverters needs to be artificially limited. Enter new "
+        "maximum charge current in A (0-1000.0):');";
     content += "if (value !== null) {";
-    content += "  if (value >= 0 && value <= 10000) {";
+    content += "  if (value >= 0 && value <= 1000) {";
     content += "    var xhr = new XMLHttpRequest();";
     content += "    xhr.open('GET', '/updateMaxChargeA?value=' + value, true);";
     content += "    xhr.send();";
     content += "  } else {";
-    content += "    alert('Invalid value. Please enter a value between 0 and 10000.');";
+    content += "    alert('Invalid value. Please enter a value between 0 and 1000.0');";
     content += "  }";
     content += "}";
     content += "}";
     content += "function editMaxDischargeA() {";
-    content += "var value = prompt('Enter new maximum discharge current in A (0-10000):');";
+    content +=
+        "var value = prompt('BYD CAN specific setting, some inverters needs to be artificially limited. Enter new "
+        "maximum discharge current in A (0-1000.0):');";
     content += "if (value !== null) {";
-    content += "  if (value >= 0 && value <= 10000) {";
+    content += "  if (value >= 0 && value <= 1000) {";
     content += "    var xhr = new XMLHttpRequest();";
     content += "    xhr.open('GET', '/updateMaxDischargeA?value=' + value, true);";
     content += "    xhr.send();";
     content += "  } else {";
-    content += "    alert('Invalid value. Please enter a value between 0 and 10000.');";
+    content += "    alert('Invalid value. Please enter a value between 0 and 1000.0');";
     content += "  }";
     content += "}";
     content += "}";
