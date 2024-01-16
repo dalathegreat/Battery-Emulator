@@ -106,6 +106,7 @@ static uint16_t LB_Max_GIDS = 273;               //Startup in 24kWh mode
 static uint16_t LB_StateOfHealth = 99;           //State of health %
 static uint16_t LB_Total_Voltage = 370;          //Battery voltage (0-450V)
 static int16_t LB_Current = 0;                   //Current in A going in/out of battery
+static float LB_Current_Decimals = 0;            //Higher precision variant of the amperage value
 static int16_t LB_Power = 0;                     //Watts going in/out of battery
 static int16_t LB_HistData_Temperature_MAX = 6;  //-40 to 86*C
 static int16_t LB_HistData_Temperature_MIN = 5;  //-40 to 86*C
@@ -188,7 +189,7 @@ void update_values_leaf_battery() { /* This function maps all the values fetched
 
   remaining_capacity_Wh = LB_Wh_Remaining;
 
-  LB_Power = LB_Total_Voltage * LB_Current;           //P = U * I
+  LB_Power = LB_Total_Voltage * LB_Current_Decimals;  //P = U * I
   stat_batt_power = convert2unsignedint16(LB_Power);  //add sign if needed
 
   //Update temperature readings. Method depends on which generation LEAF battery is used
@@ -415,8 +416,8 @@ void receive_can_leaf_battery(CAN_frame_t rx_frame) {
         // negative so extend the sign bit
         LB_Current |= 0xf800;
       }
-      // Scale down the value by 0.5
-      LB_Current /= 2;
+      LB_Current_Decimals = ((float)LB_Current / 2);  //Store a precise version of the value
+      LB_Current /= 2;                                // Scale down the value by 0.5, to get whole integer value
 
       LB_Total_Voltage = ((rx_frame.data.u8[2] << 2) | (rx_frame.data.u8[3] & 0xc0) >> 6) / 2;
 
