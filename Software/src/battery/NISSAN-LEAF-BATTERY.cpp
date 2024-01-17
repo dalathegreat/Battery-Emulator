@@ -104,9 +104,8 @@ static uint16_t LB_GIDS = 0;
 static uint16_t LB_MAX = 0;
 static uint16_t LB_Max_GIDS = 273;               //Startup in 24kWh mode
 static uint16_t LB_StateOfHealth = 99;           //State of health %
-static uint16_t LB_Total_Voltage = 370;          //Battery voltage (0-450V)
-static int16_t LB_Current = 0;                   //Current in A going in/out of battery
-static float LB_Current_Decimals = 0;            //Higher precision variant of the amperage value
+static uint16_t LB_Total_Voltage2 = 740;          //Battery voltage (0-450V) [0.5V/bit, so actual range 0-800]
+static int16_t LB_Current2 = 0;                   //Battery current (-400-200A) [0.5A/bit, so actual range -800-400]
 static int16_t LB_Power = 0;                     //Watts going in/out of battery
 static int16_t LB_HistData_Temperature_MAX = 6;  //-40 to 86*C
 static int16_t LB_HistData_Temperature_MIN = 5;  //-40 to 86*C
@@ -181,15 +180,15 @@ void update_values_leaf_battery() { /* This function maps all the values fetched
   }
   SOC = (CalculatedSOC * 10);  //increase CalculatedSOC range from 0-100.0 -> 100.00
 
-  battery_voltage = (LB_Total_Voltage * 10);  //One more decimal needed
+  battery_voltage = (LB_Total_Voltage2 * 5);  //0.5V /bit, multiply by 5 to get Voltage+1decimal (350.5V = 701)
 
-  battery_current = convert2unsignedint16(LB_Current * 10);  //One more decimal needed, sign if needed
+  battery_current = convert2unsignedint16((LB_Current2 * 5));  //0.5A/bit, multiply by 5 to get Amp+1decimal (5,5A = 11)
 
   capacity_Wh = (LB_Max_GIDS * WH_PER_GID);
 
   remaining_capacity_Wh = LB_Wh_Remaining;
 
-  LB_Power = LB_Total_Voltage * LB_Current_Decimals;  //P = U * I
+  LB_Power = ((LB_Total_Voltage2 * LB_Current2) / 4);  //P = U * I (Both values are 0.5 per bit so the math is non-intuitive)
   stat_batt_power = convert2unsignedint16(LB_Power);  //add sign if needed
 
   //Update temperature readings. Method depends on which generation LEAF battery is used
@@ -359,7 +358,7 @@ void update_values_leaf_battery() { /* This function maps all the values fetched
   Serial.println("Values going to inverter");
   print_with_units("SOH%: ", (StateOfHealth * 0.01), "% ");
   print_with_units(", SOC% scaled: ", (SOC * 0.01), "% ");
-  print_with_units(", Voltage: ", LB_Total_Voltage, "V ");
+  print_with_units(", Voltage: ", (battery_voltage * 0.1), "V ");
   print_with_units(", Max discharge power: ", max_target_discharge_power, "W ");
   print_with_units(", Max charge power: ", max_target_charge_power, "W ");
   print_with_units(", Max temp: ", (temperature_max * 0.1), "°C ");
@@ -411,15 +410,13 @@ void receive_can_leaf_battery(CAN_frame_t rx_frame) {
         CANerror++;
         break;  //Message content malformed, abort reading data from it
       }
-      LB_Current = (rx_frame.data.u8[0] << 3) | (rx_frame.data.u8[1] & 0xe0) >> 5;
-      if (LB_Current & 0x0400) {
+      LB_Current2 = (rx_frame.data.u8[0] << 3) | (rx_frame.data.u8[1] & 0xe0) >> 5;
+      if (LB_Current2 & 0x0400) {
         // negative so extend the sign bit
-        LB_Current |= 0xf800;
-      }
-      LB_Current_Decimals = ((float)LB_Current / 2);  //Store a precise version of the value
-      LB_Current /= 2;                                // Scale down the value by 0.5, to get whole integer value
+        LB_Current2 |= 0xf800;
+      } //BatteryCurrentSignal , 2s comp, 1lSB = 0.5A/bit
 
-      LB_Total_Voltage = ((rx_frame.data.u8[2] << 2) | (rx_frame.data.u8[3] & 0xc0) >> 6) / 2;
+      LB_Total_Voltage2 = ((rx_frame.data.u8[2] << 2) | (rx_frame.data.u8[3] & 0xc0) >> 6); //0.5V/bit
 
       //Collect various data from the BMS
       LB_Relay_Cut_Request = ((rx_frame.data.u8[1] & 0x18) >> 3);
