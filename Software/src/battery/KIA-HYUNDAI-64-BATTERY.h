@@ -8,6 +8,8 @@
 #define ABSOLUTE_MAX_VOLTAGE \
   4040  // 404.4V,if battery voltage goes over this, charging is not possible (goes into forced discharge)
 #define ABSOLUTE_MIN_VOLTAGE 3100  // 310.0V if battery voltage goes under this, discharging further is disabled
+#define MAXCHARGEPOWERALLOWED 10000
+#define MAXDISCHARGEPOWERALLOWED 10000
 
 // These parameters need to be mapped for the Gen24
 extern uint16_t SOC;                         //SOC%, 0-100.00 (0-10000)

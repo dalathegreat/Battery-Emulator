@@ -168,9 +168,19 @@ void update_values_kiaHyundai_64_battery() {  //This function maps all the value
 
   remaining_capacity_Wh = static_cast<int>((static_cast<double>(SOC) / 10000) * BATTERY_WH_MAX);
 
-  max_target_discharge_power = (uint16_t)allowedDischargePower * 10;  //From kW*100 to Watts
-
-  max_target_charge_power = (uint16_t)allowedChargePower * 10;  //From kW*100 to Watts
+  //max_target_charge_power = (uint16_t)allowedChargePower * 10;  //From kW*100 to Watts
+  //The allowed charge power is not available. We estimate this value
+  if (SOC == 10000) {  // When scaled SOC is 100%, set allowed charge power to 0
+    max_target_charge_power = 0;
+  } else {  // No limits, max charging power allowed
+    max_target_charge_power = MAXCHARGEPOWERALLOWED;
+  }
+  //max_target_discharge_power = (uint16_t)allowedDischargePower * 10;  //From kW*100 to Watts
+  if (SOC < 100) {  // When scaled SOC is <1%, set allowed charge power to 0
+    max_target_discharge_power = 0;
+  } else {  // No limits, max charging power allowed
+    max_target_discharge_power = MAXDISCHARGEPOWERALLOWED;
+  }
 
   powerWatt = ((batteryVoltage * batteryAmps) / 100);
 
