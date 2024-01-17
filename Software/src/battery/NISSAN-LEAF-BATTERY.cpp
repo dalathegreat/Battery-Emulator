@@ -9,13 +9,13 @@ static unsigned long previousMillis10s = 0;  // will store last time a 1s CAN Me
 static const int interval10 = 10;            // interval (ms) at which send CAN Messages
 static const int interval100 = 100;          // interval (ms) at which send CAN Messages
 static const int interval10s = 10000;        // interval (ms) at which send CAN Messages
-uint16_t CANerror = 0;                       //counter on how many CAN errors encountered
+static uint16_t CANerror = 0;                //counter on how many CAN errors encountered
 #define MAX_CAN_FAILURES 5000                //Amount of malformed CAN messages to allow before raising a warning
 static uint8_t CANstillAlive = 12;           //counter for checking if CAN is still alive
 static uint8_t errorCode = 0;                //stores if we have an error code active from battery control logic
 static uint8_t mprun10r = 0;                 //counter 0-20 for 0x1F2 message
-static byte mprun10 = 0;                     //counter 0-3
-static byte mprun100 = 0;                    //counter 0-3
+static uint8_t mprun10 = 0;                  //counter 0-3
+static uint8_t mprun100 = 0;                 //counter 0-3
 
 CAN_frame_t LEAF_1F2 = {.FIR = {.B =
                                     {
@@ -119,15 +119,15 @@ static uint8_t LB_Failsafe_Status = 0;           //LB_STATUS = 000b = normal sta
                                                  //101b = Caution Lamp Request & Main Relay OFF Request
                                                  //110b = Caution Lamp Request & Charging Mode Stop Request
                                                  //111b = Caution Lamp Request & Main Relay OFF Request
-static byte LB_Interlock =
+static bool LB_Interlock =
     true;  //Contains info on if HV leads are seated (Note, to use this both HV connectors need to be inserted)
-static byte LB_Full_CHARGE_flag = false;  //LB_FCHGEND , Goes to 1 if battery is fully charged
-static byte LB_MainRelayOn_flag = false;  //No-Permission=0, Main Relay On Permission=1
-static byte LB_Capacity_Empty = false;    //LB_EMPTY, , Goes to 1 if battery is empty
-static byte LB_HeatExist = false;         //LB_HEATEXIST, Specifies if battery pack is equipped with heating elements
-static byte LB_Heating_Stop = false;      //When transitioning from 0->1, signals a STOP heat request
-static byte LB_Heating_Start = false;     //When transitioning from 1->0, signals a START heat request
-static byte Batt_Heater_Mail_Send_Request = false;  //Stores info when a heat request is happening
+static bool LB_Full_CHARGE_flag = false;  //LB_FCHGEND , Goes to 1 if battery is fully charged
+static bool LB_MainRelayOn_flag = false;  //No-Permission=0, Main Relay On Permission=1
+static bool LB_Capacity_Empty = false;    //LB_EMPTY, , Goes to 1 if battery is empty
+static bool LB_HeatExist = false;         //LB_HEATEXIST, Specifies if battery pack is equipped with heating elements
+static bool LB_Heating_Stop = false;      //When transitioning from 0->1, signals a STOP heat request
+static bool LB_Heating_Start = false;     //When transitioning from 1->0, signals a START heat request
+static bool Batt_Heater_Mail_Send_Request = false;  //Stores info when a heat request is happening
 
 // Nissan LEAF battery data from polled CAN messages
 static uint8_t battery_request_idx = 0;
@@ -136,7 +136,7 @@ static uint8_t group = 1;
 static uint8_t stop_battery_query = 1;
 static uint8_t hold_off_with_polling_10seconds = 10;
 static uint16_t cell_voltages[97];  //array with all the cellvoltages
-static uint16_t cellcounter = 0;
+static uint8_t cellcounter = 0;
 static uint16_t min_max_voltage[2];     //contains cell min[0] and max[1] values in mV
 static uint16_t cell_deviation_mV = 0;  //contains the deviation between highest and lowest cell in mV
 static uint16_t HX = 0;                 //Internal resistance
@@ -422,14 +422,14 @@ void receive_can_leaf_battery(CAN_frame_t rx_frame) {
       //Collect various data from the BMS
       LB_Relay_Cut_Request = ((rx_frame.data.u8[1] & 0x18) >> 3);
       LB_Failsafe_Status = (rx_frame.data.u8[1] & 0x07);
-      LB_MainRelayOn_flag = (byte)((rx_frame.data.u8[3] & 0x20) >> 5);
+      LB_MainRelayOn_flag = (bool)((rx_frame.data.u8[3] & 0x20) >> 5);
       if (LB_MainRelayOn_flag) {
         batteryAllowsContactorClosing = true;
       } else {
         batteryAllowsContactorClosing = false;
       }
-      LB_Full_CHARGE_flag = (byte)((rx_frame.data.u8[3] & 0x10) >> 4);
-      LB_Interlock = (byte)((rx_frame.data.u8[3] & 0x08) >> 3);
+      LB_Full_CHARGE_flag = (bool)((rx_frame.data.u8[3] & 0x10) >> 4);
+      LB_Interlock = (bool)((rx_frame.data.u8[3] & 0x08) >> 3);
       break;
     case 0x1DC:
       if (is_message_corrupt(rx_frame)) {
