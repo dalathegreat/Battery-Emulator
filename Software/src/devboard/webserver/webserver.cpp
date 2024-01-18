@@ -264,12 +264,12 @@ String processor(const String& var) {
     float tempMaxFloat = 0;
     float tempMinFloat = 0;
     if (temperature_max > 32767) {  //Handle negative values on this unsigned value
-      tempMaxFloat = static_cast<float>(-(65535 - temperature_max)) / 10.0;  // Convert to float and divide by 10
+      tempMaxFloat = static_cast<float>(-(65536 - temperature_max)) / 10.0;  // Convert to float and divide by 10
     } else {
       tempMaxFloat = static_cast<float>(temperature_max) / 10.0;  // Convert to float and divide by 10
     }
     if (temperature_min > 32767) {  //Handle negative values on this unsigned value
-      tempMinFloat = static_cast<float>(-(65535 - temperature_min)) / 10.0;  // Convert to float and divide by 10
+      tempMinFloat = static_cast<float>(-(65536 - temperature_min)) / 10.0;  // Convert to float and divide by 10
     } else {
       tempMinFloat = static_cast<float>(temperature_min) / 10.0;  // Convert to float and divide by 10
     }
