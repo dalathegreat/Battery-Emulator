@@ -294,8 +294,9 @@ void update_values_kiaHyundai_64_battery() {  //This function maps all the value
   Serial.print("  |  Inverter ");
   Serial.print(inverterVoltage);
   Serial.println(" Volts");
-}
 #endif
+}
+
 
 void receive_can_kiaHyundai_64_battery(CAN_frame_t rx_frame) {
   switch (rx_frame.MsgID) {
@@ -406,6 +407,7 @@ void receive_can_kiaHyundai_64_battery(CAN_frame_t rx_frame) {
       break;
   }
 }
+
 void send_can_kiaHyundai_64_battery() {
   unsigned long currentMillis = millis();
   //Send 100ms message
