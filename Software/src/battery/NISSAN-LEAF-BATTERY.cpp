@@ -9,13 +9,13 @@ static unsigned long previousMillis10s = 0;  // will store last time a 1s CAN Me
 static const int interval10 = 10;            // interval (ms) at which send CAN Messages
 static const int interval100 = 100;          // interval (ms) at which send CAN Messages
 static const int interval10s = 10000;        // interval (ms) at which send CAN Messages
-uint16_t CANerror = 0;                       //counter on how many CAN errors encountered
+static uint16_t CANerror = 0;                //counter on how many CAN errors encountered
 #define MAX_CAN_FAILURES 5000                //Amount of malformed CAN messages to allow before raising a warning
 static uint8_t CANstillAlive = 12;           //counter for checking if CAN is still alive
 static uint8_t errorCode = 0;                //stores if we have an error code active from battery control logic
 static uint8_t mprun10r = 0;                 //counter 0-20 for 0x1F2 message
-static byte mprun10 = 0;                     //counter 0-3
-static byte mprun100 = 0;                    //counter 0-3
+static uint8_t mprun10 = 0;                  //counter 0-3
+static uint8_t mprun100 = 0;                 //counter 0-3
 
 CAN_frame_t LEAF_1F2 = {.FIR = {.B =
                                     {
@@ -104,8 +104,8 @@ static uint16_t LB_GIDS = 0;
 static uint16_t LB_MAX = 0;
 static uint16_t LB_Max_GIDS = 273;               //Startup in 24kWh mode
 static uint16_t LB_StateOfHealth = 99;           //State of health %
-static uint16_t LB_Total_Voltage = 370;          //Battery voltage (0-450V)
-static int16_t LB_Current = 0;                   //Current in A going in/out of battery
+static uint16_t LB_Total_Voltage2 = 740;         //Battery voltage (0-450V) [0.5V/bit, so actual range 0-800]
+static int16_t LB_Current2 = 0;                  //Battery current (-400-200A) [0.5A/bit, so actual range -800-400]
 static int16_t LB_Power = 0;                     //Watts going in/out of battery
 static int16_t LB_HistData_Temperature_MAX = 6;  //-40 to 86*C
 static int16_t LB_HistData_Temperature_MIN = 5;  //-40 to 86*C
@@ -119,15 +119,15 @@ static uint8_t LB_Failsafe_Status = 0;           //LB_STATUS = 000b = normal sta
                                                  //101b = Caution Lamp Request & Main Relay OFF Request
                                                  //110b = Caution Lamp Request & Charging Mode Stop Request
                                                  //111b = Caution Lamp Request & Main Relay OFF Request
-static byte LB_Interlock =
+static bool LB_Interlock =
     true;  //Contains info on if HV leads are seated (Note, to use this both HV connectors need to be inserted)
-static byte LB_Full_CHARGE_flag = false;  //LB_FCHGEND , Goes to 1 if battery is fully charged
-static byte LB_MainRelayOn_flag = false;  //No-Permission=0, Main Relay On Permission=1
-static byte LB_Capacity_Empty = false;    //LB_EMPTY, , Goes to 1 if battery is empty
-static byte LB_HeatExist = false;         //LB_HEATEXIST, Specifies if battery pack is equipped with heating elements
-static byte LB_Heating_Stop = false;      //When transitioning from 0->1, signals a STOP heat request
-static byte LB_Heating_Start = false;     //When transitioning from 1->0, signals a START heat request
-static byte Batt_Heater_Mail_Send_Request = false;  //Stores info when a heat request is happening
+static bool LB_Full_CHARGE_flag = false;  //LB_FCHGEND , Goes to 1 if battery is fully charged
+static bool LB_MainRelayOn_flag = false;  //No-Permission=0, Main Relay On Permission=1
+static bool LB_Capacity_Empty = false;    //LB_EMPTY, , Goes to 1 if battery is empty
+static bool LB_HeatExist = false;         //LB_HEATEXIST, Specifies if battery pack is equipped with heating elements
+static bool LB_Heating_Stop = false;      //When transitioning from 0->1, signals a STOP heat request
+static bool LB_Heating_Start = false;     //When transitioning from 1->0, signals a START heat request
+static bool Batt_Heater_Mail_Send_Request = false;  //Stores info when a heat request is happening
 
 // Nissan LEAF battery data from polled CAN messages
 static uint8_t battery_request_idx = 0;
@@ -136,7 +136,7 @@ static uint8_t group = 1;
 static uint8_t stop_battery_query = 1;
 static uint8_t hold_off_with_polling_10seconds = 10;
 static uint16_t cell_voltages[97];  //array with all the cellvoltages
-static uint16_t cellcounter = 0;
+static uint8_t cellcounter = 0;
 static uint16_t min_max_voltage[2];     //contains cell min[0] and max[1] values in mV
 static uint16_t cell_deviation_mV = 0;  //contains the deviation between highest and lowest cell in mV
 static uint16_t HX = 0;                 //Internal resistance
@@ -180,15 +180,16 @@ void update_values_leaf_battery() { /* This function maps all the values fetched
   }
   SOC = (CalculatedSOC * 10);  //increase CalculatedSOC range from 0-100.0 -> 100.00
 
-  battery_voltage = (LB_Total_Voltage * 10);  //One more decimal needed
+  battery_voltage = (LB_Total_Voltage2 * 5);  //0.5V /bit, multiply by 5 to get Voltage+1decimal (350.5V = 701)
 
-  battery_current = convert2unsignedint16(LB_Current * 10);  //One more decimal needed, sign if needed
+  battery_current = convert2unsignedint16((LB_Current2 * 5));  //0.5A/bit, multiply by 5 to get Amp+1decimal (5,5A = 11)
 
   capacity_Wh = (LB_Max_GIDS * WH_PER_GID);
 
   remaining_capacity_Wh = LB_Wh_Remaining;
 
-  LB_Power = LB_Total_Voltage * LB_Current;           //P = U * I
+  LB_Power =
+      ((LB_Total_Voltage2 * LB_Current2) / 4);  //P = U * I (Both values are 0.5 per bit so the math is non-intuitive)
   stat_batt_power = convert2unsignedint16(LB_Power);  //add sign if needed
 
   //Update temperature readings. Method depends on which generation LEAF battery is used
@@ -358,7 +359,7 @@ void update_values_leaf_battery() { /* This function maps all the values fetched
   Serial.println("Values going to inverter");
   print_with_units("SOH%: ", (StateOfHealth * 0.01), "% ");
   print_with_units(", SOC% scaled: ", (SOC * 0.01), "% ");
-  print_with_units(", Voltage: ", LB_Total_Voltage, "V ");
+  print_with_units(", Voltage: ", (battery_voltage * 0.1), "V ");
   print_with_units(", Max discharge power: ", max_target_discharge_power, "W ");
   print_with_units(", Max charge power: ", max_target_charge_power, "W ");
   print_with_units(", Max temp: ", (temperature_max * 0.1), "°C ");
@@ -410,27 +411,25 @@ void receive_can_leaf_battery(CAN_frame_t rx_frame) {
         CANerror++;
         break;  //Message content malformed, abort reading data from it
       }
-      LB_Current = (rx_frame.data.u8[0] << 3) | (rx_frame.data.u8[1] & 0xe0) >> 5;
-      if (LB_Current & 0x0400) {
+      LB_Current2 = (rx_frame.data.u8[0] << 3) | (rx_frame.data.u8[1] & 0xe0) >> 5;
+      if (LB_Current2 & 0x0400) {
         // negative so extend the sign bit
-        LB_Current |= 0xf800;
-      }
-      // Scale down the value by 0.5
-      LB_Current /= 2;
+        LB_Current2 |= 0xf800;
+      }  //BatteryCurrentSignal , 2s comp, 1lSB = 0.5A/bit
 
-      LB_Total_Voltage = ((rx_frame.data.u8[2] << 2) | (rx_frame.data.u8[3] & 0xc0) >> 6) / 2;
+      LB_Total_Voltage2 = ((rx_frame.data.u8[2] << 2) | (rx_frame.data.u8[3] & 0xc0) >> 6);  //0.5V/bit
 
       //Collect various data from the BMS
       LB_Relay_Cut_Request = ((rx_frame.data.u8[1] & 0x18) >> 3);
       LB_Failsafe_Status = (rx_frame.data.u8[1] & 0x07);
-      LB_MainRelayOn_flag = (byte)((rx_frame.data.u8[3] & 0x20) >> 5);
+      LB_MainRelayOn_flag = (bool)((rx_frame.data.u8[3] & 0x20) >> 5);
       if (LB_MainRelayOn_flag) {
         batteryAllowsContactorClosing = true;
       } else {
         batteryAllowsContactorClosing = false;
       }
-      LB_Full_CHARGE_flag = (byte)((rx_frame.data.u8[3] & 0x10) >> 4);
-      LB_Interlock = (byte)((rx_frame.data.u8[3] & 0x08) >> 3);
+      LB_Full_CHARGE_flag = (bool)((rx_frame.data.u8[3] & 0x10) >> 4);
+      LB_Interlock = (bool)((rx_frame.data.u8[3] & 0x08) >> 3);
       break;
     case 0x1DC:
       if (is_message_corrupt(rx_frame)) {
