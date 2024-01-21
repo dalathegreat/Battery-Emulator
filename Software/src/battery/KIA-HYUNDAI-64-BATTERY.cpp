@@ -297,7 +297,6 @@ void update_values_kiaHyundai_64_battery() {  //This function maps all the value
 #endif
 }
 
-
 void receive_can_kiaHyundai_64_battery(CAN_frame_t rx_frame) {
   switch (rx_frame.MsgID) {
     case 0x4DE:
