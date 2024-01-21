@@ -42,23 +42,90 @@ unsigned long wifi_connect_current_time;
 const long wifi_connect_timeout = 5000;  // Timeout for WiFi connect in milliseconds
 
 void init_webserver() {
-// Configure WiFi
-#ifdef ENABLE_AP
-  WiFi.mode(WIFI_AP_STA);  // Simultaneous WiFi AP and Router connection
-  init_WiFi_AP();
-  init_WiFi_STA(ssid, password);
-#else
-  WiFi.mode(WIFI_STA);  // Only Router connection
-  init_WiFi_STA(ssid, password);
-#endif
+  // Configure WiFi
+  if (AccessPointEnabled) {
+    WiFi.mode(WIFI_AP_STA);  // Simultaneous WiFi AP and Router connection
+    init_WiFi_AP();
+    init_WiFi_STA(ssid, password);
+  } else {
+    WiFi.mode(WIFI_STA);  // Only Router connection
+    init_WiFi_STA(ssid, password);
+  }
 
   // Route for root / web page
   server.on("/", HTTP_GET,
             [](AsyncWebServerRequest* request) { request->send_P(200, "text/html", index_html, processor); });
 
+  // Route for going to settings web page
+  server.on("/settings", HTTP_GET,
+            [](AsyncWebServerRequest* request) { request->send_P(200, "text/html", index_html, settings_processor); });
+
+  // Route for editing Wh
+  server.on("/updateBatterySize", HTTP_GET, [](AsyncWebServerRequest* request) {
+    if (request->hasParam("value")) {
+      String value = request->getParam("value")->value();
+      BATTERY_WH_MAX = value.toInt();
+      request->send(200, "text/plain", "Updated successfully");
+    } else {
+      request->send(400, "text/plain", "Bad Request");
+    }
+  });
+
+  // Route for editing SOCMax
+  server.on("/updateSocMax", HTTP_GET, [](AsyncWebServerRequest* request) {
+    if (request->hasParam("value")) {
+      String value = request->getParam("value")->value();
+      MAXPERCENTAGE = value.toInt() * 10;
+      request->send(200, "text/plain", "Updated successfully");
+    } else {
+      request->send(400, "text/plain", "Bad Request");
+    }
+  });
+
+  // Route for editing SOCMin
+  server.on("/updateSocMin", HTTP_GET, [](AsyncWebServerRequest* request) {
+    if (request->hasParam("value")) {
+      String value = request->getParam("value")->value();
+      MINPERCENTAGE = value.toInt() * 10;
+      request->send(200, "text/plain", "Updated successfully");
+    } else {
+      request->send(400, "text/plain", "Bad Request");
+    }
+  });
+
+  // Route for editing MaxChargeA
+  server.on("/updateMaxChargeA", HTTP_GET, [](AsyncWebServerRequest* request) {
+    if (request->hasParam("value")) {
+      String value = request->getParam("value")->value();
+      MAXCHARGEAMP = value.toInt() * 10;
+      request->send(200, "text/plain", "Updated successfully");
+    } else {
+      request->send(400, "text/plain", "Bad Request");
+    }
+  });
+
+  // Route for editing MaxDischargeA
+  server.on("/updateMaxDischargeA", HTTP_GET, [](AsyncWebServerRequest* request) {
+    if (request->hasParam("value")) {
+      String value = request->getParam("value")->value();
+      MAXDISCHARGEAMP = value.toInt() * 10;
+      request->send(200, "text/plain", "Updated successfully");
+    } else {
+      request->send(400, "text/plain", "Bad Request");
+    }
+  });
+
   // Send a GET request to <ESP_IP>/update
   server.on("/debug", HTTP_GET,
             [](AsyncWebServerRequest* request) { request->send(200, "text/plain", "Debug: all OK."); });
+
+  // Route to handle reboot command
+  server.on("/reboot", HTTP_GET, [](AsyncWebServerRequest* request) {
+    request->send(200, "text/plain", "Rebooting server...");
+    //TODO: Should we handle contactors gracefully? Ifdef CONTACTOR_CONTROL then what?
+    delay(1000);
+    ESP.restart();
+  });
 
   // Initialize ElegantOTA
   init_ElegantOTA();
@@ -133,6 +200,9 @@ String processor(const String& var) {
     // Start a new block with a specific background color
     content += "<div style='background-color: #303E47; padding: 10px; margin-bottom: 10px;border-radius: 50px'>";
 
+    // Show version number
+    content += "<h4>Software version: " + String(versionNumber) + "</h4>";
+
     // Display LED color
     content += "<h4>LED color: ";
     switch (LEDcolor) {
@@ -159,6 +229,8 @@ String processor(const String& var) {
     content += "<h4>Wifi status: " + wifi_state + "</h4>";
     if (wifi_connected == true) {
       content += "<h4>IP: " + WiFi.localIP().toString() + "</h4>";
+      // Get and display the signal strength (RSSI)
+      content += "<h4>Signal Strength: " + String(WiFi.RSSI()) + " dBm</h4>";
     }
     // Close the block
     content += "</div>";
@@ -179,6 +251,9 @@ String processor(const String& var) {
 #endif
 #ifdef PYLON_CAN
     content += "Pylontech battery over CAN bus";
+#endif
+#ifdef SERIAL_LINK_TRANSMITTER
+    content += "Serial link to another LilyGo board";
 #endif
 #ifdef SMA_CAN
     content += "BYD Battery-Box H 8.9kWh, 7 mod over CAN bus";
@@ -212,6 +287,9 @@ String processor(const String& var) {
 #endif
 #ifdef RENAULT_ZOE_BATTERY
     content += "Renault Zoe";
+#endif
+#ifdef SERIAL_LINK_RECEIVER
+    content += "Serial link to another LilyGo board";
 #endif
 #ifdef TESLA_MODEL_3_BATTERY
     content += "Tesla Model S/3/X/Y";
@@ -302,8 +380,22 @@ String processor(const String& var) {
     content += "</div>";
 
     content += "<button onclick='goToUpdatePage()'>Perform OTA update</button>";
+    content += " ";
+    content += "<button onclick='goToSettingsPage()'>Change Battery Settings</button>";
+    content += " ";
+    content += "<button onclick='promptToReboot()'>Reboot Emulator</button>";
     content += "<script>";
     content += "function goToUpdatePage() { window.location.href = '/update'; }";
+    content += "function goToSettingsPage() { window.location.href = '/settings'; }";
+    content +=
+        "function promptToReboot() { if (window.confirm('Are you sure you want to reboot the emulator? NOTE: If "
+        "emulator is handling contactors, they will open during reboot!')) { "
+        "rebootServer(); } }";
+    content += "function rebootServer() {";
+    content += "  var xhr = new XMLHttpRequest();";
+    content += "  xhr.open('GET', '/reboot', true);";
+    content += "  xhr.send();";
+    content += "}";
     content += "</script>";
 
     //Script for refreshing page
@@ -316,16 +408,122 @@ String processor(const String& var) {
   return String();
 }
 
+String settings_processor(const String& var) {
+  if (var == "PLACEHOLDER") {
+    String content = "";
+    //Page format
+    content += "<style>";
+    content += "body { background-color: black; color: white; }";
+    content += "</style>";
+
+    // Start a new block with a specific background color
+    content += "<div style='background-color: #303E47; padding: 10px; margin-bottom: 10px;border-radius: 50px'>";
+
+    // Show current settings with edit buttons and input fields
+    content += "<h4 style='color: white;'>Battery capacity: <span id='BATTERY_WH_MAX'>" + String(BATTERY_WH_MAX) +
+               " Wh </span> <button onclick='editWh()'>Edit</button></h4>";
+    content += "<h4 style='color: white;'>SOC max percentage: " + String(MAXPERCENTAGE / 10.0, 1) +
+               " </span> <button onclick='editSocMax()'>Edit</button></h4>";
+    content += "<h4 style='color: white;'>SOC min percentage: " + String(MINPERCENTAGE / 10.0, 1) +
+               " </span> <button onclick='editSocMin()'>Edit</button></h4>";
+    content += "<h4 style='color: white;'>Max charge speed: " + String(MAXCHARGEAMP / 10.0, 1) +
+               " A </span> <button onclick='editMaxChargeA()'>Edit</button></h4>";
+    content += "<h4 style='color: white;'>Max discharge speed: " + String(MAXDISCHARGEAMP / 10.0, 1) +
+               " A </span> <button onclick='editMaxDischargeA()'>Edit</button></h4>";
+
+    content += "<script>";
+    content += "function editWh() {";
+    content += "var value = prompt('How much energy the battery can store. Enter new Wh value (1-65000):');";
+    content += "if (value !== null) {";
+    content += "  if (value >= 1 && value <= 65000) {";
+    content += "    var xhr = new XMLHttpRequest();";
+    content += "    xhr.open('GET', '/updateBatterySize?value=' + value, true);";
+    content += "    xhr.send();";
+    content += "  } else {";
+    content += "    alert('Invalid value. Please enter a value between 1 and 65000.');";
+    content += "  }";
+    content += "}";
+    content += "}";
+    content += "function editSocMax() {";
+    content +=
+        "var value = prompt('Inverter will see fully charged (100pct)SOC when this value is reached. Enter new maximum "
+        "SOC value that battery will charge to (50.0-100.0):');";
+    content += "if (value !== null) {";
+    content += "  if (value >= 50 && value <= 100) {";
+    content += "    var xhr = new XMLHttpRequest();";
+    content += "    xhr.open('GET', '/updateSocMax?value=' + value, true);";
+    content += "    xhr.send();";
+    content += "  } else {";
+    content += "    alert('Invalid value. Please enter a value between 50.0 and 100.0');";
+    content += "  }";
+    content += "}";
+    content += "}";
+    content += "function editSocMin() {";
+    content +=
+        "var value = prompt('Inverter will see completely discharged (0pct)SOC when this value is reached. Enter new "
+        "minimum SOC value that battery will discharge to (0-50.0):');";
+    content += "if (value !== null) {";
+    content += "  if (value >= 0 && value <= 50) {";
+    content += "    var xhr = new XMLHttpRequest();";
+    content += "    xhr.open('GET', '/updateSocMin?value=' + value, true);";
+    content += "    xhr.send();";
+    content += "  } else {";
+    content += "    alert('Invalid value. Please enter a value between 0 and 50.0');";
+    content += "  }";
+    content += "}";
+    content += "}";
+    content += "function editMaxChargeA() {";
+    content +=
+        "var value = prompt('BYD CAN specific setting, some inverters needs to be artificially limited. Enter new "
+        "maximum charge current in A (0-1000.0):');";
+    content += "if (value !== null) {";
+    content += "  if (value >= 0 && value <= 1000) {";
+    content += "    var xhr = new XMLHttpRequest();";
+    content += "    xhr.open('GET', '/updateMaxChargeA?value=' + value, true);";
+    content += "    xhr.send();";
+    content += "  } else {";
+    content += "    alert('Invalid value. Please enter a value between 0 and 1000.0');";
+    content += "  }";
+    content += "}";
+    content += "}";
+    content += "function editMaxDischargeA() {";
+    content +=
+        "var value = prompt('BYD CAN specific setting, some inverters needs to be artificially limited. Enter new "
+        "maximum discharge current in A (0-1000.0):');";
+    content += "if (value !== null) {";
+    content += "  if (value >= 0 && value <= 1000) {";
+    content += "    var xhr = new XMLHttpRequest();";
+    content += "    xhr.open('GET', '/updateMaxDischargeA?value=' + value, true);";
+    content += "    xhr.send();";
+    content += "  } else {";
+    content += "    alert('Invalid value. Please enter a value between 0 and 1000.0');";
+    content += "  }";
+    content += "}";
+    content += "}";
+    content += "</script>";
+
+    // Close the block
+    content += "</div>";
+
+    content += "<button onclick='goToMainPage()'>Back to main page</button>";
+    content += "<script>";
+    content += "function goToMainPage() { window.location.href = '/'; }";
+    content += "</script>";
+    return content;
+  }
+  return String();
+}
+
 void onOTAStart() {
   // Log when OTA has started
   Serial.println("OTA update started!");
   ESP32Can.CANStop();
-  bms_status = 5;  //Inform inverter that we are updating
+  bms_status = UPDATING;  //Inform inverter that we are updating
   LEDcolor = BLUE;
 }
 
 void onOTAProgress(size_t current, size_t final) {
-  bms_status = 5;  //Inform inverter that we are updating
+  bms_status = UPDATING;  //Inform inverter that we are updating
   LEDcolor = BLUE;
   // Log every 1 second
   if (millis() - ota_progress_millis > 1000) {
@@ -341,6 +539,6 @@ void onOTAEnd(bool success) {
   } else {
     Serial.println("There was an error during OTA update!");
   }
-  bms_status = 5;  //Inform inverter that we are updating
+  bms_status = UPDATING;  //Inform inverter that we are updating
   LEDcolor = BLUE;
 }

@@ -33,6 +33,7 @@ extern const char* ssid;
 extern const char* password;
 extern const char* ssidAP;
 extern const char* passwordAP;
+extern const char* versionNumber;
 
 /**
  * @brief Initialization function for the webserver.
@@ -79,6 +80,15 @@ void init_ElegantOTA();
  * @return String
  */
 String processor(const String& var);
+
+/**
+ * @brief Replaces placeholder with content section in web page
+ *
+ * @param[in] var
+ *
+ * @return String
+ */
+String settings_processor(const String& var);
 
 /**
  * @brief Executes on OTA start 
