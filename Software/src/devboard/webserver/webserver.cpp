@@ -378,18 +378,16 @@ String processor(const String& var) {
     }
     content += "<h4>Automatic contactor closing allowed:</h4>";
     content += "<h4>Battery: ";
-    if(batteryAllowsContactorClosing){
+    if (batteryAllowsContactorClosing) {
       content += "<span>&#10003;</span>";
-    }
-    else{
+    } else {
       content += "<span style='color: red;'>&#10005;</span>";
     }
 
     content += " Inverter: ";
-    if(inverterAllowsContactorClosing){
+    if (inverterAllowsContactorClosing) {
       content += "<span>&#10003;</span></h4>";
-    }
-    else{
+    } else {
       content += "<span style='color: red;'>&#10005;</span></h4>";
     }
 
@@ -560,7 +558,7 @@ void onOTAEnd(bool success) {
   LEDcolor = BLUE;
 }
 
-template <typename T> // This function makes power values appear as W when under 1000, and kW when over
+template <typename T>  // This function makes power values appear as W when under 1000, and kW when over
 String formatPowerValue(String label, T value, String unit, int precision) {
   String result = "<h4 style='color: white;'>" + label + ": ";
 
