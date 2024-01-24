@@ -355,11 +355,11 @@ String processor(const String& var) {
     content += "<h4 style='color: white;'>SOH: " + String(sohFloat, 2) + "</h4>";
     content += "<h4 style='color: white;'>Voltage: " + String(voltageFloat, 1) + " V</h4>";
     content += "<h4 style='color: white;'>Current: " + String(currentFloat, 1) + " A</h4>";
-    content += "<h4 style='color: white;'>Power: " + String(powerFloat, 0) + " W</h4>";
-    content += "<h4>Total capacity: " + String(capacity_Wh) + " Wh</h4>";
-    content += "<h4>Remaining capacity: " + String(remaining_capacity_Wh) + " Wh</h4>";
-    content += "<h4>Max discharge power: " + String(max_target_discharge_power) + " W</h4>";
-    content += "<h4>Max charge power: " + String(max_target_charge_power) + " W</h4>";
+    content += formatPowerValue("Power", powerFloat, "", 1);
+    content += formatPowerValue("Total capacity", capacity_Wh, "h", 0);
+    content += formatPowerValue("Remaining capacity", remaining_capacity_Wh, "h", 1);
+    content += formatPowerValue("Max discharge power", max_target_discharge_power, "", 1);
+    content += formatPowerValue("Max charge power", max_target_charge_power, "", 1);
     content += "<h4>Cell max: " + String(cell_max_voltage) + " mV</h4>";
     content += "<h4>Cell min: " + String(cell_min_voltage) + " mV</h4>";
     content += "<h4>Temperature max: " + String(tempMaxFloat, 1) + " C</h4>";
@@ -376,6 +376,23 @@ String processor(const String& var) {
     } else {  //0 idle
       content += "<h4>Battery idle</h4>";
     }
+    content += "<h4>Automatic contactor closing allowed:</h4>";
+    content += "<h4>Battery: ";
+    if(batteryAllowsContactorClosing){
+      content += "<span>&#10003;</span>";
+    }
+    else{
+      content += "<span style='color: red;'>&#10005;</span>";
+    }
+
+    content += " Inverter: ";
+    if(inverterAllowsContactorClosing){
+      content += "<span>&#10003;</span></h4>";
+    }
+    else{
+      content += "<span style='color: red;'>&#10005;</span></h4>";
+    }
+
     // Close the block
     content += "</div>";
 
@@ -541,4 +558,22 @@ void onOTAEnd(bool success) {
   }
   bms_status = UPDATING;  //Inform inverter that we are updating
   LEDcolor = BLUE;
+}
+
+template <typename T> // This function makes power values appear as W when under 1000, and kW when over
+String formatPowerValue(String label, T value, String unit, int precision) {
+  String result = "<h4 style='color: white;'>" + label + ": ";
+
+  if (std::is_same<T, float>::value || std::is_same<T, uint16_t>::value) {
+    float convertedValue = static_cast<float>(value);
+
+    if (convertedValue >= 1000.0 || convertedValue <= -1000.0) {
+      result += String(convertedValue / 1000.0, precision) + " kW";
+    } else {
+      result += String(convertedValue, 0) + " W";
+    }
+  }
+
+  result += unit + "</h4>";
+  return result;
 }
