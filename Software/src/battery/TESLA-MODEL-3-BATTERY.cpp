@@ -589,7 +589,10 @@ void printFaultCodesIfActive() {
   if (pyroTestInProgress == 1) {
     Serial.println("ERROR: Please wait for Pyro Connection check to finish, HV cables successfully seated!");
   }
-
+  if (inverterAllowsContactorClosing == 0) {
+    Serial.println(
+        "ERROR: Solar inverter does not allow for contactor closing. Check inverterAllowsContactorClosing parameter");
+  }
   // Check each symbol and print debug information if its value is 1
   printDebugIfActive(WatchdogReset, "ERROR: The processor has experienced a reset due to watchdog reset");
   printDebugIfActive(PowerLossReset, "ERROR: The processor has experienced a reset due to power loss");
