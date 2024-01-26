@@ -35,6 +35,14 @@ extern const char* ssidAP;
 extern const char* passwordAP;
 extern const char* versionNumber;
 
+// Common charger parameters
+extern float charger_stat_HVcur;
+extern float charger_stat_HVvol;
+extern float charger_stat_ACcur;
+extern float charger_stat_ACvol;
+extern float charger_stat_LVcur;
+extern float charger_stat_LVvol;
+
 /**
  * @brief Initialization function for the webserver.
  *

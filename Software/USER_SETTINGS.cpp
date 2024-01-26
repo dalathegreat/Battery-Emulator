@@ -15,6 +15,14 @@ volatile uint16_t MAXCHARGEAMP =
 volatile uint16_t MAXDISCHARGEAMP =
     300;  //30.0A , BYD CAN specific setting, Max discharge speed in Amp (Some inverters needs to be artificially limited)
 
+/* Charger settings */
+volatile float CHARGER_SET_HV = 384;      // Reasonably appropriate 4.0v per cell charging of a 96s pack
+volatile float CHARGER_MAX_HV = 420;      // Max permissible output (VDC) of charger
+volatile float CHARGER_MIN_HV = 200;      // Min permissible output (VDC) of charger
+volatile float CHARGER_MAX_POWER = 3300;  // Max power capable of charger, as a ceiling for validating config
+volatile float CHARGER_MAX_A = 11.5;      // Max current output (amps) of charger
+volatile float CHARGER_END_A = 1.0;       // Current at which charging is considered complete
+
 #ifdef WEBSERVER
 volatile uint8_t AccessPointEnabled =
     true;  //Set to either true or false incase you want the board to enable a direct wifi access point

@@ -5,6 +5,7 @@
 #include "HardwareSerial.h"
 #include "USER_SETTINGS.h"
 #include "src/battery/BATTERIES.h"
+#include "src/charger/CHARGERS.h"
 #include "src/devboard/config.h"
 #include "src/inverter/INVERTERS.h"
 #include "src/lib/adafruit-Adafruit_NeoPixel/Adafruit_NeoPixel.h"
@@ -67,6 +68,21 @@ uint16_t stat_batt_power = 0;           // Power going in/out of battery
 uint16_t cell_max_voltage = 3700;       // Stores the highest cell voltage value in the system
 uint16_t cell_min_voltage = 3700;       // Stores the minimum cell voltage value in the system
 bool LFP_Chemistry = false;
+
+// Common charger parameters
+volatile float charger_setpoint_HV_VDC = 0.0f;
+volatile float charger_setpoint_HV_IDC = 0.0f;
+volatile float charger_setpoint_HV_IDC_END = 0.0f;
+bool charger_HV_enabled = false;
+bool charger_aux12V_enabled = false;
+
+// Common charger statistics, instantaneous values
+float charger_stat_HVcur = 0;
+float charger_stat_HVvol = 0;
+float charger_stat_ACcur = 0;
+float charger_stat_ACvol = 0;
+float charger_stat_LVcur = 0;
+float charger_stat_LVvol = 0;
 
 // LED parameters
 Adafruit_NeoPixel pixels(1, WS2812_PIN, NEO_GRB + NEO_KHZ800);
@@ -361,6 +377,9 @@ void receive_can() {  // This section checks if we have a complete CAN message i
 #ifdef SMA_CAN
       receive_can_sma(rx_frame);
 #endif
+#ifdef CHEVYVOLT_CHARGER
+      receive_can_chevyvolt_charger(rx_frame);
+#endif
     } else {
       //printf("New extended frame");
 #ifdef PYLON_CAN
@@ -418,6 +437,9 @@ void send_can() {
 #endif
 #ifdef TEST_FAKE_BATTERY
   send_can_test_battery();
+#endif
+#ifdef CHEVYVOLT_CHARGER
+  send_can_chevyvolt_charger();
 #endif
 }
 
