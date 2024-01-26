@@ -118,4 +118,14 @@ void onOTAProgress(size_t current, size_t final);
  */
 void onOTAEnd(bool success);
 
+/**
+ * @brief Formats power values 
+ *
+ * @param[in] float or uint16_t 
+ * 
+ * @return string: values
+ */
+template <typename T>
+String formatPowerValue(String label, T value, String unit, int precision);
+
 #endif
