@@ -167,6 +167,10 @@ void update_values_tesla_model_3_battery() {  //This function maps all the value
     StateOfHealth =
         static_cast<uint16_t>((static_cast<double>(nominal_full_pack_energy) / bat_beginning_of_life) * 10000.0);
   }
+  //If the value is unavailable, set SOH to 99%
+  if (nominal_full_pack_energy < 20) {
+    StateOfHealth = 9900;
+  }
 
   //Calculate the SOC% value to send to inverter
   soc_calculated = soc_vi;
@@ -259,7 +263,7 @@ void update_values_tesla_model_3_battery() {  //This function maps all the value
 
   //Check if BMS is in need of recalibration
   if (nominal_full_pack_energy < 20) {
-    Serial.println("ERROR: kWh remaining reported by battery not plausible. Battery needs cycling or is broken!");
+    Serial.println("Warning: kWh remaining reported by battery not plausible. Battery needs cycling.");
     LEDcolor = YELLOW;
   }
 
