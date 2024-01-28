@@ -364,9 +364,9 @@ void update_values_tesla_model_3_battery() {  //This function maps all the value
   Serial.print(", ");
   print_int_with_units(" Max charge power: ", max_target_charge_power, "W");
   Serial.println("");
-  print_int_with_units(" Max temperature: ", temperature_max, "C");
+  print_int_with_units(" Max temperature: ", (temperature_max * 0.1), "°C");
   Serial.print(", ");
-  print_int_with_units(" Min temperature: ", temperature_min, "C");
+  print_int_with_units(" Min temperature: ", (temperature_min * 0.1), "°C");
   Serial.println("");
 #endif
 }
