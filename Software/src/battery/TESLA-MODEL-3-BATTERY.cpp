@@ -32,8 +32,8 @@ static uint16_t volts = 0;     // V
 static int16_t amps = 0;       // A
 static int16_t power = 0;      // W
 static uint16_t raw_amps = 0;  // A
-static int16_t max_temp = 6;   // C*
-static int16_t min_temp = 5;   // C*
+static int16_t max_temp = 60;  // C*
+static int16_t min_temp = 50;  // C*
 static uint16_t energy_buffer = 0;
 static uint16_t energy_to_charge_complete = 0;
 static uint16_t expected_energy_remaining = 0;
@@ -209,10 +209,8 @@ void update_values_tesla_model_3_battery() {  //This function maps all the value
   power = ((volts / 10) * amps);
   stat_batt_power = convert2unsignedInt16(power);
 
-  min_temp = (min_temp * 10);
   temperature_min = convert2unsignedInt16(min_temp);
 
-  max_temp = (max_temp * 10);
   temperature_max = convert2unsignedInt16(max_temp);
 
   cell_max_voltage = cell_max_v;
@@ -443,11 +441,8 @@ void receive_can_tesla_model_3_battery(CAN_frame_t rx_frame) {
       }
       if (mux == 0)  //Temperature sensors
       {
-        temp = rx_frame.data.u8[2];
-        max_temp = (temp * 0.5) - 40;  //in celcius, Example 24
-
-        temp = rx_frame.data.u8[3];
-        min_temp = (temp * 0.5) - 40;  //in celcius , Example 24
+        max_temp = (rx_frame.data.u8[2] * 5) - 400;  //40.0*C offset, value for instance 85 = 8.5*C
+        min_temp = (rx_frame.data.u8[3] * 5) - 400;  //40.0*C offset, value for instance 85 = 8.5*C
       }
       break;
     case 0x2d2:
