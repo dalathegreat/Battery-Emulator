@@ -132,6 +132,11 @@ void init_webserver() {
 
   // Start server
   server.begin();
+
+  #ifdef MQTT
+  // Init MQTT
+  init_mqtt();
+  #endif
 }
 
 void init_WiFi_AP() {

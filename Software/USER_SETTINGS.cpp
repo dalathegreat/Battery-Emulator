@@ -15,6 +15,13 @@ volatile uint16_t MAXCHARGEAMP =
 volatile uint16_t MAXDISCHARGEAMP =
     300;  //30.0A , BYD CAN specific setting, Max discharge speed in Amp (Some inverters needs to be artificially limited)
 
+// MQTT
+// For more detailed settings, see mqtt.h
+#ifdef MQTT
+const char* mqtt_user = "REDACTED";
+const char* mqtt_password = "REDACTED";
+#endif  // USE_MQTT
+
 #ifdef WEBSERVER
 volatile uint8_t AccessPointEnabled =
     true;  //Set to either true or false incase you want the board to enable a direct wifi access point
