@@ -128,7 +128,7 @@ void onOTAEnd(bool success);
 template <typename T>
 String formatPowerValue(String label, T value, String unit, int precision);
 
-extern void storeParameters();
-extern void restoreParameters();
+extern void storeSettings();
+extern void restoreSettings();
 
 #endif

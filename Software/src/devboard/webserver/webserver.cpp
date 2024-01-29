@@ -68,7 +68,7 @@ void init_webserver() {
     if (request->hasParam("value")) {
       String value = request->getParam("value")->value();
       BATTERY_WH_MAX = value.toInt();
-      storeParameters();
+      storeSettings();
       request->send(200, "text/plain", "Updated successfully");
     } else {
       request->send(400, "text/plain", "Bad Request");
@@ -80,7 +80,7 @@ void init_webserver() {
     if (request->hasParam("value")) {
       String value = request->getParam("value")->value();
       MAXPERCENTAGE = value.toInt() * 10;
-      storeParameters();
+      storeSettings();
       request->send(200, "text/plain", "Updated successfully");
     } else {
       request->send(400, "text/plain", "Bad Request");
@@ -92,7 +92,7 @@ void init_webserver() {
     if (request->hasParam("value")) {
       String value = request->getParam("value")->value();
       MINPERCENTAGE = value.toInt() * 10;
-      storeParameters();
+      storeSettings();
       request->send(200, "text/plain", "Updated successfully");
     } else {
       request->send(400, "text/plain", "Bad Request");
@@ -104,7 +104,7 @@ void init_webserver() {
     if (request->hasParam("value")) {
       String value = request->getParam("value")->value();
       MAXCHARGEAMP = value.toInt() * 10;
-      storeParameters();
+      storeSettings();
       request->send(200, "text/plain", "Updated successfully");
     } else {
       request->send(400, "text/plain", "Bad Request");
@@ -116,7 +116,7 @@ void init_webserver() {
     if (request->hasParam("value")) {
       String value = request->getParam("value")->value();
       MAXDISCHARGEAMP = value.toInt() * 10;
-      storeParameters();
+      storeSettings();
       request->send(200, "text/plain", "Updated successfully");
     } else {
       request->send(400, "text/plain", "Bad Request");

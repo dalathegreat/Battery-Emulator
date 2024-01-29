@@ -19,7 +19,7 @@
 #include "src/devboard/webserver/webserver.h"
 #endif
 
-Preferences preferences;  // Parameter storage
+Preferences settings;  // Store user settings
 
 // Interval settings
 int intervalUpdateValues = 4800;  // Interval at which to update inverter values / Modbus registers
@@ -105,7 +105,7 @@ bool inverterAllowsContactorClosing = true;
 void setup() {
   init_serial();
 
-  init_storage();
+  init_stored_settings();
 
 #ifdef WEBSERVER
   init_webserver();
@@ -174,35 +174,35 @@ void init_serial() {
   Serial.println("__ OK __");
 }
 
-void init_storage() {
-  preferences.begin("batterySettings", false);
+void init_stored_settings() {
+  settings.begin("batterySettings", false);
 
-#ifdef CLEAR_SAVED_SETTINGS
-  preferences.clear();  // If this clear function is executed, no parameters will be read from storage
+#ifndef LOAD_SAVED_SETTINGS_ON_BOOT
+  settings.clear();  // If this clear function is executed, no settings will be read from storage
 #endif
 
   static uint16_t temp = 0;
-  temp = preferences.getUInt("BATTERY_WH_MAX", false);
+  temp = settings.getUInt("BATTERY_WH_MAX", false);
   if (temp != 0) {
     BATTERY_WH_MAX = temp;
   }
-  temp = preferences.getUInt("MAXPERCENTAGE", false);
+  temp = settings.getUInt("MAXPERCENTAGE", false);
   if (temp != 0) {
     MAXPERCENTAGE = temp;
   }
-  temp = preferences.getUInt("MINPERCENTAGE", false);
+  temp = settings.getUInt("MINPERCENTAGE", false);
   if (temp != 0) {
     MINPERCENTAGE = temp;
   }
-  temp = preferences.getUInt("MAXCHARGEAMP", false);
+  temp = settings.getUInt("MAXCHARGEAMP", false);
   if (temp != 0) {
     MAXCHARGEAMP = temp;
   }
-  temp = preferences.getUInt("MAXDISCHARGEAMP", false);
+  temp = settings.getUInt("MAXDISCHARGEAMP", false);
   if (temp != 0) {
     MAXDISCHARGEAMP = temp;
   }
-  preferences.end();
+  settings.end();
 }
 
 void init_CAN() {
@@ -706,12 +706,12 @@ void init_serialDataLink() {
 #endif
 }
 
-void storeParameters() {
-  preferences.begin("batterySettings", false);
-  preferences.putUInt("BATTERY_WH_MAX", BATTERY_WH_MAX);
-  preferences.putUInt("MAXPERCENTAGE", MAXPERCENTAGE);
-  preferences.putUInt("MINPERCENTAGE", MINPERCENTAGE);
-  preferences.putUInt("MAXCHARGEAMP", MAXCHARGEAMP);
-  preferences.putUInt("MAXDISCHARGEAMP", MAXDISCHARGEAMP);
-  preferences.end();
+void storeSettings() {
+  settings.begin("batterySettings", false);
+  settings.putUInt("BATTERY_WH_MAX", BATTERY_WH_MAX);
+  settings.putUInt("MAXPERCENTAGE", MAXPERCENTAGE);
+  settings.putUInt("MINPERCENTAGE", MINPERCENTAGE);
+  settings.putUInt("MAXCHARGEAMP", MAXCHARGEAMP);
+  settings.putUInt("MAXDISCHARGEAMP", MAXDISCHARGEAMP);
+  settings.end();
 }
