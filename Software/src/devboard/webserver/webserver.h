@@ -11,8 +11,10 @@
 #include "../../lib/me-no-dev-AsyncTCP/src/AsyncTCP.h"
 #include "../../lib/me-no-dev-ESPAsyncWebServer/src/ESPAsyncWebServer.h"
 #include "../../lib/miwagner-ESP32-Arduino-CAN/ESP32CAN.h"
-#include "../config.h"  // Needed for LED defines
-#include "../mqtt/mqtt.h"  // Needed for LED defines
+#include "../config.h"     // Needed for LED defines
+#ifdef MQTT
+#include "../mqtt/mqtt.h"
+#endif
 
 extern uint16_t SOC;                         //SOC%, 0-100.00 (0-10000)
 extern uint16_t StateOfHealth;               //SOH%, 0-100.00 (0-10000)

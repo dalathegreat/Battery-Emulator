@@ -21,7 +21,7 @@
 
 /* Select inverter communication protocol. See Wiki for which to use with your inverter: https://github.com/dalathegreat/BYD-Battery-Emulator-For-Gen24/wiki */
 //#define BYD_CAN          //Enable this line to emulate a "BYD Battery-Box Premium HVS" over CAN Bus
-#define BYD_MODBUS       //Enable this line to emulate a "BYD 11kWh HVM battery" over Modbus RTU
+#define BYD_MODBUS         //Enable this line to emulate a "BYD 11kWh HVM battery" over Modbus RTU
 //#define LUNA2000_MODBUS  //Enable this line to emulate a "Luna2000 battery" over Modbus RTU
 //#define PYLON_CAN        //Enable this line to emulate a "Pylontech battery" over CAN bus
 //#define SMA_CAN          //Enable this line to emulate a "BYD Battery-Box H 8.9kWh, 7 mod" over CAN bus
@@ -30,7 +30,7 @@
 
 /* Other options */
 #define DEBUG_VIA_USB  //Enable this line to have the USB port output serial diagnostic data while program runs
-#define INTERLOCK_REQUIRED //Nissan LEAF specific setting, if enabled requires both high voltage conenctors to be seated before starting
+#define INTERLOCK_REQUIRED  //Nissan LEAF specific setting, if enabled requires both high voltage conenctors to be seated before starting
 //#define CONTACTOR_CONTROL     //Enable this line to have pins 25,32,33 handle automatic precharge/contactor+/contactor- closing sequence
 //#define PWM_CONTACTOR_CONTROL //Enable this line to use PWM logic for contactors, which lower power consumption and heat generation
 //#define DUAL_CAN              //Enable this line to activate an isolated secondary CAN Bus using add-on MCP2515 controller (Needed for FoxESS inverters)

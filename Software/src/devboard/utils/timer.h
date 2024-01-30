@@ -4,11 +4,11 @@
 #include <Arduino.h>
 
 class MyTimer {
-public:
+  public:
   MyTimer(unsigned long interval);
   bool elapsed();
 
-private:
+  private:
   unsigned long interval;
   unsigned long previousMillis;
 };
