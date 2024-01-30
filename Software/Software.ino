@@ -127,6 +127,9 @@ void loop() {
 #ifdef WEBSERVER
   // Over-the-air updates by ElegantOTA
   ElegantOTA.loop();
+#ifdef MQTT
+  mqtt_loop();
+#endif
 #endif
 
   // Input

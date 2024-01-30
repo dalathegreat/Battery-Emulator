@@ -55,5 +55,6 @@ extern const char* mqtt_password;
 
 void init_mqtt(void);
 void mqtt_loop(void);
+bool mqtt_publish(const String& topic, const String& payload);
 
 #endif
