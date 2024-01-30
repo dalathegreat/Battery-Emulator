@@ -129,6 +129,5 @@ template <typename T>
 String formatPowerValue(String label, T value, String unit, int precision);
 
 extern void storeSettings();
-extern void restoreSettings();
 
 #endif
