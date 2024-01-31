@@ -2,6 +2,7 @@
 /* Only change battery specific settings in "USER_SETTINGS.h" */
 
 #include <Arduino.h>
+#include <Preferences.h>
 #include "HardwareSerial.h"
 #include "USER_SETTINGS.h"
 #include "src/battery/BATTERIES.h"
@@ -18,6 +19,8 @@
 #ifdef WEBSERVER
 #include "src/devboard/webserver/webserver.h"
 #endif
+
+Preferences settings;  // Store user settings
 
 // Interval settings
 int intervalUpdateValues = 4800;  // Interval at which to update inverter values / Modbus registers
@@ -118,6 +121,8 @@ bool inverterAllowsContactorClosing = true;
 void setup() {
   init_serial();
 
+  init_stored_settings();
+
 #ifdef WEBSERVER
   init_webserver();
 #endif
@@ -183,6 +188,37 @@ void init_serial() {
   Serial.begin(115200);
   while (!Serial) {}
   Serial.println("__ OK __");
+}
+
+void init_stored_settings() {
+  settings.begin("batterySettings", false);
+
+#ifndef LOAD_SAVED_SETTINGS_ON_BOOT
+  settings.clear();  // If this clear function is executed, no settings will be read from storage
+#endif
+
+  static uint16_t temp = 0;
+  temp = settings.getUInt("BATTERY_WH_MAX", false);
+  if (temp != 0) {
+    BATTERY_WH_MAX = temp;
+  }
+  temp = settings.getUInt("MAXPERCENTAGE", false);
+  if (temp != 0) {
+    MAXPERCENTAGE = temp;
+  }
+  temp = settings.getUInt("MINPERCENTAGE", false);
+  if (temp != 0) {
+    MINPERCENTAGE = temp;
+  }
+  temp = settings.getUInt("MAXCHARGEAMP", false);
+  if (temp != 0) {
+    MAXCHARGEAMP = temp;
+  }
+  temp = settings.getUInt("MAXDISCHARGEAMP", false);
+  if (temp != 0) {
+    MAXDISCHARGEAMP = temp;
+  }
+  settings.end();
 }
 
 void init_CAN() {
@@ -690,4 +726,14 @@ void init_serialDataLink() {
 #if defined(SERIAL_LINK_RECEIVER) || defined(SERIAL_LINK_TRANSMITTER)
   Serial2.begin(9600, SERIAL_8N1, RS485_RX_PIN, RS485_TX_PIN);
 #endif
+}
+
+void storeSettings() {
+  settings.begin("batterySettings", false);
+  settings.putUInt("BATTERY_WH_MAX", BATTERY_WH_MAX);
+  settings.putUInt("MAXPERCENTAGE", MAXPERCENTAGE);
+  settings.putUInt("MINPERCENTAGE", MINPERCENTAGE);
+  settings.putUInt("MAXCHARGEAMP", MAXCHARGEAMP);
+  settings.putUInt("MAXDISCHARGEAMP", MAXDISCHARGEAMP);
+  settings.end();
 }

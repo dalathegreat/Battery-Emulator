@@ -1,4 +1,7 @@
 #include "webserver.h"
+#include <Preferences.h>
+
+Preferences preferences3;
 
 // Create AsyncWebServer object on port 80
 AsyncWebServer server(80);
@@ -65,6 +68,7 @@ void init_webserver() {
     if (request->hasParam("value")) {
       String value = request->getParam("value")->value();
       BATTERY_WH_MAX = value.toInt();
+      storeSettings();
       request->send(200, "text/plain", "Updated successfully");
     } else {
       request->send(400, "text/plain", "Bad Request");
@@ -76,6 +80,7 @@ void init_webserver() {
     if (request->hasParam("value")) {
       String value = request->getParam("value")->value();
       MAXPERCENTAGE = value.toInt() * 10;
+      storeSettings();
       request->send(200, "text/plain", "Updated successfully");
     } else {
       request->send(400, "text/plain", "Bad Request");
@@ -87,6 +92,7 @@ void init_webserver() {
     if (request->hasParam("value")) {
       String value = request->getParam("value")->value();
       MINPERCENTAGE = value.toInt() * 10;
+      storeSettings();
       request->send(200, "text/plain", "Updated successfully");
     } else {
       request->send(400, "text/plain", "Bad Request");
@@ -98,6 +104,7 @@ void init_webserver() {
     if (request->hasParam("value")) {
       String value = request->getParam("value")->value();
       MAXCHARGEAMP = value.toInt() * 10;
+      storeSettings();
       request->send(200, "text/plain", "Updated successfully");
     } else {
       request->send(400, "text/plain", "Bad Request");
@@ -109,6 +116,7 @@ void init_webserver() {
     if (request->hasParam("value")) {
       String value = request->getParam("value")->value();
       MAXDISCHARGEAMP = value.toInt() * 10;
+      storeSettings();
       request->send(200, "text/plain", "Updated successfully");
     } else {
       request->send(400, "text/plain", "Bad Request");
