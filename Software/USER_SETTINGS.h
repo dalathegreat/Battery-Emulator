@@ -38,6 +38,9 @@
 //#define SERIAL_LINK_TRANSMITTER  //Enable this line to send battery data over RS485 pins to another Lilygo (This LilyGo interfaces with battery)
 //#define WEBSERVER  //Enable this line to enable WiFi, and to run the webserver. See USER_SETTINGS.cpp for the Wifi settings.
 
+/* Select charger used (Optional) */
+//#define CHEVYVOLT_CHARGER //Enable this line to control a Chevrolet Volt charger connected to battery - for example, when generator charging or using an inverter without a charging function.
+
 /* Battery limits: These are set in the USER_SETTINGS.cpp file, or later on via the Webserver */
 extern volatile uint16_t BATTERY_WH_MAX;
 extern volatile uint16_t MAXPERCENTAGE;
@@ -45,4 +48,18 @@ extern volatile uint16_t MINPERCENTAGE;
 extern volatile uint16_t MAXCHARGEAMP;
 extern volatile uint16_t MAXDISCHARGEAMP;
 extern volatile uint8_t AccessPointEnabled;
+
+/* Charger limits: Set in the USER_SETTINGS.cpp or later in the webserver */
+extern volatile float charger_setpoint_HV_VDC;
+extern volatile float charger_setpoint_HV_IDC;
+extern volatile float charger_setpoint_HV_IDC_END;
+extern volatile float CHARGER_SET_HV;
+extern volatile float CHARGER_MAX_HV;
+extern volatile float CHARGER_MIN_HV;
+extern volatile float CHARGER_MAX_POWER;
+extern volatile float CHARGER_MAX_A;
+extern volatile float CHARGER_END_A;
+extern bool charger_HV_enabled;
+extern bool charger_aux12V_enabled;
+
 #endif
