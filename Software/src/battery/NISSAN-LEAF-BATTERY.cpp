@@ -930,7 +930,6 @@ uint16_t Temp_fromRAW_to_F(uint16_t temperature) {  //This function feels horrib
 
 #ifdef MQTT
 void publish_data(void) {
-  Serial.println("Publishing...");
   size_t msg_length = snprintf(mqtt_msg, sizeof(mqtt_msg), "{\n\"cell_voltages\":[");
 
   for (size_t i = 0; i < 97; ++i) {
