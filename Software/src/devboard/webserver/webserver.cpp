@@ -524,6 +524,7 @@ String processor(const String& var) {
       content += "<span style='color: red;'>&#10005;</span>";
     }
     content += "</h4>";
+    #ifdef CHEVYVOLT_CHARGER
     float chgPwrDC = static_cast<float>(charger_stat_HVcur * charger_stat_HVvol);
     float chgPwrAC = static_cast<float>(charger_stat_ACcur * charger_stat_ACvol);
     float chgEff = chgPwrDC / chgPwrAC * 100;
@@ -536,13 +537,26 @@ String processor(const String& var) {
 
     content += formatPowerValue("Charger Output Power", chgPwrDC, "", 1);
     content += "<h4 style='color: white;'>Charger Efficiency: " + String(chgEff) + "%</h4>";
-    content += "<h4 style='color: white;'>Charger HVDC Output V: " + String(HVvol, 2) + "</h4>";
-    content += "<h4 style='color: white;'>Charger HVDC Output I: " + String(HVcur, 2) + "</h4>";
+    content += "<h4 style='color: white;'>Charger HVDC Output V: " + String(HVvol, 2) + " V</h4>";
+    content += "<h4 style='color: white;'>Charger HVDC Output I: " + String(HVcur, 2) + " A</h4>";
     content += "<h4 style='color: white;'>Charger LVDC Output I: " + String(LVcur, 2) + "</h4>";
     content += "<h4 style='color: white;'>Charger LVDC Output V: " + String(LVvol, 2) + "</h4>";
-    content += "<h4 style='color: white;'>Charger AC Input V: " + String(ACvol, 2) + "VAC</h4>";
-    content += "<h4 style='color: white;'>Charger AC Input I: " + String(ACvol, 2) + "VAC</h4>";
+    content += "<h4 style='color: white;'>Charger AC Input V: " + String(ACvol, 2) + " VAC</h4>";
+    content += "<h4 style='color: white;'>Charger AC Input I: " + String(ACcur, 2) + " A</h4>";
+    #endif
+    #ifdef NISSANLEAF_CHARGER
+    float chgPwrDC = static_cast<float>(charger_stat_HVcur*100);
+    charger_stat_HVcur = chgPwrDC/(battery_voltage/10); // P/U=I
+    charger_stat_HVvol = static_cast<float>(battery_voltage/10);
+    float ACvol = charger_stat_ACvol;
+    float HVvol = charger_stat_HVvol;
+    float HVcur = charger_stat_HVcur;
 
+    content += formatPowerValue("Charger Output Power", chgPwrDC, "", 1);
+    content += "<h4 style='color: white;'>Charger HVDC Output V: " + String(HVvol, 2) + " V</h4>";
+    content += "<h4 style='color: white;'>Charger HVDC Output I: " + String(HVcur, 2) + " A</h4>";
+    content += "<h4 style='color: white;'>Charger AC Input V: " + String(ACvol, 2) + " VAC</h4>";
+    #endif
     // Close the block
     content += "</div>";
 #endif

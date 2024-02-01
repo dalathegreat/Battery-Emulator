@@ -27,9 +27,12 @@ static unsigned long previousMillis100ms = 0;
 
 /* LEAF charger/battery parameters */
 enum OBC_MODES : uint8_t { IDLE_OR_QC = 1, FINISHED = 2, CHARGING_OR_INTERRUPTED = 4, IDLE1 = 8, IDLE2 = 9, PLUGGED_IN_WAITING_ON_TIMER };
-static uint8_t mprun100 = 0;    //counter 0-3
-static uint8_t mprun10 = 0;    //counter 0-3
+enum OBC_VOLTAGES : uint8_t { NO_SIGNAL = 0, AC110 = 1, AC230 = 2, ABNORMAL_WAVE = 3 };
+static uint16_t OBC_Charge_Power = 0; // Actual charger output
+static uint8_t mprun100 = 0;    // Counter 0-3
+static uint8_t mprun10 = 0;    // Counter 0-3
 static uint8_t OBC_Charge_Status = IDLE_OR_QC;
+static uint8_t OBC_Status_AC_Voltage = 0; //1=110V, 2=230V
 static uint8_t OBCpowerSetpoint = 0;
 static uint8_t OBCpower = 0;
 static bool PPStatus = false;
@@ -122,7 +125,7 @@ void receive_can_nissanleaf_charger(CAN_frame_t rx_frame) {
     case 0x679: // This message fires once when charging cable is plugged in
       OBCwakeup = true;
       charger_aux12V_enabled = true; //Not possible to turn off 12V charging
-      // Startout with default values, so that charging can begin when user plugs in cable
+      // Startout with default values, so that charging can begin right when user plugs in cable
       charger_HV_enabled = true;
       charger_setpoint_HV_IDC = 16; // Ampere
       charger_setpoint_HV_VDC = 400; // Target voltage
@@ -135,6 +138,19 @@ void receive_can_nissanleaf_charger(CAN_frame_t rx_frame) {
       else {
         PPStatus = false; //plug not inserted
       }
+      OBC_Status_AC_Voltage = ((rx_frame.data.u8[3] & 0x18) >> 3);
+      if(OBC_Status_AC_Voltage == AC110){
+        charger_stat_ACvol = 110;
+      }
+      if(OBC_Status_AC_Voltage == AC230){
+        charger_stat_ACvol = 230;
+      }
+      if(OBC_Status_AC_Voltage == ABNORMAL_WAVE){
+        charger_stat_ACvol = 1;
+      }
+
+      OBC_Charge_Power = ((rx_frame.data.u8[0] & 0x01) << 8) | (rx_frame.data.u8[1]);
+      charger_stat_HVcur = OBC_Charge_Power;
       break;
     default:
       break;
@@ -194,7 +210,9 @@ void send_can_nissanleaf_charger() {
 
       // decrement charger power if volt setpoint is reached
       if (battery_voltage >= (CHARGER_SET_HV * 10)) {
-        OBCpower--;
+        if (OBCpower > 0x64){
+          OBCpower--;
+        }
       }
    }
    else
@@ -207,8 +225,7 @@ void send_can_nissanleaf_charger() {
     LEAF_1F2.data.u8[6] = mprun10;
     LEAF_1F2.data.u8[7] = calculate_checksum_nibble(&LEAF_1F2);
 
-    // TODO
-    ESP32Can.CANWriteFrame(&LEAF_1F2); // Logic needed to hijack so that the LEAF code does not send the static locked variant when charger is used! This is the only collision message
+    ESP32Can.CANWriteFrame(&LEAF_1F2); // Sending of 1F2 message is halted in LEAF-BATTERY function incase charger is used!
 
   }
 

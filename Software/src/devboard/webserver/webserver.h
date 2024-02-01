@@ -44,6 +44,9 @@ extern float charger_stat_ACvol;
 extern float charger_stat_LVcur;
 extern float charger_stat_LVvol;
 
+//LEAF charger
+extern uint16_t OBC_Charge_Power;
+
 /**
  * @brief Initialization function for the webserver.
  *
