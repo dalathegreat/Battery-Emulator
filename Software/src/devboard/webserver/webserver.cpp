@@ -115,7 +115,23 @@ void init_webserver() {
     }
   });
 
-#ifdef CHEVYVOLT_CHARGER
+#ifdef TEST_FAKE_BATTERY
+  // Route for editing FakeBatteryVoltage
+  server.on("/updateFakeBatteryVoltage", HTTP_GET, [](AsyncWebServerRequest* request) {
+    if (!request->hasParam("value")) {
+      request->send(400, "text/plain", "Bad Request");
+    }
+
+    String value = request->getParam("value")->value();
+    float val = value.toFloat();
+
+    battery_voltage = val*10;
+
+    request->send(200, "text/plain", "Updated successfully");
+  });
+#endif
+
+#if defined CHEVYVOLT_CHARGER || defined NISSANLEAF_CHARGER
   // Route for editing ChargerTargetV
   server.on("/updateChargeSetpointV", HTTP_GET, [](AsyncWebServerRequest* request) {
     if (!request->hasParam("value")) {
@@ -378,10 +394,13 @@ String processor(const String& var) {
 #endif
     content += "</h4>";
 
-#ifdef CHEVYVOLT_CHARGER
+#if defined CHEVYVOLT_CHARGER || defined NISSANLEAF_CHARGER
     content += "<h4 style='color: white;'>Charger protocol: ";
 #ifdef CHEVYVOLT_CHARGER
     content += "Chevy Volt Gen1 Charger";
+#endif
+#ifdef NISSANLEAF_CHARGER
+    content += "Nissan LEAF 2013-2024 PDM charger";
 #endif
     content += "</h4>";
 #endif
@@ -479,7 +498,13 @@ String processor(const String& var) {
       content += "<span style='color: red;'>&#10005;</span></h4>";
     }
 
-#ifdef CHEVYVOLT_CHARGER
+    // Close the block
+    content += "</div>";
+
+#if defined CHEVYVOLT_CHARGER || defined NISSANLEAF_CHARGER
+    // Start a new block with orange background color
+    content += "<div style='background-color: #FF6E00; padding: 10px; margin-bottom: 10px;border-radius: 50px'>";
+
     content += "<h4>Charger HV Enabled: ";
     if (charger_HV_enabled) {
       content += "<span>&#10003;</span>";
@@ -513,10 +538,12 @@ String processor(const String& var) {
     content += "<h4 style='color: white;'>Charger LVDC Output V: " + String(LVvol, 2) + "</h4>";
     content += "<h4 style='color: white;'>Charger AC Input V: " + String(ACvol, 2) + "VAC</h4>";
     content += "<h4 style='color: white;'>Charger AC Input I: " + String(ACvol, 2) + "VAC</h4>";
-#endif
 
     // Close the block
     content += "</div>";
+#endif
+
+
 
     content += "<button onclick='goToUpdatePage()'>Perform OTA update</button>";
     content += " ";
@@ -569,7 +596,25 @@ String settings_processor(const String& var) {
                " A </span> <button onclick='editMaxChargeA()'>Edit</button></h4>";
     content += "<h4 style='color: white;'>Max discharge speed: " + String(MAXDISCHARGEAMP / 10.0, 1) +
                " A </span> <button onclick='editMaxDischargeA()'>Edit</button></h4>";
-#ifdef CHEVYVOLT_CHARGER
+    // Close the block
+    content += "</div>";
+
+#ifdef TEST_FAKE_BATTERY
+    // Start a new block with blue background color
+    content += "<div style='background-color: #2E37AD; padding: 10px; margin-bottom: 10px;border-radius: 50px'>";
+    float voltageFloat = static_cast<float>(battery_voltage) / 10.0;  // Convert to float and divide by 10
+    content += "<h4 style='color: white;'>Fake battery voltage: " + String(voltageFloat, 1) +
+               " V </span> <button onclick='editFakeBatteryVoltage()'>Edit</button></h4>";
+
+    // Close the block
+    content += "</div>";
+#endif
+
+#if defined CHEVYVOLT_CHARGER || defined NISSANLEAF_CHARGER
+
+    // Start a new block with orange background color
+    content += "<div style='background-color: #FF6E00; padding: 10px; margin-bottom: 10px;border-radius: 50px'>";
+
     content += "<h4 style='color: white;'>Charger HVDC Enabled: ";
     if (charger_HV_enabled) {
       content += "<span>&#10003;</span>";
@@ -590,6 +635,9 @@ String settings_processor(const String& var) {
                " V </span> <button onclick='editChargerSetpointVDC()'>Edit</button></h4>";
     content += "<h4 style='color: white;'>Charger Current Setpoint: " + String(charger_setpoint_HV_IDC, 1) +
                " A </span> <button onclick='editChargerSetpointIDC()'>Edit</button></h4>";
+
+    // Close the block
+    content += "</div>";
 #endif
 
     content += "<script>";
@@ -662,7 +710,22 @@ String settings_processor(const String& var) {
     content += "}";
     content += "}";
 
-#ifdef CHEVYVOLT_CHARGER
+#ifdef TEST_FAKE_BATTERY
+    content += "function editFakeBatteryVoltage() {";
+    content += "  var value = prompt('Enter new fake battery voltage');";
+    content += "if (value !== null) {";
+    content += "  if (value >= 0 && value <= 5000) {";
+    content += "    var xhr = new XMLHttpRequest();";
+    content += "    xhr.open('GET', '/updateFakeBatteryVoltage?value=' + value, true);";
+    content += "    xhr.send();";
+    content += "  } else {";
+    content += "    alert('Invalid value. Please enter a value between 0 and 1000');";
+    content += "  }";
+    content += "}";
+    content += "}";
+#endif
+
+#if defined CHEVYVOLT_CHARGER || defined NISSANLEAF_CHARGER
     content += "function editChargerHVDCEnabled() {";
     content += "  var value = prompt('Enable or disable HV DC output. Enter 1 for enabled, 0 for disabled');";
     content += "  if (value !== null) {";
@@ -737,9 +800,6 @@ String settings_processor(const String& var) {
     content += "}";
 #endif
     content += "</script>";
-
-    // Close the block
-    content += "</div>";
 
     content += "<button onclick='goToMainPage()'>Back to main page</button>";
     content += "<script>";

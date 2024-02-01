@@ -25,7 +25,7 @@ void update_values_test_battery() { /* This function puts fake values onto the p
 
   StateOfHealth = 9900;  // 99.00%
 
-  battery_voltage = 3700;  // 370.0V
+  //battery_voltage = 3700;  // 370.0V , value set in startup in .ino file, editable via webUI
 
   battery_current = 0;  // 0 A
 

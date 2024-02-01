@@ -5,4 +5,8 @@
 #include "chevyvolt.h"
 #endif
 
+#ifdef NISSANLEAF_CHARGER
+#include "nissanleaf.h"
+#endif
+
 #endif

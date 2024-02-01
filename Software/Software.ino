@@ -377,8 +377,12 @@ void receive_can() {  // This section checks if we have a complete CAN message i
 #ifdef SMA_CAN
       receive_can_sma(rx_frame);
 #endif
+      // Charger
 #ifdef CHEVYVOLT_CHARGER
       receive_can_chevyvolt_charger(rx_frame);
+#endif
+#ifdef NISSANLEAF_CHARGER
+      receive_can_nissanleaf_charger(rx_frame);
 #endif
     } else {
       //printf("New extended frame");
@@ -440,6 +444,9 @@ void send_can() {
 #endif
 #ifdef CHEVYVOLT_CHARGER
   send_can_chevyvolt_charger();
+#endif
+#ifdef NISSANLEAF_CHARGER
+  send_can_nissanleaf_charger();
 #endif
 }
 
