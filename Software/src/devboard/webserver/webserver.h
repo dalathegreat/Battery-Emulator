@@ -72,6 +72,15 @@ void init_WiFi_AP();
 void init_WiFi_STA(const char* ssid, const char* password);
 
 /**
+ * @brief Monitoring loop for WiFi. Will attempt to reconnect to access point if the connection goes down.
+ *
+ * @param[in] void
+ * 
+ * @return void
+ */
+void WiFi_monitor_loop();
+
+/**
  * @brief Initialization function for ElegantOTA.
  *
  * @param[in] void
