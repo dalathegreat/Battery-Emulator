@@ -26,13 +26,20 @@ static unsigned long previousMillis10ms = 0;
 static unsigned long previousMillis100ms = 0;
 
 /* LEAF charger/battery parameters */
-enum OBC_MODES : uint8_t { IDLE_OR_QC = 1, FINISHED = 2, CHARGING_OR_INTERRUPTED = 4, IDLE1 = 8, IDLE2 = 9, PLUGGED_IN_WAITING_ON_TIMER };
+enum OBC_MODES : uint8_t {
+  IDLE_OR_QC = 1,
+  FINISHED = 2,
+  CHARGING_OR_INTERRUPTED = 4,
+  IDLE1 = 8,
+  IDLE2 = 9,
+  PLUGGED_IN_WAITING_ON_TIMER
+};
 enum OBC_VOLTAGES : uint8_t { NO_SIGNAL = 0, AC110 = 1, AC230 = 2, ABNORMAL_WAVE = 3 };
-static uint16_t OBC_Charge_Power = 0; // Actual charger output
-static uint8_t mprun100 = 0;    // Counter 0-3
-static uint8_t mprun10 = 0;    // Counter 0-3
+static uint16_t OBC_Charge_Power = 0;  // Actual charger output
+static uint8_t mprun100 = 0;           // Counter 0-3
+static uint8_t mprun10 = 0;            // Counter 0-3
 static uint8_t OBC_Charge_Status = IDLE_OR_QC;
-static uint8_t OBC_Status_AC_Voltage = 0; //1=110V, 2=230V
+static uint8_t OBC_Status_AC_Voltage = 0;  //1=110V, 2=230V
 static uint8_t OBCpowerSetpoint = 0;
 static uint8_t OBCpower = 0;
 static bool PPStatus = false;
@@ -54,55 +61,55 @@ extern float charger_stat_LVvol;
 
 //Actual content messages
 static CAN_frame_t LEAF_1DB = {.FIR = {.B =
-                                                      {
-                                                          .DLC = 8,
-                                                          .FF = CAN_frame_std,
-                                                      }},
-                                          .MsgID = 0x1DB,
-                                          .data = {0x00, 0x00, 0x00, 0x00, 0x40, 0x00, 0x00, 0x00}};
+                                           {
+                                               .DLC = 8,
+                                               .FF = CAN_frame_std,
+                                           }},
+                               .MsgID = 0x1DB,
+                               .data = {0x00, 0x00, 0x00, 0x00, 0x40, 0x00, 0x00, 0x00}};
 static CAN_frame_t LEAF_1DC = {.FIR = {.B =
-                                                      {
-                                                          .DLC = 8,
-                                                          .FF = CAN_frame_std,
-                                                      }},
-                                          .MsgID = 0x1DC,
-                                          .data = {0x6E, 0x0A, 0x05, 0xD5, 0x00, 0x00, 0x00, 0x00}};
+                                           {
+                                               .DLC = 8,
+                                               .FF = CAN_frame_std,
+                                           }},
+                               .MsgID = 0x1DC,
+                               .data = {0x6E, 0x0A, 0x05, 0xD5, 0x00, 0x00, 0x00, 0x00}};
 static CAN_frame_t LEAF_1F2 = {.FIR = {.B =
-                                    {
-                                        .DLC = 8,
-                                        .FF = CAN_frame_std,
-                                    }},
-                        .MsgID = 0x1F2,
-                        .data = {0x30, 0x00, 0x20, 0xAC, 0x00, 0x3C, 0x00, 0x8F}};
+                                           {
+                                               .DLC = 8,
+                                               .FF = CAN_frame_std,
+                                           }},
+                               .MsgID = 0x1F2,
+                               .data = {0x30, 0x00, 0x20, 0xAC, 0x00, 0x3C, 0x00, 0x8F}};
 static CAN_frame_t LEAF_50B = {.FIR = {.B =
-                                    {
-                                        .DLC = 7,
-                                        .FF = CAN_frame_std,
-                                    }},
-                        .MsgID = 0x50B,
-                        .data = {0x00, 0x00, 0x06, 0xC0, 0x00, 0x00, 0x00}};
+                                           {
+                                               .DLC = 7,
+                                               .FF = CAN_frame_std,
+                                           }},
+                               .MsgID = 0x50B,
+                               .data = {0x00, 0x00, 0x06, 0xC0, 0x00, 0x00, 0x00}};
 static CAN_frame_t LEAF_55B = {.FIR = {.B =
-                                                      {
-                                                          .DLC = 8,
-                                                          .FF = CAN_frame_std,
-                                                      }},
-                                          .MsgID = 0x55B,
-                                          .data = {0xA4, 0x40, 0xAA, 0x00, 0xDF, 0xC0, 0x10, 0x00}};
+                                           {
+                                               .DLC = 8,
+                                               .FF = CAN_frame_std,
+                                           }},
+                               .MsgID = 0x55B,
+                               .data = {0xA4, 0x40, 0xAA, 0x00, 0xDF, 0xC0, 0x10, 0x00}};
 static CAN_frame_t LEAF_5BC = {.FIR = {.B =
-                                                      {
-                                                          .DLC = 8,
-                                                          .FF = CAN_frame_std,
-                                                      }},
-                                          .MsgID = 0x5BC,
-                                          .data = {0x3D, 0x80, 0xF0, 0x64, 0xB0, 0x01, 0x00, 0x32}};
+                                           {
+                                               .DLC = 8,
+                                               .FF = CAN_frame_std,
+                                           }},
+                               .MsgID = 0x5BC,
+                               .data = {0x3D, 0x80, 0xF0, 0x64, 0xB0, 0x01, 0x00, 0x32}};
 
 static CAN_frame_t LEAF_59E = {.FIR = {.B =
-                                                      {
-                                                          .DLC = 8,
-                                                          .FF = CAN_frame_std,
-                                                      }},
-                                          .MsgID = 0x59E,
-                                          .data = {0x00, 0x00, 0x0C, 0x76, 0x18, 0x00, 0x00, 0x00}};
+                                           {
+                                               .DLC = 8,
+                                               .FF = CAN_frame_std,
+                                           }},
+                               .MsgID = 0x59E,
+                               .data = {0x00, 0x00, 0x0C, 0x76, 0x18, 0x00, 0x00, 0x00}};
 
 static uint8_t crctable[256] = {
     0,   133, 143, 10,  155, 30,  20,  145, 179, 54,  60,  185, 40,  173, 167, 34,  227, 102, 108, 233, 120, 253,
@@ -118,34 +125,32 @@ static uint8_t crctable[256] = {
     196, 65,  75,  206, 76,  201, 195, 70,  215, 82,  88,  221, 255, 122, 112, 245, 100, 225, 235, 110, 175, 42,
     32,  165, 52,  177, 187, 62,  28,  153, 147, 22,  135, 2,   8,   141};
 
-
 void receive_can_nissanleaf_charger(CAN_frame_t rx_frame) {
 
   switch (rx_frame.MsgID) {
-    case 0x679: // This message fires once when charging cable is plugged in
+    case 0x679:  // This message fires once when charging cable is plugged in
       OBCwakeup = true;
-      charger_aux12V_enabled = true; //Not possible to turn off 12V charging
+      charger_aux12V_enabled = true;  //Not possible to turn off 12V charging
       // Startout with default values, so that charging can begin right when user plugs in cable
       charger_HV_enabled = true;
-      charger_setpoint_HV_IDC = 16; // Ampere
-      charger_setpoint_HV_VDC = 400; // Target voltage
+      charger_setpoint_HV_IDC = 16;   // Ampere
+      charger_setpoint_HV_VDC = 400;  // Target voltage
       break;
     case 0x390:
       OBC_Charge_Status = ((rx_frame.data.u8[5] & 0x7E) >> 1);
-      if(OBC_Charge_Status == PLUGGED_IN_WAITING_ON_TIMER || CHARGING_OR_INTERRUPTED) {
-        PPStatus = true; //plug inserted
-      }
-      else {
-        PPStatus = false; //plug not inserted
+      if (OBC_Charge_Status == PLUGGED_IN_WAITING_ON_TIMER || CHARGING_OR_INTERRUPTED) {
+        PPStatus = true;  //plug inserted
+      } else {
+        PPStatus = false;  //plug not inserted
       }
       OBC_Status_AC_Voltage = ((rx_frame.data.u8[3] & 0x18) >> 3);
-      if(OBC_Status_AC_Voltage == AC110){
+      if (OBC_Status_AC_Voltage == AC110) {
         charger_stat_ACvol = 110;
       }
-      if(OBC_Status_AC_Voltage == AC230){
+      if (OBC_Status_AC_Voltage == AC230) {
         charger_stat_ACvol = 230;
       }
-      if(OBC_Status_AC_Voltage == ABNORMAL_WAVE){
+      if (OBC_Status_AC_Voltage == ABNORMAL_WAVE) {
         charger_stat_ACvol = 1;
       }
 
@@ -166,11 +171,11 @@ void send_can_nissanleaf_charger() {
 
     mprun10++;
     if (mprun10 >= 4)
-    mprun10 = 0;
+      mprun10 = 0;
 
-    /* 1DB is the main control message. If LEAF battery is used, the battery controls almost everything */
-    // Only send these messages if Nissan LEAF battery is not used
-    #ifndef NISSAN_LEAF_BATTERY
+/* 1DB is the main control message. If LEAF battery is used, the battery controls almost everything */
+// Only send these messages if Nissan LEAF battery is not used
+#ifndef NISSAN_LEAF_BATTERY
 
     // VCM message, containing info if battery should sleep or stay awake
     ESP32Can.CANWriteFrame(&LEAF_50B);  // HCM_WakeUpSleepCommand == 11b == WakeUp, and CANMASK = 1
@@ -180,7 +185,7 @@ void send_can_nissanleaf_charger() {
 
     LEAF_1DC.data.u8[7] = calculate_CRC_Nissan(&LEAF_1DC);
     ESP32Can.CANWriteFrame(&LEAF_1DC);
-    #endif
+#endif
 
     OBCpowerSetpoint = ((charger_setpoint_HV_IDC * 4) + 0x64);
 
@@ -194,39 +199,37 @@ void send_can_nissanleaf_charger() {
     //    so 0x64=100. 0xA0=160. so 60 decimal steps. 1 step=100W???
 
     // This line controls if power should flow or not
-    if (PPStatus && charger_HV_enabled) { //Charging starts when cable plugged in and User has requested charging to start via WebUI
+    if (PPStatus &&
+        charger_HV_enabled) {  //Charging starts when cable plugged in and User has requested charging to start via WebUI
       // clamp min and max values
-      if (OBCpowerSetpoint > 0xA0) { //15A TODO, raise once cofirmed how to map bits into frame0 and frame1
+      if (OBCpowerSetpoint > 0xA0) {  //15A TODO, raise once cofirmed how to map bits into frame0 and frame1
         OBCpowerSetpoint = 0xA0;
+      } else if (OBCpowerSetpoint <= 0x64) {
+        OBCpowerSetpoint = 0x64;  // 100W? stuck at 100 in drive mode (no charging)
       }
-      else if(OBCpowerSetpoint <= 0x64) {
-        OBCpowerSetpoint = 0x64; // 100W? stuck at 100 in drive mode (no charging)
-      } 
-         
+
       // if actual battery_voltage is less than setpoint got to max power set from web ui
-      if (battery_voltage < (CHARGER_SET_HV * 10)) { //battery_voltage = V+1,  0-500.0 (0-5000)
+      if (battery_voltage < (CHARGER_SET_HV * 10)) {  //battery_voltage = V+1,  0-500.0 (0-5000)
         OBCpower = OBCpowerSetpoint;
       }
 
       // decrement charger power if volt setpoint is reached
       if (battery_voltage >= (CHARGER_SET_HV * 10)) {
-        if (OBCpower > 0x64){
+        if (OBCpower > 0x64) {
           OBCpower--;
         }
       }
-   }
-   else
-   {
+    } else {
       // set power to 0 if charge control is set to off or not in charge mode
       OBCpower = 0x64;
-   }
+    }
 
     LEAF_1F2.data.u8[1] = OBCpower;
     LEAF_1F2.data.u8[6] = mprun10;
     LEAF_1F2.data.u8[7] = calculate_checksum_nibble(&LEAF_1F2);
 
-    ESP32Can.CANWriteFrame(&LEAF_1F2); // Sending of 1F2 message is halted in LEAF-BATTERY function incase charger is used!
-
+    ESP32Can.CANWriteFrame(
+        &LEAF_1F2);  // Sending of 1F2 message is halted in LEAF-BATTERY function incase charger is used!
   }
 
   /* Send messages every 100ms here */
@@ -238,20 +241,19 @@ void send_can_nissanleaf_charger() {
       mprun100 = 0;
     }
 
-    // Only send these messages if Nissan LEAF battery is not used
-    #ifndef NISSAN_LEAF_BATTERY
+// Only send these messages if Nissan LEAF battery is not used
+#ifndef NISSAN_LEAF_BATTERY
 
     LEAF_55B.data.u8[6] = ((0x1 << 4) | (mprun100));
-    
+
     LEAF_55B.data.u8[7] = calculate_CRC_Nissan(&LEAF_55B);
     ESP32Can.CANWriteFrame(&LEAF_55B);
 
     ESP32Can.CANWriteFrame(&LEAF_59E);
 
     ESP32Can.CANWriteFrame(&LEAF_5BC);
-    #endif
+#endif
   }
-
 }
 
 uint8_t calculate_CRC_Nissan(CAN_frame_t* frame) {
@@ -262,9 +264,9 @@ uint8_t calculate_CRC_Nissan(CAN_frame_t* frame) {
   return crc;
 }
 
-uint8_t calculate_checksum_nibble(CAN_frame_t *frame){
+uint8_t calculate_checksum_nibble(CAN_frame_t* frame) {
   uint8_t sum = 0;
-  for(uint8_t i = 0; i < 7; i++){
+  for (uint8_t i = 0; i < 7; i++) {
     sum += frame->data.u8[i] >> 4;
     sum += frame->data.u8[i] & 0xF;
   }

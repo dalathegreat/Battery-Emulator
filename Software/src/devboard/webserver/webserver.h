@@ -21,12 +21,12 @@ extern uint16_t max_target_charge_power;     //W,    0-60000
 extern uint8_t bms_status;                   //Enum, 0-5
 extern uint8_t bms_char_dis_status;          //Enum, 0-2
 extern uint16_t stat_batt_power;             //W,    Goes thru convert2unsignedint16 function (5W = 5, -5W = 65530)
-extern uint16_t temperature_min;   //C+1,  Goes thru convert2unsignedint16 function (15.0C = 150, -15.0C =  65385)
-extern uint16_t temperature_max;   //C+1,  Goes thru convert2unsignedint16 function (15.0C = 150, -15.0C =  65385)
-extern uint16_t cell_max_voltage;  //mV,   0-4350
-extern uint16_t cell_min_voltage;  //mV,   0-4350
-extern uint16_t cellvoltages[120]; //mV 0-5000 per cell
-extern uint8_t LEDcolor;           //Enum, 0-10
+extern uint16_t temperature_min;    //C+1,  Goes thru convert2unsignedint16 function (15.0C = 150, -15.0C =  65385)
+extern uint16_t temperature_max;    //C+1,  Goes thru convert2unsignedint16 function (15.0C = 150, -15.0C =  65385)
+extern uint16_t cell_max_voltage;   //mV,   0-4350
+extern uint16_t cell_min_voltage;   //mV,   0-4350
+extern uint16_t cellvoltages[120];  //mV 0-5000 per cell
+extern uint8_t LEDcolor;            //Enum, 0-10
 extern bool batteryAllowsContactorClosing;   //Bool, 1=true, 0=false
 extern bool inverterAllowsContactorClosing;  //Bool, 1=true, 0=false
 

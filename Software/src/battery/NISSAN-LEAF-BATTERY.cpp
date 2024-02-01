@@ -844,10 +844,10 @@ void send_can_leaf_battery() {
         break;
     }
 
-    //Only send this message when NISSANLEAF_CHARGER is not defined (otherwise it will collide!)
-    #ifndef NISSANLEAF_CHARGER
+//Only send this message when NISSANLEAF_CHARGER is not defined (otherwise it will collide!)
+#ifndef NISSANLEAF_CHARGER
     ESP32Can.CANWriteFrame(&LEAF_1F2);  //Contains (CHG_STA_RQ == 1 == Normal Charge)
-    #endif
+#endif
 
     mprun10r++;
     if (mprun10r > 19) {  // 0x1F2 patter repeats after 20 messages,

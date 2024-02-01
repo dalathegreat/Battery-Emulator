@@ -67,7 +67,7 @@ uint8_t bms_status = ACTIVE;            // ACTIVE - [0..5]<>[STANDBY,INACTIVE,DA
 uint16_t stat_batt_power = 0;           // Power going in/out of battery
 uint16_t cell_max_voltage = 3700;       // Stores the highest cell voltage value in the system
 uint16_t cell_min_voltage = 3700;       // Stores the minimum cell voltage value in the system
-uint16_t cellvoltages[120];         // Stores all cell voltages
+uint16_t cellvoltages[120];             // Stores all cell voltages
 bool LFP_Chemistry = false;
 
 // Common charger parameters

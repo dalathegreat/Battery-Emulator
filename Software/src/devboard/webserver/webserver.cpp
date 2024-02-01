@@ -61,8 +61,9 @@ void init_webserver() {
             [](AsyncWebServerRequest* request) { request->send_P(200, "text/html", index_html, settings_processor); });
 
   // Route for going to cellmonitor web page
-  server.on("/cellmonitor", HTTP_GET,
-            [](AsyncWebServerRequest* request) { request->send_P(200, "text/html", index_html, cellmonitor_processor); });
+  server.on("/cellmonitor", HTTP_GET, [](AsyncWebServerRequest* request) {
+    request->send_P(200, "text/html", index_html, cellmonitor_processor);
+  });
 
   // Route for editing Wh
   server.on("/updateBatterySize", HTTP_GET, [](AsyncWebServerRequest* request) {
@@ -129,7 +130,7 @@ void init_webserver() {
     String value = request->getParam("value")->value();
     float val = value.toFloat();
 
-    battery_voltage = val*10;
+    battery_voltage = val * 10;
 
     request->send(200, "text/plain", "Updated successfully");
   });
@@ -524,7 +525,7 @@ String processor(const String& var) {
       content += "<span style='color: red;'>&#10005;</span>";
     }
     content += "</h4>";
-    #ifdef CHEVYVOLT_CHARGER
+#ifdef CHEVYVOLT_CHARGER
     float chgPwrDC = static_cast<float>(charger_stat_HVcur * charger_stat_HVvol);
     float chgPwrAC = static_cast<float>(charger_stat_ACcur * charger_stat_ACvol);
     float chgEff = chgPwrDC / chgPwrAC * 100;
@@ -543,11 +544,11 @@ String processor(const String& var) {
     content += "<h4 style='color: white;'>Charger LVDC Output V: " + String(LVvol, 2) + "</h4>";
     content += "<h4 style='color: white;'>Charger AC Input V: " + String(ACvol, 2) + " VAC</h4>";
     content += "<h4 style='color: white;'>Charger AC Input I: " + String(ACcur, 2) + " A</h4>";
-    #endif
-    #ifdef NISSANLEAF_CHARGER
-    float chgPwrDC = static_cast<float>(charger_stat_HVcur*100);
-    charger_stat_HVcur = chgPwrDC/(battery_voltage/10); // P/U=I
-    charger_stat_HVvol = static_cast<float>(battery_voltage/10);
+#endif
+#ifdef NISSANLEAF_CHARGER
+    float chgPwrDC = static_cast<float>(charger_stat_HVcur * 100);
+    charger_stat_HVcur = chgPwrDC / (battery_voltage / 10);  // P/U=I
+    charger_stat_HVvol = static_cast<float>(battery_voltage / 10);
     float ACvol = charger_stat_ACvol;
     float HVvol = charger_stat_HVvol;
     float HVcur = charger_stat_HVcur;
@@ -556,12 +557,10 @@ String processor(const String& var) {
     content += "<h4 style='color: white;'>Charger HVDC Output V: " + String(HVvol, 2) + " V</h4>";
     content += "<h4 style='color: white;'>Charger HVDC Output I: " + String(HVcur, 2) + " A</h4>";
     content += "<h4 style='color: white;'>Charger AC Input V: " + String(ACvol, 2) + " VAC</h4>";
-    #endif
+#endif
     // Close the block
     content += "</div>";
 #endif
-
-
 
     content += "<button onclick='goToUpdatePage()'>Perform OTA update</button>";
     content += " ";
@@ -839,8 +838,8 @@ String cellmonitor_processor(const String& var) {
     content += "body { background-color: black; color: white; }";
     content += ".container { display: flex; flex-wrap: wrap; justify-content: space-around; }";
     content += ".cell { width: 48%; margin: 1%; padding: 10px; border: 1px solid white; text-align: center; }";
-    content += ".low-voltage { color: red; }"; // Style for low voltage text
-    content += ".voltage-values { margin-bottom: 10px; }"; // Style for voltage values section
+    content += ".low-voltage { color: red; }";              // Style for low voltage text
+    content += ".voltage-values { margin-bottom: 10px; }";  // Style for voltage values section
     content += "</style>";
 
     // Start a new block with a specific background color
@@ -884,10 +883,6 @@ String cellmonitor_processor(const String& var) {
   }
   return String();
 }
-
-
-
-
 
 void onOTAStart() {
   // Log when OTA has started

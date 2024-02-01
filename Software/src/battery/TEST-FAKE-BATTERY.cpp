@@ -46,9 +46,9 @@ void update_values_test_battery() { /* This function puts fake values onto the p
   max_target_discharge_power = 5000;  // 5kW
 
   max_target_charge_power = 5000;  // 5kW
-  
+
   for (int i = 0; i < 97; ++i) {
-    cellvoltages[i] = 3500+i;
+    cellvoltages[i] = 3500 + i;
   }
 
 /*Finally print out values to serial if configured to do so*/
