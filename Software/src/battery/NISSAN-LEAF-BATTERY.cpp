@@ -240,7 +240,7 @@ void update_values_leaf_battery() { /* This function maps all the values fetched
   }
 
   //Map all cell voltages to the global array
-  for (int i = 0; i < 97; ++i) {
+  for (int i = 0; i < 96; ++i) {
     cellvoltages[i] = cell_voltages[i];
   }
 
