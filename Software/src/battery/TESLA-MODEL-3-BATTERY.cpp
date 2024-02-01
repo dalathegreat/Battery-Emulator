@@ -160,6 +160,8 @@ static const char* hvilStatusState[] = {"NOT OK",
 #define MIN_CELL_VOLTAGE_LFP 2800   //Battery is put into emergency stop if one cell goes below this value
 #define MAX_CELL_DEVIATION_LFP 150  //LED turns yellow on the board if mv delta exceeds this value
 
+#define REASONABLE_ENERGYAMOUNT 20  //When the BMS stops making sense on some values, they are always <20
+
 void update_values_tesla_model_3_battery() {  //This function maps all the values fetched via CAN to the correct parameters used for modbus
   //After values are mapped, we perform some safety checks, and do some serial printouts
   //Calculate the SOH% to send to inverter
@@ -168,7 +170,7 @@ void update_values_tesla_model_3_battery() {  //This function maps all the value
         static_cast<uint16_t>((static_cast<double>(nominal_full_pack_energy) / bat_beginning_of_life) * 10000.0);
   }
   //If the value is unavailable, set SOH to 99%
-  if (nominal_full_pack_energy < 20) {
+  if (nominal_full_pack_energy < REASONABLE_ENERGYAMOUNT) {
     StateOfHealth = 9900;
   }
 
@@ -262,7 +264,7 @@ void update_values_tesla_model_3_battery() {  //This function maps all the value
   }
 
   //Check if BMS is in need of recalibration
-  if (nominal_full_pack_energy < 20) {
+  if (nominal_full_pack_energy < REASONABLE_ENERGYAMOUNT) {
     Serial.println("Warning: kWh remaining reported by battery not plausible. Battery needs cycling.");
     LEDcolor = YELLOW;
   }
