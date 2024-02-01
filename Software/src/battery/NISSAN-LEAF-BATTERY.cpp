@@ -239,6 +239,11 @@ void update_values_leaf_battery() { /* This function maps all the values fetched
     max_target_charge_power = 0;  //No need to charge further, set max power to 0
   }
 
+  //Map all cell voltages to the global array
+  for (int i = 0; i < 97; ++i) {
+    cellvoltages[i] = cell_voltages[i];
+  }
+
   /*Extra safety functions below*/
   if (LB_GIDS < 10)  //800Wh left in battery
   {                  //Battery is running abnormally low, some discharge logic might have failed. Zero it all out.
