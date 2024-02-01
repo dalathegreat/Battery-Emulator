@@ -11,7 +11,7 @@ const size_t mqtt_nof_subscriptions = sizeof(mqtt_subscriptions) / sizeof(mqtt_s
 
 WiFiClient espClient;
 PubSubClient client(espClient);
-char msg[MSG_BUFFER_SIZE];
+char mqtt_msg[MSG_BUFFER_SIZE];
 int value = 0;
 static unsigned long previousMillisUpdateVal;
 MyTimer publish_global_timer(5000);
@@ -19,7 +19,7 @@ MyTimer publish_global_timer(5000);
 /** Publish global values and call callbacks for specific modules */
 static void publish_values(void) {
 
-  snprintf(msg, sizeof(msg),
+  snprintf(mqtt_msg, sizeof(mqtt_msg),
            "{\n"
            "  \"SOC\": %.3f,\n"
            "  \"StateOfHealth\": %.3f,\n"
@@ -28,10 +28,14 @@ static void publish_values(void) {
            "  \"cell_max_voltage\": %d,\n"
            "  \"cell_min_voltage\": %d\n"
            "}\n",
-           ((float)SOC) / 100.0, ((float)StateOfHealth) / 100.0, ((float)((int16_t)temperature_min)) / 10.0,
-           ((float)((int16_t)temperature_max)) / 10.0, cell_max_voltage, cell_min_voltage);
-  bool result = client.publish("battery_testing/info", msg, true);
-  Serial.println(msg);  // Uncomment to print the payload on serial
+           ((float)SOC) / 100.0,
+           ((float)StateOfHealth) / 100.0,
+           ((float)((int16_t)temperature_min)) / 10.0,
+           ((float)((int16_t)temperature_max)) / 10.0,
+           cell_max_voltage,
+           cell_min_voltage);
+  bool result = client.publish("battery_testing/info", mqtt_msg, true);
+  Serial.println(mqtt_msg);  // Uncomment to print the payload on serial
 }
 
 /* This is called whenever a subscribed topic changes (hopefully) */
@@ -94,6 +98,6 @@ void mqtt_loop(void) {
   }
 }
 
-bool mqtt_publish(const String& topic, const String& payload) {
-  return client.publish(topic.c_str(), payload.c_str());
+bool mqtt_publish_retain(const char *topic) {
+  return client.publish(topic, mqtt_msg, true);
 }

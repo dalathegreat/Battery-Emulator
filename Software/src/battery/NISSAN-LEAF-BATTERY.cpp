@@ -1,4 +1,7 @@
 #include "NISSAN-LEAF-BATTERY.h"
+#ifdef MQTT
+#include "../devboard/mqtt/mqtt.h"
+#endif
 #include "../lib/miwagner-ESP32-Arduino-CAN/CAN_config.h"
 #include "../lib/miwagner-ESP32-Arduino-CAN/ESP32CAN.h"
 
@@ -154,6 +157,10 @@ static uint16_t temp_raw_max = 0;
 static uint16_t temp_raw_min = 0;
 static int16_t temp_polled_max = 0;
 static int16_t temp_polled_min = 0;
+
+#ifdef MQTT
+void publish_data(void);
+#endif
 
 void print_with_units(char* header, int value, char* units) {
   Serial.print(header);
@@ -401,6 +408,9 @@ void update_values_leaf_battery() { /* This function maps all the values fetched
     Serial.println("COLD BATTERY! Battery requesting heating pads to activate");
   }
 
+#endif
+#ifdef MQTT
+  publish_data();
 #endif
 }
 
@@ -917,3 +927,21 @@ uint16_t Temp_fromRAW_to_F(uint16_t temperature) {  //This function feels horrib
   }
   return static_cast<uint16_t>(1094 + (309 - temperature) * 2.5714285714285715);
 }
+
+#ifdef MQTT
+void publish_data(void) {
+  Serial.println("Publishing...");
+  size_t msg_length = snprintf(mqtt_msg, sizeof(mqtt_msg), "{\n\"cell_voltages\":[");
+
+  for (size_t i = 0; i < 97; ++i) {
+    msg_length += snprintf(mqtt_msg + msg_length, sizeof(mqtt_msg) - msg_length, "%s%d", (i == 0) ? "" : ",", 1234);
+    // msg_length += snprintf(mqtt_msg + msg_length, sizeof(mqtt_msg) - msg_length, "%s%d", (i == 0) ? "" : ", ", cell_voltages[i]);
+  }
+
+  snprintf(mqtt_msg + msg_length, sizeof(mqtt_msg) - msg_length, "]\n}\n");
+
+  if (mqtt_publish_retain("battery_testing/spec_data") == false) {
+    Serial.println("Nissan MQTT msg could not be sent");
+  }
+}
+#endif

@@ -37,7 +37,7 @@
 #include <Arduino.h>
 #include "../../../USER_SETTINGS.h"
 
-#define MSG_BUFFER_SIZE (256)
+#define MSG_BUFFER_SIZE (1024)
 #define MQTT_SUBSCRIPTIONS \
   { "my/topic/abc", "my/other/topic" }
 #define MQTT_SERVER "192.168.xxx.yyy"
@@ -53,8 +53,10 @@ extern uint16_t cell_min_voltage;  //mV,   0-4350
 extern const char* mqtt_user;
 extern const char* mqtt_password;
 
+extern char mqtt_msg[MSG_BUFFER_SIZE];
+
 void init_mqtt(void);
 void mqtt_loop(void);
-bool mqtt_publish(const String& topic, const String& payload);
+bool mqtt_publish_retain(const char *topic);
 
 #endif
