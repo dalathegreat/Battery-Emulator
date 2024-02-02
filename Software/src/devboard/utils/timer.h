@@ -5,7 +5,9 @@
 
 class MyTimer {
  public:
+  /** interval in ms */
   MyTimer(unsigned long interval);
+  /** Returns true and resets the timer if it has elapsed */
   bool elapsed();
 
  private:

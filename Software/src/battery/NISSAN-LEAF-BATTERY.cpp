@@ -20,6 +20,10 @@ static uint8_t mprun10r = 0;                 //counter 0-20 for 0x1F2 message
 static uint8_t mprun10 = 0;                  //counter 0-3
 static uint8_t mprun100 = 0;                 //counter 0-3
 
+#ifdef MQTT
+bool mqtt_first_transmission = true;
+#endif
+
 CAN_frame_t LEAF_1F2 = {.FIR = {.B =
                                     {
                                         .DLC = 8,
@@ -930,17 +934,66 @@ uint16_t Temp_fromRAW_to_F(uint16_t temperature) {  //This function feels horrib
 
 #ifdef MQTT
 void publish_data(void) {
-  size_t msg_length = snprintf(mqtt_msg, sizeof(mqtt_msg), "{\n\"cell_voltages\":[");
 
+  // At startup, re-post the discovery message for home assistant
+  if(mqtt_first_transmission == true) {
+    mqtt_first_transmission = false;
+
+    // Base topic for any cell voltage "sensor"
+    // TODO: make the discovery topic configurable centrally... but this is fine
+    String topic = "homeassistant/sensor/battery-emulator/cell_voltage";
+    for (int i = 0; i < 96; i++) {
+      // Build JSON message with device configuration for each cell voltage
+      // Probably shouldn't be BatteryEmulator here, instead "LeafBattery"
+      // or similar but hey, it works.
+      // mqtt_msg is a global buffer, should be fine since we run too much
+      // in a single thread :)
+      snprintf(mqtt_msg, sizeof(mqtt_msg),
+               "{"
+               "\"device\": {"
+               "\"identifiers\": ["
+               "\"battery-emulator\""
+               "],"
+               "\"manufacturer\": \"DalaTech\","
+               "\"model\": \"BatteryEmulator\","
+               "\"name\": \"BatteryEmulator\""
+               "},"
+               "\"device_class\": \"voltage\","
+               "\"enabled_by_default\": true,"
+               "\"object_id\": \"sensor_battery_voltage_cell%d\","
+               "\"origin\": {"
+               "\"name\": \"BatteryEmulator\","
+               "\"sw\": \"4.4.0-mqtt\","
+               "\"url\": \"https://github.com/dalathegreat/Battery-Emulator\""
+               "},"
+               "\"state_class\": \"measurement\","
+               "\"name\": \"Battery Cell Voltage %d\","
+               "\"state_topic\": \"battery/spec_data\","
+               "\"unique_id\": \"battery-emulator_battery_voltage_cell%d\","
+               "\"unit_of_measurement\": \"V\","
+               "\"value_template\": \"{{ value_json.cell_voltages[%d] }}\""
+               "}",
+               i + 1, i + 1, i + 1, i);
+      // End each discovery topic with cell number and '/config'
+      String cell_topic = topic + String(i + 1) + "/config";
+      mqtt_publish_retain(cell_topic.c_str());
+    }
+  }
+
+  // Every 5-ish seconds, build the JSON payload for the state topic. This requires
+  // some annoying formatting due to C++ not having nice Python-like string formatting.
+  // msg_length is a cumulative variable to track start position (param 1) and for
+  // modifying the maxiumum amount of characters to write (param 2). The third parameter
+  // is the string content
+  size_t msg_length = snprintf(mqtt_msg, sizeof(mqtt_msg), "{\n\"cell_voltages\":[");
   for (size_t i = 0; i < 97; ++i) {
-    // msg_length += snprintf(mqtt_msg + msg_length, sizeof(mqtt_msg) - msg_length, "%s%d", (i == 0) ? "" : ",", 1234);
     msg_length +=
         snprintf(mqtt_msg + msg_length, sizeof(mqtt_msg) - msg_length, "%s%d", (i == 0) ? "" : ", ", cell_voltages[i]);
   }
-
   snprintf(mqtt_msg + msg_length, sizeof(mqtt_msg) - msg_length, "]\n}\n");
 
-  if (mqtt_publish_retain("battery_testing/spec_data") == false) {
+  // Publish and print error if not OK
+  if (mqtt_publish_retain("battery/spec_data") == false) {
     Serial.println("Nissan MQTT msg could not be sent");
   }
 }

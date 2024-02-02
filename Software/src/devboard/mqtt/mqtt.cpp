@@ -30,7 +30,7 @@ static void publish_values(void) {
            "}\n",
            ((float)SOC) / 100.0, ((float)StateOfHealth) / 100.0, ((float)((int16_t)temperature_min)) / 10.0,
            ((float)((int16_t)temperature_max)) / 10.0, cell_max_voltage, cell_min_voltage);
-  bool result = client.publish("battery_testing/info", mqtt_msg, true);
+  bool result = client.publish("battery/info", mqtt_msg, true);
   Serial.println(mqtt_msg);  // Uncomment to print the payload on serial
 }
 
@@ -95,5 +95,8 @@ void mqtt_loop(void) {
 }
 
 bool mqtt_publish_retain(const char* topic) {
-  return client.publish(topic, mqtt_msg, true);
+  if (client.connected() == true) {
+    return client.publish(topic, mqtt_msg, true);
+  }
+  return false;
 }
