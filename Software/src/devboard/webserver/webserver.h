@@ -1,7 +1,7 @@
 #ifndef WEBSERVER_H
 #define WEBSERVER_H
 
-// Load Wi-Fi library
+#include <Preferences.h>
 #include <WiFi.h>
 #include "../../../USER_SETTINGS.h"  // Needed for WiFi ssid and password
 #include "../../lib/ayushsharma82-ElegantOTA/src/ElegantOTA.h"
@@ -148,5 +148,7 @@ void onOTAEnd(bool success);
  */
 template <typename T>
 String formatPowerValue(String label, T value, String unit, int precision);
+
+extern void storeSettings();
 
 #endif
