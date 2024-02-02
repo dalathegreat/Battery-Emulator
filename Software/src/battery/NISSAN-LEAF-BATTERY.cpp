@@ -936,7 +936,7 @@ uint16_t Temp_fromRAW_to_F(uint16_t temperature) {  //This function feels horrib
 void publish_data(void) {
 
   // At startup, re-post the discovery message for home assistant
-  if(mqtt_first_transmission == true) {
+  if (mqtt_first_transmission == true) {
     mqtt_first_transmission = false;
 
     // Base topic for any cell voltage "sensor"
