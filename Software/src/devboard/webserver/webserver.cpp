@@ -1,4 +1,7 @@
 #include "webserver.h"
+#include <Preferences.h>
+
+Preferences preferences3;
 
 // Create AsyncWebServer object on port 80
 AsyncWebServer server(80);
@@ -65,6 +68,7 @@ void init_webserver() {
     if (request->hasParam("value")) {
       String value = request->getParam("value")->value();
       BATTERY_WH_MAX = value.toInt();
+      storeSettings();
       request->send(200, "text/plain", "Updated successfully");
     } else {
       request->send(400, "text/plain", "Bad Request");
@@ -76,6 +80,7 @@ void init_webserver() {
     if (request->hasParam("value")) {
       String value = request->getParam("value")->value();
       MAXPERCENTAGE = value.toInt() * 10;
+      storeSettings();
       request->send(200, "text/plain", "Updated successfully");
     } else {
       request->send(400, "text/plain", "Bad Request");
@@ -87,6 +92,7 @@ void init_webserver() {
     if (request->hasParam("value")) {
       String value = request->getParam("value")->value();
       MINPERCENTAGE = value.toInt() * 10;
+      storeSettings();
       request->send(200, "text/plain", "Updated successfully");
     } else {
       request->send(400, "text/plain", "Bad Request");
@@ -98,6 +104,7 @@ void init_webserver() {
     if (request->hasParam("value")) {
       String value = request->getParam("value")->value();
       MAXCHARGEAMP = value.toInt() * 10;
+      storeSettings();
       request->send(200, "text/plain", "Updated successfully");
     } else {
       request->send(400, "text/plain", "Bad Request");
@@ -109,11 +116,91 @@ void init_webserver() {
     if (request->hasParam("value")) {
       String value = request->getParam("value")->value();
       MAXDISCHARGEAMP = value.toInt() * 10;
+      storeSettings();
       request->send(200, "text/plain", "Updated successfully");
     } else {
       request->send(400, "text/plain", "Bad Request");
     }
   });
+
+#ifdef CHEVYVOLT_CHARGER
+  // Route for editing ChargerTargetV
+  server.on("/updateChargeSetpointV", HTTP_GET, [](AsyncWebServerRequest* request) {
+    if (!request->hasParam("value")) {
+      request->send(400, "text/plain", "Bad Request");
+    }
+
+    String value = request->getParam("value")->value();
+    float val = value.toFloat();
+
+    if (!(val <= CHARGER_MAX_HV && val >= CHARGER_MIN_HV)) {
+      request->send(400, "text/plain", "Bad Request");
+    }
+
+    if (!(val * charger_setpoint_HV_IDC <= CHARGER_MAX_POWER)) {
+      request->send(400, "text/plain", "Bad Request");
+    }
+
+    charger_setpoint_HV_VDC = val;
+
+    request->send(200, "text/plain", "Updated successfully");
+  });
+
+  // Route for editing ChargerTargetA
+  server.on("/updateChargeSetpointA", HTTP_GET, [](AsyncWebServerRequest* request) {
+    if (!request->hasParam("value")) {
+      request->send(400, "text/plain", "Bad Request");
+    }
+
+    String value = request->getParam("value")->value();
+    float val = value.toFloat();
+
+    if (!(val <= MAXCHARGEAMP && val <= CHARGER_MAX_A)) {
+      request->send(400, "text/plain", "Bad Request");
+    }
+
+    if (!(val * charger_setpoint_HV_VDC <= CHARGER_MAX_POWER)) {
+      request->send(400, "text/plain", "Bad Request");
+    }
+
+    charger_setpoint_HV_IDC = value.toFloat();
+
+    request->send(200, "text/plain", "Updated successfully");
+  });
+
+  // Route for editing ChargerEndA
+  server.on("/updateChargeEndA", HTTP_GET, [](AsyncWebServerRequest* request) {
+    if (request->hasParam("value")) {
+      String value = request->getParam("value")->value();
+      charger_setpoint_HV_IDC_END = value.toFloat();
+      request->send(200, "text/plain", "Updated successfully");
+    } else {
+      request->send(400, "text/plain", "Bad Request");
+    }
+  });
+
+  // Route for enabling/disabling HV charger
+  server.on("/updateChargerHvEnabled", HTTP_GET, [](AsyncWebServerRequest* request) {
+    if (request->hasParam("value")) {
+      String value = request->getParam("value")->value();
+      charger_HV_enabled = (bool)value.toInt();
+      request->send(200, "text/plain", "Updated successfully");
+    } else {
+      request->send(400, "text/plain", "Bad Request");
+    }
+  });
+
+  // Route for enabling/disabling aux12v charger
+  server.on("/updateChargerAux12vEnabled", HTTP_GET, [](AsyncWebServerRequest* request) {
+    if (request->hasParam("value")) {
+      String value = request->getParam("value")->value();
+      charger_aux12V_enabled = (bool)value.toInt();
+      request->send(200, "text/plain", "Updated successfully");
+    } else {
+      request->send(400, "text/plain", "Bad Request");
+    }
+  });
+#endif
 
   // Send a GET request to <ESP_IP>/update
   server.on("/debug", HTTP_GET,
@@ -303,6 +390,15 @@ String processor(const String& var) {
     content += "Fake battery for testing purposes";
 #endif
     content += "</h4>";
+
+#ifdef CHEVYVOLT_CHARGER
+    content += "<h4 style='color: white;'>Charger protocol: ";
+#ifdef CHEVYVOLT_CHARGER
+    content += "Chevy Volt Gen1 Charger";
+#endif
+    content += "</h4>";
+#endif
+
     // Close the block
     content += "</div>";
 
@@ -396,6 +492,42 @@ String processor(const String& var) {
       content += "<span style='color: red;'>&#10005;</span></h4>";
     }
 
+#ifdef CHEVYVOLT_CHARGER
+    content += "<h4>Charger HV Enabled: ";
+    if (charger_HV_enabled) {
+      content += "<span>&#10003;</span>";
+    } else {
+      content += "<span style='color: red;'>&#10005;</span>";
+    }
+    content += "</h4>";
+
+    content += "<h4>Charger Aux12v Enabled: ";
+    if (charger_aux12V_enabled) {
+      content += "<span>&#10003;</span>";
+    } else {
+      content += "<span style='color: red;'>&#10005;</span>";
+    }
+    content += "</h4>";
+    float chgPwrDC = static_cast<float>(charger_stat_HVcur * charger_stat_HVvol);
+    float chgPwrAC = static_cast<float>(charger_stat_ACcur * charger_stat_ACvol);
+    float chgEff = chgPwrDC / chgPwrAC * 100;
+    float ACcur = charger_stat_ACcur;
+    float ACvol = charger_stat_ACvol;
+    float HVvol = charger_stat_HVvol;
+    float HVcur = charger_stat_HVcur;
+    float LVvol = charger_stat_LVvol;
+    float LVcur = charger_stat_LVcur;
+
+    content += formatPowerValue("Charger Output Power", chgPwrDC, "", 1);
+    content += "<h4 style='color: white;'>Charger Efficiency: " + String(chgEff) + "%</h4>";
+    content += "<h4 style='color: white;'>Charger HVDC Output V: " + String(HVvol, 2) + "</h4>";
+    content += "<h4 style='color: white;'>Charger HVDC Output I: " + String(HVcur, 2) + "</h4>";
+    content += "<h4 style='color: white;'>Charger LVDC Output I: " + String(LVcur, 2) + "</h4>";
+    content += "<h4 style='color: white;'>Charger LVDC Output V: " + String(LVvol, 2) + "</h4>";
+    content += "<h4 style='color: white;'>Charger AC Input V: " + String(ACvol, 2) + "VAC</h4>";
+    content += "<h4 style='color: white;'>Charger AC Input I: " + String(ACvol, 2) + "VAC</h4>";
+#endif
+
     // Close the block
     content += "</div>";
 
@@ -450,6 +582,28 @@ String settings_processor(const String& var) {
                " A </span> <button onclick='editMaxChargeA()'>Edit</button></h4>";
     content += "<h4 style='color: white;'>Max discharge speed: " + String(MAXDISCHARGEAMP / 10.0, 1) +
                " A </span> <button onclick='editMaxDischargeA()'>Edit</button></h4>";
+#ifdef CHEVYVOLT_CHARGER
+    content += "<h4 style='color: white;'>Charger HVDC Enabled: ";
+    if (charger_HV_enabled) {
+      content += "<span>&#10003;</span>";
+    } else {
+      content += "<span style='color: red;'>&#10005;</span>";
+    }
+    content += " <button onclick='editChargerHVDCEnabled()'>Edit</button></h4>";
+
+    content += "<h4 style='color: white;'>Charger Aux12VDC Enabled: ";
+    if (charger_aux12V_enabled) {
+      content += "<span>&#10003;</span>";
+    } else {
+      content += "<span style='color: red;'>&#10005;</span>";
+    }
+    content += " <button onclick='editChargerAux12vEnabled()'>Edit</button></h4>";
+
+    content += "<h4 style='color: white;'>Charger Voltage Setpoint: " + String(charger_setpoint_HV_VDC, 1) +
+               " V </span> <button onclick='editChargerSetpointVDC()'>Edit</button></h4>";
+    content += "<h4 style='color: white;'>Charger Current Setpoint: " + String(charger_setpoint_HV_IDC, 1) +
+               " A </span> <button onclick='editChargerSetpointIDC()'>Edit</button></h4>";
+#endif
 
     content += "<script>";
     content += "function editWh() {";
@@ -520,6 +674,81 @@ String settings_processor(const String& var) {
     content += "  }";
     content += "}";
     content += "}";
+
+#ifdef CHEVYVOLT_CHARGER
+    content += "function editChargerHVDCEnabled() {";
+    content += "  var value = prompt('Enable or disable HV DC output. Enter 1 for enabled, 0 for disabled');";
+    content += "  if (value !== null) {";
+    content += "    if (value == 0 || value == 1) {";
+    content += "      var xhr = new XMLHttpRequest();";
+    content += "      xhr.open('GET', '/updateChargerHvEnabled?value=' + value, true);";
+    content += "      xhr.send();";
+    content += "    }";
+    content += "  } else {";
+    content += "    alert('Invalid value. Please enter 1 or 0');";
+    content += "  }";
+    content += "}";
+
+    content += "function editChargerAux12vEnabled() {";
+    content +=
+        "var value = prompt('Enable or disable low voltage 12v auxiliary DC output. Enter 1 for enabled, 0 for "
+        "disabled');";
+    content += "if (value !== null) {";
+    content += "  if (value == 0 || value == 1) {";
+    content += "    var xhr = new XMLHttpRequest();";
+    content += "    xhr.open('GET', '/updateChargerAux12vEnabled?value=' + value, true);";
+    content += "    xhr.send();";
+    content += "  } else {";
+    content += "    alert('Invalid value. Please enter 1 or 0');";
+    content += "  }";
+    content += "}";
+    content += "}";
+
+    content += "function editChargerSetpointVDC() {";
+    content +=
+        "var value = prompt('Set charging voltage. Input will be validated against inverter and/or charger "
+        "configuration parameters, but use sensible values like 200 to 420.');";
+    content += "if (value !== null) {";
+    content += "  if (value >= 0 && value <= 1000) {";
+    content += "    var xhr = new XMLHttpRequest();";
+    content += "    xhr.open('GET', '/updateChargeSetpointV?value=' + value, true);";
+    content += "    xhr.send();";
+    content += "  } else {";
+    content += "    alert('Invalid value. Please enter a value between 0 and 1000');";
+    content += "  }";
+    content += "}";
+    content += "}";
+
+    content += "function editChargerSetpointIDC() {";
+    content +=
+        "var value = prompt('Set charging amperage. Input will be validated against inverter and/or charger "
+        "configuration parameters, but use sensible values like 6 to 48.');";
+    content += "if (value !== null) {";
+    content += "  if (value >= 0 && value <= 1000) {";
+    content += "    var xhr = new XMLHttpRequest();";
+    content += "    xhr.open('GET', '/updateChargeSetpointA?value=' + value, true);";
+    content += "    xhr.send();";
+    content += "  } else {";
+    content += "    alert('Invalid value. Please enter a value between 0 and 100');";
+    content += "  }";
+    content += "}";
+    content += "}";
+
+    content += "function editChargerSetpointEndI() {";
+    content +=
+        "var value = prompt('Set amperage that terminates charge as being sufficiently complete. Input will be "
+        "validated against inverter and/or charger configuration parameters, but use sensible values like 1-5.');";
+    content += "if (value !== null) {";
+    content += "  if (value >= 0 && value <= 1000) {";
+    content += "    var xhr = new XMLHttpRequest();";
+    content += "    xhr.open('GET', '/updateChargeEndA?value=' + value, true);";
+    content += "    xhr.send();";
+    content += "  } else {";
+    content += "    alert('Invalid value. Please enter a value between 0 and 100');";
+    content += "  }";
+    content += "}";
+    content += "}";
+#endif
     content += "</script>";
 
     // Close the block

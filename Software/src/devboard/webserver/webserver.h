@@ -1,7 +1,7 @@
 #ifndef WEBSERVER_H
 #define WEBSERVER_H
 
-// Load Wi-Fi library
+#include <Preferences.h>
 #include <WiFi.h>
 #include "../../../USER_SETTINGS.h"  // Needed for WiFi ssid and password
 #include "../../lib/ayushsharma82-ElegantOTA/src/ElegantOTA.h"
@@ -40,6 +40,14 @@ extern const char* password;
 extern const char* ssidAP;
 extern const char* passwordAP;
 extern const char* versionNumber;
+
+// Common charger parameters
+extern float charger_stat_HVcur;
+extern float charger_stat_HVvol;
+extern float charger_stat_ACcur;
+extern float charger_stat_ACvol;
+extern float charger_stat_LVcur;
+extern float charger_stat_LVvol;
 
 /**
  * @brief Initialization function for the webserver.
@@ -133,5 +141,7 @@ void onOTAEnd(bool success);
  */
 template <typename T>
 String formatPowerValue(String label, T value, String unit, int precision);
+
+extern void storeSettings();
 
 #endif

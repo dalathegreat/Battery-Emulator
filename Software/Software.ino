@@ -2,9 +2,11 @@
 /* Only change battery specific settings in "USER_SETTINGS.h" */
 
 #include <Arduino.h>
+#include <Preferences.h>
 #include "HardwareSerial.h"
 #include "USER_SETTINGS.h"
 #include "src/battery/BATTERIES.h"
+#include "src/charger/CHARGERS.h"
 #include "src/devboard/config.h"
 #include "src/inverter/INVERTERS.h"
 #include "src/lib/adafruit-Adafruit_NeoPixel/Adafruit_NeoPixel.h"
@@ -17,6 +19,8 @@
 #ifdef WEBSERVER
 #include "src/devboard/webserver/webserver.h"
 #endif
+
+Preferences settings;  // Store user settings
 
 // Interval settings
 int intervalUpdateValues = 4800;  // Interval at which to update inverter values / Modbus registers
@@ -68,6 +72,21 @@ uint16_t cell_max_voltage = 3700;       // Stores the highest cell voltage value
 uint16_t cell_min_voltage = 3700;       // Stores the minimum cell voltage value in the system
 bool LFP_Chemistry = false;
 
+// Common charger parameters
+volatile float charger_setpoint_HV_VDC = 0.0f;
+volatile float charger_setpoint_HV_IDC = 0.0f;
+volatile float charger_setpoint_HV_IDC_END = 0.0f;
+bool charger_HV_enabled = false;
+bool charger_aux12V_enabled = false;
+
+// Common charger statistics, instantaneous values
+float charger_stat_HVcur = 0;
+float charger_stat_HVvol = 0;
+float charger_stat_ACcur = 0;
+float charger_stat_ACvol = 0;
+float charger_stat_LVcur = 0;
+float charger_stat_LVvol = 0;
+
 // LED parameters
 Adafruit_NeoPixel pixels(1, WS2812_PIN, NEO_GRB + NEO_KHZ800);
 static uint8_t brightness = 0;
@@ -101,6 +120,8 @@ bool inverterAllowsContactorClosing = true;
 // Initialization
 void setup() {
   init_serial();
+
+  init_stored_settings();
 
 #ifdef WEBSERVER
   init_webserver();
@@ -170,6 +191,37 @@ void init_serial() {
   Serial.begin(115200);
   while (!Serial) {}
   Serial.println("__ OK __");
+}
+
+void init_stored_settings() {
+  settings.begin("batterySettings", false);
+
+#ifndef LOAD_SAVED_SETTINGS_ON_BOOT
+  settings.clear();  // If this clear function is executed, no settings will be read from storage
+#endif
+
+  static uint16_t temp = 0;
+  temp = settings.getUInt("BATTERY_WH_MAX", false);
+  if (temp != 0) {
+    BATTERY_WH_MAX = temp;
+  }
+  temp = settings.getUInt("MAXPERCENTAGE", false);
+  if (temp != 0) {
+    MAXPERCENTAGE = temp;
+  }
+  temp = settings.getUInt("MINPERCENTAGE", false);
+  if (temp != 0) {
+    MINPERCENTAGE = temp;
+  }
+  temp = settings.getUInt("MAXCHARGEAMP", false);
+  if (temp != 0) {
+    MAXCHARGEAMP = temp;
+  }
+  temp = settings.getUInt("MAXDISCHARGEAMP", false);
+  if (temp != 0) {
+    MAXDISCHARGEAMP = temp;
+  }
+  settings.end();
 }
 
 void init_CAN() {
@@ -364,6 +416,9 @@ void receive_can() {  // This section checks if we have a complete CAN message i
 #ifdef SMA_CAN
       receive_can_sma(rx_frame);
 #endif
+#ifdef CHEVYVOLT_CHARGER
+      receive_can_chevyvolt_charger(rx_frame);
+#endif
     } else {
       //printf("New extended frame");
 #ifdef PYLON_CAN
@@ -421,6 +476,9 @@ void send_can() {
 #endif
 #ifdef TEST_FAKE_BATTERY
   send_can_test_battery();
+#endif
+#ifdef CHEVYVOLT_CHARGER
+  send_can_chevyvolt_charger();
 #endif
 }
 
@@ -671,4 +729,14 @@ void init_serialDataLink() {
 #if defined(SERIAL_LINK_RECEIVER) || defined(SERIAL_LINK_TRANSMITTER)
   Serial2.begin(9600, SERIAL_8N1, RS485_RX_PIN, RS485_TX_PIN);
 #endif
+}
+
+void storeSettings() {
+  settings.begin("batterySettings", false);
+  settings.putUInt("BATTERY_WH_MAX", BATTERY_WH_MAX);
+  settings.putUInt("MAXPERCENTAGE", MAXPERCENTAGE);
+  settings.putUInt("MINPERCENTAGE", MINPERCENTAGE);
+  settings.putUInt("MAXCHARGEAMP", MAXCHARGEAMP);
+  settings.putUInt("MAXDISCHARGEAMP", MAXDISCHARGEAMP);
+  settings.end();
 }

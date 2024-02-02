@@ -21,6 +21,13 @@ volatile uint16_t MAXDISCHARGEAMP =
 const char* mqtt_user = "REDACTED";
 const char* mqtt_password = "REDACTED";
 #endif  // USE_MQTT
+/* Charger settings */
+volatile float CHARGER_SET_HV = 384;      // Reasonably appropriate 4.0v per cell charging of a 96s pack
+volatile float CHARGER_MAX_HV = 420;      // Max permissible output (VDC) of charger
+volatile float CHARGER_MIN_HV = 200;      // Min permissible output (VDC) of charger
+volatile float CHARGER_MAX_POWER = 3300;  // Max power capable of charger, as a ceiling for validating config
+volatile float CHARGER_MAX_A = 11.5;      // Max current output (amps) of charger
+volatile float CHARGER_END_A = 1.0;       // Current at which charging is considered complete
 
 #ifdef WEBSERVER
 volatile uint8_t AccessPointEnabled =
@@ -29,5 +36,5 @@ const char* ssid = "REPLACE_WITH_YOUR_SSID";          // Maximum of 63 character
 const char* password = "REPLACE_WITH_YOUR_PASSWORD";  // Minimum of 8 characters;
 const char* ssidAP = "Battery Emulator";              // Maximum of 63 characters;
 const char* passwordAP = "123456789";  // Minimum of 8 characters; set to NULL if you want the access point to be open
-const char* versionNumber = "4.4.0";   // The current software version, shown on webserver
+const char* versionNumber = "4.5.0";   // The current software version, shown on webserver
 #endif
