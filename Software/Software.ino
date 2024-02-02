@@ -148,6 +148,7 @@ void loop() {
 #ifdef WEBSERVER
   // Over-the-air updates by ElegantOTA
   ElegantOTA.loop();
+  WiFi_monitor_loop();
 #endif
 
   // Input
