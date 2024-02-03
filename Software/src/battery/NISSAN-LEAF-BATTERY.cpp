@@ -947,11 +947,10 @@ void init_battery(void) {
 #ifdef MQTT
 void publish_battery_specifics(void) {
   static bool first_execution = true;
-  if(first_execution == true) {
+  if (first_execution == true) {
     first_execution = false;
     // Discovery stuff
-  }
-  else {
+  } else {
     // Publishing stuff
   }
 }

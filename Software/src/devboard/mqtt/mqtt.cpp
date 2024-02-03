@@ -107,14 +107,14 @@ static void publish_cell_voltages(void) {
 
     size_t msg_length = snprintf(mqtt_msg, sizeof(mqtt_msg), "{\n\"cell_voltages\":[");
     for (size_t i = 0; i < nof_cellvoltages; ++i) {
-        msg_length +=
-            snprintf(mqtt_msg + msg_length, sizeof(mqtt_msg) - msg_length, "%s%d", (i == 0) ? "" : ", ", cellvoltages[i]);
+      msg_length +=
+          snprintf(mqtt_msg + msg_length, sizeof(mqtt_msg) - msg_length, "%s%d", (i == 0) ? "" : ", ", cellvoltages[i]);
     }
     snprintf(mqtt_msg + msg_length, sizeof(mqtt_msg) - msg_length, "]\n}\n");
 
     // Publish and print error if not OK
     if (mqtt_publish_retain("battery/spec_data") == false) {
-        Serial.println("Cell voltage MQTT msg could not be sent");
+      Serial.println("Cell voltage MQTT msg could not be sent");
     }
   }
 }
