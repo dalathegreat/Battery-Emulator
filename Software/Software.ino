@@ -143,9 +143,9 @@ void setup() {
 
   inform_user_on_battery();
 
-  #ifdef BATTERY_HAS_INIT
+#ifdef BATTERY_HAS_INIT
   init_battery();
-  #endif
+#endif
 }
 
 // Perform main program functions
