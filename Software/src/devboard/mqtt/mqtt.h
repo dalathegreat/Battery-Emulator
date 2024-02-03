@@ -45,6 +45,8 @@ extern uint16_t temperature_min;   //C+1,  Goes thru convert2unsignedint16 funct
 extern uint16_t temperature_max;   //C+1,  Goes thru convert2unsignedint16 function (15.0C = 150, -15.0C =  65385)
 extern uint16_t cell_max_voltage;  //mV,   0-4350
 extern uint16_t cell_min_voltage;  //mV,   0-4350
+extern uint16_t cellvoltages[120];  //mV    0-4350 per cell
+extern uint8_t nof_cellvoltages;  // Total number of cell voltages, set by each battery. 
 
 extern const char* mqtt_user;
 extern const char* mqtt_password;

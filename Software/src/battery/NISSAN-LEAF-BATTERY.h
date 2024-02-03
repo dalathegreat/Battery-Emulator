@@ -36,4 +36,7 @@ uint16_t convert2unsignedint16(int16_t signed_value);
 uint16_t Temp_fromRAW_to_F(uint16_t temperature);
 bool is_message_corrupt(CAN_frame_t rx_frame);
 
+void publish_battery_specifics(void);
+void init_battery(void);
+
 #endif
