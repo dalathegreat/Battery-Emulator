@@ -40,7 +40,7 @@
 //#define LOAD_SAVED_SETTINGS_ON_BOOT  //Enable this line to read settings stored via the webserver on boot
 
 /* MQTT options */
-#define MQTT       // Enable this line to enable MQTT
+#define MQTT  // Enable this line to enable MQTT
 #define MQTT_SUBSCRIPTIONS \
   { "my/topic/abc", "my/other/topic" }
 #define MQTT_SERVER "192.168.xxx.yyy"
