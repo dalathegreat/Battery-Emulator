@@ -1,5 +1,5 @@
-#ifndef CHEVYVOLT_H
-#define CHEVYVOLT_H
+#ifndef CHEVYVOLT_CHARGER_H
+#define CHEVYVOLT_CHARGER_H
 #include <Arduino.h>
 #include "../../USER_SETTINGS.h"
 #include "../lib/miwagner-ESP32-Arduino-CAN/ESP32CAN.h"

@@ -451,6 +451,22 @@ void receive_can_tesla_model_3_battery(CAN_frame_t rx_frame) {
         min_temp = (rx_frame.data.u8[3] * 5) - 400;  //Multiply by 5 and remove offset to get C+1 (0x61*5=485-400=8.5*C)
       }
       break;
+    case 0x401:  // Cell stats
+      mux = (rx_frame.data.u8[0]);
+
+      static uint16_t volts;
+
+      if (rx_frame.data.u8[1] == 0x2A)  // status byte must be 0x2A to read cellvoltages
+      {
+        // Example, frame3=0x89,frame2=0x1D = 35101 / 10 = 3510mV
+        volts = ((rx_frame.data.u8[3] << 8) | rx_frame.data.u8[2]) / 10;
+        cellvoltages[mux * 3] = volts;
+        volts = ((rx_frame.data.u8[5] << 8) | rx_frame.data.u8[4]) / 10;
+        cellvoltages[1 + mux * 3] = volts;
+        volts = ((rx_frame.data.u8[7] << 8) | rx_frame.data.u8[6]) / 10;
+        cellvoltages[2 + mux * 3] = volts;
+      }
+      break;
     case 0x2d2:
       //Min / max limits
       min_voltage = ((rx_frame.data.u8[1] << 8) | rx_frame.data.u8[0]) * 0.01 * 2;  //Example 24148mv * 0.01 = 241.48 V

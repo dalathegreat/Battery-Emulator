@@ -237,6 +237,11 @@ void update_values_leaf_battery() { /* This function maps all the values fetched
     max_target_charge_power = 0;  //No need to charge further, set max power to 0
   }
 
+  //Map all cell voltages to the global array
+  for (int i = 0; i < 96; ++i) {
+    cellvoltages[i] = cell_voltages[i];
+  }
+
   bms_status = ACTIVE;  //Startout in active mode
 
   /*Extra safety functions below*/
@@ -856,7 +861,10 @@ void send_can_leaf_battery() {
         break;
     }
 
+//Only send this message when NISSANLEAF_CHARGER is not defined (otherwise it will collide!)
+#ifndef NISSANLEAF_CHARGER
     ESP32Can.CANWriteFrame(&LEAF_1F2);  //Contains (CHG_STA_RQ == 1 == Normal Charge)
+#endif
 
     mprun10r = (mprun10r + 1) % 20;  // 0x1F2 patter repeats after 20 messages. 0-1..19-0
 

@@ -41,6 +41,7 @@
 
 /* Select charger used (Optional) */
 //#define CHEVYVOLT_CHARGER //Enable this line to control a Chevrolet Volt charger connected to battery - for example, when generator charging or using an inverter without a charging function.
+//#define NISSANLEAF_CHARGER //Enable this line to control a Nissan LEAF PDM connected to battery - for example, when generator charging
 
 /* Battery limits: These are set in the USER_SETTINGS.cpp file, or later on via the Webserver */
 extern volatile uint16_t BATTERY_WH_MAX;
@@ -50,7 +51,7 @@ extern volatile uint16_t MAXCHARGEAMP;
 extern volatile uint16_t MAXDISCHARGEAMP;
 extern volatile uint8_t AccessPointEnabled;
 
-/* Charger limits: Set in the USER_SETTINGS.cpp or later in the webserver */
+/* Charger limits (Optional): Set in the USER_SETTINGS.cpp or later in the webserver */
 extern volatile float charger_setpoint_HV_VDC;
 extern volatile float charger_setpoint_HV_IDC;
 extern volatile float charger_setpoint_HV_IDC_END;

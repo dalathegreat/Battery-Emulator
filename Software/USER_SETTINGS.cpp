@@ -15,7 +15,7 @@ volatile uint16_t MAXCHARGEAMP =
 volatile uint16_t MAXDISCHARGEAMP =
     300;  //30.0A , BYD CAN specific setting, Max discharge speed in Amp (Some inverters needs to be artificially limited)
 
-/* Charger settings */
+/* Charger settings (Optional, when generator charging) */
 volatile float CHARGER_SET_HV = 384;      // Reasonably appropriate 4.0v per cell charging of a 96s pack
 volatile float CHARGER_MAX_HV = 420;      // Max permissible output (VDC) of charger
 volatile float CHARGER_MIN_HV = 200;      // Min permissible output (VDC) of charger
