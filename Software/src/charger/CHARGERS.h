@@ -2,7 +2,11 @@
 #define CHARGERS_H
 
 #ifdef CHEVYVOLT_CHARGER
-#include "chevyvolt.h"
+#include "CHEVY-VOLT-CHARGER.h"
+#endif
+
+#ifdef NISSANLEAF_CHARGER
+#include "NISSAN-LEAF-CHARGER.h"
 #endif
 
 #endif

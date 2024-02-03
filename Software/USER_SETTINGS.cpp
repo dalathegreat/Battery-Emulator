@@ -15,6 +15,7 @@ volatile uint16_t MAXCHARGEAMP =
 volatile uint16_t MAXDISCHARGEAMP =
     300;  //30.0A , BYD CAN specific setting, Max discharge speed in Amp (Some inverters needs to be artificially limited)
 
+/* Charger settings (Optional, when generator charging) */
 // MQTT
 #ifdef MQTT
 const char* mqtt_user = "REDACTED";

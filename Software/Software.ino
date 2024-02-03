@@ -70,6 +70,7 @@ uint8_t bms_status = ACTIVE;            // ACTIVE - [0..5]<>[STANDBY,INACTIVE,DA
 uint16_t stat_batt_power = 0;           // Power going in/out of battery
 uint16_t cell_max_voltage = 3700;       // Stores the highest cell voltage value in the system
 uint16_t cell_min_voltage = 3700;       // Stores the minimum cell voltage value in the system
+uint16_t cellvoltages[120];             // Stores all cell voltages
 bool LFP_Chemistry = false;
 
 // Common charger parameters
@@ -148,6 +149,7 @@ void loop() {
 #ifdef WEBSERVER
   // Over-the-air updates by ElegantOTA
   ElegantOTA.loop();
+  WiFi_monitor_loop();
 #ifdef MQTT
   mqtt_loop();
 #endif
@@ -416,8 +418,12 @@ void receive_can() {  // This section checks if we have a complete CAN message i
 #ifdef SMA_CAN
       receive_can_sma(rx_frame);
 #endif
+      // Charger
 #ifdef CHEVYVOLT_CHARGER
       receive_can_chevyvolt_charger(rx_frame);
+#endif
+#ifdef NISSANLEAF_CHARGER
+      receive_can_nissanleaf_charger(rx_frame);
 #endif
     } else {
       //printf("New extended frame");
@@ -479,6 +485,9 @@ void send_can() {
 #endif
 #ifdef CHEVYVOLT_CHARGER
   send_can_chevyvolt_charger();
+#endif
+#ifdef NISSANLEAF_CHARGER
+  send_can_nissanleaf_charger();
 #endif
 }
 

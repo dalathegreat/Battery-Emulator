@@ -27,11 +27,12 @@ extern uint16_t max_target_charge_power;     //W,    0-60000
 extern uint8_t bms_status;                   //Enum, 0-5
 extern uint8_t bms_char_dis_status;          //Enum, 0-2
 extern uint16_t stat_batt_power;             //W,    Goes thru convert2unsignedint16 function (5W = 5, -5W = 65530)
-extern uint16_t temperature_min;   //C+1,  Goes thru convert2unsignedint16 function (15.0C = 150, -15.0C =  65385)
-extern uint16_t temperature_max;   //C+1,  Goes thru convert2unsignedint16 function (15.0C = 150, -15.0C =  65385)
-extern uint16_t cell_max_voltage;  //mV,   0-4350
-extern uint16_t cell_min_voltage;  //mV,   0-4350
-extern uint8_t LEDcolor;           //Enum, 0-10
+extern uint16_t temperature_min;    //C+1,  Goes thru convert2unsignedint16 function (15.0C = 150, -15.0C =  65385)
+extern uint16_t temperature_max;    //C+1,  Goes thru convert2unsignedint16 function (15.0C = 150, -15.0C =  65385)
+extern uint16_t cell_max_voltage;   //mV,   0-4350
+extern uint16_t cell_min_voltage;   //mV,   0-4350
+extern uint16_t cellvoltages[120];  //mV    0-4350 per cell
+extern uint8_t LEDcolor;            //Enum, 0-10
 extern bool batteryAllowsContactorClosing;   //Bool, 1=true, 0=false
 extern bool inverterAllowsContactorClosing;  //Bool, 1=true, 0=false
 
@@ -48,6 +49,9 @@ extern float charger_stat_ACcur;
 extern float charger_stat_ACvol;
 extern float charger_stat_LVcur;
 extern float charger_stat_LVvol;
+
+//LEAF charger
+extern uint16_t OBC_Charge_Power;
 
 /**
  * @brief Initialization function for the webserver.
@@ -78,6 +82,15 @@ void init_WiFi_AP();
 void init_WiFi_STA(const char* ssid, const char* password);
 
 /**
+ * @brief Monitoring loop for WiFi. Will attempt to reconnect to access point if the connection goes down.
+ *
+ * @param[in] void
+ * 
+ * @return void
+ */
+void WiFi_monitor_loop();
+
+/**
  * @brief Initialization function for ElegantOTA.
  *
  * @param[in] void
@@ -103,6 +116,15 @@ String processor(const String& var);
  * @return String
  */
 String settings_processor(const String& var);
+
+/**
+ * @brief Replaces placeholder with content section in web page
+ *
+ * @param[in] var
+ *
+ * @return String
+ */
+String cellmonitor_processor(const String& var);
 
 /**
  * @brief Executes on OTA start 

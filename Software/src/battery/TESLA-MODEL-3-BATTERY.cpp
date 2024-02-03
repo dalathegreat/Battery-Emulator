@@ -160,12 +160,18 @@ static const char* hvilStatusState[] = {"NOT OK",
 #define MIN_CELL_VOLTAGE_LFP 2800   //Battery is put into emergency stop if one cell goes below this value
 #define MAX_CELL_DEVIATION_LFP 150  //LED turns yellow on the board if mv delta exceeds this value
 
+#define REASONABLE_ENERGYAMOUNT 20  //When the BMS stops making sense on some values, they are always <20
+
 void update_values_tesla_model_3_battery() {  //This function maps all the values fetched via CAN to the correct parameters used for modbus
   //After values are mapped, we perform some safety checks, and do some serial printouts
   //Calculate the SOH% to send to inverter
   if (bat_beginning_of_life != 0) {  //div/0 safeguard
     StateOfHealth =
         static_cast<uint16_t>((static_cast<double>(nominal_full_pack_energy) / bat_beginning_of_life) * 10000.0);
+  }
+  //If the value is unavailable, set SOH to 99%
+  if (nominal_full_pack_energy < REASONABLE_ENERGYAMOUNT) {
+    StateOfHealth = 9900;
   }
 
   //Calculate the SOC% value to send to inverter
@@ -256,8 +262,8 @@ void update_values_tesla_model_3_battery() {  //This function maps all the value
   }
 
   //Check if BMS is in need of recalibration
-  if (nominal_full_pack_energy < 20) {
-    Serial.println("ERROR: kWh remaining reported by battery not plausible. Battery needs cycling or is broken!");
+  if (nominal_full_pack_energy < REASONABLE_ENERGYAMOUNT) {
+    Serial.println("Warning: kWh remaining reported by battery not plausible. Battery needs cycling.");
     LEDcolor = YELLOW;
   }
 
@@ -358,9 +364,9 @@ void update_values_tesla_model_3_battery() {  //This function maps all the value
   Serial.print(", ");
   print_int_with_units(" Max charge power: ", max_target_charge_power, "W");
   Serial.println("");
-  print_int_with_units(" Max temperature: ", temperature_max, "C");
+  print_int_with_units(" Max temperature: ", (temperature_max * 0.1), "°C");
   Serial.print(", ");
-  print_int_with_units(" Min temperature: ", temperature_min, "C");
+  print_int_with_units(" Min temperature: ", (temperature_min * 0.1), "°C");
   Serial.println("");
 #endif
 }
@@ -445,6 +451,22 @@ void receive_can_tesla_model_3_battery(CAN_frame_t rx_frame) {
         min_temp = (rx_frame.data.u8[3] * 5) - 400;  //Multiply by 5 and remove offset to get C+1 (0x61*5=485-400=8.5*C)
       }
       break;
+    case 0x401:  // Cell stats
+      mux = (rx_frame.data.u8[0]);
+
+      static uint16_t volts;
+
+      if (rx_frame.data.u8[1] == 0x2A)  // status byte must be 0x2A to read cellvoltages
+      {
+        // Example, frame3=0x89,frame2=0x1D = 35101 / 10 = 3510mV
+        volts = ((rx_frame.data.u8[3] << 8) | rx_frame.data.u8[2]) / 10;
+        cellvoltages[mux * 3] = volts;
+        volts = ((rx_frame.data.u8[5] << 8) | rx_frame.data.u8[4]) / 10;
+        cellvoltages[1 + mux * 3] = volts;
+        volts = ((rx_frame.data.u8[7] << 8) | rx_frame.data.u8[6]) / 10;
+        cellvoltages[2 + mux * 3] = volts;
+      }
+      break;
     case 0x2d2:
       //Min / max limits
       min_voltage = ((rx_frame.data.u8[1] << 8) | rx_frame.data.u8[0]) * 0.01 * 2;  //Example 24148mv * 0.01 = 241.48 V
@@ -456,7 +478,7 @@ void receive_can_tesla_model_3_battery(CAN_frame_t rx_frame) {
       break;
     case 0x2b4:
       low_voltage = (((rx_frame.data.u8[1] & 0x03) << 8) | rx_frame.data.u8[0]) * 0.0390625;
-      high_voltage = (((rx_frame.data.u8[2] << 6) | ((rx_frame.data.u8[1] & 0xFC) >> 2))) * 0.146484;
+      high_voltage = ((((rx_frame.data.u8[2] & 0x3F) << 6) | ((rx_frame.data.u8[1] & 0xFC) >> 2))) * 0.146484;
       output_current = (((rx_frame.data.u8[4] & 0x0F) << 8) | rx_frame.data.u8[3]) / 100;
       break;
     case 0x292:

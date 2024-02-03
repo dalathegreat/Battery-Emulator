@@ -173,8 +173,6 @@ void print_with_units(char* header, int value, char* units) {
 }
 
 void update_values_leaf_battery() { /* This function maps all the values fetched via CAN to the correct parameters used for modbus */
-  bms_status = ACTIVE;  //Startout in active mode
-
   /* Start with mapping all values */
 
   StateOfHealth = (LB_StateOfHealth * 100);  //Increase range from 99% -> 99.00%
@@ -250,6 +248,13 @@ void update_values_leaf_battery() { /* This function maps all the values fetched
     max_target_charge_power = 0;  //No need to charge further, set max power to 0
   }
 
+  //Map all cell voltages to the global array
+  for (int i = 0; i < 96; ++i) {
+    cellvoltages[i] = cell_voltages[i];
+  }
+
+  bms_status = ACTIVE;  //Startout in active mode
+
   /*Extra safety functions below*/
   if (LB_GIDS < 10)  //800Wh left in battery
   {                  //Battery is running abnormally low, some discharge logic might have failed. Zero it all out.
@@ -262,7 +267,9 @@ void update_values_leaf_battery() { /* This function maps all the values fetched
       (ABSOLUTE_MAX_VOLTAGE - 100)) {  // When pack voltage is close to max, and SOC% is still low, raise FAULT
     if (LB_SOC < 650) {
       bms_status = FAULT;
+#ifdef DEBUG_VIA_USB
       Serial.println("ERROR: SOC% reported by battery not plausible. Restart battery!");
+#endif
     }
   }
 
@@ -270,8 +277,14 @@ void update_values_leaf_battery() { /* This function maps all the values fetched
     max_target_charge_power = 0;
   }
 
+  if (LB_Capacity_Empty) {  //Battery reports that it is fully discharged. Stop all further discharging incase it hasn't already
+    max_target_discharge_power = 0;
+  }
+
   if (LB_Relay_Cut_Request) {  //LB_FAIL, BMS requesting shutdown and contactors to be opened
+#ifdef DEBUG_VIA_USB
     Serial.println("Battery requesting immediate shutdown and contactors to be opened!");
+#endif
     //Note, this is sometimes triggered during the night while idle, and the BMS recovers after a while. Removed latching from this scenario
     errorCode = 1;
     max_target_discharge_power = 0;
@@ -294,27 +307,35 @@ void update_values_leaf_battery() { /* This function maps all the values fetched
         //Normal stop request. For stationary storage we don't disconnect contactors, so we ignore this.
         break;
       case (4):
-        //Caution Lamp Request
+//Caution Lamp Request
+#ifdef DEBUG_VIA_USB
         Serial.println("ERROR: Battery raised caution indicator. Inspect battery status!");
+#endif
         break;
       case (5):
         //Caution Lamp Request & Normal Stop Request
         bms_status = FAULT;
         errorCode = 2;
+#ifdef DEBUG_VIA_USB
         Serial.println("ERROR: Battery raised caution indicator AND requested discharge stop. Inspect battery status!");
+#endif
         break;
       case (6):
         //Caution Lamp Request & Charging Mode Stop Request
         bms_status = FAULT;
         errorCode = 3;
+#ifdef DEBUG_VIA_USB
         Serial.println("ERROR: Battery raised caution indicator AND requested charge stop. Inspect battery status!");
+#endif
         break;
       case (7):
         //Caution Lamp Request & Charging Mode Stop Request & Normal Stop Request
         bms_status = FAULT;
         errorCode = 4;
+#ifdef DEBUG_VIA_USB
         Serial.println(
             "ERROR: Battery raised caution indicator AND requested charge/discharge stop. Inspect battery status!");
+#endif
         break;
       default:
         break;
@@ -323,8 +344,10 @@ void update_values_leaf_battery() { /* This function maps all the values fetched
 
   if (LB_StateOfHealth < 25) {    //Battery is extremely degraded, not fit for secondlifestorage. Zero it all out.
     if (LB_StateOfHealth != 0) {  //Extra check to see that we actually have a SOH Value available
+#ifdef DEBUG_VIA_USB
       Serial.println(
           "ERROR: State of health critically low. Battery internal resistance too high to continue. Recycle battery.");
+#endif
       bms_status = FAULT;
       errorCode = 5;
       max_target_discharge_power = 0;
@@ -334,9 +357,11 @@ void update_values_leaf_battery() { /* This function maps all the values fetched
 
 #ifdef INTERLOCK_REQUIRED
   if (!LB_Interlock) {
+#ifdef DEBUG_VIA_USB
     Serial.println(
         "ERROR: Battery interlock loop broken. Check that high voltage connectors are seated. Battery will be "
         "disabled!");
+#endif
     bms_status = FAULT;
     errorCode = 6;
     SOC = 0;
@@ -349,7 +374,9 @@ void update_values_leaf_battery() { /* This function maps all the values fetched
   if (!CANstillAlive) {
     bms_status = FAULT;
     errorCode = 7;
+#ifdef DEBUG_VIA_USB
     Serial.println("ERROR: No CAN communication detected for 60s. Shutting down battery control.");
+#endif
   } else {
     CANstillAlive--;
   }
@@ -358,7 +385,9 @@ void update_values_leaf_battery() { /* This function maps all the values fetched
   {
     errorCode = 10;
     LEDcolor = YELLOW;
+#ifdef DEBUG_VIA_USB
     Serial.println("ERROR: High amount of corrupted CAN messages detected. Check CAN wire shielding!");
+#endif
   }
 
 /*Finally print out values to serial if configured to do so*/
@@ -463,6 +492,7 @@ void receive_can_leaf_battery(CAN_frame_t rx_frame) {
       if (LB_TEMP != 0x3ff) {  //3FF is unavailable value
         LB_SOC = LB_TEMP;
       }
+      LB_Capacity_Empty = (bool)((rx_frame.data.u8[6] & 0x80) >> 7);
       break;
     case 0x5BC:
       CANstillAlive = 12;  //Indicate that we are still getting CAN messages from the BMS
@@ -593,18 +623,24 @@ void receive_can_leaf_battery(CAN_frame_t rx_frame) {
 
           if (cell_deviation_mV > MAX_CELL_DEVIATION) {
             LEDcolor = YELLOW;
+#ifdef DEBUG_VIA_USB
             Serial.println("HIGH CELL DEVIATION!!! Inspect battery!");
+#endif
           }
 
           if (min_max_voltage[1] >= MAX_CELL_VOLTAGE) {
             bms_status = FAULT;
             errorCode = 8;
+#ifdef DEBUG_VIA_USB
             Serial.println("CELL OVERVOLTAGE!!! Stopping battery charging and discharging. Inspect battery!");
+#endif
           }
           if (min_max_voltage[0] <= MIN_CELL_VOLTAGE) {
             bms_status = FAULT;
             errorCode = 9;
+#ifdef DEBUG_VIA_USB
             Serial.println("CELL UNDERVOLTAGE!!! Stopping battery charging and discharging. Inspect battery!");
+#endif
           }
           break;
         }
@@ -700,53 +736,55 @@ void send_can_leaf_battery() {
     // VCM message, containing info if battery should sleep or stay awake
     ESP32Can.CANWriteFrame(&LEAF_50B);  // HCM_WakeUpSleepCommand == 11b == WakeUp, and CANMASK = 1
 
-    mprun100++;
-    if (mprun100 > 3) {
-      mprun100 = 0;
-    }
-
-    if (mprun100 == 0) {
-      LEAF_50C.data.u8[3] = 0x00;
-      LEAF_50C.data.u8[4] = 0x5D;
-      LEAF_50C.data.u8[5] = 0xC8;
-    } else if (mprun100 == 1) {
-      LEAF_50C.data.u8[3] = 0x01;
-      LEAF_50C.data.u8[4] = 0xB2;
-      LEAF_50C.data.u8[5] = 0x31;
-    } else if (mprun100 == 2) {
-      LEAF_50C.data.u8[3] = 0x02;
-      LEAF_50C.data.u8[4] = 0x5D;
-      LEAF_50C.data.u8[5] = 0x63;
-    } else if (mprun100 == 3) {
-      LEAF_50C.data.u8[3] = 0x03;
-      LEAF_50C.data.u8[4] = 0xB2;
-      LEAF_50C.data.u8[5] = 0x9A;
+    switch (mprun100) {
+      case 0:
+        LEAF_50C.data.u8[3] = 0x00;
+        LEAF_50C.data.u8[4] = 0x5D;
+        LEAF_50C.data.u8[5] = 0xC8;
+        break;
+      case 1:
+        LEAF_50C.data.u8[3] = 0x01;
+        LEAF_50C.data.u8[4] = 0xB2;
+        LEAF_50C.data.u8[5] = 0x31;
+        break;
+      case 2:
+        LEAF_50C.data.u8[3] = 0x02;
+        LEAF_50C.data.u8[4] = 0x5D;
+        LEAF_50C.data.u8[5] = 0x63;
+        break;
+      case 3:
+        LEAF_50C.data.u8[3] = 0x03;
+        LEAF_50C.data.u8[4] = 0xB2;
+        LEAF_50C.data.u8[5] = 0x9A;
+        break;
     }
     ESP32Can.CANWriteFrame(&LEAF_50C);
+
+    mprun100 = (mprun100 + 1) % 4;  // mprun100 cycles between 0-1-2-3-0-1...
   }
   //Send 10ms message
   if (currentMillis - previousMillis10 >= interval10) {
     previousMillis10 = currentMillis;
 
-    if (mprun10 == 0) {
-      LEAF_1D4.data.u8[4] = 0x07;
-      LEAF_1D4.data.u8[7] = 0x12;
-    } else if (mprun10 == 1) {
-      LEAF_1D4.data.u8[4] = 0x47;
-      LEAF_1D4.data.u8[7] = 0xD5;
-    } else if (mprun10 == 2) {
-      LEAF_1D4.data.u8[4] = 0x87;
-      LEAF_1D4.data.u8[7] = 0x19;
-    } else if (mprun10 == 3) {
-      LEAF_1D4.data.u8[4] = 0xC7;
-      LEAF_1D4.data.u8[7] = 0xDE;
+    switch (mprun10) {
+      case 0:
+        LEAF_1D4.data.u8[4] = 0x07;
+        LEAF_1D4.data.u8[7] = 0x12;
+        break;
+      case 1:
+        LEAF_1D4.data.u8[4] = 0x47;
+        LEAF_1D4.data.u8[7] = 0xD5;
+        break;
+      case 2:
+        LEAF_1D4.data.u8[4] = 0x87;
+        LEAF_1D4.data.u8[7] = 0x19;
+        break;
+      case 3:
+        LEAF_1D4.data.u8[4] = 0xC7;
+        LEAF_1D4.data.u8[7] = 0xDE;
+        break;
     }
     ESP32Can.CANWriteFrame(&LEAF_1D4);
-
-    mprun10++;
-    if (mprun10 > 3) {
-      mprun10 = 0;
-    }
 
     switch (mprun10r) {
       case (0):
@@ -755,22 +793,18 @@ void send_can_leaf_battery() {
         LEAF_1F2.data.u8[7] = 0x8F;
         break;
       case (1):
-        LEAF_1F2.data.u8[3] = 0xB0;
         LEAF_1F2.data.u8[6] = 0x01;
         LEAF_1F2.data.u8[7] = 0x80;
         break;
       case (2):
-        LEAF_1F2.data.u8[3] = 0xB0;
         LEAF_1F2.data.u8[6] = 0x02;
         LEAF_1F2.data.u8[7] = 0x81;
         break;
       case (3):
-        LEAF_1F2.data.u8[3] = 0xB0;
         LEAF_1F2.data.u8[6] = 0x03;
         LEAF_1F2.data.u8[7] = 0x82;
         break;
       case (4):
-        LEAF_1F2.data.u8[3] = 0xB0;
         LEAF_1F2.data.u8[6] = 0x00;
         LEAF_1F2.data.u8[7] = 0x8F;
         break;
@@ -780,22 +814,18 @@ void send_can_leaf_battery() {
         LEAF_1F2.data.u8[7] = 0x84;
         break;
       case (6):
-        LEAF_1F2.data.u8[3] = 0xB4;
         LEAF_1F2.data.u8[6] = 0x02;
         LEAF_1F2.data.u8[7] = 0x85;
         break;
       case (7):
-        LEAF_1F2.data.u8[3] = 0xB4;
         LEAF_1F2.data.u8[6] = 0x03;
         LEAF_1F2.data.u8[7] = 0x86;
         break;
       case (8):
-        LEAF_1F2.data.u8[3] = 0xB4;
         LEAF_1F2.data.u8[6] = 0x00;
         LEAF_1F2.data.u8[7] = 0x83;
         break;
       case (9):
-        LEAF_1F2.data.u8[3] = 0xB4;
         LEAF_1F2.data.u8[6] = 0x01;
         LEAF_1F2.data.u8[7] = 0x84;
         break;
@@ -805,22 +835,18 @@ void send_can_leaf_battery() {
         LEAF_1F2.data.u8[7] = 0x81;
         break;
       case (11):
-        LEAF_1F2.data.u8[3] = 0xB0;
         LEAF_1F2.data.u8[6] = 0x03;
         LEAF_1F2.data.u8[7] = 0x82;
         break;
       case (12):
-        LEAF_1F2.data.u8[3] = 0xB0;
         LEAF_1F2.data.u8[6] = 0x00;
         LEAF_1F2.data.u8[7] = 0x8F;
         break;
       case (13):
-        LEAF_1F2.data.u8[3] = 0xB0;
         LEAF_1F2.data.u8[6] = 0x01;
         LEAF_1F2.data.u8[7] = 0x80;
         break;
       case (14):
-        LEAF_1F2.data.u8[3] = 0xB0;
         LEAF_1F2.data.u8[6] = 0x02;
         LEAF_1F2.data.u8[7] = 0x81;
         break;
@@ -830,22 +856,18 @@ void send_can_leaf_battery() {
         LEAF_1F2.data.u8[7] = 0x86;
         break;
       case (16):
-        LEAF_1F2.data.u8[3] = 0xB4;
         LEAF_1F2.data.u8[6] = 0x00;
         LEAF_1F2.data.u8[7] = 0x83;
         break;
       case (17):
-        LEAF_1F2.data.u8[3] = 0xB4;
         LEAF_1F2.data.u8[6] = 0x01;
         LEAF_1F2.data.u8[7] = 0x84;
         break;
       case (18):
-        LEAF_1F2.data.u8[3] = 0xB4;
         LEAF_1F2.data.u8[6] = 0x02;
         LEAF_1F2.data.u8[7] = 0x85;
         break;
       case (19):
-        LEAF_1F2.data.u8[3] = 0xB4;
         LEAF_1F2.data.u8[6] = 0x03;
         LEAF_1F2.data.u8[7] = 0x86;
         break;
@@ -853,12 +875,14 @@ void send_can_leaf_battery() {
         break;
     }
 
+//Only send this message when NISSANLEAF_CHARGER is not defined (otherwise it will collide!)
+#ifndef NISSANLEAF_CHARGER
     ESP32Can.CANWriteFrame(&LEAF_1F2);  //Contains (CHG_STA_RQ == 1 == Normal Charge)
+#endif
 
-    mprun10r++;
-    if (mprun10r > 19) {  // 0x1F2 patter repeats after 20 messages,
-      mprun10r = 0;
-    }
+    mprun10r = (mprun10r + 1) % 20;  // 0x1F2 patter repeats after 20 messages. 0-1..19-0
+
+    mprun10 = (mprun10 + 1) % 4;  // mprun10 cycles between 0-1-2-3-0-1...
   }
   //Send 10s CAN messages
   if (currentMillis - previousMillis10s >= interval10s) {
@@ -866,13 +890,8 @@ void send_can_leaf_battery() {
 
     //Every 10s, ask diagnostic data from the battery. Don't ask if someone is already polling on the bus (Leafspy?)
     if (!stop_battery_query) {
-      if (group == 1) {  // Cycle between group 1, 2, and 4 using bit manipulation
-        group = 2;
-      } else if (group == 2) {
-        group = 4;
-      } else if (group == 4) {
-        group = 1;
-      }
+      group = (group == 1) ? 2 : (group == 2) ? 4 : 1;
+      // Cycle between group 1, 2, and 4 using ternary operation
       LEAF_GROUP_REQUEST.data.u8[2] = group;
       ESP32Can.CANWriteFrame(&LEAF_GROUP_REQUEST);
     }

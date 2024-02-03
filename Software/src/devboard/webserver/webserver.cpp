@@ -42,7 +42,9 @@ bool wifi_connected;
 // Wifi connect time declarations and definition
 unsigned long wifi_connect_start_time;
 unsigned long wifi_connect_current_time;
-const long wifi_connect_timeout = 5000;  // Timeout for WiFi connect in milliseconds
+unsigned long wifi_connect_timeout = 5000;     // Timeout for WiFi connect in milliseconds
+unsigned long wifi_monitor_loop_time = 30000;  // Will check if WiFi is connected and try reconnect every x milliseconds
+unsigned long last_wifi_monitor_run = 0;
 
 void init_webserver() {
   // Configure WiFi
@@ -62,6 +64,11 @@ void init_webserver() {
   // Route for going to settings web page
   server.on("/settings", HTTP_GET,
             [](AsyncWebServerRequest* request) { request->send_P(200, "text/html", index_html, settings_processor); });
+
+  // Route for going to cellmonitor web page
+  server.on("/cellmonitor", HTTP_GET, [](AsyncWebServerRequest* request) {
+    request->send_P(200, "text/html", index_html, cellmonitor_processor);
+  });
 
   // Route for editing Wh
   server.on("/updateBatterySize", HTTP_GET, [](AsyncWebServerRequest* request) {
@@ -123,7 +130,23 @@ void init_webserver() {
     }
   });
 
-#ifdef CHEVYVOLT_CHARGER
+#ifdef TEST_FAKE_BATTERY
+  // Route for editing FakeBatteryVoltage
+  server.on("/updateFakeBatteryVoltage", HTTP_GET, [](AsyncWebServerRequest* request) {
+    if (!request->hasParam("value")) {
+      request->send(400, "text/plain", "Bad Request");
+    }
+
+    String value = request->getParam("value")->value();
+    float val = value.toFloat();
+
+    battery_voltage = val * 10;
+
+    request->send(200, "text/plain", "Updated successfully");
+  });
+#endif
+
+#if defined CHEVYVOLT_CHARGER || defined NISSANLEAF_CHARGER
   // Route for editing ChargerTargetV
   server.on("/updateChargeSetpointV", HTTP_GET, [](AsyncWebServerRequest* request) {
     if (!request->hasParam("value")) {
@@ -226,6 +249,23 @@ void init_webserver() {
 #endif
 }
 
+void WiFi_monitor_loop() {
+  unsigned long currentMillis = millis();
+  if (currentMillis - last_wifi_monitor_run > wifi_monitor_loop_time) {
+    last_wifi_monitor_run = currentMillis;
+    if (WiFi.status() != WL_CONNECTED && wifi_state != "Connecting") {
+      wifi_connected = false;
+      wifi_state = "Not connected";
+      Serial.print("Wifi disconnected. Attempting reconnection");
+      init_WiFi_STA(ssid, password);
+    } else if (WiFi.status() == WL_CONNECTED && wifi_state != "Connected") {
+      wifi_connected = true;
+      wifi_state = "Connected";
+      Serial.println("Wifi reconnected");
+    }
+  }
+}
+
 void init_WiFi_AP() {
   Serial.print("Creating Access Point: ");
   Serial.println(ssidAP);
@@ -241,36 +281,45 @@ void init_WiFi_AP() {
 }
 
 void init_WiFi_STA(const char* ssid, const char* password) {
-  // Connect to Wi-Fi network with SSID and password
-  Serial.print("Connecting to ");
-  Serial.println(ssid);
-  WiFi.begin(ssid, password);
-
-  wifi_connect_start_time = millis();
-  wifi_connect_current_time = wifi_connect_start_time;
-  while ((wifi_connect_current_time - wifi_connect_start_time) <= wifi_connect_timeout &&
-         WiFi.status() != WL_CONNECTED) {  // do this loop for up to 5000ms
-    // to break the loop when the connection is not established (wrong ssid or password).
-    delay(500);
-    Serial.print(".");
-    wifi_connect_current_time = millis();
+  // If we're already connected, there's nothing to do
+  if (WiFi.status() == WL_CONNECTED) {
+    if (wifi_state != "Connected") {
+      wifi_connected = true;
+      wifi_state = "Connected";
+      // Print local IP address and start web server
+      Serial.println("");
+      Serial.print("Connected to WiFi network: ");
+      Serial.println(ssid);
+      Serial.print("IP address: ");
+      Serial.println(WiFi.localIP());
+    }
+    return;
   }
-  if (WiFi.status() == WL_CONNECTED) {  // WL_CONNECTED is assigned when connected to a WiFi network
-    wifi_connected = true;
-    wifi_state = "Connected";
-    // Print local IP address and start web server
-    Serial.println("");
-    Serial.print("Connected to WiFi network: ");
+
+  // If we're not currently trying to connect, start the connection process
+  if (wifi_state != "Connecting") {
+    Serial.print("Connecting to: ");
     Serial.println(ssid);
-    Serial.print("IP address: ");
-    Serial.println(WiFi.localIP());
-  } else {
-    wifi_connected = false;
+    WiFi.begin(ssid, password);
+    wifi_state = "Connecting";
+    wifi_connect_start_time = millis();
+    return;
+  }
+
+  // If we've been trying to connect for more than 5000ms, give up
+  if (millis() - wifi_connect_start_time > wifi_connect_timeout) {
     wifi_state = "Not connected";
-    Serial.print("Not connected to WiFi network: ");
+    Serial.print("Failed to connect to WiFi network: ");
     Serial.println(ssid);
     Serial.println("Please check WiFi network name and password, and if WiFi network is available.");
+    Serial.print("Will try again in ");
+    Serial.print((wifi_monitor_loop_time - (millis() - last_wifi_monitor_run)) / 1000);
+    Serial.println(" seconds.");
+    return;
   }
+
+  // Otherwise, just print a dot to indicate that we're still trying to connect
+  Serial.print(".");
 }
 
 void init_ElegantOTA() {
@@ -391,10 +440,13 @@ String processor(const String& var) {
 #endif
     content += "</h4>";
 
-#ifdef CHEVYVOLT_CHARGER
+#if defined CHEVYVOLT_CHARGER || defined NISSANLEAF_CHARGER
     content += "<h4 style='color: white;'>Charger protocol: ";
 #ifdef CHEVYVOLT_CHARGER
     content += "Chevy Volt Gen1 Charger";
+#endif
+#ifdef NISSANLEAF_CHARGER
+    content += "Nissan LEAF 2013-2024 PDM charger";
 #endif
     content += "</h4>";
 #endif
@@ -492,7 +544,13 @@ String processor(const String& var) {
       content += "<span style='color: red;'>&#10005;</span></h4>";
     }
 
-#ifdef CHEVYVOLT_CHARGER
+    // Close the block
+    content += "</div>";
+
+#if defined CHEVYVOLT_CHARGER || defined NISSANLEAF_CHARGER
+    // Start a new block with orange background color
+    content += "<div style='background-color: #FF6E00; padding: 10px; margin-bottom: 10px;border-radius: 50px'>";
+
     content += "<h4>Charger HV Enabled: ";
     if (charger_HV_enabled) {
       content += "<span>&#10003;</span>";
@@ -508,6 +566,7 @@ String processor(const String& var) {
       content += "<span style='color: red;'>&#10005;</span>";
     }
     content += "</h4>";
+#ifdef CHEVYVOLT_CHARGER
     float chgPwrDC = static_cast<float>(charger_stat_HVcur * charger_stat_HVvol);
     float chgPwrAC = static_cast<float>(charger_stat_ACcur * charger_stat_ACvol);
     float chgEff = chgPwrDC / chgPwrAC * 100;
@@ -520,24 +579,40 @@ String processor(const String& var) {
 
     content += formatPowerValue("Charger Output Power", chgPwrDC, "", 1);
     content += "<h4 style='color: white;'>Charger Efficiency: " + String(chgEff) + "%</h4>";
-    content += "<h4 style='color: white;'>Charger HVDC Output V: " + String(HVvol, 2) + "</h4>";
-    content += "<h4 style='color: white;'>Charger HVDC Output I: " + String(HVcur, 2) + "</h4>";
+    content += "<h4 style='color: white;'>Charger HVDC Output V: " + String(HVvol, 2) + " V</h4>";
+    content += "<h4 style='color: white;'>Charger HVDC Output I: " + String(HVcur, 2) + " A</h4>";
     content += "<h4 style='color: white;'>Charger LVDC Output I: " + String(LVcur, 2) + "</h4>";
     content += "<h4 style='color: white;'>Charger LVDC Output V: " + String(LVvol, 2) + "</h4>";
-    content += "<h4 style='color: white;'>Charger AC Input V: " + String(ACvol, 2) + "VAC</h4>";
-    content += "<h4 style='color: white;'>Charger AC Input I: " + String(ACvol, 2) + "VAC</h4>";
+    content += "<h4 style='color: white;'>Charger AC Input V: " + String(ACvol, 2) + " VAC</h4>";
+    content += "<h4 style='color: white;'>Charger AC Input I: " + String(ACcur, 2) + " A</h4>";
 #endif
+#ifdef NISSANLEAF_CHARGER
+    float chgPwrDC = static_cast<float>(charger_stat_HVcur * 100);
+    charger_stat_HVcur = chgPwrDC / (battery_voltage / 10);  // P/U=I
+    charger_stat_HVvol = static_cast<float>(battery_voltage / 10);
+    float ACvol = charger_stat_ACvol;
+    float HVvol = charger_stat_HVvol;
+    float HVcur = charger_stat_HVcur;
 
+    content += formatPowerValue("Charger Output Power", chgPwrDC, "", 1);
+    content += "<h4 style='color: white;'>Charger HVDC Output V: " + String(HVvol, 2) + " V</h4>";
+    content += "<h4 style='color: white;'>Charger HVDC Output I: " + String(HVcur, 2) + " A</h4>";
+    content += "<h4 style='color: white;'>Charger AC Input V: " + String(ACvol, 2) + " VAC</h4>";
+#endif
     // Close the block
     content += "</div>";
+#endif
 
     content += "<button onclick='goToUpdatePage()'>Perform OTA update</button>";
     content += " ";
-    content += "<button onclick='goToSettingsPage()'>Change Battery Settings</button>";
+    content += "<button onclick='goToSettingsPage()'>Change Settings</button>";
+    content += " ";
+    content += "<button onclick='goToCellmonitorPage()'>Cellmonitor</button>";
     content += " ";
     content += "<button onclick='promptToReboot()'>Reboot Emulator</button>";
     content += "<script>";
     content += "function goToUpdatePage() { window.location.href = '/update'; }";
+    content += "function goToCellmonitorPage() { window.location.href = '/cellmonitor'; }";
     content += "function goToSettingsPage() { window.location.href = '/settings'; }";
     content +=
         "function promptToReboot() { if (window.confirm('Are you sure you want to reboot the emulator? NOTE: If "
@@ -582,7 +657,25 @@ String settings_processor(const String& var) {
                " A </span> <button onclick='editMaxChargeA()'>Edit</button></h4>";
     content += "<h4 style='color: white;'>Max discharge speed: " + String(MAXDISCHARGEAMP / 10.0, 1) +
                " A </span> <button onclick='editMaxDischargeA()'>Edit</button></h4>";
-#ifdef CHEVYVOLT_CHARGER
+    // Close the block
+    content += "</div>";
+
+#ifdef TEST_FAKE_BATTERY
+    // Start a new block with blue background color
+    content += "<div style='background-color: #2E37AD; padding: 10px; margin-bottom: 10px;border-radius: 50px'>";
+    float voltageFloat = static_cast<float>(battery_voltage) / 10.0;  // Convert to float and divide by 10
+    content += "<h4 style='color: white;'>Fake battery voltage: " + String(voltageFloat, 1) +
+               " V </span> <button onclick='editFakeBatteryVoltage()'>Edit</button></h4>";
+
+    // Close the block
+    content += "</div>";
+#endif
+
+#if defined CHEVYVOLT_CHARGER || defined NISSANLEAF_CHARGER
+
+    // Start a new block with orange background color
+    content += "<div style='background-color: #FF6E00; padding: 10px; margin-bottom: 10px;border-radius: 50px'>";
+
     content += "<h4 style='color: white;'>Charger HVDC Enabled: ";
     if (charger_HV_enabled) {
       content += "<span>&#10003;</span>";
@@ -603,6 +696,9 @@ String settings_processor(const String& var) {
                " V </span> <button onclick='editChargerSetpointVDC()'>Edit</button></h4>";
     content += "<h4 style='color: white;'>Charger Current Setpoint: " + String(charger_setpoint_HV_IDC, 1) +
                " A </span> <button onclick='editChargerSetpointIDC()'>Edit</button></h4>";
+
+    // Close the block
+    content += "</div>";
 #endif
 
     content += "<script>";
@@ -675,7 +771,22 @@ String settings_processor(const String& var) {
     content += "}";
     content += "}";
 
-#ifdef CHEVYVOLT_CHARGER
+#ifdef TEST_FAKE_BATTERY
+    content += "function editFakeBatteryVoltage() {";
+    content += "  var value = prompt('Enter new fake battery voltage');";
+    content += "if (value !== null) {";
+    content += "  if (value >= 0 && value <= 5000) {";
+    content += "    var xhr = new XMLHttpRequest();";
+    content += "    xhr.open('GET', '/updateFakeBatteryVoltage?value=' + value, true);";
+    content += "    xhr.send();";
+    content += "  } else {";
+    content += "    alert('Invalid value. Please enter a value between 0 and 1000');";
+    content += "  }";
+    content += "}";
+    content += "}";
+#endif
+
+#if defined CHEVYVOLT_CHARGER || defined NISSANLEAF_CHARGER
     content += "function editChargerHVDCEnabled() {";
     content += "  var value = prompt('Enable or disable HV DC output. Enter 1 for enabled, 0 for disabled');";
     content += "  if (value !== null) {";
@@ -750,6 +861,57 @@ String settings_processor(const String& var) {
     content += "}";
 #endif
     content += "</script>";
+
+    content += "<button onclick='goToMainPage()'>Back to main page</button>";
+    content += "<script>";
+    content += "function goToMainPage() { window.location.href = '/'; }";
+    content += "</script>";
+    return content;
+  }
+  return String();
+}
+
+String cellmonitor_processor(const String& var) {
+  if (var == "PLACEHOLDER") {
+    String content = "";
+    // Page format
+    content += "<style>";
+    content += "body { background-color: black; color: white; }";
+    content += ".container { display: flex; flex-wrap: wrap; justify-content: space-around; }";
+    content += ".cell { width: 48%; margin: 1%; padding: 10px; border: 1px solid white; text-align: center; }";
+    content += ".low-voltage { color: red; }";              // Style for low voltage text
+    content += ".voltage-values { margin-bottom: 10px; }";  // Style for voltage values section
+    content += "</style>";
+
+    // Start a new block with a specific background color
+    content += "<div style='background-color: #303E47; padding: 10px; margin-bottom: 10px; border-radius: 50px'>";
+
+    // Display max, min, and deviation voltage values
+    content += "<div class='voltage-values'>";
+    content += "Max Voltage: " + String(cell_max_voltage) + " mV<br>";
+    content += "Min Voltage: " + String(cell_min_voltage) + " mV<br>";
+    int deviation = cell_max_voltage - cell_min_voltage;
+    content += "Voltage Deviation: " + String(deviation) + " mV";
+    content += "</div>";
+
+    // Visualize the populated cells in forward order using flexbox with conditional text color
+    content += "<div class='container'>";
+    for (int i = 0; i < 120; ++i) {
+      // Skip empty values
+      if (cellvoltages[i] == 0) {
+        continue;
+      }
+
+      String cellContent = "Cell " + String(i + 1) + "<br>" + String(cellvoltages[i]) + " mV";
+
+      // Check if the cell voltage is below 3000, apply red color
+      if (cellvoltages[i] < 3000) {
+        cellContent = "<span class='low-voltage'>" + cellContent + "</span>";
+      }
+
+      content += "<div class='cell'>" + cellContent + "</div>";
+    }
+    content += "</div>";
 
     // Close the block
     content += "</div>";
