@@ -24,7 +24,6 @@ static void publish_cell_voltages(void);
 static void publish_values(void) {
   publish_common_info();
   publish_cell_voltages();
-  publish_battery_specifics();
 }
 
 static void publish_common_info(void) {

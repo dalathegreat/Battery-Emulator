@@ -943,15 +943,3 @@ uint16_t Temp_fromRAW_to_F(uint16_t temperature) {  //This function feels horrib
 void init_battery(void) {
   nof_cellvoltages = 96;
 }
-
-#ifdef MQTT
-void publish_battery_specifics(void) {
-  static bool first_execution = true;
-  if (first_execution == true) {
-    first_execution = false;
-    // Discovery stuff
-  } else {
-    // Publishing stuff
-  }
-}
-#endif
