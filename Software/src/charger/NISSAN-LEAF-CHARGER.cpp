@@ -125,6 +125,24 @@ static uint8_t crctable[256] = {
     196, 65,  75,  206, 76,  201, 195, 70,  215, 82,  88,  221, 255, 122, 112, 245, 100, 225, 235, 110, 175, 42,
     32,  165, 52,  177, 187, 62,  28,  153, 147, 22,  135, 2,   8,   141};
 
+static uint8_t calculate_CRC_Nissan(CAN_frame_t* frame) {
+  uint8_t crc = 0;
+  for (uint8_t j = 0; j < 7; j++) {
+    crc = crctable[(crc ^ static_cast<uint8_t>(frame->data.u8[j])) % 256];
+  }
+  return crc;
+}
+
+static uint8_t calculate_checksum_nibble(CAN_frame_t* frame) {
+  uint8_t sum = 0;
+  for (uint8_t i = 0; i < 7; i++) {
+    sum += frame->data.u8[i] >> 4;
+    sum += frame->data.u8[i] & 0xF;
+  }
+  sum = (sum + 2) & 0xF;
+  return sum;
+}
+
 void receive_can_nissanleaf_charger(CAN_frame_t rx_frame) {
 
   switch (rx_frame.MsgID) {
@@ -254,22 +272,4 @@ void send_can_nissanleaf_charger() {
     ESP32Can.CANWriteFrame(&LEAF_5BC);
 #endif
   }
-}
-
-uint8_t calculate_CRC_Nissan(CAN_frame_t* frame) {
-  uint8_t crc = 0;
-  for (uint8_t j = 0; j < 7; j++) {
-    crc = crctable[(crc ^ static_cast<uint8_t>(frame->data.u8[j])) % 256];
-  }
-  return crc;
-}
-
-uint8_t calculate_checksum_nibble(CAN_frame_t* frame) {
-  uint8_t sum = 0;
-  for (uint8_t i = 0; i < 7; i++) {
-    sum += frame->data.u8[i] >> 4;
-    sum += frame->data.u8[i] & 0xF;
-  }
-  sum = (sum + 2) & 0xF;
-  return sum;
 }
