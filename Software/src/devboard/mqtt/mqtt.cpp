@@ -11,7 +11,7 @@ const size_t mqtt_nof_subscriptions = sizeof(mqtt_subscriptions) / sizeof(mqtt_s
 
 WiFiClient espClient;
 PubSubClient client(espClient);
-char mqtt_msg[MSG_BUFFER_SIZE];
+char mqtt_msg[MQTT_MSG_BUFFER_SIZE];
 int value = 0;
 static unsigned long previousMillisUpdateVal;
 MyTimer publish_global_timer(5000);

@@ -16,7 +16,6 @@ volatile uint16_t MAXDISCHARGEAMP =
     300;  //30.0A , BYD CAN specific setting, Max discharge speed in Amp (Some inverters needs to be artificially limited)
 
 // MQTT
-// For more detailed settings, see mqtt.h
 #ifdef MQTT
 const char* mqtt_user = "REDACTED";
 const char* mqtt_password = "REDACTED";
