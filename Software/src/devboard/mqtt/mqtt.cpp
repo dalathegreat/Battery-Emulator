@@ -92,8 +92,7 @@ static void publish_cell_voltages(void) {
       String cell_topic = topic + String(i + 1) + "/config";
       mqtt_publish_retain(cell_topic.c_str());
     }
-  }
-  else {
+  } else {
     // Every 5-ish seconds, build the JSON payload for the state topic. This requires
     // some annoying formatting due to C++ not having nice Python-like string formatting.
     // msg_length is a cumulative variable to track start position (param 1) and for
