@@ -21,6 +21,7 @@
 
 #ifdef NISSAN_LEAF_BATTERY
 #include "NISSAN-LEAF-BATTERY.h"  //See this file for more LEAF battery settings
+#define BATTERY_HAS_INIT
 #endif
 
 #ifdef RENAULT_KANGOO_BATTERY
