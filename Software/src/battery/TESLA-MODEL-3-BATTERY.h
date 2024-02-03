@@ -28,7 +28,7 @@ extern uint16_t temperature_min;    //C+1,  Goes thru convert2unsignedint16 func
 extern uint16_t temperature_max;    //C+1,  Goes thru convert2unsignedint16 function (15.0C = 150, -15.0C =  65385)
 extern uint16_t cell_max_voltage;   //mV,   0-4350
 extern uint16_t cell_min_voltage;   //mV,   0-4350
-extern uint16_t cellvoltages[120];  //mV 0-5000 per cell
+extern uint16_t cellvoltages[120];  //mV    0-4350 per cell
 extern uint8_t LEDcolor;            //Enum, 0-10
 extern bool batteryAllowsContactorClosing;   //Bool, 1=true, 0=false
 extern bool inverterAllowsContactorClosing;  //Bool, 1=true, 0=false
