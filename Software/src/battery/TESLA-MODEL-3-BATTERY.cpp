@@ -460,11 +460,11 @@ void receive_can_tesla_model_3_battery(CAN_frame_t rx_frame) {
       {
         // Example, frame3=0x89,frame2=0x1D = 35101 / 10 = 3510mV
         volts = ((rx_frame.data.u8[3] << 8) | rx_frame.data.u8[2]) / 10;
-        cellvoltages[1 + mux * 3] = volts;
+        cellvoltages[mux * 3] = volts;
         volts = ((rx_frame.data.u8[5] << 8) | rx_frame.data.u8[4]) / 10;
-        cellvoltages[2 + mux * 3] = volts;
+        cellvoltages[1 + mux * 3] = volts;
         volts = ((rx_frame.data.u8[7] << 8) | rx_frame.data.u8[6]) / 10;
-        cellvoltages[3 + mux * 3] = volts;
+        cellvoltages[2 + mux * 3] = volts;
       }
       break;
     case 0x2d2:
