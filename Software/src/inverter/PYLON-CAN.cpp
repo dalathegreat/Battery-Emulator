@@ -201,7 +201,7 @@ void update_values_can_pylon() {  //This function maps all the values fetched fr
   PYLON_4210.data.u8[7] = (StateOfHealth * 0.01);
   PYLON_4211.data.u8[7] = (StateOfHealth * 0.01);
 
-#ifdef INVERT_VOLTAGE  //Useful for Sofar inverters
+#ifdef INVERT_VOLTAGE  //Useful for Sofar inverters \
                        //Maxvoltage (eg 400.0V = 4000 , 16bits long) Discharge Cutoff Voltage
   PYLON_4220.data.u8[0] = (max_voltage & 0x00FF);
   PYLON_4220.data.u8[1] = (max_voltage >> 8);
