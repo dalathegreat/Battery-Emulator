@@ -36,5 +36,5 @@ const char* ssid = "REPLACE_WITH_YOUR_SSID";          // Maximum of 63 character
 const char* password = "REPLACE_WITH_YOUR_PASSWORD";  // Minimum of 8 characters;
 const char* ssidAP = "Battery Emulator";              // Maximum of 63 characters;
 const char* passwordAP = "123456789";  // Minimum of 8 characters; set to NULL if you want the access point to be open
-const char* versionNumber = "4.5.0";   // The current software version, shown on webserver
+const char* versionNumber = "5.0.0";   // The current software version, shown on webserver
 #endif
