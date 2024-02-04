@@ -1,6 +1,8 @@
 #ifndef BATTERIES_H
 #define BATTERIES_H
 
+#include "../../USER_SETTINGS.h"
+
 #ifdef BMW_I3_BATTERY
 #include "BMW-I3-BATTERY.h"  //See this file for more i3 battery settings
 #endif
@@ -19,6 +21,7 @@
 
 #ifdef NISSAN_LEAF_BATTERY
 #include "NISSAN-LEAF-BATTERY.h"  //See this file for more LEAF battery settings
+#define BATTERY_HAS_INIT
 #endif
 
 #ifdef RENAULT_KANGOO_BATTERY

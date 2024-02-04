@@ -1,4 +1,7 @@
 #include "NISSAN-LEAF-BATTERY.h"
+#ifdef MQTT
+#include "../devboard/mqtt/mqtt.h"
+#endif
 #include "../lib/miwagner-ESP32-Arduino-CAN/CAN_config.h"
 #include "../lib/miwagner-ESP32-Arduino-CAN/ESP32CAN.h"
 
@@ -935,4 +938,8 @@ uint16_t Temp_fromRAW_to_F(uint16_t temperature) {  //This function feels horrib
     return static_cast<uint16_t>(1022 + (340 - temperature) * 2.25);
   }
   return static_cast<uint16_t>(1094 + (309 - temperature) * 2.5714285714285715);
+}
+
+void init_battery(void) {
+  nof_cellvoltages = 96;
 }

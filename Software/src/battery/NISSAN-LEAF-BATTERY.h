@@ -27,6 +27,7 @@ extern uint16_t cell_max_voltage;   //mV,   0-4350
 extern uint16_t cell_min_voltage;   //mV,   0-4350
 extern uint8_t LEDcolor;            //Enum, 0-10
 extern uint16_t cellvoltages[120];  //mV    0-4350 per cell
+extern uint8_t nof_cellvoltages;    // Total number of cell voltages, set by each battery.
 extern bool batteryAllowsContactorClosing;  //Bool, 1=true, 0=false
 
 void update_values_leaf_battery();
@@ -35,5 +36,7 @@ void send_can_leaf_battery();
 uint16_t convert2unsignedint16(int16_t signed_value);
 uint16_t Temp_fromRAW_to_F(uint16_t temperature);
 bool is_message_corrupt(CAN_frame_t rx_frame);
+
+void init_battery(void);
 
 #endif

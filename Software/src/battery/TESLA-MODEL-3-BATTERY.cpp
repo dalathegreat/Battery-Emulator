@@ -455,6 +455,8 @@ void receive_can_tesla_model_3_battery(CAN_frame_t rx_frame) {
       mux = (rx_frame.data.u8[0]);
 
       static uint16_t volts;
+      static uint8_t mux_zero_counter = 0u;
+      static uint8_t mux_max = 0u;
 
       if (rx_frame.data.u8[1] == 0x2A)  // status byte must be 0x2A to read cellvoltages
       {
@@ -465,6 +467,19 @@ void receive_can_tesla_model_3_battery(CAN_frame_t rx_frame) {
         cellvoltages[1 + mux * 3] = volts;
         volts = ((rx_frame.data.u8[7] << 8) | rx_frame.data.u8[6]) / 10;
         cellvoltages[2 + mux * 3] = volts;
+
+        // Track the max value of mux. If we've seen two 0 values for mux, we've probably gathered all
+        // cell voltages. Then, 2 + mux_max * 3 + 1 is the number of cell voltages.
+        mux_max = (mux > mux_max) ? mux : mux_max;
+        if (mux_zero_counter < 2 && mux == 0u) {
+          mux_zero_counter++;
+          if (mux_zero_counter == 2u) {
+            // The max index will be 2 + mux_max * 3 (see above), so "+ 1" for the number of cells
+            nof_cellvoltages = 2 + 3 * mux_max + 1;
+            // Increase the counter arbitrarily another time to make the initial if-statement evaluate to false
+            mux_zero_counter++;
+          }
+        }
       }
       break;
     case 0x2d2:
