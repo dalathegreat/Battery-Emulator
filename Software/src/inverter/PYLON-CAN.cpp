@@ -4,6 +4,8 @@
 
 #define SEND_0  //If defined, the messages will have ID ending with 0 (useful for some inverters)
 //#define SEND_1 //If defined, the messages will have ID ending with 1 (useful for some inverters)
+#define INVERT_VOLTAGE  //If defined, the min/max voltage frames will be inverted, \
+                        //useful for some inverters like Sofar that report the voltages incorrect otherwise
 
 /* Do not change code below unless you are sure what you are doing */
 //Actual content messages
@@ -199,6 +201,19 @@ void update_values_can_pylon() {  //This function maps all the values fetched fr
   PYLON_4210.data.u8[7] = (StateOfHealth * 0.01);
   PYLON_4211.data.u8[7] = (StateOfHealth * 0.01);
 
+#ifdef INVERT_VOLTAGE  //Useful for Sofar inverters \
+                       //Maxvoltage (eg 400.0V = 4000 , 16bits long) Discharge Cutoff Voltage
+  PYLON_4220.data.u8[0] = (max_voltage & 0x00FF);
+  PYLON_4220.data.u8[1] = (max_voltage >> 8);
+  PYLON_4221.data.u8[0] = (max_voltage & 0x00FF);
+  PYLON_4221.data.u8[1] = (max_voltage >> 8);
+
+  //Minvoltage (eg 300.0V = 3000 , 16bits long) Charge Cutoff Voltage
+  PYLON_4220.data.u8[2] = (min_voltage & 0x00FF);
+  PYLON_4220.data.u8[3] = (min_voltage >> 8);
+  PYLON_4221.data.u8[2] = (min_voltage & 0x00FF);
+  PYLON_4221.data.u8[3] = (min_voltage >> 8);
+#else
   //Minvoltage (eg 300.0V = 3000 , 16bits long) Charge Cutoff Voltage
   PYLON_4220.data.u8[0] = (min_voltage >> 8);
   PYLON_4220.data.u8[1] = (min_voltage & 0x00FF);
@@ -210,6 +225,7 @@ void update_values_can_pylon() {  //This function maps all the values fetched fr
   PYLON_4220.data.u8[3] = (max_voltage & 0x00FF);
   PYLON_4221.data.u8[2] = (max_voltage >> 8);
   PYLON_4221.data.u8[3] = (max_voltage & 0x00FF);
+#endif
 
   //In case we run into any errors/faults, we can set charge / discharge forbidden
   if (bms_status == FAULT) {
