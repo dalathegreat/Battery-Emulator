@@ -52,7 +52,7 @@ void set_event(EVENTS_ENUM_TYPE event, uint8_t data) {
 void update_event_timestamps(void) {
   unsigned long new_millis = millis();
   if (new_millis - previous_millis >= 1000) {
-    time_seconds++;
+    //time_seconds++;
     previous_millis = new_millis;
   }
 }
