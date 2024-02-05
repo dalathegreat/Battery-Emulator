@@ -19,5 +19,7 @@ jobs:
 
     - name: Run unit tests
       run: |
+        dir
         cd build
+        dir
         ./Software/test/Debug/events_test.exe
