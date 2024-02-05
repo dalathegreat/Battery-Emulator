@@ -1,5 +1,5 @@
 // The test library must be included first!
-#include "../../../test/test_lib.h"
+#include "../../../../test/test_lib.h"
 
 #include "events.cpp"
 
