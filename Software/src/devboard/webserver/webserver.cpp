@@ -38,9 +38,8 @@ const char index_html[] PROGMEM = R"rawliteral(
 
 // Wifi connect time declarations and definition
 unsigned long wifi_connect_start_time;
-unsigned long wifi_connect_current_time;
 unsigned long wifi_connect_timeout = 5000;     // Timeout for WiFi connect in milliseconds
-unsigned long wifi_monitor_loop_time = 30000;  // Will check if WiFi is connected and try reconnect every x milliseconds
+unsigned long wifi_monitor_loop_time = 1000;  // Will check if WiFi is connected and try reconnect every x milliseconds
 unsigned long last_wifi_monitor_run = 0;
 
 enum WiFiState { DISCONNECTED, CONNECTING, CONNECTED };
@@ -264,7 +263,7 @@ void WiFi_monitor_loop() {
   }
 }
 
-// Function to handle WiFi disconnection
+// Function to handle WiFi reconnection
 void handle_WiFi_reconnection(unsigned long currentMillis) {
   if (wifi_state == CONNECTING && currentMillis - wifi_connect_start_time > wifi_connect_timeout) {
     wifi_state = DISCONNECTED;
