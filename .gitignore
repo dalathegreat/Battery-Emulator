@@ -3,3 +3,5 @@
 
 # Ignore any files in the build folder
 Software/build/
+
+*.exe
