@@ -14,9 +14,10 @@ static EVENTS_STRUCT_TYPE entries[EVENT_NOF_EVENTS];
 static unsigned long previous_millis = 0;
 static uint32_t time_seconds = 0;
 static uint8_t total_led_color = GREEN;
+static char event_message[256];
 
 /* Local function prototypes */
-static void print_event_message(EVENTS_ENUM_TYPE event);
+static void set_event_message(EVENTS_ENUM_TYPE event);
 static void update_led_color(EVENTS_ENUM_TYPE event);
 
 /* Exported functions */
@@ -42,7 +43,10 @@ void set_event(EVENTS_ENUM_TYPE event, uint8_t data) {
   entries[event].timestamp = time_seconds;
   entries[event].data = data;
   entries[event].occurences++;
-  print_event_message(event);
+  set_event_message(event);
+#ifdef DEBUG_VIA_USB
+  Serial.println(event_message);
+#endif
 }
 
 void update_event_timestamps(void) {
@@ -58,69 +62,75 @@ static void update_led_color(EVENTS_ENUM_TYPE event) {
   total_led_color = (total_led_color == RED) ? RED : entries[event].led_color;
 }
 
-static void print_event_message(EVENTS_ENUM_TYPE event) {
-#ifndef DEBUG_VIA_USB
-  return;
-#else
+static void set_event_message(EVENTS_ENUM_TYPE event) {
   switch (event) {
     case EVENT_CAN_FAILURE:
-      Serial.println("No CAN communication detected for 60s. Shutting down battery control.");
+      snprintf(event_message, sizeof(event_message),
+               "No CAN communication detected for 60s. Shutting down battery control.");
       break;
     case EVENT_CAN_WARNING:
-      Serial.println("ERROR: High amount of corrupted CAN messages detected. Check CAN wire shielding!");
+      snprintf(event_message, sizeof(event_message),
+               "ERROR: High amount of corrupted CAN messages detected. Check CAN wire shielding!");
       break;
     case EVENT_WATER_INGRESS:
-      Serial.println("Water leakage inside battery detected. Operation halted. Inspect battery!");
+      snprintf(event_message, sizeof(event_message),
+               "Water leakage inside battery detected. Operation halted. Inspect battery!");
       break;
     case EVENT_12V_LOW:
-      Serial.println(
-          "12V battery source below required voltage to safely close contactors. Inspect the supply/battery!");
+      snprintf(event_message, sizeof(event_message),
+               "12V battery source below required voltage to safely close contactors. Inspect the supply/battery!");
       break;
     case EVENT_SOC_PLAUSIBILITY_ERROR:
-      Serial.println("ERROR: SOC% reported by battery not plausible. Restart battery!");
+      snprintf(event_message, sizeof(event_message), "ERROR: SOC% reported by battery not plausible. Restart battery!");
       break;
     case EVENT_KWH_PLAUSIBILITY_ERROR:
-      Serial.println("Warning: kWh remaining reported by battery not plausible. Battery needs cycling.");
+      snprintf(event_message, sizeof(event_message),
+               "Warning: kWh remaining reported by battery not plausible. Battery needs cycling.");
       break;
     case EVENT_BATTERY_CHG_STOP_REQ:
-      Serial.println("ERROR: Battery raised caution indicator AND requested charge stop. Inspect battery status!");
+      snprintf(event_message, sizeof(event_message),
+               "ERROR: Battery raised caution indicator AND requested charge stop. Inspect battery status!");
       break;
     case EVENT_BATTERY_DISCHG_STOP_REQ:
-      Serial.println("ERROR: Battery raised caution indicator AND requested discharge stop. Inspect battery status!");
+      snprintf(event_message, sizeof(event_message),
+               "ERROR: Battery raised caution indicator AND requested discharge stop. Inspect battery status!");
       break;
     case EVENT_BATTERY_CHG_DISCHG_STOP_REQ:
-      Serial.println(
-          "ERROR: Battery raised caution indicator AND requested charge/discharge stop. Inspect battery status!");
+      snprintf(event_message, sizeof(event_message),
+               "ERROR: Battery raised caution indicator AND requested charge/discharge stop. Inspect battery status!");
       break;
     case EVENT_LOW_SOH:
-      Serial.println(
+      snprintf(
+          event_message, sizeof(event_message),
           "ERROR: State of health critically low. Battery internal resistance too high to continue. Recycle battery.");
       break;
     case EVENT_HVIL_FAILURE:
-      Serial.println(
-          "ERROR: Battery interlock loop broken. Check that high voltage connectors are seated. Battery will be "
-          "disabled!");
+      snprintf(event_message, sizeof(event_message),
+               "ERROR: Battery interlock loop broken. Check that high voltage connectors are seated. Battery will be "
+               "disabled!");
       break;
     case EVENT_INTERNAL_OPEN_FAULT:
-      Serial.println("ERROR: High voltage cable removed while battery running. Opening contactors!");
+      snprintf(event_message, sizeof(event_message),
+               "ERROR: High voltage cable removed while battery running. Opening contactors!");
       break;
     case EVENT_CELL_UNDER_VOLTAGE:
-      Serial.println("ERROR: CELL UNDERVOLTAGE!!! Stopping battery charging and discharging. Inspect battery!");
+      snprintf(event_message, sizeof(event_message),
+               "ERROR: CELL UNDERVOLTAGE!!! Stopping battery charging and discharging. Inspect battery!");
       break;
     case EVENT_CELL_OVER_VOLTAGE:
-      Serial.println("ERROR: CELL OVERVOLTAGE!!! Stopping battery charging and discharging. Inspect battery!");
+      snprintf(event_message, sizeof(event_message),
+               "ERROR: CELL OVERVOLTAGE!!! Stopping battery charging and discharging. Inspect battery!");
       break;
     case EVENT_CELL_DEVIATION_HIGH:
-      Serial.println("ERROR: HIGH CELL DEVIATION!!! Inspect battery!");
+      snprintf(event_message, sizeof(event_message), "ERROR: HIGH CELL DEVIATION!!! Inspect battery!");
       break;
     case EVENT_UNKNOWN_EVENT_SET:
-      Serial.println("An unknown event was set! Review your code!");
+      snprintf(event_message, sizeof(event_message), "An unknown event was set! Review your code!");
       break;
     case EVENT_DUMMY:
-      Serial.println("The dummy event was set!");
+      snprintf(event_message, sizeof(event_message), "The dummy event was set!");  // Don't change this event message!
       break;
     default:
       break;
   }
-#endif
 }

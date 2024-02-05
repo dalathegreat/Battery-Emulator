@@ -5,6 +5,8 @@
 #include <Arduino.h>
 #endif
 
+#include <stdint.h>
+
 typedef enum {
   EVENT_CAN_FAILURE = 0u,
   EVENT_CAN_WARNING,

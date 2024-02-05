@@ -3,6 +3,11 @@
 
 #include "events.cpp"
 
+/* Helper functions */
+static void reset_event_msg(void) {
+  snprintf(event_message, sizeof(event_message), "");
+}
+
 TEST(init_events_test) {
   init_events();
 
@@ -60,6 +65,14 @@ TEST(set_event_test) {
   ASSERT_EQ(entries[EVENT_CELL_OVER_VOLTAGE].data, 123);
   ASSERT_EQ(entries[EVENT_CELL_OVER_VOLTAGE].occurences, 1);
   ASSERT_EQ(entries[EVENT_CELL_OVER_VOLTAGE].timestamp, 345);
+}
+
+TEST(event_message_test) {
+  reset_event_msg();
+
+  set_event(EVENT_DUMMY, 0);  // Set dummy event with no data
+
+  ASSERT_STREQ("The dummy event was set!", event_message);
 }
 
 TEST_MAIN();
