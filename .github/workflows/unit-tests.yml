@@ -21,5 +21,7 @@ jobs:
       run: |
         dir
         cd build/test
-        dir
-        ./test/Debug/events_test.exe
+        dir -s
+        cd events_test
+        dir -s
+        ./events_test.exe
