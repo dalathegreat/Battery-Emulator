@@ -42,9 +42,7 @@ bool wifi_connected;
 // Wifi connect time declarations and definition
 unsigned long wifi_connect_start_time;
 unsigned long wifi_connect_current_time;
-unsigned long wifi_connect_timeout = 5000;     // Timeout for WiFi connect in milliseconds
-unsigned long wifi_monitor_loop_time = 30000;  // Will check if WiFi is connected and try reconnect every x milliseconds
-unsigned long last_wifi_monitor_run = 0;
+const long wifi_connect_timeout = 5000;  // Timeout for WiFi connect in milliseconds
 
 void init_webserver() {
   // Configure WiFi
@@ -249,23 +247,6 @@ void init_webserver() {
 #endif
 }
 
-void WiFi_monitor_loop() {
-  unsigned long currentMillis = millis();
-  if (currentMillis - last_wifi_monitor_run > wifi_monitor_loop_time) {
-    last_wifi_monitor_run = currentMillis;
-    if (WiFi.status() != WL_CONNECTED && wifi_state != "Connecting") {
-      wifi_connected = false;
-      wifi_state = "Not connected";
-      Serial.print("Wifi disconnected. Attempting reconnection");
-      init_WiFi_STA(ssid, password);
-    } else if (WiFi.status() == WL_CONNECTED && wifi_state != "Connected") {
-      wifi_connected = true;
-      wifi_state = "Connected";
-      Serial.println("Wifi reconnected");
-    }
-  }
-}
-
 void init_WiFi_AP() {
   Serial.print("Creating Access Point: ");
   Serial.println(ssidAP);
@@ -281,45 +262,36 @@ void init_WiFi_AP() {
 }
 
 void init_WiFi_STA(const char* ssid, const char* password) {
-  // If we're already connected, there's nothing to do
-  if (WiFi.status() == WL_CONNECTED) {
-    if (wifi_state != "Connected") {
-      wifi_connected = true;
-      wifi_state = "Connected";
-      // Print local IP address and start web server
-      Serial.println("");
-      Serial.print("Connected to WiFi network: ");
-      Serial.println(ssid);
-      Serial.print("IP address: ");
-      Serial.println(WiFi.localIP());
-    }
-    return;
-  }
+  // Connect to Wi-Fi network with SSID and password
+  Serial.print("Connecting to ");
+  Serial.println(ssid);
+  WiFi.begin(ssid, password);
 
-  // If we're not currently trying to connect, start the connection process
-  if (wifi_state != "Connecting") {
-    Serial.print("Connecting to: ");
+  wifi_connect_start_time = millis();
+  wifi_connect_current_time = wifi_connect_start_time;
+  while ((wifi_connect_current_time - wifi_connect_start_time) <= wifi_connect_timeout &&
+         WiFi.status() != WL_CONNECTED) {  // do this loop for up to 5000ms
+    // to break the loop when the connection is not established (wrong ssid or password).
+    delay(500);
+    Serial.print(".");
+    wifi_connect_current_time = millis();
+  }
+  if (WiFi.status() == WL_CONNECTED) {  // WL_CONNECTED is assigned when connected to a WiFi network
+    wifi_connected = true;
+    wifi_state = "Connected";
+    // Print local IP address and start web server
+    Serial.println("");
+    Serial.print("Connected to WiFi network: ");
     Serial.println(ssid);
-    WiFi.begin(ssid, password);
-    wifi_state = "Connecting";
-    wifi_connect_start_time = millis();
-    return;
-  }
-
-  // If we've been trying to connect for more than 5000ms, give up
-  if (millis() - wifi_connect_start_time > wifi_connect_timeout) {
+    Serial.print("IP address: ");
+    Serial.println(WiFi.localIP());
+  } else {
+    wifi_connected = false;
     wifi_state = "Not connected";
-    Serial.print("Failed to connect to WiFi network: ");
+    Serial.print("Not connected to WiFi network: ");
     Serial.println(ssid);
     Serial.println("Please check WiFi network name and password, and if WiFi network is available.");
-    Serial.print("Will try again in ");
-    Serial.print((wifi_monitor_loop_time - (millis() - last_wifi_monitor_run)) / 1000);
-    Serial.println(" seconds.");
-    return;
   }
-
-  // Otherwise, just print a dot to indicate that we're still trying to connect
-  Serial.print(".");
 }
 
 void init_ElegantOTA() {
