@@ -2,6 +2,7 @@
 #ifdef MQTT
 #include "../devboard/mqtt/mqtt.h"
 #endif
+#include "../devboard/utils/events.h"
 #include "../lib/miwagner-ESP32-Arduino-CAN/CAN_config.h"
 #include "../lib/miwagner-ESP32-Arduino-CAN/ESP32CAN.h"
 
@@ -262,6 +263,7 @@ void update_values_leaf_battery() { /* This function maps all the values fetched
 #ifdef DEBUG_VIA_USB
       Serial.println("ERROR: SOC% reported by battery not plausible. Restart battery!");
 #endif
+      set_event(EVENT_SOC_PLAUSIBILITY_ERROR, LB_SOC / 10);
     }
   }
 
@@ -311,6 +313,7 @@ void update_values_leaf_battery() { /* This function maps all the values fetched
 #ifdef DEBUG_VIA_USB
         Serial.println("ERROR: Battery raised caution indicator AND requested discharge stop. Inspect battery status!");
 #endif
+        set_event(EVENT_BATTERY_DISCHG_STOP_REQ, 0);
         break;
       case (6):
         //Caution Lamp Request & Charging Mode Stop Request
@@ -319,6 +322,7 @@ void update_values_leaf_battery() { /* This function maps all the values fetched
 #ifdef DEBUG_VIA_USB
         Serial.println("ERROR: Battery raised caution indicator AND requested charge stop. Inspect battery status!");
 #endif
+        set_event(EVENT_BATTERY_CHG_STOP_REQ, 0);
         break;
       case (7):
         //Caution Lamp Request & Charging Mode Stop Request & Normal Stop Request
@@ -328,6 +332,7 @@ void update_values_leaf_battery() { /* This function maps all the values fetched
         Serial.println(
             "ERROR: Battery raised caution indicator AND requested charge/discharge stop. Inspect battery status!");
 #endif
+        set_event(EVENT_BATTERY_CHG_DISCHG_STOP_REQ, 0);
         break;
       default:
         break;
@@ -342,6 +347,7 @@ void update_values_leaf_battery() { /* This function maps all the values fetched
 #endif
       bms_status = FAULT;
       errorCode = 5;
+      set_event(EVENT_LOW_SOH, LB_StateOfHealth);
       max_target_discharge_power = 0;
       max_target_charge_power = 0;
     }
@@ -355,6 +361,7 @@ void update_values_leaf_battery() { /* This function maps all the values fetched
         "disabled!");
 #endif
     bms_status = FAULT;
+    set_event(EVENT_HVIL_FAILURE, 0);
     errorCode = 6;
     SOC = 0;
     max_target_discharge_power = 0;
@@ -369,6 +376,7 @@ void update_values_leaf_battery() { /* This function maps all the values fetched
 #ifdef DEBUG_VIA_USB
     Serial.println("ERROR: No CAN communication detected for 60s. Shutting down battery control.");
 #endif
+    set_event(EVENT_CAN_FAILURE, 0);
   } else {
     CANstillAlive--;
   }
@@ -380,6 +388,7 @@ void update_values_leaf_battery() { /* This function maps all the values fetched
 #ifdef DEBUG_VIA_USB
     Serial.println("ERROR: High amount of corrupted CAN messages detected. Check CAN wire shielding!");
 #endif
+    set_event(EVENT_CAN_WARNING, 0);
   }
 
 /*Finally print out values to serial if configured to do so*/
@@ -615,6 +624,7 @@ void receive_can_leaf_battery(CAN_frame_t rx_frame) {
 #ifdef DEBUG_VIA_USB
             Serial.println("HIGH CELL DEVIATION!!! Inspect battery!");
 #endif
+            set_event(EVENT_CELL_DEVIATION_HIGH, 0);
           }
 
           if (min_max_voltage[1] >= MAX_CELL_VOLTAGE) {
@@ -623,6 +633,7 @@ void receive_can_leaf_battery(CAN_frame_t rx_frame) {
 #ifdef DEBUG_VIA_USB
             Serial.println("CELL OVERVOLTAGE!!! Stopping battery charging and discharging. Inspect battery!");
 #endif
+            set_event(EVENT_CELL_OVER_VOLTAGE, 0);
           }
           if (min_max_voltage[0] <= MIN_CELL_VOLTAGE) {
             bms_status = FAULT;
@@ -630,6 +641,7 @@ void receive_can_leaf_battery(CAN_frame_t rx_frame) {
 #ifdef DEBUG_VIA_USB
             Serial.println("CELL UNDERVOLTAGE!!! Stopping battery charging and discharging. Inspect battery!");
 #endif
+            set_event(EVENT_CELL_UNDER_VOLTAGE, 0);
           }
           break;
         }

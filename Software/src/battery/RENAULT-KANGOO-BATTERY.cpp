@@ -1,4 +1,5 @@
 #include "RENAULT-KANGOO-BATTERY.h"
+#include "../devboard/utils/events.h"
 #include "../lib/miwagner-ESP32-Arduino-CAN/CAN_config.h"
 #include "../lib/miwagner-ESP32-Arduino-CAN/ESP32CAN.h"
 
@@ -126,6 +127,7 @@ void update_values_kangoo_battery() {  //This function maps all the values fetch
   if (!CANstillAlive) {
     bms_status = FAULT;
     Serial.println("No CAN communication detected for 60s. Shutting down battery control.");
+    set_event(EVENT_CAN_FAILURE, 0);
   } else {
     CANstillAlive--;
   }
@@ -133,14 +135,17 @@ void update_values_kangoo_battery() {  //This function maps all the values fetch
   if (LB_Cell_Max_Voltage >= ABSOLUTE_CELL_MAX_VOLTAGE) {
     bms_status = FAULT;
     Serial.println("ERROR: CELL OVERVOLTAGE!!! Stopping battery charging and discharging. Inspect battery!");
+    set_event(EVENT_CELL_OVER_VOLTAGE, 0);
   }
   if (LB_Cell_Min_Voltage <= ABSOLUTE_CELL_MIN_VOLTAGE) {
     bms_status = FAULT;
     Serial.println("ERROR: CELL UNDERVOLTAGE!!! Stopping battery charging and discharging. Inspect battery!");
+    set_event(EVENT_CELL_UNDER_VOLTAGE, 0);
   }
   if (cell_deviation_mV > MAX_CELL_DEVIATION_MV) {
     LEDcolor = YELLOW;
     Serial.println("ERROR: HIGH CELL mV DEVIATION!!! Inspect battery!");
+    set_event(EVENT_CELL_DEVIATION_HIGH, 0);
   }
 
 #ifdef DEBUG_VIA_USB

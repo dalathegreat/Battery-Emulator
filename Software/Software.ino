@@ -8,6 +8,7 @@
 #include "src/battery/BATTERIES.h"
 #include "src/charger/CHARGERS.h"
 #include "src/devboard/config.h"
+#include "src/devboard/utils/events.h"
 #include "src/inverter/INVERTERS.h"
 #include "src/lib/adafruit-Adafruit_NeoPixel/Adafruit_NeoPixel.h"
 #include "src/lib/eModbus-eModbus/Logging.h"
@@ -129,6 +130,8 @@ void setup() {
   init_webserver();
 #endif
 
+  init_events();
+
   init_CAN();
 
   init_LED();
@@ -183,6 +186,7 @@ void loop() {
   {
     previousMillisUpdateVal = millis();
     update_values();  // Update values heading towards inverter. Prepare for sending on CAN, or write directly to Modbus.
+    set_event(EVENT_DUMMY, (uint8_t)millis());
   }
 
   // Output
@@ -190,6 +194,7 @@ void loop() {
 #ifdef DUAL_CAN
   send_can2();
 #endif
+  update_event_timestamps();
 }
 
 // Initialization functions
