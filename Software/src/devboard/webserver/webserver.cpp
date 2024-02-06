@@ -37,14 +37,17 @@ const char index_html[] PROGMEM = R"rawliteral(
 )rawliteral";
 
 // Wifi connect time declarations and definition
-unsigned long wifi_connect_start_time;
-unsigned long wifi_connect_timeout = 5000;     // Timeout for WiFi connect in milliseconds
-unsigned long wifi_monitor_loop_time = 1000;  // Will check if WiFi is connected and try reconnect every x milliseconds
+const unsigned long MAX_WIFI_RECONNECT_BACKOFF_TIME = 60000; // Maximum backoff time of 1 minute
+const unsigned long DEFAULT_WIFI_RECONNECT_BACKOFF_TIME = 1000; // Default wifi reconnect backoff time. Start with 1 second
+const unsigned long WIFI_CONNECT_TIMEOUT = 5000;     // Timeout for WiFi connect in milliseconds
+const unsigned long WIFI_MONITOR_LOOP_TIME = 1000;  // Will check if WiFi is connected and try reconnect every x milliseconds
 unsigned long last_wifi_monitor_run = 0;
+unsigned long wifi_connect_start_time;
+unsigned long wifi_reconnect_backoff_time = DEFAULT_WIFI_RECONNECT_BACKOFF_TIME; 
 
-enum WiFiState { DISCONNECTED, CONNECTING, CONNECTED };
+enum WiFiState { DISCONNECTED, CONNECTING, CONNECTED }; 
 
-WiFiState wifi_state = DISCONNECTED;
+WiFiState wifi_state = DISCONNECTED; //the esp library has no specific state to indicate if its connecting (only WL_IDLE_STATUS) so we keep track of it here
 
 void init_webserver() {
   // Configure WiFi
@@ -249,41 +252,108 @@ void init_webserver() {
 #endif
 }
 
-// Function to handle WiFi connection
-void WiFi_monitor_loop() {
-  unsigned long currentMillis = millis();
-  if (currentMillis - last_wifi_monitor_run > wifi_monitor_loop_time) {
-    last_wifi_monitor_run = currentMillis;
-    if (WiFi.status() != WL_CONNECTED) {
-      handle_WiFi_reconnection(currentMillis);
-    } else if (wifi_state != CONNECTED) {
-      wifi_state = CONNECTED;
-      Serial.println("Wifi reconnected");
-    }
+void print_wifi_status_message(wl_status_t status) {
+  switch (status) {
+    case WL_CONNECTED:
+      Serial.println("Connected to WiFi network: " + String(ssid));
+      Serial.println("IP address: " + WiFi.localIP().toString());
+      Serial.println("Signal Strength: " + String(WiFi.RSSI()) + " dBm");
+      break;
+    case WL_CONNECT_FAILED:
+      Serial.println("Failed to connect to WiFi network: " + String(ssid));
+      break;
+    case WL_CONNECTION_LOST:
+      Serial.println("Connection to WiFi network: " + String(ssid) + " lost");
+      break;
+    case WL_DISCONNECTED:
+      Serial.println("Disconnected from WiFi network: " + String(ssid));
+      break;
+    case WL_NO_SSID_AVAIL:
+      Serial.println("Could not find network with SSID: " + String(ssid));
+      break;
+    case WL_IDLE_STATUS:
+      Serial.println("WiFi is in idle status. This can indicate it is currently trying to connect.");
+      break;
+    case WL_SCAN_COMPLETED:
+      Serial.println("WiFi scan completed");
+      break;
+    case WL_NO_SHIELD:
+      Serial.println("No WiFi shield detected");
+      break;
+    default:
+      Serial.println("Unknown WiFi status: " + String(status));
+      break;
   }
 }
 
-// Function to handle WiFi reconnection
-void handle_WiFi_reconnection(unsigned long currentMillis) {
-  if (wifi_state == CONNECTING && currentMillis - wifi_connect_start_time > wifi_connect_timeout) {
+// Function to handle WiFi reconnection. Use some timeouts and backoffs here to avoid flooding reconnection attempts/spamming the serial console
+void handle_WiFi_reconnection(unsigned long currentMillis, wl_status_t status) {
+  if (wifi_state == CONNECTING && currentMillis - wifi_connect_start_time > WIFI_CONNECT_TIMEOUT) {
+    // we are here if we were trying to connect to wifi, but it took too long (more than configured timeout)
+    Serial.println("Failed to connect to WiFi network before timeout");
+    print_wifi_status_message(status);
+    WiFi.disconnect(); //disconnect to clear any previous settings
     wifi_state = DISCONNECTED;
-    Serial.println("Failed to connect to WiFi network: " + String(ssid));
-    Serial.println("Please check WiFi network name and password, and if WiFi network is available.");
-    Serial.println("Will try again in " + String((wifi_monitor_loop_time - (millis() - last_wifi_monitor_run)) / 1000) +
-                   " seconds.");
-  } else if (wifi_state != CONNECTING) {
-    wifi_state = DISCONNECTED;
-    Serial.println("Wifi disconnected. Attempting reconnection");
+    wifi_connect_start_time = currentMillis; //reset the start time to now so backoff is respected on next try
+    // We use a backoff time before trying to connect again. Increase backoff time, up to a maximum
+    wifi_reconnect_backoff_time = min(wifi_reconnect_backoff_time * 2, MAX_WIFI_RECONNECT_BACKOFF_TIME);
+    Serial.println("Will try again in " + String(wifi_reconnect_backoff_time / 1000) + " seconds.");
+  } else if (wifi_state != CONNECTING && currentMillis - wifi_connect_start_time > wifi_reconnect_backoff_time) {
+    // we are here if the connection failed for some reason and the backoff time has now passed
+    wifi_state = DISCONNECTED; //set to disconnected for good measure, although it should already be
+    print_wifi_status_message(status);
     init_WiFi_STA(ssid, password);
   }
 }
 
-// Function to initialize WiFi in Station Mode
+// Function to handle WiFi connection
+void WiFi_monitor_loop() {
+  unsigned long currentMillis = millis();
+  if (currentMillis - last_wifi_monitor_run > WIFI_MONITOR_LOOP_TIME) {
+    last_wifi_monitor_run = currentMillis;
+    wl_status_t status = WiFi.status();
+    switch (status) {
+      case WL_CONNECTED:
+        if (wifi_state != CONNECTED) { //we need to update our own wifi state to indicate we are connected
+          wifi_reconnect_backoff_time = DEFAULT_WIFI_RECONNECT_BACKOFF_TIME; // Reset backoff time after maintaining connection
+          wifi_state = CONNECTED;
+          print_wifi_status_message(status);
+        }
+        break;
+      case WL_CONNECT_FAILED:
+      case WL_CONNECTION_LOST:
+      case WL_DISCONNECTED:
+      case WL_NO_SSID_AVAIL:
+        handle_WiFi_reconnection(currentMillis, status);
+        break;
+      case WL_IDLE_STATUS: //this means the wifi is not ready to process any commands. do nothing
+      case WL_SCAN_COMPLETED: //this will only be set when scanning for networks. We don't do that yet
+      case WL_NO_SHIELD: //should not happen, this means no wifi chip detected, so we can't do much
+        break;
+    }
+  }
+}
+
+// Function to initialize WiFi in Station Mode (i.e. connect to another access point)
 void init_WiFi_STA(const char* ssid, const char* password) {
   Serial.println("Connecting to: " + String(ssid));
   WiFi.begin(ssid, password);
   wifi_state = CONNECTING;
   wifi_connect_start_time = millis();
+}
+
+// Function to convert WiFiState enum to String
+String wifi_state_to_string(WiFiState state) {
+  switch (state) {
+    case DISCONNECTED:
+      return "Disconnected";
+    case CONNECTING:
+      return "Connecting";
+    case CONNECTED:
+      return "Connected";
+    default:
+      return "Unknown";
+  }
 }
 
 // Function to initialize WiFi in Access Point Mode
@@ -303,20 +373,6 @@ void init_ElegantOTA() {
   ElegantOTA.onStart(onOTAStart);
   ElegantOTA.onProgress(onOTAProgress);
   ElegantOTA.onEnd(onOTAEnd);
-}
-
-// Function to convert WiFiState enum to String
-String wifi_state_to_string(WiFiState state) {
-  switch (state) {
-    case DISCONNECTED:
-      return "Disconnected";
-    case CONNECTING:
-      return "Connecting";
-    case CONNECTED:
-      return "Connected";
-    default:
-      return "Unknown";
-  }
 }
 
 String processor(const String& var) {
