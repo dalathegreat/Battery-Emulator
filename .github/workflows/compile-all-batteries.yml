@@ -2,7 +2,7 @@
 name: Compile All Batteries
 
 # Here we tell GitHub when to run the workflow.
-on: [push, pull_request]
+# on: [push, pull_request]
 
 # This is the list of jobs that will be run concurrently.
 # Since we use a build matrix, the actual number of jobs

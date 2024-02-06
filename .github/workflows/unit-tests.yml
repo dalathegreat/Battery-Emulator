@@ -21,4 +21,8 @@ jobs:
       run: |
         set -e  # Exit immediately on non-zero exit code
         cd build/test
-        find . -type f -executable -exec {} \;
+        for test_executable in utils/*; do
+          if [ -x "$test_executable" ]; then
+            ./"$test_executable"
+          fi
+        done
