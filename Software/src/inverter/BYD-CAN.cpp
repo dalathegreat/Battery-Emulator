@@ -109,8 +109,9 @@ CAN_frame_t BYD_210 = {.FIR = {.B =
 static int discharge_current = 0;
 static int charge_current = 0;
 static int initialDataSent = 0;
-static int temperature_average = 0;
-
+static int16_t temperature_average = 0;
+static int16_t temp_min = 0;
+static int16_t temp_max = 0;
 static int inverter_voltage = 0;
 static int inverter_SOC = 0;
 static long inverter_timestamp = 0;
@@ -134,7 +135,9 @@ void update_values_can_byd() {  //This function maps all the values fetched from
         MAXDISCHARGEAMP;  //Cap the value to the max allowed Amp. Some inverters cannot handle large values.
   }
 
-  temperature_average = ((temperature_max + temperature_min) / 2);
+  temp_min = temperature_min;  //Convert from unsigned to signed
+  temp_max = temperature_max;
+  temperature_average = ((temp_max + temp_min) / 2);
 
   //Map values to CAN messages
   //Maxvoltage (eg 400.0V = 4000 , 16bits long)
