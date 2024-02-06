@@ -9,12 +9,14 @@
 
 class MySerial;
 
-extern unsigned long test_millis;
+extern unsigned long testlib_millis;
 
+/* Mock millis() */
 static inline unsigned long millis(void) {
-  return test_millis;
+  return testlib_millis;
 }
 
+/* Mock Serial class */
 class MySerial {
  public:
   size_t println(const char* s) {

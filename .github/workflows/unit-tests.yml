@@ -20,4 +20,4 @@ jobs:
     - name: Run unit tests
       run: |
         cd build/test
-        ./events_test
+        find . -type f -executable -exec {} \;

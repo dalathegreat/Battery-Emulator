@@ -3,4 +3,4 @@
 
 MySerial Serial;
 
-unsigned long test_millis = 0;
+unsigned long testlib_millis = 0;

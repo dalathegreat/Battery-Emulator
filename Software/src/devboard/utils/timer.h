@@ -1,7 +1,9 @@
 #ifndef __MYTIMER_H__
 #define __MYTIMER_H__
 
+#ifndef UNIT_TEST
 #include <Arduino.h>
+#endif
 
 class MyTimer {
  public:
@@ -12,7 +14,7 @@ class MyTimer {
 
  private:
   unsigned long interval;
-  unsigned long previousMillis;
+  unsigned long previous_millis;
 };
 
 #endif  // __MYTIMER_H__

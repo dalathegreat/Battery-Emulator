@@ -1,11 +1,18 @@
 # Include the directory with your source files
-include_directories(${CMAKE_SOURCE_DIR}/Software/src/devboard/utils)
+include_directories(${CMAKE_SOURCE_DIR}/Software/src/devboard/utils .)
 
-add_executable(events_test events_test.cpp test_lib.cpp)
+# Create a variable to store the list of test files
+file(GLOB TEST_SOURCES utils/*.cpp)
 
-target_compile_definitions(events_test PRIVATE UNIT_TEST)
+# Loop through each test source file and create an executable
+foreach(TEST_SOURCE ${TEST_SOURCES})
+    # Extract the test name without extension
+    get_filename_component(TEST_NAME ${TEST_SOURCE} NAME_WE)
 
-target_link_libraries(events_test)  # Link to the library from devboard/utils
+    # Create an executable for the test
+    add_executable(${TEST_NAME} ${TEST_SOURCE} test_lib.cpp)
 
-# Register your tests with CTest
-add_test(NAME MyProjectTests COMMAND events_test)
+    # Apply the target_compile_definitions for the test
+    target_compile_definitions(${TEST_NAME} PRIVATE UNIT_TEST)
+
+endforeach()
