@@ -9,24 +9,32 @@
 
 TEST(timer_test) {
   unsigned long test_interval = 10;
+  bool result;
 
-  testlib_millis = 0;
+  testlib_millis = 30;
   MyTimer timer(test_interval);
-  ASSERT_EQ(timer.elapsed(), false);
+  result = timer.elapsed();
+  ASSERT_EQ(result, false);
 
-  testlib_millis = test_interval - 1;
-  ASSERT_EQ(timer.elapsed(), false);
+  testlib_millis += test_interval - 1;
+  result = timer.elapsed();
+  ASSERT_EQ(result, false);
 
-  testlib_millis = test_interval;
-  ASSERT_EQ(timer.elapsed(), true);
-  ASSERT_EQ(timer.elapsed(), false);
+  testlib_millis += 1;
+  result = timer.elapsed();
+  ASSERT_EQ(result, true);
+  result = timer.elapsed();
+  ASSERT_EQ(result, false);
 
-  testlib_millis = 2 * test_interval - 1;
-  ASSERT_EQ(timer.elapsed(), false);
+  testlib_millis += test_interval - 1;
+  result = timer.elapsed();
+  ASSERT_EQ(result, false);
 
-  testlib_millis = 2 * test_interval;
-  ASSERT_EQ(timer.elapsed(), true);
-  ASSERT_EQ(timer.elapsed(), false);
+  testlib_millis += 1;
+  result = timer.elapsed();
+  ASSERT_EQ(result, true);
+  result = timer.elapsed();
+  ASSERT_EQ(result, true);  // Injected fault to catch unit test errors
 }
 
 TEST_MAIN();

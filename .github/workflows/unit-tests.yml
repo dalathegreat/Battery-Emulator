@@ -1,6 +1,6 @@
 name: Run Unit Tests
 
-on: [push]
+on: [push, pull_request]
 
 jobs:
   build:
@@ -19,5 +19,6 @@ jobs:
 
     - name: Run unit tests
       run: |
+        set -e  # Exit immediately on non-zero exit code
         cd build/test
         find . -type f -executable -exec {} \;
