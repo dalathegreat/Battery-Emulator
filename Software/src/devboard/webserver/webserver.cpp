@@ -42,7 +42,7 @@ bool wifi_connected;
 // Wifi connect time declarations and definition
 unsigned long wifi_connect_start_time;
 unsigned long wifi_connect_current_time;
-const long wifi_connect_timeout = 5000;  // Timeout for WiFi connect in milliseconds
+const long wifi_connect_timeout = 8000;  // Timeout for WiFi connect in milliseconds
 
 void init_webserver() {
   // Configure WiFi
@@ -265,22 +265,40 @@ void init_WiFi_AP() {
   Serial.println(IP);
 }
 
+String getConnectResultString(wl_status_t status) {
+  switch (status) {
+    case WL_CONNECTED:
+      return "Connected";
+    case WL_NO_SHIELD:
+      return "No shield";
+    case WL_IDLE_STATUS:
+      return "Idle status";
+    case WL_NO_SSID_AVAIL:
+      return "No SSID available";
+    case WL_SCAN_COMPLETED:
+      return "Scan completed";
+    case WL_CONNECT_FAILED:
+      return "Connect failed";
+    case WL_CONNECTION_LOST:
+      return "Connection lost";
+    case WL_DISCONNECTED:
+      return "Disconnected";
+    default:
+      return "Unknown";
+  }
+}
+
 void init_WiFi_STA(const char* ssid, const char* password) {
   // Connect to Wi-Fi network with SSID and password
   Serial.print("Connecting to ");
   Serial.println(ssid);
   WiFi.begin(ssid, password);
+  WiFi.setAutoReconnect(true);  // Enable auto reconnect
 
-  wifi_connect_start_time = millis();
-  wifi_connect_current_time = wifi_connect_start_time;
-  while ((wifi_connect_current_time - wifi_connect_start_time) <= wifi_connect_timeout &&
-         WiFi.status() != WL_CONNECTED) {  // do this loop for up to 5000ms
-    // to break the loop when the connection is not established (wrong ssid or password).
-    delay(500);
-    Serial.print(".");
-    wifi_connect_current_time = millis();
-  }
-  if (WiFi.status() == WL_CONNECTED) {  // WL_CONNECTED is assigned when connected to a WiFi network
+  wl_status_t result = static_cast<wl_status_t>(WiFi.waitForConnectResult(wifi_connect_timeout));
+  Serial.println(getConnectResultString(result));
+
+  if (result == WL_CONNECTED) {  // WL_CONNECTED is assigned when connected to a WiFi network
     wifi_connected = true;
     wifi_state = "Connected";
     // Print local IP address and start web server
@@ -289,6 +307,7 @@ void init_WiFi_STA(const char* ssid, const char* password) {
     Serial.println(ssid);
     Serial.print("IP address: ");
     Serial.println(WiFi.localIP());
+    Serial.println("Signal Strength: " + String(WiFi.RSSI()) + " dBm");
   } else {
     wifi_connected = false;
     wifi_state = "Not connected";
@@ -341,10 +360,11 @@ String processor(const String& var) {
       default:
         break;
     }
+    wl_status_t status = WiFi.status();
     // Display ssid of network connected to and, if connected to the WiFi, its own IP
     content += "<h4>SSID: " + String(ssid) + "</h4>";
-    content += "<h4>Wifi status: " + wifi_state + "</h4>";
-    if (wifi_connected == true) {
+    content += "<h4>Wifi status: " + getConnectResultString(status) + "</h4>";
+    if (status == WL_CONNECTED) {
       content += "<h4>IP: " + WiFi.localIP().toString() + "</h4>";
       // Get and display the signal strength (RSSI)
       content += "<h4>Signal Strength: " + String(WiFi.RSSI()) + " dBm</h4>";
