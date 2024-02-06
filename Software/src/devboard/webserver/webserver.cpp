@@ -68,6 +68,10 @@ void init_webserver() {
     request->send_P(200, "text/html", index_html, cellmonitor_processor);
   });
 
+  server.on("events", HTTP_GET, [](AsyncWebServerRequest* request) {
+    request->send_P(200, "text/html", index_html, events_processor);
+  });
+
   // Route for editing Wh
   server.on("/updateBatterySize", HTTP_GET, [](AsyncWebServerRequest* request) {
     if (request->hasParam("value")) {
@@ -581,11 +585,14 @@ String processor(const String& var) {
     content += " ";
     content += "<button onclick='goToCellmonitorPage()'>Cellmonitor</button>";
     content += " ";
+    content += "<button onclick='goToEventsPage()'>Events</button>";
+    content += " ";
     content += "<button onclick='promptToReboot()'>Reboot Emulator</button>";
     content += "<script>";
     content += "function goToUpdatePage() { window.location.href = '/update'; }";
     content += "function goToCellmonitorPage() { window.location.href = '/cellmonitor'; }";
     content += "function goToSettingsPage() { window.location.href = '/settings'; }";
+    content += "function goToEventsPage() { window.location.href = '/events'; }";
     content +=
         "function promptToReboot() { if (window.confirm('Are you sure you want to reboot the emulator? NOTE: If "
         "emulator is handling contactors, they will open during reboot!')) { "
@@ -884,6 +891,47 @@ String cellmonitor_processor(const String& var) {
       content += "<div class='cell'>" + cellContent + "</div>";
     }
     content += "</div>";
+
+    // Close the block
+    content += "</div>";
+
+    content += "<button onclick='goToMainPage()'>Back to main page</button>";
+    content += "<script>";
+    content += "function goToMainPage() { window.location.href = '/'; }";
+    content += "</script>";
+    return content;
+  }
+  return String();
+}
+
+String events_processor(const String& var) {
+  if (var == "PLACEHOLDER") {
+    String content = "";
+    // Page format
+    content += "<style>";
+    content += "body { background-color: black; color: white; }";
+    content += "table { width: 100%; border-collapse: collapse; }";
+    content += "th, td { border: 1px solid white; padding: 10px; text-align: left; }";
+    content += "</style>";
+
+    // Start a new block with a specific background color
+    content += "<div style='background-color: #303E47; padding: 10px; margin-bottom: 10px;border-radius: 50px'>";
+
+    //iterate through entries and display count, time and event
+    content += "<h4 style='color: white;'>Event log:</h4>";
+    content += "<table>";
+    content += "<tr><th>Event Type</th><th>LED Color</th><th>Last Event (seconds ago)</th><th>Count</th><th>Data</th><th>Message</th></tr>";
+    for(int i = 0; i < EVENT_NOF_EVENTS; i++) {
+      content += "<tr>";
+      content += "<td>" + String(get_event_enum_string(static_cast<EVENTS_ENUM_TYPE>(i))) + "</td>";
+      content += "<td>" + String(entries[i].led_color) + "</td>";
+      content += "<td>" + String((millis() / 1000) - entries[i].timestamp) + "</td>";
+      content += "<td>" + String(entries[i].occurences) + "</td>";
+      content += "<td>" + String(entries[i].data) + "</td>";
+      content += "<td>" + String(get_event_message(static_cast<EVENTS_ENUM_TYPE>(i))) + "</td>";
+      content += "</tr>";
+    }
+    content += "</table>";
 
     // Close the block
     content += "</div>";

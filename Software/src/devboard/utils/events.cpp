@@ -3,14 +3,6 @@
 #include "../../../USER_SETTINGS.h"
 #include "../config.h"
 
-typedef struct {
-  uint32_t timestamp;  // Time in seconds since startup when the event occurred
-  uint8_t data;        // Custom data passed when setting the event, for example cell number for under voltage
-  uint8_t occurences;  // Number of occurrences since startup
-  uint8_t led_color;   // Weirdly indented comment
-} EVENTS_STRUCT_TYPE;
-
-static EVENTS_STRUCT_TYPE entries[EVENT_NOF_EVENTS];
 static unsigned long previous_millis = 0;
 static uint32_t time_seconds = 0;
 static uint8_t total_led_color = GREEN;
@@ -62,75 +54,52 @@ static void update_led_color(EVENTS_ENUM_TYPE event) {
   total_led_color = (total_led_color == RED) ? RED : entries[event].led_color;
 }
 
-static void set_event_message(EVENTS_ENUM_TYPE event) {
+const char* get_event_message(EVENTS_ENUM_TYPE event) {
   switch (event) {
     case EVENT_CAN_FAILURE:
-      snprintf(event_message, sizeof(event_message),
-               "No CAN communication detected for 60s. Shutting down battery control.");
-      break;
+      return "No CAN communication detected for 60s. Shutting down battery control.";
     case EVENT_CAN_WARNING:
-      snprintf(event_message, sizeof(event_message),
-               "ERROR: High amount of corrupted CAN messages detected. Check CAN wire shielding!");
-      break;
+      return "ERROR: High amount of corrupted CAN messages detected. Check CAN wire shielding!";
     case EVENT_WATER_INGRESS:
-      snprintf(event_message, sizeof(event_message),
-               "Water leakage inside battery detected. Operation halted. Inspect battery!");
-      break;
+      return "Water leakage inside battery detected. Operation halted. Inspect battery!";
     case EVENT_12V_LOW:
-      snprintf(event_message, sizeof(event_message),
-               "12V battery source below required voltage to safely close contactors. Inspect the supply/battery!");
-      break;
+      return "12V battery source below required voltage to safely close contactors. Inspect the supply/battery!";
     case EVENT_SOC_PLAUSIBILITY_ERROR:
-      snprintf(event_message, sizeof(event_message), "ERROR: SOC% reported by battery not plausible. Restart battery!");
-      break;
+      return "ERROR: SOC% reported by battery not plausible. Restart battery!";
     case EVENT_KWH_PLAUSIBILITY_ERROR:
-      snprintf(event_message, sizeof(event_message),
-               "Warning: kWh remaining reported by battery not plausible. Battery needs cycling.");
-      break;
+      return "Warning: kWh remaining reported by battery not plausible. Battery needs cycling.";
     case EVENT_BATTERY_CHG_STOP_REQ:
-      snprintf(event_message, sizeof(event_message),
-               "ERROR: Battery raised caution indicator AND requested charge stop. Inspect battery status!");
-      break;
+      return "ERROR: Battery raised caution indicator AND requested charge stop. Inspect battery status!";
     case EVENT_BATTERY_DISCHG_STOP_REQ:
-      snprintf(event_message, sizeof(event_message),
-               "ERROR: Battery raised caution indicator AND requested discharge stop. Inspect battery status!");
-      break;
+      return "ERROR: Battery raised caution indicator AND requested discharge stop. Inspect battery status!";
     case EVENT_BATTERY_CHG_DISCHG_STOP_REQ:
-      snprintf(event_message, sizeof(event_message),
-               "ERROR: Battery raised caution indicator AND requested charge/discharge stop. Inspect battery status!");
-      break;
+      return "ERROR: Battery raised caution indicator AND requested charge/discharge stop. Inspect battery status!";
     case EVENT_LOW_SOH:
-      snprintf(
-          event_message, sizeof(event_message),
-          "ERROR: State of health critically low. Battery internal resistance too high to continue. Recycle battery.");
-      break;
+      return "ERROR: State of health critically low. Battery internal resistance too high to continue. Recycle battery.";
     case EVENT_HVIL_FAILURE:
-      snprintf(event_message, sizeof(event_message),
-               "ERROR: Battery interlock loop broken. Check that high voltage connectors are seated. Battery will be "
-               "disabled!");
-      break;
+      return "ERROR: Battery interlock loop broken. Check that high voltage connectors are seated. Battery will be disabled!";
     case EVENT_INTERNAL_OPEN_FAULT:
-      snprintf(event_message, sizeof(event_message),
-               "ERROR: High voltage cable removed while battery running. Opening contactors!");
-      break;
+      return "ERROR: High voltage cable removed while battery running. Opening contactors!";
     case EVENT_CELL_UNDER_VOLTAGE:
-      snprintf(event_message, sizeof(event_message),
-               "ERROR: CELL UNDERVOLTAGE!!! Stopping battery charging and discharging. Inspect battery!");
-      break;
+      return "ERROR: CELL UNDERVOLTAGE!!! Stopping battery charging and discharging. Inspect battery!";
     case EVENT_CELL_OVER_VOLTAGE:
-      snprintf(event_message, sizeof(event_message),
-               "ERROR: CELL OVERVOLTAGE!!! Stopping battery charging and discharging. Inspect battery!");
-      break;
+      return "ERROR: CELL OVERVOLTAGE!!! Stopping battery charging and discharging. Inspect battery!";
     case EVENT_CELL_DEVIATION_HIGH:
-      snprintf(event_message, sizeof(event_message), "ERROR: HIGH CELL DEVIATION!!! Inspect battery!");
-      break;
+      return "ERROR: HIGH CELL DEVIATION!!! Inspect battery!";
     case EVENT_UNKNOWN_EVENT_SET:
-      snprintf(event_message, sizeof(event_message), "An unknown event was set! Review your code!");
-      break;
+      return "An unknown event was set! Review your code!";
     case EVENT_DUMMY:
-      snprintf(event_message, sizeof(event_message), "The dummy event was set!");  // Don't change this event message!
-      break;
+      return "The dummy event was set!";  // Don't change this event message!
     default:
-      break;
+      return "";
   }
+}
+
+const char* get_event_enum_string(EVENTS_ENUM_TYPE event) {
+    return EVENTS_ENUM_TYPE_STRING[event];
+}
+
+static void set_event_message(EVENTS_ENUM_TYPE event) {
+  const char* message = get_event_message(event);
+  snprintf(event_message, sizeof(event_message), "%s", message);
 }
