@@ -21,7 +21,7 @@ jobs:
       run: |
         set -e  # Exit immediately on non-zero exit code
         cd build/test
-        for test_executable in utils/*; do
+        for test_executable in *; do
           if [ -x "$test_executable" ]; then
             ./"$test_executable"
           fi
