@@ -1,6 +1,7 @@
 // The test library must be included first!
-#include "timer.cpp"
 #include "../test_lib.h"
+
+#include "timer.cpp"
 
 /* Helper functions */
 
