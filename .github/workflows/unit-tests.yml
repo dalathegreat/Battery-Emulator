@@ -23,7 +23,7 @@ jobs:
         cd build/test
         dir -s
         for test_executable in *; do
-          if [ -x "$test_executable" ]; then
+          if [ -f "$test_executable" ] && [ -x "$test_executable" ]; then
             ./"$test_executable"
           fi
         done
