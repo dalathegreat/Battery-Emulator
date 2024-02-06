@@ -30,6 +30,6 @@ typedef enum {
 
 void init_events(void);
 void set_event(EVENTS_ENUM_TYPE event, uint8_t data);
-void update_event_timestamps(void);
+void run_event_handling(void);
 
 #endif  // __MYTIMER_H__

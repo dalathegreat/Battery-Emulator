@@ -194,7 +194,7 @@ void loop() {
 #ifdef DUAL_CAN
   send_can2();
 #endif
-  update_event_timestamps();
+  run_event_handling();
 }
 
 // Initialization functions

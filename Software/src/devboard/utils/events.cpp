@@ -17,10 +17,15 @@ static uint8_t total_led_color = GREEN;
 static char event_message[256];
 
 /* Local function prototypes */
+static void update_event_time(void);
 static void set_event_message(EVENTS_ENUM_TYPE event);
 static void update_led_color(EVENTS_ENUM_TYPE event);
 
 /* Exported functions */
+void run_event_handling(void) {
+  update_event_time();
+}
+
 void init_events(void) {
   for (uint8_t i = 0; i < EVENT_NOF_EVENTS; i++) {
     entries[i].timestamp = 0;
@@ -49,7 +54,8 @@ void set_event(EVENTS_ENUM_TYPE event, uint8_t data) {
 #endif
 }
 
-void update_event_timestamps(void) {
+/* Local functions */
+static void update_event_time(void) {
   unsigned long new_millis = millis();
   if (new_millis - previous_millis >= 1000) {
     time_seconds++;
@@ -57,7 +63,6 @@ void update_event_timestamps(void) {
   }
 }
 
-/* Local functions */
 static void update_led_color(EVENTS_ENUM_TYPE event) {
   total_led_color = (total_led_color == RED) ? RED : entries[event].led_color;
 }
@@ -81,7 +86,7 @@ static void set_event_message(EVENTS_ENUM_TYPE event) {
                "12V battery source below required voltage to safely close contactors. Inspect the supply/battery!");
       break;
     case EVENT_SOC_PLAUSIBILITY_ERROR:
-      snprintf(event_message, sizeof(event_message), "ERROR: SOC% reported by battery not plausible. Restart battery!");
+      snprintf(event_message, sizeof(event_message), "ERROR: SOC reported by battery not plausible. Restart battery!");
       break;
     case EVENT_KWH_PLAUSIBILITY_ERROR:
       snprintf(event_message, sizeof(event_message),
