@@ -34,7 +34,7 @@ TEST(timer_test) {
   result = timer.elapsed();
   ASSERT_EQ(result, true);
   result = timer.elapsed();
-  ASSERT_EQ(result, true);  // Injected fault to catch unit test errors
+  ASSERT_EQ(result, false);
 }
 
 TEST_MAIN();
