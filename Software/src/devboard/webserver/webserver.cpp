@@ -39,7 +39,7 @@ const char index_html[] PROGMEM = R"rawliteral(
 // Wifi connect time declarations and definition
 const unsigned long MAX_WIFI_RECONNECT_BACKOFF_TIME = 60000; // Maximum backoff time of 1 minute
 const unsigned long DEFAULT_WIFI_RECONNECT_BACKOFF_TIME = 1000; // Default wifi reconnect backoff time. Start with 1 second
-const unsigned long WIFI_CONNECT_TIMEOUT = 5000;     // Timeout for WiFi connect in milliseconds
+const unsigned long WIFI_CONNECT_TIMEOUT = 10000;     // Timeout for WiFi connect in milliseconds
 const unsigned long WIFI_MONITOR_LOOP_TIME = 1000;  // Will check if WiFi is connected and try reconnect every x milliseconds
 unsigned long last_wifi_monitor_run = 0;
 unsigned long wifi_connect_start_time;
@@ -300,7 +300,6 @@ void handle_WiFi_reconnection(unsigned long currentMillis, wl_status_t status) {
     Serial.println("Will try again in " + String(wifi_reconnect_backoff_time / 1000) + " seconds.");
   } else if (wifi_state != CONNECTING && currentMillis - wifi_connect_start_time > wifi_reconnect_backoff_time) {
     // we are here if the connection failed for some reason and the backoff time has now passed
-    wifi_state = DISCONNECTED; //set to disconnected for good measure, although it should already be
     print_wifi_status_message(status);
     init_WiFi_STA(ssid, password);
   }
@@ -326,7 +325,8 @@ void WiFi_monitor_loop() {
       case WL_NO_SSID_AVAIL:
         handle_WiFi_reconnection(currentMillis, status);
         break;
-      case WL_IDLE_STATUS: //this means the wifi is not ready to process any commands. do nothing
+      case WL_IDLE_STATUS: //this means the wifi is not ready to process any commands (it's probably trying to connect). do nothing
+
       case WL_SCAN_COMPLETED: //this will only be set when scanning for networks. We don't do that yet
       case WL_NO_SHIELD: //should not happen, this means no wifi chip detected, so we can't do much
         break;
@@ -337,8 +337,9 @@ void WiFi_monitor_loop() {
 // Function to initialize WiFi in Station Mode (i.e. connect to another access point)
 void init_WiFi_STA(const char* ssid, const char* password) {
   Serial.println("Connecting to: " + String(ssid));
-  WiFi.begin(ssid, password);
   wifi_state = CONNECTING;
+  WiFi.begin(ssid, password);
+  WiFi.setAutoReconnect(true);
   wifi_connect_start_time = millis();
 }
 
