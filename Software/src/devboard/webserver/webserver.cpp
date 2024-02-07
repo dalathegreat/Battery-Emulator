@@ -50,7 +50,7 @@ unsigned long wifi_reconnect_backoff_time = DEFAULT_WIFI_RECONNECT_BACKOFF_TIME;
 enum WiFiState { DISCONNECTED, CONNECTING, CONNECTED };
 
 WiFiState wifi_state =
-    DISCONNECTED; //the esp library has no specific state to indicate if its connecting (only WL_IDLE_STATUS) so we keep track of it here
+    DISCONNECTED;  //the esp library has no specific state to indicate if its connecting (only WL_IDLE_STATUS) so we keep track of it here
 
 void init_webserver() {
   // Configure WiFi
