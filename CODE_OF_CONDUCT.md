@@ -35,7 +35,7 @@ Examples of unacceptable behavior include:
   address, without their explicit permission
 * Other conduct which could reasonably be considered inappropriate in a
   professional setting
-* No excessive self-promotion
+* Excessive self-promotion
 
 ## Enforcement Responsibilities
 
