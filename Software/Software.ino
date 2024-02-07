@@ -555,7 +555,7 @@ void handle_LED_state() {
   } else if (!rampUp && brightness == 0) {
     rampUp = true;
   }
-  switch (LEDcolor) {
+  switch (get_event_ledcolor()) {
     case GREEN:
       pixels.setPixelColor(0, pixels.Color(0, brightness, 0));  // Green pulsing LED
       break;
@@ -573,12 +573,6 @@ void handle_LED_state() {
       break;
     default:
       break;
-  }
-
-  // BMS in fault state overrides everything
-  if (bms_status == FAULT) {
-    LEDcolor = RED;
-    pixels.setPixelColor(0, pixels.Color(255, 0, 0));  // Red LED full brightness
   }
 
   pixels.show();  // This sends the updated pixel color to the hardware.

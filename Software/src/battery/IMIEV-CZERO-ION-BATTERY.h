@@ -28,7 +28,6 @@ extern uint16_t cell_max_voltage;
 extern uint16_t cell_min_voltage;
 extern bool batteryAllowsContactorClosing;   //Bool, 1=true, 0=false
 extern bool inverterAllowsContactorClosing;  //Bool, 1=true, 0=false
-extern uint8_t LEDcolor;
 
 void update_values_imiev_battery();
 void receive_can_imiev_battery(CAN_frame_t rx_frame);

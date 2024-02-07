@@ -1,5 +1,5 @@
 # Include the directory with your source files
-include_directories(${CMAKE_SOURCE_DIR}/Software/src/devboard/utils .)
+include_directories(${CMAKE_SOURCE_DIR}/Software/src/devboard ${CMAKE_SOURCE_DIR}/Software/src/devboard/utils . )
 
 # Create a variable to store the list of test files
 file(GLOB TEST_SOURCES utils/*.cpp)

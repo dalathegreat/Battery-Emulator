@@ -24,6 +24,7 @@ typedef enum {
   EVENT_CELL_OVER_VOLTAGE,
   EVENT_CELL_DEVIATION_HIGH,
   EVENT_UNKNOWN_EVENT_SET,
+  EVENT_OTA_UPDATE,
   EVENT_DUMMY,
   EVENT_NOF_EVENTS
 } EVENTS_ENUM_TYPE;
@@ -31,5 +32,8 @@ typedef enum {
 void init_events(void);
 void set_event(EVENTS_ENUM_TYPE event, uint8_t data);
 void run_event_handling(void);
+uint8_t get_event_ledcolor(void);
+
+extern uint8_t bms_status;  //Enum, 0-5
 
 #endif  // __MYTIMER_H__

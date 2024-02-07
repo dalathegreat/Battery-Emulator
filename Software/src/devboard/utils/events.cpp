@@ -39,6 +39,9 @@ void init_events(void) {
   entries[EVENT_CAN_WARNING].led_color = YELLOW;
   entries[EVENT_CELL_DEVIATION_HIGH].led_color = YELLOW;
   entries[EVENT_KWH_PLAUSIBILITY_ERROR].led_color = YELLOW;
+
+  // BLUE...
+  entries[EVENT_OTA_UPDATE].led_color = BLUE;
 }
 
 void set_event(EVENTS_ENUM_TYPE event, uint8_t data) {
@@ -48,10 +51,23 @@ void set_event(EVENTS_ENUM_TYPE event, uint8_t data) {
   entries[event].timestamp = time_seconds;
   entries[event].data = data;
   entries[event].occurences++;
+
+  update_led_color(event);
+
+  if (total_led_color == RED) {
+    bms_status = FAULT;
+  } else if (total_led_color) {
+    bms_status = UPDATING;
+  }
+
   set_event_message(event);
 #ifdef DEBUG_VIA_USB
   Serial.println(event_message);
 #endif
+}
+
+uint8_t get_event_ledcolor(void) {
+  return total_led_color;
 }
 
 /* Local functions */
@@ -64,7 +80,7 @@ static void update_event_time(void) {
 }
 
 static void update_led_color(EVENTS_ENUM_TYPE event) {
-  total_led_color = (total_led_color == RED) ? RED : entries[event].led_color;
+  total_led_color = max(total_led_color, entries[event].led_color);
 }
 
 static void set_event_message(EVENTS_ENUM_TYPE event) {
@@ -131,6 +147,9 @@ static void set_event_message(EVENTS_ENUM_TYPE event) {
       break;
     case EVENT_UNKNOWN_EVENT_SET:
       snprintf(event_message, sizeof(event_message), "An unknown event was set! Review your code!");
+      break;
+    case EVENT_OTA_UPDATE:
+      snprintf(event_message, sizeof(event_message), "OTA update started!");
       break;
     case EVENT_DUMMY:
       snprintf(event_message, sizeof(event_message), "The dummy event was set!");  // Don't change this event message!

@@ -108,8 +108,6 @@ void update_values_imiev_battery() {  //This function maps all the values fetche
 
   /* Check if the BMS is still sending CAN messages. If we go 60s without messages we raise an error*/
   if (!CANstillAlive) {
-    bms_status = FAULT;
-    Serial.println("No CAN communication detected for 60s. Shutting down battery control.");
     set_event(EVENT_CAN_FAILURE, 0);
   } else {
     CANstillAlive--;

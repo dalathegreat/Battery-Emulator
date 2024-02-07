@@ -201,7 +201,7 @@ class Runtime {
       return 0;                                                                                                    \
     } else {                                                                                                       \
       double percentage = 100.0 * num_failed / mt::TestsManager::tests().size();                                   \
-      fprintf(stderr, "%s{ summary} %lu tests failed (%.2f%%)%s\n", mt::red(), num_failed, percentage, mt::def()); \
+      fprintf(stderr, "%s{ summary} %zu tests failed (%.2f%%)%s\n", mt::red(), num_failed, percentage, mt::def()); \
       return -1;                                                                                                   \
     }                                                                                                              \
   }

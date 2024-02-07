@@ -2,14 +2,20 @@
 #define __TEST_LIB_H__
 
 #include <stdint.h>
+#include <algorithm>
 #include <cstdint>
 #include <cstdio>
 
+#include "config.h"
 #include "microtest.h"
+
+using namespace std;
 
 class MySerial;
 
 extern unsigned long testlib_millis;
+extern MySerial Serial;
+extern uint8_t bms_status;
 
 /* Mock millis() */
 static inline unsigned long millis(void) {
@@ -37,7 +43,5 @@ class MySerial {
     return length;  // Return the total length printed
   }
 };
-
-extern MySerial Serial;
 
 #endif

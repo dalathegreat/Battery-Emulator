@@ -1,5 +1,6 @@
 #include "webserver.h"
 #include <Preferences.h>
+#include "../utils/events.h"
 
 Preferences preferences3;
 
@@ -927,15 +928,11 @@ String cellmonitor_processor(const String& var) {
 
 void onOTAStart() {
   // Log when OTA has started
-  Serial.println("OTA update started!");
   ESP32Can.CANStop();
-  bms_status = UPDATING;  //Inform inverter that we are updating
-  LEDcolor = BLUE;
+  set_event(EVENT_OTA_UPDATE, 0);
 }
 
 void onOTAProgress(size_t current, size_t final) {
-  bms_status = UPDATING;  //Inform inverter that we are updating
-  LEDcolor = BLUE;
   // Log every 1 second
   if (millis() - ota_progress_millis > 1000) {
     ota_progress_millis = millis();
@@ -950,8 +947,6 @@ void onOTAEnd(bool success) {
   } else {
     Serial.println("There was an error during OTA update!");
   }
-  bms_status = UPDATING;  //Inform inverter that we are updating
-  LEDcolor = BLUE;
 }
 
 template <typename T>  // This function makes power values appear as W when under 1000, and kW when over

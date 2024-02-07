@@ -58,13 +58,14 @@ TEST(set_event_test) {
   ASSERT_EQ(entries[EVENT_CELL_OVER_VOLTAGE].data, 0);
   ASSERT_EQ(entries[EVENT_CELL_OVER_VOLTAGE].occurences, 0);
   ASSERT_EQ(entries[EVENT_CELL_OVER_VOLTAGE].timestamp, 0);
-  // Set current time and overvoltage event for cell 23
+  // Set current time and overvoltage event for cell 23 (RED color, bms_status == FAULT)
   time_seconds = 345;
   set_event(EVENT_CELL_OVER_VOLTAGE, 123);
   // Ensure proper event data
   ASSERT_EQ(entries[EVENT_CELL_OVER_VOLTAGE].data, 123);
   ASSERT_EQ(entries[EVENT_CELL_OVER_VOLTAGE].occurences, 1);
   ASSERT_EQ(entries[EVENT_CELL_OVER_VOLTAGE].timestamp, 345);
+  ASSERT_EQ(bms_status, FAULT);
 }
 
 TEST(event_message_test) {
