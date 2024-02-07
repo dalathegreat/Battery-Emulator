@@ -39,13 +39,13 @@ const char index_html[] PROGMEM = R"rawliteral(
 // Wifi connect time declarations and definition
 const unsigned long MAX_WIFI_RECONNECT_BACKOFF_TIME = 60000;  // Maximum backoff time of 1 minute
 const unsigned long DEFAULT_WIFI_RECONNECT_BACKOFF_TIME =
-    1000;                                                    // Default wifi reconnect backoff time. Start with 1 second
+    1000;                                          // Default wifi reconnect backoff time. Start with 1 second
 const unsigned long WIFI_CONNECT_TIMEOUT = 10000;  // Timeout for WiFi connect in milliseconds
 const unsigned long WIFI_MONITOR_LOOP_TIME =
     1000;  // Will check if WiFi is connected and try reconnect every x milliseconds
 unsigned long last_wifi_monitor_run = 0;
 unsigned long wifi_connect_start_time;
-unsigned long wifi_reconnect_backoff_time = DEFAULT_WIFI_RECONNECT_BACKOFF_TIME; 
+unsigned long wifi_reconnect_backoff_time = DEFAULT_WIFI_RECONNECT_BACKOFF_TIME;
 
 enum WiFiState { DISCONNECTED, CONNECTING, CONNECTED };
 
