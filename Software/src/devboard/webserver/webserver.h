@@ -94,7 +94,7 @@ void WiFi_monitor_loop();
 //  * @brief Function to handle WiFi reconnection.
 //  *
 //  * @param[in] void
-//  * 
+//  *
 //  * @return void
 //  */
 // void handle_WiFi_reconnection(unsigned long currentMillis);
