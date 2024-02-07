@@ -38,18 +38,18 @@ const char index_html[] PROGMEM = R"rawliteral(
 
 // Wifi connect time declarations and definition
 const unsigned long MAX_WIFI_RECONNECT_BACKOFF_TIME = 60000;  // Maximum backoff time of 1 minute
-const unsigned long DEFAULT_WIFI_RECONNECT_BACKOFF_TIME = 
-    1000;  // Default wifi reconnect backoff time. Start with 1 second
+const unsigned long DEFAULT_WIFI_RECONNECT_BACKOFF_TIME =
+    1000;                                                    // Default wifi reconnect backoff time. Start with 1 second
 const unsigned long WIFI_CONNECT_TIMEOUT = 10000;  // Timeout for WiFi connect in milliseconds
-const unsigned long WIFI_MONITOR_LOOP_TIME = 
+const unsigned long WIFI_MONITOR_LOOP_TIME =
     1000;  // Will check if WiFi is connected and try reconnect every x milliseconds
 unsigned long last_wifi_monitor_run = 0;
 unsigned long wifi_connect_start_time;
 unsigned long wifi_reconnect_backoff_time = DEFAULT_WIFI_RECONNECT_BACKOFF_TIME; 
 
-enum WiFiState { DISCONNECTED, CONNECTING, CONNECTED }; 
+enum WiFiState { DISCONNECTED, CONNECTING, CONNECTED };
 
-WiFiState wifi_state = 
+WiFiState wifi_state =
     DISCONNECTED; //the esp library has no specific state to indicate if its connecting (only WL_IDLE_STATUS) so we keep track of it here
 
 void init_webserver() {
@@ -317,7 +317,8 @@ void WiFi_monitor_loop() {
     switch (status) {
       case WL_CONNECTED:
         if (wifi_state != CONNECTED) {  //we need to update our own wifi state to indicate we are connected
-          wifi_reconnect_backoff_time = DEFAULT_WIFI_RECONNECT_BACKOFF_TIME;  // Reset backoff time after maintaining connection
+          wifi_reconnect_backoff_time =
+              DEFAULT_WIFI_RECONNECT_BACKOFF_TIME;  // Reset backoff time after maintaining connection
           wifi_state = CONNECTED;
           print_wifi_status_message(status);
         }
@@ -331,7 +332,7 @@ void WiFi_monitor_loop() {
       case WL_IDLE_STATUS:  //this means the wifi is not ready to process any commands (it's probably trying to connect). do nothing
 
       case WL_SCAN_COMPLETED:  //this will only be set when scanning for networks. We don't do that yet
-      case WL_NO_SHIELD:  //should not happen, this means no wifi chip detected, so we can't do much
+      case WL_NO_SHIELD:       //should not happen, this means no wifi chip detected, so we can't do much
         break;
     }
   }
