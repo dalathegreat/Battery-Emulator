@@ -314,13 +314,9 @@ void update_values_tesla_model_3_battery() {  //This function maps all the value
 
   Serial.print("Battery values: ");
   Serial.print("Real SOC: ");
-  Serial.print(soc_vi);
+  Serial.print(soc_vi / 10.0, 1);
   print_int_with_units(", Battery voltage: ", volts, "V");
-  print_int_with_units(", Battery current: ", (amps * 0.1), "A");
-  Serial.println("");
-  print_int_with_units("Discharge limit battery: ", discharge_limit, "kW");
-  Serial.print(", ");
-  print_int_with_units("Charge limit battery: ", regenerative_limit, "kW");
+  print_int_with_units(", Battery HV current: ", (amps * 0.1), "A");
   Serial.print(", Fully charged?: ");
   if (full_charge_complete)
     Serial.print("YES, ");
@@ -346,7 +342,7 @@ void update_values_tesla_model_3_battery() {  //This function maps all the value
   Serial.print(", ");
   print_int_with_units("Low Voltage: ", low_voltage, "V");
   Serial.println("");
-  print_int_with_units("Current Output: ", output_current, "A");
+  print_int_with_units("DC/DC 12V current: ", output_current, "A");
   Serial.println("");
 
   Serial.println("Values passed to the inverter: ");
@@ -355,9 +351,9 @@ void update_values_tesla_model_3_battery() {  //This function maps all the value
   Serial.print(", ");
   print_int_with_units(" Max charge power: ", max_target_charge_power, "W");
   Serial.println("");
-  print_int_with_units(" Max temperature: ", (temperature_max * 0.1), "°C");
+  print_int_with_units(" Max temperature: ", ((int16_t)temperature_max * 0.1), "°C");
   Serial.print(", ");
-  print_int_with_units(" Min temperature: ", (temperature_min * 0.1), "°C");
+  print_int_with_units(" Min temperature: ", ((int16_t)temperature_min * 0.1), "°C");
   Serial.println("");
 #endif
 }
