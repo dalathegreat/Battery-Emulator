@@ -36,24 +36,31 @@ const char index_html[] PROGMEM = R"rawliteral(
 </html>
 )rawliteral";
 
-String wifi_state;
-bool wifi_connected;
+enum WifiState {
+  INIT,
+  RECONNECTING,
+  CONNECTED
+};
 
-// Wifi connect time declarations and definition
-unsigned long wifi_connect_start_time;
-unsigned long wifi_connect_current_time;
-const long wifi_connect_timeout = 8000;  // Timeout for WiFi connect in milliseconds
+WifiState wifi_state = INIT;
+
+unsigned const long wifi_monitor_loop_time = 15000;
+unsigned long last_wifi_monitor_time = millis(); //init millis so wifi monitor doesn't run immediately
+unsigned const long wifi_connect_timeout = 8000;  // Timeout for WiFi connect in milliseconds
+unsigned const long DEFAULT_WIFI_RECONNECT_INTERVAL = 1000; // Start with a 1 second retry interval
+unsigned long wifi_reconnect_interval = DEFAULT_WIFI_RECONNECT_INTERVAL;
+unsigned const long max_retry_interval = 30000; // Maximum retry interval of 1 minute
+unsigned long last_wifi_attempt_time = millis(); //init millis so wifi monitor doesn't run immediately  
 
 void init_webserver() {
   // Configure WiFi
   if (AccessPointEnabled) {
     WiFi.mode(WIFI_AP_STA);  // Simultaneous WiFi AP and Router connection
     init_WiFi_AP();
-    init_WiFi_STA(ssid, password);
   } else {
     WiFi.mode(WIFI_STA);  // Only Router connection
-    init_WiFi_STA(ssid, password);
   }
+  init_WiFi_STA(ssid, password, channel);
 
   // Route for root / web page
   server.on("/", HTTP_GET,
@@ -288,33 +295,43 @@ String getConnectResultString(wl_status_t status) {
   }
 }
 
-void init_WiFi_STA(const char* ssid, const char* password) {
+void wifi_monitor() {
+  unsigned long currentMillis = millis();
+  if(currentMillis - last_wifi_monitor_time > wifi_monitor_loop_time) {
+    last_wifi_monitor_time = currentMillis;
+    wl_status_t status = WiFi.status();
+    if (status != WL_CONNECTED && status != WL_IDLE_STATUS) {
+      Serial.println(getConnectResultString(status));
+      if(wifi_state == INIT) { //we haven't been connected yet, try the init logic
+        init_WiFi_STA(ssid, password, channel);
+      } else { //we were connected before, try the reconnect logic
+        if (currentMillis - last_wifi_attempt_time > wifi_reconnect_interval) {
+          last_wifi_attempt_time = currentMillis;
+          Serial.println("WiFi not connected, trying to reconnect...");
+          wifi_state = RECONNECTING;
+          WiFi.reconnect();
+          wifi_reconnect_interval = min(wifi_reconnect_interval * 2, max_retry_interval);
+        }
+      }
+    } else if (status == WL_CONNECTED && wifi_state != CONNECTED) {
+      wifi_state = CONNECTED;
+      wifi_reconnect_interval = DEFAULT_WIFI_RECONNECT_INTERVAL;
+      // Print local IP address and start web server
+      Serial.print("Connected to WiFi network: " + String(ssid));
+      Serial.print("IP address: " + WiFi.localIP().toString());
+      Serial.print("Signal Strength: " + String(WiFi.RSSI()) + " dBm ");
+      Serial.println("Channel: " + String(WiFi.channel()));
+    }
+  }
+}
+
+void init_WiFi_STA(const char* ssid, const char* password, const uint8_t channel) {
   // Connect to Wi-Fi network with SSID and password
   Serial.print("Connecting to ");
   Serial.println(ssid);
-  WiFi.begin(ssid, password);
+  WiFi.begin(ssid, password, channel);
   WiFi.setAutoReconnect(true);  // Enable auto reconnect
-
   wl_status_t result = static_cast<wl_status_t>(WiFi.waitForConnectResult(wifi_connect_timeout));
-  Serial.println(getConnectResultString(result));
-
-  if (result == WL_CONNECTED) {  // WL_CONNECTED is assigned when connected to a WiFi network
-    wifi_connected = true;
-    wifi_state = "Connected";
-    // Print local IP address and start web server
-    Serial.println("");
-    Serial.print("Connected to WiFi network: ");
-    Serial.println(ssid);
-    Serial.print("IP address: ");
-    Serial.println(WiFi.localIP());
-    Serial.println("Signal Strength: " + String(WiFi.RSSI()) + " dBm");
-  } else {
-    wifi_connected = false;
-    wifi_state = "Not connected";
-    Serial.print("Not connected to WiFi network: ");
-    Serial.println(ssid);
-    Serial.println("Please check WiFi network name and password, and if WiFi network is available.");
-  }
 }
 
 void init_ElegantOTA() {

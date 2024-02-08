@@ -156,6 +156,7 @@ void loop() {
 
 #ifdef WEBSERVER
   // Over-the-air updates by ElegantOTA
+  wifi_monitor();
   ElegantOTA.loop();
 #ifdef MQTT
   mqtt_loop();

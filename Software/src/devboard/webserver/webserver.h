@@ -40,6 +40,7 @@ extern EVENTS_STRUCT_TYPE entries[EVENT_NOF_EVENTS];
 
 extern const char* ssid;
 extern const char* password;
+extern const uint8_t channel;
 extern const char* ssidAP;
 extern const char* passwordAP;
 extern const char* versionNumber;
@@ -64,6 +65,15 @@ extern uint16_t OBC_Charge_Power;
  */
 void init_webserver();
 
+/*
+ * @brief loop for monitoring wifi.
+ *
+ * @param[in] void
+ *
+ * @return void
+*/
+void wifi_monitor();
+
 /**
  * @brief Initialization function that creates a WiFi Access Point.
  *
@@ -81,7 +91,7 @@ void init_WiFi_AP();
  * 
  * @return void
  */
-void init_WiFi_STA(const char* ssid, const char* password);
+void init_WiFi_STA(const char* ssid, const char* password, const uint8_t channel);
 
 /**
  * @brief Initialization function for ElegantOTA.
