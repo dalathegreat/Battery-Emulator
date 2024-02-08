@@ -75,7 +75,7 @@ void init_webserver() {
     request->send_P(200, "text/html", index_html, cellmonitor_processor);
   });
 
-  server.on("events", HTTP_GET, [](AsyncWebServerRequest* request) {
+  server.on("/events", HTTP_GET, [](AsyncWebServerRequest* request) {
     request->send_P(200, "text/html", index_html, events_processor);
   });
 
