@@ -102,6 +102,7 @@ static void publish_cell_voltages(void) {
 }
 
 struct SensorConfig {
+  const char* object_id;
   const char* topic;
   const char* name;
   const char* value_template;
@@ -110,19 +111,20 @@ struct SensorConfig {
 };
 
 SensorConfig sensorConfigs[] = {
-  {"homeassistant/sensor/battery-emulator/SOC/config", "Battery Emulator SOC", "{{ value_json.SOC }}", "%", "battery"},
-  {"homeassistant/sensor/battery-emulator/StateOfHealth/config", "Battery Emulator StateOfHealth", "{{ value_json.StateOfHealth }}", "%", "battery"},
-  {"homeassistant/sensor/battery-emulator/temperature_min/config", "Battery Emulator Temperature Min", "{{ value_json.temperature_min }}", "°C", "temperature"},
-  {"homeassistant/sensor/battery-emulator/temperature_max/config", "Battery Emulator Temperature Max", "{{ value_json.temperature_max }}", "°C", "temperature"},
-  {"homeassistant/sensor/battery-emulator/stat_batt_power/config", "Battery Emulator Stat Batt Power", "{{ value_json.stat_batt_power }}", "W", "power"},
-  {"homeassistant/sensor/battery-emulator/battery_current/config", "Battery Emulator Battery Current", "{{ value_json.battery_current }}", "A", "current"},
-  {"homeassistant/sensor/battery-emulator/cell_max_voltage/config", "Battery Emulator Cell Max Voltage", "{{ value_json.cell_max_voltage }}", "V", "voltage"},
-  {"homeassistant/sensor/battery-emulator/cell_min_voltage/config", "Battery Emulator Cell Min Voltage", "{{ value_json.cell_min_voltage }}", "V", "voltage"},
-  {"homeassistant/sensor/battery-emulator/battery_voltage/config", "Battery Emulator Battery Voltage", "{{ value_json.battery_voltage }}", "V", "voltage"},
+  {"SOC", "homeassistant/sensor/battery-emulator/SOC/config", "Battery Emulator SOC", "{{ value_json.SOC }}", "%", "battery"},
+  {"state_of_health", "homeassistant/sensor/battery-emulator/state_of_health/config", "Battery Emulator State Of Health", "{{ value_json.state_of_health }}", "%", "battery"},
+  {"temperature_min", "homeassistant/sensor/battery-emulator/temperature_min/config", "Battery Emulator Temperature Min", "{{ value_json.temperature_min }}", "°C", "temperature"},
+  {"temperature_max", "homeassistant/sensor/battery-emulator/temperature_max/config", "Battery Emulator Temperature Max", "{{ value_json.temperature_max }}", "°C", "temperature"},
+  {"stat_batt_power", "homeassistant/sensor/battery-emulator/stat_batt_power/config", "Battery Emulator Stat Batt Power", "{{ value_json.stat_batt_power }}", "W", "power"},
+  {"battery_current", "homeassistant/sensor/battery-emulator/battery_current/config", "Battery Emulator Battery Current", "{{ value_json.battery_current }}", "A", "current"},
+  {"cell_max_voltage", "homeassistant/sensor/battery-emulator/cell_max_voltage/config", "Battery Emulator Cell Max Voltage", "{{ value_json.cell_max_voltage }}", "V", "voltage"},
+  {"cell_min_voltage", "homeassistant/sensor/battery-emulator/cell_min_voltage/config", "Battery Emulator Cell Min Voltage", "{{ value_json.cell_min_voltage }}", "V", "voltage"},
+  {"battery_voltage", "homeassistant/sensor/battery-emulator/battery_voltage/config", "Battery Emulator Battery Voltage", "{{ value_json.battery_voltage }}", "V", "voltage"},
 };
 
 static void publish_common_info(void) {
   static bool mqtt_first_transmission = true;
+  static char* state_topic = "battery-emulator/info";
   if (mqtt_first_transmission == true) {
     mqtt_first_transmission = false;
     for (int i = 0; i < sizeof(sensorConfigs) / sizeof(sensorConfigs[0]); i++) {
@@ -130,32 +132,36 @@ static void publish_common_info(void) {
       snprintf(mqtt_msg, sizeof(mqtt_msg),
               "{"
               "\"name\": \"%s\","
-              "\"state_topic\": \"battery-emulator/info\","
-              "\"json_attributes_topic\": \"battery-emulator/info\","
-              "\"unique_id\": \"battery-emulator_%d\","
+              "\"state_topic\": \"%s\","
+              "\"unique_id\": \"battery-emulator_%s\","
+              "\"object_id\": \"%s\","
               "\"device\": {"
-              "\"identifiers\": ["
-              "\"battery-emulator\""
-              "],"
-              "\"manufacturer\": \"DalaTech\","
-              "\"model\": \"BatteryEmulator\","
-              "\"name\": \"BatteryEmulator\","
-              "\"sw_version\": \"4.4.0-mqtt\","
-              "\"url\": \"https://github.com/dalathegreat/Battery-Emulator\""
+                "\"identifiers\": ["
+                  "\"battery-emulator\""
+                "],"
+                "\"manufacturer\": \"DalaTech\","
+                "\"model\": \"BatteryEmulator\","
+                "\"name\": \"BatteryEmulator\","
+              "},"
+              "\"origin\": {"
+                "\"name\": \"BatteryEmulator\","
+                "\"sw\": \"5.1.0-mqtt\","
+                "\"url\": \"https://github.com/dalathegreat/Battery-Emulator\""
               "},"
               "\"value_template\": \"%s\","
               "\"unit_of_measurement\": \"%s\","
               "\"device_class\": \"%s\","
+              "\"enabled_by_default\": true,"
               "\"state_class\": \"measurement\""
               "}",
-              config.name, i, config.value_template, config.unit, config.device_class);
+              config.name, state_topic, config.object_id, config.object_id, config.value_template, config.unit, config.device_class);
       mqtt_publish_retain(config.topic);
     }
   } else {
     snprintf(mqtt_msg, sizeof(mqtt_msg),
            "{\n"
            "  \"SOC\": %.3f,\n"
-           "  \"StateOfHealth\": %.3f,\n"
+           "  \"state_of_health\": %.3f,\n"
            "  \"temperature_min\": %.3f,\n"
            "  \"temperature_max\": %.3f,\n"
            "  \"stat_batt_power\": %.3f,\n"
@@ -173,7 +179,7 @@ static void publish_common_info(void) {
            cell_max_voltage, 
            cell_min_voltage,
            battery_voltage / 10.0);
-    bool result = client.publish("battery-emulator/info", mqtt_msg, true);
+    bool result = client.publish(state_topic, mqtt_msg, true);
   }
   
   //Serial.println(mqtt_msg);  // Uncomment to print the payload on serial
