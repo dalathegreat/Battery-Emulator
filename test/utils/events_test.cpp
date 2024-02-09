@@ -2,8 +2,8 @@
 #include "../test_lib.h"
 
 #include "../../Software/src/devboard/config.h"
-#include "events.cpp"
-#include "timer.cpp"
+#include "../../Software/src/devboard/utils/events.cpp"
+#include "../../Software/src/devboard/utils/timer.cpp"
 
 /* Local rest variables */
 bool elapsed = false;
@@ -20,6 +20,8 @@ TEST(init_events_test) {
 
   for (uint8_t i = 0; i < EVENT_NOF_EVENTS; i++) {
     ASSERT_EQ(events.entries[i].occurences, 0);
+    ASSERT_EQ(events.entries[i].data, 0);
+    ASSERT_EQ(events.entries[i].timestamp, 0);
   }
 }
 

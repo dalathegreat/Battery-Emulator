@@ -555,7 +555,7 @@ void handle_LED_state() {
   } else if (!rampUp && brightness == 0) {
     rampUp = true;
   }
-  switch (get_event_ledcolor()) {
+  switch (LEDcolor) {
     case GREEN:
       pixels.setPixelColor(0, pixels.Color(0, brightness, 0));  // Green pulsing LED
       break;

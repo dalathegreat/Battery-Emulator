@@ -49,19 +49,45 @@ void run_event_handling(void) {
 
 /* Initialization function */
 void init_events(void) {
-  for (uint8_t i = 0; i < EVENT_NOF_EVENTS; i++) {
-    events.entries[i].timestamp = 0;
-    events.entries[i].data = 0;
-    events.entries[i].occurences = 0;
-    events.entries[i].led_color = RED;  // Most events are RED
-    events.entries[i].state = EVENT_STATE_INACTIVE;
-  }
 
-  // YELLOW events below
-  events.entries[EVENT_12V_LOW].led_color = YELLOW;
-  events.entries[EVENT_CAN_WARNING].led_color = YELLOW;
-  events.entries[EVENT_CELL_DEVIATION_HIGH].led_color = YELLOW;
-  events.entries[EVENT_KWH_PLAUSIBILITY_ERROR].led_color = YELLOW;
+  events.entries[EVENT_CAN_FAILURE] = {
+      .timestamp = 0, .data = 0, .occurences = 0, .led_color = RED, .state = EVENT_STATE_INACTIVE};
+  events.entries[EVENT_CAN_WARNING] = {
+      .timestamp = 0, .data = 0, .occurences = 0, .led_color = YELLOW, .state = EVENT_STATE_INACTIVE};
+  events.entries[EVENT_WATER_INGRESS] = {
+      .timestamp = 0, .data = 0, .occurences = 0, .led_color = RED, .state = EVENT_STATE_INACTIVE};
+  events.entries[EVENT_12V_LOW] = {
+      .timestamp = 0, .data = 0, .occurences = 0, .led_color = YELLOW, .state = EVENT_STATE_INACTIVE};
+  events.entries[EVENT_SOC_PLAUSIBILITY_ERROR] = {
+      .timestamp = 0, .data = 0, .occurences = 0, .led_color = RED, .state = EVENT_STATE_INACTIVE};
+  events.entries[EVENT_KWH_PLAUSIBILITY_ERROR] = {
+      .timestamp = 0, .data = 0, .occurences = 0, .led_color = YELLOW, .state = EVENT_STATE_INACTIVE};
+  events.entries[EVENT_BATTERY_CHG_STOP_REQ] = {
+      .timestamp = 0, .data = 0, .occurences = 0, .led_color = RED, .state = EVENT_STATE_INACTIVE};
+  events.entries[EVENT_BATTERY_DISCHG_STOP_REQ] = {
+      .timestamp = 0, .data = 0, .occurences = 0, .led_color = RED, .state = EVENT_STATE_INACTIVE};
+  events.entries[EVENT_BATTERY_CHG_DISCHG_STOP_REQ] = {
+      .timestamp = 0, .data = 0, .occurences = 0, .led_color = RED, .state = EVENT_STATE_INACTIVE};
+  events.entries[EVENT_LOW_SOH] = {
+      .timestamp = 0, .data = 0, .occurences = 0, .led_color = RED, .state = EVENT_STATE_INACTIVE};
+  events.entries[EVENT_HVIL_FAILURE] = {
+      .timestamp = 0, .data = 0, .occurences = 0, .led_color = RED, .state = EVENT_STATE_INACTIVE};
+  events.entries[EVENT_INTERNAL_OPEN_FAULT] = {
+      .timestamp = 0, .data = 0, .occurences = 0, .led_color = RED, .state = EVENT_STATE_INACTIVE};
+  events.entries[EVENT_CELL_UNDER_VOLTAGE] = {
+      .timestamp = 0, .data = 0, .occurences = 0, .led_color = RED, .state = EVENT_STATE_INACTIVE};
+  events.entries[EVENT_CELL_OVER_VOLTAGE] = {
+      .timestamp = 0, .data = 0, .occurences = 0, .led_color = RED, .state = EVENT_STATE_INACTIVE};
+  events.entries[EVENT_CELL_DEVIATION_HIGH] = {
+      .timestamp = 0, .data = 0, .occurences = 0, .led_color = YELLOW, .state = EVENT_STATE_INACTIVE};
+  events.entries[EVENT_UNKNOWN_EVENT_SET] = {
+      .timestamp = 0, .data = 0, .occurences = 0, .led_color = RED, .state = EVENT_STATE_INACTIVE};
+  events.entries[EVENT_OTA_UPDATE] = {
+      .timestamp = 0, .data = 0, .occurences = 0, .led_color = BLUE, .state = EVENT_STATE_INACTIVE};
+  events.entries[EVENT_DUMMY] = {
+      .timestamp = 0, .data = 0, .occurences = 0, .led_color = RED, .state = EVENT_STATE_INACTIVE};
+  events.entries[EVENT_NOF_EVENTS] = {
+      .timestamp = 0, .data = 0, .occurences = 0, .led_color = RED, .state = EVENT_STATE_INACTIVE};
 
   // BLUE...
   events.entries[EVENT_OTA_UPDATE].led_color = BLUE;
