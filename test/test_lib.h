@@ -16,6 +16,7 @@ class MySerial;
 extern unsigned long testlib_millis;
 extern MySerial Serial;
 extern uint8_t bms_status;
+extern uint8_t LEDcolor;
 
 /* Mock millis() */
 static inline unsigned long millis(void) {

@@ -259,7 +259,9 @@ void update_values_leaf_battery() { /* This function maps all the values fetched
   if (battery_voltage >
       (ABSOLUTE_MAX_VOLTAGE - 100)) {  // When pack voltage is close to max, and SOC% is still low, raise FAULT
     if (LB_SOC < 650) {
-      set_event(EVENT_SOC_PLAUSIBILITY_ERROR, LB_SOC / 10);
+      set_event(EVENT_SOC_PLAUSIBILITY_ERROR, LB_SOC / 10);  // Set event with the SOC as data
+    } else {
+      clear_event(EVENT_SOC_PLAUSIBILITY_ERROR);
     }
   }
 
