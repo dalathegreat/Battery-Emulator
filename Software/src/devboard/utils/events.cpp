@@ -39,7 +39,8 @@ void set_event(EVENTS_ENUM_TYPE event, uint8_t data) {
   ++entries[event].occurences;
   set_event_message(event);
 #ifdef DEBUG_VIA_USB
-  Serial.println("Set event: " + String(get_event_enum_string(event)) + ". Has occured " + String(entries[event].occurences) + " times");
+  Serial.println("Set event: " + String(get_event_enum_string(event)) + ". Has occured " +
+                 String(entries[event].occurences) + " times");
 #endif
 #endif
 }
@@ -93,9 +94,11 @@ const char* get_event_message(EVENTS_ENUM_TYPE event) {
     case EVENT_BATTERY_CHG_DISCHG_STOP_REQ:
       return "ERROR: Battery raised caution indicator AND requested charge/discharge stop. Inspect battery status!";
     case EVENT_LOW_SOH:
-      return "ERROR: State of health critically low. Battery internal resistance too high to continue. Recycle battery.";
+      return "ERROR: State of health critically low. Battery internal resistance too high to continue. Recycle "
+             "battery.";
     case EVENT_HVIL_FAILURE:
-      return "ERROR: Battery interlock loop broken. Check that high voltage connectors are seated. Battery will be disabled!";
+      return "ERROR: Battery interlock loop broken. Check that high voltage connectors are seated. Battery will be "
+             "disabled!";
     case EVENT_INTERNAL_OPEN_FAULT:
       return "ERROR: High voltage cable removed while battery running. Opening contactors!";
     case EVENT_CELL_UNDER_VOLTAGE:
@@ -114,11 +117,11 @@ const char* get_event_message(EVENTS_ENUM_TYPE event) {
 }
 
 const char* get_event_enum_string(EVENTS_ENUM_TYPE event) {
-    const char* fullString = EVENTS_ENUM_TYPE_STRING[event];
-    if (strncmp(fullString, "EVENT_", 6) == 0) {
-        return fullString + 6; // Skip the first 6 characters
-    }
-    return fullString;
+  const char* fullString = EVENTS_ENUM_TYPE_STRING[event];
+  if (strncmp(fullString, "EVENT_", 6) == 0) {
+    return fullString + 6;  // Skip the first 6 characters
+  }
+  return fullString;
 }
 
 static void set_event_message(EVENTS_ENUM_TYPE event) {

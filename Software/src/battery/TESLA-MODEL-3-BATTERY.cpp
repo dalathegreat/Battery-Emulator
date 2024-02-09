@@ -266,8 +266,9 @@ void update_values_tesla_model_3_battery() {  //This function maps all the value
   }
 
   //Check if BMS is in need of recalibration
-  if (nominal_full_pack_energy > 1 &&nominal_full_pack_energy < REASONABLE_ENERGYAMOUNT) {
-    Serial.println("Warning: kWh remaining " + String(nominal_full_pack_energy) + " reported by battery not plausible. Battery needs cycling.");
+  if (nominal_full_pack_energy > 1 && nominal_full_pack_energy < REASONABLE_ENERGYAMOUNT) {
+    Serial.println("Warning: kWh remaining " + String(nominal_full_pack_energy) +
+                   " reported by battery not plausible. Battery needs cycling.");
     set_event(EVENT_KWH_PLAUSIBILITY_ERROR, nominal_full_pack_energy);
     LEDcolor = YELLOW;
   } else if (nominal_full_pack_energy <= 1) {

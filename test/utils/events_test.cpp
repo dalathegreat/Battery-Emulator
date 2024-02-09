@@ -7,7 +7,7 @@
 #define DUMMY_EVENT_ENABLED true
 
 /* Helper functions */
-static char event_message[256]; // Declare the event_message variable
+static char event_message[256];  // Declare the event_message variable
 
 static void reset_event_msg(void) {
   snprintf(event_message, sizeof(event_message), "");

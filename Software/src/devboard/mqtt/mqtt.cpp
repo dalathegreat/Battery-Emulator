@@ -111,15 +111,24 @@ struct SensorConfig {
 };
 
 SensorConfig sensorConfigs[] = {
-  {"SOC", "homeassistant/sensor/battery-emulator/SOC/config", "Battery Emulator SOC", "{{ value_json.SOC }}", "%", "battery"},
-  {"state_of_health", "homeassistant/sensor/battery-emulator/state_of_health/config", "Battery Emulator State Of Health", "{{ value_json.state_of_health }}", "%", "battery"},
-  {"temperature_min", "homeassistant/sensor/battery-emulator/temperature_min/config", "Battery Emulator Temperature Min", "{{ value_json.temperature_min }}", "°C", "temperature"},
-  {"temperature_max", "homeassistant/sensor/battery-emulator/temperature_max/config", "Battery Emulator Temperature Max", "{{ value_json.temperature_max }}", "°C", "temperature"},
-  {"stat_batt_power", "homeassistant/sensor/battery-emulator/stat_batt_power/config", "Battery Emulator Stat Batt Power", "{{ value_json.stat_batt_power }}", "W", "power"},
-  {"battery_current", "homeassistant/sensor/battery-emulator/battery_current/config", "Battery Emulator Battery Current", "{{ value_json.battery_current }}", "A", "current"},
-  {"cell_max_voltage", "homeassistant/sensor/battery-emulator/cell_max_voltage/config", "Battery Emulator Cell Max Voltage", "{{ value_json.cell_max_voltage }}", "V", "voltage"},
-  {"cell_min_voltage", "homeassistant/sensor/battery-emulator/cell_min_voltage/config", "Battery Emulator Cell Min Voltage", "{{ value_json.cell_min_voltage }}", "V", "voltage"},
-  {"battery_voltage", "homeassistant/sensor/battery-emulator/battery_voltage/config", "Battery Emulator Battery Voltage", "{{ value_json.battery_voltage }}", "V", "voltage"},
+    {"SOC", "homeassistant/sensor/battery-emulator/SOC/config", "Battery Emulator SOC", "{{ value_json.SOC }}", "%",
+     "battery"},
+    {"state_of_health", "homeassistant/sensor/battery-emulator/state_of_health/config",
+     "Battery Emulator State Of Health", "{{ value_json.state_of_health }}", "%", "battery"},
+    {"temperature_min", "homeassistant/sensor/battery-emulator/temperature_min/config",
+     "Battery Emulator Temperature Min", "{{ value_json.temperature_min }}", "°C", "temperature"},
+    {"temperature_max", "homeassistant/sensor/battery-emulator/temperature_max/config",
+     "Battery Emulator Temperature Max", "{{ value_json.temperature_max }}", "°C", "temperature"},
+    {"stat_batt_power", "homeassistant/sensor/battery-emulator/stat_batt_power/config",
+     "Battery Emulator Stat Batt Power", "{{ value_json.stat_batt_power }}", "W", "power"},
+    {"battery_current", "homeassistant/sensor/battery-emulator/battery_current/config",
+     "Battery Emulator Battery Current", "{{ value_json.battery_current }}", "A", "current"},
+    {"cell_max_voltage", "homeassistant/sensor/battery-emulator/cell_max_voltage/config",
+     "Battery Emulator Cell Max Voltage", "{{ value_json.cell_max_voltage }}", "V", "voltage"},
+    {"cell_min_voltage", "homeassistant/sensor/battery-emulator/cell_min_voltage/config",
+     "Battery Emulator Cell Min Voltage", "{{ value_json.cell_min_voltage }}", "V", "voltage"},
+    {"battery_voltage", "homeassistant/sensor/battery-emulator/battery_voltage/config",
+     "Battery Emulator Battery Voltage", "{{ value_json.battery_voltage }}", "V", "voltage"},
 };
 
 static void publish_common_info(void) {
@@ -130,58 +139,53 @@ static void publish_common_info(void) {
     for (int i = 0; i < sizeof(sensorConfigs) / sizeof(sensorConfigs[0]); i++) {
       SensorConfig& config = sensorConfigs[i];
       snprintf(mqtt_msg, sizeof(mqtt_msg),
-              "{"
-              "\"name\": \"%s\","
-              "\"state_topic\": \"%s\","
-              "\"unique_id\": \"battery-emulator_%s\","
-              "\"object_id\": \"sensor_battery_%s\","
-              "\"device\": {"
-                "\"identifiers\": ["
-                  "\"battery-emulator\""
-                "],"
-                "\"manufacturer\": \"DalaTech\","
-                "\"model\": \"BatteryEmulator\","
-                "\"name\": \"BatteryEmulator\""
-              "},"
-              "\"origin\": {"
-                "\"name\": \"BatteryEmulator\","
-                "\"sw\": \"%s-mqtt\","
-                "\"url\": \"https://github.com/dalathegreat/Battery-Emulator\""
-              "},"
-              "\"value_template\": \"%s\","
-              "\"unit_of_measurement\": \"%s\","
-              "\"device_class\": \"%s\","
-              "\"enabled_by_default\": true,"
-              "\"state_class\": \"measurement\""
-              "}",
-              config.name, state_topic, config.object_id, config.object_id, version_number, config.value_template, config.unit, config.device_class);
+               "{"
+               "\"name\": \"%s\","
+               "\"state_topic\": \"%s\","
+               "\"unique_id\": \"battery-emulator_%s\","
+               "\"object_id\": \"sensor_battery_%s\","
+               "\"device\": {"
+               "\"identifiers\": ["
+               "\"battery-emulator\""
+               "],"
+               "\"manufacturer\": \"DalaTech\","
+               "\"model\": \"BatteryEmulator\","
+               "\"name\": \"BatteryEmulator\""
+               "},"
+               "\"origin\": {"
+               "\"name\": \"BatteryEmulator\","
+               "\"sw\": \"%s-mqtt\","
+               "\"url\": \"https://github.com/dalathegreat/Battery-Emulator\""
+               "},"
+               "\"value_template\": \"%s\","
+               "\"unit_of_measurement\": \"%s\","
+               "\"device_class\": \"%s\","
+               "\"enabled_by_default\": true,"
+               "\"state_class\": \"measurement\""
+               "}",
+               config.name, state_topic, config.object_id, config.object_id, version_number, config.value_template,
+               config.unit, config.device_class);
       mqtt_publish_retain(config.topic);
     }
   } else {
     snprintf(mqtt_msg, sizeof(mqtt_msg),
-           "{\n"
-           "  \"SOC\": %.3f,\n"
-           "  \"state_of_health\": %.3f,\n"
-           "  \"temperature_min\": %.3f,\n"
-           "  \"temperature_max\": %.3f,\n"
-           "  \"stat_batt_power\": %.3f,\n"
-           "  \"battery_current\": %.3f,\n"
-           "  \"cell_max_voltage\": %d,\n"
-           "  \"cell_min_voltage\": %d,\n"
-           "  \"battery_voltage\": %d\n" 
-           "}\n",
-           ((float)SOC) / 100.0, 
-           ((float)StateOfHealth) / 100.0, 
-           ((float)((int16_t)temperature_min)) / 10.0,
-           ((float)((int16_t)temperature_max)) / 10.0, 
-           ((float)((int16_t)stat_batt_power)) / 10.0,
-           ((float)((int16_t)battery_current)) / 10.0,
-           cell_max_voltage, 
-           cell_min_voltage,
-           battery_voltage / 10.0);
+             "{\n"
+             "  \"SOC\": %.3f,\n"
+             "  \"state_of_health\": %.3f,\n"
+             "  \"temperature_min\": %.3f,\n"
+             "  \"temperature_max\": %.3f,\n"
+             "  \"stat_batt_power\": %.3f,\n"
+             "  \"battery_current\": %.3f,\n"
+             "  \"cell_max_voltage\": %d,\n"
+             "  \"cell_min_voltage\": %d,\n"
+             "  \"battery_voltage\": %d\n"
+             "}\n",
+             ((float)SOC) / 100.0, ((float)StateOfHealth) / 100.0, ((float)((int16_t)temperature_min)) / 10.0,
+             ((float)((int16_t)temperature_max)) / 10.0, ((float)((int16_t)stat_batt_power)) / 10.0,
+             ((float)((int16_t)battery_current)) / 10.0, cell_max_voltage, cell_min_voltage, battery_voltage / 10.0);
     bool result = client.publish(state_topic, mqtt_msg, true);
   }
-  
+
   //Serial.println(mqtt_msg);  // Uncomment to print the payload on serial
 }
 

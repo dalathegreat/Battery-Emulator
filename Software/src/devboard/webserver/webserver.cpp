@@ -37,20 +37,20 @@ const char index_html[] PROGMEM = R"rawliteral(
 )rawliteral";
 
 enum WifiState {
-  INIT, //before connecting first time
-  RECONNECTING, //we've connected before, but lost connection
-  CONNECTED //we are connected
+  INIT,          //before connecting first time
+  RECONNECTING,  //we've connected before, but lost connection
+  CONNECTED      //we are connected
 };
 
 WifiState wifi_state = INIT;
 
 unsigned const long WIFI_MONITOR_INTERVAL_TIME = 15000;
-unsigned const long INIT_WIFI_CONNECT_TIMEOUT = 8000;  // Timeout for initial WiFi connect in milliseconds
-unsigned const long DEFAULT_WIFI_RECONNECT_INTERVAL = 1000; // Default WiFi reconnect interval in ms
-unsigned const long MAX_WIFI_RETRY_INTERVAL = 30000; // Maximum wifi retry interval in ms
-unsigned long last_wifi_monitor_time = millis(); //init millis so wifi monitor doesn't run immediately
+unsigned const long INIT_WIFI_CONNECT_TIMEOUT = 8000;        // Timeout for initial WiFi connect in milliseconds
+unsigned const long DEFAULT_WIFI_RECONNECT_INTERVAL = 1000;  // Default WiFi reconnect interval in ms
+unsigned const long MAX_WIFI_RETRY_INTERVAL = 30000;         // Maximum wifi retry interval in ms
+unsigned long last_wifi_monitor_time = millis();             //init millis so wifi monitor doesn't run immediately
 unsigned long wifi_reconnect_interval = DEFAULT_WIFI_RECONNECT_INTERVAL;
-unsigned long last_wifi_attempt_time = millis(); //init millis so wifi monitor doesn't run immediately  
+unsigned long last_wifi_attempt_time = millis();  //init millis so wifi monitor doesn't run immediately
 
 void init_webserver() {
   // Configure WiFi
@@ -76,9 +76,8 @@ void init_webserver() {
   });
 
 #ifdef EVENTLOGGING
-  server.on("/events", HTTP_GET, [](AsyncWebServerRequest* request) {
-    request->send_P(200, "text/html", index_html, events_processor);
-  });
+  server.on("/events", HTTP_GET,
+            [](AsyncWebServerRequest* request) { request->send_P(200, "text/html", index_html, events_processor); });
 #endif
 
   // Route for editing Wh
@@ -295,14 +294,14 @@ String getConnectResultString(wl_status_t status) {
 
 void wifi_monitor() {
   unsigned long currentMillis = millis();
-  if(currentMillis - last_wifi_monitor_time > WIFI_MONITOR_INTERVAL_TIME) {
+  if (currentMillis - last_wifi_monitor_time > WIFI_MONITOR_INTERVAL_TIME) {
     last_wifi_monitor_time = currentMillis;
     wl_status_t status = WiFi.status();
     if (status != WL_CONNECTED && status != WL_IDLE_STATUS) {
       Serial.println(getConnectResultString(status));
-      if(wifi_state == INIT) { //we haven't been connected yet, try the init logic
+      if (wifi_state == INIT) {  //we haven't been connected yet, try the init logic
         init_WiFi_STA(ssid, password, wifi_channel);
-      } else { //we were connected before, try the reconnect logic
+      } else {  //we were connected before, try the reconnect logic
         if (currentMillis - last_wifi_attempt_time > wifi_reconnect_interval) {
           last_wifi_attempt_time = currentMillis;
           Serial.println("WiFi not connected, trying to reconnect...");
@@ -975,8 +974,10 @@ String events_processor(const String& var) {
     content.reserve(5000);
     // Page format
     content.concat(FPSTR(EVENTS_HTML_START));
-    for(int i = 0; i < EVENT_NOF_EVENTS; i++) {
-      Serial.println("Event: " + String(get_event_enum_string(static_cast<EVENTS_ENUM_TYPE>(i))) + " count: " + String(entries[i].occurences) + " seconds: " + String(entries[i].timestamp) + " data: " + String(entries[i].data));
+    for (int i = 0; i < EVENT_NOF_EVENTS; i++) {
+      Serial.println("Event: " + String(get_event_enum_string(static_cast<EVENTS_ENUM_TYPE>(i))) +
+                     " count: " + String(entries[i].occurences) + " seconds: " + String(entries[i].timestamp) +
+                     " data: " + String(entries[i].data));
       if (entries[i].occurences > 0) {
         content.concat("<div class='event'>");
         content.concat("<div>" + String(get_event_enum_string(static_cast<EVENTS_ENUM_TYPE>(i))) + "</div>");
@@ -985,7 +986,7 @@ String events_processor(const String& var) {
         content.concat("<div>" + String(entries[i].occurences) + "</div>");
         content.concat("<div>" + String(entries[i].data) + "</div>");
         content.concat("<div>" + String(get_event_message(static_cast<EVENTS_ENUM_TYPE>(i))) + "</div>");
-        content.concat("</div>"); // End of event row
+        content.concat("</div>");  // End of event row
       }
     }
     content.concat(FPSTR(EVENTS_HTML_END));

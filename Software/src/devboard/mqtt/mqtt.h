@@ -39,7 +39,7 @@
 
 #define MQTT_MSG_BUFFER_SIZE (1024)
 
-extern const char* version_number;            // The current software version, used for mqtt
+extern const char* version_number;  // The current software version, used for mqtt
 
 extern uint16_t SOC;
 extern uint16_t StateOfHealth;

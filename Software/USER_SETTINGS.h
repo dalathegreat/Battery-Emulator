@@ -47,7 +47,7 @@
 #define MQTT_PORT 1883
 
 /* Event options*/
-#define EVENTLOGGING //Enable this line to log events to the event log
+#define EVENTLOGGING               //Enable this line to log events to the event log
 #define DUMMY_EVENT_ENABLED false  //Enable this line to have a dummy event that gets logged to test the interface
 
 /* Select charger used (Optional) */

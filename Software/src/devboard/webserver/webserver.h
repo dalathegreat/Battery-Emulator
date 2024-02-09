@@ -17,7 +17,7 @@
 #include "../mqtt/mqtt.h"
 #endif
 
-extern const char* version_number;            // The current software version, shown on webserver
+extern const char* version_number;           // The current software version, shown on webserver
 extern uint16_t SOC;                         //SOC%, 0-100.00 (0-10000)
 extern uint16_t StateOfHealth;               //SOH%, 0-100.00 (0-10000)
 extern uint16_t battery_voltage;             //V+1,  0-500.0 (0-5000)
