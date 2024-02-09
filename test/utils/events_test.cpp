@@ -1,9 +1,14 @@
 // The test library must be included first!
-#include "test_lib.h"
+#include "../test_lib.h"
 
-#include "events.cpp"
+#include "../../Software/src/devboard/utils/events.h"
+
+#define EVENTLOGGING
+#define DUMMY_EVENT_ENABLED true
 
 /* Helper functions */
+static char event_message[256]; // Declare the event_message variable
+
 static void reset_event_msg(void) {
   snprintf(event_message, sizeof(event_message), "");
 }

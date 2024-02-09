@@ -3,6 +3,8 @@
 
 #ifndef UNIT_TEST
 #include <Arduino.h>
+extern unsigned long time_seconds;
+extern uint32_t previous_millis;
 #endif
 
 #include <stdint.h>

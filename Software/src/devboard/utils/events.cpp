@@ -3,8 +3,8 @@
 #include "../../../USER_SETTINGS.h"
 #include "../config.h"
 
-static unsigned long previous_millis = 0;
-static uint32_t time_seconds = 0;
+unsigned long previous_millis = 0;
+uint32_t time_seconds = 0;
 static uint8_t total_led_color = GREEN;
 static char event_message[256];
 EVENTS_STRUCT_TYPE entries[EVENT_NOF_EVENTS];

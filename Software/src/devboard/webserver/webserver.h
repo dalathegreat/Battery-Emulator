@@ -65,13 +65,13 @@ extern uint16_t OBC_Charge_Power;
  */
 void init_webserver();
 
-/*
- * @brief loop for monitoring wifi.
+/**
+ * @brief Monitoring loop for WiFi. Will attempt to reconnect to access point if the connection goes down.
  *
  * @param[in] void
- *
+ * 
  * @return void
-*/
+ */
 void wifi_monitor();
 
 /**
