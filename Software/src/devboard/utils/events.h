@@ -42,6 +42,8 @@ const char* get_event_enum_string(EVENTS_ENUM_TYPE event);
 
 const char* get_event_message(EVENTS_ENUM_TYPE event);
 
+const char* get_led_color_display_text(u_int8_t led_color);
+
 void init_events(void);
 void set_event(EVENTS_ENUM_TYPE event, uint8_t data);
 void update_event_timestamps(void);

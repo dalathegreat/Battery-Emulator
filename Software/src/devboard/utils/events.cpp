@@ -54,6 +54,21 @@ static void update_led_color(EVENTS_ENUM_TYPE event) {
   total_led_color = (total_led_color == RED) ? RED : entries[event].led_color;
 }
 
+const char* get_led_color_display_text(u_int8_t led_color) {
+  switch (led_color) {
+    case RED:
+      return "RED";
+    case YELLOW:
+      return "YELLOW";
+    case GREEN:
+      return "GREEN";
+    case BLUE:
+      return "BLUE";
+    default:
+      return "UNKNOWN";
+  }
+}
+
 const char* get_event_message(EVENTS_ENUM_TYPE event) {
   switch (event) {
     case EVENT_CAN_FAILURE:

@@ -385,6 +385,7 @@ String processor(const String& var) {
       content += "<h4>IP: " + WiFi.localIP().toString() + "</h4>";
       // Get and display the signal strength (RSSI)
       content += "<h4>Signal Strength: " + String(WiFi.RSSI()) + " dBm</h4>";
+      content += "<h4>Channel: " + String(WiFi.channel()) + "</h4>";
     }
     // Close the block
     content += "</div>";
@@ -941,42 +942,47 @@ String cellmonitor_processor(const String& var) {
   return String();
 }
 
+const char EVENTS_HTML_START[] PROGMEM = R"=====(
+<style>
+    body { background-color: black; color: white; }
+    table { width: 100%; border-collapse: collapse; }
+    th, td { border: 1px solid white; padding: 10px; text-align: left; }
+</style>
+<div style='background-color: #303E47; padding: 10px; margin-bottom: 10px;border-radius: 50px'>
+<h4 style='color: white;'>Event log:</h4>
+<table>
+<tr><th>Event Type</th><th>LED Color</th><th>Last Event (seconds ago)</th><th>Count</th><th>Data</th><th>Message</th></tr>
+)=====";
+const char EVENTS_HTML_END[] PROGMEM = R"=====(
+</table>
+</div>
+<button onclick='goToMainPage()'>Back to main page</button>
+<script>
+function goToMainPage() {
+    window.location.href = '/';
+}
+</script>
+)=====";
+
 String events_processor(const String& var) {
   if (var == "PLACEHOLDER") {
     String content = "";
+    content.reserve(5000);
     // Page format
-    content += "<style>";
-    content += "body { background-color: black; color: white; }";
-    content += "table { width: 100%; border-collapse: collapse; }";
-    content += "th, td { border: 1px solid white; padding: 10px; text-align: left; }";
-    content += "</style>";
-
-    // Start a new block with a specific background color
-    content += "<div style='background-color: #303E47; padding: 10px; margin-bottom: 10px;border-radius: 50px'>";
-
-    //iterate through entries and display count, time and event
-    content += "<h4 style='color: white;'>Event log:</h4>";
-    content += "<table>";
-    content += "<tr><th>Event Type</th><th>LED Color</th><th>Last Event (seconds ago)</th><th>Count</th><th>Data</th><th>Message</th></tr>";
+    content.concat(FPSTR(EVENTS_HTML_START));
     for(int i = 0; i < EVENT_NOF_EVENTS; i++) {
-      content += "<tr>";
-      content += "<td>" + String(get_event_enum_string(static_cast<EVENTS_ENUM_TYPE>(i))) + "</td>";
-      content += "<td>" + String(entries[i].led_color) + "</td>";
-      content += "<td>" + String((millis() / 1000) - entries[i].timestamp) + "</td>";
-      content += "<td>" + String(entries[i].occurences) + "</td>";
-      content += "<td>" + String(entries[i].data) + "</td>";
-      content += "<td>" + String(get_event_message(static_cast<EVENTS_ENUM_TYPE>(i))) + "</td>";
-      content += "</tr>";
+      if (entries[i].occurences > 0) {
+        content.concat("<tr>");
+        content.concat("<td>" + String(get_event_enum_string(static_cast<EVENTS_ENUM_TYPE>(i))) + "</td>");
+        content.concat("<td>" + String(get_led_color_display_text(entries[i].led_color)) + "</td>");
+        content.concat("<td>" + String((millis() / 1000) - entries[i].timestamp) + "</td>");
+        content.concat("<td>" + String(entries[i].occurences) + "</td>");
+        content.concat("<td>" + String(entries[i].data) + "</td>");
+        content.concat("<td>" + String(get_event_message(static_cast<EVENTS_ENUM_TYPE>(i))) + "</td>");
+        content.concat("</tr>");
+      }
     }
-    content += "</table>";
-
-    // Close the block
-    content += "</div>";
-
-    content += "<button onclick='goToMainPage()'>Back to main page</button>";
-    content += "<script>";
-    content += "function goToMainPage() { window.location.href = '/'; }";
-    content += "</script>";
+    content.concat(FPSTR(EVENTS_HTML_END));
     return content;
   }
   return String();
