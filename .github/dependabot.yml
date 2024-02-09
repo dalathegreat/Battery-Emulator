@@ -1,0 +1,12 @@
+# Dependabot checks for new versions of the dependencies used in the GitHub Actions used in this repository.
+# Dependabot will raise pull requests for version updates for any outdated actions that it finds. After the initial
+# version updates, Dependabot will continue to check for outdated versions of actions according to the schedule defined.
+
+version: 2
+updates:
+  # Enable version updates for GitHub Actions
+  - package-ecosystem: "github-actions"
+    directory: "/"
+    schedule:
+      # Check for updates to GitHub Actions every week
+      interval: "weekly"

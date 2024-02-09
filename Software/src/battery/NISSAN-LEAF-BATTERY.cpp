@@ -369,8 +369,8 @@ void update_values_leaf_battery() { /* This function maps all the values fetched
   print_with_units(", Voltage: ", (battery_voltage * 0.1), "V ");
   print_with_units(", Max discharge power: ", max_target_discharge_power, "W ");
   print_with_units(", Max charge power: ", max_target_charge_power, "W ");
-  print_with_units(", Max temp: ", (temperature_max * 0.1), "°C ");
-  print_with_units(", Min temp: ", (temperature_min * 0.1), "°C ");
+  print_with_units(", Max temp: ", ((int16_t)temperature_max * 0.1), "°C ");
+  print_with_units(", Min temp: ", ((int16_t)temperature_min * 0.1), "°C ");
   Serial.println("");
   Serial.print("BMS Status: ");
   if (bms_status == 3) {
