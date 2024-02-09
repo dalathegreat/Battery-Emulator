@@ -37,19 +37,19 @@ const char index_html[] PROGMEM = R"rawliteral(
 )rawliteral";
 
 enum WifiState {
-  INIT,
-  RECONNECTING,
-  CONNECTED
+  INIT, //before connecting first time
+  RECONNECTING, //we've connected before, but lost connection
+  CONNECTED //we are connected
 };
 
 WifiState wifi_state = INIT;
 
-unsigned const long wifi_monitor_loop_time = 15000;
+unsigned const long WIFI_MONITOR_INTERVAL_TIME = 15000;
+unsigned const long INIT_WIFI_CONNECT_TIMEOUT = 8000;  // Timeout for initial WiFi connect in milliseconds
+unsigned const long DEFAULT_WIFI_RECONNECT_INTERVAL = 1000; // Default WiFi reconnect interval in ms
+unsigned const long MAX_WIFI_RETRY_INTERVAL = 30000; // Maximum wifi retry interval in ms
 unsigned long last_wifi_monitor_time = millis(); //init millis so wifi monitor doesn't run immediately
-unsigned const long wifi_connect_timeout = 8000;  // Timeout for WiFi connect in milliseconds
-unsigned const long DEFAULT_WIFI_RECONNECT_INTERVAL = 1000; // Start with a 1 second retry interval
 unsigned long wifi_reconnect_interval = DEFAULT_WIFI_RECONNECT_INTERVAL;
-unsigned const long max_retry_interval = 30000; // Maximum retry interval of 1 minute
 unsigned long last_wifi_attempt_time = millis(); //init millis so wifi monitor doesn't run immediately  
 
 void init_webserver() {
@@ -297,7 +297,7 @@ String getConnectResultString(wl_status_t status) {
 
 void wifi_monitor() {
   unsigned long currentMillis = millis();
-  if(currentMillis - last_wifi_monitor_time > wifi_monitor_loop_time) {
+  if(currentMillis - last_wifi_monitor_time > WIFI_MONITOR_INTERVAL_TIME) {
     last_wifi_monitor_time = currentMillis;
     wl_status_t status = WiFi.status();
     if (status != WL_CONNECTED && status != WL_IDLE_STATUS) {
@@ -310,7 +310,7 @@ void wifi_monitor() {
           Serial.println("WiFi not connected, trying to reconnect...");
           wifi_state = RECONNECTING;
           WiFi.reconnect();
-          wifi_reconnect_interval = min(wifi_reconnect_interval * 2, max_retry_interval);
+          wifi_reconnect_interval = min(wifi_reconnect_interval * 2, MAX_WIFI_RETRY_INTERVAL);
         }
       }
     } else if (status == WL_CONNECTED && wifi_state != CONNECTED) {
@@ -332,7 +332,7 @@ void init_WiFi_STA(const char* ssid, const char* password, const uint8_t channel
   Serial.println(ssid);
   WiFi.begin(ssid, password, channel);
   WiFi.setAutoReconnect(true);  // Enable auto reconnect
-  wl_status_t result = static_cast<wl_status_t>(WiFi.waitForConnectResult(wifi_connect_timeout));
+  wl_status_t result = static_cast<wl_status_t>(WiFi.waitForConnectResult(INIT_WIFI_CONNECT_TIMEOUT));
 }
 
 void init_ElegantOTA() {

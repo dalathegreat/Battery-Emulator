@@ -186,7 +186,9 @@ void loop() {
   {
     previousMillisUpdateVal = millis();
     update_values();  // Update values heading towards inverter. Prepare for sending on CAN, or write directly to Modbus.
-    set_event(EVENT_DUMMY, (uint8_t)millis());
+    if(DUMMY_EVENT_ENABLED) {
+      set_event(EVENT_DUMMY, (uint8_t)millis());
+    }
   }
 
   // Output
