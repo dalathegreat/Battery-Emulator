@@ -261,13 +261,9 @@ void init_webserver() {
 }
 
 void init_WiFi_AP() {
-  Serial.print("Creating Access Point: ");
-  Serial.println(ssidAP);
-  Serial.print("With password: ");
-  Serial.println(passwordAP);
-
+  Serial.println("Creating Access Point: " + String(ssidAP));
+  Serial.println("With password: " + String(passwordAP));
   WiFi.softAP(ssidAP, passwordAP);
-
   IPAddress IP = WiFi.softAPIP();
   Serial.println("Access Point created.");
   Serial.print("IP address: ");
@@ -337,6 +333,7 @@ void init_WiFi_STA(const char* ssid, const char* password, const uint8_t channel
   wl_status_t result = static_cast<wl_status_t>(WiFi.waitForConnectResult(INIT_WIFI_CONNECT_TIMEOUT));
 }
 
+// Function to initialize ElegantOTA
 void init_ElegantOTA() {
   ElegantOTA.begin(&server);  // Start ElegantOTA
   // ElegantOTA callbacks
