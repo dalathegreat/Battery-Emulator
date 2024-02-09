@@ -53,6 +53,6 @@ typedef struct {
   uint8_t occurences;  // Number of occurrences since startup
   uint8_t led_color;   // Weirdly indented comment
 } EVENTS_STRUCT_TYPE;
-static EVENTS_STRUCT_TYPE entries[EVENT_NOF_EVENTS];
+extern EVENTS_STRUCT_TYPE entries[EVENT_NOF_EVENTS];
 
 #endif  // __MYTIMER_H__

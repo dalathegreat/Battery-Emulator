@@ -7,6 +7,7 @@ static unsigned long previous_millis = 0;
 static uint32_t time_seconds = 0;
 static uint8_t total_led_color = GREEN;
 static char event_message[256];
+EVENTS_STRUCT_TYPE entries[EVENT_NOF_EVENTS];
 
 /* Local function prototypes */
 static void set_event_message(EVENTS_ENUM_TYPE event);
@@ -34,10 +35,10 @@ void set_event(EVENTS_ENUM_TYPE event, uint8_t data) {
   }
   entries[event].timestamp = time_seconds;
   entries[event].data = data;
-  entries[event].occurences++;
+  ++entries[event].occurences;
   set_event_message(event);
 #ifdef DEBUG_VIA_USB
-  Serial.println(event_message);
+  Serial.println("Set event: " + String(get_event_enum_string(event)) + ". Has occured " + String(entries[event].occurences) + " times");
 #endif
 }
 
@@ -111,7 +112,11 @@ const char* get_event_message(EVENTS_ENUM_TYPE event) {
 }
 
 const char* get_event_enum_string(EVENTS_ENUM_TYPE event) {
-    return EVENTS_ENUM_TYPE_STRING[event];
+    const char* fullString = EVENTS_ENUM_TYPE_STRING[event];
+    if (strncmp(fullString, "EVENT_", 6) == 0) {
+        return fullString + 6; // Skip the first 6 characters
+    }
+    return fullString;
 }
 
 static void set_event_message(EVENTS_ENUM_TYPE event) {

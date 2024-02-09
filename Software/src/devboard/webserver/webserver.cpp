@@ -318,9 +318,10 @@ void wifi_monitor() {
       wifi_reconnect_interval = DEFAULT_WIFI_RECONNECT_INTERVAL;
       // Print local IP address and start web server
       Serial.print("Connected to WiFi network: " + String(ssid));
-      Serial.print("IP address: " + WiFi.localIP().toString());
-      Serial.print("Signal Strength: " + String(WiFi.RSSI()) + " dBm ");
-      Serial.println("Channel: " + String(WiFi.channel()));
+      Serial.print(" IP address: " + WiFi.localIP().toString());
+      Serial.print(" Signal Strength: " + String(WiFi.RSSI()) + " dBm");
+      Serial.println(" Channel: " + String(WiFi.channel()));
+      Serial.println(" Hostname: " + String(WiFi.getHostname()));
     }
   }
 }
@@ -945,17 +946,19 @@ String cellmonitor_processor(const String& var) {
 const char EVENTS_HTML_START[] PROGMEM = R"=====(
 <style>
     body { background-color: black; color: white; }
-    table { width: 100%; border-collapse: collapse; }
-    th, td { border: 1px solid white; padding: 10px; text-align: left; }
+    .event-log { display: flex; flex-direction: column; }
+    .event { display: flex; flex-wrap: wrap; border: 1px solid white; padding: 10px; }
+    .event > div { flex: 1; min-width: 100px; max-width: 90%; word-break: break-word; }
 </style>
 <div style='background-color: #303E47; padding: 10px; margin-bottom: 10px;border-radius: 50px'>
 <h4 style='color: white;'>Event log:</h4>
-<table>
-<tr><th>Event Type</th><th>LED Color</th><th>Last Event (seconds ago)</th><th>Count</th><th>Data</th><th>Message</th></tr>
+<div class="event-log">
+<div class="event">
+<div>Event Type</div><div>LED Color</div><div>Last Event (seconds ago)</div><div>Count</div><div>Data</div><div>Message</div>
+</div>
 )=====";
 const char EVENTS_HTML_END[] PROGMEM = R"=====(
-</table>
-</div>
+</div></div>
 <button onclick='goToMainPage()'>Back to main page</button>
 <script>
 function goToMainPage() {
@@ -971,15 +974,16 @@ String events_processor(const String& var) {
     // Page format
     content.concat(FPSTR(EVENTS_HTML_START));
     for(int i = 0; i < EVENT_NOF_EVENTS; i++) {
+      Serial.println("Event: " + String(get_event_enum_string(static_cast<EVENTS_ENUM_TYPE>(i))) + " count: " + String(entries[i].occurences) + " seconds: " + String(entries[i].timestamp) + " data: " + String(entries[i].data));
       if (entries[i].occurences > 0) {
-        content.concat("<tr>");
-        content.concat("<td>" + String(get_event_enum_string(static_cast<EVENTS_ENUM_TYPE>(i))) + "</td>");
-        content.concat("<td>" + String(get_led_color_display_text(entries[i].led_color)) + "</td>");
-        content.concat("<td>" + String((millis() / 1000) - entries[i].timestamp) + "</td>");
-        content.concat("<td>" + String(entries[i].occurences) + "</td>");
-        content.concat("<td>" + String(entries[i].data) + "</td>");
-        content.concat("<td>" + String(get_event_message(static_cast<EVENTS_ENUM_TYPE>(i))) + "</td>");
-        content.concat("</tr>");
+        content.concat("<div class='event'>");
+        content.concat("<div>" + String(get_event_enum_string(static_cast<EVENTS_ENUM_TYPE>(i))) + "</div>");
+        content.concat("<div>" + String(get_led_color_display_text(entries[i].led_color)) + "</div>");
+        content.concat("<div>" + String((millis() / 1000) - entries[i].timestamp) + "</div>");
+        content.concat("<div>" + String(entries[i].occurences) + "</div>");
+        content.concat("<div>" + String(entries[i].data) + "</div>");
+        content.concat("<div>" + String(get_event_message(static_cast<EVENTS_ENUM_TYPE>(i))) + "</div>");
+        content.concat("</div>"); // End of event row
       }
     }
     content.concat(FPSTR(EVENTS_HTML_END));
