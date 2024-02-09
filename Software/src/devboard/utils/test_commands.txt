@@ -1,1 +1,0 @@
-g++ events_test.cpp ../../../test/test_lib.cpp -o events_test.exe -DUNIT_TEST -I.

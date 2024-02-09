@@ -1,13 +1,12 @@
 #ifndef __EVENTS_H__
 #define __EVENTS_H__
+#include <stdint.h>
 
 #ifndef UNIT_TEST
 #include <Arduino.h>
 extern unsigned long previous_millis;
 extern uint32_t time_seconds;
 #endif
-
-#include <stdint.h>
 
 #define EVENTS_ENUM_TYPE(XX)            \
   XX(EVENT_CAN_FAILURE)                 \
