@@ -60,7 +60,7 @@ void init_webserver() {
   } else {
     WiFi.mode(WIFI_STA);  // Only Router connection
   }
-  init_WiFi_STA(ssid, password, channel);
+  init_WiFi_STA(ssid, password, wifi_channel);
 
   // Route for root / web page
   server.on("/", HTTP_GET,
@@ -301,7 +301,7 @@ void wifi_monitor() {
     if (status != WL_CONNECTED && status != WL_IDLE_STATUS) {
       Serial.println(getConnectResultString(status));
       if(wifi_state == INIT) { //we haven't been connected yet, try the init logic
-        init_WiFi_STA(ssid, password, channel);
+        init_WiFi_STA(ssid, password, wifi_channel);
       } else { //we were connected before, try the reconnect logic
         if (currentMillis - last_wifi_attempt_time > wifi_reconnect_interval) {
           last_wifi_attempt_time = currentMillis;
@@ -324,11 +324,11 @@ void wifi_monitor() {
   }
 }
 
-void init_WiFi_STA(const char* ssid, const char* password, const uint8_t channel) {
+void init_WiFi_STA(const char* ssid, const char* password, const uint8_t wifi_channel) {
   // Connect to Wi-Fi network with SSID and password
   Serial.print("Connecting to ");
   Serial.println(ssid);
-  WiFi.begin(ssid, password, channel);
+  WiFi.begin(ssid, password, wifi_channel);
   WiFi.setAutoReconnect(true);  // Enable auto reconnect
   wl_status_t result = static_cast<wl_status_t>(WiFi.waitForConnectResult(INIT_WIFI_CONNECT_TIMEOUT));
 }
@@ -354,7 +354,7 @@ String processor(const String& var) {
     content += "<div style='background-color: #303E47; padding: 10px; margin-bottom: 10px;border-radius: 50px'>";
 
     // Show version number
-    content += "<h4>Software version: " + String(versionNumber) + "</h4>";
+    content += "<h4>Software version: " + String(version_number) + "</h4>";
 
     // Display LED color
     content += "<h4>LED color: ";

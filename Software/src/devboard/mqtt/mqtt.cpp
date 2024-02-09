@@ -70,7 +70,7 @@ static void publish_cell_voltages(void) {
                "\"unit_of_measurement\": \"V\","
                "\"value_template\": \"{{ value_json.cell_voltages[%d] }}\""
                "}",
-               i + 1, versionNumber, i + 1, i + 1, i);
+               i + 1, version_number, i + 1, i + 1, i);
       // End each discovery topic with cell number and '/config'
       String cell_topic = topic + String(i + 1) + "/config";
       mqtt_publish_retain(cell_topic.c_str());
@@ -154,7 +154,7 @@ static void publish_common_info(void) {
               "\"enabled_by_default\": true,"
               "\"state_class\": \"measurement\""
               "}",
-              config.name, state_topic, config.object_id, config.object_id, versionNumber, config.value_template, config.unit, config.device_class);
+              config.name, state_topic, config.object_id, config.object_id, version_number, config.value_template, config.unit, config.device_class);
       mqtt_publish_retain(config.topic);
     }
   } else {

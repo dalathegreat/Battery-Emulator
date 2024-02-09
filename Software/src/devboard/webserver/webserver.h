@@ -17,6 +17,7 @@
 #include "../mqtt/mqtt.h"
 #endif
 
+extern const char* version_number;            // The current software version, shown on webserver
 extern uint16_t SOC;                         //SOC%, 0-100.00 (0-10000)
 extern uint16_t StateOfHealth;               //SOH%, 0-100.00 (0-10000)
 extern uint16_t battery_voltage;             //V+1,  0-500.0 (0-5000)
@@ -40,10 +41,9 @@ extern EVENTS_STRUCT_TYPE entries[EVENT_NOF_EVENTS];
 
 extern const char* ssid;
 extern const char* password;
-extern const uint8_t channel;
+extern const uint8_t wifi_channel;
 extern const char* ssidAP;
 extern const char* passwordAP;
-extern const char* versionNumber;
 
 // Common charger parameters
 extern float charger_stat_HVcur;

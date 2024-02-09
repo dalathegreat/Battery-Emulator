@@ -39,6 +39,8 @@
 
 #define MQTT_MSG_BUFFER_SIZE (1024)
 
+extern const char* version_number;            // The current software version, used for mqtt
+
 extern uint16_t SOC;
 extern uint16_t StateOfHealth;
 extern uint16_t temperature_min;    //C+1,  Goes thru convert2unsignedint16 function (15.0C = 150, -15.0C =  65385)
