@@ -75,9 +75,11 @@ void init_webserver() {
     request->send_P(200, "text/html", index_html, cellmonitor_processor);
   });
 
+#ifdef EVENTLOGGING
   server.on("/events", HTTP_GET, [](AsyncWebServerRequest* request) {
     request->send_P(200, "text/html", index_html, events_processor);
   });
+#endif
 
   // Route for editing Wh
   server.on("/updateBatterySize", HTTP_GET, [](AsyncWebServerRequest* request) {
@@ -631,7 +633,9 @@ String processor(const String& var) {
     content += "function goToUpdatePage() { window.location.href = '/update'; }";
     content += "function goToCellmonitorPage() { window.location.href = '/cellmonitor'; }";
     content += "function goToSettingsPage() { window.location.href = '/settings'; }";
+#ifdef EVENTLOGGING
     content += "function goToEventsPage() { window.location.href = '/events'; }";
+#endif
     content +=
         "function promptToReboot() { if (window.confirm('Are you sure you want to reboot the emulator? NOTE: If "
         "emulator is handling contactors, they will open during reboot!')) { "
@@ -943,6 +947,7 @@ String cellmonitor_processor(const String& var) {
   return String();
 }
 
+#ifdef EVENTLOGGING
 const char EVENTS_HTML_START[] PROGMEM = R"=====(
 <style>
     body { background-color: black; color: white; }
@@ -991,7 +996,7 @@ String events_processor(const String& var) {
   }
   return String();
 }
-
+#endif
 void onOTAStart() {
   // Log when OTA has started
   Serial.println("OTA update started!");
