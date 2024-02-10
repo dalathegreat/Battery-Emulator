@@ -46,6 +46,10 @@
 #define MQTT_SERVER "192.168.xxx.yyy"
 #define MQTT_PORT 1883
 
+/* Event options*/
+#define EVENTLOGGING               //Enable this line to log events to the event log
+#define DUMMY_EVENT_ENABLED false  //Enable this line to have a dummy event that gets logged to test the interface
+
 /* Select charger used (Optional) */
 //#define CHEVYVOLT_CHARGER //Enable this line to control a Chevrolet Volt charger connected to battery - for example, when generator charging or using an inverter without a charging function.
 //#define NISSANLEAF_CHARGER //Enable this line to control a Nissan LEAF PDM connected to battery - for example, when generator charging
@@ -70,5 +74,7 @@ extern volatile float CHARGER_MAX_A;
 extern volatile float CHARGER_END_A;
 extern bool charger_HV_enabled;
 extern bool charger_aux12V_enabled;
+
+extern const uint8_t wifi_channel;
 
 #endif

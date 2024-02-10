@@ -1,4 +1,5 @@
 #include "CHADEMO-BATTERY.h"
+#include "../devboard/utils/events.h"
 #include "../lib/miwagner-ESP32-Arduino-CAN/CAN_config.h"
 #include "../lib/miwagner-ESP32-Arduino-CAN/ESP32CAN.h"
 
@@ -107,6 +108,7 @@ void update_values_chademo_battery() {  //This function maps all the values fetc
     bms_status = FAULT;
     errorCode = 7;
     Serial.println("No CAN communication detected for 60s. Shutting down battery control.");
+    set_event(EVENT_CAN_FAILURE, 0);
   } else {
     CANstillAlive--;
   }

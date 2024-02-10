@@ -36,32 +36,31 @@ const char index_html[] PROGMEM = R"rawliteral(
 </html>
 )rawliteral";
 
-// Wifi connect time declarations and definition
-const unsigned long MAX_WIFI_RECONNECT_BACKOFF_TIME = 60000;  // Maximum backoff time of 1 minute
-const unsigned long DEFAULT_WIFI_RECONNECT_BACKOFF_TIME =
-    1000;                                          // Default wifi reconnect backoff time. Start with 1 second
-const unsigned long WIFI_CONNECT_TIMEOUT = 10000;  // Timeout for WiFi connect in milliseconds
-const unsigned long WIFI_MONITOR_LOOP_TIME =
-    1000;  // Will check if WiFi is connected and try reconnect every x milliseconds
-unsigned long last_wifi_monitor_run = 0;
-unsigned long wifi_connect_start_time;
-unsigned long wifi_reconnect_backoff_time = DEFAULT_WIFI_RECONNECT_BACKOFF_TIME;
+enum WifiState {
+  INIT,          //before connecting first time
+  RECONNECTING,  //we've connected before, but lost connection
+  CONNECTED      //we are connected
+};
 
-enum WiFiState { DISCONNECTED, CONNECTING, CONNECTED };
+WifiState wifi_state = INIT;
 
-WiFiState wifi_state =
-    DISCONNECTED;  //the esp library has no specific state to indicate if its connecting (only WL_IDLE_STATUS) so we keep track of it here
+unsigned const long WIFI_MONITOR_INTERVAL_TIME = 15000;
+unsigned const long INIT_WIFI_CONNECT_TIMEOUT = 8000;        // Timeout for initial WiFi connect in milliseconds
+unsigned const long DEFAULT_WIFI_RECONNECT_INTERVAL = 1000;  // Default WiFi reconnect interval in ms
+unsigned const long MAX_WIFI_RETRY_INTERVAL = 30000;         // Maximum wifi retry interval in ms
+unsigned long last_wifi_monitor_time = millis();             //init millis so wifi monitor doesn't run immediately
+unsigned long wifi_reconnect_interval = DEFAULT_WIFI_RECONNECT_INTERVAL;
+unsigned long last_wifi_attempt_time = millis();  //init millis so wifi monitor doesn't run immediately
 
 void init_webserver() {
   // Configure WiFi
   if (AccessPointEnabled) {
     WiFi.mode(WIFI_AP_STA);  // Simultaneous WiFi AP and Router connection
     init_WiFi_AP();
-    init_WiFi_STA(ssid, password);
   } else {
     WiFi.mode(WIFI_STA);  // Only Router connection
-    init_WiFi_STA(ssid, password);
   }
+  init_WiFi_STA(ssid, password, wifi_channel);
 
   // Route for root / web page
   server.on("/", HTTP_GET,
@@ -75,6 +74,11 @@ void init_webserver() {
   server.on("/cellmonitor", HTTP_GET, [](AsyncWebServerRequest* request) {
     request->send_P(200, "text/html", index_html, cellmonitor_processor);
   });
+
+#ifdef EVENTLOGGING
+  server.on("/events", HTTP_GET,
+            [](AsyncWebServerRequest* request) { request->send_P(200, "text/html", index_html, events_processor); });
+#endif
 
   // Route for editing Wh
   server.on("/updateBatterySize", HTTP_GET, [](AsyncWebServerRequest* request) {
@@ -255,120 +259,77 @@ void init_webserver() {
 #endif
 }
 
-void print_wifi_status_message(wl_status_t status) {
-  switch (status) {
-    case WL_CONNECTED:
-      Serial.println("Connected to WiFi network: " + String(ssid));
-      Serial.println("IP address: " + WiFi.localIP().toString());
-      Serial.println("Signal Strength: " + String(WiFi.RSSI()) + " dBm");
-      break;
-    case WL_CONNECT_FAILED:
-      Serial.println("Failed to connect to WiFi network: " + String(ssid));
-      break;
-    case WL_CONNECTION_LOST:
-      Serial.println("Connection to WiFi network: " + String(ssid) + " lost");
-      break;
-    case WL_DISCONNECTED:
-      Serial.println("Disconnected from WiFi network: " + String(ssid));
-      break;
-    case WL_NO_SSID_AVAIL:
-      Serial.println("Could not find network with SSID: " + String(ssid));
-      break;
-    case WL_IDLE_STATUS:
-      Serial.println("WiFi is in idle status. This can indicate it is currently trying to connect.");
-      break;
-    case WL_SCAN_COMPLETED:
-      Serial.println("WiFi scan completed");
-      break;
-    case WL_NO_SHIELD:
-      Serial.println("No WiFi shield detected");
-      break;
-    default:
-      Serial.println("Unknown WiFi status: " + String(status));
-      break;
-  }
-}
-
-// Function to handle WiFi reconnection. Use some timeouts and backoffs here to avoid flooding reconnection attempts/spamming the serial console
-void handle_WiFi_reconnection(unsigned long currentMillis, wl_status_t status) {
-  if (wifi_state == CONNECTING && currentMillis - wifi_connect_start_time > WIFI_CONNECT_TIMEOUT) {
-    // we are here if we were trying to connect to wifi, but it took too long (more than configured timeout)
-    Serial.println("Failed to connect to WiFi network before timeout");
-    print_wifi_status_message(status);
-    WiFi.disconnect();  //disconnect to clear any previous settings
-    wifi_state = DISCONNECTED;
-    wifi_connect_start_time = currentMillis;  //reset the start time to now so backoff is respected on next try
-    // We use a backoff time before trying to connect again. Increase backoff time, up to a maximum
-    wifi_reconnect_backoff_time = min(wifi_reconnect_backoff_time * 2, MAX_WIFI_RECONNECT_BACKOFF_TIME);
-    Serial.println("Will try again in " + String(wifi_reconnect_backoff_time / 1000) + " seconds.");
-  } else if (wifi_state != CONNECTING && currentMillis - wifi_connect_start_time > wifi_reconnect_backoff_time) {
-    // we are here if the connection failed for some reason and the backoff time has now passed
-    print_wifi_status_message(status);
-    init_WiFi_STA(ssid, password);
-  }
-}
-
-// Function to handle WiFi connection
-void WiFi_monitor_loop() {
-  unsigned long currentMillis = millis();
-  if (currentMillis - last_wifi_monitor_run > WIFI_MONITOR_LOOP_TIME) {
-    last_wifi_monitor_run = currentMillis;
-    wl_status_t status = WiFi.status();
-    switch (status) {
-      case WL_CONNECTED:
-        if (wifi_state != CONNECTED) {  //we need to update our own wifi state to indicate we are connected
-          wifi_reconnect_backoff_time =
-              DEFAULT_WIFI_RECONNECT_BACKOFF_TIME;  // Reset backoff time after maintaining connection
-          wifi_state = CONNECTED;
-          print_wifi_status_message(status);
-        }
-        break;
-      case WL_CONNECT_FAILED:
-      case WL_CONNECTION_LOST:
-      case WL_DISCONNECTED:
-      case WL_NO_SSID_AVAIL:
-        handle_WiFi_reconnection(currentMillis, status);
-        break;
-      case WL_IDLE_STATUS:  //this means the wifi is not ready to process any commands (it's probably trying to connect). do nothing
-
-      case WL_SCAN_COMPLETED:  //this will only be set when scanning for networks. We don't do that yet
-      case WL_NO_SHIELD:       //should not happen, this means no wifi chip detected, so we can't do much
-        break;
-    }
-  }
-}
-
-// Function to initialize WiFi in Station Mode (i.e. connect to another access point)
-void init_WiFi_STA(const char* ssid, const char* password) {
-  Serial.println("Connecting to: " + String(ssid));
-  wifi_state = CONNECTING;
-  WiFi.begin(ssid, password);
-  WiFi.setAutoReconnect(true);
-  wifi_connect_start_time = millis();
-}
-
-// Function to convert WiFiState enum to String
-String wifi_state_to_string(WiFiState state) {
-  switch (state) {
-    case DISCONNECTED:
-      return "Disconnected";
-    case CONNECTING:
-      return "Connecting";
-    case CONNECTED:
-      return "Connected";
-    default:
-      return "Unknown";
-  }
-}
-
-// Function to initialize WiFi in Access Point Mode
 void init_WiFi_AP() {
   Serial.println("Creating Access Point: " + String(ssidAP));
   Serial.println("With password: " + String(passwordAP));
   WiFi.softAP(ssidAP, passwordAP);
   IPAddress IP = WiFi.softAPIP();
   Serial.println("Access Point created.");
-  Serial.println("IP address: " + IP.toString());
+  Serial.print("IP address: ");
+  Serial.println(IP);
+}
+
+String getConnectResultString(wl_status_t status) {
+  switch (status) {
+    case WL_CONNECTED:
+      return "Connected";
+    case WL_NO_SHIELD:
+      return "No shield";
+    case WL_IDLE_STATUS:
+      return "Idle status";
+    case WL_NO_SSID_AVAIL:
+      return "No SSID available";
+    case WL_SCAN_COMPLETED:
+      return "Scan completed";
+    case WL_CONNECT_FAILED:
+      return "Connect failed";
+    case WL_CONNECTION_LOST:
+      return "Connection lost";
+    case WL_DISCONNECTED:
+      return "Disconnected";
+    default:
+      return "Unknown";
+  }
+}
+
+void wifi_monitor() {
+  unsigned long currentMillis = millis();
+  if (currentMillis - last_wifi_monitor_time > WIFI_MONITOR_INTERVAL_TIME) {
+    last_wifi_monitor_time = currentMillis;
+    wl_status_t status = WiFi.status();
+    if (status != WL_CONNECTED && status != WL_IDLE_STATUS) {
+      Serial.println(getConnectResultString(status));
+      if (wifi_state == INIT) {  //we haven't been connected yet, try the init logic
+        init_WiFi_STA(ssid, password, wifi_channel);
+      } else {  //we were connected before, try the reconnect logic
+        if (currentMillis - last_wifi_attempt_time > wifi_reconnect_interval) {
+          last_wifi_attempt_time = currentMillis;
+          Serial.println("WiFi not connected, trying to reconnect...");
+          wifi_state = RECONNECTING;
+          WiFi.reconnect();
+          wifi_reconnect_interval = min(wifi_reconnect_interval * 2, MAX_WIFI_RETRY_INTERVAL);
+        }
+      }
+    } else if (status == WL_CONNECTED && wifi_state != CONNECTED) {
+      wifi_state = CONNECTED;
+      wifi_reconnect_interval = DEFAULT_WIFI_RECONNECT_INTERVAL;
+      // Print local IP address and start web server
+      Serial.print("Connected to WiFi network: " + String(ssid));
+      Serial.print(" IP address: " + WiFi.localIP().toString());
+      Serial.print(" Signal Strength: " + String(WiFi.RSSI()) + " dBm");
+      Serial.println(" Channel: " + String(WiFi.channel()));
+      Serial.println(" Hostname: " + String(WiFi.getHostname()));
+    }
+  }
+}
+
+void init_WiFi_STA(const char* ssid, const char* password, const uint8_t wifi_channel) {
+  // Connect to Wi-Fi network with SSID and password
+  Serial.print("Connecting to ");
+  Serial.println(ssid);
+  WiFi.begin(ssid, password, wifi_channel);
+  WiFi.setAutoReconnect(true);  // Enable auto reconnect
+  wl_status_t result = static_cast<wl_status_t>(WiFi.waitForConnectResult(INIT_WIFI_CONNECT_TIMEOUT));
 }
 
 // Function to initialize ElegantOTA
@@ -392,7 +353,7 @@ String processor(const String& var) {
     content += "<div style='background-color: #303E47; padding: 10px; margin-bottom: 10px;border-radius: 50px'>";
 
     // Show version number
-    content += "<h4>Software version: " + String(versionNumber) + "</h4>";
+    content += "<h4>Software version: " + String(version_number) + "</h4>";
 
     // Display LED color
     content += "<h4>LED color: ";
@@ -415,13 +376,15 @@ String processor(const String& var) {
       default:
         break;
     }
+    wl_status_t status = WiFi.status();
     // Display ssid of network connected to and, if connected to the WiFi, its own IP
     content += "<h4>SSID: " + String(ssid) + "</h4>";
-    content += "<h4>Wifi status: " + wifi_state_to_string(wifi_state) + "</h4>";
-    if (WiFi.status() == WL_CONNECTED) {
+    content += "<h4>Wifi status: " + getConnectResultString(status) + "</h4>";
+    if (status == WL_CONNECTED) {
       content += "<h4>IP: " + WiFi.localIP().toString() + "</h4>";
       // Get and display the signal strength (RSSI)
       content += "<h4>Signal Strength: " + String(WiFi.RSSI()) + " dBm</h4>";
+      content += "<h4>Channel: " + String(WiFi.channel()) + "</h4>";
     }
     // Close the block
     content += "</div>";
@@ -659,11 +622,16 @@ String processor(const String& var) {
     content += " ";
     content += "<button onclick='goToCellmonitorPage()'>Cellmonitor</button>";
     content += " ";
+    content += "<button onclick='goToEventsPage()'>Events</button>";
+    content += " ";
     content += "<button onclick='promptToReboot()'>Reboot Emulator</button>";
     content += "<script>";
     content += "function goToUpdatePage() { window.location.href = '/update'; }";
     content += "function goToCellmonitorPage() { window.location.href = '/cellmonitor'; }";
     content += "function goToSettingsPage() { window.location.href = '/settings'; }";
+#ifdef EVENTLOGGING
+    content += "function goToEventsPage() { window.location.href = '/events'; }";
+#endif
     content +=
         "function promptToReboot() { if (window.confirm('Are you sure you want to reboot the emulator? NOTE: If "
         "emulator is handling contactors, they will open during reboot!')) { "
@@ -975,6 +943,58 @@ String cellmonitor_processor(const String& var) {
   return String();
 }
 
+#ifdef EVENTLOGGING
+const char EVENTS_HTML_START[] PROGMEM = R"=====(
+<style>
+    body { background-color: black; color: white; }
+    .event-log { display: flex; flex-direction: column; }
+    .event { display: flex; flex-wrap: wrap; border: 1px solid white; padding: 10px; }
+    .event > div { flex: 1; min-width: 100px; max-width: 90%; word-break: break-word; }
+</style>
+<div style='background-color: #303E47; padding: 10px; margin-bottom: 10px;border-radius: 50px'>
+<h4 style='color: white;'>Event log:</h4>
+<div class="event-log">
+<div class="event">
+<div>Event Type</div><div>LED Color</div><div>Last Event (seconds ago)</div><div>Count</div><div>Data</div><div>Message</div>
+</div>
+)=====";
+const char EVENTS_HTML_END[] PROGMEM = R"=====(
+</div></div>
+<button onclick='goToMainPage()'>Back to main page</button>
+<script>
+function goToMainPage() {
+    window.location.href = '/';
+}
+</script>
+)=====";
+
+String events_processor(const String& var) {
+  if (var == "PLACEHOLDER") {
+    String content = "";
+    content.reserve(5000);
+    // Page format
+    content.concat(FPSTR(EVENTS_HTML_START));
+    for (int i = 0; i < EVENT_NOF_EVENTS; i++) {
+      Serial.println("Event: " + String(get_event_enum_string(static_cast<EVENTS_ENUM_TYPE>(i))) +
+                     " count: " + String(entries[i].occurences) + " seconds: " + String(entries[i].timestamp) +
+                     " data: " + String(entries[i].data));
+      if (entries[i].occurences > 0) {
+        content.concat("<div class='event'>");
+        content.concat("<div>" + String(get_event_enum_string(static_cast<EVENTS_ENUM_TYPE>(i))) + "</div>");
+        content.concat("<div>" + String(get_led_color_display_text(entries[i].led_color)) + "</div>");
+        content.concat("<div>" + String((millis() / 1000) - entries[i].timestamp) + "</div>");
+        content.concat("<div>" + String(entries[i].occurences) + "</div>");
+        content.concat("<div>" + String(entries[i].data) + "</div>");
+        content.concat("<div>" + String(get_event_message(static_cast<EVENTS_ENUM_TYPE>(i))) + "</div>");
+        content.concat("</div>");  // End of event row
+      }
+    }
+    content.concat(FPSTR(EVENTS_HTML_END));
+    return content;
+  }
+  return String();
+}
+#endif
 void onOTAStart() {
   // Log when OTA has started
   Serial.println("OTA update started!");

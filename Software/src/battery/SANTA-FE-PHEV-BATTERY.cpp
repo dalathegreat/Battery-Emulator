@@ -1,4 +1,5 @@
 #include "SANTA-FE-PHEV-BATTERY.h"
+#include "../devboard/utils/events.h"
 #include "../lib/miwagner-ESP32-Arduino-CAN/CAN_config.h"
 #include "../lib/miwagner-ESP32-Arduino-CAN/ESP32CAN.h"
 
@@ -84,6 +85,7 @@ void update_values_santafe_phev_battery() {  //This function maps all the values
   if (!CANstillAlive) {
     bms_status = FAULT;
     Serial.println("No CAN communication detected for 60s. Shutting down battery control.");
+    set_event(EVENT_CAN_FAILURE, 0);
   } else {
     CANstillAlive--;
   }

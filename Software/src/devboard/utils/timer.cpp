@@ -1,11 +1,13 @@
 #include "timer.h"
 
-MyTimer::MyTimer(unsigned long interval) : interval(interval), previousMillis(0) {}
+MyTimer::MyTimer(unsigned long interval) : interval(interval) {
+  previous_millis = millis();
+}
 
 bool MyTimer::elapsed() {
-  unsigned long currentMillis = millis();
-  if (currentMillis - previousMillis >= interval) {
-    previousMillis = currentMillis;
+  unsigned long current_millis = millis();
+  if (current_millis - previous_millis >= interval) {
+    previous_millis = current_millis;
     return true;
   }
   return false;

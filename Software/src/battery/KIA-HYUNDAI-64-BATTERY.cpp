@@ -1,4 +1,5 @@
 #include "KIA-HYUNDAI-64-BATTERY.h"
+#include "../devboard/utils/events.h"
 #include "../lib/miwagner-ESP32-Arduino-CAN/CAN_config.h"
 #include "../lib/miwagner-ESP32-Arduino-CAN/ESP32CAN.h"
 
@@ -200,6 +201,7 @@ void update_values_kiaHyundai_64_battery() {  //This function maps all the value
   if (!CANstillAlive) {
     bms_status = FAULT;
     Serial.println("No CAN communication detected for 60s. Shutting down battery control.");
+    set_event(EVENT_CAN_FAILURE, 0);
   } else {
     CANstillAlive--;
   }
@@ -207,11 +209,13 @@ void update_values_kiaHyundai_64_battery() {  //This function maps all the value
   if (waterleakageSensor == 0) {
     Serial.println("Water leakage inside battery detected. Operation halted. Inspect battery!");
     bms_status = FAULT;
+    set_event(EVENT_WATER_INGRESS, 0);
   }
 
   if (leadAcidBatteryVoltage < 110) {
     Serial.println("12V battery source below required voltage to safely close contactors. Inspect the supply/battery!");
     LEDcolor = YELLOW;
+    set_event(EVENT_12V_LOW, leadAcidBatteryVoltage);
   }
 
   // Check if cell voltages are within allowed range
@@ -220,14 +224,17 @@ void update_values_kiaHyundai_64_battery() {  //This function maps all the value
   if (cell_max_voltage >= MAX_CELL_VOLTAGE) {
     bms_status = FAULT;
     Serial.println("ERROR: CELL OVERVOLTAGE!!! Stopping battery charging and discharging. Inspect battery!");
+    set_event(EVENT_CELL_OVER_VOLTAGE, 0);
   }
   if (cell_min_voltage <= MIN_CELL_VOLTAGE) {
     bms_status = FAULT;
     Serial.println("ERROR: CELL UNDERVOLTAGE!!! Stopping battery charging and discharging. Inspect battery!");
+    set_event(EVENT_CELL_UNDER_VOLTAGE, 0);
   }
   if (cell_deviation_mV > MAX_CELL_DEVIATION) {
     LEDcolor = YELLOW;
     Serial.println("ERROR: HIGH CELL DEVIATION!!! Inspect battery!");
+    set_event(EVENT_CELL_DEVIATION_HIGH, 0);
   }
 
   if (bms_status == FAULT) {  //Incase we enter a critical fault state, zero out the allowed limits

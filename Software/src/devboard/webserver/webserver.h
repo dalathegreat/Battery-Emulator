@@ -12,10 +12,12 @@
 #include "../../lib/me-no-dev-ESPAsyncWebServer/src/ESPAsyncWebServer.h"
 #include "../../lib/miwagner-ESP32-Arduino-CAN/ESP32CAN.h"
 #include "../config.h"  // Needed for LED defines
+#include "../utils/events.h"
 #ifdef MQTT
 #include "../mqtt/mqtt.h"
 #endif
 
+extern const char* version_number;           // The current software version, shown on webserver
 extern uint16_t SOC;                         //SOC%, 0-100.00 (0-10000)
 extern uint16_t StateOfHealth;               //SOH%, 0-100.00 (0-10000)
 extern uint16_t battery_voltage;             //V+1,  0-500.0 (0-5000)
@@ -35,12 +37,13 @@ extern uint16_t cellvoltages[120];  //mV    0-4350 per cell
 extern uint8_t LEDcolor;            //Enum, 0-10
 extern bool batteryAllowsContactorClosing;   //Bool, 1=true, 0=false
 extern bool inverterAllowsContactorClosing;  //Bool, 1=true, 0=false
+extern EVENTS_STRUCT_TYPE entries[EVENT_NOF_EVENTS];
 
 extern const char* ssid;
 extern const char* password;
+extern const uint8_t wifi_channel;
 extern const char* ssidAP;
 extern const char* passwordAP;
-extern const char* versionNumber;
 
 // Common charger parameters
 extern float charger_stat_HVcur;
@@ -63,6 +66,15 @@ extern uint16_t OBC_Charge_Power;
 void init_webserver();
 
 /**
+ * @brief Monitoring loop for WiFi. Will attempt to reconnect to access point if the connection goes down.
+ *
+ * @param[in] void
+ * 
+ * @return void
+ */
+void wifi_monitor();
+
+/**
  * @brief Initialization function that creates a WiFi Access Point.
  *
  * @param[in] void
@@ -79,16 +91,7 @@ void init_WiFi_AP();
  * 
  * @return void
  */
-void init_WiFi_STA(const char* ssid, const char* password);
-
-/**
- * @brief Monitoring loop for WiFi. Will attempt to reconnect to access point if the connection goes down.
- *
- * @param[in] void
- * 
- * @return void
- */
-void WiFi_monitor_loop();
+void init_WiFi_STA(const char* ssid, const char* password, const uint8_t channel);
 
 // /**
 //  * @brief Function to handle WiFi reconnection.
@@ -134,6 +137,15 @@ String settings_processor(const String& var);
  * @return String
  */
 String cellmonitor_processor(const String& var);
+
+/**
+ * @brief Replaces placeholder with content section in web page
+ *
+ * @param[in] var
+ *
+ * @return String
+ */
+String events_processor(const String& var);
 
 /**
  * @brief Executes on OTA start 
