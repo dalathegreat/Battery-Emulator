@@ -187,9 +187,9 @@ void update_values_kiaHyundai_64_battery() {  //This function maps all the value
 
   stat_batt_power = convertToUnsignedInt16(powerWatt);  //Power in watts, Negative = charging batt
 
-  temperature_min = convertToUnsignedInt16(temperatureMin * 10);  //Increase decimals, 17C -> 17.0C
+  temperature_min = convertToUnsignedInt16((int8_t)temperatureMin * 10);  //Increase decimals, 17C -> 17.0C
 
-  temperature_max = convertToUnsignedInt16(temperatureMax * 10);  //Increase decimals, 18C -> 18.0C
+  temperature_max = convertToUnsignedInt16((int8_t)temperatureMax * 10);  //Increase decimals, 18C -> 18.0C
 
   cell_max_voltage = CellVoltMax_mV;
 
