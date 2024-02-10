@@ -83,7 +83,7 @@ static void publish_cell_voltages(void) {
     // is the string content
 
     // If cell voltages haven't been populated...
-    if (cellvoltages[0] == 0u) {
+    if (cellvoltages[0] == 0u / 1000) {  //cell voltage is in mV and homeassistant expects V
       return;
     }
 
@@ -181,8 +181,9 @@ static void publish_common_info(void) {
              "  \"battery_voltage\": %d\n"
              "}\n",
              ((float)SOC) / 100.0, ((float)StateOfHealth) / 100.0, ((float)((int16_t)temperature_min)) / 10.0,
-             ((float)((int16_t)temperature_max)) / 10.0, ((float)((int16_t)stat_batt_power)) / 10.0,
-             ((float)((int16_t)battery_current)) / 10.0, cell_max_voltage, cell_min_voltage, battery_voltage / 10.0);
+             ((float)((int16_t)temperature_max)) / 10.0, ((float)((int16_t)stat_batt_power)),
+             ((float)((int16_t)battery_current)) / 10.0, cell_max_voltage / 1000, cell_min_voltage / 1000,
+             battery_voltage / 10.0);
     bool result = client.publish(state_topic, mqtt_msg, true);
   }
 

@@ -49,6 +49,8 @@ extern uint16_t cell_max_voltage;   //mV,   0-4350
 extern uint16_t cell_min_voltage;   //mV,   0-4350
 extern uint16_t cellvoltages[120];  //mV    0-4350 per cell
 extern uint8_t nof_cellvoltages;    // Total number of cell voltages, set by each battery.
+extern uint16_t battery_voltage;    //V+1,  0-500.0 (0-5000)
+extern uint16_t battery_current;    //A+1,  Goes thru convert2unsignedint16 function (5.0A = 50, -5.0A = 65485)
 
 extern const char* mqtt_user;
 extern const char* mqtt_password;
