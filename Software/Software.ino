@@ -130,9 +130,7 @@ void setup() {
   init_webserver();
 #endif
 
-#ifdef EVENTLOGGING
   init_events();
-#endif
 
   init_CAN();
 

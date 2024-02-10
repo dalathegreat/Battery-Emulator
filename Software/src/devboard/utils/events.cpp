@@ -30,7 +30,6 @@ void init_events(void) {
 }
 
 void set_event(EVENTS_ENUM_TYPE event, uint8_t data) {
-#ifdef EVENTLOGGING
   if (event >= EVENT_NOF_EVENTS) {
     event = EVENT_UNKNOWN_EVENT_SET;
   }
@@ -41,7 +40,6 @@ void set_event(EVENTS_ENUM_TYPE event, uint8_t data) {
 #ifdef DEBUG_VIA_USB
   Serial.println("Set event: " + String(get_event_enum_string(event)) + ". Has occured " +
                  String(entries[event].occurences) + " times");
-#endif
 #endif
 }
 

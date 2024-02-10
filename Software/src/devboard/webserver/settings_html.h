@@ -1,6 +1,8 @@
 #ifndef SETTINGS_H
 #define SETTINGS_H
 
+#include <Arduino.h>
+
 #include "../../../USER_SETTINGS.h"  // Needed for WiFi ssid and password
 extern uint16_t battery_voltage;     //V+1,  0-500.0 (0-5000)
 

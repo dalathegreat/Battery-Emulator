@@ -1,6 +1,9 @@
 #ifndef CELLMONITOR_H
 #define CELLMONITOR_H
 
+#include <Arduino.h>
+#include <stdint.h>
+
 extern uint16_t cell_max_voltage;   //mV,   0-4350
 extern uint16_t cell_min_voltage;   //mV,   0-4350
 extern uint16_t cellvoltages[120];  //mV    0-4350 per cell
