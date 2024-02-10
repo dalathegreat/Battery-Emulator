@@ -12,7 +12,6 @@
 #include "../../lib/me-no-dev-ESPAsyncWebServer/src/ESPAsyncWebServer.h"
 #include "../../lib/miwagner-ESP32-Arduino-CAN/ESP32CAN.h"
 #include "../config.h"  // Needed for LED defines
-#include "../utils/events.h"
 #ifdef MQTT
 #include "../mqtt/mqtt.h"
 #endif
@@ -37,7 +36,6 @@ extern uint16_t cellvoltages[120];  //mV    0-4350 per cell
 extern uint8_t LEDcolor;            //Enum, 0-10
 extern bool batteryAllowsContactorClosing;   //Bool, 1=true, 0=false
 extern bool inverterAllowsContactorClosing;  //Bool, 1=true, 0=false
-extern EVENTS_STRUCT_TYPE entries[EVENT_NOF_EVENTS];
 
 extern const char* ssid;
 extern const char* password;
@@ -119,33 +117,6 @@ void init_ElegantOTA();
  * @return String
  */
 String processor(const String& var);
-
-/**
- * @brief Replaces placeholder with content section in web page
- *
- * @param[in] var
- *
- * @return String
- */
-String settings_processor(const String& var);
-
-/**
- * @brief Replaces placeholder with content section in web page
- *
- * @param[in] var
- *
- * @return String
- */
-String cellmonitor_processor(const String& var);
-
-/**
- * @brief Replaces placeholder with content section in web page
- *
- * @param[in] var
- *
- * @return String
- */
-String events_processor(const String& var);
 
 /**
  * @brief Executes on OTA start 
