@@ -1,5 +1,6 @@
 #include "events_html.h"
 #include <Arduino.h>
+#include "../utils/events.h"
 
 const char EVENTS_HTML_START[] = R"=====(
 <style>
@@ -67,20 +68,23 @@ String events_processor(const String& var) {
     content.reserve(5000);
     // Page format
     content.concat(FPSTR(EVENTS_HTML_START));
+    const EVENTS_STRUCT_TYPE* event_pointer;
     for (int i = 0; i < EVENT_NOF_EVENTS; i++) {
-      Serial.println("Event: " + String(get_event_enum_string(static_cast<EVENTS_ENUM_TYPE>(i))) +
-                     " count: " + String(entries[i].occurences) + " seconds: " + String(entries[i].timestamp) +
-                     " data: " + String(entries[i].data));
-      if (entries[i].occurences > 0) {
+      event_pointer = get_event_pointer((EVENTS_ENUM_TYPE)i);
+      EVENTS_ENUM_TYPE event_handle = static_cast<EVENTS_ENUM_TYPE>(i);
+      Serial.println("Event: " + String(get_event_enum_string(event_handle)) +
+                     " count: " + String(event_pointer->occurences) + " seconds: " + String(event_pointer->timestamp) +
+                     " data: " + String(event_pointer->data));
+      if (event_pointer->occurences > 0) {
         content.concat("<div class='event'>");
-        content.concat("<div>" + String(get_event_enum_string(static_cast<EVENTS_ENUM_TYPE>(i))) + "</div>");
-        content.concat("<div>" + String(get_led_color_display_text(entries[i].led_color)) + "</div>");
-        content.concat("<div class='last-event-seconds-ago'>" + String((millis() / 1000) - entries[i].timestamp) +
+        content.concat("<div>" + String(get_event_enum_string(event_handle)) + "</div>");
+        content.concat("<div>" + String(get_event_level_string(event_handle)) + "</div>");
+        content.concat("<div class='last-event-seconds-ago'>" + String((millis() / 1000) - event_pointer->timestamp) +
                        "</div>");
-        content.concat("<div>" + String(entries[i].occurences) + "</div>");
-        content.concat("<div>" + String(entries[i].data) + "</div>");
-        content.concat("<div>" + String(get_event_message(static_cast<EVENTS_ENUM_TYPE>(i))) + "</div>");
-        content.concat("<div class='timestamp'>" + String(entries[i].timestamp) + "</div>");
+        content.concat("<div>" + String(event_pointer->occurences) + "</div>");
+        content.concat("<div>" + String(event_pointer->data) + "</div>");
+        content.concat("<div>" + String(get_event_message_string(event_handle)) + "</div>");
+        content.concat("<div class='timestamp'>" + String(event_pointer->timestamp) + "</div>");
         content.concat("</div>");  // End of event row
       }
     }

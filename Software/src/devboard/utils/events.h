@@ -6,21 +6,6 @@
 #include <Arduino.h>
 #endif
 
-typedef enum {
-  EVENT_STATE_INIT = 0,
-  EVENT_STATE_INACTIVE,
-  EVENT_STATE_ACTIVE,
-  EVENT_STATE_ACTIVE_LATCHED
-} EVENTS_STATE_TYPE;
-
-typedef struct {
-  uint32_t timestamp;       // Time in seconds since startup when the event occurred
-  uint8_t data;             // Custom data passed when setting the event, for example cell number for under voltage
-  uint8_t occurences;       // Number of occurrences since startup
-  uint8_t led_color;        // LED indication
-  EVENTS_STATE_TYPE state;  // Event state
-} EVENTS_STRUCT_TYPE;
-
 #define GENERATE_ENUM(ENUM) ENUM,
 #define GENERATE_STRING(STRING) #STRING,
 
@@ -57,15 +42,33 @@ typedef enum { EVENTS_ENUM_TYPE(GENERATE_ENUM) } EVENTS_ENUM_TYPE;
 
 typedef enum { EVENTS_LEVEL_TYPE(GENERATE_ENUM) } EVENTS_LEVEL_TYPE;
 
+typedef enum {
+  EVENT_STATE_INIT = 0,
+  EVENT_STATE_INACTIVE,
+  EVENT_STATE_ACTIVE,
+  EVENT_STATE_ACTIVE_LATCHED
+} EVENTS_STATE_TYPE;
+
+typedef struct {
+  uint32_t timestamp;       // Time in seconds since startup when the event occurred
+  uint8_t data;             // Custom data passed when setting the event, for example cell number for under voltage
+  uint8_t occurences;       // Number of occurrences since startup
+  uint8_t led_color;        // LED indication
+  EVENTS_LEVEL_TYPE level;  // Event level, i.e. ERROR/WARNING...
+  EVENTS_STATE_TYPE state;  // Event state, i.e. ACTIVE/INACTIVE...
+} EVENTS_STRUCT_TYPE;
+
 const char* get_event_enum_string(EVENTS_ENUM_TYPE event);
-const char* get_event_message(EVENTS_ENUM_TYPE event);
-const char* get_led_color_display_text(u_int8_t led_color);
+const char* get_event_message_string(EVENTS_ENUM_TYPE event);
+const char* get_event_level_string(EVENTS_ENUM_TYPE event);
 const char* get_event_type(EVENTS_ENUM_TYPE event);
 
 void init_events(void);
 void set_event_latched(EVENTS_ENUM_TYPE event, uint8_t data);
 void set_event(EVENTS_ENUM_TYPE event, uint8_t data);
 void clear_event(EVENTS_ENUM_TYPE event);
+
+const EVENTS_STRUCT_TYPE* get_event_pointer(EVENTS_ENUM_TYPE event);
 
 void run_event_handling(void);
 

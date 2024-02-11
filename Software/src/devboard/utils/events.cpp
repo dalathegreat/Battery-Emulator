@@ -8,9 +8,9 @@ typedef struct {
   EVENTS_STRUCT_TYPE entries[EVENT_NOF_EVENTS];
   uint32_t time_seconds;
   MyTimer second_timer;
-  uint8_t nof_yellow_events;
-  uint8_t nof_blue_events;
-  uint8_t nof_red_events;
+  uint8_t nof_warning_events;
+  uint8_t nof_debug_events;
+  uint8_t nof_error_events;
 } EVENT_TYPE;
 
 /* Local variables */
@@ -36,53 +36,38 @@ void run_event_handling(void) {
 /* Initialization function */
 void init_events(void) {
 
-  events.entries[EVENT_CAN_FAILURE] = {
-      .timestamp = 0, .data = 0, .occurences = 0, .led_color = RED, .state = EVENT_STATE_INACTIVE};
-  events.entries[EVENT_CAN_WARNING] = {
-      .timestamp = 0, .data = 0, .occurences = 0, .led_color = YELLOW, .state = EVENT_STATE_INACTIVE};
-  events.entries[EVENT_WATER_INGRESS] = {
-      .timestamp = 0, .data = 0, .occurences = 0, .led_color = RED, .state = EVENT_STATE_INACTIVE};
-  events.entries[EVENT_12V_LOW] = {
-      .timestamp = 0, .data = 0, .occurences = 0, .led_color = YELLOW, .state = EVENT_STATE_INACTIVE};
-  events.entries[EVENT_SOC_PLAUSIBILITY_ERROR] = {
-      .timestamp = 0, .data = 0, .occurences = 0, .led_color = RED, .state = EVENT_STATE_INACTIVE};
-  events.entries[EVENT_KWH_PLAUSIBILITY_ERROR] = {
-      .timestamp = 0, .data = 0, .occurences = 0, .led_color = YELLOW, .state = EVENT_STATE_INACTIVE};
-  events.entries[EVENT_BATTERY_CHG_STOP_REQ] = {
-      .timestamp = 0, .data = 0, .occurences = 0, .led_color = RED, .state = EVENT_STATE_INACTIVE};
-  events.entries[EVENT_BATTERY_DISCHG_STOP_REQ] = {
-      .timestamp = 0, .data = 0, .occurences = 0, .led_color = RED, .state = EVENT_STATE_INACTIVE};
-  events.entries[EVENT_BATTERY_CHG_DISCHG_STOP_REQ] = {
-      .timestamp = 0, .data = 0, .occurences = 0, .led_color = RED, .state = EVENT_STATE_INACTIVE};
-  events.entries[EVENT_LOW_SOH] = {
-      .timestamp = 0, .data = 0, .occurences = 0, .led_color = RED, .state = EVENT_STATE_INACTIVE};
-  events.entries[EVENT_HVIL_FAILURE] = {
-      .timestamp = 0, .data = 0, .occurences = 0, .led_color = RED, .state = EVENT_STATE_INACTIVE};
-  events.entries[EVENT_INTERNAL_OPEN_FAULT] = {
-      .timestamp = 0, .data = 0, .occurences = 0, .led_color = RED, .state = EVENT_STATE_INACTIVE};
-  events.entries[EVENT_CELL_UNDER_VOLTAGE] = {
-      .timestamp = 0, .data = 0, .occurences = 0, .led_color = RED, .state = EVENT_STATE_INACTIVE};
-  events.entries[EVENT_CELL_OVER_VOLTAGE] = {
-      .timestamp = 0, .data = 0, .occurences = 0, .led_color = RED, .state = EVENT_STATE_INACTIVE};
-  events.entries[EVENT_CELL_DEVIATION_HIGH] = {
-      .timestamp = 0, .data = 0, .occurences = 0, .led_color = YELLOW, .state = EVENT_STATE_INACTIVE};
-  events.entries[EVENT_UNKNOWN_EVENT_SET] = {
-      .timestamp = 0, .data = 0, .occurences = 0, .led_color = RED, .state = EVENT_STATE_INACTIVE};
-  events.entries[EVENT_OTA_UPDATE] = {
-      .timestamp = 0, .data = 0, .occurences = 0, .led_color = BLUE, .state = EVENT_STATE_INACTIVE};
-  events.entries[EVENT_DUMMY] = {
-      .timestamp = 0, .data = 0, .occurences = 0, .led_color = RED, .state = EVENT_STATE_INACTIVE};
-  events.entries[EVENT_NOF_EVENTS] = {
-      .timestamp = 0, .data = 0, .occurences = 0, .led_color = RED, .state = EVENT_STATE_INACTIVE};
+  for (uint16_t i = 0; i < EVENT_NOF_EVENTS; i++) {
+    events.entries[EVENT_CAN_FAILURE].data = 0;
+    events.entries[EVENT_CAN_FAILURE].timestamp = 0;
+    events.entries[EVENT_CAN_FAILURE].occurences = 0;
+    events.entries[EVENT_CAN_FAILURE].state = EVENT_STATE_INACTIVE;
+  }
 
-  // BLUE...
+  events.entries[EVENT_CAN_FAILURE].led_color = RED;
+  events.entries[EVENT_CAN_WARNING].led_color = YELLOW;
+  events.entries[EVENT_WATER_INGRESS].led_color = RED;
+  events.entries[EVENT_12V_LOW].led_color = YELLOW;
+  events.entries[EVENT_SOC_PLAUSIBILITY_ERROR].led_color = RED;
+  events.entries[EVENT_KWH_PLAUSIBILITY_ERROR].led_color = YELLOW;
+  events.entries[EVENT_BATTERY_CHG_STOP_REQ].led_color = RED;
+  events.entries[EVENT_BATTERY_DISCHG_STOP_REQ].led_color = RED;
+  events.entries[EVENT_BATTERY_CHG_DISCHG_STOP_REQ].led_color = RED;
+  events.entries[EVENT_LOW_SOH].led_color = RED;
+  events.entries[EVENT_HVIL_FAILURE].led_color = RED;
+  events.entries[EVENT_INTERNAL_OPEN_FAULT].led_color = RED;
+  events.entries[EVENT_CELL_UNDER_VOLTAGE].led_color = RED;
+  events.entries[EVENT_CELL_OVER_VOLTAGE].led_color = RED;
+  events.entries[EVENT_CELL_DEVIATION_HIGH].led_color = YELLOW;
+  events.entries[EVENT_UNKNOWN_EVENT_SET].led_color = RED;
   events.entries[EVENT_OTA_UPDATE].led_color = BLUE;
+  events.entries[EVENT_DUMMY].led_color = RED;
+  events.entries[EVENT_NOF_EVENTS].led_color = RED;
 
   events.second_timer.interval = 1000;
 
-  events.nof_blue_events = 0;
-  events.nof_red_events = 0;
-  events.nof_yellow_events = 0;
+  events.nof_debug_events = 0;
+  events.nof_error_events = 0;
+  events.nof_warning_events = 0;
 }
 
 void set_event(EVENTS_ENUM_TYPE event, uint8_t data) {
@@ -127,39 +112,24 @@ static void set_event(EVENTS_ENUM_TYPE event, uint8_t data, bool latched) {
   update_bms_status();
 
 #ifdef DEBUG_VIA_USB
-  Serial.println(get_event_message(event));
+  Serial.println(get_event_message_string(event));
 #endif
 }
 
 static void update_bms_status(void) {
-  if (events.nof_red_events > 0) {
+  if (events.nof_error_events > 0) {
     bms_status = FAULT;
-  } else if (events.nof_blue_events > 0) {
+  } else if (events.nof_debug_events > 0) {
     bms_status = UPDATING;
-  } else if (events.nof_yellow_events > 0) {
+  } else if (events.nof_warning_events > 0) {
     // No bms_status update
   }
 }
 
-const char* get_led_color_display_text(u_int8_t led_color) {
-  switch (led_color) {
-    case RED:
-      return "Error";
-    case YELLOW:
-      return "Warning";
-    case GREEN:
-      return "Info";
-    case BLUE:
-      return "Debug";
-    default:
-      return "UNKNOWN";
-  }
-}
-
 static void update_event_numbers(void) {
-  events.nof_red_events = 0;
-  events.nof_blue_events = 0;
-  events.nof_yellow_events = 0;
+  events.nof_error_events = 0;
+  events.nof_debug_events = 0;
+  events.nof_warning_events = 0;
   for (uint8_t i = 0u; i < EVENT_NOF_EVENTS; i++) {
     if ((events.entries[i].state == EVENT_STATE_ACTIVE) || (events.entries[i].state == EVENT_STATE_ACTIVE_LATCHED)) {
       switch (events.entries[i].led_color) {
@@ -167,13 +137,13 @@ static void update_event_numbers(void) {
           // Just informative
           break;
         case YELLOW:
-          events.nof_yellow_events++;
+          events.nof_warning_events++;
           break;
         case BLUE:
-          events.nof_blue_events++;
+          events.nof_debug_events++;
           break;
         case RED:
-          events.nof_red_events++;
+          events.nof_error_events++;
           break;
         default:
           break;
@@ -190,20 +160,18 @@ static void update_event_time(void) {
 }
 
 static void update_led_color(void) {
-  if (events.nof_red_events > 0) {
+  if (events.nof_error_events > 0) {
     LEDcolor = RED;
-  } else if (events.nof_blue_events > 0) {
+  } else if (events.nof_debug_events > 0) {
     LEDcolor = BLUE;
-  } else if (events.nof_yellow_events > 0) {
+  } else if (events.nof_warning_events > 0) {
     LEDcolor = YELLOW;
   } else {
     LEDcolor = GREEN;
   }
-
-  // events.total_led_color = max(events.total_led_color, events.entries[event].led_color);
 }
 
-const char* get_event_message(EVENTS_ENUM_TYPE event) {
+const char* get_event_message_string(EVENTS_ENUM_TYPE event) {
   switch (event) {
     case EVENT_CAN_FAILURE:
       return "No CAN communication detected for 60s. Shutting down battery control.";
@@ -247,7 +215,15 @@ const char* get_event_message(EVENTS_ENUM_TYPE event) {
 }
 
 const char* get_event_enum_string(EVENTS_ENUM_TYPE event) {
-  return EVENTS_ENUM_TYPE_STRING[event] + 6;  // Return the event name but skip "EVENT_" that should always be first
+  // Return the event name but skip "EVENT_" that should always be first
+  return EVENTS_ENUM_TYPE_STRING[event] + 6;
 }
 
-const char* get_event_type(EVENTS_ENUM_TYPE event) {}
+const char* get_event_level_string(EVENTS_ENUM_TYPE event) {
+  // Return the event level but skip "EVENT_LEVEL_" that should always be first
+  return EVENTS_LEVEL_TYPE_STRING[event] + 12;
+}
+
+const EVENTS_STRUCT_TYPE* get_event_pointer(EVENTS_ENUM_TYPE event) {
+  return &events.entries[event];
+}
