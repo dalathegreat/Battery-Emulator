@@ -141,6 +141,21 @@ static void update_bms_status(void) {
   }
 }
 
+const char* get_led_color_display_text(u_int8_t led_color) {
+  switch (led_color) {
+    case RED:
+      return "Error";
+    case YELLOW:
+      return "Warning";
+    case GREEN:
+      return "Info";
+    case BLUE:
+      return "Debug";
+    default:
+      return "UNKNOWN";
+  }
+}
+
 static void update_event_numbers(void) {
   events.nof_red_events = 0;
   events.nof_blue_events = 0;
