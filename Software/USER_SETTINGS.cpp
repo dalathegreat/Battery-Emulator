@@ -16,11 +16,6 @@ volatile uint16_t MAXDISCHARGEAMP =
     300;  //30.0A , BYD CAN specific setting, Max discharge speed in Amp (Some inverters needs to be artificially limited)
 
 /* Charger settings (Optional, when generator charging) */
-// MQTT
-#ifdef MQTT
-const char* mqtt_user = "REDACTED";
-const char* mqtt_password = "REDACTED";
-#endif  // USE_MQTT
 /* Charger settings */
 volatile float CHARGER_SET_HV = 384;      // Reasonably appropriate 4.0v per cell charging of a 96s pack
 volatile float CHARGER_MAX_HV = 420;      // Max permissible output (VDC) of charger
@@ -37,4 +32,11 @@ const char* password = "REPLACE_WITH_YOUR_PASSWORD";  // Minimum of 8 characters
 const char* ssidAP = "Battery Emulator";              // Maximum of 63 characters;
 const char* passwordAP = "123456789";  // Minimum of 8 characters; set to NULL if you want the access point to be open
 const uint8_t wifi_channel = 0;        // set to 0 for automatic channel selection
+
+// MQTT
+#ifdef MQTT
+const char* mqtt_user = "REDACTED";
+const char* mqtt_password = "REDACTED";
+#endif  // USE_MQTT
+
 #endif
