@@ -346,10 +346,15 @@ void receive_can_kiaHyundai_64_battery(CAN_frame_t rx_frame) {
         ESP32Can.CANWriteFrame(&KIA64_7E4_id1);
       } else if (poll_data_pid == 2) {
         ESP32Can.CANWriteFrame(&KIA64_7E4_id2);
+      } else if (poll_data_pid == 3) {
+        ESP32Can.CANWriteFrame(&KIA64_7E4_id3);
+      } else if (poll_data_pid == 4) {
+        ESP32Can.CANWriteFrame(&KIA64_7E4_id4);
       } else if (poll_data_pid == 5) {
         ESP32Can.CANWriteFrame(&KIA64_7E4_id5);
       } else if (poll_data_pid == 6) {
         ESP32Can.CANWriteFrame(&KIA64_7E4_id6);
+      } else if (poll_data_pid == 7) {
       } else if (poll_data_pid == 8) {
       } else if (poll_data_pid == 9) {
       } else if (poll_data_pid == 10) {
@@ -367,10 +372,55 @@ void receive_can_kiaHyundai_64_battery(CAN_frame_t rx_frame) {
             allowedChargePower = ((rx_frame.data.u8[3] << 8) + rx_frame.data.u8[4]);
             allowedDischargePower = ((rx_frame.data.u8[5] << 8) + rx_frame.data.u8[6]);
             batteryRelay = rx_frame.data.u8[7];
+          } else if (poll_data_pid == 2) {
+            cellvoltages[0] = (rx_frame.data.u8[2] * 20);
+            cellvoltages[1] = (rx_frame.data.u8[3] * 20);
+            cellvoltages[2] = (rx_frame.data.u8[4] * 20);
+            cellvoltages[3] = (rx_frame.data.u8[5] * 20);
+            cellvoltages[4] = (rx_frame.data.u8[6] * 20);
+            cellvoltages[5] = (rx_frame.data.u8[7] * 20);
+          } else if (poll_data_pid == 3) {
+            cellvoltages[32] = (rx_frame.data.u8[2] * 20);
+            cellvoltages[33] = (rx_frame.data.u8[3] * 20);
+            cellvoltages[34] = (rx_frame.data.u8[4] * 20);
+            cellvoltages[35] = (rx_frame.data.u8[5] * 20);
+            cellvoltages[36] = (rx_frame.data.u8[6] * 20);
+            cellvoltages[37] = (rx_frame.data.u8[7] * 20);
+          } else if (poll_data_pid == 4) {
+            cellvoltages[64] = (rx_frame.data.u8[2] * 20);
+            cellvoltages[65] = (rx_frame.data.u8[3] * 20);
+            cellvoltages[66] = (rx_frame.data.u8[4] * 20);
+            cellvoltages[67] = (rx_frame.data.u8[5] * 20);
+            cellvoltages[68] = (rx_frame.data.u8[6] * 20);
+            cellvoltages[69] = (rx_frame.data.u8[7] * 20);
           }
           break;
         case 0x22:  //Second datarow in PID group
-          if (poll_data_pid == 6) {
+          if (poll_data_pid == 2) {
+            cellvoltages[6] = (rx_frame.data.u8[1] * 20);
+            cellvoltages[7] = (rx_frame.data.u8[2] * 20);
+            cellvoltages[8] = (rx_frame.data.u8[3] * 20);
+            cellvoltages[9] = (rx_frame.data.u8[4] * 20);
+            cellvoltages[10] = (rx_frame.data.u8[5] * 20);
+            cellvoltages[11] = (rx_frame.data.u8[6] * 20);
+            cellvoltages[12] = (rx_frame.data.u8[7] * 20);
+          } else if (poll_data_pid == 3) {
+            cellvoltages[38] = (rx_frame.data.u8[1] * 20);
+            cellvoltages[39] = (rx_frame.data.u8[2] * 20);
+            cellvoltages[40] = (rx_frame.data.u8[3] * 20);
+            cellvoltages[41] = (rx_frame.data.u8[4] * 20);
+            cellvoltages[42] = (rx_frame.data.u8[5] * 20);
+            cellvoltages[43] = (rx_frame.data.u8[6] * 20);
+            cellvoltages[44] = (rx_frame.data.u8[7] * 20);
+          } else if (poll_data_pid == 4) {
+            cellvoltages[70] = (rx_frame.data.u8[1] * 20);
+            cellvoltages[71] = (rx_frame.data.u8[2] * 20);
+            cellvoltages[72] = (rx_frame.data.u8[3] * 20);
+            cellvoltages[73] = (rx_frame.data.u8[4] * 20);
+            cellvoltages[74] = (rx_frame.data.u8[5] * 20);
+            cellvoltages[75] = (rx_frame.data.u8[6] * 20);
+            cellvoltages[76] = (rx_frame.data.u8[7] * 20);
+          } else if (poll_data_pid == 6) {
             batteryManagementMode = rx_frame.data.u8[5];
           }
           break;
@@ -378,8 +428,31 @@ void receive_can_kiaHyundai_64_battery(CAN_frame_t rx_frame) {
           if (poll_data_pid == 1) {
             temperature_water_inlet = rx_frame.data.u8[6];
             CellVoltMax_mV = (rx_frame.data.u8[7] * 20);  //(volts *50) *20 =mV
-          }
-          if (poll_data_pid == 5) {
+          } else if (poll_data_pid == 2) {
+            cellvoltages[13] = (rx_frame.data.u8[1] * 20);
+            cellvoltages[14] = (rx_frame.data.u8[2] * 20);
+            cellvoltages[15] = (rx_frame.data.u8[3] * 20);
+            cellvoltages[16] = (rx_frame.data.u8[4] * 20);
+            cellvoltages[17] = (rx_frame.data.u8[5] * 20);
+            cellvoltages[18] = (rx_frame.data.u8[6] * 20);
+            cellvoltages[19] = (rx_frame.data.u8[7] * 20);
+          } else if (poll_data_pid == 3) {
+            cellvoltages[45] = (rx_frame.data.u8[1] * 20);
+            cellvoltages[46] = (rx_frame.data.u8[2] * 20);
+            cellvoltages[47] = (rx_frame.data.u8[3] * 20);
+            cellvoltages[48] = (rx_frame.data.u8[4] * 20);
+            cellvoltages[49] = (rx_frame.data.u8[5] * 20);
+            cellvoltages[50] = (rx_frame.data.u8[6] * 20);
+            cellvoltages[51] = (rx_frame.data.u8[7] * 20);
+          } else if (poll_data_pid == 4) {
+            cellvoltages[77] = (rx_frame.data.u8[1] * 20);
+            cellvoltages[78] = (rx_frame.data.u8[2] * 20);
+            cellvoltages[79] = (rx_frame.data.u8[3] * 20);
+            cellvoltages[80] = (rx_frame.data.u8[4] * 20);
+            cellvoltages[81] = (rx_frame.data.u8[5] * 20);
+            cellvoltages[82] = (rx_frame.data.u8[6] * 20);
+            cellvoltages[83] = (rx_frame.data.u8[7] * 20);
+          } else if (poll_data_pid == 5) {
             heatertemp = rx_frame.data.u8[7];
           }
           break;
@@ -388,11 +461,58 @@ void receive_can_kiaHyundai_64_battery(CAN_frame_t rx_frame) {
             CellVmaxNo = rx_frame.data.u8[1];
             CellVminNo = rx_frame.data.u8[3];
             CellVoltMin_mV = (rx_frame.data.u8[2] * 20);  //(volts *50) *20 =mV
+          } else if (poll_data_pid == 2) {
+            cellvoltages[20] = (rx_frame.data.u8[1] * 20);
+            cellvoltages[21] = (rx_frame.data.u8[2] * 20);
+            cellvoltages[22] = (rx_frame.data.u8[3] * 20);
+            cellvoltages[23] = (rx_frame.data.u8[4] * 20);
+            cellvoltages[24] = (rx_frame.data.u8[5] * 20);
+            cellvoltages[25] = (rx_frame.data.u8[6] * 20);
+            cellvoltages[26] = (rx_frame.data.u8[7] * 20);
+          } else if (poll_data_pid == 3) {
+            cellvoltages[52] = (rx_frame.data.u8[1] * 20);
+            cellvoltages[53] = (rx_frame.data.u8[2] * 20);
+            cellvoltages[54] = (rx_frame.data.u8[3] * 20);
+            cellvoltages[55] = (rx_frame.data.u8[4] * 20);
+            cellvoltages[56] = (rx_frame.data.u8[5] * 20);
+            cellvoltages[57] = (rx_frame.data.u8[6] * 20);
+            cellvoltages[58] = (rx_frame.data.u8[7] * 20);
+          } else if (poll_data_pid == 4) {
+            cellvoltages[84] = (rx_frame.data.u8[1] * 20);
+            cellvoltages[85] = (rx_frame.data.u8[2] * 20);
+            cellvoltages[86] = (rx_frame.data.u8[3] * 20);
+            cellvoltages[87] = (rx_frame.data.u8[4] * 20);
+            cellvoltages[88] = (rx_frame.data.u8[5] * 20);
+            cellvoltages[89] = (rx_frame.data.u8[6] * 20);
+            cellvoltages[90] = (rx_frame.data.u8[7] * 20);
           } else if (poll_data_pid == 5) {
             batterySOH = ((rx_frame.data.u8[2] << 8) + rx_frame.data.u8[3]);
           }
           break;
         case 0x25:  //Fifth datarow in PID group
+          if (poll_data_pid == 2) {
+            cellvoltages[27] = (rx_frame.data.u8[1] * 20);
+            cellvoltages[28] = (rx_frame.data.u8[2] * 20);
+            cellvoltages[29] = (rx_frame.data.u8[3] * 20);
+            cellvoltages[30] = (rx_frame.data.u8[4] * 20);
+            cellvoltages[31] = (rx_frame.data.u8[5] * 20);
+          } else if (poll_data_pid == 3) {
+            cellvoltages[59] = (rx_frame.data.u8[1] * 20);
+            cellvoltages[60] = (rx_frame.data.u8[2] * 20);
+            cellvoltages[61] = (rx_frame.data.u8[3] * 20);
+            cellvoltages[62] = (rx_frame.data.u8[4] * 20);
+            cellvoltages[63] = (rx_frame.data.u8[5] * 20);
+          } else if (poll_data_pid == 4) {
+            cellvoltages[91] = (rx_frame.data.u8[1] * 20);
+            cellvoltages[92] = (rx_frame.data.u8[2] * 20);
+            cellvoltages[93] = (rx_frame.data.u8[3] * 20);
+            cellvoltages[94] = (rx_frame.data.u8[4] * 20);
+            cellvoltages[95] = (rx_frame.data.u8[5] * 20);
+          } else if (poll_data_pid == 5) {
+            cellvoltages[96] = (rx_frame.data.u8[4] * 20);
+            cellvoltages[97] = (rx_frame.data.u8[5] * 20);
+            nof_cellvoltages = 98;
+          }
           break;
         case 0x26:  //Sixth datarow in PID group
           break;
