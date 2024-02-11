@@ -24,10 +24,6 @@ This section lists a number of features that can be implemented as part of the w
 
 - TODO: list all available ssids: scan WiFi Networks https://randomnerdtutorials.com/esp32-useful-wi-fi-functions-arduino/
 - TODO: add option to add/change ssid and password and save, connect to the new ssid (Option: save ssid and password using Preferences.h library https://randomnerdtutorials.com/esp32-save-data-permanently-preferences/)
-- TODO: display WiFi connection strength (https://randomnerdtutorials.com/esp32-useful-wi-fi-functions-arduino/)
-- TODO: display CAN state (indicate if there is a communication error)
-- TODO: display battery errors in battery diagnosis tab
-- TODO: display inverter errors in battery diagnosis tab
 - TODO: add functionality to turn WiFi AP off
 - TODO: fix IP address on home network (https://randomnerdtutorials.com/esp32-static-fixed-ip-address-arduino-ide/)
 - TODO: set hostname (https://randomnerdtutorials.com/esp32-set-custom-hostname-arduino/)

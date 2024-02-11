@@ -19,10 +19,10 @@ void init_events(void) {
     entries[i].timestamp = 0;
     entries[i].data = 0;
     entries[i].occurences = 0;
-    entries[i].led_color = RED;  // Most events are RED
+    entries[i].led_color = RED;  // Most events are RED, critical errors
   }
 
-  // YELLOW events below
+  // YELLOW warning events below
   entries[EVENT_12V_LOW].led_color = YELLOW;
   entries[EVENT_CAN_WARNING].led_color = YELLOW;
   entries[EVENT_CELL_DEVIATION_HIGH].led_color = YELLOW;
@@ -59,13 +59,13 @@ static void update_led_color(EVENTS_ENUM_TYPE event) {
 const char* get_led_color_display_text(u_int8_t led_color) {
   switch (led_color) {
     case RED:
-      return "RED";
+      return "Error";
     case YELLOW:
-      return "YELLOW";
+      return "Warning";
     case GREEN:
-      return "GREEN";
+      return "Info";
     case BLUE:
-      return "BLUE";
+      return "Debug";
     default:
       return "UNKNOWN";
   }
