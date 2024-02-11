@@ -4,25 +4,9 @@
 #include "../config.h"
 #include "timer.h"
 
-typedef enum {
-  EVENT_STATE_INIT = 0,
-  EVENT_STATE_INACTIVE,
-  EVENT_STATE_ACTIVE,
-  EVENT_STATE_ACTIVE_LATCHED
-} EVENT_STATE_TYPE;
-
-typedef struct {
-  uint32_t timestamp;      // Time in seconds since startup when the event occurred
-  uint8_t data;            // Custom data passed when setting the event, for example cell number for under voltage
-  uint8_t occurences;      // Number of occurrences since startup
-  uint8_t led_color;       // LED indication
-  EVENT_STATE_TYPE state;  // Event state
-} EVENTS_STRUCT_TYPE;
-
 typedef struct {
   EVENTS_STRUCT_TYPE entries[EVENT_NOF_EVENTS];
   uint32_t time_seconds;
-  char message[256];
   MyTimer second_timer;
   uint8_t nof_yellow_events;
   uint8_t nof_blue_events;
@@ -31,6 +15,8 @@ typedef struct {
 
 /* Local variables */
 static EVENT_TYPE events;
+static const char* EVENTS_ENUM_TYPE_STRING[] = {EVENTS_ENUM_TYPE(GENERATE_STRING)};
+static const char* EVENTS_LEVEL_TYPE_STRING[] = {EVENTS_LEVEL_TYPE(GENERATE_STRING)};
 
 /* Local function prototypes */
 static void update_event_time(void);
@@ -125,15 +111,14 @@ static void set_event(EVENTS_ENUM_TYPE event, uint8_t data, bool latched) {
   }
 
   // If the event is already set, no reason to continue
-  if ((events.entries[event].state == EVENT_STATE_ACTIVE) ||
-      (events.entries[event].state == EVENT_STATE_ACTIVE_LATCHED)) {
-    return;
+  if ((events.entries[event].state != EVENT_STATE_ACTIVE) &&
+      (events.entries[event].state != EVENT_STATE_ACTIVE_LATCHED)) {
+    events.entries[event].occurences++;
   }
 
   // We should set the event, update event info
   events.entries[event].timestamp = events.time_seconds;
   events.entries[event].data = data;
-  events.entries[event].occurences++;
   // Check if the event is latching
   events.entries[event].state = latched ? EVENT_STATE_ACTIVE_LATCHED : EVENT_STATE_ACTIVE;
 
@@ -141,10 +126,8 @@ static void set_event(EVENTS_ENUM_TYPE event, uint8_t data, bool latched) {
   update_led_color();
   update_bms_status();
 
-  // Set the associated event message, even if debug is disabled
-  set_message(event);
 #ifdef DEBUG_VIA_USB
-  Serial.println(events.message);
+  Serial.println(get_event_message(event));
 #endif
 }
 
@@ -205,83 +188,6 @@ static void update_led_color(void) {
   // events.total_led_color = max(events.total_led_color, events.entries[event].led_color);
 }
 
-static void set_message(EVENTS_ENUM_TYPE event) {
-  switch (event) {
-    case EVENT_CAN_FAILURE:
-      snprintf(events.message, sizeof(events.message),
-               "No CAN communication detected for 60s. Shutting down battery control.");
-      break;
-    case EVENT_CAN_WARNING:
-      snprintf(events.message, sizeof(events.message),
-               "ERROR: High amount of corrupted CAN messages detected. Check CAN wire shielding!");
-      break;
-    case EVENT_WATER_INGRESS:
-      snprintf(events.message, sizeof(events.message),
-               "Water leakage inside battery detected. Operation halted. Inspect battery!");
-      break;
-    case EVENT_12V_LOW:
-      snprintf(events.message, sizeof(events.message),
-               "12V battery source below required voltage to safely close contactors. Inspect the supply/battery!");
-      break;
-    case EVENT_SOC_PLAUSIBILITY_ERROR:
-      snprintf(events.message, sizeof(events.message),
-               "ERROR: SOC reported by battery not plausible. Restart battery!");
-      break;
-    case EVENT_KWH_PLAUSIBILITY_ERROR:
-      snprintf(events.message, sizeof(events.message),
-               "Warning: kWh remaining reported by battery not plausible. Battery needs cycling.");
-      break;
-    case EVENT_BATTERY_CHG_STOP_REQ:
-      snprintf(events.message, sizeof(events.message),
-               "ERROR: Battery raised caution indicator AND requested charge stop. Inspect battery status!");
-      break;
-    case EVENT_BATTERY_DISCHG_STOP_REQ:
-      snprintf(events.message, sizeof(events.message),
-               "ERROR: Battery raised caution indicator AND requested discharge stop. Inspect battery status!");
-      break;
-    case EVENT_BATTERY_CHG_DISCHG_STOP_REQ:
-      snprintf(events.message, sizeof(events.message),
-               "ERROR: Battery raised caution indicator AND requested charge/discharge stop. Inspect battery status!");
-      break;
-    case EVENT_LOW_SOH:
-      snprintf(
-          events.message, sizeof(events.message),
-          "ERROR: State of health critically low. Battery internal resistance too high to continue. Recycle battery.");
-      break;
-    case EVENT_HVIL_FAILURE:
-      snprintf(events.message, sizeof(events.message),
-               "ERROR: Battery interlock loop broken. Check that high voltage connectors are seated. Battery will be "
-               "disabled!");
-      break;
-    case EVENT_INTERNAL_OPEN_FAULT:
-      snprintf(events.message, sizeof(events.message),
-               "ERROR: High voltage cable removed while battery running. Opening contactors!");
-      break;
-    case EVENT_CELL_UNDER_VOLTAGE:
-      snprintf(events.message, sizeof(events.message),
-               "ERROR: CELL UNDERVOLTAGE!!! Stopping battery charging and discharging. Inspect battery!");
-      break;
-    case EVENT_CELL_OVER_VOLTAGE:
-      snprintf(events.message, sizeof(events.message),
-               "ERROR: CELL OVERVOLTAGE!!! Stopping battery charging and discharging. Inspect battery!");
-      break;
-    case EVENT_CELL_DEVIATION_HIGH:
-      snprintf(events.message, sizeof(events.message), "ERROR: HIGH CELL DEVIATION!!! Inspect battery!");
-      break;
-    case EVENT_UNKNOWN_EVENT_SET:
-      snprintf(events.message, sizeof(events.message), "An unknown event was set! Review your code!");
-      break;
-    case EVENT_OTA_UPDATE:
-      snprintf(events.message, sizeof(events.message), "OTA update started!");
-      break;
-    case EVENT_DUMMY:
-      snprintf(events.message, sizeof(events.message), "The dummy event was set!");  // Don't change this event message!
-      break;
-    default:
-      return "UNKNOWN";
-  }
-}
-
 const char* get_event_message(EVENTS_ENUM_TYPE event) {
   switch (event) {
     case EVENT_CAN_FAILURE:
@@ -326,14 +232,7 @@ const char* get_event_message(EVENTS_ENUM_TYPE event) {
 }
 
 const char* get_event_enum_string(EVENTS_ENUM_TYPE event) {
-  const char* fullString = EVENTS_ENUM_TYPE_STRING[event];
-  if (strncmp(fullString, "EVENT_", 6) == 0) {
-    return fullString + 6;  // Skip the first 6 characters
-  }
-  return fullString;
+  return EVENTS_ENUM_TYPE_STRING[event] + 6;  // Return the event name but skip "EVENT_" that should always be first
 }
 
-static void set_event_message(EVENTS_ENUM_TYPE event) {
-  const char* message = get_event_message(event);
-  snprintf(event_message, sizeof(event_message), "%s", message);
-}
+const char* get_event_type(EVENTS_ENUM_TYPE event) {}
