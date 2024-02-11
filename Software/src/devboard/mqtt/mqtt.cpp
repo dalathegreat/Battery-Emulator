@@ -26,22 +26,6 @@ static void publish_values(void) {
   publish_cell_voltages();
 }
 
-static void publish_common_info(void) {
-  snprintf(mqtt_msg, sizeof(mqtt_msg),
-           "{\n"
-           "  \"SOC\": %.3f,\n"
-           "  \"StateOfHealth\": %.3f,\n"
-           "  \"temperature_min\": %.3f,\n"
-           "  \"temperature_max\": %.3f,\n"
-           "  \"cell_max_voltage\": %d,\n"
-           "  \"cell_min_voltage\": %d\n"
-           "}\n",
-           ((float)SOC) / 100.0, ((float)StateOfHealth) / 100.0, ((float)((int16_t)temperature_min)) / 10.0,
-           ((float)((int16_t)temperature_max)) / 10.0, cell_max_voltage, cell_min_voltage);
-  bool result = client.publish("battery/info", mqtt_msg, true);
-  //Serial.println(mqtt_msg);  // Uncomment to print the payload on serial
-}
-
 static void publish_cell_voltages(void) {
   static bool mqtt_first_transmission = true;
 
@@ -76,17 +60,17 @@ static void publish_cell_voltages(void) {
                "\"object_id\": \"sensor_battery_voltage_cell%d\","
                "\"origin\": {"
                "\"name\": \"BatteryEmulator\","
-               "\"sw\": \"4.4.0-mqtt\","
+               "\"sw\": \"%s-mqtt\","
                "\"url\": \"https://github.com/dalathegreat/Battery-Emulator\""
                "},"
                "\"state_class\": \"measurement\","
                "\"name\": \"Battery Cell Voltage %d\","
-               "\"state_topic\": \"battery/spec_data\","
+               "\"state_topic\": \"battery-emulator/spec_data\","
                "\"unique_id\": \"battery-emulator_battery_voltage_cell%d\","
                "\"unit_of_measurement\": \"V\","
                "\"value_template\": \"{{ value_json.cell_voltages[%d] }}\""
                "}",
-               i + 1, i + 1, i + 1, i);
+               i + 1, version_number, i + 1, i + 1, i);
       // End each discovery topic with cell number and '/config'
       String cell_topic = topic + String(i + 1) + "/config";
       mqtt_publish_retain(cell_topic.c_str());
@@ -99,7 +83,7 @@ static void publish_cell_voltages(void) {
     // is the string content
 
     // If cell voltages haven't been populated...
-    if (cellvoltages[0] == 0u) {
+    if (cellvoltages[0] == 0u / 1000) {  //cell voltage is in mV and homeassistant expects V
       return;
     }
 
@@ -111,10 +95,99 @@ static void publish_cell_voltages(void) {
     snprintf(mqtt_msg + msg_length, sizeof(mqtt_msg) - msg_length, "]\n}\n");
 
     // Publish and print error if not OK
-    if (mqtt_publish_retain("battery/spec_data") == false) {
+    if (mqtt_publish_retain("battery-emulator/spec_data") == false) {
       Serial.println("Cell voltage MQTT msg could not be sent");
     }
   }
+}
+
+struct SensorConfig {
+  const char* object_id;
+  const char* topic;
+  const char* name;
+  const char* value_template;
+  const char* unit;
+  const char* device_class;
+};
+
+SensorConfig sensorConfigs[] = {
+    {"SOC", "homeassistant/sensor/battery-emulator/SOC/config", "Battery Emulator SOC", "{{ value_json.SOC }}", "%",
+     "battery"},
+    {"state_of_health", "homeassistant/sensor/battery-emulator/state_of_health/config",
+     "Battery Emulator State Of Health", "{{ value_json.state_of_health }}", "%", "battery"},
+    {"temperature_min", "homeassistant/sensor/battery-emulator/temperature_min/config",
+     "Battery Emulator Temperature Min", "{{ value_json.temperature_min }}", "°C", "temperature"},
+    {"temperature_max", "homeassistant/sensor/battery-emulator/temperature_max/config",
+     "Battery Emulator Temperature Max", "{{ value_json.temperature_max }}", "°C", "temperature"},
+    {"stat_batt_power", "homeassistant/sensor/battery-emulator/stat_batt_power/config",
+     "Battery Emulator Stat Batt Power", "{{ value_json.stat_batt_power }}", "W", "power"},
+    {"battery_current", "homeassistant/sensor/battery-emulator/battery_current/config",
+     "Battery Emulator Battery Current", "{{ value_json.battery_current }}", "A", "current"},
+    {"cell_max_voltage", "homeassistant/sensor/battery-emulator/cell_max_voltage/config",
+     "Battery Emulator Cell Max Voltage", "{{ value_json.cell_max_voltage }}", "V", "voltage"},
+    {"cell_min_voltage", "homeassistant/sensor/battery-emulator/cell_min_voltage/config",
+     "Battery Emulator Cell Min Voltage", "{{ value_json.cell_min_voltage }}", "V", "voltage"},
+    {"battery_voltage", "homeassistant/sensor/battery-emulator/battery_voltage/config",
+     "Battery Emulator Battery Voltage", "{{ value_json.battery_voltage }}", "V", "voltage"},
+};
+
+static void publish_common_info(void) {
+  static bool mqtt_first_transmission = true;
+  static char* state_topic = "battery-emulator/info";
+  if (mqtt_first_transmission == true) {
+    mqtt_first_transmission = false;
+    for (int i = 0; i < sizeof(sensorConfigs) / sizeof(sensorConfigs[0]); i++) {
+      SensorConfig& config = sensorConfigs[i];
+      snprintf(mqtt_msg, sizeof(mqtt_msg),
+               "{"
+               "\"name\": \"%s\","
+               "\"state_topic\": \"%s\","
+               "\"unique_id\": \"battery-emulator_%s\","
+               "\"object_id\": \"sensor_battery_%s\","
+               "\"device\": {"
+               "\"identifiers\": ["
+               "\"battery-emulator\""
+               "],"
+               "\"manufacturer\": \"DalaTech\","
+               "\"model\": \"BatteryEmulator\","
+               "\"name\": \"BatteryEmulator\""
+               "},"
+               "\"origin\": {"
+               "\"name\": \"BatteryEmulator\","
+               "\"sw\": \"%s-mqtt\","
+               "\"url\": \"https://github.com/dalathegreat/Battery-Emulator\""
+               "},"
+               "\"value_template\": \"%s\","
+               "\"unit_of_measurement\": \"%s\","
+               "\"device_class\": \"%s\","
+               "\"enabled_by_default\": true,"
+               "\"state_class\": \"measurement\""
+               "}",
+               config.name, state_topic, config.object_id, config.object_id, version_number, config.value_template,
+               config.unit, config.device_class);
+      mqtt_publish_retain(config.topic);
+    }
+  } else {
+    snprintf(mqtt_msg, sizeof(mqtt_msg),
+             "{\n"
+             "  \"SOC\": %.3f,\n"
+             "  \"state_of_health\": %.3f,\n"
+             "  \"temperature_min\": %.3f,\n"
+             "  \"temperature_max\": %.3f,\n"
+             "  \"stat_batt_power\": %.3f,\n"
+             "  \"battery_current\": %.3f,\n"
+             "  \"cell_max_voltage\": %d,\n"
+             "  \"cell_min_voltage\": %d,\n"
+             "  \"battery_voltage\": %d\n"
+             "}\n",
+             ((float)SOC) / 100.0, ((float)StateOfHealth) / 100.0, ((float)((int16_t)temperature_min)) / 10.0,
+             ((float)((int16_t)temperature_max)) / 10.0, ((float)((int16_t)stat_batt_power)),
+             ((float)((int16_t)battery_current)) / 10.0, cell_max_voltage / 1000, cell_min_voltage / 1000,
+             battery_voltage / 10.0);
+    bool result = client.publish(state_topic, mqtt_msg, true);
+  }
+
+  //Serial.println(mqtt_msg);  // Uncomment to print the payload on serial
 }
 
 /* This is called whenever a subscribed topic changes (hopefully) */
@@ -132,9 +205,8 @@ static void callback(char* topic, byte* payload, unsigned int length) {
 static void reconnect() {
   // attempt one reconnection
   Serial.print("Attempting MQTT connection... ");
-  // Create a random client ID
-  String clientId = "LilyGoClient-";
-  clientId += String(random(0xffff), HEX);
+  const char* hostname = WiFi.getHostname();
+  String clientId = "LilyGoClient-" + String(hostname);
   // Attempt to connect
   if (client.connect(clientId.c_str(), mqtt_user, mqtt_password)) {
     Serial.println("connected");

@@ -21,8 +21,8 @@
 #include "src/devboard/webserver/webserver.h"
 #endif
 
-Preferences settings;  // Store user settings
-
+Preferences settings;                  // Store user settings
+const char* version_number = "5.2.0";  // The current software version, shown on webserver
 // Interval settings
 int intervalUpdateValues = 4800;  // Interval at which to update inverter values / Modbus registers
 const int interval10 = 10;        // Interval for 10ms tasks
@@ -130,7 +130,9 @@ void setup() {
   init_webserver();
 #endif
 
+#ifdef EVENTLOGGING
   init_events();
+#endif
 
   init_CAN();
 
@@ -156,8 +158,8 @@ void loop() {
 
 #ifdef WEBSERVER
   // Over-the-air updates by ElegantOTA
+  wifi_monitor();
   ElegantOTA.loop();
-  WiFi_monitor_loop();
 #ifdef MQTT
   mqtt_loop();
 #endif
@@ -186,7 +188,9 @@ void loop() {
   {
     previousMillisUpdateVal = millis();
     update_values();  // Update values heading towards inverter. Prepare for sending on CAN, or write directly to Modbus.
-    set_event(EVENT_DUMMY, (uint8_t)millis());
+    if (DUMMY_EVENT_ENABLED) {
+      set_event(EVENT_DUMMY, (uint8_t)millis());
+    }
   }
 
   // Output

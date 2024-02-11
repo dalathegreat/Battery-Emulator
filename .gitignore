@@ -3,9 +3,3 @@
 
 # Ignore any files in the build folder
 Software/build/
-
-# Ignore CMake build folder
-build/
-
-# Ignore unit tests
-*.exe
