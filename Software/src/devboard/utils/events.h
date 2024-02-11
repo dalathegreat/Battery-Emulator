@@ -6,10 +6,17 @@
 #include <Arduino.h>
 #endif
 
+// #define INCLUDE_EVENTS_TEST  // Enable to run an event test loop, see events_test_on_target.cpp
+
 #define GENERATE_ENUM(ENUM) ENUM,
 #define GENERATE_STRING(STRING) #STRING,
 
-/* Event enumeration */
+/** EVENT ENUMERATION
+ *
+ * Do not change the order!
+ * When adding events, add them RIGHT BEFORE the EVENT_NOF_EVENTS enum.
+ * In addition, the event name must start with "EVENT_"
+ */
 #define EVENTS_ENUM_TYPE(XX)            \
   XX(EVENT_CAN_FAILURE)                 \
   XX(EVENT_CAN_WARNING)                 \
@@ -28,22 +35,29 @@
   XX(EVENT_CELL_DEVIATION_HIGH)         \
   XX(EVENT_UNKNOWN_EVENT_SET)           \
   XX(EVENT_OTA_UPDATE)                  \
-  XX(EVENT_DUMMY)                       \
+  XX(EVENT_DUMMY_INFO)                  \
+  XX(EVENT_DUMMY_DEBUG)                 \
+  XX(EVENT_DUMMY_WARNING)               \
+  XX(EVENT_DUMMY_ERROR)                 \
+  XX(EVENT_SERIAL_RX_WARNING)           \
+  XX(EVENT_SERIAL_RX_FAILURE)           \
+  XX(EVENT_SERIAL_TX_FAILURE)           \
+  XX(EVENT_SERIAL_TRANSMITTER_FAILURE)  \
   XX(EVENT_NOF_EVENTS)
 
 typedef enum { EVENTS_ENUM_TYPE(GENERATE_ENUM) } EVENTS_ENUM_TYPE;
 
-/* Event type enumeration */
+/* Event type enumeration, keep in order of priority! */
 #define EVENTS_LEVEL_TYPE(XX) \
-  XX(EVENT_LEVEL_ERROR)       \
-  XX(EVENT_LEVEL_WARNING)     \
   XX(EVENT_LEVEL_INFO)        \
-  XX(EVENT_LEVEL_DEBUG)
+  XX(EVENT_LEVEL_DEBUG)       \
+  XX(EVENT_LEVEL_WARNING)     \
+  XX(EVENT_LEVEL_ERROR)
 
 typedef enum { EVENTS_LEVEL_TYPE(GENERATE_ENUM) } EVENTS_LEVEL_TYPE;
 
 typedef enum {
-  EVENT_STATE_INIT = 0,
+  EVENT_STATE_PENDING = 0,
   EVENT_STATE_INACTIVE,
   EVENT_STATE_ACTIVE,
   EVENT_STATE_ACTIVE_LATCHED
@@ -63,6 +77,8 @@ const char* get_event_message_string(EVENTS_ENUM_TYPE event);
 const char* get_event_level_string(EVENTS_ENUM_TYPE event);
 const char* get_event_type(EVENTS_ENUM_TYPE event);
 
+EVENTS_LEVEL_TYPE get_event_level(void);
+
 void init_events(void);
 void set_event_latched(EVENTS_ENUM_TYPE event, uint8_t data);
 void set_event(EVENTS_ENUM_TYPE event, uint8_t data);
@@ -72,7 +88,8 @@ const EVENTS_STRUCT_TYPE* get_event_pointer(EVENTS_ENUM_TYPE event);
 
 void run_event_handling(void);
 
+void run_sequence_on_target(void);
+
 extern uint8_t bms_status;  //Enum, 0-5
-extern uint8_t LEDcolor;
 
 #endif  // __MYTIMER_H__

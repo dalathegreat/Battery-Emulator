@@ -246,8 +246,6 @@ void update_values_leaf_battery() { /* This function maps all the values fetched
     cellvoltages[i] = cell_voltages[i];
   }
 
-  bms_status = ACTIVE;  //Startout in active mode
-
   /*Extra safety functions below*/
   if (LB_GIDS < 10)  //800Wh left in battery
   {                  //Battery is running abnormally low, some discharge logic might have failed. Zero it all out.

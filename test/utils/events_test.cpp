@@ -8,12 +8,12 @@
 /* Local rest variables */
 bool elapsed = false;
 
-/* Helper functions */
-// bool MyTimer::elapsed(void) { return true; }
+/* Stubs */
+void run_sequence_on_target(void) {}
 
-static void reset_event_msg(void) {
-  snprintf(events.message, sizeof(events.message), ".");
-}
+/* Helper functions */
+
+/* Test functions */
 
 TEST(init_events_test) {
   init_events();
@@ -27,11 +27,11 @@ TEST(init_events_test) {
 
 TEST(update_event_time_test) {
   // Reset
-  init_events();
+  testlib_millis = 0;
   events.time_seconds = 0;
+  init_events();
 
   // No delta, so time shouldn't increase
-  testlib_millis = 0;
   update_event_time();
   ASSERT_EQ(events.time_seconds, 0);
 
@@ -74,16 +74,16 @@ TEST(set_event_test) {
 }
 
 TEST(events_message_test) {
-  reset_event_msg();
+  set_event(EVENT_DUMMY_ERROR, 0);  // Set dummy event with no data
 
-  set_event(EVENT_DUMMY, 0);  // Set dummy event with no data
-
-  ASSERT_STREQ("The dummy event was set!", events.message);
+  ASSERT_STREQ("The dummy error event was set!", get_event_message_string(EVENT_DUMMY_ERROR));
 }
 
-TEST(event_priority_test) {
-  ASSERT_TRUE(RED > BLUE);
-  ASSERT_TRUE(BLUE > YELLOW);
+TEST(events_level_test) {
+  init_events();
+  set_event(EVENT_DUMMY_ERROR, 0);  // Set dummy event with no data
+
+  ASSERT_STREQ("ERROR", get_event_level_string(EVENT_DUMMY_ERROR));
 }
 
 TEST_MAIN();

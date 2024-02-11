@@ -226,8 +226,6 @@ void update_values_tesla_model_3_battery() {  //This function maps all the value
 
   /* Value mapping is completed. Start to check all safeties */
 
-  bms_status = ACTIVE;  //Startout in active mode before checking if we have any faults
-
   /* Check if the BMS is still sending CAN messages. If we go 60s without messages we raise an error*/
   if (!stillAliveCAN) {
     set_event(EVENT_CAN_FAILURE, 0);
@@ -264,7 +262,6 @@ void update_values_tesla_model_3_battery() {  //This function maps all the value
     Serial.println("Warning: kWh remaining " + String(nominal_full_pack_energy) +
                    " reported by battery not plausible. Battery needs cycling.");
     set_event(EVENT_KWH_PLAUSIBILITY_ERROR, nominal_full_pack_energy);
-    LEDcolor = YELLOW;
   } else if (nominal_full_pack_energy <= 1) {
     Serial.println("Info: kWh remaining battery is not reporting kWh remaining.");
     set_event(EVENT_KWH_PLAUSIBILITY_ERROR, nominal_full_pack_energy);

@@ -55,8 +55,6 @@ static uint16_t DC_link = 0;
 static int16_t Battery_Power = 0;
 
 void update_values_i3_battery() {  //This function maps all the values fetched via CAN to the correct parameters used for modbus
-  bms_status = ACTIVE;             //Startout in active mode
-
   //Calculate the SOC% value to send to inverter
   Calculated_SOC = (Display_SOC * 10);  //Increase decimal amount
   Calculated_SOC =

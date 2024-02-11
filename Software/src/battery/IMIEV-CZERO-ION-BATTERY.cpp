@@ -41,8 +41,6 @@ static double max_temp_cel = 20.00;
 static double min_temp_cel = 19.00;
 
 void update_values_imiev_battery() {  //This function maps all the values fetched via CAN to the correct parameters used for modbus
-  bms_status = ACTIVE;                //Startout in active mode
-
   SOC = (uint16_t)(BMU_SOC * 100);  //increase BMU_SOC range from 0-100 -> 100.00
 
   battery_voltage = (uint16_t)(BMU_PackVoltage * 10);  // Multiply by 10 and cast to uint16_t

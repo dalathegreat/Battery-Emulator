@@ -79,8 +79,6 @@ void update_values_santafe_phev_battery() {  //This function maps all the values
 
   temperature_max;
 
-  bms_status = ACTIVE;  //Startout in active mode, then check safeties
-
   /* Check if the BMS is still sending CAN messages. If we go 60s without messages we raise an error*/
   if (!CANstillAlive) {
     set_event(EVENT_CAN_FAILURE, 0);

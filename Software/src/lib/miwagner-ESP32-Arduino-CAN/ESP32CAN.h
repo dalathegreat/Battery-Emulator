@@ -3,7 +3,6 @@
 
 #include "../../lib/miwagner-ESP32-Arduino-CAN/CAN.h"
 #include "../../lib/miwagner-ESP32-Arduino-CAN/CAN_config.h"
-extern uint8_t LEDcolor;
 
 class ESP32CAN {
  public:

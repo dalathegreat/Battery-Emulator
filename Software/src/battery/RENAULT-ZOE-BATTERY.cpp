@@ -43,8 +43,6 @@ static const int interval100 = 100;    // interval (ms) at which send CAN Messag
 static const int interval1000 = 1000;  // interval (ms) at which send CAN Messages
 
 void update_values_zoe_battery() {  //This function maps all the values fetched via CAN to the correct parameters used for modbus
-  bms_status = ACTIVE;              //Startout in active mode
-
   StateOfHealth = (LB_SOH * 100);  //Increase range from 99% -> 99.00%
 
   //Calculate the SOC% value to send to Fronius

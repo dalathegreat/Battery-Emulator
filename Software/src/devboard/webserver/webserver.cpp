@@ -508,8 +508,10 @@ String processor(const String& var) {
     content += "<h4>Cell min: " + String(cell_min_voltage) + " mV</h4>";
     content += "<h4>Temperature max: " + String(tempMaxFloat, 1) + " C</h4>";
     content += "<h4>Temperature min: " + String(tempMinFloat, 1) + " C</h4>";
-    if (bms_status == 3) {
+    if (bms_status == ACTIVE) {
       content += "<h4>BMS Status: OK </h4>";
+    } else if (bms_status == UPDATING) {
+      content += "<h4>BMS Status: UPDATING </h4>";
     } else {
       content += "<h4>BMS Status: FAULT </h4>";
     }

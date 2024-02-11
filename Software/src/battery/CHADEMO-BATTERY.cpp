@@ -90,7 +90,6 @@ uint8_t HighCurrentControlStatus = 0;
 uint8_t HighVoltageControlStatus = 0;
 
 void update_values_chademo_battery() {  //This function maps all the values fetched via CAN to the correct parameters used for the inverter
-  bms_status = ACTIVE;  //Startout in active mode
 
   SOC = ChargingRate;
 

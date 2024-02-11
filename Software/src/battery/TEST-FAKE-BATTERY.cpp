@@ -17,11 +17,7 @@ void print_units(char* header, int value, char* units) {
 }
 
 void update_values_test_battery() { /* This function puts fake values onto the parameters sent towards the inverter */
-  bms_status = ACTIVE;              //Always be in Active mode
-
-  LEDcolor = TEST_ALL_COLORS;  // Cycle the LED thru all available colors
-
-  SOC = 5000;  // 50.00%
+  SOC = 5000;                       // 50.00%
 
   StateOfHealth = 9900;  // 99.00%
 

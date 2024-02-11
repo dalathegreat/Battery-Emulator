@@ -187,7 +187,7 @@ void loop() {
     previousMillisUpdateVal = millis();
     update_values();  // Update values heading towards inverter. Prepare for sending on CAN, or write directly to Modbus.
     if (DUMMY_EVENT_ENABLED) {
-      set_event(EVENT_DUMMY, (uint8_t)millis());
+      set_event(EVENT_DUMMY_ERROR, (uint8_t)millis());
     }
   }
 
@@ -557,24 +557,29 @@ void handle_LED_state() {
   } else if (!rampUp && brightness == 0) {
     rampUp = true;
   }
-  switch (LEDcolor) {
-    case GREEN:
-      pixels.setPixelColor(0, pixels.Color(0, brightness, 0));  // Green pulsing LED
+  switch (get_event_level()) {
+    case EVENT_LEVEL_INFO:
+      LEDcolor = GREEN;
+      pixels.setPixelColor(0, pixels.Color(0, brightness, 0));  // Red LED full brightness
       break;
-    case YELLOW:
+    case EVENT_LEVEL_WARNING:
+      LEDcolor = YELLOW;
       pixels.setPixelColor(0, pixels.Color(brightness, brightness, 0));  // Yellow pulsing LED
       break;
-    case BLUE:
+    case EVENT_LEVEL_DEBUG:
+      LEDcolor = BLUE;
       pixels.setPixelColor(0, pixels.Color(0, 0, brightness));  // Blue pulsing LED
       break;
-    case RED:
+    case EVENT_LEVEL_ERROR:
+      LEDcolor = RED;
       pixels.setPixelColor(0, pixels.Color(150, 0, 0));  // Red LED full brightness
-      break;
-    case TEST_ALL_COLORS:
-      pixels.setPixelColor(0, pixels.Color(brightness, abs((100 - brightness)), abs((50 - brightness))));  // RGB
       break;
     default:
       break;
+  }
+
+  if (LEDcolor == TEST_ALL_COLORS) {
+    pixels.setPixelColor(0, pixels.Color(0, brightness, 0));  // Green pulsing LED
   }
 
   pixels.show();  // This sends the updated pixel color to the hardware.

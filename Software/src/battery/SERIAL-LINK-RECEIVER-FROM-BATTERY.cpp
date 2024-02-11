@@ -1,6 +1,8 @@
 // SERIAL-LINK-RECEIVER-FROM-BATTERY.cpp
 
 #include "SERIAL-LINK-RECEIVER-FROM-BATTERY.h"
+#include <Arduino.h>
+#include "../devboard/utils/events.h"
 
 #define INVERTER_SEND_NUM_VARIABLES 1
 #define INVERTER_RECV_NUM_VARIABLES 16
@@ -35,7 +37,6 @@ void __getData() {
   max_target_discharge_power = (uint16_t)dataLinkReceive.getReceivedData(6);
   max_target_charge_power = (uint16_t)dataLinkReceive.getReceivedData(7);
   uint16_t _bms_status = (uint16_t)dataLinkReceive.getReceivedData(8);
-  bms_status = _bms_status;
   bms_char_dis_status = (uint16_t)dataLinkReceive.getReceivedData(9);
   stat_batt_power = (uint16_t)dataLinkReceive.getReceivedData(10);
   temperature_min = (uint16_t)dataLinkReceive.getReceivedData(11);
@@ -46,8 +47,10 @@ void __getData() {
   batteryAllowsContactorClosing = (uint16_t)dataLinkReceive.getReceivedData(16);
 
   batteryFault = false;
-  if (_bms_status == FAULT)
+  if (_bms_status == FAULT) {
     batteryFault = true;
+    set_event(EVENT_SERIAL_TRANSMITTER_FAILURE, 0);
+  }
 }
 
 void updateData() {
@@ -116,12 +119,12 @@ void manageSerialLinkReceiver() {
     if (minutesLost < 4) {
       max_target_charge_power = (lastGoodMaxCharge * (4 - minutesLost)) / 4;
       max_target_discharge_power = (lastGoodMaxDischarge * (4 - minutesLost)) / 4;
+      set_event(EVENT_SERIAL_RX_WARNING, minutesLost);
     } else {
       // Times Up -
       max_target_charge_power = 0;
       max_target_discharge_power = 0;
-      bms_status = 4;  //Fault state
-      LEDcolor = RED;
+      set_event(EVENT_SERIAL_RX_FAILURE, uint8_t(min(minutesLost, 255uL)));
       //----- Throw Error
     }
     // report Lost data & Max charge / Discharge reductions
