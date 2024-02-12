@@ -652,6 +652,7 @@ void onOTAEnd(bool success) {
   } else {
     Serial.println("There was an error during OTA update!");
   }
+  clear_event(EVENT_OTA_UPDATE);
 }
 
 template <typename T>  // This function makes power values appear as W when under 1000, and kW when over

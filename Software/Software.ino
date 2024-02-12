@@ -567,6 +567,7 @@ void handle_LED_state() {
       pixels.setPixelColor(0, pixels.Color(brightness, brightness, 0));  // Yellow pulsing LED
       break;
     case EVENT_LEVEL_DEBUG:
+    case EVENT_LEVEL_UPDATE:
       LEDcolor = BLUE;
       pixels.setPixelColor(0, pixels.Color(0, 0, brightness));  // Blue pulsing LED
       break;

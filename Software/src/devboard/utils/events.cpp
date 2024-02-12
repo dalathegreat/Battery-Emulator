@@ -1,14 +1,33 @@
 #include "events.h"
 
+#include <EEPROM.h>
+
 #include "../../../USER_SETTINGS.h"
 #include "../config.h"
 #include "timer.h"
+
+#define EE_MAGIC_HEADER_VALUE 0xAA55
+#define EE_NOF_EVENT_ENTRIES 3
+#define EE_EVENT_ENTRY_SIZE sizeof(EVENT_LOG_ENTRY_TYPE)
+
+#define EE_EVENT_LOG_START_ADDRESS 0
+#define EE_EVENT_LOG_HEAD_INDEX_ADDRESS EE_EVENT_LOG_START_ADDRESS + 2
+#define EE_EVENT_LOG_TAIL_INDEX_ADDRESS EE_EVENT_LOG_HEAD_INDEX_ADDRESS + 2
+#define EE_EVENT_ENTRY_START_ADDRESS EE_EVENT_LOG_TAIL_INDEX_ADDRESS + 2
+
+typedef struct {
+  EVENTS_ENUM_TYPE event;
+  uint32_t timestamp;
+  uint8_t data;
+} EVENT_LOG_ENTRY_TYPE;
 
 typedef struct {
   EVENTS_STRUCT_TYPE entries[EVENT_NOF_EVENTS];
   uint32_t time_seconds;
   MyTimer second_timer;
   EVENTS_LEVEL_TYPE level;
+  uint16_t event_log_head_index;
+  uint16_t event_log_tail_index;
 } EVENT_TYPE;
 
 /* Local variables */
@@ -21,6 +40,8 @@ static void update_event_time(void);
 static void set_event(EVENTS_ENUM_TYPE event, uint8_t data, bool latched);
 static void update_event_level(void);
 static void update_bms_status(void);
+static void log_event(EVENTS_ENUM_TYPE event, uint8_t data);
+static void print_event_log(void);
 
 /* Exported functions */
 
@@ -33,10 +54,28 @@ void run_event_handling(void) {
 /* Initialization function */
 void init_events(void) {
 
+  EEPROM.begin(1024);
+
+  uint16_t header = EEPROM.readUShort(0);
+  if (header != EE_MAGIC_HEADER_VALUE) {
+    EEPROM.writeUShort(EE_EVENT_LOG_START_ADDRESS, EE_MAGIC_HEADER_VALUE);
+    EEPROM.writeUShort(EE_EVENT_LOG_HEAD_INDEX_ADDRESS, 0);
+    EEPROM.writeUShort(EE_EVENT_LOG_TAIL_INDEX_ADDRESS, 0);
+    EEPROM.commit();
+    Serial.println("EEPROM wasn't ready");
+  } else {
+    events.event_log_head_index = EEPROM.readUShort(EE_EVENT_LOG_HEAD_INDEX_ADDRESS);
+    events.event_log_tail_index = EEPROM.readUShort(EE_EVENT_LOG_TAIL_INDEX_ADDRESS);
+    Serial.println("EEPROM was initialized for event logging");
+    Serial.println("head: " + String(events.event_log_head_index) + ", tail: " + String(events.event_log_tail_index));
+    print_event_log();
+  }
+
   for (uint16_t i = 0; i < EVENT_NOF_EVENTS; i++) {
     events.entries[EVENT_CAN_FAILURE].data = 0;
     events.entries[EVENT_CAN_FAILURE].timestamp = 0;
     events.entries[EVENT_CAN_FAILURE].occurences = 0;
+    events.entries[EVENT_CAN_FAILURE].log = false;
   }
 
   events.entries[EVENT_CAN_FAILURE].level = EVENT_LEVEL_ERROR;
@@ -55,11 +94,16 @@ void init_events(void) {
   events.entries[EVENT_CELL_OVER_VOLTAGE].level = EVENT_LEVEL_ERROR;
   events.entries[EVENT_CELL_DEVIATION_HIGH].level = EVENT_LEVEL_WARNING;
   events.entries[EVENT_UNKNOWN_EVENT_SET].level = EVENT_LEVEL_ERROR;
-  events.entries[EVENT_OTA_UPDATE].level = EVENT_LEVEL_DEBUG;
+  events.entries[EVENT_OTA_UPDATE].level = EVENT_LEVEL_UPDATE;
   events.entries[EVENT_DUMMY_INFO].level = EVENT_LEVEL_INFO;
   events.entries[EVENT_DUMMY_DEBUG].level = EVENT_LEVEL_DEBUG;
   events.entries[EVENT_DUMMY_WARNING].level = EVENT_LEVEL_WARNING;
   events.entries[EVENT_DUMMY_ERROR].level = EVENT_LEVEL_ERROR;
+
+  events.entries[EVENT_DUMMY_INFO].log = true;
+  events.entries[EVENT_DUMMY_DEBUG].log = true;
+  events.entries[EVENT_DUMMY_WARNING].log = true;
+  events.entries[EVENT_DUMMY_ERROR].log = true;
 
   events.second_timer.set_interval(1000);
 }
@@ -167,6 +211,9 @@ static void set_event(EVENTS_ENUM_TYPE event, uint8_t data, bool latched) {
   if ((events.entries[event].state != EVENT_STATE_ACTIVE) &&
       (events.entries[event].state != EVENT_STATE_ACTIVE_LATCHED)) {
     events.entries[event].occurences++;
+    if (events.entries[event].log) {
+      log_event(event, data);
+    }
   }
 
   // We should set the event, update event info
@@ -187,9 +234,10 @@ static void update_bms_status(void) {
   switch (events.level) {
     case EVENT_LEVEL_INFO:
     case EVENT_LEVEL_WARNING:
+    case EVENT_LEVEL_DEBUG:
       bms_status = ACTIVE;
       break;
-    case EVENT_LEVEL_DEBUG:
+    case EVENT_LEVEL_UPDATE:
       bms_status = UPDATING;
       break;
     case EVENT_LEVEL_ERROR:
@@ -212,5 +260,48 @@ static void update_event_level(void) {
 static void update_event_time(void) {
   if (events.second_timer.elapsed() == true) {
     events.time_seconds++;
+  }
+}
+
+static void log_event(EVENTS_ENUM_TYPE event, uint8_t data) {
+  // Update head, move tail
+  if (++events.event_log_head_index == EE_NOF_EVENT_ENTRIES) {
+    events.event_log_head_index = 0;
+  }
+
+  if (events.event_log_head_index == events.event_log_tail_index) {
+    if (++events.event_log_tail_index == EE_NOF_EVENT_ENTRIES) {
+      events.event_log_tail_index = 0;
+    }
+  }
+
+  int entry_address = EE_EVENT_ENTRY_START_ADDRESS + EE_EVENT_ENTRY_SIZE * events.event_log_head_index;
+  EVENT_LOG_ENTRY_TYPE entry = {.event = event, .timestamp = events.time_seconds, .data = data};
+
+  EEPROM.put(entry_address, entry);
+  EEPROM.writeUShort(EE_EVENT_LOG_HEAD_INDEX_ADDRESS, events.event_log_head_index);
+  EEPROM.writeUShort(EE_EVENT_LOG_TAIL_INDEX_ADDRESS, events.event_log_tail_index);
+  EEPROM.commit();
+  //Serial.println("Wrote event " + String(event) + " to " + String(entry_address));
+  //Serial.println("head: " + String(events.event_log_head_index) + ", tail: " + String(events.event_log_tail_index));
+}
+
+static void print_event_log(void) {
+  if (events.event_log_head_index == events.event_log_tail_index) {
+    Serial.println("No events in log");
+    return;
+  }
+  EVENT_LOG_ENTRY_TYPE entry;
+
+  for (int i = 0; i < EE_NOF_EVENT_ENTRIES; i++) {
+    int index = ((events.event_log_tail_index + i) % EE_NOF_EVENT_ENTRIES);
+    int address = EE_EVENT_ENTRY_START_ADDRESS + EE_EVENT_ENTRY_SIZE * index;
+
+    EEPROM.get(address, entry);
+    //Serial.println("Event: " + String(get_event_enum_string(entry.event)) + ", data: " + String(entry.data) + ", time: " + String(entry.timestamp));
+
+    if (index == events.event_log_head_index) {
+      break;
+    }
   }
 }

@@ -16,6 +16,8 @@
  * Do not change the order!
  * When adding events, add them RIGHT BEFORE the EVENT_NOF_EVENTS enum.
  * In addition, the event name must start with "EVENT_"
+ * 
+ * After adding an event, assign the proper event level in events.cpp:init_events()
  */
 #define EVENTS_ENUM_TYPE(XX)            \
   XX(EVENT_CAN_FAILURE)                 \
@@ -52,7 +54,8 @@ typedef enum { EVENTS_ENUM_TYPE(GENERATE_ENUM) } EVENTS_ENUM_TYPE;
   XX(EVENT_LEVEL_INFO)        \
   XX(EVENT_LEVEL_DEBUG)       \
   XX(EVENT_LEVEL_WARNING)     \
-  XX(EVENT_LEVEL_ERROR)
+  XX(EVENT_LEVEL_ERROR)       \
+  XX(EVENT_LEVEL_UPDATE)
 
 typedef enum { EVENTS_LEVEL_TYPE(GENERATE_ENUM) } EVENTS_LEVEL_TYPE;
 
@@ -67,9 +70,9 @@ typedef struct {
   uint32_t timestamp;       // Time in seconds since startup when the event occurred
   uint8_t data;             // Custom data passed when setting the event, for example cell number for under voltage
   uint8_t occurences;       // Number of occurrences since startup
-  uint8_t led_color;        // LED indication
   EVENTS_LEVEL_TYPE level;  // Event level, i.e. ERROR/WARNING...
   EVENTS_STATE_TYPE state;  // Event state, i.e. ACTIVE/INACTIVE...
+  bool log;
 } EVENTS_STRUCT_TYPE;
 
 const char* get_event_enum_string(EVENTS_ENUM_TYPE event);
