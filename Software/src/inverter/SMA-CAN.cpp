@@ -180,7 +180,7 @@ void send_can_sma() {
 
   // Send CAN Message every 100ms
   if (currentMillis - previousMillis100ms >= interval100ms) {
-    previousMillis1s = currentMillis;
+    previousMillis100ms = currentMillis;
 
     ESP32Can.CANWriteFrame(&SMA_558);
     ESP32Can.CANWriteFrame(&SMA_598);
