@@ -1,6 +1,8 @@
 #include "events.h"
 
+#ifndef UNIT_TEST
 #include <EEPROM.h>
+#endif
 
 #include "../../../USER_SETTINGS.h"
 #include "../config.h"

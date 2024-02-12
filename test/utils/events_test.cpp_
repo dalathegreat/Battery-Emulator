@@ -2,9 +2,26 @@
 #include "../test_lib.h"
 
 #include "../../Software/src/devboard/config.h"
-#include "../../Software/src/devboard/utils/events.cpp"
 #include "../../Software/src/devboard/utils/timer.cpp"
 
+
+class EEPROMClass {
+ public:
+  void begin(int s) {}
+  void writeUShort(int a, uint16_t d) {}
+  void commit(void) {}
+  uint16_t readUShort(int a) {}
+
+  template<typename T>
+  void get(int address, T &t) {}
+
+  template<typename T>
+  void put(int address, const T &t) {}
+};
+
+EEPROMClass EEPROM;
+
+#include "../../Software/src/devboard/utils/events.cpp"
 /* Local rest variables */
 bool elapsed = false;
 
@@ -12,7 +29,6 @@ bool elapsed = false;
 void run_sequence_on_target(void) {}
 
 /* Helper functions */
-
 /* Test functions */
 
 TEST(init_events_test) {
