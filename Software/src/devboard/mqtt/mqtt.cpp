@@ -83,22 +83,22 @@ static void publish_cell_voltages(void) {
     // is the string content
 
     // If cell voltages haven't been populated...
-    if (cellvoltages[0] == 0u / 1000) {  //cell voltage is in mV and homeassistant expects V
+    if (nof_cellvoltages == 0u)
       return;
-    }
-
-    size_t msg_length = snprintf(mqtt_msg, sizeof(mqtt_msg), "{\n\"cell_voltages\":[");
-    for (size_t i = 0; i < nof_cellvoltages; ++i) {
-      msg_length +=
-          snprintf(mqtt_msg + msg_length, sizeof(mqtt_msg) - msg_length, "%s%d", (i == 0) ? "" : ", ", cellvoltages[i]);
-    }
-    snprintf(mqtt_msg + msg_length, sizeof(mqtt_msg) - msg_length, "]\n}\n");
-
-    // Publish and print error if not OK
-    if (mqtt_publish_retain("battery-emulator/spec_data") == false) {
-      Serial.println("Cell voltage MQTT msg could not be sent");
-    }
   }
+
+  size_t msg_length = snprintf(mqtt_msg, sizeof(mqtt_msg), "{\n\"cell_voltages\":[");
+  for (size_t i = 0; i < nof_cellvoltages; ++i) {
+    msg_length += snprintf(mqtt_msg + msg_length, sizeof(mqtt_msg) - msg_length, "%s%.3f", (i == 0) ? "" : ", ",
+                           ((float)cellvoltages[i]) / 1000);
+  }
+  snprintf(mqtt_msg + msg_length, sizeof(mqtt_msg) - msg_length, "]\n}\n");
+
+  // Publish and print error if not OK
+  if (mqtt_publish_retain("battery-emulator/spec_data") == false) {
+    Serial.println("Cell voltage MQTT msg could not be sent");
+  }
+}
 }
 
 struct SensorConfig {
@@ -176,14 +176,14 @@ static void publish_common_info(void) {
              "  \"temperature_max\": %.3f,\n"
              "  \"stat_batt_power\": %.3f,\n"
              "  \"battery_current\": %.3f,\n"
-             "  \"cell_max_voltage\": %d,\n"
-             "  \"cell_min_voltage\": %d,\n"
+             "  \"cell_max_voltage\": %.3f,\n"
+             "  \"cell_min_voltage\": %.3f,\n"
              "  \"battery_voltage\": %d\n"
              "}\n",
              ((float)SOC) / 100.0, ((float)StateOfHealth) / 100.0, ((float)((int16_t)temperature_min)) / 10.0,
              ((float)((int16_t)temperature_max)) / 10.0, ((float)((int16_t)stat_batt_power)),
-             ((float)((int16_t)battery_current)) / 10.0, cell_max_voltage / 1000, cell_min_voltage / 1000,
-             battery_voltage / 10.0);
+             ((float)((int16_t)battery_current)) / 10.0, ((float)cell_max_voltage) / 1000,
+             ((float)cell_min_voltage) / 1000, battery_voltage / 10.0);
     bool result = client.publish(state_topic, mqtt_msg, true);
   }
 
