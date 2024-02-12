@@ -560,7 +560,7 @@ void handle_LED_state() {
   switch (get_event_level()) {
     case EVENT_LEVEL_INFO:
       LEDcolor = GREEN;
-      pixels.setPixelColor(0, pixels.Color(0, brightness, 0));  // Red LED full brightness
+      pixels.setPixelColor(0, pixels.Color(0, brightness, 0));  // Green pulsing LED
       break;
     case EVENT_LEVEL_WARNING:
       LEDcolor = YELLOW;
