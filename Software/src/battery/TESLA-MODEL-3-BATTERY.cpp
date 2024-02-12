@@ -228,7 +228,7 @@ void update_values_tesla_model_3_battery() {  //This function maps all the value
 
   /* Check if the BMS is still sending CAN messages. If we go 60s without messages we raise an error*/
   if (!stillAliveCAN) {
-    set_event(EVENT_CAN_FAILURE, 0);
+    set_event(EVENT_CAN_RX_FAILURE, 0);
   } else {
     stillAliveCAN--;
   }

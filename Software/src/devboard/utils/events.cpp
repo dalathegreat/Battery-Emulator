@@ -99,14 +99,15 @@ void init_events(void) {
   }
 
   for (uint16_t i = 0; i < EVENT_NOF_EVENTS; i++) {
-    events.entries[EVENT_CAN_FAILURE].data = 0;
-    events.entries[EVENT_CAN_FAILURE].timestamp = 0;
-    events.entries[EVENT_CAN_FAILURE].occurences = 0;
-    events.entries[EVENT_CAN_FAILURE].log = false;
+    events.entries[i].data = 0;
+    events.entries[i].timestamp = 0;
+    events.entries[i].occurences = 0;
+    events.entries[i].log = false;
   }
 
-  events.entries[EVENT_CAN_FAILURE].level = EVENT_LEVEL_ERROR;
-  events.entries[EVENT_CAN_WARNING].level = EVENT_LEVEL_WARNING;
+  events.entries[EVENT_CAN_RX_FAILURE].level = EVENT_LEVEL_ERROR;
+  events.entries[EVENT_CAN_RX_WARNING].level = EVENT_LEVEL_WARNING;
+  events.entries[EVENT_CAN_TX_FAILURE].level = EVENT_LEVEL_ERROR;
   events.entries[EVENT_WATER_INGRESS].level = EVENT_LEVEL_ERROR;
   events.entries[EVENT_12V_LOW].level = EVENT_LEVEL_WARNING;
   events.entries[EVENT_SOC_PLAUSIBILITY_ERROR].level = EVENT_LEVEL_ERROR;
@@ -126,6 +127,10 @@ void init_events(void) {
   events.entries[EVENT_DUMMY_DEBUG].level = EVENT_LEVEL_DEBUG;
   events.entries[EVENT_DUMMY_WARNING].level = EVENT_LEVEL_WARNING;
   events.entries[EVENT_DUMMY_ERROR].level = EVENT_LEVEL_ERROR;
+  events.entries[EVENT_SERIAL_RX_WARNING].level = EVENT_LEVEL_WARNING;
+  events.entries[EVENT_SERIAL_RX_FAILURE].level = EVENT_LEVEL_ERROR;
+  events.entries[EVENT_SERIAL_TX_FAILURE].level = EVENT_LEVEL_ERROR;
+  events.entries[EVENT_SERIAL_TRANSMITTER_FAILURE].level = EVENT_LEVEL_ERROR;
 
   events.entries[EVENT_DUMMY_INFO].log = true;
   events.entries[EVENT_DUMMY_DEBUG].log = true;
@@ -154,10 +159,12 @@ void clear_event(EVENTS_ENUM_TYPE event) {
 
 const char* get_event_message_string(EVENTS_ENUM_TYPE event) {
   switch (event) {
-    case EVENT_CAN_FAILURE:
+    case EVENT_CAN_RX_FAILURE:
       return "No CAN communication detected for 60s. Shutting down battery control.";
-    case EVENT_CAN_WARNING:
+    case EVENT_CAN_RX_WARNING:
       return "ERROR: High amount of corrupted CAN messages detected. Check CAN wire shielding!";
+    case EVENT_CAN_TX_FAILURE:
+      return "ERROR: CAN messages failed to transmit, or no one on the bus to ACK the message!";
     case EVENT_WATER_INGRESS:
       return "Water leakage inside battery detected. Operation halted. Inspect battery!";
     case EVENT_12V_LOW:
@@ -204,6 +211,8 @@ const char* get_event_message_string(EVENTS_ENUM_TYPE event) {
       return "Error in serial function: No ACK from receiver!";
     case EVENT_SERIAL_TRANSMITTER_FAILURE:
       return "Error in serial function: Some ERROR level fault in transmitter, received by receiver";
+    case EVENT_OTA_UPDATE:
+      return "OTA update started!";
     default:
       return "";
   }

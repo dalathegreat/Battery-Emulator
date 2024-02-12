@@ -100,7 +100,7 @@ void update_values_i3_battery() {  //This function maps all the values fetched v
 
   /* Check if the BMS is still sending CAN messages. If we go 60s without messages we raise an error*/
   if (!CANstillAlive) {
-    set_event(EVENT_CAN_FAILURE, 0);
+    set_event(EVENT_CAN_RX_FAILURE, 0);
   } else {
     CANstillAlive--;
   }

@@ -344,7 +344,7 @@ void update_values_leaf_battery() { /* This function maps all the values fetched
   /* Check if the BMS is still sending CAN messages. If we go 60s without messages we raise an error*/
   if (!CANstillAlive) {
     errorCode = 7;
-    set_event(EVENT_CAN_FAILURE, 0);
+    set_event(EVENT_CAN_RX_FAILURE, 0);
   } else {
     CANstillAlive--;
   }
@@ -352,7 +352,7 @@ void update_values_leaf_battery() { /* This function maps all the values fetched
       MAX_CAN_FAILURES)  //Also check if we have recieved too many malformed CAN messages. If so, signal via LED
   {
     errorCode = 10;
-    set_event(EVENT_CAN_WARNING, 0);
+    set_event(EVENT_CAN_RX_WARNING, 0);
   }
 
 /*Finally print out values to serial if configured to do so*/

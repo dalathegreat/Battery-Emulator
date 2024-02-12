@@ -81,7 +81,7 @@ void update_values_santafe_phev_battery() {  //This function maps all the values
 
   /* Check if the BMS is still sending CAN messages. If we go 60s without messages we raise an error*/
   if (!CANstillAlive) {
-    set_event(EVENT_CAN_FAILURE, 0);
+    set_event(EVENT_CAN_RX_FAILURE, 0);
   } else {
     CANstillAlive--;
   }

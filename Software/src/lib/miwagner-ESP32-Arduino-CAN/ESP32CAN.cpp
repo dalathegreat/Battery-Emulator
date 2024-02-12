@@ -13,10 +13,10 @@ int ESP32CAN::CANWriteFrame(const CAN_frame_t* p_frame) {
     tx_ok = (result == 0) ? true : false;
     if (tx_ok == false) {
       Serial.println("CAN failure! Check wires");
-      set_event(EVENT_CAN_FAILURE, 0);
+      set_event(EVENT_CAN_TX_FAILURE, 0);
       start_time = millis();
     } else {
-      clear_event(EVENT_CAN_FAILURE);
+      clear_event(EVENT_CAN_TX_FAILURE);
     }
   } else {
     if ((millis() - start_time) >= 2000) {

@@ -19,9 +19,11 @@
  * 
  * After adding an event, assign the proper event level in events.cpp:init_events()
  */
+
 #define EVENTS_ENUM_TYPE(XX)            \
-  XX(EVENT_CAN_FAILURE)                 \
-  XX(EVENT_CAN_WARNING)                 \
+  XX(EVENT_CAN_RX_FAILURE)              \
+  XX(EVENT_CAN_RX_WARNING)              \
+  XX(EVENT_CAN_TX_FAILURE)              \
   XX(EVENT_WATER_INGRESS)               \
   XX(EVENT_12V_LOW)                     \
   XX(EVENT_SOC_PLAUSIBILITY_ERROR)      \
