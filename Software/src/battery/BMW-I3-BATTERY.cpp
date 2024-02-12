@@ -103,6 +103,7 @@ void update_values_i3_battery() {  //This function maps all the values fetched v
     set_event(EVENT_CAN_RX_FAILURE, 0);
   } else {
     CANstillAlive--;
+    clear_event(EVENT_CAN_RX_FAILURE);
   }
 
 #ifdef DEBUG_VIA_USB

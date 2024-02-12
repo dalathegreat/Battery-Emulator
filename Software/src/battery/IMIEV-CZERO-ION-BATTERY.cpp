@@ -109,6 +109,7 @@ void update_values_imiev_battery() {  //This function maps all the values fetche
     set_event(EVENT_CAN_RX_FAILURE, 0);
   } else {
     CANstillAlive--;
+    clear_event(EVENT_CAN_RX_FAILURE);
   }
 
   if (!BMU_Detected) {

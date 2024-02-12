@@ -231,6 +231,7 @@ void update_values_tesla_model_3_battery() {  //This function maps all the value
     set_event(EVENT_CAN_RX_FAILURE, 0);
   } else {
     stillAliveCAN--;
+    clear_event(EVENT_CAN_RX_FAILURE);
   }
 
   if (hvil_status == 3) {  //INTERNAL_OPEN_FAULT - Someone disconnected a high voltage cable while battery was in use

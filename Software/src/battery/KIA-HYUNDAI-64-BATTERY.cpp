@@ -200,6 +200,7 @@ void update_values_kiaHyundai_64_battery() {  //This function maps all the value
     set_event(EVENT_CAN_RX_FAILURE, 0);
   } else {
     CANstillAlive--;
+    clear_event(EVENT_CAN_RX_FAILURE);
   }
 
   if (waterleakageSensor == 0) {
