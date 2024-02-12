@@ -26,6 +26,10 @@
 #define PRECHARGE_PIN 25
 #endif
 
+#ifdef BMW_I3_BATTERY
+#define WUP_PIN 25
+#endif
+
 #define SD_MISO_PIN 2
 #define SD_MOSI_PIN 15
 #define SD_SCLK_PIN 14

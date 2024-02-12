@@ -33,9 +33,15 @@ static const int interval5000 = 5000;          // interval (ms) at which send CA
 static const int interval10000 = 10000;        // interval (ms) at which send CAN Messages
 static uint8_t CANstillAlive = 12;             //counter for checking if CAN is still alive
 
+static const uint16_t WUPonDuration = 477;   // in milliseconds how long WUP should be ON after poweron
+static const uint16_t WUPoffDuration = 105;  // in milliseconds how long WUP should be OFF after on pulse
+unsigned long lastChangeTime;                // Variables to store timestamps
+unsigned long turnOnTime;                    // Variables to store timestamps
+enum State { POWERON, STATE_ON, STATE_OFF, STATE_STAY_ON };
+static State WUPState = POWERON;
+
 #define LB_MAX_SOC 1000  //BMS never goes over this value. We use this info to rescale SOC% sent to Inverter
 #define LB_MIN_SOC 0     //BMS never goes below this value. We use this info to rescale SOC% sent to Inverter
-
 
 CAN_frame_t BMW_000 = {.FIR = {.B =
                                    {
@@ -755,11 +761,32 @@ void receive_can_i3_battery(CAN_frame_t rx_frame) {
 }
 void send_can_i3_battery() {
   unsigned long currentMillis = millis();
+
+  //Handle WUP signal
+  if (WUPState == POWERON) {
+    digitalWrite(WUP_PIN, HIGH);
+    turnOnTime = currentMillis;
+    WUPState = STATE_ON;
+  }
+
+  // Check if it's time to change state
+  if (WUPState == STATE_ON && currentMillis - turnOnTime >= WUPonDuration) {
+    WUPState = STATE_OFF;
+    digitalWrite(WUP_PIN, LOW);  // Turn off
+    lastChangeTime = currentMillis;
+  } else if (WUPState == STATE_OFF && currentMillis - lastChangeTime >= WUPoffDuration) {
+    WUPState = STATE_STAY_ON;
+    digitalWrite(WUP_PIN, HIGH);  // Turn on and stay on
+    lastChangeTime = currentMillis;
+  } else if (WUPState == STATE_STAY_ON) {
+    // Do nothing, stay in this state forever
+  }
+
   //Send 10ms message
-  if (currentMillis - previousMillis10 >= interval10) { 
+  if (currentMillis - previousMillis10 >= interval10) {
     previousMillis10 = currentMillis;
 
-    if(!sent_100){
+    if (!sent_100) {
       BMW_000_counter++;
       if (BMW_000_counter > 6) {
         ESP32Can.CANWriteFrame(&BMW_000);

@@ -349,6 +349,12 @@ void inform_user_on_battery() {
   // Inform user what battery is used
 #ifdef BMW_I3_BATTERY
   Serial.println("BMW i3 battery selected");
+  pinMode(WUP_PIN, OUTPUT);  //This pin used for WUP relay
+  digitalWrite(WUP_PIN, LOW);
+#ifdef CONTACTOR_CONTROL
+// Contactor control cannot be used when WUP signal is sent on GPIO pins
+#error CONTACTOR CONTROL CANNOT BE USED ON BMW i3
+#endif
 #endif
 #ifdef CHADEMO_BATTERY
   Serial.println("Chademo battery selected");
