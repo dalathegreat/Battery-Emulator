@@ -309,6 +309,7 @@ void wifi_monitor() {
     ESP32Can.CANInit();
     clear_event(EVENT_OTA_UPDATE);
     set_event(EVENT_OTA_UPDATE_TIMEOUT, 0);
+    ota_active = false;
   }
 }
 
