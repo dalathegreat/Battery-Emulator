@@ -1,5 +1,6 @@
 #include "webserver.h"
 #include <Preferences.h>
+#include "../utils/events.h"
 
 // Create AsyncWebServer object on port 80
 AsyncWebServer server(80);
@@ -507,8 +508,10 @@ String processor(const String& var) {
     content += "<h4>Cell min: " + String(cell_min_voltage) + " mV</h4>";
     content += "<h4>Temperature max: " + String(tempMaxFloat, 1) + " C</h4>";
     content += "<h4>Temperature min: " + String(tempMinFloat, 1) + " C</h4>";
-    if (bms_status == 3) {
+    if (bms_status == ACTIVE) {
       content += "<h4>BMS Status: OK </h4>";
+    } else if (bms_status == UPDATING) {
+      content += "<h4>BMS Status: UPDATING </h4>";
     } else {
       content += "<h4>BMS Status: FAULT </h4>";
     }
@@ -630,15 +633,11 @@ String processor(const String& var) {
 
 void onOTAStart() {
   // Log when OTA has started
-  Serial.println("OTA update started!");
   ESP32Can.CANStop();
-  bms_status = UPDATING;  //Inform inverter that we are updating
-  LEDcolor = BLUE;
+  set_event(EVENT_OTA_UPDATE, 0);
 }
 
 void onOTAProgress(size_t current, size_t final) {
-  bms_status = UPDATING;  //Inform inverter that we are updating
-  LEDcolor = BLUE;
   // Log every 1 second
   if (millis() - ota_progress_millis > 1000) {
     ota_progress_millis = millis();
@@ -653,8 +652,7 @@ void onOTAEnd(bool success) {
   } else {
     Serial.println("There was an error during OTA update!");
   }
-  bms_status = UPDATING;  //Inform inverter that we are updating
-  LEDcolor = BLUE;
+  clear_event(EVENT_OTA_UPDATE);
 }
 
 template <typename T>  // This function makes power values appear as W when under 1000, and kW when over

@@ -79,13 +79,9 @@ void update_values_santafe_phev_battery() {  //This function maps all the values
 
   temperature_max;
 
-  bms_status = ACTIVE;  //Startout in active mode, then check safeties
-
   /* Check if the BMS is still sending CAN messages. If we go 60s without messages we raise an error*/
   if (!CANstillAlive) {
-    bms_status = FAULT;
-    Serial.println("No CAN communication detected for 60s. Shutting down battery control.");
-    set_event(EVENT_CAN_FAILURE, 0);
+    set_event(EVENT_CAN_RX_FAILURE, 0);
   } else {
     CANstillAlive--;
   }
