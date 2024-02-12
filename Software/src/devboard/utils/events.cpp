@@ -303,7 +303,8 @@ static void print_event_log(void) {
     int address = EE_EVENT_ENTRY_START_ADDRESS + EE_EVENT_ENTRY_SIZE * index;
 
     EEPROM.get(address, entry);
-    //Serial.println("Event: " + String(get_event_enum_string(entry.event)) + ", data: " + String(entry.data) + ", time: " + String(entry.timestamp));
+    Serial.println("Event: " + String(get_event_enum_string(entry.event)) + ", data: " + String(entry.data) +
+                   ", time: " + String(entry.timestamp));
 
     if (index == events.event_log_head_index) {
       break;
