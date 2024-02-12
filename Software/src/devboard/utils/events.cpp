@@ -9,9 +9,30 @@
 #include "timer.h"
 
 #define EE_MAGIC_HEADER_VALUE 0xAA55
-#define EE_NOF_EVENT_ENTRIES 3
+#define EE_NOF_EVENT_ENTRIES 30
 #define EE_EVENT_ENTRY_SIZE sizeof(EVENT_LOG_ENTRY_TYPE)
+#define EE_WRITE_PERIOD_MINUTES 10
 
+/** EVENT LOG STRUCTURE
+ * 
+ * The event log is stored in a simple header-block structure. The
+ * header contains a magic number to identify it as an event log,
+ * a head index and a tail index. The head index points to the last
+ * recorded event, the tail index points to the "oldest" event in the
+ * log. The event log is set up like a circular buffer, so we only
+ * store the set amount of events. The head continuously overwrites
+ * the oldest events, and both the head and tail indices wrap around
+ * to 0 at the end of the event log:
+ * 
+ * [ HEADER ]
+ * [ MAGIC NUMBER ][ HEAD INDEX ][ TAIL INDEX ][ EVENT BLOCK 0 ][ EVENT BLOCK 1]...
+ * [ 2 bytes      ][ 2 bytes    ][ 2 bytes    ][ 6 bytes       ][ 6 bytes      ]
+ * 
+ * 1024 bytes are allocated to the event log in flash emulated EEPROM,
+ * giving room for (1024 - (2 + 2 + 2)) / 6 ~= 169 events
+ * 
+ * For now, we store 30 to make it easier to handle initial debugging.
+*/
 #define EE_EVENT_LOG_START_ADDRESS 0
 #define EE_EVENT_LOG_HEAD_INDEX_ADDRESS EE_EVENT_LOG_START_ADDRESS + 2
 #define EE_EVENT_LOG_TAIL_INDEX_ADDRESS EE_EVENT_LOG_HEAD_INDEX_ADDRESS + 2
@@ -43,6 +64,7 @@ static void update_event_time(void);
 static void set_event(EVENTS_ENUM_TYPE event, uint8_t data, bool latched);
 static void update_event_level(void);
 static void update_bms_status(void);
+
 static void log_event(EVENTS_ENUM_TYPE event, uint8_t data);
 static void print_event_log(void);
 static void check_ee_write(void);
@@ -111,7 +133,7 @@ void init_events(void) {
   events.entries[EVENT_DUMMY_ERROR].log = true;
 
   events.second_timer.set_interval(1000);
-  events.ee_timer.set_interval(15 * 60 * 1000);  // Write to EEPROM every 15 minutes
+  events.ee_timer.set_interval(EE_WRITE_PERIOD_MINUTES * 60 * 1000);  // Write to EEPROM every X minutes
 }
 
 void set_event(EVENTS_ENUM_TYPE event, uint8_t data) {
@@ -270,21 +292,29 @@ static void update_event_time(void) {
 }
 
 static void log_event(EVENTS_ENUM_TYPE event, uint8_t data) {
-  // Update head, move tail
+  // Update head with wrap to 0
   if (++events.event_log_head_index == EE_NOF_EVENT_ENTRIES) {
     events.event_log_head_index = 0;
   }
 
+  // If the head now points to the tail, move the tail, with wrap to 0
   if (events.event_log_head_index == events.event_log_tail_index) {
     if (++events.event_log_tail_index == EE_NOF_EVENT_ENTRIES) {
       events.event_log_tail_index = 0;
     }
   }
 
+  // The head now holds the index to the oldest event, the one we want to overwrite,
+  // so calculate the absolute address
   int entry_address = EE_EVENT_ENTRY_START_ADDRESS + EE_EVENT_ENTRY_SIZE * events.event_log_head_index;
+
+  // Prepare an event block to write
   EVENT_LOG_ENTRY_TYPE entry = {.event = event, .timestamp = events.time_seconds, .data = data};
 
+  // Put the event in (what I guess is) the RAM EEPROM mirror, or write buffer
   EEPROM.put(entry_address, entry);
+
+  // Store the new indices
   EEPROM.writeUShort(EE_EVENT_LOG_HEAD_INDEX_ADDRESS, events.event_log_head_index);
   EEPROM.writeUShort(EE_EVENT_LOG_TAIL_INDEX_ADDRESS, events.event_log_tail_index);
   //Serial.println("Wrote event " + String(event) + " to " + String(entry_address));
@@ -292,6 +322,7 @@ static void log_event(EVENTS_ENUM_TYPE event, uint8_t data) {
 }
 
 static void print_event_log(void) {
+  // If the head actually points to the tail, the log is probably blank
   if (events.event_log_head_index == events.event_log_tail_index) {
     Serial.println("No events in log");
     return;
@@ -299,6 +330,7 @@ static void print_event_log(void) {
   EVENT_LOG_ENTRY_TYPE entry;
 
   for (int i = 0; i < EE_NOF_EVENT_ENTRIES; i++) {
+    // Start at the oldest event, work through the log all the way the the head
     int index = ((events.event_log_tail_index + i) % EE_NOF_EVENT_ENTRIES);
     int address = EE_EVENT_ENTRY_START_ADDRESS + EE_EVENT_ENTRY_SIZE * index;
 
@@ -313,6 +345,7 @@ static void print_event_log(void) {
 }
 
 static void check_ee_write(void) {
+  // Only actually write to flash emulated EEPROM every EE_WRITE_PERIOD_MINUTES minutes
   if (events.ee_timer.elapsed()) {
     EEPROM.commit();
   }
