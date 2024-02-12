@@ -25,7 +25,7 @@ void update_values_test_battery() { /* This function puts fake values onto the p
 
   StateOfHealth = 9900;  // 99.00%
 
-  battery_voltage = 3700;  // 370.0V
+  //battery_voltage = 3700;  // 370.0V , value set in startup in .ino file, editable via webUI
 
   battery_current = 0;  // 0 A
 
@@ -33,9 +33,9 @@ void update_values_test_battery() { /* This function puts fake values onto the p
 
   remaining_capacity_Wh = 15000;  // 15kWh
 
-  cell_max_voltage = 3750;
+  cell_max_voltage = 3596;
 
-  cell_min_voltage = 3730;
+  cell_min_voltage = 3500;
 
   stat_batt_power = 0;  // 0W
 
@@ -46,6 +46,10 @@ void update_values_test_battery() { /* This function puts fake values onto the p
   max_target_discharge_power = 5000;  // 5kW
 
   max_target_charge_power = 5000;  // 5kW
+
+  for (int i = 0; i < 97; ++i) {
+    cellvoltages[i] = 3500 + i;
+  }
 
 /*Finally print out values to serial if configured to do so*/
 #ifdef DEBUG_VIA_USB

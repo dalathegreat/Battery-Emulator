@@ -2,6 +2,7 @@
 
 void update_modbus_registers_byd() {
   //Updata for ModbusRTU Server for BYD
+  verify_temperature_modbus();
   handle_update_data_modbusp201_byd();
   handle_update_data_modbusp301_byd();
 }
@@ -32,10 +33,10 @@ void handle_update_data_modbusp201_byd() {
   system_data[0] = 0;  // Id.: p201 Value.: 0 Scaled value.: 0 Comment.: Always 0
   system_data[1] = 0;  // Id.: p202 Value.: 0 Scaled value.: 0 Comment.: Always 0
   system_data[2] =
-      (capacity_Wh_startup);  // Id.: p203 Value.: 32000 Scaled value.: 32kWh Comment.: Capacity rated, maximum value is 60000 (60kWh)
-  system_data[3] = (max_power);  // Id.: p204 Value.: 32000 Scaled value.: 32kWh Comment.: Nominal capacity
+      (capacity_Wh);  // Id.: p203 Value.: 32000 Scaled value.: 32kWh Comment.: Capacity rated, maximum value is 60000 (60kWh)
+  system_data[3] = MAX_POWER;  // Id.: p204 Value.: 32000 Scaled value.: 32kWh Comment.: Nominal capacity
   system_data[4] =
-      (max_power);  // Id.: p205 Value.: 14500 Scaled value.: 30,42kW  Comment.: Max Charge/Discharge Power=10.24kW (lowest value of 204 and 205 will be enforced by Gen24)
+      MAX_POWER;  // Id.: p205 Value.: 14500 Scaled value.: 30,42kW  Comment.: Max Charge/Discharge Power=10.24kW (lowest value of 204 and 205 will be enforced by Gen24)
   system_data[5] =
       (max_voltage);  // Id.: p206 Value.: 3667 Scaled value.: 362,7VDC Comment.: Max Voltage, if higher charging is not possible (goes into forced discharge)
   system_data[6] =
@@ -55,12 +56,12 @@ void handle_update_data_modbusp201_byd() {
 void handle_update_data_modbusp301_byd() {
   // Store the data into the array
   static uint16_t battery_data[24];
-  if (battery_current > 0) {         //Positive value = Charging
-    bms_char_dis_status = 2;         //Charging
-  } else if (battery_current < 0) {  //Negative value = Discharging
-    bms_char_dis_status = 1;         //Discharging
-  } else {                           //battery_current == 0
-    bms_char_dis_status = 0;         //idle
+  if (battery_current == 0) {
+    bms_char_dis_status = STANDBY;
+  } else if (battery_current > 32767) {  //Negative value = Discharging
+    bms_char_dis_status = DISCHARGING;
+  } else {  //Positive value = Charging
+    bms_char_dis_status = CHARGING;
   }
 
   if (bms_status == ACTIVE) {
@@ -105,4 +106,24 @@ void handle_update_data_modbusp301_byd() {
   battery_data[23] = StateOfHealth;  // Id.: p324 Value.: 9900 Scaled value.: 99% Comment.: SOH
   static uint16_t i = 300;
   memcpy(&mbPV[i], battery_data, sizeof(battery_data));
+}
+
+void verify_temperature_modbus() {
+  if (LFP_Chemistry) {
+    return;  // Skip the following section
+  }
+  // This section checks if the battery temperature is negative, and incase it falls between -9.0 and -20.0C degrees
+  // The Fronius Gen24 (and other Fronius inverters also affected), will stop charge/discharge if the battery gets colder than -10°C.
+  // This is due to the original battery pack (BYD HVM), is a lithium iron phosphate battery, that cannot be charged in cold weather.
+  // When using EV packs with NCM/LMO/NCA chemsitry, this is not a problem, since these chemistries are OK for outdoor cold use.
+  if (temperature_min > 32768) {                               // Signed value on negative side
+    if (temperature_min < 65445 && temperature_min > 65335) {  // Between -9.0 and -20.0C degrees
+      temperature_min = 65445;                                 //Cap value to -9.0C
+    }
+  }
+  if (temperature_max > 32768) {                               // Signed value on negative side
+    if (temperature_max < 65445 && temperature_max > 65335) {  // Between -9.0 and -20.0C degrees
+      temperature_max = 65445;                                 //Cap value to -9.0C
+    }
+  }
 }

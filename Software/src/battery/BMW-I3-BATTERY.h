@@ -2,6 +2,7 @@
 #define BMW_I3_BATTERY_H
 #include <Arduino.h>
 #include "../../USER_SETTINGS.h"
+#include "../devboard/config.h"  // Needed for all defines
 #include "../lib/miwagner-ESP32-Arduino-CAN/ESP32CAN.h"
 
 #define ABSOLUTE_MAX_VOLTAGE \
@@ -17,20 +18,14 @@ extern uint16_t capacity_Wh;
 extern uint16_t remaining_capacity_Wh;
 extern uint16_t max_target_discharge_power;
 extern uint16_t max_target_charge_power;
-extern uint16_t bms_status;
-extern uint16_t bms_char_dis_status;
+extern uint8_t bms_status;
+extern uint8_t bms_char_dis_status;
 extern uint16_t stat_batt_power;
 extern uint16_t temperature_min;
 extern uint16_t temperature_max;
 extern uint16_t CANerror;
-extern bool batteryAllowsContactorClosing;
-// Definitions for BMS status
-#define STANDBY 0
-#define INACTIVE 1
-#define DARKSTART 2
-#define ACTIVE 3
-#define FAULT 4
-#define UPDATING 5
+extern bool batteryAllowsContactorClosing;   //Bool, 1=true, 0=false
+extern bool inverterAllowsContactorClosing;  //Bool, 1=true, 0=false
 
 void update_values_i3_battery();
 void receive_can_i3_battery(CAN_frame_t rx_frame);

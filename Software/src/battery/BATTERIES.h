@@ -1,6 +1,8 @@
 #ifndef BATTERIES_H
 #define BATTERIES_H
 
+#include "../../USER_SETTINGS.h"
+
 #ifdef BMW_I3_BATTERY
 #include "BMW-I3-BATTERY.h"  //See this file for more i3 battery settings
 #endif
@@ -19,10 +21,19 @@
 
 #ifdef NISSAN_LEAF_BATTERY
 #include "NISSAN-LEAF-BATTERY.h"  //See this file for more LEAF battery settings
+#define BATTERY_HAS_INIT
+#endif
+
+#ifdef RENAULT_KANGOO_BATTERY
+#include "RENAULT-KANGOO-BATTERY.h"  //See this file for more Kangoo battery settings
 #endif
 
 #ifdef RENAULT_ZOE_BATTERY
 #include "RENAULT-ZOE-BATTERY.h"  //See this file for more Zoe battery settings
+#endif
+
+#ifdef SANTA_FE_PHEV_BATTERY
+#include "SANTA-FE-PHEV-BATTERY.h"  //See this file for more Santa Fe PHEV battery settings
 #endif
 
 #ifdef TESLA_MODEL_3_BATTERY
@@ -32,4 +43,9 @@
 #ifdef TEST_FAKE_BATTERY
 #include "TEST-FAKE-BATTERY.h"  //See this file for more Fake battery settings
 #endif
+
+#ifdef SERIAL_LINK_RECEIVER
+#include "SERIAL-LINK-RECEIVER-FROM-BATTERY.h"  //See this file for more Serial-battery settings
+#endif
+
 #endif

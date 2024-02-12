@@ -9,6 +9,13 @@ static unsigned long previousMillis60s = 0;  // will store last time a 60s CAN M
 static const int interval2s = 2000;          // interval (ms) at which send CAN Messages
 static const int interval10s = 10000;        // interval (ms) at which send CAN Messages
 static const int interval60s = 60000;        // interval (ms) at which send CAN Messages
+static uint8_t char1_151 = 0;
+static uint8_t char2_151 = 0;
+static uint8_t char3_151 = 0;
+static uint8_t char4_151 = 0;
+static uint8_t char5_151 = 0;
+static uint8_t char6_151 = 0;
+static uint8_t char7_151 = 0;
 
 //Startup messages
 const CAN_frame_t BYD_250 = {
@@ -102,8 +109,9 @@ CAN_frame_t BYD_210 = {.FIR = {.B =
 static int discharge_current = 0;
 static int charge_current = 0;
 static int initialDataSent = 0;
-static int temperature_average = 0;
-
+static int16_t temperature_average = 0;
+static int16_t temp_min = 0;
+static int16_t temp_max = 0;
 static int inverter_voltage = 0;
 static int inverter_SOC = 0;
 static long inverter_timestamp = 0;
@@ -127,7 +135,9 @@ void update_values_can_byd() {  //This function maps all the values fetched from
         MAXDISCHARGEAMP;  //Cap the value to the max allowed Amp. Some inverters cannot handle large values.
   }
 
-  temperature_average = ((temperature_max + temperature_min) / 2);
+  temp_min = temperature_min;  //Convert from unsigned to signed
+  temp_max = temperature_max;
+  temperature_average = ((temp_max + temp_min) / 2);
 
   //Map values to CAN messages
   //Maxvoltage (eg 400.0V = 4000 , 16bits long)
@@ -172,13 +182,34 @@ void update_values_can_byd() {  //This function maps all the values fetched from
   //Temperature min
   BYD_210.data.u8[2] = (temperature_min >> 8);
   BYD_210.data.u8[3] = (temperature_min & 0x00FF);
+
+#ifdef DEBUG_VIA_USB
+  if (char1_151 != 0) {
+    Serial.print("Detected inverter: ");
+    Serial.print((char)char1_151);
+    Serial.print((char)char2_151);
+    Serial.print((char)char3_151);
+    Serial.print((char)char4_151);
+    Serial.print((char)char5_151);
+    Serial.print((char)char6_151);
+    Serial.println((char)char7_151);
+  }
+#endif
 }
 
 void receive_can_byd(CAN_frame_t rx_frame) {
   switch (rx_frame.MsgID) {
     case 0x151:  //Message originating from BYD HVS compatible inverter. Reply with CAN identifier!
-      if (rx_frame.data.u8[0] & 0x01) {
+      if (rx_frame.data.u8[0] & 0x01) {  //Battery requests identification
         send_intial_data();
+      } else {  // We can identify what inverter type we are connected to
+        char1_151 = rx_frame.data.u8[1];
+        char2_151 = rx_frame.data.u8[2];
+        char3_151 = rx_frame.data.u8[3];
+        char4_151 = rx_frame.data.u8[4];
+        char5_151 = rx_frame.data.u8[5];
+        char6_151 = rx_frame.data.u8[6];
+        char7_151 = rx_frame.data.u8[7];
       }
       break;
     case 0x091:
@@ -217,14 +248,12 @@ void send_can_byd() {
     ESP32Can.CANWriteFrame(&BYD_150);
     ESP32Can.CANWriteFrame(&BYD_1D0);
     ESP32Can.CANWriteFrame(&BYD_210);
-    //Serial.println("CAN 10s done");
   }
   //Send 60s message
   if (currentMillis - previousMillis60s >= interval60s) {
     previousMillis60s = currentMillis;
 
     ESP32Can.CANWriteFrame(&BYD_190);
-    //Serial.println("CAN 60s done");
   }
 }
 

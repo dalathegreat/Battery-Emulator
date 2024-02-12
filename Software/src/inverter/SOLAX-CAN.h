@@ -2,7 +2,7 @@
 #define SOLAX_CAN_H
 #include <Arduino.h>
 #include "../../USER_SETTINGS.h"
-#include "../devboard/config.h"
+#include "../devboard/config.h"  // Needed for all defines
 #include "../lib/miwagner-ESP32-Arduino-CAN/ESP32CAN.h"
 #include "../lib/pierremolinaro-acan2515/ACAN2515.h"
 
@@ -16,8 +16,8 @@ extern uint16_t capacity_Wh;
 extern uint16_t remaining_capacity_Wh;
 extern uint16_t max_target_discharge_power;
 extern uint16_t max_target_charge_power;
-extern uint16_t bms_status;
-extern uint16_t bms_char_dis_status;
+extern uint8_t bms_status;
+extern uint8_t bms_char_dis_status;
 extern uint16_t stat_batt_power;
 extern uint16_t temperature_min;
 extern uint16_t temperature_max;
@@ -26,7 +26,8 @@ extern uint16_t min_voltage;
 extern uint16_t max_voltage;
 extern uint16_t cell_max_voltage;
 extern uint16_t cell_min_voltage;
-extern bool inverterAllowsContactorClosing;
+extern bool batteryAllowsContactorClosing;   //Bool, 1=true, 0=false
+extern bool inverterAllowsContactorClosing;  //Bool, 1=true, 0=false
 
 // Timeout in milliseconds
 #define SolaxTimeout 2000

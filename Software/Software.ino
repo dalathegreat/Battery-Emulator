@@ -2,10 +2,13 @@
 /* Only change battery specific settings in "USER_SETTINGS.h" */
 
 #include <Arduino.h>
+#include <Preferences.h>
 #include "HardwareSerial.h"
 #include "USER_SETTINGS.h"
 #include "src/battery/BATTERIES.h"
+#include "src/charger/CHARGERS.h"
 #include "src/devboard/config.h"
+#include "src/devboard/utils/events.h"
 #include "src/inverter/INVERTERS.h"
 #include "src/lib/adafruit-Adafruit_NeoPixel/Adafruit_NeoPixel.h"
 #include "src/lib/eModbus-eModbus/Logging.h"
@@ -14,6 +17,12 @@
 #include "src/lib/miwagner-ESP32-Arduino-CAN/CAN_config.h"
 #include "src/lib/miwagner-ESP32-Arduino-CAN/ESP32CAN.h"
 
+#ifdef WEBSERVER
+#include "src/devboard/webserver/webserver.h"
+#endif
+
+Preferences settings;                  // Store user settings
+const char* version_number = "5.2.0";  // The current software version, shown on webserver
 // Interval settings
 int intervalUpdateValues = 4800;  // Interval at which to update inverter values / Modbus registers
 const int interval10 = 10;        // Interval for 10ms tasks
@@ -36,7 +45,7 @@ static ACAN2515_Buffer16 gBuffer;
 #define MB_RTU_NUM_VALUES 30000
 #endif
 #if defined(LUNA2000_MODBUS)
-#define MB_RTU_NUM_VALUES 50000
+#define MB_RTU_NUM_VALUES 30000
 #endif
 #if defined(BYD_MODBUS) || defined(LUNA2000_MODBUS)
 uint16_t mbPV[MB_RTU_NUM_VALUES];  // Process variable memory
@@ -44,35 +53,42 @@ uint16_t mbPV[MB_RTU_NUM_VALUES];  // Process variable memory
 ModbusServerRTU MBserver(Serial2, 2000);
 #endif
 
-// Inverter parameters
-// Inverter states
-#define STANDBY 0
-#define INACTIVE 1
-#define DARKSTART 2
-#define ACTIVE 3
-#define FAULT 4
-#define UPDATING 5
-// Common inverter parameters
-uint16_t capacity_Wh_startup = BATTERY_WH_MAX;
-uint16_t max_power = 40960;                   // 41kW
+// Common inverter parameters. Batteries map their values to these variables
 uint16_t max_voltage = ABSOLUTE_MAX_VOLTAGE;  // If higher charging is not possible (goes into forced discharge)
-uint16_t min_voltage = ABSOLUTE_MIN_VOLTAGE;  // If lower Gen24 disables battery
-uint16_t battery_voltage = 3700;
+uint16_t min_voltage = ABSOLUTE_MIN_VOLTAGE;  // If lower disables discharging battery
+uint16_t battery_voltage = 3700;              //V+1,  0-500.0 (0-5000)
 uint16_t battery_current = 0;
-uint16_t SOC = 5000;                              // SOC 0-100.00% // Updates later on from CAN
-uint16_t StateOfHealth = 9900;                    // SOH 0-100.00% // Updates later on from CAN
-uint16_t capacity_Wh = BATTERY_WH_MAX;            // Updates later on from CAN
-uint16_t remaining_capacity_Wh = BATTERY_WH_MAX;  // Updates later on from CAN
-uint16_t max_target_discharge_power = 0;          // 0W (0W > restricts to no discharge) // Updates later on from CAN
-uint16_t max_target_charge_power =
-    4312;  // 4.3kW (during charge), both 307&308 can be set (>0) at the same time // Updates later on from CAN. Max value is 30000W
-uint16_t temperature_max = 50;     // Reads from battery later
-uint16_t temperature_min = 60;     // Reads from battery later
-uint16_t bms_char_dis_status;      // 0 idle, 1 discharging, 2, charging
-uint16_t bms_status = ACTIVE;      // ACTIVE - [0..5]<>[STANDBY,INACTIVE,DARKSTART,ACTIVE,FAULT,UPDATING]
-uint16_t stat_batt_power = 0;      // Power going in/out of battery
-uint16_t cell_max_voltage = 3700;  // Stores the highest cell voltage value in the system
-uint16_t cell_min_voltage = 3700;  // Stores the minimum cell voltage value in the system
+uint16_t SOC = 5000;                              //SOC%, 0-100.00 (0-10000)
+uint16_t StateOfHealth = 9900;                    //SOH%, 0-100.00 (0-10000)
+uint16_t capacity_Wh = BATTERY_WH_MAX;            //Wh,   0-60000
+uint16_t remaining_capacity_Wh = BATTERY_WH_MAX;  //Wh,   0-60000
+uint16_t max_target_discharge_power = 0;          // 0W (0W > restricts to no discharge), Updates later on from CAN
+uint16_t max_target_charge_power = 4312;          // Init to 4.3kW, Updates later on from CAN
+uint16_t temperature_max = 50;          //C+1,  Goes thru convert2unsignedint16 function (15.0C = 150, -15.0C =  65385)
+uint16_t temperature_min = 60;          // Reads from battery later
+uint8_t bms_char_dis_status = STANDBY;  // 0 standby, 1 discharging, 2, charging
+uint8_t bms_status = ACTIVE;            // ACTIVE - [0..5]<>[STANDBY,INACTIVE,DARKSTART,ACTIVE,FAULT,UPDATING]
+uint16_t stat_batt_power = 0;           // Power going in/out of battery
+uint16_t cell_max_voltage = 3700;       // Stores the highest cell voltage value in the system
+uint16_t cell_min_voltage = 3700;       // Stores the minimum cell voltage value in the system
+uint16_t cellvoltages[120];             // Stores all cell voltages
+uint8_t nof_cellvoltages = 0;           // Total number of cell voltages, set by each battery.
+bool LFP_Chemistry = false;
+
+// Common charger parameters
+volatile float charger_setpoint_HV_VDC = 0.0f;
+volatile float charger_setpoint_HV_IDC = 0.0f;
+volatile float charger_setpoint_HV_IDC_END = 0.0f;
+bool charger_HV_enabled = false;
+bool charger_aux12V_enabled = false;
+
+// Common charger statistics, instantaneous values
+float charger_stat_HVcur = 0;
+float charger_stat_HVvol = 0;
+float charger_stat_ACcur = 0;
+float charger_stat_ACvol = 0;
+float charger_stat_LVcur = 0;
+float charger_stat_LVvol = 0;
 
 // LED parameters
 Adafruit_NeoPixel pixels(1, WS2812_PIN, NEO_GRB + NEO_KHZ800);
@@ -108,6 +124,14 @@ bool inverterAllowsContactorClosing = true;
 void setup() {
   init_serial();
 
+  init_stored_settings();
+
+#ifdef WEBSERVER
+  init_webserver();
+#endif
+
+  init_events();
+
   init_CAN();
 
   init_LED();
@@ -116,17 +140,36 @@ void setup() {
 
   init_modbus();
 
+  init_serialDataLink();
+
   inform_user_on_inverter();
 
   inform_user_on_battery();
+
+#ifdef BATTERY_HAS_INIT
+  init_battery();
+#endif
 }
 
 // Perform main program functions
 void loop() {
+
+#ifdef WEBSERVER
+  // Over-the-air updates by ElegantOTA
+  wifi_monitor();
+  ElegantOTA.loop();
+#ifdef MQTT
+  mqtt_loop();
+#endif
+#endif
+
   // Input
   receive_can();  // Receive CAN messages. Runs as fast as possible
 #ifdef DUAL_CAN
   receive_can2();
+#endif
+#if defined(SERIAL_LINK_RECEIVER) || defined(SERIAL_LINK_TRANSMITTER)
+  runSerialDataLink();
 #endif
 
   // Process
@@ -143,6 +186,9 @@ void loop() {
   {
     previousMillisUpdateVal = millis();
     update_values();  // Update values heading towards inverter. Prepare for sending on CAN, or write directly to Modbus.
+    if (DUMMY_EVENT_ENABLED) {
+      set_event(EVENT_DUMMY, (uint8_t)millis());
+    }
   }
 
   // Output
@@ -150,6 +196,7 @@ void loop() {
 #ifdef DUAL_CAN
   send_can2();
 #endif
+  update_event_timestamps();
 }
 
 // Initialization functions
@@ -158,6 +205,37 @@ void init_serial() {
   Serial.begin(115200);
   while (!Serial) {}
   Serial.println("__ OK __");
+}
+
+void init_stored_settings() {
+  settings.begin("batterySettings", false);
+
+#ifndef LOAD_SAVED_SETTINGS_ON_BOOT
+  settings.clear();  // If this clear function is executed, no settings will be read from storage
+#endif
+
+  static uint16_t temp = 0;
+  temp = settings.getUInt("BATTERY_WH_MAX", false);
+  if (temp != 0) {
+    BATTERY_WH_MAX = temp;
+  }
+  temp = settings.getUInt("MAXPERCENTAGE", false);
+  if (temp != 0) {
+    MAXPERCENTAGE = temp;
+  }
+  temp = settings.getUInt("MINPERCENTAGE", false);
+  if (temp != 0) {
+    MINPERCENTAGE = temp;
+  }
+  temp = settings.getUInt("MAXCHARGEAMP", false);
+  if (temp != 0) {
+    MAXCHARGEAMP = temp;
+  }
+  temp = settings.getUInt("MAXDISCHARGEAMP", false);
+  if (temp != 0) {
+    MAXDISCHARGEAMP = temp;
+  }
+  settings.end();
 }
 
 void init_CAN() {
@@ -222,6 +300,11 @@ void init_modbus() {
   handle_static_data_modbus_byd();
 #endif
 #if defined(BYD_MODBUS) || defined(LUNA2000_MODBUS)
+#if defined(SERIAL_LINK_RECEIVER) || defined(SERIAL_LINK_TRANSMITTER)
+// Check that Dual LilyGo via RS485 option isn't enabled, this collides with Modbus!
+#error MODBUS CANNOT BE USED IN DOUBLE LILYGO SETUPS! CHECK USER SETTINGS!
+#endif
+
   // Init Serial2 connected to the RTU Modbus
   RTUutils::prepareHardwareSerial(Serial2);
   Serial2.begin(9600, SERIAL_8N1, RS485_RX_PIN, RS485_TX_PIN);
@@ -279,14 +362,23 @@ void inform_user_on_battery() {
 #ifdef NISSAN_LEAF_BATTERY
   Serial.println("Nissan LEAF battery selected");
 #endif
+#ifdef RENAULT_KANGOO_BATTERY
+  Serial.println("Renault Kangoo battery selected");
+#endif
+#ifdef SANTA_FE_PHEV_BATTERY
+  Serial.println("Hyundai Santa Fe PHEV battery selected");
+#endif
 #ifdef RENAULT_ZOE_BATTERY
-  Serial.println("Renault Zoe / Kangoo battery selected");
+  Serial.println("Renault Zoe battery selected");
 #endif
 #ifdef TESLA_MODEL_3_BATTERY
   Serial.println("Tesla Model 3 battery selected");
 #endif
 #ifdef TEST_FAKE_BATTERY
   Serial.println("Test mode with fake battery selected");
+#endif
+#ifdef SERIAL_LINK_RECEIVER
+  Serial.println("SERIAL_DATA_LINK_RECEIVER selected");
 #endif
 #if !defined(ABSOLUTE_MAX_VOLTAGE)
 #error No battery selected! Choose one from the USER_SETTINGS.h file
@@ -316,6 +408,12 @@ void receive_can() {  // This section checks if we have a complete CAN message i
 #ifdef NISSAN_LEAF_BATTERY
       receive_can_leaf_battery(rx_frame);
 #endif
+#ifdef RENAULT_KANGOO_BATTERY
+      receive_can_kangoo_battery(rx_frame);
+#endif
+#ifdef SANTA_FE_PHEV_BATTERY
+      receive_can_santafe_phev_battery(rx_frame);
+#endif
 #ifdef RENAULT_ZOE_BATTERY
       receive_can_zoe_battery(rx_frame);
 #endif
@@ -331,6 +429,13 @@ void receive_can() {  // This section checks if we have a complete CAN message i
 #endif
 #ifdef SMA_CAN
       receive_can_sma(rx_frame);
+#endif
+      // Charger
+#ifdef CHEVYVOLT_CHARGER
+      receive_can_chevyvolt_charger(rx_frame);
+#endif
+#ifdef NISSANLEAF_CHARGER
+      receive_can_nissanleaf_charger(rx_frame);
 #endif
     } else {
       //printf("New extended frame");
@@ -375,6 +480,12 @@ void send_can() {
 #ifdef NISSAN_LEAF_BATTERY
   send_can_leaf_battery();
 #endif
+#ifdef RENAULT_KANGOO_BATTERY
+  send_can_kangoo_battery();
+#endif
+#ifdef SANTA_FE_PHEV_BATTERY
+  send_can_santafe_phev_battery();
+#endif
 #ifdef RENAULT_ZOE_BATTERY
   send_can_zoe_battery();
 #endif
@@ -383,6 +494,12 @@ void send_can() {
 #endif
 #ifdef TEST_FAKE_BATTERY
   send_can_test_battery();
+#endif
+#ifdef CHEVYVOLT_CHARGER
+  send_can_chevyvolt_charger();
+#endif
+#ifdef NISSANLEAF_CHARGER
+  send_can_nissanleaf_charger();
 #endif
 }
 
@@ -462,6 +579,7 @@ void handle_LED_state() {
 
   // BMS in fault state overrides everything
   if (bms_status == FAULT) {
+    LEDcolor = RED;
     pixels.setPixelColor(0, pixels.Color(255, 0, 0));  // Red LED full brightness
   }
 
@@ -571,6 +689,12 @@ void update_values() {
 #ifdef NISSAN_LEAF_BATTERY
   update_values_leaf_battery();  // Map the values to the correct registers
 #endif
+#ifdef RENAULT_KANGOO_BATTERY
+  update_values_kangoo_battery();  // Map the values to the correct registers
+#endif
+#ifdef SANTA_FE_PHEV_BATTERY
+  update_values_santafe_phev_battery();  // Map the values to the correct registers
+#endif
 #ifdef RENAULT_ZOE_BATTERY
   update_values_zoe_battery();  // Map the values to the correct registers
 #endif
@@ -596,7 +720,44 @@ void update_values() {
 #ifdef SMA_CAN
   update_values_can_sma();
 #endif
+#ifdef SOFAR_CAN
+  update_values_can_sofar();
+#endif
 #ifdef SOLAX_CAN
   update_values_can_solax();
 #endif
+}
+
+void runSerialDataLink() {
+  static unsigned long updateTime = 0;
+  unsigned long currentMillis = millis();
+#ifdef SERIAL_LINK_RECEIVER
+  if ((currentMillis - updateTime) > 1) {  //Every 2ms
+    updateTime = currentMillis;
+    manageSerialLinkReceiver();
+  }
+#endif
+
+#ifdef SERIAL_LINK_TRANSMITTER
+  if ((currentMillis - updateTime) > 1) {  //Every 2ms
+    updateTime = currentMillis;
+    manageSerialLinkTransmitter();
+  }
+#endif
+}
+
+void init_serialDataLink() {
+#if defined(SERIAL_LINK_RECEIVER) || defined(SERIAL_LINK_TRANSMITTER)
+  Serial2.begin(9600, SERIAL_8N1, RS485_RX_PIN, RS485_TX_PIN);
+#endif
+}
+
+void storeSettings() {
+  settings.begin("batterySettings", false);
+  settings.putUInt("BATTERY_WH_MAX", BATTERY_WH_MAX);
+  settings.putUInt("MAXPERCENTAGE", MAXPERCENTAGE);
+  settings.putUInt("MINPERCENTAGE", MINPERCENTAGE);
+  settings.putUInt("MAXCHARGEAMP", MAXCHARGEAMP);
+  settings.putUInt("MAXDISCHARGEAMP", MAXDISCHARGEAMP);
+  settings.end();
 }

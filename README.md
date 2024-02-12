@@ -1,7 +1,7 @@
 # Battery-Emulator ⚡🔋
 ![GitHub release (with filter)](https://img.shields.io/github/v/release/dalathegreat/BYD-Battery-Emulator-For-Gen24?color=%23008000)
-![GitHub Repo stars](https://img.shields.io/github/stars/dalathegreat/BYD-Battery-Emulator-For-Gen24?color=%23008000)
-![GitHub forks](https://img.shields.io/github/forks/dalathegreat/BYD-Battery-Emulator-For-Gen24?color=%23008000)
+![GitHub Repo stars](https://img.shields.io/github/stars/dalathegreat/Battery-Emulator?style=flat&color=%23128512)
+![GitHub forks](https://img.shields.io/github/forks/dalathegreat/Battery-Emulator?style=flat&color=%23128512)
 ![GitHub actions](https://img.shields.io/github/actions/workflow/status/dalathegreat/BYD-Battery-Emulator-For-Gen24/compile-all-batteries.yml?color=0E810E)
 ![Static Badge](https://img.shields.io/badge/made-with_love-blue?color=%23008000)
 
@@ -61,6 +61,7 @@ It is also based on the info found in the following excellent repositories/websi
 - https://github.com/dalathegreat/leaf_can_bus_messages
 - https://github.com/rand12345/solax_can_bus
 - https://github.com/Tom-evnut/BMWI3BMS/ SMA-CAN
+- https://github.com/maciek16c/hyundai-santa-fe-phev-battery
 - Renault Zoe CAN Matrix https://docs.google.com/spreadsheets/u/0/d/1Qnk-yzzcPiMArO-QDzO4a8ptAS2Sa4HhVu441zBzlpM/edit?pli=1#gid=0
 - Pylon hacking https://www.eevblog.com/forum/programming/pylontech-sc0500-protocol-hacking/
 
