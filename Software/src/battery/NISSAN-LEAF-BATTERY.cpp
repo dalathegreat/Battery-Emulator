@@ -267,11 +267,15 @@ void update_values_leaf_battery() { /* This function maps all the values fetched
   if (LB_Full_CHARGE_flag) {  //Battery reports that it is fully charged stop all further charging incase it hasn't already
     set_event(EVENT_BATTERY_FULL, 0);
     max_target_charge_power = 0;
+  } else {
+    clear_event(EVENT_BATTERY_FULL);
   }
 
   if (LB_Capacity_Empty) {  //Battery reports that it is fully discharged. Stop all further discharging incase it hasn't already
     set_event(EVENT_BATTERY_EMPTY, 0);
     max_target_discharge_power = 0;
+  } else {
+    clear_event(EVENT_BATTERY_EMPTY);
   }
 
   if (LB_Relay_Cut_Request) {  //LB_FAIL, BMS requesting shutdown and contactors to be opened
@@ -323,14 +327,18 @@ void update_values_leaf_battery() { /* This function maps all the values fetched
       default:
         break;
     }
+  } else {  //LB_Failsafe_Status == 0
+    clear_event(EVENT_BATTERY_DISCHG_STOP_REQ);
+    clear_event(EVENT_BATTERY_CHG_STOP_REQ);
+    clear_event(EVENT_BATTERY_CHG_DISCHG_STOP_REQ);
   }
 
   if (LB_StateOfHealth < 25) {    //Battery is extremely degraded, not fit for secondlifestorage. Zero it all out.
     if (LB_StateOfHealth != 0) {  //Extra check to see that we actually have a SOH Value available
       errorCode = 5;
       set_event(EVENT_LOW_SOH, LB_StateOfHealth);
-      max_target_discharge_power = 0;
-      max_target_charge_power = 0;
+    } else {
+      clear_event(EVENT_LOW_SOH);
     }
   }
 
@@ -338,9 +346,8 @@ void update_values_leaf_battery() { /* This function maps all the values fetched
   if (!LB_Interlock) {
     set_event(EVENT_HVIL_FAILURE, 0);
     errorCode = 6;
-    SOC = 0;
-    max_target_discharge_power = 0;
-    max_target_charge_power = 0;
+  } else {
+    clear_event(EVENT_HVIL_FAILURE);
   }
 #endif
 
@@ -357,6 +364,11 @@ void update_values_leaf_battery() { /* This function maps all the values fetched
   {
     errorCode = 10;
     set_event(EVENT_CAN_RX_WARNING, 0);
+  }
+
+  if (bms_status == FAULT) {  //Incase we enter a critical fault state, zero out the allowed limits
+    max_target_charge_power = 0;
+    max_target_discharge_power = 0;
   }
 
 /*Finally print out values to serial if configured to do so*/
