@@ -100,7 +100,6 @@ static void publish_cell_voltages(void) {
     Serial.println("Cell voltage MQTT msg could not be sent");
   }
 }
-}
 
 struct SensorConfig {
   const char* object_id;
