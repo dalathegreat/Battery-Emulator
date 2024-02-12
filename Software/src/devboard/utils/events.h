@@ -39,6 +39,7 @@
   XX(EVENT_CELL_DEVIATION_HIGH)         \
   XX(EVENT_UNKNOWN_EVENT_SET)           \
   XX(EVENT_OTA_UPDATE)                  \
+  XX(EVENT_OTA_UPDATE_TIMEOUT)          \
   XX(EVENT_DUMMY_INFO)                  \
   XX(EVENT_DUMMY_DEBUG)                 \
   XX(EVENT_DUMMY_WARNING)               \

@@ -131,6 +131,7 @@ void init_events(void) {
   events.entries[EVENT_SERIAL_RX_FAILURE].level = EVENT_LEVEL_ERROR;
   events.entries[EVENT_SERIAL_TX_FAILURE].level = EVENT_LEVEL_ERROR;
   events.entries[EVENT_SERIAL_TRANSMITTER_FAILURE].level = EVENT_LEVEL_ERROR;
+  events.entries[EVENT_OTA_UPDATE_TIMEOUT].level = EVENT_LEVEL_INFO;
 
   events.entries[EVENT_DUMMY_INFO].log = true;
   events.entries[EVENT_DUMMY_DEBUG].log = true;
@@ -213,6 +214,8 @@ const char* get_event_message_string(EVENTS_ENUM_TYPE event) {
       return "Error in serial function: Some ERROR level fault in transmitter, received by receiver";
     case EVENT_OTA_UPDATE:
       return "OTA update started!";
+    case EVENT_OTA_UPDATE_TIMEOUT:
+      return "OTA update timed out!";
     default:
       return "";
   }
