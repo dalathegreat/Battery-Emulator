@@ -22,7 +22,7 @@ class EEPROMClass {
 EEPROMClass EEPROM;
 
 #include "../../Software/src/devboard/utils/events.cpp"
-/* Local rest variables */
+/* Local test variables */
 bool elapsed = false;
 
 /* Stubs */

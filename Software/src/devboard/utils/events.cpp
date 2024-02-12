@@ -27,6 +27,7 @@ typedef struct {
   EVENTS_STRUCT_TYPE entries[EVENT_NOF_EVENTS];
   uint32_t time_seconds;
   MyTimer second_timer;
+  MyTimer ee_timer;
   EVENTS_LEVEL_TYPE level;
   uint16_t event_log_head_index;
   uint16_t event_log_tail_index;
@@ -44,6 +45,7 @@ static void update_event_level(void);
 static void update_bms_status(void);
 static void log_event(EVENTS_ENUM_TYPE event, uint8_t data);
 static void print_event_log(void);
+static void check_ee_write(void);
 
 /* Exported functions */
 
@@ -51,6 +53,7 @@ static void print_event_log(void);
 void run_event_handling(void) {
   update_event_time();
   run_sequence_on_target();
+  check_ee_write();
 }
 
 /* Initialization function */
@@ -58,7 +61,7 @@ void init_events(void) {
 
   EEPROM.begin(1024);
 
-  uint16_t header = EEPROM.readUShort(0);
+  uint16_t header = EEPROM.readUShort(EE_EVENT_LOG_START_ADDRESS);
   if (header != EE_MAGIC_HEADER_VALUE) {
     EEPROM.writeUShort(EE_EVENT_LOG_START_ADDRESS, EE_MAGIC_HEADER_VALUE);
     EEPROM.writeUShort(EE_EVENT_LOG_HEAD_INDEX_ADDRESS, 0);
@@ -108,6 +111,7 @@ void init_events(void) {
   events.entries[EVENT_DUMMY_ERROR].log = true;
 
   events.second_timer.set_interval(1000);
+  events.ee_timer.set_interval(15 * 60 * 1000);  // Write to EEPROM every 15 minutes
 }
 
 void set_event(EVENTS_ENUM_TYPE event, uint8_t data) {
@@ -283,7 +287,6 @@ static void log_event(EVENTS_ENUM_TYPE event, uint8_t data) {
   EEPROM.put(entry_address, entry);
   EEPROM.writeUShort(EE_EVENT_LOG_HEAD_INDEX_ADDRESS, events.event_log_head_index);
   EEPROM.writeUShort(EE_EVENT_LOG_TAIL_INDEX_ADDRESS, events.event_log_tail_index);
-  EEPROM.commit();
   //Serial.println("Wrote event " + String(event) + " to " + String(entry_address));
   //Serial.println("head: " + String(events.event_log_head_index) + ", tail: " + String(events.event_log_tail_index));
 }
@@ -305,5 +308,11 @@ static void print_event_log(void) {
     if (index == events.event_log_head_index) {
       break;
     }
+  }
+}
+
+static void check_ee_write(void) {
+  if (events.ee_timer.elapsed()) {
+    EEPROM.commit();
   }
 }
