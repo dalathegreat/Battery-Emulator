@@ -83,8 +83,9 @@ static void publish_cell_voltages(void) {
     // is the string content
 
     // If cell voltages haven't been populated...
-    if (nof_cellvoltages == 0u)
+    if (nof_cellvoltages == 0u) {
       return;
+    }
   }
 
   size_t msg_length = snprintf(mqtt_msg, sizeof(mqtt_msg), "{\n\"cell_voltages\":[");
