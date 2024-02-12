@@ -96,6 +96,7 @@ static uint8_t brightness = 0;
 static bool rampUp = true;
 const uint8_t maxBrightness = 100;
 uint8_t LEDcolor = GREEN;
+bool test_all_colors = false;
 
 // Contactor parameters
 #ifdef CONTACTOR_CONTROL
@@ -149,6 +150,9 @@ void setup() {
 #ifdef BATTERY_HAS_INIT
   init_battery();
 #endif
+
+  // BOOT button at runtime is used as an input for various things
+  pinMode(0, INPUT_PULLUP);
 }
 
 // Perform main program functions
@@ -197,6 +201,12 @@ void loop() {
   send_can2();
 #endif
   run_event_handling();
+
+  if (digitalRead(0) == HIGH) {
+    test_all_colors = false;
+  } else {
+    test_all_colors = true;
+  }
 }
 
 // Initialization functions
@@ -557,30 +567,30 @@ void handle_LED_state() {
   } else if (!rampUp && brightness == 0) {
     rampUp = true;
   }
-  switch (get_event_level()) {
-    case EVENT_LEVEL_INFO:
-      LEDcolor = GREEN;
-      pixels.setPixelColor(0, pixels.Color(0, brightness, 0));  // Green pulsing LED
-      break;
-    case EVENT_LEVEL_WARNING:
-      LEDcolor = YELLOW;
-      pixels.setPixelColor(0, pixels.Color(brightness, brightness, 0));  // Yellow pulsing LED
-      break;
-    case EVENT_LEVEL_DEBUG:
-    case EVENT_LEVEL_UPDATE:
-      LEDcolor = BLUE;
-      pixels.setPixelColor(0, pixels.Color(0, 0, brightness));  // Blue pulsing LED
-      break;
-    case EVENT_LEVEL_ERROR:
-      LEDcolor = RED;
-      pixels.setPixelColor(0, pixels.Color(150, 0, 0));  // Red LED full brightness
-      break;
-    default:
-      break;
-  }
-
-  if (LEDcolor == TEST_ALL_COLORS) {
-    pixels.setPixelColor(0, pixels.Color(0, brightness, 0));  // Green pulsing LED
+  if (test_all_colors == false) {
+    switch (get_event_level()) {
+      case EVENT_LEVEL_INFO:
+        LEDcolor = GREEN;
+        pixels.setPixelColor(0, pixels.Color(0, brightness, 0));  // Green pulsing LED
+        break;
+      case EVENT_LEVEL_WARNING:
+        LEDcolor = YELLOW;
+        pixels.setPixelColor(0, pixels.Color(brightness, brightness, 0));  // Yellow pulsing LED
+        break;
+      case EVENT_LEVEL_DEBUG:
+      case EVENT_LEVEL_UPDATE:
+        LEDcolor = BLUE;
+        pixels.setPixelColor(0, pixels.Color(0, 0, brightness));  // Blue pulsing LED
+        break;
+      case EVENT_LEVEL_ERROR:
+        LEDcolor = RED;
+        pixels.setPixelColor(0, pixels.Color(150, 0, 0));  // Red LED full brightness
+        break;
+      default:
+        break;
+    }
+  } else {
+    pixels.setPixelColor(0, pixels.Color(brightness, abs((100 - brightness)), abs((50 - brightness))));  // RGB
   }
 
   pixels.show();  // This sends the updated pixel color to the hardware.
