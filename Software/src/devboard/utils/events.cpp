@@ -385,6 +385,11 @@ static void check_ee_write(void) {
     EEPROM.commit();
     events.nof_eeprom_writes += (events.nof_eeprom_writes < 65535) ? 1 : 0;
     events.nof_logged_events = 0;
+
+    // We want to know how many writes we have, and to increment the occurrence counter
+    // we need to clear it first. It's just the way life is. Using events is a smooth
+    // way to visualize it in the web UI
+    clear_event(EVENT_EEPROM_WRITE);
     set_event(EVENT_EEPROM_WRITE, events.nof_eeprom_writes);
   }
 }
