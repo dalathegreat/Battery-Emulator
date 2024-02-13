@@ -98,6 +98,8 @@ void update_values_zoe_battery() {  //This function maps all the values fetched 
   }
   if (cell_deviation_mV > MAX_CELL_DEVIATION_MV) {
     set_event(EVENT_CELL_DEVIATION_HIGH, 0);
+  } else {
+    clear_event(EVENT_CELL_DEVIATION_HIGH);
   }
 
 #ifdef DEBUG_VIA_USB

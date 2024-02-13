@@ -272,10 +272,10 @@ void update_values_tesla_model_3_battery() {  //This function maps all the value
 
   if (LFP_Chemistry) {  //LFP limits used for voltage safeties
     if (cell_max_v >= MAX_CELL_VOLTAGE_LFP) {
-      set_event(EVENT_CELL_OVER_VOLTAGE, cell_max_v);
+      set_event(EVENT_CELL_OVER_VOLTAGE, (cell_max_v - MAX_CELL_VOLTAGE_LFP));
     }
     if (cell_min_v <= MIN_CELL_VOLTAGE_LFP) {
-      set_event(EVENT_CELL_UNDER_VOLTAGE, cell_min_v);
+      set_event(EVENT_CELL_UNDER_VOLTAGE, (MIN_CELL_VOLTAGE_LFP - cell_min_v));
     }
     if (cell_deviation_mV > MAX_CELL_DEVIATION_LFP) {
       set_event(EVENT_CELL_DEVIATION_HIGH, cell_deviation_mV);
@@ -284,10 +284,10 @@ void update_values_tesla_model_3_battery() {  //This function maps all the value
     }
   } else {  //NCA/NCM limits used
     if (cell_max_v >= MAX_CELL_VOLTAGE_NCA_NCM) {
-      set_event(EVENT_CELL_OVER_VOLTAGE, cell_max_v);
+      set_event(EVENT_CELL_OVER_VOLTAGE, (cell_max_v - MAX_CELL_VOLTAGE_NCA_NCM));
     }
     if (cell_min_v <= MIN_CELL_VOLTAGE_NCA_NCM) {
-      set_event(EVENT_CELL_UNDER_VOLTAGE, cell_min_v);
+      set_event(EVENT_CELL_UNDER_VOLTAGE, (MIN_CELL_VOLTAGE_NCA_NCM - cell_min_v));
     }
     if (cell_deviation_mV > MAX_CELL_DEVIATION_NCA_NCM) {
       set_event(EVENT_CELL_DEVIATION_HIGH, cell_deviation_mV);
