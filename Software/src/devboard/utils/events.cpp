@@ -128,7 +128,9 @@ void init_events(void) {
   events.entries[EVENT_WATER_INGRESS].level = EVENT_LEVEL_ERROR;
   events.entries[EVENT_12V_LOW].level = EVENT_LEVEL_WARNING;
   events.entries[EVENT_SOC_PLAUSIBILITY_ERROR].level = EVENT_LEVEL_ERROR;
-  events.entries[EVENT_KWH_PLAUSIBILITY_ERROR].level = EVENT_LEVEL_WARNING;
+  events.entries[EVENT_KWH_PLAUSIBILITY_ERROR].level = EVENT_LEVEL_INFO;
+  events.entries[EVENT_BATTERY_EMPTY].level = EVENT_LEVEL_INFO;
+  events.entries[EVENT_BATTERY_FULL].level = EVENT_LEVEL_INFO;
   events.entries[EVENT_BATTERY_CHG_STOP_REQ].level = EVENT_LEVEL_ERROR;
   events.entries[EVENT_BATTERY_DISCHG_STOP_REQ].level = EVENT_LEVEL_ERROR;
   events.entries[EVENT_BATTERY_CHG_DISCHG_STOP_REQ].level = EVENT_LEVEL_ERROR;
@@ -188,7 +190,11 @@ const char* get_event_message_string(EVENTS_ENUM_TYPE event) {
     case EVENT_SOC_PLAUSIBILITY_ERROR:
       return "ERROR: SOC% reported by battery not plausible. Restart battery!";
     case EVENT_KWH_PLAUSIBILITY_ERROR:
-      return "Warning: kWh remaining reported by battery not plausible. Battery needs cycling.";
+      return "Info: kWh remaining reported by battery not plausible. Battery needs cycling.";
+    case EVENT_BATTERY_EMPTY:
+      return "Info: Battery is completely discharged";
+    case EVENT_BATTERY_FULL:
+      return "Info: Battery is fully charged";
     case EVENT_BATTERY_CHG_STOP_REQ:
       return "ERROR: Battery raised caution indicator AND requested charge stop. Inspect battery status!";
     case EVENT_BATTERY_DISCHG_STOP_REQ:
