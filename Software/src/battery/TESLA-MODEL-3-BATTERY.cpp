@@ -226,20 +226,14 @@ void update_values_tesla_model_3_battery() {  //This function maps all the value
 
   /* Value mapping is completed. Start to check all safeties */
 
-  bms_status = ACTIVE;  //Startout in active mode before checking if we have any faults
-
   /* Check if the BMS is still sending CAN messages. If we go 60s without messages we raise an error*/
   if (!stillAliveCAN) {
-    bms_status = FAULT;
-    Serial.println("ERROR: No CAN communication detected for 60s. Shutting down battery control.");
-    set_event(EVENT_CAN_FAILURE, 0);
+    set_event(EVENT_CAN_RX_FAILURE, 0);
   } else {
     stillAliveCAN--;
   }
 
   if (hvil_status == 3) {  //INTERNAL_OPEN_FAULT - Someone disconnected a high voltage cable while battery was in use
-    bms_status = FAULT;
-    Serial.println("ERROR: High voltage cable removed while battery running. Opening contactors!");
     set_event(EVENT_INTERNAL_OPEN_FAULT, 0);
   }
 
@@ -259,8 +253,6 @@ void update_values_tesla_model_3_battery() {  //This function maps all the value
   if (battery_voltage >
       (ABSOLUTE_MAX_VOLTAGE - 100)) {  // When pack voltage is close to max, and SOC% is still low, raise FAULT
     if (SOC < 6500) {                  //When SOC is less than 65.00% when approaching max voltage
-      bms_status = FAULT;
-      Serial.println("ERROR: SOC% reported by battery not plausible. Restart battery!");
       set_event(EVENT_SOC_PLAUSIBILITY_ERROR, SOC / 100);
     }
   }
@@ -270,7 +262,6 @@ void update_values_tesla_model_3_battery() {  //This function maps all the value
     Serial.println("Warning: kWh remaining " + String(nominal_full_pack_energy) +
                    " reported by battery not plausible. Battery needs cycling.");
     set_event(EVENT_KWH_PLAUSIBILITY_ERROR, nominal_full_pack_energy);
-    LEDcolor = YELLOW;
   } else if (nominal_full_pack_energy <= 1) {
     Serial.println("Info: kWh remaining battery is not reporting kWh remaining.");
     set_event(EVENT_KWH_PLAUSIBILITY_ERROR, nominal_full_pack_energy);
@@ -278,34 +269,22 @@ void update_values_tesla_model_3_battery() {  //This function maps all the value
 
   if (LFP_Chemistry) {  //LFP limits used for voltage safeties
     if (cell_max_v >= MAX_CELL_VOLTAGE_LFP) {
-      bms_status = FAULT;
-      Serial.println("ERROR: CELL OVERVOLTAGE!!! Stopping battery charging and discharging. Inspect battery!");
       set_event(EVENT_CELL_OVER_VOLTAGE, 0);
     }
     if (cell_min_v <= MIN_CELL_VOLTAGE_LFP) {
-      bms_status = FAULT;
-      Serial.println("ERROR: CELL UNDERVOLTAGE!!! Stopping battery charging and discharging. Inspect battery!");
       set_event(EVENT_CELL_UNDER_VOLTAGE, 0);
     }
     if (cell_deviation_mV > MAX_CELL_DEVIATION_LFP) {
-      LEDcolor = YELLOW;
-      Serial.println("ERROR: HIGH CELL DEVIATION!!! Inspect battery!");
       set_event(EVENT_CELL_DEVIATION_HIGH, 0);
     }
   } else {  //NCA/NCM limits used
     if (cell_max_v >= MAX_CELL_VOLTAGE_NCA_NCM) {
-      bms_status = FAULT;
-      Serial.println("ERROR: CELL OVERVOLTAGE!!! Stopping battery charging and discharging. Inspect battery!");
       set_event(EVENT_CELL_OVER_VOLTAGE, 0);
     }
     if (cell_min_v <= MIN_CELL_VOLTAGE_NCA_NCM) {
-      bms_status = FAULT;
-      Serial.println("ERROR: CELL UNDERVOLTAGE!!! Stopping battery charging and discharging. Inspect battery!");
       set_event(EVENT_CELL_UNDER_VOLTAGE, 0);
     }
     if (cell_deviation_mV > MAX_CELL_DEVIATION_NCA_NCM) {
-      LEDcolor = YELLOW;
-      Serial.println("ERROR: HIGH CELL DEVIATION!!! Inspect battery!");
       set_event(EVENT_CELL_DEVIATION_HIGH, 0);
     }
   }

@@ -90,7 +90,6 @@ uint8_t HighCurrentControlStatus = 0;
 uint8_t HighVoltageControlStatus = 0;
 
 void update_values_chademo_battery() {  //This function maps all the values fetched via CAN to the correct parameters used for the inverter
-  bms_status = ACTIVE;  //Startout in active mode
 
   SOC = ChargingRate;
 
@@ -105,10 +104,8 @@ void update_values_chademo_battery() {  //This function maps all the values fetc
 
   /* Check if the Vehicle is still sending CAN messages. If we go 60s without messages we raise an error*/
   if (!CANstillAlive) {
-    bms_status = FAULT;
     errorCode = 7;
-    Serial.println("No CAN communication detected for 60s. Shutting down battery control.");
-    set_event(EVENT_CAN_FAILURE, 0);
+    set_event(EVENT_CAN_RX_FAILURE, 0);
   } else {
     CANstillAlive--;
   }

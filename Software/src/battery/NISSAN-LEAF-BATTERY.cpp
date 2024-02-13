@@ -246,8 +246,6 @@ void update_values_leaf_battery() { /* This function maps all the values fetched
     cellvoltages[i] = cell_voltages[i];
   }
 
-  bms_status = ACTIVE;  //Startout in active mode
-
   /*Extra safety functions below*/
   if (LB_GIDS < 10)  //800Wh left in battery
   {                  //Battery is running abnormally low, some discharge logic might have failed. Zero it all out.
@@ -259,11 +257,9 @@ void update_values_leaf_battery() { /* This function maps all the values fetched
   if (battery_voltage >
       (ABSOLUTE_MAX_VOLTAGE - 100)) {  // When pack voltage is close to max, and SOC% is still low, raise FAULT
     if (LB_SOC < 650) {
-      bms_status = FAULT;
-#ifdef DEBUG_VIA_USB
-      Serial.println("ERROR: SOC% reported by battery not plausible. Restart battery!");
-#endif
-      set_event(EVENT_SOC_PLAUSIBILITY_ERROR, LB_SOC / 10);
+      set_event(EVENT_SOC_PLAUSIBILITY_ERROR, LB_SOC / 10);  // Set event with the SOC as data
+    } else {
+      clear_event(EVENT_SOC_PLAUSIBILITY_ERROR);
     }
   }
 
@@ -308,30 +304,17 @@ void update_values_leaf_battery() { /* This function maps all the values fetched
         break;
       case (5):
         //Caution Lamp Request & Normal Stop Request
-        bms_status = FAULT;
         errorCode = 2;
-#ifdef DEBUG_VIA_USB
-        Serial.println("ERROR: Battery raised caution indicator AND requested discharge stop. Inspect battery status!");
-#endif
         set_event(EVENT_BATTERY_DISCHG_STOP_REQ, 0);
         break;
       case (6):
         //Caution Lamp Request & Charging Mode Stop Request
-        bms_status = FAULT;
         errorCode = 3;
-#ifdef DEBUG_VIA_USB
-        Serial.println("ERROR: Battery raised caution indicator AND requested charge stop. Inspect battery status!");
-#endif
         set_event(EVENT_BATTERY_CHG_STOP_REQ, 0);
         break;
       case (7):
         //Caution Lamp Request & Charging Mode Stop Request & Normal Stop Request
-        bms_status = FAULT;
         errorCode = 4;
-#ifdef DEBUG_VIA_USB
-        Serial.println(
-            "ERROR: Battery raised caution indicator AND requested charge/discharge stop. Inspect battery status!");
-#endif
         set_event(EVENT_BATTERY_CHG_DISCHG_STOP_REQ, 0);
         break;
       default:
@@ -341,11 +324,6 @@ void update_values_leaf_battery() { /* This function maps all the values fetched
 
   if (LB_StateOfHealth < 25) {    //Battery is extremely degraded, not fit for secondlifestorage. Zero it all out.
     if (LB_StateOfHealth != 0) {  //Extra check to see that we actually have a SOH Value available
-#ifdef DEBUG_VIA_USB
-      Serial.println(
-          "ERROR: State of health critically low. Battery internal resistance too high to continue. Recycle battery.");
-#endif
-      bms_status = FAULT;
       errorCode = 5;
       set_event(EVENT_LOW_SOH, LB_StateOfHealth);
       max_target_discharge_power = 0;
@@ -355,12 +333,6 @@ void update_values_leaf_battery() { /* This function maps all the values fetched
 
 #ifdef INTERLOCK_REQUIRED
   if (!LB_Interlock) {
-#ifdef DEBUG_VIA_USB
-    Serial.println(
-        "ERROR: Battery interlock loop broken. Check that high voltage connectors are seated. Battery will be "
-        "disabled!");
-#endif
-    bms_status = FAULT;
     set_event(EVENT_HVIL_FAILURE, 0);
     errorCode = 6;
     SOC = 0;
@@ -371,12 +343,8 @@ void update_values_leaf_battery() { /* This function maps all the values fetched
 
   /* Check if the BMS is still sending CAN messages. If we go 60s without messages we raise an error*/
   if (!CANstillAlive) {
-    bms_status = FAULT;
     errorCode = 7;
-#ifdef DEBUG_VIA_USB
-    Serial.println("ERROR: No CAN communication detected for 60s. Shutting down battery control.");
-#endif
-    set_event(EVENT_CAN_FAILURE, 0);
+    set_event(EVENT_CAN_RX_FAILURE, 0);
   } else {
     CANstillAlive--;
   }
@@ -384,11 +352,7 @@ void update_values_leaf_battery() { /* This function maps all the values fetched
       MAX_CAN_FAILURES)  //Also check if we have recieved too many malformed CAN messages. If so, signal via LED
   {
     errorCode = 10;
-    LEDcolor = YELLOW;
-#ifdef DEBUG_VIA_USB
-    Serial.println("ERROR: High amount of corrupted CAN messages detected. Check CAN wire shielding!");
-#endif
-    set_event(EVENT_CAN_WARNING, 0);
+    set_event(EVENT_CAN_RX_WARNING, 0);
   }
 
 /*Finally print out values to serial if configured to do so*/
@@ -620,27 +584,15 @@ void receive_can_leaf_battery(CAN_frame_t rx_frame) {
           cell_min_voltage = min_max_voltage[0];
 
           if (cell_deviation_mV > MAX_CELL_DEVIATION) {
-            LEDcolor = YELLOW;
-#ifdef DEBUG_VIA_USB
-            Serial.println("HIGH CELL DEVIATION!!! Inspect battery!");
-#endif
             set_event(EVENT_CELL_DEVIATION_HIGH, 0);
           }
 
           if (min_max_voltage[1] >= MAX_CELL_VOLTAGE) {
-            bms_status = FAULT;
             errorCode = 8;
-#ifdef DEBUG_VIA_USB
-            Serial.println("CELL OVERVOLTAGE!!! Stopping battery charging and discharging. Inspect battery!");
-#endif
             set_event(EVENT_CELL_OVER_VOLTAGE, 0);
           }
           if (min_max_voltage[0] <= MIN_CELL_VOLTAGE) {
-            bms_status = FAULT;
             errorCode = 9;
-#ifdef DEBUG_VIA_USB
-            Serial.println("CELL UNDERVOLTAGE!!! Stopping battery charging and discharging. Inspect battery!");
-#endif
             set_event(EVENT_CELL_UNDER_VOLTAGE, 0);
           }
           break;

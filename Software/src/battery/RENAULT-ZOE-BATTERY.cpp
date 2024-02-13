@@ -43,8 +43,6 @@ static const int interval100 = 100;    // interval (ms) at which send CAN Messag
 static const int interval1000 = 1000;  // interval (ms) at which send CAN Messages
 
 void update_values_zoe_battery() {  //This function maps all the values fetched via CAN to the correct parameters used for modbus
-  bms_status = ACTIVE;              //Startout in active mode
-
   StateOfHealth = (LB_SOH * 100);  //Increase range from 99% -> 99.00%
 
   //Calculate the SOC% value to send to Fronius
@@ -86,26 +84,18 @@ void update_values_zoe_battery() {  //This function maps all the values fetched 
 
   /* Check if the BMS is still sending CAN messages. If we go 60s without messages we raise an error*/
   if (!CANstillAlive) {
-    bms_status = FAULT;
-    Serial.println("No CAN communication detected for 60s. Shutting down battery control.");
-    set_event(EVENT_CAN_FAILURE, 0);
+    set_event(EVENT_CAN_RX_FAILURE, 0);
   } else {
     CANstillAlive--;
   }
 
   if (LB_Cell_Max_Voltage >= ABSOLUTE_CELL_MAX_VOLTAGE) {
-    bms_status = FAULT;
-    Serial.println("ERROR: CELL OVERVOLTAGE!!! Stopping battery charging and discharging. Inspect battery!");
     set_event(EVENT_CELL_OVER_VOLTAGE, 0);
   }
   if (LB_Cell_Min_Voltage <= ABSOLUTE_CELL_MIN_VOLTAGE) {
-    bms_status = FAULT;
-    Serial.println("ERROR: CELL UNDERVOLTAGE!!! Stopping battery charging and discharging. Inspect battery!");
     set_event(EVENT_CELL_UNDER_VOLTAGE, 0);
   }
   if (cell_deviation_mV > MAX_CELL_DEVIATION_MV) {
-    LEDcolor = YELLOW;
-    Serial.println("ERROR: HIGH CELL mV DEVIATION!!! Inspect battery!");
     set_event(EVENT_CELL_DEVIATION_HIGH, 0);
   }
 

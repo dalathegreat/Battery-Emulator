@@ -67,7 +67,8 @@ static void publish_cell_voltages(void) {
     }
     doc.clear();  // clear after sending autoconfig
   } else {
-    if (cellvoltages[0] == 0u) {
+    // If cell voltages haven't been populated...
+    if (nof_cellvoltages == 0u) {
       return;
     }
 

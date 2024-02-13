@@ -1,6 +1,7 @@
 //SERIAL-LINK-TRANSMITTER-INVERTER.cpp
 
 #include "SERIAL-LINK-TRANSMITTER-INVERTER.h"
+#include "../devboard/utils/events.h"
 
 /*
 *         SerialDataLink
@@ -107,10 +108,9 @@ void manageSerialLinkTransmitter() {
       Serial.println("SerialDataLink : max_target_discharge_power = 0");
       Serial.println("SerialDataLink : max_target_charge_power = 0");
 
-      bms_status = 4;  //FAULT
       max_target_discharge_power = 0;
       max_target_charge_power = 0;
-      LEDcolor = RED;
+      set_event(EVENT_SERIAL_TX_FAILURE, 0);
       // throw error
     }
     /*

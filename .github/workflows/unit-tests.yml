@@ -1,0 +1,30 @@
+name: Run Unit Tests
+
+
+on: [push, pull_request]
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+
+    - name: Configure and build with CMake
+      run: |
+        mkdir build
+        cd build
+        cmake ..
+        cmake --build .
+
+    - name: Run unit tests
+      run: |
+        set -e  # Exit immediately on non-zero exit code
+        cd build/test
+        dir -s
+        for test_executable in *; do
+          if [ -f "$test_executable" ] && [ -x "$test_executable" ]; then
+            ./"$test_executable"
+          fi
+        done
