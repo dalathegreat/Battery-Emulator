@@ -8,7 +8,7 @@
 #include "../config.h"
 #include "timer.h"
 
-#define EE_MAGIC_HEADER_VALUE 0xAA55
+#define EE_MAGIC_HEADER_VALUE 0xA5A5
 #define EE_NOF_EVENT_ENTRIES 30
 #define EE_EVENT_ENTRY_SIZE sizeof(EVENT_LOG_ENTRY_TYPE)
 #define EE_WRITE_PERIOD_MINUTES 10
@@ -52,6 +52,8 @@ typedef struct {
   EVENTS_LEVEL_TYPE level;
   uint16_t event_log_head_index;
   uint16_t event_log_tail_index;
+  uint8_t nof_logged_events;
+  uint16_t nof_eeprom_writes;
 } EVENT_TYPE;
 
 /* Local variables */
@@ -82,12 +84,27 @@ void run_event_handling(void) {
 void init_events(void) {
 
   EEPROM.begin(1024);
+  events.nof_logged_events = 0;
 
   uint16_t header = EEPROM.readUShort(EE_EVENT_LOG_START_ADDRESS);
   if (header != EE_MAGIC_HEADER_VALUE) {
+    // The header doesn't appear to be a compatible event log, clear it and initialize
     EEPROM.writeUShort(EE_EVENT_LOG_START_ADDRESS, EE_MAGIC_HEADER_VALUE);
     EEPROM.writeUShort(EE_EVENT_LOG_HEAD_INDEX_ADDRESS, 0);
     EEPROM.writeUShort(EE_EVENT_LOG_TAIL_INDEX_ADDRESS, 0);
+
+    // Prepare an empty event block to write
+    EVENT_LOG_ENTRY_TYPE entry = {.event = EVENT_NOF_EVENTS, .timestamp = 0, .data = 0};
+
+    // Put the event in (what I guess is) the RAM EEPROM mirror, or write buffer
+
+    for (int i = 0; i < EE_NOF_EVENT_ENTRIES; i++) {
+      // Start at the oldest event, work through the log all the way the the head
+      int address = EE_EVENT_ENTRY_START_ADDRESS + EE_EVENT_ENTRY_SIZE * i;
+      EEPROM.put(address, entry);
+    }
+
+    // Push changes to eeprom
     EEPROM.commit();
     Serial.println("EEPROM wasn't ready");
   } else {
@@ -102,7 +119,7 @@ void init_events(void) {
     events.entries[i].data = 0;
     events.entries[i].timestamp = 0;
     events.entries[i].occurences = 0;
-    events.entries[i].log = false;
+    events.entries[i].log = true;
   }
 
   events.entries[EVENT_CAN_RX_FAILURE].level = EVENT_LEVEL_ERROR;
@@ -131,14 +148,13 @@ void init_events(void) {
   events.entries[EVENT_SERIAL_RX_FAILURE].level = EVENT_LEVEL_ERROR;
   events.entries[EVENT_SERIAL_TX_FAILURE].level = EVENT_LEVEL_ERROR;
   events.entries[EVENT_SERIAL_TRANSMITTER_FAILURE].level = EVENT_LEVEL_ERROR;
+  events.entries[EVENT_EEPROM_WRITE].level = EVENT_LEVEL_INFO;
 
-  events.entries[EVENT_DUMMY_INFO].log = true;
-  events.entries[EVENT_DUMMY_DEBUG].log = true;
-  events.entries[EVENT_DUMMY_WARNING].log = true;
-  events.entries[EVENT_DUMMY_ERROR].log = true;
+  events.entries[EVENT_EEPROM_WRITE].log = false;  // Don't log the logger...
 
   events.second_timer.set_interval(1000);
-  events.ee_timer.set_interval(EE_WRITE_PERIOD_MINUTES * 60 * 1000);  // Write to EEPROM every X minutes
+  // Write to EEPROM every X minutes (if an event has been set)
+  events.ee_timer.set_interval(EE_WRITE_PERIOD_MINUTES * 60 * 1000);
 }
 
 void set_event(EVENTS_ENUM_TYPE event, uint8_t data) {
@@ -213,6 +229,8 @@ const char* get_event_message_string(EVENTS_ENUM_TYPE event) {
       return "Error in serial function: Some ERROR level fault in transmitter, received by receiver";
     case EVENT_OTA_UPDATE:
       return "OTA update started!";
+    case EVENT_EEPROM_WRITE:
+      return "Info: The EEPROM was written";
     default:
       return "";
   }
@@ -328,6 +346,9 @@ static void log_event(EVENTS_ENUM_TYPE event, uint8_t data) {
   EEPROM.writeUShort(EE_EVENT_LOG_TAIL_INDEX_ADDRESS, events.event_log_tail_index);
   //Serial.println("Wrote event " + String(event) + " to " + String(entry_address));
   //Serial.println("head: " + String(events.event_log_head_index) + ", tail: " + String(events.event_log_tail_index));
+
+  // We don't need the exact number, it's just for deciding to store or not
+  events.nof_logged_events += (events.nof_logged_events < 255) ? 1 : 0;
 }
 
 static void print_event_log(void) {
@@ -344,6 +365,10 @@ static void print_event_log(void) {
     int address = EE_EVENT_ENTRY_START_ADDRESS + EE_EVENT_ENTRY_SIZE * index;
 
     EEPROM.get(address, entry);
+    if (entry.event == EVENT_NOF_EVENTS) {
+      // The entry is a blank that has been left behind somehow
+      continue;
+    }
     Serial.println("Event: " + String(get_event_enum_string(entry.event)) + ", data: " + String(entry.data) +
                    ", time: " + String(entry.timestamp));
 
@@ -354,8 +379,17 @@ static void print_event_log(void) {
 }
 
 static void check_ee_write(void) {
-  // Only actually write to flash emulated EEPROM every EE_WRITE_PERIOD_MINUTES minutes
-  if (events.ee_timer.elapsed()) {
+  // Only actually write to flash emulated EEPROM every EE_WRITE_PERIOD_MINUTES minutes,
+  // and only if we've logged any events
+  if (events.ee_timer.elapsed() && (events.nof_logged_events > 0)) {
     EEPROM.commit();
+    events.nof_eeprom_writes += (events.nof_eeprom_writes < 65535) ? 1 : 0;
+    events.nof_logged_events = 0;
+
+    // We want to know how many writes we have, and to increment the occurrence counter
+    // we need to clear it first. It's just the way life is. Using events is a smooth
+    // way to visualize it in the web UI
+    clear_event(EVENT_EEPROM_WRITE);
+    set_event(EVENT_EEPROM_WRITE, events.nof_eeprom_writes);
   }
 }
