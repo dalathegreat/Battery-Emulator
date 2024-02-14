@@ -27,10 +27,16 @@ static void publish_values(void) {
   publish_cell_voltages();
 }
 
+static String generateCellVoltageAutoConfigTopic(int cell_number, const char* hostname) {
+  return String("homeassistant/sensor/battery-emulator_") + String(hostname) + "/cell_voltage" + String(cell_number) +
+         "/config";
+}
+
 static void publish_cell_voltages(void) {
   static bool mqtt_first_transmission = true;
   static JsonDocument doc;
   static const char* hostname = WiFi.getHostname();
+  static String state_topic = String("battery-emulator_") + String(hostname) + "/spec_data";
   if (nof_cellvoltages == 0u) {
     return;
   }
@@ -45,10 +51,11 @@ static void publish_cell_voltages(void) {
 
       doc["name"] = "Battery Cell Voltage " + String(cellNumber);
       doc["object_id"] = "battery_voltage_cell" + String(cellNumber);
-      doc["unique_id"] = "battery-emulator_battery_voltage_cell" + String(cellNumber);
+      doc["unique_id"] = "battery-emulator_" + String(hostname) + "_battery_voltage_cell" +
+                         String(cellNumber);  //"battery-emulator_" + String(hostname) + "_" +
       doc["device_class"] = "voltage";
       doc["state_class"] = "measurement";
-      doc["state_topic"] = "battery-emulator/spec_data";
+      doc["state_topic"] = state_topic;
       doc["unit_of_measurement"] = "V";
       doc["enabled_by_default"] = true;
       doc["expire_after"] = 240;
@@ -62,8 +69,7 @@ static void publish_cell_voltages(void) {
       doc["origin"]["url"] = "https://github.com/dalathegreat/Battery-Emulator";
 
       serializeJson(doc, mqtt_msg, sizeof(mqtt_msg));
-      String cell_topic = topic + String(i + 1) + "/config";
-      mqtt_publish(cell_topic.c_str(), mqtt_msg, true);
+      mqtt_publish(generateCellVoltageAutoConfigTopic(i + 1, hostname).c_str(), mqtt_msg, true);
     }
     doc.clear();  // clear after sending autoconfig
   } else {
@@ -79,7 +85,7 @@ static void publish_cell_voltages(void) {
 
     serializeJson(doc, mqtt_msg, sizeof(mqtt_msg));
 
-    if (!mqtt_publish("battery-emulator/spec_data", mqtt_msg, false)) {
+    if (!mqtt_publish(state_topic.c_str(), mqtt_msg, false)) {
       Serial.println("Cell voltage MQTT msg could not be sent");
     }
     doc.clear();
@@ -88,7 +94,6 @@ static void publish_cell_voltages(void) {
 
 struct SensorConfig {
   const char* object_id;
-  const char* topic;
   const char* name;
   const char* value_template;
   const char* unit;
@@ -96,31 +101,26 @@ struct SensorConfig {
 };
 
 SensorConfig sensorConfigs[] = {
-    {"SOC", "homeassistant/sensor/battery-emulator/SOC/config", "Battery Emulator SOC", "{{ value_json.SOC }}", "%",
-     "battery"},
-    {"state_of_health", "homeassistant/sensor/battery-emulator/state_of_health/config",
-     "Battery Emulator State Of Health", "{{ value_json.state_of_health }}", "%", "battery"},
-    {"temperature_min", "homeassistant/sensor/battery-emulator/temperature_min/config",
-     "Battery Emulator Temperature Min", "{{ value_json.temperature_min }}", "°C", "temperature"},
-    {"temperature_max", "homeassistant/sensor/battery-emulator/temperature_max/config",
-     "Battery Emulator Temperature Max", "{{ value_json.temperature_max }}", "°C", "temperature"},
-    {"stat_batt_power", "homeassistant/sensor/battery-emulator/stat_batt_power/config",
-     "Battery Emulator Stat Batt Power", "{{ value_json.stat_batt_power }}", "W", "power"},
-    {"battery_current", "homeassistant/sensor/battery-emulator/battery_current/config",
-     "Battery Emulator Battery Current", "{{ value_json.battery_current }}", "A", "current"},
-    {"cell_max_voltage", "homeassistant/sensor/battery-emulator/cell_max_voltage/config",
-     "Battery Emulator Cell Max Voltage", "{{ value_json.cell_max_voltage }}", "V", "voltage"},
-    {"cell_min_voltage", "homeassistant/sensor/battery-emulator/cell_min_voltage/config",
-     "Battery Emulator Cell Min Voltage", "{{ value_json.cell_min_voltage }}", "V", "voltage"},
-    {"battery_voltage", "homeassistant/sensor/battery-emulator/battery_voltage/config",
-     "Battery Emulator Battery Voltage", "{{ value_json.battery_voltage }}", "V", "voltage"},
+    {"SOC", "Battery Emulator SOC", "{{ value_json.SOC }}", "%", "battery"},
+    {"state_of_health", "Battery Emulator State Of Health", "{{ value_json.state_of_health }}", "%", "battery"},
+    {"temperature_min", "Battery Emulator Temperature Min", "{{ value_json.temperature_min }}", "°C", "temperature"},
+    {"temperature_max", "Battery Emulator Temperature Max", "{{ value_json.temperature_max }}", "°C", "temperature"},
+    {"stat_batt_power", "Battery Emulator Stat Batt Power", "{{ value_json.stat_batt_power }}", "W", "power"},
+    {"battery_current", "Battery Emulator Battery Current", "{{ value_json.battery_current }}", "A", "current"},
+    {"cell_max_voltage", "Battery Emulator Cell Max Voltage", "{{ value_json.cell_max_voltage }}", "V", "voltage"},
+    {"cell_min_voltage", "Battery Emulator Cell Min Voltage", "{{ value_json.cell_min_voltage }}", "V", "voltage"},
+    {"battery_voltage", "Battery Emulator Battery Voltage", "{{ value_json.battery_voltage }}", "V", "voltage"},
 };
+
+static String generateCommonInfoAutoConfigTopic(const char* object_id, const char* hostname) {
+  return String("homeassistant/sensor/battery-emulator_") + String(hostname) + "/" + String(object_id) + "/config";
+}
 
 static void publish_common_info(void) {
   static JsonDocument doc;
   static bool mqtt_first_transmission = true;
-  static char* state_topic = "battery-emulator/info";
   static const char* hostname = WiFi.getHostname();
+  static String state_topic = String("battery-emulator_") + String(hostname) + "/info";
   if (mqtt_first_transmission == true) {
     mqtt_first_transmission = false;
     for (int i = 0; i < sizeof(sensorConfigs) / sizeof(sensorConfigs[0]); i++) {
@@ -143,7 +143,7 @@ static void publish_common_info(void) {
       doc["origin"]["sw"] = String(version_number) + "-mqtt";
       doc["origin"]["url"] = "https://github.com/dalathegreat/Battery-Emulator";
       serializeJson(doc, mqtt_msg);
-      mqtt_publish(config.topic, mqtt_msg, true);
+      mqtt_publish(generateCommonInfoAutoConfigTopic(config.object_id, hostname).c_str(), mqtt_msg, true);
     }
     doc.clear();
   } else {
@@ -158,7 +158,10 @@ static void publish_common_info(void) {
     doc["battery_voltage"] = ((float)battery_voltage) / 10.0;
 
     serializeJson(doc, mqtt_msg);
-    bool result = mqtt_publish(state_topic, mqtt_msg, false);
+    if (!mqtt_publish(state_topic.c_str(), mqtt_msg, false)) {
+      Serial.println("Common info MQTT msg could not be sent");
+    }
+    doc.clear();
   }
 }
 
