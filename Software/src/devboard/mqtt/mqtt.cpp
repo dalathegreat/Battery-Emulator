@@ -46,9 +46,7 @@ static void publish_cell_voltages(void) {
     String topic = "homeassistant/sensor/battery-emulator/cell_voltage";
 
     for (int i = 0; i < nof_cellvoltages; i++) {
-      char cellNumber[4];                  // Buffer to hold the formatted cell number
-      sprintf(cellNumber, "%03d", i + 1);  // Format the cell number with leading zeros
-
+      int cellNumber = i + 1;
       doc["name"] = "Battery Cell Voltage " + String(cellNumber);
       doc["object_id"] = "battery_voltage_cell" + String(cellNumber);
       doc["unique_id"] = "battery-emulator_" + String(hostname) + "_battery_voltage_cell" +
@@ -69,7 +67,7 @@ static void publish_cell_voltages(void) {
       doc["origin"]["url"] = "https://github.com/dalathegreat/Battery-Emulator";
 
       serializeJson(doc, mqtt_msg, sizeof(mqtt_msg));
-      mqtt_publish(generateCellVoltageAutoConfigTopic(i + 1, hostname).c_str(), mqtt_msg, true);
+      mqtt_publish(generateCellVoltageAutoConfigTopic(cellNumber, hostname).c_str(), mqtt_msg, true);
     }
     doc.clear();  // clear after sending autoconfig
   } else {
