@@ -345,6 +345,9 @@ void inform_user_on_inverter() {
 #ifdef SMA_CAN
   Serial.println("SMA CAN protocol selected");
 #endif
+#ifdef SMA_TRIPOWER_CAN
+  Serial.println("SMA Tripower CAN protocol selected");
+#endif
 #ifdef SOFAR_CAN
   Serial.println("SOFAR CAN protocol selected");
 #endif
@@ -440,6 +443,9 @@ void receive_can() {  // This section checks if we have a complete CAN message i
 #ifdef SMA_CAN
       receive_can_sma(rx_frame);
 #endif
+#ifdef SMA_TRIPOWER_CAN
+      receive_can_sma_tripower(rx_frame);
+#endif
       // Charger
 #ifdef CHEVYVOLT_CHARGER
       receive_can_chevyvolt_charger(rx_frame);
@@ -470,6 +476,9 @@ void send_can() {
 #endif
 #ifdef SMA_CAN
   send_can_sma();
+#endif
+#ifdef SMA_TRIPOWER_CAN
+  send_can_sma_tripower();
 #endif
 #ifdef SOFAR_CAN
   send_can_sofar();
@@ -729,6 +738,9 @@ void update_values() {
 #endif
 #ifdef SMA_CAN
   update_values_can_sma();
+#endif
+#ifdef SMA_TRIPOWER_CAN
+  update_values_can_sma_tripower();
 #endif
 #ifdef SOFAR_CAN
   update_values_can_sofar();
