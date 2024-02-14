@@ -74,7 +74,7 @@ static void publish_cell_voltages(void) {
 
     JsonArray cell_voltages = doc["cell_voltages"].to<JsonArray>();
     for (size_t i = 0; i < nof_cellvoltages; ++i) {
-      cell_voltages.add(cellvoltages[i] / 1000.0);
+      cell_voltages.add(((float)cellvoltages[i]) / 1000.0);
     }
 
     serializeJson(doc, mqtt_msg, sizeof(mqtt_msg));
@@ -153,15 +153,13 @@ static void publish_common_info(void) {
     doc["temperature_max"] = ((float)((int16_t)temperature_max)) / 10.0;
     doc["stat_batt_power"] = ((float)((int16_t)stat_batt_power));
     doc["battery_current"] = ((float)((int16_t)battery_current)) / 10.0;
-    doc["cell_max_voltage"] = cell_max_voltage / 1000.0;
-    doc["cell_min_voltage"] = cell_min_voltage / 1000.0;
-    doc["battery_voltage"] = battery_voltage / 10.0;
+    doc["cell_max_voltage"] = ((float)cell_max_voltage) / 1000.0;
+    doc["cell_min_voltage"] = ((float)cell_min_voltage) / 1000.0;
+    doc["battery_voltage"] = ((float)battery_voltage) / 10.0;
 
     serializeJson(doc, mqtt_msg);
     bool result = mqtt_publish(state_topic, mqtt_msg, false);
   }
-
-  //Serial.println(mqtt_msg);  // Uncomment to print the payload on serial
 }
 
 /* This is called whenever a subscribed topic changes (hopefully) */
