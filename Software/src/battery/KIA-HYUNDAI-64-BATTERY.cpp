@@ -200,6 +200,7 @@ void update_values_kiaHyundai_64_battery() {  //This function maps all the value
     set_event(EVENT_CAN_RX_FAILURE, 0);
   } else {
     CANstillAlive--;
+    clear_event(EVENT_CAN_RX_FAILURE);
   }
 
   if (waterleakageSensor == 0) {
@@ -221,6 +222,8 @@ void update_values_kiaHyundai_64_battery() {  //This function maps all the value
   }
   if (cell_deviation_mV > MAX_CELL_DEVIATION) {
     set_event(EVENT_CELL_DEVIATION_HIGH, 0);
+  } else {
+    clear_event(EVENT_CELL_DEVIATION_HIGH);
   }
 
   if (bms_status == FAULT) {  //Incase we enter a critical fault state, zero out the allowed limits

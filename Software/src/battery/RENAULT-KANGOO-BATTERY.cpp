@@ -126,6 +126,7 @@ void update_values_kangoo_battery() {  //This function maps all the values fetch
     set_event(EVENT_CAN_RX_FAILURE, 0);
   } else {
     CANstillAlive--;
+    clear_event(EVENT_CAN_RX_FAILURE);
   }
 
   if (LB_Cell_Max_Voltage >= ABSOLUTE_CELL_MAX_VOLTAGE) {
@@ -136,6 +137,8 @@ void update_values_kangoo_battery() {  //This function maps all the values fetch
   }
   if (cell_deviation_mV > MAX_CELL_DEVIATION_MV) {
     set_event(EVENT_CELL_DEVIATION_HIGH, 0);
+  } else {
+    clear_event(EVENT_CELL_DEVIATION_HIGH);
   }
 
 #ifdef DEBUG_VIA_USB
