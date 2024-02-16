@@ -142,6 +142,7 @@ void init_events(void) {
   events.entries[EVENT_CELL_DEVIATION_HIGH].level = EVENT_LEVEL_WARNING;
   events.entries[EVENT_UNKNOWN_EVENT_SET].level = EVENT_LEVEL_ERROR;
   events.entries[EVENT_OTA_UPDATE].level = EVENT_LEVEL_UPDATE;
+  events.entries[EVENT_OTA_UPDATE_TIMEOUT].level = EVENT_LEVEL_INFO;
   events.entries[EVENT_DUMMY_INFO].level = EVENT_LEVEL_INFO;
   events.entries[EVENT_DUMMY_DEBUG].level = EVENT_LEVEL_DEBUG;
   events.entries[EVENT_DUMMY_WARNING].level = EVENT_LEVEL_WARNING;
@@ -235,6 +236,8 @@ const char* get_event_message_string(EVENTS_ENUM_TYPE event) {
       return "Error in serial function: Some ERROR level fault in transmitter, received by receiver";
     case EVENT_OTA_UPDATE:
       return "OTA update started!";
+    case EVENT_OTA_UPDATE_TIMEOUT:
+      return "OTA update timed out!";
     case EVENT_EEPROM_WRITE:
       return "Info: The EEPROM was written";
     default:
