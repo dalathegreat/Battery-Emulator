@@ -118,19 +118,6 @@ void update_values_chademo_battery() {  //This function maps all the values fetc
   }
   Serial.print("BMS Status (3=OK): ");
   Serial.println(bms_status);
-  switch (bms_char_dis_status) {
-    case 0:
-      Serial.println("Battery Idle");
-      break;
-    case 1:
-      Serial.println("Battery Discharging");
-      break;
-    case 2:
-      Serial.println("Battery Charging");
-      break;
-    default:
-      break;
-  }
   Serial.print("Max discharge power: ");
   Serial.println(max_target_discharge_power);
   Serial.print("Max charge power: ");

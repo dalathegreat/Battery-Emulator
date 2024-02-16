@@ -37,14 +37,13 @@ void __getData() {
   max_target_discharge_power = (uint16_t)dataLinkReceive.getReceivedData(6);
   max_target_charge_power = (uint16_t)dataLinkReceive.getReceivedData(7);
   uint16_t _bms_status = (uint16_t)dataLinkReceive.getReceivedData(8);
-  bms_char_dis_status = (uint16_t)dataLinkReceive.getReceivedData(9);
-  stat_batt_power = (uint16_t)dataLinkReceive.getReceivedData(10);
-  temperature_min = (uint16_t)dataLinkReceive.getReceivedData(11);
-  temperature_max = (uint16_t)dataLinkReceive.getReceivedData(12);
-  cell_max_voltage = (uint16_t)dataLinkReceive.getReceivedData(13);
-  cell_min_voltage = (uint16_t)dataLinkReceive.getReceivedData(14);
-  LFP_Chemistry = (bool)dataLinkReceive.getReceivedData(15);
-  batteryAllowsContactorClosing = (uint16_t)dataLinkReceive.getReceivedData(16);
+  stat_batt_power = (uint16_t)dataLinkReceive.getReceivedData(9);
+  temperature_min = (uint16_t)dataLinkReceive.getReceivedData(10);
+  temperature_max = (uint16_t)dataLinkReceive.getReceivedData(11);
+  cell_max_voltage = (uint16_t)dataLinkReceive.getReceivedData(12);
+  cell_min_voltage = (uint16_t)dataLinkReceive.getReceivedData(13);
+  LFP_Chemistry = (bool)dataLinkReceive.getReceivedData(14);
+  batteryAllowsContactorClosing = (uint16_t)dataLinkReceive.getReceivedData(15);
 
   batteryFault = false;
   if (_bms_status == FAULT) {
@@ -194,8 +193,6 @@ void update_values_serial_link() {
   Serial.print(max_target_charge_power);
   Serial.print(" BMS status: ");
   Serial.print(bms_status);
-  Serial.print(" BMS status dis/cha: ");
-  Serial.print(bms_char_dis_status);
   Serial.print(" Power: ");
   Serial.print(stat_batt_power);
   Serial.print(" Temp min: ");

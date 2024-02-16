@@ -515,12 +515,12 @@ String processor(const String& var) {
     } else {
       content += "<h4>BMS Status: FAULT </h4>";
     }
-    if (bms_char_dis_status == 2) {
-      content += "<h4>Battery charging!</h4>";
-    } else if (bms_char_dis_status == 1) {
-      content += "<h4>Battery discharging!</h4>";
-    } else {  //0 idle
+    if (battery_current == 0) {
       content += "<h4>Battery idle</h4>";
+    } else if (battery_current > 32767) {
+      content += "<h4>Battery discharging!</h4>";
+    } else {  // between 1-32767
+      content += "<h4>Battery charging!</h4>";
     }
     content += "<h4>Automatic contactor closing allowed:</h4>";
     content += "<h4>Battery: ";
