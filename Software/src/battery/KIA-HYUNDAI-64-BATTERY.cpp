@@ -1,7 +1,9 @@
-#include "KIA-HYUNDAI-64-BATTERY.h"
+#include "BATTERIES.h"
+#ifdef KIA_HYUNDAI_64_BATTERY
 #include "../devboard/utils/events.h"
 #include "../lib/miwagner-ESP32-Arduino-CAN/CAN_config.h"
 #include "../lib/miwagner-ESP32-Arduino-CAN/ESP32CAN.h"
+#include "KIA-HYUNDAI-64-BATTERY.h"
 
 /* Do not change code below unless you are sure what you are doing */
 static unsigned long previousMillis100 = 0;   // will store last time a 100ms CAN Message was send
@@ -146,7 +148,7 @@ CAN_frame_t KIA64_7E4_ack = {
     .MsgID = 0x7E4,
     .data = {0x30, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00}};  //Ack frame, correct PID is returned
 
-void update_values_kiaHyundai_64_battery() {  //This function maps all the values fetched via CAN to the correct parameters used for modbus
+void update_values_battery() {  //This function maps all the values fetched via CAN to the correct parameters used for modbus
 
   //Calculate the SOC% value to send to inverter
   soc_calculated = SOC_Display;
@@ -293,7 +295,7 @@ void update_values_kiaHyundai_64_battery() {  //This function maps all the value
 #endif
 }
 
-void receive_can_kiaHyundai_64_battery(CAN_frame_t rx_frame) {
+void receive_can_battery(CAN_frame_t rx_frame) {
   switch (rx_frame.MsgID) {
     case 0x4DE:
       break;
@@ -523,7 +525,7 @@ void receive_can_kiaHyundai_64_battery(CAN_frame_t rx_frame) {
   }
 }
 
-void send_can_kiaHyundai_64_battery() {
+void send_can_battery() {
   unsigned long currentMillis = millis();
   //Send 100ms message
   if (currentMillis - previousMillis100 >= interval100) {
@@ -596,3 +598,9 @@ uint16_t convertToUnsignedInt16(int16_t signed_value) {
     return (uint16_t)signed_value;
   }
 }
+
+void announce_battery(void) {
+  Serial.println("Kia Niro / Hyundai Kona 64kWh battery selected");
+}
+
+#endif

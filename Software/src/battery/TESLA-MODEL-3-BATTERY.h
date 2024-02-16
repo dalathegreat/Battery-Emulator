@@ -5,6 +5,8 @@
 #include "../devboard/config.h"  // Needed for all defines
 #include "../lib/miwagner-ESP32-Arduino-CAN/ESP32CAN.h"
 
+#define BATTERY_SELECTED
+
 #define ABSOLUTE_MAX_VOLTAGE \
   4030  // 403.0V,if battery voltage goes over this, charging is not possible (goes into forced discharge)
 #define ABSOLUTE_MIN_VOLTAGE 2450    // 245.0V if battery voltage goes under this, discharging further is disabled
@@ -33,9 +35,6 @@ extern bool batteryAllowsContactorClosing;   //Bool, 1=true, 0=false
 extern bool inverterAllowsContactorClosing;  //Bool, 1=true, 0=false
 extern bool LFP_Chemistry;
 
-void update_values_tesla_model_3_battery();
-void receive_can_tesla_model_3_battery(CAN_frame_t rx_frame);
-void send_can_tesla_model_3_battery();
 void printFaultCodesIfActive();
 void printDebugIfActive(uint8_t symbol, const char* message);
 void print_int_with_units(char* header, int value, char* units);

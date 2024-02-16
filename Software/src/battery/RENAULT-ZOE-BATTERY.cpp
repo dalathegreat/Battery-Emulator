@@ -1,7 +1,9 @@
-#include "RENAULT-ZOE-BATTERY.h"
+#include "BATTERIES.h"
+#ifdef RENAULT_ZOE_BATTERY
 #include "../devboard/utils/events.h"
 #include "../lib/miwagner-ESP32-Arduino-CAN/CAN_config.h"
 #include "../lib/miwagner-ESP32-Arduino-CAN/ESP32CAN.h"
+#include "RENAULT-ZOE-BATTERY.h"
 
 /* Do not change code below unless you are sure what you are doing */
 #define LB_MAX_SOC 1000  //BMS never goes over this value. We use this info to rescale SOC% sent to Fronius
@@ -42,7 +44,7 @@ static const int interval10 = 10;      // interval (ms) at which send CAN Messag
 static const int interval100 = 100;    // interval (ms) at which send CAN Messages
 static const int interval1000 = 1000;  // interval (ms) at which send CAN Messages
 
-void update_values_zoe_battery() {  //This function maps all the values fetched via CAN to the correct parameters used for modbus
+void update_values_battery() {  //This function maps all the values fetched via CAN to the correct parameters used for modbus
   StateOfHealth = (LB_SOH * 100);  //Increase range from 99% -> 99.00%
 
   //Calculate the SOC% value to send to Fronius
@@ -136,7 +138,7 @@ void update_values_zoe_battery() {  //This function maps all the values fetched 
 #endif
 }
 
-void receive_can_zoe_battery(CAN_frame_t rx_frame) {
+void receive_can_battery(CAN_frame_t rx_frame) {
 
   switch (rx_frame.MsgID) {
     case 0x42E:  //HV SOC & Battery Temp & Charging Power
@@ -150,7 +152,7 @@ void receive_can_zoe_battery(CAN_frame_t rx_frame) {
   }
 }
 
-void send_can_zoe_battery() {
+void send_can_battery() {
   unsigned long currentMillis = millis();
   // Send 100ms CAN Message
   if (currentMillis - previousMillis100 >= interval100) {
@@ -163,3 +165,9 @@ void send_can_zoe_battery() {
     //ESP32Can.CANWriteFrame(&ZOE_423);
   }
 }
+
+void announce_battery(void) {
+  Serial.println("Renault Zoe battery selected");
+}
+
+#endif

@@ -1,7 +1,9 @@
-#include "CHADEMO-BATTERY.h"
+#include "BATTERIES.h"
+#ifdef CHADEMO_BATTERY
 #include "../devboard/utils/events.h"
 #include "../lib/miwagner-ESP32-Arduino-CAN/CAN_config.h"
 #include "../lib/miwagner-ESP32-Arduino-CAN/ESP32CAN.h"
+#include "CHADEMO-BATTERY.h"
 
 /* Do not change code below unless you are sure what you are doing */
 static unsigned long previousMillis100 = 0;  // will store last time a 100ms CAN Message was send
@@ -89,7 +91,7 @@ uint8_t DynamicControlStatus = 0;
 uint8_t HighCurrentControlStatus = 0;
 uint8_t HighVoltageControlStatus = 0;
 
-void update_values_chademo_battery() {  //This function maps all the values fetched via CAN to the correct parameters used for the inverter
+void update_values_battery() {  //This function maps all the values fetched via CAN to the correct parameters used for the inverter
 
   SOC = ChargingRate;
 
@@ -146,7 +148,7 @@ void update_values_chademo_battery() {  //This function maps all the values fetc
 #endif
 }
 
-void receive_can_chademo_battery(CAN_frame_t rx_frame) {
+void receive_can_battery(CAN_frame_t rx_frame) {
   CANstillAlive == 12;  //We are getting CAN messages from the vehicle, inform the watchdog
 
   switch (rx_frame.MsgID) {
@@ -202,7 +204,7 @@ void receive_can_chademo_battery(CAN_frame_t rx_frame) {
       break;
   }
 }
-void send_can_chademo_battery() {
+void send_can_battery() {
   unsigned long currentMillis = millis();
   // Send 100ms CAN Message
   if (currentMillis - previousMillis100 >= interval100) {
@@ -218,3 +220,9 @@ void send_can_chademo_battery() {
     }
   }
 }
+
+void announce_battery(void) {
+  Serial.println("Chademo battery selected");
+}
+
+#endif

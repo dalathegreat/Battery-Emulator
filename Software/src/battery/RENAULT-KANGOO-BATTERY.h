@@ -5,6 +5,8 @@
 #include "../devboard/config.h"  // Needed for defines
 #include "../lib/miwagner-ESP32-Arduino-CAN/ESP32CAN.h"
 
+#define BATTERY_SELECTED
+
 #define ABSOLUTE_MAX_VOLTAGE \
   4040  // 404.4V,if battery voltage goes over this, charging is not possible (goes into forced discharge)
 #define ABSOLUTE_MIN_VOLTAGE 3100  // 310.0V if battery voltage goes under this, discharging further is disabled
@@ -33,9 +35,6 @@ extern uint16_t CANerror;
 extern bool batteryAllowsContactorClosing;   //Bool, 1=true, 0=false
 extern bool inverterAllowsContactorClosing;  //Bool, 1=true, 0=false
 
-void update_values_kangoo_battery();
-void receive_can_kangoo_battery(CAN_frame_t rx_frame);
-void send_can_kangoo_battery();
 uint16_t convert2uint16(int16_t signed_value);
 
 #endif

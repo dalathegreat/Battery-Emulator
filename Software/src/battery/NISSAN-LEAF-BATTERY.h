@@ -5,6 +5,8 @@
 #include "../devboard/config.h"  // Needed for all defines
 #include "../lib/miwagner-ESP32-Arduino-CAN/ESP32CAN.h"
 
+#define BATTERY_SELECTED
+
 #define ABSOLUTE_MAX_VOLTAGE \
   4040  // 404.4V,if battery voltage goes over this, charging is not possible (goes into forced discharge)
 #define ABSOLUTE_MIN_VOLTAGE 3100  // 310.0V if battery voltage goes under this, discharging further is disabled
@@ -28,9 +30,6 @@ extern uint16_t cellvoltages[120];  //mV    0-4350 per cell
 extern uint8_t nof_cellvoltages;    // Total number of cell voltages, set by each battery.
 extern bool batteryAllowsContactorClosing;  //Bool, 1=true, 0=false
 
-void update_values_leaf_battery();
-void receive_can_leaf_battery(CAN_frame_t rx_frame);
-void send_can_leaf_battery();
 uint16_t convert2unsignedint16(int16_t signed_value);
 uint16_t Temp_fromRAW_to_F(uint16_t temperature);
 bool is_message_corrupt(CAN_frame_t rx_frame);

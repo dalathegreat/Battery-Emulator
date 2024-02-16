@@ -1,7 +1,9 @@
-#include "SANTA-FE-PHEV-BATTERY.h"
+#include "BATTERIES.h"
+#ifdef SANTA_FE_PHEV_BATTERY
 #include "../devboard/utils/events.h"
 #include "../lib/miwagner-ESP32-Arduino-CAN/CAN_config.h"
 #include "../lib/miwagner-ESP32-Arduino-CAN/ESP32CAN.h"
+#include "SANTA-FE-PHEV-BATTERY.h"
 
 /* Credits go to maciek16c for these findings!
 https://github.com/maciek16c/hyundai-santa-fe-phev-battery
@@ -57,7 +59,7 @@ CAN_frame_t SANTAFE_523 = {.FIR = {.B =
                            .MsgID = 0x523,
                            .data = {0x60, 0x00, 0x60, 0, 0, 0, 0, 0}};
 
-void update_values_santafe_phev_battery() {  //This function maps all the values fetched via CAN to the correct parameters used for modbus
+void update_values_battery() {  //This function maps all the values fetched via CAN to the correct parameters used for modbus
 
   SOC;
 
@@ -92,7 +94,7 @@ void update_values_santafe_phev_battery() {  //This function maps all the values
 #endif
 }
 
-void receive_can_santafe_phev_battery(CAN_frame_t rx_frame) {
+void receive_can_battery(CAN_frame_t rx_frame) {
   CANstillAlive = 12;
   switch (rx_frame.MsgID) {
     case 0x200:
@@ -127,7 +129,7 @@ void receive_can_santafe_phev_battery(CAN_frame_t rx_frame) {
       break;
   }
 }
-void send_can_santafe_phev_battery() {
+void send_can_battery() {
   unsigned long currentMillis = millis();
   //Send 10ms message
   if (currentMillis - previousMillis10 >= interval10) {
@@ -174,3 +176,9 @@ uint8_t CalculateCRC8(CAN_frame_t rx_frame) {
   }
   return (uint8_t)crc;
 }
+
+void announce_battery(void) {
+  Serial.println("Hyundai Santa Fe PHEV battery selected");
+}
+
+#endif

@@ -1,7 +1,9 @@
-#include "RENAULT-KANGOO-BATTERY.h"
+#include "BATTERIES.h"
+#ifdef RENAULT_KANGOO_BATTERY
 #include "../devboard/utils/events.h"
 #include "../lib/miwagner-ESP32-Arduino-CAN/CAN_config.h"
 #include "../lib/miwagner-ESP32-Arduino-CAN/ESP32CAN.h"
+#include "RENAULT-KANGOO-BATTERY.h"
 
 /* Do not change code below unless you are sure what you are doing */
 #define LB_MAX_SOC 1000  //BMS never goes over this value. We use this info to rescale SOC% sent to Fronius
@@ -57,7 +59,7 @@ static const int interval10 = 10;      // interval (ms) at which send CAN Messag
 static const int interval100 = 100;    // interval (ms) at which send CAN Messages
 static const int interval1000 = 1000;  // interval (ms) at which send CAN Messages
 
-void update_values_kangoo_battery() {  //This function maps all the values fetched via CAN to the correct parameters used for modbus
+void update_values_battery() {  //This function maps all the values fetched via CAN to the correct parameters used for modbus
   StateOfHealth = (LB_SOH * 100);  //Increase range from 99% -> 99.00%
 
   //Calculate the SOC% value to send to Fronius
@@ -175,7 +177,7 @@ void update_values_kangoo_battery() {  //This function maps all the values fetch
 #endif
 }
 
-void receive_can_kangoo_battery(CAN_frame_t rx_frame)  //GKOE reworked
+void receive_can_battery(CAN_frame_t rx_frame)  //GKOE reworked
 {
 
   switch (rx_frame.MsgID) {
@@ -237,7 +239,7 @@ void receive_can_kangoo_battery(CAN_frame_t rx_frame)  //GKOE reworked
   }
 }
 
-void send_can_kangoo_battery() {
+void send_can_battery() {
   unsigned long currentMillis = millis();
   // Send 100ms CAN Message (for 2.4s, then pause 10s)
   if ((currentMillis - previousMillis100) >= (interval100 + GVL_pause)) {
@@ -267,3 +269,9 @@ uint16_t convert2uint16(int16_t signed_value) {
     return (uint16_t)signed_value;
   }
 }
+
+void announce_battery(void) {
+  Serial.println("Renault Kangoo battery selected");
+}
+
+#endif
