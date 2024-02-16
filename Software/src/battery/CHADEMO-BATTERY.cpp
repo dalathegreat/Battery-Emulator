@@ -108,6 +108,7 @@ void update_values_chademo_battery() {  //This function maps all the values fetc
     set_event(EVENT_CAN_RX_FAILURE, 0);
   } else {
     CANstillAlive--;
+    clear_event(EVENT_CAN_RX_FAILURE);
   }
 
 #ifdef DEBUG_VIA_USB
