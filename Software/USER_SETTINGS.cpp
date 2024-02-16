@@ -27,16 +27,16 @@ volatile float CHARGER_END_A = 1.0;       // Current at which charging is consid
 #ifdef WEBSERVER
 volatile uint8_t AccessPointEnabled =
     true;  //Set to either true or false incase you want the board to enable a direct wifi access point
-const char* ssid = "comhem_F0A1A5";       // Maximum of 63 characters;
-const char* password = "3027CCA803";      // Minimum of 8 characters;
-const char* ssidAP = "Battery Emulator";  // Maximum of 63 characters;
+const char* ssid = "REPLACE_WITH_YOUR_SSID";          // Maximum of 63 characters;
+const char* password = "REPLACE_WITH_YOUR_PASSWORD";  // Minimum of 8 characters;
+const char* ssidAP = "Battery Emulator";              // Maximum of 63 characters;
 const char* passwordAP = "123456789";  // Minimum of 8 characters; set to NULL if you want the access point to be open
 const uint8_t wifi_channel = 0;        // set to 0 for automatic channel selection
 
 // MQTT
 #ifdef MQTT
-const char* mqtt_user = "test";
-const char* mqtt_password = "test";
+const char* mqtt_user = "REDACTED";
+const char* mqtt_password = "REDACTED";
 #endif  // USE_MQTT
 
 #endif
