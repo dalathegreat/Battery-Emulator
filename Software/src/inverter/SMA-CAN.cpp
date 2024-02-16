@@ -2,6 +2,8 @@
 #include "../lib/miwagner-ESP32-Arduino-CAN/CAN_config.h"
 #include "../lib/miwagner-ESP32-Arduino-CAN/ESP32CAN.h"
 
+/* TODO: Map error bits in 0x158 */
+
 /* Do not change code below unless you are sure what you are doing */
 static unsigned long previousMillis100ms = 0;  // will store last time a 100ms CAN Message was send
 static const int interval100ms = 100;          // interval (ms) at which send CAN Messages
@@ -94,10 +96,12 @@ CAN_frame_t SMA_158 = {.FIR = {.B =
                        .MsgID = 0x158,
                        .data = {0xAA, 0xAA, 0xAA, 0xAA, 0xAA, 0x6A, 0xAA, 0xAA}};
 
-static int discharge_current = 0;
-static int charge_current = 0;
-static int temperature_average = 0;
-static int ampere_hours_remaining = 0;
+static int16_t discharge_current = 0;
+static int16_t charge_current = 0;
+static int16_t temperature_average = 0;
+static int16_t temp_min = 0;
+static int16_t temp_max = 0;
+static uint16_t ampere_hours_remaining = 0;
 
 void update_values_can_sma() {  //This function maps all the values fetched from battery CAN to the correct CAN messages
   //Calculate values
@@ -111,7 +115,9 @@ void update_values_can_sma() {  //This function maps all the values fetched from
   //The above calculation results in (30 000*10)/3700=81A
   discharge_current = (discharge_current * 10);  //Value needs a decimal before getting sent to inverter (81.0A)
 
-  temperature_average = ((temperature_max + temperature_min) / 2);
+  temp_min = temperature_min;  //Convert from unsigned to signed
+  temp_max = temperature_max;
+  temperature_average = ((temp_max + temp_min) / 2);
 
   ampere_hours_remaining =
       ((remaining_capacity_Wh / battery_voltage) * 100);  //(WH[10000] * V+1[3600])*100 = 270 (27.0Ah)
@@ -149,10 +155,63 @@ void update_values_can_sma() {  //This function maps all the values fetched from
   //Temperature average
   SMA_4D8.data.u8[4] = (temperature_average >> 8);
   SMA_4D8.data.u8[5] = (temperature_average & 0x00FF);
+  //Battery ready
+  if (bms_status == ACTIVE) {
+    SMA_4D8.data.u8[6] = READY_STATE;
+  } else {
+    SMA_4D8.data.u8[6] = STOP_STATE;
+  }
 
   //Error bits
+  /*
   //SMA_158.data.u8[0] = //bit12 Fault high temperature, bit34Battery cellundervoltage, bit56 Battery cell overvoltage, bit78 batterysystemdefect
   //TODO: add all error bits. Sending message with all 0xAA until that.
+
+  0x158 can be used to send error messages or warnings.
+
+  Each message is defined of two bits:  
+  01=message triggered  
+  10=no message triggered  
+  0xA9=10101001, triggers first message  
+  0xA6=10100110, triggers second message  
+  0x9A=10011010, triggers third message  
+  0x6A=01101010, triggers forth message  
+  bX defines the byte
+
+  b0 A9   Battery system defect
+  b0 A6   Battery cell overvoltage fault
+  b0 9A   Battery cell undervoltage fault
+  b0 6A   Battery high temperature fault
+  b1 A9   Battery low temperature fault
+  b1 A6   Battery high temperature fault
+  b1 9A   Battery low temperature fault
+  b1 6A   Overload (reboot required)
+  b2 A9   Overload (reboot required)
+  b2 A6   Incorrect switch position for the battery disconnection point
+  b2 9A   Battery system short circuit
+  b2 6A   Internal battery hardware fault
+  b3 A9   Battery imbalancing fault
+  b3 A6   Battery service life expiry
+  b3 9A   Battery system thermal management defective
+  b3 6A   Internal battery hardware fault
+  b4 A9   Battery system defect (warning)
+  b4 A6   Battery cell overvoltage fault (warning)
+  b4 9A   Battery cell undervoltage fault (warning)
+  b4 6A   Battery high temperature fault (warning)
+  b5 A9   Battery low temperature fault (warning)
+  b5 A6   Battery high temperature fault (warning)
+  b5 9A   Battery low temperature fault (warning)
+  b5 6A   Self-diagnosis (warning)
+  b6 A9   Self-diagnosis (warning)
+  b6 A6   Incorrect switch position for the battery disconnection point (warning)
+  b6 9A   Battery system short circuit (warning)
+  b6 6A   Internal battery hardware fault (warning)
+  b7 A9   Battery imbalancing fault (warning)
+  b7 A6   Battery service life expiry (warning)
+  b7 9A   Battery system thermal management defective (warning)
+  b7 6A   Internal battery hardware fault (warning)
+
+*/
 }
 
 void receive_can_sma(CAN_frame_t rx_frame) {
@@ -164,11 +223,11 @@ void receive_can_sma(CAN_frame_t rx_frame) {
     case 0x420:  //Message originating from SMA inverter - Timestamp
       //Frame0-3 Timestamp
       break;
-    case 0x660:  //Message originating from SMA inverter
+    case 0x3E0:  //Message originating from SMA inverter - ?
       break;
-    case 0x5E0:  //Message originating from SMA inverter
+    case 0x5E0:  //Message originating from SMA inverter - String
       break;
-    case 0x560:  //Message originating from SMA inverter
+    case 0x560:  //Message originating from SMA inverter - Init
       break;
     default:
       break;
@@ -185,9 +244,9 @@ void send_can_sma() {
     ESP32Can.CANWriteFrame(&SMA_558);
     ESP32Can.CANWriteFrame(&SMA_598);
     ESP32Can.CANWriteFrame(&SMA_5D8);
-    ESP32Can.CANWriteFrame(&SMA_618_1);
-    ESP32Can.CANWriteFrame(&SMA_618_2);
-    ESP32Can.CANWriteFrame(&SMA_618_3);
+    ESP32Can.CANWriteFrame(&SMA_618_1);  // TODO, should these 3x
+    ESP32Can.CANWriteFrame(&SMA_618_2);  // be sent as batch?
+    ESP32Can.CANWriteFrame(&SMA_618_3);  // or alternate on each send?
     ESP32Can.CANWriteFrame(&SMA_358);
     ESP32Can.CANWriteFrame(&SMA_3D8);
     ESP32Can.CANWriteFrame(&SMA_458);
