@@ -364,7 +364,7 @@ void inform_user_on_battery() {
 #ifdef SERIAL_LINK_RECEIVER
   Serial.println("SERIAL_DATA_LINK_RECEIVER selected");
 #endif
-#if !defined(ABSOLUTE_MAX_VOLTAGE)
+#ifndef BATTERY_SELECTED
 #error No battery selected! Choose one from the USER_SETTINGS.h file
 #endif
 }
