@@ -1,3 +1,4 @@
+#ifdef TEST_FAKE_BATTERY
 #include "TEST-FAKE-BATTERY.h"
 #include "../lib/miwagner-ESP32-Arduino-CAN/CAN_config.h"
 #include "../lib/miwagner-ESP32-Arduino-CAN/ESP32CAN.h"
@@ -16,8 +17,8 @@ void print_units(char* header, int value, char* units) {
   Serial.print(units);
 }
 
-void update_values_test_battery() { /* This function puts fake values onto the parameters sent towards the inverter */
-  SOC = 5000;                       // 50.00%
+void update_values_battery() { /* This function puts fake values onto the parameters sent towards the inverter */
+  SOC = 5000;                  // 50.00%
 
   StateOfHealth = 9900;  // 99.00%
 
@@ -63,7 +64,7 @@ void update_values_test_battery() { /* This function puts fake values onto the p
 #endif
 }
 
-void receive_can_test_battery(CAN_frame_t rx_frame) {
+void receive_can_battery(CAN_frame_t rx_frame) {
   switch (rx_frame.MsgID) {
     case 0xABC:
       break;
@@ -71,7 +72,7 @@ void receive_can_test_battery(CAN_frame_t rx_frame) {
       break;
   }
 }
-void send_can_test_battery() {
+void send_can_battery() {
   unsigned long currentMillis = millis();
   // Send 100ms CAN Message
   if (currentMillis - previousMillis100 >= interval100) {
@@ -79,3 +80,9 @@ void send_can_test_battery() {
     // Put fake messages here incase you want to test sending CAN
   }
 }
+
+void announce_battery(void) {
+  Serial.println("Test mode with fake battery selected");
+}
+
+#endif

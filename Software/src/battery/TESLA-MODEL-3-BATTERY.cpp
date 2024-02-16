@@ -1,3 +1,4 @@
+#ifdef TESLA_MODEL_3_BATTERY
 #include "TESLA-MODEL-3-BATTERY.h"
 #include "../devboard/utils/events.h"
 #include "../lib/miwagner-ESP32-Arduino-CAN/CAN_config.h"
@@ -163,7 +164,7 @@ static const char* hvilStatusState[] = {"NOT OK",
 
 #define REASONABLE_ENERGYAMOUNT 20  //When the BMS stops making sense on some values, they are always <20
 
-void update_values_tesla_model_3_battery() {  //This function maps all the values fetched via CAN to the correct parameters used for modbus
+void update_values_battery() {  //This function maps all the values fetched via CAN to the correct parameters used for modbus
   //After values are mapped, we perform some safety checks, and do some serial printouts
   //Calculate the SOH% to send to inverter
   if (bat_beginning_of_life != 0) {  //div/0 safeguard
@@ -368,7 +369,7 @@ void update_values_tesla_model_3_battery() {  //This function maps all the value
 #endif
 }
 
-void receive_can_tesla_model_3_battery(CAN_frame_t rx_frame) {
+void receive_can_battery(CAN_frame_t rx_frame) {
   static int mux = 0;
   static int temp = 0;
 
@@ -558,7 +559,7 @@ void receive_can_tesla_model_3_battery(CAN_frame_t rx_frame) {
       break;
   }
 }
-void send_can_tesla_model_3_battery() {
+void send_can_battery() {
   /*From bielec: My fist 221 message, to close the contactors is 0x41, 0x11, 0x01, 0x00, 0x00, 0x00, 0x20, 0x96 and then, 
 to cause "hv_up_for_drive" I send an additional 221 message 0x61, 0x15, 0x01, 0x00, 0x00, 0x00, 0x20, 0xBA  so 
 two 221 messages are being continuously transmitted.   When I want to shut down, I stop the second message and only send 
@@ -683,3 +684,9 @@ void printDebugIfActive(uint8_t symbol, const char* message) {
     Serial.println(message);
   }
 }
+
+void announce_battery(void) {
+  Serial.println("Tesla Model 3 battery selected");
+}
+
+#endif

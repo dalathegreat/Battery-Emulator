@@ -1,3 +1,4 @@
+#ifdef IMIEV_CZERO_ION_BATTERY
 #include "IMIEV-CZERO-ION-BATTERY.h"
 #include "../devboard/utils/events.h"
 #include "../lib/miwagner-ESP32-Arduino-CAN/CAN_config.h"
@@ -40,7 +41,7 @@ static double min_volt_cel = 3.70;
 static double max_temp_cel = 20.00;
 static double min_temp_cel = 19.00;
 
-void update_values_imiev_battery() {  //This function maps all the values fetched via CAN to the correct parameters used for modbus
+void update_values_battery() {  //This function maps all the values fetched via CAN to the correct parameters used for modbus
   SOC = (uint16_t)(BMU_SOC * 100);  //increase BMU_SOC range from 0-100 -> 100.00
 
   battery_voltage = (uint16_t)(BMU_PackVoltage * 10);  // Multiply by 10 and cast to uint16_t
@@ -161,7 +162,7 @@ void update_values_imiev_battery() {  //This function maps all the values fetche
 #endif
 }
 
-void receive_can_imiev_battery(CAN_frame_t rx_frame) {
+void receive_can_battery(CAN_frame_t rx_frame) {
   CANstillAlive =
       12;  //TODO: move this inside a known message ID to prevent CAN inverter from keeping battery alive detection going
   switch (rx_frame.MsgID) {
@@ -217,10 +218,16 @@ void receive_can_imiev_battery(CAN_frame_t rx_frame) {
   }
 }
 
-void send_can_imiev_battery() {
+void send_can_battery() {
   unsigned long currentMillis = millis();
   // Send 100ms CAN Message
   if (currentMillis - previousMillis100 >= interval100) {
     previousMillis100 = currentMillis;
   }
 }
+
+void announce_battery(void) {
+  Serial.println("Mitsubishi i-MiEV / Citroen C-Zero / Peugeot Ion battery selected");
+}
+
+#endif

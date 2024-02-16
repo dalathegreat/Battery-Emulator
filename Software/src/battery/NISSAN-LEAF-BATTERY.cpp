@@ -1,3 +1,4 @@
+#ifdef NISSAN_LEAF_BATTERY
 #include "NISSAN-LEAF-BATTERY.h"
 #ifdef MQTT
 #include "../devboard/mqtt/mqtt.h"
@@ -165,7 +166,7 @@ void print_with_units(char* header, int value, char* units) {
   Serial.print(units);
 }
 
-void update_values_leaf_battery() { /* This function maps all the values fetched via CAN to the correct parameters used for modbus */
+void update_values_battery() { /* This function maps all the values fetched via CAN to the correct parameters used for modbus */
   /* Start with mapping all values */
 
   StateOfHealth = (LB_StateOfHealth * 100);  //Increase range from 99% -> 99.00%
@@ -425,7 +426,7 @@ void update_values_leaf_battery() { /* This function maps all the values fetched
 #endif
 }
 
-void receive_can_leaf_battery(CAN_frame_t rx_frame) {
+void receive_can_battery(CAN_frame_t rx_frame) {
   switch (rx_frame.MsgID) {
     case 0x1DB:
       if (is_message_corrupt(rx_frame)) {
@@ -689,7 +690,7 @@ void receive_can_leaf_battery(CAN_frame_t rx_frame) {
       break;
   }
 }
-void send_can_leaf_battery() {
+void send_can_battery() {
   unsigned long currentMillis = millis();
   // Send 100ms CAN Message
   if (currentMillis - previousMillis100 >= interval100) {
@@ -923,3 +924,9 @@ uint16_t Temp_fromRAW_to_F(uint16_t temperature) {  //This function feels horrib
 void init_battery(void) {
   nof_cellvoltages = 96;
 }
+
+void announce_battery(void) {
+  Serial.println("Nissan LEAF battery selected");
+}
+
+#endif

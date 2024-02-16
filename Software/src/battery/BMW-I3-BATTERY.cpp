@@ -1,10 +1,11 @@
+#ifdef BMW_I3_BATTERY
 #include "BMW-I3-BATTERY.h"
 #include "../devboard/utils/events.h"
 #include "../lib/miwagner-ESP32-Arduino-CAN/CAN_config.h"
 #include "../lib/miwagner-ESP32-Arduino-CAN/ESP32CAN.h"
 
 //TODO: before using
-// Map the final values in update_values_i3_battery, set some to static values if not available (current, discharge max , charge max)
+// Map the final values in update_values_battery, set some to static values if not available (current, discharge max , charge max)
 // Check if I3 battery stays alive with only 10B and 512. If not, add 12F. If that doesn't help, add more from CAN log (ask Dala)
 
 /* Do not change code below unless you are sure what you are doing */
@@ -54,7 +55,7 @@ static uint16_t Battery_Status = 0;
 static uint16_t DC_link = 0;
 static int16_t Battery_Power = 0;
 
-void update_values_i3_battery() {  //This function maps all the values fetched via CAN to the correct parameters used for modbus
+void update_values_battery() {  //This function maps all the values fetched via CAN to the correct parameters used for modbus
   //Calculate the SOC% value to send to inverter
   Calculated_SOC = (Display_SOC * 10);  //Increase decimal amount
   Calculated_SOC =
@@ -122,7 +123,7 @@ void update_values_i3_battery() {  //This function maps all the values fetched v
 #endif
 }
 
-void receive_can_i3_battery(CAN_frame_t rx_frame) {
+void receive_can_battery(CAN_frame_t rx_frame) {
   CANstillAlive = 12;
   switch (rx_frame.MsgID) {
     case 0x431:  //Battery capacity [200ms]
@@ -168,7 +169,7 @@ void receive_can_i3_battery(CAN_frame_t rx_frame) {
       break;
   }
 }
-void send_can_i3_battery() {
+void send_can_battery() {
   unsigned long currentMillis = millis();
   // Send 600ms CAN Message
   if (currentMillis - previousMillis600 >= interval600) {
@@ -190,3 +191,9 @@ void send_can_i3_battery() {
     ESP32Can.CANWriteFrame(&BMW_10B);
   }
 }
+
+void announce_battery(void) {
+  Serial.println("BMW i3 battery selected");
+}
+
+#endif
