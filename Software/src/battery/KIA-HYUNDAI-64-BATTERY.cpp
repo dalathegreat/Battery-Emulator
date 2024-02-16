@@ -1,8 +1,9 @@
+#include "BATTERIES.h"
 #ifdef KIA_HYUNDAI_64_BATTERY
-#include "KIA-HYUNDAI-64-BATTERY.h"
 #include "../devboard/utils/events.h"
 #include "../lib/miwagner-ESP32-Arduino-CAN/CAN_config.h"
 #include "../lib/miwagner-ESP32-Arduino-CAN/ESP32CAN.h"
+#include "KIA-HYUNDAI-64-BATTERY.h"
 
 /* Do not change code below unless you are sure what you are doing */
 static unsigned long previousMillis100 = 0;   // will store last time a 100ms CAN Message was send

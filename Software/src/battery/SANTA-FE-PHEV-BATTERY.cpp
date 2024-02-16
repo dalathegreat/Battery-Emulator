@@ -1,8 +1,9 @@
+#include "BATTERIES.h"
 #ifdef SANTA_FE_PHEV_BATTERY
-#include "SANTA-FE-PHEV-BATTERY.h"
 #include "../devboard/utils/events.h"
 #include "../lib/miwagner-ESP32-Arduino-CAN/CAN_config.h"
 #include "../lib/miwagner-ESP32-Arduino-CAN/ESP32CAN.h"
+#include "SANTA-FE-PHEV-BATTERY.h"
 
 /* Credits go to maciek16c for these findings!
 https://github.com/maciek16c/hyundai-santa-fe-phev-battery

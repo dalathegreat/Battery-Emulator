@@ -1,8 +1,9 @@
+#include "BATTERIES.h"
 #ifdef RENAULT_ZOE_BATTERY
-#include "RENAULT-ZOE-BATTERY.h"
 #include "../devboard/utils/events.h"
 #include "../lib/miwagner-ESP32-Arduino-CAN/CAN_config.h"
 #include "../lib/miwagner-ESP32-Arduino-CAN/ESP32CAN.h"
+#include "RENAULT-ZOE-BATTERY.h"
 
 /* Do not change code below unless you are sure what you are doing */
 #define LB_MAX_SOC 1000  //BMS never goes over this value. We use this info to rescale SOC% sent to Fronius

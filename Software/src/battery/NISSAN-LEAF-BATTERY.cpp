@@ -1,3 +1,4 @@
+#include "BATTERIES.h"
 #ifdef NISSAN_LEAF_BATTERY
 #include "NISSAN-LEAF-BATTERY.h"
 #ifdef MQTT

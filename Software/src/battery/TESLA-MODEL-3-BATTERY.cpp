@@ -1,8 +1,9 @@
+#include "BATTERIES.h"
 #ifdef TESLA_MODEL_3_BATTERY
-#include "TESLA-MODEL-3-BATTERY.h"
 #include "../devboard/utils/events.h"
 #include "../lib/miwagner-ESP32-Arduino-CAN/CAN_config.h"
 #include "../lib/miwagner-ESP32-Arduino-CAN/ESP32CAN.h"
+#include "TESLA-MODEL-3-BATTERY.h"
 
 /* Do not change code below unless you are sure what you are doing */
 /* Credits: Most of the code comes from Per Carlen's bms_comms_tesla_model3.py (https://gitlab.com/pelle8/batt2gen24/) */

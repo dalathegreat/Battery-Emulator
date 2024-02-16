@@ -1,8 +1,9 @@
+#include "BATTERIES.h"
 #ifdef IMIEV_CZERO_ION_BATTERY
-#include "IMIEV-CZERO-ION-BATTERY.h"
 #include "../devboard/utils/events.h"
 #include "../lib/miwagner-ESP32-Arduino-CAN/CAN_config.h"
 #include "../lib/miwagner-ESP32-Arduino-CAN/ESP32CAN.h"
+#include "IMIEV-CZERO-ION-BATTERY.h"
 
 //Code still work in progress, TODO:
 //Figure out if CAN messages need to be sent to keep the system happy?

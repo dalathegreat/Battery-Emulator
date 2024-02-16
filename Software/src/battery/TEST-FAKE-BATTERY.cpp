@@ -1,7 +1,8 @@
+#include "BATTERIES.h"
 #ifdef TEST_FAKE_BATTERY
-#include "TEST-FAKE-BATTERY.h"
 #include "../lib/miwagner-ESP32-Arduino-CAN/CAN_config.h"
 #include "../lib/miwagner-ESP32-Arduino-CAN/ESP32CAN.h"
+#include "TEST-FAKE-BATTERY.h"
 
 /* Do not change code below unless you are sure what you are doing */
 static unsigned long previousMillis10 = 0;   // will store last time a 10ms CAN Message was send

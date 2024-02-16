@@ -1,8 +1,9 @@
+#include "BATTERIES.h"
 #ifdef BMW_I3_BATTERY
-#include "BMW-I3-BATTERY.h"
 #include "../devboard/utils/events.h"
 #include "../lib/miwagner-ESP32-Arduino-CAN/CAN_config.h"
 #include "../lib/miwagner-ESP32-Arduino-CAN/ESP32CAN.h"
+#include "BMW-I3-BATTERY.h"
 
 //TODO: before using
 // Map the final values in update_values_battery, set some to static values if not available (current, discharge max , charge max)
