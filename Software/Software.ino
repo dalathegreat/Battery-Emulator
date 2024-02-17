@@ -64,15 +64,14 @@ uint16_t capacity_Wh = BATTERY_WH_MAX;            //Wh,   0-60000
 uint16_t remaining_capacity_Wh = BATTERY_WH_MAX;  //Wh,   0-60000
 uint16_t max_target_discharge_power = 0;          // 0W (0W > restricts to no discharge), Updates later on from CAN
 uint16_t max_target_charge_power = 4312;          // Init to 4.3kW, Updates later on from CAN
-uint16_t temperature_max = 50;          //C+1,  Goes thru convert2unsignedint16 function (15.0C = 150, -15.0C =  65385)
-uint16_t temperature_min = 60;          // Reads from battery later
-uint8_t bms_char_dis_status = STANDBY;  // 0 standby, 1 discharging, 2, charging
-uint8_t bms_status = ACTIVE;            // ACTIVE - [0..5]<>[STANDBY,INACTIVE,DARKSTART,ACTIVE,FAULT,UPDATING]
-uint16_t stat_batt_power = 0;           // Power going in/out of battery
-uint16_t cell_max_voltage = 3700;       // Stores the highest cell voltage value in the system
-uint16_t cell_min_voltage = 3700;       // Stores the minimum cell voltage value in the system
-uint16_t cellvoltages[120];             // Stores all cell voltages
-uint8_t nof_cellvoltages = 0;           // Total number of cell voltages, set by each battery.
+uint16_t temperature_max = 50;     //C+1,  Goes thru convert2unsignedint16 function (15.0C = 150, -15.0C =  65385)
+uint16_t temperature_min = 60;     // Reads from battery later
+uint8_t bms_status = ACTIVE;       // ACTIVE - [0..5]<>[STANDBY,INACTIVE,DARKSTART,ACTIVE,FAULT,UPDATING]
+uint16_t stat_batt_power = 0;      // Power going in/out of battery
+uint16_t cell_max_voltage = 3700;  // Stores the highest cell voltage value in the system
+uint16_t cell_min_voltage = 3700;  // Stores the minimum cell voltage value in the system
+uint16_t cellvoltages[120];        // Stores all cell voltages
+uint8_t nof_cellvoltages = 0;      // Total number of cell voltages, set by each battery.
 bool LFP_Chemistry = false;
 
 // Common charger parameters

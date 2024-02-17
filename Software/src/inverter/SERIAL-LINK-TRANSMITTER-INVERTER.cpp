@@ -9,7 +9,7 @@
 *           Will transmit max 16 int variable - receive none
 */
 
-#define BATTERY_SEND_NUM_VARIABLES 17
+#define BATTERY_SEND_NUM_VARIABLES 16
 #define BATTERY_RECV_NUM_VARIABLES 1
 
 #ifdef BATTERY_RECV_NUM_VARIABLES
@@ -138,14 +138,13 @@ void manageSerialLinkTransmitter() {
       dataLinkTransmit.updateData(6, max_target_discharge_power);
       dataLinkTransmit.updateData(7, max_target_charge_power);
       dataLinkTransmit.updateData(8, bms_status);
-      dataLinkTransmit.updateData(9, bms_char_dis_status);
-      dataLinkTransmit.updateData(10, stat_batt_power);
-      dataLinkTransmit.updateData(11, temperature_min);
-      dataLinkTransmit.updateData(12, temperature_max);
-      dataLinkTransmit.updateData(13, cell_max_voltage);
-      dataLinkTransmit.updateData(14, cell_min_voltage);
-      dataLinkTransmit.updateData(15, (int16_t)LFP_Chemistry);
-      dataLinkTransmit.updateData(16, batteryAllowsContactorClosing);
+      dataLinkTransmit.updateData(9, stat_batt_power);
+      dataLinkTransmit.updateData(10, temperature_min);
+      dataLinkTransmit.updateData(11, temperature_max);
+      dataLinkTransmit.updateData(12, cell_max_voltage);
+      dataLinkTransmit.updateData(13, cell_min_voltage);
+      dataLinkTransmit.updateData(14, (int16_t)LFP_Chemistry);
+      dataLinkTransmit.updateData(15, batteryAllowsContactorClosing);
     }
   }
 }
@@ -170,8 +169,6 @@ void printSendingValues() {
   Serial.print(max_target_charge_power);
   Serial.print(" BMS status: ");
   Serial.print(bms_status);
-  Serial.print(" BMS status dis/cha: ");
-  Serial.print(bms_char_dis_status);
   Serial.print(" Power: ");
   Serial.print(stat_batt_power);
   Serial.print(" Temp min: ");

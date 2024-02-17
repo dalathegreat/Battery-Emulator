@@ -393,19 +393,6 @@ void update_values_battery() { /* This function maps all the values fetched via 
   } else {
     Serial.print("FAULT, ");
   }
-  switch (bms_char_dis_status) {
-    case 0:
-      Serial.print("Idle");
-      break;
-    case 1:
-      Serial.print("Discharging");
-      break;
-    case 2:
-      Serial.print("Charging");
-      break;
-    default:
-      break;
-  }
   print_with_units(", Power: ", LB_Power, "W ");
   Serial.println("");
   Serial.println("Values from battery");

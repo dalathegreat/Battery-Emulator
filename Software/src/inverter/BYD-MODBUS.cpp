@@ -56,6 +56,8 @@ void handle_update_data_modbusp201_byd() {
 void handle_update_data_modbusp301_byd() {
   // Store the data into the array
   static uint16_t battery_data[24];
+
+  static uint8_t bms_char_dis_status = STANDBY;
   if (battery_current == 0) {
     bms_char_dis_status = STANDBY;
   } else if (battery_current > 32767) {  //Negative value = Discharging
