@@ -172,6 +172,10 @@ void update_values_battery() {  //This function maps all the values fetched via 
     StateOfHealth =
         static_cast<uint16_t>((static_cast<double>(nominal_full_pack_energy) / bat_beginning_of_life) * 10000.0);
   }
+  //If the calculation went wrong, set SOH to 100%
+  if (StateOfHealth > 10000) {
+    StateOfHealth = 10000;
+  }
   //If the value is unavailable, set SOH to 99%
   if (nominal_full_pack_energy < REASONABLE_ENERGYAMOUNT) {
     StateOfHealth = 9900;
