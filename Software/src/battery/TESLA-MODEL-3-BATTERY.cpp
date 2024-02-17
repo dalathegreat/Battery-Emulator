@@ -53,8 +53,8 @@ static uint16_t hvac_max_power = 0;
 static uint16_t min_voltage = 0;
 static uint16_t max_discharge_current = 0;
 static uint16_t max_charge_current = 0;
-static uint16_t max_voltage = 0;
-static uint16_t high_voltage = 0;
+static uint16_t bms_max_voltage = 0;
+static uint16_t bms_high_voltage = 0;
 static uint16_t low_voltage = 0;
 static uint16_t output_current = 0;
 static uint16_t soc_min = 0;
@@ -492,8 +492,10 @@ void receive_can_battery(CAN_frame_t rx_frame) {
       break;
     case 0x2d2:
       //Min / max limits
-      min_voltage = ((rx_frame.data.u8[1] << 8) | rx_frame.data.u8[0]) * 0.01 * 2;  //Example 24148mv * 0.01 = 241.48 V
-      max_voltage = ((rx_frame.data.u8[3] << 8) | rx_frame.data.u8[2]) * 0.01 * 2;  //Example 40282mv * 0.01 = 402.82 V
+      bms_min_voltage =
+          ((rx_frame.data.u8[1] << 8) | rx_frame.data.u8[0]) * 0.01 * 2;  //Example 24148mv * 0.01 = 241.48 V
+      bms_max_voltage =
+          ((rx_frame.data.u8[3] << 8) | rx_frame.data.u8[2]) * 0.01 * 2;  //Example 40282mv * 0.01 = 402.82 V
       max_charge_current =
           (((rx_frame.data.u8[5] & 0x3F) << 8) | rx_frame.data.u8[4]) * 0.1;  //Example 1301? * 0.1 = 130.1?
       max_discharge_current =
