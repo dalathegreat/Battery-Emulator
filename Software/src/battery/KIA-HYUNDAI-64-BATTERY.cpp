@@ -599,8 +599,11 @@ uint16_t convertToUnsignedInt16(int16_t signed_value) {
   }
 }
 
-void announce_battery(void) {
+void setup_battery(void) {  // Performs one time setup at startup
   Serial.println("Kia Niro / Hyundai Kona 64kWh battery selected");
+
+  max_voltage = 4040;  // 404.0V, over this, charging is not possible (goes into forced discharge)
+  min_voltage = 3100;  // 310.0V under this, discharging further is disabled
 }
 
 #endif

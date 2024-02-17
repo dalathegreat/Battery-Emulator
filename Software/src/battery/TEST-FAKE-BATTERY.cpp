@@ -82,8 +82,11 @@ void send_can_battery() {
   }
 }
 
-void announce_battery(void) {
+void setup_battery(void) {  // Performs one time setup at startup
   Serial.println("Test mode with fake battery selected");
+
+  max_voltage = 4040;  // 404.4V, over this, charging is not possible (goes into forced discharge)
+  min_voltage = 2450;  // 245.0V under this, discharging further is disabled
 }
 
 #endif

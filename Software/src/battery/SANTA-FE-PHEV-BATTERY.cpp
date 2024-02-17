@@ -177,8 +177,11 @@ uint8_t CalculateCRC8(CAN_frame_t rx_frame) {
   return (uint8_t)crc;
 }
 
-void announce_battery(void) {
+void setup_battery(void) {  // Performs one time setup at startup
   Serial.println("Hyundai Santa Fe PHEV battery selected");
+
+  max_voltage = 4040;  // 404.0V, over this, charging is not possible (goes into forced discharge)
+  min_voltage = 3100;  // 310.0V under this, discharging further is disabled
 }
 
 #endif

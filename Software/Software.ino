@@ -54,9 +54,9 @@ ModbusServerRTU MBserver(Serial2, 2000);
 #endif
 
 // Common inverter parameters. Batteries map their values to these variables
-uint16_t max_voltage = ABSOLUTE_MAX_VOLTAGE;  // If higher charging is not possible (goes into forced discharge)
-uint16_t min_voltage = ABSOLUTE_MIN_VOLTAGE;  // If lower disables discharging battery
-uint16_t battery_voltage = 3700;              //V+1,  0-500.0 (0-5000)
+uint16_t max_voltage = 5000;      //V+1,  0-500.0 (0-5000)
+uint16_t min_voltage = 2500;      //V+1,  0-500.0 (0-5000)
+uint16_t battery_voltage = 3700;  //V+1,  0-500.0 (0-5000)
 uint16_t battery_current = 0;
 uint16_t SOC = 5000;                              //SOC%, 0-100.00 (0-10000)
 uint16_t StateOfHealth = 9900;                    //SOH%, 0-100.00 (0-10000)
@@ -145,11 +145,7 @@ void setup() {
 
   inform_user_on_inverter();
 
-  inform_user_on_battery();
-
-#ifdef BATTERY_HAS_INIT
   init_battery();
-#endif
 
   // BOOT button at runtime is used as an input for various things
   pinMode(0, INPUT_PULLUP);
@@ -358,9 +354,9 @@ void inform_user_on_inverter() {
 #endif
 }
 
-void inform_user_on_battery() {
-  // Inform user what battery is used
-  announce_battery();
+void init_battery() {
+  // Inform user what battery is used and perform setup
+  setup_battery();
 #ifdef SERIAL_LINK_RECEIVER
   Serial.println("SERIAL_DATA_LINK_RECEIVER selected");
 #endif

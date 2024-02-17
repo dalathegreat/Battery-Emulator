@@ -221,8 +221,10 @@ void send_can_battery() {
   }
 }
 
-void announce_battery(void) {
+void setup_battery(void) {  // Performs one time setup at startup
   Serial.println("Chademo battery selected");
-}
 
+  max_voltage = 4040;  // 404.4V, over this, charging is not possible (goes into forced discharge)
+  min_voltage = 2000;  // 200.0V under this, discharging further is disabled
+}
 #endif

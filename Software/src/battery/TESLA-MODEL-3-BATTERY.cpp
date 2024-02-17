@@ -50,10 +50,10 @@ static uint16_t regenerative_limit = 0;
 static uint16_t discharge_limit = 0;
 static uint16_t max_heat_park = 0;
 static uint16_t hvac_max_power = 0;
-static uint16_t min_voltage = 0;
 static uint16_t max_discharge_current = 0;
 static uint16_t max_charge_current = 0;
-static uint16_t max_voltage = 0;
+static uint16_t bms_max_voltage = 0;
+static uint16_t bms_min_voltage = 0;
 static uint16_t high_voltage = 0;
 static uint16_t low_voltage = 0;
 static uint16_t output_current = 0;
@@ -258,10 +258,18 @@ void update_values_battery() {  //This function maps all the values fetched via 
     LFP_Chemistry = true;
   }
 
+  //Once cell chemistry is determined, set maximum and minimum total pack voltage safety limits
+  if (LFP_Chemistry) {
+    max_voltage = 3640;
+    min_voltage = 2450;
+  } else {  // NCM/A chemistry
+    max_voltage = 4030;
+    min_voltage = 3100;
+  }
+
   //Check if SOC% is plausible
-  if (battery_voltage >
-      (ABSOLUTE_MAX_VOLTAGE - 100)) {  // When pack voltage is close to max, and SOC% is still low, raise FAULT
-    if (SOC < 6500) {                  //When SOC is less than 65.00% when approaching max voltage
+  if (battery_voltage > (max_voltage - 100)) {  // When pack voltage is close to max, and SOC% is still low, raise FAULT
+    if (SOC < 6500) {                           //When SOC is less than 65.00% when approaching max voltage
       set_event(EVENT_SOC_PLAUSIBILITY_ERROR, SOC / 100);
     }
   }
@@ -341,6 +349,7 @@ void update_values_battery() {  //This function maps all the values fetched via 
   if (LFP_Chemistry) {
     Serial.print("LFP chemistry detected!");
   }
+  Serial.print(nof_cellvoltages);
   Serial.println("");
   Serial.print("Cellstats, Max: ");
   Serial.print(cell_max_v);
@@ -487,8 +496,10 @@ void receive_can_battery(CAN_frame_t rx_frame) {
       break;
     case 0x2d2:
       //Min / max limits
-      min_voltage = ((rx_frame.data.u8[1] << 8) | rx_frame.data.u8[0]) * 0.01 * 2;  //Example 24148mv * 0.01 = 241.48 V
-      max_voltage = ((rx_frame.data.u8[3] << 8) | rx_frame.data.u8[2]) * 0.01 * 2;  //Example 40282mv * 0.01 = 402.82 V
+      bms_min_voltage =
+          ((rx_frame.data.u8[1] << 8) | rx_frame.data.u8[0]) * 0.01 * 2;  //Example 24148mv * 0.01 = 241.48 V
+      bms_max_voltage =
+          ((rx_frame.data.u8[3] << 8) | rx_frame.data.u8[2]) * 0.01 * 2;  //Example 40282mv * 0.01 = 402.82 V
       max_charge_current =
           (((rx_frame.data.u8[5] & 0x3F) << 8) | rx_frame.data.u8[4]) * 0.1;  //Example 1301? * 0.1 = 130.1?
       max_discharge_current =
@@ -690,8 +701,11 @@ void printDebugIfActive(uint8_t symbol, const char* message) {
   }
 }
 
-void announce_battery(void) {
+void setup_battery(void) {  // Performs one time setup at startup
   Serial.println("Tesla Model 3 battery selected");
+
+  max_voltage = 4030;  // 403.0V, over this, charging is not possible (goes into forced discharge)
+  min_voltage = 3100;  // 310.0V under this, discharging further is disabled
 }
 
 #endif
