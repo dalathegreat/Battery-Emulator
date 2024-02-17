@@ -1,15 +1,10 @@
-#ifndef CHADEMO_BATTERY_H
-#define CHADEMO_BATTERY_H
+#ifndef SMA_CAN_TRIPOWER_H
+#define SMA_CAN_TRIPOWER_H
 #include <Arduino.h>
 #include "../../USER_SETTINGS.h"
 #include "../devboard/config.h"  // Needed for all defines
 #include "../lib/miwagner-ESP32-Arduino-CAN/ESP32CAN.h"
 
-#define BATTERY_SELECTED
-
-// These parameters need to be mapped for the inverter
-extern uint16_t max_voltage;                 //V+1,  0-500.0 (0-5000)
-extern uint16_t min_voltage;                 //V+1,  0-500.0 (0-5000)
 extern uint16_t SOC;                         //SOC%, 0-100.00 (0-10000)
 extern uint16_t StateOfHealth;               //SOH%, 0-100.00 (0-10000)
 extern uint16_t battery_voltage;             //V+1,  0-500.0 (0-5000)
@@ -18,15 +13,20 @@ extern uint16_t capacity_Wh;                 //Wh,   0-60000
 extern uint16_t remaining_capacity_Wh;       //Wh,   0-60000
 extern uint16_t max_target_discharge_power;  //W,    0-60000
 extern uint16_t max_target_charge_power;     //W,    0-60000
+extern uint8_t bms_char_dis_status;          //Enum, 0-2
 extern uint16_t stat_batt_power;             //W,    Goes thru convert2unsignedint16 function (5W = 5, -5W = 65530)
-extern uint16_t temperature_min;    //C+1,  Goes thru convert2unsignedint16 function (15.0C = 150, -15.0C =  65385)
-extern uint16_t temperature_max;    //C+1,  Goes thru convert2unsignedint16 function (15.0C = 150, -15.0C =  65385)
-extern uint16_t cell_max_voltage;   //mV,   0-4350
-extern uint16_t cell_min_voltage;   //mV,   0-4350
-extern uint16_t cellvoltages[120];  //mV    0-4350 per cell
-extern uint8_t nof_cellvoltages;    // Total number of cell voltages, set by each battery.
-extern bool batteryAllowsContactorClosing;  //Bool, 1=true, 0=false
+extern uint16_t temperature_min;   //C+1,  Goes thru convert2unsignedint16 function (15.0C = 150, -15.0C =  65385)
+extern uint16_t temperature_max;   //C+1,  Goes thru convert2unsignedint16 function (15.0C = 150, -15.0C =  65385)
+extern uint16_t cell_max_voltage;  //mV,   0-4350
+extern uint16_t cell_min_voltage;  //mV,   0-4350
+extern uint16_t min_voltage;
+extern uint16_t max_voltage;
+extern bool batteryAllowsContactorClosing;   //Bool, 1=true, 0=false
+extern bool inverterAllowsContactorClosing;  //Bool, 1=true, 0=false
 
-void setup_battery(void);
+void update_values_can_sma_tripower();
+void send_can_sma_tripower();
+void receive_can_sma_tripower(CAN_frame_t rx_frame);
+void send_tripower_init();
 
 #endif

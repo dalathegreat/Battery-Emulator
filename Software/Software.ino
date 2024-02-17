@@ -54,9 +54,9 @@ ModbusServerRTU MBserver(Serial2, 2000);
 #endif
 
 // Common inverter parameters. Batteries map their values to these variables
-uint16_t max_voltage = ABSOLUTE_MAX_VOLTAGE;  // If higher charging is not possible (goes into forced discharge)
-uint16_t min_voltage = ABSOLUTE_MIN_VOLTAGE;  // If lower disables discharging battery
-uint16_t battery_voltage = 3700;              //V+1,  0-500.0 (0-5000)
+uint16_t max_voltage = 5000;      //V+1,  0-500.0 (0-5000)
+uint16_t min_voltage = 2500;      //V+1,  0-500.0 (0-5000)
+uint16_t battery_voltage = 3700;  //V+1,  0-500.0 (0-5000)
 uint16_t battery_current = 0;
 uint16_t SOC = 5000;                              //SOC%, 0-100.00 (0-10000)
 uint16_t StateOfHealth = 9900;                    //SOH%, 0-100.00 (0-10000)
@@ -144,11 +144,7 @@ void setup() {
 
   inform_user_on_inverter();
 
-  inform_user_on_battery();
-
-#ifdef BATTERY_HAS_INIT
   init_battery();
-#endif
 
   // BOOT button at runtime is used as an input for various things
   pinMode(0, INPUT_PULLUP);
@@ -344,6 +340,9 @@ void inform_user_on_inverter() {
 #ifdef SMA_CAN
   Serial.println("SMA CAN protocol selected");
 #endif
+#ifdef SMA_TRIPOWER_CAN
+  Serial.println("SMA Tripower CAN protocol selected");
+#endif
 #ifdef SOFAR_CAN
   Serial.println("SOFAR CAN protocol selected");
 #endif
@@ -354,42 +353,13 @@ void inform_user_on_inverter() {
 #endif
 }
 
-void inform_user_on_battery() {
-  // Inform user what battery is used
-#ifdef BMW_I3_BATTERY
-  Serial.println("BMW i3 battery selected");
-#endif
-#ifdef CHADEMO_BATTERY
-  Serial.println("Chademo battery selected");
-#endif
-#ifdef IMIEV_CZERO_ION_BATTERY
-  Serial.println("Mitsubishi i-MiEV / Citroen C-Zero / Peugeot Ion battery selected");
-#endif
-#ifdef KIA_HYUNDAI_64_BATTERY
-  Serial.println("Kia Niro / Hyundai Kona 64kWh battery selected");
-#endif
-#ifdef NISSAN_LEAF_BATTERY
-  Serial.println("Nissan LEAF battery selected");
-#endif
-#ifdef RENAULT_KANGOO_BATTERY
-  Serial.println("Renault Kangoo battery selected");
-#endif
-#ifdef SANTA_FE_PHEV_BATTERY
-  Serial.println("Hyundai Santa Fe PHEV battery selected");
-#endif
-#ifdef RENAULT_ZOE_BATTERY
-  Serial.println("Renault Zoe battery selected");
-#endif
-#ifdef TESLA_MODEL_3_BATTERY
-  Serial.println("Tesla Model 3 battery selected");
-#endif
-#ifdef TEST_FAKE_BATTERY
-  Serial.println("Test mode with fake battery selected");
-#endif
+void init_battery() {
+  // Inform user what battery is used and perform setup
+  setup_battery();
 #ifdef SERIAL_LINK_RECEIVER
   Serial.println("SERIAL_DATA_LINK_RECEIVER selected");
 #endif
-#if !defined(ABSOLUTE_MAX_VOLTAGE)
+#ifndef BATTERY_SELECTED
 #error No battery selected! Choose one from the USER_SETTINGS.h file
 #endif
 }
@@ -402,42 +372,16 @@ void receive_can() {  // This section checks if we have a complete CAN message i
     if (rx_frame.FIR.B.FF == CAN_frame_std) {
       //printf("New standard frame");
       // Battery
-#ifdef BMW_I3_BATTERY
-      receive_can_i3_battery(rx_frame);
-#endif
-#ifdef CHADEMO_BATTERY
-      receive_can_chademo_battery(rx_frame);
-#endif
-#ifdef IMIEV_CZERO_ION_BATTERY
-      receive_can_imiev_battery(rx_frame);
-#endif
-#ifdef KIA_HYUNDAI_64_BATTERY
-      receive_can_kiaHyundai_64_battery(rx_frame);
-#endif
-#ifdef NISSAN_LEAF_BATTERY
-      receive_can_leaf_battery(rx_frame);
-#endif
-#ifdef RENAULT_KANGOO_BATTERY
-      receive_can_kangoo_battery(rx_frame);
-#endif
-#ifdef SANTA_FE_PHEV_BATTERY
-      receive_can_santafe_phev_battery(rx_frame);
-#endif
-#ifdef RENAULT_ZOE_BATTERY
-      receive_can_zoe_battery(rx_frame);
-#endif
-#ifdef TESLA_MODEL_3_BATTERY
-      receive_can_tesla_model_3_battery(rx_frame);
-#endif
-#ifdef TEST_FAKE_BATTERY
-      receive_can_test_battery(rx_frame);
-#endif
+      receive_can_battery(rx_frame);
       // Inverter
 #ifdef BYD_CAN
       receive_can_byd(rx_frame);
 #endif
 #ifdef SMA_CAN
       receive_can_sma(rx_frame);
+#endif
+#ifdef SMA_TRIPOWER_CAN
+      receive_can_sma_tripower(rx_frame);
 #endif
       // Charger
 #ifdef CHEVYVOLT_CHARGER
@@ -470,40 +414,14 @@ void send_can() {
 #ifdef SMA_CAN
   send_can_sma();
 #endif
+#ifdef SMA_TRIPOWER_CAN
+  send_can_sma_tripower();
+#endif
 #ifdef SOFAR_CAN
   send_can_sofar();
 #endif
   // Battery
-#ifdef BMW_I3_BATTERY
-  send_can_i3_battery();
-#endif
-#ifdef CHADEMO_BATTERY
-  send_can_chademo_battery();
-#endif
-#ifdef IMIEV_CZERO_ION_BATTERY
-  send_can_imiev_battery();
-#endif
-#ifdef KIA_HYUNDAI_64_BATTERY
-  send_can_kiaHyundai_64_battery();
-#endif
-#ifdef NISSAN_LEAF_BATTERY
-  send_can_leaf_battery();
-#endif
-#ifdef RENAULT_KANGOO_BATTERY
-  send_can_kangoo_battery();
-#endif
-#ifdef SANTA_FE_PHEV_BATTERY
-  send_can_santafe_phev_battery();
-#endif
-#ifdef RENAULT_ZOE_BATTERY
-  send_can_zoe_battery();
-#endif
-#ifdef TESLA_MODEL_3_BATTERY
-  send_can_tesla_model_3_battery();
-#endif
-#ifdef TEST_FAKE_BATTERY
-  send_can_test_battery();
-#endif
+  send_can_battery();
 #ifdef CHEVYVOLT_CHARGER
   send_can_chevyvolt_charger();
 #endif
@@ -683,36 +601,7 @@ void handle_contactors() {
 
 void update_values() {
   // Battery
-#ifdef BMW_I3_BATTERY
-  update_values_i3_battery();  // Map the values to the correct registers
-#endif
-#ifdef CHADEMO_BATTERY
-  update_values_chademo_battery();  // Map the values to the correct registers
-#endif
-#ifdef IMIEV_CZERO_ION_BATTERY
-  update_values_imiev_battery();  // Map the values to the correct registers
-#endif
-#ifdef KIA_HYUNDAI_64_BATTERY
-  update_values_kiaHyundai_64_battery();  // Map the values to the correct registers
-#endif
-#ifdef NISSAN_LEAF_BATTERY
-  update_values_leaf_battery();  // Map the values to the correct registers
-#endif
-#ifdef RENAULT_KANGOO_BATTERY
-  update_values_kangoo_battery();  // Map the values to the correct registers
-#endif
-#ifdef SANTA_FE_PHEV_BATTERY
-  update_values_santafe_phev_battery();  // Map the values to the correct registers
-#endif
-#ifdef RENAULT_ZOE_BATTERY
-  update_values_zoe_battery();  // Map the values to the correct registers
-#endif
-#ifdef TESLA_MODEL_3_BATTERY
-  update_values_tesla_model_3_battery();  // Map the values to the correct registers
-#endif
-#ifdef TEST_FAKE_BATTERY
-  update_values_test_battery();  // Map the fake values to the correct registers
-#endif
+  update_values_battery();  // Map the fake values to the correct registers
   // Inverter
 #ifdef BYD_CAN
   update_values_can_byd();
@@ -728,6 +617,9 @@ void update_values() {
 #endif
 #ifdef SMA_CAN
   update_values_can_sma();
+#endif
+#ifdef SMA_TRIPOWER_CAN
+  update_values_can_sma_tripower();
 #endif
 #ifdef SOFAR_CAN
   update_values_can_sofar();

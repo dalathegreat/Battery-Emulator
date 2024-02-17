@@ -21,7 +21,6 @@
 
 #ifdef NISSAN_LEAF_BATTERY
 #include "NISSAN-LEAF-BATTERY.h"  //See this file for more LEAF battery settings
-#define BATTERY_HAS_INIT
 #endif
 
 #ifdef RENAULT_KANGOO_BATTERY
@@ -46,6 +45,13 @@
 
 #ifdef SERIAL_LINK_RECEIVER
 #include "SERIAL-LINK-RECEIVER-FROM-BATTERY.h"  //See this file for more Serial-battery settings
+#endif
+
+#ifndef SERIAL_LINK_RECEIVER  // The serial thing does its thing
+void update_values_battery();
+void receive_can_battery(CAN_frame_t rx_frame);
+void send_can_battery();
+void setup_battery(void);
 #endif
 
 #endif

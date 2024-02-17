@@ -1,6 +1,8 @@
-#include "TEST-FAKE-BATTERY.h"
+#include "BATTERIES.h"
+#ifdef TEST_FAKE_BATTERY
 #include "../lib/miwagner-ESP32-Arduino-CAN/CAN_config.h"
 #include "../lib/miwagner-ESP32-Arduino-CAN/ESP32CAN.h"
+#include "TEST-FAKE-BATTERY.h"
 
 /* Do not change code below unless you are sure what you are doing */
 static unsigned long previousMillis10 = 0;   // will store last time a 10ms CAN Message was send
@@ -16,8 +18,8 @@ void print_units(char* header, int value, char* units) {
   Serial.print(units);
 }
 
-void update_values_test_battery() { /* This function puts fake values onto the parameters sent towards the inverter */
-  SOC = 5000;                       // 50.00%
+void update_values_battery() { /* This function puts fake values onto the parameters sent towards the inverter */
+  SOC = 5000;                  // 50.00%
 
   StateOfHealth = 9900;  // 99.00%
 
@@ -63,7 +65,7 @@ void update_values_test_battery() { /* This function puts fake values onto the p
 #endif
 }
 
-void receive_can_test_battery(CAN_frame_t rx_frame) {
+void receive_can_battery(CAN_frame_t rx_frame) {
   switch (rx_frame.MsgID) {
     case 0xABC:
       break;
@@ -71,7 +73,7 @@ void receive_can_test_battery(CAN_frame_t rx_frame) {
       break;
   }
 }
-void send_can_test_battery() {
+void send_can_battery() {
   unsigned long currentMillis = millis();
   // Send 100ms CAN Message
   if (currentMillis - previousMillis100 >= interval100) {
@@ -79,3 +81,12 @@ void send_can_test_battery() {
     // Put fake messages here incase you want to test sending CAN
   }
 }
+
+void setup_battery(void) {  // Performs one time setup at startup
+  Serial.println("Test mode with fake battery selected");
+
+  max_voltage = 4040;  // 404.4V, over this, charging is not possible (goes into forced discharge)
+  min_voltage = 2450;  // 245.0V under this, discharging further is disabled
+}
+
+#endif
