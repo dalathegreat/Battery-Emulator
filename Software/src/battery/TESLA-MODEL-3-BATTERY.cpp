@@ -244,7 +244,7 @@ void update_values_battery() {  //This function maps all the values fetched via 
 
   cell_deviation_mV = (cell_max_v - cell_min_v);
 
-  //Determine which chemistry battery pack is using (crude method, TODO: replace with real CAN data later)
+  //Determine which chemistry battery pack is using (crude method, TODO: replace with real CAN identifier later)
   if (soc_vi > 900) {  //When SOC% is over 90.0%, we can use max cell voltage to estimate what chemistry is used
     if (cell_max_v < 3450) {
       LFP_Chemistry = true;
@@ -252,6 +252,10 @@ void update_values_battery() {  //This function maps all the values fetched via 
     if (cell_max_v > 3700) {
       LFP_Chemistry = false;
     }
+  }
+  // An even better way is to check how many cells are in the pack. NCM/A batteries have 96s, LFP has 102-106s
+  if (nof_cellvoltages > 101) {
+    LFP_Chemistry = true;
   }
 
   //Check if SOC% is plausible
