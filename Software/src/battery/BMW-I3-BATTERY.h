@@ -7,10 +7,6 @@
 
 #define BATTERY_SELECTED
 
-#define ABSOLUTE_MAX_VOLTAGE \
-  4040  // 404.4V,if battery voltage goes over this, charging is not possible (goes into forced discharge)
-#define ABSOLUTE_MIN_VOLTAGE 3100  // 310.0V if battery voltage goes under this, discharging further is disabled
-
 // These parameters need to be mapped for the inverter
 extern uint16_t SOC;
 extern uint16_t StateOfHealth;
@@ -27,5 +23,7 @@ extern uint16_t temperature_max;
 extern uint16_t CANerror;
 extern bool batteryAllowsContactorClosing;   //Bool, 1=true, 0=false
 extern bool inverterAllowsContactorClosing;  //Bool, 1=true, 0=false
+
+void setup_battery(void);
 
 #endif

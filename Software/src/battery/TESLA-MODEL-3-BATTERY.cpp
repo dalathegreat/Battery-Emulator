@@ -337,6 +337,7 @@ void update_values_battery() {  //This function maps all the values fetched via 
   if (LFP_Chemistry) {
     Serial.print("LFP chemistry detected!");
   }
+  Serial.print(nof_cellvoltages);
   Serial.println("");
   Serial.print("Cellstats, Max: ");
   Serial.print(cell_max_v);
@@ -686,8 +687,11 @@ void printDebugIfActive(uint8_t symbol, const char* message) {
   }
 }
 
-void announce_battery(void) {
+void setup_battery(void) {  // Performs one time setup at startup
   Serial.println("Tesla Model 3 battery selected");
+
+  max_voltage = 4030;  // 403.0V, over this, charging is not possible (goes into forced discharge)
+  min_voltage = 3100;  // 310.0V under this, discharging further is disabled
 }
 
 #endif

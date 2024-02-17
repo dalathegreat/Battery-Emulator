@@ -7,16 +7,15 @@
 
 #define BATTERY_SELECTED
 
-#define ABSOLUTE_MAX_VOLTAGE \
-  4040  // 404.4V,if battery voltage goes over this, charging is not possible (goes into forced discharge)
-#define ABSOLUTE_MIN_VOLTAGE 3100  // 310.0V if battery voltage goes under this, discharging further is disabled
 #define ABSOLUTE_CELL_MAX_VOLTAGE \
   4100  // Max Cell Voltage mV! if voltage goes over this, charging is not possible (goes into forced discharge)
 #define ABSOLUTE_CELL_MIN_VOLTAGE \
   3000                             // Min Cell Voltage mV! if voltage goes under this, discharging further is disabled
 #define MAX_CELL_DEVIATION_MV 500  //LED turns yellow on the board if mv delta exceeds this value
 
-// These parameters need to be mapped for the Gen24
+// These parameters need to be mapped for the inverter
+extern uint16_t max_voltage;                 //V+1,  0-500.0 (0-5000)
+extern uint16_t min_voltage;                 //V+1,  0-500.0 (0-5000)
 extern uint16_t SOC;                         //SOC%, 0-100.00 (0-10000)
 extern uint16_t StateOfHealth;               //SOH%, 0-100.00 (0-10000)
 extern uint16_t battery_voltage;             //V+1,  0-500.0 (0-5000)
@@ -36,5 +35,6 @@ extern bool batteryAllowsContactorClosing;   //Bool, 1=true, 0=false
 extern bool inverterAllowsContactorClosing;  //Bool, 1=true, 0=false
 
 uint16_t convert2uint16(int16_t signed_value);
+void setup_battery(void);
 
 #endif

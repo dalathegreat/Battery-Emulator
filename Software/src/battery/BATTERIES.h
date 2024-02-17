@@ -21,7 +21,6 @@
 
 #ifdef NISSAN_LEAF_BATTERY
 #include "NISSAN-LEAF-BATTERY.h"  //See this file for more LEAF battery settings
-#define BATTERY_HAS_INIT
 #endif
 
 #ifdef RENAULT_KANGOO_BATTERY
@@ -52,7 +51,7 @@
 void update_values_battery();
 void receive_can_battery(CAN_frame_t rx_frame);
 void send_can_battery();
-void announce_battery(void);
+void setup_battery(void);
 #endif
 
 #endif

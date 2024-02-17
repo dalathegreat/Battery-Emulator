@@ -7,14 +7,13 @@
 
 #define BATTERY_SELECTED
 
-#define ABSOLUTE_MAX_VOLTAGE \
-  4030  // 403.0V,if battery voltage goes over this, charging is not possible (goes into forced discharge)
-#define ABSOLUTE_MIN_VOLTAGE 2450    // 245.0V if battery voltage goes under this, discharging further is disabled
 #define MAXCHARGEPOWERALLOWED 15000  // 15000W we use a define since the value supplied by Tesla is always 0
 #define MAXDISCHARGEPOWERALLOWED \
   60000  // 60000W we need to cap this value to max 60kW, most inverters overflow otherwise
 
-// These parameters need to be mapped for the Inverter
+// These parameters need to be mapped for the inverter
+extern uint16_t max_voltage;                 //V+1,  0-500.0 (0-5000)
+extern uint16_t min_voltage;                 //V+1,  0-500.0 (0-5000)
 extern uint16_t SOC;                         //SOC%, 0-100.00 (0-10000)
 extern uint16_t StateOfHealth;               //SOH%, 0-100.00 (0-10000)
 extern uint16_t battery_voltage;             //V+1,  0-500.0 (0-5000)
@@ -40,5 +39,6 @@ void printDebugIfActive(uint8_t symbol, const char* message);
 void print_int_with_units(char* header, int value, char* units);
 void print_SOC(char* header, int SOC);
 uint16_t convert2unsignedInt16(int16_t signed_value);
+void setup_battery(void);
 
 #endif

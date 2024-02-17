@@ -922,12 +922,12 @@ uint16_t Temp_fromRAW_to_F(uint16_t temperature) {  //This function feels horrib
   return static_cast<uint16_t>(1094 + (309 - temperature) * 2.5714285714285715);
 }
 
-void init_battery(void) {
-  nof_cellvoltages = 96;
-}
-
-void announce_battery(void) {
+void setup_battery(void) {  // Performs one time setup at startup
   Serial.println("Nissan LEAF battery selected");
+
+  nof_cellvoltages = 96;
+  max_voltage = 4040;  // 404.4V, over this, charging is not possible (goes into forced discharge)
+  min_voltage = 2450;  // 245.0V under this, discharging further is disabled
 }
 
 #endif
