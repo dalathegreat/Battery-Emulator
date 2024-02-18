@@ -1,3 +1,5 @@
+#include "BATTERIES.h"
+#ifdef NISSAN_LEAF_BATTERY
 #include "NISSAN-LEAF-BATTERY.h"
 #ifdef MQTT
 #include "../devboard/mqtt/mqtt.h"
@@ -165,7 +167,7 @@ void print_with_units(char* header, int value, char* units) {
   Serial.print(units);
 }
 
-void update_values_leaf_battery() { /* This function maps all the values fetched via CAN to the correct parameters used for modbus */
+void update_values_battery() { /* This function maps all the values fetched via CAN to the correct parameters used for modbus */
   /* Start with mapping all values */
 
   StateOfHealth = (LB_StateOfHealth * 100);  //Increase range from 99% -> 99.00%
@@ -255,8 +257,7 @@ void update_values_leaf_battery() { /* This function maps all the values fetched
   }
 
   //Check if SOC% is plausible
-  if (battery_voltage >
-      (ABSOLUTE_MAX_VOLTAGE - 100)) {  // When pack voltage is close to max, and SOC% is still low, raise FAULT
+  if (battery_voltage > (max_voltage - 100)) {  // When pack voltage is close to max, and SOC% is still low, raise FAULT
     if (LB_SOC < 650) {
       set_event(EVENT_SOC_PLAUSIBILITY_ERROR, LB_SOC / 10);  // Set event with the SOC as data
     } else {
@@ -392,19 +393,6 @@ void update_values_leaf_battery() { /* This function maps all the values fetched
   } else {
     Serial.print("FAULT, ");
   }
-  switch (bms_char_dis_status) {
-    case 0:
-      Serial.print("Idle");
-      break;
-    case 1:
-      Serial.print("Discharging");
-      break;
-    case 2:
-      Serial.print("Charging");
-      break;
-    default:
-      break;
-  }
   print_with_units(", Power: ", LB_Power, "W ");
   Serial.println("");
   Serial.println("Values from battery");
@@ -425,7 +413,7 @@ void update_values_leaf_battery() { /* This function maps all the values fetched
 #endif
 }
 
-void receive_can_leaf_battery(CAN_frame_t rx_frame) {
+void receive_can_battery(CAN_frame_t rx_frame) {
   switch (rx_frame.MsgID) {
     case 0x1DB:
       if (is_message_corrupt(rx_frame)) {
@@ -689,7 +677,7 @@ void receive_can_leaf_battery(CAN_frame_t rx_frame) {
       break;
   }
 }
-void send_can_leaf_battery() {
+void send_can_battery() {
   unsigned long currentMillis = millis();
   // Send 100ms CAN Message
   if (currentMillis - previousMillis100 >= interval100) {
@@ -920,6 +908,12 @@ uint16_t Temp_fromRAW_to_F(uint16_t temperature) {  //This function feels horrib
   return static_cast<uint16_t>(1094 + (309 - temperature) * 2.5714285714285715);
 }
 
-void init_battery(void) {
+void setup_battery(void) {  // Performs one time setup at startup
+  Serial.println("Nissan LEAF battery selected");
+
   nof_cellvoltages = 96;
+  max_voltage = 4040;  // 404.4V, over this, charging is not possible (goes into forced discharge)
+  min_voltage = 2450;  // 245.0V under this, discharging further is disabled
 }
+
+#endif

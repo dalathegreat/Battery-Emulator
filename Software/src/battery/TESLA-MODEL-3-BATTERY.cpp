@@ -1,7 +1,9 @@
-#include "TESLA-MODEL-3-BATTERY.h"
+#include "BATTERIES.h"
+#ifdef TESLA_MODEL_3_BATTERY
 #include "../devboard/utils/events.h"
 #include "../lib/miwagner-ESP32-Arduino-CAN/CAN_config.h"
 #include "../lib/miwagner-ESP32-Arduino-CAN/ESP32CAN.h"
+#include "TESLA-MODEL-3-BATTERY.h"
 
 /* Do not change code below unless you are sure what you are doing */
 /* Credits: Most of the code comes from Per Carlen's bms_comms_tesla_model3.py (https://gitlab.com/pelle8/batt2gen24/) */
@@ -48,10 +50,10 @@ static uint16_t regenerative_limit = 0;
 static uint16_t discharge_limit = 0;
 static uint16_t max_heat_park = 0;
 static uint16_t hvac_max_power = 0;
-static uint16_t min_voltage = 0;
 static uint16_t max_discharge_current = 0;
 static uint16_t max_charge_current = 0;
-static uint16_t max_voltage = 0;
+static uint16_t bms_max_voltage = 0;
+static uint16_t bms_min_voltage = 0;
 static uint16_t high_voltage = 0;
 static uint16_t low_voltage = 0;
 static uint16_t output_current = 0;
@@ -157,13 +159,13 @@ static const char* hvilStatusState[] = {"NOT OK",
 #define MIN_CELL_VOLTAGE_NCA_NCM 2950   //Battery is put into emergency stop if one cell goes below this value
 #define MAX_CELL_DEVIATION_NCA_NCM 500  //LED turns yellow on the board if mv delta exceeds this value
 
-#define MAX_CELL_VOLTAGE_LFP 3500   //Battery is put into emergency stop if one cell goes over this value
+#define MAX_CELL_VOLTAGE_LFP 3520   //Battery is put into emergency stop if one cell goes over this value
 #define MIN_CELL_VOLTAGE_LFP 2800   //Battery is put into emergency stop if one cell goes below this value
 #define MAX_CELL_DEVIATION_LFP 150  //LED turns yellow on the board if mv delta exceeds this value
 
 #define REASONABLE_ENERGYAMOUNT 20  //When the BMS stops making sense on some values, they are always <20
 
-void update_values_tesla_model_3_battery() {  //This function maps all the values fetched via CAN to the correct parameters used for modbus
+void update_values_battery() {  //This function maps all the values fetched via CAN to the correct parameters used for modbus
   //After values are mapped, we perform some safety checks, and do some serial printouts
   //Calculate the SOH% to send to inverter
   if (bat_beginning_of_life != 0) {  //div/0 safeguard
@@ -242,7 +244,7 @@ void update_values_tesla_model_3_battery() {  //This function maps all the value
 
   cell_deviation_mV = (cell_max_v - cell_min_v);
 
-  //Determine which chemistry battery pack is using (crude method, TODO: replace with real CAN data later)
+  //Determine which chemistry battery pack is using (crude method, TODO: replace with real CAN identifier later)
   if (soc_vi > 900) {  //When SOC% is over 90.0%, we can use max cell voltage to estimate what chemistry is used
     if (cell_max_v < 3450) {
       LFP_Chemistry = true;
@@ -251,11 +253,23 @@ void update_values_tesla_model_3_battery() {  //This function maps all the value
       LFP_Chemistry = false;
     }
   }
+  // An even better way is to check how many cells are in the pack. NCM/A batteries have 96s, LFP has 102-106s
+  if (nof_cellvoltages > 101) {
+    LFP_Chemistry = true;
+  }
+
+  //Once cell chemistry is determined, set maximum and minimum total pack voltage safety limits
+  if (LFP_Chemistry) {
+    max_voltage = 3640;
+    min_voltage = 2450;
+  } else {  // NCM/A chemistry
+    max_voltage = 4030;
+    min_voltage = 3100;
+  }
 
   //Check if SOC% is plausible
-  if (battery_voltage >
-      (ABSOLUTE_MAX_VOLTAGE - 100)) {  // When pack voltage is close to max, and SOC% is still low, raise FAULT
-    if (SOC < 6500) {                  //When SOC is less than 65.00% when approaching max voltage
+  if (battery_voltage > (max_voltage - 100)) {  // When pack voltage is close to max, and SOC% is still low, raise FAULT
+    if (SOC < 6500) {                           //When SOC is less than 65.00% when approaching max voltage
       set_event(EVENT_SOC_PLAUSIBILITY_ERROR, SOC / 100);
     }
   }
@@ -335,6 +349,7 @@ void update_values_tesla_model_3_battery() {  //This function maps all the value
   if (LFP_Chemistry) {
     Serial.print("LFP chemistry detected!");
   }
+  Serial.print(nof_cellvoltages);
   Serial.println("");
   Serial.print("Cellstats, Max: ");
   Serial.print(cell_max_v);
@@ -368,7 +383,7 @@ void update_values_tesla_model_3_battery() {  //This function maps all the value
 #endif
 }
 
-void receive_can_tesla_model_3_battery(CAN_frame_t rx_frame) {
+void receive_can_battery(CAN_frame_t rx_frame) {
   static int mux = 0;
   static int temp = 0;
 
@@ -481,8 +496,10 @@ void receive_can_tesla_model_3_battery(CAN_frame_t rx_frame) {
       break;
     case 0x2d2:
       //Min / max limits
-      min_voltage = ((rx_frame.data.u8[1] << 8) | rx_frame.data.u8[0]) * 0.01 * 2;  //Example 24148mv * 0.01 = 241.48 V
-      max_voltage = ((rx_frame.data.u8[3] << 8) | rx_frame.data.u8[2]) * 0.01 * 2;  //Example 40282mv * 0.01 = 402.82 V
+      bms_min_voltage =
+          ((rx_frame.data.u8[1] << 8) | rx_frame.data.u8[0]) * 0.01 * 2;  //Example 24148mv * 0.01 = 241.48 V
+      bms_max_voltage =
+          ((rx_frame.data.u8[3] << 8) | rx_frame.data.u8[2]) * 0.01 * 2;  //Example 40282mv * 0.01 = 402.82 V
       max_charge_current =
           (((rx_frame.data.u8[5] & 0x3F) << 8) | rx_frame.data.u8[4]) * 0.1;  //Example 1301? * 0.1 = 130.1?
       max_discharge_current =
@@ -558,7 +575,7 @@ void receive_can_tesla_model_3_battery(CAN_frame_t rx_frame) {
       break;
   }
 }
-void send_can_tesla_model_3_battery() {
+void send_can_battery() {
   /*From bielec: My fist 221 message, to close the contactors is 0x41, 0x11, 0x01, 0x00, 0x00, 0x00, 0x20, 0x96 and then, 
 to cause "hv_up_for_drive" I send an additional 221 message 0x61, 0x15, 0x01, 0x00, 0x00, 0x00, 0x20, 0xBA  so 
 two 221 messages are being continuously transmitted.   When I want to shut down, I stop the second message and only send 
@@ -683,3 +700,12 @@ void printDebugIfActive(uint8_t symbol, const char* message) {
     Serial.println(message);
   }
 }
+
+void setup_battery(void) {  // Performs one time setup at startup
+  Serial.println("Tesla Model 3 battery selected");
+
+  max_voltage = 4030;  // 403.0V, over this, charging is not possible (goes into forced discharge)
+  min_voltage = 3100;  // 310.0V under this, discharging further is disabled
+}
+
+#endif

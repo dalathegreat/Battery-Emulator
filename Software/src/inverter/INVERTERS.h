@@ -21,6 +21,10 @@
 #include "SMA-CAN.h"
 #endif
 
+#ifdef SMA_TRIPOWER_CAN
+#include "SMA-TRIPOWER-CAN.h"
+#endif
+
 #ifdef SOFAR_CAN
 #include "SOFAR-CAN.h"
 #endif

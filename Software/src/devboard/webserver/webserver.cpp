@@ -1,6 +1,7 @@
 #include "webserver.h"
 #include <Preferences.h>
 #include "../utils/events.h"
+#include "../utils/timer.h"
 
 // Create AsyncWebServer object on port 80
 AsyncWebServer server(80);
@@ -20,6 +21,9 @@ enum WifiState {
 };
 
 WifiState wifi_state = INIT;
+
+MyTimer ota_timeout_timer = MyTimer(5000);
+bool ota_active = false;
 
 unsigned const long WIFI_MONITOR_INTERVAL_TIME = 15000;
 unsigned const long INIT_WIFI_CONNECT_TIMEOUT = 8000;        // Timeout for initial WiFi connect in milliseconds
@@ -299,6 +303,14 @@ void wifi_monitor() {
       Serial.println(" Hostname: " + String(WiFi.getHostname()));
     }
   }
+
+  if (ota_active && ota_timeout_timer.elapsed()) {
+    // OTA timeout, try to restore can and clear the update event
+    ESP32Can.CANInit();
+    clear_event(EVENT_OTA_UPDATE);
+    set_event(EVENT_OTA_UPDATE_TIMEOUT, 0);
+    ota_active = false;
+  }
 }
 
 void init_WiFi_STA(const char* ssid, const char* password, const uint8_t wifi_channel) {
@@ -515,12 +527,12 @@ String processor(const String& var) {
     } else {
       content += "<h4>BMS Status: FAULT </h4>";
     }
-    if (bms_char_dis_status == 2) {
-      content += "<h4>Battery charging!</h4>";
-    } else if (bms_char_dis_status == 1) {
-      content += "<h4>Battery discharging!</h4>";
-    } else {  //0 idle
+    if (battery_current == 0) {
       content += "<h4>Battery idle</h4>";
+    } else if (battery_current > 32767) {
+      content += "<h4>Battery discharging!</h4>";
+    } else {  // between 1-32767
+      content += "<h4>Battery charging!</h4>";
     }
     content += "<h4>Automatic contactor closing allowed:</h4>";
     content += "<h4>Battery: ";
@@ -635,6 +647,11 @@ void onOTAStart() {
   // Log when OTA has started
   ESP32Can.CANStop();
   set_event(EVENT_OTA_UPDATE, 0);
+
+  // If already set, make a new attempt
+  clear_event(EVENT_OTA_UPDATE_TIMEOUT);
+  ota_active = true;
+  ota_timeout_timer.reset();
 }
 
 void onOTAProgress(size_t current, size_t final) {
@@ -642,6 +659,9 @@ void onOTAProgress(size_t current, size_t final) {
   if (millis() - ota_progress_millis > 1000) {
     ota_progress_millis = millis();
     Serial.printf("OTA Progress Current: %u bytes, Final: %u bytes\n", current, final);
+
+    // Reset the "watchdog"
+    ota_timeout_timer.reset();
   }
 }
 
@@ -651,7 +671,11 @@ void onOTAEnd(bool success) {
     Serial.println("OTA update finished successfully!");
   } else {
     Serial.println("There was an error during OTA update!");
+
+    // If we fail without a timeout, try to restore CAN
+    ESP32Can.CANInit();
   }
+  ota_active = false;
   clear_event(EVENT_OTA_UPDATE);
 }
 

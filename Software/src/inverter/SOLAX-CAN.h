@@ -16,7 +16,6 @@ extern uint16_t capacity_Wh;
 extern uint16_t remaining_capacity_Wh;
 extern uint16_t max_target_discharge_power;
 extern uint16_t max_target_charge_power;
-extern uint8_t bms_char_dis_status;
 extern uint16_t stat_batt_power;
 extern uint16_t temperature_min;
 extern uint16_t temperature_max;
