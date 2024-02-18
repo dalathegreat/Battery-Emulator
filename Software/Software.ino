@@ -53,26 +53,27 @@ uint16_t mbPV[MB_RTU_NUM_VALUES];  // Process variable memory
 ModbusServerRTU MBserver(Serial2, 2000);
 #endif
 
-// Common inverter parameters. Batteries map their values to these variables
-uint16_t max_voltage = 5000;      //V+1,  0-500.0 (0-5000)
-uint16_t min_voltage = 2500;      //V+1,  0-500.0 (0-5000)
-uint16_t battery_voltage = 3700;  //V+1,  0-500.0 (0-5000)
-uint16_t battery_current = 0;
-uint16_t SOC = 5000;                              //SOC%, 0-100.00 (0-10000)
-uint16_t StateOfHealth = 9900;                    //SOH%, 0-100.00 (0-10000)
-uint16_t capacity_Wh = BATTERY_WH_MAX;            //Wh,   0-60000
-uint16_t remaining_capacity_Wh = BATTERY_WH_MAX;  //Wh,   0-60000
-uint16_t max_target_discharge_power = 0;          // 0W (0W > restricts to no discharge), Updates later on from CAN
-uint16_t max_target_charge_power = 4312;          // Init to 4.3kW, Updates later on from CAN
-uint16_t temperature_max = 50;     //C+1,  Goes thru convert2unsignedint16 function (15.0C = 150, -15.0C =  65385)
-uint16_t temperature_min = 60;     // Reads from battery later
-uint8_t bms_status = ACTIVE;       // ACTIVE - [0..5]<>[STANDBY,INACTIVE,DARKSTART,ACTIVE,FAULT,UPDATING]
-uint16_t stat_batt_power = 0;      // Power going in/out of battery
-uint16_t cell_max_voltage = 3700;  // Stores the highest cell voltage value in the system
-uint16_t cell_min_voltage = 3700;  // Stores the minimum cell voltage value in the system
-uint16_t cellvoltages[120];        // Stores all cell voltages
-uint8_t nof_cellvoltages = 0;      // Total number of cell voltages, set by each battery.
-bool LFP_Chemistry = false;
+// Common system parameters. Batteries map their values to these variables
+uint32_t system_capacity_Wh = BATTERY_WH_MAX;            //Wh, 0-150000Wh
+uint32_t system_remaining_capacity_Wh = BATTERY_WH_MAX;  //Wh, 0-150000Wh
+int16_t system_temperature_max_dC = 0;                   //C+1, -50.0 - 50.0
+int16_t system_temperature_min_dC = 0;                   //C+1, -50.0 - 50.0
+int16_t system_active_power_W = 0;                       //Watts, -32000 to 32000
+int16_t system_battery_current_dA = 0;                   //A+1, -1000 - 1000
+uint16_t system_battery_voltage_dV = 3700;               //V+1,  0-500.0 (0-5000)
+uint16_t system_max_design_voltage_dV = 5000;            //V+1,  0-500.0 (0-5000)
+uint16_t system_min_design_voltage_dV = 2500;            //V+1,  0-500.0 (0-5000)
+uint16_t system_scaled_SOC_pptt = 5000;                  //SOC%, 0-100.00 (0-10000)
+uint16_t system_real_SOC_pptt = 5000;                    //SOC%, 0-100.00 (0-10000)
+uint16_t system_SOH_pptt = 9900;                         //SOH%, 0-100.00 (0-10000)
+uint16_t system_max_discharge_power_W = 0;               //Watts, 0 to 65535
+uint16_t system_max_charge_power_W = 4312;               //Watts, 0 to 65535
+uint16_t system_cell_max_voltage_mV = 3700;              //mV, 0-5000 , Stores the highest cell millivolt value
+uint16_t system_cell_min_voltage_mV = 3700;              //mV, 0-5000, Stores the minimum cell millivolt value
+uint16_t system_cellvoltages_mV[120];  //Array with all cell voltages in mV. Oversized to accomodate all setups
+uint8_t system_bms_status = ACTIVE;    //ACTIVE - [0..5]<>[STANDBY,INACTIVE,DARKSTART,ACTIVE,FAULT,UPDATING]
+uint8_t system_number_of_cells = 0;    //Total number of cell voltages, set by each battery
+bool system_LFP_Chemistry = false;     //Set to true or false depending on cell chemistry
 
 // Common charger parameters
 volatile float charger_setpoint_HV_VDC = 0.0f;
@@ -184,6 +185,7 @@ void loop() {
   if (millis() - previousMillisUpdateVal >= intervalUpdateValues)  // Every 4.8s
   {
     previousMillisUpdateVal = millis();
+    update_SOC();     // Check if real or calculated SOC% value should be sent
     update_values();  // Update values heading towards inverter. Prepare for sending on CAN, or write directly to Modbus.
     if (DUMMY_EVENT_ENABLED) {
       set_event(EVENT_DUMMY_ERROR, (uint8_t)millis());
@@ -240,6 +242,14 @@ void init_stored_settings() {
   if (temp != 0) {
     MAXDISCHARGEAMP = temp;
   }
+  temp = settings.getBool("USE_SCALED_SOC", false);
+  if (temp == false) {
+    USE_SCALED_SOC = temp;
+  }
+  if (temp == true) {
+    USE_SCALED_SOC = temp;
+  }
+
   settings.end();
 }
 
@@ -599,6 +609,23 @@ void handle_contactors() {
 }
 #endif
 
+void update_SOC() {
+  if (USE_SCALED_SOC) {  //User has configred a SOC window. Calculate a SOC% to send towards inverter
+    static int16_t CalculatedSOC = 0;
+    CalculatedSOC = system_real_SOC_pptt;
+    CalculatedSOC = (10000) * (CalculatedSOC - (MINPERCENTAGE * 10)) / (MAXPERCENTAGE * 10 - MINPERCENTAGE * 10);
+    if (CalculatedSOC < 0) {  //We are in the real SOC% range of 0-MINPERCENTAGE%
+      CalculatedSOC = 0;
+    }
+    if (CalculatedSOC > 10000) {  //We are in the real SOC% range of MAXPERCENTAGE-100%
+      CalculatedSOC = 10000;
+    }
+    system_scaled_SOC_pptt = CalculatedSOC;
+  } else {  // No SOC window wanted. Set scaled to same as real.
+    system_scaled_SOC_pptt = system_real_SOC_pptt;
+  }
+}
+
 void update_values() {
   // Battery
   update_values_battery();  // Map the fake values to the correct registers
@@ -660,5 +687,7 @@ void storeSettings() {
   settings.putUInt("MINPERCENTAGE", MINPERCENTAGE);
   settings.putUInt("MAXCHARGEAMP", MAXCHARGEAMP);
   settings.putUInt("MAXDISCHARGEAMP", MAXDISCHARGEAMP);
+  settings.putBool("USE_SCALED_SOC", USE_SCALED_SOC);
+
   settings.end();
 }

@@ -74,6 +74,18 @@ void init_webserver() {
     }
   });
 
+  // Route for editing USE_SCALED_SOC
+  server.on("/updateUseScaledSOC", HTTP_GET, [](AsyncWebServerRequest* request) {
+    if (request->hasParam("value")) {
+      String value = request->getParam("value")->value();
+      USE_SCALED_SOC = value.toInt();
+      storeSettings();
+      request->send(200, "text/plain", "Updated successfully");
+    } else {
+      request->send(400, "text/plain", "Bad Request");
+    }
+  });
+
   // Route for editing SOCMax
   server.on("/updateSocMax", HTTP_GET, [](AsyncWebServerRequest* request) {
     if (request->hasParam("value")) {
@@ -132,7 +144,7 @@ void init_webserver() {
     String value = request->getParam("value")->value();
     float val = value.toFloat();
 
-    battery_voltage = val * 10;
+    system_battery_voltage_dV = val * 10;
 
     request->send(200, "text/plain", "Updated successfully");
   });
@@ -480,58 +492,41 @@ String processor(const String& var) {
     }
 
     // Display battery statistics within this block
-    float socFloat = static_cast<float>(SOC) / 100.0;                 // Convert to float and divide by 100
-    float sohFloat = static_cast<float>(StateOfHealth) / 100.0;       // Convert to float and divide by 100
-    float voltageFloat = static_cast<float>(battery_voltage) / 10.0;  // Convert to float and divide by 10
-    float currentFloat = 0;
-    if (battery_current > 32767) {  //Handle negative values on this unsigned value
-      currentFloat = static_cast<float>(-(65535 - battery_current)) / 10.0;  // Convert to float and divide by 10
-    } else {
-      currentFloat = static_cast<float>(battery_current) / 10.0;  // Convert to float and divide by 10
-    }
-    float powerFloat = 0;
-    if (stat_batt_power > 32767) {  //Handle negative values on this unsigned value
-      powerFloat = static_cast<float>(-(65535 - stat_batt_power));
-    } else {
-      powerFloat = static_cast<float>(stat_batt_power);
-    }
-    float tempMaxFloat = 0;
-    float tempMinFloat = 0;
-    if (temperature_max > 32767) {  //Handle negative values on this unsigned value
-      tempMaxFloat = static_cast<float>(-(65536 - temperature_max)) / 10.0;  // Convert to float and divide by 10
-    } else {
-      tempMaxFloat = static_cast<float>(temperature_max) / 10.0;  // Convert to float and divide by 10
-    }
-    if (temperature_min > 32767) {  //Handle negative values on this unsigned value
-      tempMinFloat = static_cast<float>(-(65536 - temperature_min)) / 10.0;  // Convert to float and divide by 10
-    } else {
-      tempMinFloat = static_cast<float>(temperature_min) / 10.0;  // Convert to float and divide by 10
-    }
-    content += "<h4 style='color: white;'>SOC: " + String(socFloat, 2) + "</h4>";
+    float socRealFloat = static_cast<float>(system_real_SOC_pptt) / 100.0;      // Convert to float and divide by 100
+    float socScaledFloat = static_cast<float>(system_scaled_SOC_pptt) / 100.0;  // Convert to float and divide by 100
+    float sohFloat = static_cast<float>(system_SOH_pptt) / 100.0;               // Convert to float and divide by 100
+    float voltageFloat = static_cast<float>(system_battery_voltage_dV) / 10.0;  // Convert to float and divide by 10
+    float currentFloat = static_cast<float>(system_battery_current_dA) / 10.0;  // Convert to float and divide by 10
+    float powerFloat = static_cast<float>(system_active_power_W);               // Convert to float
+    float tempMaxFloat = static_cast<float>(system_temperature_max_dC) / 10.0;  // Convert to float
+    float tempMinFloat = static_cast<float>(system_temperature_min_dC) / 10.0;  // Convert to float
+
+    content += "<h4 style='color: white;'>Real SOC: " + String(socRealFloat, 2) + "</h4>";
+    content += "<h4 style='color: white;'>Scaled SOC: " + String(socScaledFloat, 2) + "</h4>";
     content += "<h4 style='color: white;'>SOH: " + String(sohFloat, 2) + "</h4>";
     content += "<h4 style='color: white;'>Voltage: " + String(voltageFloat, 1) + " V</h4>";
     content += "<h4 style='color: white;'>Current: " + String(currentFloat, 1) + " A</h4>";
     content += formatPowerValue("Power", powerFloat, "", 1);
-    content += formatPowerValue("Total capacity", capacity_Wh, "h", 0);
-    content += formatPowerValue("Remaining capacity", remaining_capacity_Wh, "h", 1);
-    content += formatPowerValue("Max discharge power", max_target_discharge_power, "", 1);
-    content += formatPowerValue("Max charge power", max_target_charge_power, "", 1);
-    content += "<h4>Cell max: " + String(cell_max_voltage) + " mV</h4>";
-    content += "<h4>Cell min: " + String(cell_min_voltage) + " mV</h4>";
+    content += formatPowerValue("Total capacity", system_capacity_Wh, "h", 0);
+    content += formatPowerValue("Remaining capacity", system_remaining_capacity_Wh, "h", 1);
+    content += formatPowerValue("Max discharge power", system_max_discharge_power_W, "", 1);
+    content += formatPowerValue("Max charge power", system_max_charge_power_W, "", 1);
+    content += "<h4>Cell max: " + String(system_cell_max_voltage_mV) + " mV</h4>";
+    content += "<h4>Cell min: " + String(system_cell_min_voltage_mV) + " mV</h4>";
     content += "<h4>Temperature max: " + String(tempMaxFloat, 1) + " C</h4>";
     content += "<h4>Temperature min: " + String(tempMinFloat, 1) + " C</h4>";
-    if (bms_status == ACTIVE) {
+    if (system_bms_status == ACTIVE) {
       content += "<h4>BMS Status: OK </h4>";
-    } else if (bms_status == UPDATING) {
+    } else if (system_bms_status == UPDATING) {
       content += "<h4>BMS Status: UPDATING </h4>";
     } else {
       content += "<h4>BMS Status: FAULT </h4>";
     }
-    if (battery_current == 0) {
+    if (system_battery_current_dA == 0) {
       content += "<h4>Battery idle</h4>";
-    } else if (battery_current > 32767) {
+    } else if (system_battery_current_dA < 0) {
       content += "<h4>Battery discharging!</h4>";
-    } else {  // between 1-32767
+    } else {  // > 0
       content += "<h4>Battery charging!</h4>";
     }
     content += "<h4>Automatic contactor closing allowed:</h4>";

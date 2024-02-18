@@ -12,7 +12,7 @@
 //#define CHADEMO_BATTERY
 //#define IMIEV_CZERO_ION_BATTERY
 //#define KIA_HYUNDAI_64_BATTERY
-//#define NISSAN_LEAF_BATTERY
+#define NISSAN_LEAF_BATTERY
 //#define RENAULT_KANGOO_BATTERY
 //#define RENAULT_ZOE_BATTERY
 //#define SANTA_FE_PHEV_BATTERY
@@ -21,7 +21,7 @@
 
 /* Select inverter communication protocol. See Wiki for which to use with your inverter: https://github.com/dalathegreat/BYD-Battery-Emulator-For-Gen24/wiki */
 //#define BYD_CAN          //Enable this line to emulate a "BYD Battery-Box Premium HVS" over CAN Bus
-//#define BYD_MODBUS  //Enable this line to emulate a "BYD 11kWh HVM battery" over Modbus RTU
+#define BYD_MODBUS  //Enable this line to emulate a "BYD 11kWh HVM battery" over Modbus RTU
 //#define LUNA2000_MODBUS  //Enable this line to emulate a "Luna2000 battery" over Modbus RTU
 //#define PYLON_CAN        //Enable this line to emulate a "Pylontech battery" over CAN bus
 //#define SMA_CAN          //Enable this line to emulate a "BYD Battery-Box H 8.9kWh, 7 mod" over CAN bus
@@ -55,12 +55,13 @@
 //#define NISSANLEAF_CHARGER //Enable this line to control a Nissan LEAF PDM connected to battery - for example, when generator charging
 
 /* Battery limits: These are set in the USER_SETTINGS.cpp file, or later on via the Webserver */
-extern volatile uint16_t BATTERY_WH_MAX;
+extern volatile uint32_t BATTERY_WH_MAX;
 extern volatile uint16_t MAXPERCENTAGE;
 extern volatile uint16_t MINPERCENTAGE;
 extern volatile uint16_t MAXCHARGEAMP;
 extern volatile uint16_t MAXDISCHARGEAMP;
 extern volatile uint8_t AccessPointEnabled;
+extern volatile bool USE_SCALED_SOC;
 
 /* Charger limits (Optional): Set in the USER_SETTINGS.cpp or later in the webserver */
 extern volatile float charger_setpoint_HV_VDC;

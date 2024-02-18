@@ -99,6 +99,6 @@ void run_event_handling(void);
 
 void run_sequence_on_target(void);
 
-extern uint8_t bms_status;  //Enum, 0-5
+extern uint8_t system_bms_status;  //Enum 0-5
 
 #endif  // __MYTIMER_H__

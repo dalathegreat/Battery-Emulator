@@ -299,13 +299,13 @@ static void update_bms_status(void) {
     case EVENT_LEVEL_INFO:
     case EVENT_LEVEL_WARNING:
     case EVENT_LEVEL_DEBUG:
-      bms_status = ACTIVE;
+      system_bms_status = ACTIVE;
       break;
     case EVENT_LEVEL_UPDATE:
-      bms_status = UPDATING;
+      system_bms_status = UPDATING;
       break;
     case EVENT_LEVEL_ERROR:
-      bms_status = FAULT;
+      system_bms_status = FAULT;
       break;
     default:
       break;

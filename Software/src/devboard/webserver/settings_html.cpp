@@ -15,6 +15,8 @@ String settings_processor(const String& var) {
     // Show current settings with edit buttons and input fields
     content += "<h4 style='color: white;'>Battery capacity: <span id='BATTERY_WH_MAX'>" + String(BATTERY_WH_MAX) +
                " Wh </span> <button onclick='editWh()'>Edit</button></h4>";
+    content += "<h4 style='color: white;'>Rescale SOC: <span id='USE_SCALED_SOC'>" + String(USE_SCALED_SOC) +
+               "</span> <button onclick='editUseScaledSOC()'>Edit</button></h4>";
     content += "<h4 style='color: white;'>SOC max percentage: " + String(MAXPERCENTAGE / 10.0, 1) +
                " </span> <button onclick='editSocMax()'>Edit</button></h4>";
     content += "<h4 style='color: white;'>SOC min percentage: " + String(MINPERCENTAGE / 10.0, 1) +
@@ -29,7 +31,7 @@ String settings_processor(const String& var) {
 #ifdef TEST_FAKE_BATTERY
     // Start a new block with blue background color
     content += "<div style='background-color: #2E37AD; padding: 10px; margin-bottom: 10px;border-radius: 50px'>";
-    float voltageFloat = static_cast<float>(battery_voltage) / 10.0;  // Convert to float and divide by 10
+    float voltageFloat = static_cast<float>(system_battery_voltage_dV) / 10.0;  // Convert to float and divide by 10
     content += "<h4 style='color: white;'>Fake battery voltage: " + String(voltageFloat, 1) +
                " V </span> <button onclick='editFakeBatteryVoltage()'>Edit</button></h4>";
 
@@ -69,14 +71,26 @@ String settings_processor(const String& var) {
 
     content += "<script>";
     content += "function editWh() {";
-    content += "var value = prompt('How much energy the battery can store. Enter new Wh value (1-65000):');";
+    content += "var value = prompt('How much energy the battery can store. Enter new Wh value (1-120000):');";
     content += "if (value !== null) {";
-    content += "  if (value >= 1 && value <= 65000) {";
+    content += "  if (value >= 1 && value <= 120000) {";
     content += "    var xhr = new XMLHttpRequest();";
     content += "    xhr.open('GET', '/updateBatterySize?value=' + value, true);";
     content += "    xhr.send();";
     content += "  } else {";
-    content += "    alert('Invalid value. Please enter a value between 1 and 65000.');";
+    content += "    alert('Invalid value. Please enter a value between 1 and 120000.');";
+    content += "  }";
+    content += "}";
+    content += "}";
+    content += "function editUseScaledSOC() {";
+    content += "var value = prompt('Should SOC% be scaled? (0 = No, 1 = Yes):');";
+    content += "if (value !== null) {";
+    content += "  if (value == 0 || value == 1) {";
+    content += "    var xhr = new XMLHttpRequest();";
+    content += "    xhr.open('GET', '/updateUseScaledSOC?value=' + value, true);";
+    content += "    xhr.send();";
+    content += "  } else {";
+    content += "    alert('Invalid value. Please enter a value between 0 and 1.');";
     content += "  }";
     content += "}";
     content += "}";
