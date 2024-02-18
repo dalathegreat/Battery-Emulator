@@ -264,8 +264,8 @@ void update_values_battery() {  //This function maps all the values fetched via 
 
   //Once cell chemistry is determined, set maximum and minimum total pack voltage safety limits
   if (LFP_Chemistry) {
-    max_voltage = 3640;
-    min_voltage = 2450;
+    max_voltage = 3880;
+    min_voltage = 2968;
   } else {  // NCM/A chemistry
     max_voltage = 4030;
     min_voltage = 3100;
