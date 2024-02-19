@@ -205,10 +205,10 @@ void update_values_battery() {  //This function maps all the values fetched via 
   // Check if cell voltages are within allowed range
   cell_deviation_mV = (system_cell_max_voltage_mV - system_cell_min_voltage_mV);
 
-  if (cell_max_voltage >= MAX_CELL_VOLTAGE) {
+  if (CellVoltMax_mV >= MAX_CELL_VOLTAGE) {
     set_event(EVENT_CELL_OVER_VOLTAGE, 0);
   }
-  if (cell_min_voltage <= MIN_CELL_VOLTAGE) {
+  if (CellVoltMin_mV <= MIN_CELL_VOLTAGE) {
     set_event(EVENT_CELL_UNDER_VOLTAGE, 0);
   }
   if (cell_deviation_mV > MAX_CELL_DEVIATION) {
