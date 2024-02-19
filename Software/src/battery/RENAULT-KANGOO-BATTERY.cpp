@@ -71,9 +71,9 @@ void update_values_battery() {  //This function maps all the values fetched via 
 
   LB_Discharge_Power_Limit_Watts = (LB_Discharge_Power_Limit * 500);  //Convert value fetched from battery to watts
   /* Define power able to be discharged from battery */
-  if (LB_Discharge_Power_Limit_Watts > 30000)  //if >30kW can be pulled from battery
+  if (LB_Discharge_Power_Limit_Watts > 60000)  //if >60kW can be pulled from battery
   {
-    system_max_discharge_power_W = 30000;  //cap value so we don't go over the Fronius limits
+    system_max_discharge_power_W = 60000;  //cap value so we don't go over the uint16 limit
   } else {
     system_max_discharge_power_W = LB_Discharge_Power_Limit_Watts;
   }
@@ -84,9 +84,9 @@ void update_values_battery() {  //This function maps all the values fetched via 
 
   LB_Charge_Power_Limit_Watts = (LB_Charge_Power_Limit * 500);  //Convert value fetched from battery to watts
   /* Define power able to be put into the battery */
-  if (LB_Charge_Power_Limit_Watts > 30000)  //if >30kW can be put into the battery
+  if (LB_Charge_Power_Limit_Watts > 60000)  //if >60kW can be put into the battery
   {
-    system_max_charge_power_W = 30000;  //cap value so we don't go over the Fronius limits
+    system_max_charge_power_W = 60000;  //cap value so we don't go over the uint16 limit
   }
   if (LB_Charge_Power_Limit_Watts < 0) {
     system_max_charge_power_W = 0;  //cap calue so we dont do under the Fronius limits
