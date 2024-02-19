@@ -241,14 +241,9 @@ void init_stored_settings() {
   temp = settings.getUInt("MAXDISCHARGEAMP", false);
   if (temp != 0) {
     MAXDISCHARGEAMP = temp;
-  }
-  temp = settings.getBool("USE_SCALED_SOC", false);
-  if (temp == false) {
-    USE_SCALED_SOC = temp;
-  }
-  if (temp == true) {
-    USE_SCALED_SOC = temp;
-  }
+    temp = settings.getBool("USE_SCALED_SOC", false);
+    USE_SCALED_SOC = temp;  //This bool needs to be checked inside the temp!= block
+  }                         // No way to know if it wasnt reset otherwise
 
   settings.end();
 }
