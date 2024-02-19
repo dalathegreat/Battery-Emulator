@@ -263,7 +263,7 @@ void update_values_battery() {  //This function maps all the values fetched via 
   //Check if SOC% is plausible
   if (system_battery_voltage_dV >
       (system_max_design_voltage_dV - 20)) {  // When pack voltage is close to max, and SOC% is still low, raise FAULT
-    if (system_real_SOC_pptt < 5000) {         //When SOC is less than 50.00% when approaching max voltage
+    if (system_real_SOC_pptt < 5000) {        //When SOC is less than 50.00% when approaching max voltage
       set_event(EVENT_SOC_PLAUSIBILITY_ERROR, system_real_SOC_pptt / 100);
     }
   }
