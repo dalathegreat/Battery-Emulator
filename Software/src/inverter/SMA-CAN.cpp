@@ -99,36 +99,33 @@ CAN_frame_t SMA_158 = {.FIR = {.B =
 static int16_t discharge_current = 0;
 static int16_t charge_current = 0;
 static int16_t temperature_average = 0;
-static int16_t temp_min = 0;
-static int16_t temp_max = 0;
 static uint16_t ampere_hours_remaining = 0;
 
 void update_values_can_sma() {  //This function maps all the values fetched from battery CAN to the correct CAN messages
   //Calculate values
-  charge_current =
-      ((max_target_charge_power * 10) / max_voltage);  //Charge power in W , max volt in V+1decimal (P=UI, solve for I)
+  charge_current = ((system_max_charge_power_W * 10) /
+                    system_max_design_voltage_dV);  //Charge power in W , max volt in V+1decimal (P=UI, solve for I)
   //The above calculation results in (30 000*10)/3700=81A
   charge_current = (charge_current * 10);  //Value needs a decimal before getting sent to inverter (81.0A)
 
-  discharge_current = ((max_target_discharge_power * 10) /
-                       max_voltage);  //Charge power in W , max volt in V+1decimal (P=UI, solve for I)
+  discharge_current = ((system_max_discharge_power_W * 10) /
+                       system_max_design_voltage_dV);  //Charge power in W , max volt in V+1decimal (P=UI, solve for I)
   //The above calculation results in (30 000*10)/3700=81A
   discharge_current = (discharge_current * 10);  //Value needs a decimal before getting sent to inverter (81.0A)
 
-  temp_min = temperature_min;  //Convert from unsigned to signed
-  temp_max = temperature_max;
-  temperature_average = ((temp_max + temp_min) / 2);
+  temperature_average = ((system_temperature_max_dC + system_temperature_min_dC) / 2);
 
   ampere_hours_remaining =
-      ((remaining_capacity_Wh / battery_voltage) * 100);  //(WH[10000] * V+1[3600])*100 = 270 (27.0Ah)
+      ((remaining_capacity_Wh / system_battery_voltage_dV) * 100);  //(WH[10000] * V+1[3600])*100 = 270 (27.0Ah)
 
   //Map values to CAN messages
   //Maxvoltage (eg 400.0V = 4000 , 16bits long)
-  SMA_358.data.u8[0] = (max_voltage >> 8);
-  SMA_358.data.u8[1] = (max_voltage & 0x00FF);
+  SMA_358.data.u8[0] = (system_max_design_voltage_dV >> 8);
+  SMA_358.data.u8[1] = (system_max_design_voltage_dV & 0x00FF);
   //Minvoltage (eg 300.0V = 3000 , 16bits long)
-  SMA_358.data.u8[2] = (min_voltage >> 8);  //Minvoltage behaves strange on SMA, cuts out at 56% of the set value?
-  SMA_358.data.u8[3] = (min_voltage & 0x00FF);
+  SMA_358.data.u8[2] =
+      (system_min_design_voltage_dV >> 8);  //Minvoltage behaves strange on SMA, cuts out at 56% of the set value?
+  SMA_358.data.u8[3] = (system_min_design_voltage_dV & 0x00FF);
   //Discharge limited current, 500 = 50A, (0.1, A)
   SMA_358.data.u8[4] = (discharge_current >> 8);
   SMA_358.data.u8[5] = (discharge_current & 0x00FF);
@@ -137,21 +134,21 @@ void update_values_can_sma() {  //This function maps all the values fetched from
   SMA_358.data.u8[7] = (charge_current & 0x00FF);
 
   //SOC (100.00%)
-  SMA_3D8.data.u8[0] = (SOC >> 8);
-  SMA_3D8.data.u8[1] = (SOC & 0x00FF);
+  SMA_3D8.data.u8[0] = (system_scaled_SOC_pptt >> 8);
+  SMA_3D8.data.u8[1] = (system_scaled_SOC_pptt & 0x00FF);
   //StateOfHealth (100.00%)
-  SMA_3D8.data.u8[2] = (StateOfHealth >> 8);
-  SMA_3D8.data.u8[3] = (StateOfHealth & 0x00FF);
+  SMA_3D8.data.u8[2] = (system_SOH_pptt >> 8);
+  SMA_3D8.data.u8[3] = (system_SOH_pptt & 0x00FF);
   //State of charge (AH, 0.1)
   SMA_3D8.data.u8[4] = (ampere_hours_remaining >> 8);
   SMA_3D8.data.u8[5] = (ampere_hours_remaining & 0x00FF);
 
   //Voltage (370.0)
-  SMA_4D8.data.u8[0] = (battery_voltage >> 8);
-  SMA_4D8.data.u8[1] = (battery_voltage & 0x00FF);
+  SMA_4D8.data.u8[0] = (system_battery_voltage_dV >> 8);
+  SMA_4D8.data.u8[1] = (system_battery_voltage_dV & 0x00FF);
   //Current (TODO: signed OK?)
-  SMA_4D8.data.u8[2] = (battery_current >> 8);
-  SMA_4D8.data.u8[3] = (battery_current & 0x00FF);
+  SMA_4D8.data.u8[2] = (system_battery_current_dA >> 8);
+  SMA_4D8.data.u8[3] = (system_battery_current_dA & 0x00FF);
   //Temperature average
   SMA_4D8.data.u8[4] = (temperature_average >> 8);
   SMA_4D8.data.u8[5] = (temperature_average & 0x00FF);

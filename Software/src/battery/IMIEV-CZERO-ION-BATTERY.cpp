@@ -9,8 +9,6 @@
 //Figure out if CAN messages need to be sent to keep the system happy?
 
 /* Do not change code below unless you are sure what you are doing */
-#define BMU_MAX_SOC 1000            //BMS never goes over this value. We use this info to rescale SOC% sent to inverter
-#define BMU_MIN_SOC 0               //BMS never goes below this value. We use this info to rescale SOC% sent to inverter
 static uint8_t CANstillAlive = 12;  //counter for checking if CAN is still alive
 static uint8_t errorCode = 0;       //stores if we have an error code active from battery control logic
 static uint8_t BMU_Detected = 0;
@@ -43,30 +41,30 @@ static double max_temp_cel = 20.00;
 static double min_temp_cel = 19.00;
 
 void update_values_battery() {  //This function maps all the values fetched via CAN to the correct parameters used for modbus
-  SOC = (uint16_t)(BMU_SOC * 100);  //increase BMU_SOC range from 0-100 -> 100.00
+  system_real_SOC_pptt = (uint16_t)(BMU_SOC * 100);  //increase BMU_SOC range from 0-100 -> 100.00
 
-  battery_voltage = (uint16_t)(BMU_PackVoltage * 10);  // Multiply by 10 and cast to uint16_t
+  system_battery_voltage_dV = (uint16_t)(BMU_PackVoltage * 10);  // Multiply by 10 and cast to uint16_t
 
-  battery_current = (BMU_Current * 10);  //Todo, scaling?
+  system_battery_current_dA = (BMU_Current * 10);  //Todo, scaling?
 
-  capacity_Wh = BATTERY_WH_MAX;  //Hardcoded to header value
+  system_capacity_Wh = BATTERY_WH_MAX;  //Hardcoded to header value
 
-  remaining_capacity_Wh = (uint16_t)((SOC / 10000) * capacity_Wh);
+  system_remaining_capacity_Wh = (uint16_t)((SOC / 10000) * capacity_Wh);
 
   //We do not know if the max charge power is sent by the battery. So we estimate the value based on SOC%
-  if (SOC == 10000) {             //100.00%
-    max_target_charge_power = 0;  //When battery is 100% full, set allowed charge W to 0
+  if (system_scaled_SOC_pptt == 10000) {  //100.00%
+    system_max_charge_power_W = 0;        //When battery is 100% full, set allowed charge W to 0
   } else {
-    max_target_charge_power = 10000;  //Otherwise we can push 10kW into the pack!
+    system_max_charge_power_W = 10000;  //Otherwise we can push 10kW into the pack!
   }
 
-  if (SOC < 200) {                   //2.00%
-    max_target_discharge_power = 0;  //When battery is empty (below 2%), set allowed discharge W to 0
+  if (system_scaled_SOC_pptt < 200) {  //2.00%
+    system_max_discharge_power_W = 0;  //When battery is empty (below 2%), set allowed discharge W to 0
   } else {
-    max_target_discharge_power = 10000;  //Otherwise we can discharge 10kW from the pack!
+    system_max_discharge_power_W = 10000;  //Otherwise we can discharge 10kW from the pack!
   }
 
-  stat_batt_power = BMU_Power;  //TODO: Scaling?
+  system_active_power_W = BMU_Power;  //TODO: Scaling?
 
   static int n = sizeof(cell_voltages) / sizeof(cell_voltages[0]);
   max_volt_cel = cell_voltages[0];  // Initialize max with the first element of the array
@@ -98,13 +96,13 @@ void update_values_battery() {  //This function maps all the values fetched via 
     }
   }
 
-  cell_max_voltage = (uint16_t)(max_volt_cel * 1000);
+  system_cell_max_voltage_mV = (uint16_t)(max_volt_cel * 1000);
 
-  cell_min_voltage = (uint16_t)(min_volt_cel * 1000);
+  system_cell_min_voltage_mV = (uint16_t)(min_volt_cel * 1000);
 
-  temperature_min = (uint16_t)(min_temp_cel * 1000);
+  system_temperature_min_dC = (int16_t)(min_temp_cel * 1000);
 
-  temperature_max = (uint16_t)(max_temp_cel * 1000);
+  system_temperature_min_dC = (int16_t)(max_temp_cel * 1000);
 
   /* Check if the BMS is still sending CAN messages. If we go 60s without messages we raise an error*/
   if (!CANstillAlive) {

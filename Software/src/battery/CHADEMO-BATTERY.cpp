@@ -93,16 +93,16 @@ uint8_t HighVoltageControlStatus = 0;
 
 void update_values_battery() {  //This function maps all the values fetched via CAN to the correct parameters used for the inverter
 
-  SOC = ChargingRate;
+  system_real_SOC_pptt = ChargingRate;
 
-  max_target_discharge_power = (MaximumDischargeCurrent * MaximumBatteryVoltage);  //In Watts, Convert A to P
+  system_max_discharge_power_W = (MaximumDischargeCurrent * MaximumBatteryVoltage);  //In Watts, Convert A to P
 
-  battery_voltage = TargetBatteryVoltage;  //TODO: scaling?
+  system_battery_voltage_dV = TargetBatteryVoltage;  //TODO: scaling?
 
-  capacity_Wh = ((RatedBatteryCapacity / 0.11) *
-                 1000);  //(Added in CHAdeMO v1.0.1), maybe handle hardcoded on lower protocol version?
+  system_capacity_Wh = ((RatedBatteryCapacity / 0.11) *
+                        1000);  //(Added in CHAdeMO v1.0.1), maybe handle hardcoded on lower protocol version?
 
-  remaining_capacity_Wh = (SOC / 100) * capacity_Wh;
+  system_remaining_capacity_Wh = (SOC / 100) * capacity_Wh;
 
   /* Check if the Vehicle is still sending CAN messages. If we go 60s without messages we raise an error*/
   if (!CANstillAlive) {
@@ -119,19 +119,19 @@ void update_values_battery() {  //This function maps all the values fetched via 
     Serial.println(errorCode);
   }
   Serial.print("BMS Status (3=OK): ");
-  Serial.println(bms_status);
+  Serial.println(system_bms_status);
   Serial.print("Max discharge power: ");
-  Serial.println(max_target_discharge_power);
+  Serial.println(system_max_discharge_power_W);
   Serial.print("Max charge power: ");
-  Serial.println(max_target_charge_power);
+  Serial.println(system_max_charge_power_W);
   Serial.print("SOH%: ");
-  Serial.println(StateOfHealth);
+  Serial.println(system_SOH_pptt);
   Serial.print("SOC% to Inverter: ");
-  Serial.println(SOC);
+  Serial.println(system_scaled_SOC_pptt);
   Serial.print("Temperature Min: ");
-  Serial.println(temperature_min);
+  Serial.println(system_temperature_min_dC);
   Serial.print("Temperature Max: ");
-  Serial.println(temperature_max);
+  Serial.println(system_temperature_max_dC);
 #endif
 }
 
@@ -211,7 +211,7 @@ void send_can_battery() {
 void setup_battery(void) {  // Performs one time setup at startup
   Serial.println("Chademo battery selected");
 
-  max_voltage = 4040;  // 404.4V, over this, charging is not possible (goes into forced discharge)
-  min_voltage = 2000;  // 200.0V under this, discharging further is disabled
+  system_max_design_voltage_dV = 4040;  // 404.4V, over this, charging is not possible (goes into forced discharge)
+  system_min_design_voltage_dV = 2000;  // 200.0V under this, discharging further is disabled
 }
 #endif
