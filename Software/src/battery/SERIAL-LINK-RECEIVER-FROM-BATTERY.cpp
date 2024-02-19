@@ -42,7 +42,7 @@ void __getData() {
   system_temperature_max_dC = (int16_t)dataLinkReceive.getReceivedData(11);
   system_cell_max_voltage_mV = (uint16_t)dataLinkReceive.getReceivedData(12);
   system_cell_min_voltage_mV = (uint16_t)dataLinkReceive.getReceivedData(13);
-  LFP_Chemistry = (bool)dataLinkReceive.getReceivedData(14);
+  system_LFP_Chemistry = (bool)dataLinkReceive.getReceivedData(14);
   batteryAllowsContactorClosing = (bool)dataLinkReceive.getReceivedData(15);
 
   batteryFault = false;
@@ -99,8 +99,8 @@ void manageSerialLinkReceiver() {
   {
     __getData();
     reads++;
-    lastGoodMaxCharge = max_target_charge_power;
-    lastGoodMaxDischarge = max_target_discharge_power;
+    lastGoodMaxCharge = system_max_charge_power_W;
+    lastGoodMaxDischarge = system_max_discharge_power_W;
     //--- if BatteryFault then assume Data is stale
     if (!batteryFault)
       lastGood = currentTime;
