@@ -1,4 +1,5 @@
 #include "SOLAX-CAN.h"
+#include "../devboard/utils/events.h"
 
 /* Do not change code below unless you are sure what you are doing */
 static uint16_t max_charge_rate_amp = 0;
