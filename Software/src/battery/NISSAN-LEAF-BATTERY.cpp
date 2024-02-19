@@ -93,12 +93,10 @@ static uint8_t crctable[256] = {
 #define AZE0_BATTERY 1
 #define ZE1_BATTERY 2
 static uint8_t LEAF_Battery_Type = ZE0_BATTERY;
-#define MAX_CELL_VOLTAGE 4250   //Battery is put into emergency stop if one cell goes over this value
-#define MIN_CELL_VOLTAGE 2700   //Battery is put into emergency stop if one cell goes below this value
-#define MAX_CELL_DEVIATION 500  //LED turns yellow on the board if mv delta exceeds this value
-#define WH_PER_GID 77           //One GID is this amount of Watt hours
-#define LB_MAX_SOC 1000         //LEAF BMS never goes over this value. We use this info to rescale SOC% sent to Fronius
-#define LB_MIN_SOC 0            //LEAF BMS never goes below this value. We use this info to rescale SOC% sent to Fronius
+#define MAX_CELL_VOLTAGE 4250                  //Battery is put into emergency stop if one cell goes over this value
+#define MIN_CELL_VOLTAGE 2700                  //Battery is put into emergency stop if one cell goes below this value
+#define MAX_CELL_DEVIATION 500                 //LED turns yellow on the board if mv delta exceeds this value
+#define WH_PER_GID 77                          //One GID is this amount of Watt hours
 static uint16_t LB_Discharge_Power_Limit = 0;  //Limit in kW
 static uint16_t LB_Charge_Power_Limit = 0;     //Limit in kW
 static int16_t LB_MAX_POWER_FOR_CHARGER = 0;   //Limit in kW
@@ -211,8 +209,8 @@ void update_values_battery() { /* This function maps all the values fetched via 
   }
 
   // Define power able to be discharged from battery
-  if (LB_Discharge_Power_Limit > 30) {     //if >30kW can be pulled from battery
-    system_max_discharge_power_W = 30000;  //cap value so we don't go over the Fronius limits
+  if (LB_Discharge_Power_Limit > 60) {     //if >60kW can be pulled from battery
+    system_max_discharge_power_W = 60000;  //cap value so we don't go over uint16 value
   } else {
     system_max_discharge_power_W = (LB_Discharge_Power_Limit * 1000);  //kW to W
   }
@@ -221,8 +219,8 @@ void update_values_battery() { /* This function maps all the values fetched via 
   }
 
   // Define power able to be put into the battery
-  if (LB_Charge_Power_Limit > 30) {     //if >30kW can be put into the battery
-    system_max_charge_power_W = 30000;  //cap value so we don't go over the Fronius limits
+  if (LB_Charge_Power_Limit > 60) {     //if >60kW can be put into the battery
+    system_max_charge_power_W = 60000;  //cap value so we don't go over uint16 value
   } else {
     system_max_charge_power_W = (LB_Charge_Power_Limit * 1000);  //kW to W
   }

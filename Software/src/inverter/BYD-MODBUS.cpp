@@ -93,10 +93,19 @@ void handle_update_data_modbusp301_byd() {
     battery_data[5] =
         system_remaining_capacity_Wh;  // Id.: p306 Value.: 13260 Scaled value.: 13,26kWh Comment.: remaining cap: 7.68kWh
   }
-  battery_data[6] =
-      system_max_discharge_power_W;  // Id.: p307 Value.: 25604 Scaled value.: 25,604kW Comment.: max/target discharge power: 0W (0W > restricts to no discharge)
-  battery_data[7] =
-      system_max_charge_power_W;  // Id.: p308 Value.: 25604 Scaled value.: 25,604kW Comment.: max/target charge power: 4.3kW (during charge), both 307&308 can be set (>0) at the same time
+  if (system_max_discharge_power_W > 30000) {
+    battery_data[6] = 30000;
+  } else {
+    battery_data[6] =
+        system_max_discharge_power_W;  // Id.: p307 Value.: 25604 Scaled value.: 25,604kW Comment.: max/target discharge power: 0W (0W > restricts to no discharge)
+  }
+
+  if (system_max_charge_power_W > 30000) {
+    battery_data[7] = 30000;
+  } else {
+    battery_data[7] =
+        system_max_charge_power_W;  // Id.: p308 Value.: 25604 Scaled value.: 25,604kW Comment.: max/target charge power: 4.3kW (during charge), both 307&308 can be set (>0) at the same time
+  }
   //Battery_data[8] set previously in function           // Id.: p309 Value.: 3161 Scaled value.: 316,1VDC Comment.: Batt Voltage outer (0 if status !=3, maybe a contactor closes when active): 173.4V
   battery_data[9] =
       2000;  // Id.: p310 Value.: 64121 Scaled value.: 6412,1W Comment.: Current Power to API: if>32768... -(65535-61760)=3775W
