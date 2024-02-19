@@ -88,9 +88,7 @@ void update_values_battery() {  //This function maps all the values fetched via 
   {
     system_max_charge_power_W = 60000;  //cap value so we don't go over the uint16 limit
   }
-  if (LB_Charge_Power_Limit_Watts < 0) {
-    system_max_charge_power_W = 0;  //cap calue so we dont do under the Fronius limits
-  } else {
+  else {
     system_max_charge_power_W = LB_Charge_Power_Limit_Watts;
   }
   if (system_scaled_SOC_pptt == 10000)  //Scaled SOC% value is 100.00%
