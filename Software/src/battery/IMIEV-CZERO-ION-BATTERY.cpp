@@ -49,7 +49,7 @@ void update_values_battery() {  //This function maps all the values fetched via 
 
   system_capacity_Wh = BATTERY_WH_MAX;  //Hardcoded to header value
 
-  system_remaining_capacity_Wh = (uint16_t)((SOC / 10000) * capacity_Wh);
+  system_remaining_capacity_Wh = (uint16_t)((system_real_SOC_pptt / 10000) * system_capacity_Wh);
 
   //We do not know if the max charge power is sent by the battery. So we estimate the value based on SOC%
   if (system_scaled_SOC_pptt == 10000) {  //100.00%
@@ -138,25 +138,25 @@ void update_values_battery() {  //This function maps all the values fetched via 
 
   Serial.println("Values sent to inverter");
   Serial.print("SOC% (0-100.00): ");
-  Serial.print(SOC);
+  Serial.print(system_scaled_SOC_pptt);
   Serial.print(" Voltage (0-400.0): ");
-  Serial.print(battery_voltage);
+  Serial.print(system_battery_voltage_dV);
   Serial.print(" Capacity WH full (0-60000): ");
-  Serial.print(capacity_Wh);
+  Serial.print(system_capacity_Wh);
   Serial.print(" Capacity WH remain (0-60000): ");
-  Serial.print(remaining_capacity_Wh);
+  Serial.print(system_remaining_capacity_Wh);
   Serial.print(" Max charge power W (0-10000): ");
-  Serial.print(max_target_charge_power);
+  Serial.print(system_max_charge_power_W);
   Serial.print(" Max discharge power W (0-10000): ");
-  Serial.print(max_target_discharge_power);
+  Serial.print(system_max_discharge_power_W);
   Serial.print(" Temp max ");
-  Serial.print(temperature_max);
+  Serial.print(system_temperature_max_dC);
   Serial.print(" Temp min ");
-  Serial.print(temperature_min);
+  Serial.print(system_temperature_min_dC);
   Serial.print(" Cell mV max ");
-  Serial.print(cell_max_voltage);
+  Serial.print(system_cell_max_voltage_mV);
   Serial.print(" Cell mV min ");
-  Serial.print(cell_min_voltage);
+  Serial.print(system_cell_min_voltage_mV);
 
 #endif
 }
@@ -228,8 +228,8 @@ void send_can_battery() {
 void setup_battery(void) {  // Performs one time setup at startup
   Serial.println("Mitsubishi i-MiEV / Citroen C-Zero / Peugeot Ion battery selected");
 
-  max_voltage = 4040;  // 404.4V, over this, charging is not possible (goes into forced discharge)
-  min_voltage = 3100;  // 310.0V under this, discharging further is disabled
+  system_max_design_voltage_dV = 4040;  // 404.4V, over this, charging is not possible (goes into forced discharge)
+  system_min_design_voltage_dV = 3100;  // 310.0V under this, discharging further is disabled
 }
 
 #endif

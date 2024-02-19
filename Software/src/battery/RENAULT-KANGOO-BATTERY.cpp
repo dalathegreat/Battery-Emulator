@@ -98,7 +98,7 @@ void update_values_battery() {  //This function maps all the values fetched via 
     system_max_charge_power_W = 0;  //No need to charge further, set max power to 0
   }
 
-  system_active_power_W = (battery_voltage * LB_Current);  //TODO: check if scaling is OK
+  system_active_power_W = (system_battery_voltage_dV * LB_Current);  //TODO: check if scaling is OK
 
   system_temperature_min_dC = (LB_MIN_TEMPERATURE * 10);
 
@@ -108,7 +108,7 @@ void update_values_battery() {  //This function maps all the values fetched via 
 
   system_cell_max_voltage_mV = LB_Cell_Max_Voltage;
 
-  cell_deviation_mV = (cell_max_voltage - cell_min_voltage);
+  cell_deviation_mV = (system_temperature_max_dC - system_temperature_min_dC);
 
   /* Check if the BMS is still sending CAN messages. If we go 60s without messages we raise an error*/
   if (!CANstillAlive) {

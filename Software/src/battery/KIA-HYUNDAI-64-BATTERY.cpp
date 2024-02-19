@@ -158,7 +158,7 @@ void update_values_battery() {  //This function maps all the values fetched via 
 
   system_capacity_Wh = BATTERY_WH_MAX;
 
-  system_remaining_capacity_Wh = static_cast<int>((static_cast<double>(SOC) / 10000) * BATTERY_WH_MAX);
+  system_remaining_capacity_Wh = static_cast<int>((static_cast<double>(system_real_SOC_pptt) / 10000) * BATTERY_WH_MAX);
 
   //system_max_charge_power_W = (uint16_t)allowedChargePower * 10;  //From kW*100 to Watts
   //The allowed charge power is not available. We estimate this value
@@ -203,7 +203,7 @@ void update_values_battery() {  //This function maps all the values fetched via 
   }
 
   // Check if cell voltages are within allowed range
-  cell_deviation_mV = (cell_max_voltage - cell_min_voltage);
+  cell_deviation_mV = (system_cell_max_voltage_mV - system_cell_min_voltage_mV);
 
   if (cell_max_voltage >= MAX_CELL_VOLTAGE) {
     set_event(EVENT_CELL_OVER_VOLTAGE, 0);
