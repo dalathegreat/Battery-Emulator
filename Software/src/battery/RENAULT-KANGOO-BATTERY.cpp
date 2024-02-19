@@ -87,8 +87,7 @@ void update_values_battery() {  //This function maps all the values fetched via 
   if (LB_Charge_Power_Limit_Watts > 60000)  //if >60kW can be put into the battery
   {
     system_max_charge_power_W = 60000;  //cap value so we don't go over the uint16 limit
-  }
-  else {
+  } else {
     system_max_charge_power_W = LB_Charge_Power_Limit_Watts;
   }
   if (system_scaled_SOC_pptt == 10000)  //Scaled SOC% value is 100.00%
