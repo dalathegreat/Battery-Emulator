@@ -236,19 +236,19 @@ void update_values_battery() {  //This function maps all the values fetched via 
   //Determine which chemistry battery pack is using (crude method, TODO: replace with real CAN identifier later)
   if (soc_vi > 900) {  //When SOC% is over 90.0%, we can use max cell voltage to estimate what chemistry is used
     if (cell_max_v < 3450) {
-      LFP_Chemistry = true;
+      system_LFP_Chemistry = true;
     }
     if (cell_max_v > 3700) {
-      LFP_Chemistry = false;
+      system_LFP_Chemistry = false;
     }
   }
   // An even better way is to check how many cells are in the pack. NCM/A batteries have 96s, LFP has 102-106s
   if (system_number_of_cells > 101) {
-    LFP_Chemistry = true;
+    system_LFP_Chemistry = true;
   }
 
   //Once cell chemistry is determined, set maximum and minimum total pack voltage safety limits
-  if (LFP_Chemistry) {
+  if (system_LFP_Chemistry) {
     system_max_design_voltage_dV = 3640;
     system_min_design_voltage_dV = 2450;
   } else {  // NCM/A chemistry
@@ -274,7 +274,7 @@ void update_values_battery() {  //This function maps all the values fetched via 
     set_event(EVENT_KWH_PLAUSIBILITY_ERROR, nominal_full_pack_energy);
   }
 
-  if (LFP_Chemistry) {  //LFP limits used for voltage safeties
+  if (system_LFP_Chemistry) {  //LFP limits used for voltage safeties
     if (cell_max_v >= MAX_CELL_VOLTAGE_LFP) {
       set_event(EVENT_CELL_OVER_VOLTAGE, (cell_max_v - MAX_CELL_VOLTAGE_LFP));
     }
@@ -336,7 +336,7 @@ void update_values_battery() {  //This function maps all the values fetched via 
     Serial.print("YES, ");
   else
     Serial.print("NO, ");
-  if (LFP_Chemistry) {
+  if (system_LFP_Chemistry) {
     Serial.print("LFP chemistry detected!");
   }
   Serial.println("");
