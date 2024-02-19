@@ -235,8 +235,8 @@ void update_values_battery() { /* This function maps all the values fetched via 
   }
 
   /*Extra safety functions below*/
-  if (LB_GIDS < 6)  //500Wh left in battery
-  {                 //Battery is running abnormally low, some discharge logic might have failed. Zero it all out.
+  if (LB_GIDS < 10)  //700Wh left in battery!
+  {                  //Battery is running abnormally low, some discharge logic might have failed. Zero it all out.
     set_event(EVENT_BATTERY_EMPTY, 0);
     system_real_SOC_pptt = 0;
     system_max_discharge_power_W = 0;
@@ -892,7 +892,7 @@ void setup_battery(void) {  // Performs one time setup at startup
 
   system_number_of_cells = 96;
   system_max_design_voltage_dV = 4040;  // 404.4V, over this, charging is not possible (goes into forced discharge)
-  system_min_design_voltage_dV = 2450;  // 245.0V under this, discharging further is disabled
+  system_min_design_voltage_dV = 2600;  // 260.0V under this, discharging further is disabled
 }
 
 #endif
