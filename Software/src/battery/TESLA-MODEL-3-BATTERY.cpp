@@ -249,18 +249,18 @@ void update_values_battery() {  //This function maps all the values fetched via 
 
   //Once cell chemistry is determined, set maximum and minimum total pack voltage safety limits
   if (LFP_Chemistry) {
-    max_voltage = 3640;
-    min_voltage = 2450;
+    system_max_design_voltage_dV = 3640;
+    system_min_design_voltage_dV = 2450;
   } else {  // NCM/A chemistry
-    max_voltage = 4030;
-    min_voltage = 3100;
+    system_max_design_voltage_dV = 4030;
+    system_min_design_voltage_dV = 3100;
   }
 
   //Check if SOC% is plausible
   if (system_battery_voltage_dV >
       (system_max_design_voltage_dV - 100)) {  // When pack voltage is close to max, and SOC% is still low, raise FAULT
     if (system_real_SOC_pptt < 6500) {         //When SOC is less than 65.00% when approaching max voltage
-      set_event(EVENT_SOC_PLAUSIBILITY_ERROR, SOC / 100);
+      set_event(EVENT_SOC_PLAUSIBILITY_ERROR, system_real_SOC_pptt / 100);
     }
   }
 
@@ -300,7 +300,7 @@ void update_values_battery() {  //This function maps all the values fetched via 
     }
   }
 
-  if (bms_status == FAULT) {  //Incase we enter a critical fault state, zero out the allowed limits
+  if (system_bms_status == FAULT) {  //Incase we enter a critical fault state, zero out the allowed limits
     system_max_charge_power_W = 0;
     system_max_discharge_power_W = 0;
   }
@@ -576,12 +576,12 @@ the first, for a few cycles, then stop all  messages which causes the contactor 
     previousMillis30 = currentMillis;
 
     if (inverterAllowsContactorClosing == 1) {
-      if (bms_status == ACTIVE) {
+      if (system_bms_status == ACTIVE) {
         send221still = 50;
         batteryAllowsContactorClosing = true;
         ESP32Can.CANWriteFrame(&TESLA_221_1);
         ESP32Can.CANWriteFrame(&TESLA_221_2);
-      } else {  //bms_status == FAULT or inverter requested opening contactors
+      } else {  //system_bms_status == FAULT or inverter requested opening contactors
         if (send221still > 0) {
           batteryAllowsContactorClosing = false;
           ESP32Can.CANWriteFrame(&TESLA_221_1);
