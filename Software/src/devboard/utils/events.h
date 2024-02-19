@@ -36,6 +36,7 @@
   XX(EVENT_LOW_SOH)                     \
   XX(EVENT_HVIL_FAILURE)                \
   XX(EVENT_INTERNAL_OPEN_FAULT)         \
+  XX(EVENT_INVERTER_OPEN_CONTACTOR)     \
   XX(EVENT_CELL_UNDER_VOLTAGE)          \
   XX(EVENT_CELL_OVER_VOLTAGE)           \
   XX(EVENT_CELL_DEVIATION_HIGH)         \

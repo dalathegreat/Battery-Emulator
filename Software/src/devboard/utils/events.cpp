@@ -137,6 +137,7 @@ void init_events(void) {
   events.entries[EVENT_LOW_SOH].level = EVENT_LEVEL_ERROR;
   events.entries[EVENT_HVIL_FAILURE].level = EVENT_LEVEL_ERROR;
   events.entries[EVENT_INTERNAL_OPEN_FAULT].level = EVENT_LEVEL_ERROR;
+  events.entries[EVENT_INVERTER_OPEN_CONTACTOR].level = EVENT_LEVEL_ERROR;
   events.entries[EVENT_CELL_UNDER_VOLTAGE].level = EVENT_LEVEL_ERROR;
   events.entries[EVENT_CELL_OVER_VOLTAGE].level = EVENT_LEVEL_ERROR;
   events.entries[EVENT_CELL_DEVIATION_HIGH].level = EVENT_LEVEL_WARNING;
@@ -210,6 +211,8 @@ const char* get_event_message_string(EVENTS_ENUM_TYPE event) {
              "disabled!";
     case EVENT_INTERNAL_OPEN_FAULT:
       return "ERROR: High voltage cable removed while battery running. Opening contactors!";
+    case EVENT_INVERTER_OPEN_CONTACTOR:
+      return "ERROR: Inverter requested contactors to open. Opening contactors!";
     case EVENT_CELL_UNDER_VOLTAGE:
       return "ERROR: CELL UNDERVOLTAGE!!! Stopping battery charging and discharging. Inspect battery!";
     case EVENT_CELL_OVER_VOLTAGE:
