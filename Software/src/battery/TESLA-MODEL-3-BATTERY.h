@@ -33,7 +33,7 @@ extern uint8_t system_number_of_cells;         //Total number of cell voltages, 
 extern uint8_t system_bms_status;              //Enum 0-5
 extern bool batteryAllowsContactorClosing;     //Bool, 1=true, 0=false
 extern bool inverterAllowsContactorClosing;    //Bool, 1=true, 0=false
-extern bool LFP_Chemistry;
+extern bool system_LFP_Chemistry;              //Bool, 1=true, 0=false
 
 void printFaultCodesIfActive();
 void printDebugIfActive(uint8_t symbol, const char* message);
