@@ -52,6 +52,7 @@ jobs:
           - LUNA2000_MODBUS
           - PYLON_CAN
           - SMA_CAN
+          - SMA_TRIPOWER_CAN
           - SOFAR_CAN
           - SOLAX_CAN
 
