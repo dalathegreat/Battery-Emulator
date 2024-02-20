@@ -678,7 +678,7 @@ template <typename T>  // This function makes power values appear as W when unde
 String formatPowerValue(String label, T value, String unit, int precision) {
   String result = "<h4 style='color: white;'>" + label + ": ";
 
-  if (std::is_same<T, float>::value || std::is_same<T, uint16_t>::value) {
+  if (std::is_same<T, float>::value || std::is_same<T, uint16_t>::value || std::is_same<T, uint32_t>::value) {
     float convertedValue = static_cast<float>(value);
 
     if (convertedValue >= 1000.0 || convertedValue <= -1000.0) {
