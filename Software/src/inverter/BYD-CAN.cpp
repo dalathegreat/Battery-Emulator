@@ -106,28 +106,26 @@ CAN_frame_t BYD_210 = {.FIR = {.B =
                        .MsgID = 0x210,
                        .data = {0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00}};
 
-static int discharge_current = 0;
-static int charge_current = 0;
-static int initialDataSent = 0;
+static uint16_t discharge_current = 0;
+static uint16_t charge_current = 0;
 static int16_t temperature_average = 0;
-static int16_t temp_min = 0;
-static int16_t temp_max = 0;
-static int inverter_voltage = 0;
-static int inverter_SOC = 0;
+static uint16_t inverter_voltage = 0;
+static uint16_t inverter_SOC = 0;
 static long inverter_timestamp = 0;
+static bool initialDataSent = 0;
 
 void update_values_can_byd() {  //This function maps all the values fetched from battery CAN to the correct CAN messages
   //Calculate values
-  charge_current =
-      ((max_target_charge_power * 10) / max_voltage);  //Charge power in W , max volt in V+1decimal (P=UI, solve for I)
+  charge_current = ((system_max_charge_power_W * 10) /
+                    system_max_design_voltage_dV);  //Charge power in W , max volt in V+1decimal (P=UI, solve for I)
   //The above calculation results in (30 000*10)/3700=81A
   charge_current = (charge_current * 10);  //Value needs a decimal before getting sent to inverter (81.0A)
   if (charge_current > MAXCHARGEAMP) {
     charge_current = MAXCHARGEAMP;  //Cap the value to the max allowed Amp. Some inverters cannot handle large values.
   }
 
-  discharge_current = ((max_target_discharge_power * 10) /
-                       max_voltage);  //Charge power in W , max volt in V+1decimal (P=UI, solve for I)
+  discharge_current = ((system_max_discharge_power_W * 10) /
+                       system_max_design_voltage_dV);  //Charge power in W , max volt in V+1decimal (P=UI, solve for I)
   //The above calculation results in (30 000*10)/3700=81A
   discharge_current = (discharge_current * 10);  //Value needs a decimal before getting sent to inverter (81.0A)
   if (discharge_current > MAXDISCHARGEAMP) {
@@ -135,17 +133,15 @@ void update_values_can_byd() {  //This function maps all the values fetched from
         MAXDISCHARGEAMP;  //Cap the value to the max allowed Amp. Some inverters cannot handle large values.
   }
 
-  temp_min = temperature_min;  //Convert from unsigned to signed
-  temp_max = temperature_max;
-  temperature_average = ((temp_max + temp_min) / 2);
+  temperature_average = ((system_temperature_max_dC + system_temperature_min_dC) / 2);
 
   //Map values to CAN messages
   //Maxvoltage (eg 400.0V = 4000 , 16bits long)
-  BYD_110.data.u8[0] = (max_voltage >> 8);
-  BYD_110.data.u8[1] = (max_voltage & 0x00FF);
+  BYD_110.data.u8[0] = (system_max_design_voltage_dV >> 8);
+  BYD_110.data.u8[1] = (system_max_design_voltage_dV & 0x00FF);
   //Minvoltage (eg 300.0V = 3000 , 16bits long)
-  BYD_110.data.u8[2] = (min_voltage >> 8);
-  BYD_110.data.u8[3] = (min_voltage & 0x00FF);
+  BYD_110.data.u8[2] = (system_min_design_voltage_dV >> 8);
+  BYD_110.data.u8[3] = (system_min_design_voltage_dV & 0x00FF);
   //Maximum discharge power allowed (Unit: A+1)
   BYD_110.data.u8[4] = (discharge_current >> 8);
   BYD_110.data.u8[5] = (discharge_current & 0x00FF);
@@ -154,11 +150,11 @@ void update_values_can_byd() {  //This function maps all the values fetched from
   BYD_110.data.u8[7] = (charge_current & 0x00FF);
 
   //SOC (100.00%)
-  BYD_150.data.u8[0] = (SOC >> 8);
-  BYD_150.data.u8[1] = (SOC & 0x00FF);
+  BYD_150.data.u8[0] = (system_scaled_SOC_pptt >> 8);
+  BYD_150.data.u8[1] = (system_scaled_SOC_pptt & 0x00FF);
   //StateOfHealth (100.00%)
-  BYD_150.data.u8[2] = (StateOfHealth >> 8);
-  BYD_150.data.u8[3] = (StateOfHealth & 0x00FF);
+  BYD_150.data.u8[2] = (system_SOH_pptt >> 8);
+  BYD_150.data.u8[3] = (system_SOH_pptt & 0x00FF);
   //Maximum charge power allowed (Unit: A+1)
   BYD_150.data.u8[4] = (charge_current >> 8);
   BYD_150.data.u8[5] = (charge_current & 0x00FF);
@@ -167,21 +163,21 @@ void update_values_can_byd() {  //This function maps all the values fetched from
   BYD_150.data.u8[7] = (discharge_current & 0x00FF);
 
   //Voltage (ex 370.0)
-  BYD_1D0.data.u8[0] = (battery_voltage >> 8);
-  BYD_1D0.data.u8[1] = (battery_voltage & 0x00FF);
+  BYD_1D0.data.u8[0] = (system_battery_voltage_dV >> 8);
+  BYD_1D0.data.u8[1] = (system_battery_voltage_dV & 0x00FF);
   //Current (ex 81.0A)
-  BYD_1D0.data.u8[2] = (battery_current >> 8);
-  BYD_1D0.data.u8[3] = (battery_current & 0x00FF);
+  BYD_1D0.data.u8[2] = (system_battery_current_dA >> 8);
+  BYD_1D0.data.u8[3] = (system_battery_current_dA & 0x00FF);
   //Temperature average
   BYD_1D0.data.u8[4] = (temperature_average >> 8);
   BYD_1D0.data.u8[5] = (temperature_average & 0x00FF);
 
   //Temperature max
-  BYD_210.data.u8[0] = (temperature_max >> 8);
-  BYD_210.data.u8[1] = (temperature_max & 0x00FF);
+  BYD_210.data.u8[0] = (system_temperature_max_dC >> 8);
+  BYD_210.data.u8[1] = (system_temperature_max_dC & 0x00FF);
   //Temperature min
-  BYD_210.data.u8[2] = (temperature_min >> 8);
-  BYD_210.data.u8[3] = (temperature_min & 0x00FF);
+  BYD_210.data.u8[2] = (system_temperature_min_dC >> 8);
+  BYD_210.data.u8[3] = (system_temperature_min_dC & 0x00FF);
 
 #ifdef DEBUG_VIA_USB
   if (char1_151 != 0) {

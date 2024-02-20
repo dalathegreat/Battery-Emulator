@@ -36,6 +36,7 @@
   XX(EVENT_LOW_SOH)                     \
   XX(EVENT_HVIL_FAILURE)                \
   XX(EVENT_INTERNAL_OPEN_FAULT)         \
+  XX(EVENT_INVERTER_OPEN_CONTACTOR)     \
   XX(EVENT_CELL_UNDER_VOLTAGE)          \
   XX(EVENT_CELL_OVER_VOLTAGE)           \
   XX(EVENT_CELL_DEVIATION_HIGH)         \
@@ -99,6 +100,6 @@ void run_event_handling(void);
 
 void run_sequence_on_target(void);
 
-extern uint8_t bms_status;  //Enum, 0-5
+extern uint8_t system_bms_status;  //Enum 0-5
 
 #endif  // __MYTIMER_H__

@@ -182,53 +182,53 @@ void update_values_can_pylon() {  //This function maps all the values fetched fr
   PYLON_4281.data.u8[3] = 0;
 
   //Voltage (370.0)
-  PYLON_4210.data.u8[0] = (battery_voltage >> 8);
-  PYLON_4210.data.u8[1] = (battery_voltage & 0x00FF);
-  PYLON_4211.data.u8[0] = (battery_voltage >> 8);
-  PYLON_4211.data.u8[1] = (battery_voltage & 0x00FF);
+  PYLON_4210.data.u8[0] = (system_battery_voltage_dV >> 8);
+  PYLON_4210.data.u8[1] = (system_battery_voltage_dV & 0x00FF);
+  PYLON_4211.data.u8[0] = (system_battery_voltage_dV >> 8);
+  PYLON_4211.data.u8[1] = (system_battery_voltage_dV & 0x00FF);
 
-  //Current (TODO: SIGNED? Or looks like it could be just offset, in that case the below line wont work)
-  PYLON_4210.data.u8[2] = (battery_current >> 8);
-  PYLON_4210.data.u8[3] = (battery_current & 0x00FF);
-  PYLON_4211.data.u8[2] = (battery_current >> 8);
-  PYLON_4211.data.u8[3] = (battery_current & 0x00FF);
+  //Current (15.0)
+  PYLON_4210.data.u8[2] = (system_battery_current_dA >> 8);
+  PYLON_4210.data.u8[3] = (system_battery_current_dA & 0x00FF);
+  PYLON_4211.data.u8[2] = (system_battery_current_dA >> 8);
+  PYLON_4211.data.u8[3] = (system_battery_current_dA & 0x00FF);
 
   //SOC (100.00%)
-  PYLON_4210.data.u8[6] = (SOC * 0.01);  //Remove decimals
-  PYLON_4211.data.u8[6] = (SOC * 0.01);  //Remove decimals
+  PYLON_4210.data.u8[6] = (system_scaled_SOC_pptt * 0.01);  //Remove decimals
+  PYLON_4211.data.u8[6] = (system_scaled_SOC_pptt * 0.01);  //Remove decimals
 
   //StateOfHealth (100.00%)
-  PYLON_4210.data.u8[7] = (StateOfHealth * 0.01);
-  PYLON_4211.data.u8[7] = (StateOfHealth * 0.01);
+  PYLON_4210.data.u8[7] = (system_SOH_pptt * 0.01);
+  PYLON_4211.data.u8[7] = (system_SOH_pptt * 0.01);
 
 #ifdef INVERT_VOLTAGE  //Useful for Sofar inverters \
                        //Maxvoltage (eg 400.0V = 4000 , 16bits long) Discharge Cutoff Voltage
-  PYLON_4220.data.u8[0] = (max_voltage & 0x00FF);
-  PYLON_4220.data.u8[1] = (max_voltage >> 8);
-  PYLON_4221.data.u8[0] = (max_voltage & 0x00FF);
-  PYLON_4221.data.u8[1] = (max_voltage >> 8);
+  PYLON_4220.data.u8[0] = (system_max_design_voltage_dV & 0x00FF);
+  PYLON_4220.data.u8[1] = (system_max_design_voltage_dV >> 8);
+  PYLON_4221.data.u8[0] = (system_max_design_voltage_dV & 0x00FF);
+  PYLON_4221.data.u8[1] = (system_max_design_voltage_dV >> 8);
 
   //Minvoltage (eg 300.0V = 3000 , 16bits long) Charge Cutoff Voltage
-  PYLON_4220.data.u8[2] = (min_voltage & 0x00FF);
-  PYLON_4220.data.u8[3] = (min_voltage >> 8);
-  PYLON_4221.data.u8[2] = (min_voltage & 0x00FF);
-  PYLON_4221.data.u8[3] = (min_voltage >> 8);
+  PYLON_4220.data.u8[2] = (system_min_design_voltage_dV & 0x00FF);
+  PYLON_4220.data.u8[3] = (system_min_design_voltage_dV >> 8);
+  PYLON_4221.data.u8[2] = (system_min_design_voltage_dV & 0x00FF);
+  PYLON_4221.data.u8[3] = (system_min_design_voltage_dV >> 8);
 #else
   //Minvoltage (eg 300.0V = 3000 , 16bits long) Charge Cutoff Voltage
-  PYLON_4220.data.u8[0] = (min_voltage >> 8);
-  PYLON_4220.data.u8[1] = (min_voltage & 0x00FF);
-  PYLON_4221.data.u8[0] = (min_voltage >> 8);
-  PYLON_4221.data.u8[1] = (min_voltage & 0x00FF);
+  PYLON_4220.data.u8[0] = (system_min_design_voltage_dV >> 8);
+  PYLON_4220.data.u8[1] = (system_min_design_voltage_dV & 0x00FF);
+  PYLON_4221.data.u8[0] = (system_min_design_voltage_dV >> 8);
+  PYLON_4221.data.u8[1] = (system_min_design_voltage_dV & 0x00FF);
 
   //Maxvoltage (eg 400.0V = 4000 , 16bits long) Discharge Cutoff Voltage
-  PYLON_4220.data.u8[2] = (max_voltage >> 8);
-  PYLON_4220.data.u8[3] = (max_voltage & 0x00FF);
-  PYLON_4221.data.u8[2] = (max_voltage >> 8);
-  PYLON_4221.data.u8[3] = (max_voltage & 0x00FF);
+  PYLON_4220.data.u8[2] = (system_max_design_voltage_dV >> 8);
+  PYLON_4220.data.u8[3] = (system_max_design_voltage_dV & 0x00FF);
+  PYLON_4221.data.u8[2] = (system_max_design_voltage_dV >> 8);
+  PYLON_4221.data.u8[3] = (system_max_design_voltage_dV & 0x00FF);
 #endif
 
   //In case we run into any errors/faults, we can set charge / discharge forbidden
-  if (bms_status == FAULT) {
+  if (system_bms_status == FAULT) {
     PYLON_4280.data.u8[0] = 0xAA;
     PYLON_4280.data.u8[1] = 0xAA;
     PYLON_4280.data.u8[2] = 0xAA;

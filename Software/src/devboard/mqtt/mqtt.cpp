@@ -30,7 +30,7 @@ static void publish_cell_voltages(void) {
   static bool mqtt_first_transmission = true;
 
   // If the cell voltage number isn't initialized...
-  if (nof_cellvoltages == 0u) {
+  if (system_number_of_cells == 0u) {
     return;
   }
   // At startup, re-post the discovery message for home assistant
@@ -39,7 +39,7 @@ static void publish_cell_voltages(void) {
 
     // Base topic for any cell voltage "sensor"
     String topic = "homeassistant/sensor/battery-emulator/cell_voltage";
-    for (int i = 0; i < nof_cellvoltages; i++) {
+    for (int i = 0; i < system_number_of_cells; i++) {
       // Build JSON message with device configuration for each cell voltage
       // Probably shouldn't be BatteryEmulator here, instead "LeafBattery"
       // or similar but hey, it works.
@@ -83,15 +83,15 @@ static void publish_cell_voltages(void) {
     // is the string content
 
     // If cell voltages haven't been populated...
-    if (nof_cellvoltages == 0u) {
+    if (system_number_of_cells == 0u) {
       return;
     }
   }
 
   size_t msg_length = snprintf(mqtt_msg, sizeof(mqtt_msg), "{\n\"cell_voltages\":[");
-  for (size_t i = 0; i < nof_cellvoltages; ++i) {
+  for (size_t i = 0; i < system_number_of_cells; ++i) {
     msg_length += snprintf(mqtt_msg + msg_length, sizeof(mqtt_msg) - msg_length, "%s%.3f", (i == 0) ? "" : ", ",
-                           ((float)cellvoltages[i]) / 1000);
+                           ((float)system_cellvoltages_mV[i]) / 1000);
   }
   snprintf(mqtt_msg + msg_length, sizeof(mqtt_msg) - msg_length, "]\n}\n");
 
@@ -180,10 +180,11 @@ static void publish_common_info(void) {
              "  \"cell_min_voltage\": %.3f,\n"
              "  \"battery_voltage\": %d\n"
              "}\n",
-             ((float)SOC) / 100.0, ((float)StateOfHealth) / 100.0, ((float)((int16_t)temperature_min)) / 10.0,
-             ((float)((int16_t)temperature_max)) / 10.0, ((float)((int16_t)stat_batt_power)),
-             ((float)((int16_t)battery_current)) / 10.0, ((float)cell_max_voltage) / 1000,
-             ((float)cell_min_voltage) / 1000, battery_voltage / 10.0);
+             ((float)system_scaled_SOC_pptt) / 100.0, ((float)system_SOH_pptt) / 100.0,
+             ((float)((int16_t)system_temperature_min_dC)) / 10.0, ((float)((int16_t)system_temperature_max_dC)) / 10.0,
+             ((float)((int16_t)system_active_power_W)), ((float)((int16_t)system_battery_current_dA)) / 10.0,
+             ((float)system_cell_max_voltage_mV) / 1000, ((float)system_cell_min_voltage_mV) / 1000,
+             system_battery_voltage_dV / 10.0);
     bool result = client.publish(state_topic, mqtt_msg, true);
   }
 

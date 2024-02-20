@@ -161,21 +161,22 @@ InvInitState invInitState = SYSTEM_FREQUENCY;
 
 void update_values_can_sma_tripower() {  //This function maps all the values fetched from battery CAN to the inverter CAN
   //Calculate values
-  charge_current =
-      ((max_target_charge_power * 10) / max_voltage);  //Charge power in W , max volt in V+1decimal (P=UI, solve for I)
+  charge_current = ((system_max_charge_power_W * 10) /
+                    system_max_design_voltage_dV);  //Charge power in W , max volt in V+1decimal (P=UI, solve for I)
   //The above calculation results in (30 000*10)/3700=81A
   charge_current = (charge_current * 10);  //Value needs a decimal before getting sent to inverter (81.0A)
 
-  discharge_current = ((max_target_discharge_power * 10) /
-                       max_voltage);  //Charge power in W , max volt in V+1decimal (P=UI, solve for I)
+  discharge_current = ((system_max_discharge_power_W * 10) /
+                       system_max_design_voltage_dV);  //Charge power in W , max volt in V+1decimal (P=UI, solve for I)
   //The above calculation results in (30 000*10)/3700=81A
   discharge_current = (discharge_current * 10);  //Value needs a decimal before getting sent to inverter (81.0A)
 
-  temperature_average = ((temperature_max + temperature_min) / 2);
+  temperature_average = ((system_temperature_max_dC + system_temperature_min_dC) / 2);
 
   ampere_hours_remaining =
-      ((remaining_capacity_Wh / battery_voltage) * 100);       //(WH[10000] * V+1[3600])*100 = 270 (27.0Ah)
-  ampere_hours_max = ((capacity_Wh / battery_voltage) * 100);  //(WH[10000] * V+1[3600])*100 = 270 (27.0Ah)
+      ((system_remaining_capacity_Wh / system_battery_voltage_dV) * 100);  //(WH[10000] * V+1[3600])*100 = 270 (27.0Ah)
+  ampere_hours_max =
+      ((system_capacity_Wh / system_battery_voltage_dV) * 100);  //(WH[10000] * V+1[3600])*100 = 270 (27.0Ah)
 
   batteryState = OPERATE;
   inverterControlFlags = INVERTER_STAY_ON;
@@ -183,11 +184,11 @@ void update_values_can_sma_tripower() {  //This function maps all the values fet
   //Map values to CAN messages
   // Battery Limits
   //Battery Max Charge Voltage (eg 400.0V = 4000 , 16bits long)
-  SMA_00D.data.u8[0] = (max_voltage >> 8);
-  SMA_00D.data.u8[1] = (max_voltage & 0x00FF);
+  SMA_00D.data.u8[0] = (system_max_design_voltage_dV >> 8);
+  SMA_00D.data.u8[1] = (system_max_design_voltage_dV & 0x00FF);
   //Battery Min Discharge Voltage (eg 300.0V = 3000 , 16bits long)
-  SMA_00D.data.u8[2] = (min_voltage >> 8);
-  SMA_00D.data.u8[3] = (min_voltage & 0x00FF);
+  SMA_00D.data.u8[2] = (system_min_design_voltage_dV >> 8);
+  SMA_00D.data.u8[3] = (system_min_design_voltage_dV & 0x00FF);
   //Discharge limited current, 500 = 50A, (0.1, A)
   SMA_00D.data.u8[4] = (discharge_current >> 8);
   SMA_00D.data.u8[5] = (discharge_current & 0x00FF);
@@ -197,11 +198,11 @@ void update_values_can_sma_tripower() {  //This function maps all the values fet
 
   // Battery State
   //SOC (100.00%)
-  SMA_00F.data.u8[0] = (SOC >> 8);
-  SMA_00F.data.u8[1] = (SOC & 0x00FF);
+  SMA_00F.data.u8[0] = (system_scaled_SOC_pptt >> 8);
+  SMA_00F.data.u8[1] = (system_scaled_SOC_pptt & 0x00FF);
   //StateOfHealth (100.00%)
-  SMA_00F.data.u8[2] = (StateOfHealth >> 8);
-  SMA_00F.data.u8[3] = (StateOfHealth & 0x00FF);
+  SMA_00F.data.u8[2] = (system_SOH_pptt >> 8);
+  SMA_00F.data.u8[3] = (system_SOH_pptt & 0x00FF);
   //State of charge (AH, 0.1)
   SMA_00F.data.u8[4] = (ampere_hours_remaining >> 8);
   SMA_00F.data.u8[5] = (ampere_hours_remaining & 0x00FF);
@@ -223,11 +224,11 @@ void update_values_can_sma_tripower() {  //This function maps all the values fet
 
   // Battery Measurements
   //Voltage (370.0)
-  SMA_013.data.u8[0] = (battery_voltage >> 8);
-  SMA_013.data.u8[1] = (battery_voltage & 0x00FF);
+  SMA_013.data.u8[0] = (system_battery_voltage_dV >> 8);
+  SMA_013.data.u8[1] = (system_battery_voltage_dV & 0x00FF);
   //Current (TODO: signed OK?)
-  SMA_013.data.u8[2] = (battery_current >> 8);
-  SMA_013.data.u8[3] = (battery_current & 0x00FF);
+  SMA_013.data.u8[2] = (system_battery_current_dA >> 8);
+  SMA_013.data.u8[3] = (system_battery_current_dA & 0x00FF);
   //Temperature average
   SMA_013.data.u8[4] = (temperature_average >> 8);
   SMA_013.data.u8[5] = (temperature_average & 0x00FF);
@@ -237,11 +238,11 @@ void update_values_can_sma_tripower() {  //This function maps all the values fet
 
   // Battery Temperature and Cellvoltages
   // Battery max temperature
-  SMA_014.data.u8[0] = (temperature_max >> 8);
-  SMA_014.data.u8[1] = (temperature_max & 0x00FF);
+  SMA_014.data.u8[0] = (system_temperature_max_dC >> 8);
+  SMA_014.data.u8[1] = (system_temperature_max_dC & 0x00FF);
   // Battery min temperature
-  SMA_014.data.u8[2] = (temperature_min >> 8);
-  SMA_014.data.u8[3] = (temperature_min & 0x00FF);
+  SMA_014.data.u8[2] = (system_temperature_min_dC >> 8);
+  SMA_014.data.u8[3] = (system_temperature_min_dC & 0x00FF);
   // Battery Cell Voltage (sum)
   //SMA_014.data.u8[4] = (??? >> 8); //TODO scaling?
   //SMA_014.data.u8[5] = (??? & 0x00FF); //TODO scaling?

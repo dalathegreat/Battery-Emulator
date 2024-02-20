@@ -16,9 +16,6 @@ static const int interval20 = 20;            // interval (ms) at which send CAN 
 static const int interval600 = 600;          // interval (ms) at which send CAN Messages
 static uint8_t CANstillAlive = 12;           //counter for checking if CAN is still alive
 
-#define LB_MAX_SOC 1000  //BMS never goes over this value. We use this info to rescale SOC% sent to Inverter
-#define LB_MIN_SOC 0     //BMS never goes below this value. We use this info to rescale SOC% sent to Inverter
-
 CAN_frame_t BMW_10B = {.FIR = {.B =
                                    {
                                        .DLC = 3,
@@ -58,47 +55,38 @@ static int16_t Battery_Power = 0;
 
 void update_values_battery() {  //This function maps all the values fetched via CAN to the correct parameters used for modbus
   //Calculate the SOC% value to send to inverter
-  Calculated_SOC = (Display_SOC * 10);  //Increase decimal amount
-  Calculated_SOC =
-      LB_MIN_SOC + (LB_MAX_SOC - LB_MIN_SOC) * (Calculated_SOC - MINPERCENTAGE) / (MAXPERCENTAGE - MINPERCENTAGE);
-  if (Calculated_SOC < 0) {  //We are in the real SOC% range of 0-20%, always set SOC sent to inverter as 0%
-    Calculated_SOC = 0;
-  }
-  if (Calculated_SOC > 1000) {  //We are in the real SOC% range of 80-100%, always set SOC sent to inverter as 100%
-    Calculated_SOC = 1000;
-  }
-  SOC = (Calculated_SOC * 10);  //increase LB_SOC range from 0-100.0 -> 100.00
+  system_real_SOC_pptt = (Display_SOC * 100);  //increase Display_SOC range from 0-100 -> 100.00
 
-  battery_voltage = Battery_Volts;  //Unit V+1 (5000 = 500.0V)
+  system_battery_voltage_dV = Battery_Volts;  //Unit V+1 (5000 = 500.0V)
 
-  battery_current = Battery_Current;
+  system_battery_current_dA = Battery_Current;
 
-  capacity_Wh = BATTERY_WH_MAX;
+  system_capacity_Wh = BATTERY_WH_MAX;
 
-  remaining_capacity_Wh = (Battery_Capacity_kWh * 1000);
+  system_remaining_capacity_Wh = (Battery_Capacity_kWh * 1000);
 
-  if (SOC > 9900)  //If Soc is over 99%, stop charging
+  if (system_scaled_SOC_pptt > 9900)  //If Soc is over 99%, stop charging
   {
-    max_target_charge_power = 0;
+    system_max_charge_power_W = 0;
   } else {
-    max_target_charge_power = 5000;  //Hardcoded value for testing. TODO: read real value from battery when discovered
+    system_max_charge_power_W = 5000;  //Hardcoded value for testing. TODO: read real value from battery when discovered
   }
 
-  if (SOC < 500)  //If Soc is under 5%, stop dicharging
+  if (system_scaled_SOC_pptt < 500)  //If Soc is under 5%, stop dicharging
   {
-    max_target_discharge_power = 0;
+    system_max_discharge_power_W = 0;
   } else {
-    max_target_discharge_power =
+    system_max_discharge_power_W =
         5000;  //Hardcoded value for testing. TODO: read real value from battery when discovered
   }
 
   Battery_Power = (Battery_Current * (Battery_Volts / 10));
 
-  stat_batt_power = Battery_Power;  //TODO:, is mapping OK?
+  system_active_power_W = Battery_Power;  //TODO:, is mapping OK?
 
-  temperature_min;  //hardcoded to 5*C in startup, TODO:, find from battery CAN later
+  system_temperature_min_dC;  //hardcoded to 5*C in startup, TODO:, find from battery CAN later
 
-  temperature_max;  //hardcoded to 6*C in startup, TODO:, find from battery CAN later
+  system_temperature_max_dC;  //hardcoded to 6*C in startup, TODO:, find from battery CAN later
 
   /* Check if the BMS is still sending CAN messages. If we go 60s without messages we raise an error*/
   if (!CANstillAlive) {
@@ -112,15 +100,15 @@ void update_values_battery() {  //This function maps all the values fetched via 
   Serial.print("SOC% battery: ");
   Serial.print(Display_SOC);
   Serial.print(" SOC% sent to inverter: ");
-  Serial.print(SOC);
+  Serial.print(system_scaled_SOC_pptt);
   Serial.print(" Battery voltage: ");
-  Serial.print(battery_voltage);
+  Serial.print(system_battery_voltage_dV);
   Serial.print(" Remaining Wh: ");
-  Serial.print(remaining_capacity_Wh);
+  Serial.print(system_remaining_capacity_Wh);
   Serial.print(" Max charge power: ");
-  Serial.print(max_target_charge_power);
+  Serial.print(system_max_charge_power_W);
   Serial.print(" Max discharge power: ");
-  Serial.print(max_target_discharge_power);
+  Serial.print(system_max_discharge_power_W);
 #endif
 }
 
@@ -196,8 +184,8 @@ void send_can_battery() {
 void setup_battery(void) {  // Performs one time setup at startup
   Serial.println("BMW i3 battery selected");
 
-  max_voltage = 4040;  // 404.4V, over this, charging is not possible (goes into forced discharge)
-  min_voltage = 3100;  // 310.0V under this, discharging further is disabled
+  system_max_design_voltage_dV = 4040;  // 404.4V, over this, charging is not possible (goes into forced discharge)
+  system_min_design_voltage_dV = 3100;  // 310.0V under this, discharging further is disabled
 }
 
 #endif

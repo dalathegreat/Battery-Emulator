@@ -4,16 +4,17 @@
 /* They can be defined here, or later on in the WebUI */
 
 /* Battery settings */
-volatile uint16_t BATTERY_WH_MAX =
-    30000;  //Battery size in Wh (Maximum value for most inverters is 65000 [65kWh], you can use larger batteries but do not set value over 65000!
+volatile bool USE_SCALED_SOC =
+    true;  //Increases battery life. If true will rescale SOC between the configured min/max-percentage
+volatile uint32_t BATTERY_WH_MAX = 30000;  //Battery size in Wh
 volatile uint16_t MAXPERCENTAGE =
-    800;  //80.0% , Max percentage the battery will charge to (App will show 100% once this value is reached)
+    800;  //80.0% , Max percentage the battery will charge to (Inverter gets 100% when reached)
 volatile uint16_t MINPERCENTAGE =
-    200;  //20.0% , Min percentage the battery will discharge to (App will show 0% once this value is reached)
+    200;  //20.0% , Min percentage the battery will discharge to (Inverter gets 0% when reached)
 volatile uint16_t MAXCHARGEAMP =
-    300;  //30.0A , BYD CAN specific setting, Max charge speed in Amp (Some inverters needs to be artificially limited)
+    300;  //30.0A , BYD CAN specific setting, Max charge in Amp (Some inverters needs to be limited)
 volatile uint16_t MAXDISCHARGEAMP =
-    300;  //30.0A , BYD CAN specific setting, Max discharge speed in Amp (Some inverters needs to be artificially limited)
+    300;  //30.0A , BYD CAN specific setting, Max discharge in Amp (Some inverters needs to be limited)
 
 /* Charger settings (Optional, when generator charging) */
 /* Charger settings */
