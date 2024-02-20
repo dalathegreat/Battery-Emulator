@@ -361,9 +361,7 @@ void inform_user_on_inverter() {
 void init_battery() {
   // Inform user what battery is used and perform setup
   setup_battery();
-#ifdef SERIAL_LINK_RECEIVER
-  Serial.println("SERIAL_DATA_LINK_RECEIVER selected");
-#endif
+
 #ifndef BATTERY_SELECTED
 #error No battery selected! Choose one from the USER_SETTINGS.h file
 #endif
@@ -375,9 +373,11 @@ void receive_can() {  // This section checks if we have a complete CAN message i
   CAN_frame_t rx_frame;
   if (xQueueReceive(CAN_cfg.rx_queue, &rx_frame, 3 * portTICK_PERIOD_MS) == pdTRUE) {
     if (rx_frame.FIR.B.FF == CAN_frame_std) {
-      //printf("New standard frame");
-      // Battery
+//printf("New standard frame");
+// Battery
+#ifndef SERIAL_LINK_RECEIVER
       receive_can_battery(rx_frame);
+#endif
       // Inverter
 #ifdef BYD_CAN
       receive_can_byd(rx_frame);
@@ -651,23 +651,22 @@ void update_values() {
 #endif
 }
 
+#if defined(SERIAL_LINK_RECEIVER) || defined(SERIAL_LINK_TRANSMITTER)
 void runSerialDataLink() {
   static unsigned long updateTime = 0;
   unsigned long currentMillis = millis();
-#ifdef SERIAL_LINK_RECEIVER
-  if ((currentMillis - updateTime) > 1) {  //Every 2ms
-    updateTime = currentMillis;
-    manageSerialLinkReceiver();
-  }
-#endif
 
-#ifdef SERIAL_LINK_TRANSMITTER
   if ((currentMillis - updateTime) > 1) {  //Every 2ms
     updateTime = currentMillis;
-    manageSerialLinkTransmitter();
-  }
+#ifdef SERIAL_LINK_RECEIVER
+    manageSerialLinkReceiver();
 #endif
+#ifdef SERIAL_LINK_TRANSMITTER
+    manageSerialLinkTransmitter();
+#endif
+  }
 }
+#endif
 
 void init_serialDataLink() {
 #if defined(SERIAL_LINK_RECEIVER) || defined(SERIAL_LINK_TRANSMITTER)

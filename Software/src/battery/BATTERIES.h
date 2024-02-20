@@ -47,7 +47,12 @@
 #include "SERIAL-LINK-RECEIVER-FROM-BATTERY.h"  //See this file for more Serial-battery settings
 #endif
 
-#ifndef SERIAL_LINK_RECEIVER  // The serial thing does its thing
+#ifdef SERIAL_LINK_RECEIVER  // The serial thing does its thing
+void update_values_battery();
+void receive_can_battery();
+void send_can_battery();
+void setup_battery(void);
+#else
 void update_values_battery();
 void receive_can_battery(CAN_frame_t rx_frame);
 void send_can_battery();

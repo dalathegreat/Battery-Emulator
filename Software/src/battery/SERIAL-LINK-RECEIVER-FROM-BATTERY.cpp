@@ -1,8 +1,8 @@
-// SERIAL-LINK-RECEIVER-FROM-BATTERY.cpp
-
-#include "SERIAL-LINK-RECEIVER-FROM-BATTERY.h"
+#include "BATTERIES.h"
+#ifdef SERIAL_LINK_RECEIVER
 #include <Arduino.h>
 #include "../devboard/utils/events.h"
+#include "SERIAL-LINK-RECEIVER-FROM-BATTERY.h"
 
 #define INVERTER_SEND_NUM_VARIABLES 1
 #define INVERTER_RECV_NUM_VARIABLES 16
@@ -212,3 +212,11 @@ void update_values_serial_link() {
 
   Serial.println("");
 }
+
+void setup_battery(void) {
+  Serial.println("SERIAL_DATA_LINK_RECEIVER selected");
+}
+void update_values_battery() {}
+void send_can_battery() {}
+
+#endif

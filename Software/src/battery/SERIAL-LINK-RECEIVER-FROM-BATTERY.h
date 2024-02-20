@@ -3,6 +3,8 @@
 #ifndef SERIAL_LINK_RECEIVER_FROM_BATTERY_H
 #define SERIAL_LINK_RECEIVER_FROM_BATTERY_H
 
+#define BATTERY_SELECTED
+
 #include <Arduino.h>
 #include "../../USER_SETTINGS.h"
 #include "../devboard/config.h"  // Needed for all defines
@@ -35,5 +37,6 @@ extern bool inverterAllowsContactorClosing;  //Bool, 1=true, 0=false
 
 void manageSerialLinkReceiver();
 void update_values_serial_link();
+void setup_battery(void);
 
 #endif
