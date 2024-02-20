@@ -170,15 +170,15 @@ static void publish_common_info(void) {
   } else {
     snprintf(mqtt_msg, sizeof(mqtt_msg),
              "{\n"
-             "  \"system_scaled_SOC_pptt\": %.3f,\n"
-             "  \"system_SOH_pptt\": %.3f,\n"
-             "  \"system_temperature_min_dC\": %.3f,\n"
-             "  \"system_temperature_max_dC\": %.3f,\n"
-             "  \"system_active_power_W\": %.3f,\n"
-             "  \"system_battery_current_dA\": %.3f,\n"
-             "  \"system_cell_max_voltage_mV\": %.3f,\n"
-             "  \"system_cell_min_voltage_mV\": %.3f,\n"
-             "  \"system_battery_voltage_dV\": %d\n"
+             "  \"SOC\": %.3f,\n"
+             "  \"state_of_health\": %.3f,\n"
+             "  \"temperature_min\": %.3f,\n"
+             "  \"temperature_max\": %.3f,\n"
+             "  \"stat_batt_power\": %.3f,\n"
+             "  \"battery_current\": %.3f,\n"
+             "  \"cell_max_voltage\": %.3f,\n"
+             "  \"cell_min_voltage\": %.3f,\n"
+             "  \"battery_voltage\": %d\n"
              "}\n",
              ((float)system_scaled_SOC_pptt) / 100.0, ((float)system_SOH_pptt) / 100.0,
              ((float)((int16_t)system_temperature_min_dC)) / 10.0, ((float)((int16_t)system_temperature_max_dC)) / 10.0,

@@ -48,15 +48,12 @@
 #endif
 
 #ifdef SERIAL_LINK_RECEIVER  // The serial thing does its thing
-void update_values_battery();
 void receive_can_battery();
-void send_can_battery();
-void setup_battery(void);
 #else
-void update_values_battery();
 void receive_can_battery(CAN_frame_t rx_frame);
+#endif
+void update_values_battery();
 void send_can_battery();
 void setup_battery(void);
-#endif
 
 #endif
