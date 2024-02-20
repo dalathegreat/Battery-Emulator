@@ -172,6 +172,10 @@ void update_values_battery() {  //This function maps all the values fetched via 
     StateOfHealth =
         static_cast<uint16_t>((static_cast<double>(nominal_full_pack_energy) / bat_beginning_of_life) * 10000.0);
   }
+  //If the calculation went wrong, set SOH to 100%
+  if (StateOfHealth > 10000) {
+    StateOfHealth = 10000;
+  }
   //If the value is unavailable, set SOH to 99%
   if (nominal_full_pack_energy < REASONABLE_ENERGYAMOUNT) {
     StateOfHealth = 9900;
@@ -260,16 +264,16 @@ void update_values_battery() {  //This function maps all the values fetched via 
 
   //Once cell chemistry is determined, set maximum and minimum total pack voltage safety limits
   if (LFP_Chemistry) {
-    max_voltage = 3640;
-    min_voltage = 2450;
+    max_voltage = 3880;
+    min_voltage = 2968;
   } else {  // NCM/A chemistry
     max_voltage = 4030;
     min_voltage = 3100;
   }
 
   //Check if SOC% is plausible
-  if (battery_voltage > (max_voltage - 100)) {  // When pack voltage is close to max, and SOC% is still low, raise FAULT
-    if (SOC < 6500) {                           //When SOC is less than 65.00% when approaching max voltage
+  if (battery_voltage > (max_voltage - 20)) {  // When pack voltage is close to max, and SOC% is still low, raise FAULT
+    if (SOC < 5000) {                          //When SOC is less than 50.00% when approaching max voltage
       set_event(EVENT_SOC_PLAUSIBILITY_ERROR, SOC / 100);
     }
   }
