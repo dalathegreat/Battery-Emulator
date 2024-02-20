@@ -214,7 +214,7 @@ void receive_can_battery(CAN_frame_t rx_frame)  //GKOE reworked
       }
       if (rx_frame.data.u8[0] == 0x24) {  //5th response Bytes 24-31
         LB_Discharge_Power_Limit = word(LB_Discharge_Power_Limit_Byte1, rx_frame.data.u8[1]) * 100;  //OK!
-        LB_Battery_Voltage = word(rx_frame.data.u8[2], rx_frame.data.u8[3]) * 10;                    //OK!
+        LB_Battery_Voltage = word(rx_frame.data.u8[2], rx_frame.data.u8[3]) / 10;                    //OK!
         GVB_79B_Continue = false;
       }
       break;
