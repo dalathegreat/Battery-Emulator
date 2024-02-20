@@ -221,7 +221,7 @@ void init_stored_settings() {
   settings.clear();  // If this clear function is executed, no settings will be read from storage
 #endif
 
-  static uint16_t temp = 0;
+  static uint32_t temp = 0;
   temp = settings.getUInt("BATTERY_WH_MAX", false);
   if (temp != 0) {
     BATTERY_WH_MAX = temp;
