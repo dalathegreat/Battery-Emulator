@@ -21,7 +21,7 @@
 #include "src/devboard/webserver/webserver.h"
 #endif
 
-Preferences settings;                  // Store user settings
+Preferences settings;                   // Store user settings
 const char* version_number = "5.3.RC";  // The current software version, shown on webserver
 // Interval settings
 int intervalUpdateValues = 4800;  // Interval at which to update inverter values / Modbus registers
@@ -521,7 +521,7 @@ void handle_LED_state() {
 #ifdef CONTACTOR_CONTROL
 void handle_contactors() {
   // First check if we have any active errors, incase we do, turn off the battery
-  if (bms_status == FAULT) {
+  if (system_bms_status == FAULT) {
     timeSpentInFaultedMode++;
   } else {
     timeSpentInFaultedMode = 0;
