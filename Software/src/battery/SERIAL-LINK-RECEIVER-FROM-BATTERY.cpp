@@ -32,8 +32,8 @@ void __getData() {
   system_SOH_pptt = (uint16_t)dataLinkReceive.getReceivedData(1);
   system_battery_voltage_dV = (uint16_t)dataLinkReceive.getReceivedData(2);
   system_battery_current_dA = (int16_t)dataLinkReceive.getReceivedData(3);
-  system_capacity_Wh = (uint32_t)dataLinkReceive.getReceivedData(4);
-  system_remaining_capacity_Wh = (uint32_t)dataLinkReceive.getReceivedData(5);
+  system_capacity_Wh = (uint32_t)(dataLinkReceive.getReceivedData(4) * 10);            //add back missing decimal
+  system_remaining_capacity_Wh = (uint32_t)(dataLinkReceive.getReceivedData(5) * 10);  //add back missing decimal
   system_max_discharge_power_W = (uint16_t)dataLinkReceive.getReceivedData(6);
   system_max_charge_power_W = (uint16_t)dataLinkReceive.getReceivedData(7);
   uint16_t _system_bms_status = (uint16_t)dataLinkReceive.getReceivedData(8);
