@@ -200,10 +200,20 @@ void update_values_battery() {  //This function maps all the values fetched via 
   }
 
   //The allowed charge power behaves strangely. We instead estimate this value
-  if (system_scaled_SOC_pptt == 10000) {  // When scaled SOC is 100%, set allowed charge power to 0
+  if (system_scaled_SOC_pptt == 10000) {  // When scaled SOC is 100.00%, set allowed charge power to 0
     system_max_charge_power_W = 0;
-  } else if (soc_vi > 950) {  // When real SOC is between 95-99.99%, ramp the value between Max<->0
-    system_max_charge_power_W = MAXCHARGEPOWERALLOWED * (1 - (soc_vi - 950) / 50.0);
+  } else if (soc_vi > RAMPDOWNSOC) {  // When real SOC is between RAMPDOWNSOC-99.99%, ramp the value between Max<->0
+    system_max_charge_power_W = MAXCHARGEPOWERALLOWED * (1 - (soc_vi - RAMPDOWNSOC) / 50.0);
+    //If the cellvoltages start to reach overvoltage, only allow a small amount of power in
+    if (system_LFP_Chemistry) {
+      if (cell_max_v > (MAX_CELL_VOLTAGE_LFP - MILLIVOLTFLOAT)) {
+        system_max_charge_power_W = FLOATPOWERMAX;
+      }
+    } else {  //NCM/A
+      if (cell_max_v > (MAX_CELL_VOLTAGE_NCA_NCM - MILLIVOLTFLOAT)) {
+        system_max_charge_power_W = FLOATPOWERMAX;
+      }
+    }
   } else {  // No limits, max charging power allowed
     system_max_charge_power_W = MAXCHARGEPOWERALLOWED;
   }
