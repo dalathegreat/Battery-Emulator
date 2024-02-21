@@ -101,7 +101,8 @@ struct SensorConfig {
 };
 
 SensorConfig sensorConfigs[] = {
-    {"SOC", "Battery Emulator SOC", "{{ value_json.SOC }}", "%", "battery"},
+    {"SOC", "Battery Emulator SOC (scaled)", "{{ value_json.SOC }}", "%", "battery"},
+    {"SOC_real", "Battery Emulator SOC (real)", "{{ value_json.SOC_real }}", "%", "battery"},
     {"state_of_health", "Battery Emulator State Of Health", "{{ value_json.state_of_health }}", "%", "battery"},
     {"temperature_min", "Battery Emulator Temperature Min", "{{ value_json.temperature_min }}", "°C", "temperature"},
     {"temperature_max", "Battery Emulator Temperature Max", "{{ value_json.temperature_max }}", "°C", "temperature"},
