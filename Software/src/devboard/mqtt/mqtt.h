@@ -41,17 +41,18 @@
 
 extern const char* version_number;  // The current software version, used for mqtt
 
-extern uint16_t SOC;
-extern uint16_t StateOfHealth;
-extern uint16_t temperature_min;    //C+1,  Goes thru convert2unsignedint16 function (15.0C = 150, -15.0C =  65385)
-extern uint16_t temperature_max;    //C+1,  Goes thru convert2unsignedint16 function (15.0C = 150, -15.0C =  65385)
-extern uint16_t cell_max_voltage;   //mV,   0-4350
-extern uint16_t cell_min_voltage;   //mV,   0-4350
-extern uint16_t cellvoltages[120];  //mV    0-4350 per cell
-extern uint8_t nof_cellvoltages;    // Total number of cell voltages, set by each battery.
-extern uint16_t battery_voltage;    //V+1,  0-500.0 (0-5000)
-extern uint16_t battery_current;    //A+1,  Goes thru convert2unsignedint16 function (5.0A = 50, -5.0A = 65485)
-extern uint16_t stat_batt_power;
+extern int16_t system_temperature_min_dC;     //C+1, -50.0 - 50.0
+extern int16_t system_temperature_max_dC;     //C+1, -50.0 - 50.0
+extern int16_t system_active_power_W;         //W, -32000 to 32000
+extern int16_t system_battery_current_dA;     //A+1, -1000 - 1000
+extern uint16_t system_battery_voltage_dV;    //V+1,  0-500.0 (0-5000)
+extern uint16_t system_scaled_SOC_pptt;       //SOC%, 0-100.00 (0-10000)
+extern uint16_t system_real_SOC_pptt;         //SOC%, 0-100.00 (0-10000)
+extern uint16_t system_SOH_pptt;              //SOH%, 0-100.00 (0-10000)
+extern uint16_t system_cell_max_voltage_mV;   //mV, 0-5000 , Stores the highest cell millivolt value
+extern uint16_t system_cell_min_voltage_mV;   //mV, 0-5000, Stores the minimum cell millivolt value
+extern uint16_t system_cellvoltages_mV[120];  //Array with all cell voltages in mV
+extern uint8_t system_number_of_cells;        //Total number of cell voltages, set by each battery
 
 extern const char* mqtt_user;
 extern const char* mqtt_password;

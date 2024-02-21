@@ -60,7 +60,6 @@ static uint16_t output_current = 0;
 static uint16_t soc_min = 0;
 static uint16_t soc_max = 0;
 static uint16_t soc_vi = 0;
-static uint16_t soc_calculated = 0;
 static uint16_t soc_ave = 0;
 static uint16_t cell_max_v = 3700;
 static uint16_t cell_min_v = 3700;
@@ -153,8 +152,6 @@ static const char* hvilStatusState[] = {"NOT OK",
                                         "UNKNOWN(14)",
                                         "UNKNOWN(15)"};
 
-#define MAX_SOC 1000  //BMS never goes over this value. We use this info to rescale SOC% sent to inverter
-#define MIN_SOC 0     //BMS never goes below this value. We use this info to rescale SOC% sent to inverter
 #define MAX_CELL_VOLTAGE_NCA_NCM 4250   //Battery is put into emergency stop if one cell goes over this value
 #define MIN_CELL_VOLTAGE_NCA_NCM 2950   //Battery is put into emergency stop if one cell goes below this value
 #define MAX_CELL_DEVIATION_NCA_NCM 500  //LED turns yellow on the board if mv delta exceeds this value
@@ -169,66 +166,58 @@ void update_values_battery() {  //This function maps all the values fetched via 
   //After values are mapped, we perform some safety checks, and do some serial printouts
   //Calculate the SOH% to send to inverter
   if (bat_beginning_of_life != 0) {  //div/0 safeguard
-    StateOfHealth =
+    system_SOH_pptt =
         static_cast<uint16_t>((static_cast<double>(nominal_full_pack_energy) / bat_beginning_of_life) * 10000.0);
   }
   //If the calculation went wrong, set SOH to 100%
-  if (StateOfHealth > 10000) {
-    StateOfHealth = 10000;
+  if (system_SOH_pptt > 10000) {
+    system_SOH_pptt = 10000;
   }
   //If the value is unavailable, set SOH to 99%
   if (nominal_full_pack_energy < REASONABLE_ENERGYAMOUNT) {
-    StateOfHealth = 9900;
+    system_SOH_pptt = 9900;
   }
 
-  //Calculate the SOC% value to send to inverter
-  soc_calculated = soc_vi;
-  soc_calculated = MIN_SOC + (MAX_SOC - MIN_SOC) * (soc_calculated - MINPERCENTAGE) / (MAXPERCENTAGE - MINPERCENTAGE);
-  if (soc_calculated < 0) {  //We are in the real SOC% range of 0-20%, always set SOC sent to Inverter as 0%
-    soc_calculated = 0;
-  }
-  if (soc_calculated > 1000) {  //We are in the real SOC% range of 80-100%, always set SOC sent to Inverter as 100%
-    soc_calculated = 1000;
-  }
-  SOC = (soc_calculated * 10);  //increase SOC range from 0-100.0 -> 100.00
+  system_real_SOC_pptt = (soc_vi * 10);  //increase SOC range from 0-100.0 -> 100.00
 
-  battery_voltage = (volts * 10);  //One more decimal needed (370 -> 3700)
+  system_battery_voltage_dV = (volts * 10);  //One more decimal needed (370 -> 3700)
 
-  battery_current = convert2unsignedInt16(amps);  //13.0A
+  system_battery_current_dA = amps;  //13.0A
 
-  capacity_Wh = BATTERY_WH_MAX;  //Use the configured value to avoid overflows
+  system_capacity_Wh = BATTERY_WH_MAX;  //Use the configured value to avoid overflows
 
   //Calculate the remaining Wh amount from SOC% and max Wh value.
-  remaining_capacity_Wh = static_cast<uint16_t>((static_cast<double>(SOC) / 10000) * BATTERY_WH_MAX);
+  system_remaining_capacity_Wh =
+      static_cast<uint32_t>((static_cast<double>(system_real_SOC_pptt) / 10000) * BATTERY_WH_MAX);
 
   // Define the allowed discharge power
-  max_target_discharge_power = (max_discharge_current * volts);
+  system_max_discharge_power_W = (max_discharge_current * volts);
   // Cap the allowed discharge power if battery is empty, or discharge power is higher than the maximum discharge power allowed
-  if (SOC == 0) {
-    max_target_discharge_power = 0;
-  } else if (max_target_discharge_power > MAXDISCHARGEPOWERALLOWED) {
-    max_target_discharge_power = MAXDISCHARGEPOWERALLOWED;
+  if (system_scaled_SOC_pptt == 0) {
+    system_max_discharge_power_W = 0;
+  } else if (system_max_discharge_power_W > MAXDISCHARGEPOWERALLOWED) {
+    system_max_discharge_power_W = MAXDISCHARGEPOWERALLOWED;
   }
 
   //The allowed charge power behaves strangely. We instead estimate this value
-  if (SOC == 10000) {  // When scaled SOC is 100%, set allowed charge power to 0
-    max_target_charge_power = 0;
+  if (system_scaled_SOC_pptt == 10000) {  // When scaled SOC is 100%, set allowed charge power to 0
+    system_max_charge_power_W = 0;
   } else if (soc_vi > 950) {  // When real SOC is between 95-99.99%, ramp the value between Max<->0
-    max_target_charge_power = MAXCHARGEPOWERALLOWED * (1 - (soc_vi - 950) / 50.0);
+    system_max_charge_power_W = MAXCHARGEPOWERALLOWED * (1 - (soc_vi - 950) / 50.0);
   } else {  // No limits, max charging power allowed
-    max_target_charge_power = MAXCHARGEPOWERALLOWED;
+    system_max_charge_power_W = MAXCHARGEPOWERALLOWED;
   }
 
   power = ((volts / 10) * amps);
-  stat_batt_power = convert2unsignedInt16(power);
+  system_active_power_W = power;
 
-  temperature_min = convert2unsignedInt16(min_temp);
+  system_temperature_min_dC = min_temp;
 
-  temperature_max = convert2unsignedInt16(max_temp);
+  system_temperature_max_dC = max_temp;
 
-  cell_max_voltage = cell_max_v;
+  system_cell_max_voltage_mV = cell_max_v;
 
-  cell_min_voltage = cell_min_v;
+  system_cell_min_voltage_mV = cell_min_v;
 
   /* Value mapping is completed. Start to check all safeties */
 
@@ -251,30 +240,31 @@ void update_values_battery() {  //This function maps all the values fetched via 
   //Determine which chemistry battery pack is using (crude method, TODO: replace with real CAN identifier later)
   if (soc_vi > 900) {  //When SOC% is over 90.0%, we can use max cell voltage to estimate what chemistry is used
     if (cell_max_v < 3450) {
-      LFP_Chemistry = true;
+      system_LFP_Chemistry = true;
     }
     if (cell_max_v > 3700) {
-      LFP_Chemistry = false;
+      system_LFP_Chemistry = false;
     }
   }
   // An even better way is to check how many cells are in the pack. NCM/A batteries have 96s, LFP has 102-106s
-  if (nof_cellvoltages > 101) {
-    LFP_Chemistry = true;
+  if (system_number_of_cells > 101) {
+    system_LFP_Chemistry = true;
   }
 
   //Once cell chemistry is determined, set maximum and minimum total pack voltage safety limits
-  if (LFP_Chemistry) {
-    max_voltage = 3880;
-    min_voltage = 2968;
+  if (system_LFP_Chemistry) {
+    system_max_design_voltage_dV = 3880;
+    system_min_design_voltage_dV = 2968;
   } else {  // NCM/A chemistry
-    max_voltage = 4030;
-    min_voltage = 3100;
+    system_max_design_voltage_dV = 4030;
+    system_min_design_voltage_dV = 3100;
   }
 
   //Check if SOC% is plausible
-  if (battery_voltage > (max_voltage - 20)) {  // When pack voltage is close to max, and SOC% is still low, raise FAULT
-    if (SOC < 5000) {                          //When SOC is less than 50.00% when approaching max voltage
-      set_event(EVENT_SOC_PLAUSIBILITY_ERROR, SOC / 100);
+  if (system_battery_voltage_dV >
+      (system_max_design_voltage_dV - 20)) {  // When pack voltage is close to max, and SOC% is still low, raise FAULT
+    if (system_real_SOC_pptt < 5000) {        //When SOC is less than 50.00% when approaching max voltage
+      set_event(EVENT_SOC_PLAUSIBILITY_ERROR, system_real_SOC_pptt / 100);
     }
   }
 
@@ -288,7 +278,7 @@ void update_values_battery() {  //This function maps all the values fetched via 
     set_event(EVENT_KWH_PLAUSIBILITY_ERROR, nominal_full_pack_energy);
   }
 
-  if (LFP_Chemistry) {  //LFP limits used for voltage safeties
+  if (system_LFP_Chemistry) {  //LFP limits used for voltage safeties
     if (cell_max_v >= MAX_CELL_VOLTAGE_LFP) {
       set_event(EVENT_CELL_OVER_VOLTAGE, (cell_max_v - MAX_CELL_VOLTAGE_LFP));
     }
@@ -314,9 +304,9 @@ void update_values_battery() {  //This function maps all the values fetched via 
     }
   }
 
-  if (bms_status == FAULT) {  //Incase we enter a critical fault state, zero out the allowed limits
-    max_target_charge_power = 0;
-    max_target_discharge_power = 0;
+  if (system_bms_status == FAULT) {  //Incase we enter a critical fault state, zero out the allowed limits
+    system_max_charge_power_W = 0;
+    system_max_discharge_power_W = 0;
   }
 
   /* Safeties verified. Perform USB serial printout if configured to do so */
@@ -350,10 +340,9 @@ void update_values_battery() {  //This function maps all the values fetched via 
     Serial.print("YES, ");
   else
     Serial.print("NO, ");
-  if (LFP_Chemistry) {
+  if (system_LFP_Chemistry) {
     Serial.print("LFP chemistry detected!");
   }
-  Serial.print(nof_cellvoltages);
   Serial.println("");
   Serial.print("Cellstats, Max: ");
   Serial.print(cell_max_v);
@@ -375,14 +364,14 @@ void update_values_battery() {  //This function maps all the values fetched via 
   Serial.println("");
 
   Serial.println("Values passed to the inverter: ");
-  print_SOC(" SOC: ", SOC);
-  print_int_with_units(" Max discharge power: ", max_target_discharge_power, "W");
+  print_SOC(" SOC: ", system_scaled_SOC_pptt);
+  print_int_with_units(" Max discharge power: ", system_max_discharge_power_W, "W");
   Serial.print(", ");
-  print_int_with_units(" Max charge power: ", max_target_charge_power, "W");
+  print_int_with_units(" Max charge power: ", system_max_charge_power_W, "W");
   Serial.println("");
-  print_int_with_units(" Max temperature: ", ((int16_t)temperature_max * 0.1), "°C");
+  print_int_with_units(" Max temperature: ", ((int16_t)system_temperature_min_dC * 0.1), "°C");
   Serial.print(", ");
-  print_int_with_units(" Min temperature: ", ((int16_t)temperature_min * 0.1), "°C");
+  print_int_with_units(" Min temperature: ", ((int16_t)system_temperature_max_dC * 0.1), "°C");
   Serial.println("");
 #endif
 }
@@ -478,11 +467,11 @@ void receive_can_battery(CAN_frame_t rx_frame) {
       {
         // Example, frame3=0x89,frame2=0x1D = 35101 / 10 = 3510mV
         volts = ((rx_frame.data.u8[3] << 8) | rx_frame.data.u8[2]) / 10;
-        cellvoltages[mux * 3] = volts;
+        system_cellvoltages_mV[mux * 3] = volts;
         volts = ((rx_frame.data.u8[5] << 8) | rx_frame.data.u8[4]) / 10;
-        cellvoltages[1 + mux * 3] = volts;
+        system_cellvoltages_mV[1 + mux * 3] = volts;
         volts = ((rx_frame.data.u8[7] << 8) | rx_frame.data.u8[6]) / 10;
-        cellvoltages[2 + mux * 3] = volts;
+        system_cellvoltages_mV[2 + mux * 3] = volts;
 
         // Track the max value of mux. If we've seen two 0 values for mux, we've probably gathered all
         // cell voltages. Then, 2 + mux_max * 3 + 1 is the number of cell voltages.
@@ -491,7 +480,7 @@ void receive_can_battery(CAN_frame_t rx_frame) {
           mux_zero_counter++;
           if (mux_zero_counter == 2u) {
             // The max index will be 2 + mux_max * 3 (see above), so "+ 1" for the number of cells
-            nof_cellvoltages = 2 + 3 * mux_max + 1;
+            system_number_of_cells = 2 + 3 * mux_max + 1;
             // Increase the counter arbitrarily another time to make the initial if-statement evaluate to false
             mux_zero_counter++;
           }
@@ -591,12 +580,12 @@ the first, for a few cycles, then stop all  messages which causes the contactor 
     previousMillis30 = currentMillis;
 
     if (inverterAllowsContactorClosing == 1) {
-      if (bms_status == ACTIVE) {
+      if (system_bms_status == ACTIVE) {
         send221still = 50;
         batteryAllowsContactorClosing = true;
         ESP32Can.CANWriteFrame(&TESLA_221_1);
         ESP32Can.CANWriteFrame(&TESLA_221_2);
-      } else {  //bms_status == FAULT or inverter requested opening contactors
+      } else {  //system_bms_status == FAULT or inverter requested opening contactors
         if (send221still > 0) {
           batteryAllowsContactorClosing = false;
           ESP32Can.CANWriteFrame(&TESLA_221_1);
@@ -604,13 +593,6 @@ the first, for a few cycles, then stop all  messages which causes the contactor 
         }
       }
     }
-  }
-}
-uint16_t convert2unsignedInt16(int16_t signed_value) {
-  if (signed_value < 0) {
-    return (65535 + signed_value);
-  } else {
-    return (uint16_t)signed_value;
   }
 }
 
@@ -708,8 +690,8 @@ void printDebugIfActive(uint8_t symbol, const char* message) {
 void setup_battery(void) {  // Performs one time setup at startup
   Serial.println("Tesla Model 3 battery selected");
 
-  max_voltage = 4030;  // 403.0V, over this, charging is not possible (goes into forced discharge)
-  min_voltage = 3100;  // 310.0V under this, discharging further is disabled
+  system_max_design_voltage_dV = 4030;  // 403.0V, over this, charging is not possible (goes into forced discharge)
+  system_min_design_voltage_dV = 3100;  // 310.0V under this, discharging further is disabled
 }
 
 #endif

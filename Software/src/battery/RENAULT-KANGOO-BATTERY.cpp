@@ -6,16 +6,12 @@
 #include "RENAULT-KANGOO-BATTERY.h"
 
 /* Do not change code below unless you are sure what you are doing */
-#define LB_MAX_SOC 1000  //BMS never goes over this value. We use this info to rescale SOC% sent to Fronius
-#define LB_MIN_SOC 0     //BMS never goes below this value. We use this info to rescale SOC% sent to Fronius
-
 static uint32_t LB_Battery_Voltage = 3700;
 static uint32_t LB_Charge_Power_Limit_Watts = 0;
 static uint32_t LB_Discharge_Power_Limit_Watts = 0;
 static int32_t LB_Current = 0;
 static int16_t LB_MAX_TEMPERATURE = 0;
 static int16_t LB_MIN_TEMPERATURE = 0;
-static uint16_t soc_calculated = 0;
 static uint16_t LB_SOC = 0;
 static uint16_t LB_SOH = 0;
 static uint16_t LB_Discharge_Power_Limit = 0;
@@ -60,68 +56,56 @@ static const int interval100 = 100;    // interval (ms) at which send CAN Messag
 static const int interval1000 = 1000;  // interval (ms) at which send CAN Messages
 
 void update_values_battery() {  //This function maps all the values fetched via CAN to the correct parameters used for modbus
-  StateOfHealth = (LB_SOH * 100);  //Increase range from 99% -> 99.00%
 
-  //Calculate the SOC% value to send to Fronius
-  soc_calculated = LB_SOC;
-  soc_calculated =
-      LB_MIN_SOC + (LB_MAX_SOC - LB_MIN_SOC) * (soc_calculated - MINPERCENTAGE) / (MAXPERCENTAGE - MINPERCENTAGE);
-  if (soc_calculated < 0) {  //We are in the real SOC% range of 0-20%, always set SOC sent to Inverter as 0%
-    soc_calculated = 0;
-  }
-  if (soc_calculated > 1000) {  //We are in the real SOC% range of 80-100%, always set SOC sent to Inverter as 100%
-    soc_calculated = 1000;
-  }
-  SOC = (soc_calculated * 10);  //increase LB_SOC range from 0-100.0 -> 100.00
+  system_real_SOC_pptt = (LB_SOC * 10);  //increase LB_SOC range from 0-100.0 -> 100.00
 
-  battery_voltage = LB_Battery_Voltage;
+  system_SOH_pptt = (LB_SOH * 100);  //Increase range from 99% -> 99.00%
 
-  battery_current = LB_Current;
+  system_battery_voltage_dV = LB_Battery_Voltage;
 
-  capacity_Wh = BATTERY_WH_MAX;  //Hardcoded to header value
+  system_battery_current_dA = LB_Current;
 
-  remaining_capacity_Wh = (uint16_t)((SOC / 10000) * capacity_Wh);
+  system_capacity_Wh = BATTERY_WH_MAX;  //Hardcoded to header value
+
+  system_remaining_capacity_Wh = (uint16_t)((system_real_SOC_pptt / 10000) * system_capacity_Wh);
 
   LB_Discharge_Power_Limit_Watts = (LB_Discharge_Power_Limit * 500);  //Convert value fetched from battery to watts
   /* Define power able to be discharged from battery */
-  if (LB_Discharge_Power_Limit_Watts > 30000)  //if >30kW can be pulled from battery
+  if (LB_Discharge_Power_Limit_Watts > 60000)  //if >60kW can be pulled from battery
   {
-    max_target_discharge_power = 30000;  //cap value so we don't go over the Fronius limits
+    system_max_discharge_power_W = 60000;  //cap value so we don't go over the uint16 limit
   } else {
-    max_target_discharge_power = LB_Discharge_Power_Limit_Watts;
+    system_max_discharge_power_W = LB_Discharge_Power_Limit_Watts;
   }
-  if (SOC == 0)  //Scaled SOC% value is 0.00%, we should not discharge battery further
+  if (system_scaled_SOC_pptt == 0)  //Scaled SOC% value is 0.00%, we should not discharge battery further
   {
-    max_target_discharge_power = 0;
+    system_max_discharge_power_W = 0;
   }
 
   LB_Charge_Power_Limit_Watts = (LB_Charge_Power_Limit * 500);  //Convert value fetched from battery to watts
   /* Define power able to be put into the battery */
-  if (LB_Charge_Power_Limit_Watts > 30000)  //if >30kW can be put into the battery
+  if (LB_Charge_Power_Limit_Watts > 60000)  //if >60kW can be put into the battery
   {
-    max_target_charge_power = 30000;  //cap value so we don't go over the Fronius limits
-  }
-  if (LB_Charge_Power_Limit_Watts < 0) {
-    max_target_charge_power = 0;  //cap calue so we dont do under the Fronius limits
+    system_max_charge_power_W = 60000;  //cap value so we don't go over the uint16 limit
   } else {
-    max_target_charge_power = LB_Charge_Power_Limit_Watts;
+    system_max_charge_power_W = LB_Charge_Power_Limit_Watts;
   }
-  if (SOC == 10000)  //Scaled SOC% value is 100.00%
+  if (system_scaled_SOC_pptt == 10000)  //Scaled SOC% value is 100.00%
   {
-    max_target_charge_power = 0;  //No need to charge further, set max power to 0
+    system_max_charge_power_W = 0;  //No need to charge further, set max power to 0
   }
 
-  stat_batt_power = (battery_voltage * LB_Current);  //TODO: check if scaling is OK
+  system_active_power_W = (system_battery_voltage_dV * LB_Current);  //TODO: check if scaling is OK
 
-  temperature_min = convert2uint16(LB_MIN_TEMPERATURE * 10);
+  system_temperature_min_dC = (LB_MIN_TEMPERATURE * 10);
 
-  temperature_max = convert2uint16(LB_MAX_TEMPERATURE * 10);
+  system_temperature_max_dC = (LB_MAX_TEMPERATURE * 10);
 
-  cell_min_voltage = LB_Cell_Min_Voltage;
+  system_cell_min_voltage_mV = LB_Cell_Min_Voltage;
 
-  cell_max_voltage = LB_Cell_Max_Voltage;
+  system_cell_max_voltage_mV = LB_Cell_Max_Voltage;
 
-  cell_deviation_mV = (cell_max_voltage - cell_min_voltage);
+  cell_deviation_mV = (system_temperature_max_dC - system_temperature_min_dC);
 
   /* Check if the BMS is still sending CAN messages. If we go 60s without messages we raise an error*/
   if (!CANstillAlive) {
@@ -146,21 +130,21 @@ void update_values_battery() {  //This function maps all the values fetched via 
 #ifdef DEBUG_VIA_USB
   Serial.println("Values going to inverter:");
   Serial.print("SOH%: ");
-  Serial.print(StateOfHealth);
+  Serial.print(system_SOH_pptt);
   Serial.print(", SOC% scaled: ");
-  Serial.print(SOC);
+  Serial.print(system_scaled_SOC_pptt);
   Serial.print(", Voltage: ");
-  Serial.print(battery_voltage);
+  Serial.print(system_battery_voltage_dV);
   Serial.print(", Max discharge power: ");
-  Serial.print(max_target_discharge_power);
+  Serial.print(system_max_discharge_power_W);
   Serial.print(", Max charge power: ");
-  Serial.print(max_target_charge_power);
+  Serial.print(system_max_charge_power_W);
   Serial.print(", Max temp: ");
-  Serial.print(temperature_max);
+  Serial.print(system_temperature_max_dC);
   Serial.print(", Min temp: ");
-  Serial.print(temperature_min);
+  Serial.print(system_temperature_min_dC);
   Serial.print(", BMS Status (3=OK): ");
-  Serial.print(bms_status);
+  Serial.print(system_bms_status);
 
   Serial.println("Battery values: ");
   Serial.print("Real SOC: ");
@@ -230,7 +214,7 @@ void receive_can_battery(CAN_frame_t rx_frame)  //GKOE reworked
       }
       if (rx_frame.data.u8[0] == 0x24) {  //5th response Bytes 24-31
         LB_Discharge_Power_Limit = word(LB_Discharge_Power_Limit_Byte1, rx_frame.data.u8[1]) * 100;  //OK!
-        LB_Battery_Voltage = word(rx_frame.data.u8[2], rx_frame.data.u8[3]) * 10;                    //OK!
+        LB_Battery_Voltage = word(rx_frame.data.u8[2], rx_frame.data.u8[3]) / 10;                    //OK!
         GVB_79B_Continue = false;
       }
       break;
@@ -262,19 +246,11 @@ void send_can_battery() {
   }
 }
 
-uint16_t convert2uint16(int16_t signed_value) {
-  if (signed_value < 0) {
-    return (65535 + signed_value);
-  } else {
-    return (uint16_t)signed_value;
-  }
-}
-
 void setup_battery(void) {  // Performs one time setup at startup
   Serial.println("Renault Kangoo battery selected");
 
-  max_voltage = 4040;  // 404.0V, over this, charging is not possible (goes into forced discharge)
-  min_voltage = 3100;  // 310.0V under this, discharging further is disabled
+  system_max_design_voltage_dV = 4040;  // 404.0V, over this, charging is not possible (goes into forced discharge)
+  system_min_design_voltage_dV = 3100;  // 310.0V under this, discharging further is disabled
 }
 
 #endif
