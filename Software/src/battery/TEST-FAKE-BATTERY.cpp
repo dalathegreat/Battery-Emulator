@@ -1,6 +1,8 @@
-#include "TEST-FAKE-BATTERY.h"
+#include "BATTERIES.h"
+#ifdef TEST_FAKE_BATTERY
 #include "../lib/miwagner-ESP32-Arduino-CAN/CAN_config.h"
 #include "../lib/miwagner-ESP32-Arduino-CAN/ESP32CAN.h"
+#include "TEST-FAKE-BATTERY.h"
 
 /* Do not change code below unless you are sure what you are doing */
 static unsigned long previousMillis10 = 0;   // will store last time a 10ms CAN Message was send
@@ -16,58 +18,54 @@ void print_units(char* header, int value, char* units) {
   Serial.print(units);
 }
 
-void update_values_test_battery() { /* This function puts fake values onto the parameters sent towards the inverter */
-  bms_status = ACTIVE;              //Always be in Active mode
+void update_values_battery() {  /* This function puts fake values onto the parameters sent towards the inverter */
+  system_real_SOC_pptt = 5000;  // 50.00%
 
-  LEDcolor = TEST_ALL_COLORS;  // Cycle the LED thru all available colors
+  system_SOH_pptt = 9900;  // 99.00%
 
-  SOC = 5000;  // 50.00%
+  //system_battery_voltage_dV = 3700;  // 370.0V , value set in startup in .ino file, editable via webUI
 
-  StateOfHealth = 9900;  // 99.00%
+  system_battery_current_dA = 0;  // 0 A
 
-  //battery_voltage = 3700;  // 370.0V , value set in startup in .ino file, editable via webUI
+  system_capacity_Wh = 30000;  // 30kWh
 
-  battery_current = 0;  // 0 A
+  system_remaining_capacity_Wh = 15000;  // 15kWh
 
-  capacity_Wh = 30000;  // 30kWh
+  system_cell_max_voltage_mV = 3596;
 
-  remaining_capacity_Wh = 15000;  // 15kWh
+  system_cell_min_voltage_mV = 3500;
 
-  cell_max_voltage = 3596;
+  system_active_power_W = 0;  // 0W
 
-  cell_min_voltage = 3500;
+  system_temperature_min_dC = 50;  // 5.0*C
 
-  stat_batt_power = 0;  // 0W
+  system_temperature_max_dC = 60;  // 6.0*C
 
-  temperature_min = 50;  // 5.0*C
+  system_max_discharge_power_W = 5000;  // 5kW
 
-  temperature_max = 60;  // 6.0*C
-
-  max_target_discharge_power = 5000;  // 5kW
-
-  max_target_charge_power = 5000;  // 5kW
+  system_max_charge_power_W = 5000;  // 5kW
 
   for (int i = 0; i < 97; ++i) {
-    cellvoltages[i] = 3500 + i;
+    system_cellvoltages_mV[i] = 3500 + i;
   }
 
 /*Finally print out values to serial if configured to do so*/
 #ifdef DEBUG_VIA_USB
   Serial.println("FAKE Values going to inverter");
-  print_units("SOH%: ", (StateOfHealth * 0.01), "% ");
-  print_units(", SOC%: ", (SOC * 0.01), "% ");
-  print_units(", Voltage: ", (battery_voltage * 0.1), "V ");
-  print_units(", Max discharge power: ", max_target_discharge_power, "W ");
-  print_units(", Max charge power: ", max_target_charge_power, "W ");
-  print_units(", Max temp: ", (temperature_max * 0.1), "°C ");
-  print_units(", Min temp: ", (temperature_min * 0.1), "°C ");
-  print_units(", Max cell voltage: ", cell_max_voltage, "mV ");
-  print_units(", Min cell voltage: ", cell_min_voltage, "mV ");
+  print_units("SOH%: ", (system_SOH_pptt * 0.01), "% ");
+  print_units(", SOC%: ", (system_scaled_SOC_pptt * 0.01), "% ");
+  print_units(", Voltage: ", (system_battery_voltage_dV * 0.1), "V ");
+  print_units(", Max discharge power: ", system_max_discharge_power_W, "W ");
+  print_units(", Max charge power: ", system_max_charge_power_W, "W ");
+  print_units(", Max temp: ", (system_temperature_max_dC * 0.1), "°C ");
+  print_units(", Min temp: ", (system_temperature_min_dC * 0.1), "°C ");
+  print_units(", Max cell voltage: ", system_cell_max_voltage_mV, "mV ");
+  print_units(", Min cell voltage: ", system_cell_min_voltage_mV, "mV ");
   Serial.println("");
 #endif
 }
 
-void receive_can_test_battery(CAN_frame_t rx_frame) {
+void receive_can_battery(CAN_frame_t rx_frame) {
   switch (rx_frame.MsgID) {
     case 0xABC:
       break;
@@ -75,7 +73,7 @@ void receive_can_test_battery(CAN_frame_t rx_frame) {
       break;
   }
 }
-void send_can_test_battery() {
+void send_can_battery() {
   unsigned long currentMillis = millis();
   // Send 100ms CAN Message
   if (currentMillis - previousMillis100 >= interval100) {
@@ -83,3 +81,12 @@ void send_can_test_battery() {
     // Put fake messages here incase you want to test sending CAN
   }
 }
+
+void setup_battery(void) {  // Performs one time setup at startup
+  Serial.println("Test mode with fake battery selected");
+
+  system_max_design_voltage_dV = 4040;  // 404.4V, over this, charging is not possible (goes into forced discharge)
+  system_min_design_voltage_dV = 2450;  // 245.0V under this, discharging further is disabled
+}
+
+#endif

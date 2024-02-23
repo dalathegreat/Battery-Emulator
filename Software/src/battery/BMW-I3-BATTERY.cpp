@@ -1,10 +1,9 @@
-#include "BMW-I3-BATTERY.h"
+#include "BATTERIES.h"
+#ifdef BMW_I3_BATTERY
 #include "../devboard/utils/events.h"
 #include "../lib/miwagner-ESP32-Arduino-CAN/CAN_config.h"
 #include "../lib/miwagner-ESP32-Arduino-CAN/ESP32CAN.h"
-
-//TODO: before using
-// Map the final values in update_values_i3_battery, set some to static values if not available (current, discharge max , charge max)
+#include "BMW-I3-BATTERY.h"
 
 /* Do not change code below unless you are sure what you are doing */
 static unsigned long previousMillis10 = 0;     // will store last time a 10ms CAN Message was send
@@ -40,79 +39,6 @@ unsigned long turnOnTime;                    // Variables to store timestamps
 enum State { POWERON, STATE_ON, STATE_OFF, STATE_STAY_ON };
 static State WUPState = POWERON;
 
-#define LB_MAX_SOC 1000  //BMS never goes over this value. We use this info to rescale SOC% sent to Inverter
-#define LB_MIN_SOC 0     //BMS never goes below this value. We use this info to rescale SOC% sent to Inverter
-
-CAN_frame_t BMW_000 = {.FIR = {.B =
-                                   {
-                                       .DLC = 4,
-                                       .FF = CAN_frame_std,
-                                   }},
-                       .MsgID = 0x000,
-                       .data = {0x10, 0x44, 0x00, 0x01}};
-CAN_frame_t BMW_0A5 = {.FIR = {.B =
-                                   {
-                                       .DLC = 8,
-                                       .FF = CAN_frame_std,
-                                   }},
-                       .MsgID = 0x0A5,
-                       .data = {0x47, 0xF0, 0xFF, 0xFF, 0xFF, 0x00, 0x00, 0xFF}};
-CAN_frame_t BMW_0A8 = {.FIR = {.B =
-                                   {
-                                       .DLC = 8,
-                                       .FF = CAN_frame_std,
-                                   }},
-                       .MsgID = 0x0A8,
-                       .data = {0xD1, 0xF2, 0xFF, 0xBF, 0x5D, 0xE8, 0xD3, 0xC3}};
-CAN_frame_t BMW_0AA = {.FIR = {.B =
-                                   {
-                                       .DLC = 8,
-                                       .FF = CAN_frame_std,
-                                   }},
-                       .MsgID = 0x0AA,
-                       .data = {0x00, 0xFC, 0x00, 0x7D, 0xC0, 0x5D, 0xD0, 0xF7}};
-CAN_frame_t BMW_0AD = {.FIR = {.B =
-                                   {
-                                       .DLC = 8,
-                                       .FF = CAN_frame_std,
-                                   }},
-                       .MsgID = 0x0AD,
-                       .data = {0xFF, 0xFF, 0xFE, 0xE7, 0x7F, 0xFE, 0x7F, 0xFF}};
-CAN_frame_t BMW_0BB = {.FIR = {.B =
-                                   {
-                                       .DLC = 3,
-                                       .FF = CAN_frame_std,
-                                   }},
-                       .MsgID = 0x0BB,
-                       .data = {0x7D, 0xFF, 0xFF}};
-CAN_frame_t BMW_0CD = {.FIR = {.B =
-                                   {
-                                       .DLC = 8,
-                                       .FF = CAN_frame_std,
-                                   }},
-                       .MsgID = 0x0CD,
-                       .data = {0xFF, 0xFF, 0xD0, 0xF7, 0xFF, 0xFF, 0xFF, 0xFF}};
-CAN_frame_t BMW_100 = {.FIR = {.B =
-                                   {
-                                       .DLC = 8,
-                                       .FF = CAN_frame_std,
-                                   }},
-                       .MsgID = 0x100,
-                       .data = {0x9D, 0xF0, 0x7F, 0xC0, 0x5D, 0xA1, 0x87, 0x70}};
-CAN_frame_t BMW_105 = {.FIR = {.B =
-                                   {
-                                       .DLC = 8,
-                                       .FF = CAN_frame_std,
-                                   }},
-                       .MsgID = 0x105,
-                       .data = {0x03, 0xF0, 0x7F, 0xE0, 0x2E, 0x00, 0xFC, 0x0F}};
-CAN_frame_t BMW_108 = {.FIR = {.B =
-                                   {
-                                       .DLC = 8,
-                                       .FF = CAN_frame_std,
-                                   }},
-                       .MsgID = 0x108,
-                       .data = {0xDD, 0x7D, 0xFF, 0x2C, 0x48, 0xF3, 0xFF, 0xFF}};
 CAN_frame_t BMW_10B = {.FIR = {.B =
                                    {
                                        .DLC = 3,
@@ -613,59 +539,47 @@ static uint16_t MaxDischargeVoltage = 0;
 static uint16_t MaxChargeWattMaybe = 0;
 static uint16_t MaxDischargeWattMaybe = 0;
 
-void update_values_i3_battery() {  //This function maps all the values fetched via CAN to the correct parameters used for modbus
-  bms_status = ACTIVE;             //Startout in active mode
-
+void update_values_battery() {  //This function maps all the values fetched via CAN to the correct parameters used for modbus
   //Calculate the SOC% value to send to inverter
-  Calculated_SOC = (Display_SOC * 10);  //Increase decimal amount
-  Calculated_SOC =
-      LB_MIN_SOC + (LB_MAX_SOC - LB_MIN_SOC) * (Calculated_SOC - MINPERCENTAGE) / (MAXPERCENTAGE - MINPERCENTAGE);
-  if (Calculated_SOC < 0) {  //We are in the real SOC% range of 0-20%, always set SOC sent to inverter as 0%
-    Calculated_SOC = 0;
-  }
-  if (Calculated_SOC > 1000) {  //We are in the real SOC% range of 80-100%, always set SOC sent to inverter as 100%
-    Calculated_SOC = 1000;
-  }
-  SOC = (Calculated_SOC * 10);  //increase LB_SOC range from 0-100.0 -> 100.00
+  system_real_SOC_pptt = (Display_SOC * 100);  //increase Display_SOC range from 0-100 -> 100.00
 
-  battery_voltage = Battery_Volts;  //Unit V+1 (5000 = 500.0V)
+  system_battery_voltage_dV = Battery_Volts;  //Unit V+1 (5000 = 500.0V)
 
-  battery_current = Battery_Current;
+  system_battery_current_dA = Battery_Current;
 
-  capacity_Wh = BATTERY_WH_MAX;
+  system_capacity_Wh = BATTERY_WH_MAX;
 
-  remaining_capacity_Wh = (Battery_Capacity_kWh * 1000);
+  system_remaining_capacity_Wh = (Battery_Capacity_kWh * 1000);
 
-  if (SOC > 9900)  //If Soc is over 99%, stop charging
+  if (system_scaled_SOC_pptt > 9900)  //If Soc is over 99%, stop charging
   {
-    max_target_charge_power = 0;
+    system_max_charge_power_W = 0;
   } else {
-    max_target_charge_power = 5000;  //Hardcoded value for testing. TODO: read real value from battery when discovered
+    system_max_charge_power_W = 5000;  //Hardcoded value for testing. TODO: read real value from battery when discovered
   }
 
-  if (SOC < 500)  //If Soc is under 5%, stop dicharging
+  if (system_scaled_SOC_pptt < 500)  //If Soc is under 5%, stop dicharging
   {
-    max_target_discharge_power = 0;
+    system_max_discharge_power_W = 0;
   } else {
-    max_target_discharge_power =
+    system_max_discharge_power_W =
         5000;  //Hardcoded value for testing. TODO: read real value from battery when discovered
   }
 
   Battery_Power = (Battery_Current * (Battery_Volts / 10));
 
-  stat_batt_power = Battery_Power;  //TODO:, is mapping OK?
+  system_active_power_W = Battery_Power;  //TODO:, is mapping OK?
 
-  temperature_min;  //hardcoded to 5*C in startup, TODO:, find from battery CAN later
+  system_temperature_min_dC;  //hardcoded to 5*C in startup, TODO:, find from battery CAN later
 
-  temperature_max;  //hardcoded to 6*C in startup, TODO:, find from battery CAN later
+  system_temperature_max_dC;  //hardcoded to 6*C in startup, TODO:, find from battery CAN later
 
   /* Check if the BMS is still sending CAN messages. If we go 60s without messages we raise an error*/
   if (!CANstillAlive) {
-    bms_status = FAULT;
-    Serial.println("No CAN communication detected for 60s. Shutting down battery control.");
-    set_event(EVENT_CAN_FAILURE, 0);
+    set_event(EVENT_CAN_RX_FAILURE, 0);
   } else {
     CANstillAlive--;
+    clear_event(EVENT_CAN_RX_FAILURE);
   }
 
 #ifdef DEBUG_VIA_USB
@@ -694,16 +608,19 @@ void update_values_i3_battery() {  //This function maps all the values fetched v
   Serial.println(" ");
   Serial.print("Values sent to inverter: ");
   Serial.print("SOC%: ");
-  Serial.print(SOC);
+  Serial.print(system_scaled_SOC_pptt);
+  Serial.print(" Battery voltage: ");
+  Serial.print(system_battery_voltage_dV);
+  Serial.print(" Remaining Wh: ");
+  Serial.print(system_remaining_capacity_Wh);
   Serial.print(" Max charge power: ");
-  Serial.print(max_target_charge_power);
+  Serial.print(system_max_charge_power_W);
   Serial.print(" Max discharge power: ");
-  Serial.print(max_target_discharge_power);
+  Serial.print(system_max_discharge_power_W);
 #endif
 }
 
-void receive_can_i3_battery(CAN_frame_t rx_frame) {
-
+void receive_can_battery(CAN_frame_t rx_frame) {
   switch (rx_frame.MsgID) {
     case 0x112:            //BMS status [10ms]
       CANstillAlive = 12;  //This message is only sent if 30C signal is active
@@ -759,7 +676,7 @@ void receive_can_i3_battery(CAN_frame_t rx_frame) {
       break;
   }
 }
-void send_can_i3_battery() {
+void send_can_battery() {
   unsigned long currentMillis = millis();
 
   //Handle WUP signal
@@ -1072,3 +989,12 @@ void send_can_i3_battery() {
     ESP32Can.CANWriteFrame(&BMW_3E5);
   }
 }
+
+void setup_battery(void) {  // Performs one time setup at startup
+  Serial.println("BMW i3 battery selected");
+
+  system_max_design_voltage_dV = 4040;  // 404.4V, over this, charging is not possible (goes into forced discharge)
+  system_min_design_voltage_dV = 3100;  // 310.0V under this, discharging further is disabled
+}
+
+#endif

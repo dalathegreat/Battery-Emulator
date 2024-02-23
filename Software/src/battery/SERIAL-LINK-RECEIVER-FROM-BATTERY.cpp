@@ -1,5 +1,7 @@
-// SERIAL-LINK-RECEIVER-FROM-BATTERY.cpp
-
+#include "BATTERIES.h"
+#ifdef SERIAL_LINK_RECEIVER
+#include <Arduino.h>
+#include "../devboard/utils/events.h"
 #include "SERIAL-LINK-RECEIVER-FROM-BATTERY.h"
 
 #define INVERTER_SEND_NUM_VARIABLES 1
@@ -26,28 +28,28 @@ SerialDataLink dataLinkReceive(SerialReceiver, 0, 0x01, sendingNumVariables,
 static bool batteryFault = false;  // used locally - mainly to indicate Battery CAN failure
 
 void __getData() {
-  SOC = (uint16_t)dataLinkReceive.getReceivedData(0);
-  StateOfHealth = (uint16_t)dataLinkReceive.getReceivedData(1);
-  battery_voltage = (uint16_t)dataLinkReceive.getReceivedData(2);
-  battery_current = (uint16_t)dataLinkReceive.getReceivedData(3);
-  capacity_Wh = (uint16_t)dataLinkReceive.getReceivedData(4);
-  remaining_capacity_Wh = (uint16_t)dataLinkReceive.getReceivedData(5);
-  max_target_discharge_power = (uint16_t)dataLinkReceive.getReceivedData(6);
-  max_target_charge_power = (uint16_t)dataLinkReceive.getReceivedData(7);
-  uint16_t _bms_status = (uint16_t)dataLinkReceive.getReceivedData(8);
-  bms_status = _bms_status;
-  bms_char_dis_status = (uint16_t)dataLinkReceive.getReceivedData(9);
-  stat_batt_power = (uint16_t)dataLinkReceive.getReceivedData(10);
-  temperature_min = (uint16_t)dataLinkReceive.getReceivedData(11);
-  temperature_max = (uint16_t)dataLinkReceive.getReceivedData(12);
-  cell_max_voltage = (uint16_t)dataLinkReceive.getReceivedData(13);
-  cell_min_voltage = (uint16_t)dataLinkReceive.getReceivedData(14);
-  LFP_Chemistry = (bool)dataLinkReceive.getReceivedData(15);
-  batteryAllowsContactorClosing = (uint16_t)dataLinkReceive.getReceivedData(16);
+  system_real_SOC_pptt = (uint16_t)dataLinkReceive.getReceivedData(0);
+  system_SOH_pptt = (uint16_t)dataLinkReceive.getReceivedData(1);
+  system_battery_voltage_dV = (uint16_t)dataLinkReceive.getReceivedData(2);
+  system_battery_current_dA = (int16_t)dataLinkReceive.getReceivedData(3);
+  system_capacity_Wh = (uint32_t)dataLinkReceive.getReceivedData(4);
+  system_remaining_capacity_Wh = (uint32_t)dataLinkReceive.getReceivedData(5);
+  system_max_discharge_power_W = (uint16_t)dataLinkReceive.getReceivedData(6);
+  system_max_charge_power_W = (uint16_t)dataLinkReceive.getReceivedData(7);
+  uint16_t _system_bms_status = (uint16_t)dataLinkReceive.getReceivedData(8);
+  system_active_power_W = (uint16_t)dataLinkReceive.getReceivedData(9);
+  system_temperature_min_dC = (int16_t)dataLinkReceive.getReceivedData(10);
+  system_temperature_max_dC = (int16_t)dataLinkReceive.getReceivedData(11);
+  system_cell_max_voltage_mV = (uint16_t)dataLinkReceive.getReceivedData(12);
+  system_cell_min_voltage_mV = (uint16_t)dataLinkReceive.getReceivedData(13);
+  system_LFP_Chemistry = (bool)dataLinkReceive.getReceivedData(14);
+  batteryAllowsContactorClosing = (bool)dataLinkReceive.getReceivedData(15);
 
   batteryFault = false;
-  if (_bms_status == FAULT)
+  if (_system_bms_status == FAULT) {
     batteryFault = true;
+    set_event(EVENT_SERIAL_TRANSMITTER_FAILURE, 0);
+  }
 }
 
 void updateData() {
@@ -97,8 +99,8 @@ void manageSerialLinkReceiver() {
   {
     __getData();
     reads++;
-    lastGoodMaxCharge = max_target_charge_power;
-    lastGoodMaxDischarge = max_target_discharge_power;
+    lastGoodMaxCharge = system_max_charge_power_W;
+    lastGoodMaxDischarge = system_max_discharge_power_W;
     //--- if BatteryFault then assume Data is stale
     if (!batteryFault)
       lastGood = currentTime;
@@ -114,14 +116,14 @@ void manageSerialLinkReceiver() {
   if (minutesLost > 0 && lastGood > 0) {
     //   lose 25% each minute of data loss
     if (minutesLost < 4) {
-      max_target_charge_power = (lastGoodMaxCharge * (4 - minutesLost)) / 4;
-      max_target_discharge_power = (lastGoodMaxDischarge * (4 - minutesLost)) / 4;
+      system_max_charge_power_W = (lastGoodMaxCharge * (4 - minutesLost)) / 4;
+      system_max_discharge_power_W = (lastGoodMaxDischarge * (4 - minutesLost)) / 4;
+      set_event(EVENT_SERIAL_RX_WARNING, minutesLost);
     } else {
       // Times Up -
-      max_target_charge_power = 0;
-      max_target_discharge_power = 0;
-      bms_status = 4;  //Fault state
-      LEDcolor = RED;
+      system_max_charge_power_W = 0;
+      system_max_discharge_power_W = 0;
+      set_event(EVENT_SERIAL_RX_FAILURE, uint8_t(min(minutesLost, 255uL)));
       //----- Throw Error
     }
     // report Lost data & Max charge / Discharge reductions
@@ -135,9 +137,9 @@ void manageSerialLinkReceiver() {
       }
       Serial.print(minutesLost);
       Serial.print(", max Charge = ");
-      Serial.print(max_target_charge_power);
+      Serial.print(system_max_charge_power_W);
       Serial.print(", max Discharge = ");
-      Serial.println(max_target_discharge_power);
+      Serial.println(system_max_discharge_power_W);
     }
   }
 
@@ -174,37 +176,35 @@ void manageSerialLinkReceiver() {
 void update_values_serial_link() {
   Serial.println("Values from battery: ");
   Serial.print("SOC: ");
-  Serial.print(SOC);
+  Serial.print(system_real_SOC_pptt);
   Serial.print(" SOH: ");
-  Serial.print(StateOfHealth);
+  Serial.print(system_SOH_pptt);
   Serial.print(" Voltage: ");
-  Serial.print(battery_voltage);
+  Serial.print(system_battery_voltage_dV);
   Serial.print(" Current: ");
-  Serial.print(battery_current);
+  Serial.print(system_battery_current_dA);
   Serial.print(" Capacity: ");
-  Serial.print(capacity_Wh);
+  Serial.print(system_capacity_Wh);
   Serial.print(" Remain cap: ");
-  Serial.print(remaining_capacity_Wh);
+  Serial.print(system_remaining_capacity_Wh);
   Serial.print(" Max discharge W: ");
-  Serial.print(max_target_discharge_power);
+  Serial.print(system_max_discharge_power_W);
   Serial.print(" Max charge W: ");
-  Serial.print(max_target_charge_power);
+  Serial.print(system_max_charge_power_W);
   Serial.print(" BMS status: ");
-  Serial.print(bms_status);
-  Serial.print(" BMS status dis/cha: ");
-  Serial.print(bms_char_dis_status);
+  Serial.print(system_bms_status);
   Serial.print(" Power: ");
-  Serial.print(stat_batt_power);
+  Serial.print(system_active_power_W);
   Serial.print(" Temp min: ");
-  Serial.print(temperature_min);
+  Serial.print(system_temperature_min_dC);
   Serial.print(" Temp max: ");
-  Serial.print(temperature_max);
+  Serial.print(system_temperature_max_dC);
   Serial.print(" Cell max: ");
-  Serial.print(cell_max_voltage);
+  Serial.print(system_cell_max_voltage_mV);
   Serial.print(" Cell min: ");
-  Serial.print(cell_min_voltage);
+  Serial.print(system_cell_min_voltage_mV);
   Serial.print(" LFP : ");
-  Serial.print(LFP_Chemistry);
+  Serial.print(system_LFP_Chemistry);
   Serial.print(" batteryAllowsContactorClosing: ");
   Serial.print(batteryAllowsContactorClosing);
   Serial.print(" inverterAllowsContactorClosing: ");
@@ -212,3 +212,11 @@ void update_values_serial_link() {
 
   Serial.println("");
 }
+
+void setup_battery(void) {
+  Serial.println("SERIAL_DATA_LINK_RECEIVER selected");
+}
+void update_values_battery() {}
+void send_can_battery() {}
+
+#endif

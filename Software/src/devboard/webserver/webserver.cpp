@@ -1,5 +1,7 @@
 #include "webserver.h"
 #include <Preferences.h>
+#include "../utils/events.h"
+#include "../utils/timer.h"
 
 // Create AsyncWebServer object on port 80
 AsyncWebServer server(80);
@@ -19,6 +21,9 @@ enum WifiState {
 };
 
 WifiState wifi_state = INIT;
+
+MyTimer ota_timeout_timer = MyTimer(5000);
+bool ota_active = false;
 
 unsigned const long WIFI_MONITOR_INTERVAL_TIME = 15000;
 unsigned const long INIT_WIFI_CONNECT_TIMEOUT = 8000;        // Timeout for initial WiFi connect in milliseconds
@@ -62,6 +67,18 @@ void init_webserver() {
     if (request->hasParam("value")) {
       String value = request->getParam("value")->value();
       BATTERY_WH_MAX = value.toInt();
+      storeSettings();
+      request->send(200, "text/plain", "Updated successfully");
+    } else {
+      request->send(400, "text/plain", "Bad Request");
+    }
+  });
+
+  // Route for editing USE_SCALED_SOC
+  server.on("/updateUseScaledSOC", HTTP_GET, [](AsyncWebServerRequest* request) {
+    if (request->hasParam("value")) {
+      String value = request->getParam("value")->value();
+      USE_SCALED_SOC = value.toInt();
       storeSettings();
       request->send(200, "text/plain", "Updated successfully");
     } else {
@@ -127,7 +144,7 @@ void init_webserver() {
     String value = request->getParam("value")->value();
     float val = value.toFloat();
 
-    battery_voltage = val * 10;
+    system_battery_voltage_dV = val * 10;
 
     request->send(200, "text/plain", "Updated successfully");
   });
@@ -298,6 +315,14 @@ void wifi_monitor() {
       Serial.println(" Hostname: " + String(WiFi.getHostname()));
     }
   }
+
+  if (ota_active && ota_timeout_timer.elapsed()) {
+    // OTA timeout, try to restore can and clear the update event
+    ESP32Can.CANInit();
+    clear_event(EVENT_OTA_UPDATE);
+    set_event(EVENT_OTA_UPDATE_TIMEOUT, 0);
+    ota_active = false;
+  }
 }
 
 void init_WiFi_STA(const char* ssid, const char* password, const uint8_t wifi_channel) {
@@ -467,57 +492,42 @@ String processor(const String& var) {
     }
 
     // Display battery statistics within this block
-    float socFloat = static_cast<float>(SOC) / 100.0;                 // Convert to float and divide by 100
-    float sohFloat = static_cast<float>(StateOfHealth) / 100.0;       // Convert to float and divide by 100
-    float voltageFloat = static_cast<float>(battery_voltage) / 10.0;  // Convert to float and divide by 10
-    float currentFloat = 0;
-    if (battery_current > 32767) {  //Handle negative values on this unsigned value
-      currentFloat = static_cast<float>(-(65535 - battery_current)) / 10.0;  // Convert to float and divide by 10
-    } else {
-      currentFloat = static_cast<float>(battery_current) / 10.0;  // Convert to float and divide by 10
-    }
-    float powerFloat = 0;
-    if (stat_batt_power > 32767) {  //Handle negative values on this unsigned value
-      powerFloat = static_cast<float>(-(65535 - stat_batt_power));
-    } else {
-      powerFloat = static_cast<float>(stat_batt_power);
-    }
-    float tempMaxFloat = 0;
-    float tempMinFloat = 0;
-    if (temperature_max > 32767) {  //Handle negative values on this unsigned value
-      tempMaxFloat = static_cast<float>(-(65536 - temperature_max)) / 10.0;  // Convert to float and divide by 10
-    } else {
-      tempMaxFloat = static_cast<float>(temperature_max) / 10.0;  // Convert to float and divide by 10
-    }
-    if (temperature_min > 32767) {  //Handle negative values on this unsigned value
-      tempMinFloat = static_cast<float>(-(65536 - temperature_min)) / 10.0;  // Convert to float and divide by 10
-    } else {
-      tempMinFloat = static_cast<float>(temperature_min) / 10.0;  // Convert to float and divide by 10
-    }
-    content += "<h4 style='color: white;'>SOC: " + String(socFloat, 2) + "</h4>";
+    float socRealFloat = static_cast<float>(system_real_SOC_pptt) / 100.0;      // Convert to float and divide by 100
+    float socScaledFloat = static_cast<float>(system_scaled_SOC_pptt) / 100.0;  // Convert to float and divide by 100
+    float sohFloat = static_cast<float>(system_SOH_pptt) / 100.0;               // Convert to float and divide by 100
+    float voltageFloat = static_cast<float>(system_battery_voltage_dV) / 10.0;  // Convert to float and divide by 10
+    float currentFloat = static_cast<float>(system_battery_current_dA) / 10.0;  // Convert to float and divide by 10
+    float powerFloat = static_cast<float>(system_active_power_W);               // Convert to float
+    float tempMaxFloat = static_cast<float>(system_temperature_max_dC) / 10.0;  // Convert to float
+    float tempMinFloat = static_cast<float>(system_temperature_min_dC) / 10.0;  // Convert to float
+
+    content += "<h4 style='color: white;'>Real SOC: " + String(socRealFloat, 2) + "</h4>";
+    content += "<h4 style='color: white;'>Scaled SOC: " + String(socScaledFloat, 2) + "</h4>";
     content += "<h4 style='color: white;'>SOH: " + String(sohFloat, 2) + "</h4>";
     content += "<h4 style='color: white;'>Voltage: " + String(voltageFloat, 1) + " V</h4>";
     content += "<h4 style='color: white;'>Current: " + String(currentFloat, 1) + " A</h4>";
     content += formatPowerValue("Power", powerFloat, "", 1);
-    content += formatPowerValue("Total capacity", capacity_Wh, "h", 0);
-    content += formatPowerValue("Remaining capacity", remaining_capacity_Wh, "h", 1);
-    content += formatPowerValue("Max discharge power", max_target_discharge_power, "", 1);
-    content += formatPowerValue("Max charge power", max_target_charge_power, "", 1);
-    content += "<h4>Cell max: " + String(cell_max_voltage) + " mV</h4>";
-    content += "<h4>Cell min: " + String(cell_min_voltage) + " mV</h4>";
+    content += formatPowerValue("Total capacity", system_capacity_Wh, "h", 0);
+    content += formatPowerValue("Remaining capacity", system_remaining_capacity_Wh, "h", 1);
+    content += formatPowerValue("Max discharge power", system_max_discharge_power_W, "", 1);
+    content += formatPowerValue("Max charge power", system_max_charge_power_W, "", 1);
+    content += "<h4>Cell max: " + String(system_cell_max_voltage_mV) + " mV</h4>";
+    content += "<h4>Cell min: " + String(system_cell_min_voltage_mV) + " mV</h4>";
     content += "<h4>Temperature max: " + String(tempMaxFloat, 1) + " C</h4>";
     content += "<h4>Temperature min: " + String(tempMinFloat, 1) + " C</h4>";
-    if (bms_status == 3) {
+    if (system_bms_status == ACTIVE) {
       content += "<h4>BMS Status: OK </h4>";
+    } else if (system_bms_status == UPDATING) {
+      content += "<h4>BMS Status: UPDATING </h4>";
     } else {
       content += "<h4>BMS Status: FAULT </h4>";
     }
-    if (bms_char_dis_status == 2) {
-      content += "<h4>Battery charging!</h4>";
-    } else if (bms_char_dis_status == 1) {
-      content += "<h4>Battery discharging!</h4>";
-    } else {  //0 idle
+    if (system_battery_current_dA == 0) {
       content += "<h4>Battery idle</h4>";
+    } else if (system_battery_current_dA < 0) {
+      content += "<h4>Battery discharging!</h4>";
+    } else {  // > 0
+      content += "<h4>Battery charging!</h4>";
     }
     content += "<h4>Automatic contactor closing allowed:</h4>";
     content += "<h4>Battery: ";
@@ -630,19 +640,23 @@ String processor(const String& var) {
 
 void onOTAStart() {
   // Log when OTA has started
-  Serial.println("OTA update started!");
   ESP32Can.CANStop();
-  bms_status = UPDATING;  //Inform inverter that we are updating
-  LEDcolor = BLUE;
+  set_event(EVENT_OTA_UPDATE, 0);
+
+  // If already set, make a new attempt
+  clear_event(EVENT_OTA_UPDATE_TIMEOUT);
+  ota_active = true;
+  ota_timeout_timer.reset();
 }
 
 void onOTAProgress(size_t current, size_t final) {
-  bms_status = UPDATING;  //Inform inverter that we are updating
-  LEDcolor = BLUE;
   // Log every 1 second
   if (millis() - ota_progress_millis > 1000) {
     ota_progress_millis = millis();
     Serial.printf("OTA Progress Current: %u bytes, Final: %u bytes\n", current, final);
+
+    // Reset the "watchdog"
+    ota_timeout_timer.reset();
   }
 }
 
@@ -652,16 +666,19 @@ void onOTAEnd(bool success) {
     Serial.println("OTA update finished successfully!");
   } else {
     Serial.println("There was an error during OTA update!");
+
+    // If we fail without a timeout, try to restore CAN
+    ESP32Can.CANInit();
   }
-  bms_status = UPDATING;  //Inform inverter that we are updating
-  LEDcolor = BLUE;
+  ota_active = false;
+  clear_event(EVENT_OTA_UPDATE);
 }
 
 template <typename T>  // This function makes power values appear as W when under 1000, and kW when over
 String formatPowerValue(String label, T value, String unit, int precision) {
   String result = "<h4 style='color: white;'>" + label + ": ";
 
-  if (std::is_same<T, float>::value || std::is_same<T, uint16_t>::value) {
+  if (std::is_same<T, float>::value || std::is_same<T, uint16_t>::value || std::is_same<T, uint32_t>::value) {
     float convertedValue = static_cast<float>(value);
 
     if (convertedValue >= 1000.0 || convertedValue <= -1000.0) {

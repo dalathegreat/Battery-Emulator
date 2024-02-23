@@ -11,6 +11,7 @@
 #include "src/devboard/utils/events.h"
 #include "src/inverter/INVERTERS.h"
 #include "src/lib/adafruit-Adafruit_NeoPixel/Adafruit_NeoPixel.h"
+#include "src/lib/bblanchon-ArduinoJson/ArduinoJson.h"
 #include "src/lib/eModbus-eModbus/Logging.h"
 #include "src/lib/eModbus-eModbus/ModbusServerRTU.h"
 #include "src/lib/eModbus-eModbus/scripts/mbServerFCs.h"
@@ -21,8 +22,8 @@
 #include "src/devboard/webserver/webserver.h"
 #endif
 
-Preferences settings;                  // Store user settings
-const char* version_number = "5.2.0";  // The current software version, shown on webserver
+Preferences settings;                   // Store user settings
+const char* version_number = "5.3.RC";  // The current software version, shown on webserver
 // Interval settings
 int intervalUpdateValues = 4800;  // Interval at which to update inverter values / Modbus registers
 const int interval10 = 10;        // Interval for 10ms tasks
@@ -53,27 +54,27 @@ uint16_t mbPV[MB_RTU_NUM_VALUES];  // Process variable memory
 ModbusServerRTU MBserver(Serial2, 2000);
 #endif
 
-// Common inverter parameters. Batteries map their values to these variables
-uint16_t max_voltage = ABSOLUTE_MAX_VOLTAGE;  // If higher charging is not possible (goes into forced discharge)
-uint16_t min_voltage = ABSOLUTE_MIN_VOLTAGE;  // If lower disables discharging battery
-uint16_t battery_voltage = 3700;              //V+1,  0-500.0 (0-5000)
-uint16_t battery_current = 0;
-uint16_t SOC = 5000;                              //SOC%, 0-100.00 (0-10000)
-uint16_t StateOfHealth = 9900;                    //SOH%, 0-100.00 (0-10000)
-uint16_t capacity_Wh = BATTERY_WH_MAX;            //Wh,   0-60000
-uint16_t remaining_capacity_Wh = BATTERY_WH_MAX;  //Wh,   0-60000
-uint16_t max_target_discharge_power = 0;          // 0W (0W > restricts to no discharge), Updates later on from CAN
-uint16_t max_target_charge_power = 4312;          // Init to 4.3kW, Updates later on from CAN
-uint16_t temperature_max = 50;          //C+1,  Goes thru convert2unsignedint16 function (15.0C = 150, -15.0C =  65385)
-uint16_t temperature_min = 60;          // Reads from battery later
-uint8_t bms_char_dis_status = STANDBY;  // 0 standby, 1 discharging, 2, charging
-uint8_t bms_status = ACTIVE;            // ACTIVE - [0..5]<>[STANDBY,INACTIVE,DARKSTART,ACTIVE,FAULT,UPDATING]
-uint16_t stat_batt_power = 0;           // Power going in/out of battery
-uint16_t cell_max_voltage = 3700;       // Stores the highest cell voltage value in the system
-uint16_t cell_min_voltage = 3700;       // Stores the minimum cell voltage value in the system
-uint16_t cellvoltages[120];             // Stores all cell voltages
-uint8_t nof_cellvoltages = 0;           // Total number of cell voltages, set by each battery.
-bool LFP_Chemistry = false;
+// Common system parameters. Batteries map their values to these variables
+uint32_t system_capacity_Wh = BATTERY_WH_MAX;            //Wh, 0-150000Wh
+uint32_t system_remaining_capacity_Wh = BATTERY_WH_MAX;  //Wh, 0-150000Wh
+int16_t system_temperature_max_dC = 0;                   //C+1, -50.0 - 50.0
+int16_t system_temperature_min_dC = 0;                   //C+1, -50.0 - 50.0
+int16_t system_active_power_W = 0;                       //Watts, -32000 to 32000
+int16_t system_battery_current_dA = 0;                   //A+1, -1000 - 1000
+uint16_t system_battery_voltage_dV = 3700;               //V+1,  0-500.0 (0-5000)
+uint16_t system_max_design_voltage_dV = 5000;            //V+1,  0-500.0 (0-5000)
+uint16_t system_min_design_voltage_dV = 2500;            //V+1,  0-500.0 (0-5000)
+uint16_t system_scaled_SOC_pptt = 5000;                  //SOC%, 0-100.00 (0-10000)
+uint16_t system_real_SOC_pptt = 5000;                    //SOC%, 0-100.00 (0-10000)
+uint16_t system_SOH_pptt = 9900;                         //SOH%, 0-100.00 (0-10000)
+uint16_t system_max_discharge_power_W = 0;               //Watts, 0 to 65535
+uint16_t system_max_charge_power_W = 4312;               //Watts, 0 to 65535
+uint16_t system_cell_max_voltage_mV = 3700;              //mV, 0-5000 , Stores the highest cell millivolt value
+uint16_t system_cell_min_voltage_mV = 3700;              //mV, 0-5000, Stores the minimum cell millivolt value
+uint16_t system_cellvoltages_mV[120];  //Array with all cell voltages in mV. Oversized to accomodate all setups
+uint8_t system_bms_status = ACTIVE;    //ACTIVE - [0..5]<>[STANDBY,INACTIVE,DARKSTART,ACTIVE,FAULT,UPDATING]
+uint8_t system_number_of_cells = 0;    //Total number of cell voltages, set by each battery
+bool system_LFP_Chemistry = false;     //Set to true or false depending on cell chemistry
 
 // Common charger parameters
 volatile float charger_setpoint_HV_VDC = 0.0f;
@@ -96,6 +97,7 @@ static uint8_t brightness = 0;
 static bool rampUp = true;
 const uint8_t maxBrightness = 100;
 uint8_t LEDcolor = GREEN;
+bool test_all_colors = false;
 
 // Contactor parameters
 #ifdef CONTACTOR_CONTROL
@@ -144,11 +146,10 @@ void setup() {
 
   inform_user_on_inverter();
 
-  inform_user_on_battery();
-
-#ifdef BATTERY_HAS_INIT
   init_battery();
-#endif
+
+  // BOOT button at runtime is used as an input for various things
+  pinMode(0, INPUT_PULLUP);
 }
 
 // Perform main program functions
@@ -185,9 +186,10 @@ void loop() {
   if (millis() - previousMillisUpdateVal >= intervalUpdateValues)  // Every 4.8s
   {
     previousMillisUpdateVal = millis();
+    update_SOC();     // Check if real or calculated SOC% value should be sent
     update_values();  // Update values heading towards inverter. Prepare for sending on CAN, or write directly to Modbus.
     if (DUMMY_EVENT_ENABLED) {
-      set_event(EVENT_DUMMY, (uint8_t)millis());
+      set_event(EVENT_DUMMY_ERROR, (uint8_t)millis());
     }
   }
 
@@ -196,7 +198,13 @@ void loop() {
 #ifdef DUAL_CAN
   send_can2();
 #endif
-  update_event_timestamps();
+  run_event_handling();
+
+  if (digitalRead(0) == HIGH) {
+    test_all_colors = false;
+  } else {
+    test_all_colors = true;
+  }
 }
 
 // Initialization functions
@@ -214,7 +222,7 @@ void init_stored_settings() {
   settings.clear();  // If this clear function is executed, no settings will be read from storage
 #endif
 
-  static uint16_t temp = 0;
+  static uint32_t temp = 0;
   temp = settings.getUInt("BATTERY_WH_MAX", false);
   if (temp != 0) {
     BATTERY_WH_MAX = temp;
@@ -234,7 +242,10 @@ void init_stored_settings() {
   temp = settings.getUInt("MAXDISCHARGEAMP", false);
   if (temp != 0) {
     MAXDISCHARGEAMP = temp;
-  }
+    temp = settings.getBool("USE_SCALED_SOC", false);
+    USE_SCALED_SOC = temp;  //This bool needs to be checked inside the temp!= block
+  }                         // No way to know if it wasnt reset otherwise
+
   settings.end();
 }
 
@@ -335,6 +346,9 @@ void inform_user_on_inverter() {
 #ifdef SMA_CAN
   Serial.println("SMA CAN protocol selected");
 #endif
+#ifdef SMA_TRIPOWER_CAN
+  Serial.println("SMA Tripower CAN protocol selected");
+#endif
 #ifdef SOFAR_CAN
   Serial.println("SOFAR CAN protocol selected");
 #endif
@@ -345,48 +359,11 @@ void inform_user_on_inverter() {
 #endif
 }
 
-void inform_user_on_battery() {
-  // Inform user what battery is used
-#ifdef BMW_I3_BATTERY
-  Serial.println("BMW i3 battery selected");
-  pinMode(WUP_PIN, OUTPUT);  //This pin used for WUP relay
-  digitalWrite(WUP_PIN, LOW);
-#ifdef CONTACTOR_CONTROL
-// Contactor control cannot be used when WUP signal is sent on GPIO pins
-#error CONTACTOR CONTROL CANNOT BE USED ON BMW i3
-#endif
-#endif
-#ifdef CHADEMO_BATTERY
-  Serial.println("Chademo battery selected");
-#endif
-#ifdef IMIEV_CZERO_ION_BATTERY
-  Serial.println("Mitsubishi i-MiEV / Citroen C-Zero / Peugeot Ion battery selected");
-#endif
-#ifdef KIA_HYUNDAI_64_BATTERY
-  Serial.println("Kia Niro / Hyundai Kona 64kWh battery selected");
-#endif
-#ifdef NISSAN_LEAF_BATTERY
-  Serial.println("Nissan LEAF battery selected");
-#endif
-#ifdef RENAULT_KANGOO_BATTERY
-  Serial.println("Renault Kangoo battery selected");
-#endif
-#ifdef SANTA_FE_PHEV_BATTERY
-  Serial.println("Hyundai Santa Fe PHEV battery selected");
-#endif
-#ifdef RENAULT_ZOE_BATTERY
-  Serial.println("Renault Zoe battery selected");
-#endif
-#ifdef TESLA_MODEL_3_BATTERY
-  Serial.println("Tesla Model 3 battery selected");
-#endif
-#ifdef TEST_FAKE_BATTERY
-  Serial.println("Test mode with fake battery selected");
-#endif
-#ifdef SERIAL_LINK_RECEIVER
-  Serial.println("SERIAL_DATA_LINK_RECEIVER selected");
-#endif
-#if !defined(ABSOLUTE_MAX_VOLTAGE)
+void init_battery() {
+  // Inform user what battery is used and perform setup
+  setup_battery();
+
+#ifndef BATTERY_SELECTED
 #error No battery selected! Choose one from the USER_SETTINGS.h file
 #endif
 }
@@ -397,37 +374,10 @@ void receive_can() {  // This section checks if we have a complete CAN message i
   CAN_frame_t rx_frame;
   if (xQueueReceive(CAN_cfg.rx_queue, &rx_frame, 3 * portTICK_PERIOD_MS) == pdTRUE) {
     if (rx_frame.FIR.B.FF == CAN_frame_std) {
-      //printf("New standard frame");
-      // Battery
-#ifdef BMW_I3_BATTERY
-      receive_can_i3_battery(rx_frame);
-#endif
-#ifdef CHADEMO_BATTERY
-      receive_can_chademo_battery(rx_frame);
-#endif
-#ifdef IMIEV_CZERO_ION_BATTERY
-      receive_can_imiev_battery(rx_frame);
-#endif
-#ifdef KIA_HYUNDAI_64_BATTERY
-      receive_can_kiaHyundai_64_battery(rx_frame);
-#endif
-#ifdef NISSAN_LEAF_BATTERY
-      receive_can_leaf_battery(rx_frame);
-#endif
-#ifdef RENAULT_KANGOO_BATTERY
-      receive_can_kangoo_battery(rx_frame);
-#endif
-#ifdef SANTA_FE_PHEV_BATTERY
-      receive_can_santafe_phev_battery(rx_frame);
-#endif
-#ifdef RENAULT_ZOE_BATTERY
-      receive_can_zoe_battery(rx_frame);
-#endif
-#ifdef TESLA_MODEL_3_BATTERY
-      receive_can_tesla_model_3_battery(rx_frame);
-#endif
-#ifdef TEST_FAKE_BATTERY
-      receive_can_test_battery(rx_frame);
+//printf("New standard frame");
+// Battery
+#ifndef SERIAL_LINK_RECEIVER
+      receive_can_battery(rx_frame);
 #endif
       // Inverter
 #ifdef BYD_CAN
@@ -435,6 +385,9 @@ void receive_can() {  // This section checks if we have a complete CAN message i
 #endif
 #ifdef SMA_CAN
       receive_can_sma(rx_frame);
+#endif
+#ifdef SMA_TRIPOWER_CAN
+      receive_can_sma_tripower(rx_frame);
 #endif
       // Charger
 #ifdef CHEVYVOLT_CHARGER
@@ -467,40 +420,14 @@ void send_can() {
 #ifdef SMA_CAN
   send_can_sma();
 #endif
+#ifdef SMA_TRIPOWER_CAN
+  send_can_sma_tripower();
+#endif
 #ifdef SOFAR_CAN
   send_can_sofar();
 #endif
   // Battery
-#ifdef BMW_I3_BATTERY
-  send_can_i3_battery();
-#endif
-#ifdef CHADEMO_BATTERY
-  send_can_chademo_battery();
-#endif
-#ifdef IMIEV_CZERO_ION_BATTERY
-  send_can_imiev_battery();
-#endif
-#ifdef KIA_HYUNDAI_64_BATTERY
-  send_can_kiaHyundai_64_battery();
-#endif
-#ifdef NISSAN_LEAF_BATTERY
-  send_can_leaf_battery();
-#endif
-#ifdef RENAULT_KANGOO_BATTERY
-  send_can_kangoo_battery();
-#endif
-#ifdef SANTA_FE_PHEV_BATTERY
-  send_can_santafe_phev_battery();
-#endif
-#ifdef RENAULT_ZOE_BATTERY
-  send_can_zoe_battery();
-#endif
-#ifdef TESLA_MODEL_3_BATTERY
-  send_can_tesla_model_3_battery();
-#endif
-#ifdef TEST_FAKE_BATTERY
-  send_can_test_battery();
-#endif
+  send_can_battery();
 #ifdef CHEVYVOLT_CHARGER
   send_can_chevyvolt_charger();
 #endif
@@ -563,30 +490,30 @@ void handle_LED_state() {
   } else if (!rampUp && brightness == 0) {
     rampUp = true;
   }
-  switch (LEDcolor) {
-    case GREEN:
-      pixels.setPixelColor(0, pixels.Color(0, brightness, 0));  // Green pulsing LED
-      break;
-    case YELLOW:
-      pixels.setPixelColor(0, pixels.Color(brightness, brightness, 0));  // Yellow pulsing LED
-      break;
-    case BLUE:
-      pixels.setPixelColor(0, pixels.Color(0, 0, brightness));  // Blue pulsing LED
-      break;
-    case RED:
-      pixels.setPixelColor(0, pixels.Color(150, 0, 0));  // Red LED full brightness
-      break;
-    case TEST_ALL_COLORS:
-      pixels.setPixelColor(0, pixels.Color(brightness, abs((100 - brightness)), abs((50 - brightness))));  // RGB
-      break;
-    default:
-      break;
-  }
-
-  // BMS in fault state overrides everything
-  if (bms_status == FAULT) {
-    LEDcolor = RED;
-    pixels.setPixelColor(0, pixels.Color(255, 0, 0));  // Red LED full brightness
+  if (test_all_colors == false) {
+    switch (get_event_level()) {
+      case EVENT_LEVEL_INFO:
+        LEDcolor = GREEN;
+        pixels.setPixelColor(0, pixels.Color(0, brightness, 0));  // Green pulsing LED
+        break;
+      case EVENT_LEVEL_WARNING:
+        LEDcolor = YELLOW;
+        pixels.setPixelColor(0, pixels.Color(brightness, brightness, 0));  // Yellow pulsing LED
+        break;
+      case EVENT_LEVEL_DEBUG:
+      case EVENT_LEVEL_UPDATE:
+        LEDcolor = BLUE;
+        pixels.setPixelColor(0, pixels.Color(0, 0, brightness));  // Blue pulsing LED
+        break;
+      case EVENT_LEVEL_ERROR:
+        LEDcolor = RED;
+        pixels.setPixelColor(0, pixels.Color(150, 0, 0));  // Red LED full brightness
+        break;
+      default:
+        break;
+    }
+  } else {
+    pixels.setPixelColor(0, pixels.Color(brightness, abs((100 - brightness)), abs((50 - brightness))));  // RGB
   }
 
   pixels.show();  // This sends the updated pixel color to the hardware.
@@ -595,7 +522,7 @@ void handle_LED_state() {
 #ifdef CONTACTOR_CONTROL
 void handle_contactors() {
   // First check if we have any active errors, incase we do, turn off the battery
-  if (bms_status == FAULT) {
+  if (system_bms_status == FAULT) {
     timeSpentInFaultedMode++;
   } else {
     timeSpentInFaultedMode = 0;
@@ -678,38 +605,26 @@ void handle_contactors() {
 }
 #endif
 
+void update_SOC() {
+  if (USE_SCALED_SOC) {  //User has configred a SOC window. Calculate a SOC% to send towards inverter
+    static int16_t CalculatedSOC = 0;
+    CalculatedSOC = system_real_SOC_pptt;
+    CalculatedSOC = (10000) * (CalculatedSOC - (MINPERCENTAGE * 10)) / (MAXPERCENTAGE * 10 - MINPERCENTAGE * 10);
+    if (CalculatedSOC < 0) {  //We are in the real SOC% range of 0-MINPERCENTAGE%
+      CalculatedSOC = 0;
+    }
+    if (CalculatedSOC > 10000) {  //We are in the real SOC% range of MAXPERCENTAGE-100%
+      CalculatedSOC = 10000;
+    }
+    system_scaled_SOC_pptt = CalculatedSOC;
+  } else {  // No SOC window wanted. Set scaled to same as real.
+    system_scaled_SOC_pptt = system_real_SOC_pptt;
+  }
+}
+
 void update_values() {
   // Battery
-#ifdef BMW_I3_BATTERY
-  update_values_i3_battery();  // Map the values to the correct registers
-#endif
-#ifdef CHADEMO_BATTERY
-  update_values_chademo_battery();  // Map the values to the correct registers
-#endif
-#ifdef IMIEV_CZERO_ION_BATTERY
-  update_values_imiev_battery();  // Map the values to the correct registers
-#endif
-#ifdef KIA_HYUNDAI_64_BATTERY
-  update_values_kiaHyundai_64_battery();  // Map the values to the correct registers
-#endif
-#ifdef NISSAN_LEAF_BATTERY
-  update_values_leaf_battery();  // Map the values to the correct registers
-#endif
-#ifdef RENAULT_KANGOO_BATTERY
-  update_values_kangoo_battery();  // Map the values to the correct registers
-#endif
-#ifdef SANTA_FE_PHEV_BATTERY
-  update_values_santafe_phev_battery();  // Map the values to the correct registers
-#endif
-#ifdef RENAULT_ZOE_BATTERY
-  update_values_zoe_battery();  // Map the values to the correct registers
-#endif
-#ifdef TESLA_MODEL_3_BATTERY
-  update_values_tesla_model_3_battery();  // Map the values to the correct registers
-#endif
-#ifdef TEST_FAKE_BATTERY
-  update_values_test_battery();  // Map the fake values to the correct registers
-#endif
+  update_values_battery();  // Map the fake values to the correct registers
   // Inverter
 #ifdef BYD_CAN
   update_values_can_byd();
@@ -726,6 +641,9 @@ void update_values() {
 #ifdef SMA_CAN
   update_values_can_sma();
 #endif
+#ifdef SMA_TRIPOWER_CAN
+  update_values_can_sma_tripower();
+#endif
 #ifdef SOFAR_CAN
   update_values_can_sofar();
 #endif
@@ -734,23 +652,22 @@ void update_values() {
 #endif
 }
 
+#if defined(SERIAL_LINK_RECEIVER) || defined(SERIAL_LINK_TRANSMITTER)
 void runSerialDataLink() {
   static unsigned long updateTime = 0;
   unsigned long currentMillis = millis();
-#ifdef SERIAL_LINK_RECEIVER
-  if ((currentMillis - updateTime) > 1) {  //Every 2ms
-    updateTime = currentMillis;
-    manageSerialLinkReceiver();
-  }
-#endif
 
-#ifdef SERIAL_LINK_TRANSMITTER
   if ((currentMillis - updateTime) > 1) {  //Every 2ms
     updateTime = currentMillis;
-    manageSerialLinkTransmitter();
-  }
+#ifdef SERIAL_LINK_RECEIVER
+    manageSerialLinkReceiver();
 #endif
+#ifdef SERIAL_LINK_TRANSMITTER
+    manageSerialLinkTransmitter();
+#endif
+  }
 }
+#endif
 
 void init_serialDataLink() {
 #if defined(SERIAL_LINK_RECEIVER) || defined(SERIAL_LINK_TRANSMITTER)
@@ -765,5 +682,7 @@ void storeSettings() {
   settings.putUInt("MINPERCENTAGE", MINPERCENTAGE);
   settings.putUInt("MAXCHARGEAMP", MAXCHARGEAMP);
   settings.putUInt("MAXDISCHARGEAMP", MAXDISCHARGEAMP);
+  settings.putBool("USE_SCALED_SOC", USE_SCALED_SOC);
+
   settings.end();
 }

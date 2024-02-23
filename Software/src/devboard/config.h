@@ -36,11 +36,11 @@
 #define SD_CS_PIN 13
 #define WS2812_PIN 4
 
-// LED definitions for the board
+// LED definitions for the board, in order of "priority", DONT CHANGE!
 #define GREEN 0
 #define YELLOW 1
-#define RED 2
-#define BLUE 3
+#define BLUE 2
+#define RED 3
 #define TEST_ALL_COLORS 10
 
 // Inverter definitions

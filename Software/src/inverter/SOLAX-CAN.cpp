@@ -1,12 +1,15 @@
 #include "SOLAX-CAN.h"
+#include "../devboard/utils/events.h"
 
 /* Do not change code below unless you are sure what you are doing */
 static uint16_t max_charge_rate_amp = 0;
 static uint16_t max_discharge_rate_amp = 0;
-static uint16_t temperature_average = 0;
-static int STATE = BATTERY_ANNOUNCE;
+static int16_t temperature_average = 0;
+static uint8_t STATE = BATTERY_ANNOUNCE;
 static unsigned long LastFrameTime = 0;
-static int number_of_batteries = 1;
+static uint8_t number_of_batteries = 1;
+static uint16_t capped_capacity_Wh;
+static uint16_t capped_remaining_capacity_Wh;
 
 //CAN message translations from this amazing repository: https://github.com/rand12345/solax_can_bus
 
@@ -122,64 +125,77 @@ void update_values_can_solax() {  //This function maps all the values fetched fr
     STATE = BATTERY_ANNOUNCE;
   }
   //Calculate the required values
-  temperature_average = ((temperature_max + temperature_min) / 2);
+  temperature_average = ((system_temperature_max_dC + system_temperature_min_dC) / 2);
 
-  //max_target_charge_power (30000W max)
-  if (SOC > 9999)  //99.99%
-  {                //Additional safety incase SOC% is 100, then do not charge battery further
+  //system_max_charge_power_W (30000W max)
+  if (system_scaled_SOC_pptt > 9999)  //99.99%
+  {                                   //Additional safety incase SOC% is 100, then do not charge battery further
     max_charge_rate_amp = 0;
   } else {  //We can pass on the battery charge rate (in W) to the inverter (that takes A)
-    if (max_target_charge_power >= 30000) {
+    if (system_max_charge_power_W >= 30000) {
       max_charge_rate_amp = 75;  //Incase battery can take over 30kW, cap value to 75A
     } else {                     //Calculate the W value into A
-      max_charge_rate_amp = (max_target_charge_power / (battery_voltage * 0.1));  // P/U = I
+      max_charge_rate_amp = (system_max_charge_power_W / (system_battery_voltage_dV * 0.1));  // P/U = I
     }
   }
 
-  //max_target_discharge_power (30000W max)
-  if (SOC < 100)  //1.00%
-  {               //Additional safety incase SOC% is below 1, then do not charge battery further
+  //system_max_discharge_power_W (30000W max)
+  if (system_scaled_SOC_pptt < 100)  //1.00%
+  {                                  //Additional safety incase SOC% is below 1, then do not charge battery further
     max_discharge_rate_amp = 0;
   } else {  //We can pass on the battery discharge rate to the inverter
-    if (max_target_discharge_power >= 30000) {
+    if (system_max_discharge_power_W >= 30000) {
       max_discharge_rate_amp = 75;  //Incase battery can be charged with over 30kW, cap value to 75A
     } else {                        //Calculate the W value into A
-      max_discharge_rate_amp = (max_target_discharge_power / (battery_voltage * 0.1));  // P/U = I
+      max_discharge_rate_amp = (system_max_discharge_power_W / (system_battery_voltage_dV * 0.1));  // P/U = I
     }
+  }
+
+  // Batteries might be larger than uint16_t value can take
+  if (system_capacity_Wh > 65000) {
+    capped_capacity_Wh = 65000;
+  } else {
+    capped_capacity_Wh = system_capacity_Wh;
+  }
+  // Batteries might be larger than uint16_t value can take
+  if (system_remaining_capacity_Wh > 65000) {
+    capped_remaining_capacity_Wh = 65000;
+  } else {
+    capped_remaining_capacity_Wh = system_remaining_capacity_Wh;
   }
 
   //Put the values into the CAN messages
   //BMS_Limits
-  SOLAX_1872.data.u8[0] = (uint8_t)max_voltage;  //TODO: scaling OK?
-  SOLAX_1872.data.u8[1] = (max_voltage >> 8);
-  SOLAX_1872.data.u8[2] = (uint8_t)min_voltage;  //TODO: scaling OK?
-  SOLAX_1872.data.u8[3] = (min_voltage >> 8);
-  SOLAX_1872.data.u8[4] = (uint8_t)(max_charge_rate_amp * 10);  //TODO: scaling OK?
+  SOLAX_1872.data.u8[0] = (uint8_t)system_max_design_voltage_dV;
+  SOLAX_1872.data.u8[1] = (system_max_design_voltage_dV >> 8);
+  SOLAX_1872.data.u8[2] = (uint8_t)system_min_design_voltage_dV;
+  SOLAX_1872.data.u8[3] = (system_min_design_voltage_dV >> 8);
+  SOLAX_1872.data.u8[4] = (uint8_t)(max_charge_rate_amp * 10);
   SOLAX_1872.data.u8[5] = ((max_charge_rate_amp * 10) >> 8);
-  SOLAX_1872.data.u8[6] = (uint8_t)(max_discharge_rate_amp * 10);  //TODO: scaling OK?
+  SOLAX_1872.data.u8[6] = (uint8_t)(max_discharge_rate_amp * 10);
   SOLAX_1872.data.u8[7] = ((max_discharge_rate_amp * 10) >> 8);
 
   //BMS_PackData
-  SOLAX_1873.data.u8[0] = (uint8_t)battery_voltage;  // OK
-  SOLAX_1873.data.u8[1] = (battery_voltage >> 8);
-  SOLAX_1873.data.u8[2] = (int8_t)battery_current;  // OK, Signed (Active current in Amps x 10)
-  SOLAX_1873.data.u8[3] = (battery_current >> 8);
-  SOLAX_1873.data.u8[4] = (uint8_t)(SOC / 100);  //SOC (100.00%)
+  SOLAX_1873.data.u8[0] = (uint8_t)system_battery_voltage_dV;  // OK
+  SOLAX_1873.data.u8[1] = (system_battery_voltage_dV >> 8);
+  SOLAX_1873.data.u8[2] = (int8_t)system_battery_current_dA;  // OK, Signed (Active current in Amps x 10)
+  SOLAX_1873.data.u8[3] = (system_battery_current_dA >> 8);
+  SOLAX_1873.data.u8[4] = (uint8_t)(system_scaled_SOC_pptt / 100);  //SOC (100.00%)
   //SOLAX_1873.data.u8[5] = //Seems like this is not required? Or shall we put SOC decimals here?
-  SOLAX_1873.data.u8[6] = (uint8_t)(remaining_capacity_Wh / 100);  //TODO: scaling OK?
-  SOLAX_1873.data.u8[7] = ((remaining_capacity_Wh / 100) >> 8);
+  SOLAX_1873.data.u8[6] = (uint8_t)(capped_remaining_capacity_Wh / 100);  //TODO: scaling OK?
+  SOLAX_1873.data.u8[7] = ((capped_remaining_capacity_Wh / 100) >> 8);
 
   //BMS_CellData
-  SOLAX_1874.data.u8[0] = (uint8_t)temperature_max;
-  SOLAX_1874.data.u8[1] = (temperature_max >> 8);
-  SOLAX_1874.data.u8[2] = (uint8_t)temperature_min;
-  SOLAX_1874.data.u8[3] = (temperature_min >> 8);
+  SOLAX_1874.data.u8[0] = (int8_t)system_temperature_max_dC;
+  SOLAX_1874.data.u8[1] = (system_temperature_max_dC >> 8);
+  SOLAX_1874.data.u8[2] = (int8_t)system_temperature_min_dC;
+  SOLAX_1874.data.u8[3] = (system_temperature_min_dC >> 8);
   SOLAX_1874.data.u8[4] =
-      (uint8_t)(cell_max_voltage);  //TODO: scaling OK? Supposed to be alarm trigger absolute cell max?
-  SOLAX_1874.data.u8[5] = (cell_max_voltage >> 8);
+      (uint8_t)(system_cell_max_voltage_mV);  //TODO: scaling OK? Supposed to be alarm trigger absolute cell max?
+  SOLAX_1874.data.u8[5] = (system_cell_max_voltage_mV >> 8);
   SOLAX_1874.data.u8[6] =
-      (uint8_t)(cell_min_voltage);  //TODO: scaling OK? Supposed to be alarm trigger absolute cell min?
-  SOLAX_1874.data.u8[7] = (cell_min_voltage >> 8);
+      (uint8_t)(system_cell_min_voltage_mV);  //TODO: scaling OK? Supposed to be alarm trigger absolute cell min?
+  SOLAX_1874.data.u8[7] = (system_cell_min_voltage_mV >> 8);
 
   //BMS_Status
   SOLAX_1875.data.u8[0] = (uint8_t)temperature_average;
@@ -188,11 +204,11 @@ void update_values_can_solax() {  //This function maps all the values fetched fr
   SOLAX_1875.data.u8[4] = (uint8_t)0;  // Contactor Status 0=off, 1=on.
 
   //BMS_PackTemps (strange name, since it has voltages?)
-  SOLAX_1876.data.u8[2] = (uint8_t)cell_max_voltage;  //TODO: scaling OK?
-  SOLAX_1876.data.u8[3] = (cell_max_voltage >> 8);
+  SOLAX_1876.data.u8[2] = (uint8_t)system_cell_max_voltage_mV;  //TODO: scaling OK?
+  SOLAX_1876.data.u8[3] = (system_cell_max_voltage_mV >> 8);
 
-  SOLAX_1876.data.u8[6] = (uint8_t)cell_min_voltage;  //TODO: scaling OK?
-  SOLAX_1876.data.u8[7] = (cell_min_voltage >> 8);
+  SOLAX_1876.data.u8[6] = (uint8_t)system_cell_min_voltage_mV;  //TODO: scaling OK?
+  SOLAX_1876.data.u8[7] = (system_cell_min_voltage_mV >> 8);
 
   //Unknown
   SOLAX_1877.data.u8[4] = (uint8_t)0x50;  // Battery type
@@ -201,11 +217,11 @@ void update_values_can_solax() {  //This function maps all the values fetched fr
       (uint8_t)0x02;  // The above firmware version applies to:02 = Master BMS, 10 = S1, 20 = S2, 30 = S3, 40 = S4
 
   //BMS_PackStats
-  SOLAX_1878.data.u8[0] = (uint8_t)(battery_voltage);  //TODO: should this be max or current voltage?
-  SOLAX_1878.data.u8[1] = ((battery_voltage) >> 8);
+  SOLAX_1878.data.u8[0] = (uint8_t)(system_battery_voltage_dV);  //TODO: should this be max or current voltage?
+  SOLAX_1878.data.u8[1] = ((system_battery_voltage_dV) >> 8);
 
-  SOLAX_1878.data.u8[4] = (uint8_t)capacity_Wh;  //TODO: scaling OK?
-  SOLAX_1878.data.u8[5] = (capacity_Wh >> 8);
+  SOLAX_1878.data.u8[4] = (uint8_t)capped_capacity_Wh;  //TODO: scaling OK?
+  SOLAX_1878.data.u8[5] = (capped_capacity_Wh >> 8);
 
   // BMS_Answer
   SOLAX_1801.data.u8[0] = 2;
@@ -264,8 +280,10 @@ void receive_can_solax(CAN_frame_t rx_frame) {
         CAN_WriteFrame(&SOLAX_1878);
         // Message from the inverter to open contactor
         // Byte 4 changes from 1 to 0
-        if (rx_frame.data.u64 == Contactor_Open_Payload)
+        if (rx_frame.data.u64 == Contactor_Open_Payload) {
+          set_event(EVENT_INVERTER_OPEN_CONTACTOR, 0);
           STATE = BATTERY_ANNOUNCE;
+        }
         break;
     }
   }

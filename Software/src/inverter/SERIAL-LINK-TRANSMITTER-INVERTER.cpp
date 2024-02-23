@@ -1,6 +1,7 @@
 //SERIAL-LINK-TRANSMITTER-INVERTER.cpp
 
 #include "SERIAL-LINK-TRANSMITTER-INVERTER.h"
+#include "../devboard/utils/events.h"
 
 /*
 *         SerialDataLink
@@ -8,7 +9,7 @@
 *           Will transmit max 16 int variable - receive none
 */
 
-#define BATTERY_SEND_NUM_VARIABLES 17
+#define BATTERY_SEND_NUM_VARIABLES 16
 #define BATTERY_RECV_NUM_VARIABLES 1
 
 #ifdef BATTERY_RECV_NUM_VARIABLES
@@ -107,10 +108,9 @@ void manageSerialLinkTransmitter() {
       Serial.println("SerialDataLink : max_target_discharge_power = 0");
       Serial.println("SerialDataLink : max_target_charge_power = 0");
 
-      bms_status = 4;  //FAULT
-      max_target_discharge_power = 0;
-      max_target_charge_power = 0;
-      LEDcolor = RED;
+      system_max_discharge_power_W = 0;
+      system_max_charge_power_W = 0;
+      set_event(EVENT_SERIAL_TX_FAILURE, 0);
       // throw error
     }
     /*
@@ -129,23 +129,22 @@ void manageSerialLinkTransmitter() {
 
     if (currentTime - updateDataTime > 999) {
       updateDataTime = currentTime;
-      dataLinkTransmit.updateData(0, SOC);
-      dataLinkTransmit.updateData(1, StateOfHealth);
-      dataLinkTransmit.updateData(2, battery_voltage);
-      dataLinkTransmit.updateData(3, battery_current);
-      dataLinkTransmit.updateData(4, capacity_Wh);
-      dataLinkTransmit.updateData(5, remaining_capacity_Wh);
-      dataLinkTransmit.updateData(6, max_target_discharge_power);
-      dataLinkTransmit.updateData(7, max_target_charge_power);
-      dataLinkTransmit.updateData(8, bms_status);
-      dataLinkTransmit.updateData(9, bms_char_dis_status);
-      dataLinkTransmit.updateData(10, stat_batt_power);
-      dataLinkTransmit.updateData(11, temperature_min);
-      dataLinkTransmit.updateData(12, temperature_max);
-      dataLinkTransmit.updateData(13, cell_max_voltage);
-      dataLinkTransmit.updateData(14, cell_min_voltage);
-      dataLinkTransmit.updateData(15, (int16_t)LFP_Chemistry);
-      dataLinkTransmit.updateData(16, batteryAllowsContactorClosing);
+      dataLinkTransmit.updateData(0, system_real_SOC_pptt);
+      dataLinkTransmit.updateData(1, system_SOH_pptt);
+      dataLinkTransmit.updateData(2, system_battery_voltage_dV);
+      dataLinkTransmit.updateData(3, system_battery_current_dA);
+      dataLinkTransmit.updateData(4, system_capacity_Wh);
+      dataLinkTransmit.updateData(5, system_remaining_capacity_Wh);
+      dataLinkTransmit.updateData(6, system_max_discharge_power_W);
+      dataLinkTransmit.updateData(7, system_max_charge_power_W);
+      dataLinkTransmit.updateData(8, system_bms_status);
+      dataLinkTransmit.updateData(9, system_active_power_W);
+      dataLinkTransmit.updateData(10, system_temperature_min_dC);
+      dataLinkTransmit.updateData(11, system_temperature_max_dC);
+      dataLinkTransmit.updateData(12, system_cell_max_voltage_mV);
+      dataLinkTransmit.updateData(13, system_cell_min_voltage_mV);
+      dataLinkTransmit.updateData(14, (int16_t)system_LFP_Chemistry);
+      dataLinkTransmit.updateData(15, batteryAllowsContactorClosing);
     }
   }
 }
@@ -153,37 +152,35 @@ void manageSerialLinkTransmitter() {
 void printSendingValues() {
   Serial.println("Values from battery: ");
   Serial.print("SOC: ");
-  Serial.print(SOC);
+  Serial.print(system_real_SOC_pptt);
   Serial.print(" SOH: ");
-  Serial.print(StateOfHealth);
+  Serial.print(system_SOH_pptt);
   Serial.print(" Voltage: ");
-  Serial.print(battery_voltage);
+  Serial.print(system_battery_voltage_dV);
   Serial.print(" Current: ");
-  Serial.print(battery_current);
+  Serial.print(system_battery_current_dA);
   Serial.print(" Capacity: ");
-  Serial.print(capacity_Wh);
+  Serial.print(system_capacity_Wh);
   Serial.print(" Remain cap: ");
-  Serial.print(remaining_capacity_Wh);
+  Serial.print(system_remaining_capacity_Wh);
   Serial.print(" Max discharge W: ");
-  Serial.print(max_target_discharge_power);
+  Serial.print(system_max_discharge_power_W);
   Serial.print(" Max charge W: ");
-  Serial.print(max_target_charge_power);
+  Serial.print(system_max_charge_power_W);
   Serial.print(" BMS status: ");
-  Serial.print(bms_status);
-  Serial.print(" BMS status dis/cha: ");
-  Serial.print(bms_char_dis_status);
+  Serial.print(system_bms_status);
   Serial.print(" Power: ");
-  Serial.print(stat_batt_power);
+  Serial.print(system_active_power_W);
   Serial.print(" Temp min: ");
-  Serial.print(temperature_min);
+  Serial.print(system_temperature_min_dC);
   Serial.print(" Temp max: ");
-  Serial.print(temperature_max);
+  Serial.print(system_temperature_max_dC);
   Serial.print(" Cell max: ");
-  Serial.print(cell_max_voltage);
+  Serial.print(system_cell_max_voltage_mV);
   Serial.print(" Cell min: ");
-  Serial.print(cell_min_voltage);
+  Serial.print(system_cell_min_voltage_mV);
   Serial.print(" LFP : ");
-  Serial.print(LFP_Chemistry);
+  Serial.print(system_LFP_Chemistry);
   Serial.print(" batteryAllowsContactorClosing: ");
   Serial.print(batteryAllowsContactorClosing);
   Serial.print(" inverterAllowsContactorClosing: ");

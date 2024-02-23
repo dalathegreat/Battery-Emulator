@@ -18,9 +18,9 @@ String cellmonitor_processor(const String& var) {
 
     // Display max, min, and deviation voltage values
     content += "<div class='voltage-values'>";
-    content += "Max Voltage: " + String(cell_max_voltage) + " mV<br>";
-    content += "Min Voltage: " + String(cell_min_voltage) + " mV<br>";
-    int deviation = cell_max_voltage - cell_min_voltage;
+    content += "Max Voltage: " + String(system_cell_max_voltage_mV) + " mV<br>";
+    content += "Min Voltage: " + String(system_cell_min_voltage_mV) + " mV<br>";
+    int deviation = system_cell_max_voltage_mV - system_cell_min_voltage_mV;
     content += "Voltage Deviation: " + String(deviation) + " mV";
     content += "</div>";
 
@@ -28,14 +28,14 @@ String cellmonitor_processor(const String& var) {
     content += "<div class='container'>";
     for (int i = 0; i < 120; ++i) {
       // Skip empty values
-      if (cellvoltages[i] == 0) {
+      if (system_cellvoltages_mV[i] == 0) {
         continue;
       }
 
-      String cellContent = "Cell " + String(i + 1) + "<br>" + String(cellvoltages[i]) + " mV";
+      String cellContent = "Cell " + String(i + 1) + "<br>" + String(system_cellvoltages_mV[i]) + " mV";
 
       // Check if the cell voltage is below 3000, apply red color
-      if (cellvoltages[i] < 3000) {
+      if (system_cellvoltages_mV[i] < 3000) {
         cellContent = "<span class='low-voltage'>" + cellContent + "</span>";
       }
 

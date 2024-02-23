@@ -1,16 +1,14 @@
-#include "RENAULT-ZOE-BATTERY.h"
+#include "BATTERIES.h"
+#ifdef RENAULT_ZOE_BATTERY
 #include "../devboard/utils/events.h"
 #include "../lib/miwagner-ESP32-Arduino-CAN/CAN_config.h"
 #include "../lib/miwagner-ESP32-Arduino-CAN/ESP32CAN.h"
+#include "RENAULT-ZOE-BATTERY.h"
 
 /* Do not change code below unless you are sure what you are doing */
-#define LB_MAX_SOC 1000  //BMS never goes over this value. We use this info to rescale SOC% sent to Fronius
-#define LB_MIN_SOC 0     //BMS never goes below this value. We use this info to rescale SOC% sent to Fronius
-
 static uint8_t CANstillAlive = 12;  //counter for checking if CAN is still alive
 static uint8_t errorCode = 0;       //stores if we have an error code active from battery control logic
 static uint16_t LB_SOC = 50;
-static uint16_t soc_calculated = 0;
 static uint16_t LB_SOH = 99;
 static int16_t LB_MIN_TEMPERATURE = 0;
 static int16_t LB_MAX_TEMPERATURE = 0;
@@ -42,91 +40,74 @@ static const int interval10 = 10;      // interval (ms) at which send CAN Messag
 static const int interval100 = 100;    // interval (ms) at which send CAN Messages
 static const int interval1000 = 1000;  // interval (ms) at which send CAN Messages
 
-void update_values_zoe_battery() {  //This function maps all the values fetched via CAN to the correct parameters used for modbus
-  bms_status = ACTIVE;              //Startout in active mode
+void update_values_battery() {  //This function maps all the values fetched via CAN to the correct parameters used for modbus
+  system_SOH_pptt = (LB_SOH * 100);  //Increase range from 99% -> 99.00%
 
-  StateOfHealth = (LB_SOH * 100);  //Increase range from 99% -> 99.00%
+  system_real_SOC_pptt = (LB_SOC * 10);  //increase LB_SOC range from 0-100.0 -> 100.00
 
-  //Calculate the SOC% value to send to Fronius
-  soc_calculated = LB_SOC;
-  soc_calculated =
-      LB_MIN_SOC + (LB_MAX_SOC - LB_MIN_SOC) * (soc_calculated - MINPERCENTAGE) / (MAXPERCENTAGE - MINPERCENTAGE);
-  if (soc_calculated < 0) {  //We are in the real SOC% range of 0-20%, always set SOC sent to Inverter as 0%
-    soc_calculated = 0;
-  }
-  if (soc_calculated > 1000) {  //We are in the real SOC% range of 80-100%, always set SOC sent to Inverter as 100%
-    soc_calculated = 1000;
-  }
-  SOC = (soc_calculated * 10);  //increase LB_SOC range from 0-100.0 -> 100.00
+  system_battery_voltage_dV = LB_Battery_Voltage;
 
-  battery_voltage = LB_Battery_Voltage;
+  system_battery_current_dA = LB_Current;
 
-  battery_current = LB_Current;
-
-  capacity_Wh = BATTERY_WH_MAX;  //Use the configured value to avoid overflows
+  system_capacity_Wh = BATTERY_WH_MAX;  //Use the configured value to avoid overflows
 
   //Calculate the remaining Wh amount from SOC% and max Wh value.
-  remaining_capacity_Wh = static_cast<int>((static_cast<double>(SOC) / 10000) * BATTERY_WH_MAX);
+  system_remaining_capacity_Wh = static_cast<int>((static_cast<double>(system_real_SOC_pptt) / 10000) * BATTERY_WH_MAX);
 
-  max_target_discharge_power;
+  system_max_discharge_power_W;
 
-  max_target_charge_power;
+  system_max_charge_power_W;
 
-  stat_batt_power;
+  system_active_power_W;
 
-  temperature_min;
+  system_temperature_min_dC;
 
-  temperature_max;
+  system_temperature_max_dC;
 
-  cell_min_voltage;
+  system_cell_min_voltage_mV;
 
-  cell_max_voltage;
+  system_cell_max_voltage_mV;
 
-  cell_deviation_mV = (cell_max_voltage - cell_min_voltage);
+  cell_deviation_mV = (system_cell_max_voltage_mV - system_cell_min_voltage_mV);
 
   /* Check if the BMS is still sending CAN messages. If we go 60s without messages we raise an error*/
   if (!CANstillAlive) {
-    bms_status = FAULT;
-    Serial.println("No CAN communication detected for 60s. Shutting down battery control.");
-    set_event(EVENT_CAN_FAILURE, 0);
+    set_event(EVENT_CAN_RX_FAILURE, 0);
   } else {
     CANstillAlive--;
+    clear_event(EVENT_CAN_RX_FAILURE);
   }
 
   if (LB_Cell_Max_Voltage >= ABSOLUTE_CELL_MAX_VOLTAGE) {
-    bms_status = FAULT;
-    Serial.println("ERROR: CELL OVERVOLTAGE!!! Stopping battery charging and discharging. Inspect battery!");
     set_event(EVENT_CELL_OVER_VOLTAGE, 0);
   }
   if (LB_Cell_Min_Voltage <= ABSOLUTE_CELL_MIN_VOLTAGE) {
-    bms_status = FAULT;
-    Serial.println("ERROR: CELL UNDERVOLTAGE!!! Stopping battery charging and discharging. Inspect battery!");
     set_event(EVENT_CELL_UNDER_VOLTAGE, 0);
   }
   if (cell_deviation_mV > MAX_CELL_DEVIATION_MV) {
-    LEDcolor = YELLOW;
-    Serial.println("ERROR: HIGH CELL mV DEVIATION!!! Inspect battery!");
     set_event(EVENT_CELL_DEVIATION_HIGH, 0);
+  } else {
+    clear_event(EVENT_CELL_DEVIATION_HIGH);
   }
 
 #ifdef DEBUG_VIA_USB
   Serial.println("Values going to inverter:");
   Serial.print("SOH%: ");
-  Serial.print(StateOfHealth);
+  Serial.print(system_SOH_pptt);
   Serial.print(", SOC% scaled: ");
-  Serial.print(SOC);
+  Serial.print(system_scaled_SOC_pptt);
   Serial.print(", Voltage: ");
-  Serial.print(battery_voltage);
+  Serial.print(system_battery_voltage_dV);
   Serial.print(", Max discharge power: ");
-  Serial.print(max_target_discharge_power);
+  Serial.print(system_max_discharge_power_W);
   Serial.print(", Max charge power: ");
-  Serial.print(max_target_charge_power);
+  Serial.print(system_max_charge_power_W);
   Serial.print(", Max temp: ");
-  Serial.print(temperature_max);
+  Serial.print(system_temperature_max_dC);
   Serial.print(", Min temp: ");
-  Serial.print(temperature_min);
+  Serial.print(system_temperature_min_dC);
   Serial.print(", BMS Status (3=OK): ");
-  Serial.print(bms_status);
+  Serial.print(system_bms_status);
 
   Serial.println("Battery values: ");
   Serial.print("Real SOC: ");
@@ -143,7 +124,7 @@ void update_values_zoe_battery() {  //This function maps all the values fetched 
 #endif
 }
 
-void receive_can_zoe_battery(CAN_frame_t rx_frame) {
+void receive_can_battery(CAN_frame_t rx_frame) {
 
   switch (rx_frame.MsgID) {
     case 0x42E:  //HV SOC & Battery Temp & Charging Power
@@ -157,7 +138,7 @@ void receive_can_zoe_battery(CAN_frame_t rx_frame) {
   }
 }
 
-void send_can_zoe_battery() {
+void send_can_battery() {
   unsigned long currentMillis = millis();
   // Send 100ms CAN Message
   if (currentMillis - previousMillis100 >= interval100) {
@@ -170,3 +151,12 @@ void send_can_zoe_battery() {
     //ESP32Can.CANWriteFrame(&ZOE_423);
   }
 }
+
+void setup_battery(void) {  // Performs one time setup at startup
+  Serial.println("Renault Zoe battery selected");
+
+  system_max_design_voltage_dV = 4040;  // 404.0V, over this, charging is not possible (goes into forced discharge)
+  system_min_design_voltage_dV = 3100;  // 310.0V under this, discharging further is disabled
+}
+
+#endif
