@@ -26,7 +26,7 @@ String cellmonitor_processor(const String& var) {
 
     // Visualize the populated cells in forward order using flexbox with conditional text color
     content += "<div class='container'>";
-    for (int i = 0; i < 192; ++i) {
+    for (int i = 0; i < MAX_AMOUNT_CELLS; ++i) {
       // Skip empty values
       if (system_cellvoltages_mV[i] == 0) {
         continue;
