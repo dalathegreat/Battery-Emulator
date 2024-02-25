@@ -22,7 +22,7 @@ extern uint16_t system_max_discharge_power_W;  //W,    0-65000
 extern uint16_t system_max_charge_power_W;     //W,    0-65000
 extern uint16_t system_cell_max_voltage_mV;    //mV, 0-5000, Stores the highest cell millivolt value
 extern uint16_t system_cell_min_voltage_mV;    //mV, 0-5000, Stores the minimum cell millivolt value
-extern uint16_t system_cellvoltages_mV[120];   //Array with all cell voltages in mV
+extern uint16_t system_cellvoltages_mV[192];   //Array with all cell voltages in mV
 extern uint8_t system_number_of_cells;         //Total number of cell voltages, set by each battery
 extern uint8_t system_bms_status;              //Enum 0-5
 extern bool batteryAllowsContactorClosing;     //Bool, true/false
