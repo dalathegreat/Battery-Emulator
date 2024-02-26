@@ -32,12 +32,11 @@ String cellmonitor_processor(const String& var) {
 
     // Close the block
     content += "</div>";
-
     content += "<button onclick='goToMainPage()'>Back to main page</button>";
     content += "<script>";
     // Populate cell data
     content += "const data = [";
-    for (uint8_t i = 0u; i < 120; i++) {
+    for (uint8_t i = 0u; i < MAX_AMOUNT_CELLS; i++) {
       if (system_cellvoltages_mV[i] == 0) {
         continue;
       }

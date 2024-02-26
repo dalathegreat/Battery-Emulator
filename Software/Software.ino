@@ -71,10 +71,10 @@ uint16_t system_max_discharge_power_W = 0;               //Watts, 0 to 65535
 uint16_t system_max_charge_power_W = 4312;               //Watts, 0 to 65535
 uint16_t system_cell_max_voltage_mV = 3700;              //mV, 0-5000 , Stores the highest cell millivolt value
 uint16_t system_cell_min_voltage_mV = 3700;              //mV, 0-5000, Stores the minimum cell millivolt value
-uint16_t system_cellvoltages_mV[120];  //Array with all cell voltages in mV. Oversized to accomodate all setups
-uint8_t system_bms_status = ACTIVE;    //ACTIVE - [0..5]<>[STANDBY,INACTIVE,DARKSTART,ACTIVE,FAULT,UPDATING]
-uint8_t system_number_of_cells = 0;    //Total number of cell voltages, set by each battery
-bool system_LFP_Chemistry = false;     //Set to true or false depending on cell chemistry
+uint16_t system_cellvoltages_mV[MAX_AMOUNT_CELLS];  //Array with all cell voltages. Oversized to accomodate all setups
+uint8_t system_bms_status = ACTIVE;  //ACTIVE - [0..5]<>[STANDBY,INACTIVE,DARKSTART,ACTIVE,FAULT,UPDATING]
+uint8_t system_number_of_cells = 0;  //Total number of cell voltages, set by each battery
+bool system_LFP_Chemistry = false;   //Set to true or false depending on cell chemistry
 
 // Common charger parameters
 volatile float charger_setpoint_HV_VDC = 0.0f;
