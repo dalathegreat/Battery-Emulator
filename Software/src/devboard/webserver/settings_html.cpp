@@ -15,11 +15,14 @@ String settings_processor(const String& var) {
     // Show current settings with edit buttons and input fields
     content += "<h4 style='color: white;'>Battery capacity: <span id='BATTERY_WH_MAX'>" + String(BATTERY_WH_MAX) +
                " Wh </span> <button onclick='editWh()'>Edit</button></h4>";
-    content += "<h4 style='color: white;'>Rescale SOC: <span id='USE_SCALED_SOC'>" + String(USE_SCALED_SOC) +
+    content += "<h4 style='color: white;'>Rescale SOC: <span id='USE_SCALED_SOC'>" +
+               String(USE_SCALED_SOC ? "<span>&#10003;</span>" : "<span style='color: red;'>&#10005;</span>") +
                "</span> <button onclick='editUseScaledSOC()'>Edit</button></h4>";
-    content += "<h4 style='color: white;'>SOC max percentage: " + String(MAXPERCENTAGE / 10.0, 1) +
+    content += "<h4 style='color: " + String(USE_SCALED_SOC ? "white" : "darkgrey") +
+               ";'>SOC max percentage: " + String(MAXPERCENTAGE / 10.0, 1) +
                " </span> <button onclick='editSocMax()'>Edit</button></h4>";
-    content += "<h4 style='color: white;'>SOC min percentage: " + String(MINPERCENTAGE / 10.0, 1) +
+    content += "<h4 style='color: " + String(USE_SCALED_SOC ? "white" : "darkgrey") +
+               ";'>SOC min percentage: " + String(MINPERCENTAGE / 10.0, 1) +
                " </span> <button onclick='editSocMin()'>Edit</button></h4>";
     content += "<h4 style='color: white;'>Max charge speed: " + String(MAXCHARGEAMP / 10.0, 1) +
                " A </span> <button onclick='editMaxChargeA()'>Edit</button></h4>";
