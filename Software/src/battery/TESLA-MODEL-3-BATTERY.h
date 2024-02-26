@@ -7,9 +7,9 @@
 
 #define BATTERY_SELECTED
 
-#define RAMPDOWNSOC 900              // 90.0 SOC% to start ramping down from max charge power towards 0 at 100.00%
-#define FLOATPOWERMAX 200            // W, what power to allow for top balancing battery
-#define MILLIVOLTFLOAT 20            // mV, how many mV under overvoltage to start float charging
+#define RAMPDOWN_SOC 900             // 90.0 SOC% to start ramping down from max charge power towards 0 at 100.00%
+#define FLOAT_MAX_POWER_W 200        // W, what power to allow for top balancing battery
+#define FLOAT_START_MV 20            // mV, how many mV under overvoltage to start float charging
 #define MAXCHARGEPOWERALLOWED 15000  // 15000W we use a define since the value supplied by Tesla is always 0
 #define MAXDISCHARGEPOWERALLOWED \
   60000  // 60000W we need to cap this value to max 60kW, most inverters overflow otherwise
