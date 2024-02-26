@@ -202,8 +202,7 @@ void update_values_battery() {  //This function maps all the values fetched via 
   //The allowed charge power behaves strangely. We instead estimate this value
   if (system_scaled_SOC_pptt == 10000) {  // When scaled SOC is 100.00%, set allowed charge power to 0
     system_max_charge_power_W = 0;
-  }
-  if (soc_vi > 990) {
+  } else if (soc_vi > 990) {
     system_max_charge_power_W = FLOAT_MAX_POWER_W;
   } else if (soc_vi > RAMPDOWN_SOC) {  // When real SOC is between RAMPDOWN_SOC-99%, ramp the value between Max<->0
     system_max_charge_power_W = MAXCHARGEPOWERALLOWED * (1 - (soc_vi - RAMPDOWN_SOC) / (1000.0 - RAMPDOWN_SOC));
