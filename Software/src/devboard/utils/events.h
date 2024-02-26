@@ -8,16 +8,23 @@
 
 // #define INCLUDE_EVENTS_TEST  // Enable to run an event test loop, see events_test_on_target.cpp
 
+#define EE_MAGIC_HEADER_VALUE 0x0001  // 0x0000 to 0xFFFF
+
 #define GENERATE_ENUM(ENUM) ENUM,
 #define GENERATE_STRING(STRING) #STRING,
 
 /** EVENT ENUMERATION
  *
- * Do not change the order!
+ * Try not to change the order!
  * When adding events, add them RIGHT BEFORE the EVENT_NOF_EVENTS enum.
- * In addition, the event name must start with "EVENT_"
+ * In addition, the event name must start with "EVENT_".
+ * If you don't follow this instruction, the EEPROM log will become corrupt.
+ * To handle this, follow the instruction for EE_MAGIC_HEADER_VALUE as
+ * described below.
  * 
- * After adding an event, assign the proper event level in events.cpp:init_events()
+ * After adding an event:
+ * - Assign the proper event level in events.cpp:init_events()
+ * - Increment EE_MAGIC_HEADER_VALUE in case you've changed the order
  */
 
 #define EVENTS_ENUM_TYPE(XX)            \
