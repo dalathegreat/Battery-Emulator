@@ -156,9 +156,9 @@ static const char* hvilStatusState[] = {"NOT OK",
 #define MIN_CELL_VOLTAGE_NCA_NCM 2950   //Battery is put into emergency stop if one cell goes below this value
 #define MAX_CELL_DEVIATION_NCA_NCM 500  //LED turns yellow on the board if mv delta exceeds this value
 
-#define MAX_CELL_VOLTAGE_LFP 3520   //Battery is put into emergency stop if one cell goes over this value
+#define MAX_CELL_VOLTAGE_LFP 3550   //Battery is put into emergency stop if one cell goes over this value
 #define MIN_CELL_VOLTAGE_LFP 2800   //Battery is put into emergency stop if one cell goes below this value
-#define MAX_CELL_DEVIATION_LFP 150  //LED turns yellow on the board if mv delta exceeds this value
+#define MAX_CELL_DEVIATION_LFP 200  //LED turns yellow on the board if mv delta exceeds this value
 
 #define REASONABLE_ENERGYAMOUNT 20  //When the BMS stops making sense on some values, they are always <20
 
@@ -200,10 +200,22 @@ void update_values_battery() {  //This function maps all the values fetched via 
   }
 
   //The allowed charge power behaves strangely. We instead estimate this value
-  if (system_scaled_SOC_pptt == 10000) {  // When scaled SOC is 100%, set allowed charge power to 0
+  if (system_scaled_SOC_pptt == 10000) {  // When scaled SOC is 100.00%, set allowed charge power to 0
     system_max_charge_power_W = 0;
-  } else if (soc_vi > 950) {  // When real SOC is between 95-99.99%, ramp the value between Max<->0
-    system_max_charge_power_W = MAXCHARGEPOWERALLOWED * (1 - (soc_vi - 950) / 50.0);
+  } else if (soc_vi > 990) {
+    system_max_charge_power_W = FLOAT_MAX_POWER_W;
+  } else if (soc_vi > RAMPDOWN_SOC) {  // When real SOC is between RAMPDOWN_SOC-99%, ramp the value between Max<->0
+    system_max_charge_power_W = MAXCHARGEPOWERALLOWED * (1 - (soc_vi - RAMPDOWN_SOC) / (1000.0 - RAMPDOWN_SOC));
+    //If the cellvoltages start to reach overvoltage, only allow a small amount of power in
+    if (system_LFP_Chemistry) {
+      if (cell_max_v > (MAX_CELL_VOLTAGE_LFP - FLOAT_START_MV)) {
+        system_max_charge_power_W = FLOAT_MAX_POWER_W;
+      }
+    } else {  //NCM/A
+      if (cell_max_v > (MAX_CELL_VOLTAGE_NCA_NCM - FLOAT_START_MV)) {
+        system_max_charge_power_W = FLOAT_MAX_POWER_W;
+      }
+    }
   } else {  // No limits, max charging power allowed
     system_max_charge_power_W = MAXCHARGEPOWERALLOWED;
   }
