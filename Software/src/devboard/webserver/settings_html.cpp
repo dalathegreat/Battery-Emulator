@@ -70,11 +70,21 @@ String settings_processor(const String& var) {
 #endif
 
     content += "<script>";
+    content += "function editComplete() {";
+    content += "  if (this.status == 200) {";
+    content += "    window.location.reload();";
+    content += "  }";
+    content += "}";
+    content += "function editError() {";
+    content += "    alert('Invalid input');";
+    content += "}";
     content += "function editWh() {";
     content += "var value = prompt('How much energy the battery can store. Enter new Wh value (1-120000):');";
     content += "if (value !== null) {";
     content += "  if (value >= 1 && value <= 120000) {";
     content += "    var xhr = new XMLHttpRequest();";
+    content += "    xhr.onload = editComplete;";
+    content += "    xhr.onerror = editError;";
     content += "    xhr.open('GET', '/updateBatterySize?value=' + value, true);";
     content += "    xhr.send();";
     content += "  } else {";
@@ -87,6 +97,8 @@ String settings_processor(const String& var) {
     content += "if (value !== null) {";
     content += "  if (value == 0 || value == 1) {";
     content += "    var xhr = new XMLHttpRequest();";
+    content += "    xhr.onload = editComplete;";
+    content += "    xhr.onerror = editError;";
     content += "    xhr.open('GET', '/updateUseScaledSOC?value=' + value, true);";
     content += "    xhr.send();";
     content += "  } else {";
@@ -101,6 +113,8 @@ String settings_processor(const String& var) {
     content += "if (value !== null) {";
     content += "  if (value >= 50 && value <= 100) {";
     content += "    var xhr = new XMLHttpRequest();";
+    content += "    xhr.onload = editComplete;";
+    content += "    xhr.onerror = editError;";
     content += "    xhr.open('GET', '/updateSocMax?value=' + value, true);";
     content += "    xhr.send();";
     content += "  } else {";
@@ -115,6 +129,8 @@ String settings_processor(const String& var) {
     content += "if (value !== null) {";
     content += "  if (value >= 0 && value <= 50) {";
     content += "    var xhr = new XMLHttpRequest();";
+    content += "    xhr.onload = editComplete;";
+    content += "    xhr.onerror = editError;";
     content += "    xhr.open('GET', '/updateSocMin?value=' + value, true);";
     content += "    xhr.send();";
     content += "  } else {";
@@ -129,6 +145,8 @@ String settings_processor(const String& var) {
     content += "if (value !== null) {";
     content += "  if (value >= 0 && value <= 1000) {";
     content += "    var xhr = new XMLHttpRequest();";
+    content += "    xhr.onload = editComplete;";
+    content += "    xhr.onerror = editError;";
     content += "    xhr.open('GET', '/updateMaxChargeA?value=' + value, true);";
     content += "    xhr.send();";
     content += "  } else {";
@@ -143,6 +161,8 @@ String settings_processor(const String& var) {
     content += "if (value !== null) {";
     content += "  if (value >= 0 && value <= 1000) {";
     content += "    var xhr = new XMLHttpRequest();";
+    content += "    xhr.onload = editComplete;";
+    content += "    xhr.onerror = editError;";
     content += "    xhr.open('GET', '/updateMaxDischargeA?value=' + value, true);";
     content += "    xhr.send();";
     content += "  } else {";
@@ -157,6 +177,8 @@ String settings_processor(const String& var) {
     content += "if (value !== null) {";
     content += "  if (value >= 0 && value <= 5000) {";
     content += "    var xhr = new XMLHttpRequest();";
+    content += "    xhr.onload = editComplete;";
+    content += "    xhr.onerror = editError;";
     content += "    xhr.open('GET', '/updateFakeBatteryVoltage?value=' + value, true);";
     content += "    xhr.send();";
     content += "  } else {";
@@ -172,6 +194,8 @@ String settings_processor(const String& var) {
     content += "  if (value !== null) {";
     content += "    if (value == 0 || value == 1) {";
     content += "      var xhr = new XMLHttpRequest();";
+    content += "      xhr.onload = editComplete;";
+    content += "      xhr.onerror = editError;";
     content += "      xhr.open('GET', '/updateChargerHvEnabled?value=' + value, true);";
     content += "      xhr.send();";
     content += "    }";
@@ -187,6 +211,8 @@ String settings_processor(const String& var) {
     content += "if (value !== null) {";
     content += "  if (value == 0 || value == 1) {";
     content += "    var xhr = new XMLHttpRequest();";
+    content += "    xhr.onload = editComplete;";
+    content += "    xhr.onerror = editError;";
     content += "    xhr.open('GET', '/updateChargerAux12vEnabled?value=' + value, true);";
     content += "    xhr.send();";
     content += "  } else {";
@@ -202,6 +228,8 @@ String settings_processor(const String& var) {
     content += "if (value !== null) {";
     content += "  if (value >= 0 && value <= 1000) {";
     content += "    var xhr = new XMLHttpRequest();";
+    content += "    xhr.onload = editComplete;";
+    content += "    xhr.onerror = editError;";
     content += "    xhr.open('GET', '/updateChargeSetpointV?value=' + value, true);";
     content += "    xhr.send();";
     content += "  } else {";
@@ -217,6 +245,8 @@ String settings_processor(const String& var) {
     content += "if (value !== null) {";
     content += "  if (value >= 0 && value <= 1000) {";
     content += "    var xhr = new XMLHttpRequest();";
+    content += "    xhr.onload = editComplete;";
+    content += "    xhr.onerror = editError;";
     content += "    xhr.open('GET', '/updateChargeSetpointA?value=' + value, true);";
     content += "    xhr.send();";
     content += "  } else {";
@@ -232,6 +262,8 @@ String settings_processor(const String& var) {
     content += "if (value !== null) {";
     content += "  if (value >= 0 && value <= 1000) {";
     content += "    var xhr = new XMLHttpRequest();";
+    content += "    xhr.onload = editComplete;";
+    content += "    xhr.onerror = editError;";
     content += "    xhr.open('GET', '/updateChargeEndA?value=' + value, true);";
     content += "    xhr.send();";
     content += "  } else {";
