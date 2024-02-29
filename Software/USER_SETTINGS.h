@@ -17,6 +17,7 @@
 //#define RENAULT_ZOE_BATTERY
 //#define SANTA_FE_PHEV_BATTERY
 //#define TESLA_MODEL_3_BATTERY
+#define VOLVO_SPA_BATTERY
 //#define TEST_FAKE_BATTERY
 
 /* Select inverter communication protocol. See Wiki for which to use with your inverter: https://github.com/dalathegreat/BYD-Battery-Emulator-For-Gen24/wiki */
