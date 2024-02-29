@@ -1,3 +1,4 @@
+#ifdef VOLVO_SPA_BATTERY
 #include "VOLVO-SPA-BATTERY.h"
 #include "../devboard/utils/events.h"
 #include "../lib/miwagner-ESP32-Arduino-CAN/CAN_config.h"
@@ -372,3 +373,4 @@ void setup_battery(void) {  // Performs one time setup at startup
   system_max_design_voltage_dV = 4540;  // 454.0V, over this, charging is not possible (goes into forced discharge)
   system_min_design_voltage_dV = 2938;  // 293.8V under this, discharging further is disabled
 }
+#endif
