@@ -451,7 +451,7 @@ String processor(const String& var) {
     content += "Tesla Model S/3/X/Y";
 #endif
 #ifdef VOLVO_SPA_BATTERY
-    content += "Volvo SPA XC40 Recharge / Polestar2 78kWh battery";
+    content += "Volvo / Polestar 78kWh battery";
 #endif
 #ifdef TEST_FAKE_BATTERY
     content += "Fake battery for testing purposes";
