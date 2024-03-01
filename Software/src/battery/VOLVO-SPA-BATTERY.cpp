@@ -39,7 +39,6 @@ static uint16_t cell_deviation_mV = 0;  //contains the deviation between highest
 static uint8_t cellcounter = 0;
 static uint32_t remaining_capacity = 0;
 static uint16_t cell_voltages[108];  //array with all the cellvoltages
-static bool waitingFirstBMSframe = true;
 
 CAN_frame_t VOLVO_536 = {.FIR = {.B =
                                      {
@@ -118,10 +117,10 @@ void update_values_battery() {  //This function maps all the values fetched via 
 
   /* Check if the BMS is still sending CAN messages. If we go 60s without messages we raise an error*/
   if (!CANstillAlive) {
-    system_bms_status = FAULT;
-    Serial.println("No CAN communication detected for 60s. Shutting down battery control.");
+    set_event(EVENT_CAN_RX_FAILURE, 0);
   } else {
     CANstillAlive--;
+    clear_event(EVENT_CAN_RX_FAILURE);
   }
 
 #ifdef DEBUG_VIA_USB
@@ -176,16 +175,13 @@ void receive_can_battery(CAN_frame_t rx_frame) {
   CANstillAlive = 12;
   switch (rx_frame.MsgID) {
     case 0x3A:
-      if (waitingFirstBMSframe == true) {
-        system_bms_status = ACTIVE;  //Startout in active mode if we have CAN data
-        waitingFirstBMSframe = false;
-      }
-
       if ((rx_frame.data.u8[6] & 0x80) == 0x80)
         BATT_I = (0 - ((((rx_frame.data.u8[6] & 0x7F) * 256.0 + rx_frame.data.u8[7]) * 0.1) - 1638));
       else {
         BATT_I = 0;
+#ifdef DEBUG_VIA_USB
         Serial.println("BATT_I not valid");
+#endif
       }
 
       if ((rx_frame.data.u8[2] & 0x08) == 0x08)
@@ -206,7 +202,9 @@ void receive_can_battery(CAN_frame_t rx_frame) {
         BATT_U = (((rx_frame.data.u8[0] & 0x07) * 256.0 + rx_frame.data.u8[1]) * 0.25);
       else {
         BATT_U = 0;
+#ifdef DEBUG_VIA_USB
         Serial.println("BATT_U not valid");
+#endif
       }
       break;
     case 0x1A1:
@@ -214,7 +212,7 @@ void receive_can_battery(CAN_frame_t rx_frame) {
         CHARGE_ENERGY = ((((rx_frame.data.u8[4] & 0x0F) * 256.0 + rx_frame.data.u8[5]) * 50) - 500);
       else {
         CHARGE_ENERGY = 0;
-        Serial.println("CHARGE_ENERGY not valid");
+        set_event(EVENT_KWH_PLAUSIBILITY_ERROR, CHARGE_ENERGY);
       }
       break;
     case 0x413:
@@ -222,7 +220,9 @@ void receive_can_battery(CAN_frame_t rx_frame) {
         BATT_ERR_INDICATION = ((rx_frame.data.u8[0] & 0x40) >> 6);
       else {
         BATT_ERR_INDICATION = 0;
+#ifdef DEBUG_VIA_USB
         Serial.println("BATT_ERR_INDICATION not valid");
+#endif
       }
       if ((rx_frame.data.u8[0] & 0x20) == 0x20) {
         BATT_T_MAX = ((rx_frame.data.u8[2] & 0x1F) * 256.0 + rx_frame.data.u8[3]);
@@ -232,7 +232,9 @@ void receive_can_battery(CAN_frame_t rx_frame) {
         BATT_T_MAX = 0;
         BATT_T_MIN = 0;
         BATT_T_AVG = 0;
+#ifdef DEBUG_VIA_USB
         Serial.println("BATT_T not valid");
+#endif
       }
       break;
     case 0x369:
@@ -240,7 +242,9 @@ void receive_can_battery(CAN_frame_t rx_frame) {
         HvBattPwrLimDchaSoft = (((rx_frame.data.u8[6] & 0x03) * 256 + rx_frame.data.u8[6]) >> 2);
       } else {
         HvBattPwrLimDchaSoft = 0;
+#ifdef DEBUG_VIA_USB
         Serial.println("HvBattPwrLimDchaSoft not valid");
+#endif
       }
       break;
     case 0x37D:
@@ -248,28 +252,36 @@ void receive_can_battery(CAN_frame_t rx_frame) {
         SOC_BMS = ((rx_frame.data.u8[6] & 0x03) * 256 + rx_frame.data.u8[7]);
       } else {
         SOC_BMS = 0;
+#ifdef DEBUG_VIA_USB
         Serial.println("SOC_BMS not valid");
+#endif
       }
 
       if ((rx_frame.data.u8[0] & 0x04) == 0x04)
         CELL_U_MAX = ((rx_frame.data.u8[2] & 0x01) * 256 + rx_frame.data.u8[3]);
       else {
         CELL_U_MAX = 0;
+#ifdef DEBUG_VIA_USB
         Serial.println("CELL_U_MAX not valid");
+#endif
       }
 
       if ((rx_frame.data.u8[0] & 0x02) == 0x02)
         CELL_U_MIN = ((rx_frame.data.u8[0] & 0x01) * 256.0 + rx_frame.data.u8[1]);
       else {
         CELL_U_MIN = 0;
+#ifdef DEBUG_VIA_USB
         Serial.println("CELL_U_MIN not valid");
+#endif
       }
 
       if ((rx_frame.data.u8[0] & 0x08) == 0x08)
         CELL_ID_U_MAX = ((rx_frame.data.u8[4] & 0x01) * 256.0 + rx_frame.data.u8[5]);
       else {
         CELL_ID_U_MAX = 0;
+#ifdef DEBUG_VIA_USB
         Serial.println("CELL_ID_U_MAX not valid");
+#endif
       }
       break;
     case 0x635:  // Diag request response
