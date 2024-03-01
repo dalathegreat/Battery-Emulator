@@ -31,7 +31,7 @@ static uint16_t CELL_U_MIN = 0;            //0x37D
 static uint8_t CELL_ID_U_MAX = 0;          //0x37D
 static uint16_t HvBattPwrLimDchaSoft = 0;  //0x369
 
-static uint8_t BatteryPackNumber = 0x10;  // First battery module
+static uint8_t batteryModuleNumber = 0x10;  // First battery module
 static uint8_t battery_request_idx = 0;
 static uint8_t rxConsecutiveFrames = 0;
 static uint16_t min_max_voltage[2];     //contains cell min[0] and max[1] values in mV
@@ -289,9 +289,9 @@ void receive_can_battery(CAN_frame_t rx_frame) {
         cell_voltages[battery_request_idx++] = (rx_frame.data.u8[2] << 8) | rx_frame.data.u8[3];
         cell_voltages[battery_request_idx++] = (rx_frame.data.u8[4] << 8) | rx_frame.data.u8[5];
 
-        if (BatteryPackNumber <= 0x2A)  // Run until last pack is read
+        if (batteryModuleNumber <= 0x2A)  // Run until last pack is read
         {
-          VOLVO_CELL_U_Req.data.u8[3] = BatteryPackNumber++;
+          VOLVO_CELL_U_Req.data.u8[3] = batteryModuleNumber++;
           ESP32Can.CANWriteFrame(&VOLVO_CELL_U_Req);  //Send cell voltage read request for next module
         } else {
           min_max_voltage[0] = 9999;
@@ -338,9 +338,9 @@ void receive_can_battery(CAN_frame_t rx_frame) {
 
 void readCellVoltages() {
   battery_request_idx = 0;
-  BatteryPackNumber = 0x10;
+  batteryModuleNumber = 0x10;
   rxConsecutiveFrames = 0;
-  VOLVO_CELL_U_Req.data.u8[3] = BatteryPackNumber++;
+  VOLVO_CELL_U_Req.data.u8[3] = batteryModuleNumber++;
   ESP32Can.CANWriteFrame(&VOLVO_CELL_U_Req);  //Send cell voltage read request for first module
 }
 
