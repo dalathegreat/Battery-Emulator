@@ -22,7 +22,7 @@
 #include "src/devboard/webserver/webserver.h"
 #endif
 
-Preferences settings;                    // Store user settings
+Preferences settings;  // Store user settings
 // The current software version, shown on webserver
 const char* version_number = "5.4.0";
 // Interval settings
