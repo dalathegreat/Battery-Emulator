@@ -43,6 +43,10 @@
 #include "TEST-FAKE-BATTERY.h"  //See this file for more Fake battery settings
 #endif
 
+#ifdef VOLVO_SPA_BATTERY
+#include "VOLVO-SPA-BATTERY.h"  //See this file for more XC40 Recharge/Polestar2 settings
+#endif
+
 #ifdef SERIAL_LINK_RECEIVER
 #include "SERIAL-LINK-RECEIVER-FROM-BATTERY.h"  //See this file for more Serial-battery settings
 #endif
