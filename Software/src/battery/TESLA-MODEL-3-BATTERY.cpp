@@ -249,27 +249,19 @@ void update_values_battery() {  //This function maps all the values fetched via 
 
   cell_deviation_mV = (cell_max_v - cell_min_v);
 
-  //Determine which chemistry battery pack is using (crude method, TODO: replace with real CAN identifier later)
-  if (soc_vi > 900) {  //When SOC% is over 90.0%, we can use max cell voltage to estimate what chemistry is used
-    if (cell_max_v < 3450) {
-      system_LFP_Chemistry = true;
-    }
-    if (cell_max_v > 3700) {
-      system_LFP_Chemistry = false;
-    }
-  }
-  // An even better way is to check how many cells are in the pack. NCM/A batteries have 96s, LFP has 102-106s
+  // NCM/A batteries have 96s, LFP has 102-106s
+  // Drawback with this check is that it takes 3-5minutes before all cells have been counted!
   if (system_number_of_cells > 101) {
     system_LFP_Chemistry = true;
   }
 
   //Once cell chemistry is determined, set maximum and minimum total pack voltage safety limits
   if (system_LFP_Chemistry) {
-    system_max_design_voltage_dV = 3880;
-    system_min_design_voltage_dV = 2968;
+    system_max_design_voltage_dV = MAX_PACK_VOLTAGE_LFP;
+    system_min_design_voltage_dV = MIN_PACK_VOLTAGE_LFP;
   } else {  // NCM/A chemistry
-    system_max_design_voltage_dV = 4030;
-    system_min_design_voltage_dV = 3100;
+    system_max_design_voltage_dV = MAX_PACK_VOLTAGE_NCMA;
+    system_min_design_voltage_dV = MIN_PACK_VOLTAGE_NCMA;
   }
 
   //Check if SOC% is plausible
@@ -702,8 +694,14 @@ void printDebugIfActive(uint8_t symbol, const char* message) {
 void setup_battery(void) {  // Performs one time setup at startup
   Serial.println("Tesla Model 3 battery selected");
 
-  system_max_design_voltage_dV = 4030;  // 403.0V, over this, charging is not possible (goes into forced discharge)
-  system_min_design_voltage_dV = 3100;  // 310.0V under this, discharging further is disabled
+#ifdef LFP_CHEMISTRY
+  system_LFP_Chemistry = true;
+  system_max_design_voltage_dV = MAX_PACK_VOLTAGE_LFP;
+  system_min_design_voltage_dV = MIN_PACK_VOLTAGE_LFP;
+#else
+  system_max_design_voltage_dV = MAX_PACK_VOLTAGE_NCMA;
+  system_min_design_voltage_dV = MIN_PACK_VOLTAGE_NCMA;
+#endif
 }
 
 #endif
