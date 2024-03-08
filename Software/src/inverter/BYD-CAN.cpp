@@ -155,10 +155,10 @@ void update_values_can_byd() {  //This function maps all the values fetched from
   //StateOfHealth (100.00%)
   BYD_150.data.u8[2] = (system_SOH_pptt >> 8);
   BYD_150.data.u8[3] = (system_SOH_pptt & 0x00FF);
-  //Maximum charge power allowed (Unit: A+1)
+  //Maximum discharge power allowed (Unit: A+1)
   BYD_150.data.u8[4] = (discharge_current >> 8);
   BYD_150.data.u8[5] = (discharge_current & 0x00FF);
-  //Maximum discharge power allowed (Unit: A+1)
+  //Maximum charge power allowed (Unit: A+1)
   BYD_150.data.u8[6] = (charge_current >> 8);
   BYD_150.data.u8[7] = (charge_current & 0x00FF);
 
