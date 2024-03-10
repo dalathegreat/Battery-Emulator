@@ -32,7 +32,7 @@ static const int interval5000 = 5000;          // interval (ms) at which send CA
 static const int interval10000 = 10000;        // interval (ms) at which send CAN Messages
 static uint8_t CANstillAlive = 12;             // counter for checking if CAN is still alive
 static uint16_t CANerror = 0;                  // counter on how many CAN errors encountered
-#define MAX_CAN_FAILURES 5000;                 // Amount of malformed CAN messages to allow before raising a warning
+#define MAX_CAN_FAILURES 5000                  // Amount of malformed CAN messages to allow before raising a warning
 
 static const uint16_t WUPonDuration = 477;   // in milliseconds how long WUP should be ON after poweron
 static const uint16_t WUPoffDuration = 105;  // in milliseconds how long WUP should be OFF after on pulse
@@ -42,25 +42,49 @@ enum State { POWERON, STATE_ON, STATE_OFF, STATE_STAY_ON };
 static State WUPState = POWERON;
 
 const unsigned char crc8_table[256] = {
-    0x00, 0x64, 0xC8, 0xAC, 0xE1, 0x85, 0x29, 0x4D, 0xB3, 0xD7, 0x7B, 0x1F, 0x52, 0x36, 0x9A, 0xFE,
-    0x17, 0x73, 0xDF, 0xBB, 0xF6, 0x92, 0x3E, 0x5A, 0xA4, 0xC0, 0x6C, 0x08, 0x45, 0x21, 0x8D, 0xE9,
-    0x2E, 0x4A, 0xE6, 0x82, 0xCF, 0xAB, 0x07, 0x63, 0x9D, 0xF9, 0x55, 0x31, 0x7C, 0x18, 0xB4, 0xD0,
-    0x39, 0x5D, 0xF1, 0x95, 0xD8, 0xBC, 0x10, 0x74, 0x8A, 0xEE, 0x42, 0x26, 0x6B, 0x0F, 0xA3, 0xC7,
-    0x5C, 0x38, 0x94, 0xF0, 0xBD, 0xD9, 0x75, 0x11, 0xEF, 0x8B, 0x27, 0x43, 0x0E, 0x6A, 0xC6, 0xA2,
-    0x4B, 0x2F, 0x83, 0xE7, 0xAA, 0xCE, 0x62, 0x06, 0xF8, 0x9C, 0x30, 0x54, 0x19, 0x7D, 0xD1, 0xB5,
-    0x72, 0x16, 0xBA, 0xDE, 0x93, 0xF7, 0x5B, 0x3F, 0xC1, 0xA5, 0x09, 0x6D, 0x20, 0x44, 0xE8, 0x8C,
-    0x65, 0x01, 0xAD, 0xC9, 0x84, 0xE0, 0x4C, 0x28, 0xD6, 0xB2, 0x1E, 0x7A, 0x37, 0x53, 0xFF, 0x9B,
-    0xB8, 0xDC, 0x70, 0x14, 0x59, 0x3D, 0x91, 0xF5, 0x0B, 0x6F, 0xC3, 0xA7, 0xEA, 0x8E, 0x22, 0x46,
-    0xAF, 0xCB, 0x67, 0x03, 0x4E, 0x2A, 0x86, 0xE2, 0x1C, 0x78, 0xD4, 0xB0, 0xFD, 0x99, 0x35, 0x51,
-    0x96, 0xF2, 0x5E, 0x3A, 0x77, 0x13, 0xBF, 0xDB, 0x25, 0x41, 0xED, 0x89, 0xC4, 0xA0, 0x0C, 0x68,
-    0x81, 0xE5, 0x49, 0x2D, 0x60, 0x04, 0xA8, 0xCC, 0x32, 0x56, 0xFA, 0x9E, 0xD3, 0xB7, 0x1B, 0x7F,
-    0xE4, 0x80, 0x2C, 0x48, 0x05, 0x61, 0xCD, 0xA9, 0x57, 0x33, 0x9F, 0xFB, 0xB6, 0xD2, 0x7E, 0x1A,
-    0xF3, 0x97, 0x3B, 0x5F, 0x12, 0x76, 0xDA, 0xBE, 0x40, 0x24, 0x88, 0xEC, 0xA1, 0xC5, 0x69, 0x0D,
-    0xCA, 0xAE, 0x02, 0x66, 0x2B, 0x4F, 0xE3, 0x87, 0x79, 0x1D, 0xB1, 0xD5, 0x98, 0xFC, 0x50, 0x34,
-    0xDD, 0xB9, 0x15, 0x71, 0x3C, 0x58, 0xF4, 0x90, 0x6E, 0x0A, 0xA6, 0xC2, 0x8F, 0xEB, 0x47, 0x23
-};
+    0x00, 0x64, 0xC8, 0xAC, 0xE1, 0x85, 0x29, 0x4D, 0xB3, 0xD7, 0x7B, 0x1F, 0x52, 0x36, 0x9A, 0xFE, 0x17, 0x73, 0xDF,
+    0xBB, 0xF6, 0x92, 0x3E, 0x5A, 0xA4, 0xC0, 0x6C, 0x08, 0x45, 0x21, 0x8D, 0xE9, 0x2E, 0x4A, 0xE6, 0x82, 0xCF, 0xAB,
+    0x07, 0x63, 0x9D, 0xF9, 0x55, 0x31, 0x7C, 0x18, 0xB4, 0xD0, 0x39, 0x5D, 0xF1, 0x95, 0xD8, 0xBC, 0x10, 0x74, 0x8A,
+    0xEE, 0x42, 0x26, 0x6B, 0x0F, 0xA3, 0xC7, 0x5C, 0x38, 0x94, 0xF0, 0xBD, 0xD9, 0x75, 0x11, 0xEF, 0x8B, 0x27, 0x43,
+    0x0E, 0x6A, 0xC6, 0xA2, 0x4B, 0x2F, 0x83, 0xE7, 0xAA, 0xCE, 0x62, 0x06, 0xF8, 0x9C, 0x30, 0x54, 0x19, 0x7D, 0xD1,
+    0xB5, 0x72, 0x16, 0xBA, 0xDE, 0x93, 0xF7, 0x5B, 0x3F, 0xC1, 0xA5, 0x09, 0x6D, 0x20, 0x44, 0xE8, 0x8C, 0x65, 0x01,
+    0xAD, 0xC9, 0x84, 0xE0, 0x4C, 0x28, 0xD6, 0xB2, 0x1E, 0x7A, 0x37, 0x53, 0xFF, 0x9B, 0xB8, 0xDC, 0x70, 0x14, 0x59,
+    0x3D, 0x91, 0xF5, 0x0B, 0x6F, 0xC3, 0xA7, 0xEA, 0x8E, 0x22, 0x46, 0xAF, 0xCB, 0x67, 0x03, 0x4E, 0x2A, 0x86, 0xE2,
+    0x1C, 0x78, 0xD4, 0xB0, 0xFD, 0x99, 0x35, 0x51, 0x96, 0xF2, 0x5E, 0x3A, 0x77, 0x13, 0xBF, 0xDB, 0x25, 0x41, 0xED,
+    0x89, 0xC4, 0xA0, 0x0C, 0x68, 0x81, 0xE5, 0x49, 0x2D, 0x60, 0x04, 0xA8, 0xCC, 0x32, 0x56, 0xFA, 0x9E, 0xD3, 0xB7,
+    0x1B, 0x7F, 0xE4, 0x80, 0x2C, 0x48, 0x05, 0x61, 0xCD, 0xA9, 0x57, 0x33, 0x9F, 0xFB, 0xB6, 0xD2, 0x7E, 0x1A, 0xF3,
+    0x97, 0x3B, 0x5F, 0x12, 0x76, 0xDA, 0xBE, 0x40, 0x24, 0x88, 0xEC, 0xA1, 0xC5, 0x69, 0x0D, 0xCA, 0xAE, 0x02, 0x66,
+    0x2B, 0x4F, 0xE3, 0x87, 0x79, 0x1D, 0xB1, 0xD5, 0x98, 0xFC, 0x50, 0x34, 0xDD, 0xB9, 0x15, 0x71, 0x3C, 0x58, 0xF4,
+    0x90, 0x6E, 0x0A, 0xA6, 0xC2, 0x8F, 0xEB, 0x47, 0x23};
 
-
+CAN_frame_t BMW_0A5 = {.FIR = {.B =
+                                   {
+                                       .DLC = 8,
+                                       .FF = CAN_frame_std,
+                                   }},
+                       .MsgID = 0x0A5,
+                       .data = {0xa0, 0xF3, 0xFF, 0xFF, 0xFF, 0x00, 0x00, 0xFF}};
+CAN_frame_t BMW_0BB = {.FIR = {.B =
+                                   {
+                                       .DLC = 3,
+                                       .FF = CAN_frame_std,
+                                   }},
+                       .MsgID = 0x0BB,
+                       .data = {0x7D, 0xFF, 0xFF}};
+CAN_frame_t BMW_100 = {.FIR = {.B =
+                                   {
+                                       .DLC = 8,
+                                       .FF = CAN_frame_std,
+                                   }},
+                       .MsgID = 0x100,
+                       .data = {0xd6, 0xF1, 0x7F, 0xc0, 0x5d, 0x02, 0x90, 0x80}};
+CAN_frame_t BMW_105 = {.FIR = {.B =
+                                   {
+                                       .DLC = 8,
+                                       .FF = CAN_frame_std,
+                                   }},
+                       .MsgID = 0x105,
+                       .data = {0x5E, 0xF1, 0x7F, 0xE0, 0x2E, 0x00, 0xFC, 0x0F}};
 CAN_frame_t BMW_10B = {.FIR = {.B =
                                    {
                                        .DLC = 3,
@@ -522,8 +546,6 @@ static const uint8_t BMW_C0_CE_spec[15] = {0xC0, 0xC2, 0xC4, 0xC6, 0xC8, 0xCA, 0
                                            0xC1, 0xC3, 0xC5, 0xC7, 0xC9, 0xCB, 0xCD};
 static const uint8_t BMW_19E_0[6] = {0x05, 0x00, 0x05, 0x07, 0x0A, 0x0A};
 
-static uint8_t sent_100 = 0;
-static uint8_t BMW_000_counter = 0;
 static uint8_t BMW_20ms_counter = 0;
 static uint8_t BMW_1AA_counter = 0;
 static uint8_t BMW_10ms_counter = 0;
@@ -542,8 +564,7 @@ static uint8_t BMW_429_counter = 0;
 static uint32_t BMW_328_counter = 0;
 
 static uint8_t timer_640 = 0;
-static uint8_t battery_status_cooling_HV = 0; //1 works, 2 does not start
-static uint8_t battery_status_diagnostics_HV = 0; // 0 all OK, 1 HV protection function error, 2 diag not yet expired
+
 static uint32_t battery_serial_number = 0;
 static uint32_t battery_available_power_shortterm_charge = 0;
 static uint32_t battery_available_power_shortterm_discharge = 0;
@@ -553,67 +574,80 @@ static uint32_t battery_BEV_available_power_shortterm_charge = 0;
 static uint32_t battery_BEV_available_power_shortterm_discharge = 0;
 static uint32_t battery_BEV_available_power_longterm_charge = 0;
 static uint32_t battery_BEV_available_power_longterm_discharge = 0;
+static uint16_t battery_energy_content_maximum_kWh = 0;
+static uint16_t battery_display_SOC = 0;
+static uint16_t battery_volts = 0;
+static uint16_t battery_HVBatt_SOC = 0;
+static uint16_t battery_DC_link_voltage = 0;
+static uint16_t battery_max_charge_voltage = 0;
+static uint16_t battery_min_discharge_voltage = 0;
+static uint16_t battery_predicted_energy_charge_condition = 0;
+static uint16_t battery_predicted_energy_charging_target = 0;
+static uint16_t battery_actual_value_power_heating = 0;  //0 - 4094 W
+static uint16_t battery_prediction_voltage_shortterm_charge = 0;
+static uint16_t battery_prediction_voltage_shortterm_discharge = 0;
+static uint16_t battery_prediction_voltage_longterm_charge = 0;
+static uint16_t battery_prediction_voltage_longterm_discharge = 0;
+static uint16_t battery_prediction_duration_charging_minutes = 0;
+static uint16_t battery_target_voltage_in_CV_mode = 0;
 static int16_t battery_temperature_HV = 0;
 static int16_t battery_temperature_heat_exchanger = 0;
 static int16_t battery_temperature_max = 0;
 static int16_t battery_temperature_min = 0;
-static uint8_t battery_status_cold_shutoff_valve = 0;
-
-static int16_t Battery_Current = 0;
-static uint16_t Battery_Capacity_kWh = 0;
-static uint16_t Voltage_Setpoint = 0;
-static uint16_t Low_SOC = 0;
-static uint16_t High_SOC = 0;
-static uint16_t Display_SOC = 0;
-static uint16_t Calculated_SOC = 0;
-static uint16_t Battery_Volts = 0;
-static uint16_t HVBatt_SOC = 0;
-static uint16_t Battery_Status = 0;
-static uint16_t DC_link = 0;
-static int16_t Battery_Power = 0;
-static uint16_t TemperatureMaxMaybe = 0;
-static uint16_t battery_max_charge_voltage = 0;
 static int16_t battery_max_charge_amperage = 0;
-static uint16_t battery_min_charge_voltage = 0;
-static int16_t battery_min_charge_amperage = 0;
-static uint16_t battery_predicted_energy_charge_condition = 0;
-static uint16_t battery_predicted_energy_charging_target = 0;
-static uint16_t battery_actual_value_power_heating = 0; //0 - 4094 W
+static int16_t battery_max_discharge_amperage = 0;
+static int16_t battery_power = 0;
+static int16_t battery_current = 0;
+static uint8_t battery_status_error_isolation_external_Bordnetz = 0;
+static uint8_t battery_status_error_isolation_internal_Bordnetz = 0;
+static uint8_t battery_request_cooling = 0;
+static uint8_t battery_status_valve_cooling = 0;
+static uint8_t battery_status_error_locking = 0;
+static uint8_t battery_status_precharge_locked = 0;
+static uint8_t battery_status_disconnecting_switch = 0;
+static uint8_t battery_status_emergency_mode = 0;
+static uint8_t battery_request_service = 0;
+static uint8_t battery_error_emergency_mode = 0;
+static uint8_t battery_status_error_disconnecting_switch = 0;
+static uint8_t battery_status_warning_isolation = 0;
+static uint8_t battery_status_cold_shutoff_valve = 0;
+static uint8_t battery_request_open_contactors = 0;
+static uint8_t battery_request_open_contactors_instantly = 0;
+static uint8_t battery_request_open_contactors_fast = 0;
+static uint8_t battery_charging_condition_delta = 0;
+static uint8_t battery_status_service_disconnection_plug = 0;
+static uint8_t battery_status_measurement_isolation = 0;
+static uint8_t battery_request_abort_charging = 0;
+static uint8_t battery_prediction_time_end_of_charging_minutes = 0;
+static uint8_t battery_request_operating_mode = 0;
+static uint8_t battery_request_charging_condition_minimum = 0;
+static uint8_t battery_request_charging_condition_maximum = 0;
+static uint8_t battery_status_cooling_HV = 0;      //1 works, 2 does not start
+static uint8_t battery_status_diagnostics_HV = 0;  // 0 all OK, 1 HV protection function error, 2 diag not yet expired
 
 void update_values_battery() {  //This function maps all the values fetched via CAN to the correct parameters used for modbus
   //Calculate the SOC% value to send to inverter
-  system_real_SOC_pptt = (Display_SOC * 100);  //increase Display_SOC range from 0-100 -> 100.00
+  system_real_SOC_pptt = (battery_display_SOC * 100);  //increase Display_SOC range from 0-100 -> 100.00
 
-  system_battery_voltage_dV = Battery_Volts;  //Unit V+1 (5000 = 500.0V)
+  system_battery_voltage_dV = battery_volts;  //Unit V+1 (5000 = 500.0V)
 
-  system_battery_current_dA = Battery_Current;
+  system_battery_current_dA = battery_current;
 
   system_capacity_Wh = BATTERY_WH_MAX;
 
-  system_remaining_capacity_Wh = (Battery_Capacity_kWh * 1000);
+  system_remaining_capacity_Wh = (battery_energy_content_maximum_kWh * 1000);  // Convert kWh to Wh
 
-  if (system_scaled_SOC_pptt > 9900)  //If Soc is over 99%, stop charging
-  {
-    system_max_charge_power_W = 0;
-  } else {
-    system_max_charge_power_W = 5000;  //Hardcoded value for testing. TODO: read real value from battery when discovered
-  }
+  system_max_charge_power_W = (battery_max_charge_amperage * system_battery_voltage_dV);  // TODO: check scaling
 
-  if (system_scaled_SOC_pptt < 500)  //If Soc is under 5%, stop dicharging
-  {
-    system_max_discharge_power_W = 0;
-  } else {
-    system_max_discharge_power_W =
-        5000;  //Hardcoded value for testing. TODO: read real value from battery when discovered
-  }
+  system_max_discharge_power_W = (battery_max_discharge_amperage * system_battery_voltage_dV);  // TODO: check scaling
 
-  Battery_Power = (Battery_Current * (Battery_Volts / 10));
+  battery_power = (system_battery_current_dA * (system_battery_voltage_dV / 10));
 
-  system_active_power_W = Battery_Power;  //TODO:, is mapping OK?
+  system_active_power_W = battery_power;
 
-  system_temperature_min_dC;  //hardcoded to 5*C in startup, TODO:, find from battery CAN later
+  system_temperature_min_dC = battery_temperature_min * 10;  // Add a decimal
 
-  system_temperature_max_dC;  //hardcoded to 6*C in startup, TODO:, find from battery CAN later
+  system_temperature_max_dC = battery_temperature_max * 10;  // Add a decimal
 
   /* Check if the BMS is still sending CAN messages. If we go 60s without messages we raise an error*/
   if (!CANstillAlive) {
@@ -623,35 +657,30 @@ void update_values_battery() {  //This function maps all the values fetched via 
     clear_event(EVENT_CAN_RX_FAILURE);
   }
   // Check if we have encountered any malformed CAN messages
-  if (CANerror >
-      MAX_CAN_FAILURES)  //Also check if we have recieved too many malformed CAN messages. If so, signal via LED
-  {
-    errorCode = 10;
+  if (CANerror > MAX_CAN_FAILURES) {
     set_event(EVENT_CAN_RX_WARNING, 0);
   }
 
 #ifdef DEBUG_VIA_USB
   Serial.print("Battery values: ");
   Serial.print("SOC% raw: ");
-  Serial.print(Display_SOC);
+  Serial.print(battery_display_SOC);
   Serial.print(" Voltage: ");
-  Serial.print(Battery_Volts);
+  Serial.print(battery_volts);
   Serial.print(" Current: ");
-  Serial.print(Battery_Current);
+  Serial.print(battery_current);
   Serial.print(" kWh remaining: ");
-  Serial.print(Battery_Capacity_kWh);
+  Serial.print(battery_energy_content_maximum_kWh);
   Serial.print(" Temperature: ");
-  Serial.print(TemperatureMaxMaybe / 10);
+  Serial.print(battery_temperature_HV);
   Serial.print(" Max charge voltage: ");
   Serial.print(battery_max_charge_voltage / 10);
   Serial.print(" Min discharge voltage: ");
-  Serial.print(battery_min_charge_voltage / 10);
+  Serial.print(battery_min_discharge_voltage / 10);
   Serial.print(" Max charge current: ");
   Serial.print(battery_max_charge_amperage);
-  Serial.print(" Max discharge Watt: ");
-  Serial.print(MaxDischargeWattMaybe);
-  Serial.print(" Battery Status: ");
-  Serial.print(Battery_Status);
+  Serial.print(" Max discharge current: ");
+  Serial.print(battery_max_discharge_amperage);
 
   Serial.println(" ");
   Serial.print("Values sent to inverter: ");
@@ -672,77 +701,101 @@ void receive_can_battery(CAN_frame_t rx_frame) {
   switch (rx_frame.MsgID) {
     case 0x112:            //BMS status [10ms]
       CANstillAlive = 12;  //This message is only sent if 30C signal is active
-      Battery_Current = ((rx_frame.data.u8[1] << 8 | rx_frame.data.u8[0]) / 10) - 819;  //Amps
-      Battery_Volts = (rx_frame.data.u8[3] << 8 | rx_frame.data.u8[2]);                 //500.0 V
-      HVBatt_SOC = ((rx_frame.data.u8[5] & 0x0F) << 4 | rx_frame.data.u8[4]) / 10;
-      Battery_Status = (rx_frame.data.u8[6] & 0x0F);
-      DC_link = rx_frame.data.u8[7];
+      battery_current = ((rx_frame.data.u8[1] << 8 | rx_frame.data.u8[0]) / 10) - 819;  //Amps
+      battery_volts = (rx_frame.data.u8[3] << 8 | rx_frame.data.u8[2]);                 //500.0 V
+      battery_HVBatt_SOC = ((rx_frame.data.u8[5] & 0x0F) << 8 | rx_frame.data.u8[4]);
+      battery_request_open_contactors = (rx_frame.data.u8[5] & 0xC0) >> 6;
+      battery_request_open_contactors_instantly = (rx_frame.data.u8[6] & 0x03);
+      battery_request_open_contactors_fast = (rx_frame.data.u8[6] & 0x0C) >> 2;
+      battery_charging_condition_delta = (rx_frame.data.u8[6] & 0xF0) >> 4;
+      battery_DC_link_voltage = rx_frame.data.u8[7];
       break;
     case 0x239:  //BMS [200ms]
-        if (is_message_corrupt(rx_frame)) {
+      /*  if (is_message_corrupt(rx_frame)) {
         CANerror++;
         break;  //Message content malformed, abort reading data from it
-      }
-      battery_predicted_energy_charge_condition = (rx_frame.data.u8[2] << 8 | rx_frame.data.u8[1]); //Wh
-      battery_predicted_energy_charging_target = ((rx_frame.data.u8[4] << 8 | rx_frame.data.u8[3]) * 0.02); //kWh
+      }*/
+      battery_predicted_energy_charge_condition = (rx_frame.data.u8[2] << 8 | rx_frame.data.u8[1]);          //Wh
+      battery_predicted_energy_charging_target = ((rx_frame.data.u8[4] << 8 | rx_frame.data.u8[3]) * 0.02);  //kWh
       break;
     case 0x2F5:  //BMS [100ms] High-Voltage Battery Charge/Discharge Limitations
       battery_max_charge_voltage = (rx_frame.data.u8[1] << 8 | rx_frame.data.u8[0]);
       battery_max_charge_amperage = (((rx_frame.data.u8[3] << 8) | rx_frame.data.u8[2]) - 819.2);
-      battery_min_charge_voltage = (rx_frame.data.u8[5] << 8 | rx_frame.data.u8[4]);
-      battery_min_charge_amperage = (((rx_frame.data.u8[7] << 8) | rx_frame.data.u8[6]) - 819.2);
+      battery_min_discharge_voltage = (rx_frame.data.u8[5] << 8 | rx_frame.data.u8[4]);
+      battery_max_discharge_amperage = (((rx_frame.data.u8[7] << 8) | rx_frame.data.u8[6]) - 819.2);
       break;
     case 0x431:  //Battery capacity [200ms]
-      Battery_Capacity_kWh = (((rx_frame.data.u8[6] & 0x0F) << 8 | rx_frame.data.u8[5])) / 50;
+      battery_status_service_disconnection_plug = (rx_frame.data.u8[0] & 0x0F);
+      battery_status_measurement_isolation = (rx_frame.data.u8[0] & 0x0C) >> 2;
+      battery_request_abort_charging = (rx_frame.data.u8[0] & 0x30) >> 4;
+      battery_prediction_duration_charging_minutes = (rx_frame.data.u8[3] << 8 | rx_frame.data.u8[2]);
+      battery_prediction_time_end_of_charging_minutes = rx_frame.data.u8[4];
+      battery_energy_content_maximum_kWh = (((rx_frame.data.u8[6] & 0x0F) << 8 | rx_frame.data.u8[5])) / 50;
       break;
     case 0x432:  //SOC% charged [200ms]
-      Voltage_Setpoint = ((rx_frame.data.u8[1] << 4 | rx_frame.data.u8[0] >> 4)) / 10;
-      Low_SOC = (rx_frame.data.u8[2] / 2);
-      High_SOC = (rx_frame.data.u8[3] / 2);
-      Display_SOC = (rx_frame.data.u8[4] / 2);
+      battery_request_operating_mode = (rx_frame.data.u8[0] & 0x03);
+      battery_target_voltage_in_CV_mode = ((rx_frame.data.u8[1] << 4 | rx_frame.data.u8[0] >> 4)) / 10;
+      battery_request_charging_condition_minimum = (rx_frame.data.u8[2] / 2);
+      battery_request_charging_condition_maximum = (rx_frame.data.u8[3] / 2);
+      battery_display_SOC = (rx_frame.data.u8[4] / 2);
       break;
     case 0x2BD:  //BMS [100ms] Status diagnosis high voltage 1
-        battery_status_diagnostics_HV = (rx_frame.data.u8[2] & 0x0F);
+      battery_status_diagnostics_HV = (rx_frame.data.u8[2] & 0x0F);
       break;
-    case 0x430:  //BMS
+    case 0x430:  //BMS [1s] - Charging status of high-voltage battery 2
+      battery_prediction_voltage_shortterm_charge = (rx_frame.data.u8[1] << 8 | rx_frame.data.u8[0]);
+      battery_prediction_voltage_shortterm_discharge = (rx_frame.data.u8[3] << 8 | rx_frame.data.u8[2]);
+      battery_prediction_voltage_longterm_charge = (rx_frame.data.u8[5] << 8 | rx_frame.data.u8[4]);
+      battery_prediction_voltage_longterm_discharge = (rx_frame.data.u8[7] << 8 | rx_frame.data.u8[6]);
       break;
     case 0x1FA:  //BMS [1000ms] Status Of High-Voltage Battery 1
-      status_error_disconnecting_switch
-      status_warning_isolation
+      battery_status_error_isolation_external_Bordnetz = (rx_frame.data.u8[0] & 0x03);
+      battery_status_error_isolation_internal_Bordnetz = (rx_frame.data.u8[0] & 0x0C) >> 2;
+      battery_request_cooling = (rx_frame.data.u8[0] & 0x30) >> 4;
+      battery_status_valve_cooling = (rx_frame.data.u8[0] & 0xC0) >> 6;
+      battery_status_error_locking = (rx_frame.data.u8[1] & 0x03);
+      battery_status_precharge_locked = (rx_frame.data.u8[1] & 0x0C) >> 2;
+      battery_status_disconnecting_switch = (rx_frame.data.u8[1] & 0x30) >> 4;
+      battery_status_emergency_mode = (rx_frame.data.u8[1] & 0xC0) >> 6;
+      battery_request_service = (rx_frame.data.u8[2] & 0x03);
+      battery_error_emergency_mode = (rx_frame.data.u8[2] & 0x0C) >> 2;
+      battery_status_error_disconnecting_switch = (rx_frame.data.u8[2] & 0x30) >> 4;
+      battery_status_warning_isolation = (rx_frame.data.u8[2] & 0xC0) >> 6;
       battery_status_cold_shutoff_valve = (rx_frame.data.u8[3] & 0x0F);
       battery_temperature_HV = (rx_frame.data.u8[4] - 50);
       battery_temperature_heat_exchanger = (rx_frame.data.u8[5] - 50);
       battery_temperature_max = (rx_frame.data.u8[6] - 50);
       battery_temperature_min = (rx_frame.data.u8[7] - 50);
       break;
-    case 0x40D:  //BMS [1000ms] Charging status of high-voltage storage 1
+    case 0x40D:  //BMS [1s] Charging status of high-voltage storage 1
       battery_BEV_available_power_shortterm_charge = (rx_frame.data.u8[1] << 8 | rx_frame.data.u8[0]) * 3;
-      battery_BEV_available_power_shortterm_discharge = (rx_frame.data.u8[3] << 8 | rx_frame.data.u8[2]) * 3; 
-      battery_BEV_available_power_longterm_charge = (rx_frame.data.u8[5] << 8 | rx_frame.data.u8[4]) * 3; 
-      battery_BEV_available_power_longterm_discharge = (rx_frame.data.u8[7] << 8 | rx_frame.data.u8[6]) * 3; 
+      battery_BEV_available_power_shortterm_discharge = (rx_frame.data.u8[3] << 8 | rx_frame.data.u8[2]) * 3;
+      battery_BEV_available_power_longterm_charge = (rx_frame.data.u8[5] << 8 | rx_frame.data.u8[4]) * 3;
+      battery_BEV_available_power_longterm_discharge = (rx_frame.data.u8[7] << 8 | rx_frame.data.u8[6]) * 3;
       break;
     case 0x2FF:  //BMS [100ms] Status Heating High-Voltage Battery
-        battery_actual_value_power_heating = (rx_frame.data.u8[1] << 4 | rx_frame.data.u8[0] >> 4);
+      battery_actual_value_power_heating = (rx_frame.data.u8[1] << 4 | rx_frame.data.u8[0] >> 4);
       break;
     case 0x3C2:  //BMS (94AH exclusive) - Content unknown
       break;
-    case 0x3EB:  //BMS - 1000ms - Status of charging high-voltage storage 3
+    case 0x3EB:  //BMS [1s] Status of charging high-voltage storage 3
       battery_available_power_shortterm_charge = (rx_frame.data.u8[1] << 8 | rx_frame.data.u8[0]) * 3;
-      battery_available_power_shortterm_discharge = (rx_frame.data.u8[3] << 8 | rx_frame.data.u8[2]) * 3; 
-      battery_available_power_longterm_charge = (rx_frame.data.u8[5] << 8 | rx_frame.data.u8[4]) * 3; 
-      battery_available_power_longterm_discharge = (rx_frame.data.u8[7] << 8 | rx_frame.data.u8[6]) * 3; 
+      battery_available_power_shortterm_discharge = (rx_frame.data.u8[3] << 8 | rx_frame.data.u8[2]) * 3;
+      battery_available_power_longterm_charge = (rx_frame.data.u8[5] << 8 | rx_frame.data.u8[4]) * 3;
+      battery_available_power_longterm_discharge = (rx_frame.data.u8[7] << 8 | rx_frame.data.u8[6]) * 3;
       break;
-    case 0x363:  //BMS - 1000ms - Identification High-Voltage Battery
-      battery_serial_number = (rx_frame.data.u8[3] << 24 | rx_frame.data.u8[2] << 16 | rx_frame.data.u8[1] << 8 | rx_frame.data.u8[0]);
+    case 0x363:  //BMS [1s] Identification High-Voltage Battery
+      battery_serial_number =
+          (rx_frame.data.u8[3] << 24 | rx_frame.data.u8[2] << 16 | rx_frame.data.u8[1] << 8 | rx_frame.data.u8[0]);
       break;
-    case 0x507:  //BMS - 640ms - Network Management 2 - This message is sent on the bus for sleep coordination purposes
+    case 0x507:  //BMS [640ms] Network Management 2 - This message is sent on the bus for sleep coordination purposes
       break;     // If sent, falling asleep will occur of the bus is delayed by the next 2 seconds
-    case 0x587:  //BMS - 1000ms - Services - No use for this message
+    case 0x587:  //BMS [1s] Services - No use for this message
       break;
-    case 0x41C:  //BMS - 1000ms - Status Of Operating Mode Of Hybrid 2
-        battery_status_cooling_HV = (rx_frame.data.u8[1] & 0x03);
+    case 0x41C:  //BMS [1s] Status Of Operating Mode Of Hybrid 2
+      battery_status_cooling_HV = (rx_frame.data.u8[1] & 0x03);
       break;
-    case 0x607:  //BMS
+    case 0x607:  //BMS - No use for this message
       break;
     default:
       break;
@@ -774,14 +827,6 @@ void send_can_battery() {
   //Send 10ms message
   if (currentMillis - previousMillis10 >= interval10) {
     previousMillis10 = currentMillis;
-
-    if (!sent_100) {
-      BMW_000_counter++;
-      if (BMW_000_counter > 6) {
-        ESP32Can.CANWriteFrame(&BMW_000);
-        sent_100 = 1;
-      }
-    }
 
     BMW_105.data.u8[0] = BMW_105_0[BMW_10ms_counter];
     BMW_105.data.u8[1] = BMW_F0_FE[BMW_10ms_counter];

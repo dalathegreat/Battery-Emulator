@@ -8,7 +8,7 @@
 /* To edit battery specific limits, see also the USER_SETTINGS.cpp file*/
 
 /* Select battery used */
-#define BMW_I3_BATTERY
+//#define BMW_I3_BATTERY
 //#define CHADEMO_BATTERY
 //#define IMIEV_CZERO_ION_BATTERY
 //#define KIA_HYUNDAI_64_BATTERY
