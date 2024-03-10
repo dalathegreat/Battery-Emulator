@@ -202,7 +202,7 @@ void update_values_battery() {  //This function maps all the values fetched via 
   }
 
   //Map all cell voltages to the global array
-  for (int i = 0; i < 97; ++i) {
+  for (int i = 0; i < 98; ++i) {
     if (cellvoltages_mv[i] > 1000) {
       system_cellvoltages_mV[i] = cellvoltages_mv[i];
     }
