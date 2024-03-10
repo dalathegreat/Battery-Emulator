@@ -57,13 +57,13 @@ static const int interval1000 = 1000;  // interval (ms) at which send CAN Messag
 
 void update_values_battery() {  //This function maps all the values fetched via CAN to the correct parameters used for modbus
 
-  system_real_SOC_pptt = (LB_SOC * 10);  //increase LB_SOC range from 0-100.0 -> 100.00
+  system_real_SOC_pptt = (LB_SOC * 100);  //increase LB_SOC range from 0-100 -> 100.00
 
   system_SOH_pptt = (LB_SOH * 100);  //Increase range from 99% -> 99.00%
 
   system_battery_voltage_dV = LB_Battery_Voltage;
 
-  system_battery_current_dA = LB_Current;
+  system_battery_current_dA = LB_Current * 10;  // Increase range from 4A -> 4.0A
 
   system_capacity_Wh = BATTERY_WH_MAX;  //Hardcoded to header value
 
@@ -95,7 +95,7 @@ void update_values_battery() {  //This function maps all the values fetched via 
     system_max_charge_power_W = 0;  //No need to charge further, set max power to 0
   }
 
-  system_active_power_W = (system_battery_voltage_dV * LB_Current);  //TODO: check if scaling is OK
+  system_active_power_W = (system_battery_voltage_dV * LB_Current);
 
   system_temperature_min_dC = (LB_MIN_TEMPERATURE * 10);
 
