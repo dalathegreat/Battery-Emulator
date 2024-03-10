@@ -542,6 +542,22 @@ static uint8_t BMW_429_counter = 0;
 static uint32_t BMW_328_counter = 0;
 
 static uint8_t timer_640 = 0;
+static uint8_t battery_status_cooling_HV = 0; //1 works, 2 does not start
+static uint8_t battery_status_diagnostics_HV = 0; // 0 all OK, 1 HV protection function error, 2 diag not yet expired
+static uint32_t battery_serial_number = 0;
+static uint32_t battery_available_power_shortterm_charge = 0;
+static uint32_t battery_available_power_shortterm_discharge = 0;
+static uint32_t battery_available_power_longterm_charge = 0;
+static uint32_t battery_available_power_longterm_discharge = 0;
+static uint32_t battery_BEV_available_power_shortterm_charge = 0;
+static uint32_t battery_BEV_available_power_shortterm_discharge = 0;
+static uint32_t battery_BEV_available_power_longterm_charge = 0;
+static uint32_t battery_BEV_available_power_longterm_discharge = 0;
+static int16_t battery_temperature_HV = 0;
+static int16_t battery_temperature_heat_exchanger = 0;
+static int16_t battery_temperature_max = 0;
+static int16_t battery_temperature_min = 0;
+static uint8_t battery_status_cold_shutoff_valve = 0;
 
 static int16_t Battery_Current = 0;
 static uint16_t Battery_Capacity_kWh = 0;
@@ -556,10 +572,13 @@ static uint16_t Battery_Status = 0;
 static uint16_t DC_link = 0;
 static int16_t Battery_Power = 0;
 static uint16_t TemperatureMaxMaybe = 0;
-static uint16_t MaxChargingVoltage = 0;
-static uint16_t MaxDischargeVoltage = 0;
-static uint16_t MaxChargeWattMaybe = 0;
-static uint16_t MaxDischargeWattMaybe = 0;
+static uint16_t battery_max_charge_voltage = 0;
+static int16_t battery_max_charge_amperage = 0;
+static uint16_t battery_min_charge_voltage = 0;
+static int16_t battery_min_charge_amperage = 0;
+static uint16_t battery_predicted_energy_charge_condition = 0;
+static uint16_t battery_predicted_energy_charging_target = 0;
+static uint16_t battery_actual_value_power_heating = 0; //0 - 4094 W
 
 void update_values_battery() {  //This function maps all the values fetched via CAN to the correct parameters used for modbus
   //Calculate the SOC% value to send to inverter
@@ -624,11 +643,11 @@ void update_values_battery() {  //This function maps all the values fetched via 
   Serial.print(" Temperature: ");
   Serial.print(TemperatureMaxMaybe / 10);
   Serial.print(" Max charge voltage: ");
-  Serial.print(MaxChargingVoltage / 10);
-  Serial.print(" Max discharge voltage: ");
-  Serial.print(MaxDischargeVoltage / 10);
-  Serial.print(" Max charge Watt: ");
-  Serial.print(MaxChargeWattMaybe);
+  Serial.print(battery_max_charge_voltage / 10);
+  Serial.print(" Min discharge voltage: ");
+  Serial.print(battery_min_charge_voltage / 10);
+  Serial.print(" Max charge current: ");
+  Serial.print(battery_max_charge_amperage);
   Serial.print(" Max discharge Watt: ");
   Serial.print(MaxDischargeWattMaybe);
   Serial.print(" Battery Status: ");
@@ -664,13 +683,14 @@ void receive_can_battery(CAN_frame_t rx_frame) {
         CANerror++;
         break;  //Message content malformed, abort reading data from it
       }
-      TemperatureMaxMaybe = rx_frame.data.u8[2];
+      battery_predicted_energy_charge_condition = (rx_frame.data.u8[2] << 8 | rx_frame.data.u8[1]); //Wh
+      battery_predicted_energy_charging_target = ((rx_frame.data.u8[4] << 8 | rx_frame.data.u8[3]) * 0.02); //kWh
       break;
-    case 0x2F5:                                                                          //BMS [100ms]
-      MaxChargingVoltage = (((rx_frame.data.u8[1] & 0x0F) << 8 | rx_frame.data.u8[0]));  //Voltage + 1decimal
-      MaxChargeWattMaybe = ((rx_frame.data.u8[3] << 8) | rx_frame.data.u8[2]);
-      MaxDischargeVoltage = (((rx_frame.data.u8[5] & 0x0F) << 8 | rx_frame.data.u8[4]));  //Voltage + 1decimal
-      MaxDischargeWattMaybe = ((rx_frame.data.u8[7] << 8) | rx_frame.data.u8[6]);
+    case 0x2F5:  //BMS [100ms] High-Voltage Battery Charge/Discharge Limitations
+      battery_max_charge_voltage = (rx_frame.data.u8[1] << 8 | rx_frame.data.u8[0]);
+      battery_max_charge_amperage = (((rx_frame.data.u8[3] << 8) | rx_frame.data.u8[2]) - 819.2);
+      battery_min_charge_voltage = (rx_frame.data.u8[5] << 8 | rx_frame.data.u8[4]);
+      battery_min_charge_amperage = (((rx_frame.data.u8[7] << 8) | rx_frame.data.u8[6]) - 819.2);
       break;
     case 0x431:  //Battery capacity [200ms]
       Battery_Capacity_kWh = (((rx_frame.data.u8[6] & 0x0F) << 8 | rx_frame.data.u8[5])) / 50;
@@ -681,27 +701,46 @@ void receive_can_battery(CAN_frame_t rx_frame) {
       High_SOC = (rx_frame.data.u8[3] / 2);
       Display_SOC = (rx_frame.data.u8[4] / 2);
       break;
-    case 0x2BD:  //BMS
+    case 0x2BD:  //BMS [100ms] Status diagnosis high voltage 1
+        battery_status_diagnostics_HV = (rx_frame.data.u8[2] & 0x0F);
       break;
     case 0x430:  //BMS
       break;
-    case 0x1FA:  //BMS
+    case 0x1FA:  //BMS [1000ms] Status Of High-Voltage Battery 1
+      status_error_disconnecting_switch
+      status_warning_isolation
+      battery_status_cold_shutoff_valve = (rx_frame.data.u8[3] & 0x0F);
+      battery_temperature_HV = (rx_frame.data.u8[4] - 50);
+      battery_temperature_heat_exchanger = (rx_frame.data.u8[5] - 50);
+      battery_temperature_max = (rx_frame.data.u8[6] - 50);
+      battery_temperature_min = (rx_frame.data.u8[7] - 50);
       break;
-    case 0x40D:  //BMS
+    case 0x40D:  //BMS [1000ms] Charging status of high-voltage storage 1
+      battery_BEV_available_power_shortterm_charge = (rx_frame.data.u8[1] << 8 | rx_frame.data.u8[0]) * 3;
+      battery_BEV_available_power_shortterm_discharge = (rx_frame.data.u8[3] << 8 | rx_frame.data.u8[2]) * 3; 
+      battery_BEV_available_power_longterm_charge = (rx_frame.data.u8[5] << 8 | rx_frame.data.u8[4]) * 3; 
+      battery_BEV_available_power_longterm_discharge = (rx_frame.data.u8[7] << 8 | rx_frame.data.u8[6]) * 3; 
       break;
-    case 0x2FF:  //BMS
+    case 0x2FF:  //BMS [100ms] Status Heating High-Voltage Battery
+        battery_actual_value_power_heating = (rx_frame.data.u8[1] << 4 | rx_frame.data.u8[0] >> 4);
       break;
-    case 0x3C2:  //BMS (94AH exclusive)
+    case 0x3C2:  //BMS (94AH exclusive) - Content unknown
       break;
-    case 0x3EB:  //BMS
+    case 0x3EB:  //BMS - 1000ms - Status of charging high-voltage storage 3
+      battery_available_power_shortterm_charge = (rx_frame.data.u8[1] << 8 | rx_frame.data.u8[0]) * 3;
+      battery_available_power_shortterm_discharge = (rx_frame.data.u8[3] << 8 | rx_frame.data.u8[2]) * 3; 
+      battery_available_power_longterm_charge = (rx_frame.data.u8[5] << 8 | rx_frame.data.u8[4]) * 3; 
+      battery_available_power_longterm_discharge = (rx_frame.data.u8[7] << 8 | rx_frame.data.u8[6]) * 3; 
       break;
-    case 0x363:  //BMS
+    case 0x363:  //BMS - 1000ms - Identification High-Voltage Battery
+      battery_serial_number = (rx_frame.data.u8[3] << 24 | rx_frame.data.u8[2] << 16 | rx_frame.data.u8[1] << 8 | rx_frame.data.u8[0]);
       break;
-    case 0x507:  //BMS
+    case 0x507:  //BMS - 640ms - Network Management 2 - This message is sent on the bus for sleep coordination purposes
+      break;     // If sent, falling asleep will occur of the bus is delayed by the next 2 seconds
+    case 0x587:  //BMS - 1000ms - Services - No use for this message
       break;
-    case 0x587:  //BMS
-      break;
-    case 0x41C:  //BMS
+    case 0x41C:  //BMS - 1000ms - Status Of Operating Mode Of Hybrid 2
+        battery_status_cooling_HV = (rx_frame.data.u8[1] & 0x03);
       break;
     case 0x607:  //BMS
       break;
