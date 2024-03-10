@@ -20,6 +20,14 @@
 #define MCP2515_INT 35   // INT output of MCP2515 |  | Pin 35 is input only, without pullup/down resistors
 #endif
 
+#ifdef CAN_FD
+#define MCP2517_SCK 12 // SCK input of MCP2517
+#define MCP2517_SDI 5 // SDI input of MCP2517
+#define MCP2517_SDO 34 // SDO output of MCP2517
+#define MCP2517_CS 18 // CS input of MCP2517
+#define MCP2517_INT 35 // INT output of MCP2517
+#endif
+
 #ifdef CONTACTOR_CONTROL
 #define POSITIVE_CONTACTOR_PIN 32
 #define NEGATIVE_CONTACTOR_PIN 33

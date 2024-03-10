@@ -41,6 +41,10 @@ static const uint32_t QUARTZ_FREQUENCY = 8UL * 1000UL * 1000UL;  // 8 MHz
 ACAN2515 can(MCP2515_CS, SPI, MCP2515_INT);
 static ACAN2515_Buffer16 gBuffer;
 #endif
+#ifdef CAN_FD
+#include "src/lib/pierremolinaro-ACAN2517FD/ACAN2517FD.h"
+ACAN2517FD can (MCP2517_CS, SPI1, MCP2517_INT) ;
+#endif
 
 // ModbusRTU parameters
 #if defined(BYD_MODBUS)
