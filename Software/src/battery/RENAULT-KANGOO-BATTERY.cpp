@@ -67,7 +67,9 @@ void update_values_battery() {  //This function maps all the values fetched via 
 
   system_capacity_Wh = BATTERY_WH_MAX;  //Hardcoded to header value
 
-  system_remaining_capacity_Wh = (uint16_t)((system_real_SOC_pptt / 10000) * system_capacity_Wh);
+  //Calculate the remaining Wh amount from SOC% and max Wh value.
+  system_remaining_capacity_Wh =
+      static_cast<uint32_t>((static_cast<double>(system_real_SOC_pptt) / 10000) * BATTERY_WH_MAX);
 
   LB_Discharge_Power_Limit_Watts = (LB_Discharge_Power_Limit * 500);  //Convert value fetched from battery to watts
   /* Define power able to be discharged from battery */
@@ -95,7 +97,7 @@ void update_values_battery() {  //This function maps all the values fetched via 
     system_max_charge_power_W = 0;  //No need to charge further, set max power to 0
   }
 
-  system_active_power_W = (system_battery_voltage_dV * LB_Current);
+  system_active_power_W = (system_battery_voltage_dV * system_battery_current_dA);
 
   system_temperature_min_dC = (LB_MIN_TEMPERATURE * 10);
 
