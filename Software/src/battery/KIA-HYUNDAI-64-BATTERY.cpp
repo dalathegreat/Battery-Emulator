@@ -31,7 +31,6 @@ static int16_t allowedDischargePower = 0;
 static int16_t allowedChargePower = 0;
 static uint16_t batteryVoltage = 0;
 static int16_t batteryAmps = 0;
-static int16_t powerWatt = 0;
 static int16_t temperatureMax = 0;
 static int16_t temperatureMin = 0;
 static int8_t temperature_water_inlet = 0;
@@ -154,7 +153,7 @@ void update_values_battery() {  //This function maps all the values fetched via 
 
   system_battery_voltage_dV = batteryVoltage;  //value is *10 (3700 = 370.0)
 
-  system_battery_current_dA = batteryAmps;  //value is *10 (150 = 15.0)
+  system_battery_current_dA = -batteryAmps;  //value is *10 (150 = 15.0) , invert the sign
 
   system_capacity_Wh = BATTERY_WH_MAX;
 
@@ -174,9 +173,8 @@ void update_values_battery() {  //This function maps all the values fetched via 
     system_max_discharge_power_W = MAXDISCHARGEPOWERALLOWED;
   }
 
-  powerWatt = ((batteryVoltage * batteryAmps) / 100);
-
-  system_active_power_W = powerWatt;  //Power in watts, Negative = charging batt
+  //Power in watts, Negative = charging batt
+  system_active_power_W = ((system_battery_voltage_dV * system_battery_current_dA) / 100);
 
   system_temperature_min_dC = (int8_t)temperatureMin * 10;  //Increase decimals, 17C -> 17.0C
 
