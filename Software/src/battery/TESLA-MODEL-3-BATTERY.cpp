@@ -156,9 +156,9 @@ static const char* hvilStatusState[] = {"NOT OK",
 #define MIN_CELL_VOLTAGE_NCA_NCM 2950   //Battery is put into emergency stop if one cell goes below this value
 #define MAX_CELL_DEVIATION_NCA_NCM 500  //LED turns yellow on the board if mv delta exceeds this value
 
-#define MAX_CELL_VOLTAGE_LFP 3520   //Battery is put into emergency stop if one cell goes over this value
+#define MAX_CELL_VOLTAGE_LFP 3550   //Battery is put into emergency stop if one cell goes over this value
 #define MIN_CELL_VOLTAGE_LFP 2800   //Battery is put into emergency stop if one cell goes below this value
-#define MAX_CELL_DEVIATION_LFP 150  //LED turns yellow on the board if mv delta exceeds this value
+#define MAX_CELL_DEVIATION_LFP 200  //LED turns yellow on the board if mv delta exceeds this value
 
 #define REASONABLE_ENERGYAMOUNT 20  //When the BMS stops making sense on some values, they are always <20
 
@@ -200,10 +200,22 @@ void update_values_battery() {  //This function maps all the values fetched via 
   }
 
   //The allowed charge power behaves strangely. We instead estimate this value
-  if (system_scaled_SOC_pptt == 10000) {  // When scaled SOC is 100%, set allowed charge power to 0
+  if (system_scaled_SOC_pptt == 10000) {  // When scaled SOC is 100.00%, set allowed charge power to 0
     system_max_charge_power_W = 0;
-  } else if (soc_vi > 950) {  // When real SOC is between 95-99.99%, ramp the value between Max<->0
-    system_max_charge_power_W = MAXCHARGEPOWERALLOWED * (1 - (soc_vi - 950) / 50.0);
+  } else if (soc_vi > 990) {
+    system_max_charge_power_W = FLOAT_MAX_POWER_W;
+  } else if (soc_vi > RAMPDOWN_SOC) {  // When real SOC is between RAMPDOWN_SOC-99%, ramp the value between Max<->0
+    system_max_charge_power_W = MAXCHARGEPOWERALLOWED * (1 - (soc_vi - RAMPDOWN_SOC) / (1000.0 - RAMPDOWN_SOC));
+    //If the cellvoltages start to reach overvoltage, only allow a small amount of power in
+    if (system_LFP_Chemistry) {
+      if (cell_max_v > (MAX_CELL_VOLTAGE_LFP - FLOAT_START_MV)) {
+        system_max_charge_power_W = FLOAT_MAX_POWER_W;
+      }
+    } else {  //NCM/A
+      if (cell_max_v > (MAX_CELL_VOLTAGE_NCA_NCM - FLOAT_START_MV)) {
+        system_max_charge_power_W = FLOAT_MAX_POWER_W;
+      }
+    }
   } else {  // No limits, max charging power allowed
     system_max_charge_power_W = MAXCHARGEPOWERALLOWED;
   }
@@ -237,27 +249,19 @@ void update_values_battery() {  //This function maps all the values fetched via 
 
   cell_deviation_mV = (cell_max_v - cell_min_v);
 
-  //Determine which chemistry battery pack is using (crude method, TODO: replace with real CAN identifier later)
-  if (soc_vi > 900) {  //When SOC% is over 90.0%, we can use max cell voltage to estimate what chemistry is used
-    if (cell_max_v < 3450) {
-      system_LFP_Chemistry = true;
-    }
-    if (cell_max_v > 3700) {
-      system_LFP_Chemistry = false;
-    }
-  }
-  // An even better way is to check how many cells are in the pack. NCM/A batteries have 96s, LFP has 102-106s
+  // NCM/A batteries have 96s, LFP has 102-106s
+  // Drawback with this check is that it takes 3-5minutes before all cells have been counted!
   if (system_number_of_cells > 101) {
     system_LFP_Chemistry = true;
   }
 
   //Once cell chemistry is determined, set maximum and minimum total pack voltage safety limits
   if (system_LFP_Chemistry) {
-    system_max_design_voltage_dV = 3880;
-    system_min_design_voltage_dV = 2968;
+    system_max_design_voltage_dV = MAX_PACK_VOLTAGE_LFP;
+    system_min_design_voltage_dV = MIN_PACK_VOLTAGE_LFP;
   } else {  // NCM/A chemistry
-    system_max_design_voltage_dV = 4030;
-    system_min_design_voltage_dV = 3100;
+    system_max_design_voltage_dV = MAX_PACK_VOLTAGE_NCMA;
+    system_min_design_voltage_dV = MIN_PACK_VOLTAGE_NCMA;
   }
 
   //Check if SOC% is plausible
@@ -690,8 +694,14 @@ void printDebugIfActive(uint8_t symbol, const char* message) {
 void setup_battery(void) {  // Performs one time setup at startup
   Serial.println("Tesla Model 3 battery selected");
 
-  system_max_design_voltage_dV = 4030;  // 403.0V, over this, charging is not possible (goes into forced discharge)
-  system_min_design_voltage_dV = 3100;  // 310.0V under this, discharging further is disabled
+#ifdef LFP_CHEMISTRY
+  system_LFP_Chemistry = true;
+  system_max_design_voltage_dV = MAX_PACK_VOLTAGE_LFP;
+  system_min_design_voltage_dV = MIN_PACK_VOLTAGE_LFP;
+#else
+  system_max_design_voltage_dV = MAX_PACK_VOLTAGE_NCMA;
+  system_min_design_voltage_dV = MIN_PACK_VOLTAGE_NCMA;
+#endif
 }
 
 #endif

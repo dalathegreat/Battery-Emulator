@@ -53,4 +53,7 @@
 #define DISCHARGING 1
 #define CHARGING 2
 
+// Common definitions
+#define MAX_AMOUNT_CELLS 192
+
 #endif

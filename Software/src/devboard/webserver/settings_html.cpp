@@ -15,11 +15,14 @@ String settings_processor(const String& var) {
     // Show current settings with edit buttons and input fields
     content += "<h4 style='color: white;'>Battery capacity: <span id='BATTERY_WH_MAX'>" + String(BATTERY_WH_MAX) +
                " Wh </span> <button onclick='editWh()'>Edit</button></h4>";
-    content += "<h4 style='color: white;'>Rescale SOC: <span id='USE_SCALED_SOC'>" + String(USE_SCALED_SOC) +
+    content += "<h4 style='color: white;'>Rescale SOC: <span id='USE_SCALED_SOC'>" +
+               String(USE_SCALED_SOC ? "<span>&#10003;</span>" : "<span style='color: red;'>&#10005;</span>") +
                "</span> <button onclick='editUseScaledSOC()'>Edit</button></h4>";
-    content += "<h4 style='color: white;'>SOC max percentage: " + String(MAXPERCENTAGE / 10.0, 1) +
+    content += "<h4 style='color: " + String(USE_SCALED_SOC ? "white" : "darkgrey") +
+               ";'>SOC max percentage: " + String(MAXPERCENTAGE / 10.0, 1) +
                " </span> <button onclick='editSocMax()'>Edit</button></h4>";
-    content += "<h4 style='color: white;'>SOC min percentage: " + String(MINPERCENTAGE / 10.0, 1) +
+    content += "<h4 style='color: " + String(USE_SCALED_SOC ? "white" : "darkgrey") +
+               ";'>SOC min percentage: " + String(MINPERCENTAGE / 10.0, 1) +
                " </span> <button onclick='editSocMin()'>Edit</button></h4>";
     content += "<h4 style='color: white;'>Max charge speed: " + String(MAXCHARGEAMP / 10.0, 1) +
                " A </span> <button onclick='editMaxChargeA()'>Edit</button></h4>";
@@ -70,11 +73,21 @@ String settings_processor(const String& var) {
 #endif
 
     content += "<script>";
+    content += "function editComplete() {";
+    content += "  if (this.status == 200) {";
+    content += "    window.location.reload();";
+    content += "  }";
+    content += "}";
+    content += "function editError() {";
+    content += "    alert('Invalid input');";
+    content += "}";
     content += "function editWh() {";
     content += "var value = prompt('How much energy the battery can store. Enter new Wh value (1-120000):');";
     content += "if (value !== null) {";
     content += "  if (value >= 1 && value <= 120000) {";
     content += "    var xhr = new XMLHttpRequest();";
+    content += "    xhr.onload = editComplete;";
+    content += "    xhr.onerror = editError;";
     content += "    xhr.open('GET', '/updateBatterySize?value=' + value, true);";
     content += "    xhr.send();";
     content += "  } else {";
@@ -87,6 +100,8 @@ String settings_processor(const String& var) {
     content += "if (value !== null) {";
     content += "  if (value == 0 || value == 1) {";
     content += "    var xhr = new XMLHttpRequest();";
+    content += "    xhr.onload = editComplete;";
+    content += "    xhr.onerror = editError;";
     content += "    xhr.open('GET', '/updateUseScaledSOC?value=' + value, true);";
     content += "    xhr.send();";
     content += "  } else {";
@@ -101,6 +116,8 @@ String settings_processor(const String& var) {
     content += "if (value !== null) {";
     content += "  if (value >= 50 && value <= 100) {";
     content += "    var xhr = new XMLHttpRequest();";
+    content += "    xhr.onload = editComplete;";
+    content += "    xhr.onerror = editError;";
     content += "    xhr.open('GET', '/updateSocMax?value=' + value, true);";
     content += "    xhr.send();";
     content += "  } else {";
@@ -115,6 +132,8 @@ String settings_processor(const String& var) {
     content += "if (value !== null) {";
     content += "  if (value >= 0 && value <= 50) {";
     content += "    var xhr = new XMLHttpRequest();";
+    content += "    xhr.onload = editComplete;";
+    content += "    xhr.onerror = editError;";
     content += "    xhr.open('GET', '/updateSocMin?value=' + value, true);";
     content += "    xhr.send();";
     content += "  } else {";
@@ -129,6 +148,8 @@ String settings_processor(const String& var) {
     content += "if (value !== null) {";
     content += "  if (value >= 0 && value <= 1000) {";
     content += "    var xhr = new XMLHttpRequest();";
+    content += "    xhr.onload = editComplete;";
+    content += "    xhr.onerror = editError;";
     content += "    xhr.open('GET', '/updateMaxChargeA?value=' + value, true);";
     content += "    xhr.send();";
     content += "  } else {";
@@ -143,6 +164,8 @@ String settings_processor(const String& var) {
     content += "if (value !== null) {";
     content += "  if (value >= 0 && value <= 1000) {";
     content += "    var xhr = new XMLHttpRequest();";
+    content += "    xhr.onload = editComplete;";
+    content += "    xhr.onerror = editError;";
     content += "    xhr.open('GET', '/updateMaxDischargeA?value=' + value, true);";
     content += "    xhr.send();";
     content += "  } else {";
@@ -157,6 +180,8 @@ String settings_processor(const String& var) {
     content += "if (value !== null) {";
     content += "  if (value >= 0 && value <= 5000) {";
     content += "    var xhr = new XMLHttpRequest();";
+    content += "    xhr.onload = editComplete;";
+    content += "    xhr.onerror = editError;";
     content += "    xhr.open('GET', '/updateFakeBatteryVoltage?value=' + value, true);";
     content += "    xhr.send();";
     content += "  } else {";
@@ -172,6 +197,8 @@ String settings_processor(const String& var) {
     content += "  if (value !== null) {";
     content += "    if (value == 0 || value == 1) {";
     content += "      var xhr = new XMLHttpRequest();";
+    content += "      xhr.onload = editComplete;";
+    content += "      xhr.onerror = editError;";
     content += "      xhr.open('GET', '/updateChargerHvEnabled?value=' + value, true);";
     content += "      xhr.send();";
     content += "    }";
@@ -187,6 +214,8 @@ String settings_processor(const String& var) {
     content += "if (value !== null) {";
     content += "  if (value == 0 || value == 1) {";
     content += "    var xhr = new XMLHttpRequest();";
+    content += "    xhr.onload = editComplete;";
+    content += "    xhr.onerror = editError;";
     content += "    xhr.open('GET', '/updateChargerAux12vEnabled?value=' + value, true);";
     content += "    xhr.send();";
     content += "  } else {";
@@ -202,6 +231,8 @@ String settings_processor(const String& var) {
     content += "if (value !== null) {";
     content += "  if (value >= 0 && value <= 1000) {";
     content += "    var xhr = new XMLHttpRequest();";
+    content += "    xhr.onload = editComplete;";
+    content += "    xhr.onerror = editError;";
     content += "    xhr.open('GET', '/updateChargeSetpointV?value=' + value, true);";
     content += "    xhr.send();";
     content += "  } else {";
@@ -217,6 +248,8 @@ String settings_processor(const String& var) {
     content += "if (value !== null) {";
     content += "  if (value >= 0 && value <= 1000) {";
     content += "    var xhr = new XMLHttpRequest();";
+    content += "    xhr.onload = editComplete;";
+    content += "    xhr.onerror = editError;";
     content += "    xhr.open('GET', '/updateChargeSetpointA?value=' + value, true);";
     content += "    xhr.send();";
     content += "  } else {";
@@ -232,6 +265,8 @@ String settings_processor(const String& var) {
     content += "if (value !== null) {";
     content += "  if (value >= 0 && value <= 1000) {";
     content += "    var xhr = new XMLHttpRequest();";
+    content += "    xhr.onload = editComplete;";
+    content += "    xhr.onerror = editError;";
     content += "    xhr.open('GET', '/updateChargeEndA?value=' + value, true);";
     content += "    xhr.send();";
     content += "  } else {";

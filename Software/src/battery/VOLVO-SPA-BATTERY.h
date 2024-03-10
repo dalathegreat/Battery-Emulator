@@ -1,9 +1,11 @@
-#ifndef SOFAR_CAN_H
-#define SOFAR_CAN_H
+#ifndef VOLVO_SPA_BATTERY_H
+#define VOLVO_SPA_BATTERY_H
 #include <Arduino.h>
 #include "../../USER_SETTINGS.h"
 #include "../devboard/config.h"  // Needed for all defines
 #include "../lib/miwagner-ESP32-Arduino-CAN/ESP32CAN.h"
+
+#define BATTERY_SELECTED
 
 // These parameters need to be mapped for the inverter
 extern uint32_t system_capacity_Wh;                        //Wh,  0-150000Wh
@@ -26,13 +28,7 @@ extern uint16_t system_cellvoltages_mV[MAX_AMOUNT_CELLS];  //Array with all cell
 extern uint8_t system_number_of_cells;                     //Total number of cell voltages, set by each battery
 extern uint8_t system_bms_status;                          //Enum 0-5
 extern bool batteryAllowsContactorClosing;                 //Bool, true/false
-extern bool inverterAllowsContactorClosing;                //Bool, true/false
 
-extern uint16_t min_voltage;
-extern uint16_t max_voltage;
-
-void update_values_can_sofar();
-void send_can_sofar();
-void receive_can_sofar(CAN_frame_t rx_frame);
+void setup_battery(void);
 
 #endif

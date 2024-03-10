@@ -8,7 +8,6 @@
 #include "../config.h"
 #include "timer.h"
 
-#define EE_MAGIC_HEADER_VALUE 0xA5A5
 #define EE_NOF_EVENT_ENTRIES 30
 #define EE_EVENT_ENTRY_SIZE sizeof(EVENT_LOG_ENTRY_TYPE)
 #define EE_WRITE_PERIOD_MINUTES 10
