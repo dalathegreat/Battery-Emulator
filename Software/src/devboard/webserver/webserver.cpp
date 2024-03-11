@@ -14,6 +14,11 @@ unsigned long ota_progress_millis = 0;
 #include "index_html.cpp"
 #include "settings_html.h"
 
+// Include API Endpoint implementations
+#include "cellmonitor_API.h"
+#include "summary_API.h"
+#include "events_API.h"
+
 enum WifiState {
   INIT,          //before connecting first time
   RECONNECTING,  //we've connected before, but lost connection
@@ -45,6 +50,12 @@ void init_webserver() {
 
   String content = index_html;
 
+  // route not found
+  server.onNotFound(notFound);
+
+  // initialise the API
+  init_rest_API();
+  
   // Route for root / web page
   server.on("/", HTTP_GET,
             [](AsyncWebServerRequest* request) { request->send_P(200, "text/html", index_html, processor); });
@@ -251,6 +262,61 @@ void init_webserver() {
   // Init MQTT
   init_mqtt();
 #endif
+}
+
+void init_rest_API() {
+  // Get the device summary data
+  server.on("/api/v1/summary", HTTP_GET, [](AsyncWebServerRequest * request) {
+    AsyncJsonResponse * response = summaryAPI_GET();
+    response->setLength();
+    request->send(response);
+  });
+  
+  // Get the cell monitor data for the battery
+  server.on("/api/v1/cellMonitor", HTTP_GET, [](AsyncWebServerRequest * request) {
+    AsyncJsonResponse * response = cellmonitorAPI_GET();
+    response->setLength();
+    request->send(response);
+  });
+
+  // Get the cell monitor data for the battery
+  server.on("/api/v1/events", HTTP_GET, [](AsyncWebServerRequest * request) {
+    AsyncJsonResponse * response = eventsAPI_GET();
+    response->setLength();
+    request->send(response);
+  });
+  
+  // Get a list of localNetworks
+  server.on("/api/v1/localNetworks", HTTP_GET, [](AsyncWebServerRequest * request) {
+    
+    AsyncJsonResponse * response = new AsyncJsonResponse();
+    JsonObject root = response->getRoot();
+    
+    int n = WiFi.scanComplete();
+    
+    if(n == -2) {
+      WiFi.scanNetworks(true);
+    } else if(n) {
+      JsonArray networks = root.createNestedArray("networks");
+      
+      for (int i = 0; i < n; ++i) {
+        JsonObject network = networks.createNestedObject();
+        network["rssi"] = String(WiFi.RSSI(i));
+        network["ssid"] = WiFi.SSID(i);
+        network["bssid"] = WiFi.BSSIDstr(i);
+        network["channel"] = WiFi.channel(i);
+        network["encryption"] = WiFi.encryptionType(i);
+      }
+      
+      WiFi.scanDelete();
+      
+      if(WiFi.scanComplete() == -2){
+        WiFi.scanNetworks(true);
+      }
+    }
+    response->setLength();
+    request->send(response);
+  });
 }
 
 void init_WiFi_AP() {
@@ -621,9 +687,9 @@ String processor(const String& var) {
     content += "function goToSettingsPage() { window.location.href = '/settings'; }";
     content += "function goToEventsPage() { window.location.href = '/events'; }";
     content +=
-        "function promptToReboot() { if (window.confirm('Are you sure you want to reboot the emulator? NOTE: If "
-        "emulator is handling contactors, they will open during reboot!')) { "
-        "rebootServer(); } }";
+    "function promptToReboot() { if (window.confirm('Are you sure you want to reboot the emulator? NOTE: If "
+    "emulator is handling contactors, they will open during reboot!')) { "
+    "rebootServer(); } }";
     content += "function rebootServer() {";
     content += "  var xhr = new XMLHttpRequest();";
     content += "  xhr.open('GET', '/reboot', true);";
@@ -693,4 +759,8 @@ String formatPowerValue(String label, T value, String unit, int precision) {
 
   result += unit + "</h4>";
   return result;
+}
+
+void notFound(AsyncWebServerRequest *request) {
+  request->send(404, "application/json", "{\"message\":\"Not found\"}");
 }

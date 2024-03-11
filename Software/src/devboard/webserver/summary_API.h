@@ -1,21 +1,10 @@
-#ifndef WEBSERVER_H
-#define WEBSERVER_H
+#ifndef SUMMARY_A
+#define SUMMARY_A
 
-#include <Preferences.h>
-#include <WiFi.h>
-#include "../../../USER_SETTINGS.h"  // Needed for WiFi ssid and password
-#include "../../lib/ayushsharma82-ElegantOTA/src/ElegantOTA.h"
-#ifdef MQTT
-#include "../../lib/knolleary-pubsubclient/PubSubClient.h"
-#endif
-#include "../../lib/me-no-dev-AsyncTCP/src/AsyncTCP.h"
-#include "../../lib/me-no-dev-ESPAsyncWebServer/src/ESPAsyncWebServer.h"
+#include <Arduino.h>
+#include <stdint.h>
+#include "../config.h"  // Needed for defines
 #include "../../lib/me-no-dev-ESPAsyncWebServer/src/AsyncJson.h"
-#include "../../lib/miwagner-ESP32-Arduino-CAN/ESP32CAN.h"
-#include "../config.h"  // Needed for LED defines
-#ifdef MQTT
-#include "../mqtt/mqtt.h"
-#endif
 
 extern const char* version_number;                         // The current software version, shown on webserver
 extern uint32_t system_capacity_Wh;                        //Wh,  0-150000Wh
@@ -59,116 +48,66 @@ extern float charger_stat_LVvol;
 extern uint16_t OBC_Charge_Power;
 
 /**
- * @brief Initialization function for the webserver.
+ * @brief Pepares and returns an AsyncJsonResponse configured with the summary json data
  *
  * @param[in] void
  *
- * @return void
+ * @return AsyncJsonResponse
  */
-void init_webserver();
+AsyncJsonResponse* summaryAPI_GET();
 
 /**
- * @brief Monitoring loop for WiFi. Will attempt to reconnect to access point if the connection goes down.
- *
- * @param[in] void
- * 
- * @return void
- */
-void wifi_monitor();
-
-/**
- * @brief Initialization function that creates a WiFi Access Point.
- *
- * @param[in] void
- * 
- * @return void
- */
-void init_WiFi_AP();
-
-/**
- * @brief Initialization function that connects to an existing network.
- *
- * @param[in] ssid WiFi network name
- * @param[in] password WiFi network password
- * 
- * @return void
- */
-void init_WiFi_STA(const char* ssid, const char* password, const uint8_t channel);
-
-/**
- * @brief Initialization function for ElegantOTA.
- *
- * @param[in] void
- * 
- * @return void
- */
-void init_ElegantOTA();
-
-/**
- * @brief Replaces placeholder with content section in web page
- *
- * @param[in] var
- *
- * @return String
- */
-String processor(const String& var);
-
-/**
- * @brief Initialization function that sets up the API endpoints for the webserver
+ * @brief Returns a description of the user defined battery protocol
  *
  * @param[in] void
  *
- * @return void
+ * @return String: Protocol Description
  */
-void init_rest_API();
+String batteryProtocolDescription();
 
 /**
-* @brief Provides an implementation of a 404 Not found route when no API endpoint is found.
-*
-* @param[in] void
-*
-* @return void
-*/	
-void notFound(AsyncWebServerRequest *request);
-
-/**
- * @brief Executes on OTA start 
+ * @brief Returns a description of the user defined charger protocol
  *
  * @param[in] void
  *
- * @return void
+ * @return String: Protocol Description
  */
-void onOTAStart();
+String chargerProtocolDescription();
 
 /**
- * @brief Executes on OTA progress 
- * 
- * @param[in] current Current bytes
- * @param[in] final Final bytes
- *
- * @return void
- */
-void onOTAProgress(size_t current, size_t final);
-
-/**
- * @brief Executes on OTA end 
+ * @brief Returns a description of the user defined inverter protocol
  *
  * @param[in] void
- * 
- * @return bool success: success = true, failed = false
+ *
+ * @return String: Protocol Description
  */
-void onOTAEnd(bool success);
+String inverterProtocolDescription();
 
 /**
- * @brief Formats power values 
+ * @brief Returns the current LED colour (which itself is based on the current state of the system)
  *
- * @param[in] float or uint16_t 
- * 
+ * @param[in] void
+ *
+ * @return String: Colour
+ */
+String getLEDColour();
+
+/**
+ * @brief Returns a description of the current state of the wireless connection
+ *
+ * @param[in] void
+ *
+ * @return String; WiFi connection description
+ */
+String wirelessStatusDescription(wl_status_t status);
+
+/**
+ * @brief Scales power values
+ *
+ * @param[in] float or uint16_t
+ *
  * @return string: values
  */
-template <typename T>
-String formatPowerValue(String label, T value, String unit, int precision);
-
-extern void storeSettings();
-
+template <typename S>
+String scalePowerValue(S value, String unit, int precision);
 #endif
