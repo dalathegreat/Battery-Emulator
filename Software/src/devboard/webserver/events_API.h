@@ -11,7 +11,6 @@
  *
  * @return AsyncJsonResponse pointer
  */
-AsyncJ
 AsyncJsonResponse* eventsAPI_GET();
 
 #endif
