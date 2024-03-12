@@ -9,8 +9,8 @@
 #include "../../lib/knolleary-pubsubclient/PubSubClient.h"
 #endif
 #include "../../lib/me-no-dev-AsyncTCP/src/AsyncTCP.h"
-#include "../../lib/me-no-dev-ESPAsyncWebServer/src/ESPAsyncWebServer.h"
 #include "../../lib/me-no-dev-ESPAsyncWebServer/src/AsyncJson.h"
+#include "../../lib/me-no-dev-ESPAsyncWebServer/src/ESPAsyncWebServer.h"
 #include "../../lib/miwagner-ESP32-Arduino-CAN/ESP32CAN.h"
 #include "../config.h"  // Needed for LED defines
 #ifdef MQTT
@@ -128,8 +128,8 @@ void init_rest_API();
 * @param[in] void
 *
 * @return void
-*/	
-void notFound(AsyncWebServerRequest *request);
+*/
+void notFound(AsyncWebServerRequest* request);
 
 /**
  * @brief Executes on OTA start 

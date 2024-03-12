@@ -3,8 +3,8 @@
 
 #include <Arduino.h>
 #include <stdint.h>
-#include "../config.h"  // Needed for defines
 #include "../../lib/me-no-dev-ESPAsyncWebServer/src/AsyncJson.h"
+#include "../config.h"  // Needed for defines
 
 extern const char* version_number;                         // The current software version, shown on webserver
 extern uint32_t system_capacity_Wh;                        //Wh,  0-150000Wh

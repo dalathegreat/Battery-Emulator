@@ -16,8 +16,8 @@ unsigned long ota_progress_millis = 0;
 
 // Include API Endpoint implementations
 #include "cellmonitor_API.h"
-#include "summary_API.h"
 #include "events_API.h"
+#include "summary_API.h"
 
 enum WifiState {
   INIT,          //before connecting first time
@@ -55,7 +55,7 @@ void init_webserver() {
 
   // initialise the API
   init_rest_API();
-  
+
   // Route for root / web page
   server.on("/", HTTP_GET,
             [](AsyncWebServerRequest* request) { request->send_P(200, "text/html", index_html, processor); });
@@ -266,39 +266,38 @@ void init_webserver() {
 
 void init_rest_API() {
   // Get the device summary data
-  server.on("/api/v1/summary", HTTP_GET, [](AsyncWebServerRequest * request) {
-    AsyncJsonResponse * response = summaryAPI_GET();
-    response->setLength();
-    request->send(response);
-  });
-  
-  // Get the cell monitor data for the battery
-  server.on("/api/v1/cellMonitor", HTTP_GET, [](AsyncWebServerRequest * request) {
-    AsyncJsonResponse * response = cellmonitorAPI_GET();
+  server.on("/api/v1/summary", HTTP_GET, [](AsyncWebServerRequest* request) {
+    AsyncJsonResponse* response = summaryAPI_GET();
     response->setLength();
     request->send(response);
   });
 
   // Get the cell monitor data for the battery
-  server.on("/api/v1/events", HTTP_GET, [](AsyncWebServerRequest * request) {
-    AsyncJsonResponse * response = eventsAPI_GET();
+  server.on("/api/v1/cellMonitor", HTTP_GET, [](AsyncWebServerRequest* request) {
+    AsyncJsonResponse* response = cellmonitorAPI_GET();
     response->setLength();
     request->send(response);
   });
-  
+
+  // Get the cell monitor data for the battery
+  server.on("/api/v1/events", HTTP_GET, [](AsyncWebServerRequest* request) {
+    AsyncJsonResponse* response = eventsAPI_GET();
+    response->setLength();
+    request->send(response);
+  });
+
   // Get a list of localNetworks
-  server.on("/api/v1/localNetworks", HTTP_GET, [](AsyncWebServerRequest * request) {
-    
-    AsyncJsonResponse * response = new AsyncJsonResponse();
+  server.on("/api/v1/localNetworks", HTTP_GET, [](AsyncWebServerRequest* request) {
+    AsyncJsonResponse* response = new AsyncJsonResponse();
     JsonObject root = response->getRoot();
-    
+
     int n = WiFi.scanComplete();
-    
-    if(n == -2) {
+
+    if (n == -2) {
       WiFi.scanNetworks(true);
-    } else if(n) {
+    } else if (n) {
       JsonArray networks = root.createNestedArray("networks");
-      
+
       for (int i = 0; i < n; ++i) {
         JsonObject network = networks.createNestedObject();
         network["rssi"] = String(WiFi.RSSI(i));
@@ -307,10 +306,10 @@ void init_rest_API() {
         network["channel"] = WiFi.channel(i);
         network["encryption"] = WiFi.encryptionType(i);
       }
-      
+
       WiFi.scanDelete();
-      
-      if(WiFi.scanComplete() == -2){
+
+      if (WiFi.scanComplete() == -2) {
         WiFi.scanNetworks(true);
       }
     }
@@ -687,9 +686,9 @@ String processor(const String& var) {
     content += "function goToSettingsPage() { window.location.href = '/settings'; }";
     content += "function goToEventsPage() { window.location.href = '/events'; }";
     content +=
-    "function promptToReboot() { if (window.confirm('Are you sure you want to reboot the emulator? NOTE: If "
-    "emulator is handling contactors, they will open during reboot!')) { "
-    "rebootServer(); } }";
+        "function promptToReboot() { if (window.confirm('Are you sure you want to reboot the emulator? NOTE: If "
+        "emulator is handling contactors, they will open during reboot!')) { "
+        "rebootServer(); } }";
     content += "function rebootServer() {";
     content += "  var xhr = new XMLHttpRequest();";
     content += "  xhr.open('GET', '/reboot', true);";
@@ -761,6 +760,6 @@ String formatPowerValue(String label, T value, String unit, int precision) {
   return result;
 }
 
-void notFound(AsyncWebServerRequest *request) {
+void notFound(AsyncWebServerRequest* request) {
   request->send(404, "application/json", "{\"message\":\"Not found\"}");
 }

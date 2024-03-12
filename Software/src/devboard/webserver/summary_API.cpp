@@ -2,94 +2,94 @@
 #include <Arduino.h>
 
 AsyncJsonResponse* summaryAPI_GET() {
-	
-    wl_status_t status = WiFi.status();
-    
-    AsyncJsonResponse * response = new AsyncJsonResponse();
-    JsonObject root = response->getRoot();
-    
-    root["Software Version"] = String(version_number);
-    root["Led Colour"] = getLEDColour();
-    
-    // WiFi Details
-    JsonObject nestedWifi = root.createNestedObject("WiFi");
-    nestedWifi["ssid"] = String(ssid);
-    nestedWifi["status"] = wirelessStatusDescription(status);
-    
-    if (status == WL_CONNECTED) {
-      nestedWifi["ip"] = WiFi.localIP().toString();
-      nestedWifi["signalStrength"] = WiFi.RSSI();
-      nestedWifi["channel"] = WiFi.channel();
-    }
-    
-    // Inverter / Battery / Charger details
-    String inverterProtocol = inverterProtocolDescription();
-    String batteryProtocol = batteryProtocolDescription();
-    String chargerProtocol = chargerProtocolDescription();
-    
-    if (inverterProtocol != "") {
-      root["inverterProtocol"] = inverterProtocol;
-    }
-    if (batteryProtocol != "") {
-      root["batteryProtocol"] = batteryProtocol;
-    }
-    if (chargerProtocol != "") {
-      root["chargerProtocol"] = chargerProtocol;
-    }
-	
-	// Battery Statistics
-	
-    float socRealFloat = static_cast<float>(system_real_SOC_pptt) / 100.0;      // Convert to float and divide by 100
-    float socScaledFloat = static_cast<float>(system_scaled_SOC_pptt) / 100.0;  // Convert to float and divide by 100
-    float sohFloat = static_cast<float>(system_SOH_pptt) / 100.0;               // Convert to float and divide by 100
-    float voltageFloat = static_cast<float>(system_battery_voltage_dV) / 10.0;  // Convert to float and divide by 10
-    float currentFloat = static_cast<float>(system_battery_current_dA) / 10.0;  // Convert to float and divide by 10
-    float powerFloat = static_cast<float>(system_active_power_W);               // Convert to float
-    float tempMaxFloat = static_cast<float>(system_temperature_max_dC) / 10.0;  // Convert to float
-    float tempMinFloat = static_cast<float>(system_temperature_min_dC) / 10.0;  // Convert to float
 
-	JsonObject nestedBatteryStats = root.createNestedObject("Battery Statistics");
-	
-    nestedBatteryStats["Real SOC"] = socRealFloat;
-    nestedBatteryStats["Scaled SOC"] = socScaledFloat;
-    nestedBatteryStats["SOH"] = sohFloat;
-    nestedBatteryStats["Voltage"] = voltageFloat;
-    nestedBatteryStats["Current"] = currentFloat;
-	
-    nestedBatteryStats["Power"] = scalePowerValue(powerFloat, "", 1);
-    nestedBatteryStats["Total capacity"] = scalePowerValue(system_capacity_Wh, "h", 0);
-    nestedBatteryStats["Remaining capacity"] = scalePowerValue(system_remaining_capacity_Wh, "h", 1);
-    nestedBatteryStats["Max charge power"] =  scalePowerValue(system_max_charge_power_W, "", 1);
-    nestedBatteryStats["Max discharge power"] = scalePowerValue(system_max_discharge_power_W, "", 1);
+  wl_status_t status = WiFi.status();
 
-    nestedBatteryStats["Cell max"] = String(system_cell_max_voltage_mV) + " mV";
-    nestedBatteryStats["Cell min"] = String(system_cell_min_voltage_mV) + " mV";
-    nestedBatteryStats["Temperature max"] = String(tempMaxFloat, 1) + " C";
-    nestedBatteryStats["Temperature min"] = String(tempMinFloat, 1) + " C";
-		
-    // BMS Status
-    if (system_bms_status == ACTIVE) {
-      nestedBatteryStats["BMS Status"] = "OK";
-    } else if (system_bms_status == UPDATING) {
-      nestedBatteryStats["BMS Status"] = "UPDATING";
-    } else {
-      nestedBatteryStats["BMS Status"] = "FAULT";
-    }
-	
-	// Battery chargins/discharging/idle state
-    if (system_battery_current_dA == 0) {
-      nestedBatteryStats["Battery State"] = "Idle";
-    } else if (system_battery_current_dA < 0) {
-      nestedBatteryStats["Battery State"] = "Discharging";
-    } else {  // > 0
-      nestedBatteryStats["Battery State"] = "Charging";
-    }
+  AsyncJsonResponse* response = new AsyncJsonResponse();
+  JsonObject root = response->getRoot();
 
-    // Automatic contactor closing allowed
-    JsonObject nestedContactorNode = nestedBatteryStats.createNestedObject("Automatic contactor closing allowed");
-    nestedContactorNode["Battery"] = batteryAllowsContactorClosing;
-    nestedContactorNode["Inverter"] = inverterAllowsContactorClosing;
-	return response;
+  root["Software Version"] = String(version_number);
+  root["Led Colour"] = getLEDColour();
+
+  // WiFi Details
+  JsonObject nestedWifi = root.createNestedObject("WiFi");
+  nestedWifi["ssid"] = String(ssid);
+  nestedWifi["status"] = wirelessStatusDescription(status);
+
+  if (status == WL_CONNECTED) {
+    nestedWifi["ip"] = WiFi.localIP().toString();
+    nestedWifi["signalStrength"] = WiFi.RSSI();
+    nestedWifi["channel"] = WiFi.channel();
+  }
+
+  // Inverter / Battery / Charger details
+  String inverterProtocol = inverterProtocolDescription();
+  String batteryProtocol = batteryProtocolDescription();
+  String chargerProtocol = chargerProtocolDescription();
+
+  if (inverterProtocol != "") {
+    root["inverterProtocol"] = inverterProtocol;
+  }
+  if (batteryProtocol != "") {
+    root["batteryProtocol"] = batteryProtocol;
+  }
+  if (chargerProtocol != "") {
+    root["chargerProtocol"] = chargerProtocol;
+  }
+
+  // Battery Statistics
+
+  float socRealFloat = static_cast<float>(system_real_SOC_pptt) / 100.0;      // Convert to float and divide by 100
+  float socScaledFloat = static_cast<float>(system_scaled_SOC_pptt) / 100.0;  // Convert to float and divide by 100
+  float sohFloat = static_cast<float>(system_SOH_pptt) / 100.0;               // Convert to float and divide by 100
+  float voltageFloat = static_cast<float>(system_battery_voltage_dV) / 10.0;  // Convert to float and divide by 10
+  float currentFloat = static_cast<float>(system_battery_current_dA) / 10.0;  // Convert to float and divide by 10
+  float powerFloat = static_cast<float>(system_active_power_W);               // Convert to float
+  float tempMaxFloat = static_cast<float>(system_temperature_max_dC) / 10.0;  // Convert to float
+  float tempMinFloat = static_cast<float>(system_temperature_min_dC) / 10.0;  // Convert to float
+
+  JsonObject nestedBatteryStats = root.createNestedObject("Battery Statistics");
+
+  nestedBatteryStats["Real SOC"] = socRealFloat;
+  nestedBatteryStats["Scaled SOC"] = socScaledFloat;
+  nestedBatteryStats["SOH"] = sohFloat;
+  nestedBatteryStats["Voltage"] = voltageFloat;
+  nestedBatteryStats["Current"] = currentFloat;
+
+  nestedBatteryStats["Power"] = scalePowerValue(powerFloat, "", 1);
+  nestedBatteryStats["Total capacity"] = scalePowerValue(system_capacity_Wh, "h", 0);
+  nestedBatteryStats["Remaining capacity"] = scalePowerValue(system_remaining_capacity_Wh, "h", 1);
+  nestedBatteryStats["Max charge power"] = scalePowerValue(system_max_charge_power_W, "", 1);
+  nestedBatteryStats["Max discharge power"] = scalePowerValue(system_max_discharge_power_W, "", 1);
+
+  nestedBatteryStats["Cell max"] = String(system_cell_max_voltage_mV) + " mV";
+  nestedBatteryStats["Cell min"] = String(system_cell_min_voltage_mV) + " mV";
+  nestedBatteryStats["Temperature max"] = String(tempMaxFloat, 1) + " C";
+  nestedBatteryStats["Temperature min"] = String(tempMinFloat, 1) + " C";
+
+  // BMS Status
+  if (system_bms_status == ACTIVE) {
+    nestedBatteryStats["BMS Status"] = "OK";
+  } else if (system_bms_status == UPDATING) {
+    nestedBatteryStats["BMS Status"] = "UPDATING";
+  } else {
+    nestedBatteryStats["BMS Status"] = "FAULT";
+  }
+
+  // Battery chargins/discharging/idle state
+  if (system_battery_current_dA == 0) {
+    nestedBatteryStats["Battery State"] = "Idle";
+  } else if (system_battery_current_dA < 0) {
+    nestedBatteryStats["Battery State"] = "Discharging";
+  } else {  // > 0
+    nestedBatteryStats["Battery State"] = "Charging";
+  }
+
+  // Automatic contactor closing allowed
+  JsonObject nestedContactorNode = nestedBatteryStats.createNestedObject("Automatic contactor closing allowed");
+  nestedContactorNode["Battery"] = batteryAllowsContactorClosing;
+  nestedContactorNode["Inverter"] = inverterAllowsContactorClosing;
+  return response;
 }
 
 String inverterProtocolDescription() {
@@ -157,21 +157,21 @@ String batteryProtocolDescription() {
 #ifdef TEST_FAKE_BATTERY
   description += "Fake battery for testing purposes";
 #endif
-  
+
   return description;
 }
 
 String chargerProtocolDescription() {
-  
+
   String description = "";
-  
+
 #ifdef CHEVYVOLT_CHARGER
   description += "Chevy Volt Gen1 Charger";
 #endif
 #ifdef NISSANLEAF_CHARGER
   description += "Nissan LEAF 2013-2024 PDM charger";
 #endif
-  
+
   return description;
 }
 
@@ -190,7 +190,7 @@ String getLEDColour() {
       return "RED";
       break;
     case TEST_ALL_COLORS:
-      return  "RGB Testing loop";
+      return "RGB Testing loop";
       break;
     default:
       break;
@@ -199,14 +199,20 @@ String getLEDColour() {
 
 String wirelessStatusDescription(wl_status_t status) {
   switch (status) {
-    case WL_NO_SHIELD: return "No WiFi Shield";
-    case WL_IDLE_STATUS: return "Idle";
-    case WL_NO_SSID_AVAIL: return "No SSID Available";
-    case WL_SCAN_COMPLETED: return "Scan Completed";
-    case WL_CONNECTED: return "Connected";
-    case WL_CONNECT_FAILED: return "Connection Failed";
-    case WL_CONNECTION_LOST: return "Connection Lost";
-    case WL_DISCONNECTED: return "Disconnected";
+    case WL_NO_SHIELD:
+      return "No WiFi Shield";
+    case WL_IDLE_STATUS:
+      return "Idle";
+    case WL_NO_SSID_AVAIL:
+      return "Scan Completed";
+    case WL_CONNECTED:
+      return "Connected";
+    case WL_CONNECT_FAILED:
+      return "Connection Failed";
+    case WL_CONNECTION_LOST:
+      return "Connection Lost";
+    case WL_DISCONNECTED:
+      return "Disconnected";
   }
 }
 
