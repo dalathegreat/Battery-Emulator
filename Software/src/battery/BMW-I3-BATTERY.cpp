@@ -125,6 +125,13 @@ CAN_frame_t BMW_2E2 = {.FIR = {.B =
                                    }},
                        .MsgID = 0x2E2,
                        .data = {0x4F, 0xDB, 0x7F, 0xB9, 0x07, 0x51, 0xff, 0x00}};  // OK, Could be further improved
+CAN_frame_t BMW_30B = {.FIR = {.B =
+                                   {
+                                       .DLC = 8,
+                                       .FF = CAN_frame_std,
+                                   }},
+                       .MsgID = 0x30B,
+                       .data = {0xe1, 0xf0, 0xff, 0xff, 0xf1, 0xff, 0xff, 0xff}};  // Mapping OK
 CAN_frame_t BMW_328 = {.FIR = {.B =
                                    {
                                        .DLC = 6,
@@ -146,6 +153,13 @@ CAN_frame_t BMW_380 = {.FIR = {.B =
                                    }},
                        .MsgID = 0x380,
                        .data = {0x56, 0x5A, 0x37, 0x39, 0x34, 0x34, 0x34}};  // Mapping OK
+CAN_frame_t BMW_3A0 = {.FIR = {.B =
+                                   {
+                                       .DLC = 8,
+                                       .FF = CAN_frame_std,
+                                   }},
+                       .MsgID = 0x3A0,
+                       .data = {0xFF, 0xFF, 0xF0, 0xFF, 0xFF, 0xFF, 0xFF, 0xFC}};  // Mapping OK
 CAN_frame_t BMW_3A7 = {.FIR = {.B =
                                    {
                                        .DLC = 7,
@@ -153,6 +167,13 @@ CAN_frame_t BMW_3A7 = {.FIR = {.B =
                                    }},
                        .MsgID = 0x3A7,
                        .data = {0x05, 0xF5, 0x0A, 0x00, 0x4F, 0x11, 0xF0}};  // Mapping OK, could be improved
+CAN_frame_t BMW_3C5 = {.FIR = {.B =
+                                   {
+                                       .DLC = 8,
+                                       .FF = CAN_frame_std,
+                                   }},
+                       .MsgID = 0x3C5,
+                       .data = {0x30, 0x05, 0x47, 0x70, 0x2c, 0xce, 0xc3, 0x34}};  // Not mapped properly, sent static
 CAN_frame_t BMW_3CA = {.FIR = {.B =
                                    {
                                        .DLC = 8,
@@ -245,6 +266,20 @@ CAN_frame_t BMW_512 = {
                 }},
     .MsgID = 0x512,                                             // Required to keep BMS active
     .data = {0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x12}};  // 0x512 Network management, MappingOK
+CAN_frame_t BMW_592_0 = {.FIR = {.B =
+                                     {
+                                         .DLC = 8,
+                                         .FF = CAN_frame_std,
+                                     }},
+                         .MsgID = 0x592,
+                         .data = {0x86, 0x10, 0x07, 0x21, 0x6e, 0x35, 0x5e, 0x86}};  // Should be ok, todo, improve
+CAN_frame_t BMW_592_1 = {.FIR = {.B =
+                                     {
+                                         .DLC = 8,
+                                         .FF = CAN_frame_std,
+                                     }},
+                         .MsgID = 0x592,
+                         .data = {0x86, 0x21, 0xb4, 0xdd, 0x00, 0x00, 0x00, 0x00}};  // Should be ok, todo, improve
 CAN_frame_t BMW_5F8 = {
     .FIR = {.B =
                 {
@@ -262,6 +297,7 @@ static uint8_t alive_counter_20ms = 0;
 static uint8_t alive_counter_30ms = 0;
 static uint8_t alive_counter_100ms = 0;
 static uint8_t alive_counter_200ms = 0;
+static uint8_t alive_counter_500ms = 0;
 static uint8_t alive_counter_1000ms = 0;
 static uint8_t alive_counter_5000ms = 0;
 static uint8_t BMW_1D0_counter = 0;
@@ -618,6 +654,16 @@ void send_can_battery() {
   // Send 500ms CAN Message
   if (currentMillis - previousMillis500 >= interval500) {
     previousMillis500 = currentMillis;
+
+    BMW_30B.data.u8[1] = ((BMW_30B.data.u8[1] & 0xF0) + alive_counter_500ms);
+    BMW_30B.data.u8[0] = calculateCRC(BMW_30B, 8, 0xBE);
+
+    alive_counter_500ms++;
+    if (alive_counter_500ms > 14) {
+      alive_counter_500ms = 0;
+    }
+
+    ESP32Can.CANWriteFrame(&BMW_30B);
   }
   // Send 640ms CAN Message
   if (currentMillis - previousMillis640 >= interval640) {
@@ -688,17 +734,22 @@ void send_can_battery() {
   if (currentMillis - previousMillis5000 >= interval5000) {
     previousMillis5000 = currentMillis;
 
+    BMW_3FC.data.u8[1] = ((BMW_3FC.data.u8[1] & 0xF0) + alive_counter_5000ms);
+    BMW_3C5.data.u8[0] = ((BMW_3C5.data.u8[0] & 0xF0) + alive_counter_5000ms);
+
+    ESP32Can.CANWriteFrame(&BMW_3FC);
+    ESP32Can.CANWriteFrame(&BMW_3C5);  //This message has really strange period rate, this might not work
+    ESP32Can.CANWriteFrame(&BMW_3A0);
+    ESP32Can.CANWriteFrame(&BMW_592_0);  //TODO, could improve sending logic
+    ESP32Can.CANWriteFrame(&BMW_592_1);  //TODO, could improve sending logic
+
     alive_counter_5000ms++;
     if (alive_counter_5000ms > 14) {
       alive_counter_5000ms = 0;
     }
 
-    BMW_3FC.data.u8[1] = ((BMW_3FC.data.u8[1] & 0xF0) + alive_counter_5000ms);
-
-    ESP32Can.CANWriteFrame(&BMW_3FC);
-
     if (BMW_380_counter < 3) {
-      ESP32Can.CANWriteFrame(&BMW_380);  // This message stops after 3 times on startup
+      ESP32Can.CANWriteFrame(&BMW_380);  // This message stops after 3 times on startup (TODO, could be better)
       BMW_380_counter++;
     }
   }
