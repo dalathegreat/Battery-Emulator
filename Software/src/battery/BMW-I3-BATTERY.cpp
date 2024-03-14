@@ -306,6 +306,7 @@ static uint8_t BMW_380_counter = 0;
 static uint32_t BMW_328_counter = 0;
 static bool BMW_3E5_counter = 0;
 static bool BMW_3E8_counter = 0;
+static bool battery_awake = false;
 
 static uint32_t battery_serial_number = 0;
 static uint32_t battery_available_power_shortterm_charge = 0;
@@ -440,12 +441,7 @@ void update_values_battery() {  //This function maps all the values fetched via 
 void receive_can_battery(CAN_frame_t rx_frame) {
   switch (rx_frame.MsgID) {
     case 0x112:  //BMS status [10ms]
-      //Handle WUP signal
-      if (WUPState == POWERON) {
-        digitalWrite(WUP_PIN, HIGH);
-        WUPState = STATE_ON;
-      }
-
+      battery_awake = true;
       CANstillAlive = 12;  //This message is only sent if 30C signal is active
       battery_current = ((rx_frame.data.u8[1] << 8 | rx_frame.data.u8[0]) / 10) - 819;  //Amps
       battery_volts = (rx_frame.data.u8[3] << 8 | rx_frame.data.u8[2]);                 //500.0 V
@@ -486,6 +482,7 @@ void receive_can_battery(CAN_frame_t rx_frame) {
       battery_display_SOC = (rx_frame.data.u8[4] / 2);
       break;
     case 0x2BD:  //BMS [100ms] Status diagnosis high voltage 1
+      battery_awake = true;
       battery_status_diagnostics_HV = (rx_frame.data.u8[2] & 0x0F);
       break;
     case 0x430:  //BMS [1s] - Charging status of high-voltage battery 2
@@ -520,6 +517,7 @@ void receive_can_battery(CAN_frame_t rx_frame) {
       battery_BEV_available_power_longterm_discharge = (rx_frame.data.u8[7] << 8 | rx_frame.data.u8[6]) * 3;
       break;
     case 0x2FF:  //BMS [100ms] Status Heating High-Voltage Battery
+      battery_awake = true;
       battery_actual_value_power_heating = (rx_frame.data.u8[1] << 4 | rx_frame.data.u8[0] >> 4);
       break;
     case 0x3C2:  //BMS (94AH exclusive) - Content unknown
@@ -550,198 +548,200 @@ void receive_can_battery(CAN_frame_t rx_frame) {
 void send_can_battery() {
   unsigned long currentMillis = millis();
 
-  //Send 10ms message
-  if (currentMillis - previousMillis10 >= interval10) {
-    previousMillis10 = currentMillis;
+  if (battery_awake) {
+    //Send 10ms message
+    if (currentMillis - previousMillis10 >= interval10) {
+      previousMillis10 = currentMillis;
 
-    alive_counter_10ms++;
-    if (alive_counter_10ms > 14) {
-      alive_counter_10ms = 0;
+      alive_counter_10ms++;
+      if (alive_counter_10ms > 14) {
+        alive_counter_10ms = 0;
+      }
     }
-  }
-  //Send 20ms message
-  if (currentMillis - previousMillis20 >= interval20) {
-    previousMillis20 = currentMillis;
+    //Send 20ms message
+    if (currentMillis - previousMillis20 >= interval20) {
+      previousMillis20 = currentMillis;
 
-    if (startup_counter_contactor < 160) {
-      startup_counter_contactor++;
-    } else {                      //After 160 messages, turn on the request
-      BMW_10B.data.u8[1] = 0x10;  // Close contactors
+      if (startup_counter_contactor < 160) {
+        startup_counter_contactor++;
+      } else {                      //After 160 messages, turn on the request
+        BMW_10B.data.u8[1] = 0x10;  // Close contactors
+      }
+
+      if (system_bms_status == FAULT) {
+        BMW_10B.data.u8[1] = 0x00;  // Open contactors (todo test if works)
+      }
+
+      BMW_10B.data.u8[1] = ((BMW_10B.data.u8[1] & 0xF0) + alive_counter_20ms);
+      BMW_10B.data.u8[0] = calculateCRC(BMW_10B, 3, 0x3F);
+
+      alive_counter_20ms++;
+      if (alive_counter_20ms > 14) {
+        alive_counter_20ms = 0;
+      }
+
+      BMW_13E_counter++;
+      BMW_13E.data.u8[4] = BMW_13E_counter;
+
+      ESP32Can.CANWriteFrame(&BMW_10B);
     }
+    //Send 30ms message
+    if (currentMillis - previousMillis30 >= interval30) {
+      previousMillis30 = currentMillis;
 
-    if (system_bms_status == FAULT) {
-      BMW_10B.data.u8[1] = 0x00;  // Open contactors (todo test if works)
+      alive_counter_30ms++;
+      if (alive_counter_30ms > 14) {
+        alive_counter_30ms = 0;
+      }
     }
-
-    BMW_10B.data.u8[1] = ((BMW_10B.data.u8[1] & 0xF0) + alive_counter_20ms);
-    BMW_10B.data.u8[0] = calculateCRC(BMW_10B, 3, 0x3F);
-
-    alive_counter_20ms++;
-    if (alive_counter_20ms > 14) {
-      alive_counter_20ms = 0;
+    //Send 50ms message
+    if (currentMillis - previousMillis50 >= interval50) {
+      previousMillis50 = currentMillis;
     }
+    // Send 100ms CAN Message
+    if (currentMillis - previousMillis100 >= interval100) {
+      previousMillis100 = currentMillis;
 
-    BMW_13E_counter++;
-    BMW_13E.data.u8[4] = BMW_13E_counter;
+      BMW_12F.data.u8[1] = ((BMW_12F.data.u8[1] & 0xF0) + alive_counter_100ms);
+      BMW_12F.data.u8[0] = calculateCRC(BMW_12F, 8, 0x60);
 
-    ESP32Can.CANWriteFrame(&BMW_10B);
-  }
-  //Send 30ms message
-  if (currentMillis - previousMillis30 >= interval30) {
-    previousMillis30 = currentMillis;
+      alive_counter_100ms++;
+      if (alive_counter_100ms > 14) {
+        alive_counter_100ms = 0;
+      }
 
-    alive_counter_30ms++;
-    if (alive_counter_30ms > 14) {
-      alive_counter_30ms = 0;
+      ESP32Can.CANWriteFrame(&BMW_12F);
     }
-  }
-  //Send 50ms message
-  if (currentMillis - previousMillis50 >= interval50) {
-    previousMillis50 = currentMillis;
-  }
-  // Send 100ms CAN Message
-  if (currentMillis - previousMillis100 >= interval100) {
-    previousMillis100 = currentMillis;
+    // Send 200ms CAN Message
+    if (currentMillis - previousMillis200 >= interval200) {
+      previousMillis200 = currentMillis;
 
-    BMW_12F.data.u8[1] = ((BMW_12F.data.u8[1] & 0xF0) + alive_counter_100ms);
-    BMW_12F.data.u8[0] = calculateCRC(BMW_12F, 8, 0x60);
+      BMW_19B.data.u8[1] = ((BMW_19B.data.u8[1] & 0xF0) + alive_counter_100ms);
+      BMW_19B.data.u8[0] = calculateCRC(BMW_19B, 8, 0x6C);
 
-    alive_counter_100ms++;
-    if (alive_counter_100ms > 14) {
-      alive_counter_100ms = 0;
+      alive_counter_200ms++;
+      if (alive_counter_200ms > 14) {
+        alive_counter_200ms = 0;
+      }
+
+      ESP32Can.CANWriteFrame(&BMW_19B);
     }
+    // Send 500ms CAN Message
+    if (currentMillis - previousMillis500 >= interval500) {
+      previousMillis500 = currentMillis;
 
-    ESP32Can.CANWriteFrame(&BMW_12F);
-  }
-  // Send 200ms CAN Message
-  if (currentMillis - previousMillis200 >= interval200) {
-    previousMillis200 = currentMillis;
+      BMW_30B.data.u8[1] = ((BMW_30B.data.u8[1] & 0xF0) + alive_counter_500ms);
+      BMW_30B.data.u8[0] = calculateCRC(BMW_30B, 8, 0xBE);
 
-    BMW_19B.data.u8[1] = ((BMW_19B.data.u8[1] & 0xF0) + alive_counter_100ms);
-    BMW_19B.data.u8[0] = calculateCRC(BMW_19B, 8, 0x6C);
+      alive_counter_500ms++;
+      if (alive_counter_500ms > 14) {
+        alive_counter_500ms = 0;
+      }
 
-    alive_counter_200ms++;
-    if (alive_counter_200ms > 14) {
-      alive_counter_200ms = 0;
+      ESP32Can.CANWriteFrame(&BMW_30B);
     }
+    // Send 640ms CAN Message
+    if (currentMillis - previousMillis640 >= interval640) {
+      previousMillis640 = currentMillis;
 
-    ESP32Can.CANWriteFrame(&BMW_19B);
-  }
-  // Send 500ms CAN Message
-  if (currentMillis - previousMillis500 >= interval500) {
-    previousMillis500 = currentMillis;
-
-    BMW_30B.data.u8[1] = ((BMW_30B.data.u8[1] & 0xF0) + alive_counter_500ms);
-    BMW_30B.data.u8[0] = calculateCRC(BMW_30B, 8, 0xBE);
-
-    alive_counter_500ms++;
-    if (alive_counter_500ms > 14) {
-      alive_counter_500ms = 0;
+      ESP32Can.CANWriteFrame(&BMW_512);  // Keep BMS alive
+      ESP32Can.CANWriteFrame(&BMW_5F8);  // TODO, OK period?
     }
+    // Send 1000ms CAN Message
+    if (currentMillis - previousMillis1000 >= interval1000) {
+      previousMillis1000 = currentMillis;
 
-    ESP32Can.CANWriteFrame(&BMW_30B);
-  }
-  // Send 640ms CAN Message
-  if (currentMillis - previousMillis640 >= interval640) {
-    previousMillis640 = currentMillis;
+      BMW_328_counter++;
+      BMW_328.data.u8[0] = BMW_328_counter;  //rtc msg. needs to be every 1 sec. first 32 bits are 1 second wrap counter
+      BMW_328.data.u8[1] = BMW_328_counter << 8;
+      BMW_328.data.u8[2] = BMW_328_counter << 16;
+      BMW_328.data.u8[3] = BMW_328_counter << 24;
 
-    ESP32Can.CANWriteFrame(&BMW_512);  // Keep BMS alive
-    ESP32Can.CANWriteFrame(&BMW_5F8);  // TODO, OK period?
-  }
-  // Send 1000ms CAN Message
-  if (currentMillis - previousMillis1000 >= interval1000) {
-    previousMillis1000 = currentMillis;
+      BMW_1D0.data.u8[1] = ((BMW_1D0.data.u8[1] & 0xF0) + alive_counter_1000ms);
+      BMW_1D0.data.u8[0] = calculateCRC(BMW_1D0, 8, 0xF9);
 
-    BMW_328_counter++;
-    BMW_328.data.u8[0] = BMW_328_counter;  //rtc msg. needs to be every 1 sec. first 32 bits are 1 second wrap counter
-    BMW_328.data.u8[1] = BMW_328_counter << 8;
-    BMW_328.data.u8[2] = BMW_328_counter << 16;
-    BMW_328.data.u8[3] = BMW_328_counter << 24;
+      BMW_3F9.data.u8[1] = ((BMW_3F9.data.u8[1] & 0xF0) + alive_counter_1000ms);
+      BMW_3F9.data.u8[0] = calculateCRC(BMW_3F9, 8, 0x38);
 
-    BMW_1D0.data.u8[1] = ((BMW_1D0.data.u8[1] & 0xF0) + alive_counter_1000ms);
-    BMW_1D0.data.u8[0] = calculateCRC(BMW_1D0, 8, 0xF9);
+      BMW_3EC.data.u8[1] = ((BMW_3EC.data.u8[1] & 0xF0) + alive_counter_1000ms);
+      BMW_3EC.data.u8[0] = calculateCRC(BMW_3EC, 8, 0x53);
 
-    BMW_3F9.data.u8[1] = ((BMW_3F9.data.u8[1] & 0xF0) + alive_counter_1000ms);
-    BMW_3F9.data.u8[0] = calculateCRC(BMW_3F9, 8, 0x38);
+      BMW_3A7.data.u8[1] = ((BMW_3A7.data.u8[1] & 0xF0) + alive_counter_1000ms);
+      BMW_3A7.data.u8[0] = calculateCRC(BMW_3A7, 8, 0x05);
 
-    BMW_3EC.data.u8[1] = ((BMW_3EC.data.u8[1] & 0xF0) + alive_counter_1000ms);
-    BMW_3EC.data.u8[0] = calculateCRC(BMW_3EC, 8, 0x53);
+      if (BMW_328_counter > 1) {
+        BMW_433.data.u8[1] = 0x01;
+      }
 
-    BMW_3A7.data.u8[1] = ((BMW_3A7.data.u8[1] & 0xF0) + alive_counter_1000ms);
-    BMW_3A7.data.u8[0] = calculateCRC(BMW_3A7, 8, 0x05);
+      if (BMW_3E8_counter == 0) {
+        BMW_3E8_counter++;
+      } else {
+        BMW_3E8.data.u8[0] = 0xF1;
+      }
 
-    if (BMW_328_counter > 1) {
-      BMW_433.data.u8[1] = 0x01;
+      alive_counter_1000ms++;
+      if (alive_counter_1000ms > 14) {
+        alive_counter_1000ms = 0;
+      }
+
+      ESP32Can.CANWriteFrame(&BMW_3E8);
+      ESP32Can.CANWriteFrame(&BMW_328);
+      ESP32Can.CANWriteFrame(&BMW_3F9);
+      ESP32Can.CANWriteFrame(&BMW_2E2);
+      ESP32Can.CANWriteFrame(&BMW_41D);
+      ESP32Can.CANWriteFrame(&BMW_3D0);
+      ESP32Can.CANWriteFrame(&BMW_3CA);
+      ESP32Can.CANWriteFrame(&BMW_3A7);
+      ESP32Can.CANWriteFrame(&BMW_2CA);
+      ESP32Can.CANWriteFrame(&BMW_3FB);
+      ESP32Can.CANWriteFrame(&BMW_418);
+      ESP32Can.CANWriteFrame(&BMW_1D0);
+      ESP32Can.CANWriteFrame(&BMW_3EC);
+      ESP32Can.CANWriteFrame(&BMW_192);
+      ESP32Can.CANWriteFrame(&BMW_13E);
+      ESP32Can.CANWriteFrame(&BMW_433);
     }
-
-    if (BMW_3E8_counter == 0) {
-      BMW_3E8_counter++;
-    } else {
-      BMW_3E8.data.u8[0] = 0xF1;
+    // Send 2000ms CAN Message
+    if (currentMillis - previousMillis2000 >= interval2000) {
+      previousMillis2000 = currentMillis;
     }
+    // Send 5000ms CAN Message
+    if (currentMillis - previousMillis5000 >= interval5000) {
+      previousMillis5000 = currentMillis;
 
-    alive_counter_1000ms++;
-    if (alive_counter_1000ms > 14) {
-      alive_counter_1000ms = 0;
+      BMW_3FC.data.u8[1] = ((BMW_3FC.data.u8[1] & 0xF0) + alive_counter_5000ms);
+      BMW_3C5.data.u8[0] = ((BMW_3C5.data.u8[0] & 0xF0) + alive_counter_5000ms);
+
+      ESP32Can.CANWriteFrame(&BMW_3FC);
+      ESP32Can.CANWriteFrame(&BMW_3C5);  //This message has really strange period rate, this might not work
+      ESP32Can.CANWriteFrame(&BMW_3A0);
+      ESP32Can.CANWriteFrame(&BMW_592_0);  //TODO, could improve sending logic
+      ESP32Can.CANWriteFrame(&BMW_592_1);  //TODO, could improve sending logic
+
+      alive_counter_5000ms++;
+      if (alive_counter_5000ms > 14) {
+        alive_counter_5000ms = 0;
+      }
+
+      if (BMW_380_counter < 3) {
+        ESP32Can.CANWriteFrame(&BMW_380);  // This message stops after 3 times on startup (TODO, could be better)
+        BMW_380_counter++;
+      }
     }
+    // Send 10000ms CAN Message
+    if (currentMillis - previousMillis10000 >= interval10000) {
+      previousMillis10000 = currentMillis;
 
-    ESP32Can.CANWriteFrame(&BMW_3E8);
-    ESP32Can.CANWriteFrame(&BMW_328);
-    ESP32Can.CANWriteFrame(&BMW_3F9);
-    ESP32Can.CANWriteFrame(&BMW_2E2);
-    ESP32Can.CANWriteFrame(&BMW_41D);
-    ESP32Can.CANWriteFrame(&BMW_3D0);
-    ESP32Can.CANWriteFrame(&BMW_3CA);
-    ESP32Can.CANWriteFrame(&BMW_3A7);
-    ESP32Can.CANWriteFrame(&BMW_2CA);
-    ESP32Can.CANWriteFrame(&BMW_3FB);
-    ESP32Can.CANWriteFrame(&BMW_418);
-    ESP32Can.CANWriteFrame(&BMW_1D0);
-    ESP32Can.CANWriteFrame(&BMW_3EC);
-    ESP32Can.CANWriteFrame(&BMW_192);
-    ESP32Can.CANWriteFrame(&BMW_13E);
-    ESP32Can.CANWriteFrame(&BMW_433);
-  }
-  // Send 2000ms CAN Message
-  if (currentMillis - previousMillis2000 >= interval2000) {
-    previousMillis2000 = currentMillis;
-  }
-  // Send 5000ms CAN Message
-  if (currentMillis - previousMillis5000 >= interval5000) {
-    previousMillis5000 = currentMillis;
+      if (BMW_3E5_counter == 0) {
+        BMW_3E5_counter++;
+      } else {
+        BMW_3E5.data.u8[0] = 0xFD;
+      }
 
-    BMW_3FC.data.u8[1] = ((BMW_3FC.data.u8[1] & 0xF0) + alive_counter_5000ms);
-    BMW_3C5.data.u8[0] = ((BMW_3C5.data.u8[0] & 0xF0) + alive_counter_5000ms);
-
-    ESP32Can.CANWriteFrame(&BMW_3FC);
-    ESP32Can.CANWriteFrame(&BMW_3C5);  //This message has really strange period rate, this might not work
-    ESP32Can.CANWriteFrame(&BMW_3A0);
-    ESP32Can.CANWriteFrame(&BMW_592_0);  //TODO, could improve sending logic
-    ESP32Can.CANWriteFrame(&BMW_592_1);  //TODO, could improve sending logic
-
-    alive_counter_5000ms++;
-    if (alive_counter_5000ms > 14) {
-      alive_counter_5000ms = 0;
+      ESP32Can.CANWriteFrame(&BMW_3E5);
+      ESP32Can.CANWriteFrame(&BMW_3E4);
+      ESP32Can.CANWriteFrame(&BMW_37B);
     }
-
-    if (BMW_380_counter < 3) {
-      ESP32Can.CANWriteFrame(&BMW_380);  // This message stops after 3 times on startup (TODO, could be better)
-      BMW_380_counter++;
-    }
-  }
-  // Send 10000ms CAN Message
-  if (currentMillis - previousMillis10000 >= interval10000) {
-    previousMillis10000 = currentMillis;
-
-    if (BMW_3E5_counter == 0) {
-      BMW_3E5_counter++;
-    } else {
-      BMW_3E5.data.u8[0] = 0xFD;
-    }
-
-    ESP32Can.CANWriteFrame(&BMW_3E5);
-    ESP32Can.CANWriteFrame(&BMW_3E4);
-    ESP32Can.CANWriteFrame(&BMW_37B);
   }
 }
 
@@ -750,6 +750,8 @@ void setup_battery(void) {  // Performs one time setup at startup
 
   system_max_design_voltage_dV = 4040;  // 404.4V, over this, charging is not possible (goes into forced discharge)
   system_min_design_voltage_dV = 3100;  // 310.0V under this, discharging further is disabled
+
+  digitalWrite(WUP_PIN, HIGH);  // Wake up the battery
 }
 
 #endif
