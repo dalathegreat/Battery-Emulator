@@ -42,8 +42,8 @@ static uint8_t batteryRelay = 0;
 static int8_t powerRelayTemperature = 0;
 static uint16_t inverterVoltageFrameHigh = 0;
 static uint16_t inverterVoltage = 0;
-static uint8_t startedUp = false;
-static uint8_t counter_200 = 0;
+static bool battery_started = false;
+static uint8_t contactor_200_message = 0;
 static uint16_t cellvoltages_mv[98];
 
 CAN_frame_t KIA_HYUNDAI_200 = {.FIR = {.B =
@@ -236,6 +236,7 @@ void update_values_battery() {  //This function maps all the values fetched via 
   if (system_bms_status == FAULT) {  //Incase we enter a critical fault state, zero out the allowed limits
     system_max_charge_power_W = 0;
     system_max_discharge_power_W = 0;
+    contactor_200_message = 0;  //Open contactors
   }
 
   /* Safeties verified. Perform USB serial printout if configured to do so */
@@ -314,7 +315,7 @@ void receive_can_battery(CAN_frame_t rx_frame) {
     case 0x595:
       batteryVoltage = (rx_frame.data.u8[7] << 8) + rx_frame.data.u8[6];
       batteryAmps = (rx_frame.data.u8[5] << 8) + rx_frame.data.u8[4];
-      if (counter_200 > 3) {
+      if (contactor_200_message > 3) {
         KIA_HYUNDAI_524.data.u8[0] = (uint8_t)(batteryVoltage / 10);
         KIA_HYUNDAI_524.data.u8[1] = (uint8_t)((batteryVoltage / 10) >> 8);
       }  //VCU measured voltage sent back to bms
@@ -331,7 +332,7 @@ void receive_can_battery(CAN_frame_t rx_frame) {
       powerRelayTemperature = rx_frame.data.u8[7];
       break;
     case 0x5D8:
-      startedUp = 1;
+      battery_started = true;
 
       //PID data is polled after last message sent from battery:
       if (poll_data_pid >= 10) {  //polling one of ten PIDs at 100ms, resolution = 1s
@@ -543,47 +544,47 @@ void send_can_battery() {
   if (currentMillis - previousMillis10ms >= interval10ms) {
     previousMillis10ms = currentMillis;
 
-    switch (counter_200) {
+    switch (contactor_200_message) {
       case 0:
         KIA_HYUNDAI_200.data.u8[5] = 0x17;
-        ++counter_200;
+        ++contactor_200_message;
         break;
       case 1:
         KIA_HYUNDAI_200.data.u8[5] = 0x57;
-        ++counter_200;
+        ++contactor_200_message;
         break;
       case 2:
         KIA_HYUNDAI_200.data.u8[5] = 0x97;
-        ++counter_200;
+        ++contactor_200_message;
         break;
       case 3:
         KIA_HYUNDAI_200.data.u8[5] = 0xD7;
-        if (startedUp) {
-          ++counter_200;
+        if (battery_started && (system_bms_status == ACTIVE)) {
+          ++contactor_200_message;
         } else {
-          counter_200 = 0;
+          contactor_200_message = 0;
         }
         break;
       case 4:
         KIA_HYUNDAI_200.data.u8[3] = 0x10;
         KIA_HYUNDAI_200.data.u8[5] = 0xFF;
-        ++counter_200;
+        ++contactor_200_message;
         break;
       case 5:
         KIA_HYUNDAI_200.data.u8[5] = 0x3B;
-        ++counter_200;
+        ++contactor_200_message;
         break;
       case 6:
         KIA_HYUNDAI_200.data.u8[5] = 0x7B;
-        ++counter_200;
+        ++contactor_200_message;
         break;
       case 7:
         KIA_HYUNDAI_200.data.u8[5] = 0xBB;
-        ++counter_200;
+        ++contactor_200_message;
         break;
       case 8:
         KIA_HYUNDAI_200.data.u8[5] = 0xFB;
-        counter_200 = 5;
+        contactor_200_message = 5;
         break;
     }
 
