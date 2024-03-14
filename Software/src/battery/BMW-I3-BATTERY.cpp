@@ -38,7 +38,7 @@ static const uint16_t WUPonDuration = 477;   // in milliseconds how long WUP sho
 static const uint16_t WUPoffDuration = 105;  // in milliseconds how long WUP should be OFF after on pulse
 unsigned long lastChangeTime;                // Variables to store timestamps
 unsigned long turnOnTime;                    // Variables to store timestamps
-enum State { POWERON, STATE_ON, STATE_OFF, STATE_STAY_ON };
+enum State { POWERON, STATE_ON, STATE_OFF };
 static State WUPState = POWERON;
 
 const unsigned char crc8_table[256] =
@@ -449,7 +449,13 @@ void update_values_battery() {  //This function maps all the values fetched via 
 
 void receive_can_battery(CAN_frame_t rx_frame) {
   switch (rx_frame.MsgID) {
-    case 0x112:            //BMS status [10ms]
+    case 0x112:  //BMS status [10ms]
+      //Handle WUP signal
+      if (WUPState == POWERON) {
+        digitalWrite(WUP_PIN, HIGH);
+        WUPState = STATE_ON;
+      }
+
       CANstillAlive = 12;  //This message is only sent if 30C signal is active
       battery_current = ((rx_frame.data.u8[1] << 8 | rx_frame.data.u8[0]) / 10) - 819;  //Amps
       battery_volts = (rx_frame.data.u8[3] << 8 | rx_frame.data.u8[2]);                 //500.0 V
@@ -553,26 +559,6 @@ void receive_can_battery(CAN_frame_t rx_frame) {
 }
 void send_can_battery() {
   unsigned long currentMillis = millis();
-
-  //Handle WUP signal
-  if (WUPState == POWERON) {
-    digitalWrite(WUP_PIN, HIGH);
-    turnOnTime = currentMillis;
-    WUPState = STATE_ON;
-  }
-
-  // Check if it's time to change state
-  if (WUPState == STATE_ON && currentMillis - turnOnTime >= WUPonDuration) {
-    WUPState = STATE_OFF;
-    digitalWrite(WUP_PIN, LOW);  // Turn off
-    lastChangeTime = currentMillis;
-  } else if (WUPState == STATE_OFF && currentMillis - lastChangeTime >= WUPoffDuration) {
-    WUPState = STATE_STAY_ON;
-    digitalWrite(WUP_PIN, HIGH);  // Turn on and stay on
-    lastChangeTime = currentMillis;
-  } else if (WUPState == STATE_STAY_ON) {
-    // Do nothing, stay in this state forever
-  }
 
   //Send 10ms message
   if (currentMillis - previousMillis10 >= interval10) {
