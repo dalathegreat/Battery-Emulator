@@ -412,38 +412,28 @@ void update_values_battery() {  //This function maps all the values fetched via 
   }
 
 #ifdef DEBUG_VIA_USB
-  Serial.print("Battery values: ");
-  Serial.print("SOC% raw: ");
-  Serial.print(battery_display_SOC);
-  Serial.print(" Voltage: ");
-  Serial.print(battery_volts);
-  Serial.print(" Current: ");
-  Serial.print(battery_current);
-  Serial.print(" kWh remaining: ");
-  Serial.print(battery_energy_content_maximum_kWh);
-  Serial.print(" Temperature: ");
-  Serial.print(battery_temperature_HV);
-  Serial.print(" Max charge voltage: ");
-  Serial.print(battery_max_charge_voltage / 10);
-  Serial.print(" Min discharge voltage: ");
-  Serial.print(battery_min_discharge_voltage / 10);
-  Serial.print(" Max charge current: ");
-  Serial.print(battery_max_charge_amperage);
-  Serial.print(" Max discharge current: ");
-  Serial.print(battery_max_discharge_amperage);
-
   Serial.println(" ");
   Serial.print("Values sent to inverter: ");
-  Serial.print("SOC%: ");
-  Serial.print(system_scaled_SOC_pptt);
+  Serial.print("Real SOC%: ");
+  Serial.print(system_real_SOC_pptt * 0.01);
   Serial.print(" Battery voltage: ");
-  Serial.print(system_battery_voltage_dV);
+  Serial.print(system_battery_voltage_dV * 0.1);
+  Serial.print(" Battery current: ");
+  Serial.print(system_battery_current_dA * 0.1);
+  Serial.print(" Wh when full: ");
+  Serial.print(system_capacity_Wh);
   Serial.print(" Remaining Wh: ");
   Serial.print(system_remaining_capacity_Wh);
   Serial.print(" Max charge power: ");
   Serial.print(system_max_charge_power_W);
   Serial.print(" Max discharge power: ");
   Serial.print(system_max_discharge_power_W);
+  Serial.print(" Active power: ");
+  Serial.print(system_active_power_W);
+  Serial.print(" Min temp: ");
+  Serial.print(system_temperature_min_dC * 0.1);
+  Serial.print(" Max temp: ");
+  Serial.print(system_temperature_max_dC * 0.1);
 #endif
 }
 
