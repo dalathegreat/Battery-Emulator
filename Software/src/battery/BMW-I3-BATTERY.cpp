@@ -32,7 +32,7 @@ static const int interval5000 = 5000;          // interval (ms) at which send CA
 static const int interval10000 = 10000;        // interval (ms) at which send CAN Messages
 static uint8_t CANstillAlive = 12;             // counter for checking if CAN is still alive
 static uint16_t CANerror = 0;                  // counter on how many CAN errors encountered
-#define MAX_CAN_FAILURES 5000                  // Amount of malformed CAN messages to allow before raising a warning
+#define MAX_CAN_FAILURES 500                   // Amount of malformed CAN messages to allow before raising a warning
 
 static const uint16_t WUPonDuration = 477;   // in milliseconds how long WUP should be ON after poweron
 static const uint16_t WUPoffDuration = 105;  // in milliseconds how long WUP should be OFF after on pulse
@@ -365,7 +365,7 @@ static uint8_t battery_status_diagnosis_powertrain_immediate_multiplexer = 0;
 static uint8_t battery_ID2 = 0;
 static uint8_t battery_cellvoltage_mux = 0;
 
-uint8_t calculateCRC(CAN_frame_t rx_frame, uint8_t length, uint8_t initial_value) {
+static uint8_t calculateCRC(CAN_frame_t rx_frame, uint8_t length, uint8_t initial_value) {
   uint8_t crc = initial_value;
   for (uint8_t j = 1; j < length; j++) {  //start at 1, since 0 is the CRC
     crc = crc8_table[(crc ^ static_cast<uint8_t>(rx_frame.data.u8[j])) % 256];
@@ -449,12 +449,8 @@ void receive_can_battery(CAN_frame_t rx_frame) {
       battery_charging_condition_delta = (rx_frame.data.u8[6] & 0xF0) >> 4;
       battery_DC_link_voltage = rx_frame.data.u8[7];
       break;
-    case 0x239:  //BMS [200ms]
-      /*  if (is_message_corrupt(rx_frame)) {
-        CANerror++;
-        break;  //Message content malformed, abort reading data from it
-      }*/
-      battery_predicted_energy_charge_condition = (rx_frame.data.u8[2] << 8 | rx_frame.data.u8[1]);          //Wh
+    case 0x239:                                                                                      //BMS [200ms]
+      battery_predicted_energy_charge_condition = (rx_frame.data.u8[2] << 8 | rx_frame.data.u8[1]);  //Wh
       battery_predicted_energy_charging_target = ((rx_frame.data.u8[4] << 8 | rx_frame.data.u8[3]) * 0.02);  //kWh
       break;
     case 0x2F5:  //BMS [100ms] High-Voltage Battery Charge/Discharge Limitations
@@ -480,6 +476,11 @@ void receive_can_battery(CAN_frame_t rx_frame) {
       break;
     case 0x2BD:  //BMS [100ms] Status diagnosis high voltage 1
       battery_awake = true;
+      if (calculateCRC(rx_frame, 3, 0x3F) != rx_frame.data.u8[0]) {
+        //If calculated CRC does not match transmitted CRC, raise fault
+        CANerror++;
+        break;
+      }
       battery_status_diagnostics_HV = (rx_frame.data.u8[2] & 0x0F);
       break;
     case 0x430:  //BMS [1s] - Charging status of high-voltage battery 2
