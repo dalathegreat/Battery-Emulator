@@ -6,28 +6,20 @@
 #include "BMW-I3-BATTERY.h"
 
 /* Do not change code below unless you are sure what you are doing */
-static unsigned long previousMillis10 = 0;     // will store last time a 10ms CAN Message was send
 static unsigned long previousMillis20 = 0;     // will store last time a 20ms CAN Message was send
-static unsigned long previousMillis30 = 0;     // will store last time a 30ms CAN Message was send
-static unsigned long previousMillis50 = 0;     // will store last time a 50ms CAN Message was send
 static unsigned long previousMillis100 = 0;    // will store last time a 100ms CAN Message was send
 static unsigned long previousMillis200 = 0;    // will store last time a 200ms CAN Message was send
 static unsigned long previousMillis500 = 0;    // will store last time a 500ms CAN Message was send
 static unsigned long previousMillis640 = 0;    // will store last time a 600ms CAN Message was send
 static unsigned long previousMillis1000 = 0;   // will store last time a 1000ms CAN Message was send
-static unsigned long previousMillis2000 = 0;   // will store last time a 2000ms CAN Message was send
 static unsigned long previousMillis5000 = 0;   // will store last time a 5000ms CAN Message was send
 static unsigned long previousMillis10000 = 0;  // will store last time a 10000ms CAN Message was send
-static const int interval10 = 10;              // interval (ms) at which send CAN Messages
 static const int interval20 = 20;              // interval (ms) at which send CAN Messages
-static const int interval30 = 30;              // interval (ms) at which send CAN Messages
-static const int interval50 = 50;              // interval (ms) at which send CAN Messages
 static const int interval100 = 100;            // interval (ms) at which send CAN Messages
 static const int interval200 = 200;            // interval (ms) at which send CAN Messages
 static const int interval500 = 500;            // interval (ms) at which send CAN Messages
 static const int interval640 = 640;            // interval (ms) at which send CAN Messages
 static const int interval1000 = 1000;          // interval (ms) at which send CAN Messages
-static const int interval2000 = 2000;          // interval (ms) at which send CAN Messages
 static const int interval5000 = 5000;          // interval (ms) at which send CAN Messages
 static const int interval10000 = 10000;        // interval (ms) at which send CAN Messages
 static uint8_t CANstillAlive = 12;             // counter for checking if CAN is still alive
@@ -285,9 +277,7 @@ CAN_frame_t BMW_5F8 = {.FIR = {.B =
 //The above CAN messages need to be sent towards the battery to keep it alive
 
 static uint8_t startup_counter_contactor = 0;
-static uint8_t alive_counter_10ms = 0;
 static uint8_t alive_counter_20ms = 0;
-static uint8_t alive_counter_30ms = 0;
 static uint8_t alive_counter_100ms = 0;
 static uint8_t alive_counter_200ms = 0;
 static uint8_t alive_counter_500ms = 0;
@@ -563,15 +553,6 @@ void send_can_battery() {
   unsigned long currentMillis = millis();
 
   if (battery_awake) {
-    //Send 10ms message
-    if (currentMillis - previousMillis10 >= interval10) {
-      previousMillis10 = currentMillis;
-
-      alive_counter_10ms++;
-      if (alive_counter_10ms > 14) {
-        alive_counter_10ms = 0;
-      }
-    }
     //Send 20ms message
     if (currentMillis - previousMillis20 >= interval20) {
       previousMillis20 = currentMillis;
@@ -598,19 +579,6 @@ void send_can_battery() {
       BMW_13E.data.u8[4] = BMW_13E_counter;
 
       ESP32Can.CANWriteFrame(&BMW_10B);
-    }
-    //Send 30ms message
-    if (currentMillis - previousMillis30 >= interval30) {
-      previousMillis30 = currentMillis;
-
-      alive_counter_30ms++;
-      if (alive_counter_30ms > 14) {
-        alive_counter_30ms = 0;
-      }
-    }
-    //Send 50ms message
-    if (currentMillis - previousMillis50 >= interval50) {
-      previousMillis50 = currentMillis;
     }
     // Send 100ms CAN Message
     if (currentMillis - previousMillis100 >= interval100) {
@@ -714,10 +682,6 @@ void send_can_battery() {
       ESP32Can.CANWriteFrame(&BMW_192);
       ESP32Can.CANWriteFrame(&BMW_13E);
       ESP32Can.CANWriteFrame(&BMW_433);
-    }
-    // Send 2000ms CAN Message
-    if (currentMillis - previousMillis2000 >= interval2000) {
-      previousMillis2000 = currentMillis;
     }
     // Send 5000ms CAN Message
     if (currentMillis - previousMillis5000 >= interval5000) {
