@@ -19,6 +19,7 @@
 #include "src/lib/miwagner-ESP32-Arduino-CAN/ESP32CAN.h"
 
 #ifdef WEBSERVER
+#include <ESPmDNS.h>
 #include "src/devboard/webserver/webserver.h"
 #endif
 
@@ -149,6 +150,8 @@ void setup() {
 
   init_battery();
 
+  init_mDNS();
+
   // BOOT button at runtime is used as an input for various things
   pinMode(0, INPUT_PULLUP);
 }
@@ -205,6 +208,23 @@ void loop() {
     test_all_colors = false;
   } else {
     test_all_colors = true;
+  }
+}
+
+// Initialise mDNS
+void init_mDNS() {
+
+  // Calulate the host name using the last two chars from the MAC address so each one is likely unique on a network.
+  // e.g batteryemulator8C.local where the mac address is 08:F9:E0:D1:06:8C
+  String mac = WiFi.macAddress();
+  String mdnsHost = "batteryemulator" + mac.substring(mac.length() - 2);
+
+  // Initialize mDNS .local resolution
+  if (!MDNS.begin(mdnsHost)) {
+    Serial.println("Error setting up MDNS responder!");
+  } else {
+    // Advertise via bonjour the service so we can auto discover these battery emulators on the local network.
+    MDNS.addService("battery_emulator", "tcp", 80);
   }
 }
 
