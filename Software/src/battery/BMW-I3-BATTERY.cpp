@@ -288,8 +288,6 @@ static uint8_t BMW_1D0_counter = 0;
 static uint8_t BMW_13E_counter = 0;
 static uint8_t BMW_380_counter = 0;
 static uint32_t BMW_328_counter = 0;
-static bool BMW_3E5_counter = 0;
-static bool BMW_3E8_counter = 0;
 static bool battery_awake = false;
 
 static uint32_t battery_serial_number = 0;
@@ -648,16 +646,6 @@ void send_can_battery() {
       BMW_3A7.data.u8[1] = ((BMW_3A7.data.u8[1] & 0xF0) + alive_counter_1000ms);
       BMW_3A7.data.u8[0] = calculateCRC(BMW_3A7, 8, 0x05);
 
-      if (BMW_328_counter > 1) {
-        BMW_433.data.u8[1] = 0x01;
-      }  // First 433 message byte1 we send is unique, once we sent initial value send this
-
-      if (BMW_3E8_counter == 0) {
-        BMW_3E8_counter++;
-      } else {  // First 3E8 message byte0 we send is unique, once we sent initial value send this
-        BMW_3E8.data.u8[0] = 0xF1;
-      }
-
       alive_counter_1000ms = increment_alive_counter(alive_counter_1000ms);
 
       ESP32Can.CANWriteFrame(&BMW_3E8);  //Order comes from CAN logs
@@ -676,6 +664,9 @@ void send_can_battery() {
       ESP32Can.CANWriteFrame(&BMW_192);
       ESP32Can.CANWriteFrame(&BMW_13E);
       ESP32Can.CANWriteFrame(&BMW_433);
+
+      BMW_433.data.u8[1] = 0x01;  // First 433 message byte1 we send is unique, once we sent initial value send this
+      BMW_3E8.data.u8[0] = 0xF1;  // First 3E8 message byte0 we send is unique, once we sent initial value send this
     }
     // Send 5000ms CAN Message
     if (currentMillis - previousMillis5000 >= interval5000) {
@@ -701,15 +692,11 @@ void send_can_battery() {
     if (currentMillis - previousMillis10000 >= interval10000) {
       previousMillis10000 = currentMillis;
 
-      if (BMW_3E5_counter == 0) {
-        BMW_3E5_counter++;
-      } else {  // First 3E5 message byte0 we send is unique, once we sent initial value send this
-        BMW_3E5.data.u8[0] = 0xFD;
-      }
-
       ESP32Can.CANWriteFrame(&BMW_3E5);  //Order comes from CAN logs
       ESP32Can.CANWriteFrame(&BMW_3E4);
       ESP32Can.CANWriteFrame(&BMW_37B);
+
+      BMW_3E5.data.u8[0] = 0xFD;  // First 3E5 message byte0 we send is unique, once we sent initial value send this
     }
   }
 }
