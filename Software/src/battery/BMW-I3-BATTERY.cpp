@@ -474,7 +474,7 @@ void receive_can_battery(CAN_frame_t rx_frame) {
     case 0x2BD:  //BMS [100ms] Status diagnosis high voltage - 1
       battery_awake = true;
       if (calculateCRC(rx_frame, 3, 0x15) != rx_frame.data.u8[0]) {
-        //If calculated CRC does not match transmitted CRC, raise fault
+        //If calculated CRC does not match transmitted CRC, increase CANerror counter
         CANerror++;
         break;
       }
