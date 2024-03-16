@@ -601,7 +601,7 @@ void send_can_battery() {
     if (currentMillis - previousMillis200 >= interval200) {
       previousMillis200 = currentMillis;
 
-      BMW_19B.data.u8[1] = ((BMW_19B.data.u8[1] & 0xF0) + alive_counter_100ms);
+      BMW_19B.data.u8[1] = ((BMW_19B.data.u8[1] & 0xF0) + alive_counter_200ms);
       BMW_19B.data.u8[0] = calculateCRC(BMW_19B, 8, 0x6C);
 
       alive_counter_200ms = increment_alive_counter(alive_counter_200ms);
