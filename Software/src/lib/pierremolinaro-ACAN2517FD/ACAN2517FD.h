@@ -9,10 +9,10 @@
 
 //----------------------------------------------------------------------------------------------------------------------
 
-#include <ACAN2517FDSettings.h>
-#include <ACANFDBuffer.h>
-#include <CANMessage.h>
-#include <ACAN2517FDFilters.h>
+#include "ACAN2517FDSettings.h"
+#include "ACANFDBuffer.h"
+#include "CANMessage.h"
+#include "ACAN2517FDFilters.h"
 #include <SPI.h>
 
 //----------------------------------------------------------------------------------------------------------------------

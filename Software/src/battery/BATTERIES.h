@@ -15,6 +15,10 @@
 #include "IMIEV-CZERO-ION-BATTERY.h"  //See this file for more triplet battery settings
 #endif
 
+#ifdef KIA_E_GMP_BATTERY
+#include "KIA-E-GMP-BATTERY.h"  //See this file for more GMP battery settings
+#endif
+
 #ifdef KIA_HYUNDAI_64_BATTERY
 #include "KIA-HYUNDAI-64-BATTERY.h"  //See this file for more 64kWh battery settings
 #endif

@@ -44,7 +44,12 @@ static ACAN2515_Buffer16 gBuffer;
 #endif
 #ifdef CAN_FD
 #include "src/lib/pierremolinaro-ACAN2517FD/ACAN2517FD.h"
-ACAN2517FD can (MCP2517_CS, SPI1, MCP2517_INT) ;
+ACAN2517FD canfd (MCP2517_CS, SPI, MCP2517_INT);
+
+static uint32_t gSendDate = 0 ;
+static uint32_t gReceiveDate = 0 ;
+static uint32_t gReceivedFrameCount = 0 ;
+static uint32_t gSentFrameCount = 0 ;
 #endif
 
 // ModbusRTU parameters
@@ -162,6 +167,30 @@ void setup() {
 
 // Perform main program functions
 void loop() {
+
+  CANFDMessage frame ;
+  if (gSendDate < millis ()) {
+    gSendDate += 1000 ;
+    const bool ok = canfd.tryToSend (frame) ;
+    if (ok) {
+      gSentFrameCount += 1 ;
+      Serial.print ("Sent: ") ;
+      Serial.print (gSentFrameCount) ;
+    }else{
+      Serial.print ("Send failure") ;
+    }
+    Serial.print (", receive overflows: ") ;
+    Serial.println (canfd.hardwareReceiveBufferOverflowCount ()) ;
+  }
+  if (gReceiveDate < millis ()) {
+    gReceiveDate += 4567 ;
+    while (canfd.available ()) {
+      canfd.receive (frame) ;
+      gReceivedFrameCount ++ ;
+      Serial.print ("Received: ") ;
+      Serial.println (gReceivedFrameCount) ;
+    }
+  }
 
 #ifdef WEBSERVER
   // Over-the-air updates by ElegantOTA
@@ -294,6 +323,40 @@ void init_CAN() {
   ACAN2515Settings settings(QUARTZ_FREQUENCY, 500UL * 1000UL);  // CAN bit rate 500 kb/s
   settings.mRequestedMode = ACAN2515Settings::NormalMode;       // Select loopback mode
   can.begin(settings, [] { can.isr(); });
+#endif
+
+#ifdef CAN_FD
+  Serial.println("CAN FD add-on (ESP32+MCP2517) selected");
+  SPI.begin(MCP2517_SCK, MCP2517_SDO, MCP2517_SDI);
+  // Arbitration bit rate: 125 kbit/s, data bit rate: 500 kbit/s
+  ACAN2517FDSettings settingsfd (ACAN2517FDSettings::OSC_4MHz10xPLL, 125 * 1000, DataBitRateFactor::x1);
+  //ACAN2517FDSettings settings (ACAN2517FDSettings::OSC_4MHz10xPLL, 125 * 1000, ACAN2517FDSettings::DATA_BITRATE_x4) ;
+  settingsfd.mRequestedMode = ACAN2517FDSettings::InternalLoopBack ; // Select loopback mode
+  settingsfd.mDriverReceiveFIFOSize = 200; // What does this do?
+  settingsfd.mDriverTransmitFIFOSize = 1 ; //Low ram mode for arduino Uno
+  settingsfd.mDriverReceiveFIFOSize = 1 ; //Low ram mode for arduino Uno
+  const uint32_t errorCode = canfd.begin (settingsfd, [] { canfd.isr () ; }) ;
+if (errorCode == 0) {
+    Serial.print ("Bit Rate prescaler: ") ;
+    Serial.println (settingsfd.mBitRatePrescaler) ;
+    Serial.print ("Arbitration Phase segment 1: ") ;
+    Serial.println (settingsfd.mArbitrationPhaseSegment1) ;
+    Serial.print ("Arbitration Phase segment 2: ") ;
+    Serial.println (settingsfd.mArbitrationPhaseSegment2) ;
+    Serial.print ("Arbitration SJW:") ;
+    Serial.println (settingsfd.mArbitrationSJW) ;
+    Serial.print ("Actual Arbitration Bit Rate: ") ;
+    Serial.print (settingsfd.actualArbitrationBitRate ()) ;
+    Serial.println (" bit/s") ;
+    Serial.print ("Exact Arbitration Bit Rate ? ") ;
+    Serial.println (settingsfd.exactArbitrationBitRate () ? "yes" : "no") ;
+    Serial.print ("Arbitration Sample point: ") ;
+    Serial.print (settingsfd.arbitrationSamplePointFromBitStart ()) ;
+    Serial.println ("%") ;
+  }else{
+    Serial.print ("Configuration error 0x") ;
+    Serial.println (errorCode, HEX) ;
+  }
 #endif
 }
 
