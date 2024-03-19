@@ -44,7 +44,7 @@ static ACAN2515_Buffer16 gBuffer;
 #endif
 #ifdef CAN_FD
 #include "src/lib/pierremolinaro-ACAN2517FD/ACAN2517FD.h"
-ACAN2517FD canfd (MCP2517_CS, SPI, MCP2517_INT);
+ACAN2517FD can(MCP2517_CS, SPI, MCP2517_INT);
 
 static uint32_t gSendDate = 0 ;
 static uint32_t gReceiveDate = 0 ;
@@ -168,10 +168,15 @@ void setup() {
 // Perform main program functions
 void loop() {
 
-  CANFDMessage frame ;
+  CANFDMessage frame;
+  frame.id = micros () & 0x7FE ;
+  frame.len = 64 ;
+  for (uint8_t i=0 ; i<frame.len ; i++) {
+  frame.data [i] = i ;
+  }
   if (gSendDate < millis ()) {
     gSendDate += 1000 ;
-    const bool ok = canfd.tryToSend (frame) ;
+    const bool ok = can.tryToSend (frame) ;
     if (ok) {
       gSentFrameCount += 1 ;
       Serial.print ("Sent: ") ;
@@ -180,12 +185,12 @@ void loop() {
       Serial.print ("Send failure") ;
     }
     Serial.print (", receive overflows: ") ;
-    Serial.println (canfd.hardwareReceiveBufferOverflowCount ()) ;
+    Serial.println (can.hardwareReceiveBufferOverflowCount ()) ;
   }
   if (gReceiveDate < millis ()) {
     gReceiveDate += 4567 ;
-    while (canfd.available ()) {
-      canfd.receive (frame) ;
+    while (can.available ()) {
+      can.receive (frame) ;
       gReceivedFrameCount ++ ;
       Serial.print ("Received: ") ;
       Serial.println (gReceivedFrameCount) ;
@@ -321,37 +326,32 @@ void init_CAN() {
   SPI.begin(MCP2515_SCK, MCP2515_MISO, MCP2515_MOSI);
   Serial.println("Configure ACAN2515");
   ACAN2515Settings settings(QUARTZ_FREQUENCY, 500UL * 1000UL);  // CAN bit rate 500 kb/s
-  settings.mRequestedMode = ACAN2515Settings::NormalMode;       // Select loopback mode
+  settings.mRequestedMode = ACAN2515Settings::NormalMode;
   can.begin(settings, [] { can.isr(); });
 #endif
 
 #ifdef CAN_FD
   Serial.println("CAN FD add-on (ESP32+MCP2517) selected");
-  SPI.begin(MCP2517_SCK, MCP2517_SDO, MCP2517_SDI);
-  // Arbitration bit rate: 125 kbit/s, data bit rate: 500 kbit/s
-  ACAN2517FDSettings settingsfd (ACAN2517FDSettings::OSC_4MHz10xPLL, 125 * 1000, DataBitRateFactor::x1);
-  //ACAN2517FDSettings settings (ACAN2517FDSettings::OSC_4MHz10xPLL, 125 * 1000, ACAN2517FDSettings::DATA_BITRATE_x4) ;
-  settingsfd.mRequestedMode = ACAN2517FDSettings::InternalLoopBack ; // Select loopback mode
-  settingsfd.mDriverReceiveFIFOSize = 200; // What does this do?
-  settingsfd.mDriverTransmitFIFOSize = 1 ; //Low ram mode for arduino Uno
-  settingsfd.mDriverReceiveFIFOSize = 1 ; //Low ram mode for arduino Uno
-  const uint32_t errorCode = canfd.begin (settingsfd, [] { canfd.isr () ; }) ;
+  SPI.begin(MCP2517_SCK, MCP2517_SDO, MCP2517_SDI); 
+  ACAN2517FDSettings settings (ACAN2517FDSettings::OSC_40MHz, 1000 * 1000, DataBitRateFactor::x8); // Arbitration bit rate: 1 Mbit/s, data bit rate: 8 Mbit/s
+  settings.mRequestedMode = ACAN2517FDSettings::NormalFD; // ListenOnly / Normal20B / NormalFD
+  const uint32_t errorCode = can.begin (settings, [] { can.isr () ; }) ;
 if (errorCode == 0) {
     Serial.print ("Bit Rate prescaler: ") ;
-    Serial.println (settingsfd.mBitRatePrescaler) ;
+    Serial.println (settings.mBitRatePrescaler) ;
     Serial.print ("Arbitration Phase segment 1: ") ;
-    Serial.println (settingsfd.mArbitrationPhaseSegment1) ;
+    Serial.println (settings.mArbitrationPhaseSegment1) ;
     Serial.print ("Arbitration Phase segment 2: ") ;
-    Serial.println (settingsfd.mArbitrationPhaseSegment2) ;
+    Serial.println (settings.mArbitrationPhaseSegment2) ;
     Serial.print ("Arbitration SJW:") ;
-    Serial.println (settingsfd.mArbitrationSJW) ;
+    Serial.println (settings.mArbitrationSJW) ;
     Serial.print ("Actual Arbitration Bit Rate: ") ;
-    Serial.print (settingsfd.actualArbitrationBitRate ()) ;
+    Serial.print (settings.actualArbitrationBitRate ()) ;
     Serial.println (" bit/s") ;
     Serial.print ("Exact Arbitration Bit Rate ? ") ;
-    Serial.println (settingsfd.exactArbitrationBitRate () ? "yes" : "no") ;
+    Serial.println (settings.exactArbitrationBitRate () ? "yes" : "no") ;
     Serial.print ("Arbitration Sample point: ") ;
-    Serial.print (settingsfd.arbitrationSamplePointFromBitStart ()) ;
+    Serial.print (settings.arbitrationSamplePointFromBitStart ()) ;
     Serial.println ("%") ;
   }else{
     Serial.print ("Configuration error 0x") ;
