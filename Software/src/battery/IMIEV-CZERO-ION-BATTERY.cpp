@@ -33,8 +33,8 @@ static double voltage2 = 0;
 static double BMU_Current = 0;
 static double BMU_PackVoltage = 0;
 static double BMU_Power = 0;
-static double cell_voltages[89];      //array with all the cellvoltages //TODO: what is max array size? 80/88 cells?
-static double cell_temperatures[89];  //array with all the celltemperatures //TODO: what is max array size? 80/88cells?
+static double cell_voltages[88];      //array with all the cellvoltages
+static double cell_temperatures[88];  //array with all the celltemperatures
 static double max_volt_cel = 3.70;
 static double min_volt_cel = 3.70;
 static double max_temp_cel = 20.00;
@@ -96,13 +96,18 @@ void update_values_battery() {  //This function maps all the values fetched via 
     }
   }
 
+  //Map all cell voltages to the global array
+  for (int i = 0; i < 88; ++i) {
+    system_cellvoltages_mV[i] = (uint16_t)(cell_voltages[i] * 1000);
+  }
+
   system_cell_max_voltage_mV = (uint16_t)(max_volt_cel * 1000);
 
   system_cell_min_voltage_mV = (uint16_t)(min_volt_cel * 1000);
 
-  system_temperature_min_dC = (int16_t)(min_temp_cel * 1000);
+  system_temperature_min_dC = (int16_t)(min_temp_cel * 10);
 
-  system_temperature_min_dC = (int16_t)(max_temp_cel * 1000);
+  system_temperature_min_dC = (int16_t)(max_temp_cel * 10);
 
   /* Check if the BMS is still sending CAN messages. If we go 60s without messages we raise an error*/
   if (!CANstillAlive) {
