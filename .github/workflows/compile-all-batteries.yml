@@ -41,6 +41,7 @@ jobs:
           - RENAULT_KANGOO_BATTERY
           - RENAULT_ZOE_BATTERY
           - TESLA_MODEL_3_BATTERY
+          - VOLVO_SPA_BATTERY
           - TEST_FAKE_BATTERY
         # These are the emulated inverter communication protocols for which the code will be compiled.
         inverter:

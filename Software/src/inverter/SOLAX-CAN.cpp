@@ -123,6 +123,10 @@ void update_values_can_solax() {  //This function maps all the values fetched fr
   if (millis() - LastFrameTime >= SolaxTimeout) {
     inverterAllowsContactorClosing = false;
     STATE = BATTERY_ANNOUNCE;
+#ifndef DUAL_CAN
+    ESP32Can.CANStop();  // Baud rate switching might have taken down the interface. Reboot it!
+    ESP32Can.CANInit();  // TODO: Incase this gets implemented in ESP32Can.cpp, remove these two lines!
+#endif
   }
   //Calculate the required values
   temperature_average = ((system_temperature_max_dC + system_temperature_min_dC) / 2);
@@ -182,7 +186,7 @@ void update_values_can_solax() {  //This function maps all the values fetched fr
   SOLAX_1873.data.u8[3] = (system_battery_current_dA >> 8);
   SOLAX_1873.data.u8[4] = (uint8_t)(system_scaled_SOC_pptt / 100);  //SOC (100.00%)
   //SOLAX_1873.data.u8[5] = //Seems like this is not required? Or shall we put SOC decimals here?
-  SOLAX_1873.data.u8[6] = (uint8_t)(capped_remaining_capacity_Wh / 100);  //TODO: scaling OK?
+  SOLAX_1873.data.u8[6] = (uint8_t)(capped_remaining_capacity_Wh / 100);
   SOLAX_1873.data.u8[7] = ((capped_remaining_capacity_Wh / 100) >> 8);
 
   //BMS_CellData
@@ -190,11 +194,9 @@ void update_values_can_solax() {  //This function maps all the values fetched fr
   SOLAX_1874.data.u8[1] = (system_temperature_max_dC >> 8);
   SOLAX_1874.data.u8[2] = (int8_t)system_temperature_min_dC;
   SOLAX_1874.data.u8[3] = (system_temperature_min_dC >> 8);
-  SOLAX_1874.data.u8[4] =
-      (uint8_t)(system_cell_max_voltage_mV);  //TODO: scaling OK? Supposed to be alarm trigger absolute cell max?
+  SOLAX_1874.data.u8[4] = (uint8_t)(system_cell_max_voltage_mV);
   SOLAX_1874.data.u8[5] = (system_cell_max_voltage_mV >> 8);
-  SOLAX_1874.data.u8[6] =
-      (uint8_t)(system_cell_min_voltage_mV);  //TODO: scaling OK? Supposed to be alarm trigger absolute cell min?
+  SOLAX_1874.data.u8[6] = (uint8_t)(system_cell_min_voltage_mV);
   SOLAX_1874.data.u8[7] = (system_cell_min_voltage_mV >> 8);
 
   //BMS_Status
@@ -204,10 +206,10 @@ void update_values_can_solax() {  //This function maps all the values fetched fr
   SOLAX_1875.data.u8[4] = (uint8_t)0;  // Contactor Status 0=off, 1=on.
 
   //BMS_PackTemps (strange name, since it has voltages?)
-  SOLAX_1876.data.u8[2] = (uint8_t)system_cell_max_voltage_mV;  //TODO: scaling OK?
+  SOLAX_1876.data.u8[2] = (uint8_t)system_cell_max_voltage_mV;
   SOLAX_1876.data.u8[3] = (system_cell_max_voltage_mV >> 8);
 
-  SOLAX_1876.data.u8[6] = (uint8_t)system_cell_min_voltage_mV;  //TODO: scaling OK?
+  SOLAX_1876.data.u8[6] = (uint8_t)system_cell_min_voltage_mV;
   SOLAX_1876.data.u8[7] = (system_cell_min_voltage_mV >> 8);
 
   //Unknown
@@ -217,10 +219,10 @@ void update_values_can_solax() {  //This function maps all the values fetched fr
       (uint8_t)0x02;  // The above firmware version applies to:02 = Master BMS, 10 = S1, 20 = S2, 30 = S3, 40 = S4
 
   //BMS_PackStats
-  SOLAX_1878.data.u8[0] = (uint8_t)(system_battery_voltage_dV);  //TODO: should this be max or current voltage?
+  SOLAX_1878.data.u8[0] = (uint8_t)(system_battery_voltage_dV);
   SOLAX_1878.data.u8[1] = ((system_battery_voltage_dV) >> 8);
 
-  SOLAX_1878.data.u8[4] = (uint8_t)capped_capacity_Wh;  //TODO: scaling OK?
+  SOLAX_1878.data.u8[4] = (uint8_t)capped_capacity_Wh;
   SOLAX_1878.data.u8[5] = (capped_capacity_Wh >> 8);
 
   // BMS_Answer
