@@ -18,7 +18,6 @@ static uint8_t CANstillAlive = 12;            //counter for checking if CAN is s
 #define MAX_CELL_DEVIATION 150  //LED turns yellow on the board if mv delta exceeds this value
 
 
-
 CAN_frame_t KIA_HYUNDAI_200 = {.FIR = {.B =
                                            {
                                                .DLC = 8,
@@ -26,6 +25,21 @@ CAN_frame_t KIA_HYUNDAI_200 = {.FIR = {.B =
                                            }},
                                .MsgID = 0x200,
                                .data = {0x00, 0x80, 0xD8, 0x04, 0x00, 0x17, 0xD0, 0x00}};  //Mid log value
+
+static void CAN_WriteFrame(CAN_frame_t* tx_frame) {
+#ifdef CAN_FD
+  CANFDMessage frame;
+  frame.id = tx_frame->MsgID;
+  frame.ext = tx_frame->FIR.B.FF;
+  frame.len = tx_frame->FIR.B.DLC;
+  for (uint8_t i = 0; i < frame.len; i++) {
+    frame.data[i] = tx_frame->data.u8[i];
+  }
+  can.tryToSend(frame);
+#else // Normal CAN port
+  ESP32Can.CANWriteFrame(tx_frame);
+#endif
+}
 
 void update_values_battery() {  //This function maps all the values fetched via CAN to the correct parameters used for modbus
 
@@ -88,6 +102,7 @@ void receive_can_battery(CAN_frame_t rx_frame) {
 }
 
 void send_can_battery() {
+
   unsigned long currentMillis = millis();
   //Send 100ms message
   if (currentMillis - previousMillis100 >= interval100) {
@@ -97,8 +112,7 @@ void send_can_battery() {
   // Send 10ms CAN Message
   if (currentMillis - previousMillis10ms >= interval10ms) {
     previousMillis10ms = currentMillis;
-
-    //ESP32Can.CANWriteFrame(&KIA_HYUNDAI_200);
+    CAN_WriteFrame(&KIA_HYUNDAI_200);
   }
 }
 

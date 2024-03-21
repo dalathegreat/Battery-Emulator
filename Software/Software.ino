@@ -167,7 +167,7 @@ void setup() {
 
 // Perform main program functions
 void loop() {
-
+  /* TODO: Delete this section, for testing only
   CANFDMessage frame;
   frame.id = micros () & 0x7FE ;
   frame.len = 64 ;
@@ -196,6 +196,7 @@ void loop() {
       Serial.println (gReceivedFrameCount) ;
     }
   }
+  */
 
 #ifdef WEBSERVER
   // Over-the-air updates by ElegantOTA
@@ -337,7 +338,7 @@ void init_CAN() {
   settings.mRequestedMode = ACAN2517FDSettings::NormalFD; // ListenOnly / Normal20B / NormalFD
   const uint32_t errorCode = can.begin (settings, [] { can.isr () ; }) ;
 if (errorCode == 0) {
-    Serial.print ("Bit Rate prescaler: ") ;
+    Serial.print ("Bit Rate prescaler: ") ; // TODO: remove these lines before finalizing the feature
     Serial.println (settings.mBitRatePrescaler) ;
     Serial.print ("Arbitration Phase segment 1: ") ;
     Serial.println (settings.mArbitrationPhaseSegment1) ;
@@ -354,7 +355,7 @@ if (errorCode == 0) {
     Serial.print (settings.arbitrationSamplePointFromBitStart ()) ;
     Serial.println ("%") ;
   }else{
-    Serial.print ("Configuration error 0x") ;
+    Serial.print ("CAN-FD Configuration error 0x") ;
     Serial.println (errorCode, HEX) ;
   }
 #endif
@@ -516,6 +517,7 @@ void send_can() {
 #endif
   // Battery
   send_can_battery();
+  // Charger
 #ifdef CHEVYVOLT_CHARGER
   send_can_chevyvolt_charger();
 #endif

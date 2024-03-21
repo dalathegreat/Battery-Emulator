@@ -6,6 +6,8 @@
 #include "../lib/miwagner-ESP32-Arduino-CAN/ESP32CAN.h"
 #include "../lib/pierremolinaro-ACAN2517FD/ACAN2517FD.h"
 
+extern ACAN2517FD can;
+
 #define BATTERY_SELECTED
 
 // These parameters need to be mapped for the inverter
