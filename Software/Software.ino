@@ -18,6 +18,12 @@
 #include "src/lib/miwagner-ESP32-Arduino-CAN/CAN_config.h"
 #include "src/lib/miwagner-ESP32-Arduino-CAN/ESP32CAN.h"
 
+#include "freertos/FreeRTOS.h"
+#include "freertos/task.h"
+
+#include "esp_system.h"
+#include "esp_task_wdt.h"
+
 #ifdef WEBSERVER
 #include <ESPmDNS.h>
 #include "src/devboard/webserver/webserver.h"
@@ -125,6 +131,9 @@ unsigned long timeSpentInFaultedMode = 0;
 bool batteryAllowsContactorClosing = false;
 bool inverterAllowsContactorClosing = true;
 
+TaskHandle_t mainLoopTask;               // task of the started server
+
+
 // Initialization
 void setup() {
   init_serial();
@@ -155,10 +164,20 @@ void setup() {
 
   // BOOT button at runtime is used as an input for various things
   pinMode(0, INPUT_PULLUP);
+
+  esp_task_wdt_deinit();  // Disable watchdog
+
+  xTaskCreatePinnedToCore((TaskFunction_t)&mainLoop, "mainLoop", 4096, NULL, 8, &mainLoopTask, 1);
+
 }
 
 // Perform main program functions
 void loop() {
+  ;
+}
+
+void mainLoop( void * pvParameters ){
+    while (true) {
 
 #ifdef WEBSERVER
   // Over-the-air updates by ElegantOTA
@@ -209,6 +228,8 @@ void loop() {
     test_all_colors = false;
   } else {
     test_all_colors = true;
+  }
+  delay(2);
   }
 }
 
@@ -347,7 +368,7 @@ void init_modbus() {
   MBserver.registerWorker(MBTCP_ID, WRITE_MULT_REGISTERS, &FC16);
   MBserver.registerWorker(MBTCP_ID, R_W_MULT_REGISTERS, &FC23);
   // Start ModbusRTU background task
-  MBserver.begin(Serial2);
+  MBserver.begin(Serial2, 0);
 #endif
 }
 
