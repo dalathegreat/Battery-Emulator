@@ -9,19 +9,20 @@
 #include "../lib/miwagner-ESP32-Arduino-CAN/ESP32CAN.h"
 
 /* Do not change code below unless you are sure what you are doing */
-static unsigned long previousMillis10 = 0;   // will store last time a 10ms CAN Message was send
-static unsigned long previousMillis100 = 0;  // will store last time a 100ms CAN Message was send
-static unsigned long previousMillis10s = 0;  // will store last time a 1s CAN Message was send
-static const int interval10 = 10;            // interval (ms) at which send CAN Messages
-static const int interval100 = 100;          // interval (ms) at which send CAN Messages
-static const int interval10s = 10000;        // interval (ms) at which send CAN Messages
-static uint16_t CANerror = 0;                //counter on how many CAN errors encountered
-#define MAX_CAN_FAILURES 5000                //Amount of malformed CAN messages to allow before raising a warning
-static uint8_t CANstillAlive = 12;           //counter for checking if CAN is still alive
-static uint8_t errorCode = 0;                //stores if we have an error code active from battery control logic
-static uint8_t mprun10r = 0;                 //counter 0-20 for 0x1F2 message
-static uint8_t mprun10 = 0;                  //counter 0-3
-static uint8_t mprun100 = 0;                 //counter 0-3
+static unsigned long previousMillis10 = 0;    // will store last time a 10ms CAN Message was send
+static unsigned long previousMillis100 = 0;   // will store last time a 100ms CAN Message was send
+static unsigned long previousMillis10s = 0;   // will store last time a 1s CAN Message was send
+static const uint8_t interval10 = 10;         // interval (ms) at which send CAN Messages
+static const uint8_t interval100 = 100;       // interval (ms) at which send CAN Messages
+static const uint16_t interval10s = 10000;    // interval (ms) at which send CAN Messages
+static const uint8_t interval10overrun = 15;  // interval (ms) at when a 10ms CAN send is considered delayed
+static uint16_t CANerror = 0;                 //counter on how many CAN errors encountered
+#define MAX_CAN_FAILURES 5000                 //Amount of malformed CAN messages to allow before raising a warning
+static uint8_t CANstillAlive = 12;            //counter for checking if CAN is still alive
+static uint8_t errorCode = 0;                 //stores if we have an error code active from battery control logic
+static uint8_t mprun10r = 0;                  //counter 0-20 for 0x1F2 message
+static uint8_t mprun10 = 0;                   //counter 0-3
+static uint8_t mprun100 = 0;                  //counter 0-3
 
 CAN_frame_t LEAF_1F2 = {.FIR = {.B =
                                     {
@@ -708,6 +709,10 @@ void send_can_battery() {
   }
   //Send 10ms message
   if (currentMillis - previousMillis10 >= interval10) {
+
+    if (currentMillis - previousMillis10 >= interval10overrun) {
+      set_event(EVENT_CAN_OVERRUN, interval10);
+    }
     previousMillis10 = currentMillis;
 
     switch (mprun10) {
@@ -888,7 +893,9 @@ uint16_t Temp_fromRAW_to_F(uint16_t temperature) {  //This function feels horrib
 }
 
 void setup_battery(void) {  // Performs one time setup at startup
+#ifdef DEBUG_VIA_USB
   Serial.println("Nissan LEAF battery selected");
+#endif
 
   system_number_of_cells = 96;
   system_max_design_voltage_dV = 4040;  // 404.4V, over this, charging is not possible (goes into forced discharge)

@@ -25,11 +25,11 @@ WifiState wifi_state = INIT;
 MyTimer ota_timeout_timer = MyTimer(5000);
 bool ota_active = false;
 
-unsigned const uint16_t WIFI_MONITOR_INTERVAL_TIME = 15000;
-unsigned const uint16_t INIT_WIFI_CONNECT_TIMEOUT = 8000;        // Timeout for initial WiFi connect in milliseconds
-unsigned const uint16_t DEFAULT_WIFI_RECONNECT_INTERVAL = 1000;  // Default WiFi reconnect interval in ms
-unsigned const uint16_t MAX_WIFI_RETRY_INTERVAL = 30000;         // Maximum wifi retry interval in ms
-unsigned long last_wifi_monitor_time = millis();                 //init millis so wifi monitor doesn't run immediately
+unsigned const long WIFI_MONITOR_INTERVAL_TIME = 15000;
+unsigned const long INIT_WIFI_CONNECT_TIMEOUT = 8000;        // Timeout for initial WiFi connect in milliseconds
+unsigned const long DEFAULT_WIFI_RECONNECT_INTERVAL = 1000;  // Default WiFi reconnect interval in ms
+unsigned const long MAX_WIFI_RETRY_INTERVAL = 30000;         // Maximum wifi retry interval in ms
+unsigned long last_wifi_monitor_time = millis();             //init millis so wifi monitor doesn't run immediately
 unsigned long wifi_reconnect_interval = DEFAULT_WIFI_RECONNECT_INTERVAL;
 unsigned long last_wifi_attempt_time = millis();  //init millis so wifi monitor doesn't run immediately
 
