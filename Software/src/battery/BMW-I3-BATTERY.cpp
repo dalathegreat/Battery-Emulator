@@ -376,7 +376,7 @@ void update_values_battery() {  //This function maps all the values fetched via 
 
   system_battery_voltage_dV = battery_volts;  //Unit V+1 (5000 = 500.0V)
 
-  system_battery_current_dA = battery_current;
+  system_battery_current_dA = battery_current * 10;
 
   system_capacity_Wh = BATTERY_WH_MAX;
 
