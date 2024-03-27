@@ -131,7 +131,7 @@ unsigned long timeSpentInFaultedMode = 0;
 bool batteryAllowsContactorClosing = false;
 bool inverterAllowsContactorClosing = true;
 
-TaskHandle_t mainLoopTask;               // task of the started server
+TaskHandle_t mainLoopTask;               
 
 
 // Initialization
@@ -176,60 +176,60 @@ void loop() {
   ;
 }
 
-void mainLoop( void * pvParameters ){
-    while (true) {
+void mainLoop(void* pvParameters) {
+  while (true) {
 
 #ifdef WEBSERVER
-  // Over-the-air updates by ElegantOTA
-  wifi_monitor();
-  ElegantOTA.loop();
+    // Over-the-air updates by ElegantOTA
+    wifi_monitor();
+    ElegantOTA.loop();
 #ifdef MQTT
-  mqtt_loop();
+    mqtt_loop();
 #endif
 #endif
 
-  // Input
-  receive_can();  // Receive CAN messages. Runs as fast as possible
+    // Input
+    receive_can();  // Receive CAN messages. Runs as fast as possible
 #ifdef DUAL_CAN
-  receive_can2();
+    receive_can2();
 #endif
 #if defined(SERIAL_LINK_RECEIVER) || defined(SERIAL_LINK_TRANSMITTER)
-  runSerialDataLink();
+    runSerialDataLink();
 #endif
 
-  // Process
-  if (millis() - previousMillis10ms >= interval10)  // Every 10ms
-  {
-    previousMillis10ms = millis();
-    handle_LED_state();  // Set the LED color according to state
+    // Process
+    if (millis() - previousMillis10ms >= interval10)  // Every 10ms
+    {
+      previousMillis10ms = millis();
+      handle_LED_state();  // Set the LED color according to state
 #ifdef CONTACTOR_CONTROL
-    handle_contactors();  // Take care of startup precharge/contactor closing
+      handle_contactors();  // Take care of startup precharge/contactor closing
 #endif
-  }
-
-  if (millis() - previousMillisUpdateVal >= intervalUpdateValues)  // Every 4.8s
-  {
-    previousMillisUpdateVal = millis();
-    update_SOC();     // Check if real or calculated SOC% value should be sent
-    update_values();  // Update values heading towards inverter. Prepare for sending on CAN, or write directly to Modbus.
-    if (DUMMY_EVENT_ENABLED) {
-      set_event(EVENT_DUMMY_ERROR, (uint8_t)millis());
     }
-  }
 
-  // Output
-  send_can();  // Send CAN messages
+    if (millis() - previousMillisUpdateVal >= intervalUpdateValues)  // Every 4.8s
+    {
+      previousMillisUpdateVal = millis();
+      update_SOC();     // Check if real or calculated SOC% value should be sent
+      update_values();  // Update values heading towards inverter. Prepare for sending on CAN, or write directly to Modbus.
+      if (DUMMY_EVENT_ENABLED) {
+        set_event(EVENT_DUMMY_ERROR, (uint8_t)millis());
+      }
+    }
+
+    // Output
+    send_can();  // Send CAN messages
 #ifdef DUAL_CAN
-  send_can2();
+    send_can2();
 #endif
-  run_event_handling();
+    run_event_handling();
 
-  if (digitalRead(0) == HIGH) {
-    test_all_colors = false;
-  } else {
-    test_all_colors = true;
-  }
-  delay(2);
+    if (digitalRead(0) == HIGH) {
+      test_all_colors = false;
+    } else {
+      test_all_colors = true;
+    }
+    delay(2);
   }
 }
 
