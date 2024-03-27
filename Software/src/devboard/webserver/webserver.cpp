@@ -25,11 +25,11 @@ WifiState wifi_state = INIT;
 MyTimer ota_timeout_timer = MyTimer(5000);
 bool ota_active = false;
 
-unsigned const long WIFI_MONITOR_INTERVAL_TIME = 15000;
-unsigned const long INIT_WIFI_CONNECT_TIMEOUT = 8000;        // Timeout for initial WiFi connect in milliseconds
-unsigned const long DEFAULT_WIFI_RECONNECT_INTERVAL = 1000;  // Default WiFi reconnect interval in ms
-unsigned const long MAX_WIFI_RETRY_INTERVAL = 30000;         // Maximum wifi retry interval in ms
-unsigned long last_wifi_monitor_time = millis();             //init millis so wifi monitor doesn't run immediately
+unsigned const uint16_t WIFI_MONITOR_INTERVAL_TIME = 15000;
+unsigned const uint16_t INIT_WIFI_CONNECT_TIMEOUT = 8000;        // Timeout for initial WiFi connect in milliseconds
+unsigned const uint16_t DEFAULT_WIFI_RECONNECT_INTERVAL = 1000;  // Default WiFi reconnect interval in ms
+unsigned const uint16_t MAX_WIFI_RETRY_INTERVAL = 30000;         // Maximum wifi retry interval in ms
+unsigned long last_wifi_monitor_time = millis();                 //init millis so wifi monitor doesn't run immediately
 unsigned long wifi_reconnect_interval = DEFAULT_WIFI_RECONNECT_INTERVAL;
 unsigned long last_wifi_attempt_time = millis();  //init millis so wifi monitor doesn't run immediately
 
@@ -254,13 +254,17 @@ void init_webserver() {
 }
 
 void init_WiFi_AP() {
+#ifdef DEBUG_VIA_USB
   Serial.println("Creating Access Point: " + String(ssidAP));
   Serial.println("With password: " + String(passwordAP));
+#endif
   WiFi.softAP(ssidAP, passwordAP);
   IPAddress IP = WiFi.softAPIP();
+#ifdef DEBUG_VIA_USB
   Serial.println("Access Point created.");
   Serial.print("IP address: ");
   Serial.println(IP);
+#endif
 }
 
 String getConnectResultString(wl_status_t status) {
@@ -292,13 +296,17 @@ void wifi_monitor() {
     last_wifi_monitor_time = currentMillis;
     wl_status_t status = WiFi.status();
     if (status != WL_CONNECTED && status != WL_IDLE_STATUS) {
+#ifdef DEBUG_VIA_USB
       Serial.println(getConnectResultString(status));
+#endif
       if (wifi_state == INIT) {  //we haven't been connected yet, try the init logic
         init_WiFi_STA(ssid, password, wifi_channel);
       } else {  //we were connected before, try the reconnect logic
         if (currentMillis - last_wifi_attempt_time > wifi_reconnect_interval) {
           last_wifi_attempt_time = currentMillis;
+#ifdef DEBUG_VIA_USB
           Serial.println("WiFi not connected, trying to reconnect...");
+#endif
           wifi_state = RECONNECTING;
           WiFi.reconnect();
           wifi_reconnect_interval = min(wifi_reconnect_interval * 2, MAX_WIFI_RETRY_INTERVAL);
@@ -307,12 +315,14 @@ void wifi_monitor() {
     } else if (status == WL_CONNECTED && wifi_state != CONNECTED) {
       wifi_state = CONNECTED;
       wifi_reconnect_interval = DEFAULT_WIFI_RECONNECT_INTERVAL;
-      // Print local IP address and start web server
+// Print local IP address and start web server
+#ifdef DEBUG_VIA_USB
       Serial.print("Connected to WiFi network: " + String(ssid));
       Serial.print(" IP address: " + WiFi.localIP().toString());
       Serial.print(" Signal Strength: " + String(WiFi.RSSI()) + " dBm");
       Serial.println(" Channel: " + String(WiFi.channel()));
       Serial.println(" Hostname: " + String(WiFi.getHostname()));
+#endif
     }
   }
 
@@ -326,9 +336,11 @@ void wifi_monitor() {
 }
 
 void init_WiFi_STA(const char* ssid, const char* password, const uint8_t wifi_channel) {
-  // Connect to Wi-Fi network with SSID and password
+// Connect to Wi-Fi network with SSID and password
+#ifdef DEBUG_VIA_USB
   Serial.print("Connecting to ");
   Serial.println(ssid);
+#endif
   WiFi.begin(ssid, password, wifi_channel);
   WiFi.setAutoReconnect(true);  // Enable auto reconnect
   wl_status_t result = static_cast<wl_status_t>(WiFi.waitForConnectResult(INIT_WIFI_CONNECT_TIMEOUT));
@@ -357,36 +369,16 @@ String processor(const String& var) {
     // Show version number
     content += "<h4>Software: " + String(version_number) + "</h4>";
 
-    // Display LED color
-    content += "<h4>LED color: ";
-    switch (LEDcolor) {
-      case GREEN:
-        content += "GREEN</h4>";
-        break;
-      case YELLOW:
-        content += "YELLOW</h4>";
-        break;
-      case BLUE:
-        content += "BLUE</h4>";
-        break;
-      case RED:
-        content += "RED</h4>";
-        break;
-      case TEST_ALL_COLORS:
-        content += "RGB Testing loop</h4>";
-        break;
-      default:
-        break;
-    }
     wl_status_t status = WiFi.status();
     // Display ssid of network connected to and, if connected to the WiFi, its own IP
     content += "<h4>SSID: " + String(ssid) + "</h4>";
-    content += "<h4>Wifi status: " + getConnectResultString(status) + "</h4>";
     if (status == WL_CONNECTED) {
       content += "<h4>IP: " + WiFi.localIP().toString() + "</h4>";
       // Get and display the signal strength (RSSI)
       content += "<h4>Signal Strength: " + String(WiFi.RSSI()) + " dBm</h4>";
       content += "<h4>Channel: " + String(WiFi.channel()) + "</h4>";
+    } else {
+      content += "<h4>Wifi state: " + getConnectResultString(status) + "</h4>";
     }
     // Close the block
     content += "</div>";
@@ -656,8 +648,9 @@ void onOTAProgress(size_t current, size_t final) {
   // Log every 1 second
   if (millis() - ota_progress_millis > 1000) {
     ota_progress_millis = millis();
+#ifdef DEBUG_VIA_USB
     Serial.printf("OTA Progress Current: %u bytes, Final: %u bytes\n", current, final);
-
+#endif
     // Reset the "watchdog"
     ota_timeout_timer.reset();
   }
@@ -666,9 +659,13 @@ void onOTAProgress(size_t current, size_t final) {
 void onOTAEnd(bool success) {
   // Log when OTA has finished
   if (success) {
+#ifdef DEBUG_VIA_USB
     Serial.println("OTA update finished successfully!");
+#endif
   } else {
+#ifdef DEBUG_VIA_USB
     Serial.println("There was an error during OTA update!");
+#endif
 
     // If we fail without a timeout, try to restore CAN
     ESP32Can.CANInit();
