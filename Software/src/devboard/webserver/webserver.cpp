@@ -344,7 +344,7 @@ void init_ElegantOTA() {
 }
 
 String processor(const String& var) {
-  if (var == "PLACEHOLDER") {
+  if (var == "ABC") {
     String content = "";
     //Page format
     content += "<style>";
@@ -355,7 +355,7 @@ String processor(const String& var) {
     content += "<div style='background-color: #303E47; padding: 10px; margin-bottom: 10px;border-radius: 50px'>";
 
     // Show version number
-    content += "<h4>Software version: " + String(version_number) + "</h4>";
+    content += "<h4>Software: " + String(version_number) + "</h4>";
 
     // Display LED color
     content += "<h4>LED color: ";

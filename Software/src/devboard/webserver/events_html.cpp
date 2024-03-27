@@ -13,7 +13,7 @@ const char EVENTS_HTML_END[] = R"=====(
 )=====";
 
 String events_processor(const String& var) {
-  if (var == "PLACEHOLDER") {
+  if (var == "ABC") {
     String content = "";
     content.reserve(5000);
     // Page format
