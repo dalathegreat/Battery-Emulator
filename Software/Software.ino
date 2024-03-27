@@ -133,7 +133,6 @@ bool inverterAllowsContactorClosing = true;
 
 TaskHandle_t mainLoopTask;               
 
-
 // Initialization
 void setup() {
   init_serial();
@@ -168,7 +167,6 @@ void setup() {
   esp_task_wdt_deinit();  // Disable watchdog
 
   xTaskCreatePinnedToCore((TaskFunction_t)&mainLoop, "mainLoop", 4096, NULL, 8, &mainLoopTask, 1);
-
 }
 
 // Perform main program functions
