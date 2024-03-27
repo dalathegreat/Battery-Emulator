@@ -131,7 +131,7 @@ unsigned long timeSpentInFaultedMode = 0;
 bool batteryAllowsContactorClosing = false;
 bool inverterAllowsContactorClosing = true;
 
-TaskHandle_t mainLoopTask;               
+TaskHandle_t mainLoopTask;
 
 // Initialization
 void setup() {
