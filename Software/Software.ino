@@ -222,7 +222,9 @@ void init_mDNS() {
 
   // Initialize mDNS .local resolution
   if (!MDNS.begin(mdnsHost)) {
+#ifdef DEBUG_VIA_USB
     Serial.println("Error setting up MDNS responder!");
+#endif
   } else {
     // Advertise via bonjour the service so we can auto discover these battery emulators on the local network.
     MDNS.addService("battery_emulator", "tcp", 80);
@@ -234,7 +236,9 @@ void init_serial() {
   // Init Serial monitor
   Serial.begin(115200);
   while (!Serial) {}
+#ifdef DEBUG_VIA_USB
   Serial.println("__ OK __");
+#endif
 }
 
 void init_stored_settings() {
@@ -281,13 +285,13 @@ void init_CAN() {
   CAN_cfg.rx_queue = xQueueCreate(rx_queue_size, sizeof(CAN_frame_t));
   // Init CAN Module
   ESP32Can.CANInit();
-  Serial.println(CAN_cfg.speed);
 
 #ifdef DUAL_CAN
+#ifdef DEBUG_VIA_USB
   Serial.println("Dual CAN Bus (ESP32+MCP2515) selected");
+#endif
   gBuffer.initWithSize(25);
   SPI.begin(MCP2515_SCK, MCP2515_MISO, MCP2515_MOSI);
-  Serial.println("Configure ACAN2515");
   ACAN2515Settings settings(QUARTZ_FREQUENCY, 500UL * 1000UL);  // CAN bit rate 500 kb/s
   settings.mRequestedMode = ACAN2515Settings::NormalMode;       // Select loopback mode
   can.begin(settings, [] { can.isr(); });
@@ -354,30 +358,46 @@ void init_modbus() {
 void inform_user_on_inverter() {
   // Inform user what Inverter is used
 #ifdef BYD_CAN
+#ifdef DEBUG_VIA_USB
   Serial.println("BYD CAN protocol selected");
 #endif
+#endif
 #ifdef BYD_MODBUS
+#ifdef DEBUG_VIA_USB
   Serial.println("BYD Modbus RTU protocol selected");
 #endif
+#endif
 #ifdef LUNA2000_MODBUS
+#ifdef DEBUG_VIA_USB
   Serial.println("Luna2000 Modbus RTU protocol selected");
 #endif
+#endif
 #ifdef PYLON_CAN
+#ifdef DEBUG_VIA_USB
   Serial.println("PYLON CAN protocol selected");
 #endif
+#endif
 #ifdef SMA_CAN
+#ifdef DEBUG_VIA_USB
   Serial.println("SMA CAN protocol selected");
 #endif
+#endif
 #ifdef SMA_TRIPOWER_CAN
+#ifdef DEBUG_VIA_USB
   Serial.println("SMA Tripower CAN protocol selected");
 #endif
+#endif
 #ifdef SOFAR_CAN
+#ifdef DEBUG_VIA_USB
   Serial.println("SOFAR CAN protocol selected");
+#endif
 #endif
 #ifdef SOLAX_CAN
   inverterAllowsContactorClosing = false;  // The inverter needs to allow first on this protocol
   intervalUpdateValues = 800;              // This protocol also requires the values to be updated faster
+#ifdef DEBUG_VIA_USB
   Serial.println("SOLAX CAN protocol selected");
+#endif
 #endif
 }
 
