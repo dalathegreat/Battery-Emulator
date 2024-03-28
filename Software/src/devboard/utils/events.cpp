@@ -105,12 +105,16 @@ void init_events(void) {
 
     // Push changes to eeprom
     EEPROM.commit();
+#ifdef DEBUG_VIA_USB
     Serial.println("EEPROM wasn't ready");
+#endif
   } else {
     events.event_log_head_index = EEPROM.readUShort(EE_EVENT_LOG_HEAD_INDEX_ADDRESS);
     events.event_log_tail_index = EEPROM.readUShort(EE_EVENT_LOG_TAIL_INDEX_ADDRESS);
+#ifdef DEBUG_VIA_USB
     Serial.println("EEPROM was initialized for event logging");
     Serial.println("head: " + String(events.event_log_head_index) + ", tail: " + String(events.event_log_tail_index));
+#endif
     print_event_log();
   }
 
@@ -121,6 +125,7 @@ void init_events(void) {
     events.entries[i].log = true;
   }
 
+  events.entries[EVENT_CAN_OVERRUN].level = EVENT_LEVEL_INFO;
   events.entries[EVENT_CAN_RX_FAILURE].level = EVENT_LEVEL_ERROR;
   events.entries[EVENT_CAN_RX_WARNING].level = EVENT_LEVEL_WARNING;
   events.entries[EVENT_CAN_TX_FAILURE].level = EVENT_LEVEL_ERROR;
@@ -178,6 +183,8 @@ void clear_event(EVENTS_ENUM_TYPE event) {
 
 const char* get_event_message_string(EVENTS_ENUM_TYPE event) {
   switch (event) {
+    case EVENT_CAN_OVERRUN:
+      return "CAN message failed to send within defined time. Contact developers, CPU load might be too high.";
     case EVENT_CAN_RX_FAILURE:
       return "No CAN communication detected for 60s. Shutting down battery control.";
     case EVENT_CAN_RX_WARNING:
@@ -365,7 +372,9 @@ static void log_event(EVENTS_ENUM_TYPE event, uint8_t data) {
 static void print_event_log(void) {
   // If the head actually points to the tail, the log is probably blank
   if (events.event_log_head_index == events.event_log_tail_index) {
+#ifdef DEBUG_VIA_USB
     Serial.println("No events in log");
+#endif
     return;
   }
   EVENT_LOG_ENTRY_TYPE entry;
@@ -380,9 +389,10 @@ static void print_event_log(void) {
       // The entry is a blank that has been left behind somehow
       continue;
     }
+#ifdef DEBUG_VIA_USB
     Serial.println("Event: " + String(get_event_enum_string(entry.event)) + ", data: " + String(entry.data) +
                    ", time: " + String(entry.timestamp));
-
+#endif
     if (index == events.event_log_head_index) {
       break;
     }

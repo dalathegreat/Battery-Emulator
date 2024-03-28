@@ -16,8 +16,6 @@ static uint8_t CMU_Detected = 0;
 
 static unsigned long previousMillis10 = 0;   // will store last time a 10ms CAN Message was sent
 static unsigned long previousMillis100 = 0;  // will store last time a 100ms CAN Message was sent
-static const int interval10 = 10;            // interval (ms) at which send CAN Messages
-static const int interval100 = 100;          // interval (ms) at which send CAN Messages
 
 static int pid_index = 0;
 static int cmu_id = 0;
@@ -118,7 +116,9 @@ void update_values_battery() {  //This function maps all the values fetched via 
   }
 
   if (!BMU_Detected) {
+#ifdef DEBUG_VIA_USB
     Serial.println("BMU not detected, check wiring!");
+#endif
   }
 
 #ifdef DEBUG_VIA_USB
@@ -225,13 +225,21 @@ void receive_can_battery(CAN_frame_t rx_frame) {
 void send_can_battery() {
   unsigned long currentMillis = millis();
   // Send 100ms CAN Message
-  if (currentMillis - previousMillis100 >= interval100) {
+  if (currentMillis - previousMillis100 >= INTERVAL_100_MS) {
+    // Check if sending of CAN messages has been delayed too much.
+    if ((currentMillis - previousMillis100 >= INTERVAL_100_MS_DELAYED) && (currentMillis > BOOTUP_TIME)) {
+      set_event(EVENT_CAN_OVERRUN, (currentMillis - previousMillis100));
+    }
     previousMillis100 = currentMillis;
+
+    // Send CAN goes here...
   }
 }
 
 void setup_battery(void) {  // Performs one time setup at startup
+#ifdef DEBUG_VIA_USB
   Serial.println("Mitsubishi i-MiEV / Citroen C-Zero / Peugeot Ion battery selected");
+#endif
 
   system_max_design_voltage_dV = 3600;  // 360.0V, over this, charging is not possible (goes into forced discharge)
   system_min_design_voltage_dV = 3160;  // 316.0V under this, discharging further is disabled

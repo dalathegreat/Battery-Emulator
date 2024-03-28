@@ -7,8 +7,6 @@
 /* Do not change code below unless you are sure what you are doing */
 static unsigned long previousMillis100 = 0;  // will store last time a 100ms CAN Message was send
 static unsigned long previousMillis60s = 0;  // will store last time a 60s CAN Message was send
-static const int interval100 = 100;          // interval (ms) at which send CAN Messages
-static const int interval60s = 60000;        // interval (ms) at which send CAN Messages
 static uint8_t CANstillAlive = 12;           //counter for checking if CAN is still alive
 
 #define MAX_CELL_VOLTAGE 4210   //Battery is put into emergency stop if one cell goes over this value
@@ -359,8 +357,13 @@ void readCellVoltages() {
 void send_can_battery() {
   unsigned long currentMillis = millis();
   // Send 100ms CAN Message
-  if (currentMillis - previousMillis100 >= interval100) {
+  if (currentMillis - previousMillis100 >= INTERVAL_100_MS) {
+    // Check if sending of CAN messages has been delayed too much.
+    if ((currentMillis - previousMillis100 >= INTERVAL_100_MS_DELAYED) && (currentMillis > BOOTUP_TIME)) {
+      set_event(EVENT_CAN_OVERRUN, (currentMillis - previousMillis100));
+    }
     previousMillis100 = currentMillis;
+
     ESP32Can.CANWriteFrame(&VOLVO_536);  //Send 0x536 Network managing frame to keep BMS alive
     ESP32Can.CANWriteFrame(&VOLVO_372);  //Send 0x372 ECMAmbientTempCalculated
 
@@ -370,7 +373,7 @@ void send_can_battery() {
       batteryAllowsContactorClosing = false;
     }
   }
-  if (currentMillis - previousMillis60s >= interval60s) {
+  if (currentMillis - previousMillis60s >= INTERVAL_60_S) {
     previousMillis60s = currentMillis;
     if (system_bms_status == ACTIVE) {
       readCellVoltages();
@@ -379,7 +382,9 @@ void send_can_battery() {
 }
 
 void setup_battery(void) {  // Performs one time setup at startup
+#ifdef DEBUG_VIA_USB
   Serial.println("Volvo SPA XC40 Recharge / Polestar2 78kWh battery selected");
+#endif
 
   system_number_of_cells = 108;
   system_max_design_voltage_dV = 4540;  // 454.0V, over this, charging is not possible (goes into forced discharge)

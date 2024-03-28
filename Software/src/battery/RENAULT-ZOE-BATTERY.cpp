@@ -36,9 +36,6 @@ static unsigned long previousMillis10 = 0;    // will store last time a 10ms CAN
 static unsigned long previousMillis100 = 0;   // will store last time a 100ms CAN Message was sent
 static unsigned long previousMillis1000 = 0;  // will store last time a 1000ms CAN Message was sent
 static unsigned long GVL_pause = 0;
-static const int interval10 = 10;      // interval (ms) at which send CAN Messages
-static const int interval100 = 100;    // interval (ms) at which send CAN Messages
-static const int interval1000 = 1000;  // interval (ms) at which send CAN Messages
 
 void update_values_battery() {  //This function maps all the values fetched via CAN to the correct parameters used for modbus
   system_SOH_pptt = (LB_SOH * 100);  //Increase range from 99% -> 99.00%
@@ -141,19 +138,25 @@ void receive_can_battery(CAN_frame_t rx_frame) {
 void send_can_battery() {
   unsigned long currentMillis = millis();
   // Send 100ms CAN Message
-  if (currentMillis - previousMillis100 >= interval100) {
+  if (currentMillis - previousMillis100 >= INTERVAL_100_MS) {
+    // Check if sending of CAN messages has been delayed too much.
+    if ((currentMillis - previousMillis100 >= INTERVAL_100_MS_DELAYED) && (currentMillis > BOOTUP_TIME)) {
+      set_event(EVENT_CAN_OVERRUN, (currentMillis - previousMillis100));
+    }
     previousMillis100 = currentMillis;
     //ESP32Can.CANWriteFrame(&ZOE_423);
   }
   // 1000ms CAN handling
-  if (currentMillis - previousMillis1000 >= interval1000) {
+  if (currentMillis - previousMillis1000 >= INTERVAL_1_S) {
     previousMillis1000 = currentMillis;
     //ESP32Can.CANWriteFrame(&ZOE_423);
   }
 }
 
 void setup_battery(void) {  // Performs one time setup at startup
+#ifdef DEBUG_VIA_USB
   Serial.println("Renault Zoe battery selected");
+#endif
 
   system_max_design_voltage_dV = 4040;  // 404.0V, over this, charging is not possible (goes into forced discharge)
   system_min_design_voltage_dV = 3100;  // 310.0V under this, discharging further is disabled

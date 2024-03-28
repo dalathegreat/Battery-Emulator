@@ -45,13 +45,8 @@ static ACAN2515_Buffer16 gBuffer;
 #endif
 
 // ModbusRTU parameters
-#if defined(BYD_MODBUS)
-#define MB_RTU_NUM_VALUES 30000
-#endif
-#if defined(LUNA2000_MODBUS)
-#define MB_RTU_NUM_VALUES 30000
-#endif
 #if defined(BYD_MODBUS) || defined(LUNA2000_MODBUS)
+#define MB_RTU_NUM_VALUES 30000
 uint16_t mbPV[MB_RTU_NUM_VALUES];  // Process variable memory
 // Create a ModbusRTU server instance listening on Serial2 with 2000ms timeout
 ModbusServerRTU MBserver(Serial2, 2000);
@@ -133,6 +128,8 @@ void setup() {
 
 #ifdef WEBSERVER
   init_webserver();
+
+  init_mDNS();
 #endif
 
   init_events();
@@ -150,8 +147,6 @@ void setup() {
   inform_user_on_inverter();
 
   init_battery();
-
-  init_mDNS();
 
   // BOOT button at runtime is used as an input for various things
   pinMode(0, INPUT_PULLUP);
@@ -212,6 +207,7 @@ void loop() {
   }
 }
 
+#ifdef WEBSERVER
 // Initialise mDNS
 void init_mDNS() {
 
@@ -222,19 +218,24 @@ void init_mDNS() {
 
   // Initialize mDNS .local resolution
   if (!MDNS.begin(mdnsHost)) {
+#ifdef DEBUG_VIA_USB
     Serial.println("Error setting up MDNS responder!");
+#endif
   } else {
     // Advertise via bonjour the service so we can auto discover these battery emulators on the local network.
     MDNS.addService("battery_emulator", "tcp", 80);
   }
 }
+#endif
 
 // Initialization functions
 void init_serial() {
   // Init Serial monitor
   Serial.begin(115200);
   while (!Serial) {}
+#ifdef DEBUG_VIA_USB
   Serial.println("__ OK __");
+#endif
 }
 
 void init_stored_settings() {
@@ -281,13 +282,13 @@ void init_CAN() {
   CAN_cfg.rx_queue = xQueueCreate(rx_queue_size, sizeof(CAN_frame_t));
   // Init CAN Module
   ESP32Can.CANInit();
-  Serial.println(CAN_cfg.speed);
 
 #ifdef DUAL_CAN
+#ifdef DEBUG_VIA_USB
   Serial.println("Dual CAN Bus (ESP32+MCP2515) selected");
+#endif
   gBuffer.initWithSize(25);
   SPI.begin(MCP2515_SCK, MCP2515_MISO, MCP2515_MOSI);
-  Serial.println("Configure ACAN2515");
   ACAN2515Settings settings(QUARTZ_FREQUENCY, 500UL * 1000UL);  // CAN bit rate 500 kb/s
   settings.mRequestedMode = ACAN2515Settings::NormalMode;       // Select loopback mode
   can.begin(settings, [] { can.isr(); });
@@ -320,6 +321,7 @@ void init_contactors() {
 }
 
 void init_modbus() {
+#if defined(BYD_MODBUS) || defined(LUNA2000_MODBUS)
   // Set up Modbus RTU Server
   pinMode(RS485_EN_PIN, OUTPUT);
   digitalWrite(RS485_EN_PIN, HIGH);
@@ -332,7 +334,6 @@ void init_modbus() {
   // Init Static data to the RTU Modbus
   handle_static_data_modbus_byd();
 #endif
-#if defined(BYD_MODBUS) || defined(LUNA2000_MODBUS)
 #if defined(SERIAL_LINK_RECEIVER) || defined(SERIAL_LINK_TRANSMITTER)
 // Check that Dual LilyGo via RS485 option isn't enabled, this collides with Modbus!
 #error MODBUS CANNOT BE USED IN DOUBLE LILYGO SETUPS! CHECK USER SETTINGS!
@@ -354,30 +355,46 @@ void init_modbus() {
 void inform_user_on_inverter() {
   // Inform user what Inverter is used
 #ifdef BYD_CAN
+#ifdef DEBUG_VIA_USB
   Serial.println("BYD CAN protocol selected");
 #endif
+#endif
 #ifdef BYD_MODBUS
+#ifdef DEBUG_VIA_USB
   Serial.println("BYD Modbus RTU protocol selected");
 #endif
+#endif
 #ifdef LUNA2000_MODBUS
+#ifdef DEBUG_VIA_USB
   Serial.println("Luna2000 Modbus RTU protocol selected");
 #endif
+#endif
 #ifdef PYLON_CAN
+#ifdef DEBUG_VIA_USB
   Serial.println("PYLON CAN protocol selected");
 #endif
+#endif
 #ifdef SMA_CAN
+#ifdef DEBUG_VIA_USB
   Serial.println("SMA CAN protocol selected");
 #endif
+#endif
 #ifdef SMA_TRIPOWER_CAN
+#ifdef DEBUG_VIA_USB
   Serial.println("SMA Tripower CAN protocol selected");
 #endif
+#endif
 #ifdef SOFAR_CAN
+#ifdef DEBUG_VIA_USB
   Serial.println("SOFAR CAN protocol selected");
+#endif
 #endif
 #ifdef SOLAX_CAN
   inverterAllowsContactorClosing = false;  // The inverter needs to allow first on this protocol
   intervalUpdateValues = 800;              // This protocol also requires the values to be updated faster
+#ifdef DEBUG_VIA_USB
   Serial.println("SOLAX CAN protocol selected");
+#endif
 #endif
 }
 
@@ -395,8 +412,7 @@ void receive_can() {  // This section checks if we have a complete CAN message i
   // Depending on which battery/inverter is selected, we forward this to their respective CAN routines
   CAN_frame_t rx_frame;
   if (xQueueReceive(CAN_cfg.rx_queue, &rx_frame, 3 * portTICK_PERIOD_MS) == pdTRUE) {
-    if (rx_frame.FIR.B.FF == CAN_frame_std) {
-//printf("New standard frame");
+    if (rx_frame.FIR.B.FF == CAN_frame_std) {  // New standard frame
 // Battery
 #ifndef SERIAL_LINK_RECEIVER
       receive_can_battery(rx_frame);
@@ -418,8 +434,7 @@ void receive_can() {  // This section checks if we have a complete CAN message i
 #ifdef NISSANLEAF_CHARGER
       receive_can_nissanleaf_charger(rx_frame);
 #endif
-    } else {
-      //printf("New extended frame");
+    } else {  // New extended frame
 #ifdef PYLON_CAN
       receive_can_pylon(rx_frame);
 #endif
@@ -475,13 +490,11 @@ void receive_can2() {  // This function is similar to receive_can, but just take
       rx_frame2.data.u8[i] = MCP2515Frame.data[i];
     }
 
-    if (rx_frame2.FIR.B.FF == CAN_frame_std) {
-//Serial.println("New standard frame");
+    if (rx_frame2.FIR.B.FF == CAN_frame_std) {  // New standard frame
 #ifdef BYD_CAN
       receive_can_byd(rx_frame2);
 #endif
-    } else {
-      //Serial.println("New extended frame");
+    } else {  // New extended frame
 #ifdef PYLON_CAN
       receive_can_pylon(rx_frame2);
 #endif

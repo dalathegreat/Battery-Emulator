@@ -86,7 +86,9 @@ static void publish_cell_voltages(void) {
     serializeJson(doc, mqtt_msg, sizeof(mqtt_msg));
 
     if (!mqtt_publish(state_topic.c_str(), mqtt_msg, false)) {
+#ifdef DEBUG_VIA_USB
       Serial.println("Cell voltage MQTT msg could not be sent");
+#endif
     }
     doc.clear();
   }
@@ -161,7 +163,9 @@ static void publish_common_info(void) {
 
     serializeJson(doc, mqtt_msg);
     if (!mqtt_publish(state_topic.c_str(), mqtt_msg, false)) {
+#ifdef DEBUG_VIA_USB
       Serial.println("Common info MQTT msg could not be sent");
+#endif
     }
     doc.clear();
   }
@@ -169,6 +173,7 @@ static void publish_common_info(void) {
 
 /* This is called whenever a subscribed topic changes (hopefully) */
 static void callback(char* topic, byte* payload, unsigned int length) {
+#ifdef DEBUG_VIA_USB
   Serial.print("Message arrived [");
   Serial.print(topic);
   Serial.print("] ");
@@ -176,28 +181,37 @@ static void callback(char* topic, byte* payload, unsigned int length) {
     Serial.print((char)payload[i]);
   }
   Serial.println();
+#endif
 }
 
 /* If we lose the connection, get it back and re-sub */
 static void reconnect() {
-  // attempt one reconnection
+// attempt one reconnection
+#ifdef DEBUG_VIA_USB
   Serial.print("Attempting MQTT connection... ");
+#endif
   const char* hostname = WiFi.getHostname();
   char clientId[64];  // Adjust the size as needed
   snprintf(clientId, sizeof(clientId), "LilyGoClient-%s", hostname);
   // Attempt to connect
   if (client.connect(clientId, mqtt_user, mqtt_password)) {
+#ifdef DEBUG_VIA_USB
     Serial.println("connected");
+#endif
 
     for (int i = 0; i < mqtt_nof_subscriptions; i++) {
       client.subscribe(mqtt_subscriptions[i]);
+#ifdef DEBUG_VIA_USB
       Serial.print("Subscribed to: ");
       Serial.println(mqtt_subscriptions[i]);
+#endif
     }
   } else {
+#ifdef DEBUG_VIA_USB
     Serial.print("failed, rc=");
     Serial.print(client.state());
     Serial.println(" try again in 5 seconds");
+#endif
     // Wait 5 seconds before retrying
   }
 }
@@ -205,7 +219,9 @@ static void reconnect() {
 void init_mqtt(void) {
   client.setServer(MQTT_SERVER, MQTT_PORT);
   client.setCallback(callback);
+#ifdef DEBUG_VIA_USB
   Serial.println("MQTT initialized");
+#endif
 
   previousMillisUpdateVal = millis();
   reconnect();

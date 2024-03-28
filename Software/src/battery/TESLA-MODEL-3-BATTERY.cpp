@@ -9,7 +9,6 @@
 /* Credits: Most of the code comes from Per Carlen's bms_comms_tesla_model3.py (https://gitlab.com/pelle8/batt2gen24/) */
 
 static unsigned long previousMillis30 = 0;  // will store last time a 30ms CAN Message was send
-static const int interval30 = 30;           // interval (ms) at which send CAN Messages
 static uint8_t stillAliveCAN = 6;           //counter for checking if CAN is still alive
 
 CAN_frame_t TESLA_221_1 = {
@@ -274,11 +273,15 @@ void update_values_battery() {  //This function maps all the values fetched via 
 
   //Check if BMS is in need of recalibration
   if (nominal_full_pack_energy > 1 && nominal_full_pack_energy < REASONABLE_ENERGYAMOUNT) {
+#ifdef DEBUG_VIA_USB
     Serial.println("Warning: kWh remaining " + String(nominal_full_pack_energy) +
                    " reported by battery not plausible. Battery needs cycling.");
+#endif
     set_event(EVENT_KWH_PLAUSIBILITY_ERROR, nominal_full_pack_energy);
   } else if (nominal_full_pack_energy <= 1) {
+#ifdef DEBUG_VIA_USB
     Serial.println("Info: kWh remaining battery is not reporting kWh remaining.");
+#endif
     set_event(EVENT_KWH_PLAUSIBILITY_ERROR, nominal_full_pack_energy);
   }
 
@@ -580,7 +583,11 @@ the first, for a few cycles, then stop all  messages which causes the contactor 
 
   unsigned long currentMillis = millis();
   //Send 30ms message
-  if (currentMillis - previousMillis30 >= interval30) {
+  if (currentMillis - previousMillis30 >= INTERVAL_30_MS) {
+    // Check if sending of CAN messages has been delayed too much.
+    if ((currentMillis - previousMillis30 >= INTERVAL_30_MS_DELAYED) && (currentMillis > BOOTUP_TIME)) {
+      set_event(EVENT_CAN_OVERRUN, (currentMillis - previousMillis30));
+    }
     previousMillis30 = currentMillis;
 
     if (inverterAllowsContactorClosing == 1) {
@@ -692,7 +699,9 @@ void printDebugIfActive(uint8_t symbol, const char* message) {
 }
 
 void setup_battery(void) {  // Performs one time setup at startup
+#ifdef DEBUG_VIA_USB
   Serial.println("Tesla Model 3 battery selected");
+#endif
 
 #ifdef LFP_CHEMISTRY
   system_LFP_Chemistry = true;

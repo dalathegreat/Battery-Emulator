@@ -2,7 +2,7 @@
 #include <Arduino.h>
 
 String cellmonitor_processor(const String& var) {
-  if (var == "PLACEHOLDER") {
+  if (var == "ABC") {
     String content = "";
     // Page format
     content += "<style>";
