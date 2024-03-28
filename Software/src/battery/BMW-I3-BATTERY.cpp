@@ -14,14 +14,15 @@ static unsigned long previousMillis640 = 0;    // will store last time a 600ms C
 static unsigned long previousMillis1000 = 0;   // will store last time a 1000ms CAN Message was send
 static unsigned long previousMillis5000 = 0;   // will store last time a 5000ms CAN Message was send
 static unsigned long previousMillis10000 = 0;  // will store last time a 10000ms CAN Message was send
-static const int interval20 = 20;              // interval (ms) at which send CAN Messages
-static const int interval100 = 100;            // interval (ms) at which send CAN Messages
-static const int interval200 = 200;            // interval (ms) at which send CAN Messages
-static const int interval500 = 500;            // interval (ms) at which send CAN Messages
-static const int interval640 = 640;            // interval (ms) at which send CAN Messages
-static const int interval1000 = 1000;          // interval (ms) at which send CAN Messages
-static const int interval5000 = 5000;          // interval (ms) at which send CAN Messages
-static const int interval10000 = 10000;        // interval (ms) at which send CAN Messages
+static const uint8_t interval20 = 20;          // interval (ms) at which send CAN Messages
+static const uint8_t interval100 = 100;        // interval (ms) at which send CAN Messages
+static const uint8_t interval200 = 200;        // interval (ms) at which send CAN Messages
+static const uint16_t interval500 = 500;       // interval (ms) at which send CAN Messages
+static const uint16_t interval640 = 640;       // interval (ms) at which send CAN Messages
+static const uint16_t interval1000 = 1000;     // interval (ms) at which send CAN Messages
+static const uint16_t interval5000 = 5000;     // interval (ms) at which send CAN Messages
+static const uint16_t interval10000 = 10000;   // interval (ms) at which send CAN Messages
+static const uint8_t interval20overrun = 30;   // interval (ms) at when a 20ms CAN send is considered delayed
 static uint8_t CANstillAlive = 12;             // counter for checking if CAN is still alive
 static uint16_t CANerror = 0;                  // counter on how many CAN errors encountered
 #define MAX_CAN_FAILURES 500                   // Amount of malformed CAN messages to allow before raising a warning
@@ -562,9 +563,9 @@ void send_can_battery() {
   if (battery_awake) {
     //Send 20ms message
     if (currentMillis - previousMillis20 >= interval20) {
-
-      if (currentMillis - previousMillis20 >= interval20 + 10) {
-        set_event(EVENT_CAN_OVERRUN, interval20);
+      // Check if sending of CAN messages has been delayed too much.
+      if ((currentMillis - previousMillis20 >= interval20overrun) && (currentMillis > 1000)) {
+        set_event(EVENT_CAN_OVERRUN, (currentMillis - previousMillis20));
       }
       previousMillis20 = currentMillis;
 

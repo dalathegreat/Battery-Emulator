@@ -5,11 +5,12 @@
 #include "../lib/miwagner-ESP32-Arduino-CAN/ESP32CAN.h"
 
 /* Do not change code below unless you are sure what you are doing */
-static unsigned long previousMillis100 = 0;  // will store last time a 100ms CAN Message was send
-static unsigned long previousMillis60s = 0;  // will store last time a 60s CAN Message was send
-static const int interval100 = 100;          // interval (ms) at which send CAN Messages
-static const int interval60s = 60000;        // interval (ms) at which send CAN Messages
-static uint8_t CANstillAlive = 12;           //counter for checking if CAN is still alive
+static unsigned long previousMillis100 = 0;     // will store last time a 100ms CAN Message was send
+static unsigned long previousMillis60s = 0;     // will store last time a 60s CAN Message was send
+static const uint8_t interval100 = 100;         // interval (ms) at which send CAN Messages
+static const uint8_t interval100overrun = 120;  // interval (ms) at when a 100ms CAN send is considered delayed
+static const uint16_t interval60s = 60000;      // interval (ms) at which send CAN Messages
+static uint8_t CANstillAlive = 12;              //counter for checking if CAN is still alive
 
 #define MAX_CELL_VOLTAGE 4210   //Battery is put into emergency stop if one cell goes over this value
 #define MIN_CELL_VOLTAGE 2700   //Battery is put into emergency stop if one cell goes below this value
@@ -360,7 +361,12 @@ void send_can_battery() {
   unsigned long currentMillis = millis();
   // Send 100ms CAN Message
   if (currentMillis - previousMillis100 >= interval100) {
+    // Check if sending of CAN messages has been delayed too much.
+    if ((currentMillis - previousMillis100 >= interval100overrun) && (currentMillis > 1000)) {
+      set_event(EVENT_CAN_OVERRUN, (currentMillis - previousMillis100));
+    }
     previousMillis100 = currentMillis;
+
     ESP32Can.CANWriteFrame(&VOLVO_536);  //Send 0x536 Network managing frame to keep BMS alive
     ESP32Can.CANWriteFrame(&VOLVO_372);  //Send 0x372 ECMAmbientTempCalculated
 

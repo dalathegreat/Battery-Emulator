@@ -8,9 +8,10 @@
 /* Do not change code below unless you are sure what you are doing */
 /* Credits: Most of the code comes from Per Carlen's bms_comms_tesla_model3.py (https://gitlab.com/pelle8/batt2gen24/) */
 
-static unsigned long previousMillis30 = 0;  // will store last time a 30ms CAN Message was send
-static const int interval30 = 30;           // interval (ms) at which send CAN Messages
-static uint8_t stillAliveCAN = 6;           //counter for checking if CAN is still alive
+static unsigned long previousMillis30 = 0;    // will store last time a 30ms CAN Message was send
+static const uint8_t interval30 = 30;         // interval (ms) at which send CAN Messages
+static const uint8_t interval30overrun = 40;  // interval (ms) at which a 30ms CAN message is considered overrun
+static uint8_t stillAliveCAN = 6;             //counter for checking if CAN is still alive
 
 CAN_frame_t TESLA_221_1 = {
     .FIR = {.B =
@@ -585,6 +586,10 @@ the first, for a few cycles, then stop all  messages which causes the contactor 
   unsigned long currentMillis = millis();
   //Send 30ms message
   if (currentMillis - previousMillis30 >= interval30) {
+    // Check if sending of CAN messages has been delayed too much.
+    if ((currentMillis - previousMillis30 >= interval30overrun) && (currentMillis > 1000)) {
+      set_event(EVENT_CAN_OVERRUN, (currentMillis - previousMillis30));
+    }
     previousMillis30 = currentMillis;
 
     if (inverterAllowsContactorClosing == 1) {

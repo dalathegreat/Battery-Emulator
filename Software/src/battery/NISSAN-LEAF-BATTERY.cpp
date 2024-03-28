@@ -709,9 +709,9 @@ void send_can_battery() {
   }
   //Send 10ms message
   if (currentMillis - previousMillis10 >= interval10) {
-
-    if (currentMillis - previousMillis10 >= interval10overrun) {
-      set_event(EVENT_CAN_OVERRUN, interval10);
+    // Check if sending of CAN messages has been delayed too much.
+    if ((currentMillis - previousMillis10 >= interval10overrun) && (currentMillis > 1000)) {
+      set_event(EVENT_CAN_OVERRUN, (currentMillis - previousMillis10));
     }
     previousMillis10 = currentMillis;
 

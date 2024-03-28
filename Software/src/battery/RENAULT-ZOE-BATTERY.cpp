@@ -36,9 +36,9 @@ static unsigned long previousMillis10 = 0;    // will store last time a 10ms CAN
 static unsigned long previousMillis100 = 0;   // will store last time a 100ms CAN Message was sent
 static unsigned long previousMillis1000 = 0;  // will store last time a 1000ms CAN Message was sent
 static unsigned long GVL_pause = 0;
-static const int interval10 = 10;      // interval (ms) at which send CAN Messages
-static const int interval100 = 100;    // interval (ms) at which send CAN Messages
-static const int interval1000 = 1000;  // interval (ms) at which send CAN Messages
+static const uint8_t interval100 = 100;         // interval (ms) at which send CAN Messages
+static const uint8_t interval1000 = 1000;       // interval (ms) at which send CAN Messages
+static const uint8_t interval100overrun = 120;  // interval (ms) at when a 100ms CAN send is considered delayed
 
 void update_values_battery() {  //This function maps all the values fetched via CAN to the correct parameters used for modbus
   system_SOH_pptt = (LB_SOH * 100);  //Increase range from 99% -> 99.00%
@@ -142,6 +142,10 @@ void send_can_battery() {
   unsigned long currentMillis = millis();
   // Send 100ms CAN Message
   if (currentMillis - previousMillis100 >= interval100) {
+    // Check if sending of CAN messages has been delayed too much.
+    if ((currentMillis - previousMillis100 >= interval100overrun) && (currentMillis > 1000)) {
+      set_event(EVENT_CAN_OVERRUN, (currentMillis - previousMillis100));
+    }
     previousMillis100 = currentMillis;
     //ESP32Can.CANWriteFrame(&ZOE_423);
   }
