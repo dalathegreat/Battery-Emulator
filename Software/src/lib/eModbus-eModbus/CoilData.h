@@ -98,7 +98,7 @@ public:
   // Return number of coils set to 0 (or OFF)
   uint16_t coilsSetOFF() const;
 
-#if !ISLINUX
+#if !LINUX
   // Helper function to dump out coils in logical order
   void print(const char *label, Print& s);
 #endif
