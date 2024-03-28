@@ -118,7 +118,9 @@ void update_values_battery() {  //This function maps all the values fetched via 
   }
 
   if (!BMU_Detected) {
+#ifdef DEBUG_VIA_USB
     Serial.println("BMU not detected, check wiring!");
+#endif
   }
 
 #ifdef DEBUG_VIA_USB
@@ -231,7 +233,9 @@ void send_can_battery() {
 }
 
 void setup_battery(void) {  // Performs one time setup at startup
+#ifdef DEBUG_VIA_USB
   Serial.println("Mitsubishi i-MiEV / Citroen C-Zero / Peugeot Ion battery selected");
+#endif
 
   system_max_design_voltage_dV = 3600;  // 360.0V, over this, charging is not possible (goes into forced discharge)
   system_min_design_voltage_dV = 3160;  // 316.0V under this, discharging further is disabled

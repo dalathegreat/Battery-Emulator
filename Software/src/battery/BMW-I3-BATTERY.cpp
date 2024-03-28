@@ -562,6 +562,10 @@ void send_can_battery() {
   if (battery_awake) {
     //Send 20ms message
     if (currentMillis - previousMillis20 >= interval20) {
+
+      if (currentMillis - previousMillis20 >= interval20 + 10) {
+        set_event(EVENT_CAN_OVERRUN, interval20);
+      }
       previousMillis20 = currentMillis;
 
       if (startup_counter_contactor < 160) {
@@ -702,7 +706,9 @@ void send_can_battery() {
 }
 
 void setup_battery(void) {  // Performs one time setup at startup
+#ifdef DEBUG_VIA_USB
   Serial.println("BMW i3 battery selected");
+#endif
 
   system_max_design_voltage_dV = 4040;  // 404.4V, over this, charging is not possible (goes into forced discharge)
   system_min_design_voltage_dV = 2800;  // 280.0V under this, discharging further is disabled

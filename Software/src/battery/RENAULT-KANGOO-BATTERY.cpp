@@ -247,7 +247,9 @@ void send_can_battery() {
 }
 
 void setup_battery(void) {  // Performs one time setup at startup
+#ifdef DEBUG_VIA_USB
   Serial.println("Renault Kangoo battery selected");
+#endif
 
   system_max_design_voltage_dV = 4040;  // 404.0V, over this, charging is not possible (goes into forced discharge)
   system_min_design_voltage_dV = 3100;  // 310.0V under this, discharging further is disabled

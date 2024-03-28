@@ -274,11 +274,15 @@ void update_values_battery() {  //This function maps all the values fetched via 
 
   //Check if BMS is in need of recalibration
   if (nominal_full_pack_energy > 1 && nominal_full_pack_energy < REASONABLE_ENERGYAMOUNT) {
+#ifdef DEBUG_VIA_USB
     Serial.println("Warning: kWh remaining " + String(nominal_full_pack_energy) +
                    " reported by battery not plausible. Battery needs cycling.");
+#endif
     set_event(EVENT_KWH_PLAUSIBILITY_ERROR, nominal_full_pack_energy);
   } else if (nominal_full_pack_energy <= 1) {
+#ifdef DEBUG_VIA_USB
     Serial.println("Info: kWh remaining battery is not reporting kWh remaining.");
+#endif
     set_event(EVENT_KWH_PLAUSIBILITY_ERROR, nominal_full_pack_energy);
   }
 
@@ -692,7 +696,9 @@ void printDebugIfActive(uint8_t symbol, const char* message) {
 }
 
 void setup_battery(void) {  // Performs one time setup at startup
+#ifdef DEBUG_VIA_USB
   Serial.println("Tesla Model 3 battery selected");
+#endif
 
 #ifdef LFP_CHEMISTRY
   system_LFP_Chemistry = true;
