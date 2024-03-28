@@ -8,9 +8,6 @@
 static unsigned long previousMillis10 = 0;   // will store last time a 10ms CAN Message was send
 static unsigned long previousMillis100 = 0;  // will store last time a 100ms CAN Message was send
 static unsigned long previousMillis10s = 0;  // will store last time a 1s CAN Message was send
-static const int interval10 = 10;            // interval (ms) at which send CAN Messages
-static const int interval100 = 100;          // interval (ms) at which send CAN Messages
-static const int interval10s = 10000;        // interval (ms) at which send CAN Messages
 
 void print_units(char* header, int value, char* units) {
   Serial.print(header);
@@ -76,7 +73,7 @@ void receive_can_battery(CAN_frame_t rx_frame) {
 void send_can_battery() {
   unsigned long currentMillis = millis();
   // Send 100ms CAN Message
-  if (currentMillis - previousMillis100 >= interval100) {
+  if (currentMillis - previousMillis100 >= INTERVAL_100_MS) {
     previousMillis100 = currentMillis;
     // Put fake messages here incase you want to test sending CAN
   }

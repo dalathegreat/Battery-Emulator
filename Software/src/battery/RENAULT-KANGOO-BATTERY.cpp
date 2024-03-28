@@ -51,9 +51,6 @@ static unsigned long previousMillis10 = 0;    // will store last time a 10ms CAN
 static unsigned long previousMillis100 = 0;   // will store last time a 100ms CAN Message was sent
 static unsigned long previousMillis1000 = 0;  // will store last time a 1000ms CAN Message was sent
 static unsigned long GVL_pause = 0;
-static const int interval10 = 10;      // interval (ms) at which send CAN Messages
-static const int interval100 = 100;    // interval (ms) at which send CAN Messages
-static const int interval1000 = 1000;  // interval (ms) at which send CAN Messages
 
 void update_values_battery() {  //This function maps all the values fetched via CAN to the correct parameters used for modbus
 
@@ -226,7 +223,7 @@ void receive_can_battery(CAN_frame_t rx_frame)  //GKOE reworked
 void send_can_battery() {
   unsigned long currentMillis = millis();
   // Send 100ms CAN Message (for 2.4s, then pause 10s)
-  if ((currentMillis - previousMillis100) >= (interval100 + GVL_pause)) {
+  if ((currentMillis - previousMillis100) >= (INTERVAL_100_MS + GVL_pause)) {
     previousMillis100 = currentMillis;
     ESP32Can.CANWriteFrame(&KANGOO_423);
     GVI_Pollcounter++;
@@ -237,7 +234,7 @@ void send_can_battery() {
     }
   }
   // 1000ms CAN handling
-  if (currentMillis - previousMillis1000 >= interval1000) {
+  if (currentMillis - previousMillis1000 >= INTERVAL_1_S) {
     previousMillis1000 = currentMillis;
     if (GVB_79B_Continue)
       ESP32Can.CANWriteFrame(&KANGOO_79B_Continue);

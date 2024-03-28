@@ -14,10 +14,8 @@ static uint8_t errorCode = 0;       //stores if we have an error code active fro
 static uint8_t BMU_Detected = 0;
 static uint8_t CMU_Detected = 0;
 
-static unsigned long previousMillis10 = 0;      // will store last time a 10ms CAN Message was sent
-static unsigned long previousMillis100 = 0;     // will store last time a 100ms CAN Message was sent
-static const uint8_t interval100 = 100;         // interval (ms) at which send CAN Messages
-static const uint8_t interval100overrun = 120;  // interval (ms) at when a 100ms CAN send is considered delayed
+static unsigned long previousMillis10 = 0;   // will store last time a 10ms CAN Message was sent
+static unsigned long previousMillis100 = 0;  // will store last time a 100ms CAN Message was sent
 
 static int pid_index = 0;
 static int cmu_id = 0;
@@ -227,9 +225,9 @@ void receive_can_battery(CAN_frame_t rx_frame) {
 void send_can_battery() {
   unsigned long currentMillis = millis();
   // Send 100ms CAN Message
-  if (currentMillis - previousMillis100 >= interval100) {
+  if (currentMillis - previousMillis100 >= INTERVAL_100_MS) {
     // Check if sending of CAN messages has been delayed too much.
-    if ((currentMillis - previousMillis100 >= interval100overrun) && (currentMillis > 1000)) {
+    if ((currentMillis - previousMillis100 >= INTERVAL_100_MS_DELAYED) && (currentMillis > BOOTUP_TIME)) {
       set_event(EVENT_CAN_OVERRUN, (currentMillis - previousMillis100));
     }
     previousMillis100 = currentMillis;

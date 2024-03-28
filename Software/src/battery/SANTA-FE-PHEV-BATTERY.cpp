@@ -15,12 +15,9 @@ TODO: Map all values from battery CAN messages
 */
 
 /* Do not change code below unless you are sure what you are doing */
-static unsigned long previousMillis10 = 0;    // will store last time a 10ms CAN Message was send
-static unsigned long previousMillis100 = 0;   // will store last time a 100ms CAN Message was send
-static const int interval10 = 10;             // interval (ms) at which send CAN Messages
-static const int interval100 = 100;           // interval (ms) at which send CAN Messages
-static const uint8_t interval10overrun = 15;  // interval (ms) at when a 10ms CAN send is considered delayed
-static uint8_t CANstillAlive = 12;            //counter for checking if CAN is still alive
+static unsigned long previousMillis10 = 0;   // will store last time a 10ms CAN Message was send
+static unsigned long previousMillis100 = 0;  // will store last time a 100ms CAN Message was send
+static uint8_t CANstillAlive = 12;           //counter for checking if CAN is still alive
 
 static int SOC_1 = 0;
 static int SOC_2 = 0;
@@ -130,9 +127,9 @@ void receive_can_battery(CAN_frame_t rx_frame) {
 void send_can_battery() {
   unsigned long currentMillis = millis();
   //Send 10ms message
-  if (currentMillis - previousMillis10 >= interval10) {
+  if (currentMillis - previousMillis10 >= INTERVAL_10_MS) {
     // Check if sending of CAN messages has been delayed too much.
-    if ((currentMillis - previousMillis10 >= interval10overrun) && (currentMillis > 1000)) {
+    if ((currentMillis - previousMillis10 >= INTERVAL_10_MS_DELAYED) && (currentMillis > BOOTUP_TIME)) {
       set_event(EVENT_CAN_OVERRUN, (currentMillis - previousMillis10));
     }
     previousMillis10 = currentMillis;
@@ -155,7 +152,7 @@ void send_can_battery() {
     }
   }
   // Send 100ms CAN Message
-  if (currentMillis - previousMillis100 >= interval100) {
+  if (currentMillis - previousMillis100 >= INTERVAL_100_MS) {
     previousMillis100 = currentMillis;
 
     ESP32Can.CANWriteFrame(&SANTAFE_523);

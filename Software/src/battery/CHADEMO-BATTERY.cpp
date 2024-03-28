@@ -6,12 +6,9 @@
 #include "CHADEMO-BATTERY.h"
 
 /* Do not change code below unless you are sure what you are doing */
-static unsigned long previousMillis100 = 0;     // will store last time a 100ms CAN Message was send
-static const uint8_t interval100 = 100;         // interval (ms) at which send CAN Messages
-static const uint8_t interval100overrun = 120;  // interval (ms) at when a 100ms CAN send is considered delayed
-const int rx_queue_size = 10;                   // Receive Queue size
-static uint8_t CANstillAlive = 12;              //counter for checking if CAN is still alive
-static uint8_t errorCode = 0;                   //stores if we have an error code active from battery control logic
+static unsigned long previousMillis100 = 0;  // will store last time a 100ms CAN Message was send
+static uint8_t CANstillAlive = 12;           //counter for checking if CAN is still alive
+static uint8_t errorCode = 0;                //stores if we have an error code active from battery control logic
 
 CAN_frame_t CHADEMO_108 = {.FIR = {.B =
                                        {
@@ -195,9 +192,9 @@ void receive_can_battery(CAN_frame_t rx_frame) {
 void send_can_battery() {
   unsigned long currentMillis = millis();
   // Send 100ms CAN Message
-  if (currentMillis - previousMillis100 >= interval100) {
+  if (currentMillis - previousMillis100 >= INTERVAL_100_MS) {
     // Check if sending of CAN messages has been delayed too much.
-    if ((currentMillis - previousMillis100 >= interval100overrun) && (currentMillis > 1000)) {
+    if ((currentMillis - previousMillis100 >= INTERVAL_100_MS_DELAYED) && (currentMillis > BOOTUP_TIME)) {
       set_event(EVENT_CAN_OVERRUN, (currentMillis - previousMillis100));
     }
     previousMillis100 = currentMillis;
