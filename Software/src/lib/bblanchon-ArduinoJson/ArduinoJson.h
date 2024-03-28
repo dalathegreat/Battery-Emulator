@@ -226,11 +226,11 @@
 #define ARDUINOJSON_BIN2ALPHA_1111() P
 #define ARDUINOJSON_BIN2ALPHA_(A, B, C, D) ARDUINOJSON_BIN2ALPHA_##A##B##C##D()
 #define ARDUINOJSON_BIN2ALPHA(A, B, C, D) ARDUINOJSON_BIN2ALPHA_(A, B, C, D)
-#define ARDUINOJSON_VERSION "7.0.3"
+#define ARDUINOJSON_VERSION "7.0.4"
 #define ARDUINOJSON_VERSION_MAJOR 7
 #define ARDUINOJSON_VERSION_MINOR 0
-#define ARDUINOJSON_VERSION_REVISION 3
-#define ARDUINOJSON_VERSION_MACRO V703
+#define ARDUINOJSON_VERSION_REVISION 4
+#define ARDUINOJSON_VERSION_MACRO V704
 #ifndef ARDUINOJSON_VERSION_NAMESPACE
 #  define ARDUINOJSON_VERSION_NAMESPACE                                    \
     ARDUINOJSON_CONCAT4(ARDUINOJSON_VERSION_MACRO,                         \
@@ -7498,11 +7498,11 @@ ARDUINOJSON_END_PUBLIC_NAMESPACE
 #define ARDUINOJSON_NAMESPACE _Pragma ("GCC warning \"ARDUINOJSON_NAMESPACE is deprecated, use ArduinoJson instead\"") ArduinoJson
 #define JSON_ARRAY_SIZE(N) _Pragma ("GCC warning \"JSON_ARRAY_SIZE is deprecated, you don't need to compute the size anymore\"") (ArduinoJson::detail::sizeofArray(N))
 #define JSON_OBJECT_SIZE(N) _Pragma ("GCC warning \"JSON_OBJECT_SIZE is deprecated, you don't need to compute the size anymore\"") (ArduinoJson::detail::sizeofObject(N))
-#define JSON_STRING_SIZE(N) _Pragma ("GCC warning \"JSON_STRING_SIZE is deprecated, you don't need to compute the size anymore\"") (ArduinoJson::detail::sizeofString(N))
+#define JSON_STRING_SIZE(N) _Pragma ("GCC warning \"JSON_STRING_SIZE is deprecated, you don't need to compute the size anymore\"") (N+1)
 #else
 #define JSON_ARRAY_SIZE(N) (ArduinoJson::detail::sizeofArray(N))
 #define JSON_OBJECT_SIZE(N) (ArduinoJson::detail::sizeofObject(N))
-#define JSON_STRING_SIZE(N) (ArduinoJson::detail::sizeofString(N))
+#define JSON_STRING_SIZE(N) (N+1)
 #endif
 ARDUINOJSON_BEGIN_PUBLIC_NAMESPACE
 template <size_t N>
