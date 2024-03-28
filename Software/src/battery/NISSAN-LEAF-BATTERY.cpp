@@ -15,7 +15,6 @@ static unsigned long previousMillis10s = 0;  // will store last time a 1s CAN Me
 static uint16_t CANerror = 0;                //counter on how many CAN errors encountered
 #define MAX_CAN_FAILURES 5000                //Amount of malformed CAN messages to allow before raising a warning
 static uint8_t CANstillAlive = 12;           //counter for checking if CAN is still alive
-static uint8_t errorCode = 0;                //stores if we have an error code active from battery control logic
 static uint8_t mprun10r = 0;                 //counter 0-20 for 0x1F2 message
 static uint8_t mprun10 = 0;                  //counter 0-3
 static uint8_t mprun100 = 0;                 //counter 0-3
@@ -268,7 +267,6 @@ void update_values_battery() { /* This function maps all the values fetched via 
     Serial.println("Battery requesting immediate shutdown and contactors to be opened!");
 #endif
     //Note, this is sometimes triggered during the night while idle, and the BMS recovers after a while. Removed latching from this scenario
-    errorCode = 1;
     system_max_discharge_power_W = 0;
     system_max_charge_power_W = 0;
   }
@@ -296,17 +294,14 @@ void update_values_battery() { /* This function maps all the values fetched via 
         break;
       case (5):
         //Caution Lamp Request & Normal Stop Request
-        errorCode = 2;
         set_event(EVENT_BATTERY_DISCHG_STOP_REQ, 0);
         break;
       case (6):
         //Caution Lamp Request & Charging Mode Stop Request
-        errorCode = 3;
         set_event(EVENT_BATTERY_CHG_STOP_REQ, 0);
         break;
       case (7):
         //Caution Lamp Request & Charging Mode Stop Request & Normal Stop Request
-        errorCode = 4;
         set_event(EVENT_BATTERY_CHG_DISCHG_STOP_REQ, 0);
         break;
       default:
@@ -320,7 +315,6 @@ void update_values_battery() { /* This function maps all the values fetched via 
 
   if (LB_StateOfHealth < 25) {    //Battery is extremely degraded, not fit for secondlifestorage. Zero it all out.
     if (LB_StateOfHealth != 0) {  //Extra check to see that we actually have a SOH Value available
-      errorCode = 5;
       set_event(EVENT_LOW_SOH, LB_StateOfHealth);
     } else {
       clear_event(EVENT_LOW_SOH);
@@ -330,7 +324,6 @@ void update_values_battery() { /* This function maps all the values fetched via 
 #ifdef INTERLOCK_REQUIRED
   if (!LB_Interlock) {
     set_event(EVENT_HVIL_FAILURE, 0);
-    errorCode = 6;
   } else {
     clear_event(EVENT_HVIL_FAILURE);
   }
@@ -338,7 +331,6 @@ void update_values_battery() { /* This function maps all the values fetched via 
 
   /* Check if the BMS is still sending CAN messages. If we go 60s without messages we raise an error*/
   if (!CANstillAlive) {
-    errorCode = 7;
     set_event(EVENT_CAN_RX_FAILURE, 0);
   } else {
     CANstillAlive--;
@@ -347,7 +339,6 @@ void update_values_battery() { /* This function maps all the values fetched via 
   if (CANerror >
       MAX_CAN_FAILURES)  //Also check if we have recieved too many malformed CAN messages. If so, signal via LED
   {
-    errorCode = 10;
     set_event(EVENT_CAN_RX_WARNING, 0);
   }
 
@@ -358,10 +349,6 @@ void update_values_battery() { /* This function maps all the values fetched via 
 
 /*Finally print out values to serial if configured to do so*/
 #ifdef DEBUG_VIA_USB
-  if (errorCode > 0) {
-    Serial.print("ERROR CODE ACTIVE IN SYSTEM. NUMBER: ");
-    Serial.println(errorCode);
-  }
   Serial.println("Values going to inverter");
   print_with_units("SOH%: ", (system_SOH_pptt * 0.01), "% ");
   print_with_units(", SOC% scaled: ", (system_scaled_SOC_pptt * 0.01), "% ");
@@ -576,11 +563,9 @@ void receive_can_battery(CAN_frame_t rx_frame) {
           }
 
           if (min_max_voltage[1] >= MAX_CELL_VOLTAGE) {
-            errorCode = 8;
             set_event(EVENT_CELL_OVER_VOLTAGE, 0);
           }
           if (min_max_voltage[0] <= MIN_CELL_VOLTAGE) {
-            errorCode = 9;
             set_event(EVENT_CELL_UNDER_VOLTAGE, 0);
           }
           break;

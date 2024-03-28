@@ -583,8 +583,8 @@ String processor(const String& var) {
 #endif
 #ifdef NISSANLEAF_CHARGER
     float chgPwrDC = static_cast<float>(charger_stat_HVcur * 100);
-    charger_stat_HVcur = chgPwrDC / (battery_voltage / 10);  // P/U=I
-    charger_stat_HVvol = static_cast<float>(battery_voltage / 10);
+    charger_stat_HVcur = chgPwrDC / (system_battery_voltage_dV / 10);  // P/U=I
+    charger_stat_HVvol = static_cast<float>(system_battery_voltage_dV / 10);
     float ACvol = charger_stat_ACvol;
     float HVvol = charger_stat_HVvol;
     float HVcur = charger_stat_HVcur;

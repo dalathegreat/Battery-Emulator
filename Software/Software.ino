@@ -28,8 +28,7 @@ Preferences settings;  // Store user settings
 const char* version_number = "5.6.dev";
 
 // Interval settings
-int intervalUpdateValues = 4800;  // Interval at which to update inverter values / Modbus registers
-const int interval10 = 10;        // Interval for 10ms tasks
+uint16_t intervalUpdateValues = INTERVAL_5_S;  // Interval at which to update inverter values / Modbus registers
 unsigned long previousMillis10ms = 50;
 unsigned long previousMillisUpdateVal = 0;
 
@@ -174,7 +173,7 @@ void loop() {
 #endif
 
   // Process
-  if (millis() - previousMillis10ms >= interval10)  // Every 10ms
+  if (millis() - previousMillis10ms >= INTERVAL_10_MS)  // Every 10ms
   {
     previousMillis10ms = millis();
     handle_LED_state();  // Set the LED color according to state
@@ -183,7 +182,7 @@ void loop() {
 #endif
   }
 
-  if (millis() - previousMillisUpdateVal >= intervalUpdateValues)  // Every 4.8s
+  if (millis() - previousMillisUpdateVal >= intervalUpdateValues)  // Every 5s normally
   {
     previousMillisUpdateVal = millis();
     update_SOC();     // Check if real or calculated SOC% value should be sent
