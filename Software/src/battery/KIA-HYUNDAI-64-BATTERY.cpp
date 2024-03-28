@@ -6,9 +6,9 @@
 #include "KIA-HYUNDAI-64-BATTERY.h"
 
 /* Do not change code below unless you are sure what you are doing */
-static unsigned long previousMillis100 = 0;   // will store last time a 100ms CAN Message was send
-static unsigned long previousMillis10ms = 0;  // will store last time a 10s CAN Message was send
-static uint8_t CANstillAlive = 12;            //counter for checking if CAN is still alive
+static unsigned long previousMillis100 = 0;  // will store last time a 100ms CAN Message was send
+static unsigned long previousMillis10 = 0;   // will store last time a 10s CAN Message was send
+static uint8_t CANstillAlive = 12;           //counter for checking if CAN is still alive
 
 #define MAX_CELL_VOLTAGE 4250   //Battery is put into emergency stop if one cell goes over this value
 #define MIN_CELL_VOLTAGE 2950   //Battery is put into emergency stop if one cell goes below this value
@@ -538,7 +538,7 @@ void send_can_battery() {
     ESP32Can.CANWriteFrame(&KIA64_2A1);
   }
   // Send 10ms CAN Message
-  if (currentMillis - previousMillis10ms >= INTERVAL_10_MS) {
+  if (currentMillis - previousMillis10 >= INTERVAL_10_MS) {
     // Check if sending of CAN messages has been delayed too much.
     if ((currentMillis - previousMillis10 >= INTERVAL_10_MS_DELAYED) && (currentMillis > BOOTUP_TIME)) {
       set_event(EVENT_CAN_OVERRUN, (currentMillis - previousMillis10));
