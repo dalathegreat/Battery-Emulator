@@ -16,6 +16,7 @@ import requests
 import hashlib
 from urllib.parse import urlparse
 import time
+from requests.auth import HTTPDigestAuth
 Import("env")
 
 try:
@@ -29,7 +30,9 @@ except ImportError:
 
 def on_upload(source, target, env):
     firmware_path = str(source[0])
-    upload_url_compatibility = env.GetProjectOption('upload_url')
+
+    auth = None
+    upload_url_compatibility = env.GetProjectOption('custom_upload_url')
     upload_url = upload_url_compatibility.replace("/update", "")
 
     with open(firmware_path, 'rb') as firmware:
@@ -50,12 +53,37 @@ def on_upload(source, target, env):
             'Referer': f'{upload_url}/update',
             'Connection': 'keep-alive'
             }
-
-        start_response = requests.get(start_url, headers=start_headers)
         
-        if start_response.status_code != 200:
-            print("start-request faild " + str(start_response.status_code))
-            return
+        checkAuthResponse = requests.get(f"{upload_url_compatibility}/update")
+        
+        if checkAuthResponse.status_code == 401:
+            try:
+                username = env.GetProjectOption('custom_username')
+                password = env.GetProjectOption('custom_password')
+            except:
+                username = None
+                password = None
+                print("No authentication values specified.")
+                print('Please, add some Options in your .ini file like: \n\ncustom_username=username\ncustom_password=password\n')
+            if username is None or password is None:
+                print("Authentication required, but no credentials provided.")
+                return
+            print("Serverconfiguration: authentication needed.")
+            auth = HTTPDigestAuth(username, password)
+            doUpdateAuth = requests.get(start_url, headers=start_headers, auth=auth)
+
+            if doUpdateAuth.status_code != 200:
+                print("authentication faild " + str(doUpdateAuth.status_code))
+                return
+            print("Authentication successfull")
+        else:
+            auth = None
+            print("Serverconfiguration: autentication not needed.")
+            doUpdate = requests.get(start_url, headers=start_headers)
+
+            if doUpdate.status_code != 200:
+                print("start-request faild " + str(doUpdate.status_code))
+                return
 
         firmware.seek(0)
         encoder = MultipartEncoder(fields={
@@ -87,7 +115,7 @@ def on_upload(source, target, env):
         }
 
 
-        response = requests.post(f"{upload_url}/ota/upload", data=monitor, headers=post_headers)
+        response = requests.post(f"{upload_url}/ota/upload", data=monitor, headers=post_headers, auth=auth)
         
         bar.close()
         time.sleep(0.1)
