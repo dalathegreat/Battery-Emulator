@@ -382,9 +382,17 @@ void update_values_battery() {  //This function maps all the values fetched via 
 
   system_remaining_capacity_Wh = (battery_energy_content_maximum_kWh * 1000);  // Convert kWh to Wh
 
-  system_max_charge_power_W = (battery_max_charge_amperage * system_battery_voltage_dV);
+  if ((battery_max_charge_amperage * system_battery_voltage_dV) > 65000) {
+    system_max_charge_power_W = 65000;
+  } else {
+    system_max_charge_power_W = (battery_max_charge_amperage * system_battery_voltage_dV);
+  }
 
-  system_max_discharge_power_W = (battery_max_discharge_amperage * system_battery_voltage_dV);
+  if ((battery_max_discharge_amperage * system_battery_voltage_dV) > 65000) {
+    system_max_discharge_power_W = 65000;
+  } else {
+    system_max_discharge_power_W = (battery_max_discharge_amperage * system_battery_voltage_dV);
+  }
 
   battery_power = (system_battery_current_dA * (system_battery_voltage_dV / 10));
 
