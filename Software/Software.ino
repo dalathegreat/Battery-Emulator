@@ -5,6 +5,10 @@
 #include <Preferences.h>
 #include "HardwareSerial.h"
 #include "USER_SETTINGS.h"
+#include "esp_system.h"
+#include "esp_task_wdt.h"
+#include "freertos/FreeRTOS.h"
+#include "freertos/task.h"
 #include "src/battery/BATTERIES.h"
 #include "src/charger/CHARGERS.h"
 #include "src/devboard/config.h"
@@ -17,10 +21,6 @@
 #include "src/lib/eModbus-eModbus/scripts/mbServerFCs.h"
 #include "src/lib/miwagner-ESP32-Arduino-CAN/CAN_config.h"
 #include "src/lib/miwagner-ESP32-Arduino-CAN/ESP32CAN.h"
-#include "freertos/FreeRTOS.h"
-#include "freertos/task.h"
-#include "esp_system.h"
-#include "esp_task_wdt.h"
 
 #ifdef WEBSERVER
 #include <ESPmDNS.h>
