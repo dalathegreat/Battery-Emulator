@@ -49,13 +49,12 @@ void manageSerialLinkTransmitter() {
   }
 #endif
 
-  if (currentTime - updateTime > 100) {
+  if (currentTime - updateTime > INTERVAL_100_MS) {
     updateTime = currentTime;
     if (!initLink) {
       initLink = true;
       transmitGoodSince = currentTime;
-      // sends variables every 5000mS even if no change
-      dataLinkTransmit.setUpdateInterval(10000);
+      dataLinkTransmit.setUpdateInterval(INTERVAL_10_S);
     }
     bool sendError = dataLinkTransmit.checkTransmissionError(true);
     if (sendError) {
@@ -86,7 +85,7 @@ void manageSerialLinkTransmitter() {
     }
 
     //--- reporting every 60 seconds that transmission is good
-    if (currentTime - transmitGoodSince > 60000) {
+    if (currentTime - transmitGoodSince > INTERVAL_60_S) {
       transmitGoodSince = currentTime;
       Serial.print(currentTime);
       Serial.println(" - Transmit Good");
@@ -97,8 +96,7 @@ void manageSerialLinkTransmitter() {
     }
 
     //--- report that Errors been ocurring for > 60 seconds
-    if (currentTime - lastGood > 60000)  // 60 seconds
-    {
+    if (currentTime - lastGood > INTERVAL_60_S) {
       lastGood = currentTime;
       Serial.print(currentTime);
       Serial.println(" - Transmit Failed : 60 seconds");
@@ -127,7 +125,7 @@ void manageSerialLinkTransmitter() {
 
     static unsigned long updateDataTime = 0;
 
-    if (currentTime - updateDataTime > 999) {
+    if (currentTime - updateDataTime > INTERVAL_1_S) {
       updateDataTime = currentTime;
       dataLinkTransmit.updateData(0, system_real_SOC_pptt);
       dataLinkTransmit.updateData(1, system_SOH_pptt);

@@ -6,9 +6,6 @@
 static unsigned long previousMillis2s = 0;   // will store last time a 2s CAN Message was send
 static unsigned long previousMillis10s = 0;  // will store last time a 10s CAN Message was send
 static unsigned long previousMillis60s = 0;  // will store last time a 60s CAN Message was send
-static const int interval2s = 2000;          // interval (ms) at which send CAN Messages
-static const int interval10s = 10000;        // interval (ms) at which send CAN Messages
-static const int interval60s = 60000;        // interval (ms) at which send CAN Messages
 static uint8_t char1_151 = 0;
 static uint8_t char2_151 = 0;
 static uint8_t char3_151 = 0;
@@ -232,13 +229,13 @@ void send_can_byd() {
   }
 
   // Send 2s CAN Message
-  if (currentMillis - previousMillis2s >= interval2s) {
+  if (currentMillis - previousMillis2s >= INTERVAL_2_S) {
     previousMillis2s = currentMillis;
 
     ESP32Can.CANWriteFrame(&BYD_110);
   }
   // Send 10s CAN Message
-  if (currentMillis - previousMillis10s >= interval10s) {
+  if (currentMillis - previousMillis10s >= INTERVAL_10_S) {
     previousMillis10s = currentMillis;
 
     ESP32Can.CANWriteFrame(&BYD_150);
@@ -246,7 +243,7 @@ void send_can_byd() {
     ESP32Can.CANWriteFrame(&BYD_210);
   }
   //Send 60s message
-  if (currentMillis - previousMillis60s >= interval60s) {
+  if (currentMillis - previousMillis60s >= INTERVAL_60_S) {
     previousMillis60s = currentMillis;
 
     ESP32Can.CANWriteFrame(&BYD_190);
