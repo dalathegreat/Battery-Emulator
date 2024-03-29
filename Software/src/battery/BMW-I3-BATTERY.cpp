@@ -394,7 +394,7 @@ void update_values_battery() {  //This function maps all the values fetched via 
     system_max_discharge_power_W = (battery_max_discharge_amperage * system_battery_voltage_dV);
   }
 
-  battery_power = (system_battery_current_dA * (system_battery_voltage_dV / 10));
+  battery_power = (system_battery_current_dA * (system_battery_voltage_dV / 100));
 
   system_active_power_W = battery_power;
 
