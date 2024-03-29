@@ -376,7 +376,7 @@ void update_values_battery() {  //This function maps all the values fetched via 
 
   system_battery_voltage_dV = battery_volts;  //Unit V+1 (5000 = 500.0V)
 
-  system_battery_current_dA = battery_current * 10;
+  system_battery_current_dA = battery_current;
 
   system_capacity_Wh = BATTERY_WH_MAX;
 
@@ -445,8 +445,8 @@ void receive_can_battery(CAN_frame_t rx_frame) {
     case 0x112:  //BMS [10ms] Status Of High-Voltage Battery - 2
       battery_awake = true;
       CANstillAlive = 12;  //This message is only sent if 30C (Wakeup pin on battery) is energized with 12V
-      battery_current = ((rx_frame.data.u8[1] << 8 | rx_frame.data.u8[0]) / 10) - 819;  //Amps
-      battery_volts = (rx_frame.data.u8[3] << 8 | rx_frame.data.u8[2]);                 //500.0 V
+      battery_current = (rx_frame.data.u8[1] << 8 | rx_frame.data.u8[0]) - 8192;  //deciAmps (-819.2 to 819.0A)
+      battery_volts = (rx_frame.data.u8[3] << 8 | rx_frame.data.u8[2]);           //500.0 V
       battery_HVBatt_SOC = ((rx_frame.data.u8[5] & 0x0F) << 8 | rx_frame.data.u8[4]);
       battery_request_open_contactors = (rx_frame.data.u8[5] & 0xC0) >> 6;
       battery_request_open_contactors_instantly = (rx_frame.data.u8[6] & 0x03);
