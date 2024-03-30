@@ -374,11 +374,19 @@ void update_values_battery() {  //This function maps all the values fetched via 
 
   system_remaining_capacity_Wh = (battery_energy_content_maximum_kWh * 1000);  // Convert kWh to Wh
 
-  system_max_charge_power_W = (battery_max_charge_amperage * system_battery_voltage_dV);
+  if ((battery_max_charge_amperage * system_battery_voltage_dV) > 65000) {
+    system_max_charge_power_W = 65000;
+  } else {
+    system_max_charge_power_W = (battery_max_charge_amperage * system_battery_voltage_dV);
+  }
 
-  system_max_discharge_power_W = (battery_max_discharge_amperage * system_battery_voltage_dV);
+  if ((battery_max_discharge_amperage * system_battery_voltage_dV) > 65000) {
+    system_max_discharge_power_W = 65000;
+  } else {
+    system_max_discharge_power_W = (battery_max_discharge_amperage * system_battery_voltage_dV);
+  }
 
-  battery_power = (system_battery_current_dA * (system_battery_voltage_dV / 10));
+  battery_power = (system_battery_current_dA * (system_battery_voltage_dV / 100));
 
   system_active_power_W = battery_power;
 
@@ -429,8 +437,8 @@ void receive_can_battery(CAN_frame_t rx_frame) {
     case 0x112:  //BMS [10ms] Status Of High-Voltage Battery - 2
       battery_awake = true;
       CANstillAlive = 12;  //This message is only sent if 30C (Wakeup pin on battery) is energized with 12V
-      battery_current = ((rx_frame.data.u8[1] << 8 | rx_frame.data.u8[0]) / 10) - 819;  //Amps
-      battery_volts = (rx_frame.data.u8[3] << 8 | rx_frame.data.u8[2]);                 //500.0 V
+      battery_current = (rx_frame.data.u8[1] << 8 | rx_frame.data.u8[0]) - 8192;  //deciAmps (-819.2 to 819.0A)
+      battery_volts = (rx_frame.data.u8[3] << 8 | rx_frame.data.u8[2]);           //500.0 V
       battery_HVBatt_SOC = ((rx_frame.data.u8[5] & 0x0F) << 8 | rx_frame.data.u8[4]);
       battery_request_open_contactors = (rx_frame.data.u8[5] & 0xC0) >> 6;
       battery_request_open_contactors_instantly = (rx_frame.data.u8[6] & 0x03);
@@ -463,7 +471,7 @@ void receive_can_battery(CAN_frame_t rx_frame) {
       break;
     case 0x2BD:  //BMS [100ms] Status diagnosis high voltage - 1
       battery_awake = true;
-      if (calculateCRC(rx_frame, 3, 0x15) != rx_frame.data.u8[0]) {
+      if (calculateCRC(rx_frame, rx_frame.FIR.B.DLC, 0x15) != rx_frame.data.u8[0]) {
         //If calculated CRC does not match transmitted CRC, increase CANerror counter
         CANerror++;
         break;
