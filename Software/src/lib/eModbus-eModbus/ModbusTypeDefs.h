@@ -84,6 +84,9 @@ enum Error : uint8_t {
   UNDEFINED_ERROR        = 0xFF  // otherwise uncovered communication error
 };
 
+// Readable expression for the "illegal" server ID of 0
+#define ANY_SERVER 0x00
+
 #ifndef MINIMAL
 
 // Constants for float and double re-ordering

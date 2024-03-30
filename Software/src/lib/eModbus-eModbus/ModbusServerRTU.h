@@ -32,8 +32,8 @@ public:
   ~ModbusServerRTU();
 
   // begin: create task with RTU server to accept requests
-  void begin(Stream& serial, uint32_t baudRate, int coreID = -1);
-  void begin(HardwareSerial& serial, int coreID = -1);
+  void begin(Stream& serial, uint32_t baudRate, int coreID = -1, uint32_t userInterval = 0);
+  void begin(HardwareSerial& serial, int coreID = -1, uint32_t userInterval = 0);
 
   // end: kill server task
   void end();
@@ -64,7 +64,7 @@ protected:
   inline void isInstance() { }           // Make class instantiable
 
   // internal common begin function
-  void doBegin(uint32_t baudRate, int coreID);
+  void doBegin(uint32_t baudRate, int coreID, uint32_t userInterval);
 
   static uint8_t instanceCounter;        // Number of RTU servers created (for task names)
   TaskHandle_t serverTask;               // task of the started server

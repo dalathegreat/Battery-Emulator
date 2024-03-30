@@ -1,5 +1,3 @@
-This is commit 9ab44bd from https://github.com/ayushsharma82/ElegantOTA
-
 <p><br/></p>
 <p align="center"><img src="/docs/feature.png?sanitize=true&raw=true" width="700"></p>
 

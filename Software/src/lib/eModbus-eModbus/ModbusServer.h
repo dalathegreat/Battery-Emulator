@@ -42,7 +42,10 @@ public:
   // Returns true if the worker was found and removed
   bool unregisterWorker(uint8_t serverID, uint8_t functionCode = 0);
 
-  // isServerFor: if any worker function is registered for the given serverID, return true
+  // isServerFor: if a worker function is registered for the given serverID, return true
+  bool isServerFor(uint8_t serverID, uint8_t functionCode);
+
+  // isServerFor: short version to look up if the server is known at all
   bool isServerFor(uint8_t serverID);
 
   // getMessageCount: read number of messages processed

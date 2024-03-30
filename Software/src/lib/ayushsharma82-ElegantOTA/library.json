@@ -15,7 +15,7 @@
       "maintainer": true
     }
   ],
-  "version": "3.1.0",
+  "version": "3.1.1",
   "frameworks": "arduino",
   "platforms": ["espressif8266", "espressif32", "raspberrypi"]
 }
