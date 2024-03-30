@@ -7,8 +7,6 @@
 
 /* Do not change code below unless you are sure what you are doing */
 static unsigned long previousMillis100 = 0;  // will store last time a 100ms CAN Message was send
-static const int interval100 = 100;          // interval (ms) at which send CAN Messages
-const int rx_queue_size = 10;                // Receive Queue size
 static uint8_t CANstillAlive = 12;           //counter for checking if CAN is still alive
 static uint8_t errorCode = 0;                //stores if we have an error code active from battery control logic
 
@@ -194,7 +192,11 @@ void receive_can_battery(CAN_frame_t rx_frame) {
 void send_can_battery() {
   unsigned long currentMillis = millis();
   // Send 100ms CAN Message
-  if (currentMillis - previousMillis100 >= interval100) {
+  if (currentMillis - previousMillis100 >= INTERVAL_100_MS) {
+    // Check if sending of CAN messages has been delayed too much.
+    if ((currentMillis - previousMillis100 >= INTERVAL_100_MS_DELAYED) && (currentMillis > BOOTUP_TIME)) {
+      set_event(EVENT_CAN_OVERRUN, (currentMillis - previousMillis100));
+    }
     previousMillis100 = currentMillis;
 
     ESP32Can.CANWriteFrame(&CHADEMO_108);
@@ -209,7 +211,9 @@ void send_can_battery() {
 }
 
 void setup_battery(void) {  // Performs one time setup at startup
+#ifdef DEBUG_VIA_USB
   Serial.println("Chademo battery selected");
+#endif
 
   system_max_design_voltage_dV = 4040;  // 404.4V, over this, charging is not possible (goes into forced discharge)
   system_min_design_voltage_dV = 2000;  // 200.0V under this, discharging further is disabled

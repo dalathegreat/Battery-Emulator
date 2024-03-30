@@ -6,11 +6,9 @@
 #include "KIA-HYUNDAI-64-BATTERY.h"
 
 /* Do not change code below unless you are sure what you are doing */
-static unsigned long previousMillis100 = 0;   // will store last time a 100ms CAN Message was send
-static unsigned long previousMillis10ms = 0;  // will store last time a 10s CAN Message was send
-static const int interval100 = 100;           // interval (ms) at which send CAN Messages
-static const int interval10ms = 10;           // interval (ms) at which send CAN Messages
-static uint8_t CANstillAlive = 12;            //counter for checking if CAN is still alive
+static unsigned long previousMillis100 = 0;  // will store last time a 100ms CAN Message was send
+static unsigned long previousMillis10 = 0;   // will store last time a 10s CAN Message was send
+static uint8_t CANstillAlive = 12;           //counter for checking if CAN is still alive
 
 #define MAX_CELL_VOLTAGE 4250   //Battery is put into emergency stop if one cell goes over this value
 #define MIN_CELL_VOLTAGE 2950   //Battery is put into emergency stop if one cell goes below this value
@@ -532,7 +530,7 @@ void receive_can_battery(CAN_frame_t rx_frame) {
 void send_can_battery() {
   unsigned long currentMillis = millis();
   //Send 100ms message
-  if (currentMillis - previousMillis100 >= interval100) {
+  if (currentMillis - previousMillis100 >= INTERVAL_100_MS) {
     previousMillis100 = currentMillis;
 
     ESP32Can.CANWriteFrame(&KIA64_553);
@@ -540,8 +538,12 @@ void send_can_battery() {
     ESP32Can.CANWriteFrame(&KIA64_2A1);
   }
   // Send 10ms CAN Message
-  if (currentMillis - previousMillis10ms >= interval10ms) {
-    previousMillis10ms = currentMillis;
+  if (currentMillis - previousMillis10 >= INTERVAL_10_MS) {
+    // Check if sending of CAN messages has been delayed too much.
+    if ((currentMillis - previousMillis10 >= INTERVAL_10_MS_DELAYED) && (currentMillis > BOOTUP_TIME)) {
+      set_event(EVENT_CAN_OVERRUN, (currentMillis - previousMillis10));
+    }
+    previousMillis10 = currentMillis;
 
     switch (counter_200) {
       case 0:
@@ -596,7 +598,9 @@ void send_can_battery() {
 }
 
 void setup_battery(void) {  // Performs one time setup at startup
+#ifdef DEBUG_VIA_USB
   Serial.println("Kia Niro / Hyundai Kona 64kWh battery selected");
+#endif
 
   system_max_design_voltage_dV = 4040;  // 404.0V, over this, charging is not possible (goes into forced discharge)
   system_min_design_voltage_dV = 3100;  // 310.0V under this, discharging further is disabled

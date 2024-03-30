@@ -14,14 +14,6 @@ static unsigned long previousMillis640 = 0;    // will store last time a 600ms C
 static unsigned long previousMillis1000 = 0;   // will store last time a 1000ms CAN Message was send
 static unsigned long previousMillis5000 = 0;   // will store last time a 5000ms CAN Message was send
 static unsigned long previousMillis10000 = 0;  // will store last time a 10000ms CAN Message was send
-static const int interval20 = 20;              // interval (ms) at which send CAN Messages
-static const int interval100 = 100;            // interval (ms) at which send CAN Messages
-static const int interval200 = 200;            // interval (ms) at which send CAN Messages
-static const int interval500 = 500;            // interval (ms) at which send CAN Messages
-static const int interval640 = 640;            // interval (ms) at which send CAN Messages
-static const int interval1000 = 1000;          // interval (ms) at which send CAN Messages
-static const int interval5000 = 5000;          // interval (ms) at which send CAN Messages
-static const int interval10000 = 10000;        // interval (ms) at which send CAN Messages
 static uint8_t CANstillAlive = 12;             // counter for checking if CAN is still alive
 static uint16_t CANerror = 0;                  // counter on how many CAN errors encountered
 #define MAX_CAN_FAILURES 500                   // Amount of malformed CAN messages to allow before raising a warning
@@ -569,7 +561,11 @@ void send_can_battery() {
 
   if (battery_awake) {
     //Send 20ms message
-    if (currentMillis - previousMillis20 >= interval20) {
+    if (currentMillis - previousMillis20 >= INTERVAL_20_MS) {
+      // Check if sending of CAN messages has been delayed too much.
+      if ((currentMillis - previousMillis20 >= INTERVAL_20_MS_DELAYED) && (currentMillis > BOOTUP_TIME)) {
+        set_event(EVENT_CAN_OVERRUN, (currentMillis - previousMillis20));
+      }
       previousMillis20 = currentMillis;
 
       if (startup_counter_contactor < 160) {
@@ -593,7 +589,7 @@ void send_can_battery() {
       ESP32Can.CANWriteFrame(&BMW_10B);
     }
     // Send 100ms CAN Message
-    if (currentMillis - previousMillis100 >= interval100) {
+    if (currentMillis - previousMillis100 >= INTERVAL_100_MS) {
       previousMillis100 = currentMillis;
 
       BMW_12F.data.u8[1] = ((BMW_12F.data.u8[1] & 0xF0) + alive_counter_100ms);
@@ -604,7 +600,7 @@ void send_can_battery() {
       ESP32Can.CANWriteFrame(&BMW_12F);
     }
     // Send 200ms CAN Message
-    if (currentMillis - previousMillis200 >= interval200) {
+    if (currentMillis - previousMillis200 >= INTERVAL_200_MS) {
       previousMillis200 = currentMillis;
 
       BMW_19B.data.u8[1] = ((BMW_19B.data.u8[1] & 0xF0) + alive_counter_200ms);
@@ -615,7 +611,7 @@ void send_can_battery() {
       ESP32Can.CANWriteFrame(&BMW_19B);
     }
     // Send 500ms CAN Message
-    if (currentMillis - previousMillis500 >= interval500) {
+    if (currentMillis - previousMillis500 >= INTERVAL_500_MS) {
       previousMillis500 = currentMillis;
 
       BMW_30B.data.u8[1] = ((BMW_30B.data.u8[1] & 0xF0) + alive_counter_500ms);
@@ -626,14 +622,14 @@ void send_can_battery() {
       ESP32Can.CANWriteFrame(&BMW_30B);
     }
     // Send 640ms CAN Message
-    if (currentMillis - previousMillis640 >= interval640) {
+    if (currentMillis - previousMillis640 >= INTERVAL_640_MS) {
       previousMillis640 = currentMillis;
 
       ESP32Can.CANWriteFrame(&BMW_512);  // Keep BMS alive
       ESP32Can.CANWriteFrame(&BMW_5F8);
     }
     // Send 1000ms CAN Message
-    if (currentMillis - previousMillis1000 >= interval1000) {
+    if (currentMillis - previousMillis1000 >= INTERVAL_1_S) {
       previousMillis1000 = currentMillis;
 
       BMW_328_counter++;  // Used to increment seconds
@@ -677,7 +673,7 @@ void send_can_battery() {
       BMW_3E8.data.u8[0] = 0xF1;  // First 3E8 message byte0 we send is unique, once we sent initial value send this
     }
     // Send 5000ms CAN Message
-    if (currentMillis - previousMillis5000 >= interval5000) {
+    if (currentMillis - previousMillis5000 >= INTERVAL_5_S) {
       previousMillis5000 = currentMillis;
 
       BMW_3FC.data.u8[1] = ((BMW_3FC.data.u8[1] & 0xF0) + alive_counter_5000ms);
@@ -697,7 +693,7 @@ void send_can_battery() {
       }
     }
     // Send 10000ms CAN Message
-    if (currentMillis - previousMillis10000 >= interval10000) {
+    if (currentMillis - previousMillis10000 >= INTERVAL_10_S) {
       previousMillis10000 = currentMillis;
 
       ESP32Can.CANWriteFrame(&BMW_3E5);  //Order comes from CAN logs
@@ -710,7 +706,9 @@ void send_can_battery() {
 }
 
 void setup_battery(void) {  // Performs one time setup at startup
+#ifdef DEBUG_VIA_USB
   Serial.println("BMW i3 battery selected");
+#endif
 
   system_max_design_voltage_dV = 4040;  // 404.4V, over this, charging is not possible (goes into forced discharge)
   system_min_design_voltage_dV = 2800;  // 280.0V under this, discharging further is disabled

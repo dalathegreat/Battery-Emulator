@@ -12,7 +12,6 @@
 
 /* Do not change code below unless you are sure what you are doing */
 static unsigned long previousMillis500ms = 0;  // will store last time a 100ms CAN Message was send
-static const int interval500ms = 100;          // interval (ms) at which send CAN Messages
 
 //Actual content messages
 static CAN_frame_t SMA_00D = {  // Battery Limits
@@ -336,7 +335,7 @@ void send_can_sma_tripower() {
   unsigned long currentMillis = millis();
 
   // Send CAN Message every 500ms
-  if (currentMillis - previousMillis500ms >= interval500ms) {
+  if (currentMillis - previousMillis500ms >= INTERVAL_500_MS) {
     previousMillis500ms = currentMillis;
 
     ESP32Can.CANWriteFrame(&SMA_00D);  //Battery limits
