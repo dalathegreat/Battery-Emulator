@@ -465,26 +465,28 @@ String processor(const String& var) {
     content += "</div>";
 
     // Start a new block with a specific background color. Color changes depending on BMS status
+    content += "<div style='background-color: ";
     switch (LEDcolor) {
       case GREEN:
-        content += "<div style='background-color: #2D3F2F; padding: 10px; margin-bottom: 10px; border-radius: 50px'>";
+        content += "#2D3F2F;";
         break;
       case YELLOW:
-        content += "<div style='background-color: #F5CC00; padding: 10px; margin-bottom: 10px; border-radius: 50px'>";
+        content += "#F5CC00;";
         break;
       case BLUE:
-        content += "<div style='background-color: #2B35AF; padding: 10px; margin-bottom: 10px; border-radius: 50px'>";
+      case TEST_ALL_COLORS:
+        content += "#2B35AF;"; // Blue in test mode
         break;
       case RED:
-        content += "<div style='background-color: #A70107; padding: 10px; margin-bottom: 10px; border-radius: 50px'>";
+        content += "#A70107;";
         break;
-      case TEST_ALL_COLORS:  //Blue in test mode
-        content += "<div style='background-color: #2B35AF; padding: 10px; margin-bottom: 10px; border-radius: 50px'>";
-        break;
-      default:  //Some new color, make background green
-        content += "<div style='background-color: #2D3F2F; padding: 10px; margin-bottom: 10px; border-radius: 50px'>";
+      default:  // Some new color, make background green
+        content += "#2D3F2F;";
         break;
     }
+
+    // Add the common style properties
+    content += "padding: 10px; margin-bottom: 10px; border-radius: 50px;'>";
 
     // Display battery statistics within this block
     float socRealFloat = static_cast<float>(system_real_SOC_pptt) / 100.0;      // Convert to float and divide by 100
