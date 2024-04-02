@@ -662,24 +662,21 @@ void send_can_battery() {
     // VCM message, containing info if battery should sleep or stay awake
     ESP32Can.CANWriteFrame(&LEAF_50B);  // HCM_WakeUpSleepCommand == 11b == WakeUp, and CANMASK = 1
 
+    LEAF_50C.data.u8[3] = mprun100;
     switch (mprun100) {
       case 0:
-        LEAF_50C.data.u8[3] = 0x00;
         LEAF_50C.data.u8[4] = 0x5D;
         LEAF_50C.data.u8[5] = 0xC8;
         break;
       case 1:
-        LEAF_50C.data.u8[3] = 0x01;
         LEAF_50C.data.u8[4] = 0xB2;
         LEAF_50C.data.u8[5] = 0x31;
         break;
       case 2:
-        LEAF_50C.data.u8[3] = 0x02;
         LEAF_50C.data.u8[4] = 0x5D;
         LEAF_50C.data.u8[5] = 0x63;
         break;
       case 3:
-        LEAF_50C.data.u8[3] = 0x03;
         LEAF_50C.data.u8[4] = 0xB2;
         LEAF_50C.data.u8[5] = 0x9A;
         break;
