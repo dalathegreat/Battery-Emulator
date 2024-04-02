@@ -13,7 +13,6 @@ static unsigned long previousMillis10 = 0;   // will store last time a 10ms CAN 
 static unsigned long previousMillis100 = 0;  // will store last time a 100ms CAN Message was send
 static unsigned long previousMillis10s = 0;  // will store last time a 1s CAN Message was send
 static uint16_t CANerror = 0;                //counter on how many CAN errors encountered
-#define MAX_CAN_FAILURES 5000                //Amount of malformed CAN messages to allow before raising a warning
 static uint8_t CANstillAlive = 12;           //counter for checking if CAN is still alive
 static uint8_t mprun10r = 0;                 //counter 0-20 for 0x1F2 message
 static uint8_t mprun10 = 0;                  //counter 0-3
