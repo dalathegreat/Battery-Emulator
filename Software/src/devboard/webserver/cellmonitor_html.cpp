@@ -32,7 +32,7 @@ String cellmonitor_processor(const String& var) {
 
     // Close the block
     content += "</div>";
-    content += "<button onclick='goToMainPage()'>Back to main page</button>";
+    content += "<button onclick='home()'>Back to main page</button>";
     content += "<script>";
     // Populate cell data
     content += "const data = [";
@@ -52,7 +52,7 @@ String cellmonitor_processor(const String& var) {
     content += "const valueDisplay = document.getElementById('valueDisplay');";
     content += "const cellContainer = document.getElementById('cellContainer');";
 
-    content += "function goToMainPage() { window.location.href = '/'; }";
+    content += "function home() { window.location.href = '/'; }";
 
     // Arduino-style map() function
     content +=
