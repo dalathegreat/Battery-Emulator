@@ -17,17 +17,7 @@ static uint8_t CANstillAlive = 12;            //counter for checking if CAN is s
 #define MIN_CELL_VOLTAGE 2950   //Battery is put into emergency stop if one cell goes below this value
 #define MAX_CELL_DEVIATION 150  //LED turns yellow on the board if mv delta exceeds this value
 
-//CANFDMessage KIA_HYUNDAI_200 = <.id = 0x001>;
-//CANFDMessage KIA_HYUNDAI_200;
-//KIA_HYUNDAI_200.frame.id = 0x001;
-
 CANFDMessage KIA64_553;
-/*
-  frame.len = 64 ;
-  for (uint8_t i=0 ; i<frame.len ; i++) {
-  frame.data [i] = i ;
-  }
-  */
 
 static void CAN_WriteFrame(CAN_frame_t* tx_frame) {
 #ifdef CAN_FD

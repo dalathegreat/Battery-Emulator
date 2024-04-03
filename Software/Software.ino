@@ -49,11 +49,6 @@ static ACAN2515_Buffer16 gBuffer;
 #ifdef CAN_FD
 #include "src/lib/pierremolinaro-ACAN2517FD/ACAN2517FD.h"
 ACAN2517FD can(MCP2517_CS, SPI, MCP2517_INT);
-
-static uint32_t gSendDate = 0 ;
-static uint32_t gReceiveDate = 0 ;
-static uint32_t gReceivedFrameCount = 0 ;
-static uint32_t gSentFrameCount = 0 ;
 #endif
 
 // ModbusRTU parameters
@@ -171,36 +166,6 @@ void setup() {
 
 // Perform main program functions
 void loop() {
-  /* TODO: Delete this section, for testing only
-  CANFDMessage frame;
-  frame.id = micros () & 0x7FE ;
-  frame.len = 64 ;
-  for (uint8_t i=0 ; i<frame.len ; i++) {
-  frame.data [i] = i ;
-  }
-  if (gSendDate < millis ()) {
-    gSendDate += 1000 ;
-    const bool ok = can.tryToSend (frame) ;
-    if (ok) {
-      gSentFrameCount += 1 ;
-      Serial.print ("Sent: ") ;
-      Serial.print (gSentFrameCount) ;
-    }else{
-      Serial.print ("Send failure") ;
-    }
-    Serial.print (", receive overflows: ") ;
-    Serial.println (can.hardwareReceiveBufferOverflowCount ()) ;
-  }
-  if (gReceiveDate < millis ()) {
-    gReceiveDate += 4567 ;
-    while (can.available ()) {
-      can.receive (frame) ;
-      gReceivedFrameCount ++ ;
-      Serial.print ("Received: ") ;
-      Serial.println (gReceivedFrameCount) ;
-    }
-  }
-  */
   ;
 }
 
@@ -344,30 +309,31 @@ void init_CAN() {
 
 #ifdef CAN_FD
   Serial.println("CAN FD add-on (ESP32+MCP2517) selected");
-  SPI.begin(MCP2517_SCK, MCP2517_SDO, MCP2517_SDI); 
-  ACAN2517FDSettings settings (ACAN2517FDSettings::OSC_40MHz, 1000 * 1000, DataBitRateFactor::x8); // Arbitration bit rate: 1 Mbit/s, data bit rate: 8 Mbit/s
-  settings.mRequestedMode = ACAN2517FDSettings::NormalFD; // ListenOnly / Normal20B / NormalFD
-  const uint32_t errorCode = can.begin (settings, [] { can.isr () ; }) ;
-if (errorCode == 0) {
-    Serial.print ("Bit Rate prescaler: ") ; // TODO: remove these lines before finalizing the feature
-    Serial.println (settings.mBitRatePrescaler) ;
-    Serial.print ("Arbitration Phase segment 1: ") ;
-    Serial.println (settings.mArbitrationPhaseSegment1) ;
-    Serial.print ("Arbitration Phase segment 2: ") ;
-    Serial.println (settings.mArbitrationPhaseSegment2) ;
-    Serial.print ("Arbitration SJW:") ;
-    Serial.println (settings.mArbitrationSJW) ;
-    Serial.print ("Actual Arbitration Bit Rate: ") ;
-    Serial.print (settings.actualArbitrationBitRate ()) ;
-    Serial.println (" bit/s") ;
-    Serial.print ("Exact Arbitration Bit Rate ? ") ;
-    Serial.println (settings.exactArbitrationBitRate () ? "yes" : "no") ;
-    Serial.print ("Arbitration Sample point: ") ;
-    Serial.print (settings.arbitrationSamplePointFromBitStart ()) ;
-    Serial.println ("%") ;
-  }else{
-    Serial.print ("CAN-FD Configuration error 0x") ;
-    Serial.println (errorCode, HEX) ;
+  SPI.begin(MCP2517_SCK, MCP2517_SDO, MCP2517_SDI);
+  ACAN2517FDSettings settings(ACAN2517FDSettings::OSC_40MHz, 1000 * 1000,
+                              DataBitRateFactor::x8);      // Arbitration bit rate: 1 Mbit/s, data bit rate: 8 Mbit/s
+  settings.mRequestedMode = ACAN2517FDSettings::NormalFD;  // ListenOnly / Normal20B / NormalFD
+  const uint32_t errorCode = can.begin(settings, [] { can.isr(); });
+  if (errorCode == 0) {
+    Serial.print("Bit Rate prescaler: ");  // TODO: remove these lines before finalizing the feature
+    Serial.println(settings.mBitRatePrescaler);
+    Serial.print("Arbitration Phase segment 1: ");
+    Serial.println(settings.mArbitrationPhaseSegment1);
+    Serial.print("Arbitration Phase segment 2: ");
+    Serial.println(settings.mArbitrationPhaseSegment2);
+    Serial.print("Arbitration SJW:");
+    Serial.println(settings.mArbitrationSJW);
+    Serial.print("Actual Arbitration Bit Rate: ");
+    Serial.print(settings.actualArbitrationBitRate());
+    Serial.println(" bit/s");
+    Serial.print("Exact Arbitration Bit Rate ? ");
+    Serial.println(settings.exactArbitrationBitRate() ? "yes" : "no");
+    Serial.print("Arbitration Sample point: ");
+    Serial.print(settings.arbitrationSamplePointFromBitStart());
+    Serial.println("%");
+  } else {
+    Serial.print("CAN-FD Configuration error 0x");
+    Serial.println(errorCode, HEX);
   }
 #endif
 }
