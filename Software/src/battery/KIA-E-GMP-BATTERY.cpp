@@ -17,14 +17,17 @@ static uint8_t CANstillAlive = 12;            //counter for checking if CAN is s
 #define MIN_CELL_VOLTAGE 2950   //Battery is put into emergency stop if one cell goes below this value
 #define MAX_CELL_DEVIATION 150  //LED turns yellow on the board if mv delta exceeds this value
 
+//CANFDMessage KIA_HYUNDAI_200 = <.id = 0x001>;
+//CANFDMessage KIA_HYUNDAI_200;
+//KIA_HYUNDAI_200.frame.id = 0x001;
 
-CAN_frame_t KIA_HYUNDAI_200 = {.FIR = {.B =
-                                           {
-                                               .DLC = 8,
-                                               .FF = CAN_frame_std,
-                                           }},
-                               .MsgID = 0x200,
-                               .data = {0x00, 0x80, 0xD8, 0x04, 0x00, 0x17, 0xD0, 0x00}};  //Mid log value
+CANFDMessage KIA64_553;
+/*
+  frame.len = 64 ;
+  for (uint8_t i=0 ; i<frame.len ; i++) {
+  frame.data [i] = i ;
+  }
+  */
 
 static void CAN_WriteFrame(CAN_frame_t* tx_frame) {
 #ifdef CAN_FD
@@ -36,7 +39,7 @@ static void CAN_WriteFrame(CAN_frame_t* tx_frame) {
     frame.data[i] = tx_frame->data.u8[i];
   }
   can.tryToSend(frame);
-#else // Normal CAN port
+#else  // Normal CAN port
   ESP32Can.CANWriteFrame(tx_frame);
 #endif
 }
@@ -107,12 +110,11 @@ void send_can_battery() {
   //Send 100ms message
   if (currentMillis - previousMillis100 >= interval100) {
     previousMillis100 = currentMillis;
-
   }
   // Send 10ms CAN Message
   if (currentMillis - previousMillis10ms >= interval10ms) {
     previousMillis10ms = currentMillis;
-    CAN_WriteFrame(&KIA_HYUNDAI_200);
+    can.tryToSend(KIA64_553);
   }
 }
 
@@ -121,6 +123,14 @@ void setup_battery(void) {  // Performs one time setup at startup
 
   system_max_design_voltage_dV = 8060;  // 806.0V, over this, charging is not possible (goes into forced discharge)
   system_min_design_voltage_dV = 6700;  // 670.0V under this, discharging further is disabled
+
+  KIA64_553.id = 0x553;
+  KIA64_553.ext = false;
+  KIA64_553.type = CANFDMessage::CANFD_WITH_BIT_RATE_SWITCH;
+  KIA64_553.idx = 0;
+  KIA64_553.len = 8;
+  uint8_t data[] = {0x04, 0x00, 0x80, 0x00, 0x00, 0x00, 0x80, 0x00};
+  memcpy(KIA64_553.data, data, sizeof(data));
 }
 
 #endif
