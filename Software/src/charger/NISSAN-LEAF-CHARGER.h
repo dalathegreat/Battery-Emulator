@@ -2,6 +2,7 @@
 #define NISSANLEAF_CHARGER_H
 #include <Arduino.h>
 #include "../../USER_SETTINGS.h"
+#include "../devboard/config.h"  // Needed for all defines
 #include "../lib/miwagner-ESP32-Arduino-CAN/ESP32CAN.h"
 
 extern uint16_t system_battery_voltage_dV;  //V+1,  0-500.0 (0-5000)

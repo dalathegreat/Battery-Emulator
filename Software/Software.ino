@@ -5,6 +5,10 @@
 #include <Preferences.h>
 #include "HardwareSerial.h"
 #include "USER_SETTINGS.h"
+#include "esp_system.h"
+#include "esp_task_wdt.h"
+#include "freertos/FreeRTOS.h"
+#include "freertos/task.h"
 #include "src/battery/BATTERIES.h"
 #include "src/charger/CHARGERS.h"
 #include "src/devboard/config.h"
@@ -25,10 +29,10 @@
 
 Preferences settings;  // Store user settings
 // The current software version, shown on webserver
-const char* version_number = "5.6.dev";
+const char* version_number = "5.6.0";
+
 // Interval settings
-int intervalUpdateValues = 4800;  // Interval at which to update inverter values / Modbus registers
-const int interval10 = 10;        // Interval for 10ms tasks
+uint16_t intervalUpdateValues = INTERVAL_5_S;  // Interval at which to update inverter values / Modbus registers
 unsigned long previousMillis10ms = 50;
 unsigned long previousMillisUpdateVal = 0;
 
@@ -53,13 +57,8 @@ static uint32_t gSentFrameCount = 0 ;
 #endif
 
 // ModbusRTU parameters
-#if defined(BYD_MODBUS)
-#define MB_RTU_NUM_VALUES 30000
-#endif
-#if defined(LUNA2000_MODBUS)
-#define MB_RTU_NUM_VALUES 30000
-#endif
 #if defined(BYD_MODBUS) || defined(LUNA2000_MODBUS)
+#define MB_RTU_NUM_VALUES 30000
 uint16_t mbPV[MB_RTU_NUM_VALUES];  // Process variable memory
 // Create a ModbusRTU server instance listening on Serial2 with 2000ms timeout
 ModbusServerRTU MBserver(Serial2, 2000);
@@ -133,6 +132,8 @@ unsigned long timeSpentInFaultedMode = 0;
 bool batteryAllowsContactorClosing = false;
 bool inverterAllowsContactorClosing = true;
 
+TaskHandle_t mainLoopTask;
+
 // Initialization
 void setup() {
   init_serial();
@@ -141,6 +142,8 @@ void setup() {
 
 #ifdef WEBSERVER
   init_webserver();
+
+  init_mDNS();
 #endif
 
   init_events();
@@ -159,10 +162,12 @@ void setup() {
 
   init_battery();
 
-  init_mDNS();
-
   // BOOT button at runtime is used as an input for various things
   pinMode(0, INPUT_PULLUP);
+
+  esp_task_wdt_deinit();  // Disable watchdog
+
+  xTaskCreatePinnedToCore((TaskFunction_t)&mainLoop, "mainLoop", 4096, NULL, 8, &mainLoopTask, 1);
 }
 
 // Perform main program functions
@@ -197,59 +202,67 @@ void loop() {
     }
   }
   */
+  ;
+}
+
+void mainLoop(void* pvParameters) {
+  while (true) {
 
 #ifdef WEBSERVER
-  // Over-the-air updates by ElegantOTA
-  wifi_monitor();
-  ElegantOTA.loop();
+    // Over-the-air updates by ElegantOTA
+    wifi_monitor();
+    ElegantOTA.loop();
 #ifdef MQTT
-  mqtt_loop();
+    mqtt_loop();
 #endif
 #endif
 
-  // Input
-  receive_can();  // Receive CAN messages. Runs as fast as possible
+    // Input
+    receive_can();  // Receive CAN messages. Runs as fast as possible
 #ifdef DUAL_CAN
-  receive_can2();
+    receive_can2();
 #endif
 #if defined(SERIAL_LINK_RECEIVER) || defined(SERIAL_LINK_TRANSMITTER)
-  runSerialDataLink();
+    runSerialDataLink();
 #endif
 
-  // Process
-  if (millis() - previousMillis10ms >= interval10)  // Every 10ms
-  {
-    previousMillis10ms = millis();
-    handle_LED_state();  // Set the LED color according to state
+    // Process
+    if (millis() - previousMillis10ms >= INTERVAL_10_MS)  // Every 10ms
+    {
+      previousMillis10ms = millis();
+      handle_LED_state();  // Set the LED color according to state
 #ifdef CONTACTOR_CONTROL
-    handle_contactors();  // Take care of startup precharge/contactor closing
+      handle_contactors();  // Take care of startup precharge/contactor closing
 #endif
-  }
-
-  if (millis() - previousMillisUpdateVal >= intervalUpdateValues)  // Every 4.8s
-  {
-    previousMillisUpdateVal = millis();
-    update_SOC();     // Check if real or calculated SOC% value should be sent
-    update_values();  // Update values heading towards inverter. Prepare for sending on CAN, or write directly to Modbus.
-    if (DUMMY_EVENT_ENABLED) {
-      set_event(EVENT_DUMMY_ERROR, (uint8_t)millis());
     }
-  }
 
-  // Output
-  send_can();  // Send CAN messages
+    if (millis() - previousMillisUpdateVal >= intervalUpdateValues)  // Every 5s normally
+    {
+      previousMillisUpdateVal = millis();
+      update_SOC();     // Check if real or calculated SOC% value should be sent
+      update_values();  // Update values heading towards inverter. Prepare for sending on CAN, or write directly to Modbus.
+      if (DUMMY_EVENT_ENABLED) {
+        set_event(EVENT_DUMMY_ERROR, (uint8_t)millis());
+      }
+    }
+
+    // Output
+    send_can();  // Send CAN messages
 #ifdef DUAL_CAN
-  send_can2();
+    send_can2();
 #endif
-  run_event_handling();
+    run_event_handling();
 
-  if (digitalRead(0) == HIGH) {
-    test_all_colors = false;
-  } else {
-    test_all_colors = true;
+    if (digitalRead(0) == HIGH) {
+      test_all_colors = false;
+    } else {
+      test_all_colors = true;
+    }
+    delay(2);
   }
 }
 
+#ifdef WEBSERVER
 // Initialise mDNS
 void init_mDNS() {
 
@@ -260,19 +273,24 @@ void init_mDNS() {
 
   // Initialize mDNS .local resolution
   if (!MDNS.begin(mdnsHost)) {
+#ifdef DEBUG_VIA_USB
     Serial.println("Error setting up MDNS responder!");
+#endif
   } else {
     // Advertise via bonjour the service so we can auto discover these battery emulators on the local network.
     MDNS.addService("battery_emulator", "tcp", 80);
   }
 }
+#endif
 
 // Initialization functions
 void init_serial() {
   // Init Serial monitor
   Serial.begin(115200);
   while (!Serial) {}
+#ifdef DEBUG_VIA_USB
   Serial.println("__ OK __");
+#endif
 }
 
 void init_stored_settings() {
@@ -319,13 +337,13 @@ void init_CAN() {
   CAN_cfg.rx_queue = xQueueCreate(rx_queue_size, sizeof(CAN_frame_t));
   // Init CAN Module
   ESP32Can.CANInit();
-  Serial.println(CAN_cfg.speed);
 
 #ifdef DUAL_CAN
+#ifdef DEBUG_VIA_USB
   Serial.println("Dual CAN Bus (ESP32+MCP2515) selected");
+#endif
   gBuffer.initWithSize(25);
   SPI.begin(MCP2515_SCK, MCP2515_MISO, MCP2515_MOSI);
-  Serial.println("Configure ACAN2515");
   ACAN2515Settings settings(QUARTZ_FREQUENCY, 500UL * 1000UL);  // CAN bit rate 500 kb/s
   settings.mRequestedMode = ACAN2515Settings::NormalMode;
   can.begin(settings, [] { can.isr(); });
@@ -387,6 +405,7 @@ void init_contactors() {
 }
 
 void init_modbus() {
+#if defined(BYD_MODBUS) || defined(LUNA2000_MODBUS)
   // Set up Modbus RTU Server
   pinMode(RS485_EN_PIN, OUTPUT);
   digitalWrite(RS485_EN_PIN, HIGH);
@@ -399,7 +418,6 @@ void init_modbus() {
   // Init Static data to the RTU Modbus
   handle_static_data_modbus_byd();
 #endif
-#if defined(BYD_MODBUS) || defined(LUNA2000_MODBUS)
 #if defined(SERIAL_LINK_RECEIVER) || defined(SERIAL_LINK_TRANSMITTER)
 // Check that Dual LilyGo via RS485 option isn't enabled, this collides with Modbus!
 #error MODBUS CANNOT BE USED IN DOUBLE LILYGO SETUPS! CHECK USER SETTINGS!
@@ -414,37 +432,53 @@ void init_modbus() {
   MBserver.registerWorker(MBTCP_ID, WRITE_MULT_REGISTERS, &FC16);
   MBserver.registerWorker(MBTCP_ID, R_W_MULT_REGISTERS, &FC23);
   // Start ModbusRTU background task
-  MBserver.begin(Serial2);
+  MBserver.begin(Serial2, 0);
 #endif
 }
 
 void inform_user_on_inverter() {
   // Inform user what Inverter is used
 #ifdef BYD_CAN
+#ifdef DEBUG_VIA_USB
   Serial.println("BYD CAN protocol selected");
 #endif
+#endif
 #ifdef BYD_MODBUS
+#ifdef DEBUG_VIA_USB
   Serial.println("BYD Modbus RTU protocol selected");
 #endif
+#endif
 #ifdef LUNA2000_MODBUS
+#ifdef DEBUG_VIA_USB
   Serial.println("Luna2000 Modbus RTU protocol selected");
 #endif
+#endif
 #ifdef PYLON_CAN
+#ifdef DEBUG_VIA_USB
   Serial.println("PYLON CAN protocol selected");
 #endif
+#endif
 #ifdef SMA_CAN
+#ifdef DEBUG_VIA_USB
   Serial.println("SMA CAN protocol selected");
 #endif
+#endif
 #ifdef SMA_TRIPOWER_CAN
+#ifdef DEBUG_VIA_USB
   Serial.println("SMA Tripower CAN protocol selected");
 #endif
+#endif
 #ifdef SOFAR_CAN
+#ifdef DEBUG_VIA_USB
   Serial.println("SOFAR CAN protocol selected");
+#endif
 #endif
 #ifdef SOLAX_CAN
   inverterAllowsContactorClosing = false;  // The inverter needs to allow first on this protocol
   intervalUpdateValues = 800;              // This protocol also requires the values to be updated faster
+#ifdef DEBUG_VIA_USB
   Serial.println("SOLAX CAN protocol selected");
+#endif
 #endif
 }
 
@@ -462,8 +496,7 @@ void receive_can() {  // This section checks if we have a complete CAN message i
   // Depending on which battery/inverter is selected, we forward this to their respective CAN routines
   CAN_frame_t rx_frame;
   if (xQueueReceive(CAN_cfg.rx_queue, &rx_frame, 3 * portTICK_PERIOD_MS) == pdTRUE) {
-    if (rx_frame.FIR.B.FF == CAN_frame_std) {
-//printf("New standard frame");
+    if (rx_frame.FIR.B.FF == CAN_frame_std) {  // New standard frame
 // Battery
 #ifndef SERIAL_LINK_RECEIVER
       receive_can_battery(rx_frame);
@@ -485,8 +518,7 @@ void receive_can() {  // This section checks if we have a complete CAN message i
 #ifdef NISSANLEAF_CHARGER
       receive_can_nissanleaf_charger(rx_frame);
 #endif
-    } else {
-      //printf("New extended frame");
+    } else {  // New extended frame
 #ifdef PYLON_CAN
       receive_can_pylon(rx_frame);
 #endif
@@ -543,13 +575,11 @@ void receive_can2() {  // This function is similar to receive_can, but just take
       rx_frame2.data.u8[i] = MCP2515Frame.data[i];
     }
 
-    if (rx_frame2.FIR.B.FF == CAN_frame_std) {
-//Serial.println("New standard frame");
+    if (rx_frame2.FIR.B.FF == CAN_frame_std) {  // New standard frame
 #ifdef BYD_CAN
       receive_can_byd(rx_frame2);
 #endif
-    } else {
-      //Serial.println("New extended frame");
+    } else {  // New extended frame
 #ifdef PYLON_CAN
       receive_can_pylon(rx_frame2);
 #endif

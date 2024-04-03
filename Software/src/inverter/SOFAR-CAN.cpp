@@ -6,7 +6,6 @@
 
 /* Do not change code below unless you are sure what you are doing */
 static unsigned long previousMillis100 = 0;  // will store last time a 100ms CAN Message was send
-static const int interval100 = 100;          // interval (ms) at which send CAN Messages
 
 //Actual content messages
 //Note that these are technically extended frames. If more batteries are put in parallel,the first battery sends 0x351 the next battery sends 0x1351 etc. 16 batteries in parallel supported
@@ -324,7 +323,7 @@ void receive_can_sofar(CAN_frame_t rx_frame) {
 void send_can_sofar() {
   unsigned long currentMillis = millis();
   // Send 100ms CAN Message
-  if (currentMillis - previousMillis100 >= interval100) {
+  if (currentMillis - previousMillis100 >= INTERVAL_100_MS) {
     previousMillis100 = currentMillis;
     //Frames actively reported by BMS
     ESP32Can.CANWriteFrame(&SOFAR_351);

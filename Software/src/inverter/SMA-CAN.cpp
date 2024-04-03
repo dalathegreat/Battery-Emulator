@@ -6,7 +6,6 @@
 
 /* Do not change code below unless you are sure what you are doing */
 static unsigned long previousMillis100ms = 0;  // will store last time a 100ms CAN Message was send
-static const int interval100ms = 100;          // interval (ms) at which send CAN Messages
 
 //Actual content messages
 static const CAN_frame_t SMA_558 = {
@@ -235,7 +234,7 @@ void send_can_sma() {
   unsigned long currentMillis = millis();
 
   // Send CAN Message every 100ms
-  if (currentMillis - previousMillis100ms >= interval100ms) {
+  if (currentMillis - previousMillis100ms >= INTERVAL_100_MS) {
     previousMillis100ms = currentMillis;
 
     ESP32Can.CANWriteFrame(&SMA_558);

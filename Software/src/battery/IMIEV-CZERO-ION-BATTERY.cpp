@@ -16,8 +16,6 @@ static uint8_t CMU_Detected = 0;
 
 static unsigned long previousMillis10 = 0;   // will store last time a 10ms CAN Message was sent
 static unsigned long previousMillis100 = 0;  // will store last time a 100ms CAN Message was sent
-static const int interval10 = 10;            // interval (ms) at which send CAN Messages
-static const int interval100 = 100;          // interval (ms) at which send CAN Messages
 
 static int pid_index = 0;
 static int cmu_id = 0;
@@ -33,8 +31,8 @@ static double voltage2 = 0;
 static double BMU_Current = 0;
 static double BMU_PackVoltage = 0;
 static double BMU_Power = 0;
-static double cell_voltages[89];      //array with all the cellvoltages //TODO: what is max array size? 80/88 cells?
-static double cell_temperatures[89];  //array with all the celltemperatures //TODO: what is max array size? 80/88cells?
+static double cell_voltages[88];      //array with all the cellvoltages
+static double cell_temperatures[88];  //array with all the celltemperatures
 static double max_volt_cel = 3.70;
 static double min_volt_cel = 3.70;
 static double max_temp_cel = 20.00;
@@ -96,13 +94,18 @@ void update_values_battery() {  //This function maps all the values fetched via 
     }
   }
 
+  //Map all cell voltages to the global array
+  for (int i = 0; i < 88; ++i) {
+    system_cellvoltages_mV[i] = (uint16_t)(cell_voltages[i] * 1000);
+  }
+
   system_cell_max_voltage_mV = (uint16_t)(max_volt_cel * 1000);
 
   system_cell_min_voltage_mV = (uint16_t)(min_volt_cel * 1000);
 
-  system_temperature_min_dC = (int16_t)(min_temp_cel * 1000);
+  system_temperature_min_dC = (int16_t)(min_temp_cel * 10);
 
-  system_temperature_min_dC = (int16_t)(max_temp_cel * 1000);
+  system_temperature_min_dC = (int16_t)(max_temp_cel * 10);
 
   /* Check if the BMS is still sending CAN messages. If we go 60s without messages we raise an error*/
   if (!CANstillAlive) {
@@ -113,7 +116,9 @@ void update_values_battery() {  //This function maps all the values fetched via 
   }
 
   if (!BMU_Detected) {
+#ifdef DEBUG_VIA_USB
     Serial.println("BMU not detected, check wiring!");
+#endif
   }
 
 #ifdef DEBUG_VIA_USB
@@ -220,16 +225,24 @@ void receive_can_battery(CAN_frame_t rx_frame) {
 void send_can_battery() {
   unsigned long currentMillis = millis();
   // Send 100ms CAN Message
-  if (currentMillis - previousMillis100 >= interval100) {
+  if (currentMillis - previousMillis100 >= INTERVAL_100_MS) {
+    // Check if sending of CAN messages has been delayed too much.
+    if ((currentMillis - previousMillis100 >= INTERVAL_100_MS_DELAYED) && (currentMillis > BOOTUP_TIME)) {
+      set_event(EVENT_CAN_OVERRUN, (currentMillis - previousMillis100));
+    }
     previousMillis100 = currentMillis;
+
+    // Send CAN goes here...
   }
 }
 
 void setup_battery(void) {  // Performs one time setup at startup
+#ifdef DEBUG_VIA_USB
   Serial.println("Mitsubishi i-MiEV / Citroen C-Zero / Peugeot Ion battery selected");
+#endif
 
-  system_max_design_voltage_dV = 4040;  // 404.4V, over this, charging is not possible (goes into forced discharge)
-  system_min_design_voltage_dV = 3100;  // 310.0V under this, discharging further is disabled
+  system_max_design_voltage_dV = 3600;  // 360.0V, over this, charging is not possible (goes into forced discharge)
+  system_min_design_voltage_dV = 3160;  // 316.0V under this, discharging further is disabled
 }
 
 #endif

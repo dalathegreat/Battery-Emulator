@@ -12,13 +12,9 @@
 static unsigned long previousMillis10 = 0;   // will store last time a 10ms CAN Message was send
 static unsigned long previousMillis100 = 0;  // will store last time a 100ms CAN Message was send
 static unsigned long previousMillis10s = 0;  // will store last time a 1s CAN Message was send
-static const int interval10 = 10;            // interval (ms) at which send CAN Messages
-static const int interval100 = 100;          // interval (ms) at which send CAN Messages
-static const int interval10s = 10000;        // interval (ms) at which send CAN Messages
 static uint16_t CANerror = 0;                //counter on how many CAN errors encountered
 #define MAX_CAN_FAILURES 5000                //Amount of malformed CAN messages to allow before raising a warning
 static uint8_t CANstillAlive = 12;           //counter for checking if CAN is still alive
-static uint8_t errorCode = 0;                //stores if we have an error code active from battery control logic
 static uint8_t mprun10r = 0;                 //counter 0-20 for 0x1F2 message
 static uint8_t mprun10 = 0;                  //counter 0-3
 static uint8_t mprun100 = 0;                 //counter 0-3
@@ -271,7 +267,6 @@ void update_values_battery() { /* This function maps all the values fetched via 
     Serial.println("Battery requesting immediate shutdown and contactors to be opened!");
 #endif
     //Note, this is sometimes triggered during the night while idle, and the BMS recovers after a while. Removed latching from this scenario
-    errorCode = 1;
     system_max_discharge_power_W = 0;
     system_max_charge_power_W = 0;
   }
@@ -299,17 +294,14 @@ void update_values_battery() { /* This function maps all the values fetched via 
         break;
       case (5):
         //Caution Lamp Request & Normal Stop Request
-        errorCode = 2;
         set_event(EVENT_BATTERY_DISCHG_STOP_REQ, 0);
         break;
       case (6):
         //Caution Lamp Request & Charging Mode Stop Request
-        errorCode = 3;
         set_event(EVENT_BATTERY_CHG_STOP_REQ, 0);
         break;
       case (7):
         //Caution Lamp Request & Charging Mode Stop Request & Normal Stop Request
-        errorCode = 4;
         set_event(EVENT_BATTERY_CHG_DISCHG_STOP_REQ, 0);
         break;
       default:
@@ -323,7 +315,6 @@ void update_values_battery() { /* This function maps all the values fetched via 
 
   if (LB_StateOfHealth < 25) {    //Battery is extremely degraded, not fit for secondlifestorage. Zero it all out.
     if (LB_StateOfHealth != 0) {  //Extra check to see that we actually have a SOH Value available
-      errorCode = 5;
       set_event(EVENT_LOW_SOH, LB_StateOfHealth);
     } else {
       clear_event(EVENT_LOW_SOH);
@@ -333,7 +324,6 @@ void update_values_battery() { /* This function maps all the values fetched via 
 #ifdef INTERLOCK_REQUIRED
   if (!LB_Interlock) {
     set_event(EVENT_HVIL_FAILURE, 0);
-    errorCode = 6;
   } else {
     clear_event(EVENT_HVIL_FAILURE);
   }
@@ -341,7 +331,6 @@ void update_values_battery() { /* This function maps all the values fetched via 
 
   /* Check if the BMS is still sending CAN messages. If we go 60s without messages we raise an error*/
   if (!CANstillAlive) {
-    errorCode = 7;
     set_event(EVENT_CAN_RX_FAILURE, 0);
   } else {
     CANstillAlive--;
@@ -350,7 +339,6 @@ void update_values_battery() { /* This function maps all the values fetched via 
   if (CANerror >
       MAX_CAN_FAILURES)  //Also check if we have recieved too many malformed CAN messages. If so, signal via LED
   {
-    errorCode = 10;
     set_event(EVENT_CAN_RX_WARNING, 0);
   }
 
@@ -361,10 +349,6 @@ void update_values_battery() { /* This function maps all the values fetched via 
 
 /*Finally print out values to serial if configured to do so*/
 #ifdef DEBUG_VIA_USB
-  if (errorCode > 0) {
-    Serial.print("ERROR CODE ACTIVE IN SYSTEM. NUMBER: ");
-    Serial.println(errorCode);
-  }
   Serial.println("Values going to inverter");
   print_with_units("SOH%: ", (system_SOH_pptt * 0.01), "% ");
   print_with_units(", SOC% scaled: ", (system_scaled_SOC_pptt * 0.01), "% ");
@@ -579,11 +563,9 @@ void receive_can_battery(CAN_frame_t rx_frame) {
           }
 
           if (min_max_voltage[1] >= MAX_CELL_VOLTAGE) {
-            errorCode = 8;
             set_event(EVENT_CELL_OVER_VOLTAGE, 0);
           }
           if (min_max_voltage[0] <= MIN_CELL_VOLTAGE) {
-            errorCode = 9;
             set_event(EVENT_CELL_UNDER_VOLTAGE, 0);
           }
           break;
@@ -667,7 +649,7 @@ void receive_can_battery(CAN_frame_t rx_frame) {
 void send_can_battery() {
   unsigned long currentMillis = millis();
   // Send 100ms CAN Message
-  if (currentMillis - previousMillis100 >= interval100) {
+  if (currentMillis - previousMillis100 >= INTERVAL_100_MS) {
     previousMillis100 = currentMillis;
 
     //When battery requests heating pack status change, ack this
@@ -707,7 +689,11 @@ void send_can_battery() {
     mprun100 = (mprun100 + 1) % 4;  // mprun100 cycles between 0-1-2-3-0-1...
   }
   //Send 10ms message
-  if (currentMillis - previousMillis10 >= interval10) {
+  if (currentMillis - previousMillis10 >= INTERVAL_10_MS) {
+    // Check if sending of CAN messages has been delayed too much.
+    if ((currentMillis - previousMillis10 >= INTERVAL_10_MS_DELAYED) && (currentMillis > BOOTUP_TIME)) {
+      set_event(EVENT_CAN_OVERRUN, (currentMillis - previousMillis10));
+    }
     previousMillis10 = currentMillis;
 
     switch (mprun10) {
@@ -829,7 +815,7 @@ void send_can_battery() {
     mprun10 = (mprun10 + 1) % 4;  // mprun10 cycles between 0-1-2-3-0-1...
   }
   //Send 10s CAN messages
-  if (currentMillis - previousMillis10s >= interval10s) {
+  if (currentMillis - previousMillis10s >= INTERVAL_10_S) {
     previousMillis10s = currentMillis;
 
     //Every 10s, ask diagnostic data from the battery. Don't ask if someone is already polling on the bus (Leafspy?)
@@ -888,7 +874,9 @@ uint16_t Temp_fromRAW_to_F(uint16_t temperature) {  //This function feels horrib
 }
 
 void setup_battery(void) {  // Performs one time setup at startup
+#ifdef DEBUG_VIA_USB
   Serial.println("Nissan LEAF battery selected");
+#endif
 
   system_number_of_cells = 96;
   system_max_design_voltage_dV = 4040;  // 404.4V, over this, charging is not possible (goes into forced discharge)

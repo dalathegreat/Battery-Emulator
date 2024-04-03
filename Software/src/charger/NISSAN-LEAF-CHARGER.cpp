@@ -20,8 +20,6 @@
 */
 
 /* CAN cycles and timers */
-static const uint8_t interval10ms = 10;
-static const uint8_t interval100ms = 100;
 static unsigned long previousMillis10ms = 0;
 static unsigned long previousMillis100ms = 0;
 
@@ -184,7 +182,7 @@ void send_can_nissanleaf_charger() {
   unsigned long currentMillis = millis();
 
   /* Send keepalive with mode every 10ms */
-  if (currentMillis - previousMillis10ms >= interval10ms) {
+  if (currentMillis - previousMillis10ms >= INTERVAL_10_MS) {
     previousMillis10ms = currentMillis;
 
     mprun10++;
@@ -251,7 +249,7 @@ void send_can_nissanleaf_charger() {
   }
 
   /* Send messages every 100ms here */
-  if (currentMillis - previousMillis100ms >= interval100ms) {
+  if (currentMillis - previousMillis100ms >= INTERVAL_100_MS) {
     previousMillis100ms = currentMillis;
 
     mprun100++;
