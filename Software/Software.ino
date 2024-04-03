@@ -29,7 +29,7 @@
 
 Preferences settings;  // Store user settings
 // The current software version, shown on webserver
-const char* version_number = "5.6.0";
+const char* version_number = "5.7.dev";
 
 // Interval settings
 uint16_t intervalUpdateValues = INTERVAL_5_S;  // Interval at which to update inverter values / Modbus registers
@@ -98,7 +98,6 @@ static uint8_t brightness = 0;
 static bool rampUp = true;
 const uint8_t maxBrightness = 100;
 uint8_t LEDcolor = GREEN;
-bool test_all_colors = false;
 
 // Contactor parameters
 #ifdef CONTACTOR_CONTROL
@@ -188,8 +187,7 @@ void mainLoop(void* pvParameters) {
 #endif
 
     // Process
-    if (millis() - previousMillis10ms >= INTERVAL_10_MS)  // Every 10ms
-    {
+    if (millis() - previousMillis10ms >= INTERVAL_10_MS) {
       previousMillis10ms = millis();
       handle_LED_state();  // Set the LED color according to state
 #ifdef CONTACTOR_CONTROL
@@ -214,12 +212,7 @@ void mainLoop(void* pvParameters) {
 #endif
     run_event_handling();
 
-    if (digitalRead(0) == HIGH) {
-      test_all_colors = false;
-    } else {
-      test_all_colors = true;
-    }
-    delay(2);
+    delay(1);  // Allow the scheduler to start other tasks on other cores
   }
 }
 
@@ -541,29 +534,31 @@ void handle_LED_state() {
   } else if (!rampUp && brightness == 0) {
     rampUp = true;
   }
-  if (test_all_colors == false) {
-    switch (get_event_level()) {
-      case EVENT_LEVEL_INFO:
-        LEDcolor = GREEN;
-        pixels.setPixelColor(0, pixels.Color(0, brightness, 0));  // Green pulsing LED
-        break;
-      case EVENT_LEVEL_WARNING:
-        LEDcolor = YELLOW;
-        pixels.setPixelColor(0, pixels.Color(brightness, brightness, 0));  // Yellow pulsing LED
-        break;
-      case EVENT_LEVEL_DEBUG:
-      case EVENT_LEVEL_UPDATE:
-        LEDcolor = BLUE;
-        pixels.setPixelColor(0, pixels.Color(0, 0, brightness));  // Blue pulsing LED
-        break;
-      case EVENT_LEVEL_ERROR:
-        LEDcolor = RED;
-        pixels.setPixelColor(0, pixels.Color(150, 0, 0));  // Red LED full brightness
-        break;
-      default:
-        break;
-    }
-  } else {
+
+  switch (get_event_level()) {
+    case EVENT_LEVEL_INFO:
+      LEDcolor = GREEN;
+      pixels.setPixelColor(0, pixels.Color(0, brightness, 0));  // Green pulsing LED
+      break;
+    case EVENT_LEVEL_WARNING:
+      LEDcolor = YELLOW;
+      pixels.setPixelColor(0, pixels.Color(brightness, brightness, 0));  // Yellow pulsing LED
+      break;
+    case EVENT_LEVEL_DEBUG:
+    case EVENT_LEVEL_UPDATE:
+      LEDcolor = BLUE;
+      pixels.setPixelColor(0, pixels.Color(0, 0, brightness));  // Blue pulsing LED
+      break;
+    case EVENT_LEVEL_ERROR:
+      LEDcolor = RED;
+      pixels.setPixelColor(0, pixels.Color(150, 0, 0));  // Red LED full brightness
+      break;
+    default:
+      break;
+  }
+
+  // Check if button is being held down. If so, test all colors
+  if (digitalRead(0) == LOW) {
     pixels.setPixelColor(0, pixels.Color(brightness, abs((100 - brightness)), abs((50 - brightness))));  // RGB
   }
 

@@ -55,6 +55,7 @@
 
 // Common definitions
 #define MAX_AMOUNT_CELLS 192
+#define MAX_CAN_FAILURES 500  // Amount of malformed CAN messages to allow before raising a warning
 
 #define INTERVAL_10_MS 10
 #define INTERVAL_20_MS 20
