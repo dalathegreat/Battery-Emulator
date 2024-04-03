@@ -16,7 +16,6 @@ static unsigned long previousMillis5000 = 0;   // will store last time a 5000ms 
 static unsigned long previousMillis10000 = 0;  // will store last time a 10000ms CAN Message was send
 static uint8_t CANstillAlive = 12;             // counter for checking if CAN is still alive
 static uint16_t CANerror = 0;                  // counter on how many CAN errors encountered
-#define MAX_CAN_FAILURES 500                   // Amount of malformed CAN messages to allow before raising a warning
 #define ALIVE_MAX_VALUE 14                     // BMW CAN messages contain alive counter, goes from 0...14
 
 static const uint16_t WUPonDuration = 477;   // in milliseconds how long WUP should be ON after poweron
