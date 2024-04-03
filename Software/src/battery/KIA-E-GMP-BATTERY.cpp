@@ -19,21 +19,6 @@ static uint8_t CANstillAlive = 12;            //counter for checking if CAN is s
 
 CANFDMessage KIA64_553;
 
-static void CAN_WriteFrame(CAN_frame_t* tx_frame) {
-#ifdef CAN_FD
-  CANFDMessage frame;
-  frame.id = tx_frame->MsgID;
-  frame.ext = tx_frame->FIR.B.FF;
-  frame.len = tx_frame->FIR.B.DLC;
-  for (uint8_t i = 0; i < frame.len; i++) {
-    frame.data[i] = tx_frame->data.u8[i];
-  }
-  can.tryToSend(frame);
-#else  // Normal CAN port
-  ESP32Can.CANWriteFrame(tx_frame);
-#endif
-}
-
 void update_values_battery() {  //This function maps all the values fetched via CAN to the correct parameters used for modbus
 
   system_real_SOC_pptt;
