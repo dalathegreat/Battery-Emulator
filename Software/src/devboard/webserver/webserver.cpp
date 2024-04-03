@@ -475,7 +475,7 @@ String processor(const String& var) {
         break;
       case BLUE:
       case TEST_ALL_COLORS:
-        content += "#2B35AF;"; // Blue in test mode
+        content += "#2B35AF;";  // Blue in test mode
         break;
       case RED:
         content += "#A70107;";
