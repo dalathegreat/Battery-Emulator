@@ -315,7 +315,8 @@ void init_CAN() {
   settings.mRequestedMode = ACAN2517FDSettings::NormalFD;  // ListenOnly / Normal20B / NormalFD
   const uint32_t errorCode = can.begin(settings, [] { can.isr(); });
   if (errorCode == 0) {
-    Serial.print("Bit Rate prescaler: ");  // TODO: remove these lines before finalizing the feature
+#ifdef DEBUG_VIA_USB
+    Serial.print("Bit Rate prescaler: ");
     Serial.println(settings.mBitRatePrescaler);
     Serial.print("Arbitration Phase segment 1: ");
     Serial.println(settings.mArbitrationPhaseSegment1);
@@ -331,9 +332,13 @@ void init_CAN() {
     Serial.print("Arbitration Sample point: ");
     Serial.print(settings.arbitrationSamplePointFromBitStart());
     Serial.println("%");
+#endif
   } else {
+#ifdef DEBUG_VIA_USB
     Serial.print("CAN-FD Configuration error 0x");
     Serial.println(errorCode, HEX);
+#endif
+    set_event(EVENT_CANFD_INIT_FAILURE, (uint8_t)errorCode);
   }
 #endif
 }

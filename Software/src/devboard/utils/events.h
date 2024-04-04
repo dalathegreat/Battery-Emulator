@@ -28,6 +28,7 @@
  */
 
 #define EVENTS_ENUM_TYPE(XX)            \
+  XX(EVENT_CANFD_INIT_FAILURE)          \
   XX(EVENT_CAN_OVERRUN)                 \
   XX(EVENT_CAN_RX_FAILURE)              \
   XX(EVENT_CAN_RX_WARNING)              \
