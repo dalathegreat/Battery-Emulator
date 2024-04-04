@@ -182,9 +182,10 @@ void mainLoop(void* pvParameters) {
 #endif
 
     // Input
-    receive_can();  // Receive CAN messages. Runs as fast as possible
+    receive_can();    // Receive CAN messages. Runs as fast as possible
+    receive_canfd();  // Receive CAN-FD messages. Runs as fast as possible
 #ifdef DUAL_CAN
-    receive_can2();
+    receive_can2();  // Receive CAN messages on CAN2. Runs as fast as possible
 #endif
 #if defined(SERIAL_LINK_RECEIVER) || defined(SERIAL_LINK_TRANSMITTER)
     runSerialDataLink();
@@ -305,6 +306,11 @@ void init_CAN() {
   ACAN2515Settings settings(QUARTZ_FREQUENCY, 500UL * 1000UL);  // CAN bit rate 500 kb/s
   settings.mRequestedMode = ACAN2515Settings::NormalMode;
   can.begin(settings, [] { can.isr(); });
+#endif
+
+#if defined(DUAL_CAN) && defined(CAN_FD)
+// Check that user did not try to use dual can and fd-can on same hardware pins
+#error CAN-FD AND DUAL-CAN CANNOT BE USED SIMULTANEOUSLY
 #endif
 
 #ifdef CAN_FD
@@ -456,6 +462,16 @@ void init_battery() {
 }
 
 // Functions
+void receive_canfd() {  // This section checks if we have a complete CAN-FD message incoming
+#ifdef CAN_FD
+  CANFDMessage frame;
+  if (can.available()) {
+    can.receive(frame);
+    receive_canfd_battery(frame);
+  }
+#endif
+}
+
 void receive_can() {  // This section checks if we have a complete CAN message incoming
   // Depending on which battery/inverter is selected, we forward this to their respective CAN routines
   CAN_frame_t rx_frame;

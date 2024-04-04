@@ -70,14 +70,16 @@ void update_values_battery() {  //This function maps all the values fetched via 
 #endif
 }
 
-void receive_can_battery(CAN_frame_t rx_frame) {
-  switch (rx_frame.MsgID) {
+void receive_canfd_battery(CANFDMessage frame) {
+  switch (frame.id) {
     case 0xABC:
       break;
     default:
       break;
   }
 }
+
+void receive_can_battery(CAN_frame_t rx_frame) {}  // Not used on CAN-FD battery, just included to compile
 
 void send_can_battery() {
 

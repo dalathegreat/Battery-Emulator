@@ -60,6 +60,9 @@ void receive_can_battery();
 #else
 void receive_can_battery(CAN_frame_t rx_frame);
 #endif
+#ifdef CAN_FD
+void receive_canfd_battery(CANFDMessage frame);
+#endif
 void update_values_battery();
 void send_can_battery();
 void setup_battery(void);
