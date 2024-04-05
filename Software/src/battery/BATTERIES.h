@@ -17,6 +17,9 @@
 
 #ifdef KIA_E_GMP_BATTERY
 #include "KIA-E-GMP-BATTERY.h"  //See this file for more GMP battery settings
+#ifndef CAN_FD
+#error KIA HYUNDAI EGMP BATTERIES CANNOT BE USED WITHOUT CAN FD
+#endif
 #endif
 
 #ifdef KIA_HYUNDAI_64_BATTERY

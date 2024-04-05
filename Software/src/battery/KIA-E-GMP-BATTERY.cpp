@@ -14,36 +14,36 @@ static uint8_t CANstillAlive = 12;             //counter for checking if CAN is 
 #define MIN_CELL_VOLTAGE 2950   //Battery is put into emergency stop if one cell goes below this value
 #define MAX_CELL_DEVIATION 150  //LED turns yellow on the board if mv delta exceeds this value
 
-static uint8_t KIA_7E4_COUNTER = 0x01;
+static uint16_t inverterVoltageFrameHigh = 0;
+static uint16_t inverterVoltage = 0;
 static uint16_t soc_calculated = 0;
 static uint16_t SOC_BMS = 0;
 static uint16_t SOC_Display = 0;
 static uint16_t batterySOH = 1000;
-static uint8_t waterleakageSensor = 164;
-static int16_t leadAcidBatteryVoltage = 0;
 static uint16_t CellVoltMax_mV = 3700;
-static uint8_t CellVmaxNo = 0;
 static uint16_t CellVoltMin_mV = 3700;
-static uint8_t CellVminNo = 0;
 static uint16_t cell_deviation_mV = 0;
-static int16_t allowedDischargePower = 0;
-static int16_t allowedChargePower = 0;
 static uint16_t batteryVoltage = 0;
+static int16_t leadAcidBatteryVoltage = 0;
 static int16_t batteryAmps = 0;
 static int16_t powerWatt = 0;
 static int16_t temperatureMax = 0;
 static int16_t temperatureMin = 0;
-static int8_t temperature_water_inlet = 0;
+static int16_t allowedDischargePower = 0;
+static int16_t allowedChargePower = 0;
+static int16_t poll_data_pid = 0;
+static uint8_t CellVmaxNo = 0;
+static uint8_t CellVminNo = 0;
 static uint8_t batteryManagementMode = 0;
 static uint8_t BMS_ign = 0;
-static int16_t poll_data_pid = 0;
-static int8_t heatertemp = 0;
 static uint8_t batteryRelay = 0;
-static int8_t powerRelayTemperature = 0;
-static uint16_t inverterVoltageFrameHigh = 0;
-static uint16_t inverterVoltage = 0;
+static uint8_t waterleakageSensor = 164;
 static uint8_t startedUp = false;
 static uint8_t counter_200 = 0;
+static uint8_t KIA_7E4_COUNTER = 0x01;
+static int8_t temperature_water_inlet = 0;
+static int8_t powerRelayTemperature = 0;
+static int8_t heatertemp = 0;
 
 CANFDMessage EGMP_7E4;
 CANFDMessage EGMP_7E4_ack;
@@ -202,7 +202,7 @@ void receive_canfd_battery(CANFDMessage frame) {
           // Serial.println ("Send ack");
           poll_data_pid = frame.data[4];
           // if (frame.data[4] == poll_data_pid) {
-          can.tryToSend(EGMP_7E4_ack);  //Send ack to BMS if the same frame is sent as polled
+          canfd.tryToSend(EGMP_7E4_ack);  //Send ack to BMS if the same frame is sent as polled
           // }
           break;
         case 0x21:  //First frame in PID group
@@ -381,7 +381,7 @@ void send_can_battery() {
   //Send 500ms CANFD message
   if (currentMillis - previousMillis500ms >= INTERVAL_500_MS) {
     previousMillis500ms = currentMillis;
-    can.tryToSend(EGMP_7E4);
+    canfd.tryToSend(EGMP_7E4);
     Serial.println("sending 500ms message");
 
     KIA_7E4_COUNTER++;

@@ -48,7 +48,7 @@ static ACAN2515_Buffer16 gBuffer;
 #endif
 #ifdef CAN_FD
 #include "src/lib/pierremolinaro-ACAN2517FD/ACAN2517FD.h"
-ACAN2517FD can(MCP2517_CS, SPI, MCP2517_INT);
+ACAN2517FD canfd(MCP2517_CS, SPI, MCP2517_INT);
 #endif
 
 // ModbusRTU parameters
@@ -319,7 +319,7 @@ void init_CAN() {
   ACAN2517FDSettings settings(ACAN2517FDSettings::OSC_40MHz, 500 * 1000,
                               DataBitRateFactor::x4);      // Arbitration bit rate: 500 kbit/s, data bit rate: 2 Mbit/s
   settings.mRequestedMode = ACAN2517FDSettings::NormalFD;  // ListenOnly / Normal20B / NormalFD
-  const uint32_t errorCode = can.begin(settings, [] { can.isr(); });
+  const uint32_t errorCode = canfd.begin(settings, [] { canfd.isr(); });
   if (errorCode == 0) {
 #ifdef DEBUG_VIA_USB
     Serial.print("Bit Rate prescaler: ");
@@ -465,8 +465,8 @@ void init_battery() {
 void receive_canfd() {  // This section checks if we have a complete CAN-FD message incoming
 #ifdef CAN_FD
   CANFDMessage frame;
-  if (can.available()) {
-    can.receive(frame);
+  if (canfd.available()) {
+    canfd.receive(frame);
     receive_canfd_battery(frame);
   }
 #endif

@@ -6,7 +6,7 @@
 #include "../lib/miwagner-ESP32-Arduino-CAN/ESP32CAN.h"
 #include "../lib/pierremolinaro-ACAN2517FD/ACAN2517FD.h"
 
-extern ACAN2517FD can;  //TODO: rename to CANFD
+extern ACAN2517FD canfd;
 
 #define BATTERY_SELECTED
 
