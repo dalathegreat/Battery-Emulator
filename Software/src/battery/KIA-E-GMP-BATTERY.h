@@ -6,9 +6,12 @@
 #include "../lib/miwagner-ESP32-Arduino-CAN/ESP32CAN.h"
 #include "../lib/pierremolinaro-ACAN2517FD/ACAN2517FD.h"
 
-extern ACAN2517FD can;
+extern ACAN2517FD can;  //TODO: rename to CANFD
 
 #define BATTERY_SELECTED
+
+#define MAXCHARGEPOWERALLOWED 10000
+#define MAXDISCHARGEPOWERALLOWED 10000
 
 // These parameters need to be mapped for the inverter
 extern uint32_t system_capacity_Wh;                        //Wh,  0-150000Wh

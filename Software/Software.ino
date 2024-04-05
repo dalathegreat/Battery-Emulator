@@ -316,8 +316,8 @@ void init_CAN() {
 #ifdef CAN_FD
   Serial.println("CAN FD add-on (ESP32+MCP2517) selected");
   SPI.begin(MCP2517_SCK, MCP2517_SDO, MCP2517_SDI);
-  ACAN2517FDSettings settings(ACAN2517FDSettings::OSC_40MHz, 1000 * 1000,
-                              DataBitRateFactor::x8);      // Arbitration bit rate: 1 Mbit/s, data bit rate: 8 Mbit/s
+  ACAN2517FDSettings settings(ACAN2517FDSettings::OSC_40MHz, 500 * 1000,
+                              DataBitRateFactor::x4);      // Arbitration bit rate: 500 kbit/s, data bit rate: 2 Mbit/s
   settings.mRequestedMode = ACAN2517FDSettings::NormalFD;  // ListenOnly / Normal20B / NormalFD
   const uint32_t errorCode = can.begin(settings, [] { can.isr(); });
   if (errorCode == 0) {
