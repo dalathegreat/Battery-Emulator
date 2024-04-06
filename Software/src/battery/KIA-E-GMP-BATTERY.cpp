@@ -24,7 +24,7 @@ static uint16_t CellVoltMax_mV = 3700;
 static uint16_t CellVoltMin_mV = 3700;
 static uint16_t cell_deviation_mV = 0;
 static uint16_t batteryVoltage = 0;
-static int16_t leadAcidBatteryVoltage = 0;
+static int16_t leadAcidBatteryVoltage = 120;
 static int16_t batteryAmps = 0;
 static int16_t powerWatt = 0;
 static int16_t temperatureMax = 0;
@@ -96,10 +96,10 @@ void update_values_battery() {  //This function maps all the values fetched via 
 
   /* Check if the BMS is still sending CAN messages. If we go 60s without messages we raise an error*/
   if (!CANstillAlive) {
-    set_event(EVENT_CAN_RX_FAILURE, 0);
+    set_event(EVENT_CANFD_RX_FAILURE, 0);
   } else {
     CANstillAlive--;
-    clear_event(EVENT_CAN_RX_FAILURE);
+    clear_event(EVENT_CANFD_RX_FAILURE);
   }
 
   if (waterleakageSensor == 0) {
@@ -193,7 +193,7 @@ void update_values_battery() {  //This function maps all the values fetched via 
 }
 
 void receive_canfd_battery(CANFDMessage frame) {
-  Serial.println(frame.id);
+  CANstillAlive = 12;
   switch (frame.id) {
     case 0x7EC:
       // printFrame(frame);
@@ -380,9 +380,14 @@ void send_can_battery() {
   unsigned long currentMillis = millis();
   //Send 500ms CANFD message
   if (currentMillis - previousMillis500ms >= INTERVAL_500_MS) {
+
+    // Check if sending of CAN messages has been delayed too much.
+    if ((currentMillis - previousMillis500ms >= INTERVAL_500_MS_DELAYED) && (currentMillis > BOOTUP_TIME)) {
+      set_event(EVENT_CAN_OVERRUN, (currentMillis - previousMillis500ms));
+    }
     previousMillis500ms = currentMillis;
+
     canfd.tryToSend(EGMP_7E4);
-    Serial.println("sending 500ms message");
 
     KIA_7E4_COUNTER++;
     if (KIA_7E4_COUNTER > 0x0D) {  // gets up to 0x010C before repeating
@@ -392,13 +397,15 @@ void send_can_battery() {
 }
 
 void setup_battery(void) {  // Performs one time setup at startup
+#ifdef DEBUG_VIA_USB
   Serial.println("Hyundai E-GMP (Electric Global Modular Platform) battery selected");
+#endif
 
   system_number_of_cells = 192;  // TODO: will vary depending on battery
 
   system_max_design_voltage_dV =
-      9000;  // TODO: define when battery is known, charging is not possible (goes into forced discharge)
-  system_min_design_voltage_dV = 5000;  // TODO: define when battery is known. discharging further is disabled
+      8064;  // TODO: define when battery is known, charging is not possible (goes into forced discharge)
+  system_min_design_voltage_dV = 4320;  // TODO: define when battery is known. discharging further is disabled
 
   EGMP_7E4.id = 0x7E4;
   EGMP_7E4.ext = false;

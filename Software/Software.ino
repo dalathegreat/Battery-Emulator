@@ -314,7 +314,9 @@ void init_CAN() {
 #endif
 
 #ifdef CAN_FD
+#ifdef DEBUG_VIA_USB
   Serial.println("CAN FD add-on (ESP32+MCP2517) selected");
+#endif
   SPI.begin(MCP2517_SCK, MCP2517_SDO, MCP2517_SDI);
   ACAN2517FDSettings settings(ACAN2517FDSettings::OSC_40MHz, 500 * 1000,
                               DataBitRateFactor::x4);      // Arbitration bit rate: 500 kbit/s, data bit rate: 2 Mbit/s

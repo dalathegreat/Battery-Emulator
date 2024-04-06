@@ -83,6 +83,7 @@
 #define INTERVAL_20_MS_DELAYED 30
 #define INTERVAL_30_MS_DELAYED 40
 #define INTERVAL_100_MS_DELAYED 120
+#define INTERVAL_500_MS_DELAYED 550
 
 #define BOOTUP_TIME 1000  // Time in ms it takes before system is considered fully started up
 
