@@ -386,7 +386,7 @@ void send_can_battery() {
       set_event(EVENT_CAN_OVERRUN, (currentMillis - previousMillis500ms));
     }
     previousMillis500ms = currentMillis;
-
+    EGMP_7E4.data[3] = KIA_7E4_COUNTER;
     canfd.tryToSend(EGMP_7E4);
 
     KIA_7E4_COUNTER++;
@@ -409,18 +409,14 @@ void setup_battery(void) {  // Performs one time setup at startup
 
   EGMP_7E4.id = 0x7E4;
   EGMP_7E4.ext = false;
-  EGMP_7E4.type = CANFDMessage::CANFD_WITH_BIT_RATE_SWITCH;
-  EGMP_7E4.idx = 0;
   EGMP_7E4.len = 8;
-  uint8_t dataEGMP_7E4[] = {0x03, 0x22, 0x01, 0x01, 0x00, 0x00, 0x00, 0x00};  //Poll PID 03 22 01 01
+  uint8_t dataEGMP_7E4[8] = {0x03, 0x22, 0x01, 0x01, 0x00, 0x00, 0x00, 0x00};  //Poll PID 03 22 01 01
   memcpy(EGMP_7E4.data, dataEGMP_7E4, sizeof(dataEGMP_7E4));
 
   EGMP_7E4_ack.id = 0x7E4;
   EGMP_7E4_ack.ext = false;
-  EGMP_7E4_ack.type = CANFDMessage::CANFD_WITH_BIT_RATE_SWITCH;
-  EGMP_7E4_ack.idx = 0;
   EGMP_7E4_ack.len = 8;
-  uint8_t dataEGMP_7E4_ack[] = {0x30, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00};  //Ack frame, correct PID is returned
+  uint8_t dataEGMP_7E4_ack[8] = {0x30, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00};  //Ack frame, correct PID is returned
   memcpy(EGMP_7E4_ack.data, dataEGMP_7E4_ack, sizeof(dataEGMP_7E4_ack));
 }
 
