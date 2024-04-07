@@ -182,10 +182,8 @@ void mainLoop(void* pvParameters) {
 #endif
 
     // Input
-    receive_can();  // Receive CAN messages. Runs as fast as possible
-    if (millis() > BOOTUP_TIME) {
-      receive_canfd();  // Receive CAN-FD messages. Runs as fast as possible
-    }
+    receive_can();    // Receive CAN messages. Runs as fast as possible
+    receive_canfd();  // Receive CAN-FD messages. Runs as fast as possible
 #ifdef DUAL_CAN
     receive_can2();  // Receive CAN messages on CAN2. Runs as fast as possible
 #endif
