@@ -1,3 +1,4 @@
+#include "BATTERIES.h"
 #ifdef VOLVO_SPA_BATTERY
 #include "VOLVO-SPA-BATTERY.h"
 #include "../devboard/utils/events.h"
