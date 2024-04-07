@@ -56,8 +56,8 @@ ModbusServerRTU MBserver(Serial2, 2000);
 #endif
 
 // Common system parameters. Batteries map their values to these variables
-uint32_t system_capacity_Wh = BATTERY_WH_MAX;            //Wh, 0-250000 Wh
-uint32_t system_remaining_capacity_Wh = BATTERY_WH_MAX;  //Wh, 0-250000 Wh
+uint32_t system_capacity_Wh = BATTERY_WH_MAX;            //Wh, 0-500000 Wh
+uint32_t system_remaining_capacity_Wh = BATTERY_WH_MAX;  //Wh, 0-500000 Wh
 int16_t system_temperature_max_dC = 0;                   //C+1, -50.0 - 50.0
 int16_t system_temperature_min_dC = 0;                   //C+1, -50.0 - 50.0
 int32_t system_active_power_W = 0;                       //Watts, -200000 to 200000 W
@@ -68,8 +68,8 @@ uint16_t system_min_design_voltage_dV = 2500;            //V+1,  0-1000.0 (0-100
 uint16_t system_scaled_SOC_pptt = 5000;                  //SOC%, 0-100.00 (0-10000)
 uint16_t system_real_SOC_pptt = 5000;                    //SOC%, 0-100.00 (0-10000)
 uint16_t system_SOH_pptt = 9900;                         //SOH%, 0-100.00 (0-10000)
-uint32_t system_max_discharge_power_W = 0;               //Watts, 0 to 100000
-uint32_t system_max_charge_power_W = 4312;               //Watts, 0 to 100000
+uint32_t system_max_discharge_power_W = 0;               //Watts, 0 to 200000
+uint32_t system_max_charge_power_W = 4312;               //Watts, 0 to 200000
 uint16_t system_cell_max_voltage_mV = 3700;              //mV, 0-5000 , Stores the highest cell millivolt value
 uint16_t system_cell_min_voltage_mV = 3700;              //mV, 0-5000, Stores the minimum cell millivolt value
 uint16_t system_cellvoltages_mV[MAX_AMOUNT_CELLS];  //Array with all cell voltages. Oversized to accomodate all setups
