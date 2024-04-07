@@ -4,7 +4,7 @@
 #include <Arduino.h>
 
 #include "../../../USER_SETTINGS.h"         // Needed for WiFi ssid and password
-extern uint16_t system_battery_voltage_dV;  //V+1,  0-500.0 (0-5000)
+extern uint16_t system_battery_voltage_dV;  //V+1,  0-1000.0 (0-10000)
 
 /**
  * @brief Replaces placeholder with content section in web page

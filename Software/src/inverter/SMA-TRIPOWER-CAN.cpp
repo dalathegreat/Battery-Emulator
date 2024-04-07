@@ -119,11 +119,11 @@ static CAN_frame_t SMA_018 = {  // Battery Name
     .MsgID = 0x018,
     .data = {0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00}};
 
-static int discharge_current = 0;
-static int charge_current = 0;
-static int temperature_average = 0;
-static int ampere_hours_remaining = 0;
-static int ampere_hours_max = 0;
+static uint16_t discharge_current = 0;
+static uint16_t charge_current = 0;
+static int16_t temperature_average = 0;
+static uint16_t ampere_hours_remaining = 0;
+static uint16_t ampere_hours_max = 0;
 static bool batteryAlarm = false;
 static bool BMSevent = false;
 
@@ -164,11 +164,18 @@ void update_values_can_sma_tripower() {  //This function maps all the values fet
                     system_max_design_voltage_dV);  //Charge power in W , max volt in V+1decimal (P=UI, solve for I)
   //The above calculation results in (30 000*10)/3700=81A
   charge_current = (charge_current * 10);  //Value needs a decimal before getting sent to inverter (81.0A)
+  if (charge_current > MAXCHARGEAMP) {
+    charge_current = MAXCHARGEAMP;  //Cap the value to the max allowed Amp. Some inverters cannot handle large values.
+  }
 
   discharge_current = ((system_max_discharge_power_W * 10) /
                        system_max_design_voltage_dV);  //Charge power in W , max volt in V+1decimal (P=UI, solve for I)
   //The above calculation results in (30 000*10)/3700=81A
   discharge_current = (discharge_current * 10);  //Value needs a decimal before getting sent to inverter (81.0A)
+  if (discharge_current > MAXDISCHARGEAMP) {
+    discharge_current =
+        MAXDISCHARGEAMP;  //Cap the value to the max allowed Amp. Some inverters cannot handle large values.
+  }
 
   temperature_average = ((system_temperature_max_dC + system_temperature_min_dC) / 2);
 
