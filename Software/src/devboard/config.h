@@ -20,6 +20,14 @@
 #define MCP2515_INT 35   // INT output of MCP2515 |  | Pin 35 is input only, without pullup/down resistors
 #endif
 
+#ifdef CAN_FD
+#define MCP2517_SCK 12  // SCK input of MCP2517
+#define MCP2517_SDI 5   // SDI input of MCP2517
+#define MCP2517_SDO 34  // SDO output of MCP2517
+#define MCP2517_CS 18   // CS input of MCP2517
+#define MCP2517_INT 35  // INT output of MCP2517
+#endif
+
 #ifdef CONTACTOR_CONTROL
 #define POSITIVE_CONTACTOR_PIN 32
 #define NEGATIVE_CONTACTOR_PIN 33
@@ -75,7 +83,19 @@
 #define INTERVAL_20_MS_DELAYED 30
 #define INTERVAL_30_MS_DELAYED 40
 #define INTERVAL_100_MS_DELAYED 120
+#define INTERVAL_500_MS_DELAYED 550
 
 #define BOOTUP_TIME 1000  // Time in ms it takes before system is considered fully started up
+
+#if defined(DUAL_CAN) && defined(CAN_FD)
+// Check that user did not try to use dual can and fd-can on same hardware pins
+#error CAN-FD AND DUAL-CAN CANNOT BE USED SIMULTANEOUSLY
+#endif
+#if defined(BYD_MODBUS) || defined(LUNA2000_MODBUS)
+#if defined(SERIAL_LINK_RECEIVER) || defined(SERIAL_LINK_TRANSMITTER)
+// Check that Dual LilyGo via RS485 option isn't enabled, this collides with Modbus!
+#error MODBUS CANNOT BE USED IN DOUBLE LILYGO SETUPS! CHECK USER SETTINGS!
+#endif
+#endif
 
 #endif

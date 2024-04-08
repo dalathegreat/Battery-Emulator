@@ -46,6 +46,10 @@ static const uint32_t QUARTZ_FREQUENCY = 8UL * 1000UL * 1000UL;  // 8 MHz
 ACAN2515 can(MCP2515_CS, SPI, MCP2515_INT);
 static ACAN2515_Buffer16 gBuffer;
 #endif
+#ifdef CAN_FD
+#include "src/lib/pierremolinaro-ACAN2517FD/ACAN2517FD.h"
+ACAN2517FD canfd(MCP2517_CS, SPI, MCP2517_INT);
+#endif
 
 // ModbusRTU parameters
 #if defined(BYD_MODBUS) || defined(LUNA2000_MODBUS)
@@ -179,8 +183,11 @@ void mainLoop(void* pvParameters) {
 
     // Input
     receive_can();  // Receive CAN messages. Runs as fast as possible
+#ifdef CAN_FD
+    receive_canfd();  // Receive CAN-FD messages. Runs as fast as possible
+#endif
 #ifdef DUAL_CAN
-    receive_can2();
+    receive_can2();  // Receive CAN messages on CAN2. Runs as fast as possible
 #endif
 #if defined(SERIAL_LINK_RECEIVER) || defined(SERIAL_LINK_TRANSMITTER)
     runSerialDataLink();
@@ -299,8 +306,45 @@ void init_CAN() {
   gBuffer.initWithSize(25);
   SPI.begin(MCP2515_SCK, MCP2515_MISO, MCP2515_MOSI);
   ACAN2515Settings settings(QUARTZ_FREQUENCY, 500UL * 1000UL);  // CAN bit rate 500 kb/s
-  settings.mRequestedMode = ACAN2515Settings::NormalMode;       // Select loopback mode
+  settings.mRequestedMode = ACAN2515Settings::NormalMode;
   can.begin(settings, [] { can.isr(); });
+#endif
+
+#ifdef CAN_FD
+#ifdef DEBUG_VIA_USB
+  Serial.println("CAN FD add-on (ESP32+MCP2517) selected");
+#endif
+  SPI.begin(MCP2517_SCK, MCP2517_SDO, MCP2517_SDI);
+  ACAN2517FDSettings settings(ACAN2517FDSettings::OSC_40MHz, 500 * 1000,
+                              DataBitRateFactor::x4);      // Arbitration bit rate: 500 kbit/s, data bit rate: 2 Mbit/s
+  settings.mRequestedMode = ACAN2517FDSettings::NormalFD;  // ListenOnly / Normal20B / NormalFD
+  const uint32_t errorCode = canfd.begin(settings, [] { canfd.isr(); });
+  if (errorCode == 0) {
+#ifdef DEBUG_VIA_USB
+    Serial.print("Bit Rate prescaler: ");
+    Serial.println(settings.mBitRatePrescaler);
+    Serial.print("Arbitration Phase segment 1: ");
+    Serial.println(settings.mArbitrationPhaseSegment1);
+    Serial.print("Arbitration Phase segment 2: ");
+    Serial.println(settings.mArbitrationPhaseSegment2);
+    Serial.print("Arbitration SJW:");
+    Serial.println(settings.mArbitrationSJW);
+    Serial.print("Actual Arbitration Bit Rate: ");
+    Serial.print(settings.actualArbitrationBitRate());
+    Serial.println(" bit/s");
+    Serial.print("Exact Arbitration Bit Rate ? ");
+    Serial.println(settings.exactArbitrationBitRate() ? "yes" : "no");
+    Serial.print("Arbitration Sample point: ");
+    Serial.print(settings.arbitrationSamplePointFromBitStart());
+    Serial.println("%");
+#endif
+  } else {
+#ifdef DEBUG_VIA_USB
+    Serial.print("CAN-FD Configuration error 0x");
+    Serial.println(errorCode, HEX);
+#endif
+    set_event(EVENT_CANFD_INIT_FAILURE, (uint8_t)errorCode);
+  }
 #endif
 }
 
@@ -342,10 +386,6 @@ void init_modbus() {
 #ifdef BYD_MODBUS
   // Init Static data to the RTU Modbus
   handle_static_data_modbus_byd();
-#endif
-#if defined(SERIAL_LINK_RECEIVER) || defined(SERIAL_LINK_TRANSMITTER)
-// Check that Dual LilyGo via RS485 option isn't enabled, this collides with Modbus!
-#error MODBUS CANNOT BE USED IN DOUBLE LILYGO SETUPS! CHECK USER SETTINGS!
 #endif
 
   // Init Serial2 connected to the RTU Modbus
@@ -416,7 +456,17 @@ void init_battery() {
 #endif
 }
 
+#ifdef CAN_FD
 // Functions
+void receive_canfd() {  // This section checks if we have a complete CAN-FD message incoming
+  CANFDMessage frame;
+  if (canfd.available()) {
+    canfd.receive(frame);
+    receive_canfd_battery(frame);
+  }
+}
+#endif
+
 void receive_can() {  // This section checks if we have a complete CAN message incoming
   // Depending on which battery/inverter is selected, we forward this to their respective CAN routines
   CAN_frame_t rx_frame;
@@ -474,6 +524,7 @@ void send_can() {
 #endif
   // Battery
   send_can_battery();
+  // Charger
 #ifdef CHEVYVOLT_CHARGER
   send_can_chevyvolt_charger();
 #endif
