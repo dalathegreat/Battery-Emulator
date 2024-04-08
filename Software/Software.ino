@@ -182,8 +182,10 @@ void mainLoop(void* pvParameters) {
 #endif
 
     // Input
-    receive_can();    // Receive CAN messages. Runs as fast as possible
+    receive_can();  // Receive CAN messages. Runs as fast as possible
+#ifdef CAN_FD
     receive_canfd();  // Receive CAN-FD messages. Runs as fast as possible
+#endif
 #ifdef DUAL_CAN
     receive_can2();  // Receive CAN messages on CAN2. Runs as fast as possible
 #endif
@@ -454,16 +456,16 @@ void init_battery() {
 #endif
 }
 
+#ifdef CAN_FD
 // Functions
 void receive_canfd() {  // This section checks if we have a complete CAN-FD message incoming
-#ifdef CAN_FD
   CANFDMessage frame;
   if (canfd.available()) {
     canfd.receive(frame);
     receive_canfd_battery(frame);
   }
-#endif
 }
+#endif
 
 void receive_can() {  // This section checks if we have a complete CAN message incoming
   // Depending on which battery/inverter is selected, we forward this to their respective CAN routines
