@@ -87,4 +87,13 @@
 
 #define BOOTUP_TIME 1000  // Time in ms it takes before system is considered fully started up
 
+#if defined(DUAL_CAN) && defined(CAN_FD)
+// Check that user did not try to use dual can and fd-can on same hardware pins
+#error CAN-FD AND DUAL-CAN CANNOT BE USED SIMULTANEOUSLY
+#endif
+#if defined(SERIAL_LINK_RECEIVER) || defined(SERIAL_LINK_TRANSMITTER)
+// Check that Dual LilyGo via RS485 option isn't enabled, this collides with Modbus!
+#error MODBUS CANNOT BE USED IN DOUBLE LILYGO SETUPS! CHECK USER SETTINGS!
+#endif
+
 #endif
