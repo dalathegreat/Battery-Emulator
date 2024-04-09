@@ -133,10 +133,10 @@ void manageSerialLinkTransmitter() {
       dataLinkTransmit.updateData(3, system_battery_current_dA);
       dataLinkTransmit.updateData(4, system_capacity_Wh / 10);            //u32, remove .0 to fit 16bit
       dataLinkTransmit.updateData(5, system_remaining_capacity_Wh / 10);  //u32, remove .0 to fit 16bit
-      dataLinkTransmit.updateData(6, system_max_discharge_power_W);
-      dataLinkTransmit.updateData(7, system_max_charge_power_W);
+      dataLinkTransmit.updateData(6, system_max_discharge_power_W / 10);  //u32, remove .0 to fit 16bit
+      dataLinkTransmit.updateData(7, system_max_charge_power_W / 10);     //u32, remove .0 to fit 16bit
       dataLinkTransmit.updateData(8, system_bms_status);
-      dataLinkTransmit.updateData(9, system_active_power_W);
+      dataLinkTransmit.updateData(9, system_active_power_W / 10);  //u32, remove .0 to fit 16bit
       dataLinkTransmit.updateData(10, system_temperature_min_dC);
       dataLinkTransmit.updateData(11, system_temperature_max_dC);
       dataLinkTransmit.updateData(12, system_cell_max_voltage_mV);

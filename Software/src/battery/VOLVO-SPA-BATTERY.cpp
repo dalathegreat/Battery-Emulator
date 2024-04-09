@@ -1,8 +1,9 @@
+#include "BATTERIES.h"
 #ifdef VOLVO_SPA_BATTERY
-#include "VOLVO-SPA-BATTERY.h"
 #include "../devboard/utils/events.h"
 #include "../lib/miwagner-ESP32-Arduino-CAN/CAN_config.h"
 #include "../lib/miwagner-ESP32-Arduino-CAN/ESP32CAN.h"
+#include "VOLVO-SPA-BATTERY.h"
 
 /* Do not change code below unless you are sure what you are doing */
 static unsigned long previousMillis100 = 0;  // will store last time a 100ms CAN Message was send
