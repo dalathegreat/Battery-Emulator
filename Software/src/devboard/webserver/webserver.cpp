@@ -529,12 +529,6 @@ String processor(const String& var) {
     } else {  // > 0
       content += "<h4>Battery charging!</h4>";
     }
-#ifdef BMW_I3_BATTERY
-    content += "<h4>Battery Capacity cAh: " + String(battery_capacity_cah / 100.0, 2) + " Ah</h4>";
-    content += "<h4>Battery SOC: " + String(battery_soc / 10.0, 1) + "%%</h4>";
-    content += "<h4>Battery SOC hvMax: " + String(battery_soc_hvmax / 10.0, 1) + "%%</h4>";
-    content += "<h4>Battery SOC hvMin: " + String(battery_soc_hvmin / 10.0, 1) + "%%</h4>";
-#endif
 
     content += "<h4>Automatic contactor closing allowed:</h4>";
     content += "<h4>Battery: ";
