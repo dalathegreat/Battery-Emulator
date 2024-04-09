@@ -62,13 +62,18 @@ void update_values_battery() {  /* This function puts fake values onto the param
 #endif
 }
 
-void receive_can_battery(CAN_frame_t rx_frame) {
-  switch (rx_frame.MsgID) {
-    case 0xABC:
-      break;
-    default:
-      break;
+void receive_can_battery(CAN_frame_t rx_frame) {  // All CAN messages recieved will be logged via serial
+  Serial.print(millis());  // Example printout, time, ID, length, data: 7553  1DB  8  FF C0 B9 EA 0 0 2 5D
+  Serial.print("  ");
+  Serial.print(rx_frame.MsgID, HEX);
+  Serial.print("  ");
+  Serial.print(rx_frame.FIR.B.DLC);
+  Serial.print("  ");
+  for (int i = 0; i < rx_frame.FIR.B.DLC; ++i) {
+    Serial.print(rx_frame.data.u8[i], HEX);
+    Serial.print(" ");
   }
+  Serial.println("");
 }
 void send_can_battery() {
   unsigned long currentMillis = millis();
