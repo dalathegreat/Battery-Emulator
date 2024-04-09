@@ -270,42 +270,45 @@ CAN_frame_t BMW_5F8 = {.FIR = {.B =
                        .MsgID = 0x5F8,
                        .data = {0x64, 0x01, 0x00, 0x0B, 0x92, 0x03, 0x00, 0x05}};
 
-CAN_frame_t BMW_6F1_CELL = { .FIR = { .B = {
-                                        .DLC = 5,
-                                        .FF = CAN_frame_std,
-                                      } },
-                             .MsgID = 0x6F1,
-                             .data = { 0x07, 0x03, 0x22, 0xDD, 0xBF } };
+CAN_frame_t BMW_6F1_CELL = {.FIR = {.B =
+                                        {
+                                            .DLC = 5,
+                                            .FF = CAN_frame_std,
+                                        }},
+                            .MsgID = 0x6F1,
+                            .data = {0x07, 0x03, 0x22, 0xDD, 0xBF}};
 
-CAN_frame_t BMW_6F1_SOH = { .FIR = { .B = {
-                                        .DLC = 5,
-                                        .FF = CAN_frame_std,
-                                      } },
-                             .MsgID = 0x6F1,
-                             .data = { 0x07, 0x03, 0x22, 0x63, 0x35 } };
+CAN_frame_t BMW_6F1_SOH = {.FIR = {.B =
+                                       {
+                                           .DLC = 5,
+                                           .FF = CAN_frame_std,
+                                       }},
+                           .MsgID = 0x6F1,
+                           .data = {0x07, 0x03, 0x22, 0x63, 0x35}};
 
+CAN_frame_t BMW_6F1_SOC = {.FIR = {.B =
+                                       {
+                                           .DLC = 5,
+                                           .FF = CAN_frame_std,
+                                       }},
+                           .MsgID = 0x6F1,
+                           .data = {0x07, 0x03, 0x22, 0xDD, 0xBC}};
 
-CAN_frame_t BMW_6F1_SOC = { .FIR = { .B = {
-                                        .DLC = 5,
-                                        .FF = CAN_frame_std,
-                                      } },
-                             .MsgID = 0x6F1,
-                             .data = { 0x07, 0x03, 0x22, 0xDD, 0xBC } };
+CAN_frame_t BMW_6F1_CELL_VOLTAGE_AVG = {.FIR = {.B =
+                                                    {
+                                                        .DLC = 5,
+                                                        .FF = CAN_frame_std,
+                                                    }},
+                                        .MsgID = 0x6F1,
+                                        .data = {0x07, 0x03, 0x22, 0xDF, 0xA0}};
 
-CAN_frame_t BMW_6F1_CELL_VOLTAGE_AVG = { .FIR = { .B = {
-                                        .DLC = 5,
-                                        .FF = CAN_frame_std,
-                                      } },
-                             .MsgID = 0x6F1,
-                             .data = { 0x07, 0x03, 0x22, 0xDF, 0xA0 } };
-
-CAN_frame_t BMW_6F1_CONTINUE = { .FIR = { .B = {
-                                        .DLC = 4,
-                                        .FF = CAN_frame_std,
-                                      } },
-                             .MsgID = 0x6F1,
-                             .data = { 0x07, 0x30, 0x00, 0x02 } };
-
+CAN_frame_t BMW_6F1_CONTINUE = {.FIR = {.B =
+                                            {
+                                                .DLC = 4,
+                                                .FF = CAN_frame_std,
+                                            }},
+                                .MsgID = 0x6F1,
+                                .data = {0x07, 0x30, 0x00, 0x02}};
 //The above CAN messages need to be sent towards the battery to keep it alive
 
 static uint8_t startup_counter_contactor = 0;
@@ -413,7 +416,7 @@ static uint8_t increment_alive_counter(uint8_t counter) {
 
 void update_values_battery() {  //This function maps all the values fetched via CAN to the correct parameters used for modbus
 
-  system_real_SOC_pptt = (battery_HVBatt_SOC * 10); 
+  system_real_SOC_pptt = (battery_HVBatt_SOC * 10);
 
   system_battery_voltage_dV = battery_volts;  //Unit V+1 (5000 = 500.0V)
 
@@ -604,19 +607,15 @@ void receive_can_battery(CAN_frame_t rx_frame) {
       battery_ID2 = rx_frame.data.u8[0];
       break;
     case 0x607:  //BMS - responses to message requests on 0x615
-      if (rx_frame.FIR.B.DLC > 6
-                 && next_data == 0
-                 && rx_frame.data.u8[0] == 0xf1) {
+      if (rx_frame.FIR.B.DLC > 6 && next_data == 0 && rx_frame.data.u8[0] == 0xf1) {
         uint8_t count = 6;
         while (count < rx_frame.FIR.B.DLC && next_data < 49) {
           message_data[next_data++] = rx_frame.data.u8[count++];
         }
-        ESP32Can.CANWriteFrame(&BMW_6F1_CONTINUE); // tell battery to send additional messages
+        ESP32Can.CANWriteFrame(&BMW_6F1_CONTINUE);  // tell battery to send additional messages
 
-      } else if (rx_frame.FIR.B.DLC > 3
-                 && next_data > 0
-                 && rx_frame.data.u8[0] == 0xf1
-                 && ((rx_frame.data.u8[1] & 0xF0) == 0x20)) {
+      } else if (rx_frame.FIR.B.DLC > 3 && next_data > 0 && rx_frame.data.u8[0] == 0xf1 &&
+                 ((rx_frame.data.u8[1] & 0xF0) == 0x20)) {
         uint8_t count = 2;
         while (count < rx_frame.FIR.B.DLC && next_data < 49) {
           message_data[next_data++] = rx_frame.data.u8[count++];
@@ -624,24 +623,24 @@ void receive_can_battery(CAN_frame_t rx_frame) {
 
         switch (cmdState) {
           case CELL_VOLTAGE:
-            if (next_data>=4) {
+            if (next_data >= 4) {
               system_cellvoltages_mV[0] = (message_data[0] << 8 | message_data[1]);
               system_cellvoltages_mV[2] = (message_data[2] << 8 | message_data[3]);
             }
             break;
           case CELL_VOLTAGE_AVG:
-            if (next_data>=30) {
+            if (next_data >= 30) {
               system_cellvoltages_mV[1] = (message_data[10] << 8 | message_data[11]) / 10;
               battery_capacity_cah = (message_data[4] << 8 | message_data[5]);
             }
             break;
           case SOH:
-            if (next_data>=4) {
+            if (next_data >= 4) {
               battery_soh = message_data[3];
             }
             break;
           case SOC:
-            if (next_data>=6) {
+            if (next_data >= 6) {
               battery_soc = (message_data[0] << 8 | message_data[1]);
               battery_soc_hvmax = (message_data[2] << 8 | message_data[3]);
               battery_soc_hvmin = (message_data[4] << 8 | message_data[5]);
