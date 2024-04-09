@@ -40,6 +40,13 @@ extern uint8_t LEDcolor;                                   //Enum, 0-10
 extern bool batteryAllowsContactorClosing;                 //Bool, 1=true, 0=false
 extern bool inverterAllowsContactorClosing;                //Bool, 1=true, 0=false
 
+#ifdef BMW_I3_BATTERY
+extern uint16_t battery_soc;
+extern uint16_t battery_soc_hvmax;
+extern uint16_t battery_soc_hvmin;
+extern uint16_t battery_capacity_cah;
+#endif
+
 extern const char* ssid;
 extern const char* password;
 extern const uint8_t wifi_channel;

@@ -16,6 +16,7 @@ static unsigned long previousMillis5000 = 0;   // will store last time a 5000ms 
 static unsigned long previousMillis10000 = 0;  // will store last time a 10000ms CAN Message was send
 static uint8_t CANstillAlive = 12;             // counter for checking if CAN is still alive
 static uint16_t CANerror = 0;                  // counter on how many CAN errors encountered
+#define MAX_CAN_FAILURES 500                   // Amount of malformed CAN messages to allow before raising a warning
 #define ALIVE_MAX_VALUE 14                     // BMW CAN messages contain alive counter, goes from 0...14
 
 static const uint16_t WUPonDuration = 477;   // in milliseconds how long WUP should be ON after poweron
@@ -24,6 +25,9 @@ unsigned long lastChangeTime;                // Variables to store timestamps
 unsigned long turnOnTime;                    // Variables to store timestamps
 enum State { POWERON, STATE_ON, STATE_OFF };
 static State WUPState = POWERON;
+
+enum CmdState { SOH, CELL_VOLTAGE, SOC, CELL_VOLTAGE_AVG };
+static CmdState cmdState = SOH;
 
 const unsigned char crc8_table[256] =
     {  // CRC8_SAE_J1850_ZER0 formula,0x1D Poly,initial value 0x3F,Final XOR value varies
@@ -273,6 +277,28 @@ CAN_frame_t BMW_6F1_CELL = { .FIR = { .B = {
                              .MsgID = 0x6F1,
                              .data = { 0x07, 0x03, 0x22, 0xDD, 0xBF } };
 
+CAN_frame_t BMW_6F1_SOH = { .FIR = { .B = {
+                                        .DLC = 5,
+                                        .FF = CAN_frame_std,
+                                      } },
+                             .MsgID = 0x6F1,
+                             .data = { 0x07, 0x03, 0x22, 0x63, 0x35 } };
+
+
+CAN_frame_t BMW_6F1_SOC = { .FIR = { .B = {
+                                        .DLC = 5,
+                                        .FF = CAN_frame_std,
+                                      } },
+                             .MsgID = 0x6F1,
+                             .data = { 0x07, 0x03, 0x22, 0xDD, 0xBC } };
+
+CAN_frame_t BMW_6F1_CELL_VOLTAGE_AVG = { .FIR = { .B = {
+                                        .DLC = 5,
+                                        .FF = CAN_frame_std,
+                                      } },
+                             .MsgID = 0x6F1,
+                             .data = { 0x07, 0x03, 0x22, 0xDF, 0xA0 } };
+
 CAN_frame_t BMW_6F1_CONTINUE = { .FIR = { .B = {
                                         .DLC = 4,
                                         .FF = CAN_frame_std,
@@ -320,6 +346,12 @@ static uint16_t battery_prediction_voltage_longterm_charge = 0;
 static uint16_t battery_prediction_voltage_longterm_discharge = 0;
 static uint16_t battery_prediction_duration_charging_minutes = 0;
 static uint16_t battery_target_voltage_in_CV_mode = 0;
+
+uint16_t battery_soc = 0;
+uint16_t battery_soc_hvmax = 0;
+uint16_t battery_soc_hvmin = 0;
+uint16_t battery_capacity_cah = 0;
+
 static int16_t battery_temperature_HV = 0;
 static int16_t battery_temperature_heat_exchanger = 0;
 static int16_t battery_temperature_max = 0;
@@ -358,6 +390,7 @@ static uint8_t battery_status_diagnosis_powertrain_maximum_multiplexer = 0;
 static uint8_t battery_status_diagnosis_powertrain_immediate_multiplexer = 0;
 static uint8_t battery_ID2 = 0;
 static uint8_t battery_cellvoltage_mux = 0;
+static uint8_t battery_soh = 0;
 
 static uint8_t message_data[50];
 static uint8_t next_data = 0;
@@ -380,7 +413,7 @@ static uint8_t increment_alive_counter(uint8_t counter) {
 
 void update_values_battery() {  //This function maps all the values fetched via CAN to the correct parameters used for modbus
 
-  system_real_SOC_pptt = (battery_HVBatt_SOC * 10);  //increase Display_SOC range from 0-100 -> 100.00
+  system_real_SOC_pptt = (battery_HVBatt_SOC * 10); 
 
   system_battery_voltage_dV = battery_volts;  //Unit V+1 (5000 = 500.0V)
 
@@ -390,7 +423,7 @@ void update_values_battery() {  //This function maps all the values fetched via 
 
   system_remaining_capacity_Wh = (battery_energy_content_maximum_kWh * 1000);  // Convert kWh to Wh
 
-  system_SOH_pptt = battery_energy_content_maximum_kWh * 10000 / 27.2;
+  system_SOH_pptt = battery_soh * 100;
 
   if (battery_BEV_available_power_longterm_discharge > 65000) {
     system_max_discharge_power_W = 65000;
@@ -570,7 +603,7 @@ void receive_can_battery(CAN_frame_t rx_frame) {
     case 0x587:  //BMS [5s] Services
       battery_ID2 = rx_frame.data.u8[0];
       break;
-    case 0x607:  //BMS - messages requested on 0x615
+    case 0x607:  //BMS - responses to message requests on 0x615
       if (rx_frame.FIR.B.DLC > 6
                  && next_data == 0
                  && rx_frame.data.u8[0] == 0xf1) {
@@ -589,8 +622,32 @@ void receive_can_battery(CAN_frame_t rx_frame) {
           message_data[next_data++] = rx_frame.data.u8[count++];
         }
 
-        system_cellvoltages_mV[0] = (message_data[0] << 8 | message_data[1]);
-        system_cellvoltages_mV[1] = (message_data[2] << 8 | message_data[3]);
+        switch (cmdState) {
+          case CELL_VOLTAGE:
+            if (next_data>=4) {
+              system_cellvoltages_mV[0] = (message_data[0] << 8 | message_data[1]);
+              system_cellvoltages_mV[2] = (message_data[2] << 8 | message_data[3]);
+            }
+            break;
+          case CELL_VOLTAGE_AVG:
+            if (next_data>=30) {
+              system_cellvoltages_mV[1] = (message_data[10] << 8 | message_data[11]) / 10;
+              battery_capacity_cah = (message_data[4] << 8 | message_data[5]);
+            }
+            break;
+          case SOH:
+            if (next_data>=4) {
+              battery_soh = message_data[3];
+            }
+            break;
+          case SOC:
+            if (next_data>=6) {
+              battery_soc = (message_data[0] << 8 | message_data[1]);
+              battery_soc_hvmax = (message_data[2] << 8 | message_data[3]);
+              battery_soc_hvmin = (message_data[4] << 8 | message_data[5]);
+            }
+            break;
+        }
       }
       break;
     default:
