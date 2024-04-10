@@ -348,11 +348,10 @@ static uint16_t battery_prediction_voltage_longterm_charge = 0;
 static uint16_t battery_prediction_voltage_longterm_discharge = 0;
 static uint16_t battery_prediction_duration_charging_minutes = 0;
 static uint16_t battery_target_voltage_in_CV_mode = 0;
-
-uint16_t battery_soc = 0;
-uint16_t battery_soc_hvmax = 0;
-uint16_t battery_soc_hvmin = 0;
-uint16_t battery_capacity_cah = 0;
+static uint16_t battery_soc = 0;
+static uint16_t battery_soc_hvmax = 0;
+static uint16_t battery_soc_hvmin = 0;
+static uint16_t battery_capacity_cah = 0;
 
 static int16_t battery_temperature_HV = 0;
 static int16_t battery_temperature_heat_exchanger = 0;
