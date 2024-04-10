@@ -529,6 +529,7 @@ String processor(const String& var) {
     } else {  // > 0
       content += "<h4>Battery charging!</h4>";
     }
+
     content += "<h4>Automatic contactor closing allowed:</h4>";
     content += "<h4>Battery: ";
     if (batteryAllowsContactorClosing) {
