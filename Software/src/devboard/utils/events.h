@@ -1,9 +1,7 @@
 #ifndef __EVENTS_H__
 #define __EVENTS_H__
-#include <stdint.h>
-
 #ifndef UNIT_TEST
-#include <Arduino.h>
+#include "../../include.h"
 #endif
 
 // #define INCLUDE_EVENTS_TEST  // Enable to run an event test loop, see events_test_on_target.cpp

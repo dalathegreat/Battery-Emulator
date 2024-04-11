@@ -6,8 +6,7 @@
 #define BATTERY_SELECTED
 
 #include <Arduino.h>
-#include "../../USER_SETTINGS.h"
-#include "../devboard/config.h"  // Needed for all defines
+#include "../include.h"
 #include "../lib/mackelec-SerialDataLink/SerialDataLink.h"
 
 //  https://github.com/mackelec/SerialDataLink

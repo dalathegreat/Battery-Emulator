@@ -17,7 +17,7 @@ static const float heartbeat_peak1 = 0.80;
 static const float heartbeat_peak2 = 0.55;
 static const float heartbeat_deviation = 0.05;
 
-static LED led;
+static LED led(LED_MODE_DEFAULT);
 static DataLayer& datalayer = datalayer_get_ref();
 
 void led_init(void) {
@@ -39,7 +39,7 @@ void LED::exe(void) {
 
   switch (state) {
     default:
-    case NORMAL:
+    case LED_NORMAL:
       // Update brightness
       switch (mode) {
         case led_mode::FLOW:
@@ -77,9 +77,9 @@ void LED::exe(void) {
           break;
       }
       break;
-    case COMMAND:
+    case LED_COMMAND:
       break;
-    case RGB:
+    case LED_RGB:
       rainbow_run();
       break;
   }
@@ -96,10 +96,12 @@ void LED::flow_run(void) {
   // Determine how bright the LED should be
   bool power_positive;
   int16_t power_W = datalayer.battery.status.active_power_W;
-  if (power_W > 50) {
-    brightness = up_down(0.95);
-  } else if (power_W < -50) {
+  if (power_W < -50) {
+    // Discharging
     brightness = max_brightness - up_down(0.95);
+  } else if (power_W > 50) {
+    // Charging
+    brightness = up_down(0.95);
   } else {
     brightness = up_down(0.5);
   }
@@ -186,11 +188,12 @@ uint8_t LED::up_down(float middle_point_f) {
   middle_point_f = CONSTRAIN(middle_point_f, 0.0f, 1.0f);
   uint16_t middle_point = (uint16_t)(middle_point_f * LED_PERIOD_MS);
   uint16_t ms = (uint16_t)(millis() % LED_PERIOD_MS);
-
   brightness = map_uint16(ms, 0, middle_point, 0, max_brightness);
-  if (ms > middle_point) {
-    // Invert
-    brightness = max_brightness - brightness;
+  if (ms < middle_point) {
+    brightness = map_uint16(ms, 0, middle_point, 0, max_brightness);
+  } else {
+    brightness = LED_MAX_BRIGHTNESS - map_uint16(ms, middle_point, LED_PERIOD_MS, 0, max_brightness);
   }
+  Serial.println(brightness);
   return CONSTRAIN(brightness, 0, max_brightness);
 }

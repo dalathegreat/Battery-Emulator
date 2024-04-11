@@ -15,13 +15,13 @@
 //#define CHADEMO_BATTERY
 //#define IMIEV_CZERO_ION_BATTERY
 //#define KIA_HYUNDAI_64_BATTERY
-// #define NISSAN_LEAF_BATTERY
+#define NISSAN_LEAF_BATTERY
 //#define RENAULT_KANGOO_BATTERY
 //#define RENAULT_ZOE_BATTERY
 //#define SANTA_FE_PHEV_BATTERY
 //#define TESLA_MODEL_3_BATTERY
 //#define VOLVO_SPA_BATTERY
-#define TEST_FAKE_BATTERY
+// #define TEST_FAKE_BATTERY
 
 /* Select inverter communication protocol. See Wiki for which to use with your inverter: https://github.com/dalathegreat/BYD-Battery-Emulator-For-Gen24/wiki */
 //#define BYD_CAN          //Enable this line to emulate a "BYD Battery-Box Premium HVS" over CAN Bus
@@ -34,7 +34,7 @@
 //#define SOLAX_CAN        //Enable this line to emulate a "SolaX Triple Power LFP" over CAN bus
 
 /* Other options */
-//#define DEBUG_VIA_USB  //Enable this line to have the USB port output serial diagnostic data while program runs (WARNING, raises CPU load, do not use for production)
+#define DEBUG_VIA_USB  //Enable this line to have the USB port output serial diagnostic data while program runs (WARNING, raises CPU load, do not use for production)
 #define INTERLOCK_REQUIRED  //Nissan LEAF specific setting, if enabled requires both high voltage conenctors to be seated before starting
 //#define CONTACTOR_CONTROL     //Enable this line to have pins 25,32,33 handle automatic precharge/contactor+/contactor- closing sequence
 //#define PWM_CONTACTOR_CONTROL //Enable this line to use PWM logic for contactors, which lower power consumption and heat generation
@@ -46,7 +46,7 @@
 #define LOAD_SAVED_SETTINGS_ON_BOOT  //Enable this line to read settings stored via the webserver on boot (overrides any battery settings set in USER_SETTINGS.cpp)
 
 /* MQTT options */
-// #define MQTT  // Enable this line to enable MQTT
+#define MQTT  // Enable this line to enable MQTT
 #define MQTT_SUBSCRIPTIONS \
   { "my/topic/abc", "my/other/topic" }
 #define MQTT_SERVER "192.168.68.108"
@@ -82,5 +82,18 @@ extern bool charger_HV_enabled;
 extern bool charger_aux12V_enabled;
 
 extern const uint8_t wifi_channel;
+
+/* ---------------------------- */
+
+#if defined(DUAL_CAN) && defined(CAN_FD)
+// Check that user did not try to use dual can and fd-can on same hardware pins
+#error CAN-FD AND DUAL-CAN CANNOT BE USED SIMULTANEOUSLY
+#endif
+#if defined(BYD_MODBUS) || defined(LUNA2000_MODBUS)
+#if defined(SERIAL_LINK_RECEIVER) || defined(SERIAL_LINK_TRANSMITTER)
+// Check that Dual LilyGo via RS485 option isn't enabled, this collides with Modbus!
+#error MODBUS CANNOT BE USED IN DOUBLE LILYGO SETUPS! CHECK USER SETTINGS!
+#endif
+#endif
 
 #endif

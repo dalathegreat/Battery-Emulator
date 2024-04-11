@@ -35,8 +35,7 @@
 #define __MQTT_H__
 
 #include <Arduino.h>
-#include "../../../USER_SETTINGS.h"
-#include "../config.h"  // Needed for defines
+#include "../../include.h"
 
 #define MQTT_MSG_BUFFER_SIZE (1024)
 

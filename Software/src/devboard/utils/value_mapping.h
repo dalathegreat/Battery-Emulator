@@ -1,6 +1,8 @@
 #ifndef __MAPPING_H__
 #define __MAPPING_H__
 
+#include "../../include.h"
+
 #define MIN(x, y) (((x) < (y)) ? (x) : (y))
 #define MAX(x, y) (((x) > (y)) ? (x) : (y))
 #define CONSTRAIN(val, min, max) (MIN(max, MAX(min, val)))

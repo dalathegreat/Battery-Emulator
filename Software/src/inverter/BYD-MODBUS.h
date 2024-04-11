@@ -1,7 +1,6 @@
 #ifndef BYD_MODBUS_H
 #define BYD_MODBUS_H
-#include <Arduino.h>
-#include "../devboard/config.h"  // Needed for all defines
+#include "../include.h"
 
 #define MB_RTU_NUM_VALUES 30000
 #define MAX_POWER 40960  //BYD Modbus specific value

@@ -2,8 +2,7 @@
 #define SERIAL_LINK_TRANSMITTER_INVERTER_H
 
 #include <Arduino.h>
-#include "../../USER_SETTINGS.h"
-#include "../devboard/config.h"  // Needed for all defines
+#include "../include.h"
 #include "../lib/mackelec-SerialDataLink/SerialDataLink.h"
 
 // These parameters need to be mapped for the inverter

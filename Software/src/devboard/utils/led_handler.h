@@ -6,7 +6,7 @@
 #include "timer.h"
 
 enum led_mode { CLASSIC, FLOW, HEARTBEAT };
-enum led_state { NORMAL, COMMAND, RGB };
+enum led_state { LED_NORMAL, LED_COMMAND, LED_RGB };
 
 class LED {
  public:
@@ -16,9 +16,12 @@ class LED {
       : mode(led_mode::CLASSIC),
         max_brightness(LED_MAX_BRIGHTNESS),
         pixels(1, LED_PIN, NEO_GRB + NEO_KHZ800),
-        timer(10) {}
+        timer(LED_EXECUTION_FREQUENCY) {}
   LED(led_mode mode)
-      : mode(mode), max_brightness(LED_MAX_BRIGHTNESS), pixels(1, LED_PIN, NEO_GRB + NEO_KHZ800), timer(10) {}
+      : mode(mode),
+        max_brightness(LED_MAX_BRIGHTNESS),
+        pixels(1, LED_PIN, NEO_GRB + NEO_KHZ800),
+        timer(LED_EXECUTION_FREQUENCY) {}
 
   void exe(void);
   void init(void) { pixels.begin(); }
@@ -28,7 +31,7 @@ class LED {
   uint8_t max_brightness;
   uint8_t brightness;
   led_mode mode = led_mode::CLASSIC;
-  led_state state = led_state::NORMAL;
+  led_state state = LED_NORMAL;
   MyTimer timer;
 
   void classic_run(void);

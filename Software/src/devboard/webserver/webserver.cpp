@@ -1,5 +1,6 @@
 #include "webserver.h"
 #include <Preferences.h>
+#include "../datalayer/datalayer.h"
 #include "../utils/events.h"
 #include "../utils/led_handler.h"
 #include "../utils/timer.h"
@@ -470,18 +471,18 @@ String processor(const String& var) {
 
     // Start a new block with a specific background color. Color changes depending on BMS status
     content += "<div style='background-color: ";
-    switch (LEDcolor) {
-      case GREEN:
+    switch (led_get_color()) {
+      case led_color::GREEN:
         content += "#2D3F2F;";
         break;
-      case YELLOW:
+      case led_color::YELLOW:
         content += "#F5CC00;";
         break;
-      case BLUE:
-      case TEST_ALL_COLORS:
+      case led_color::BLUE:
+      case led_color::RGB:
         content += "#2B35AF;";  // Blue in test mode
         break;
-      case RED:
+      case led_color::RED:
         content += "#A70107;";
         break;
       default:  // Some new color, make background green
@@ -498,9 +499,9 @@ String processor(const String& var) {
     float sohFloat = static_cast<float>(system_SOH_pptt) / 100.0;               // Convert to float and divide by 100
     float voltageFloat = static_cast<float>(system_battery_voltage_dV) / 10.0;  // Convert to float and divide by 10
     float currentFloat = static_cast<float>(system_battery_current_dA) / 10.0;  // Convert to float and divide by 10
-    float powerFloat = static_cast<float>(system_active_power_W);               // Convert to float
-    float tempMaxFloat = static_cast<float>(system_temperature_max_dC) / 10.0;  // Convert to float
-    float tempMinFloat = static_cast<float>(system_temperature_min_dC) / 10.0;  // Convert to float
+    float powerFloat = static_cast<float>(datalayer_get_ref().battery.status.active_power_W);  // Convert to float
+    float tempMaxFloat = static_cast<float>(system_temperature_max_dC) / 10.0;                 // Convert to float
+    float tempMinFloat = static_cast<float>(system_temperature_min_dC) / 10.0;                 // Convert to float
 
     content += "<h4 style='color: white;'>Real SOC: " + String(socRealFloat, 2) + "</h4>";
     content += "<h4 style='color: white;'>Scaled SOC: " + String(socScaledFloat, 2) + "</h4>";

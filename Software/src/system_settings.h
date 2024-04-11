@@ -35,7 +35,8 @@
  * The period of whatever LED mode is active. If CLASSIC, then a ramp up and ramp down will finish in
  * LED_PERIOD_MS milliseconds
 */
-#define LED_MODE_DEFAULT HEARTBEAT
+#define LED_MODE_DEFAULT FLOW
 #define LED_PERIOD_MS 3000
+#define LED_EXECUTION_FREQUENCY 50
 
 #endif

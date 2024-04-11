@@ -23,12 +23,12 @@ typedef struct {
   /** float */
   float temperature_max_C;
   float temperature_min_C;
-  float current_A;  // Positive current means discharging, since that's most intuitive from a circuit diagram
+  float current_A;
   float voltage_V;
   float soh_pct;
 
   /** uint32_t */
-  int32_t active_power_W;  // Positive value means discharging, since that's most intuitive from a circuit diagram
+  int32_t active_power_W;
   uint32_t remaining_capacity;
 
   /** int16_t */
@@ -41,7 +41,7 @@ typedef struct {
   uint16_t cell_voltages_mV[MAX_AMOUNT_CELLS];
 
   /** Other */
-  bms_status_enum bms_status;
+  // bms_status_enum bms_status; // Not ready yet
   ScaledSoc soc;
 } DATALAYER_BATTERY_STATUS_TYPE;
 

@@ -1,7 +1,8 @@
 #ifndef BATTERIES_H
 #define BATTERIES_H
 
-#include "../../USER_SETTINGS.h"
+#include "../devboard/datalayer/datalayer.h"
+#include "../include.h"
 
 #ifdef BMW_I3_BATTERY
 #include "BMW-I3-BATTERY.h"  //See this file for more i3 battery settings
@@ -61,6 +62,7 @@
 #ifdef SERIAL_LINK_RECEIVER  // The serial thing does its thing
 void receive_can_battery();
 #else
+#include "../lib/miwagner-ESP32-Arduino-CAN/ESP32CAN.h"
 void receive_can_battery(CAN_frame_t rx_frame);
 #endif
 #ifdef CAN_FD
