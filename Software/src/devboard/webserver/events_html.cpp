@@ -7,9 +7,9 @@ const char EVENTS_HTML_START[] = R"=====(
 )=====";
 const char EVENTS_HTML_END[] = R"=====(
 </div></div>
-<button onclick='goToMainPage()'>Back to main page</button>
+<button onclick='home()'>Back to main page</button>
 <style>.event:nth-child(even){background-color:#455a64}.event:nth-child(odd){background-color:#394b52}</style>
-<script>function displayEventLog(){document.querySelector(".event-log");var i=(new Date).getTime()/1e3;document.querySelectorAll(".event").forEach(function(e){var n=e.querySelector(".last-event-seconds-ago"),t=e.querySelector(".timestamp");if(n&&t){var o=parseInt(n.innerText,10),a=parseFloat(t.innerText),r=new Date(1e3*(i-a+o)).toLocaleString();n.innerText=r}})}function goToMainPage(){window.location.href="/"}window.onload=function(){displayEventLog()}</script>
+<script>function showEvent(){document.querySelector(".event-log");var i=(new Date).getTime()/1e3;document.querySelectorAll(".event").forEach(function(e){var n=e.querySelector(".sec-ago"),t=e.querySelector(".timestamp");if(n&&t){var o=parseInt(n.innerText,10),a=parseFloat(t.innerText),r=new Date(1e3*(i-a+o)).toLocaleString();n.innerText=r}})}function home(){window.location.href="/"}window.onload=function(){showEvent()}</script>
 )=====";
 
 String events_processor(const String& var) {
@@ -32,7 +32,7 @@ String events_processor(const String& var) {
         content.concat("<div class='event'>");
         content.concat("<div>" + String(get_event_enum_string(event_handle)) + "</div>");
         content.concat("<div>" + String(get_event_level_string(event_handle)) + "</div>");
-        content.concat("<div class='last-event-seconds-ago'>" + String(event_pointer->timestamp) + "</div>");
+        content.concat("<div class='sec-ago'>" + String(event_pointer->timestamp) + "</div>");
         content.concat("<div>" + String(event_pointer->occurences) + "</div>");
         content.concat("<div>" + String(event_pointer->data) + "</div>");
         content.concat("<div>" + String(get_event_message_string(event_handle)) + "</div>");
@@ -48,14 +48,14 @@ String events_processor(const String& var) {
 
 /* Script for displaying event log before it gets minified
 <script>
-function displayEventLog() {
+function showEvent() {
     var eventLogElement = document.querySelector('.event-log');
     // Get the current time on the client side
     var currentTime = new Date().getTime() / 1000; // Convert milliseconds to seconds
     // Loop through the events and update the "Last Event" column
     var events = document.querySelectorAll('.event');
     events.forEach(function(event) {
-        var secondsAgoElement = event.querySelector('.last-event-seconds-ago');
+        var secondsAgoElement = event.querySelector('.sec-ago');
         var timestampElement = event.querySelector('.timestamp');
         if (secondsAgoElement && timestampElement) {
             var secondsAgo = parseInt(secondsAgoElement.innerText, 10);
@@ -70,12 +70,12 @@ function displayEventLog() {
     });
 }
 
-// Call the displayEventLog function when the page is loaded
+// Call the showEvent function when the page is loaded
 window.onload = function() {
-    displayEventLog();
+    showEvent();
 };
 
-function goToMainPage() {
+function home() {
     window.location.href = '/';
 }
 </script>

@@ -7,3 +7,10 @@
 # Ignore .exe (unit tests)
 *.exe
 **/.DS_Store
+
+#ignore platformio
+.pioenvs
+.piolibdeps
+.clang_complete
+.gcc-flags.json
+.pio

@@ -20,6 +20,14 @@
 #define MCP2515_INT 35   // INT output of MCP2515 |  | Pin 35 is input only, without pullup/down resistors
 #endif
 
+#ifdef CAN_FD
+#define MCP2517_SCK 12  // SCK input of MCP2517
+#define MCP2517_SDI 5   // SDI input of MCP2517
+#define MCP2517_SDO 34  // SDO output of MCP2517
+#define MCP2517_CS 18   // CS input of MCP2517
+#define MCP2517_INT 35  // INT output of MCP2517
+#endif
+
 #ifdef CONTACTOR_CONTROL
 #define POSITIVE_CONTACTOR_PIN 32
 #define NEGATIVE_CONTACTOR_PIN 33
@@ -42,5 +50,52 @@
 #define BLUE 2
 #define RED 3
 #define TEST_ALL_COLORS 10
+
+// Inverter definitions
+#define STANDBY 0
+#define INACTIVE 1
+#define DARKSTART 2
+#define ACTIVE 3
+#define FAULT 4
+#define UPDATING 5
+#define DISCHARGING 1
+#define CHARGING 2
+
+// Common definitions
+#define MAX_AMOUNT_CELLS 192
+#define MAX_CAN_FAILURES 500  // Amount of malformed CAN messages to allow before raising a warning
+
+#define INTERVAL_10_MS 10
+#define INTERVAL_20_MS 20
+#define INTERVAL_30_MS 30
+#define INTERVAL_50_MS 50
+#define INTERVAL_100_MS 100
+#define INTERVAL_200_MS 200
+#define INTERVAL_500_MS 500
+#define INTERVAL_640_MS 640
+#define INTERVAL_1_S 1000
+#define INTERVAL_2_S 2000
+#define INTERVAL_5_S 5000
+#define INTERVAL_10_S 10000
+#define INTERVAL_60_S 60000
+
+#define INTERVAL_10_MS_DELAYED 15
+#define INTERVAL_20_MS_DELAYED 30
+#define INTERVAL_30_MS_DELAYED 40
+#define INTERVAL_100_MS_DELAYED 120
+#define INTERVAL_500_MS_DELAYED 550
+
+#define BOOTUP_TIME 1000  // Time in ms it takes before system is considered fully started up
+
+#if defined(DUAL_CAN) && defined(CAN_FD)
+// Check that user did not try to use dual can and fd-can on same hardware pins
+#error CAN-FD AND DUAL-CAN CANNOT BE USED SIMULTANEOUSLY
+#endif
+#if defined(BYD_MODBUS) || defined(LUNA2000_MODBUS)
+#if defined(SERIAL_LINK_RECEIVER) || defined(SERIAL_LINK_TRANSMITTER)
+// Check that Dual LilyGo via RS485 option isn't enabled, this collides with Modbus!
+#error MODBUS CANNOT BE USED IN DOUBLE LILYGO SETUPS! CHECK USER SETTINGS!
+#endif
+#endif
 
 #endif

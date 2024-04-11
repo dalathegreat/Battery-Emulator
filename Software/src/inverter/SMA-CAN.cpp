@@ -106,11 +106,18 @@ void update_values_can_sma() {  //This function maps all the values fetched from
                     system_max_design_voltage_dV);  //Charge power in W , max volt in V+1decimal (P=UI, solve for I)
   //The above calculation results in (30 000*10)/3700=81A
   charge_current = (charge_current * 10);  //Value needs a decimal before getting sent to inverter (81.0A)
+  if (charge_current > MAXCHARGEAMP) {
+    charge_current = MAXCHARGEAMP;  //Cap the value to the max allowed Amp. Some inverters cannot handle large values.
+  }
 
   discharge_current = ((system_max_discharge_power_W * 10) /
                        system_max_design_voltage_dV);  //Charge power in W , max volt in V+1decimal (P=UI, solve for I)
   //The above calculation results in (30 000*10)/3700=81A
   discharge_current = (discharge_current * 10);  //Value needs a decimal before getting sent to inverter (81.0A)
+  if (discharge_current > MAXDISCHARGEAMP) {
+    discharge_current =
+        MAXDISCHARGEAMP;  //Cap the value to the max allowed Amp. Some inverters cannot handle large values.
+  }
 
   temperature_average = ((system_temperature_max_dC + system_temperature_min_dC) / 2);
 

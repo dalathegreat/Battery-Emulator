@@ -1,9 +1,17 @@
-#ifndef SOFAR_CAN_H
-#define SOFAR_CAN_H
+#ifndef KIA_E_GMP_BATTERY_H
+#define KIA_E_GMP_BATTERY_H
 #include <Arduino.h>
 #include "../../USER_SETTINGS.h"
 #include "../devboard/config.h"  // Needed for all defines
 #include "../lib/miwagner-ESP32-Arduino-CAN/ESP32CAN.h"
+#include "../lib/pierremolinaro-ACAN2517FD/ACAN2517FD.h"
+
+extern ACAN2517FD canfd;
+
+#define BATTERY_SELECTED
+
+#define MAXCHARGEPOWERALLOWED 10000
+#define MAXDISCHARGEPOWERALLOWED 10000
 
 // These parameters need to be mapped for the inverter
 extern uint32_t system_capacity_Wh;                        //Wh,  0-500000Wh
@@ -28,11 +36,6 @@ extern uint8_t system_bms_status;                          //Enum 0-5
 extern bool batteryAllowsContactorClosing;                 //Bool, true/false
 extern bool inverterAllowsContactorClosing;                //Bool, true/false
 
-extern uint16_t min_voltage;
-extern uint16_t max_voltage;
-
-void update_values_can_sofar();
-void send_can_sofar();
-void receive_can_sofar(CAN_frame_t rx_frame);
+void setup_battery(void);
 
 #endif

@@ -13,7 +13,6 @@ static unsigned long previousMillis10 = 0;   // will store last time a 10ms CAN 
 static unsigned long previousMillis100 = 0;  // will store last time a 100ms CAN Message was send
 static unsigned long previousMillis10s = 0;  // will store last time a 1s CAN Message was send
 static uint16_t CANerror = 0;                //counter on how many CAN errors encountered
-#define MAX_CAN_FAILURES 5000                //Amount of malformed CAN messages to allow before raising a warning
 static uint8_t CANstillAlive = 12;           //counter for checking if CAN is still alive
 static uint8_t mprun10r = 0;                 //counter 0-20 for 0x1F2 message
 static uint8_t mprun10 = 0;                  //counter 0-3
@@ -648,46 +647,7 @@ void receive_can_battery(CAN_frame_t rx_frame) {
 }
 void send_can_battery() {
   unsigned long currentMillis = millis();
-  // Send 100ms CAN Message
-  if (currentMillis - previousMillis100 >= INTERVAL_100_MS) {
-    previousMillis100 = currentMillis;
 
-    //When battery requests heating pack status change, ack this
-    if (Batt_Heater_Mail_Send_Request) {
-      LEAF_50B.data.u8[6] = 0x20;  //Batt_Heater_Mail_Send_OK
-    } else {
-      LEAF_50B.data.u8[6] = 0x00;  //Batt_Heater_Mail_Send_NG
-    }
-
-    // VCM message, containing info if battery should sleep or stay awake
-    ESP32Can.CANWriteFrame(&LEAF_50B);  // HCM_WakeUpSleepCommand == 11b == WakeUp, and CANMASK = 1
-
-    switch (mprun100) {
-      case 0:
-        LEAF_50C.data.u8[3] = 0x00;
-        LEAF_50C.data.u8[4] = 0x5D;
-        LEAF_50C.data.u8[5] = 0xC8;
-        break;
-      case 1:
-        LEAF_50C.data.u8[3] = 0x01;
-        LEAF_50C.data.u8[4] = 0xB2;
-        LEAF_50C.data.u8[5] = 0x31;
-        break;
-      case 2:
-        LEAF_50C.data.u8[3] = 0x02;
-        LEAF_50C.data.u8[4] = 0x5D;
-        LEAF_50C.data.u8[5] = 0x63;
-        break;
-      case 3:
-        LEAF_50C.data.u8[3] = 0x03;
-        LEAF_50C.data.u8[4] = 0xB2;
-        LEAF_50C.data.u8[5] = 0x9A;
-        break;
-    }
-    ESP32Can.CANWriteFrame(&LEAF_50C);
-
-    mprun100 = (mprun100 + 1) % 4;  // mprun100 cycles between 0-1-2-3-0-1...
-  }
   //Send 10ms message
   if (currentMillis - previousMillis10 >= INTERVAL_10_MS) {
     // Check if sending of CAN messages has been delayed too much.
@@ -814,6 +774,45 @@ void send_can_battery() {
 
     mprun10 = (mprun10 + 1) % 4;  // mprun10 cycles between 0-1-2-3-0-1...
   }
+
+  // Send 100ms CAN Message
+  if (currentMillis - previousMillis100 >= INTERVAL_100_MS) {
+    previousMillis100 = currentMillis;
+
+    //When battery requests heating pack status change, ack this
+    if (Batt_Heater_Mail_Send_Request) {
+      LEAF_50B.data.u8[6] = 0x20;  //Batt_Heater_Mail_Send_OK
+    } else {
+      LEAF_50B.data.u8[6] = 0x00;  //Batt_Heater_Mail_Send_NG
+    }
+
+    // VCM message, containing info if battery should sleep or stay awake
+    ESP32Can.CANWriteFrame(&LEAF_50B);  // HCM_WakeUpSleepCommand == 11b == WakeUp, and CANMASK = 1
+
+    LEAF_50C.data.u8[3] = mprun100;
+    switch (mprun100) {
+      case 0:
+        LEAF_50C.data.u8[4] = 0x5D;
+        LEAF_50C.data.u8[5] = 0xC8;
+        break;
+      case 1:
+        LEAF_50C.data.u8[4] = 0xB2;
+        LEAF_50C.data.u8[5] = 0x31;
+        break;
+      case 2:
+        LEAF_50C.data.u8[4] = 0x5D;
+        LEAF_50C.data.u8[5] = 0x63;
+        break;
+      case 3:
+        LEAF_50C.data.u8[4] = 0xB2;
+        LEAF_50C.data.u8[5] = 0x9A;
+        break;
+    }
+    ESP32Can.CANWriteFrame(&LEAF_50C);
+
+    mprun100 = (mprun100 + 1) % 4;  // mprun100 cycles between 0-1-2-3-0-1...
+  }
+
   //Send 10s CAN messages
   if (currentMillis - previousMillis10s >= INTERVAL_10_S) {
     previousMillis10s = currentMillis;

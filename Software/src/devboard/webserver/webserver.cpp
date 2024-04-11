@@ -428,6 +428,9 @@ String processor(const String& var) {
 #ifdef KIA_HYUNDAI_64_BATTERY
     content += "Kia/Hyundai 64kWh";
 #endif
+#ifdef KIA_E_GMP_BATTERY
+    content += "Kia/Hyundai EGMP platform";
+#endif
 #ifdef NISSAN_LEAF_BATTERY
     content += "Nissan LEAF";
 #endif
@@ -466,26 +469,28 @@ String processor(const String& var) {
     content += "</div>";
 
     // Start a new block with a specific background color. Color changes depending on BMS status
-    switch (led_get_color()) {
-      case led_color::GREEN:
-        content += "<div style='background-color: #2D3F2F; padding: 10px; margin-bottom: 10px; border-radius: 50px'>";
+    content += "<div style='background-color: ";
+    switch (LEDcolor) {
+      case GREEN:
+        content += "#2D3F2F;";
         break;
-      case led_color::YELLOW:
-        content += "<div style='background-color: #F5CC00; padding: 10px; margin-bottom: 10px; border-radius: 50px'>";
+      case YELLOW:
+        content += "#F5CC00;";
         break;
-      case led_color::BLUE:
-        content += "<div style='background-color: #2B35AF; padding: 10px; margin-bottom: 10px; border-radius: 50px'>";
+      case BLUE:
+      case TEST_ALL_COLORS:
+        content += "#2B35AF;";  // Blue in test mode
         break;
-      case led_color::RED:
-        content += "<div style='background-color: #A70107; padding: 10px; margin-bottom: 10px; border-radius: 50px'>";
+      case RED:
+        content += "#A70107;";
         break;
-      case led_color::RGB:  //Blue in test mode
-        content += "<div style='background-color: #2B35AF; padding: 10px; margin-bottom: 10px; border-radius: 50px'>";
-        break;
-      default:  //Some new color, make background green
-        content += "<div style='background-color: #2D3F2F; padding: 10px; margin-bottom: 10px; border-radius: 50px'>";
+      default:  // Some new color, make background green
+        content += "#2D3F2F;";
         break;
     }
+
+    // Add the common style properties
+    content += "padding: 10px; margin-bottom: 10px; border-radius: 50px;'>";
 
     // Display battery statistics within this block
     float socRealFloat = static_cast<float>(system_real_SOC_pptt) / 100.0;      // Convert to float and divide by 100
@@ -525,6 +530,7 @@ String processor(const String& var) {
     } else {  // > 0
       content += "<h4>Battery charging!</h4>";
     }
+
     content += "<h4>Automatic contactor closing allowed:</h4>";
     content += "<h4>Battery: ";
     if (batteryAllowsContactorClosing) {
@@ -599,25 +605,25 @@ String processor(const String& var) {
     content += "</div>";
 #endif
 
-    content += "<button onclick='goToUpdatePage()'>Perform OTA update</button>";
+    content += "<button onclick='OTA()'>Perform OTA update</button>";
     content += " ";
-    content += "<button onclick='goToSettingsPage()'>Change Settings</button>";
+    content += "<button onclick='Settings()'>Change Settings</button>";
     content += " ";
-    content += "<button onclick='goToCellmonitorPage()'>Cellmonitor</button>";
+    content += "<button onclick='Cellmon()'>Cellmonitor</button>";
     content += " ";
-    content += "<button onclick='goToEventsPage()'>Events</button>";
+    content += "<button onclick='Events()'>Events</button>";
     content += " ";
-    content += "<button onclick='promptToReboot()'>Reboot Emulator</button>";
+    content += "<button onclick='askReboot()'>Reboot Emulator</button>";
     content += "<script>";
-    content += "function goToUpdatePage() { window.location.href = '/update'; }";
-    content += "function goToCellmonitorPage() { window.location.href = '/cellmonitor'; }";
-    content += "function goToSettingsPage() { window.location.href = '/settings'; }";
-    content += "function goToEventsPage() { window.location.href = '/events'; }";
+    content += "function OTA() { window.location.href = '/update'; }";
+    content += "function Cellmon() { window.location.href = '/cellmonitor'; }";
+    content += "function Settings() { window.location.href = '/settings'; }";
+    content += "function Events() { window.location.href = '/events'; }";
     content +=
-        "function promptToReboot() { if (window.confirm('Are you sure you want to reboot the emulator? NOTE: If "
+        "function askReboot() { if (window.confirm('Are you sure you want to reboot the emulator? NOTE: If "
         "emulator is handling contactors, they will open during reboot!')) { "
-        "rebootServer(); } }";
-    content += "function rebootServer() {";
+        "reboot(); } }";
+    content += "function reboot() {";
     content += "  var xhr = new XMLHttpRequest();";
     content += "  xhr.open('GET', '/reboot', true);";
     content += "  xhr.send();";
@@ -626,7 +632,7 @@ String processor(const String& var) {
 
     //Script for refreshing page
     content += "<script>";
-    content += "setTimeout(function(){ location.reload(true); }, 10000);";
+    content += "setTimeout(function(){ location.reload(true); }, 15000);";
     content += "</script>";
 
     return content;
