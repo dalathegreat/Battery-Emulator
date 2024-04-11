@@ -11,10 +11,10 @@
 #include "freertos/task.h"
 #include "src/battery/BATTERIES.h"
 #include "src/charger/CHARGERS.h"
-#include "src/devboard/config.h"
 #include "src/devboard/utils/events.h"
+#include "src/devboard/utils/led_handler.h"
+#include "src/include.h"
 #include "src/inverter/INVERTERS.h"
-#include "src/lib/adafruit-Adafruit_NeoPixel/Adafruit_NeoPixel.h"
 #include "src/lib/bblanchon-ArduinoJson/ArduinoJson.h"
 #include "src/lib/eModbus-eModbus/Logging.h"
 #include "src/lib/eModbus-eModbus/ModbusServerRTU.h"
@@ -92,14 +92,6 @@ float charger_stat_ACvol = 0;
 float charger_stat_LVcur = 0;
 float charger_stat_LVvol = 0;
 
-// LED parameters
-Adafruit_NeoPixel pixels(1, WS2812_PIN, NEO_GRB + NEO_KHZ800);
-static uint8_t brightness = 0;
-static bool rampUp = true;
-const uint8_t maxBrightness = 100;
-uint8_t LEDcolor = GREEN;
-bool test_all_colors = false;
-
 // Contactor parameters
 #ifdef CONTACTOR_CONTROL
 enum State { DISCONNECTED, PRECHARGE, NEGATIVE, POSITIVE, PRECHARGE_OFF, COMPLETED, SHUTDOWN_REQUESTED };
@@ -141,8 +133,6 @@ void setup() {
 
   init_CAN();
 
-  init_LED();
-
   init_contactors();
 
   init_modbus();
@@ -158,7 +148,7 @@ void setup() {
 
   esp_task_wdt_deinit();  // Disable watchdog
 
-  xTaskCreatePinnedToCore((TaskFunction_t)&mainLoop, "mainLoop", 4096, NULL, 8, &mainLoopTask, 1);
+  xTaskCreatePinnedToCore((TaskFunction_t)&mainLoop, "mainLoop", 4096, NULL, 8, &mainLoopTask, MAIN_FUNCTION_CORE);
 }
 
 // Perform main program functions
@@ -167,6 +157,8 @@ void loop() {
 }
 
 void mainLoop(void* pvParameters) {
+  led_init();
+
   while (true) {
 
 #ifdef WEBSERVER
@@ -191,7 +183,7 @@ void mainLoop(void* pvParameters) {
     if (millis() - previousMillis10ms >= INTERVAL_10_MS)  // Every 10ms
     {
       previousMillis10ms = millis();
-      handle_LED_state();  // Set the LED color according to state
+      led_exe();
 #ifdef CONTACTOR_CONTROL
       handle_contactors();  // Take care of startup precharge/contactor closing
 #endif
@@ -214,12 +206,7 @@ void mainLoop(void* pvParameters) {
 #endif
     run_event_handling();
 
-    if (digitalRead(0) == HIGH) {
-      test_all_colors = false;
-    } else {
-      test_all_colors = true;
-    }
-    delay(2);
+    delay(1);
   }
 }
 
@@ -311,11 +298,6 @@ void init_CAN() {
 #endif
 }
 
-void init_LED() {
-  // Init LED control
-  pixels.begin();
-}
-
 void init_contactors() {
   // Init contactor pins
 #ifdef CONTACTOR_CONTROL
@@ -364,7 +346,7 @@ void init_modbus() {
   MBserver.registerWorker(MBTCP_ID, WRITE_MULT_REGISTERS, &FC16);
   MBserver.registerWorker(MBTCP_ID, R_W_MULT_REGISTERS, &FC23);
   // Start ModbusRTU background task
-  MBserver.begin(Serial2, 0);
+  MBserver.begin(Serial2, MODBUS_CORE);
 #endif
 }
 
@@ -529,46 +511,6 @@ void send_can2() {
 #endif
 }
 #endif
-
-void handle_LED_state() {
-  // Determine how bright the LED should be
-  if (rampUp && brightness < maxBrightness) {
-    brightness++;
-  } else if (rampUp && brightness == maxBrightness) {
-    rampUp = false;
-  } else if (!rampUp && brightness > 0) {
-    brightness--;
-  } else if (!rampUp && brightness == 0) {
-    rampUp = true;
-  }
-  if (test_all_colors == false) {
-    switch (get_event_level()) {
-      case EVENT_LEVEL_INFO:
-        LEDcolor = GREEN;
-        pixels.setPixelColor(0, pixels.Color(0, brightness, 0));  // Green pulsing LED
-        break;
-      case EVENT_LEVEL_WARNING:
-        LEDcolor = YELLOW;
-        pixels.setPixelColor(0, pixels.Color(brightness, brightness, 0));  // Yellow pulsing LED
-        break;
-      case EVENT_LEVEL_DEBUG:
-      case EVENT_LEVEL_UPDATE:
-        LEDcolor = BLUE;
-        pixels.setPixelColor(0, pixels.Color(0, 0, brightness));  // Blue pulsing LED
-        break;
-      case EVENT_LEVEL_ERROR:
-        LEDcolor = RED;
-        pixels.setPixelColor(0, pixels.Color(150, 0, 0));  // Red LED full brightness
-        break;
-      default:
-        break;
-    }
-  } else {
-    pixels.setPixelColor(0, pixels.Color(brightness, abs((100 - brightness)), abs((50 - brightness))));  // RGB
-  }
-
-  pixels.show();  // This sends the updated pixel color to the hardware.
-}
 
 #ifdef CONTACTOR_CONTROL
 void handle_contactors() {

@@ -7,6 +7,8 @@
 
 #define BATTERY_SELECTED
 
+#define WUP_PIN 25
+
 // These parameters need to be mapped for the inverter
 extern uint32_t system_capacity_Wh;                        //Wh,  0-150000Wh
 extern uint32_t system_remaining_capacity_Wh;              //Wh,  0-150000Wh

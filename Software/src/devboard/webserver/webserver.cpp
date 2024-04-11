@@ -1,6 +1,7 @@
 #include "webserver.h"
 #include <Preferences.h>
 #include "../utils/events.h"
+#include "../utils/led_handler.h"
 #include "../utils/timer.h"
 
 // Create AsyncWebServer object on port 80
@@ -465,20 +466,20 @@ String processor(const String& var) {
     content += "</div>";
 
     // Start a new block with a specific background color. Color changes depending on BMS status
-    switch (LEDcolor) {
-      case GREEN:
+    switch (led_get_color()) {
+      case led_color::GREEN:
         content += "<div style='background-color: #2D3F2F; padding: 10px; margin-bottom: 10px; border-radius: 50px'>";
         break;
-      case YELLOW:
+      case led_color::YELLOW:
         content += "<div style='background-color: #F5CC00; padding: 10px; margin-bottom: 10px; border-radius: 50px'>";
         break;
-      case BLUE:
+      case led_color::BLUE:
         content += "<div style='background-color: #2B35AF; padding: 10px; margin-bottom: 10px; border-radius: 50px'>";
         break;
-      case RED:
+      case led_color::RED:
         content += "<div style='background-color: #A70107; padding: 10px; margin-bottom: 10px; border-radius: 50px'>";
         break;
-      case TEST_ALL_COLORS:  //Blue in test mode
+      case led_color::RGB:  //Blue in test mode
         content += "<div style='background-color: #2B35AF; padding: 10px; margin-bottom: 10px; border-radius: 50px'>";
         break;
       default:  //Some new color, make background green
