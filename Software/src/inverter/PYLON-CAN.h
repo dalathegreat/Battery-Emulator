@@ -4,6 +4,8 @@
 #include "../include.h"
 #include "../lib/miwagner-ESP32-Arduino-CAN/ESP32CAN.h"
 
+#define INVERTER_SELECTED
+
 extern uint32_t system_capacity_Wh;                        //Wh,  0-500000Wh
 extern uint32_t system_remaining_capacity_Wh;              //Wh,  0-500000Wh
 extern int16_t system_temperature_min_dC;                  //C+1, -50.0 - 50.0

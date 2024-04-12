@@ -1,7 +1,7 @@
 #ifndef CHARGERS_H
 #define CHARGERS_H
 
-#include "../include.h"
+#include "../../USER_SETTINGS.h"
 
 #ifdef CHEVYVOLT_CHARGER
 #include "CHEVY-VOLT-CHARGER.h"

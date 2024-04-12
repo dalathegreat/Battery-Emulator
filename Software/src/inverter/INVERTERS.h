@@ -1,7 +1,7 @@
 #ifndef INVERTERS_H
 #define INVERTERS_H
 
-#include "../include.h"
+#include "../../USER_SETTINGS.h"
 
 #ifdef BYD_CAN
 #include "BYD-CAN.h"

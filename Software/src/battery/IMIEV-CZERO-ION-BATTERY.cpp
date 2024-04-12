@@ -1,4 +1,4 @@
-#include "BATTERIES.h"
+#include "../include.h"
 #ifdef IMIEV_CZERO_ION_BATTERY
 #include "../devboard/utils/events.h"
 #include "../lib/miwagner-ESP32-Arduino-CAN/CAN_config.h"

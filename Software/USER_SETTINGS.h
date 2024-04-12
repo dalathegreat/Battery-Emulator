@@ -22,11 +22,11 @@
 //#define SANTA_FE_PHEV_BATTERY
 //#define TESLA_MODEL_3_BATTERY
 //#define VOLVO_SPA_BATTERY
-//#define TEST_FAKE_BATTERY
+#define TEST_FAKE_BATTERY
 
 /* Select inverter communication protocol. See Wiki for which to use with your inverter: https://github.com/dalathegreat/BYD-Battery-Emulator-For-Gen24/wiki */
 //#define BYD_CAN          //Enable this line to emulate a "BYD Battery-Box Premium HVS" over CAN Bus
-//#define BYD_MODBUS  //Enable this line to emulate a "BYD 11kWh HVM battery" over Modbus RTU
+#define BYD_MODBUS  //Enable this line to emulate a "BYD 11kWh HVM battery" over Modbus RTU
 //#define LUNA2000_MODBUS  //Enable this line to emulate a "Luna2000 battery" over Modbus RTU
 //#define PYLON_CAN        //Enable this line to emulate a "Pylontech battery" over CAN bus
 //#define SMA_CAN          //Enable this line to emulate a "BYD Battery-Box H 8.9kWh, 7 mod" over CAN bus
@@ -84,33 +84,5 @@ extern bool charger_HV_enabled;
 extern bool charger_aux12V_enabled;
 
 extern const uint8_t wifi_channel;
-
-/* - ERROR CHECKS BELOW, DON'T TOUCH - */
-
-#if !defined(HW_CONFIGURED)
-#error You must select a HW to run on!
-#endif
-
-#if defined(DUAL_CAN) && defined(CAN_FD)
-// Check that user did not try to use dual can and fd-can on same hardware pins
-#error CAN-FD AND DUAL-CAN CANNOT BE USED SIMULTANEOUSLY
-#endif
-
-#if defined(BYD_MODBUS) || defined(LUNA2000_MODBUS)
-#if defined(SERIAL_LINK_RECEIVER) || defined(SERIAL_LINK_TRANSMITTER)
-// Check that Dual LilyGo via RS485 option isn't enabled, this collides with Modbus!
-#error MODBUS CANNOT BE USED IN DOUBLE LILYGO SETUPS! CHECK USER SETTINGS!
-#endif
-#endif
-
-#ifndef BATTERY_SELECTED
-#error No battery selected! Choose one from the USER_SETTINGS.h file
-#endif
-
-#ifdef KIA_E_GMP_BATTERY
-#ifndef CAN_FD
-#error KIA HYUNDAI EGMP BATTERIES CANNOT BE USED WITHOUT CAN FD
-#endif
-#endif
 
 #endif

@@ -2,6 +2,8 @@
 #define BYD_MODBUS_H
 #include "../include.h"
 
+#define INVERTER_SELECTED
+
 #define MB_RTU_NUM_VALUES 30000
 #define MAX_POWER 40960  //BYD Modbus specific value
 

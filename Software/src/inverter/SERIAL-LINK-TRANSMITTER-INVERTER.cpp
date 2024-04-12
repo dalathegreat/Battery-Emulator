@@ -1,4 +1,4 @@
-#include "INVERTERS.h"
+#include "../include.h"
 #ifdef SERIAL_LINK_TRANSMITTER
 
 #include "../devboard/utils/events.h"

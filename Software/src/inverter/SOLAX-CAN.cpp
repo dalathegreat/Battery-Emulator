@@ -1,4 +1,4 @@
-#include "INVERTERS.h"
+#include "../include.h"
 #ifdef SOLAX_CAN
 #include "../devboard/utils/events.h"
 #include "SOLAX-CAN.h"

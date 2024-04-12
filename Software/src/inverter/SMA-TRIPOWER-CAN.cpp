@@ -1,4 +1,4 @@
-#include "INVERTERS.h"
+#include "../include.h"
 #ifdef SMA_TRIPOWER_CAN
 #include "../lib/miwagner-ESP32-Arduino-CAN/CAN_config.h"
 #include "../lib/miwagner-ESP32-Arduino-CAN/ESP32CAN.h"

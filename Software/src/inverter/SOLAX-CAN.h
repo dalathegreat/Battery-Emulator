@@ -5,6 +5,8 @@
 #include "../lib/miwagner-ESP32-Arduino-CAN/ESP32CAN.h"
 #include "../lib/pierremolinaro-acan2515/ACAN2515.h"
 
+#define INVERTER_SELECTED
+
 extern ACAN2515 can;
 
 extern uint32_t system_capacity_Wh;                        //Wh,  0-500000Wh

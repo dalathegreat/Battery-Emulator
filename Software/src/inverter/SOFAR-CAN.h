@@ -4,6 +4,8 @@
 #include "../include.h"
 #include "../lib/miwagner-ESP32-Arduino-CAN/ESP32CAN.h"
 
+#define INVERTER_SELECTED
+
 // These parameters need to be mapped for the inverter
 extern uint32_t system_capacity_Wh;                        //Wh,  0-500000Wh
 extern uint32_t system_remaining_capacity_Wh;              //Wh,  0-500000Wh

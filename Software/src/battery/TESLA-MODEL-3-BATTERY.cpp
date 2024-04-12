@@ -1,4 +1,4 @@
-#include "BATTERIES.h"
+#include "../include.h"
 #ifdef TESLA_MODEL_3_BATTERY
 #include "../devboard/utils/events.h"
 #include "../lib/miwagner-ESP32-Arduino-CAN/CAN_config.h"

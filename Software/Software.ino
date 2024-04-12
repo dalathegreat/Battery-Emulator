@@ -1,8 +1,8 @@
 /* Do not change any code below this line unless you are sure what you are doing */
 /* Only change battery specific settings in "USER_SETTINGS.h" */
 
-#include <Arduino.h>
-#include <Preferences.h>
+#include "src/include.h"
+
 #include "HardwareSerial.h"
 #include "USER_SETTINGS.h"
 #include "esp_system.h"
@@ -10,13 +10,10 @@
 #include "esp_timer.h"
 #include "freertos/FreeRTOS.h"
 #include "freertos/task.h"
-#include "src/battery/BATTERIES.h"
 #include "src/charger/CHARGERS.h"
 #include "src/devboard/utils/events.h"
 #include "src/devboard/utils/led_handler.h"
 #include "src/devboard/utils/value_mapping.h"
-#include "src/include.h"
-#include "src/inverter/INVERTERS.h"
 #include "src/lib/bblanchon-ArduinoJson/ArduinoJson.h"
 #include "src/lib/eModbus-eModbus/Logging.h"
 #include "src/lib/eModbus-eModbus/ModbusServerRTU.h"
