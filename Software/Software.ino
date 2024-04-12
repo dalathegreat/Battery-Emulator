@@ -7,12 +7,14 @@
 #include "USER_SETTINGS.h"
 #include "esp_system.h"
 #include "esp_task_wdt.h"
+#include "esp_timer.h"
 #include "freertos/FreeRTOS.h"
 #include "freertos/task.h"
 #include "src/battery/BATTERIES.h"
 #include "src/charger/CHARGERS.h"
 #include "src/devboard/utils/events.h"
 #include "src/devboard/utils/led_handler.h"
+#include "src/devboard/utils/value_mapping.h"
 #include "src/include.h"
 #include "src/inverter/INVERTERS.h"
 #include "src/lib/bblanchon-ArduinoJson/ArduinoJson.h"
@@ -25,6 +27,30 @@
 #ifdef WEBSERVER
 #include <ESPmDNS.h>
 #include "src/devboard/webserver/webserver.h"
+#endif
+
+//#define FUNCTION_TIME_MEAS
+/** Start time measurement in microseconds
+ * Input parameter must be a unique "tag", e.g: START_TIME_MEASUREMENT(wifi);
+ */
+#ifdef FUNCTION_TIME_MEAS
+#define START_TIME_MEASUREMENT(x) int64_t start_time_##x = esp_timer_get_time()
+/** End time measurement in microseconds
+ * Input parameters are the unique tag and the name of the ALREADY EXISTING
+ * destination variable (int64_t), e.g: END_TIME_MEASUREMENT(wifi, my_wifi_time_int64_t);
+ */
+#define END_TIME_MEASUREMENT(x, y) y = esp_timer_get_time() - start_time_##x
+/** End time measurement in microseconds, log maximum
+ * Input parameters are the unique tag and the name of the ALREADY EXISTING
+ * destination variable (int64_t), e.g: END_TIME_MEASUREMENT_MAX(wifi, my_wifi_time_int64_t);
+ * 
+ * This will log the maximum value in the destination variable.
+ */
+#define END_TIME_MEASUREMENT_MAX(x, y) y = MAX(y, esp_timer_get_time() - start_time_##x)
+#else
+#define START_TIME_MEASUREMENT(x) ;
+#define END_TIME_MEASUREMENT(x, y) ;
+#define END_TIME_MEASUREMENT_MAX(x, y)
 #endif
 
 Preferences settings;  // Store user settings
@@ -96,6 +122,14 @@ float charger_stat_ACvol = 0;
 float charger_stat_LVcur = 0;
 float charger_stat_LVvol = 0;
 
+// Task time measurement for debugging and for setting CPU load events
+int64_t core_task_time_us;
+MyTimer core_task_timer_10s(INTERVAL_10_S);
+
+int64_t wifi_task_time_us;
+MyTimer wifi_task_timer_10s(INTERVAL_10_S);
+// MyTimer task_timer_200ms(INTERVAL_200_MS);
+
 // Contactor parameters
 #ifdef CONTACTOR_CONTROL
 enum State { DISCONNECTED, PRECHARGE, NEGATIVE, POSITIVE, PRECHARGE_OFF, COMPLETED, SHUTDOWN_REQUESTED };
@@ -120,6 +154,7 @@ bool batteryAllowsContactorClosing = false;
 bool inverterAllowsContactorClosing = true;
 
 TaskHandle_t mainLoopTask;
+TaskHandle_t wifiLoopTask;
 
 // Initialization
 void setup() {
@@ -129,8 +164,11 @@ void setup() {
 
 #ifdef WEBSERVER
   init_webserver();
-
   init_mDNS();
+#ifdef MQTT
+  xTaskCreatePinnedToCore((TaskFunction_t)&wifiLoop, "wifiLoop", 4096, &wifi_task_time_us, TASK_WIFI_PRIO,
+                          &mainLoopTask, WIFI_CORE);
+#endif
 #endif
 
   init_events();
@@ -152,28 +190,51 @@ void setup() {
 
   esp_task_wdt_deinit();  // Disable watchdog
 
-  xTaskCreatePinnedToCore((TaskFunction_t)&mainLoop, "mainLoop", 4096, NULL, 8, &mainLoopTask, MAIN_FUNCTION_CORE);
+  xTaskCreatePinnedToCore((TaskFunction_t)&mainLoop, "mainLoop", 4096, &core_task_time_us, TASK_CORE_PRIO,
+                          &mainLoopTask, MAIN_FUNCTION_CORE);
 }
 
 // Perform main program functions
-void loop() {
-  ;
-}
+void loop() {}
 
-void mainLoop(void* pvParameters) {
-  led_init();
+#ifdef MQTT
+void wifiLoop(void* task_time_us) {
+  // Init MQTT
+  init_mqtt();
 
   while (true) {
-
-#ifdef WEBSERVER
-    // Over-the-air updates by ElegantOTA
-    wifi_monitor();
-    ElegantOTA.loop();
-#ifdef MQTT
+    START_TIME_MEASUREMENT(wifi);
     mqtt_loop();
-#endif
+    END_TIME_MEASUREMENT_MAX(wifi, datalayer.system.status.time_wifi_us);
+
+    if (wifi_task_timer_10s.elapsed()) {
+      datalayer.system.status.time_wifi_us = 0;
+    }
+    delay(1);
+  }
+}
 #endif
 
+void mainLoop(void* task_time_us) {
+  TickType_t xLastWakeTime = xTaskGetTickCount();
+  const TickType_t xFrequency = pdMS_TO_TICKS(1);  // Convert 1ms to ticks
+  led_init();
+  int64_t prev_wake;
+#ifdef FUNCTION_TIME_MEAS
+  // Timing variables
+  int64_t time_comm_us;
+  int64_t time_10ms_us;
+  int64_t time_5s_us;
+  int64_t time_cantx_us;
+  int64_t time_events_us;
+#endif
+
+  while (true) {
+    int64_t now = esp_timer_get_time();
+    int64_t wake_period = now - prev_wake;
+    prev_wake = now;
+    START_TIME_MEASUREMENT(all);
+    START_TIME_MEASUREMENT(comm);
     // Input
     receive_can();  // Receive CAN messages. Runs as fast as possible
 #ifdef CAN_FD
@@ -185,7 +246,14 @@ void mainLoop(void* pvParameters) {
 #if defined(SERIAL_LINK_RECEIVER) || defined(SERIAL_LINK_TRANSMITTER)
     runSerialDataLink();
 #endif
+    END_TIME_MEASUREMENT(comm, time_comm_us);
 
+#ifdef WEBSERVER
+    wifi_monitor();
+    ElegantOTA.loop();
+#endif
+
+    START_TIME_MEASUREMENT(time_10ms);
     // Process
     if (millis() - previousMillis10ms >= INTERVAL_10_MS) {
       previousMillis10ms = millis();
@@ -194,7 +262,9 @@ void mainLoop(void* pvParameters) {
       handle_contactors();  // Take care of startup precharge/contactor closing
 #endif
     }
+    END_TIME_MEASUREMENT(time_10ms, time_10ms_us);
 
+    START_TIME_MEASUREMENT(time_5s);
     if (millis() - previousMillisUpdateVal >= intervalUpdateValues)  // Every 5s normally
     {
       previousMillisUpdateVal = millis();
@@ -204,15 +274,27 @@ void mainLoop(void* pvParameters) {
         set_event(EVENT_DUMMY_ERROR, (uint8_t)millis());
       }
     }
+    END_TIME_MEASUREMENT(time_5s, time_5s_us);
 
+    START_TIME_MEASUREMENT(cantx);
     // Output
     send_can();  // Send CAN messages
 #ifdef DUAL_CAN
     send_can2();
 #endif
-    run_event_handling();
+    END_TIME_MEASUREMENT(cantx, time_cantx_us);
 
-    delay(1);  // Allow the scheduler to start other tasks on other cores
+    START_TIME_MEASUREMENT(events);
+    run_event_handling();
+    END_TIME_MEASUREMENT(events, time_events_us);
+
+    /** Task time measurement
+     * 'task_time_us' will hold the previous cycle measurement here, before being updated by END_TIME_MEASUREMENT.
+     * The reason for the ordering is to include the logging itself in the time measurement
+     */
+
+    END_TIME_MEASUREMENT(all, *(int64_t*)task_time_us);
+    vTaskDelayUntil(&xLastWakeTime, xFrequency);
   }
 }
 
@@ -458,7 +540,7 @@ void receive_canfd() {  // This section checks if we have a complete CAN-FD mess
 void receive_can() {  // This section checks if we have a complete CAN message incoming
   // Depending on which battery/inverter is selected, we forward this to their respective CAN routines
   CAN_frame_t rx_frame;
-  if (xQueueReceive(CAN_cfg.rx_queue, &rx_frame, 3 * portTICK_PERIOD_MS) == pdTRUE) {
+  if (xQueueReceive(CAN_cfg.rx_queue, &rx_frame, 0) == pdTRUE) {
     if (rx_frame.FIR.B.FF == CAN_frame_std) {  // New standard frame
 // Battery
 #ifndef SERIAL_LINK_RECEIVER
