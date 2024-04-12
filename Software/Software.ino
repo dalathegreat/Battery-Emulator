@@ -29,30 +29,6 @@
 #include "src/devboard/webserver/webserver.h"
 #endif
 
-//#define FUNCTION_TIME_MEAS
-/** Start time measurement in microseconds
- * Input parameter must be a unique "tag", e.g: START_TIME_MEASUREMENT(wifi);
- */
-#ifdef FUNCTION_TIME_MEAS
-#define START_TIME_MEASUREMENT(x) int64_t start_time_##x = esp_timer_get_time()
-/** End time measurement in microseconds
- * Input parameters are the unique tag and the name of the ALREADY EXISTING
- * destination variable (int64_t), e.g: END_TIME_MEASUREMENT(wifi, my_wifi_time_int64_t);
- */
-#define END_TIME_MEASUREMENT(x, y) y = esp_timer_get_time() - start_time_##x
-/** End time measurement in microseconds, log maximum
- * Input parameters are the unique tag and the name of the ALREADY EXISTING
- * destination variable (int64_t), e.g: END_TIME_MEASUREMENT_MAX(wifi, my_wifi_time_int64_t);
- * 
- * This will log the maximum value in the destination variable.
- */
-#define END_TIME_MEASUREMENT_MAX(x, y) y = MAX(y, esp_timer_get_time() - start_time_##x)
-#else
-#define START_TIME_MEASUREMENT(x) ;
-#define END_TIME_MEASUREMENT(x, y) ;
-#define END_TIME_MEASUREMENT_MAX(x, y)
-#endif
-
 Preferences settings;  // Store user settings
 // The current software version, shown on webserver
 const char* version_number = "5.7.0";
@@ -126,8 +102,8 @@ float charger_stat_LVvol = 0;
 int64_t core_task_time_us;
 MyTimer core_task_timer_10s(INTERVAL_10_S);
 
-int64_t wifi_task_time_us;
-MyTimer wifi_task_timer_10s(INTERVAL_10_S);
+int64_t mqtt_task_time_us;
+MyTimer mqtt_task_timer_10s(INTERVAL_10_S);
 // MyTimer task_timer_200ms(INTERVAL_200_MS);
 
 // Contactor parameters
@@ -153,8 +129,8 @@ unsigned long timeSpentInFaultedMode = 0;
 bool batteryAllowsContactorClosing = false;
 bool inverterAllowsContactorClosing = true;
 
-TaskHandle_t mainLoopTask;
-TaskHandle_t wifiLoopTask;
+TaskHandle_t main_loop_task;
+TaskHandle_t wifi_loop_task;
 
 // Initialization
 void setup() {
@@ -166,8 +142,8 @@ void setup() {
   init_webserver();
   init_mDNS();
 #ifdef MQTT
-  xTaskCreatePinnedToCore((TaskFunction_t)&wifiLoop, "wifiLoop", 4096, &wifi_task_time_us, TASK_WIFI_PRIO,
-                          &mainLoopTask, WIFI_CORE);
+  xTaskCreatePinnedToCore((TaskFunction_t)&mqtt_loop, "mqtt_loop", 4096, &mqtt_task_time_us, TASK_WIFI_PRIO,
+                          &main_loop_task, WIFI_CORE);
 #endif
 #endif
 
@@ -190,15 +166,15 @@ void setup() {
 
   esp_task_wdt_deinit();  // Disable watchdog
 
-  xTaskCreatePinnedToCore((TaskFunction_t)&mainLoop, "mainLoop", 4096, &core_task_time_us, TASK_CORE_PRIO,
-                          &mainLoopTask, MAIN_FUNCTION_CORE);
+  xTaskCreatePinnedToCore((TaskFunction_t)&core_loop, "core_loop", 4096, &core_task_time_us, TASK_CORE_PRIO,
+                          &main_loop_task, CORE_FUNCTION_CORE);
 }
 
 // Perform main program functions
 void loop() {}
 
 #ifdef MQTT
-void wifiLoop(void* task_time_us) {
+void mqtt_loop(void* task_time_us) {
   // Init MQTT
   init_mqtt();
 
@@ -207,7 +183,7 @@ void wifiLoop(void* task_time_us) {
     mqtt_loop();
     END_TIME_MEASUREMENT_MAX(wifi, datalayer.system.status.time_wifi_us);
 
-    if (wifi_task_timer_10s.elapsed()) {
+    if (mqtt_task_timer_10s.elapsed()) {
       datalayer.system.status.time_wifi_us = 0;
     }
     delay(1);
@@ -215,19 +191,11 @@ void wifiLoop(void* task_time_us) {
 }
 #endif
 
-void mainLoop(void* task_time_us) {
+void core_loop(void* task_time_us) {
   TickType_t xLastWakeTime = xTaskGetTickCount();
   const TickType_t xFrequency = pdMS_TO_TICKS(1);  // Convert 1ms to ticks
   led_init();
   int64_t prev_wake;
-#ifdef FUNCTION_TIME_MEAS
-  // Timing variables
-  int64_t time_comm_us;
-  int64_t time_10ms_us;
-  int64_t time_5s_us;
-  int64_t time_cantx_us;
-  int64_t time_events_us;
-#endif
 
   while (true) {
     int64_t now = esp_timer_get_time();
@@ -246,7 +214,7 @@ void mainLoop(void* task_time_us) {
 #if defined(SERIAL_LINK_RECEIVER) || defined(SERIAL_LINK_TRANSMITTER)
     runSerialDataLink();
 #endif
-    END_TIME_MEASUREMENT(comm, time_comm_us);
+    END_TIME_MEASUREMENT_MAX(comm, datalayer.system.status.time_comm_us);
 
 #ifdef WEBSERVER
     wifi_monitor();
@@ -262,7 +230,7 @@ void mainLoop(void* task_time_us) {
       handle_contactors();  // Take care of startup precharge/contactor closing
 #endif
     }
-    END_TIME_MEASUREMENT(time_10ms, time_10ms_us);
+    END_TIME_MEASUREMENT_MAX(time_10ms, datalayer.system.status.time_10ms_us);
 
     START_TIME_MEASUREMENT(time_5s);
     if (millis() - previousMillisUpdateVal >= intervalUpdateValues)  // Every 5s normally
@@ -274,7 +242,7 @@ void mainLoop(void* task_time_us) {
         set_event(EVENT_DUMMY_ERROR, (uint8_t)millis());
       }
     }
-    END_TIME_MEASUREMENT(time_5s, time_5s_us);
+    END_TIME_MEASUREMENT_MAX(time_5s, datalayer.system.status.time_5s_us);
 
     START_TIME_MEASUREMENT(cantx);
     // Output
@@ -282,18 +250,21 @@ void mainLoop(void* task_time_us) {
 #ifdef DUAL_CAN
     send_can2();
 #endif
-    END_TIME_MEASUREMENT(cantx, time_cantx_us);
+    END_TIME_MEASUREMENT_MAX(cantx, datalayer.system.status.time_cantx_us);
 
     START_TIME_MEASUREMENT(events);
     run_event_handling();
-    END_TIME_MEASUREMENT(events, time_events_us);
-
-    /** Task time measurement
-     * 'task_time_us' will hold the previous cycle measurement here, before being updated by END_TIME_MEASUREMENT.
-     * The reason for the ordering is to include the logging itself in the time measurement
-     */
-
-    END_TIME_MEASUREMENT(all, *(int64_t*)task_time_us);
+    END_TIME_MEASUREMENT_MAX(events, datalayer.system.status.time_events_us);
+    END_TIME_MEASUREMENT_MAX(all, *(int64_t*)task_time_us);
+#ifdef FUNCTION_TIME_MEASUREMENT
+    if (core_task_timer_10s.elapsed()) {
+      datalayer.system.status.time_comm_us = 0;
+      datalayer.system.status.time_10ms_us = 0;
+      datalayer.system.status.time_5s_us = 0;
+      datalayer.system.status.time_cantx_us = 0;
+      datalayer.system.status.time_events_us = 0;
+    }
+#endif
     vTaskDelayUntil(&xLastWakeTime, xFrequency);
   }
 }
@@ -520,10 +491,6 @@ void inform_user_on_inverter() {
 void init_battery() {
   // Inform user what battery is used and perform setup
   setup_battery();
-
-#ifndef BATTERY_SELECTED
-#error No battery selected! Choose one from the USER_SETTINGS.h file
-#endif
 }
 
 #ifdef CAN_FD

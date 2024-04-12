@@ -370,6 +370,7 @@ String processor(const String& var) {
 
     // Show version number
     content += "<h4>Software: " + String(version_number) + "</h4>";
+#ifdef FUNCTION_TIME_MEASUREMENTUREMENTS
     // Load information
     content += "<h4>Main task max load: " + String(datalayer.system.status.main_task_max_us) + " us</h4>";
     content += "<h4>Main task max load last 10 s: " + String(datalayer.system.status.main_task_10s_max_us) + " us</h4>";
@@ -380,6 +381,8 @@ String processor(const String& var) {
     content += "<h4>CAN/serial RX function timing: " + String(datalayer.system.status.time_comm_us) + " us</h4>";
     content += "<h4>Events function timing: " + String(datalayer.system.status.time_events_us) + " us</h4>";
     content += "<h4>Wifi function timing: " + String(datalayer.system.status.time_wifi_us) + " us</h4>";
+#endif
+
     wl_status_t status = WiFi.status();
     // Display ssid of network connected to and, if connected to the WiFi, its own IP
     content += "<h4>SSID: " + String(ssid) + "</h4>";

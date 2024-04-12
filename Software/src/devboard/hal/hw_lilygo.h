@@ -5,7 +5,7 @@
 #define BOOTUP_TIME 1000  // Time in ms it takes before system is considered fully started up
 
 // Core assignment
-#define MAIN_FUNCTION_CORE 1
+#define CORE_FUNCTION_CORE 1
 #define MODBUS_CORE 0
 #define WIFI_CORE 0
 
@@ -55,7 +55,7 @@
 #define LED_PIN 4
 #define LED_MAX_BRIGHTNESS 40
 
-/* ----- Error checks below, don't change ----- */
+/* ----- Error checks below, don't change (can't be moved to separate file) ----- */
 #ifndef HW_CONFIGURED
 #define HW_CONFIGURED
 #else

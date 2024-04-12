@@ -9,8 +9,4 @@
 #include "hw_sjb_v1.h"
 #endif
 
-#if !defined(HW_CONFIGURED)
-#error You must select a HW to run on!
-#endif
-
 #endif

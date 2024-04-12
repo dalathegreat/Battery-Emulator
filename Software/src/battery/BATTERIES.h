@@ -18,9 +18,6 @@
 
 #ifdef KIA_E_GMP_BATTERY
 #include "KIA-E-GMP-BATTERY.h"  //See this file for more GMP battery settings
-#ifndef CAN_FD
-#error KIA HYUNDAI EGMP BATTERIES CANNOT BE USED WITHOUT CAN FD
-#endif
 #endif
 
 #ifdef KIA_HYUNDAI_64_BATTERY
@@ -62,12 +59,13 @@
 #ifdef SERIAL_LINK_RECEIVER  // The serial thing does its thing
 void receive_can_battery();
 #else
-#include "../lib/miwagner-ESP32-Arduino-CAN/ESP32CAN.h"
+#include "../lib/miwagner-ESP32-Arduino-CAN/ESP32CAN.h"  // This include is annoying, consider defining a frame type in types.h
 void receive_can_battery(CAN_frame_t rx_frame);
 #endif
 #ifdef CAN_FD
 void receive_canfd_battery(CANFDMessage frame);
 #endif
+
 void update_values_battery();
 void send_can_battery();
 void setup_battery(void);

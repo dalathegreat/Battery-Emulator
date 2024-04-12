@@ -8,9 +8,9 @@ volatile bool USE_SCALED_SOC =
     true;  //Increases battery life. If true will rescale SOC between the configured min/max-percentage
 volatile uint32_t BATTERY_WH_MAX = 30000;  //Battery size in Wh
 volatile uint16_t MAXPERCENTAGE =
-    850;  //80.0% , Max percentage the battery will charge to (Inverter gets 100% when reached)
+    800;  //80.0% , Max percentage the battery will charge to (Inverter gets 100% when reached)
 volatile uint16_t MINPERCENTAGE =
-    150;  //20.0% , Min percentage the battery will discharge to (Inverter gets 0% when reached)
+    200;  //20.0% , Min percentage the battery will discharge to (Inverter gets 0% when reached)
 volatile uint16_t MAXCHARGEAMP =
     300;  //30.0A , BYD CAN specific setting, Max charge in Amp (Some inverters needs to be limited)
 volatile uint16_t MAXDISCHARGEAMP =
@@ -36,8 +36,8 @@ const uint8_t wifi_channel = 0;        // set to 0 for automatic channel selecti
 
 // MQTT
 #ifdef MQTT
-const char* mqtt_user = "test";
-const char* mqtt_password = "test";
+const char* mqtt_user = "REDACTED";
+const char* mqtt_password = "REDACTED";
 #endif  // USE_MQTT
 
 #endif
