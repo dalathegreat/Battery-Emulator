@@ -370,7 +370,16 @@ String processor(const String& var) {
 
     // Show version number
     content += "<h4>Software: " + String(version_number) + "</h4>";
-
+    // Load information
+    content += "<h4>Main task max load: " + String(datalayer.system.status.main_task_max_us) + " us</h4>";
+    content += "<h4>Main task max load last 10 s: " + String(datalayer.system.status.main_task_10s_max_us) + " us</h4>";
+    content += "<h4>Worst case execution times:</h4>";
+    content += "<h4>10ms function timing: " + String(datalayer.system.status.time_10ms_us) + " us</h4>";
+    content += "<h4>5s function timing: " + String(datalayer.system.status.time_5s_us) + " us</h4>";
+    content += "<h4>CAN TX function timing: " + String(datalayer.system.status.time_cantx_us) + " us</h4>";
+    content += "<h4>CAN/serial RX function timing: " + String(datalayer.system.status.time_comm_us) + " us</h4>";
+    content += "<h4>Events function timing: " + String(datalayer.system.status.time_events_us) + " us</h4>";
+    content += "<h4>Wifi function timing: " + String(datalayer.system.status.time_wifi_us) + " us</h4>";
     wl_status_t status = WiFi.status();
     // Display ssid of network connected to and, if connected to the WiFi, its own IP
     content += "<h4>SSID: " + String(ssid) + "</h4>";
@@ -499,9 +508,9 @@ String processor(const String& var) {
     float sohFloat = static_cast<float>(system_SOH_pptt) / 100.0;               // Convert to float and divide by 100
     float voltageFloat = static_cast<float>(system_battery_voltage_dV) / 10.0;  // Convert to float and divide by 10
     float currentFloat = static_cast<float>(system_battery_current_dA) / 10.0;  // Convert to float and divide by 10
-    float powerFloat = static_cast<float>(datalayer_get_ref().battery.status.active_power_W);  // Convert to float
-    float tempMaxFloat = static_cast<float>(system_temperature_max_dC) / 10.0;                 // Convert to float
-    float tempMinFloat = static_cast<float>(system_temperature_min_dC) / 10.0;                 // Convert to float
+    float powerFloat = static_cast<float>(datalayer.battery.status.active_power_W);  // Convert to float
+    float tempMaxFloat = static_cast<float>(system_temperature_max_dC) / 10.0;       // Convert to float
+    float tempMinFloat = static_cast<float>(system_temperature_min_dC) / 10.0;       // Convert to float
 
     content += "<h4 style='color: white;'>Real SOC: " + String(socRealFloat, 2) + "</h4>";
     content += "<h4 style='color: white;'>Scaled SOC: " + String(socScaledFloat, 2) + "</h4>";

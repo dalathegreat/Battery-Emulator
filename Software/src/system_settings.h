@@ -11,7 +11,8 @@
  * Defines the priority of various wireless functionality (TCP, MQTT, etc)
 */
 #define TASK_CORE_PRIO 4
-#define TASK_CONNECTIVITY_PRIO 3
+#define TASK_WIFI_PRIO 3
+#define TASK_MODBUS_PRIO 8
 
 /** MAX AMOUNT OF CELLS
  * 

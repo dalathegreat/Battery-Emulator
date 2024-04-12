@@ -51,6 +51,21 @@ typedef struct {
 } DATALAYER_BATTERY_TYPE;
 
 typedef struct {
+  int64_t main_task_max_us = 0;
+  int64_t main_task_10s_max_us = 0;
+  int64_t time_wifi_us = 0;
+  int64_t time_comm_us = 0;
+  int64_t time_10ms_us = 0;
+  int64_t time_5s_us = 0;
+  int64_t time_cantx_us = 0;
+  int64_t time_events_us = 0;
+} DATALAYER_SYSTEM_STATUS_TYPE;
+
+typedef struct {
+  DATALAYER_SYSTEM_STATUS_TYPE status;
+} DATALAYER_SYSTEM_TYPE;
+
+typedef struct {
   bool batteryAllowsContactorClosing = false;
   bool inverterAllowsContactorClosing = true;
 } DATALAYER_SETTINGS_TYPE;
@@ -58,9 +73,10 @@ typedef struct {
 class DataLayer {
  public:
   DATALAYER_BATTERY_TYPE battery;
+  DATALAYER_SYSTEM_TYPE system;
   DATALAYER_SETTINGS_TYPE settings;
 };
 
-DataLayer& datalayer_get_ref(void);
+extern DataLayer datalayer;
 
 #endif

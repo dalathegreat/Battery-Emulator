@@ -1,6 +1,8 @@
-#include "PYLON-CAN.h"
+#include "INVERTERS.h"
+#ifdef PYLON_CAN
 #include "../lib/miwagner-ESP32-Arduino-CAN/CAN_config.h"
 #include "../lib/miwagner-ESP32-Arduino-CAN/ESP32CAN.h"
+#include "PYLON-CAN.h"
 
 #define SEND_0  //If defined, the messages will have ID ending with 0 (useful for some inverters)
 //#define SEND_1 //If defined, the messages will have ID ending with 1 (useful for some inverters)
@@ -290,3 +292,4 @@ void send_system_data() {  //System equipment information
   ESP32Can.CANWriteFrame(&PYLON_4291);
 #endif
 }
+#endif

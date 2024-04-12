@@ -1,3 +1,5 @@
+#include "INVERTERS.h"
+#ifdef BYD_MODBUS
 #include "BYD-MODBUS.h"
 
 void update_modbus_registers_byd() {
@@ -151,3 +153,4 @@ void verify_temperature_modbus() {
     }
   }
 }
+#endif

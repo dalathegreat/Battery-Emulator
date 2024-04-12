@@ -178,7 +178,7 @@ void update_values_battery() { /* This function maps all the values fetched via 
       ((LB_Total_Voltage2 * LB_Current2) / 4);  //P = U * I (Both values are 0.5 per bit so the math is non-intuitive)
 
   system_active_power_W = LB_Power;
-  datalayer_get_ref().battery.status.active_power_W = LB_Power;
+  datalayer.battery.status.active_power_W = LB_Power;
 
   //Update temperature readings. Method depends on which generation LEAF battery is used
   if (LEAF_Battery_Type == ZE0_BATTERY) {

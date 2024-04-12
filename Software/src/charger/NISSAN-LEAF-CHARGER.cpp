@@ -1,6 +1,8 @@
-#include "NISSAN-LEAF-CHARGER.h"
+#include "CHARGERS.h"
+#ifdef NISSAN_LEAF_CHARGER
 #include "../lib/miwagner-ESP32-Arduino-CAN/CAN_config.h"
 #include "../lib/miwagner-ESP32-Arduino-CAN/ESP32CAN.h"
+#include "NISSAN-LEAF-CHARGER.h"
 
 /* This implements Nissan LEAF PDM charger support. 2013-2024 Gen2/3 PDMs are supported
  *
@@ -271,3 +273,4 @@ void send_can_nissanleaf_charger() {
 #endif
   }
 }
+#endif

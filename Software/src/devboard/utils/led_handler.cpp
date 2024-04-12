@@ -18,7 +18,6 @@ static const float heartbeat_peak2 = 0.55;
 static const float heartbeat_deviation = 0.05;
 
 static LED led(LED_MODE_DEFAULT);
-static DataLayer& datalayer = datalayer_get_ref();
 
 void led_init(void) {
   led.init();
@@ -194,6 +193,5 @@ uint8_t LED::up_down(float middle_point_f) {
   } else {
     brightness = LED_MAX_BRIGHTNESS - map_uint16(ms, middle_point, LED_PERIOD_MS, 0, max_brightness);
   }
-  Serial.println(brightness);
   return CONSTRAIN(brightness, 0, max_brightness);
 }

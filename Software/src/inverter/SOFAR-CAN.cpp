@@ -1,6 +1,8 @@
-#include "SOFAR-CAN.h"
+#include "INVERTERS.h"
+#ifdef SOFAR_CAN
 #include "../lib/miwagner-ESP32-Arduino-CAN/CAN_config.h"
 #include "../lib/miwagner-ESP32-Arduino-CAN/ESP32CAN.h"
+#include "SOFAR-CAN.h"
 
 /* This implementation of the SOFAR can protocol is halfway done. What's missing is implementing the inverter replies, all the CAN messages are listed, but the can sending is missing. */
 
@@ -336,3 +338,4 @@ void send_can_sofar() {
     ESP32Can.CANWriteFrame(&SOFAR_35A);
   }
 }
+#endif

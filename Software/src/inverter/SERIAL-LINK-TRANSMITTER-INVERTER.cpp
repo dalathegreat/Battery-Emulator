@@ -1,7 +1,8 @@
-//SERIAL-LINK-TRANSMITTER-INVERTER.cpp
+#include "INVERTERS.h"
+#ifdef SERIAL_LINK_TRANSMITTER
 
-#include "SERIAL-LINK-TRANSMITTER-INVERTER.h"
 #include "../devboard/utils/events.h"
+#include "SERIAL-LINK-TRANSMITTER-INVERTER.h"
 
 /*
 *         SerialDataLink
@@ -186,3 +187,4 @@ void printSendingValues() {
 
   Serial.println("");
 }
+#endif

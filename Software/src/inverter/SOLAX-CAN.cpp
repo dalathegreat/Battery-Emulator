@@ -1,5 +1,7 @@
-#include "SOLAX-CAN.h"
+#include "INVERTERS.h"
+#ifdef SOLAX_CAN
 #include "../devboard/utils/events.h"
+#include "SOLAX-CAN.h"
 
 /* Do not change code below unless you are sure what you are doing */
 static uint16_t max_charge_rate_amp = 0;
@@ -307,3 +309,4 @@ void receive_can_solax(CAN_frame_t rx_frame) {
 #endif
   }
 }
+#endif

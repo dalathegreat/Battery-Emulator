@@ -1,6 +1,8 @@
-#include "SMA-TRIPOWER-CAN.h"
+#include "INVERTERS.h"
+#ifdef SMA_TRIPOWER_CAN
 #include "../lib/miwagner-ESP32-Arduino-CAN/CAN_config.h"
 #include "../lib/miwagner-ESP32-Arduino-CAN/ESP32CAN.h"
+#include "SMA-TRIPOWER-CAN.h"
 
 /* TODO:
 - Figure out the manufacturer info needed in send_tripower_init() CAN messages
@@ -369,3 +371,4 @@ void send_tripower_init() {
   ESP32Can.CANWriteFrame(&SMA_017);  // Battery Manufacturer
   ESP32Can.CANWriteFrame(&SMA_018);  // Battery Name
 }
+#endif
