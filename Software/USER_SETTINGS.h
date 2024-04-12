@@ -7,9 +7,6 @@
 /* There are also some options for battery limits and extra functionality */
 /* To edit battery specific limits, see also the USER_SETTINGS.cpp file*/
 
-/* Select HW - DONT TOUCH */
-#define HW_LILYGO
-
 /* Select battery used */
 //#define BMW_I3_BATTERY
 //#define CHADEMO_BATTERY

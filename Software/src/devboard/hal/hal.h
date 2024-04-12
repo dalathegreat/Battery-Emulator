@@ -3,6 +3,9 @@
 
 #include "../../../USER_SETTINGS.h"
 
+/* Select HW - DONT TOUCH */
+#define HW_LILYGO
+
 #if defined(HW_LILYGO)
 #include "hw_lilygo.h"
 #elif defined(HW_SJB_V1)

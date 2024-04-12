@@ -101,7 +101,6 @@ MyTimer core_task_timer_10s(INTERVAL_10_S);
 
 int64_t mqtt_task_time_us;
 MyTimer mqtt_task_timer_10s(INTERVAL_10_S);
-// MyTimer task_timer_200ms(INTERVAL_200_MS);
 
 // Contactor parameters
 #ifdef CONTACTOR_CONTROL
