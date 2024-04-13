@@ -370,7 +370,7 @@ String processor(const String& var) {
 
     // Show version number
     content += "<h4>Software: " + String(version_number) + "</h4>";
-#ifdef FUNCTION_TIME_MEASUREMENTUREMENTS
+#ifdef FUNCTION_TIME_MEASUREMENT
     // Load information
     content += "<h4>Main task max load: " + String(datalayer.system.status.main_task_max_us) + " us</h4>";
     content += "<h4>Main task max load last 10 s: " + String(datalayer.system.status.main_task_10s_max_us) + " us</h4>";
