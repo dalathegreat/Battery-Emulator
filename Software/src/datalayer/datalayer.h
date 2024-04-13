@@ -1,8 +1,8 @@
 #ifndef _DATALAYER_H_
 #define _DATALAYER_H_
 
-#include "../../include.h"
-#include "../utils/soc_scaling.h"
+#include "../devboard/utils/soc_scaling.h"
+#include "../include.h"
 
 typedef struct {
   /** float */

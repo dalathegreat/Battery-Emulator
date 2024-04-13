@@ -3,8 +3,29 @@
 
 #include "../../include.h"
 
+/** MIN macro, returns the smallest of two values
+ * Warning: Side effects. MUST be called using values and/or variables only, e.g.:
+ * int x = MIN(temp1, temp2);
+ * int x = MIN(reported_temp, 25);
+ * Do NOT use this macro with operators or function calls, e.g.:
+ * int x = MIN(y++, my_func());
+*/
 #define MIN(x, y) (((x) < (y)) ? (x) : (y))
+/** MAX macro, returns the largest of two values
+ * Warning: Side effects. MUST be called using values and/or variables only, e.g.:
+ * int x = MAX(temp1, temp2);
+ * int x = MAX(reported_temp, 10);
+ * Do NOT use this macro with operators or function calls, e.g.:
+ * int x = MAX(y++, my_func());
+*/
 #define MAX(x, y) (((x) > (y)) ? (x) : (y))
+/** CONSTRAIN macro, limits a value to a provided range
+ * Warning: Side effects. MUST be called using values and/or variables only, e.g.:
+ * int x = CONSTRAIN(temp, min_temp, max_temp);
+ * int x = CONSTRAIN(reported_temp, 10, 30);
+ * Do NOT use this macro with operators or function calls, e.g.:
+ * int x = CONSTRAIN(y++, my_min_func(), max_value--);
+*/
 #define CONSTRAIN(val, min, max) (MIN(max, MAX(min, val)))
 
 static inline float map_float(float val, float in_min, float in_max, float out_min, float out_max) {
