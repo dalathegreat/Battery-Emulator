@@ -21,6 +21,8 @@
 #include "src/lib/miwagner-ESP32-Arduino-CAN/CAN_config.h"
 #include "src/lib/miwagner-ESP32-Arduino-CAN/ESP32CAN.h"
 
+#include "src/datalayer/datalayer.h"
+
 #ifdef WEBSERVER
 #include <ESPmDNS.h>
 #include "src/devboard/webserver/webserver.h"
@@ -175,13 +177,15 @@ void mqtt_loop(void* task_time_us) {
   init_mqtt();
 
   while (true) {
-    START_TIME_MEASUREMENT(wifi);
+    START_TIME_MEASUREMENT(mqtt);
     mqtt_loop();
-    END_TIME_MEASUREMENT_MAX(wifi, datalayer.system.status.time_wifi_us);
+    END_TIME_MEASUREMENT_MAX(mqtt, datalayer.system.status.time_mqtt_us);
 
+#ifdef FUNCTION_TIME_MEASUREMENT
     if (mqtt_task_timer_10s.elapsed()) {
-      datalayer.system.status.time_wifi_us = 0;
+      datalayer.system.status.time_mqtt_us = 0;
     }
+#endif
     delay(1);
   }
 }
@@ -211,10 +215,11 @@ void core_loop(void* task_time_us) {
     runSerialDataLink();
 #endif
     END_TIME_MEASUREMENT_MAX(comm, datalayer.system.status.time_comm_us);
-
 #ifdef WEBSERVER
+    START_TIME_MEASUREMENT(wifi_ota);
     wifi_monitor();
     ElegantOTA.loop();
+    END_TIME_MEASUREMENT(wifi_ota, datalayer.system.status.time_wifi_us);
 #endif
 
     START_TIME_MEASUREMENT(time_10ms);
@@ -251,14 +256,17 @@ void core_loop(void* task_time_us) {
     START_TIME_MEASUREMENT(events);
     run_event_handling();
     END_TIME_MEASUREMENT_MAX(events, datalayer.system.status.time_events_us);
-    END_TIME_MEASUREMENT_MAX(all, *(int64_t*)task_time_us);
+    END_TIME_MEASUREMENT_MAX(all, datalayer.system.status.main_task_10s_max_us);
 #ifdef FUNCTION_TIME_MEASUREMENT
+    datalayer.system.status.main_task_max_us =
+        MAX(datalayer.system.status.main_task_10s_max_us, datalayer.system.status.main_task_max_us);
     if (core_task_timer_10s.elapsed()) {
       datalayer.system.status.time_comm_us = 0;
       datalayer.system.status.time_10ms_us = 0;
       datalayer.system.status.time_5s_us = 0;
       datalayer.system.status.time_cantx_us = 0;
       datalayer.system.status.time_events_us = 0;
+      datalayer.system.status.main_task_10s_max_us = 0;
     }
 #endif
     vTaskDelayUntil(&xLastWakeTime, xFrequency);
