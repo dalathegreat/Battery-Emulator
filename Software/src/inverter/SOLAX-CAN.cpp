@@ -174,10 +174,10 @@ void update_values_can_solax() {  //This function maps all the values fetched fr
 
   //Put the values into the CAN messages
   //BMS_Limits
-  SOLAX_1872.data.u8[0] = (uint8_t)system_max_design_voltage_dV;
-  SOLAX_1872.data.u8[1] = (system_max_design_voltage_dV >> 8);
-  SOLAX_1872.data.u8[2] = (uint8_t)system_min_design_voltage_dV;
-  SOLAX_1872.data.u8[3] = (system_min_design_voltage_dV >> 8);
+  SOLAX_1872.data.u8[0] = (uint8_t)datalayer.battery.info.max_design_voltage_dV;
+  SOLAX_1872.data.u8[1] = (datalayer.battery.info.max_design_voltage_dV >> 8);
+  SOLAX_1872.data.u8[2] = (uint8_t)datalayer.battery.info.min_design_voltage_dV;
+  SOLAX_1872.data.u8[3] = (datalayer.battery.info.min_design_voltage_dV >> 8);
   SOLAX_1872.data.u8[4] = (uint8_t)(max_charge_rate_amp * 10);
   SOLAX_1872.data.u8[5] = ((max_charge_rate_amp * 10) >> 8);
   SOLAX_1872.data.u8[6] = (uint8_t)(max_discharge_rate_amp * 10);

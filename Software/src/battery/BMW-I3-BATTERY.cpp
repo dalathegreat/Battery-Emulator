@@ -809,8 +809,9 @@ void setup_battery(void) {  // Performs one time setup at startup
   Serial.println("BMW i3 battery selected");
 #endif
 
-  system_max_design_voltage_dV = 4040;  // 404.4V, over this, charging is not possible (goes into forced discharge)
-  system_min_design_voltage_dV = 2800;  // 280.0V under this, discharging further is disabled
+  datalayer.battery.info.max_design_voltage_dV =
+      4040;  // 404.4V, over this, charging is not possible (goes into forced discharge)
+  datalayer.battery.info.min_design_voltage_dV = 2800;  // 280.0V under this, discharging further is disabled
 
   digitalWrite(WUP_PIN, HIGH);  // Wake up the battery
 }

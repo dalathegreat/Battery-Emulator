@@ -243,8 +243,9 @@ void setup_battery(void) {  // Performs one time setup at startup
   Serial.println("Mitsubishi i-MiEV / Citroen C-Zero / Peugeot Ion battery selected");
 #endif
 
-  system_max_design_voltage_dV = 3600;  // 360.0V, over this, charging is not possible (goes into forced discharge)
-  system_min_design_voltage_dV = 3160;  // 316.0V under this, discharging further is disabled
+  datalayer.battery.info.max_design_voltage_dV =
+      3600;  // 360.0V, over this, charging is not possible (goes into forced discharge)
+  datalayer.battery.info.min_design_voltage_dV = 3160;  // 316.0V under this, discharging further is disabled
 }
 
 #endif

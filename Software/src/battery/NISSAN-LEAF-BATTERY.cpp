@@ -242,7 +242,8 @@ void update_values_battery() { /* This function maps all the values fetched via 
 
   //Check if SOC% is plausible
   if (datalayer.battery.status.voltage_dV >
-      (system_max_design_voltage_dV - 100)) {  // When pack voltage is close to max, and SOC% is still low, raise FAULT
+      (datalayer.battery.info.max_design_voltage_dV -
+       100)) {  // When pack voltage is close to max, and SOC% is still low, raise FAULT
     if (LB_SOC < 650) {
       set_event(EVENT_SOC_PLAUSIBILITY_ERROR, LB_SOC / 10);  // Set event with the SOC as data
     } else {
@@ -881,8 +882,9 @@ void setup_battery(void) {  // Performs one time setup at startup
 #endif
 
   system_number_of_cells = 96;
-  system_max_design_voltage_dV = 4040;  // 404.4V, over this, charging is not possible (goes into forced discharge)
-  system_min_design_voltage_dV = 2600;  // 260.0V under this, discharging further is disabled
+  datalayer.battery.info.max_design_voltage_dV =
+      4040;  // 404.4V, over this, charging is not possible (goes into forced discharge)
+  datalayer.battery.info.min_design_voltage_dV = 2600;  // 260.0V under this, discharging further is disabled
 }
 
 #endif

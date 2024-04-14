@@ -283,15 +283,15 @@ CAN_frame_t SOFAR_7C0 = {.FIR = {.B =
 void update_values_can_sofar() {  //This function maps all the values fetched from battery CAN to the correct CAN messages
 
   //Maxvoltage (eg 400.0V = 4000 , 16bits long) Charge Cutoff Voltage
-  SOFAR_351.data.u8[0] = (system_max_design_voltage_dV >> 8);
-  SOFAR_351.data.u8[1] = (system_max_design_voltage_dV & 0x00FF);
+  SOFAR_351.data.u8[0] = (datalayer.battery.info.max_design_voltage_dV >> 8);
+  SOFAR_351.data.u8[1] = (datalayer.battery.info.max_design_voltage_dV & 0x00FF);
   //SOFAR_351.data.u8[2] = DC charge current limitation (Default 25.0A)
   //SOFAR_351.data.u8[3] = DC charge current limitation
   //SOFAR_351.data.u8[4] = DC discharge current limitation (Default 25.0A)
   //SOFAR_351.data.u8[5] = DC discharge current limitation
   //Minvoltage (eg 300.0V = 3000 , 16bits long) Discharge Cutoff Voltage
-  SOFAR_351.data.u8[6] = (system_min_design_voltage_dV >> 8);
-  SOFAR_351.data.u8[7] = (system_min_design_voltage_dV & 0x00FF);
+  SOFAR_351.data.u8[6] = (datalayer.battery.info.min_design_voltage_dV >> 8);
+  SOFAR_351.data.u8[7] = (datalayer.battery.info.min_design_voltage_dV & 0x00FF);
 
   //SOC
   SOFAR_355.data.u8[0] = (system_scaled_SOC_pptt / 100);

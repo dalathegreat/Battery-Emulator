@@ -116,16 +116,18 @@ static bool initialDataSent = 0;
 
 void update_values_can_byd() {  //This function maps all the values fetched from battery CAN to the correct CAN messages
   //Calculate values
-  charge_current = ((system_max_charge_power_W * 10) /
-                    system_max_design_voltage_dV);  //Charge power in W , max volt in V+1decimal (P=UI, solve for I)
+  charge_current =
+      ((system_max_charge_power_W * 10) /
+       datalayer.battery.info.max_design_voltage_dV);  //Charge power in W , max volt in V+1decimal (P=UI, solve for I)
   //The above calculation results in (30 000*10)/3700=81A
   charge_current = (charge_current * 10);  //Value needs a decimal before getting sent to inverter (81.0A)
   if (charge_current > MAXCHARGEAMP) {
     charge_current = MAXCHARGEAMP;  //Cap the value to the max allowed Amp. Some inverters cannot handle large values.
   }
 
-  discharge_current = ((system_max_discharge_power_W * 10) /
-                       system_max_design_voltage_dV);  //Charge power in W , max volt in V+1decimal (P=UI, solve for I)
+  discharge_current =
+      ((system_max_discharge_power_W * 10) /
+       datalayer.battery.info.max_design_voltage_dV);  //Charge power in W , max volt in V+1decimal (P=UI, solve for I)
   //The above calculation results in (30 000*10)/3700=81A
   discharge_current = (discharge_current * 10);  //Value needs a decimal before getting sent to inverter (81.0A)
   if (discharge_current > MAXDISCHARGEAMP) {
@@ -138,11 +140,11 @@ void update_values_can_byd() {  //This function maps all the values fetched from
 
   //Map values to CAN messages
   //Maxvoltage (eg 400.0V = 4000 , 16bits long)
-  BYD_110.data.u8[0] = (system_max_design_voltage_dV >> 8);
-  BYD_110.data.u8[1] = (system_max_design_voltage_dV & 0x00FF);
+  BYD_110.data.u8[0] = (datalayer.battery.info.max_design_voltage_dV >> 8);
+  BYD_110.data.u8[1] = (datalayer.battery.info.max_design_voltage_dV & 0x00FF);
   //Minvoltage (eg 300.0V = 3000 , 16bits long)
-  BYD_110.data.u8[2] = (system_min_design_voltage_dV >> 8);
-  BYD_110.data.u8[3] = (system_min_design_voltage_dV & 0x00FF);
+  BYD_110.data.u8[2] = (datalayer.battery.info.min_design_voltage_dV >> 8);
+  BYD_110.data.u8[3] = (datalayer.battery.info.min_design_voltage_dV & 0x00FF);
   //Maximum discharge power allowed (Unit: A+1)
   BYD_110.data.u8[4] = (discharge_current >> 8);
   BYD_110.data.u8[5] = (discharge_current & 0x00FF);

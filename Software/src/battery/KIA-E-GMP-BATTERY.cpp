@@ -405,9 +405,10 @@ void setup_battery(void) {  // Performs one time setup at startup
 
   system_number_of_cells = 192;  // TODO: will vary depending on battery
 
-  system_max_design_voltage_dV =
+  datalayer.battery.info.max_design_voltage_dV =
       8064;  // TODO: define when battery is known, charging is not possible (goes into forced discharge)
-  system_min_design_voltage_dV = 4320;  // TODO: define when battery is known. discharging further is disabled
+  datalayer.battery.info.min_design_voltage_dV =
+      4320;  // TODO: define when battery is known. discharging further is disabled
 
   EGMP_7E4.id = 0x7E4;
   EGMP_7E4.ext = false;

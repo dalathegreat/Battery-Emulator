@@ -211,12 +211,12 @@ void update_values_battery() {  //This function maps all the values fetched via 
   // Check if we have 98S or 90S battery
   if (system_cellvoltages_mV[97] > 0) {
     system_number_of_cells = 98;
-    system_max_design_voltage_dV = 4040;
-    system_min_design_voltage_dV = 3100;
+    datalayer.battery.info.max_design_voltage_dV = 4040;
+    datalayer.battery.info.min_design_voltage_dV = 3100;
   } else {
     system_number_of_cells = 90;
-    system_max_design_voltage_dV = 3870;
-    system_min_design_voltage_dV = 2250;
+    datalayer.battery.info.max_design_voltage_dV = 3870;
+    datalayer.battery.info.min_design_voltage_dV = 2250;
   }
 
   // Check if cell voltages are within allowed range
@@ -605,8 +605,9 @@ void setup_battery(void) {  // Performs one time setup at startup
   Serial.println("Kia Niro / Hyundai Kona 64kWh battery selected");
 #endif
 
-  system_max_design_voltage_dV = 4040;  // 404.0V, over this, charging is not possible (goes into forced discharge)
-  system_min_design_voltage_dV = 3100;  // 310.0V under this, discharging further is disabled
+  datalayer.battery.info.max_design_voltage_dV =
+      4040;  // 404.0V, over this, charging is not possible (goes into forced discharge)
+  datalayer.battery.info.min_design_voltage_dV = 3100;  // 310.0V under this, discharging further is disabled
 }
 
 #endif

@@ -206,28 +206,28 @@ void update_values_can_pylon() {  //This function maps all the values fetched fr
 
 #ifdef INVERT_VOLTAGE  //Useful for Sofar inverters \
                        //Maxvoltage (eg 400.0V = 4000 , 16bits long) Discharge Cutoff Voltage
-  PYLON_4220.data.u8[0] = (system_max_design_voltage_dV & 0x00FF);
-  PYLON_4220.data.u8[1] = (system_max_design_voltage_dV >> 8);
-  PYLON_4221.data.u8[0] = (system_max_design_voltage_dV & 0x00FF);
-  PYLON_4221.data.u8[1] = (system_max_design_voltage_dV >> 8);
+  PYLON_4220.data.u8[0] = (datalayer.battery.info.max_design_voltage_dV & 0x00FF);
+  PYLON_4220.data.u8[1] = (datalayer.battery.info.max_design_voltage_dV >> 8);
+  PYLON_4221.data.u8[0] = (datalayer.battery.info.max_design_voltage_dV & 0x00FF);
+  PYLON_4221.data.u8[1] = (datalayer.battery.info.max_design_voltage_dV >> 8);
 
   //Minvoltage (eg 300.0V = 3000 , 16bits long) Charge Cutoff Voltage
-  PYLON_4220.data.u8[2] = (system_min_design_voltage_dV & 0x00FF);
-  PYLON_4220.data.u8[3] = (system_min_design_voltage_dV >> 8);
-  PYLON_4221.data.u8[2] = (system_min_design_voltage_dV & 0x00FF);
-  PYLON_4221.data.u8[3] = (system_min_design_voltage_dV >> 8);
+  PYLON_4220.data.u8[2] = (datalayer.battery.info.min_design_voltage_dV & 0x00FF);
+  PYLON_4220.data.u8[3] = (datalayer.battery.info.min_design_voltage_dV >> 8);
+  PYLON_4221.data.u8[2] = (datalayer.battery.info.min_design_voltage_dV & 0x00FF);
+  PYLON_4221.data.u8[3] = (datalayer.battery.info.min_design_voltage_dV >> 8);
 #else
   //Minvoltage (eg 300.0V = 3000 , 16bits long) Charge Cutoff Voltage
-  PYLON_4220.data.u8[0] = (system_min_design_voltage_dV >> 8);
-  PYLON_4220.data.u8[1] = (system_min_design_voltage_dV & 0x00FF);
-  PYLON_4221.data.u8[0] = (system_min_design_voltage_dV >> 8);
-  PYLON_4221.data.u8[1] = (system_min_design_voltage_dV & 0x00FF);
+  PYLON_4220.data.u8[0] = (datalayer.battery.info.min_design_voltage_dV >> 8);
+  PYLON_4220.data.u8[1] = (datalayer.battery.info.min_design_voltage_dV & 0x00FF);
+  PYLON_4221.data.u8[0] = (datalayer.battery.info.min_design_voltage_dV >> 8);
+  PYLON_4221.data.u8[1] = (datalayer.battery.info.min_design_voltage_dV & 0x00FF);
 
   //Maxvoltage (eg 400.0V = 4000 , 16bits long) Discharge Cutoff Voltage
-  PYLON_4220.data.u8[2] = (system_max_design_voltage_dV >> 8);
-  PYLON_4220.data.u8[3] = (system_max_design_voltage_dV & 0x00FF);
-  PYLON_4221.data.u8[2] = (system_max_design_voltage_dV >> 8);
-  PYLON_4221.data.u8[3] = (system_max_design_voltage_dV & 0x00FF);
+  PYLON_4220.data.u8[2] = (datalayer.battery.info.max_design_voltage_dV >> 8);
+  PYLON_4220.data.u8[3] = (datalayer.battery.info.max_design_voltage_dV & 0x00FF);
+  PYLON_4221.data.u8[2] = (datalayer.battery.info.max_design_voltage_dV >> 8);
+  PYLON_4221.data.u8[3] = (datalayer.battery.info.max_design_voltage_dV & 0x00FF);
 #endif
 
   //In case we run into any errors/faults, we can set charge / discharge forbidden

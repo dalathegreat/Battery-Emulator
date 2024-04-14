@@ -6,18 +6,20 @@
 
 typedef struct {
   /** float - FUTURE */
-  float max_design_voltage_V;
-  float min_design_voltage_V;
+  // float max_design_voltage_V;
+  // float min_design_voltage_V;
 
   /** uint32_t */
   uint32_t total_capacity_Wh;
 
   /** uint16_t */
   uint16_t number_of_cells;
+  uint16_t max_design_voltage_dV;
+  uint16_t min_design_voltage_dV;
 
   /** Other */
   battery_chemistry_enum chemistry;
-} DATALAYER_BATTERY_DATA_TYPE;
+} DATALAYER_BATTERY_INFO_TYPE;
 
 typedef struct {
   /** float - FUTURE */
@@ -53,7 +55,7 @@ typedef struct {
 } DATALAYER_BATTERY_STATUS_TYPE;
 
 typedef struct {
-  DATALAYER_BATTERY_DATA_TYPE info;
+  DATALAYER_BATTERY_INFO_TYPE info;
   DATALAYER_BATTERY_STATUS_TYPE status;
 } DATALAYER_BATTERY_TYPE;
 

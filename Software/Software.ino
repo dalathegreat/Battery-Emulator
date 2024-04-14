@@ -61,8 +61,6 @@ ModbusServerRTU MBserver(Serial2, 2000);
 #endif
 
 // Common system parameters. Batteries map their values to these variables
-uint16_t system_max_design_voltage_dV = 5000;       //V+1,  0-1000.0 (0-10000)
-uint16_t system_min_design_voltage_dV = 2500;       //V+1,  0-1000.0 (0-10000)
 uint16_t system_scaled_SOC_pptt = 5000;             //SOC%, 0-100.00 (0-10000)
 uint16_t system_real_SOC_pptt = 5000;               //SOC%, 0-100.00 (0-10000)
 uint32_t system_max_discharge_power_W = 0;          //Watts, 0 to 200000
