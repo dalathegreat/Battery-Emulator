@@ -95,9 +95,8 @@ void handle_update_data_modbusp301_byd() {
   if (datalayer.battery.status.remaining_capacity_Wh > 60000) {
     battery_data[5] = 60000;
   } else {
-    battery_data[5] =
-        datalayer.battery.status
-            .remaining_capacity_W;  // Id.: p306 Value.: 13260 Scaled value.: 13,26kWh Comment.: remaining cap: 7.68kWh
+    // Id.: p306 Value.: 13260 Scaled value.: 13,26kWh Comment.: remaining cap: 7.68kWh
+    battery_data[5] = datalayer.battery.status.remaining_capacity_Wh;
   }
   if (system_max_discharge_power_W > 30000) {
     battery_data[6] = 30000;
