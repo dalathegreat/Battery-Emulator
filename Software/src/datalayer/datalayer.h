@@ -30,7 +30,6 @@ typedef struct {
   /** int32_t */
   int32_t active_power_W;
 
-
   /** uint32_t */
   uint32_t remaining_capacity_Wh;
   uint32_t max_discharge_power_W = 0;
@@ -39,7 +38,7 @@ typedef struct {
   /** int16_t */
 
   /** uint16_t */
-  uint16_t soh_pptt = 9900;                         //SOH%, 0-100.00 (0-10000)
+  uint16_t soh_pptt = 9900;  //SOH%, 0-100.00 (0-10000)
   uint16_t cell_max_voltage_mV;
   uint16_t cell_min_voltage_mV;
   uint16_t cell_voltages_mV[MAX_AMOUNT_CELLS];

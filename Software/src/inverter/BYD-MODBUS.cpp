@@ -39,7 +39,8 @@ void handle_update_data_modbusp201_byd() {
     system_data[2] = 60000;
   } else {
     system_data[2] =
-        (datalayer.battery.info.total_capacity_Wh);  // Id.: p203 Value.: 32000 Scaled value.: 32kWh Comment.: Capacity rated, maximum value is 60000 (60kWh)
+        (datalayer.battery.info
+             .total_capacity_Wh);  // Id.: p203 Value.: 32000 Scaled value.: 32kWh Comment.: Capacity rated, maximum value is 60000 (60kWh)
   }
   system_data[3] = MAX_POWER;  // Id.: p204 Value.: 32000 Scaled value.: 32kWh Comment.: Nominal capacity
   system_data[4] =
@@ -88,13 +89,15 @@ void handle_update_data_modbusp301_byd() {
   if (datalayer.battery.info.total_capacity_Wh > 60000) {
     battery_data[4] = 60000;
   } else {
-    battery_data[4] = datalayer.battery.info.total_capacity_Wh;  // Id.: p305 Value.: 32000 Scaled value.: 32kWh Comment.: tot cap:
+    battery_data[4] =
+        datalayer.battery.info.total_capacity_Wh;  // Id.: p305 Value.: 32000 Scaled value.: 32kWh Comment.: tot cap:
   }
   if (datalayer.battery.status.remaining_capacity_W > 60000) {
     battery_data[5] = 60000;
   } else {
     battery_data[5] =
-        datalayer.battery.status.remaining_capacity_W;  // Id.: p306 Value.: 13260 Scaled value.: 13,26kWh Comment.: remaining cap: 7.68kWh
+        datalayer.battery.status
+            .remaining_capacity_W;  // Id.: p306 Value.: 13260 Scaled value.: 13,26kWh Comment.: remaining cap: 7.68kWh
   }
   if (system_max_discharge_power_W > 30000) {
     battery_data[6] = 30000;
@@ -129,7 +132,7 @@ void handle_update_data_modbusp301_byd() {
   battery_data[20] = 13;  // Id.: p321 Value.: 0 Scaled value.: 0 Comment.: counter discharge hi
   battery_data[21] =
       52064;  // Id.: p322 Value.: 0 Scaled value.: 0 Comment.: counter discharge lo....65536*92+7448 = 6036760 Wh?
-  battery_data[22] = 230;              // Id.: p323 Value.: 0 Scaled value.: 0 Comment.: device temperature (23 degrees)
+  battery_data[22] = 230;  // Id.: p323 Value.: 0 Scaled value.: 0 Comment.: device temperature (23 degrees)
   battery_data[23] = datalayer.battery.status.soh_pptt;  // Id.: p324 Value.: 9900 Scaled value.: 99% Comment.: SOH
   static uint16_t i = 300;
   memcpy(&mbPV[i], battery_data, sizeof(battery_data));
