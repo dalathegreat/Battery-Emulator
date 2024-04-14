@@ -81,7 +81,7 @@ static void publish_cell_voltages(void) {
 
     JsonArray cell_voltages = doc["cell_voltages"].to<JsonArray>();
     for (size_t i = 0; i < system_number_of_cells; ++i) {
-      cell_voltages.add(((float)system_cellvoltages_mV[i]) / 1000.0);
+      cell_voltages.add(((float)datalayer.battery.status.cell_voltages_mV[i]) / 1000.0);
     }
 
     serializeJson(doc, mqtt_msg, sizeof(mqtt_msg));

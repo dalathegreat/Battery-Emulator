@@ -229,7 +229,7 @@ void update_values_battery() { /* This function maps all the values fetched via 
 
   //Map all cell voltages to the global array
   for (int i = 0; i < 96; ++i) {
-    system_cellvoltages_mV[i] = cell_voltages[i];
+    datalayer.battery.status.cell_voltages_mV[i] = cell_voltages[i];
   }
 
   /*Extra safety functions below*/

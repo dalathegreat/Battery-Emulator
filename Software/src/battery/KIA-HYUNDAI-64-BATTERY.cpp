@@ -205,11 +205,11 @@ void update_values_battery() {  //This function maps all the values fetched via 
   //Map all cell voltages to the global array
   for (int i = 0; i < 98; ++i) {
     if (cellvoltages_mv[i] > 1000) {
-      system_cellvoltages_mV[i] = cellvoltages_mv[i];
+      datalayer.battery.status.cell_voltages_mV[i] = cellvoltages_mv[i];
     }
   }
   // Check if we have 98S or 90S battery
-  if (system_cellvoltages_mV[97] > 0) {
+  if (datalayer.battery.status.cell_voltages_mV[97] > 0) {
     system_number_of_cells = 98;
     datalayer.battery.info.max_design_voltage_dV = 4040;
     datalayer.battery.info.min_design_voltage_dV = 3100;

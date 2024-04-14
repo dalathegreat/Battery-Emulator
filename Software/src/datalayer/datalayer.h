@@ -13,9 +13,11 @@ typedef struct {
   uint32_t total_capacity_Wh;
 
   /** uint16_t */
-  uint16_t number_of_cells;
   uint16_t max_design_voltage_dV;
   uint16_t min_design_voltage_dV;
+
+  /** uint8_t */
+  uint8_t number_of_cells;
 
   /** Other */
   battery_chemistry_enum chemistry;
@@ -50,7 +52,7 @@ typedef struct {
   uint16_t cell_voltages_mV[MAX_AMOUNT_CELLS];
 
   /** Other */
-  bms_status_enum bms_status;
+  bms_status_enum bms_status = ACTIVE;
   ScaledSoc soc;
 } DATALAYER_BATTERY_STATUS_TYPE;
 

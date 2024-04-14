@@ -43,7 +43,7 @@ void update_values_battery() {  /* This function puts fake values onto the param
   datalayer.battery.status.max_charge_power_W = 5000;  // 5kW
 
   for (int i = 0; i < 97; ++i) {
-    system_cellvoltages_mV[i] = 3500 + i;
+    datalayer.battery.status.cell_voltages_mV[i] = 3500 + i;
   }
 
 /*Finally print out values to serial if configured to do so*/

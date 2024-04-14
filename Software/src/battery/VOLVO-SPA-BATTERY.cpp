@@ -113,7 +113,7 @@ void update_values_battery() {  //This function maps all the values fetched via 
 
   //Map all cell voltages to the global array
   for (int i = 0; i < 108; ++i) {
-    system_cellvoltages_mV[i] = cell_voltages[i];
+    datalayer.battery.status.cell_voltages_mV[i] = cell_voltages[i];
   }
 
   /* Check if the BMS is still sending CAN messages. If we go 60s without messages we raise an error*/

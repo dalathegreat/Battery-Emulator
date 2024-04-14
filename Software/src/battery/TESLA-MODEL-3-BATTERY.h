@@ -20,13 +20,12 @@
 #define MIN_PACK_VOLTAGE_LFP 2968   // V+1, if pack voltage goes below this, discharge stops
 
 // These parameters need to be mapped for the inverter
-extern uint16_t system_scaled_SOC_pptt;                    //SOC%, 0-100.00 (0-10000)
-extern uint16_t system_real_SOC_pptt;                      //SOC%, 0-100.00 (0-10000)
-extern uint16_t system_cellvoltages_mV[MAX_AMOUNT_CELLS];  //Array with all cell voltages in mV
-extern uint8_t system_number_of_cells;                     //Total number of cell voltages, set by each battery
-extern bool batteryAllowsContactorClosing;                 //Bool, 1=true, 0=false
-extern bool inverterAllowsContactorClosing;                //Bool, 1=true, 0=false
-extern bool system_LFP_Chemistry;                          //Bool, 1=true, 0=false
+extern uint16_t system_scaled_SOC_pptt;      //SOC%, 0-100.00 (0-10000)
+extern uint16_t system_real_SOC_pptt;        //SOC%, 0-100.00 (0-10000)
+extern uint8_t system_number_of_cells;       //Total number of cell voltages, set by each battery
+extern bool batteryAllowsContactorClosing;   //Bool, 1=true, 0=false
+extern bool inverterAllowsContactorClosing;  //Bool, 1=true, 0=false
+extern bool system_LFP_Chemistry;            //Bool, 1=true, 0=false
 
 void printFaultCodesIfActive();
 void printDebugIfActive(uint8_t symbol, const char* message);

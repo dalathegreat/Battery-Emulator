@@ -478,11 +478,11 @@ void receive_can_battery(CAN_frame_t rx_frame) {
       {
         // Example, frame3=0x89,frame2=0x1D = 35101 / 10 = 3510mV
         volts = ((rx_frame.data.u8[3] << 8) | rx_frame.data.u8[2]) / 10;
-        system_cellvoltages_mV[mux * 3] = volts;
+        datalayer.battery.status.cell_voltages_mV[mux * 3] = volts;
         volts = ((rx_frame.data.u8[5] << 8) | rx_frame.data.u8[4]) / 10;
-        system_cellvoltages_mV[1 + mux * 3] = volts;
+        datalayer.battery.status.cell_voltages_mV[1 + mux * 3] = volts;
         volts = ((rx_frame.data.u8[7] << 8) | rx_frame.data.u8[6]) / 10;
-        system_cellvoltages_mV[2 + mux * 3] = volts;
+        datalayer.battery.status.cell_voltages_mV[2 + mux * 3] = volts;
 
         // Track the max value of mux. If we've seen two 0 values for mux, we've probably gathered all
         // cell voltages. Then, 2 + mux_max * 3 + 1 is the number of cell voltages.

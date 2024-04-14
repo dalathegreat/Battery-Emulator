@@ -446,8 +446,8 @@ void update_values_battery() {  //This function maps all the values fetched via 
 
   datalayer.battery.status.temperature_max_dC = battery_temperature_max * 10;  // Add a decimal
 
-  datalayer.battery.status.cell_min_voltage_mV = system_cellvoltages_mV[0];
-  datalayer.battery.status.cell_max_voltage_mV = system_cellvoltages_mV[1];
+  datalayer.battery.status.cell_min_voltage_mV = datalayer.battery.status.cell_voltages_mV[0];
+  datalayer.battery.status.cell_max_voltage_mV = datalayer.battery.status.cell_voltages_mV[1];
 
   /* Check if the BMS is still sending CAN messages. If we go 60s without messages we raise an error*/
   if (!CANstillAlive) {
@@ -570,13 +570,13 @@ void receive_can_battery(CAN_frame_t rx_frame) {
     case 0x426:  // TODO: Figure out how to trigger sending of this. Does the SME require some CAN command?
       battery_cellvoltage_mux = rx_frame.data.u8[0];
       if (battery_cellvoltage_mux == 0) {
-        system_cellvoltages_mV[0] = ((rx_frame.data.u8[1] * 10) + 1800);
-        system_cellvoltages_mV[1] = ((rx_frame.data.u8[2] * 10) + 1800);
-        system_cellvoltages_mV[2] = ((rx_frame.data.u8[3] * 10) + 1800);
-        system_cellvoltages_mV[3] = ((rx_frame.data.u8[4] * 10) + 1800);
-        system_cellvoltages_mV[4] = ((rx_frame.data.u8[5] * 10) + 1800);
-        system_cellvoltages_mV[5] = ((rx_frame.data.u8[6] * 10) + 1800);
-        system_cellvoltages_mV[5] = ((rx_frame.data.u8[7] * 10) + 1800);
+        datalayer.battery.status.cell_voltages_mV[0] = ((rx_frame.data.u8[1] * 10) + 1800);
+        datalayer.battery.status.cell_voltages_mV[1] = ((rx_frame.data.u8[2] * 10) + 1800);
+        datalayer.battery.status.cell_voltages_mV[2] = ((rx_frame.data.u8[3] * 10) + 1800);
+        datalayer.battery.status.cell_voltages_mV[3] = ((rx_frame.data.u8[4] * 10) + 1800);
+        datalayer.battery.status.cell_voltages_mV[4] = ((rx_frame.data.u8[5] * 10) + 1800);
+        datalayer.battery.status.cell_voltages_mV[5] = ((rx_frame.data.u8[6] * 10) + 1800);
+        datalayer.battery.status.cell_voltages_mV[5] = ((rx_frame.data.u8[7] * 10) + 1800);
       }
       break;
     case 0x430:  //BMS [1s] - Charging status of high-voltage battery - 2
@@ -623,13 +623,13 @@ void receive_can_battery(CAN_frame_t rx_frame) {
         switch (cmdState) {
           case CELL_VOLTAGE:
             if (next_data >= 4) {
-              system_cellvoltages_mV[0] = (message_data[0] << 8 | message_data[1]);
-              system_cellvoltages_mV[2] = (message_data[2] << 8 | message_data[3]);
+              datalayer.battery.status.cell_voltages_mV[0] = (message_data[0] << 8 | message_data[1]);
+              datalayer.battery.status.cell_voltages_mV[2] = (message_data[2] << 8 | message_data[3]);
             }
             break;
           case CELL_VOLTAGE_AVG:
             if (next_data >= 30) {
-              system_cellvoltages_mV[1] = (message_data[10] << 8 | message_data[11]) / 10;
+              datalayer.battery.status.cell_voltages_mV[1] = (message_data[10] << 8 | message_data[11]) / 10;
               battery_capacity_cah = (message_data[4] << 8 | message_data[5]);
             }
             break;

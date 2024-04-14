@@ -3,8 +3,6 @@
 
 #include "../../include.h"
 
-extern uint16_t system_cellvoltages_mV[MAX_AMOUNT_CELLS];  //Array with all cell voltages in mV
-
 /**
  * @brief Replaces placeholder with content section in web page
  *
