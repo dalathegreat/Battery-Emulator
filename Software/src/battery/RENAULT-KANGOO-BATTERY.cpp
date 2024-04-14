@@ -65,7 +65,7 @@ void update_values_battery() {  //This function maps all the values fetched via 
 
   datalayer.battery.info.total_capacity_Wh = BATTERY_WH_MAX;  //Hardcoded to header value
 
-  datalayer.battery.status.remaining_capacity_W =
+  datalayer.battery.status.remaining_capacity_Wh =
       (uint16_t)((system_real_SOC_pptt / 10000) * datalayer.battery.info.total_capacity_Wh);
 
   LB_Discharge_Power_Limit_Watts = (LB_Discharge_Power_Limit * 500);  //Convert value fetched from battery to watts

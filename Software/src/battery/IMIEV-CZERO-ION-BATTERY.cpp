@@ -48,7 +48,7 @@ void update_values_battery() {  //This function maps all the values fetched via 
 
   datalayer.battery.info.total_capacity_Wh = BATTERY_WH_MAX;  //Hardcoded to header value
 
-  datalayer.battery.status.remaining_capacity_W =
+  datalayer.battery.status.remaining_capacity_Wh =
       (uint16_t)((system_real_SOC_pptt / 10000) * datalayer.battery.info.total_capacity_Wh);
 
   //We do not know if the max charge power is sent by the battery. So we estimate the value based on SOC%
@@ -151,7 +151,7 @@ void update_values_battery() {  //This function maps all the values fetched via 
   Serial.print(" Capacity WH full (0-60000): ");
   Serial.print(datalayer.battery.info.total_capacity_Wh);
   Serial.print(" Capacity WH remain (0-60000): ");
-  Serial.print(datalayer.battery.status.remaining_capacity_W);
+  Serial.print(datalayer.battery.status.remaining_capacity_Wh);
   Serial.print(" Max charge power W (0-10000): ");
   Serial.print(system_max_charge_power_W);
   Serial.print(" Max discharge power W (0-10000): ");

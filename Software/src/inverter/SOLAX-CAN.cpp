@@ -165,10 +165,10 @@ void update_values_can_solax() {  //This function maps all the values fetched fr
     capped_capacity_Wh = datalayer.battery.info.total_capacity_Wh;
   }
   // Batteries might be larger than uint16_t value can take
-  if (datalayer.battery.status.remaining_capacity_W > 65000) {
+  if (datalayer.battery.status.remaining_capacity_Wh > 65000) {
     capped_remaining_capacity_Wh = 65000;
   } else {
-    capped_remaining_capacity_Wh = datalayer.battery.status.remaining_capacity_W;
+    capped_remaining_capacity_Wh = datalayer.battery.status.remaining_capacity_Wh;
   }
 
   //Put the values into the CAN messages

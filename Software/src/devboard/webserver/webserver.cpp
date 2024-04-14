@@ -524,7 +524,7 @@ String processor(const String& var) {
     content += "<h4 style='color: white;'>Current: " + String(currentFloat, 1) + " A</h4>";
     content += formatPowerValue("Power", powerFloat, "", 1);
     content += formatPowerValue("Total capacity", datalayer.battery.info.total_capacity_Wh, "h", 0);
-    content += formatPowerValue("Remaining capacity", datalayer.battery.status.remaining_capacity_W, "h", 1);
+    content += formatPowerValue("Remaining capacity", datalayer.battery.status.remaining_capacity_Wh, "h", 1);
     content += formatPowerValue("Max discharge power", system_max_discharge_power_W, "", 1);
     content += formatPowerValue("Max charge power", system_max_charge_power_W, "", 1);
     content += "<h4>Cell max: " + String(system_cell_max_voltage_mV) + " mV</h4>";

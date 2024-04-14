@@ -173,7 +173,7 @@ void update_values_battery() { /* This function maps all the values fetched via 
 
   datalayer.battery.info.total_capacity_Wh = (LB_Max_GIDS * WH_PER_GID);
 
-  datalayer.battery.status.remaining_capacity_W = LB_Wh_Remaining;
+  datalayer.battery.status.remaining_capacity_Wh = LB_Wh_Remaining;
 
   LB_Power =
       ((LB_Total_Voltage2 * LB_Current2) / 4);  //P = U * I (Both values are 0.5 per bit so the math is non-intuitive)

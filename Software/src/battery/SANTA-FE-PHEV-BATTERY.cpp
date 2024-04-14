@@ -65,7 +65,7 @@ void update_values_battery() {  //This function maps all the values fetched via 
 
   datalayer.battery.info.total_capacity_Wh = BATTERY_WH_MAX;
 
-  datalayer.battery.status.remaining_capacity_W;
+  datalayer.battery.status.remaining_capacity_Wh;
 
   system_max_discharge_power_W;
 

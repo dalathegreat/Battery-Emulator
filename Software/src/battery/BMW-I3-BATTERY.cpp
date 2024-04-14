@@ -423,7 +423,7 @@ void update_values_battery() {  //This function maps all the values fetched via 
 
   datalayer.battery.info.total_capacity_Wh = BATTERY_WH_MAX;
 
-  datalayer.battery.status.remaining_capacity_W = (battery_energy_content_maximum_kWh * 1000);  // Convert kWh to Wh
+  datalayer.battery.status.remaining_capacity_Wh = (battery_energy_content_maximum_kWh * 1000);  // Convert kWh to Wh
 
   datalayer.battery.status.soh_pptt = battery_soh * 100;
 
@@ -473,7 +473,7 @@ void update_values_battery() {  //This function maps all the values fetched via 
   Serial.print(" Wh when full: ");
   Serial.print(datalayer.battery.info.total_capacity_Wh);
   Serial.print(" Remaining Wh: ");
-  Serial.print(datalayer.battery.status.remaining_capacity_W);
+  Serial.print(datalayer.battery.status.remaining_capacity_Wh);
   Serial.print(" Max charge power: ");
   Serial.print(system_max_charge_power_W);
   Serial.print(" Max discharge power: ");

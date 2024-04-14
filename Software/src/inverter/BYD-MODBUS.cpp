@@ -92,7 +92,7 @@ void handle_update_data_modbusp301_byd() {
     battery_data[4] =
         datalayer.battery.info.total_capacity_Wh;  // Id.: p305 Value.: 32000 Scaled value.: 32kWh Comment.: tot cap:
   }
-  if (datalayer.battery.status.remaining_capacity_W > 60000) {
+  if (datalayer.battery.status.remaining_capacity_Wh > 60000) {
     battery_data[5] = 60000;
   } else {
     battery_data[5] =

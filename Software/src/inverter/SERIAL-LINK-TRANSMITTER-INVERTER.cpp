@@ -133,10 +133,11 @@ void manageSerialLinkTransmitter() {
       dataLinkTransmit.updateData(1, datalayer.battery.status.soh_pptt);
       dataLinkTransmit.updateData(2, system_battery_voltage_dV);
       dataLinkTransmit.updateData(3, system_battery_current_dA);
-      dataLinkTransmit.updateData(4, datalayer.battery.info.total_capacity_Wh / 10);       //u32, remove .0 to fit 16bit
-      dataLinkTransmit.updateData(5, datalayer.battery.status.remaining_capacity_W / 10);  //u32, remove .0 to fit 16bit
-      dataLinkTransmit.updateData(6, system_max_discharge_power_W / 10);                   //u32, remove .0 to fit 16bit
-      dataLinkTransmit.updateData(7, system_max_charge_power_W / 10);                      //u32, remove .0 to fit 16bit
+      dataLinkTransmit.updateData(4, datalayer.battery.info.total_capacity_Wh / 10);  //u32, remove .0 to fit 16bit
+      dataLinkTransmit.updateData(5,
+                                  datalayer.battery.status.remaining_capacity_Wh / 10);  //u32, remove .0 to fit 16bit
+      dataLinkTransmit.updateData(6, system_max_discharge_power_W / 10);                 //u32, remove .0 to fit 16bit
+      dataLinkTransmit.updateData(7, system_max_charge_power_W / 10);                    //u32, remove .0 to fit 16bit
       dataLinkTransmit.updateData(8, system_bms_status);
       dataLinkTransmit.updateData(9, datalayer.battery.status.active_power_W / 10);  //u32, remove .0 to fit 16bit
       dataLinkTransmit.updateData(10, system_temperature_min_dC);
@@ -162,7 +163,7 @@ void printSendingValues() {
   Serial.print(" Capacity: ");
   Serial.print(datalayer.battery.info.total_capacity_Wh);
   Serial.print(" Remain cap: ");
-  Serial.print(datalayer.battery.status.remaining_capacity_W);
+  Serial.print(datalayer.battery.status.remaining_capacity_Wh);
   Serial.print(" Max discharge W: ");
   Serial.print(system_max_discharge_power_W);
   Serial.print(" Max charge W: ");

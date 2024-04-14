@@ -98,7 +98,7 @@ void update_values_battery() {  //This function maps all the values fetched via 
   system_battery_voltage_dV = BATT_U * 10;
   system_battery_current_dA = BATT_I * 10;
   datalayer.battery.info.total_capacity_Wh = BATTERY_WH_MAX;
-  datalayer.battery.status.remaining_capacity_W =
+  datalayer.battery.status.remaining_capacity_Wh =
       remaining_capacity;  // Will wrap! Known limitation due to uint16_t size.
 
   //system_max_discharge_power_W = HvBattPwrLimDchaSoft * 1000;	// Use power limit reported from BMS, not trusted ATM
