@@ -46,9 +46,9 @@ void update_values_battery() {  //This function maps all the values fetched via 
 
   system_battery_current_dA = (BMU_Current * 10);  //Todo, scaling?
 
-  system_capacity_Wh = BATTERY_WH_MAX;  //Hardcoded to header value
+  datalayer.battery.info.total_capacity_Wh = BATTERY_WH_MAX;  //Hardcoded to header value
 
-  system_remaining_capacity_Wh = (uint16_t)((system_real_SOC_pptt / 10000) * system_capacity_Wh);
+  datalayer.battery.status.remaining_capacity_W = (uint16_t)((system_real_SOC_pptt / 10000) * datalayer.battery.info.total_capacity_Wh);
 
   //We do not know if the max charge power is sent by the battery. So we estimate the value based on SOC%
   if (system_scaled_SOC_pptt == 10000) {  //100.00%
@@ -148,9 +148,9 @@ void update_values_battery() {  //This function maps all the values fetched via 
   Serial.print(" Voltage (0-400.0): ");
   Serial.print(system_battery_voltage_dV);
   Serial.print(" Capacity WH full (0-60000): ");
-  Serial.print(system_capacity_Wh);
+  Serial.print(datalayer.battery.info.total_capacity_Wh);
   Serial.print(" Capacity WH remain (0-60000): ");
-  Serial.print(system_remaining_capacity_Wh);
+  Serial.print(datalayer.battery.status.remaining_capacity_W);
   Serial.print(" Max charge power W (0-10000): ");
   Serial.print(system_max_charge_power_W);
   Serial.print(" Max discharge power W (0-10000): ");

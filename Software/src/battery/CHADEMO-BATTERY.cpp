@@ -98,10 +98,10 @@ void update_values_battery() {  //This function maps all the values fetched via 
 
   system_battery_voltage_dV = TargetBatteryVoltage;  //TODO: scaling?
 
-  system_capacity_Wh = ((RatedBatteryCapacity / 0.11) *
+  datalayer.battery.info.total_capacity_Wh = ((RatedBatteryCapacity / 0.11) *
                         1000);  //(Added in CHAdeMO v1.0.1), maybe handle hardcoded on lower protocol version?
 
-  system_remaining_capacity_Wh = (system_real_SOC_pptt / 100) * system_capacity_Wh;
+  datalayer.battery.status.remaining_capacity_W = (system_real_SOC_pptt / 100) * datalayer.battery.info.total_capacity_Wh;
 
   /* Check if the Vehicle is still sending CAN messages. If we go 60s without messages we raise an error*/
   if (!CANstillAlive) {

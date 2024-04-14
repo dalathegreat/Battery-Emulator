@@ -183,9 +183,9 @@ void update_values_can_sma_tripower() {  //This function maps all the values fet
   temperature_average = ((system_temperature_max_dC + system_temperature_min_dC) / 2);
 
   ampere_hours_remaining =
-      ((system_remaining_capacity_Wh / system_battery_voltage_dV) * 100);  //(WH[10000] * V+1[3600])*100 = 270 (27.0Ah)
+      ((datalayer.battery.status.remaining_capacity_W / system_battery_voltage_dV) * 100);  //(WH[10000] * V+1[3600])*100 = 270 (27.0Ah)
   ampere_hours_max =
-      ((system_capacity_Wh / system_battery_voltage_dV) * 100);  //(WH[10000] * V+1[3600])*100 = 270 (27.0Ah)
+      ((datalayer.battery.info.total_capacity_Wh / system_battery_voltage_dV) * 100);  //(WH[10000] * V+1[3600])*100 = 270 (27.0Ah)
 
   batteryState = OPERATE;
   inverterControlFlags = INVERTER_STAY_ON;

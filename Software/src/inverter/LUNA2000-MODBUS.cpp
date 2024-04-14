@@ -29,9 +29,9 @@ void handle_update_data_modbus39500() {
   // Store the data into the array
   static uint16_t system_data[26];
   system_data[0] = 0;
-  system_data[1] = system_capacity_Wh;  //Capacity? 5000 with 5kWh battery
+  system_data[1] = datalayer.battery.info.total_capacity_Wh;  //Capacity? 5000 with 5kWh battery
   system_data[2] = 0;
-  system_data[3] = system_capacity_Wh;  //Capacity? 5000 with 5kWh battery
+  system_data[3] = datalayer.battery.info.total_capacity_Wh;  //Capacity? 5000 with 5kWh battery
   system_data[4] = 0;
   system_data[5] = 2500;  //???
   system_data[6] = 0;

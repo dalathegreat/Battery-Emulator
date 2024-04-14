@@ -155,9 +155,9 @@ void update_values_battery() {  //This function maps all the values fetched via 
 
   system_battery_current_dA = -batteryAmps;  //value is *10 (150 = 15.0) , invert the sign
 
-  system_capacity_Wh = BATTERY_WH_MAX;
+  datalayer.battery.info.total_capacity_Wh = BATTERY_WH_MAX;
 
-  system_remaining_capacity_Wh = static_cast<int>((static_cast<double>(system_real_SOC_pptt) / 10000) * BATTERY_WH_MAX);
+  datalayer.battery.status.remaining_capacity_W = static_cast<int>((static_cast<double>(system_real_SOC_pptt) / 10000) * BATTERY_WH_MAX);
 
   //system_max_charge_power_W = (uint16_t)allowedChargePower * 10;  //From kW*100 to Watts
   //The allowed charge power is not available. We estimate this value

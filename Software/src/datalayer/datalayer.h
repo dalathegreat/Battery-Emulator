@@ -10,7 +10,7 @@ typedef struct {
   float min_design_voltage_V;
 
   /** uint32_t */
-  uint32_t total_capacity;
+  uint32_t total_capacity_Wh;
 
   /** uint16_t */
   uint16_t number_of_cells;
@@ -32,7 +32,7 @@ typedef struct {
 
 
   /** uint32_t */
-  uint32_t remaining_capacity;
+  uint32_t remaining_capacity_Wh;
   uint32_t max_discharge_power_W = 0;
   uint32_t max_charge_power_W = 0;
 
@@ -50,7 +50,7 @@ typedef struct {
 } DATALAYER_BATTERY_STATUS_TYPE;
 
 typedef struct {
-  DATALAYER_BATTERY_DATA_TYPE data;
+  DATALAYER_BATTERY_DATA_TYPE info;
   DATALAYER_BATTERY_STATUS_TYPE status;
 } DATALAYER_BATTERY_TYPE;
 

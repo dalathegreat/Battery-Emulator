@@ -9,8 +9,6 @@
 
 extern ACAN2515 can;
 
-extern uint32_t system_capacity_Wh;                        //Wh,  0-500000Wh
-extern uint32_t system_remaining_capacity_Wh;              //Wh,  0-500000Wh
 extern int16_t system_temperature_min_dC;                  //C+1, -50.0 - 50.0
 extern int16_t system_temperature_max_dC;                  //C+1, -50.0 - 50.0
 extern int16_t system_battery_current_dA;                  //A+1, -1000 - 1000

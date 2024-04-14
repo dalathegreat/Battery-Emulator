@@ -24,9 +24,9 @@ void update_values_battery() {  /* This function puts fake values onto the param
 
   system_battery_current_dA = 0;  // 0 A
 
-  system_capacity_Wh = 30000;  // 30kWh
+  datalayer.battery.info.total_capacity_Wh = 30000;  // 30kWh
 
-  system_remaining_capacity_Wh = 15000;  // 15kWh
+  datalayer.battery.status.remaining_capacity_Wh = 15000;  // 15kWh
 
   system_cell_max_voltage_mV = 3596;
 

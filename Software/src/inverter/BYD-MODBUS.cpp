@@ -35,11 +35,11 @@ void handle_update_data_modbusp201_byd() {
   static uint16_t system_data[13];
   system_data[0] = 0;  // Id.: p201 Value.: 0 Scaled value.: 0 Comment.: Always 0
   system_data[1] = 0;  // Id.: p202 Value.: 0 Scaled value.: 0 Comment.: Always 0
-  if (system_capacity_Wh > 60000) {
+  if (datalayer.battery.info.total_capacity_Wh > 60000) {
     system_data[2] = 60000;
   } else {
     system_data[2] =
-        (system_capacity_Wh);  // Id.: p203 Value.: 32000 Scaled value.: 32kWh Comment.: Capacity rated, maximum value is 60000 (60kWh)
+        (datalayer.battery.info.total_capacity_Wh);  // Id.: p203 Value.: 32000 Scaled value.: 32kWh Comment.: Capacity rated, maximum value is 60000 (60kWh)
   }
   system_data[3] = MAX_POWER;  // Id.: p204 Value.: 32000 Scaled value.: 32kWh Comment.: Nominal capacity
   system_data[4] =
@@ -85,16 +85,16 @@ void handle_update_data_modbusp301_byd() {
   battery_data[2] = 128 + bms_char_dis_status;  // Id.: p303 Value.: 130 Scaled value.: 130 Comment.: mode(*): normal
   battery_data[3] =
       system_scaled_SOC_pptt;  // Id.: p304 Value.: 1700 Scaled value.: 50% Comment.: SOC: (50% would equal 5000)
-  if (system_capacity_Wh > 60000) {
+  if (datalayer.battery.info.total_capacity_Wh > 60000) {
     battery_data[4] = 60000;
   } else {
-    battery_data[4] = system_capacity_Wh;  // Id.: p305 Value.: 32000 Scaled value.: 32kWh Comment.: tot cap:
+    battery_data[4] = datalayer.battery.info.total_capacity_Wh;  // Id.: p305 Value.: 32000 Scaled value.: 32kWh Comment.: tot cap:
   }
-  if (system_remaining_capacity_Wh > 60000) {
+  if (datalayer.battery.status.remaining_capacity_W > 60000) {
     battery_data[5] = 60000;
   } else {
     battery_data[5] =
-        system_remaining_capacity_Wh;  // Id.: p306 Value.: 13260 Scaled value.: 13,26kWh Comment.: remaining cap: 7.68kWh
+        datalayer.battery.status.remaining_capacity_W;  // Id.: p306 Value.: 13260 Scaled value.: 13,26kWh Comment.: remaining cap: 7.68kWh
   }
   if (system_max_discharge_power_W > 30000) {
     battery_data[6] = 30000;
