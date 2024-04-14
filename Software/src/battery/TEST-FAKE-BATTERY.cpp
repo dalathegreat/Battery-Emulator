@@ -34,9 +34,9 @@ void update_values_battery() {  /* This function puts fake values onto the param
 
   datalayer.battery.status.active_power_W = 0;  // 0W
 
-  system_temperature_min_dC = 50;  // 5.0*C
+  datalayer.battery.status.temperature_min_dC = 50;  // 5.0*C
 
-  system_temperature_max_dC = 60;  // 6.0*C
+  datalayer.battery.status.temperature_max_dC = 60;  // 6.0*C
 
   system_max_discharge_power_W = 5000;  // 5kW
 
@@ -54,8 +54,8 @@ void update_values_battery() {  /* This function puts fake values onto the param
   print_units(", Voltage: ", (system_battery_voltage_dV * 0.1), "V ");
   print_units(", Max discharge power: ", system_max_discharge_power_W, "W ");
   print_units(", Max charge power: ", system_max_charge_power_W, "W ");
-  print_units(", Max temp: ", (system_temperature_max_dC * 0.1), "°C ");
-  print_units(", Min temp: ", (system_temperature_min_dC * 0.1), "°C ");
+  print_units(", Max temp: ", (datalayer.battery.status.temperature_max_dC * 0.1), "°C ");
+  print_units(", Min temp: ", (datalayer.battery.status.temperature_min_dC * 0.1), "°C ");
   print_units(", Max cell voltage: ", system_cell_max_voltage_mV, "mV ");
   print_units(", Min cell voltage: ", system_cell_min_voltage_mV, "mV ");
   Serial.println("");

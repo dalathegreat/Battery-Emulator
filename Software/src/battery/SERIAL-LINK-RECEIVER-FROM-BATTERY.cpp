@@ -42,8 +42,8 @@ void __getData() {
   uint16_t _system_bms_status = (uint16_t)dataLinkReceive.getReceivedData(8);
   datalayer.battery.status.active_power_W =
       (uint32_t)(dataLinkReceive.getReceivedData(9) * 10);  //add back missing decimal
-  system_temperature_min_dC = (int16_t)dataLinkReceive.getReceivedData(10);
-  system_temperature_max_dC = (int16_t)dataLinkReceive.getReceivedData(11);
+  datalayer.battery.status.temperature_min_dC = (int16_t)dataLinkReceive.getReceivedData(10);
+  datalayer.battery.status.temperature_max_dC = (int16_t)dataLinkReceive.getReceivedData(11);
   system_cell_max_voltage_mV = (uint16_t)dataLinkReceive.getReceivedData(12);
   system_cell_min_voltage_mV = (uint16_t)dataLinkReceive.getReceivedData(13);
   system_LFP_Chemistry = (bool)dataLinkReceive.getReceivedData(14);
@@ -200,9 +200,9 @@ void update_values_serial_link() {
   Serial.print(" Power: ");
   Serial.print(datalayer.battery.status.active_power_W);
   Serial.print(" Temp min: ");
-  Serial.print(system_temperature_min_dC);
+  Serial.print(datalayer.battery.status.temperature_min_dC);
   Serial.print(" Temp max: ");
-  Serial.print(system_temperature_max_dC);
+  Serial.print(datalayer.battery.status.temperature_max_dC);
   Serial.print(" Cell max: ");
   Serial.print(system_cell_max_voltage_mV);
   Serial.print(" Cell min: ");

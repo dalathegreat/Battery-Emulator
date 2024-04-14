@@ -105,8 +105,8 @@ void update_values_battery() {  //This function maps all the values fetched via 
   system_max_discharge_power_W = 30000;
   system_max_charge_power_W = 30000;
   datalayer.battery.status.active_power_W = (BATT_U)*BATT_I;
-  system_temperature_min_dC = BATT_T_MIN;
-  system_temperature_max_dC = BATT_T_MAX;
+  datalayer.battery.status.temperature_min_dC = BATT_T_MIN;
+  datalayer.battery.status.temperature_max_dC = BATT_T_MAX;
 
   system_cell_max_voltage_mV = CELL_U_MAX * 10;  // Use min/max reported from BMS
   system_cell_min_voltage_mV = CELL_U_MIN * 10;

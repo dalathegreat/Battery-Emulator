@@ -61,8 +61,6 @@ ModbusServerRTU MBserver(Serial2, 2000);
 #endif
 
 // Common system parameters. Batteries map their values to these variables
-int16_t system_temperature_max_dC = 0;              //C+1, -50.0 - 50.0
-int16_t system_temperature_min_dC = 0;              //C+1, -50.0 - 50.0
 int16_t system_battery_current_dA = 0;              //A+1, -1000 - 1000
 uint16_t system_battery_voltage_dV = 3700;          //V+1,  0-1000.0 (0-10000)
 uint16_t system_max_design_voltage_dV = 5000;       //V+1,  0-1000.0 (0-10000)

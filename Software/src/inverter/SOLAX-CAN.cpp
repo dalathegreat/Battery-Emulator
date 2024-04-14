@@ -132,7 +132,7 @@ void update_values_can_solax() {  //This function maps all the values fetched fr
 #endif
   }
   //Calculate the required values
-  temperature_average = ((system_temperature_max_dC + system_temperature_min_dC) / 2);
+  temperature_average = ((datalayer.battery.status.temperature_max_dC + datalayer.battery.status.temperature_min_dC) / 2);
 
   //system_max_charge_power_W (30000W max)
   if (system_scaled_SOC_pptt > 9999)  //99.99%
@@ -193,10 +193,10 @@ void update_values_can_solax() {  //This function maps all the values fetched fr
   SOLAX_1873.data.u8[7] = ((capped_remaining_capacity_Wh / 100) >> 8);
 
   //BMS_CellData
-  SOLAX_1874.data.u8[0] = (int8_t)system_temperature_max_dC;
-  SOLAX_1874.data.u8[1] = (system_temperature_max_dC >> 8);
-  SOLAX_1874.data.u8[2] = (int8_t)system_temperature_min_dC;
-  SOLAX_1874.data.u8[3] = (system_temperature_min_dC >> 8);
+  SOLAX_1874.data.u8[0] = (int8_t)datalayer.battery.status.temperature_max_dC;
+  SOLAX_1874.data.u8[1] = (datalayer.battery.status.temperature_max_dC >> 8);
+  SOLAX_1874.data.u8[2] = (int8_t)datalayer.battery.status.temperature_min_dC;
+  SOLAX_1874.data.u8[3] = (datalayer.battery.status.temperature_min_dC >> 8);
   SOLAX_1874.data.u8[4] = (uint8_t)(system_cell_max_voltage_mV);
   SOLAX_1874.data.u8[5] = (system_cell_max_voltage_mV >> 8);
   SOLAX_1874.data.u8[6] = (uint8_t)(system_cell_min_voltage_mV);

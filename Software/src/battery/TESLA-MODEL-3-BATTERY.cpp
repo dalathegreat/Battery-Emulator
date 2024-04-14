@@ -223,9 +223,9 @@ void update_values_battery() {  //This function maps all the values fetched via 
   power = ((volts / 10) * amps);
   datalayer.battery.status.active_power_W = power;
 
-  system_temperature_min_dC = min_temp;
+  datalayer.battery.status.temperature_min_dC = min_temp;
 
-  system_temperature_max_dC = max_temp;
+  datalayer.battery.status.temperature_max_dC = max_temp;
 
   system_cell_max_voltage_mV = cell_max_v;
 
@@ -377,9 +377,9 @@ void update_values_battery() {  //This function maps all the values fetched via 
   Serial.print(", ");
   print_int_with_units(" Max charge power: ", system_max_charge_power_W, "W");
   Serial.println("");
-  print_int_with_units(" Max temperature: ", ((int16_t)system_temperature_min_dC * 0.1), "°C");
+  print_int_with_units(" Max temperature: ", ((int16_t)datalayer.battery.status.temperature_min_dC * 0.1), "°C");
   Serial.print(", ");
-  print_int_with_units(" Min temperature: ", ((int16_t)system_temperature_max_dC * 0.1), "°C");
+  print_int_with_units(" Min temperature: ", ((int16_t)datalayer.battery.status.temperature_max_dC * 0.1), "°C");
   Serial.println("");
 #endif
 }

@@ -442,9 +442,9 @@ void update_values_battery() {  //This function maps all the values fetched via 
 
   datalayer.battery.status.active_power_W = battery_power;
 
-  system_temperature_min_dC = battery_temperature_min * 10;  // Add a decimal
+  datalayer.battery.status.temperature_min_dC = battery_temperature_min * 10;  // Add a decimal
 
-  system_temperature_max_dC = battery_temperature_max * 10;  // Add a decimal
+  datalayer.battery.status.temperature_max_dC = battery_temperature_max * 10;  // Add a decimal
 
   system_cell_min_voltage_mV = system_cellvoltages_mV[0];
   system_cell_max_voltage_mV = system_cellvoltages_mV[1];
@@ -481,9 +481,9 @@ void update_values_battery() {  //This function maps all the values fetched via 
   Serial.print(" Active power: ");
   Serial.print(datalayer.battery.status.active_power_W);
   Serial.print(" Min temp: ");
-  Serial.print(system_temperature_min_dC * 0.1);
+  Serial.print(datalayer.battery.status.temperature_min_dC * 0.1);
   Serial.print(" Max temp: ");
-  Serial.print(system_temperature_max_dC * 0.1);
+  Serial.print(datalayer.battery.status.temperature_max_dC * 0.1);
 #endif
 }
 

@@ -73,9 +73,9 @@ void update_values_battery() {  //This function maps all the values fetched via 
 
   datalayer.battery.status.active_power_W;
 
-  system_temperature_min_dC;
+  datalayer.battery.status.temperature_min_dC;
 
-  system_temperature_max_dC;
+  datalayer.battery.status.temperature_max_dC;
 
   /* Check if the BMS is still sending CAN messages. If we go 60s without messages we raise an error*/
   if (!CANstillAlive) {

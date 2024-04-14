@@ -21,11 +21,11 @@ typedef struct {
 
 typedef struct {
   /** float - FUTURE */
-  float temperature_max_C;
-  float temperature_min_C;
+  // float temperature_max_C;
+  // float temperature_min_C;
   float current_A;
   float voltage_V;
-  float soh_pct = 99.0f;
+  // float soh_pct = 99.0f;
 
   /** int32_t */
   int32_t active_power_W;
@@ -36,6 +36,8 @@ typedef struct {
   uint32_t max_charge_power_W = 0;
 
   /** int16_t */
+  int16_t temperature_max_dC;
+  int16_t temperature_min_dC;
 
   /** uint16_t */
   uint16_t soh_pptt = 9900;  //SOH%, 0-100.00 (0-10000)

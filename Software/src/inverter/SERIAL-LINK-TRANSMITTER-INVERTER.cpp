@@ -140,8 +140,8 @@ void manageSerialLinkTransmitter() {
       dataLinkTransmit.updateData(7, system_max_charge_power_W / 10);                    //u32, remove .0 to fit 16bit
       dataLinkTransmit.updateData(8, system_bms_status);
       dataLinkTransmit.updateData(9, datalayer.battery.status.active_power_W / 10);  //u32, remove .0 to fit 16bit
-      dataLinkTransmit.updateData(10, system_temperature_min_dC);
-      dataLinkTransmit.updateData(11, system_temperature_max_dC);
+      dataLinkTransmit.updateData(10, datalayer.battery.status.temperature_min_dC);
+      dataLinkTransmit.updateData(11, datalayer.battery.status.temperature_max_dC);
       dataLinkTransmit.updateData(12, system_cell_max_voltage_mV);
       dataLinkTransmit.updateData(13, system_cell_min_voltage_mV);
       dataLinkTransmit.updateData(14, (int16_t)system_LFP_Chemistry);
@@ -173,9 +173,9 @@ void printSendingValues() {
   Serial.print(" Power: ");
   Serial.print(datalayer.battery.status.active_power_W);
   Serial.print(" Temp min: ");
-  Serial.print(system_temperature_min_dC);
+  Serial.print(datalayer.battery.status.temperature_min_dC);
   Serial.print(" Temp max: ");
-  Serial.print(system_temperature_max_dC);
+  Serial.print(datalayer.battery.status.temperature_max_dC);
   Serial.print(" Cell max: ");
   Serial.print(system_cell_max_voltage_mV);
   Serial.print(" Cell min: ");

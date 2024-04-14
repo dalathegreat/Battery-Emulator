@@ -59,9 +59,9 @@ void update_values_battery() {  //This function maps all the values fetched via 
 
   datalayer.battery.status.active_power_W;
 
-  system_temperature_min_dC;
+  datalayer.battery.status.temperature_min_dC;
 
-  system_temperature_max_dC;
+  datalayer.battery.status.temperature_max_dC;
 
   system_cell_min_voltage_mV;
 
@@ -102,9 +102,9 @@ void update_values_battery() {  //This function maps all the values fetched via 
   Serial.print(", Max charge power: ");
   Serial.print(system_max_charge_power_W);
   Serial.print(", Max temp: ");
-  Serial.print(system_temperature_max_dC);
+  Serial.print(datalayer.battery.status.temperature_max_dC);
   Serial.print(", Min temp: ");
-  Serial.print(system_temperature_min_dC);
+  Serial.print(datalayer.battery.status.temperature_min_dC);
   Serial.print(", BMS Status (3=OK): ");
   Serial.print(system_bms_status);
 

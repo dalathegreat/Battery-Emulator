@@ -41,8 +41,6 @@
 
 extern const char* version_number;  // The current software version, used for mqtt
 
-extern int16_t system_temperature_min_dC;                  //C+1, -50.0 - 50.0
-extern int16_t system_temperature_max_dC;                  //C+1, -50.0 - 50.0
 extern int16_t system_battery_current_dA;                  //A+1, -1000 - 1000
 extern uint16_t system_battery_voltage_dV;                 //V+1,  0-1000.0 (0-10000)
 extern uint16_t system_scaled_SOC_pptt;                    //SOC%, 0-100.00 (0-10000)

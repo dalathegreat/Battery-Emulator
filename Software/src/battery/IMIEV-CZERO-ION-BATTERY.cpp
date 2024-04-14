@@ -105,9 +105,9 @@ void update_values_battery() {  //This function maps all the values fetched via 
 
   system_cell_min_voltage_mV = (uint16_t)(min_volt_cel * 1000);
 
-  system_temperature_min_dC = (int16_t)(min_temp_cel * 10);
+  datalayer.battery.status.temperature_min_dC = (int16_t)(min_temp_cel * 10);
 
-  system_temperature_min_dC = (int16_t)(max_temp_cel * 10);
+  datalayer.battery.status.temperature_min_dC = (int16_t)(max_temp_cel * 10);
 
   /* Check if the BMS is still sending CAN messages. If we go 60s without messages we raise an error*/
   if (!CANstillAlive) {
@@ -157,9 +157,9 @@ void update_values_battery() {  //This function maps all the values fetched via 
   Serial.print(" Max discharge power W (0-10000): ");
   Serial.print(system_max_discharge_power_W);
   Serial.print(" Temp max ");
-  Serial.print(system_temperature_max_dC);
+  Serial.print(datalayer.battery.status.temperature_max_dC);
   Serial.print(" Temp min ");
-  Serial.print(system_temperature_min_dC);
+  Serial.print(datalayer.battery.status.temperature_min_dC);
   Serial.print(" Cell mV max ");
   Serial.print(system_cell_max_voltage_mV);
   Serial.print(" Cell mV min ");

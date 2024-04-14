@@ -130,9 +130,9 @@ void update_values_battery() {  //This function maps all the values fetched via 
   Serial.print("SOC% to Inverter: ");
   Serial.println(system_scaled_SOC_pptt);
   Serial.print("Temperature Min: ");
-  Serial.println(system_temperature_min_dC);
+  Serial.println(datalayer.battery.status.temperature_min_dC);
   Serial.print("Temperature Max: ");
-  Serial.println(system_temperature_max_dC);
+  Serial.println(datalayer.battery.status.temperature_max_dC);
 #endif
 }
 

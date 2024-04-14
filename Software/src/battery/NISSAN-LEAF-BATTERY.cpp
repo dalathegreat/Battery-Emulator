@@ -183,23 +183,23 @@ void update_values_battery() { /* This function maps all the values fetched via 
   //Update temperature readings. Method depends on which generation LEAF battery is used
   if (LEAF_Battery_Type == ZE0_BATTERY) {
     //Since we only have average value, send the minimum as -1.0 degrees below average
-    system_temperature_min_dC = ((LB_AverageTemperature * 10) - 10);  //Increase range from C to C+1, remove 1.0C
-    system_temperature_max_dC = (LB_AverageTemperature * 10);         //Increase range from C to C+1
+    datalayer.battery.status.temperature_min_dC = ((LB_AverageTemperature * 10) - 10);  //Increase range from C to C+1, remove 1.0C
+    datalayer.battery.status.temperature_max_dC = (LB_AverageTemperature * 10);         //Increase range from C to C+1
   } else if (LEAF_Battery_Type == AZE0_BATTERY) {
     //Use the value sent constantly via CAN in 5C0 (only available on AZE0)
-    system_temperature_min_dC = (LB_HistData_Temperature_MIN * 10);  //Increase range from C to C+1
-    system_temperature_max_dC = (LB_HistData_Temperature_MAX * 10);  //Increase range from C to C+1
+    datalayer.battery.status.temperature_min_dC = (LB_HistData_Temperature_MIN * 10);  //Increase range from C to C+1
+    datalayer.battery.status.temperature_max_dC = (LB_HistData_Temperature_MAX * 10);  //Increase range from C to C+1
   } else {  // ZE1 (TODO: Once the muxed value in 5C0 becomes known, switch to using that instead of this complicated polled value)
     if (temp_raw_min != 0)  //We have a polled value available
     {
       temp_polled_min = ((Temp_fromRAW_to_F(temp_raw_min) - 320) * 5) / 9;  //Convert from F to C
       temp_polled_max = ((Temp_fromRAW_to_F(temp_raw_max) - 320) * 5) / 9;  //Convert from F to C
       if (temp_polled_min < temp_polled_max) {  //Catch any edge cases from Temp_fromRAW_to_F function
-        system_temperature_min_dC = temp_polled_min;
-        system_temperature_max_dC = temp_polled_max;
+        datalayer.battery.status.temperature_min_dC = temp_polled_min;
+        datalayer.battery.status.temperature_max_dC = temp_polled_max;
       } else {
-        system_temperature_min_dC = temp_polled_max;
-        system_temperature_max_dC = temp_polled_min;
+        datalayer.battery.status.temperature_min_dC = temp_polled_max;
+        datalayer.battery.status.temperature_max_dC = temp_polled_min;
       }
     }
   }
@@ -355,8 +355,8 @@ void update_values_battery() { /* This function maps all the values fetched via 
   print_with_units(", Voltage: ", (system_battery_voltage_dV * 0.1), "V ");
   print_with_units(", Max discharge power: ", system_max_discharge_power_W, "W ");
   print_with_units(", Max charge power: ", system_max_charge_power_W, "W ");
-  print_with_units(", Max temp: ", (system_temperature_max_dC * 0.1), "°C ");
-  print_with_units(", Min temp: ", (system_temperature_min_dC * 0.1), "°C ");
+  print_with_units(", Max temp: ", (datalayer.battery.status.temperature_max_dC * 0.1), "°C ");
+  print_with_units(", Min temp: ", (datalayer.battery.status.temperature_min_dC * 0.1), "°C ");
   Serial.println("");
   Serial.print("BMS Status: ");
   if (system_bms_status == 3) {

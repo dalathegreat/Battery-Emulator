@@ -304,8 +304,8 @@ void update_values_can_sofar() {  //This function maps all the values fetched fr
   SOFAR_356.data.u8[1] = (system_battery_voltage_dV & 0x00FF);
   SOFAR_356.data.u8[2] = (system_battery_current_dA >> 8);
   SOFAR_356.data.u8[3] = (system_battery_current_dA & 0x00FF);
-  SOFAR_356.data.u8[2] = (system_temperature_max_dC >> 8);
-  SOFAR_356.data.u8[3] = (system_temperature_max_dC & 0x00FF);
+  SOFAR_356.data.u8[2] = (datalayer.battery.status.temperature_max_dC >> 8);
+  SOFAR_356.data.u8[3] = (datalayer.battery.status.temperature_max_dC & 0x00FF);
 }
 
 void receive_can_sofar(CAN_frame_t rx_frame) {

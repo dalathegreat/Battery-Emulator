@@ -122,7 +122,7 @@ void update_values_can_sma() {  //This function maps all the values fetched from
         MAXDISCHARGEAMP;  //Cap the value to the max allowed Amp. Some inverters cannot handle large values.
   }
 
-  temperature_average = ((system_temperature_max_dC + system_temperature_min_dC) / 2);
+  temperature_average = ((datalayer.battery.status.temperature_max_dC + datalayer.battery.status.temperature_min_dC) / 2);
 
   ampere_hours_remaining = ((datalayer.battery.status.remaining_capacity_Wh / system_battery_voltage_dV) *
                             100);  //(WH[10000] * V+1[3600])*100 = 270 (27.0Ah)

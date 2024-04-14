@@ -177,9 +177,9 @@ void update_values_battery() {  //This function maps all the values fetched via 
   //Power in watts, Negative = charging batt
   datalayer.battery.status.active_power_W = ((system_battery_voltage_dV * system_battery_current_dA) / 100);
 
-  system_temperature_min_dC = (int8_t)temperatureMin * 10;  //Increase decimals, 17C -> 17.0C
+  datalayer.battery.status.temperature_min_dC = (int8_t)temperatureMin * 10;  //Increase decimals, 17C -> 17.0C
 
-  system_temperature_max_dC = (int8_t)temperatureMax * 10;  //Increase decimals, 18C -> 18.0C
+  datalayer.battery.status.temperature_max_dC = (int8_t)temperatureMax * 10;  //Increase decimals, 18C -> 18.0C
 
   system_cell_max_voltage_mV = CellVoltMax_mV;
 

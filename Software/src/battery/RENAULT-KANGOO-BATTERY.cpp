@@ -96,15 +96,15 @@ void update_values_battery() {  //This function maps all the values fetched via 
 
   datalayer.battery.status.active_power_W = (system_battery_voltage_dV * LB_Current);  //TODO: check if scaling is OK
 
-  system_temperature_min_dC = (LB_MIN_TEMPERATURE * 10);
+  datalayer.battery.status.temperature_min_dC = (LB_MIN_TEMPERATURE * 10);
 
-  system_temperature_max_dC = (LB_MAX_TEMPERATURE * 10);
+  datalayer.battery.status.temperature_max_dC = (LB_MAX_TEMPERATURE * 10);
 
   system_cell_min_voltage_mV = LB_Cell_Min_Voltage;
 
   system_cell_max_voltage_mV = LB_Cell_Max_Voltage;
 
-  cell_deviation_mV = (system_temperature_max_dC - system_temperature_min_dC);
+  cell_deviation_mV = (datalayer.battery.status.temperature_max_dC - datalayer.battery.status.temperature_min_dC);
 
   /* Check if the BMS is still sending CAN messages. If we go 60s without messages we raise an error*/
   if (!CANstillAlive) {
@@ -139,9 +139,9 @@ void update_values_battery() {  //This function maps all the values fetched via 
   Serial.print(", Max charge power: ");
   Serial.print(system_max_charge_power_W);
   Serial.print(", Max temp: ");
-  Serial.print(system_temperature_max_dC);
+  Serial.print(datalayer.battery.status.temperature_max_dC);
   Serial.print(", Min temp: ");
-  Serial.print(system_temperature_min_dC);
+  Serial.print(datalayer.battery.status.temperature_min_dC);
   Serial.print(", BMS Status (3=OK): ");
   Serial.print(system_bms_status);
 
