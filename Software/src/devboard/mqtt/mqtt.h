@@ -43,7 +43,6 @@ extern const char* version_number;  // The current software version, used for mq
 
 extern uint16_t system_scaled_SOC_pptt;  //SOC%, 0-100.00 (0-10000)
 extern uint16_t system_real_SOC_pptt;    //SOC%, 0-100.00 (0-10000)
-extern uint8_t system_number_of_cells;   //Total number of cell voltages, set by each battery
 
 extern const char* mqtt_user;
 extern const char* mqtt_password;

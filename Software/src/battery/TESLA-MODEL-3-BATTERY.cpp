@@ -252,7 +252,7 @@ void update_values_battery() {  //This function maps all the values fetched via 
 
   // NCM/A batteries have 96s, LFP has 102-106s
   // Drawback with this check is that it takes 3-5minutes before all cells have been counted!
-  if (system_number_of_cells > 101) {
+  if (datalayer.battery.info.number_of_cells > 101) {
     system_LFP_Chemistry = true;
   }
 
@@ -491,7 +491,7 @@ void receive_can_battery(CAN_frame_t rx_frame) {
           mux_zero_counter++;
           if (mux_zero_counter == 2u) {
             // The max index will be 2 + mux_max * 3 (see above), so "+ 1" for the number of cells
-            system_number_of_cells = 2 + 3 * mux_max + 1;
+            datalayer.battery.info.number_of_cells = 2 + 3 * mux_max + 1;
             // Increase the counter arbitrarily another time to make the initial if-statement evaluate to false
             mux_zero_counter++;
           }

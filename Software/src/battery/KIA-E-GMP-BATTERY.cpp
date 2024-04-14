@@ -332,7 +332,7 @@ void receive_canfd_battery(CANFDMessage frame) {
             set_cell_voltages(frame, 1, 5, 187);
             //set_cell_count();
           } else if (poll_data_pid == 5) {
-            // system_number_of_cells = 98;
+            // datalayer.battery.info.number_of_cells = 98;
             SOC_Display = frame.data[1] * 5;
           }
           break;
@@ -404,7 +404,7 @@ void setup_battery(void) {  // Performs one time setup at startup
   Serial.println("Hyundai E-GMP (Electric Global Modular Platform) battery selected");
 #endif
 
-  system_number_of_cells = 192;  // TODO: will vary depending on battery
+  datalayer.battery.info.number_of_cells = 192;  // TODO: will vary depending on battery
 
   datalayer.battery.info.max_design_voltage_dV =
       8064;  // TODO: define when battery is known, charging is not possible (goes into forced discharge)

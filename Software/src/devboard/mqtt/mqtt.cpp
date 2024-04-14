@@ -40,7 +40,7 @@ static void publish_cell_voltages(void) {
   static String state_topic = String("battery-emulator_") + String(hostname) + "/spec_data";
 
   // If the cell voltage number isn't initialized...
-  if (system_number_of_cells == 0u) {
+  if (datalayer.battery.info.number_of_cells == 0u) {
     return;
   }
 
@@ -48,7 +48,7 @@ static void publish_cell_voltages(void) {
     mqtt_first_transmission = false;
     String topic = "homeassistant/sensor/battery-emulator/cell_voltage";
 
-    for (int i = 0; i < system_number_of_cells; i++) {
+    for (int i = 0; i < datalayer.battery.info.number_of_cells; i++) {
       int cellNumber = i + 1;
       doc["name"] = "Battery Cell Voltage " + String(cellNumber);
       doc["object_id"] = "battery_voltage_cell" + String(cellNumber);
@@ -75,12 +75,12 @@ static void publish_cell_voltages(void) {
     doc.clear();  // clear after sending autoconfig
   } else {
     // If cell voltages haven't been populated...
-    if (system_number_of_cells == 0u) {
+    if (datalayer.battery.info.number_of_cells == 0u) {
       return;
     }
 
     JsonArray cell_voltages = doc["cell_voltages"].to<JsonArray>();
-    for (size_t i = 0; i < system_number_of_cells; ++i) {
+    for (size_t i = 0; i < datalayer.battery.info.number_of_cells; ++i) {
       cell_voltages.add(((float)datalayer.battery.status.cell_voltages_mV[i]) / 1000.0);
     }
 

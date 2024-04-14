@@ -882,7 +882,7 @@ void setup_battery(void) {  // Performs one time setup at startup
   Serial.println("Nissan LEAF battery selected");
 #endif
 
-  system_number_of_cells = 96;
+  datalayer.battery.info.number_of_cells = 96;
   datalayer.battery.info.max_design_voltage_dV =
       4040;  // 404.4V, over this, charging is not possible (goes into forced discharge)
   datalayer.battery.info.min_design_voltage_dV = 2600;  // 260.0V under this, discharging further is disabled

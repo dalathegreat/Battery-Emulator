@@ -389,7 +389,7 @@ void setup_battery(void) {  // Performs one time setup at startup
   Serial.println("Volvo SPA XC40 Recharge / Polestar2 78kWh battery selected");
 #endif
 
-  system_number_of_cells = 108;
+  datalayer.battery.info.number_of_cells = 108;
   datalayer.battery.info.max_design_voltage_dV =
       4540;  // 454.0V, over this, charging is not possible (goes into forced discharge)
   datalayer.battery.info.min_design_voltage_dV = 2938;  // 293.8V under this, discharging further is disabled
