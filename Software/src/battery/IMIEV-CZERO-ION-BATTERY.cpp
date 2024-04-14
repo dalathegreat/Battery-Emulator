@@ -42,9 +42,9 @@ static double min_temp_cel = 19.00;
 void update_values_battery() {  //This function maps all the values fetched via CAN to the correct parameters used for modbus
   system_real_SOC_pptt = (uint16_t)(BMU_SOC * 100);  //increase BMU_SOC range from 0-100 -> 100.00
 
-  system_battery_voltage_dV = (uint16_t)(BMU_PackVoltage * 10);  // Multiply by 10 and cast to uint16_t
+  datalayer.battery.status.voltage_dV = (uint16_t)(BMU_PackVoltage * 10);  // Multiply by 10 and cast to uint16_t
 
-  system_battery_current_dA = (BMU_Current * 10);  //Todo, scaling?
+  datalayer.battery.status.current_dA = (BMU_Current * 10);  //Todo, scaling?
 
   datalayer.battery.info.total_capacity_Wh = BATTERY_WH_MAX;  //Hardcoded to header value
 
@@ -147,7 +147,7 @@ void update_values_battery() {  //This function maps all the values fetched via 
   Serial.print("SOC% (0-100.00): ");
   Serial.print(system_scaled_SOC_pptt);
   Serial.print(" Voltage (0-400.0): ");
-  Serial.print(system_battery_voltage_dV);
+  Serial.print(datalayer.battery.status.voltage_dV);
   Serial.print(" Capacity WH full (0-60000): ");
   Serial.print(datalayer.battery.info.total_capacity_Wh);
   Serial.print(" Capacity WH remain (0-60000): ");

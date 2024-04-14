@@ -43,9 +43,9 @@ void update_values_battery() {  //This function maps all the values fetched via 
 
   system_real_SOC_pptt = (LB_SOC * 10);  //increase LB_SOC range from 0-100.0 -> 100.00
 
-  system_battery_voltage_dV = LB_Battery_Voltage;
+  datalayer.battery.status.voltage_dV = LB_Battery_Voltage;
 
-  system_battery_current_dA = LB_Current;
+  datalayer.battery.status.current_dA = LB_Current;
 
   datalayer.battery.info.total_capacity_Wh = BATTERY_WH_MAX;  //Use the configured value to avoid overflows
 
@@ -96,7 +96,7 @@ void update_values_battery() {  //This function maps all the values fetched via 
   Serial.print(", SOC% scaled: ");
   Serial.print(system_scaled_SOC_pptt);
   Serial.print(", Voltage: ");
-  Serial.print(system_battery_voltage_dV);
+  Serial.print(datalayer.battery.status.voltage_dV);
   Serial.print(", Max discharge power: ");
   Serial.print(system_max_discharge_power_W);
   Serial.print(", Max charge power: ");

@@ -61,9 +61,9 @@ void update_values_battery() {  //This function maps all the values fetched via 
 
   datalayer.battery.status.soh_pptt = (batterySOH * 10);  //Increase decimals from 100.0% -> 100.00%
 
-  system_battery_voltage_dV = batteryVoltage;  //value is *10 (3700 = 370.0)
+  datalayer.battery.status.voltage_dV = batteryVoltage;  //value is *10 (3700 = 370.0)
 
-  system_battery_current_dA = batteryAmps;  //value is *10 (150 = 15.0)
+  datalayer.battery.status.current_dA = batteryAmps;  //value is *10 (150 = 15.0)
 
   datalayer.battery.info.total_capacity_Wh = BATTERY_WH_MAX;
 

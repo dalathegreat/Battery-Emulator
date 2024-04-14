@@ -59,9 +59,9 @@ void update_values_battery() {  //This function maps all the values fetched via 
 
   system_real_SOC_pptt;
 
-  system_battery_voltage_dV;
+  datalayer.battery.status.voltage_dV;
 
-  system_battery_current_dA;
+  datalayer.battery.status.current_dA;
 
   datalayer.battery.info.total_capacity_Wh = BATTERY_WH_MAX;
 

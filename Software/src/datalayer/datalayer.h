@@ -23,8 +23,8 @@ typedef struct {
   /** float - FUTURE */
   // float temperature_max_C;
   // float temperature_min_C;
-  float current_A;
-  float voltage_V;
+  // float current_A;
+  // float voltage_V;
   // float soh_pct = 99.0f;
 
   /** int32_t */
@@ -38,9 +38,11 @@ typedef struct {
   /** int16_t */
   int16_t temperature_max_dC;
   int16_t temperature_min_dC;
+  int16_t current_dA;
 
   /** uint16_t */
   uint16_t soh_pptt = 9900;  //SOH%, 0-100.00 (0-10000)
+  uint16_t voltage_dV;
   uint16_t cell_max_voltage_mV;
   uint16_t cell_min_voltage_mV;
   uint16_t cell_voltages_mV[MAX_AMOUNT_CELLS];

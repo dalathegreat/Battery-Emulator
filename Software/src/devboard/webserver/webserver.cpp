@@ -146,7 +146,7 @@ void init_webserver() {
     String value = request->getParam("value")->value();
     float val = value.toFloat();
 
-    system_battery_voltage_dV = val * 10;
+    datalayer.battery.status.voltage_dV = val * 10;
 
     request->send(200, "text/plain", "Updated successfully");
   });
@@ -510,12 +510,14 @@ String processor(const String& var) {
     float socRealFloat = static_cast<float>(system_real_SOC_pptt) / 100.0;      // Convert to float and divide by 100
     float socScaledFloat = static_cast<float>(system_scaled_SOC_pptt) / 100.0;  // Convert to float and divide by 100
     float sohFloat =
-        static_cast<float>(datalayer.battery.status.soh_pptt) / 100.0;          // Convert to float and divide by 100
-    float voltageFloat = static_cast<float>(system_battery_voltage_dV) / 10.0;  // Convert to float and divide by 10
-    float currentFloat = static_cast<float>(system_battery_current_dA) / 10.0;  // Convert to float and divide by 10
-    float powerFloat = static_cast<float>(datalayer.battery.status.active_power_W);  // Convert to float
-    float tempMaxFloat = static_cast<float>(datalayer.battery.status.temperature_max_dC) / 10.0;       // Convert to float
-    float tempMinFloat = static_cast<float>(datalayer.battery.status.temperature_min_dC) / 10.0;       // Convert to float
+        static_cast<float>(datalayer.battery.status.soh_pptt) / 100.0;  // Convert to float and divide by 100
+    float voltageFloat =
+        static_cast<float>(datalayer.battery.status.voltage_dV) / 10.0;  // Convert to float and divide by 10
+    float currentFloat =
+        static_cast<float>(datalayer.battery.status.current_dA) / 10.0;  // Convert to float and divide by 10
+    float powerFloat = static_cast<float>(datalayer.battery.status.active_power_W);               // Convert to float
+    float tempMaxFloat = static_cast<float>(datalayer.battery.status.temperature_max_dC) / 10.0;  // Convert to float
+    float tempMinFloat = static_cast<float>(datalayer.battery.status.temperature_min_dC) / 10.0;  // Convert to float
 
     content += "<h4 style='color: white;'>Real SOC: " + String(socRealFloat, 2) + "</h4>";
     content += "<h4 style='color: white;'>Scaled SOC: " + String(socScaledFloat, 2) + "</h4>";
@@ -538,9 +540,9 @@ String processor(const String& var) {
     } else {
       content += "<h4>BMS Status: FAULT </h4>";
     }
-    if (system_battery_current_dA == 0) {
+    if (datalayer.battery.status.current_dA == 0) {
       content += "<h4>Battery idle</h4>";
-    } else if (system_battery_current_dA < 0) {
+    } else if (datalayer.battery.status.current_dA < 0) {
       content += "<h4>Battery discharging!</h4>";
     } else {  // > 0
       content += "<h4>Battery charging!</h4>";
@@ -605,8 +607,8 @@ String processor(const String& var) {
 #endif
 #ifdef NISSANLEAF_CHARGER
     float chgPwrDC = static_cast<float>(charger_stat_HVcur * 100);
-    charger_stat_HVcur = chgPwrDC / (system_battery_voltage_dV / 10);  // P/U=I
-    charger_stat_HVvol = static_cast<float>(system_battery_voltage_dV / 10);
+    charger_stat_HVcur = chgPwrDC / (datalayer.battery.status.voltage_dV / 10);  // P/U=I
+    charger_stat_HVvol = static_cast<float>(datalayer.battery.status.voltage_dV / 10);
     float ACvol = charger_stat_ACvol;
     float HVvol = charger_stat_HVvol;
     float HVcur = charger_stat_HVcur;

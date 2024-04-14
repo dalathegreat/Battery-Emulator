@@ -20,9 +20,9 @@ void update_values_battery() {  /* This function puts fake values onto the param
 
   datalayer.battery.status.soh_pptt = 9900;  // 99.00%
 
-  //system_battery_voltage_dV = 3700;  // 370.0V , value set in startup in .ino file, editable via webUI
+  //datalayer.battery.status.voltage_dV = 3700;  // 370.0V , value set in startup in .ino file, editable via webUI
 
-  system_battery_current_dA = 0;  // 0 A
+  datalayer.battery.status.current_dA = 0;  // 0 A
 
   datalayer.battery.info.total_capacity_Wh = 30000;  // 30kWh
 
@@ -51,7 +51,7 @@ void update_values_battery() {  /* This function puts fake values onto the param
   Serial.println("FAKE Values going to inverter");
   print_units("SOH%: ", (datalayer.battery.status.soh_pptt * 0.01), "% ");
   print_units(", SOC%: ", (system_scaled_SOC_pptt * 0.01), "% ");
-  print_units(", Voltage: ", (system_battery_voltage_dV * 0.1), "V ");
+  print_units(", Voltage: ", (datalayer.battery.status.voltage_dV * 0.1), "V ");
   print_units(", Max discharge power: ", system_max_discharge_power_W, "W ");
   print_units(", Max charge power: ", system_max_charge_power_W, "W ");
   print_units(", Max temp: ", (datalayer.battery.status.temperature_max_dC * 0.1), "°C ");

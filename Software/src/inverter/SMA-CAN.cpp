@@ -122,9 +122,10 @@ void update_values_can_sma() {  //This function maps all the values fetched from
         MAXDISCHARGEAMP;  //Cap the value to the max allowed Amp. Some inverters cannot handle large values.
   }
 
-  temperature_average = ((datalayer.battery.status.temperature_max_dC + datalayer.battery.status.temperature_min_dC) / 2);
+  temperature_average =
+      ((datalayer.battery.status.temperature_max_dC + datalayer.battery.status.temperature_min_dC) / 2);
 
-  ampere_hours_remaining = ((datalayer.battery.status.remaining_capacity_Wh / system_battery_voltage_dV) *
+  ampere_hours_remaining = ((datalayer.battery.status.remaining_capacity_Wh / datalayer.battery.status.voltage_dV) *
                             100);  //(WH[10000] * V+1[3600])*100 = 270 (27.0Ah)
 
   //Map values to CAN messages
@@ -153,11 +154,11 @@ void update_values_can_sma() {  //This function maps all the values fetched from
   SMA_3D8.data.u8[5] = (ampere_hours_remaining & 0x00FF);
 
   //Voltage (370.0)
-  SMA_4D8.data.u8[0] = (system_battery_voltage_dV >> 8);
-  SMA_4D8.data.u8[1] = (system_battery_voltage_dV & 0x00FF);
+  SMA_4D8.data.u8[0] = (datalayer.battery.status.voltage_dV >> 8);
+  SMA_4D8.data.u8[1] = (datalayer.battery.status.voltage_dV & 0x00FF);
   //Current (TODO: signed OK?)
-  SMA_4D8.data.u8[2] = (system_battery_current_dA >> 8);
-  SMA_4D8.data.u8[3] = (system_battery_current_dA & 0x00FF);
+  SMA_4D8.data.u8[2] = (datalayer.battery.status.current_dA >> 8);
+  SMA_4D8.data.u8[3] = (datalayer.battery.status.current_dA & 0x00FF);
   //Temperature average
   SMA_4D8.data.u8[4] = (temperature_average >> 8);
   SMA_4D8.data.u8[5] = (temperature_average & 0x00FF);

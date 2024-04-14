@@ -66,9 +66,9 @@ void handle_update_data_modbusp301_byd() {
   static uint16_t battery_data[24];
 
   static uint8_t bms_char_dis_status = STANDBY;
-  if (system_battery_current_dA == 0) {
+  if (datalayer.battery.status.current_dA == 0) {
     bms_char_dis_status = STANDBY;
-  } else if (system_battery_current_dA < 0) {  //Negative value = Discharging
+  } else if (datalayer.battery.status.current_dA < 0) {  //Negative value = Discharging
     bms_char_dis_status = DISCHARGING;
   } else {  //Positive value = Charging
     bms_char_dis_status = CHARGING;
@@ -76,7 +76,8 @@ void handle_update_data_modbusp301_byd() {
 
   if (system_bms_status == ACTIVE) {
     battery_data[8] =
-        system_battery_voltage_dV;  // Id.: p309 Value.: 3161 Scaled value.: 316,1VDC Comment.: Batt Voltage outer (0 if status !=3, maybe a contactor closes when active): 173.4V
+        datalayer.battery.status
+            .voltage_dV;  // Id.: p309 Value.: 3161 Scaled value.: 316,1VDC Comment.: Batt Voltage outer (0 if status !=3, maybe a contactor closes when active): 173.4V
   } else {
     battery_data[8] = 0;
   }
@@ -115,12 +116,15 @@ void handle_update_data_modbusp301_byd() {
   battery_data[9] =
       2000;  // Id.: p310 Value.: 64121 Scaled value.: 6412,1W Comment.: Current Power to API: if>32768... -(65535-61760)=3775W
   battery_data[10] =
-      system_battery_voltage_dV;  // Id.: p311 Value.: 3161 Scaled value.: 316,1VDC Comment.: Batt Voltage inner: 173.2V
-  battery_data[11] = 2000;        // Id.: p312 Value.: 64121 Scaled value.: 6412,1W Comment.: p310
+      datalayer.battery.status
+          .voltage_dV;      // Id.: p311 Value.: 3161 Scaled value.: 316,1VDC Comment.: Batt Voltage inner: 173.2V
+  battery_data[11] = 2000;  // Id.: p312 Value.: 64121 Scaled value.: 6412,1W Comment.: p310
   battery_data[12] =
-      datalayer.battery.status.temperature_min_dC;  // Id.: p313 Value.: 75 Scaled value.: 7,5 Comment.: temp min: 7 degrees (if below 0....65535-t)
+      datalayer.battery.status
+          .temperature_min_dC;  // Id.: p313 Value.: 75 Scaled value.: 7,5 Comment.: temp min: 7 degrees (if below 0....65535-t)
   battery_data[13] =
-      datalayer.battery.status.temperature_max_dC;  // Id.: p314 Value.: 95 Scaled value.: 9,5 Comment.: temp max: 9 degrees (if below 0....65535-t)
+      datalayer.battery.status
+          .temperature_max_dC;  // Id.: p314 Value.: 95 Scaled value.: 9,5 Comment.: temp max: 9 degrees (if below 0....65535-t)
   battery_data[14] = 0;   // Id.: p315 Value.: 0 Scaled value.: 0 Comment.: always 0
   battery_data[15] = 0;   // Id.: p316 Value.: 0 Scaled value.: 0 Comment.: always 0
   battery_data[16] = 16;  // Id.: p317 Value.: 0 Scaled value.: 0 Comment.: counter charge hi
@@ -146,13 +150,15 @@ void verify_temperature_modbus() {
   // This is due to the original battery pack (BYD HVM), is a lithium iron phosphate battery, that cannot be charged in cold weather.
   // When using EV packs with NCM/LMO/NCA chemsitry, this is not a problem, since these chemistries are OK for outdoor cold use.
   if (datalayer.battery.status.temperature_min_dC < 0) {
-    if (datalayer.battery.status.temperature_min_dC < -90 && datalayer.battery.status.temperature_min_dC > -200) {  // Between -9.0 and -20.0C degrees
-      datalayer.battery.status.temperature_min_dC = -90;                                          //Cap value to -9.0C
+    if (datalayer.battery.status.temperature_min_dC < -90 &&
+        datalayer.battery.status.temperature_min_dC > -200) {  // Between -9.0 and -20.0C degrees
+      datalayer.battery.status.temperature_min_dC = -90;       //Cap value to -9.0C
     }
   }
-  if (datalayer.battery.status.temperature_max_dC < 0) {                                          // Signed value on negative side
-    if (datalayer.battery.status.temperature_max_dC < -90 && datalayer.battery.status.temperature_max_dC > -200) {  // Between -9.0 and -20.0C degrees
-      datalayer.battery.status.temperature_max_dC = -90;                                          //Cap value to -9.0C
+  if (datalayer.battery.status.temperature_max_dC < 0) {  // Signed value on negative side
+    if (datalayer.battery.status.temperature_max_dC < -90 &&
+        datalayer.battery.status.temperature_max_dC > -200) {  // Between -9.0 and -20.0C degrees
+      datalayer.battery.status.temperature_max_dC = -90;       //Cap value to -9.0C
     }
   }
 }

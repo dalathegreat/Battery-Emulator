@@ -1,5 +1,6 @@
 #include "settings_html.h"
 #include <Arduino.h>
+#include "../../datalayer/datalayer.h"
 
 String settings_processor(const String& var) {
   if (var == "ABC") {
@@ -34,7 +35,8 @@ String settings_processor(const String& var) {
 #ifdef TEST_FAKE_BATTERY
     // Start a new block with blue background color
     content += "<div style='background-color: #2E37AD; padding: 10px; margin-bottom: 10px;border-radius: 50px'>";
-    float voltageFloat = static_cast<float>(system_battery_voltage_dV) / 10.0;  // Convert to float and divide by 10
+    float voltageFloat =
+        static_cast<float>(datalayer.battery.status.voltage_dV) / 10.0;  // Convert to float and divide by 10
     content += "<h4 style='color: white;'>Fake battery voltage: " + String(voltageFloat, 1) +
                " V </span> <button onclick='editFakeBatteryVoltage()'>Edit</button></h4>";
 

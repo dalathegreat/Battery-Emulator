@@ -131,8 +131,8 @@ void manageSerialLinkTransmitter() {
       updateDataTime = currentTime;
       dataLinkTransmit.updateData(0, system_real_SOC_pptt);
       dataLinkTransmit.updateData(1, datalayer.battery.status.soh_pptt);
-      dataLinkTransmit.updateData(2, system_battery_voltage_dV);
-      dataLinkTransmit.updateData(3, system_battery_current_dA);
+      dataLinkTransmit.updateData(2, datalayer.battery.status.voltage_dV);
+      dataLinkTransmit.updateData(3, datalayer.battery.status.current_dA);
       dataLinkTransmit.updateData(4, datalayer.battery.info.total_capacity_Wh / 10);  //u32, remove .0 to fit 16bit
       dataLinkTransmit.updateData(5,
                                   datalayer.battery.status.remaining_capacity_Wh / 10);  //u32, remove .0 to fit 16bit
@@ -157,9 +157,9 @@ void printSendingValues() {
   Serial.print(" SOH: ");
   Serial.print(datalayer.battery.status.soh_pptt);
   Serial.print(" Voltage: ");
-  Serial.print(system_battery_voltage_dV);
+  Serial.print(datalayer.battery.status.voltage_dV);
   Serial.print(" Current: ");
-  Serial.print(system_battery_current_dA);
+  Serial.print(datalayer.battery.status.current_dA);
   Serial.print(" Capacity: ");
   Serial.print(datalayer.battery.info.total_capacity_Wh);
   Serial.print(" Remain cap: ");

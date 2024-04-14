@@ -417,9 +417,9 @@ void update_values_battery() {  //This function maps all the values fetched via 
 
   system_real_SOC_pptt = (battery_HVBatt_SOC * 10);
 
-  system_battery_voltage_dV = battery_volts;  //Unit V+1 (5000 = 500.0V)
+  datalayer.battery.status.voltage_dV = battery_volts;  //Unit V+1 (5000 = 500.0V)
 
-  system_battery_current_dA = battery_current;
+  datalayer.battery.status.current_dA = battery_current;
 
   datalayer.battery.info.total_capacity_Wh = BATTERY_WH_MAX;
 
@@ -438,7 +438,7 @@ void update_values_battery() {  //This function maps all the values fetched via 
     system_max_charge_power_W = battery_BEV_available_power_longterm_charge;
   }
 
-  battery_power = (system_battery_current_dA * (system_battery_voltage_dV / 100));
+  battery_power = (datalayer.battery.status.current_dA * (datalayer.battery.status.voltage_dV / 100));
 
   datalayer.battery.status.active_power_W = battery_power;
 
@@ -467,9 +467,9 @@ void update_values_battery() {  //This function maps all the values fetched via 
   Serial.print("Real SOC%: ");
   Serial.print(system_real_SOC_pptt * 0.01);
   Serial.print(" Battery voltage: ");
-  Serial.print(system_battery_voltage_dV * 0.1);
+  Serial.print(datalayer.battery.status.voltage_dV * 0.1);
   Serial.print(" Battery current: ");
-  Serial.print(system_battery_current_dA * 0.1);
+  Serial.print(datalayer.battery.status.current_dA * 0.1);
   Serial.print(" Wh when full: ");
   Serial.print(datalayer.battery.info.total_capacity_Wh);
   Serial.print(" Remaining Wh: ");

@@ -185,16 +185,16 @@ void update_values_can_pylon() {  //This function maps all the values fetched fr
   PYLON_4281.data.u8[3] = 0;
 
   //Voltage (370.0)
-  PYLON_4210.data.u8[0] = (system_battery_voltage_dV >> 8);
-  PYLON_4210.data.u8[1] = (system_battery_voltage_dV & 0x00FF);
-  PYLON_4211.data.u8[0] = (system_battery_voltage_dV >> 8);
-  PYLON_4211.data.u8[1] = (system_battery_voltage_dV & 0x00FF);
+  PYLON_4210.data.u8[0] = (datalayer.battery.status.voltage_dV >> 8);
+  PYLON_4210.data.u8[1] = (datalayer.battery.status.voltage_dV & 0x00FF);
+  PYLON_4211.data.u8[0] = (datalayer.battery.status.voltage_dV >> 8);
+  PYLON_4211.data.u8[1] = (datalayer.battery.status.voltage_dV & 0x00FF);
 
   //Current (15.0)
-  PYLON_4210.data.u8[2] = (system_battery_current_dA >> 8);
-  PYLON_4210.data.u8[3] = (system_battery_current_dA & 0x00FF);
-  PYLON_4211.data.u8[2] = (system_battery_current_dA >> 8);
-  PYLON_4211.data.u8[3] = (system_battery_current_dA & 0x00FF);
+  PYLON_4210.data.u8[2] = (datalayer.battery.status.current_dA >> 8);
+  PYLON_4210.data.u8[3] = (datalayer.battery.status.current_dA & 0x00FF);
+  PYLON_4211.data.u8[2] = (datalayer.battery.status.current_dA >> 8);
+  PYLON_4211.data.u8[3] = (datalayer.battery.status.current_dA & 0x00FF);
 
   //SOC (100.00%)
   PYLON_4210.data.u8[6] = (system_scaled_SOC_pptt * 0.01);  //Remove decimals

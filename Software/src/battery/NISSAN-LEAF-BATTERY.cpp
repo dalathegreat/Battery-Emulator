@@ -167,9 +167,10 @@ void update_values_battery() { /* This function maps all the values fetched via 
 
   system_real_SOC_pptt = (LB_SOC * 10);
 
-  system_battery_voltage_dV = (LB_Total_Voltage2 * 5);  //0.5V/bit, multiply by 5 to get Voltage+1decimal (350.5V = 701)
+  datalayer.battery.status.voltage_dV =
+      (LB_Total_Voltage2 * 5);  //0.5V/bit, multiply by 5 to get Voltage+1decimal (350.5V = 701)
 
-  system_battery_current_dA = (LB_Current2 * 5);  //0.5A/bit, multiply by 5 to get Amp+1decimal (5,5A = 11)
+  datalayer.battery.status.current_dA = (LB_Current2 * 5);  //0.5A/bit, multiply by 5 to get Amp+1decimal (5,5A = 11)
 
   datalayer.battery.info.total_capacity_Wh = (LB_Max_GIDS * WH_PER_GID);
 
@@ -183,8 +184,9 @@ void update_values_battery() { /* This function maps all the values fetched via 
   //Update temperature readings. Method depends on which generation LEAF battery is used
   if (LEAF_Battery_Type == ZE0_BATTERY) {
     //Since we only have average value, send the minimum as -1.0 degrees below average
-    datalayer.battery.status.temperature_min_dC = ((LB_AverageTemperature * 10) - 10);  //Increase range from C to C+1, remove 1.0C
-    datalayer.battery.status.temperature_max_dC = (LB_AverageTemperature * 10);         //Increase range from C to C+1
+    datalayer.battery.status.temperature_min_dC =
+        ((LB_AverageTemperature * 10) - 10);  //Increase range from C to C+1, remove 1.0C
+    datalayer.battery.status.temperature_max_dC = (LB_AverageTemperature * 10);  //Increase range from C to C+1
   } else if (LEAF_Battery_Type == AZE0_BATTERY) {
     //Use the value sent constantly via CAN in 5C0 (only available on AZE0)
     datalayer.battery.status.temperature_min_dC = (LB_HistData_Temperature_MIN * 10);  //Increase range from C to C+1
@@ -239,7 +241,7 @@ void update_values_battery() { /* This function maps all the values fetched via 
   }
 
   //Check if SOC% is plausible
-  if (system_battery_voltage_dV >
+  if (datalayer.battery.status.voltage_dV >
       (system_max_design_voltage_dV - 100)) {  // When pack voltage is close to max, and SOC% is still low, raise FAULT
     if (LB_SOC < 650) {
       set_event(EVENT_SOC_PLAUSIBILITY_ERROR, LB_SOC / 10);  // Set event with the SOC as data
@@ -352,7 +354,7 @@ void update_values_battery() { /* This function maps all the values fetched via 
   Serial.println("Values going to inverter");
   print_with_units("SOH%: ", (datalayer.battery.status.soh_pptt * 0.01), "% ");
   print_with_units(", SOC% scaled: ", (system_scaled_SOC_pptt * 0.01), "% ");
-  print_with_units(", Voltage: ", (system_battery_voltage_dV * 0.1), "V ");
+  print_with_units(", Voltage: ", (datalayer.battery.status.voltage_dV * 0.1), "V ");
   print_with_units(", Max discharge power: ", system_max_discharge_power_W, "W ");
   print_with_units(", Max charge power: ", system_max_charge_power_W, "W ");
   print_with_units(", Max temp: ", (datalayer.battery.status.temperature_max_dC * 0.1), "°C ");

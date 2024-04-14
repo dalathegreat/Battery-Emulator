@@ -151,9 +151,9 @@ void update_values_battery() {  //This function maps all the values fetched via 
 
   datalayer.battery.status.soh_pptt = (batterySOH * 10);  //Increase decimals from 100.0% -> 100.00%
 
-  system_battery_voltage_dV = batteryVoltage;  //value is *10 (3700 = 370.0)
+  datalayer.battery.status.voltage_dV = batteryVoltage;  //value is *10 (3700 = 370.0)
 
-  system_battery_current_dA = -batteryAmps;  //value is *10 (150 = 15.0) , invert the sign
+  datalayer.battery.status.current_dA = -batteryAmps;  //value is *10 (150 = 15.0) , invert the sign
 
   datalayer.battery.info.total_capacity_Wh = BATTERY_WH_MAX;
 
@@ -175,7 +175,8 @@ void update_values_battery() {  //This function maps all the values fetched via 
   }
 
   //Power in watts, Negative = charging batt
-  datalayer.battery.status.active_power_W = ((system_battery_voltage_dV * system_battery_current_dA) / 100);
+  datalayer.battery.status.active_power_W =
+      ((datalayer.battery.status.voltage_dV * datalayer.battery.status.current_dA) / 100);
 
   datalayer.battery.status.temperature_min_dC = (int8_t)temperatureMin * 10;  //Increase decimals, 17C -> 17.0C
 

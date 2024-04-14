@@ -31,8 +31,8 @@ static bool batteryFault = false;  // used locally - mainly to indicate Battery 
 void __getData() {
   system_real_SOC_pptt = (uint16_t)dataLinkReceive.getReceivedData(0);
   datalayer.battery.status.soh_pptt = (uint16_t)dataLinkReceive.getReceivedData(1);
-  system_battery_voltage_dV = (uint16_t)dataLinkReceive.getReceivedData(2);
-  system_battery_current_dA = (int16_t)dataLinkReceive.getReceivedData(3);
+  datalayer.battery.status.voltage_dV = (uint16_t)dataLinkReceive.getReceivedData(2);
+  datalayer.battery.status.current_dA = (int16_t)dataLinkReceive.getReceivedData(3);
   datalayer.battery.info.total_capacity_Wh =
       (uint32_t)(dataLinkReceive.getReceivedData(4) * 10);  //add back missing decimal
   datalayer.battery.status.remaining_capacity_Wh =
@@ -184,9 +184,9 @@ void update_values_serial_link() {
   Serial.print(" SOH: ");
   Serial.print(datalayer.battery.status.soh_pptt);
   Serial.print(" Voltage: ");
-  Serial.print(system_battery_voltage_dV);
+  Serial.print(datalayer.battery.status.voltage_dV);
   Serial.print(" Current: ");
-  Serial.print(system_battery_current_dA);
+  Serial.print(datalayer.battery.status.current_dA);
   Serial.print(" Capacity: ");
   Serial.print(datalayer.battery.info.total_capacity_Wh);
   Serial.print(" Remain cap: ");

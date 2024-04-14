@@ -9,8 +9,6 @@
 
 extern ACAN2515 can;
 
-extern int16_t system_battery_current_dA;                  //A+1, -1000 - 1000
-extern uint16_t system_battery_voltage_dV;                 //V+1,  0-1000.0 (0-10000)
 extern uint16_t system_max_design_voltage_dV;              //V+1,  0-1000.0 (0-10000)
 extern uint16_t system_min_design_voltage_dV;              //V+1,  0-1000.0 (0-10000)
 extern uint16_t system_scaled_SOC_pptt;                    //SOC%, 0-100.00 (0-10000)

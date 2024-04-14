@@ -228,12 +228,13 @@ void send_can_nissanleaf_charger() {
       }
 
       // if actual battery_voltage is less than setpoint got to max power set from web ui
-      if (system_battery_voltage_dV < (CHARGER_SET_HV * 10)) {  //system_battery_voltage_dV = V+1,  0-500.0 (0-5000)
+      if (datalayer.battery.status.voltage_dV <
+          (CHARGER_SET_HV * 10)) {  //datalayer.battery.status.voltage_dV = V+1,  0-500.0 (0-5000)
         OBCpower = OBCpowerSetpoint;
       }
 
       // decrement charger power if volt setpoint is reached
-      if (system_battery_voltage_dV >= (CHARGER_SET_HV * 10)) {
+      if (datalayer.battery.status.voltage_dV >= (CHARGER_SET_HV * 10)) {
         if (OBCpower > 0x64) {
           OBCpower--;
         }

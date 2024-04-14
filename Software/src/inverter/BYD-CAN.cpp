@@ -133,7 +133,8 @@ void update_values_can_byd() {  //This function maps all the values fetched from
         MAXDISCHARGEAMP;  //Cap the value to the max allowed Amp. Some inverters cannot handle large values.
   }
 
-  temperature_average = ((datalayer.battery.status.temperature_max_dC + datalayer.battery.status.temperature_min_dC) / 2);
+  temperature_average =
+      ((datalayer.battery.status.temperature_max_dC + datalayer.battery.status.temperature_min_dC) / 2);
 
   //Map values to CAN messages
   //Maxvoltage (eg 400.0V = 4000 , 16bits long)
@@ -163,11 +164,11 @@ void update_values_can_byd() {  //This function maps all the values fetched from
   BYD_150.data.u8[7] = (charge_current & 0x00FF);
 
   //Voltage (ex 370.0)
-  BYD_1D0.data.u8[0] = (system_battery_voltage_dV >> 8);
-  BYD_1D0.data.u8[1] = (system_battery_voltage_dV & 0x00FF);
+  BYD_1D0.data.u8[0] = (datalayer.battery.status.voltage_dV >> 8);
+  BYD_1D0.data.u8[1] = (datalayer.battery.status.voltage_dV & 0x00FF);
   //Current (ex 81.0A)
-  BYD_1D0.data.u8[2] = (system_battery_current_dA >> 8);
-  BYD_1D0.data.u8[3] = (system_battery_current_dA & 0x00FF);
+  BYD_1D0.data.u8[2] = (datalayer.battery.status.current_dA >> 8);
+  BYD_1D0.data.u8[3] = (datalayer.battery.status.current_dA & 0x00FF);
   //Temperature average
   BYD_1D0.data.u8[4] = (temperature_average >> 8);
   BYD_1D0.data.u8[5] = (temperature_average & 0x00FF);

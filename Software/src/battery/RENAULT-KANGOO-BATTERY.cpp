@@ -59,9 +59,9 @@ void update_values_battery() {  //This function maps all the values fetched via 
 
   datalayer.battery.status.soh_pptt = (LB_SOH * 100);  //Increase range from 99% -> 99.00%
 
-  system_battery_voltage_dV = LB_Battery_Voltage;
+  datalayer.battery.status.voltage_dV = LB_Battery_Voltage;
 
-  system_battery_current_dA = LB_Current;
+  datalayer.battery.status.current_dA = LB_Current;
 
   datalayer.battery.info.total_capacity_Wh = BATTERY_WH_MAX;  //Hardcoded to header value
 
@@ -94,7 +94,8 @@ void update_values_battery() {  //This function maps all the values fetched via 
     system_max_charge_power_W = 0;  //No need to charge further, set max power to 0
   }
 
-  datalayer.battery.status.active_power_W = (system_battery_voltage_dV * LB_Current);  //TODO: check if scaling is OK
+  datalayer.battery.status.active_power_W =
+      (datalayer.battery.status.voltage_dV * LB_Current);  //TODO: check if scaling is OK
 
   datalayer.battery.status.temperature_min_dC = (LB_MIN_TEMPERATURE * 10);
 
@@ -133,7 +134,7 @@ void update_values_battery() {  //This function maps all the values fetched via 
   Serial.print(", SOC% scaled: ");
   Serial.print(system_scaled_SOC_pptt);
   Serial.print(", Voltage: ");
-  Serial.print(system_battery_voltage_dV);
+  Serial.print(datalayer.battery.status.voltage_dV);
   Serial.print(", Max discharge power: ");
   Serial.print(system_max_discharge_power_W);
   Serial.print(", Max charge power: ");

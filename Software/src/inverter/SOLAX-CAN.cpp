@@ -132,7 +132,8 @@ void update_values_can_solax() {  //This function maps all the values fetched fr
 #endif
   }
   //Calculate the required values
-  temperature_average = ((datalayer.battery.status.temperature_max_dC + datalayer.battery.status.temperature_min_dC) / 2);
+  temperature_average =
+      ((datalayer.battery.status.temperature_max_dC + datalayer.battery.status.temperature_min_dC) / 2);
 
   //system_max_charge_power_W (30000W max)
   if (system_scaled_SOC_pptt > 9999)  //99.99%
@@ -142,7 +143,7 @@ void update_values_can_solax() {  //This function maps all the values fetched fr
     if (system_max_charge_power_W >= 30000) {
       max_charge_rate_amp = 75;  //Incase battery can take over 30kW, cap value to 75A
     } else {                     //Calculate the W value into A
-      max_charge_rate_amp = (system_max_charge_power_W / (system_battery_voltage_dV * 0.1));  // P/U = I
+      max_charge_rate_amp = (system_max_charge_power_W / (datalayer.battery.status.voltage_dV * 0.1));  // P/U = I
     }
   }
 
@@ -154,7 +155,7 @@ void update_values_can_solax() {  //This function maps all the values fetched fr
     if (system_max_discharge_power_W >= 30000) {
       max_discharge_rate_amp = 75;  //Incase battery can be charged with over 30kW, cap value to 75A
     } else {                        //Calculate the W value into A
-      max_discharge_rate_amp = (system_max_discharge_power_W / (system_battery_voltage_dV * 0.1));  // P/U = I
+      max_discharge_rate_amp = (system_max_discharge_power_W / (datalayer.battery.status.voltage_dV * 0.1));  // P/U = I
     }
   }
 
@@ -183,10 +184,10 @@ void update_values_can_solax() {  //This function maps all the values fetched fr
   SOLAX_1872.data.u8[7] = ((max_discharge_rate_amp * 10) >> 8);
 
   //BMS_PackData
-  SOLAX_1873.data.u8[0] = (uint8_t)system_battery_voltage_dV;  // OK
-  SOLAX_1873.data.u8[1] = (system_battery_voltage_dV >> 8);
-  SOLAX_1873.data.u8[2] = (int8_t)system_battery_current_dA;  // OK, Signed (Active current in Amps x 10)
-  SOLAX_1873.data.u8[3] = (system_battery_current_dA >> 8);
+  SOLAX_1873.data.u8[0] = (uint8_t)datalayer.battery.status.voltage_dV;  // OK
+  SOLAX_1873.data.u8[1] = (datalayer.battery.status.voltage_dV >> 8);
+  SOLAX_1873.data.u8[2] = (int8_t)datalayer.battery.status.current_dA;  // OK, Signed (Active current in Amps x 10)
+  SOLAX_1873.data.u8[3] = (datalayer.battery.status.current_dA >> 8);
   SOLAX_1873.data.u8[4] = (uint8_t)(system_scaled_SOC_pptt / 100);  //SOC (100.00%)
   //SOLAX_1873.data.u8[5] = //Seems like this is not required? Or shall we put SOC decimals here?
   SOLAX_1873.data.u8[6] = (uint8_t)(capped_remaining_capacity_Wh / 100);
@@ -222,8 +223,8 @@ void update_values_can_solax() {  //This function maps all the values fetched fr
       (uint8_t)0x02;  // The above firmware version applies to:02 = Master BMS, 10 = S1, 20 = S2, 30 = S3, 40 = S4
 
   //BMS_PackStats
-  SOLAX_1878.data.u8[0] = (uint8_t)(system_battery_voltage_dV);
-  SOLAX_1878.data.u8[1] = ((system_battery_voltage_dV) >> 8);
+  SOLAX_1878.data.u8[0] = (uint8_t)(datalayer.battery.status.voltage_dV);
+  SOLAX_1878.data.u8[1] = ((datalayer.battery.status.voltage_dV) >> 8);
 
   SOLAX_1878.data.u8[4] = (uint8_t)capped_capacity_Wh;
   SOLAX_1878.data.u8[5] = (capped_capacity_Wh >> 8);

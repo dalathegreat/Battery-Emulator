@@ -96,7 +96,7 @@ void update_values_battery() {  //This function maps all the values fetched via 
 
   system_max_discharge_power_W = (MaximumDischargeCurrent * MaximumBatteryVoltage);  //In Watts, Convert A to P
 
-  system_battery_voltage_dV = TargetBatteryVoltage;  //TODO: scaling?
+  datalayer.battery.status.voltage_dV = TargetBatteryVoltage;  //TODO: scaling?
 
   datalayer.battery.info.total_capacity_Wh =
       ((RatedBatteryCapacity / 0.11) *
