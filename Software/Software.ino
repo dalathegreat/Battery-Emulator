@@ -64,8 +64,8 @@ ModbusServerRTU MBserver(Serial2, 2000);
 uint16_t system_scaled_SOC_pptt = 5000;             //SOC%, 0-100.00 (0-10000)
 uint16_t system_real_SOC_pptt = 5000;               //SOC%, 0-100.00 (0-10000)
 uint16_t system_cellvoltages_mV[MAX_AMOUNT_CELLS];  //Array with all cell voltages. Oversized to accomodate all setups
-uint8_t system_number_of_cells = 0;  //Total number of cell voltages, set by each battery
-bool system_LFP_Chemistry = false;   //Set to true or false depending on cell chemistry
+uint8_t system_number_of_cells = 0;                 //Total number of cell voltages, set by each battery
+bool system_LFP_Chemistry = false;                  //Set to true or false depending on cell chemistry
 
 // Common charger parameters
 volatile float charger_setpoint_HV_VDC = 0.0f;
