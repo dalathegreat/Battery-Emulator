@@ -1,5 +1,6 @@
 #include "../include.h"
 #ifdef VOLVO_SPA_BATTERY
+#include "../datalayer/datalayer.h"
 #include "../devboard/utils/events.h"
 #include "../lib/miwagner-ESP32-Arduino-CAN/CAN_config.h"
 #include "../lib/miwagner-ESP32-Arduino-CAN/ESP32CAN.h"
@@ -102,7 +103,7 @@ void update_values_battery() {  //This function maps all the values fetched via 
   //system_max_discharge_power_W = HvBattPwrLimDchaSoft * 1000;	// Use power limit reported from BMS, not trusted ATM
   system_max_discharge_power_W = 30000;
   system_max_charge_power_W = 30000;
-  system_active_power_W = (BATT_U)*BATT_I;
+  datalayer.battery.status.active_power_W = (BATT_U)*BATT_I;
   system_temperature_min_dC = BATT_T_MIN;
   system_temperature_max_dC = BATT_T_MAX;
 
@@ -287,7 +288,7 @@ void receive_can_battery(CAN_frame_t rx_frame) {
       if ((rx_frame.data.u8[0] == 0x07) && (rx_frame.data.u8[1] == 0x62) && (rx_frame.data.u8[2] == 0x49) &&
           (rx_frame.data.u8[3] == 0x6D))  // SOH response frame
       {
-        system_SOH_pptt = ((rx_frame.data.u8[6] << 8) | rx_frame.data.u8[7]);
+        datalayer.battery.status.soh_pptt = ((rx_frame.data.u8[6] << 8) | rx_frame.data.u8[7]);
       } else if ((rx_frame.data.u8[0] == 0x10) && (rx_frame.data.u8[1] == 0x0B) && (rx_frame.data.u8[2] == 0x62) &&
                  (rx_frame.data.u8[3] == 0x4B))  // First response frame of cell voltages
       {

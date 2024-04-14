@@ -1,5 +1,6 @@
 #include "../include.h"
 #ifdef TESLA_MODEL_3_BATTERY
+#include "../datalayer/datalayer.h"
 #include "../devboard/utils/events.h"
 #include "../lib/miwagner-ESP32-Arduino-CAN/CAN_config.h"
 #include "../lib/miwagner-ESP32-Arduino-CAN/ESP32CAN.h"
@@ -165,16 +166,16 @@ void update_values_battery() {  //This function maps all the values fetched via 
   //After values are mapped, we perform some safety checks, and do some serial printouts
   //Calculate the SOH% to send to inverter
   if (bat_beginning_of_life != 0) {  //div/0 safeguard
-    system_SOH_pptt =
+    datalayer.battery.status.soh_pptt =
         static_cast<uint16_t>((static_cast<double>(nominal_full_pack_energy) / bat_beginning_of_life) * 10000.0);
   }
   //If the calculation went wrong, set SOH to 100%
-  if (system_SOH_pptt > 10000) {
-    system_SOH_pptt = 10000;
+  if (datalayer.battery.status.soh_pptt > 10000) {
+    datalayer.battery.status.soh_pptt = 10000;
   }
   //If the value is unavailable, set SOH to 99%
   if (nominal_full_pack_energy < REASONABLE_ENERGYAMOUNT) {
-    system_SOH_pptt = 9900;
+    datalayer.battery.status.soh_pptt = 9900;
   }
 
   system_real_SOC_pptt = (soc_vi * 10);  //increase SOC range from 0-100.0 -> 100.00
@@ -220,7 +221,7 @@ void update_values_battery() {  //This function maps all the values fetched via 
   }
 
   power = ((volts / 10) * amps);
-  system_active_power_W = power;
+  datalayer.battery.status.active_power_W = power;
 
   system_temperature_min_dC = min_temp;
 

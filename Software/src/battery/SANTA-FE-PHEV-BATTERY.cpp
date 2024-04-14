@@ -1,5 +1,6 @@
 #include "../include.h"
 #ifdef SANTA_FE_PHEV_BATTERY
+#include "../datalayer/datalayer.h"
 #include "../devboard/utils/events.h"
 #include "../lib/miwagner-ESP32-Arduino-CAN/CAN_config.h"
 #include "../lib/miwagner-ESP32-Arduino-CAN/ESP32CAN.h"
@@ -70,7 +71,7 @@ void update_values_battery() {  //This function maps all the values fetched via 
 
   system_max_charge_power_W;
 
-  system_active_power_W;
+  datalayer.battery.status.active_power_W;
 
   system_temperature_min_dC;
 

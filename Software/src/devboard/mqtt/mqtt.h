@@ -43,12 +43,10 @@ extern const char* version_number;  // The current software version, used for mq
 
 extern int16_t system_temperature_min_dC;                  //C+1, -50.0 - 50.0
 extern int16_t system_temperature_max_dC;                  //C+1, -50.0 - 50.0
-extern int32_t system_active_power_W;                      //W, -200000 to 200000
 extern int16_t system_battery_current_dA;                  //A+1, -1000 - 1000
 extern uint16_t system_battery_voltage_dV;                 //V+1,  0-1000.0 (0-10000)
 extern uint16_t system_scaled_SOC_pptt;                    //SOC%, 0-100.00 (0-10000)
 extern uint16_t system_real_SOC_pptt;                      //SOC%, 0-100.00 (0-10000)
-extern uint16_t system_SOH_pptt;                           //SOH%, 0-100.00 (0-10000)
 extern uint16_t system_cell_max_voltage_mV;                //mV, 0-5000 , Stores the highest cell millivolt value
 extern uint16_t system_cell_min_voltage_mV;                //mV, 0-5000, Stores the minimum cell millivolt value
 extern uint16_t system_cellvoltages_mV[MAX_AMOUNT_CELLS];  //Array with all cell voltages in mV

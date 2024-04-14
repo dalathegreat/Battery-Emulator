@@ -1,5 +1,6 @@
 #include "../include.h"
 #ifdef NISSAN_LEAF_CHARGER
+#include "../datalayer/datalayer.h"
 #include "../lib/miwagner-ESP32-Arduino-CAN/CAN_config.h"
 #include "../lib/miwagner-ESP32-Arduino-CAN/ESP32CAN.h"
 #include "NISSAN-LEAF-CHARGER.h"

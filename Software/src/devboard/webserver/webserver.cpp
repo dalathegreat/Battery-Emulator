@@ -509,10 +509,10 @@ String processor(const String& var) {
     // Display battery statistics within this block
     float socRealFloat = static_cast<float>(system_real_SOC_pptt) / 100.0;      // Convert to float and divide by 100
     float socScaledFloat = static_cast<float>(system_scaled_SOC_pptt) / 100.0;  // Convert to float and divide by 100
-    float sohFloat = static_cast<float>(system_SOH_pptt) / 100.0;               // Convert to float and divide by 100
+    float sohFloat = static_cast<float>(datalayer.battery.status.soh_pptt) / 100.0;               // Convert to float and divide by 100
     float voltageFloat = static_cast<float>(system_battery_voltage_dV) / 10.0;  // Convert to float and divide by 10
     float currentFloat = static_cast<float>(system_battery_current_dA) / 10.0;  // Convert to float and divide by 10
-    float powerFloat = static_cast<float>(system_active_power_W);               // Convert to float
+    float powerFloat = static_cast<float>(datalayer.battery.status.active_power_W);               // Convert to float
     float tempMaxFloat = static_cast<float>(system_temperature_max_dC) / 10.0;  // Convert to float
     float tempMinFloat = static_cast<float>(system_temperature_min_dC) / 10.0;  // Convert to float
 

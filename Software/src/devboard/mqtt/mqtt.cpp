@@ -4,6 +4,7 @@
 #include <freertos/FreeRTOS.h>
 #include "../../../USER_SETTINGS.h"
 #include "../../battery/BATTERIES.h"
+#include "../../datalayer/datalayer.h"
 #include "../../lib/bblanchon-ArduinoJson/ArduinoJson.h"
 #include "../../lib/knolleary-pubsubclient/PubSubClient.h"
 #include "../utils/timer.h"
@@ -152,10 +153,10 @@ static void publish_common_info(void) {
   } else {
     doc["SOC"] = ((float)system_scaled_SOC_pptt) / 100.0;
     doc["SOC_real"] = ((float)system_real_SOC_pptt) / 100.0;
-    doc["state_of_health"] = ((float)system_SOH_pptt) / 100.0;
+    doc["state_of_health"] = ((float)datalayer.battery.status.soh_pptt) / 100.0;
     doc["temperature_min"] = ((float)((int16_t)system_temperature_min_dC)) / 10.0;
     doc["temperature_max"] = ((float)((int16_t)system_temperature_max_dC)) / 10.0;
-    doc["stat_batt_power"] = ((float)((int16_t)system_active_power_W));
+    doc["stat_batt_power"] = ((float)((int32_t)datalayer.battery.status.active_power_W));
     doc["battery_current"] = ((float)((int16_t)system_battery_current_dA)) / 10.0;
     doc["cell_max_voltage"] = ((float)system_cell_max_voltage_mV) / 1000.0;
     doc["cell_min_voltage"] = ((float)system_cell_min_voltage_mV) / 1000.0;

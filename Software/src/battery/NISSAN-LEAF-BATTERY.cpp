@@ -163,7 +163,7 @@ void print_with_units(char* header, int value, char* units) {
 void update_values_battery() { /* This function maps all the values fetched via CAN to the correct parameters used for modbus */
   /* Start with mapping all values */
 
-  system_SOH_pptt = (LB_StateOfHealth * 100);  //Increase range from 99% -> 99.00%
+  datalayer.battery.status.soh_pptt = (LB_StateOfHealth * 100);  //Increase range from 99% -> 99.00%
 
   system_real_SOC_pptt = (LB_SOC * 10);
 
@@ -178,7 +178,7 @@ void update_values_battery() { /* This function maps all the values fetched via 
   LB_Power =
       ((LB_Total_Voltage2 * LB_Current2) / 4);  //P = U * I (Both values are 0.5 per bit so the math is non-intuitive)
 
-  system_active_power_W = LB_Power;
+  datalayer.battery.status.active_power_W = LB_Power;
 
   //Update temperature readings. Method depends on which generation LEAF battery is used
   if (LEAF_Battery_Type == ZE0_BATTERY) {
@@ -350,7 +350,7 @@ void update_values_battery() { /* This function maps all the values fetched via 
 /*Finally print out values to serial if configured to do so*/
 #ifdef DEBUG_VIA_USB
   Serial.println("Values going to inverter");
-  print_with_units("SOH%: ", (system_SOH_pptt * 0.01), "% ");
+  print_with_units("SOH%: ", (datalayer.battery.status.soh_pptt * 0.01), "% ");
   print_with_units(", SOC% scaled: ", (system_scaled_SOC_pptt * 0.01), "% ");
   print_with_units(", Voltage: ", (system_battery_voltage_dV * 0.1), "V ");
   print_with_units(", Max discharge power: ", system_max_discharge_power_W, "W ");

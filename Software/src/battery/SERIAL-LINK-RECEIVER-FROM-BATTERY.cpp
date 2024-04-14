@@ -1,6 +1,7 @@
 #include "../include.h"
 #ifdef SERIAL_LINK_RECEIVER
 #include <Arduino.h>
+#include "../datalayer/datalayer.h"
 #include "../devboard/utils/events.h"
 #include "SERIAL-LINK-RECEIVER-FROM-BATTERY.h"
 
@@ -29,7 +30,7 @@ static bool batteryFault = false;  // used locally - mainly to indicate Battery 
 
 void __getData() {
   system_real_SOC_pptt = (uint16_t)dataLinkReceive.getReceivedData(0);
-  system_SOH_pptt = (uint16_t)dataLinkReceive.getReceivedData(1);
+  datalayer.battery.status.soh_pptt = (uint16_t)dataLinkReceive.getReceivedData(1);
   system_battery_voltage_dV = (uint16_t)dataLinkReceive.getReceivedData(2);
   system_battery_current_dA = (int16_t)dataLinkReceive.getReceivedData(3);
   system_capacity_Wh = (uint32_t)(dataLinkReceive.getReceivedData(4) * 10);            //add back missing decimal
@@ -37,7 +38,8 @@ void __getData() {
   system_max_discharge_power_W = (uint32_t)(dataLinkReceive.getReceivedData(6) * 10);  //add back missing decimal
   system_max_charge_power_W = (uint32_t)(dataLinkReceive.getReceivedData(7) * 10);     //add back missing decimal
   uint16_t _system_bms_status = (uint16_t)dataLinkReceive.getReceivedData(8);
-  system_active_power_W = (uint32_t)(dataLinkReceive.getReceivedData(9) * 10);  //add back missing decimal
+  datalayer.battery.status.active_power_W =
+      (uint32_t)(dataLinkReceive.getReceivedData(9) * 10);  //add back missing decimal
   system_temperature_min_dC = (int16_t)dataLinkReceive.getReceivedData(10);
   system_temperature_max_dC = (int16_t)dataLinkReceive.getReceivedData(11);
   system_cell_max_voltage_mV = (uint16_t)dataLinkReceive.getReceivedData(12);
@@ -178,7 +180,7 @@ void update_values_serial_link() {
   Serial.print("SOC: ");
   Serial.print(system_real_SOC_pptt);
   Serial.print(" SOH: ");
-  Serial.print(system_SOH_pptt);
+  Serial.print(datalayer.battery.status.soh_pptt);
   Serial.print(" Voltage: ");
   Serial.print(system_battery_voltage_dV);
   Serial.print(" Current: ");
@@ -194,7 +196,7 @@ void update_values_serial_link() {
   Serial.print(" BMS status: ");
   Serial.print(system_bms_status);
   Serial.print(" Power: ");
-  Serial.print(system_active_power_W);
+  Serial.print(datalayer.battery.status.active_power_W);
   Serial.print(" Temp min: ");
   Serial.print(system_temperature_min_dC);
   Serial.print(" Temp max: ");

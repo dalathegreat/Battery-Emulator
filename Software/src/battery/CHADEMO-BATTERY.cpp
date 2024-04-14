@@ -1,5 +1,6 @@
 #include "../include.h"
 #ifdef CHADEMO_BATTERY
+#include "../datalayer/datalayer.h"
 #include "../devboard/utils/events.h"
 #include "../lib/miwagner-ESP32-Arduino-CAN/CAN_config.h"
 #include "../lib/miwagner-ESP32-Arduino-CAN/ESP32CAN.h"
@@ -123,7 +124,7 @@ void update_values_battery() {  //This function maps all the values fetched via 
   Serial.print("Max charge power: ");
   Serial.println(system_max_charge_power_W);
   Serial.print("SOH%: ");
-  Serial.println(system_SOH_pptt);
+  Serial.println(datalayer.battery.status.soh_pptt);
   Serial.print("SOC% to Inverter: ");
   Serial.println(system_scaled_SOC_pptt);
   Serial.print("Temperature Min: ");

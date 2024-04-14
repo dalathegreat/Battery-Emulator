@@ -1,5 +1,6 @@
 #include "../include.h"
 #ifdef KIA_E_GMP_BATTERY
+#include "../datalayer/datalayer.h"
 #include "../devboard/utils/events.h"
 #include "../lib/miwagner-ESP32-Arduino-CAN/CAN_config.h"
 #include "../lib/miwagner-ESP32-Arduino-CAN/ESP32CAN.h"
@@ -58,7 +59,7 @@ void update_values_battery() {  //This function maps all the values fetched via 
 
   system_real_SOC_pptt = (SOC_Display * 10);  //increase SOC range from 0-100.0 -> 100.00
 
-  system_SOH_pptt = (batterySOH * 10);  //Increase decimals from 100.0% -> 100.00%
+  datalayer.battery.status.soh_pptt = (batterySOH * 10);  //Increase decimals from 100.0% -> 100.00%
 
   system_battery_voltage_dV = batteryVoltage;  //value is *10 (3700 = 370.0)
 
@@ -84,7 +85,7 @@ void update_values_battery() {  //This function maps all the values fetched via 
 
   powerWatt = ((batteryVoltage * batteryAmps) / 100);
 
-  system_active_power_W = powerWatt;  //Power in watts, Negative = charging batt
+  datalayer.battery.status.active_power_W = powerWatt;  //Power in watts, Negative = charging batt
 
   system_temperature_min_dC = (int8_t)temperatureMin * 10;  //Increase decimals, 17C -> 17.0C
 
@@ -146,7 +147,7 @@ void update_values_battery() {  //This function maps all the values fetched via 
   Serial.print(" Amps  |  ");
   Serial.print((uint16_t)batteryVoltage / 10.0, 1);
   Serial.print(" Volts  |  ");
-  Serial.print((int16_t)system_active_power_W);
+  Serial.print((int16_t)datalayer.battery.status.active_power_W);
   Serial.println(" Watts");
   Serial.print("Allowed Charge ");
   Serial.print((uint16_t)allowedChargePower * 10);

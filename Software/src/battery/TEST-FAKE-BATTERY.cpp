@@ -1,5 +1,6 @@
 #include "../include.h"
 #ifdef TEST_FAKE_BATTERY
+#include "../datalayer/datalayer.h"
 #include "../lib/miwagner-ESP32-Arduino-CAN/ESP32CAN.h"
 #include "TEST-FAKE-BATTERY.h"
 
@@ -17,7 +18,7 @@ void print_units(char* header, int value, char* units) {
 void update_values_battery() {  /* This function puts fake values onto the parameters sent towards the inverter */
   system_real_SOC_pptt = 5000;  // 50.00%
 
-  system_SOH_pptt = 9900;  // 99.00%
+  datalayer.battery.status.soh_pptt = 9900;  // 99.00%
 
   //system_battery_voltage_dV = 3700;  // 370.0V , value set in startup in .ino file, editable via webUI
 
@@ -31,7 +32,7 @@ void update_values_battery() {  /* This function puts fake values onto the param
 
   system_cell_min_voltage_mV = 3500;
 
-  system_active_power_W = 0;  // 0W
+  datalayer.battery.status.active_power_W = 0;  // 0W
 
   system_temperature_min_dC = 50;  // 5.0*C
 
@@ -48,7 +49,7 @@ void update_values_battery() {  /* This function puts fake values onto the param
 /*Finally print out values to serial if configured to do so*/
 #ifdef DEBUG_VIA_USB
   Serial.println("FAKE Values going to inverter");
-  print_units("SOH%: ", (system_SOH_pptt * 0.01), "% ");
+  print_units("SOH%: ", (datalayer.battery.status.soh_pptt * 0.01), "% ");
   print_units(", SOC%: ", (system_scaled_SOC_pptt * 0.01), "% ");
   print_units(", Voltage: ", (system_battery_voltage_dV * 0.1), "V ");
   print_units(", Max discharge power: ", system_max_discharge_power_W, "W ");

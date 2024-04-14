@@ -1,5 +1,6 @@
 #include "../include.h"
 #ifdef IMIEV_CZERO_ION_BATTERY
+#include "../datalayer/datalayer.h"
 #include "../devboard/utils/events.h"
 #include "../lib/miwagner-ESP32-Arduino-CAN/CAN_config.h"
 #include "../lib/miwagner-ESP32-Arduino-CAN/ESP32CAN.h"
@@ -62,7 +63,7 @@ void update_values_battery() {  //This function maps all the values fetched via 
     system_max_discharge_power_W = 10000;  //Otherwise we can discharge 10kW from the pack!
   }
 
-  system_active_power_W = BMU_Power;  //TODO: Scaling?
+  datalayer.battery.status.active_power_W = BMU_Power;  //TODO: Scaling?
 
   static int n = sizeof(cell_voltages) / sizeof(cell_voltages[0]);
   max_volt_cel = cell_voltages[0];  // Initialize max with the first element of the array

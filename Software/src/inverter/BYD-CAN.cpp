@@ -1,5 +1,6 @@
 #include "../include.h"
 #ifdef BYD_CAN
+#include "../datalayer/datalayer.h"
 #include "../lib/miwagner-ESP32-Arduino-CAN/CAN_config.h"
 #include "../lib/miwagner-ESP32-Arduino-CAN/ESP32CAN.h"
 #include "BYD-CAN.h"
@@ -152,8 +153,8 @@ void update_values_can_byd() {  //This function maps all the values fetched from
   BYD_150.data.u8[0] = (system_scaled_SOC_pptt >> 8);
   BYD_150.data.u8[1] = (system_scaled_SOC_pptt & 0x00FF);
   //StateOfHealth (100.00%)
-  BYD_150.data.u8[2] = (system_SOH_pptt >> 8);
-  BYD_150.data.u8[3] = (system_SOH_pptt & 0x00FF);
+  BYD_150.data.u8[2] = (datalayer.battery.status.soh_pptt >> 8);
+  BYD_150.data.u8[3] = (datalayer.battery.status.soh_pptt & 0x00FF);
   //Maximum discharge power allowed (Unit: A+1)
   BYD_150.data.u8[4] = (discharge_current >> 8);
   BYD_150.data.u8[5] = (discharge_current & 0x00FF);

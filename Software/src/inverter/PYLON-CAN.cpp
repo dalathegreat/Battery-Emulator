@@ -1,5 +1,6 @@
 #include "../include.h"
 #ifdef PYLON_CAN
+#include "../datalayer/datalayer.h"
 #include "../lib/miwagner-ESP32-Arduino-CAN/CAN_config.h"
 #include "../lib/miwagner-ESP32-Arduino-CAN/ESP32CAN.h"
 #include "PYLON-CAN.h"
@@ -200,8 +201,8 @@ void update_values_can_pylon() {  //This function maps all the values fetched fr
   PYLON_4211.data.u8[6] = (system_scaled_SOC_pptt * 0.01);  //Remove decimals
 
   //StateOfHealth (100.00%)
-  PYLON_4210.data.u8[7] = (system_SOH_pptt * 0.01);
-  PYLON_4211.data.u8[7] = (system_SOH_pptt * 0.01);
+  PYLON_4210.data.u8[7] = (datalayer.battery.status.soh_pptt * 0.01);
+  PYLON_4211.data.u8[7] = (datalayer.battery.status.soh_pptt * 0.01);
 
 #ifdef INVERT_VOLTAGE  //Useful for Sofar inverters \
                        //Maxvoltage (eg 400.0V = 4000 , 16bits long) Discharge Cutoff Voltage

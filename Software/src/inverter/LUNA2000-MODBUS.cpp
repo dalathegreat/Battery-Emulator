@@ -1,5 +1,6 @@
 #include "../include.h"
 #ifdef LUNA2000_MODBUS
+#include "../datalayer/datalayer.h"
 #include "LUNA2000-MODBUS.h"
 
 void update_modbus_registers_luna2000() {

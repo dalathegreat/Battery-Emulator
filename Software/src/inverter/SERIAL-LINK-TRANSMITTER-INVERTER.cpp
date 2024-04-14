@@ -1,6 +1,7 @@
 #include "../include.h"
 #ifdef SERIAL_LINK_TRANSMITTER
 
+#include "../datalayer/datalayer.h"
 #include "../devboard/utils/events.h"
 #include "SERIAL-LINK-TRANSMITTER-INVERTER.h"
 
@@ -129,7 +130,7 @@ void manageSerialLinkTransmitter() {
     if (currentTime - updateDataTime > INTERVAL_1_S) {
       updateDataTime = currentTime;
       dataLinkTransmit.updateData(0, system_real_SOC_pptt);
-      dataLinkTransmit.updateData(1, system_SOH_pptt);
+      dataLinkTransmit.updateData(1, datalayer.battery.status.soh_pptt);
       dataLinkTransmit.updateData(2, system_battery_voltage_dV);
       dataLinkTransmit.updateData(3, system_battery_current_dA);
       dataLinkTransmit.updateData(4, system_capacity_Wh / 10);            //u32, remove .0 to fit 16bit
@@ -137,7 +138,7 @@ void manageSerialLinkTransmitter() {
       dataLinkTransmit.updateData(6, system_max_discharge_power_W / 10);  //u32, remove .0 to fit 16bit
       dataLinkTransmit.updateData(7, system_max_charge_power_W / 10);     //u32, remove .0 to fit 16bit
       dataLinkTransmit.updateData(8, system_bms_status);
-      dataLinkTransmit.updateData(9, system_active_power_W / 10);  //u32, remove .0 to fit 16bit
+      dataLinkTransmit.updateData(9, datalayer.battery.status.active_power_W / 10);  //u32, remove .0 to fit 16bit
       dataLinkTransmit.updateData(10, system_temperature_min_dC);
       dataLinkTransmit.updateData(11, system_temperature_max_dC);
       dataLinkTransmit.updateData(12, system_cell_max_voltage_mV);
@@ -153,7 +154,7 @@ void printSendingValues() {
   Serial.print("SOC: ");
   Serial.print(system_real_SOC_pptt);
   Serial.print(" SOH: ");
-  Serial.print(system_SOH_pptt);
+  Serial.print(datalayer.battery.status.soh_pptt);
   Serial.print(" Voltage: ");
   Serial.print(system_battery_voltage_dV);
   Serial.print(" Current: ");
@@ -169,7 +170,7 @@ void printSendingValues() {
   Serial.print(" BMS status: ");
   Serial.print(system_bms_status);
   Serial.print(" Power: ");
-  Serial.print(system_active_power_W);
+  Serial.print(datalayer.battery.status.active_power_W);
   Serial.print(" Temp min: ");
   Serial.print(system_temperature_min_dC);
   Serial.print(" Temp max: ");

@@ -1,5 +1,6 @@
 #include "../include.h"
 #ifdef RENAULT_KANGOO_BATTERY
+#include "../datalayer/datalayer.h"
 #include "../devboard/utils/events.h"
 #include "../lib/miwagner-ESP32-Arduino-CAN/CAN_config.h"
 #include "../lib/miwagner-ESP32-Arduino-CAN/ESP32CAN.h"
@@ -56,7 +57,7 @@ void update_values_battery() {  //This function maps all the values fetched via 
 
   system_real_SOC_pptt = (LB_SOC * 10);  //increase LB_SOC range from 0-100.0 -> 100.00
 
-  system_SOH_pptt = (LB_SOH * 100);  //Increase range from 99% -> 99.00%
+  datalayer.battery.status.soh_pptt = (LB_SOH * 100);  //Increase range from 99% -> 99.00%
 
   system_battery_voltage_dV = LB_Battery_Voltage;
 
@@ -92,7 +93,7 @@ void update_values_battery() {  //This function maps all the values fetched via 
     system_max_charge_power_W = 0;  //No need to charge further, set max power to 0
   }
 
-  system_active_power_W = (system_battery_voltage_dV * LB_Current);  //TODO: check if scaling is OK
+  datalayer.battery.status.active_power_W = (system_battery_voltage_dV * LB_Current);  //TODO: check if scaling is OK
 
   system_temperature_min_dC = (LB_MIN_TEMPERATURE * 10);
 
@@ -127,7 +128,7 @@ void update_values_battery() {  //This function maps all the values fetched via 
 #ifdef DEBUG_VIA_USB
   Serial.println("Values going to inverter:");
   Serial.print("SOH%: ");
-  Serial.print(system_SOH_pptt);
+  Serial.print(datalayer.battery.status.soh_pptt);
   Serial.print(", SOC% scaled: ");
   Serial.print(system_scaled_SOC_pptt);
   Serial.print(", Voltage: ");

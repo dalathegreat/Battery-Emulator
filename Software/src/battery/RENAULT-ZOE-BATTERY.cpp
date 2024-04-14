@@ -1,5 +1,6 @@
 #include "../include.h"
 #ifdef RENAULT_ZOE_BATTERY
+#include "../datalayer/datalayer.h"
 #include "../devboard/utils/events.h"
 #include "../lib/miwagner-ESP32-Arduino-CAN/CAN_config.h"
 #include "../lib/miwagner-ESP32-Arduino-CAN/ESP32CAN.h"
@@ -38,7 +39,7 @@ static unsigned long previousMillis1000 = 0;  // will store last time a 1000ms C
 static unsigned long GVL_pause = 0;
 
 void update_values_battery() {  //This function maps all the values fetched via CAN to the correct parameters used for modbus
-  system_SOH_pptt = (LB_SOH * 100);  //Increase range from 99% -> 99.00%
+  datalayer.battery.status.soh_pptt = (LB_SOH * 100);  //Increase range from 99% -> 99.00%
 
   system_real_SOC_pptt = (LB_SOC * 10);  //increase LB_SOC range from 0-100.0 -> 100.00
 
@@ -55,7 +56,7 @@ void update_values_battery() {  //This function maps all the values fetched via 
 
   system_max_charge_power_W;
 
-  system_active_power_W;
+  datalayer.battery.status.active_power_W;
 
   system_temperature_min_dC;
 
@@ -90,7 +91,7 @@ void update_values_battery() {  //This function maps all the values fetched via 
 #ifdef DEBUG_VIA_USB
   Serial.println("Values going to inverter:");
   Serial.print("SOH%: ");
-  Serial.print(system_SOH_pptt);
+  Serial.print(datalayer.battery.status.soh_pptt);
   Serial.print(", SOC% scaled: ");
   Serial.print(system_scaled_SOC_pptt);
   Serial.print(", Voltage: ");

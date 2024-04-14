@@ -1,5 +1,6 @@
 #include "../include.h"
 #ifdef BMW_I3_BATTERY
+#include "../datalayer/datalayer.h"
 #include "../devboard/utils/events.h"
 #include "../lib/miwagner-ESP32-Arduino-CAN/CAN_config.h"
 #include "../lib/miwagner-ESP32-Arduino-CAN/ESP32CAN.h"
@@ -424,7 +425,7 @@ void update_values_battery() {  //This function maps all the values fetched via 
 
   system_remaining_capacity_Wh = (battery_energy_content_maximum_kWh * 1000);  // Convert kWh to Wh
 
-  system_SOH_pptt = battery_soh * 100;
+  datalayer.battery.status.soh_pptt = battery_soh * 100;
 
   if (battery_BEV_available_power_longterm_discharge > 65000) {
     system_max_discharge_power_W = 65000;
@@ -439,7 +440,7 @@ void update_values_battery() {  //This function maps all the values fetched via 
 
   battery_power = (system_battery_current_dA * (system_battery_voltage_dV / 100));
 
-  system_active_power_W = battery_power;
+  datalayer.battery.status.active_power_W = battery_power;
 
   system_temperature_min_dC = battery_temperature_min * 10;  // Add a decimal
 
@@ -478,7 +479,7 @@ void update_values_battery() {  //This function maps all the values fetched via 
   Serial.print(" Max discharge power: ");
   Serial.print(system_max_discharge_power_W);
   Serial.print(" Active power: ");
-  Serial.print(system_active_power_W);
+  Serial.print(datalayer.battery.status.active_power_W);
   Serial.print(" Min temp: ");
   Serial.print(system_temperature_min_dC * 0.1);
   Serial.print(" Max temp: ");

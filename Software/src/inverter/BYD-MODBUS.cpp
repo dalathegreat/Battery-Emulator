@@ -1,5 +1,6 @@
 #include "../include.h"
 #ifdef BYD_MODBUS
+#include "../datalayer/datalayer.h"
 #include "BYD-MODBUS.h"
 
 void update_modbus_registers_byd() {
@@ -129,7 +130,7 @@ void handle_update_data_modbusp301_byd() {
   battery_data[21] =
       52064;  // Id.: p322 Value.: 0 Scaled value.: 0 Comment.: counter discharge lo....65536*92+7448 = 6036760 Wh?
   battery_data[22] = 230;              // Id.: p323 Value.: 0 Scaled value.: 0 Comment.: device temperature (23 degrees)
-  battery_data[23] = system_SOH_pptt;  // Id.: p324 Value.: 9900 Scaled value.: 99% Comment.: SOH
+  battery_data[23] = datalayer.battery.status.soh_pptt;  // Id.: p324 Value.: 9900 Scaled value.: 99% Comment.: SOH
   static uint16_t i = 300;
   memcpy(&mbPV[i], battery_data, sizeof(battery_data));
 }

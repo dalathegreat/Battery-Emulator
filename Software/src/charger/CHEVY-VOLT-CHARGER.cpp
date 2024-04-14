@@ -1,5 +1,6 @@
 #include "../include.h"
 #ifdef CHEVYVOLT_CHARGER
+#include "../datalayer/datalayer.h"
 #include "../lib/miwagner-ESP32-Arduino-CAN/CAN_config.h"
 #include "../lib/miwagner-ESP32-Arduino-CAN/ESP32CAN.h"
 #include "CHEVY-VOLT-CHARGER.h"

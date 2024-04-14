@@ -1,5 +1,6 @@
 #include "../include.h"
 #ifdef SOFAR_CAN
+#include "../datalayer/datalayer.h"
 #include "../lib/miwagner-ESP32-Arduino-CAN/CAN_config.h"
 #include "../lib/miwagner-ESP32-Arduino-CAN/ESP32CAN.h"
 #include "SOFAR-CAN.h"
@@ -294,7 +295,7 @@ void update_values_can_sofar() {  //This function maps all the values fetched fr
 
   //SOC
   SOFAR_355.data.u8[0] = (system_scaled_SOC_pptt / 100);
-  SOFAR_355.data.u8[2] = (system_SOH_pptt / 100);
+  SOFAR_355.data.u8[2] = (datalayer.battery.status.soh_pptt / 100);
   //SOFAR_355.data.u8[6] = (AH_remaining >> 8);
   //SOFAR_355.data.u8[7] = (AH_remaining & 0x00FF);
 

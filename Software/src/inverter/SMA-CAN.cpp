@@ -1,5 +1,6 @@
 #include "../include.h"
 #ifdef SMA_CAN
+#include "../datalayer/datalayer.h"
 #include "../lib/miwagner-ESP32-Arduino-CAN/CAN_config.h"
 #include "../lib/miwagner-ESP32-Arduino-CAN/ESP32CAN.h"
 #include "SMA-CAN.h"
@@ -145,8 +146,8 @@ void update_values_can_sma() {  //This function maps all the values fetched from
   SMA_3D8.data.u8[0] = (system_scaled_SOC_pptt >> 8);
   SMA_3D8.data.u8[1] = (system_scaled_SOC_pptt & 0x00FF);
   //StateOfHealth (100.00%)
-  SMA_3D8.data.u8[2] = (system_SOH_pptt >> 8);
-  SMA_3D8.data.u8[3] = (system_SOH_pptt & 0x00FF);
+  SMA_3D8.data.u8[2] = (datalayer.battery.status.soh_pptt >> 8);
+  SMA_3D8.data.u8[3] = (datalayer.battery.status.soh_pptt & 0x00FF);
   //State of charge (AH, 0.1)
   SMA_3D8.data.u8[4] = (ampere_hours_remaining >> 8);
   SMA_3D8.data.u8[5] = (ampere_hours_remaining & 0x00FF);
