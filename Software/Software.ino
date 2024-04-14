@@ -30,7 +30,7 @@
 
 Preferences settings;  // Store user settings
 // The current software version, shown on webserver
-const char* version_number = "5.7.0";
+const char* version_number = "5.7.1";
 
 // Interval settings
 uint16_t intervalUpdateValues = INTERVAL_5_S;  // Interval at which to update inverter values / Modbus registers
