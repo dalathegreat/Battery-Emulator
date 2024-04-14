@@ -51,14 +51,17 @@ typedef struct {
 } DATALAYER_BATTERY_TYPE;
 
 typedef struct {
+#ifdef FUNCTION_TIME_MEASUREMENT
   int64_t main_task_max_us = 0;
   int64_t main_task_10s_max_us = 0;
   int64_t time_wifi_us = 0;
+  int64_t time_mqtt_us = 0;
   int64_t time_comm_us = 0;
   int64_t time_10ms_us = 0;
   int64_t time_5s_us = 0;
   int64_t time_cantx_us = 0;
   int64_t time_events_us = 0;
+#endif
 } DATALAYER_SYSTEM_STATUS_TYPE;
 
 typedef struct {
