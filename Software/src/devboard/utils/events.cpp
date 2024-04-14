@@ -313,13 +313,13 @@ static void update_bms_status(void) {
     case EVENT_LEVEL_INFO:
     case EVENT_LEVEL_WARNING:
     case EVENT_LEVEL_DEBUG:
-      system_bms_status = ACTIVE;
+      datalayer.battery.status.bms_status = ACTIVE;
       break;
     case EVENT_LEVEL_UPDATE:
-      system_bms_status = UPDATING;
+      datalayer.battery.status.bms_status = UPDATING;
       break;
     case EVENT_LEVEL_ERROR:
-      system_bms_status = FAULT;
+      datalayer.battery.status.bms_status = FAULT;
       break;
     default:
       break;

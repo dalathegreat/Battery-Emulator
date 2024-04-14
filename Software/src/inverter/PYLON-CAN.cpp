@@ -231,7 +231,7 @@ void update_values_can_pylon() {  //This function maps all the values fetched fr
 #endif
 
   //In case we run into any errors/faults, we can set charge / discharge forbidden
-  if (system_bms_status == FAULT) {
+  if (datalayer.battery.status.bms_status == FAULT) {
     PYLON_4280.data.u8[0] = 0xAA;
     PYLON_4280.data.u8[1] = 0xAA;
     PYLON_4280.data.u8[2] = 0xAA;

@@ -28,9 +28,9 @@ void update_values_battery() {  /* This function puts fake values onto the param
 
   datalayer.battery.status.remaining_capacity_Wh = 15000;  // 15kWh
 
-  system_cell_max_voltage_mV = 3596;
+  datalayer.battery.status.cell_max_voltage_mV = 3596;
 
-  system_cell_min_voltage_mV = 3500;
+  datalayer.battery.status.cell_min_voltage_mV = 3500;
 
   datalayer.battery.status.active_power_W = 0;  // 0W
 
@@ -38,9 +38,9 @@ void update_values_battery() {  /* This function puts fake values onto the param
 
   datalayer.battery.status.temperature_max_dC = 60;  // 6.0*C
 
-  system_max_discharge_power_W = 5000;  // 5kW
+  datalayer.battery.status.max_discharge_power_W = 5000;  // 5kW
 
-  system_max_charge_power_W = 5000;  // 5kW
+  datalayer.battery.status.max_charge_power_W = 5000;  // 5kW
 
   for (int i = 0; i < 97; ++i) {
     system_cellvoltages_mV[i] = 3500 + i;
@@ -52,12 +52,12 @@ void update_values_battery() {  /* This function puts fake values onto the param
   print_units("SOH%: ", (datalayer.battery.status.soh_pptt * 0.01), "% ");
   print_units(", SOC%: ", (system_scaled_SOC_pptt * 0.01), "% ");
   print_units(", Voltage: ", (datalayer.battery.status.voltage_dV * 0.1), "V ");
-  print_units(", Max discharge power: ", system_max_discharge_power_W, "W ");
-  print_units(", Max charge power: ", system_max_charge_power_W, "W ");
+  print_units(", Max discharge power: ", datalayer.battery.status.max_discharge_power_W, "W ");
+  print_units(", Max charge power: ", datalayer.battery.status.max_charge_power_W, "W ");
   print_units(", Max temp: ", (datalayer.battery.status.temperature_max_dC * 0.1), "°C ");
   print_units(", Min temp: ", (datalayer.battery.status.temperature_min_dC * 0.1), "°C ");
-  print_units(", Max cell voltage: ", system_cell_max_voltage_mV, "mV ");
-  print_units(", Min cell voltage: ", system_cell_min_voltage_mV, "mV ");
+  print_units(", Max cell voltage: ", datalayer.battery.status.cell_max_voltage_mV, "mV ");
+  print_units(", Min cell voltage: ", datalayer.battery.status.cell_min_voltage_mV, "mV ");
   Serial.println("");
 #endif
 }

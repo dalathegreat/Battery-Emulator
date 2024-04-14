@@ -158,8 +158,8 @@ static void publish_common_info(void) {
     doc["temperature_max"] = ((float)((int16_t)datalayer.battery.status.temperature_max_dC)) / 10.0;
     doc["stat_batt_power"] = ((float)((int32_t)datalayer.battery.status.active_power_W));
     doc["battery_current"] = ((float)((int16_t)datalayer.battery.status.current_dA)) / 10.0;
-    doc["cell_max_voltage"] = ((float)system_cell_max_voltage_mV) / 1000.0;
-    doc["cell_min_voltage"] = ((float)system_cell_min_voltage_mV) / 1000.0;
+    doc["cell_max_voltage"] = ((float)datalayer.battery.status.cell_max_voltage_mV) / 1000.0;
+    doc["cell_min_voltage"] = ((float)datalayer.battery.status.cell_min_voltage_mV) / 1000.0;
     doc["battery_voltage"] = ((float)datalayer.battery.status.voltage_dV) / 10.0;
 
     serializeJson(doc, mqtt_msg);

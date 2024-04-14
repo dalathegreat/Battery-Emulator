@@ -207,24 +207,24 @@ void update_values_battery() { /* This function maps all the values fetched via 
   }
 
   // Define power able to be discharged from battery
-  if (LB_Discharge_Power_Limit > 60) {     //if >60kW can be pulled from battery
-    system_max_discharge_power_W = 60000;  //cap value so we don't go over uint16 value
+  if (LB_Discharge_Power_Limit > 60) {                       //if >60kW can be pulled from battery
+    datalayer.battery.status.max_discharge_power_W = 60000;  //cap value so we don't go over uint16 value
   } else {
-    system_max_discharge_power_W = (LB_Discharge_Power_Limit * 1000);  //kW to W
+    datalayer.battery.status.max_discharge_power_W = (LB_Discharge_Power_Limit * 1000);  //kW to W
   }
   if (system_scaled_SOC_pptt == 0) {  //Scaled SOC% value is 0.00%, we should not discharge battery further
-    system_max_discharge_power_W = 0;
+    datalayer.battery.status.max_discharge_power_W = 0;
   }
 
   // Define power able to be put into the battery
-  if (LB_Charge_Power_Limit > 60) {     //if >60kW can be put into the battery
-    system_max_charge_power_W = 60000;  //cap value so we don't go over uint16 value
+  if (LB_Charge_Power_Limit > 60) {                       //if >60kW can be put into the battery
+    datalayer.battery.status.max_charge_power_W = 60000;  //cap value so we don't go over uint16 value
   } else {
-    system_max_charge_power_W = (LB_Charge_Power_Limit * 1000);  //kW to W
+    datalayer.battery.status.max_charge_power_W = (LB_Charge_Power_Limit * 1000);  //kW to W
   }
   if (system_scaled_SOC_pptt == 10000)  //Scaled SOC% value is 100.00%
   {
-    system_max_charge_power_W = 0;  //No need to charge further, set max power to 0
+    datalayer.battery.status.max_charge_power_W = 0;  //No need to charge further, set max power to 0
   }
 
   //Map all cell voltages to the global array
@@ -237,7 +237,7 @@ void update_values_battery() { /* This function maps all the values fetched via 
   {                  //Battery is running abnormally low, some discharge logic might have failed. Zero it all out.
     set_event(EVENT_BATTERY_EMPTY, 0);
     system_real_SOC_pptt = 0;
-    system_max_discharge_power_W = 0;
+    datalayer.battery.status.max_discharge_power_W = 0;
   }
 
   //Check if SOC% is plausible
@@ -253,14 +253,14 @@ void update_values_battery() { /* This function maps all the values fetched via 
 
   if (LB_Full_CHARGE_flag) {  //Battery reports that it is fully charged stop all further charging incase it hasn't already
     set_event(EVENT_BATTERY_FULL, 0);
-    system_max_charge_power_W = 0;
+    datalayer.battery.status.max_charge_power_W = 0;
   } else {
     clear_event(EVENT_BATTERY_FULL);
   }
 
   if (LB_Capacity_Empty) {  //Battery reports that it is fully discharged. Stop all further discharging incase it hasn't already
     set_event(EVENT_BATTERY_EMPTY, 0);
-    system_max_discharge_power_W = 0;
+    datalayer.battery.status.max_discharge_power_W = 0;
   } else {
     clear_event(EVENT_BATTERY_EMPTY);
   }
@@ -270,8 +270,8 @@ void update_values_battery() { /* This function maps all the values fetched via 
     Serial.println("Battery requesting immediate shutdown and contactors to be opened!");
 #endif
     //Note, this is sometimes triggered during the night while idle, and the BMS recovers after a while. Removed latching from this scenario
-    system_max_discharge_power_W = 0;
-    system_max_charge_power_W = 0;
+    datalayer.battery.status.max_discharge_power_W = 0;
+    datalayer.battery.status.max_charge_power_W = 0;
   }
 
   if (LB_Failsafe_Status > 0)  // 0 is normal, start charging/discharging
@@ -345,9 +345,10 @@ void update_values_battery() { /* This function maps all the values fetched via 
     set_event(EVENT_CAN_RX_WARNING, 0);
   }
 
-  if (system_bms_status == FAULT) {  //Incase we enter a critical fault state, zero out the allowed limits
-    system_max_charge_power_W = 0;
-    system_max_discharge_power_W = 0;
+  if (datalayer.battery.status.bms_status ==
+      FAULT) {  //Incase we enter a critical fault state, zero out the allowed limits
+    datalayer.battery.status.max_charge_power_W = 0;
+    datalayer.battery.status.max_discharge_power_W = 0;
   }
 
 /*Finally print out values to serial if configured to do so*/
@@ -356,13 +357,13 @@ void update_values_battery() { /* This function maps all the values fetched via 
   print_with_units("SOH%: ", (datalayer.battery.status.soh_pptt * 0.01), "% ");
   print_with_units(", SOC% scaled: ", (system_scaled_SOC_pptt * 0.01), "% ");
   print_with_units(", Voltage: ", (datalayer.battery.status.voltage_dV * 0.1), "V ");
-  print_with_units(", Max discharge power: ", system_max_discharge_power_W, "W ");
-  print_with_units(", Max charge power: ", system_max_charge_power_W, "W ");
+  print_with_units(", Max discharge power: ", datalayer.battery.status.max_discharge_power_W, "W ");
+  print_with_units(", Max charge power: ", datalayer.battery.status.max_charge_power_W, "W ");
   print_with_units(", Max temp: ", (datalayer.battery.status.temperature_max_dC * 0.1), "°C ");
   print_with_units(", Min temp: ", (datalayer.battery.status.temperature_min_dC * 0.1), "°C ");
   Serial.println("");
   Serial.print("BMS Status: ");
-  if (system_bms_status == 3) {
+  if (datalayer.battery.status.bms_status == 3) {
     Serial.print("Active, ");
   } else {
     Serial.print("FAULT, ");
@@ -558,8 +559,8 @@ void receive_can_battery(CAN_frame_t rx_frame) {
 
           cell_deviation_mV = (min_max_voltage[1] - min_max_voltage[0]);
 
-          system_cell_max_voltage_mV = min_max_voltage[1];
-          system_cell_min_voltage_mV = min_max_voltage[0];
+          datalayer.battery.status.cell_max_voltage_mV = min_max_voltage[1];
+          datalayer.battery.status.cell_min_voltage_mV = min_max_voltage[0];
 
           if (cell_deviation_mV > MAX_CELL_DEVIATION) {
             set_event(EVENT_CELL_DEVIATION_HIGH, 0);

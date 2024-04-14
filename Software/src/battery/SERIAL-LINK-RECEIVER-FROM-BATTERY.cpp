@@ -36,21 +36,23 @@ void __getData() {
   datalayer.battery.info.total_capacity_Wh =
       (uint32_t)(dataLinkReceive.getReceivedData(4) * 10);  //add back missing decimal
   datalayer.battery.status.remaining_capacity_Wh =
-      (uint32_t)(dataLinkReceive.getReceivedData(5) * 10);                             //add back missing decimal
-  system_max_discharge_power_W = (uint32_t)(dataLinkReceive.getReceivedData(6) * 10);  //add back missing decimal
-  system_max_charge_power_W = (uint32_t)(dataLinkReceive.getReceivedData(7) * 10);     //add back missing decimal
-  uint16_t _system_bms_status = (uint16_t)dataLinkReceive.getReceivedData(8);
+      (uint32_t)(dataLinkReceive.getReceivedData(5) * 10);  //add back missing decimal
+  datalayer.battery.status.max_discharge_power_W =
+      (uint32_t)(dataLinkReceive.getReceivedData(6) * 10);  //add back missing decimal
+  datalayer.battery.status.max_charge_power_W =
+      (uint32_t)(dataLinkReceive.getReceivedData(7) * 10);  //add back missing decimal
+  uint16_t _datalayer.battery.status.bms_status = (uint16_t)dataLinkReceive.getReceivedData(8);
   datalayer.battery.status.active_power_W =
       (uint32_t)(dataLinkReceive.getReceivedData(9) * 10);  //add back missing decimal
   datalayer.battery.status.temperature_min_dC = (int16_t)dataLinkReceive.getReceivedData(10);
   datalayer.battery.status.temperature_max_dC = (int16_t)dataLinkReceive.getReceivedData(11);
-  system_cell_max_voltage_mV = (uint16_t)dataLinkReceive.getReceivedData(12);
-  system_cell_min_voltage_mV = (uint16_t)dataLinkReceive.getReceivedData(13);
+  datalayer.battery.status.cell_max_voltage_mV = (uint16_t)dataLinkReceive.getReceivedData(12);
+  datalayer.battery.status.cell_min_voltage_mV = (uint16_t)dataLinkReceive.getReceivedData(13);
   system_LFP_Chemistry = (bool)dataLinkReceive.getReceivedData(14);
   batteryAllowsContactorClosing = (bool)dataLinkReceive.getReceivedData(15);
 
   batteryFault = false;
-  if (_system_bms_status == FAULT) {
+  if (_datalayer.battery.status.bms_status == FAULT) {
     batteryFault = true;
     set_event(EVENT_SERIAL_TRANSMITTER_FAILURE, 0);
   }
@@ -103,8 +105,8 @@ void manageSerialLinkReceiver() {
   {
     __getData();
     reads++;
-    lastGoodMaxCharge = system_max_charge_power_W;
-    lastGoodMaxDischarge = system_max_discharge_power_W;
+    lastGoodMaxCharge = datalayer.battery.status.max_charge_power_W;
+    lastGoodMaxDischarge = datalayer.battery.status.max_discharge_power_W;
     //--- if BatteryFault then assume Data is stale
     if (!batteryFault)
       lastGood = currentTime;
@@ -120,13 +122,13 @@ void manageSerialLinkReceiver() {
   if (minutesLost > 0 && lastGood > 0) {
     //   lose 25% each minute of data loss
     if (minutesLost < 4) {
-      system_max_charge_power_W = (lastGoodMaxCharge * (4 - minutesLost)) / 4;
-      system_max_discharge_power_W = (lastGoodMaxDischarge * (4 - minutesLost)) / 4;
+      datalayer.battery.status.max_charge_power_W = (lastGoodMaxCharge * (4 - minutesLost)) / 4;
+      datalayer.battery.status.max_discharge_power_W = (lastGoodMaxDischarge * (4 - minutesLost)) / 4;
       set_event(EVENT_SERIAL_RX_WARNING, minutesLost);
     } else {
       // Times Up -
-      system_max_charge_power_W = 0;
-      system_max_discharge_power_W = 0;
+      datalayer.battery.status.max_charge_power_W = 0;
+      datalayer.battery.status.max_discharge_power_W = 0;
       set_event(EVENT_SERIAL_RX_FAILURE, uint8_t(min(minutesLost, 255uL)));
       //----- Throw Error
     }
@@ -141,9 +143,9 @@ void manageSerialLinkReceiver() {
       }
       Serial.print(minutesLost);
       Serial.print(", max Charge = ");
-      Serial.print(system_max_charge_power_W);
+      Serial.print(datalayer.battery.status.max_charge_power_W);
       Serial.print(", max Discharge = ");
-      Serial.println(system_max_discharge_power_W);
+      Serial.println(datalayer.battery.status.max_discharge_power_W);
     }
   }
 
@@ -192,11 +194,11 @@ void update_values_serial_link() {
   Serial.print(" Remain cap: ");
   Serial.print(datalayer.battery.status.remaining_capacity_Wh);
   Serial.print(" Max discharge W: ");
-  Serial.print(system_max_discharge_power_W);
+  Serial.print(datalayer.battery.status.max_discharge_power_W);
   Serial.print(" Max charge W: ");
-  Serial.print(system_max_charge_power_W);
+  Serial.print(datalayer.battery.status.max_charge_power_W);
   Serial.print(" BMS status: ");
-  Serial.print(system_bms_status);
+  Serial.print(datalayer.battery.status.bms_status);
   Serial.print(" Power: ");
   Serial.print(datalayer.battery.status.active_power_W);
   Serial.print(" Temp min: ");
@@ -204,9 +206,9 @@ void update_values_serial_link() {
   Serial.print(" Temp max: ");
   Serial.print(datalayer.battery.status.temperature_max_dC);
   Serial.print(" Cell max: ");
-  Serial.print(system_cell_max_voltage_mV);
+  Serial.print(datalayer.battery.status.cell_max_voltage_mV);
   Serial.print(" Cell min: ");
-  Serial.print(system_cell_min_voltage_mV);
+  Serial.print(datalayer.battery.status.cell_min_voltage_mV);
   Serial.print(" LFP : ");
   Serial.print(system_LFP_Chemistry);
   Serial.print(" batteryAllowsContactorClosing: ");

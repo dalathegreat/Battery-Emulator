@@ -63,12 +63,9 @@ ModbusServerRTU MBserver(Serial2, 2000);
 // Common system parameters. Batteries map their values to these variables
 uint16_t system_scaled_SOC_pptt = 5000;             //SOC%, 0-100.00 (0-10000)
 uint16_t system_real_SOC_pptt = 5000;               //SOC%, 0-100.00 (0-10000)
-uint32_t system_max_discharge_power_W = 0;          //Watts, 0 to 200000
-uint32_t system_max_charge_power_W = 4312;          //Watts, 0 to 200000
-uint16_t system_cell_max_voltage_mV = 3700;         //mV, 0-5000 , Stores the highest cell millivolt value
-uint16_t system_cell_min_voltage_mV = 3700;         //mV, 0-5000, Stores the minimum cell millivolt value
 uint16_t system_cellvoltages_mV[MAX_AMOUNT_CELLS];  //Array with all cell voltages. Oversized to accomodate all setups
-uint8_t system_bms_status = ACTIVE;  //ACTIVE - [0..5]<>[STANDBY,INACTIVE,DARKSTART,ACTIVE,FAULT,UPDATING]
+uint8_t datalayer.battery.status.bms_status =
+    ACTIVE;                          //ACTIVE - [0..5]<>[STANDBY,INACTIVE,DARKSTART,ACTIVE,FAULT,UPDATING]
 uint8_t system_number_of_cells = 0;  //Total number of cell voltages, set by each battery
 bool system_LFP_Chemistry = false;   //Set to true or false depending on cell chemistry
 
@@ -608,7 +605,7 @@ void send_can2() {
 #ifdef CONTACTOR_CONTROL
 void handle_contactors() {
   // First check if we have any active errors, incase we do, turn off the battery
-  if (system_bms_status == FAULT) {
+  if (datalayer.battery.status.bms_status == FAULT) {
     timeSpentInFaultedMode++;
   } else {
     timeSpentInFaultedMode = 0;

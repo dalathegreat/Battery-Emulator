@@ -76,7 +76,7 @@ void handle_update_data_modbusp301_byd() {
     bms_char_dis_status = CHARGING;
   }
 
-  if (system_bms_status == ACTIVE) {
+  if (datalayer.battery.status.bms_status == ACTIVE) {
     battery_data[8] =
         datalayer.battery.status
             .voltage_dV;  // Id.: p309 Value.: 3161 Scaled value.: 316,1VDC Comment.: Batt Voltage outer (0 if status !=3, maybe a contactor closes when active): 173.4V
@@ -84,8 +84,9 @@ void handle_update_data_modbusp301_byd() {
     battery_data[8] = 0;
   }
   battery_data[0] =
-      system_bms_status;  // Id.: p301 Value.: 3 Scaled value.: 3 Comment.: status(*): ACTIVE - [0..5]<>[STANDBY,INACTIVE,DARKSTART,ACTIVE,FAULT,UPDATING]
-  battery_data[1] = 0;    // Id.: p302 Value.: 0 Scaled value.: 0 Comment.: always 0
+      datalayer.battery.status
+          .bms_status;  // Id.: p301 Value.: 3 Scaled value.: 3 Comment.: status(*): ACTIVE - [0..5]<>[STANDBY,INACTIVE,DARKSTART,ACTIVE,FAULT,UPDATING]
+  battery_data[1] = 0;  // Id.: p302 Value.: 0 Scaled value.: 0 Comment.: always 0
   battery_data[2] = 128 + bms_char_dis_status;  // Id.: p303 Value.: 130 Scaled value.: 130 Comment.: mode(*): normal
   battery_data[3] =
       system_scaled_SOC_pptt;  // Id.: p304 Value.: 1700 Scaled value.: 50% Comment.: SOC: (50% would equal 5000)
@@ -101,18 +102,20 @@ void handle_update_data_modbusp301_byd() {
     // Id.: p306 Value.: 13260 Scaled value.: 13,26kWh Comment.: remaining cap: 7.68kWh
     battery_data[5] = datalayer.battery.status.remaining_capacity_Wh;
   }
-  if (system_max_discharge_power_W > 30000) {
+  if (datalayer.battery.status.max_discharge_power_W > 30000) {
     battery_data[6] = 30000;
   } else {
     battery_data[6] =
-        system_max_discharge_power_W;  // Id.: p307 Value.: 25604 Scaled value.: 25,604kW Comment.: max/target discharge power: 0W (0W > restricts to no discharge)
+        datalayer.battery.status
+            .max_discharge_power_W;  // Id.: p307 Value.: 25604 Scaled value.: 25,604kW Comment.: max/target discharge power: 0W (0W > restricts to no discharge)
   }
 
-  if (system_max_charge_power_W > 30000) {
+  if (datalayer.battery.status.max_charge_power_W > 30000) {
     battery_data[7] = 30000;
   } else {
     battery_data[7] =
-        system_max_charge_power_W;  // Id.: p308 Value.: 25604 Scaled value.: 25,604kW Comment.: max/target charge power: 4.3kW (during charge), both 307&308 can be set (>0) at the same time
+        datalayer.battery.status
+            .max_charge_power_W;  // Id.: p308 Value.: 25604 Scaled value.: 25,604kW Comment.: max/target charge power: 4.3kW (during charge), both 307&308 can be set (>0) at the same time
   }
   //Battery_data[8] set previously in function           // Id.: p309 Value.: 3161 Scaled value.: 316,1VDC Comment.: Batt Voltage outer (0 if status !=3, maybe a contactor closes when active): 173.4V
   battery_data[9] =

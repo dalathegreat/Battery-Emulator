@@ -428,14 +428,14 @@ void update_values_battery() {  //This function maps all the values fetched via 
   datalayer.battery.status.soh_pptt = battery_soh * 100;
 
   if (battery_BEV_available_power_longterm_discharge > 65000) {
-    system_max_discharge_power_W = 65000;
+    datalayer.battery.status.max_discharge_power_W = 65000;
   } else {
-    system_max_discharge_power_W = battery_BEV_available_power_longterm_discharge;
+    datalayer.battery.status.max_discharge_power_W = battery_BEV_available_power_longterm_discharge;
   }
   if (battery_BEV_available_power_longterm_charge > 65000) {
-    system_max_charge_power_W = 65000;
+    datalayer.battery.status.max_charge_power_W = 65000;
   } else {
-    system_max_charge_power_W = battery_BEV_available_power_longterm_charge;
+    datalayer.battery.status.max_charge_power_W = battery_BEV_available_power_longterm_charge;
   }
 
   battery_power = (datalayer.battery.status.current_dA * (datalayer.battery.status.voltage_dV / 100));
@@ -446,8 +446,8 @@ void update_values_battery() {  //This function maps all the values fetched via 
 
   datalayer.battery.status.temperature_max_dC = battery_temperature_max * 10;  // Add a decimal
 
-  system_cell_min_voltage_mV = system_cellvoltages_mV[0];
-  system_cell_max_voltage_mV = system_cellvoltages_mV[1];
+  datalayer.battery.status.cell_min_voltage_mV = system_cellvoltages_mV[0];
+  datalayer.battery.status.cell_max_voltage_mV = system_cellvoltages_mV[1];
 
   /* Check if the BMS is still sending CAN messages. If we go 60s without messages we raise an error*/
   if (!CANstillAlive) {
@@ -475,9 +475,9 @@ void update_values_battery() {  //This function maps all the values fetched via 
   Serial.print(" Remaining Wh: ");
   Serial.print(datalayer.battery.status.remaining_capacity_Wh);
   Serial.print(" Max charge power: ");
-  Serial.print(system_max_charge_power_W);
+  Serial.print(datalayer.battery.status.max_charge_power_W);
   Serial.print(" Max discharge power: ");
-  Serial.print(system_max_discharge_power_W);
+  Serial.print(datalayer.battery.status.max_discharge_power_W);
   Serial.print(" Active power: ");
   Serial.print(datalayer.battery.status.active_power_W);
   Serial.print(" Min temp: ");
@@ -670,7 +670,7 @@ void send_can_battery() {
         BMW_10B.data.u8[1] = 0x10;  // Close contactors
       }
 
-      if (system_bms_status == FAULT) {
+      if (datalayer.battery.status.bms_status == FAULT) {
         BMW_10B.data.u8[1] = 0x00;  // Open contactors (TODO: test if this works)
       }
 

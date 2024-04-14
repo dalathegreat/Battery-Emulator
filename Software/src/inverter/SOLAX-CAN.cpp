@@ -135,27 +135,29 @@ void update_values_can_solax() {  //This function maps all the values fetched fr
   temperature_average =
       ((datalayer.battery.status.temperature_max_dC + datalayer.battery.status.temperature_min_dC) / 2);
 
-  //system_max_charge_power_W (30000W max)
+  //datalayer.battery.status.max_charge_power_W (30000W max)
   if (system_scaled_SOC_pptt > 9999)  //99.99%
   {                                   //Additional safety incase SOC% is 100, then do not charge battery further
     max_charge_rate_amp = 0;
   } else {  //We can pass on the battery charge rate (in W) to the inverter (that takes A)
-    if (system_max_charge_power_W >= 30000) {
+    if (datalayer.battery.status.max_charge_power_W >= 30000) {
       max_charge_rate_amp = 75;  //Incase battery can take over 30kW, cap value to 75A
     } else {                     //Calculate the W value into A
-      max_charge_rate_amp = (system_max_charge_power_W / (datalayer.battery.status.voltage_dV * 0.1));  // P/U = I
+      max_charge_rate_amp =
+          (datalayer.battery.status.max_charge_power_W / (datalayer.battery.status.voltage_dV * 0.1));  // P/U = I
     }
   }
 
-  //system_max_discharge_power_W (30000W max)
+  //datalayer.battery.status.max_discharge_power_W (30000W max)
   if (system_scaled_SOC_pptt < 100)  //1.00%
   {                                  //Additional safety incase SOC% is below 1, then do not charge battery further
     max_discharge_rate_amp = 0;
   } else {  //We can pass on the battery discharge rate to the inverter
-    if (system_max_discharge_power_W >= 30000) {
+    if (datalayer.battery.status.max_discharge_power_W >= 30000) {
       max_discharge_rate_amp = 75;  //Incase battery can be charged with over 30kW, cap value to 75A
     } else {                        //Calculate the W value into A
-      max_discharge_rate_amp = (system_max_discharge_power_W / (datalayer.battery.status.voltage_dV * 0.1));  // P/U = I
+      max_discharge_rate_amp =
+          (datalayer.battery.status.max_discharge_power_W / (datalayer.battery.status.voltage_dV * 0.1));  // P/U = I
     }
   }
 
@@ -198,10 +200,10 @@ void update_values_can_solax() {  //This function maps all the values fetched fr
   SOLAX_1874.data.u8[1] = (datalayer.battery.status.temperature_max_dC >> 8);
   SOLAX_1874.data.u8[2] = (int8_t)datalayer.battery.status.temperature_min_dC;
   SOLAX_1874.data.u8[3] = (datalayer.battery.status.temperature_min_dC >> 8);
-  SOLAX_1874.data.u8[4] = (uint8_t)(system_cell_max_voltage_mV);
-  SOLAX_1874.data.u8[5] = (system_cell_max_voltage_mV >> 8);
-  SOLAX_1874.data.u8[6] = (uint8_t)(system_cell_min_voltage_mV);
-  SOLAX_1874.data.u8[7] = (system_cell_min_voltage_mV >> 8);
+  SOLAX_1874.data.u8[4] = (uint8_t)(datalayer.battery.status.cell_max_voltage_mV);
+  SOLAX_1874.data.u8[5] = (datalayer.battery.status.cell_max_voltage_mV >> 8);
+  SOLAX_1874.data.u8[6] = (uint8_t)(datalayer.battery.status.cell_min_voltage_mV);
+  SOLAX_1874.data.u8[7] = (datalayer.battery.status.cell_min_voltage_mV >> 8);
 
   //BMS_Status
   SOLAX_1875.data.u8[0] = (uint8_t)temperature_average;
@@ -210,11 +212,11 @@ void update_values_can_solax() {  //This function maps all the values fetched fr
   SOLAX_1875.data.u8[4] = (uint8_t)0;  // Contactor Status 0=off, 1=on.
 
   //BMS_PackTemps (strange name, since it has voltages?)
-  SOLAX_1876.data.u8[2] = (uint8_t)system_cell_max_voltage_mV;
-  SOLAX_1876.data.u8[3] = (system_cell_max_voltage_mV >> 8);
+  SOLAX_1876.data.u8[2] = (uint8_t)datalayer.battery.status.cell_max_voltage_mV;
+  SOLAX_1876.data.u8[3] = (datalayer.battery.status.cell_max_voltage_mV >> 8);
 
-  SOLAX_1876.data.u8[6] = (uint8_t)system_cell_min_voltage_mV;
-  SOLAX_1876.data.u8[7] = (system_cell_min_voltage_mV >> 8);
+  SOLAX_1876.data.u8[6] = (uint8_t)datalayer.battery.status.cell_min_voltage_mV;
+  SOLAX_1876.data.u8[7] = (datalayer.battery.status.cell_min_voltage_mV >> 8);
 
   //Unknown
   SOLAX_1877.data.u8[4] = (uint8_t)0x50;  // Battery type

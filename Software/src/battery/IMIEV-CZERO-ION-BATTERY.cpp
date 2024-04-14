@@ -52,16 +52,17 @@ void update_values_battery() {  //This function maps all the values fetched via 
       (uint16_t)((system_real_SOC_pptt / 10000) * datalayer.battery.info.total_capacity_Wh);
 
   //We do not know if the max charge power is sent by the battery. So we estimate the value based on SOC%
-  if (system_scaled_SOC_pptt == 10000) {  //100.00%
-    system_max_charge_power_W = 0;        //When battery is 100% full, set allowed charge W to 0
+  if (system_scaled_SOC_pptt == 10000) {              //100.00%
+    datalayer.battery.status.max_charge_power_W = 0;  //When battery is 100% full, set allowed charge W to 0
   } else {
-    system_max_charge_power_W = 10000;  //Otherwise we can push 10kW into the pack!
+    datalayer.battery.status.max_charge_power_W = 10000;  //Otherwise we can push 10kW into the pack!
   }
 
   if (system_scaled_SOC_pptt < 200) {  //2.00%
-    system_max_discharge_power_W = 0;  //When battery is empty (below 2%), set allowed discharge W to 0
+    datalayer.battery.status.max_discharge_power_W =
+        0;  //When battery is empty (below 2%), set allowed discharge W to 0
   } else {
-    system_max_discharge_power_W = 10000;  //Otherwise we can discharge 10kW from the pack!
+    datalayer.battery.status.max_discharge_power_W = 10000;  //Otherwise we can discharge 10kW from the pack!
   }
 
   datalayer.battery.status.active_power_W = BMU_Power;  //TODO: Scaling?
@@ -101,9 +102,9 @@ void update_values_battery() {  //This function maps all the values fetched via 
     system_cellvoltages_mV[i] = (uint16_t)(cell_voltages[i] * 1000);
   }
 
-  system_cell_max_voltage_mV = (uint16_t)(max_volt_cel * 1000);
+  datalayer.battery.status.cell_max_voltage_mV = (uint16_t)(max_volt_cel * 1000);
 
-  system_cell_min_voltage_mV = (uint16_t)(min_volt_cel * 1000);
+  datalayer.battery.status.cell_min_voltage_mV = (uint16_t)(min_volt_cel * 1000);
 
   datalayer.battery.status.temperature_min_dC = (int16_t)(min_temp_cel * 10);
 
@@ -153,17 +154,17 @@ void update_values_battery() {  //This function maps all the values fetched via 
   Serial.print(" Capacity WH remain (0-60000): ");
   Serial.print(datalayer.battery.status.remaining_capacity_Wh);
   Serial.print(" Max charge power W (0-10000): ");
-  Serial.print(system_max_charge_power_W);
+  Serial.print(datalayer.battery.status.max_charge_power_W);
   Serial.print(" Max discharge power W (0-10000): ");
-  Serial.print(system_max_discharge_power_W);
+  Serial.print(datalayer.battery.status.max_discharge_power_W);
   Serial.print(" Temp max ");
   Serial.print(datalayer.battery.status.temperature_max_dC);
   Serial.print(" Temp min ");
   Serial.print(datalayer.battery.status.temperature_min_dC);
   Serial.print(" Cell mV max ");
-  Serial.print(system_cell_max_voltage_mV);
+  Serial.print(datalayer.battery.status.cell_max_voltage_mV);
   Serial.print(" Cell mV min ");
-  Serial.print(system_cell_min_voltage_mV);
+  Serial.print(datalayer.battery.status.cell_min_voltage_mV);
 
 #endif
 }

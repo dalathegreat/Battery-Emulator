@@ -94,7 +94,8 @@ void update_values_battery() {  //This function maps all the values fetched via 
 
   system_real_SOC_pptt = ChargingRate;
 
-  system_max_discharge_power_W = (MaximumDischargeCurrent * MaximumBatteryVoltage);  //In Watts, Convert A to P
+  datalayer.battery.status.max_discharge_power_W =
+      (MaximumDischargeCurrent * MaximumBatteryVoltage);  //In Watts, Convert A to P
 
   datalayer.battery.status.voltage_dV = TargetBatteryVoltage;  //TODO: scaling?
 
@@ -120,11 +121,11 @@ void update_values_battery() {  //This function maps all the values fetched via 
     Serial.println(errorCode);
   }
   Serial.print("BMS Status (3=OK): ");
-  Serial.println(system_bms_status);
+  Serial.println(datalayer.battery.status.bms_status);
   Serial.print("Max discharge power: ");
-  Serial.println(system_max_discharge_power_W);
+  Serial.println(datalayer.battery.status.max_discharge_power_W);
   Serial.print("Max charge power: ");
-  Serial.println(system_max_charge_power_W);
+  Serial.println(datalayer.battery.status.max_charge_power_W);
   Serial.print("SOH%: ");
   Serial.println(datalayer.battery.status.soh_pptt);
   Serial.print("SOC% to Inverter: ");

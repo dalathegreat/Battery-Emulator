@@ -191,33 +191,34 @@ void update_values_battery() {  //This function maps all the values fetched via 
       static_cast<uint32_t>((static_cast<double>(system_real_SOC_pptt) / 10000) * BATTERY_WH_MAX);
 
   // Define the allowed discharge power
-  system_max_discharge_power_W = (max_discharge_current * volts);
+  datalayer.battery.status.max_discharge_power_W = (max_discharge_current * volts);
   // Cap the allowed discharge power if battery is empty, or discharge power is higher than the maximum discharge power allowed
   if (system_scaled_SOC_pptt == 0) {
-    system_max_discharge_power_W = 0;
-  } else if (system_max_discharge_power_W > MAXDISCHARGEPOWERALLOWED) {
-    system_max_discharge_power_W = MAXDISCHARGEPOWERALLOWED;
+    datalayer.battery.status.max_discharge_power_W = 0;
+  } else if (datalayer.battery.status.max_discharge_power_W > MAXDISCHARGEPOWERALLOWED) {
+    datalayer.battery.status.max_discharge_power_W = MAXDISCHARGEPOWERALLOWED;
   }
 
   //The allowed charge power behaves strangely. We instead estimate this value
   if (system_scaled_SOC_pptt == 10000) {  // When scaled SOC is 100.00%, set allowed charge power to 0
-    system_max_charge_power_W = 0;
+    datalayer.battery.status.max_charge_power_W = 0;
   } else if (soc_vi > 990) {
-    system_max_charge_power_W = FLOAT_MAX_POWER_W;
+    datalayer.battery.status.max_charge_power_W = FLOAT_MAX_POWER_W;
   } else if (soc_vi > RAMPDOWN_SOC) {  // When real SOC is between RAMPDOWN_SOC-99%, ramp the value between Max<->0
-    system_max_charge_power_W = MAXCHARGEPOWERALLOWED * (1 - (soc_vi - RAMPDOWN_SOC) / (1000.0 - RAMPDOWN_SOC));
+    datalayer.battery.status.max_charge_power_W =
+        MAXCHARGEPOWERALLOWED * (1 - (soc_vi - RAMPDOWN_SOC) / (1000.0 - RAMPDOWN_SOC));
     //If the cellvoltages start to reach overvoltage, only allow a small amount of power in
     if (system_LFP_Chemistry) {
       if (cell_max_v > (MAX_CELL_VOLTAGE_LFP - FLOAT_START_MV)) {
-        system_max_charge_power_W = FLOAT_MAX_POWER_W;
+        datalayer.battery.status.max_charge_power_W = FLOAT_MAX_POWER_W;
       }
     } else {  //NCM/A
       if (cell_max_v > (MAX_CELL_VOLTAGE_NCA_NCM - FLOAT_START_MV)) {
-        system_max_charge_power_W = FLOAT_MAX_POWER_W;
+        datalayer.battery.status.max_charge_power_W = FLOAT_MAX_POWER_W;
       }
     }
   } else {  // No limits, max charging power allowed
-    system_max_charge_power_W = MAXCHARGEPOWERALLOWED;
+    datalayer.battery.status.max_charge_power_W = MAXCHARGEPOWERALLOWED;
   }
 
   power = ((volts / 10) * amps);
@@ -227,9 +228,9 @@ void update_values_battery() {  //This function maps all the values fetched via 
 
   datalayer.battery.status.temperature_max_dC = max_temp;
 
-  system_cell_max_voltage_mV = cell_max_v;
+  datalayer.battery.status.cell_max_voltage_mV = cell_max_v;
 
-  system_cell_min_voltage_mV = cell_min_v;
+  datalayer.battery.status.cell_min_voltage_mV = cell_min_v;
 
   /* Value mapping is completed. Start to check all safeties */
 
@@ -313,9 +314,10 @@ void update_values_battery() {  //This function maps all the values fetched via 
     }
   }
 
-  if (system_bms_status == FAULT) {  //Incase we enter a critical fault state, zero out the allowed limits
-    system_max_charge_power_W = 0;
-    system_max_discharge_power_W = 0;
+  if (datalayer.battery.status.bms_status ==
+      FAULT) {  //Incase we enter a critical fault state, zero out the allowed limits
+    datalayer.battery.status.max_charge_power_W = 0;
+    datalayer.battery.status.max_discharge_power_W = 0;
   }
 
   /* Safeties verified. Perform USB serial printout if configured to do so */
@@ -374,9 +376,9 @@ void update_values_battery() {  //This function maps all the values fetched via 
 
   Serial.println("Values passed to the inverter: ");
   print_SOC(" SOC: ", system_scaled_SOC_pptt);
-  print_int_with_units(" Max discharge power: ", system_max_discharge_power_W, "W");
+  print_int_with_units(" Max discharge power: ", datalayer.battery.status.max_discharge_power_W, "W");
   Serial.print(", ");
-  print_int_with_units(" Max charge power: ", system_max_charge_power_W, "W");
+  print_int_with_units(" Max charge power: ", datalayer.battery.status.max_charge_power_W, "W");
   Serial.println("");
   print_int_with_units(" Max temperature: ", ((int16_t)datalayer.battery.status.temperature_min_dC * 0.1), "°C");
   Serial.print(", ");
@@ -593,12 +595,12 @@ the first, for a few cycles, then stop all  messages which causes the contactor 
     previousMillis30 = currentMillis;
 
     if (inverterAllowsContactorClosing == 1) {
-      if (system_bms_status == ACTIVE) {
+      if (datalayer.battery.status.bms_status == ACTIVE) {
         send221still = 50;
         batteryAllowsContactorClosing = true;
         ESP32Can.CANWriteFrame(&TESLA_221_1);
         ESP32Can.CANWriteFrame(&TESLA_221_2);
-      } else {  //system_bms_status == FAULT or inverter requested opening contactors
+      } else {  //datalayer.battery.status.bms_status == FAULT or inverter requested opening contactors
         if (send221still > 0) {
           batteryAllowsContactorClosing = false;
           ESP32Can.CANWriteFrame(&TESLA_221_1);

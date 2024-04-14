@@ -527,15 +527,15 @@ String processor(const String& var) {
     content += formatPowerValue("Power", powerFloat, "", 1);
     content += formatPowerValue("Total capacity", datalayer.battery.info.total_capacity_Wh, "h", 0);
     content += formatPowerValue("Remaining capacity", datalayer.battery.status.remaining_capacity_Wh, "h", 1);
-    content += formatPowerValue("Max discharge power", system_max_discharge_power_W, "", 1);
-    content += formatPowerValue("Max charge power", system_max_charge_power_W, "", 1);
-    content += "<h4>Cell max: " + String(system_cell_max_voltage_mV) + " mV</h4>";
-    content += "<h4>Cell min: " + String(system_cell_min_voltage_mV) + " mV</h4>";
+    content += formatPowerValue("Max discharge power", datalayer.battery.status.max_discharge_power_W, "", 1);
+    content += formatPowerValue("Max charge power", datalayer.battery.status.max_charge_power_W, "", 1);
+    content += "<h4>Cell max: " + String(datalayer.battery.status.cell_max_voltage_mV) + " mV</h4>";
+    content += "<h4>Cell min: " + String(datalayer.battery.status.cell_min_voltage_mV) + " mV</h4>";
     content += "<h4>Temperature max: " + String(tempMaxFloat, 1) + " C</h4>";
     content += "<h4>Temperature min: " + String(tempMinFloat, 1) + " C</h4>";
-    if (system_bms_status == ACTIVE) {
+    if (datalayer.battery.status.bms_status == ACTIVE) {
       content += "<h4>BMS Status: OK </h4>";
-    } else if (system_bms_status == UPDATING) {
+    } else if (datalayer.battery.status.bms_status == UPDATING) {
       content += "<h4>BMS Status: UPDATING </h4>";
     } else {
       content += "<h4>BMS Status: FAULT </h4>";

@@ -53,9 +53,9 @@ void update_values_battery() {  //This function maps all the values fetched via 
   datalayer.battery.status.remaining_capacity_Wh =
       static_cast<int>((static_cast<double>(system_real_SOC_pptt) / 10000) * BATTERY_WH_MAX);
 
-  system_max_discharge_power_W;
+  datalayer.battery.status.max_discharge_power_W;
 
-  system_max_charge_power_W;
+  datalayer.battery.status.max_charge_power_W;
 
   datalayer.battery.status.active_power_W;
 
@@ -63,11 +63,11 @@ void update_values_battery() {  //This function maps all the values fetched via 
 
   datalayer.battery.status.temperature_max_dC;
 
-  system_cell_min_voltage_mV;
+  datalayer.battery.status.cell_min_voltage_mV;
 
-  system_cell_max_voltage_mV;
+  datalayer.battery.status.cell_max_voltage_mV;
 
-  cell_deviation_mV = (system_cell_max_voltage_mV - system_cell_min_voltage_mV);
+  cell_deviation_mV = (datalayer.battery.status.cell_max_voltage_mV - datalayer.battery.status.cell_min_voltage_mV);
 
   /* Check if the BMS is still sending CAN messages. If we go 60s without messages we raise an error*/
   if (!CANstillAlive) {
@@ -98,15 +98,15 @@ void update_values_battery() {  //This function maps all the values fetched via 
   Serial.print(", Voltage: ");
   Serial.print(datalayer.battery.status.voltage_dV);
   Serial.print(", Max discharge power: ");
-  Serial.print(system_max_discharge_power_W);
+  Serial.print(datalayer.battery.status.max_discharge_power_W);
   Serial.print(", Max charge power: ");
-  Serial.print(system_max_charge_power_W);
+  Serial.print(datalayer.battery.status.max_charge_power_W);
   Serial.print(", Max temp: ");
   Serial.print(datalayer.battery.status.temperature_max_dC);
   Serial.print(", Min temp: ");
   Serial.print(datalayer.battery.status.temperature_min_dC);
   Serial.print(", BMS Status (3=OK): ");
-  Serial.print(system_bms_status);
+  Serial.print(datalayer.battery.status.bms_status);
 
   Serial.println("Battery values: ");
   Serial.print("Real SOC: ");

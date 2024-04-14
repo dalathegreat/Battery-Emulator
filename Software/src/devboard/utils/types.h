@@ -1,17 +1,9 @@
 #ifndef _TYPES_H_
 #define _TYPES_H_
 
-// enum bms_status_enum { STANDBY = 0, INACTIVE = 1, DARKSTART = 2, ACTIVE = 3, FAULT = 4, UPDATING = 5 };
+enum bms_status_enum { STANDBY = 0, INACTIVE = 1, DARKSTART = 2, ACTIVE = 3, FAULT = 4, UPDATING = 5 };
 enum battery_chemistry_enum { NCA, NMC, LFP };
 enum led_color { GREEN, YELLOW, RED, BLUE, RGB };
-
-// Inverter definitions
-#define STANDBY 0
-#define INACTIVE 1
-#define DARKSTART 2
-#define ACTIVE 3
-#define FAULT 4
-#define UPDATING 5
 
 #define DISCHARGING 1
 #define CHARGING 2

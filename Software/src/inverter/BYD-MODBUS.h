@@ -8,14 +8,11 @@
 #define MAX_POWER 40960  //BYD Modbus specific value
 
 extern uint16_t mbPV[MB_RTU_NUM_VALUES];
-extern uint16_t system_scaled_SOC_pptt;        //SOC%, 0-100.00 (0-10000)
-extern uint16_t system_real_SOC_pptt;          //SOC%, 0-100.00 (0-10000)
-extern uint32_t system_max_discharge_power_W;  //W,    0-200000
-extern uint32_t system_max_charge_power_W;     //W,    0-200000
-extern uint8_t system_bms_status;              //Enum 0-5
-extern bool batteryAllowsContactorClosing;     //Bool, true/false
-extern bool inverterAllowsContactorClosing;    //Bool, true/false
-extern bool system_LFP_Chemistry;              //Bool, true/false
+extern uint16_t system_scaled_SOC_pptt;      //SOC%, 0-100.00 (0-10000)
+extern uint16_t system_real_SOC_pptt;        //SOC%, 0-100.00 (0-10000)
+extern bool batteryAllowsContactorClosing;   //Bool, true/false
+extern bool inverterAllowsContactorClosing;  //Bool, true/false
+extern bool system_LFP_Chemistry;            //Bool, true/false
 
 void handle_static_data_modbus_byd();
 void verify_temperature_modbus();

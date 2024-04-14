@@ -72,26 +72,26 @@ void update_values_battery() {  //This function maps all the values fetched via 
   /* Define power able to be discharged from battery */
   if (LB_Discharge_Power_Limit_Watts > 60000)  //if >60kW can be pulled from battery
   {
-    system_max_discharge_power_W = 60000;  //cap value so we don't go over the uint16 limit
+    datalayer.battery.status.max_discharge_power_W = 60000;  //cap value so we don't go over the uint16 limit
   } else {
-    system_max_discharge_power_W = LB_Discharge_Power_Limit_Watts;
+    datalayer.battery.status.max_discharge_power_W = LB_Discharge_Power_Limit_Watts;
   }
   if (system_scaled_SOC_pptt == 0)  //Scaled SOC% value is 0.00%, we should not discharge battery further
   {
-    system_max_discharge_power_W = 0;
+    datalayer.battery.status.max_discharge_power_W = 0;
   }
 
   LB_Charge_Power_Limit_Watts = (LB_Charge_Power_Limit * 500);  //Convert value fetched from battery to watts
   /* Define power able to be put into the battery */
   if (LB_Charge_Power_Limit_Watts > 60000)  //if >60kW can be put into the battery
   {
-    system_max_charge_power_W = 60000;  //cap value so we don't go over the uint16 limit
+    datalayer.battery.status.max_charge_power_W = 60000;  //cap value so we don't go over the uint16 limit
   } else {
-    system_max_charge_power_W = LB_Charge_Power_Limit_Watts;
+    datalayer.battery.status.max_charge_power_W = LB_Charge_Power_Limit_Watts;
   }
   if (system_scaled_SOC_pptt == 10000)  //Scaled SOC% value is 100.00%
   {
-    system_max_charge_power_W = 0;  //No need to charge further, set max power to 0
+    datalayer.battery.status.max_charge_power_W = 0;  //No need to charge further, set max power to 0
   }
 
   datalayer.battery.status.active_power_W =
@@ -101,9 +101,9 @@ void update_values_battery() {  //This function maps all the values fetched via 
 
   datalayer.battery.status.temperature_max_dC = (LB_MAX_TEMPERATURE * 10);
 
-  system_cell_min_voltage_mV = LB_Cell_Min_Voltage;
+  datalayer.battery.status.cell_min_voltage_mV = LB_Cell_Min_Voltage;
 
-  system_cell_max_voltage_mV = LB_Cell_Max_Voltage;
+  datalayer.battery.status.cell_max_voltage_mV = LB_Cell_Max_Voltage;
 
   cell_deviation_mV = (datalayer.battery.status.temperature_max_dC - datalayer.battery.status.temperature_min_dC);
 
@@ -136,15 +136,15 @@ void update_values_battery() {  //This function maps all the values fetched via 
   Serial.print(", Voltage: ");
   Serial.print(datalayer.battery.status.voltage_dV);
   Serial.print(", Max discharge power: ");
-  Serial.print(system_max_discharge_power_W);
+  Serial.print(datalayer.battery.status.max_discharge_power_W);
   Serial.print(", Max charge power: ");
-  Serial.print(system_max_charge_power_W);
+  Serial.print(datalayer.battery.status.max_charge_power_W);
   Serial.print(", Max temp: ");
   Serial.print(datalayer.battery.status.temperature_max_dC);
   Serial.print(", Min temp: ");
   Serial.print(datalayer.battery.status.temperature_min_dC);
   Serial.print(", BMS Status (3=OK): ");
-  Serial.print(system_bms_status);
+  Serial.print(datalayer.battery.status.bms_status);
 
   Serial.println("Battery values: ");
   Serial.print("Real SOC: ");

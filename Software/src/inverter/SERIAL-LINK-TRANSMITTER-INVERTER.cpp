@@ -108,8 +108,8 @@ void manageSerialLinkTransmitter() {
       Serial.println("SerialDataLink : max_target_discharge_power = 0");
       Serial.println("SerialDataLink : max_target_charge_power = 0");
 
-      system_max_discharge_power_W = 0;
-      system_max_charge_power_W = 0;
+      datalayer.battery.status.max_discharge_power_W = 0;
+      datalayer.battery.status.max_charge_power_W = 0;
       set_event(EVENT_SERIAL_TX_FAILURE, 0);
       // throw error
     }
@@ -136,14 +136,15 @@ void manageSerialLinkTransmitter() {
       dataLinkTransmit.updateData(4, datalayer.battery.info.total_capacity_Wh / 10);  //u32, remove .0 to fit 16bit
       dataLinkTransmit.updateData(5,
                                   datalayer.battery.status.remaining_capacity_Wh / 10);  //u32, remove .0 to fit 16bit
-      dataLinkTransmit.updateData(6, system_max_discharge_power_W / 10);                 //u32, remove .0 to fit 16bit
-      dataLinkTransmit.updateData(7, system_max_charge_power_W / 10);                    //u32, remove .0 to fit 16bit
-      dataLinkTransmit.updateData(8, system_bms_status);
+      dataLinkTransmit.updateData(6,
+                                  datalayer.battery.status.max_discharge_power_W / 10);  //u32, remove .0 to fit 16bit
+      dataLinkTransmit.updateData(7, datalayer.battery.status.max_charge_power_W / 10);  //u32, remove .0 to fit 16bit
+      dataLinkTransmit.updateData(8, datalayer.battery.status.bms_status);
       dataLinkTransmit.updateData(9, datalayer.battery.status.active_power_W / 10);  //u32, remove .0 to fit 16bit
       dataLinkTransmit.updateData(10, datalayer.battery.status.temperature_min_dC);
       dataLinkTransmit.updateData(11, datalayer.battery.status.temperature_max_dC);
-      dataLinkTransmit.updateData(12, system_cell_max_voltage_mV);
-      dataLinkTransmit.updateData(13, system_cell_min_voltage_mV);
+      dataLinkTransmit.updateData(12, datalayer.battery.status.cell_max_voltage_mV);
+      dataLinkTransmit.updateData(13, datalayer.battery.status.cell_min_voltage_mV);
       dataLinkTransmit.updateData(14, (int16_t)system_LFP_Chemistry);
       dataLinkTransmit.updateData(15, batteryAllowsContactorClosing);
     }
@@ -165,11 +166,11 @@ void printSendingValues() {
   Serial.print(" Remain cap: ");
   Serial.print(datalayer.battery.status.remaining_capacity_Wh);
   Serial.print(" Max discharge W: ");
-  Serial.print(system_max_discharge_power_W);
+  Serial.print(datalayer.battery.status.max_discharge_power_W);
   Serial.print(" Max charge W: ");
-  Serial.print(system_max_charge_power_W);
+  Serial.print(datalayer.battery.status.max_charge_power_W);
   Serial.print(" BMS status: ");
-  Serial.print(system_bms_status);
+  Serial.print(datalayer.battery.status.bms_status);
   Serial.print(" Power: ");
   Serial.print(datalayer.battery.status.active_power_W);
   Serial.print(" Temp min: ");
@@ -177,9 +178,9 @@ void printSendingValues() {
   Serial.print(" Temp max: ");
   Serial.print(datalayer.battery.status.temperature_max_dC);
   Serial.print(" Cell max: ");
-  Serial.print(system_cell_max_voltage_mV);
+  Serial.print(datalayer.battery.status.cell_max_voltage_mV);
   Serial.print(" Cell min: ");
-  Serial.print(system_cell_min_voltage_mV);
+  Serial.print(datalayer.battery.status.cell_min_voltage_mV);
   Serial.print(" LFP : ");
   Serial.print(system_LFP_Chemistry);
   Serial.print(" batteryAllowsContactorClosing: ");

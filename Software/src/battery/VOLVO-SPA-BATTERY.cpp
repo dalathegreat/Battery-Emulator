@@ -101,15 +101,15 @@ void update_values_battery() {  //This function maps all the values fetched via 
   datalayer.battery.status.remaining_capacity_Wh =
       remaining_capacity;  // Will wrap! Known limitation due to uint16_t size.
 
-  //system_max_discharge_power_W = HvBattPwrLimDchaSoft * 1000;	// Use power limit reported from BMS, not trusted ATM
-  system_max_discharge_power_W = 30000;
-  system_max_charge_power_W = 30000;
+  //datalayer.battery.status.max_discharge_power_W = HvBattPwrLimDchaSoft * 1000;	// Use power limit reported from BMS, not trusted ATM
+  datalayer.battery.status.max_discharge_power_W = 30000;
+  datalayer.battery.status.max_charge_power_W = 30000;
   datalayer.battery.status.active_power_W = (BATT_U)*BATT_I;
   datalayer.battery.status.temperature_min_dC = BATT_T_MIN;
   datalayer.battery.status.temperature_max_dC = BATT_T_MAX;
 
-  system_cell_max_voltage_mV = CELL_U_MAX * 10;  // Use min/max reported from BMS
-  system_cell_min_voltage_mV = CELL_U_MIN * 10;
+  datalayer.battery.status.cell_max_voltage_mV = CELL_U_MAX * 10;  // Use min/max reported from BMS
+  datalayer.battery.status.cell_min_voltage_mV = CELL_U_MIN * 10;
 
   //Map all cell voltages to the global array
   for (int i = 0; i < 108; ++i) {
@@ -326,14 +326,14 @@ void receive_can_battery(CAN_frame_t rx_frame) {
           }
 
           if (min_max_voltage[1] >= MAX_CELL_VOLTAGE) {
-            system_bms_status = FAULT;
+            datalayer.battery.status.bms_status = FAULT;
             set_event(EVENT_CELL_OVER_VOLTAGE, 0);
 #ifdef DEBUG_VIA_USB
             Serial.println("CELL OVERVOLTAGE!!! Stopping battery charging and discharging. Inspect battery!");
 #endif
           }
           if (min_max_voltage[0] <= MIN_CELL_VOLTAGE) {
-            system_bms_status = FAULT;
+            datalayer.battery.status.bms_status = FAULT;
             set_event(EVENT_CELL_UNDER_VOLTAGE, 0);
 #ifdef DEBUG_VIA_USB
             Serial.println("CELL UNDERVOLTAGE!!! Stopping battery charging and discharging. Inspect battery!");
@@ -370,15 +370,15 @@ void send_can_battery() {
     ESP32Can.CANWriteFrame(&VOLVO_536);  //Send 0x536 Network managing frame to keep BMS alive
     ESP32Can.CANWriteFrame(&VOLVO_372);  //Send 0x372 ECMAmbientTempCalculated
 
-    if (system_bms_status == ACTIVE) {
+    if (datalayer.battery.status.bms_status == ACTIVE) {
       batteryAllowsContactorClosing = true;
-    } else {  //system_bms_status == FAULT or inverter requested opening contactors
+    } else {  //datalayer.battery.status.bms_status == FAULT or inverter requested opening contactors
       batteryAllowsContactorClosing = false;
     }
   }
   if (currentMillis - previousMillis60s >= INTERVAL_60_S) {
     previousMillis60s = currentMillis;
-    if (system_bms_status == ACTIVE) {
+    if (datalayer.battery.status.bms_status == ACTIVE) {
       readCellVoltages();
     }
   }

@@ -43,14 +43,14 @@ typedef struct {
   int16_t current_dA;
 
   /** uint16_t */
-  uint16_t soh_pptt = 9900;  //SOH%, 0-100.00 (0-10000)
+  uint16_t soh_pptt = 9900;
   uint16_t voltage_dV;
   uint16_t cell_max_voltage_mV;
   uint16_t cell_min_voltage_mV;
   uint16_t cell_voltages_mV[MAX_AMOUNT_CELLS];
 
   /** Other */
-  // bms_status_enum bms_status; // Not ready yet
+  bms_status_enum bms_status;
   ScaledSoc soc;
 } DATALAYER_BATTERY_STATUS_TYPE;
 

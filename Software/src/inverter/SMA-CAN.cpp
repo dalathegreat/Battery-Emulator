@@ -106,7 +106,7 @@ static uint16_t ampere_hours_remaining = 0;
 void update_values_can_sma() {  //This function maps all the values fetched from battery CAN to the correct CAN messages
   //Calculate values
   charge_current =
-      ((system_max_charge_power_W * 10) /
+      ((datalayer.battery.status.max_charge_power_W * 10) /
        datalayer.battery.info.max_design_voltage_dV);  //Charge power in W , max volt in V+1decimal (P=UI, solve for I)
   //The above calculation results in (30 000*10)/3700=81A
   charge_current = (charge_current * 10);  //Value needs a decimal before getting sent to inverter (81.0A)
@@ -115,7 +115,7 @@ void update_values_can_sma() {  //This function maps all the values fetched from
   }
 
   discharge_current =
-      ((system_max_discharge_power_W * 10) /
+      ((datalayer.battery.status.max_discharge_power_W * 10) /
        datalayer.battery.info.max_design_voltage_dV);  //Charge power in W , max volt in V+1decimal (P=UI, solve for I)
   //The above calculation results in (30 000*10)/3700=81A
   discharge_current = (discharge_current * 10);  //Value needs a decimal before getting sent to inverter (81.0A)
@@ -165,7 +165,7 @@ void update_values_can_sma() {  //This function maps all the values fetched from
   SMA_4D8.data.u8[4] = (temperature_average >> 8);
   SMA_4D8.data.u8[5] = (temperature_average & 0x00FF);
   //Battery ready
-  if (system_bms_status == ACTIVE) {
+  if (datalayer.battery.status.bms_status == ACTIVE) {
     SMA_4D8.data.u8[6] = READY_STATE;
   } else {
     SMA_4D8.data.u8[6] = STOP_STATE;

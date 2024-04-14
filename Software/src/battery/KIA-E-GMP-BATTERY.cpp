@@ -70,18 +70,18 @@ void update_values_battery() {  //This function maps all the values fetched via 
   datalayer.battery.status.remaining_capacity_Wh =
       static_cast<int>((static_cast<double>(system_real_SOC_pptt) / 10000) * BATTERY_WH_MAX);
 
-  //system_max_charge_power_W = (uint16_t)allowedChargePower * 10;  //From kW*100 to Watts
+  //datalayer.battery.status.max_charge_power_W = (uint16_t)allowedChargePower * 10;  //From kW*100 to Watts
   //The allowed charge power is not available. We estimate this value
   if (system_scaled_SOC_pptt == 10000) {  // When scaled SOC is 100%, set allowed charge power to 0
-    system_max_charge_power_W = 0;
+    datalayer.battery.status.max_charge_power_W = 0;
   } else {  // No limits, max charging power allowed
-    system_max_charge_power_W = MAXCHARGEPOWERALLOWED;
+    datalayer.battery.status.max_charge_power_W = MAXCHARGEPOWERALLOWED;
   }
-  //system_max_discharge_power_W = (uint16_t)allowedDischargePower * 10;  //From kW*100 to Watts
+  //datalayer.battery.status.max_discharge_power_W = (uint16_t)allowedDischargePower * 10;  //From kW*100 to Watts
   if (system_scaled_SOC_pptt < 100) {  // When scaled SOC is <1%, set allowed charge power to 0
-    system_max_discharge_power_W = 0;
+    datalayer.battery.status.max_discharge_power_W = 0;
   } else {  // No limits, max charging power allowed
-    system_max_discharge_power_W = MAXDISCHARGEPOWERALLOWED;
+    datalayer.battery.status.max_discharge_power_W = MAXDISCHARGEPOWERALLOWED;
   }
 
   powerWatt = ((batteryVoltage * batteryAmps) / 100);
@@ -92,9 +92,9 @@ void update_values_battery() {  //This function maps all the values fetched via 
 
   datalayer.battery.status.temperature_max_dC = (int8_t)temperatureMax * 10;  //Increase decimals, 18C -> 18.0C
 
-  system_cell_max_voltage_mV = CellVoltMax_mV;
+  datalayer.battery.status.cell_max_voltage_mV = CellVoltMax_mV;
 
-  system_cell_min_voltage_mV = CellVoltMin_mV;
+  datalayer.battery.status.cell_min_voltage_mV = CellVoltMin_mV;
 
   /* Check if the BMS is still sending CAN messages. If we go 60s without messages we raise an error*/
   if (!CANstillAlive) {
@@ -113,7 +113,7 @@ void update_values_battery() {  //This function maps all the values fetched via 
   }
 
   // Check if cell voltages are within allowed range
-  cell_deviation_mV = (system_cell_max_voltage_mV - system_cell_min_voltage_mV);
+  cell_deviation_mV = (datalayer.battery.status.cell_max_voltage_mV - datalayer.battery.status.cell_min_voltage_mV);
 
   if (CellVoltMax_mV >= MAX_CELL_VOLTAGE) {
     set_event(EVENT_CELL_OVER_VOLTAGE, 0);
@@ -127,9 +127,10 @@ void update_values_battery() {  //This function maps all the values fetched via 
     clear_event(EVENT_CELL_DEVIATION_HIGH);
   }
 
-  if (system_bms_status == FAULT) {  //Incase we enter a critical fault state, zero out the allowed limits
-    system_max_charge_power_W = 0;
-    system_max_discharge_power_W = 0;
+  if (datalayer.battery.status.bms_status ==
+      FAULT) {  //Incase we enter a critical fault state, zero out the allowed limits
+    datalayer.battery.status.max_charge_power_W = 0;
+    datalayer.battery.status.max_discharge_power_W = 0;
   }
 
   /* Safeties verified. Perform USB serial printout if configured to do so */
