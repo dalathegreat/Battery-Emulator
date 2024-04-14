@@ -1,8 +1,8 @@
 #ifndef NISSAN_LEAF_BATTERY_H
 #define NISSAN_LEAF_BATTERY_H
-#include <Arduino.h>
-#include "../../USER_SETTINGS.h"
-#include "../devboard/config.h"  // Needed for all defines
+
+#include "../include.h"
+
 #include "../lib/miwagner-ESP32-Arduino-CAN/ESP32CAN.h"
 
 #define BATTERY_SELECTED

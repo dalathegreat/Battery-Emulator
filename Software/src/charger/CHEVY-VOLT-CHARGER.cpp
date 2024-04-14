@@ -1,6 +1,8 @@
-#include "CHEVY-VOLT-CHARGER.h"
+#include "../include.h"
+#ifdef CHEVYVOLT_CHARGER
 #include "../lib/miwagner-ESP32-Arduino-CAN/CAN_config.h"
 #include "../lib/miwagner-ESP32-Arduino-CAN/ESP32CAN.h"
+#include "CHEVY-VOLT-CHARGER.h"
 
 /* This implements Chevy Volt / Ampera charger support (2011-2015 model years).
  *
@@ -193,3 +195,4 @@ void send_can_chevyvolt_charger() {
   }
 #endif
 }
+#endif

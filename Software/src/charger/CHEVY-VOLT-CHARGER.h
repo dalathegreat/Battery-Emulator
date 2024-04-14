@@ -1,8 +1,7 @@
 #ifndef CHEVYVOLT_CHARGER_H
 #define CHEVYVOLT_CHARGER_H
 #include <Arduino.h>
-#include "../../USER_SETTINGS.h"
-#include "../devboard/config.h"  // Needed for all defines
+#include "../include.h"
 #include "../lib/miwagner-ESP32-Arduino-CAN/ESP32CAN.h"
 
 /* Charger hardware limits

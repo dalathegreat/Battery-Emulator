@@ -3,7 +3,7 @@
 
 #include <Preferences.h>
 #include <WiFi.h>
-#include "../../../USER_SETTINGS.h"  // Needed for WiFi ssid and password
+#include "../../include.h"
 #include "../../lib/ayushsharma82-ElegantOTA/src/ElegantOTA.h"
 #ifdef MQTT
 #include "../../lib/knolleary-pubsubclient/PubSubClient.h"
@@ -11,7 +11,6 @@
 #include "../../lib/me-no-dev-AsyncTCP/src/AsyncTCP.h"
 #include "../../lib/me-no-dev-ESPAsyncWebServer/src/ESPAsyncWebServer.h"
 #include "../../lib/miwagner-ESP32-Arduino-CAN/ESP32CAN.h"
-#include "../config.h"  // Needed for LED defines
 #ifdef MQTT
 #include "../mqtt/mqtt.h"
 #endif
@@ -36,7 +35,6 @@ extern uint16_t system_cell_min_voltage_mV;                //mV, 0-5000, Stores 
 extern uint16_t system_cellvoltages_mV[MAX_AMOUNT_CELLS];  //Array with all cell voltages in mV
 extern uint8_t system_number_of_cells;                     //Total number of cell voltages, set by each battery
 extern uint8_t system_bms_status;                          //Enum 0-5
-extern uint8_t LEDcolor;                                   //Enum, 0-10
 extern bool batteryAllowsContactorClosing;                 //Bool, 1=true, 0=false
 extern bool inverterAllowsContactorClosing;                //Bool, 1=true, 0=false
 

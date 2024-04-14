@@ -1,9 +1,6 @@
 #ifndef TEST_FAKE_BATTERY_H
 #define TEST_FAKE_BATTERY_H
-#include <Arduino.h>
-#include "../../USER_SETTINGS.h"
-#include "../devboard/config.h"  // Needed for all defines
-#include "../lib/miwagner-ESP32-Arduino-CAN/ESP32CAN.h"
+#include "../include.h"
 
 #define BATTERY_SELECTED
 

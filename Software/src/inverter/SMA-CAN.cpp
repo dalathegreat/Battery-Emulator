@@ -1,6 +1,8 @@
-#include "SMA-CAN.h"
+#include "../include.h"
+#ifdef SMA_CAN
 #include "../lib/miwagner-ESP32-Arduino-CAN/CAN_config.h"
 #include "../lib/miwagner-ESP32-Arduino-CAN/ESP32CAN.h"
+#include "SMA-CAN.h"
 
 /* TODO: Map error bits in 0x158 */
 
@@ -258,3 +260,4 @@ void send_can_sma() {
     ESP32Can.CANWriteFrame(&SMA_158);
   }
 }
+#endif

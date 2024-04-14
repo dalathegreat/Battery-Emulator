@@ -6,7 +6,6 @@
 #include <cstdint>
 #include <cstdio>
 
-#include "config.h"
 #include "microtest.h"
 
 using namespace std;

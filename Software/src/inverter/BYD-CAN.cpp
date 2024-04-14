@@ -1,6 +1,8 @@
-#include "BYD-CAN.h"
+#include "../include.h"
+#ifdef BYD_CAN
 #include "../lib/miwagner-ESP32-Arduino-CAN/CAN_config.h"
 #include "../lib/miwagner-ESP32-Arduino-CAN/ESP32CAN.h"
+#include "BYD-CAN.h"
 
 /* Do not change code below unless you are sure what you are doing */
 static unsigned long previousMillis2s = 0;   // will store last time a 2s CAN Message was send
@@ -259,3 +261,4 @@ void send_intial_data() {
   ESP32Can.CANWriteFrame(&BYD_3D0_2);
   ESP32Can.CANWriteFrame(&BYD_3D0_3);
 }
+#endif

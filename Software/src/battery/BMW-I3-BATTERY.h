@@ -1,11 +1,12 @@
 #ifndef BMW_I3_BATTERY_H
 #define BMW_I3_BATTERY_H
 #include <Arduino.h>
-#include "../../USER_SETTINGS.h"
-#include "../devboard/config.h"  // Needed for all defines
+#include "../include.h"
 #include "../lib/miwagner-ESP32-Arduino-CAN/ESP32CAN.h"
 
 #define BATTERY_SELECTED
+
+#define WUP_PIN 25
 
 // These parameters need to be mapped for the inverter
 extern uint32_t system_capacity_Wh;                        //Wh,  0-500000Wh

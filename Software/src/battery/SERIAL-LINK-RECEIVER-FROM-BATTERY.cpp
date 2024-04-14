@@ -1,4 +1,4 @@
-#include "BATTERIES.h"
+#include "../include.h"
 #ifdef SERIAL_LINK_RECEIVER
 #include <Arduino.h>
 #include "../devboard/utils/events.h"

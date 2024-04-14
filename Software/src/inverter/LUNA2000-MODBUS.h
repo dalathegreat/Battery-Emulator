@@ -1,7 +1,8 @@
 #ifndef LUNA2000_MODBUS_H
 #define LUNA2000_MODBUS_H
-#include <Arduino.h>
-#include "../devboard/config.h"  // Needed for all defines
+#include "../include.h"
+
+#define INVERTER_SELECTED
 
 #define MB_RTU_NUM_VALUES 30000
 

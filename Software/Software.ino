@@ -1,26 +1,27 @@
 /* Do not change any code below this line unless you are sure what you are doing */
 /* Only change battery specific settings in "USER_SETTINGS.h" */
 
-#include <Arduino.h>
-#include <Preferences.h>
+#include "src/include.h"
+
 #include "HardwareSerial.h"
 #include "USER_SETTINGS.h"
 #include "esp_system.h"
 #include "esp_task_wdt.h"
+#include "esp_timer.h"
 #include "freertos/FreeRTOS.h"
 #include "freertos/task.h"
-#include "src/battery/BATTERIES.h"
 #include "src/charger/CHARGERS.h"
-#include "src/devboard/config.h"
 #include "src/devboard/utils/events.h"
-#include "src/inverter/INVERTERS.h"
-#include "src/lib/adafruit-Adafruit_NeoPixel/Adafruit_NeoPixel.h"
+#include "src/devboard/utils/led_handler.h"
+#include "src/devboard/utils/value_mapping.h"
 #include "src/lib/bblanchon-ArduinoJson/ArduinoJson.h"
 #include "src/lib/eModbus-eModbus/Logging.h"
 #include "src/lib/eModbus-eModbus/ModbusServerRTU.h"
 #include "src/lib/eModbus-eModbus/scripts/mbServerFCs.h"
 #include "src/lib/miwagner-ESP32-Arduino-CAN/CAN_config.h"
 #include "src/lib/miwagner-ESP32-Arduino-CAN/ESP32CAN.h"
+
+#include "src/datalayer/datalayer.h"
 
 #ifdef WEBSERVER
 #include <ESPmDNS.h>
@@ -96,12 +97,12 @@ float charger_stat_ACvol = 0;
 float charger_stat_LVcur = 0;
 float charger_stat_LVvol = 0;
 
-// LED parameters
-Adafruit_NeoPixel pixels(1, WS2812_PIN, NEO_GRB + NEO_KHZ800);
-static uint8_t brightness = 0;
-static bool rampUp = true;
-const uint8_t maxBrightness = 100;
-uint8_t LEDcolor = GREEN;
+// Task time measurement for debugging and for setting CPU load events
+int64_t core_task_time_us;
+MyTimer core_task_timer_10s(INTERVAL_10_S);
+
+int64_t mqtt_task_time_us;
+MyTimer mqtt_task_timer_10s(INTERVAL_10_S);
 
 // Contactor parameters
 #ifdef CONTACTOR_CONTROL
@@ -126,7 +127,8 @@ unsigned long timeSpentInFaultedMode = 0;
 bool batteryAllowsContactorClosing = false;
 bool inverterAllowsContactorClosing = true;
 
-TaskHandle_t mainLoopTask;
+TaskHandle_t main_loop_task;
+TaskHandle_t wifi_loop_task;
 
 // Initialization
 void setup() {
@@ -136,15 +138,16 @@ void setup() {
 
 #ifdef WEBSERVER
   init_webserver();
-
   init_mDNS();
+#ifdef MQTT
+  xTaskCreatePinnedToCore((TaskFunction_t)&mqtt_loop, "mqtt_loop", 4096, &mqtt_task_time_us, TASK_WIFI_PRIO,
+                          &main_loop_task, WIFI_CORE);
+#endif
 #endif
 
   init_events();
 
   init_CAN();
-
-  init_LED();
 
   init_contactors();
 
@@ -161,26 +164,45 @@ void setup() {
 
   esp_task_wdt_deinit();  // Disable watchdog
 
-  xTaskCreatePinnedToCore((TaskFunction_t)&mainLoop, "mainLoop", 4096, NULL, 8, &mainLoopTask, 1);
+  xTaskCreatePinnedToCore((TaskFunction_t)&core_loop, "core_loop", 4096, &core_task_time_us, TASK_CORE_PRIO,
+                          &main_loop_task, CORE_FUNCTION_CORE);
 }
 
 // Perform main program functions
-void loop() {
-  ;
-}
+void loop() {}
 
-void mainLoop(void* pvParameters) {
-  while (true) {
-
-#ifdef WEBSERVER
-    // Over-the-air updates by ElegantOTA
-    wifi_monitor();
-    ElegantOTA.loop();
 #ifdef MQTT
+void mqtt_loop(void* task_time_us) {
+  // Init MQTT
+  init_mqtt();
+
+  while (true) {
+    START_TIME_MEASUREMENT(mqtt);
     mqtt_loop();
+    END_TIME_MEASUREMENT_MAX(mqtt, datalayer.system.status.time_mqtt_us);
+
+#ifdef FUNCTION_TIME_MEASUREMENT
+    if (mqtt_task_timer_10s.elapsed()) {
+      datalayer.system.status.time_mqtt_us = 0;
+    }
 #endif
+    delay(1);
+  }
+}
 #endif
 
+void core_loop(void* task_time_us) {
+  TickType_t xLastWakeTime = xTaskGetTickCount();
+  const TickType_t xFrequency = pdMS_TO_TICKS(1);  // Convert 1ms to ticks
+  led_init();
+  int64_t prev_wake;
+
+  while (true) {
+    int64_t now = esp_timer_get_time();
+    int64_t wake_period = now - prev_wake;
+    prev_wake = now;
+    START_TIME_MEASUREMENT(all);
+    START_TIME_MEASUREMENT(comm);
     // Input
     receive_can();  // Receive CAN messages. Runs as fast as possible
 #ifdef CAN_FD
@@ -192,16 +214,26 @@ void mainLoop(void* pvParameters) {
 #if defined(SERIAL_LINK_RECEIVER) || defined(SERIAL_LINK_TRANSMITTER)
     runSerialDataLink();
 #endif
+    END_TIME_MEASUREMENT_MAX(comm, datalayer.system.status.time_comm_us);
+#ifdef WEBSERVER
+    START_TIME_MEASUREMENT(wifi_ota);
+    wifi_monitor();
+    ElegantOTA.loop();
+    END_TIME_MEASUREMENT(wifi_ota, datalayer.system.status.time_wifi_us);
+#endif
 
+    START_TIME_MEASUREMENT(time_10ms);
     // Process
     if (millis() - previousMillis10ms >= INTERVAL_10_MS) {
       previousMillis10ms = millis();
-      handle_LED_state();  // Set the LED color according to state
+      led_exe();
 #ifdef CONTACTOR_CONTROL
       handle_contactors();  // Take care of startup precharge/contactor closing
 #endif
     }
+    END_TIME_MEASUREMENT_MAX(time_10ms, datalayer.system.status.time_10ms_us);
 
+    START_TIME_MEASUREMENT(time_5s);
     if (millis() - previousMillisUpdateVal >= intervalUpdateValues)  // Every 5s normally
     {
       previousMillisUpdateVal = millis();
@@ -211,15 +243,33 @@ void mainLoop(void* pvParameters) {
         set_event(EVENT_DUMMY_ERROR, (uint8_t)millis());
       }
     }
+    END_TIME_MEASUREMENT_MAX(time_5s, datalayer.system.status.time_5s_us);
 
+    START_TIME_MEASUREMENT(cantx);
     // Output
     send_can();  // Send CAN messages
 #ifdef DUAL_CAN
     send_can2();
 #endif
-    run_event_handling();
+    END_TIME_MEASUREMENT_MAX(cantx, datalayer.system.status.time_cantx_us);
 
-    delay(1);  // Allow the scheduler to start other tasks on other cores
+    START_TIME_MEASUREMENT(events);
+    run_event_handling();
+    END_TIME_MEASUREMENT_MAX(events, datalayer.system.status.time_events_us);
+    END_TIME_MEASUREMENT_MAX(all, datalayer.system.status.main_task_10s_max_us);
+#ifdef FUNCTION_TIME_MEASUREMENT
+    datalayer.system.status.main_task_max_us =
+        MAX(datalayer.system.status.main_task_10s_max_us, datalayer.system.status.main_task_max_us);
+    if (core_task_timer_10s.elapsed()) {
+      datalayer.system.status.time_comm_us = 0;
+      datalayer.system.status.time_10ms_us = 0;
+      datalayer.system.status.time_5s_us = 0;
+      datalayer.system.status.time_cantx_us = 0;
+      datalayer.system.status.time_events_us = 0;
+      datalayer.system.status.main_task_10s_max_us = 0;
+    }
+#endif
+    vTaskDelayUntil(&xLastWakeTime, xFrequency);
   }
 }
 
@@ -348,11 +398,6 @@ void init_CAN() {
 #endif
 }
 
-void init_LED() {
-  // Init LED control
-  pixels.begin();
-}
-
 void init_contactors() {
   // Init contactor pins
 #ifdef CONTACTOR_CONTROL
@@ -397,7 +442,7 @@ void init_modbus() {
   MBserver.registerWorker(MBTCP_ID, WRITE_MULT_REGISTERS, &FC16);
   MBserver.registerWorker(MBTCP_ID, R_W_MULT_REGISTERS, &FC23);
   // Start ModbusRTU background task
-  MBserver.begin(Serial2, 0);
+  MBserver.begin(Serial2, MODBUS_CORE);
 #endif
 }
 
@@ -450,10 +495,6 @@ void inform_user_on_inverter() {
 void init_battery() {
   // Inform user what battery is used and perform setup
   setup_battery();
-
-#ifndef BATTERY_SELECTED
-#error No battery selected! Choose one from the USER_SETTINGS.h file
-#endif
 }
 
 #ifdef CAN_FD
@@ -470,7 +511,7 @@ void receive_canfd() {  // This section checks if we have a complete CAN-FD mess
 void receive_can() {  // This section checks if we have a complete CAN message incoming
   // Depending on which battery/inverter is selected, we forward this to their respective CAN routines
   CAN_frame_t rx_frame;
-  if (xQueueReceive(CAN_cfg.rx_queue, &rx_frame, 3 * portTICK_PERIOD_MS) == pdTRUE) {
+  if (xQueueReceive(CAN_cfg.rx_queue, &rx_frame, 0) == pdTRUE) {
     if (rx_frame.FIR.B.FF == CAN_frame_std) {  // New standard frame
 // Battery
 #ifndef SERIAL_LINK_RECEIVER
@@ -573,48 +614,6 @@ void send_can2() {
 #endif
 }
 #endif
-
-void handle_LED_state() {
-  // Determine how bright the LED should be
-  if (rampUp && brightness < maxBrightness) {
-    brightness++;
-  } else if (rampUp && brightness == maxBrightness) {
-    rampUp = false;
-  } else if (!rampUp && brightness > 0) {
-    brightness--;
-  } else if (!rampUp && brightness == 0) {
-    rampUp = true;
-  }
-
-  switch (get_event_level()) {
-    case EVENT_LEVEL_INFO:
-      LEDcolor = GREEN;
-      pixels.setPixelColor(0, pixels.Color(0, brightness, 0));  // Green pulsing LED
-      break;
-    case EVENT_LEVEL_WARNING:
-      LEDcolor = YELLOW;
-      pixels.setPixelColor(0, pixels.Color(brightness, brightness, 0));  // Yellow pulsing LED
-      break;
-    case EVENT_LEVEL_DEBUG:
-    case EVENT_LEVEL_UPDATE:
-      LEDcolor = BLUE;
-      pixels.setPixelColor(0, pixels.Color(0, 0, brightness));  // Blue pulsing LED
-      break;
-    case EVENT_LEVEL_ERROR:
-      LEDcolor = RED;
-      pixels.setPixelColor(0, pixels.Color(150, 0, 0));  // Red LED full brightness
-      break;
-    default:
-      break;
-  }
-
-  // Check if button is being held down. If so, test all colors
-  if (digitalRead(0) == LOW) {
-    pixels.setPixelColor(0, pixels.Color(brightness, abs((100 - brightness)), abs((50 - brightness))));  // RGB
-  }
-
-  pixels.show();  // This sends the updated pixel color to the hardware.
-}
 
 #ifdef CONTACTOR_CONTROL
 void handle_contactors() {

@@ -1,9 +1,10 @@
 #ifndef SOFAR_CAN_H
 #define SOFAR_CAN_H
 #include <Arduino.h>
-#include "../../USER_SETTINGS.h"
-#include "../devboard/config.h"  // Needed for all defines
+#include "../include.h"
 #include "../lib/miwagner-ESP32-Arduino-CAN/ESP32CAN.h"
+
+#define INVERTER_SELECTED
 
 // These parameters need to be mapped for the inverter
 extern uint32_t system_capacity_Wh;                        //Wh,  0-500000Wh

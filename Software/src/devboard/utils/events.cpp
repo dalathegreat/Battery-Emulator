@@ -5,7 +5,6 @@
 #endif
 
 #include "../../../USER_SETTINGS.h"
-#include "../config.h"
 #include "timer.h"
 
 #define EE_NOF_EVENT_ENTRIES 30

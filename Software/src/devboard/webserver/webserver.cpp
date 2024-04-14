@@ -1,6 +1,8 @@
 #include "webserver.h"
 #include <Preferences.h>
+#include "../../datalayer/datalayer.h"
 #include "../utils/events.h"
+#include "../utils/led_handler.h"
 #include "../utils/timer.h"
 
 // Create AsyncWebServer object on port 80
@@ -22,7 +24,7 @@ enum WifiState {
 
 WifiState wifi_state = INIT;
 
-MyTimer ota_timeout_timer = MyTimer(5000);
+MyTimer ota_timeout_timer = MyTimer(15000);
 bool ota_active = false;
 
 unsigned const long WIFI_MONITOR_INTERVAL_TIME = 15000;
@@ -368,6 +370,19 @@ String processor(const String& var) {
 
     // Show version number
     content += "<h4>Software: " + String(version_number) + "</h4>";
+#ifdef FUNCTION_TIME_MEASUREMENT
+    // Load information
+    content += "<h4>Main task max load: " + String(datalayer.system.status.main_task_max_us) + " us</h4>";
+    content += "<h4>Main task max load last 10 s: " + String(datalayer.system.status.main_task_10s_max_us) + " us</h4>";
+    content += "<h4>MQTT task max load last 10 s: " + String(datalayer.system.status.time_mqtt_us) + " us</h4>";
+    content += "<h4>Max function load last 10 s:</h4>";
+    content += "<h4>Events function timing: " + String(datalayer.system.status.time_events_us) + " us</h4>";
+    content += "<h4>10ms function timing: " + String(datalayer.system.status.time_10ms_us) + " us</h4>";
+    content += "<h4>5s function timing: " + String(datalayer.system.status.time_5s_us) + " us</h4>";
+    content += "<h4>CAN/serial RX function timing: " + String(datalayer.system.status.time_comm_us) + " us</h4>";
+    content += "<h4>CAN TX function timing: " + String(datalayer.system.status.time_cantx_us) + " us</h4>";
+    content += "<h4>Wifi and OTA function timing: " + String(datalayer.system.status.time_wifi_us) + " us</h4>";
+#endif
 
     wl_status_t status = WiFi.status();
     // Display ssid of network connected to and, if connected to the WiFi, its own IP
@@ -469,18 +484,18 @@ String processor(const String& var) {
 
     // Start a new block with a specific background color. Color changes depending on BMS status
     content += "<div style='background-color: ";
-    switch (LEDcolor) {
-      case GREEN:
+    switch (led_get_color()) {
+      case led_color::GREEN:
         content += "#2D3F2F;";
         break;
-      case YELLOW:
+      case led_color::YELLOW:
         content += "#F5CC00;";
         break;
-      case BLUE:
-      case TEST_ALL_COLORS:
+      case led_color::BLUE:
+      case led_color::RGB:
         content += "#2B35AF;";  // Blue in test mode
         break;
-      case RED:
+      case led_color::RED:
         content += "#A70107;";
         break;
       default:  // Some new color, make background green

@@ -1,6 +1,5 @@
-#include "BATTERIES.h"
+#include "../include.h"
 #ifdef TEST_FAKE_BATTERY
-#include "../lib/miwagner-ESP32-Arduino-CAN/CAN_config.h"
 #include "../lib/miwagner-ESP32-Arduino-CAN/ESP32CAN.h"
 #include "TEST-FAKE-BATTERY.h"
 

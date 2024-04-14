@@ -2,8 +2,6 @@
 
 #include <cstdint>
 
-#include "../Software/src/devboard/config.h"
-
 MySerial Serial;
 
 unsigned long testlib_millis = 0;

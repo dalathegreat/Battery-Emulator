@@ -1,3 +1,5 @@
+#include "../include.h"
+#ifdef LUNA2000_MODBUS
 #include "LUNA2000-MODBUS.h"
 
 void update_modbus_registers_luna2000() {
@@ -56,3 +58,4 @@ void handle_update_data_modbus39500() {
   static uint16_t i = 9500;
   memcpy(&mbPV[i], system_data, sizeof(system_data));
 }
+#endif
