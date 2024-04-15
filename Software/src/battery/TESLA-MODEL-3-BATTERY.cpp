@@ -253,7 +253,7 @@ void update_values_battery() {  //This function maps all the values fetched via 
   // NCM/A batteries have 96s, LFP has 102-106s
   // Drawback with this check is that it takes 3-5minutes before all cells have been counted!
   if (datalayer.battery.info.number_of_cells > 101) {
-    datalayer.battery.info.chemistry = true;
+    datalayer.battery.info.chemistry = battery_chemistry_enum::LFP;
   }
 
   //Once cell chemistry is determined, set maximum and minimum total pack voltage safety limits
