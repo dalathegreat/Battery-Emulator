@@ -321,11 +321,11 @@ void init_stored_settings() {
   }
   temp = settings.getUInt("MAXCHARGEAMP", false);
   if (temp != 0) {
-    MAXCHARGEAMP = temp;
+    datalayer.battery.info.max_charge_amp_dA = temp;
   }
   temp = settings.getUInt("MAXDISCHARGEAMP", false);
   if (temp != 0) {
-    MAXDISCHARGEAMP = temp;
+    datalayer.battery.info.max_discharge_amp_dA = temp;
     temp = settings.getBool("USE_SCALED_SOC", false);
     datalayer.battery.settings.soc_scaling_active = temp;  //This bool needs to be checked inside the temp!= block
   }                                                        // No way to know if it wasnt reset otherwise
@@ -793,8 +793,8 @@ void storeSettings() {
                    datalayer.battery.settings.max_percentage / 10);  // Divide by 10 for backwards compatibility
   settings.putUInt("MINPERCENTAGE",
                    datalayer.battery.settings.min_percentage / 10);  // Divide by 10 for backwards compatibility
-  settings.putUInt("MAXCHARGEAMP", MAXCHARGEAMP);
-  settings.putUInt("MAXDISCHARGEAMP", MAXDISCHARGEAMP);
+  settings.putUInt("MAXCHARGEAMP", datalayer.battery.info.max_charge_amp_dA);
+  settings.putUInt("MAXDISCHARGEAMP", datalayer.battery.info.max_discharge_amp_dA);
   settings.putBool("USE_SCALED_SOC", datalayer.battery.settings.soc_scaling_active);
 
   settings.end();

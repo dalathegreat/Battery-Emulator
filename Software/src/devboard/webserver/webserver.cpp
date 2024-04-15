@@ -116,7 +116,7 @@ void init_webserver() {
   server.on("/updateMaxChargeA", HTTP_GET, [](AsyncWebServerRequest* request) {
     if (request->hasParam("value")) {
       String value = request->getParam("value")->value();
-      MAXCHARGEAMP = value.toInt() * 10;
+      datalayer.battery.info.max_charge_amp_dA = value.toInt() * 10;
       storeSettings();
       request->send(200, "text/plain", "Updated successfully");
     } else {
@@ -128,7 +128,7 @@ void init_webserver() {
   server.on("/updateMaxDischargeA", HTTP_GET, [](AsyncWebServerRequest* request) {
     if (request->hasParam("value")) {
       String value = request->getParam("value")->value();
-      MAXDISCHARGEAMP = value.toInt() * 10;
+      datalayer.battery.info.max_discharge_amp_dA = value.toInt() * 10;
       storeSettings();
       request->send(200, "text/plain", "Updated successfully");
     } else {
@@ -184,7 +184,7 @@ void init_webserver() {
     String value = request->getParam("value")->value();
     float val = value.toFloat();
 
-    if (!(val <= MAXCHARGEAMP && val <= CHARGER_MAX_A)) {
+    if (!(val <= datalayer.battery.info.max_charge_amp_dA && val <= CHARGER_MAX_A)) {
       request->send(400, "text/plain", "Bad Request");
     }
 

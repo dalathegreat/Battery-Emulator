@@ -10,6 +10,8 @@ typedef struct {
   /** uint16_t */
   uint16_t max_design_voltage_dV;
   uint16_t min_design_voltage_dV;
+  uint16_t max_charge_amp_dA = BATTERY_MAX_CHARGE_AMP;
+  uint16_t max_discharge_amp_dA = BATTERY_MAX_DISCHARGE_AMP;
 
   /** uint8_t */
   uint8_t number_of_cells;

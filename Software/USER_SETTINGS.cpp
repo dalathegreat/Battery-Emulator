@@ -3,13 +3,6 @@
 /* This file contains all the battery settings and limits */
 /* They can be defined here, or later on in the WebUI */
 
-/* Battery settings */
-volatile uint16_t MAXCHARGEAMP =
-    300;  //30.0A , BYD CAN specific setting, Max charge in Amp (Some inverters needs to be limited)
-volatile uint16_t MAXDISCHARGEAMP =
-    300;  //30.0A , BYD CAN specific setting, Max discharge in Amp (Some inverters needs to be limited)
-
-/* Charger settings (Optional, when generator charging) */
 /* Charger settings */
 volatile float CHARGER_SET_HV = 384;      // Reasonably appropriate 4.0v per cell charging of a 96s pack
 volatile float CHARGER_MAX_HV = 420;      // Max permissible output (VDC) of charger

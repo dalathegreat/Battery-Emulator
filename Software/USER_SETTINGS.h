@@ -63,9 +63,9 @@
 #define BATTERY_USE_SCALED_SOC true
 #define BATTERY_MAXPERCENTAGE 8000
 #define BATTERY_MINPERCENTAGE 2000
+#define BATTERY_MAX_CHARGE_AMP 300
+#define BATTERY_MAX_DISCHARGE_AMP 300
 
-extern volatile uint16_t MAXCHARGEAMP;
-extern volatile uint16_t MAXDISCHARGEAMP;
 extern volatile uint8_t AccessPointEnabled;
 extern const uint8_t wifi_channel;
 

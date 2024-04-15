@@ -121,8 +121,10 @@ void update_values_can_byd() {  //This function maps all the values fetched from
        datalayer.battery.info.max_design_voltage_dV);  //Charge power in W , max volt in V+1decimal (P=UI, solve for I)
   //The above calculation results in (30 000*10)/3700=81A
   charge_current = (charge_current * 10);  //Value needs a decimal before getting sent to inverter (81.0A)
-  if (charge_current > MAXCHARGEAMP) {
-    charge_current = MAXCHARGEAMP;  //Cap the value to the max allowed Amp. Some inverters cannot handle large values.
+  if (charge_current > datalayer.battery.info.max_charge_amp_dA) {
+    charge_current =
+        datalayer.battery.info
+            .max_charge_amp_dA;  //Cap the value to the max allowed Amp. Some inverters cannot handle large values.
   }
 
   discharge_current =
@@ -130,9 +132,10 @@ void update_values_can_byd() {  //This function maps all the values fetched from
        datalayer.battery.info.max_design_voltage_dV);  //Charge power in W , max volt in V+1decimal (P=UI, solve for I)
   //The above calculation results in (30 000*10)/3700=81A
   discharge_current = (discharge_current * 10);  //Value needs a decimal before getting sent to inverter (81.0A)
-  if (discharge_current > MAXDISCHARGEAMP) {
+  if (discharge_current > datalayer.battery.info.max_discharge_amp_dA) {
     discharge_current =
-        MAXDISCHARGEAMP;  //Cap the value to the max allowed Amp. Some inverters cannot handle large values.
+        datalayer.battery.info
+            .max_discharge_amp_dA;  //Cap the value to the max allowed Amp. Some inverters cannot handle large values.
   }
 
   temperature_average =

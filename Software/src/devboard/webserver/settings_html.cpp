@@ -27,9 +27,11 @@ String settings_processor(const String& var) {
     content += "<h4 style='color: " + String(datalayer.battery.settings.soc_scaling_active ? "white" : "darkgrey") +
                ";'>SOC min percentage: " + String(datalayer.battery.settings.min_percentage / 100.0, 1) +
                " </span> <button onclick='editSocMin()'>Edit</button></h4>";
-    content += "<h4 style='color: white;'>Max charge speed: " + String(MAXCHARGEAMP / 10.0, 1) +
-               " A </span> <button onclick='editMaxChargeA()'>Edit</button></h4>";
-    content += "<h4 style='color: white;'>Max discharge speed: " + String(MAXDISCHARGEAMP / 10.0, 1) +
+    content +=
+        "<h4 style='color: white;'>Max charge speed: " + String(datalayer.battery.info.max_charge_amp_dA / 10.0, 1) +
+        " A </span> <button onclick='editMaxChargeA()'>Edit</button></h4>";
+    content += "<h4 style='color: white;'>Max discharge speed: " +
+               String(datalayer.battery.info.max_discharge_amp_dA / 10.0, 1) +
                " A </span> <button onclick='editMaxDischargeA()'>Edit</button></h4>";
     // Close the block
     content += "</div>";
