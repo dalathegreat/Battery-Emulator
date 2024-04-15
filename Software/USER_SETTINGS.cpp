@@ -3,7 +3,7 @@
 /* This file contains all the battery settings and limits */
 /* They can be defined here, or later on in the WebUI */
 
-/* Charger settings */
+/* Charger settings (Optional, when using generator charging) */
 volatile float CHARGER_SET_HV = 384;      // Reasonably appropriate 4.0v per cell charging of a 96s pack
 volatile float CHARGER_MAX_HV = 420;      // Max permissible output (VDC) of charger
 volatile float CHARGER_MIN_HV = 200;      // Min permissible output (VDC) of charger
