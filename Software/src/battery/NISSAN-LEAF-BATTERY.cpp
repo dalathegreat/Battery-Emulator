@@ -140,10 +140,6 @@ static uint16_t min_max_voltage[2];     //contains cell min[0] and max[1] values
 static uint16_t cell_deviation_mV = 0;  //contains the deviation between highest and lowest cell in mV
 static uint16_t HX = 0;                 //Internal resistance
 static uint16_t insulation = 0;         //Insulation resistance
-static int32_t Battery_current_1 =
-    0;  //High Voltage battery current; it’s positive if discharged, negative when charging
-static int32_t Battery_current_2 =
-    0;  //High Voltage battery current; it’s positive if discharged, negative when charging (unclear why two values exist)
 static uint16_t temp_raw_1 = 0;
 static uint8_t temp_raw_2_highnibble = 0;
 static uint16_t temp_raw_2 = 0;
@@ -284,7 +280,8 @@ void update_values_battery() { /* This function maps all the values fetched via 
         //Normal stop request. For stationary storage we don't disconnect contactors, so we ignore this.
         break;
       case (4):
-        //Caution Lamp Request //TODO: Should we create info event for this?
+        //Caution Lamp Request
+        set_event(EVENT_BATTERY_CAUTION, 0);
         break;
       case (5):
         //Caution Lamp Request & Normal Stop Request
@@ -336,6 +333,15 @@ void update_values_battery() { /* This function maps all the values fetched via 
     set_event(EVENT_CAN_RX_WARNING, 0);
   }
 
+  if (LB_HeatExist) {
+    if (LB_Heating_Stop) {
+      set_event(EVENT_BATTERY_WARMED_UP, 0);
+    }
+    if (LB_Heating_Start) {
+      set_event(EVENT_BATTERY_REQUESTS_HEAT, 0);
+    }
+  }
+
   if (system_bms_status == FAULT) {  //Incase we enter a critical fault state, zero out the allowed limits
     system_max_charge_power_W = 0;
     system_max_discharge_power_W = 0;
@@ -351,13 +357,6 @@ void update_values_battery() { /* This function maps all the values fetched via 
   print_with_units(", Max cell voltage: ", min_max_voltage[1], "mV ");
   print_with_units(", Min cell voltage: ", min_max_voltage[0], "mV ");
   print_with_units(", Cell deviation: ", cell_deviation_mV, "mV ");
-  if (LB_Heating_Stop) {  //TODO: Should we create info event for this?
-    Serial.println("Battery requesting heating pads to stop. The battery is now warm enough.");
-  }
-  if (LB_Heating_Start) {  //TODO: Should we create info event for this?
-    Serial.println("COLD BATTERY! Battery requesting heating pads to activate");
-  }
-
 #endif
 }
 
@@ -483,23 +482,10 @@ void receive_can_battery(CAN_frame_t rx_frame) {
       if (group_7bb == 1)  //High precision SOC, Current, voltages etc.
       {
         if (rx_frame.data.u8[0] == 0x10) {  //First frame
-          Battery_current_1 = (rx_frame.data.u8[4] << 24) |
-                              (rx_frame.data.u8[5] << 16 | ((rx_frame.data.u8[6] << 8) | rx_frame.data.u8[7]));
-          if (Battery_current_1 & 0x8000000 == 0x8000000) {
-            Battery_current_1 = ((Battery_current_1 | -0x100000000) / 1024);
-          } else {
-            Battery_current_1 = (Battery_current_1 / 1024);
-          }
+          //High precision Battery_current_1 resides here, but has been deemed unusable by 62kWh owners
         }
-
         if (rx_frame.data.u8[0] == 0x21) {  //Second frame
-          Battery_current_2 = (rx_frame.data.u8[3] << 24) |
-                              (rx_frame.data.u8[4] << 16 | ((rx_frame.data.u8[5] << 8) | rx_frame.data.u8[6]));
-          if (Battery_current_2 & 0x8000000 == 0x8000000) {
-            Battery_current_2 = ((Battery_current_2 | -0x100000000) / 1024);
-          } else {
-            Battery_current_2 = (Battery_current_2 / 1024);
-          }
+          //High precision Battery_current_2 resides here, but has been deemed unusable by 62kWh owners
         }
 
         if (rx_frame.data.u8[0] == 0x23) {  // Fourth frame
