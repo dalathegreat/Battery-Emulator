@@ -48,8 +48,8 @@ void update_values_battery() {  //This function maps all the values fetched via 
 
   datalayer.battery.info.total_capacity_Wh = BATTERY_WH_MAX;  //Hardcoded to header value
 
-  datalayer.battery.status.remaining_capacity_Wh =
-      static_cast<uint32_t>((static_cast<double>(datalayer.battery.status.real_soc) / 10000) * datalayer.battery.info.total_capacity_Wh);
+  datalayer.battery.status.remaining_capacity_Wh = static_cast<uint32_t>(
+      (static_cast<double>(datalayer.battery.status.real_soc) / 10000) * datalayer.battery.info.total_capacity_Wh);
 
   //We do not know if the max charge power is sent by the battery. So we estimate the value based on SOC%
   if (datalayer.battery.status.reported_soc == 10000) {  //100.00%
