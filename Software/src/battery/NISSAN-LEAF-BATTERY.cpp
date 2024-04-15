@@ -267,9 +267,6 @@ void update_values_battery() { /* This function maps all the values fetched via 
   }
 
   if (LB_Relay_Cut_Request) {  //LB_FAIL, BMS requesting shutdown and contactors to be opened
-#ifdef DEBUG_VIA_USB
-    Serial.println("Battery requesting immediate shutdown and contactors to be opened!");
-#endif
     //Note, this is sometimes triggered during the night while idle, and the BMS recovers after a while. Removed latching from this scenario
     datalayer.battery.status.max_discharge_power_W = 0;
     datalayer.battery.status.max_charge_power_W = 0;
@@ -291,10 +288,7 @@ void update_values_battery() { /* This function maps all the values fetched via 
         //Normal stop request. For stationary storage we don't disconnect contactors, so we ignore this.
         break;
       case (4):
-//Caution Lamp Request
-#ifdef DEBUG_VIA_USB
-        Serial.println("ERROR: Battery raised caution indicator. Inspect battery status!");
-#endif
+        //Caution Lamp Request //TODO: Should we create info event for this?
         break;
       case (5):
         //Caution Lamp Request & Normal Stop Request
@@ -354,23 +348,6 @@ void update_values_battery() { /* This function maps all the values fetched via 
 
 /*Finally print out values to serial if configured to do so*/
 #ifdef DEBUG_VIA_USB
-  Serial.println("Values going to inverter");
-  print_with_units("SOH%: ", (datalayer.battery.status.soh_pptt * 0.01), "% ");
-  print_with_units(", SOC% scaled: ", (datalayer.battery.status.reported_soc * 0.01), "% ");
-  print_with_units(", Voltage: ", (datalayer.battery.status.voltage_dV * 0.1), "V ");
-  print_with_units(", Max discharge power: ", datalayer.battery.status.max_discharge_power_W, "W ");
-  print_with_units(", Max charge power: ", datalayer.battery.status.max_charge_power_W, "W ");
-  print_with_units(", Max temp: ", (datalayer.battery.status.temperature_max_dC * 0.1), "°C ");
-  print_with_units(", Min temp: ", (datalayer.battery.status.temperature_min_dC * 0.1), "°C ");
-  Serial.println("");
-  Serial.print("BMS Status: ");
-  if (datalayer.battery.status.bms_status == 3) {
-    Serial.print("Active, ");
-  } else {
-    Serial.print("FAULT, ");
-  }
-  print_with_units(", Power: ", LB_Power, "W ");
-  Serial.println("");
   Serial.println("Values from battery");
   print_with_units("Real SOC%: ", (LB_SOC * 0.1), "% ");
   print_with_units(", GIDS: ", LB_GIDS, " (x77Wh) ");
@@ -379,10 +356,10 @@ void update_values_battery() { /* This function maps all the values fetched via 
   print_with_units(", Max cell voltage: ", min_max_voltage[1], "mV ");
   print_with_units(", Min cell voltage: ", min_max_voltage[0], "mV ");
   print_with_units(", Cell deviation: ", cell_deviation_mV, "mV ");
-  if (LB_Heating_Stop) {
+  if (LB_Heating_Stop) {  //TODO: Should we create info event for this?
     Serial.println("Battery requesting heating pads to stop. The battery is now warm enough.");
   }
-  if (LB_Heating_Start) {
+  if (LB_Heating_Start) {  //TODO: Should we create info event for this?
     Serial.println("COLD BATTERY! Battery requesting heating pads to activate");
   }
 

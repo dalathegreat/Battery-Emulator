@@ -9,7 +9,6 @@
 /* Do not change code below unless you are sure what you are doing */
 static unsigned long previousMillis100 = 0;  // will store last time a 100ms CAN Message was send
 static uint8_t CANstillAlive = 12;           //counter for checking if CAN is still alive
-static uint8_t errorCode = 0;                //stores if we have an error code active from battery control logic
 
 CAN_frame_t CHADEMO_108 = {.FIR = {.B =
                                        {
@@ -108,7 +107,6 @@ void update_values_battery() {  //This function maps all the values fetched via 
 
   /* Check if the Vehicle is still sending CAN messages. If we go 60s without messages we raise an error*/
   if (!CANstillAlive) {
-    errorCode = 7;
     set_event(EVENT_CAN_RX_FAILURE, 0);
   } else {
     CANstillAlive--;
@@ -116,24 +114,8 @@ void update_values_battery() {  //This function maps all the values fetched via 
   }
 
 #ifdef DEBUG_VIA_USB
-  if (errorCode > 0) {
-    Serial.print("ERROR CODE ACTIVE IN SYSTEM. NUMBER: ");
-    Serial.println(errorCode);
-  }
-  Serial.print("BMS Status (3=OK): ");
-  Serial.println(datalayer.battery.status.bms_status);
-  Serial.print("Max discharge power: ");
-  Serial.println(datalayer.battery.status.max_discharge_power_W);
-  Serial.print("Max charge power: ");
-  Serial.println(datalayer.battery.status.max_charge_power_W);
-  Serial.print("SOH%: ");
-  Serial.println(datalayer.battery.status.soh_pptt);
-  Serial.print("SOC% to Inverter: ");
-  Serial.println(datalayer.battery.status.reported_soc);
-  Serial.print("Temperature Min: ");
-  Serial.println(datalayer.battery.status.temperature_min_dC);
-  Serial.print("Temperature Max: ");
-  Serial.println(datalayer.battery.status.temperature_max_dC);
+  Serial.print("SOC 0x100: ");
+  Serial.println(ConstantOfChargingRateIndication);
 #endif
 }
 
