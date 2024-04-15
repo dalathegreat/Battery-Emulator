@@ -122,7 +122,6 @@ void update_values_battery() {  //This function maps all the values fetched via 
   }
 
 #ifdef DEBUG_VIA_USB
-
   Serial.println("Battery Values");
   Serial.print("BMU SOC: ");
   Serial.print(BMU_SOC);
@@ -140,29 +139,6 @@ void update_values_battery() {  //This function maps all the values fetched via 
   Serial.print(max_temp_cel);
   Serial.print(" Cell min temp: ");
   Serial.println(min_temp_cel);
-
-  Serial.println("Values sent to inverter");
-  Serial.print("SOC% (0-100.00): ");
-  Serial.print(system_scaled_SOC_pptt);
-  Serial.print(" Voltage (0-400.0): ");
-  Serial.print(system_battery_voltage_dV);
-  Serial.print(" Capacity WH full (0-60000): ");
-  Serial.print(system_capacity_Wh);
-  Serial.print(" Capacity WH remain (0-60000): ");
-  Serial.print(system_remaining_capacity_Wh);
-  Serial.print(" Max charge power W (0-10000): ");
-  Serial.print(system_max_charge_power_W);
-  Serial.print(" Max discharge power W (0-10000): ");
-  Serial.print(system_max_discharge_power_W);
-  Serial.print(" Temp max ");
-  Serial.print(system_temperature_max_dC);
-  Serial.print(" Temp min ");
-  Serial.print(system_temperature_min_dC);
-  Serial.print(" Cell mV max ");
-  Serial.print(system_cell_max_voltage_mV);
-  Serial.print(" Cell mV min ");
-  Serial.print(system_cell_min_voltage_mV);
-
 #endif
 }
 
