@@ -60,8 +60,6 @@
 
 /* Battery limits: These are set in the USER_SETTINGS.cpp file, or later on via the Webserver */
 extern volatile uint32_t BATTERY_WH_MAX;
-extern volatile uint16_t MAXPERCENTAGE;
-extern volatile uint16_t MINPERCENTAGE;
 
 #define BATTERY_USE_SCALED_SOC true
 #define BATTERY_MAXPERCENTAGE 8000
