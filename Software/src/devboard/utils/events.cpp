@@ -138,6 +138,7 @@ void init_events(void) {
   events.entries[EVENT_KWH_PLAUSIBILITY_ERROR].level = EVENT_LEVEL_INFO;
   events.entries[EVENT_BATTERY_EMPTY].level = EVENT_LEVEL_INFO;
   events.entries[EVENT_BATTERY_FULL].level = EVENT_LEVEL_INFO;
+  events.entries[EVENT_BATTERY_CAUTION].level = EVENT_LEVEL_INFO;
   events.entries[EVENT_BATTERY_CHG_STOP_REQ].level = EVENT_LEVEL_ERROR;
   events.entries[EVENT_BATTERY_DISCHG_STOP_REQ].level = EVENT_LEVEL_ERROR;
   events.entries[EVENT_BATTERY_CHG_DISCHG_STOP_REQ].level = EVENT_LEVEL_ERROR;
@@ -211,12 +212,18 @@ const char* get_event_message_string(EVENTS_ENUM_TYPE event) {
       return "Info: Battery is completely discharged";
     case EVENT_BATTERY_FULL:
       return "Info: Battery is fully charged";
+    case EVENT_BATTERY_CAUTION:
+      return "Info: Battery has raised a general caution flag. Might want to inspect it closely.";
     case EVENT_BATTERY_CHG_STOP_REQ:
       return "ERROR: Battery raised caution indicator AND requested charge stop. Inspect battery status!";
     case EVENT_BATTERY_DISCHG_STOP_REQ:
       return "ERROR: Battery raised caution indicator AND requested discharge stop. Inspect battery status!";
     case EVENT_BATTERY_CHG_DISCHG_STOP_REQ:
       return "ERROR: Battery raised caution indicator AND requested charge/discharge stop. Inspect battery status!";
+    case EVENT_BATTERY_REQUESTS_HEAT:
+      return "Info: COLD BATTERY! Battery requesting heating pads to activate!";
+    case EVENT_BATTERY_WARMED_UP:
+      return "Info: Battery requesting heating pads to stop. The battery is now warm enough.";
     case EVENT_LOW_SOH:
       return "ERROR: State of health critically low. Battery internal resistance too high to continue. Recycle "
              "battery.";
