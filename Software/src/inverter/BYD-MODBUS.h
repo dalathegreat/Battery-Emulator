@@ -8,8 +8,6 @@
 #define MAX_POWER 40960  //BYD Modbus specific value
 
 extern uint16_t mbPV[MB_RTU_NUM_VALUES];
-extern bool batteryAllowsContactorClosing;   //Bool, true/false
-extern bool inverterAllowsContactorClosing;  //Bool, true/false
 
 void handle_static_data_modbus_byd();
 void verify_temperature_modbus();

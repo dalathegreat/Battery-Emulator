@@ -1,6 +1,5 @@
 #ifndef TESLA_MODEL_3_BATTERY_H
 #define TESLA_MODEL_3_BATTERY_H
-#include <Arduino.h>
 #include "../include.h"
 #include "../lib/miwagner-ESP32-Arduino-CAN/ESP32CAN.h"
 
@@ -18,10 +17,6 @@
 #define MIN_PACK_VOLTAGE_NCMA 3100  // V+1, if pack voltage goes below this, discharge stops
 #define MAX_PACK_VOLTAGE_LFP 3880   // V+1, if pack voltage goes over this, charge stops
 #define MIN_PACK_VOLTAGE_LFP 2968   // V+1, if pack voltage goes below this, discharge stops
-
-// These parameters need to be mapped for the inverter
-extern bool batteryAllowsContactorClosing;   //Bool, 1=true, 0=false
-extern bool inverterAllowsContactorClosing;  //Bool, 1=true, 0=false
 
 void printFaultCodesIfActive();
 void printDebugIfActive(uint8_t symbol, const char* message);

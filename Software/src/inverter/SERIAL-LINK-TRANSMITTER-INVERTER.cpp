@@ -26,7 +26,7 @@ SerialDataLink dataLinkTransmit(Serial2, 0x01, 0, BATTERY_SEND_NUM_VARIABLES, re
 void printSendingValues();
 
 void _getData() {
-  inverterAllowsContactorClosing = dataLinkTransmit.getReceivedData(0);
+  datalayer.system.status.inverter_allows_contactor_closing = dataLinkTransmit.getReceivedData(0);
   //var2 = dataLinkTransmit.getReceivedData(1); // For future expansion,
   //var3 = dataLinkTransmit.getReceivedData(2); // if inverter needs to send data to battery
 }
@@ -146,7 +146,7 @@ void manageSerialLinkTransmitter() {
       dataLinkTransmit.updateData(12, datalayer.battery.status.cell_max_voltage_mV);
       dataLinkTransmit.updateData(13, datalayer.battery.status.cell_min_voltage_mV);
       dataLinkTransmit.updateData(14, (int16_t)datalayer.battery.info.chemistry);
-      dataLinkTransmit.updateData(15, batteryAllowsContactorClosing);
+      dataLinkTransmit.updateData(15, datalayer.system.status.battery_allows_contactor_closing);
     }
   }
 }
@@ -183,10 +183,10 @@ void printSendingValues() {
   Serial.print(datalayer.battery.status.cell_min_voltage_mV);
   Serial.print(" LFP : ");
   Serial.print(datalayer.battery.info.chemistry);
-  Serial.print(" batteryAllowsContactorClosing: ");
-  Serial.print(batteryAllowsContactorClosing);
-  Serial.print(" inverterAllowsContactorClosing: ");
-  Serial.print(inverterAllowsContactorClosing);
+  Serial.print(" Battery Allows Contactor Closing: ");
+  Serial.print(datalayer.system.status.battery_allows_contactor_closing);
+  Serial.print(" Inverter Allows Contactor Closing: ");
+  Serial.print(datalayer.system.status.inverter_allows_contactor_closing);
 
   Serial.println("");
 }

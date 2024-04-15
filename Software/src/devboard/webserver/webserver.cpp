@@ -553,14 +553,14 @@ String processor(const String& var) {
 
     content += "<h4>Automatic contactor closing allowed:</h4>";
     content += "<h4>Battery: ";
-    if (batteryAllowsContactorClosing) {
+    if (datalayer.system.status.battery_allows_contactor_closing == true) {
       content += "<span>&#10003;</span>";
     } else {
       content += "<span style='color: red;'>&#10005;</span>";
     }
 
     content += " Inverter: ";
-    if (inverterAllowsContactorClosing) {
+    if (datalayer.system.status.inverter_allows_contactor_closing == true) {
       content += "<span>&#10003;</span></h4>";
     } else {
       content += "<span style='color: red;'>&#10005;</span></h4>";

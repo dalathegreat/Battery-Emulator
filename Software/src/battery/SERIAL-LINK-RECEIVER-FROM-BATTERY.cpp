@@ -1,6 +1,5 @@
 #include "../include.h"
 #ifdef SERIAL_LINK_RECEIVER
-#include <Arduino.h>
 #include "../datalayer/datalayer.h"
 #include "../devboard/utils/events.h"
 #include "SERIAL-LINK-RECEIVER-FROM-BATTERY.h"
@@ -49,7 +48,7 @@ void __getData() {
   datalayer.battery.status.cell_max_voltage_mV = (uint16_t)dataLinkReceive.getReceivedData(12);
   datalayer.battery.status.cell_min_voltage_mV = (uint16_t)dataLinkReceive.getReceivedData(13);
   datalayer.battery.info.chemistry = (battery_chemistry_enum)dataLinkReceive.getReceivedData(14);
-  batteryAllowsContactorClosing = (bool)dataLinkReceive.getReceivedData(15);
+  datalayer.system.status.battery_allows_contactor_closing = (bool)dataLinkReceive.getReceivedData(15);
 
   batteryFault = false;
   if (_datalayer.battery.status.bms_status == FAULT) {
@@ -60,7 +59,7 @@ void __getData() {
 
 void updateData() {
   // --- update with fresh data
-  dataLinkReceive.updateData(0, inverterAllowsContactorClosing);
+  dataLinkReceive.updateData(0, datalayer.system.status.inverter_allows_contactor_closing);
   //dataLinkReceive.updateData(1,var2); // For future expansion,
   //dataLinkReceive.updateData(2,var3); // if inverter needs to send data to battery
 }
@@ -211,10 +210,10 @@ void update_values_serial_link() {
   Serial.print(datalayer.battery.status.cell_min_voltage_mV);
   Serial.print(" LFP : ");
   Serial.print(datalayer.battery.info.chemistry);
-  Serial.print(" batteryAllowsContactorClosing: ");
-  Serial.print(batteryAllowsContactorClosing);
-  Serial.print(" inverterAllowsContactorClosing: ");
-  Serial.print(inverterAllowsContactorClosing);
+  Serial.print(" Battery Allows Contactor Closing: ");
+  Serial.print(datalayer.system.status.battery_allows_contactor_closing);
+  Serial.print(" Inverter Allows Contactor Closing: ");
+  Serial.print(datalayer.system.status.inverter_allows_contactor_closing);
 
   Serial.println("");
 }

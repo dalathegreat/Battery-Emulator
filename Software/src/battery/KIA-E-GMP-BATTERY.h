@@ -12,10 +12,6 @@ extern ACAN2517FD canfd;
 #define MAXCHARGEPOWERALLOWED 10000
 #define MAXDISCHARGEPOWERALLOWED 10000
 
-// These parameters need to be mapped for the inverter
-extern bool batteryAllowsContactorClosing;   //Bool, true/false
-extern bool inverterAllowsContactorClosing;  //Bool, true/false
-
 void setup_battery(void);
 
 #endif

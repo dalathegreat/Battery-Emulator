@@ -1,6 +1,5 @@
 #ifndef SOLAX_CAN_H
 #define SOLAX_CAN_H
-#include <Arduino.h>
 #include "../include.h"
 #include "../lib/miwagner-ESP32-Arduino-CAN/ESP32CAN.h"
 #include "../lib/pierremolinaro-acan2515/ACAN2515.h"
@@ -8,9 +7,6 @@
 #define INVERTER_SELECTED
 
 extern ACAN2515 can;
-
-extern bool batteryAllowsContactorClosing;   //Bool, true/false
-extern bool inverterAllowsContactorClosing;  //Bool, true/false
 
 // Timeout in milliseconds
 #define SolaxTimeout 2000

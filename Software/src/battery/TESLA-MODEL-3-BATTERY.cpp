@@ -592,15 +592,15 @@ the first, for a few cycles, then stop all  messages which causes the contactor 
     }
     previousMillis30 = currentMillis;
 
-    if (inverterAllowsContactorClosing == 1) {
+    if (datalayer.system.status.inverter_allows_contactor_closing) {
       if (datalayer.battery.status.bms_status == ACTIVE) {
         send221still = 50;
-        batteryAllowsContactorClosing = true;
+        datalayer.system.status.battery_allows_contactor_closing = true;
         ESP32Can.CANWriteFrame(&TESLA_221_1);
         ESP32Can.CANWriteFrame(&TESLA_221_2);
       } else {  //datalayer.battery.status.bms_status == FAULT or inverter requested opening contactors
         if (send221still > 0) {
-          batteryAllowsContactorClosing = false;
+          datalayer.system.status.battery_allows_contactor_closing = false;
           ESP32Can.CANWriteFrame(&TESLA_221_1);
           send221still--;
         }
@@ -634,9 +634,10 @@ void printFaultCodesIfActive() {
   if (pyroTestInProgress == 1) {
     Serial.println("ERROR: Please wait for Pyro Connection check to finish, HV cables successfully seated!");
   }
-  if (inverterAllowsContactorClosing == 0) {
+  if (datalayer.system.status.inverter_allows_contactor_closing == false) {
     Serial.println(
-        "ERROR: Solar inverter does not allow for contactor closing. Check inverterAllowsContactorClosing parameter");
+        "ERROR: Solar inverter does not allow for contactor closing. Check "
+        "datalayer.system.status.inverter_allows_contactor_closing parameter");
   }
   // Check each symbol and print debug information if its value is 1
   printDebugIfActive(WatchdogReset, "ERROR: The processor has experienced a reset due to watchdog reset");

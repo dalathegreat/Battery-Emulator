@@ -1,13 +1,9 @@
 #ifndef SMA_CAN_H
 #define SMA_CAN_H
-#include <Arduino.h>
 #include "../include.h"
 #include "../lib/miwagner-ESP32-Arduino-CAN/ESP32CAN.h"
 
 #define INVERTER_SELECTED
-
-extern bool batteryAllowsContactorClosing;   //Bool, true/false
-extern bool inverterAllowsContactorClosing;  //Bool, true/false
 
 #define READY_STATE 0x03
 #define STOP_STATE 0x02

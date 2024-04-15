@@ -6,10 +6,6 @@
 
 #define BATTERY_SELECTED
 
-// These parameters need to be mapped for the inverter
-extern bool batteryAllowsContactorClosing;   //Bool, true/false
-extern bool inverterAllowsContactorClosing;  //Bool, 1=true, 0=false
-
 void setup_battery(void);
 
 #endif

@@ -367,9 +367,9 @@ void send_can_battery() {
     ESP32Can.CANWriteFrame(&VOLVO_372);  //Send 0x372 ECMAmbientTempCalculated
 
     if (datalayer.battery.status.bms_status == ACTIVE) {
-      batteryAllowsContactorClosing = true;
+      datalayer.system.status.battery_allows_contactor_closing = true;
     } else {  //datalayer.battery.status.bms_status == FAULT or inverter requested opening contactors
-      batteryAllowsContactorClosing = false;
+      datalayer.system.status.battery_allows_contactor_closing = false;
     }
   }
   if (currentMillis - previousMillis60s >= INTERVAL_60_S) {

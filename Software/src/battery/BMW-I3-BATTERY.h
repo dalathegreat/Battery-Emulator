@@ -7,10 +7,6 @@
 #define BATTERY_SELECTED
 
 #define WUP_PIN 25
-
-// These parameters need to be mapped for the inverter
-extern bool batteryAllowsContactorClosing;  //Bool, true/false
-
 void setup_battery(void);
 
 #endif

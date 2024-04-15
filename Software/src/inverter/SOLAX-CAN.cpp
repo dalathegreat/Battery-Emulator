@@ -124,7 +124,7 @@ void CAN_WriteFrame(CAN_frame_t* tx_frame) {
 void update_values_can_solax() {  //This function maps all the values fetched from battery CAN to the correct CAN messages
   // If not receiveing any communication from the inverter, open contactors and return to battery announce state
   if (millis() - LastFrameTime >= SolaxTimeout) {
-    inverterAllowsContactorClosing = false;
+    datalayer.system.status.inverter_allows_contactor_closing = false;
     STATE = BATTERY_ANNOUNCE;
 #ifndef DUAL_CAN
     ESP32Can.CANStop();  // Baud rate switching might have taken down the interface. Reboot it!
@@ -246,7 +246,7 @@ void receive_can_solax(CAN_frame_t rx_frame) {
 #ifdef DEBUG_VIA_USB
         Serial.println("Solax Battery State: Announce");
 #endif
-        inverterAllowsContactorClosing = false;
+        datalayer.system.status.inverter_allows_contactor_closing = false;
         SOLAX_1875.data.u8[4] = (0x00);  // Inform Inverter: Contactor 0=off, 1=on.
         for (int i = 0; i <= number_of_batteries; i++) {
           CAN_WriteFrame(&SOLAX_1872);
@@ -281,7 +281,7 @@ void receive_can_solax(CAN_frame_t rx_frame) {
         break;
 
       case (CONTACTOR_CLOSED):
-        inverterAllowsContactorClosing = true;
+        datalayer.system.status.inverter_allows_contactor_closing = true;
         SOLAX_1875.data.u8[4] = (0x01);  // Inform Inverter: Contactor 0=off, 1=on.
         CAN_WriteFrame(&SOLAX_1872);
         CAN_WriteFrame(&SOLAX_1873);

@@ -80,8 +80,8 @@ typedef struct {
   int64_t time_snap_5s_us = 0;
   int64_t time_snap_cantx_us = 0;
 #endif
-  bool batteryAllowsContactorClosing = false;
-  bool inverterAllowsContactorClosing = true;
+  bool battery_allows_contactor_closing = false;
+  bool inverter_allows_contactor_closing = true;
 } DATALAYER_SYSTEM_STATUS_TYPE;
 
 typedef struct {

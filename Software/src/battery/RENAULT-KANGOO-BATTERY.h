@@ -12,10 +12,6 @@
   3000                             // Min Cell Voltage mV! if voltage goes under this, discharging further is disabled
 #define MAX_CELL_DEVIATION_MV 500  //LED turns yellow on the board if mv delta exceeds this value
 
-// These parameters need to be mapped for the inverter
-extern bool batteryAllowsContactorClosing;   //Bool, true/false
-extern bool inverterAllowsContactorClosing;  //Bool, true/false
-
 void setup_battery(void);
 
 #endif

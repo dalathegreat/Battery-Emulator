@@ -6,10 +6,6 @@
 
 #define INVERTER_SELECTED
 
-// These parameters need to be mapped for the inverter
-extern bool batteryAllowsContactorClosing;   //Bool, true/false
-extern bool inverterAllowsContactorClosing;  //Bool, true/false
-
 void update_values_can_byd();
 void send_can_byd();
 void receive_can_byd(CAN_frame_t rx_frame);

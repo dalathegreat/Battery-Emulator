@@ -104,8 +104,6 @@ unsigned long prechargeStartTime = 0;
 unsigned long negativeStartTime = 0;
 unsigned long timeSpentInFaultedMode = 0;
 #endif
-bool batteryAllowsContactorClosing = false;
-bool inverterAllowsContactorClosing = true;
 
 TaskHandle_t main_loop_task;
 TaskHandle_t mqtt_loop_task;
@@ -481,8 +479,9 @@ void inform_user_on_inverter() {
 #endif
 #endif
 #ifdef SOLAX_CAN
-  inverterAllowsContactorClosing = false;  // The inverter needs to allow first on this protocol
-  intervalUpdateValues = 800;              // This protocol also requires the values to be updated faster
+  datalayer.system.status.inverter_allows_contactor_closing =
+      false;                   // The inverter needs to allow first on this protocol
+  intervalUpdateValues = 800;  // This protocol also requires the values to be updated faster
 #ifdef DEBUG_VIA_USB
   Serial.println("SOLAX CAN protocol selected");
 #endif
@@ -639,14 +638,15 @@ void handle_contactors() {
     ledcWrite(NEGATIVE_PWM_Ch, 0);
 #endif
 
-    if (batteryAllowsContactorClosing && inverterAllowsContactorClosing) {
+    if (datalayer.system.status.battery_allows_contactor_closing &&
+        datalayer.system.status.inverter_allows_contactor_closing) {
       contactorStatus = PRECHARGE;
     }
   }
 
   // In case the inverter requests contactors to open, set the state accordingly
   if (contactorStatus == COMPLETED) {
-    if (!inverterAllowsContactorClosing)
+    if (!datalayer.system.status.inverter_allows_contactor_closing)
       contactorStatus = DISCONNECTED;
     // Skip running the state machine below if it has already completed
     return;

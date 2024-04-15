@@ -15,9 +15,7 @@
 #include "../mqtt/mqtt.h"
 #endif
 
-extern const char* version_number;           // The current software version, shown on webserver
-extern bool batteryAllowsContactorClosing;   //Bool, 1=true, 0=false
-extern bool inverterAllowsContactorClosing;  //Bool, 1=true, 0=false
+extern const char* version_number;  // The current software version, shown on webserver
 
 extern const char* ssid;
 extern const char* password;

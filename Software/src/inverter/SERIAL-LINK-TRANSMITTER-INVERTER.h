@@ -7,12 +7,6 @@
 
 #define INVERTER_SELECTED
 
-// These parameters need to be mapped for the inverter
-extern bool batteryAllowsContactorClosing;  //Bool, true/false
-
-// parameters received from receiver
-extern bool inverterAllowsContactorClosing;  //Bool, true/false
-
 void manageSerialLinkTransmitter();
 
 #endif
