@@ -4,10 +4,6 @@
 #include "../include.h"
 
 typedef struct {
-  /** float - FUTURE */
-  // float max_design_voltage_V;
-  // float min_design_voltage_V;
-
   /** uint32_t */
   uint32_t total_capacity_Wh;
 
@@ -23,13 +19,6 @@ typedef struct {
 } DATALAYER_BATTERY_INFO_TYPE;
 
 typedef struct {
-  /** float - FUTURE */
-  // float temperature_max_C;
-  // float temperature_min_C;
-  // float current_A;
-  // float voltage_V;
-  // float soh_pct = 99.0f;
-
   /** int32_t */
   int32_t active_power_W;
 
@@ -70,33 +59,44 @@ typedef struct {
 } DATALAYER_BATTERY_TYPE;
 
 typedef struct {
+  // TODO
+} DATALAYER_SYSTEM_INFO_TYPE;
+
+typedef struct {
 #ifdef FUNCTION_TIME_MEASUREMENT
-  int64_t main_task_max_us = 0;
-  int64_t main_task_10s_max_us = 0;
+  int64_t core_task_max_us = 0;
+  int64_t core_task_10s_max_us = 0;
+  int64_t mqtt_task_10s_max_us = 0;
+  int64_t loop_task_10s_max_us = 0;
   int64_t time_wifi_us = 0;
-  int64_t time_mqtt_us = 0;
   int64_t time_comm_us = 0;
   int64_t time_10ms_us = 0;
   int64_t time_5s_us = 0;
   int64_t time_cantx_us = 0;
-  int64_t time_events_us = 0;
+
+  int64_t time_snap_wifi_us = 0;
+  int64_t time_snap_comm_us = 0;
+  int64_t time_snap_10ms_us = 0;
+  int64_t time_snap_5s_us = 0;
+  int64_t time_snap_cantx_us = 0;
 #endif
 } DATALAYER_SYSTEM_STATUS_TYPE;
 
 typedef struct {
-  DATALAYER_SYSTEM_STATUS_TYPE status;
-} DATALAYER_SYSTEM_TYPE;
-
-typedef struct {
   bool batteryAllowsContactorClosing = false;
   bool inverterAllowsContactorClosing = true;
-} DATALAYER_SETTINGS_TYPE;
+} DATALAYER_SYSTEM_SETTINGS_TYPE;
+
+typedef struct {
+  DATALAYER_SYSTEM_INFO_TYPE info;
+  DATALAYER_SYSTEM_STATUS_TYPE status;
+  DATALAYER_SYSTEM_SETTINGS_TYPE settings;
+} DATALAYER_SYSTEM_TYPE;
 
 class DataLayer {
  public:
   DATALAYER_BATTERY_TYPE battery;
   DATALAYER_SYSTEM_TYPE system;
-  DATALAYER_SETTINGS_TYPE settings;
 };
 
 extern DataLayer datalayer;

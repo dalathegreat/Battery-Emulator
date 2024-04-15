@@ -85,6 +85,8 @@ MyTimer core_task_timer_10s(INTERVAL_10_S);
 int64_t mqtt_task_time_us;
 MyTimer mqtt_task_timer_10s(INTERVAL_10_S);
 
+MyTimer loop_task_timer_10s(INTERVAL_10_S);
+
 // Contactor parameters
 #ifdef CONTACTOR_CONTROL
 enum State { DISCONNECTED, PRECHARGE, NEGATIVE, POSITIVE, PRECHARGE_OFF, COMPLETED, SHUTDOWN_REQUESTED };
@@ -150,7 +152,16 @@ void setup() {
 }
 
 // Perform main program functions
-void loop() {}
+void loop() {
+  START_TIME_MEASUREMENT(events);
+  run_event_handling();
+  END_TIME_MEASUREMENT_MAX(events, datalayer.system.status.loop_task_10s_max_us);
+#ifdef FUNCTION_TIME_MEASUREMENT
+  if (loop_task_timer_10s.elapsed()) {
+    datalayer.system.status.loop_task_10s_max_us = 0;
+  }
+#endif
+}
 
 #ifdef MQTT
 void mqtt_loop(void* task_time_us) {
@@ -160,11 +171,11 @@ void mqtt_loop(void* task_time_us) {
   while (true) {
     START_TIME_MEASUREMENT(mqtt);
     mqtt_loop();
-    END_TIME_MEASUREMENT_MAX(mqtt, datalayer.system.status.time_mqtt_us);
+    END_TIME_MEASUREMENT_MAX(mqtt, datalayer.system.status.mqtt_task_10s_max_us);
 
 #ifdef FUNCTION_TIME_MEASUREMENT
     if (mqtt_task_timer_10s.elapsed()) {
-      datalayer.system.status.time_mqtt_us = 0;
+      datalayer.system.status.mqtt_task_10s_max_us = 0;
     }
 #endif
     delay(1);
@@ -200,7 +211,7 @@ void core_loop(void* task_time_us) {
     START_TIME_MEASUREMENT(wifi_ota);
     wifi_monitor();
     ElegantOTA.loop();
-    END_TIME_MEASUREMENT(wifi_ota, datalayer.system.status.time_wifi_us);
+    END_TIME_MEASUREMENT_MAX(wifi_ota, datalayer.system.status.time_wifi_us);
 #endif
 
     START_TIME_MEASUREMENT(time_10ms);
@@ -233,21 +244,29 @@ void core_loop(void* task_time_us) {
     send_can2();
 #endif
     END_TIME_MEASUREMENT_MAX(cantx, datalayer.system.status.time_cantx_us);
-
-    START_TIME_MEASUREMENT(events);
-    run_event_handling();
-    END_TIME_MEASUREMENT_MAX(events, datalayer.system.status.time_events_us);
-    END_TIME_MEASUREMENT_MAX(all, datalayer.system.status.main_task_10s_max_us);
+    END_TIME_MEASUREMENT_MAX(all, datalayer.system.status.core_task_10s_max_us);
 #ifdef FUNCTION_TIME_MEASUREMENT
-    datalayer.system.status.main_task_max_us =
-        MAX(datalayer.system.status.main_task_10s_max_us, datalayer.system.status.main_task_max_us);
+
+    if (datalayer.system.status.core_task_10s_max_us > datalayer.system.status.core_task_max_us) {
+      // Update worst case total time
+      datalayer.system.status.core_task_max_us = datalayer.system.status.core_task_10s_max_us;
+      // Record snapshots of task times
+      datalayer.system.status.time_snap_comm_us = datalayer.system.status.time_comm_us;
+      datalayer.system.status.time_snap_10ms_us = datalayer.system.status.time_10ms_us;
+      datalayer.system.status.time_snap_5s_us = datalayer.system.status.time_5s_us;
+      datalayer.system.status.time_snap_cantx_us = datalayer.system.status.time_cantx_us;
+      datalayer.system.status.time_snap_wifi_us = datalayer.system.status.time_wifi_us;
+    }
+
+    datalayer.system.status.core_task_max_us =
+        MAX(datalayer.system.status.core_task_10s_max_us, datalayer.system.status.core_task_max_us);
     if (core_task_timer_10s.elapsed()) {
+      datalayer.system.status.time_wifi_us = 0;
       datalayer.system.status.time_comm_us = 0;
       datalayer.system.status.time_10ms_us = 0;
       datalayer.system.status.time_5s_us = 0;
       datalayer.system.status.time_cantx_us = 0;
-      datalayer.system.status.time_events_us = 0;
-      datalayer.system.status.main_task_10s_max_us = 0;
+      datalayer.system.status.core_task_10s_max_us = 0;
     }
 #endif
     vTaskDelayUntil(&xLastWakeTime, xFrequency);

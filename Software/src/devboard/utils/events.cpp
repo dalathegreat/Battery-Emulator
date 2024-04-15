@@ -47,6 +47,7 @@ typedef struct {
   uint32_t time_seconds;
   MyTimer second_timer;
   MyTimer ee_timer;
+  MyTimer update_timer;
   EVENTS_LEVEL_TYPE level;
   uint16_t event_log_head_index;
   uint16_t event_log_tail_index;
@@ -76,6 +77,7 @@ void run_event_handling(void) {
   update_event_time();
   run_sequence_on_target();
   check_ee_write();
+  update_event_level();
 }
 
 /* Initialization function */
@@ -164,6 +166,7 @@ void init_events(void) {
   events.second_timer.set_interval(1000);
   // Write to EEPROM every X minutes (if an event has been set)
   events.ee_timer.set_interval(EE_WRITE_PERIOD_MINUTES * 60 * 1000);
+  events.update_timer.set_interval(2000);
 }
 
 void set_event(EVENTS_ENUM_TYPE event, uint8_t data) {
@@ -300,7 +303,9 @@ static void set_event(EVENTS_ENUM_TYPE event, uint8_t data, bool latched) {
   // Check if the event is latching
   events.entries[event].state = latched ? EVENT_STATE_ACTIVE_LATCHED : EVENT_STATE_ACTIVE;
 
-  update_event_level();
+  // Update event level, only upwards. Downward changes are done in Software.ino:loop()
+  events.level = max(events.level, events.entries[event].level);
+
   update_bms_status();
 
 #ifdef DEBUG_VIA_USB
@@ -327,12 +332,13 @@ static void update_bms_status(void) {
 }
 
 static void update_event_level(void) {
-  events.level = EVENT_LEVEL_INFO;
+  EVENTS_LEVEL_TYPE temporary_level = EVENT_LEVEL_INFO;
   for (uint8_t i = 0u; i < EVENT_NOF_EVENTS; i++) {
     if ((events.entries[i].state == EVENT_STATE_ACTIVE) || (events.entries[i].state == EVENT_STATE_ACTIVE_LATCHED)) {
-      events.level = max(events.entries[i].level, events.level);
+      temporary_level = max(events.entries[i].level, temporary_level);
     }
   }
+  events.level = temporary_level;
 }
 
 static void update_event_time(void) {

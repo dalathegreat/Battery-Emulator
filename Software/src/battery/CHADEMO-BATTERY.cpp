@@ -104,9 +104,7 @@ void update_values_battery() {  //This function maps all the values fetched via 
        1000);  //(Added in CHAdeMO v1.0.1), maybe handle hardcoded on lower protocol version?
 
   datalayer.battery.status.remaining_capacity_Wh =
-      (datalayer.battery.status.real_soc / 100) *
-      datalayer.battery.info
-          .total_capacity_Wh;  // Is this really correct? 100% SOC would give 100*total_capacity_Wh..? Should it be (soc / 10000.0)?
+      static_cast<uint32_t>((static_cast<double>(datalayer.battery.status.real_soc) / 10000) * datalayer.battery.info.total_capacity_Wh);
 
   /* Check if the Vehicle is still sending CAN messages. If we go 60s without messages we raise an error*/
   if (!CANstillAlive) {

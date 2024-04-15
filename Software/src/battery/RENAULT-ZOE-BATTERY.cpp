@@ -51,7 +51,7 @@ void update_values_battery() {  //This function maps all the values fetched via 
 
   //Calculate the remaining Wh amount from SOC% and max Wh value.
   datalayer.battery.status.remaining_capacity_Wh =
-      static_cast<int>((static_cast<double>(datalayer.battery.status.real_soc) / 10000) * BATTERY_WH_MAX);
+      static_cast<uint32_t>((static_cast<double>(datalayer.battery.status.real_soc) / 10000) * BATTERY_WH_MAX);
 
   datalayer.battery.status.max_discharge_power_W;
 
