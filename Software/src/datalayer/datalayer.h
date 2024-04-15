@@ -15,7 +15,7 @@ typedef struct {
   uint8_t number_of_cells;
 
   /** Other */
-  battery_chemistry_enum chemistry;
+  battery_chemistry_enum chemistry = battery_chemistry_enum::NCA;
 } DATALAYER_BATTERY_INFO_TYPE;
 
 typedef struct {

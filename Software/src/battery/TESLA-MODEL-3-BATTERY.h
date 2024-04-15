@@ -22,7 +22,6 @@
 // These parameters need to be mapped for the inverter
 extern bool batteryAllowsContactorClosing;   //Bool, 1=true, 0=false
 extern bool inverterAllowsContactorClosing;  //Bool, 1=true, 0=false
-extern bool system_LFP_Chemistry;            //Bool, 1=true, 0=false
 
 void printFaultCodesIfActive();
 void printDebugIfActive(uint8_t symbol, const char* message);

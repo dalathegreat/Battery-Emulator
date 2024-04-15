@@ -48,7 +48,7 @@ void __getData() {
   datalayer.battery.status.temperature_max_dC = (int16_t)dataLinkReceive.getReceivedData(11);
   datalayer.battery.status.cell_max_voltage_mV = (uint16_t)dataLinkReceive.getReceivedData(12);
   datalayer.battery.status.cell_min_voltage_mV = (uint16_t)dataLinkReceive.getReceivedData(13);
-  system_LFP_Chemistry = (bool)dataLinkReceive.getReceivedData(14);
+  datalayer.battery.info.chemistry = (battery_chemistry_enum)dataLinkReceive.getReceivedData(14);
   batteryAllowsContactorClosing = (bool)dataLinkReceive.getReceivedData(15);
 
   batteryFault = false;
@@ -210,7 +210,7 @@ void update_values_serial_link() {
   Serial.print(" Cell min: ");
   Serial.print(datalayer.battery.status.cell_min_voltage_mV);
   Serial.print(" LFP : ");
-  Serial.print(system_LFP_Chemistry);
+  Serial.print(datalayer.battery.info.chemistry);
   Serial.print(" batteryAllowsContactorClosing: ");
   Serial.print(batteryAllowsContactorClosing);
   Serial.print(" inverterAllowsContactorClosing: ");

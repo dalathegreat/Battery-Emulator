@@ -12,7 +12,6 @@
 //  https://github.com/mackelec/SerialDataLink
 
 // These parameters need to be mapped on the battery side
-extern bool system_LFP_Chemistry;           //Set to true or false depending on cell chemistry
 extern bool batteryAllowsContactorClosing;  //Bool, 1=true, 0=false
 
 // Parameters to send to the transmitter

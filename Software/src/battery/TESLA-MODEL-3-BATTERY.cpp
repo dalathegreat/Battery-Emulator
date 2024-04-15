@@ -208,7 +208,7 @@ void update_values_battery() {  //This function maps all the values fetched via 
     datalayer.battery.status.max_charge_power_W =
         MAXCHARGEPOWERALLOWED * (1 - (soc_vi - RAMPDOWN_SOC) / (1000.0 - RAMPDOWN_SOC));
     //If the cellvoltages start to reach overvoltage, only allow a small amount of power in
-    if (system_LFP_Chemistry) {
+    if (datalayer.battery.info.chemistry == battery_chemistry_enum::LFP) {
       if (cell_max_v > (MAX_CELL_VOLTAGE_LFP - FLOAT_START_MV)) {
         datalayer.battery.status.max_charge_power_W = FLOAT_MAX_POWER_W;
       }
@@ -253,11 +253,11 @@ void update_values_battery() {  //This function maps all the values fetched via 
   // NCM/A batteries have 96s, LFP has 102-106s
   // Drawback with this check is that it takes 3-5minutes before all cells have been counted!
   if (datalayer.battery.info.number_of_cells > 101) {
-    system_LFP_Chemistry = true;
+    datalayer.battery.info.chemistry = true;
   }
 
   //Once cell chemistry is determined, set maximum and minimum total pack voltage safety limits
-  if (system_LFP_Chemistry) {
+  if (datalayer.battery.info.chemistry == battery_chemistry_enum::LFP) {
     datalayer.battery.info.max_design_voltage_dV = MAX_PACK_VOLTAGE_LFP;
     datalayer.battery.info.min_design_voltage_dV = MIN_PACK_VOLTAGE_LFP;
   } else {  // NCM/A chemistry
@@ -288,7 +288,7 @@ void update_values_battery() {  //This function maps all the values fetched via 
     set_event(EVENT_KWH_PLAUSIBILITY_ERROR, nominal_full_pack_energy);
   }
 
-  if (system_LFP_Chemistry) {  //LFP limits used for voltage safeties
+  if (datalayer.battery.info.chemistry == battery_chemistry_enum::LFP) {  //LFP limits used for voltage safeties
     if (cell_max_v >= MAX_CELL_VOLTAGE_LFP) {
       set_event(EVENT_CELL_OVER_VOLTAGE, (cell_max_v - MAX_CELL_VOLTAGE_LFP));
     }
@@ -351,7 +351,7 @@ void update_values_battery() {  //This function maps all the values fetched via 
     Serial.print("YES, ");
   else
     Serial.print("NO, ");
-  if (system_LFP_Chemistry) {
+  if (datalayer.battery.info.chemistry == battery_chemistry_enum::LFP) {
     Serial.print("LFP chemistry detected!");
   }
   Serial.println("");
@@ -708,7 +708,7 @@ void setup_battery(void) {  // Performs one time setup at startup
 #endif
 
 #ifdef LFP_CHEMISTRY
-  system_LFP_Chemistry = true;
+  datalayer.battery.info.chemistry = battery_chemistry_enum::LFP;
   datalayer.battery.info.max_design_voltage_dV = MAX_PACK_VOLTAGE_LFP;
   datalayer.battery.info.min_design_voltage_dV = MIN_PACK_VOLTAGE_LFP;
 #else

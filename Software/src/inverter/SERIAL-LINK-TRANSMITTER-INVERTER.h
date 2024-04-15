@@ -9,7 +9,6 @@
 
 // These parameters need to be mapped for the inverter
 extern bool batteryAllowsContactorClosing;  //Bool, true/false
-extern bool system_LFP_Chemistry;           //Bool, true/false
 
 // parameters received from receiver
 extern bool inverterAllowsContactorClosing;  //Bool, true/false

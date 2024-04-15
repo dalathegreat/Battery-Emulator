@@ -60,9 +60,6 @@ uint16_t mbPV[MB_RTU_NUM_VALUES];  // Process variable memory
 ModbusServerRTU MBserver(Serial2, 2000);
 #endif
 
-// Common system parameters. Batteries map their values to these variables
-bool system_LFP_Chemistry = false;  //Set to true or false depending on cell chemistry
-
 // Common charger parameters
 volatile float charger_setpoint_HV_VDC = 0.0f;
 volatile float charger_setpoint_HV_IDC = 0.0f;

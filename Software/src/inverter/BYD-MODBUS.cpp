@@ -148,7 +148,7 @@ void handle_update_data_modbusp301_byd() {
 }
 
 void verify_temperature_modbus() {
-  if (system_LFP_Chemistry) {
+  if (datalayer.battery.info.chemistry == battery_chemistry_enum::LFP) {
     return;  // Skip the following section
   }
   // This section checks if the battery temperature is negative, and incase it falls between -9.0 and -20.0C degrees

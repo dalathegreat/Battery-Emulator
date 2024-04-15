@@ -145,7 +145,7 @@ void manageSerialLinkTransmitter() {
       dataLinkTransmit.updateData(11, datalayer.battery.status.temperature_max_dC);
       dataLinkTransmit.updateData(12, datalayer.battery.status.cell_max_voltage_mV);
       dataLinkTransmit.updateData(13, datalayer.battery.status.cell_min_voltage_mV);
-      dataLinkTransmit.updateData(14, (int16_t)system_LFP_Chemistry);
+      dataLinkTransmit.updateData(14, (int16_t)datalayer.battery.info.chemistry);
       dataLinkTransmit.updateData(15, batteryAllowsContactorClosing);
     }
   }
@@ -182,7 +182,7 @@ void printSendingValues() {
   Serial.print(" Cell min: ");
   Serial.print(datalayer.battery.status.cell_min_voltage_mV);
   Serial.print(" LFP : ");
-  Serial.print(system_LFP_Chemistry);
+  Serial.print(datalayer.battery.info.chemistry);
   Serial.print(" batteryAllowsContactorClosing: ");
   Serial.print(batteryAllowsContactorClosing);
   Serial.print(" inverterAllowsContactorClosing: ");
