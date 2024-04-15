@@ -311,7 +311,7 @@ void init_stored_settings() {
   static uint32_t temp = 0;
   temp = settings.getUInt("BATTERY_WH_MAX", false);
   if (temp != 0) {
-    BATTERY_WH_MAX = temp;
+    datalayer.battery.info.total_capacity_Wh = temp;
   }
   temp = settings.getUInt("MAXPERCENTAGE", false);
   if (temp != 0) {
@@ -788,7 +788,7 @@ void init_serialDataLink() {
 
 void storeSettings() {
   settings.begin("batterySettings", false);
-  settings.putUInt("BATTERY_WH_MAX", BATTERY_WH_MAX);
+  settings.putUInt("BATTERY_WH_MAX", datalayer.battery.info.total_capacity_Wh);
   settings.putUInt("MAXPERCENTAGE",
                    datalayer.battery.settings.max_percentage / 10);  // Divide by 10 for backwards compatibility
   settings.putUInt("MINPERCENTAGE",

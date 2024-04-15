@@ -4,7 +4,6 @@
 /* They can be defined here, or later on in the WebUI */
 
 /* Battery settings */
-volatile uint32_t BATTERY_WH_MAX = 30000;  //Battery size in Wh
 volatile uint16_t MAXCHARGEAMP =
     300;  //30.0A , BYD CAN specific setting, Max charge in Amp (Some inverters needs to be limited)
 volatile uint16_t MAXDISCHARGEAMP =

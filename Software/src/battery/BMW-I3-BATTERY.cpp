@@ -421,8 +421,6 @@ void update_values_battery() {  //This function maps all the values fetched via 
 
   datalayer.battery.status.current_dA = battery_current;
 
-  datalayer.battery.info.total_capacity_Wh = BATTERY_WH_MAX;
-
   datalayer.battery.status.remaining_capacity_Wh = (battery_energy_content_maximum_kWh * 1000);  // Convert kWh to Wh
 
   datalayer.battery.status.soh_pptt = battery_soh * 100;

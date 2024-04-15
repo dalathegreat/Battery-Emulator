@@ -5,7 +5,7 @@
 
 typedef struct {
   /** uint32_t */
-  uint32_t total_capacity_Wh;
+  uint32_t total_capacity_Wh = BATTERY_WH_MAX;
 
   /** uint16_t */
   uint16_t max_design_voltage_dV;
@@ -35,8 +35,8 @@ typedef struct {
   /** uint16_t */
   uint16_t soh_pptt = 9900;
   uint16_t voltage_dV;
-  uint16_t cell_max_voltage_mV;
-  uint16_t cell_min_voltage_mV;
+  uint16_t cell_max_voltage_mV = 3700;
+  uint16_t cell_min_voltage_mV = 3700;
   uint16_t cell_voltages_mV[MAX_AMOUNT_CELLS];
   uint16_t real_soc;
   uint16_t scaled_soc;
@@ -80,11 +80,11 @@ typedef struct {
   int64_t time_snap_5s_us = 0;
   int64_t time_snap_cantx_us = 0;
 #endif
+  bool batteryAllowsContactorClosing = false;
+  bool inverterAllowsContactorClosing = true;
 } DATALAYER_SYSTEM_STATUS_TYPE;
 
 typedef struct {
-  bool batteryAllowsContactorClosing = false;
-  bool inverterAllowsContactorClosing = true;
 } DATALAYER_SYSTEM_SETTINGS_TYPE;
 
 typedef struct {

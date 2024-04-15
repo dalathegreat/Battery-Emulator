@@ -68,7 +68,7 @@ void init_webserver() {
   server.on("/updateBatterySize", HTTP_GET, [](AsyncWebServerRequest* request) {
     if (request->hasParam("value")) {
       String value = request->getParam("value")->value();
-      BATTERY_WH_MAX = value.toInt();
+      datalayer.battery.info.total_capacity_Wh = value.toInt();
       storeSettings();
       request->send(200, "text/plain", "Updated successfully");
     } else {
