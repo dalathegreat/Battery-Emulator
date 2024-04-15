@@ -82,5 +82,4 @@ extern volatile float CHARGER_END_A;
 extern bool charger_HV_enabled;
 extern bool charger_aux12V_enabled;
 
-
 #endif

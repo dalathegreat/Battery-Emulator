@@ -9,9 +9,13 @@
  * Parameter: TASK_CONNECTIVITY_PRIO
  * Description:
  * Defines the priority of various wireless functionality (TCP, MQTT, etc)
+ * 
+ * Parameter: TASK_MODBUS_PRIO
+ * Description:
+ * Defines the priority of MODBUS handling
 */
 #define TASK_CORE_PRIO 4
-#define TASK_WIFI_PRIO 3
+#define TASK_CONNECTIVITY_PRIO 3
 #define TASK_MODBUS_PRIO 8
 
 /** MAX AMOUNT OF CELLS
@@ -35,6 +39,11 @@
  * Description:
  * The period of whatever LED mode is active. If CLASSIC, then a ramp up and ramp down will finish in
  * LED_PERIOD_MS milliseconds
+ * 
+ * Parameter: LED_EXECUTION_FREQUENCY
+ * Description:
+ * Defines how often the LED handling will run, basically the FPS. The animation will honor its overall
+ * frequency but the animation will be choppier
 */
 #define LED_MODE_DEFAULT FLOW
 #define LED_PERIOD_MS 3000

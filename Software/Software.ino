@@ -108,7 +108,7 @@ bool batteryAllowsContactorClosing = false;
 bool inverterAllowsContactorClosing = true;
 
 TaskHandle_t main_loop_task;
-TaskHandle_t wifi_loop_task;
+TaskHandle_t mqtt_loop_task;
 
 // Initialization
 void setup() {
@@ -120,8 +120,8 @@ void setup() {
   init_webserver();
   init_mDNS();
 #ifdef MQTT
-  xTaskCreatePinnedToCore((TaskFunction_t)&mqtt_loop, "mqtt_loop", 4096, &mqtt_task_time_us, TASK_WIFI_PRIO,
-                          &main_loop_task, WIFI_CORE);
+  xTaskCreatePinnedToCore((TaskFunction_t)&mqtt_loop, "mqtt_loop", 4096, &mqtt_task_time_us, TASK_CONNECTIVITY_PRIO,
+                          &mqtt_loop_task, WIFI_CORE);
 #endif
 #endif
 
@@ -150,9 +150,9 @@ void setup() {
 
 // Perform main program functions
 void loop() {
-  START_TIME_MEASUREMENT(events);
+  START_TIME_MEASUREMENT(loop_func);
   run_event_handling();
-  END_TIME_MEASUREMENT_MAX(events, datalayer.system.status.loop_task_10s_max_us);
+  END_TIME_MEASUREMENT_MAX(loop_func, datalayer.system.status.loop_task_10s_max_us);
 #ifdef FUNCTION_TIME_MEASUREMENT
   if (loop_task_timer_10s.elapsed()) {
     datalayer.system.status.loop_task_10s_max_us = 0;
