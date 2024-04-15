@@ -326,14 +326,12 @@ void receive_can_battery(CAN_frame_t rx_frame) {
           }
 
           if (min_max_voltage[1] >= MAX_CELL_VOLTAGE) {
-            datalayer.battery.status.bms_status = FAULT;
             set_event(EVENT_CELL_OVER_VOLTAGE, 0);
 #ifdef DEBUG_VIA_USB
             Serial.println("CELL OVERVOLTAGE!!! Stopping battery charging and discharging. Inspect battery!");
 #endif
           }
           if (min_max_voltage[0] <= MIN_CELL_VOLTAGE) {
-            datalayer.battery.status.bms_status = FAULT;
             set_event(EVENT_CELL_UNDER_VOLTAGE, 0);
 #ifdef DEBUG_VIA_USB
             Serial.println("CELL UNDERVOLTAGE!!! Stopping battery charging and discharging. Inspect battery!");
