@@ -14,7 +14,8 @@ String settings_processor(const String& var) {
     content += "<div style='background-color: #303E47; padding: 10px; margin-bottom: 10px;border-radius: 50px'>";
 
     // Show current settings with edit buttons and input fields
-    content += "<h4 style='color: white;'>Battery capacity: <span id='BATTERY_WH_MAX'>" + String(datalayer.battery.info.total_capacity_Wh) +
+    content += "<h4 style='color: white;'>Battery capacity: <span id='BATTERY_WH_MAX'>" +
+               String(datalayer.battery.info.total_capacity_Wh) +
                " Wh </span> <button onclick='editWh()'>Edit</button></h4>";
     content += "<h4 style='color: white;'>Rescale SOC: <span id='BATTERY_USE_SCALED_SOC'>" +
                String(datalayer.battery.settings.soc_scaling_active ? "<span>&#10003;</span>"
