@@ -58,14 +58,23 @@
 //#define CHEVYVOLT_CHARGER //Enable this line to control a Chevrolet Volt charger connected to battery - for example, when generator charging or using an inverter without a charging function.
 //#define NISSANLEAF_CHARGER //Enable this line to control a Nissan LEAF PDM connected to battery - for example, when generator charging
 
-/* Battery limits: These are set in the USER_SETTINGS.cpp file, or later on via the Webserver */
-extern volatile uint32_t BATTERY_WH_MAX;
-extern volatile uint16_t MAXPERCENTAGE;
-extern volatile uint16_t MINPERCENTAGE;
-extern volatile uint16_t MAXCHARGEAMP;
-extern volatile uint16_t MAXDISCHARGEAMP;
+/* Battery settings */
+
+// Predefined total energy capacity of the battery in Watt-hours
+#define BATTERY_WH_MAX 30000
+// Increases battery life. If true will rescale SOC between the configured min/max-percentage
+#define BATTERY_USE_SCALED_SOC true
+// 8000 = 80.0% , Max percentage the battery will charge to (Inverter gets 100% when reached)
+#define BATTERY_MAXPERCENTAGE 8000
+// 2000 = 20.0% , Min percentage the battery will discharge to (Inverter gets 0% when reached)
+#define BATTERY_MINPERCENTAGE 2000
+// 300 = 30.0A , BYD CAN specific setting, Max charge in Amp (Some inverters needs to be limited)
+#define BATTERY_MAX_CHARGE_AMP 300
+// 300 = 30.0A , BYD CAN specific setting, Max discharge in Amp (Some inverters needs to be limited)
+#define BATTERY_MAX_DISCHARGE_AMP 300
+
 extern volatile uint8_t AccessPointEnabled;
-extern volatile bool USE_SCALED_SOC;
+extern const uint8_t wifi_channel;
 
 /* Charger limits (Optional): Set in the USER_SETTINGS.cpp or later in the webserver */
 extern volatile float charger_setpoint_HV_VDC;
@@ -79,7 +88,5 @@ extern volatile float CHARGER_MAX_A;
 extern volatile float CHARGER_END_A;
 extern bool charger_HV_enabled;
 extern bool charger_aux12V_enabled;
-
-extern const uint8_t wifi_channel;
 
 #endif

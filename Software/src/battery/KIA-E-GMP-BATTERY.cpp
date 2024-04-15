@@ -1,5 +1,6 @@
 #include "../include.h"
 #ifdef KIA_E_GMP_BATTERY
+#include "../datalayer/datalayer.h"
 #include "../devboard/utils/events.h"
 #include "../lib/miwagner-ESP32-Arduino-CAN/CAN_config.h"
 #include "../lib/miwagner-ESP32-Arduino-CAN/ESP32CAN.h"
@@ -50,49 +51,48 @@ CANFDMessage EGMP_7E4_ack;
 
 void set_cell_voltages(CANFDMessage frame, int start, int length, int startCell) {
   for (size_t i = 0; i < length; i++) {
-    system_cellvoltages_mV[startCell + i] = (frame.data[start + i] * 20);
+    datalayer.battery.status.cell_voltages_mV[startCell + i] = (frame.data[start + i] * 20);
   }
 }
 
 void update_values_battery() {  //This function maps all the values fetched via CAN to the correct parameters used for modbus
 
-  system_real_SOC_pptt = (SOC_Display * 10);  //increase SOC range from 0-100.0 -> 100.00
+  datalayer.battery.status.real_soc = (SOC_Display * 10);  //increase SOC range from 0-100.0 -> 100.00
 
-  system_SOH_pptt = (batterySOH * 10);  //Increase decimals from 100.0% -> 100.00%
+  datalayer.battery.status.soh_pptt = (batterySOH * 10);  //Increase decimals from 100.0% -> 100.00%
 
-  system_battery_voltage_dV = batteryVoltage;  //value is *10 (3700 = 370.0)
+  datalayer.battery.status.voltage_dV = batteryVoltage;  //value is *10 (3700 = 370.0)
 
-  system_battery_current_dA = batteryAmps;  //value is *10 (150 = 15.0)
+  datalayer.battery.status.current_dA = batteryAmps;  //value is *10 (150 = 15.0)
 
-  system_capacity_Wh = BATTERY_WH_MAX;
+  datalayer.battery.status.remaining_capacity_Wh = static_cast<uint32_t>(
+      (static_cast<double>(datalayer.battery.status.real_soc) / 10000) * datalayer.battery.info.total_capacity_Wh);
 
-  system_remaining_capacity_Wh = static_cast<int>((static_cast<double>(system_real_SOC_pptt) / 10000) * BATTERY_WH_MAX);
-
-  //system_max_charge_power_W = (uint16_t)allowedChargePower * 10;  //From kW*100 to Watts
+  //datalayer.battery.status.max_charge_power_W = (uint16_t)allowedChargePower * 10;  //From kW*100 to Watts
   //The allowed charge power is not available. We estimate this value
-  if (system_scaled_SOC_pptt == 10000) {  // When scaled SOC is 100%, set allowed charge power to 0
-    system_max_charge_power_W = 0;
+  if (datalayer.battery.status.reported_soc == 10000) {  // When scaled SOC is 100%, set allowed charge power to 0
+    datalayer.battery.status.max_charge_power_W = 0;
   } else {  // No limits, max charging power allowed
-    system_max_charge_power_W = MAXCHARGEPOWERALLOWED;
+    datalayer.battery.status.max_charge_power_W = MAXCHARGEPOWERALLOWED;
   }
-  //system_max_discharge_power_W = (uint16_t)allowedDischargePower * 10;  //From kW*100 to Watts
-  if (system_scaled_SOC_pptt < 100) {  // When scaled SOC is <1%, set allowed charge power to 0
-    system_max_discharge_power_W = 0;
+  //datalayer.battery.status.max_discharge_power_W = (uint16_t)allowedDischargePower * 10;  //From kW*100 to Watts
+  if (datalayer.battery.status.reported_soc < 100) {  // When scaled SOC is <1%, set allowed charge power to 0
+    datalayer.battery.status.max_discharge_power_W = 0;
   } else {  // No limits, max charging power allowed
-    system_max_discharge_power_W = MAXDISCHARGEPOWERALLOWED;
+    datalayer.battery.status.max_discharge_power_W = MAXDISCHARGEPOWERALLOWED;
   }
 
   powerWatt = ((batteryVoltage * batteryAmps) / 100);
 
-  system_active_power_W = powerWatt;  //Power in watts, Negative = charging batt
+  datalayer.battery.status.active_power_W = powerWatt;  //Power in watts, Negative = charging batt
 
-  system_temperature_min_dC = (int8_t)temperatureMin * 10;  //Increase decimals, 17C -> 17.0C
+  datalayer.battery.status.temperature_min_dC = (int8_t)temperatureMin * 10;  //Increase decimals, 17C -> 17.0C
 
-  system_temperature_max_dC = (int8_t)temperatureMax * 10;  //Increase decimals, 18C -> 18.0C
+  datalayer.battery.status.temperature_max_dC = (int8_t)temperatureMax * 10;  //Increase decimals, 18C -> 18.0C
 
-  system_cell_max_voltage_mV = CellVoltMax_mV;
+  datalayer.battery.status.cell_max_voltage_mV = CellVoltMax_mV;
 
-  system_cell_min_voltage_mV = CellVoltMin_mV;
+  datalayer.battery.status.cell_min_voltage_mV = CellVoltMin_mV;
 
   /* Check if the BMS is still sending CAN messages. If we go 60s without messages we raise an error*/
   if (!CANstillAlive) {
@@ -111,7 +111,7 @@ void update_values_battery() {  //This function maps all the values fetched via 
   }
 
   // Check if cell voltages are within allowed range
-  cell_deviation_mV = (system_cell_max_voltage_mV - system_cell_min_voltage_mV);
+  cell_deviation_mV = (datalayer.battery.status.cell_max_voltage_mV - datalayer.battery.status.cell_min_voltage_mV);
 
   if (CellVoltMax_mV >= MAX_CELL_VOLTAGE) {
     set_event(EVENT_CELL_OVER_VOLTAGE, 0);
@@ -125,9 +125,10 @@ void update_values_battery() {  //This function maps all the values fetched via 
     clear_event(EVENT_CELL_DEVIATION_HIGH);
   }
 
-  if (system_bms_status == FAULT) {  //Incase we enter a critical fault state, zero out the allowed limits
-    system_max_charge_power_W = 0;
-    system_max_discharge_power_W = 0;
+  if (datalayer.battery.status.bms_status ==
+      FAULT) {  //Incase we enter a critical fault state, zero out the allowed limits
+    datalayer.battery.status.max_charge_power_W = 0;
+    datalayer.battery.status.max_discharge_power_W = 0;
   }
 
   /* Safeties verified. Perform USB serial printout if configured to do so */
@@ -146,7 +147,7 @@ void update_values_battery() {  //This function maps all the values fetched via 
   Serial.print(" Amps  |  ");
   Serial.print((uint16_t)batteryVoltage / 10.0, 1);
   Serial.print(" Volts  |  ");
-  Serial.print((int16_t)system_active_power_W);
+  Serial.print((int16_t)datalayer.battery.status.active_power_W);
   Serial.println(" Watts");
   Serial.print("Allowed Charge ");
   Serial.print((uint16_t)allowedChargePower * 10);
@@ -329,7 +330,7 @@ void receive_canfd_battery(CANFDMessage frame) {
             set_cell_voltages(frame, 1, 5, 187);
             //set_cell_count();
           } else if (poll_data_pid == 5) {
-            // system_number_of_cells = 98;
+            // datalayer.battery.info.number_of_cells = 98;
             SOC_Display = frame.data[1] * 5;
           }
           break;
@@ -401,11 +402,12 @@ void setup_battery(void) {  // Performs one time setup at startup
   Serial.println("Hyundai E-GMP (Electric Global Modular Platform) battery selected");
 #endif
 
-  system_number_of_cells = 192;  // TODO: will vary depending on battery
+  datalayer.battery.info.number_of_cells = 192;  // TODO: will vary depending on battery
 
-  system_max_design_voltage_dV =
+  datalayer.battery.info.max_design_voltage_dV =
       8064;  // TODO: define when battery is known, charging is not possible (goes into forced discharge)
-  system_min_design_voltage_dV = 4320;  // TODO: define when battery is known. discharging further is disabled
+  datalayer.battery.info.min_design_voltage_dV =
+      4320;  // TODO: define when battery is known. discharging further is disabled
 
   EGMP_7E4.id = 0x7E4;
   EGMP_7E4.ext = false;

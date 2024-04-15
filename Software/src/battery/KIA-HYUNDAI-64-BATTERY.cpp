@@ -1,5 +1,6 @@
 #include "../include.h"
 #ifdef KIA_HYUNDAI_64_BATTERY
+#include "../datalayer/datalayer.h"
 #include "../devboard/utils/events.h"
 #include "../lib/miwagner-ESP32-Arduino-CAN/CAN_config.h"
 #include "../lib/miwagner-ESP32-Arduino-CAN/ESP32CAN.h"
@@ -146,42 +147,42 @@ CAN_frame_t KIA64_7E4_ack = {
 
 void update_values_battery() {  //This function maps all the values fetched via CAN to the correct parameters used for modbus
 
-  system_real_SOC_pptt = (SOC_Display * 10);  //increase SOC range from 0-100.0 -> 100.00
+  datalayer.battery.status.real_soc = (SOC_Display * 10);  //increase SOC range from 0-100.0 -> 100.00
 
-  system_SOH_pptt = (batterySOH * 10);  //Increase decimals from 100.0% -> 100.00%
+  datalayer.battery.status.soh_pptt = (batterySOH * 10);  //Increase decimals from 100.0% -> 100.00%
 
-  system_battery_voltage_dV = batteryVoltage;  //value is *10 (3700 = 370.0)
+  datalayer.battery.status.voltage_dV = batteryVoltage;  //value is *10 (3700 = 370.0)
 
-  system_battery_current_dA = -batteryAmps;  //value is *10 (150 = 15.0) , invert the sign
+  datalayer.battery.status.current_dA = -batteryAmps;  //value is *10 (150 = 15.0) , invert the sign
 
-  system_capacity_Wh = BATTERY_WH_MAX;
+  datalayer.battery.status.remaining_capacity_Wh = static_cast<uint32_t>(
+      (static_cast<double>(datalayer.battery.status.real_soc) / 10000) * datalayer.battery.info.total_capacity_Wh);
 
-  system_remaining_capacity_Wh = static_cast<int>((static_cast<double>(system_real_SOC_pptt) / 10000) * BATTERY_WH_MAX);
-
-  //system_max_charge_power_W = (uint16_t)allowedChargePower * 10;  //From kW*100 to Watts
+  //datalayer.battery.status.max_charge_power_W = (uint16_t)allowedChargePower * 10;  //From kW*100 to Watts
   //The allowed charge power is not available. We estimate this value
-  if (system_scaled_SOC_pptt == 10000) {  // When scaled SOC is 100%, set allowed charge power to 0
-    system_max_charge_power_W = 0;
+  if (datalayer.battery.status.reported_soc == 10000) {  // When scaled SOC is 100%, set allowed charge power to 0
+    datalayer.battery.status.max_charge_power_W = 0;
   } else {  // No limits, max charging power allowed
-    system_max_charge_power_W = MAXCHARGEPOWERALLOWED;
+    datalayer.battery.status.max_charge_power_W = MAXCHARGEPOWERALLOWED;
   }
-  //system_max_discharge_power_W = (uint16_t)allowedDischargePower * 10;  //From kW*100 to Watts
-  if (system_scaled_SOC_pptt < 100) {  // When scaled SOC is <1%, set allowed charge power to 0
-    system_max_discharge_power_W = 0;
+  //datalayer.battery.status.max_discharge_power_W = (uint16_t)allowedDischargePower * 10;  //From kW*100 to Watts
+  if (datalayer.battery.status.reported_soc < 100) {  // When scaled SOC is <1%, set allowed charge power to 0
+    datalayer.battery.status.max_discharge_power_W = 0;
   } else {  // No limits, max charging power allowed
-    system_max_discharge_power_W = MAXDISCHARGEPOWERALLOWED;
+    datalayer.battery.status.max_discharge_power_W = MAXDISCHARGEPOWERALLOWED;
   }
 
   //Power in watts, Negative = charging batt
-  system_active_power_W = ((system_battery_voltage_dV * system_battery_current_dA) / 100);
+  datalayer.battery.status.active_power_W =
+      ((datalayer.battery.status.voltage_dV * datalayer.battery.status.current_dA) / 100);
 
-  system_temperature_min_dC = (int8_t)temperatureMin * 10;  //Increase decimals, 17C -> 17.0C
+  datalayer.battery.status.temperature_min_dC = (int8_t)temperatureMin * 10;  //Increase decimals, 17C -> 17.0C
 
-  system_temperature_max_dC = (int8_t)temperatureMax * 10;  //Increase decimals, 18C -> 18.0C
+  datalayer.battery.status.temperature_max_dC = (int8_t)temperatureMax * 10;  //Increase decimals, 18C -> 18.0C
 
-  system_cell_max_voltage_mV = CellVoltMax_mV;
+  datalayer.battery.status.cell_max_voltage_mV = CellVoltMax_mV;
 
-  system_cell_min_voltage_mV = CellVoltMin_mV;
+  datalayer.battery.status.cell_min_voltage_mV = CellVoltMin_mV;
 
   /* Check if the BMS is still sending CAN messages. If we go 60s without messages we raise an error*/
   if (!CANstillAlive) {
@@ -202,22 +203,22 @@ void update_values_battery() {  //This function maps all the values fetched via 
   //Map all cell voltages to the global array
   for (int i = 0; i < 98; ++i) {
     if (cellvoltages_mv[i] > 1000) {
-      system_cellvoltages_mV[i] = cellvoltages_mv[i];
+      datalayer.battery.status.cell_voltages_mV[i] = cellvoltages_mv[i];
     }
   }
   // Check if we have 98S or 90S battery
-  if (system_cellvoltages_mV[97] > 0) {
-    system_number_of_cells = 98;
-    system_max_design_voltage_dV = 4040;
-    system_min_design_voltage_dV = 3100;
+  if (datalayer.battery.status.cell_voltages_mV[97] > 0) {
+    datalayer.battery.info.number_of_cells = 98;
+    datalayer.battery.info.max_design_voltage_dV = 4040;
+    datalayer.battery.info.min_design_voltage_dV = 3100;
   } else {
-    system_number_of_cells = 90;
-    system_max_design_voltage_dV = 3870;
-    system_min_design_voltage_dV = 2250;
+    datalayer.battery.info.number_of_cells = 90;
+    datalayer.battery.info.max_design_voltage_dV = 3870;
+    datalayer.battery.info.min_design_voltage_dV = 2250;
   }
 
   // Check if cell voltages are within allowed range
-  cell_deviation_mV = (system_cell_max_voltage_mV - system_cell_min_voltage_mV);
+  cell_deviation_mV = (datalayer.battery.status.cell_max_voltage_mV - datalayer.battery.status.cell_min_voltage_mV);
 
   if (CellVoltMax_mV >= MAX_CELL_VOLTAGE) {
     set_event(EVENT_CELL_OVER_VOLTAGE, 0);
@@ -231,9 +232,10 @@ void update_values_battery() {  //This function maps all the values fetched via 
     clear_event(EVENT_CELL_DEVIATION_HIGH);
   }
 
-  if (system_bms_status == FAULT) {  //Incase we enter a critical fault state, zero out the allowed limits
-    system_max_charge_power_W = 0;
-    system_max_discharge_power_W = 0;
+  if (datalayer.battery.status.bms_status ==
+      FAULT) {  //Incase we enter a critical fault state, zero out the allowed limits
+    datalayer.battery.status.max_charge_power_W = 0;
+    datalayer.battery.status.max_discharge_power_W = 0;
   }
 
   /* Safeties verified. Perform USB serial printout if configured to do so */
@@ -252,7 +254,7 @@ void update_values_battery() {  //This function maps all the values fetched via 
   Serial.print(" Amps  |  ");
   Serial.print((uint16_t)batteryVoltage / 10.0, 1);
   Serial.print(" Volts  |  ");
-  Serial.print((int16_t)system_active_power_W);
+  Serial.print((int16_t)datalayer.battery.status.active_power_W);
   Serial.println(" Watts");
   Serial.print("Allowed Charge ");
   Serial.print((uint16_t)allowedChargePower * 10);
@@ -602,8 +604,9 @@ void setup_battery(void) {  // Performs one time setup at startup
   Serial.println("Kia Niro / Hyundai Kona 64kWh battery selected");
 #endif
 
-  system_max_design_voltage_dV = 4040;  // 404.0V, over this, charging is not possible (goes into forced discharge)
-  system_min_design_voltage_dV = 3100;  // 310.0V under this, discharging further is disabled
+  datalayer.battery.info.max_design_voltage_dV =
+      4040;  // 404.0V, over this, charging is not possible (goes into forced discharge)
+  datalayer.battery.info.min_design_voltage_dV = 3100;  // 310.0V under this, discharging further is disabled
 }
 
 #endif

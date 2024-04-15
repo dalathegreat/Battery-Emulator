@@ -1,5 +1,6 @@
 #include "cellmonitor_html.h"
 #include <Arduino.h>
+#include "../../datalayer/datalayer.h"
 
 String cellmonitor_processor(const String& var) {
   if (var == "ABC") {
@@ -37,10 +38,10 @@ String cellmonitor_processor(const String& var) {
     // Populate cell data
     content += "const data = [";
     for (uint8_t i = 0u; i < MAX_AMOUNT_CELLS; i++) {
-      if (system_cellvoltages_mV[i] == 0) {
+      if (datalayer.battery.status.cell_voltages_mV[i] == 0) {
         continue;
       }
-      content += String(system_cellvoltages_mV[i]) + ",";
+      content += String(datalayer.battery.status.cell_voltages_mV[i]) + ",";
     }
     content += "];";
 

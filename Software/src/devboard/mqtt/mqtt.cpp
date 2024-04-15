@@ -4,6 +4,7 @@
 #include <freertos/FreeRTOS.h>
 #include "../../../USER_SETTINGS.h"
 #include "../../battery/BATTERIES.h"
+#include "../../datalayer/datalayer.h"
 #include "../../lib/bblanchon-ArduinoJson/ArduinoJson.h"
 #include "../../lib/knolleary-pubsubclient/PubSubClient.h"
 #include "../utils/timer.h"
@@ -39,7 +40,7 @@ static void publish_cell_voltages(void) {
   static String state_topic = String("battery-emulator_") + String(hostname) + "/spec_data";
 
   // If the cell voltage number isn't initialized...
-  if (system_number_of_cells == 0u) {
+  if (datalayer.battery.info.number_of_cells == 0u) {
     return;
   }
 
@@ -47,7 +48,7 @@ static void publish_cell_voltages(void) {
     mqtt_first_transmission = false;
     String topic = "homeassistant/sensor/battery-emulator/cell_voltage";
 
-    for (int i = 0; i < system_number_of_cells; i++) {
+    for (int i = 0; i < datalayer.battery.info.number_of_cells; i++) {
       int cellNumber = i + 1;
       doc["name"] = "Battery Cell Voltage " + String(cellNumber);
       doc["object_id"] = "battery_voltage_cell" + String(cellNumber);
@@ -74,13 +75,13 @@ static void publish_cell_voltages(void) {
     doc.clear();  // clear after sending autoconfig
   } else {
     // If cell voltages haven't been populated...
-    if (system_number_of_cells == 0u) {
+    if (datalayer.battery.info.number_of_cells == 0u) {
       return;
     }
 
     JsonArray cell_voltages = doc["cell_voltages"].to<JsonArray>();
-    for (size_t i = 0; i < system_number_of_cells; ++i) {
-      cell_voltages.add(((float)system_cellvoltages_mV[i]) / 1000.0);
+    for (size_t i = 0; i < datalayer.battery.info.number_of_cells; ++i) {
+      cell_voltages.add(((float)datalayer.battery.status.cell_voltages_mV[i]) / 1000.0);
     }
 
     serializeJson(doc, mqtt_msg, sizeof(mqtt_msg));
@@ -150,16 +151,16 @@ static void publish_common_info(void) {
     }
     doc.clear();
   } else {
-    doc["SOC"] = ((float)system_scaled_SOC_pptt) / 100.0;
-    doc["SOC_real"] = ((float)system_real_SOC_pptt) / 100.0;
-    doc["state_of_health"] = ((float)system_SOH_pptt) / 100.0;
-    doc["temperature_min"] = ((float)((int16_t)system_temperature_min_dC)) / 10.0;
-    doc["temperature_max"] = ((float)((int16_t)system_temperature_max_dC)) / 10.0;
-    doc["stat_batt_power"] = ((float)((int16_t)system_active_power_W));
-    doc["battery_current"] = ((float)((int16_t)system_battery_current_dA)) / 10.0;
-    doc["cell_max_voltage"] = ((float)system_cell_max_voltage_mV) / 1000.0;
-    doc["cell_min_voltage"] = ((float)system_cell_min_voltage_mV) / 1000.0;
-    doc["battery_voltage"] = ((float)system_battery_voltage_dV) / 10.0;
+    doc["SOC"] = ((float)datalayer.battery.status.reported_soc) / 100.0;
+    doc["SOC_real"] = ((float)datalayer.battery.status.real_soc) / 100.0;
+    doc["state_of_health"] = ((float)datalayer.battery.status.soh_pptt) / 100.0;
+    doc["temperature_min"] = ((float)((int16_t)datalayer.battery.status.temperature_min_dC)) / 10.0;
+    doc["temperature_max"] = ((float)((int16_t)datalayer.battery.status.temperature_max_dC)) / 10.0;
+    doc["stat_batt_power"] = ((float)((int32_t)datalayer.battery.status.active_power_W));
+    doc["battery_current"] = ((float)((int16_t)datalayer.battery.status.current_dA)) / 10.0;
+    doc["cell_max_voltage"] = ((float)datalayer.battery.status.cell_max_voltage_mV) / 1000.0;
+    doc["cell_min_voltage"] = ((float)datalayer.battery.status.cell_min_voltage_mV) / 1000.0;
+    doc["battery_voltage"] = ((float)datalayer.battery.status.voltage_dV) / 10.0;
 
     serializeJson(doc, mqtt_msg);
     if (!mqtt_publish(state_topic.c_str(), mqtt_msg, false)) {

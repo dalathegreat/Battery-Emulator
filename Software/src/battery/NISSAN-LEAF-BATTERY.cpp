@@ -159,84 +159,88 @@ void print_with_units(char* header, int value, char* units) {
 void update_values_battery() { /* This function maps all the values fetched via CAN to the correct parameters used for modbus */
   /* Start with mapping all values */
 
-  system_SOH_pptt = (LB_StateOfHealth * 100);  //Increase range from 99% -> 99.00%
+  datalayer.battery.status.soh_pptt = (LB_StateOfHealth * 100);  //Increase range from 99% -> 99.00%
 
-  system_real_SOC_pptt = (LB_SOC * 10);
+  datalayer.battery.status.real_soc = (LB_SOC * 10);
 
-  system_battery_voltage_dV = (LB_Total_Voltage2 * 5);  //0.5V/bit, multiply by 5 to get Voltage+1decimal (350.5V = 701)
+  datalayer.battery.status.voltage_dV =
+      (LB_Total_Voltage2 * 5);  //0.5V/bit, multiply by 5 to get Voltage+1decimal (350.5V = 701)
 
-  system_battery_current_dA = (LB_Current2 * 5);  //0.5A/bit, multiply by 5 to get Amp+1decimal (5,5A = 11)
+  datalayer.battery.status.current_dA = (LB_Current2 * 5);  //0.5A/bit, multiply by 5 to get Amp+1decimal (5,5A = 11)
 
-  system_capacity_Wh = (LB_Max_GIDS * WH_PER_GID);
+  datalayer.battery.info.total_capacity_Wh = (LB_Max_GIDS * WH_PER_GID);
 
-  system_remaining_capacity_Wh = LB_Wh_Remaining;
+  datalayer.battery.status.remaining_capacity_Wh = LB_Wh_Remaining;
 
   LB_Power =
       ((LB_Total_Voltage2 * LB_Current2) / 4);  //P = U * I (Both values are 0.5 per bit so the math is non-intuitive)
 
-  system_active_power_W = LB_Power;
+  datalayer.battery.status.active_power_W = LB_Power;
 
   //Update temperature readings. Method depends on which generation LEAF battery is used
   if (LEAF_Battery_Type == ZE0_BATTERY) {
     //Since we only have average value, send the minimum as -1.0 degrees below average
-    system_temperature_min_dC = ((LB_AverageTemperature * 10) - 10);  //Increase range from C to C+1, remove 1.0C
-    system_temperature_max_dC = (LB_AverageTemperature * 10);         //Increase range from C to C+1
+    datalayer.battery.status.temperature_min_dC =
+        ((LB_AverageTemperature * 10) - 10);  //Increase range from C to C+1, remove 1.0C
+    datalayer.battery.status.temperature_max_dC = (LB_AverageTemperature * 10);  //Increase range from C to C+1
   } else if (LEAF_Battery_Type == AZE0_BATTERY) {
     //Use the value sent constantly via CAN in 5C0 (only available on AZE0)
-    system_temperature_min_dC = (LB_HistData_Temperature_MIN * 10);  //Increase range from C to C+1
-    system_temperature_max_dC = (LB_HistData_Temperature_MAX * 10);  //Increase range from C to C+1
+    datalayer.battery.status.temperature_min_dC = (LB_HistData_Temperature_MIN * 10);  //Increase range from C to C+1
+    datalayer.battery.status.temperature_max_dC = (LB_HistData_Temperature_MAX * 10);  //Increase range from C to C+1
   } else {  // ZE1 (TODO: Once the muxed value in 5C0 becomes known, switch to using that instead of this complicated polled value)
     if (temp_raw_min != 0)  //We have a polled value available
     {
       temp_polled_min = ((Temp_fromRAW_to_F(temp_raw_min) - 320) * 5) / 9;  //Convert from F to C
       temp_polled_max = ((Temp_fromRAW_to_F(temp_raw_max) - 320) * 5) / 9;  //Convert from F to C
       if (temp_polled_min < temp_polled_max) {  //Catch any edge cases from Temp_fromRAW_to_F function
-        system_temperature_min_dC = temp_polled_min;
-        system_temperature_max_dC = temp_polled_max;
+        datalayer.battery.status.temperature_min_dC = temp_polled_min;
+        datalayer.battery.status.temperature_max_dC = temp_polled_max;
       } else {
-        system_temperature_min_dC = temp_polled_max;
-        system_temperature_max_dC = temp_polled_min;
+        datalayer.battery.status.temperature_min_dC = temp_polled_max;
+        datalayer.battery.status.temperature_max_dC = temp_polled_min;
       }
     }
   }
 
   // Define power able to be discharged from battery
-  if (LB_Discharge_Power_Limit > 60) {     //if >60kW can be pulled from battery
-    system_max_discharge_power_W = 60000;  //cap value so we don't go over uint16 value
+  if (LB_Discharge_Power_Limit > 60) {                       //if >60kW can be pulled from battery
+    datalayer.battery.status.max_discharge_power_W = 60000;  //cap value so we don't go over uint16 value
   } else {
-    system_max_discharge_power_W = (LB_Discharge_Power_Limit * 1000);  //kW to W
+    datalayer.battery.status.max_discharge_power_W = (LB_Discharge_Power_Limit * 1000);  //kW to W
   }
-  if (system_scaled_SOC_pptt == 0) {  //Scaled SOC% value is 0.00%, we should not discharge battery further
-    system_max_discharge_power_W = 0;
+  if (datalayer.battery.status.reported_soc ==
+      0) {  //Scaled SOC% value is 0.00%, we should not discharge battery further
+    datalayer.battery.status.max_discharge_power_W = 0;
   }
 
   // Define power able to be put into the battery
-  if (LB_Charge_Power_Limit > 60) {     //if >60kW can be put into the battery
-    system_max_charge_power_W = 60000;  //cap value so we don't go over uint16 value
+  if (LB_Charge_Power_Limit > 60) {                       //if >60kW can be put into the battery
+    datalayer.battery.status.max_charge_power_W = 60000;  //cap value so we don't go over uint16 value
   } else {
-    system_max_charge_power_W = (LB_Charge_Power_Limit * 1000);  //kW to W
+    datalayer.battery.status.max_charge_power_W = (LB_Charge_Power_Limit * 1000);  //kW to W
   }
-  if (system_scaled_SOC_pptt == 10000)  //Scaled SOC% value is 100.00%
+  if (datalayer.battery.status.reported_soc == 10000)  //Scaled SOC% value is 100.00%
   {
-    system_max_charge_power_W = 0;  //No need to charge further, set max power to 0
+    datalayer.battery.status.max_charge_power_W = 0;  //No need to charge further, set max power to 0
   }
 
   //Map all cell voltages to the global array
   for (int i = 0; i < 96; ++i) {
-    system_cellvoltages_mV[i] = cell_voltages[i];
+    datalayer.battery.status.cell_voltages_mV[i] = cell_voltages[i];
   }
 
   /*Extra safety functions below*/
   if (LB_GIDS < 10)  //700Wh left in battery!
   {                  //Battery is running abnormally low, some discharge logic might have failed. Zero it all out.
     set_event(EVENT_BATTERY_EMPTY, 0);
-    system_real_SOC_pptt = 0;
-    system_max_discharge_power_W = 0;
+    datalayer.battery.status.real_soc = 0;
+    datalayer.battery.status.max_discharge_power_W = 0;
   }
 
   //Check if SOC% is plausible
-  if (system_battery_voltage_dV >
-      (system_max_design_voltage_dV - 100)) {  // When pack voltage is close to max, and SOC% is still low, raise FAULT
+  if (datalayer.battery.status.voltage_dV >
+      (datalayer.battery.info.max_design_voltage_dV -
+       100)) {  // When pack voltage is close to max, and SOC% is still low, raise FAULT
     if (LB_SOC < 650) {
       set_event(EVENT_SOC_PLAUSIBILITY_ERROR, LB_SOC / 10);  // Set event with the SOC as data
     } else {
@@ -246,22 +250,22 @@ void update_values_battery() { /* This function maps all the values fetched via 
 
   if (LB_Full_CHARGE_flag) {  //Battery reports that it is fully charged stop all further charging incase it hasn't already
     set_event(EVENT_BATTERY_FULL, 0);
-    system_max_charge_power_W = 0;
+    datalayer.battery.status.max_charge_power_W = 0;
   } else {
     clear_event(EVENT_BATTERY_FULL);
   }
 
   if (LB_Capacity_Empty) {  //Battery reports that it is fully discharged. Stop all further discharging incase it hasn't already
     set_event(EVENT_BATTERY_EMPTY, 0);
-    system_max_discharge_power_W = 0;
+    datalayer.battery.status.max_discharge_power_W = 0;
   } else {
     clear_event(EVENT_BATTERY_EMPTY);
   }
 
   if (LB_Relay_Cut_Request) {  //LB_FAIL, BMS requesting shutdown and contactors to be opened
     //Note, this is sometimes triggered during the night while idle, and the BMS recovers after a while. Removed latching from this scenario
-    system_max_discharge_power_W = 0;
-    system_max_charge_power_W = 0;
+    datalayer.battery.status.max_discharge_power_W = 0;
+    datalayer.battery.status.max_charge_power_W = 0;
   }
 
   if (LB_Failsafe_Status > 0)  // 0 is normal, start charging/discharging
@@ -342,9 +346,10 @@ void update_values_battery() { /* This function maps all the values fetched via 
     }
   }
 
-  if (system_bms_status == FAULT) {  //Incase we enter a critical fault state, zero out the allowed limits
-    system_max_charge_power_W = 0;
-    system_max_discharge_power_W = 0;
+  if (datalayer.battery.status.bms_status ==
+      FAULT) {  //Incase we enter a critical fault state, zero out the allowed limits
+    datalayer.battery.status.max_charge_power_W = 0;
+    datalayer.battery.status.max_discharge_power_W = 0;
   }
 
 /*Finally print out values to serial if configured to do so*/
@@ -380,9 +385,9 @@ void receive_can_battery(CAN_frame_t rx_frame) {
       LB_Failsafe_Status = (rx_frame.data.u8[1] & 0x07);
       LB_MainRelayOn_flag = (bool)((rx_frame.data.u8[3] & 0x20) >> 5);
       if (LB_MainRelayOn_flag) {
-        batteryAllowsContactorClosing = true;
+        datalayer.system.status.battery_allows_contactor_closing = true;
       } else {
-        batteryAllowsContactorClosing = false;
+        datalayer.system.status.battery_allows_contactor_closing = false;
       }
       LB_Full_CHARGE_flag = (bool)((rx_frame.data.u8[3] & 0x10) >> 4);
       LB_Interlock = (bool)((rx_frame.data.u8[3] & 0x08) >> 3);
@@ -518,8 +523,8 @@ void receive_can_battery(CAN_frame_t rx_frame) {
 
           cell_deviation_mV = (min_max_voltage[1] - min_max_voltage[0]);
 
-          system_cell_max_voltage_mV = min_max_voltage[1];
-          system_cell_min_voltage_mV = min_max_voltage[0];
+          datalayer.battery.status.cell_max_voltage_mV = min_max_voltage[1];
+          datalayer.battery.status.cell_min_voltage_mV = min_max_voltage[0];
 
           if (cell_deviation_mV > MAX_CELL_DEVIATION) {
             set_event(EVENT_CELL_DEVIATION_HIGH, 0);
@@ -841,9 +846,10 @@ void setup_battery(void) {  // Performs one time setup at startup
   Serial.println("Nissan LEAF battery selected");
 #endif
 
-  system_number_of_cells = 96;
-  system_max_design_voltage_dV = 4040;  // 404.4V, over this, charging is not possible (goes into forced discharge)
-  system_min_design_voltage_dV = 2600;  // 260.0V under this, discharging further is disabled
+  datalayer.battery.info.number_of_cells = 96;
+  datalayer.battery.info.max_design_voltage_dV =
+      4040;  // 404.4V, over this, charging is not possible (goes into forced discharge)
+  datalayer.battery.info.min_design_voltage_dV = 2600;  // 260.0V under this, discharging further is disabled
 }
 
 #endif

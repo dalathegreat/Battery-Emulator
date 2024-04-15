@@ -1,5 +1,6 @@
 #include "../include.h"
 #ifdef RENAULT_ZOE_BATTERY
+#include "../datalayer/datalayer.h"
 #include "../devboard/utils/events.h"
 #include "../lib/miwagner-ESP32-Arduino-CAN/CAN_config.h"
 #include "../lib/miwagner-ESP32-Arduino-CAN/ESP32CAN.h"
@@ -38,34 +39,33 @@ static unsigned long previousMillis1000 = 0;  // will store last time a 1000ms C
 static unsigned long GVL_pause = 0;
 
 void update_values_battery() {  //This function maps all the values fetched via CAN to the correct parameters used for modbus
-  system_SOH_pptt = (LB_SOH * 100);  //Increase range from 99% -> 99.00%
+  datalayer.battery.status.soh_pptt = (LB_SOH * 100);  //Increase range from 99% -> 99.00%
 
-  system_real_SOC_pptt = (LB_SOC * 10);  //increase LB_SOC range from 0-100.0 -> 100.00
+  datalayer.battery.status.real_soc = (LB_SOC * 10);  //increase LB_SOC range from 0-100.0 -> 100.00
 
-  system_battery_voltage_dV = LB_Battery_Voltage;
+  datalayer.battery.status.voltage_dV = LB_Battery_Voltage;
 
-  system_battery_current_dA = LB_Current;
-
-  system_capacity_Wh = BATTERY_WH_MAX;  //Use the configured value to avoid overflows
+  datalayer.battery.status.current_dA = LB_Current;
 
   //Calculate the remaining Wh amount from SOC% and max Wh value.
-  system_remaining_capacity_Wh = static_cast<int>((static_cast<double>(system_real_SOC_pptt) / 10000) * BATTERY_WH_MAX);
+  datalayer.battery.status.remaining_capacity_Wh = static_cast<uint32_t>(
+      (static_cast<double>(datalayer.battery.status.real_soc) / 10000) * datalayer.battery.info.total_capacity_Wh);
 
-  system_max_discharge_power_W;
+  datalayer.battery.status.max_discharge_power_W;
 
-  system_max_charge_power_W;
+  datalayer.battery.status.max_charge_power_W;
 
-  system_active_power_W;
+  datalayer.battery.status.active_power_W;
 
-  system_temperature_min_dC;
+  datalayer.battery.status.temperature_min_dC;
 
-  system_temperature_max_dC;
+  datalayer.battery.status.temperature_max_dC;
 
-  system_cell_min_voltage_mV;
+  datalayer.battery.status.cell_min_voltage_mV;
 
-  system_cell_max_voltage_mV;
+  datalayer.battery.status.cell_max_voltage_mV;
 
-  cell_deviation_mV = (system_cell_max_voltage_mV - system_cell_min_voltage_mV);
+  cell_deviation_mV = (datalayer.battery.status.cell_max_voltage_mV - datalayer.battery.status.cell_min_voltage_mV);
 
   /* Check if the BMS is still sending CAN messages. If we go 60s without messages we raise an error*/
   if (!CANstillAlive) {
@@ -90,21 +90,21 @@ void update_values_battery() {  //This function maps all the values fetched via 
 #ifdef DEBUG_VIA_USB
   Serial.println("Values going to inverter:");
   Serial.print("SOH%: ");
-  Serial.print(system_SOH_pptt);
+  Serial.print(datalayer.battery.status.soh_pptt);
   Serial.print(", SOC% scaled: ");
-  Serial.print(system_scaled_SOC_pptt);
+  Serial.print(datalayer.battery.status.reported_soc);
   Serial.print(", Voltage: ");
-  Serial.print(system_battery_voltage_dV);
+  Serial.print(datalayer.battery.status.voltage_dV);
   Serial.print(", Max discharge power: ");
-  Serial.print(system_max_discharge_power_W);
+  Serial.print(datalayer.battery.status.max_discharge_power_W);
   Serial.print(", Max charge power: ");
-  Serial.print(system_max_charge_power_W);
+  Serial.print(datalayer.battery.status.max_charge_power_W);
   Serial.print(", Max temp: ");
-  Serial.print(system_temperature_max_dC);
+  Serial.print(datalayer.battery.status.temperature_max_dC);
   Serial.print(", Min temp: ");
-  Serial.print(system_temperature_min_dC);
+  Serial.print(datalayer.battery.status.temperature_min_dC);
   Serial.print(", BMS Status (3=OK): ");
-  Serial.print(system_bms_status);
+  Serial.print(datalayer.battery.status.bms_status);
 
   Serial.println("Battery values: ");
   Serial.print("Real SOC: ");
@@ -158,8 +158,9 @@ void setup_battery(void) {  // Performs one time setup at startup
   Serial.println("Renault Zoe battery selected");
 #endif
 
-  system_max_design_voltage_dV = 4040;  // 404.0V, over this, charging is not possible (goes into forced discharge)
-  system_min_design_voltage_dV = 3100;  // 310.0V under this, discharging further is disabled
+  datalayer.battery.info.max_design_voltage_dV =
+      4040;  // 404.0V, over this, charging is not possible (goes into forced discharge)
+  datalayer.battery.info.min_design_voltage_dV = 3100;  // 310.0V under this, discharging further is disabled
 }
 
 #endif

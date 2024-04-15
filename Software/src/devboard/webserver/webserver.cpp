@@ -68,7 +68,7 @@ void init_webserver() {
   server.on("/updateBatterySize", HTTP_GET, [](AsyncWebServerRequest* request) {
     if (request->hasParam("value")) {
       String value = request->getParam("value")->value();
-      BATTERY_WH_MAX = value.toInt();
+      datalayer.battery.info.total_capacity_Wh = value.toInt();
       storeSettings();
       request->send(200, "text/plain", "Updated successfully");
     } else {
@@ -80,7 +80,7 @@ void init_webserver() {
   server.on("/updateUseScaledSOC", HTTP_GET, [](AsyncWebServerRequest* request) {
     if (request->hasParam("value")) {
       String value = request->getParam("value")->value();
-      USE_SCALED_SOC = value.toInt();
+      datalayer.battery.settings.soc_scaling_active = value.toInt();
       storeSettings();
       request->send(200, "text/plain", "Updated successfully");
     } else {
@@ -92,7 +92,7 @@ void init_webserver() {
   server.on("/updateSocMax", HTTP_GET, [](AsyncWebServerRequest* request) {
     if (request->hasParam("value")) {
       String value = request->getParam("value")->value();
-      MAXPERCENTAGE = value.toInt() * 10;
+      datalayer.battery.settings.max_percentage = value.toInt() * 100;
       storeSettings();
       request->send(200, "text/plain", "Updated successfully");
     } else {
@@ -104,7 +104,7 @@ void init_webserver() {
   server.on("/updateSocMin", HTTP_GET, [](AsyncWebServerRequest* request) {
     if (request->hasParam("value")) {
       String value = request->getParam("value")->value();
-      MINPERCENTAGE = value.toInt() * 10;
+      datalayer.battery.settings.min_percentage = value.toInt() * 100;
       storeSettings();
       request->send(200, "text/plain", "Updated successfully");
     } else {
@@ -116,7 +116,7 @@ void init_webserver() {
   server.on("/updateMaxChargeA", HTTP_GET, [](AsyncWebServerRequest* request) {
     if (request->hasParam("value")) {
       String value = request->getParam("value")->value();
-      MAXCHARGEAMP = value.toInt() * 10;
+      datalayer.battery.info.max_charge_amp_dA = value.toInt() * 10;
       storeSettings();
       request->send(200, "text/plain", "Updated successfully");
     } else {
@@ -128,7 +128,7 @@ void init_webserver() {
   server.on("/updateMaxDischargeA", HTTP_GET, [](AsyncWebServerRequest* request) {
     if (request->hasParam("value")) {
       String value = request->getParam("value")->value();
-      MAXDISCHARGEAMP = value.toInt() * 10;
+      datalayer.battery.info.max_discharge_amp_dA = value.toInt() * 10;
       storeSettings();
       request->send(200, "text/plain", "Updated successfully");
     } else {
@@ -146,7 +146,7 @@ void init_webserver() {
     String value = request->getParam("value")->value();
     float val = value.toFloat();
 
-    system_battery_voltage_dV = val * 10;
+    datalayer.battery.status.voltage_dV = val * 10;
 
     request->send(200, "text/plain", "Updated successfully");
   });
@@ -184,7 +184,7 @@ void init_webserver() {
     String value = request->getParam("value")->value();
     float val = value.toFloat();
 
-    if (!(val <= MAXCHARGEAMP && val <= CHARGER_MAX_A)) {
+    if (!(val <= datalayer.battery.info.max_charge_amp_dA && val <= CHARGER_MAX_A)) {
       request->send(400, "text/plain", "Bad Request");
     }
 
@@ -372,16 +372,17 @@ String processor(const String& var) {
     content += "<h4>Software: " + String(version_number) + "</h4>";
 #ifdef FUNCTION_TIME_MEASUREMENT
     // Load information
-    content += "<h4>Main task max load: " + String(datalayer.system.status.main_task_max_us) + " us</h4>";
-    content += "<h4>Main task max load last 10 s: " + String(datalayer.system.status.main_task_10s_max_us) + " us</h4>";
-    content += "<h4>MQTT task max load last 10 s: " + String(datalayer.system.status.time_mqtt_us) + " us</h4>";
-    content += "<h4>Max function load last 10 s:</h4>";
-    content += "<h4>Events function timing: " + String(datalayer.system.status.time_events_us) + " us</h4>";
-    content += "<h4>10ms function timing: " + String(datalayer.system.status.time_10ms_us) + " us</h4>";
-    content += "<h4>5s function timing: " + String(datalayer.system.status.time_5s_us) + " us</h4>";
-    content += "<h4>CAN/serial RX function timing: " + String(datalayer.system.status.time_comm_us) + " us</h4>";
-    content += "<h4>CAN TX function timing: " + String(datalayer.system.status.time_cantx_us) + " us</h4>";
-    content += "<h4>Wifi and OTA function timing: " + String(datalayer.system.status.time_wifi_us) + " us</h4>";
+    content += "<h4>Core task max load: " + String(datalayer.system.status.core_task_max_us) + " us</h4>";
+    content += "<h4>Core task max load last 10 s: " + String(datalayer.system.status.core_task_10s_max_us) + " us</h4>";
+    content += "<h4>MQTT task max load last 10 s: " + String(datalayer.system.status.mqtt_task_10s_max_us) + " us</h4>";
+    content +=
+        "<h4>loop() task max load last 10 s: " + String(datalayer.system.status.loop_task_10s_max_us) + " us</h4>";
+    content += "<h4>Max load @ worst case execution of core task:</h4>";
+    content += "<h4>10ms function timing: " + String(datalayer.system.status.time_snap_10ms_us) + " us</h4>";
+    content += "<h4>5s function timing: " + String(datalayer.system.status.time_snap_5s_us) + " us</h4>";
+    content += "<h4>CAN/serial RX function timing: " + String(datalayer.system.status.time_snap_comm_us) + " us</h4>";
+    content += "<h4>CAN TX function timing: " + String(datalayer.system.status.time_snap_cantx_us) + " us</h4>";
+    content += "<h4>Wifi and OTA function timing: " + String(datalayer.system.status.time_snap_wifi_us) + " us</h4>";
 #endif
 
     wl_status_t status = WiFi.status();
@@ -507,14 +508,19 @@ String processor(const String& var) {
     content += "padding: 10px; margin-bottom: 10px; border-radius: 50px;'>";
 
     // Display battery statistics within this block
-    float socRealFloat = static_cast<float>(system_real_SOC_pptt) / 100.0;      // Convert to float and divide by 100
-    float socScaledFloat = static_cast<float>(system_scaled_SOC_pptt) / 100.0;  // Convert to float and divide by 100
-    float sohFloat = static_cast<float>(system_SOH_pptt) / 100.0;               // Convert to float and divide by 100
-    float voltageFloat = static_cast<float>(system_battery_voltage_dV) / 10.0;  // Convert to float and divide by 10
-    float currentFloat = static_cast<float>(system_battery_current_dA) / 10.0;  // Convert to float and divide by 10
-    float powerFloat = static_cast<float>(system_active_power_W);               // Convert to float
-    float tempMaxFloat = static_cast<float>(system_temperature_max_dC) / 10.0;  // Convert to float
-    float tempMinFloat = static_cast<float>(system_temperature_min_dC) / 10.0;  // Convert to float
+    float socRealFloat =
+        static_cast<float>(datalayer.battery.status.real_soc) / 100.0;  // Convert to float and divide by 100
+    float socScaledFloat =
+        static_cast<float>(datalayer.battery.status.reported_soc) / 100.0;  // Convert to float and divide by 100
+    float sohFloat =
+        static_cast<float>(datalayer.battery.status.soh_pptt) / 100.0;  // Convert to float and divide by 100
+    float voltageFloat =
+        static_cast<float>(datalayer.battery.status.voltage_dV) / 10.0;  // Convert to float and divide by 10
+    float currentFloat =
+        static_cast<float>(datalayer.battery.status.current_dA) / 10.0;  // Convert to float and divide by 10
+    float powerFloat = static_cast<float>(datalayer.battery.status.active_power_W);               // Convert to float
+    float tempMaxFloat = static_cast<float>(datalayer.battery.status.temperature_max_dC) / 10.0;  // Convert to float
+    float tempMinFloat = static_cast<float>(datalayer.battery.status.temperature_min_dC) / 10.0;  // Convert to float
 
     content += "<h4 style='color: white;'>Real SOC: " + String(socRealFloat, 2) + "</h4>";
     content += "<h4 style='color: white;'>Scaled SOC: " + String(socScaledFloat, 2) + "</h4>";
@@ -522,24 +528,24 @@ String processor(const String& var) {
     content += "<h4 style='color: white;'>Voltage: " + String(voltageFloat, 1) + " V</h4>";
     content += "<h4 style='color: white;'>Current: " + String(currentFloat, 1) + " A</h4>";
     content += formatPowerValue("Power", powerFloat, "", 1);
-    content += formatPowerValue("Total capacity", system_capacity_Wh, "h", 0);
-    content += formatPowerValue("Remaining capacity", system_remaining_capacity_Wh, "h", 1);
-    content += formatPowerValue("Max discharge power", system_max_discharge_power_W, "", 1);
-    content += formatPowerValue("Max charge power", system_max_charge_power_W, "", 1);
-    content += "<h4>Cell max: " + String(system_cell_max_voltage_mV) + " mV</h4>";
-    content += "<h4>Cell min: " + String(system_cell_min_voltage_mV) + " mV</h4>";
+    content += formatPowerValue("Total capacity", datalayer.battery.info.total_capacity_Wh, "h", 0);
+    content += formatPowerValue("Remaining capacity", datalayer.battery.status.remaining_capacity_Wh, "h", 1);
+    content += formatPowerValue("Max discharge power", datalayer.battery.status.max_discharge_power_W, "", 1);
+    content += formatPowerValue("Max charge power", datalayer.battery.status.max_charge_power_W, "", 1);
+    content += "<h4>Cell max: " + String(datalayer.battery.status.cell_max_voltage_mV) + " mV</h4>";
+    content += "<h4>Cell min: " + String(datalayer.battery.status.cell_min_voltage_mV) + " mV</h4>";
     content += "<h4>Temperature max: " + String(tempMaxFloat, 1) + " C</h4>";
     content += "<h4>Temperature min: " + String(tempMinFloat, 1) + " C</h4>";
-    if (system_bms_status == ACTIVE) {
+    if (datalayer.battery.status.bms_status == ACTIVE) {
       content += "<h4>BMS Status: OK </h4>";
-    } else if (system_bms_status == UPDATING) {
+    } else if (datalayer.battery.status.bms_status == UPDATING) {
       content += "<h4>BMS Status: UPDATING </h4>";
     } else {
       content += "<h4>BMS Status: FAULT </h4>";
     }
-    if (system_battery_current_dA == 0) {
+    if (datalayer.battery.status.current_dA == 0) {
       content += "<h4>Battery idle</h4>";
-    } else if (system_battery_current_dA < 0) {
+    } else if (datalayer.battery.status.current_dA < 0) {
       content += "<h4>Battery discharging!</h4>";
     } else {  // > 0
       content += "<h4>Battery charging!</h4>";
@@ -547,14 +553,14 @@ String processor(const String& var) {
 
     content += "<h4>Automatic contactor closing allowed:</h4>";
     content += "<h4>Battery: ";
-    if (batteryAllowsContactorClosing) {
+    if (datalayer.system.status.battery_allows_contactor_closing == true) {
       content += "<span>&#10003;</span>";
     } else {
       content += "<span style='color: red;'>&#10005;</span>";
     }
 
     content += " Inverter: ";
-    if (inverterAllowsContactorClosing) {
+    if (datalayer.system.status.inverter_allows_contactor_closing == true) {
       content += "<span>&#10003;</span></h4>";
     } else {
       content += "<span style='color: red;'>&#10005;</span></h4>";
@@ -604,8 +610,8 @@ String processor(const String& var) {
 #endif
 #ifdef NISSANLEAF_CHARGER
     float chgPwrDC = static_cast<float>(charger_stat_HVcur * 100);
-    charger_stat_HVcur = chgPwrDC / (system_battery_voltage_dV / 10);  // P/U=I
-    charger_stat_HVvol = static_cast<float>(system_battery_voltage_dV / 10);
+    charger_stat_HVcur = chgPwrDC / (datalayer.battery.status.voltage_dV / 10);  // P/U=I
+    charger_stat_HVvol = static_cast<float>(datalayer.battery.status.voltage_dV / 10);
     float ACvol = charger_stat_ACvol;
     float HVvol = charger_stat_HVvol;
     float HVcur = charger_stat_HVcur;

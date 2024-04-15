@@ -1,5 +1,6 @@
 #include "../include.h"
 #ifdef IMIEV_CZERO_ION_BATTERY
+#include "../datalayer/datalayer.h"
 #include "../devboard/utils/events.h"
 #include "../lib/miwagner-ESP32-Arduino-CAN/CAN_config.h"
 #include "../lib/miwagner-ESP32-Arduino-CAN/ESP32CAN.h"
@@ -39,30 +40,30 @@ static double max_temp_cel = 20.00;
 static double min_temp_cel = 19.00;
 
 void update_values_battery() {  //This function maps all the values fetched via CAN to the correct parameters used for modbus
-  system_real_SOC_pptt = (uint16_t)(BMU_SOC * 100);  //increase BMU_SOC range from 0-100 -> 100.00
+  datalayer.battery.status.real_soc = (uint16_t)(BMU_SOC * 100);  //increase BMU_SOC range from 0-100 -> 100.00
 
-  system_battery_voltage_dV = (uint16_t)(BMU_PackVoltage * 10);  // Multiply by 10 and cast to uint16_t
+  datalayer.battery.status.voltage_dV = (uint16_t)(BMU_PackVoltage * 10);  // Multiply by 10 and cast to uint16_t
 
-  system_battery_current_dA = (BMU_Current * 10);  //Todo, scaling?
+  datalayer.battery.status.current_dA = (BMU_Current * 10);  //Todo, scaling?
 
-  system_capacity_Wh = BATTERY_WH_MAX;  //Hardcoded to header value
-
-  system_remaining_capacity_Wh = (uint16_t)((system_real_SOC_pptt / 10000) * system_capacity_Wh);
+  datalayer.battery.status.remaining_capacity_Wh = static_cast<uint32_t>(
+      (static_cast<double>(datalayer.battery.status.real_soc) / 10000) * datalayer.battery.info.total_capacity_Wh);
 
   //We do not know if the max charge power is sent by the battery. So we estimate the value based on SOC%
-  if (system_scaled_SOC_pptt == 10000) {  //100.00%
-    system_max_charge_power_W = 0;        //When battery is 100% full, set allowed charge W to 0
+  if (datalayer.battery.status.reported_soc == 10000) {  //100.00%
+    datalayer.battery.status.max_charge_power_W = 0;     //When battery is 100% full, set allowed charge W to 0
   } else {
-    system_max_charge_power_W = 10000;  //Otherwise we can push 10kW into the pack!
+    datalayer.battery.status.max_charge_power_W = 10000;  //Otherwise we can push 10kW into the pack!
   }
 
-  if (system_scaled_SOC_pptt < 200) {  //2.00%
-    system_max_discharge_power_W = 0;  //When battery is empty (below 2%), set allowed discharge W to 0
+  if (datalayer.battery.status.reported_soc < 200) {  //2.00%
+    datalayer.battery.status.max_discharge_power_W =
+        0;  //When battery is empty (below 2%), set allowed discharge W to 0
   } else {
-    system_max_discharge_power_W = 10000;  //Otherwise we can discharge 10kW from the pack!
+    datalayer.battery.status.max_discharge_power_W = 10000;  //Otherwise we can discharge 10kW from the pack!
   }
 
-  system_active_power_W = BMU_Power;  //TODO: Scaling?
+  datalayer.battery.status.active_power_W = BMU_Power;  //TODO: Scaling?
 
   static int n = sizeof(cell_voltages) / sizeof(cell_voltages[0]);
   max_volt_cel = cell_voltages[0];  // Initialize max with the first element of the array
@@ -96,16 +97,16 @@ void update_values_battery() {  //This function maps all the values fetched via 
 
   //Map all cell voltages to the global array
   for (int i = 0; i < 88; ++i) {
-    system_cellvoltages_mV[i] = (uint16_t)(cell_voltages[i] * 1000);
+    datalayer.battery.status.cell_voltages_mV[i] = (uint16_t)(cell_voltages[i] * 1000);
   }
 
-  system_cell_max_voltage_mV = (uint16_t)(max_volt_cel * 1000);
+  datalayer.battery.status.cell_max_voltage_mV = (uint16_t)(max_volt_cel * 1000);
 
-  system_cell_min_voltage_mV = (uint16_t)(min_volt_cel * 1000);
+  datalayer.battery.status.cell_min_voltage_mV = (uint16_t)(min_volt_cel * 1000);
 
-  system_temperature_min_dC = (int16_t)(min_temp_cel * 10);
+  datalayer.battery.status.temperature_min_dC = (int16_t)(min_temp_cel * 10);
 
-  system_temperature_min_dC = (int16_t)(max_temp_cel * 10);
+  datalayer.battery.status.temperature_min_dC = (int16_t)(max_temp_cel * 10);
 
   /* Check if the BMS is still sending CAN messages. If we go 60s without messages we raise an error*/
   if (!CANstillAlive) {
@@ -217,8 +218,9 @@ void setup_battery(void) {  // Performs one time setup at startup
   Serial.println("Mitsubishi i-MiEV / Citroen C-Zero / Peugeot Ion battery selected");
 #endif
 
-  system_max_design_voltage_dV = 3600;  // 360.0V, over this, charging is not possible (goes into forced discharge)
-  system_min_design_voltage_dV = 3160;  // 316.0V under this, discharging further is disabled
+  datalayer.battery.info.max_design_voltage_dV =
+      3600;  // 360.0V, over this, charging is not possible (goes into forced discharge)
+  datalayer.battery.info.min_design_voltage_dV = 3160;  // 316.0V under this, discharging further is disabled
 }
 
 #endif

@@ -1,5 +1,6 @@
 #include "../include.h"
 #ifdef BYD_CAN
+#include "../datalayer/datalayer.h"
 #include "../lib/miwagner-ESP32-Arduino-CAN/CAN_config.h"
 #include "../lib/miwagner-ESP32-Arduino-CAN/ESP32CAN.h"
 #include "BYD-CAN.h"
@@ -115,32 +116,38 @@ static bool initialDataSent = 0;
 
 void update_values_can_byd() {  //This function maps all the values fetched from battery CAN to the correct CAN messages
   //Calculate values
-  charge_current = ((system_max_charge_power_W * 10) /
-                    system_max_design_voltage_dV);  //Charge power in W , max volt in V+1decimal (P=UI, solve for I)
+  charge_current =
+      ((datalayer.battery.status.max_charge_power_W * 10) /
+       datalayer.battery.info.max_design_voltage_dV);  //Charge power in W , max volt in V+1decimal (P=UI, solve for I)
   //The above calculation results in (30 000*10)/3700=81A
   charge_current = (charge_current * 10);  //Value needs a decimal before getting sent to inverter (81.0A)
-  if (charge_current > MAXCHARGEAMP) {
-    charge_current = MAXCHARGEAMP;  //Cap the value to the max allowed Amp. Some inverters cannot handle large values.
+  if (charge_current > datalayer.battery.info.max_charge_amp_dA) {
+    charge_current =
+        datalayer.battery.info
+            .max_charge_amp_dA;  //Cap the value to the max allowed Amp. Some inverters cannot handle large values.
   }
 
-  discharge_current = ((system_max_discharge_power_W * 10) /
-                       system_max_design_voltage_dV);  //Charge power in W , max volt in V+1decimal (P=UI, solve for I)
+  discharge_current =
+      ((datalayer.battery.status.max_discharge_power_W * 10) /
+       datalayer.battery.info.max_design_voltage_dV);  //Charge power in W , max volt in V+1decimal (P=UI, solve for I)
   //The above calculation results in (30 000*10)/3700=81A
   discharge_current = (discharge_current * 10);  //Value needs a decimal before getting sent to inverter (81.0A)
-  if (discharge_current > MAXDISCHARGEAMP) {
+  if (discharge_current > datalayer.battery.info.max_discharge_amp_dA) {
     discharge_current =
-        MAXDISCHARGEAMP;  //Cap the value to the max allowed Amp. Some inverters cannot handle large values.
+        datalayer.battery.info
+            .max_discharge_amp_dA;  //Cap the value to the max allowed Amp. Some inverters cannot handle large values.
   }
 
-  temperature_average = ((system_temperature_max_dC + system_temperature_min_dC) / 2);
+  temperature_average =
+      ((datalayer.battery.status.temperature_max_dC + datalayer.battery.status.temperature_min_dC) / 2);
 
   //Map values to CAN messages
   //Maxvoltage (eg 400.0V = 4000 , 16bits long)
-  BYD_110.data.u8[0] = (system_max_design_voltage_dV >> 8);
-  BYD_110.data.u8[1] = (system_max_design_voltage_dV & 0x00FF);
+  BYD_110.data.u8[0] = (datalayer.battery.info.max_design_voltage_dV >> 8);
+  BYD_110.data.u8[1] = (datalayer.battery.info.max_design_voltage_dV & 0x00FF);
   //Minvoltage (eg 300.0V = 3000 , 16bits long)
-  BYD_110.data.u8[2] = (system_min_design_voltage_dV >> 8);
-  BYD_110.data.u8[3] = (system_min_design_voltage_dV & 0x00FF);
+  BYD_110.data.u8[2] = (datalayer.battery.info.min_design_voltage_dV >> 8);
+  BYD_110.data.u8[3] = (datalayer.battery.info.min_design_voltage_dV & 0x00FF);
   //Maximum discharge power allowed (Unit: A+1)
   BYD_110.data.u8[4] = (discharge_current >> 8);
   BYD_110.data.u8[5] = (discharge_current & 0x00FF);
@@ -149,11 +156,11 @@ void update_values_can_byd() {  //This function maps all the values fetched from
   BYD_110.data.u8[7] = (charge_current & 0x00FF);
 
   //SOC (100.00%)
-  BYD_150.data.u8[0] = (system_scaled_SOC_pptt >> 8);
-  BYD_150.data.u8[1] = (system_scaled_SOC_pptt & 0x00FF);
+  BYD_150.data.u8[0] = (datalayer.battery.status.reported_soc >> 8);
+  BYD_150.data.u8[1] = (datalayer.battery.status.reported_soc & 0x00FF);
   //StateOfHealth (100.00%)
-  BYD_150.data.u8[2] = (system_SOH_pptt >> 8);
-  BYD_150.data.u8[3] = (system_SOH_pptt & 0x00FF);
+  BYD_150.data.u8[2] = (datalayer.battery.status.soh_pptt >> 8);
+  BYD_150.data.u8[3] = (datalayer.battery.status.soh_pptt & 0x00FF);
   //Maximum discharge power allowed (Unit: A+1)
   BYD_150.data.u8[4] = (discharge_current >> 8);
   BYD_150.data.u8[5] = (discharge_current & 0x00FF);
@@ -162,21 +169,21 @@ void update_values_can_byd() {  //This function maps all the values fetched from
   BYD_150.data.u8[7] = (charge_current & 0x00FF);
 
   //Voltage (ex 370.0)
-  BYD_1D0.data.u8[0] = (system_battery_voltage_dV >> 8);
-  BYD_1D0.data.u8[1] = (system_battery_voltage_dV & 0x00FF);
+  BYD_1D0.data.u8[0] = (datalayer.battery.status.voltage_dV >> 8);
+  BYD_1D0.data.u8[1] = (datalayer.battery.status.voltage_dV & 0x00FF);
   //Current (ex 81.0A)
-  BYD_1D0.data.u8[2] = (system_battery_current_dA >> 8);
-  BYD_1D0.data.u8[3] = (system_battery_current_dA & 0x00FF);
+  BYD_1D0.data.u8[2] = (datalayer.battery.status.current_dA >> 8);
+  BYD_1D0.data.u8[3] = (datalayer.battery.status.current_dA & 0x00FF);
   //Temperature average
   BYD_1D0.data.u8[4] = (temperature_average >> 8);
   BYD_1D0.data.u8[5] = (temperature_average & 0x00FF);
 
   //Temperature max
-  BYD_210.data.u8[0] = (system_temperature_max_dC >> 8);
-  BYD_210.data.u8[1] = (system_temperature_max_dC & 0x00FF);
+  BYD_210.data.u8[0] = (datalayer.battery.status.temperature_max_dC >> 8);
+  BYD_210.data.u8[1] = (datalayer.battery.status.temperature_max_dC & 0x00FF);
   //Temperature min
-  BYD_210.data.u8[2] = (system_temperature_min_dC >> 8);
-  BYD_210.data.u8[3] = (system_temperature_min_dC & 0x00FF);
+  BYD_210.data.u8[2] = (datalayer.battery.status.temperature_min_dC >> 8);
+  BYD_210.data.u8[3] = (datalayer.battery.status.temperature_min_dC & 0x00FF);
 
 #ifdef DEBUG_VIA_USB
   if (char1_151 != 0) {

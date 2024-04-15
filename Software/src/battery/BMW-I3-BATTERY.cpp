@@ -1,5 +1,6 @@
 #include "../include.h"
 #ifdef BMW_I3_BATTERY
+#include "../datalayer/datalayer.h"
 #include "../devboard/utils/events.h"
 #include "../lib/miwagner-ESP32-Arduino-CAN/CAN_config.h"
 #include "../lib/miwagner-ESP32-Arduino-CAN/ESP32CAN.h"
@@ -414,39 +415,37 @@ static uint8_t increment_alive_counter(uint8_t counter) {
 
 void update_values_battery() {  //This function maps all the values fetched via CAN to the correct parameters used for modbus
 
-  system_real_SOC_pptt = (battery_HVBatt_SOC * 10);
+  datalayer.battery.status.real_soc = (battery_HVBatt_SOC * 10);
 
-  system_battery_voltage_dV = battery_volts;  //Unit V+1 (5000 = 500.0V)
+  datalayer.battery.status.voltage_dV = battery_volts;  //Unit V+1 (5000 = 500.0V)
 
-  system_battery_current_dA = battery_current;
+  datalayer.battery.status.current_dA = battery_current;
 
-  system_capacity_Wh = BATTERY_WH_MAX;
+  datalayer.battery.status.remaining_capacity_Wh = (battery_energy_content_maximum_kWh * 1000);  // Convert kWh to Wh
 
-  system_remaining_capacity_Wh = (battery_energy_content_maximum_kWh * 1000);  // Convert kWh to Wh
-
-  system_SOH_pptt = battery_soh * 100;
+  datalayer.battery.status.soh_pptt = battery_soh * 100;
 
   if (battery_BEV_available_power_longterm_discharge > 65000) {
-    system_max_discharge_power_W = 65000;
+    datalayer.battery.status.max_discharge_power_W = 65000;
   } else {
-    system_max_discharge_power_W = battery_BEV_available_power_longterm_discharge;
+    datalayer.battery.status.max_discharge_power_W = battery_BEV_available_power_longterm_discharge;
   }
   if (battery_BEV_available_power_longterm_charge > 65000) {
-    system_max_charge_power_W = 65000;
+    datalayer.battery.status.max_charge_power_W = 65000;
   } else {
-    system_max_charge_power_W = battery_BEV_available_power_longterm_charge;
+    datalayer.battery.status.max_charge_power_W = battery_BEV_available_power_longterm_charge;
   }
 
-  battery_power = (system_battery_current_dA * (system_battery_voltage_dV / 100));
+  battery_power = (datalayer.battery.status.current_dA * (datalayer.battery.status.voltage_dV / 100));
 
-  system_active_power_W = battery_power;
+  datalayer.battery.status.active_power_W = battery_power;
 
-  system_temperature_min_dC = battery_temperature_min * 10;  // Add a decimal
+  datalayer.battery.status.temperature_min_dC = battery_temperature_min * 10;  // Add a decimal
 
-  system_temperature_max_dC = battery_temperature_max * 10;  // Add a decimal
+  datalayer.battery.status.temperature_max_dC = battery_temperature_max * 10;  // Add a decimal
 
-  system_cell_min_voltage_mV = system_cellvoltages_mV[0];
-  system_cell_max_voltage_mV = system_cellvoltages_mV[1];
+  datalayer.battery.status.cell_min_voltage_mV = datalayer.battery.status.cell_voltages_mV[0];
+  datalayer.battery.status.cell_max_voltage_mV = datalayer.battery.status.cell_voltages_mV[1];
 
   /* Check if the BMS is still sending CAN messages. If we go 60s without messages we raise an error*/
   if (!CANstillAlive) {
@@ -464,25 +463,25 @@ void update_values_battery() {  //This function maps all the values fetched via 
   Serial.println(" ");
   Serial.print("Values sent to inverter: ");
   Serial.print("Real SOC%: ");
-  Serial.print(system_real_SOC_pptt * 0.01);
+  Serial.print(datalayer.battery.status.real_soc * 0.01);
   Serial.print(" Battery voltage: ");
-  Serial.print(system_battery_voltage_dV * 0.1);
+  Serial.print(datalayer.battery.status.voltage_dV * 0.1);
   Serial.print(" Battery current: ");
-  Serial.print(system_battery_current_dA * 0.1);
+  Serial.print(datalayer.battery.status.current_dA * 0.1);
   Serial.print(" Wh when full: ");
-  Serial.print(system_capacity_Wh);
+  Serial.print(datalayer.battery.info.total_capacity_Wh);
   Serial.print(" Remaining Wh: ");
-  Serial.print(system_remaining_capacity_Wh);
+  Serial.print(datalayer.battery.status.remaining_capacity_Wh);
   Serial.print(" Max charge power: ");
-  Serial.print(system_max_charge_power_W);
+  Serial.print(datalayer.battery.status.max_charge_power_W);
   Serial.print(" Max discharge power: ");
-  Serial.print(system_max_discharge_power_W);
+  Serial.print(datalayer.battery.status.max_discharge_power_W);
   Serial.print(" Active power: ");
-  Serial.print(system_active_power_W);
+  Serial.print(datalayer.battery.status.active_power_W);
   Serial.print(" Min temp: ");
-  Serial.print(system_temperature_min_dC * 0.1);
+  Serial.print(datalayer.battery.status.temperature_min_dC * 0.1);
   Serial.print(" Max temp: ");
-  Serial.print(system_temperature_max_dC * 0.1);
+  Serial.print(datalayer.battery.status.temperature_max_dC * 0.1);
 #endif
 }
 
@@ -569,13 +568,13 @@ void receive_can_battery(CAN_frame_t rx_frame) {
     case 0x426:  // TODO: Figure out how to trigger sending of this. Does the SME require some CAN command?
       battery_cellvoltage_mux = rx_frame.data.u8[0];
       if (battery_cellvoltage_mux == 0) {
-        system_cellvoltages_mV[0] = ((rx_frame.data.u8[1] * 10) + 1800);
-        system_cellvoltages_mV[1] = ((rx_frame.data.u8[2] * 10) + 1800);
-        system_cellvoltages_mV[2] = ((rx_frame.data.u8[3] * 10) + 1800);
-        system_cellvoltages_mV[3] = ((rx_frame.data.u8[4] * 10) + 1800);
-        system_cellvoltages_mV[4] = ((rx_frame.data.u8[5] * 10) + 1800);
-        system_cellvoltages_mV[5] = ((rx_frame.data.u8[6] * 10) + 1800);
-        system_cellvoltages_mV[5] = ((rx_frame.data.u8[7] * 10) + 1800);
+        datalayer.battery.status.cell_voltages_mV[0] = ((rx_frame.data.u8[1] * 10) + 1800);
+        datalayer.battery.status.cell_voltages_mV[1] = ((rx_frame.data.u8[2] * 10) + 1800);
+        datalayer.battery.status.cell_voltages_mV[2] = ((rx_frame.data.u8[3] * 10) + 1800);
+        datalayer.battery.status.cell_voltages_mV[3] = ((rx_frame.data.u8[4] * 10) + 1800);
+        datalayer.battery.status.cell_voltages_mV[4] = ((rx_frame.data.u8[5] * 10) + 1800);
+        datalayer.battery.status.cell_voltages_mV[5] = ((rx_frame.data.u8[6] * 10) + 1800);
+        datalayer.battery.status.cell_voltages_mV[5] = ((rx_frame.data.u8[7] * 10) + 1800);
       }
       break;
     case 0x430:  //BMS [1s] - Charging status of high-voltage battery - 2
@@ -622,13 +621,13 @@ void receive_can_battery(CAN_frame_t rx_frame) {
         switch (cmdState) {
           case CELL_VOLTAGE:
             if (next_data >= 4) {
-              system_cellvoltages_mV[0] = (message_data[0] << 8 | message_data[1]);
-              system_cellvoltages_mV[2] = (message_data[2] << 8 | message_data[3]);
+              datalayer.battery.status.cell_voltages_mV[0] = (message_data[0] << 8 | message_data[1]);
+              datalayer.battery.status.cell_voltages_mV[2] = (message_data[2] << 8 | message_data[3]);
             }
             break;
           case CELL_VOLTAGE_AVG:
             if (next_data >= 30) {
-              system_cellvoltages_mV[1] = (message_data[10] << 8 | message_data[11]) / 10;
+              datalayer.battery.status.cell_voltages_mV[1] = (message_data[10] << 8 | message_data[11]) / 10;
               battery_capacity_cah = (message_data[4] << 8 | message_data[5]);
             }
             break;
@@ -669,7 +668,7 @@ void send_can_battery() {
         BMW_10B.data.u8[1] = 0x10;  // Close contactors
       }
 
-      if (system_bms_status == FAULT) {
+      if (datalayer.battery.status.bms_status == FAULT) {
         BMW_10B.data.u8[1] = 0x00;  // Open contactors (TODO: test if this works)
       }
 
@@ -808,8 +807,9 @@ void setup_battery(void) {  // Performs one time setup at startup
   Serial.println("BMW i3 battery selected");
 #endif
 
-  system_max_design_voltage_dV = 4040;  // 404.4V, over this, charging is not possible (goes into forced discharge)
-  system_min_design_voltage_dV = 2800;  // 280.0V under this, discharging further is disabled
+  datalayer.battery.info.max_design_voltage_dV =
+      4040;  // 404.4V, over this, charging is not possible (goes into forced discharge)
+  datalayer.battery.info.min_design_voltage_dV = 2800;  // 280.0V under this, discharging further is disabled
 
   digitalWrite(WUP_PIN, HIGH);  // Wake up the battery
 }

@@ -1,5 +1,6 @@
 #include "../include.h"
 #ifdef CHADEMO_BATTERY
+#include "../datalayer/datalayer.h"
 #include "../devboard/utils/events.h"
 #include "../lib/miwagner-ESP32-Arduino-CAN/CAN_config.h"
 #include "../lib/miwagner-ESP32-Arduino-CAN/ESP32CAN.h"
@@ -90,16 +91,19 @@ uint8_t HighVoltageControlStatus = 0;
 
 void update_values_battery() {  //This function maps all the values fetched via CAN to the correct parameters used for the inverter
 
-  system_real_SOC_pptt = ChargingRate;
+  datalayer.battery.status.real_soc = ChargingRate;
 
-  system_max_discharge_power_W = (MaximumDischargeCurrent * MaximumBatteryVoltage);  //In Watts, Convert A to P
+  datalayer.battery.status.max_discharge_power_W =
+      (MaximumDischargeCurrent * MaximumBatteryVoltage);  //In Watts, Convert A to P
 
-  system_battery_voltage_dV = TargetBatteryVoltage;  //TODO: scaling?
+  datalayer.battery.status.voltage_dV = TargetBatteryVoltage;  //TODO: scaling?
 
-  system_capacity_Wh = ((RatedBatteryCapacity / 0.11) *
-                        1000);  //(Added in CHAdeMO v1.0.1), maybe handle hardcoded on lower protocol version?
+  datalayer.battery.info.total_capacity_Wh =
+      ((RatedBatteryCapacity / 0.11) *
+       1000);  //(Added in CHAdeMO v1.0.1), maybe handle hardcoded on lower protocol version?
 
-  system_remaining_capacity_Wh = (system_real_SOC_pptt / 100) * system_capacity_Wh;
+  datalayer.battery.status.remaining_capacity_Wh = static_cast<uint32_t>(
+      (static_cast<double>(datalayer.battery.status.real_soc) / 10000) * datalayer.battery.info.total_capacity_Wh);
 
   /* Check if the Vehicle is still sending CAN messages. If we go 60s without messages we raise an error*/
   if (!CANstillAlive) {
@@ -197,7 +201,8 @@ void setup_battery(void) {  // Performs one time setup at startup
   Serial.println("Chademo battery selected");
 #endif
 
-  system_max_design_voltage_dV = 4040;  // 404.4V, over this, charging is not possible (goes into forced discharge)
-  system_min_design_voltage_dV = 2000;  // 200.0V under this, discharging further is disabled
+  datalayer.battery.info.max_design_voltage_dV =
+      4040;  // 404.4V, over this, charging is not possible (goes into forced discharge)
+  datalayer.battery.info.min_design_voltage_dV = 2000;  // 200.0V under this, discharging further is disabled
 }
 #endif

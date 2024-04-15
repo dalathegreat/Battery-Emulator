@@ -1,5 +1,6 @@
 #include "../include.h"
 #ifdef SANTA_FE_PHEV_BATTERY
+#include "../datalayer/datalayer.h"
 #include "../devboard/utils/events.h"
 #include "../lib/miwagner-ESP32-Arduino-CAN/CAN_config.h"
 #include "../lib/miwagner-ESP32-Arduino-CAN/ESP32CAN.h"
@@ -56,25 +57,25 @@ CAN_frame_t SANTAFE_523 = {.FIR = {.B =
 
 void update_values_battery() {  //This function maps all the values fetched via CAN to the correct parameters used for modbus
 
-  system_real_SOC_pptt;
+  datalayer.battery.status.real_soc;
 
-  system_battery_voltage_dV;
+  datalayer.battery.status.voltage_dV;
 
-  system_battery_current_dA;
+  datalayer.battery.status.current_dA;
 
-  system_capacity_Wh = BATTERY_WH_MAX;
+  datalayer.battery.info.total_capacity_Wh;
 
-  system_remaining_capacity_Wh;
+  datalayer.battery.status.remaining_capacity_Wh;
 
-  system_max_discharge_power_W;
+  datalayer.battery.status.max_discharge_power_W;
 
-  system_max_charge_power_W;
+  datalayer.battery.status.max_charge_power_W;
 
-  system_active_power_W;
+  datalayer.battery.status.active_power_W;
 
-  system_temperature_min_dC;
+  datalayer.battery.status.temperature_min_dC;
 
-  system_temperature_max_dC;
+  datalayer.battery.status.temperature_max_dC;
 
   /* Check if the BMS is still sending CAN messages. If we go 60s without messages we raise an error*/
   if (!CANstillAlive) {
@@ -181,8 +182,9 @@ void setup_battery(void) {  // Performs one time setup at startup
   Serial.println("Hyundai Santa Fe PHEV battery selected");
 #endif
 
-  system_max_design_voltage_dV = 4040;  // 404.0V, over this, charging is not possible (goes into forced discharge)
-  system_min_design_voltage_dV = 3100;  // 310.0V under this, discharging further is disabled
+  datalayer.battery.info.max_design_voltage_dV =
+      4040;  // 404.0V, over this, charging is not possible (goes into forced discharge)
+  datalayer.battery.info.min_design_voltage_dV = 3100;  // 310.0V under this, discharging further is disabled
 }
 
 #endif

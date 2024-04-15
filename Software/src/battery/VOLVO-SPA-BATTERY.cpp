@@ -1,5 +1,6 @@
 #include "../include.h"
 #ifdef VOLVO_SPA_BATTERY
+#include "../datalayer/datalayer.h"
 #include "../devboard/utils/events.h"
 #include "../lib/miwagner-ESP32-Arduino-CAN/CAN_config.h"
 #include "../lib/miwagner-ESP32-Arduino-CAN/ESP32CAN.h"
@@ -81,37 +82,36 @@ void update_values_battery() {  //This function maps all the values fetched via 
 
   remaining_capacity = (78200 - CHARGE_ENERGY);
 
-  //system_real_SOC_pptt = SOC_BMS;			// Use BMS reported SOC, havent figured out how to get the BMS to calibrate empty/full yet
+  //datalayer.battery.status.real_soc = SOC_BMS;			// Use BMS reported SOC, havent figured out how to get the BMS to calibrate empty/full yet
   SOC_CALC = remaining_capacity / 78;  // Use calculated SOC based on remaining_capacity
 
-  system_real_SOC_pptt = SOC_CALC * 10;
+  datalayer.battery.status.real_soc = SOC_CALC * 10;
 
   if (BATT_U > MAX_U)  // Protect if overcharged
   {
-    system_real_SOC_pptt = 10000;
+    datalayer.battery.status.real_soc = 10000;
   } else if (BATT_U < MIN_U)  //Protect if undercharged
   {
-    system_real_SOC_pptt = 0;
+    datalayer.battery.status.real_soc = 0;
   }
 
-  system_battery_voltage_dV = BATT_U * 10;
-  system_battery_current_dA = BATT_I * 10;
-  system_capacity_Wh = BATTERY_WH_MAX;
-  system_remaining_capacity_Wh = remaining_capacity;  // Will wrap! Known limitation due to uint16_t size.
+  datalayer.battery.status.voltage_dV = BATT_U * 10;
+  datalayer.battery.status.current_dA = BATT_I * 10;
+  datalayer.battery.status.remaining_capacity_Wh = remaining_capacity;
 
-  //system_max_discharge_power_W = HvBattPwrLimDchaSoft * 1000;	// Use power limit reported from BMS, not trusted ATM
-  system_max_discharge_power_W = 30000;
-  system_max_charge_power_W = 30000;
-  system_active_power_W = (BATT_U)*BATT_I;
-  system_temperature_min_dC = BATT_T_MIN;
-  system_temperature_max_dC = BATT_T_MAX;
+  //datalayer.battery.status.max_discharge_power_W = HvBattPwrLimDchaSoft * 1000;	// Use power limit reported from BMS, not trusted ATM
+  datalayer.battery.status.max_discharge_power_W = 30000;
+  datalayer.battery.status.max_charge_power_W = 30000;
+  datalayer.battery.status.active_power_W = (BATT_U)*BATT_I;
+  datalayer.battery.status.temperature_min_dC = BATT_T_MIN;
+  datalayer.battery.status.temperature_max_dC = BATT_T_MAX;
 
-  system_cell_max_voltage_mV = CELL_U_MAX * 10;  // Use min/max reported from BMS
-  system_cell_min_voltage_mV = CELL_U_MIN * 10;
+  datalayer.battery.status.cell_max_voltage_mV = CELL_U_MAX * 10;  // Use min/max reported from BMS
+  datalayer.battery.status.cell_min_voltage_mV = CELL_U_MIN * 10;
 
   //Map all cell voltages to the global array
   for (int i = 0; i < 108; ++i) {
-    system_cellvoltages_mV[i] = cell_voltages[i];
+    datalayer.battery.status.cell_voltages_mV[i] = cell_voltages[i];
   }
 
   /* Check if the BMS is still sending CAN messages. If we go 60s without messages we raise an error*/
@@ -128,7 +128,7 @@ void update_values_battery() {  //This function maps all the values fetched via 
   Serial.print("Calculated SOC%: ");
   Serial.println(SOC_CALC);
   Serial.print("Rescaled SOC%: ");
-  Serial.println(system_scaled_SOC_pptt / 10);
+  Serial.println(datalayer.battery.status.reported_soc / 100);
   Serial.print("Battery current: ");
   Serial.println(BATT_I);
   Serial.print("Battery voltage: ");
@@ -287,7 +287,7 @@ void receive_can_battery(CAN_frame_t rx_frame) {
       if ((rx_frame.data.u8[0] == 0x07) && (rx_frame.data.u8[1] == 0x62) && (rx_frame.data.u8[2] == 0x49) &&
           (rx_frame.data.u8[3] == 0x6D))  // SOH response frame
       {
-        system_SOH_pptt = ((rx_frame.data.u8[6] << 8) | rx_frame.data.u8[7]);
+        datalayer.battery.status.soh_pptt = ((rx_frame.data.u8[6] << 8) | rx_frame.data.u8[7]);
       } else if ((rx_frame.data.u8[0] == 0x10) && (rx_frame.data.u8[1] == 0x0B) && (rx_frame.data.u8[2] == 0x62) &&
                  (rx_frame.data.u8[3] == 0x4B))  // First response frame of cell voltages
       {
@@ -357,15 +357,15 @@ void send_can_battery() {
     ESP32Can.CANWriteFrame(&VOLVO_536);  //Send 0x536 Network managing frame to keep BMS alive
     ESP32Can.CANWriteFrame(&VOLVO_372);  //Send 0x372 ECMAmbientTempCalculated
 
-    if (system_bms_status == ACTIVE) {
-      batteryAllowsContactorClosing = true;
-    } else {  //system_bms_status == FAULT or inverter requested opening contactors
-      batteryAllowsContactorClosing = false;
+    if (datalayer.battery.status.bms_status == ACTIVE) {
+      datalayer.system.status.battery_allows_contactor_closing = true;
+    } else {  //datalayer.battery.status.bms_status == FAULT or inverter requested opening contactors
+      datalayer.system.status.battery_allows_contactor_closing = false;
     }
   }
   if (currentMillis - previousMillis60s >= INTERVAL_60_S) {
     previousMillis60s = currentMillis;
-    if (system_bms_status == ACTIVE) {
+    if (datalayer.battery.status.bms_status == ACTIVE) {
       readCellVoltages();
     }
   }
@@ -376,8 +376,9 @@ void setup_battery(void) {  // Performs one time setup at startup
   Serial.println("Volvo SPA XC40 Recharge / Polestar2 78kWh battery selected");
 #endif
 
-  system_number_of_cells = 108;
-  system_max_design_voltage_dV = 4540;  // 454.0V, over this, charging is not possible (goes into forced discharge)
-  system_min_design_voltage_dV = 2938;  // 293.8V under this, discharging further is disabled
+  datalayer.battery.info.number_of_cells = 108;
+  datalayer.battery.info.max_design_voltage_dV =
+      4540;  // 454.0V, over this, charging is not possible (goes into forced discharge)
+  datalayer.battery.info.min_design_voltage_dV = 2938;  // 293.8V under this, discharging further is disabled
 }
 #endif
