@@ -80,7 +80,7 @@ void init_webserver() {
   server.on("/updateUseScaledSOC", HTTP_GET, [](AsyncWebServerRequest* request) {
     if (request->hasParam("value")) {
       String value = request->getParam("value")->value();
-      USE_SCALED_SOC = value.toInt();
+      datalayer.battery.settings.soc_scaling_active = value.toInt();
       storeSettings();
       request->send(200, "text/plain", "Updated successfully");
     } else {
@@ -92,7 +92,7 @@ void init_webserver() {
   server.on("/updateSocMax", HTTP_GET, [](AsyncWebServerRequest* request) {
     if (request->hasParam("value")) {
       String value = request->getParam("value")->value();
-      MAXPERCENTAGE = value.toInt() * 10;
+      datalayer.battery.settings.max_percentage = value.toInt() * 100;
       storeSettings();
       request->send(200, "text/plain", "Updated successfully");
     } else {
@@ -104,7 +104,7 @@ void init_webserver() {
   server.on("/updateSocMin", HTTP_GET, [](AsyncWebServerRequest* request) {
     if (request->hasParam("value")) {
       String value = request->getParam("value")->value();
-      MINPERCENTAGE = value.toInt() * 10;
+      datalayer.battery.settings.min_percentage = value.toInt() * 100;
       storeSettings();
       request->send(200, "text/plain", "Updated successfully");
     } else {
@@ -507,8 +507,10 @@ String processor(const String& var) {
     content += "padding: 10px; margin-bottom: 10px; border-radius: 50px;'>";
 
     // Display battery statistics within this block
-    float socRealFloat = static_cast<float>(system_real_SOC_pptt) / 100.0;      // Convert to float and divide by 100
-    float socScaledFloat = static_cast<float>(system_scaled_SOC_pptt) / 100.0;  // Convert to float and divide by 100
+    float socRealFloat =
+        static_cast<float>(datalayer.battery.status.real_soc) / 100.0;  // Convert to float and divide by 100
+    float socScaledFloat =
+        static_cast<float>(datalayer.battery.status.reported_soc) / 100.0;  // Convert to float and divide by 100
     float sohFloat =
         static_cast<float>(datalayer.battery.status.soh_pptt) / 100.0;  // Convert to float and divide by 100
     float voltageFloat =

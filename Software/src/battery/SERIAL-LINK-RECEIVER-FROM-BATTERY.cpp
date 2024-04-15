@@ -29,7 +29,7 @@ SerialDataLink dataLinkReceive(SerialReceiver, 0, 0x01, sendingNumVariables,
 static bool batteryFault = false;  // used locally - mainly to indicate Battery CAN failure
 
 void __getData() {
-  system_real_SOC_pptt = (uint16_t)dataLinkReceive.getReceivedData(0);
+  datalayer.battery.status.real_soc = (uint16_t)dataLinkReceive.getReceivedData(0);
   datalayer.battery.status.soh_pptt = (uint16_t)dataLinkReceive.getReceivedData(1);
   datalayer.battery.status.voltage_dV = (uint16_t)dataLinkReceive.getReceivedData(2);
   datalayer.battery.status.current_dA = (int16_t)dataLinkReceive.getReceivedData(3);
@@ -182,7 +182,7 @@ void manageSerialLinkReceiver() {
 void update_values_serial_link() {
   Serial.println("Values from battery: ");
   Serial.print("SOC: ");
-  Serial.print(system_real_SOC_pptt);
+  Serial.print(datalayer.battery.status.real_soc);
   Serial.print(" SOH: ");
   Serial.print(datalayer.battery.status.soh_pptt);
   Serial.print(" Voltage: ");

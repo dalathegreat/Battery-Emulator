@@ -13,8 +13,6 @@ extern ACAN2517FD canfd;
 #define MAXDISCHARGEPOWERALLOWED 10000
 
 // These parameters need to be mapped for the inverter
-extern uint16_t system_scaled_SOC_pptt;      //SOC%, 0-100.00 (0-10000)
-extern uint16_t system_real_SOC_pptt;        //SOC%, 0-100.00 (0-10000)
 extern bool batteryAllowsContactorClosing;   //Bool, true/false
 extern bool inverterAllowsContactorClosing;  //Bool, true/false
 

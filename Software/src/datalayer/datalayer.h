@@ -1,7 +1,6 @@
 #ifndef _DATALAYER_H_
 #define _DATALAYER_H_
 
-#include "../devboard/utils/soc_scaling.h"
 #include "../include.h"
 
 typedef struct {
@@ -50,15 +49,24 @@ typedef struct {
   uint16_t cell_max_voltage_mV;
   uint16_t cell_min_voltage_mV;
   uint16_t cell_voltages_mV[MAX_AMOUNT_CELLS];
+  uint16_t real_soc;
+  uint16_t scaled_soc;
+  uint16_t reported_soc;
 
   /** Other */
   bms_status_enum bms_status = ACTIVE;
-  ScaledSoc soc;
 } DATALAYER_BATTERY_STATUS_TYPE;
+
+typedef struct {
+  bool soc_scaling_active = BATTERY_USE_SCALED_SOC;
+  uint16_t min_percentage = BATTERY_MINPERCENTAGE;
+  uint16_t max_percentage = BATTERY_MAXPERCENTAGE;
+} DATALAYER_BATTERY_SETTINGS_TYPE;
 
 typedef struct {
   DATALAYER_BATTERY_INFO_TYPE info;
   DATALAYER_BATTERY_STATUS_TYPE status;
+  DATALAYER_BATTERY_SETTINGS_TYPE settings;
 } DATALAYER_BATTERY_TYPE;
 
 typedef struct {

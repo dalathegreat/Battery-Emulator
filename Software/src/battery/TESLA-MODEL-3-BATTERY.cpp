@@ -178,7 +178,7 @@ void update_values_battery() {  //This function maps all the values fetched via 
     datalayer.battery.status.soh_pptt = 9900;
   }
 
-  system_real_SOC_pptt = (soc_vi * 10);  //increase SOC range from 0-100.0 -> 100.00
+  datalayer.battery.status.real_soc = (soc_vi * 10);  //increase SOC range from 0-100.0 -> 100.00
 
   datalayer.battery.status.voltage_dV = (volts * 10);  //One more decimal needed (370 -> 3700)
 
@@ -188,19 +188,19 @@ void update_values_battery() {  //This function maps all the values fetched via 
 
   //Calculate the remaining Wh amount from SOC% and max Wh value.
   datalayer.battery.status.remaining_capacity_Wh =
-      static_cast<uint32_t>((static_cast<double>(system_real_SOC_pptt) / 10000) * BATTERY_WH_MAX);
+      static_cast<uint32_t>((static_cast<double>(datalayer.battery.status.real_soc) / 10000) * BATTERY_WH_MAX);
 
   // Define the allowed discharge power
   datalayer.battery.status.max_discharge_power_W = (max_discharge_current * volts);
   // Cap the allowed discharge power if battery is empty, or discharge power is higher than the maximum discharge power allowed
-  if (system_scaled_SOC_pptt == 0) {
+  if (datalayer.battery.status.reported_soc == 0) {
     datalayer.battery.status.max_discharge_power_W = 0;
   } else if (datalayer.battery.status.max_discharge_power_W > MAXDISCHARGEPOWERALLOWED) {
     datalayer.battery.status.max_discharge_power_W = MAXDISCHARGEPOWERALLOWED;
   }
 
   //The allowed charge power behaves strangely. We instead estimate this value
-  if (system_scaled_SOC_pptt == 10000) {  // When scaled SOC is 100.00%, set allowed charge power to 0
+  if (datalayer.battery.status.reported_soc == 10000) {  // When scaled SOC is 100.00%, set allowed charge power to 0
     datalayer.battery.status.max_charge_power_W = 0;
   } else if (soc_vi > 990) {
     datalayer.battery.status.max_charge_power_W = FLOAT_MAX_POWER_W;
@@ -268,9 +268,9 @@ void update_values_battery() {  //This function maps all the values fetched via 
   //Check if SOC% is plausible
   if (datalayer.battery.status.voltage_dV >
       (datalayer.battery.info.max_design_voltage_dV -
-       20)) {                           // When pack voltage is close to max, and SOC% is still low, raise FAULT
-    if (system_real_SOC_pptt < 5000) {  //When SOC is less than 50.00% when approaching max voltage
-      set_event(EVENT_SOC_PLAUSIBILITY_ERROR, system_real_SOC_pptt / 100);
+       20)) {  // When pack voltage is close to max, and SOC% is still low, raise FAULT
+    if (datalayer.battery.status.real_soc < 5000) {  //When SOC is less than 50.00% when approaching max voltage
+      set_event(EVENT_SOC_PLAUSIBILITY_ERROR, datalayer.battery.status.real_soc / 100);
     }
   }
 
@@ -375,7 +375,7 @@ void update_values_battery() {  //This function maps all the values fetched via 
   Serial.println("");
 
   Serial.println("Values passed to the inverter: ");
-  print_SOC(" SOC: ", system_scaled_SOC_pptt);
+  print_SOC(" SOC: ", datalayer.battery.status.reported_soc);
   print_int_with_units(" Max discharge power: ", datalayer.battery.status.max_discharge_power_W, "W");
   Serial.print(", ");
   print_int_with_units(" Max charge power: ", datalayer.battery.status.max_charge_power_W, "W");

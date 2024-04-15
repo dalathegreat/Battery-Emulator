@@ -136,8 +136,8 @@ void update_values_can_solax() {  //This function maps all the values fetched fr
       ((datalayer.battery.status.temperature_max_dC + datalayer.battery.status.temperature_min_dC) / 2);
 
   //datalayer.battery.status.max_charge_power_W (30000W max)
-  if (system_scaled_SOC_pptt > 9999)  //99.99%
-  {                                   //Additional safety incase SOC% is 100, then do not charge battery further
+  if (datalayer.battery.status.reported_soc > 9999)  //99.99%
+  {  //Additional safety incase SOC% is 100, then do not charge battery further
     max_charge_rate_amp = 0;
   } else {  //We can pass on the battery charge rate (in W) to the inverter (that takes A)
     if (datalayer.battery.status.max_charge_power_W >= 30000) {
@@ -149,8 +149,8 @@ void update_values_can_solax() {  //This function maps all the values fetched fr
   }
 
   //datalayer.battery.status.max_discharge_power_W (30000W max)
-  if (system_scaled_SOC_pptt < 100)  //1.00%
-  {                                  //Additional safety incase SOC% is below 1, then do not charge battery further
+  if (datalayer.battery.status.reported_soc < 100)  //1.00%
+  {  //Additional safety incase SOC% is below 1, then do not charge battery further
     max_discharge_rate_amp = 0;
   } else {  //We can pass on the battery discharge rate to the inverter
     if (datalayer.battery.status.max_discharge_power_W >= 30000) {
@@ -190,7 +190,7 @@ void update_values_can_solax() {  //This function maps all the values fetched fr
   SOLAX_1873.data.u8[1] = (datalayer.battery.status.voltage_dV >> 8);
   SOLAX_1873.data.u8[2] = (int8_t)datalayer.battery.status.current_dA;  // OK, Signed (Active current in Amps x 10)
   SOLAX_1873.data.u8[3] = (datalayer.battery.status.current_dA >> 8);
-  SOLAX_1873.data.u8[4] = (uint8_t)(system_scaled_SOC_pptt / 100);  //SOC (100.00%)
+  SOLAX_1873.data.u8[4] = (uint8_t)(datalayer.battery.status.reported_soc / 100);  //SOC (100.00%)
   //SOLAX_1873.data.u8[5] = //Seems like this is not required? Or shall we put SOC decimals here?
   SOLAX_1873.data.u8[6] = (uint8_t)(capped_remaining_capacity_Wh / 100);
   SOLAX_1873.data.u8[7] = ((capped_remaining_capacity_Wh / 100) >> 8);

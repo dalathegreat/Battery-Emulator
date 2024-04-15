@@ -146,8 +146,8 @@ void update_values_can_sma() {  //This function maps all the values fetched from
   SMA_358.data.u8[7] = (charge_current & 0x00FF);
 
   //SOC (100.00%)
-  SMA_3D8.data.u8[0] = (system_scaled_SOC_pptt >> 8);
-  SMA_3D8.data.u8[1] = (system_scaled_SOC_pptt & 0x00FF);
+  SMA_3D8.data.u8[0] = (datalayer.battery.status.reported_soc >> 8);
+  SMA_3D8.data.u8[1] = (datalayer.battery.status.reported_soc & 0x00FF);
   //StateOfHealth (100.00%)
   SMA_3D8.data.u8[2] = (datalayer.battery.status.soh_pptt >> 8);
   SMA_3D8.data.u8[3] = (datalayer.battery.status.soh_pptt & 0x00FF);

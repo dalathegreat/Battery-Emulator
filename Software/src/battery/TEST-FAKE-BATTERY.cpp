@@ -15,8 +15,8 @@ void print_units(char* header, int value, char* units) {
   Serial.print(units);
 }
 
-void update_values_battery() {  /* This function puts fake values onto the parameters sent towards the inverter */
-  system_real_SOC_pptt = 5000;  // 50.00%
+void update_values_battery() { /* This function puts fake values onto the parameters sent towards the inverter */
+  datalayer.battery.status.real_soc = 5000;  // 50.00%
 
   datalayer.battery.status.soh_pptt = 9900;  // 99.00%
 
@@ -50,7 +50,7 @@ void update_values_battery() {  /* This function puts fake values onto the param
 #ifdef DEBUG_VIA_USB
   Serial.println("FAKE Values going to inverter");
   print_units("SOH%: ", (datalayer.battery.status.soh_pptt * 0.01), "% ");
-  print_units(", SOC%: ", (system_scaled_SOC_pptt * 0.01), "% ");
+  print_units(", SOC%: ", (datalayer.battery.status.reported_soc * 0.01), "% ");
   print_units(", Voltage: ", (datalayer.battery.status.voltage_dV * 0.1), "V ");
   print_units(", Max discharge power: ", datalayer.battery.status.max_discharge_power_W, "W ");
   print_units(", Max charge power: ", datalayer.battery.status.max_charge_power_W, "W ");

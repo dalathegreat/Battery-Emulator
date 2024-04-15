@@ -41,7 +41,7 @@ static unsigned long GVL_pause = 0;
 void update_values_battery() {  //This function maps all the values fetched via CAN to the correct parameters used for modbus
   datalayer.battery.status.soh_pptt = (LB_SOH * 100);  //Increase range from 99% -> 99.00%
 
-  system_real_SOC_pptt = (LB_SOC * 10);  //increase LB_SOC range from 0-100.0 -> 100.00
+  datalayer.battery.status.real_soc = (LB_SOC * 10);  //increase LB_SOC range from 0-100.0 -> 100.00
 
   datalayer.battery.status.voltage_dV = LB_Battery_Voltage;
 
@@ -51,7 +51,7 @@ void update_values_battery() {  //This function maps all the values fetched via 
 
   //Calculate the remaining Wh amount from SOC% and max Wh value.
   datalayer.battery.status.remaining_capacity_Wh =
-      static_cast<int>((static_cast<double>(system_real_SOC_pptt) / 10000) * BATTERY_WH_MAX);
+      static_cast<int>((static_cast<double>(datalayer.battery.status.real_soc) / 10000) * BATTERY_WH_MAX);
 
   datalayer.battery.status.max_discharge_power_W;
 
@@ -94,7 +94,7 @@ void update_values_battery() {  //This function maps all the values fetched via 
   Serial.print("SOH%: ");
   Serial.print(datalayer.battery.status.soh_pptt);
   Serial.print(", SOC% scaled: ");
-  Serial.print(system_scaled_SOC_pptt);
+  Serial.print(datalayer.battery.status.reported_soc);
   Serial.print(", Voltage: ");
   Serial.print(datalayer.battery.status.voltage_dV);
   Serial.print(", Max discharge power: ");

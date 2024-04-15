@@ -40,7 +40,7 @@ static double max_temp_cel = 20.00;
 static double min_temp_cel = 19.00;
 
 void update_values_battery() {  //This function maps all the values fetched via CAN to the correct parameters used for modbus
-  system_real_SOC_pptt = (uint16_t)(BMU_SOC * 100);  //increase BMU_SOC range from 0-100 -> 100.00
+  datalayer.battery.status.real_soc = (uint16_t)(BMU_SOC * 100);  //increase BMU_SOC range from 0-100 -> 100.00
 
   datalayer.battery.status.voltage_dV = (uint16_t)(BMU_PackVoltage * 10);  // Multiply by 10 and cast to uint16_t
 
@@ -49,16 +49,16 @@ void update_values_battery() {  //This function maps all the values fetched via 
   datalayer.battery.info.total_capacity_Wh = BATTERY_WH_MAX;  //Hardcoded to header value
 
   datalayer.battery.status.remaining_capacity_Wh =
-      (uint16_t)((system_real_SOC_pptt / 10000) * datalayer.battery.info.total_capacity_Wh);
+      (uint16_t)((datalayer.battery.status.real_soc / 10000) * datalayer.battery.info.total_capacity_Wh);
 
   //We do not know if the max charge power is sent by the battery. So we estimate the value based on SOC%
-  if (system_scaled_SOC_pptt == 10000) {              //100.00%
-    datalayer.battery.status.max_charge_power_W = 0;  //When battery is 100% full, set allowed charge W to 0
+  if (datalayer.battery.status.reported_soc == 10000) {  //100.00%
+    datalayer.battery.status.max_charge_power_W = 0;     //When battery is 100% full, set allowed charge W to 0
   } else {
     datalayer.battery.status.max_charge_power_W = 10000;  //Otherwise we can push 10kW into the pack!
   }
 
-  if (system_scaled_SOC_pptt < 200) {  //2.00%
+  if (datalayer.battery.status.reported_soc < 200) {  //2.00%
     datalayer.battery.status.max_discharge_power_W =
         0;  //When battery is empty (below 2%), set allowed discharge W to 0
   } else {
@@ -146,7 +146,7 @@ void update_values_battery() {  //This function maps all the values fetched via 
 
   Serial.println("Values sent to inverter");
   Serial.print("SOC% (0-100.00): ");
-  Serial.print(system_scaled_SOC_pptt);
+  Serial.print(datalayer.battery.status.reported_soc);
   Serial.print(" Voltage (0-400.0): ");
   Serial.print(datalayer.battery.status.voltage_dV);
   Serial.print(" Capacity WH full (0-60000): ");

@@ -82,17 +82,17 @@ void update_values_battery() {  //This function maps all the values fetched via 
 
   remaining_capacity = (78200 - CHARGE_ENERGY);
 
-  //system_real_SOC_pptt = SOC_BMS;			// Use BMS reported SOC, havent figured out how to get the BMS to calibrate empty/full yet
+  //datalayer.battery.status.real_soc = SOC_BMS;			// Use BMS reported SOC, havent figured out how to get the BMS to calibrate empty/full yet
   SOC_CALC = remaining_capacity / 78;  // Use calculated SOC based on remaining_capacity
 
-  system_real_SOC_pptt = SOC_CALC * 10;
+  datalayer.battery.status.real_soc = SOC_CALC * 10;
 
   if (BATT_U > MAX_U)  // Protect if overcharged
   {
-    system_real_SOC_pptt = 10000;
+    datalayer.battery.status.real_soc = 10000;
   } else if (BATT_U < MIN_U)  //Protect if undercharged
   {
-    system_real_SOC_pptt = 0;
+    datalayer.battery.status.real_soc = 0;
   }
 
   datalayer.battery.status.voltage_dV = BATT_U * 10;
@@ -130,7 +130,7 @@ void update_values_battery() {  //This function maps all the values fetched via 
   Serial.print("Calculated SOC%: ");
   Serial.println(SOC_CALC);
   Serial.print("Rescaled SOC%: ");
-  Serial.println(system_scaled_SOC_pptt / 10);
+  Serial.println(datalayer.battery.status.reported_soc / 100);
   Serial.print("Battery current: ");
   Serial.println(BATT_I);
   Serial.print("Battery voltage: ");

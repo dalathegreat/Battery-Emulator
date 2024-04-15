@@ -9,8 +9,6 @@
 
 extern ACAN2515 can;
 
-extern uint16_t system_scaled_SOC_pptt;      //SOC%, 0-100.00 (0-10000)
-extern uint16_t system_real_SOC_pptt;        //SOC%, 0-100.00 (0-10000)
 extern bool batteryAllowsContactorClosing;   //Bool, true/false
 extern bool inverterAllowsContactorClosing;  //Bool, true/false
 

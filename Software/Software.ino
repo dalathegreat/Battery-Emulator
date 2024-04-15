@@ -30,7 +30,7 @@
 
 Preferences settings;  // Store user settings
 // The current software version, shown on webserver
-const char* version_number = "5.7.0";
+const char* version_number = "5.7.dev";
 
 // Interval settings
 uint16_t intervalUpdateValues = INTERVAL_5_S;  // Interval at which to update inverter values / Modbus registers
@@ -61,9 +61,7 @@ ModbusServerRTU MBserver(Serial2, 2000);
 #endif
 
 // Common system parameters. Batteries map their values to these variables
-uint16_t system_scaled_SOC_pptt = 5000;  //SOC%, 0-100.00 (0-10000)
-uint16_t system_real_SOC_pptt = 5000;    //SOC%, 0-100.00 (0-10000)
-bool system_LFP_Chemistry = false;       //Set to true or false depending on cell chemistry
+bool system_LFP_Chemistry = false;  //Set to true or false depending on cell chemistry
 
 // Common charger parameters
 volatile float charger_setpoint_HV_VDC = 0.0f;
@@ -301,11 +299,11 @@ void init_stored_settings() {
   }
   temp = settings.getUInt("MAXPERCENTAGE", false);
   if (temp != 0) {
-    MAXPERCENTAGE = temp;
+    datalayer.battery.settings.max_percentage = temp * 10;  // Multiply by 10 for backwards compatibility
   }
   temp = settings.getUInt("MINPERCENTAGE", false);
   if (temp != 0) {
-    MINPERCENTAGE = temp;
+    datalayer.battery.settings.min_percentage = temp * 10;  // Multiply by 10 for backwards compatibility
   }
   temp = settings.getUInt("MAXCHARGEAMP", false);
   if (temp != 0) {
@@ -315,8 +313,8 @@ void init_stored_settings() {
   if (temp != 0) {
     MAXDISCHARGEAMP = temp;
     temp = settings.getBool("USE_SCALED_SOC", false);
-    USE_SCALED_SOC = temp;  //This bool needs to be checked inside the temp!= block
-  }                         // No way to know if it wasnt reset otherwise
+    datalayer.battery.settings.soc_scaling_active = temp;  //This bool needs to be checked inside the temp!= block
+  }                                                        // No way to know if it wasnt reset otherwise
 
   settings.end();
 }
@@ -685,19 +683,37 @@ void handle_contactors() {
 #endif
 
 void update_SOC() {
-  if (USE_SCALED_SOC) {  //User has configred a SOC window. Calculate a SOC% to send towards inverter
-    static int16_t CalculatedSOC = 0;
-    CalculatedSOC = system_real_SOC_pptt;
-    CalculatedSOC = (10000) * (CalculatedSOC - (MINPERCENTAGE * 10)) / (MAXPERCENTAGE * 10 - MINPERCENTAGE * 10);
-    if (CalculatedSOC < 0) {  //We are in the real SOC% range of 0-MINPERCENTAGE%
-      CalculatedSOC = 0;
-    }
-    if (CalculatedSOC > 10000) {  //We are in the real SOC% range of MAXPERCENTAGE-100%
-      CalculatedSOC = 10000;
-    }
-    system_scaled_SOC_pptt = CalculatedSOC;
+  if (datalayer.battery.settings.soc_scaling_active) {
+    /** SOC Scaling
+     * 
+     * This is essentially a more static version of a stochastic oscillator (https://en.wikipedia.org/wiki/Stochastic_oscillator)
+     * 
+     * The idea is this:
+     * 
+     *    real_soc - min_percent                   3000 - 1000
+     * ------------------------- = scaled_soc, or  ----------- = 0.25
+     * max_percent - min-percent                   8000 - 1000
+     * 
+     * Because we use integers, we want to account for the scaling:
+     * 
+     * 10000 * (real_soc - min_percent)                   10000 * (3000 - 1000)
+     * -------------------------------- = scaled_soc, or  --------------------- = 2500
+     *     max_percent - min_percent                           8000 - 1000
+     * 
+     * Or as a one-liner: (10000 * (real_soc - min_percentage)) / (max_percentage - min_percentage)
+     * 
+     * Before we use real_soc, we must make sure that it's within the range of min_percentage and max_percentage.
+    */
+    uint32_t calc_soc;
+    // Make sure that the SOC starts out between min and max percentages
+    calc_soc = CONSTRAIN(datalayer.battery.status.real_soc, datalayer.battery.settings.min_percentage,
+                         datalayer.battery.settings.max_percentage);
+    // Perform scaling
+    calc_soc = 10000 * (calc_soc - datalayer.battery.settings.min_percentage);
+    calc_soc = calc_soc / (datalayer.battery.settings.max_percentage - datalayer.battery.settings.min_percentage);
+    datalayer.battery.status.reported_soc = calc_soc;
   } else {  // No SOC window wanted. Set scaled to same as real.
-    system_scaled_SOC_pptt = system_real_SOC_pptt;
+    datalayer.battery.status.reported_soc = datalayer.battery.status.real_soc;
   }
 }
 
@@ -757,11 +773,13 @@ void init_serialDataLink() {
 void storeSettings() {
   settings.begin("batterySettings", false);
   settings.putUInt("BATTERY_WH_MAX", BATTERY_WH_MAX);
-  settings.putUInt("MAXPERCENTAGE", MAXPERCENTAGE);
-  settings.putUInt("MINPERCENTAGE", MINPERCENTAGE);
+  settings.putUInt("MAXPERCENTAGE",
+                   datalayer.battery.settings.max_percentage / 10);  // Divide by 10 for backwards compatibility
+  settings.putUInt("MINPERCENTAGE",
+                   datalayer.battery.settings.min_percentage / 10);  // Divide by 10 for backwards compatibility
   settings.putUInt("MAXCHARGEAMP", MAXCHARGEAMP);
   settings.putUInt("MAXDISCHARGEAMP", MAXDISCHARGEAMP);
-  settings.putBool("USE_SCALED_SOC", USE_SCALED_SOC);
+  settings.putBool("USE_SCALED_SOC", datalayer.battery.settings.soc_scaling_active);
 
   settings.end();
 }

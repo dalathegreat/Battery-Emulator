@@ -415,7 +415,7 @@ static uint8_t increment_alive_counter(uint8_t counter) {
 
 void update_values_battery() {  //This function maps all the values fetched via CAN to the correct parameters used for modbus
 
-  system_real_SOC_pptt = (battery_HVBatt_SOC * 10);
+  datalayer.battery.status.real_soc = (battery_HVBatt_SOC * 10);
 
   datalayer.battery.status.voltage_dV = battery_volts;  //Unit V+1 (5000 = 500.0V)
 
@@ -465,7 +465,7 @@ void update_values_battery() {  //This function maps all the values fetched via 
   Serial.println(" ");
   Serial.print("Values sent to inverter: ");
   Serial.print("Real SOC%: ");
-  Serial.print(system_real_SOC_pptt * 0.01);
+  Serial.print(datalayer.battery.status.real_soc * 0.01);
   Serial.print(" Battery voltage: ");
   Serial.print(datalayer.battery.status.voltage_dV * 0.1);
   Serial.print(" Battery current: ");

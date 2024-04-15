@@ -57,7 +57,7 @@ CAN_frame_t SANTAFE_523 = {.FIR = {.B =
 
 void update_values_battery() {  //This function maps all the values fetched via CAN to the correct parameters used for modbus
 
-  system_real_SOC_pptt;
+  datalayer.battery.status.real_soc;
 
   datalayer.battery.status.voltage_dV;
 

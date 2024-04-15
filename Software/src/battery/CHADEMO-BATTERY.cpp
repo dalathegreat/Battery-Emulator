@@ -92,7 +92,7 @@ uint8_t HighVoltageControlStatus = 0;
 
 void update_values_battery() {  //This function maps all the values fetched via CAN to the correct parameters used for the inverter
 
-  system_real_SOC_pptt = ChargingRate;
+  datalayer.battery.status.real_soc = ChargingRate;
 
   datalayer.battery.status.max_discharge_power_W =
       (MaximumDischargeCurrent * MaximumBatteryVoltage);  //In Watts, Convert A to P
@@ -104,7 +104,9 @@ void update_values_battery() {  //This function maps all the values fetched via 
        1000);  //(Added in CHAdeMO v1.0.1), maybe handle hardcoded on lower protocol version?
 
   datalayer.battery.status.remaining_capacity_Wh =
-      (system_real_SOC_pptt / 100) * datalayer.battery.info.total_capacity_Wh;
+      (datalayer.battery.status.real_soc / 100) *
+      datalayer.battery.info
+          .total_capacity_Wh;  // Is this really correct? 100% SOC would give 100*total_capacity_Wh..? Should it be (soc / 10000.0)?
 
   /* Check if the Vehicle is still sending CAN messages. If we go 60s without messages we raise an error*/
   if (!CANstillAlive) {
@@ -129,7 +131,7 @@ void update_values_battery() {  //This function maps all the values fetched via 
   Serial.print("SOH%: ");
   Serial.println(datalayer.battery.status.soh_pptt);
   Serial.print("SOC% to Inverter: ");
-  Serial.println(system_scaled_SOC_pptt);
+  Serial.println(datalayer.battery.status.reported_soc);
   Serial.print("Temperature Min: ");
   Serial.println(datalayer.battery.status.temperature_min_dC);
   Serial.print("Temperature Max: ");

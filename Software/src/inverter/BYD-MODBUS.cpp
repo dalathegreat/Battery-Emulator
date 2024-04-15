@@ -89,7 +89,8 @@ void handle_update_data_modbusp301_byd() {
   battery_data[1] = 0;  // Id.: p302 Value.: 0 Scaled value.: 0 Comment.: always 0
   battery_data[2] = 128 + bms_char_dis_status;  // Id.: p303 Value.: 130 Scaled value.: 130 Comment.: mode(*): normal
   battery_data[3] =
-      system_scaled_SOC_pptt;  // Id.: p304 Value.: 1700 Scaled value.: 50% Comment.: SOC: (50% would equal 5000)
+      datalayer.battery.status
+          .reported_soc;  // Id.: p304 Value.: 1700 Scaled value.: 50% Comment.: SOC: (50% would equal 5000)
   if (datalayer.battery.info.total_capacity_Wh > 60000) {
     battery_data[4] = 60000;
   } else {

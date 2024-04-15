@@ -55,7 +55,7 @@ static unsigned long GVL_pause = 0;
 
 void update_values_battery() {  //This function maps all the values fetched via CAN to the correct parameters used for modbus
 
-  system_real_SOC_pptt = (LB_SOC * 10);  //increase LB_SOC range from 0-100.0 -> 100.00
+  datalayer.battery.status.real_soc = (LB_SOC * 10);  //increase LB_SOC range from 0-100.0 -> 100.00
 
   datalayer.battery.status.soh_pptt = (LB_SOH * 100);  //Increase range from 99% -> 99.00%
 
@@ -66,7 +66,7 @@ void update_values_battery() {  //This function maps all the values fetched via 
   datalayer.battery.info.total_capacity_Wh = BATTERY_WH_MAX;  //Hardcoded to header value
 
   datalayer.battery.status.remaining_capacity_Wh =
-      (uint16_t)((system_real_SOC_pptt / 10000) * datalayer.battery.info.total_capacity_Wh);
+      (uint16_t)((datalayer.battery.status.real_soc / 10000) * datalayer.battery.info.total_capacity_Wh);
 
   LB_Discharge_Power_Limit_Watts = (LB_Discharge_Power_Limit * 500);  //Convert value fetched from battery to watts
   /* Define power able to be discharged from battery */
@@ -76,7 +76,7 @@ void update_values_battery() {  //This function maps all the values fetched via 
   } else {
     datalayer.battery.status.max_discharge_power_W = LB_Discharge_Power_Limit_Watts;
   }
-  if (system_scaled_SOC_pptt == 0)  //Scaled SOC% value is 0.00%, we should not discharge battery further
+  if (datalayer.battery.status.reported_soc == 0)  //Scaled SOC% value is 0.00%, we should not discharge battery further
   {
     datalayer.battery.status.max_discharge_power_W = 0;
   }
@@ -89,7 +89,7 @@ void update_values_battery() {  //This function maps all the values fetched via 
   } else {
     datalayer.battery.status.max_charge_power_W = LB_Charge_Power_Limit_Watts;
   }
-  if (system_scaled_SOC_pptt == 10000)  //Scaled SOC% value is 100.00%
+  if (datalayer.battery.status.reported_soc == 10000)  //Scaled SOC% value is 100.00%
   {
     datalayer.battery.status.max_charge_power_W = 0;  //No need to charge further, set max power to 0
   }
@@ -132,7 +132,7 @@ void update_values_battery() {  //This function maps all the values fetched via 
   Serial.print("SOH%: ");
   Serial.print(datalayer.battery.status.soh_pptt);
   Serial.print(", SOC% scaled: ");
-  Serial.print(system_scaled_SOC_pptt);
+  Serial.print(datalayer.battery.status.reported_soc);
   Serial.print(", Voltage: ");
   Serial.print(datalayer.battery.status.voltage_dV);
   Serial.print(", Max discharge power: ");

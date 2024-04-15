@@ -165,7 +165,7 @@ void update_values_battery() { /* This function maps all the values fetched via 
 
   datalayer.battery.status.soh_pptt = (LB_StateOfHealth * 100);  //Increase range from 99% -> 99.00%
 
-  system_real_SOC_pptt = (LB_SOC * 10);
+  datalayer.battery.status.real_soc = (LB_SOC * 10);
 
   datalayer.battery.status.voltage_dV =
       (LB_Total_Voltage2 * 5);  //0.5V/bit, multiply by 5 to get Voltage+1decimal (350.5V = 701)
@@ -212,7 +212,8 @@ void update_values_battery() { /* This function maps all the values fetched via 
   } else {
     datalayer.battery.status.max_discharge_power_W = (LB_Discharge_Power_Limit * 1000);  //kW to W
   }
-  if (system_scaled_SOC_pptt == 0) {  //Scaled SOC% value is 0.00%, we should not discharge battery further
+  if (datalayer.battery.status.reported_soc ==
+      0) {  //Scaled SOC% value is 0.00%, we should not discharge battery further
     datalayer.battery.status.max_discharge_power_W = 0;
   }
 
@@ -222,7 +223,7 @@ void update_values_battery() { /* This function maps all the values fetched via 
   } else {
     datalayer.battery.status.max_charge_power_W = (LB_Charge_Power_Limit * 1000);  //kW to W
   }
-  if (system_scaled_SOC_pptt == 10000)  //Scaled SOC% value is 100.00%
+  if (datalayer.battery.status.reported_soc == 10000)  //Scaled SOC% value is 100.00%
   {
     datalayer.battery.status.max_charge_power_W = 0;  //No need to charge further, set max power to 0
   }
@@ -236,7 +237,7 @@ void update_values_battery() { /* This function maps all the values fetched via 
   if (LB_GIDS < 10)  //700Wh left in battery!
   {                  //Battery is running abnormally low, some discharge logic might have failed. Zero it all out.
     set_event(EVENT_BATTERY_EMPTY, 0);
-    system_real_SOC_pptt = 0;
+    datalayer.battery.status.real_soc = 0;
     datalayer.battery.status.max_discharge_power_W = 0;
   }
 
@@ -355,7 +356,7 @@ void update_values_battery() { /* This function maps all the values fetched via 
 #ifdef DEBUG_VIA_USB
   Serial.println("Values going to inverter");
   print_with_units("SOH%: ", (datalayer.battery.status.soh_pptt * 0.01), "% ");
-  print_with_units(", SOC% scaled: ", (system_scaled_SOC_pptt * 0.01), "% ");
+  print_with_units(", SOC% scaled: ", (datalayer.battery.status.reported_soc * 0.01), "% ");
   print_with_units(", Voltage: ", (datalayer.battery.status.voltage_dV * 0.1), "V ");
   print_with_units(", Max discharge power: ", datalayer.battery.status.max_discharge_power_W, "W ");
   print_with_units(", Max charge power: ", datalayer.battery.status.max_charge_power_W, "W ");

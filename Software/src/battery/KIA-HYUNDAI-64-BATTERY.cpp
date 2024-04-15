@@ -147,7 +147,7 @@ CAN_frame_t KIA64_7E4_ack = {
 
 void update_values_battery() {  //This function maps all the values fetched via CAN to the correct parameters used for modbus
 
-  system_real_SOC_pptt = (SOC_Display * 10);  //increase SOC range from 0-100.0 -> 100.00
+  datalayer.battery.status.real_soc = (SOC_Display * 10);  //increase SOC range from 0-100.0 -> 100.00
 
   datalayer.battery.status.soh_pptt = (batterySOH * 10);  //Increase decimals from 100.0% -> 100.00%
 
@@ -158,17 +158,17 @@ void update_values_battery() {  //This function maps all the values fetched via 
   datalayer.battery.info.total_capacity_Wh = BATTERY_WH_MAX;
 
   datalayer.battery.status.remaining_capacity_Wh =
-      static_cast<int>((static_cast<double>(system_real_SOC_pptt) / 10000) * BATTERY_WH_MAX);
+      static_cast<int>((static_cast<double>(datalayer.battery.status.real_soc) / 10000) * BATTERY_WH_MAX);
 
   //datalayer.battery.status.max_charge_power_W = (uint16_t)allowedChargePower * 10;  //From kW*100 to Watts
   //The allowed charge power is not available. We estimate this value
-  if (system_scaled_SOC_pptt == 10000) {  // When scaled SOC is 100%, set allowed charge power to 0
+  if (datalayer.battery.status.reported_soc == 10000) {  // When scaled SOC is 100%, set allowed charge power to 0
     datalayer.battery.status.max_charge_power_W = 0;
   } else {  // No limits, max charging power allowed
     datalayer.battery.status.max_charge_power_W = MAXCHARGEPOWERALLOWED;
   }
   //datalayer.battery.status.max_discharge_power_W = (uint16_t)allowedDischargePower * 10;  //From kW*100 to Watts
-  if (system_scaled_SOC_pptt < 100) {  // When scaled SOC is <1%, set allowed charge power to 0
+  if (datalayer.battery.status.reported_soc < 100) {  // When scaled SOC is <1%, set allowed charge power to 0
     datalayer.battery.status.max_discharge_power_W = 0;
   } else {  // No limits, max charging power allowed
     datalayer.battery.status.max_discharge_power_W = MAXDISCHARGEPOWERALLOWED;

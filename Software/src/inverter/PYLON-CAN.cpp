@@ -197,12 +197,12 @@ void update_values_can_pylon() {  //This function maps all the values fetched fr
   PYLON_4211.data.u8[3] = (datalayer.battery.status.current_dA & 0x00FF);
 
   //SOC (100.00%)
-  PYLON_4210.data.u8[6] = (system_scaled_SOC_pptt * 0.01);  //Remove decimals
-  PYLON_4211.data.u8[6] = (system_scaled_SOC_pptt * 0.01);  //Remove decimals
+  PYLON_4210.data.u8[6] = (datalayer.battery.status.reported_soc / 100);  //Remove decimals
+  PYLON_4211.data.u8[6] = (datalayer.battery.status.reported_soc / 100);  //Remove decimals
 
   //StateOfHealth (100.00%)
-  PYLON_4210.data.u8[7] = (datalayer.battery.status.soh_pptt * 0.01);
-  PYLON_4211.data.u8[7] = (datalayer.battery.status.soh_pptt * 0.01);
+  PYLON_4210.data.u8[7] = (datalayer.battery.status.soh_pptt / 100);
+  PYLON_4211.data.u8[7] = (datalayer.battery.status.soh_pptt / 100);
 
 #ifdef INVERT_VOLTAGE  //Useful for Sofar inverters \
                        //Maxvoltage (eg 400.0V = 4000 , 16bits long) Discharge Cutoff Voltage

@@ -12,7 +12,6 @@
 //  https://github.com/mackelec/SerialDataLink
 
 // These parameters need to be mapped on the battery side
-extern uint16_t system_real_SOC_pptt;       //SOC%, 0-100.00 (0-10000)
 extern bool system_LFP_Chemistry;           //Set to true or false depending on cell chemistry
 extern bool batteryAllowsContactorClosing;  //Bool, 1=true, 0=false
 

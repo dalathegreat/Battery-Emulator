@@ -62,10 +62,14 @@
 extern volatile uint32_t BATTERY_WH_MAX;
 extern volatile uint16_t MAXPERCENTAGE;
 extern volatile uint16_t MINPERCENTAGE;
+
+#define BATTERY_USE_SCALED_SOC true
+#define BATTERY_MAXPERCENTAGE 8000
+#define BATTERY_MINPERCENTAGE 2000
+
 extern volatile uint16_t MAXCHARGEAMP;
 extern volatile uint16_t MAXDISCHARGEAMP;
 extern volatile uint8_t AccessPointEnabled;
-extern volatile bool USE_SCALED_SOC;
 
 /* Charger limits (Optional): Set in the USER_SETTINGS.cpp or later in the webserver */
 extern volatile float charger_setpoint_HV_VDC;

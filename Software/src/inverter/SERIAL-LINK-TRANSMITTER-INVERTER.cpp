@@ -129,7 +129,7 @@ void manageSerialLinkTransmitter() {
 
     if (currentTime - updateDataTime > INTERVAL_1_S) {
       updateDataTime = currentTime;
-      dataLinkTransmit.updateData(0, system_real_SOC_pptt);
+      dataLinkTransmit.updateData(0, datalayer.battery.status.real_soc);
       dataLinkTransmit.updateData(1, datalayer.battery.status.soh_pptt);
       dataLinkTransmit.updateData(2, datalayer.battery.status.voltage_dV);
       dataLinkTransmit.updateData(3, datalayer.battery.status.current_dA);
@@ -154,7 +154,7 @@ void manageSerialLinkTransmitter() {
 void printSendingValues() {
   Serial.println("Values from battery: ");
   Serial.print("SOC: ");
-  Serial.print(system_real_SOC_pptt);
+  Serial.print(datalayer.battery.status.real_soc);
   Serial.print(" SOH: ");
   Serial.print(datalayer.battery.status.soh_pptt);
   Serial.print(" Voltage: ");
