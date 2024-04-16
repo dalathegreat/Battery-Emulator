@@ -6,9 +6,6 @@
 
 #define BATTERY_SELECTED
 
-#define MAXCHARGEPOWERALLOWED 10000
-#define MAXDISCHARGEPOWERALLOWED 10000
-
 void setup_battery(void);
 
 #endif

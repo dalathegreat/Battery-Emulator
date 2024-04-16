@@ -26,8 +26,8 @@ static uint8_t CellVmaxNo = 0;
 static uint16_t CellVoltMin_mV = 3700;
 static uint8_t CellVminNo = 0;
 static uint16_t cell_deviation_mV = 0;
-static int16_t allowedDischargePower = 0;
-static int16_t allowedChargePower = 0;
+static uint16_t allowedDischargePower = 0;
+static uint16_t allowedChargePower = 0;
 static uint16_t batteryVoltage = 0;
 static int16_t batteryAmps = 0;
 static int16_t temperatureMax = 0;
@@ -158,18 +158,16 @@ void update_values_battery() {  //This function maps all the values fetched via 
   datalayer.battery.status.remaining_capacity_Wh = static_cast<uint32_t>(
       (static_cast<double>(datalayer.battery.status.real_soc) / 10000) * datalayer.battery.info.total_capacity_Wh);
 
-  //datalayer.battery.status.max_charge_power_W = (uint16_t)allowedChargePower * 10;  //From kW*100 to Watts
-  //The allowed charge power is not available. We estimate this value
   if (datalayer.battery.status.reported_soc == 10000) {  // When scaled SOC is 100%, set allowed charge power to 0
     datalayer.battery.status.max_charge_power_W = 0;
-  } else {  // No limits, max charging power allowed
-    datalayer.battery.status.max_charge_power_W = MAXCHARGEPOWERALLOWED;
+  } else {  // Limit according to CAN value
+    datalayer.battery.status.max_charge_power_W = allowedChargePower;
   }
-  //datalayer.battery.status.max_discharge_power_W = (uint16_t)allowedDischargePower * 10;  //From kW*100 to Watts
+
   if (datalayer.battery.status.reported_soc < 100) {  // When scaled SOC is <1%, set allowed charge power to 0
     datalayer.battery.status.max_discharge_power_W = 0;
-  } else {  // No limits, max charging power allowed
-    datalayer.battery.status.max_discharge_power_W = MAXDISCHARGEPOWERALLOWED;
+  } else {  // Limit according to CAN value
+    datalayer.battery.status.max_discharge_power_W = allowedDischargePower;
   }
 
   //Power in watts, Negative = charging batt
@@ -257,9 +255,9 @@ void update_values_battery() {  //This function maps all the values fetched via 
   Serial.print((int16_t)datalayer.battery.status.active_power_W);
   Serial.println(" Watts");
   Serial.print("Allowed Charge ");
-  Serial.print((uint16_t)allowedChargePower * 10);
+  Serial.print((uint16_t)allowedChargePower);
   Serial.print(" W  |  Allowed Discharge ");
-  Serial.print((uint16_t)allowedDischargePower * 10);
+  Serial.print((uint16_t)allowedDischargePower);
   Serial.println(" W");
   Serial.print("MaxCellVolt ");
   Serial.print(CellVoltMax_mV);
@@ -309,6 +307,8 @@ void receive_can_battery(CAN_frame_t rx_frame) {
       SOC_Display = rx_frame.data.u8[0] * 5;  //100% = 200 ( 200 * 5 = 1000 )
       break;
     case 0x594:
+      allowedChargePower = ((rx_frame.data.u8[0] << 8) + rx_frame.data.u8[1]);
+      allowedDischargePower = ((rx_frame.data.u8[2] << 8) + rx_frame.data.u8[3]);
       SOC_BMS = rx_frame.data.u8[5] * 5;  //100% = 200 ( 200 * 5 = 1000 )
       break;
     case 0x595:
@@ -365,8 +365,6 @@ void receive_can_battery(CAN_frame_t rx_frame) {
           break;
         case 0x21:  //First frame in PID group
           if (poll_data_pid == 1) {
-            allowedChargePower = ((rx_frame.data.u8[3] << 8) + rx_frame.data.u8[4]);
-            allowedDischargePower = ((rx_frame.data.u8[5] << 8) + rx_frame.data.u8[6]);
             batteryRelay = rx_frame.data.u8[7];
           } else if (poll_data_pid == 2) {
             cellvoltages_mv[0] = (rx_frame.data.u8[2] * 20);
