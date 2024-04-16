@@ -26,6 +26,7 @@ enum led_color { GREEN, YELLOW, RED, BLUE, RGB };
 #define INTERVAL_20_MS_DELAYED 30
 #define INTERVAL_30_MS_DELAYED 40
 #define INTERVAL_100_MS_DELAYED 120
+#define INTERVAL_500_MS_DELAYED 550
 
 #define MAX_CAN_FAILURES 500  // Amount of malformed CAN messages to allow before raising a warning
 
