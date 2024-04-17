@@ -161,13 +161,13 @@ void update_values_battery() {  //This function maps all the values fetched via 
   if (datalayer.battery.status.reported_soc == 10000) {  // When scaled SOC is 100%, set allowed charge power to 0
     datalayer.battery.status.max_charge_power_W = 0;
   } else {  // Limit according to CAN value
-    datalayer.battery.status.max_charge_power_W = allowedChargePower;
+    datalayer.battery.status.max_charge_power_W = allowedChargePower * 10;
   }
 
   if (datalayer.battery.status.reported_soc < 100) {  // When scaled SOC is <1%, set allowed charge power to 0
     datalayer.battery.status.max_discharge_power_W = 0;
   } else {  // Limit according to CAN value
-    datalayer.battery.status.max_discharge_power_W = allowedDischargePower;
+    datalayer.battery.status.max_discharge_power_W = allowedDischargePower * 10;
   }
 
   //Power in watts, Negative = charging batt
@@ -307,8 +307,8 @@ void receive_can_battery(CAN_frame_t rx_frame) {
       SOC_Display = rx_frame.data.u8[0] * 5;  //100% = 200 ( 200 * 5 = 1000 )
       break;
     case 0x594:
-      allowedChargePower = ((rx_frame.data.u8[0] << 8) + rx_frame.data.u8[1]);
-      allowedDischargePower = ((rx_frame.data.u8[2] << 8) + rx_frame.data.u8[3]);
+      allowedChargePower = ((rx_frame.data.u8[1] << 8) | rx_frame.data.u8[0]);
+      allowedDischargePower = ((rx_frame.data.u8[3] << 8) | rx_frame.data.u8[2]);
       SOC_BMS = rx_frame.data.u8[5] * 5;  //100% = 200 ( 200 * 5 = 1000 )
       break;
     case 0x595:
