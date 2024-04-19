@@ -144,6 +144,8 @@ void setup() {
 
   esp_task_wdt_deinit();  // Disable watchdog
 
+  check_reset_reason();
+
   xTaskCreatePinnedToCore((TaskFunction_t)&core_loop, "core_loop", 4096, &core_task_time_us, TASK_CORE_PRIO,
                           &main_loop_task, CORE_FUNCTION_CORE);
 }
@@ -699,4 +701,42 @@ void storeSettings() {
   settings.putBool("USE_SCALED_SOC", datalayer.battery.settings.soc_scaling_active);
 
   settings.end();
+}
+
+/** Reset reason numbering and description
+ * 
+ typedef enum {
+  ESP_RST_UNKNOWN,    //!< 0  Reset reason can not be determined
+  ESP_RST_POWERON,    //!< 1  OK Reset due to power-on event
+  ESP_RST_EXT,        //!< 2  Reset by external pin (not applicable for ESP32)
+  ESP_RST_SW,         //!< 3  OK Software reset via esp_restart
+  ESP_RST_PANIC,      //!< 4  Software reset due to exception/panic
+  ESP_RST_INT_WDT,    //!< 5  Reset (software or hardware) due to interrupt watchdog
+  ESP_RST_TASK_WDT,   //!< 6  Reset due to task watchdog
+  ESP_RST_WDT,        //!< 7  Reset due to other watchdogs
+  ESP_RST_DEEPSLEEP,  //!< 8  Reset after exiting deep sleep mode
+  ESP_RST_BROWNOUT,   //!< 9  Brownout reset (software or hardware)
+  ESP_RST_SDIO,       //!< 10 OK? Reset over SDIO
+} esp_reset_reason_t;
+*/
+void check_reset_reason() {
+  esp_reset_reason_t reason = esp_reset_reason();
+  set_event(EVENT_RESET, reason);
+  switch (reason) {
+    case ESP_RST_POWERON:
+    case ESP_RST_SW:
+    case ESP_RST_SDIO:
+      break;
+    case ESP_RST_EXT:
+    case ESP_RST_UNKNOWN:
+    case ESP_RST_PANIC:
+    case ESP_RST_INT_WDT:
+    case ESP_RST_TASK_WDT:
+    case ESP_RST_WDT:
+    case ESP_RST_DEEPSLEEP:
+    case ESP_RST_BROWNOUT:
+    default:
+      set_event(EVENT_UNEXPECTED_RESET, reason);
+      break;
+  }
 }

@@ -169,6 +169,8 @@ void init_events(void) {
   events.entries[EVENT_SERIAL_TX_FAILURE].level = EVENT_LEVEL_ERROR;
   events.entries[EVENT_SERIAL_TRANSMITTER_FAILURE].level = EVENT_LEVEL_ERROR;
   events.entries[EVENT_EEPROM_WRITE].level = EVENT_LEVEL_INFO;
+  events.entries[EVENT_UNEXPECTED_RESET].level = EVENT_LEVEL_WARNING;
+  events.entries[EVENT_RESET].level = EVENT_LEVEL_INFO;
 
   events.entries[EVENT_EEPROM_WRITE].log = false;  // Don't log the logger...
 
@@ -277,6 +279,11 @@ const char* get_event_message_string(EVENTS_ENUM_TYPE event) {
       return "OTA update timed out!";
     case EVENT_EEPROM_WRITE:
       return "Info: The EEPROM was written";
+    case EVENT_UNEXPECTED_RESET:
+      return "The board reset unexpectedly! See Data for reset reason number, see Software.ino::check_reset_reason() "
+             "for name";
+    case EVENT_RESET:
+      return "Info: Reason for reset. Match number in Data column with text in Software.ino::check_reset_reason()";
     default:
       return "";
   }
