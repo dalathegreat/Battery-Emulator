@@ -255,9 +255,9 @@ void update_values_battery() {  //This function maps all the values fetched via 
   Serial.print((int16_t)datalayer.battery.status.active_power_W);
   Serial.println(" Watts");
   Serial.print("Allowed Charge ");
-  Serial.print((uint16_t)allowedChargePower);
+  Serial.print((uint16_t)allowedChargePower * 10);
   Serial.print(" W  |  Allowed Discharge ");
-  Serial.print((uint16_t)allowedDischargePower);
+  Serial.print((uint16_t)allowedDischargePower * 10);
   Serial.println(" W");
   Serial.print("MaxCellVolt ");
   Serial.print(CellVoltMax_mV);
