@@ -143,6 +143,7 @@ void init_events(void) {
   events.entries[EVENT_BATTERY_CHG_STOP_REQ].level = EVENT_LEVEL_ERROR;
   events.entries[EVENT_BATTERY_DISCHG_STOP_REQ].level = EVENT_LEVEL_ERROR;
   events.entries[EVENT_BATTERY_CHG_DISCHG_STOP_REQ].level = EVENT_LEVEL_ERROR;
+  events.entries[EVENT_VOLTAGE_DIFFERENCE].level = EVENT_LEVEL_INFO;
   events.entries[EVENT_LOW_SOH].level = EVENT_LEVEL_ERROR;
   events.entries[EVENT_HVIL_FAILURE].level = EVENT_LEVEL_ERROR;
   events.entries[EVENT_INTERNAL_OPEN_FAULT].level = EVENT_LEVEL_ERROR;
@@ -227,6 +228,8 @@ const char* get_event_message_string(EVENTS_ENUM_TYPE event) {
       return "Info: COLD BATTERY! Battery requesting heating pads to activate!";
     case EVENT_BATTERY_WARMED_UP:
       return "Info: Battery requesting heating pads to stop. The battery is now warm enough.";
+    case EVENT_VOLTAGE_DIFFERENCE:
+      return "Info: Too large voltage diff between the batteries. Second battery cannot join the DC-link";
     case EVENT_LOW_SOH:
       return "ERROR: State of health critically low. Battery internal resistance too high to continue. Recycle "
              "battery.";

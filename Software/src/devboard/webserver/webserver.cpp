@@ -599,7 +599,7 @@ String processor(const String& var) {
     socRealFloat =
         static_cast<float>(datalayer.battery2.status.real_soc) / 100.0;  // Convert to float and divide by 100
     socScaledFloat =
-        static_cast<float>(datalayer.battery2.status.reported_soc) / 100.0;     // Convert to float and divide by 100
+        static_cast<float>(datalayer.battery.status.reported_soc) / 100.0;      // Convert to float and divide by 100
     sohFloat = static_cast<float>(datalayer.battery2.status.soh_pptt) / 100.0;  // Convert to float and divide by 100
     voltageFloat =
         static_cast<float>(datalayer.battery2.status.voltage_dV) / 10.0;  // Convert to float and divide by 10

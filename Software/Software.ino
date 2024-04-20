@@ -619,9 +619,19 @@ void send_can2() {
 
 #ifdef DOUBLE_BATTERY
 void handle_CAN_contactors() {
-  if (abs(datalayer.battery.status.voltage_dV - datalayer.battery2.status.voltage_dV) < 50) {
-    datalayer.system.status.battery2_allows_contactor_closing = true;
-  }  //TODO: Shall we handle opening incase of fault here?
+  if (datalayer.battery.status.voltage_dV == 0 || datalayer.battery2.status.voltage_dV == 0) {
+    return;  // Both voltage values need to be available to start check
+  }
+
+  if (abs(datalayer.battery.status.voltage_dV - datalayer.battery2.status.voltage_dV) < 30) {  // If we are within 3.0V
+    clear_event(EVENT_VOLTAGE_DIFFERENCE);
+    if (datalayer.battery2.status.bms_status != FAULT) {  // Only proceed if BMS on battery2 is not faulted
+      datalayer.system.status.battery2_allows_contactor_closing = true;
+    }
+  } else {  //We are over 3.0V diff
+    set_event(EVENT_VOLTAGE_DIFFERENCE,
+              (uint8_t)(abs(datalayer.battery.status.voltage_dV - datalayer.battery2.status.voltage_dV) / 10));
+  }
 }
 #endif
 
@@ -744,7 +754,29 @@ void update_SOC() {
     datalayer.battery.status.reported_soc = calc_soc;
   } else {  // No SOC window wanted. Set scaled to same as real.
     datalayer.battery.status.reported_soc = datalayer.battery.status.real_soc;
+#ifdef DOUBLE_BATTERY
+    datalayer.battery.status.reported_soc =
+        (datalayer.battery.status.real_soc + datalayer.battery2.status.real_soc) / 2;
+#endif
   }
+#ifdef DOUBLE_BATTERY
+  datalayer.battery.status.reported_soc = (datalayer.battery.status.real_soc + datalayer.battery2.status.real_soc) / 2;
+
+  if (datalayer.battery.status.real_soc < 100) {  //If this battery is under 1.00%, use this as SOC instead of average
+    datalayer.battery.status.reported_soc = datalayer.battery.status.real_soc;
+  }
+  if (datalayer.battery2.status.real_soc < 100) {  //If this battery is under 1.00%, use this as SOC instead of average
+    datalayer.battery.status.reported_soc = datalayer.battery2.status.real_soc;
+  }
+
+  if (datalayer.battery.status.real_soc > 9900) {  //If this battery is over 99.00%, use this as SOC instead of average
+    datalayer.battery.status.reported_soc = datalayer.battery.status.real_soc;
+  }
+  if (datalayer.battery2.status.real_soc > 9900) {  //If this battery is over 99.00%, use this as SOC instead of average
+    datalayer.battery.status.reported_soc = datalayer.battery2.status.real_soc;
+  }
+
+#endif  //TODO: Constrain according to the user settings. Help wanted on algoritm to use.
 }
 
 void summarize_battery_values() {

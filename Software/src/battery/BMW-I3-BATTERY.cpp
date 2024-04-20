@@ -7,26 +7,18 @@
 #include "BMW-I3-BATTERY.h"
 
 /* Do not change code below unless you are sure what you are doing */
-static unsigned long previousMillis20 = 0;       // will store last time a 20ms CAN Message was send
-static unsigned long previousMillis100 = 0;      // will store last time a 100ms CAN Message was send
-static unsigned long previousMillis200 = 0;      // will store last time a 200ms CAN Message was send
-static unsigned long previousMillis500 = 0;      // will store last time a 500ms CAN Message was send
-static unsigned long previousMillis640 = 0;      // will store last time a 600ms CAN Message was send
-static unsigned long previousMillis1000 = 0;     // will store last time a 1000ms CAN Message was send
-static unsigned long previousMillis5000 = 0;     // will store last time a 5000ms CAN Message was send
-static unsigned long previousMillis10000 = 0;    // will store last time a 10000ms CAN Message was send
-static uint8_t CANstillAlive = 12;               // counter for checking if CAN is still alive
-static unsigned long previousMillis20_2 = 0;     // will store last time a 20ms CAN Message was send
-static unsigned long previousMillis100_2 = 0;    // will store last time a 100ms CAN Message was send
-static unsigned long previousMillis200_2 = 0;    // will store last time a 200ms CAN Message was send
-static unsigned long previousMillis500_2 = 0;    // will store last time a 500ms CAN Message was send
-static unsigned long previousMillis640_2 = 0;    // will store last time a 600ms CAN Message was send
-static unsigned long previousMillis1000_2 = 0;   // will store last time a 1000ms CAN Message was send
-static unsigned long previousMillis5000_2 = 0;   // will store last time a 5000ms CAN Message was send
-static unsigned long previousMillis10000_2 = 0;  // will store last time a 10000ms CAN Message was send
-static uint8_t CAN2stillAlive = 12;              // counter for checking if CAN2 is still alive
-static uint16_t CANerror = 0;                    // counter on how many CAN errors encountered
-#define ALIVE_MAX_VALUE 14                       // BMW CAN messages contain alive counter, goes from 0...14
+static unsigned long previousMillis20 = 0;     // will store last time a 20ms CAN Message was send
+static unsigned long previousMillis100 = 0;    // will store last time a 100ms CAN Message was send
+static unsigned long previousMillis200 = 0;    // will store last time a 200ms CAN Message was send
+static unsigned long previousMillis500 = 0;    // will store last time a 500ms CAN Message was send
+static unsigned long previousMillis640 = 0;    // will store last time a 600ms CAN Message was send
+static unsigned long previousMillis1000 = 0;   // will store last time a 1000ms CAN Message was send
+static unsigned long previousMillis5000 = 0;   // will store last time a 5000ms CAN Message was send
+static unsigned long previousMillis10000 = 0;  // will store last time a 10000ms CAN Message was send
+static uint8_t CANstillAlive = 12;             // counter for checking if CAN is still alive
+static uint8_t CAN2stillAlive = 12;            // counter for checking if CAN2 is still alive
+static uint16_t CANerror = 0;                  // counter on how many CAN errors encountered
+#define ALIVE_MAX_VALUE 14                     // BMW CAN messages contain alive counter, goes from 0...14
 
 enum CmdState { SOH, CELL_VOLTAGE, SOC, CELL_VOLTAGE_AVG };
 static CmdState cmdState = SOH;
@@ -533,6 +525,7 @@ void update_values_battery2() {  //This function maps all the values fetched via
   if (!CAN2stillAlive) {
     set_event(EVENT_CAN2_RX_FAILURE, 2);
     datalayer.battery2.status.bms_status = FAULT;  //TODO: Refactor handling of event for battery2
+    datalayer.system.status.battery2_allows_contactor_closing = false;
   } else {
     CAN2stillAlive--;
     clear_event(EVENT_CAN2_RX_FAILURE);
@@ -788,7 +781,8 @@ void receive_can_battery2(CAN_frame_t rx_frame) {
       CAN2stillAlive = 12;  //This message is only sent if 30C (Wakeup pin on battery) is energized with 12V
       battery2_current = (rx_frame.data.u8[1] << 8 | rx_frame.data.u8[0]) - 8192;  //deciAmps (-819.2 to 819.0A)
       battery2_volts = (rx_frame.data.u8[3] << 8 | rx_frame.data.u8[2]);           //500.0 V
-      datalayer.battery2.status.voltage_dV = battery2_volts;  // Update the datalayer as soon as possible with this info
+      datalayer.battery2.status.voltage_dV =
+          battery2_volts;  // Update the datalayer as soon as possible with this info, needed for contactor control
       battery2_HVBatt_SOC = ((rx_frame.data.u8[5] & 0x0F) << 8 | rx_frame.data.u8[4]);
       battery2_request_open_contactors = (rx_frame.data.u8[5] & 0xC0) >> 6;
       battery2_request_open_contactors_instantly = (rx_frame.data.u8[6] & 0x03);
