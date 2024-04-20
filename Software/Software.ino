@@ -217,6 +217,9 @@ void core_loop(void* task_time_us) {
 #ifdef CONTACTOR_CONTROL
       handle_contactors();  // Take care of startup precharge/contactor closing
 #endif
+#ifdef DOUBLE_BATTERY
+      handle_CAN_contactors();
+#endif
     }
     END_TIME_MEASUREMENT_MAX(time_10ms, datalayer.system.status.time_10ms_us);
 
@@ -591,6 +594,9 @@ void receive_can2() {  // This function is similar to receive_can, but just take
 #ifdef BYD_CAN
       receive_can_byd(rx_frame2);
 #endif
+#ifdef DOUBLE_BATTERY
+      receive_can_battery2(rx_frame2);
+#endif
     } else {  // New extended frame
 #ifdef PYLON_CAN
       receive_can_pylon(rx_frame2);
@@ -608,6 +614,14 @@ void send_can2() {
 #ifdef BYD_CAN
   send_can_byd();
 #endif
+}
+#endif
+
+#ifdef DOUBLE_BATTERY
+void handle_CAN_contactors() {
+  if (abs(datalayer.battery.status.voltage_dV - datalayer.battery2.status.voltage_dV) < 50) {
+    datalayer.system.status.battery2_allows_contactor_closing = true;
+  }  //TODO: Shall we handle opening incase of fault here?
 }
 #endif
 
@@ -733,9 +747,17 @@ void update_SOC() {
   }
 }
 
+void summarize_battery_values() {
+  // TODO: What needs to be summed?
+}
+
 void update_values() {
   // Battery
-  update_values_battery();  // Map the fake values to the correct registers
+  update_values_battery();
+#ifdef DOUBLE_BATTERY
+  update_values_battery2();
+  summarize_battery_values();
+#endif
   // Inverter
 #ifdef BYD_CAN
   update_values_can_byd();

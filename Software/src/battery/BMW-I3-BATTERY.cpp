@@ -7,24 +7,26 @@
 #include "BMW-I3-BATTERY.h"
 
 /* Do not change code below unless you are sure what you are doing */
-static unsigned long previousMillis20 = 0;     // will store last time a 20ms CAN Message was send
-static unsigned long previousMillis100 = 0;    // will store last time a 100ms CAN Message was send
-static unsigned long previousMillis200 = 0;    // will store last time a 200ms CAN Message was send
-static unsigned long previousMillis500 = 0;    // will store last time a 500ms CAN Message was send
-static unsigned long previousMillis640 = 0;    // will store last time a 600ms CAN Message was send
-static unsigned long previousMillis1000 = 0;   // will store last time a 1000ms CAN Message was send
-static unsigned long previousMillis5000 = 0;   // will store last time a 5000ms CAN Message was send
-static unsigned long previousMillis10000 = 0;  // will store last time a 10000ms CAN Message was send
-static uint8_t CANstillAlive = 12;             // counter for checking if CAN is still alive
-static uint16_t CANerror = 0;                  // counter on how many CAN errors encountered
-#define ALIVE_MAX_VALUE 14                     // BMW CAN messages contain alive counter, goes from 0...14
-
-static const uint16_t WUPonDuration = 477;   // in milliseconds how long WUP should be ON after poweron
-static const uint16_t WUPoffDuration = 105;  // in milliseconds how long WUP should be OFF after on pulse
-unsigned long lastChangeTime;                // Variables to store timestamps
-unsigned long turnOnTime;                    // Variables to store timestamps
-enum State { POWERON, STATE_ON, STATE_OFF };
-static State WUPState = POWERON;
+static unsigned long previousMillis20 = 0;       // will store last time a 20ms CAN Message was send
+static unsigned long previousMillis100 = 0;      // will store last time a 100ms CAN Message was send
+static unsigned long previousMillis200 = 0;      // will store last time a 200ms CAN Message was send
+static unsigned long previousMillis500 = 0;      // will store last time a 500ms CAN Message was send
+static unsigned long previousMillis640 = 0;      // will store last time a 600ms CAN Message was send
+static unsigned long previousMillis1000 = 0;     // will store last time a 1000ms CAN Message was send
+static unsigned long previousMillis5000 = 0;     // will store last time a 5000ms CAN Message was send
+static unsigned long previousMillis10000 = 0;    // will store last time a 10000ms CAN Message was send
+static uint8_t CANstillAlive = 12;               // counter for checking if CAN is still alive
+static unsigned long previousMillis20_2 = 0;     // will store last time a 20ms CAN Message was send
+static unsigned long previousMillis100_2 = 0;    // will store last time a 100ms CAN Message was send
+static unsigned long previousMillis200_2 = 0;    // will store last time a 200ms CAN Message was send
+static unsigned long previousMillis500_2 = 0;    // will store last time a 500ms CAN Message was send
+static unsigned long previousMillis640_2 = 0;    // will store last time a 600ms CAN Message was send
+static unsigned long previousMillis1000_2 = 0;   // will store last time a 1000ms CAN Message was send
+static unsigned long previousMillis5000_2 = 0;   // will store last time a 5000ms CAN Message was send
+static unsigned long previousMillis10000_2 = 0;  // will store last time a 10000ms CAN Message was send
+static uint8_t CAN2stillAlive = 12;              // counter for checking if CAN2 is still alive
+static uint16_t CANerror = 0;                    // counter on how many CAN errors encountered
+#define ALIVE_MAX_VALUE 14                       // BMW CAN messages contain alive counter, goes from 0...14
 
 enum CmdState { SOH, CELL_VOLTAGE, SOC, CELL_VOLTAGE_AVG };
 static CmdState cmdState = SOH;
@@ -323,6 +325,7 @@ static uint8_t BMW_13E_counter = 0;
 static uint8_t BMW_380_counter = 0;
 static uint32_t BMW_328_counter = 0;
 static bool battery_awake = false;
+static bool battery2_awake = false;
 
 static uint32_t battery_serial_number = 0;
 static uint32_t battery_available_power_shortterm_charge = 0;
@@ -353,7 +356,6 @@ static uint16_t battery_soc = 0;
 static uint16_t battery_soc_hvmax = 0;
 static uint16_t battery_soc_hvmin = 0;
 static uint16_t battery_capacity_cah = 0;
-
 static int16_t battery_temperature_HV = 0;
 static int16_t battery_temperature_heat_exchanger = 0;
 static int16_t battery_temperature_max = 0;
@@ -394,6 +396,75 @@ static uint8_t battery_ID2 = 0;
 static uint8_t battery_cellvoltage_mux = 0;
 static uint8_t battery_soh = 0;
 
+static uint32_t battery2_serial_number = 0;
+static uint32_t battery2_available_power_shortterm_charge = 0;
+static uint32_t battery2_available_power_shortterm_discharge = 0;
+static uint32_t battery2_available_power_longterm_charge = 0;
+static uint32_t battery2_available_power_longterm_discharge = 0;
+static uint32_t battery2_BEV_available_power_shortterm_charge = 0;
+static uint32_t battery2_BEV_available_power_shortterm_discharge = 0;
+static uint32_t battery2_BEV_available_power_longterm_charge = 0;
+static uint32_t battery2_BEV_available_power_longterm_discharge = 0;
+static uint16_t battery2_energy_content_maximum_kWh = 0;
+static uint16_t battery2_display_SOC = 0;
+static uint16_t battery2_volts = 0;
+static uint16_t battery2_HVBatt_SOC = 0;
+static uint16_t battery2_DC_link_voltage = 0;
+static uint16_t battery2_max_charge_voltage = 0;
+static uint16_t battery2_min_discharge_voltage = 0;
+static uint16_t battery2_predicted_energy_charge_condition = 0;
+static uint16_t battery2_predicted_energy_charging_target = 0;
+static uint16_t battery2_actual_value_power_heating = 0;  //0 - 4094 W
+static uint16_t battery2_prediction_voltage_shortterm_charge = 0;
+static uint16_t battery2_prediction_voltage_shortterm_discharge = 0;
+static uint16_t battery2_prediction_voltage_longterm_charge = 0;
+static uint16_t battery2_prediction_voltage_longterm_discharge = 0;
+static uint16_t battery2_prediction_duration_charging_minutes = 0;
+static uint16_t battery2_target_voltage_in_CV_mode = 0;
+static uint16_t battery2_soc = 0;
+static uint16_t battery2_soc_hvmax = 0;
+static uint16_t battery2_soc_hvmin = 0;
+static uint16_t battery2_capacity_cah = 0;
+static int16_t battery2_temperature_HV = 0;
+static int16_t battery2_temperature_heat_exchanger = 0;
+static int16_t battery2_temperature_max = 0;
+static int16_t battery2_temperature_min = 0;
+static int16_t battery2_max_charge_amperage = 0;
+static int16_t battery2_max_discharge_amperage = 0;
+static int16_t battery2_power = 0;
+static int16_t battery2_current = 0;
+static uint8_t battery2_status_error_isolation_external_Bordnetz = 0;
+static uint8_t battery2_status_error_isolation_internal_Bordnetz = 0;
+static uint8_t battery2_request_cooling = 0;
+static uint8_t battery2_status_valve_cooling = 0;
+static uint8_t battery2_status_error_locking = 0;
+static uint8_t battery2_status_precharge_locked = 0;
+static uint8_t battery2_status_disconnecting_switch = 0;
+static uint8_t battery2_status_emergency_mode = 0;
+static uint8_t battery2_request_service = 0;
+static uint8_t battery2_error_emergency_mode = 0;
+static uint8_t battery2_status_error_disconnecting_switch = 0;
+static uint8_t battery2_status_warning_isolation = 0;
+static uint8_t battery2_status_cold_shutoff_valve = 0;
+static uint8_t battery2_request_open_contactors = 0;
+static uint8_t battery2_request_open_contactors_instantly = 0;
+static uint8_t battery2_request_open_contactors_fast = 0;
+static uint8_t battery2_charging_condition_delta = 0;
+static uint8_t battery2_status_service_disconnection_plug = 0;
+static uint8_t battery2_status_measurement_isolation = 0;
+static uint8_t battery2_request_abort_charging = 0;
+static uint8_t battery2_prediction_time_end_of_charging_minutes = 0;
+static uint8_t battery2_request_operating_mode = 0;
+static uint8_t battery2_request_charging_condition_minimum = 0;
+static uint8_t battery2_request_charging_condition_maximum = 0;
+static uint8_t battery2_status_cooling_HV = 0;      //1 works, 2 does not start
+static uint8_t battery2_status_diagnostics_HV = 0;  // 0 all OK, 1 HV protection function error, 2 diag not yet expired
+static uint8_t battery2_status_diagnosis_powertrain_maximum_multiplexer = 0;
+static uint8_t battery2_status_diagnosis_powertrain_immediate_multiplexer = 0;
+static uint8_t battery2_ID2 = 0;
+static uint8_t battery2_cellvoltage_mux = 0;
+static uint8_t battery2_soh = 0;
+
 static uint8_t message_data[50];
 static uint8_t next_data = 0;
 
@@ -413,7 +484,66 @@ static uint8_t increment_alive_counter(uint8_t counter) {
   return counter;
 }
 
-void update_values_battery() {  //This function maps all the values fetched via CAN to the correct parameters used for modbus
+void CAN_WriteFrame(CAN_frame_t* tx_frame) {
+  CANMessage MCP2515Frame;  //Struct with ACAN2515 library format, needed to use the MCP2515 library for CAN2
+  MCP2515Frame.id = tx_frame->MsgID;
+  //MCP2515Frame.ext = tx_frame->FIR.B.FF;
+  MCP2515Frame.len = tx_frame->FIR.B.DLC;
+  for (uint8_t i = 0; i < MCP2515Frame.len; i++) {
+    MCP2515Frame.data[i] = tx_frame->data.u8[i];
+  }
+  can.tryToSend(MCP2515Frame);
+}
+
+void update_values_battery2() {  //This function maps all the values fetched via CAN2 to the battery2 datalayer
+
+  datalayer.battery2.status.real_soc = (battery2_HVBatt_SOC * 10);
+
+  datalayer.battery2.status.voltage_dV = battery2_volts;  //Unit V+1 (5000 = 500.0V)
+
+  datalayer.battery2.status.current_dA = battery2_current;
+
+  datalayer.battery2.status.remaining_capacity_Wh = (battery2_energy_content_maximum_kWh * 1000);  // Convert kWh to Wh
+
+  datalayer.battery2.status.soh_pptt = battery2_soh * 100;
+
+  if (battery2_BEV_available_power_longterm_discharge > 65000) {
+    datalayer.battery2.status.max_discharge_power_W = 65000;
+  } else {
+    datalayer.battery2.status.max_discharge_power_W = battery2_BEV_available_power_longterm_discharge;
+  }
+  if (battery2_BEV_available_power_longterm_charge > 65000) {
+    datalayer.battery2.status.max_charge_power_W = 65000;
+  } else {
+    datalayer.battery2.status.max_charge_power_W = battery2_BEV_available_power_longterm_charge;
+  }
+
+  battery2_power = (datalayer.battery2.status.current_dA * (datalayer.battery2.status.voltage_dV / 100));
+
+  datalayer.battery2.status.active_power_W = battery2_power;
+
+  datalayer.battery2.status.temperature_min_dC = battery2_temperature_min * 10;  // Add a decimal
+
+  datalayer.battery2.status.temperature_max_dC = battery2_temperature_max * 10;  // Add a decimal
+
+  datalayer.battery2.status.cell_min_voltage_mV = datalayer.battery2.status.cell_voltages_mV[0];
+  datalayer.battery2.status.cell_max_voltage_mV = datalayer.battery2.status.cell_voltages_mV[1];
+
+  /* Check if the BMS is still sending CAN messages. If we go 60s without messages we raise an error*/
+  if (!CAN2stillAlive) {
+    set_event(EVENT_CAN2_RX_FAILURE, 2);
+    datalayer.battery2.status.bms_status = FAULT;  //TODO: Refactor handling of event for battery2
+  } else {
+    CAN2stillAlive--;
+    clear_event(EVENT_CAN2_RX_FAILURE);
+  }
+  // Check if we have encountered any malformed CAN messages
+  if (CANerror > MAX_CAN_FAILURES) {
+    set_event(EVENT_CAN_RX_WARNING, 2);
+  }
+}
+
+void update_values_battery() {  //This function maps all the values fetched via CAN to the battery datalayer
 
   datalayer.battery.status.real_soc = (battery_HVBatt_SOC * 10);
 
@@ -492,6 +622,7 @@ void receive_can_battery(CAN_frame_t rx_frame) {
       CANstillAlive = 12;  //This message is only sent if 30C (Wakeup pin on battery) is energized with 12V
       battery_current = (rx_frame.data.u8[1] << 8 | rx_frame.data.u8[0]) - 8192;  //deciAmps (-819.2 to 819.0A)
       battery_volts = (rx_frame.data.u8[3] << 8 | rx_frame.data.u8[2]);           //500.0 V
+      datalayer.battery.status.voltage_dV = battery_volts;  // Update the datalayer as soon as possible with this info
       battery_HVBatt_SOC = ((rx_frame.data.u8[5] & 0x0F) << 8 | rx_frame.data.u8[4]);
       battery_request_open_contactors = (rx_frame.data.u8[5] & 0xC0) >> 6;
       battery_request_open_contactors_instantly = (rx_frame.data.u8[6] & 0x03);
@@ -650,6 +781,172 @@ void receive_can_battery(CAN_frame_t rx_frame) {
       break;
   }
 }
+void receive_can_battery2(CAN_frame_t rx_frame) {
+  switch (rx_frame.MsgID) {
+    case 0x112:  //BMS [10ms] Status Of High-Voltage Battery - 2
+      battery2_awake = true;
+      CAN2stillAlive = 12;  //This message is only sent if 30C (Wakeup pin on battery) is energized with 12V
+      battery2_current = (rx_frame.data.u8[1] << 8 | rx_frame.data.u8[0]) - 8192;  //deciAmps (-819.2 to 819.0A)
+      battery2_volts = (rx_frame.data.u8[3] << 8 | rx_frame.data.u8[2]);           //500.0 V
+      datalayer.battery2.status.voltage_dV = battery2_volts;  // Update the datalayer as soon as possible with this info
+      battery2_HVBatt_SOC = ((rx_frame.data.u8[5] & 0x0F) << 8 | rx_frame.data.u8[4]);
+      battery2_request_open_contactors = (rx_frame.data.u8[5] & 0xC0) >> 6;
+      battery2_request_open_contactors_instantly = (rx_frame.data.u8[6] & 0x03);
+      battery2_request_open_contactors_fast = (rx_frame.data.u8[6] & 0x0C) >> 2;
+      battery2_charging_condition_delta = (rx_frame.data.u8[6] & 0xF0) >> 4;
+      battery2_DC_link_voltage = rx_frame.data.u8[7];
+      break;
+    case 0x1FA:  //BMS [1000ms] Status Of High-Voltage Battery - 1
+      battery2_status_error_isolation_external_Bordnetz = (rx_frame.data.u8[0] & 0x03);
+      battery2_status_error_isolation_internal_Bordnetz = (rx_frame.data.u8[0] & 0x0C) >> 2;
+      battery2_request_cooling = (rx_frame.data.u8[0] & 0x30) >> 4;
+      battery2_status_valve_cooling = (rx_frame.data.u8[0] & 0xC0) >> 6;
+      battery2_status_error_locking = (rx_frame.data.u8[1] & 0x03);
+      battery2_status_precharge_locked = (rx_frame.data.u8[1] & 0x0C) >> 2;
+      battery2_status_disconnecting_switch = (rx_frame.data.u8[1] & 0x30) >> 4;
+      battery2_status_emergency_mode = (rx_frame.data.u8[1] & 0xC0) >> 6;
+      battery2_request_service = (rx_frame.data.u8[2] & 0x03);
+      battery2_error_emergency_mode = (rx_frame.data.u8[2] & 0x0C) >> 2;
+      battery2_status_error_disconnecting_switch = (rx_frame.data.u8[2] & 0x30) >> 4;
+      battery2_status_warning_isolation = (rx_frame.data.u8[2] & 0xC0) >> 6;
+      battery2_status_cold_shutoff_valve = (rx_frame.data.u8[3] & 0x0F);
+      battery2_temperature_HV = (rx_frame.data.u8[4] - 50);
+      battery2_temperature_heat_exchanger = (rx_frame.data.u8[5] - 50);
+      battery2_temperature_max = (rx_frame.data.u8[6] - 50);
+      battery2_temperature_min = (rx_frame.data.u8[7] - 50);
+      break;
+    case 0x239:                                                                                       //BMS [200ms]
+      battery2_predicted_energy_charge_condition = (rx_frame.data.u8[2] << 8 | rx_frame.data.u8[1]);  //Wh
+      battery2_predicted_energy_charging_target = ((rx_frame.data.u8[4] << 8 | rx_frame.data.u8[3]) * 0.02);  //kWh
+      break;
+    case 0x2BD:  //BMS [100ms] Status diagnosis high voltage - 1
+      battery2_awake = true;
+      if (calculateCRC(rx_frame, rx_frame.FIR.B.DLC, 0x15) != rx_frame.data.u8[0]) {
+        //If calculated CRC does not match transmitted CRC, increase CANerror counter
+        CANerror++;
+        break;
+      }
+      battery2_status_diagnostics_HV = (rx_frame.data.u8[2] & 0x0F);
+      break;
+    case 0x2F5:  //BMS [100ms] High-Voltage Battery Charge/Discharge Limitations
+      battery2_max_charge_voltage = (rx_frame.data.u8[1] << 8 | rx_frame.data.u8[0]);
+      battery2_max_charge_amperage = (((rx_frame.data.u8[3] << 8) | rx_frame.data.u8[2]) - 819.2);
+      battery2_min_discharge_voltage = (rx_frame.data.u8[5] << 8 | rx_frame.data.u8[4]);
+      battery2_max_discharge_amperage = (((rx_frame.data.u8[7] << 8) | rx_frame.data.u8[6]) - 819.2);
+      break;
+    case 0x2FF:  //BMS [100ms] Status Heating High-Voltage Battery
+      battery2_awake = true;
+      battery2_actual_value_power_heating = (rx_frame.data.u8[1] << 4 | rx_frame.data.u8[0] >> 4);
+      break;
+    case 0x363:  //BMS [1s] Identification High-Voltage Battery
+      battery2_serial_number =
+          (rx_frame.data.u8[3] << 24 | rx_frame.data.u8[2] << 16 | rx_frame.data.u8[1] << 8 | rx_frame.data.u8[0]);
+      break;
+    case 0x3C2:  //BMS (94AH exclusive) - Status diagnostics OBD 2 powertrain
+      battery2_status_diagnosis_powertrain_maximum_multiplexer =
+          ((rx_frame.data.u8[1] & 0x03) << 4 | rx_frame.data.u8[0] >> 4);
+      battery2_status_diagnosis_powertrain_immediate_multiplexer = (rx_frame.data.u8[0] & 0xFC) >> 2;
+      break;
+    case 0x3EB:  //BMS [1s] Status of charging high-voltage storage - 3
+      battery2_available_power_shortterm_charge = (rx_frame.data.u8[1] << 8 | rx_frame.data.u8[0]) * 3;
+      battery2_available_power_shortterm_discharge = (rx_frame.data.u8[3] << 8 | rx_frame.data.u8[2]) * 3;
+      battery2_available_power_longterm_charge = (rx_frame.data.u8[5] << 8 | rx_frame.data.u8[4]) * 3;
+      battery2_available_power_longterm_discharge = (rx_frame.data.u8[7] << 8 | rx_frame.data.u8[6]) * 3;
+      break;
+    case 0x40D:  //BMS [1s] Charging status of high-voltage storage - 1
+      battery2_BEV_available_power_shortterm_charge = (rx_frame.data.u8[1] << 8 | rx_frame.data.u8[0]) * 3;
+      battery2_BEV_available_power_shortterm_discharge = (rx_frame.data.u8[3] << 8 | rx_frame.data.u8[2]) * 3;
+      battery2_BEV_available_power_longterm_charge = (rx_frame.data.u8[5] << 8 | rx_frame.data.u8[4]) * 3;
+      battery2_BEV_available_power_longterm_discharge = (rx_frame.data.u8[7] << 8 | rx_frame.data.u8[6]) * 3;
+      break;
+    case 0x41C:  //BMS [1s] Operating Mode Status Of Hybrid - 2
+      battery2_status_cooling_HV = (rx_frame.data.u8[1] & 0x03);
+      break;
+    case 0x426:  // TODO: Figure out how to trigger sending of this. Does the SME require some CAN command?
+      battery2_cellvoltage_mux = rx_frame.data.u8[0];
+      if (battery2_cellvoltage_mux == 0) {
+        datalayer.battery2.status.cell_voltages_mV[0] = ((rx_frame.data.u8[1] * 10) + 1800);
+        datalayer.battery2.status.cell_voltages_mV[1] = ((rx_frame.data.u8[2] * 10) + 1800);
+        datalayer.battery2.status.cell_voltages_mV[2] = ((rx_frame.data.u8[3] * 10) + 1800);
+        datalayer.battery2.status.cell_voltages_mV[3] = ((rx_frame.data.u8[4] * 10) + 1800);
+        datalayer.battery2.status.cell_voltages_mV[4] = ((rx_frame.data.u8[5] * 10) + 1800);
+        datalayer.battery2.status.cell_voltages_mV[5] = ((rx_frame.data.u8[6] * 10) + 1800);
+        datalayer.battery2.status.cell_voltages_mV[5] = ((rx_frame.data.u8[7] * 10) + 1800);
+      }
+      break;
+    case 0x430:  //BMS [1s] - Charging status of high-voltage battery - 2
+      battery2_prediction_voltage_shortterm_charge = (rx_frame.data.u8[1] << 8 | rx_frame.data.u8[0]);
+      battery2_prediction_voltage_shortterm_discharge = (rx_frame.data.u8[3] << 8 | rx_frame.data.u8[2]);
+      battery2_prediction_voltage_longterm_charge = (rx_frame.data.u8[5] << 8 | rx_frame.data.u8[4]);
+      battery2_prediction_voltage_longterm_discharge = (rx_frame.data.u8[7] << 8 | rx_frame.data.u8[6]);
+      break;
+    case 0x431:  //BMS [200ms] Data High-Voltage Battery Unit
+      battery2_status_service_disconnection_plug = (rx_frame.data.u8[0] & 0x0F);
+      battery2_status_measurement_isolation = (rx_frame.data.u8[0] & 0x0C) >> 2;
+      battery2_request_abort_charging = (rx_frame.data.u8[0] & 0x30) >> 4;
+      battery2_prediction_duration_charging_minutes = (rx_frame.data.u8[3] << 8 | rx_frame.data.u8[2]);
+      battery2_prediction_time_end_of_charging_minutes = rx_frame.data.u8[4];
+      battery2_energy_content_maximum_kWh = (((rx_frame.data.u8[6] & 0x0F) << 8 | rx_frame.data.u8[5])) / 50;
+      break;
+    case 0x432:  //BMS [200ms] SOC% info
+      battery2_request_operating_mode = (rx_frame.data.u8[0] & 0x03);
+      battery2_target_voltage_in_CV_mode = ((rx_frame.data.u8[1] << 4 | rx_frame.data.u8[0] >> 4)) / 10;
+      battery2_request_charging_condition_minimum = (rx_frame.data.u8[2] / 2);
+      battery2_request_charging_condition_maximum = (rx_frame.data.u8[3] / 2);
+      battery2_display_SOC = (rx_frame.data.u8[4] / 2);
+      break;
+    case 0x507:  //BMS [640ms] Network Management - 2 - This message is sent on the bus for sleep coordination purposes
+      break;
+    case 0x587:  //BMS [5s] Services
+      battery2_ID2 = rx_frame.data.u8[0];
+      break;
+    case 0x607:  //BMS - responses to message requests on 0x615
+      if (rx_frame.FIR.B.DLC > 6 && next_data == 0 && rx_frame.data.u8[0] == 0xf1) {
+        uint8_t count2 = 6;
+        while (count2 < rx_frame.FIR.B.DLC && next_data < 49) {
+          message_data[next_data++] = rx_frame.data.u8[count2++];
+        }
+        //ESP32Can.CANWriteFrame(&BMW_6F1_CONTINUE);  // tell battery to send additional messages TODO: Make this send to Can2 instead of CAN1
+
+      } else if (rx_frame.FIR.B.DLC > 3 && next_data > 0 && rx_frame.data.u8[0] == 0xf1 &&
+                 ((rx_frame.data.u8[1] & 0xF0) == 0x20)) {
+        uint8_t count2 = 2;
+        while (count2 < rx_frame.FIR.B.DLC && next_data < 49) {
+          message_data[next_data++] = rx_frame.data.u8[count2++];
+        }
+
+        switch (cmdState) {
+          case CELL_VOLTAGE:
+            if (next_data >= 4) {
+              datalayer.battery2.status.cell_voltages_mV[0] = (message_data[0] << 8 | message_data[1]);
+              datalayer.battery2.status.cell_voltages_mV[2] = (message_data[2] << 8 | message_data[3]);
+            }
+            break;
+          case CELL_VOLTAGE_AVG:
+            if (next_data >= 30) {
+              datalayer.battery2.status.cell_voltages_mV[1] = (message_data[10] << 8 | message_data[11]) / 10;
+              battery2_capacity_cah = (message_data[4] << 8 | message_data[5]);
+            }
+            break;
+          case SOH:
+            if (next_data >= 4) {
+              battery2_soh = message_data[3];
+            }
+            break;
+          case SOC:
+            if (next_data >= 6) {
+              battery2_soc = (message_data[0] << 8 | message_data[1]);
+              battery2_soc_hvmax = (message_data[2] << 8 | message_data[3]);
+              battery2_soc_hvmin = (message_data[4] << 8 | message_data[5]);
+            }
+            break;
+        }
+      }
+      break;
+    default:
+      break;
+  }
+}
 void send_can_battery() {
   unsigned long currentMillis = millis();
 
@@ -668,10 +965,6 @@ void send_can_battery() {
         BMW_10B.data.u8[1] = 0x10;  // Close contactors
       }
 
-      if (datalayer.battery.status.bms_status == FAULT) {
-        BMW_10B.data.u8[1] = 0x00;  // Open contactors (TODO: test if this works)
-      }
-
       BMW_10B.data.u8[1] = ((BMW_10B.data.u8[1] & 0xF0) + alive_counter_20ms);
       BMW_10B.data.u8[0] = calculateCRC(BMW_10B, 3, 0x3F);
 
@@ -680,7 +973,17 @@ void send_can_battery() {
       BMW_13E_counter++;
       BMW_13E.data.u8[4] = BMW_13E_counter;
 
-      ESP32Can.CANWriteFrame(&BMW_10B);
+      if (datalayer.battery.status.bms_status == FAULT) {
+      }  //If battery is not in Fault mode, allow contactor to close by sending 10B
+      else {
+        ESP32Can.CANWriteFrame(&BMW_10B);
+      }
+
+#ifdef DOUBLE_BATTERY  //If second battery is allowed to join in, also send 10B
+      if (datalayer.system.status.battery2_allows_contactor_closing == true) {
+        CAN_WriteFrame(&BMW_10B);
+      }
+#endif
     }
     // Send 100ms CAN Message
     if (currentMillis - previousMillis100 >= INTERVAL_100_MS) {
@@ -692,6 +995,9 @@ void send_can_battery() {
       alive_counter_100ms = increment_alive_counter(alive_counter_100ms);
 
       ESP32Can.CANWriteFrame(&BMW_12F);
+#ifdef DOUBLE_BATTERY
+      CAN_WriteFrame(&BMW_12F);
+#endif
     }
     // Send 200ms CAN Message
     if (currentMillis - previousMillis200 >= INTERVAL_200_MS) {
@@ -703,6 +1009,9 @@ void send_can_battery() {
       alive_counter_200ms = increment_alive_counter(alive_counter_200ms);
 
       ESP32Can.CANWriteFrame(&BMW_19B);
+#ifdef DOUBLE_BATTERY
+      CAN_WriteFrame(&BMW_19B);
+#endif
     }
     // Send 500ms CAN Message
     if (currentMillis - previousMillis500 >= INTERVAL_500_MS) {
@@ -714,6 +1023,9 @@ void send_can_battery() {
       alive_counter_500ms = increment_alive_counter(alive_counter_500ms);
 
       ESP32Can.CANWriteFrame(&BMW_30B);
+#ifdef DOUBLE_BATTERY
+      CAN_WriteFrame(&BMW_30B);
+#endif
     }
     // Send 640ms CAN Message
     if (currentMillis - previousMillis640 >= INTERVAL_640_MS) {
@@ -721,6 +1033,10 @@ void send_can_battery() {
 
       ESP32Can.CANWriteFrame(&BMW_512);  // Keep BMS alive
       ESP32Can.CANWriteFrame(&BMW_5F8);
+#ifdef DOUBLE_BATTERY
+      CAN_WriteFrame(&BMW_512);
+      CAN_WriteFrame(&BMW_5F8);
+#endif
     }
     // Send 1000ms CAN Message
     if (currentMillis - previousMillis1000 >= INTERVAL_1_S) {
@@ -762,6 +1078,24 @@ void send_can_battery() {
       ESP32Can.CANWriteFrame(&BMW_192);
       ESP32Can.CANWriteFrame(&BMW_13E);
       ESP32Can.CANWriteFrame(&BMW_433);
+#ifdef DOUBLE_BATTERY
+      CAN_WriteFrame(&BMW_3E8);
+      CAN_WriteFrame(&BMW_328);
+      CAN_WriteFrame(&BMW_3F9);
+      CAN_WriteFrame(&BMW_2E2);
+      CAN_WriteFrame(&BMW_41D);
+      CAN_WriteFrame(&BMW_3D0);
+      CAN_WriteFrame(&BMW_3CA);
+      CAN_WriteFrame(&BMW_3A7);
+      CAN_WriteFrame(&BMW_2CA);
+      CAN_WriteFrame(&BMW_3FB);
+      CAN_WriteFrame(&BMW_418);
+      CAN_WriteFrame(&BMW_1D0);
+      CAN_WriteFrame(&BMW_3EC);
+      CAN_WriteFrame(&BMW_192);
+      CAN_WriteFrame(&BMW_13E);
+      CAN_WriteFrame(&BMW_433);
+#endif
 
       BMW_433.data.u8[1] = 0x01;  // First 433 message byte1 we send is unique, once we sent initial value send this
       BMW_3E8.data.u8[0] = 0xF1;  // First 3E8 message byte0 we send is unique, once we sent initial value send this
@@ -778,11 +1112,21 @@ void send_can_battery() {
       ESP32Can.CANWriteFrame(&BMW_3A0);
       ESP32Can.CANWriteFrame(&BMW_592_0);
       ESP32Can.CANWriteFrame(&BMW_592_1);
+#ifdef DOUBLE_BATTERY
+      CAN_WriteFrame(&BMW_3FC);
+      CAN_WriteFrame(&BMW_3C5);
+      CAN_WriteFrame(&BMW_3A0);
+      CAN_WriteFrame(&BMW_592_0);
+      CAN_WriteFrame(&BMW_592_1);
+#endif
 
       alive_counter_5000ms = increment_alive_counter(alive_counter_5000ms);
 
       if (BMW_380_counter < 3) {
         ESP32Can.CANWriteFrame(&BMW_380);  // This message stops after 3 times on startup
+#ifdef DOUBLE_BATTERY
+        CAN_WriteFrame(&BMW_380);
+#endif
         BMW_380_counter++;
       }
     }
@@ -793,9 +1137,17 @@ void send_can_battery() {
       ESP32Can.CANWriteFrame(&BMW_3E5);  //Order comes from CAN logs
       ESP32Can.CANWriteFrame(&BMW_3E4);
       ESP32Can.CANWriteFrame(&BMW_37B);
+#ifdef DOUBLE_BATTERY
+      CAN_WriteFrame(&BMW_3E5);
+      CAN_WriteFrame(&BMW_3E4);
+      CAN_WriteFrame(&BMW_37B);
+#endif
 
       next_data = 0;
       ESP32Can.CANWriteFrame(&BMW_6F1_CELL);
+#ifdef DOUBLE_BATTERY
+      CAN_WriteFrame(&BMW_6F1_CELL);
+#endif
 
       BMW_3E5.data.u8[0] = 0xFD;  // First 3E5 message byte0 we send is unique, once we sent initial value send this
     }
@@ -810,6 +1162,16 @@ void setup_battery(void) {  // Performs one time setup at startup
   datalayer.battery.info.max_design_voltage_dV =
       4040;  // 404.4V, over this, charging is not possible (goes into forced discharge)
   datalayer.battery.info.min_design_voltage_dV = 2800;  // 280.0V under this, discharging further is disabled
+
+  datalayer.system.status.battery_allows_contactor_closing = true;
+
+#ifdef DOUBLE_BATTERY
+  Serial.println("Another BMW i3 battery also selected!");
+  datalayer.battery2.info.max_design_voltage_dV = datalayer.battery.info.max_design_voltage_dV;
+  datalayer.battery2.info.min_design_voltage_dV = datalayer.battery.info.min_design_voltage_dV;
+  datalayer.battery2.status.voltage_dV =
+      0;  //Init voltage to 0 to allow contactor check to operate without fear of default values colliding
+#endif
 
   digitalWrite(WUP_PIN, HIGH);  // Wake up the battery
 }
