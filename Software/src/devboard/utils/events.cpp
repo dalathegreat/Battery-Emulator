@@ -229,8 +229,8 @@ const char* get_event_message_string(EVENTS_ENUM_TYPE event) {
       return "ERROR: State of health critically low. Battery internal resistance too high to continue. Recycle "
              "battery.";
     case EVENT_HVIL_FAILURE:
-      return "ERROR: Battery interlock loop broken. Check that high voltage connectors are seated. Battery will be "
-             "disabled!";
+      return "ERROR: Battery interlock loop broken. Check that high voltage / low voltage connectors are seated. "
+             "Battery will be disabled!";
     case EVENT_PRECHARGE_FAILURE:
       return "Info: Battery failed to precharge. Check that capacitor is seated on high voltage output.";
     case EVENT_INTERNAL_OPEN_FAULT:
