@@ -70,7 +70,7 @@ void LED::exe(void) {
           break;
         case EVENT_LEVEL_ERROR:
           color = led_color::RED;
-          pixels.setPixelColor(0, COLOR_RED(brightness));  // Red LED full brightness
+          pixels.setPixelColor(0, COLOR_RED(150));  // Red LED full brightness
           break;
         default:
           break;
