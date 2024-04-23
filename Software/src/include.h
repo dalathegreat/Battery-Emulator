@@ -9,6 +9,7 @@
 
 #include "devboard/hal/hal.h"
 #include "devboard/utils/time_meas.h"
+#include "devboard/utils/timer.h"
 #include "devboard/utils/types.h"
 
 #include "battery/BATTERIES.h"

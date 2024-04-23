@@ -11,6 +11,8 @@ static unsigned long previousMillis100 = 0;  // will store last time a 100ms CAN
 static unsigned long previousMillis10 = 0;   // will store last time a 10s CAN Message was send
 static uint8_t CANstillAlive = 12;           //counter for checking if CAN is still alive
 
+MyTimer openContactorIfFaultedTimer;
+
 #define MAX_CELL_VOLTAGE 4250   //Battery is put into emergency stop if one cell goes over this value
 #define MIN_CELL_VOLTAGE 2950   //Battery is put into emergency stop if one cell goes below this value
 #define MAX_CELL_DEVIATION 150  //LED turns yellow on the board if mv delta exceeds this value
@@ -230,10 +232,21 @@ void update_values_battery() {  //This function maps all the values fetched via 
     clear_event(EVENT_CELL_DEVIATION_HIGH);
   }
 
-  if (datalayer.battery.status.bms_status ==
-      FAULT) {  //Incase we enter a critical fault state, zero out the allowed limits
+  // Perform last line of defense, check incase we encountered any FAULTs
+  if (datalayer.battery.status.bms_status == FAULT) {
+    //Incase we enter a critical fault state, stop power transfer
     datalayer.battery.status.max_charge_power_W = 0;
     datalayer.battery.status.max_discharge_power_W = 0;
+
+    //Incase we spend enough time in fault state, open contactors
+    if (openContactorIfFaultedTimer.elapsed()) {
+      datalayer.system.status.battery_allows_contactor_closing = false;
+      set_event(EVENT_BATTERY_OPENS_CONTACTORS, 0);
+    }
+  } else {  // Reset contactor opening timer if not in fault mode
+    openContactorIfFaultedTimer.reset();
+    datalayer.system.status.battery_allows_contactor_closing = true;
+    clear_event(EVENT_BATTERY_OPENS_CONTACTORS);
   }
 
   /* Safeties verified. Perform USB serial printout if configured to do so */
@@ -597,7 +610,9 @@ void send_can_battery() {
         break;
     }
 
-    ESP32Can.CANWriteFrame(&KIA_HYUNDAI_200);
+    if (datalayer.system.status.battery_allows_contactor_closing == true) {
+      ESP32Can.CANWriteFrame(&KIA_HYUNDAI_200);
+    }
 
     ESP32Can.CANWriteFrame(&KIA_HYUNDAI_523);
 
@@ -609,6 +624,9 @@ void setup_battery(void) {  // Performs one time setup at startup
 #ifdef DEBUG_VIA_USB
   Serial.println("Kia Niro / Hyundai Kona 64kWh battery selected");
 #endif
+
+  openContactorIfFaultedTimer.set_interval(INTERVAL_60_S);
+  datalayer.system.status.battery_allows_contactor_closing = true;
 
   datalayer.battery.info.max_design_voltage_dV =
       4040;  // 404.0V, over this, charging is not possible (goes into forced discharge)
