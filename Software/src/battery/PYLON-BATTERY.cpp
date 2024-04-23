@@ -40,8 +40,16 @@ CAN_frame_t PYLON_4200 = {.FIR = {.B =
                           .MsgID = 0x4200,
                           .data = {0x02, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00}};
 
+static int16_t celltemperature_max_dC = 0;
+static int16_t celltemperature_min_dC = 0;
+static int16_t current_dA = 0;
 static uint16_t voltage_dV = 0;
-static uint16_t current_dA = 0;
+static uint16_t cellvoltage_max_mV = 0;
+static uint16_t cellvoltage_min_mV = 0;
+static uint16_t charge_cutoff_voltage = 0;
+static uint16_t discharge_cutoff_voltage = 0;
+static int16_t max_charge_current = 0;
+static int16_t max_discharge_current = 0;
 static uint8_t ensamble_info_ack = 0;
 static uint8_t battery_module_quantity = 0;
 static uint8_t battery_modules_in_series = 0;
@@ -53,7 +61,43 @@ static uint8_t SOH = 0;
 static uint8_t charge_forbidden = 0;
 static uint8_t discharge_forbidden = 0;
 
-void update_values_battery() {}
+void update_values_battery() {
+
+  datalayer.battery.status.real_soc = (SOC * 100);  //increase SOC range from 0-100 -> 100.00
+
+  datalayer.battery.status.soh_pptt = (SOH * 100);  //Increase decimals from 100% -> 100.00%
+
+  datalayer.battery.status.voltage_dV = voltage_dV;  //value is *10 (3700 = 370.0)
+
+  datalayer.battery.status.current_dA = current_dA;  //value is *10 (150 = 15.0) , invert the sign
+
+  datalayer.battery.status.active_power_W =  //Power in watts, Negative = charging batt
+      ((datalayer.battery.status.voltage_dV * datalayer.battery.status.current_dA) / 100);
+
+  datalayer.battery.status.max_charge_power_W = (max_charge_current * (voltage_dV / 10));
+
+  datalayer.battery.status.max_discharge_power_W = (max_discharge_current * (voltage_dV / 10));
+
+  datalayer.battery.status.cell_max_voltage_mV = cellvoltage_max_mV;
+
+  datalayer.battery.status.cell_min_voltage_mV = cellvoltage_min_mV;
+
+  datalayer.battery.status.temperature_min_dC = celltemperature_min_dC;
+
+  datalayer.battery.status.temperature_max_dC = celltemperature_max_dC;
+
+  datalayer.battery.info.max_design_voltage_dV = charge_cutoff_voltage;
+
+  datalayer.battery.info.min_design_voltage_dV = discharge_cutoff_voltage;
+
+  /* Check if the BMS is still sending CAN messages. If we go 60s without messages we raise an error*/
+  if (!CANstillAlive) {
+    set_event(EVENT_CAN_RX_FAILURE, 0);
+  } else {
+    CANstillAlive--;
+    clear_event(EVENT_CAN_RX_FAILURE);
+  }
+}
 
 void receive_can_battery(CAN_frame_t rx_frame) {
   CANstillAlive = 12;
@@ -81,12 +125,20 @@ void receive_can_battery(CAN_frame_t rx_frame) {
       break;
     case 0x4220:
     case 0x4221:
+      charge_cutoff_voltage = ((rx_frame.data.u8[1] << 8) | rx_frame.data.u8[0]);
+      discharge_cutoff_voltage = ((rx_frame.data.u8[3] << 8) | rx_frame.data.u8[2]);
+      max_charge_current = (((rx_frame.data.u8[5] << 8) | rx_frame.data.u8[4]) * 0.1) - 3000;
+      max_discharge_current = (((rx_frame.data.u8[7] << 8) | rx_frame.data.u8[6]) * 0.1) - 3000;
       break;
     case 0x4230:
     case 0x4231:
+      cellvoltage_max_mV = ((rx_frame.data.u8[1] << 8) | rx_frame.data.u8[0]);
+      cellvoltage_min_mV = ((rx_frame.data.u8[3] << 8) | rx_frame.data.u8[2]);
       break;
     case 0x4240:
     case 0x4241:
+      celltemperature_max_dC = ((rx_frame.data.u8[1] << 8) | rx_frame.data.u8[0]) - 1000;
+      celltemperature_min_dC = ((rx_frame.data.u8[3] << 8) | rx_frame.data.u8[2]) - 1000;
       break;
     case 0x4250:
     case 0x4251:
@@ -118,7 +170,7 @@ void send_can_battery() {
     previousMillis1000 = currentMillis;
 
     ESP32Can.CANWriteFrame(&PYLON_3010);  // Heartbeat
-    ESP32Can.CANWriteFrame(&PYLON_4200);  // Ensamble/System equipment info, depends on frame0
+    ESP32Can.CANWriteFrame(&PYLON_4200);  // Ensamble OR System equipment info, depends on frame0
     ESP32Can.CANWriteFrame(&PYLON_8200);  // Control device quit sleep status
     ESP32Can.CANWriteFrame(&PYLON_8210);  // Charge command
 
