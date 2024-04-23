@@ -301,21 +301,21 @@ void update_values_battery() {  //This function maps all the values fetched via 
 void receive_can_battery(CAN_frame_t rx_frame) {
   switch (rx_frame.MsgID) {
     case 0x4DE:
-      startedUp = 1;
+      startedUp = true;
       break;
     case 0x542:  //BMS SOC
-      startedUp = 1;
+      startedUp = true;
       CANstillAlive = 12;                     //We use this message to verify that BMS is still alive
       SOC_Display = rx_frame.data.u8[0] * 5;  //100% = 200 ( 200 * 5 = 1000 )
       break;
     case 0x594:
-      startedUp = 1;
+      startedUp = true;
       allowedChargePower = ((rx_frame.data.u8[1] << 8) | rx_frame.data.u8[0]);
       allowedDischargePower = ((rx_frame.data.u8[3] << 8) | rx_frame.data.u8[2]);
       SOC_BMS = rx_frame.data.u8[5] * 5;  //100% = 200 ( 200 * 5 = 1000 )
       break;
     case 0x595:
-      startedUp = 1;
+      startedUp = true;
       batteryVoltage = (rx_frame.data.u8[7] << 8) + rx_frame.data.u8[6];
       batteryAmps = (rx_frame.data.u8[5] << 8) + rx_frame.data.u8[4];
       if (counter_200 > 3) {
@@ -324,21 +324,21 @@ void receive_can_battery(CAN_frame_t rx_frame) {
       }  //VCU measured voltage sent back to bms
       break;
     case 0x596:
-      startedUp = 1;
+      startedUp = true;
       leadAcidBatteryVoltage = rx_frame.data.u8[1];  //12v Battery Volts
       temperatureMin = rx_frame.data.u8[6];          //Lowest temp in battery
       temperatureMax = rx_frame.data.u8[7];          //Highest temp in battery
       break;
     case 0x598:
-      startedUp = 1;
+      startedUp = true;
       break;
     case 0x5D5:
-      startedUp = 1;
+      startedUp = true;
       waterleakageSensor = rx_frame.data.u8[3];  //Water sensor inside pack, value 164 is no water --> 0 is short
       powerRelayTemperature = rx_frame.data.u8[7];
       break;
     case 0x5D8:
-      startedUp = 1;
+      startedUp = true;
 
       //PID data is polled after last message sent from battery:
       if (poll_data_pid >= 10) {  //polling one of ten PIDs at 100ms, resolution = 1s
