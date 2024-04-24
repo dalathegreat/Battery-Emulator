@@ -459,6 +459,18 @@ void update_values_battery() {  //This function maps all the values fetched via 
     set_event(EVENT_CAN_RX_WARNING, 0);
   }
 
+  // Perform other safety checks
+  if (battery_status_error_locking == 2) {  // HVIL seated?
+    set_event(EVENT_HVIL_FAILURE, 0);
+  } else {
+    clear_event(EVENT_HVIL_FAILURE);
+  }
+  if (battery_status_precharge_locked == 2) {  // Capacitor seated?
+    set_event(EVENT_PRECHARGE_FAILURE, 0);
+  } else {
+    clear_event(EVENT_PRECHARGE_FAILURE);
+  }
+
 #ifdef DEBUG_VIA_USB
   Serial.println(" ");
   Serial.print("Values sent to inverter: ");
