@@ -42,6 +42,7 @@ static uint8_t BMS_ign = 0;
 static uint8_t batteryRelay = 0;
 static uint8_t waterleakageSensor = 164;
 static uint8_t counter_200 = 0;
+static uint8_t counter_200_open = 0;
 static int8_t temperature_water_inlet = 0;
 static int8_t heatertemp = 0;
 static int8_t powerRelayTemperature = 0;
@@ -611,7 +612,15 @@ void send_can_battery() {
     }
 
     if (datalayer.system.status.battery_allows_contactor_closing == false) {
-      KIA_HYUNDAI_200.data.u8[5] &= ~(1 << 5);  // Bit45 holds contactor closing value
+      KIA_HYUNDAI_200.data.u8[0] = 0x09;
+      KIA_HYUNDAI_200.data.u8[1] = 0x00;
+      KIA_HYUNDAI_200.data.u8[2] = 0x9D;
+      KIA_HYUNDAI_200.data.u8[3] = 0x00;
+      KIA_HYUNDAI_200.data.u8[4] = 0x00;
+      KIA_HYUNDAI_200.data.u8[5] = (counter_200_open << 6);
+      KIA_HYUNDAI_200.data.u8[6] = 0xD0;
+      KIA_HYUNDAI_200.data.u8[7] = 0x00;
+      counter_200_open = (counter_200_open + 1) % 4;  // counter_200_open cycles between 0-1-2-3-0-1...
     }
 
     ESP32Can.CANWriteFrame(&KIA_HYUNDAI_200);
