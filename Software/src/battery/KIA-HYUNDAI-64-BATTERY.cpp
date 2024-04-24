@@ -610,9 +610,11 @@ void send_can_battery() {
         break;
     }
 
-    if (datalayer.system.status.battery_allows_contactor_closing == true) {
-      ESP32Can.CANWriteFrame(&KIA_HYUNDAI_200);
+    if (datalayer.system.status.battery_allows_contactor_closing == false) {
+      KIA_HYUNDAI_200.data.u8[5] &= ~(1 << 5);  // Bit45 holds contactor closing value
     }
+
+    ESP32Can.CANWriteFrame(&KIA_HYUNDAI_200);
 
     ESP32Can.CANWriteFrame(&KIA_HYUNDAI_523);
 
