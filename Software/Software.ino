@@ -14,6 +14,8 @@
 #include "src/devboard/utils/events.h"
 #include "src/devboard/utils/led_handler.h"
 #include "src/devboard/utils/value_mapping.h"
+#include "src/lib/Uptime_Library/src/uptime.h"
+#include "src/lib/Uptime_Library/src/uptime_formatter.h"
 #include "src/lib/bblanchon-ArduinoJson/ArduinoJson.h"
 #include "src/lib/eModbus-eModbus/Logging.h"
 #include "src/lib/eModbus-eModbus/ModbusServerRTU.h"
@@ -224,7 +226,8 @@ void core_loop(void* task_time_us) {
     if (millis() - previousMillisUpdateVal >= intervalUpdateValues)  // Every 5s normally
     {
       previousMillisUpdateVal = millis();
-      update_SOC();     // Check if real or calculated SOC% value should be sent
+      uptime::calculateUptime();  // millis() overflows every 50 days, so update occasionally to adjust
+      update_SOC();               // Check if real or calculated SOC% value should be sent
       update_values();  // Update values heading towards inverter. Prepare for sending on CAN, or write directly to Modbus.
       if (DUMMY_EVENT_ENABLED) {
         set_event(EVENT_DUMMY_ERROR, (uint8_t)millis());

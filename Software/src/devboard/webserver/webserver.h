@@ -4,6 +4,7 @@
 #include <Preferences.h>
 #include <WiFi.h>
 #include "../../include.h"
+#include "../../lib/Uptime_Library/src/uptime_formatter.h"
 #include "../../lib/ayushsharma82-ElegantOTA/src/ElegantOTA.h"
 #ifdef MQTT
 #include "../../lib/knolleary-pubsubclient/PubSubClient.h"
