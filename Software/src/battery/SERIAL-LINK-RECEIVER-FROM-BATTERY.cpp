@@ -40,7 +40,7 @@ void __getData() {
       (uint32_t)(dataLinkReceive.getReceivedData(6) * 10);  //add back missing decimal
   datalayer.battery.status.max_charge_power_W =
       (uint32_t)(dataLinkReceive.getReceivedData(7) * 10);  //add back missing decimal
-  uint16_t _datalayer.battery.status.bms_status = (uint16_t)dataLinkReceive.getReceivedData(8);
+  uint16_t _system_bms_status = (uint16_t)dataLinkReceive.getReceivedData(8);
   datalayer.battery.status.active_power_W =
       (uint32_t)(dataLinkReceive.getReceivedData(9) * 10);  //add back missing decimal
   datalayer.battery.status.temperature_min_dC = (int16_t)dataLinkReceive.getReceivedData(10);
@@ -51,7 +51,7 @@ void __getData() {
   datalayer.system.status.battery_allows_contactor_closing = (bool)dataLinkReceive.getReceivedData(15);
 
   batteryFault = false;
-  if (_datalayer.battery.status.bms_status == FAULT) {
+  if (_system_bms_status == FAULT) {
     batteryFault = true;
     set_event(EVENT_SERIAL_TRANSMITTER_FAILURE, 0);
   }
