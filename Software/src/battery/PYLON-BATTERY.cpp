@@ -50,7 +50,7 @@ static uint16_t charge_cutoff_voltage = 0;
 static uint16_t discharge_cutoff_voltage = 0;
 static int16_t max_charge_current = 0;
 static int16_t max_discharge_current = 0;
-static uint8_t ensamble_info_ack = 0;
+static uint8_t ensemble_info_ack = 0;
 static uint8_t battery_module_quantity = 0;
 static uint8_t battery_modules_in_series = 0;
 static uint8_t cell_quantity_in_module = 0;
@@ -104,12 +104,12 @@ void receive_can_battery(CAN_frame_t rx_frame) {
   switch (rx_frame.MsgID) {
     case 0x7310:
     case 0x7311:
-      ensamble_info_ack = true;
+      ensemble_info_ack = true;
       // This message contains software/hardware version info. No interest to us
       break;
     case 0x7320:
     case 0x7321:
-      ensamble_info_ack = true;
+      ensemble_info_ack = true;
       battery_module_quantity = rx_frame.data.u8[0];
       battery_modules_in_series = rx_frame.data.u8[2];
       cell_quantity_in_module = rx_frame.data.u8[3];
@@ -142,12 +142,25 @@ void receive_can_battery(CAN_frame_t rx_frame) {
       break;
     case 0x4250:
     case 0x4251:
+      //Byte0 Basic Status
+      //Byte1-2 Cycle Period
+      //Byte3 Error
+      //Byte4-5 Alarm
+      //Byte6-7 Protection
       break;
     case 0x4260:
     case 0x4261:
+      //Byte0-1 Module Max Voltage
+      //Byte2-3 Module Min Voltage
+      //Byte4-5 Module Max. Voltage Number
+      //Byte6-7 Module Min. Voltage Number
       break;
     case 0x4270:
     case 0x4271:
+      //Byte0-1 Module Max. Temperature
+      //Byte2-3 Module Min. Temperature
+      //Byte4-5 Module Max. Temperature Number
+      //Byte6-7 Module Min. Temperature Number
       break;
     case 0x4280:
     case 0x4281:
@@ -170,11 +183,11 @@ void send_can_battery() {
     previousMillis1000 = currentMillis;
 
     ESP32Can.CANWriteFrame(&PYLON_3010);  // Heartbeat
-    ESP32Can.CANWriteFrame(&PYLON_4200);  // Ensamble OR System equipment info, depends on frame0
+    ESP32Can.CANWriteFrame(&PYLON_4200);  // Ensemble OR System equipment info, depends on frame0
     ESP32Can.CANWriteFrame(&PYLON_8200);  // Control device quit sleep status
     ESP32Can.CANWriteFrame(&PYLON_8210);  // Charge command
 
-    if (ensamble_info_ack) {
+    if (ensemble_info_ack) {
       PYLON_4200.data.u8[0] = 0x00;  //Request system equipment info
     }
   }
