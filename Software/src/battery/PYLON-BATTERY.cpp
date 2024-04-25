@@ -6,6 +6,13 @@
 #include "../lib/miwagner-ESP32-Arduino-CAN/ESP32CAN.h"
 #include "PYLON-BATTERY.h"
 
+/* TODO:
+- Test the protocol with a battery
+- Check if values are scaled correctly in the Webserver
+- Check if CAN sending towards the battery works OK. Tweak values from log file if needed
+- If all looks good, try adding an inverter into the mix!
+*/
+
 /* Do not change code below unless you are sure what you are doing */
 static unsigned long previousMillis1000 = 0;  // will store last time a 1s CAN Message was sent
 static uint8_t CANstillAlive = 12;            //counter for checking if CAN is still alive
