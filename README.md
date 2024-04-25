@@ -58,9 +58,20 @@ This video explains all the above mentioned steps:
 https://youtu.be/_mH2AjnAjDk
 
 ## Dependencies 📖
-This code uses two libraries, ESP32-Arduino-CAN (https://github.com/miwagner/ESP32-Arduino-CAN/) slightly modified for this usecase, and the eModbus library (https://github.com/eModbus/eModbus). Both these are already located in the Software folder for an easy start.
+This code uses the following excellent libraries: 
+- [adafruit/Adafruit_NeoPixel](https://github.com/adafruit/Adafruit_NeoPixel) LGPL-3.0 license
+- [ayushsharma82/ElegantOTA](https://github.com/ayushsharma82/ElegantOTA) AGPL-3.0 license 
+- [bblanchon/ArduinoJson](https://github.com/bblanchon/ArduinoJson) MIT-License
+- [eModbus/eModbus](https://github.com/eModbus/eModbus) MIT-License
+- [knolleary/pubsubclient](https://github.com/knolleary/pubsubclient) MIT-License
+- [mackelec/SerialDataLink](https://github.com/mackelec/SerialDataLink)
+- [me-no-dev/AsyncTCP](https://github.com/me-no-dev/AsyncTCP) LGPL-3.0 license
+- [me-no-dev/ESPAsyncWebServer](https://github.com/me-no-dev/ESPAsyncWebServer)
+- [miwagner/ESP32-Arduino-CAN](https://github.com/miwagner/ESP32-Arduino-CAN/) MIT-License
+- [pierremolinaro/acan2515](https://github.com/pierremolinaro/acan2515) MIT-License
+- [pierremolinaro/acan2517FD](https://github.com/pierremolinaro/acan2517FD) MIT-License
 
-It is also based on the info found in the following excellent repositories/websites:
+It is also based on the information found in the following excellent repositories/websites:
 - https://gitlab.com/pelle8/gen24
 - https://github.com/burra/byd_battery
 - https://github.com/flodorn/TeslaBMSV2
