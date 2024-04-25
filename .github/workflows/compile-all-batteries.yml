@@ -46,8 +46,8 @@ jobs:
           - SERIAL_LINK_RECEIVER
         # These are the emulated inverter communication protocols for which the code will be compiled.
         inverter:
-#         - BYD_CAN
-          - BYD_MODBUS
+          - BYD_CAN
+#         - BYD_MODBUS
 #         - LUNA2000_MODBUS
 #         - PYLON_CAN
 #         - SMA_CAN
