@@ -6,6 +6,7 @@
 
 #include "../../../USER_SETTINGS.h"
 #include "timer.h"
+#include "../../lib/Uptime_Library/src/uptime.h"
 
 #define EE_NOF_EVENT_ENTRIES 30
 #define EE_EVENT_ENTRY_SIZE sizeof(EVENT_LOG_ENTRY_TYPE)
@@ -165,7 +166,7 @@ void init_events(void) {
 
   events.entries[EVENT_EEPROM_WRITE].log = false;  // Don't log the logger...
 
-  events.second_timer.set_interval(1000);
+  events.second_timer.set_interval(600);
   // Write to EEPROM every X minutes (if an event has been set)
   events.ee_timer.set_interval(EE_WRITE_PERIOD_MINUTES * 60 * 1000);
   events.update_timer.set_interval(2000);
@@ -352,8 +353,10 @@ static void update_event_level(void) {
 }
 
 static void update_event_time(void) {
+  // This should run roughly 2 times per second
   if (events.second_timer.elapsed() == true) {
-    events.time_seconds++;
+    uptime::calculateUptime();  // millis() overflows every 50 days, so update occasionally to adjust
+    events.time_seconds = uptime::getSeconds();
   }
 }
 

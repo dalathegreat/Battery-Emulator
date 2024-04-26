@@ -226,7 +226,6 @@ void core_loop(void* task_time_us) {
     if (millis() - previousMillisUpdateVal >= intervalUpdateValues)  // Every 5s normally
     {
       previousMillisUpdateVal = millis();
-      uptime::calculateUptime();  // millis() overflows every 50 days, so update occasionally to adjust
       update_SOC();               // Check if real or calculated SOC% value should be sent
       update_values();  // Update values heading towards inverter. Prepare for sending on CAN, or write directly to Modbus.
       if (DUMMY_EVENT_ENABLED) {
