@@ -91,7 +91,7 @@ MyTimer loop_task_timer_10s(INTERVAL_10_S);
 enum State { DISCONNECTED, PRECHARGE, NEGATIVE, POSITIVE, PRECHARGE_OFF, COMPLETED, SHUTDOWN_REQUESTED };
 State contactorStatus = DISCONNECTED;
 
-#define MAX_ALLOWED_FAULT_TICKS 500
+#define MAX_ALLOWED_FAULT_TICKS 1000
 #define PRECHARGE_TIME_MS 160
 #define NEGATIVE_CONTACTOR_TIME_MS 1000
 #define POSITIVE_CONTACTOR_TIME_MS 2000
@@ -630,6 +630,7 @@ void handle_contactors() {
     digitalWrite(PRECHARGE_PIN, LOW);
     digitalWrite(NEGATIVE_CONTACTOR_PIN, LOW);
     digitalWrite(POSITIVE_CONTACTOR_PIN, LOW);
+    set_event(EVENT_ERROR_OPEN_CONTACTOR, 0);
     return;  // A fault scenario latches the contactor control. It is not possible to recover without a powercycle (and investigation why fault occured)
   }
 
