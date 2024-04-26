@@ -129,6 +129,7 @@ void init_events(void) {
   events.entries[EVENT_CANFD_INIT_FAILURE].level = EVENT_LEVEL_WARNING;
   events.entries[EVENT_CAN_OVERRUN].level = EVENT_LEVEL_INFO;
   events.entries[EVENT_CAN_RX_FAILURE].level = EVENT_LEVEL_ERROR;
+  events.entries[EVENT_CAN2_RX_FAILURE].level = EVENT_LEVEL_WARNING;
   events.entries[EVENT_CANFD_RX_FAILURE].level = EVENT_LEVEL_ERROR;
   events.entries[EVENT_CAN_RX_WARNING].level = EVENT_LEVEL_WARNING;
   events.entries[EVENT_CAN_TX_FAILURE].level = EVENT_LEVEL_ERROR;
@@ -142,6 +143,7 @@ void init_events(void) {
   events.entries[EVENT_BATTERY_CHG_STOP_REQ].level = EVENT_LEVEL_ERROR;
   events.entries[EVENT_BATTERY_DISCHG_STOP_REQ].level = EVENT_LEVEL_ERROR;
   events.entries[EVENT_BATTERY_CHG_DISCHG_STOP_REQ].level = EVENT_LEVEL_ERROR;
+  events.entries[EVENT_VOLTAGE_DIFFERENCE].level = EVENT_LEVEL_INFO;
   events.entries[EVENT_LOW_SOH].level = EVENT_LEVEL_ERROR;
   events.entries[EVENT_HVIL_FAILURE].level = EVENT_LEVEL_ERROR;
   events.entries[EVENT_PRECHARGE_FAILURE].level = EVENT_LEVEL_INFO;
@@ -195,6 +197,8 @@ const char* get_event_message_string(EVENTS_ENUM_TYPE event) {
       return "CAN message failed to send within defined time. Contact developers, CPU load might be too high.";
     case EVENT_CAN_RX_FAILURE:
       return "No CAN communication detected for 60s. Shutting down battery control.";
+    case EVENT_CAN2_RX_FAILURE:
+      return "No CAN communication detected for 60s on CAN2. Shutting down the secondary battery control.";
     case EVENT_CANFD_RX_FAILURE:
       return "No CANFD communication detected for 60s. Shutting down battery control.";
     case EVENT_CAN_RX_WARNING:
@@ -225,6 +229,8 @@ const char* get_event_message_string(EVENTS_ENUM_TYPE event) {
       return "Info: COLD BATTERY! Battery requesting heating pads to activate!";
     case EVENT_BATTERY_WARMED_UP:
       return "Info: Battery requesting heating pads to stop. The battery is now warm enough.";
+    case EVENT_VOLTAGE_DIFFERENCE:
+      return "Info: Too large voltage diff between the batteries. Second battery cannot join the DC-link";
     case EVENT_LOW_SOH:
       return "ERROR: State of health critically low. Battery internal resistance too high to continue. Recycle "
              "battery.";

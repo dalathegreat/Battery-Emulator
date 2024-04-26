@@ -29,6 +29,7 @@
   XX(EVENT_CANFD_INIT_FAILURE)          \
   XX(EVENT_CAN_OVERRUN)                 \
   XX(EVENT_CAN_RX_FAILURE)              \
+  XX(EVENT_CAN2_RX_FAILURE)             \
   XX(EVENT_CANFD_RX_FAILURE)            \
   XX(EVENT_CAN_RX_WARNING)              \
   XX(EVENT_CAN_TX_FAILURE)              \
@@ -44,6 +45,7 @@
   XX(EVENT_BATTERY_CHG_DISCHG_STOP_REQ) \
   XX(EVENT_BATTERY_REQUESTS_HEAT)       \
   XX(EVENT_BATTERY_WARMED_UP)           \
+  XX(EVENT_VOLTAGE_DIFFERENCE)          \
   XX(EVENT_LOW_SOH)                     \
   XX(EVENT_HVIL_FAILURE)                \
   XX(EVENT_PRECHARGE_FAILURE)           \

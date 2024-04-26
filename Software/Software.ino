@@ -219,6 +219,9 @@ void core_loop(void* task_time_us) {
 #ifdef CONTACTOR_CONTROL
       handle_contactors();  // Take care of startup precharge/contactor closing
 #endif
+#ifdef DOUBLE_BATTERY
+      handle_CAN_contactors();
+#endif
     }
     END_TIME_MEASUREMENT_MAX(time_10ms, datalayer.system.status.time_10ms_us);
 
@@ -594,6 +597,9 @@ void receive_can2() {  // This function is similar to receive_can, but just take
 #ifdef BYD_CAN
       receive_can_byd(rx_frame2);
 #endif
+#ifdef DOUBLE_BATTERY
+      receive_can_battery2(rx_frame2);
+#endif
     } else {  // New extended frame
 #ifdef PYLON_CAN
       receive_can_pylon(rx_frame2);
@@ -611,6 +617,24 @@ void send_can2() {
 #ifdef BYD_CAN
   send_can_byd();
 #endif
+}
+#endif
+
+#ifdef DOUBLE_BATTERY
+void handle_CAN_contactors() {
+  if (datalayer.battery.status.voltage_dV == 0 || datalayer.battery2.status.voltage_dV == 0) {
+    return;  // Both voltage values need to be available to start check
+  }
+
+  if (abs(datalayer.battery.status.voltage_dV - datalayer.battery2.status.voltage_dV) < 30) {  // If we are within 3.0V
+    clear_event(EVENT_VOLTAGE_DIFFERENCE);
+    if (datalayer.battery2.status.bms_status != FAULT) {  // Only proceed if BMS on battery2 is not faulted
+      datalayer.system.status.battery2_allows_contactor_closing = true;
+    }
+  } else {  //We are over 3.0V diff
+    set_event(EVENT_VOLTAGE_DIFFERENCE,
+              (uint8_t)(abs(datalayer.battery.status.voltage_dV - datalayer.battery2.status.voltage_dV) / 10));
+  }
 }
 #endif
 
@@ -733,12 +757,42 @@ void update_SOC() {
     datalayer.battery.status.reported_soc = calc_soc;
   } else {  // No SOC window wanted. Set scaled to same as real.
     datalayer.battery.status.reported_soc = datalayer.battery.status.real_soc;
+#ifdef DOUBLE_BATTERY
+    datalayer.battery.status.reported_soc =
+        (datalayer.battery.status.real_soc + datalayer.battery2.status.real_soc) / 2;
+#endif
   }
+#ifdef DOUBLE_BATTERY
+  datalayer.battery.status.reported_soc = (datalayer.battery.status.real_soc + datalayer.battery2.status.real_soc) / 2;
+
+  if (datalayer.battery.status.real_soc < 100) {  //If this battery is under 1.00%, use this as SOC instead of average
+    datalayer.battery.status.reported_soc = datalayer.battery.status.real_soc;
+  }
+  if (datalayer.battery2.status.real_soc < 100) {  //If this battery is under 1.00%, use this as SOC instead of average
+    datalayer.battery.status.reported_soc = datalayer.battery2.status.real_soc;
+  }
+
+  if (datalayer.battery.status.real_soc > 9900) {  //If this battery is over 99.00%, use this as SOC instead of average
+    datalayer.battery.status.reported_soc = datalayer.battery.status.real_soc;
+  }
+  if (datalayer.battery2.status.real_soc > 9900) {  //If this battery is over 99.00%, use this as SOC instead of average
+    datalayer.battery.status.reported_soc = datalayer.battery2.status.real_soc;
+  }
+
+#endif  //TODO: Constrain according to the user settings. Help wanted on algoritm to use.
+}
+
+void summarize_battery_values() {
+  // TODO: What needs to be summed?
 }
 
 void update_values() {
   // Battery
-  update_values_battery();  // Map the fake values to the correct registers
+  update_values_battery();
+#ifdef DOUBLE_BATTERY
+  update_values_battery2();
+  summarize_battery_values();
+#endif
   // Inverter
 #ifdef BYD_CAN
   update_values_can_byd();
