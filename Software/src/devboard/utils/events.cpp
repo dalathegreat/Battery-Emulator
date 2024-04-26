@@ -5,8 +5,8 @@
 #endif
 
 #include "../../../USER_SETTINGS.h"
-#include "timer.h"
 #include "../../lib/Uptime_Library/src/uptime.h"
+#include "timer.h"
 
 #define EE_NOF_EVENT_ENTRIES 30
 #define EE_EVENT_ENTRY_SIZE sizeof(EVENT_LOG_ENTRY_TYPE)

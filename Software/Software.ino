@@ -226,7 +226,7 @@ void core_loop(void* task_time_us) {
     if (millis() - previousMillisUpdateVal >= intervalUpdateValues)  // Every 5s normally
     {
       previousMillisUpdateVal = millis();
-      update_SOC();               // Check if real or calculated SOC% value should be sent
+      update_SOC();     // Check if real or calculated SOC% value should be sent
       update_values();  // Update values heading towards inverter. Prepare for sending on CAN, or write directly to Modbus.
       if (DUMMY_EVENT_ENABLED) {
         set_event(EVENT_DUMMY_ERROR, (uint8_t)millis());
