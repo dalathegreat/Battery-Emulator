@@ -527,11 +527,8 @@ void receive_can() {  // This section checks if we have a complete CAN message i
       receive_can_sma_tripower(rx_frame);
 #endif
       // Charger
-#ifdef CHEVYVOLT_CHARGER
-      receive_can_chevyvolt_charger(rx_frame);
-#endif
-#ifdef NISSANLEAF_CHARGER
-      receive_can_nissanleaf_charger(rx_frame);
+#if defined(CHEVYVOLT_CHARGER) || defined(NISSANLEAF_CHARGER)
+      receive_can_charger(rx_frame);
 #endif
     } else {  // New extended frame
 #ifdef PYLON_CAN
@@ -565,11 +562,8 @@ void send_can() {
   // Battery
   send_can_battery();
   // Charger
-#ifdef CHEVYVOLT_CHARGER
-  send_can_chevyvolt_charger();
-#endif
-#ifdef NISSANLEAF_CHARGER
-  send_can_nissanleaf_charger();
+#if defined(CHEVYVOLT_CHARGER) || defined(NISSANLEAF_CHARGER)
+  send_can_charger();
 #endif
 }
 
