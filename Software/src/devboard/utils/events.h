@@ -99,6 +99,7 @@ const char* get_event_enum_string(EVENTS_ENUM_TYPE event);
 const char* get_event_message_string(EVENTS_ENUM_TYPE event);
 const char* get_event_level_string(EVENTS_ENUM_TYPE event);
 const char* get_event_type(EVENTS_ENUM_TYPE event);
+unsigned long get_current_event_time_secs(void);
 
 EVENTS_LEVEL_TYPE get_event_level(void);
 

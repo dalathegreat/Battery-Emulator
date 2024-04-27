@@ -5,7 +5,13 @@
 #endif
 
 #include "../../../USER_SETTINGS.h"
+#include "../../lib/Uptime_Library/src/uptime.h"
 #include "timer.h"
+
+// Time conversion macros
+#define DAYS_TO_SECS 86400  // 24 * 60 * 60
+#define HOURS_TO_SECS 3600  // 60 * 60
+#define MINUTES_TO_SECS 60
 
 #define EE_NOF_EVENT_ENTRIES 30
 #define EE_EVENT_ENTRY_SIZE sizeof(EVENT_LOG_ENTRY_TYPE)
@@ -44,7 +50,7 @@ typedef struct {
 
 typedef struct {
   EVENTS_STRUCT_TYPE entries[EVENT_NOF_EVENTS];
-  uint32_t time_seconds;
+  unsigned long time_seconds;
   MyTimer second_timer;
   MyTimer ee_timer;
   MyTimer update_timer;
@@ -166,7 +172,7 @@ void init_events(void) {
 
   events.entries[EVENT_EEPROM_WRITE].log = false;  // Don't log the logger...
 
-  events.second_timer.set_interval(1000);
+  events.second_timer.set_interval(600);
   // Write to EEPROM every X minutes (if an event has been set)
   events.ee_timer.set_interval(EE_WRITE_PERIOD_MINUTES * 60 * 1000);
   events.update_timer.set_interval(2000);
@@ -356,9 +362,18 @@ static void update_event_level(void) {
 }
 
 static void update_event_time(void) {
+  // This should run roughly 2 times per second
   if (events.second_timer.elapsed() == true) {
-    events.time_seconds++;
+    uptime::calculateUptime();  // millis() overflows every 50 days, so update occasionally to adjust
+    events.time_seconds = uptime::getDays() * DAYS_TO_SECS;
+    events.time_seconds += uptime::getHours() * HOURS_TO_SECS;
+    events.time_seconds += uptime::getMinutes() * MINUTES_TO_SECS;
+    events.time_seconds += uptime::getSeconds();
   }
+}
+
+unsigned long get_current_event_time_secs(void) {
+  return events.time_seconds;
 }
 
 static void log_event(EVENTS_ENUM_TYPE event, uint8_t data) {
