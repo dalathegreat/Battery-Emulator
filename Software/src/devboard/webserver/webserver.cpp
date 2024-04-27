@@ -484,7 +484,7 @@ String processor(const String& var) {
     // Close the block
     content += "</div>";
 
-    // Start a new block with a specific background color. Color changes depending on BMS status
+    // Start a new block with a specific background color. Color changes depending on system status
     content += "<div style='background-color: ";
     switch (led_get_color()) {
       case led_color::GREEN:
@@ -538,11 +538,11 @@ String processor(const String& var) {
     content += "<h4>Temperature max: " + String(tempMaxFloat, 1) + " C</h4>";
     content += "<h4>Temperature min: " + String(tempMinFloat, 1) + " C</h4>";
     if (datalayer.battery.status.bms_status == ACTIVE) {
-      content += "<h4>BMS Status: OK </h4>";
+      content += "<h4>System status: OK </h4>";
     } else if (datalayer.battery.status.bms_status == UPDATING) {
-      content += "<h4>BMS Status: UPDATING </h4>";
+      content += "<h4>System status: UPDATING </h4>";
     } else {
-      content += "<h4>BMS Status: FAULT </h4>";
+      content += "<h4>System status: FAULT </h4>";
     }
     if (datalayer.battery.status.current_dA == 0) {
       content += "<h4>Battery idle</h4>";
