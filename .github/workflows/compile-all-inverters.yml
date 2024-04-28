@@ -51,7 +51,7 @@ jobs:
           - SOFAR_CAN
           - SOLAX_CAN
           - SERIAL_LINK_TRANSMITTER
-
+          - NISSANLEAF_CHARGER # Last element is not an inverter, but good to also test if charger compiles
     # This is the platform GitHub will use to run our workflow.
     runs-on: ubuntu-latest
 

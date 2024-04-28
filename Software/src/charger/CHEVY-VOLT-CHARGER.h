@@ -4,6 +4,8 @@
 #include "../include.h"
 #include "../lib/miwagner-ESP32-Arduino-CAN/ESP32CAN.h"
 
+#define CHARGER_SELECTED
+
 /* Charger hardware limits
  *
  * Relative to runtime settings, expectations are:
@@ -13,9 +15,5 @@
 #define CHEVYVOLT_MIN_HVDC 200.0
 #define CHEVYVOLT_MAX_AMP 11.5
 #define CHEVYVOLT_MAX_POWER 3300
-
-void update_values_can_chevyvolt_charger();
-void send_can_chevyvolt_charger();
-void receive_can_chevyvolt_charger(CAN_frame_t rx_frame);
 
 #endif

@@ -12,6 +12,7 @@
 #include "devboard/utils/types.h"
 
 #include "battery/BATTERIES.h"
+#include "charger/CHARGERS.h"
 #include "inverter/INVERTERS.h"
 
 /* - ERROR CHECKS BELOW, DON'T TOUCH - */
