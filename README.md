@@ -39,9 +39,9 @@ For more examples showing wiring, see each battery types own Wiki page. For inst
 1. Download the Arduino IDE: https://www.arduino.cc/en/software
 2. When the Arduino IDE has been started;
 Click "File" in the upper left corner -> Preferences -> Additional Development >Board Manager URL -> Enter the URL in the input box https://raw.githubusercontent.com/espressif/arduino-esp32/gh-pages/package_esp32_index.json
-3. Go to "Boards Manager", and install the ESP32 package by Espressif Systems
+3. Go to "Boards Manager", and install the ESP32 package by Espressif Systems. **The latest confirmed compatible version is 2.0.11**
 
-⚠️ Make sure to use the latest 2.x.x version and not a 3.x.x version, as it is not yet supported by the libraries we include with the SW!
+⚠️ Make sure to use a 2.x.x version - preferably 2.0.11 - and not a 3.x.x version, as it is not yet supported by the libraries we include with the SW!
 ![image](https://github.com/dalathegreat/Battery-Emulator/assets/81711263/79602ef1-1a23-4670-a638-b896b7f6cdf6)
 
 For future migration, see this link: https://docs.espressif.com/projects/arduino-esp32/en/latest/migration_guides/2.x_to_3.0.html
