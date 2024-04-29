@@ -121,7 +121,7 @@ void CAN_WriteFrame(CAN_frame_t* tx_frame) {
 #endif
 }
 
-void update_values_can_solax() {  //This function maps all the values fetched from battery CAN to the correct CAN messages
+void update_values_can_inverter() {  //This function maps all the values fetched from battery CAN to the correct CAN messages
   // If not receiveing any communication from the inverter, open contactors and return to battery announce state
   if (millis() - LastFrameTime >= SolaxTimeout) {
     datalayer.system.status.inverter_allows_contactor_closing = false;
@@ -237,7 +237,11 @@ void update_values_can_solax() {  //This function maps all the values fetched fr
   SOLAX_1801.data.u8[4] = 1;
 }
 
-void receive_can_solax(CAN_frame_t rx_frame) {
+void send_can_inverter() {
+  // No periodic sending used on this protocol, we react only on incoming CAN messages!
+}
+
+void receive_can_inverter(CAN_frame_t rx_frame) {
   if (rx_frame.MsgID == 0x1871 && rx_frame.data.u8[0] == (0x01) ||
       rx_frame.MsgID == 0x1871 && rx_frame.data.u8[0] == (0x02)) {
     LastFrameTime = millis();

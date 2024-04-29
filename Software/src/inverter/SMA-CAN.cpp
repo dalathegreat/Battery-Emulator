@@ -103,7 +103,7 @@ static int16_t charge_current = 0;
 static int16_t temperature_average = 0;
 static uint16_t ampere_hours_remaining = 0;
 
-void update_values_can_sma() {  //This function maps all the values fetched from battery CAN to the correct CAN messages
+void update_values_can_inverter() {  //This function maps all the values fetched from battery CAN to the correct CAN messages
   //Calculate values
   charge_current =
       ((datalayer.battery.status.max_charge_power_W * 10) /
@@ -226,7 +226,7 @@ void update_values_can_sma() {  //This function maps all the values fetched from
 */
 }
 
-void receive_can_sma(CAN_frame_t rx_frame) {
+void receive_can_inverter(CAN_frame_t rx_frame) {
   switch (rx_frame.MsgID) {
     case 0x360:  //Message originating from SMA inverter - Voltage and current
       //Frame0-1 Voltage
@@ -246,7 +246,7 @@ void receive_can_sma(CAN_frame_t rx_frame) {
   }
 }
 
-void send_can_sma() {
+void send_can_inverter() {
   unsigned long currentMillis = millis();
 
   // Send CAN Message every 100ms

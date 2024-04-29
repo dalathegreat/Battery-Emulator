@@ -170,7 +170,7 @@ CAN_frame_t PYLON_4291 = {.FIR = {.B =
                           .MsgID = 0x4291,
                           .data = {0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00}};
 
-void update_values_can_pylon() {  //This function maps all the values fetched from battery CAN to the correct CAN messages
+void update_values_can_inverter() {  //This function maps all the values fetched from battery CAN to the correct CAN messages
   //There are more mappings that could be added, but this should be enough to use as a starting point
   // Note we map both 0 and 1 messages
 
@@ -243,7 +243,7 @@ void update_values_can_pylon() {  //This function maps all the values fetched fr
   }
 }
 
-void receive_can_pylon(CAN_frame_t rx_frame) {
+void receive_can_inverter(CAN_frame_t rx_frame) {
   switch (rx_frame.MsgID) {
     case 0x4200:  //Message originating from inverter. Depending on which data is required, act accordingly
       if (rx_frame.data.u8[0] == 0x02) {
@@ -256,6 +256,10 @@ void receive_can_pylon(CAN_frame_t rx_frame) {
     default:
       break;
   }
+}
+
+void send_can_inverter() {
+  // No periodic sending, we only react on received can messages
 }
 
 void send_setup_info() {  //Ensemble information

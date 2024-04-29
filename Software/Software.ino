@@ -135,7 +135,7 @@ void setup() {
 
   init_serialDataLink();
 
-  inform_user_on_inverter();
+  init_inverter();
 
   init_battery();
 
@@ -443,50 +443,11 @@ void init_modbus() {
 #endif
 }
 
-void inform_user_on_inverter() {
-  // Inform user what Inverter is used
-#ifdef BYD_CAN
-#ifdef DEBUG_VIA_USB
-  Serial.println("BYD CAN protocol selected");
-#endif
-#endif
-#ifdef BYD_MODBUS
-#ifdef DEBUG_VIA_USB
-  Serial.println("BYD Modbus RTU protocol selected");
-#endif
-#endif
-#ifdef LUNA2000_MODBUS
-#ifdef DEBUG_VIA_USB
-  Serial.println("Luna2000 Modbus RTU protocol selected");
-#endif
-#endif
-#ifdef PYLON_CAN
-#ifdef DEBUG_VIA_USB
-  Serial.println("PYLON CAN protocol selected");
-#endif
-#endif
-#ifdef SMA_CAN
-#ifdef DEBUG_VIA_USB
-  Serial.println("SMA CAN protocol selected");
-#endif
-#endif
-#ifdef SMA_TRIPOWER_CAN
-#ifdef DEBUG_VIA_USB
-  Serial.println("SMA Tripower CAN protocol selected");
-#endif
-#endif
-#ifdef SOFAR_CAN
-#ifdef DEBUG_VIA_USB
-  Serial.println("SOFAR CAN protocol selected");
-#endif
-#endif
+void init_inverter() {
+
 #ifdef SOLAX_CAN
-  datalayer.system.status.inverter_allows_contactor_closing =
-      false;                   // The inverter needs to allow first on this protocol
+  datalayer.system.status.inverter_allows_contactor_closing = false;  // The inverter needs to allow first
   intervalUpdateValues = 800;  // This protocol also requires the values to be updated faster
-#ifdef DEBUG_VIA_USB
-  Serial.println("SOLAX CAN protocol selected");
-#endif
 #endif
 }
 
@@ -510,58 +471,30 @@ void receive_can() {  // This section checks if we have a complete CAN message i
   // Depending on which battery/inverter is selected, we forward this to their respective CAN routines
   CAN_frame_t rx_frame;
   if (xQueueReceive(CAN_cfg.rx_queue, &rx_frame, 0) == pdTRUE) {
-    if (rx_frame.FIR.B.FF == CAN_frame_std) {  // New standard frame
-// Battery
-#ifndef SERIAL_LINK_RECEIVER
-      receive_can_battery(rx_frame);
+    // Battery
+#ifndef SERIAL_LINK_RECEIVER  // Only needs to see inverter
+    receive_can_battery(rx_frame);
 #endif
-      // Inverter
-#ifdef BYD_CAN
-      receive_can_byd(rx_frame);
+    // Inverter
+#ifdef CAN_INVERTER_SELECTED
+    receive_can_inverter(rx_frame);
 #endif
-#ifdef SMA_CAN
-      receive_can_sma(rx_frame);
+    // Charger
+#ifdef CHARGER_SELECTED
+    receive_can_charger(rx_frame);
 #endif
-#ifdef SMA_TRIPOWER_CAN
-      receive_can_sma_tripower(rx_frame);
-#endif
-      // Charger
-#if defined(CHEVYVOLT_CHARGER) || defined(NISSANLEAF_CHARGER)
-      receive_can_charger(rx_frame);
-#endif
-    } else {  // New extended frame
-#ifdef PYLON_CAN
-      receive_can_pylon(rx_frame);
-#endif
-#ifdef SOFAR_CAN
-      receive_can_sofar(rx_frame);
-#endif
-#ifdef SOLAX_CAN
-      receive_can_solax(rx_frame);
-#endif
-    }
   }
 }
 
 void send_can() {
-  // Send CAN messages
-  // Inverter
-#ifdef BYD_CAN
-  send_can_byd();
-#endif
-#ifdef SMA_CAN
-  send_can_sma();
-#endif
-#ifdef SMA_TRIPOWER_CAN
-  send_can_sma_tripower();
-#endif
-#ifdef SOFAR_CAN
-  send_can_sofar();
-#endif
   // Battery
   send_can_battery();
+  // Inverter
+#ifdef CAN_INVERTER_SELECTED
+  send_can_inverter();
+#endif
   // Charger
-#if defined(CHEVYVOLT_CHARGER) || defined(NISSANLEAF_CHARGER)
+#ifdef CHARGER_SELECTED
   send_can_charger();
 #endif
 }
@@ -569,40 +502,30 @@ void send_can() {
 #ifdef DUAL_CAN
 void receive_can2() {  // This function is similar to receive_can, but just takes care of inverters in the 2nd bus.
   // Depending on which inverter is selected, we forward this to their respective CAN routines
-  CAN_frame_t rx_frame2;    // Struct with ESP32Can library format, compatible with the rest of the program
-  CANMessage MCP2515Frame;  // Struct with ACAN2515 library format, needed to use thw MCP2515 library
+  CAN_frame_t rx_frame_can2;  // Struct with ESP32Can library format, compatible with the rest of the program
+  CANMessage MCP2515Frame;    // Struct with ACAN2515 library format, needed to use thw MCP2515 library
 
   if (can.available()) {
     can.receive(MCP2515Frame);
 
-    rx_frame2.MsgID = MCP2515Frame.id;
-    rx_frame2.FIR.B.FF = MCP2515Frame.ext ? CAN_frame_ext : CAN_frame_std;
-    rx_frame2.FIR.B.RTR = MCP2515Frame.rtr ? CAN_RTR : CAN_no_RTR;
-    rx_frame2.FIR.B.DLC = MCP2515Frame.len;
+    rx_frame_can2.MsgID = MCP2515Frame.id;
+    rx_frame_can2.FIR.B.FF = MCP2515Frame.ext ? CAN_frame_ext : CAN_frame_std;
+    rx_frame_can2.FIR.B.RTR = MCP2515Frame.rtr ? CAN_RTR : CAN_no_RTR;
+    rx_frame_can2.FIR.B.DLC = MCP2515Frame.len;
     for (uint8_t i = 0; i < MCP2515Frame.len; i++) {
-      rx_frame2.data.u8[i] = MCP2515Frame.data[i];
+      rx_frame_can2.data.u8[i] = MCP2515Frame.data[i];
     }
 
-    if (rx_frame2.FIR.B.FF == CAN_frame_std) {  // New standard frame
-#ifdef BYD_CAN
-      receive_can_byd(rx_frame2);
+#ifdef CAN_INVERTER_SELECTED
+    receive_can_inverter(rx_frame_can2);
 #endif
-    } else {  // New extended frame
-#ifdef PYLON_CAN
-      receive_can_pylon(rx_frame2);
-#endif
-#ifdef SOLAX_CAN
-      receive_can_solax(rx_frame2);
-#endif
-    }
   }
 }
 
 void send_can2() {
-  // Send CAN
   // Inverter
-#ifdef BYD_CAN
-  send_can_byd();
+#ifdef CAN_INVERTER_SELECTED
+  send_can_inverter();  //Note this will only send to CAN1, unless we use SOLAX
 #endif
 }
 #endif
@@ -734,29 +657,14 @@ void update_values() {
   // Battery
   update_values_battery();  // Map the fake values to the correct registers
   // Inverter
-#ifdef BYD_CAN
-  update_values_can_byd();
+#ifdef CAN_INVERTER_SELECTED
+  update_values_can_inverter();
 #endif
 #ifdef BYD_MODBUS
   update_modbus_registers_byd();
 #endif
 #ifdef LUNA2000_MODBUS
   update_modbus_registers_luna2000();
-#endif
-#ifdef PYLON_CAN
-  update_values_can_pylon();
-#endif
-#ifdef SMA_CAN
-  update_values_can_sma();
-#endif
-#ifdef SMA_TRIPOWER_CAN
-  update_values_can_sma_tripower();
-#endif
-#ifdef SOFAR_CAN
-  update_values_can_sofar();
-#endif
-#ifdef SOLAX_CAN
-  update_values_can_solax();
 #endif
 }
 

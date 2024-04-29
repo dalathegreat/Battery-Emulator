@@ -4,7 +4,7 @@
 #include "../lib/miwagner-ESP32-Arduino-CAN/ESP32CAN.h"
 #include "../lib/pierremolinaro-acan2515/ACAN2515.h"
 
-#define INVERTER_SELECTED
+#define CAN_INVERTER_SELECTED
 
 extern ACAN2515 can;
 
@@ -18,6 +18,5 @@ extern ACAN2515 can;
 #define FAULT_SOLAX 3
 #define UPDATING_FW 4
 
-void update_values_can_solax();
 void receive_can_solax(CAN_frame_t rx_frame);
 #endif
