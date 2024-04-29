@@ -46,4 +46,8 @@ void receive_can_inverter(CAN_frame_t rx_frame);
 void send_can_inverter();
 #endif
 
+#ifdef MODBUS_INVERTER_SELECTED
+void update_modbus_registers_inverter();
+#endif
+
 #endif

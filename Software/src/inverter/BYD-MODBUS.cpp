@@ -3,8 +3,7 @@
 #include "../datalayer/datalayer.h"
 #include "BYD-MODBUS.h"
 
-void update_modbus_registers_byd() {
-  //Updata for ModbusRTU Server for BYD
+void update_modbus_registers_inverter() {
   verify_temperature_modbus();
   handle_update_data_modbusp201_byd();
   handle_update_data_modbusp301_byd();

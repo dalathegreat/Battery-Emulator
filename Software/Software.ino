@@ -55,7 +55,7 @@ ACAN2517FD canfd(MCP2517_CS, SPI, MCP2517_INT);
 #endif
 
 // ModbusRTU parameters
-#if defined(BYD_MODBUS) || defined(LUNA2000_MODBUS)
+#ifdef MODBUS_INVERTER_SELECTED
 #define MB_RTU_NUM_VALUES 30000
 uint16_t mbPV[MB_RTU_NUM_VALUES];  // Process variable memory
 // Create a ModbusRTU server instance listening on Serial2 with 2000ms timeout
@@ -416,7 +416,7 @@ void init_contactors() {
 }
 
 void init_modbus() {
-#if defined(BYD_MODBUS) || defined(LUNA2000_MODBUS)
+#ifdef MODBUS_INVERTER_SELECTED
   // Set up Modbus RTU Server
   pinMode(RS485_EN_PIN, OUTPUT);
   digitalWrite(RS485_EN_PIN, HIGH);
@@ -444,7 +444,6 @@ void init_modbus() {
 }
 
 void init_inverter() {
-
 #ifdef SOLAX_CAN
   datalayer.system.status.inverter_allows_contactor_closing = false;  // The inverter needs to allow first
   intervalUpdateValues = 800;  // This protocol also requires the values to be updated faster
@@ -655,16 +654,13 @@ void update_SOC() {
 
 void update_values() {
   // Battery
-  update_values_battery();  // Map the fake values to the correct registers
+  update_values_battery();
   // Inverter
 #ifdef CAN_INVERTER_SELECTED
   update_values_can_inverter();
 #endif
-#ifdef BYD_MODBUS
-  update_modbus_registers_byd();
-#endif
-#ifdef LUNA2000_MODBUS
-  update_modbus_registers_luna2000();
+#ifdef MODBUS_INVERTER_SELECTED
+  update_modbus_registers_inverter();
 #endif
 }
 
