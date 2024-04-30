@@ -5,7 +5,7 @@
 #endif
 
 #include "../../../USER_SETTINGS.h"
-#include "../../lib/Uptime_Library/src/uptime.h"
+#include "../../lib/YiannisBourkelis-Uptime-Library/src/uptime.h"
 #include "timer.h"
 
 // Time conversion macros
