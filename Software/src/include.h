@@ -26,7 +26,7 @@
 #error CAN-FD AND DUAL-CAN CANNOT BE USED SIMULTANEOUSLY
 #endif
 
-#if defined(BYD_MODBUS) || defined(LUNA2000_MODBUS)
+#ifdef MODBUS_INVERTER_SELECTED
 #if defined(SERIAL_LINK_RECEIVER) || defined(SERIAL_LINK_TRANSMITTER)
 // Check that Dual LilyGo via RS485 option isn't enabled, this collides with Modbus!
 #error MODBUS CANNOT BE USED IN DOUBLE LILYGO SETUPS! CHECK USER SETTINGS!

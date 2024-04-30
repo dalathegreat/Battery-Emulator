@@ -280,7 +280,7 @@ CAN_frame_t SOFAR_7C0 = {.FIR = {.B =
                          .MsgID = 0x7C0,
                          .data = {0x00, 0x00, 0x00, 0x04, 0x00, 0x04, 0x80, 0x00}};
 
-void update_values_can_sofar() {  //This function maps all the values fetched from battery CAN to the correct CAN messages
+void update_values_can_inverter() {  //This function maps all the values fetched from battery CAN to the correct CAN messages
 
   //Maxvoltage (eg 400.0V = 4000 , 16bits long) Charge Cutoff Voltage
   SOFAR_351.data.u8[0] = (datalayer.battery.info.max_design_voltage_dV >> 8);
@@ -308,7 +308,7 @@ void update_values_can_sofar() {  //This function maps all the values fetched fr
   SOFAR_356.data.u8[3] = (datalayer.battery.status.temperature_max_dC & 0x00FF);
 }
 
-void receive_can_sofar(CAN_frame_t rx_frame) {
+void receive_can_inverter(CAN_frame_t rx_frame) {
   switch (rx_frame.MsgID) {  //In here we need to respond to the inverter. TODO: make logic
     case 0x605:
       //frame1_605 = rx_frame.data.u8[1];
@@ -323,7 +323,7 @@ void receive_can_sofar(CAN_frame_t rx_frame) {
   }
 }
 
-void send_can_sofar() {
+void send_can_inverter() {
   unsigned long currentMillis = millis();
   // Send 100ms CAN Message
   if (currentMillis - previousMillis100 >= INTERVAL_100_MS) {

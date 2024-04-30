@@ -161,7 +161,7 @@ Command2Battery command2Battery = RUN;
 enum InvInitState { SYSTEM_FREQUENCY, XPHASE_SYSTEM, BLACKSTART_OPERATION };
 InvInitState invInitState = SYSTEM_FREQUENCY;
 
-void update_values_can_sma_tripower() {  //This function maps all the values fetched from battery CAN to the inverter CAN
+void update_values_can_inverter() {  //This function maps all the values fetched from battery CAN to the inverter CAN
   //Calculate values
   charge_current =
       ((datalayer.battery.status.max_charge_power_W * 10) /
@@ -328,7 +328,7 @@ void update_values_can_sma_tripower() {  //This function maps all the values fet
   //SMA_018.data.u8[7] = BatteryName;
 }
 
-void receive_can_sma_tripower(CAN_frame_t rx_frame) {
+void receive_can_inverter(CAN_frame_t rx_frame) {
   switch (rx_frame.MsgID) {
     case 0x00D:  //Inverter Measurements
       break;
@@ -347,7 +347,7 @@ void receive_can_sma_tripower(CAN_frame_t rx_frame) {
   }
 }
 
-void send_can_sma_tripower() {
+void send_can_inverter() {
   unsigned long currentMillis = millis();
 
   // Send CAN Message every 500ms

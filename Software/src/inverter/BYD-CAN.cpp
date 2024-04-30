@@ -114,7 +114,7 @@ static uint16_t inverter_SOC = 0;
 static long inverter_timestamp = 0;
 static bool initialDataSent = 0;
 
-void update_values_can_byd() {  //This function maps all the values fetched from battery CAN to the correct CAN messages
+void update_values_can_inverter() {  //This function maps all the values fetched from battery CAN to the correct CAN messages
   //Calculate values
   charge_current =
       ((datalayer.battery.status.max_charge_power_W * 10) /
@@ -199,7 +199,7 @@ void update_values_can_byd() {  //This function maps all the values fetched from
 #endif
 }
 
-void receive_can_byd(CAN_frame_t rx_frame) {
+void receive_can_inverter(CAN_frame_t rx_frame) {
   switch (rx_frame.MsgID) {
     case 0x151:  //Message originating from BYD HVS compatible inverter. Reply with CAN identifier!
       if (rx_frame.data.u8[0] & 0x01) {  //Battery requests identification
@@ -229,7 +229,7 @@ void receive_can_byd(CAN_frame_t rx_frame) {
   }
 }
 
-void send_can_byd() {
+void send_can_inverter() {
   unsigned long currentMillis = millis();
   // Send initial CAN data once on bootup
   if (!initialDataSent) {
