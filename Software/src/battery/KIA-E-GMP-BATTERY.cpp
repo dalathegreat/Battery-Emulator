@@ -51,7 +51,9 @@ CANFDMessage EGMP_7E4_ack;
 
 void set_cell_voltages(CANFDMessage frame, int start, int length, int startCell) {
   for (size_t i = 0; i < length; i++) {
+    if ((frame.data[start + i] * 20) > 1000) {
     datalayer.battery.status.cell_voltages_mV[startCell + i] = (frame.data[start + i] * 20);
+    }
   }
 }
 
