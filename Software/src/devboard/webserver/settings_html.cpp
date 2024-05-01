@@ -1,8 +1,9 @@
 #include "settings_html.h"
 #include <Arduino.h>
+#include "../../datalayer/datalayer.h"
 
 String settings_processor(const String& var) {
-  if (var == "PLACEHOLDER") {
+  if (var == "ABC") {
     String content = "";
     //Page format
     content += "<style>";
@@ -13,20 +14,24 @@ String settings_processor(const String& var) {
     content += "<div style='background-color: #303E47; padding: 10px; margin-bottom: 10px;border-radius: 50px'>";
 
     // Show current settings with edit buttons and input fields
-    content += "<h4 style='color: white;'>Battery capacity: <span id='BATTERY_WH_MAX'>" + String(BATTERY_WH_MAX) +
+    content += "<h4 style='color: white;'>Battery capacity: <span id='BATTERY_WH_MAX'>" +
+               String(datalayer.battery.info.total_capacity_Wh) +
                " Wh </span> <button onclick='editWh()'>Edit</button></h4>";
-    content += "<h4 style='color: white;'>Rescale SOC: <span id='USE_SCALED_SOC'>" +
-               String(USE_SCALED_SOC ? "<span>&#10003;</span>" : "<span style='color: red;'>&#10005;</span>") +
+    content += "<h4 style='color: white;'>Rescale SOC: <span id='BATTERY_USE_SCALED_SOC'>" +
+               String(datalayer.battery.settings.soc_scaling_active ? "<span>&#10003;</span>"
+                                                                    : "<span style='color: red;'>&#10005;</span>") +
                "</span> <button onclick='editUseScaledSOC()'>Edit</button></h4>";
-    content += "<h4 style='color: " + String(USE_SCALED_SOC ? "white" : "darkgrey") +
-               ";'>SOC max percentage: " + String(MAXPERCENTAGE / 10.0, 1) +
+    content += "<h4 style='color: " + String(datalayer.battery.settings.soc_scaling_active ? "white" : "darkgrey") +
+               ";'>SOC max percentage: " + String(datalayer.battery.settings.max_percentage / 100.0, 1) +
                " </span> <button onclick='editSocMax()'>Edit</button></h4>";
-    content += "<h4 style='color: " + String(USE_SCALED_SOC ? "white" : "darkgrey") +
-               ";'>SOC min percentage: " + String(MINPERCENTAGE / 10.0, 1) +
+    content += "<h4 style='color: " + String(datalayer.battery.settings.soc_scaling_active ? "white" : "darkgrey") +
+               ";'>SOC min percentage: " + String(datalayer.battery.settings.min_percentage / 100.0, 1) +
                " </span> <button onclick='editSocMin()'>Edit</button></h4>";
-    content += "<h4 style='color: white;'>Max charge speed: " + String(MAXCHARGEAMP / 10.0, 1) +
-               " A </span> <button onclick='editMaxChargeA()'>Edit</button></h4>";
-    content += "<h4 style='color: white;'>Max discharge speed: " + String(MAXDISCHARGEAMP / 10.0, 1) +
+    content +=
+        "<h4 style='color: white;'>Max charge speed: " + String(datalayer.battery.info.max_charge_amp_dA / 10.0, 1) +
+        " A </span> <button onclick='editMaxChargeA()'>Edit</button></h4>";
+    content += "<h4 style='color: white;'>Max discharge speed: " +
+               String(datalayer.battery.info.max_discharge_amp_dA / 10.0, 1) +
                " A </span> <button onclick='editMaxDischargeA()'>Edit</button></h4>";
     // Close the block
     content += "</div>";
@@ -34,7 +39,8 @@ String settings_processor(const String& var) {
 #ifdef TEST_FAKE_BATTERY
     // Start a new block with blue background color
     content += "<div style='background-color: #2E37AD; padding: 10px; margin-bottom: 10px;border-radius: 50px'>";
-    float voltageFloat = static_cast<float>(system_battery_voltage_dV) / 10.0;  // Convert to float and divide by 10
+    float voltageFloat =
+        static_cast<float>(datalayer.battery.status.voltage_dV) / 10.0;  // Convert to float and divide by 10
     content += "<h4 style='color: white;'>Fake battery voltage: " + String(voltageFloat, 1) +
                " V </span> <button onclick='editFakeBatteryVoltage()'>Edit</button></h4>";
 

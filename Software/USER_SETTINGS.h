@@ -12,7 +12,9 @@
 //#define CHADEMO_BATTERY
 //#define IMIEV_CZERO_ION_BATTERY
 //#define KIA_HYUNDAI_64_BATTERY
+//#define KIA_E_GMP_BATTERY
 //#define NISSAN_LEAF_BATTERY
+//#define PYLON_BATTERY
 //#define RENAULT_KANGOO_BATTERY
 //#define RENAULT_ZOE_BATTERY
 //#define SANTA_FE_PHEV_BATTERY
@@ -31,15 +33,17 @@
 //#define SOLAX_CAN        //Enable this line to emulate a "SolaX Triple Power LFP" over CAN bus
 
 /* Other options */
-//#define DEBUG_VIA_USB  //Enable this line to have the USB port output serial diagnostic data while program runs
+//#define DEBUG_VIA_USB  //Enable this line to have the USB port output serial diagnostic data while program runs (WARNING, raises CPU load, do not use for production)
 //#define INTERLOCK_REQUIRED  //Nissan LEAF specific setting, if enabled requires both high voltage conenctors to be seated before starting
 //#define CONTACTOR_CONTROL     //Enable this line to have pins 25,32,33 handle automatic precharge/contactor+/contactor- closing sequence
 //#define PWM_CONTACTOR_CONTROL //Enable this line to use PWM logic for contactors, which lower power consumption and heat generation
 //#define DUAL_CAN              //Enable this line to activate an isolated secondary CAN Bus using add-on MCP2515 controller (Needed for FoxESS inverters)
+//#define CAN_FD  //Enable this line to activate an isolated secondary CAN-FD bus using add-on MCP2517FD controller (Needed for some batteries)
 //#define SERIAL_LINK_RECEIVER  //Enable this line to receive battery data over RS485 pins from another Lilygo (This LilyGo interfaces with inverter)
 //#define SERIAL_LINK_TRANSMITTER  //Enable this line to send battery data over RS485 pins to another Lilygo (This LilyGo interfaces with battery)
 #define WEBSERVER  //Enable this line to enable WiFi, and to run the webserver. See USER_SETTINGS.cpp for the Wifi settings.
 //#define LOAD_SAVED_SETTINGS_ON_BOOT  //Enable this line to read settings stored via the webserver on boot (overrides any battery settings set in USER_SETTINGS.cpp)
+//#define FUNCTION_TIME_MEASUREMENT  // Enable this to record execution times and present them in the web UI (WARNING, raises CPU load, do not use for production)
 
 /* MQTT options */
 // #define MQTT  // Enable this line to enable MQTT
@@ -55,14 +59,23 @@
 //#define CHEVYVOLT_CHARGER //Enable this line to control a Chevrolet Volt charger connected to battery - for example, when generator charging or using an inverter without a charging function.
 //#define NISSANLEAF_CHARGER //Enable this line to control a Nissan LEAF PDM connected to battery - for example, when generator charging
 
-/* Battery limits: These are set in the USER_SETTINGS.cpp file, or later on via the Webserver */
-extern volatile uint32_t BATTERY_WH_MAX;
-extern volatile uint16_t MAXPERCENTAGE;
-extern volatile uint16_t MINPERCENTAGE;
-extern volatile uint16_t MAXCHARGEAMP;
-extern volatile uint16_t MAXDISCHARGEAMP;
+/* Battery settings */
+
+// Predefined total energy capacity of the battery in Watt-hours
+#define BATTERY_WH_MAX 30000
+// Increases battery life. If true will rescale SOC between the configured min/max-percentage
+#define BATTERY_USE_SCALED_SOC true
+// 8000 = 80.0% , Max percentage the battery will charge to (Inverter gets 100% when reached)
+#define BATTERY_MAXPERCENTAGE 8000
+// 2000 = 20.0% , Min percentage the battery will discharge to (Inverter gets 0% when reached)
+#define BATTERY_MINPERCENTAGE 2000
+// 300 = 30.0A , BYD CAN specific setting, Max charge in Amp (Some inverters needs to be limited)
+#define BATTERY_MAX_CHARGE_AMP 300
+// 300 = 30.0A , BYD CAN specific setting, Max discharge in Amp (Some inverters needs to be limited)
+#define BATTERY_MAX_DISCHARGE_AMP 300
+
 extern volatile uint8_t AccessPointEnabled;
-extern volatile bool USE_SCALED_SOC;
+extern const uint8_t wifi_channel;
 
 /* Charger limits (Optional): Set in the USER_SETTINGS.cpp or later in the webserver */
 extern volatile float charger_setpoint_HV_VDC;
@@ -76,7 +89,5 @@ extern volatile float CHARGER_MAX_A;
 extern volatile float CHARGER_END_A;
 extern bool charger_HV_enabled;
 extern bool charger_aux12V_enabled;
-
-extern const uint8_t wifi_channel;
 
 #endif

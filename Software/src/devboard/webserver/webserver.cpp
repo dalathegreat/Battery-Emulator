@@ -1,6 +1,8 @@
 #include "webserver.h"
 #include <Preferences.h>
+#include "../../datalayer/datalayer.h"
 #include "../utils/events.h"
+#include "../utils/led_handler.h"
 #include "../utils/timer.h"
 
 // Create AsyncWebServer object on port 80
@@ -22,7 +24,7 @@ enum WifiState {
 
 WifiState wifi_state = INIT;
 
-MyTimer ota_timeout_timer = MyTimer(5000);
+MyTimer ota_timeout_timer = MyTimer(15000);
 bool ota_active = false;
 
 unsigned const long WIFI_MONITOR_INTERVAL_TIME = 15000;
@@ -66,7 +68,7 @@ void init_webserver() {
   server.on("/updateBatterySize", HTTP_GET, [](AsyncWebServerRequest* request) {
     if (request->hasParam("value")) {
       String value = request->getParam("value")->value();
-      BATTERY_WH_MAX = value.toInt();
+      datalayer.battery.info.total_capacity_Wh = value.toInt();
       storeSettings();
       request->send(200, "text/plain", "Updated successfully");
     } else {
@@ -78,7 +80,7 @@ void init_webserver() {
   server.on("/updateUseScaledSOC", HTTP_GET, [](AsyncWebServerRequest* request) {
     if (request->hasParam("value")) {
       String value = request->getParam("value")->value();
-      USE_SCALED_SOC = value.toInt();
+      datalayer.battery.settings.soc_scaling_active = value.toInt();
       storeSettings();
       request->send(200, "text/plain", "Updated successfully");
     } else {
@@ -90,7 +92,7 @@ void init_webserver() {
   server.on("/updateSocMax", HTTP_GET, [](AsyncWebServerRequest* request) {
     if (request->hasParam("value")) {
       String value = request->getParam("value")->value();
-      MAXPERCENTAGE = value.toInt() * 10;
+      datalayer.battery.settings.max_percentage = value.toInt() * 100;
       storeSettings();
       request->send(200, "text/plain", "Updated successfully");
     } else {
@@ -102,7 +104,7 @@ void init_webserver() {
   server.on("/updateSocMin", HTTP_GET, [](AsyncWebServerRequest* request) {
     if (request->hasParam("value")) {
       String value = request->getParam("value")->value();
-      MINPERCENTAGE = value.toInt() * 10;
+      datalayer.battery.settings.min_percentage = value.toInt() * 100;
       storeSettings();
       request->send(200, "text/plain", "Updated successfully");
     } else {
@@ -114,7 +116,7 @@ void init_webserver() {
   server.on("/updateMaxChargeA", HTTP_GET, [](AsyncWebServerRequest* request) {
     if (request->hasParam("value")) {
       String value = request->getParam("value")->value();
-      MAXCHARGEAMP = value.toInt() * 10;
+      datalayer.battery.info.max_charge_amp_dA = value.toInt() * 10;
       storeSettings();
       request->send(200, "text/plain", "Updated successfully");
     } else {
@@ -126,7 +128,7 @@ void init_webserver() {
   server.on("/updateMaxDischargeA", HTTP_GET, [](AsyncWebServerRequest* request) {
     if (request->hasParam("value")) {
       String value = request->getParam("value")->value();
-      MAXDISCHARGEAMP = value.toInt() * 10;
+      datalayer.battery.info.max_discharge_amp_dA = value.toInt() * 10;
       storeSettings();
       request->send(200, "text/plain", "Updated successfully");
     } else {
@@ -144,7 +146,7 @@ void init_webserver() {
     String value = request->getParam("value")->value();
     float val = value.toFloat();
 
-    system_battery_voltage_dV = val * 10;
+    datalayer.battery.status.voltage_dV = val * 10;
 
     request->send(200, "text/plain", "Updated successfully");
   });
@@ -182,7 +184,7 @@ void init_webserver() {
     String value = request->getParam("value")->value();
     float val = value.toFloat();
 
-    if (!(val <= MAXCHARGEAMP && val <= CHARGER_MAX_A)) {
+    if (!(val <= datalayer.battery.info.max_charge_amp_dA && val <= CHARGER_MAX_A)) {
       request->send(400, "text/plain", "Bad Request");
     }
 
@@ -254,13 +256,17 @@ void init_webserver() {
 }
 
 void init_WiFi_AP() {
+#ifdef DEBUG_VIA_USB
   Serial.println("Creating Access Point: " + String(ssidAP));
   Serial.println("With password: " + String(passwordAP));
+#endif
   WiFi.softAP(ssidAP, passwordAP);
   IPAddress IP = WiFi.softAPIP();
+#ifdef DEBUG_VIA_USB
   Serial.println("Access Point created.");
   Serial.print("IP address: ");
   Serial.println(IP);
+#endif
 }
 
 String getConnectResultString(wl_status_t status) {
@@ -292,13 +298,17 @@ void wifi_monitor() {
     last_wifi_monitor_time = currentMillis;
     wl_status_t status = WiFi.status();
     if (status != WL_CONNECTED && status != WL_IDLE_STATUS) {
+#ifdef DEBUG_VIA_USB
       Serial.println(getConnectResultString(status));
+#endif
       if (wifi_state == INIT) {  //we haven't been connected yet, try the init logic
         init_WiFi_STA(ssid, password, wifi_channel);
       } else {  //we were connected before, try the reconnect logic
         if (currentMillis - last_wifi_attempt_time > wifi_reconnect_interval) {
           last_wifi_attempt_time = currentMillis;
+#ifdef DEBUG_VIA_USB
           Serial.println("WiFi not connected, trying to reconnect...");
+#endif
           wifi_state = RECONNECTING;
           WiFi.reconnect();
           wifi_reconnect_interval = min(wifi_reconnect_interval * 2, MAX_WIFI_RETRY_INTERVAL);
@@ -307,12 +317,14 @@ void wifi_monitor() {
     } else if (status == WL_CONNECTED && wifi_state != CONNECTED) {
       wifi_state = CONNECTED;
       wifi_reconnect_interval = DEFAULT_WIFI_RECONNECT_INTERVAL;
-      // Print local IP address and start web server
+// Print local IP address and start web server
+#ifdef DEBUG_VIA_USB
       Serial.print("Connected to WiFi network: " + String(ssid));
       Serial.print(" IP address: " + WiFi.localIP().toString());
       Serial.print(" Signal Strength: " + String(WiFi.RSSI()) + " dBm");
       Serial.println(" Channel: " + String(WiFi.channel()));
       Serial.println(" Hostname: " + String(WiFi.getHostname()));
+#endif
     }
   }
 
@@ -326,9 +338,11 @@ void wifi_monitor() {
 }
 
 void init_WiFi_STA(const char* ssid, const char* password, const uint8_t wifi_channel) {
-  // Connect to Wi-Fi network with SSID and password
+// Connect to Wi-Fi network with SSID and password
+#ifdef DEBUG_VIA_USB
   Serial.print("Connecting to ");
   Serial.println(ssid);
+#endif
   WiFi.begin(ssid, password, wifi_channel);
   WiFi.setAutoReconnect(true);  // Enable auto reconnect
   wl_status_t result = static_cast<wl_status_t>(WiFi.waitForConnectResult(INIT_WIFI_CONNECT_TIMEOUT));
@@ -344,7 +358,7 @@ void init_ElegantOTA() {
 }
 
 String processor(const String& var) {
-  if (var == "PLACEHOLDER") {
+  if (var == "ABC") {
     String content = "";
     //Page format
     content += "<style>";
@@ -355,38 +369,33 @@ String processor(const String& var) {
     content += "<div style='background-color: #303E47; padding: 10px; margin-bottom: 10px;border-radius: 50px'>";
 
     // Show version number
-    content += "<h4>Software version: " + String(version_number) + "</h4>";
+    content += "<h4>Software: " + String(version_number) + "</h4>";
+    content += "<h4>Uptime: " + uptime_formatter::getUptime() + "</h4>";
+#ifdef FUNCTION_TIME_MEASUREMENT
+    // Load information
+    content += "<h4>Core task max load: " + String(datalayer.system.status.core_task_max_us) + " us</h4>";
+    content += "<h4>Core task max load last 10 s: " + String(datalayer.system.status.core_task_10s_max_us) + " us</h4>";
+    content += "<h4>MQTT task max load last 10 s: " + String(datalayer.system.status.mqtt_task_10s_max_us) + " us</h4>";
+    content +=
+        "<h4>loop() task max load last 10 s: " + String(datalayer.system.status.loop_task_10s_max_us) + " us</h4>";
+    content += "<h4>Max load @ worst case execution of core task:</h4>";
+    content += "<h4>10ms function timing: " + String(datalayer.system.status.time_snap_10ms_us) + " us</h4>";
+    content += "<h4>5s function timing: " + String(datalayer.system.status.time_snap_5s_us) + " us</h4>";
+    content += "<h4>CAN/serial RX function timing: " + String(datalayer.system.status.time_snap_comm_us) + " us</h4>";
+    content += "<h4>CAN TX function timing: " + String(datalayer.system.status.time_snap_cantx_us) + " us</h4>";
+    content += "<h4>Wifi and OTA function timing: " + String(datalayer.system.status.time_snap_wifi_us) + " us</h4>";
+#endif
 
-    // Display LED color
-    content += "<h4>LED color: ";
-    switch (LEDcolor) {
-      case GREEN:
-        content += "GREEN</h4>";
-        break;
-      case YELLOW:
-        content += "YELLOW</h4>";
-        break;
-      case BLUE:
-        content += "BLUE</h4>";
-        break;
-      case RED:
-        content += "RED</h4>";
-        break;
-      case TEST_ALL_COLORS:
-        content += "RGB Testing loop</h4>";
-        break;
-      default:
-        break;
-    }
     wl_status_t status = WiFi.status();
     // Display ssid of network connected to and, if connected to the WiFi, its own IP
     content += "<h4>SSID: " + String(ssid) + "</h4>";
-    content += "<h4>Wifi status: " + getConnectResultString(status) + "</h4>";
     if (status == WL_CONNECTED) {
       content += "<h4>IP: " + WiFi.localIP().toString() + "</h4>";
       // Get and display the signal strength (RSSI)
       content += "<h4>Signal Strength: " + String(WiFi.RSSI()) + " dBm</h4>";
       content += "<h4>Channel: " + String(WiFi.channel()) + "</h4>";
+    } else {
+      content += "<h4>Wifi state: " + getConnectResultString(status) + "</h4>";
     }
     // Close the block
     content += "</div>";
@@ -435,6 +444,9 @@ String processor(const String& var) {
 #ifdef KIA_HYUNDAI_64_BATTERY
     content += "Kia/Hyundai 64kWh";
 #endif
+#ifdef KIA_E_GMP_BATTERY
+    content += "Kia/Hyundai EGMP platform";
+#endif
 #ifdef NISSAN_LEAF_BATTERY
     content += "Nissan LEAF";
 #endif
@@ -472,37 +484,44 @@ String processor(const String& var) {
     // Close the block
     content += "</div>";
 
-    // Start a new block with a specific background color. Color changes depending on BMS status
-    switch (LEDcolor) {
-      case GREEN:
-        content += "<div style='background-color: #2D3F2F; padding: 10px; margin-bottom: 10px; border-radius: 50px'>";
+    // Start a new block with a specific background color. Color changes depending on system status
+    content += "<div style='background-color: ";
+    switch (led_get_color()) {
+      case led_color::GREEN:
+        content += "#2D3F2F;";
         break;
-      case YELLOW:
-        content += "<div style='background-color: #F5CC00; padding: 10px; margin-bottom: 10px; border-radius: 50px'>";
+      case led_color::YELLOW:
+        content += "#F5CC00;";
         break;
-      case BLUE:
-        content += "<div style='background-color: #2B35AF; padding: 10px; margin-bottom: 10px; border-radius: 50px'>";
+      case led_color::BLUE:
+      case led_color::RGB:
+        content += "#2B35AF;";  // Blue in test mode
         break;
-      case RED:
-        content += "<div style='background-color: #A70107; padding: 10px; margin-bottom: 10px; border-radius: 50px'>";
+      case led_color::RED:
+        content += "#A70107;";
         break;
-      case TEST_ALL_COLORS:  //Blue in test mode
-        content += "<div style='background-color: #2B35AF; padding: 10px; margin-bottom: 10px; border-radius: 50px'>";
-        break;
-      default:  //Some new color, make background green
-        content += "<div style='background-color: #2D3F2F; padding: 10px; margin-bottom: 10px; border-radius: 50px'>";
+      default:  // Some new color, make background green
+        content += "#2D3F2F;";
         break;
     }
 
+    // Add the common style properties
+    content += "padding: 10px; margin-bottom: 10px; border-radius: 50px;'>";
+
     // Display battery statistics within this block
-    float socRealFloat = static_cast<float>(system_real_SOC_pptt) / 100.0;      // Convert to float and divide by 100
-    float socScaledFloat = static_cast<float>(system_scaled_SOC_pptt) / 100.0;  // Convert to float and divide by 100
-    float sohFloat = static_cast<float>(system_SOH_pptt) / 100.0;               // Convert to float and divide by 100
-    float voltageFloat = static_cast<float>(system_battery_voltage_dV) / 10.0;  // Convert to float and divide by 10
-    float currentFloat = static_cast<float>(system_battery_current_dA) / 10.0;  // Convert to float and divide by 10
-    float powerFloat = static_cast<float>(system_active_power_W);               // Convert to float
-    float tempMaxFloat = static_cast<float>(system_temperature_max_dC) / 10.0;  // Convert to float
-    float tempMinFloat = static_cast<float>(system_temperature_min_dC) / 10.0;  // Convert to float
+    float socRealFloat =
+        static_cast<float>(datalayer.battery.status.real_soc) / 100.0;  // Convert to float and divide by 100
+    float socScaledFloat =
+        static_cast<float>(datalayer.battery.status.reported_soc) / 100.0;  // Convert to float and divide by 100
+    float sohFloat =
+        static_cast<float>(datalayer.battery.status.soh_pptt) / 100.0;  // Convert to float and divide by 100
+    float voltageFloat =
+        static_cast<float>(datalayer.battery.status.voltage_dV) / 10.0;  // Convert to float and divide by 10
+    float currentFloat =
+        static_cast<float>(datalayer.battery.status.current_dA) / 10.0;  // Convert to float and divide by 10
+    float powerFloat = static_cast<float>(datalayer.battery.status.active_power_W);               // Convert to float
+    float tempMaxFloat = static_cast<float>(datalayer.battery.status.temperature_max_dC) / 10.0;  // Convert to float
+    float tempMinFloat = static_cast<float>(datalayer.battery.status.temperature_min_dC) / 10.0;  // Convert to float
 
     content += "<h4 style='color: white;'>Real SOC: " + String(socRealFloat, 2) + "</h4>";
     content += "<h4 style='color: white;'>Scaled SOC: " + String(socScaledFloat, 2) + "</h4>";
@@ -510,38 +529,39 @@ String processor(const String& var) {
     content += "<h4 style='color: white;'>Voltage: " + String(voltageFloat, 1) + " V</h4>";
     content += "<h4 style='color: white;'>Current: " + String(currentFloat, 1) + " A</h4>";
     content += formatPowerValue("Power", powerFloat, "", 1);
-    content += formatPowerValue("Total capacity", system_capacity_Wh, "h", 0);
-    content += formatPowerValue("Remaining capacity", system_remaining_capacity_Wh, "h", 1);
-    content += formatPowerValue("Max discharge power", system_max_discharge_power_W, "", 1);
-    content += formatPowerValue("Max charge power", system_max_charge_power_W, "", 1);
-    content += "<h4>Cell max: " + String(system_cell_max_voltage_mV) + " mV</h4>";
-    content += "<h4>Cell min: " + String(system_cell_min_voltage_mV) + " mV</h4>";
+    content += formatPowerValue("Total capacity", datalayer.battery.info.total_capacity_Wh, "h", 0);
+    content += formatPowerValue("Remaining capacity", datalayer.battery.status.remaining_capacity_Wh, "h", 1);
+    content += formatPowerValue("Max discharge power", datalayer.battery.status.max_discharge_power_W, "", 1);
+    content += formatPowerValue("Max charge power", datalayer.battery.status.max_charge_power_W, "", 1);
+    content += "<h4>Cell max: " + String(datalayer.battery.status.cell_max_voltage_mV) + " mV</h4>";
+    content += "<h4>Cell min: " + String(datalayer.battery.status.cell_min_voltage_mV) + " mV</h4>";
     content += "<h4>Temperature max: " + String(tempMaxFloat, 1) + " C</h4>";
     content += "<h4>Temperature min: " + String(tempMinFloat, 1) + " C</h4>";
-    if (system_bms_status == ACTIVE) {
-      content += "<h4>BMS Status: OK </h4>";
-    } else if (system_bms_status == UPDATING) {
-      content += "<h4>BMS Status: UPDATING </h4>";
+    if (datalayer.battery.status.bms_status == ACTIVE) {
+      content += "<h4>System status: OK </h4>";
+    } else if (datalayer.battery.status.bms_status == UPDATING) {
+      content += "<h4>System status: UPDATING </h4>";
     } else {
-      content += "<h4>BMS Status: FAULT </h4>";
+      content += "<h4>System status: FAULT </h4>";
     }
-    if (system_battery_current_dA == 0) {
+    if (datalayer.battery.status.current_dA == 0) {
       content += "<h4>Battery idle</h4>";
-    } else if (system_battery_current_dA < 0) {
+    } else if (datalayer.battery.status.current_dA < 0) {
       content += "<h4>Battery discharging!</h4>";
     } else {  // > 0
       content += "<h4>Battery charging!</h4>";
     }
+
     content += "<h4>Automatic contactor closing allowed:</h4>";
     content += "<h4>Battery: ";
-    if (batteryAllowsContactorClosing) {
+    if (datalayer.system.status.battery_allows_contactor_closing == true) {
       content += "<span>&#10003;</span>";
     } else {
       content += "<span style='color: red;'>&#10005;</span>";
     }
 
     content += " Inverter: ";
-    if (inverterAllowsContactorClosing) {
+    if (datalayer.system.status.inverter_allows_contactor_closing == true) {
       content += "<span>&#10003;</span></h4>";
     } else {
       content += "<span style='color: red;'>&#10005;</span></h4>";
@@ -591,8 +611,8 @@ String processor(const String& var) {
 #endif
 #ifdef NISSANLEAF_CHARGER
     float chgPwrDC = static_cast<float>(charger_stat_HVcur * 100);
-    charger_stat_HVcur = chgPwrDC / (battery_voltage / 10);  // P/U=I
-    charger_stat_HVvol = static_cast<float>(battery_voltage / 10);
+    charger_stat_HVcur = chgPwrDC / (datalayer.battery.status.voltage_dV / 10);  // P/U=I
+    charger_stat_HVvol = static_cast<float>(datalayer.battery.status.voltage_dV / 10);
     float ACvol = charger_stat_ACvol;
     float HVvol = charger_stat_HVvol;
     float HVcur = charger_stat_HVcur;
@@ -606,25 +626,25 @@ String processor(const String& var) {
     content += "</div>";
 #endif
 
-    content += "<button onclick='goToUpdatePage()'>Perform OTA update</button>";
+    content += "<button onclick='OTA()'>Perform OTA update</button>";
     content += " ";
-    content += "<button onclick='goToSettingsPage()'>Change Settings</button>";
+    content += "<button onclick='Settings()'>Change Settings</button>";
     content += " ";
-    content += "<button onclick='goToCellmonitorPage()'>Cellmonitor</button>";
+    content += "<button onclick='Cellmon()'>Cellmonitor</button>";
     content += " ";
-    content += "<button onclick='goToEventsPage()'>Events</button>";
+    content += "<button onclick='Events()'>Events</button>";
     content += " ";
-    content += "<button onclick='promptToReboot()'>Reboot Emulator</button>";
+    content += "<button onclick='askReboot()'>Reboot Emulator</button>";
     content += "<script>";
-    content += "function goToUpdatePage() { window.location.href = '/update'; }";
-    content += "function goToCellmonitorPage() { window.location.href = '/cellmonitor'; }";
-    content += "function goToSettingsPage() { window.location.href = '/settings'; }";
-    content += "function goToEventsPage() { window.location.href = '/events'; }";
+    content += "function OTA() { window.location.href = '/update'; }";
+    content += "function Cellmon() { window.location.href = '/cellmonitor'; }";
+    content += "function Settings() { window.location.href = '/settings'; }";
+    content += "function Events() { window.location.href = '/events'; }";
     content +=
-        "function promptToReboot() { if (window.confirm('Are you sure you want to reboot the emulator? NOTE: If "
+        "function askReboot() { if (window.confirm('Are you sure you want to reboot the emulator? NOTE: If "
         "emulator is handling contactors, they will open during reboot!')) { "
-        "rebootServer(); } }";
-    content += "function rebootServer() {";
+        "reboot(); } }";
+    content += "function reboot() {";
     content += "  var xhr = new XMLHttpRequest();";
     content += "  xhr.open('GET', '/reboot', true);";
     content += "  xhr.send();";
@@ -633,7 +653,7 @@ String processor(const String& var) {
 
     //Script for refreshing page
     content += "<script>";
-    content += "setTimeout(function(){ location.reload(true); }, 10000);";
+    content += "setTimeout(function(){ location.reload(true); }, 15000);";
     content += "</script>";
 
     return content;
@@ -656,8 +676,9 @@ void onOTAProgress(size_t current, size_t final) {
   // Log every 1 second
   if (millis() - ota_progress_millis > 1000) {
     ota_progress_millis = millis();
+#ifdef DEBUG_VIA_USB
     Serial.printf("OTA Progress Current: %u bytes, Final: %u bytes\n", current, final);
-
+#endif
     // Reset the "watchdog"
     ota_timeout_timer.reset();
   }
@@ -666,9 +687,13 @@ void onOTAProgress(size_t current, size_t final) {
 void onOTAEnd(bool success) {
   // Log when OTA has finished
   if (success) {
+#ifdef DEBUG_VIA_USB
     Serial.println("OTA update finished successfully!");
+#endif
   } else {
+#ifdef DEBUG_VIA_USB
     Serial.println("There was an error during OTA update!");
+#endif
 
     // If we fail without a timeout, try to restore CAN
     ESP32Can.CANInit();

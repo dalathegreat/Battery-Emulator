@@ -1,14 +1,12 @@
 #ifndef __EVENTS_H__
 #define __EVENTS_H__
-#include <stdint.h>
-
 #ifndef UNIT_TEST
-#include <Arduino.h>
+#include "../../include.h"
 #endif
 
 // #define INCLUDE_EVENTS_TEST  // Enable to run an event test loop, see events_test_on_target.cpp
 
-#define EE_MAGIC_HEADER_VALUE 0x0001  // 0x0000 to 0xFFFF
+#define EE_MAGIC_HEADER_VALUE 0x0004  // 0x0000 to 0xFFFF
 
 #define GENERATE_ENUM(ENUM) ENUM,
 #define GENERATE_STRING(STRING) #STRING,
@@ -28,7 +26,10 @@
  */
 
 #define EVENTS_ENUM_TYPE(XX)            \
+  XX(EVENT_CANFD_INIT_FAILURE)          \
+  XX(EVENT_CAN_OVERRUN)                 \
   XX(EVENT_CAN_RX_FAILURE)              \
+  XX(EVENT_CANFD_RX_FAILURE)            \
   XX(EVENT_CAN_RX_WARNING)              \
   XX(EVENT_CAN_TX_FAILURE)              \
   XX(EVENT_WATER_INGRESS)               \
@@ -37,13 +38,18 @@
   XX(EVENT_KWH_PLAUSIBILITY_ERROR)      \
   XX(EVENT_BATTERY_EMPTY)               \
   XX(EVENT_BATTERY_FULL)                \
+  XX(EVENT_BATTERY_CAUTION)             \
   XX(EVENT_BATTERY_CHG_STOP_REQ)        \
   XX(EVENT_BATTERY_DISCHG_STOP_REQ)     \
   XX(EVENT_BATTERY_CHG_DISCHG_STOP_REQ) \
+  XX(EVENT_BATTERY_REQUESTS_HEAT)       \
+  XX(EVENT_BATTERY_WARMED_UP)           \
   XX(EVENT_LOW_SOH)                     \
   XX(EVENT_HVIL_FAILURE)                \
+  XX(EVENT_PRECHARGE_FAILURE)           \
   XX(EVENT_INTERNAL_OPEN_FAULT)         \
   XX(EVENT_INVERTER_OPEN_CONTACTOR)     \
+  XX(EVENT_ERROR_OPEN_CONTACTOR)        \
   XX(EVENT_CELL_UNDER_VOLTAGE)          \
   XX(EVENT_CELL_OVER_VOLTAGE)           \
   XX(EVENT_CELL_DEVIATION_HIGH)         \
@@ -93,6 +99,7 @@ const char* get_event_enum_string(EVENTS_ENUM_TYPE event);
 const char* get_event_message_string(EVENTS_ENUM_TYPE event);
 const char* get_event_level_string(EVENTS_ENUM_TYPE event);
 const char* get_event_type(EVENTS_ENUM_TYPE event);
+unsigned long get_current_event_time_secs(void);
 
 EVENTS_LEVEL_TYPE get_event_level(void);
 
@@ -106,7 +113,5 @@ const EVENTS_STRUCT_TYPE* get_event_pointer(EVENTS_ENUM_TYPE event);
 void run_event_handling(void);
 
 void run_sequence_on_target(void);
-
-extern uint8_t system_bms_status;  //Enum 0-5
 
 #endif  // __MYTIMER_H__

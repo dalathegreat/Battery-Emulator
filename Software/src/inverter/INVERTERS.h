@@ -1,6 +1,8 @@
 #ifndef INVERTERS_H
 #define INVERTERS_H
 
+#include "../../USER_SETTINGS.h"
+
 #ifdef BYD_CAN
 #include "BYD-CAN.h"
 #endif
@@ -35,6 +37,17 @@
 
 #ifdef SERIAL_LINK_TRANSMITTER
 #include "SERIAL-LINK-TRANSMITTER-INVERTER.h"
+#endif
+
+#ifdef CAN_INVERTER_SELECTED
+#include "../lib/miwagner-ESP32-Arduino-CAN/ESP32CAN.h"  // This include is annoying, consider defining a frame type in types.h
+void update_values_can_inverter();
+void receive_can_inverter(CAN_frame_t rx_frame);
+void send_can_inverter();
+#endif
+
+#ifdef MODBUS_INVERTER_SELECTED
+void update_modbus_registers_inverter();
 #endif
 
 #endif

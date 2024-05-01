@@ -30,10 +30,13 @@ extern "C" {
     #include "lwip/pbuf.h"
 }
 
+#include "../../../system_settings.h"
+#include "../../../devboard/hal/hal.h"
+
 //If core is not defined, then we are running in Arduino or PIO
 #ifndef CONFIG_ASYNC_TCP_RUNNING_CORE
-#define CONFIG_ASYNC_TCP_RUNNING_CORE -1 //any available core
-#define CONFIG_ASYNC_TCP_USE_WDT 1 //if enabled, adds between 33us and 200us per event
+#define CONFIG_ASYNC_TCP_RUNNING_CORE WIFI_CORE //any available core
+#define CONFIG_ASYNC_TCP_USE_WDT 0 //if enabled, adds between 33us and 200us per event
 #endif
 
 class AsyncClient;

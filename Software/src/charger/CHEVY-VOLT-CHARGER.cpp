@@ -1,6 +1,10 @@
-#include "CHEVY-VOLT-CHARGER.h"
+#include "../include.h"
+#ifdef CHEVYVOLT_CHARGER
+#include "../datalayer/datalayer.h"
+#include "../devboard/utils/events.h"
 #include "../lib/miwagner-ESP32-Arduino-CAN/CAN_config.h"
 #include "../lib/miwagner-ESP32-Arduino-CAN/ESP32CAN.h"
+#include "CHEVY-VOLT-CHARGER.h"
 
 /* This implements Chevy Volt / Ampera charger support (2011-2015 model years).
  *
@@ -19,12 +23,9 @@
  */
 
 /* CAN cycles and timers */
-static const int interval30ms = 30;      // 30ms cycle for keepalive frames
-static const int interval200ms = 200;    // 200ms cycle for commanding I/V targets
-static const int interval5000ms = 5000;  // 5s status printout to serial
-static unsigned long previousMillis30ms = 0;
-static unsigned long previousMillis200ms = 0;
-static unsigned long previousMillis5000ms = 0;
+static unsigned long previousMillis30ms = 0;    // 30ms cycle for keepalive frames
+static unsigned long previousMillis200ms = 0;   // 200ms cycle for commanding I/V targets
+static unsigned long previousMillis5000ms = 0;  // 5s status printout to serial
 
 /* voltage and current settings. Validation performed to set ceiling of 3300w vol*cur */
 extern volatile float charger_setpoint_HV_VDC;
@@ -63,7 +64,7 @@ static CAN_frame_t charger_set_targets = {.FIR = {.B =
                                           .data = {0x40, 0x00, 0x00, 0x00}};
 
 /* We are mostly sending out not receiving */
-void receive_can_chevyvolt_charger(CAN_frame_t rx_frame) {
+void receive_can_charger(CAN_frame_t rx_frame) {
   uint16_t charger_stat_HVcur_temp = 0;
   uint16_t charger_stat_HVvol_temp = 0;
   uint16_t charger_stat_LVcur_temp = 0;
@@ -115,7 +116,7 @@ void receive_can_chevyvolt_charger(CAN_frame_t rx_frame) {
   }
 }
 
-void send_can_chevyvolt_charger() {
+void send_can_charger() {
   unsigned long currentMillis = millis();
   uint16_t Vol_temp = 0;
 
@@ -125,7 +126,7 @@ void send_can_chevyvolt_charger() {
   uint8_t charger_mode = MODE_DISABLED;
 
   /* Send keepalive with mode every 30ms */
-  if (currentMillis - previousMillis30ms >= interval30ms) {
+  if (currentMillis - previousMillis30ms >= INTERVAL_30_MS) {
     previousMillis30ms = currentMillis;
 
     if (charger_HV_enabled) {
@@ -148,7 +149,7 @@ void send_can_chevyvolt_charger() {
   }
 
   /* Send current targets every 200ms */
-  if (currentMillis - previousMillis200ms >= interval200ms) {
+  if (currentMillis - previousMillis200ms >= INTERVAL_200_MS) {
     previousMillis200ms = currentMillis;
 
     /* These values should be and are validated elsewhere, but adjust if needed
@@ -186,7 +187,7 @@ void send_can_chevyvolt_charger() {
 
 #ifdef DEBUG_VIA_USB
   /* Serial echo every 5s of charger stats */
-  if (currentMillis - previousMillis5000ms >= interval5000ms) {
+  if (currentMillis - previousMillis5000ms >= INTERVAL_5_S) {
     previousMillis5000ms = currentMillis;
     Serial.printf("Charger AC in IAC=%fA VAC=%fV\n", charger_stat_ACcur, charger_stat_ACvol);
     Serial.printf("Charger HV out IDC=%fA VDC=%fV\n", charger_stat_HVcur, charger_stat_HVvol);
@@ -196,3 +197,4 @@ void send_can_chevyvolt_charger() {
   }
 #endif
 }
+#endif

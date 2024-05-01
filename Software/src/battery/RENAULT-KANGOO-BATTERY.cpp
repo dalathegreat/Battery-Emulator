@@ -1,5 +1,6 @@
-#include "BATTERIES.h"
+#include "../include.h"
 #ifdef RENAULT_KANGOO_BATTERY
+#include "../datalayer/datalayer.h"
 #include "../devboard/utils/events.h"
 #include "../lib/miwagner-ESP32-Arduino-CAN/CAN_config.h"
 #include "../lib/miwagner-ESP32-Arduino-CAN/ESP32CAN.h"
@@ -51,63 +52,60 @@ static unsigned long previousMillis10 = 0;    // will store last time a 10ms CAN
 static unsigned long previousMillis100 = 0;   // will store last time a 100ms CAN Message was sent
 static unsigned long previousMillis1000 = 0;  // will store last time a 1000ms CAN Message was sent
 static unsigned long GVL_pause = 0;
-static const int interval10 = 10;      // interval (ms) at which send CAN Messages
-static const int interval100 = 100;    // interval (ms) at which send CAN Messages
-static const int interval1000 = 1000;  // interval (ms) at which send CAN Messages
 
-void update_values_battery() {  //This function maps all the values fetched via CAN to the correct parameters used for modbus
+void update_values_battery() {  //This function maps all the values fetched via CAN to the correct parameters
 
-  system_real_SOC_pptt = (LB_SOC * 100);  //increase LB_SOC range from 0-100 -> 100.00
+  datalayer.battery.status.real_soc = (LB_SOC * 100);  //increase LB_SOC range from 0-100 -> 100.00
 
-  system_SOH_pptt = (LB_SOH * 100);  //Increase range from 99% -> 99.00%
+  datalayer.battery.status.soh_pptt = (LB_SOH * 100);  //Increase range from 99% -> 99.00%
+  if (datalayer.battery.status.soh_pptt > 10000) {     // Cap value if glitched out
+    datalayer.battery.status.soh_pptt = 10000;
+  }
 
-  system_battery_voltage_dV = LB_Battery_Voltage;
+  datalayer.battery.status.voltage_dV = LB_Battery_Voltage;
 
-  system_battery_current_dA = LB_Current * 10;  // Increase range from 4A -> 4.0A
+  datalayer.battery.status.current_dA = LB_Current * 10;
 
-  system_capacity_Wh = BATTERY_WH_MAX;  //Hardcoded to header value
-
-  //Calculate the remaining Wh amount from SOC% and max Wh value.
-  system_remaining_capacity_Wh =
-      static_cast<uint32_t>((static_cast<double>(system_real_SOC_pptt) / 10000) * BATTERY_WH_MAX);
+  datalayer.battery.status.remaining_capacity_Wh = static_cast<uint32_t>(
+      (static_cast<double>(datalayer.battery.status.real_soc) / 10000) * datalayer.battery.info.total_capacity_Wh);
 
   LB_Discharge_Power_Limit_Watts = (LB_Discharge_Power_Limit * 500);  //Convert value fetched from battery to watts
   /* Define power able to be discharged from battery */
   if (LB_Discharge_Power_Limit_Watts > 60000)  //if >60kW can be pulled from battery
   {
-    system_max_discharge_power_W = 60000;  //cap value so we don't go over the uint16 limit
+    datalayer.battery.status.max_discharge_power_W = 60000;  //cap value so we don't go over the uint16 limit
   } else {
-    system_max_discharge_power_W = LB_Discharge_Power_Limit_Watts;
+    datalayer.battery.status.max_discharge_power_W = LB_Discharge_Power_Limit_Watts;
   }
-  if (system_scaled_SOC_pptt == 0)  //Scaled SOC% value is 0.00%, we should not discharge battery further
+  if (datalayer.battery.status.reported_soc == 0)  //Scaled SOC% value is 0.00%, we should not discharge battery further
   {
-    system_max_discharge_power_W = 0;
+    datalayer.battery.status.max_discharge_power_W = 0;
   }
 
   LB_Charge_Power_Limit_Watts = (LB_Charge_Power_Limit * 500);  //Convert value fetched from battery to watts
   /* Define power able to be put into the battery */
   if (LB_Charge_Power_Limit_Watts > 60000)  //if >60kW can be put into the battery
   {
-    system_max_charge_power_W = 60000;  //cap value so we don't go over the uint16 limit
+    datalayer.battery.status.max_charge_power_W = 60000;  //cap value so we don't go over the uint16 limit
   } else {
-    system_max_charge_power_W = LB_Charge_Power_Limit_Watts;
+    datalayer.battery.status.max_charge_power_W = LB_Charge_Power_Limit_Watts;
   }
-  if (system_scaled_SOC_pptt == 10000)  //Scaled SOC% value is 100.00%
+  if (datalayer.battery.status.reported_soc == 10000)  //Scaled SOC% value is 100.00%
   {
-    system_max_charge_power_W = 0;  //No need to charge further, set max power to 0
+    datalayer.battery.status.max_charge_power_W = 0;  //No need to charge further, set max power to 0
   }
 
   system_active_power_W = (system_battery_voltage_dV * system_battery_current_dA);
 
-  system_temperature_min_dC = (LB_MIN_TEMPERATURE * 10);
+  datalayer.battery.status.temperature_min_dC = (LB_MIN_TEMPERATURE * 10);
 
-  system_temperature_max_dC = (LB_MAX_TEMPERATURE * 10);
+  datalayer.battery.status.temperature_max_dC = (LB_MAX_TEMPERATURE * 10);
 
-  system_cell_min_voltage_mV = LB_Cell_Min_Voltage;
+  datalayer.battery.status.cell_min_voltage_mV = LB_Cell_Min_Voltage;
 
-  system_cell_max_voltage_mV = LB_Cell_Max_Voltage;
+  datalayer.battery.status.cell_max_voltage_mV = LB_Cell_Max_Voltage;
 
-  cell_deviation_mV = (system_temperature_max_dC - system_temperature_min_dC);
+  cell_deviation_mV = (datalayer.battery.status.temperature_max_dC - datalayer.battery.status.temperature_min_dC);
 
   /* Check if the BMS is still sending CAN messages. If we go 60s without messages we raise an error*/
   if (!CANstillAlive) {
@@ -132,21 +130,21 @@ void update_values_battery() {  //This function maps all the values fetched via 
 #ifdef DEBUG_VIA_USB
   Serial.println("Values going to inverter:");
   Serial.print("SOH%: ");
-  Serial.print(system_SOH_pptt);
+  Serial.print(datalayer.battery.status.soh_pptt);
   Serial.print(", SOC% scaled: ");
-  Serial.print(system_scaled_SOC_pptt);
+  Serial.print(datalayer.battery.status.reported_soc);
   Serial.print(", Voltage: ");
-  Serial.print(system_battery_voltage_dV);
+  Serial.print(datalayer.battery.status.voltage_dV);
   Serial.print(", Max discharge power: ");
-  Serial.print(system_max_discharge_power_W);
+  Serial.print(datalayer.battery.status.max_discharge_power_W);
   Serial.print(", Max charge power: ");
-  Serial.print(system_max_charge_power_W);
+  Serial.print(datalayer.battery.status.max_charge_power_W);
   Serial.print(", Max temp: ");
-  Serial.print(system_temperature_max_dC);
+  Serial.print(datalayer.battery.status.temperature_max_dC);
   Serial.print(", Min temp: ");
-  Serial.print(system_temperature_min_dC);
+  Serial.print(datalayer.battery.status.temperature_min_dC);
   Serial.print(", BMS Status (3=OK): ");
-  Serial.print(system_bms_status);
+  Serial.print(datalayer.battery.status.bms_status);
 
   Serial.println("Battery values: ");
   Serial.print("Real SOC: ");
@@ -228,7 +226,7 @@ void receive_can_battery(CAN_frame_t rx_frame)  //GKOE reworked
 void send_can_battery() {
   unsigned long currentMillis = millis();
   // Send 100ms CAN Message (for 2.4s, then pause 10s)
-  if ((currentMillis - previousMillis100) >= (interval100 + GVL_pause)) {
+  if ((currentMillis - previousMillis100) >= (INTERVAL_100_MS + GVL_pause)) {
     previousMillis100 = currentMillis;
     ESP32Can.CANWriteFrame(&KANGOO_423);
     GVI_Pollcounter++;
@@ -239,7 +237,7 @@ void send_can_battery() {
     }
   }
   // 1000ms CAN handling
-  if (currentMillis - previousMillis1000 >= interval1000) {
+  if (currentMillis - previousMillis1000 >= INTERVAL_1_S) {
     previousMillis1000 = currentMillis;
     if (GVB_79B_Continue)
       ESP32Can.CANWriteFrame(&KANGOO_79B_Continue);
@@ -249,10 +247,13 @@ void send_can_battery() {
 }
 
 void setup_battery(void) {  // Performs one time setup at startup
+#ifdef DEBUG_VIA_USB
   Serial.println("Renault Kangoo battery selected");
+#endif
 
-  system_max_design_voltage_dV = 4040;  // 404.0V, over this, charging is not possible (goes into forced discharge)
-  system_min_design_voltage_dV = 3100;  // 310.0V under this, discharging further is disabled
+  datalayer.battery.info.max_design_voltage_dV =
+      4040;  // 404.0V, over this, charging is not possible (goes into forced discharge)
+  datalayer.battery.info.min_design_voltage_dV = 3100;  // 310.0V under this, discharging further is disabled
 }
 
 #endif

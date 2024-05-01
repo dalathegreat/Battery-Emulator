@@ -1,7 +1,9 @@
-//SERIAL-LINK-TRANSMITTER-INVERTER.cpp
+#include "../include.h"
+#ifdef SERIAL_LINK_TRANSMITTER
 
-#include "SERIAL-LINK-TRANSMITTER-INVERTER.h"
+#include "../datalayer/datalayer.h"
 #include "../devboard/utils/events.h"
+#include "SERIAL-LINK-TRANSMITTER-INVERTER.h"
 
 /*
 *         SerialDataLink
@@ -24,7 +26,7 @@ SerialDataLink dataLinkTransmit(Serial2, 0x01, 0, BATTERY_SEND_NUM_VARIABLES, re
 void printSendingValues();
 
 void _getData() {
-  inverterAllowsContactorClosing = dataLinkTransmit.getReceivedData(0);
+  datalayer.system.status.inverter_allows_contactor_closing = dataLinkTransmit.getReceivedData(0);
   //var2 = dataLinkTransmit.getReceivedData(1); // For future expansion,
   //var3 = dataLinkTransmit.getReceivedData(2); // if inverter needs to send data to battery
 }
@@ -49,13 +51,12 @@ void manageSerialLinkTransmitter() {
   }
 #endif
 
-  if (currentTime - updateTime > 100) {
+  if (currentTime - updateTime > INTERVAL_100_MS) {
     updateTime = currentTime;
     if (!initLink) {
       initLink = true;
       transmitGoodSince = currentTime;
-      // sends variables every 5000mS even if no change
-      dataLinkTransmit.setUpdateInterval(10000);
+      dataLinkTransmit.setUpdateInterval(INTERVAL_10_S);
     }
     bool sendError = dataLinkTransmit.checkTransmissionError(true);
     if (sendError) {
@@ -86,7 +87,7 @@ void manageSerialLinkTransmitter() {
     }
 
     //--- reporting every 60 seconds that transmission is good
-    if (currentTime - transmitGoodSince > 60000) {
+    if (currentTime - transmitGoodSince > INTERVAL_60_S) {
       transmitGoodSince = currentTime;
       Serial.print(currentTime);
       Serial.println(" - Transmit Good");
@@ -97,8 +98,7 @@ void manageSerialLinkTransmitter() {
     }
 
     //--- report that Errors been ocurring for > 60 seconds
-    if (currentTime - lastGood > 60000)  // 60 seconds
-    {
+    if (currentTime - lastGood > INTERVAL_60_S) {
       lastGood = currentTime;
       Serial.print(currentTime);
       Serial.println(" - Transmit Failed : 60 seconds");
@@ -108,8 +108,8 @@ void manageSerialLinkTransmitter() {
       Serial.println("SerialDataLink : max_target_discharge_power = 0");
       Serial.println("SerialDataLink : max_target_charge_power = 0");
 
-      system_max_discharge_power_W = 0;
-      system_max_charge_power_W = 0;
+      datalayer.battery.status.max_discharge_power_W = 0;
+      datalayer.battery.status.max_charge_power_W = 0;
       set_event(EVENT_SERIAL_TX_FAILURE, 0);
       // throw error
     }
@@ -127,24 +127,26 @@ void manageSerialLinkTransmitter() {
 
     static unsigned long updateDataTime = 0;
 
-    if (currentTime - updateDataTime > 999) {
+    if (currentTime - updateDataTime > INTERVAL_1_S) {
       updateDataTime = currentTime;
-      dataLinkTransmit.updateData(0, system_real_SOC_pptt);
-      dataLinkTransmit.updateData(1, system_SOH_pptt);
-      dataLinkTransmit.updateData(2, system_battery_voltage_dV);
-      dataLinkTransmit.updateData(3, system_battery_current_dA);
-      dataLinkTransmit.updateData(4, system_capacity_Wh / 10);            //u32, remove .0 to fit 16bit
-      dataLinkTransmit.updateData(5, system_remaining_capacity_Wh / 10);  //u32, remove .0 to fit 16bit
-      dataLinkTransmit.updateData(6, system_max_discharge_power_W);
-      dataLinkTransmit.updateData(7, system_max_charge_power_W);
-      dataLinkTransmit.updateData(8, system_bms_status);
-      dataLinkTransmit.updateData(9, system_active_power_W);
-      dataLinkTransmit.updateData(10, system_temperature_min_dC);
-      dataLinkTransmit.updateData(11, system_temperature_max_dC);
-      dataLinkTransmit.updateData(12, system_cell_max_voltage_mV);
-      dataLinkTransmit.updateData(13, system_cell_min_voltage_mV);
-      dataLinkTransmit.updateData(14, (int16_t)system_LFP_Chemistry);
-      dataLinkTransmit.updateData(15, batteryAllowsContactorClosing);
+      dataLinkTransmit.updateData(0, datalayer.battery.status.real_soc);
+      dataLinkTransmit.updateData(1, datalayer.battery.status.soh_pptt);
+      dataLinkTransmit.updateData(2, datalayer.battery.status.voltage_dV);
+      dataLinkTransmit.updateData(3, datalayer.battery.status.current_dA);
+      dataLinkTransmit.updateData(4, datalayer.battery.info.total_capacity_Wh / 10);  //u32, remove .0 to fit 16bit
+      dataLinkTransmit.updateData(5,
+                                  datalayer.battery.status.remaining_capacity_Wh / 10);  //u32, remove .0 to fit 16bit
+      dataLinkTransmit.updateData(6,
+                                  datalayer.battery.status.max_discharge_power_W / 10);  //u32, remove .0 to fit 16bit
+      dataLinkTransmit.updateData(7, datalayer.battery.status.max_charge_power_W / 10);  //u32, remove .0 to fit 16bit
+      dataLinkTransmit.updateData(8, datalayer.battery.status.bms_status);
+      dataLinkTransmit.updateData(9, datalayer.battery.status.active_power_W / 10);  //u32, remove .0 to fit 16bit
+      dataLinkTransmit.updateData(10, datalayer.battery.status.temperature_min_dC);
+      dataLinkTransmit.updateData(11, datalayer.battery.status.temperature_max_dC);
+      dataLinkTransmit.updateData(12, datalayer.battery.status.cell_max_voltage_mV);
+      dataLinkTransmit.updateData(13, datalayer.battery.status.cell_min_voltage_mV);
+      dataLinkTransmit.updateData(14, (int16_t)datalayer.battery.info.chemistry);
+      dataLinkTransmit.updateData(15, datalayer.system.status.battery_allows_contactor_closing);
     }
   }
 }
@@ -152,39 +154,40 @@ void manageSerialLinkTransmitter() {
 void printSendingValues() {
   Serial.println("Values from battery: ");
   Serial.print("SOC: ");
-  Serial.print(system_real_SOC_pptt);
+  Serial.print(datalayer.battery.status.real_soc);
   Serial.print(" SOH: ");
-  Serial.print(system_SOH_pptt);
+  Serial.print(datalayer.battery.status.soh_pptt);
   Serial.print(" Voltage: ");
-  Serial.print(system_battery_voltage_dV);
+  Serial.print(datalayer.battery.status.voltage_dV);
   Serial.print(" Current: ");
-  Serial.print(system_battery_current_dA);
+  Serial.print(datalayer.battery.status.current_dA);
   Serial.print(" Capacity: ");
-  Serial.print(system_capacity_Wh);
+  Serial.print(datalayer.battery.info.total_capacity_Wh);
   Serial.print(" Remain cap: ");
-  Serial.print(system_remaining_capacity_Wh);
+  Serial.print(datalayer.battery.status.remaining_capacity_Wh);
   Serial.print(" Max discharge W: ");
-  Serial.print(system_max_discharge_power_W);
+  Serial.print(datalayer.battery.status.max_discharge_power_W);
   Serial.print(" Max charge W: ");
-  Serial.print(system_max_charge_power_W);
+  Serial.print(datalayer.battery.status.max_charge_power_W);
   Serial.print(" BMS status: ");
-  Serial.print(system_bms_status);
+  Serial.print(datalayer.battery.status.bms_status);
   Serial.print(" Power: ");
-  Serial.print(system_active_power_W);
+  Serial.print(datalayer.battery.status.active_power_W);
   Serial.print(" Temp min: ");
-  Serial.print(system_temperature_min_dC);
+  Serial.print(datalayer.battery.status.temperature_min_dC);
   Serial.print(" Temp max: ");
-  Serial.print(system_temperature_max_dC);
+  Serial.print(datalayer.battery.status.temperature_max_dC);
   Serial.print(" Cell max: ");
-  Serial.print(system_cell_max_voltage_mV);
+  Serial.print(datalayer.battery.status.cell_max_voltage_mV);
   Serial.print(" Cell min: ");
-  Serial.print(system_cell_min_voltage_mV);
+  Serial.print(datalayer.battery.status.cell_min_voltage_mV);
   Serial.print(" LFP : ");
-  Serial.print(system_LFP_Chemistry);
-  Serial.print(" batteryAllowsContactorClosing: ");
-  Serial.print(batteryAllowsContactorClosing);
-  Serial.print(" inverterAllowsContactorClosing: ");
-  Serial.print(inverterAllowsContactorClosing);
+  Serial.print(datalayer.battery.info.chemistry);
+  Serial.print(" Battery Allows Contactor Closing: ");
+  Serial.print(datalayer.system.status.battery_allows_contactor_closing);
+  Serial.print(" Inverter Allows Contactor Closing: ");
+  Serial.print(datalayer.system.status.inverter_allows_contactor_closing);
 
   Serial.println("");
 }
+#endif

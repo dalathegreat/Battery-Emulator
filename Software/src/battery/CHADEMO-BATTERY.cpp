@@ -1,5 +1,6 @@
-#include "BATTERIES.h"
+#include "../include.h"
 #ifdef CHADEMO_BATTERY
+#include "../datalayer/datalayer.h"
 #include "../devboard/utils/events.h"
 #include "../lib/miwagner-ESP32-Arduino-CAN/CAN_config.h"
 #include "../lib/miwagner-ESP32-Arduino-CAN/ESP32CAN.h"
@@ -7,10 +8,7 @@
 
 /* Do not change code below unless you are sure what you are doing */
 static unsigned long previousMillis100 = 0;  // will store last time a 100ms CAN Message was send
-static const int interval100 = 100;          // interval (ms) at which send CAN Messages
-const int rx_queue_size = 10;                // Receive Queue size
 static uint8_t CANstillAlive = 12;           //counter for checking if CAN is still alive
-static uint8_t errorCode = 0;                //stores if we have an error code active from battery control logic
 
 CAN_frame_t CHADEMO_108 = {.FIR = {.B =
                                        {
@@ -93,20 +91,22 @@ uint8_t HighVoltageControlStatus = 0;
 
 void update_values_battery() {  //This function maps all the values fetched via CAN to the correct parameters used for the inverter
 
-  system_real_SOC_pptt = ChargingRate;
+  datalayer.battery.status.real_soc = ChargingRate;
 
-  system_max_discharge_power_W = (MaximumDischargeCurrent * MaximumBatteryVoltage);  //In Watts, Convert A to P
+  datalayer.battery.status.max_discharge_power_W =
+      (MaximumDischargeCurrent * MaximumBatteryVoltage);  //In Watts, Convert A to P
 
-  system_battery_voltage_dV = TargetBatteryVoltage;  //TODO: scaling?
+  datalayer.battery.status.voltage_dV = TargetBatteryVoltage;  //TODO: scaling?
 
-  system_capacity_Wh = ((RatedBatteryCapacity / 0.11) *
-                        1000);  //(Added in CHAdeMO v1.0.1), maybe handle hardcoded on lower protocol version?
+  datalayer.battery.info.total_capacity_Wh =
+      ((RatedBatteryCapacity / 0.11) *
+       1000);  //(Added in CHAdeMO v1.0.1), maybe handle hardcoded on lower protocol version?
 
-  system_remaining_capacity_Wh = (system_real_SOC_pptt / 100) * system_capacity_Wh;
+  datalayer.battery.status.remaining_capacity_Wh = static_cast<uint32_t>(
+      (static_cast<double>(datalayer.battery.status.real_soc) / 10000) * datalayer.battery.info.total_capacity_Wh);
 
   /* Check if the Vehicle is still sending CAN messages. If we go 60s without messages we raise an error*/
   if (!CANstillAlive) {
-    errorCode = 7;
     set_event(EVENT_CAN_RX_FAILURE, 0);
   } else {
     CANstillAlive--;
@@ -114,24 +114,8 @@ void update_values_battery() {  //This function maps all the values fetched via 
   }
 
 #ifdef DEBUG_VIA_USB
-  if (errorCode > 0) {
-    Serial.print("ERROR CODE ACTIVE IN SYSTEM. NUMBER: ");
-    Serial.println(errorCode);
-  }
-  Serial.print("BMS Status (3=OK): ");
-  Serial.println(system_bms_status);
-  Serial.print("Max discharge power: ");
-  Serial.println(system_max_discharge_power_W);
-  Serial.print("Max charge power: ");
-  Serial.println(system_max_charge_power_W);
-  Serial.print("SOH%: ");
-  Serial.println(system_SOH_pptt);
-  Serial.print("SOC% to Inverter: ");
-  Serial.println(system_scaled_SOC_pptt);
-  Serial.print("Temperature Min: ");
-  Serial.println(system_temperature_min_dC);
-  Serial.print("Temperature Max: ");
-  Serial.println(system_temperature_max_dC);
+  Serial.print("SOC 0x100: ");
+  Serial.println(ConstantOfChargingRateIndication);
 #endif
 }
 
@@ -194,7 +178,11 @@ void receive_can_battery(CAN_frame_t rx_frame) {
 void send_can_battery() {
   unsigned long currentMillis = millis();
   // Send 100ms CAN Message
-  if (currentMillis - previousMillis100 >= interval100) {
+  if (currentMillis - previousMillis100 >= INTERVAL_100_MS) {
+    // Check if sending of CAN messages has been delayed too much.
+    if ((currentMillis - previousMillis100 >= INTERVAL_100_MS_DELAYED) && (currentMillis > BOOTUP_TIME)) {
+      set_event(EVENT_CAN_OVERRUN, (currentMillis - previousMillis100));
+    }
     previousMillis100 = currentMillis;
 
     ESP32Can.CANWriteFrame(&CHADEMO_108);
@@ -209,9 +197,12 @@ void send_can_battery() {
 }
 
 void setup_battery(void) {  // Performs one time setup at startup
+#ifdef DEBUG_VIA_USB
   Serial.println("Chademo battery selected");
+#endif
 
-  system_max_design_voltage_dV = 4040;  // 404.4V, over this, charging is not possible (goes into forced discharge)
-  system_min_design_voltage_dV = 2000;  // 200.0V under this, discharging further is disabled
+  datalayer.battery.info.max_design_voltage_dV =
+      4040;  // 404.4V, over this, charging is not possible (goes into forced discharge)
+  datalayer.battery.info.min_design_voltage_dV = 2000;  // 200.0V under this, discharging further is disabled
 }
 #endif

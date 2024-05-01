@@ -13,6 +13,8 @@
 #define HAS_ETHERNET 1
 #define IS_LINUX 0
 #define NEED_UART_PATCH 1
+const unsigned int SERVER_TASK_STACK = 4096;
+const unsigned int CLIENT_TASK_STACK = 4096;
 
 /* === ESP8266 DEFINITIONS AND MACROS === */
 #elif defined(ESP8266)

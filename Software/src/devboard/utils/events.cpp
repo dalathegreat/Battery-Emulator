@@ -1,12 +1,17 @@
 #include "events.h"
-
+#include "../../datalayer/datalayer.h"
 #ifndef UNIT_TEST
 #include <EEPROM.h>
 #endif
 
 #include "../../../USER_SETTINGS.h"
-#include "../config.h"
+#include "../../lib/YiannisBourkelis-Uptime-Library/src/uptime.h"
 #include "timer.h"
+
+// Time conversion macros
+#define DAYS_TO_SECS 86400  // 24 * 60 * 60
+#define HOURS_TO_SECS 3600  // 60 * 60
+#define MINUTES_TO_SECS 60
 
 #define EE_NOF_EVENT_ENTRIES 30
 #define EE_EVENT_ENTRY_SIZE sizeof(EVENT_LOG_ENTRY_TYPE)
@@ -45,9 +50,10 @@ typedef struct {
 
 typedef struct {
   EVENTS_STRUCT_TYPE entries[EVENT_NOF_EVENTS];
-  uint32_t time_seconds;
+  unsigned long time_seconds;
   MyTimer second_timer;
   MyTimer ee_timer;
+  MyTimer update_timer;
   EVENTS_LEVEL_TYPE level;
   uint16_t event_log_head_index;
   uint16_t event_log_tail_index;
@@ -77,6 +83,7 @@ void run_event_handling(void) {
   update_event_time();
   run_sequence_on_target();
   check_ee_write();
+  update_event_level();
 }
 
 /* Initialization function */
@@ -105,12 +112,16 @@ void init_events(void) {
 
     // Push changes to eeprom
     EEPROM.commit();
+#ifdef DEBUG_VIA_USB
     Serial.println("EEPROM wasn't ready");
+#endif
   } else {
     events.event_log_head_index = EEPROM.readUShort(EE_EVENT_LOG_HEAD_INDEX_ADDRESS);
     events.event_log_tail_index = EEPROM.readUShort(EE_EVENT_LOG_TAIL_INDEX_ADDRESS);
+#ifdef DEBUG_VIA_USB
     Serial.println("EEPROM was initialized for event logging");
     Serial.println("head: " + String(events.event_log_head_index) + ", tail: " + String(events.event_log_tail_index));
+#endif
     print_event_log();
   }
 
@@ -121,7 +132,10 @@ void init_events(void) {
     events.entries[i].log = true;
   }
 
+  events.entries[EVENT_CANFD_INIT_FAILURE].level = EVENT_LEVEL_WARNING;
+  events.entries[EVENT_CAN_OVERRUN].level = EVENT_LEVEL_INFO;
   events.entries[EVENT_CAN_RX_FAILURE].level = EVENT_LEVEL_ERROR;
+  events.entries[EVENT_CANFD_RX_FAILURE].level = EVENT_LEVEL_ERROR;
   events.entries[EVENT_CAN_RX_WARNING].level = EVENT_LEVEL_WARNING;
   events.entries[EVENT_CAN_TX_FAILURE].level = EVENT_LEVEL_ERROR;
   events.entries[EVENT_WATER_INGRESS].level = EVENT_LEVEL_ERROR;
@@ -130,13 +144,16 @@ void init_events(void) {
   events.entries[EVENT_KWH_PLAUSIBILITY_ERROR].level = EVENT_LEVEL_INFO;
   events.entries[EVENT_BATTERY_EMPTY].level = EVENT_LEVEL_INFO;
   events.entries[EVENT_BATTERY_FULL].level = EVENT_LEVEL_INFO;
+  events.entries[EVENT_BATTERY_CAUTION].level = EVENT_LEVEL_INFO;
   events.entries[EVENT_BATTERY_CHG_STOP_REQ].level = EVENT_LEVEL_ERROR;
   events.entries[EVENT_BATTERY_DISCHG_STOP_REQ].level = EVENT_LEVEL_ERROR;
   events.entries[EVENT_BATTERY_CHG_DISCHG_STOP_REQ].level = EVENT_LEVEL_ERROR;
   events.entries[EVENT_LOW_SOH].level = EVENT_LEVEL_ERROR;
   events.entries[EVENT_HVIL_FAILURE].level = EVENT_LEVEL_ERROR;
+  events.entries[EVENT_PRECHARGE_FAILURE].level = EVENT_LEVEL_INFO;
   events.entries[EVENT_INTERNAL_OPEN_FAULT].level = EVENT_LEVEL_ERROR;
-  events.entries[EVENT_INVERTER_OPEN_CONTACTOR].level = EVENT_LEVEL_ERROR;
+  events.entries[EVENT_INVERTER_OPEN_CONTACTOR].level = EVENT_LEVEL_INFO;
+  events.entries[EVENT_ERROR_OPEN_CONTACTOR].level = EVENT_LEVEL_INFO;
   events.entries[EVENT_CELL_UNDER_VOLTAGE].level = EVENT_LEVEL_ERROR;
   events.entries[EVENT_CELL_OVER_VOLTAGE].level = EVENT_LEVEL_ERROR;
   events.entries[EVENT_CELL_DEVIATION_HIGH].level = EVENT_LEVEL_WARNING;
@@ -155,9 +172,10 @@ void init_events(void) {
 
   events.entries[EVENT_EEPROM_WRITE].log = false;  // Don't log the logger...
 
-  events.second_timer.set_interval(1000);
+  events.second_timer.set_interval(600);
   // Write to EEPROM every X minutes (if an event has been set)
   events.ee_timer.set_interval(EE_WRITE_PERIOD_MINUTES * 60 * 1000);
+  events.update_timer.set_interval(2000);
 }
 
 void set_event(EVENTS_ENUM_TYPE event, uint8_t data) {
@@ -178,8 +196,14 @@ void clear_event(EVENTS_ENUM_TYPE event) {
 
 const char* get_event_message_string(EVENTS_ENUM_TYPE event) {
   switch (event) {
+    case EVENT_CANFD_INIT_FAILURE:
+      return "CAN-FD initialization failed. Check hardware or bitrate settings";
+    case EVENT_CAN_OVERRUN:
+      return "CAN message failed to send within defined time. Contact developers, CPU load might be too high.";
     case EVENT_CAN_RX_FAILURE:
       return "No CAN communication detected for 60s. Shutting down battery control.";
+    case EVENT_CANFD_RX_FAILURE:
+      return "No CANFD communication detected for 60s. Shutting down battery control.";
     case EVENT_CAN_RX_WARNING:
       return "ERROR: High amount of corrupted CAN messages detected. Check CAN wire shielding!";
     case EVENT_CAN_TX_FAILURE:
@@ -196,22 +220,33 @@ const char* get_event_message_string(EVENTS_ENUM_TYPE event) {
       return "Info: Battery is completely discharged";
     case EVENT_BATTERY_FULL:
       return "Info: Battery is fully charged";
+    case EVENT_BATTERY_CAUTION:
+      return "Info: Battery has raised a general caution flag. Might want to inspect it closely.";
     case EVENT_BATTERY_CHG_STOP_REQ:
       return "ERROR: Battery raised caution indicator AND requested charge stop. Inspect battery status!";
     case EVENT_BATTERY_DISCHG_STOP_REQ:
       return "ERROR: Battery raised caution indicator AND requested discharge stop. Inspect battery status!";
     case EVENT_BATTERY_CHG_DISCHG_STOP_REQ:
       return "ERROR: Battery raised caution indicator AND requested charge/discharge stop. Inspect battery status!";
+    case EVENT_BATTERY_REQUESTS_HEAT:
+      return "Info: COLD BATTERY! Battery requesting heating pads to activate!";
+    case EVENT_BATTERY_WARMED_UP:
+      return "Info: Battery requesting heating pads to stop. The battery is now warm enough.";
     case EVENT_LOW_SOH:
       return "ERROR: State of health critically low. Battery internal resistance too high to continue. Recycle "
              "battery.";
     case EVENT_HVIL_FAILURE:
-      return "ERROR: Battery interlock loop broken. Check that high voltage connectors are seated. Battery will be "
-             "disabled!";
+      return "ERROR: Battery interlock loop broken. Check that high voltage / low voltage connectors are seated. "
+             "Battery will be disabled!";
+    case EVENT_PRECHARGE_FAILURE:
+      return "Info: Battery failed to precharge. Check that capacitor is seated on high voltage output.";
     case EVENT_INTERNAL_OPEN_FAULT:
       return "ERROR: High voltage cable removed while battery running. Opening contactors!";
     case EVENT_INVERTER_OPEN_CONTACTOR:
-      return "ERROR: Inverter requested contactors to open. Opening contactors!";
+      return "Info: Inverter side opened contactors. Normal operation.";
+    case EVENT_ERROR_OPEN_CONTACTOR:
+      return "Info: Too much time spent in error state. Opening contactors, not safe to continue charging. "
+             "Check other error code for reason!";
     case EVENT_CELL_UNDER_VOLTAGE:
       return "ERROR: CELL UNDERVOLTAGE!!! Stopping battery charging and discharging. Inspect battery!";
     case EVENT_CELL_OVER_VOLTAGE:
@@ -288,7 +323,9 @@ static void set_event(EVENTS_ENUM_TYPE event, uint8_t data, bool latched) {
   // Check if the event is latching
   events.entries[event].state = latched ? EVENT_STATE_ACTIVE_LATCHED : EVENT_STATE_ACTIVE;
 
-  update_event_level();
+  // Update event level, only upwards. Downward changes are done in Software.ino:loop()
+  events.level = max(events.level, events.entries[event].level);
+
   update_bms_status();
 
 #ifdef DEBUG_VIA_USB
@@ -301,13 +338,13 @@ static void update_bms_status(void) {
     case EVENT_LEVEL_INFO:
     case EVENT_LEVEL_WARNING:
     case EVENT_LEVEL_DEBUG:
-      system_bms_status = ACTIVE;
+      datalayer.battery.status.bms_status = ACTIVE;
       break;
     case EVENT_LEVEL_UPDATE:
-      system_bms_status = UPDATING;
+      datalayer.battery.status.bms_status = UPDATING;
       break;
     case EVENT_LEVEL_ERROR:
-      system_bms_status = FAULT;
+      datalayer.battery.status.bms_status = FAULT;
       break;
     default:
       break;
@@ -315,18 +352,28 @@ static void update_bms_status(void) {
 }
 
 static void update_event_level(void) {
-  events.level = EVENT_LEVEL_INFO;
+  EVENTS_LEVEL_TYPE temporary_level = EVENT_LEVEL_INFO;
   for (uint8_t i = 0u; i < EVENT_NOF_EVENTS; i++) {
     if ((events.entries[i].state == EVENT_STATE_ACTIVE) || (events.entries[i].state == EVENT_STATE_ACTIVE_LATCHED)) {
-      events.level = max(events.entries[i].level, events.level);
+      temporary_level = max(events.entries[i].level, temporary_level);
     }
   }
+  events.level = temporary_level;
 }
 
 static void update_event_time(void) {
+  // This should run roughly 2 times per second
   if (events.second_timer.elapsed() == true) {
-    events.time_seconds++;
+    uptime::calculateUptime();  // millis() overflows every 50 days, so update occasionally to adjust
+    events.time_seconds = uptime::getDays() * DAYS_TO_SECS;
+    events.time_seconds += uptime::getHours() * HOURS_TO_SECS;
+    events.time_seconds += uptime::getMinutes() * MINUTES_TO_SECS;
+    events.time_seconds += uptime::getSeconds();
   }
+}
+
+unsigned long get_current_event_time_secs(void) {
+  return events.time_seconds;
 }
 
 static void log_event(EVENTS_ENUM_TYPE event, uint8_t data) {
@@ -365,7 +412,9 @@ static void log_event(EVENTS_ENUM_TYPE event, uint8_t data) {
 static void print_event_log(void) {
   // If the head actually points to the tail, the log is probably blank
   if (events.event_log_head_index == events.event_log_tail_index) {
+#ifdef DEBUG_VIA_USB
     Serial.println("No events in log");
+#endif
     return;
   }
   EVENT_LOG_ENTRY_TYPE entry;
@@ -380,9 +429,10 @@ static void print_event_log(void) {
       // The entry is a blank that has been left behind somehow
       continue;
     }
+#ifdef DEBUG_VIA_USB
     Serial.println("Event: " + String(get_event_enum_string(entry.event)) + ", data: " + String(entry.data) +
                    ", time: " + String(entry.timestamp));
-
+#endif
     if (index == events.event_log_head_index) {
       break;
     }

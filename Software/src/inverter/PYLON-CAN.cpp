@@ -1,6 +1,9 @@
-#include "PYLON-CAN.h"
+#include "../include.h"
+#ifdef PYLON_CAN
+#include "../datalayer/datalayer.h"
 #include "../lib/miwagner-ESP32-Arduino-CAN/CAN_config.h"
 #include "../lib/miwagner-ESP32-Arduino-CAN/ESP32CAN.h"
+#include "PYLON-CAN.h"
 
 #define SEND_0  //If defined, the messages will have ID ending with 0 (useful for some inverters)
 //#define SEND_1 //If defined, the messages will have ID ending with 1 (useful for some inverters)
@@ -167,7 +170,7 @@ CAN_frame_t PYLON_4291 = {.FIR = {.B =
                           .MsgID = 0x4291,
                           .data = {0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00}};
 
-void update_values_can_pylon() {  //This function maps all the values fetched from battery CAN to the correct CAN messages
+void update_values_can_inverter() {  //This function maps all the values fetched from battery CAN to the correct CAN messages
   //There are more mappings that could be added, but this should be enough to use as a starting point
   // Note we map both 0 and 1 messages
 
@@ -182,53 +185,53 @@ void update_values_can_pylon() {  //This function maps all the values fetched fr
   PYLON_4281.data.u8[3] = 0;
 
   //Voltage (370.0)
-  PYLON_4210.data.u8[0] = (system_battery_voltage_dV >> 8);
-  PYLON_4210.data.u8[1] = (system_battery_voltage_dV & 0x00FF);
-  PYLON_4211.data.u8[0] = (system_battery_voltage_dV >> 8);
-  PYLON_4211.data.u8[1] = (system_battery_voltage_dV & 0x00FF);
+  PYLON_4210.data.u8[0] = (datalayer.battery.status.voltage_dV >> 8);
+  PYLON_4210.data.u8[1] = (datalayer.battery.status.voltage_dV & 0x00FF);
+  PYLON_4211.data.u8[0] = (datalayer.battery.status.voltage_dV >> 8);
+  PYLON_4211.data.u8[1] = (datalayer.battery.status.voltage_dV & 0x00FF);
 
   //Current (15.0)
-  PYLON_4210.data.u8[2] = (system_battery_current_dA >> 8);
-  PYLON_4210.data.u8[3] = (system_battery_current_dA & 0x00FF);
-  PYLON_4211.data.u8[2] = (system_battery_current_dA >> 8);
-  PYLON_4211.data.u8[3] = (system_battery_current_dA & 0x00FF);
+  PYLON_4210.data.u8[2] = (datalayer.battery.status.current_dA >> 8);
+  PYLON_4210.data.u8[3] = (datalayer.battery.status.current_dA & 0x00FF);
+  PYLON_4211.data.u8[2] = (datalayer.battery.status.current_dA >> 8);
+  PYLON_4211.data.u8[3] = (datalayer.battery.status.current_dA & 0x00FF);
 
   //SOC (100.00%)
-  PYLON_4210.data.u8[6] = (system_scaled_SOC_pptt * 0.01);  //Remove decimals
-  PYLON_4211.data.u8[6] = (system_scaled_SOC_pptt * 0.01);  //Remove decimals
+  PYLON_4210.data.u8[6] = (datalayer.battery.status.reported_soc / 100);  //Remove decimals
+  PYLON_4211.data.u8[6] = (datalayer.battery.status.reported_soc / 100);  //Remove decimals
 
   //StateOfHealth (100.00%)
-  PYLON_4210.data.u8[7] = (system_SOH_pptt * 0.01);
-  PYLON_4211.data.u8[7] = (system_SOH_pptt * 0.01);
+  PYLON_4210.data.u8[7] = (datalayer.battery.status.soh_pptt / 100);
+  PYLON_4211.data.u8[7] = (datalayer.battery.status.soh_pptt / 100);
 
 #ifdef INVERT_VOLTAGE  //Useful for Sofar inverters \
                        //Maxvoltage (eg 400.0V = 4000 , 16bits long) Discharge Cutoff Voltage
-  PYLON_4220.data.u8[0] = (system_max_design_voltage_dV & 0x00FF);
-  PYLON_4220.data.u8[1] = (system_max_design_voltage_dV >> 8);
-  PYLON_4221.data.u8[0] = (system_max_design_voltage_dV & 0x00FF);
-  PYLON_4221.data.u8[1] = (system_max_design_voltage_dV >> 8);
+  PYLON_4220.data.u8[0] = (datalayer.battery.info.max_design_voltage_dV & 0x00FF);
+  PYLON_4220.data.u8[1] = (datalayer.battery.info.max_design_voltage_dV >> 8);
+  PYLON_4221.data.u8[0] = (datalayer.battery.info.max_design_voltage_dV & 0x00FF);
+  PYLON_4221.data.u8[1] = (datalayer.battery.info.max_design_voltage_dV >> 8);
 
   //Minvoltage (eg 300.0V = 3000 , 16bits long) Charge Cutoff Voltage
-  PYLON_4220.data.u8[2] = (system_min_design_voltage_dV & 0x00FF);
-  PYLON_4220.data.u8[3] = (system_min_design_voltage_dV >> 8);
-  PYLON_4221.data.u8[2] = (system_min_design_voltage_dV & 0x00FF);
-  PYLON_4221.data.u8[3] = (system_min_design_voltage_dV >> 8);
+  PYLON_4220.data.u8[2] = (datalayer.battery.info.min_design_voltage_dV & 0x00FF);
+  PYLON_4220.data.u8[3] = (datalayer.battery.info.min_design_voltage_dV >> 8);
+  PYLON_4221.data.u8[2] = (datalayer.battery.info.min_design_voltage_dV & 0x00FF);
+  PYLON_4221.data.u8[3] = (datalayer.battery.info.min_design_voltage_dV >> 8);
 #else
   //Minvoltage (eg 300.0V = 3000 , 16bits long) Charge Cutoff Voltage
-  PYLON_4220.data.u8[0] = (system_min_design_voltage_dV >> 8);
-  PYLON_4220.data.u8[1] = (system_min_design_voltage_dV & 0x00FF);
-  PYLON_4221.data.u8[0] = (system_min_design_voltage_dV >> 8);
-  PYLON_4221.data.u8[1] = (system_min_design_voltage_dV & 0x00FF);
+  PYLON_4220.data.u8[0] = (datalayer.battery.info.min_design_voltage_dV >> 8);
+  PYLON_4220.data.u8[1] = (datalayer.battery.info.min_design_voltage_dV & 0x00FF);
+  PYLON_4221.data.u8[0] = (datalayer.battery.info.min_design_voltage_dV >> 8);
+  PYLON_4221.data.u8[1] = (datalayer.battery.info.min_design_voltage_dV & 0x00FF);
 
   //Maxvoltage (eg 400.0V = 4000 , 16bits long) Discharge Cutoff Voltage
-  PYLON_4220.data.u8[2] = (system_max_design_voltage_dV >> 8);
-  PYLON_4220.data.u8[3] = (system_max_design_voltage_dV & 0x00FF);
-  PYLON_4221.data.u8[2] = (system_max_design_voltage_dV >> 8);
-  PYLON_4221.data.u8[3] = (system_max_design_voltage_dV & 0x00FF);
+  PYLON_4220.data.u8[2] = (datalayer.battery.info.max_design_voltage_dV >> 8);
+  PYLON_4220.data.u8[3] = (datalayer.battery.info.max_design_voltage_dV & 0x00FF);
+  PYLON_4221.data.u8[2] = (datalayer.battery.info.max_design_voltage_dV >> 8);
+  PYLON_4221.data.u8[3] = (datalayer.battery.info.max_design_voltage_dV & 0x00FF);
 #endif
 
   //In case we run into any errors/faults, we can set charge / discharge forbidden
-  if (system_bms_status == FAULT) {
+  if (datalayer.battery.status.bms_status == FAULT) {
     PYLON_4280.data.u8[0] = 0xAA;
     PYLON_4280.data.u8[1] = 0xAA;
     PYLON_4280.data.u8[2] = 0xAA;
@@ -240,7 +243,7 @@ void update_values_can_pylon() {  //This function maps all the values fetched fr
   }
 }
 
-void receive_can_pylon(CAN_frame_t rx_frame) {
+void receive_can_inverter(CAN_frame_t rx_frame) {
   switch (rx_frame.MsgID) {
     case 0x4200:  //Message originating from inverter. Depending on which data is required, act accordingly
       if (rx_frame.data.u8[0] == 0x02) {
@@ -253,6 +256,10 @@ void receive_can_pylon(CAN_frame_t rx_frame) {
     default:
       break;
   }
+}
+
+void send_can_inverter() {
+  // No periodic sending, we only react on received can messages
 }
 
 void send_setup_info() {  //Ensemble information
@@ -290,3 +297,4 @@ void send_system_data() {  //System equipment information
   ESP32Can.CANWriteFrame(&PYLON_4291);
 #endif
 }
+#endif

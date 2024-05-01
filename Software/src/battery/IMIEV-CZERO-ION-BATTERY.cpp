@@ -1,5 +1,6 @@
-#include "BATTERIES.h"
+#include "../include.h"
 #ifdef IMIEV_CZERO_ION_BATTERY
+#include "../datalayer/datalayer.h"
 #include "../devboard/utils/events.h"
 #include "../lib/miwagner-ESP32-Arduino-CAN/CAN_config.h"
 #include "../lib/miwagner-ESP32-Arduino-CAN/ESP32CAN.h"
@@ -16,8 +17,6 @@ static uint8_t CMU_Detected = 0;
 
 static unsigned long previousMillis10 = 0;   // will store last time a 10ms CAN Message was sent
 static unsigned long previousMillis100 = 0;  // will store last time a 100ms CAN Message was sent
-static const int interval10 = 10;            // interval (ms) at which send CAN Messages
-static const int interval100 = 100;          // interval (ms) at which send CAN Messages
 
 static int pid_index = 0;
 static int cmu_id = 0;
@@ -33,38 +32,38 @@ static double voltage2 = 0;
 static double BMU_Current = 0;
 static double BMU_PackVoltage = 0;
 static double BMU_Power = 0;
-static double cell_voltages[89];      //array with all the cellvoltages //TODO: what is max array size? 80/88 cells?
-static double cell_temperatures[89];  //array with all the celltemperatures //TODO: what is max array size? 80/88cells?
+static double cell_voltages[88];      //array with all the cellvoltages
+static double cell_temperatures[88];  //array with all the celltemperatures
 static double max_volt_cel = 3.70;
 static double min_volt_cel = 3.70;
 static double max_temp_cel = 20.00;
 static double min_temp_cel = 19.00;
 
 void update_values_battery() {  //This function maps all the values fetched via CAN to the correct parameters used for modbus
-  system_real_SOC_pptt = (uint16_t)(BMU_SOC * 100);  //increase BMU_SOC range from 0-100 -> 100.00
+  datalayer.battery.status.real_soc = (uint16_t)(BMU_SOC * 100);  //increase BMU_SOC range from 0-100 -> 100.00
 
-  system_battery_voltage_dV = (uint16_t)(BMU_PackVoltage * 10);  // Multiply by 10 and cast to uint16_t
+  datalayer.battery.status.voltage_dV = (uint16_t)(BMU_PackVoltage * 10);  // Multiply by 10 and cast to uint16_t
 
-  system_battery_current_dA = (BMU_Current * 10);  //Todo, scaling?
+  datalayer.battery.status.current_dA = (BMU_Current * 10);  //Todo, scaling?
 
-  system_capacity_Wh = BATTERY_WH_MAX;  //Hardcoded to header value
-
-  system_remaining_capacity_Wh = (uint16_t)((system_real_SOC_pptt / 10000) * system_capacity_Wh);
+  datalayer.battery.status.remaining_capacity_Wh = static_cast<uint32_t>(
+      (static_cast<double>(datalayer.battery.status.real_soc) / 10000) * datalayer.battery.info.total_capacity_Wh);
 
   //We do not know if the max charge power is sent by the battery. So we estimate the value based on SOC%
-  if (system_scaled_SOC_pptt == 10000) {  //100.00%
-    system_max_charge_power_W = 0;        //When battery is 100% full, set allowed charge W to 0
+  if (datalayer.battery.status.reported_soc == 10000) {  //100.00%
+    datalayer.battery.status.max_charge_power_W = 0;     //When battery is 100% full, set allowed charge W to 0
   } else {
-    system_max_charge_power_W = 10000;  //Otherwise we can push 10kW into the pack!
+    datalayer.battery.status.max_charge_power_W = 10000;  //Otherwise we can push 10kW into the pack!
   }
 
-  if (system_scaled_SOC_pptt < 200) {  //2.00%
-    system_max_discharge_power_W = 0;  //When battery is empty (below 2%), set allowed discharge W to 0
+  if (datalayer.battery.status.reported_soc < 200) {  //2.00%
+    datalayer.battery.status.max_discharge_power_W =
+        0;  //When battery is empty (below 2%), set allowed discharge W to 0
   } else {
-    system_max_discharge_power_W = 10000;  //Otherwise we can discharge 10kW from the pack!
+    datalayer.battery.status.max_discharge_power_W = 10000;  //Otherwise we can discharge 10kW from the pack!
   }
 
-  system_active_power_W = BMU_Power;  //TODO: Scaling?
+  datalayer.battery.status.active_power_W = BMU_Power;  //TODO: Scaling?
 
   static int n = sizeof(cell_voltages) / sizeof(cell_voltages[0]);
   max_volt_cel = cell_voltages[0];  // Initialize max with the first element of the array
@@ -96,13 +95,18 @@ void update_values_battery() {  //This function maps all the values fetched via 
     }
   }
 
-  system_cell_max_voltage_mV = (uint16_t)(max_volt_cel * 1000);
+  //Map all cell voltages to the global array
+  for (int i = 0; i < 88; ++i) {
+    datalayer.battery.status.cell_voltages_mV[i] = (uint16_t)(cell_voltages[i] * 1000);
+  }
 
-  system_cell_min_voltage_mV = (uint16_t)(min_volt_cel * 1000);
+  datalayer.battery.status.cell_max_voltage_mV = (uint16_t)(max_volt_cel * 1000);
 
-  system_temperature_min_dC = (int16_t)(min_temp_cel * 1000);
+  datalayer.battery.status.cell_min_voltage_mV = (uint16_t)(min_volt_cel * 1000);
 
-  system_temperature_min_dC = (int16_t)(max_temp_cel * 1000);
+  datalayer.battery.status.temperature_min_dC = (int16_t)(min_temp_cel * 10);
+
+  datalayer.battery.status.temperature_min_dC = (int16_t)(max_temp_cel * 10);
 
   /* Check if the BMS is still sending CAN messages. If we go 60s without messages we raise an error*/
   if (!CANstillAlive) {
@@ -113,11 +117,12 @@ void update_values_battery() {  //This function maps all the values fetched via 
   }
 
   if (!BMU_Detected) {
+#ifdef DEBUG_VIA_USB
     Serial.println("BMU not detected, check wiring!");
+#endif
   }
 
 #ifdef DEBUG_VIA_USB
-
   Serial.println("Battery Values");
   Serial.print("BMU SOC: ");
   Serial.print(BMU_SOC);
@@ -135,29 +140,6 @@ void update_values_battery() {  //This function maps all the values fetched via 
   Serial.print(max_temp_cel);
   Serial.print(" Cell min temp: ");
   Serial.println(min_temp_cel);
-
-  Serial.println("Values sent to inverter");
-  Serial.print("SOC% (0-100.00): ");
-  Serial.print(system_scaled_SOC_pptt);
-  Serial.print(" Voltage (0-400.0): ");
-  Serial.print(system_battery_voltage_dV);
-  Serial.print(" Capacity WH full (0-60000): ");
-  Serial.print(system_capacity_Wh);
-  Serial.print(" Capacity WH remain (0-60000): ");
-  Serial.print(system_remaining_capacity_Wh);
-  Serial.print(" Max charge power W (0-10000): ");
-  Serial.print(system_max_charge_power_W);
-  Serial.print(" Max discharge power W (0-10000): ");
-  Serial.print(system_max_discharge_power_W);
-  Serial.print(" Temp max ");
-  Serial.print(system_temperature_max_dC);
-  Serial.print(" Temp min ");
-  Serial.print(system_temperature_min_dC);
-  Serial.print(" Cell mV max ");
-  Serial.print(system_cell_max_voltage_mV);
-  Serial.print(" Cell mV min ");
-  Serial.print(system_cell_min_voltage_mV);
-
 #endif
 }
 
@@ -220,16 +202,25 @@ void receive_can_battery(CAN_frame_t rx_frame) {
 void send_can_battery() {
   unsigned long currentMillis = millis();
   // Send 100ms CAN Message
-  if (currentMillis - previousMillis100 >= interval100) {
+  if (currentMillis - previousMillis100 >= INTERVAL_100_MS) {
+    // Check if sending of CAN messages has been delayed too much.
+    if ((currentMillis - previousMillis100 >= INTERVAL_100_MS_DELAYED) && (currentMillis > BOOTUP_TIME)) {
+      set_event(EVENT_CAN_OVERRUN, (currentMillis - previousMillis100));
+    }
     previousMillis100 = currentMillis;
+
+    // Send CAN goes here...
   }
 }
 
 void setup_battery(void) {  // Performs one time setup at startup
+#ifdef DEBUG_VIA_USB
   Serial.println("Mitsubishi i-MiEV / Citroen C-Zero / Peugeot Ion battery selected");
+#endif
 
-  system_max_design_voltage_dV = 4040;  // 404.4V, over this, charging is not possible (goes into forced discharge)
-  system_min_design_voltage_dV = 3100;  // 310.0V under this, discharging further is disabled
+  datalayer.battery.info.max_design_voltage_dV =
+      3600;  // 360.0V, over this, charging is not possible (goes into forced discharge)
+  datalayer.battery.info.min_design_voltage_dV = 3160;  // 316.0V under this, discharging further is disabled
 }
 
 #endif

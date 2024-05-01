@@ -1,5 +1,6 @@
-#include "BATTERIES.h"
+#include "../include.h"
 #ifdef TESLA_MODEL_3_BATTERY
+#include "../datalayer/datalayer.h"
 #include "../devboard/utils/events.h"
 #include "../lib/miwagner-ESP32-Arduino-CAN/CAN_config.h"
 #include "../lib/miwagner-ESP32-Arduino-CAN/ESP32CAN.h"
@@ -9,7 +10,6 @@
 /* Credits: Most of the code comes from Per Carlen's bms_comms_tesla_model3.py (https://gitlab.com/pelle8/batt2gen24/) */
 
 static unsigned long previousMillis30 = 0;  // will store last time a 30ms CAN Message was send
-static const int interval30 = 30;           // interval (ms) at which send CAN Messages
 static uint8_t stillAliveCAN = 6;           //counter for checking if CAN is still alive
 
 CAN_frame_t TESLA_221_1 = {
@@ -166,70 +166,69 @@ void update_values_battery() {  //This function maps all the values fetched via 
   //After values are mapped, we perform some safety checks, and do some serial printouts
   //Calculate the SOH% to send to inverter
   if (bat_beginning_of_life != 0) {  //div/0 safeguard
-    system_SOH_pptt =
+    datalayer.battery.status.soh_pptt =
         static_cast<uint16_t>((static_cast<double>(nominal_full_pack_energy) / bat_beginning_of_life) * 10000.0);
   }
   //If the calculation went wrong, set SOH to 100%
-  if (system_SOH_pptt > 10000) {
-    system_SOH_pptt = 10000;
+  if (datalayer.battery.status.soh_pptt > 10000) {
+    datalayer.battery.status.soh_pptt = 10000;
   }
   //If the value is unavailable, set SOH to 99%
   if (nominal_full_pack_energy < REASONABLE_ENERGYAMOUNT) {
-    system_SOH_pptt = 9900;
+    datalayer.battery.status.soh_pptt = 9900;
   }
 
-  system_real_SOC_pptt = (soc_vi * 10);  //increase SOC range from 0-100.0 -> 100.00
+  datalayer.battery.status.real_soc = (soc_vi * 10);  //increase SOC range from 0-100.0 -> 100.00
 
-  system_battery_voltage_dV = (volts * 10);  //One more decimal needed (370 -> 3700)
+  datalayer.battery.status.voltage_dV = (volts * 10);  //One more decimal needed (370 -> 3700)
 
-  system_battery_current_dA = amps;  //13.0A
-
-  system_capacity_Wh = BATTERY_WH_MAX;  //Use the configured value to avoid overflows
+  datalayer.battery.status.current_dA = amps;  //13.0A
 
   //Calculate the remaining Wh amount from SOC% and max Wh value.
-  system_remaining_capacity_Wh =
-      static_cast<uint32_t>((static_cast<double>(system_real_SOC_pptt) / 10000) * BATTERY_WH_MAX);
+  datalayer.battery.status.remaining_capacity_Wh = static_cast<uint32_t>(
+      (static_cast<double>(datalayer.battery.status.real_soc) / 10000) * datalayer.battery.info.total_capacity_Wh);
 
   // Define the allowed discharge power
-  system_max_discharge_power_W = (max_discharge_current * volts);
+  datalayer.battery.status.max_discharge_power_W = (max_discharge_current * volts);
   // Cap the allowed discharge power if battery is empty, or discharge power is higher than the maximum discharge power allowed
-  if (system_scaled_SOC_pptt == 0) {
-    system_max_discharge_power_W = 0;
-  } else if (system_max_discharge_power_W > MAXDISCHARGEPOWERALLOWED) {
-    system_max_discharge_power_W = MAXDISCHARGEPOWERALLOWED;
+  if (datalayer.battery.status.reported_soc == 0) {
+    datalayer.battery.status.max_discharge_power_W = 0;
+  } else if (datalayer.battery.status.max_discharge_power_W > MAXDISCHARGEPOWERALLOWED) {
+    datalayer.battery.status.max_discharge_power_W = MAXDISCHARGEPOWERALLOWED;
   }
 
   //The allowed charge power behaves strangely. We instead estimate this value
-  if (system_scaled_SOC_pptt == 10000) {  // When scaled SOC is 100.00%, set allowed charge power to 0
-    system_max_charge_power_W = 0;
+  if (datalayer.battery.status.reported_soc == 10000) {  // When scaled SOC is 100.00%, set allowed charge power to 0
+    datalayer.battery.status.max_charge_power_W = 0;
   } else if (soc_vi > 990) {
-    system_max_charge_power_W = FLOAT_MAX_POWER_W;
+    datalayer.battery.status.max_charge_power_W = FLOAT_MAX_POWER_W;
   } else if (soc_vi > RAMPDOWN_SOC) {  // When real SOC is between RAMPDOWN_SOC-99%, ramp the value between Max<->0
-    system_max_charge_power_W = MAXCHARGEPOWERALLOWED * (1 - (soc_vi - RAMPDOWN_SOC) / (1000.0 - RAMPDOWN_SOC));
+    datalayer.battery.status.max_charge_power_W =
+        MAXCHARGEPOWERALLOWED * (1 - (soc_vi - RAMPDOWN_SOC) / (1000.0 - RAMPDOWN_SOC));
     //If the cellvoltages start to reach overvoltage, only allow a small amount of power in
-    if (system_LFP_Chemistry) {
+    if (datalayer.battery.info.chemistry == battery_chemistry_enum::LFP) {
       if (cell_max_v > (MAX_CELL_VOLTAGE_LFP - FLOAT_START_MV)) {
-        system_max_charge_power_W = FLOAT_MAX_POWER_W;
+        datalayer.battery.status.max_charge_power_W = FLOAT_MAX_POWER_W;
       }
     } else {  //NCM/A
       if (cell_max_v > (MAX_CELL_VOLTAGE_NCA_NCM - FLOAT_START_MV)) {
-        system_max_charge_power_W = FLOAT_MAX_POWER_W;
+        datalayer.battery.status.max_charge_power_W = FLOAT_MAX_POWER_W;
       }
     }
   } else {  // No limits, max charging power allowed
-    system_max_charge_power_W = MAXCHARGEPOWERALLOWED;
+    datalayer.battery.status.max_charge_power_W = MAXCHARGEPOWERALLOWED;
   }
 
   power = ((volts / 10) * amps);
-  system_active_power_W = power;
+  datalayer.battery.status.active_power_W = power;
 
-  system_temperature_min_dC = min_temp;
+  datalayer.battery.status.temperature_min_dC = min_temp;
 
-  system_temperature_max_dC = max_temp;
+  datalayer.battery.status.temperature_max_dC = max_temp;
 
-  system_cell_max_voltage_mV = cell_max_v;
+  datalayer.battery.status.cell_max_voltage_mV = cell_max_v;
 
-  system_cell_min_voltage_mV = cell_min_v;
+  datalayer.battery.status.cell_min_voltage_mV = cell_min_v;
 
   /* Value mapping is completed. Start to check all safeties */
 
@@ -251,38 +250,43 @@ void update_values_battery() {  //This function maps all the values fetched via 
 
   // NCM/A batteries have 96s, LFP has 102-106s
   // Drawback with this check is that it takes 3-5minutes before all cells have been counted!
-  if (system_number_of_cells > 101) {
-    system_LFP_Chemistry = true;
+  if (datalayer.battery.info.number_of_cells > 101) {
+    datalayer.battery.info.chemistry = battery_chemistry_enum::LFP;
   }
 
   //Once cell chemistry is determined, set maximum and minimum total pack voltage safety limits
-  if (system_LFP_Chemistry) {
-    system_max_design_voltage_dV = MAX_PACK_VOLTAGE_LFP;
-    system_min_design_voltage_dV = MIN_PACK_VOLTAGE_LFP;
+  if (datalayer.battery.info.chemistry == battery_chemistry_enum::LFP) {
+    datalayer.battery.info.max_design_voltage_dV = MAX_PACK_VOLTAGE_LFP;
+    datalayer.battery.info.min_design_voltage_dV = MIN_PACK_VOLTAGE_LFP;
   } else {  // NCM/A chemistry
-    system_max_design_voltage_dV = MAX_PACK_VOLTAGE_NCMA;
-    system_min_design_voltage_dV = MIN_PACK_VOLTAGE_NCMA;
+    datalayer.battery.info.max_design_voltage_dV = MAX_PACK_VOLTAGE_NCMA;
+    datalayer.battery.info.min_design_voltage_dV = MIN_PACK_VOLTAGE_NCMA;
   }
 
   //Check if SOC% is plausible
-  if (system_battery_voltage_dV >
-      (system_max_design_voltage_dV - 20)) {  // When pack voltage is close to max, and SOC% is still low, raise FAULT
-    if (system_real_SOC_pptt < 5000) {        //When SOC is less than 50.00% when approaching max voltage
-      set_event(EVENT_SOC_PLAUSIBILITY_ERROR, system_real_SOC_pptt / 100);
+  if (datalayer.battery.status.voltage_dV >
+      (datalayer.battery.info.max_design_voltage_dV -
+       20)) {  // When pack voltage is close to max, and SOC% is still low, raise FAULT
+    if (datalayer.battery.status.real_soc < 5000) {  //When SOC is less than 50.00% when approaching max voltage
+      set_event(EVENT_SOC_PLAUSIBILITY_ERROR, datalayer.battery.status.real_soc / 100);
     }
   }
 
   //Check if BMS is in need of recalibration
   if (nominal_full_pack_energy > 1 && nominal_full_pack_energy < REASONABLE_ENERGYAMOUNT) {
+#ifdef DEBUG_VIA_USB
     Serial.println("Warning: kWh remaining " + String(nominal_full_pack_energy) +
                    " reported by battery not plausible. Battery needs cycling.");
+#endif
     set_event(EVENT_KWH_PLAUSIBILITY_ERROR, nominal_full_pack_energy);
   } else if (nominal_full_pack_energy <= 1) {
+#ifdef DEBUG_VIA_USB
     Serial.println("Info: kWh remaining battery is not reporting kWh remaining.");
+#endif
     set_event(EVENT_KWH_PLAUSIBILITY_ERROR, nominal_full_pack_energy);
   }
 
-  if (system_LFP_Chemistry) {  //LFP limits used for voltage safeties
+  if (datalayer.battery.info.chemistry == battery_chemistry_enum::LFP) {  //LFP limits used for voltage safeties
     if (cell_max_v >= MAX_CELL_VOLTAGE_LFP) {
       set_event(EVENT_CELL_OVER_VOLTAGE, (cell_max_v - MAX_CELL_VOLTAGE_LFP));
     }
@@ -308,9 +312,10 @@ void update_values_battery() {  //This function maps all the values fetched via 
     }
   }
 
-  if (system_bms_status == FAULT) {  //Incase we enter a critical fault state, zero out the allowed limits
-    system_max_charge_power_W = 0;
-    system_max_discharge_power_W = 0;
+  if (datalayer.battery.status.bms_status ==
+      FAULT) {  //Incase we enter a critical fault state, zero out the allowed limits
+    datalayer.battery.status.max_charge_power_W = 0;
+    datalayer.battery.status.max_discharge_power_W = 0;
   }
 
   /* Safeties verified. Perform USB serial printout if configured to do so */
@@ -344,7 +349,7 @@ void update_values_battery() {  //This function maps all the values fetched via 
     Serial.print("YES, ");
   else
     Serial.print("NO, ");
-  if (system_LFP_Chemistry) {
+  if (datalayer.battery.info.chemistry == battery_chemistry_enum::LFP) {
     Serial.print("LFP chemistry detected!");
   }
   Serial.println("");
@@ -368,14 +373,14 @@ void update_values_battery() {  //This function maps all the values fetched via 
   Serial.println("");
 
   Serial.println("Values passed to the inverter: ");
-  print_SOC(" SOC: ", system_scaled_SOC_pptt);
-  print_int_with_units(" Max discharge power: ", system_max_discharge_power_W, "W");
+  print_SOC(" SOC: ", datalayer.battery.status.reported_soc);
+  print_int_with_units(" Max discharge power: ", datalayer.battery.status.max_discharge_power_W, "W");
   Serial.print(", ");
-  print_int_with_units(" Max charge power: ", system_max_charge_power_W, "W");
+  print_int_with_units(" Max charge power: ", datalayer.battery.status.max_charge_power_W, "W");
   Serial.println("");
-  print_int_with_units(" Max temperature: ", ((int16_t)system_temperature_min_dC * 0.1), "°C");
+  print_int_with_units(" Max temperature: ", ((int16_t)datalayer.battery.status.temperature_min_dC * 0.1), "°C");
   Serial.print(", ");
-  print_int_with_units(" Min temperature: ", ((int16_t)system_temperature_max_dC * 0.1), "°C");
+  print_int_with_units(" Min temperature: ", ((int16_t)datalayer.battery.status.temperature_max_dC * 0.1), "°C");
   Serial.println("");
 #endif
 }
@@ -471,11 +476,11 @@ void receive_can_battery(CAN_frame_t rx_frame) {
       {
         // Example, frame3=0x89,frame2=0x1D = 35101 / 10 = 3510mV
         volts = ((rx_frame.data.u8[3] << 8) | rx_frame.data.u8[2]) / 10;
-        system_cellvoltages_mV[mux * 3] = volts;
+        datalayer.battery.status.cell_voltages_mV[mux * 3] = volts;
         volts = ((rx_frame.data.u8[5] << 8) | rx_frame.data.u8[4]) / 10;
-        system_cellvoltages_mV[1 + mux * 3] = volts;
+        datalayer.battery.status.cell_voltages_mV[1 + mux * 3] = volts;
         volts = ((rx_frame.data.u8[7] << 8) | rx_frame.data.u8[6]) / 10;
-        system_cellvoltages_mV[2 + mux * 3] = volts;
+        datalayer.battery.status.cell_voltages_mV[2 + mux * 3] = volts;
 
         // Track the max value of mux. If we've seen two 0 values for mux, we've probably gathered all
         // cell voltages. Then, 2 + mux_max * 3 + 1 is the number of cell voltages.
@@ -484,7 +489,7 @@ void receive_can_battery(CAN_frame_t rx_frame) {
           mux_zero_counter++;
           if (mux_zero_counter == 2u) {
             // The max index will be 2 + mux_max * 3 (see above), so "+ 1" for the number of cells
-            system_number_of_cells = 2 + 3 * mux_max + 1;
+            datalayer.battery.info.number_of_cells = 2 + 3 * mux_max + 1;
             // Increase the counter arbitrarily another time to make the initial if-statement evaluate to false
             mux_zero_counter++;
           }
@@ -580,18 +585,22 @@ the first, for a few cycles, then stop all  messages which causes the contactor 
 
   unsigned long currentMillis = millis();
   //Send 30ms message
-  if (currentMillis - previousMillis30 >= interval30) {
+  if (currentMillis - previousMillis30 >= INTERVAL_30_MS) {
+    // Check if sending of CAN messages has been delayed too much.
+    if ((currentMillis - previousMillis30 >= INTERVAL_30_MS_DELAYED) && (currentMillis > BOOTUP_TIME)) {
+      set_event(EVENT_CAN_OVERRUN, (currentMillis - previousMillis30));
+    }
     previousMillis30 = currentMillis;
 
-    if (inverterAllowsContactorClosing == 1) {
-      if (system_bms_status == ACTIVE) {
+    if (datalayer.system.status.inverter_allows_contactor_closing) {
+      if (datalayer.battery.status.bms_status == ACTIVE) {
         send221still = 50;
-        batteryAllowsContactorClosing = true;
+        datalayer.system.status.battery_allows_contactor_closing = true;
         ESP32Can.CANWriteFrame(&TESLA_221_1);
         ESP32Can.CANWriteFrame(&TESLA_221_2);
-      } else {  //system_bms_status == FAULT or inverter requested opening contactors
+      } else {  //datalayer.battery.status.bms_status == FAULT or inverter requested opening contactors
         if (send221still > 0) {
-          batteryAllowsContactorClosing = false;
+          datalayer.system.status.battery_allows_contactor_closing = false;
           ESP32Can.CANWriteFrame(&TESLA_221_1);
           send221still--;
         }
@@ -625,9 +634,10 @@ void printFaultCodesIfActive() {
   if (pyroTestInProgress == 1) {
     Serial.println("ERROR: Please wait for Pyro Connection check to finish, HV cables successfully seated!");
   }
-  if (inverterAllowsContactorClosing == 0) {
+  if (datalayer.system.status.inverter_allows_contactor_closing == false) {
     Serial.println(
-        "ERROR: Solar inverter does not allow for contactor closing. Check inverterAllowsContactorClosing parameter");
+        "ERROR: Solar inverter does not allow for contactor closing. Check "
+        "datalayer.system.status.inverter_allows_contactor_closing parameter");
   }
   // Check each symbol and print debug information if its value is 1
   printDebugIfActive(WatchdogReset, "ERROR: The processor has experienced a reset due to watchdog reset");
@@ -692,15 +702,17 @@ void printDebugIfActive(uint8_t symbol, const char* message) {
 }
 
 void setup_battery(void) {  // Performs one time setup at startup
+#ifdef DEBUG_VIA_USB
   Serial.println("Tesla Model 3 battery selected");
+#endif
 
 #ifdef LFP_CHEMISTRY
-  system_LFP_Chemistry = true;
-  system_max_design_voltage_dV = MAX_PACK_VOLTAGE_LFP;
-  system_min_design_voltage_dV = MIN_PACK_VOLTAGE_LFP;
+  datalayer.battery.info.chemistry = battery_chemistry_enum::LFP;
+  datalayer.battery.info.max_design_voltage_dV = MAX_PACK_VOLTAGE_LFP;
+  datalayer.battery.info.min_design_voltage_dV = MIN_PACK_VOLTAGE_LFP;
 #else
-  system_max_design_voltage_dV = MAX_PACK_VOLTAGE_NCMA;
-  system_min_design_voltage_dV = MIN_PACK_VOLTAGE_NCMA;
+  datalayer.battery.info.max_design_voltage_dV = MAX_PACK_VOLTAGE_NCMA;
+  datalayer.battery.info.min_design_voltage_dV = MIN_PACK_VOLTAGE_NCMA;
 #endif
 }
 

@@ -1,12 +1,14 @@
-#include "SOFAR-CAN.h"
+#include "../include.h"
+#ifdef SOFAR_CAN
+#include "../datalayer/datalayer.h"
 #include "../lib/miwagner-ESP32-Arduino-CAN/CAN_config.h"
 #include "../lib/miwagner-ESP32-Arduino-CAN/ESP32CAN.h"
+#include "SOFAR-CAN.h"
 
 /* This implementation of the SOFAR can protocol is halfway done. What's missing is implementing the inverter replies, all the CAN messages are listed, but the can sending is missing. */
 
 /* Do not change code below unless you are sure what you are doing */
 static unsigned long previousMillis100 = 0;  // will store last time a 100ms CAN Message was send
-static const int interval100 = 100;          // interval (ms) at which send CAN Messages
 
 //Actual content messages
 //Note that these are technically extended frames. If more batteries are put in parallel,the first battery sends 0x351 the next battery sends 0x1351 etc. 16 batteries in parallel supported
@@ -278,35 +280,35 @@ CAN_frame_t SOFAR_7C0 = {.FIR = {.B =
                          .MsgID = 0x7C0,
                          .data = {0x00, 0x00, 0x00, 0x04, 0x00, 0x04, 0x80, 0x00}};
 
-void update_values_can_sofar() {  //This function maps all the values fetched from battery CAN to the correct CAN messages
+void update_values_can_inverter() {  //This function maps all the values fetched from battery CAN to the correct CAN messages
 
   //Maxvoltage (eg 400.0V = 4000 , 16bits long) Charge Cutoff Voltage
-  SOFAR_351.data.u8[0] = (system_max_design_voltage_dV >> 8);
-  SOFAR_351.data.u8[1] = (system_max_design_voltage_dV & 0x00FF);
+  SOFAR_351.data.u8[0] = (datalayer.battery.info.max_design_voltage_dV >> 8);
+  SOFAR_351.data.u8[1] = (datalayer.battery.info.max_design_voltage_dV & 0x00FF);
   //SOFAR_351.data.u8[2] = DC charge current limitation (Default 25.0A)
   //SOFAR_351.data.u8[3] = DC charge current limitation
   //SOFAR_351.data.u8[4] = DC discharge current limitation (Default 25.0A)
   //SOFAR_351.data.u8[5] = DC discharge current limitation
   //Minvoltage (eg 300.0V = 3000 , 16bits long) Discharge Cutoff Voltage
-  SOFAR_351.data.u8[6] = (system_min_design_voltage_dV >> 8);
-  SOFAR_351.data.u8[7] = (system_min_design_voltage_dV & 0x00FF);
+  SOFAR_351.data.u8[6] = (datalayer.battery.info.min_design_voltage_dV >> 8);
+  SOFAR_351.data.u8[7] = (datalayer.battery.info.min_design_voltage_dV & 0x00FF);
 
   //SOC
-  SOFAR_355.data.u8[0] = (system_scaled_SOC_pptt / 100);
-  SOFAR_355.data.u8[2] = (system_SOH_pptt / 100);
+  SOFAR_355.data.u8[0] = (datalayer.battery.status.reported_soc / 100);
+  SOFAR_355.data.u8[2] = (datalayer.battery.status.soh_pptt / 100);
   //SOFAR_355.data.u8[6] = (AH_remaining >> 8);
   //SOFAR_355.data.u8[7] = (AH_remaining & 0x00FF);
 
   //Voltage (370.0)
-  SOFAR_356.data.u8[0] = (system_battery_voltage_dV >> 8);
-  SOFAR_356.data.u8[1] = (system_battery_voltage_dV & 0x00FF);
-  SOFAR_356.data.u8[2] = (system_battery_current_dA >> 8);
-  SOFAR_356.data.u8[3] = (system_battery_current_dA & 0x00FF);
-  SOFAR_356.data.u8[2] = (system_temperature_max_dC >> 8);
-  SOFAR_356.data.u8[3] = (system_temperature_max_dC & 0x00FF);
+  SOFAR_356.data.u8[0] = (datalayer.battery.status.voltage_dV >> 8);
+  SOFAR_356.data.u8[1] = (datalayer.battery.status.voltage_dV & 0x00FF);
+  SOFAR_356.data.u8[2] = (datalayer.battery.status.current_dA >> 8);
+  SOFAR_356.data.u8[3] = (datalayer.battery.status.current_dA & 0x00FF);
+  SOFAR_356.data.u8[2] = (datalayer.battery.status.temperature_max_dC >> 8);
+  SOFAR_356.data.u8[3] = (datalayer.battery.status.temperature_max_dC & 0x00FF);
 }
 
-void receive_can_sofar(CAN_frame_t rx_frame) {
+void receive_can_inverter(CAN_frame_t rx_frame) {
   switch (rx_frame.MsgID) {  //In here we need to respond to the inverter. TODO: make logic
     case 0x605:
       //frame1_605 = rx_frame.data.u8[1];
@@ -321,10 +323,10 @@ void receive_can_sofar(CAN_frame_t rx_frame) {
   }
 }
 
-void send_can_sofar() {
+void send_can_inverter() {
   unsigned long currentMillis = millis();
   // Send 100ms CAN Message
-  if (currentMillis - previousMillis100 >= interval100) {
+  if (currentMillis - previousMillis100 >= INTERVAL_100_MS) {
     previousMillis100 = currentMillis;
     //Frames actively reported by BMS
     ESP32Can.CANWriteFrame(&SOFAR_351);
@@ -337,3 +339,4 @@ void send_can_sofar() {
     ESP32Can.CANWriteFrame(&SOFAR_35A);
   }
 }
+#endif

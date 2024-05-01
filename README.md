@@ -7,7 +7,8 @@
 
 This software enables EV battery packs to be used for stationary storage. It achieves this by converting the EV battery CAN data into a brand battery format that solar inverters can understand. This makes it extremely cheap and easy to use large EV batteries in a true plug'n'play fashion!
 
-![alt text](https://github.com/dalathegreat/BYD-Battery-Emulator-For-Gen24/blob/main/Images/Fronius.png)
+![Fronius](https://github.com/dalathegreat/Battery-Emulator/assets/26695010/741c3237-8074-4891-9cd1-f47f0fe45cb5)
+
 
 ## Hardware requirements 📜
 This code fits on the LilyGo ESP32 T-CAN485 devboard , see https://github.com/Xinyuan-LilyGO/T-CAN485
@@ -26,10 +27,11 @@ Finally, you will need a [compatible hybrid solar inverter](https://github.com/d
 
 ## Wiring example, LEAF battery 💡
 Here's how to wire up the communication between the components.
-![alt text](https://github.com/dalathegreat/BYD-Battery-Emulator-For-Gen24/blob/main/Images/Wiring.png)
+![Wiring](https://github.com/dalathegreat/Battery-Emulator/assets/26695010/29edeeda-1002-4826-9183-39a027b3b9ed)
+
 
 Here's how to connect the high voltage lines
-![alt text](https://github.com/dalathegreat/BYD-Battery-Emulator-For-Gen24/blob/main/Images/HighVoltageWiring.png)
+![HighVoltageWiring](https://github.com/dalathegreat/Battery-Emulator/assets/26695010/f70e6262-d630-4148-9a39-dad32e79b3d6)
 
 For more examples showing wiring, see each battery types own Wiki page. For instance the [Nissan LEAF page](https://github.com/dalathegreat/BYD-Battery-Emulator-For-Gen24/wiki/Nissan-LEAF-battery#wiring-diagram)
 
@@ -37,7 +39,13 @@ For more examples showing wiring, see each battery types own Wiki page. For inst
 1. Download the Arduino IDE: https://www.arduino.cc/en/software
 2. When the Arduino IDE has been started;
 Click "File" in the upper left corner -> Preferences -> Additional Development >Board Manager URL -> Enter the URL in the input box https://raw.githubusercontent.com/espressif/arduino-esp32/gh-pages/package_esp32_index.json
-3. Go to "Boards Manager", and install the ESP32 package by Espressif Systems
+3. Go to "Boards Manager", and install the ESP32 package by Espressif Systems. **The latest confirmed compatible version is 2.0.11**
+
+⚠️ Make sure to use a 2.x.x version - preferably 2.0.11 - and not a 3.x.x version, as it is not yet supported by the libraries we include with the SW!
+![image](https://github.com/dalathegreat/Battery-Emulator/assets/81711263/79602ef1-1a23-4670-a638-b896b7f6cdf6)
+
+For future migration, see this link: https://docs.espressif.com/projects/arduino-esp32/en/latest/migration_guides/2.x_to_3.0.html
+
 4. The arduino settings should be set to "ESP32 Dev Module" with the following settings;
 ![alt text](https://github.com/Xinyuan-LilyGO/T-CAN485/blob/main/img/arduino_setting.png)
 5. Select which battery type you will use, along with other optional settings. This is done in the USER_SETTINGS.h file.
@@ -50,9 +58,21 @@ This video explains all the above mentioned steps:
 https://youtu.be/_mH2AjnAjDk
 
 ## Dependencies 📖
-This code uses two libraries, ESP32-Arduino-CAN (https://github.com/miwagner/ESP32-Arduino-CAN/) slightly modified for this usecase, and the eModbus library (https://github.com/eModbus/eModbus). Both these are already located in the Software folder for an easy start.
+This code uses the following excellent libraries: 
+- [adafruit/Adafruit_NeoPixel](https://github.com/adafruit/Adafruit_NeoPixel) LGPL-3.0 license
+- [ayushsharma82/ElegantOTA](https://github.com/ayushsharma82/ElegantOTA) AGPL-3.0 license 
+- [bblanchon/ArduinoJson](https://github.com/bblanchon/ArduinoJson) MIT-License
+- [eModbus/eModbus](https://github.com/eModbus/eModbus) MIT-License
+- [knolleary/pubsubclient](https://github.com/knolleary/pubsubclient) MIT-License
+- [mackelec/SerialDataLink](https://github.com/mackelec/SerialDataLink)
+- [me-no-dev/AsyncTCP](https://github.com/me-no-dev/AsyncTCP) LGPL-3.0 license
+- [me-no-dev/ESPAsyncWebServer](https://github.com/me-no-dev/ESPAsyncWebServer)
+- [miwagner/ESP32-Arduino-CAN](https://github.com/miwagner/ESP32-Arduino-CAN/) MIT-License
+- [pierremolinaro/acan2515](https://github.com/pierremolinaro/acan2515) MIT-License
+- [pierremolinaro/acan2517FD](https://github.com/pierremolinaro/acan2517FD) MIT-License
+- [YiannisBourkelis/Uptime-Library](https://github.com/YiannisBourkelis/Uptime-Library) GPL-3.0 license 
 
-It is also based on the info found in the following excellent repositories/websites:
+It is also based on the information found in the following excellent repositories/websites:
 - https://gitlab.com/pelle8/gen24
 - https://github.com/burra/byd_battery
 - https://github.com/flodorn/TeslaBMSV2

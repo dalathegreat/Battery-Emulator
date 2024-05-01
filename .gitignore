@@ -7,3 +7,15 @@
 # Ignore .exe (unit tests)
 *.exe
 **/.DS_Store
+
+#ignore platformio
+.pioenvs
+.piolibdeps
+.clang_complete
+.gcc-flags.json
+.pio
+logs
+
+# Ignore upload command (removes the need to re-compile after Verify when running Download, in e.g. VS Code)
+upload.bat
+compile.bat

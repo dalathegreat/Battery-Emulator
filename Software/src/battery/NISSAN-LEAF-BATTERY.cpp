@@ -1,9 +1,10 @@
-#include "BATTERIES.h"
+#include "../include.h"
 #ifdef NISSAN_LEAF_BATTERY
 #include "NISSAN-LEAF-BATTERY.h"
 #ifdef MQTT
 #include "../devboard/mqtt/mqtt.h"
 #endif
+#include "../datalayer/datalayer.h"
 #include "../devboard/utils/events.h"
 #include "../lib/miwagner-ESP32-Arduino-CAN/CAN_config.h"
 #include "../lib/miwagner-ESP32-Arduino-CAN/ESP32CAN.h"
@@ -12,13 +13,8 @@
 static unsigned long previousMillis10 = 0;   // will store last time a 10ms CAN Message was send
 static unsigned long previousMillis100 = 0;  // will store last time a 100ms CAN Message was send
 static unsigned long previousMillis10s = 0;  // will store last time a 1s CAN Message was send
-static const int interval10 = 10;            // interval (ms) at which send CAN Messages
-static const int interval100 = 100;          // interval (ms) at which send CAN Messages
-static const int interval10s = 10000;        // interval (ms) at which send CAN Messages
 static uint16_t CANerror = 0;                //counter on how many CAN errors encountered
-#define MAX_CAN_FAILURES 5000                //Amount of malformed CAN messages to allow before raising a warning
 static uint8_t CANstillAlive = 12;           //counter for checking if CAN is still alive
-static uint8_t errorCode = 0;                //stores if we have an error code active from battery control logic
 static uint8_t mprun10r = 0;                 //counter 0-20 for 0x1F2 message
 static uint8_t mprun10 = 0;                  //counter 0-3
 static uint8_t mprun100 = 0;                 //counter 0-3
@@ -144,10 +140,6 @@ static uint16_t min_max_voltage[2];     //contains cell min[0] and max[1] values
 static uint16_t cell_deviation_mV = 0;  //contains the deviation between highest and lowest cell in mV
 static uint16_t HX = 0;                 //Internal resistance
 static uint16_t insulation = 0;         //Insulation resistance
-static int32_t Battery_current_1 =
-    0;  //High Voltage battery current; it’s positive if discharged, negative when charging
-static int32_t Battery_current_2 =
-    0;  //High Voltage battery current; it’s positive if discharged, negative when charging (unclear why two values exist)
 static uint16_t temp_raw_1 = 0;
 static uint8_t temp_raw_2_highnibble = 0;
 static uint16_t temp_raw_2 = 0;
@@ -167,84 +159,88 @@ void print_with_units(char* header, int value, char* units) {
 void update_values_battery() { /* This function maps all the values fetched via CAN to the correct parameters used for modbus */
   /* Start with mapping all values */
 
-  system_SOH_pptt = (LB_StateOfHealth * 100);  //Increase range from 99% -> 99.00%
+  datalayer.battery.status.soh_pptt = (LB_StateOfHealth * 100);  //Increase range from 99% -> 99.00%
 
-  system_real_SOC_pptt = (LB_SOC * 10);
+  datalayer.battery.status.real_soc = (LB_SOC * 10);
 
-  system_battery_voltage_dV = (LB_Total_Voltage2 * 5);  //0.5V/bit, multiply by 5 to get Voltage+1decimal (350.5V = 701)
+  datalayer.battery.status.voltage_dV =
+      (LB_Total_Voltage2 * 5);  //0.5V/bit, multiply by 5 to get Voltage+1decimal (350.5V = 701)
 
-  system_battery_current_dA = (LB_Current2 * 5);  //0.5A/bit, multiply by 5 to get Amp+1decimal (5,5A = 11)
+  datalayer.battery.status.current_dA = (LB_Current2 * 5);  //0.5A/bit, multiply by 5 to get Amp+1decimal (5,5A = 11)
 
-  system_capacity_Wh = (LB_Max_GIDS * WH_PER_GID);
+  datalayer.battery.info.total_capacity_Wh = (LB_Max_GIDS * WH_PER_GID);
 
-  system_remaining_capacity_Wh = LB_Wh_Remaining;
+  datalayer.battery.status.remaining_capacity_Wh = LB_Wh_Remaining;
 
   LB_Power =
       ((LB_Total_Voltage2 * LB_Current2) / 4);  //P = U * I (Both values are 0.5 per bit so the math is non-intuitive)
 
-  system_active_power_W = LB_Power;
+  datalayer.battery.status.active_power_W = LB_Power;
 
   //Update temperature readings. Method depends on which generation LEAF battery is used
   if (LEAF_Battery_Type == ZE0_BATTERY) {
     //Since we only have average value, send the minimum as -1.0 degrees below average
-    system_temperature_min_dC = ((LB_AverageTemperature * 10) - 10);  //Increase range from C to C+1, remove 1.0C
-    system_temperature_max_dC = (LB_AverageTemperature * 10);         //Increase range from C to C+1
+    datalayer.battery.status.temperature_min_dC =
+        ((LB_AverageTemperature * 10) - 10);  //Increase range from C to C+1, remove 1.0C
+    datalayer.battery.status.temperature_max_dC = (LB_AverageTemperature * 10);  //Increase range from C to C+1
   } else if (LEAF_Battery_Type == AZE0_BATTERY) {
     //Use the value sent constantly via CAN in 5C0 (only available on AZE0)
-    system_temperature_min_dC = (LB_HistData_Temperature_MIN * 10);  //Increase range from C to C+1
-    system_temperature_max_dC = (LB_HistData_Temperature_MAX * 10);  //Increase range from C to C+1
+    datalayer.battery.status.temperature_min_dC = (LB_HistData_Temperature_MIN * 10);  //Increase range from C to C+1
+    datalayer.battery.status.temperature_max_dC = (LB_HistData_Temperature_MAX * 10);  //Increase range from C to C+1
   } else {  // ZE1 (TODO: Once the muxed value in 5C0 becomes known, switch to using that instead of this complicated polled value)
     if (temp_raw_min != 0)  //We have a polled value available
     {
       temp_polled_min = ((Temp_fromRAW_to_F(temp_raw_min) - 320) * 5) / 9;  //Convert from F to C
       temp_polled_max = ((Temp_fromRAW_to_F(temp_raw_max) - 320) * 5) / 9;  //Convert from F to C
       if (temp_polled_min < temp_polled_max) {  //Catch any edge cases from Temp_fromRAW_to_F function
-        system_temperature_min_dC = temp_polled_min;
-        system_temperature_max_dC = temp_polled_max;
+        datalayer.battery.status.temperature_min_dC = temp_polled_min;
+        datalayer.battery.status.temperature_max_dC = temp_polled_max;
       } else {
-        system_temperature_min_dC = temp_polled_max;
-        system_temperature_max_dC = temp_polled_min;
+        datalayer.battery.status.temperature_min_dC = temp_polled_max;
+        datalayer.battery.status.temperature_max_dC = temp_polled_min;
       }
     }
   }
 
   // Define power able to be discharged from battery
-  if (LB_Discharge_Power_Limit > 60) {     //if >60kW can be pulled from battery
-    system_max_discharge_power_W = 60000;  //cap value so we don't go over uint16 value
+  if (LB_Discharge_Power_Limit > 60) {                       //if >60kW can be pulled from battery
+    datalayer.battery.status.max_discharge_power_W = 60000;  //cap value so we don't go over uint16 value
   } else {
-    system_max_discharge_power_W = (LB_Discharge_Power_Limit * 1000);  //kW to W
+    datalayer.battery.status.max_discharge_power_W = (LB_Discharge_Power_Limit * 1000);  //kW to W
   }
-  if (system_scaled_SOC_pptt == 0) {  //Scaled SOC% value is 0.00%, we should not discharge battery further
-    system_max_discharge_power_W = 0;
+  if (datalayer.battery.status.reported_soc ==
+      0) {  //Scaled SOC% value is 0.00%, we should not discharge battery further
+    datalayer.battery.status.max_discharge_power_W = 0;
   }
 
   // Define power able to be put into the battery
-  if (LB_Charge_Power_Limit > 60) {     //if >60kW can be put into the battery
-    system_max_charge_power_W = 60000;  //cap value so we don't go over uint16 value
+  if (LB_Charge_Power_Limit > 60) {                       //if >60kW can be put into the battery
+    datalayer.battery.status.max_charge_power_W = 60000;  //cap value so we don't go over uint16 value
   } else {
-    system_max_charge_power_W = (LB_Charge_Power_Limit * 1000);  //kW to W
+    datalayer.battery.status.max_charge_power_W = (LB_Charge_Power_Limit * 1000);  //kW to W
   }
-  if (system_scaled_SOC_pptt == 10000)  //Scaled SOC% value is 100.00%
+  if (datalayer.battery.status.reported_soc == 10000)  //Scaled SOC% value is 100.00%
   {
-    system_max_charge_power_W = 0;  //No need to charge further, set max power to 0
+    datalayer.battery.status.max_charge_power_W = 0;  //No need to charge further, set max power to 0
   }
 
   //Map all cell voltages to the global array
   for (int i = 0; i < 96; ++i) {
-    system_cellvoltages_mV[i] = cell_voltages[i];
+    datalayer.battery.status.cell_voltages_mV[i] = cell_voltages[i];
   }
 
   /*Extra safety functions below*/
   if (LB_GIDS < 10)  //700Wh left in battery!
   {                  //Battery is running abnormally low, some discharge logic might have failed. Zero it all out.
     set_event(EVENT_BATTERY_EMPTY, 0);
-    system_real_SOC_pptt = 0;
-    system_max_discharge_power_W = 0;
+    datalayer.battery.status.real_soc = 0;
+    datalayer.battery.status.max_discharge_power_W = 0;
   }
 
   //Check if SOC% is plausible
-  if (system_battery_voltage_dV >
-      (system_max_design_voltage_dV - 100)) {  // When pack voltage is close to max, and SOC% is still low, raise FAULT
+  if (datalayer.battery.status.voltage_dV >
+      (datalayer.battery.info.max_design_voltage_dV -
+       100)) {  // When pack voltage is close to max, and SOC% is still low, raise FAULT
     if (LB_SOC < 650) {
       set_event(EVENT_SOC_PLAUSIBILITY_ERROR, LB_SOC / 10);  // Set event with the SOC as data
     } else {
@@ -254,26 +250,22 @@ void update_values_battery() { /* This function maps all the values fetched via 
 
   if (LB_Full_CHARGE_flag) {  //Battery reports that it is fully charged stop all further charging incase it hasn't already
     set_event(EVENT_BATTERY_FULL, 0);
-    system_max_charge_power_W = 0;
+    datalayer.battery.status.max_charge_power_W = 0;
   } else {
     clear_event(EVENT_BATTERY_FULL);
   }
 
   if (LB_Capacity_Empty) {  //Battery reports that it is fully discharged. Stop all further discharging incase it hasn't already
     set_event(EVENT_BATTERY_EMPTY, 0);
-    system_max_discharge_power_W = 0;
+    datalayer.battery.status.max_discharge_power_W = 0;
   } else {
     clear_event(EVENT_BATTERY_EMPTY);
   }
 
   if (LB_Relay_Cut_Request) {  //LB_FAIL, BMS requesting shutdown and contactors to be opened
-#ifdef DEBUG_VIA_USB
-    Serial.println("Battery requesting immediate shutdown and contactors to be opened!");
-#endif
     //Note, this is sometimes triggered during the night while idle, and the BMS recovers after a while. Removed latching from this scenario
-    errorCode = 1;
-    system_max_discharge_power_W = 0;
-    system_max_charge_power_W = 0;
+    datalayer.battery.status.max_discharge_power_W = 0;
+    datalayer.battery.status.max_charge_power_W = 0;
   }
 
   if (LB_Failsafe_Status > 0)  // 0 is normal, start charging/discharging
@@ -292,24 +284,19 @@ void update_values_battery() { /* This function maps all the values fetched via 
         //Normal stop request. For stationary storage we don't disconnect contactors, so we ignore this.
         break;
       case (4):
-//Caution Lamp Request
-#ifdef DEBUG_VIA_USB
-        Serial.println("ERROR: Battery raised caution indicator. Inspect battery status!");
-#endif
+        //Caution Lamp Request
+        set_event(EVENT_BATTERY_CAUTION, 0);
         break;
       case (5):
         //Caution Lamp Request & Normal Stop Request
-        errorCode = 2;
         set_event(EVENT_BATTERY_DISCHG_STOP_REQ, 0);
         break;
       case (6):
         //Caution Lamp Request & Charging Mode Stop Request
-        errorCode = 3;
         set_event(EVENT_BATTERY_CHG_STOP_REQ, 0);
         break;
       case (7):
         //Caution Lamp Request & Charging Mode Stop Request & Normal Stop Request
-        errorCode = 4;
         set_event(EVENT_BATTERY_CHG_DISCHG_STOP_REQ, 0);
         break;
       default:
@@ -323,7 +310,6 @@ void update_values_battery() { /* This function maps all the values fetched via 
 
   if (LB_StateOfHealth < 25) {    //Battery is extremely degraded, not fit for secondlifestorage. Zero it all out.
     if (LB_StateOfHealth != 0) {  //Extra check to see that we actually have a SOH Value available
-      errorCode = 5;
       set_event(EVENT_LOW_SOH, LB_StateOfHealth);
     } else {
       clear_event(EVENT_LOW_SOH);
@@ -333,7 +319,6 @@ void update_values_battery() { /* This function maps all the values fetched via 
 #ifdef INTERLOCK_REQUIRED
   if (!LB_Interlock) {
     set_event(EVENT_HVIL_FAILURE, 0);
-    errorCode = 6;
   } else {
     clear_event(EVENT_HVIL_FAILURE);
   }
@@ -341,7 +326,6 @@ void update_values_battery() { /* This function maps all the values fetched via 
 
   /* Check if the BMS is still sending CAN messages. If we go 60s without messages we raise an error*/
   if (!CANstillAlive) {
-    errorCode = 7;
     set_event(EVENT_CAN_RX_FAILURE, 0);
   } else {
     CANstillAlive--;
@@ -350,38 +334,26 @@ void update_values_battery() { /* This function maps all the values fetched via 
   if (CANerror >
       MAX_CAN_FAILURES)  //Also check if we have recieved too many malformed CAN messages. If so, signal via LED
   {
-    errorCode = 10;
     set_event(EVENT_CAN_RX_WARNING, 0);
   }
 
-  if (system_bms_status == FAULT) {  //Incase we enter a critical fault state, zero out the allowed limits
-    system_max_charge_power_W = 0;
-    system_max_discharge_power_W = 0;
+  if (LB_HeatExist) {
+    if (LB_Heating_Stop) {
+      set_event(EVENT_BATTERY_WARMED_UP, 0);
+    }
+    if (LB_Heating_Start) {
+      set_event(EVENT_BATTERY_REQUESTS_HEAT, 0);
+    }
+  }
+
+  if (datalayer.battery.status.bms_status ==
+      FAULT) {  //Incase we enter a critical fault state, zero out the allowed limits
+    datalayer.battery.status.max_charge_power_W = 0;
+    datalayer.battery.status.max_discharge_power_W = 0;
   }
 
 /*Finally print out values to serial if configured to do so*/
 #ifdef DEBUG_VIA_USB
-  if (errorCode > 0) {
-    Serial.print("ERROR CODE ACTIVE IN SYSTEM. NUMBER: ");
-    Serial.println(errorCode);
-  }
-  Serial.println("Values going to inverter");
-  print_with_units("SOH%: ", (system_SOH_pptt * 0.01), "% ");
-  print_with_units(", SOC% scaled: ", (system_scaled_SOC_pptt * 0.01), "% ");
-  print_with_units(", Voltage: ", (system_battery_voltage_dV * 0.1), "V ");
-  print_with_units(", Max discharge power: ", system_max_discharge_power_W, "W ");
-  print_with_units(", Max charge power: ", system_max_charge_power_W, "W ");
-  print_with_units(", Max temp: ", (system_temperature_max_dC * 0.1), "°C ");
-  print_with_units(", Min temp: ", (system_temperature_min_dC * 0.1), "°C ");
-  Serial.println("");
-  Serial.print("BMS Status: ");
-  if (system_bms_status == 3) {
-    Serial.print("Active, ");
-  } else {
-    Serial.print("FAULT, ");
-  }
-  print_with_units(", Power: ", LB_Power, "W ");
-  Serial.println("");
   Serial.println("Values from battery");
   print_with_units("Real SOC%: ", (LB_SOC * 0.1), "% ");
   print_with_units(", GIDS: ", LB_GIDS, " (x77Wh) ");
@@ -390,13 +362,6 @@ void update_values_battery() { /* This function maps all the values fetched via 
   print_with_units(", Max cell voltage: ", min_max_voltage[1], "mV ");
   print_with_units(", Min cell voltage: ", min_max_voltage[0], "mV ");
   print_with_units(", Cell deviation: ", cell_deviation_mV, "mV ");
-  if (LB_Heating_Stop) {
-    Serial.println("Battery requesting heating pads to stop. The battery is now warm enough.");
-  }
-  if (LB_Heating_Start) {
-    Serial.println("COLD BATTERY! Battery requesting heating pads to activate");
-  }
-
 #endif
 }
 
@@ -420,9 +385,9 @@ void receive_can_battery(CAN_frame_t rx_frame) {
       LB_Failsafe_Status = (rx_frame.data.u8[1] & 0x07);
       LB_MainRelayOn_flag = (bool)((rx_frame.data.u8[3] & 0x20) >> 5);
       if (LB_MainRelayOn_flag) {
-        batteryAllowsContactorClosing = true;
+        datalayer.system.status.battery_allows_contactor_closing = true;
       } else {
-        batteryAllowsContactorClosing = false;
+        datalayer.system.status.battery_allows_contactor_closing = false;
       }
       LB_Full_CHARGE_flag = (bool)((rx_frame.data.u8[3] & 0x10) >> 4);
       LB_Interlock = (bool)((rx_frame.data.u8[3] & 0x08) >> 3);
@@ -522,23 +487,10 @@ void receive_can_battery(CAN_frame_t rx_frame) {
       if (group_7bb == 1)  //High precision SOC, Current, voltages etc.
       {
         if (rx_frame.data.u8[0] == 0x10) {  //First frame
-          Battery_current_1 = (rx_frame.data.u8[4] << 24) |
-                              (rx_frame.data.u8[5] << 16 | ((rx_frame.data.u8[6] << 8) | rx_frame.data.u8[7]));
-          if (Battery_current_1 & 0x8000000 == 0x8000000) {
-            Battery_current_1 = ((Battery_current_1 | -0x100000000) / 1024);
-          } else {
-            Battery_current_1 = (Battery_current_1 / 1024);
-          }
+          //High precision Battery_current_1 resides here, but has been deemed unusable by 62kWh owners
         }
-
         if (rx_frame.data.u8[0] == 0x21) {  //Second frame
-          Battery_current_2 = (rx_frame.data.u8[3] << 24) |
-                              (rx_frame.data.u8[4] << 16 | ((rx_frame.data.u8[5] << 8) | rx_frame.data.u8[6]));
-          if (Battery_current_2 & 0x8000000 == 0x8000000) {
-            Battery_current_2 = ((Battery_current_2 | -0x100000000) / 1024);
-          } else {
-            Battery_current_2 = (Battery_current_2 / 1024);
-          }
+          //High precision Battery_current_2 resides here, but has been deemed unusable by 62kWh owners
         }
 
         if (rx_frame.data.u8[0] == 0x23) {  // Fourth frame
@@ -571,19 +523,17 @@ void receive_can_battery(CAN_frame_t rx_frame) {
 
           cell_deviation_mV = (min_max_voltage[1] - min_max_voltage[0]);
 
-          system_cell_max_voltage_mV = min_max_voltage[1];
-          system_cell_min_voltage_mV = min_max_voltage[0];
+          datalayer.battery.status.cell_max_voltage_mV = min_max_voltage[1];
+          datalayer.battery.status.cell_min_voltage_mV = min_max_voltage[0];
 
           if (cell_deviation_mV > MAX_CELL_DEVIATION) {
             set_event(EVENT_CELL_DEVIATION_HIGH, 0);
           }
 
           if (min_max_voltage[1] >= MAX_CELL_VOLTAGE) {
-            errorCode = 8;
             set_event(EVENT_CELL_OVER_VOLTAGE, 0);
           }
           if (min_max_voltage[0] <= MIN_CELL_VOLTAGE) {
-            errorCode = 9;
             set_event(EVENT_CELL_UNDER_VOLTAGE, 0);
           }
           break;
@@ -666,48 +616,13 @@ void receive_can_battery(CAN_frame_t rx_frame) {
 }
 void send_can_battery() {
   unsigned long currentMillis = millis();
-  // Send 100ms CAN Message
-  if (currentMillis - previousMillis100 >= interval100) {
-    previousMillis100 = currentMillis;
 
-    //When battery requests heating pack status change, ack this
-    if (Batt_Heater_Mail_Send_Request) {
-      LEAF_50B.data.u8[6] = 0x20;  //Batt_Heater_Mail_Send_OK
-    } else {
-      LEAF_50B.data.u8[6] = 0x00;  //Batt_Heater_Mail_Send_NG
-    }
-
-    // VCM message, containing info if battery should sleep or stay awake
-    ESP32Can.CANWriteFrame(&LEAF_50B);  // HCM_WakeUpSleepCommand == 11b == WakeUp, and CANMASK = 1
-
-    switch (mprun100) {
-      case 0:
-        LEAF_50C.data.u8[3] = 0x00;
-        LEAF_50C.data.u8[4] = 0x5D;
-        LEAF_50C.data.u8[5] = 0xC8;
-        break;
-      case 1:
-        LEAF_50C.data.u8[3] = 0x01;
-        LEAF_50C.data.u8[4] = 0xB2;
-        LEAF_50C.data.u8[5] = 0x31;
-        break;
-      case 2:
-        LEAF_50C.data.u8[3] = 0x02;
-        LEAF_50C.data.u8[4] = 0x5D;
-        LEAF_50C.data.u8[5] = 0x63;
-        break;
-      case 3:
-        LEAF_50C.data.u8[3] = 0x03;
-        LEAF_50C.data.u8[4] = 0xB2;
-        LEAF_50C.data.u8[5] = 0x9A;
-        break;
-    }
-    ESP32Can.CANWriteFrame(&LEAF_50C);
-
-    mprun100 = (mprun100 + 1) % 4;  // mprun100 cycles between 0-1-2-3-0-1...
-  }
   //Send 10ms message
-  if (currentMillis - previousMillis10 >= interval10) {
+  if (currentMillis - previousMillis10 >= INTERVAL_10_MS) {
+    // Check if sending of CAN messages has been delayed too much.
+    if ((currentMillis - previousMillis10 >= INTERVAL_10_MS_DELAYED) && (currentMillis > BOOTUP_TIME)) {
+      set_event(EVENT_CAN_OVERRUN, (currentMillis - previousMillis10));
+    }
     previousMillis10 = currentMillis;
 
     switch (mprun10) {
@@ -828,8 +743,47 @@ void send_can_battery() {
 
     mprun10 = (mprun10 + 1) % 4;  // mprun10 cycles between 0-1-2-3-0-1...
   }
+
+  // Send 100ms CAN Message
+  if (currentMillis - previousMillis100 >= INTERVAL_100_MS) {
+    previousMillis100 = currentMillis;
+
+    //When battery requests heating pack status change, ack this
+    if (Batt_Heater_Mail_Send_Request) {
+      LEAF_50B.data.u8[6] = 0x20;  //Batt_Heater_Mail_Send_OK
+    } else {
+      LEAF_50B.data.u8[6] = 0x00;  //Batt_Heater_Mail_Send_NG
+    }
+
+    // VCM message, containing info if battery should sleep or stay awake
+    ESP32Can.CANWriteFrame(&LEAF_50B);  // HCM_WakeUpSleepCommand == 11b == WakeUp, and CANMASK = 1
+
+    LEAF_50C.data.u8[3] = mprun100;
+    switch (mprun100) {
+      case 0:
+        LEAF_50C.data.u8[4] = 0x5D;
+        LEAF_50C.data.u8[5] = 0xC8;
+        break;
+      case 1:
+        LEAF_50C.data.u8[4] = 0xB2;
+        LEAF_50C.data.u8[5] = 0x31;
+        break;
+      case 2:
+        LEAF_50C.data.u8[4] = 0x5D;
+        LEAF_50C.data.u8[5] = 0x63;
+        break;
+      case 3:
+        LEAF_50C.data.u8[4] = 0xB2;
+        LEAF_50C.data.u8[5] = 0x9A;
+        break;
+    }
+    ESP32Can.CANWriteFrame(&LEAF_50C);
+
+    mprun100 = (mprun100 + 1) % 4;  // mprun100 cycles between 0-1-2-3-0-1...
+  }
+
   //Send 10s CAN messages
-  if (currentMillis - previousMillis10s >= interval10s) {
+  if (currentMillis - previousMillis10s >= INTERVAL_10_S) {
     previousMillis10s = currentMillis;
 
     //Every 10s, ask diagnostic data from the battery. Don't ask if someone is already polling on the bus (Leafspy?)
@@ -888,11 +842,14 @@ uint16_t Temp_fromRAW_to_F(uint16_t temperature) {  //This function feels horrib
 }
 
 void setup_battery(void) {  // Performs one time setup at startup
+#ifdef DEBUG_VIA_USB
   Serial.println("Nissan LEAF battery selected");
+#endif
 
-  system_number_of_cells = 96;
-  system_max_design_voltage_dV = 4040;  // 404.4V, over this, charging is not possible (goes into forced discharge)
-  system_min_design_voltage_dV = 2600;  // 260.0V under this, discharging further is disabled
+  datalayer.battery.info.number_of_cells = 96;
+  datalayer.battery.info.max_design_voltage_dV =
+      4040;  // 404.4V, over this, charging is not possible (goes into forced discharge)
+  datalayer.battery.info.min_design_voltage_dV = 2600;  // 260.0V under this, discharging further is disabled
 }
 
 #endif

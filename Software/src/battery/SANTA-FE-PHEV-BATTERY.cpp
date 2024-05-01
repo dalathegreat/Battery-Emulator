@@ -1,5 +1,6 @@
-#include "BATTERIES.h"
+#include "../include.h"
 #ifdef SANTA_FE_PHEV_BATTERY
+#include "../datalayer/datalayer.h"
 #include "../devboard/utils/events.h"
 #include "../lib/miwagner-ESP32-Arduino-CAN/CAN_config.h"
 #include "../lib/miwagner-ESP32-Arduino-CAN/ESP32CAN.h"
@@ -17,8 +18,6 @@ TODO: Map all values from battery CAN messages
 /* Do not change code below unless you are sure what you are doing */
 static unsigned long previousMillis10 = 0;   // will store last time a 10ms CAN Message was send
 static unsigned long previousMillis100 = 0;  // will store last time a 100ms CAN Message was send
-static const int interval10 = 10;            // interval (ms) at which send CAN Messages
-static const int interval100 = 100;          // interval (ms) at which send CAN Messages
 static uint8_t CANstillAlive = 12;           //counter for checking if CAN is still alive
 
 static int SOC_1 = 0;
@@ -58,25 +57,25 @@ CAN_frame_t SANTAFE_523 = {.FIR = {.B =
 
 void update_values_battery() {  //This function maps all the values fetched via CAN to the correct parameters used for modbus
 
-  system_real_SOC_pptt;
+  datalayer.battery.status.real_soc;
 
-  system_battery_voltage_dV;
+  datalayer.battery.status.voltage_dV;
 
-  system_battery_current_dA;
+  datalayer.battery.status.current_dA;
 
-  system_capacity_Wh = BATTERY_WH_MAX;
+  datalayer.battery.info.total_capacity_Wh;
 
-  system_remaining_capacity_Wh;
+  datalayer.battery.status.remaining_capacity_Wh;
 
-  system_max_discharge_power_W;
+  datalayer.battery.status.max_discharge_power_W;
 
-  system_max_charge_power_W;
+  datalayer.battery.status.max_charge_power_W;
 
-  system_active_power_W;
+  datalayer.battery.status.active_power_W;
 
-  system_temperature_min_dC;
+  datalayer.battery.status.temperature_min_dC;
 
-  system_temperature_max_dC;
+  datalayer.battery.status.temperature_max_dC;
 
   /* Check if the BMS is still sending CAN messages. If we go 60s without messages we raise an error*/
   if (!CANstillAlive) {
@@ -129,7 +128,11 @@ void receive_can_battery(CAN_frame_t rx_frame) {
 void send_can_battery() {
   unsigned long currentMillis = millis();
   //Send 10ms message
-  if (currentMillis - previousMillis10 >= interval10) {
+  if (currentMillis - previousMillis10 >= INTERVAL_10_MS) {
+    // Check if sending of CAN messages has been delayed too much.
+    if ((currentMillis - previousMillis10 >= INTERVAL_10_MS_DELAYED) && (currentMillis > BOOTUP_TIME)) {
+      set_event(EVENT_CAN_OVERRUN, (currentMillis - previousMillis10));
+    }
     previousMillis10 = currentMillis;
 
     SANTAFE_200.data.u8[6] = (counter_200 << 1);
@@ -150,7 +153,7 @@ void send_can_battery() {
     }
   }
   // Send 100ms CAN Message
-  if (currentMillis - previousMillis100 >= interval100) {
+  if (currentMillis - previousMillis100 >= INTERVAL_100_MS) {
     previousMillis100 = currentMillis;
 
     ESP32Can.CANWriteFrame(&SANTAFE_523);
@@ -175,10 +178,13 @@ uint8_t CalculateCRC8(CAN_frame_t rx_frame) {
 }
 
 void setup_battery(void) {  // Performs one time setup at startup
+#ifdef DEBUG_VIA_USB
   Serial.println("Hyundai Santa Fe PHEV battery selected");
+#endif
 
-  system_max_design_voltage_dV = 4040;  // 404.0V, over this, charging is not possible (goes into forced discharge)
-  system_min_design_voltage_dV = 3100;  // 310.0V under this, discharging further is disabled
+  datalayer.battery.info.max_design_voltage_dV =
+      4040;  // 404.0V, over this, charging is not possible (goes into forced discharge)
+  datalayer.battery.info.min_design_voltage_dV = 3100;  // 310.0V under this, discharging further is disabled
 }
 
 #endif

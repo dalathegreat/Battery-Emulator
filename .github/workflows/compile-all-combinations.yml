@@ -41,6 +41,7 @@ jobs:
           - IMIEV_CZERO_ION_BATTERY
           - KIA_HYUNDAI_64_BATTERY
           - NISSAN_LEAF_BATTERY
+          - PYLON_BATTERY
           - RENAULT_KANGOO_BATTERY
           - RENAULT_ZOE_BATTERY
           - TESLA_MODEL_3_BATTERY

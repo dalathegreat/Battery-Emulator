@@ -3,6 +3,11 @@
 
 exclude: '^Software/src/lib/'  # don't run hooks on external libraries
 
+# This continuous integration section is optional, and enables autoupdating the pre-commit configuration, ensuring that
+# the hook versions are kept up to date.
+ci:
+  autoupdate_schedule: monthly
+
 repos:
 - repo: https://github.com/pre-commit/mirrors-clang-format
   rev: v17.0.4

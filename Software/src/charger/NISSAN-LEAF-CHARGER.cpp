@@ -1,6 +1,10 @@
-#include "NISSAN-LEAF-CHARGER.h"
+#include "../include.h"
+#ifdef NISSANLEAF_CHARGER
+#include "../datalayer/datalayer.h"
+#include "../devboard/utils/events.h"
 #include "../lib/miwagner-ESP32-Arduino-CAN/CAN_config.h"
 #include "../lib/miwagner-ESP32-Arduino-CAN/ESP32CAN.h"
+#include "NISSAN-LEAF-CHARGER.h"
 
 /* This implements Nissan LEAF PDM charger support. 2013-2024 Gen2/3 PDMs are supported
  *
@@ -20,8 +24,6 @@
 */
 
 /* CAN cycles and timers */
-static const uint8_t interval10ms = 10;
-static const uint8_t interval100ms = 100;
 static unsigned long previousMillis10ms = 0;
 static unsigned long previousMillis100ms = 0;
 
@@ -143,7 +145,7 @@ static uint8_t calculate_checksum_nibble(CAN_frame_t* frame) {
   return sum;
 }
 
-void receive_can_nissanleaf_charger(CAN_frame_t rx_frame) {
+void receive_can_charger(CAN_frame_t rx_frame) {
 
   switch (rx_frame.MsgID) {
     case 0x679:  // This message fires once when charging cable is plugged in
@@ -180,11 +182,11 @@ void receive_can_nissanleaf_charger(CAN_frame_t rx_frame) {
   }
 }
 
-void send_can_nissanleaf_charger() {
+void send_can_charger() {
   unsigned long currentMillis = millis();
 
   /* Send keepalive with mode every 10ms */
-  if (currentMillis - previousMillis10ms >= interval10ms) {
+  if (currentMillis - previousMillis10ms >= INTERVAL_10_MS) {
     previousMillis10ms = currentMillis;
 
     mprun10++;
@@ -227,12 +229,13 @@ void send_can_nissanleaf_charger() {
       }
 
       // if actual battery_voltage is less than setpoint got to max power set from web ui
-      if (system_battery_voltage_dV < (CHARGER_SET_HV * 10)) {  //system_battery_voltage_dV = V+1,  0-500.0 (0-5000)
+      if (datalayer.battery.status.voltage_dV <
+          (CHARGER_SET_HV * 10)) {  //datalayer.battery.status.voltage_dV = V+1,  0-500.0 (0-5000)
         OBCpower = OBCpowerSetpoint;
       }
 
       // decrement charger power if volt setpoint is reached
-      if (system_battery_voltage_dV >= (CHARGER_SET_HV * 10)) {
+      if (datalayer.battery.status.voltage_dV >= (CHARGER_SET_HV * 10)) {
         if (OBCpower > 0x64) {
           OBCpower--;
         }
@@ -251,7 +254,7 @@ void send_can_nissanleaf_charger() {
   }
 
   /* Send messages every 100ms here */
-  if (currentMillis - previousMillis100ms >= interval100ms) {
+  if (currentMillis - previousMillis100ms >= INTERVAL_100_MS) {
     previousMillis100ms = currentMillis;
 
     mprun100++;
@@ -273,3 +276,4 @@ void send_can_nissanleaf_charger() {
 #endif
   }
 }
+#endif

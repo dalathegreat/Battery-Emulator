@@ -1,8 +1,9 @@
 #include "cellmonitor_html.h"
 #include <Arduino.h>
+#include "../../datalayer/datalayer.h"
 
 String cellmonitor_processor(const String& var) {
-  if (var == "PLACEHOLDER") {
+  if (var == "ABC") {
     String content = "";
     // Page format
     content += "<style>";
@@ -32,15 +33,15 @@ String cellmonitor_processor(const String& var) {
 
     // Close the block
     content += "</div>";
-    content += "<button onclick='goToMainPage()'>Back to main page</button>";
+    content += "<button onclick='home()'>Back to main page</button>";
     content += "<script>";
     // Populate cell data
     content += "const data = [";
     for (uint8_t i = 0u; i < MAX_AMOUNT_CELLS; i++) {
-      if (system_cellvoltages_mV[i] == 0) {
+      if (datalayer.battery.status.cell_voltages_mV[i] == 0) {
         continue;
       }
-      content += String(system_cellvoltages_mV[i]) + ",";
+      content += String(datalayer.battery.status.cell_voltages_mV[i]) + ",";
     }
     content += "];";
 
@@ -52,7 +53,7 @@ String cellmonitor_processor(const String& var) {
     content += "const valueDisplay = document.getElementById('valueDisplay');";
     content += "const cellContainer = document.getElementById('cellContainer');";
 
-    content += "function goToMainPage() { window.location.href = '/'; }";
+    content += "function home() { window.location.href = '/'; }";
 
     // Arduino-style map() function
     content +=
