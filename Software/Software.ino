@@ -131,7 +131,7 @@ void setup() {
 
   init_contactors();
 
-  init_modbus();
+  init_rs485();
 
   init_serialDataLink();
 
@@ -415,8 +415,7 @@ void init_contactors() {
 #endif
 }
 
-void init_modbus() {
-#ifdef MODBUS_INVERTER_SELECTED
+void init_rs485() {
   // Set up Modbus RTU Server
   pinMode(RS485_EN_PIN, OUTPUT);
   digitalWrite(RS485_EN_PIN, HIGH);
@@ -425,6 +424,7 @@ void init_modbus() {
   pinMode(PIN_5V_EN, OUTPUT);
   digitalWrite(PIN_5V_EN, HIGH);
 
+#ifdef MODBUS_INVERTER_SELECTED
 #ifdef BYD_MODBUS
   // Init Static data to the RTU Modbus
   handle_static_data_modbus_byd();
