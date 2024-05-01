@@ -19,6 +19,9 @@ static uint8_t CANstillAlive = 12;             // counter for checking if CAN is
 static uint16_t CANerror = 0;                  // counter on how many CAN errors encountered
 #define ALIVE_MAX_VALUE 14                     // BMW CAN messages contain alive counter, goes from 0...14
 
+enum BatterySize { BATTERY_60AH, BATTERY_94AH, BATTERY_120AH };
+static BatterySize detectedBattery = BATTERY_60AH;
+
 static const uint16_t WUPonDuration = 477;   // in milliseconds how long WUP should be ON after poweron
 static const uint16_t WUPoffDuration = 105;  // in milliseconds how long WUP should be OFF after on pulse
 unsigned long lastChangeTime;                // Variables to store timestamps
@@ -353,7 +356,7 @@ static uint16_t battery_soc = 0;
 static uint16_t battery_soc_hvmax = 0;
 static uint16_t battery_soc_hvmin = 0;
 static uint16_t battery_capacity_cah = 0;
-
+static uint16_t battery_cell_deviation_mV = 0;
 static int16_t battery_temperature_HV = 0;
 static int16_t battery_temperature_heat_exchanger = 0;
 static int16_t battery_temperature_max = 0;
@@ -446,6 +449,44 @@ void update_values_battery() {  //This function maps all the values fetched via 
 
   datalayer.battery.status.cell_min_voltage_mV = datalayer.battery.status.cell_voltages_mV[0];
   datalayer.battery.status.cell_max_voltage_mV = datalayer.battery.status.cell_voltages_mV[1];
+
+  battery_cell_deviation_mV =
+      (datalayer.battery.status.cell_max_voltage_mV - datalayer.battery.status.cell_min_voltage_mV);
+
+  // Start checking safeties. First up, cellvoltages!
+  if (battery_cell_deviation_mV > MAX_CELL_DEVIATION_MV) {
+    set_event(EVENT_CELL_DEVIATION_HIGH, 0);
+  } else {
+    clear_event(EVENT_CELL_DEVIATION_HIGH);
+  }
+  if (detectedBattery == BATTERY_60AH) {
+    datalayer.battery.info.max_design_voltage_dV = MAX_PACK_VOLTAGE_60AH;
+    datalayer.battery.info.min_design_voltage_dV = MIN_PACK_VOLTAGE_60AH;
+    if (datalayer.battery.status.cell_max_voltage_mV >= MAX_CELL_VOLTAGE_60AH) {
+      set_event(EVENT_CELL_OVER_VOLTAGE, 0);
+    }
+    if (datalayer.battery.status.cell_min_voltage_mV <= MIN_CELL_VOLTAGE_60AH) {
+      set_event(EVENT_CELL_UNDER_VOLTAGE, 0);
+    }
+  } else if (detectedBattery == BATTERY_94AH) {
+    datalayer.battery.info.max_design_voltage_dV = MAX_PACK_VOLTAGE_94AH;
+    datalayer.battery.info.min_design_voltage_dV = MIN_PACK_VOLTAGE_94AH;
+    if (datalayer.battery.status.cell_max_voltage_mV >= MAX_CELL_VOLTAGE_94AH) {
+      set_event(EVENT_CELL_OVER_VOLTAGE, 0);
+    }
+    if (datalayer.battery.status.cell_min_voltage_mV <= MIN_CELL_VOLTAGE_94AH) {
+      set_event(EVENT_CELL_UNDER_VOLTAGE, 0);
+    }
+  } else {  // BATTERY_120AH
+    datalayer.battery.info.max_design_voltage_dV = MAX_PACK_VOLTAGE_120AH;
+    datalayer.battery.info.min_design_voltage_dV = MIN_PACK_VOLTAGE_120AH;
+    if (datalayer.battery.status.cell_max_voltage_mV >= MAX_CELL_VOLTAGE_120AH) {
+      set_event(EVENT_CELL_OVER_VOLTAGE, 0);
+    }
+    if (datalayer.battery.status.cell_min_voltage_mV <= MIN_CELL_VOLTAGE_120AH) {
+      set_event(EVENT_CELL_UNDER_VOLTAGE, 0);
+    }
+  }
 
   /* Check if the BMS is still sending CAN messages. If we go 60s without messages we raise an error*/
   if (!CANstillAlive) {
@@ -602,6 +643,13 @@ void receive_can_battery(CAN_frame_t rx_frame) {
       battery_prediction_duration_charging_minutes = (rx_frame.data.u8[3] << 8 | rx_frame.data.u8[2]);
       battery_prediction_time_end_of_charging_minutes = rx_frame.data.u8[4];
       battery_energy_content_maximum_kWh = (((rx_frame.data.u8[6] & 0x0F) << 8 | rx_frame.data.u8[5])) / 50;
+      if (battery_energy_content_maximum_kWh > 37) {
+        detectedBattery = BATTERY_120AH;
+      } else if (battery_energy_content_maximum_kWh > 25) {
+        detectedBattery = BATTERY_94AH;
+      } else {
+        detectedBattery = BATTERY_60AH;
+      }
       break;
     case 0x432:  //BMS [200ms] SOC% info
       battery_request_operating_mode = (rx_frame.data.u8[0] & 0x03);
@@ -819,9 +867,9 @@ void setup_battery(void) {  // Performs one time setup at startup
   Serial.println("BMW i3 battery selected");
 #endif
 
-  datalayer.battery.info.max_design_voltage_dV =
-      4040;  // 404.4V, over this, charging is not possible (goes into forced discharge)
-  datalayer.battery.info.min_design_voltage_dV = 2800;  // 280.0V under this, discharging further is disabled
+  //Before we have started up and detected which battery is in use, use 60AH values
+  datalayer.battery.info.max_design_voltage_dV = MAX_PACK_VOLTAGE_60AH;
+  datalayer.battery.info.min_design_voltage_dV = MIN_PACK_VOLTAGE_60AH;
 
   digitalWrite(WUP_PIN, HIGH);  // Wake up the battery
 }
