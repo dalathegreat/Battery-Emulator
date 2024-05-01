@@ -389,6 +389,13 @@ void send_can_battery() {
       set_event(EVENT_CAN_OVERRUN, (currentMillis - previousMillis500ms));
     }
     previousMillis500ms = currentMillis;
+    //  Section added to close contractor
+    if (datalayer.battery.status.bms_status == ACTIVE) {
+      datalayer.system.status.battery_allows_contactor_closing = true;
+        } else {  //datalayer.battery.status.bms_status == FAULT or inverter requested opening contactors
+      datalayer.system.status.battery_allows_contactor_closing = false;
+    }
+    //  Section end 
     EGMP_7E4.data[3] = KIA_7E4_COUNTER;
     canfd.tryToSend(EGMP_7E4);
 
