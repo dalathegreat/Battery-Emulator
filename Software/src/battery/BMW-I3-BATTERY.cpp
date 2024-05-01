@@ -18,13 +18,7 @@ static unsigned long previousMillis10000 = 0;  // will store last time a 10000ms
 static uint8_t CANstillAlive = 12;             // counter for checking if CAN is still alive
 static uint16_t CANerror = 0;                  // counter on how many CAN errors encountered
 #define ALIVE_MAX_VALUE 14                     // BMW CAN messages contain alive counter, goes from 0...14
-#define MAX_CELL_VOLTAGE_60AH 4110             // Battery is put into emergency stop if one cell goes over this value
-#define MIN_CELL_VOLTAGE_60AH 2700             // Battery is put into emergency stop if one cell goes below this value
-#define MAX_CELL_VOLTAGE_94AH 4140             // Battery is put into emergency stop if one cell goes over this value
-#define MIN_CELL_VOLTAGE_94AH 2700             // Battery is put into emergency stop if one cell goes below this value
-#define MAX_CELL_VOLTAGE_120AH 4190            // Battery is put into emergency stop if one cell goes over this value
-#define MIN_CELL_VOLTAGE_120AH 2790            // Battery is put into emergency stop if one cell goes below this value
-#define MAX_CELL_DEVIATION 250                 // LED turns yellow on the board if mv delta exceeds this value
+
 enum BatterySize { BATTERY_60AH, BATTERY_94AH, BATTERY_120AH };
 static BatterySize detectedBattery = BATTERY_60AH;
 
@@ -460,14 +454,14 @@ void update_values_battery() {  //This function maps all the values fetched via 
       (datalayer.battery.status.cell_max_voltage_mV - datalayer.battery.status.cell_min_voltage_mV);
 
   // Start checking safeties. First up, cellvoltages!
-  if (battery_cell_deviation_mV > MAX_CELL_DEVIATION) {
+  if (battery_cell_deviation_mV > MAX_CELL_DEVIATION_MV) {
     set_event(EVENT_CELL_DEVIATION_HIGH, 0);
   } else {
     clear_event(EVENT_CELL_DEVIATION_HIGH);
   }
   if (detectedBattery == BATTERY_60AH) {
-    datalayer.battery.info.max_design_voltage_dV = 3950;
-    datalayer.battery.info.min_design_voltage_dV = 2590;
+    datalayer.battery.info.max_design_voltage_dV = MAX_PACK_VOLTAGE_60AH;
+    datalayer.battery.info.min_design_voltage_dV = MIN_PACK_VOLTAGE_60AH;
     if (datalayer.battery.status.cell_max_voltage_mV >= MAX_CELL_VOLTAGE_60AH) {
       set_event(EVENT_CELL_OVER_VOLTAGE, 0);
     }
@@ -475,8 +469,8 @@ void update_values_battery() {  //This function maps all the values fetched via 
       set_event(EVENT_CELL_UNDER_VOLTAGE, 0);
     }
   } else if (detectedBattery == BATTERY_94AH) {
-    datalayer.battery.info.max_design_voltage_dV = 3980;
-    datalayer.battery.info.min_design_voltage_dV = 2590;
+    datalayer.battery.info.max_design_voltage_dV = MAX_PACK_VOLTAGE_94AH;
+    datalayer.battery.info.min_design_voltage_dV = MIN_PACK_VOLTAGE_94AH;
     if (datalayer.battery.status.cell_max_voltage_mV >= MAX_CELL_VOLTAGE_94AH) {
       set_event(EVENT_CELL_OVER_VOLTAGE, 0);
     }
@@ -484,8 +478,8 @@ void update_values_battery() {  //This function maps all the values fetched via 
       set_event(EVENT_CELL_UNDER_VOLTAGE, 0);
     }
   } else {  // BATTERY_120AH
-    datalayer.battery.info.max_design_voltage_dV = 4030;
-    datalayer.battery.info.min_design_voltage_dV = 2680;
+    datalayer.battery.info.max_design_voltage_dV = MAX_PACK_VOLTAGE_120AH;
+    datalayer.battery.info.min_design_voltage_dV = MIN_PACK_VOLTAGE_120AH;
     if (datalayer.battery.status.cell_max_voltage_mV >= MAX_CELL_VOLTAGE_120AH) {
       set_event(EVENT_CELL_OVER_VOLTAGE, 0);
     }
@@ -874,8 +868,8 @@ void setup_battery(void) {  // Performs one time setup at startup
 #endif
 
   //Before we have started up and detected which battery is in use, use 60AH values
-  datalayer.battery.info.max_design_voltage_dV = 3950;
-  datalayer.battery.info.min_design_voltage_dV = 2590;
+  datalayer.battery.info.max_design_voltage_dV = MAX_PACK_VOLTAGE_60AH;
+  datalayer.battery.info.min_design_voltage_dV = MIN_PACK_VOLTAGE_60AH;
 
   digitalWrite(WUP_PIN, HIGH);  // Wake up the battery
 }
