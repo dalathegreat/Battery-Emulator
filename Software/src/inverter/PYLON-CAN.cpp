@@ -174,13 +174,6 @@ void update_values_can_inverter() {  //This function maps all the values fetched
   //There are more mappings that could be added, but this should be enough to use as a starting point
   // Note we map both 0 and 1 messages
 
-  //Amount of cells
-  PYLON_7320.data.u8[0] = datalayer.battery.info.number_of_cells;
-  //Modules in series (not really how EV packs work, but let's map it to a reasonable Pylon value)
-  PYLON_7320.data.u8[2] = (datalayer.battery.info.number_of_cells / 15);
-  //Capacity in AH
-  PYLON_7320.data.u8[6] = (datalayer.battery.info.total_capacity_Wh / (datalayer.battery.status.voltage_dV / 10));
-
   //Charge / Discharge allowed
   PYLON_4280.data.u8[0] = 0;
   PYLON_4280.data.u8[1] = 0;
@@ -282,6 +275,13 @@ void send_can_inverter() {
 }
 
 void send_setup_info() {  //Ensemble information
+  //Amount of cells
+  PYLON_7320.data.u8[0] = datalayer.battery.info.number_of_cells;
+  //Modules in series (not really how EV packs work, but let's map it to a reasonable Pylon value)
+  PYLON_7320.data.u8[2] = (datalayer.battery.info.number_of_cells / 15);
+  //Capacity in AH
+  PYLON_7320.data.u8[6] = (datalayer.battery.info.total_capacity_Wh / (datalayer.battery.status.voltage_dV / 10));
+
 #ifdef SEND_0
   ESP32Can.CANWriteFrame(&PYLON_7310);
   ESP32Can.CANWriteFrame(&PYLON_7320);
