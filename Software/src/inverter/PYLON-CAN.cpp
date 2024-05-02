@@ -174,6 +174,13 @@ void update_values_can_inverter() {  //This function maps all the values fetched
   //There are more mappings that could be added, but this should be enough to use as a starting point
   // Note we map both 0 and 1 messages
 
+  //Amount of cells
+  PYLON_7320.data.u8[0] = datalayer.battery.info.number_of_cells;
+  //Modules in series (not really how EV packs work, but let's map it to a reasonable Pylon value)
+  PYLON_7320.data.u8[2] = (datalayer.battery.info.number_of_cells / 15);
+  //Capacity in AH
+  PYLON_7320.data.u8[6] = (datalayer.battery.info.total_capacity_Wh / (datalayer.battery.status.voltage_dV / 10));
+
   //Charge / Discharge allowed
   PYLON_4280.data.u8[0] = 0;
   PYLON_4280.data.u8[1] = 0;
@@ -229,6 +236,18 @@ void update_values_can_inverter() {  //This function maps all the values fetched
   PYLON_4221.data.u8[2] = (datalayer.battery.info.max_design_voltage_dV >> 8);
   PYLON_4221.data.u8[3] = (datalayer.battery.info.max_design_voltage_dV & 0x00FF);
 #endif
+
+  //Max/Min cell voltage
+  PYLON_4230.data.u8[0] = (datalayer.battery.status.cell_max_voltage_mV >> 8);
+  PYLON_4230.data.u8[1] = (datalayer.battery.status.cell_max_voltage_mV & 0x00FF);
+  PYLON_4230.data.u8[2] = (datalayer.battery.status.cell_min_voltage_mV >> 8);
+  PYLON_4230.data.u8[3] = (datalayer.battery.status.cell_min_voltage_mV & 0x00FF);
+
+  //Max/Min temperature battery
+  PYLON_4240.data.u8[0] = (datalayer.battery.status.temperature_max_dC >> 8);
+  PYLON_4240.data.u8[1] = (datalayer.battery.status.temperature_max_dC & 0x00FF);
+  PYLON_4240.data.u8[2] = (datalayer.battery.status.temperature_min_dC >> 8);
+  PYLON_4240.data.u8[3] = (datalayer.battery.status.temperature_min_dC & 0x00FF);
 
   //In case we run into any errors/faults, we can set charge / discharge forbidden
   if (datalayer.battery.status.bms_status == FAULT) {
