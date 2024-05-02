@@ -83,16 +83,11 @@ void update_values_battery() {  //This function maps all the values fetched via 
   }
 
   LB_Charge_Power_Limit_Watts = (LB_Charge_Power_Limit * 500);  //Convert value fetched from battery to watts
-  /* Define power able to be put into the battery */
-  if (LB_Charge_Power_Limit_Watts > 60000)  //if >60kW can be put into the battery
-  {
-    datalayer.battery.status.max_charge_power_W = 60000;  //cap value so we don't go over the uint16 limit
+  //The above value is 0 on some packs. We instead estimate this now.
+  if (datalayer.battery.status.reported_soc == 10000) {  // When scaled SOC is 100.00%, set allowed charge power to 0
+    datalayer.battery.status.max_charge_power_W = 0;
   } else {
-    datalayer.battery.status.max_charge_power_W = LB_Charge_Power_Limit_Watts;
-  }
-  if (datalayer.battery.status.reported_soc == 10000)  //Scaled SOC% value is 100.00%
-  {
-    datalayer.battery.status.max_charge_power_W = 0;  //No need to charge further, set max power to 0
+    datalayer.battery.status.max_charge_power_W = MAX_CHARGE_POWER_W;
   }
 
   datalayer.battery.status.active_power_W =
