@@ -286,7 +286,7 @@ void send_setup_info() {  //Ensemble information
   //Modules in series (not really how EV packs work, but let's map it to a reasonable Pylon value)
   PYLON_7320.data.u8[2] = (datalayer.battery.info.number_of_cells / 15);
   //Capacity in AH
-  if(datalayer.battery.status.voltage_dV > 10){ //div0 safeguard
+  if (datalayer.battery.status.voltage_dV > 10) { //div0 safeguard
     PYLON_7320.data.u8[6] = (datalayer.battery.info.total_capacity_Wh / (datalayer.battery.status.voltage_dV / 10));
   }
 
