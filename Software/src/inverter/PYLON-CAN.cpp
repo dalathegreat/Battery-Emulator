@@ -196,6 +196,12 @@ void update_values_can_inverter() {  //This function maps all the values fetched
   PYLON_4211.data.u8[2] = (datalayer.battery.status.current_dA >> 8);
   PYLON_4211.data.u8[3] = (datalayer.battery.status.current_dA & 0x00FF);
 
+  // BMS Temperature (We dont have BMS temp, send max cell voltage instead)
+  PYLON_4210.data.u8[4] = (datalayer.battery.status.temperature_max_dC >> 8);
+  PYLON_4210.data.u8[5] = (datalayer.battery.status.temperature_max_dC & 0x00FF);
+  PYLON_4211.data.u8[4] = (datalayer.battery.status.temperature_max_dC >> 8);
+  PYLON_4211.data.u8[5] = (datalayer.battery.status.temperature_max_dC & 0x00FF);
+
   //SOC (100.00%)
   PYLON_4210.data.u8[6] = (datalayer.battery.status.reported_soc / 100);  //Remove decimals
   PYLON_4211.data.u8[6] = (datalayer.battery.status.reported_soc / 100);  //Remove decimals
@@ -286,7 +292,7 @@ void send_setup_info() {  //Ensemble information
   //Modules in series (not really how EV packs work, but let's map it to a reasonable Pylon value)
   PYLON_7320.data.u8[2] = (datalayer.battery.info.number_of_cells / 15);
   //Capacity in AH
-  if(datalayer.battery.status.voltage_dV > 10){ //div0 safeguard
+  if (datalayer.battery.status.voltage_dV > 10) {  //div0 safeguard
     PYLON_7320.data.u8[6] = (datalayer.battery.info.total_capacity_Wh / (datalayer.battery.status.voltage_dV / 10));
   }
 
