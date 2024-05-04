@@ -268,11 +268,11 @@ void update_values_can_inverter() {  //This function maps all the values fetched
   PYLON_4221.data.u8[4] = ((max_charge_current + 30000) & 0x00FF);
   PYLON_4221.data.u8[5] = ((max_charge_current + 30000) >> 8);
 
-  //Max DishargeCurrent
-  PYLON_4220.data.u8[6] = ((max_discharge_current + 30000) & 0x00FF);
-  PYLON_4220.data.u8[7] = ((max_discharge_current + 30000) >> 8);
-  PYLON_4221.data.u8[6] = ((max_discharge_current + 30000) & 0x00FF);
-  PYLON_4221.data.u8[7] = ((max_discharge_current + 30000) >> 8);
+  //Max DischargeCurrent
+  PYLON_4220.data.u8[6] = ((30000 - max_discharge_current) & 0x00FF);
+  PYLON_4220.data.u8[7] = ((30000 - max_discharge_current) >> 8);
+  PYLON_4221.data.u8[6] = ((30000 - max_discharge_current) & 0x00FF);
+  PYLON_4221.data.u8[7] = ((30000 - max_discharge_current) >> 8);
 #else
   //Max ChargeCurrent
   PYLON_4220.data.u8[4] = (max_charge_current & 0x00FF);
@@ -367,11 +367,11 @@ void update_values_can_inverter() {  //This function maps all the values fetched
   PYLON_4221.data.u8[4] = ((max_charge_current + 30000) >> 8);
   PYLON_4221.data.u8[5] = ((max_charge_current + 30000) & 0x00FF);
 
-  //Max DishargeCurrent
-  PYLON_4220.data.u8[6] = ((max_discharge_current + 30000) >> 8);
-  PYLON_4220.data.u8[7] = ((max_discharge_current + 30000) & 0x00FF);
-  PYLON_4221.data.u8[6] = ((max_discharge_current + 30000) >> 8);
-  PYLON_4221.data.u8[7] = ((max_discharge_current + 30000) & 0x00FF);
+  //Max DischargeCurrent
+  PYLON_4220.data.u8[6] = ((30000 - max_discharge_current) >> 8);
+  PYLON_4220.data.u8[7] = ((30000 - max_discharge_current) & 0x00FF);
+  PYLON_4221.data.u8[6] = ((30000 - max_discharge_current) >> 8);
+  PYLON_4221.data.u8[7] = ((30000 - max_discharge_current) & 0x00FF);
 #else
   //Max ChargeCurrent
   PYLON_4220.data.u8[4] = (max_charge_current >> 8);
