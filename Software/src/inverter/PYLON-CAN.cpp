@@ -7,8 +7,8 @@
 
 #define SEND_0  //If defined, the messages will have ID ending with 0 (useful for some inverters)
 //#define SEND_1 //If defined, the messages will have ID ending with 1 (useful for some inverters)
-#define INVERT_VOLTAGE  //If defined, the min/max voltage frames will be inverted, \
-                        //useful for some inverters like Sofar that report the voltages incorrect otherwise
+#define INVERT_LOW_HIGH_BYTES  //If defined, certain frames will have inverted low/high bytes
+                               //useful for some inverters like Sofar that report the voltages incorrect otherwise
 
 /* Do not change code below unless you are sure what you are doing */
 //Actual content messages
@@ -196,6 +196,19 @@ void update_values_can_inverter() {  //This function maps all the values fetched
   PYLON_4211.data.u8[2] = (datalayer.battery.status.current_dA >> 8);
   PYLON_4211.data.u8[3] = (datalayer.battery.status.current_dA & 0x00FF);
 
+  // BMS Temperature (We dont have BMS temp, send max cell voltage instead)
+#ifdef INVERT_LOW_HIGH_BYTES  //Useful for Sofar inverters
+  PYLON_4210.data.u8[4] = ((datalayer.battery.status.temperature_max_dC + 1000) & 0x00FF);
+  PYLON_4210.data.u8[5] = ((datalayer.battery.status.temperature_max_dC + 1000) >> 8);
+  PYLON_4211.data.u8[4] = ((datalayer.battery.status.temperature_max_dC + 1000) & 0x00FF);
+  PYLON_4211.data.u8[5] = ((datalayer.battery.status.temperature_max_dC + 1000) >> 8);
+#else
+  PYLON_4210.data.u8[4] = ((datalayer.battery.status.temperature_max_dC + 1000) >> 8);
+  PYLON_4210.data.u8[5] = ((datalayer.battery.status.temperature_max_dC + 1000) & 0x00FF);
+  PYLON_4211.data.u8[4] = ((datalayer.battery.status.temperature_max_dC + 1000) >> 8);
+  PYLON_4211.data.u8[5] = ((datalayer.battery.status.temperature_max_dC + 1000) & 0x00FF);
+#endif
+
   //SOC (100.00%)
   PYLON_4210.data.u8[6] = (datalayer.battery.status.reported_soc / 100);  //Remove decimals
   PYLON_4211.data.u8[6] = (datalayer.battery.status.reported_soc / 100);  //Remove decimals
@@ -204,7 +217,7 @@ void update_values_can_inverter() {  //This function maps all the values fetched
   PYLON_4210.data.u8[7] = (datalayer.battery.status.soh_pptt / 100);
   PYLON_4211.data.u8[7] = (datalayer.battery.status.soh_pptt / 100);
 
-#ifdef INVERT_VOLTAGE  //Useful for Sofar inverters \
+#ifdef INVERT_LOW_HIGH_BYTES  //Useful for Sofar inverters \
                        //Maxvoltage (eg 400.0V = 4000 , 16bits long) Discharge Cutoff Voltage
   PYLON_4220.data.u8[0] = (datalayer.battery.info.max_design_voltage_dV & 0x00FF);
   PYLON_4220.data.u8[1] = (datalayer.battery.info.max_design_voltage_dV >> 8);
