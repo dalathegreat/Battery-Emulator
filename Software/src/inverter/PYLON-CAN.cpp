@@ -178,8 +178,7 @@ void update_values_can_inverter() {  //This function maps all the values fetched
   // Note we map both 0 and 1 messages
 
   if (datalayer.battery.status.voltage_dV > 10) {  //div0 safeguard
-    max_charge_current = 
-        (datalayer.battery.status.max_charge_power_W * 100) / datalayer.battery.status.voltage_dV;
+    max_charge_current = (datalayer.battery.status.max_charge_power_W * 100) / datalayer.battery.status.voltage_dV;
     if (max_charge_current > datalayer.battery.info.max_charge_amp_dA) {
       max_charge_current =
           datalayer.battery.info
@@ -264,28 +263,28 @@ void update_values_can_inverter() {  //This function maps all the values fetched
 
 #ifdef SET_30K_OFFSET
   //Max ChargeCurrent
-  PYLON_4220.data.u8[4] = ((datalayer.battery.info.max_charge_current + 30000) & 0x00FF);
-  PYLON_4220.data.u8[5] = ((datalayer.battery.info.max_charge_current + 30000) >> 8);
-  PYLON_4221.data.u8[4] = ((datalayer.battery.info.max_charge_current + 30000) & 0x00FF);
-  PYLON_4221.data.u8[5] = ((datalayer.battery.info.max_charge_current + 30000) >> 8);
+  PYLON_4220.data.u8[4] = ((max_charge_current + 30000) & 0x00FF);
+  PYLON_4220.data.u8[5] = ((max_charge_current + 30000) >> 8);
+  PYLON_4221.data.u8[4] = ((max_charge_current + 30000) & 0x00FF);
+  PYLON_4221.data.u8[5] = ((max_charge_current + 30000) >> 8);
 
   //Max DishargeCurrent
-  PYLON_4220.data.u8[6] = ((datalayer.battery.max_discharge_current + 30000) & 0x00FF);
-  PYLON_4220.data.u8[7] = ((datalayer.battery.max_discharge_current + 30000) >> 8);
-  PYLON_4221.data.u8[6] = ((datalayer.battery.max_discharge_current + 30000) & 0x00FF);
-  PYLON_4221.data.u8[7] = ((datalayer.battery.max_discharge_current + 30000) >> 8);
+  PYLON_4220.data.u8[6] = ((max_discharge_current + 30000) & 0x00FF);
+  PYLON_4220.data.u8[7] = ((max_discharge_current + 30000) >> 8);
+  PYLON_4221.data.u8[6] = ((max_discharge_current + 30000) & 0x00FF);
+  PYLON_4221.data.u8[7] = ((max_discharge_current + 30000) >> 8);
 #else
   //Max ChargeCurrent
-  PYLON_4220.data.u8[4] = (datalayer.battery.max_charge_current & 0x00FF);
-  PYLON_4220.data.u8[5] = (datalayer.battery.max_charge_current >> 8);
-  PYLON_4221.data.u8[4] = (datalayer.battery.max_charge_current & 0x00FF);
-  PYLON_4221.data.u8[5] = (datalayer.battery.max_charge_current >> 8);
+  PYLON_4220.data.u8[4] = (max_charge_current & 0x00FF);
+  PYLON_4220.data.u8[5] = (max_charge_current >> 8);
+  PYLON_4221.data.u8[4] = (max_charge_current & 0x00FF);
+  PYLON_4221.data.u8[5] = (max_charge_current >> 8);
 
   //Max DishargeCurrent
-  PYLON_4220.data.u8[6] = (datalayer.battery.max_discharge_current & 0x00FF);
-  PYLON_4220.data.u8[7] = (datalayer.battery.max_discharge_current >> 8);
-  PYLON_4221.data.u8[6] = (datalayer.battery.max_discharge_current & 0x00FF);
-  PYLON_4221.data.u8[7] = (datalayer.battery.max_discharge_current >> 8);
+  PYLON_4220.data.u8[6] = (max_discharge_current & 0x00FF);
+  PYLON_4220.data.u8[7] = (max_discharge_current >> 8);
+  PYLON_4221.data.u8[6] = (max_discharge_current & 0x00FF);
+  PYLON_4221.data.u8[7] = (max_discharge_current >> 8);
 #endif
 
   //Max cell voltage
@@ -363,28 +362,28 @@ void update_values_can_inverter() {  //This function maps all the values fetched
 
 #ifdef SET_30K_OFFSET
   //Max ChargeCurrent
-  PYLON_4220.data.u8[4] = ((datalayer.battery.info.max_charge_current + 30000) >> 8);
-  PYLON_4220.data.u8[5] = ((datalayer.battery.info.max_charge_current + 30000) & 0x00FF);
-  PYLON_4221.data.u8[4] = ((datalayer.battery.info.max_charge_current + 30000) >> 8);
-  PYLON_4221.data.u8[5] = ((datalayer.battery.info.max_charge_current + 30000) & 0x00FF);
+  PYLON_4220.data.u8[4] = ((max_charge_current + 30000) >> 8);
+  PYLON_4220.data.u8[5] = ((max_charge_current + 30000) & 0x00FF);
+  PYLON_4221.data.u8[4] = ((max_charge_current + 30000) >> 8);
+  PYLON_4221.data.u8[5] = ((max_charge_current + 30000) & 0x00FF);
 
   //Max DishargeCurrent
-  PYLON_4220.data.u8[6] = ((datalayer.battery.max_discharge_current + 30000) >> 8);
-  PYLON_4220.data.u8[7] = ((datalayer.battery.max_discharge_current + 30000) & 0x00FF);
-  PYLON_4221.data.u8[6] = ((datalayer.battery.max_discharge_current + 30000) >> 8);
-  PYLON_4221.data.u8[7] = ((datalayer.battery.max_discharge_current + 30000) & 0x00FF);
+  PYLON_4220.data.u8[6] = ((max_discharge_current + 30000) >> 8);
+  PYLON_4220.data.u8[7] = ((max_discharge_current + 30000) & 0x00FF);
+  PYLON_4221.data.u8[6] = ((max_discharge_current + 30000) >> 8);
+  PYLON_4221.data.u8[7] = ((max_discharge_current + 30000) & 0x00FF);
 #else
   //Max ChargeCurrent
-  PYLON_4220.data.u8[4] = (datalayer.battery.max_charge_current >> 8);
-  PYLON_4220.data.u8[5] = (datalayer.battery.max_charge_current & 0x00FF);
-  PYLON_4221.data.u8[4] = (datalayer.battery.max_charge_current >> 8);
-  PYLON_4221.data.u8[5] = (datalayer.battery.max_charge_current & 0x00FF);
+  PYLON_4220.data.u8[4] = (max_charge_current >> 8);
+  PYLON_4220.data.u8[5] = (max_charge_current & 0x00FF);
+  PYLON_4221.data.u8[4] = (max_charge_current >> 8);
+  PYLON_4221.data.u8[5] = (max_charge_current & 0x00FF);
 
   //Max DishargeCurrent
-  PYLON_4220.data.u8[6] = (datalayer.battery.max_discharge_current >> 8);
-  PYLON_4220.data.u8[7] = (datalayer.battery.max_discharge_current & 0x00FF);
-  PYLON_4221.data.u8[6] = (datalayer.battery.max_discharge_current >> 8);
-  PYLON_4221.data.u8[7] = (datalayer.battery.max_discharge_current & 0x00FF);
+  PYLON_4220.data.u8[6] = (max_discharge_current >> 8);
+  PYLON_4220.data.u8[7] = (max_discharge_current & 0x00FF);
+  PYLON_4221.data.u8[6] = (max_discharge_current >> 8);
+  PYLON_4221.data.u8[7] = (max_discharge_current & 0x00FF);
 #endif
 
   //Max cell voltage
