@@ -178,13 +178,19 @@ void update_values_can_inverter() {  //This function maps all the values fetched
   // Note we map both 0 and 1 messages
 
   if (datalayer.battery.status.voltage_dV > 10) {  //div0 safeguard
-    max_charge_current = (datalayer.battery.status.max_charge_power_W * 100) / datalayer.battery.status.voltage_dV;
+    max_charge_current = 
+        (datalayer.battery.status.max_charge_power_W * 100) / datalayer.battery.status.voltage_dV;
     if (max_charge_current > datalayer.battery.info.max_charge_amp_dA) {
-      max_charge_current = datalayer.battery.info.max_charge_amp_dA;  //Cap the value to the max allowed Amp. Some inverters cannot handle large values.
+      max_charge_current =
+          datalayer.battery.info
+              .max_charge_amp_dA;  //Cap the value to the max allowed Amp. Some inverters cannot handle large values.
     }
-    max_discharge_current = (datalayer.battery.status.max_discharge_power_W * 100) / datalayer.battery.status.voltage_dV;
-      if (max_discharge_current > datalayer.battery.info.max_discharge_amp_dA) {
-        max_discharge_current = datalayer.battery.info.max_discharge_amp_dA;  //Cap the value to the max allowed Amp. Some inverters cannot handle large values.
+    max_discharge_current =
+        (datalayer.battery.status.max_discharge_power_W * 100) / datalayer.battery.status.voltage_dV;
+    if (max_discharge_current > datalayer.battery.info.max_discharge_amp_dA) {
+      max_discharge_current =
+          datalayer.battery.info
+              .max_discharge_amp_dA;  //Cap the value to the max allowed Amp. Some inverters cannot handle large values.
     }
   } else {
     max_charge_current = 0;
@@ -278,7 +284,7 @@ void update_values_can_inverter() {  //This function maps all the values fetched
   //Max DishargeCurrent
   PYLON_4220.data.u8[6] = (datalayer.battery.max_discharge_current & 0x00FF);
   PYLON_4220.data.u8[7] = (datalayer.battery.max_discharge_current >> 8);
-  PYLON_4221.data.u8[6] = (datalayer.battery.max_discharge_current  & 0x00FF);
+  PYLON_4221.data.u8[6] = (datalayer.battery.max_discharge_current & 0x00FF);
   PYLON_4221.data.u8[7] = (datalayer.battery.max_discharge_current >> 8);
 #endif
 
