@@ -7,7 +7,7 @@
 
 #define SEND_0  //If defined, the messages will have ID ending with 0 (useful for some inverters)
 //#define SEND_1 //If defined, the messages will have ID ending with 1 (useful for some inverters)
-#define INVERT_LOW_HIGH_BYTES  //If defined, certain frames will have inverted low/high bytes
+#define INVERT_LOW_HIGH_BYTES  //If defined, certain frames will have inverted low/high bytes \
                                //useful for some inverters like Sofar that report the voltages incorrect otherwise
 
 /* Do not change code below unless you are sure what you are doing */
