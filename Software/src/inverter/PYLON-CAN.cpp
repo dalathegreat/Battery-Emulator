@@ -178,7 +178,7 @@ void update_values_can_inverter() {  //This function maps all the values fetched
   // Note we map both 0 and 1 messages
 
   if (datalayer.battery.status.voltage_dV > 10) {  //div0 safeguard
-    max_charge_current =  (datalayer.battery.status.max_charge_power_W * 100) / datalayer.battery.status.voltage_dV;
+    max_charge_current = (datalayer.battery.status.max_charge_power_W * 100) / datalayer.battery.status.voltage_dV;
     if (max_charge_current > datalayer.battery.info.max_charge_amp_dA) {
       max_charge_current = datalayer.battery.info.max_charge_amp_dA;  //Cap the value to the max allowed Amp. Some inverters cannot handle large values.
     }
