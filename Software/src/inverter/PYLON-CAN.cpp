@@ -215,9 +215,9 @@ void update_values_can_inverter() {  //This function maps all the values fetched
   PYLON_4211.data.u8[7] = (datalayer.battery.status.soh_pptt / 100);
 
   // Status=Bit 0,1,2= 0:Sleep, 1:Charge, 2:Discharge 3:Idle. Bit3 ForceChargeReq. Bit4 Balance charge Request
-  if (datalayer.battery.status.current_dA > 0) {
+  if (datalayer.battery.status.current_dA < 0) {
     PYLON_4251.data.u8[0] = (0x11);  // Charge
-  } else if (datalayer.battery.status.current_dA < 0) {
+  } else if (datalayer.battery.status.current_dA > 0) {
     PYLON_4251.data.u8[0] = (0x12);  // Discharge
   } else if (datalayer.battery.status.current_dA == 0) {
     PYLON_4251.data.u8[0] = (0x13);  // Idle
