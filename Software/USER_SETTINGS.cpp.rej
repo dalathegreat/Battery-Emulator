@@ -1,0 +1,15 @@
+--- Software/USER_SETTINGS.cpp
++++ Software/USER_SETTINGS.cpp
+@@ -13,9 +13,9 @@ volatile float CHARGER_END_A = 1.0;       // Current at which charging is consid
+ 
+ #ifdef WEBSERVER
+ volatile uint8_t AccessPointEnabled =
+-    true;  //Set to either true/false incase you want to enable direct wifi access point
+-std::string ssid = "REPLACE_WITH_YOUR_SSID";          // Maximum of 63 characters;
+-std::string password = "REPLACE_WITH_YOUR_PASSWORD";  // Minimum of 8 characters;
++    false;  //Set to either true/false incase you want to enable direct wifi access point
++std::string ssid = "OpenWrt";          // Maximum of 63 characters;
++std::string password = "NuserErSoed";  // Minimum of 8 characters;
+ const char* ssidAP = "Battery Emulator";              // Maximum of 63 characters;
+ const char* passwordAP = "123456789";  // Minimum of 8 characters; set to NULL if you want the access point to be open
+ const uint8_t wifi_channel = 0;        // set to 0 for automatic channel selection
