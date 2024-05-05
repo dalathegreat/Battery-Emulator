@@ -326,6 +326,7 @@ static uint8_t BMW_13E_counter = 0;
 static uint8_t BMW_380_counter = 0;
 static uint32_t BMW_328_counter = 0;
 static bool battery_awake = false;
+static bool battery_info_available = false;
 
 static uint32_t battery_serial_number = 0;
 static uint32_t battery_available_power_shortterm_charge = 0;
@@ -417,6 +418,9 @@ static uint8_t increment_alive_counter(uint8_t counter) {
 }
 
 void update_values_battery() {  //This function maps all the values fetched via CAN to the correct parameters used for modbus
+  if (!battery_awake) {
+    return;
+  }
 
   datalayer.battery.status.real_soc = (battery_HVBatt_SOC * 10);
 
@@ -453,38 +457,40 @@ void update_values_battery() {  //This function maps all the values fetched via 
   battery_cell_deviation_mV =
       (datalayer.battery.status.cell_max_voltage_mV - datalayer.battery.status.cell_min_voltage_mV);
 
-  // Start checking safeties. First up, cellvoltages!
-  if (battery_cell_deviation_mV > MAX_CELL_DEVIATION_MV) {
-    set_event(EVENT_CELL_DEVIATION_HIGH, 0);
-  } else {
-    clear_event(EVENT_CELL_DEVIATION_HIGH);
-  }
-  if (detectedBattery == BATTERY_60AH) {
-    datalayer.battery.info.max_design_voltage_dV = MAX_PACK_VOLTAGE_60AH;
-    datalayer.battery.info.min_design_voltage_dV = MIN_PACK_VOLTAGE_60AH;
-    if (datalayer.battery.status.cell_max_voltage_mV >= MAX_CELL_VOLTAGE_60AH) {
-      set_event(EVENT_CELL_OVER_VOLTAGE, 0);
+  if (battery_info_available) {
+    // Start checking safeties. First up, cellvoltages!
+    if (battery_cell_deviation_mV > MAX_CELL_DEVIATION_MV) {
+      set_event(EVENT_CELL_DEVIATION_HIGH, 0);
+    } else {
+      clear_event(EVENT_CELL_DEVIATION_HIGH);
     }
-    if (datalayer.battery.status.cell_min_voltage_mV <= MIN_CELL_VOLTAGE_60AH) {
-      set_event(EVENT_CELL_UNDER_VOLTAGE, 0);
-    }
-  } else if (detectedBattery == BATTERY_94AH) {
-    datalayer.battery.info.max_design_voltage_dV = MAX_PACK_VOLTAGE_94AH;
-    datalayer.battery.info.min_design_voltage_dV = MIN_PACK_VOLTAGE_94AH;
-    if (datalayer.battery.status.cell_max_voltage_mV >= MAX_CELL_VOLTAGE_94AH) {
-      set_event(EVENT_CELL_OVER_VOLTAGE, 0);
-    }
-    if (datalayer.battery.status.cell_min_voltage_mV <= MIN_CELL_VOLTAGE_94AH) {
-      set_event(EVENT_CELL_UNDER_VOLTAGE, 0);
-    }
-  } else {  // BATTERY_120AH
-    datalayer.battery.info.max_design_voltage_dV = MAX_PACK_VOLTAGE_120AH;
-    datalayer.battery.info.min_design_voltage_dV = MIN_PACK_VOLTAGE_120AH;
-    if (datalayer.battery.status.cell_max_voltage_mV >= MAX_CELL_VOLTAGE_120AH) {
-      set_event(EVENT_CELL_OVER_VOLTAGE, 0);
-    }
-    if (datalayer.battery.status.cell_min_voltage_mV <= MIN_CELL_VOLTAGE_120AH) {
-      set_event(EVENT_CELL_UNDER_VOLTAGE, 0);
+    if (detectedBattery == BATTERY_60AH) {
+      datalayer.battery.info.max_design_voltage_dV = MAX_PACK_VOLTAGE_60AH;
+      datalayer.battery.info.min_design_voltage_dV = MIN_PACK_VOLTAGE_60AH;
+      if (datalayer.battery.status.cell_max_voltage_mV >= MAX_CELL_VOLTAGE_60AH) {
+        set_event(EVENT_CELL_OVER_VOLTAGE, 0);
+      }
+      if (datalayer.battery.status.cell_min_voltage_mV <= MIN_CELL_VOLTAGE_60AH) {
+        set_event(EVENT_CELL_UNDER_VOLTAGE, 0);
+      }
+    } else if (detectedBattery == BATTERY_94AH) {
+      datalayer.battery.info.max_design_voltage_dV = MAX_PACK_VOLTAGE_94AH;
+      datalayer.battery.info.min_design_voltage_dV = MIN_PACK_VOLTAGE_94AH;
+      if (datalayer.battery.status.cell_max_voltage_mV >= MAX_CELL_VOLTAGE_94AH) {
+        set_event(EVENT_CELL_OVER_VOLTAGE, 0);
+      }
+      if (datalayer.battery.status.cell_min_voltage_mV <= MIN_CELL_VOLTAGE_94AH) {
+        set_event(EVENT_CELL_UNDER_VOLTAGE, 0);
+      }
+    } else {  // BATTERY_120AH
+      datalayer.battery.info.max_design_voltage_dV = MAX_PACK_VOLTAGE_120AH;
+      datalayer.battery.info.min_design_voltage_dV = MIN_PACK_VOLTAGE_120AH;
+      if (datalayer.battery.status.cell_max_voltage_mV >= MAX_CELL_VOLTAGE_120AH) {
+        set_event(EVENT_CELL_OVER_VOLTAGE, 0);
+      }
+      if (datalayer.battery.status.cell_min_voltage_mV <= MIN_CELL_VOLTAGE_120AH) {
+        set_event(EVENT_CELL_UNDER_VOLTAGE, 0);
+      }
     }
   }
 
@@ -511,6 +517,7 @@ void update_values_battery() {  //This function maps all the values fetched via 
   } else {
     clear_event(EVENT_PRECHARGE_FAILURE);
   }
+  
 
 #ifdef DEBUG_VIA_USB
   Serial.println(" ");
@@ -694,6 +701,7 @@ void receive_can_battery(CAN_frame_t rx_frame) {
           case SOH:
             if (next_data >= 4) {
               battery_soh = message_data[3];
+              battery_info_available = true;
             }
             break;
           case SOC:
@@ -825,6 +833,26 @@ void send_can_battery() {
 
       BMW_433.data.u8[1] = 0x01;  // First 433 message byte1 we send is unique, once we sent initial value send this
       BMW_3E8.data.u8[0] = 0xF1;  // First 3E8 message byte0 we send is unique, once we sent initial value send this
+
+      next_data = 0;
+      switch (cmdState) {
+        case SOC:
+          ESP32Can.CANWriteFrame(&BMW_6F1_CELL);
+          cmdState = CELL_VOLTAGE;
+          break;
+        case CELL_VOLTAGE:
+          ESP32Can.CANWriteFrame(&BMW_6F1_SOH);
+          cmdState = SOH;
+          break;
+        case SOH:
+          ESP32Can.CANWriteFrame(&BMW_6F1_CELL_VOLTAGE_AVG);
+          cmdState = CELL_VOLTAGE_AVG;
+          break;
+        case CELL_VOLTAGE_AVG:
+          ESP32Can.CANWriteFrame(&BMW_6F1_SOC);
+          cmdState = SOC;
+          break;
+      }
     }
     // Send 5000ms CAN Message
     if (currentMillis - previousMillis5000 >= INTERVAL_5_S) {
@@ -853,9 +881,6 @@ void send_can_battery() {
       ESP32Can.CANWriteFrame(&BMW_3E5);  //Order comes from CAN logs
       ESP32Can.CANWriteFrame(&BMW_3E4);
       ESP32Can.CANWriteFrame(&BMW_37B);
-
-      next_data = 0;
-      ESP32Can.CANWriteFrame(&BMW_6F1_CELL);
 
       BMW_3E5.data.u8[0] = 0xFD;  // First 3E5 message byte0 we send is unique, once we sent initial value send this
     }
