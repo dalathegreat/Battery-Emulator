@@ -51,7 +51,9 @@ CANFDMessage EGMP_7E4_ack;
 
 void set_cell_voltages(CANFDMessage frame, int start, int length, int startCell) {
   for (size_t i = 0; i < length; i++) {
-    datalayer.battery.status.cell_voltages_mV[startCell + i] = (frame.data[start + i] * 20);
+    if ((frame.data[start + i] * 20) > 1000) {
+      datalayer.battery.status.cell_voltages_mV[startCell + i] = (frame.data[start + i] * 20);
+    }
   }
 }
 
@@ -218,36 +220,37 @@ void print_canfd_frame(CANFDMessage rx_frame) {
 
 void debug_canfd_frame(CANFDMessage frame) {
   // Frame ID-s that battery transmits. For debugging and development.
-  switch (frame.id)
-  {
-  case 0x7EC:
-  case 0x360:
-  case 0x3BA:
-  case 0x325:
-  case 0x330:
-  case 0x215:
-  case 0x235:
-  case 0x2FA:
-  case 0x21A:
-  case 0x275:
-  case 0x150:
-  case 0x1F5:
-  case 0x335:
-  case 0x25A:
-  case 0x365:
-  case 0x055:
-  case 0x245:
-  case 0x3F5:
-  // case 0x:
-  // case 0x:
-  // case 0x:
-    /* code */
-    break;
+  // switch (frame.id)
+  // {
+  // case 0x7EC:
+  // case 0x360:
+  // case 0x3BA:
+  // case 0x325:
+  // case 0x330:
+  // case 0x215:
+  // case 0x235:
+  // case 0x2FA:
+  // case 0x21A:
+  // case 0x275:
+  // case 0x150:
+  // case 0x1F5:
+  // case 0x335:
+  // case 0x25A:
+  // case 0x365:
+  // case 0x055:
+  // case 0x245:
+  // case 0x3F5:
+  // // case 0x:
+  // // case 0x:
+  // // case 0x:
+  //   /* code */
+  //   break;
   
-  default:
-    print_canfd_frame(frame);
-    break;
-  }
+  // default:
+  //   print_canfd_frame(frame);
+  //   break;
+  // }
+  print_canfd_frame(frame);
 }
 #endif
 
@@ -448,6 +451,13 @@ void send_can_battery() {
       set_event(EVENT_CAN_OVERRUN, (currentMillis - previousMillis500ms));
     }
     previousMillis500ms = currentMillis;
+    //  Section added to close contractor
+    if (datalayer.battery.status.bms_status == ACTIVE) {
+      datalayer.system.status.battery_allows_contactor_closing = true;
+    } else {  //datalayer.battery.status.bms_status == FAULT or inverter requested opening contactors
+      datalayer.system.status.battery_allows_contactor_closing = false;
+    }
+    //  Section end
     EGMP_7E4.data[3] = KIA_7E4_COUNTER;
     send_canfd_frame(EGMP_7E4);
 
