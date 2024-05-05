@@ -199,8 +199,8 @@ void send_canfd_frame(CANFDMessage frame) {
 #ifdef DEBUG_VIA_USB
   const bool ok = canfd.tryToSend(frame);
   if (ok) {
-  }else{
-    Serial.println ("Send canfd failure.");
+  } else {
+    Serial.println("Send canfd failure.");
   }
 #else
   canfd.tryToSend(frame);
@@ -245,7 +245,7 @@ void debug_canfd_frame(CANFDMessage frame) {
   // // case 0x:
   //   /* code */
   //   break;
-  
+
   // default:
   //   print_canfd_frame(frame);
   //   break;
