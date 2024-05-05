@@ -157,8 +157,19 @@ void update_values_battery() {  //This function maps all the values fetched via 
 #endif
 }
 
-void receive_can_battery(CAN_frame_t rx_frame)  //GKOE reworked
-{
+void receive_can_battery(CAN_frame_t rx_frame) {  //GKOE reworked
+  //TODO: Remove this later
+  Serial.print(millis());  // Example printout, time, ID, length, data: 7553  1DB  8  FF C0 B9 EA 0 0 2 5D
+  Serial.print("  ");
+  Serial.print(rx_frame.MsgID, HEX);
+  Serial.print("  ");
+  Serial.print(rx_frame.FIR.B.DLC);
+  Serial.print("  ");
+  for (int i = 0; i < rx_frame.FIR.B.DLC; ++i) {
+    Serial.print(rx_frame.data.u8[i], HEX);
+    Serial.print(" ");
+  }
+  Serial.println("");
 
   switch (rx_frame.MsgID) {
     case 0x155:            //BMS1
