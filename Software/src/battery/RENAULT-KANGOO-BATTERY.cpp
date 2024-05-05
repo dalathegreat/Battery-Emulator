@@ -6,6 +6,14 @@
 #include "../lib/miwagner-ESP32-Arduino-CAN/ESP32CAN.h"
 #include "RENAULT-KANGOO-BATTERY.h"
 
+/* TODO:
+There seems to be some values on the Kangoo that differ between the 22/33 kWh version
+- Find some way to autodetect which Kangoo size we are working with
+- Fix the mappings of values accordingly
+
+This page has info on the larger 33kWh pack: https://openinverter.org/wiki/Renault_Kangoo_36
+*/
+
 /* Do not change code below unless you are sure what you are doing */
 static uint32_t LB_Battery_Voltage = 3700;
 static uint32_t LB_Charge_Power_Limit_Watts = 0;
@@ -32,7 +40,11 @@ CAN_frame_t KANGOO_423 = {.FIR = {.B =
                                           .FF = CAN_frame_std,
                                       }},
                           .MsgID = 0x423,
-                          .data = {0x33, 0x00, 0xFF, 0xFF, 0x00, 0xE0, 0x00, 0x00}};
+                          .data = {0x0B, 0x1D, 0x00, 0x02, 0xB2, 0x20, 0xB2, 0xD9}};  // Charging
+// Driving: 0x07  0x1D  0x00  0x02  0x5D  0x80  0x5D  0xD8
+// Charging: 0x0B   0x1D  0x00  0x02  0xB2  0x20  0xB2  0xD9
+// Fastcharging: 0x07   0x1E  0x00  0x01  0x5D  0x20  0xB2  0xC7
+// Old hardcoded message: .data = {0x33, 0x00, 0xFF, 0xFF, 0x00, 0xE0, 0x00, 0x00}};
 CAN_frame_t KANGOO_79B = {.FIR = {.B =
                                       {
                                           .DLC = 8,
@@ -179,9 +191,9 @@ void receive_can_battery(CAN_frame_t rx_frame) {  //GKOE reworked
       LB_SOC = ((rx_frame.data.u8[4] << 8) | (rx_frame.data.u8[5])) * 0.0025;  //OK!
       break;
 
-    case 0x424:            //BMS2
-      CANstillAlive = 12;  //Indicate that we are still getting CAN messages from the BMS
-      LB_SOH = (rx_frame.data.u8[5]);
+    case 0x424:                                           //BMS2
+      CANstillAlive = 12;                                 //Indicate that we are still getting CAN messages from the BMS
+      LB_SOH = (rx_frame.data.u8[5]);                     // Only seems valid on Kangoo33
       LB_MIN_TEMPERATURE = ((rx_frame.data.u8[4]) - 40);  //OK!
       LB_MAX_TEMPERATURE = ((rx_frame.data.u8[7]) - 40);  //OK!
       break;
