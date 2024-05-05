@@ -193,17 +193,78 @@ void update_values_battery() {  //This function maps all the values fetched via 
 #endif
 }
 
+void send_canfd_frame(CANFDMessage frame) {
+  #ifdef DEBUG_VIA_USB
+  const bool ok = canfd.tryToSend(frame);
+  if (ok) {
+  }else{
+    Serial.println ("Send canfd failure.");
+  }
+  #else
+  canfd.tryToSend(frame);
+  #endif
+}
+#ifdef DEBUG_CANFD_DATA
+void print_canfd_frame(CANFDMessage rx_frame) {
+  int i = 0;
+  Serial.print(rx_frame.id,HEX);
+  Serial.print(" ");
+  for(i = 0;i < rx_frame.len; i++) {
+    Serial.print(rx_frame.data[i],HEX);
+    Serial.print(" ");
+  }
+  Serial.println(" ");
+}
+
+void debug_canfd_frame(CANFDMessage frame) {
+  // Frame ID-s that battery transmits. For debugging and development.
+  switch (frame.id)
+  {
+  case 0x7EC:
+  case 0x360:
+  case 0x3BA:
+  case 0x325:
+  case 0x330:
+  case 0x215:
+  case 0x235:
+  case 0x2FA:
+  case 0x21A:
+  case 0x275:
+  case 0x150:
+  case 0x1F5:
+  case 0x335:
+  case 0x25A:
+  case 0x365:
+  case 0x055:
+  case 0x245:
+  case 0x3F5:
+  // case 0x:
+  // case 0x:
+  // case 0x:
+    /* code */
+    break;
+  
+  default:
+    print_canfd_frame(frame);
+    break;
+  }
+}
+#endif
+
 void receive_canfd_battery(CANFDMessage frame) {
   CANstillAlive = 12;
+  #ifdef DEBUG_CANFD_DATA
+  debug_canfd_frame(frame);
+  #endif
   switch (frame.id) {
     case 0x7EC:
-      // printFrame(frame);
+      // print_canfd_frame(frame);
       switch (frame.data[0]) {
         case 0x10:  //"PID Header"
           // Serial.println ("Send ack");
           poll_data_pid = frame.data[4];
           // if (frame.data[4] == poll_data_pid) {
-          canfd.tryToSend(EGMP_7E4_ack);  //Send ack to BMS if the same frame is sent as polled
+          send_canfd_frame(EGMP_7E4_ack);  //Send ack to BMS if the same frame is sent as polled
           // }
           break;
         case 0x21:  //First frame in PID group
@@ -388,7 +449,7 @@ void send_can_battery() {
     }
     previousMillis500ms = currentMillis;
     EGMP_7E4.data[3] = KIA_7E4_COUNTER;
-    canfd.tryToSend(EGMP_7E4);
+    send_canfd_frame(EGMP_7E4);
 
     KIA_7E4_COUNTER++;
     if (KIA_7E4_COUNTER > 0x0D) {  // gets up to 0x010C before repeating
