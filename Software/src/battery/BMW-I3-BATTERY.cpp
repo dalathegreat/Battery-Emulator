@@ -517,7 +517,6 @@ void update_values_battery() {  //This function maps all the values fetched via 
   } else {
     clear_event(EVENT_PRECHARGE_FAILURE);
   }
-  
 
 #ifdef DEBUG_VIA_USB
   Serial.println(" ");
