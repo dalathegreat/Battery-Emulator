@@ -51,7 +51,9 @@ CANFDMessage EGMP_7E4_ack;
 
 void set_cell_voltages(CANFDMessage frame, int start, int length, int startCell) {
   for (size_t i = 0; i < length; i++) {
-    datalayer.battery.status.cell_voltages_mV[startCell + i] = (frame.data[start + i] * 20);
+    if ((frame.data[start + i] * 20) > 1000) {
+      datalayer.battery.status.cell_voltages_mV[startCell + i] = (frame.data[start + i] * 20);
+    }
   }
 }
 
@@ -387,6 +389,13 @@ void send_can_battery() {
       set_event(EVENT_CAN_OVERRUN, (currentMillis - previousMillis500ms));
     }
     previousMillis500ms = currentMillis;
+    //  Section added to close contractor
+    if (datalayer.battery.status.bms_status == ACTIVE) {
+      datalayer.system.status.battery_allows_contactor_closing = true;
+    } else {  //datalayer.battery.status.bms_status == FAULT or inverter requested opening contactors
+      datalayer.system.status.battery_allows_contactor_closing = false;
+    }
+    //  Section end
     EGMP_7E4.data[3] = KIA_7E4_COUNTER;
     canfd.tryToSend(EGMP_7E4);
 
