@@ -463,7 +463,8 @@ void print_canfd_frame(CANFDMessage rx_frame) {
   Serial.print(rx_frame.id, HEX);
   Serial.print(" ");
   for (i = 0; i < rx_frame.len; i++) {
-    Serial.print((b >> 4) & rx_frame.data[i], HEX);
+    Serial.print(rx_frame.data[i] < 16 ? "0" : "");
+    Serial.print(rx_frame.data[i], HEX);
     Serial.print(" ");
   }
   Serial.println(" ");
