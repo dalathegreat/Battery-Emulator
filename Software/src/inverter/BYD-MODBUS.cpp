@@ -102,21 +102,25 @@ void handle_update_data_modbusp301_byd() {
     // Id.: p306 Value.: 13260 Scaled value.: 13,26kWh Comment.: remaining cap: 7.68kWh
     battery_data[5] = datalayer.battery.status.remaining_capacity_Wh;
   }
-  if (datalayer.battery.status.max_discharge_power_W > 30000) {
-    battery_data[6] = 30000;
-  } else {
-    battery_data[6] =
-        datalayer.battery.status
-            .max_discharge_power_W;  // Id.: p307 Value.: 25604 Scaled value.: 25,604kW Comment.: max/target discharge power: 0W (0W > restricts to no discharge)
-  }
 
-  if (datalayer.battery.status.max_charge_power_W > 30000) {
-    battery_data[7] = 30000;
-  } else {
-    battery_data[7] =
-        datalayer.battery.status
-            .max_charge_power_W;  // Id.: p308 Value.: 25604 Scaled value.: 25,604kW Comment.: max/target charge power: 4.3kW (during charge), both 307&308 can be set (>0) at the same time
-  }
+  // Convert max discharge Amp value to max Watt
+  static int user_configured_max_discharge_W =
+      ((datalayer.battery.info.max_discharge_amp_dA * datalayer.battery.info.max_design_voltage_dV) / 100);
+  // Use the smaller value, battery reported value OR user configured value
+  static int max_discharge_W =
+      std::min(static_cast<int>(datalayer.battery.status.max_discharge_power_W), user_configured_max_discharge_W);
+  battery_data[6] = std::min(max_discharge_W, 30000);  //Finally, map and cap to 30000 if needed
+  // Id.: p307 Value.: 25604 Scaled value.: 25,604kW Comment.: max/target discharge power: 0W (0W > restricts to no discharge)
+
+  // Convert max charge Amp value to max Watt
+  static int user_configured_max_charge_W =
+      ((datalayer.battery.info.max_charge_amp_dA * datalayer.battery.info.max_design_voltage_dV) / 100);
+  // Use the smaller value, battery reported value OR user configured value
+  static int max_charge_W =
+      std::min(static_cast<int>(datalayer.battery.status.max_charge_power_W), user_configured_max_charge_W);
+  battery_data[7] = std::min(max_charge_W, 30000);  //Finally, map and cap to 30000 if needed
+  // Id.: p308 Value.: 25604 Scaled value.: 25,604kW Comment.: max/target charge power: 4.3kW (during charge), both 307&308 can be set (>0) at the same time
+
   //Battery_data[8] set previously in function           // Id.: p309 Value.: 3161 Scaled value.: 316,1VDC Comment.: Batt Voltage outer (0 if status !=3, maybe a contactor closes when active): 173.4V
   battery_data[9] =
       2000;  // Id.: p310 Value.: 64121 Scaled value.: 6412,1W Comment.: Current Power to API: if>32768... -(65535-61760)=3775W
