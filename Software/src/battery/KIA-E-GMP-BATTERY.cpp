@@ -206,59 +206,9 @@ void send_canfd_frame(CANFDMessage frame) {
   canfd.tryToSend(frame);
 #endif
 }
-#ifdef DEBUG_CANFD_DATA
-void print_canfd_frame(CANFDMessage rx_frame) {
-  int i = 0;
-  Serial.print(rx_frame.id, HEX);
-  Serial.print(" ");
-  for (i = 0; i < rx_frame.len; i++) {
-    Serial.print(rx_frame.data[i], HEX);
-    Serial.print(" ");
-  }
-  Serial.println(" ");
-}
-
-void debug_canfd_frame(CANFDMessage frame) {
-  // Frame ID-s that battery transmits. For debugging and development.
-  // switch (frame.id)
-  // {
-  // case 0x7EC:
-  // case 0x360:
-  // case 0x3BA:
-  // case 0x325:
-  // case 0x330:
-  // case 0x215:
-  // case 0x235:
-  // case 0x2FA:
-  // case 0x21A:
-  // case 0x275:
-  // case 0x150:
-  // case 0x1F5:
-  // case 0x335:
-  // case 0x25A:
-  // case 0x365:
-  // case 0x055:
-  // case 0x245:
-  // case 0x3F5:
-  // // case 0x:
-  // // case 0x:
-  // // case 0x:
-  //   /* code */
-  //   break;
-
-  // default:
-  //   print_canfd_frame(frame);
-  //   break;
-  // }
-  print_canfd_frame(frame);
-}
-#endif
 
 void receive_canfd_battery(CANFDMessage frame) {
   CANstillAlive = 12;
-#ifdef DEBUG_CANFD_DATA
-  debug_canfd_frame(frame);
-#endif
   switch (frame.id) {
     case 0x7EC:
       // print_canfd_frame(frame);
