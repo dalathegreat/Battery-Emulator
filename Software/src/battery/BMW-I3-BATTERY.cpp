@@ -451,8 +451,10 @@ void update_values_battery() {  //This function maps all the values fetched via 
 
   datalayer.battery.status.temperature_max_dC = battery_temperature_max * 10;  // Add a decimal
 
-  datalayer.battery.status.cell_min_voltage_mV = datalayer.battery.status.cell_voltages_mV[0];
-  datalayer.battery.status.cell_max_voltage_mV = datalayer.battery.status.cell_voltages_mV[2];
+  if (datalayer.battery.status.cell_voltages_mV[0] > 0) {
+    datalayer.battery.status.cell_min_voltage_mV = datalayer.battery.status.cell_voltages_mV[0];
+    datalayer.battery.status.cell_max_voltage_mV = datalayer.battery.status.cell_voltages_mV[2];
+  }
 
   battery_cell_deviation_mV =
       (datalayer.battery.status.cell_max_voltage_mV - datalayer.battery.status.cell_min_voltage_mV);
