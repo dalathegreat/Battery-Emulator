@@ -73,7 +73,7 @@ This code uses the following excellent libraries:
 - [YiannisBourkelis/Uptime-Library](https://github.com/YiannisBourkelis/Uptime-Library) GPL-3.0 license 
 
 It is also based on the information found in the following excellent repositories/websites:
-- https://gitlab.com/pelle8/gen24
+- https://gitlab.com/pelle8/inverter_resources //new url
 - https://github.com/burra/byd_battery
 - https://github.com/flodorn/TeslaBMSV2
 - https://github.com/SunshadeCorp/can-service
