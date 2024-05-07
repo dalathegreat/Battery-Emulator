@@ -29,28 +29,25 @@ void handle_static_data_modbus_byd() {
     memcpy(&mbPV[i], data_array_pointers[arr_idx], data_size);
     i += data_size / sizeof(uint16_t);
   }
+  static uint16_t init_p201[13] = {0, 0, 0, MAX_POWER, MAX_POWER, 0, 0, 53248, 10, 53248, 10, 0, 0};
+  memcpy(&mbPV[200], init_p201, sizeof(init_p201));
+  static uint16_t init_p301[24] = {0,  0,  128, 0, 0,  0,     0, 0, 0,  2000,  0,   2000,
+                                   75, 95, 0,   0, 16, 22741, 0, 0, 13, 52064, 230, 9900};
+  memcpy(&mbPV[300], init_p301, sizeof(init_p301));
 }
 
 void handle_update_data_modbusp201_byd() {
   // Store the data into the array
-  static uint16_t system_data[13];
-  system_data[0] = 0;  // Id: p201 Value: 0 Scaled: 0 Comment: Always 0
-  system_data[1] = 0;  // Id: p202 Value: 0 Scaled: 0 Comment: Always 0
-  system_data[2] = std::min(datalayer.battery.info.total_capacity_Wh, static_cast<uint32_t>(60000));
+  static uint16_t system_data[5];
+  system_data[1] = std::min(datalayer.battery.info.total_capacity_Wh, static_cast<uint32_t>(60000));
   // Id: p203 Value: 32000 Scaled: 32kWh Comment: Capacity rated, maximum value is 60000 (60kWh)
-  system_data[3] = MAX_POWER;  // Id: p204 Value: 32000 Scaled: 32kWh Comment: Nominal capacity
-  system_data[4] = MAX_POWER;  // Id: p205 Value: 14500 Scaled: 30,42kW Comment: Max Charge/Discharge Power=10.24kW
-  system_data[5] = (datalayer.battery.info.max_design_voltage_dV);
+  system_data[2] = MAX_POWER;  // Id: p204 Value: 32000 Scaled: 32kWh Comment: Nominal capacity
+  system_data[3] = MAX_POWER;  // Id: p205 Value: 14500 Scaled: 30,42kW Comment: Max Charge/Discharge Power=10.24kW
+  system_data[4] = (datalayer.battery.info.max_design_voltage_dV);
   // Id: p206 Value: 3667 Scaled: 362,7VDC Comment: Max Voltage, if higher charging is not possible (goes into forced discharge)
-  system_data[6] = (datalayer.battery.info.min_design_voltage_dV);
+  system_data[5] = (datalayer.battery.info.min_design_voltage_dV);
   // Id: p207 Value: 2776 Scaled: 277,6VDC Comment: Min Voltage, if lower Gen24 disables battery
-  system_data[7] = 53248;  // Id: p208 Value: 53248 Scaled: 53248 Comment: Always 53248 for BYD
-  system_data[8] = 10;     // Id: p209 Value: 10 Scaled: 10 Comment: Always 10
-  system_data[9] = 53248;  // Id: p210 Value: 53248 Scaled: 53248 Comment: Always 53248 for BYD
-  system_data[10] = 10;    // Id: p211 Value: 10 Scaled: 10 Comment: Always 10
-  system_data[11] = 0;     // Id: p212 Value: 0 Scaled: 0 Comment: Always 0
-  system_data[12] = 0;     // Id: p213 Value: 0 Scaled: 0 Comment: Always 0
-  memcpy(&mbPV[200], system_data, sizeof(system_data));
+  memcpy(&mbPV[202], system_data, sizeof(system_data));
 }
 
 void handle_update_data_modbusp301_byd() {
