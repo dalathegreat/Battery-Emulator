@@ -57,6 +57,11 @@ void handle_update_data_modbusp301_byd() {
   // Store the data into the array
   static uint16_t battery_data[24];
   static uint8_t bms_char_dis_status = STANDBY;
+  static uint32_t user_configured_max_discharge_W = 0;
+  static uint32_t user_configured_max_charge_W = 0;
+  static uint32_t max_discharge_W = 0;
+  static uint32_t max_charge_W = 0;
+
   if (datalayer.battery.status.current_dA == 0) {
     bms_char_dis_status = STANDBY;
   } else if (datalayer.battery.status.current_dA < 0) {  //Negative value = Discharging
@@ -82,19 +87,18 @@ void handle_update_data_modbusp301_byd() {
   // Id: p306 Value: 13260 Scaled: 13,26kWh Comment: remaining cap: 7.68kWh , maximum value is 60000 (60kWh)
 
   // Convert max discharge Amp value to max Watt
-  static uint32_t user_configured_max_discharge_W =
+  user_configured_max_discharge_W =
       ((datalayer.battery.info.max_discharge_amp_dA * datalayer.battery.info.max_design_voltage_dV) / 100);
   // Use the smaller value, battery reported value OR user configured value
-  static uint32_t max_discharge_W =
-      std::min(datalayer.battery.status.max_discharge_power_W, user_configured_max_discharge_W);
+  max_discharge_W = std::min(datalayer.battery.status.max_discharge_power_W, user_configured_max_discharge_W);
   battery_data[6] = std::min(max_discharge_W, static_cast<uint32_t>(30000));  //Finally, map and cap to 30000 if needed
   // Id: p307 Value: 25604 Scaled: 25,604kW Comment: max discharge power: 0W (0W > restricts to no discharge)
 
   // Convert max charge Amp value to max Watt
-  static uint32_t user_configured_max_charge_W =
+  user_configured_max_charge_W =
       ((datalayer.battery.info.max_charge_amp_dA * datalayer.battery.info.max_design_voltage_dV) / 100);
   // Use the smaller value, battery reported value OR user configured value
-  static uint32_t max_charge_W = std::min(datalayer.battery.status.max_charge_power_W, user_configured_max_charge_W);
+  max_charge_W = std::min(datalayer.battery.status.max_charge_power_W, user_configured_max_charge_W);
   battery_data[7] = std::min(max_charge_W, static_cast<uint32_t>(30000));  //Finally, map and cap to 30000 if needed
   // Id: p308 Value: 25604 Scaled: 25,604kW Comment: max charge power: 4.3kW (during charge), both 307&308 can be set (>0) at the same time
 
