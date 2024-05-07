@@ -34,8 +34,8 @@ void handle_static_data_modbus_byd() {
 void handle_update_data_modbusp201_byd() {
   // Store the data into the array
   static uint16_t system_data[13];
-  //system_data[0] = 0;  // Id: p201 Value: 0 Scaled: 0 Comment: Always 0
-  //system_data[1] = 0;  // Id: p202 Value: 0 Scaled: 0 Comment: Always 0
+  system_data[0] = 0;  // Id: p201 Value: 0 Scaled: 0 Comment: Always 0
+  system_data[1] = 0;  // Id: p202 Value: 0 Scaled: 0 Comment: Always 0
   system_data[2] = std::min(datalayer.battery.info.total_capacity_Wh, static_cast<uint32_t>(60000));
   // Id: p203 Value: 32000 Scaled: 32kWh Comment: Capacity rated, maximum value is 60000 (60kWh)
   system_data[3] = MAX_POWER;  // Id: p204 Value: 32000 Scaled: 32kWh Comment: Nominal capacity
@@ -48,8 +48,8 @@ void handle_update_data_modbusp201_byd() {
   system_data[8] = 10;     // Id: p209 Value: 10 Scaled: 10 Comment: Always 10
   system_data[9] = 53248;  // Id: p210 Value: 53248 Scaled: 53248 Comment: Always 53248 for BYD
   system_data[10] = 10;    // Id: p211 Value: 10 Scaled: 10 Comment: Always 10
-  //system_data[11] = 0;   // Id: p212 Value: 0 Scaled: 0 Comment: Always 0
-  //system_data[12] = 0;   // Id: p213 Value: 0 Scaled: 0 Comment: Always 0
+  system_data[11] = 0;     // Id: p212 Value: 0 Scaled: 0 Comment: Always 0
+  system_data[12] = 0;     // Id: p213 Value: 0 Scaled: 0 Comment: Always 0
   memcpy(&mbPV[200], system_data, sizeof(system_data));
 }
 
@@ -73,7 +73,7 @@ void handle_update_data_modbusp301_byd() {
   }
   battery_data[0] = datalayer.battery.status.bms_status;
   // Id: p301 Value: 3 Scaled: 3 Comment: status(*): ACTIVE - [0..5]<>[STANDBY,INACTIVE,DARKSTART,ACTIVE,FAULT,UPDATING]
-  //battery_data[1] = 0;  // Id: p302 Value: 0 Scaled: 0 Comment: always 0
+  battery_data[1] = 0;                                      // Id: p302 Value: 0 Scaled: 0 Comment: always 0
   battery_data[2] = 128 + bms_char_dis_status;              // Id: p303 Value: 130 Scaled: 130 Comment: mode(*): normal
   battery_data[3] = datalayer.battery.status.reported_soc;  // Id: p304 Value: 1700 Scaled: 17.00% Comment: SOC
   battery_data[4] = std::min(datalayer.battery.info.total_capacity_Wh, static_cast<uint32_t>(60000));
@@ -104,12 +104,12 @@ void handle_update_data_modbusp301_byd() {
   battery_data[11] = 2000;  // Id: p312 Value: 64121 Scaled: 6412,1W Comment: same as p310
   battery_data[12] = datalayer.battery.status.temperature_min_dC;  // Id: p313 Value: 75 Scaled: 7,5 Comment: temp min
   battery_data[13] = datalayer.battery.status.temperature_max_dC;  // Id: p314 Value: 95 Scaled: 9,5 Comment: temp max
-  //battery_data[14] = 0;   // Id: p315 Value: 0 Scaled: 0 Comment: always 0
-  //battery_data[15] = 0;   // Id: p316 Value: 0 Scaled: 0 Comment: always 0
+  battery_data[14] = 0;                                            // Id: p315 Value: 0 Scaled: 0 Comment: always 0
+  battery_data[15] = 0;                                            // Id: p316 Value: 0 Scaled: 0 Comment: always 0
   battery_data[16] = 16;     // Id: p317 Value: 0 Scaled: 0 Comment: counter charge hi
   battery_data[17] = 22741;  // Id: p318 Value: 0 Scaled: 0 Comment: counter charge lo
-  //battery_data[18] = 0;   // Id: p319 Value: 0 Scaled: 0 Comment: always 0
-  //battery_data[19] = 0;   // Id: p320 Value: 0 Scaled: 0 Comment: always 0
+  battery_data[18] = 0;      // Id: p319 Value: 0 Scaled: 0 Comment: always 0
+  battery_data[19] = 0;      // Id: p320 Value: 0 Scaled: 0 Comment: always 0
   battery_data[20] = 13;     // Id: p321 Value: 0 Scaled: 0 Comment: counter discharge hi
   battery_data[21] = 52064;  // Id: p322 Value: 0 Scaled: 0 Comment: counter discharge lo
   battery_data[22] = 230;    // Id: p323 Value: 0 Scaled: 0 Comment: device temperature (23 degrees)
