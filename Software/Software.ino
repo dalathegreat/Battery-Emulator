@@ -459,18 +459,6 @@ void init_battery() {
 // Functions
 #ifdef DEBUG_CANFD_DATA
 void print_canfd_frame(CANFDMessage rx_frame) {
-  int i = 0;
-  Serial.print(rx_frame.id, HEX);
-  Serial.print(" ");
-  for (i = 0; i < rx_frame.len; i++) {
-    Serial.print(rx_frame.data[i] < 16 ? "0" : "");
-    Serial.print(rx_frame.data[i], HEX);
-    Serial.print(" ");
-  }
-  Serial.println(" ");
-}
-
-void debug_canfd_frame(CANFDMessage frame) {
   // Frame ID-s that battery transmits. For debugging and development.
   // switch (frame.id)
   // {
@@ -495,22 +483,30 @@ void debug_canfd_frame(CANFDMessage frame) {
   // // case 0x:
   // // case 0x:
   // // case 0x:
-  //   /* code */
-  //   break;
-
+  //   // Dont print known frames
+  //   return;
   // default:
-  //   print_canfd_frame(frame);
   //   break;
   // }
-  print_canfd_frame(frame);
+
+  int i = 0;
+  Serial.print(rx_frame.id, HEX);
+  Serial.print(" ");
+  for (i = 0; i < rx_frame.len; i++) {
+    Serial.print(rx_frame.data[i] < 16 ? "0" : "");
+    Serial.print(rx_frame.data[i], HEX);
+    Serial.print(" ");
+  }
+  Serial.println(" ");
 }
+
 #endif
 void receive_canfd() {  // This section checks if we have a complete CAN-FD message incoming
   CANFDMessage frame;
   if (canfd.available()) {
     canfd.receive(frame);
 #ifdef DEBUG_CANFD_DATA
-    debug_canfd_frame(frame);
+    print_canfd_frame(frame);
 #endif
     receive_canfd_battery(frame);
   }
