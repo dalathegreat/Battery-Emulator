@@ -36,7 +36,7 @@ void handle_update_data_modbusp201_byd() {
   static uint16_t system_data[13];
   //system_data[0] = 0;  // Id: p201 Value: 0 Scaled: 0 Comment: Always 0
   //system_data[1] = 0;  // Id: p202 Value: 0 Scaled: 0 Comment: Always 0
-  system_data[2] = std::min(static_cast<int>(datalayer.battery.info.total_capacity_Wh), 60000);
+  system_data[2] = std::min(datalayer.battery.info.total_capacity_Wh, static_cast<uint32_t>(60000));
   // Id: p203 Value: 32000 Scaled: 32kWh Comment: Capacity rated, maximum value is 60000 (60kWh)
   system_data[3] = MAX_POWER;  // Id: p204 Value: 32000 Scaled: 32kWh Comment: Nominal capacity
   system_data[4] = MAX_POWER;  // Id: p205 Value: 14500 Scaled: 30,42kW Comment: Max Charge/Discharge Power=10.24kW
@@ -76,27 +76,26 @@ void handle_update_data_modbusp301_byd() {
   //battery_data[1] = 0;  // Id: p302 Value: 0 Scaled: 0 Comment: always 0
   battery_data[2] = 128 + bms_char_dis_status;              // Id: p303 Value: 130 Scaled: 130 Comment: mode(*): normal
   battery_data[3] = datalayer.battery.status.reported_soc;  // Id: p304 Value: 1700 Scaled: 17.00% Comment: SOC
-  battery_data[4] = std::min(static_cast<int>(datalayer.battery.info.total_capacity_Wh), 60000);
+  battery_data[4] = std::min(datalayer.battery.info.total_capacity_Wh, static_cast<uint32_t>(60000));
   // Id: p305 Value: 32000 Scaled: 32kWh Comment: tot cap: , maximum value is 60000 (60kWh)
-  battery_data[5] = std::min(static_cast<int>(datalayer.battery.status.remaining_capacity_Wh), 60000);
+  battery_data[5] = std::min(datalayer.battery.status.remaining_capacity_Wh, static_cast<uint32_t>(60000));
   // Id: p306 Value: 13260 Scaled: 13,26kWh Comment: remaining cap: 7.68kWh , maximum value is 60000 (60kWh)
 
   // Convert max discharge Amp value to max Watt
-  static int user_configured_max_discharge_W =
+  static uint32_t user_configured_max_discharge_W =
       ((datalayer.battery.info.max_discharge_amp_dA * datalayer.battery.info.max_design_voltage_dV) / 100);
   // Use the smaller value, battery reported value OR user configured value
-  static int max_discharge_W =
-      std::min(static_cast<int>(datalayer.battery.status.max_discharge_power_W), user_configured_max_discharge_W);
-  battery_data[6] = std::min(max_discharge_W, 30000);  //Finally, map and cap to 30000 if needed
+  static uint32_t max_discharge_W =
+      std::min(datalayer.battery.status.max_discharge_power_W, user_configured_max_discharge_W);
+  battery_data[6] = std::min(max_discharge_W, static_cast<uint32_t>(30000));  //Finally, map and cap to 30000 if needed
   // Id: p307 Value: 25604 Scaled: 25,604kW Comment: max discharge power: 0W (0W > restricts to no discharge)
 
   // Convert max charge Amp value to max Watt
-  static int user_configured_max_charge_W =
+  static uint32_t user_configured_max_charge_W =
       ((datalayer.battery.info.max_charge_amp_dA * datalayer.battery.info.max_design_voltage_dV) / 100);
   // Use the smaller value, battery reported value OR user configured value
-  static int max_charge_W =
-      std::min(static_cast<int>(datalayer.battery.status.max_charge_power_W), user_configured_max_charge_W);
-  battery_data[7] = std::min(max_charge_W, 30000);  //Finally, map and cap to 30000 if needed
+  static uint32_t max_charge_W = std::min(datalayer.battery.status.max_charge_power_W, user_configured_max_charge_W);
+  battery_data[7] = std::min(max_charge_W, static_cast<uint32_t>(30000));  //Finally, map and cap to 30000 if needed
   // Id: p308 Value: 25604 Scaled: 25,604kW Comment: max charge power: 4.3kW (during charge), both 307&308 can be set (>0) at the same time
 
   //battery_data[8] set previously in function
