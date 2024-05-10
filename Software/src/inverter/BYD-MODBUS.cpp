@@ -5,6 +5,12 @@
 
 // For modbus register definitions, see https://gitlab.com/pelle8/inverter_resources/-/blob/main/byd_registers_modbus_rtu.md
 
+static uint8_t bms_char_dis_status = STANDBY;
+static uint32_t user_configured_max_discharge_W = 0;
+static uint32_t user_configured_max_charge_W = 0;
+static uint32_t max_discharge_W = 0;
+static uint32_t max_charge_W = 0;
+
 void update_modbus_registers_inverter() {
   verify_temperature_modbus();
   handle_update_data_modbusp201_byd();
@@ -37,28 +43,12 @@ void handle_static_data_modbus_byd() {
 }
 
 void handle_update_data_modbusp201_byd() {
-  // Store the data into the array
-  static uint16_t system_data[5];
-  system_data[1] = std::min(datalayer.battery.info.total_capacity_Wh, static_cast<uint32_t>(60000));
-  // Id: p203 Value: 32000 Scaled: 32kWh Comment: Capacity rated, maximum value is 60000 (60kWh)
-  system_data[2] = MAX_POWER;  // Id: p204 Value: 32000 Scaled: 32kWh Comment: Nominal capacity
-  system_data[3] = MAX_POWER;  // Id: p205 Value: 14500 Scaled: 30,42kW Comment: Max Charge/Discharge Power=10.24kW
-  system_data[4] = (datalayer.battery.info.max_design_voltage_dV);
-  // Id: p206 Value: 3667 Scaled: 362,7VDC Comment: Max Voltage, if higher charging is not possible (goes into forced discharge)
-  system_data[5] = (datalayer.battery.info.min_design_voltage_dV);
-  // Id: p207 Value: 2776 Scaled: 277,6VDC Comment: Min Voltage, if lower Gen24 disables battery
-  memcpy(&mbPV[202], system_data, sizeof(system_data));
+  mbPV[202] = std::min(datalayer.battery.info.total_capacity_Wh, static_cast<uint32_t>(60000));
+  mbPV[205] = (datalayer.battery.info.max_design_voltage_dV);  // Max Voltage, if higher Gen24 forces discharge
+  mbPV[206] = (datalayer.battery.info.min_design_voltage_dV);  // Min Voltage, if lower Gen24 disables battery
 }
 
 void handle_update_data_modbusp301_byd() {
-  // Store the data into the array
-  static uint16_t battery_data[24];
-  static uint8_t bms_char_dis_status = STANDBY;
-  static uint32_t user_configured_max_discharge_W = 0;
-  static uint32_t user_configured_max_charge_W = 0;
-  static uint32_t max_discharge_W = 0;
-  static uint32_t max_charge_W = 0;
-
   if (datalayer.battery.status.current_dA == 0) {
     bms_char_dis_status = STANDBY;
   } else if (datalayer.battery.status.current_dA < 0) {  //Negative value = Discharging
@@ -66,56 +56,34 @@ void handle_update_data_modbusp301_byd() {
   } else {  //Positive value = Charging
     bms_char_dis_status = CHARGING;
   }
-
-  if (datalayer.battery.status.bms_status == ACTIVE) {
-    battery_data[8] = datalayer.battery.status.voltage_dV;
-    // Id: p309 Value: 3161 Scaled: 316,1VDC Comment: Batt Voltage outer (0 if status !=3, maybe a contactor closes when active): 173.4V
-  } else {
-    battery_data[8] = 0;
-  }
-  battery_data[0] = datalayer.battery.status.bms_status;
-  // Id: p301 Value: 3 Scaled: 3 Comment: status(*): ACTIVE - [0..5]<>[STANDBY,INACTIVE,DARKSTART,ACTIVE,FAULT,UPDATING]
-  battery_data[1] = 0;                                      // Id: p302 Value: 0 Scaled: 0 Comment: always 0
-  battery_data[2] = 128 + bms_char_dis_status;              // Id: p303 Value: 130 Scaled: 130 Comment: mode(*): normal
-  battery_data[3] = datalayer.battery.status.reported_soc;  // Id: p304 Value: 1700 Scaled: 17.00% Comment: SOC
-  battery_data[4] = std::min(datalayer.battery.info.total_capacity_Wh, static_cast<uint32_t>(60000));
-  // Id: p305 Value: 32000 Scaled: 32kWh Comment: tot cap: , maximum value is 60000 (60kWh)
-  battery_data[5] = std::min(datalayer.battery.status.remaining_capacity_Wh, static_cast<uint32_t>(60000));
-  // Id: p306 Value: 13260 Scaled: 13,26kWh Comment: remaining cap: 7.68kWh , maximum value is 60000 (60kWh)
-
   // Convert max discharge Amp value to max Watt
   user_configured_max_discharge_W =
       ((datalayer.battery.info.max_discharge_amp_dA * datalayer.battery.info.max_design_voltage_dV) / 100);
   // Use the smaller value, battery reported value OR user configured value
   max_discharge_W = std::min(datalayer.battery.status.max_discharge_power_W, user_configured_max_discharge_W);
-  battery_data[6] = std::min(max_discharge_W, static_cast<uint32_t>(30000));  //Finally, map and cap to 30000 if needed
-  // Id: p307 Value: 25604 Scaled: 25,604kW Comment: max discharge power: 0W (0W > restricts to no discharge)
 
   // Convert max charge Amp value to max Watt
   user_configured_max_charge_W =
       ((datalayer.battery.info.max_charge_amp_dA * datalayer.battery.info.max_design_voltage_dV) / 100);
   // Use the smaller value, battery reported value OR user configured value
   max_charge_W = std::min(datalayer.battery.status.max_charge_power_W, user_configured_max_charge_W);
-  battery_data[7] = std::min(max_charge_W, static_cast<uint32_t>(30000));  //Finally, map and cap to 30000 if needed
-  // Id: p308 Value: 25604 Scaled: 25,604kW Comment: max charge power: 4.3kW (during charge), both 307&308 can be set (>0) at the same time
 
-  //battery_data[8] set previously in function
-  battery_data[9] = 2000;  // Id: p310 Value: 64121 Scaled: 6412,1W Comment: Current Power to API
-  battery_data[10] = datalayer.battery.status.voltage_dV;  // Id: p311 Value: 3161 Scaled: 316,1V Comment: Batt Voltage
-  battery_data[11] = 2000;  // Id: p312 Value: 64121 Scaled: 6412,1W Comment: same as p310
-  battery_data[12] = datalayer.battery.status.temperature_min_dC;  // Id: p313 Value: 75 Scaled: 7,5 Comment: temp min
-  battery_data[13] = datalayer.battery.status.temperature_max_dC;  // Id: p314 Value: 95 Scaled: 9,5 Comment: temp max
-  battery_data[14] = 0;                                            // Id: p315 Value: 0 Scaled: 0 Comment: always 0
-  battery_data[15] = 0;                                            // Id: p316 Value: 0 Scaled: 0 Comment: always 0
-  battery_data[16] = 16;     // Id: p317 Value: 0 Scaled: 0 Comment: counter charge hi
-  battery_data[17] = 22741;  // Id: p318 Value: 0 Scaled: 0 Comment: counter charge lo
-  battery_data[18] = 0;      // Id: p319 Value: 0 Scaled: 0 Comment: always 0
-  battery_data[19] = 0;      // Id: p320 Value: 0 Scaled: 0 Comment: always 0
-  battery_data[20] = 13;     // Id: p321 Value: 0 Scaled: 0 Comment: counter discharge hi
-  battery_data[21] = 52064;  // Id: p322 Value: 0 Scaled: 0 Comment: counter discharge lo
-  battery_data[22] = 230;    // Id: p323 Value: 0 Scaled: 0 Comment: device temperature (23 degrees)
-  battery_data[23] = datalayer.battery.status.soh_pptt;  // Id: p324 Value: 9900 Scaled: 99% Comment: SOH
-  memcpy(&mbPV[300], battery_data, sizeof(battery_data));
+  if (datalayer.battery.status.bms_status == ACTIVE) {
+    mbPV[308] = datalayer.battery.status.voltage_dV;
+  } else {
+    mbPV[308] = 0;
+  }
+  mbPV[300] = datalayer.battery.status.bms_status;
+  mbPV[302] = 128 + bms_char_dis_status;
+  mbPV[303] = datalayer.battery.status.reported_soc;
+  mbPV[304] = std::min(datalayer.battery.info.total_capacity_Wh, static_cast<uint32_t>(60000));
+  mbPV[305] = std::min(datalayer.battery.status.remaining_capacity_Wh, static_cast<uint32_t>(60000));
+  mbPV[306] = std::min(max_discharge_W, static_cast<uint32_t>(30000));  //Cap to 30000 if needed
+  mbPV[307] = std::min(max_charge_W, static_cast<uint32_t>(30000));     //Cap to 30000 if needed
+  mbPV[310] = datalayer.battery.status.voltage_dV;
+  mbPV[312] = datalayer.battery.status.temperature_min_dC;
+  mbPV[313] = datalayer.battery.status.temperature_max_dC;
+  mbPV[323] = datalayer.battery.status.soh_pptt;
 }
 
 void verify_temperature_modbus() {
