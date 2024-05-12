@@ -219,13 +219,13 @@ void update_values_battery() {  //This function maps all the values fetched via 
   cell_deviation_mV = (datalayer.battery.status.cell_max_voltage_mV - datalayer.battery.status.cell_min_voltage_mV);
 
   if (CellVoltMax_mV >= MAX_CELL_VOLTAGE) {
-    set_event(EVENT_CELL_OVER_VOLTAGE, 0);
+    set_event(EVENT_CELL_OVER_VOLTAGE, (CellVoltMax_mV / 20));
   }
   if (CellVoltMin_mV <= MIN_CELL_VOLTAGE) {
-    set_event(EVENT_CELL_UNDER_VOLTAGE, 0);
+    set_event(EVENT_CELL_UNDER_VOLTAGE, (CellVoltMin_mV / 20));
   }
   if (cell_deviation_mV > MAX_CELL_DEVIATION) {
-    set_event(EVENT_CELL_DEVIATION_HIGH, 0);
+    set_event(EVENT_CELL_DEVIATION_HIGH, cell_deviation_mV);
   } else {
     clear_event(EVENT_CELL_DEVIATION_HIGH);
   }

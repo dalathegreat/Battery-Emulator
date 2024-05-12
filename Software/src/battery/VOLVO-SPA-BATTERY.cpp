@@ -317,14 +317,14 @@ void receive_can_battery(CAN_frame_t rx_frame) {
           cell_deviation_mV = (min_max_voltage[1] - min_max_voltage[0]);
 
           if (cell_deviation_mV > MAX_CELL_DEVIATION) {
-            set_event(EVENT_CELL_DEVIATION_HIGH, 0);
+            set_event(EVENT_CELL_DEVIATION_HIGH, (cell_deviation_mV / 20));
           }
 
           if (min_max_voltage[1] >= MAX_CELL_VOLTAGE) {
-            set_event(EVENT_CELL_OVER_VOLTAGE, 0);
+            set_event(EVENT_CELL_OVER_VOLTAGE, (min_max_voltage[1] / 20));
           }
           if (min_max_voltage[0] <= MIN_CELL_VOLTAGE) {
-            set_event(EVENT_CELL_UNDER_VOLTAGE, 0);
+            set_event(EVENT_CELL_UNDER_VOLTAGE, (min_max_voltage[0] / 20));
           }
           ESP32Can.CANWriteFrame(&VOLVO_SOH_Req);  //Send SOH read request
         }

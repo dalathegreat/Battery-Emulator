@@ -455,7 +455,7 @@ void update_values_battery() {  //This function maps all the values fetched via 
 
   // Start checking safeties. First up, cellvoltages!
   if (battery_cell_deviation_mV > MAX_CELL_DEVIATION_MV) {
-    set_event(EVENT_CELL_DEVIATION_HIGH, 0);
+    set_event(EVENT_CELL_DEVIATION_HIGH, battery_cell_deviation_mV);
   } else {
     clear_event(EVENT_CELL_DEVIATION_HIGH);
   }
@@ -463,28 +463,28 @@ void update_values_battery() {  //This function maps all the values fetched via 
     datalayer.battery.info.max_design_voltage_dV = MAX_PACK_VOLTAGE_60AH;
     datalayer.battery.info.min_design_voltage_dV = MIN_PACK_VOLTAGE_60AH;
     if (datalayer.battery.status.cell_max_voltage_mV >= MAX_CELL_VOLTAGE_60AH) {
-      set_event(EVENT_CELL_OVER_VOLTAGE, 0);
+      set_event(EVENT_CELL_OVER_VOLTAGE, (datalayer.battery.status.cell_max_voltage_mV / 20));
     }
     if (datalayer.battery.status.cell_min_voltage_mV <= MIN_CELL_VOLTAGE_60AH) {
-      set_event(EVENT_CELL_UNDER_VOLTAGE, 0);
+      set_event(EVENT_CELL_UNDER_VOLTAGE, (datalayer.battery.status.cell_min_voltage_mV / 20));
     }
   } else if (detectedBattery == BATTERY_94AH) {
     datalayer.battery.info.max_design_voltage_dV = MAX_PACK_VOLTAGE_94AH;
     datalayer.battery.info.min_design_voltage_dV = MIN_PACK_VOLTAGE_94AH;
     if (datalayer.battery.status.cell_max_voltage_mV >= MAX_CELL_VOLTAGE_94AH) {
-      set_event(EVENT_CELL_OVER_VOLTAGE, 0);
+      set_event(EVENT_CELL_OVER_VOLTAGE, (datalayer.battery.status.cell_max_voltage_mV / 20));
     }
     if (datalayer.battery.status.cell_min_voltage_mV <= MIN_CELL_VOLTAGE_94AH) {
-      set_event(EVENT_CELL_UNDER_VOLTAGE, 0);
+      set_event(EVENT_CELL_UNDER_VOLTAGE, (datalayer.battery.status.cell_min_voltage_mV / 20));
     }
   } else {  // BATTERY_120AH
     datalayer.battery.info.max_design_voltage_dV = MAX_PACK_VOLTAGE_120AH;
     datalayer.battery.info.min_design_voltage_dV = MIN_PACK_VOLTAGE_120AH;
     if (datalayer.battery.status.cell_max_voltage_mV >= MAX_CELL_VOLTAGE_120AH) {
-      set_event(EVENT_CELL_OVER_VOLTAGE, 0);
+      set_event(EVENT_CELL_OVER_VOLTAGE, (datalayer.battery.status.cell_max_voltage_mV / 20));
     }
     if (datalayer.battery.status.cell_min_voltage_mV <= MIN_CELL_VOLTAGE_120AH) {
-      set_event(EVENT_CELL_UNDER_VOLTAGE, 0);
+      set_event(EVENT_CELL_UNDER_VOLTAGE, (datalayer.battery.status.cell_min_voltage_mV / 20));
     }
   }
 
