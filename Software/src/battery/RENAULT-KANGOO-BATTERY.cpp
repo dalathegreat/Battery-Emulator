@@ -141,7 +141,7 @@ void update_values_battery() {  //This function maps all the values fetched via 
   }
 
   if (LB_Cell_Max_Voltage >= ABSOLUTE_CELL_MAX_VOLTAGE) {
-    set_event(EVENT_CELL_OVER_VOLTAGE, (LB_Cell_Max_Voltage /20));
+    set_event(EVENT_CELL_OVER_VOLTAGE, (LB_Cell_Max_Voltage / 20));
   }
   if (LB_Cell_Min_Voltage <= ABSOLUTE_CELL_MIN_VOLTAGE) {
     set_event(EVENT_CELL_UNDER_VOLTAGE, (LB_Cell_Min_Voltage / 20));
