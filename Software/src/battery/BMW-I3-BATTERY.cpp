@@ -895,14 +895,14 @@ void send_can_battery() {
       BMW_3E5.data.u8[0] = 0xFD;  // First 3E5 message byte0 we send is unique, once we sent initial value send this
     }
   } else {
-      previousMillis20 = currentMillis;
-      previousMillis100 = currentMillis;
-      previousMillis200 = currentMillis;
-      previousMillis500 = currentMillis;
-      previousMillis640 = currentMillis;
-      previousMillis1000 = currentMillis;
-      previousMillis5000 = currentMillis;
-      previousMillis10000 = currentMillis;
+    previousMillis20 = currentMillis;
+    previousMillis100 = currentMillis;
+    previousMillis200 = currentMillis;
+    previousMillis500 = currentMillis;
+    previousMillis640 = currentMillis;
+    previousMillis1000 = currentMillis;
+    previousMillis5000 = currentMillis;
+    previousMillis10000 = currentMillis;
   }
 }
 
