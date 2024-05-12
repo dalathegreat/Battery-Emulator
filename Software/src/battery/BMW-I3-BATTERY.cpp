@@ -451,18 +451,27 @@ void update_values_battery() {  //This function maps all the values fetched via 
 
   datalayer.battery.status.temperature_max_dC = battery_temperature_max * 10;  // Add a decimal
 
-  if (datalayer.battery.status.cell_voltages_mV[0] > 0) {
+  if (datalayer.battery.status.cell_voltages_mV[0] > 0 && datalayer.battery.status.cell_voltages_mV[2] > 0) {
     datalayer.battery.status.cell_min_voltage_mV = datalayer.battery.status.cell_voltages_mV[0];
     datalayer.battery.status.cell_max_voltage_mV = datalayer.battery.status.cell_voltages_mV[2];
-  }
 
-  battery_cell_deviation_mV =
-      (datalayer.battery.status.cell_max_voltage_mV - datalayer.battery.status.cell_min_voltage_mV);
+    battery_cell_deviation_mV =
+        (datalayer.battery.status.cell_max_voltage_mV - datalayer.battery.status.cell_min_voltage_mV);
+  } else {
+    battery_cell_deviation_mV = 0;
+  }
 
   if (battery_info_available) {
     // Start checking safeties. First up, cellvoltages!
     if (battery_cell_deviation_mV > MAX_CELL_DEVIATION_MV) {
-      set_event(EVENT_CELL_DEVIATION_HIGH, 0);
+      uint8_t report_value = 0;
+      if (battery_cell_deviation_mV <= 20*254) {
+        report_value = battery_cell_deviation_mV / 20;
+      } else {
+        report_value = 255;
+      }
+
+      set_event(EVENT_CELL_DEVIATION_HIGH, report_value);
     } else {
       clear_event(EVENT_CELL_DEVIATION_HIGH);
     }
@@ -885,6 +894,15 @@ void send_can_battery() {
 
       BMW_3E5.data.u8[0] = 0xFD;  // First 3E5 message byte0 we send is unique, once we sent initial value send this
     }
+  } else {
+      previousMillis20 = currentMillis;
+      previousMillis100 = currentMillis;
+      previousMillis200 = currentMillis;
+      previousMillis500 = currentMillis;
+      previousMillis640 = currentMillis;
+      previousMillis1000 = currentMillis;
+      previousMillis5000 = currentMillis;
+      previousMillis10000 = currentMillis;
   }
 }
 
