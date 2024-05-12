@@ -465,7 +465,7 @@ void update_values_battery() {  //This function maps all the values fetched via 
     // Start checking safeties. First up, cellvoltages!
     if (battery_cell_deviation_mV > MAX_CELL_DEVIATION_MV) {
       uint8_t report_value = 0;
-      if (battery_cell_deviation_mV <= 20*254) {
+      if (battery_cell_deviation_mV <= 20 * 254) {
         report_value = battery_cell_deviation_mV / 20;
       } else {
         report_value = 255;
