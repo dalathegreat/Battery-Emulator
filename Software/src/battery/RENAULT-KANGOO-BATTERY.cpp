@@ -14,7 +14,6 @@ There seems to be some values on the Kangoo that differ between the 22/33 kWh ve
   - SOC% is not valid on all packs
   - Max charge power is 0W on some packs
   - SOH% is too high on some packs
-- Check content of KANGOO_423 frame. Changed to charging values now, maybe we can remove the delay in send?
 
 This page has info on the larger 33kWh pack: https://openinverter.org/wiki/Renault_Kangoo_36
 */
@@ -140,13 +139,13 @@ void update_values_battery() {  //This function maps all the values fetched via 
   }
 
   if (LB_Cell_Max_Voltage >= ABSOLUTE_CELL_MAX_VOLTAGE) {
-    set_event(EVENT_CELL_OVER_VOLTAGE, 0);
+    set_event(EVENT_CELL_OVER_VOLTAGE, (LB_Cell_Max_Voltage / 20));
   }
   if (LB_Cell_Min_Voltage <= ABSOLUTE_CELL_MIN_VOLTAGE) {
-    set_event(EVENT_CELL_UNDER_VOLTAGE, 0);
+    set_event(EVENT_CELL_UNDER_VOLTAGE, (LB_Cell_Min_Voltage / 20));
   }
   if (cell_deviation_mV > MAX_CELL_DEVIATION_MV) {
-    set_event(EVENT_CELL_DEVIATION_HIGH, 0);
+    set_event(EVENT_CELL_DEVIATION_HIGH, (cell_deviation_mV / 20));
   } else {
     clear_event(EVENT_CELL_DEVIATION_HIGH);
   }
@@ -185,19 +184,7 @@ void update_values_battery() {  //This function maps all the values fetched via 
 #endif
 }
 
-void receive_can_battery(CAN_frame_t rx_frame) {  //GKOE reworked
-  //TODO: Remove this later
-  Serial.print(millis());  // Example printout, time, ID, length, data: 7553  1DB  8  FF C0 B9 EA 0 0 2 5D
-  Serial.print("  ");
-  Serial.print(rx_frame.MsgID, HEX);
-  Serial.print("  ");
-  Serial.print(rx_frame.FIR.B.DLC);
-  Serial.print("  ");
-  for (int i = 0; i < rx_frame.FIR.B.DLC; ++i) {
-    Serial.print(rx_frame.data.u8[i], HEX);
-    Serial.print(" ");
-  }
-  Serial.println("");
+void receive_can_battery(CAN_frame_t rx_frame) {
 
   switch (rx_frame.MsgID) {
     case 0x155:            //BMS1
