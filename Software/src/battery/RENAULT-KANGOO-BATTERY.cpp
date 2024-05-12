@@ -12,8 +12,10 @@ There seems to be some values on the Kangoo that differ between the 22/33 kWh ve
 - Fix the mappings of values accordingly
 - Values still need fixing
   - SOC% is not valid on all packs
+    -Try to use the 7BB value?
   - Max charge power is 0W on some packs
   - SOH% is too high on some packs
+  - Add all cellvoltages from https://github.com/jamiejones85/Kangoo36_canDecode/tree/main
 
 This page has info on the larger 33kWh pack: https://openinverter.org/wiki/Renault_Kangoo_36
 */
@@ -139,7 +141,7 @@ void update_values_battery() {  //This function maps all the values fetched via 
   }
 
   if (LB_Cell_Max_Voltage >= ABSOLUTE_CELL_MAX_VOLTAGE) {
-    set_event(EVENT_CELL_OVER_VOLTAGE, (LB_Cell_Max_Voltage / 20));
+    set_event(EVENT_CELL_OVER_VOLTAGE, (LB_Cell_Max_Voltage /20));
   }
   if (LB_Cell_Min_Voltage <= ABSOLUTE_CELL_MIN_VOLTAGE) {
     set_event(EVENT_CELL_UNDER_VOLTAGE, (LB_Cell_Min_Voltage / 20));
