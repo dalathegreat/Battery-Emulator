@@ -111,8 +111,8 @@ void update_values_battery() {  //This function maps all the values fetched via 
 }
 
 void receive_can_battery(CAN_frame_t rx_frame) {
-  datalayer.battery.status.CAN_battery_still_alive ==
-      12;  //We are getting CAN messages from the vehicle, inform the watchdog
+  datalayer.battery.status.CAN_battery_still_alive =
+      CAN_STILL_ALIVE;  //We are getting CAN messages from the vehicle, inform the watchdog
 
   switch (rx_frame.MsgID) {
     case 0x100:

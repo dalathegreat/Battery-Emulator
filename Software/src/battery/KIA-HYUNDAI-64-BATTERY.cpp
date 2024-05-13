@@ -287,8 +287,8 @@ void receive_can_battery(CAN_frame_t rx_frame) {
       break;
     case 0x542:  //BMS SOC
       startedUp = true;
-      datalayer.battery.status.CAN_battery_still_alive = 12;  //We use this message to verify that BMS is still alive
-      SOC_Display = rx_frame.data.u8[0] * 5;                  //100% = 200 ( 200 * 5 = 1000 )
+      datalayer.battery.status.CAN_battery_still_alive = CAN_STILL_ALIVE;
+      SOC_Display = rx_frame.data.u8[0] * 5;  //100% = 200 ( 200 * 5 = 1000 )
       break;
     case 0x594:
       startedUp = true;

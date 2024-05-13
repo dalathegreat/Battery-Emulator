@@ -98,7 +98,7 @@ void update_values_battery() {
 }
 
 void receive_can_battery(CAN_frame_t rx_frame) {
-  datalayer.battery.status.CAN_battery_still_alive = 12;
+  datalayer.battery.status.CAN_battery_still_alive = CAN_STILL_ALIVE;
   switch (rx_frame.MsgID) {
     case 0x7310:
     case 0x7311:

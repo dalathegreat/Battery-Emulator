@@ -129,7 +129,7 @@ static bool Batt_Heater_Mail_Send_Request = false;  //Stores info when a heat re
 static uint8_t battery_request_idx = 0;
 static uint8_t group_7bb = 0;
 static uint8_t group = 1;
-static uint8_t stop_battery_query = 1;
+static bool stop_battery_query = true;
 static uint8_t hold_off_with_polling_10seconds = 10;
 static uint16_t cell_voltages[97];  //array with all the cellvoltages
 static uint8_t cellcounter = 0;
@@ -387,8 +387,7 @@ void receive_can_battery(CAN_frame_t rx_frame) {
       LB_Capacity_Empty = (bool)((rx_frame.data.u8[6] & 0x80) >> 7);
       break;
     case 0x5BC:
-      datalayer.battery.status.CAN_battery_still_alive =
-          12;  //Indicate that we are still getting CAN messages from the BMS
+      datalayer.battery.status.CAN_battery_still_alive = CAN_STILL_ALIVE;  // Let system know battery is sending CAN
 
       LB_MAX = ((rx_frame.data.u8[5] & 0x10) >> 4);
       if (LB_MAX) {
@@ -441,7 +440,7 @@ void receive_can_battery(CAN_frame_t rx_frame) {
       LEAF_Battery_Type = ZE1_BATTERY;
       break;
     case 0x79B:
-      stop_battery_query = 1;                //Someone is trying to read data with Leafspy, stop our own polling!
+      stop_battery_query = true;             //Someone is trying to read data with Leafspy, stop our own polling!
       hold_off_with_polling_10seconds = 10;  //Polling is paused for 100s
       break;
     case 0x7BB:
@@ -766,7 +765,7 @@ void send_can_battery() {
     if (hold_off_with_polling_10seconds > 0) {
       hold_off_with_polling_10seconds--;
     } else {
-      stop_battery_query = 0;
+      stop_battery_query = false;
     }
   }
 }

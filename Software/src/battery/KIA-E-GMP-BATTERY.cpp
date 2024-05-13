@@ -198,7 +198,7 @@ void send_canfd_frame(CANFDMessage frame) {
 }
 
 void receive_canfd_battery(CANFDMessage frame) {
-  datalayer.battery.status.CAN_battery_still_alive = 12;
+  datalayer.battery.status.CAN_battery_still_alive = CAN_STILL_ALIVE;
   switch (frame.id) {
     case 0x7EC:
       // print_canfd_frame(frame);

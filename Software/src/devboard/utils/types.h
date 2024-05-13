@@ -28,4 +28,6 @@ enum led_color { GREEN, YELLOW, RED, BLUE, RGB };
 #define INTERVAL_100_MS_DELAYED 120
 #define INTERVAL_500_MS_DELAYED 550
 
+#define CAN_STILL_ALIVE 12
+
 #endif

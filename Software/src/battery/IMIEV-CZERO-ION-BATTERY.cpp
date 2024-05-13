@@ -136,7 +136,7 @@ void update_values_battery() {  //This function maps all the values fetched via 
 
 void receive_can_battery(CAN_frame_t rx_frame) {
   datalayer.battery.status.CAN_battery_still_alive =
-      12;  //TODO: move this inside a known message ID to prevent CAN inverter from keeping battery alive detection going
+      CAN_STILL_ALIVE;  //TODO: move this inside a known message ID to prevent CAN inverter from keeping battery alive detection going
   switch (rx_frame.MsgID) {
     case 0x374:  //BMU message, 10ms - SOC
       temp_value = ((rx_frame.data.u8[1] - 10) / 2);

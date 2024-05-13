@@ -174,14 +174,14 @@ void receive_can_battery(CAN_frame_t rx_frame) {
   switch (rx_frame.MsgID) {
     case 0x155:  //BMS1
       datalayer.battery.status.CAN_battery_still_alive =
-          12;  //Indicate that we are still getting CAN messages from the BMS
+          CAN_STILL_ALIVE;  //Indicate that we are still getting CAN messages from the BMS
       LB_MaxChargeAllowed_W = (rx_frame.data.u8[0] * 300);
       LB_Current = word((rx_frame.data.u8[1] & 0xF), rx_frame.data.u8[2]) * 0.25 - 500;  //OK!
       LB_SOC = ((rx_frame.data.u8[4] << 8) | (rx_frame.data.u8[5])) * 0.0025;            //OK!
       break;
     case 0x424:  //BMS2
       datalayer.battery.status.CAN_battery_still_alive =
-          12;  //Indicate that we are still getting CAN messages from the BMS
+          CAN_STILL_ALIVE;  //Indicate that we are still getting CAN messages from the BMS
       LB_EOCR = (rx_frame.data.u8[0] & 0x03);
       LB_HVBUV = (rx_frame.data.u8[0] & 0x0C) >> 2;
       LB_HVBIR = (rx_frame.data.u8[0] & 0x30) >> 4;
@@ -198,12 +198,12 @@ void receive_can_battery(CAN_frame_t rx_frame) {
       break;
     case 0x425:
       datalayer.battery.status.CAN_battery_still_alive =
-          12;  //Indicate that we are still getting CAN messages from the BMS
+          CAN_STILL_ALIVE;  //Indicate that we are still getting CAN messages from the BMS
       LB_kWh_Remaining = word((rx_frame.data.u8[0] & 0x1), rx_frame.data.u8[1]) / 10;  //OK!
       break;
     case 0x445:
       datalayer.battery.status.CAN_battery_still_alive =
-          12;  //Indicate that we are still getting CAN messages from the BMS
+          CAN_STILL_ALIVE;  //Indicate that we are still getting CAN messages from the BMS
       LB_Cell_Max_Voltage = 1000 + word((rx_frame.data.u8[3] & 0x1), rx_frame.data.u8[4]) * 10;  //OK!
       LB_Cell_Min_Voltage = 1000 + (word(rx_frame.data.u8[5], rx_frame.data.u8[6]) >> 7) * 10;   //OK!
 
@@ -215,7 +215,7 @@ void receive_can_battery(CAN_frame_t rx_frame) {
       break;
     case 0x7BB:
       datalayer.battery.status.CAN_battery_still_alive =
-          12;  //Indicate that we are still getting CAN messages from the BMS
+          CAN_STILL_ALIVE;  //Indicate that we are still getting CAN messages from the BMS
 
       if (rx_frame.data.u8[0] == 0x10) {  //1st response Bytes 0-7
         GVB_79B_Continue = true;
