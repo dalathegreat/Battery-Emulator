@@ -34,9 +34,7 @@ static uint16_t LB_Charge_Power_Limit = 0;
 static uint16_t LB_kWh_Remaining = 0;
 static uint16_t LB_Cell_Max_Voltage = 3700;
 static uint16_t LB_Cell_Min_Voltage = 3700;
-static uint16_t cell_deviation_mV = 0;  //contains the deviation between highest and lowest cell in mV
 static uint16_t LB_MaxChargeAllowed_W = 0;
-static uint8_t CANstillAlive = 12;  //counter for checking if CAN is still alive
 static uint8_t LB_Discharge_Power_Limit_Byte1 = 0;
 static uint8_t GVI_Pollcounter = 0;
 static uint8_t LB_EOCR = 0;
@@ -130,26 +128,11 @@ void update_values_battery() {  //This function maps all the values fetched via 
 
   datalayer.battery.status.cell_max_voltage_mV = LB_Cell_Max_Voltage;
 
-  cell_deviation_mV = (datalayer.battery.status.cell_max_voltage_mV - datalayer.battery.status.cell_min_voltage_mV);
-
-  /* Check if the BMS is still sending CAN messages. If we go 60s without messages we raise an error*/
-  if (!CANstillAlive) {
-    set_event(EVENT_CAN_RX_FAILURE, 0);
-  } else {
-    CANstillAlive--;
-    clear_event(EVENT_CAN_RX_FAILURE);
-  }
-
   if (LB_Cell_Max_Voltage >= ABSOLUTE_CELL_MAX_VOLTAGE) {
     set_event(EVENT_CELL_OVER_VOLTAGE, (LB_Cell_Max_Voltage / 20));
   }
   if (LB_Cell_Min_Voltage <= ABSOLUTE_CELL_MIN_VOLTAGE) {
     set_event(EVENT_CELL_UNDER_VOLTAGE, (LB_Cell_Min_Voltage / 20));
-  }
-  if (cell_deviation_mV > MAX_CELL_DEVIATION_MV) {
-    set_event(EVENT_CELL_DEVIATION_HIGH, (cell_deviation_mV / 20));
-  } else {
-    clear_event(EVENT_CELL_DEVIATION_HIGH);
   }
 
 #ifdef DEBUG_VIA_USB
@@ -189,14 +172,16 @@ void update_values_battery() {  //This function maps all the values fetched via 
 void receive_can_battery(CAN_frame_t rx_frame) {
 
   switch (rx_frame.MsgID) {
-    case 0x155:            //BMS1
-      CANstillAlive = 12;  //Indicate that we are still getting CAN messages from the BMS
+    case 0x155:  //BMS1
+      datalayer.battery.status.CAN_battery_still_alive =
+          12;  //Indicate that we are still getting CAN messages from the BMS
       LB_MaxChargeAllowed_W = (rx_frame.data.u8[0] * 300);
       LB_Current = word((rx_frame.data.u8[1] & 0xF), rx_frame.data.u8[2]) * 0.25 - 500;  //OK!
       LB_SOC = ((rx_frame.data.u8[4] << 8) | (rx_frame.data.u8[5])) * 0.0025;            //OK!
       break;
-    case 0x424:            //BMS2
-      CANstillAlive = 12;  //Indicate that we are still getting CAN messages from the BMS
+    case 0x424:  //BMS2
+      datalayer.battery.status.CAN_battery_still_alive =
+          12;  //Indicate that we are still getting CAN messages from the BMS
       LB_EOCR = (rx_frame.data.u8[0] & 0x03);
       LB_HVBUV = (rx_frame.data.u8[0] & 0x0C) >> 2;
       LB_HVBIR = (rx_frame.data.u8[0] & 0x30) >> 4;
@@ -212,11 +197,13 @@ void receive_can_battery(CAN_frame_t rx_frame) {
       LB_MAX_TEMPERATURE = ((rx_frame.data.u8[7]) - 40);  //OK!
       break;
     case 0x425:
-      CANstillAlive = 12;  //Indicate that we are still getting CAN messages from the BMS
+      datalayer.battery.status.CAN_battery_still_alive =
+          12;  //Indicate that we are still getting CAN messages from the BMS
       LB_kWh_Remaining = word((rx_frame.data.u8[0] & 0x1), rx_frame.data.u8[1]) / 10;  //OK!
       break;
     case 0x445:
-      CANstillAlive = 12;  //Indicate that we are still getting CAN messages from the BMS
+      datalayer.battery.status.CAN_battery_still_alive =
+          12;  //Indicate that we are still getting CAN messages from the BMS
       LB_Cell_Max_Voltage = 1000 + word((rx_frame.data.u8[3] & 0x1), rx_frame.data.u8[4]) * 10;  //OK!
       LB_Cell_Min_Voltage = 1000 + (word(rx_frame.data.u8[5], rx_frame.data.u8[6]) >> 7) * 10;   //OK!
 
@@ -227,7 +214,8 @@ void receive_can_battery(CAN_frame_t rx_frame) {
       }
       break;
     case 0x7BB:
-      CANstillAlive = 12;  //Indicate that we are still getting CAN messages from the BMS
+      datalayer.battery.status.CAN_battery_still_alive =
+          12;  //Indicate that we are still getting CAN messages from the BMS
 
       if (rx_frame.data.u8[0] == 0x10) {  //1st response Bytes 0-7
         GVB_79B_Continue = true;

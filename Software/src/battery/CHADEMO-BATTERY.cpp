@@ -8,7 +8,6 @@
 
 /* Do not change code below unless you are sure what you are doing */
 static unsigned long previousMillis100 = 0;  // will store last time a 100ms CAN Message was send
-static uint8_t CANstillAlive = 12;           //counter for checking if CAN is still alive
 
 CAN_frame_t CHADEMO_108 = {.FIR = {.B =
                                        {
@@ -105,14 +104,6 @@ void update_values_battery() {  //This function maps all the values fetched via 
   datalayer.battery.status.remaining_capacity_Wh = static_cast<uint32_t>(
       (static_cast<double>(datalayer.battery.status.real_soc) / 10000) * datalayer.battery.info.total_capacity_Wh);
 
-  /* Check if the Vehicle is still sending CAN messages. If we go 60s without messages we raise an error*/
-  if (!CANstillAlive) {
-    set_event(EVENT_CAN_RX_FAILURE, 0);
-  } else {
-    CANstillAlive--;
-    clear_event(EVENT_CAN_RX_FAILURE);
-  }
-
 #ifdef DEBUG_VIA_USB
   Serial.print("SOC 0x100: ");
   Serial.println(ConstantOfChargingRateIndication);
@@ -120,7 +111,8 @@ void update_values_battery() {  //This function maps all the values fetched via 
 }
 
 void receive_can_battery(CAN_frame_t rx_frame) {
-  CANstillAlive == 12;  //We are getting CAN messages from the vehicle, inform the watchdog
+  datalayer.battery.status.CAN_battery_still_alive ==
+      12;  //We are getting CAN messages from the vehicle, inform the watchdog
 
   switch (rx_frame.MsgID) {
     case 0x100:

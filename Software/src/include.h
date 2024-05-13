@@ -8,6 +8,7 @@
 #include "system_settings.h"
 
 #include "devboard/hal/hal.h"
+#include "devboard/safety/safety.h"
 #include "devboard/utils/time_meas.h"
 #include "devboard/utils/types.h"
 

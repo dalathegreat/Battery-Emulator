@@ -68,6 +68,11 @@ typedef struct {
    * battery.settings.soc_scaling_active
    */
   uint16_t reported_soc;
+  /** A counter that increases incase a CAN CRC read error occurs */
+  uint16_t CAN_error_counter;
+  /** uint8_t */
+  /** A counter set each time a new message comes from battery.*/
+  uint8_t CAN_battery_still_alive = 12;
 
   /** Other */
   /** The current BMS status */

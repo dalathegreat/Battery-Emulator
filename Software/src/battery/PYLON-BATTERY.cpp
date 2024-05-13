@@ -15,7 +15,6 @@
 
 /* Do not change code below unless you are sure what you are doing */
 static unsigned long previousMillis1000 = 0;  // will store last time a 1s CAN Message was sent
-static uint8_t CANstillAlive = 12;            //counter for checking if CAN is still alive
 
 //Actual content messages
 CAN_frame_t PYLON_3010 = {.FIR = {.B =
@@ -96,18 +95,10 @@ void update_values_battery() {
   datalayer.battery.info.max_design_voltage_dV = charge_cutoff_voltage;
 
   datalayer.battery.info.min_design_voltage_dV = discharge_cutoff_voltage;
-
-  /* Check if the BMS is still sending CAN messages. If we go 60s without messages we raise an error*/
-  if (!CANstillAlive) {
-    set_event(EVENT_CAN_RX_FAILURE, 0);
-  } else {
-    CANstillAlive--;
-    clear_event(EVENT_CAN_RX_FAILURE);
-  }
 }
 
 void receive_can_battery(CAN_frame_t rx_frame) {
-  CANstillAlive = 12;
+  datalayer.battery.status.CAN_battery_still_alive = 12;
   switch (rx_frame.MsgID) {
     case 0x7310:
     case 0x7311:

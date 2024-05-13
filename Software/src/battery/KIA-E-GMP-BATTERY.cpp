@@ -9,11 +9,9 @@
 
 /* Do not change code below unless you are sure what you are doing */
 static unsigned long previousMillis500ms = 0;  // will store last time a 500ms CAN Message was send
-static uint8_t CANstillAlive = 12;             //counter for checking if CAN is still alive
 
-#define MAX_CELL_VOLTAGE 4250   //Battery is put into emergency stop if one cell goes over this value
-#define MIN_CELL_VOLTAGE 2950   //Battery is put into emergency stop if one cell goes below this value
-#define MAX_CELL_DEVIATION 150  //LED turns yellow on the board if mv delta exceeds this value
+#define MAX_CELL_VOLTAGE 4250  //Battery is put into emergency stop if one cell goes over this value
+#define MIN_CELL_VOLTAGE 2950  //Battery is put into emergency stop if one cell goes below this value
 
 static uint16_t inverterVoltageFrameHigh = 0;
 static uint16_t inverterVoltage = 0;
@@ -23,7 +21,6 @@ static uint16_t SOC_Display = 0;
 static uint16_t batterySOH = 1000;
 static uint16_t CellVoltMax_mV = 3700;
 static uint16_t CellVoltMin_mV = 3700;
-static uint16_t cell_deviation_mV = 0;
 static uint16_t batteryVoltage = 0;
 static int16_t leadAcidBatteryVoltage = 120;
 static int16_t batteryAmps = 0;
@@ -97,10 +94,10 @@ void update_values_battery() {  //This function maps all the values fetched via 
   datalayer.battery.status.cell_min_voltage_mV = CellVoltMin_mV;
 
   /* Check if the BMS is still sending CAN messages. If we go 60s without messages we raise an error*/
-  if (!CANstillAlive) {
+  if (!datalayer.battery.status.CAN_battery_still_alive) {
     set_event(EVENT_CANFD_RX_FAILURE, 0);
   } else {
-    CANstillAlive--;
+    datalayer.battery.status.CAN_battery_still_alive--;
     clear_event(EVENT_CANFD_RX_FAILURE);
   }
 
@@ -113,18 +110,11 @@ void update_values_battery() {  //This function maps all the values fetched via 
   }
 
   // Check if cell voltages are within allowed range
-  cell_deviation_mV = (datalayer.battery.status.cell_max_voltage_mV - datalayer.battery.status.cell_min_voltage_mV);
-
   if (CellVoltMax_mV >= MAX_CELL_VOLTAGE) {
     set_event(EVENT_CELL_OVER_VOLTAGE, 0);
   }
   if (CellVoltMin_mV <= MIN_CELL_VOLTAGE) {
     set_event(EVENT_CELL_UNDER_VOLTAGE, 0);
-  }
-  if (cell_deviation_mV > MAX_CELL_DEVIATION) {
-    set_event(EVENT_CELL_DEVIATION_HIGH, 0);
-  } else {
-    clear_event(EVENT_CELL_DEVIATION_HIGH);
   }
 
   if (datalayer.battery.status.bms_status ==
@@ -208,7 +198,7 @@ void send_canfd_frame(CANFDMessage frame) {
 }
 
 void receive_canfd_battery(CANFDMessage frame) {
-  CANstillAlive = 12;
+  datalayer.battery.status.CAN_battery_still_alive = 12;
   switch (frame.id) {
     case 0x7EC:
       // print_canfd_frame(frame);

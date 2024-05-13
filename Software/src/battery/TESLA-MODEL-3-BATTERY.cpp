@@ -10,7 +10,6 @@
 /* Credits: Most of the code comes from Per Carlen's bms_comms_tesla_model3.py (https://gitlab.com/pelle8/batt2gen24/) */
 
 static unsigned long previousMillis30 = 0;  // will store last time a 30ms CAN Message was send
-static uint8_t stillAliveCAN = 6;           //counter for checking if CAN is still alive
 
 CAN_frame_t TESLA_221_1 = {
     .FIR = {.B =
@@ -231,14 +230,6 @@ void update_values_battery() {  //This function maps all the values fetched via 
   datalayer.battery.status.cell_min_voltage_mV = cell_min_v;
 
   /* Value mapping is completed. Start to check all safeties */
-
-  /* Check if the BMS is still sending CAN messages. If we go 60s without messages we raise an error*/
-  if (!stillAliveCAN) {
-    set_event(EVENT_CAN_RX_FAILURE, 0);
-  } else {
-    stillAliveCAN--;
-    clear_event(EVENT_CAN_RX_FAILURE);
-  }
 
   if (hvil_status == 3) {  //INTERNAL_OPEN_FAULT - Someone disconnected a high voltage cable while battery was in use
     set_event(EVENT_INTERNAL_OPEN_FAULT, 0);
@@ -513,7 +504,7 @@ void receive_can_battery(CAN_frame_t rx_frame) {
       output_current = (((rx_frame.data.u8[4] & 0x0F) << 8) | rx_frame.data.u8[3]) / 100;
       break;
     case 0x292:
-      stillAliveCAN = 12;  //We are getting CAN messages from the BMS, set the CAN detect counter
+      datalayer.battery.status.CAN_battery_still_alive = 12;  //We are getting CAN messages from the BMS
       bat_beginning_of_life = (((rx_frame.data.u8[6] & 0x03) << 8) | rx_frame.data.u8[5]);
       soc_min = (((rx_frame.data.u8[1] & 0x03) << 8) | rx_frame.data.u8[0]);
       soc_vi = (((rx_frame.data.u8[2] & 0x0F) << 6) | ((rx_frame.data.u8[1] & 0xFC) >> 2));

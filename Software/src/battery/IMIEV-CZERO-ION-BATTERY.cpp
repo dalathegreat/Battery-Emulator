@@ -10,8 +10,7 @@
 //Figure out if CAN messages need to be sent to keep the system happy?
 
 /* Do not change code below unless you are sure what you are doing */
-static uint8_t CANstillAlive = 12;  //counter for checking if CAN is still alive
-static uint8_t errorCode = 0;       //stores if we have an error code active from battery control logic
+static uint8_t errorCode = 0;  //stores if we have an error code active from battery control logic
 static uint8_t BMU_Detected = 0;
 static uint8_t CMU_Detected = 0;
 
@@ -108,14 +107,6 @@ void update_values_battery() {  //This function maps all the values fetched via 
 
   datalayer.battery.status.temperature_min_dC = (int16_t)(max_temp_cel * 10);
 
-  /* Check if the BMS is still sending CAN messages. If we go 60s without messages we raise an error*/
-  if (!CANstillAlive) {
-    set_event(EVENT_CAN_RX_FAILURE, 0);
-  } else {
-    CANstillAlive--;
-    clear_event(EVENT_CAN_RX_FAILURE);
-  }
-
   if (!BMU_Detected) {
 #ifdef DEBUG_VIA_USB
     Serial.println("BMU not detected, check wiring!");
@@ -144,7 +135,7 @@ void update_values_battery() {  //This function maps all the values fetched via 
 }
 
 void receive_can_battery(CAN_frame_t rx_frame) {
-  CANstillAlive =
+  datalayer.battery.status.CAN_battery_still_alive =
       12;  //TODO: move this inside a known message ID to prevent CAN inverter from keeping battery alive detection going
   switch (rx_frame.MsgID) {
     case 0x374:  //BMU message, 10ms - SOC
