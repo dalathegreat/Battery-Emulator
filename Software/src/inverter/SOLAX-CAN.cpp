@@ -192,8 +192,8 @@ void update_values_can_inverter() {  //This function maps all the values fetched
   SOLAX_1873.data.u8[3] = (datalayer.battery.status.current_dA >> 8);
   SOLAX_1873.data.u8[4] = (uint8_t)(datalayer.battery.status.reported_soc / 100);  //SOC (100.00%)
   //SOLAX_1873.data.u8[5] = //Seems like this is not required? Or shall we put SOC decimals here?
-  SOLAX_1873.data.u8[6] = (uint8_t)(capped_remaining_capacity_Wh / 100);
-  SOLAX_1873.data.u8[7] = ((capped_remaining_capacity_Wh / 100) >> 8);
+  SOLAX_1873.data.u8[6] = (uint8_t)(capped_remaining_capacity_Wh / 10);
+  SOLAX_1873.data.u8[7] = ((capped_remaining_capacity_Wh / 10) >> 8);
 
   //BMS_CellData
   SOLAX_1874.data.u8[0] = (int8_t)datalayer.battery.status.temperature_max_dC;
