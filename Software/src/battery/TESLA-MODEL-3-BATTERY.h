@@ -8,7 +8,7 @@
 //#define LFP_CHEMISTRY // Enable this line to startup in LFP mode
 
 #define RAMPDOWN_SOC 900             // 90.0 SOC% to start ramping down from max charge power towards 0 at 100.00%
-#define MAX_CELL_DEVIATION 9999      // Handled inside the Tesla.cpp file, just for compilation
+#define MAX_CELL_DEVIATION_MV 9999   // Handled inside the Tesla.cpp file, just for compilation
 #define FLOAT_MAX_POWER_W 200        // W, what power to allow for top balancing battery
 #define FLOAT_START_MV 20            // mV, how many mV under overvoltage to start float charging
 #define MAXCHARGEPOWERALLOWED 15000  // 15000W we use a define since the value supplied by Tesla is always 0
