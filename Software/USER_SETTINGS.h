@@ -45,6 +45,7 @@
 #define WEBSERVER  //Enable this line to enable WiFi, and to run the webserver. See USER_SETTINGS.cpp for the Wifi settings.
 //#define LOAD_SAVED_SETTINGS_ON_BOOT  //Enable this line to read settings stored via the webserver on boot (overrides any battery settings set in USER_SETTINGS.cpp)
 //#define FUNCTION_TIME_MEASUREMENT  // Enable this to record execution times and present them in the web UI (WARNING, raises CPU load, do not use for production)
+//#define ISA_SHUNT  //Enable this line to build support for ISA IVT shunts
 
 /* MQTT options */
 // #define MQTT  // Enable this line to enable MQTT
