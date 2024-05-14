@@ -635,18 +635,6 @@ void receive_can_battery(CAN_frame_t rx_frame) {
     case 0x41C:  //BMS [1s] Operating Mode Status Of Hybrid - 2
       battery_status_cooling_HV = (rx_frame.data.u8[1] & 0x03);
       break;
-    case 0x426:  // TODO: Figure out how to trigger sending of this. Does the SME require some CAN command?
-      battery_cellvoltage_mux = rx_frame.data.u8[0];
-      if (battery_cellvoltage_mux == 0) {
-        datalayer.battery.status.cell_voltages_mV[0] = ((rx_frame.data.u8[1] * 10) + 1800);
-        datalayer.battery.status.cell_voltages_mV[1] = ((rx_frame.data.u8[2] * 10) + 1800);
-        datalayer.battery.status.cell_voltages_mV[2] = ((rx_frame.data.u8[3] * 10) + 1800);
-        datalayer.battery.status.cell_voltages_mV[3] = ((rx_frame.data.u8[4] * 10) + 1800);
-        datalayer.battery.status.cell_voltages_mV[4] = ((rx_frame.data.u8[5] * 10) + 1800);
-        datalayer.battery.status.cell_voltages_mV[5] = ((rx_frame.data.u8[6] * 10) + 1800);
-        datalayer.battery.status.cell_voltages_mV[5] = ((rx_frame.data.u8[7] * 10) + 1800);
-      }
-      break;
     case 0x430:  //BMS [1s] - Charging status of high-voltage battery - 2
       battery_prediction_voltage_shortterm_charge = (rx_frame.data.u8[1] << 8 | rx_frame.data.u8[0]);
       battery_prediction_voltage_shortterm_discharge = (rx_frame.data.u8[3] << 8 | rx_frame.data.u8[2]);
