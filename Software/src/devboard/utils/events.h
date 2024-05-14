@@ -6,7 +6,7 @@
 
 // #define INCLUDE_EVENTS_TEST  // Enable to run an event test loop, see events_test_on_target.cpp
 
-#define EE_MAGIC_HEADER_VALUE 0x0004  // 0x0000 to 0xFFFF
+#define EE_MAGIC_HEADER_VALUE 0x0005  // 0x0000 to 0xFFFF
 
 #define GENERATE_ENUM(ENUM) ENUM,
 #define GENERATE_STRING(STRING) #STRING,
@@ -49,6 +49,7 @@
   XX(EVENT_PRECHARGE_FAILURE)           \
   XX(EVENT_INTERNAL_OPEN_FAULT)         \
   XX(EVENT_INVERTER_OPEN_CONTACTOR)     \
+  XX(EVENT_MODBUS_INVERTER_MISSING)     \
   XX(EVENT_ERROR_OPEN_CONTACTOR)        \
   XX(EVENT_CELL_UNDER_VOLTAGE)          \
   XX(EVENT_CELL_OVER_VOLTAGE)           \
