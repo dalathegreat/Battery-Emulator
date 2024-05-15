@@ -20,6 +20,20 @@ void update_machineryprotection() {
     clear_event(EVENT_BATTERY_FROZEN);
   }
 
+  // Battery voltage is over designed max voltage!
+  if (datalayer.battery.status.voltage_dV > datalayer.battery.info.max_design_voltage_dV) {
+    set_event(EVENT_BATTERY_OVERVOLTAGE, datalayer.battery.status.voltage_dV);
+  } else {
+    clear_event(EVENT_BATTERY_OVERVOLTAGE);
+  }
+
+  // Battery voltage is under designed min voltage!
+  if (datalayer.battery.status.voltage_dV < datalayer.battery.info.min_design_voltage_dV) {
+    set_event(EVENT_BATTERY_UNDERVOLTAGE, datalayer.battery.status.voltage_dV);
+  } else {
+    clear_event(EVENT_BATTERY_UNDERVOLTAGE);
+  }
+
   // Battery is extremely degraded, not fit for secondlifestorage
   if (datalayer.battery.status.soh_pptt < 2500) {
     set_event(EVENT_LOW_SOH, datalayer.battery.status.soh_pptt);
