@@ -71,8 +71,11 @@ typedef struct {
   /** A counter that increases incase a CAN CRC read error occurs */
   uint16_t CAN_error_counter;
   /** uint8_t */
-  /** A counter set each time a new message comes from battery.*/
-  uint8_t CAN_battery_still_alive = 12;
+  /** A counter set each time a new message comes from battery.
+   * This value then gets decremented each 5 seconds. Incase we reach 0
+   * we report the battery as missing entirely on the CAN bus.
+   */
+  uint8_t CAN_battery_still_alive = CAN_STILL_ALIVE;
 
   /** Other */
   /** The current BMS status */
