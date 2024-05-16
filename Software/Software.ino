@@ -226,6 +226,7 @@ void core_loop(void* task_time_us) {
     if (millis() - previousMillisUpdateVal >= intervalUpdateValues)  // Every 5s normally
     {
       previousMillisUpdateVal = millis();
+      update_machineryprotection();
       update_SOC();     // Check if real or calculated SOC% value should be sent
       update_values();  // Update values heading towards inverter. Prepare for sending on CAN, or write directly to Modbus.
       if (DUMMY_EVENT_ENABLED) {
@@ -459,36 +460,6 @@ void init_battery() {
 // Functions
 #ifdef DEBUG_CANFD_DATA
 void print_canfd_frame(CANFDMessage rx_frame) {
-  // Frame ID-s that battery transmits. For debugging and development.
-  // switch (frame.id)
-  // {
-  // case 0x7EC:
-  // case 0x360:
-  // case 0x3BA:
-  // case 0x325:
-  // case 0x330:
-  // case 0x215:
-  // case 0x235:
-  // case 0x2FA:
-  // case 0x21A:
-  // case 0x275:
-  // case 0x150:
-  // case 0x1F5:
-  // case 0x335:
-  // case 0x25A:
-  // case 0x365:
-  // case 0x055:
-  // case 0x245:
-  // case 0x3F5:
-  // // case 0x:
-  // // case 0x:
-  // // case 0x:
-  //   // Dont print known frames
-  //   return;
-  // default:
-  //   break;
-  // }
-
   int i = 0;
   Serial.print(rx_frame.id, HEX);
   Serial.print(" ");
@@ -499,7 +470,6 @@ void print_canfd_frame(CANFDMessage rx_frame) {
   }
   Serial.println(" ");
 }
-
 #endif
 void receive_canfd() {  // This section checks if we have a complete CAN-FD message incoming
   CANFDMessage frame;
