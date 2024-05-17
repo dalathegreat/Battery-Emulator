@@ -9,7 +9,7 @@
 
 /* Select battery used */
 //#define BMW_I3_BATTERY
-//#define CHADEMO_BATTERY
+//#define CHADEMO_BATTERY	//NOTE: inherently enables CONTACTOR_CONTROL below
 //#define IMIEV_CZERO_ION_BATTERY
 //#define KIA_HYUNDAI_64_BATTERY
 //#define KIA_E_GMP_BATTERY

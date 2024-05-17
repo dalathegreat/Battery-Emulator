@@ -97,6 +97,9 @@ enum State { DISCONNECTED, PRECHARGE, NEGATIVE, POSITIVE, PRECHARGE_OFF, COMPLET
 State contactorStatus = DISCONNECTED;
 
 #define MAX_ALLOWED_FAULT_TICKS 1000
+/* NOTE: modify the precharge time constant below to account for the resistance and capacitance of the target system.
+ *	t=3RC at minimum, t=5RC ideally 
+ */
 #define PRECHARGE_TIME_MS 160
 #define NEGATIVE_CONTACTOR_TIME_MS 1000
 #define POSITIVE_CONTACTOR_TIME_MS 2000
@@ -459,6 +462,10 @@ void init_inverter() {
 void init_battery() {
   // Inform user what battery is used and perform setup
   setup_battery();
+
+#ifdef CHADEMO_BATTERY
+  intervalUpdateValues = 800;  // This mode requires the values to be updated faster
+#endif
 }
 
 #ifdef CAN_FD
