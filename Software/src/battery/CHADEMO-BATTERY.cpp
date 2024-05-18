@@ -9,7 +9,6 @@
 
 /* Do not change code below unless you are sure what you are doing */
 static unsigned long previousMillis100 = 0;  // will store last time a 100ms CAN Message was send
-static uint8_t CANstillAlive = 12;           //counter for checking if CAN is still alive
 static uint8_t errorCode = 0;                //stores if we have an error code active from battery control logic
 
 bool plug_inserted = false;
@@ -124,15 +123,6 @@ void update_values_battery() {
 
   datalayer.battery.status.remaining_capacity_Wh = static_cast<uint32_t>(
       (static_cast<double>(datalayer.battery.status.real_soc) / 10000) * datalayer.battery.info.total_capacity_Wh);
-
-  /* Check if the Vehicle is still sending CAN messages. If we go 60s without messages we raise an error*/
-  if (!CANstillAlive) {
-    set_event(EVENT_CAN_RX_FAILURE, 0);
-  } else {
-    CANstillAlive--;
-    clear_event(EVENT_CAN_RX_FAILURE);
-    CHADEMO_Status = CHADEMO_STOP;
-  }
 
   /* To simulate or NOT to simulate battery cell voltages, that is .. A question.
    * Answer for now: Not, because they are not available in any direct manner.
@@ -358,7 +348,6 @@ inline void process_vehicle_vendor_ID(CAN_frame_t rx_frame) {
 void receive_can_battery(CAN_frame_t rx_frame) {
   datalayer.battery.status.CAN_battery_still_alive =
       CAN_STILL_ALIVE;  //We are getting CAN messages from the vehicle, inform the watchdog
-  CANstillAlive = 12;   //We are getting CAN messages from the vehicle, inform the watchdog
 
 #ifdef CH_CAN_DEBUG
   Serial.print(millis());  // Example printout, time, ID, length, data: 7553  1DB  8  FF C0 B9 EA 0 0 2 5D
