@@ -64,7 +64,7 @@ void update_machineryprotection() {
   if (datalayer.battery.status.voltage_dV >
       (datalayer.battery.info.max_design_voltage_dV -
        100)) {  // When pack voltage is close to max, and SOC% is still low, raise event
-    if (datalayer.battery.status.real_soc < 6500) { // 65.00%
+    if (datalayer.battery.status.real_soc < 6500) {  // 65.00%
       set_event(EVENT_SOC_PLAUSIBILITY_ERROR, datalayer.battery.status.real_soc);
     } else {
       clear_event(EVENT_SOC_PLAUSIBILITY_ERROR);
@@ -95,7 +95,7 @@ void update_machineryprotection() {
   }
 
   //Incase we enter a critical fault state, zero out the allowed limits
-  if (datalayer.battery.status.bms_status == FAULT) {  
+  if (datalayer.battery.status.bms_status == FAULT) {
     datalayer.battery.status.max_charge_power_W = 0;
     datalayer.battery.status.max_discharge_power_W = 0;
   }

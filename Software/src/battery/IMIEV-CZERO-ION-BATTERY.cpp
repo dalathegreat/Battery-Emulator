@@ -48,7 +48,7 @@ void update_values_battery() {  //This function maps all the values fetched via 
   datalayer.battery.status.remaining_capacity_Wh = static_cast<uint32_t>(
       (static_cast<double>(datalayer.battery.status.real_soc) / 10000) * datalayer.battery.info.total_capacity_Wh);
 
-  //We do not know the max charge/discharge power is sent by the battery. We hardcode value for now. 
+  //We do not know the max charge/discharge power is sent by the battery. We hardcode value for now.
   datalayer.battery.status.max_charge_power_W = 10000;  // 10kW   //TODO: Fix when CAN is decoded
 
   datalayer.battery.status.max_discharge_power_W = 10000;  // 10kW   //TODO: Fix when CAN is decoded
