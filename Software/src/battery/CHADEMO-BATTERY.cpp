@@ -4,12 +4,17 @@
 #include "../devboard/utils/events.h"
 #include "../lib/miwagner-ESP32-Arduino-CAN/CAN_config.h"
 #include "../lib/miwagner-ESP32-Arduino-CAN/ESP32CAN.h"
+#ifdef ISA_SHUNT
+#include "../lib/smaresca-SimpleISA/SimpleISA.h"
+#endif
 #include "CHADEMO-BATTERY-TYPES.h"
 #include "CHADEMO-BATTERY.h"
 
 /* Do not change code below unless you are sure what you are doing */
 static unsigned long previousMillis100 = 0;  // will store last time a 100ms CAN Message was send
-static uint8_t errorCode = 0;                //stores if we have an error code active from battery control logic
+static unsigned long previousMillis5000 =
+    0;                         // will store last time a 5s threshold was reached for display during debug
+static uint8_t errorCode = 0;  //stores if we have an error code active from battery control logic
 
 bool plug_inserted = false;
 bool vehicle_can_received = false;
@@ -21,6 +26,12 @@ bool positive_high = false;
 bool contactors_ready = false;
 uint8_t maximum_soc = 90;
 uint8_t minimum_soc = 10;
+
+uint8_t max_discharge_current = 0;  //TODO not sure on this one, but really influenced by inverter capability
+
+#ifdef ISA_SHUNT
+extern ISA sensor;
+#endif
 
 bool high_current_control_enabled = false;  // set to true when high current control is operating
                                             //  if true, values from 110.1 and 110.2 should be used instead of 102.3
@@ -133,6 +144,29 @@ void update_values_battery() {
 #ifdef DEBUG_VIA_USB
   Serial.print("SOC 0x100: ");
   Serial.println(x100_chg_lim.ConstantOfChargingRateIndication);
+
+#ifdef ISA_SENSOR
+  Serial.print("Volts: ");
+  Serial.println(sensor.Voltage1);
+  Serial.println(sensor.Voltage2);
+  Serial.println(sensor.Voltage3);
+
+  Serial.print("Amps: ");
+  Serial.println(sensor.Amperes);
+
+  Serial.print("Power: ");
+  Serial.println(sensor.KW);
+
+  Serial.print("Ah: ");
+  Serial.println(sensor.AH);
+
+  Serial.print("kWh: ");
+  Serial.print(sensor.KWH);
+
+  Serial.print("Temp C: ");
+  Serial.println(sensor.Temperature);
+#endif
+
 #endif
 }
 
@@ -200,6 +234,13 @@ inline void process_vehicle_charging_session(CAN_frame_t rx_frame) {
 
   x102_chg_session.ChargingCurrentRequest = newChargingCurrentRequest;
   x102_chg_session.TargetBatteryVoltage = newTargetBatteryVoltage;
+
+#ifdef DEBUG_VIA_USB
+  //Note on p131
+  uint8_t chargingrate = x102_chg_session.StateOfCharge / x100_chg_lim.ConstantOfChargingRateIndication * 100;
+  Serial.print("Charge Rate (kW):");
+  Serial.println(chargingrate);
+#endif
 
   //Table A.26—Charge control termination command patterns -- should echo x108 handling
 
@@ -314,19 +355,50 @@ inline void process_vehicle_charging_session(CAN_frame_t rx_frame) {
 
 /* x200 Vehicle, peer to x208 EVSE */
 inline void process_vehicle_charging_limits(CAN_frame_t rx_frame) {
+  unsigned long currentMillis = millis();
+
   x200_discharge_limits.MaximumDischargeCurrent = rx_frame.data.u8[0];
   x200_discharge_limits.MinimumDischargeVoltage = ((rx_frame.data.u8[4] << 8) | rx_frame.data.u8[5]);
   x200_discharge_limits.MinimumBatteryDischargeLevel = rx_frame.data.u8[6];
   x200_discharge_limits.MaxRemainingCapacityForCharging = rx_frame.data.u8[7];
+
+#ifdef DEBUG_VIA_USB
+  if (currentMillis - previousMillis5000 >= INTERVAL_5_S) {
+    previousMillis5000 = currentMillis;
+    Serial.println("x200 Max remaining capacity for charging/discharging:");
+    Serial.println(x200_discharge_limits.MaxRemainingCapacityForCharging);
+  }
+#endif
+
+#ifdef ISA_SHUNT
+  if (sensor.Voltage <= x200_discharge_limits.MinimumDischargeVoltage) {
+#ifdef DEBUG_VIA_USB
+    Serial.println("x200 minimum discharge voltage met or exceeded, stopping.");
+#endif
+    CHADEMO_Status = CHADEMO_STOP;
+  }
+#endif
 }
 
 /* Vehicle 0x201, peer to EVSE 0x209 
  * HOWEVER, 201 isn't even emitted in any of the v2x canlogs available
  */
 inline void process_vehicle_discharge_estimate(CAN_frame_t rx_frame) {
+  unsigned long currentMillis = millis();
+
   x201_discharge_estimate.V2HchargeDischargeSequenceNum = rx_frame.data.u8[0];
   x201_discharge_estimate.ApproxDischargeCompletionTime = ((rx_frame.data.u8[1] << 8) | rx_frame.data.u8[2]);
   x201_discharge_estimate.AvailableVehicleEnergy = ((rx_frame.data.u8[3] << 8) | rx_frame.data.u8[4]);
+
+#ifdef DEBUG_VIA_USB
+  if (currentMillis - previousMillis5000 >= INTERVAL_5_S) {
+    previousMillis5000 = currentMillis;
+    Serial.println("x201 availabile vehicle energy, completion time");
+    Serial.println(x201_discharge_estimate.AvailableVehicleEnergy);
+    Serial.println("x201 approx vehicle completion time");
+    Serial.println(x201_discharge_estimate.ApproxDischargeCompletionTime);
+  }
+#endif
 }
 
 inline void process_vehicle_dynamic_control(CAN_frame_t rx_frame) {
@@ -489,13 +561,19 @@ void update_evse_status(CAN_frame_t& f) {
     x109_evse_state.remaining_time_1m = 60;
 
   } else if (EVSE_mode == CHADEMO_CHARGE) {
-    //FIXME these are supposed to be measured values, e.g., from a shunt
-    //for now we are literally saying they're equivalent to the request or max charger capability
-    //this is wrong
+#ifdef ISA_SENSOR
+    x109_evse_state.setpoint_HV_VDC = sensor.Voltage;
+    x109_evse_state.setpoint_HV_IDC = sensor.Amperes;
+#else
+    //NOTE: these are supposed to be measured values, e.g., from a shunt
+    //If a sensor is not used, we are literally asserting that the measured value is exactly equivalent to the request or max charger capability
+    //this is pretty likely to fail on most vehicles
     x109_evse_state.setpoint_HV_VDC =
         min(x102_chg_session.TargetBatteryVoltage, x108_evse_cap.available_output_voltage);
     x109_evse_state.setpoint_HV_IDC =
         min(x102_chg_session.ChargingCurrentRequest, x108_evse_cap.available_output_current);
+#endif
+
     /* The spec suggests throwing a 109.5.4 = 1 if vehicle curr request 102.3 > evse curr available 108.3, 
      *  but realistically many chargers seem to act tolerant here and stay under limits and supply whatever they are able
      */
@@ -565,15 +643,35 @@ void update_evse_discharge_estimate(CAN_frame_t& f) {
 
 /* x208 EVSE, peer to 0x200 Vehicle */
 void update_evse_discharge_capabilities(CAN_frame_t& f) {
-  //FIXME these are supposed to be measured values, e.g., from a shunt
-  //we are literally saying theyre arbitrary for now
-  //this is wrong
+#ifdef ISA_SHUNT
+  //present discharge current is a measured value
+  x208_evse_dischg_cap.present_discharge_current = 0xFF - sensor.Amperes;
+#else
+  //Present discharge current is a measured value. In the absence of
+  // a shunt, the evse here is quite literally lying to the vehicle. The spec
+  // seems to suggest this is tolerated unless the current measured on the EV
+  // side continualy exceeds the maximum discharge current by 10amps
   x208_evse_dischg_cap.present_discharge_current = 0xFF - 6;
-  x208_evse_dischg_cap.available_input_current = 0xFF - x200_discharge_limits.MaximumDischargeCurrent;
+#endif
+
+  //EVSE maximum current input is partly an inverter-influenced value i.e., min(inverter, vehicle_max_discharge)
+  //use max_discharge_current variable if nonzero, otherwise tell the vehicle the EVSE will take everything it can give
+  if (max_discharge_current) {
+    x208_evse_dischg_cap.available_input_current = 0xFF - max_discharge_current;
+  } else {
+    x208_evse_dischg_cap.available_input_current = 0xFF - x200_discharge_limits.MaximumDischargeCurrent;
+  }
 
   x208_evse_dischg_cap.available_input_voltage = x200_discharge_limits.MinimumDischargeVoltage;
 
-  /* calculate min threshold to protect battery - using vehicle-provided minimum plus 2% */
+  /* calculate min threshold to protect battery - using vehicle-provided minimum plus 2%
+   *
+   *As this is partly an inverter-influenced value, should this be a configurable variable backed by a defined default?
+   *	It seems sensible to be MAX(lowest usable voltage of the inverter input, lowest tolerable voltage of the vehicle battery)
+   *	NOT the vehicle minimumDischargeVoltage.
+   *	Thus, why here we are adding a few percent of cushion atop the minimum
+   *	This is the reverse treatment of the lower_threshold_voltage of charging mode
+   */
   x208_evse_dischg_cap.lower_threshold_voltage =
       x200_discharge_limits.MinimumDischargeVoltage + (int)(x200_discharge_limits.MinimumDischargeVoltage / 100 * 2);
 
@@ -703,7 +801,7 @@ void handle_chademo_sequence() {
   /* ------------------------------------------------------------------------------ */
   switch (CHADEMO_Status) {
     case CHADEMO_IDLE:
-      /* this is where we can unlock connector? */
+      /* this is where we can unlock connector */
       digitalWrite(CHADEMO_LOCK, LOW);
       plug_inserted = digitalRead(CHADEMO_PIN_7);
 
@@ -770,7 +868,8 @@ void handle_chademo_sequence() {
       x109_evse_state.s.status.ChgDischStopControl = 1;
       break;
     case CHADEMO_EV_ALLOWED:
-      // pin 4 (j) reads high
+      // If we are in this state, vehicle_permission was already set to true...but re-verify
+      // that pin 4 (j) reads high
       if (vehicle_permission) {
         //lock connector here
         digitalWrite(CHADEMO_LOCK, HIGH);
@@ -778,21 +877,41 @@ void handle_chademo_sequence() {
         //TODO spec requires test to validate solenoid has indeed engaged.
         // example uses a comparator/current consumption check around solenoid
         x109_evse_state.s.status.connector_locked = true;
-      }
-      CHADEMO_Status = CHADEMO_EVSE_PREPARE;
 
+        CHADEMO_Status = CHADEMO_EVSE_PREPARE;
+      }
       break;
     case CHADEMO_EVSE_PREPARE:
-      /* TODO voltage check of output < 10v */
-      /* insulation test hypothetically happens here before triggering PIN 10 high */
+      /* TODO voltage check of output < 20v 
+       * insulation test hypothetically happens here before triggering PIN 10 high
+       * see Table A.28—Requirements for the insulation test for output DC circuit
+	Note: required that if 102.5.0 == 0, do not perform evse insulation test
+	we should not be here in this state unless 102.5.0 was == 1 previously, but check again in case it has changed
 
-      digitalWrite(CHADEMO_PIN_10, HIGH);
-      evse_permission = true;
+	simulate via?
+                    if evse_present _voltage + 10 <= vehicle voltage_target {
+                        evse_present_voltage += 10;
+                    } else {
+                        evse_present_voltage = vehicle voltage_target;
+                    }
+       */
+      if (x102_chg_session.s.status.StatusVehicleChargingEnabled) {
+        if (sensor.Voltage < 20) {
 
-      // likely unnecessary but just to be sure. consider removal
-      x109_evse_state.s.status.ChgDischStopControl = 1;
-      x109_evse_state.s.status.EVSE_status = 0;
-      //state changes only upon receipt of charging session request
+          digitalWrite(CHADEMO_PIN_10, HIGH);
+          evse_permission = true;
+        } else {
+          Serial.print("Insulation check measures > 20v ");
+        }
+
+        // likely unnecessary but just to be sure. consider removal
+        x109_evse_state.s.status.ChgDischStopControl = 1;
+        x109_evse_state.s.status.EVSE_status = 0;
+      } else {
+        CHADEMO_Status = CHADEMO_STOP;
+      }
+
+      //state changes to CHADEMO_EVSE_START only upon receipt of charging session request
       break;
     case CHADEMO_EVSE_START:
       datalayer.system.status.battery_allows_contactor_closing = true;
@@ -842,24 +961,41 @@ void handle_chademo_sequence() {
         //TODO flag error and do not calculate power in EVSE response?
         //	probably unnecessary as other flags will be set causing this to be caught
       }
-
+#ifdef ISA_SHUNT
+      if (sensor.Voltage <= x200_discharge_limits.MinimumDischargeVoltage) {
+#ifdef DEBUG_VIA_USB
+        Serial.println("x200 minimum discharge voltage met or exceeded, stopping.");
+#endif
+        CHADEMO_Status = CHADEMO_STOP;
+      }
+#endif
       // Potentially unnecessary (set in CHADEMO_EVSE_CONTACTORS_ENABLED stanza), but just in case
-      x109_evse_state.s.status.EVSE_status = 1;
       x109_evse_state.s.status.ChgDischStopControl = 0;
-      vehicle_permission = digitalRead(CHADEMO_PIN_4);
+      x109_evse_state.s.status.EVSE_status = 1;
       break;
     case CHADEMO_STOP:
       /* back to CHADEMO_IDLE after teardown */
       x109_evse_state.s.status.ChgDischStopControl = 1;
       x109_evse_state.s.status.EVSE_status = 0;
       x109_evse_state.s.status.battery_incompatible = 0;
-      digitalWrite(CHADEMO_PIN_10, LOW);
-      digitalWrite(CHADEMO_PIN_2, LOW);
       evse_permission = false;
       vehicle_permission = false;
       x209_sent = false;
       x201_received = false;
-      CHADEMO_Status = CHADEMO_IDLE;
+
+      /* protection of EV contactors - IEEE A.7.2.9 Protection of EV contactor
+       *  see also Table A.29—Charging stage and check item
+       *
+       * We will re-enter the handler until the amperage drops sufficiently
+       * and then transition to CHADEMO_IDLE
+       */
+      if (sensor.Amperes <= 5 && sensor.Voltage <= 10) {
+        /* welding detection ideally here */
+        digitalWrite(CHADEMO_PIN_10, LOW);
+        digitalWrite(CHADEMO_PIN_2, LOW);
+        CHADEMO_Status = CHADEMO_IDLE;
+      }
+
       break;
     case CHADEMO_FAULT:
       /* Once faulted, never departs CHADEMO_FAULT state unless device is power cycled as a safety measure */
