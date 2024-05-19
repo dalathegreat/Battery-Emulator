@@ -236,8 +236,10 @@ void core_loop(void* task_time_us) {
       previousMillisUpdateVal = millis();  // Order matters on the update_loop!
       update_values_battery();             // Fetch battery values
       update_SOC();                        // Check if real or calculated SOC% value should be sent
-      update_machineryprotection();        // Check safeties
-      update_values_inverter();            // Update values heading towards inverter
+#ifndef SERIAL_LINK_RECEIVER
+      update_machineryprotection();  // Check safeties (Not on serial link reciever board)
+#endif
+      update_values_inverter();  // Update values heading towards inverter
       if (DUMMY_EVENT_ENABLED) {
         set_event(EVENT_DUMMY_ERROR, (uint8_t)millis());
       }
