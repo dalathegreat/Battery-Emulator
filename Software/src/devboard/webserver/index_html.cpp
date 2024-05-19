@@ -1,5 +1,5 @@
 const char index_html[] = R"rawliteral(
-<!doctypehtml><title>Battery Emulator</title><meta content="width=device-width"name=viewport><style>html{font-family:Arial;display:inline-block;text-align:center}h2{font-size:3rem}body{max-width:800px;margin:0 auto}</style><h2>Battery Emulator</h2>%ABC%
+<!doctypehtml><title>Battery Emulator</title><meta content="width=device-width"name=viewport><style>html{font-family:Arial;display:inline-block;text-align:center}h2{font-size:3rem}body{max-width:800px;margin:0 auto}</style>%X%
 )rawliteral";
 
 /* The above code is minified (https://kangax.github.io/html-minifier/) to increase performance. Here is the full HTML function:
@@ -14,8 +14,7 @@ const char index_html[] = R"rawliteral(
   </style>
 </head>
 <body>
-  <h2>Battery Emulator</h2>
-  %ABC%
+  %X%
 </body>
 </html>
 */

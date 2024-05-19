@@ -358,8 +358,9 @@ void init_ElegantOTA() {
 }
 
 String processor(const String& var) {
-  if (var == "ABC") {
+  if (var == "X") {
     String content = "";
+    content += "<h2>" + String(ssidAP) + "</h2>";  // ssidAP name is used as header name
     //Page format
     content += "<style>";
     content += "body { background-color: black; color: white; }";
