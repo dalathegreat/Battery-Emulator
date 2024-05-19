@@ -10,6 +10,10 @@
 //Contactor control is required for CHADEMO support
 #define CONTACTOR_CONTROL
 
+//ISA shunt is currently required for CHADEMO support
+// other measurement sources may be added in the future
+#define ISA_SHUNT
+
 void setup_battery(void);
 
 #endif
