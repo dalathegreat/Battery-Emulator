@@ -429,24 +429,9 @@ void update_values_battery() {  //This function maps all the values fetched via 
 
   datalayer.battery.status.soh_pptt = battery_soh * 100;
 
-  if (battery_BEV_available_power_longterm_discharge > 65000) {
-    datalayer.battery.status.max_discharge_power_W = 65000;
-  } else {
-    datalayer.battery.status.max_discharge_power_W = battery_BEV_available_power_longterm_discharge;
-  }
-  if (datalayer.battery.status.reported_soc == 0) {  //Scaled SOC% is 0.00%, we should not discharge battery further
-    datalayer.battery.status.max_discharge_power_W = 0;
-  }
+  datalayer.battery.status.max_discharge_power_W = battery_BEV_available_power_longterm_discharge;
 
-  if (battery_BEV_available_power_longterm_charge > 65000) {
-    datalayer.battery.status.max_charge_power_W = 65000;
-  } else {
-    datalayer.battery.status.max_charge_power_W = battery_BEV_available_power_longterm_charge;
-  }
-  if (datalayer.battery.status.reported_soc == 10000)  //Scaled SOC% value is 100.00%
-  {
-    datalayer.battery.status.max_charge_power_W = 0;  //No need to charge further, set max power to 0
-  }
+  datalayer.battery.status.max_charge_power_W = battery_BEV_available_power_longterm_charge;
 
   battery_power = (datalayer.battery.status.current_dA * (datalayer.battery.status.voltage_dV / 100));
 

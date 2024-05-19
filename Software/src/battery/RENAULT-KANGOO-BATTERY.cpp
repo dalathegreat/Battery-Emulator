@@ -23,7 +23,6 @@ This page has info on the larger 33kWh pack: https://openinverter.org/wiki/Renau
 /* Do not change code below unless you are sure what you are doing */
 static uint32_t LB_Battery_Voltage = 3700;
 static uint32_t LB_Charge_Power_Limit_Watts = 0;
-static uint32_t LB_Discharge_Power_Limit_Watts = 0;
 static int32_t LB_Current = 0;
 static int16_t LB_MAX_TEMPERATURE = 0;
 static int16_t LB_MIN_TEMPERATURE = 0;
@@ -96,26 +95,12 @@ void update_values_battery() {  //This function maps all the values fetched via 
   datalayer.battery.status.remaining_capacity_Wh = static_cast<uint32_t>(
       (static_cast<double>(datalayer.battery.status.real_soc) / 10000) * datalayer.battery.info.total_capacity_Wh);
 
-  LB_Discharge_Power_Limit_Watts = (LB_Discharge_Power_Limit * 500);  //Convert value fetched from battery to watts
   /* Define power able to be discharged from battery */
-  if (LB_Discharge_Power_Limit_Watts > 60000)  //if >60kW can be pulled from battery
-  {
-    datalayer.battery.status.max_discharge_power_W = 60000;  //cap value so we don't go over the uint16 limit
-  } else {
-    datalayer.battery.status.max_discharge_power_W = LB_Discharge_Power_Limit_Watts;
-  }
-  if (datalayer.battery.status.reported_soc == 0)  //Scaled SOC% value is 0.00%, we should not discharge battery further
-  {
-    datalayer.battery.status.max_discharge_power_W = 0;
-  }
+  datalayer.battery.status.max_discharge_power_W = (LB_Discharge_Power_Limit * 500);  //Convert value fetched from battery to watts
 
   LB_Charge_Power_Limit_Watts = (LB_Charge_Power_Limit * 500);  //Convert value fetched from battery to watts
-  //The above value is 0 on some packs. We instead estimate this now.
-  if (datalayer.battery.status.reported_soc == 10000) {  // When scaled SOC is 100.00%, set allowed charge power to 0
-    datalayer.battery.status.max_charge_power_W = 0;
-  } else {
-    datalayer.battery.status.max_charge_power_W = MAX_CHARGE_POWER_W;
-  }
+  //The above value is 0 on some packs. We instead hardcode this now.
+  datalayer.battery.status.max_charge_power_W = MAX_CHARGE_POWER_W;
 
   datalayer.battery.status.active_power_W =
       ((datalayer.battery.status.voltage_dV * datalayer.battery.status.current_dA) / 100);
