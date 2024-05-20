@@ -139,6 +139,8 @@ void init_events(void) {
   events.entries[EVENT_CAN_RX_WARNING].level = EVENT_LEVEL_WARNING;
   events.entries[EVENT_CAN_TX_FAILURE].level = EVENT_LEVEL_ERROR;
   events.entries[EVENT_WATER_INGRESS].level = EVENT_LEVEL_ERROR;
+  events.entries[EVENT_CHARGE_LIMIT_EXCEEDED].level = EVENT_LEVEL_INFO;
+  events.entries[EVENT_DISCHARGE_LIMIT_EXCEEDED].level = EVENT_LEVEL_INFO;
   events.entries[EVENT_12V_LOW].level = EVENT_LEVEL_WARNING;
   events.entries[EVENT_SOC_PLAUSIBILITY_ERROR].level = EVENT_LEVEL_ERROR;
   events.entries[EVENT_KWH_PLAUSIBILITY_ERROR].level = EVENT_LEVEL_INFO;
@@ -212,6 +214,10 @@ const char* get_event_message_string(EVENTS_ENUM_TYPE event) {
       return "ERROR: High amount of corrupted CAN messages detected. Check CAN wire shielding!";
     case EVENT_CAN_TX_FAILURE:
       return "ERROR: CAN messages failed to transmit, or no one on the bus to ACK the message!";
+    case EVENT_CHARGE_LIMIT_EXCEEDED:
+      return "Info: Inverter is charging with higher power amount than battery is sending as max allowed.";
+    case EVENT_DISCHARGE_LIMIT_EXCEEDED:
+      return "Info: Inverter is discharging with higher power amount than battery is sending as max allowed.";
     case EVENT_WATER_INGRESS:
       return "Water leakage inside battery detected. Operation halted. Inspect battery!";
     case EVENT_12V_LOW:
