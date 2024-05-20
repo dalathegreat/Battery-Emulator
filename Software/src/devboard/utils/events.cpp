@@ -215,9 +215,9 @@ const char* get_event_message_string(EVENTS_ENUM_TYPE event) {
     case EVENT_CAN_TX_FAILURE:
       return "ERROR: CAN messages failed to transmit, or no one on the bus to ACK the message!";
     case EVENT_CHARGE_LIMIT_EXCEEDED:
-      return "Info: Inverter is charging with higher power amount than battery is sending as max allowed.";
+      return "Info: Inverter is charging faster than battery is allowing.";
     case EVENT_DISCHARGE_LIMIT_EXCEEDED:
-      return "Info: Inverter is discharging with higher power amount than battery is sending as max allowed.";
+      return "Info: Inverter is discharging faster than battery is allowing.";
     case EVENT_WATER_INGRESS:
       return "Water leakage inside battery detected. Operation halted. Inspect battery!";
     case EVENT_12V_LOW:
