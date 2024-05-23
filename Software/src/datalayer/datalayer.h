@@ -30,6 +30,8 @@ typedef struct {
 typedef struct {
   /** int32_t */
   /** Instantaneous battery power in Watts */
+  /* Positive value = Battery Charging */
+  /* Negative value = Battery Discharging */
   int32_t active_power_W;
 
   /** uint32_t */
