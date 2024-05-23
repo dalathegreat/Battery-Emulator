@@ -60,7 +60,7 @@ void update_machineryprotection() {
 
   // Inverter is pulling too much power from battery!
   if (datalayer.battery.status.active_power_W < 0) {  // Discharging
-    if (-datalayer.battery.status.active_power_W > (datalayer.battery.status.max_charge_power_W + 2000)) {
+    if (-datalayer.battery.status.active_power_W > (datalayer.battery.status.max_discharge_power_W + 2000)) {
       set_event(EVENT_DISCHARGE_LIMIT_EXCEEDED, 0);  // Alert when 2kW over requested max
     } else {
       clear_event(EVENT_DISCHARGE_LIMIT_EXCEEDED);
