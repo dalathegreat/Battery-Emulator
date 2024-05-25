@@ -451,6 +451,9 @@ String processor(const String& var) {
 #ifdef MG_5_BATTERY
     content += "MG 5";
 #endif
+#ifdef NISSAN_LEAF_BATTERY
+    content += "Nissan LEAF";
+#endif
 #ifdef RENAULT_KANGOO_BATTERY
     content += "Renault Kangoo";
 #endif
