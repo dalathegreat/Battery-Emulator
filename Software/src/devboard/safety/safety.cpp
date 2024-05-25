@@ -53,7 +53,7 @@ void update_machineryprotection() {
     clear_event(EVENT_BATTERY_EMPTY);
   }
 
-  // Battery is extremely degraded, not fit for secondlifestorage
+  // Battery is extremely degraded, not fit for secondlifestorage!
   if (datalayer.battery.status.soh_pptt < 2500) {
     set_event(EVENT_LOW_SOH, datalayer.battery.status.soh_pptt);
   } else {
@@ -79,6 +79,24 @@ void update_machineryprotection() {
     clear_event(EVENT_CELL_DEVIATION_HIGH);
   }
 
+  // Inverter is charging with more power than battery wants!
+  if (datalayer.battery.status.active_power_W > 0) {  // Charging
+    if (datalayer.battery.status.active_power_W > (datalayer.battery.status.max_charge_power_W + 2000)) {
+      set_event(EVENT_CHARGE_LIMIT_EXCEEDED, 0);  // Alert when 2kW over requested max
+    } else {
+      clear_event(EVENT_CHARGE_LIMIT_EXCEEDED);
+    }
+  }
+
+  // Inverter is pulling too much power from battery!
+  if (datalayer.battery.status.active_power_W < 0) {  // Discharging
+    if (-datalayer.battery.status.active_power_W > (datalayer.battery.status.max_discharge_power_W + 2000)) {
+      set_event(EVENT_DISCHARGE_LIMIT_EXCEEDED, 0);  // Alert when 2kW over requested max
+    } else {
+      clear_event(EVENT_DISCHARGE_LIMIT_EXCEEDED);
+    }
+  }
+
   // Check if the BMS is still sending CAN messages. If we go 60s without messages we raise an error
   if (!datalayer.battery.status.CAN_battery_still_alive) {
     set_event(EVENT_CAN_RX_FAILURE, 0);
@@ -87,7 +105,7 @@ void update_machineryprotection() {
     clear_event(EVENT_CAN_RX_FAILURE);
   }
 
-  // Also check if we have recieved too many malformed CAN messages
+  // Too many malformed CAN messages recieved!
   if (datalayer.battery.status.CAN_error_counter > MAX_CAN_FAILURES) {
     set_event(EVENT_CAN_RX_WARNING, 0);
   } else {
