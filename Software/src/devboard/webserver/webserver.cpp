@@ -448,8 +448,8 @@ String processor(const String& var) {
 #ifdef KIA_E_GMP_BATTERY
     content += "Kia/Hyundai EGMP platform";
 #endif
-#ifdef NISSAN_LEAF_BATTERY
-    content += "Nissan LEAF";
+#ifdef MG_5_BATTERY
+    content += "MG 5";
 #endif
 #ifdef RENAULT_KANGOO_BATTERY
     content += "Renault Kangoo";
