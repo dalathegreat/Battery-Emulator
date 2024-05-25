@@ -3,7 +3,7 @@
 #include "../../datalayer/datalayer.h"
 
 String cellmonitor_processor(const String& var) {
-  if (var == "ABC") {
+  if (var == "X") {
     String content = "";
     // Page format
     content += "<style>";
