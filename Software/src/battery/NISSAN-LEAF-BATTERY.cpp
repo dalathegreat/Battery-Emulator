@@ -13,8 +13,6 @@
 static unsigned long previousMillis10 = 0;   // will store last time a 10ms CAN Message was send
 static unsigned long previousMillis100 = 0;  // will store last time a 100ms CAN Message was send
 static unsigned long previousMillis10s = 0;  // will store last time a 1s CAN Message was send
-static uint16_t CANerror = 0;                //counter on how many CAN errors encountered
-static uint8_t CANstillAlive = 12;           //counter for checking if CAN is still alive
 static uint8_t mprun10r = 0;                 //counter 0-20 for 0x1F2 message
 static uint8_t mprun10 = 0;                  //counter 0-3
 static uint8_t mprun100 = 0;                 //counter 0-3
@@ -91,7 +89,6 @@ static uint8_t crctable[256] = {
 static uint8_t LEAF_Battery_Type = ZE0_BATTERY;
 #define MAX_CELL_VOLTAGE 4250                  //Battery is put into emergency stop if one cell goes over this value
 #define MIN_CELL_VOLTAGE 2700                  //Battery is put into emergency stop if one cell goes below this value
-#define MAX_CELL_DEVIATION 500                 //LED turns yellow on the board if mv delta exceeds this value
 #define WH_PER_GID 77                          //One GID is this amount of Watt hours
 static uint16_t LB_Discharge_Power_Limit = 0;  //Limit in kW
 static uint16_t LB_Charge_Power_Limit = 0;     //Limit in kW
@@ -132,14 +129,13 @@ static bool Batt_Heater_Mail_Send_Request = false;  //Stores info when a heat re
 static uint8_t battery_request_idx = 0;
 static uint8_t group_7bb = 0;
 static uint8_t group = 1;
-static uint8_t stop_battery_query = 1;
+static bool stop_battery_query = true;
 static uint8_t hold_off_with_polling_10seconds = 10;
 static uint16_t cell_voltages[97];  //array with all the cellvoltages
 static uint8_t cellcounter = 0;
-static uint16_t min_max_voltage[2];     //contains cell min[0] and max[1] values in mV
-static uint16_t cell_deviation_mV = 0;  //contains the deviation between highest and lowest cell in mV
-static uint16_t HX = 0;                 //Internal resistance
-static uint16_t insulation = 0;         //Insulation resistance
+static uint16_t min_max_voltage[2];  //contains cell min[0] and max[1] values in mV
+static uint16_t HX = 0;              //Internal resistance
+static uint16_t insulation = 0;      //Insulation resistance
 static uint16_t temp_raw_1 = 0;
 static uint8_t temp_raw_2_highnibble = 0;
 static uint16_t temp_raw_2 = 0;
@@ -308,14 +304,6 @@ void update_values_battery() { /* This function maps all the values fetched via 
     clear_event(EVENT_BATTERY_CHG_DISCHG_STOP_REQ);
   }
 
-  if (LB_StateOfHealth < 25) {    //Battery is extremely degraded, not fit for secondlifestorage. Zero it all out.
-    if (LB_StateOfHealth != 0) {  //Extra check to see that we actually have a SOH Value available
-      set_event(EVENT_LOW_SOH, LB_StateOfHealth);
-    } else {
-      clear_event(EVENT_LOW_SOH);
-    }
-  }
-
 #ifdef INTERLOCK_REQUIRED
   if (!LB_Interlock) {
     set_event(EVENT_HVIL_FAILURE, 0);
@@ -323,19 +311,6 @@ void update_values_battery() { /* This function maps all the values fetched via 
     clear_event(EVENT_HVIL_FAILURE);
   }
 #endif
-
-  /* Check if the BMS is still sending CAN messages. If we go 60s without messages we raise an error*/
-  if (!CANstillAlive) {
-    set_event(EVENT_CAN_RX_FAILURE, 0);
-  } else {
-    CANstillAlive--;
-    clear_event(EVENT_CAN_RX_FAILURE);
-  }
-  if (CANerror >
-      MAX_CAN_FAILURES)  //Also check if we have recieved too many malformed CAN messages. If so, signal via LED
-  {
-    set_event(EVENT_CAN_RX_WARNING, 0);
-  }
 
   if (LB_HeatExist) {
     if (LB_Heating_Stop) {
@@ -361,7 +336,6 @@ void update_values_battery() { /* This function maps all the values fetched via 
   print_with_units(", Has heater: ", LB_HeatExist, " ");
   print_with_units(", Max cell voltage: ", min_max_voltage[1], "mV ");
   print_with_units(", Min cell voltage: ", min_max_voltage[0], "mV ");
-  print_with_units(", Cell deviation: ", cell_deviation_mV, "mV ");
 #endif
 }
 
@@ -369,7 +343,7 @@ void receive_can_battery(CAN_frame_t rx_frame) {
   switch (rx_frame.MsgID) {
     case 0x1DB:
       if (is_message_corrupt(rx_frame)) {
-        CANerror++;
+        datalayer.battery.status.CAN_error_counter++;
         break;  //Message content malformed, abort reading data from it
       }
       LB_Current2 = (rx_frame.data.u8[0] << 3) | (rx_frame.data.u8[1] & 0xe0) >> 5;
@@ -394,7 +368,7 @@ void receive_can_battery(CAN_frame_t rx_frame) {
       break;
     case 0x1DC:
       if (is_message_corrupt(rx_frame)) {
-        CANerror++;
+        datalayer.battery.status.CAN_error_counter++;
         break;  //Message content malformed, abort reading data from it
       }
       LB_Discharge_Power_Limit = ((rx_frame.data.u8[0] << 2 | rx_frame.data.u8[1] >> 6) / 4.0);
@@ -403,7 +377,7 @@ void receive_can_battery(CAN_frame_t rx_frame) {
       break;
     case 0x55B:
       if (is_message_corrupt(rx_frame)) {
-        CANerror++;
+        datalayer.battery.status.CAN_error_counter++;
         break;  //Message content malformed, abort reading data from it
       }
       LB_TEMP = (rx_frame.data.u8[0] << 2 | rx_frame.data.u8[1] >> 6);
@@ -413,7 +387,7 @@ void receive_can_battery(CAN_frame_t rx_frame) {
       LB_Capacity_Empty = (bool)((rx_frame.data.u8[6] & 0x80) >> 7);
       break;
     case 0x5BC:
-      CANstillAlive = 12;  //Indicate that we are still getting CAN messages from the BMS
+      datalayer.battery.status.CAN_battery_still_alive = CAN_STILL_ALIVE;  // Let system know battery is sending CAN
 
       LB_MAX = ((rx_frame.data.u8[5] & 0x10) >> 4);
       if (LB_MAX) {
@@ -466,7 +440,7 @@ void receive_can_battery(CAN_frame_t rx_frame) {
       LEAF_Battery_Type = ZE1_BATTERY;
       break;
     case 0x79B:
-      stop_battery_query = 1;                //Someone is trying to read data with Leafspy, stop our own polling!
+      stop_battery_query = true;             //Someone is trying to read data with Leafspy, stop our own polling!
       hold_off_with_polling_10seconds = 10;  //Polling is paused for 100s
       break;
     case 0x7BB:
@@ -521,14 +495,8 @@ void receive_can_battery(CAN_frame_t rx_frame) {
               min_max_voltage[1] = cell_voltages[cellcounter];
           }
 
-          cell_deviation_mV = (min_max_voltage[1] - min_max_voltage[0]);
-
           datalayer.battery.status.cell_max_voltage_mV = min_max_voltage[1];
           datalayer.battery.status.cell_min_voltage_mV = min_max_voltage[0];
-
-          if (cell_deviation_mV > MAX_CELL_DEVIATION) {
-            set_event(EVENT_CELL_DEVIATION_HIGH, 0);
-          }
 
           if (min_max_voltage[1] >= MAX_CELL_VOLTAGE) {
             set_event(EVENT_CELL_OVER_VOLTAGE, 0);
@@ -797,7 +765,7 @@ void send_can_battery() {
     if (hold_off_with_polling_10seconds > 0) {
       hold_off_with_polling_10seconds--;
     } else {
-      stop_battery_query = 0;
+      stop_battery_query = false;
     }
   }
 }

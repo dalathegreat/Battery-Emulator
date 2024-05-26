@@ -22,6 +22,7 @@
 #include "src/lib/eModbus-eModbus/scripts/mbServerFCs.h"
 #include "src/lib/miwagner-ESP32-Arduino-CAN/CAN_config.h"
 #include "src/lib/miwagner-ESP32-Arduino-CAN/ESP32CAN.h"
+#include "src/lib/smaresca-SimpleISA/SimpleISA.h"
 
 #include "src/datalayer/datalayer.h"
 
@@ -62,6 +63,10 @@ uint16_t mbPV[MB_RTU_NUM_VALUES];  // Process variable memory
 ModbusServerRTU MBserver(Serial2, 2000);
 #endif
 
+#ifdef ISA_SHUNT
+ISA sensor;
+#endif
+
 // Common charger parameters
 volatile float charger_setpoint_HV_VDC = 0.0f;
 volatile float charger_setpoint_HV_IDC = 0.0f;
@@ -92,6 +97,9 @@ enum State { DISCONNECTED, PRECHARGE, NEGATIVE, POSITIVE, PRECHARGE_OFF, COMPLET
 State contactorStatus = DISCONNECTED;
 
 #define MAX_ALLOWED_FAULT_TICKS 1000
+/* NOTE: modify the precharge time constant below to account for the resistance and capacitance of the target system.
+ *	t=3RC at minimum, t=5RC ideally 
+ */
 #define PRECHARGE_TIME_MS 160
 #define NEGATIVE_CONTACTOR_TIME_MS 1000
 #define POSITIVE_CONTACTOR_TIME_MS 2000
@@ -226,6 +234,7 @@ void core_loop(void* task_time_us) {
     if (millis() - previousMillisUpdateVal >= intervalUpdateValues)  // Every 5s normally
     {
       previousMillisUpdateVal = millis();
+      update_machineryprotection();
       update_SOC();     // Check if real or calculated SOC% value should be sent
       update_values();  // Update values heading towards inverter. Prepare for sending on CAN, or write directly to Modbus.
       if (DUMMY_EVENT_ENABLED) {
@@ -336,9 +345,11 @@ void init_stored_settings() {
 }
 
 void init_CAN() {
-  // CAN pins
+// CAN pins
+#ifdef CAN_SE_PIN
   pinMode(CAN_SE_PIN, OUTPUT);
   digitalWrite(CAN_SE_PIN, LOW);
+#endif
   CAN_cfg.speed = CAN_SPEED_500KBPS;
   CAN_cfg.tx_pin_id = GPIO_NUM_27;
   CAN_cfg.rx_pin_id = GPIO_NUM_26;
@@ -366,6 +377,7 @@ void init_CAN() {
                               DataBitRateFactor::x4);      // Arbitration bit rate: 500 kbit/s, data bit rate: 2 Mbit/s
   settings.mRequestedMode = ACAN2517FDSettings::NormalFD;  // ListenOnly / Normal20B / NormalFD
   const uint32_t errorCode = canfd.begin(settings, [] { canfd.isr(); });
+  canfd.poll();
   if (errorCode == 0) {
 #ifdef DEBUG_VIA_USB
     Serial.print("Bit Rate prescaler: ");
@@ -413,16 +425,27 @@ void init_contactors() {
   pinMode(PRECHARGE_PIN, OUTPUT);
   digitalWrite(PRECHARGE_PIN, LOW);
 #endif
+// Init BMS contactor
+#ifdef HW_STARK  // TODO: Rewrite this so LilyGo can aslo handle this BMS contactor
+  pinMode(BMS_POWER, OUTPUT);
+  digitalWrite(BMS_POWER, HIGH);
+#endif
 }
 
 void init_rs485() {
-  // Set up Modbus RTU Server
+// Set up Modbus RTU Server
+#ifdef RS485_EN_PIN
   pinMode(RS485_EN_PIN, OUTPUT);
   digitalWrite(RS485_EN_PIN, HIGH);
+#endif
+#ifdef RS485_SE_PIN
   pinMode(RS485_SE_PIN, OUTPUT);
   digitalWrite(RS485_SE_PIN, HIGH);
+#endif
+#ifdef PIN_5V_EN
   pinMode(PIN_5V_EN, OUTPUT);
   digitalWrite(PIN_5V_EN, HIGH);
+#endif
 
 #ifdef MODBUS_INVERTER_SELECTED
 #ifdef BYD_MODBUS
@@ -453,42 +476,16 @@ void init_inverter() {
 void init_battery() {
   // Inform user what battery is used and perform setup
   setup_battery();
+
+#ifdef CHADEMO_BATTERY
+  intervalUpdateValues = 800;  // This mode requires the values to be updated faster
+#endif
 }
 
 #ifdef CAN_FD
 // Functions
 #ifdef DEBUG_CANFD_DATA
 void print_canfd_frame(CANFDMessage rx_frame) {
-  // Frame ID-s that battery transmits. For debugging and development.
-  // switch (frame.id)
-  // {
-  // case 0x7EC:
-  // case 0x360:
-  // case 0x3BA:
-  // case 0x325:
-  // case 0x330:
-  // case 0x215:
-  // case 0x235:
-  // case 0x2FA:
-  // case 0x21A:
-  // case 0x275:
-  // case 0x150:
-  // case 0x1F5:
-  // case 0x335:
-  // case 0x25A:
-  // case 0x365:
-  // case 0x055:
-  // case 0x245:
-  // case 0x3F5:
-  // // case 0x:
-  // // case 0x:
-  // // case 0x:
-  //   // Dont print known frames
-  //   return;
-  // default:
-  //   break;
-  // }
-
   int i = 0;
   Serial.print(rx_frame.id, HEX);
   Serial.print(" ");
@@ -499,7 +496,6 @@ void print_canfd_frame(CANFDMessage rx_frame) {
   }
   Serial.println(" ");
 }
-
 #endif
 void receive_canfd() {  // This section checks if we have a complete CAN-FD message incoming
   CANFDMessage frame;
@@ -517,6 +513,11 @@ void receive_can() {  // This section checks if we have a complete CAN message i
   // Depending on which battery/inverter is selected, we forward this to their respective CAN routines
   CAN_frame_t rx_frame;
   if (xQueueReceive(CAN_cfg.rx_queue, &rx_frame, 0) == pdTRUE) {
+
+    //ISA Shunt
+#ifdef ISA_SHUNT
+    sensor.handleFrame(&rx_frame);
+#endif
     // Battery
 #ifndef SERIAL_LINK_RECEIVER  // Only needs to see inverter
     receive_can_battery(rx_frame);

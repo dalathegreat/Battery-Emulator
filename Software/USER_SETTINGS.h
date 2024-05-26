@@ -9,7 +9,7 @@
 
 /* Select battery used */
 //#define BMW_I3_BATTERY
-//#define CHADEMO_BATTERY
+//#define CHADEMO_BATTERY	//NOTE: inherently enables CONTACTOR_CONTROL below
 //#define IMIEV_CZERO_ION_BATTERY
 //#define KIA_HYUNDAI_64_BATTERY
 //#define KIA_E_GMP_BATTERY
@@ -32,6 +32,10 @@
 //#define SOFAR_CAN        //Enable this line to emulate a "Sofar Energy Storage Inverter High Voltage BMS General Protocol (Extended Frame)" over CAN bus
 //#define SOLAX_CAN        //Enable this line to emulate a "SolaX Triple Power LFP" over CAN bus
 
+/* Select hardware used for Battery-Emulator */
+#define HW_LILYGO
+//#define HW_STARK
+
 /* Other options */
 //#define DEBUG_VIA_USB  //Enable this line to have the USB port output serial diagnostic data while program runs (WARNING, raises CPU load, do not use for production)
 //#define DEBUG_CANFD_DATA    //Enable this line to have the USB port output CAN-FD data while program runs (WARNING, raises CPU load, do not use for production)
@@ -45,6 +49,7 @@
 #define WEBSERVER  //Enable this line to enable WiFi, and to run the webserver. See USER_SETTINGS.cpp for the Wifi settings.
 //#define LOAD_SAVED_SETTINGS_ON_BOOT  //Enable this line to read settings stored via the webserver on boot (overrides any battery settings set in USER_SETTINGS.cpp)
 //#define FUNCTION_TIME_MEASUREMENT  // Enable this to record execution times and present them in the web UI (WARNING, raises CPU load, do not use for production)
+//#define ISA_SHUNT  //Enable this line to build support for ISA IVT shunts
 
 /* MQTT options */
 // #define MQTT  // Enable this line to enable MQTT

@@ -15,8 +15,6 @@ static unsigned long previousMillis640 = 0;    // will store last time a 600ms C
 static unsigned long previousMillis1000 = 0;   // will store last time a 1000ms CAN Message was send
 static unsigned long previousMillis5000 = 0;   // will store last time a 5000ms CAN Message was send
 static unsigned long previousMillis10000 = 0;  // will store last time a 10000ms CAN Message was send
-static uint8_t CANstillAlive = 12;             // counter for checking if CAN is still alive
-static uint16_t CANerror = 0;                  // counter on how many CAN errors encountered
 #define ALIVE_MAX_VALUE 14                     // BMW CAN messages contain alive counter, goes from 0...14
 
 enum BatterySize { BATTERY_60AH, BATTERY_94AH, BATTERY_120AH };
@@ -357,7 +355,6 @@ static uint16_t battery_soc = 0;
 static uint16_t battery_soc_hvmax = 0;
 static uint16_t battery_soc_hvmin = 0;
 static uint16_t battery_capacity_cah = 0;
-static uint16_t battery_cell_deviation_mV = 0;
 static int16_t battery_temperature_HV = 0;
 static int16_t battery_temperature_heat_exchanger = 0;
 static int16_t battery_temperature_max = 0;
@@ -454,27 +451,10 @@ void update_values_battery() {  //This function maps all the values fetched via 
   if (datalayer.battery.status.cell_voltages_mV[0] > 0 && datalayer.battery.status.cell_voltages_mV[2] > 0) {
     datalayer.battery.status.cell_min_voltage_mV = datalayer.battery.status.cell_voltages_mV[0];
     datalayer.battery.status.cell_max_voltage_mV = datalayer.battery.status.cell_voltages_mV[2];
-
-    battery_cell_deviation_mV =
-        (datalayer.battery.status.cell_max_voltage_mV - datalayer.battery.status.cell_min_voltage_mV);
-  } else {
-    battery_cell_deviation_mV = 0;
   }
 
   if (battery_info_available) {
     // Start checking safeties. First up, cellvoltages!
-    if (battery_cell_deviation_mV > MAX_CELL_DEVIATION_MV) {
-      uint8_t report_value = 0;
-      if (battery_cell_deviation_mV <= 20 * 254) {
-        report_value = battery_cell_deviation_mV / 20;
-      } else {
-        report_value = 255;
-      }
-
-      set_event(EVENT_CELL_DEVIATION_HIGH, report_value);
-    } else {
-      clear_event(EVENT_CELL_DEVIATION_HIGH);
-    }
     if (detectedBattery == BATTERY_60AH) {
       datalayer.battery.info.max_design_voltage_dV = MAX_PACK_VOLTAGE_60AH;
       datalayer.battery.info.min_design_voltage_dV = MIN_PACK_VOLTAGE_60AH;
@@ -503,18 +483,6 @@ void update_values_battery() {  //This function maps all the values fetched via 
         set_event(EVENT_CELL_UNDER_VOLTAGE, 0);
       }
     }
-  }
-
-  /* Check if the BMS is still sending CAN messages. If we go 60s without messages we raise an error*/
-  if (!CANstillAlive) {
-    set_event(EVENT_CAN_RX_FAILURE, 0);
-  } else {
-    CANstillAlive--;
-    clear_event(EVENT_CAN_RX_FAILURE);
-  }
-  // Check if we have encountered any malformed CAN messages
-  if (CANerror > MAX_CAN_FAILURES) {
-    set_event(EVENT_CAN_RX_WARNING, 0);
   }
 
   // Perform other safety checks
@@ -559,7 +527,8 @@ void receive_can_battery(CAN_frame_t rx_frame) {
   switch (rx_frame.MsgID) {
     case 0x112:  //BMS [10ms] Status Of High-Voltage Battery - 2
       battery_awake = true;
-      CANstillAlive = 12;  //This message is only sent if 30C (Wakeup pin on battery) is energized with 12V
+      datalayer.battery.status.CAN_battery_still_alive =
+          CAN_STILL_ALIVE;  //This message is only sent if 30C (Wakeup pin on battery) is energized with 12V
       battery_current = (rx_frame.data.u8[1] << 8 | rx_frame.data.u8[0]) - 8192;  //deciAmps (-819.2 to 819.0A)
       battery_volts = (rx_frame.data.u8[3] << 8 | rx_frame.data.u8[2]);           //500.0 V
       battery_HVBatt_SOC = ((rx_frame.data.u8[5] & 0x0F) << 8 | rx_frame.data.u8[4]);
@@ -596,7 +565,7 @@ void receive_can_battery(CAN_frame_t rx_frame) {
       battery_awake = true;
       if (calculateCRC(rx_frame, rx_frame.FIR.B.DLC, 0x15) != rx_frame.data.u8[0]) {
         //If calculated CRC does not match transmitted CRC, increase CANerror counter
-        CANerror++;
+        datalayer.battery.status.CAN_error_counter++;
         break;
       }
       battery_status_diagnostics_HV = (rx_frame.data.u8[2] & 0x0F);
