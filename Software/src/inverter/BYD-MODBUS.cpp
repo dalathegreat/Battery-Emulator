@@ -6,14 +6,16 @@
 
 // For modbus register definitions, see https://gitlab.com/pelle8/inverter_resources/-/blob/main/byd_registers_modbus_rtu.md
 
+#define HISTORY_LENGTH 3  // Amount of samples(minutes) that needs to match for register to be considered stale
 static unsigned long previousMillis60s = 0;  // will store last time a 60s event occured
-static uint32_t previous_value_register_401 = 0x0F0F;
-static uint32_t current_value_register_401 = 0xF0F0;
 static uint32_t user_configured_max_discharge_W = 0;
 static uint32_t user_configured_max_charge_W = 0;
 static uint32_t max_discharge_W = 0;
 static uint32_t max_charge_W = 0;
+static uint16_t register_401_history[HISTORY_LENGTH] = {0};
+static uint8_t history_index = 0;
 static uint8_t bms_char_dis_status = STANDBY;
+static bool all_401_values_equal = false;
 
 void update_modbus_registers_inverter() {
   verify_temperature_modbus();
@@ -115,21 +117,29 @@ void verify_temperature_modbus() {
 
 void verify_inverter_modbus() {
   // Every 60 seconds, the Gen24 writes to this 401 register, alternating between 00FF and FF00.
-  // We use this info to see if inverter is still alive, incase not, raise an event
+  // We sample the register every 60 seconds. Incase the value has not changed for 3 minutes, we raise an event
   unsigned long currentMillis = millis();
 
   if (currentMillis - previousMillis60s >= INTERVAL_60_S) {
     previousMillis60s = currentMillis;
 
-    current_value_register_401 = mbPV[401];
+    all_401_values_equal = true;
+    for (int i = 0; i < HISTORY_LENGTH; ++i) {
+      if (register_401_history[i] != mbPV[401]) {
+        all_401_values_equal = false;
+        break;
+      }
+    }
 
-    if (current_value_register_401 == previous_value_register_401) {
+    if (all_401_values_equal) {
       set_event(EVENT_MODBUS_INVERTER_MISSING, 0);
     } else {
       clear_event(EVENT_MODBUS_INVERTER_MISSING);
     }
 
-    previous_value_register_401 = current_value_register_401;
+    // Update history
+    register_401_history[history_index] = mbPV[401];
+    history_index = (history_index + 1) % HISTORY_LENGTH;
   }
 }
 #endif
