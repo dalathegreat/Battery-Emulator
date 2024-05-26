@@ -23,6 +23,10 @@
 #include "KIA-HYUNDAI-64-BATTERY.h"
 #endif
 
+#ifdef MG_5_BATTERY
+#include "MG-5-BATTERY.h"
+#endif
+
 #ifdef NISSAN_LEAF_BATTERY
 #include "NISSAN-LEAF-BATTERY.h"
 #endif
