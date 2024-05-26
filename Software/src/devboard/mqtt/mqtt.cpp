@@ -75,7 +75,7 @@ static void publish_cell_voltages(void) {
     doc.clear();  // clear after sending autoconfig
   } else {
     // If cell voltages haven't been populated...
-    if (datalayer.battery.info.number_of_cells == 0u) {
+    if (datalayer.battery.info.number_of_cells == 0u || datalayer.battery.status.cell_voltages_mV[datalayer.battery.info.number_of_cells-1]==0u) {
       return;
     }
 
@@ -158,10 +158,12 @@ static void publish_common_info(void) {
     doc["temperature_max"] = ((float)((int16_t)datalayer.battery.status.temperature_max_dC)) / 10.0;
     doc["stat_batt_power"] = ((float)((int32_t)datalayer.battery.status.active_power_W));
     doc["battery_current"] = ((float)((int16_t)datalayer.battery.status.current_dA)) / 10.0;
-    doc["cell_max_voltage"] = ((float)datalayer.battery.status.cell_max_voltage_mV) / 1000.0;
-    doc["cell_min_voltage"] = ((float)datalayer.battery.status.cell_min_voltage_mV) / 1000.0;
     doc["battery_voltage"] = ((float)datalayer.battery.status.voltage_dV) / 10.0;
-
+    // publish only if cell voltages have been populated...
+    if (datalayer.battery.info.number_of_cells != 0u && datalayer.battery.status.cell_voltages_mV[datalayer.battery.info.number_of_cells-1]!=0u) {
+      doc["cell_max_voltage"] = ((float)datalayer.battery.status.cell_max_voltage_mV) / 1000.0;
+      doc["cell_min_voltage"] = ((float)datalayer.battery.status.cell_min_voltage_mV) / 1000.0;
+    }
     serializeJson(doc, mqtt_msg);
     if (!mqtt_publish(state_topic.c_str(), mqtt_msg, false)) {
 #ifdef DEBUG_VIA_USB
