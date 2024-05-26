@@ -1,18 +1,23 @@
 #include "../include.h"
 #ifdef BYD_MODBUS
 #include "../datalayer/datalayer.h"
+#include "../devboard/utils/events.h"
 #include "BYD-MODBUS.h"
 
 // For modbus register definitions, see https://gitlab.com/pelle8/inverter_resources/-/blob/main/byd_registers_modbus_rtu.md
 
-static uint8_t bms_char_dis_status = STANDBY;
+static unsigned long previousMillis60s = 0;  // will store last time a 60s event occured
+static uint32_t previous_value_register_401 = 0x0F0F;
+static uint32_t current_value_register_401 = 0xF0F0;
 static uint32_t user_configured_max_discharge_W = 0;
 static uint32_t user_configured_max_charge_W = 0;
 static uint32_t max_discharge_W = 0;
 static uint32_t max_charge_W = 0;
+static uint8_t bms_char_dis_status = STANDBY;
 
 void update_modbus_registers_inverter() {
   verify_temperature_modbus();
+  verify_inverter_modbus();
   handle_update_data_modbusp201_byd();
   handle_update_data_modbusp301_byd();
 }
@@ -105,6 +110,26 @@ void verify_temperature_modbus() {
         datalayer.battery.status.temperature_max_dC > -200) {  // Between -9.0 and -20.0C degrees
       datalayer.battery.status.temperature_max_dC = -90;       //Cap value to -9.0C
     }
+  }
+}
+
+void verify_inverter_modbus() {
+  // Every 60 seconds, the Gen24 writes to this 401 register, alternating between 00FF and FF00.
+  // We use this info to see if inverter is still alive, incase not, raise an event
+  unsigned long currentMillis = millis();
+
+  if (currentMillis - previousMillis60s >= INTERVAL_60_S) {
+    previousMillis60s = currentMillis;
+
+    current_value_register_401 = mbPV[401];
+
+    if (current_value_register_401 == previous_value_register_401) {
+      set_event(EVENT_MODBUS_INVERTER_MISSING, 0);
+    } else {
+      clear_event(EVENT_MODBUS_INVERTER_MISSING);
+    }
+
+    previous_value_register_401 = current_value_register_401;
   }
 }
 #endif
