@@ -37,7 +37,7 @@ String cellmonitor_processor(const String& var) {
     content += "<script>";
     // Populate cell data
     content += "const data = [";
-    for (uint8_t i = 0u; i < MAX_AMOUNT_CELLS; i++) {
+    for (uint8_t i = 0u; i < datalayer.battery.info.number_of_cells; i++) {
       if (datalayer.battery.status.cell_voltages_mV[i] == 0) {
         continue;
       }
