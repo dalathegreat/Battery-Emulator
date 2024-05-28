@@ -220,11 +220,6 @@ void update_values_battery() { /* This function maps all the values fetched via 
     datalayer.battery.status.max_charge_power_W = 0;  //No need to charge further, set max power to 0
   }
 
-  //Map all cell voltages to the global array
-  for (int i = 0; i < 96; ++i) {
-    datalayer.battery.status.cell_voltages_mV[i] = cell_voltages[i];
-  }
-
   /*Extra safety functions below*/
   if (LB_GIDS < 10)  //700Wh left in battery!
   {                  //Battery is running abnormally low, some discharge logic might have failed. Zero it all out.
@@ -486,6 +481,13 @@ void receive_can_battery(CAN_frame_t rx_frame) {
         }
         if (rx_frame.data.u8[6] == 0xFF && rx_frame.data.u8[0] == 0x2C) {  //Last frame
           //Last frame does not contain any cell data, calculate the result
+
+          //Map all cell voltages to the global array
+          for (int i = 0; i < 96; ++i) {
+            datalayer.battery.status.cell_voltages_mV[i] = cell_voltages[i];
+          }
+
+          //calculate min/max voltages
           min_max_voltage[0] = 9999;
           min_max_voltage[1] = 0;
           for (cellcounter = 0; cellcounter < 96; cellcounter++) {
