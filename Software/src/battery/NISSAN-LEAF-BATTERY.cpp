@@ -16,6 +16,7 @@ static unsigned long previousMillis10s = 0;  // will store last time a 1s CAN Me
 static uint8_t mprun10r = 0;                 //counter 0-20 for 0x1F2 message
 static uint8_t mprun10 = 0;                  //counter 0-3
 static uint8_t mprun100 = 0;                 //counter 0-3
+static bool can_bus_alive = false;
 
 CAN_frame_t LEAF_1F2 = {.FIR = {.B =
                                     {
@@ -335,6 +336,7 @@ void update_values_battery() { /* This function maps all the values fetched via 
 }
 
 void receive_can_battery(CAN_frame_t rx_frame) {
+  can_bus_alive = true;
   switch (rx_frame.MsgID) {
     case 0x1DB:
       if (is_message_corrupt(rx_frame)) {
@@ -585,189 +587,192 @@ void receive_can_battery(CAN_frame_t rx_frame) {
   }
 }
 void send_can_battery() {
-  unsigned long currentMillis = millis();
+  if (can_bus_alive) {
 
-  //Send 10ms message
-  if (currentMillis - previousMillis10 >= INTERVAL_10_MS) {
-    // Check if sending of CAN messages has been delayed too much.
-    if ((currentMillis - previousMillis10 >= INTERVAL_10_MS_DELAYED) && (currentMillis > BOOTUP_TIME)) {
-      set_event(EVENT_CAN_OVERRUN, (currentMillis - previousMillis10));
-    }
-    previousMillis10 = currentMillis;
+    unsigned long currentMillis = millis();
 
-    switch (mprun10) {
-      case 0:
-        LEAF_1D4.data.u8[4] = 0x07;
-        LEAF_1D4.data.u8[7] = 0x12;
-        break;
-      case 1:
-        LEAF_1D4.data.u8[4] = 0x47;
-        LEAF_1D4.data.u8[7] = 0xD5;
-        break;
-      case 2:
-        LEAF_1D4.data.u8[4] = 0x87;
-        LEAF_1D4.data.u8[7] = 0x19;
-        break;
-      case 3:
-        LEAF_1D4.data.u8[4] = 0xC7;
-        LEAF_1D4.data.u8[7] = 0xDE;
-        break;
-    }
-    ESP32Can.CANWriteFrame(&LEAF_1D4);
+    //Send 10ms message
+    if (currentMillis - previousMillis10 >= INTERVAL_10_MS) {
+      // Check if sending of CAN messages has been delayed too much.
+      if ((currentMillis - previousMillis10 >= INTERVAL_10_MS_DELAYED) && (currentMillis > BOOTUP_TIME)) {
+        set_event(EVENT_CAN_OVERRUN, (currentMillis - previousMillis10));
+      }
+      previousMillis10 = currentMillis;
 
-    switch (mprun10r) {
-      case (0):
-        LEAF_1F2.data.u8[3] = 0xB0;
-        LEAF_1F2.data.u8[6] = 0x00;
-        LEAF_1F2.data.u8[7] = 0x8F;
-        break;
-      case (1):
-        LEAF_1F2.data.u8[6] = 0x01;
-        LEAF_1F2.data.u8[7] = 0x80;
-        break;
-      case (2):
-        LEAF_1F2.data.u8[6] = 0x02;
-        LEAF_1F2.data.u8[7] = 0x81;
-        break;
-      case (3):
-        LEAF_1F2.data.u8[6] = 0x03;
-        LEAF_1F2.data.u8[7] = 0x82;
-        break;
-      case (4):
-        LEAF_1F2.data.u8[6] = 0x00;
-        LEAF_1F2.data.u8[7] = 0x8F;
-        break;
-      case (5):  // Set 2
-        LEAF_1F2.data.u8[3] = 0xB4;
-        LEAF_1F2.data.u8[6] = 0x01;
-        LEAF_1F2.data.u8[7] = 0x84;
-        break;
-      case (6):
-        LEAF_1F2.data.u8[6] = 0x02;
-        LEAF_1F2.data.u8[7] = 0x85;
-        break;
-      case (7):
-        LEAF_1F2.data.u8[6] = 0x03;
-        LEAF_1F2.data.u8[7] = 0x86;
-        break;
-      case (8):
-        LEAF_1F2.data.u8[6] = 0x00;
-        LEAF_1F2.data.u8[7] = 0x83;
-        break;
-      case (9):
-        LEAF_1F2.data.u8[6] = 0x01;
-        LEAF_1F2.data.u8[7] = 0x84;
-        break;
-      case (10):  // Set 3
-        LEAF_1F2.data.u8[3] = 0xB0;
-        LEAF_1F2.data.u8[6] = 0x02;
-        LEAF_1F2.data.u8[7] = 0x81;
-        break;
-      case (11):
-        LEAF_1F2.data.u8[6] = 0x03;
-        LEAF_1F2.data.u8[7] = 0x82;
-        break;
-      case (12):
-        LEAF_1F2.data.u8[6] = 0x00;
-        LEAF_1F2.data.u8[7] = 0x8F;
-        break;
-      case (13):
-        LEAF_1F2.data.u8[6] = 0x01;
-        LEAF_1F2.data.u8[7] = 0x80;
-        break;
-      case (14):
-        LEAF_1F2.data.u8[6] = 0x02;
-        LEAF_1F2.data.u8[7] = 0x81;
-        break;
-      case (15):  // Set 4
-        LEAF_1F2.data.u8[3] = 0xB4;
-        LEAF_1F2.data.u8[6] = 0x03;
-        LEAF_1F2.data.u8[7] = 0x86;
-        break;
-      case (16):
-        LEAF_1F2.data.u8[6] = 0x00;
-        LEAF_1F2.data.u8[7] = 0x83;
-        break;
-      case (17):
-        LEAF_1F2.data.u8[6] = 0x01;
-        LEAF_1F2.data.u8[7] = 0x84;
-        break;
-      case (18):
-        LEAF_1F2.data.u8[6] = 0x02;
-        LEAF_1F2.data.u8[7] = 0x85;
-        break;
-      case (19):
-        LEAF_1F2.data.u8[6] = 0x03;
-        LEAF_1F2.data.u8[7] = 0x86;
-        break;
-      default:
-        break;
-    }
+      switch (mprun10) {
+        case 0:
+          LEAF_1D4.data.u8[4] = 0x07;
+          LEAF_1D4.data.u8[7] = 0x12;
+          break;
+        case 1:
+          LEAF_1D4.data.u8[4] = 0x47;
+          LEAF_1D4.data.u8[7] = 0xD5;
+          break;
+        case 2:
+          LEAF_1D4.data.u8[4] = 0x87;
+          LEAF_1D4.data.u8[7] = 0x19;
+          break;
+        case 3:
+          LEAF_1D4.data.u8[4] = 0xC7;
+          LEAF_1D4.data.u8[7] = 0xDE;
+          break;
+      }
+      ESP32Can.CANWriteFrame(&LEAF_1D4);
+
+      switch (mprun10r) {
+        case (0):
+          LEAF_1F2.data.u8[3] = 0xB0;
+          LEAF_1F2.data.u8[6] = 0x00;
+          LEAF_1F2.data.u8[7] = 0x8F;
+          break;
+        case (1):
+          LEAF_1F2.data.u8[6] = 0x01;
+          LEAF_1F2.data.u8[7] = 0x80;
+          break;
+        case (2):
+          LEAF_1F2.data.u8[6] = 0x02;
+          LEAF_1F2.data.u8[7] = 0x81;
+          break;
+        case (3):
+          LEAF_1F2.data.u8[6] = 0x03;
+          LEAF_1F2.data.u8[7] = 0x82;
+          break;
+        case (4):
+          LEAF_1F2.data.u8[6] = 0x00;
+          LEAF_1F2.data.u8[7] = 0x8F;
+          break;
+        case (5):  // Set 2
+          LEAF_1F2.data.u8[3] = 0xB4;
+          LEAF_1F2.data.u8[6] = 0x01;
+          LEAF_1F2.data.u8[7] = 0x84;
+          break;
+        case (6):
+          LEAF_1F2.data.u8[6] = 0x02;
+          LEAF_1F2.data.u8[7] = 0x85;
+          break;
+        case (7):
+          LEAF_1F2.data.u8[6] = 0x03;
+          LEAF_1F2.data.u8[7] = 0x86;
+          break;
+        case (8):
+          LEAF_1F2.data.u8[6] = 0x00;
+          LEAF_1F2.data.u8[7] = 0x83;
+          break;
+        case (9):
+          LEAF_1F2.data.u8[6] = 0x01;
+          LEAF_1F2.data.u8[7] = 0x84;
+          break;
+        case (10):  // Set 3
+          LEAF_1F2.data.u8[3] = 0xB0;
+          LEAF_1F2.data.u8[6] = 0x02;
+          LEAF_1F2.data.u8[7] = 0x81;
+          break;
+        case (11):
+          LEAF_1F2.data.u8[6] = 0x03;
+          LEAF_1F2.data.u8[7] = 0x82;
+          break;
+        case (12):
+          LEAF_1F2.data.u8[6] = 0x00;
+          LEAF_1F2.data.u8[7] = 0x8F;
+          break;
+        case (13):
+          LEAF_1F2.data.u8[6] = 0x01;
+          LEAF_1F2.data.u8[7] = 0x80;
+          break;
+        case (14):
+          LEAF_1F2.data.u8[6] = 0x02;
+          LEAF_1F2.data.u8[7] = 0x81;
+          break;
+        case (15):  // Set 4
+          LEAF_1F2.data.u8[3] = 0xB4;
+          LEAF_1F2.data.u8[6] = 0x03;
+          LEAF_1F2.data.u8[7] = 0x86;
+          break;
+        case (16):
+          LEAF_1F2.data.u8[6] = 0x00;
+          LEAF_1F2.data.u8[7] = 0x83;
+          break;
+        case (17):
+          LEAF_1F2.data.u8[6] = 0x01;
+          LEAF_1F2.data.u8[7] = 0x84;
+          break;
+        case (18):
+          LEAF_1F2.data.u8[6] = 0x02;
+          LEAF_1F2.data.u8[7] = 0x85;
+          break;
+        case (19):
+          LEAF_1F2.data.u8[6] = 0x03;
+          LEAF_1F2.data.u8[7] = 0x86;
+          break;
+        default:
+          break;
+      }
 
 //Only send this message when NISSANLEAF_CHARGER is not defined (otherwise it will collide!)
 #ifndef NISSANLEAF_CHARGER
-    ESP32Can.CANWriteFrame(&LEAF_1F2);  //Contains (CHG_STA_RQ == 1 == Normal Charge)
+      ESP32Can.CANWriteFrame(&LEAF_1F2);  //Contains (CHG_STA_RQ == 1 == Normal Charge)
 #endif
 
-    mprun10r = (mprun10r + 1) % 20;  // 0x1F2 patter repeats after 20 messages. 0-1..19-0
+      mprun10r = (mprun10r + 1) % 20;  // 0x1F2 patter repeats after 20 messages. 0-1..19-0
 
-    mprun10 = (mprun10 + 1) % 4;  // mprun10 cycles between 0-1-2-3-0-1...
-  }
-
-  // Send 100ms CAN Message
-  if (currentMillis - previousMillis100 >= INTERVAL_100_MS) {
-    previousMillis100 = currentMillis;
-
-    //When battery requests heating pack status change, ack this
-    if (Batt_Heater_Mail_Send_Request) {
-      LEAF_50B.data.u8[6] = 0x20;  //Batt_Heater_Mail_Send_OK
-    } else {
-      LEAF_50B.data.u8[6] = 0x00;  //Batt_Heater_Mail_Send_NG
+      mprun10 = (mprun10 + 1) % 4;  // mprun10 cycles between 0-1-2-3-0-1...
     }
 
-    // VCM message, containing info if battery should sleep or stay awake
-    ESP32Can.CANWriteFrame(&LEAF_50B);  // HCM_WakeUpSleepCommand == 11b == WakeUp, and CANMASK = 1
+    // Send 100ms CAN Message
+    if (currentMillis - previousMillis100 >= INTERVAL_100_MS) {
+      previousMillis100 = currentMillis;
 
-    LEAF_50C.data.u8[3] = mprun100;
-    switch (mprun100) {
-      case 0:
-        LEAF_50C.data.u8[4] = 0x5D;
-        LEAF_50C.data.u8[5] = 0xC8;
-        break;
-      case 1:
-        LEAF_50C.data.u8[4] = 0xB2;
-        LEAF_50C.data.u8[5] = 0x31;
-        break;
-      case 2:
-        LEAF_50C.data.u8[4] = 0x5D;
-        LEAF_50C.data.u8[5] = 0x63;
-        break;
-      case 3:
-        LEAF_50C.data.u8[4] = 0xB2;
-        LEAF_50C.data.u8[5] = 0x9A;
-        break;
+      //When battery requests heating pack status change, ack this
+      if (Batt_Heater_Mail_Send_Request) {
+        LEAF_50B.data.u8[6] = 0x20;  //Batt_Heater_Mail_Send_OK
+      } else {
+        LEAF_50B.data.u8[6] = 0x00;  //Batt_Heater_Mail_Send_NG
+      }
+
+      // VCM message, containing info if battery should sleep or stay awake
+      ESP32Can.CANWriteFrame(&LEAF_50B);  // HCM_WakeUpSleepCommand == 11b == WakeUp, and CANMASK = 1
+
+      LEAF_50C.data.u8[3] = mprun100;
+      switch (mprun100) {
+        case 0:
+          LEAF_50C.data.u8[4] = 0x5D;
+          LEAF_50C.data.u8[5] = 0xC8;
+          break;
+        case 1:
+          LEAF_50C.data.u8[4] = 0xB2;
+          LEAF_50C.data.u8[5] = 0x31;
+          break;
+        case 2:
+          LEAF_50C.data.u8[4] = 0x5D;
+          LEAF_50C.data.u8[5] = 0x63;
+          break;
+        case 3:
+          LEAF_50C.data.u8[4] = 0xB2;
+          LEAF_50C.data.u8[5] = 0x9A;
+          break;
+      }
+      ESP32Can.CANWriteFrame(&LEAF_50C);
+
+      mprun100 = (mprun100 + 1) % 4;  // mprun100 cycles between 0-1-2-3-0-1...
     }
-    ESP32Can.CANWriteFrame(&LEAF_50C);
 
-    mprun100 = (mprun100 + 1) % 4;  // mprun100 cycles between 0-1-2-3-0-1...
-  }
+    //Send 10s CAN messages
+    if (currentMillis - previousMillis10s >= INTERVAL_10_S) {
+      previousMillis10s = currentMillis;
 
-  //Send 10s CAN messages
-  if (currentMillis - previousMillis10s >= INTERVAL_10_S) {
-    previousMillis10s = currentMillis;
+      //Every 10s, ask diagnostic data from the battery. Don't ask if someone is already polling on the bus (Leafspy?)
+      if (!stop_battery_query) {
+        group = (group == 1) ? 2 : (group == 2) ? 4 : 1;
+        // Cycle between group 1, 2, and 4 using ternary operation
+        LEAF_GROUP_REQUEST.data.u8[2] = group;
+        ESP32Can.CANWriteFrame(&LEAF_GROUP_REQUEST);
+      }
 
-    //Every 10s, ask diagnostic data from the battery. Don't ask if someone is already polling on the bus (Leafspy?)
-    if (!stop_battery_query) {
-      group = (group == 1) ? 2 : (group == 2) ? 4 : 1;
-      // Cycle between group 1, 2, and 4 using ternary operation
-      LEAF_GROUP_REQUEST.data.u8[2] = group;
-      ESP32Can.CANWriteFrame(&LEAF_GROUP_REQUEST);
-    }
-
-    if (hold_off_with_polling_10seconds > 0) {
-      hold_off_with_polling_10seconds--;
-    } else {
-      stop_battery_query = false;
+      if (hold_off_with_polling_10seconds > 0) {
+        hold_off_with_polling_10seconds--;
+      } else {
+        stop_battery_query = false;
+      }
     }
   }
 }
