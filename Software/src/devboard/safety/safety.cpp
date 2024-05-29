@@ -39,6 +39,7 @@ void update_machineryprotection() {
   if (datalayer.battery.status.reported_soc == 10000)  //Scaled SOC% value is 100.00%
   {
     set_event(EVENT_BATTERY_FULL, 0);
+    datalayer.battery.status.max_charge_power_W = 0;
   } else {
     clear_event(EVENT_BATTERY_FULL);
   }
@@ -47,6 +48,7 @@ void update_machineryprotection() {
   // Normally the BMS will send 0W allowed, but this acts as an additional layer of safety
   if (datalayer.battery.status.reported_soc == 0) {  //Scaled SOC% value is 0.00%
     set_event(EVENT_BATTERY_EMPTY, 0);
+    datalayer.battery.status.max_discharge_power_W = 0;
   } else {
     clear_event(EVENT_BATTERY_EMPTY);
   }
