@@ -35,11 +35,41 @@ void update_machineryprotection() {
     clear_event(EVENT_BATTERY_UNDERVOLTAGE);
   }
 
+  // Battery is fully charged. Dont allow any more power into it
+  // Normally the BMS will send 0W allowed, but this acts as an additional layer of safety
+  if (datalayer.battery.status.reported_soc == 10000)  //Scaled SOC% value is 100.00%
+  {
+    set_event(EVENT_BATTERY_FULL, 0);
+    datalayer.battery.status.max_charge_power_W = 0;
+  } else {
+    clear_event(EVENT_BATTERY_FULL);
+  }
+
+  // Battery is empty. Do not allow further discharge.
+  // Normally the BMS will send 0W allowed, but this acts as an additional layer of safety
+  if (datalayer.battery.status.reported_soc == 0) {  //Scaled SOC% value is 0.00%
+    set_event(EVENT_BATTERY_EMPTY, 0);
+    datalayer.battery.status.max_discharge_power_W = 0;
+  } else {
+    clear_event(EVENT_BATTERY_EMPTY);
+  }
+
   // Battery is extremely degraded, not fit for secondlifestorage!
   if (datalayer.battery.status.soh_pptt < 2500) {
     set_event(EVENT_LOW_SOH, datalayer.battery.status.soh_pptt);
   } else {
     clear_event(EVENT_LOW_SOH);
+  }
+
+  // Check if SOC% is plausible
+  if (datalayer.battery.status.voltage_dV >
+      (datalayer.battery.info.max_design_voltage_dV -
+       100)) {  // When pack voltage is close to max, and SOC% is still low, raise event
+    if (datalayer.battery.status.real_soc < 6500) {  // 65.00%
+      set_event(EVENT_SOC_PLAUSIBILITY_ERROR, datalayer.battery.status.real_soc);
+    } else {
+      clear_event(EVENT_SOC_PLAUSIBILITY_ERROR);
+    }
   }
 
   // Check diff between highest and lowest cell

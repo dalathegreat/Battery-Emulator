@@ -393,7 +393,7 @@ static uint8_t battery_status_diagnosis_powertrain_maximum_multiplexer = 0;
 static uint8_t battery_status_diagnosis_powertrain_immediate_multiplexer = 0;
 static uint8_t battery_ID2 = 0;
 static uint8_t battery_cellvoltage_mux = 0;
-static uint8_t battery_soh = 0;
+static uint8_t battery_soh = 99;
 
 static uint8_t message_data[50];
 static uint8_t next_data = 0;
@@ -429,16 +429,9 @@ void update_values_battery() {  //This function maps all the values fetched via 
 
   datalayer.battery.status.soh_pptt = battery_soh * 100;
 
-  if (battery_BEV_available_power_longterm_discharge > 65000) {
-    datalayer.battery.status.max_discharge_power_W = 65000;
-  } else {
-    datalayer.battery.status.max_discharge_power_W = battery_BEV_available_power_longterm_discharge;
-  }
-  if (battery_BEV_available_power_longterm_charge > 65000) {
-    datalayer.battery.status.max_charge_power_W = 65000;
-  } else {
-    datalayer.battery.status.max_charge_power_W = battery_BEV_available_power_longterm_charge;
-  }
+  datalayer.battery.status.max_discharge_power_W = battery_BEV_available_power_longterm_discharge;
+
+  datalayer.battery.status.max_charge_power_W = battery_BEV_available_power_longterm_charge;
 
   battery_power = (datalayer.battery.status.current_dA * (datalayer.battery.status.voltage_dV / 100));
 
