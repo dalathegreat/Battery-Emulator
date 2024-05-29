@@ -2,7 +2,7 @@
 #include "../utils/events.h"
 
 static uint16_t cell_deviation_mV = 0;
-static uint16_t charge_discharge_limit_failures = 0;
+static uint8_t charge_discharge_limit_failures = 0;
 
 void update_machineryprotection() {
   // Start checking that the battery is within reason. Incase we see any funny business, raise an event!
