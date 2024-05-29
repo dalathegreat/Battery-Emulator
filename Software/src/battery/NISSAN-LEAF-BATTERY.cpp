@@ -336,9 +336,9 @@ void update_values_battery() { /* This function maps all the values fetched via 
 }
 
 void receive_can_battery(CAN_frame_t rx_frame) {
-  can_bus_alive = true;
   switch (rx_frame.MsgID) {
     case 0x1DB:
+      can_bus_alive = true;
       if (is_message_corrupt(rx_frame)) {
         datalayer.battery.status.CAN_error_counter++;
         break;  //Message content malformed, abort reading data from it
