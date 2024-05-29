@@ -50,7 +50,7 @@ void handle_static_data_modbus_byd() {
 }
 
 void handle_update_data_modbusp201_byd() {
-  mbPV[202] = std::min(datalayer.battery.info.total_capacity_Wh, 60000u);  //Cap capacity to 60kWh if needed
+  mbPV[202] = std::min(datalayer.battery.info.total_capacity_Wh, static_cast<uint32_t>(60000u));  //Cap to 60kWh
   mbPV[205] = (datalayer.battery.info.max_design_voltage_dV);  // Max Voltage, if higher Gen24 forces discharge
   mbPV[206] = (datalayer.battery.info.min_design_voltage_dV);  // Min Voltage, if lower Gen24 disables battery
 }
@@ -83,10 +83,10 @@ void handle_update_data_modbusp301_byd() {
   mbPV[300] = datalayer.battery.status.bms_status;
   mbPV[302] = 128 + bms_char_dis_status;
   mbPV[303] = datalayer.battery.status.reported_soc;
-  mbPV[304] = std::min(datalayer.battery.info.total_capacity_Wh, 60000u);        //Cap capacity to 60kWh if needed
-  mbPV[305] = std::min(datalayer.battery.status.remaining_capacity_Wh, 60000u);  //Cap capacity to 60kWh if needed
-  mbPV[306] = std::min(max_discharge_W, 30000u);                                 //Cap to 30000 if exceeding
-  mbPV[307] = std::min(max_charge_W, 30000u);                                    //Cap to 30000 if exceeding
+  mbPV[304] = std::min(datalayer.battery.info.total_capacity_Wh, static_cast<uint32_t>(60000u));        //Cap to 60kWh
+  mbPV[305] = std::min(datalayer.battery.status.remaining_capacity_Wh, static_cast<uint32_t>(60000u));  //Cap to 60kWh
+  mbPV[306] = std::min(max_discharge_W, static_cast<uint32_t>(30000u));  //Cap to 30000 if exceeding
+  mbPV[307] = std::min(max_charge_W, static_cast<uint32_t>(30000u));     //Cap to 30000 if exceeding
   mbPV[310] = datalayer.battery.status.voltage_dV;
   mbPV[312] = datalayer.battery.status.temperature_min_dC;
   mbPV[313] = datalayer.battery.status.temperature_max_dC;
