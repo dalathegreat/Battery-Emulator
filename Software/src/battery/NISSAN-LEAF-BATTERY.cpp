@@ -199,27 +199,9 @@ void update_values_battery() { /* This function maps all the values fetched via 
     }
   }
 
-  // Define power able to be discharged from battery
-  if (LB_Discharge_Power_Limit > 60) {                       //if >60kW can be pulled from battery
-    datalayer.battery.status.max_discharge_power_W = 60000;  //cap value so we don't go over uint16 value
-  } else {
-    datalayer.battery.status.max_discharge_power_W = (LB_Discharge_Power_Limit * 1000);  //kW to W
-  }
-  if (datalayer.battery.status.reported_soc ==
-      0) {  //Scaled SOC% value is 0.00%, we should not discharge battery further
-    datalayer.battery.status.max_discharge_power_W = 0;
-  }
+  datalayer.battery.status.max_discharge_power_W = (LB_Discharge_Power_Limit * 1000);  //kW to W
 
-  // Define power able to be put into the battery
-  if (LB_Charge_Power_Limit > 60) {                       //if >60kW can be put into the battery
-    datalayer.battery.status.max_charge_power_W = 60000;  //cap value so we don't go over uint16 value
-  } else {
-    datalayer.battery.status.max_charge_power_W = (LB_Charge_Power_Limit * 1000);  //kW to W
-  }
-  if (datalayer.battery.status.reported_soc == 10000)  //Scaled SOC% value is 100.00%
-  {
-    datalayer.battery.status.max_charge_power_W = 0;  //No need to charge further, set max power to 0
-  }
+  datalayer.battery.status.max_charge_power_W = (LB_Charge_Power_Limit * 1000);  //kW to W
 
   /*Extra safety functions below*/
   if (LB_GIDS < 10)  //700Wh left in battery!
@@ -227,17 +209,6 @@ void update_values_battery() { /* This function maps all the values fetched via 
     set_event(EVENT_BATTERY_EMPTY, 0);
     datalayer.battery.status.real_soc = 0;
     datalayer.battery.status.max_discharge_power_W = 0;
-  }
-
-  //Check if SOC% is plausible
-  if (datalayer.battery.status.voltage_dV >
-      (datalayer.battery.info.max_design_voltage_dV -
-       100)) {  // When pack voltage is close to max, and SOC% is still low, raise FAULT
-    if (LB_SOC < 650) {
-      set_event(EVENT_SOC_PLAUSIBILITY_ERROR, LB_SOC / 10);  // Set event with the SOC as data
-    } else {
-      clear_event(EVENT_SOC_PLAUSIBILITY_ERROR);
-    }
   }
 
   if (LB_Full_CHARGE_flag) {  //Battery reports that it is fully charged stop all further charging incase it hasn't already
@@ -315,12 +286,6 @@ void update_values_battery() { /* This function maps all the values fetched via 
     if (LB_Heating_Start) {
       set_event(EVENT_BATTERY_REQUESTS_HEAT, 0);
     }
-  }
-
-  if (datalayer.battery.status.bms_status ==
-      FAULT) {  //Incase we enter a critical fault state, zero out the allowed limits
-    datalayer.battery.status.max_charge_power_W = 0;
-    datalayer.battery.status.max_discharge_power_W = 0;
   }
 
 /*Finally print out values to serial if configured to do so*/

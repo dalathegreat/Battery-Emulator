@@ -68,18 +68,12 @@ void update_values_battery() {  //This function maps all the values fetched via 
       (static_cast<double>(datalayer.battery.status.real_soc) / 10000) * datalayer.battery.info.total_capacity_Wh);
 
   //datalayer.battery.status.max_charge_power_W = (uint16_t)allowedChargePower * 10;  //From kW*100 to Watts
-  //The allowed charge power is not available. We estimate this value
-  if (datalayer.battery.status.reported_soc == 10000) {  // When scaled SOC is 100%, set allowed charge power to 0
-    datalayer.battery.status.max_charge_power_W = 0;
-  } else {  // No limits, max charging power allowed
-    datalayer.battery.status.max_charge_power_W = MAXCHARGEPOWERALLOWED;
-  }
+  //The allowed charge power is not available. We hardcode this value for now
+  datalayer.battery.status.max_charge_power_W = MAXCHARGEPOWERALLOWED;
+
   //datalayer.battery.status.max_discharge_power_W = (uint16_t)allowedDischargePower * 10;  //From kW*100 to Watts
-  if (datalayer.battery.status.reported_soc < 100) {  // When scaled SOC is <1%, set allowed charge power to 0
-    datalayer.battery.status.max_discharge_power_W = 0;
-  } else {  // No limits, max charging power allowed
-    datalayer.battery.status.max_discharge_power_W = MAXDISCHARGEPOWERALLOWED;
-  }
+  //The allowed discharge power is not available. We hardcode this value for now
+  datalayer.battery.status.max_discharge_power_W = MAXDISCHARGEPOWERALLOWED;
 
   powerWatt = ((batteryVoltage * batteryAmps) / 100);
 
@@ -115,12 +109,6 @@ void update_values_battery() {  //This function maps all the values fetched via 
   }
   if (CellVoltMin_mV <= MIN_CELL_VOLTAGE) {
     set_event(EVENT_CELL_UNDER_VOLTAGE, 0);
-  }
-
-  if (datalayer.battery.status.bms_status ==
-      FAULT) {  //Incase we enter a critical fault state, zero out the allowed limits
-    datalayer.battery.status.max_charge_power_W = 0;
-    datalayer.battery.status.max_discharge_power_W = 0;
   }
 
   /* Safeties verified. Perform USB serial printout if configured to do so */

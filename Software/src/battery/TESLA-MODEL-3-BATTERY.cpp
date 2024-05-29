@@ -32,7 +32,6 @@ static uint32_t total_discharge = 0;
 static uint32_t total_charge = 0;
 static uint16_t volts = 0;     // V
 static int16_t amps = 0;       // A
-static int16_t power = 0;      // W
 static uint16_t raw_amps = 0;  // A
 static int16_t max_temp = 0;   // C*
 static int16_t min_temp = 0;   // C*
@@ -189,17 +188,13 @@ void update_values_battery() {  //This function maps all the values fetched via 
 
   // Define the allowed discharge power
   datalayer.battery.status.max_discharge_power_W = (max_discharge_current * volts);
-  // Cap the allowed discharge power if battery is empty, or discharge power is higher than the maximum discharge power allowed
-  if (datalayer.battery.status.reported_soc == 0) {
-    datalayer.battery.status.max_discharge_power_W = 0;
-  } else if (datalayer.battery.status.max_discharge_power_W > MAXDISCHARGEPOWERALLOWED) {
+  // Cap the allowed discharge power if higher than the maximum discharge power allowed
+  if (datalayer.battery.status.max_discharge_power_W > MAXDISCHARGEPOWERALLOWED) {
     datalayer.battery.status.max_discharge_power_W = MAXDISCHARGEPOWERALLOWED;
   }
 
   //The allowed charge power behaves strangely. We instead estimate this value
-  if (datalayer.battery.status.reported_soc == 10000) {  // When scaled SOC is 100.00%, set allowed charge power to 0
-    datalayer.battery.status.max_charge_power_W = 0;
-  } else if (soc_vi > 990) {
+  if (soc_vi > 990) {
     datalayer.battery.status.max_charge_power_W = FLOAT_MAX_POWER_W;
   } else if (soc_vi > RAMPDOWN_SOC) {  // When real SOC is between RAMPDOWN_SOC-99%, ramp the value between Max<->0
     datalayer.battery.status.max_charge_power_W =
@@ -218,8 +213,7 @@ void update_values_battery() {  //This function maps all the values fetched via 
     datalayer.battery.status.max_charge_power_W = MAXCHARGEPOWERALLOWED;
   }
 
-  power = ((volts / 10) * amps);
-  datalayer.battery.status.active_power_W = power;
+  datalayer.battery.status.active_power_W = ((volts / 10) * amps);
 
   datalayer.battery.status.temperature_min_dC = min_temp;
 
@@ -301,12 +295,6 @@ void update_values_battery() {  //This function maps all the values fetched via 
     } else {
       clear_event(EVENT_CELL_DEVIATION_HIGH);
     }
-  }
-
-  if (datalayer.battery.status.bms_status ==
-      FAULT) {  //Incase we enter a critical fault state, zero out the allowed limits
-    datalayer.battery.status.max_charge_power_W = 0;
-    datalayer.battery.status.max_discharge_power_W = 0;
   }
 
   /* Safeties verified. Perform USB serial printout if configured to do so */
