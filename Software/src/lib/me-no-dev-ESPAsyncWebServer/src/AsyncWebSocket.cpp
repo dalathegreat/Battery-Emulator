@@ -548,7 +548,7 @@ void AsyncWebSocketClient::_queueMessage(AsyncWebSocketMessage *dataMessage){
     return;
   }
   if(_messageQueue.length() >= WS_MAX_QUEUED_MESSAGES){
-      ets_printf("ERROR: Too many messages queued\n");
+      //ets_printf("ERROR: Too many messages queued\n");
       delete dataMessage;
   } else {
       _messageQueue.add(dataMessage);
@@ -829,7 +829,7 @@ void AsyncWebSocketClient::binary(AsyncWebSocketMessageBuffer * buffer)
 
 IPAddress AsyncWebSocketClient::remoteIP() {
     if(!_client) {
-        return IPAddress(0U);
+        return IPAddress(static_cast<uint32_t>(0U));
     }
     return _client->remoteIP();
 }
@@ -1259,9 +1259,9 @@ AsyncWebSocketResponse::AsyncWebSocketResponse(const String& key, AsyncWebSocket
   (String&)key += WS_STR_UUID;
   mbedtls_sha1_context ctx;
   mbedtls_sha1_init(&ctx);
-  mbedtls_sha1_starts_ret(&ctx);
-  mbedtls_sha1_update_ret(&ctx, (const unsigned char*)key.c_str(), key.length());
-  mbedtls_sha1_finish_ret(&ctx, hash);
+  mbedtls_sha1_starts(&ctx);
+  mbedtls_sha1_update(&ctx, (const unsigned char*)key.c_str(), key.length());
+  mbedtls_sha1_finish(&ctx, hash);
   mbedtls_sha1_free(&ctx);
 #endif
   base64_encodestate _state;
