@@ -48,19 +48,10 @@ void update_values_battery() {  //This function maps all the values fetched via 
   datalayer.battery.status.remaining_capacity_Wh = static_cast<uint32_t>(
       (static_cast<double>(datalayer.battery.status.real_soc) / 10000) * datalayer.battery.info.total_capacity_Wh);
 
-  //We do not know if the max charge power is sent by the battery. So we estimate the value based on SOC%
-  if (datalayer.battery.status.reported_soc == 10000) {  //100.00%
-    datalayer.battery.status.max_charge_power_W = 0;     //When battery is 100% full, set allowed charge W to 0
-  } else {
-    datalayer.battery.status.max_charge_power_W = 10000;  //Otherwise we can push 10kW into the pack!
-  }
+  //We do not know the max charge/discharge power is sent by the battery. We hardcode value for now.
+  datalayer.battery.status.max_charge_power_W = 10000;  // 10kW   //TODO: Fix when CAN is decoded
 
-  if (datalayer.battery.status.reported_soc < 200) {  //2.00%
-    datalayer.battery.status.max_discharge_power_W =
-        0;  //When battery is empty (below 2%), set allowed discharge W to 0
-  } else {
-    datalayer.battery.status.max_discharge_power_W = 10000;  //Otherwise we can discharge 10kW from the pack!
-  }
+  datalayer.battery.status.max_discharge_power_W = 10000;  // 10kW   //TODO: Fix when CAN is decoded
 
   datalayer.battery.status.active_power_W = BMU_Power;  //TODO: Scaling?
 

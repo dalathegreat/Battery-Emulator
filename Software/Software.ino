@@ -233,10 +233,13 @@ void core_loop(void* task_time_us) {
     START_TIME_MEASUREMENT(time_5s);
     if (millis() - previousMillisUpdateVal >= intervalUpdateValues)  // Every 5s normally
     {
-      previousMillisUpdateVal = millis();
-      update_machineryprotection();
-      update_SOC();     // Check if real or calculated SOC% value should be sent
-      update_values();  // Update values heading towards inverter. Prepare for sending on CAN, or write directly to Modbus.
+      previousMillisUpdateVal = millis();  // Order matters on the update_loop!
+      update_values_battery();             // Fetch battery values
+      update_SOC();                        // Check if real or calculated SOC% value should be sent
+#ifndef SERIAL_LINK_RECEIVER
+      update_machineryprotection();  // Check safeties (Not on serial link reciever board)
+#endif
+      update_values_inverter();  // Update values heading towards inverter
       if (DUMMY_EVENT_ENABLED) {
         set_event(EVENT_DUMMY_ERROR, (uint8_t)millis());
       }
@@ -700,10 +703,7 @@ void update_SOC() {
   }
 }
 
-void update_values() {
-  // Battery
-  update_values_battery();
-  // Inverter
+void update_values_inverter() {
 #ifdef CAN_INVERTER_SELECTED
   update_values_can_inverter();
 #endif
