@@ -1,18 +1,25 @@
 #include "../include.h"
 #ifdef BYD_MODBUS
 #include "../datalayer/datalayer.h"
+#include "../devboard/utils/events.h"
 #include "BYD-MODBUS.h"
 
 // For modbus register definitions, see https://gitlab.com/pelle8/inverter_resources/-/blob/main/byd_registers_modbus_rtu.md
 
-static uint8_t bms_char_dis_status = STANDBY;
+#define HISTORY_LENGTH 3  // Amount of samples(minutes) that needs to match for register to be considered stale
+static unsigned long previousMillis60s = 0;  // will store last time a 60s event occured
 static uint32_t user_configured_max_discharge_W = 0;
 static uint32_t user_configured_max_charge_W = 0;
 static uint32_t max_discharge_W = 0;
 static uint32_t max_charge_W = 0;
+static uint16_t register_401_history[HISTORY_LENGTH] = {0};
+static uint8_t history_index = 0;
+static uint8_t bms_char_dis_status = STANDBY;
+static bool all_401_values_equal = false;
 
 void update_modbus_registers_inverter() {
   verify_temperature_modbus();
+  verify_inverter_modbus();
   handle_update_data_modbusp201_byd();
   handle_update_data_modbusp301_byd();
 }
@@ -43,7 +50,7 @@ void handle_static_data_modbus_byd() {
 }
 
 void handle_update_data_modbusp201_byd() {
-  mbPV[202] = std::min(datalayer.battery.info.total_capacity_Wh, 60000u);  //Cap capacity to 60kWh if needed
+  mbPV[202] = std::min(datalayer.battery.info.total_capacity_Wh, static_cast<uint32_t>(60000u));  //Cap to 60kWh
   mbPV[205] = (datalayer.battery.info.max_design_voltage_dV);  // Max Voltage, if higher Gen24 forces discharge
   mbPV[206] = (datalayer.battery.info.min_design_voltage_dV);  // Min Voltage, if lower Gen24 disables battery
 }
@@ -76,10 +83,10 @@ void handle_update_data_modbusp301_byd() {
   mbPV[300] = datalayer.battery.status.bms_status;
   mbPV[302] = 128 + bms_char_dis_status;
   mbPV[303] = datalayer.battery.status.reported_soc;
-  mbPV[304] = std::min(datalayer.battery.info.total_capacity_Wh, 60000u);        //Cap capacity to 60kWh if needed
-  mbPV[305] = std::min(datalayer.battery.status.remaining_capacity_Wh, 60000u);  //Cap capacity to 60kWh if needed
-  mbPV[306] = std::min(max_discharge_W, 30000u);                                 //Cap to 30000 if exceeding
-  mbPV[307] = std::min(max_charge_W, 30000u);                                    //Cap to 30000 if exceeding
+  mbPV[304] = std::min(datalayer.battery.info.total_capacity_Wh, static_cast<uint32_t>(60000u));        //Cap to 60kWh
+  mbPV[305] = std::min(datalayer.battery.status.remaining_capacity_Wh, static_cast<uint32_t>(60000u));  //Cap to 60kWh
+  mbPV[306] = std::min(max_discharge_W, static_cast<uint32_t>(30000u));  //Cap to 30000 if exceeding
+  mbPV[307] = std::min(max_charge_W, static_cast<uint32_t>(30000u));     //Cap to 30000 if exceeding
   mbPV[310] = datalayer.battery.status.voltage_dV;
   mbPV[312] = datalayer.battery.status.temperature_min_dC;
   mbPV[313] = datalayer.battery.status.temperature_max_dC;
@@ -105,6 +112,34 @@ void verify_temperature_modbus() {
         datalayer.battery.status.temperature_max_dC > -200) {  // Between -9.0 and -20.0C degrees
       datalayer.battery.status.temperature_max_dC = -90;       //Cap value to -9.0C
     }
+  }
+}
+
+void verify_inverter_modbus() {
+  // Every 60 seconds, the Gen24 writes to this 401 register, alternating between 00FF and FF00.
+  // We sample the register every 60 seconds. Incase the value has not changed for 3 minutes, we raise an event
+  unsigned long currentMillis = millis();
+
+  if (currentMillis - previousMillis60s >= INTERVAL_60_S) {
+    previousMillis60s = currentMillis;
+
+    all_401_values_equal = true;
+    for (int i = 0; i < HISTORY_LENGTH; ++i) {
+      if (register_401_history[i] != mbPV[401]) {
+        all_401_values_equal = false;
+        break;
+      }
+    }
+
+    if (all_401_values_equal) {
+      set_event(EVENT_MODBUS_INVERTER_MISSING, 0);
+    } else {
+      clear_event(EVENT_MODBUS_INVERTER_MISSING);
+    }
+
+    // Update history
+    register_401_history[history_index] = mbPV[401];
+    history_index = (history_index + 1) % HISTORY_LENGTH;
   }
 }
 #endif
