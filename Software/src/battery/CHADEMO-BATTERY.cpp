@@ -7,7 +7,7 @@
 #ifdef ISA_SHUNT
 #include "../lib/smaresca-SimpleISA/SimpleISA.h"
 #endif
-#include "CHADEMO-BATTERY-TYPES.h"
+#include "CHADEMO-BATTERY-INTERNAL.h"
 #include "CHADEMO-BATTERY.h"
 
 /* CHADEMO handling runs at 6.25 times the rate of most other code, so, rather than the
