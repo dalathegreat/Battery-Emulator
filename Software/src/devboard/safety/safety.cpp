@@ -3,6 +3,8 @@
 
 static uint16_t cell_deviation_mV = 0;
 static uint8_t charge_discharge_limit_failures = 0;
+static bool battery_full_event_fired = false;
+static bool battery_empty_event_fired = false;
 
 void update_machineryprotection() {
   // Start checking that the battery is within reason. Incase we see any funny business, raise an event!
@@ -39,19 +41,27 @@ void update_machineryprotection() {
   // Normally the BMS will send 0W allowed, but this acts as an additional layer of safety
   if (datalayer.battery.status.reported_soc == 10000)  //Scaled SOC% value is 100.00%
   {
-    set_event(EVENT_BATTERY_FULL, 0);
+    if (!battery_full_event_fired) {
+      set_event(EVENT_BATTERY_FULL, 0);
+      battery_full_event_fired = true;
+    }
     datalayer.battery.status.max_charge_power_W = 0;
   } else {
     clear_event(EVENT_BATTERY_FULL);
+    battery_full_event_fired = false;
   }
 
   // Battery is empty. Do not allow further discharge.
   // Normally the BMS will send 0W allowed, but this acts as an additional layer of safety
   if (datalayer.battery.status.reported_soc == 0) {  //Scaled SOC% value is 0.00%
-    set_event(EVENT_BATTERY_EMPTY, 0);
+    if (!battery_empty_event_fired) {
+      set_event(EVENT_BATTERY_EMPTY, 0);
+      battery_empty_event_fired = true;
+    }
     datalayer.battery.status.max_discharge_power_W = 0;
   } else {
     clear_event(EVENT_BATTERY_EMPTY);
+    battery_empty_event_fired = false;
   }
 
   // Battery is extremely degraded, not fit for secondlifestorage!
