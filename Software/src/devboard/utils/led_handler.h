@@ -13,14 +13,19 @@ class LED {
   led_color color = led_color::GREEN;
 
   LED()
-      : mode(led_mode::CLASSIC),
+      : pixels(1, LED_PIN, NEO_GRB + NEO_KHZ800),
         max_brightness(LED_MAX_BRIGHTNESS),
-        pixels(1, LED_PIN, NEO_GRB + NEO_KHZ800),
+        brightness(LED_MAX_BRIGHTNESS),
+        mode(led_mode::CLASSIC),
+        state(LED_NORMAL),
         timer(LED_EXECUTION_FREQUENCY) {}
+
   LED(led_mode mode)
-      : mode(mode),
+      : pixels(1, LED_PIN, NEO_GRB + NEO_KHZ800),
         max_brightness(LED_MAX_BRIGHTNESS),
-        pixels(1, LED_PIN, NEO_GRB + NEO_KHZ800),
+        brightness(LED_MAX_BRIGHTNESS),
+        mode(mode),
+        state(LED_NORMAL),
         timer(LED_EXECUTION_FREQUENCY) {}
 
   void exe(void);
@@ -30,7 +35,7 @@ class LED {
   Adafruit_NeoPixel pixels;
   uint8_t max_brightness;
   uint8_t brightness;
-  led_mode mode = led_mode::CLASSIC;
+  led_mode mode;
   led_state state = LED_NORMAL;
   MyTimer timer;
 
@@ -46,4 +51,4 @@ void led_init(void);
 void led_exe(void);
 led_color led_get_color(void);
 
-#endif
+#endif  // LED_H_

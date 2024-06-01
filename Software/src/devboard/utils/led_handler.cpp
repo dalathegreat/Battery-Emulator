@@ -30,7 +30,6 @@ led_color led_get_color() {
 }
 
 void LED::exe(void) {
-  static bool test_all_colors = true;
   // Don't run too often
   if (!timer.elapsed()) {
     return;
@@ -93,7 +92,6 @@ void LED::classic_run(void) {
 
 void LED::flow_run(void) {
   // Determine how bright the LED should be
-  bool power_positive;
   int16_t power_W = datalayer.battery.status.active_power_W;
   if (power_W < -50) {
     // Discharging
@@ -178,7 +176,7 @@ void LED::rainbow_run(void) {
   }
 
   // Assemble the color
-  uint32_t color = (static_cast<uint32_t>(r) << 16) | (static_cast<uint32_t>(g) << 8) | b;
+  //uint32_t color = (static_cast<uint32_t>(r) << 16) | (static_cast<uint32_t>(g) << 8) | b;
   pixels.setPixelColor(0, pixels.Color(r, g, b));  // RGB
 }
 
