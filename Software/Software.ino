@@ -196,7 +196,6 @@ void core_loop(void* task_time_us) {
 
   while (true) {
     int64_t now = esp_timer_get_time();
-    int64_t wake_period = now - prev_wake;
     prev_wake = now;
     START_TIME_MEASUREMENT(all);
     START_TIME_MEASUREMENT(comm);
