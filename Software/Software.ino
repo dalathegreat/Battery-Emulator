@@ -418,12 +418,12 @@ void init_contactors() {
   pinMode(NEGATIVE_CONTACTOR_PIN, OUTPUT);
   digitalWrite(NEGATIVE_CONTACTOR_PIN, LOW);
 #ifdef PWM_CONTACTOR_CONTROL
-  ledcSetup(POSITIVE_PWM_Ch, PWM_Freq, PWM_Res);           // Setup PWM Channel Frequency and Resolution
-  ledcSetup(NEGATIVE_PWM_Ch, PWM_Freq, PWM_Res);           // Setup PWM Channel Frequency and Resolution
-  ledcAttachPin(POSITIVE_CONTACTOR_PIN, POSITIVE_PWM_Ch);  // Attach Positive Contactor Pin to Hardware PWM Channel
-  ledcAttachPin(NEGATIVE_CONTACTOR_PIN, NEGATIVE_PWM_Ch);  // Attach Positive Contactor Pin to Hardware PWM Channel
-  ledcWrite(POSITIVE_PWM_Ch, 0);                           // Set Positive PWM to 0%
-  ledcWrite(NEGATIVE_PWM_Ch, 0);                           // Set Negative PWM to 0%
+  ledcAttachChannel(POSITIVE_CONTACTOR_PIN, PWM_Freq, PWM_Res,
+                    POSITIVE_PWM_Ch);  // Setup PWM Channel Frequency and Resolution
+  ledcAttachChannel(NEGATIVE_CONTACTOR_PIN, PWM_Freq, PWM_Res,
+                    NEGATIVE_PWM_Ch);  // Setup PWM Channel Frequency and Resolution
+  ledcWrite(POSITIVE_PWM_Ch, 0);       // Set Positive PWM to 0%
+  ledcWrite(NEGATIVE_PWM_Ch, 0);       // Set Negative PWM to 0%
 #endif
   pinMode(PRECHARGE_PIN, OUTPUT);
   digitalWrite(PRECHARGE_PIN, LOW);
