@@ -78,16 +78,17 @@ class ISA
 		char buffer[9];
 		char bigbuffer[90];
 		uint32_t inbox;
-		CAN_frame_t outframe = {.FIR = {.B =
-                                       {
-                                           .DLC = 8,
-                                           .FF = CAN_frame_std,
-                                       }},
-                           .MsgID = 0x411,
-                           .data = {0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00}};
+		CAN_frame_t outframe = {
+		    .FIR = {.B = {
+		                .DLC = 8,
+		                .unknown_2 = 0,
+		                .RTR = CAN_no_RTR,
+		                .FF = CAN_frame_std,
+		            }},
+		    .MsgID = 0x411,
+		    .data = {0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00}};
 
 
-		
 		void printCAN(CAN_frame_t *frame);
 		void handle521(CAN_frame_t *frame);
 		void handle522(CAN_frame_t *frame);

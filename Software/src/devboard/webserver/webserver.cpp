@@ -346,6 +346,9 @@ void init_WiFi_STA(const char* ssid, const char* password, const uint8_t wifi_ch
   WiFi.begin(ssid, password, wifi_channel);
   WiFi.setAutoReconnect(true);  // Enable auto reconnect
   wl_status_t result = static_cast<wl_status_t>(WiFi.waitForConnectResult(INIT_WIFI_CONNECT_TIMEOUT));
+  if (result) {
+    //TODO: Add event or serial print?
+  }
 }
 
 // Function to initialize ElegantOTA

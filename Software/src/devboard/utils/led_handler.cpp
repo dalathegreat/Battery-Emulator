@@ -176,7 +176,6 @@ void LED::rainbow_run(void) {
   }
 
   // Assemble the color
-  //uint32_t color = (static_cast<uint32_t>(r) << 16) | (static_cast<uint32_t>(g) << 8) | b;
   pixels.setPixelColor(0, pixels.Color(r, g, b));  // RGB
 }
 
