@@ -92,7 +92,6 @@ struct x102_Vehicle_Charging_Session {  //Frame byte
     } status;
   } s;
 
-  //TODO discharge compatible is a status set here in bit 7, see beaglebone
   uint8_t StateOfCharge = 0;  //6 state of charge?
 };
 
@@ -110,7 +109,7 @@ struct x108_EVSE_Capabilities {                                 // Frame byte
 struct x109_EVSE_Status {                  // Frame byte
   uint8_t CHADEMO_protocol_number = 0x02;  //  0
   uint16_t setpoint_HV_VDC =
-      0;  //  1,2  NOTE: charger_stepoint_HV_VDC elsewhere is a float. THIS is protocol-defined as an int. cast float->int and lose some precision for protocol adherence
+      0;  //  1,2  NOTE: charger_setpoint_HV_VDC elsewhere is a float. THIS is protocol-defined as an int. cast float->int and lose some precision for protocol adherence
   uint8_t setpoint_HV_IDC = 0;       //  3
                                      //
   bool discharge_compatible = true;  //  4, bit 0. bits

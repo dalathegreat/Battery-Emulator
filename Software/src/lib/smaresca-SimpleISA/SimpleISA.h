@@ -6,6 +6,9 @@
     This library was written by Jack Rickard of EVtv - http://www.evtv.me copyright 2016
     You are licensed to use this library for any purpose, commercial or private, 
     without restriction.
+
+    Note for posterity: IVT-MOD has X1 pinout: vcc gnd CAN-L CAN-H
+    			IVT-S	has X1 pinout: vcc CAN-L CAN-H GND
     
 */ 
 #include <Arduino.h>

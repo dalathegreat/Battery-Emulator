@@ -25,7 +25,7 @@ static uint16_t batteryVoltage = 0;
 static uint16_t inverterVoltageFrameHigh = 0;
 static uint16_t inverterVoltage = 0;
 static uint16_t cellvoltages_mv[98];
-static int16_t leadAcidBatteryVoltage = 0;
+static int16_t leadAcidBatteryVoltage = 120;
 static int16_t batteryAmps = 0;
 static int16_t temperatureMax = 0;
 static int16_t temperatureMin = 0;
