@@ -192,11 +192,8 @@ void core_loop(void* task_time_us) {
   TickType_t xLastWakeTime = xTaskGetTickCount();
   const TickType_t xFrequency = pdMS_TO_TICKS(1);  // Convert 1ms to ticks
   led_init();
-  int64_t prev_wake;
 
   while (true) {
-    int64_t now = esp_timer_get_time();
-    prev_wake = now;
     START_TIME_MEASUREMENT(all);
     START_TIME_MEASUREMENT(comm);
     // Input
