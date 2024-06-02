@@ -8,5 +8,6 @@
 #define MAX_CELL_DEVIATION_MV 150
 
 void setup_battery(void);
+void update_number_of_cells();
 
 #endif
