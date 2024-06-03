@@ -33,7 +33,7 @@
 
 Preferences settings;  // Store user settings
 // The current software version, shown on webserver
-const char* version_number = "5.11.dev";
+const char* version_number = "6.1.dev";
 
 // Interval settings
 uint16_t intervalUpdateValues = INTERVAL_5_S;  // Interval at which to update inverter values / Modbus registers
@@ -233,10 +233,13 @@ void core_loop(void* task_time_us) {
     START_TIME_MEASUREMENT(time_5s);
     if (millis() - previousMillisUpdateVal >= intervalUpdateValues)  // Every 5s normally
     {
-      previousMillisUpdateVal = millis();
-      update_machineryprotection();
-      update_SOC();     // Check if real or calculated SOC% value should be sent
-      update_values();  // Update values heading towards inverter. Prepare for sending on CAN, or write directly to Modbus.
+      previousMillisUpdateVal = millis();  // Order matters on the update_loop!
+      update_values_battery();             // Fetch battery values
+      update_SOC();                        // Check if real or calculated SOC% value should be sent
+#ifndef SERIAL_LINK_RECEIVER
+      update_machineryprotection();  // Check safeties (Not on serial link reciever board)
+#endif
+      update_values_inverter();  // Update values heading towards inverter
       if (DUMMY_EVENT_ENABLED) {
         set_event(EVENT_DUMMY_ERROR, (uint8_t)millis());
       }
@@ -415,12 +418,12 @@ void init_contactors() {
   pinMode(NEGATIVE_CONTACTOR_PIN, OUTPUT);
   digitalWrite(NEGATIVE_CONTACTOR_PIN, LOW);
 #ifdef PWM_CONTACTOR_CONTROL
-  ledcSetup(POSITIVE_PWM_Ch, PWM_Freq, PWM_Res);           // Setup PWM Channel Frequency and Resolution
-  ledcSetup(NEGATIVE_PWM_Ch, PWM_Freq, PWM_Res);           // Setup PWM Channel Frequency and Resolution
-  ledcAttachPin(POSITIVE_CONTACTOR_PIN, POSITIVE_PWM_Ch);  // Attach Positive Contactor Pin to Hardware PWM Channel
-  ledcAttachPin(NEGATIVE_CONTACTOR_PIN, NEGATIVE_PWM_Ch);  // Attach Positive Contactor Pin to Hardware PWM Channel
-  ledcWrite(POSITIVE_PWM_Ch, 0);                           // Set Positive PWM to 0%
-  ledcWrite(NEGATIVE_PWM_Ch, 0);                           // Set Negative PWM to 0%
+  ledcAttachChannel(POSITIVE_CONTACTOR_PIN, PWM_Freq, PWM_Res,
+                    POSITIVE_PWM_Ch);  // Setup PWM Channel Frequency and Resolution
+  ledcAttachChannel(NEGATIVE_CONTACTOR_PIN, PWM_Freq, PWM_Res,
+                    NEGATIVE_PWM_Ch);  // Setup PWM Channel Frequency and Resolution
+  ledcWrite(POSITIVE_PWM_Ch, 0);       // Set Positive PWM to 0%
+  ledcWrite(NEGATIVE_PWM_Ch, 0);       // Set Negative PWM to 0%
 #endif
   pinMode(PRECHARGE_PIN, OUTPUT);
   digitalWrite(PRECHARGE_PIN, LOW);
@@ -700,10 +703,7 @@ void update_SOC() {
   }
 }
 
-void update_values() {
-  // Battery
-  update_values_battery();
-  // Inverter
+void update_values_inverter() {
 #ifdef CAN_INVERTER_SELECTED
   update_values_can_inverter();
 #endif

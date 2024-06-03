@@ -25,7 +25,7 @@ static uint16_t batteryVoltage = 0;
 static uint16_t inverterVoltageFrameHigh = 0;
 static uint16_t inverterVoltage = 0;
 static uint16_t cellvoltages_mv[98];
-static int16_t leadAcidBatteryVoltage = 0;
+static int16_t leadAcidBatteryVoltage = 120;
 static int16_t batteryAmps = 0;
 static int16_t temperatureMax = 0;
 static int16_t temperatureMin = 0;
@@ -155,17 +155,9 @@ void update_values_battery() {  //This function maps all the values fetched via 
   datalayer.battery.status.remaining_capacity_Wh = static_cast<uint32_t>(
       (static_cast<double>(datalayer.battery.status.real_soc) / 10000) * datalayer.battery.info.total_capacity_Wh);
 
-  if (datalayer.battery.status.reported_soc == 10000) {  // When scaled SOC is 100%, set allowed charge power to 0
-    datalayer.battery.status.max_charge_power_W = 0;
-  } else {  // Limit according to CAN value
-    datalayer.battery.status.max_charge_power_W = allowedChargePower * 10;
-  }
+  datalayer.battery.status.max_charge_power_W = allowedChargePower * 10;
 
-  if (datalayer.battery.status.reported_soc < 100) {  // When scaled SOC is <1%, set allowed charge power to 0
-    datalayer.battery.status.max_discharge_power_W = 0;
-  } else {  // Limit according to CAN value
-    datalayer.battery.status.max_discharge_power_W = allowedDischargePower * 10;
-  }
+  datalayer.battery.status.max_discharge_power_W = allowedDischargePower * 10;
 
   //Power in watts, Negative = charging batt
   datalayer.battery.status.active_power_W =
@@ -210,12 +202,6 @@ void update_values_battery() {  //This function maps all the values fetched via 
   }
   if (CellVoltMin_mV <= MIN_CELL_VOLTAGE) {
     set_event(EVENT_CELL_UNDER_VOLTAGE, 0);
-  }
-
-  if (datalayer.battery.status.bms_status ==
-      FAULT) {  //Incase we enter a critical fault state, zero out the allowed limits
-    datalayer.battery.status.max_charge_power_W = 0;
-    datalayer.battery.status.max_discharge_power_W = 0;
   }
 
   /* Safeties verified. Perform USB serial printout if configured to do so */
