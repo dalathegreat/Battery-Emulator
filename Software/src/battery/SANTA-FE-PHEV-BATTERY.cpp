@@ -18,7 +18,6 @@ TODO: Map all values from battery CAN messages
 /* Do not change code below unless you are sure what you are doing */
 static unsigned long previousMillis10 = 0;   // will store last time a 10ms CAN Message was send
 static unsigned long previousMillis100 = 0;  // will store last time a 100ms CAN Message was send
-static uint8_t CANstillAlive = 12;           //counter for checking if CAN is still alive
 
 static int SOC_1 = 0;
 static int SOC_2 = 0;
@@ -77,21 +76,13 @@ void update_values_battery() {  //This function maps all the values fetched via 
 
   datalayer.battery.status.temperature_max_dC;
 
-  /* Check if the BMS is still sending CAN messages. If we go 60s without messages we raise an error*/
-  if (!CANstillAlive) {
-    set_event(EVENT_CAN_RX_FAILURE, 0);
-  } else {
-    CANstillAlive--;
-    clear_event(EVENT_CAN_RX_FAILURE);
-  }
-
 #ifdef DEBUG_VIA_USB
 
 #endif
 }
 
 void receive_can_battery(CAN_frame_t rx_frame) {
-  CANstillAlive = 12;
+  datalayer.battery.status.CAN_battery_still_alive = CAN_STILL_ALIVE;
   switch (rx_frame.MsgID) {
     case 0x200:
       break;

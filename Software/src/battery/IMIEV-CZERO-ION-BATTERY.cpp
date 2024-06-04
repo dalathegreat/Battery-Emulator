@@ -10,8 +10,7 @@
 //Figure out if CAN messages need to be sent to keep the system happy?
 
 /* Do not change code below unless you are sure what you are doing */
-static uint8_t CANstillAlive = 12;  //counter for checking if CAN is still alive
-static uint8_t errorCode = 0;       //stores if we have an error code active from battery control logic
+static uint8_t errorCode = 0;  //stores if we have an error code active from battery control logic
 static uint8_t BMU_Detected = 0;
 static uint8_t CMU_Detected = 0;
 
@@ -49,19 +48,10 @@ void update_values_battery() {  //This function maps all the values fetched via 
   datalayer.battery.status.remaining_capacity_Wh = static_cast<uint32_t>(
       (static_cast<double>(datalayer.battery.status.real_soc) / 10000) * datalayer.battery.info.total_capacity_Wh);
 
-  //We do not know if the max charge power is sent by the battery. So we estimate the value based on SOC%
-  if (datalayer.battery.status.reported_soc == 10000) {  //100.00%
-    datalayer.battery.status.max_charge_power_W = 0;     //When battery is 100% full, set allowed charge W to 0
-  } else {
-    datalayer.battery.status.max_charge_power_W = 10000;  //Otherwise we can push 10kW into the pack!
-  }
+  //We do not know the max charge/discharge power is sent by the battery. We hardcode value for now.
+  datalayer.battery.status.max_charge_power_W = 10000;  // 10kW   //TODO: Fix when CAN is decoded
 
-  if (datalayer.battery.status.reported_soc < 200) {  //2.00%
-    datalayer.battery.status.max_discharge_power_W =
-        0;  //When battery is empty (below 2%), set allowed discharge W to 0
-  } else {
-    datalayer.battery.status.max_discharge_power_W = 10000;  //Otherwise we can discharge 10kW from the pack!
-  }
+  datalayer.battery.status.max_discharge_power_W = 10000;  // 10kW   //TODO: Fix when CAN is decoded
 
   datalayer.battery.status.active_power_W = BMU_Power;  //TODO: Scaling?
 
@@ -108,14 +98,6 @@ void update_values_battery() {  //This function maps all the values fetched via 
 
   datalayer.battery.status.temperature_min_dC = (int16_t)(max_temp_cel * 10);
 
-  /* Check if the BMS is still sending CAN messages. If we go 60s without messages we raise an error*/
-  if (!CANstillAlive) {
-    set_event(EVENT_CAN_RX_FAILURE, 0);
-  } else {
-    CANstillAlive--;
-    clear_event(EVENT_CAN_RX_FAILURE);
-  }
-
   if (!BMU_Detected) {
 #ifdef DEBUG_VIA_USB
     Serial.println("BMU not detected, check wiring!");
@@ -144,8 +126,8 @@ void update_values_battery() {  //This function maps all the values fetched via 
 }
 
 void receive_can_battery(CAN_frame_t rx_frame) {
-  CANstillAlive =
-      12;  //TODO: move this inside a known message ID to prevent CAN inverter from keeping battery alive detection going
+  datalayer.battery.status.CAN_battery_still_alive =
+      CAN_STILL_ALIVE;  //TODO: move this inside a known message ID to prevent CAN inverter from keeping battery alive detection going
   switch (rx_frame.MsgID) {
     case 0x374:  //BMU message, 10ms - SOC
       temp_value = ((rx_frame.data.u8[1] - 10) / 2);

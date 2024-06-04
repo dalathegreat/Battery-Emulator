@@ -8,7 +8,9 @@
 #define SEND_0  //If defined, the messages will have ID ending with 0 (useful for some inverters)
 //#define SEND_1 //If defined, the messages will have ID ending with 1 (useful for some inverters)
 #define INVERT_LOW_HIGH_BYTES  //If defined, certain frames will have inverted low/high bytes
+                               //useful for some inverters like Sofar that report the voltages incorrect otherwise
 //#define SET_30K_OFFSET  //If defined, current values are sent with a 30k offest (useful for ferroamp)
+
 
 /* Do not change code below unless you are sure what you are doing */
 //Actual content messages
@@ -206,6 +208,30 @@ void update_values_can_inverter() {  //This function maps all the values fetched
   PYLON_4281.data.u8[2] = 0;
   PYLON_4281.data.u8[3] = 0;
 
+  //Voltage (370.0)
+  PYLON_4210.data.u8[0] = (datalayer.battery.status.voltage_dV >> 8);
+  PYLON_4210.data.u8[1] = (datalayer.battery.status.voltage_dV & 0x00FF);
+  PYLON_4211.data.u8[0] = (datalayer.battery.status.voltage_dV >> 8);
+  PYLON_4211.data.u8[1] = (datalayer.battery.status.voltage_dV & 0x00FF);
+
+  //Current (15.0)
+  PYLON_4210.data.u8[2] = (datalayer.battery.status.current_dA >> 8);
+  PYLON_4210.data.u8[3] = (datalayer.battery.status.current_dA & 0x00FF);
+  PYLON_4211.data.u8[2] = (datalayer.battery.status.current_dA >> 8);
+  PYLON_4211.data.u8[3] = (datalayer.battery.status.current_dA & 0x00FF);
+
+  // BMS Temperature (We dont have BMS temp, send max cell voltage instead)
+#ifdef INVERT_LOW_HIGH_BYTES  //Useful for Sofar inverters
+  PYLON_4210.data.u8[4] = ((datalayer.battery.status.temperature_max_dC + 1000) & 0x00FF);
+  PYLON_4210.data.u8[5] = ((datalayer.battery.status.temperature_max_dC + 1000) >> 8);
+  PYLON_4211.data.u8[4] = ((datalayer.battery.status.temperature_max_dC + 1000) & 0x00FF);
+  PYLON_4211.data.u8[5] = ((datalayer.battery.status.temperature_max_dC + 1000) >> 8);
+#else
+  PYLON_4210.data.u8[4] = ((datalayer.battery.status.temperature_max_dC + 1000) >> 8);
+  PYLON_4210.data.u8[5] = ((datalayer.battery.status.temperature_max_dC + 1000) & 0x00FF);
+  PYLON_4211.data.u8[4] = ((datalayer.battery.status.temperature_max_dC + 1000) >> 8);
+  PYLON_4211.data.u8[5] = ((datalayer.battery.status.temperature_max_dC + 1000) & 0x00FF);
+#endif
   //SOC (100.00%)
   PYLON_4210.data.u8[6] = (datalayer.battery.status.reported_soc / 100);  //Remove decimals
   PYLON_4211.data.u8[6] = (datalayer.battery.status.reported_soc / 100);  //Remove decimals
@@ -422,6 +448,24 @@ void update_values_can_inverter() {  //This function maps all the values fetched
   PYLON_4271.data.u8[2] = (datalayer.battery.status.temperature_min_dC >> 8);
   PYLON_4271.data.u8[3] = (datalayer.battery.status.temperature_min_dC & 0x00FF);
 #endif
+
+  //Max/Min cell voltage
+  PYLON_4230.data.u8[0] = (datalayer.battery.status.cell_max_voltage_mV >> 8);
+  PYLON_4230.data.u8[1] = (datalayer.battery.status.cell_max_voltage_mV & 0x00FF);
+  PYLON_4230.data.u8[2] = (datalayer.battery.status.cell_min_voltage_mV >> 8);
+  PYLON_4230.data.u8[3] = (datalayer.battery.status.cell_min_voltage_mV & 0x00FF);
+
+  //Max/Min temperature per cell
+  PYLON_4240.data.u8[0] = (datalayer.battery.status.temperature_max_dC >> 8);
+  PYLON_4240.data.u8[1] = (datalayer.battery.status.temperature_max_dC & 0x00FF);
+  PYLON_4240.data.u8[2] = (datalayer.battery.status.temperature_min_dC >> 8);
+  PYLON_4240.data.u8[3] = (datalayer.battery.status.temperature_min_dC & 0x00FF);
+
+  //Max/Min temperature per module
+  PYLON_4270.data.u8[0] = (datalayer.battery.status.temperature_max_dC >> 8);
+  PYLON_4270.data.u8[1] = (datalayer.battery.status.temperature_max_dC & 0x00FF);
+  PYLON_4270.data.u8[2] = (datalayer.battery.status.temperature_min_dC >> 8);
+  PYLON_4270.data.u8[3] = (datalayer.battery.status.temperature_min_dC & 0x00FF);
 
   //In case we run into any errors/faults, we can set charge / discharge forbidden
   if (datalayer.battery.status.bms_status == FAULT) {
