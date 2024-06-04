@@ -70,8 +70,8 @@ jobs:
       - name: Install platform
         run: |
           arduino-cli core update-index
-          arduino-cli core install esp32:esp32@3.0.0
-
+          arduino-cli core install esp32:esp32
+        arduino-platform: esp32:esp32@3.0.0
       # Finally, we compile the sketch, using the FQBN that was set
       # in the build matrix, and using build flags to define the
       # battery and inverter set in the build matrix.
