@@ -450,9 +450,7 @@ void receive_can_battery(CAN_frame_t rx_frame) {
           //Last frame does not contain any cell data, calculate the result
 
           //Map all cell voltages to the global array
-          for (int i = 0; i < 96; ++i) {
-            datalayer.battery.status.cell_voltages_mV[i] = cell_voltages[i];
-          }
+          memcpy(datalayer.battery.status.cell_voltages_mV, cell_voltages, 96 * sizeof(uint16_t));
 
           //calculate min/max voltages
           min_max_voltage[0] = 9999;

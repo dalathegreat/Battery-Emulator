@@ -179,22 +179,7 @@ void update_values_battery() {  //This function maps all the values fetched via 
     set_event(EVENT_12V_LOW, leadAcidBatteryVoltage);
   }
 
-  //Map all cell voltages to the global array
-  for (int i = 0; i < 98; ++i) {
-    if (cellvoltages_mv[i] > 1000) {
-      datalayer.battery.status.cell_voltages_mV[i] = cellvoltages_mv[i];
-    }
-  }
-  // Check if we have 98S or 90S battery
-  if (datalayer.battery.status.cell_voltages_mV[97] > 0) {
-    datalayer.battery.info.number_of_cells = 98;
-    datalayer.battery.info.max_design_voltage_dV = 4040;
-    datalayer.battery.info.min_design_voltage_dV = 3100;
-  } else {
-    datalayer.battery.info.number_of_cells = 90;
-    datalayer.battery.info.max_design_voltage_dV = 3870;
-    datalayer.battery.info.min_design_voltage_dV = 2250;
-  }
+  update_number_of_cells();
 
   // Check if cell voltages are within allowed range
   if (CellVoltMax_mV >= MAX_CELL_VOLTAGE) {
@@ -266,6 +251,22 @@ void update_values_battery() {  //This function maps all the values fetched via 
 #endif
 }
 
+void update_number_of_cells() {
+  //If we have cell values and number_of_cells not initialized yet
+  if (cellvoltages_mv[0] > 0 && datalayer.battery.info.number_of_cells == 0) {
+    // Check if we have 98S or 90S battery
+    if (datalayer.battery.status.cell_voltages_mV[97] > 0) {
+      datalayer.battery.info.number_of_cells = 98;
+      datalayer.battery.info.max_design_voltage_dV = 4040;
+      datalayer.battery.info.min_design_voltage_dV = 3100;
+    } else {
+      datalayer.battery.info.number_of_cells = 90;
+      datalayer.battery.info.max_design_voltage_dV = 3870;
+      datalayer.battery.info.min_design_voltage_dV = 2250;
+    }
+  }
+}
+
 void receive_can_battery(CAN_frame_t rx_frame) {
   switch (rx_frame.MsgID) {
     case 0x4DE:
@@ -275,6 +276,10 @@ void receive_can_battery(CAN_frame_t rx_frame) {
       startedUp = true;
       datalayer.battery.status.CAN_battery_still_alive = CAN_STILL_ALIVE;
       SOC_Display = rx_frame.data.u8[0] * 5;  //100% = 200 ( 200 * 5 = 1000 )
+      //Map all cell voltages to the global array
+      memcpy(datalayer.battery.status.cell_voltages_mV, cellvoltages_mv, 98 * sizeof(uint16_t));
+      //Update number of cells
+      update_number_of_cells();
       break;
     case 0x594:
       startedUp = true;
