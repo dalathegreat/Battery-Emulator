@@ -31,7 +31,6 @@ jobs:
           #- esp32:esp32:esp32c6
           #- esp32:esp32:esp32h2
           #- esp32:esp32:esp32s3
-        arduino-platform: esp32:esp32@3.0.0 # latest 3.0.0 version as of 5/2024
         # These are the batteries for which the code will be compiled.
         battery:
 #         - BMW_I3_BATTERY
@@ -71,7 +70,7 @@ jobs:
       - name: Install platform
         run: |
           arduino-cli core update-index
-          arduino-cli core install esp32:esp32
+          arduino-cli core install esp32:esp32@3.0.0
 
       # Finally, we compile the sketch, using the FQBN that was set
       # in the build matrix, and using build flags to define the
