@@ -770,27 +770,56 @@ void storeSettings() {
 */
 void check_reset_reason() {
   esp_reset_reason_t reason = esp_reset_reason();
-  set_event(EVENT_RESET, reason);
   switch (reason) {
-    case ESP_RST_POWERON:  // These are filtered out
-    case ESP_RST_SW:
-    case ESP_RST_SDIO:
-    case ESP_RST_JTAG:
-      break;
-    case ESP_RST_EXT:  // The following generate an event
     case ESP_RST_UNKNOWN:
+      set_event(EVENT_RESET_UNKNOWN, reason);
+      break;
+    case ESP_RST_POWERON:
+      set_event(EVENT_RESET_POWERON, reason);
+      break;
+    case ESP_RST_EXT:
+      set_event(EVENT_RESET_EXT, reason);
+      break;
+    case ESP_RST_SW:
+      set_event(EVENT_RESET_SW, reason);
+      break;
     case ESP_RST_PANIC:
+      set_event(EVENT_RESET_PANIC, reason);
+      break;
     case ESP_RST_INT_WDT:
+      set_event(EVENT_RESET_INT_WDT, reason);
+      break;
     case ESP_RST_TASK_WDT:
+      set_event(EVENT_RESET_TASK_WDT, reason);
+      break;
     case ESP_RST_WDT:
+      set_event(EVENT_RESET_WDT, reason);
+      break;
     case ESP_RST_DEEPSLEEP:
+      set_event(EVENT_RESET_DEEPSLEEP, reason);
+      break;
     case ESP_RST_BROWNOUT:
+      set_event(EVENT_RESET_BROWNOUT, reason);
+      break;
+    case ESP_RST_SDIO:
+      set_event(EVENT_RESET_SDIO, reason);
+      break;
     case ESP_RST_USB:
+      set_event(EVENT_RESET_USB, reason);
+      break;
+    case ESP_RST_JTAG:
+      set_event(EVENT_RESET_JTAG, reason);
+      break;
     case ESP_RST_EFUSE:
+      set_event(EVENT_RESET_EFUSE, reason);
+      break;
     case ESP_RST_PWR_GLITCH:
+      set_event(EVENT_RESET_PWR_GLITCH, reason);
+      break;
     case ESP_RST_CPU_LOCKUP:
+      set_event(EVENT_RESET_CPU_LOCKUP, reason);
+      break;
     default:
-      set_event(EVENT_UNEXPECTED_RESET, reason);
       break;
   }
 }
