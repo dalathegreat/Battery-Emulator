@@ -716,18 +716,24 @@ void storeSettings() {
   ESP_RST_WDT,        //!< 7  Reset due to other watchdogs
   ESP_RST_DEEPSLEEP,  //!< 8  Reset after exiting deep sleep mode
   ESP_RST_BROWNOUT,   //!< 9  Brownout reset (software or hardware)
-  ESP_RST_SDIO,       //!< 10 OK? Reset over SDIO
+  ESP_RST_SDIO,       //!< 10 Reset over SDIO
+  ESP_RST_USB,        //!< 11 Reset by USB peripheral
+  ESP_RST_JTAG,       //!< 12 Reset by JTAG
+  ESP_RST_EFUSE,      //!< 13 Reset due to efuse error
+  ESP_RST_PWR_GLITCH, //!< 14 Reset due to power glitch detected
+  ESP_RST_CPU_LOCKUP, //!< 15 Reset due to CPU lock up
 } esp_reset_reason_t;
 */
 void check_reset_reason() {
   esp_reset_reason_t reason = esp_reset_reason();
   set_event(EVENT_RESET, reason);
   switch (reason) {
-    case ESP_RST_POWERON:
+    case ESP_RST_POWERON:  // These are filtered out
     case ESP_RST_SW:
     case ESP_RST_SDIO:
+    case ESP_RST_JTAG:
       break;
-    case ESP_RST_EXT:
+    case ESP_RST_EXT:  // The following generate an event
     case ESP_RST_UNKNOWN:
     case ESP_RST_PANIC:
     case ESP_RST_INT_WDT:
@@ -735,6 +741,10 @@ void check_reset_reason() {
     case ESP_RST_WDT:
     case ESP_RST_DEEPSLEEP:
     case ESP_RST_BROWNOUT:
+    case ESP_RST_USB:
+    case ESP_RST_EFUSE:
+    case ESP_RST_PWR_GLITCH:
+    case ESP_RST_CPU_LOCKUP:
     default:
       set_event(EVENT_UNEXPECTED_RESET, reason);
       break;
