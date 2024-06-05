@@ -30,7 +30,7 @@ bool ota_active = false;
 unsigned const long WIFI_MONITOR_INTERVAL_TIME = 15000;
 unsigned const long INIT_WIFI_CONNECT_TIMEOUT = 8000;        // Timeout for initial WiFi connect in milliseconds
 unsigned const long DEFAULT_WIFI_RECONNECT_INTERVAL = 1000;  // Default WiFi reconnect interval in ms
-unsigned const long MAX_WIFI_RETRY_INTERVAL = 30000;         // Maximum wifi retry interval in ms
+unsigned const long MAX_WIFI_RETRY_INTERVAL = 90000;         // Maximum wifi retry interval in ms
 unsigned long last_wifi_monitor_time = millis();             //init millis so wifi monitor doesn't run immediately
 unsigned long wifi_reconnect_interval = DEFAULT_WIFI_RECONNECT_INTERVAL;
 unsigned long last_wifi_attempt_time = millis();  //init millis so wifi monitor doesn't run immediately
@@ -346,6 +346,9 @@ void init_WiFi_STA(const char* ssid, const char* password, const uint8_t wifi_ch
   WiFi.begin(ssid, password, wifi_channel);
   WiFi.setAutoReconnect(true);  // Enable auto reconnect
   wl_status_t result = static_cast<wl_status_t>(WiFi.waitForConnectResult(INIT_WIFI_CONNECT_TIMEOUT));
+  if (result) {
+    //TODO: Add event or serial print?
+  }
 }
 
 // Function to initialize ElegantOTA
@@ -358,8 +361,9 @@ void init_ElegantOTA() {
 }
 
 String processor(const String& var) {
-  if (var == "ABC") {
+  if (var == "X") {
     String content = "";
+    content += "<h2>" + String(ssidAP) + "</h2>";  // ssidAP name is used as header name
     //Page format
     content += "<style>";
     content += "body { background-color: black; color: white; }";
@@ -446,6 +450,9 @@ String processor(const String& var) {
 #endif
 #ifdef KIA_E_GMP_BATTERY
     content += "Kia/Hyundai EGMP platform";
+#endif
+#ifdef MG_5_BATTERY
+    content += "MG 5";
 #endif
 #ifdef NISSAN_LEAF_BATTERY
     content += "Nissan LEAF";

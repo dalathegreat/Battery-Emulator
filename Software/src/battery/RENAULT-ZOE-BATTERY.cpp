@@ -7,8 +7,7 @@
 #include "RENAULT-ZOE-BATTERY.h"
 
 /* Do not change code below unless you are sure what you are doing */
-static uint8_t CANstillAlive = 12;  //counter for checking if CAN is still alive
-static uint8_t errorCode = 0;       //stores if we have an error code active from battery control logic
+static uint8_t errorCode = 0;  //stores if we have an error code active from battery control logic
 static uint16_t LB_SOC = 50;
 static uint16_t LB_SOH = 99;
 static int16_t LB_MIN_TEMPERATURE = 0;
@@ -21,7 +20,6 @@ static int32_t LB_Current = 0;
 static uint16_t LB_kWh_Remaining = 0;
 static uint16_t LB_Cell_Max_Voltage = 3700;
 static uint16_t LB_Cell_Min_Voltage = 3700;
-static uint16_t cell_deviation_mV = 0;  //contains the deviation between highest and lowest cell in mV
 static uint32_t LB_Battery_Voltage = 3700;
 static uint8_t LB_Discharge_Power_Limit_Byte1 = 0;
 
@@ -65,26 +63,11 @@ void update_values_battery() {  //This function maps all the values fetched via 
 
   datalayer.battery.status.cell_max_voltage_mV;
 
-  cell_deviation_mV = (datalayer.battery.status.cell_max_voltage_mV - datalayer.battery.status.cell_min_voltage_mV);
-
-  /* Check if the BMS is still sending CAN messages. If we go 60s without messages we raise an error*/
-  if (!CANstillAlive) {
-    set_event(EVENT_CAN_RX_FAILURE, 0);
-  } else {
-    CANstillAlive--;
-    clear_event(EVENT_CAN_RX_FAILURE);
-  }
-
   if (LB_Cell_Max_Voltage >= ABSOLUTE_CELL_MAX_VOLTAGE) {
     set_event(EVENT_CELL_OVER_VOLTAGE, 0);
   }
   if (LB_Cell_Min_Voltage <= ABSOLUTE_CELL_MIN_VOLTAGE) {
     set_event(EVENT_CELL_UNDER_VOLTAGE, 0);
-  }
-  if (cell_deviation_mV > MAX_CELL_DEVIATION_MV) {
-    set_event(EVENT_CELL_DEVIATION_HIGH, 0);
-  } else {
-    clear_event(EVENT_CELL_DEVIATION_HIGH);
   }
 
 #ifdef DEBUG_VIA_USB
@@ -122,7 +105,7 @@ void update_values_battery() {  //This function maps all the values fetched via 
 }
 
 void receive_can_battery(CAN_frame_t rx_frame) {
-
+  datalayer.battery.status.CAN_battery_still_alive = CAN_STILL_ALIVE;
   switch (rx_frame.MsgID) {
     case 0x42E:  //HV SOC & Battery Temp & Charging Power
       break;

@@ -30,6 +30,8 @@ typedef struct {
 typedef struct {
   /** int32_t */
   /** Instantaneous battery power in Watts */
+  /* Positive value = Battery Charging */
+  /* Negative value = Battery Discharging */
   int32_t active_power_W;
 
   /** uint32_t */
@@ -68,6 +70,14 @@ typedef struct {
    * battery.settings.soc_scaling_active
    */
   uint16_t reported_soc;
+  /** A counter that increases incase a CAN CRC read error occurs */
+  uint16_t CAN_error_counter;
+  /** uint8_t */
+  /** A counter set each time a new message comes from battery.
+   * This value then gets decremented each 5 seconds. Incase we reach 0
+   * we report the battery as missing entirely on the CAN bus.
+   */
+  uint8_t CAN_battery_still_alive = CAN_STILL_ALIVE;
 
   /** Other */
   /** The current BMS status */

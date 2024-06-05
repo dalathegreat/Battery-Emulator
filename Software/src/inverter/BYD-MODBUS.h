@@ -11,6 +11,7 @@ extern uint16_t mbPV[MB_RTU_NUM_VALUES];
 
 void handle_static_data_modbus_byd();
 void verify_temperature_modbus();
+void verify_inverter_modbus();
 void handle_update_data_modbusp201_byd();
 void handle_update_data_modbusp301_byd();
 #endif

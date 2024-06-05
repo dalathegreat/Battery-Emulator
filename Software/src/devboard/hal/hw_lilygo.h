@@ -40,6 +40,13 @@
 #define MCP2517_CS 18   // CS input of MCP2517
 #define MCP2517_INT 35  // INT output of MCP2517
 
+// CHAdeMO support pin dependencies
+#define CHADEMO_PIN_2 12
+#define CHADEMO_PIN_10 5
+#define CHADEMO_PIN_7 34
+#define CHADEMO_PIN_4 35
+#define CHADEMO_LOCK 18
+
 // Contactor handling
 #define POSITIVE_CONTACTOR_PIN 32
 #define NEGATIVE_CONTACTOR_PIN 33
@@ -60,6 +67,12 @@
 #define HW_CONFIGURED
 #else
 #error Multiple HW defined! Please select a single HW
+#endif
+
+#ifdef CHADEMO_BATTERY
+#ifdef DUAL_CAN
+#error CHADEMO and DUAL_CAN cannot coexist due to overlapping GPIO pin usage
+#endif
 #endif
 
 #endif

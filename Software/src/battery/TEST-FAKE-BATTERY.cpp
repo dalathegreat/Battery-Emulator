@@ -16,6 +16,7 @@ void print_units(char* header, int value, char* units) {
 }
 
 void update_values_battery() { /* This function puts fake values onto the parameters sent towards the inverter */
+
   datalayer.battery.status.real_soc = 5000;  // 50.00%
 
   datalayer.battery.status.soh_pptt = 9900;  // 99.00%
@@ -46,6 +47,9 @@ void update_values_battery() { /* This function puts fake values onto the parame
     datalayer.battery.status.cell_voltages_mV[i] = 3500 + i;
   }
 
+  //Fake that we get CAN messages
+  datalayer.battery.status.CAN_battery_still_alive = CAN_STILL_ALIVE;
+
 /*Finally print out values to serial if configured to do so*/
 #ifdef DEBUG_VIA_USB
   Serial.println("FAKE Values going to inverter");
@@ -62,7 +66,9 @@ void update_values_battery() { /* This function puts fake values onto the parame
 #endif
 }
 
-void receive_can_battery(CAN_frame_t rx_frame) {  // All CAN messages recieved will be logged via serial
+void receive_can_battery(CAN_frame_t rx_frame) {
+  datalayer.battery.status.CAN_battery_still_alive = CAN_STILL_ALIVE;
+  // All CAN messages recieved will be logged via serial
   Serial.print(millis());  // Example printout, time, ID, length, data: 7553  1DB  8  FF C0 B9 EA 0 0 2 5D
   Serial.print("  ");
   Serial.print(rx_frame.MsgID, HEX);
