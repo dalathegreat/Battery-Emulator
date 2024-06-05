@@ -176,6 +176,22 @@ void init_events(void) {
   events.entries[EVENT_SERIAL_TX_FAILURE].level = EVENT_LEVEL_ERROR;
   events.entries[EVENT_SERIAL_TRANSMITTER_FAILURE].level = EVENT_LEVEL_ERROR;
   events.entries[EVENT_EEPROM_WRITE].level = EVENT_LEVEL_INFO;
+  events.entries[EVENT_RESET_UNKNOWN].level = EVENT_LEVEL_INFO;
+  events.entries[EVENT_RESET_POWERON].level = EVENT_LEVEL_INFO;
+  events.entries[EVENT_RESET_EXT].level = EVENT_LEVEL_INFO;
+  events.entries[EVENT_RESET_SW].level = EVENT_LEVEL_INFO;
+  events.entries[EVENT_RESET_PANIC].level = EVENT_LEVEL_WARNING;
+  events.entries[EVENT_RESET_INT_WDT].level = EVENT_LEVEL_WARNING;
+  events.entries[EVENT_RESET_TASK_WDT].level = EVENT_LEVEL_WARNING;
+  events.entries[EVENT_RESET_WDT].level = EVENT_LEVEL_WARNING;
+  events.entries[EVENT_RESET_DEEPSLEEP].level = EVENT_LEVEL_INFO;
+  events.entries[EVENT_RESET_BROWNOUT].level = EVENT_LEVEL_INFO;
+  events.entries[EVENT_RESET_SDIO].level = EVENT_LEVEL_INFO;
+  events.entries[EVENT_RESET_USB].level = EVENT_LEVEL_INFO;
+  events.entries[EVENT_RESET_JTAG].level = EVENT_LEVEL_INFO;
+  events.entries[EVENT_RESET_EFUSE].level = EVENT_LEVEL_INFO;
+  events.entries[EVENT_RESET_PWR_GLITCH].level = EVENT_LEVEL_INFO;
+  events.entries[EVENT_RESET_CPU_LOCKUP].level = EVENT_LEVEL_WARNING;
 
   events.entries[EVENT_EEPROM_WRITE].log = false;  // Don't log the logger...
 
@@ -298,6 +314,39 @@ const char* get_event_message_string(EVENTS_ENUM_TYPE event) {
       return "OTA update timed out!";
     case EVENT_EEPROM_WRITE:
       return "Info: The EEPROM was written";
+    case EVENT_RESET_UNKNOWN:
+      return "Info: The board was reset unexpectedly, and reason can't be determined";
+    case EVENT_RESET_POWERON:
+      return "Info: The board was reset from a power-on event. Normal operation";
+    case EVENT_RESET_EXT:
+      return "Info: The board was reset from an external pin";
+    case EVENT_RESET_SW:
+      return "Info: The board was reset via software, webserver or OTA. Normal operation";
+    case EVENT_RESET_PANIC:
+      return "Warning: The board was reset due to an exception or panic. Inform developers!";
+    case EVENT_RESET_INT_WDT:
+      return "Warning: The board was reset due to an interrupt watchdog timeout. Inform developers!";
+    case EVENT_RESET_TASK_WDT:
+      return "Warning: The board was reset due to a task watchdog timeout. Inform developers!";
+    case EVENT_RESET_WDT:
+      return "Warning: The board was reset due to other watchdog timeout. Inform developers!";
+    case EVENT_RESET_DEEPSLEEP:
+      return "Info: The board was reset after exiting deep sleep mode";
+    case EVENT_RESET_BROWNOUT:
+      return "Info: The board was reset due to a momentary low voltage condition. This is expected during certain "
+             "operations like flashing via USB";
+    case EVENT_RESET_SDIO:
+      return "Info: The board was reset over SDIO";
+    case EVENT_RESET_USB:
+      return "Info: The board was reset by the USB peripheral";
+    case EVENT_RESET_JTAG:
+      return "Info: The board was reset by JTAG";
+    case EVENT_RESET_EFUSE:
+      return "Info: The board was reset due to an efuse error";
+    case EVENT_RESET_PWR_GLITCH:
+      return "Info: The board was reset due to a detected power glitch";
+    case EVENT_RESET_CPU_LOCKUP:
+      return "Warning: The board was reset due to CPU lockup. Inform developers!";
     default:
       return "";
   }

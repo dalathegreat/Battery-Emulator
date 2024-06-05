@@ -152,6 +152,8 @@ void setup() {
 
   esp_task_wdt_deinit();  // Disable watchdog
 
+  check_reset_reason();
+
   xTaskCreatePinnedToCore((TaskFunction_t)&core_loop, "core_loop", 4096, &core_task_time_us, TASK_CORE_PRIO,
                           &main_loop_task, CORE_FUNCTION_CORE);
 }
@@ -743,4 +745,81 @@ void storeSettings() {
   settings.putBool("USE_SCALED_SOC", datalayer.battery.settings.soc_scaling_active);
 
   settings.end();
+}
+
+/** Reset reason numbering and description
+ * 
+ typedef enum {
+  ESP_RST_UNKNOWN,    //!< 0  Reset reason can not be determined
+  ESP_RST_POWERON,    //!< 1  OK Reset due to power-on event
+  ESP_RST_EXT,        //!< 2  Reset by external pin (not applicable for ESP32)
+  ESP_RST_SW,         //!< 3  OK Software reset via esp_restart
+  ESP_RST_PANIC,      //!< 4  Software reset due to exception/panic
+  ESP_RST_INT_WDT,    //!< 5  Reset (software or hardware) due to interrupt watchdog
+  ESP_RST_TASK_WDT,   //!< 6  Reset due to task watchdog
+  ESP_RST_WDT,        //!< 7  Reset due to other watchdogs
+  ESP_RST_DEEPSLEEP,  //!< 8  Reset after exiting deep sleep mode
+  ESP_RST_BROWNOUT,   //!< 9  Brownout reset (software or hardware)
+  ESP_RST_SDIO,       //!< 10 Reset over SDIO
+  ESP_RST_USB,        //!< 11 Reset by USB peripheral
+  ESP_RST_JTAG,       //!< 12 Reset by JTAG
+  ESP_RST_EFUSE,      //!< 13 Reset due to efuse error
+  ESP_RST_PWR_GLITCH, //!< 14 Reset due to power glitch detected
+  ESP_RST_CPU_LOCKUP, //!< 15 Reset due to CPU lock up
+} esp_reset_reason_t;
+*/
+void check_reset_reason() {
+  esp_reset_reason_t reason = esp_reset_reason();
+  switch (reason) {
+    case ESP_RST_UNKNOWN:
+      set_event(EVENT_RESET_UNKNOWN, reason);
+      break;
+    case ESP_RST_POWERON:
+      set_event(EVENT_RESET_POWERON, reason);
+      break;
+    case ESP_RST_EXT:
+      set_event(EVENT_RESET_EXT, reason);
+      break;
+    case ESP_RST_SW:
+      set_event(EVENT_RESET_SW, reason);
+      break;
+    case ESP_RST_PANIC:
+      set_event(EVENT_RESET_PANIC, reason);
+      break;
+    case ESP_RST_INT_WDT:
+      set_event(EVENT_RESET_INT_WDT, reason);
+      break;
+    case ESP_RST_TASK_WDT:
+      set_event(EVENT_RESET_TASK_WDT, reason);
+      break;
+    case ESP_RST_WDT:
+      set_event(EVENT_RESET_WDT, reason);
+      break;
+    case ESP_RST_DEEPSLEEP:
+      set_event(EVENT_RESET_DEEPSLEEP, reason);
+      break;
+    case ESP_RST_BROWNOUT:
+      set_event(EVENT_RESET_BROWNOUT, reason);
+      break;
+    case ESP_RST_SDIO:
+      set_event(EVENT_RESET_SDIO, reason);
+      break;
+    case ESP_RST_USB:
+      set_event(EVENT_RESET_USB, reason);
+      break;
+    case ESP_RST_JTAG:
+      set_event(EVENT_RESET_JTAG, reason);
+      break;
+    case ESP_RST_EFUSE:
+      set_event(EVENT_RESET_EFUSE, reason);
+      break;
+    case ESP_RST_PWR_GLITCH:
+      set_event(EVENT_RESET_PWR_GLITCH, reason);
+      break;
+    case ESP_RST_CPU_LOCKUP:
+      set_event(EVENT_RESET_CPU_LOCKUP, reason);
+      break;
+    default:
+      break;
+  }
 }
