@@ -374,6 +374,13 @@ String processor(const String& var) {
 
     // Show version number
     content += "<h4>Software: " + String(version_number) + "</h4>";
+// Show hardware used:
+#ifdef HW_LILYGO
+    content += "<h4>Hardware: LilyGo T-CAN485</h4>";
+#endif
+#ifdef HW_STARK
+    content += "<h4>Hardware: Stark CMR Module</h4>";
+#endif
     content += "<h4>Uptime: " + uptime_formatter::getUptime() + "</h4>";
 #ifdef FUNCTION_TIME_MEASUREMENT
     // Load information
@@ -395,9 +402,8 @@ String processor(const String& var) {
     content += "<h4>SSID: " + String(ssid) + "</h4>";
     if (status == WL_CONNECTED) {
       content += "<h4>IP: " + WiFi.localIP().toString() + "</h4>";
-      // Get and display the signal strength (RSSI)
-      content += "<h4>Signal Strength: " + String(WiFi.RSSI()) + " dBm</h4>";
-      content += "<h4>Channel: " + String(WiFi.channel()) + "</h4>";
+      // Get and display the signal strength (RSSI) and channel
+      content += "<h4>Signal strength: " + String(WiFi.RSSI()) + " dBm, at channel " + String(WiFi.channel()) + "</h4>";
     } else {
       content += "<h4>Wifi state: " + getConnectResultString(status) + "</h4>";
     }
