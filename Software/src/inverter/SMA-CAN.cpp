@@ -105,22 +105,24 @@ static uint16_t ampere_hours_remaining = 0;
 
 void update_values_can_inverter() {  //This function maps all the values fetched from battery CAN to the correct CAN messages
   //Calculate values
-  charge_current =
-      ((datalayer.battery.status.max_charge_power_W * 10) /
-       datalayer.battery.status.voltage_dV);  //Charge power in W , max volt in V+1decimal (P=UI, solve for I)
-  //The above calculation results in (30 000*10)/3700=81A
-  charge_current = (charge_current * 10);  //Value needs a decimal before getting sent to inverter (81.0A)
+
+  if (datalayer.battery.status.voltage_dV > 10) {  // Only update value when we have voltage available to avoid div0
+    discharge_current =
+        ((datalayer.battery.status.max_discharge_power_W * 10) /
+         datalayer.battery.status.voltage_dV);     //Charge power in W , max volt in V+1decimal (P=UI, solve for I)
+    discharge_current = (discharge_current * 10);  //Value needs a decimal before getting sent to inverter (81.0A)
+    charge_current =
+        ((datalayer.battery.status.max_charge_power_W * 10) /
+         datalayer.battery.status.voltage_dV);  //Charge power in W , max volt in V+1decimal (P=UI, solve for I)
+    charge_current = (charge_current * 10);     //Value needs a decimal before getting sent to inverter (81.0A)
+  }
+
   if (charge_current > datalayer.battery.info.max_charge_amp_dA) {
     charge_current =
         datalayer.battery.info
             .max_charge_amp_dA;  //Cap the value to the max allowed Amp. Some inverters cannot handle large values.
   }
 
-  discharge_current =
-      ((datalayer.battery.status.max_discharge_power_W * 10) /
-       datalayer.battery.status.voltage_dV);  //Charge power in W , max volt in V+1decimal (P=UI, solve for I)
-  //The above calculation results in (30 000*10)/3700=81A
-  discharge_current = (discharge_current * 10);  //Value needs a decimal before getting sent to inverter (81.0A)
   if (discharge_current > datalayer.battery.info.max_discharge_amp_dA) {
     discharge_current =
         datalayer.battery.info
@@ -130,8 +132,10 @@ void update_values_can_inverter() {  //This function maps all the values fetched
   temperature_average =
       ((datalayer.battery.status.temperature_max_dC + datalayer.battery.status.temperature_min_dC) / 2);
 
-  ampere_hours_remaining = ((datalayer.battery.status.remaining_capacity_Wh / datalayer.battery.status.voltage_dV) *
-                            100);  //(WH[10000] * V+1[3600])*100 = 270 (27.0Ah)
+  if (datalayer.battery.status.voltage_dV > 10) {  // Only update value when we have voltage available to avoid div0
+    ampere_hours_remaining = ((datalayer.battery.status.remaining_capacity_Wh / datalayer.battery.status.voltage_dV) *
+                              100);  //(WH[10000] * V+1[3600])*100 = 270 (27.0Ah)
+  }
 
   //Map values to CAN messages
   //Maxvoltage (eg 400.0V = 4000 , 16bits long)
