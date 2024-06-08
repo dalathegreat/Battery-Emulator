@@ -136,28 +136,38 @@ void update_values_can_inverter() {  //This function maps all the values fetched
       ((datalayer.battery.status.temperature_max_dC + datalayer.battery.status.temperature_min_dC) / 2);
 
   //datalayer.battery.status.max_charge_power_W (30000W max)
-  if (datalayer.battery.status.reported_soc > 9999)  //99.99%
-  {  //Additional safety incase SOC% is 100, then do not charge battery further
+  if (datalayer.battery.status.reported_soc > 9999) {  // 99.99%
+    // Additional safety incase SOC% is 100, then do not charge battery further
     max_charge_rate_amp = 0;
-  } else {  //We can pass on the battery charge rate (in W) to the inverter (that takes A)
+  } else {  // We can pass on the battery charge rate (in W) to the inverter (that takes A)
     if (datalayer.battery.status.max_charge_power_W >= 30000) {
-      max_charge_rate_amp = 75;  //Incase battery can take over 30kW, cap value to 75A
-    } else {                     //Calculate the W value into A
-      max_charge_rate_amp =
-          (datalayer.battery.status.max_charge_power_W / (datalayer.battery.status.voltage_dV * 0.1));  // P/U = I
+      max_charge_rate_amp = 75;  // Incase battery can take over 30kW, cap value to 75A
+    } else {                     // Calculate the W value into A
+      if (datalayer.battery.status.voltage_dV > 10) {
+        max_charge_rate_amp =
+            datalayer.battery.status.max_charge_power_W / (datalayer.battery.status.voltage_dV * 0.1);  // P/U=I
+      } else {  // We avoid dividing by 0 and crashing the board
+        // If we have no voltage, something has gone wrong, do not allow charging
+        max_charge_rate_amp = 0;
+      }
     }
   }
 
   //datalayer.battery.status.max_discharge_power_W (30000W max)
-  if (datalayer.battery.status.reported_soc < 100)  //1.00%
-  {  //Additional safety incase SOC% is below 1, then do not charge battery further
+  if (datalayer.battery.status.reported_soc < 100) {  // 1.00%
+    // Additional safety in case SOC% is below 1, then do not discharge battery further
     max_discharge_rate_amp = 0;
-  } else {  //We can pass on the battery discharge rate to the inverter
+  } else {  // We can pass on the battery discharge rate to the inverter
     if (datalayer.battery.status.max_discharge_power_W >= 30000) {
-      max_discharge_rate_amp = 75;  //Incase battery can be charged with over 30kW, cap value to 75A
-    } else {                        //Calculate the W value into A
-      max_discharge_rate_amp =
-          (datalayer.battery.status.max_discharge_power_W / (datalayer.battery.status.voltage_dV * 0.1));  // P/U = I
+      max_discharge_rate_amp = 75;  // Incase battery can be charged with over 30kW, cap value to 75A
+    } else {                        // Calculate the W value into A
+      if (datalayer.battery.status.voltage_dV > 10) {
+        max_discharge_rate_amp =
+            datalayer.battery.status.max_discharge_power_W / (datalayer.battery.status.voltage_dV * 0.1);  // P/U=I
+      } else {  // We avoid dividing by 0 and crashing the board
+        // If we have no voltage, something has gone wrong, do not allow discharging
+        max_discharge_rate_amp = 0;
+      }
     }
   }
 
