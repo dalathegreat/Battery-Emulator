@@ -15,13 +15,13 @@
 //#define KIA_E_GMP_BATTERY
 //#define MG_5_BATTERY
 //#define NISSAN_LEAF_BATTERY
-//#define PYLON_BATTERY
+// #define PYLON_BATTERY
 //#define RENAULT_KANGOO_BATTERY
 //#define RENAULT_ZOE_BATTERY
 //#define SANTA_FE_PHEV_BATTERY
 //#define TESLA_MODEL_3_BATTERY
 //#define VOLVO_SPA_BATTERY
-//#define TEST_FAKE_BATTERY
+#define TEST_FAKE_BATTERY
 
 /* Select inverter communication protocol. See Wiki for which to use with your inverter: https://github.com/dalathegreat/BYD-Battery-Emulator-For-Gen24/wiki */
 //#define BYD_CAN          //Enable this line to emulate a "BYD Battery-Box Premium HVS" over CAN Bus
@@ -31,14 +31,14 @@
 //#define SMA_CAN          //Enable this line to emulate a "BYD Battery-Box H 8.9kWh, 7 mod" over CAN bus
 //#define SMA_TRIPOWER_CAN //Enable this line to emulate a "SMA Home Storage battery" over CAN bus
 //#define SOFAR_CAN        //Enable this line to emulate a "Sofar Energy Storage Inverter High Voltage BMS General Protocol (Extended Frame)" over CAN bus
-//#define SOLAX_CAN        //Enable this line to emulate a "SolaX Triple Power LFP" over CAN bus
+#define SOLAX_CAN        //Enable this line to emulate a "SolaX Triple Power LFP" over CAN bus
 
 /* Select hardware used for Battery-Emulator */
 #define HW_LILYGO
 //#define HW_STARK
 
 /* Other options */
-//#define DEBUG_VIA_USB  //Enable this line to have the USB port output serial diagnostic data while program runs (WARNING, raises CPU load, do not use for production)
+#define DEBUG_VIA_USB  //Enable this line to have the USB port output serial diagnostic data while program runs (WARNING, raises CPU load, do not use for production)
 //#define DEBUG_CANFD_DATA    //Enable this line to have the USB port output CAN-FD data while program runs (WARNING, raises CPU load, do not use for production)
 //#define INTERLOCK_REQUIRED  //Nissan LEAF specific setting, if enabled requires both high voltage conenctors to be seated before starting
 //#define CONTACTOR_CONTROL     //Enable this line to have pins 25,32,33 handle automatic precharge/contactor+/contactor- closing sequence
@@ -53,10 +53,10 @@
 //#define ISA_SHUNT  //Enable this line to build support for ISA IVT shunts
 
 /* MQTT options */
-// #define MQTT  // Enable this line to enable MQTT
+#define MQTT  // Enable this line to enable MQTT
 #define MQTT_SUBSCRIPTIONS \
   { "my/topic/abc", "my/other/topic" }
-#define MQTT_SERVER "192.168.xxx.yyy"
+#define MQTT_SERVER "thulasolutions.cloud.shiftr.io"
 #define MQTT_PORT 1883
 
 /* Event options*/
@@ -69,11 +69,11 @@
 /* Battery settings */
 
 // Predefined total energy capacity of the battery in Watt-hours
-#define BATTERY_WH_MAX 30000
+#define BATTERY_WH_MAX 40000
 // Increases battery life. If true will rescale SOC between the configured min/max-percentage
 #define BATTERY_USE_SCALED_SOC true
 // 8000 = 80.0% , Max percentage the battery will charge to (Inverter gets 100% when reached)
-#define BATTERY_MAXPERCENTAGE 8000
+#define BATTERY_MAXPERCENTAGE 10000
 // 2000 = 20.0% , Min percentage the battery will discharge to (Inverter gets 0% when reached)
 #define BATTERY_MINPERCENTAGE 2000
 // 300 = 30.0A , BYD CAN specific setting, Max charge in Amp (Some inverters needs to be limited)

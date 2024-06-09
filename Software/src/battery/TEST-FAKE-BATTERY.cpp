@@ -17,21 +17,21 @@ void print_units(char* header, int value, char* units) {
 
 void update_values_battery() { /* This function puts fake values onto the parameters sent towards the inverter */
 
-  datalayer.battery.status.real_soc = 5000;  // 50.00%
+  datalayer.battery.status.real_soc = 9000;  // 50.00%
 
   datalayer.battery.status.soh_pptt = 9900;  // 99.00%
 
-  //datalayer.battery.status.voltage_dV = 3700;  // 370.0V , value set in startup in .ino file, editable via webUI
+  datalayer.battery.status.voltage_dV = 1080;  // 370.0V , value set in startup in .ino file, editable via webUI
 
   datalayer.battery.status.current_dA = 0;  // 0 A
 
-  datalayer.battery.info.total_capacity_Wh = 30000;  // 30kWh
+  datalayer.battery.info.total_capacity_Wh = 40000;  // 30kWh
 
-  datalayer.battery.status.remaining_capacity_Wh = 15000;  // 15kWh
+  datalayer.battery.status.remaining_capacity_Wh = 20000;  // 15kWh
 
-  datalayer.battery.status.cell_max_voltage_mV = 3596;
+  datalayer.battery.status.cell_max_voltage_mV = 3500;
 
-  datalayer.battery.status.cell_min_voltage_mV = 3500;
+  datalayer.battery.status.cell_min_voltage_mV = 3400;
 
   datalayer.battery.status.active_power_W = 0;  // 0W
 
@@ -43,8 +43,8 @@ void update_values_battery() { /* This function puts fake values onto the parame
 
   datalayer.battery.status.max_charge_power_W = 5000;  // 5kW
 
-  for (int i = 0; i < 97; ++i) {
-    datalayer.battery.status.cell_voltages_mV[i] = 3500 + i;
+  for (int i = 0; i < 32; ++i) {
+    datalayer.battery.status.cell_voltages_mV[i] = 3375 - 16 + i;
   }
 
   //Fake that we get CAN messages
@@ -96,8 +96,8 @@ void setup_battery(void) {  // Performs one time setup at startup
 #endif
 
   datalayer.battery.info.max_design_voltage_dV =
-      4040;  // 404.4V, over this, charging is not possible (goes into forced discharge)
-  datalayer.battery.info.min_design_voltage_dV = 2450;  // 245.0V under this, discharging further is disabled
+      1130;  // 404.4V, over this, charging is not possible (goes into forced discharge)
+  datalayer.battery.info.min_design_voltage_dV = 960;  // 245.0V under this, discharging further is disabled
 }
 
 #endif

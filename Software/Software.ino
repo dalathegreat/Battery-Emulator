@@ -804,22 +804,22 @@ void check_reset_reason() {
     case ESP_RST_SDIO:
       set_event(EVENT_RESET_SDIO, reason);
       break;
-    case ESP_RST_USB:
-      set_event(EVENT_RESET_USB, reason);
-      break;
-    case ESP_RST_JTAG:
-      set_event(EVENT_RESET_JTAG, reason);
-      break;
-    case ESP_RST_EFUSE:
-      set_event(EVENT_RESET_EFUSE, reason);
-      break;
-    case ESP_RST_PWR_GLITCH:
-      set_event(EVENT_RESET_PWR_GLITCH, reason);
-      break;
-    case ESP_RST_CPU_LOCKUP:
-      set_event(EVENT_RESET_CPU_LOCKUP, reason);
-      break;
-    default:
-      break;
+    // case ESP_RST_USB:
+    //   set_event(EVENT_RESET_USB, reason);
+    //   break;
+    // case ESP_RST_JTAG:
+    //   set_event(EVENT_RESET_JTAG, reason);
+    //   break;
+    // case ESP_RST_EFUSE:
+    //   set_event(EVENT_RESET_EFUSE, reason);
+    //   break;
+    // case ESP_RST_PWR_GLITCH:
+    //   set_event(EVENT_RESET_PWR_GLITCH, reason);
+    //   break;
+    // case ESP_RST_CPU_LOCKUP:
+    //   set_event(EVENT_RESET_CPU_LOCKUP, reason);
+    //   break;
+    // default:
+    //   break;
   }
 }
