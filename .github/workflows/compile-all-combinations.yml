@@ -37,6 +37,7 @@ jobs:
         # These are the batteries for which the code will be compiled.
         battery:
           - BMW_I3_BATTERY
+          - BYD_ATTO_3_BATTERY
           - CHADEMO_BATTERY
           - IMIEV_CZERO_ION_BATTERY
           - KIA_HYUNDAI_64_BATTERY
