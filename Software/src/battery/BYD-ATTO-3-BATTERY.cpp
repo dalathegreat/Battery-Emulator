@@ -10,7 +10,11 @@
 - Get contactor closing working
   - NOTE: Some packs can be locked hard? after a crash has occured. Bypassing contactors manually might be required
 - Figure out which CAN messages need to be sent towards the battery to keep it alive
+  -Maybe already enough with 0x12D and 0x411?
 - Map all values from battery CAN messages
+  -SOC% still not found
+  -Voltage still not found
+  -Rest is optional and can be added later
 */
 
 /* Do not change code below unless you are sure what you are doing */
@@ -88,10 +92,10 @@ void update_values_battery() {  //This function maps all the values fetched via 
 void receive_can_battery(CAN_frame_t rx_frame) {
   datalayer.battery.status.CAN_battery_still_alive = CAN_STILL_ALIVE;
   switch (rx_frame.MsgID) {  //Log values taken with 422V from battery
-    case 0x244:              //00,00,00,04,41,0F,20,8B - 0x441 = 1089 , 0xF20 = 3872 , 0x410F / 4 = 4163
+    case 0x244:              //00,00,00,04,41,0F,20,8B - Static, values never changes between logs
       break;
     case 0x245:  //01,00,02,19,3A,25,90,F4 Seems to have a mux in frame0
-                 //02,00,90,01,79,79,90,EA
+                 //02,00,90,01,79,79,90,EA // Point of interest, went from 7E,75 to 7B,7C when discharging
                  //03,C6,88,12,FD,48,90,5C
                  //04,00,FF,FF,00,00,90,6D
       if (rx_frame.data.u8[0] == 0x01) {
@@ -235,8 +239,8 @@ void setup_battery(void) {  // Performs one time setup at startup
   Serial.println("BYD Atto 3 battery selected");
 #endif
 
-  datalayer.battery.info.max_design_voltage_dV = 4040;  // Over this charging is not possible
-  datalayer.battery.info.min_design_voltage_dV = 3100;  // Under this discharging is disabled
+  datalayer.battery.info.max_design_voltage_dV = 4400;  // Over this charging is not possible
+  datalayer.battery.info.min_design_voltage_dV = 3700;  // Under this discharging is disabled
 }
 
 #endif
