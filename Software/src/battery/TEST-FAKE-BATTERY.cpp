@@ -17,11 +17,11 @@ void print_units(char* header, int value, char* units) {
 
 void update_values_battery() { /* This function puts fake values onto the parameters sent towards the inverter */
 
-  datalayer.battery.status.real_soc = 9000;  // 50.00%
+  datalayer.battery.status.real_soc = 7500;  // 50.00%
 
   datalayer.battery.status.soh_pptt = 9900;  // 99.00%
 
-  datalayer.battery.status.voltage_dV = 1080;  // 370.0V , value set in startup in .ino file, editable via webUI
+  datalayer.battery.status.voltage_dV = 1060;  // 370.0V , value set in startup in .ino file, editable via webUI
 
   datalayer.battery.status.current_dA = 0;  // 0 A
 
@@ -29,22 +29,22 @@ void update_values_battery() { /* This function puts fake values onto the parame
 
   datalayer.battery.status.remaining_capacity_Wh = 20000;  // 15kWh
 
-  datalayer.battery.status.cell_max_voltage_mV = 3500;
+  datalayer.battery.status.cell_max_voltage_mV = 3350;
 
-  datalayer.battery.status.cell_min_voltage_mV = 3400;
+  datalayer.battery.status.cell_min_voltage_mV = 3300;
 
   datalayer.battery.status.active_power_W = 0;  // 0W
 
-  datalayer.battery.status.temperature_min_dC = 50;  // 5.0*C
+  datalayer.battery.status.temperature_min_dC = 100;  // 5.0*C
 
-  datalayer.battery.status.temperature_max_dC = 60;  // 6.0*C
+  datalayer.battery.status.temperature_max_dC = 150;  // 6.0*C
 
   datalayer.battery.status.max_discharge_power_W = 5000;  // 5kW
 
   datalayer.battery.status.max_charge_power_W = 5000;  // 5kW
 
   for (int i = 0; i < 32; ++i) {
-    datalayer.battery.status.cell_voltages_mV[i] = 3375 - 16 + i;
+    datalayer.battery.status.cell_voltages_mV[i] = 3300 + i;
   }
 
   //Fake that we get CAN messages

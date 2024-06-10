@@ -59,6 +59,10 @@
 #include "VOLVO-SPA-BATTERY.h"
 #endif
 
+#ifdef BALANCELL_P33
+#include "BALANCELL_P33.h"
+#endif
+
 #ifdef SERIAL_LINK_RECEIVER
 #include "SERIAL-LINK-RECEIVER-FROM-BATTERY.h"
 #endif

@@ -10,9 +10,9 @@ typedef struct {
 
   /** uint16_t */
   /** The maximum intended packvoltage, in deciVolt. 4900 = 490.0 V */
-  uint16_t max_design_voltage_dV = 5000;
+  uint16_t max_design_voltage_dV = 1150;
   /** The minimum intended packvoltage, in deciVolt. 3300 = 330.0 V */
-  uint16_t min_design_voltage_dV = 2500;
+  uint16_t min_design_voltage_dV = 9600;
   /** BYD CAN specific setting, max charge in deciAmpere. 300 = 30.0 A */
   uint16_t max_charge_amp_dA = BATTERY_MAX_CHARGE_AMP;
   /** BYD CAN specific setting, max discharge in deciAmpere. 300 = 30.0 A */
@@ -24,7 +24,7 @@ typedef struct {
 
   /** Other */
   /** Chemistry of the pack. NCA, NMC or LFP (so far) */
-  battery_chemistry_enum chemistry = battery_chemistry_enum::NCA;
+  battery_chemistry_enum chemistry = battery_chemistry_enum::LFP;
 } DATALAYER_BATTERY_INFO_TYPE;
 
 typedef struct {
@@ -38,9 +38,9 @@ typedef struct {
   /** Remaining energy capacity in Watt-hours */
   uint32_t remaining_capacity_Wh;
   /** Maximum allowed battery discharge power in Watts */
-  uint32_t max_discharge_power_W = 0;
+  uint32_t max_discharge_power_W = 500;
   /** Maximum allowed battery charge power in Watts */
-  uint32_t max_charge_power_W = 0;
+  uint32_t max_charge_power_W = 500;
 
   /** int16_t */
   /** Maximum temperature currently measured in the pack, in d°C. 150 = 15.0 °C */
@@ -54,11 +54,11 @@ typedef struct {
   /** State of health in integer-percent x 100. 9900 = 99.00% */
   uint16_t soh_pptt = 9900;
   /** Instantaneous battery voltage in deciVolts. 3700 = 370.0 V */
-  uint16_t voltage_dV = 3700;
+  uint16_t voltage_dV = 1060;
   /** Maximum cell voltage currently measured in the pack, in mV */
-  uint16_t cell_max_voltage_mV = 3700;
+  uint16_t cell_max_voltage_mV = 3350;
   /** Minimum cell voltage currently measured in the pack, in mV */
-  uint16_t cell_min_voltage_mV = 3700;
+  uint16_t cell_min_voltage_mV = 3300;
   /** All cell voltages currently measured in the pack, in mV.
    * Use with battery.info.number_of_cells to get valid data.
    */
@@ -151,7 +151,7 @@ typedef struct {
   int64_t time_snap_cantx_us = 0;
 #endif
   /** True if the battery allows for the contactors to close */
-  bool battery_allows_contactor_closing = false;
+  bool battery_allows_contactor_closing = true;
   /** True if the inverter allows for the contactors to close */
   bool inverter_allows_contactor_closing = true;
 } DATALAYER_SYSTEM_STATUS_TYPE;

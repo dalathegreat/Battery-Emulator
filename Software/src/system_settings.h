@@ -24,7 +24,7 @@
  * Description:
  * Basically the length of the array used to hold individual cell voltages
 */
-#define MAX_AMOUNT_CELLS 192
+#define MAX_AMOUNT_CELLS 32
 
 /** LED 
  * 
