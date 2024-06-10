@@ -12,8 +12,8 @@
 - Figure out which CAN messages need to be sent towards the battery to keep it alive
   -Maybe already enough with 0x12D and 0x411?
 - Map all values from battery CAN messages
-  -SOC% still not found
-  -Voltage still not found
+  -SOC% still not found (Lets take it from PID poll)
+  -Voltage still not found (Lets take it from PID poll)
   -Rest is optional and can be added later
 */
 
@@ -32,7 +32,20 @@ static int16_t highest_temperature = 0;
 static int16_t calc_min_temperature = 0;
 static int16_t calc_max_temperature = 0;
 
-static int BMS_SOC = 0;
+static uint16_t BMS_SOC = 0;
+static uint16_t BMS_voltage = 0;
+static int16_t BMS_current = 0;
+static int16_t BMS_lowest_cell_temperature = 0;
+static int16_t BMS_highest_cell_temperature = 0;
+static int16_t BMS_average_cell_temperature = 0;
+
+#define POLL_FOR_BATTERY_SOC 0x05
+#define POLL_FOR_BATTERY_VOLTAGE 0x08
+#define POLL_FOR_BATTERY_CURRENT 0x09
+#define POLL_FOR_LOWEST_TEMP_CELL 0x2f
+#define POLL_FOR_HIGHEST_TEMP_CELL 0x31
+#define POLL_FOR_BATTERY_PACK_AVG_TEMP 0x32
+#define UNKNOWN_POLL_1 0xFC
 
 CAN_frame_t ATTO_3_12D = {.FIR = {.B =
                                       {
@@ -49,23 +62,31 @@ CAN_frame_t ATTO_3_411 = {.FIR = {.B =
                           .MsgID = 0x411,
                           .data = {0x98, 0x3A, 0x88, 0x13, 0x9D, 0x00, 0xFF, 0x8C}};
 
+CAN_frame_t ATTO_3_7E7_POLL = {
+    .FIR = {.B =
+                {
+                    .DLC = 8,
+                    .FF = CAN_frame_std,
+                }},
+    .MsgID = 0x7E7,
+    .data = {0x03, 0x22, 0x00, 0x05, 0x00, 0x00, 0x00, 0x00}};  //Poll PID 03 22 00 05 (POLL_FOR_BATTERY_SOC)
+
 void update_values_battery() {  //This function maps all the values fetched via CAN to the correct parameters used for modbus
 
-  datalayer.battery.status.real_soc;
+  datalayer.battery.status.real_soc = BMS_SOC * 100;
 
-  datalayer.battery.status.voltage_dV;
+  datalayer.battery.status.voltage_dV = BMS_voltage * 100;
 
-  datalayer.battery.status.current_dA;
+  datalayer.battery.status.current_dA = BMS_current;  //TODO: Signed right way?
 
-  datalayer.battery.info.total_capacity_Wh;
+  datalayer.battery.status.remaining_capacity_Wh = static_cast<uint32_t>(
+      (static_cast<double>(datalayer.battery.status.real_soc) / 10000) * datalayer.battery.info.total_capacity_Wh);
 
-  datalayer.battery.status.remaining_capacity_Wh;
+  datalayer.battery.status.max_discharge_power_W = 5000;
 
-  datalayer.battery.status.max_discharge_power_W;
+  datalayer.battery.status.max_charge_power_W = 5000;
 
-  datalayer.battery.status.max_charge_power_W;
-
-  datalayer.battery.status.active_power_W;
+  datalayer.battery.status.active_power_W;  //TODO: Map!
 
   // Initialize min and max variables
   calc_min_temperature = daughterboard_temperatures[0];
@@ -179,6 +200,58 @@ void receive_can_battery(CAN_frame_t rx_frame) {
       break;
     case 0x524:  //24,40,00,00,00,00,00,9B - Static, values never changes between logs
       datalayer.battery.status.CAN_battery_still_alive = CAN_STILL_ALIVE;  // Let system know battery is sending CAN
+
+      //This message transmits every 5?seconds. Seems like suitable place to poll for a PID
+      ESP32Can.CANWriteFrame(&ATTO_3_7E7_POLL);
+
+      switch (ATTO_3_7E7_POLL.data.u8[3]) {
+        case POLL_FOR_BATTERY_SOC:
+          ATTO_3_7E7_POLL.data.u8[3] = POLL_FOR_BATTERY_VOLTAGE;
+          break;
+        case POLL_FOR_BATTERY_VOLTAGE:
+          ATTO_3_7E7_POLL.data.u8[3] = POLL_FOR_BATTERY_CURRENT;
+          break;
+        case POLL_FOR_BATTERY_CURRENT:
+          ATTO_3_7E7_POLL.data.u8[3] = POLL_FOR_LOWEST_TEMP_CELL;
+          break;
+        case POLL_FOR_LOWEST_TEMP_CELL:
+          ATTO_3_7E7_POLL.data.u8[3] = POLL_FOR_HIGHEST_TEMP_CELL;
+          break;
+        case POLL_FOR_HIGHEST_TEMP_CELL:
+          ATTO_3_7E7_POLL.data.u8[3] = POLL_FOR_BATTERY_PACK_AVG_TEMP;
+          break;
+        case POLL_FOR_BATTERY_PACK_AVG_TEMP:
+          ATTO_3_7E7_POLL.data.u8[3] = POLL_FOR_BATTERY_SOC;
+          break;
+        default:  //Something went wrong with logic, request SOC
+          ATTO_3_7E7_POLL.data.u8[3] = POLL_FOR_BATTERY_SOC;
+          break;
+      }
+
+      break;
+    case 0x7EF:  //OBD2 PID reply from battery
+      switch (rx_frame.data.u8[3]) {
+        case POLL_FOR_BATTERY_SOC:
+          BMS_SOC = rx_frame.data.u8[4];
+          break;
+        case POLL_FOR_BATTERY_VOLTAGE:
+          BMS_voltage = (rx_frame.data.u8[5] << 8) | rx_frame.data.u8[4];
+          break;
+        case POLL_FOR_BATTERY_CURRENT:
+          BMS_current = ((rx_frame.data.u8[5] << 8) | rx_frame.data.u8[4]) - 5000;
+          break;
+        case POLL_FOR_LOWEST_TEMP_CELL:
+          BMS_lowest_cell_temperature = (rx_frame.data.u8[4] - 40);
+          break;
+        case POLL_FOR_HIGHEST_TEMP_CELL:
+          BMS_highest_cell_temperature = (rx_frame.data.u8[4] - 40);
+          break;
+        case POLL_FOR_BATTERY_PACK_AVG_TEMP:
+          BMS_average_cell_temperature = (rx_frame.data.u8[4] - 40);
+          break;
+        default:  //Unrecognized reply
+          break;
+      }
       break;
     default:
       break;
