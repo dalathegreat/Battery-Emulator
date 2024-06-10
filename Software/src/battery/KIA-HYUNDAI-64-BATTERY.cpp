@@ -179,8 +179,6 @@ void update_values_battery() {  //This function maps all the values fetched via 
     set_event(EVENT_12V_LOW, leadAcidBatteryVoltage);
   }
 
-  update_number_of_cells();
-
   // Check if cell voltages are within allowed range
   if (CellVoltMax_mV >= MAX_CELL_VOLTAGE) {
     set_event(EVENT_CELL_OVER_VOLTAGE, 0);
@@ -276,10 +274,6 @@ void receive_can_battery(CAN_frame_t rx_frame) {
       startedUp = true;
       datalayer.battery.status.CAN_battery_still_alive = CAN_STILL_ALIVE;
       SOC_Display = rx_frame.data.u8[0] * 5;  //100% = 200 ( 200 * 5 = 1000 )
-      //Map all cell voltages to the global array
-      memcpy(datalayer.battery.status.cell_voltages_mV, cellvoltages_mv, 98 * sizeof(uint16_t));
-      //Update number of cells
-      update_number_of_cells();
       break;
     case 0x594:
       startedUp = true;
@@ -488,6 +482,10 @@ void receive_can_battery(CAN_frame_t rx_frame) {
           }
           break;
         case 0x26:  //Sixth datarow in PID group
+          //Map all cell voltages to the global array
+          memcpy(datalayer.battery.status.cell_voltages_mV, cellvoltages_mv, 98 * sizeof(uint16_t));
+          //Update number of cells
+          update_number_of_cells();
           break;
         case 0x27:  //Seventh datarow in PID group
           if (poll_data_pid == 1) {
