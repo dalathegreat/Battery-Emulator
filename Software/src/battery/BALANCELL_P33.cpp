@@ -95,32 +95,87 @@ void update_values_battery() {
   datalayer.battery.info.max_design_voltage_dV = charge_cutoff_voltage;
 
   datalayer.battery.info.min_design_voltage_dV = discharge_cutoff_voltage;
+
+  // for (int i = 0; i < 32; ++i) {
+  //   datalayer.battery.status.cell_voltages_mV[i] = 3300 + i;
+  // }
+
+// /*Finally print out values to serial if configured to do so*/
+// #ifdef DEBUG_VIA_USB
+//   Serial.println("Battery Values going to inverter");
+//   Serial.print("SOH%: ", (datalayer.battery.status.soh_pptt * 0.01), "% ");
+//   // Serial.print(", SOC%: ", (datalayer.battery.status.reported_soc * 0.01), "% ");
+//   // Serial.print(", Voltage: ", (datalayer.battery.status.voltage_dV * 0.1), "V ");
+//   // Serial.print(", Max discharge power: ", datalayer.battery.status.max_discharge_power_W, "W ");
+//   // Serial.print(", Max charge power: ", datalayer.battery.status.max_charge_power_W, "W ");
+//   // Serial.print(", Max temp: ", (datalayer.battery.status.temperature_max_dC * 0.1), "°C ");
+//   // Serial.print(", Min temp: ", (datalayer.battery.status.temperature_min_dC * 0.1), "°C ");
+//   // Serial.print(", Max cell voltage: ", datalayer.battery.status.cell_max_voltage_mV, "mV ");
+//   // Serial.print(", Min cell voltage: ", datalayer.battery.status.cell_min_voltage_mV, "mV ");
+//   // Serial.println("");
+// #endif
+
 }
 
 void receive_can_battery(CAN_frame_t rx_frame) {
   datalayer.battery.status.CAN_battery_still_alive = CAN_STILL_ALIVE;
   switch (rx_frame.MsgID) {
+    case 0x351:
+      //BMS limits
+      charge_cutoff_voltage = ((rx_frame.data.u8[1] << 8) | rx_frame.data.u8[0]);
+      discharge_cutoff_voltage =  ((rx_frame.data.u8[7] << 8) | rx_frame.data.u8[6]);
+      max_charge_current = ((rx_frame.data.u8[3] << 8) | rx_frame.data.u8[2])/10;
+      max_discharge_current = ((rx_frame.data.u8[5] << 8) | rx_frame.data.u8[4])/10;
+
+      if (max_charge_current > 0){
+        charge_forbidden = 0;
+      }
+      else{
+        charge_forbidden = 1;
+      }
+
+      if (max_discharge_current > 0){
+        discharge_forbidden = 0;
+      }
+      else{
+        discharge_forbidden = 1;
+      }
+
+      // Serial.println("0x351 message recieved CV: " + String(charge_cutoff_voltage)  +" DV: " + String(discharge_cutoff_voltage) );
+      // Serial.println("0x351 message recieved CCL: " + String(max_charge_current)  +" DCL: " + String(max_discharge_current) );
+    break;
+    case 0x355:
+      // BMS SOC and SOH
+      SOC = ((rx_frame.data.u8[1] << 8) | rx_frame.data.u8[0]);
+      SOH = ((rx_frame.data.u8[3] << 8) | rx_frame.data.u8[2])-1;
+      // Serial.println("0x355 message recieved SOC: " + String(SOC)  +" SOH: " + String(SOH) );
+    break;
     case 0x356:
+      // BMS Status Message
+      // celltemperature_max_dC = ((rx_frame.data.u8[5] << 8) | rx_frame.data.u8[4]);
+      voltage_dV = ((rx_frame.data.u8[1] << 8) | rx_frame.data.u8[0]) / 10;
+      current_dA = ((rx_frame.data.u8[3] << 8) | rx_frame.data.u8[2])*2;
+      Serial.println("0x356 message recieved Temp: " + String(celltemperature_max_dC)  +" Volts: " + String(voltage_dV) +" Current: " + String(current_dA) );
+    break;
+    case 0x370:
+      //High low
+      cellvoltage_max_mV = ((rx_frame.data.u8[5] << 8) | rx_frame.data.u8[4]);
+      cellvoltage_min_mV = ((rx_frame.data.u8[7] << 8) | rx_frame.data.u8[6]);
+      celltemperature_max_dC = ((rx_frame.data.u8[1] << 8) | rx_frame.data.u8[0])*10;
+      celltemperature_min_dC = ((rx_frame.data.u8[3] << 8) | rx_frame.data.u8[2])*10;
+
+
       ensemble_info_ack = true;
       battery_module_quantity = 2;
       battery_modules_in_series = 1;
       cell_quantity_in_module = 32;
-      voltage_level = 106;
+      // voltage_level = 106;
       ah_number = 206;
-      voltage_dV = 104;
-      current_dA = 1;
-      SOC = 74;
-      SOH = 100;
-      charge_cutoff_voltage = 112.4;
-      discharge_cutoff_voltage = 96;
-      max_charge_current = 50;
-      max_discharge_current = 50;
-      cellvoltage_max_mV = 3350;
-      cellvoltage_min_mV = 3300;
-      celltemperature_max_dC = 13;
-      celltemperature_min_dC = 10;
-      charge_forbidden = 0;
-      discharge_forbidden = 0;
+
+
+
+    
+      break;
 
       // ensemble_info_ack = true;
       // battery_module_quantity = rx_frame.data.u8[0];
@@ -142,7 +197,7 @@ void receive_can_battery(CAN_frame_t rx_frame) {
       // celltemperature_min_dC = ((rx_frame.data.u8[3] << 8) | rx_frame.data.u8[2]) - 1000;
       // charge_forbidden = rx_frame.data.u8[0];
       // discharge_forbidden = rx_frame.data.u8[1];
-      break;
+
     // case 0x7310:
     // case 0x7311:
     //   ensemble_info_ack = true;
@@ -238,9 +293,9 @@ void setup_battery(void) {  // Performs one time setup at startup
 #ifdef DEBUG_VIA_USB
   Serial.println("Balancell battery selected");
 
-      battery_module_quantity = 2;
-      battery_modules_in_series = 1;
-      cell_quantity_in_module = 32;
+      // battery_module_quantity = 2;
+      // battery_modules_in_series = 1;
+      // cell_quantity_in_module = 32;
 
 #endif
 
