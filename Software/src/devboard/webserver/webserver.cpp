@@ -481,6 +481,9 @@ String processor(const String& var) {
 #ifdef TEST_FAKE_BATTERY
     content += "Fake battery for testing purposes";
 #endif
+#ifdef BALANCELL_P33
+    content += "Balancell P33";
+#endif
     content += "</h4>";
 
 #if defined CHEVYVOLT_CHARGER || defined NISSANLEAF_CHARGER

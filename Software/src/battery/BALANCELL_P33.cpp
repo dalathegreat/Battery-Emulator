@@ -153,7 +153,7 @@ void receive_can_battery(CAN_frame_t rx_frame) {
     case 0x356:
       // BMS Status Message
       // celltemperature_max_dC = ((rx_frame.data.u8[5] << 8) | rx_frame.data.u8[4]);
-      voltage_dV = ((rx_frame.data.u8[1] << 8) | rx_frame.data.u8[0]) / 10;
+      voltage_dV = ((rx_frame.data.u8[1] << 8) | rx_frame.data.u8[0]) / 10 - 3;
       current_dA = ((rx_frame.data.u8[3] << 8) | rx_frame.data.u8[2])*2;
       Serial.println("0x356 message recieved Temp: " + String(celltemperature_max_dC)  +" Volts: " + String(voltage_dV) +" Current: " + String(current_dA) );
     break;

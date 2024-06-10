@@ -210,10 +210,10 @@ void update_values_can_inverter() {  //This function maps all the values fetched
   SOLAX_1874.data.u8[1] = (datalayer.battery.status.temperature_max_dC >> 8);
   SOLAX_1874.data.u8[2] = (int8_t)datalayer.battery.status.temperature_min_dC;
   SOLAX_1874.data.u8[3] = (datalayer.battery.status.temperature_min_dC >> 8);
-  SOLAX_1874.data.u8[4] = (uint8_t)(datalayer.battery.status.cell_max_voltage_mV);
-  SOLAX_1874.data.u8[5] = (datalayer.battery.status.cell_max_voltage_mV >> 8);
-  SOLAX_1874.data.u8[6] = (uint8_t)(datalayer.battery.status.cell_min_voltage_mV);
-  SOLAX_1874.data.u8[7] = (datalayer.battery.status.cell_min_voltage_mV >> 8);
+  SOLAX_1874.data.u8[4] = (uint8_t)(datalayer.battery.status.cell_max_voltage_mV/100);
+  SOLAX_1874.data.u8[5] = (datalayer.battery.status.cell_max_voltage_mV/100 >> 8);
+  SOLAX_1874.data.u8[6] = (uint8_t)(datalayer.battery.status.cell_min_voltage_mV/100);
+  SOLAX_1874.data.u8[7] = (datalayer.battery.status.cell_min_voltage_mV/100 >> 8);
 
   //BMS_Status
   SOLAX_1875.data.u8[0] = (uint8_t)temperature_average;
@@ -229,10 +229,24 @@ void update_values_can_inverter() {  //This function maps all the values fetched
   SOLAX_1876.data.u8[7] = (datalayer.battery.status.cell_min_voltage_mV >> 8);
 
   //Unknown
-  SOLAX_1877.data.u8[4] = (uint8_t)0x50;  // Battery type
-  SOLAX_1877.data.u8[6] = (uint8_t)0x22;  // Firmware version?
-  SOLAX_1877.data.u8[7] =
-      (uint8_t)0x02;  // The above firmware version applies to:02 = Master BMS, 10 = S1, 20 = S2, 30 = S3, 40 = S4
+  SOLAX_1877.data.u8[0] =
+  SOLAX_1877.data.u8[1] =
+  SOLAX_1877.data.u8[2] =
+  SOLAX_1877.data.u8[3] =
+  SOLAX_1877.data.u8[4] = 
+  SOLAX_1877.data.u8[5] =
+  SOLAX_1877.data.u8[6] = (uint8_t)0x06;  // Firmware version?
+  SOLAX_1877.data.u8[7] = (uint8_t)0x01;  // The above firmware version applies to:02 = Master BMS, 10 = S1, 20 = S2, 30 = S3, 40 = S4
+
+  // SOLAX_1877.data.u8[0] =
+  // SOLAX_1877.data.u8[1] =
+  // SOLAX_1877.data.u8[2] =
+  // SOLAX_1877.data.u8[3] =
+  // SOLAX_1877.data.u8[4] = (uint8_t)0x50;  // Battery type
+  // SOLAX_1877.data.u8[5] =
+  // SOLAX_1877.data.u8[6] = (uint8_t)0x22;  // Firmware version?
+  // SOLAX_1877.data.u8[7] = (uint8_t)0x02;  // The above firmware version applies to:02 = Master BMS, 10 = S1, 20 = S2, 30 = S3, 40 = S4
+
 
   //BMS_PackStats
   SOLAX_1878.data.u8[0] = (uint8_t)(datalayer.battery.status.voltage_dV);
