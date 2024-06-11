@@ -15,7 +15,8 @@ static int SOC_2 = 0;
 static int SOC_3 = 0;
 static bool interlock_missing = false;
 static uint16_t battery_current = 0;
-
+static uint16_t voltage = 0;
+static int8_t temperature = 0;
 CAN_frame_t HYBRID_200 = {.FIR = {.B =
                                       {
                                           .DLC = 8,
@@ -42,9 +43,9 @@ void update_values_battery() {  //This function maps all the values fetched via 
 
   datalayer.battery.status.active_power_W;
 
-  datalayer.battery.status.temperature_min_dC;
+  datalayer.battery.status.temperature_min_dC = temperature * 10;
 
-  datalayer.battery.status.temperature_max_dC;
+  datalayer.battery.status.temperature_max_dC = temperature * 10;
 
   if (interlock_missing) {
     set_event(EVENT_HVIL_FAILURE, 0);
@@ -68,6 +69,7 @@ void receive_can_battery(CAN_frame_t rx_frame) {
       break;
     case 0x5AE:
       interlock_missing = (bool)(rx_frame.data.u8[1] & 0x02) >> 1;
+      temperature = rx_frame.data.u8[3];  // Is this correct byte? Or is it 5AD 4/5? The one there is 1deg higher
       break;
     case 0x5AF:
       break;
