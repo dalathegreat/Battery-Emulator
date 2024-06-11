@@ -10,9 +10,7 @@
 static unsigned long previousMillis10 = 0;   // will store last time a 10ms CAN Message was send
 static unsigned long previousMillis100 = 0;  // will store last time a 100ms CAN Message was send
 
-static int SOC_1 = 0;
-static int SOC_2 = 0;
-static int SOC_3 = 0;
+static uint16_t SOC = 0;
 static bool interlock_missing = false;
 static uint16_t battery_current = 0;
 static uint16_t voltage = 0;
@@ -27,9 +25,9 @@ CAN_frame_t HYBRID_200 = {.FIR = {.B =
 
 void update_values_battery() {  //This function maps all the values fetched via CAN to the correct parameters used for modbus
 
-  datalayer.battery.status.real_soc;
+  datalayer.battery.status.real_soc = SOC * 100;
 
-  datalayer.battery.status.voltage_dV;
+  datalayer.battery.status.voltage_dV = voltage * 10;
 
   datalayer.battery.status.current_dA = battery_current;
 
@@ -62,12 +60,16 @@ void receive_can_battery(CAN_frame_t rx_frame) {
   datalayer.battery.status.CAN_battery_still_alive = CAN_STILL_ALIVE;
   switch (rx_frame.MsgID) {
     case 0x5F1:
+      SOC = rx_frame.data.u8[2];  //Best guess so far, could be very wrong
       break;
     case 0x51E:
       break;
     case 0x588:
       break;
     case 0x5AE:
+      if (rx_frame.data.u8[0] > 100) {
+        voltage = rx_frame.data.u8[0];
+      }
       interlock_missing = (bool)(rx_frame.data.u8[1] & 0x02) >> 1;
       temperature = rx_frame.data.u8[3];  // Is this correct byte? Or is it 5AD 4/5? The one there is 1deg higher
       break;
