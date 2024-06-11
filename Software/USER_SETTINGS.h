@@ -25,7 +25,7 @@
 #define BALANCELL_P33
 
 /* Select inverter communication protocol. See Wiki for which to use with your inverter: https://github.com/dalathegreat/BYD-Battery-Emulator-For-Gen24/wiki */
-//#define BYD_CAN          //Enable this line to emulate a "BYD Battery-Box Premium HVS" over CAN Bus
+// #define BYD_CAN          //Enable this line to emulate a "BYD Battery-Box Premium HVS" over CAN Bus
 //#define BYD_MODBUS  //Enable this line to emulate a "BYD 11kWh HVM battery" over Modbus RTU
 //#define LUNA2000_MODBUS  //Enable this line to emulate a "Luna2000 battery" over Modbus RTU
 //#define PYLON_CAN        //Enable this line to emulate a "Pylontech battery" over CAN bus
@@ -33,6 +33,7 @@
 //#define SMA_TRIPOWER_CAN //Enable this line to emulate a "SMA Home Storage battery" over CAN bus
 //#define SOFAR_CAN        //Enable this line to emulate a "Sofar Energy Storage Inverter High Voltage BMS General Protocol (Extended Frame)" over CAN bus
 #define SOLAX_CAN        //Enable this line to emulate a "SolaX Triple Power LFP" over CAN bus
+// #define EPROP_CAN        //Enable this line to emulate an "Epropulsion Motor" over CAN bus
 
 /* Select hardware used for Battery-Emulator */
 #define HW_LILYGO
@@ -54,14 +55,14 @@
 //#define ISA_SHUNT  //Enable this line to build support for ISA IVT shunts
 
 /* MQTT options */
-#define MQTT  // Enable this line to enable MQTT
+// #define MQTT  // Enable this line to enable MQTT
 #define MQTT_SUBSCRIPTIONS \
   { "my/topic/abc", "my/other/topic" }
 #define MQTT_SERVER "thulasolutions.cloud.shiftr.io"
 #define MQTT_PORT 1883
 
 /* Event options*/
-#define DUMMY_EVENT_ENABLED false  //Enable this line to have a dummy event that gets logged to test the interface
+// #define DUMMY_EVENT_ENABLED false  //Enable this line to have a dummy event that gets logged to test the interface
 
 /* Select charger used (Optional) */
 //#define CHEVYVOLT_CHARGER //Enable this line to control a Chevrolet Volt charger connected to battery - for example, when generator charging or using an inverter without a charging function.
@@ -72,15 +73,15 @@
 // Predefined total energy capacity of the battery in Watt-hours
 #define BATTERY_WH_MAX 40000
 // Increases battery life. If true will rescale SOC between the configured min/max-percentage
-#define BATTERY_USE_SCALED_SOC true
+#define BATTERY_USE_SCALED_SOC false
 // 8000 = 80.0% , Max percentage the battery will charge to (Inverter gets 100% when reached)
-#define BATTERY_MAXPERCENTAGE 10000
+#define BATTERY_MAXPERCENTAGE 9900
 // 2000 = 20.0% , Min percentage the battery will discharge to (Inverter gets 0% when reached)
 #define BATTERY_MINPERCENTAGE 2000
 // 300 = 30.0A , BYD CAN specific setting, Max charge in Amp (Some inverters needs to be limited)
-#define BATTERY_MAX_CHARGE_AMP 300
+#define BATTERY_MAX_CHARGE_AMP 500
 // 300 = 30.0A , BYD CAN specific setting, Max discharge in Amp (Some inverters needs to be limited)
-#define BATTERY_MAX_DISCHARGE_AMP 300
+#define BATTERY_MAX_DISCHARGE_AMP 500
 
 extern volatile uint8_t AccessPointEnabled;
 extern const uint8_t wifi_channel;

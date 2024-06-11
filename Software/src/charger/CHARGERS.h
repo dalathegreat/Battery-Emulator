@@ -11,6 +11,10 @@
 #include "NISSAN-LEAF-CHARGER.h"
 #endif
 
+#ifdef TSM_2500
+#include "TSM-2500-CHARGER.h"
+#endif
+
 void receive_can_charger(CAN_frame_t rx_frame);
 void send_can_charger();
 

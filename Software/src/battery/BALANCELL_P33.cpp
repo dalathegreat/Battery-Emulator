@@ -71,6 +71,10 @@ void update_values_battery() {
 
   datalayer.battery.status.real_soc = (SOC * 100);  //increase SOC range from 0-100 -> 100.00
 
+  datalayer.battery.info.total_capacity_Wh = ah_number * voltage_dV/10 * battery_module_quantity / battery_modules_in_series; // todo fix it to take in battery size
+
+  datalayer.battery.status.remaining_capacity_Wh = ah_number * voltage_dV/10 * battery_module_quantity / battery_modules_in_series * SOC/100 * SOH/100; // todo fix it to take in battery size
+
   datalayer.battery.status.soh_pptt = (SOH * 100);  //Increase decimals from 100% -> 100.00%
 
   datalayer.battery.status.voltage_dV = voltage_dV;  //value is *10 (3700 = 370.0)
@@ -96,9 +100,9 @@ void update_values_battery() {
 
   datalayer.battery.info.min_design_voltage_dV = discharge_cutoff_voltage;
 
-  // for (int i = 0; i < 32; ++i) {
-  //   datalayer.battery.status.cell_voltages_mV[i] = 3300 + i;
-  // }
+  for (int i = 0; i < 32; ++i) {
+    datalayer.battery.status.cell_voltages_mV[i] = 3300;
+  }
 
 // /*Finally print out values to serial if configured to do so*/
 // #ifdef DEBUG_VIA_USB

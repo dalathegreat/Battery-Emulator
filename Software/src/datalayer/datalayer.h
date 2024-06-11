@@ -36,7 +36,7 @@ typedef struct {
 
   /** uint32_t */
   /** Remaining energy capacity in Watt-hours */
-  uint32_t remaining_capacity_Wh;
+  uint32_t remaining_capacity_Wh = 10000;
   /** Maximum allowed battery discharge power in Watts */
   uint32_t max_discharge_power_W = 500;
   /** Maximum allowed battery charge power in Watts */
