@@ -13,7 +13,7 @@ static unsigned long previousMillis100 = 0;  // will store last time a 100ms CAN
 static int SOC_1 = 0;
 static int SOC_2 = 0;
 static int SOC_3 = 0;
-static bool interlock_seated = true;
+static bool interlock_missing = false;
 static uint16_t battery_current = 0;
 
 CAN_frame_t HYBRID_200 = {.FIR = {.B =
@@ -46,7 +46,7 @@ void update_values_battery() {  //This function maps all the values fetched via 
 
   datalayer.battery.status.temperature_max_dC;
 
-  if (!interlock_seated) {
+  if (interlock_missing) {
     set_event(EVENT_HVIL_FAILURE, 0);
   } else {
     clear_event(EVENT_HVIL_FAILURE);
@@ -67,7 +67,9 @@ void receive_can_battery(CAN_frame_t rx_frame) {
     case 0x588:
       break;
     case 0x5AE:
-      interlock_seated = (bool)(rx_frame.data.u8[1] & 0x02) >> 1;
+      interlock_missing = (bool)(rx_frame.data.u8[1] & 0x02) >> 1;
+      break;
+    case 0x5AF:
       break;
     case 0x5AD:
       battery_current = (rx_frame.data.u8[3] << 8) + rx_frame.data.u8[2];
