@@ -583,6 +583,13 @@ String processor(const String& var) {
       content += "<span style='color: red;'>&#10005;</span></h4>";
     }
 
+    content += " Solar: ";
+    if (datalayer.system.status.solar_allows_contactor_closing == true) {
+      content += "<span>&#10003;</span></h4>";
+    } else {
+      content += "<span style='color: red;'>&#10005;</span></h4>";
+    }
+
     // Close the block
     content += "</div>";
 

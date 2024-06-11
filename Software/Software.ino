@@ -426,6 +426,13 @@ void init_contactors() {
   pinMode(PRECHARGE_PIN, OUTPUT);
   digitalWrite(PRECHARGE_PIN, LOW);
 #endif
+
+// Adding a contactor that drives the solar panels as a charging source up to a set SoC
+#ifdef SOLAR_CONTACTOR
+  pinMode(POSITIVE_CONTACTOR_PIN, OUTPUT);
+  digitalWrite(POSITIVE_CONTACTOR_PIN, LOW);
+#endif
+
 // Init BMS contactor
 #ifdef HW_STARK  // TODO: Rewrite this so LilyGo can aslo handle this BMS contactor
   pinMode(BMS_POWER, OUTPUT);

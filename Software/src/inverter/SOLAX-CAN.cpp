@@ -217,8 +217,9 @@ void update_values_can_inverter() {  //This function maps all the values fetched
 
   //BMS_Status
   SOLAX_1875.data.u8[0] = (uint8_t)temperature_average;
-  SOLAX_1875.data.u8[1] = (temperature_average >> 8);
-  SOLAX_1875.data.u8[2] = (uint8_t)0;  // Number of slave batteries
+  SOLAX_1875.data.u8[1] = (uint8_t)0x00;
+  SOLAX_1875.data.u8[2] = (uint8_t)0x03;  // Number of slave batteries
+  SOLAX_1875.data.u8[3] = (uint8_t)0x02; 
   SOLAX_1875.data.u8[4] = (uint8_t)0;  // Contactor Status 0=off, 1=on.
 
   //BMS_PackTemps (strange name, since it has voltages?)
@@ -249,11 +250,13 @@ void update_values_can_inverter() {  //This function maps all the values fetched
 
 
   //BMS_PackStats
-  SOLAX_1878.data.u8[0] = (uint8_t)(datalayer.battery.status.voltage_dV);
-  SOLAX_1878.data.u8[1] = ((datalayer.battery.status.voltage_dV) >> 8);
+  SOLAX_1878.data.u8[0] = (uint8_t)0x00; // copied from logs
+  SOLAX_1878.data.u8[1] = (uint8_t)0x31; // copied from logs
+  // SOLAX_1878.data.u8[0] = (uint8_t)(datalayer.battery.status.voltage_dV);
+  // SOLAX_1878.data.u8[1] = ((datalayer.battery.status.voltage_dV) >> 8);
 
-  SOLAX_1878.data.u8[4] = (uint8_t)capped_capacity_Wh;
-  SOLAX_1878.data.u8[5] = (capped_capacity_Wh >> 8);
+  // SOLAX_1878.data.u8[4] = (uint8_t)capped_capacity_Wh;
+  // SOLAX_1878.data.u8[5] = (capped_capacity_Wh >> 8);
 
   // BMS_Answer
   SOLAX_1801.data.u8[0] = 2;
