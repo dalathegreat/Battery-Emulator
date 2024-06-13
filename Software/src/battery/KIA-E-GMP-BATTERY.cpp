@@ -377,6 +377,8 @@ void send_can_battery() {
     // Check if sending of CAN messages has been delayed too much.
     if ((currentMillis - previousMillis500ms >= INTERVAL_500_MS_DELAYED) && (currentMillis > BOOTUP_TIME)) {
       set_event(EVENT_CAN_OVERRUN, (currentMillis - previousMillis500ms));
+    } else {
+      clear_event(EVENT_CAN_OVERRUN);
     }
     previousMillis500ms = currentMillis;
     //  Section added to close contractor
