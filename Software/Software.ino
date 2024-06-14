@@ -184,7 +184,7 @@ void mqtt_loop(void* task_time_us) {
     END_TIME_MEASUREMENT_MAX(mqtt, datalayer.system.status.mqtt_task_10s_max_us);
 
 #ifdef FUNCTION_TIME_MEASUREMENT
-    if (mqtt_task_timer_10s.elapsed()) {
+    if (connectivity_task_timer_10s.elapsed()) {
       datalayer.system.status.mqtt_task_10s_max_us = 0;
       datalayer.system.status.wifi_task_10s_max_us = 0;
     }
