@@ -75,7 +75,7 @@ void update_values_battery() {  //This function maps all the values fetched via 
 
   datalayer.battery.status.real_soc = BMS_SOC * 100;
 
-  datalayer.battery.status.voltage_dV = BMS_voltage * 100;
+  datalayer.battery.status.voltage_dV = BMS_voltage * 10;
 
   datalayer.battery.status.current_dA = BMS_current;  //TODO: Signed right way?
 
