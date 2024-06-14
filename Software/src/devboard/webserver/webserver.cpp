@@ -474,8 +474,11 @@ String processor(const String& var) {
 #ifdef RENAULT_KANGOO_BATTERY
     content += "Renault Kangoo";
 #endif
-#ifdef RENAULT_ZOE_BATTERY
-    content += "Renault Zoe";
+#ifdef RENAULT_ZOE_GEN1_BATTERY
+    content += "Renault Zoe Gen1 22/40";
+#endif
+#ifdef RENAULT_ZOE_GEN2_BATTERY
+    content += "Renault Zoe Gen2 50";
 #endif
 #ifdef SERIAL_LINK_RECEIVER
     content += "Serial link to another LilyGo board";
