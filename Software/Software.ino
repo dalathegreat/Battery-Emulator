@@ -125,8 +125,6 @@ void setup() {
   init_stored_settings();
 
 #ifdef WEBSERVER
-  init_webserver();
-  init_mDNS();
 #ifdef MQTT
   xTaskCreatePinnedToCore((TaskFunction_t)&connectivity_loop, "connectivity_loop", 4096, &connectivity_task_time_us,
                           TASK_CONNECTIVITY_PRIO, &connectivity_loop_task, WIFI_CORE);
@@ -170,9 +168,12 @@ void loop() {
 #endif
 }
 
+#ifdef WEBSERVER
 #ifdef MQTT
 void connectivity_loop(void* task_time_us) {
-  // Init MQTT
+  // Init
+  init_webserver();
+  init_mDNS();
   init_mqtt();
 
   while (true) {
@@ -192,6 +193,7 @@ void connectivity_loop(void* task_time_us) {
     delay(1);
   }
 }
+#endif
 #endif
 
 void core_loop(void* task_time_us) {
