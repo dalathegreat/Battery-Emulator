@@ -171,7 +171,7 @@ void loop() {
 }
 
 #ifdef MQTT
-void mqtt_loop(void* task_time_us) {
+void connectivity_loop(void* task_time_us) {
   // Init MQTT
   init_mqtt();
 
