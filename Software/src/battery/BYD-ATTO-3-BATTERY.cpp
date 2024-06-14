@@ -264,6 +264,8 @@ void send_can_battery() {
     // Check if sending of CAN messages has been delayed too much.
     if ((currentMillis - previousMillis50 >= INTERVAL_50_MS_DELAYED) && (currentMillis > BOOTUP_TIME)) {
       set_event(EVENT_CAN_OVERRUN, (currentMillis - previousMillis50));
+    } else {
+      clear_event(EVENT_CAN_OVERRUN);
     }
     previousMillis50 = currentMillis;
 

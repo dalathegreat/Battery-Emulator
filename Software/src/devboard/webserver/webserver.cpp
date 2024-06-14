@@ -386,7 +386,12 @@ String processor(const String& var) {
     // Load information
     content += "<h4>Core task max load: " + String(datalayer.system.status.core_task_max_us) + " us</h4>";
     content += "<h4>Core task max load last 10 s: " + String(datalayer.system.status.core_task_10s_max_us) + " us</h4>";
-    content += "<h4>MQTT task max load last 10 s: " + String(datalayer.system.status.mqtt_task_10s_max_us) + " us</h4>";
+    content +=
+        "<h4>MQTT function (MQTT task) max load last 10 s: " + String(datalayer.system.status.mqtt_task_10s_max_us) +
+        " us</h4>";
+    content +=
+        "<h4>WIFI function (MQTT task) max load last 10 s: " + String(datalayer.system.status.wifi_task_10s_max_us) +
+        " us</h4>";
     content +=
         "<h4>loop() task max load last 10 s: " + String(datalayer.system.status.loop_task_10s_max_us) + " us</h4>";
     content += "<h4>Max load @ worst case execution of core task:</h4>";
@@ -394,7 +399,7 @@ String processor(const String& var) {
     content += "<h4>5s function timing: " + String(datalayer.system.status.time_snap_5s_us) + " us</h4>";
     content += "<h4>CAN/serial RX function timing: " + String(datalayer.system.status.time_snap_comm_us) + " us</h4>";
     content += "<h4>CAN TX function timing: " + String(datalayer.system.status.time_snap_cantx_us) + " us</h4>";
-    content += "<h4>Wifi and OTA function timing: " + String(datalayer.system.status.time_snap_wifi_us) + " us</h4>";
+    content += "<h4>OTA function timing: " + String(datalayer.system.status.time_snap_ota_us) + " us</h4>";
 #endif
 
     wl_status_t status = WiFi.status();

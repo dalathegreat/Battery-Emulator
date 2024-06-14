@@ -86,8 +86,8 @@ float charger_stat_LVvol = 0;
 int64_t core_task_time_us;
 MyTimer core_task_timer_10s(INTERVAL_10_S);
 
-int64_t mqtt_task_time_us;
-MyTimer mqtt_task_timer_10s(INTERVAL_10_S);
+int64_t connectivity_task_time_us;
+MyTimer connectivity_task_timer_10s(INTERVAL_10_S);
 
 MyTimer loop_task_timer_10s(INTERVAL_10_S);
 
@@ -116,7 +116,7 @@ unsigned long timeSpentInFaultedMode = 0;
 #endif
 
 TaskHandle_t main_loop_task;
-TaskHandle_t mqtt_loop_task;
+TaskHandle_t connectivity_loop_task;
 
 // Initialization
 void setup() {
@@ -125,11 +125,9 @@ void setup() {
   init_stored_settings();
 
 #ifdef WEBSERVER
-  init_webserver();
-  init_mDNS();
 #ifdef MQTT
-  xTaskCreatePinnedToCore((TaskFunction_t)&mqtt_loop, "mqtt_loop", 4096, &mqtt_task_time_us, TASK_CONNECTIVITY_PRIO,
-                          &mqtt_loop_task, WIFI_CORE);
+  xTaskCreatePinnedToCore((TaskFunction_t)&connectivity_loop, "connectivity_loop", 4096, &connectivity_task_time_us,
+                          TASK_CONNECTIVITY_PRIO, &connectivity_loop_task, WIFI_CORE);
 #endif
 #endif
 
@@ -170,24 +168,32 @@ void loop() {
 #endif
 }
 
+#ifdef WEBSERVER
 #ifdef MQTT
-void mqtt_loop(void* task_time_us) {
-  // Init MQTT
+void connectivity_loop(void* task_time_us) {
+  // Init
+  init_webserver();
+  init_mDNS();
   init_mqtt();
 
   while (true) {
+    START_TIME_MEASUREMENT(wifi);
+    wifi_monitor();
+    END_TIME_MEASUREMENT_MAX(wifi, datalayer.system.status.wifi_task_10s_max_us);
     START_TIME_MEASUREMENT(mqtt);
     mqtt_loop();
     END_TIME_MEASUREMENT_MAX(mqtt, datalayer.system.status.mqtt_task_10s_max_us);
 
 #ifdef FUNCTION_TIME_MEASUREMENT
-    if (mqtt_task_timer_10s.elapsed()) {
+    if (connectivity_task_timer_10s.elapsed()) {
       datalayer.system.status.mqtt_task_10s_max_us = 0;
+      datalayer.system.status.wifi_task_10s_max_us = 0;
     }
 #endif
     delay(1);
   }
 }
+#endif
 #endif
 
 void core_loop(void* task_time_us) {
@@ -211,10 +217,9 @@ void core_loop(void* task_time_us) {
 #endif
     END_TIME_MEASUREMENT_MAX(comm, datalayer.system.status.time_comm_us);
 #ifdef WEBSERVER
-    START_TIME_MEASUREMENT(wifi_ota);
-    wifi_monitor();
+    START_TIME_MEASUREMENT(ota);
     ElegantOTA.loop();
-    END_TIME_MEASUREMENT_MAX(wifi_ota, datalayer.system.status.time_wifi_us);
+    END_TIME_MEASUREMENT_MAX(ota, datalayer.system.status.time_ota_us);
 #endif
 
     START_TIME_MEASUREMENT(time_10ms);
@@ -262,13 +267,13 @@ void core_loop(void* task_time_us) {
       datalayer.system.status.time_snap_10ms_us = datalayer.system.status.time_10ms_us;
       datalayer.system.status.time_snap_5s_us = datalayer.system.status.time_5s_us;
       datalayer.system.status.time_snap_cantx_us = datalayer.system.status.time_cantx_us;
-      datalayer.system.status.time_snap_wifi_us = datalayer.system.status.time_wifi_us;
+      datalayer.system.status.time_snap_ota_us = datalayer.system.status.time_ota_us;
     }
 
     datalayer.system.status.core_task_max_us =
         MAX(datalayer.system.status.core_task_10s_max_us, datalayer.system.status.core_task_max_us);
     if (core_task_timer_10s.elapsed()) {
-      datalayer.system.status.time_wifi_us = 0;
+      datalayer.system.status.time_ota_us = 0;
       datalayer.system.status.time_comm_us = 0;
       datalayer.system.status.time_10ms_us = 0;
       datalayer.system.status.time_5s_us = 0;
