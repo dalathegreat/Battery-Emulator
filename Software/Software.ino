@@ -11,6 +11,7 @@
 #include "freertos/FreeRTOS.h"
 #include "freertos/task.h"
 #include "src/charger/CHARGERS.h"
+#include "src/devboard/utils/can_tx_buffer.h"
 #include "src/devboard/utils/events.h"
 #include "src/devboard/utils/led_handler.h"
 #include "src/devboard/utils/value_mapping.h"
@@ -200,6 +201,7 @@ void core_loop(void* task_time_us) {
   TickType_t xLastWakeTime = xTaskGetTickCount();
   const TickType_t xFrequency = pdMS_TO_TICKS(1);  // Convert 1ms to ticks
   led_init();
+  can_tx_buffer_init(&can_tx_buf_global);
 
   while (true) {
     START_TIME_MEASUREMENT(all);
@@ -255,6 +257,10 @@ void core_loop(void* task_time_us) {
 #ifdef DUAL_CAN
     send_can2();
 #endif
+    const CAN_frame_t* frame_ptr = can_tx_fetch_from_buffer(&can_tx_buf_global);
+    if (frame_ptr != nullptr) {
+      ESP32Can.CANWriteFrame(frame_ptr);
+    }
     END_TIME_MEASUREMENT_MAX(cantx, datalayer.system.status.time_cantx_us);
     END_TIME_MEASUREMENT_MAX(all, datalayer.system.status.core_task_10s_max_us);
 #ifdef FUNCTION_TIME_MEASUREMENT

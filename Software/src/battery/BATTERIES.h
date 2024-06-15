@@ -2,6 +2,7 @@
 #define BATTERIES_H
 
 #include "../../USER_SETTINGS.h"
+#define BATTERY_CAN_BUFFER_SIZE 0
 
 #ifdef BMW_I3_BATTERY
 #include "BMW-I3-BATTERY.h"

@@ -2,6 +2,7 @@
 #define INVERTERS_H
 
 #include "../../USER_SETTINGS.h"
+#define INVERTER_CAN_BUFFER_SIZE 0
 
 #ifdef BYD_CAN
 #include "BYD-CAN.h"

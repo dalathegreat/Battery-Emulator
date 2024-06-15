@@ -5,6 +5,7 @@
 #include "../devboard/mqtt/mqtt.h"
 #endif
 #include "../datalayer/datalayer.h"
+#include "../devboard/utils/can_tx_buffer.h"
 #include "../devboard/utils/events.h"
 #include "../lib/miwagner-ESP32-Arduino-CAN/CAN_config.h"
 #include "../lib/miwagner-ESP32-Arduino-CAN/ESP32CAN.h"
@@ -131,7 +132,7 @@ static uint8_t battery_request_idx = 0;
 static uint8_t group_7bb = 0;
 static uint8_t group = 1;
 static bool stop_battery_query = true;
-static uint8_t hold_off_with_polling_10seconds = 10;
+static uint8_t hold_off_with_polling_10seconds = 1;
 static uint16_t cell_voltages[97];  //array with all the cellvoltages
 static uint8_t cellcounter = 0;
 static uint16_t min_max_voltage[2];  //contains cell min[0] and max[1] values in mV
@@ -418,7 +419,8 @@ void receive_can_battery(CAN_frame_t rx_frame) {
         break;
       }
 
-      ESP32Can.CANWriteFrame(&LEAF_NEXT_LINE_REQUEST);  //Request the next frame for the group
+      can_tx_add_to_buffer(&can_tx_buf_global, &LEAF_NEXT_LINE_REQUEST);
+      // ESP32Can.CANWriteFrame(&LEAF_NEXT_LINE_REQUEST);  //Request the next frame for the group
 
       if (group_7bb == 1)  //High precision SOC, Current, voltages etc.
       {
@@ -582,7 +584,8 @@ void send_can_battery() {
           LEAF_1D4.data.u8[7] = 0xDE;
           break;
       }
-      ESP32Can.CANWriteFrame(&LEAF_1D4);
+      can_tx_add_to_buffer(&can_tx_buf_global, &LEAF_1D4);
+      // ESP32Can.CANWriteFrame(&LEAF_1D4);
 
       switch (mprun10r) {
         case (0):
@@ -675,7 +678,8 @@ void send_can_battery() {
 
 //Only send this message when NISSANLEAF_CHARGER is not defined (otherwise it will collide!)
 #ifndef NISSANLEAF_CHARGER
-      ESP32Can.CANWriteFrame(&LEAF_1F2);  //Contains (CHG_STA_RQ == 1 == Normal Charge)
+      can_tx_add_to_buffer(&can_tx_buf_global, &LEAF_1F2);
+      // ESP32Can.CANWriteFrame(&LEAF_1F2);  //Contains (CHG_STA_RQ == 1 == Normal Charge)
 #endif
 
       mprun10r = (mprun10r + 1) % 20;  // 0x1F2 patter repeats after 20 messages. 0-1..19-0
@@ -695,7 +699,8 @@ void send_can_battery() {
       }
 
       // VCM message, containing info if battery should sleep or stay awake
-      ESP32Can.CANWriteFrame(&LEAF_50B);  // HCM_WakeUpSleepCommand == 11b == WakeUp, and CANMASK = 1
+      can_tx_add_to_buffer(&can_tx_buf_global, &LEAF_50B);
+      // ESP32Can.CANWriteFrame(&LEAF_50B);  // HCM_WakeUpSleepCommand == 11b == WakeUp, and CANMASK = 1
 
       LEAF_50C.data.u8[3] = mprun100;
       switch (mprun100) {
@@ -716,7 +721,8 @@ void send_can_battery() {
           LEAF_50C.data.u8[5] = 0x9A;
           break;
       }
-      ESP32Can.CANWriteFrame(&LEAF_50C);
+      can_tx_add_to_buffer(&can_tx_buf_global, &LEAF_50C);
+      // ESP32Can.CANWriteFrame(&LEAF_50C);
 
       mprun100 = (mprun100 + 1) % 4;  // mprun100 cycles between 0-1-2-3-0-1...
     }
@@ -730,7 +736,8 @@ void send_can_battery() {
         group = (group == 1) ? 2 : (group == 2) ? 4 : 1;
         // Cycle between group 1, 2, and 4 using ternary operation
         LEAF_GROUP_REQUEST.data.u8[2] = group;
-        ESP32Can.CANWriteFrame(&LEAF_GROUP_REQUEST);
+        can_tx_add_to_buffer(&can_tx_buf_global, &LEAF_GROUP_REQUEST);
+        // ESP32Can.CANWriteFrame(&LEAF_GROUP_REQUEST);
       }
 
       if (hold_off_with_polling_10seconds > 0) {
