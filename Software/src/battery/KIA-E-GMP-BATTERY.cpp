@@ -62,7 +62,7 @@ void update_values_battery() {  //This function maps all the values fetched via 
 
   datalayer.battery.status.voltage_dV = batteryVoltage;  //value is *10 (3700 = 370.0)
 
-  datalayer.battery.status.current_dA = batteryAmps;  //value is *10 (150 = 15.0)
+  datalayer.battery.status.current_dA = -batteryAmps;  //value is *10 (150 = 15.0)
 
   datalayer.battery.status.remaining_capacity_Wh = static_cast<uint32_t>(
       (static_cast<double>(datalayer.battery.status.real_soc) / 10000) * datalayer.battery.info.total_capacity_Wh);
