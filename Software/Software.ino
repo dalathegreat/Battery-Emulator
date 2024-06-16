@@ -22,7 +22,6 @@
 #include "src/lib/eModbus-eModbus/scripts/mbServerFCs.h"
 #include "src/lib/miwagner-ESP32-Arduino-CAN/CAN_config.h"
 #include "src/lib/miwagner-ESP32-Arduino-CAN/ESP32CAN.h"
-#include "src/lib/smaresca-SimpleISA/SimpleISA.h"
 
 #include "src/datalayer/datalayer.h"
 
@@ -61,10 +60,6 @@ ACAN2517FD canfd(MCP2517_CS, SPI, MCP2517_INT);
 uint16_t mbPV[MB_RTU_NUM_VALUES];  // Process variable memory
 // Create a ModbusRTU server instance listening on Serial2 with 2000ms timeout
 ModbusServerRTU MBserver(Serial2, 2000);
-#endif
-
-#ifdef ISA_SHUNT
-ISA sensor;
 #endif
 
 // Common charger parameters
@@ -520,10 +515,6 @@ void receive_can() {  // This section checks if we have a complete CAN message i
   CAN_frame_t rx_frame;
   if (xQueueReceive(CAN_cfg.rx_queue, &rx_frame, 0) == pdTRUE) {
 
-    //ISA Shunt
-#ifdef ISA_SHUNT
-    sensor.handleFrame(&rx_frame);
-#endif
     // Battery
 #ifndef SERIAL_LINK_RECEIVER  // Only needs to see inverter
     receive_can_battery(rx_frame);
