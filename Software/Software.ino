@@ -125,10 +125,8 @@ void setup() {
   init_stored_settings();
 
 #ifdef WEBSERVER
-#ifdef MQTT
   xTaskCreatePinnedToCore((TaskFunction_t)&connectivity_loop, "connectivity_loop", 4096, &connectivity_task_time_us,
                           TASK_CONNECTIVITY_PRIO, &connectivity_loop_task, WIFI_CORE);
-#endif
 #endif
 
   init_events();
