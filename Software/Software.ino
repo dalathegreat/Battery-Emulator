@@ -169,20 +169,23 @@ void loop() {
 }
 
 #ifdef WEBSERVER
-#ifdef MQTT
 void connectivity_loop(void* task_time_us) {
   // Init
   init_webserver();
   init_mDNS();
+#ifdef MQTT
   init_mqtt();
+#endif
 
   while (true) {
     START_TIME_MEASUREMENT(wifi);
     wifi_monitor();
     END_TIME_MEASUREMENT_MAX(wifi, datalayer.system.status.wifi_task_10s_max_us);
+#ifdef MQTT
     START_TIME_MEASUREMENT(mqtt);
     mqtt_loop();
     END_TIME_MEASUREMENT_MAX(mqtt, datalayer.system.status.mqtt_task_10s_max_us);
+#endif
 
 #ifdef FUNCTION_TIME_MEASUREMENT
     if (connectivity_task_timer_10s.elapsed()) {
@@ -193,7 +196,6 @@ void connectivity_loop(void* task_time_us) {
     delay(1);
   }
 }
-#endif
 #endif
 
 void core_loop(void* task_time_us) {
