@@ -26,7 +26,6 @@ static unsigned long handlerAfterMillis = 0;
 static unsigned long previousMillis100 = 0;  // will store last time a 100ms CAN Message was send
 static unsigned long previousMillis5000 =
     0;                         // will store last time a 5s threshold was reached for display during debug
-static uint8_t errorCode = 0;  //stores if we have an error code active from battery control logic
 
 bool plug_inserted = false;
 bool vehicle_can_initialized = false;
@@ -577,7 +576,7 @@ void update_evse_status(CAN_frame_t& f) {
 	 */
   if ((x102_chg_session.TargetBatteryVoltage > x108_evse_cap.available_output_voltage) ||
       (x100_chg_lim.MaximumBatteryVoltage > x108_evse_cap.threshold_voltage)) {
-    //Toggl battery incompatibility flag 109.5.3
+    //Toggle battery incompatibility flag 109.5.3
     x109_evse_state.s.status.EVSE_error = 1;
     x109_evse_state.s.status.battery_incompatible = 1;
     x109_evse_state.s.status.ChgDischStopControl = 1;
@@ -764,7 +763,6 @@ void send_can_battery() {
  */
 void handle_chademo_sequence() {
 
-  unsigned long currentMillis = millis();
   precharge_low = digitalRead(PRECHARGE_PIN) == LOW;
   positive_high = digitalRead(POSITIVE_CONTACTOR_PIN) == HIGH;
   contactors_ready = precharge_low && positive_high;
