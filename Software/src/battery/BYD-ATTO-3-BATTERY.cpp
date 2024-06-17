@@ -10,7 +10,7 @@
 - Get contactor closing working
   - NOTE: Some packs can be locked hard? after a crash has occured. Bypassing contactors manually might be required
 - Figure out which CAN messages need to be sent towards the battery to keep it alive
-  -Maybe already enough with 0x12D and 0x411?
+  -Maybe already enough with 0x12D and 0x411? Plus the PID polls might keep it alive.
 - Map all values from battery CAN messages
   -SOC% still not found (Lets take it from PID poll, not working right yet)
 */
@@ -38,6 +38,7 @@ static int16_t BMS_highest_cell_temperature = 0;
 static int16_t BMS_average_cell_temperature = 0;
 static uint16_t BMS_lowest_cell_voltage_mV = 3300;
 static uint16_t BMS_highest_cell_voltage_mV = 3300;
+static uint16_t BMS_deviation_cell_voltage_mV = 0;
 
 #define POLL_FOR_BATTERY_SOC 0x05
 #define POLL_FOR_BATTERY_VOLTAGE 0x08
@@ -46,7 +47,7 @@ static uint16_t BMS_highest_cell_voltage_mV = 3300;
 #define POLL_FOR_HIGHEST_TEMP_CELL 0x31
 #define POLL_FOR_BATTERY_PACK_AVG_TEMP 0x32
 #define POLL_FOR_BATTERY_CELL_MV_MAX 0x2D
-#define POLL_FOR_BATTERY_CELL_MV_MAX 0x2B
+#define POLL_FOR_BATTERY_CELL_MV_MIN 0x2B
 #define UNKNOWN_POLL_1 0xFC
 
 CAN_frame_t ATTO_3_12D = {.FIR = {.B =
@@ -75,7 +76,7 @@ CAN_frame_t ATTO_3_7E7_POLL = {
 
 void update_values_battery() {  //This function maps all the values fetched via CAN to the correct parameters used for modbus
 
-  datalayer.battery.status.real_soc = BMS_SOC * 100; //TODO: This is not yet found!
+  datalayer.battery.status.real_soc = BMS_SOC * 100;  //TODO: This is not yet found!
 
   datalayer.battery.status.voltage_dV = BMS_voltage * 10;
 
@@ -84,11 +85,12 @@ void update_values_battery() {  //This function maps all the values fetched via 
   datalayer.battery.status.remaining_capacity_Wh = static_cast<uint32_t>(
       (static_cast<double>(datalayer.battery.status.real_soc) / 10000) * datalayer.battery.info.total_capacity_Wh);
 
-  datalayer.battery.status.max_discharge_power_W = 5000;
+  datalayer.battery.status.max_discharge_power_W = 5000;  //TODO: Map from CAN later on
 
-  datalayer.battery.status.max_charge_power_W = 5000;
+  datalayer.battery.status.max_charge_power_W = 5000;  //TODO: Map from CAN later on
 
-  datalayer.battery.status.active_power_W = (datalayer.battery.status.current_dA * (datalayer.battery.status.voltage_dV / 100));
+  datalayer.battery.status.active_power_W =
+      (datalayer.battery.status.current_dA * (datalayer.battery.status.voltage_dV / 100));
 
   datalayer.battery.status.cell_max_voltage_mV = BMS_highest_cell_voltage_mV;
 
@@ -211,10 +213,10 @@ void receive_can_battery(CAN_frame_t rx_frame) {
       ESP32Can.CANWriteFrame(&ATTO_3_7E7_POLL);
 
       switch (ATTO_3_7E7_POLL.data.u8[3]) {
-        case POLL_FOR_BATTERY_VOLTAGE:
-          ATTO_3_7E7_POLL.data.u8[3] = POLL_FOR_BATTERY_SOC;
-          break;
         case POLL_FOR_BATTERY_SOC:
+          ATTO_3_7E7_POLL.data.u8[3] = POLL_FOR_BATTERY_VOLTAGE;
+          break;
+        case POLL_FOR_BATTERY_VOLTAGE:
           ATTO_3_7E7_POLL.data.u8[3] = POLL_FOR_BATTERY_CURRENT;
           break;
         case POLL_FOR_BATTERY_CURRENT:
@@ -243,11 +245,11 @@ void receive_can_battery(CAN_frame_t rx_frame) {
       break;
     case 0x7EF:  //OBD2 PID reply from battery
       switch (rx_frame.data.u8[3]) {
-        case POLL_FOR_BATTERY_VOLTAGE:
-          BMS_voltage = (rx_frame.data.u8[5] << 8) | rx_frame.data.u8[4];
-          break;
         case POLL_FOR_BATTERY_SOC:
           BMS_SOC = rx_frame.data.u8[4];
+          break;
+        case POLL_FOR_BATTERY_VOLTAGE:
+          BMS_voltage = (rx_frame.data.u8[5] << 8) | rx_frame.data.u8[4];
           break;
         case POLL_FOR_BATTERY_CURRENT:
           BMS_current = ((rx_frame.data.u8[5] << 8) | rx_frame.data.u8[4]) - 5000;
