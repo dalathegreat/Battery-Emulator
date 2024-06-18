@@ -39,7 +39,6 @@ static int16_t BMS_highest_cell_temperature = 0;
 static int16_t BMS_average_cell_temperature = 0;
 static uint16_t BMS_lowest_cell_voltage_mV = 3300;
 static uint16_t BMS_highest_cell_voltage_mV = 3300;
-static uint16_t BMS_deviation_cell_voltage_mV = 0;
 
 #define POLL_FOR_BATTERY_SOC 0x05
 #define POLL_FOR_BATTERY_VOLTAGE 0x08
