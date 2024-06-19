@@ -15,13 +15,43 @@ static bool interlock_missing = false;
 static uint16_t battery_current = 0;
 static uint16_t voltage = 0;
 static int8_t temperature = 0;
-CAN_frame_t HYBRID_200 = {.FIR = {.B =
-                                      {
-                                          .DLC = 8,
-                                          .FF = CAN_frame_std,
-                                      }},
-                          .MsgID = 0x200,
-                          .data = {0x00, 0x00, 0x00, 0x00, 0x80, 0x10, 0x00, 0x00}};
+static int16_t poll_data_pid = 0;
+
+CAN_frame_t KIA_7E4_id1 = {.FIR = {.B =
+                                       {
+                                           .DLC = 8,
+                                           .FF = CAN_frame_std,
+                                       }},
+                           .MsgID = 0x7E4,
+                           .data = {0x03, 0x21, 0x01, 0x00, 0x00, 0x00, 0x00, 0x00}};  //Poll PID 03 21 01
+CAN_frame_t KIA_7E4_id2 = {.FIR = {.B =
+                                       {
+                                           .DLC = 8,
+                                           .FF = CAN_frame_std,
+                                       }},
+                           .MsgID = 0x7E4,
+                           .data = {0x03, 0x21, 0x02, 0x00, 0x00, 0x00, 0x00, 0x00}};  //Poll PID 03 21 02
+CAN_frame_t KIA_7E4_id3 = {.FIR = {.B =
+                                       {
+                                           .DLC = 8,
+                                           .FF = CAN_frame_std,
+                                       }},
+                           .MsgID = 0x7E4,
+                           .data = {0x03, 0x21, 0x03, 0x00, 0x00, 0x00, 0x00, 0x00}};  //Poll PID 03 21 03
+CAN_frame_t KIA_7E4_id4 = {.FIR = {.B =
+                                       {
+                                           .DLC = 8,
+                                           .FF = CAN_frame_std,
+                                       }},
+                           .MsgID = 0x7E4,
+                           .data = {0x03, 0x21, 0x05, 0x04, 0x00, 0x00, 0x00, 0x00}};  //Poll PID 03 21 05
+CAN_frame_t KIA_7E4_ack = {.FIR = {.B =
+                                       {
+                                           .DLC = 8,
+                                           .FF = CAN_frame_std,
+                                       }},
+                           .MsgID = 0x7E4,  //Ack frame, correct PID is returned. Flow control message
+                           .data = {0x30, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00}};
 
 void update_values_battery() {  //This function maps all the values fetched via CAN to the correct parameters used for modbus
 
@@ -80,6 +110,75 @@ void receive_can_battery(CAN_frame_t rx_frame) {
       break;
     case 0x670:
       break;
+    case 0x7EC:  //Data From polled PID group, BigEndian
+      switch (rx_frame.data.u8[0]) {
+        case 0x10:  //"PID Header"
+          if (rx_frame.data.u8[4] == poll_data_pid) {
+            ESP32Can.CANWriteFrame(&KIA_7E4_ack);  //Send ack to BMS if the same frame is sent as polled
+          }
+          break;
+        case 0x21:  //First frame in PID group
+          if (poll_data_pid == 1) {
+
+          } else if (poll_data_pid == 2) {
+
+          } else if (poll_data_pid == 3) {
+
+          } else if (poll_data_pid == 4) {
+          }
+          break;
+        case 0x22:  //Second datarow in PID group
+          if (poll_data_pid == 2) {
+
+          } else if (poll_data_pid == 3) {
+
+          } else if (poll_data_pid == 4) {
+
+          } else if (poll_data_pid == 6) {
+          }
+          break;
+        case 0x23:  //Third datarow in PID group
+          if (poll_data_pid == 1) {
+
+          } else if (poll_data_pid == 2) {
+
+          } else if (poll_data_pid == 3) {
+
+          } else if (poll_data_pid == 4) {
+
+          } else if (poll_data_pid == 5) {
+          }
+          break;
+        case 0x24:  //Fourth datarow in PID group
+          if (poll_data_pid == 1) {
+
+          } else if (poll_data_pid == 2) {
+
+          } else if (poll_data_pid == 3) {
+
+          } else if (poll_data_pid == 4) {
+
+          } else if (poll_data_pid == 5) {
+          }
+          break;
+        case 0x25:  //Fifth datarow in PID group
+          if (poll_data_pid == 2) {
+
+          } else if (poll_data_pid == 3) {
+
+          } else if (poll_data_pid == 4) {
+
+          } else if (poll_data_pid == 5) {
+          }
+          break;
+        case 0x26:  //Sixth datarow in PID group
+          break;
+        case 0x27:  //Seventh datarow in PID group
+          break;
+        case 0x28:  //Eighth datarow in PID group
+          break;
+      }
+      break;
     default:
       break;
   }
@@ -93,14 +192,26 @@ void send_can_battery() {
       set_event(EVENT_CAN_OVERRUN, (currentMillis - previousMillis10));
     }
     previousMillis10 = currentMillis;
-
-    //ESP32Can.CANWriteFrame(&HYBRID_200);
   }
   // Send 100ms CAN Message
   if (currentMillis - previousMillis100 >= INTERVAL_100_MS) {
     previousMillis100 = currentMillis;
 
-    //ESP32Can.CANWriteFrame(&HYBRID_200);
+    //PID data is polled after last message sent from battery:
+    if (poll_data_pid >= 5) {  //polling one of 5 PIDs at 100ms, resolution = 500ms
+      poll_data_pid = 0;
+    }
+    poll_data_pid++;
+    if (poll_data_pid == 1) {
+      ESP32Can.CANWriteFrame(&KIA_7E4_id1);
+    } else if (poll_data_pid == 2) {
+      ESP32Can.CANWriteFrame(&KIA_7E4_id2);
+    } else if (poll_data_pid == 3) {
+      ESP32Can.CANWriteFrame(&KIA_7E4_id3);
+    } else if (poll_data_pid == 4) {
+      ESP32Can.CANWriteFrame(&KIA_7E4_id4);
+    } else if (poll_data_pid == 5) {
+    }
   }
 }
 
