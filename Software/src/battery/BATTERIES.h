@@ -19,6 +19,10 @@
 #include "IMIEV-CZERO-ION-BATTERY.h"
 #endif
 
+#ifdef JAGUAR_IPACE_BATTERY
+#include "JAGUAR-IPACE-BATTERY.h"
+#endif
+
 #ifdef KIA_E_GMP_BATTERY
 #include "KIA-E-GMP-BATTERY.h"
 #endif
