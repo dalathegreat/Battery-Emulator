@@ -5,8 +5,8 @@
 #include "../lib/miwagner-ESP32-Arduino-CAN/CAN_config.h"
 #include "../lib/miwagner-ESP32-Arduino-CAN/ESP32CAN.h"
 #include "CHADEMO-BATTERY-INTERNAL.h"
-#include "CHADEMO-SHUNTS.h"
 #include "CHADEMO-BATTERY.h"
+#include "CHADEMO-SHUNTS.h"
 
 /* CHADEMO handling runs at 6.25 times the rate of most other code, so, rather than the
  *  default value of 12 (for 12 iterations of the 5s value update loop) * 5 for a 60s timeout,
@@ -23,7 +23,7 @@ static unsigned long handlerAfterMillis = 0;
 /* Do not change code below unless you are sure what you are doing */
 static unsigned long previousMillis100 = 0;  // will store last time a 100ms CAN Message was send
 static unsigned long previousMillis5000 =
-    0;                         // will store last time a 5s threshold was reached for display during debug
+    0;  // will store last time a 5s threshold was reached for display during debug
 
 bool plug_inserted = false;
 bool vehicle_can_initialized = false;
