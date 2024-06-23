@@ -8,7 +8,7 @@
 
 /* TODO: 
 - Get contactor closing working
-  - NOTE: Some packs can be locked hard? after a crash has occured. Bypassing contactors manually might be required
+  - NOTE: Some packs can be locked hard? after a crash has occured. Bypassing contactors manually might be required?
 - Figure out which CAN messages need to be sent towards the battery to keep it alive
   -Maybe already enough with 0x12D and 0x411? Plus the PID polls might keep it alive.
 - Map all values from battery CAN messages
@@ -77,7 +77,7 @@ CAN_frame_t ATTO_3_7E7_POLL = {
 // Define the data points for %SOC depending on pack voltage
 const uint8_t numPoints = 14;
 const uint16_t SOC[numPoints] = {10000, 9970, 9490, 8470, 7750, 6790, 5500, 4900, 3910, 3000, 2280, 1600, 480, 0};
-const uint16_t voltage[numPoints] = {4340, 4230, 4180, 4171, 4169, 4160, 4130,
+const uint16_t voltage[numPoints] = {4400, 4230, 4180, 4171, 4169, 4160, 4130,
                                      4121, 4119, 4100, 4070, 4030, 3950, 3800};
 
 uint16_t estimateSOC(uint16_t packVoltage) {  // Linear interpolation function
@@ -111,9 +111,9 @@ void update_values_battery() {  //This function maps all the values fetched via 
   datalayer.battery.status.remaining_capacity_Wh = static_cast<uint32_t>(
       (static_cast<double>(datalayer.battery.status.real_soc) / 10000) * datalayer.battery.info.total_capacity_Wh);
 
-  datalayer.battery.status.max_discharge_power_W = 5000;  //TODO: Map from CAN later on
+  datalayer.battery.status.max_discharge_power_W = 10000;  //TODO: Map from CAN later on
 
-  datalayer.battery.status.max_charge_power_W = 5000;  //TODO: Map from CAN later on
+  datalayer.battery.status.max_charge_power_W = 10000;  //TODO: Map from CAN later on
 
   datalayer.battery.status.active_power_W =
       (datalayer.battery.status.current_dA * (datalayer.battery.status.voltage_dV / 100));
@@ -360,7 +360,7 @@ void setup_battery(void) {  // Performs one time setup at startup
   Serial.println("BYD Atto 3 battery selected");
 #endif
 
-  datalayer.battery.info.max_design_voltage_dV = 4400;  // Over this charging is not possible
+  datalayer.battery.info.max_design_voltage_dV = 4410;  // Over this charging is not possible
   datalayer.battery.info.min_design_voltage_dV = 3800;  // Under this discharging is disabled
 }
 
