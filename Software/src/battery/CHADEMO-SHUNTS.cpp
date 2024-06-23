@@ -1,15 +1,18 @@
-/*  This library supports ISA Scale IVT Modular current/voltage sensor device.  These devices measure current, up to three voltages, and provide temperature compensation.
-
-
-
-    This library was written by Jack Rickard of EVtv - http://www.evtv.me
-    copyright 2014
-    You are licensed to use this library for any purpose, commercial or private, 
-    without restriction.
-
-    2024 - Modified to make use of ESP32-Arduino-CAN by miwagner
-
-*/
+/*  Portions of this file are an adaptation of the SimpleISA library, originally authored by Jack Rickard.
+ *
+ *  At present, this code supports the Scale IVT Modular current/voltage sensor device.  
+ *  These devices measure current, up to three voltages, and provide temperature compensation.
+ *  Additional sensors are planned to provide flexibility/lower BOM costs.
+ *
+ *  Original license/copyright header of SimpleISA is shown below:
+ *   This library was written by Jack Rickard of EVtv - http://www.evtv.me
+ *   copyright 2014
+ *   You are licensed to use this library for any purpose, commercial or private, 
+ *   without restriction.
+ *
+ *  2024 - Modified to make use of ESP32-Arduino-CAN by miwagner
+ *
+ */
 #include "../include.h"
 #ifdef CHADEMO_BATTERY
 #include "../datalayer/datalayer.h"
@@ -20,8 +23,10 @@
 #include "CHADEMO-BATTERY.h"
 #include "CHADEMO-SHUNTS.h"
 
+/* Initial frames received from ISA shunts provide invalid during initialization */
 static int framecount = 0;
 
+/* original variables/names/types from SimpleISA. These warrant refinement */
 float Amperes;  // Floating point with current in Amperes
 double AH;      //Floating point with accumulated ampere-hours
 double KW;
@@ -43,15 +48,17 @@ double Voltage3LO;
 double Temperature;
 
 bool firstframe;
-unsigned long timestamp;
 double milliamps;
 long watt;
 long As;
 long lastAs;
 long wh;
 long lastWh;
-uint8_t page;
 
+/* Output command frame used to alter or initialize ISA shunt behavior
+ * Please note that all delay/sleep operations are solely in this section of code,
+ * not used during normal operation. Such delays are currently commented out.
+ */
 CAN_frame_t outframe = {.FIR = {.B =
                                     {
                                         .DLC = 8,
