@@ -8,13 +8,12 @@
 
 /* TODO: 
 - Get contactor closing working
-  - NOTE: Some packs can be locked hard? after a crash has occured. Bypassing contactors manually might be required
+  - NOTE: Some packs can be locked hard? after a crash has occured. Bypassing contactors manually might be required?
 - Figure out which CAN messages need to be sent towards the battery to keep it alive
-  -Maybe already enough with 0x12D and 0x411?
+  -Maybe already enough with 0x12D and 0x411? Plus the PID polls might keep it alive.
 - Map all values from battery CAN messages
-  -SOC% still not found (Lets take it from PID poll)
-  -Voltage still not found (Lets take it from PID poll)
-  -Rest is optional and can be added later
+  -SOC% still not found (Lets take it from PID poll, not working right yet)
+  -SOC% is now ESTIMATED. This is bad, and should be fixed as soon as possible with the real value from CAN
 */
 
 /* Do not change code below unless you are sure what you are doing */
@@ -38,6 +37,8 @@ static int16_t BMS_current = 0;
 static int16_t BMS_lowest_cell_temperature = 0;
 static int16_t BMS_highest_cell_temperature = 0;
 static int16_t BMS_average_cell_temperature = 0;
+static uint16_t BMS_lowest_cell_voltage_mV = 3300;
+static uint16_t BMS_highest_cell_voltage_mV = 3300;
 
 #define POLL_FOR_BATTERY_SOC 0x05
 #define POLL_FOR_BATTERY_VOLTAGE 0x08
@@ -45,6 +46,8 @@ static int16_t BMS_average_cell_temperature = 0;
 #define POLL_FOR_LOWEST_TEMP_CELL 0x2f
 #define POLL_FOR_HIGHEST_TEMP_CELL 0x31
 #define POLL_FOR_BATTERY_PACK_AVG_TEMP 0x32
+#define POLL_FOR_BATTERY_CELL_MV_MAX 0x2D
+#define POLL_FOR_BATTERY_CELL_MV_MIN 0x2B
 #define UNKNOWN_POLL_1 0xFC
 
 CAN_frame_t ATTO_3_12D = {.FIR = {.B =
@@ -71,22 +74,53 @@ CAN_frame_t ATTO_3_7E7_POLL = {
     .MsgID = 0x7E7,
     .data = {0x03, 0x22, 0x00, 0x05, 0x00, 0x00, 0x00, 0x00}};  //Poll PID 03 22 00 05 (POLL_FOR_BATTERY_SOC)
 
-void update_values_battery() {  //This function maps all the values fetched via CAN to the correct parameters used for modbus
+// Define the data points for %SOC depending on pack voltage
+const uint8_t numPoints = 14;
+const uint16_t SOC[numPoints] = {10000, 9970, 9490, 8470, 7750, 6790, 5500, 4900, 3910, 3000, 2280, 1600, 480, 0};
+const uint16_t voltage[numPoints] = {4400, 4230, 4180, 4171, 4169, 4160, 4130,
+                                     4121, 4119, 4100, 4070, 4030, 3950, 3800};
 
-  datalayer.battery.status.real_soc = BMS_SOC * 100;
+uint16_t estimateSOC(uint16_t packVoltage) {  // Linear interpolation function
+  if (packVoltage >= voltage[0]) {
+    return SOC[0];
+  }
+  if (packVoltage <= voltage[numPoints - 1]) {
+    return SOC[numPoints - 1];
+  }
+
+  for (int i = 1; i < numPoints; ++i) {
+    if (packVoltage >= voltage[i]) {
+      double t = (packVoltage - voltage[i]) / (voltage[i - 1] - voltage[i]);
+      return SOC[i] + t * (SOC[i - 1] - SOC[i]);
+    }
+  }
+  return 0;  // Default return for safety, should never reach here
+}
+
+void update_values_battery() {  //This function maps all the values fetched via CAN to the correct parameters used for modbus
 
   datalayer.battery.status.voltage_dV = BMS_voltage * 10;
 
-  datalayer.battery.status.current_dA = BMS_current;  //TODO: Signed right way?
+  //datalayer.battery.status.real_soc = BMS_SOC * 100;  //TODO: This is not yet found!
+  // We instead estimate the SOC% based on the battery voltage
+  // This is a very bad solution, and as soon as an usable SOC% value has been found on CAN, we should switch to that!
+  datalayer.battery.status.real_soc = estimateSOC(datalayer.battery.status.voltage_dV);
+
+  datalayer.battery.status.current_dA = -BMS_current;
 
   datalayer.battery.status.remaining_capacity_Wh = static_cast<uint32_t>(
       (static_cast<double>(datalayer.battery.status.real_soc) / 10000) * datalayer.battery.info.total_capacity_Wh);
 
-  datalayer.battery.status.max_discharge_power_W = 5000;
+  datalayer.battery.status.max_discharge_power_W = 10000;  //TODO: Map from CAN later on
 
-  datalayer.battery.status.max_charge_power_W = 5000;
+  datalayer.battery.status.max_charge_power_W = 10000;  //TODO: Map from CAN later on
 
-  datalayer.battery.status.active_power_W;  //TODO: Map!
+  datalayer.battery.status.active_power_W =
+      (datalayer.battery.status.current_dA * (datalayer.battery.status.voltage_dV / 100));
+
+  datalayer.battery.status.cell_max_voltage_mV = BMS_highest_cell_voltage_mV;
+
+  datalayer.battery.status.cell_min_voltage_mV = BMS_lowest_cell_voltage_mV;
 
   // Initialize min and max variables
   calc_min_temperature = daughterboard_temperatures[0];
@@ -221,10 +255,16 @@ void receive_can_battery(CAN_frame_t rx_frame) {
           ATTO_3_7E7_POLL.data.u8[3] = POLL_FOR_BATTERY_PACK_AVG_TEMP;
           break;
         case POLL_FOR_BATTERY_PACK_AVG_TEMP:
-          ATTO_3_7E7_POLL.data.u8[3] = POLL_FOR_BATTERY_SOC;
+          ATTO_3_7E7_POLL.data.u8[3] = POLL_FOR_BATTERY_CELL_MV_MAX;
           break;
-        default:  //Something went wrong with logic, request SOC
-          ATTO_3_7E7_POLL.data.u8[3] = POLL_FOR_BATTERY_SOC;
+        case POLL_FOR_BATTERY_CELL_MV_MAX:
+          ATTO_3_7E7_POLL.data.u8[3] = POLL_FOR_BATTERY_CELL_MV_MIN;
+          break;
+        case POLL_FOR_BATTERY_CELL_MV_MIN:
+          ATTO_3_7E7_POLL.data.u8[3] = POLL_FOR_BATTERY_VOLTAGE;
+          break;
+        default:  //Something went wrong with logic, request voltage
+          ATTO_3_7E7_POLL.data.u8[3] = POLL_FOR_BATTERY_VOLTAGE;
           break;
       }
 
@@ -248,6 +288,12 @@ void receive_can_battery(CAN_frame_t rx_frame) {
           break;
         case POLL_FOR_BATTERY_PACK_AVG_TEMP:
           BMS_average_cell_temperature = (rx_frame.data.u8[4] - 40);
+          break;
+        case POLL_FOR_BATTERY_CELL_MV_MAX:
+          BMS_highest_cell_voltage_mV = (rx_frame.data.u8[5] << 8) | rx_frame.data.u8[4];
+          break;
+        case POLL_FOR_BATTERY_CELL_MV_MIN:
+          BMS_lowest_cell_voltage_mV = (rx_frame.data.u8[5] << 8) | rx_frame.data.u8[4];
           break;
         default:  //Unrecognized reply
           break;
@@ -314,8 +360,8 @@ void setup_battery(void) {  // Performs one time setup at startup
   Serial.println("BYD Atto 3 battery selected");
 #endif
 
-  datalayer.battery.info.max_design_voltage_dV = 4400;  // Over this charging is not possible
-  datalayer.battery.info.min_design_voltage_dV = 3700;  // Under this discharging is disabled
+  datalayer.battery.info.max_design_voltage_dV = 4410;  // Over this charging is not possible
+  datalayer.battery.info.min_design_voltage_dV = 3800;  // Under this discharging is disabled
 }
 
 #endif
