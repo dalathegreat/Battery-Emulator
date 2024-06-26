@@ -56,8 +56,6 @@
 
 /* MQTT options */
 // #define MQTT  // Enable this line to enable MQTT
-#define MQTT_SUBSCRIPTIONS \
-  { "my/topic/abc", "my/other/topic" }
 #define MQTT_SERVER "192.168.xxx.yyy"
 #define MQTT_PORT 1883
 
