@@ -53,6 +53,8 @@ static ACAN2515_Buffer16 gBuffer;
 #ifdef CAN_FD
 #include "src/lib/pierremolinaro-ACAN2517FD/ACAN2517FD.h"
 ACAN2517FD canfd(MCP2517_CS, SPI, MCP2517_INT);
+#else
+typedef char CANFDMessage;
 #endif
 
 // ModbusRTU parameters
