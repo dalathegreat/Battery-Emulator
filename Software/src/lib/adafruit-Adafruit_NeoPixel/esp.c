@@ -87,89 +87,84 @@ static void IRAM_ATTR ws2812_rmt_adapter(const void* src, rmt_item32_t* dest, si
   *item_num = num;
 }
 
+static bool rmt_initialized = false;
+static bool rmt_adapter_initialized = false;
+
 void espShow(uint8_t pin, uint8_t* pixels, uint32_t numBytes, boolean is800KHz) {
-  // Reserve channel
-  rmt_channel_t channel = ADAFRUIT_RMT_CHANNEL_MAX;
-  for (size_t i = 0; i < ADAFRUIT_RMT_CHANNEL_MAX; i++) {
-    if (!rmt_reserved_channels[i]) {
-      rmt_reserved_channels[i] = true;
-      channel = i;
-      break;
+  if (rmt_initialized == false) {
+    // Reserve channel
+    rmt_channel_t channel = 0;
+
+  #if defined(HAS_ESP_IDF_4)
+    rmt_config_t config = RMT_DEFAULT_CONFIG_TX(pin, channel);
+    config.clk_div = 2;
+  #else
+    // Match default TX config from ESP-IDF version 3.4
+    rmt_config_t config = {.rmt_mode = RMT_MODE_TX,
+                          .channel = channel,
+                          .gpio_num = pin,
+                          .clk_div = 2,
+                          .mem_block_num = 1,
+                          .tx_config = {
+                              .carrier_freq_hz = 38000,
+                              .carrier_level = RMT_CARRIER_LEVEL_HIGH,
+                              .idle_level = RMT_IDLE_LEVEL_LOW,
+                              .carrier_duty_percent = 33,
+                              .carrier_en = false,
+                              .loop_en = false,
+                              .idle_output_en = true,
+                          }};
+  #endif
+    rmt_config(&config);
+    rmt_driver_install(config.channel, 0, 0);
+
+    // Convert NS timings to ticks
+    uint32_t counter_clk_hz = 0;
+
+  #if defined(HAS_ESP_IDF_4)
+    rmt_get_counter_clock(channel, &counter_clk_hz);
+  #else
+    // this emulates the rmt_get_counter_clock() function from ESP-IDF 3.4
+    if (RMT_LL_HW_BASE->conf_ch[config.channel].conf1.ref_always_on == RMT_BASECLK_REF) {
+      uint32_t div_cnt = RMT_LL_HW_BASE->conf_ch[config.channel].conf0.div_cnt;
+      uint32_t div = div_cnt == 0 ? 256 : div_cnt;
+      counter_clk_hz = REF_CLK_FREQ / (div);
+    } else {
+      uint32_t div_cnt = RMT_LL_HW_BASE->conf_ch[config.channel].conf0.div_cnt;
+      uint32_t div = div_cnt == 0 ? 256 : div_cnt;
+      counter_clk_hz = APB_CLK_FREQ / (div);
     }
+  #endif
+
+    // NS to tick converter
+    float ratio = (float)counter_clk_hz / 1e9;
+
+    if (is800KHz) {
+      t0h_ticks = (uint32_t)(ratio * WS2812_T0H_NS);
+      t0l_ticks = (uint32_t)(ratio * WS2812_T0L_NS);
+      t1h_ticks = (uint32_t)(ratio * WS2812_T1H_NS);
+      t1l_ticks = (uint32_t)(ratio * WS2812_T1L_NS);
+    } else {
+      t0h_ticks = (uint32_t)(ratio * WS2811_T0H_NS);
+      t0l_ticks = (uint32_t)(ratio * WS2811_T0L_NS);
+      t1h_ticks = (uint32_t)(ratio * WS2811_T1H_NS);
+      t1l_ticks = (uint32_t)(ratio * WS2811_T1L_NS);
+    }
+
+    // Initialize automatic timing translator
+    rmt_translator_init(0, ws2812_rmt_adapter);
+    rmt_initialized = true;
   }
-  if (channel == ADAFRUIT_RMT_CHANNEL_MAX) {
-    // Ran out of channels!
-    return;
-  }
-
-#if defined(HAS_ESP_IDF_4)
-  rmt_config_t config = RMT_DEFAULT_CONFIG_TX(pin, channel);
-  config.clk_div = 2;
-#else
-  // Match default TX config from ESP-IDF version 3.4
-  rmt_config_t config = {.rmt_mode = RMT_MODE_TX,
-                         .channel = channel,
-                         .gpio_num = pin,
-                         .clk_div = 2,
-                         .mem_block_num = 1,
-                         .tx_config = {
-                             .carrier_freq_hz = 38000,
-                             .carrier_level = RMT_CARRIER_LEVEL_HIGH,
-                             .idle_level = RMT_IDLE_LEVEL_LOW,
-                             .carrier_duty_percent = 33,
-                             .carrier_en = false,
-                             .loop_en = false,
-                             .idle_output_en = true,
-                         }};
-#endif
-  rmt_config(&config);
-  rmt_driver_install(config.channel, 0, 0);
-
-  // Convert NS timings to ticks
-  uint32_t counter_clk_hz = 0;
-
-#if defined(HAS_ESP_IDF_4)
-  rmt_get_counter_clock(channel, &counter_clk_hz);
-#else
-  // this emulates the rmt_get_counter_clock() function from ESP-IDF 3.4
-  if (RMT_LL_HW_BASE->conf_ch[config.channel].conf1.ref_always_on == RMT_BASECLK_REF) {
-    uint32_t div_cnt = RMT_LL_HW_BASE->conf_ch[config.channel].conf0.div_cnt;
-    uint32_t div = div_cnt == 0 ? 256 : div_cnt;
-    counter_clk_hz = REF_CLK_FREQ / (div);
-  } else {
-    uint32_t div_cnt = RMT_LL_HW_BASE->conf_ch[config.channel].conf0.div_cnt;
-    uint32_t div = div_cnt == 0 ? 256 : div_cnt;
-    counter_clk_hz = APB_CLK_FREQ / (div);
-  }
-#endif
-
-  // NS to tick converter
-  float ratio = (float)counter_clk_hz / 1e9;
-
-  if (is800KHz) {
-    t0h_ticks = (uint32_t)(ratio * WS2812_T0H_NS);
-    t0l_ticks = (uint32_t)(ratio * WS2812_T0L_NS);
-    t1h_ticks = (uint32_t)(ratio * WS2812_T1H_NS);
-    t1l_ticks = (uint32_t)(ratio * WS2812_T1L_NS);
-  } else {
-    t0h_ticks = (uint32_t)(ratio * WS2811_T0H_NS);
-    t0l_ticks = (uint32_t)(ratio * WS2811_T0L_NS);
-    t1h_ticks = (uint32_t)(ratio * WS2811_T1H_NS);
-    t1l_ticks = (uint32_t)(ratio * WS2811_T1L_NS);
-  }
-
-  // Initialize automatic timing translator
-  rmt_translator_init(config.channel, ws2812_rmt_adapter);
 
   // Write and wait to finish
-  rmt_write_sample(config.channel, pixels, (size_t)numBytes, true);
-  rmt_wait_tx_done(config.channel, pdMS_TO_TICKS(100));
+  rmt_write_sample(0, pixels, (size_t)numBytes, false);
+  // rmt_wait_tx_done(config.channel, pdMS_TO_TICKS(100));
 
   // Free channel again
-  rmt_driver_uninstall(config.channel);
-  rmt_reserved_channels[channel] = false;
+  // rmt_driver_uninstall(config.channel);
+  // rmt_reserved_channels[channel] = false;
 
-  gpio_set_direction(pin, GPIO_MODE_OUTPUT);
+  // gpio_set_direction(pin, GPIO_MODE_OUTPUT);
 }
 
 #endif
