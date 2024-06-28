@@ -1,6 +1,7 @@
 /* Do not change any code below this line unless you are sure what you are doing */
 /* Only change battery specific settings in "USER_SETTINGS.h" */
 
+#include "Software.h"
 #include "src/include.h"
 
 #include "HardwareSerial.h"
@@ -53,6 +54,8 @@ static ACAN2515_Buffer16 gBuffer;
 #ifdef CAN_FD
 #include "src/lib/pierremolinaro-ACAN2517FD/ACAN2517FD.h"
 ACAN2517FD canfd(MCP2517_CS, SPI, MCP2517_INT);
+#else
+typedef char CANFDMessage;
 #endif
 
 // ModbusRTU parameters
