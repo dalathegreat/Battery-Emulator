@@ -110,7 +110,7 @@ void receive_can_battery(CAN_frame_t rx_frame) {
     case 0x4210:
     case 0x4211:
       voltage_dV = ((rx_frame.data.u8[1] << 8) | rx_frame.data.u8[0]);
-      current_dA = ((rx_frame.data.u8[3] << 8) | rx_frame.data.u8[2]) -30000;
+      current_dA = ((rx_frame.data.u8[3] << 8) | rx_frame.data.u8[2]) - 30000;
       SOC = rx_frame.data.u8[6];
       SOH = rx_frame.data.u8[7];
       break;
