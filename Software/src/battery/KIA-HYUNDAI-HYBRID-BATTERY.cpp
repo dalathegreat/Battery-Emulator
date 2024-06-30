@@ -19,6 +19,8 @@ static int8_t battery_module_max_temperature = 0;
 static int8_t battery_module_min_temperature = 0;
 static uint8_t poll_data_pid = 0;
 static uint16_t cellvoltages_mv[59];
+static uint16_t min_cell_voltage_mv = 3700;
+static uint16_t max_cell_voltage_mv = 3700;
 
 CAN_frame_t KIA_7E4_id1 = {.FIR = {.B =
                                        {
@@ -78,6 +80,10 @@ void update_values_battery() {  //This function maps all the values fetched via 
   datalayer.battery.status.temperature_min_dC = (int16_t)(battery_module_min_temperature * 10);
 
   datalayer.battery.status.temperature_max_dC = (int16_t)(battery_module_max_temperature * 10);
+
+  datalayer.battery.status.cell_max_voltage_mV = max_cell_voltage_mv;
+
+  datalayer.battery.status.cell_min_voltage_mV = min_cell_voltage_mv;
 
   if (interlock_missing) {
     set_event(EVENT_HVIL_FAILURE, 0);
@@ -161,7 +167,7 @@ void receive_can_battery(CAN_frame_t rx_frame) {
           break;
         case 0x23:  //Third datarow in PID group
           if (poll_data_pid == 1) {
-            max_cell_voltage = rx_frame.data.u8[6] * 20;
+            max_cell_voltage_mv = rx_frame.data.u8[6] * 20;
           } else if (poll_data_pid == 2) {
             cellvoltages_mv[13] = (rx_frame.data.u8[1] * 20);
             cellvoltages_mv[14] = (rx_frame.data.u8[2] * 20);
@@ -182,7 +188,7 @@ void receive_can_battery(CAN_frame_t rx_frame) {
           break;
         case 0x24:  //Fourth datarow in PID group
           if (poll_data_pid == 1) {
-            min_cell_voltage = rx_frame.data.u8[1] * 20;
+            min_cell_voltage_mv = rx_frame.data.u8[1] * 20;
           } else if (poll_data_pid == 2) {
             cellvoltages_mv[20] = (rx_frame.data.u8[1] * 20);
             cellvoltages_mv[21] = (rx_frame.data.u8[2] * 20);
