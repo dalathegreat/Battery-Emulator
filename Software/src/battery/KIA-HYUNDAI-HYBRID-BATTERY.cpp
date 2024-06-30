@@ -7,15 +7,18 @@
 #include "KIA-HYUNDAI-HYBRID-BATTERY.h"
 
 /* Do not change code below unless you are sure what you are doing */
-static unsigned long previousMillis10 = 0;    // will store last time a 10ms CAN Message was send
 static unsigned long previousMillis1000 = 0;  // will store last time a 100ms CAN Message was send
 
 static uint16_t SOC = 0;
+static uint16_t SOC_display = 0;
 static bool interlock_missing = false;
-static uint16_t battery_current = 0;
-static uint16_t voltage = 0;
-static int8_t temperature = 0;
+static int16_t battery_current = 0;
+static uint8_t battery_current_high_byte = 0;
+static uint16_t battery_voltage = 0;
+static int8_t battery_module_max_temperature = 0;
+static int8_t battery_module_min_temperature = 0;
 static uint8_t poll_data_pid = 0;
+static uint16_t cellvoltages_mv[59];
 
 CAN_frame_t KIA_7E4_id1 = {.FIR = {.B =
                                        {
@@ -55,58 +58,49 @@ CAN_frame_t KIA_7E4_ack = {.FIR = {.B =
 
 void update_values_battery() {  //This function maps all the values fetched via CAN to the correct parameters used for modbus
 
-  datalayer.battery.status.real_soc = SOC * 100;
+  datalayer.battery.status.real_soc = SOC * 50;
 
-  datalayer.battery.status.voltage_dV = voltage * 10;
+  datalayer.battery.status.voltage_dV = battery_voltage;
 
   datalayer.battery.status.current_dA = battery_current;
 
-  datalayer.battery.info.total_capacity_Wh;
+  datalayer.battery.status.remaining_capacity_Wh = static_cast<uint32_t>(
+      (static_cast<double>(datalayer.battery.status.real_soc) / 10000) * datalayer.battery.info.total_capacity_Wh);
 
-  datalayer.battery.status.remaining_capacity_Wh;
+  datalayer.battery.status.max_discharge_power_W = available_discharge_power * 10;
 
-  datalayer.battery.status.max_discharge_power_W;
+  datalayer.battery.status.max_charge_power_W = available_charge_power * 10;
 
-  datalayer.battery.status.max_charge_power_W;
+  //Power in watts, Negative = charging batt
+  datalayer.battery.status.active_power_W =
+      ((datalayer.battery.status.voltage_dV * datalayer.battery.status.current_dA) / 100);
 
-  datalayer.battery.status.active_power_W;
+  datalayer.battery.status.temperature_min_dC = (int16_t)(battery_module_min_temperature * 10);
 
-  datalayer.battery.status.temperature_min_dC = temperature * 10;
-
-  datalayer.battery.status.temperature_max_dC = temperature * 10;
+  datalayer.battery.status.temperature_max_dC = (int16_t)(battery_module_max_temperature * 10);
 
   if (interlock_missing) {
     set_event(EVENT_HVIL_FAILURE, 0);
   } else {
     clear_event(EVENT_HVIL_FAILURE);
   }
-
-#ifdef DEBUG_VIA_USB
-
-#endif
 }
 
 void receive_can_battery(CAN_frame_t rx_frame) {
   datalayer.battery.status.CAN_battery_still_alive = CAN_STILL_ALIVE;
   switch (rx_frame.MsgID) {
     case 0x5F1:
-      SOC = rx_frame.data.u8[2];  //Best guess so far, could be very wrong
       break;
     case 0x51E:
       break;
     case 0x588:
       break;
     case 0x5AE:
-      if (rx_frame.data.u8[0] > 100) {
-        voltage = rx_frame.data.u8[0];
-      }
       interlock_missing = (bool)(rx_frame.data.u8[1] & 0x02) >> 1;
-      temperature = rx_frame.data.u8[3];  // Is this correct byte? Or is it 5AD 4/5? The one there is 1deg higher
       break;
     case 0x5AF:
       break;
     case 0x5AD:
-      battery_current = (rx_frame.data.u8[3] << 8) + rx_frame.data.u8[2];
       break;
     case 0x670:
       break;
@@ -117,53 +111,112 @@ void receive_can_battery(CAN_frame_t rx_frame) {
             ESP32Can.CANWriteFrame(&KIA_7E4_ack);  //Send ack to BMS if the same frame is sent as polled
           }
           break;
-        case 0x21:  //First frame in PID group
-          if (poll_data_pid == 1) {
-
-          } else if (poll_data_pid == 2) {
-
-          } else if (poll_data_pid == 3) {
-
-          } else if (poll_data_pid == 5) {
+        case 0x21:                      //First frame in PID group
+          if (poll_data_pid == 1) {     // 21 01
+            SOC = rx_frame.data.u8[1];  // 0xBC = 188 /2 = 94%
+            available_charge_power = ((rx_frame.data.u8[3] << 8) | rx_frame.data.u8[2]);
+            available_discharge_power = ((rx_frame.data.u8[5] << 8) | rx_frame.data.u8[4]);
+            battery_current_high_byte = rx_frame.data.u8[7];
+          } else if (poll_data_pid == 2) {  //21 02
+            cellvoltages_mv[0] = (rx_frame.data.u8[2] * 20);
+            cellvoltages_mv[1] = (rx_frame.data.u8[3] * 20);
+            cellvoltages_mv[2] = (rx_frame.data.u8[4] * 20);
+            cellvoltages_mv[3] = (rx_frame.data.u8[5] * 20);
+            cellvoltages_mv[4] = (rx_frame.data.u8[6] * 20);
+            cellvoltages_mv[5] = (rx_frame.data.u8[7] * 20);
+          } else if (poll_data_pid == 3) {  //21 03
+            cellvoltages_mv[31] = (rx_frame.data.u8[2] * 20);
+            cellvoltages_mv[32] = (rx_frame.data.u8[3] * 20);
+            cellvoltages_mv[33] = (rx_frame.data.u8[4] * 20);
+            cellvoltages_mv[34] = (rx_frame.data.u8[5] * 20);
+            cellvoltages_mv[35] = (rx_frame.data.u8[6] * 20);
+            cellvoltages_mv[36] = (rx_frame.data.u8[7] * 20);
+          } else if (poll_data_pid == 5) {  //21 05
           }
           break;
         case 0x22:  //Second datarow in PID group
           if (poll_data_pid == 1) {
-
+            battery_current = ((battery_current_high_byte << 8) | rx_frame.data.u8[1]);
+            battery_voltage = ((rx_frame.data.u8[3] << 8) | rx_frame.data.u8[2]);
+            battery_module_max_temperature = rx_frame.data.u8[4];
+            battery_module_min_temperature = rx_frame.data.u8[5];
           } else if (poll_data_pid == 2) {
+            cellvoltages_mv[6] = (rx_frame.data.u8[1] * 20);
+            cellvoltages_mv[7] = (rx_frame.data.u8[2] * 20);
+            cellvoltages_mv[8] = (rx_frame.data.u8[3] * 20);
+            cellvoltages_mv[9] = (rx_frame.data.u8[4] * 20);
+            cellvoltages_mv[10] = (rx_frame.data.u8[5] * 20);
+            cellvoltages_mv[11] = (rx_frame.data.u8[6] * 20);
+            cellvoltages_mv[12] = (rx_frame.data.u8[7] * 20);
 
           } else if (poll_data_pid == 3) {
-
+            cellvoltages_mv[37] = (rx_frame.data.u8[2] * 20);
+            cellvoltages_mv[38] = (rx_frame.data.u8[3] * 20);
+            cellvoltages_mv[39] = (rx_frame.data.u8[4] * 20);
+            cellvoltages_mv[40] = (rx_frame.data.u8[5] * 20);
+            cellvoltages_mv[41] = (rx_frame.data.u8[6] * 20);
+            cellvoltages_mv[42] = (rx_frame.data.u8[7] * 20);
           } else if (poll_data_pid == 5) {
           }
           break;
         case 0x23:  //Third datarow in PID group
           if (poll_data_pid == 1) {
-
+            max_cell_voltage = rx_frame.data.u8[6] * 20;
           } else if (poll_data_pid == 2) {
-
+            cellvoltages_mv[13] = (rx_frame.data.u8[1] * 20);
+            cellvoltages_mv[14] = (rx_frame.data.u8[2] * 20);
+            cellvoltages_mv[15] = (rx_frame.data.u8[3] * 20);
+            cellvoltages_mv[16] = (rx_frame.data.u8[4] * 20);
+            cellvoltages_mv[17] = (rx_frame.data.u8[5] * 20);
+            cellvoltages_mv[18] = (rx_frame.data.u8[6] * 20);
+            cellvoltages_mv[19] = (rx_frame.data.u8[7] * 20);
           } else if (poll_data_pid == 3) {
-
+            cellvoltages_mv[43] = (rx_frame.data.u8[2] * 20);
+            cellvoltages_mv[44] = (rx_frame.data.u8[3] * 20);
+            cellvoltages_mv[45] = (rx_frame.data.u8[4] * 20);
+            cellvoltages_mv[46] = (rx_frame.data.u8[5] * 20);
+            cellvoltages_mv[47] = (rx_frame.data.u8[6] * 20);
+            cellvoltages_mv[48] = (rx_frame.data.u8[7] * 20);
           } else if (poll_data_pid == 5) {
           }
           break;
         case 0x24:  //Fourth datarow in PID group
           if (poll_data_pid == 1) {
-
+            min_cell_voltage = rx_frame.data.u8[1] * 20;
           } else if (poll_data_pid == 2) {
-
+            cellvoltages_mv[20] = (rx_frame.data.u8[1] * 20);
+            cellvoltages_mv[21] = (rx_frame.data.u8[2] * 20);
+            cellvoltages_mv[22] = (rx_frame.data.u8[3] * 20);
+            cellvoltages_mv[23] = (rx_frame.data.u8[4] * 20);
+            cellvoltages_mv[24] = (rx_frame.data.u8[5] * 20);
+            cellvoltages_mv[25] = (rx_frame.data.u8[6] * 20);
+            cellvoltages_mv[26] = (rx_frame.data.u8[7] * 20);
           } else if (poll_data_pid == 3) {
-
+            cellvoltages_mv[49] = (rx_frame.data.u8[2] * 20);
+            cellvoltages_mv[50] = (rx_frame.data.u8[3] * 20);
+            cellvoltages_mv[51] = (rx_frame.data.u8[4] * 20);
+            cellvoltages_mv[52] = (rx_frame.data.u8[5] * 20);
+            cellvoltages_mv[53] = (rx_frame.data.u8[6] * 20);
+            cellvoltages_mv[54] = (rx_frame.data.u8[7] * 20);
           } else if (poll_data_pid == 5) {
+            SOC_display = rx_frame.data.u8[7];  //0x26 = 38%
           }
           break;
         case 0x25:  //Fifth datarow in PID group
           if (poll_data_pid == 1) {
 
           } else if (poll_data_pid == 2) {
-
+            cellvoltages_mv[27] = (rx_frame.data.u8[1] * 20);
+            cellvoltages_mv[28] = (rx_frame.data.u8[2] * 20);
+            cellvoltages_mv[29] = (rx_frame.data.u8[3] * 20);
+            cellvoltages_mv[30] = (rx_frame.data.u8[4] * 20);
           } else if (poll_data_pid == 3) {
-
+            cellvoltages_mv[55] = (rx_frame.data.u8[4] * 20);
+            cellvoltages_mv[56] = (rx_frame.data.u8[5] * 20);
+            cellvoltages_mv[57] = (rx_frame.data.u8[6] * 20);
+            cellvoltages_mv[58] = (rx_frame.data.u8[7] * 20);
+            //Map all cell voltages to the global array
+            memcpy(datalayer.battery.status.cell_voltages_mV, cellvoltages_mv, 59 * sizeof(uint16_t));
           } else if (poll_data_pid == 5) {
           }
           break;
@@ -181,14 +234,7 @@ void receive_can_battery(CAN_frame_t rx_frame) {
 }
 void send_can_battery() {
   unsigned long currentMillis = millis();
-  //Send 10ms message
-  if (currentMillis - previousMillis10 >= INTERVAL_10_MS) {
-    // Check if sending of CAN messages has been delayed too much.
-    if ((currentMillis - previousMillis10 >= INTERVAL_10_MS_DELAYED) && (currentMillis > BOOTUP_TIME)) {
-      set_event(EVENT_CAN_OVERRUN, (currentMillis - previousMillis10));
-    }
-    previousMillis10 = currentMillis;
-  }
+
   // Send 1000ms CAN Message
   if (currentMillis - previousMillis1000 >= INTERVAL_1_S) {
     previousMillis1000 = currentMillis;
@@ -216,9 +262,9 @@ void setup_battery(void) {  // Performs one time setup at startup
 #ifdef DEBUG_VIA_USB
   Serial.println("Kia/Hyundai Hybrid battery selected");
 #endif
-
-  datalayer.battery.info.max_design_voltage_dV = 4040;  //TODO: Values?
-  datalayer.battery.info.min_design_voltage_dV = 1000;
+  datalayer.battery.info.number_of_cells = 59;
+  datalayer.battery.info.max_design_voltage_dV = 2550;  //TODO: Values OK?
+  datalayer.battery.info.min_design_voltage_dV = 1700;
 }
 
 #endif
