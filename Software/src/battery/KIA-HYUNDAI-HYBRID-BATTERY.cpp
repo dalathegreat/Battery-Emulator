@@ -87,6 +87,9 @@ void update_values_battery() {  //This function maps all the values fetched via 
 
   datalayer.battery.status.cell_min_voltage_mV = min_cell_voltage_mv;
 
+  //Map all cell voltages to the global array
+  memcpy(datalayer.battery.status.cell_voltages_mV, cellvoltages_mv, 59 * sizeof(uint16_t));
+
   if (interlock_missing) {
     set_event(EVENT_HVIL_FAILURE, 0);
   } else {
@@ -223,8 +226,6 @@ void receive_can_battery(CAN_frame_t rx_frame) {
             cellvoltages_mv[56] = (rx_frame.data.u8[5] * 20);
             cellvoltages_mv[57] = (rx_frame.data.u8[6] * 20);
             cellvoltages_mv[58] = (rx_frame.data.u8[7] * 20);
-            //Map all cell voltages to the global array
-            memcpy(datalayer.battery.status.cell_voltages_mV, cellvoltages_mv, 59 * sizeof(uint16_t));
           } else if (poll_data_pid == 5) {
           }
           break;
