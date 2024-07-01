@@ -145,7 +145,7 @@ void receive_can_battery(CAN_frame_t rx_frame) {
         case 0x22:  //Second datarow in PID group
           if (poll_data_pid == 1) {
             battery_current = ((battery_current_high_byte << 8) | rx_frame.data.u8[1]);
-            battery_voltage = ((rx_frame.data.u8[3] << 8) | rx_frame.data.u8[2]);
+            battery_voltage = ((rx_frame.data.u8[2] << 8) | rx_frame.data.u8[3]);
             battery_module_max_temperature = rx_frame.data.u8[4];
             battery_module_min_temperature = rx_frame.data.u8[5];
           } else if (poll_data_pid == 2) {
