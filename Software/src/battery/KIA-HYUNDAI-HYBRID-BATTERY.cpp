@@ -6,6 +6,11 @@
 #include "../lib/miwagner-ESP32-Arduino-CAN/ESP32CAN.h"
 #include "KIA-HYUNDAI-HYBRID-BATTERY.h"
 
+/* TODO: 
+- The HEV battery seems to turn off after 1 minute of use. When this happens SOC% stops updating.
+- We need to figure out how to keep the BMS alive. Most likely we need to send a specific CAN message
+*/
+
 /* Do not change code below unless you are sure what you are doing */
 static unsigned long previousMillis1000 = 0;  // will store last time a 100ms CAN Message was send
 
@@ -20,7 +25,7 @@ static uint32_t available_discharge_power = 0;
 static int8_t battery_module_max_temperature = 0;
 static int8_t battery_module_min_temperature = 0;
 static uint8_t poll_data_pid = 0;
-static uint16_t cellvoltages_mv[59];
+static uint16_t cellvoltages_mv[98];
 static uint16_t min_cell_voltage_mv = 3700;
 static uint16_t max_cell_voltage_mv = 3700;
 
@@ -88,7 +93,7 @@ void update_values_battery() {  //This function maps all the values fetched via 
   datalayer.battery.status.cell_min_voltage_mV = min_cell_voltage_mv;
 
   //Map all cell voltages to the global array
-  memcpy(datalayer.battery.status.cell_voltages_mV, cellvoltages_mv, 59 * sizeof(uint16_t));
+  memcpy(datalayer.battery.status.cell_voltages_mV, cellvoltages_mv, 98 * sizeof(uint16_t));
 
   if (interlock_missing) {
     set_event(EVENT_HVIL_FAILURE, 0);
@@ -271,7 +276,7 @@ void setup_battery(void) {  // Performs one time setup at startup
 #ifdef DEBUG_VIA_USB
   Serial.println("Kia/Hyundai Hybrid battery selected");
 #endif
-  datalayer.battery.info.number_of_cells = 59;
+  datalayer.battery.info.number_of_cells = 56;          // HEV , TODO: Make dynamic according to HEV/PHEV
   datalayer.battery.info.max_design_voltage_dV = 2550;  //TODO: Values OK?
   datalayer.battery.info.min_design_voltage_dV = 1700;
 }
