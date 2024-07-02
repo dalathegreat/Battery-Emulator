@@ -125,8 +125,8 @@ void receive_can_battery(CAN_frame_t rx_frame) {
         case 0x21:                      //First frame in PID group
           if (poll_data_pid == 1) {     // 21 01
             SOC = rx_frame.data.u8[1];  // 0xBC = 188 /2 = 94%
-            available_charge_power = ((rx_frame.data.u8[3] << 8) | rx_frame.data.u8[2]);
-            available_discharge_power = ((rx_frame.data.u8[5] << 8) | rx_frame.data.u8[4]);
+            available_charge_power = ((rx_frame.data.u8[2] << 8) | rx_frame.data.u8[3]);
+            available_discharge_power = ((rx_frame.data.u8[4] << 8) | rx_frame.data.u8[5]);
             battery_current_high_byte = rx_frame.data.u8[7];
           } else if (poll_data_pid == 2) {  //21 02
             cellvoltages_mv[0] = (rx_frame.data.u8[2] * 20);
