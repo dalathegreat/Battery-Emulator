@@ -11,18 +11,17 @@ int ESP32CAN::CANWriteFrame(const CAN_frame_t* p_frame) {
   if (tx_ok) {
     result = CAN_write_frame(p_frame);
     tx_ok = (result == 0) ? true : false;
-    if (tx_ok == false) {
+    if (tx_ok == false) { // We failed to transmit
       #ifdef DEBUG_VIA_USB
       Serial.println("CAN failure! Check wires");
       #endif
       set_event(EVENT_CAN_TX_FAILURE, 0);
       start_time = millis();
-    } else {
-      clear_event(EVENT_CAN_TX_FAILURE);
     }
   } else {
     if ((millis() - start_time) >= 20) {
       tx_ok = true;
+      clear_event(EVENT_CAN_TX_FAILURE);
     }
   }
   return result;
