@@ -15,7 +15,11 @@
 #include "TSM-2500-CHARGER.h"
 #endif
 
-void receive_can_charger(CAN_frame_t rx_frame);
-void send_can_charger();
+#ifdef SOLAR_CONTACTOR
+    #include "SOLAR-CONTACTOR.h"
+#endif
+
+    void receive_can_charger(CAN_frame_t rx_frame);
+    void send_can_charger();
 
 #endif

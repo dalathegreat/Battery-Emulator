@@ -23,36 +23,37 @@
  * battery onto the CAN bus. 
 */
 
-static uint8_t charger_max_voltage = 112.4;
-static uint8_t charger_max_soc = 90; 
+static uint8_t charger_max_voltage = 111.0;
+static uint8_t charger_max_soc = 95; 
 static uint8_t charger_min_soc = 20; 
 static uint8_t charger_current_voltage = 0;
 static uint8_t charger_current_soc = 0;
 static bool solar_contactor_enabled = 0;
 
 
-// void receive_can_charger(CAN_frame_t rx_frame) {
+void receive_can_charger(CAN_frame_t rx_frame) {
   
-// }
+}
 
 void send_can_charger() {
 
   //Update Charge Limits
-  charger_max_voltage = datalayer.battery.info.max_design_voltage_dV - 50;
-  charger_max_soc = datalayer.battery.settings.max_percentage;
-  charger_min_soc = datalayer.battery.settings.min_percentage;
-
+  charger_max_voltage = datalayer.battery.info.max_design_voltage_dV;
+  charger_max_soc = 90;
+  charger_min_soc = 20;
   charger_current_voltage = datalayer.battery.status.voltage_dV;
-  charger_current_soc = datalayer.battery.status.reported_soc;
+  charger_current_soc = datalayer.battery.status.real_soc;
 
+  // Serial.println(String(charger_max_voltage) + "   " + String(charger_max_soc) + "   " + String(charger_min_soc) + "   "  + String(charger_current_voltage) + "   "  + String(charger_current_soc) + "   " );
 
-  if ((charger_current_voltage < charger_max_voltage) && (charger_current_soc < charger_max_soc) && (charger_current_soc > charger_min_soc ) ){
+  // if ((charger_current_voltage <= charger_max_voltage) && (charger_current_soc <= charger_max_soc) && (charger_current_soc >= charger_min_soc ) ){
+  if ((charger_current_soc <= charger_max_soc) && (charger_current_soc >= charger_min_soc ) ){
     Serial.println("Solar Contactor Enabled - SOC: " + String(charger_current_soc) + "  Voltage: "  + String(charger_current_soc));
     digitalWrite(POSITIVE_CONTACTOR_PIN, HIGH);
     datalayer.system.status.solar_allows_contactor_closing = true;
   }
   else{
-    Serial.println("Solar Contactor Disabled");
+    Serial.println("Solar Contactor Disabled - SoC:" + String(charger_current_soc)  );
     digitalWrite(POSITIVE_CONTACTOR_PIN, LOW);
     datalayer.system.status.solar_allows_contactor_closing = false;
   }

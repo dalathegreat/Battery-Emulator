@@ -32,7 +32,7 @@
 //#define SMA_CAN          //Enable this line to emulate a "BYD Battery-Box H 8.9kWh, 7 mod" over CAN bus
 //#define SMA_TRIPOWER_CAN //Enable this line to emulate a "SMA Home Storage battery" over CAN bus
 //#define SOFAR_CAN        //Enable this line to emulate a "Sofar Energy Storage Inverter High Voltage BMS General Protocol (Extended Frame)" over CAN bus
-#define SOLAX_CAN        //Enable this line to emulate a "SolaX Triple Power LFP" over CAN bus
+// #define SOLAX_CAN        //Enable this line to emulate a "SolaX Triple Power LFP" over CAN bus
 // #define EPROP_CAN        //Enable this line to emulate an "Epropulsion Motor" over CAN bus
 
 /* Select hardware used for Battery-Emulator */
@@ -60,7 +60,7 @@
 #define MQTT_SUBSCRIPTIONS \
   { "my/topic/abc", "my/other/topic" }
 #define MQTT_SERVER "thulasolutions.cloud.shiftr.io"
-#define MQTT_PORT 1883
+#define MQTT_PORT 1883 
 
 /* Event options*/
 #define DUMMY_EVENT_ENABLED false  //Enable this line to have a dummy event that gets logged to test the interface
