@@ -617,8 +617,8 @@ void printFaultCodesIfActive() {
   }
   if (datalayer.system.status.inverter_allows_contactor_closing == false) {
     Serial.println(
-        "ERROR: Solar inverter does not allow for contactor closing. Check "
-        "datalayer.system.status.inverter_allows_contactor_closing parameter");
+        "ERROR: Solar inverter does not allow for contactor closing. Check communication connection to the inverter OR "
+        "disable the inverter protocol to proceed with contactor closing");
   }
   // Check each symbol and print debug information if its value is 1
   printDebugIfActive(WatchdogReset, "ERROR: The processor has experienced a reset due to watchdog reset");
