@@ -27,6 +27,10 @@
 #include "KIA-HYUNDAI-64-BATTERY.h"
 #endif
 
+#ifdef KIA_HYUNDAI_HYBRID_BATTERY
+#include "KIA-HYUNDAI-HYBRID-BATTERY.h"
+#endif
+
 #ifdef MG_5_BATTERY
 #include "MG-5-BATTERY.h"
 #endif

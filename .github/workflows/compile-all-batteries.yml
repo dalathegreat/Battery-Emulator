@@ -38,6 +38,7 @@ jobs:
           - CHADEMO_BATTERY
           - IMIEV_CZERO_ION_BATTERY
           - KIA_HYUNDAI_64_BATTERY
+          - KIA_HYUNDAI_HYBRID_BATTERY
           - NISSAN_LEAF_BATTERY
           - PYLON_BATTERY
           - RENAULT_KANGOO_BATTERY
