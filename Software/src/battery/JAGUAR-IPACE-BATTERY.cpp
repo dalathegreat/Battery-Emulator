@@ -9,6 +9,27 @@ static unsigned long previousMillis10 = 0;   // will store last time a 10ms CAN 
 static unsigned long previousMillis100 = 0;  // will store last time a 100ms CAN Message was send
 static unsigned long previousMillis500 = 0;  // will store last time a 500ms CAN Message was send
 
+static uint8_t HVBattAvgSOC = 0;
+static uint8_t HVBattFastChgCounter = 0;
+static uint8_t HVBattTempColdCellID = 0;
+static uint8_t HVBatTempHotCellID = 0;
+static uint8_t HVBattVoltMaxCellID = 0;
+static uint8_t HVBattVoltMinCellID = 0;
+static int8_t HVBattCurrentTR = 0;
+static uint16_t HVBattCellVoltageMaxMv = 3700;
+static uint16_t HVBattCellVoltageMinMv = 3700;
+static uint16_t HVBattEnergyAvailable = 0;
+static uint16_t HVBattEnergyUsableMax = 0;
+static uint16_t HVBattTotalCapacityWhenNew = 0;
+static uint16_t HVBattDischargeContiniousPowerLimit = 0;
+static uint16_t HVBattDischargePowerLimitExt = 0;
+static uint16_t HVBattDischargeVoltageLimit = 0;
+static int16_t HVBattAverageTemperature = 0;
+static int16_t HVBattCellTempAverage = 0;
+static int16_t HVBattCellTempColdest = 0;
+static int16_t HVBattCellTempHottest = 0;
+static int16_t HVBattInletCoolantTemp = 0;
+
 /*
 
 
@@ -207,16 +228,14 @@ dd09
 
 */
 
-
 /* TODO: Actually use a proper keepalive message */
 CAN_frame_t ipace_keep_alive = {.FIR = {.B =
-                                     {
-                                         .DLC = 8,
-                                         .FF = CAN_frame_std,
-                                     }},
-                         .MsgID = 0x063,
-                         .data = {0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00}};
-
+                                            {
+                                                .DLC = 8,
+                                                .FF = CAN_frame_std,
+                                            }},
+                                .MsgID = 0x063,
+                                .data = {0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00}};
 
 CAN_frame_t ipace_7e4 = {.FIR = {.B =
                                      {
@@ -226,7 +245,6 @@ CAN_frame_t ipace_7e4 = {.FIR = {.B =
                          .MsgID = 0x7e4,
                          .data = {0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00}};
 
-
 void print_units(char* header, int value, char* units) {
   Serial.print(header);
   Serial.print(value);
@@ -235,42 +253,40 @@ void print_units(char* header, int value, char* units) {
 
 void update_values_battery() { /* This function puts fake values onto the parameters sent towards the inverter */
 
-  datalayer.battery.status.real_soc = 5000;  // 50.00%
+  datalayer.battery.status.real_soc = HVBattAvgSOC * 100;  //Add two decimals
 
-  datalayer.battery.status.soh_pptt = 9900;  // 99.00%
+  datalayer.battery.status.soh_pptt = 9900;  //TODO: Map
 
-  //datalayer.battery.status.voltage_dV = 3700;  // 370.0V , value set in startup in .ino file, editable via webUI
+  datalayer.battery.status.voltage_dV = 3700;  //TODO: Map
 
-  datalayer.battery.status.current_dA = 0;  // 0 A
+  datalayer.battery.status.current_dA = HVBattCurrentTR * 10;  //TODO: This value OK?
 
-  datalayer.battery.info.total_capacity_Wh = 30000;  // 30kWh
+  datalayer.battery.info.total_capacity_Wh = HVBattEnergyUsableMax * 100;  // kWh+1 to Wh
 
-  datalayer.battery.status.remaining_capacity_Wh = 15000;  // 15kWh
+  datalayer.battery.status.remaining_capacity_Wh = static_cast<uint32_t>(
+      (static_cast<double>(datalayer.battery.status.real_soc) / 10000) * datalayer.battery.info.total_capacity_Wh);
 
-  datalayer.battery.status.cell_max_voltage_mV = 3596;
+  datalayer.battery.status.cell_max_voltage_mV = HVBattCellVoltageMaxMv;
 
-  datalayer.battery.status.cell_min_voltage_mV = 3500;
+  datalayer.battery.status.cell_min_voltage_mV = HVBattCellVoltageMinMv;
 
-  datalayer.battery.status.active_power_W = 0;  // 0W
+  datalayer.battery.status.active_power_W = 0;  //TODO: Map
 
-  datalayer.battery.status.temperature_min_dC = 50;  // 5.0*C
+  datalayer.battery.status.temperature_min_dC = HVBattCellTempColdest * 10;  // C to dC
 
-  datalayer.battery.status.temperature_max_dC = 60;  // 6.0*C
+  datalayer.battery.status.temperature_max_dC = HVBattCellTempHottest * 10;  // C to dC
 
-  datalayer.battery.status.max_discharge_power_W = 5000;  // 5kW
+  datalayer.battery.status.max_discharge_power_W = HVBattDischargeContiniousPowerLimit * 10;  // kWh+2 to W
 
-  datalayer.battery.status.max_charge_power_W = 5000;  // 5kW
+  datalayer.battery.status.max_charge_power_W = 5000;  //TODO: Map
 
-  for (int i = 0; i < 97; ++i) {
+  for (int i = 0; i < 107; ++i) {
     datalayer.battery.status.cell_voltages_mV[i] = 3500 + i;
   }
 
-  //Fake that we get CAN messages
-  datalayer.battery.status.CAN_battery_still_alive = CAN_STILL_ALIVE;
-
 /*Finally print out values to serial if configured to do so*/
 #ifdef DEBUG_VIA_USB
-  Serial.println("FAKE Values going to inverter");
+  Serial.println("Values going to inverter");
   print_units("SOH%: ", (datalayer.battery.status.soh_pptt * 0.01), "% ");
   print_units(", SOC%: ", (datalayer.battery.status.reported_soc * 0.01), "% ");
   print_units(", Voltage: ", (datalayer.battery.status.voltage_dV * 0.1), "V ");
@@ -285,22 +301,97 @@ void update_values_battery() { /* This function puts fake values onto the parame
 }
 
 void receive_can_battery(CAN_frame_t rx_frame) {
-  datalayer.battery.status.CAN_battery_still_alive = CAN_STILL_ALIVE;
 
   // Do not log noisy startup messages - there are many !
-  if (rx_frame.MsgID == 0 && rx_frame.FIR.B.DLC == 8 &&
-      rx_frame.data.u8[0] == 0 &&
-      rx_frame.data.u8[1] == 0 &&
-      rx_frame.data.u8[2] == 0 &&
-      rx_frame.data.u8[3] == 0 &&
-      rx_frame.data.u8[4] == 0 &&
-      rx_frame.data.u8[5] == 0 &&
-      rx_frame.data.u8[6] == 0x80 &&
-      rx_frame.data.u8[7] == 0) {
+  if (rx_frame.MsgID == 0 && rx_frame.FIR.B.DLC == 8 && rx_frame.data.u8[0] == 0 && rx_frame.data.u8[1] == 0 &&
+      rx_frame.data.u8[2] == 0 && rx_frame.data.u8[3] == 0 && rx_frame.data.u8[4] == 0 && rx_frame.data.u8[5] == 0 &&
+      rx_frame.data.u8[6] == 0x80 && rx_frame.data.u8[7] == 0) {
     return;
   }
 
-  // Discard non-interesting can messages
+  switch (rx_frame.MsgID) {  // These messages are periodically transmitted by the battery
+    case 0x080:
+      datalayer.battery.status.CAN_battery_still_alive = CAN_STILL_ALIVE;
+      break;
+    case 0x100:
+      datalayer.battery.status.CAN_battery_still_alive = CAN_STILL_ALIVE;
+      HVBattDischargeContiniousPowerLimit =
+          ((rx_frame.data.u8[6] << 8) | rx_frame.data.u8[7]);                             // 0x3269 = 12905 = 129.05kW
+      HVBattDischargePowerLimitExt = ((rx_frame.data.u8[4] << 8) | rx_frame.data.u8[5]);  // 0x7BD5 = 31701 = 317.01kW
+      HVBattDischargeVoltageLimit =
+          ((rx_frame.data.u8[2] << 8) | rx_frame.data.u8[3]);  // Lowest voltage the pack can go to
+      break;
+    case 0x102:
+      datalayer.battery.status.CAN_battery_still_alive = CAN_STILL_ALIVE;
+      break;
+    case 0x104:
+      datalayer.battery.status.CAN_battery_still_alive = CAN_STILL_ALIVE;
+      break;
+    case 0x10A:
+      datalayer.battery.status.CAN_battery_still_alive = CAN_STILL_ALIVE;
+      break;
+    case 0x198:
+      break;
+    case 0x1C4:
+      HVBattCurrentTR = rx_frame.data.u8[0];  //TODO: scaling?
+      //HVBattPwrExtGPCounter = (rx_frame.data.u8[2] & 0xF0) >> 4; // not needed
+      //HVBattPwrExtGPCS = rx_frame.data.u8[1]; // Checksum, not needed
+      //HVBattVoltageBusTF Frame 3/4/5?
+      //HVBattVoltageBusTR Frame 3/4/5?
+      break;
+    case 0x220:
+      break;
+    case 0x222:
+      HVBattAvgSOC = rx_frame.data.u8[4];
+      HVBattAverageTemperature = (rx_frame.data.u8[5] / 2) - 40;
+      HVBattFastChgCounter = rx_frame.data.u8[7];
+      //HVBattLogEvent
+      HVBattTempColdCellID = rx_frame.data.u8[0];
+      HVBatTempHotCellID = rx_frame.data.u8[1];
+      HVBattVoltMaxCellID = rx_frame.data.u8[2];
+      HVBattVoltMinCellID = rx_frame.data.u8[3];
+      break;
+    case 0x248:
+      break;
+    case 0x308:
+      break;
+    case 0x424:
+      HVBattCellVoltageMaxMv = ((rx_frame.data.u8[4] << 8) | rx_frame.data.u8[5]);
+      HVBattCellVoltageMinMv = ((rx_frame.data.u8[6] << 8) | rx_frame.data.u8[7]);
+      //HVBattHeatPowerGenChg // kW
+      //HVBattHeatPowerGenDcg // kW
+      //HVBattWarmupRateChg // degC/minute
+      //HVBattWarmupRateDcg // degC/minute
+      break;
+    case 0x448:
+      HVBattCellTempAverage = (rx_frame.data.u8[0] / 2) - 40;
+      HVBattCellTempColdest = (rx_frame.data.u8[1] / 2) - 40;
+      HVBattCellTempHottest = (rx_frame.data.u8[2] / 2) - 40;
+      //HVBattCIntPumpDiagStat // Pump OK / NOK
+      //HVBattCIntPumpDiagStat_UB // True/False
+      //HVBattCoolantLevel // Coolant level OK / NOK
+      //HVBattHeaterCtrlStat // Off / On
+      HVBattInletCoolantTemp = (rx_frame.data.u8[5] / 2) - 40;
+      //HVBattInlentCoolantTemp_UB // True/False
+      //HVBattMILRequested // True/False
+      //HVBattThermalOvercheck // OK / NOK
+      break;
+    case 0x449:
+      break;
+    case 0x464:
+      HVBattEnergyAvailable =
+          ((rx_frame.data.u8[0] << 8) | rx_frame.data.u8[1]) / 2;  // 0x0198 = 408 / 2 = 204 = 20.4kWh
+      HVBattEnergyUsableMax =
+          ((rx_frame.data.u8[2] << 8) | rx_frame.data.u8[3]) / 2;  // 0x06EA = 1770 / 2 = 885 = 88.5kWh
+      HVBattTotalCapacityWhenNew = ((rx_frame.data.u8[6] << 8) | rx_frame.data.u8[7]);  //0x0395 = 917 = 91.7kWh
+      break;
+    case 0x522:
+      break;
+    default:
+      break;
+  }
+
+  // Discard non-interesting can messages so they do not get logged via serial
   if (rx_frame.MsgID < 0x500) {
     return;
   }
@@ -340,10 +431,8 @@ void send_can_battery() {
   if (currentMillis - previousMillis500 >= INTERVAL_500_MS) {
     previousMillis500 = currentMillis;
 
-
     CAN_frame_t msg;
     int err;
-
 
     switch (state) {
       case 0:
@@ -353,31 +442,29 @@ void send_can_battery() {
         // response:     7EC 03 59 02 8F 00 00 00 00
         //               7EC  8  3 7F 19 11 0 0 0 0
         msg = {.FIR = {.B =
-                                     {
-                                         .DLC = 8,
-                                         .FF = CAN_frame_std,
-                                     }},
-                         .MsgID = 0x7e4,
-                         .data = {0x03, 0x19, 0x02, 0x8f, 0x00, 0x00, 0x00, 0x00}};
+                           {
+                               .DLC = 8,
+                               .FF = CAN_frame_std,
+                           }},
+               .MsgID = 0x7e4,
+               .data = {0x03, 0x19, 0x02, 0x8f, 0x00, 0x00, 0x00, 0x00}};
         err = ESP32Can.CANWriteFrame(&msg);
         if (err == 0)
           state++;
 
         break;
       case 1:
-            // car response: 7EC 11 fa 59 04 c0 64 88 28
-            // response:
+        // car response: 7EC 11 fa 59 04 c0 64 88 28
+        // response:
 
-
-
-          msg = {.FIR = {.B =
-                                              {
-                                                  .DLC = 8,
-                                                  .FF = CAN_frame_std,
-                                              }},
-                                  .MsgID = 0x7e4,
-                                  .data = {0x06, 0x19, 0x04, 0xc0, 0x64, 0x88, 0xff, 0x00}};
-              err = ESP32Can.CANWriteFrame(&msg);
+        msg = {.FIR = {.B =
+                           {
+                               .DLC = 8,
+                               .FF = CAN_frame_std,
+                           }},
+               .MsgID = 0x7e4,
+               .data = {0x06, 0x19, 0x04, 0xc0, 0x64, 0x88, 0xff, 0x00}};
+        err = ESP32Can.CANWriteFrame(&msg);
         if (err == 0)
           state++;
         break;
@@ -389,18 +476,15 @@ void send_can_battery() {
         break;
     }
 
-
     // TODO -1 is an error !!
 
     Serial.print("sending 7e4 err:");
     Serial.println(err);
 
-
     Serial.print("sending 7e4_2 err:");
     Serial.println(err);
 
-
-/*
+    /*
 
 on car this is ... 10x messages of 0x522 01 12 0 3f 0 0 0 0
 
@@ -418,19 +502,17 @@ on car this is ... 10x messages of 0x522 01 12 0 3f 0 0 0 0
 
 
 */
-
   }
 }
 
 void setup_battery(void) {  // Performs one time setup at startup
 #ifdef DEBUG_VIA_USB
-  Serial.println("Jaguar iPace TODOkWh battery selected"); // TODO add kWh
+  Serial.println("Jaguar iPace 90kWh battery selected");
 #endif
 
-  // TODO check values
-  datalayer.battery.info.max_design_voltage_dV =
-      4040;  // 404.4V, over this, charging is not possible (goes into forced discharge)
-  datalayer.battery.info.min_design_voltage_dV = 2450;  // 245.0V under this, discharging further is disabled
+  datalayer.battery.info.number_of_cells = 108;
+  datalayer.battery.info.max_design_voltage_dV = 4546;
+  datalayer.battery.info.min_design_voltage_dV = 3370;
 }
 
 #endif

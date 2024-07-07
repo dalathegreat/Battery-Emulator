@@ -459,6 +459,9 @@ String processor(const String& var) {
 #ifdef IMIEV_CZERO_ION_BATTERY
     content += "I-Miev / C-Zero / Ion Triplet";
 #endif
+#ifdef JAGUAR_IPACE_BATTERY
+    content += "Jaguar I-PACE";
+#endif
 #ifdef KIA_HYUNDAI_64_BATTERY
     content += "Kia/Hyundai 64kWh";
 #endif
