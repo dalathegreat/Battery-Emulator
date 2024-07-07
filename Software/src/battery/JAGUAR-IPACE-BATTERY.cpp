@@ -9,6 +9,18 @@ static unsigned long previousMillis10 = 0;   // will store last time a 10ms CAN 
 static unsigned long previousMillis100 = 0;  // will store last time a 100ms CAN Message was send
 static unsigned long previousMillis500 = 0;  // will store last time a 500ms CAN Message was send
 
+static uint8_t HVBattAvgSOC = 0;
+static uint8_t HVBattFastChgCounter = 0;
+static uint8_t HVBattTempColdCellID = 0;
+static uint8_t HVBatTempHotCellID = 0;
+static uint8_t HVBattVoltMaxCellID = 0;
+static uint8_t HVBattVoltMinCellID = 0;
+static uint16_t HVBattCellVoltageMaxMv = 3700;
+static uint16_t HVBattCellVoltageMinMv = 3700;
+static uint16_t HVBattEnergyAvailable = 0;
+static uint16_t HVBattEnergyUsableMax = 0;
+static uint16_t HVBattTotalCapacityWhenNew = 0;
+
 /*
 
 
@@ -232,7 +244,7 @@ void print_units(char* header, int value, char* units) {
 
 void update_values_battery() { /* This function puts fake values onto the parameters sent towards the inverter */
 
-  datalayer.battery.status.real_soc = 5000;  //TODO: Map
+  datalayer.battery.status.real_soc = HVBattAvgSOC * 100;  //Add two decimals
 
   datalayer.battery.status.soh_pptt = 9900;  //TODO: Map
 
@@ -244,9 +256,9 @@ void update_values_battery() { /* This function puts fake values onto the parame
 
   datalayer.battery.status.remaining_capacity_Wh = 15000;  // 15kWh
 
-  datalayer.battery.status.cell_max_voltage_mV = 3596;  //TODO: Map
+  datalayer.battery.status.cell_max_voltage_mV = HVBattCellVoltageMaxMv;
 
-  datalayer.battery.status.cell_min_voltage_mV = 3500;  //TODO: Map
+  datalayer.battery.status.cell_min_voltage_mV = HVBattCellVoltageMinMv;
 
   datalayer.battery.status.active_power_W = 0;  //TODO: Map
 
@@ -306,22 +318,46 @@ void receive_can_battery(CAN_frame_t rx_frame) {
     case 0x198:
       break;
     case 0x1C4:
+      //HVBattCurrentTR
+      //HVBattPwrExtGPCounter
+      //HVBattPwrExtGPCS
+      //HVBattVoltageBusTF
+      //HVBattVoltageBusTR
       break;
     case 0x220:
       break;
     case 0x222:
+      HVBattAvgSOC = rx_frame.data.u8[4];
+      //HVBattAverageTemperature //0x77 = 19.5*C how is this scaled?
+      HVBattFastChgCounter = rx_frame.data.u8[7];
+      //HVBattLogEvent
+      HVBattTempColdCellID = rx_frame.data.u8[0];
+      HVBatTempHotCellID = rx_frame.data.u8[1];
+      HVBattVoltMaxCellID = rx_frame.data.u8[2];
+      HVBattVoltMinCellID = rx_frame.data.u8[3];
       break;
     case 0x248:
       break;
     case 0x308:
       break;
     case 0x424:
+      HVBattCellVoltageMaxMv = ((rx_frame.data.u8[4] << 8) | rx_frame.data.u8[5]);
+      HVBattCellVoltageMinMv = ((rx_frame.data.u8[6] << 8) | rx_frame.data.u8[7]);
+      //HVBattHeatPowerGenChg // kW
+      //HVBattHeatPowerGenDcg // kW
+      //HVBattWarmupRateChg // degC/minute
+      //HVBattWarmupRateDcg // degC/minute
       break;
     case 0x448:
       break;
     case 0x449:
       break;
     case 0x464:
+      HVBattEnergyAvailable =
+          ((rx_frame.data.u8[0] << 8) | rx_frame.data.u8[1]) / 2;  // 0x0198 = 408 / 2 = 204 = 20.4kWh
+      HVBattEnergyUsableMax =
+          ((rx_frame.data.u8[2] << 8) | rx_frame.data.u8[3]) / 2;  // 0x06EA = 1770 / 2 = 885 = 88.5kWh
+      HVBattTotalCapacityWhenNew = ((rx_frame.data.u8[6] << 8) | rx_frame.data.u8[7]);  //0x0395 = 917 = 91.7kWh
       break;
     case 0x522:
       break;
