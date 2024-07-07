@@ -207,16 +207,14 @@ dd09
 
 */
 
-
 /* TODO: Actually use a proper keepalive message */
 CAN_frame_t ipace_keep_alive = {.FIR = {.B =
-                                     {
-                                         .DLC = 8,
-                                         .FF = CAN_frame_std,
-                                     }},
-                         .MsgID = 0x063,
-                         .data = {0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00}};
-
+                                            {
+                                                .DLC = 8,
+                                                .FF = CAN_frame_std,
+                                            }},
+                                .MsgID = 0x063,
+                                .data = {0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00}};
 
 CAN_frame_t ipace_7e4 = {.FIR = {.B =
                                      {
@@ -226,7 +224,6 @@ CAN_frame_t ipace_7e4 = {.FIR = {.B =
                          .MsgID = 0x7e4,
                          .data = {0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00}};
 
-
 void print_units(char* header, int value, char* units) {
   Serial.print(header);
   Serial.print(value);
@@ -235,38 +232,35 @@ void print_units(char* header, int value, char* units) {
 
 void update_values_battery() { /* This function puts fake values onto the parameters sent towards the inverter */
 
-  datalayer.battery.status.real_soc = 5000;  // 50.00%
+  datalayer.battery.status.real_soc = 5000;  //TODO: Map
 
-  datalayer.battery.status.soh_pptt = 9900;  // 99.00%
+  datalayer.battery.status.soh_pptt = 9900;  //TODO: Map
 
-  //datalayer.battery.status.voltage_dV = 3700;  // 370.0V , value set in startup in .ino file, editable via webUI
+  datalayer.battery.status.voltage_dV = 3700;  //TODO: Map
 
-  datalayer.battery.status.current_dA = 0;  // 0 A
+  datalayer.battery.status.current_dA = 0;  //TODO: Map
 
-  datalayer.battery.info.total_capacity_Wh = 30000;  // 30kWh
+  datalayer.battery.info.total_capacity_Wh = 85000;  // 85kWh usable
 
   datalayer.battery.status.remaining_capacity_Wh = 15000;  // 15kWh
 
-  datalayer.battery.status.cell_max_voltage_mV = 3596;
+  datalayer.battery.status.cell_max_voltage_mV = 3596;  //TODO: Map
 
-  datalayer.battery.status.cell_min_voltage_mV = 3500;
+  datalayer.battery.status.cell_min_voltage_mV = 3500;  //TODO: Map
 
-  datalayer.battery.status.active_power_W = 0;  // 0W
+  datalayer.battery.status.active_power_W = 0;  //TODO: Map
 
-  datalayer.battery.status.temperature_min_dC = 50;  // 5.0*C
+  datalayer.battery.status.temperature_min_dC = 50;  //TODO: Map
 
-  datalayer.battery.status.temperature_max_dC = 60;  // 6.0*C
+  datalayer.battery.status.temperature_max_dC = 60;  //TODO: Map
 
-  datalayer.battery.status.max_discharge_power_W = 5000;  // 5kW
+  datalayer.battery.status.max_discharge_power_W = 5000;  //TODO: Map
 
-  datalayer.battery.status.max_charge_power_W = 5000;  // 5kW
+  datalayer.battery.status.max_charge_power_W = 5000;  //TODO: Map
 
-  for (int i = 0; i < 97; ++i) {
+  for (int i = 0; i < 107; ++i) {
     datalayer.battery.status.cell_voltages_mV[i] = 3500 + i;
   }
-
-  //Fake that we get CAN messages
-  datalayer.battery.status.CAN_battery_still_alive = CAN_STILL_ALIVE;
 
 /*Finally print out values to serial if configured to do so*/
 #ifdef DEBUG_VIA_USB
@@ -285,22 +279,57 @@ void update_values_battery() { /* This function puts fake values onto the parame
 }
 
 void receive_can_battery(CAN_frame_t rx_frame) {
-  datalayer.battery.status.CAN_battery_still_alive = CAN_STILL_ALIVE;
 
   // Do not log noisy startup messages - there are many !
-  if (rx_frame.MsgID == 0 && rx_frame.FIR.B.DLC == 8 &&
-      rx_frame.data.u8[0] == 0 &&
-      rx_frame.data.u8[1] == 0 &&
-      rx_frame.data.u8[2] == 0 &&
-      rx_frame.data.u8[3] == 0 &&
-      rx_frame.data.u8[4] == 0 &&
-      rx_frame.data.u8[5] == 0 &&
-      rx_frame.data.u8[6] == 0x80 &&
-      rx_frame.data.u8[7] == 0) {
+  if (rx_frame.MsgID == 0 && rx_frame.FIR.B.DLC == 8 && rx_frame.data.u8[0] == 0 && rx_frame.data.u8[1] == 0 &&
+      rx_frame.data.u8[2] == 0 && rx_frame.data.u8[3] == 0 && rx_frame.data.u8[4] == 0 && rx_frame.data.u8[5] == 0 &&
+      rx_frame.data.u8[6] == 0x80 && rx_frame.data.u8[7] == 0) {
     return;
   }
 
-  // Discard non-interesting can messages
+  switch (rx_frame.MsgID) {  // These messages are periodically transmitted by the battery
+    case 0x080:
+      datalayer.battery.status.CAN_battery_still_alive = CAN_STILL_ALIVE;
+      break;
+    case 0x100:
+      datalayer.battery.status.CAN_battery_still_alive = CAN_STILL_ALIVE;
+      break;
+    case 0x102:
+      datalayer.battery.status.CAN_battery_still_alive = CAN_STILL_ALIVE;
+      break;
+    case 0x104:
+      datalayer.battery.status.CAN_battery_still_alive = CAN_STILL_ALIVE;
+      break;
+    case 0x10A:
+      datalayer.battery.status.CAN_battery_still_alive = CAN_STILL_ALIVE;
+      break;
+    case 0x198:
+      break;
+    case 0x1C4:
+      break;
+    case 0x220:
+      break;
+    case 0x222:
+      break;
+    case 0x248:
+      break;
+    case 0x308:
+      break;
+    case 0x424:
+      break;
+    case 0x448:
+      break;
+    case 0x449:
+      break;
+    case 0x464:
+      break;
+    case 0x522:
+      break;
+    default:
+      break;
+  }
+
+  // Discard non-interesting can messages so they do not get logged via serial
   if (rx_frame.MsgID < 0x500) {
     return;
   }
@@ -340,10 +369,8 @@ void send_can_battery() {
   if (currentMillis - previousMillis500 >= INTERVAL_500_MS) {
     previousMillis500 = currentMillis;
 
-
     CAN_frame_t msg;
     int err;
-
 
     switch (state) {
       case 0:
@@ -353,31 +380,29 @@ void send_can_battery() {
         // response:     7EC 03 59 02 8F 00 00 00 00
         //               7EC  8  3 7F 19 11 0 0 0 0
         msg = {.FIR = {.B =
-                                     {
-                                         .DLC = 8,
-                                         .FF = CAN_frame_std,
-                                     }},
-                         .MsgID = 0x7e4,
-                         .data = {0x03, 0x19, 0x02, 0x8f, 0x00, 0x00, 0x00, 0x00}};
+                           {
+                               .DLC = 8,
+                               .FF = CAN_frame_std,
+                           }},
+               .MsgID = 0x7e4,
+               .data = {0x03, 0x19, 0x02, 0x8f, 0x00, 0x00, 0x00, 0x00}};
         err = ESP32Can.CANWriteFrame(&msg);
         if (err == 0)
           state++;
 
         break;
       case 1:
-            // car response: 7EC 11 fa 59 04 c0 64 88 28
-            // response:
+        // car response: 7EC 11 fa 59 04 c0 64 88 28
+        // response:
 
-
-
-          msg = {.FIR = {.B =
-                                              {
-                                                  .DLC = 8,
-                                                  .FF = CAN_frame_std,
-                                              }},
-                                  .MsgID = 0x7e4,
-                                  .data = {0x06, 0x19, 0x04, 0xc0, 0x64, 0x88, 0xff, 0x00}};
-              err = ESP32Can.CANWriteFrame(&msg);
+        msg = {.FIR = {.B =
+                           {
+                               .DLC = 8,
+                               .FF = CAN_frame_std,
+                           }},
+               .MsgID = 0x7e4,
+               .data = {0x06, 0x19, 0x04, 0xc0, 0x64, 0x88, 0xff, 0x00}};
+        err = ESP32Can.CANWriteFrame(&msg);
         if (err == 0)
           state++;
         break;
@@ -389,18 +414,15 @@ void send_can_battery() {
         break;
     }
 
-
     // TODO -1 is an error !!
 
     Serial.print("sending 7e4 err:");
     Serial.println(err);
 
-
     Serial.print("sending 7e4_2 err:");
     Serial.println(err);
 
-
-/*
+    /*
 
 on car this is ... 10x messages of 0x522 01 12 0 3f 0 0 0 0
 
@@ -418,19 +440,17 @@ on car this is ... 10x messages of 0x522 01 12 0 3f 0 0 0 0
 
 
 */
-
   }
 }
 
 void setup_battery(void) {  // Performs one time setup at startup
 #ifdef DEBUG_VIA_USB
-  Serial.println("Jaguar iPace TODOkWh battery selected"); // TODO add kWh
+  Serial.println("Jaguar iPace 90kWh battery selected");
 #endif
 
-  // TODO check values
-  datalayer.battery.info.max_design_voltage_dV =
-      4040;  // 404.4V, over this, charging is not possible (goes into forced discharge)
-  datalayer.battery.info.min_design_voltage_dV = 2450;  // 245.0V under this, discharging further is disabled
+  datalayer.battery.info.number_of_cells = 108;
+  datalayer.battery.info.max_design_voltage_dV = 4546;
+  datalayer.battery.info.min_design_voltage_dV = 3230;
 }
 
 #endif

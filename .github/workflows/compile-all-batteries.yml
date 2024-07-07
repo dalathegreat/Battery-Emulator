@@ -37,6 +37,7 @@ jobs:
           - BYD_ATTO_3_BATTERY
           - CHADEMO_BATTERY
           - IMIEV_CZERO_ION_BATTERY
+          - JAGUAR_IPACE_BATTERY
           - KIA_HYUNDAI_64_BATTERY
           - KIA_HYUNDAI_HYBRID_BATTERY
           - NISSAN_LEAF_BATTERY
