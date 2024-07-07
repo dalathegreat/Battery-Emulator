@@ -20,6 +20,11 @@ static uint16_t HVBattCellVoltageMinMv = 3700;
 static uint16_t HVBattEnergyAvailable = 0;
 static uint16_t HVBattEnergyUsableMax = 0;
 static uint16_t HVBattTotalCapacityWhenNew = 0;
+static int16_t HVBattAverageTemperature = 0;
+static int16_t HVBattCellTempAverage = 0;
+static int16_t HVBattCellTempColdest = 0;
+static int16_t HVBattCellTempHottest = 0;
+static int16_t HVBattInletCoolantTemp = 0;
 
 /*
 
@@ -252,9 +257,10 @@ void update_values_battery() { /* This function puts fake values onto the parame
 
   datalayer.battery.status.current_dA = 0;  //TODO: Map
 
-  datalayer.battery.info.total_capacity_Wh = 85000;  // 85kWh usable
+  datalayer.battery.info.total_capacity_Wh = HVBattEnergyUsableMax * 100;  // kWh+1 to Wh
 
-  datalayer.battery.status.remaining_capacity_Wh = 15000;  // 15kWh
+  datalayer.battery.status.remaining_capacity_Wh = static_cast<uint32_t>(
+      (static_cast<double>(datalayer.battery.status.real_soc) / 10000) * datalayer.battery.info.total_capacity_Wh);
 
   datalayer.battery.status.cell_max_voltage_mV = HVBattCellVoltageMaxMv;
 
@@ -262,9 +268,9 @@ void update_values_battery() { /* This function puts fake values onto the parame
 
   datalayer.battery.status.active_power_W = 0;  //TODO: Map
 
-  datalayer.battery.status.temperature_min_dC = 50;  //TODO: Map
+  datalayer.battery.status.temperature_min_dC = HVBattCellTempColdest * 10;  // C to dC
 
-  datalayer.battery.status.temperature_max_dC = 60;  //TODO: Map
+  datalayer.battery.status.temperature_max_dC = HVBattCellTempHottest * 10;  // C to dC
 
   datalayer.battery.status.max_discharge_power_W = 5000;  //TODO: Map
 
@@ -321,14 +327,14 @@ void receive_can_battery(CAN_frame_t rx_frame) {
       //HVBattCurrentTR
       //HVBattPwrExtGPCounter
       //HVBattPwrExtGPCS
-      //HVBattVoltageBusTF
+      //HVBattVoltageBusTF //
       //HVBattVoltageBusTR
       break;
     case 0x220:
       break;
     case 0x222:
       HVBattAvgSOC = rx_frame.data.u8[4];
-      //HVBattAverageTemperature //0x77 = 19.5*C how is this scaled?
+      HVBattAverageTemperature = (rx_frame.data.u8[5] / 2) - 40;
       HVBattFastChgCounter = rx_frame.data.u8[7];
       //HVBattLogEvent
       HVBattTempColdCellID = rx_frame.data.u8[0];
@@ -349,6 +355,17 @@ void receive_can_battery(CAN_frame_t rx_frame) {
       //HVBattWarmupRateDcg // degC/minute
       break;
     case 0x448:
+      HVBattCellTempAverage = (rx_frame.data.u8[0] / 2) - 40;
+      HVBattCellTempColdest = (rx_frame.data.u8[1] / 2) - 40;
+      HVBattCellTempHottest = (rx_frame.data.u8[2] / 2) - 40;
+      //HVBattCIntPumpDiagStat // Pump OK / NOK
+      //HVBattCIntPumpDiagStat_UB // True/False
+      //HVBattCoolantLevel // Coolant level OK / NOK
+      //HVBattHeaterCtrlStat // Off / On
+      HVBattInletCoolantTemp = (rx_frame.data.u8[5] / 2) - 40;
+      //HVBattInlentCoolantTemp_UB // True/False
+      //HVBattMILRequested // True/False
+      //HVBattThermalOvercheck // OK / NOK
       break;
     case 0x449:
       break;
