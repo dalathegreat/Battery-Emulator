@@ -1,6 +1,7 @@
 #include "../include.h"
 #ifdef JAGUAR_IPACE_BATTERY
 #include "../datalayer/datalayer.h"
+#include "../devboard/utils/events.h"
 #include "../lib/miwagner-ESP32-Arduino-CAN/ESP32CAN.h"
 #include "JAGUAR-IPACE-BATTERY.h"
 
@@ -15,6 +16,8 @@ static uint8_t HVBattTempColdCellID = 0;
 static uint8_t HVBatTempHotCellID = 0;
 static uint8_t HVBattVoltMaxCellID = 0;
 static uint8_t HVBattVoltMinCellID = 0;
+static uint8_t HVBattPwerGPCS = 0;
+static uint8_t HVBattPwrGpCounter = 0;
 static int8_t HVBattCurrentTR = 0;
 static uint16_t HVBattCellVoltageMaxMv = 3700;
 static uint16_t HVBattCellVoltageMinMv = 3700;
@@ -24,11 +27,20 @@ static uint16_t HVBattTotalCapacityWhenNew = 0;
 static uint16_t HVBattDischargeContiniousPowerLimit = 0;
 static uint16_t HVBattDischargePowerLimitExt = 0;
 static uint16_t HVBattDischargeVoltageLimit = 0;
+static uint16_t HVBattVoltageExt = 0;
+static uint16_t HVBatteryVoltageOC = 0;
+static uint16_t HVBatteryChgCurrentLimit = 0;
+static uint16_t HVBattChargeContiniousPowerLimit = 0;
 static int16_t HVBattAverageTemperature = 0;
 static int16_t HVBattCellTempAverage = 0;
 static int16_t HVBattCellTempColdest = 0;
 static int16_t HVBattCellTempHottest = 0;
 static int16_t HVBattInletCoolantTemp = 0;
+static bool HVBatteryContactorStatus = false;
+static bool HVBatteryContactorStatusT = false;
+static bool HVBattHVILError = false;
+static bool HVILBattIsolationError = false;
+static bool HVIsolationTestStatus = false;
 
 /* TODO: Actually use a proper keepalive message */
 CAN_frame_t ipace_keep_alive = {.FIR = {.B =
@@ -59,7 +71,7 @@ void update_values_battery() {
 
   datalayer.battery.status.soh_pptt = 9900;  //TODO: Map
 
-  datalayer.battery.status.voltage_dV = 3700;  //TODO: Map
+  datalayer.battery.status.voltage_dV = HVBattVoltageExt * 10;  //TODO: This value OK?
 
   datalayer.battery.status.current_dA = HVBattCurrentTR * 10;  //TODO: This value OK?
 
@@ -72,18 +84,30 @@ void update_values_battery() {
 
   datalayer.battery.status.cell_min_voltage_mV = HVBattCellVoltageMinMv;
 
-  datalayer.battery.status.active_power_W = 0;  //TODO: Map
+  //Power in watts, Negative = charging batt
+  datalayer.battery.status.active_power_W =
+      ((datalayer.battery.status.voltage_dV * datalayer.battery.status.current_dA) / 100);
 
   datalayer.battery.status.temperature_min_dC = HVBattCellTempColdest * 10;  // C to dC
 
   datalayer.battery.status.temperature_max_dC = HVBattCellTempHottest * 10;  // C to dC
 
-  datalayer.battery.status.max_discharge_power_W = HVBattDischargeContiniousPowerLimit * 10;  // kWh+2 to W
+  datalayer.battery.status.max_discharge_power_W =
+      HVBattDischargeContiniousPowerLimit * 10;  // kWh+2 to W (TODO: Check that scaling is right way)
 
-  datalayer.battery.status.max_charge_power_W = 5000;  //TODO: Map
+  datalayer.battery.status.max_charge_power_W =
+      HVBattChargeContiniousPowerLimit * 10;  // kWh+2 to W (TODO: Check that scaling is right way)
 
-  for (int i = 0; i < 107; ++i) {
-    datalayer.battery.status.cell_voltages_mV[i] = 3500 + i;
+  if (HVBattHVILError) {  // Alert user incase the high voltage interlock is not OK
+    set_event(EVENT_HVIL_FAILURE, 0);
+  } else {
+    clear_event(EVENT_HVIL_FAILURE);
+  }
+
+  if (HVILBattIsolationError) {  // Alert user incase battery reports isolation error
+    set_event(EVENT_BATTERY_ISOLATION, 0);
+  } else {
+    clear_event(EVENT_BATTERY_ISOLATION);
   }
 
 /*Finally print out values to serial if configured to do so*/
@@ -114,6 +138,9 @@ void receive_can_battery(CAN_frame_t rx_frame) {
   switch (rx_frame.MsgID) {  // These messages are periodically transmitted by the battery
     case 0x080:
       datalayer.battery.status.CAN_battery_still_alive = CAN_STILL_ALIVE;
+      HVBatteryContactorStatus = ((rx_frame.data.u8[0] & 0x80) >> 7);
+      HVBattHVILError = ((rx_frame.data.u8[0] & 0x40) >> 6);
+      HVILBattIsolationError = ((rx_frame.data.u8[0] & 0x20) >> 5);
       break;
     case 0x100:
       datalayer.battery.status.CAN_battery_still_alive = CAN_STILL_ALIVE;
@@ -125,12 +152,22 @@ void receive_can_battery(CAN_frame_t rx_frame) {
       break;
     case 0x102:
       datalayer.battery.status.CAN_battery_still_alive = CAN_STILL_ALIVE;
+      HVBattPwrGpCounter = ((rx_frame.data.u8[1] & 0x3C) >> 2);  // Loops 0-F-0
+      HVBattPwerGPCS = rx_frame.data.u8[0];                      // SAE J1850 CRC8 Checksum.
+      //TODO: Add function that checks if CRC is correct. We can use this to detect corrupted CAN messages
+      //HVBattCurrentExt = //Used only on 2018+
+      HVBattVoltageExt = (((rx_frame.data.u8[1] & 0x03) << 8) | rx_frame.data.u8[2]);
       break;
     case 0x104:
       datalayer.battery.status.CAN_battery_still_alive = CAN_STILL_ALIVE;
+      HVBatteryContactorStatusT = ((rx_frame.data.u8[2] & 0x80) >> 7);
+      HVIsolationTestStatus = ((rx_frame.data.u8[2] & 0x10) >> 4);
+      HVBatteryVoltageOC = (((rx_frame.data.u8[2] & 0x03) << 8) | rx_frame.data.u8[3]);
+      HVBatteryChgCurrentLimit = (((rx_frame.data.u8[6] & 0x03) << 8) | rx_frame.data.u8[7]);
       break;
     case 0x10A:
       datalayer.battery.status.CAN_battery_still_alive = CAN_STILL_ALIVE;
+      HVBattChargeContiniousPowerLimit = ((rx_frame.data.u8[0] << 8) | rx_frame.data.u8[1]);
       break;
     case 0x198:
       break;
