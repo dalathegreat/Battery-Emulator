@@ -9,6 +9,7 @@
 //#define SEND_1 //If defined, the messages will have ID ending with 1 (useful for some inverters)
 #define INVERT_LOW_HIGH_BYTES  //If defined, certain frames will have inverted low/high bytes \
                                //useful for some inverters like Sofar that report the voltages incorrect otherwise
+//#define SET_30K_OFFSET  //If defined, current values are sent with a 30k offest (useful for ferroamp)
 
 /* Do not change code below unless you are sure what you are doing */
 //Actual content messages
@@ -170,9 +171,31 @@ CAN_frame_t PYLON_4291 = {.FIR = {.B =
                           .MsgID = 0x4291,
                           .data = {0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00}};
 
+static int16_t max_charge_current = 0;
+static int16_t max_discharge_current = 0;
+
 void update_values_can_inverter() {  //This function maps all the values fetched from battery CAN to the correct CAN messages
   //There are more mappings that could be added, but this should be enough to use as a starting point
   // Note we map both 0 and 1 messages
+
+  if (datalayer.battery.status.voltage_dV > 10) {  //div0 safeguard
+    max_charge_current = (datalayer.battery.status.max_charge_power_W * 100) / datalayer.battery.status.voltage_dV;
+    if (max_charge_current > datalayer.battery.info.max_charge_amp_dA) {
+      max_charge_current =
+          datalayer.battery.info
+              .max_charge_amp_dA;  //Cap the value to the max allowed Amp. Some inverters cannot handle large values.
+    }
+    max_discharge_current =
+        (datalayer.battery.status.max_discharge_power_W * 100) / datalayer.battery.status.voltage_dV;
+    if (max_discharge_current > datalayer.battery.info.max_discharge_amp_dA) {
+      max_discharge_current =
+          datalayer.battery.info
+              .max_discharge_amp_dA;  //Cap the value to the max allowed Amp. Some inverters cannot handle large values.
+    }
+  } else {
+    max_charge_current = 0;
+    max_discharge_current = 0;
+  }
 
   //Charge / Discharge allowed
   PYLON_4280.data.u8[0] = 0;
@@ -208,7 +231,6 @@ void update_values_can_inverter() {  //This function maps all the values fetched
   PYLON_4211.data.u8[4] = ((datalayer.battery.status.temperature_max_dC + 1000) >> 8);
   PYLON_4211.data.u8[5] = ((datalayer.battery.status.temperature_max_dC + 1000) & 0x00FF);
 #endif
-
   //SOC (100.00%)
   PYLON_4210.data.u8[6] = (datalayer.battery.status.reported_soc / 100);  //Remove decimals
   PYLON_4211.data.u8[6] = (datalayer.battery.status.reported_soc / 100);  //Remove decimals
@@ -217,8 +239,42 @@ void update_values_can_inverter() {  //This function maps all the values fetched
   PYLON_4210.data.u8[7] = (datalayer.battery.status.soh_pptt / 100);
   PYLON_4211.data.u8[7] = (datalayer.battery.status.soh_pptt / 100);
 
-#ifdef INVERT_LOW_HIGH_BYTES  //Useful for Sofar inverters \
-                       //Maxvoltage (eg 400.0V = 4000 , 16bits long) Discharge Cutoff Voltage
+  // Status=Bit 0,1,2= 0:Sleep, 1:Charge, 2:Discharge 3:Idle. Bit3 ForceChargeReq. Bit4 Balance charge Request
+  if (datalayer.battery.status.current_dA < 0) {
+    PYLON_4251.data.u8[0] = (0x11);  // Charge
+  } else if (datalayer.battery.status.current_dA > 0) {
+    PYLON_4251.data.u8[0] = (0x12);  // Discharge
+  } else if (datalayer.battery.status.current_dA == 0) {
+    PYLON_4251.data.u8[0] = (0x13);  // Idle
+  }
+
+#ifdef INVERT_LOW_HIGH_BYTES  //Useful for Sofar inverters
+  //Voltage (370.0)
+  PYLON_4210.data.u8[0] = (datalayer.battery.status.voltage_dV & 0x00FF);
+  PYLON_4210.data.u8[1] = (datalayer.battery.status.voltage_dV >> 8);
+  PYLON_4211.data.u8[0] = (datalayer.battery.status.voltage_dV & 0x00FF);
+  PYLON_4211.data.u8[1] = (datalayer.battery.status.voltage_dV >> 8);
+
+#ifdef SET_30K_OFFSET
+  //Current (15.0)
+  PYLON_4210.data.u8[2] = ((datalayer.battery.status.current_dA + 30000) & 0x00FF);
+  PYLON_4210.data.u8[3] = ((datalayer.battery.status.current_dA + 30000) >> 8);
+  PYLON_4211.data.u8[2] = ((datalayer.battery.status.current_dA + 30000) & 0x00FF);
+  PYLON_4211.data.u8[3] = ((datalayer.battery.status.current_dA + 30000) >> 8);
+#else
+  PYLON_4210.data.u8[2] = (datalayer.battery.status.current_dA & 0x00FF);
+  PYLON_4210.data.u8[3] = (datalayer.battery.status.current_dA >> 8);
+  PYLON_4211.data.u8[2] = (datalayer.battery.status.current_dA & 0x00FF);
+  PYLON_4211.data.u8[3] = (datalayer.battery.status.current_dA >> 8);
+#endif
+
+  // BMS Temperature (We dont have BMS temp, send max cell voltage instead)
+  PYLON_4210.data.u8[4] = ((datalayer.battery.status.temperature_max_dC + 1000) & 0x00FF);
+  PYLON_4210.data.u8[5] = ((datalayer.battery.status.temperature_max_dC + 1000) >> 8);
+  PYLON_4211.data.u8[4] = ((datalayer.battery.status.temperature_max_dC + 1000) & 0x00FF);
+  PYLON_4211.data.u8[5] = ((datalayer.battery.status.temperature_max_dC + 1000) >> 8);
+
+  //Maxvoltage (eg 400.0V = 4000 , 16bits long) Discharge Cutoff Voltage
   PYLON_4220.data.u8[0] = (datalayer.battery.info.max_design_voltage_dV & 0x00FF);
   PYLON_4220.data.u8[1] = (datalayer.battery.info.max_design_voltage_dV >> 8);
   PYLON_4221.data.u8[0] = (datalayer.battery.info.max_design_voltage_dV & 0x00FF);
@@ -229,18 +285,167 @@ void update_values_can_inverter() {  //This function maps all the values fetched
   PYLON_4220.data.u8[3] = (datalayer.battery.info.min_design_voltage_dV >> 8);
   PYLON_4221.data.u8[2] = (datalayer.battery.info.min_design_voltage_dV & 0x00FF);
   PYLON_4221.data.u8[3] = (datalayer.battery.info.min_design_voltage_dV >> 8);
+
+#ifdef SET_30K_OFFSET
+  //Max ChargeCurrent
+  PYLON_4220.data.u8[4] = ((max_charge_current + 30000) & 0x00FF);
+  PYLON_4220.data.u8[5] = ((max_charge_current + 30000) >> 8);
+  PYLON_4221.data.u8[4] = ((max_charge_current + 30000) & 0x00FF);
+  PYLON_4221.data.u8[5] = ((max_charge_current + 30000) >> 8);
+
+  //Max DischargeCurrent
+  PYLON_4220.data.u8[6] = ((30000 - max_discharge_current) & 0x00FF);
+  PYLON_4220.data.u8[7] = ((30000 - max_discharge_current) >> 8);
+  PYLON_4221.data.u8[6] = ((30000 - max_discharge_current) & 0x00FF);
+  PYLON_4221.data.u8[7] = ((30000 - max_discharge_current) >> 8);
 #else
-  //Minvoltage (eg 300.0V = 3000 , 16bits long) Charge Cutoff Voltage
-  PYLON_4220.data.u8[0] = (datalayer.battery.info.min_design_voltage_dV >> 8);
-  PYLON_4220.data.u8[1] = (datalayer.battery.info.min_design_voltage_dV & 0x00FF);
-  PYLON_4221.data.u8[0] = (datalayer.battery.info.min_design_voltage_dV >> 8);
-  PYLON_4221.data.u8[1] = (datalayer.battery.info.min_design_voltage_dV & 0x00FF);
+  //Max ChargeCurrent
+  PYLON_4220.data.u8[4] = (max_charge_current & 0x00FF);
+  PYLON_4220.data.u8[5] = (max_charge_current >> 8);
+  PYLON_4221.data.u8[4] = (max_charge_current & 0x00FF);
+  PYLON_4221.data.u8[5] = (max_charge_current >> 8);
+
+  //Max DishargeCurrent
+  PYLON_4220.data.u8[6] = (max_discharge_current & 0x00FF);
+  PYLON_4220.data.u8[7] = (max_discharge_current >> 8);
+  PYLON_4221.data.u8[6] = (max_discharge_current & 0x00FF);
+  PYLON_4221.data.u8[7] = (max_discharge_current >> 8);
+#endif
+
+  //Max cell voltage
+  PYLON_4230.data.u8[0] = (datalayer.battery.status.cell_max_voltage_mV & 0x00FF);
+  PYLON_4230.data.u8[1] = (datalayer.battery.status.cell_max_voltage_mV >> 8);
+  PYLON_4231.data.u8[0] = (datalayer.battery.status.cell_max_voltage_mV & 0x00FF);
+  PYLON_4231.data.u8[1] = (datalayer.battery.status.cell_max_voltage_mV >> 8);
+
+  //Min cell voltage
+  PYLON_4230.data.u8[2] = (datalayer.battery.status.cell_min_voltage_mV & 0x00FF);
+  PYLON_4230.data.u8[3] = (datalayer.battery.status.cell_min_voltage_mV >> 8);
+  PYLON_4231.data.u8[2] = (datalayer.battery.status.cell_min_voltage_mV & 0x00FF);
+  PYLON_4231.data.u8[3] = (datalayer.battery.status.cell_min_voltage_mV >> 8);
+
+  //Max temperature per cell
+  PYLON_4240.data.u8[0] = (datalayer.battery.status.temperature_max_dC & 0x00FF);
+  PYLON_4240.data.u8[1] = (datalayer.battery.status.temperature_max_dC >> 8);
+  PYLON_4241.data.u8[0] = (datalayer.battery.status.temperature_max_dC & 0x00FF);
+  PYLON_4241.data.u8[1] = (datalayer.battery.status.temperature_max_dC >> 8);
+
+  //Max/Min temperature per cell
+  PYLON_4240.data.u8[2] = (datalayer.battery.status.temperature_min_dC & 0x00FF);
+  PYLON_4240.data.u8[3] = (datalayer.battery.status.temperature_min_dC >> 8);
+  PYLON_4240.data.u8[2] = (datalayer.battery.status.temperature_min_dC & 0x00FF);
+  PYLON_4240.data.u8[3] = (datalayer.battery.status.temperature_min_dC >> 8);
+
+  //Max temperature per module
+  PYLON_4270.data.u8[0] = (datalayer.battery.status.temperature_max_dC & 0x00FF);
+  PYLON_4270.data.u8[1] = (datalayer.battery.status.temperature_max_dC >> 8);
+  PYLON_4271.data.u8[0] = (datalayer.battery.status.temperature_max_dC & 0x00FF);
+  PYLON_4271.data.u8[1] = (datalayer.battery.status.temperature_max_dC >> 8);
+
+  //Min temperature per module
+  PYLON_4270.data.u8[2] = (datalayer.battery.status.temperature_min_dC & 0x00FF);
+  PYLON_4270.data.u8[3] = (datalayer.battery.status.temperature_min_dC >> 8);
+  PYLON_4271.data.u8[2] = (datalayer.battery.status.temperature_min_dC & 0x00FF);
+  PYLON_4271.data.u8[3] = (datalayer.battery.status.temperature_min_dC >> 8);
+#else
+  //Voltage (370.0)
+  PYLON_4210.data.u8[0] = (datalayer.battery.status.voltage_dV >> 8;
+  PYLON_4210.data.u8[1] = (datalayer.battery.status.voltage_dV & 0x00FF);
+  PYLON_4211.data.u8[0] = (datalayer.battery.status.voltage_dV >> 8);
+  PYLON_4211.data.u8[1] = (datalayer.battery.status.voltage_dV & 0x00FF);
+
+#ifdef SET_30K_OFFSET
+  //Current (15.0)
+  PYLON_4210.data.u8[2] = ((datalayer.battery.status.current_dA + 30000) >> 8);
+  PYLON_4210.data.u8[3] = ((datalayer.battery.status.current_dA + 30000) & 0x00FF);
+  PYLON_4211.data.u8[2] = ((datalayer.battery.status.current_dA + 30000) >> 8);
+  PYLON_4211.data.u8[3] = ((datalayer.battery.status.current_dA + 30000) & 0x00FF);
+#else
+  PYLON_4210.data.u8[2] = (datalayer.battery.status.current_dA >> 8);
+  PYLON_4210.data.u8[3] = (datalayer.battery.status.current_dA & 0x00FF);
+  PYLON_4211.data.u8[2] = (datalayer.battery.status.current_dA >> 8);
+  PYLON_4211.data.u8[3] = (datalayer.battery.status.current_dA & 0x00FF);
+#endif
+
+  // BMS Temperature (We dont have BMS temp, send max cell voltage instead)
+  PYLON_4210.data.u8[4] = ((datalayer.battery.status.temperature_max_dC + 1000) >> 8);
+  PYLON_4210.data.u8[5] = ((datalayer.battery.status.temperature_max_dC + 1000) & 0x00FF);
+  PYLON_4211.data.u8[4] = ((datalayer.battery.status.temperature_max_dC + 1000) >> 8);
+  PYLON_4211.data.u8[5] = ((datalayer.battery.status.temperature_max_dC + 1000) & 0x00FF);
 
   //Maxvoltage (eg 400.0V = 4000 , 16bits long) Discharge Cutoff Voltage
-  PYLON_4220.data.u8[2] = (datalayer.battery.info.max_design_voltage_dV >> 8);
-  PYLON_4220.data.u8[3] = (datalayer.battery.info.max_design_voltage_dV & 0x00FF);
-  PYLON_4221.data.u8[2] = (datalayer.battery.info.max_design_voltage_dV >> 8);
-  PYLON_4221.data.u8[3] = (datalayer.battery.info.max_design_voltage_dV & 0x00FF);
+  PYLON_4220.data.u8[0] = (datalayer.battery.info.max_design_voltage_dV >> 8);
+  PYLON_4220.data.u8[1] = (datalayer.battery.info.max_design_voltage_dV & 0x00FF);
+  PYLON_4221.data.u8[0] = (datalayer.battery.info.max_design_voltage_dV >> 8);
+  PYLON_4221.data.u8[1] = (datalayer.battery.info.max_design_voltage_dV & 0x00FF);
+
+  //Minvoltage (eg 300.0V = 3000 , 16bits long) Charge Cutoff Voltage
+  PYLON_4220.data.u8[2] = (datalayer.battery.info.min_design_voltage_dV >> 8);
+  PYLON_4220.data.u8[3] = (datalayer.battery.info.min_design_voltage_dV & 0x00FF);
+  PYLON_4221.data.u8[2] = (datalayer.battery.info.min_design_voltage_dV >> 8);
+  PYLON_4221.data.u8[3] = (datalayer.battery.info.min_design_voltage_dV & 0x00FF);
+
+#ifdef SET_30K_OFFSET
+  //Max ChargeCurrent
+  PYLON_4220.data.u8[4] = ((max_charge_current + 30000) >> 8);
+  PYLON_4220.data.u8[5] = ((max_charge_current + 30000) & 0x00FF);
+  PYLON_4221.data.u8[4] = ((max_charge_current + 30000) >> 8);
+  PYLON_4221.data.u8[5] = ((max_charge_current + 30000) & 0x00FF);
+
+  //Max DischargeCurrent
+  PYLON_4220.data.u8[6] = ((30000 - max_discharge_current) >> 8);
+  PYLON_4220.data.u8[7] = ((30000 - max_discharge_current) & 0x00FF);
+  PYLON_4221.data.u8[6] = ((30000 - max_discharge_current) >> 8);
+  PYLON_4221.data.u8[7] = ((30000 - max_discharge_current) & 0x00FF);
+#else
+  //Max ChargeCurrent
+  PYLON_4220.data.u8[4] = (max_charge_current >> 8);
+  PYLON_4220.data.u8[5] = (max_charge_current & 0x00FF);
+  PYLON_4221.data.u8[4] = (max_charge_current >> 8);
+  PYLON_4221.data.u8[5] = (max_charge_current & 0x00FF);
+
+  //Max DishargeCurrent
+  PYLON_4220.data.u8[6] = (max_discharge_current >> 8);
+  PYLON_4220.data.u8[7] = (max_discharge_current & 0x00FF);
+  PYLON_4221.data.u8[6] = (max_discharge_current >> 8);
+  PYLON_4221.data.u8[7] = (max_discharge_current & 0x00FF);
+#endif
+
+  //Max cell voltage
+  PYLON_4230.data.u8[0] = (datalayer.battery.status.cell_max_voltage_mV >> 8);
+  PYLON_4230.data.u8[1] = (datalayer.battery.status.cell_max_voltage_mV & 0x00FF);
+  PYLON_4231.data.u8[0] = (datalayer.battery.status.cell_max_voltage_mV >> 8);
+  PYLON_4231.data.u8[1] = (datalayer.battery.status.cell_max_voltage_mV & 0x00FF);
+
+  //Min cell voltage
+  PYLON_4230.data.u8[2] = (datalayer.battery.status.cell_min_voltage_mV >> 8);
+  PYLON_4230.data.u8[3] = (datalayer.battery.status.cell_min_voltage_mV & 0x00FF);
+  PYLON_4231.data.u8[2] = (datalayer.battery.status.cell_min_voltage_mV >> 8);
+  PYLON_4231.data.u8[3] = (datalayer.battery.status.cell_min_voltage_mV & 0x00FF);
+
+  //Max temperature per cell
+  PYLON_4240.data.u8[0] = (datalayer.battery.status.temperature_max_dC >> 8);
+  PYLON_4240.data.u8[1] = (datalayer.battery.status.temperature_max_dC & 0x00FF);
+  PYLON_4241.data.u8[0] = (datalayer.battery.status.temperature_max_dC >> 8);
+  PYLON_4241.data.u8[1] = (datalayer.battery.status.temperature_max_dC & 0x00FF);
+
+  //Max/Min temperature per cell
+  PYLON_4240.data.u8[2] = (datalayer.battery.status.temperature_min_dC >> 8);
+  PYLON_4240.data.u8[3] = (datalayer.battery.status.temperature_min_dC & 0x00FF);
+  PYLON_4240.data.u8[2] = (datalayer.battery.status.temperature_min_dC >> 8);
+  PYLON_4240.data.u8[3] = (datalayer.battery.status.temperature_min_dC & 0x00FF);
+
+  //Max temperature per module
+  PYLON_4270.data.u8[0] = (datalayer.battery.status.temperature_max_dC >> 8);
+  PYLON_4270.data.u8[1] = (datalayer.battery.status.temperature_max_dC & 0x00FF);
+  PYLON_4271.data.u8[0] = (datalayer.battery.status.temperature_max_dC >> 8);
+  PYLON_4271.data.u8[1] = (datalayer.battery.status.temperature_max_dC & 0x00FF);
+
+  //Min temperature per module
+  PYLON_4270.data.u8[2] = (datalayer.battery.status.temperature_min_dC >> 8);
+  PYLON_4270.data.u8[3] = (datalayer.battery.status.temperature_min_dC & 0x00FF);
+  PYLON_4271.data.u8[2] = (datalayer.battery.status.temperature_min_dC >> 8);
+  PYLON_4271.data.u8[3] = (datalayer.battery.status.temperature_min_dC & 0x00FF);
 #endif
 
   //Max/Min cell voltage
