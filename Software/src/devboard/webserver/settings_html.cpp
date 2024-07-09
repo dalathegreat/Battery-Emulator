@@ -1,6 +1,7 @@
 #include "settings_html.h"
 #include <Arduino.h>
 #include "../../datalayer/datalayer.h"
+#include "webserver.h"
 
 String settings_processor(const String& var) {
   if (var == "X") {
@@ -12,6 +13,18 @@ String settings_processor(const String& var) {
 
     // Start a new block with a specific background color
     content += "<div style='background-color: #303E47; padding: 10px; margin-bottom: 10px;border-radius: 50px'>";
+
+    content += "<h4 style='color: white;'>SSID: <span id='SSID'>" + String(ssid.c_str()) +
+               " </span> <button onclick='editSSID()'>Edit</button></h4>";
+    content +=
+        "<h4 style='color: white;'>Password: ######## <span id='Password'></span> <button "
+        "onclick='editPassword()'>Edit</button></h4>";
+
+    // Close the block
+    content += "</div>";
+
+    // Start a new block with a specific background color
+    content += "<div style='background-color: #2D3F2F; padding: 10px; margin-bottom: 10px;border-radius: 50px'>";
 
     // Show current settings with edit buttons and input fields
     content += "<h4 style='color: white;'>Battery capacity: <span id='BATTERY_WH_MAX'>" +
@@ -86,6 +99,26 @@ String settings_processor(const String& var) {
     content += "}";
     content += "function editError() {";
     content += "    alert('Invalid input');";
+    content += "}";
+    content += "function editSSID() {";
+    content += "var value = prompt('Enter new SSID:');";
+    content += "if (value !== null) {";
+    content += "    var xhr = new XMLHttpRequest();";
+    content += "    xhr.onload = editComplete;";
+    content += "    xhr.onerror = editError;";
+    content += "    xhr.open('GET', '/updateSSID?value=' + encodeURIComponent(value), true);";
+    content += "    xhr.send();";
+    content += "}";
+    content += "}";
+    content += "function editPassword() {";
+    content += "var value = prompt('Enter new password:');";
+    content += "if (value !== null) {";
+    content += "    var xhr = new XMLHttpRequest();";
+    content += "    xhr.onload = editComplete;";
+    content += "    xhr.onerror = editError;";
+    content += "    xhr.open('GET', '/updatePassword?value=' + encodeURIComponent(value), true);";
+    content += "    xhr.send();";
+    content += "}";
     content += "}";
     content += "function editWh() {";
     content += "var value = prompt('How much energy the battery can store. Enter new Wh value (1-120000):');";

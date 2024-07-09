@@ -43,7 +43,7 @@ void init_webserver() {
   } else {
     WiFi.mode(WIFI_STA);  // Only Router connection
   }
-  init_WiFi_STA(ssid, password, wifi_channel);
+  init_WiFi_STA(ssid.c_str(), password.c_str(), wifi_channel);
 
   String content = index_html;
 
@@ -63,6 +63,37 @@ void init_webserver() {
   // Route for going to event log web page
   server.on("/events", HTTP_GET,
             [](AsyncWebServerRequest* request) { request->send_P(200, "text/html", index_html, events_processor); });
+
+  // Route for editing SSID
+  server.on("/updateSSID", HTTP_GET, [](AsyncWebServerRequest* request) {
+    if (request->hasParam("value")) {
+      String value = request->getParam("value")->value();
+      if (value.length() <= 63) {  // Check if SSID is within the allowable length
+        ssid = value.c_str();
+        storeSettings();
+        request->send(200, "text/plain", "Updated successfully");
+      } else {
+        request->send(400, "text/plain", "SSID must be 63 characters or less");
+      }
+    } else {
+      request->send(400, "text/plain", "Bad Request");
+    }
+  });
+  // Route for editing Password
+  server.on("/updatePassword", HTTP_GET, [](AsyncWebServerRequest* request) {
+    if (request->hasParam("value")) {
+      String value = request->getParam("value")->value();
+      if (value.length() > 8) {  // Check if password is within the allowable length
+        password = value.c_str();
+        storeSettings();
+        request->send(200, "text/plain", "Updated successfully");
+      } else {
+        request->send(400, "text/plain", "Password must be atleast 8 characters");
+      }
+    } else {
+      request->send(400, "text/plain", "Bad Request");
+    }
+  });
 
   // Route for editing Wh
   server.on("/updateBatterySize", HTTP_GET, [](AsyncWebServerRequest* request) {
@@ -302,7 +333,7 @@ void wifi_monitor() {
       Serial.println(getConnectResultString(status));
 #endif
       if (wifi_state == INIT) {  //we haven't been connected yet, try the init logic
-        init_WiFi_STA(ssid, password, wifi_channel);
+        init_WiFi_STA(ssid.c_str(), password.c_str(), wifi_channel);
       } else {  //we were connected before, try the reconnect logic
         if (currentMillis - last_wifi_attempt_time > wifi_reconnect_interval) {
           last_wifi_attempt_time = currentMillis;
@@ -319,7 +350,7 @@ void wifi_monitor() {
       wifi_reconnect_interval = DEFAULT_WIFI_RECONNECT_INTERVAL;
 // Print local IP address and start web server
 #ifdef DEBUG_VIA_USB
-      Serial.print("Connected to WiFi network: " + String(ssid));
+      Serial.print("Connected to WiFi network: " + String(ssid.c_str()));
       Serial.print(" IP address: " + WiFi.localIP().toString());
       Serial.print(" Signal Strength: " + String(WiFi.RSSI()) + " dBm");
       Serial.println(" Channel: " + String(WiFi.channel()));
@@ -404,7 +435,7 @@ String processor(const String& var) {
 
     wl_status_t status = WiFi.status();
     // Display ssid of network connected to and, if connected to the WiFi, its own IP
-    content += "<h4>SSID: " + String(ssid) + "</h4>";
+    content += "<h4>SSID: " + String(ssid.c_str()) + "</h4>";
     if (status == WL_CONNECTED) {
       content += "<h4>IP: " + WiFi.localIP().toString() + "</h4>";
       // Get and display the signal strength (RSSI) and channel
