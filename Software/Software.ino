@@ -320,9 +320,6 @@ void init_stored_settings() {
   settings.clear();  // If this clear function is executed, no settings will be read from storage
 #endif
 
-  Serial.println("SSID before: ");
-  Serial.println(String(ssid.c_str()));
-
   char tempSSIDstring[63];  // Allocate buffer with sufficient size
   size_t lengthSSID = settings.getString("SSID", tempSSIDstring, sizeof(tempSSIDstring));
   if (lengthSSID > 0) {  // Successfully read the string from memory. Set it to SSID!
