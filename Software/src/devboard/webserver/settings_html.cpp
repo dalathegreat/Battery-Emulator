@@ -1,7 +1,6 @@
 #include "settings_html.h"
 #include <Arduino.h>
 #include "../../datalayer/datalayer.h"
-#include "webserver.h"
 
 String settings_processor(const String& var) {
   if (var == "X") {
