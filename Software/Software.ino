@@ -320,6 +320,19 @@ void init_stored_settings() {
   settings.clear();  // If this clear function is executed, no settings will be read from storage
 #endif
 
+  char tempSSIDstring[63];  // Allocate buffer with sufficient size
+  size_t lengthSSID = settings.getString("SSID", tempSSIDstring, sizeof(tempSSIDstring));
+  if (lengthSSID > 0) {  // Successfully read the string from memory. Set it to SSID!
+    ssid = tempSSIDstring;
+  } else {  // Reading from settings failed. Do nothing with SSID. Raise event?
+  }
+  char tempPasswordString[63];  // Allocate buffer with sufficient size
+  size_t lengthPassword = settings.getString("PASSWORD", tempPasswordString, sizeof(tempPasswordString));
+  if (lengthPassword > 7) {  // Successfully read the string from memory. Set it to password!
+    password = tempPasswordString;
+  } else {  // Reading from settings failed. Do nothing with SSID. Raise event?
+  }
+
   static uint32_t temp = 0;
   temp = settings.getUInt("BATTERY_WH_MAX", false);
   if (temp != 0) {
@@ -733,6 +746,8 @@ void init_serialDataLink() {
 
 void storeSettings() {
   settings.begin("batterySettings", false);
+  settings.putString("SSID", String(ssid.c_str()));
+  settings.putString("PASSWORD", String(password.c_str()));
   settings.putUInt("BATTERY_WH_MAX", datalayer.battery.info.total_capacity_Wh);
   settings.putUInt("MAXPERCENTAGE",
                    datalayer.battery.settings.max_percentage / 10);  // Divide by 10 for backwards compatibility
@@ -741,7 +756,6 @@ void storeSettings() {
   settings.putUInt("MAXCHARGEAMP", datalayer.battery.info.max_charge_amp_dA);
   settings.putUInt("MAXDISCHARGEAMP", datalayer.battery.info.max_discharge_amp_dA);
   settings.putBool("USE_SCALED_SOC", datalayer.battery.settings.soc_scaling_active);
-
   settings.end();
 }
 
