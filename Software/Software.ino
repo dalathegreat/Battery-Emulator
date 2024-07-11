@@ -586,7 +586,7 @@ void receive_can2() {  // This function is similar to receive_can, but just take
 #endif
 #ifdef DOUBLE_BATTERY
     receive_can_battery2(rx_frame_can2);
-#endif
+#endif  //DOUBLE_BATTERY
   }
 }
 
@@ -614,7 +614,7 @@ void handle_CAN_contactors() {
               (uint8_t)(abs(datalayer.battery.status.voltage_dV - datalayer.battery2.status.voltage_dV) / 10));
   }
 }
-#endif
+#endif  //DOUBLE_BATTERY
 
 #ifdef CONTACTOR_CONTROL
 void handle_contactors() {
@@ -739,7 +739,7 @@ void update_SOC() {
 #ifdef DOUBLE_BATTERY
     datalayer.battery.status.reported_soc =
         (datalayer.battery.status.real_soc + datalayer.battery2.status.real_soc) / 2;
-#endif
+#endif  //DOUBLE_BATTERY
   }
 #ifdef DOUBLE_BATTERY
   datalayer.battery.status.reported_soc = (datalayer.battery.status.real_soc + datalayer.battery2.status.real_soc) / 2;
@@ -758,7 +758,7 @@ void update_SOC() {
     datalayer.battery.status.reported_soc = datalayer.battery2.status.real_soc;
   }
 
-#endif  //TODO: Constrain according to the user settings. Help wanted on algoritm to use.
+#endif  //DOUBLE_BATTERY
 }
 
 void update_values_inverter() {

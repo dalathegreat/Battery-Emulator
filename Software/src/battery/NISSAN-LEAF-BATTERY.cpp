@@ -1249,6 +1249,12 @@ void setup_battery(void) {  // Performs one time setup at startup
   datalayer.battery.info.max_design_voltage_dV =
       4040;  // 404.4V, over this, charging is not possible (goes into forced discharge)
   datalayer.battery.info.min_design_voltage_dV = 2600;  // 260.0V under this, discharging further is disabled
+
+#ifdef DOUBLE_BATTERY
+  datalayer.battery2.info.number_of_cells = datalayer.battery.info.number_of_cells;
+  datalayer.battery2.info.max_design_voltage_dV = datalayer.battery.info.max_design_voltage_dV;
+  datalayer.battery2.info.min_design_voltage_dV = datalayer.battery.info.min_design_voltage_dV;
+#endif  //DOUBLE_BATTERY
 }
 
 #endif
