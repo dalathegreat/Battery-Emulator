@@ -238,10 +238,10 @@ void core_loop(void* task_time_us) {
     {
       previousMillisUpdateVal = millis();  // Order matters on the update_loop!
       update_values_battery();             // Fetch battery values
-      #ifdef DOUBLE_BATTERY
+#ifdef DOUBLE_BATTERY
       update_values_battery2();
-      #endif
-      update_SOC();                        // Check if real or calculated SOC% value should be sent
+#endif
+      update_SOC();  // Check if real or calculated SOC% value should be sent
 #ifndef SERIAL_LINK_RECEIVER
       update_machineryprotection();  // Check safeties (Not on serial link reciever board)
 #endif

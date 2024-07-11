@@ -16,7 +16,7 @@ static unsigned long previousMillis1000 = 0;   // will store last time a 1000ms 
 static unsigned long previousMillis5000 = 0;   // will store last time a 5000ms CAN Message was send
 static unsigned long previousMillis10000 = 0;  // will store last time a 10000ms CAN Message was send
 
-#define ALIVE_MAX_VALUE 14                     // BMW CAN messages contain alive counter, goes from 0...14
+#define ALIVE_MAX_VALUE 14  // BMW CAN messages contain alive counter, goes from 0...14
 
 enum BatterySize { BATTERY_60AH, BATTERY_94AH, BATTERY_120AH };
 static BatterySize detectedBattery = BATTERY_60AH;
@@ -1119,30 +1119,30 @@ void send_can_battery() {
       switch (cmdState) {
         case SOC:
           ESP32Can.CANWriteFrame(&BMW_6F1_CELL);
-          #ifdef DOUBLE_BATTERY
+#ifdef DOUBLE_BATTERY
           CAN_WriteFrame(&BMW_6F1_CELL);
-          #endif
+#endif
           cmdState = CELL_VOLTAGE;
           break;
         case CELL_VOLTAGE:
           ESP32Can.CANWriteFrame(&BMW_6F1_SOH);
-          #ifdef DOUBLE_BATTERY
+#ifdef DOUBLE_BATTERY
           CAN_WriteFrame(&BMW_6F1_SOH);
-          #endif
+#endif
           cmdState = SOH;
           break;
         case SOH:
           ESP32Can.CANWriteFrame(&BMW_6F1_CELL_VOLTAGE_AVG);
-          #ifdef DOUBLE_BATTERY
+#ifdef DOUBLE_BATTERY
           CAN_WriteFrame(&BMW_6F1_CELL_VOLTAGE_AVG);
-          #endif
+#endif
           cmdState = CELL_VOLTAGE_AVG;
           break;
         case CELL_VOLTAGE_AVG:
           ESP32Can.CANWriteFrame(&BMW_6F1_SOC);
-          #ifdef DOUBLE_BATTERY
+#ifdef DOUBLE_BATTERY
           CAN_WriteFrame(&BMW_6F1_SOC);
-          #endif
+#endif
           cmdState = SOC;
           break;
       }
