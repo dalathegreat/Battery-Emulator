@@ -9,9 +9,6 @@
 #include "../../lib/knolleary-pubsubclient/PubSubClient.h"
 #include "../utils/timer.h"
 
-const char* mqtt_subscriptions[] = MQTT_SUBSCRIPTIONS;
-const size_t mqtt_nof_subscriptions = sizeof(mqtt_subscriptions) / sizeof(mqtt_subscriptions[0]);
-
 WiFiClient espClient;
 PubSubClient client(espClient);
 char mqtt_msg[MQTT_MSG_BUFFER_SIZE];
@@ -75,7 +72,8 @@ static void publish_cell_voltages(void) {
     doc.clear();  // clear after sending autoconfig
   } else {
     // If cell voltages haven't been populated...
-    if (datalayer.battery.info.number_of_cells == 0u) {
+    if (datalayer.battery.info.number_of_cells == 0u ||
+        datalayer.battery.status.cell_voltages_mV[datalayer.battery.info.number_of_cells - 1] == 0u) {
       return;
     }
 
@@ -158,10 +156,13 @@ static void publish_common_info(void) {
     doc["temperature_max"] = ((float)((int16_t)datalayer.battery.status.temperature_max_dC)) / 10.0;
     doc["stat_batt_power"] = ((float)((int32_t)datalayer.battery.status.active_power_W));
     doc["battery_current"] = ((float)((int16_t)datalayer.battery.status.current_dA)) / 10.0;
-    doc["cell_max_voltage"] = ((float)datalayer.battery.status.cell_max_voltage_mV) / 1000.0;
-    doc["cell_min_voltage"] = ((float)datalayer.battery.status.cell_min_voltage_mV) / 1000.0;
     doc["battery_voltage"] = ((float)datalayer.battery.status.voltage_dV) / 10.0;
-
+    // publish only if cell voltages have been populated...
+    if (datalayer.battery.info.number_of_cells != 0u &&
+        datalayer.battery.status.cell_voltages_mV[datalayer.battery.info.number_of_cells - 1] != 0u) {
+      doc["cell_max_voltage"] = ((float)datalayer.battery.status.cell_max_voltage_mV) / 1000.0;
+      doc["cell_min_voltage"] = ((float)datalayer.battery.status.cell_min_voltage_mV) / 1000.0;
+    }
     serializeJson(doc, mqtt_msg);
     if (!mqtt_publish(state_topic.c_str(), mqtt_msg, false)) {
 #ifdef DEBUG_VIA_USB
@@ -172,20 +173,7 @@ static void publish_common_info(void) {
   }
 }
 
-/* This is called whenever a subscribed topic changes (hopefully) */
-static void callback(char* topic, byte* payload, unsigned int length) {
-#ifdef DEBUG_VIA_USB
-  Serial.print("Message arrived [");
-  Serial.print(topic);
-  Serial.print("] ");
-  for (unsigned int i = 0; i < length; i++) {
-    Serial.print((char)payload[i]);
-  }
-  Serial.println();
-#endif
-}
-
-/* If we lose the connection, get it back and re-sub */
+/* If we lose the connection, get it back */
 static void reconnect() {
 // attempt one reconnection
 #ifdef DEBUG_VIA_USB
@@ -199,14 +187,6 @@ static void reconnect() {
 #ifdef DEBUG_VIA_USB
     Serial.println("connected");
 #endif
-
-    for (int i = 0; i < mqtt_nof_subscriptions; i++) {
-      client.subscribe(mqtt_subscriptions[i]);
-#ifdef DEBUG_VIA_USB
-      Serial.print("Subscribed to: ");
-      Serial.println(mqtt_subscriptions[i]);
-#endif
-    }
   } else {
 #ifdef DEBUG_VIA_USB
     Serial.print("failed, rc=");
@@ -219,7 +199,6 @@ static void reconnect() {
 
 void init_mqtt(void) {
   client.setServer(MQTT_SERVER, MQTT_PORT);
-  client.setCallback(callback);
 #ifdef DEBUG_VIA_USB
   Serial.println("MQTT initialized");
 #endif

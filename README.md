@@ -39,7 +39,13 @@ For more examples showing wiring, see each battery types own Wiki page. For inst
 1. Download the Arduino IDE: https://www.arduino.cc/en/software
 2. When the Arduino IDE has been started;
 Click "File" in the upper left corner -> Preferences -> Additional Development >Board Manager URL -> Enter the URL in the input box https://raw.githubusercontent.com/espressif/arduino-esp32/gh-pages/package_esp32_index.json
-3. Go to "Boards Manager", and install the ESP32 package by Espressif Systems
+3. Go to "Boards Manager", and install the ESP32 package by Espressif Systems. **NOTE: The version depends on which release of Battery-Emulator you are running!**
+
+- ⚠️ Make sure to use a 2.x.x version if you are on a release **older** than 6.0.0 (For instance ESP32 v2.0.11 when using Battery-Emulator v5.4.0)
+- ⚠️ Make sure to use a 3.x.x version if you are on a release **newer** than 6.0.0 (For instance ESP32 v3.0.0 when using Battery-Emulator v6.0.0)
+
+![bild](https://github.com/dalathegreat/Battery-Emulator/assets/26695010/6a2414b1-f2ca-4746-8e8d-9afd78bd9252)
+
 4. The arduino settings should be set to "ESP32 Dev Module" with the following settings;
 ![alt text](https://github.com/Xinyuan-LilyGO/T-CAN485/blob/main/img/arduino_setting.png)
 5. Select which battery type you will use, along with other optional settings. This is done in the USER_SETTINGS.h file.
@@ -52,10 +58,22 @@ This video explains all the above mentioned steps:
 https://youtu.be/_mH2AjnAjDk
 
 ## Dependencies 📖
-This code uses two libraries, ESP32-Arduino-CAN (https://github.com/miwagner/ESP32-Arduino-CAN/) slightly modified for this usecase, and the eModbus library (https://github.com/eModbus/eModbus). Both these are already located in the Software folder for an easy start.
+This code uses the following excellent libraries: 
+- [adafruit/Adafruit_NeoPixel](https://github.com/adafruit/Adafruit_NeoPixel) LGPL-3.0 license
+- [ayushsharma82/ElegantOTA](https://github.com/ayushsharma82/ElegantOTA) AGPL-3.0 license 
+- [bblanchon/ArduinoJson](https://github.com/bblanchon/ArduinoJson) MIT-License
+- [eModbus/eModbus](https://github.com/eModbus/eModbus) MIT-License
+- [knolleary/pubsubclient](https://github.com/knolleary/pubsubclient) MIT-License
+- [mackelec/SerialDataLink](https://github.com/mackelec/SerialDataLink)
+- [me-no-dev/AsyncTCP](https://github.com/me-no-dev/AsyncTCP) LGPL-3.0 license
+- [me-no-dev/ESPAsyncWebServer](https://github.com/me-no-dev/ESPAsyncWebServer)
+- [miwagner/ESP32-Arduino-CAN](https://github.com/miwagner/ESP32-Arduino-CAN/) MIT-License
+- [pierremolinaro/acan2515](https://github.com/pierremolinaro/acan2515) MIT-License
+- [pierremolinaro/acan2517FD](https://github.com/pierremolinaro/acan2517FD) MIT-License
+- [YiannisBourkelis/Uptime-Library](https://github.com/YiannisBourkelis/Uptime-Library) GPL-3.0 license 
 
-It is also based on the info found in the following excellent repositories/websites:
-- https://gitlab.com/pelle8/gen24
+It is also based on the information found in the following excellent repositories/websites:
+- https://gitlab.com/pelle8/inverter_resources //new url
 - https://github.com/burra/byd_battery
 - https://github.com/flodorn/TeslaBMSV2
 - https://github.com/SunshadeCorp/can-service

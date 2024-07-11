@@ -161,24 +161,26 @@ Command2Battery command2Battery = RUN;
 enum InvInitState { SYSTEM_FREQUENCY, XPHASE_SYSTEM, BLACKSTART_OPERATION };
 InvInitState invInitState = SYSTEM_FREQUENCY;
 
-void update_values_can_sma_tripower() {  //This function maps all the values fetched from battery CAN to the inverter CAN
+void update_values_can_inverter() {  //This function maps all the values fetched from battery CAN to the inverter CAN
   //Calculate values
-  charge_current =
-      ((datalayer.battery.status.max_charge_power_W * 10) /
-       datalayer.battery.info.max_design_voltage_dV);  //Charge power in W , max volt in V+1decimal (P=UI, solve for I)
-  //The above calculation results in (30 000*10)/3700=81A
-  charge_current = (charge_current * 10);  //Value needs a decimal before getting sent to inverter (81.0A)
+
+  if (datalayer.battery.status.voltage_dV > 10) {  // Only update value when we have voltage available to avoid div0
+    charge_current =
+        ((datalayer.battery.status.max_charge_power_W * 10) /
+         datalayer.battery.status.voltage_dV);  //Charge power in W , max volt in V+1decimal (P=UI, solve for I)
+    charge_current = (charge_current * 10);     //Value needs a decimal before getting sent to inverter (81.0A)
+    discharge_current =
+        ((datalayer.battery.status.max_discharge_power_W * 10) /
+         datalayer.battery.status.voltage_dV);     //Charge power in W , max volt in V+1decimal (P=UI, solve for I)
+    discharge_current = (discharge_current * 10);  //Value needs a decimal before getting sent to inverter (81.0A)
+  }
+
   if (charge_current > datalayer.battery.info.max_charge_amp_dA) {
     charge_current =
         datalayer.battery.info
             .max_charge_amp_dA;  //Cap the value to the max allowed Amp. Some inverters cannot handle large values.
   }
 
-  discharge_current =
-      ((datalayer.battery.status.max_discharge_power_W * 10) /
-       datalayer.battery.info.max_design_voltage_dV);  //Charge power in W , max volt in V+1decimal (P=UI, solve for I)
-  //The above calculation results in (30 000*10)/3700=81A
-  discharge_current = (discharge_current * 10);  //Value needs a decimal before getting sent to inverter (81.0A)
   if (discharge_current > datalayer.battery.info.max_discharge_amp_dA) {
     discharge_current =
         datalayer.battery.info
@@ -328,7 +330,7 @@ void update_values_can_sma_tripower() {  //This function maps all the values fet
   //SMA_018.data.u8[7] = BatteryName;
 }
 
-void receive_can_sma_tripower(CAN_frame_t rx_frame) {
+void receive_can_inverter(CAN_frame_t rx_frame) {
   switch (rx_frame.MsgID) {
     case 0x00D:  //Inverter Measurements
       break;
@@ -347,7 +349,7 @@ void receive_can_sma_tripower(CAN_frame_t rx_frame) {
   }
 }
 
-void send_can_sma_tripower() {
+void send_can_inverter() {
   unsigned long currentMillis = millis();
 
   // Send CAN Message every 500ms

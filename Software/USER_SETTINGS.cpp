@@ -1,5 +1,5 @@
 #include "USER_SETTINGS.h"
-
+#include <string>
 /* This file contains all the battery settings and limits */
 /* They can be defined here, or later on in the WebUI */
 
@@ -12,11 +12,10 @@ volatile float CHARGER_MAX_A = 11.5;      // Max current output (amps) of charge
 volatile float CHARGER_END_A = 1.0;       // Current at which charging is considered complete
 
 #ifdef WEBSERVER
-volatile uint8_t AccessPointEnabled =
-    true;  //Set to either true or false incase you want the board to enable a direct wifi access point
-const char* ssid = "ZTE_5G_VACCINE";      // Maximum of 63 characters;
-const char* password = "secretpassword";  // Minimum of 8 characters;
-const char* ssidAP = "Battery Emulator";  // Maximum of 63 characters;
+volatile uint8_t AccessPointEnabled = true;  //Set to either true/false incase you want to enable direct wifi access point
+std::string ssid = "REPLACE_WITH_YOUR_SSID";          // Maximum of 63 characters;
+std::string password = "REPLACE_WITH_YOUR_PASSWORD";  // Minimum of 8 characters;
+const char* ssidAP = "Battery Emulator";              // Maximum of 63 characters;
 const char* passwordAP = "123456789";  // Minimum of 8 characters; set to NULL if you want the access point to be open
 const uint8_t wifi_channel = 0;        // set to 0 for automatic channel selection
 

@@ -6,7 +6,7 @@
 
 // #define INCLUDE_EVENTS_TEST  // Enable to run an event test loop, see events_test_on_target.cpp
 
-#define EE_MAGIC_HEADER_VALUE 0x0003  // 0x0000 to 0xFFFF
+#define EE_MAGIC_HEADER_VALUE 0x0009  // 0x0000 to 0xFFFF
 
 #define GENERATE_ENUM(ENUM) ENUM,
 #define GENERATE_STRING(STRING) #STRING,
@@ -33,23 +33,33 @@
   XX(EVENT_CANFD_RX_FAILURE)            \
   XX(EVENT_CAN_RX_WARNING)              \
   XX(EVENT_CAN_TX_FAILURE)              \
+  XX(EVENT_CHARGE_LIMIT_EXCEEDED)       \
+  XX(EVENT_DISCHARGE_LIMIT_EXCEEDED)    \
   XX(EVENT_WATER_INGRESS)               \
   XX(EVENT_12V_LOW)                     \
   XX(EVENT_SOC_PLAUSIBILITY_ERROR)      \
   XX(EVENT_KWH_PLAUSIBILITY_ERROR)      \
   XX(EVENT_BATTERY_EMPTY)               \
   XX(EVENT_BATTERY_FULL)                \
+  XX(EVENT_BATTERY_FROZEN)              \
   XX(EVENT_BATTERY_CAUTION)             \
   XX(EVENT_BATTERY_CHG_STOP_REQ)        \
   XX(EVENT_BATTERY_DISCHG_STOP_REQ)     \
   XX(EVENT_BATTERY_CHG_DISCHG_STOP_REQ) \
+  XX(EVENT_BATTERY_OVERHEAT)            \
+  XX(EVENT_BATTERY_OVERVOLTAGE)         \
+  XX(EVENT_BATTERY_UNDERVOLTAGE)        \
+  XX(EVENT_BATTERY_ISOLATION)           \
   XX(EVENT_BATTERY_REQUESTS_HEAT)       \
   XX(EVENT_BATTERY_WARMED_UP)           \
   XX(EVENT_VOLTAGE_DIFFERENCE)          \
   XX(EVENT_LOW_SOH)                     \
   XX(EVENT_HVIL_FAILURE)                \
+  XX(EVENT_PRECHARGE_FAILURE)           \
   XX(EVENT_INTERNAL_OPEN_FAULT)         \
   XX(EVENT_INVERTER_OPEN_CONTACTOR)     \
+  XX(EVENT_MODBUS_INVERTER_MISSING)     \
+  XX(EVENT_ERROR_OPEN_CONTACTOR)        \
   XX(EVENT_CELL_UNDER_VOLTAGE)          \
   XX(EVENT_CELL_OVER_VOLTAGE)           \
   XX(EVENT_CELL_DEVIATION_HIGH)         \
@@ -65,6 +75,22 @@
   XX(EVENT_SERIAL_TX_FAILURE)           \
   XX(EVENT_SERIAL_TRANSMITTER_FAILURE)  \
   XX(EVENT_EEPROM_WRITE)                \
+  XX(EVENT_RESET_UNKNOWN)               \
+  XX(EVENT_RESET_POWERON)               \
+  XX(EVENT_RESET_EXT)                   \
+  XX(EVENT_RESET_SW)                    \
+  XX(EVENT_RESET_PANIC)                 \
+  XX(EVENT_RESET_INT_WDT)               \
+  XX(EVENT_RESET_TASK_WDT)              \
+  XX(EVENT_RESET_WDT)                   \
+  XX(EVENT_RESET_DEEPSLEEP)             \
+  XX(EVENT_RESET_BROWNOUT)              \
+  XX(EVENT_RESET_SDIO)                  \
+  XX(EVENT_RESET_USB)                   \
+  XX(EVENT_RESET_JTAG)                  \
+  XX(EVENT_RESET_EFUSE)                 \
+  XX(EVENT_RESET_PWR_GLITCH)            \
+  XX(EVENT_RESET_CPU_LOCKUP)            \
   XX(EVENT_NOF_EVENTS)
 
 typedef enum { EVENTS_ENUM_TYPE(GENERATE_ENUM) } EVENTS_ENUM_TYPE;
@@ -99,6 +125,7 @@ const char* get_event_enum_string(EVENTS_ENUM_TYPE event);
 const char* get_event_message_string(EVENTS_ENUM_TYPE event);
 const char* get_event_level_string(EVENTS_ENUM_TYPE event);
 const char* get_event_type(EVENTS_ENUM_TYPE event);
+unsigned long get_current_event_time_secs(void);
 
 EVENTS_LEVEL_TYPE get_event_level(void);
 

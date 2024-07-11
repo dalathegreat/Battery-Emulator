@@ -10,7 +10,6 @@
 /* Credits: Most of the code comes from Per Carlen's bms_comms_tesla_model3.py (https://gitlab.com/pelle8/batt2gen24/) */
 
 static unsigned long previousMillis30 = 0;  // will store last time a 30ms CAN Message was send
-static uint8_t stillAliveCAN = 6;           //counter for checking if CAN is still alive
 
 CAN_frame_t TESLA_221_1 = {
     .FIR = {.B =
@@ -33,7 +32,6 @@ static uint32_t total_discharge = 0;
 static uint32_t total_charge = 0;
 static uint16_t volts = 0;     // V
 static int16_t amps = 0;       // A
-static int16_t power = 0;      // W
 static uint16_t raw_amps = 0;  // A
 static int16_t max_temp = 0;   // C*
 static int16_t min_temp = 0;   // C*
@@ -164,19 +162,8 @@ static const char* hvilStatusState[] = {"NOT OK",
 
 void update_values_battery() {  //This function maps all the values fetched via CAN to the correct parameters used for modbus
   //After values are mapped, we perform some safety checks, and do some serial printouts
-  //Calculate the SOH% to send to inverter
-  if (bat_beginning_of_life != 0) {  //div/0 safeguard
-    datalayer.battery.status.soh_pptt =
-        static_cast<uint16_t>((static_cast<double>(nominal_full_pack_energy) / bat_beginning_of_life) * 10000.0);
-  }
-  //If the calculation went wrong, set SOH to 100%
-  if (datalayer.battery.status.soh_pptt > 10000) {
-    datalayer.battery.status.soh_pptt = 10000;
-  }
-  //If the value is unavailable, set SOH to 99%
-  if (nominal_full_pack_energy < REASONABLE_ENERGYAMOUNT) {
-    datalayer.battery.status.soh_pptt = 9900;
-  }
+
+  datalayer.battery.status.soh_pptt = 9900;  //Tesla batteries do not send a SOH% value on bus. Hardcode to 99%
 
   datalayer.battery.status.real_soc = (soc_vi * 10);  //increase SOC range from 0-100.0 -> 100.00
 
@@ -190,17 +177,13 @@ void update_values_battery() {  //This function maps all the values fetched via 
 
   // Define the allowed discharge power
   datalayer.battery.status.max_discharge_power_W = (max_discharge_current * volts);
-  // Cap the allowed discharge power if battery is empty, or discharge power is higher than the maximum discharge power allowed
-  if (datalayer.battery.status.reported_soc == 0) {
-    datalayer.battery.status.max_discharge_power_W = 0;
-  } else if (datalayer.battery.status.max_discharge_power_W > MAXDISCHARGEPOWERALLOWED) {
+  // Cap the allowed discharge power if higher than the maximum discharge power allowed
+  if (datalayer.battery.status.max_discharge_power_W > MAXDISCHARGEPOWERALLOWED) {
     datalayer.battery.status.max_discharge_power_W = MAXDISCHARGEPOWERALLOWED;
   }
 
   //The allowed charge power behaves strangely. We instead estimate this value
-  if (datalayer.battery.status.reported_soc == 10000) {  // When scaled SOC is 100.00%, set allowed charge power to 0
-    datalayer.battery.status.max_charge_power_W = 0;
-  } else if (soc_vi > 990) {
+  if (soc_vi > 990) {
     datalayer.battery.status.max_charge_power_W = FLOAT_MAX_POWER_W;
   } else if (soc_vi > RAMPDOWN_SOC) {  // When real SOC is between RAMPDOWN_SOC-99%, ramp the value between Max<->0
     datalayer.battery.status.max_charge_power_W =
@@ -219,8 +202,7 @@ void update_values_battery() {  //This function maps all the values fetched via 
     datalayer.battery.status.max_charge_power_W = MAXCHARGEPOWERALLOWED;
   }
 
-  power = ((volts / 10) * amps);
-  datalayer.battery.status.active_power_W = power;
+  datalayer.battery.status.active_power_W = ((volts / 10) * amps);
 
   datalayer.battery.status.temperature_min_dC = min_temp;
 
@@ -231,14 +213,6 @@ void update_values_battery() {  //This function maps all the values fetched via 
   datalayer.battery.status.cell_min_voltage_mV = cell_min_v;
 
   /* Value mapping is completed. Start to check all safeties */
-
-  /* Check if the BMS is still sending CAN messages. If we go 60s without messages we raise an error*/
-  if (!stillAliveCAN) {
-    set_event(EVENT_CAN_RX_FAILURE, 0);
-  } else {
-    stillAliveCAN--;
-    clear_event(EVENT_CAN_RX_FAILURE);
-  }
 
   if (hvil_status == 3) {  //INTERNAL_OPEN_FAULT - Someone disconnected a high voltage cable while battery was in use
     set_event(EVENT_INTERNAL_OPEN_FAULT, 0);
@@ -310,12 +284,6 @@ void update_values_battery() {  //This function maps all the values fetched via 
     } else {
       clear_event(EVENT_CELL_DEVIATION_HIGH);
     }
-  }
-
-  if (datalayer.battery.status.bms_status ==
-      FAULT) {  //Incase we enter a critical fault state, zero out the allowed limits
-    datalayer.battery.status.max_charge_power_W = 0;
-    datalayer.battery.status.max_discharge_power_W = 0;
   }
 
   /* Safeties verified. Perform USB serial printout if configured to do so */
@@ -513,7 +481,7 @@ void receive_can_battery(CAN_frame_t rx_frame) {
       output_current = (((rx_frame.data.u8[4] & 0x0F) << 8) | rx_frame.data.u8[3]) / 100;
       break;
     case 0x292:
-      stillAliveCAN = 12;  //We are getting CAN messages from the BMS, set the CAN detect counter
+      datalayer.battery.status.CAN_battery_still_alive = CAN_STILL_ALIVE;  //We are getting CAN messages from the BMS
       bat_beginning_of_life = (((rx_frame.data.u8[6] & 0x03) << 8) | rx_frame.data.u8[5]);
       soc_min = (((rx_frame.data.u8[1] & 0x03) << 8) | rx_frame.data.u8[0]);
       soc_vi = (((rx_frame.data.u8[2] & 0x0F) << 6) | ((rx_frame.data.u8[1] & 0xFC) >> 2));
@@ -589,6 +557,8 @@ the first, for a few cycles, then stop all  messages which causes the contactor 
     // Check if sending of CAN messages has been delayed too much.
     if ((currentMillis - previousMillis30 >= INTERVAL_30_MS_DELAYED) && (currentMillis > BOOTUP_TIME)) {
       set_event(EVENT_CAN_OVERRUN, (currentMillis - previousMillis30));
+    } else {
+      clear_event(EVENT_CAN_OVERRUN);
     }
     previousMillis30 = currentMillis;
 
@@ -636,8 +606,8 @@ void printFaultCodesIfActive() {
   }
   if (datalayer.system.status.inverter_allows_contactor_closing == false) {
     Serial.println(
-        "ERROR: Solar inverter does not allow for contactor closing. Check "
-        "datalayer.system.status.inverter_allows_contactor_closing parameter");
+        "ERROR: Solar inverter does not allow for contactor closing. Check communication connection to the inverter OR "
+        "disable the inverter protocol to proceed with contactor closing");
   }
   // Check each symbol and print debug information if its value is 1
   printDebugIfActive(WatchdogReset, "ERROR: The processor has experienced a reset due to watchdog reset");

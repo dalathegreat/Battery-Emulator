@@ -3,8 +3,7 @@
 #include "../datalayer/datalayer.h"
 #include "LUNA2000-MODBUS.h"
 
-void update_modbus_registers_luna2000() {
-  //Updata for ModbusRTU Server for Luna2000
+void update_modbus_registers_inverter() {
   handle_update_data_modbus32051();
   handle_update_data_modbus39500();
 }

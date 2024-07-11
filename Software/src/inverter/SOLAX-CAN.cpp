@@ -121,7 +121,7 @@ void CAN_WriteFrame(CAN_frame_t* tx_frame) {
 #endif
 }
 
-void update_values_can_solax() {  //This function maps all the values fetched from battery CAN to the correct CAN messages
+void update_values_can_inverter() {  //This function maps all the values fetched from battery CAN to the correct CAN messages
   // If not receiveing any communication from the inverter, open contactors and return to battery announce state
   if (millis() - LastFrameTime >= SolaxTimeout) {
     datalayer.system.status.inverter_allows_contactor_closing = false;
@@ -136,28 +136,38 @@ void update_values_can_solax() {  //This function maps all the values fetched fr
       ((datalayer.battery.status.temperature_max_dC + datalayer.battery.status.temperature_min_dC) / 2);
 
   //datalayer.battery.status.max_charge_power_W (30000W max)
-  if (datalayer.battery.status.reported_soc > 9999)  //99.99%
-  {  //Additional safety incase SOC% is 100, then do not charge battery further
+  if (datalayer.battery.status.reported_soc > 9999) {  // 99.99%
+    // Additional safety incase SOC% is 100, then do not charge battery further
     max_charge_rate_amp = 0;
-  } else {  //We can pass on the battery charge rate (in W) to the inverter (that takes A)
+  } else {  // We can pass on the battery charge rate (in W) to the inverter (that takes A)
     if (datalayer.battery.status.max_charge_power_W >= 30000) {
-      max_charge_rate_amp = 75;  //Incase battery can take over 30kW, cap value to 75A
-    } else {                     //Calculate the W value into A
-      max_charge_rate_amp =
-          (datalayer.battery.status.max_charge_power_W / (datalayer.battery.status.voltage_dV * 0.1));  // P/U = I
+      max_charge_rate_amp = 75;  // Incase battery can take over 30kW, cap value to 75A
+    } else {                     // Calculate the W value into A
+      if (datalayer.battery.status.voltage_dV > 10) {
+        max_charge_rate_amp =
+            datalayer.battery.status.max_charge_power_W / (datalayer.battery.status.voltage_dV * 0.1);  // P/U=I
+      } else {  // We avoid dividing by 0 and crashing the board
+        // If we have no voltage, something has gone wrong, do not allow charging
+        max_charge_rate_amp = 0;
+      }
     }
   }
 
   //datalayer.battery.status.max_discharge_power_W (30000W max)
-  if (datalayer.battery.status.reported_soc < 100)  //1.00%
-  {  //Additional safety incase SOC% is below 1, then do not charge battery further
+  if (datalayer.battery.status.reported_soc < 100) {  // 1.00%
+    // Additional safety in case SOC% is below 1, then do not discharge battery further
     max_discharge_rate_amp = 0;
-  } else {  //We can pass on the battery discharge rate to the inverter
+  } else {  // We can pass on the battery discharge rate to the inverter
     if (datalayer.battery.status.max_discharge_power_W >= 30000) {
-      max_discharge_rate_amp = 75;  //Incase battery can be charged with over 30kW, cap value to 75A
-    } else {                        //Calculate the W value into A
-      max_discharge_rate_amp =
-          (datalayer.battery.status.max_discharge_power_W / (datalayer.battery.status.voltage_dV * 0.1));  // P/U = I
+      max_discharge_rate_amp = 75;  // Incase battery can be charged with over 30kW, cap value to 75A
+    } else {                        // Calculate the W value into A
+      if (datalayer.battery.status.voltage_dV > 10) {
+        max_discharge_rate_amp =
+            datalayer.battery.status.max_discharge_power_W / (datalayer.battery.status.voltage_dV * 0.1);  // P/U=I
+      } else {  // We avoid dividing by 0 and crashing the board
+        // If we have no voltage, something has gone wrong, do not allow discharging
+        max_discharge_rate_amp = 0;
+      }
     }
   }
 
@@ -192,8 +202,8 @@ void update_values_can_solax() {  //This function maps all the values fetched fr
   SOLAX_1873.data.u8[3] = (datalayer.battery.status.current_dA >> 8);
   SOLAX_1873.data.u8[4] = (uint8_t)(datalayer.battery.status.reported_soc / 100);  //SOC (100.00%)
   //SOLAX_1873.data.u8[5] = //Seems like this is not required? Or shall we put SOC decimals here?
-  SOLAX_1873.data.u8[6] = (uint8_t)(capped_remaining_capacity_Wh / 100);
-  SOLAX_1873.data.u8[7] = ((capped_remaining_capacity_Wh / 100) >> 8);
+  SOLAX_1873.data.u8[6] = (uint8_t)(capped_remaining_capacity_Wh / 10);
+  SOLAX_1873.data.u8[7] = ((capped_remaining_capacity_Wh / 10) >> 8);
 
   //BMS_CellData
   SOLAX_1874.data.u8[0] = (int8_t)datalayer.battery.status.temperature_max_dC;
@@ -237,7 +247,11 @@ void update_values_can_solax() {  //This function maps all the values fetched fr
   SOLAX_1801.data.u8[4] = 1;
 }
 
-void receive_can_solax(CAN_frame_t rx_frame) {
+void send_can_inverter() {
+  // No periodic sending used on this protocol, we react only on incoming CAN messages!
+}
+
+void receive_can_inverter(CAN_frame_t rx_frame) {
   if (rx_frame.MsgID == 0x1871 && rx_frame.data.u8[0] == (0x01) ||
       rx_frame.MsgID == 0x1871 && rx_frame.data.u8[0] == (0x02)) {
     LastFrameTime = millis();

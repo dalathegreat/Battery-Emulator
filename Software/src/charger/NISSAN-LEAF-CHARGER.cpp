@@ -1,6 +1,7 @@
 #include "../include.h"
-#ifdef NISSAN_LEAF_CHARGER
+#ifdef NISSANLEAF_CHARGER
 #include "../datalayer/datalayer.h"
+#include "../devboard/utils/events.h"
 #include "../lib/miwagner-ESP32-Arduino-CAN/CAN_config.h"
 #include "../lib/miwagner-ESP32-Arduino-CAN/ESP32CAN.h"
 #include "NISSAN-LEAF-CHARGER.h"
@@ -144,7 +145,7 @@ static uint8_t calculate_checksum_nibble(CAN_frame_t* frame) {
   return sum;
 }
 
-void receive_can_nissanleaf_charger(CAN_frame_t rx_frame) {
+void receive_can_charger(CAN_frame_t rx_frame) {
 
   switch (rx_frame.MsgID) {
     case 0x679:  // This message fires once when charging cable is plugged in
@@ -181,7 +182,7 @@ void receive_can_nissanleaf_charger(CAN_frame_t rx_frame) {
   }
 }
 
-void send_can_nissanleaf_charger() {
+void send_can_charger() {
   unsigned long currentMillis = millis();
 
   /* Send keepalive with mode every 10ms */

@@ -9,11 +9,9 @@
 
 /* Do not change code below unless you are sure what you are doing */
 static unsigned long previousMillis500ms = 0;  // will store last time a 500ms CAN Message was send
-static uint8_t CANstillAlive = 12;             //counter for checking if CAN is still alive
 
-#define MAX_CELL_VOLTAGE 4250   //Battery is put into emergency stop if one cell goes over this value
-#define MIN_CELL_VOLTAGE 2950   //Battery is put into emergency stop if one cell goes below this value
-#define MAX_CELL_DEVIATION 150  //LED turns yellow on the board if mv delta exceeds this value
+#define MAX_CELL_VOLTAGE 4250  //Battery is put into emergency stop if one cell goes over this value
+#define MIN_CELL_VOLTAGE 2950  //Battery is put into emergency stop if one cell goes below this value
 
 static uint16_t inverterVoltageFrameHigh = 0;
 static uint16_t inverterVoltage = 0;
@@ -23,7 +21,6 @@ static uint16_t SOC_Display = 0;
 static uint16_t batterySOH = 1000;
 static uint16_t CellVoltMax_mV = 3700;
 static uint16_t CellVoltMin_mV = 3700;
-static uint16_t cell_deviation_mV = 0;
 static uint16_t batteryVoltage = 0;
 static int16_t leadAcidBatteryVoltage = 120;
 static int16_t batteryAmps = 0;
@@ -51,7 +48,9 @@ CANFDMessage EGMP_7E4_ack;
 
 void set_cell_voltages(CANFDMessage frame, int start, int length, int startCell) {
   for (size_t i = 0; i < length; i++) {
-    datalayer.battery.status.cell_voltages_mV[startCell + i] = (frame.data[start + i] * 20);
+    if ((frame.data[start + i] * 20) > 1000) {
+      datalayer.battery.status.cell_voltages_mV[startCell + i] = (frame.data[start + i] * 20);
+    }
   }
 }
 
@@ -63,24 +62,18 @@ void update_values_battery() {  //This function maps all the values fetched via 
 
   datalayer.battery.status.voltage_dV = batteryVoltage;  //value is *10 (3700 = 370.0)
 
-  datalayer.battery.status.current_dA = batteryAmps;  //value is *10 (150 = 15.0)
+  datalayer.battery.status.current_dA = -batteryAmps;  //value is *10 (150 = 15.0)
 
   datalayer.battery.status.remaining_capacity_Wh = static_cast<uint32_t>(
       (static_cast<double>(datalayer.battery.status.real_soc) / 10000) * datalayer.battery.info.total_capacity_Wh);
 
   //datalayer.battery.status.max_charge_power_W = (uint16_t)allowedChargePower * 10;  //From kW*100 to Watts
-  //The allowed charge power is not available. We estimate this value
-  if (datalayer.battery.status.reported_soc == 10000) {  // When scaled SOC is 100%, set allowed charge power to 0
-    datalayer.battery.status.max_charge_power_W = 0;
-  } else {  // No limits, max charging power allowed
-    datalayer.battery.status.max_charge_power_W = MAXCHARGEPOWERALLOWED;
-  }
+  //The allowed charge power is not available. We hardcode this value for now
+  datalayer.battery.status.max_charge_power_W = MAXCHARGEPOWERALLOWED;
+
   //datalayer.battery.status.max_discharge_power_W = (uint16_t)allowedDischargePower * 10;  //From kW*100 to Watts
-  if (datalayer.battery.status.reported_soc < 100) {  // When scaled SOC is <1%, set allowed charge power to 0
-    datalayer.battery.status.max_discharge_power_W = 0;
-  } else {  // No limits, max charging power allowed
-    datalayer.battery.status.max_discharge_power_W = MAXDISCHARGEPOWERALLOWED;
-  }
+  //The allowed discharge power is not available. We hardcode this value for now
+  datalayer.battery.status.max_discharge_power_W = MAXDISCHARGEPOWERALLOWED;
 
   powerWatt = ((batteryVoltage * batteryAmps) / 100);
 
@@ -95,10 +88,10 @@ void update_values_battery() {  //This function maps all the values fetched via 
   datalayer.battery.status.cell_min_voltage_mV = CellVoltMin_mV;
 
   /* Check if the BMS is still sending CAN messages. If we go 60s without messages we raise an error*/
-  if (!CANstillAlive) {
+  if (!datalayer.battery.status.CAN_battery_still_alive) {
     set_event(EVENT_CANFD_RX_FAILURE, 0);
   } else {
-    CANstillAlive--;
+    datalayer.battery.status.CAN_battery_still_alive--;
     clear_event(EVENT_CANFD_RX_FAILURE);
   }
 
@@ -111,24 +104,11 @@ void update_values_battery() {  //This function maps all the values fetched via 
   }
 
   // Check if cell voltages are within allowed range
-  cell_deviation_mV = (datalayer.battery.status.cell_max_voltage_mV - datalayer.battery.status.cell_min_voltage_mV);
-
   if (CellVoltMax_mV >= MAX_CELL_VOLTAGE) {
     set_event(EVENT_CELL_OVER_VOLTAGE, 0);
   }
   if (CellVoltMin_mV <= MIN_CELL_VOLTAGE) {
     set_event(EVENT_CELL_UNDER_VOLTAGE, 0);
-  }
-  if (cell_deviation_mV > MAX_CELL_DEVIATION) {
-    set_event(EVENT_CELL_DEVIATION_HIGH, 0);
-  } else {
-    clear_event(EVENT_CELL_DEVIATION_HIGH);
-  }
-
-  if (datalayer.battery.status.bms_status ==
-      FAULT) {  //Incase we enter a critical fault state, zero out the allowed limits
-    datalayer.battery.status.max_charge_power_W = 0;
-    datalayer.battery.status.max_discharge_power_W = 0;
   }
 
   /* Safeties verified. Perform USB serial printout if configured to do so */
@@ -193,17 +173,29 @@ void update_values_battery() {  //This function maps all the values fetched via 
 #endif
 }
 
+void send_canfd_frame(CANFDMessage frame) {
+#ifdef DEBUG_VIA_USB
+  const bool ok = canfd.tryToSend(frame);
+  if (ok) {
+  } else {
+    Serial.println("Send canfd failure.");
+  }
+#else
+  canfd.tryToSend(frame);
+#endif
+}
+
 void receive_canfd_battery(CANFDMessage frame) {
-  CANstillAlive = 12;
+  datalayer.battery.status.CAN_battery_still_alive = CAN_STILL_ALIVE;
   switch (frame.id) {
     case 0x7EC:
-      // printFrame(frame);
+      // print_canfd_frame(frame);
       switch (frame.data[0]) {
         case 0x10:  //"PID Header"
           // Serial.println ("Send ack");
           poll_data_pid = frame.data[4];
           // if (frame.data[4] == poll_data_pid) {
-          canfd.tryToSend(EGMP_7E4_ack);  //Send ack to BMS if the same frame is sent as polled
+          send_canfd_frame(EGMP_7E4_ack);  //Send ack to BMS if the same frame is sent as polled
           // }
           break;
         case 0x21:  //First frame in PID group
@@ -385,10 +377,19 @@ void send_can_battery() {
     // Check if sending of CAN messages has been delayed too much.
     if ((currentMillis - previousMillis500ms >= INTERVAL_500_MS_DELAYED) && (currentMillis > BOOTUP_TIME)) {
       set_event(EVENT_CAN_OVERRUN, (currentMillis - previousMillis500ms));
+    } else {
+      clear_event(EVENT_CAN_OVERRUN);
     }
     previousMillis500ms = currentMillis;
+    //  Section added to close contractor
+    if (datalayer.battery.status.bms_status == ACTIVE) {
+      datalayer.system.status.battery_allows_contactor_closing = true;
+    } else {  //datalayer.battery.status.bms_status == FAULT or inverter requested opening contactors
+      datalayer.system.status.battery_allows_contactor_closing = false;
+    }
+    //  Section end
     EGMP_7E4.data[3] = KIA_7E4_COUNTER;
-    canfd.tryToSend(EGMP_7E4);
+    send_canfd_frame(EGMP_7E4);
 
     KIA_7E4_COUNTER++;
     if (KIA_7E4_COUNTER > 0x0D) {  // gets up to 0x010C before repeating

@@ -30,7 +30,7 @@ bool ota_active = false;
 unsigned const long WIFI_MONITOR_INTERVAL_TIME = 15000;
 unsigned const long INIT_WIFI_CONNECT_TIMEOUT = 8000;        // Timeout for initial WiFi connect in milliseconds
 unsigned const long DEFAULT_WIFI_RECONNECT_INTERVAL = 1000;  // Default WiFi reconnect interval in ms
-unsigned const long MAX_WIFI_RETRY_INTERVAL = 30000;         // Maximum wifi retry interval in ms
+unsigned const long MAX_WIFI_RETRY_INTERVAL = 90000;         // Maximum wifi retry interval in ms
 unsigned long last_wifi_monitor_time = millis();             //init millis so wifi monitor doesn't run immediately
 unsigned long wifi_reconnect_interval = DEFAULT_WIFI_RECONNECT_INTERVAL;
 unsigned long last_wifi_attempt_time = millis();  //init millis so wifi monitor doesn't run immediately
@@ -43,7 +43,7 @@ void init_webserver() {
   } else {
     WiFi.mode(WIFI_STA);  // Only Router connection
   }
-  init_WiFi_STA(ssid, password, wifi_channel);
+  init_WiFi_STA(ssid.c_str(), password.c_str(), wifi_channel);
 
   String content = index_html;
 
@@ -63,6 +63,37 @@ void init_webserver() {
   // Route for going to event log web page
   server.on("/events", HTTP_GET,
             [](AsyncWebServerRequest* request) { request->send_P(200, "text/html", index_html, events_processor); });
+
+  // Route for editing SSID
+  server.on("/updateSSID", HTTP_GET, [](AsyncWebServerRequest* request) {
+    if (request->hasParam("value")) {
+      String value = request->getParam("value")->value();
+      if (value.length() <= 63) {  // Check if SSID is within the allowable length
+        ssid = value.c_str();
+        storeSettings();
+        request->send(200, "text/plain", "Updated successfully");
+      } else {
+        request->send(400, "text/plain", "SSID must be 63 characters or less");
+      }
+    } else {
+      request->send(400, "text/plain", "Bad Request");
+    }
+  });
+  // Route for editing Password
+  server.on("/updatePassword", HTTP_GET, [](AsyncWebServerRequest* request) {
+    if (request->hasParam("value")) {
+      String value = request->getParam("value")->value();
+      if (value.length() > 8) {  // Check if password is within the allowable length
+        password = value.c_str();
+        storeSettings();
+        request->send(200, "text/plain", "Updated successfully");
+      } else {
+        request->send(400, "text/plain", "Password must be atleast 8 characters");
+      }
+    } else {
+      request->send(400, "text/plain", "Bad Request");
+    }
+  });
 
   // Route for editing Wh
   server.on("/updateBatterySize", HTTP_GET, [](AsyncWebServerRequest* request) {
@@ -302,7 +333,7 @@ void wifi_monitor() {
       Serial.println(getConnectResultString(status));
 #endif
       if (wifi_state == INIT) {  //we haven't been connected yet, try the init logic
-        init_WiFi_STA(ssid, password, wifi_channel);
+        init_WiFi_STA(ssid.c_str(), password.c_str(), wifi_channel);
       } else {  //we were connected before, try the reconnect logic
         if (currentMillis - last_wifi_attempt_time > wifi_reconnect_interval) {
           last_wifi_attempt_time = currentMillis;
@@ -319,7 +350,7 @@ void wifi_monitor() {
       wifi_reconnect_interval = DEFAULT_WIFI_RECONNECT_INTERVAL;
 // Print local IP address and start web server
 #ifdef DEBUG_VIA_USB
-      Serial.print("Connected to WiFi network: " + String(ssid));
+      Serial.print("Connected to WiFi network: " + String(ssid.c_str()));
       Serial.print(" IP address: " + WiFi.localIP().toString());
       Serial.print(" Signal Strength: " + String(WiFi.RSSI()) + " dBm");
       Serial.println(" Channel: " + String(WiFi.channel()));
@@ -346,6 +377,9 @@ void init_WiFi_STA(const char* ssid, const char* password, const uint8_t wifi_ch
   WiFi.begin(ssid, password, wifi_channel);
   WiFi.setAutoReconnect(true);  // Enable auto reconnect
   wl_status_t result = static_cast<wl_status_t>(WiFi.waitForConnectResult(INIT_WIFI_CONNECT_TIMEOUT));
+  if (result) {
+    //TODO: Add event or serial print?
+  }
 }
 
 // Function to initialize ElegantOTA
@@ -358,8 +392,9 @@ void init_ElegantOTA() {
 }
 
 String processor(const String& var) {
-  if (var == "ABC") {
+  if (var == "X") {
     String content = "";
+    content += "<h2>" + String(ssidAP) + "</h2>";  // ssidAP name is used as header name
     //Page format
     content += "<style>";
     content += "body { background-color: black; color: white; }";
@@ -370,11 +405,24 @@ String processor(const String& var) {
 
     // Show version number
     content += "<h4>Software: " + String(version_number) + "</h4>";
+// Show hardware used:
+#ifdef HW_LILYGO
+    content += "<h4>Hardware: LilyGo T-CAN485</h4>";
+#endif
+#ifdef HW_STARK
+    content += "<h4>Hardware: Stark CMR Module</h4>";
+#endif
+    content += "<h4>Uptime: " + uptime_formatter::getUptime() + "</h4>";
 #ifdef FUNCTION_TIME_MEASUREMENT
     // Load information
     content += "<h4>Core task max load: " + String(datalayer.system.status.core_task_max_us) + " us</h4>";
     content += "<h4>Core task max load last 10 s: " + String(datalayer.system.status.core_task_10s_max_us) + " us</h4>";
-    content += "<h4>MQTT task max load last 10 s: " + String(datalayer.system.status.mqtt_task_10s_max_us) + " us</h4>";
+    content +=
+        "<h4>MQTT function (MQTT task) max load last 10 s: " + String(datalayer.system.status.mqtt_task_10s_max_us) +
+        " us</h4>";
+    content +=
+        "<h4>WIFI function (MQTT task) max load last 10 s: " + String(datalayer.system.status.wifi_task_10s_max_us) +
+        " us</h4>";
     content +=
         "<h4>loop() task max load last 10 s: " + String(datalayer.system.status.loop_task_10s_max_us) + " us</h4>";
     content += "<h4>Max load @ worst case execution of core task:</h4>";
@@ -382,17 +430,16 @@ String processor(const String& var) {
     content += "<h4>5s function timing: " + String(datalayer.system.status.time_snap_5s_us) + " us</h4>";
     content += "<h4>CAN/serial RX function timing: " + String(datalayer.system.status.time_snap_comm_us) + " us</h4>";
     content += "<h4>CAN TX function timing: " + String(datalayer.system.status.time_snap_cantx_us) + " us</h4>";
-    content += "<h4>Wifi and OTA function timing: " + String(datalayer.system.status.time_snap_wifi_us) + " us</h4>";
+    content += "<h4>OTA function timing: " + String(datalayer.system.status.time_snap_ota_us) + " us</h4>";
 #endif
 
     wl_status_t status = WiFi.status();
     // Display ssid of network connected to and, if connected to the WiFi, its own IP
-    content += "<h4>SSID: " + String(ssid) + "</h4>";
+    content += "<h4>SSID: " + String(ssid.c_str()) + "</h4>";
     if (status == WL_CONNECTED) {
       content += "<h4>IP: " + WiFi.localIP().toString() + "</h4>";
-      // Get and display the signal strength (RSSI)
-      content += "<h4>Signal Strength: " + String(WiFi.RSSI()) + " dBm</h4>";
-      content += "<h4>Channel: " + String(WiFi.channel()) + "</h4>";
+      // Get and display the signal strength (RSSI) and channel
+      content += "<h4>Signal strength: " + String(WiFi.RSSI()) + " dBm, at channel " + String(WiFi.channel()) + "</h4>";
     } else {
       content += "<h4>Wifi state: " + getConnectResultString(status) + "</h4>";
     }
@@ -434,11 +481,17 @@ String processor(const String& var) {
 #ifdef BMW_I3_BATTERY
     content += "BMW i3";
 #endif
+#ifdef BYD_ATTO_3_BATTERY
+    content += "BYD Atto 3";
+#endif
 #ifdef CHADEMO_BATTERY
     content += "Chademo V2X mode";
 #endif
 #ifdef IMIEV_CZERO_ION_BATTERY
     content += "I-Miev / C-Zero / Ion Triplet";
+#endif
+#ifdef JAGUAR_IPACE_BATTERY
+    content += "Jaguar I-PACE";
 #endif
 #ifdef KIA_HYUNDAI_64_BATTERY
     content += "Kia/Hyundai 64kWh";
@@ -446,14 +499,23 @@ String processor(const String& var) {
 #ifdef KIA_E_GMP_BATTERY
     content += "Kia/Hyundai EGMP platform";
 #endif
+#ifdef KIA_HYUNDAI_HYBRID_BATTERY
+    content += "Kia/Hyundai Hybrid";
+#endif
+#ifdef MG_5_BATTERY
+    content += "MG 5";
+#endif
 #ifdef NISSAN_LEAF_BATTERY
     content += "Nissan LEAF";
 #endif
 #ifdef RENAULT_KANGOO_BATTERY
     content += "Renault Kangoo";
 #endif
-#ifdef RENAULT_ZOE_BATTERY
-    content += "Renault Zoe";
+#ifdef RENAULT_ZOE_GEN1_BATTERY
+    content += "Renault Zoe Gen1 22/40";
+#endif
+#ifdef RENAULT_ZOE_GEN2_BATTERY
+    content += "Renault Zoe Gen2 50";
 #endif
 #ifdef SERIAL_LINK_RECEIVER
     content += "Serial link to another LilyGo board";
@@ -491,7 +553,7 @@ String processor(const String& var) {
     content += "<div style='display: flex; width: 100%;'>";
     content += "<div style='flex: 1; background-color: ";
 #else
-    // Start a new block with a specific background color. Color changes depending on BMS status
+    // Start a new block with a specific background color. Color changes depending on system status
     content += "<div style='background-color: ";
 #endif
 
@@ -547,11 +609,11 @@ String processor(const String& var) {
     content += "<h4>Temperature max: " + String(tempMaxFloat, 1) + " C</h4>";
     content += "<h4>Temperature min: " + String(tempMinFloat, 1) + " C</h4>";
     if (datalayer.battery.status.bms_status == ACTIVE) {
-      content += "<h4>BMS Status: OK </h4>";
+      content += "<h4>System status: OK </h4>";
     } else if (datalayer.battery.status.bms_status == UPDATING) {
-      content += "<h4>BMS Status: UPDATING </h4>";
+      content += "<h4>System status: UPDATING </h4>";
     } else {
-      content += "<h4>BMS Status: FAULT </h4>";
+      content += "<h4>System status: FAULT </h4>";
     }
     if (datalayer.battery.status.current_dA == 0) {
       content += "<h4>Battery idle</h4>";

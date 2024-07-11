@@ -21,7 +21,7 @@ int ESP32CAN::CANWriteFrame(const CAN_frame_t* p_frame) {
       clear_event(EVENT_CAN_TX_FAILURE);
     }
   } else {
-    if ((millis() - start_time) >= 2000) {
+    if ((millis() - start_time) >= 20) {
       tx_ok = true;
     }
   }

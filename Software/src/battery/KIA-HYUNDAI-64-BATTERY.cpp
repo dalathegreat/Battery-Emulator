@@ -9,41 +9,38 @@
 /* Do not change code below unless you are sure what you are doing */
 static unsigned long previousMillis100 = 0;  // will store last time a 100ms CAN Message was send
 static unsigned long previousMillis10 = 0;   // will store last time a 10s CAN Message was send
-static uint8_t CANstillAlive = 12;           //counter for checking if CAN is still alive
 
-#define MAX_CELL_VOLTAGE 4250   //Battery is put into emergency stop if one cell goes over this value
-#define MIN_CELL_VOLTAGE 2950   //Battery is put into emergency stop if one cell goes below this value
-#define MAX_CELL_DEVIATION 150  //LED turns yellow on the board if mv delta exceeds this value
+#define MAX_CELL_VOLTAGE 4250  //Battery is put into emergency stop if one cell goes over this value
+#define MIN_CELL_VOLTAGE 2950  //Battery is put into emergency stop if one cell goes below this value
 
 static uint16_t soc_calculated = 0;
 static uint16_t SOC_BMS = 0;
 static uint16_t SOC_Display = 0;
 static uint16_t batterySOH = 1000;
-static uint8_t waterleakageSensor = 164;
-static int16_t leadAcidBatteryVoltage = 0;
 static uint16_t CellVoltMax_mV = 3700;
-static uint8_t CellVmaxNo = 0;
 static uint16_t CellVoltMin_mV = 3700;
-static uint8_t CellVminNo = 0;
-static uint16_t cell_deviation_mV = 0;
 static uint16_t allowedDischargePower = 0;
 static uint16_t allowedChargePower = 0;
 static uint16_t batteryVoltage = 0;
+static uint16_t inverterVoltageFrameHigh = 0;
+static uint16_t inverterVoltage = 0;
+static uint16_t cellvoltages_mv[98];
+static int16_t leadAcidBatteryVoltage = 120;
 static int16_t batteryAmps = 0;
 static int16_t temperatureMax = 0;
 static int16_t temperatureMin = 0;
-static int8_t temperature_water_inlet = 0;
+static int16_t poll_data_pid = 0;
+static uint8_t CellVmaxNo = 0;
+static uint8_t CellVminNo = 0;
 static uint8_t batteryManagementMode = 0;
 static uint8_t BMS_ign = 0;
-static int16_t poll_data_pid = 0;
-static int8_t heatertemp = 0;
 static uint8_t batteryRelay = 0;
-static int8_t powerRelayTemperature = 0;
-static uint16_t inverterVoltageFrameHigh = 0;
-static uint16_t inverterVoltage = 0;
-static uint8_t startedUp = false;
+static uint8_t waterleakageSensor = 164;
 static uint8_t counter_200 = 0;
-static uint16_t cellvoltages_mv[98];
+static int8_t temperature_water_inlet = 0;
+static int8_t heatertemp = 0;
+static int8_t powerRelayTemperature = 0;
+static bool startedUp = false;
 
 CAN_frame_t KIA_HYUNDAI_200 = {.FIR = {.B =
                                            {
@@ -158,17 +155,9 @@ void update_values_battery() {  //This function maps all the values fetched via 
   datalayer.battery.status.remaining_capacity_Wh = static_cast<uint32_t>(
       (static_cast<double>(datalayer.battery.status.real_soc) / 10000) * datalayer.battery.info.total_capacity_Wh);
 
-  if (datalayer.battery.status.reported_soc == 10000) {  // When scaled SOC is 100%, set allowed charge power to 0
-    datalayer.battery.status.max_charge_power_W = 0;
-  } else {  // Limit according to CAN value
-    datalayer.battery.status.max_charge_power_W = allowedChargePower * 10;
-  }
+  datalayer.battery.status.max_charge_power_W = allowedChargePower * 10;
 
-  if (datalayer.battery.status.reported_soc < 100) {  // When scaled SOC is <1%, set allowed charge power to 0
-    datalayer.battery.status.max_discharge_power_W = 0;
-  } else {  // Limit according to CAN value
-    datalayer.battery.status.max_discharge_power_W = allowedDischargePower * 10;
-  }
+  datalayer.battery.status.max_discharge_power_W = allowedDischargePower * 10;
 
   //Power in watts, Negative = charging batt
   datalayer.battery.status.active_power_W =
@@ -182,14 +171,6 @@ void update_values_battery() {  //This function maps all the values fetched via 
 
   datalayer.battery.status.cell_min_voltage_mV = CellVoltMin_mV;
 
-  /* Check if the BMS is still sending CAN messages. If we go 60s without messages we raise an error*/
-  if (!CANstillAlive) {
-    set_event(EVENT_CAN_RX_FAILURE, 0);
-  } else {
-    CANstillAlive--;
-    clear_event(EVENT_CAN_RX_FAILURE);
-  }
-
   if (waterleakageSensor == 0) {
     set_event(EVENT_WATER_INGRESS, 0);
   }
@@ -198,42 +179,12 @@ void update_values_battery() {  //This function maps all the values fetched via 
     set_event(EVENT_12V_LOW, leadAcidBatteryVoltage);
   }
 
-  //Map all cell voltages to the global array
-  for (int i = 0; i < 98; ++i) {
-    if (cellvoltages_mv[i] > 1000) {
-      datalayer.battery.status.cell_voltages_mV[i] = cellvoltages_mv[i];
-    }
-  }
-  // Check if we have 98S or 90S battery
-  if (datalayer.battery.status.cell_voltages_mV[97] > 0) {
-    datalayer.battery.info.number_of_cells = 98;
-    datalayer.battery.info.max_design_voltage_dV = 4040;
-    datalayer.battery.info.min_design_voltage_dV = 3100;
-  } else {
-    datalayer.battery.info.number_of_cells = 90;
-    datalayer.battery.info.max_design_voltage_dV = 3870;
-    datalayer.battery.info.min_design_voltage_dV = 2250;
-  }
-
   // Check if cell voltages are within allowed range
-  cell_deviation_mV = (datalayer.battery.status.cell_max_voltage_mV - datalayer.battery.status.cell_min_voltage_mV);
-
   if (CellVoltMax_mV >= MAX_CELL_VOLTAGE) {
     set_event(EVENT_CELL_OVER_VOLTAGE, 0);
   }
   if (CellVoltMin_mV <= MIN_CELL_VOLTAGE) {
     set_event(EVENT_CELL_UNDER_VOLTAGE, 0);
-  }
-  if (cell_deviation_mV > MAX_CELL_DEVIATION) {
-    set_event(EVENT_CELL_DEVIATION_HIGH, 0);
-  } else {
-    clear_event(EVENT_CELL_DEVIATION_HIGH);
-  }
-
-  if (datalayer.battery.status.bms_status ==
-      FAULT) {  //Incase we enter a critical fault state, zero out the allowed limits
-    datalayer.battery.status.max_charge_power_W = 0;
-    datalayer.battery.status.max_discharge_power_W = 0;
   }
 
   /* Safeties verified. Perform USB serial printout if configured to do so */
@@ -298,20 +249,40 @@ void update_values_battery() {  //This function maps all the values fetched via 
 #endif
 }
 
+void update_number_of_cells() {
+  //If we have cell values and number_of_cells not initialized yet
+  if (cellvoltages_mv[0] > 0 && datalayer.battery.info.number_of_cells == 0) {
+    // Check if we have 98S or 90S battery
+    if (datalayer.battery.status.cell_voltages_mV[97] > 0) {
+      datalayer.battery.info.number_of_cells = 98;
+      datalayer.battery.info.max_design_voltage_dV = 4040;
+      datalayer.battery.info.min_design_voltage_dV = 3100;
+    } else {
+      datalayer.battery.info.number_of_cells = 90;
+      datalayer.battery.info.max_design_voltage_dV = 3870;
+      datalayer.battery.info.min_design_voltage_dV = 2250;
+    }
+  }
+}
+
 void receive_can_battery(CAN_frame_t rx_frame) {
   switch (rx_frame.MsgID) {
     case 0x4DE:
+      startedUp = true;
       break;
-    case 0x542:                               //BMS SOC
-      CANstillAlive = 12;                     //We use this message to verify that BMS is still alive
+    case 0x542:  //BMS SOC
+      startedUp = true;
+      datalayer.battery.status.CAN_battery_still_alive = CAN_STILL_ALIVE;
       SOC_Display = rx_frame.data.u8[0] * 5;  //100% = 200 ( 200 * 5 = 1000 )
       break;
     case 0x594:
+      startedUp = true;
       allowedChargePower = ((rx_frame.data.u8[1] << 8) | rx_frame.data.u8[0]);
       allowedDischargePower = ((rx_frame.data.u8[3] << 8) | rx_frame.data.u8[2]);
       SOC_BMS = rx_frame.data.u8[5] * 5;  //100% = 200 ( 200 * 5 = 1000 )
       break;
     case 0x595:
+      startedUp = true;
       batteryVoltage = (rx_frame.data.u8[7] << 8) + rx_frame.data.u8[6];
       batteryAmps = (rx_frame.data.u8[5] << 8) + rx_frame.data.u8[4];
       if (counter_200 > 3) {
@@ -320,18 +291,21 @@ void receive_can_battery(CAN_frame_t rx_frame) {
       }  //VCU measured voltage sent back to bms
       break;
     case 0x596:
+      startedUp = true;
       leadAcidBatteryVoltage = rx_frame.data.u8[1];  //12v Battery Volts
       temperatureMin = rx_frame.data.u8[6];          //Lowest temp in battery
       temperatureMax = rx_frame.data.u8[7];          //Highest temp in battery
       break;
     case 0x598:
+      startedUp = true;
       break;
     case 0x5D5:
+      startedUp = true;
       waterleakageSensor = rx_frame.data.u8[3];  //Water sensor inside pack, value 164 is no water --> 0 is short
       powerRelayTemperature = rx_frame.data.u8[7];
       break;
     case 0x5D8:
-      startedUp = 1;
+      startedUp = true;
 
       //PID data is polled after last message sent from battery:
       if (poll_data_pid >= 10) {  //polling one of ten PIDs at 100ms, resolution = 1s
@@ -508,6 +482,10 @@ void receive_can_battery(CAN_frame_t rx_frame) {
           }
           break;
         case 0x26:  //Sixth datarow in PID group
+          //Map all cell voltages to the global array
+          memcpy(datalayer.battery.status.cell_voltages_mV, cellvoltages_mv, 98 * sizeof(uint16_t));
+          //Update number of cells
+          update_number_of_cells();
           break;
         case 0x27:  //Seventh datarow in PID group
           if (poll_data_pid == 1) {
@@ -529,6 +507,11 @@ void receive_can_battery(CAN_frame_t rx_frame) {
 
 void send_can_battery() {
   unsigned long currentMillis = millis();
+
+  if (!startedUp) {
+    return;  // Don't send any CAN messages towards battery until it has started up
+  }
+
   //Send 100ms message
   if (currentMillis - previousMillis100 >= INTERVAL_100_MS) {
     previousMillis100 = currentMillis;
@@ -542,6 +525,8 @@ void send_can_battery() {
     // Check if sending of CAN messages has been delayed too much.
     if ((currentMillis - previousMillis10 >= INTERVAL_10_MS_DELAYED) && (currentMillis > BOOTUP_TIME)) {
       set_event(EVENT_CAN_OVERRUN, (currentMillis - previousMillis10));
+    } else {
+      clear_event(EVENT_CAN_OVERRUN);
     }
     previousMillis10 = currentMillis;
 
@@ -560,11 +545,7 @@ void send_can_battery() {
         break;
       case 3:
         KIA_HYUNDAI_200.data.u8[5] = 0xD7;
-        if (startedUp) {
-          ++counter_200;
-        } else {
-          counter_200 = 0;
-        }
+        ++counter_200;
         break;
       case 4:
         KIA_HYUNDAI_200.data.u8[3] = 0x10;

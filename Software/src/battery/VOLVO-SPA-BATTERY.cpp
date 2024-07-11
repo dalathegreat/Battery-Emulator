@@ -9,11 +9,9 @@
 /* Do not change code below unless you are sure what you are doing */
 static unsigned long previousMillis100 = 0;  // will store last time a 100ms CAN Message was send
 static unsigned long previousMillis60s = 0;  // will store last time a 60s CAN Message was send
-static uint8_t CANstillAlive = 12;           //counter for checking if CAN is still alive
 
-#define MAX_CELL_VOLTAGE 4210   //Battery is put into emergency stop if one cell goes over this value
-#define MIN_CELL_VOLTAGE 2700   //Battery is put into emergency stop if one cell goes below this value
-#define MAX_CELL_DEVIATION 500  //LED turns yellow on the board if mv delta exceeds this value
+#define MAX_CELL_VOLTAGE 4210  //Battery is put into emergency stop if one cell goes over this value
+#define MIN_CELL_VOLTAGE 2700  //Battery is put into emergency stop if one cell goes below this value
 
 static float BATT_U = 0;                 //0x3A
 static float MAX_U = 0;                  //0x3A
@@ -26,16 +24,14 @@ static float BATT_T_MIN = 0;             //0x413
 static float BATT_T_AVG = 0;             //0x413
 static uint16_t SOC_BMS = 0;             //0X37D
 static uint16_t SOC_CALC = 0;
-static uint16_t CELL_U_MAX = 0;            //0x37D
-static uint16_t CELL_U_MIN = 0;            //0x37D
-static uint8_t CELL_ID_U_MAX = 0;          //0x37D
-static uint16_t HvBattPwrLimDchaSoft = 0;  //0x369
-
+static uint16_t CELL_U_MAX = 0;             //0x37D
+static uint16_t CELL_U_MIN = 0;             //0x37D
+static uint8_t CELL_ID_U_MAX = 0;           //0x37D
+static uint16_t HvBattPwrLimDchaSoft = 0;   //0x369
 static uint8_t batteryModuleNumber = 0x10;  // First battery module
 static uint8_t battery_request_idx = 0;
 static uint8_t rxConsecutiveFrames = 0;
-static uint16_t min_max_voltage[2];     //contains cell min[0] and max[1] values in mV
-static uint16_t cell_deviation_mV = 0;  //contains the deviation between highest and lowest cell in mV
+static uint16_t min_max_voltage[2];  //contains cell min[0] and max[1] values in mV
 static uint8_t cellcounter = 0;
 static uint32_t remaining_capacity = 0;
 static uint16_t cell_voltages[108];  //array with all the cellvoltages
@@ -114,14 +110,6 @@ void update_values_battery() {  //This function maps all the values fetched via 
     datalayer.battery.status.cell_voltages_mV[i] = cell_voltages[i];
   }
 
-  /* Check if the BMS is still sending CAN messages. If we go 60s without messages we raise an error*/
-  if (!CANstillAlive) {
-    set_event(EVENT_CAN_RX_FAILURE, 0);
-  } else {
-    CANstillAlive--;
-    clear_event(EVENT_CAN_RX_FAILURE);
-  }
-
 #ifdef DEBUG_VIA_USB
   Serial.print("BMS reported SOC%: ");
   Serial.println(SOC_BMS);
@@ -159,8 +147,6 @@ void update_values_battery() {  //This function maps all the values fetched via 
   Serial.println(min_max_voltage[1]);
   Serial.print("Lowest cell voltage: ");
   Serial.println(min_max_voltage[0]);
-  Serial.print("Cell deviation voltage: ");
-  Serial.println(cell_deviation_mV);
   Serial.print("Cell voltage,");
   while (cnt < 108) {
     Serial.print(cell_voltages[cnt++]);
@@ -171,7 +157,7 @@ void update_values_battery() {  //This function maps all the values fetched via 
 }
 
 void receive_can_battery(CAN_frame_t rx_frame) {
-  CANstillAlive = 12;
+  datalayer.battery.status.CAN_battery_still_alive = CAN_STILL_ALIVE;
   switch (rx_frame.MsgID) {
     case 0x3A:
       if ((rx_frame.data.u8[6] & 0x80) == 0x80)
@@ -314,12 +300,6 @@ void receive_can_battery(CAN_frame_t rx_frame) {
               min_max_voltage[1] = cell_voltages[cellcounter];
           }
 
-          cell_deviation_mV = (min_max_voltage[1] - min_max_voltage[0]);
-
-          if (cell_deviation_mV > MAX_CELL_DEVIATION) {
-            set_event(EVENT_CELL_DEVIATION_HIGH, 0);
-          }
-
           if (min_max_voltage[1] >= MAX_CELL_VOLTAGE) {
             set_event(EVENT_CELL_OVER_VOLTAGE, 0);
           }
@@ -351,6 +331,8 @@ void send_can_battery() {
     // Check if sending of CAN messages has been delayed too much.
     if ((currentMillis - previousMillis100 >= INTERVAL_100_MS_DELAYED) && (currentMillis > BOOTUP_TIME)) {
       set_event(EVENT_CAN_OVERRUN, (currentMillis - previousMillis100));
+    } else {
+      clear_event(EVENT_CAN_OVERRUN);
     }
     previousMillis100 = currentMillis;
 

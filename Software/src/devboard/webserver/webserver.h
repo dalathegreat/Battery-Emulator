@@ -4,6 +4,7 @@
 #include <Preferences.h>
 #include <WiFi.h>
 #include "../../include.h"
+#include "../../lib/YiannisBourkelis-Uptime-Library/src/uptime_formatter.h"
 #include "../../lib/ayushsharma82-ElegantOTA/src/ElegantOTA.h"
 #ifdef MQTT
 #include "../../lib/knolleary-pubsubclient/PubSubClient.h"
@@ -17,8 +18,9 @@
 
 extern const char* version_number;  // The current software version, shown on webserver
 
-extern const char* ssid;
-extern const char* password;
+#include <string>
+extern std::string ssid;
+extern std::string password;
 extern const uint8_t wifi_channel;
 extern const char* ssidAP;
 extern const char* passwordAP;

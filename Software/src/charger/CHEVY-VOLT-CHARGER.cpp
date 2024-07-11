@@ -1,6 +1,7 @@
 #include "../include.h"
 #ifdef CHEVYVOLT_CHARGER
 #include "../datalayer/datalayer.h"
+#include "../devboard/utils/events.h"
 #include "../lib/miwagner-ESP32-Arduino-CAN/CAN_config.h"
 #include "../lib/miwagner-ESP32-Arduino-CAN/ESP32CAN.h"
 #include "CHEVY-VOLT-CHARGER.h"
@@ -63,7 +64,7 @@ static CAN_frame_t charger_set_targets = {.FIR = {.B =
                                           .data = {0x40, 0x00, 0x00, 0x00}};
 
 /* We are mostly sending out not receiving */
-void receive_can_chevyvolt_charger(CAN_frame_t rx_frame) {
+void receive_can_charger(CAN_frame_t rx_frame) {
   uint16_t charger_stat_HVcur_temp = 0;
   uint16_t charger_stat_HVvol_temp = 0;
   uint16_t charger_stat_LVcur_temp = 0;
@@ -115,7 +116,7 @@ void receive_can_chevyvolt_charger(CAN_frame_t rx_frame) {
   }
 }
 
-void send_can_chevyvolt_charger() {
+void send_can_charger() {
   unsigned long currentMillis = millis();
   uint16_t Vol_temp = 0;
 
