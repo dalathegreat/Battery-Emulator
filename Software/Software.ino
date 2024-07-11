@@ -606,7 +606,7 @@ void handle_CAN_contactors() {
 
   if (abs(datalayer.battery.status.voltage_dV - datalayer.battery2.status.voltage_dV) < 30) {  // If we are within 3.0V
     clear_event(EVENT_VOLTAGE_DIFFERENCE);
-    if (datalayer.battery2.status.bms_status != FAULT) {  // Only proceed if BMS on battery2 is not faulted
+    if (datalayer.battery.status.bms_status != FAULT) {  // Only proceed if we are not in faulted state
       datalayer.system.status.battery2_allows_contactor_closing = true;
     }
   } else {  //We are over 3.0V diff

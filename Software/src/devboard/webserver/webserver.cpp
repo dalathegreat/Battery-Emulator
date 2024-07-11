@@ -643,7 +643,7 @@ String processor(const String& var) {
 
 #ifdef DOUBLE_BATTERY
     content += "<div style='flex: 1; background-color: ";
-    switch (datalayer.battery2.status.bms_status) {
+    switch (datalayer.battery.status.bms_status) {
       case ACTIVE:
         content += "#2D3F2F;";
         break;
@@ -660,8 +660,7 @@ String processor(const String& var) {
     // Display battery statistics within this block
     socRealFloat =
         static_cast<float>(datalayer.battery2.status.real_soc) / 100.0;  // Convert to float and divide by 100
-    socScaledFloat =
-        static_cast<float>(datalayer.battery.status.reported_soc) / 100.0;      // Convert to float and divide by 100
+    //socScaledFloat; // Same value used for bat2
     sohFloat = static_cast<float>(datalayer.battery2.status.soh_pptt) / 100.0;  // Convert to float and divide by 100
     voltageFloat =
         static_cast<float>(datalayer.battery2.status.voltage_dV) / 10.0;  // Convert to float and divide by 10
@@ -685,12 +684,12 @@ String processor(const String& var) {
     content += "<h4>Cell min: " + String(datalayer.battery2.status.cell_min_voltage_mV) + " mV</h4>";
     content += "<h4>Temperature max: " + String(tempMaxFloat, 1) + " C</h4>";
     content += "<h4>Temperature min: " + String(tempMinFloat, 1) + " C</h4>";
-    if (datalayer.battery2.status.bms_status == ACTIVE) {
-      content += "<h4>BMS Status: OK </h4>";
-    } else if (datalayer.battery2.status.bms_status == UPDATING) {
-      content += "<h4>BMS Status: UPDATING </h4>";
+    if (datalayer.battery.status.bms_status == ACTIVE) {
+      content += "<h4>System status: OK </h4>";
+    } else if (datalayer.battery.status.bms_status == UPDATING) {
+      content += "<h4>System status: UPDATING </h4>";
     } else {
-      content += "<h4>BMS Status: FAULT </h4>";
+      content += "<h4>System status: FAULT </h4>";
     }
     if (datalayer.battery2.status.current_dA == 0) {
       content += "<h4>Battery idle</h4>";

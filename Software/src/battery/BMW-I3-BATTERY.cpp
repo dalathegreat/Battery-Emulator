@@ -457,7 +457,7 @@ static uint8_t battery2_status_diagnosis_powertrain_maximum_multiplexer = 0;
 static uint8_t battery2_status_diagnosis_powertrain_immediate_multiplexer = 0;
 static uint8_t battery2_ID2 = 0;
 static uint8_t battery2_cellvoltage_mux = 0;
-static uint8_t battery2_soh = 0;
+static uint8_t battery2_soh = 99;
 
 static uint8_t message_data[50];
 static uint8_t next_data = 0;

@@ -811,7 +811,7 @@ void receive_can_battery(CAN_frame_t rx_frame) {
 
       battery_TEMP = (rx_frame.data.u8[4] >> 1);
       if (battery_TEMP != 0) {
-        battery_StateOfHealth = battery_TEMP;  //Collect state of health from battery
+        battery_StateOfHealth = (uint8_t)battery_TEMP;  //Collect state of health from battery
       }
       break;
     case 0x5C0:

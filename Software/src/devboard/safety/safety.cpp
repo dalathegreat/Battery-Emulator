@@ -7,6 +7,8 @@ static uint8_t discharge_limit_failures = 0;
 static bool battery_full_event_fired = false;
 static bool battery_empty_event_fired = false;
 
+#define MAX_SOH_DEVIATION_PPTT 2500
+
 void update_machineryprotection() {
   // Start checking that the battery is within reason. Incase we see any funny business, raise an event!
 
@@ -67,9 +69,9 @@ void update_machineryprotection() {
 
   // Battery is extremely degraded, not fit for secondlifestorage!
   if (datalayer.battery.status.soh_pptt < 2500) {
-    set_event(EVENT_LOW_SOH, datalayer.battery.status.soh_pptt);
+    set_event(EVENT_SOH_LOW, datalayer.battery.status.soh_pptt);
   } else {
-    clear_event(EVENT_LOW_SOH);
+    clear_event(EVENT_SOH_LOW);
   }
 
   // Check if SOC% is plausible
@@ -129,25 +131,43 @@ void update_machineryprotection() {
 
   // Too many malformed CAN messages recieved!
   if (datalayer.battery.status.CAN_error_counter > MAX_CAN_FAILURES) {
-    set_event(EVENT_CAN_RX_WARNING, 0);
+    set_event(EVENT_CAN_RX_WARNING, 1);
   } else {
     clear_event(EVENT_CAN_RX_WARNING);
   }
 
-#ifdef DOUBLE_BATTERY
-  // Check if the BMS is still sending CAN messages. If we go 60s without messages we raise an error
+#ifdef DOUBLE_BATTERY // Additional Double-Battery safeties are checked here
+  // Check if the Battery 2 BMS is still sending CAN messages. If we go 60s without messages we raise an error
   if (!datalayer.battery2.status.CAN_battery_still_alive) {
-    set_event(EVENT_CAN_RX_FAILURE, 0);
+    set_event(EVENT_CAN2_RX_FAILURE, 0);
   } else {
     datalayer.battery2.status.CAN_battery_still_alive--;
-    clear_event(EVENT_CAN_RX_FAILURE);
+    clear_event(EVENT_CAN2_RX_FAILURE);
   }
 
   // Too many malformed CAN messages recieved!
   if (datalayer.battery2.status.CAN_error_counter > MAX_CAN_FAILURES) {
-    set_event(EVENT_CAN_RX_WARNING, 0);
+    set_event(EVENT_CAN_RX_WARNING, 2);
   } else {
     clear_event(EVENT_CAN_RX_WARNING);
   }
-#endif
+
+  // Check if SOH% between the packs is too large
+  if((datalayer.battery.status.soh_pptt != 9900) && (datalayer.battery2.status.soh_pptt != 9900)){
+    // Both values available, check diff
+    uint16_t soh_diff_pptt;
+    if(datalayer.battery.status.soh_pptt > datalayer.battery2.status.soh_pptt) {
+      soh_diff_pptt = datalayer.battery.status.soh_pptt - datalayer.battery2.status.soh_pptt;
+    } else {
+      soh_diff_pptt = datalayer.battery2.status.soh_pptt - datalayer.battery.status.soh_pptt;
+    }
+
+    if(soh_diff_pptt > MAX_SOH_DEVIATION_PPTT){
+      set_event(EVENT_SOH_DIFFERENCE, MAX_SOH_DEVIATION_PPTT);
+    } else {
+      clear_event(EVENT_SOH_DIFFERENCE);
+    }
+  }
+
+#endif // DOUBLE_BATTERY
 }
