@@ -133,4 +133,21 @@ void update_machineryprotection() {
   } else {
     clear_event(EVENT_CAN_RX_WARNING);
   }
+
+#ifdef DOUBLE_BATTERY
+  // Check if the BMS is still sending CAN messages. If we go 60s without messages we raise an error
+  if (!datalayer.battery2.status.CAN_battery_still_alive) {
+    set_event(EVENT_CAN_RX_FAILURE, 0);
+  } else {
+    datalayer.battery2.status.CAN_battery_still_alive--;
+    clear_event(EVENT_CAN_RX_FAILURE);
+  }
+
+  // Too many malformed CAN messages recieved!
+  if (datalayer.battery2.status.CAN_error_counter > MAX_CAN_FAILURES) {
+    set_event(EVENT_CAN_RX_WARNING, 0);
+  } else {
+    clear_event(EVENT_CAN_RX_WARNING);
+  }
+#endif
 }
