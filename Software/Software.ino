@@ -228,7 +228,7 @@ void core_loop(void* task_time_us) {
       handle_contactors();  // Take care of startup precharge/contactor closing
 #endif
 #ifdef DOUBLE_BATTERY
-      handle_CAN_contactors();
+      check_interconnect_available();
 #endif
     }
     END_TIME_MEASUREMENT_MAX(time_10ms, datalayer.system.status.time_10ms_us);
@@ -599,7 +599,7 @@ void send_can2() {
 #endif
 
 #ifdef DOUBLE_BATTERY
-void handle_CAN_contactors() {
+void check_interconnect_available() {
   if (datalayer.battery.status.voltage_dV == 0 || datalayer.battery2.status.voltage_dV == 0) {
     return;  // Both voltage values need to be available to start check
   }

@@ -452,19 +452,19 @@ void update_values_battery2() {  // Handle the values coming in from battery #2
         break;
       case (4):
         //Caution Lamp Request
-        set_event(EVENT_BATTERY_CAUTION, 0);
+        set_event(EVENT_BATTERY_CAUTION, 2);
         break;
       case (5):
         //Caution Lamp Request & Normal Stop Request
-        set_event(EVENT_BATTERY_DISCHG_STOP_REQ, 0);
+        set_event(EVENT_BATTERY_DISCHG_STOP_REQ, 2);
         break;
       case (6):
         //Caution Lamp Request & Charging Mode Stop Request
-        set_event(EVENT_BATTERY_CHG_STOP_REQ, 0);
+        set_event(EVENT_BATTERY_CHG_STOP_REQ, 2);
         break;
       case (7):
         //Caution Lamp Request & Charging Mode Stop Request & Normal Stop Request
-        set_event(EVENT_BATTERY_CHG_DISCHG_STOP_REQ, 0);
+        set_event(EVENT_BATTERY_CHG_DISCHG_STOP_REQ, 2);
         break;
       default:
         break;
@@ -477,7 +477,7 @@ void update_values_battery2() {  // Handle the values coming in from battery #2
 
 #ifdef INTERLOCK_REQUIRED
   if (!battery2_Interlock) {
-    set_event(EVENT_HVIL_FAILURE, 0);
+    set_event(EVENT_HVIL_FAILURE, 2);
   } else {
     clear_event(EVENT_HVIL_FAILURE);
   }
@@ -485,10 +485,10 @@ void update_values_battery2() {  // Handle the values coming in from battery #2
 
   if (battery2_HeatExist) {
     if (battery2_Heating_Stop) {
-      set_event(EVENT_BATTERY_WARMED_UP, 0);
+      set_event(EVENT_BATTERY_WARMED_UP, 2);
     }
     if (battery2_Heating_Start) {
-      set_event(EVENT_BATTERY_REQUESTS_HEAT, 0);
+      set_event(EVENT_BATTERY_REQUESTS_HEAT, 2);
     }
   }
 }
@@ -1257,4 +1257,4 @@ void setup_battery(void) {  // Performs one time setup at startup
 #endif  //DOUBLE_BATTERY
 }
 
-#endif
+#endif  //NISSAN_LEAF_BATTERY
