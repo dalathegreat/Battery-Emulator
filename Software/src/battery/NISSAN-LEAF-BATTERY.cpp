@@ -337,8 +337,8 @@ void update_values_battery() { /* This function maps all the values fetched via 
   print_with_units(", GIDS: ", battery_GIDS, " (x77Wh) ");
   print_with_units(", Battery gen: ", LEAF_battery_Type, " ");
   print_with_units(", Has heater: ", battery_HeatExist, " ");
-  print_with_units(", Max cell voltage: ", min_max_voltage[1], "mV ");
-  print_with_units(", Min cell voltage: ", min_max_voltage[0], "mV ");
+  print_with_units(", Max cell voltage: ", battery_min_max_voltage[1], "mV ");
+  print_with_units(", Min cell voltage: ", battery_min_max_voltage[0], "mV ");
 #endif
 }
 
