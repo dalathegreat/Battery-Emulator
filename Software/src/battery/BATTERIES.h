@@ -63,6 +63,11 @@
 #include "BALANCELL_P33.h"
 #endif
 
+#ifdef BALANCELL_EVIE
+#include "BALANCELL_EVIE.h"
+#endif
+
+
 #ifdef SERIAL_LINK_RECEIVER
 #include "SERIAL-LINK-RECEIVER-FROM-BATTERY.h"
 #endif
