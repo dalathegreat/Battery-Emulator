@@ -100,7 +100,8 @@ static uint8_t discharge_forbidden = 0;
 void update_values_battery() {
 
   // Work out EVie pack status
-  SOC = pack1_SoC ;
+  SOC = pack1_SoC;
+  SOH = pack1_SoH;
   cellvoltage_max_mV = pack1_cellvoltage_max_mV;
   cellvoltage_min_mV = pack1_cellvoltage_min_mV;
   celltemperature_max_dC = pack1_celltemperature_max_dC;
@@ -114,7 +115,7 @@ void update_values_battery() {
 
   datalayer.battery.status.soh_pptt = (SOH * 100);  //Increase decimals from 100% -> 100.00%
 
-  datalayer.battery.status.voltage_dV = pack1_packvoltage_mV * 4 /100;  //value is *10 (3700 = 370.0)
+  datalayer.battery.status.voltage_dV = pack1_packvoltage_mV * 4 /10;  //value is *10 (3700 = 370.0)
 
   datalayer.battery.status.current_dA = pack1_packcurrent_mA / 100;  //value is *10 (150 = 15.0) , invert the sign
 
@@ -166,13 +167,13 @@ void receive_can_battery(CAN_frame_t rx_frame) {
       pack1_celltemperature_max_dC  =  10*((rx_frame.data.u8[1] << 8) | rx_frame.data.u8[0]);
       pack1_celltemperature_min_dC  =  10*((rx_frame.data.u8[3] << 8) | rx_frame.data.u8[2]);
       pack1_cellvoltage_max_mV      = ((rx_frame.data.u8[5] << 8) | rx_frame.data.u8[4]);
-      pack1_cellvoltage_max_mV      = ((rx_frame.data.u8[7] << 8) | rx_frame.data.u8[6]);
+      pack1_cellvoltage_min_mV      = ((rx_frame.data.u8[7] << 8) | rx_frame.data.u8[6]);
       Serial.println("0x3700b5c message recieved Temp : " + String(pack1_celltemperature_max_dC)  +" - " + String(pack1_celltemperature_min_dC) );
       Serial.println("0x3700b5c message recieved Volt : " + String(pack1_cellvoltage_max_mV)  +" - " + String(pack1_cellvoltage_min_mV) );
     break;
     case 0x3560b5c:
       //Pack1 Status
-      pack1_packvoltage_mV          =  10*((rx_frame.data.u8[1] << 8) | rx_frame.data.u8[0]);
+      pack1_packvoltage_mV          =  ((rx_frame.data.u8[1] << 8) | rx_frame.data.u8[0]);
       pack1_packcurrent_mA          =  100*((rx_frame.data.u8[3] << 8) | rx_frame.data.u8[2]);
       pack1_packtemperature_dC      = ((rx_frame.data.u8[5] << 8) | rx_frame.data.u8[4]);
 
