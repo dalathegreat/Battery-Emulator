@@ -246,20 +246,6 @@ void update_values_battery() {  //This function maps all the values fetched via 
     }
   }
 
-  //Check if BMS is in need of recalibration
-  if (nominal_full_pack_energy > 1 && nominal_full_pack_energy < REASONABLE_ENERGYAMOUNT) {
-#ifdef DEBUG_VIA_USB
-    Serial.println("Warning: kWh remaining " + String(nominal_full_pack_energy) +
-                   " reported by battery not plausible. Battery needs cycling.");
-#endif
-    set_event(EVENT_KWH_PLAUSIBILITY_ERROR, nominal_full_pack_energy);
-  } else if (nominal_full_pack_energy <= 1) {
-#ifdef DEBUG_VIA_USB
-    Serial.println("Info: kWh remaining battery is not reporting kWh remaining.");
-#endif
-    set_event(EVENT_KWH_PLAUSIBILITY_ERROR, nominal_full_pack_energy);
-  }
-
   if (datalayer.battery.info.chemistry == battery_chemistry_enum::LFP) {  //LFP limits used for voltage safeties
     if (cell_max_v >= MAX_CELL_VOLTAGE_LFP) {
       set_event(EVENT_CELL_OVER_VOLTAGE, (cell_max_v - MAX_CELL_VOLTAGE_LFP));
