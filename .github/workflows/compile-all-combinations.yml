@@ -37,13 +37,16 @@ jobs:
         # These are the batteries for which the code will be compiled.
         battery:
           - BMW_I3_BATTERY
+          - BYD_ATTO_3_BATTERY
           - CHADEMO_BATTERY
           - IMIEV_CZERO_ION_BATTERY
           - KIA_HYUNDAI_64_BATTERY
+          - KIA_HYUNDAI_HYBRID_BATTERY
           - NISSAN_LEAF_BATTERY
           - PYLON_BATTERY
           - RENAULT_KANGOO_BATTERY
-          - RENAULT_ZOE_BATTERY
+          - RENAULT_ZOE_GEN1_BATTERY
+          - RENAULT_ZOE_GEN2_BATTERY
           - TESLA_MODEL_3_BATTERY
           - VOLVO_SPA_BATTERY
           - TEST_FAKE_BATTERY
@@ -71,7 +74,7 @@ jobs:
       # We use the `arduino/setup-arduino-cli` action to install and
       # configure the Arduino CLI on the system.
       - name: Setup Arduino CLI
-        uses: arduino/setup-arduino-cli@v1
+        uses: arduino/setup-arduino-cli@v2
 
       # We then install the platform.
       - name: Install platform

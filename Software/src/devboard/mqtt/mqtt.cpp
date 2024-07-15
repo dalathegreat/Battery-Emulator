@@ -9,9 +9,6 @@
 #include "../../lib/knolleary-pubsubclient/PubSubClient.h"
 #include "../utils/timer.h"
 
-const char* mqtt_subscriptions[] = MQTT_SUBSCRIPTIONS;
-const size_t mqtt_nof_subscriptions = sizeof(mqtt_subscriptions) / sizeof(mqtt_subscriptions[0]);
-
 WiFiClient espClient;
 PubSubClient client(espClient);
 char mqtt_msg[MQTT_MSG_BUFFER_SIZE];
@@ -176,20 +173,7 @@ static void publish_common_info(void) {
   }
 }
 
-/* This is called whenever a subscribed topic changes (hopefully) */
-static void callback(char* topic, byte* payload, unsigned int length) {
-#ifdef DEBUG_VIA_USB
-  Serial.print("Message arrived [");
-  Serial.print(topic);
-  Serial.print("] ");
-  for (unsigned int i = 0; i < length; i++) {
-    Serial.print((char)payload[i]);
-  }
-  Serial.println();
-#endif
-}
-
-/* If we lose the connection, get it back and re-sub */
+/* If we lose the connection, get it back */
 static void reconnect() {
 // attempt one reconnection
 #ifdef DEBUG_VIA_USB
@@ -203,14 +187,6 @@ static void reconnect() {
 #ifdef DEBUG_VIA_USB
     Serial.println("connected");
 #endif
-
-    for (int i = 0; i < mqtt_nof_subscriptions; i++) {
-      client.subscribe(mqtt_subscriptions[i]);
-#ifdef DEBUG_VIA_USB
-      Serial.print("Subscribed to: ");
-      Serial.println(mqtt_subscriptions[i]);
-#endif
-    }
   } else {
 #ifdef DEBUG_VIA_USB
     Serial.print("failed, rc=");
@@ -223,7 +199,6 @@ static void reconnect() {
 
 void init_mqtt(void) {
   client.setServer(MQTT_SERVER, MQTT_PORT);
-  client.setCallback(callback);
 #ifdef DEBUG_VIA_USB
   Serial.println("MQTT initialized");
 #endif

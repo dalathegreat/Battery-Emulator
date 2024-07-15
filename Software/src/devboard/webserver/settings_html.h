@@ -2,6 +2,10 @@
 #define SETTINGS_H
 
 #include <Arduino.h>
+#include <string>
+
+extern std::string ssid;
+extern std::string password;
 
 #include "../../../USER_SETTINGS.h"  // Needed for WiFi ssid and password
 

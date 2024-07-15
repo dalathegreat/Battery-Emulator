@@ -22,7 +22,6 @@
 #include "src/lib/eModbus-eModbus/scripts/mbServerFCs.h"
 #include "src/lib/miwagner-ESP32-Arduino-CAN/CAN_config.h"
 #include "src/lib/miwagner-ESP32-Arduino-CAN/ESP32CAN.h"
-#include "src/lib/smaresca-SimpleISA/SimpleISA.h"
 
 #include "src/datalayer/datalayer.h"
 
@@ -33,7 +32,7 @@
 
 Preferences settings;  // Store user settings
 // The current software version, shown on webserver
-const char* version_number = "6.1.thula";
+const char* version_number = "6.4.thula_dev";
 
 // Interval settings
 uint16_t intervalUpdateValues = INTERVAL_5_S;  // Interval at which to update inverter values / Modbus registers
@@ -53,6 +52,8 @@ static ACAN2515_Buffer16 gBuffer;
 #ifdef CAN_FD
 #include "src/lib/pierremolinaro-ACAN2517FD/ACAN2517FD.h"
 ACAN2517FD canfd(MCP2517_CS, SPI, MCP2517_INT);
+#else
+typedef char CANFDMessage;
 #endif
 
 // ModbusRTU parameters
@@ -61,10 +62,6 @@ ACAN2517FD canfd(MCP2517_CS, SPI, MCP2517_INT);
 uint16_t mbPV[MB_RTU_NUM_VALUES];  // Process variable memory
 // Create a ModbusRTU server instance listening on Serial2 with 2000ms timeout
 ModbusServerRTU MBserver(Serial2, 2000);
-#endif
-
-#ifdef ISA_SHUNT
-ISA sensor;
 #endif
 
 // Common charger parameters
@@ -86,8 +83,8 @@ float charger_stat_LVvol = 0;
 int64_t core_task_time_us;
 MyTimer core_task_timer_10s(INTERVAL_10_S);
 
-int64_t mqtt_task_time_us;
-MyTimer mqtt_task_timer_10s(INTERVAL_10_S);
+int64_t connectivity_task_time_us;
+MyTimer connectivity_task_timer_10s(INTERVAL_10_S);
 
 MyTimer loop_task_timer_10s(INTERVAL_10_S);
 
@@ -116,7 +113,7 @@ unsigned long timeSpentInFaultedMode = 0;
 #endif
 
 TaskHandle_t main_loop_task;
-TaskHandle_t mqtt_loop_task;
+TaskHandle_t connectivity_loop_task;
 
 // Initialization
 void setup() {
@@ -125,12 +122,8 @@ void setup() {
   init_stored_settings();
 
 #ifdef WEBSERVER
-  init_webserver();
-  init_mDNS();
-#ifdef MQTT
-  xTaskCreatePinnedToCore((TaskFunction_t)&mqtt_loop, "mqtt_loop", 4096, &mqtt_task_time_us, TASK_CONNECTIVITY_PRIO,
-                          &mqtt_loop_task, WIFI_CORE);
-#endif
+  xTaskCreatePinnedToCore((TaskFunction_t)&connectivity_loop, "connectivity_loop", 4096, &connectivity_task_time_us,
+                          TASK_CONNECTIVITY_PRIO, &connectivity_loop_task, WIFI_CORE);
 #endif
 
   init_events();
@@ -170,19 +163,29 @@ void loop() {
 #endif
 }
 
+#ifdef WEBSERVER
+void connectivity_loop(void* task_time_us) {
+  // Init
+  init_webserver();
+  init_mDNS();
 #ifdef MQTT
-void mqtt_loop(void* task_time_us) {
-  // Init MQTT
   init_mqtt();
+#endif
 
   while (true) {
+    START_TIME_MEASUREMENT(wifi);
+    wifi_monitor();
+    END_TIME_MEASUREMENT_MAX(wifi, datalayer.system.status.wifi_task_10s_max_us);
+#ifdef MQTT
     START_TIME_MEASUREMENT(mqtt);
     mqtt_loop();
     END_TIME_MEASUREMENT_MAX(mqtt, datalayer.system.status.mqtt_task_10s_max_us);
+#endif
 
 #ifdef FUNCTION_TIME_MEASUREMENT
-    if (mqtt_task_timer_10s.elapsed()) {
+    if (connectivity_task_timer_10s.elapsed()) {
       datalayer.system.status.mqtt_task_10s_max_us = 0;
+      datalayer.system.status.wifi_task_10s_max_us = 0;
     }
 #endif
     delay(1);
@@ -211,10 +214,9 @@ void core_loop(void* task_time_us) {
 #endif
     END_TIME_MEASUREMENT_MAX(comm, datalayer.system.status.time_comm_us);
 #ifdef WEBSERVER
-    START_TIME_MEASUREMENT(wifi_ota);
-    wifi_monitor();
+    START_TIME_MEASUREMENT(ota);
     ElegantOTA.loop();
-    END_TIME_MEASUREMENT_MAX(wifi_ota, datalayer.system.status.time_wifi_us);
+    END_TIME_MEASUREMENT_MAX(ota, datalayer.system.status.time_ota_us);
 #endif
 
     START_TIME_MEASUREMENT(time_10ms);
@@ -262,13 +264,13 @@ void core_loop(void* task_time_us) {
       datalayer.system.status.time_snap_10ms_us = datalayer.system.status.time_10ms_us;
       datalayer.system.status.time_snap_5s_us = datalayer.system.status.time_5s_us;
       datalayer.system.status.time_snap_cantx_us = datalayer.system.status.time_cantx_us;
-      datalayer.system.status.time_snap_wifi_us = datalayer.system.status.time_wifi_us;
+      datalayer.system.status.time_snap_ota_us = datalayer.system.status.time_ota_us;
     }
 
     datalayer.system.status.core_task_max_us =
         MAX(datalayer.system.status.core_task_10s_max_us, datalayer.system.status.core_task_max_us);
     if (core_task_timer_10s.elapsed()) {
-      datalayer.system.status.time_wifi_us = 0;
+      datalayer.system.status.time_ota_us = 0;
       datalayer.system.status.time_comm_us = 0;
       datalayer.system.status.time_10ms_us = 0;
       datalayer.system.status.time_5s_us = 0;
@@ -317,6 +319,19 @@ void init_stored_settings() {
 #ifndef LOAD_SAVED_SETTINGS_ON_BOOT
   settings.clear();  // If this clear function is executed, no settings will be read from storage
 #endif
+
+  char tempSSIDstring[63];  // Allocate buffer with sufficient size
+  size_t lengthSSID = settings.getString("SSID", tempSSIDstring, sizeof(tempSSIDstring));
+  if (lengthSSID > 0) {  // Successfully read the string from memory. Set it to SSID!
+    ssid = tempSSIDstring;
+  } else {  // Reading from settings failed. Do nothing with SSID. Raise event?
+  }
+  char tempPasswordString[63];  // Allocate buffer with sufficient size
+  size_t lengthPassword = settings.getString("PASSWORD", tempPasswordString, sizeof(tempPasswordString));
+  if (lengthPassword > 7) {  // Successfully read the string from memory. Set it to password!
+    password = tempPasswordString;
+  } else {  // Reading from settings failed. Do nothing with SSID. Raise event?
+  }
 
   static uint32_t temp = 0;
   temp = settings.getUInt("BATTERY_WH_MAX", false);
@@ -522,10 +537,6 @@ void receive_can() {  // This section checks if we have a complete CAN message i
   CAN_frame_t rx_frame;
   if (xQueueReceive(CAN_cfg.rx_queue, &rx_frame, 0) == pdTRUE) {
 
-    //ISA Shunt
-#ifdef ISA_SHUNT
-    sensor.handleFrame(&rx_frame);
-#endif
     // Battery
 #ifndef SERIAL_LINK_RECEIVER  // Only needs to see inverter
     receive_can_battery(rx_frame);
@@ -742,6 +753,8 @@ void init_serialDataLink() {
 
 void storeSettings() {
   settings.begin("batterySettings", false);
+  settings.putString("SSID", String(ssid.c_str()));
+  settings.putString("PASSWORD", String(password.c_str()));
   settings.putUInt("BATTERY_WH_MAX", datalayer.battery.info.total_capacity_Wh);
   settings.putUInt("MAXPERCENTAGE",
                    datalayer.battery.settings.max_percentage / 10);  // Divide by 10 for backwards compatibility
@@ -750,7 +763,6 @@ void storeSettings() {
   settings.putUInt("MAXCHARGEAMP", datalayer.battery.info.max_charge_amp_dA);
   settings.putUInt("MAXDISCHARGEAMP", datalayer.battery.info.max_discharge_amp_dA);
   settings.putBool("USE_SCALED_SOC", datalayer.battery.settings.soc_scaling_active);
-
   settings.end();
 }
 

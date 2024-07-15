@@ -13,6 +13,18 @@ String settings_processor(const String& var) {
     // Start a new block with a specific background color
     content += "<div style='background-color: #303E47; padding: 10px; margin-bottom: 10px;border-radius: 50px'>";
 
+    content += "<h4 style='color: white;'>SSID: <span id='SSID'>" + String(ssid.c_str()) +
+               " </span> <button onclick='editSSID()'>Edit</button></h4>";
+    content +=
+        "<h4 style='color: white;'>Password: ######## <span id='Password'></span> <button "
+        "onclick='editPassword()'>Edit</button></h4>";
+
+    // Close the block
+    content += "</div>";
+
+    // Start a new block with a specific background color
+    content += "<div style='background-color: #2D3F2F; padding: 10px; margin-bottom: 10px;border-radius: 50px'>";
+
     // Show current settings with edit buttons and input fields
     content += "<h4 style='color: white;'>Battery capacity: <span id='BATTERY_WH_MAX'>" +
                String(datalayer.battery.info.total_capacity_Wh) +
@@ -78,208 +90,99 @@ String settings_processor(const String& var) {
     content += "</div>";
 #endif
 
-    content += "<script>";
-    content += "function editComplete() {";
-    content += "  if (this.status == 200) {";
-    content += "    window.location.reload();";
-    content += "  }";
-    content += "}";
-    content += "function editError() {";
-    content += "    alert('Invalid input');";
-    content += "}";
-    content += "function editWh() {";
-    content += "var value = prompt('How much energy the battery can store. Enter new Wh value (1-120000):');";
-    content += "if (value !== null) {";
-    content += "  if (value >= 1 && value <= 120000) {";
-    content += "    var xhr = new XMLHttpRequest();";
-    content += "    xhr.onload = editComplete;";
-    content += "    xhr.onerror = editError;";
-    content += "    xhr.open('GET', '/updateBatterySize?value=' + value, true);";
-    content += "    xhr.send();";
-    content += "  } else {";
-    content += "    alert('Invalid value. Please enter a value between 1 and 120000.');";
-    content += "  }";
-    content += "}";
-    content += "}";
-    content += "function editUseScaledSOC() {";
-    content += "var value = prompt('Should SOC% be scaled? (0 = No, 1 = Yes):');";
-    content += "if (value !== null) {";
-    content += "  if (value == 0 || value == 1) {";
-    content += "    var xhr = new XMLHttpRequest();";
-    content += "    xhr.onload = editComplete;";
-    content += "    xhr.onerror = editError;";
-    content += "    xhr.open('GET', '/updateUseScaledSOC?value=' + value, true);";
-    content += "    xhr.send();";
-    content += "  } else {";
-    content += "    alert('Invalid value. Please enter a value between 0 and 1.');";
-    content += "  }";
-    content += "}";
-    content += "}";
-    content += "function editSocMax() {";
+    content += "<script>";  // Note, this section is minified to improve performance
+    content += "function editComplete(){if(this.status==200){window.location.reload();}}";
+    content += "function editError(){alert('Invalid input');}";
     content +=
-        "var value = prompt('Inverter will see fully charged (100pct)SOC when this value is reached. Enter new maximum "
-        "SOC value that battery will charge to (50.0-100.0):');";
-    content += "if (value !== null) {";
-    content += "  if (value >= 50 && value <= 100) {";
-    content += "    var xhr = new XMLHttpRequest();";
-    content += "    xhr.onload = editComplete;";
-    content += "    xhr.onerror = editError;";
-    content += "    xhr.open('GET', '/updateSocMax?value=' + value, true);";
-    content += "    xhr.send();";
-    content += "  } else {";
-    content += "    alert('Invalid value. Please enter a value between 50.0 and 100.0');";
-    content += "  }";
-    content += "}";
-    content += "}";
-    content += "function editSocMin() {";
+        "function editSSID(){var value=prompt('Enter new SSID:');if(value!==null){var xhr=new "
+        "XMLHttpRequest();xhr.onload=editComplete;xhr.onerror=editError;xhr.open('GET','/"
+        "updateSSID?value='+encodeURIComponent(value),true);xhr.send();}}";
     content +=
-        "var value = prompt('Inverter will see completely discharged (0pct)SOC when this value is reached. Enter new "
-        "minimum SOC value that battery will discharge to (0-50.0):');";
-    content += "if (value !== null) {";
-    content += "  if (value >= 0 && value <= 50) {";
-    content += "    var xhr = new XMLHttpRequest();";
-    content += "    xhr.onload = editComplete;";
-    content += "    xhr.onerror = editError;";
-    content += "    xhr.open('GET', '/updateSocMin?value=' + value, true);";
-    content += "    xhr.send();";
-    content += "  } else {";
-    content += "    alert('Invalid value. Please enter a value between 0 and 50.0');";
-    content += "  }";
-    content += "}";
-    content += "}";
-    content += "function editMaxChargeA() {";
+        "function editPassword(){var value=prompt('Enter new password:');if(value!==null){var xhr=new "
+        "XMLHttpRequest();xhr.onload=editComplete;xhr.onerror=editError;xhr.open('GET','/"
+        "updatePassword?value='+encodeURIComponent(value),true);xhr.send();}}";
     content +=
-        "var value = prompt('BYD CAN specific setting, some inverters needs to be artificially limited. Enter new "
-        "maximum charge current in A (0-1000.0):');";
-    content += "if (value !== null) {";
-    content += "  if (value >= 0 && value <= 1000) {";
-    content += "    var xhr = new XMLHttpRequest();";
-    content += "    xhr.onload = editComplete;";
-    content += "    xhr.onerror = editError;";
-    content += "    xhr.open('GET', '/updateMaxChargeA?value=' + value, true);";
-    content += "    xhr.send();";
-    content += "  } else {";
-    content += "    alert('Invalid value. Please enter a value between 0 and 1000.0');";
-    content += "  }";
-    content += "}";
-    content += "}";
-    content += "function editMaxDischargeA() {";
+        "function editWh(){var value=prompt('How much energy the battery can store. Enter new Wh value "
+        "(1-120000):');if(value!==null){if(value>=1&&value<=120000){var xhr=new "
+        "XMLHttpRequest();xhr.onload=editComplete;xhr.onerror=editError;xhr.open('GET','/"
+        "updateBatterySize?value='+value,true);xhr.send();}else{alert('Invalid value. Please enter a value between 1 "
+        "and 120000.');}}}";
     content +=
-        "var value = prompt('BYD CAN specific setting, some inverters needs to be artificially limited. Enter new "
-        "maximum discharge current in A (0-1000.0):');";
-    content += "if (value !== null) {";
-    content += "  if (value >= 0 && value <= 1000) {";
-    content += "    var xhr = new XMLHttpRequest();";
-    content += "    xhr.onload = editComplete;";
-    content += "    xhr.onerror = editError;";
-    content += "    xhr.open('GET', '/updateMaxDischargeA?value=' + value, true);";
-    content += "    xhr.send();";
-    content += "  } else {";
-    content += "    alert('Invalid value. Please enter a value between 0 and 1000.0');";
-    content += "  }";
-    content += "}";
-    content += "}";
+        "function editUseScaledSOC(){var value=prompt('Should SOC% be scaled? (0 = No, 1 = "
+        "Yes):');if(value!==null){if(value==0||value==1){var xhr=new "
+        "XMLHttpRequest();xhr.onload=editComplete;xhr.onerror=editError;xhr.open('GET','/"
+        "updateUseScaledSOC?value='+value,true);xhr.send();}else{alert('Invalid value. Please enter a value between 0 "
+        "and 1.');}}}";
+    content +=
+        "function editSocMax(){var value=prompt('Inverter will see fully charged (100pct)SOC when this value is "
+        "reached. Enter new maximum SOC value that battery will charge to "
+        "(50.0-100.0):');if(value!==null){if(value>=50&&value<=100){var xhr=new "
+        "XMLHttpRequest();xhr.onload=editComplete;xhr.onerror=editError;xhr.open('GET','/"
+        "updateSocMax?value='+value,true);xhr.send();}else{alert('Invalid value. Please enter a value between 50.0 and "
+        "100.0');}}}";
+    content +=
+        "function editSocMin(){var value=prompt('Inverter will see completely discharged (0pct)SOC when this value is "
+        "reached. Enter new minimum SOC value that battery will discharge to "
+        "(0-50.0):');if(value!==null){if(value>=0&&value<=50){var xhr=new "
+        "XMLHttpRequest();xhr.onload=editComplete;xhr.onerror=editError;xhr.open('GET','/"
+        "updateSocMin?value='+value,true);xhr.send();}else{alert('Invalid value. Please enter a value between 0 and "
+        "50.0');}}}";
+    content +=
+        "function editMaxChargeA(){var value=prompt('Some inverters needs to be artificially limited. Enter new "
+        "maximum charge current in A (0-1000.0):');if(value!==null){if(value>=0&&value<=1000){var xhr=new "
+        "XMLHttpRequest();xhr.onload=editComplete;xhr.onerror=editError;xhr.open('GET','/"
+        "updateMaxChargeA?value='+value,true);xhr.send();}else{alert('Invalid value. Please enter a value between 0 "
+        "and 1000.0');}}}";
+    content +=
+        "function editMaxDischargeA(){var value=prompt('Some inverters needs to be artificially limited. Enter new "
+        "maximum discharge current in A (0-1000.0):');if(value!==null){if(value>=0&&value<=1000){var xhr=new "
+        "XMLHttpRequest();xhr.onload=editComplete;xhr.onerror=editError;xhr.open('GET','/"
+        "updateMaxDischargeA?value='+value,true);xhr.send();}else{alert('Invalid value. Please enter a value between 0 "
+        "and 1000.0');}}}";
+    content += "</script>";
 
 #ifdef TEST_FAKE_BATTERY
-    content += "function editFakeBatteryVoltage() {";
-    content += "  var value = prompt('Enter new fake battery voltage');";
-    content += "if (value !== null) {";
-    content += "  if (value >= 0 && value <= 5000) {";
-    content += "    var xhr = new XMLHttpRequest();";
-    content += "    xhr.onload = editComplete;";
-    content += "    xhr.onerror = editError;";
-    content += "    xhr.open('GET', '/updateFakeBatteryVoltage?value=' + value, true);";
-    content += "    xhr.send();";
-    content += "  } else {";
-    content += "    alert('Invalid value. Please enter a value between 0 and 1000');";
-    content += "  }";
-    content += "}";
-    content += "}";
+    content +=
+        "function editFakeBatteryVoltage(){var value=prompt('Enter new fake battery "
+        "voltage');if(value!==null){if(value>=0&&value<=5000){var xhr=new "
+        "XMLHttpRequest();xhr.onload=editComplete;xhr.onerror=editError;xhr.open('GET','/"
+        "updateFakeBatteryVoltage?value='+value,true);xhr.send();}else{alert('Invalid value. Please enter a value "
+        "between 0 and 1000');}}}";
 #endif
 
 #if defined CHEVYVOLT_CHARGER || defined NISSANLEAF_CHARGER
-    content += "function editChargerHVDCEnabled() {";
-    content += "  var value = prompt('Enable or disable HV DC output. Enter 1 for enabled, 0 for disabled');";
-    content += "  if (value !== null) {";
-    content += "    if (value == 0 || value == 1) {";
-    content += "      var xhr = new XMLHttpRequest();";
-    content += "      xhr.onload = editComplete;";
-    content += "      xhr.onerror = editError;";
-    content += "      xhr.open('GET', '/updateChargerHvEnabled?value=' + value, true);";
-    content += "      xhr.send();";
-    content += "    }";
-    content += "  } else {";
-    content += "    alert('Invalid value. Please enter 1 or 0');";
-    content += "  }";
-    content += "}";
-
-    content += "function editChargerAux12vEnabled() {";
     content +=
-        "var value = prompt('Enable or disable low voltage 12v auxiliary DC output. Enter 1 for enabled, 0 for "
-        "disabled');";
-    content += "if (value !== null) {";
-    content += "  if (value == 0 || value == 1) {";
-    content += "    var xhr = new XMLHttpRequest();";
-    content += "    xhr.onload = editComplete;";
-    content += "    xhr.onerror = editError;";
-    content += "    xhr.open('GET', '/updateChargerAux12vEnabled?value=' + value, true);";
-    content += "    xhr.send();";
-    content += "  } else {";
-    content += "    alert('Invalid value. Please enter 1 or 0');";
-    content += "  }";
-    content += "}";
-    content += "}";
-
-    content += "function editChargerSetpointVDC() {";
+        "function editChargerHVDCEnabled(){var value=prompt('Enable or disable HV DC output. Enter 1 for enabled, 0 "
+        "for disabled');if(value!==null){if(value==0||value==1){var xhr=new "
+        "XMLHttpRequest();xhr.onload=editComplete;xhr.onerror=editError;xhr.open('GET','/"
+        "updateChargerHvEnabled?value='+value,true);xhr.send();}}else{alert('Invalid value. Please enter 1 or 0');}}";
     content +=
-        "var value = prompt('Set charging voltage. Input will be validated against inverter and/or charger "
-        "configuration parameters, but use sensible values like 200 to 420.');";
-    content += "if (value !== null) {";
-    content += "  if (value >= 0 && value <= 1000) {";
-    content += "    var xhr = new XMLHttpRequest();";
-    content += "    xhr.onload = editComplete;";
-    content += "    xhr.onerror = editError;";
-    content += "    xhr.open('GET', '/updateChargeSetpointV?value=' + value, true);";
-    content += "    xhr.send();";
-    content += "  } else {";
-    content += "    alert('Invalid value. Please enter a value between 0 and 1000');";
-    content += "  }";
-    content += "}";
-    content += "}";
-
-    content += "function editChargerSetpointIDC() {";
+        "function editChargerAux12vEnabled(){var value=prompt('Enable or disable low voltage 12v auxiliary DC output. "
+        "Enter 1 for enabled, 0 for disabled');if(value!==null){if(value==0||value==1){var xhr=new "
+        "XMLHttpRequest();xhr.onload=editComplete;xhr.onerror=editError;xhr.open('GET','/"
+        "updateChargerAux12vEnabled?value='+value,true);xhr.send();}else{alert('Invalid value. Please enter 1 or "
+        "0');}}}";
     content +=
-        "var value = prompt('Set charging amperage. Input will be validated against inverter and/or charger "
-        "configuration parameters, but use sensible values like 6 to 48.');";
-    content += "if (value !== null) {";
-    content += "  if (value >= 0 && value <= 1000) {";
-    content += "    var xhr = new XMLHttpRequest();";
-    content += "    xhr.onload = editComplete;";
-    content += "    xhr.onerror = editError;";
-    content += "    xhr.open('GET', '/updateChargeSetpointA?value=' + value, true);";
-    content += "    xhr.send();";
-    content += "  } else {";
-    content += "    alert('Invalid value. Please enter a value between 0 and 100');";
-    content += "  }";
-    content += "}";
-    content += "}";
-
-    content += "function editChargerSetpointEndI() {";
+        "function editChargerSetpointVDC(){var value=prompt('Set charging voltage. Input will be validated against "
+        "inverter and/or charger configuration parameters, but use sensible values like 200 to "
+        "420.');if(value!==null){if(value>=0&&value<=1000){var xhr=new "
+        "XMLHttpRequest();xhr.onload=editComplete;xhr.onerror=editError;xhr.open('GET','/"
+        "updateChargeSetpointV?value='+value,true);xhr.send();}else{alert('Invalid value. Please enter a value between "
+        "0 and 1000');}}}";
     content +=
-        "var value = prompt('Set amperage that terminates charge as being sufficiently complete. Input will be "
-        "validated against inverter and/or charger configuration parameters, but use sensible values like 1-5.');";
-    content += "if (value !== null) {";
-    content += "  if (value >= 0 && value <= 1000) {";
-    content += "    var xhr = new XMLHttpRequest();";
-    content += "    xhr.onload = editComplete;";
-    content += "    xhr.onerror = editError;";
-    content += "    xhr.open('GET', '/updateChargeEndA?value=' + value, true);";
-    content += "    xhr.send();";
-    content += "  } else {";
-    content += "    alert('Invalid value. Please enter a value between 0 and 100');";
-    content += "  }";
-    content += "}";
-    content += "}";
+        "function editChargerSetpointIDC(){var value=prompt('Set charging amperage. Input will be validated against "
+        "inverter and/or charger configuration parameters, but use sensible values like 6 to "
+        "48.');if(value!==null){if(value>=0&&value<=1000){var xhr=new "
+        "XMLHttpRequest();xhr.onload=editComplete;xhr.onerror=editError;xhr.open('GET','/"
+        "updateChargeSetpointA?value='+value,true);xhr.send();}else{alert('Invalid value. Please enter a value between "
+        "0 and 100');}}}";
+    content +=
+        "function editChargerSetpointEndI(){var value=prompt('Set amperage that terminates charge as being "
+        "sufficiently complete. Input will be validated against inverter and/or charger configuration parameters, but "
+        "use sensible values like 1-5.');if(value!==null){if(value>=0&&value<=1000){var xhr=new "
+        "XMLHttpRequest();xhr.onload=editComplete;xhr.onerror=editError;xhr.open('GET','/"
+        "updateChargeEndA?value='+value,true);xhr.send();}else{alert('Invalid value. Please enter a value between 0 "
+        "and 100');}}}";
 #endif
     content += "</script>";
 

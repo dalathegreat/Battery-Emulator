@@ -104,6 +104,13 @@ typedef struct {
 } DATALAYER_BATTERY_TYPE;
 
 typedef struct {
+  /** measured voltage in deciVolts. 4200 = 420.0 V */
+  uint16_t measured_voltage_dV = 0;
+  /** measured amperage in deciAmperes. 300 = 30.0 A */
+  uint16_t measured_amperage_dA = 0;
+} DATALAYER_SHUNT_TYPE;
+
+typedef struct {
   // TODO
 } DATALAYER_SYSTEM_INFO_TYPE;
 
@@ -113,13 +120,15 @@ typedef struct {
   int64_t core_task_max_us = 0;
   /** Core task measurement variable, reset each 10 seconds */
   int64_t core_task_10s_max_us = 0;
-  /** MQTT task measurement variable, reset each 10 seconds */
+  /** MQTT sub-task measurement variable, reset each 10 seconds */
   int64_t mqtt_task_10s_max_us = 0;
+  /** Wifi sub-task measurement variable, reset each 10 seconds */
+  int64_t wifi_task_10s_max_us = 0;
   /** loop() task measurement variable, reset each 10 seconds */
   int64_t loop_task_10s_max_us = 0;
 
-  /** OTA/Wifi handling function measurement variable */
-  int64_t time_wifi_us = 0;
+  /** OTA handling function measurement variable */
+  int64_t time_ota_us = 0;
   /** CAN RX or serial link function measurement variable */
   int64_t time_comm_us = 0;
   /** 10 ms function measurement variable */
@@ -130,9 +139,9 @@ typedef struct {
   int64_t time_cantx_us = 0;
 
   /** Function measurement snapshot variable.
-   * This will show the performance of OTA/Wifi handling when the total time reached a new worst case
+   * This will show the performance of OTA handling when the total time reached a new worst case
    */
-  int64_t time_snap_wifi_us = 0;
+  int64_t time_snap_ota_us = 0;
   /** Function measurement snapshot variable.
    * This will show the performance of CAN RX or serial link when the total time reached a new worst case
    */
@@ -170,6 +179,7 @@ typedef struct {
 class DataLayer {
  public:
   DATALAYER_BATTERY_TYPE battery;
+  DATALAYER_SHUNT_TYPE shunt;
   DATALAYER_SYSTEM_TYPE system;
 };
 

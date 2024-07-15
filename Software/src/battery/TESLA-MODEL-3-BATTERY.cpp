@@ -162,19 +162,8 @@ static const char* hvilStatusState[] = {"NOT OK",
 
 void update_values_battery() {  //This function maps all the values fetched via CAN to the correct parameters used for modbus
   //After values are mapped, we perform some safety checks, and do some serial printouts
-  //Calculate the SOH% to send to inverter
-  if (bat_beginning_of_life != 0) {  //div/0 safeguard
-    datalayer.battery.status.soh_pptt =
-        static_cast<uint16_t>((static_cast<double>(nominal_full_pack_energy) / bat_beginning_of_life) * 10000.0);
-  }
-  //If the calculation went wrong, set SOH to 100%
-  if (datalayer.battery.status.soh_pptt > 10000) {
-    datalayer.battery.status.soh_pptt = 10000;
-  }
-  //If the value is unavailable, set SOH to 99%
-  if (nominal_full_pack_energy < REASONABLE_ENERGYAMOUNT) {
-    datalayer.battery.status.soh_pptt = 9900;
-  }
+
+  datalayer.battery.status.soh_pptt = 9900;  //Tesla batteries do not send a SOH% value on bus. Hardcode to 99%
 
   datalayer.battery.status.real_soc = (soc_vi * 10);  //increase SOC range from 0-100.0 -> 100.00
 
@@ -568,6 +557,8 @@ the first, for a few cycles, then stop all  messages which causes the contactor 
     // Check if sending of CAN messages has been delayed too much.
     if ((currentMillis - previousMillis30 >= INTERVAL_30_MS_DELAYED) && (currentMillis > BOOTUP_TIME)) {
       set_event(EVENT_CAN_OVERRUN, (currentMillis - previousMillis30));
+    } else {
+      clear_event(EVENT_CAN_OVERRUN);
     }
     previousMillis30 = currentMillis;
 
@@ -615,8 +606,8 @@ void printFaultCodesIfActive() {
   }
   if (datalayer.system.status.inverter_allows_contactor_closing == false) {
     Serial.println(
-        "ERROR: Solar inverter does not allow for contactor closing. Check "
-        "datalayer.system.status.inverter_allows_contactor_closing parameter");
+        "ERROR: Solar inverter does not allow for contactor closing. Check communication connection to the inverter OR "
+        "disable the inverter protocol to proceed with contactor closing");
   }
   // Check each symbol and print debug information if its value is 1
   printDebugIfActive(WatchdogReset, "ERROR: The processor has experienced a reset due to watchdog reset");

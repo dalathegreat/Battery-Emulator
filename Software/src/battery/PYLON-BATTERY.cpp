@@ -6,13 +6,6 @@
 #include "../lib/miwagner-ESP32-Arduino-CAN/ESP32CAN.h"
 #include "PYLON-BATTERY.h"
 
-/* TODO:
-- Test the protocol with a battery
-- Check if values are scaled correctly in the Webserver
-- Check if CAN sending towards the battery works OK. Tweak values from log file if needed
-- If all looks good, try adding an inverter into the mix!
-*/
-
 /* Do not change code below unless you are sure what you are doing */
 static unsigned long previousMillis1000 = 0;  // will store last time a 1s CAN Message was sent
 
@@ -82,7 +75,7 @@ void update_values_battery() {
 
   datalayer.battery.status.max_charge_power_W = (max_charge_current * (voltage_dV / 10));
 
-  datalayer.battery.status.max_discharge_power_W = (max_discharge_current * (voltage_dV / 10));
+  datalayer.battery.status.max_discharge_power_W = (-max_discharge_current * (voltage_dV / 10));
 
   datalayer.battery.status.cell_max_voltage_mV = cellvoltage_max_mV;
 
@@ -117,7 +110,7 @@ void receive_can_battery(CAN_frame_t rx_frame) {
     case 0x4210:
     case 0x4211:
       voltage_dV = ((rx_frame.data.u8[1] << 8) | rx_frame.data.u8[0]);
-      current_dA = ((rx_frame.data.u8[3] << 8) | rx_frame.data.u8[2]);
+      current_dA = ((rx_frame.data.u8[3] << 8) | rx_frame.data.u8[2]) - 30000;
       SOC = rx_frame.data.u8[6];
       SOH = rx_frame.data.u8[7];
       break;

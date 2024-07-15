@@ -7,6 +7,10 @@
 #include "BMW-I3-BATTERY.h"
 #endif
 
+#ifdef BYD_ATTO_3_BATTERY
+#include "BYD-ATTO-3-BATTERY.h"
+#endif
+
 #ifdef CHADEMO_BATTERY
 #include "CHADEMO-BATTERY.h"
 #endif
@@ -15,12 +19,20 @@
 #include "IMIEV-CZERO-ION-BATTERY.h"
 #endif
 
+#ifdef JAGUAR_IPACE_BATTERY
+#include "JAGUAR-IPACE-BATTERY.h"
+#endif
+
 #ifdef KIA_E_GMP_BATTERY
 #include "KIA-E-GMP-BATTERY.h"
 #endif
 
 #ifdef KIA_HYUNDAI_64_BATTERY
 #include "KIA-HYUNDAI-64-BATTERY.h"
+#endif
+
+#ifdef KIA_HYUNDAI_HYBRID_BATTERY
+#include "KIA-HYUNDAI-HYBRID-BATTERY.h"
 #endif
 
 #ifdef MG_5_BATTERY
@@ -39,8 +51,12 @@
 #include "RENAULT-KANGOO-BATTERY.h"
 #endif
 
-#ifdef RENAULT_ZOE_BATTERY
-#include "RENAULT-ZOE-BATTERY.h"
+#ifdef RENAULT_ZOE_GEN1_BATTERY
+#include "RENAULT-ZOE-GEN1-BATTERY.h"
+#endif
+
+#ifdef RENAULT_ZOE_GEN2_BATTERY
+#include "RENAULT-ZOE-GEN2-BATTERY.h"
 #endif
 
 #ifdef SANTA_FE_PHEV_BATTERY
