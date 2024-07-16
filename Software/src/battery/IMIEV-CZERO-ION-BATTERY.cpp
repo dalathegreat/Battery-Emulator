@@ -10,6 +10,8 @@
 //Figure out if CAN messages need to be sent to keep the system happy?
 
 /* Do not change code below unless you are sure what you are doing */
+#define MAX_CELL_VOLTAGE 4100
+#define MIN_CELL_VOLTAGE 2750
 static uint8_t errorCode = 0;  //stores if we have an error code active from battery control logic
 static uint8_t BMU_Detected = 0;
 static uint8_t CMU_Detected = 0;
@@ -98,6 +100,14 @@ void update_values_battery() {  //This function maps all the values fetched via 
 
   datalayer.battery.status.temperature_min_dC = (int16_t)(max_temp_cel * 10);
 
+  //Check safeties
+  if (datalayer.battery.status.cell_max_voltage_mV >= MAX_CELL_VOLTAGE) {
+    set_event(EVENT_CELL_OVER_VOLTAGE, datalayer.battery.status.cell_max_voltage_mV);
+  }
+  if (datalayer.battery.status.cell_min_voltage_mV <= MIN_CELL_VOLTAGE) {
+    set_event(EVENT_CELL_UNDER_VOLTAGE, datalayer.battery.status.cell_min_voltage_mV);
+  }
+
   if (!BMU_Detected) {
 #ifdef DEBUG_VIA_USB
     Serial.println("BMU not detected, check wiring!");
@@ -131,7 +141,11 @@ void receive_can_battery(CAN_frame_t rx_frame) {
   switch (rx_frame.MsgID) {
     case 0x374:  //BMU message, 10ms - SOC
       temp_value = ((rx_frame.data.u8[1] - 10) / 2);
-      if (temp_value >= 0 && temp_value <= 101) {
+      if (temp_value < 0) {
+        BMU_SOC = 0;
+      } else if (temp_value > 100) {
+        BMU_SOC = 100;
+      } else {  // Between 0-100
         BMU_SOC = temp_value;
       }
       break;
