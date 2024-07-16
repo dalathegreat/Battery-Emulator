@@ -141,13 +141,19 @@ void receive_can_battery(CAN_frame_t rx_frame) {
   switch (rx_frame.MsgID) {
     case 0x374:  //BMU message, 10ms - SOC
       temp_value = ((rx_frame.data.u8[1] - 10) / 2);
-      if (temp_value < 0) {
-        BMU_SOC = 0;
-      } else if (temp_value > 100) {
-        BMU_SOC = 100;
-      } else {  // Between 0-100
-        BMU_SOC = temp_value;
+
+      if (temp_value == 205) {
+        // Use the value we sampled last time
+      } else {  // We have a valid value
+        if (temp_value < 0) {
+          BMU_SOC = 0;
+        } else if (temp_value > 100) {
+          BMU_SOC = 100;
+        } else {  // Between 0-100
+          BMU_SOC = temp_value;
+        }
       }
+
       break;
     case 0x373:  //BMU message, 100ms - Pack Voltage and current
       BMU_Current = ((((((rx_frame.data.u8[2] * 256.0) + rx_frame.data.u8[3])) - 32768)) * 0.01);
