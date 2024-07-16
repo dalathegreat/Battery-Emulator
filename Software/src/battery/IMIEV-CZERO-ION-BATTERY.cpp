@@ -177,8 +177,13 @@ void receive_can_battery(CAN_frame_t rx_frame) {
         voltage_index -= 4;
         temp_index -= 3;
       }
-      cell_voltages[voltage_index] = voltage1;
-      cell_voltages[voltage_index + 1] = voltage2;
+
+      if (voltage1 > 2.2) {  // Only update cellvoltages incase we have a value
+        cell_voltages[voltage_index] = voltage1;
+      }
+      if (voltage2 > 2.2) {
+        cell_voltages[voltage_index + 1] = voltage2;
+      }
 
       if (pid_index == 0) {
         cell_temperatures[temp_index] = temp2;
