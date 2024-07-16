@@ -164,9 +164,15 @@ void receive_can_battery(CAN_frame_t rx_frame) {
       //cmu index 1-12: ignore high order nibble which appears to sometimes contain other status bits
       cmu_id = (rx_frame.data.u8[0] & 0x0f);
       //
-      temp1 = rx_frame.data.u8[1] - 50.0;
-      temp2 = rx_frame.data.u8[2] - 50.0;
-      temp3 = rx_frame.data.u8[3] - 50.0;
+      if (rx_frame.data.u8[1] != 0) {  // Only update temperatures if value is available
+        temp1 = rx_frame.data.u8[1] - 50.0;
+      }
+      if (rx_frame.data.u8[2] != 0) {
+        temp2 = rx_frame.data.u8[1] - 50.0;
+      }
+      if (rx_frame.data.u8[3] != 0) {
+        temp3 = rx_frame.data.u8[1] - 50.0;
+      }
 
       voltage1 = (((rx_frame.data.u8[4] * 256.0 + rx_frame.data.u8[5]) * 0.005) + 2.1);
       voltage2 = (((rx_frame.data.u8[6] * 256.0 + rx_frame.data.u8[7]) * 0.005) + 2.1);
