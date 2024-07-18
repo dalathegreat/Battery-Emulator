@@ -559,8 +559,8 @@ void receive_can_battery(CAN_frame_t rx_frame) {
       battery_status_cold_shutoff_valve = (rx_frame.data.u8[3] & 0x0F);
       battery_temperature_HV = (rx_frame.data.u8[4] - 50);
       battery_temperature_heat_exchanger = (rx_frame.data.u8[5] - 50);
-      battery_temperature_max = (rx_frame.data.u8[6] - 50);
-      battery_temperature_min = (rx_frame.data.u8[7] - 50);
+      battery_temperature_min = (rx_frame.data.u8[6] - 50);
+      battery_temperature_max = (rx_frame.data.u8[7] - 50);
       break;
     case 0x239:                                                                                      //BMS [200ms]
       battery_predicted_energy_charge_condition = (rx_frame.data.u8[2] << 8 | rx_frame.data.u8[1]);  //Wh
