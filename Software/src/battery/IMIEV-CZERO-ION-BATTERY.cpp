@@ -136,10 +136,9 @@ void update_values_battery() {  //This function maps all the values fetched via 
 }
 
 void receive_can_battery(CAN_frame_t rx_frame) {
-  datalayer.battery.status.CAN_battery_still_alive =
-      CAN_STILL_ALIVE;  //TODO: move this inside a known message ID to prevent CAN inverter from keeping battery alive detection going
   switch (rx_frame.MsgID) {
     case 0x374:  //BMU message, 10ms - SOC
+      datalayer.battery.status.CAN_battery_still_alive = CAN_STILL_ALIVE;
       temp_value = ((rx_frame.data.u8[1] - 10) / 2);
 
       if (temp_value == 205) {
@@ -156,6 +155,7 @@ void receive_can_battery(CAN_frame_t rx_frame) {
 
       break;
     case 0x373:  //BMU message, 100ms - Pack Voltage and current
+      datalayer.battery.status.CAN_battery_still_alive = CAN_STILL_ALIVE;
       BMU_Current = ((((((rx_frame.data.u8[2] * 256.0) + rx_frame.data.u8[3])) - 32768)) * 0.01);
       BMU_PackVoltage = ((rx_frame.data.u8[4] * 256.0 + rx_frame.data.u8[5]) * 0.1);
       BMU_Power = (BMU_Current * BMU_PackVoltage);
@@ -164,6 +164,7 @@ void receive_can_battery(CAN_frame_t rx_frame) {
     case 0x6e2:
     case 0x6e3:
     case 0x6e4:
+      datalayer.battery.status.CAN_battery_still_alive = CAN_STILL_ALIVE;
       BMU_Detected = 1;
       //Pid index 0-3
       pid_index = (rx_frame.MsgID) - 1761;
@@ -233,9 +234,8 @@ void setup_battery(void) {  // Performs one time setup at startup
   Serial.println("Mitsubishi i-MiEV / Citroen C-Zero / Peugeot Ion battery selected");
 #endif
 
-  datalayer.battery.info.max_design_voltage_dV =
-      3600;  // 360.0V, over this, charging is not possible (goes into forced discharge)
-  datalayer.battery.info.min_design_voltage_dV = 3160;  // 316.0V under this, discharging further is disabled
+  datalayer.battery.info.max_design_voltage_dV = 3600;  // 360.0V
+  datalayer.battery.info.min_design_voltage_dV = 3160;  // 316.0V
 }
 
 #endif
