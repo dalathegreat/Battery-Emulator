@@ -123,7 +123,7 @@ void init_webserver() {
   server.on("/updateSocMax", HTTP_GET, [](AsyncWebServerRequest* request) {
     if (request->hasParam("value")) {
       String value = request->getParam("value")->value();
-      datalayer.battery.settings.max_percentage = value.toFloat() * 100;
+      datalayer.battery.settings.max_percentage = static_cast<uint16_t>(value.toFloat() * 100);
       storeSettings();
       request->send(200, "text/plain", "Updated successfully");
     } else {
@@ -135,7 +135,7 @@ void init_webserver() {
   server.on("/updateSocMin", HTTP_GET, [](AsyncWebServerRequest* request) {
     if (request->hasParam("value")) {
       String value = request->getParam("value")->value();
-      datalayer.battery.settings.min_percentage = value.toFloat() * 100;
+      datalayer.battery.settings.min_percentage = static_cast<uint16_t>(value.toFloat() * 100);
       storeSettings();
       request->send(200, "text/plain", "Updated successfully");
     } else {
@@ -147,7 +147,7 @@ void init_webserver() {
   server.on("/updateMaxChargeA", HTTP_GET, [](AsyncWebServerRequest* request) {
     if (request->hasParam("value")) {
       String value = request->getParam("value")->value();
-      datalayer.battery.info.max_charge_amp_dA = value.toFloat() * 10;
+      datalayer.battery.info.max_charge_amp_dA = static_cast<uint16_t>(value.toFloat() * 10);
       storeSettings();
       request->send(200, "text/plain", "Updated successfully");
     } else {
@@ -159,7 +159,7 @@ void init_webserver() {
   server.on("/updateMaxDischargeA", HTTP_GET, [](AsyncWebServerRequest* request) {
     if (request->hasParam("value")) {
       String value = request->getParam("value")->value();
-      datalayer.battery.info.max_discharge_amp_dA = value.toFloat() * 10;
+      datalayer.battery.info.max_discharge_amp_dA = static_cast<uint16_t>(value.toFloat() * 10);
       storeSettings();
       request->send(200, "text/plain", "Updated successfully");
     } else {
