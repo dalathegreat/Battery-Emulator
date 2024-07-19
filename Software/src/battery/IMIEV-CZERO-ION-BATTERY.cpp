@@ -98,7 +98,7 @@ void update_values_battery() {  //This function maps all the values fetched via 
 
   datalayer.battery.status.temperature_min_dC = (int16_t)(min_temp_cel * 10);
 
-  datalayer.battery.status.temperature_min_dC = (int16_t)(max_temp_cel * 10);
+  datalayer.battery.status.temperature_max_dC = (int16_t)(max_temp_cel * 10);
 
   //Check safeties
   if (datalayer.battery.status.cell_max_voltage_mV >= MAX_CELL_VOLTAGE) {
@@ -234,7 +234,7 @@ void setup_battery(void) {  // Performs one time setup at startup
   Serial.println("Mitsubishi i-MiEV / Citroen C-Zero / Peugeot Ion battery selected");
 #endif
 
-  datalayer.battery.info.max_design_voltage_dV = 3600;  // 360.0V
+  datalayer.battery.info.max_design_voltage_dV = 3696;  // 369.6V
   datalayer.battery.info.min_design_voltage_dV = 3160;  // 316.0V
 }
 
