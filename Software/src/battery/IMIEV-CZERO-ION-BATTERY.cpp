@@ -10,6 +10,8 @@
 //Figure out if CAN messages need to be sent to keep the system happy?
 
 /* Do not change code below unless you are sure what you are doing */
+#define MAX_CELL_VOLTAGE 4100
+#define MIN_CELL_VOLTAGE 2750
 static uint8_t errorCode = 0;  //stores if we have an error code active from battery control logic
 static uint8_t BMU_Detected = 0;
 static uint8_t CMU_Detected = 0;
@@ -96,7 +98,15 @@ void update_values_battery() {  //This function maps all the values fetched via 
 
   datalayer.battery.status.temperature_min_dC = (int16_t)(min_temp_cel * 10);
 
-  datalayer.battery.status.temperature_min_dC = (int16_t)(max_temp_cel * 10);
+  datalayer.battery.status.temperature_max_dC = (int16_t)(max_temp_cel * 10);
+
+  //Check safeties
+  if (datalayer.battery.status.cell_max_voltage_mV >= MAX_CELL_VOLTAGE) {
+    set_event(EVENT_CELL_OVER_VOLTAGE, datalayer.battery.status.cell_max_voltage_mV);
+  }
+  if (datalayer.battery.status.cell_min_voltage_mV <= MIN_CELL_VOLTAGE) {
+    set_event(EVENT_CELL_UNDER_VOLTAGE, datalayer.battery.status.cell_min_voltage_mV);
+  }
 
   if (!BMU_Detected) {
 #ifdef DEBUG_VIA_USB
@@ -126,16 +136,26 @@ void update_values_battery() {  //This function maps all the values fetched via 
 }
 
 void receive_can_battery(CAN_frame_t rx_frame) {
-  datalayer.battery.status.CAN_battery_still_alive =
-      CAN_STILL_ALIVE;  //TODO: move this inside a known message ID to prevent CAN inverter from keeping battery alive detection going
   switch (rx_frame.MsgID) {
     case 0x374:  //BMU message, 10ms - SOC
+      datalayer.battery.status.CAN_battery_still_alive = CAN_STILL_ALIVE;
       temp_value = ((rx_frame.data.u8[1] - 10) / 2);
-      if (temp_value >= 0 && temp_value <= 101) {
-        BMU_SOC = temp_value;
+
+      if (temp_value == 205) {
+        // Use the value we sampled last time
+      } else {  // We have a valid value
+        if (temp_value < 0) {
+          BMU_SOC = 0;
+        } else if (temp_value > 100) {
+          BMU_SOC = 100;
+        } else {  // Between 0-100
+          BMU_SOC = temp_value;
+        }
       }
+
       break;
     case 0x373:  //BMU message, 100ms - Pack Voltage and current
+      datalayer.battery.status.CAN_battery_still_alive = CAN_STILL_ALIVE;
       BMU_Current = ((((((rx_frame.data.u8[2] * 256.0) + rx_frame.data.u8[3])) - 32768)) * 0.01);
       BMU_PackVoltage = ((rx_frame.data.u8[4] * 256.0 + rx_frame.data.u8[5]) * 0.1);
       BMU_Power = (BMU_Current * BMU_PackVoltage);
@@ -144,15 +164,22 @@ void receive_can_battery(CAN_frame_t rx_frame) {
     case 0x6e2:
     case 0x6e3:
     case 0x6e4:
+      datalayer.battery.status.CAN_battery_still_alive = CAN_STILL_ALIVE;
       BMU_Detected = 1;
       //Pid index 0-3
       pid_index = (rx_frame.MsgID) - 1761;
       //cmu index 1-12: ignore high order nibble which appears to sometimes contain other status bits
       cmu_id = (rx_frame.data.u8[0] & 0x0f);
       //
-      temp1 = rx_frame.data.u8[1] - 50.0;
-      temp2 = rx_frame.data.u8[2] - 50.0;
-      temp3 = rx_frame.data.u8[3] - 50.0;
+      if (rx_frame.data.u8[1] != 0) {  // Only update temperatures if value is available
+        temp1 = rx_frame.data.u8[1] - 50.0;
+      }
+      if (rx_frame.data.u8[2] != 0) {
+        temp2 = rx_frame.data.u8[1] - 50.0;
+      }
+      if (rx_frame.data.u8[3] != 0) {
+        temp3 = rx_frame.data.u8[1] - 50.0;
+      }
 
       voltage1 = (((rx_frame.data.u8[4] * 256.0 + rx_frame.data.u8[5]) * 0.005) + 2.1);
       voltage2 = (((rx_frame.data.u8[6] * 256.0 + rx_frame.data.u8[7]) * 0.005) + 2.1);
@@ -163,8 +190,13 @@ void receive_can_battery(CAN_frame_t rx_frame) {
         voltage_index -= 4;
         temp_index -= 3;
       }
-      cell_voltages[voltage_index] = voltage1;
-      cell_voltages[voltage_index + 1] = voltage2;
+
+      if (voltage1 > 2.2) {  // Only update cellvoltages incase we have a value
+        cell_voltages[voltage_index] = voltage1;
+      }
+      if (voltage2 > 2.2) {
+        cell_voltages[voltage_index + 1] = voltage2;
+      }
 
       if (pid_index == 0) {
         cell_temperatures[temp_index] = temp2;
@@ -202,9 +234,8 @@ void setup_battery(void) {  // Performs one time setup at startup
   Serial.println("Mitsubishi i-MiEV / Citroen C-Zero / Peugeot Ion battery selected");
 #endif
 
-  datalayer.battery.info.max_design_voltage_dV =
-      3600;  // 360.0V, over this, charging is not possible (goes into forced discharge)
-  datalayer.battery.info.min_design_voltage_dV = 3160;  // 316.0V under this, discharging further is disabled
+  datalayer.battery.info.max_design_voltage_dV = 3696;  // 369.6V
+  datalayer.battery.info.min_design_voltage_dV = 3160;  // 316.0V
 }
 
 #endif
