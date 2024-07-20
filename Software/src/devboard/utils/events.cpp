@@ -155,6 +155,7 @@ void init_events(void) {
   events.entries[EVENT_BATTERY_OVERVOLTAGE].level = EVENT_LEVEL_WARNING;
   events.entries[EVENT_BATTERY_UNDERVOLTAGE].level = EVENT_LEVEL_WARNING;
   events.entries[EVENT_BATTERY_ISOLATION].level = EVENT_LEVEL_WARNING;
+  events.entries[EVENT_BATTERY_LOCKED].level = EVENT_LEVEL_INFO;
   events.entries[EVENT_LOW_SOH].level = EVENT_LEVEL_ERROR;
   events.entries[EVENT_HVIL_FAILURE].level = EVENT_LEVEL_ERROR;
   events.entries[EVENT_PRECHARGE_FAILURE].level = EVENT_LEVEL_INFO;
@@ -270,6 +271,8 @@ const char* get_event_message_string(EVENTS_ENUM_TYPE event) {
       return "Warning: Battery under minimum design voltage. Charge battery to prevent damage!";
     case EVENT_BATTERY_ISOLATION:
       return "Warning: Battery reports isolation error. High voltage might be leaking to ground. Check battery!";
+    case EVENT_BATTERY_LOCKED:
+      return "Info: Battery BMS is locked or SRS crash active. All features might not be available.";
     case EVENT_LOW_SOH:
       return "ERROR: State of health critically low. Battery internal resistance too high to continue. Recycle "
              "battery.";

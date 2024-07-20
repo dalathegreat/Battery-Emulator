@@ -15,6 +15,7 @@
 /* Do not change code below unless you are sure what you are doing */
 static unsigned long previousMillis50 = 0;   // will store last time a 50ms CAN Message was send
 static unsigned long previousMillis100 = 0;  // will store last time a 100ms CAN Message was send
+static unsigned long previousMillis60seconds = 0;
 static uint8_t counter_50ms = 0;
 static uint8_t counter_100ms = 0;
 static uint8_t frame6_counter = 0xB;
@@ -27,7 +28,8 @@ static int16_t highest_temperature = 0;
 static int16_t calc_min_temperature = 0;
 static int16_t calc_max_temperature = 0;
 
-static uint16_t BMS_SOC = 0;
+static uint16_t BMS_SOC_polled = 0;
+static uint16_t BMS_SOC_periodic = 0;
 static uint16_t BMS_voltage = 0;
 static int16_t BMS_current = 0;
 static int16_t BMS_lowest_cell_temperature = 0;
@@ -35,6 +37,12 @@ static int16_t BMS_highest_cell_temperature = 0;
 static int16_t BMS_average_cell_temperature = 0;
 static uint16_t BMS_lowest_cell_voltage_mV = 3300;
 static uint16_t BMS_highest_cell_voltage_mV = 3300;
+
+static uint16_t lastvalue_SOC = 0;
+static uint8_t counter_SOC_stuck = 0;
+static uint8_t counter_SOC_moves = 0;
+enum State { UNDETERMINED, LOCKED, UNLOCKED };
+static State BMS_state = UNDETERMINED;
 
 #define POLL_FOR_BATTERY_SOC 0x05
 #define POLL_FOR_BATTERY_VOLTAGE 0x08
@@ -97,10 +105,11 @@ void update_values_battery() {  //This function maps all the values fetched via 
 
   datalayer.battery.status.voltage_dV = BMS_voltage * 10;
 
-  //datalayer.battery.status.real_soc = BMS_SOC * 100;  //TODO: This is not yet found!
-  // We instead estimate the SOC% based on the battery voltage
-  // This is a very bad solution, and as soon as an usable SOC% value has been found on CAN, we should switch to that!
-  datalayer.battery.status.real_soc = estimateSOC(datalayer.battery.status.voltage_dV);
+  if (BMS_state == UNLOCKED) {  // This value can be frozen if battery is crashed
+    datalayer.battery.status.real_soc = BMS_SOC_polled * 10;
+  } else {  // Incase we have a locked BMS, estimate SOC based on voltage
+    datalayer.battery.status.real_soc = estimateSOC(datalayer.battery.status.voltage_dV);
+  }
 
   datalayer.battery.status.current_dA = -BMS_current;
 
@@ -134,6 +143,36 @@ void update_values_battery() {  //This function maps all the values fetched via 
 
   datalayer.battery.status.temperature_min_dC = calc_min_temperature * 10;  // Add decimals
   datalayer.battery.status.temperature_max_dC = calc_max_temperature * 10;
+
+  /* Check extra safeties */
+
+  // We can inspect the periodically transmitted SOC% value from CAN message 0x447. If the value never moves,
+  // the battery is coming from a hard crashed vehicle, and will be locked. Inform the user!
+
+  // Check if SOC% has moved at all last minute. If SOC has not moved even one per mille for an hour, we can raise an event.
+
+  if ((BMS_SOC_periodic > 0) &&
+      BMS_state == UNDETERMINED) {  // Only proceed if we have a value from CAN and we are not sure if crashed or not
+    if (millis() - previousMillis60seconds >= INTERVAL_60_S) {
+      previousMillis60seconds = millis();
+
+      // Store 60 samples (1 hour). If all have the same value, we can consider the battery locked
+      if (BMS_SOC_periodic == lastvalue_SOC) {
+        counter_SOC_stuck++;
+        if (counter_SOC_stuck > 60) {
+          set_event(EVENT_BATTERY_LOCKED, 0);
+          BMS_state = LOCKED;
+        }
+      } else {
+        counter_SOC_stuck = 0;         // reset the counter
+        counter_SOC_moves++;           // Increment counter, we have movement on SOC%!
+        if (counter_SOC_moves > 10) {  // SOC seems to have moved 3 times, we can switch to using it!
+          BMS_state = UNLOCKED;
+        }
+      }
+      lastvalue_SOC = BMS_SOC_periodic;
+    }
+  }
 
 #ifdef DEBUG_VIA_USB
 
@@ -212,7 +251,7 @@ void receive_can_battery(CAN_frame_t rx_frame) {
       break;
     case 0x43D:  //Varies a lot
       break;
-    case 0x444:  //9E,01,88,13,64,64,98,65
+    case 0x444:  //9E,01,88,13,64,64,98,65 //SOC is located in 0x444 and in 0x447
                  //9A,01,B6,13,64,64,98,3B //407.5V 18deg
                  //9B,01,B8,13,64,64,98,38 //408.5V 14deg
       break;
@@ -220,9 +259,11 @@ void receive_can_battery(CAN_frame_t rx_frame) {
       break;
     case 0x446:  //2C,D4,0C,4D,21,DC,0C,9D - 0,1,7th frame varies a lot
       break;
-    case 0x447:                                          // Seems to contain more temperatures, highest and lowest?
-                                                         //06,38,01,3B,E0,03,39,69
-                                                         //06,36,02,36,E0,03,36,72,
+    case 0x447:  // Seems to contain more temperatures, highest and lowest?
+                 //06,38,01,3B,E0,03,39,69
+                 //06,36,02,36,E0,03,36,72
+      BMS_SOC_periodic = (rx_frame.data.u8[4] << 8) | rx_frame.data.u8[5];
+
       lowest_temperature = (rx_frame.data.u8[1] - 40);   //Best guess for now
       highest_temperature = (rx_frame.data.u8[3] - 40);  //Best guess for now
       break;
@@ -268,7 +309,7 @@ void receive_can_battery(CAN_frame_t rx_frame) {
     case 0x7EF:  //OBD2 PID reply from battery
       switch (rx_frame.data.u8[3]) {
         case POLL_FOR_BATTERY_SOC:
-          BMS_SOC = rx_frame.data.u8[4];
+          BMS_SOC_polled = rx_frame.data.u8[4];
           break;
         case POLL_FOR_BATTERY_VOLTAGE:
           BMS_voltage = (rx_frame.data.u8[5] << 8) | rx_frame.data.u8[4];
