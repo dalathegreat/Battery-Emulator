@@ -106,7 +106,7 @@ void update_values_battery() {  //This function maps all the values fetched via 
   datalayer.battery.status.voltage_dV = BMS_voltage * 10;
 
   if (BMS_state == UNLOCKED) {  // This value can be frozen if battery is crashed
-    datalayer.battery.status.real_soc = BMS_SOC_polled * 10;
+    datalayer.battery.status.real_soc = BMS_SOC_periodic * 10;
   } else {  // Incase we have a locked BMS, estimate SOC based on voltage
     datalayer.battery.status.real_soc = estimateSOC(datalayer.battery.status.voltage_dV);
   }
@@ -164,9 +164,9 @@ void update_values_battery() {  //This function maps all the values fetched via 
           BMS_state = LOCKED;
         }
       } else {
-        counter_SOC_stuck = 0;         // reset the counter
-        counter_SOC_moves++;           // Increment counter, we have movement on SOC%!
-        if (counter_SOC_moves > 10) {  // SOC seems to have moved 3 times, we can switch to using it!
+        counter_SOC_stuck = 0;        // reset the counter
+        counter_SOC_moves++;          // Increment counter, we have movement on SOC%!
+        if (counter_SOC_moves > 3) {  // SOC seems to have moved 3 times, we can switch to using it!
           BMS_state = UNLOCKED;
         }
       }
