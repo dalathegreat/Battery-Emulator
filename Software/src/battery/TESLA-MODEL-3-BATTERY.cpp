@@ -357,12 +357,6 @@ void update_values_battery() {  //This function maps all the values fetched via 
     }
   }
 
-  //Check if BMS is in need of recalibration
-  if (battery_nominal_full_pack_energy > 1 && battery_nominal_full_pack_energy < REASONABLE_ENERGYAMOUNT) {
-    set_event(EVENT_KWH_PLAUSIBILITY_ERROR, battery_nominal_full_pack_energy);
-  } else if (battery_nominal_full_pack_energy <= 1) {
-    set_event(EVENT_KWH_PLAUSIBILITY_ERROR, battery_nominal_full_pack_energy);
-  }
 
   if (datalayer.battery.info.chemistry == battery_chemistry_enum::LFP) {  //LFP limits used for voltage safeties
     if (battery_cell_max_v >= MAX_CELL_VOLTAGE_LFP) {

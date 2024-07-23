@@ -7,10 +7,6 @@
 #include "BYD-ATTO-3-BATTERY.h"
 
 /* TODO: 
-- Get contactor closing working
-  - NOTE: Some packs can be locked hard? after a crash has occured. Bypassing contactors manually might be required?
-- Figure out which CAN messages need to be sent towards the battery to keep it alive
-  -Maybe already enough with 0x12D and 0x411? Plus the PID polls might keep it alive.
 - Map all values from battery CAN messages
   -SOC% still not found (Lets take it from PID poll, not working right yet)
   -SOC% is now ESTIMATED. This is bad, and should be fixed as soon as possible with the real value from CAN
@@ -314,6 +310,13 @@ void send_can_battery() {
       clear_event(EVENT_CAN_OVERRUN);
     }
     previousMillis50 = currentMillis;
+
+    // Set close contactors to allowed (Useful for crashed packs, started via contactor control thru GPIO)
+    if (datalayer.battery.status.bms_status == ACTIVE) {
+      datalayer.system.status.battery_allows_contactor_closing = true;
+    } else {  // Fault state, open contactors!
+      datalayer.system.status.battery_allows_contactor_closing = false;
+    }
 
     counter_50ms++;
     if (counter_50ms > 23) {
