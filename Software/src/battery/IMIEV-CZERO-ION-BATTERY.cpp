@@ -206,18 +206,15 @@ void receive_can_battery(CAN_frame_t rx_frame) {
         cell_voltages[voltage_index + 1] = voltage2;
       }
 
-      if ()
-
-        if (temp1 == 0) {
-          if ()
-            cell_temperatures[temp_index] = temp2;
-          cell_temperatures[temp_index + 1] = temp3;
-        } else {
-          cell_temperatures[temp_index] = temp1;
-          if (cmu_id != 6 && cmu_id != 12) {
-            cell_temperatures[temp_index + 1] = temp2;
-          }
+      if (temp1 == 0) {
+        cell_temperatures[temp_index] = temp2;
+        cell_temperatures[temp_index + 1] = temp3;
+      } else {
+        cell_temperatures[temp_index] = temp1;
+        if (cmu_id != 6 && cmu_id != 12) {
+          cell_temperatures[temp_index + 1] = temp2;
         }
+      }
       break;
     default:
       break;
