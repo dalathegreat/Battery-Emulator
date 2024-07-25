@@ -10,7 +10,6 @@
 https://github.com/maciek16c/hyundai-santa-fe-phev-battery
 https://openinverter.org/forum/viewtopic.php?p=62256
 
-TODO: Check if contactors close
 TODO: Check if CRC function works like it should
 TODO: Map all values from battery CAN messages
 */
@@ -19,11 +18,20 @@ TODO: Map all values from battery CAN messages
 static unsigned long previousMillis10 = 0;   // will store last time a 10ms CAN Message was send
 static unsigned long previousMillis100 = 0;  // will store last time a 100ms CAN Message was send
 
-static int SOC_1 = 0;
-static int SOC_2 = 0;
-static int SOC_3 = 0;
+static uint16_t SOC_BMS = 0;
+static uint16_t batterySOH = 1000;
+static uint16_t CellVoltMax_mV = 3700;
+static uint16_t CellVoltMin_mV = 3700;
+static uint16_t allowedDischargePower = 0;
+static uint16_t allowedChargePower = 0;
+static uint16_t batteryVoltage = 0;
+static int16_t leadAcidBatteryVoltage = 120;
+static int16_t temperatureMax = 0;
+static int16_t temperatureMin = 0;
+static int16_t batteryAmps = 0;
 static uint8_t counter_200 = 0;
 static uint8_t checksum_200 = 0;
+static uint8_t StatusBattery = 0;
 
 CAN_frame_t SANTAFE_200 = {.FIR = {.B =
                                        {
@@ -56,25 +64,36 @@ CAN_frame_t SANTAFE_523 = {.FIR = {.B =
 
 void update_values_battery() {  //This function maps all the values fetched via CAN to the correct parameters used for modbus
 
-  datalayer.battery.status.real_soc;
+  datalayer.battery.status.real_soc = SOC_BMS;  //TODO: Scaling?
 
-  datalayer.battery.status.voltage_dV;
+  datalayer.battery.status.voltage_dV = batteryVoltage;  //TODO: Scaling?
 
-  datalayer.battery.status.current_dA;
+  datalayer.battery.status.current_dA = batteryAmps;  //TODO: Scaling?
 
-  datalayer.battery.info.total_capacity_Wh;
+  datalayer.battery.status.remaining_capacity_Wh = static_cast<uint32_t>(
+      (static_cast<double>(datalayer.battery.status.real_soc) / 10000) * datalayer.battery.info.total_capacity_Wh);
 
-  datalayer.battery.status.remaining_capacity_Wh;
+  datalayer.battery.status.max_discharge_power_W = allowedDischargePower * 10;
 
-  datalayer.battery.status.max_discharge_power_W;
+  datalayer.battery.status.max_charge_power_W = allowedChargePower * 10;
 
-  datalayer.battery.status.max_charge_power_W;
+  //Power in watts, Negative = charging batt
+  datalayer.battery.status.active_power_W =
+      ((datalayer.battery.status.voltage_dV * datalayer.battery.status.current_dA) / 100);
 
-  datalayer.battery.status.active_power_W;
+  if (temperatureMax > temperatureMin) {
+    datalayer.battery.status.temperature_min_dC = temperatureMin;
 
-  datalayer.battery.status.temperature_min_dC;
+    datalayer.battery.status.temperature_max_dC = temperatureMax;
+  } else {
+    datalayer.battery.status.temperature_min_dC = temperatureMax;
 
-  datalayer.battery.status.temperature_max_dC;
+    datalayer.battery.status.temperature_max_dC = temperatureMin;
+  }
+
+  if (leadAcidBatteryVoltage < 110) {
+    set_event(EVENT_12V_LOW, leadAcidBatteryVoltage);
+  }
 
 #ifdef DEBUG_VIA_USB
 
@@ -84,33 +103,38 @@ void update_values_battery() {  //This function maps all the values fetched via 
 void receive_can_battery(CAN_frame_t rx_frame) {
   datalayer.battery.status.CAN_battery_still_alive = CAN_STILL_ALIVE;
   switch (rx_frame.MsgID) {
-    case 0x200:
+    case 0x1FF:
+      datalayer.battery.status.CAN_battery_still_alive = CAN_STILL_ALIVE;
+      StatusBattery = (rx_frame.data.u8[0] & 0x0F);
       break;
-    case 0x201:
+    case 0x4DE:
+      datalayer.battery.status.CAN_battery_still_alive = CAN_STILL_ALIVE;
+      temperatureMax = (rx_frame.data.u8[2] - 40);
       break;
-    case 0x202:
+    case 0x542:
+      datalayer.battery.status.CAN_battery_still_alive = CAN_STILL_ALIVE;
+      SOC_BMS = ((rx_frame.data.u8[1] << 8) + rx_frame.data.u8[0]) / 2;
       break;
-    case 0x203:
+    case 0x588:
+      datalayer.battery.status.CAN_battery_still_alive = CAN_STILL_ALIVE;
+      batteryVoltage = ((rx_frame.data.u8[1] << 8) + rx_frame.data.u8[0]);
       break;
-    case 0x2A0:
-      break;
-    case 0x2A1:
-      break;
-    case 0x2A2:
-      break;
-    case 0x2B0:
-      break;
-    case 0x2B5:
-      break;
-    case 0x2F0:
-      break;
-    case 0x2F1:
-      break;
-    case 0x523:
-      break;
-    case 0x524:
+    case 0x5AD:
+      datalayer.battery.status.CAN_battery_still_alive = CAN_STILL_ALIVE;
+      batteryAmps = (rx_frame.data.u8[5] << 8) + rx_frame.data.u8[4];  // Best guess, signed?
       break;
     case 0x620:
+      datalayer.battery.status.CAN_battery_still_alive = CAN_STILL_ALIVE;
+      leadAcidBatteryVoltage = rx_frame.data.u8[1];
+      break;
+    case 0x670:
+      datalayer.battery.status.CAN_battery_still_alive = CAN_STILL_ALIVE;
+      allowedChargePower = ((rx_frame.data.u8[1] << 8) | rx_frame.data.u8[0]);
+      allowedDischargePower = ((rx_frame.data.u8[3] << 8) | rx_frame.data.u8[2]);
+      break;
+    case 0x671:
+      datalayer.battery.status.CAN_battery_still_alive = CAN_STILL_ALIVE;
+      temperatureMin = (rx_frame.data.u8[0] - 40);
       break;
     default:
       break;
