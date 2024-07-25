@@ -10,7 +10,7 @@
 //Figure out if CAN messages need to be sent to keep the system happy?
 
 /* Do not change code below unless you are sure what you are doing */
-#define MAX_CELL_VOLTAGE 4100
+#define MAX_CELL_VOLTAGE 4150
 #define MIN_CELL_VOLTAGE 2750
 static uint8_t errorCode = 0;  //stores if we have an error code active from battery control logic
 static uint8_t BMU_Detected = 0;
@@ -92,13 +92,21 @@ void update_values_battery() {  //This function maps all the values fetched via 
     datalayer.battery.status.cell_voltages_mV[i] = (uint16_t)(cell_voltages[i] * 1000);
   }
 
-  datalayer.battery.status.cell_max_voltage_mV = (uint16_t)(max_volt_cel * 1000);
+  if (max_volt_cel > 2200) {  // Only update cellvoltage when we have a value
+    datalayer.battery.status.cell_max_voltage_mV = (uint16_t)(max_volt_cel * 1000);
+  }
 
-  datalayer.battery.status.cell_min_voltage_mV = (uint16_t)(min_volt_cel * 1000);
+  if (min_volt_cel > 2200) {  // Only update cellvoltage when we have a value
+    datalayer.battery.status.cell_min_voltage_mV = (uint16_t)(min_volt_cel * 1000);
+  }
 
-  datalayer.battery.status.temperature_min_dC = (int16_t)(min_temp_cel * 10);
+  if (min_temp_cel > -49) {  // Only update temperature when we have a value
+    datalayer.battery.status.temperature_min_dC = (int16_t)(min_temp_cel * 10);
+  }
 
-  datalayer.battery.status.temperature_max_dC = (int16_t)(max_temp_cel * 10);
+  if (max_temp_cel > -49) {  // Only update temperature when we have a value
+    datalayer.battery.status.temperature_max_dC = (int16_t)(max_temp_cel * 10);
+  }
 
   //Check safeties
   if (datalayer.battery.status.cell_max_voltage_mV >= MAX_CELL_VOLTAGE) {
@@ -198,15 +206,18 @@ void receive_can_battery(CAN_frame_t rx_frame) {
         cell_voltages[voltage_index + 1] = voltage2;
       }
 
-      if (pid_index == 0) {
-        cell_temperatures[temp_index] = temp2;
-        cell_temperatures[temp_index + 1] = temp3;
-      } else {
-        cell_temperatures[temp_index] = temp1;
-        if (cmu_id != 6 && cmu_id != 12) {
-          cell_temperatures[temp_index + 1] = temp2;
+      if ()
+
+        if (temp1 == 0) {
+          if ()
+            cell_temperatures[temp_index] = temp2;
+          cell_temperatures[temp_index + 1] = temp3;
+        } else {
+          cell_temperatures[temp_index] = temp1;
+          if (cmu_id != 6 && cmu_id != 12) {
+            cell_temperatures[temp_index + 1] = temp2;
+          }
         }
-      }
       break;
     default:
       break;
