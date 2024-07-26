@@ -22,7 +22,7 @@ static unsigned long previousMillis500 = 0;  // will store last time a 500ms CAN
 static uint8_t poll_data_pid = 0;
 
 static uint16_t SOC_Display = 0;
-static uint16_t batterySOH = 1000;
+static uint16_t batterySOH = 100;
 static uint16_t CellVoltMax_mV = 3700;
 static uint16_t CellVoltMin_mV = 3700;
 static uint8_t CellVmaxNo = 0;
@@ -86,7 +86,7 @@ void update_values_battery() {  //This function maps all the values fetched via 
 
   datalayer.battery.status.real_soc = (SOC_Display * 10);  //increase SOC range from 0-100.0 -> 100.00
 
-  datalayer.battery.status.soh_pptt = (batterySOH * 10);  //Increase decimals from 100.0% -> 100.00%
+  datalayer.battery.status.soh_pptt = (batterySOH * 100);  //Increase decimals from 100% -> 100.00%
 
   datalayer.battery.status.voltage_dV = batteryVoltage;
 
@@ -132,13 +132,12 @@ void receive_can_battery(CAN_frame_t rx_frame) {
       break;
     case 0x4DE:
       datalayer.battery.status.CAN_battery_still_alive = CAN_STILL_ALIVE;
-      temperatureMax = (rx_frame.data.u8[2] - 40);
       break;
     case 0x4E0:
       break;
     case 0x542:
       datalayer.battery.status.CAN_battery_still_alive = CAN_STILL_ALIVE;
-      SOC_Display = rx_frame.data.u8[0] * 5;  //100% = 200 ( 200 * 5 = 1000 )
+      SOC_Display = ((rx_frame.data.u8[1] << 8) + rx_frame.data.u8[0]) / 2;
       break;
     case 0x588:
       datalayer.battery.status.CAN_battery_still_alive = CAN_STILL_ALIVE;
@@ -292,7 +291,6 @@ void receive_can_battery(CAN_frame_t rx_frame) {
             cellvoltages_mv[89] = (rx_frame.data.u8[6] * 20);
             cellvoltages_mv[90] = (rx_frame.data.u8[7] * 20);
           } else if (poll_data_pid == 5) {
-            batterySOH = ((rx_frame.data.u8[2] << 8) + rx_frame.data.u8[3]);
           }
           break;
         case 0x25:  //Fifth datarow in PID group
@@ -318,6 +316,7 @@ void receive_can_battery(CAN_frame_t rx_frame) {
             //Map all cell voltages to the global array, we have sampled them all!
             memcpy(datalayer.battery.status.cell_voltages_mV, cellvoltages_mv, 96 * sizeof(uint16_t));
           } else if (poll_data_pid == 5) {
+            batterySOH = rx_frame.data.u8[6];
           }
           break;
         case 0x26:  //Sixth datarow in PID group
