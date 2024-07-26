@@ -21,7 +21,7 @@ static unsigned long previousMillis100 = 0;  // will store last time a 100ms CAN
 static unsigned long previousMillis500 = 0;  // will store last time a 500ms CAN Message was send
 static uint8_t poll_data_pid = 0;
 
-static uint16_t SOC_BMS = 0;
+static uint16_t SOC_Display = 0;
 static uint16_t batterySOH = 1000;
 static uint16_t CellVoltMax_mV = 3700;
 static uint16_t CellVoltMin_mV = 3700;
@@ -31,8 +31,8 @@ static uint16_t allowedDischargePower = 0;
 static uint16_t allowedChargePower = 0;
 static uint16_t batteryVoltage = 0;
 static int16_t leadAcidBatteryVoltage = 120;
-static int16_t temperatureMax = 0;
-static int16_t temperatureMin = 0;
+static int8_t temperatureMax = 0;
+static int8_t temperatureMin = 0;
 static int16_t batteryAmps = 0;
 static uint8_t counter_200 = 0;
 static uint8_t checksum_200 = 0;
@@ -84,13 +84,13 @@ CAN_frame_t SANTAFE_7E4_ack = {.FIR = {.B =
 
 void update_values_battery() {  //This function maps all the values fetched via CAN to the correct parameters used for modbus
 
-  datalayer.battery.status.real_soc = SOC_BMS * 10;
+  datalayer.battery.status.real_soc = (SOC_Display * 10);  //increase SOC range from 0-100.0 -> 100.00
 
   datalayer.battery.status.soh_pptt = (batterySOH * 10);  //Increase decimals from 100.0% -> 100.00%
 
   datalayer.battery.status.voltage_dV = batteryVoltage;
 
-  datalayer.battery.status.current_dA = batteryAmps;
+  datalayer.battery.status.current_dA = -batteryAmps;
 
   datalayer.battery.status.remaining_capacity_Wh = static_cast<uint32_t>(
       (static_cast<double>(datalayer.battery.status.real_soc) / 10000) * datalayer.battery.info.total_capacity_Wh);
@@ -107,15 +107,9 @@ void update_values_battery() {  //This function maps all the values fetched via 
 
   datalayer.battery.status.cell_min_voltage_mV = CellVoltMin_mV;
 
-  if (temperatureMax > temperatureMin) {
-    datalayer.battery.status.temperature_min_dC = temperatureMin;
+  datalayer.battery.status.temperature_min_dC = temperatureMin * 10;  //Increase decimals, 17C -> 17.0C
 
-    datalayer.battery.status.temperature_max_dC = temperatureMax;
-  } else {
-    datalayer.battery.status.temperature_min_dC = temperatureMax;
-
-    datalayer.battery.status.temperature_max_dC = temperatureMin;
-  }
+  datalayer.battery.status.temperature_max_dC = temperatureMax * 10;  //Increase decimals, 18C -> 18.0C
 
   if (leadAcidBatteryVoltage < 110) {
     set_event(EVENT_12V_LOW, leadAcidBatteryVoltage);
@@ -144,7 +138,7 @@ void receive_can_battery(CAN_frame_t rx_frame) {
       break;
     case 0x542:
       datalayer.battery.status.CAN_battery_still_alive = CAN_STILL_ALIVE;
-      SOC_BMS = ((rx_frame.data.u8[1] << 8) + rx_frame.data.u8[0]) / 2;
+      SOC_Display = rx_frame.data.u8[0] * 5;  //100% = 200 ( 200 * 5 = 1000 )
       break;
     case 0x588:
       datalayer.battery.status.CAN_battery_still_alive = CAN_STILL_ALIVE;
@@ -167,6 +161,8 @@ void receive_can_battery(CAN_frame_t rx_frame) {
     case 0x620:
       datalayer.battery.status.CAN_battery_still_alive = CAN_STILL_ALIVE;
       leadAcidBatteryVoltage = rx_frame.data.u8[1];
+      temperatureMin = rx_frame.data.u8[6];  //Lowest temp in battery
+      temperatureMax = rx_frame.data.u8[7];  //Highest temp in battery
       break;
     case 0x670:
       datalayer.battery.status.CAN_battery_still_alive = CAN_STILL_ALIVE;
@@ -175,7 +171,6 @@ void receive_can_battery(CAN_frame_t rx_frame) {
       break;
     case 0x671:
       datalayer.battery.status.CAN_battery_still_alive = CAN_STILL_ALIVE;
-      temperatureMin = (rx_frame.data.u8[0] - 40);
       break;
     case 0x7EC:  //Data From polled PID group, BigEndian
       switch (rx_frame.data.u8[0]) {
