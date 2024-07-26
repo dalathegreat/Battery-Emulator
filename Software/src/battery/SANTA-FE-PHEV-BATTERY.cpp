@@ -10,8 +10,9 @@
 https://github.com/maciek16c/hyundai-santa-fe-phev-battery
 https://openinverter.org/forum/viewtopic.php?p=62256
 
-TODO: Check if CRC function works like it should
-TODO: Map all values from battery CAN messages
+TODO: Find cellvoltages in CAN data (alternatively poll for them)
+TODO: Tweak temperature values once more data is known about them
+TODO: Check if CRC function works like it should. This enables checking for corrupt messages
 */
 
 /* Do not change code below unless you are sure what you are doing */
@@ -64,11 +65,11 @@ CAN_frame_t SANTAFE_523 = {.FIR = {.B =
 
 void update_values_battery() {  //This function maps all the values fetched via CAN to the correct parameters used for modbus
 
-  datalayer.battery.status.real_soc = SOC_BMS;  //TODO: Scaling?
+  datalayer.battery.status.real_soc = SOC_BMS * 10;
 
-  datalayer.battery.status.voltage_dV = batteryVoltage;  //TODO: Scaling?
+  datalayer.battery.status.voltage_dV = batteryVoltage;
 
-  datalayer.battery.status.current_dA = batteryAmps;  //TODO: Scaling?
+  datalayer.battery.status.current_dA = batteryAmps;
 
   datalayer.battery.status.remaining_capacity_Wh = static_cast<uint32_t>(
       (static_cast<double>(datalayer.battery.status.real_soc) / 10000) * datalayer.battery.info.total_capacity_Wh);
@@ -101,15 +102,20 @@ void update_values_battery() {  //This function maps all the values fetched via 
 }
 
 void receive_can_battery(CAN_frame_t rx_frame) {
-  datalayer.battery.status.CAN_battery_still_alive = CAN_STILL_ALIVE;
   switch (rx_frame.MsgID) {
     case 0x1FF:
       datalayer.battery.status.CAN_battery_still_alive = CAN_STILL_ALIVE;
       StatusBattery = (rx_frame.data.u8[0] & 0x0F);
       break;
+    case 0x4D5:
+      break;
+    case 0x4DD:
+      break;
     case 0x4DE:
       datalayer.battery.status.CAN_battery_still_alive = CAN_STILL_ALIVE;
       temperatureMax = (rx_frame.data.u8[2] - 40);
+      break;
+    case 0x4E0:
       break;
     case 0x542:
       datalayer.battery.status.CAN_battery_still_alive = CAN_STILL_ALIVE;
@@ -119,9 +125,19 @@ void receive_can_battery(CAN_frame_t rx_frame) {
       datalayer.battery.status.CAN_battery_still_alive = CAN_STILL_ALIVE;
       batteryVoltage = ((rx_frame.data.u8[1] << 8) + rx_frame.data.u8[0]);
       break;
+    case 0x597:
+      break;
+    case 0x5A6:
+      break;
+    case 0x5A7:
+      break;
     case 0x5AD:
       datalayer.battery.status.CAN_battery_still_alive = CAN_STILL_ALIVE;
-      batteryAmps = (rx_frame.data.u8[5] << 8) + rx_frame.data.u8[4];  // Best guess, signed?
+      batteryAmps = (rx_frame.data.u8[3] << 8) + rx_frame.data.u8[2];
+      break;
+    case 0x5AE:
+      break;
+    case 0x5F1:
       break;
     case 0x620:
       datalayer.battery.status.CAN_battery_still_alive = CAN_STILL_ALIVE;
