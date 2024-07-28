@@ -317,6 +317,9 @@ void receive_can_battery(CAN_frame_t rx_frame) {
             memcpy(datalayer.battery.status.cell_voltages_mV, cellvoltages_mv, 96 * sizeof(uint16_t));
           } else if (poll_data_pid == 5) {
             batterySOH = rx_frame.data.u8[6];
+            if (batterySOH > 100) {
+              batterySOH = 100;
+            }
           }
           break;
         case 0x26:  //Sixth datarow in PID group
@@ -382,16 +385,16 @@ void send_can_battery() {
       SANTAFE_7E4_poll.data.u8[3] = 0x01;
       ESP32Can.CANWriteFrame(&SANTAFE_7E4_poll);
     } else if (poll_data_pid == 2) {
-      SANTAFE_7E4_poll.data.u8[3] = 0x01;
+      SANTAFE_7E4_poll.data.u8[3] = 0x02;
       ESP32Can.CANWriteFrame(&SANTAFE_7E4_poll);
     } else if (poll_data_pid == 3) {
-      SANTAFE_7E4_poll.data.u8[3] = 0x01;
+      SANTAFE_7E4_poll.data.u8[3] = 0x03;
       ESP32Can.CANWriteFrame(&SANTAFE_7E4_poll);
     } else if (poll_data_pid == 4) {
-      SANTAFE_7E4_poll.data.u8[3] = 0x01;
+      SANTAFE_7E4_poll.data.u8[3] = 0x04;
       ESP32Can.CANWriteFrame(&SANTAFE_7E4_poll);
     } else if (poll_data_pid == 5) {
-      SANTAFE_7E4_poll.data.u8[3] = 0x01;
+      SANTAFE_7E4_poll.data.u8[3] = 0x05;
       ESP32Can.CANWriteFrame(&SANTAFE_7E4_poll);
     }
   }
