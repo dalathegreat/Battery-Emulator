@@ -517,6 +517,9 @@ String processor(const String& var) {
 #ifdef RENAULT_ZOE_GEN2_BATTERY
     content += "Renault Zoe Gen2 50";
 #endif
+#ifdef SANTA_FE_PHEV_BATTERY
+    content += "Santa Fe PHEV";
+#endif
 #ifdef SERIAL_LINK_RECEIVER
     content += "Serial link to another LilyGo board";
 #endif

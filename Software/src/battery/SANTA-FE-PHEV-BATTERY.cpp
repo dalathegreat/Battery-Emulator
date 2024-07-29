@@ -259,6 +259,12 @@ void receive_can_battery(CAN_frame_t rx_frame) {
             cellvoltages_mv[82] = (rx_frame.data.u8[6] * 20);
             cellvoltages_mv[83] = (rx_frame.data.u8[7] * 20);
           } else if (poll_data_pid == 5) {
+            if (rx_frame.data.u8[6] > 0) {
+              batterySOH = rx_frame.data.u8[6];
+            }
+            if (batterySOH > 100) {
+              batterySOH = 100;
+            }
           }
           break;
         case 0x24:  //Fourth datarow in PID group
@@ -316,12 +322,6 @@ void receive_can_battery(CAN_frame_t rx_frame) {
             //Map all cell voltages to the global array, we have sampled them all!
             memcpy(datalayer.battery.status.cell_voltages_mV, cellvoltages_mv, 96 * sizeof(uint16_t));
           } else if (poll_data_pid == 5) {
-            if (rx_frame.data.u8[6] > 0) {
-              batterySOH = rx_frame.data.u8[6];
-            }
-            if (batterySOH > 100) {
-              batterySOH = 100;
-            }
           }
           break;
         case 0x26:  //Sixth datarow in PID group
