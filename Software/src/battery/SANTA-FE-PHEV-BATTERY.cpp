@@ -316,7 +316,9 @@ void receive_can_battery(CAN_frame_t rx_frame) {
             //Map all cell voltages to the global array, we have sampled them all!
             memcpy(datalayer.battery.status.cell_voltages_mV, cellvoltages_mv, 96 * sizeof(uint16_t));
           } else if (poll_data_pid == 5) {
-            batterySOH = rx_frame.data.u8[6];
+            if (rx_frame.data.u8[6] > 0) {
+              batterySOH = rx_frame.data.u8[6];
+            }
             if (batterySOH > 100) {
               batterySOH = 100;
             }
