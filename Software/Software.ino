@@ -736,14 +736,9 @@ void update_SOC() {
     datalayer.battery.status.reported_soc = calc_soc;
   } else {  // No SOC window wanted. Set scaled to same as real.
     datalayer.battery.status.reported_soc = datalayer.battery.status.real_soc;
-#ifdef DOUBLE_BATTERY
-    datalayer.battery.status.reported_soc =
-        (datalayer.battery.status.real_soc + datalayer.battery2.status.real_soc) / 2;
-#endif  //DOUBLE_BATTERY
   }
 #ifdef DOUBLE_BATTERY
-  datalayer.battery.status.reported_soc = (datalayer.battery.status.real_soc + datalayer.battery2.status.real_soc) / 2;
-
+  // Perform extra SOC sanity checks on double battery setups
   if (datalayer.battery.status.real_soc < 100) {  //If this battery is under 1.00%, use this as SOC instead of average
     datalayer.battery.status.reported_soc = datalayer.battery.status.real_soc;
   }
@@ -757,7 +752,6 @@ void update_SOC() {
   if (datalayer.battery2.status.real_soc > 9900) {  //If this battery is over 99.00%, use this as SOC instead of average
     datalayer.battery.status.reported_soc = datalayer.battery2.status.real_soc;
   }
-
 #endif  //DOUBLE_BATTERY
 }
 
