@@ -357,7 +357,6 @@ void update_values_battery() {  //This function maps all the values fetched via 
     }
   }
 
-
   if (datalayer.battery.info.chemistry == battery_chemistry_enum::LFP) {  //LFP limits used for voltage safeties
     if (battery_cell_max_v >= MAX_CELL_VOLTAGE_LFP) {
       set_event(EVENT_CELL_OVER_VOLTAGE, (battery_cell_max_v - MAX_CELL_VOLTAGE_LFP));
