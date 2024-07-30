@@ -227,6 +227,9 @@ void core_loop(void* task_time_us) {
 #ifdef CONTACTOR_CONTROL
       handle_contactors();  // Take care of startup precharge/contactor closing
 #endif
+#ifdef DOUBLE_BATTERY
+      check_interconnect_available();
+#endif
     }
     END_TIME_MEASUREMENT_MAX(time_10ms, datalayer.system.status.time_10ms_us);
 
@@ -235,7 +238,10 @@ void core_loop(void* task_time_us) {
     {
       previousMillisUpdateVal = millis();  // Order matters on the update_loop!
       update_values_battery();             // Fetch battery values
-      update_SOC();                        // Check if real or calculated SOC% value should be sent
+#ifdef DOUBLE_BATTERY
+      update_values_battery2();
+#endif
+      update_SOC();  // Check if real or calculated SOC% value should be sent
 #ifndef SERIAL_LINK_RECEIVER
       update_machineryprotection();  // Check safeties (Not on serial link reciever board)
 #endif
@@ -559,7 +565,7 @@ void send_can() {
 }
 
 #ifdef DUAL_CAN
-void receive_can2() {  // This function is similar to receive_can, but just takes care of inverters in the 2nd bus.
+void receive_can2() {  // This function is similar to receive_can, but just takes care of inverters in the 2nd bus OR double battery
   // Depending on which inverter is selected, we forward this to their respective CAN routines
   CAN_frame_t rx_frame_can2;  // Struct with ESP32Can library format, compatible with the rest of the program
   CANMessage MCP2515Frame;    // Struct with ACAN2515 library format, needed to use thw MCP2515 library
@@ -578,6 +584,9 @@ void receive_can2() {  // This function is similar to receive_can, but just take
 #ifdef CAN_INVERTER_SELECTED
     receive_can_inverter(rx_frame_can2);
 #endif
+#ifdef DOUBLE_BATTERY
+    receive_can_battery2(rx_frame_can2);
+#endif  //DOUBLE_BATTERY
   }
 }
 
@@ -588,6 +597,24 @@ void send_can2() {
 #endif
 }
 #endif
+
+#ifdef DOUBLE_BATTERY
+void check_interconnect_available() {
+  if (datalayer.battery.status.voltage_dV == 0 || datalayer.battery2.status.voltage_dV == 0) {
+    return;  // Both voltage values need to be available to start check
+  }
+
+  if (abs(datalayer.battery.status.voltage_dV - datalayer.battery2.status.voltage_dV) < 30) {  // If we are within 3.0V
+    clear_event(EVENT_VOLTAGE_DIFFERENCE);
+    if (datalayer.battery.status.bms_status != FAULT) {  // Only proceed if we are not in faulted state
+      datalayer.system.status.battery2_allows_contactor_closing = true;
+    }
+  } else {  //We are over 3.0V diff
+    set_event(EVENT_VOLTAGE_DIFFERENCE,
+              (uint8_t)(abs(datalayer.battery.status.voltage_dV - datalayer.battery2.status.voltage_dV) / 10));
+  }
+}
+#endif  //DOUBLE_BATTERY
 
 #ifdef CONTACTOR_CONTROL
 void handle_contactors() {
@@ -710,6 +737,22 @@ void update_SOC() {
   } else {  // No SOC window wanted. Set scaled to same as real.
     datalayer.battery.status.reported_soc = datalayer.battery.status.real_soc;
   }
+#ifdef DOUBLE_BATTERY
+  // Perform extra SOC sanity checks on double battery setups
+  if (datalayer.battery.status.real_soc < 100) {  //If this battery is under 1.00%, use this as SOC instead of average
+    datalayer.battery.status.reported_soc = datalayer.battery.status.real_soc;
+  }
+  if (datalayer.battery2.status.real_soc < 100) {  //If this battery is under 1.00%, use this as SOC instead of average
+    datalayer.battery.status.reported_soc = datalayer.battery2.status.real_soc;
+  }
+
+  if (datalayer.battery.status.real_soc > 9900) {  //If this battery is over 99.00%, use this as SOC instead of average
+    datalayer.battery.status.reported_soc = datalayer.battery.status.real_soc;
+  }
+  if (datalayer.battery2.status.real_soc > 9900) {  //If this battery is over 99.00%, use this as SOC instead of average
+    datalayer.battery.status.reported_soc = datalayer.battery2.status.real_soc;
+  }
+#endif  //DOUBLE_BATTERY
 }
 
 void update_values_inverter() {
