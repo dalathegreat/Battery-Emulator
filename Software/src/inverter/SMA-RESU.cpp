@@ -7,7 +7,8 @@
 
 /* Do not change code below unless you are sure what you are doing */
 static unsigned long previousMillis1000ms = 0;  // will store last time a 1000ms CAN Message was send
-static uint8_t counter_B0 = 0;
+static unsigned long previousMillis5000ms = 0;  // will store last time a 5000ms CAN Message was send
+
 
 //Actual content messages
 static const CAN_frame_t SMA_558 = {
@@ -24,7 +25,7 @@ static const CAN_frame_t SMA_598 = {.FIR = {.B =
                                                     .FF = CAN_frame_std,
                                                 }},
                                     .MsgID = 0x598,
-                                    .data = {0x6B, 0x69, 0x35, 0x5C, 0xFF, 0xFF, 0xFF, 0xFF}};  //Identifier?
+                                    .data = {0x6B, 0x68, 0x34, 0x5C, 0xFF, 0xFF, 0xFF, 0xFF}};  //Identifier?
 static const CAN_frame_t SMA_5D8_1 = {.FIR = {.B =
                                                   {
                                                       .DLC = 8,
@@ -53,26 +54,40 @@ static const CAN_frame_t SMA_618_2 = {.FIR = {.B =
                                                   }},
                                       .MsgID = 0x618,
                                       .data = {0x01, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00}};  //1
-CAN_frame_t SMA_3D8 = {.FIR = {.B =
+CAN_frame_t SMA_4D8 = {.FIR = {.B =
                                    {
                                        .DLC = 8,
                                        .FF = CAN_frame_std,
                                    }},
-                       .MsgID = 0x3D8,
-                       .data = {0x04, 0x10, 0x27, 0x10, 0x00, 0x18, 0xF9, 0x00}};
-CAN_frame_t SMA_158 = {.FIR = {.B =
+                       .MsgID = 0x4D8,
+                       .data = {0x12, 0x5C, 0x00, 0x65, 0x01, 0x26, 0x03, 0x00}};
+CAN_frame_t SMA_358 = {.FIR = {.B =
                                    {
                                        .DLC = 8,
                                        .FF = CAN_frame_std,
                                    }},
-                       .MsgID = 0x158,
-                       .data = {0xAA, 0xAA, 0xAA, 0xAA, 0xAA, 0x6A, 0xAA, 0xAA}};  //TODO: AA or 00 ?
-CAN_frame_t SMA_B0 = {.FIR = {.B =
+                       .MsgID = 0x358,
+                       .data = {0x13, 0x56, 0x10, 0xFE, 0x00, 0xA2, 0x00, 0xA2}};
+CAN_frame_t SMA_250 = {.FIR = {.B =
+                                   {
+                                       .DLC = 8,
+                                       .FF = CAN_frame_std,
+                                   }},
+                       .MsgID = 0x250,
+                       .data = {0x00, 0x00, 0x04, 0x0C, 0x0B, 0x7F, 0x3E, 0x59}};
+CAN_frame_t SMA_290 = {.FIR = {.B =
+                                   {
+                                       .DLC = 8,
+                                       .FF = CAN_frame_std,
+                                   }},
+                       .MsgID = 0x290,
+                       .data = {0x00, 0x3C, 0xB7, 0x95, 0x03, 0xF7, 0x12, 0xA2}};
+CAN_frame_t SMA_2d0 = {.FIR = {.B =
                                   {
                                       .DLC = 8,
                                       .FF = CAN_frame_std,
                                   }},
-                      .MsgID = 0xB0,
+                      .MsgID = 0x2D0,
                       .data = {0x00, 0xC8, 0x2B, 0xE2, 0x00, 0xE0, 0x00, 0x00}};
 
 static int16_t discharge_current = 0;
@@ -172,38 +187,19 @@ void send_can_inverter() {
 
   // Send CAN Message every 1000ms
   if (currentMillis - previousMillis1000ms >= INTERVAL_1_S) {
-    previousMillis100ms = currentMillis;
+    previousMillis1000ms = currentMillis;
 
-    ESP32Can.CANWriteFrame(&SMA_90);  //Sent by BMS or SMA?
-    SMA_B0.data.u8[0] = counter_B0;
-    ESP32Can.CANWriteFrame(&SMA_B0);   //BMS Energy
-    ESP32Can.CANWriteFrame(&SMA_F0);   //Sent by BMS or SMA?
-    ESP32Can.CANWriteFrame(&SMA_D0);   //Sent by BMS or SMA?
-    ESP32Can.CANWriteFrame(&SMA_110);  //Sent by BMS or SMA?
-    ESP32Can.CANWriteFrame(&SMA_130);  //Sent by BMS or SMA?
-    ESP32Can.CANWriteFrame(&SMA_150);  //Sent by BMS or SMA?
-    ESP32Can.CANWriteFrame(&SMA_170);  //Sent by BMS or SMA?
+    ESP32Can.CANWriteFrame(&SMA_250);
 
-    ESP32Can.CANWriteFrame(&SMA_250);  // Only starts after 80 seconds. Sent by BMS or SMA?
-
-    counter_B0++;
-    if (counter_B0 > 0x0F) {
-      counter_B0 = 0;
-    }
   }
 
   // Send CAN Message every 5s
   if (currentMillis - previousMillis5000ms >= INTERVAL_5_S) {
-    previousMillis100ms = currentMillis;
+    previousMillis5000ms = currentMillis;
 
-    ESP32Can.CANWriteFrame(&SMA_3D8);
-    ESP32Can.CANWriteFrame(&SMA_158);  //Sent by BMS or SMA?
-    ESP32Can.CANWriteFrame(&SMA_198);  //Sent by BMS or SMA?
-    ESP32Can.CANWriteFrame(&SMA_218);  //Sent by BMS or SMA?
-    ESP32Can.CANWriteFrame(&SMA_560);  //Sent by BMS or SMA?
+    ESP32Can.CANWriteFrame(&SMA_4D8);
+
   }
 
-  // Irregular
-  // 0x720 sent every 30seconds, only 3x
 }
 #endif
