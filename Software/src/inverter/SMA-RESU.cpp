@@ -6,9 +6,10 @@
 #include "SMA-RESU.h"
 
 /* Do not change code below unless you are sure what you are doing */
+static unsigned long previousMillis100ms = 0;   // will store last time a 500ms CAN Message was send
+static unsigned long previousMillis500ms = 0;   // will store last time a 500ms CAN Message was send
 static unsigned long previousMillis1000ms = 0;  // will store last time a 1000ms CAN Message was send
 static unsigned long previousMillis5000ms = 0;  // will store last time a 5000ms CAN Message was send
-
 
 //Actual content messages
 static const CAN_frame_t SMA_558 = {
@@ -25,7 +26,7 @@ static const CAN_frame_t SMA_598 = {.FIR = {.B =
                                                     .FF = CAN_frame_std,
                                                 }},
                                     .MsgID = 0x598,
-                                    .data = {0x6B, 0x68, 0x34, 0x5C, 0xFF, 0xFF, 0xFF, 0xFF}};  //Identifier?
+                                    .data = {0x6B, 0x68, 0x34, 0x5C, 0xFF, 0xFF, 0xFF, 0xFF}};  //Serial number
 static const CAN_frame_t SMA_5D8_1 = {.FIR = {.B =
                                                   {
                                                       .DLC = 8,
@@ -82,13 +83,13 @@ CAN_frame_t SMA_290 = {.FIR = {.B =
                                    }},
                        .MsgID = 0x290,
                        .data = {0x00, 0x3C, 0xB7, 0x95, 0x03, 0xF7, 0x12, 0xA2}};
-CAN_frame_t SMA_2d0 = {.FIR = {.B =
-                                  {
-                                      .DLC = 8,
-                                      .FF = CAN_frame_std,
-                                  }},
-                      .MsgID = 0x2D0,
-                      .data = {0x00, 0xC8, 0x2B, 0xE2, 0x00, 0xE0, 0x00, 0x00}};
+CAN_frame_t SMA_2D0 = {.FIR = {.B =
+                                   {
+                                       .DLC = 8,
+                                       .FF = CAN_frame_std,
+                                   }},
+                       .MsgID = 0x2D0,
+                       .data = {0x00, 0x3C, 0x01, 0xEB, 0x01, 0xF9, 0x01, 0xF5}};
 
 static int16_t discharge_current = 0;
 static int16_t charge_current = 0;
@@ -128,13 +129,13 @@ void update_values_can_inverter() {  //This function maps all the values fetched
   if (datalayer.battery.status.voltage_dV > 10) {  // Only update value when we have voltage available to avoid div0
     ampere_hours_remaining = ((datalayer.battery.status.remaining_capacity_Wh / datalayer.battery.status.voltage_dV) *
                               100);  //(WH[10000] * V+1[3600])*100 = 270 (27.0Ah)
-    ampere_hours_full = ((datalayer.battery.status.total_capacity_Wh / datalayer.battery.status.voltage_dV) *
+    ampere_hours_full = ((datalayer.battery.info.total_capacity_Wh / datalayer.battery.status.voltage_dV) *
                          100);  //(WH[10000] * V+1[3600])*100 = 270 (27.0Ah)
   }
 
   //Map values to CAN messages
 
-  //SOC (100.00%)
+  /*//SOC (100.00%)
   SMA_3D8.data.u8[0] = (datalayer.battery.status.reported_soc >> 8);
   SMA_3D8.data.u8[1] = (datalayer.battery.status.reported_soc & 0x00FF);
   //StateOfHealth (100.00%)
@@ -146,6 +147,7 @@ void update_values_can_inverter() {  //This function maps all the values fetched
   //Battery capacity actual (AH, 0.1)
   SMA_3D8.data.u8[6] = (ampere_hours_full >> 8);
   SMA_3D8.data.u8[7] = (ampere_hours_full & 0x00FF);
+  */
 }
 
 void receive_can_inverter(CAN_frame_t rx_frame) {
@@ -185,12 +187,26 @@ void receive_can_inverter(CAN_frame_t rx_frame) {
 void send_can_inverter() {
   unsigned long currentMillis = millis();
 
+  // Send CAN Message every 100ms
+  if (currentMillis - previousMillis100ms >= INTERVAL_100_MS) {
+    previousMillis500ms = currentMillis;
+
+    ESP32Can.CANWriteFrame(&SMA_250);
+  }
+
+  // Send CAN Message every 500ms
+  if (currentMillis - previousMillis500ms >= INTERVAL_500_MS) {
+    previousMillis500ms = currentMillis;
+
+    ESP32Can.CANWriteFrame(&SMA_290);
+  }
+
   // Send CAN Message every 1000ms
   if (currentMillis - previousMillis1000ms >= INTERVAL_1_S) {
     previousMillis1000ms = currentMillis;
 
     ESP32Can.CANWriteFrame(&SMA_250);
-
+    ESP32Can.CANWriteFrame(&SMA_2D0);
   }
 
   // Send CAN Message every 5s
@@ -198,8 +214,6 @@ void send_can_inverter() {
     previousMillis5000ms = currentMillis;
 
     ESP32Can.CANWriteFrame(&SMA_4D8);
-
   }
-
 }
 #endif
