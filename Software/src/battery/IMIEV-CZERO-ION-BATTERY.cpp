@@ -71,7 +71,7 @@ void update_values_battery() {  //This function maps all the values fetched via 
     }
   }
 
-  static int m = sizeof(cell_voltages) / sizeof(cell_temperatures[0]);
+  static int m = sizeof(cell_temperatures) / sizeof(cell_temperatures[0]);
   max_temp_cel = cell_temperatures[0];  // Initialize max with the first element of the array
   for (int i = 1; i < m; i++) {
     if (cell_temperatures[i] > max_temp_cel) {
