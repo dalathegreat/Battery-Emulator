@@ -5,7 +5,10 @@
 #include "../lib/miwagner-ESP32-Arduino-CAN/ESP32CAN.h"
 #include "SMA-CAN.h"
 
-/* TODO: Map error bits in 0x158 */
+/* 
+TODO: Map error bits in 0x158 
+TODO: Is 100ms sending rate OK? Or should it be 1000ms like RESU logs?
+*/
 
 /* Do not change code below unless you are sure what you are doing */
 static unsigned long previousMillis100ms = 0;  // will store last time a 100ms CAN Message was send
@@ -244,6 +247,13 @@ void receive_can_inverter(CAN_frame_t rx_frame) {
     case 0x5E0:  //Message originating from SMA inverter - String
       break;
     case 0x560:  //Message originating from SMA inverter - Init
+      // Inverter sends info, reply with battery info
+      ESP32Can.CANWriteFrame(&SMA_558);
+      ESP32Can.CANWriteFrame(&SMA_598);
+      ESP32Can.CANWriteFrame(&SMA_5D8);
+      ESP32Can.CANWriteFrame(&SMA_618_1);
+      ESP32Can.CANWriteFrame(&SMA_618_2);
+      ESP32Can.CANWriteFrame(&SMA_618_3);
       break;
     default:
       break;
@@ -257,12 +267,6 @@ void send_can_inverter() {
   if (currentMillis - previousMillis100ms >= INTERVAL_100_MS) {
     previousMillis100ms = currentMillis;
 
-    ESP32Can.CANWriteFrame(&SMA_558);
-    ESP32Can.CANWriteFrame(&SMA_598);
-    ESP32Can.CANWriteFrame(&SMA_5D8);
-    ESP32Can.CANWriteFrame(&SMA_618_1);  // TODO, should these 3x
-    ESP32Can.CANWriteFrame(&SMA_618_2);  // be sent as batch?
-    ESP32Can.CANWriteFrame(&SMA_618_3);  // or alternate on each send?
     ESP32Can.CANWriteFrame(&SMA_358);
     ESP32Can.CANWriteFrame(&SMA_3D8);
     ESP32Can.CANWriteFrame(&SMA_458);

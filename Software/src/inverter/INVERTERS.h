@@ -23,6 +23,10 @@
 #include "SMA-CAN.h"
 #endif
 
+#ifdef SMA_RESU
+#include "SMA-RESU.h"
+#endif
+
 #ifdef SMA_TRIPOWER_CAN
 #include "SMA-TRIPOWER-CAN.h"
 #endif
