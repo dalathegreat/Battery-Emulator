@@ -206,7 +206,7 @@ void receive_can_battery(CAN_frame_t rx_frame) {
         cell_voltages[voltage_index + 1] = voltage2;
       }
 
-      if (temp1 == 0) {
+      if (pid_index == 0) {
         cell_temperatures[temp_index] = temp2;
         cell_temperatures[temp_index + 1] = temp3;
       } else {
