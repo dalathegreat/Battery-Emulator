@@ -19,6 +19,22 @@ String settings_processor(const String& var) {
         "<h4 style='color: white;'>Password: ######## <span id='Password'></span> <button "
         "onclick='editPassword()'>Edit</button></h4>";
 
+    /*
+    If LilyGo used:
+    Battery CAN channel: DISABLED / CAN / ADD-ON CAN MCP2515 / ADD-ON CAN-FD
+    Inverter CAN channel: DISABLED / CAN / ADD-ON CAN MCP2515 / ADD-ON CAN-FD
+    Battery#2 CAN channel: DISABLED / CAN / ADD-ON CAN MCP2515 / ADD-ON CAN-FD
+    If Stark board used
+    Battery CAN channel: DISABLED / CAN / CAN-FD
+    Inverter CAN channel: DISABLED / CAN / CAN-FD
+    Battery#2 CAN channel: DISABLED / CAN / CAN-FD
+    */
+
+    content +=
+    "<h4 style='color: white;'>Password: ######## <span id='Password'></span> <button "
+    "onclick='editPassword()'>Edit</button></h4>";
+
+
     // Close the block
     content += "</div>";
 
