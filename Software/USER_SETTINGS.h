@@ -29,7 +29,7 @@
 //#define DOUBLE_BATTERY  //Enable this line if you use two identical batteries at the same time (requires DUAL_CAN setup)
 
 /* Select inverter communication protocol. See Wiki for which to use with your inverter: https://github.com/dalathegreat/BYD-Battery-Emulator-For-Gen24/wiki */
-#define BYD_CAN  //Enable this line to emulate a "BYD Battery-Box Premium HVS" over CAN Bus
+//#define BYD_CAN  //Enable this line to emulate a "BYD Battery-Box Premium HVS" over CAN Bus
 //#define BYD_MODBUS       //Enable this line to emulate a "BYD 11kWh HVM battery" over Modbus RTU
 //#define LUNA2000_MODBUS  //Enable this line to emulate a "Luna2000 battery" over Modbus RTU
 //#define PYLON_CAN        //Enable this line to emulate a "Pylontech battery" over CAN bus
@@ -84,11 +84,12 @@
 
 /* Do not change any code below this line unless you are sure what you are doing */
 /* Only change battery specific settings in "USER_SETTINGS.h" */
-typedef enum { CAN_NATIVE = 0, CAN_ADDON_MCP2515 = 1, CAN_ADDON_FD_MCP2518 = 2 } CAN_Interface;
+typedef enum { CAN_NATIVE = 0, CANFD_NATIVE = 1, CAN_ADDON_MCP2515 = 2, CAN_ADDON_FD_MCP2518 = 3 } CAN_Interface;
 typedef struct {
   CAN_Interface battery;
   CAN_Interface battery_double;
   CAN_Interface inverter;
+  CAN_Interface charger;
 } CAN_Configuration;
 extern volatile CAN_Configuration can_config;
 extern volatile uint8_t AccessPointEnabled;

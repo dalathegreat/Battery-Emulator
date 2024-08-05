@@ -344,17 +344,6 @@ void update_values_battery() { /* This function maps all the values fetched via 
 
 #ifdef DOUBLE_BATTERY
 
-void CAN_WriteFrame(CAN_frame_t* tx_frame) {
-  CANMessage MCP2515Frame;  //Struct with ACAN2515 library format, needed to use the MCP2515 library for CAN2
-  MCP2515Frame.id = tx_frame->MsgID;
-  //MCP2515Frame.ext = tx_frame->FIR.B.FF;
-  MCP2515Frame.len = tx_frame->FIR.B.DLC;
-  for (uint8_t i = 0; i < MCP2515Frame.len; i++) {
-    MCP2515Frame.data[i] = tx_frame->data.u8[i];
-  }
-  can.tryToSend(MCP2515Frame);
-}
-
 void update_values_battery2() {  // Handle the values coming in from battery #2
   /* Start with mapping all values */
 
@@ -611,7 +600,7 @@ void receive_can_battery2(CAN_frame_t rx_frame) {
         break;
       }
 
-      CAN_WriteFrame(&LEAF_NEXT_LINE_REQUEST);  // CAN2
+      transmit_can(&LEAF_NEXT_LINE_REQUEST, can_config.battery_double);
 
       if (battery2_group_7bb == 1)  //High precision SOC, Current, voltages etc.
       {
@@ -861,8 +850,7 @@ void receive_can_battery(CAN_frame_t rx_frame) {
       if (stop_battery_query) {  //Leafspy is active, stop our own polling
         break;
       }
-
-      ESP32Can.CANWriteFrame(&LEAF_NEXT_LINE_REQUEST);  //Request the next frame for the group
+      transmit_can(&LEAF_NEXT_LINE_REQUEST, can_config.battery);  //Request the next frame for the group
 
       if (group_7bb == 1)  //High precision SOC, Current, voltages etc.
       {
@@ -1026,10 +1014,10 @@ void send_can_battery() {
           LEAF_1D4.data.u8[7] = 0xDE;
           break;
       }
-      ESP32Can.CANWriteFrame(&LEAF_1D4);
+      transmit_can(&LEAF_1D4, can_config.battery);
 #ifdef DOUBLE_BATTERY
-      CAN_WriteFrame(&LEAF_1D4);  // CAN2
-#endif                            // DOUBLE_BATTERY
+      transmit_can(&LEAF_1D4, can_config.battery_double);
+#endif  // DOUBLE_BATTERY
 
       switch (mprun10r) {
         case (0):
@@ -1122,10 +1110,10 @@ void send_can_battery() {
 
 //Only send this message when NISSANLEAF_CHARGER is not defined (otherwise it will collide!)
 #ifndef NISSANLEAF_CHARGER
-      ESP32Can.CANWriteFrame(&LEAF_1F2);  //Contains (CHG_STA_RQ == 1 == Normal Charge)
+      transmit_can(&LEAF_1F2, can_config.battery);
 #ifdef DOUBLE_BATTERY
-      CAN_WriteFrame(&LEAF_1F2);  // CAN2
-#endif                            // DOUBLE_BATTERY
+      transmit_can(&LEAF_1F2, can_config.battery_double);
+#endif  // DOUBLE_BATTERY
 #endif
 
       mprun10r = (mprun10r + 1) % 20;  // 0x1F2 patter repeats after 20 messages. 0-1..19-0
@@ -1145,10 +1133,10 @@ void send_can_battery() {
       }
 
       // VCM message, containing info if battery should sleep or stay awake
-      ESP32Can.CANWriteFrame(&LEAF_50B);  // HCM_WakeUpSleepCommand == 11b == WakeUp, and CANMASK = 1
+      transmit_can(&LEAF_50B, can_config.battery);  // HCM_WakeUpSleepCommand == 11b == WakeUp, and CANMASK = 1
 #ifdef DOUBLE_BATTERY
-      CAN_WriteFrame(&LEAF_50B);  // CAN2
-#endif                            // DOUBLE_BATTERY
+      transmit_can(&LEAF_50B, can_config.battery_double);
+#endif  // DOUBLE_BATTERY
 
       LEAF_50C.data.u8[3] = mprun100;
       switch (mprun100) {
@@ -1169,10 +1157,10 @@ void send_can_battery() {
           LEAF_50C.data.u8[5] = 0x9A;
           break;
       }
-      ESP32Can.CANWriteFrame(&LEAF_50C);
+      transmit_can(&LEAF_50C, can_config.battery);
 #ifdef DOUBLE_BATTERY
-      CAN_WriteFrame(&LEAF_50C);  // CAN2
-#endif                            // DOUBLE_BATTERY
+      transmit_can(&LEAF_50C, can_config.battery_double);
+#endif  // DOUBLE_BATTERY
 
       mprun100 = (mprun100 + 1) % 4;  // mprun100 cycles between 0-1-2-3-0-1...
     }
@@ -1186,10 +1174,10 @@ void send_can_battery() {
         group = (group == 1) ? 2 : (group == 2) ? 4 : 1;
         // Cycle between group 1, 2, and 4 using ternary operation
         LEAF_GROUP_REQUEST.data.u8[2] = group;
-        ESP32Can.CANWriteFrame(&LEAF_GROUP_REQUEST);
+        transmit_can(&LEAF_GROUP_REQUEST, can_config.battery);
 #ifdef DOUBLE_BATTERY
-        CAN_WriteFrame(&LEAF_GROUP_REQUEST);  // CAN2
-#endif                                        // DOUBLE_BATTERY
+        transmit_can(&LEAF_GROUP_REQUEST, can_config.battery_double);
+#endif  // DOUBLE_BATTERY
       }
 
       if (hold_off_with_polling_10seconds > 0) {
@@ -1246,9 +1234,8 @@ void setup_battery(void) {  // Performs one time setup at startup
 #endif
 
   datalayer.battery.info.number_of_cells = 96;
-  datalayer.battery.info.max_design_voltage_dV =
-      4040;  // 404.4V, over this, charging is not possible (goes into forced discharge)
-  datalayer.battery.info.min_design_voltage_dV = 2600;  // 260.0V under this, discharging further is disabled
+  datalayer.battery.info.max_design_voltage_dV = 4040;  // 404.4V
+  datalayer.battery.info.min_design_voltage_dV = 2600;  // 260.0V
 
 #ifdef DOUBLE_BATTERY
   datalayer.battery2.info.number_of_cells = datalayer.battery.info.number_of_cells;

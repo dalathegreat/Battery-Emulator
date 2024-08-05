@@ -13,10 +13,12 @@ CAN_ADDON_FD_MCP2518 = Add-on CAN-FD MCP2518 connected to GPIO pins
 */
 
 volatile CAN_Configuration can_config = {
-    .battery = CAN_NATIVE,                // Which CAN is your battery connected to?
-    .battery_double = CAN_ADDON_MCP2515,  // Which CAN is your optional second battery connected to?
-    .inverter = CAN_NATIVE                // Which CAN is your inverter connected to? (Not needed for RS485 inverters)
-};
+    .battery = CAN_NATIVE,  // Which CAN is your battery connected to?
+    .inverter = CAN_NATIVE  // Which CAN is your inverter connected to? (No need to configure incase you use RS485)
+                    .battery_double = CAN_ADDON_MCP2515,  // (OPTIONAL) Which CAN is your second battery connected to?
+    .charger = CAN_NATIVE;                                // (OPTIONAL) Which CAN is your charger connected to?
+}
+;
 
 #ifdef WEBSERVER
 volatile uint8_t AccessPointEnabled = true;           //Set to either true/false to enable direct wifi access point
