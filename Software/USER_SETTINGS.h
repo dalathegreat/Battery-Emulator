@@ -17,7 +17,7 @@
 //#define KIA_E_GMP_BATTERY
 //#define KIA_HYUNDAI_HYBRID_BATTERY
 //#define MG_5_BATTERY
-//#define NISSAN_LEAF_BATTERY
+#define NISSAN_LEAF_BATTERY
 //#define PYLON_BATTERY
 //#define RENAULT_KANGOO_BATTERY
 //#define RENAULT_ZOE_GEN1_BATTERY
@@ -29,7 +29,7 @@
 //#define DOUBLE_BATTERY  //Enable this line if you use two identical batteries at the same time (requires DUAL_CAN setup)
 
 /* Select inverter communication protocol. See Wiki for which to use with your inverter: https://github.com/dalathegreat/BYD-Battery-Emulator-For-Gen24/wiki */
-//#define BYD_CAN          //Enable this line to emulate a "BYD Battery-Box Premium HVS" over CAN Bus
+#define BYD_CAN  //Enable this line to emulate a "BYD Battery-Box Premium HVS" over CAN Bus
 //#define BYD_MODBUS       //Enable this line to emulate a "BYD 11kWh HVM battery" over Modbus RTU
 //#define LUNA2000_MODBUS  //Enable this line to emulate a "Luna2000 battery" over Modbus RTU
 //#define PYLON_CAN        //Enable this line to emulate a "Pylontech battery" over CAN bus
@@ -69,7 +69,6 @@
 //#define NISSANLEAF_CHARGER //Enable this line to control a Nissan LEAF PDM connected to battery - for example, when generator charging
 
 /* Battery settings */
-
 // Predefined total energy capacity of the battery in Watt-hours
 #define BATTERY_WH_MAX 30000
 // Increases battery life. If true will rescale SOC between the configured min/max-percentage
@@ -83,10 +82,17 @@
 // 300 = 30.0A , BYD CAN specific setting, Max discharge in Amp (Some inverters needs to be limited)
 #define BATTERY_MAX_DISCHARGE_AMP 300
 
+/* Do not change any code below this line unless you are sure what you are doing */
+/* Only change battery specific settings in "USER_SETTINGS.h" */
+typedef enum { CAN_NATIVE = 0, CAN_ADDON_MCP2515 = 1, CAN_ADDON_FD_MCP2518 = 2 } CAN_Interface;
+typedef struct {
+  CAN_Interface battery;
+  CAN_Interface battery_double;
+  CAN_Interface inverter;
+} CAN_Configuration;
+extern volatile CAN_Configuration can_config;
 extern volatile uint8_t AccessPointEnabled;
 extern const uint8_t wifi_channel;
-
-/* Charger limits (Optional): Set in the USER_SETTINGS.cpp or later in the webserver */
 extern volatile float charger_setpoint_HV_VDC;
 extern volatile float charger_setpoint_HV_IDC;
 extern volatile float charger_setpoint_HV_IDC_END;
@@ -99,4 +105,4 @@ extern volatile float CHARGER_END_A;
 extern bool charger_HV_enabled;
 extern bool charger_aux12V_enabled;
 
-#endif
+#endif  // __USER_SETTINGS_H__

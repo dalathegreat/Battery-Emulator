@@ -19,21 +19,24 @@ String settings_processor(const String& var) {
         "<h4 style='color: white;'>Password: ######## <span id='Password'></span> <button "
         "onclick='editPassword()'>Edit</button></h4>";
 
-    /*
-    If LilyGo used:
-    Battery CAN channel: DISABLED / CAN / ADD-ON CAN MCP2515 / ADD-ON CAN-FD
-    Inverter CAN channel: DISABLED / CAN / ADD-ON CAN MCP2515 / ADD-ON CAN-FD
-    Battery#2 CAN channel: DISABLED / CAN / ADD-ON CAN MCP2515 / ADD-ON CAN-FD
-    If Stark board used
-    Battery CAN channel: DISABLED / CAN / CAN-FD
-    Inverter CAN channel: DISABLED / CAN / CAN-FD
-    Battery#2 CAN channel: DISABLED / CAN / CAN-FD
-    */
+    content += "<h4 style='color: white;'>Battery interface: <span id='Battery'>" +
+               String(getCANInterfaceName(can_config.battery)) + "</span></h4>";
 
-    content +=
-    "<h4 style='color: white;'>Password: ######## <span id='Password'></span> <button "
-    "onclick='editPassword()'>Edit</button></h4>";
+#ifdef DOUBLE_BATTERY
+    content += "<h4 style='color: white;'>Battery #2 interface: <span id='Battery'>" +
+               String(getCANInterfaceName(can_config.battery_double)) + "</span></h4>";
+#else
+    content += "<h4 style='color: gray;'>Battery #2 interface: <span id='Battery'>" +
+               String(getCANInterfaceName(can_config.battery_double)) + "</span></h4>";
+#endif  // DOUBLE_BATTERY
 
+#ifdef CAN_INVERTER_SELECTED
+    content += "<h4 style='color: white;'>Inverter interface: <span id='Inverter'>" +
+               String(getCANInterfaceName(can_config.inverter)) + "</span></h4>";
+#endif  //CAN_INVERTER_SELECTED
+#ifdef MODBUS_INVERTER_SELECTED
+    content += "<h4 style='color: white;'>Inverter interface: RS485<span id='Inverter'></span></h4>";
+#endif
 
     // Close the block
     content += "</div>";
@@ -209,4 +212,31 @@ String settings_processor(const String& var) {
     return content;
   }
   return String();
+}
+
+const char* getCANInterfaceName(CAN_Interface interface) {
+#ifdef HW_LILYGO
+  switch (interface) {
+    case CAN_NATIVE:
+      return "CAN";
+    case CAN_ADDON_MCP2515:
+      return "Add-on CAN via GPIO MCP2515";
+    case CAN_ADDON_FD_MCP2518:
+      return "Add-on CAN-FD via GPIO MCP2518";
+    default:
+      return "UNKNOWN";
+  }
+#endif
+#ifdef HW_STARK
+  switch (interface) {
+    case CAN_NATIVE:
+      return "CAN";
+    case CAN_ADDON_MCP2515:
+      return "CAN_ADDON_MCP2515";
+    case CAN_ADDON_FD_MCP2518:
+      return "CAN_ADDON_FD_MCP2518";
+    default:
+      return "UNKNOWN";
+  }
+#endif
 }
