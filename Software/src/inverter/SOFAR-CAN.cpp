@@ -1,8 +1,6 @@
 #include "../include.h"
 #ifdef SOFAR_CAN
 #include "../datalayer/datalayer.h"
-#include "../lib/miwagner-ESP32-Arduino-CAN/CAN_config.h"
-#include "../lib/miwagner-ESP32-Arduino-CAN/ESP32CAN.h"
 #include "SOFAR-CAN.h"
 
 /* This implementation of the SOFAR can protocol is halfway done. What's missing is implementing the inverter replies, all the CAN messages are listed, but the can sending is missing. */
@@ -329,14 +327,14 @@ void send_can_inverter() {
   if (currentMillis - previousMillis100 >= INTERVAL_100_MS) {
     previousMillis100 = currentMillis;
     //Frames actively reported by BMS
-    ESP32Can.CANWriteFrame(&SOFAR_351);
-    ESP32Can.CANWriteFrame(&SOFAR_355);
-    ESP32Can.CANWriteFrame(&SOFAR_356);
-    ESP32Can.CANWriteFrame(&SOFAR_30F);
-    ESP32Can.CANWriteFrame(&SOFAR_359);
-    ESP32Can.CANWriteFrame(&SOFAR_35E);
-    ESP32Can.CANWriteFrame(&SOFAR_35F);
-    ESP32Can.CANWriteFrame(&SOFAR_35A);
+    transmit_can(&SOFAR_351, can_config.inverter);
+    transmit_can(&SOFAR_355, can_config.inverter);
+    transmit_can(&SOFAR_356, can_config.inverter);
+    transmit_can(&SOFAR_30F, can_config.inverter);
+    transmit_can(&SOFAR_359, can_config.inverter);
+    transmit_can(&SOFAR_35E, can_config.inverter);
+    transmit_can(&SOFAR_35F, can_config.inverter);
+    transmit_can(&SOFAR_35A, can_config.inverter);
   }
 }
 #endif

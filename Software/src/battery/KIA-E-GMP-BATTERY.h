@@ -13,5 +13,6 @@ extern ACAN2517FD canfd;
 #define MAXDISCHARGEPOWERALLOWED 10000
 
 void setup_battery(void);
+void transmit_can(CAN_frame_t* tx_frame, int interface);
 
 #endif

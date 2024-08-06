@@ -3,7 +3,6 @@
 
 #include "../include.h"
 #include "../lib/miwagner-ESP32-Arduino-CAN/ESP32CAN.h"
-#include "../lib/pierremolinaro-acan2515/ACAN2515.h"
 
 #define BATTERY_SELECTED
 #define MAX_CELL_DEVIATION_MV 500

@@ -2,8 +2,6 @@
 #ifdef KIA_HYUNDAI_HYBRID_BATTERY
 #include "../datalayer/datalayer.h"
 #include "../devboard/utils/events.h"
-#include "../lib/miwagner-ESP32-Arduino-CAN/CAN_config.h"
-#include "../lib/miwagner-ESP32-Arduino-CAN/ESP32CAN.h"
 #include "KIA-HYUNDAI-HYBRID-BATTERY.h"
 
 /* TODO: 
@@ -124,7 +122,7 @@ void receive_can_battery(CAN_frame_t rx_frame) {
       switch (rx_frame.data.u8[0]) {
         case 0x10:  //"PID Header"
           if (rx_frame.data.u8[3] == poll_data_pid) {
-            ESP32Can.CANWriteFrame(&KIA_7E4_ack);  //Send ack to BMS if the same frame is sent as polled
+            transmit_can(&KIA_7E4_ack, can_config.battery);  //Send ack to BMS if the same frame is sent as polled
           }
           break;
         case 0x21:                      //First frame in PID group
@@ -259,15 +257,15 @@ void send_can_battery() {
     }
     poll_data_pid++;
     if (poll_data_pid == 1) {
-      ESP32Can.CANWriteFrame(&KIA_7E4_id1);
+      transmit_can(&KIA_7E4_id1, can_config.battery);
     } else if (poll_data_pid == 2) {
-      ESP32Can.CANWriteFrame(&KIA_7E4_id2);
+      transmit_can(&KIA_7E4_id2, can_config.battery);
     } else if (poll_data_pid == 3) {
-      ESP32Can.CANWriteFrame(&KIA_7E4_id3);
+      transmit_can(&KIA_7E4_id3, can_config.battery);
     } else if (poll_data_pid == 4) {
 
     } else if (poll_data_pid == 5) {
-      ESP32Can.CANWriteFrame(&KIA_7E4_id5);
+      transmit_can(&KIA_7E4_id5, can_config.battery);
     }
   }
 }

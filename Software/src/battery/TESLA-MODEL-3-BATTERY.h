@@ -24,9 +24,8 @@ void printDebugIfActive(uint8_t symbol, const char* message);
 void print_int_with_units(char* header, int value, char* units);
 void print_SOC(char* header, int SOC);
 void setup_battery(void);
+void transmit_can(CAN_frame_t* tx_frame, int interface);
 #ifdef DOUBLE_BATTERY
-#include "../lib/pierremolinaro-acan2515/ACAN2515.h"
-extern ACAN2515 can;
 void printFaultCodesIfActive_battery2();
 #endif  //DOUBLE_BATTERY
 

@@ -2,7 +2,6 @@
 #ifdef JAGUAR_IPACE_BATTERY
 #include "../datalayer/datalayer.h"
 #include "../devboard/utils/events.h"
-#include "../lib/miwagner-ESP32-Arduino-CAN/ESP32CAN.h"
 #include "JAGUAR-IPACE-BATTERY.h"
 
 /* Do not change code below unless you are sure what you are doing */
@@ -257,7 +256,7 @@ void send_can_battery() {
   if (currentMillis - previousMillis100 >= INTERVAL_100_MS) {
     previousMillis100 = currentMillis;
 
-    //ESP32Can.CANWriteFrame(&ipace_keep_alive);
+    //transmit_can(&ipace_keep_alive);
   }
 
   // Send 500ms CAN Message
@@ -281,7 +280,7 @@ void send_can_battery() {
                            }},
                .MsgID = 0x7e4,
                .data = {0x03, 0x19, 0x02, 0x8f, 0x00, 0x00, 0x00, 0x00}};
-        err = ESP32Can.CANWriteFrame(&msg);
+        err = transmit_can(&msg, can_config.battery);
         if (err == 0)
           state++;
 
@@ -297,7 +296,7 @@ void send_can_battery() {
                            }},
                .MsgID = 0x7e4,
                .data = {0x06, 0x19, 0x04, 0xc0, 0x64, 0x88, 0xff, 0x00}};
-        err = ESP32Can.CANWriteFrame(&msg);
+        err = transmit_can(&msg, can_config.battery);
         if (err == 0)
           state++;
         break;

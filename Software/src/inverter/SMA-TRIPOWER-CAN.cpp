@@ -1,8 +1,6 @@
 #include "../include.h"
 #ifdef SMA_TRIPOWER_CAN
 #include "../datalayer/datalayer.h"
-#include "../lib/miwagner-ESP32-Arduino-CAN/CAN_config.h"
-#include "../lib/miwagner-ESP32-Arduino-CAN/ESP32CAN.h"
 #include "SMA-TRIPOWER-CAN.h"
 
 /* TODO:
@@ -356,28 +354,28 @@ void send_can_inverter() {
   if (currentMillis - previousMillis500ms >= INTERVAL_500_MS) {
     previousMillis500ms = currentMillis;
 
-    ESP32Can.CANWriteFrame(&SMA_00D);  //Battery limits
-    ESP32Can.CANWriteFrame(&SMA_00F);  // Battery state
-    ESP32Can.CANWriteFrame(&SMA_011);  // Battery Energy
-    ESP32Can.CANWriteFrame(&SMA_013);  // Battery Measurements
-    ESP32Can.CANWriteFrame(&SMA_014);  // Battery Temperatures and cellvoltages
+    transmit_can(&SMA_00D, can_config.inverter);  //Battery limits
+    transmit_can(&SMA_00F, can_config.inverter);  // Battery state
+    transmit_can(&SMA_011, can_config.inverter);  // Battery Energy
+    transmit_can(&SMA_013, can_config.inverter);  // Battery Measurements
+    transmit_can(&SMA_014, can_config.inverter);  // Battery Temperatures and cellvoltages
   }
 
-  if (batteryAlarm) {                  //Non-cyclic
-    ESP32Can.CANWriteFrame(&SMA_005);  // Battery Alarms 1
-    ESP32Can.CANWriteFrame(&SMA_007);  // Battery Alarms 2
+  if (batteryAlarm) {                             //Non-cyclic
+    transmit_can(&SMA_005, can_config.inverter);  // Battery Alarms 1
+    transmit_can(&SMA_007, can_config.inverter);  // Battery Alarms 2
   }
 
-  if (BMSevent) {                      //Non-cyclic
-    ESP32Can.CANWriteFrame(&SMA_006);  // Battery Errorcode
-    ESP32Can.CANWriteFrame(&SMA_008);  // Battery Events
+  if (BMSevent) {                                 //Non-cyclic
+    transmit_can(&SMA_006, can_config.inverter);  // Battery Errorcode
+    transmit_can(&SMA_008, can_config.inverter);  // Battery Events
   }
 }
 
 void send_tripower_init() {
-  ESP32Can.CANWriteFrame(&SMA_015);  // Battery Data 1
-  ESP32Can.CANWriteFrame(&SMA_016);  // Battery Data 2
-  ESP32Can.CANWriteFrame(&SMA_017);  // Battery Manufacturer
-  ESP32Can.CANWriteFrame(&SMA_018);  // Battery Name
+  transmit_can(&SMA_015, can_config.inverter);  // Battery Data 1
+  transmit_can(&SMA_016, can_config.inverter);  // Battery Data 2
+  transmit_can(&SMA_017, can_config.inverter);  // Battery Manufacturer
+  transmit_can(&SMA_018, can_config.inverter);  // Battery Name
 }
 #endif

@@ -2,8 +2,6 @@
 #ifdef RENAULT_KANGOO_BATTERY
 #include "../datalayer/datalayer.h"
 #include "../devboard/utils/events.h"
-#include "../lib/miwagner-ESP32-Arduino-CAN/CAN_config.h"
-#include "../lib/miwagner-ESP32-Arduino-CAN/ESP32CAN.h"
 #include "RENAULT-KANGOO-BATTERY.h"
 
 /* TODO:
@@ -233,7 +231,7 @@ void send_can_battery() {
   // Send 100ms CAN Message (for 2.4s, then pause 10s)
   if ((currentMillis - previousMillis100) >= (INTERVAL_100_MS + GVL_pause)) {
     previousMillis100 = currentMillis;
-    ESP32Can.CANWriteFrame(&KANGOO_423);
+    transmit_can(&KANGOO_423, can_config.battery);
     GVI_Pollcounter++;
     GVL_pause = 0;
     if (GVI_Pollcounter >= 24) {
@@ -245,9 +243,9 @@ void send_can_battery() {
   if (currentMillis - previousMillis1000 >= INTERVAL_1_S) {
     previousMillis1000 = currentMillis;
     if (GVB_79B_Continue)
-      ESP32Can.CANWriteFrame(&KANGOO_79B_Continue);
+      transmit_can(&KANGOO_79B_Continue, can_config.battery);
   } else {
-    ESP32Can.CANWriteFrame(&KANGOO_79B);
+    transmit_can(&KANGOO_79B, can_config.battery);
   }
 }
 

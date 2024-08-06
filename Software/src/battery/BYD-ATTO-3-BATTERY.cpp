@@ -2,8 +2,6 @@
 #ifdef BYD_ATTO_3_BATTERY
 #include "../datalayer/datalayer.h"
 #include "../devboard/utils/events.h"
-#include "../lib/miwagner-ESP32-Arduino-CAN/CAN_config.h"
-#include "../lib/miwagner-ESP32-Arduino-CAN/ESP32CAN.h"
 #include "BYD-ATTO-3-BATTERY.h"
 
 /* TODO: 
@@ -232,7 +230,7 @@ void receive_can_battery(CAN_frame_t rx_frame) {
       datalayer.battery.status.CAN_battery_still_alive = CAN_STILL_ALIVE;  // Let system know battery is sending CAN
 
       //This message transmits every 5?seconds. Seems like suitable place to poll for a PID
-      ESP32Can.CANWriteFrame(&ATTO_3_7E7_POLL);
+      transmit_can(&ATTO_3_7E7_POLL, can_config.battery);
 
       switch (ATTO_3_7E7_POLL.data.u8[3]) {
         case POLL_FOR_BATTERY_SOC:
@@ -341,7 +339,7 @@ void send_can_battery() {
     ATTO_3_12D.data.u8[6] = (0x0F | (frame6_counter << 4));
     ATTO_3_12D.data.u8[7] = (0x09 | (frame7_counter << 4));
 
-    ESP32Can.CANWriteFrame(&ATTO_3_12D);
+    transmit_can(&ATTO_3_12D, can_config.battery);
   }
   // Send 100ms CAN Message
   if (currentMillis - previousMillis100 >= INTERVAL_100_MS) {
@@ -354,7 +352,7 @@ void send_can_battery() {
       ATTO_3_411.data.u8[7] = 0xF5;
     }
 
-    ESP32Can.CANWriteFrame(&ATTO_3_411);
+    transmit_can(&ATTO_3_411, can_config.battery);
   }
 }
 

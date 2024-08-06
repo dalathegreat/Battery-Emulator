@@ -2,8 +2,6 @@
 #ifdef TESLA_MODEL_3_BATTERY
 #include "../datalayer/datalayer.h"
 #include "../devboard/utils/events.h"
-#include "../lib/miwagner-ESP32-Arduino-CAN/CAN_config.h"
-#include "../lib/miwagner-ESP32-Arduino-CAN/ESP32CAN.h"
 #include "TESLA-MODEL-3-BATTERY.h"
 
 /* Do not change code below unless you are sure what you are doing */
@@ -650,17 +648,6 @@ void receive_can_battery(CAN_frame_t rx_frame) {
 
 #ifdef DOUBLE_BATTERY
 
-void CAN_WriteFrame(CAN_frame_t* tx_frame) {
-  CANMessage MCP2515Frame;  //Struct with ACAN2515 library format, needed to use the MCP2515 library for CAN2
-  MCP2515Frame.id = tx_frame->MsgID;
-  //MCP2515Frame.ext = tx_frame->FIR.B.FF;
-  MCP2515Frame.len = tx_frame->FIR.B.DLC;
-  for (uint8_t i = 0; i < MCP2515Frame.len; i++) {
-    MCP2515Frame.data[i] = tx_frame->data.u8[i];
-  }
-  can.tryToSend(MCP2515Frame);
-}
-
 void receive_can_battery2(CAN_frame_t rx_frame) {
   static uint8_t mux = 0;
   static uint16_t temp = 0;
@@ -1067,12 +1054,12 @@ the first, for a few cycles, then stop all  messages which causes the contactor 
     previousMillis30 = currentMillis;
 
     if (datalayer.system.status.inverter_allows_contactor_closing) {
-      ESP32Can.CANWriteFrame(&TESLA_221_1);
-      ESP32Can.CANWriteFrame(&TESLA_221_2);
+      transmit_can(&TESLA_221_1, can_config.battery);
+      transmit_can(&TESLA_221_2, can_config.battery);
 #ifdef DOUBLE_BATTERY
       if (datalayer.system.status.battery2_allows_contactor_closing) {
-        CAN_WriteFrame(&TESLA_221_1);  // CAN2 connected to battery 2
-        CAN_WriteFrame(&TESLA_221_2);
+        transmit_can(&TESLA_221_1, can_config.battery_double);  // CAN2 connected to battery 2
+        transmit_can(&TESLA_221_2, can_config.battery_double);
       }
 #endif  //DOUBLE_BATTERY
     }

@@ -2,8 +2,6 @@
 #ifdef BMW_I3_BATTERY
 #include "../datalayer/datalayer.h"
 #include "../devboard/utils/events.h"
-#include "../lib/miwagner-ESP32-Arduino-CAN/CAN_config.h"
-#include "../lib/miwagner-ESP32-Arduino-CAN/ESP32CAN.h"
 #include "BMW-I3-BATTERY.h"
 
 /* Do not change code below unless you are sure what you are doing */
@@ -478,17 +476,6 @@ static uint8_t increment_alive_counter(uint8_t counter) {
   return counter;
 }
 
-void CAN_WriteFrame(CAN_frame_t* tx_frame) {
-  CANMessage MCP2515Frame;  //Struct with ACAN2515 library format, needed to use the MCP2515 library for CAN2
-  MCP2515Frame.id = tx_frame->MsgID;
-  //MCP2515Frame.ext = tx_frame->FIR.B.FF;
-  MCP2515Frame.len = tx_frame->FIR.B.DLC;
-  for (uint8_t i = 0; i < MCP2515Frame.len; i++) {
-    MCP2515Frame.data[i] = tx_frame->data.u8[i];
-  }
-  can.tryToSend(MCP2515Frame);
-}
-
 void update_values_battery2() {  //This function maps all the values fetched via CAN2 to the battery2 datalayer
   if (!battery2_awake) {
     return;
@@ -750,7 +737,7 @@ void receive_can_battery(CAN_frame_t rx_frame) {
         while (count < rx_frame.FIR.B.DLC && next_data < 49) {
           message_data[next_data++] = rx_frame.data.u8[count++];
         }
-        ESP32Can.CANWriteFrame(&BMW_6F1_CONTINUE);  // tell battery to send additional messages
+        transmit_can(&BMW_6F1_CONTINUE, can_config.battery);  // tell battery to send additional messages
 
       } else if (rx_frame.FIR.B.DLC > 3 && next_data > 0 && rx_frame.data.u8[0] == 0xf1 &&
                  ((rx_frame.data.u8[1] & 0xF0) == 0x20)) {
@@ -919,7 +906,7 @@ void receive_can_battery2(CAN_frame_t rx_frame) {
         while (count2 < rx_frame.FIR.B.DLC && next_data < 49) {
           message_data[next_data++] = rx_frame.data.u8[count2++];
         }
-        //ESP32Can.CANWriteFrame(&BMW_6F1_CONTINUE);  // tell battery to send additional messages TODO: Make this send to Can2 instead of CAN1
+        transmit_can(&BMW_6F1_CONTINUE, can_config.battery_double);
 
       } else if (rx_frame.FIR.B.DLC > 3 && next_data > 0 && rx_frame.data.u8[0] == 0xf1 &&
                  ((rx_frame.data.u8[1] & 0xF0) == 0x20)) {
@@ -991,12 +978,12 @@ void send_can_battery() {
       if (datalayer.battery.status.bms_status == FAULT) {
       }  //If battery is not in Fault mode, allow contactor to close by sending 10B
       else {
-        ESP32Can.CANWriteFrame(&BMW_10B);
+        transmit_can(&BMW_10B, can_config.battery);
       }
 
 #ifdef DOUBLE_BATTERY  //If second battery is allowed to join in, also send 10B
       if (datalayer.system.status.battery2_allows_contactor_closing == true) {
-        CAN_WriteFrame(&BMW_10B);
+        transmit_can(&BMW_10B, can_config.battery_double);
       }
 #endif
     }
@@ -1009,9 +996,9 @@ void send_can_battery() {
 
       alive_counter_100ms = increment_alive_counter(alive_counter_100ms);
 
-      ESP32Can.CANWriteFrame(&BMW_12F);
+      transmit_can(&BMW_12F, can_config.battery);
 #ifdef DOUBLE_BATTERY
-      CAN_WriteFrame(&BMW_12F);
+      transmit_can(&BMW_12F, can_config.battery_double);
 #endif
     }
     // Send 200ms CAN Message
@@ -1023,9 +1010,9 @@ void send_can_battery() {
 
       alive_counter_200ms = increment_alive_counter(alive_counter_200ms);
 
-      ESP32Can.CANWriteFrame(&BMW_19B);
+      transmit_can(&BMW_19B, can_config.battery);
 #ifdef DOUBLE_BATTERY
-      CAN_WriteFrame(&BMW_19B);
+      transmit_can(&BMW_19B, can_config.battery_double);
 #endif
     }
     // Send 500ms CAN Message
@@ -1037,20 +1024,20 @@ void send_can_battery() {
 
       alive_counter_500ms = increment_alive_counter(alive_counter_500ms);
 
-      ESP32Can.CANWriteFrame(&BMW_30B);
+      transmit_can(&BMW_30B, can_config.battery);
 #ifdef DOUBLE_BATTERY
-      CAN_WriteFrame(&BMW_30B);
+      transmit_can(&BMW_30B, can_config.battery_double);
 #endif
     }
     // Send 640ms CAN Message
     if (currentMillis - previousMillis640 >= INTERVAL_640_MS) {
       previousMillis640 = currentMillis;
 
-      ESP32Can.CANWriteFrame(&BMW_512);  // Keep BMS alive
-      ESP32Can.CANWriteFrame(&BMW_5F8);
+      transmit_can(&BMW_512, can_config.battery);  // Keep BMS alive
+      transmit_can(&BMW_5F8, can_config.battery);
 #ifdef DOUBLE_BATTERY
-      CAN_WriteFrame(&BMW_512);
-      CAN_WriteFrame(&BMW_5F8);
+      transmit_can(&BMW_512, can_config.battery_double);
+      transmit_can(&BMW_5F8, can_config.battery_double);
 #endif
     }
     // Send 1000ms CAN Message
@@ -1077,39 +1064,39 @@ void send_can_battery() {
 
       alive_counter_1000ms = increment_alive_counter(alive_counter_1000ms);
 
-      ESP32Can.CANWriteFrame(&BMW_3E8);  //Order comes from CAN logs
-      ESP32Can.CANWriteFrame(&BMW_328);
-      ESP32Can.CANWriteFrame(&BMW_3F9);
-      ESP32Can.CANWriteFrame(&BMW_2E2);
-      ESP32Can.CANWriteFrame(&BMW_41D);
-      ESP32Can.CANWriteFrame(&BMW_3D0);
-      ESP32Can.CANWriteFrame(&BMW_3CA);
-      ESP32Can.CANWriteFrame(&BMW_3A7);
-      ESP32Can.CANWriteFrame(&BMW_2CA);
-      ESP32Can.CANWriteFrame(&BMW_3FB);
-      ESP32Can.CANWriteFrame(&BMW_418);
-      ESP32Can.CANWriteFrame(&BMW_1D0);
-      ESP32Can.CANWriteFrame(&BMW_3EC);
-      ESP32Can.CANWriteFrame(&BMW_192);
-      ESP32Can.CANWriteFrame(&BMW_13E);
-      ESP32Can.CANWriteFrame(&BMW_433);
+      transmit_can(&BMW_3E8, can_config.battery);  //Order comes from CAN logs
+      transmit_can(&BMW_328, can_config.battery);
+      transmit_can(&BMW_3F9, can_config.battery);
+      transmit_can(&BMW_2E2, can_config.battery);
+      transmit_can(&BMW_41D, can_config.battery);
+      transmit_can(&BMW_3D0, can_config.battery);
+      transmit_can(&BMW_3CA, can_config.battery);
+      transmit_can(&BMW_3A7, can_config.battery);
+      transmit_can(&BMW_2CA, can_config.battery);
+      transmit_can(&BMW_3FB, can_config.battery);
+      transmit_can(&BMW_418, can_config.battery);
+      transmit_can(&BMW_1D0, can_config.battery);
+      transmit_can(&BMW_3EC, can_config.battery);
+      transmit_can(&BMW_192, can_config.battery);
+      transmit_can(&BMW_13E, can_config.battery);
+      transmit_can(&BMW_433, can_config.battery);
 #ifdef DOUBLE_BATTERY
-      CAN_WriteFrame(&BMW_3E8);
-      CAN_WriteFrame(&BMW_328);
-      CAN_WriteFrame(&BMW_3F9);
-      CAN_WriteFrame(&BMW_2E2);
-      CAN_WriteFrame(&BMW_41D);
-      CAN_WriteFrame(&BMW_3D0);
-      CAN_WriteFrame(&BMW_3CA);
-      CAN_WriteFrame(&BMW_3A7);
-      CAN_WriteFrame(&BMW_2CA);
-      CAN_WriteFrame(&BMW_3FB);
-      CAN_WriteFrame(&BMW_418);
-      CAN_WriteFrame(&BMW_1D0);
-      CAN_WriteFrame(&BMW_3EC);
-      CAN_WriteFrame(&BMW_192);
-      CAN_WriteFrame(&BMW_13E);
-      CAN_WriteFrame(&BMW_433);
+      transmit_can(&BMW_3E8, can_config.battery_double);
+      transmit_can(&BMW_328, can_config.battery_double);
+      transmit_can(&BMW_3F9, can_config.battery_double);
+      transmit_can(&BMW_2E2, can_config.battery_double);
+      transmit_can(&BMW_41D, can_config.battery_double);
+      transmit_can(&BMW_3D0, can_config.battery_double);
+      transmit_can(&BMW_3CA, can_config.battery_double);
+      transmit_can(&BMW_3A7, can_config.battery_double);
+      transmit_can(&BMW_2CA, can_config.battery_double);
+      transmit_can(&BMW_3FB, can_config.battery_double);
+      transmit_can(&BMW_418, can_config.battery_double);
+      transmit_can(&BMW_1D0, can_config.battery_double);
+      transmit_can(&BMW_3EC, can_config.battery_double);
+      transmit_can(&BMW_192, can_config.battery_double);
+      transmit_can(&BMW_13E, can_config.battery_double);
+      transmit_can(&BMW_433, can_config.battery_double);
 #endif
 
       BMW_433.data.u8[1] = 0x01;  // First 433 message byte1 we send is unique, once we sent initial value send this
@@ -1118,30 +1105,30 @@ void send_can_battery() {
       next_data = 0;
       switch (cmdState) {
         case SOC:
-          ESP32Can.CANWriteFrame(&BMW_6F1_CELL);
+          transmit_can(&BMW_6F1_CELL, can_config.battery);
 #ifdef DOUBLE_BATTERY
-          CAN_WriteFrame(&BMW_6F1_CELL);
+          transmit_can(&BMW_6F1_CELL, can_config.battery_double);
 #endif
           cmdState = CELL_VOLTAGE;
           break;
         case CELL_VOLTAGE:
-          ESP32Can.CANWriteFrame(&BMW_6F1_SOH);
+          transmit_can(&BMW_6F1_SOH, can_config.battery);
 #ifdef DOUBLE_BATTERY
-          CAN_WriteFrame(&BMW_6F1_SOH);
+          transmit_can(&BMW_6F1_SOH, can_config.battery_double);
 #endif
           cmdState = SOH;
           break;
         case SOH:
-          ESP32Can.CANWriteFrame(&BMW_6F1_CELL_VOLTAGE_AVG);
+          transmit_can(&BMW_6F1_CELL_VOLTAGE_AVG, can_config.battery);
 #ifdef DOUBLE_BATTERY
-          CAN_WriteFrame(&BMW_6F1_CELL_VOLTAGE_AVG);
+          transmit_can(&BMW_6F1_CELL_VOLTAGE_AVG, can_config.battery_double);
 #endif
           cmdState = CELL_VOLTAGE_AVG;
           break;
         case CELL_VOLTAGE_AVG:
-          ESP32Can.CANWriteFrame(&BMW_6F1_SOC);
+          transmit_can(&BMW_6F1_SOC, can_config.battery);
 #ifdef DOUBLE_BATTERY
-          CAN_WriteFrame(&BMW_6F1_SOC);
+          transmit_can(&BMW_6F1_SOC, can_config.battery_double);
 #endif
           cmdState = SOC;
           break;
@@ -1154,25 +1141,25 @@ void send_can_battery() {
       BMW_3FC.data.u8[1] = ((BMW_3FC.data.u8[1] & 0xF0) + alive_counter_5000ms);
       BMW_3C5.data.u8[0] = ((BMW_3C5.data.u8[0] & 0xF0) + alive_counter_5000ms);
 
-      ESP32Can.CANWriteFrame(&BMW_3FC);  //Order comes from CAN logs
-      ESP32Can.CANWriteFrame(&BMW_3C5);
-      ESP32Can.CANWriteFrame(&BMW_3A0);
-      ESP32Can.CANWriteFrame(&BMW_592_0);
-      ESP32Can.CANWriteFrame(&BMW_592_1);
+      transmit_can(&BMW_3FC, can_config.battery);  //Order comes from CAN logs
+      transmit_can(&BMW_3C5, can_config.battery);
+      transmit_can(&BMW_3A0, can_config.battery);
+      transmit_can(&BMW_592_0, can_config.battery);
+      transmit_can(&BMW_592_1, can_config.battery);
 #ifdef DOUBLE_BATTERY
-      CAN_WriteFrame(&BMW_3FC);
-      CAN_WriteFrame(&BMW_3C5);
-      CAN_WriteFrame(&BMW_3A0);
-      CAN_WriteFrame(&BMW_592_0);
-      CAN_WriteFrame(&BMW_592_1);
+      transmit_can(&BMW_3FC, can_config.battery_double);
+      transmit_can(&BMW_3C5, can_config.battery_double);
+      transmit_can(&BMW_3A0, can_config.battery_double);
+      transmit_can(&BMW_592_0, can_config.battery_double);
+      transmit_can(&BMW_592_1, can_config.battery_double);
 #endif
 
       alive_counter_5000ms = increment_alive_counter(alive_counter_5000ms);
 
       if (BMW_380_counter < 3) {
-        ESP32Can.CANWriteFrame(&BMW_380);  // This message stops after 3 times on startup
+        transmit_can(&BMW_380, can_config.battery);  // This message stops after 3 times on startup
 #ifdef DOUBLE_BATTERY
-        CAN_WriteFrame(&BMW_380);
+        transmit_can(&BMW_380, can_config.battery_double);
 #endif
         BMW_380_counter++;
       }
@@ -1181,13 +1168,13 @@ void send_can_battery() {
     if (currentMillis - previousMillis10000 >= INTERVAL_10_S) {
       previousMillis10000 = currentMillis;
 
-      ESP32Can.CANWriteFrame(&BMW_3E5);  //Order comes from CAN logs
-      ESP32Can.CANWriteFrame(&BMW_3E4);
-      ESP32Can.CANWriteFrame(&BMW_37B);
+      transmit_can(&BMW_3E5, can_config.battery);  //Order comes from CAN logs
+      transmit_can(&BMW_3E4, can_config.battery);
+      transmit_can(&BMW_37B, can_config.battery);
 #ifdef DOUBLE_BATTERY
-      CAN_WriteFrame(&BMW_3E5);
-      CAN_WriteFrame(&BMW_3E4);
-      CAN_WriteFrame(&BMW_37B);
+      transmit_can(&BMW_3E5, can_config.battery_double);
+      transmit_can(&BMW_3E4, can_config.battery_double);
+      transmit_can(&BMW_37B, can_config.battery_double);
 #endif
 
       BMW_3E5.data.u8[0] = 0xFD;  // First 3E5 message byte0 we send is unique, once we sent initial value send this

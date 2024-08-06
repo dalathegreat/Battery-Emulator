@@ -2,8 +2,6 @@
 #ifdef MG_5_BATTERY_H
 #include "../datalayer/datalayer.h"
 #include "../devboard/utils/events.h"
-#include "../lib/miwagner-ESP32-Arduino-CAN/CAN_config.h"
-#include "../lib/miwagner-ESP32-Arduino-CAN/ESP32CAN.h"
 #include "MG-5-BATTERY.h"
 
 /* TODO: 
@@ -130,13 +128,13 @@ void send_can_battery() {
     }
     previousMillis10 = currentMillis;
 
-    ESP32Can.CANWriteFrame(&MG_5_100);
+    transmit_can(&MG_5_100, can_config.battery);
   }
   // Send 100ms CAN Message
   if (currentMillis - previousMillis100 >= INTERVAL_100_MS) {
     previousMillis100 = currentMillis;
 
-    //ESP32Can.CANWriteFrame(&MG_5_100);
+    //transmit_can(&MG_5_100, can_config.battery);
   }
 }
 

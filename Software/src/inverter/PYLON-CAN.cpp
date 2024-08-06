@@ -1,8 +1,6 @@
 #include "../include.h"
 #ifdef PYLON_CAN
 #include "../datalayer/datalayer.h"
-#include "../lib/miwagner-ESP32-Arduino-CAN/CAN_config.h"
-#include "../lib/miwagner-ESP32-Arduino-CAN/ESP32CAN.h"
 #include "PYLON-CAN.h"
 
 #define SEND_0  //If defined, the messages will have ID ending with 0 (useful for some inverters)
@@ -511,37 +509,37 @@ void send_setup_info() {  //Ensemble information
   }
 
 #ifdef SEND_0
-  ESP32Can.CANWriteFrame(&PYLON_7310);
-  ESP32Can.CANWriteFrame(&PYLON_7320);
+  transmit_can(&PYLON_7310, can_config.inverter);
+  transmit_can(&PYLON_7320, can_config.inverter);
 #endif
 #ifdef SEND_1
-  ESP32Can.CANWriteFrame(&PYLON_7311);
-  ESP32Can.CANWriteFrame(&PYLON_7321);
+  transmit_can(&PYLON_7311, can_config.inverter);
+  transmit_can(&PYLON_7321, can_config.inverter);
 #endif
 }
 
 void send_system_data() {  //System equipment information
 #ifdef SEND_0
-  ESP32Can.CANWriteFrame(&PYLON_4210);
-  ESP32Can.CANWriteFrame(&PYLON_4220);
-  ESP32Can.CANWriteFrame(&PYLON_4230);
-  ESP32Can.CANWriteFrame(&PYLON_4240);
-  ESP32Can.CANWriteFrame(&PYLON_4250);
-  ESP32Can.CANWriteFrame(&PYLON_4260);
-  ESP32Can.CANWriteFrame(&PYLON_4270);
-  ESP32Can.CANWriteFrame(&PYLON_4280);
-  ESP32Can.CANWriteFrame(&PYLON_4290);
+  transmit_can(&PYLON_4210, can_config.inverter);
+  transmit_can(&PYLON_4220, can_config.inverter);
+  transmit_can(&PYLON_4230, can_config.inverter);
+  transmit_can(&PYLON_4240, can_config.inverter);
+  transmit_can(&PYLON_4250, can_config.inverter);
+  transmit_can(&PYLON_4260, can_config.inverter);
+  transmit_can(&PYLON_4270, can_config.inverter);
+  transmit_can(&PYLON_4280, can_config.inverter);
+  transmit_can(&PYLON_4290, can_config.inverter);
 #endif
 #ifdef SEND_1
-  ESP32Can.CANWriteFrame(&PYLON_4211);
-  ESP32Can.CANWriteFrame(&PYLON_4221);
-  ESP32Can.CANWriteFrame(&PYLON_4231);
-  ESP32Can.CANWriteFrame(&PYLON_4241);
-  ESP32Can.CANWriteFrame(&PYLON_4251);
-  ESP32Can.CANWriteFrame(&PYLON_4261);
-  ESP32Can.CANWriteFrame(&PYLON_4271);
-  ESP32Can.CANWriteFrame(&PYLON_4281);
-  ESP32Can.CANWriteFrame(&PYLON_4291);
+  transmit_can(&PYLON_4211, can_config.inverter);
+  transmit_can(&PYLON_4221, can_config.inverter);
+  transmit_can(&PYLON_4231, can_config.inverter);
+  transmit_can(&PYLON_4241, can_config.inverter);
+  transmit_can(&PYLON_4251, can_config.inverter);
+  transmit_can(&PYLON_4261, can_config.inverter);
+  transmit_can(&PYLON_4271, can_config.inverter);
+  transmit_can(&PYLON_4281, can_config.inverter);
+  transmit_can(&PYLON_4291, can_config.inverter);
 #endif
 }
 #endif

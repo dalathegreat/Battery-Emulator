@@ -244,7 +244,7 @@ void ISA_initialize() {
         outframe.data.u8[6]=0x00;
         outframe.data.u8[7]=0x00;
 
-        ESP32Can.CANWriteFrame(&outframe);
+        transmit_can((&outframe, can_config.battery);
 
         delay(500);
 
@@ -268,7 +268,7 @@ void ISA_STOP() {
     outframe.data.u8[5]=0x00;
     outframe.data.u8[6]=0x00;
     outframe.data.u8[7]=0x00;
-    ESP32Can.CANWriteFrame(&outframe);
+    transmit_can((&outframe, can_config.battery);
 
 }
 
@@ -281,7 +281,7 @@ void ISA_sendSTORE() {
     outframe.data.u8[5]=0x00;
     outframe.data.u8[6]=0x00;
     outframe.data.u8[7]=0x00;
-    ESP32Can.CANWriteFrame(&outframe);
+    transmit_can((&outframe, can_config.battery);
 }
 
 void ISA_START() {
@@ -293,7 +293,7 @@ void ISA_START() {
     outframe.data.u8[5]=0x00;
     outframe.data.u8[6]=0x00;
     outframe.data.u8[7]=0x00;
-    ESP32Can.CANWriteFrame(&outframe);
+    transmit_can((&outframe, can_config.battery);
 }
 
 void ISA_RESTART() {
@@ -306,7 +306,7 @@ void ISA_RESTART() {
     outframe.data.u8[5]=0x00;
     outframe.data.u8[6]=0x00;
     outframe.data.u8[7]=0x00;
-    ESP32Can.CANWriteFrame(&outframe);
+    transmit_can((&outframe, can_config.battery);
 }
 
 void ISA_deFAULT() {
@@ -319,7 +319,7 @@ void ISA_deFAULT() {
     outframe.data.u8[5]=0x00;
     outframe.data.u8[6]=0x00;
     outframe.data.u8[7]=0x00;
-    ESP32Can.CANWriteFrame(&outframe);
+    transmit_can((&outframe, can_config.battery);
 }
 
 void ISA_initCurrent() {
@@ -337,7 +337,7 @@ void ISA_initCurrent() {
     outframe.data.u8[6]=0x00;
     outframe.data.u8[7]=0x00;
 
-    ESP32Can.CANWriteFrame(&outframe);
+    transmit_can((&outframe, can_config.battery);
 
     delay(500);
 

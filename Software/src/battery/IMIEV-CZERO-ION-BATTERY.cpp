@@ -2,8 +2,6 @@
 #ifdef IMIEV_CZERO_ION_BATTERY
 #include "../datalayer/datalayer.h"
 #include "../devboard/utils/events.h"
-#include "../lib/miwagner-ESP32-Arduino-CAN/CAN_config.h"
-#include "../lib/miwagner-ESP32-Arduino-CAN/ESP32CAN.h"
 #include "IMIEV-CZERO-ION-BATTERY.h"
 
 //Code still work in progress, TODO:

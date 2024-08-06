@@ -1,8 +1,6 @@
 #include "../include.h"
 #ifdef BYD_CAN
 #include "../datalayer/datalayer.h"
-#include "../lib/miwagner-ESP32-Arduino-CAN/CAN_config.h"
-#include "../lib/miwagner-ESP32-Arduino-CAN/ESP32CAN.h"
 #include "BYD-CAN.h"
 
 /* Do not change code below unless you are sure what you are doing */
@@ -18,7 +16,7 @@ static uint8_t char6_151 = 0;
 static uint8_t char7_151 = 0;
 
 //Startup messages
-const CAN_frame_t BYD_250 = {
+CAN_frame_t BYD_250 = {
     .FIR = {.B =
                 {
                     .DLC = 8,
@@ -27,48 +25,48 @@ const CAN_frame_t BYD_250 = {
     .MsgID = 0x250,
     .data = {0x03, 0x16, 0x00, 0x66, (uint8_t)((BATTERY_WH_MAX / 100) >> 8), (uint8_t)(BATTERY_WH_MAX / 100), 0x02,
              0x09}};  //3.16 FW , Capacity kWh byte4&5 (example 24kWh = 240)
-const CAN_frame_t BYD_290 = {.FIR = {.B =
-                                         {
-                                             .DLC = 8,
-                                             .FF = CAN_frame_std,
-                                         }},
-                             .MsgID = 0x290,
-                             .data = {0x06, 0x37, 0x10, 0xD9, 0x00, 0x00, 0x00, 0x00}};
-const CAN_frame_t BYD_2D0 = {.FIR = {.B =
-                                         {
-                                             .DLC = 8,
-                                             .FF = CAN_frame_std,
-                                         }},
-                             .MsgID = 0x2D0,
-                             .data = {0x00, 0x42, 0x59, 0x44, 0x00, 0x00, 0x00, 0x00}};  //BYD
-const CAN_frame_t BYD_3D0_0 = {.FIR = {.B =
-                                           {
-                                               .DLC = 8,
-                                               .FF = CAN_frame_std,
-                                           }},
-                               .MsgID = 0x3D0,
-                               .data = {0x00, 0x42, 0x61, 0x74, 0x74, 0x65, 0x72, 0x79}};  //Battery
-const CAN_frame_t BYD_3D0_1 = {.FIR = {.B =
-                                           {
-                                               .DLC = 8,
-                                               .FF = CAN_frame_std,
-                                           }},
-                               .MsgID = 0x3D0,
-                               .data = {0x01, 0x2D, 0x42, 0x6F, 0x78, 0x20, 0x50, 0x72}};  //-Box Pr
-const CAN_frame_t BYD_3D0_2 = {.FIR = {.B =
-                                           {
-                                               .DLC = 8,
-                                               .FF = CAN_frame_std,
-                                           }},
-                               .MsgID = 0x3D0,
-                               .data = {0x02, 0x65, 0x6D, 0x69, 0x75, 0x6D, 0x20, 0x48}};  //emium H
-const CAN_frame_t BYD_3D0_3 = {.FIR = {.B =
-                                           {
-                                               .DLC = 8,
-                                               .FF = CAN_frame_std,
-                                           }},
-                               .MsgID = 0x3D0,
-                               .data = {0x03, 0x56, 0x53, 0x00, 0x00, 0x00, 0x00, 0x00}};  //VS
+CAN_frame_t BYD_290 = {.FIR = {.B =
+                                   {
+                                       .DLC = 8,
+                                       .FF = CAN_frame_std,
+                                   }},
+                       .MsgID = 0x290,
+                       .data = {0x06, 0x37, 0x10, 0xD9, 0x00, 0x00, 0x00, 0x00}};
+CAN_frame_t BYD_2D0 = {.FIR = {.B =
+                                   {
+                                       .DLC = 8,
+                                       .FF = CAN_frame_std,
+                                   }},
+                       .MsgID = 0x2D0,
+                       .data = {0x00, 0x42, 0x59, 0x44, 0x00, 0x00, 0x00, 0x00}};  //BYD
+CAN_frame_t BYD_3D0_0 = {.FIR = {.B =
+                                     {
+                                         .DLC = 8,
+                                         .FF = CAN_frame_std,
+                                     }},
+                         .MsgID = 0x3D0,
+                         .data = {0x00, 0x42, 0x61, 0x74, 0x74, 0x65, 0x72, 0x79}};  //Battery
+CAN_frame_t BYD_3D0_1 = {.FIR = {.B =
+                                     {
+                                         .DLC = 8,
+                                         .FF = CAN_frame_std,
+                                     }},
+                         .MsgID = 0x3D0,
+                         .data = {0x01, 0x2D, 0x42, 0x6F, 0x78, 0x20, 0x50, 0x72}};  //-Box Pr
+CAN_frame_t BYD_3D0_2 = {.FIR = {.B =
+                                     {
+                                         .DLC = 8,
+                                         .FF = CAN_frame_std,
+                                     }},
+                         .MsgID = 0x3D0,
+                         .data = {0x02, 0x65, 0x6D, 0x69, 0x75, 0x6D, 0x20, 0x48}};  //emium H
+CAN_frame_t BYD_3D0_3 = {.FIR = {.B =
+                                     {
+                                         .DLC = 8,
+                                         .FF = CAN_frame_std,
+                                     }},
+                         .MsgID = 0x3D0,
+                         .data = {0x03, 0x56, 0x53, 0x00, 0x00, 0x00, 0x00, 0x00}};  //VS
 //Actual content messages
 CAN_frame_t BYD_110 = {.FIR = {.B =
                                    {
@@ -246,31 +244,31 @@ void send_can_inverter() {
   if (currentMillis - previousMillis2s >= INTERVAL_2_S) {
     previousMillis2s = currentMillis;
 
-    ESP32Can.CANWriteFrame(&BYD_110);
+    transmit_can(&BYD_110, can_config.inverter);
   }
   // Send 10s CAN Message
   if (currentMillis - previousMillis10s >= INTERVAL_10_S) {
     previousMillis10s = currentMillis;
 
-    ESP32Can.CANWriteFrame(&BYD_150);
-    ESP32Can.CANWriteFrame(&BYD_1D0);
-    ESP32Can.CANWriteFrame(&BYD_210);
+    transmit_can(&BYD_150, can_config.inverter);
+    transmit_can(&BYD_1D0, can_config.inverter);
+    transmit_can(&BYD_210, can_config.inverter);
   }
   //Send 60s message
   if (currentMillis - previousMillis60s >= INTERVAL_60_S) {
     previousMillis60s = currentMillis;
 
-    ESP32Can.CANWriteFrame(&BYD_190);
+    transmit_can(&BYD_190, can_config.inverter);
   }
 }
 
 void send_intial_data() {
-  ESP32Can.CANWriteFrame(&BYD_250);
-  ESP32Can.CANWriteFrame(&BYD_290);
-  ESP32Can.CANWriteFrame(&BYD_2D0);
-  ESP32Can.CANWriteFrame(&BYD_3D0_0);
-  ESP32Can.CANWriteFrame(&BYD_3D0_1);
-  ESP32Can.CANWriteFrame(&BYD_3D0_2);
-  ESP32Can.CANWriteFrame(&BYD_3D0_3);
+  transmit_can(&BYD_250, can_config.inverter);
+  transmit_can(&BYD_290, can_config.inverter);
+  transmit_can(&BYD_2D0, can_config.inverter);
+  transmit_can(&BYD_3D0_0, can_config.inverter);
+  transmit_can(&BYD_3D0_1, can_config.inverter);
+  transmit_can(&BYD_3D0_2, can_config.inverter);
+  transmit_can(&BYD_3D0_3, can_config.inverter);
 }
 #endif

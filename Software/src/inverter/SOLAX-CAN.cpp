@@ -106,21 +106,6 @@ CAN_frame_t SOLAX_100A001 = {.FIR = {.B =
 #define Contactor_Open_Payload __builtin_bswap64(0x0200010000000000)
 #define Contactor_Close_Payload __builtin_bswap64(0x0200010001000000)
 
-void CAN_WriteFrame(CAN_frame_t* tx_frame) {
-#ifdef DUAL_CAN
-  CANMessage MCP2515Frame;  //Struct with ACAN2515 library format, needed to use the MCP2515 library
-  MCP2515Frame.id = tx_frame->MsgID;
-  MCP2515Frame.ext = tx_frame->FIR.B.FF;
-  MCP2515Frame.len = tx_frame->FIR.B.DLC;
-  for (uint8_t i = 0; i < MCP2515Frame.len; i++) {
-    MCP2515Frame.data[i] = tx_frame->data.u8[i];
-  }
-  can.tryToSend(MCP2515Frame);
-#else
-  ESP32Can.CANWriteFrame(tx_frame);
-#endif
-}
-
 void update_values_can_inverter() {  //This function maps all the values fetched from battery CAN to the correct CAN messages
   // If not receiveing any communication from the inverter, open contactors and return to battery announce state
   if (millis() - LastFrameTime >= SolaxTimeout) {
@@ -263,15 +248,15 @@ void receive_can_inverter(CAN_frame_t rx_frame) {
         datalayer.system.status.inverter_allows_contactor_closing = false;
         SOLAX_1875.data.u8[4] = (0x00);  // Inform Inverter: Contactor 0=off, 1=on.
         for (int i = 0; i <= number_of_batteries; i++) {
-          CAN_WriteFrame(&SOLAX_1872);
-          CAN_WriteFrame(&SOLAX_1873);
-          CAN_WriteFrame(&SOLAX_1874);
-          CAN_WriteFrame(&SOLAX_1875);
-          CAN_WriteFrame(&SOLAX_1876);
-          CAN_WriteFrame(&SOLAX_1877);
-          CAN_WriteFrame(&SOLAX_1878);
+          transmit_can(&SOLAX_1872, can_config.inverter);
+          transmit_can(&SOLAX_1873, can_config.inverter);
+          transmit_can(&SOLAX_1874, can_config.inverter);
+          transmit_can(&SOLAX_1875, can_config.inverter);
+          transmit_can(&SOLAX_1876, can_config.inverter);
+          transmit_can(&SOLAX_1877, can_config.inverter);
+          transmit_can(&SOLAX_1878, can_config.inverter);
         }
-        CAN_WriteFrame(&SOLAX_100A001);  //BMS Announce
+        transmit_can(&SOLAX_100A001, can_config.inverter);  //BMS Announce
         // Message from the inverter to proceed to contactor closing
         // Byte 4 changes from 0 to 1
         if (rx_frame.data.u64 == Contactor_Close_Payload)
@@ -280,15 +265,15 @@ void receive_can_inverter(CAN_frame_t rx_frame) {
 
       case (WAITING_FOR_CONTACTOR):
         SOLAX_1875.data.u8[4] = (0x00);  // Inform Inverter: Contactor 0=off, 1=on.
-        CAN_WriteFrame(&SOLAX_1872);
-        CAN_WriteFrame(&SOLAX_1873);
-        CAN_WriteFrame(&SOLAX_1874);
-        CAN_WriteFrame(&SOLAX_1875);
-        CAN_WriteFrame(&SOLAX_1876);
-        CAN_WriteFrame(&SOLAX_1877);
-        CAN_WriteFrame(&SOLAX_1878);
-        CAN_WriteFrame(&SOLAX_1801);  // Announce that the battery will be connected
-        STATE = CONTACTOR_CLOSED;     // Jump to Contactor Closed State
+        transmit_can(&SOLAX_1872, can_config.inverter);
+        transmit_can(&SOLAX_1873, can_config.inverter);
+        transmit_can(&SOLAX_1874, can_config.inverter);
+        transmit_can(&SOLAX_1875, can_config.inverter);
+        transmit_can(&SOLAX_1876, can_config.inverter);
+        transmit_can(&SOLAX_1877, can_config.inverter);
+        transmit_can(&SOLAX_1878, can_config.inverter);
+        transmit_can(&SOLAX_1801, can_config.inverter);  // Announce that the battery will be connected
+        STATE = CONTACTOR_CLOSED;                        // Jump to Contactor Closed State
 #ifdef DEBUG_VIA_USB
         Serial.println("Solax Battery State: Contactor Closed");
 #endif
@@ -297,13 +282,13 @@ void receive_can_inverter(CAN_frame_t rx_frame) {
       case (CONTACTOR_CLOSED):
         datalayer.system.status.inverter_allows_contactor_closing = true;
         SOLAX_1875.data.u8[4] = (0x01);  // Inform Inverter: Contactor 0=off, 1=on.
-        CAN_WriteFrame(&SOLAX_1872);
-        CAN_WriteFrame(&SOLAX_1873);
-        CAN_WriteFrame(&SOLAX_1874);
-        CAN_WriteFrame(&SOLAX_1875);
-        CAN_WriteFrame(&SOLAX_1876);
-        CAN_WriteFrame(&SOLAX_1877);
-        CAN_WriteFrame(&SOLAX_1878);
+        transmit_can(&SOLAX_1872, can_config.inverter);
+        transmit_can(&SOLAX_1873, can_config.inverter);
+        transmit_can(&SOLAX_1874, can_config.inverter);
+        transmit_can(&SOLAX_1875, can_config.inverter);
+        transmit_can(&SOLAX_1876, can_config.inverter);
+        transmit_can(&SOLAX_1877, can_config.inverter);
+        transmit_can(&SOLAX_1878, can_config.inverter);
         // Message from the inverter to open contactor
         // Byte 4 changes from 1 to 0
         if (rx_frame.data.u64 == Contactor_Open_Payload) {
@@ -315,8 +300,8 @@ void receive_can_inverter(CAN_frame_t rx_frame) {
   }
 
   if (rx_frame.MsgID == 0x1871 && rx_frame.data.u64 == __builtin_bswap64(0x0500010000000000)) {
-    CAN_WriteFrame(&SOLAX_1881);
-    CAN_WriteFrame(&SOLAX_1882);
+    transmit_can(&SOLAX_1881, can_config.inverter);
+    transmit_can(&SOLAX_1882, can_config.inverter);
 #ifdef DEBUG_VIA_USB
     Serial.println("1871 05-frame received from inverter");
 #endif

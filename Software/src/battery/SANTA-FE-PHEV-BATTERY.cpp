@@ -2,8 +2,6 @@
 #ifdef SANTA_FE_PHEV_BATTERY
 #include "../datalayer/datalayer.h"
 #include "../devboard/utils/events.h"
-#include "../lib/miwagner-ESP32-Arduino-CAN/CAN_config.h"
-#include "../lib/miwagner-ESP32-Arduino-CAN/ESP32CAN.h"
 #include "SANTA-FE-PHEV-BATTERY.h"
 
 /* Credits go to maciek16c for these findings!
@@ -175,7 +173,7 @@ void receive_can_battery(CAN_frame_t rx_frame) {
       switch (rx_frame.data.u8[0]) {
         case 0x10:  //"PID Header"
           if (rx_frame.data.u8[4] == poll_data_pid) {
-            ESP32Can.CANWriteFrame(&SANTAFE_7E4_ack);  //Send ack to BMS if the same frame is sent as polled
+            transmit_can(&SANTAFE_7E4_ack, can_config.battery);  //Send ack to BMS if the same frame is sent as polled
           }
           break;
         case 0x21:  //First frame in PID group
@@ -355,11 +353,11 @@ void send_can_battery() {
 
     SANTAFE_200.data.u8[7] = checksum_200;
 
-    ESP32Can.CANWriteFrame(&SANTAFE_200);
+    transmit_can(&SANTAFE_200, can_config.battery);
 
-    ESP32Can.CANWriteFrame(&SANTAFE_2A1);
+    transmit_can(&SANTAFE_2A1, can_config.battery);
 
-    ESP32Can.CANWriteFrame(&SANTAFE_2F0);
+    transmit_can(&SANTAFE_2F0, can_config.battery);
 
     counter_200++;
     if (counter_200 > 0xF) {
@@ -371,7 +369,7 @@ void send_can_battery() {
   if (currentMillis - previousMillis100 >= INTERVAL_100_MS) {
     previousMillis100 = currentMillis;
 
-    ESP32Can.CANWriteFrame(&SANTAFE_523);
+    transmit_can(&SANTAFE_523, can_config.battery);
   }
 
   // Send 500ms CAN Message
@@ -385,19 +383,19 @@ void send_can_battery() {
     poll_data_pid++;
     if (poll_data_pid == 1) {
       SANTAFE_7E4_poll.data.u8[3] = 0x01;
-      ESP32Can.CANWriteFrame(&SANTAFE_7E4_poll);
+      transmit_can(&SANTAFE_7E4_poll, can_config.battery);
     } else if (poll_data_pid == 2) {
       SANTAFE_7E4_poll.data.u8[3] = 0x02;
-      ESP32Can.CANWriteFrame(&SANTAFE_7E4_poll);
+      transmit_can(&SANTAFE_7E4_poll, can_config.battery);
     } else if (poll_data_pid == 3) {
       SANTAFE_7E4_poll.data.u8[3] = 0x03;
-      ESP32Can.CANWriteFrame(&SANTAFE_7E4_poll);
+      transmit_can(&SANTAFE_7E4_poll, can_config.battery);
     } else if (poll_data_pid == 4) {
       SANTAFE_7E4_poll.data.u8[3] = 0x04;
-      ESP32Can.CANWriteFrame(&SANTAFE_7E4_poll);
+      transmit_can(&SANTAFE_7E4_poll, can_config.battery);
     } else if (poll_data_pid == 5) {
       SANTAFE_7E4_poll.data.u8[3] = 0x05;
-      ESP32Can.CANWriteFrame(&SANTAFE_7E4_poll);
+      transmit_can(&SANTAFE_7E4_poll, can_config.battery);
     }
   }
 }

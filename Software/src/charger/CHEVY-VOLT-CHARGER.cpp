@@ -2,8 +2,6 @@
 #ifdef CHEVYVOLT_CHARGER
 #include "../datalayer/datalayer.h"
 #include "../devboard/utils/events.h"
-#include "../lib/miwagner-ESP32-Arduino-CAN/CAN_config.h"
-#include "../lib/miwagner-ESP32-Arduino-CAN/ESP32CAN.h"
 #include "CHEVY-VOLT-CHARGER.h"
 
 /* This implements Chevy Volt / Ampera charger support (2011-2015 model years).
@@ -145,7 +143,7 @@ void send_can_charger() {
 
     charger_keepalive_frame.data.u8[0] = charger_mode;
 
-    ESP32Can.CANWriteFrame(&charger_keepalive_frame);
+    transmit_can(&charger_keepalive_frame, can_config.charger);
   }
 
   /* Send current targets every 200ms */
@@ -182,7 +180,7 @@ void send_can_charger() {
     /* LSB of the voltage command. Then MSB LSB is divided by 2 */
     charger_set_targets.data.u8[3] = lowByte(Vol_temp);
 
-    ESP32Can.CANWriteFrame(&charger_set_targets);
+    transmit_can(&charger_set_targets, can_config.charger);
   }
 
 #ifdef DEBUG_VIA_USB

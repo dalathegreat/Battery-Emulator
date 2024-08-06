@@ -2,8 +2,6 @@
 #ifdef PYLON_BATTERY
 #include "../datalayer/datalayer.h"
 #include "../devboard/utils/events.h"
-#include "../lib/miwagner-ESP32-Arduino-CAN/CAN_config.h"
-#include "../lib/miwagner-ESP32-Arduino-CAN/ESP32CAN.h"
 #include "PYLON-BATTERY.h"
 
 /* Do not change code below unless you are sure what you are doing */
@@ -173,10 +171,10 @@ void send_can_battery() {
 
     previousMillis1000 = currentMillis;
 
-    ESP32Can.CANWriteFrame(&PYLON_3010);  // Heartbeat
-    ESP32Can.CANWriteFrame(&PYLON_4200);  // Ensemble OR System equipment info, depends on frame0
-    ESP32Can.CANWriteFrame(&PYLON_8200);  // Control device quit sleep status
-    ESP32Can.CANWriteFrame(&PYLON_8210);  // Charge command
+    transmit_can(&PYLON_3010, can_config.battery);  // Heartbeat
+    transmit_can(&PYLON_4200, can_config.battery);  // Ensemble OR System equipment info, depends on frame0
+    transmit_can(&PYLON_8200, can_config.battery);  // Control device quit sleep status
+    transmit_can(&PYLON_8210, can_config.battery);  // Charge command
 
     if (ensemble_info_ack) {
       PYLON_4200.data.u8[0] = 0x00;  //Request system equipment info

@@ -1,8 +1,6 @@
 #include "../include.h"
 #ifdef SMA_CAN
 #include "../datalayer/datalayer.h"
-#include "../lib/miwagner-ESP32-Arduino-CAN/CAN_config.h"
-#include "../lib/miwagner-ESP32-Arduino-CAN/ESP32CAN.h"
 #include "SMA-CAN.h"
 
 /* TODO: Map error bits in 0x158 */
@@ -11,7 +9,7 @@
 static unsigned long previousMillis100ms = 0;  // will store last time a 100ms CAN Message was send
 
 //Actual content messages
-static const CAN_frame_t SMA_558 = {
+static CAN_frame_t SMA_558 = {
     .FIR = {.B =
                 {
                     .DLC = 8,
@@ -19,42 +17,41 @@ static const CAN_frame_t SMA_558 = {
                 }},
     .MsgID = 0x558,
     .data = {0x03, 0x12, 0x00, 0x04, 0x00, 0x59, 0x07, 0x07}};  //7x BYD modules, Vendor ID 7 BYD
-static const CAN_frame_t SMA_598 = {
-    .FIR = {.B =
-                {
-                    .DLC = 8,
-                    .FF = CAN_frame_std,
-                }},
-    .MsgID = 0x598,
-    .data = {0x00, 0x00, 0x12, 0x34, 0x5A, 0xDE, 0x07, 0x4F}};  //B0-4 Serial, rest unknown
-static const CAN_frame_t SMA_5D8 = {.FIR = {.B =
-                                                {
-                                                    .DLC = 8,
-                                                    .FF = CAN_frame_std,
-                                                }},
-                                    .MsgID = 0x5D8,
-                                    .data = {0x00, 0x42, 0x59, 0x44, 0x00, 0x00, 0x00, 0x00}};  //B Y D
-static const CAN_frame_t SMA_618_1 = {.FIR = {.B =
-                                                  {
-                                                      .DLC = 8,
-                                                      .FF = CAN_frame_std,
-                                                  }},
-                                      .MsgID = 0x618,
-                                      .data = {0x00, 0x42, 0x61, 0x74, 0x74, 0x65, 0x72, 0x79}};  //0 B A T T E R Y
-static const CAN_frame_t SMA_618_2 = {.FIR = {.B =
-                                                  {
-                                                      .DLC = 8,
-                                                      .FF = CAN_frame_std,
-                                                  }},
-                                      .MsgID = 0x618,
-                                      .data = {0x01, 0x2D, 0x42, 0x6F, 0x78, 0x20, 0x48, 0x39}};  //1 - B O X   H
-static const CAN_frame_t SMA_618_3 = {.FIR = {.B =
-                                                  {
-                                                      .DLC = 8,
-                                                      .FF = CAN_frame_std,
-                                                  }},
-                                      .MsgID = 0x618,
-                                      .data = {0x02, 0x2E, 0x30, 0x00, 0x00, 0x00, 0x00, 0x00}};  //2 - 0
+static CAN_frame_t SMA_598 = {.FIR = {.B =
+                                          {
+                                              .DLC = 8,
+                                              .FF = CAN_frame_std,
+                                          }},
+                              .MsgID = 0x598,
+                              .data = {0x00, 0x00, 0x12, 0x34, 0x5A, 0xDE, 0x07, 0x4F}};  //B0-4 Serial, rest unknown
+static CAN_frame_t SMA_5D8 = {.FIR = {.B =
+                                          {
+                                              .DLC = 8,
+                                              .FF = CAN_frame_std,
+                                          }},
+                              .MsgID = 0x5D8,
+                              .data = {0x00, 0x42, 0x59, 0x44, 0x00, 0x00, 0x00, 0x00}};  //B Y D
+static CAN_frame_t SMA_618_1 = {.FIR = {.B =
+                                            {
+                                                .DLC = 8,
+                                                .FF = CAN_frame_std,
+                                            }},
+                                .MsgID = 0x618,
+                                .data = {0x00, 0x42, 0x61, 0x74, 0x74, 0x65, 0x72, 0x79}};  //0 B A T T E R Y
+static CAN_frame_t SMA_618_2 = {.FIR = {.B =
+                                            {
+                                                .DLC = 8,
+                                                .FF = CAN_frame_std,
+                                            }},
+                                .MsgID = 0x618,
+                                .data = {0x01, 0x2D, 0x42, 0x6F, 0x78, 0x20, 0x48, 0x39}};  //1 - B O X   H
+static CAN_frame_t SMA_618_3 = {.FIR = {.B =
+                                            {
+                                                .DLC = 8,
+                                                .FF = CAN_frame_std,
+                                            }},
+                                .MsgID = 0x618,
+                                .data = {0x02, 0x2E, 0x30, 0x00, 0x00, 0x00, 0x00, 0x00}};  //2 - 0
 CAN_frame_t SMA_358 = {.FIR = {.B =
                                    {
                                        .DLC = 8,
@@ -257,18 +254,18 @@ void send_can_inverter() {
   if (currentMillis - previousMillis100ms >= INTERVAL_100_MS) {
     previousMillis100ms = currentMillis;
 
-    ESP32Can.CANWriteFrame(&SMA_558);
-    ESP32Can.CANWriteFrame(&SMA_598);
-    ESP32Can.CANWriteFrame(&SMA_5D8);
-    ESP32Can.CANWriteFrame(&SMA_618_1);  // TODO, should these 3x
-    ESP32Can.CANWriteFrame(&SMA_618_2);  // be sent as batch?
-    ESP32Can.CANWriteFrame(&SMA_618_3);  // or alternate on each send?
-    ESP32Can.CANWriteFrame(&SMA_358);
-    ESP32Can.CANWriteFrame(&SMA_3D8);
-    ESP32Can.CANWriteFrame(&SMA_458);
-    ESP32Can.CANWriteFrame(&SMA_518);
-    ESP32Can.CANWriteFrame(&SMA_4D8);
-    ESP32Can.CANWriteFrame(&SMA_158);
+    transmit_can(&SMA_558, can_config.inverter);
+    transmit_can(&SMA_598, can_config.inverter);
+    transmit_can(&SMA_5D8, can_config.inverter);
+    transmit_can(&SMA_618_1, can_config.inverter);  // TODO, should these 3x
+    transmit_can(&SMA_618_2, can_config.inverter);  // be sent as batch?
+    transmit_can(&SMA_618_3, can_config.inverter);  // or alternate on each send?
+    transmit_can(&SMA_358, can_config.inverter);
+    transmit_can(&SMA_3D8, can_config.inverter);
+    transmit_can(&SMA_458, can_config.inverter);
+    transmit_can(&SMA_518, can_config.inverter);
+    transmit_can(&SMA_4D8, can_config.inverter);
+    transmit_can(&SMA_158, can_config.inverter);
   }
 }
 #endif

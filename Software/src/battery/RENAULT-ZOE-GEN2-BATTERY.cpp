@@ -2,8 +2,6 @@
 #ifdef RENAULT_ZOE_GEN2_BATTERY
 #include "../datalayer/datalayer.h"
 #include "../devboard/utils/events.h"
-#include "../lib/miwagner-ESP32-Arduino-CAN/CAN_config.h"
-#include "../lib/miwagner-ESP32-Arduino-CAN/ESP32CAN.h"
 #include "RENAULT-ZOE-GEN2-BATTERY.h"
 
 /* Information in this file is based of the OVMS V3 vehicle_renaultzoe.cpp component 
@@ -96,8 +94,8 @@ void send_can_battery() {
       set_event(EVENT_CAN_OVERRUN, (currentMillis - previousMillis200));
     }
     previousMillis200 = currentMillis;
-    ESP32Can.CANWriteFrame(&ZOE_373);
-    ESP32Can.CANWriteFrame(&ZOE_POLL_18DADBF1);
+    transmit_can(&ZOE_373, can_config.battery);
+    transmit_can(&ZOE_POLL_18DADBF1, can_config.battery);
   }
 }
 

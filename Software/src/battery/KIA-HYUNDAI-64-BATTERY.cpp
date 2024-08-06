@@ -2,8 +2,6 @@
 #ifdef KIA_HYUNDAI_64_BATTERY
 #include "../datalayer/datalayer.h"
 #include "../devboard/utils/events.h"
-#include "../lib/miwagner-ESP32-Arduino-CAN/CAN_config.h"
-#include "../lib/miwagner-ESP32-Arduino-CAN/ESP32CAN.h"
 #include "KIA-HYUNDAI-64-BATTERY.h"
 
 /* Do not change code below unless you are sure what you are doing */
@@ -313,17 +311,17 @@ void receive_can_battery(CAN_frame_t rx_frame) {
       }
       poll_data_pid++;
       if (poll_data_pid == 1) {
-        ESP32Can.CANWriteFrame(&KIA64_7E4_id1);
+        transmit_can(&KIA64_7E4_id1, can_config.battery);
       } else if (poll_data_pid == 2) {
-        ESP32Can.CANWriteFrame(&KIA64_7E4_id2);
+        transmit_can(&KIA64_7E4_id2, can_config.battery);
       } else if (poll_data_pid == 3) {
-        ESP32Can.CANWriteFrame(&KIA64_7E4_id3);
+        transmit_can(&KIA64_7E4_id3, can_config.battery);
       } else if (poll_data_pid == 4) {
-        ESP32Can.CANWriteFrame(&KIA64_7E4_id4);
+        transmit_can(&KIA64_7E4_id4, can_config.battery);
       } else if (poll_data_pid == 5) {
-        ESP32Can.CANWriteFrame(&KIA64_7E4_id5);
+        transmit_can(&KIA64_7E4_id5, can_config.battery);
       } else if (poll_data_pid == 6) {
-        ESP32Can.CANWriteFrame(&KIA64_7E4_id6);
+        transmit_can(&KIA64_7E4_id6, can_config.battery);
       } else if (poll_data_pid == 7) {
       } else if (poll_data_pid == 8) {
       } else if (poll_data_pid == 9) {
@@ -334,7 +332,7 @@ void receive_can_battery(CAN_frame_t rx_frame) {
       switch (rx_frame.data.u8[0]) {
         case 0x10:  //"PID Header"
           if (rx_frame.data.u8[4] == poll_data_pid) {
-            ESP32Can.CANWriteFrame(&KIA64_7E4_ack);  //Send ack to BMS if the same frame is sent as polled
+            transmit_can(&KIA64_7E4_ack, can_config.battery);  //Send ack to BMS if the same frame is sent as polled
           }
           break;
         case 0x21:  //First frame in PID group
@@ -516,9 +514,9 @@ void send_can_battery() {
   if (currentMillis - previousMillis100 >= INTERVAL_100_MS) {
     previousMillis100 = currentMillis;
 
-    ESP32Can.CANWriteFrame(&KIA64_553);
-    ESP32Can.CANWriteFrame(&KIA64_57F);
-    ESP32Can.CANWriteFrame(&KIA64_2A1);
+    transmit_can(&KIA64_553, can_config.battery);
+    transmit_can(&KIA64_57F, can_config.battery);
+    transmit_can(&KIA64_2A1, can_config.battery);
   }
   // Send 10ms CAN Message
   if (currentMillis - previousMillis10 >= INTERVAL_10_MS) {
@@ -570,11 +568,11 @@ void send_can_battery() {
         break;
     }
 
-    ESP32Can.CANWriteFrame(&KIA_HYUNDAI_200);
+    transmit_can(&KIA_HYUNDAI_200, can_config.battery);
 
-    ESP32Can.CANWriteFrame(&KIA_HYUNDAI_523);
+    transmit_can(&KIA_HYUNDAI_523, can_config.battery);
 
-    ESP32Can.CANWriteFrame(&KIA_HYUNDAI_524);
+    transmit_can(&KIA_HYUNDAI_524, can_config.battery);
   }
 }
 
@@ -583,9 +581,8 @@ void setup_battery(void) {  // Performs one time setup at startup
   Serial.println("Kia Niro / Hyundai Kona 64kWh battery selected");
 #endif
 
-  datalayer.battery.info.max_design_voltage_dV =
-      4040;  // 404.0V, over this, charging is not possible (goes into forced discharge)
-  datalayer.battery.info.min_design_voltage_dV = 3100;  // 310.0V under this, discharging further is disabled
+  datalayer.battery.info.max_design_voltage_dV = 4040;  // 404.0V
+  datalayer.battery.info.min_design_voltage_dV = 3100;  // 310.0V
 }
 
 #endif

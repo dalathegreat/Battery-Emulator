@@ -3,9 +3,6 @@
 #include <Arduino.h>
 #include "../include.h"
 #include "../lib/miwagner-ESP32-Arduino-CAN/ESP32CAN.h"
-#include "../lib/pierremolinaro-acan2515/ACAN2515.h"
-
-extern ACAN2515 can;
 
 #define BATTERY_SELECTED
 
@@ -24,5 +21,6 @@ extern ACAN2515 can;
 #define MAX_PACK_VOLTAGE_120AH 4030  // Charge stops if pack voltage exceeds this value
 #define MIN_PACK_VOLTAGE_120AH 2680  // Discharge stops if pack voltage exceeds this value
 void setup_battery(void);
+void transmit_can(CAN_frame_t* tx_frame, int interface);
 
 #endif

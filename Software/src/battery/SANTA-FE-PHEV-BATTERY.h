@@ -9,5 +9,6 @@
 
 uint8_t CalculateCRC8(CAN_frame_t rx_frame);
 void setup_battery(void);
+void transmit_can(CAN_frame_t* tx_frame, int interface);
 
 #endif

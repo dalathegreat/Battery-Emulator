@@ -201,13 +201,13 @@ void core_loop(void* task_time_us) {
   while (true) {
     START_TIME_MEASUREMENT(all);
     START_TIME_MEASUREMENT(comm);
-    // Input
-    receive_can();  // Receive CAN messages. Runs as fast as possible
+    // Input, Runs as fast as possible
+    receive_can_native();  // Receive CAN messages from native CAN port
 #ifdef CAN_FD
-    receive_canfd();  // Receive CAN-FD messages. Runs as fast as possible
+    receive_canfd();  // Receive CAN-FD messages.
 #endif
 #ifdef DUAL_CAN
-    receive_can2();  // Receive CAN messages on CAN2. Runs as fast as possible
+    receive_can_addonMCP2515();  // Receive CAN messages on add-on MCP2515 chip
 #endif
 #if defined(SERIAL_LINK_RECEIVER) || defined(SERIAL_LINK_TRANSMITTER)
     runSerialDataLink();
@@ -254,10 +254,8 @@ void core_loop(void* task_time_us) {
 
     START_TIME_MEASUREMENT(cantx);
     // Output
-    send_can();  // Send CAN messages
-#ifdef DUAL_CAN
-    send_can2();
-#endif
+    send_can();  // Send CAN messages to all components
+
     END_TIME_MEASUREMENT_MAX(cantx, datalayer.system.status.time_cantx_us);
     END_TIME_MEASUREMENT_MAX(all, datalayer.system.status.core_task_10s_max_us);
 #ifdef FUNCTION_TIME_MEASUREMENT
@@ -531,72 +529,84 @@ void receive_canfd() {  // This section checks if we have a complete CAN-FD mess
 }
 #endif
 
-void receive_can() {  // This section checks if we have a complete CAN message incoming
-  // Depending on which battery/inverter is selected, we forward this to their respective CAN routines
+void receive_can_native() {  // This section checks if we have a complete CAN message incoming on native CAN port
+  // Depending on which battery/inverter is selected, we forward this to their respective CAN handlers
   CAN_frame_t rx_frame;
   if (xQueueReceive(CAN_cfg.rx_queue, &rx_frame, 0) == pdTRUE) {
 
-    // Battery
-#ifndef SERIAL_LINK_RECEIVER  // Only needs to see inverter
-    receive_can_battery(rx_frame);
-#endif
-    // Inverter
+    if (can_config.battery == CAN_NATIVE) {
+      receive_can_battery(rx_frame);
+    }
+    if (can_config.inverter == CAN_NATIVE) {
 #ifdef CAN_INVERTER_SELECTED
-    receive_can_inverter(rx_frame);
-#endif
-    // Charger
+      receive_can_inverter(rx_frame);
+#endif  // CAN_INVERTER_SELECTED
+    }
+    if (can_config.battery_double == CAN_NATIVE) {
+#ifdef DOUBLE_BATTERY
+      receive_can_battery2(rx_frame);
+#endif  // DOUBLE_BATTERY
+    }
+    if (can_config.charger == CAN_NATIVE) {
 #ifdef CHARGER_SELECTED
-    receive_can_charger(rx_frame);
-#endif
+      receive_can_charger(rx_frame);
+#endif  // CHARGER_SELECTED
+    }
   }
 }
 
 void send_can() {
-  // Battery
+
   send_can_battery();
-  // Inverter
+
 #ifdef CAN_INVERTER_SELECTED
   send_can_inverter();
-#endif
-  // Charger
+#endif  // CAN_INVERTER_SELECTED
+
 #ifdef CHARGER_SELECTED
   send_can_charger();
-#endif
+#endif  // CHARGER_SELECTED
 }
 
 #ifdef DUAL_CAN
-void receive_can2() {  // This function is similar to receive_can, but just takes care of inverters in the 2nd bus OR double battery
-  // Depending on which inverter is selected, we forward this to their respective CAN routines
-  CAN_frame_t rx_frame_can2;  // Struct with ESP32Can library format, compatible with the rest of the program
-  CANMessage MCP2515Frame;    // Struct with ACAN2515 library format, needed to use thw MCP2515 library
+void receive_can_addonMCP2515() {  // This section checks if we have a complete CAN message incoming on native CAN port
+  // Depending on which battery/inverter is selected, we forward this to their respective CAN handlers
+  CAN_frame_t
+      rx_frame_can_addonMCP2515;  // Struct with ESP32Can library format, compatible with the rest of the program
+  CANMessage MCP2515Frame;        // Struct with ACAN2515 library format, needed to use thw MCP2515 library
 
   if (can.available()) {
     can.receive(MCP2515Frame);
 
-    rx_frame_can2.MsgID = MCP2515Frame.id;
-    rx_frame_can2.FIR.B.FF = MCP2515Frame.ext ? CAN_frame_ext : CAN_frame_std;
-    rx_frame_can2.FIR.B.RTR = MCP2515Frame.rtr ? CAN_RTR : CAN_no_RTR;
-    rx_frame_can2.FIR.B.DLC = MCP2515Frame.len;
+    rx_frame_can_addonMCP2515.MsgID = MCP2515Frame.id;
+    rx_frame_can_addonMCP2515.FIR.B.FF = MCP2515Frame.ext ? CAN_frame_ext : CAN_frame_std;
+    rx_frame_can_addonMCP2515.FIR.B.RTR = MCP2515Frame.rtr ? CAN_RTR : CAN_no_RTR;
+    rx_frame_can_addonMCP2515.FIR.B.DLC = MCP2515Frame.len;
     for (uint8_t i = 0; i < MCP2515Frame.len; i++) {
-      rx_frame_can2.data.u8[i] = MCP2515Frame.data[i];
+      rx_frame_can_addonMCP2515.data.u8[i] = MCP2515Frame.data[i];
     }
 
+    if (can_config.battery == CAN_ADDON_MCP2515) {
+      receive_can_battery(rx_frame_can_addonMCP2515);
+    }
+    if (can_config.inverter == CAN_ADDON_MCP2515) {
 #ifdef CAN_INVERTER_SELECTED
-    receive_can_inverter(rx_frame_can2);
-#endif
+      receive_can_inverter(rx_frame_can_addonMCP2515);
+#endif  // CAN_INVERTER_SELECTED
+    }
+    if (can_config.battery_double == CAN_ADDON_MCP2515) {
 #ifdef DOUBLE_BATTERY
-    receive_can_battery2(rx_frame_can2);
-#endif  //DOUBLE_BATTERY
+      receive_can_battery2(rx_frame_can_addonMCP2515);
+#endif  // DOUBLE_BATTERY
+    }
+    if (can_config.charger == CAN_ADDON_MCP2515) {
+#ifdef CHARGER_SELECTED
+      receive_can_charger(rx_frame_can_addonMCP2515);
+#endif  // CHARGER_SELECTED
+    }
   }
 }
-
-void send_can2() {
-  // Inverter
-#ifdef CAN_INVERTER_SELECTED
-  send_can_inverter();  //Note this will only send to CAN1, unless we use SOLAX
-#endif
-}
-#endif
+#endif  // DUAL_CAN
 
 #ifdef DOUBLE_BATTERY
 void check_interconnect_available() {
