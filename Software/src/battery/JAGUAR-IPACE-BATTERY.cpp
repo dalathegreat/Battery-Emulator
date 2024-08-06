@@ -280,9 +280,8 @@ void send_can_battery() {
                            }},
                .MsgID = 0x7e4,
                .data = {0x03, 0x19, 0x02, 0x8f, 0x00, 0x00, 0x00, 0x00}};
-        err = transmit_can(&msg, can_config.battery);
-        if (err == 0)
-          state++;
+        transmit_can(&msg, can_config.battery);
+        state++;
 
         break;
       case 1:
@@ -296,9 +295,8 @@ void send_can_battery() {
                            }},
                .MsgID = 0x7e4,
                .data = {0x06, 0x19, 0x04, 0xc0, 0x64, 0x88, 0xff, 0x00}};
-        err = transmit_can(&msg, can_config.battery);
-        if (err == 0)
-          state++;
+        transmit_can(&msg, can_config.battery);
+        state++;
         break;
       case 2:
         /* reset */
