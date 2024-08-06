@@ -3,8 +3,7 @@
 #include "src/devboard/hal/hal.h"
 /* This file contains all the battery settings and limits */
 /* They can be defined here, or later on in the WebUI */
-
-/* Select which CAN interface each component is connected to */
+/* Most important is to select which CAN interface each component is connected to */
 /* 
 CAN_NATIVE = Native CAN port on the LilyGo & Stark hardware
 CANFD_NATIVE = Native CANFD port on the Stark CMR hardware
@@ -13,12 +12,11 @@ CAN_ADDON_FD_MCP2518 = Add-on CAN-FD MCP2518 connected to GPIO pins
 */
 
 volatile CAN_Configuration can_config = {
-    .battery = CAN_NATIVE,  // Which CAN is your battery connected to?
-    .inverter = CAN_NATIVE  // Which CAN is your inverter connected to? (No need to configure incase you use RS485)
-                    .battery_double = CAN_ADDON_MCP2515,  // (OPTIONAL) Which CAN is your second battery connected to?
-    .charger = CAN_NATIVE;                                // (OPTIONAL) Which CAN is your charger connected to?
-}
-;
+    .battery = CAN_NATIVE,   // Which CAN is your battery connected to?
+    .inverter = CAN_NATIVE,  // Which CAN is your inverter connected to? (No need to configure incase you use RS485)
+    .battery_double = CAN_ADDON_MCP2515,  // (OPTIONAL) Which CAN is your second battery connected to?
+    .charger = CAN_NATIVE                 // (OPTIONAL) Which CAN is your charger connected to?
+};
 
 #ifdef WEBSERVER
 volatile uint8_t AccessPointEnabled = true;           //Set to either true/false to enable direct wifi access point

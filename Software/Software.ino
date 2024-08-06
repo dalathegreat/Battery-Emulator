@@ -897,7 +897,9 @@ void transmit_can(CAN_frame_t* tx_frame, int interface) {
         MCP2515Frame.data[i] = tx_frame->data.u8[i];
       }
       can.tryToSend(MCP2515Frame);
-#endif
+#else   // Interface not compiled, and settings try to use it
+      set_event(EVENT_INTERFACE_MISSING, interface);
+#endif  //DUAL_CAN
     } break;
     case CAN_ADDON_FD_MCP2518:
 #ifdef CAN_FD
@@ -909,7 +911,9 @@ void transmit_can(CAN_frame_t* tx_frame, int interface) {
         MCP2518Frame.data[i] = tx_frame->data.u8[i];
       }
       canfd.tryToSend(MCP2518Frame);
-#endif
+#else   // Interface not compiled, and settings try to use it
+      set_event(EVENT_INTERFACE_MISSING, interface);
+#endif  //CAN_FD
       break;
     default:
       // Invalid interface sent with function call. TODO: Raise event that coders messed up

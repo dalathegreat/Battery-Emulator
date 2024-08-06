@@ -30,7 +30,7 @@
 
 /* Select inverter communication protocol. See Wiki for which to use with your inverter: https://github.com/dalathegreat/BYD-Battery-Emulator-For-Gen24/wiki */
 //#define BYD_CAN  //Enable this line to emulate a "BYD Battery-Box Premium HVS" over CAN Bus
-//#define BYD_MODBUS       //Enable this line to emulate a "BYD 11kWh HVM battery" over Modbus RTU
+#define BYD_MODBUS  //Enable this line to emulate a "BYD 11kWh HVM battery" over Modbus RTU
 //#define LUNA2000_MODBUS  //Enable this line to emulate a "Luna2000 battery" over Modbus RTU
 //#define PYLON_CAN        //Enable this line to emulate a "Pylontech battery" over CAN bus
 //#define SMA_CAN          //Enable this line to emulate a "BYD Battery-Box H 8.9kWh, 7 mod" over CAN bus
@@ -48,7 +48,7 @@
 //#define INTERLOCK_REQUIRED  //Nissan LEAF specific setting, if enabled requires both high voltage conenctors to be seated before starting
 //#define CONTACTOR_CONTROL     //Enable this line to have pins 25,32,33 handle automatic precharge/contactor+/contactor- closing sequence
 //#define PWM_CONTACTOR_CONTROL //Enable this line to use PWM logic for contactors, which lower power consumption and heat generation
-//#define DUAL_CAN  //Enable this line to activate an isolated secondary CAN Bus using add-on MCP2515 controller (Needed for some inverters / double battery)
+#define DUAL_CAN  //Enable this line to activate an isolated secondary CAN Bus using add-on MCP2515 controller (Needed for some inverters / double battery)
 //#define CAN_FD  //Enable this line to activate an isolated secondary CAN-FD bus using add-on MCP2517FD controller (Needed for some batteries)
 //#define SERIAL_LINK_RECEIVER  //Enable this line to receive battery data over RS485 pins from another Lilygo (This LilyGo interfaces with inverter)
 //#define SERIAL_LINK_TRANSMITTER  //Enable this line to send battery data over RS485 pins to another Lilygo (This LilyGo interfaces with battery)
@@ -87,8 +87,8 @@
 typedef enum { CAN_NATIVE = 0, CANFD_NATIVE = 1, CAN_ADDON_MCP2515 = 2, CAN_ADDON_FD_MCP2518 = 3 } CAN_Interface;
 typedef struct {
   CAN_Interface battery;
-  CAN_Interface battery_double;
   CAN_Interface inverter;
+  CAN_Interface battery_double;
   CAN_Interface charger;
 } CAN_Configuration;
 extern volatile CAN_Configuration can_config;

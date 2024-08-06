@@ -163,6 +163,7 @@ void init_events(void) {
   events.entries[EVENT_PRECHARGE_FAILURE].level = EVENT_LEVEL_INFO;
   events.entries[EVENT_INTERNAL_OPEN_FAULT].level = EVENT_LEVEL_ERROR;
   events.entries[EVENT_INVERTER_OPEN_CONTACTOR].level = EVENT_LEVEL_INFO;
+  events.entries[EVENT_INTERFACE_MISSING].level = EVENT_LEVEL_INFO;
   events.entries[EVENT_MODBUS_INVERTER_MISSING].level = EVENT_LEVEL_INFO;
   events.entries[EVENT_ERROR_OPEN_CONTACTOR].level = EVENT_LEVEL_INFO;
   events.entries[EVENT_CELL_UNDER_VOLTAGE].level = EVENT_LEVEL_ERROR;
@@ -291,6 +292,8 @@ const char* get_event_message_string(EVENTS_ENUM_TYPE event) {
       return "ERROR: High voltage cable removed while battery running. Opening contactors!";
     case EVENT_INVERTER_OPEN_CONTACTOR:
       return "Info: Inverter side opened contactors. Normal operation.";
+    case EVENT_INTERFACE_MISSING:
+      return "Info: Configuration trying to use CAN interface not baked into the software. Recompile software!";
     case EVENT_ERROR_OPEN_CONTACTOR:
       return "Info: Too much time spent in error state. Opening contactors, not safe to continue charging. "
              "Check other error code for reason!";
