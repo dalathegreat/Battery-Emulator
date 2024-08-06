@@ -535,7 +535,9 @@ void receive_can_native() {  // This section checks if we have a complete CAN me
   if (xQueueReceive(CAN_cfg.rx_queue, &rx_frame, 0) == pdTRUE) {
 
     if (can_config.battery == CAN_NATIVE) {
+#ifndef SERIAL_LINK_RECEIVER
       receive_can_battery(rx_frame);
+#endif  // SERIAL_LINK_RECEIVER
     }
     if (can_config.inverter == CAN_NATIVE) {
 #ifdef CAN_INVERTER_SELECTED
@@ -901,7 +903,7 @@ void transmit_can(CAN_frame_t* tx_frame, int interface) {
       //Struct with ACAN2515 library format, needed to use the MCP2515 library for CAN2
       CANMessage MCP2515Frame;
       MCP2515Frame.id = tx_frame->MsgID;
-      //MCP2515Frame.ext = false; //TODO: Howto handle this?
+      MCP2515Frame.ext = tx_frame->FIR.B.FF;
       MCP2515Frame.len = tx_frame->FIR.B.DLC;
       for (uint8_t i = 0; i < MCP2515Frame.len; i++) {
         MCP2515Frame.data[i] = tx_frame->data.u8[i];

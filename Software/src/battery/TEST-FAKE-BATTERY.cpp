@@ -1,7 +1,6 @@
 #include "../include.h"
 #ifdef TEST_FAKE_BATTERY
 #include "../datalayer/datalayer.h"
-#include "../lib/miwagner-ESP32-Arduino-CAN/ESP32CAN.h"
 #include "TEST-FAKE-BATTERY.h"
 
 /* Do not change code below unless you are sure what you are doing */

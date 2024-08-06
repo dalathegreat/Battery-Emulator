@@ -1,7 +1,7 @@
 #ifndef BATTERIES_H
 #define BATTERIES_H
-
 #include "../../USER_SETTINGS.h"
+#include "../lib/miwagner-ESP32-Arduino-CAN/ESP32CAN.h"  // This include is annoying, consider defining a frame type in types.h
 
 #ifdef BMW_I3_BATTERY
 #include "BMW-I3-BATTERY.h"
@@ -79,12 +79,7 @@
 #include "SERIAL-LINK-RECEIVER-FROM-BATTERY.h"
 #endif
 
-#ifdef SERIAL_LINK_RECEIVER  // The serial thing does its thing
-void receive_can_battery();
-#else
-#include "../lib/miwagner-ESP32-Arduino-CAN/ESP32CAN.h"  // This include is annoying, consider defining a frame type in types.h
 void receive_can_battery(CAN_frame_t rx_frame);
-#endif
 #ifdef CAN_FD
 void receive_canfd_battery(CANFDMessage frame);
 #endif
