@@ -917,7 +917,7 @@ void transmit_can(CAN_frame_t* tx_frame, int interface) {
 #ifdef CAN_FD
       CANFDMessage MCP2518Frame;
       MCP2518Frame.id = tx_frame->MsgID;
-      //MCP2518Frame.ext = false; //TODO: Howto handle this?
+      MCP2518Frame.ext = tx_frame->FIR.B.FF;
       MCP2518Frame.len = tx_frame->FIR.B.DLC;
       for (uint8_t i = 0; i < MCP2518Frame.len; i++) {
         MCP2518Frame.data[i] = tx_frame->data.u8[i];
