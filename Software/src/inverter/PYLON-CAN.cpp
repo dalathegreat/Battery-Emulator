@@ -11,6 +11,14 @@
                                //useful for some inverters like Sofar that report the voltages incorrect otherwise
 //#define SET_30K_OFFSET  //If defined, current values are sent with a 30k offest (useful for ferroamp)
 
+/* Some inverters need to see a specific amount of cells/modules to emulate a specific Pylon battery.
+Change the following only if your inverter is generating fault codes about voltage range */
+#define BATTERY_MODULE_AMOUNT 75
+#define MODULES_IN_SERIES 5
+#define CELLS_PER_MODULE 30
+#define VOLTAGE_LEVEL 192
+#define AH_CAPACITY 86
+
 /* Do not change code below unless you are sure what you are doing */
 //Actual content messages
 CAN_frame_t PYLON_7310 = {.FIR = {.B =
@@ -20,14 +28,31 @@ CAN_frame_t PYLON_7310 = {.FIR = {.B =
                                       }},
                           .MsgID = 0x7310,
                           .data = {0x01, 0x00, 0x02, 0x01, 0x01, 0x02, 0x00, 0x00}};
-CAN_frame_t PYLON_7320 = {.FIR = {.B =
+CAN_frame_t PYLON_7311 = {.FIR = {.B =
                                       {
                                           .DLC = 8,
                                           .FF = CAN_frame_ext,
                                       }},
-                          .MsgID = 0x7320,
-                          .data = {0x4B, 0x00, 0x05, 0x0F, 0x2D, 0x00, 0x56, 0x00}};
-
+                          .MsgID = 0x7311,
+                          .data = {0x01, 0x00, 0x02, 0x01, 0x01, 0x02, 0x00, 0x00}};
+CAN_frame_t PYLON_7320 = {
+    .FIR = {.B =
+                {
+                    .DLC = 8,
+                    .FF = CAN_frame_ext,
+                }},
+    .MsgID = 0x7320,
+    .data = {BATTERY_MODULE_AMOUNT, (uint8_t)(BATTERY_MODULE_AMOUNT >> 8), MODULES_IN_SERIES, CELLS_PER_MODULE,
+             VOLTAGE_LEVEL, (uint8_t)(VOLTAGE_LEVEL >> 8), AH_CAPACITY, (uint8_t)(AH_CAPACITY >> 8)}};
+CAN_frame_t PYLON_7321 = {
+    .FIR = {.B =
+                {
+                    .DLC = 8,
+                    .FF = CAN_frame_ext,
+                }},
+    .MsgID = 0x7321,
+    .data = {BATTERY_MODULE_AMOUNT, (uint8_t)(BATTERY_MODULE_AMOUNT >> 8), MODULES_IN_SERIES, CELLS_PER_MODULE,
+             VOLTAGE_LEVEL, (uint8_t)(VOLTAGE_LEVEL >> 8), AH_CAPACITY, (uint8_t)(AH_CAPACITY >> 8)}};
 CAN_frame_t PYLON_4210 = {.FIR = {.B =
                                       {
                                           .DLC = 8,
@@ -91,22 +116,6 @@ CAN_frame_t PYLON_4290 = {.FIR = {.B =
                                       }},
                           .MsgID = 0x4290,
                           .data = {0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00}};
-
-CAN_frame_t PYLON_7311 = {.FIR = {.B =
-                                      {
-                                          .DLC = 8,
-                                          .FF = CAN_frame_ext,
-                                      }},
-                          .MsgID = 0x7311,
-                          .data = {0x01, 0x00, 0x02, 0x01, 0x01, 0x02, 0x00, 0x00}};
-CAN_frame_t PYLON_7321 = {.FIR = {.B =
-                                      {
-                                          .DLC = 8,
-                                          .FF = CAN_frame_ext,
-                                      }},
-                          .MsgID = 0x7321,
-                          .data = {0x4B, 0x00, 0x05, 0x0F, 0x2D, 0x00, 0x56, 0x00}};
-
 CAN_frame_t PYLON_4211 = {.FIR = {.B =
                                       {
                                           .DLC = 8,
@@ -501,15 +510,6 @@ void send_can_inverter() {
 }
 
 void send_setup_info() {  //Ensemble information
-  //Amount of cells
-  PYLON_7320.data.u8[0] = datalayer.battery.info.number_of_cells;
-  //Modules in series (not really how EV packs work, but let's map it to a reasonable Pylon value)
-  PYLON_7320.data.u8[2] = (datalayer.battery.info.number_of_cells / 15);
-  //Capacity in AH
-  if (datalayer.battery.status.voltage_dV > 10) {  //div0 safeguard
-    PYLON_7320.data.u8[6] = (datalayer.battery.info.total_capacity_Wh / (datalayer.battery.status.voltage_dV / 10));
-  }
-
 #ifdef SEND_0
   ESP32Can.CANWriteFrame(&PYLON_7310);
   ESP32Can.CANWriteFrame(&PYLON_7320);
