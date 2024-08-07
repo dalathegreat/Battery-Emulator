@@ -21,7 +21,8 @@ static unsigned long previousMillis10000 = 0;  // will store last time a 10000ms
 enum BatterySize { BATTERY_60AH, BATTERY_94AH, BATTERY_120AH };
 static BatterySize detectedBattery = BATTERY_60AH;
 
-enum CmdState { SOH, CELL_VOLTAGE, SOC, CELL_VOLTAGE_AVG };
+enum CmdState { SOH, CELL_VOLTAGE_MINMAX, SOC, CELL_VOLTAGE_AVG, CELL_VOLTAGE_CELLNO };
+
 static CmdState cmdState = SOH;
 
 const unsigned char crc8_table[256] =
@@ -296,6 +297,13 @@ CAN_frame_t BMW_6F1_CELL_VOLTAGE_AVG = {.FIR = {.B =
                                                     }},
                                         .MsgID = 0x6F1,
                                         .data = {0x07, 0x03, 0x22, 0xDF, 0xA0}};
+CAN_frame_t BMW_6F1_CELL_VOLTAGE_CELLNO = {.FIR = {.B =
+                                                       {
+                                                           .DLC = 7,
+                                                           .FF = CAN_frame_std,
+                                                       }},
+                                           .MsgID = 0x6F1,
+                                           .data = {0x07, 0x05, 0x31, 0x01, 0xAD, 0x6E, 0x01}};
 
 CAN_frame_t BMW_6F1_CONTINUE = {.FIR = {.B =
                                             {
@@ -304,6 +312,13 @@ CAN_frame_t BMW_6F1_CONTINUE = {.FIR = {.B =
                                             }},
                                 .MsgID = 0x6F1,
                                 .data = {0x07, 0x30, 0x00, 0x02}};
+CAN_frame_t BMW_6F1_CELL_CONTINUE = {.FIR = {.B =
+                                                 {
+                                                     .DLC = 6,
+                                                     .FF = CAN_frame_std,
+                                                 }},
+                                     .MsgID = 0x6F1,
+                                     .data = {0x07, 0x04, 0x31, 0x03, 0xAD, 0x6E}};
 //The above CAN messages need to be sent towards the battery to keep it alive
 
 static uint8_t startup_counter_contactor = 0;
@@ -320,6 +335,7 @@ static uint32_t BMW_328_counter = 0;
 static bool battery_awake = false;
 static bool battery2_awake = false;
 static bool battery_info_available = false;
+static bool battery2_info_available = false;
 
 static uint32_t battery_serial_number = 0;
 static uint32_t battery_available_power_shortterm_charge = 0;
@@ -461,6 +477,7 @@ static uint8_t battery2_soh = 99;
 
 static uint8_t message_data[50];
 static uint8_t next_data = 0;
+static uint8_t current_cell_polled = 1;
 
 static uint8_t calculateCRC(CAN_frame_t rx_frame, uint8_t length, uint8_t initial_value) {
   uint8_t crc = initial_value;
@@ -532,13 +549,15 @@ void update_values_battery() {  //This function maps all the values fetched via 
     return;
   }
 
-  datalayer.battery.status.real_soc = (battery_HVBatt_SOC * 10);
+  datalayer.battery.status.real_soc = (battery_display_SOC * 50);
 
   datalayer.battery.status.voltage_dV = battery_volts;  //Unit V+1 (5000 = 500.0V)
 
   datalayer.battery.status.current_dA = battery_current;
 
-  datalayer.battery.status.remaining_capacity_Wh = (battery_energy_content_maximum_kWh * 1000);  // Convert kWh to Wh
+  datalayer.battery.info.total_capacity_Wh = (battery_energy_content_maximum_kWh * 1000);  // Convert kWh to Wh
+
+  datalayer.battery.status.remaining_capacity_Wh = battery_predicted_energy_charge_condition;
 
   datalayer.battery.status.soh_pptt = battery_soh * 100;
 
@@ -553,11 +572,6 @@ void update_values_battery() {  //This function maps all the values fetched via 
   datalayer.battery.status.temperature_min_dC = battery_temperature_min * 10;  // Add a decimal
 
   datalayer.battery.status.temperature_max_dC = battery_temperature_max * 10;  // Add a decimal
-
-  if (datalayer.battery.status.cell_voltages_mV[0] > 0 && datalayer.battery.status.cell_voltages_mV[2] > 0) {
-    datalayer.battery.status.cell_min_voltage_mV = datalayer.battery.status.cell_voltages_mV[0];
-    datalayer.battery.status.cell_max_voltage_mV = datalayer.battery.status.cell_voltages_mV[2];
-  }
 
   if (battery_info_available) {
     // Start checking safeties. First up, cellvoltages!
@@ -661,8 +675,8 @@ void receive_can_battery(CAN_frame_t rx_frame) {
       battery_status_cold_shutoff_valve = (rx_frame.data.u8[3] & 0x0F);
       battery_temperature_HV = (rx_frame.data.u8[4] - 50);
       battery_temperature_heat_exchanger = (rx_frame.data.u8[5] - 50);
-      battery_temperature_max = (rx_frame.data.u8[6] - 50);
-      battery_temperature_min = (rx_frame.data.u8[7] - 50);
+      battery_temperature_min = (rx_frame.data.u8[6] - 50);
+      battery_temperature_max = (rx_frame.data.u8[7] - 50);
       break;
     case 0x239:                                                                                      //BMS [200ms]
       battery_predicted_energy_charge_condition = (rx_frame.data.u8[2] << 8 | rx_frame.data.u8[1]);  //Wh
@@ -724,9 +738,9 @@ void receive_can_battery(CAN_frame_t rx_frame) {
       battery_prediction_duration_charging_minutes = (rx_frame.data.u8[3] << 8 | rx_frame.data.u8[2]);
       battery_prediction_time_end_of_charging_minutes = rx_frame.data.u8[4];
       battery_energy_content_maximum_kWh = (((rx_frame.data.u8[6] & 0x0F) << 8 | rx_frame.data.u8[5])) / 50;
-      if (battery_energy_content_maximum_kWh > 37) {
+      if (battery_energy_content_maximum_kWh > 33) {
         detectedBattery = BATTERY_120AH;
-      } else if (battery_energy_content_maximum_kWh > 25) {
+      } else if (battery_energy_content_maximum_kWh > 20) {
         detectedBattery = BATTERY_94AH;
       } else {
         detectedBattery = BATTERY_60AH;
@@ -737,7 +751,7 @@ void receive_can_battery(CAN_frame_t rx_frame) {
       battery_target_voltage_in_CV_mode = ((rx_frame.data.u8[1] << 4 | rx_frame.data.u8[0] >> 4)) / 10;
       battery_request_charging_condition_minimum = (rx_frame.data.u8[2] / 2);
       battery_request_charging_condition_maximum = (rx_frame.data.u8[3] / 2);
-      battery_display_SOC = (rx_frame.data.u8[4] / 2);
+      battery_display_SOC = rx_frame.data.u8[4];
       break;
     case 0x507:  //BMS [640ms] Network Management - 2 - This message is sent on the bus for sleep coordination purposes
       break;
@@ -745,6 +759,16 @@ void receive_can_battery(CAN_frame_t rx_frame) {
       battery_ID2 = rx_frame.data.u8[0];
       break;
     case 0x607:  //BMS - responses to message requests on 0x615
+      if ((cmdState == CELL_VOLTAGE_CELLNO) && (rx_frame.data.u8[0] == 0xF4)) {
+        if (rx_frame.FIR.B.DLC == 6) {
+          ESP32Can.CANWriteFrame(&BMW_6F1_CELL_CONTINUE);  // tell battery to send the cellvoltage
+        }
+        if (rx_frame.FIR.B.DLC == 8) {  // We have the full value, map it
+          datalayer.battery.status.cell_voltages_mV[current_cell_polled - 1] =
+              (rx_frame.data.u8[6] << 8 | rx_frame.data.u8[7]);
+        }
+      }
+
       if (rx_frame.FIR.B.DLC > 6 && next_data == 0 && rx_frame.data.u8[0] == 0xf1) {
         uint8_t count = 6;
         while (count < rx_frame.FIR.B.DLC && next_data < 49) {
@@ -760,15 +784,15 @@ void receive_can_battery(CAN_frame_t rx_frame) {
         }
 
         switch (cmdState) {
-          case CELL_VOLTAGE:
+          case CELL_VOLTAGE_MINMAX:
             if (next_data >= 4) {
-              datalayer.battery.status.cell_voltages_mV[0] = (message_data[0] << 8 | message_data[1]);
-              datalayer.battery.status.cell_voltages_mV[2] = (message_data[2] << 8 | message_data[3]);
+              datalayer.battery.status.cell_min_voltage_mV = (message_data[0] << 8 | message_data[1]);
+              datalayer.battery.status.cell_max_voltage_mV = (message_data[2] << 8 | message_data[3]);
             }
             break;
           case CELL_VOLTAGE_AVG:
-            if (next_data >= 30) {
-              datalayer.battery.status.cell_voltages_mV[1] = (message_data[10] << 8 | message_data[11]) / 10;
+            if (next_data >= 30) {  //AVG not used
+              //datalayer.battery.status.cell_voltages_mV[1] = (message_data[10] << 8 | message_data[11]) / 10;
               battery_capacity_cah = (message_data[4] << 8 | message_data[5]);
             }
             break;
@@ -929,21 +953,22 @@ void receive_can_battery2(CAN_frame_t rx_frame) {
         }
 
         switch (cmdState) {
-          case CELL_VOLTAGE:
+          case CELL_VOLTAGE_MINMAX:
             if (next_data >= 4) {
-              datalayer.battery2.status.cell_voltages_mV[0] = (message_data[0] << 8 | message_data[1]);
-              datalayer.battery2.status.cell_voltages_mV[2] = (message_data[2] << 8 | message_data[3]);
+              datalayer.battery2.status.cell_min_voltage_mV = (message_data[0] << 8 | message_data[1]);
+              datalayer.battery2.status.cell_max_voltage_mV = (message_data[2] << 8 | message_data[3]);
             }
             break;
           case CELL_VOLTAGE_AVG:
-            if (next_data >= 30) {
-              datalayer.battery2.status.cell_voltages_mV[1] = (message_data[10] << 8 | message_data[11]) / 10;
+            if (next_data >= 30) {  //AVG not used
+              //datalayer.battery2.status.cell_voltages_mV[1] = (message_data[10] << 8 | message_data[11]) / 10;
               battery2_capacity_cah = (message_data[4] << 8 | message_data[5]);
             }
             break;
           case SOH:
             if (next_data >= 4) {
               battery2_soh = message_data[3];
+              battery2_info_available = true;
             }
             break;
           case SOC:
@@ -1122,9 +1147,9 @@ void send_can_battery() {
 #ifdef DOUBLE_BATTERY
           CAN_WriteFrame(&BMW_6F1_CELL);
 #endif
-          cmdState = CELL_VOLTAGE;
+          cmdState = CELL_VOLTAGE_MINMAX;
           break;
-        case CELL_VOLTAGE:
+        case CELL_VOLTAGE_MINMAX:
           ESP32Can.CANWriteFrame(&BMW_6F1_SOH);
 #ifdef DOUBLE_BATTERY
           CAN_WriteFrame(&BMW_6F1_SOH);
@@ -1139,6 +1164,18 @@ void send_can_battery() {
           cmdState = CELL_VOLTAGE_AVG;
           break;
         case CELL_VOLTAGE_AVG:
+          ESP32Can.CANWriteFrame(&BMW_6F1_CELL_VOLTAGE_CELLNO);
+#ifdef DOUBLE_BATTERY
+          CAN_WriteFrame(&BMW_6F1_CELL_VOLTAGE_CELLNO);
+#endif
+          cmdState = CELL_VOLTAGE_CELLNO;
+          current_cell_polled++;
+          if (current_cell_polled > 96) {
+            current_cell_polled = 1;
+          }
+          BMW_6F1_CELL_VOLTAGE_CELLNO.data.u8[6] = current_cell_polled;
+          break;
+        case CELL_VOLTAGE_CELLNO:
           ESP32Can.CANWriteFrame(&BMW_6F1_SOC);
 #ifdef DOUBLE_BATTERY
           CAN_WriteFrame(&BMW_6F1_SOC);
