@@ -25,9 +25,6 @@ String settings_processor(const String& var) {
 #ifdef DOUBLE_BATTERY
     content += "<h4 style='color: white;'>Battery #2 interface: <span id='Battery'>" +
                String(getCANInterfaceName(can_config.battery_double)) + "</span></h4>";
-#else
-    content += "<h4 style='color: gray;'>Battery #2 interface: <span id='Battery'>" +
-               String(getCANInterfaceName(can_config.battery_double)) + "</span></h4>";
 #endif  // DOUBLE_BATTERY
 
 #ifdef CAN_INVERTER_SELECTED

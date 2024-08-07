@@ -913,7 +913,7 @@ void transmit_can(CAN_frame_t* tx_frame, int interface) {
       set_event(EVENT_INTERFACE_MISSING, interface);
 #endif  //DUAL_CAN
     } break;
-    case CAN_ADDON_FD_MCP2518:
+    case CAN_ADDON_FD_MCP2518: {
 #ifdef CAN_FD
       CANFDMessage MCP2518Frame;
       MCP2518Frame.id = tx_frame->MsgID;
@@ -926,7 +926,7 @@ void transmit_can(CAN_frame_t* tx_frame, int interface) {
 #else   // Interface not compiled, and settings try to use it
       set_event(EVENT_INTERFACE_MISSING, interface);
 #endif  //CAN_FD
-      break;
+    } break;
     default:
       // Invalid interface sent with function call. TODO: Raise event that coders messed up
       break;

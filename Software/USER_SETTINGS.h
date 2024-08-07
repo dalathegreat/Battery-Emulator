@@ -14,7 +14,7 @@
 //#define IMIEV_CZERO_ION_BATTERY
 //#define JAGUAR_IPACE_BATTERY
 //#define KIA_HYUNDAI_64_BATTERY
-//#define KIA_E_GMP_BATTERY
+#define KIA_E_GMP_BATTERY
 //#define KIA_HYUNDAI_HYBRID_BATTERY
 //#define MG_5_BATTERY
 //#define NISSAN_LEAF_BATTERY
@@ -49,7 +49,7 @@
 //#define CONTACTOR_CONTROL     //Enable this line to have pins 25,32,33 handle automatic precharge/contactor+/contactor- closing sequence
 //#define PWM_CONTACTOR_CONTROL //Enable this line to use PWM logic for contactors, which lower power consumption and heat generation
 //#define DUAL_CAN  //Enable this line to activate an isolated secondary CAN Bus using add-on MCP2515 controller (Needed for some inverters / double battery)
-//#define CAN_FD  //Enable this line to activate an isolated secondary CAN-FD bus using add-on MCP2517FD controller (Needed for some batteries)
+#define CAN_FD  //Enable this line to activate an isolated secondary CAN-FD bus using add-on MCP2517FD controller (Needed for some batteries)
 //#define SERIAL_LINK_RECEIVER  //Enable this line to receive battery data over RS485 pins from another Lilygo (This LilyGo interfaces with inverter)
 //#define SERIAL_LINK_TRANSMITTER  //Enable this line to send battery data over RS485 pins to another Lilygo (This LilyGo interfaces with battery)
 #define WEBSERVER  //Enable this line to enable WiFi, and to run the webserver. See USER_SETTINGS.cpp for the Wifi settings.
