@@ -7,6 +7,7 @@
 #define NUMBER_OF_MODULES 0
 #define BATTERY_TYPE 0x50
 // If you are having BattVoltFault issues, configure the above values according to wiki page
+// https://github.com/dalathegreat/Battery-Emulator/wiki/Solax-inverters
 
 /* Do not change code below unless you are sure what you are doing */
 static uint16_t max_charge_rate_amp = 0;
