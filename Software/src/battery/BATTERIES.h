@@ -93,4 +93,9 @@ void update_values_battery();
 void send_can_battery();
 void setup_battery(void);
 
+#ifdef DOUBLE_BATTERY
+void update_values_battery2();
+void receive_can_battery2(CAN_frame_t rx_frame);
+#endif
+
 #endif

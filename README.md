@@ -7,6 +7,9 @@
 
 This software enables EV battery packs to be used for stationary storage. It achieves this by converting the EV battery CAN data into a brand battery format that solar inverters can understand. This makes it extremely cheap and easy to use large EV batteries in a true plug'n'play fashion!
 
+> [!CAUTION]
+> Working with high voltage is dangerous. Always follow local laws and regulations regarding high voltage work. If you are unsure about the rules in your country, consult a licensed electrician for more information.
+
 ![Fronius](https://github.com/dalathegreat/Battery-Emulator/assets/26695010/741c3237-8074-4891-9cd1-f47f0fe45cb5)
 
 
@@ -82,6 +85,7 @@ It is also based on the information found in the following excellent repositorie
 - https://github.com/rand12345/solax_can_bus
 - https://github.com/Tom-evnut/BMWI3BMS/ SMA-CAN
 - https://github.com/maciek16c/hyundai-santa-fe-phev-battery
+- https://github.com/ljames28/Renault-Zoe-PH2-ZE50-Canbus-LBC-Information
 - Renault Zoe CAN Matrix https://docs.google.com/spreadsheets/u/0/d/1Qnk-yzzcPiMArO-QDzO4a8ptAS2Sa4HhVu441zBzlpM/edit?pli=1#gid=0
 - Pylon hacking https://www.eevblog.com/forum/programming/pylontech-sc0500-protocol-hacking/
 

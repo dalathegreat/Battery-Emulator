@@ -16,7 +16,6 @@ static unsigned long previousMillis10s = 0;  // will store last time a 1s CAN Me
 static uint8_t mprun10r = 0;                 //counter 0-20 for 0x1F2 message
 static uint8_t mprun10 = 0;                  //counter 0-3
 static uint8_t mprun100 = 0;                 //counter 0-3
-static bool can_bus_alive = false;
 
 CAN_frame_t LEAF_1F2 = {.FIR = {.B =
                                     {
@@ -55,13 +54,13 @@ CAN_frame_t LEAF_GROUP_REQUEST = {.FIR = {.B =
                                               }},
                                   .MsgID = 0x79B,
                                   .data = {2, 0x21, 1, 0, 0, 0, 0, 0}};
-const CAN_frame_t LEAF_NEXT_LINE_REQUEST = {.FIR = {.B =
-                                                        {
-                                                            .DLC = 8,
-                                                            .FF = CAN_frame_std,
-                                                        }},
-                                            .MsgID = 0x79B,
-                                            .data = {0x30, 1, 0, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF}};
+CAN_frame_t LEAF_NEXT_LINE_REQUEST = {.FIR = {.B =
+                                                  {
+                                                      .DLC = 8,
+                                                      .FF = CAN_frame_std,
+                                                  }},
+                                      .MsgID = 0x79B,
+                                      .data = {0x30, 1, 0, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF}};
 // The Li-ion battery controller only accepts a multi-message query. In fact, the LBC transmits many
 // groups: the first one contains lots of High Voltage battery data as SOC, currents, and voltage; the second
 // replies with all the battery’s cells voltages in millivolt, the third and the fifth one are still unknown, the
@@ -87,44 +86,37 @@ static uint8_t crctable[256] = {
 #define ZE0_BATTERY 0
 #define AZE0_BATTERY 1
 #define ZE1_BATTERY 2
-static uint8_t LEAF_Battery_Type = ZE0_BATTERY;
-#define MAX_CELL_VOLTAGE 4250                  //Battery is put into emergency stop if one cell goes over this value
-#define MIN_CELL_VOLTAGE 2700                  //Battery is put into emergency stop if one cell goes below this value
-#define WH_PER_GID 77                          //One GID is this amount of Watt hours
-static uint16_t LB_Discharge_Power_Limit = 0;  //Limit in kW
-static uint16_t LB_Charge_Power_Limit = 0;     //Limit in kW
-static int16_t LB_MAX_POWER_FOR_CHARGER = 0;   //Limit in kW
-static int16_t LB_SOC = 500;                   //0 - 100.0 % (0-1000) The real SOC% in the battery
-static uint16_t LB_TEMP = 0;                   //Temporary value used in status checks
-static uint16_t LB_Wh_Remaining = 0;           //Amount of energy in battery, in Wh
-static uint16_t LB_GIDS = 273;                 //Startup in 24kWh mode
-static uint16_t LB_MAX = 0;
-static uint16_t LB_Max_GIDS = 273;               //Startup in 24kWh mode
-static uint16_t LB_StateOfHealth = 99;           //State of health %
-static uint16_t LB_Total_Voltage2 = 740;         //Battery voltage (0-450V) [0.5V/bit, so actual range 0-800]
-static int16_t LB_Current2 = 0;                  //Battery current (-400-200A) [0.5A/bit, so actual range -800-400]
-static int16_t LB_Power = 0;                     //Watts going in/out of battery
-static int16_t LB_HistData_Temperature_MAX = 6;  //-40 to 86*C
-static int16_t LB_HistData_Temperature_MIN = 5;  //-40 to 86*C
-static int16_t LB_AverageTemperature = 6;        //Only available on ZE0, in celcius, -40 to +55
-static uint8_t LB_Relay_Cut_Request = 0;         //LB_FAIL
-static uint8_t LB_Failsafe_Status = 0;           //LB_STATUS = 000b = normal start Request
-                                                 //001b = Main Relay OFF Request
-                                                 //010b = Charging Mode Stop Request
-                                                 //011b =  Main Relay OFF Request
-                                                 //100b = Caution Lamp Request
-                                                 //101b = Caution Lamp Request & Main Relay OFF Request
-                                                 //110b = Caution Lamp Request & Charging Mode Stop Request
-                                                 //111b = Caution Lamp Request & Main Relay OFF Request
-static bool LB_Interlock =
+static uint8_t LEAF_battery_Type = ZE0_BATTERY;
+static bool battery_can_alive = false;
+#define MAX_CELL_VOLTAGE 4250  //Battery is put into emergency stop if one cell goes over this value
+#define MIN_CELL_VOLTAGE 2700  //Battery is put into emergency stop if one cell goes below this value
+#define WH_PER_GID 77          //One GID is this amount of Watt hours
+static uint16_t battery_Discharge_Power_Limit = 0;  //Limit in kW
+static uint16_t battery_Charge_Power_Limit = 0;     //Limit in kW
+static int16_t battery_MAX_POWER_FOR_CHARGER = 0;   //Limit in kW
+static int16_t battery_SOC = 500;                   //0 - 100.0 % (0-1000) The real SOC% in the battery
+static uint16_t battery_TEMP = 0;                   //Temporary value used in status checks
+static uint16_t battery_Wh_Remaining = 0;           //Amount of energy in battery, in Wh
+static uint16_t battery_GIDS = 273;                 //Startup in 24kWh mode
+static uint16_t battery_MAX = 0;
+static uint16_t battery_Max_GIDS = 273;               //Startup in 24kWh mode
+static uint16_t battery_StateOfHealth = 99;           //State of health %
+static uint16_t battery_Total_Voltage2 = 740;         //Battery voltage (0-450V) [0.5V/bit, so actual range 0-800]
+static int16_t battery_Current2 = 0;                  //Battery current (-400-200A) [0.5A/bit, so actual range -800-400]
+static int16_t battery_HistData_Temperature_MAX = 6;  //-40 to 86*C
+static int16_t battery_HistData_Temperature_MIN = 5;  //-40 to 86*C
+static int16_t battery_AverageTemperature = 6;        //Only available on ZE0, in celcius, -40 to +55
+static uint8_t battery_Relay_Cut_Request = 0;         //battery_FAIL
+static uint8_t battery_Failsafe_Status = 0;           //battery_STATUS
+static bool battery_Interlock =
     true;  //Contains info on if HV leads are seated (Note, to use this both HV connectors need to be inserted)
-static bool LB_Full_CHARGE_flag = false;  //LB_FCHGEND , Goes to 1 if battery is fully charged
-static bool LB_MainRelayOn_flag = false;  //No-Permission=0, Main Relay On Permission=1
-static bool LB_Capacity_Empty = false;    //LB_EMPTY, , Goes to 1 if battery is empty
-static bool LB_HeatExist = false;         //LB_HEATEXIST, Specifies if battery pack is equipped with heating elements
-static bool LB_Heating_Stop = false;      //When transitioning from 0->1, signals a STOP heat request
-static bool LB_Heating_Start = false;     //When transitioning from 1->0, signals a START heat request
-static bool Batt_Heater_Mail_Send_Request = false;  //Stores info when a heat request is happening
+static bool battery_Full_CHARGE_flag = false;  //battery_FCHGEND , Goes to 1 if battery is fully charged
+static bool battery_MainRelayOn_flag = false;  //No-Permission=0, Main Relay On Permission=1
+static bool battery_Capacity_Empty = false;    //battery_EMPTY, , Goes to 1 if battery is empty
+static bool battery_HeatExist = false;  //battery_HEATEXIST, Specifies if battery pack is equipped with heating elements
+static bool battery_Heating_Stop = false;                   //When transitioning from 0->1, signals a STOP heat request
+static bool battery_Heating_Start = false;                  //When transitioning from 1->0, signals a START heat request
+static bool battery_Batt_Heater_Mail_Send_Request = false;  //Stores info when a heat request is happening
 
 // Nissan LEAF battery data from polled CAN messages
 static uint8_t battery_request_idx = 0;
@@ -132,20 +124,69 @@ static uint8_t group_7bb = 0;
 static uint8_t group = 1;
 static bool stop_battery_query = true;
 static uint8_t hold_off_with_polling_10seconds = 10;
-static uint16_t cell_voltages[97];  //array with all the cellvoltages
-static uint8_t cellcounter = 0;
-static uint16_t min_max_voltage[2];  //contains cell min[0] and max[1] values in mV
-static uint16_t HX = 0;              //Internal resistance
-static uint16_t insulation = 0;      //Insulation resistance
-static uint16_t temp_raw_1 = 0;
-static uint8_t temp_raw_2_highnibble = 0;
-static uint16_t temp_raw_2 = 0;
-static uint16_t temp_raw_3 = 0;
-static uint16_t temp_raw_4 = 0;
-static uint16_t temp_raw_max = 0;
-static uint16_t temp_raw_min = 0;
-static int16_t temp_polled_max = 0;
-static int16_t temp_polled_min = 0;
+static uint16_t battery_cell_voltages[97];  //array with all the cellvoltages
+static uint8_t battery_cellcounter = 0;
+static uint16_t battery_min_max_voltage[2];  //contains cell min[0] and max[1] values in mV
+static uint16_t battery_HX = 0;              //Internal resistance
+static uint16_t battery_insulation = 0;      //Insulation resistance
+static uint16_t battery_temp_raw_1 = 0;
+static uint8_t battery_temp_raw_2_highnibble = 0;
+static uint16_t battery_temp_raw_2 = 0;
+static uint16_t battery_temp_raw_3 = 0;
+static uint16_t battery_temp_raw_4 = 0;
+static uint16_t battery_temp_raw_max = 0;
+static uint16_t battery_temp_raw_min = 0;
+static int16_t battery_temp_polled_max = 0;
+static int16_t battery_temp_polled_min = 0;
+
+#ifdef DOUBLE_BATTERY
+static uint8_t LEAF_battery2_Type = ZE0_BATTERY;
+static bool battery2_can_alive = false;
+static uint16_t battery2_Discharge_Power_Limit = 0;  //Limit in kW
+static uint16_t battery2_Charge_Power_Limit = 0;     //Limit in kW
+static int16_t battery2_MAX_POWER_FOR_CHARGER = 0;   //Limit in kW
+static int16_t battery2_SOC = 500;                   //0 - 100.0 % (0-1000) The real SOC% in the battery
+static uint16_t battery2_TEMP = 0;                   //Temporary value used in status checks
+static uint16_t battery2_Wh_Remaining = 0;           //Amount of energy in battery, in Wh
+static uint16_t battery2_GIDS = 273;                 //Startup in 24kWh mode
+static uint16_t battery2_MAX = 0;
+static uint16_t battery2_Max_GIDS = 273;        //Startup in 24kWh mode
+static uint16_t battery2_StateOfHealth = 99;    //State of health %
+static uint16_t battery2_Total_Voltage2 = 740;  //Battery voltage (0-450V) [0.5V/bit, so actual range 0-800]
+static int16_t battery2_Current2 = 0;           //Battery current (-400-200A) [0.5A/bit, so actual range -800-400]
+static int16_t battery2_HistData_Temperature_MAX = 6;  //-40 to 86*C
+static int16_t battery2_HistData_Temperature_MIN = 5;  //-40 to 86*C
+static int16_t battery2_AverageTemperature = 6;        //Only available on ZE0, in celcius, -40 to +55
+static uint8_t battery2_Relay_Cut_Request = 0;         //battery2_FAIL
+static uint8_t battery2_Failsafe_Status = 0;           //battery2_STATUS
+static bool battery2_Interlock =
+    true;  //Contains info on if HV leads are seated (Note, to use this both HV connectors need to be inserted)
+static bool battery2_Full_CHARGE_flag = false;  //battery2_FCHGEND , Goes to 1 if battery is fully charged
+static bool battery2_MainRelayOn_flag = false;  //No-Permission=0, Main Relay On Permission=1
+static bool battery2_Capacity_Empty = false;    //battery2_EMPTY, , Goes to 1 if battery is empty
+static bool battery2_HeatExist =
+    false;  //battery2_HEATEXIST, Specifies if battery pack is equipped with heating elements
+static bool battery2_Heating_Stop = false;   //When transitioning from 0->1, signals a STOP heat request
+static bool battery2_Heating_Start = false;  //When transitioning from 1->0, signals a START heat request
+static bool battery2_Batt_Heater_Mail_Send_Request = false;  //Stores info when a heat request is happening
+// Polled values
+static uint8_t battery2_group_7bb = 0;
+static uint8_t battery2_request_idx = 0;
+static uint16_t battery2_cell_voltages[97];  //array with all the cellvoltages
+static uint8_t battery2_cellcounter = 0;
+static uint16_t battery2_min_max_voltage[2];  //contains cell min[0] and max[1] values in mV
+static uint16_t battery2_HX = 0;              //Internal resistance
+static uint16_t battery2_insulation = 0;      //Insulation resistance
+static uint16_t battery2_temp_raw_1 = 0;
+static uint8_t battery2_temp_raw_2_highnibble = 0;
+static uint16_t battery2_temp_raw_2 = 0;
+static uint16_t battery2_temp_raw_3 = 0;
+static uint16_t battery2_temp_raw_4 = 0;
+static uint16_t battery2_temp_raw_max = 0;
+static uint16_t battery2_temp_raw_min = 0;
+static int16_t battery2_temp_polled_max = 0;
+static int16_t battery2_temp_polled_min = 0;
+#endif  // DOUBLE_BATTERY
 
 void print_with_units(char* header, int value, char* units) {
   Serial.print(header);
@@ -156,84 +197,85 @@ void print_with_units(char* header, int value, char* units) {
 void update_values_battery() { /* This function maps all the values fetched via CAN to the correct parameters used for modbus */
   /* Start with mapping all values */
 
-  datalayer.battery.status.soh_pptt = (LB_StateOfHealth * 100);  //Increase range from 99% -> 99.00%
+  datalayer.battery.status.soh_pptt = (battery_StateOfHealth * 100);  //Increase range from 99% -> 99.00%
 
-  datalayer.battery.status.real_soc = (LB_SOC * 10);
+  datalayer.battery.status.real_soc = (battery_SOC * 10);
 
   datalayer.battery.status.voltage_dV =
-      (LB_Total_Voltage2 * 5);  //0.5V/bit, multiply by 5 to get Voltage+1decimal (350.5V = 701)
+      (battery_Total_Voltage2 * 5);  //0.5V/bit, multiply by 5 to get Voltage+1decimal (350.5V = 701)
 
-  datalayer.battery.status.current_dA = (LB_Current2 * 5);  //0.5A/bit, multiply by 5 to get Amp+1decimal (5,5A = 11)
+  datalayer.battery.status.current_dA =
+      (battery_Current2 * 5);  //0.5A/bit, multiply by 5 to get Amp+1decimal (5,5A = 11)
 
-  datalayer.battery.info.total_capacity_Wh = (LB_Max_GIDS * WH_PER_GID);
+  datalayer.battery.info.total_capacity_Wh = (battery_Max_GIDS * WH_PER_GID);
 
-  datalayer.battery.status.remaining_capacity_Wh = LB_Wh_Remaining;
+  datalayer.battery.status.remaining_capacity_Wh = battery_Wh_Remaining;
 
-  LB_Power =
-      ((LB_Total_Voltage2 * LB_Current2) / 4);  //P = U * I (Both values are 0.5 per bit so the math is non-intuitive)
-
-  datalayer.battery.status.active_power_W = LB_Power;
+  datalayer.battery.status.active_power_W = ((battery_Total_Voltage2 * battery_Current2) /
+                                             4);  //P = U * I (Both values are 0.5 per bit so the math is non-intuitive)
 
   //Update temperature readings. Method depends on which generation LEAF battery is used
-  if (LEAF_Battery_Type == ZE0_BATTERY) {
+  if (LEAF_battery_Type == ZE0_BATTERY) {
     //Since we only have average value, send the minimum as -1.0 degrees below average
     datalayer.battery.status.temperature_min_dC =
-        ((LB_AverageTemperature * 10) - 10);  //Increase range from C to C+1, remove 1.0C
-    datalayer.battery.status.temperature_max_dC = (LB_AverageTemperature * 10);  //Increase range from C to C+1
-  } else if (LEAF_Battery_Type == AZE0_BATTERY) {
+        ((battery_AverageTemperature * 10) - 10);  //Increase range from C to C+1, remove 1.0C
+    datalayer.battery.status.temperature_max_dC = (battery_AverageTemperature * 10);  //Increase range from C to C+1
+  } else if (LEAF_battery_Type == AZE0_BATTERY) {
     //Use the value sent constantly via CAN in 5C0 (only available on AZE0)
-    datalayer.battery.status.temperature_min_dC = (LB_HistData_Temperature_MIN * 10);  //Increase range from C to C+1
-    datalayer.battery.status.temperature_max_dC = (LB_HistData_Temperature_MAX * 10);  //Increase range from C to C+1
+    datalayer.battery.status.temperature_min_dC =
+        (battery_HistData_Temperature_MIN * 10);  //Increase range from C to C+1
+    datalayer.battery.status.temperature_max_dC =
+        (battery_HistData_Temperature_MAX * 10);  //Increase range from C to C+1
   } else {  // ZE1 (TODO: Once the muxed value in 5C0 becomes known, switch to using that instead of this complicated polled value)
-    if (temp_raw_min != 0)  //We have a polled value available
+    if (battery_temp_raw_min != 0)  //We have a polled value available
     {
-      temp_polled_min = ((Temp_fromRAW_to_F(temp_raw_min) - 320) * 5) / 9;  //Convert from F to C
-      temp_polled_max = ((Temp_fromRAW_to_F(temp_raw_max) - 320) * 5) / 9;  //Convert from F to C
-      if (temp_polled_min < temp_polled_max) {  //Catch any edge cases from Temp_fromRAW_to_F function
-        datalayer.battery.status.temperature_min_dC = temp_polled_min;
-        datalayer.battery.status.temperature_max_dC = temp_polled_max;
+      battery_temp_polled_min = ((Temp_fromRAW_to_F(battery_temp_raw_min) - 320) * 5) / 9;  //Convert from F to C
+      battery_temp_polled_max = ((Temp_fromRAW_to_F(battery_temp_raw_max) - 320) * 5) / 9;  //Convert from F to C
+      if (battery_temp_polled_min < battery_temp_polled_max) {  //Catch any edge cases from Temp_fromRAW_to_F function
+        datalayer.battery.status.temperature_min_dC = battery_temp_polled_min;
+        datalayer.battery.status.temperature_max_dC = battery_temp_polled_max;
       } else {
-        datalayer.battery.status.temperature_min_dC = temp_polled_max;
-        datalayer.battery.status.temperature_max_dC = temp_polled_min;
+        datalayer.battery.status.temperature_min_dC = battery_temp_polled_max;
+        datalayer.battery.status.temperature_max_dC = battery_temp_polled_min;
       }
     }
   }
 
-  datalayer.battery.status.max_discharge_power_W = (LB_Discharge_Power_Limit * 1000);  //kW to W
+  datalayer.battery.status.max_discharge_power_W = (battery_Discharge_Power_Limit * 1000);  //kW to W
 
-  datalayer.battery.status.max_charge_power_W = (LB_Charge_Power_Limit * 1000);  //kW to W
+  datalayer.battery.status.max_charge_power_W = (battery_Charge_Power_Limit * 1000);  //kW to W
 
   /*Extra safety functions below*/
-  if (LB_GIDS < 10)  //700Wh left in battery!
-  {                  //Battery is running abnormally low, some discharge logic might have failed. Zero it all out.
+  if (battery_GIDS < 10)  //700Wh left in battery!
+  {                       //Battery is running abnormally low, some discharge logic might have failed. Zero it all out.
     set_event(EVENT_BATTERY_EMPTY, 0);
     datalayer.battery.status.real_soc = 0;
     datalayer.battery.status.max_discharge_power_W = 0;
   }
 
-  if (LB_Full_CHARGE_flag) {  //Battery reports that it is fully charged stop all further charging incase it hasn't already
+  if (battery_Full_CHARGE_flag) {  //Battery reports that it is fully charged stop all further charging incase it hasn't already
     set_event(EVENT_BATTERY_FULL, 0);
     datalayer.battery.status.max_charge_power_W = 0;
   } else {
     clear_event(EVENT_BATTERY_FULL);
   }
 
-  if (LB_Capacity_Empty) {  //Battery reports that it is fully discharged. Stop all further discharging incase it hasn't already
+  if (battery_Capacity_Empty) {  //Battery reports that it is fully discharged. Stop all further discharging incase it hasn't already
     set_event(EVENT_BATTERY_EMPTY, 0);
     datalayer.battery.status.max_discharge_power_W = 0;
   } else {
     clear_event(EVENT_BATTERY_EMPTY);
   }
 
-  if (LB_Relay_Cut_Request) {  //LB_FAIL, BMS requesting shutdown and contactors to be opened
+  if (battery_Relay_Cut_Request) {  //battery_FAIL, BMS requesting shutdown and contactors to be opened
     //Note, this is sometimes triggered during the night while idle, and the BMS recovers after a while. Removed latching from this scenario
     datalayer.battery.status.max_discharge_power_W = 0;
     datalayer.battery.status.max_charge_power_W = 0;
   }
 
-  if (LB_Failsafe_Status > 0)  // 0 is normal, start charging/discharging
+  if (battery_Failsafe_Status > 0)  // 0 is normal, start charging/discharging
   {
-    switch (LB_Failsafe_Status) {
+    switch (battery_Failsafe_Status) {
       case (1):
         //Normal Stop Request
         //This means that battery is fully discharged and it's OK to stop the session. For stationary storage we don't disconnect contactors, so we do nothing here.
@@ -265,25 +307,25 @@ void update_values_battery() { /* This function maps all the values fetched via 
       default:
         break;
     }
-  } else {  //LB_Failsafe_Status == 0
+  } else {  //battery_Failsafe_Status == 0
     clear_event(EVENT_BATTERY_DISCHG_STOP_REQ);
     clear_event(EVENT_BATTERY_CHG_STOP_REQ);
     clear_event(EVENT_BATTERY_CHG_DISCHG_STOP_REQ);
   }
 
 #ifdef INTERLOCK_REQUIRED
-  if (!LB_Interlock) {
+  if (!battery_Interlock) {
     set_event(EVENT_HVIL_FAILURE, 0);
   } else {
     clear_event(EVENT_HVIL_FAILURE);
   }
 #endif
 
-  if (LB_HeatExist) {
-    if (LB_Heating_Stop) {
+  if (battery_HeatExist) {
+    if (battery_Heating_Stop) {
       set_event(EVENT_BATTERY_WARMED_UP, 0);
     }
-    if (LB_Heating_Start) {
+    if (battery_Heating_Start) {
       set_event(EVENT_BATTERY_REQUESTS_HEAT, 0);
     }
   }
@@ -291,14 +333,416 @@ void update_values_battery() { /* This function maps all the values fetched via 
 /*Finally print out values to serial if configured to do so*/
 #ifdef DEBUG_VIA_USB
   Serial.println("Values from battery");
-  print_with_units("Real SOC%: ", (LB_SOC * 0.1), "% ");
-  print_with_units(", GIDS: ", LB_GIDS, " (x77Wh) ");
-  print_with_units(", Battery gen: ", LEAF_Battery_Type, " ");
-  print_with_units(", Has heater: ", LB_HeatExist, " ");
-  print_with_units(", Max cell voltage: ", min_max_voltage[1], "mV ");
-  print_with_units(", Min cell voltage: ", min_max_voltage[0], "mV ");
+  print_with_units("Real SOC%: ", (battery_SOC * 0.1), "% ");
+  print_with_units(", GIDS: ", battery_GIDS, " (x77Wh) ");
+  print_with_units(", Battery gen: ", LEAF_battery_Type, " ");
+  print_with_units(", Has heater: ", battery_HeatExist, " ");
+  print_with_units(", Max cell voltage: ", battery_min_max_voltage[1], "mV ");
+  print_with_units(", Min cell voltage: ", battery_min_max_voltage[0], "mV ");
 #endif
 }
+
+#ifdef DOUBLE_BATTERY
+
+void CAN_WriteFrame(CAN_frame_t* tx_frame) {
+  CANMessage MCP2515Frame;  //Struct with ACAN2515 library format, needed to use the MCP2515 library for CAN2
+  MCP2515Frame.id = tx_frame->MsgID;
+  //MCP2515Frame.ext = tx_frame->FIR.B.FF;
+  MCP2515Frame.len = tx_frame->FIR.B.DLC;
+  for (uint8_t i = 0; i < MCP2515Frame.len; i++) {
+    MCP2515Frame.data[i] = tx_frame->data.u8[i];
+  }
+  can.tryToSend(MCP2515Frame);
+}
+
+void update_values_battery2() {  // Handle the values coming in from battery #2
+  /* Start with mapping all values */
+
+  datalayer.battery2.status.soh_pptt = (battery2_StateOfHealth * 100);  //Increase range from 99% -> 99.00%
+
+  datalayer.battery2.status.real_soc = (battery2_SOC * 10);
+
+  datalayer.battery2.status.voltage_dV =
+      (battery2_Total_Voltage2 * 5);  //0.5V/bit, multiply by 5 to get Voltage+1decimal (350.5V = 701)
+
+  datalayer.battery2.status.current_dA =
+      (battery2_Current2 * 5);  //0.5A/bit, multiply by 5 to get Amp+1decimal (5,5A = 11)
+
+  datalayer.battery2.info.total_capacity_Wh = (battery2_Max_GIDS * WH_PER_GID);
+
+  datalayer.battery2.status.remaining_capacity_Wh = battery2_Wh_Remaining;
+
+  datalayer.battery2.status.active_power_W =
+      ((battery2_Total_Voltage2 * battery2_Current2) /
+       4);  //P = U * I (Both values are 0.5 per bit so the math is non-intuitive)
+
+  //Update temperature readings. Method depends on which generation LEAF battery is used
+  if (LEAF_battery2_Type == ZE0_BATTERY) {
+    //Since we only have average value, send the minimum as -1.0 degrees below average
+    datalayer.battery2.status.temperature_min_dC =
+        ((battery2_AverageTemperature * 10) - 10);  //Increase range from C to C+1, remove 1.0C
+    datalayer.battery2.status.temperature_max_dC = (battery2_AverageTemperature * 10);  //Increase range from C to C+1
+  } else if (LEAF_battery2_Type == AZE0_BATTERY) {
+    //Use the value sent constantly via CAN in 5C0 (only available on AZE0)
+    datalayer.battery2.status.temperature_min_dC =
+        (battery2_HistData_Temperature_MIN * 10);  //Increase range from C to C+1
+    datalayer.battery2.status.temperature_max_dC =
+        (battery2_HistData_Temperature_MAX * 10);  //Increase range from C to C+1
+  } else {  // ZE1 (TODO: Once the muxed value in 5C0 becomes known, switch to using that instead of this complicated polled value)
+    if (battery2_temp_raw_min != 0)  //We have a polled value available
+    {
+      battery2_temp_polled_min = ((Temp_fromRAW_to_F(battery2_temp_raw_min) - 320) * 5) / 9;  //Convert from F to C
+      battery2_temp_polled_max = ((Temp_fromRAW_to_F(battery2_temp_raw_max) - 320) * 5) / 9;  //Convert from F to C
+      if (battery2_temp_polled_min < battery2_temp_polled_max) {  //Catch any edge cases from Temp_fromRAW_to_F function
+        datalayer.battery2.status.temperature_min_dC = battery2_temp_polled_min;
+        datalayer.battery2.status.temperature_max_dC = battery2_temp_polled_max;
+      } else {
+        datalayer.battery2.status.temperature_min_dC = battery2_temp_polled_max;
+        datalayer.battery2.status.temperature_max_dC = battery2_temp_polled_min;
+      }
+    }
+  }
+
+  datalayer.battery2.status.max_discharge_power_W = (battery2_Discharge_Power_Limit * 1000);  //kW to W
+
+  datalayer.battery2.status.max_charge_power_W = (battery2_Charge_Power_Limit * 1000);  //kW to W
+
+  /*Extra safety functions below*/
+  if (battery2_GIDS < 10)  //700Wh left in battery!
+  {                        //Battery is running abnormally low, some discharge logic might have failed. Zero it all out.
+    set_event(EVENT_BATTERY_EMPTY, 0);
+    datalayer.battery2.status.real_soc = 0;
+    datalayer.battery2.status.max_discharge_power_W = 0;
+  }
+
+  if (battery2_Full_CHARGE_flag) {  //Battery reports that it is fully charged stop all further charging incase it hasn't already
+    set_event(EVENT_BATTERY_FULL, 0);
+    datalayer.battery2.status.max_charge_power_W = 0;
+  } else {
+    clear_event(EVENT_BATTERY_FULL);
+  }
+
+  if (battery2_Capacity_Empty) {  //Battery reports that it is fully discharged. Stop all further discharging incase it hasn't already
+    set_event(EVENT_BATTERY_EMPTY, 0);
+    datalayer.battery2.status.max_discharge_power_W = 0;
+  } else {
+    clear_event(EVENT_BATTERY_EMPTY);
+  }
+
+  if (battery2_Relay_Cut_Request) {  //battery2_FAIL, BMS requesting shutdown and contactors to be opened
+    //Note, this is sometimes triggered during the night while idle, and the BMS recovers after a while. Removed latching from this scenario
+    datalayer.battery2.status.max_discharge_power_W = 0;
+    datalayer.battery2.status.max_charge_power_W = 0;
+  }
+
+  if (battery2_Failsafe_Status > 0)  // 0 is normal, start charging/discharging
+  {
+    switch (battery2_Failsafe_Status) {
+      case (1):
+        //Normal Stop Request
+        //This means that battery is fully discharged and it's OK to stop the session. For stationary storage we don't disconnect contactors, so we do nothing here.
+        break;
+      case (2):
+        //Charging Mode Stop Request
+        //This means that battery is fully charged and it's OK to stop the session. For stationary storage we don't disconnect contactors, so we do nothing here.
+        break;
+      case (3):
+        //Charging Mode Stop Request & Normal Stop Request
+        //Normal stop request. For stationary storage we don't disconnect contactors, so we ignore this.
+        break;
+      case (4):
+        //Caution Lamp Request
+        set_event(EVENT_BATTERY_CAUTION, 2);
+        break;
+      case (5):
+        //Caution Lamp Request & Normal Stop Request
+        set_event(EVENT_BATTERY_DISCHG_STOP_REQ, 2);
+        break;
+      case (6):
+        //Caution Lamp Request & Charging Mode Stop Request
+        set_event(EVENT_BATTERY_CHG_STOP_REQ, 2);
+        break;
+      case (7):
+        //Caution Lamp Request & Charging Mode Stop Request & Normal Stop Request
+        set_event(EVENT_BATTERY_CHG_DISCHG_STOP_REQ, 2);
+        break;
+      default:
+        break;
+    }
+  } else {  //battery2_Failsafe_Status == 0
+    clear_event(EVENT_BATTERY_DISCHG_STOP_REQ);
+    clear_event(EVENT_BATTERY_CHG_STOP_REQ);
+    clear_event(EVENT_BATTERY_CHG_DISCHG_STOP_REQ);
+  }
+
+#ifdef INTERLOCK_REQUIRED
+  if (!battery2_Interlock) {
+    set_event(EVENT_HVIL_FAILURE, 2);
+  } else {
+    clear_event(EVENT_HVIL_FAILURE);
+  }
+#endif
+
+  if (battery2_HeatExist) {
+    if (battery2_Heating_Stop) {
+      set_event(EVENT_BATTERY_WARMED_UP, 2);
+    }
+    if (battery2_Heating_Start) {
+      set_event(EVENT_BATTERY_REQUESTS_HEAT, 2);
+    }
+  }
+}
+void receive_can_battery2(CAN_frame_t rx_frame) {
+  switch (rx_frame.MsgID) {
+    case 0x1DB:
+      if (is_message_corrupt(rx_frame)) {
+        datalayer.battery2.status.CAN_error_counter++;
+        break;  //Message content malformed, abort reading data from it
+      }
+      battery2_Current2 = (rx_frame.data.u8[0] << 3) | (rx_frame.data.u8[1] & 0xe0) >> 5;
+      if (battery2_Current2 & 0x0400) {
+        // negative so extend the sign bit
+        battery2_Current2 |= 0xf800;
+      }  //BatteryCurrentSignal , 2s comp, 1lSB = 0.5A/bit
+
+      battery2_Total_Voltage2 = ((rx_frame.data.u8[2] << 2) | (rx_frame.data.u8[3] & 0xc0) >> 6);  //0.5V/bit
+
+      //Collect various data from the BMS
+      battery2_Relay_Cut_Request = ((rx_frame.data.u8[1] & 0x18) >> 3);
+      battery2_Failsafe_Status = (rx_frame.data.u8[1] & 0x07);
+      battery2_MainRelayOn_flag = (bool)((rx_frame.data.u8[3] & 0x20) >> 5);
+      if (battery2_MainRelayOn_flag) {
+        datalayer.system.status.battery2_allows_contactor_closing = true;
+      } else {
+        datalayer.system.status.battery2_allows_contactor_closing = false;
+      }
+      battery2_Full_CHARGE_flag = (bool)((rx_frame.data.u8[3] & 0x10) >> 4);
+      battery2_Interlock = (bool)((rx_frame.data.u8[3] & 0x08) >> 3);
+      break;
+    case 0x1DC:
+      if (is_message_corrupt(rx_frame)) {
+        datalayer.battery2.status.CAN_error_counter++;
+        break;  //Message content malformed, abort reading data from it
+      }
+      battery2_Discharge_Power_Limit = ((rx_frame.data.u8[0] << 2 | rx_frame.data.u8[1] >> 6) / 4.0);
+      battery2_Charge_Power_Limit = (((rx_frame.data.u8[1] & 0x3F) << 4 | rx_frame.data.u8[2] >> 4) / 4.0);
+      battery2_MAX_POWER_FOR_CHARGER = ((((rx_frame.data.u8[2] & 0x0F) << 6 | rx_frame.data.u8[3] >> 2) / 10.0) - 10);
+      break;
+    case 0x55B:
+      if (is_message_corrupt(rx_frame)) {
+        datalayer.battery2.status.CAN_error_counter++;
+        break;  //Message content malformed, abort reading data from it
+      }
+      battery2_TEMP = (rx_frame.data.u8[0] << 2 | rx_frame.data.u8[1] >> 6);
+      if (battery2_TEMP != 0x3ff) {  //3FF is unavailable value
+        battery2_SOC = battery2_TEMP;
+      }
+      battery2_Capacity_Empty = (bool)((rx_frame.data.u8[6] & 0x80) >> 7);
+      break;
+    case 0x5BC:
+      battery2_can_alive = true;
+      datalayer.battery2.status.CAN_battery_still_alive = CAN_STILL_ALIVE;  // Let system know battery is sending CAN
+
+      battery2_MAX = ((rx_frame.data.u8[5] & 0x10) >> 4);
+      if (battery2_MAX) {
+        battery2_Max_GIDS = (rx_frame.data.u8[0] << 2) | ((rx_frame.data.u8[1] & 0xC0) >> 6);
+        //Max gids active, do nothing
+        //Only the 30/40/62kWh packs have this mux
+      } else {  //Normal current GIDS value is transmitted
+        battery2_GIDS = (rx_frame.data.u8[0] << 2) | ((rx_frame.data.u8[1] & 0xC0) >> 6);
+        battery2_Wh_Remaining = (battery2_GIDS * WH_PER_GID);
+      }
+
+      if (LEAF_battery2_Type == ZE0_BATTERY) {
+        battery2_AverageTemperature = (rx_frame.data.u8[3] - 40);  //In celcius, -40 to +55
+      }
+
+      battery2_TEMP = (rx_frame.data.u8[4] >> 1);
+      if (battery2_TEMP != 0) {
+        battery2_StateOfHealth = battery2_TEMP;  //Collect state of health from battery
+      }
+      break;
+    case 0x5C0:
+      //This temperature only works for 2013-2017 AZE0 LEAF packs, the mux is different on other generations
+      if (LEAF_battery2_Type == AZE0_BATTERY) {
+        if ((rx_frame.data.u8[0] >> 6) ==
+            1) {  // Battery MAX temperature. Effectively has only 7-bit precision, as the bottom bit is always 0.
+          battery2_HistData_Temperature_MAX = ((rx_frame.data.u8[2] / 2) - 40);
+        }
+        if ((rx_frame.data.u8[0] >> 6) ==
+            3) {  // Battery MIN temperature. Effectively has only 7-bit precision, as the bottom bit is always 0.
+          battery2_HistData_Temperature_MIN = ((rx_frame.data.u8[2] / 2) - 40);
+        }
+      }
+
+      battery2_HeatExist = (rx_frame.data.u8[4] & 0x01);
+      battery2_Heating_Stop = ((rx_frame.data.u8[0] & 0x10) >> 4);
+      battery2_Heating_Start = ((rx_frame.data.u8[0] & 0x20) >> 5);
+      battery2_Batt_Heater_Mail_Send_Request = (rx_frame.data.u8[1] & 0x01);
+
+      break;
+    case 0x59E:
+      //AZE0 2013-2017 or ZE1 2018-2023 battery detected
+      //Only detect as AZE0 if not already set as ZE1
+      if (LEAF_battery2_Type != ZE1_BATTERY) {
+        LEAF_battery2_Type = AZE0_BATTERY;
+      }
+      break;
+    case 0x1ED:
+    case 0x1C2:
+      //ZE1 2018-2023 battery detected!
+      LEAF_battery2_Type = ZE1_BATTERY;
+      break;
+    case 0x79B:
+      stop_battery_query = true;             //Someone is trying to read data with Leafspy, stop our own polling!
+      hold_off_with_polling_10seconds = 10;  //Polling is paused for 100s
+      break;
+    case 0x7BB:
+      //First check which group data we are getting
+      if (rx_frame.data.u8[0] == 0x10) {  //First message of a group
+        battery2_group_7bb = rx_frame.data.u8[3];
+        if (battery2_group_7bb != 1 && battery2_group_7bb != 2 &&
+            battery2_group_7bb != 4) {  //We are only interested in groups 1,2 and 4
+          break;
+        }
+      }
+
+      if (stop_battery_query) {  //Leafspy is active, stop our own polling
+        break;
+      }
+
+      CAN_WriteFrame(&LEAF_NEXT_LINE_REQUEST);  // CAN2
+
+      if (battery2_group_7bb == 1)  //High precision SOC, Current, voltages etc.
+      {
+        if (rx_frame.data.u8[0] == 0x10) {  //First frame
+          //High precision battery2_current_1 resides here, but has been deemed unusable by 62kWh owners
+        }
+        if (rx_frame.data.u8[0] == 0x21) {  //Second frame
+          //High precision battery2_current_2 resides here, but has been deemed unusable by 62kWh owners
+        }
+
+        if (rx_frame.data.u8[0] == 0x23) {  // Fourth frame
+          battery2_insulation = (uint16_t)((rx_frame.data.u8[5] << 8) | rx_frame.data.u8[6]);
+        }
+
+        if (rx_frame.data.u8[0] == 0x24) {  // Fifth frame
+          battery2_HX = (uint16_t)((rx_frame.data.u8[4] << 8) | rx_frame.data.u8[5]) / 102.4;
+        }
+      }
+
+      if (battery2_group_7bb == 2)  //Cell Voltages
+      {
+        if (rx_frame.data.u8[0] == 0x10) {  //first frame is anomalous
+          battery2_request_idx = 0;
+          battery2_cell_voltages[battery2_request_idx++] = (rx_frame.data.u8[4] << 8) | rx_frame.data.u8[5];
+          battery2_cell_voltages[battery2_request_idx++] = (rx_frame.data.u8[6] << 8) | rx_frame.data.u8[7];
+          break;
+        }
+        if (rx_frame.data.u8[6] == 0xFF && rx_frame.data.u8[0] == 0x2C) {  //Last frame
+          //Last frame does not contain any cell data, calculate the result
+
+          //Map all cell voltages to the global array
+          memcpy(datalayer.battery2.status.cell_voltages_mV, battery2_cell_voltages, 96 * sizeof(uint16_t));
+
+          //calculate min/max voltages
+          battery2_min_max_voltage[0] = 9999;
+          battery2_min_max_voltage[1] = 0;
+          for (battery2_cellcounter = 0; battery2_cellcounter < 96; battery2_cellcounter++) {
+            if (battery2_min_max_voltage[0] > battery2_cell_voltages[battery2_cellcounter])
+              battery2_min_max_voltage[0] = battery2_cell_voltages[battery2_cellcounter];
+            if (battery2_min_max_voltage[1] < battery2_cell_voltages[battery2_cellcounter])
+              battery2_min_max_voltage[1] = battery2_cell_voltages[battery2_cellcounter];
+          }
+
+          datalayer.battery2.status.cell_max_voltage_mV = battery2_min_max_voltage[1];
+          datalayer.battery2.status.cell_min_voltage_mV = battery2_min_max_voltage[0];
+
+          if (battery2_min_max_voltage[1] >= MAX_CELL_VOLTAGE) {
+            set_event(EVENT_CELL_OVER_VOLTAGE, 0);
+          }
+          if (battery2_min_max_voltage[0] <= MIN_CELL_VOLTAGE) {
+            set_event(EVENT_CELL_UNDER_VOLTAGE, 0);
+          }
+          break;
+        }
+
+        if ((rx_frame.data.u8[0] % 2) == 0) {  //even frames
+          battery2_cell_voltages[battery2_request_idx++] |= rx_frame.data.u8[1];
+          battery2_cell_voltages[battery2_request_idx++] = (rx_frame.data.u8[2] << 8) | rx_frame.data.u8[3];
+          battery2_cell_voltages[battery2_request_idx++] = (rx_frame.data.u8[4] << 8) | rx_frame.data.u8[5];
+          battery2_cell_voltages[battery2_request_idx++] = (rx_frame.data.u8[6] << 8) | rx_frame.data.u8[7];
+        } else {  //odd frames
+          battery2_cell_voltages[battery2_request_idx++] = (rx_frame.data.u8[1] << 8) | rx_frame.data.u8[2];
+          battery2_cell_voltages[battery2_request_idx++] = (rx_frame.data.u8[3] << 8) | rx_frame.data.u8[4];
+          battery2_cell_voltages[battery2_request_idx++] = (rx_frame.data.u8[5] << 8) | rx_frame.data.u8[6];
+          battery2_cell_voltages[battery2_request_idx] = (rx_frame.data.u8[7] << 8);
+        }
+      }
+
+      if (battery2_group_7bb == 4) {        //Temperatures
+        if (rx_frame.data.u8[0] == 0x10) {  //First message
+          battery2_temp_raw_1 = (rx_frame.data.u8[4] << 8) | rx_frame.data.u8[5];
+          battery2_temp_raw_2_highnibble = rx_frame.data.u8[7];
+        }
+        if (rx_frame.data.u8[0] == 0x21) {  //Second message
+          battery2_temp_raw_2 = (battery2_temp_raw_2_highnibble << 8) | rx_frame.data.u8[1];
+          battery2_temp_raw_3 = (rx_frame.data.u8[3] << 8) | rx_frame.data.u8[4];
+          battery2_temp_raw_4 = (rx_frame.data.u8[6] << 8) | rx_frame.data.u8[7];
+        }
+        if (rx_frame.data.u8[0] == 0x22) {  //Third message
+          //All values read, let's figure out the min/max!
+
+          if (battery2_temp_raw_3 == 65535) {  //We are on a 2013+ pack that only has three temp sensors.
+            //Start with finding max value
+            battery2_temp_raw_max = battery2_temp_raw_1;
+            if (battery2_temp_raw_2 > battery2_temp_raw_max) {
+              battery2_temp_raw_max = battery2_temp_raw_2;
+            }
+            if (battery2_temp_raw_4 > battery2_temp_raw_max) {
+              battery2_temp_raw_max = battery2_temp_raw_4;
+            }
+            //Then find min
+            battery2_temp_raw_min = battery2_temp_raw_1;
+            if (battery2_temp_raw_2 < battery2_temp_raw_min) {
+              battery2_temp_raw_min = battery2_temp_raw_2;
+            }
+            if (battery2_temp_raw_4 < battery2_temp_raw_min) {
+              battery2_temp_raw_min = battery2_temp_raw_4;
+            }
+          } else {  //All 4 temp sensors available on 2011-2012
+            //Start with finding max value
+            battery2_temp_raw_max = battery2_temp_raw_1;
+            if (battery2_temp_raw_2 > battery2_temp_raw_max) {
+              battery2_temp_raw_max = battery2_temp_raw_2;
+            }
+            if (battery2_temp_raw_3 > battery2_temp_raw_max) {
+              battery2_temp_raw_max = battery2_temp_raw_3;
+            }
+            if (battery2_temp_raw_4 > battery2_temp_raw_max) {
+              battery2_temp_raw_max = battery2_temp_raw_4;
+            }
+            //Then find min
+            battery2_temp_raw_min = battery2_temp_raw_1;
+            if (battery2_temp_raw_2 < battery2_temp_raw_min) {
+              battery2_temp_raw_min = battery2_temp_raw_2;
+            }
+            if (battery2_temp_raw_3 < battery2_temp_raw_min) {
+              battery2_temp_raw_min = battery2_temp_raw_2;
+            }
+            if (battery2_temp_raw_4 < battery2_temp_raw_min) {
+              battery2_temp_raw_min = battery2_temp_raw_4;
+            }
+          }
+        }
+      }
+
+      break;
+    default:
+      break;
+  }
+}
+#endif  // DOUBLE_BATTERY
 
 void receive_can_battery(CAN_frame_t rx_frame) {
   switch (rx_frame.MsgID) {
@@ -307,99 +751,99 @@ void receive_can_battery(CAN_frame_t rx_frame) {
         datalayer.battery.status.CAN_error_counter++;
         break;  //Message content malformed, abort reading data from it
       }
-      LB_Current2 = (rx_frame.data.u8[0] << 3) | (rx_frame.data.u8[1] & 0xe0) >> 5;
-      if (LB_Current2 & 0x0400) {
+      battery_Current2 = (rx_frame.data.u8[0] << 3) | (rx_frame.data.u8[1] & 0xe0) >> 5;
+      if (battery_Current2 & 0x0400) {
         // negative so extend the sign bit
-        LB_Current2 |= 0xf800;
+        battery_Current2 |= 0xf800;
       }  //BatteryCurrentSignal , 2s comp, 1lSB = 0.5A/bit
 
-      LB_Total_Voltage2 = ((rx_frame.data.u8[2] << 2) | (rx_frame.data.u8[3] & 0xc0) >> 6);  //0.5V/bit
+      battery_Total_Voltage2 = ((rx_frame.data.u8[2] << 2) | (rx_frame.data.u8[3] & 0xc0) >> 6);  //0.5V/bit
 
       //Collect various data from the BMS
-      LB_Relay_Cut_Request = ((rx_frame.data.u8[1] & 0x18) >> 3);
-      LB_Failsafe_Status = (rx_frame.data.u8[1] & 0x07);
-      LB_MainRelayOn_flag = (bool)((rx_frame.data.u8[3] & 0x20) >> 5);
-      if (LB_MainRelayOn_flag) {
+      battery_Relay_Cut_Request = ((rx_frame.data.u8[1] & 0x18) >> 3);
+      battery_Failsafe_Status = (rx_frame.data.u8[1] & 0x07);
+      battery_MainRelayOn_flag = (bool)((rx_frame.data.u8[3] & 0x20) >> 5);
+      if (battery_MainRelayOn_flag) {
         datalayer.system.status.battery_allows_contactor_closing = true;
       } else {
         datalayer.system.status.battery_allows_contactor_closing = false;
       }
-      LB_Full_CHARGE_flag = (bool)((rx_frame.data.u8[3] & 0x10) >> 4);
-      LB_Interlock = (bool)((rx_frame.data.u8[3] & 0x08) >> 3);
+      battery_Full_CHARGE_flag = (bool)((rx_frame.data.u8[3] & 0x10) >> 4);
+      battery_Interlock = (bool)((rx_frame.data.u8[3] & 0x08) >> 3);
       break;
     case 0x1DC:
       if (is_message_corrupt(rx_frame)) {
         datalayer.battery.status.CAN_error_counter++;
         break;  //Message content malformed, abort reading data from it
       }
-      LB_Discharge_Power_Limit = ((rx_frame.data.u8[0] << 2 | rx_frame.data.u8[1] >> 6) / 4.0);
-      LB_Charge_Power_Limit = (((rx_frame.data.u8[1] & 0x3F) << 4 | rx_frame.data.u8[2] >> 4) / 4.0);
-      LB_MAX_POWER_FOR_CHARGER = ((((rx_frame.data.u8[2] & 0x0F) << 6 | rx_frame.data.u8[3] >> 2) / 10.0) - 10);
+      battery_Discharge_Power_Limit = ((rx_frame.data.u8[0] << 2 | rx_frame.data.u8[1] >> 6) / 4.0);
+      battery_Charge_Power_Limit = (((rx_frame.data.u8[1] & 0x3F) << 4 | rx_frame.data.u8[2] >> 4) / 4.0);
+      battery_MAX_POWER_FOR_CHARGER = ((((rx_frame.data.u8[2] & 0x0F) << 6 | rx_frame.data.u8[3] >> 2) / 10.0) - 10);
       break;
     case 0x55B:
       if (is_message_corrupt(rx_frame)) {
         datalayer.battery.status.CAN_error_counter++;
         break;  //Message content malformed, abort reading data from it
       }
-      LB_TEMP = (rx_frame.data.u8[0] << 2 | rx_frame.data.u8[1] >> 6);
-      if (LB_TEMP != 0x3ff) {  //3FF is unavailable value
-        LB_SOC = LB_TEMP;
+      battery_TEMP = (rx_frame.data.u8[0] << 2 | rx_frame.data.u8[1] >> 6);
+      if (battery_TEMP != 0x3ff) {  //3FF is unavailable value
+        battery_SOC = battery_TEMP;
       }
-      LB_Capacity_Empty = (bool)((rx_frame.data.u8[6] & 0x80) >> 7);
+      battery_Capacity_Empty = (bool)((rx_frame.data.u8[6] & 0x80) >> 7);
       break;
     case 0x5BC:
-      can_bus_alive = true;
+      battery_can_alive = true;
       datalayer.battery.status.CAN_battery_still_alive = CAN_STILL_ALIVE;  // Let system know battery is sending CAN
 
-      LB_MAX = ((rx_frame.data.u8[5] & 0x10) >> 4);
-      if (LB_MAX) {
-        LB_Max_GIDS = (rx_frame.data.u8[0] << 2) | ((rx_frame.data.u8[1] & 0xC0) >> 6);
+      battery_MAX = ((rx_frame.data.u8[5] & 0x10) >> 4);
+      if (battery_MAX) {
+        battery_Max_GIDS = (rx_frame.data.u8[0] << 2) | ((rx_frame.data.u8[1] & 0xC0) >> 6);
         //Max gids active, do nothing
         //Only the 30/40/62kWh packs have this mux
       } else {  //Normal current GIDS value is transmitted
-        LB_GIDS = (rx_frame.data.u8[0] << 2) | ((rx_frame.data.u8[1] & 0xC0) >> 6);
-        LB_Wh_Remaining = (LB_GIDS * WH_PER_GID);
+        battery_GIDS = (rx_frame.data.u8[0] << 2) | ((rx_frame.data.u8[1] & 0xC0) >> 6);
+        battery_Wh_Remaining = (battery_GIDS * WH_PER_GID);
       }
 
-      if (LEAF_Battery_Type == ZE0_BATTERY) {
-        LB_AverageTemperature = (rx_frame.data.u8[3] - 40);  //In celcius, -40 to +55
+      if (LEAF_battery_Type == ZE0_BATTERY) {
+        battery_AverageTemperature = (rx_frame.data.u8[3] - 40);  //In celcius, -40 to +55
       }
 
-      LB_TEMP = (rx_frame.data.u8[4] >> 1);
-      if (LB_TEMP != 0) {
-        LB_StateOfHealth = LB_TEMP;  //Collect state of health from battery
+      battery_TEMP = (rx_frame.data.u8[4] >> 1);
+      if (battery_TEMP != 0) {
+        battery_StateOfHealth = (uint8_t)battery_TEMP;  //Collect state of health from battery
       }
       break;
     case 0x5C0:
       //This temperature only works for 2013-2017 AZE0 LEAF packs, the mux is different on other generations
-      if (LEAF_Battery_Type == AZE0_BATTERY) {
+      if (LEAF_battery_Type == AZE0_BATTERY) {
         if ((rx_frame.data.u8[0] >> 6) ==
             1) {  // Battery MAX temperature. Effectively has only 7-bit precision, as the bottom bit is always 0.
-          LB_HistData_Temperature_MAX = ((rx_frame.data.u8[2] / 2) - 40);
+          battery_HistData_Temperature_MAX = ((rx_frame.data.u8[2] / 2) - 40);
         }
         if ((rx_frame.data.u8[0] >> 6) ==
             3) {  // Battery MIN temperature. Effectively has only 7-bit precision, as the bottom bit is always 0.
-          LB_HistData_Temperature_MIN = ((rx_frame.data.u8[2] / 2) - 40);
+          battery_HistData_Temperature_MIN = ((rx_frame.data.u8[2] / 2) - 40);
         }
       }
 
-      LB_HeatExist = (rx_frame.data.u8[4] & 0x01);
-      LB_Heating_Stop = ((rx_frame.data.u8[0] & 0x10) >> 4);
-      LB_Heating_Start = ((rx_frame.data.u8[0] & 0x20) >> 5);
-      Batt_Heater_Mail_Send_Request = (rx_frame.data.u8[1] & 0x01);
+      battery_HeatExist = (rx_frame.data.u8[4] & 0x01);
+      battery_Heating_Stop = ((rx_frame.data.u8[0] & 0x10) >> 4);
+      battery_Heating_Start = ((rx_frame.data.u8[0] & 0x20) >> 5);
+      battery_Batt_Heater_Mail_Send_Request = (rx_frame.data.u8[1] & 0x01);
 
       break;
     case 0x59E:
       //AZE0 2013-2017 or ZE1 2018-2023 battery detected
       //Only detect as AZE0 if not already set as ZE1
-      if (LEAF_Battery_Type != ZE1_BATTERY) {
-        LEAF_Battery_Type = AZE0_BATTERY;
+      if (LEAF_battery_Type != ZE1_BATTERY) {
+        LEAF_battery_Type = AZE0_BATTERY;
       }
       break;
     case 0x1ED:
     case 0x1C2:
       //ZE1 2018-2023 battery detected!
-      LEAF_Battery_Type = ZE1_BATTERY;
+      LEAF_battery_Type = ZE1_BATTERY;
       break;
     case 0x79B:
       stop_battery_query = true;             //Someone is trying to read data with Leafspy, stop our own polling!
@@ -430,11 +874,11 @@ void receive_can_battery(CAN_frame_t rx_frame) {
         }
 
         if (rx_frame.data.u8[0] == 0x23) {  // Fourth frame
-          insulation = (uint16_t)((rx_frame.data.u8[5] << 8) | rx_frame.data.u8[6]);
+          battery_insulation = (uint16_t)((rx_frame.data.u8[5] << 8) | rx_frame.data.u8[6]);
         }
 
         if (rx_frame.data.u8[0] == 0x24) {  // Fifth frame
-          HX = (uint16_t)((rx_frame.data.u8[4] << 8) | rx_frame.data.u8[5]) / 102.4;
+          battery_HX = (uint16_t)((rx_frame.data.u8[4] << 8) | rx_frame.data.u8[5]) / 102.4;
         }
       }
 
@@ -442,103 +886,103 @@ void receive_can_battery(CAN_frame_t rx_frame) {
       {
         if (rx_frame.data.u8[0] == 0x10) {  //first frame is anomalous
           battery_request_idx = 0;
-          cell_voltages[battery_request_idx++] = (rx_frame.data.u8[4] << 8) | rx_frame.data.u8[5];
-          cell_voltages[battery_request_idx++] = (rx_frame.data.u8[6] << 8) | rx_frame.data.u8[7];
+          battery_cell_voltages[battery_request_idx++] = (rx_frame.data.u8[4] << 8) | rx_frame.data.u8[5];
+          battery_cell_voltages[battery_request_idx++] = (rx_frame.data.u8[6] << 8) | rx_frame.data.u8[7];
           break;
         }
         if (rx_frame.data.u8[6] == 0xFF && rx_frame.data.u8[0] == 0x2C) {  //Last frame
           //Last frame does not contain any cell data, calculate the result
 
           //Map all cell voltages to the global array
-          memcpy(datalayer.battery.status.cell_voltages_mV, cell_voltages, 96 * sizeof(uint16_t));
+          memcpy(datalayer.battery.status.cell_voltages_mV, battery_cell_voltages, 96 * sizeof(uint16_t));
 
           //calculate min/max voltages
-          min_max_voltage[0] = 9999;
-          min_max_voltage[1] = 0;
-          for (cellcounter = 0; cellcounter < 96; cellcounter++) {
-            if (min_max_voltage[0] > cell_voltages[cellcounter])
-              min_max_voltage[0] = cell_voltages[cellcounter];
-            if (min_max_voltage[1] < cell_voltages[cellcounter])
-              min_max_voltage[1] = cell_voltages[cellcounter];
+          battery_min_max_voltage[0] = 9999;
+          battery_min_max_voltage[1] = 0;
+          for (battery_cellcounter = 0; battery_cellcounter < 96; battery_cellcounter++) {
+            if (battery_min_max_voltage[0] > battery_cell_voltages[battery_cellcounter])
+              battery_min_max_voltage[0] = battery_cell_voltages[battery_cellcounter];
+            if (battery_min_max_voltage[1] < battery_cell_voltages[battery_cellcounter])
+              battery_min_max_voltage[1] = battery_cell_voltages[battery_cellcounter];
           }
 
-          datalayer.battery.status.cell_max_voltage_mV = min_max_voltage[1];
-          datalayer.battery.status.cell_min_voltage_mV = min_max_voltage[0];
+          datalayer.battery.status.cell_max_voltage_mV = battery_min_max_voltage[1];
+          datalayer.battery.status.cell_min_voltage_mV = battery_min_max_voltage[0];
 
-          if (min_max_voltage[1] >= MAX_CELL_VOLTAGE) {
+          if (battery_min_max_voltage[1] >= MAX_CELL_VOLTAGE) {
             set_event(EVENT_CELL_OVER_VOLTAGE, 0);
           }
-          if (min_max_voltage[0] <= MIN_CELL_VOLTAGE) {
+          if (battery_min_max_voltage[0] <= MIN_CELL_VOLTAGE) {
             set_event(EVENT_CELL_UNDER_VOLTAGE, 0);
           }
           break;
         }
 
         if ((rx_frame.data.u8[0] % 2) == 0) {  //even frames
-          cell_voltages[battery_request_idx++] |= rx_frame.data.u8[1];
-          cell_voltages[battery_request_idx++] = (rx_frame.data.u8[2] << 8) | rx_frame.data.u8[3];
-          cell_voltages[battery_request_idx++] = (rx_frame.data.u8[4] << 8) | rx_frame.data.u8[5];
-          cell_voltages[battery_request_idx++] = (rx_frame.data.u8[6] << 8) | rx_frame.data.u8[7];
+          battery_cell_voltages[battery_request_idx++] |= rx_frame.data.u8[1];
+          battery_cell_voltages[battery_request_idx++] = (rx_frame.data.u8[2] << 8) | rx_frame.data.u8[3];
+          battery_cell_voltages[battery_request_idx++] = (rx_frame.data.u8[4] << 8) | rx_frame.data.u8[5];
+          battery_cell_voltages[battery_request_idx++] = (rx_frame.data.u8[6] << 8) | rx_frame.data.u8[7];
         } else {  //odd frames
-          cell_voltages[battery_request_idx++] = (rx_frame.data.u8[1] << 8) | rx_frame.data.u8[2];
-          cell_voltages[battery_request_idx++] = (rx_frame.data.u8[3] << 8) | rx_frame.data.u8[4];
-          cell_voltages[battery_request_idx++] = (rx_frame.data.u8[5] << 8) | rx_frame.data.u8[6];
-          cell_voltages[battery_request_idx] = (rx_frame.data.u8[7] << 8);
+          battery_cell_voltages[battery_request_idx++] = (rx_frame.data.u8[1] << 8) | rx_frame.data.u8[2];
+          battery_cell_voltages[battery_request_idx++] = (rx_frame.data.u8[3] << 8) | rx_frame.data.u8[4];
+          battery_cell_voltages[battery_request_idx++] = (rx_frame.data.u8[5] << 8) | rx_frame.data.u8[6];
+          battery_cell_voltages[battery_request_idx] = (rx_frame.data.u8[7] << 8);
         }
       }
 
       if (group_7bb == 4) {                 //Temperatures
         if (rx_frame.data.u8[0] == 0x10) {  //First message
-          temp_raw_1 = (rx_frame.data.u8[4] << 8) | rx_frame.data.u8[5];
-          temp_raw_2_highnibble = rx_frame.data.u8[7];
+          battery_temp_raw_1 = (rx_frame.data.u8[4] << 8) | rx_frame.data.u8[5];
+          battery_temp_raw_2_highnibble = rx_frame.data.u8[7];
         }
         if (rx_frame.data.u8[0] == 0x21) {  //Second message
-          temp_raw_2 = (temp_raw_2_highnibble << 8) | rx_frame.data.u8[1];
-          temp_raw_3 = (rx_frame.data.u8[3] << 8) | rx_frame.data.u8[4];
-          temp_raw_4 = (rx_frame.data.u8[6] << 8) | rx_frame.data.u8[7];
+          battery_temp_raw_2 = (battery_temp_raw_2_highnibble << 8) | rx_frame.data.u8[1];
+          battery_temp_raw_3 = (rx_frame.data.u8[3] << 8) | rx_frame.data.u8[4];
+          battery_temp_raw_4 = (rx_frame.data.u8[6] << 8) | rx_frame.data.u8[7];
         }
         if (rx_frame.data.u8[0] == 0x22) {  //Third message
           //All values read, let's figure out the min/max!
 
-          if (temp_raw_3 == 65535) {  //We are on a 2013+ pack that only has three temp sensors.
+          if (battery_temp_raw_3 == 65535) {  //We are on a 2013+ pack that only has three temp sensors.
             //Start with finding max value
-            temp_raw_max = temp_raw_1;
-            if (temp_raw_2 > temp_raw_max) {
-              temp_raw_max = temp_raw_2;
+            battery_temp_raw_max = battery_temp_raw_1;
+            if (battery_temp_raw_2 > battery_temp_raw_max) {
+              battery_temp_raw_max = battery_temp_raw_2;
             }
-            if (temp_raw_4 > temp_raw_max) {
-              temp_raw_max = temp_raw_4;
+            if (battery_temp_raw_4 > battery_temp_raw_max) {
+              battery_temp_raw_max = battery_temp_raw_4;
             }
             //Then find min
-            temp_raw_min = temp_raw_1;
-            if (temp_raw_2 < temp_raw_min) {
-              temp_raw_min = temp_raw_2;
+            battery_temp_raw_min = battery_temp_raw_1;
+            if (battery_temp_raw_2 < battery_temp_raw_min) {
+              battery_temp_raw_min = battery_temp_raw_2;
             }
-            if (temp_raw_4 < temp_raw_min) {
-              temp_raw_min = temp_raw_4;
+            if (battery_temp_raw_4 < battery_temp_raw_min) {
+              battery_temp_raw_min = battery_temp_raw_4;
             }
           } else {  //All 4 temp sensors available on 2011-2012
             //Start with finding max value
-            temp_raw_max = temp_raw_1;
-            if (temp_raw_2 > temp_raw_max) {
-              temp_raw_max = temp_raw_2;
+            battery_temp_raw_max = battery_temp_raw_1;
+            if (battery_temp_raw_2 > battery_temp_raw_max) {
+              battery_temp_raw_max = battery_temp_raw_2;
             }
-            if (temp_raw_3 > temp_raw_max) {
-              temp_raw_max = temp_raw_3;
+            if (battery_temp_raw_3 > battery_temp_raw_max) {
+              battery_temp_raw_max = battery_temp_raw_3;
             }
-            if (temp_raw_4 > temp_raw_max) {
-              temp_raw_max = temp_raw_4;
+            if (battery_temp_raw_4 > battery_temp_raw_max) {
+              battery_temp_raw_max = battery_temp_raw_4;
             }
             //Then find min
-            temp_raw_min = temp_raw_1;
-            if (temp_raw_2 < temp_raw_min) {
-              temp_raw_min = temp_raw_2;
+            battery_temp_raw_min = battery_temp_raw_1;
+            if (battery_temp_raw_2 < battery_temp_raw_min) {
+              battery_temp_raw_min = battery_temp_raw_2;
             }
-            if (temp_raw_3 < temp_raw_min) {
-              temp_raw_min = temp_raw_2;
+            if (battery_temp_raw_3 < battery_temp_raw_min) {
+              battery_temp_raw_min = battery_temp_raw_2;
             }
-            if (temp_raw_4 < temp_raw_min) {
-              temp_raw_min = temp_raw_4;
+            if (battery_temp_raw_4 < battery_temp_raw_min) {
+              battery_temp_raw_min = battery_temp_raw_4;
             }
           }
         }
@@ -550,7 +994,7 @@ void receive_can_battery(CAN_frame_t rx_frame) {
   }
 }
 void send_can_battery() {
-  if (can_bus_alive) {
+  if (battery_can_alive) {
 
     unsigned long currentMillis = millis();
 
@@ -583,6 +1027,9 @@ void send_can_battery() {
           break;
       }
       ESP32Can.CANWriteFrame(&LEAF_1D4);
+#ifdef DOUBLE_BATTERY
+      CAN_WriteFrame(&LEAF_1D4);  // CAN2
+#endif                            // DOUBLE_BATTERY
 
       switch (mprun10r) {
         case (0):
@@ -676,6 +1123,9 @@ void send_can_battery() {
 //Only send this message when NISSANLEAF_CHARGER is not defined (otherwise it will collide!)
 #ifndef NISSANLEAF_CHARGER
       ESP32Can.CANWriteFrame(&LEAF_1F2);  //Contains (CHG_STA_RQ == 1 == Normal Charge)
+#ifdef DOUBLE_BATTERY
+      CAN_WriteFrame(&LEAF_1F2);  // CAN2
+#endif                            // DOUBLE_BATTERY
 #endif
 
       mprun10r = (mprun10r + 1) % 20;  // 0x1F2 patter repeats after 20 messages. 0-1..19-0
@@ -688,7 +1138,7 @@ void send_can_battery() {
       previousMillis100 = currentMillis;
 
       //When battery requests heating pack status change, ack this
-      if (Batt_Heater_Mail_Send_Request) {
+      if (battery_Batt_Heater_Mail_Send_Request) {
         LEAF_50B.data.u8[6] = 0x20;  //Batt_Heater_Mail_Send_OK
       } else {
         LEAF_50B.data.u8[6] = 0x00;  //Batt_Heater_Mail_Send_NG
@@ -696,6 +1146,9 @@ void send_can_battery() {
 
       // VCM message, containing info if battery should sleep or stay awake
       ESP32Can.CANWriteFrame(&LEAF_50B);  // HCM_WakeUpSleepCommand == 11b == WakeUp, and CANMASK = 1
+#ifdef DOUBLE_BATTERY
+      CAN_WriteFrame(&LEAF_50B);  // CAN2
+#endif                            // DOUBLE_BATTERY
 
       LEAF_50C.data.u8[3] = mprun100;
       switch (mprun100) {
@@ -717,6 +1170,9 @@ void send_can_battery() {
           break;
       }
       ESP32Can.CANWriteFrame(&LEAF_50C);
+#ifdef DOUBLE_BATTERY
+      CAN_WriteFrame(&LEAF_50C);  // CAN2
+#endif                            // DOUBLE_BATTERY
 
       mprun100 = (mprun100 + 1) % 4;  // mprun100 cycles between 0-1-2-3-0-1...
     }
@@ -731,6 +1187,9 @@ void send_can_battery() {
         // Cycle between group 1, 2, and 4 using ternary operation
         LEAF_GROUP_REQUEST.data.u8[2] = group;
         ESP32Can.CANWriteFrame(&LEAF_GROUP_REQUEST);
+#ifdef DOUBLE_BATTERY
+        CAN_WriteFrame(&LEAF_GROUP_REQUEST);  // CAN2
+#endif                                        // DOUBLE_BATTERY
       }
 
       if (hold_off_with_polling_10seconds > 0) {
@@ -790,6 +1249,12 @@ void setup_battery(void) {  // Performs one time setup at startup
   datalayer.battery.info.max_design_voltage_dV =
       4040;  // 404.4V, over this, charging is not possible (goes into forced discharge)
   datalayer.battery.info.min_design_voltage_dV = 2600;  // 260.0V under this, discharging further is disabled
+
+#ifdef DOUBLE_BATTERY
+  datalayer.battery2.info.number_of_cells = datalayer.battery.info.number_of_cells;
+  datalayer.battery2.info.max_design_voltage_dV = datalayer.battery.info.max_design_voltage_dV;
+  datalayer.battery2.info.min_design_voltage_dV = datalayer.battery.info.min_design_voltage_dV;
+#endif  //DOUBLE_BATTERY
 }
 
-#endif
+#endif  //NISSAN_LEAF_BATTERY
