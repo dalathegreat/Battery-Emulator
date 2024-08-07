@@ -335,6 +335,7 @@ static uint32_t BMW_328_counter = 0;
 static bool battery_awake = false;
 static bool battery2_awake = false;
 static bool battery_info_available = false;
+static bool battery2_info_available = false;
 
 static uint32_t battery_serial_number = 0;
 static uint32_t battery_available_power_shortterm_charge = 0;
@@ -952,21 +953,22 @@ void receive_can_battery2(CAN_frame_t rx_frame) {
         }
 
         switch (cmdState) {
-          case CELL_VOLTAGE:
+          case CELL_VOLTAGE_MINMAX:
             if (next_data >= 4) {
-              datalayer.battery2.status.cell_voltages_mV[0] = (message_data[0] << 8 | message_data[1]);
-              datalayer.battery2.status.cell_voltages_mV[2] = (message_data[2] << 8 | message_data[3]);
+              datalayer.battery2.status.cell_min_voltage_mV = (message_data[0] << 8 | message_data[1]);
+              datalayer.battery2.status.cell_max_voltage_mV = (message_data[2] << 8 | message_data[3]);
             }
             break;
           case CELL_VOLTAGE_AVG:
-            if (next_data >= 30) {
-              datalayer.battery2.status.cell_voltages_mV[1] = (message_data[10] << 8 | message_data[11]) / 10;
+            if (next_data >= 30) {  //AVG not used
+              //datalayer.battery2.status.cell_voltages_mV[1] = (message_data[10] << 8 | message_data[11]) / 10;
               battery2_capacity_cah = (message_data[4] << 8 | message_data[5]);
             }
             break;
           case SOH:
             if (next_data >= 4) {
               battery2_soh = message_data[3];
+              battery2_info_available = true;
             }
             break;
           case SOC:
