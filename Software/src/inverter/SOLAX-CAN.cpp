@@ -4,6 +4,11 @@
 #include "../devboard/utils/events.h"
 #include "SOLAX-CAN.h"
 
+#define NUMBER_OF_MODULES 0
+#define BATTERY_TYPE 0x50
+// If you are having BattVoltFault issues, configure the above values according to wiki page
+// https://github.com/dalathegreat/Battery-Emulator/wiki/Solax-inverters
+
 /* Do not change code below unless you are sure what you are doing */
 static uint16_t max_charge_rate_amp = 0;
 static uint16_t max_discharge_rate_amp = 0;
@@ -218,8 +223,8 @@ void update_values_can_inverter() {  //This function maps all the values fetched
   //BMS_Status
   SOLAX_1875.data.u8[0] = (uint8_t)temperature_average;
   SOLAX_1875.data.u8[1] = (temperature_average >> 8);
-  SOLAX_1875.data.u8[2] = (uint8_t)0;  // Number of slave batteries
-  SOLAX_1875.data.u8[4] = (uint8_t)0;  // Contactor Status 0=off, 1=on.
+  SOLAX_1875.data.u8[2] = (uint8_t)NUMBER_OF_MODULES;  // Number of slave batteries
+  SOLAX_1875.data.u8[4] = (uint8_t)0;                  // Contactor Status 0=off, 1=on.
 
   //BMS_PackTemps (strange name, since it has voltages?)
   SOLAX_1876.data.u8[2] = (uint8_t)datalayer.battery.status.cell_max_voltage_mV;
@@ -229,8 +234,8 @@ void update_values_can_inverter() {  //This function maps all the values fetched
   SOLAX_1876.data.u8[7] = (datalayer.battery.status.cell_min_voltage_mV >> 8);
 
   //Unknown
-  SOLAX_1877.data.u8[4] = (uint8_t)0x50;  // Battery type
-  SOLAX_1877.data.u8[6] = (uint8_t)0x22;  // Firmware version?
+  SOLAX_1877.data.u8[4] = (uint8_t)BATTERY_TYPE;  // Battery type (Default 0x50)
+  SOLAX_1877.data.u8[6] = (uint8_t)0x22;          // Firmware version?
   SOLAX_1877.data.u8[7] =
       (uint8_t)0x02;  // The above firmware version applies to:02 = Master BMS, 10 = S1, 20 = S2, 30 = S3, 40 = S4
 
