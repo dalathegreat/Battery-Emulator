@@ -43,20 +43,16 @@ static int8_t temperature_water_inlet = 0;
 static int8_t powerRelayTemperature = 0;
 static int8_t heatertemp = 0;
 
-CAN_frame_t EGMP_7E4 = {.FIR = {.B =
-                                    {
-                                        .DLC = 8,
-                                        .FF = CAN_frame_std,  // Converted to CAN-FD when sent
-                                    }},
-                        .MsgID = 0x7E4,
-                        .data = {0x03, 0x22, 0x01, 0x01, 0x00, 0x00, 0x00, 0x00}};  //Poll PID 03 22 01 01
-CAN_frame_t EGMP_7E4_ack = {
-    .FIR = {.B =
-                {
-                    .DLC = 8,
-                    .FF = CAN_frame_std,  // Converted to CAN-FD when sent
-                }},
-    .MsgID = 0x7E4,
+CAN_frame EGMP_7E4 = {.FD = true,
+                      .ext_ID = false,
+                      .DLC = 8,
+                      .ID = 0x7E4,
+                      .data = {0x03, 0x22, 0x01, 0x01, 0x00, 0x00, 0x00, 0x00}};  //Poll PID 03 22 01 01
+CAN_frame EGMP_7E4_ack = {
+    .FD = true,
+    .ext_ID = false,
+    .DLC = 8,
+    .ID = 0x7E4,
     .data = {0x30, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00}};  //Ack frame, correct PID is returned
 
 void set_cell_voltages(CANFDMessage frame, int start, int length, int startCell) {

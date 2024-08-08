@@ -27,41 +27,31 @@ static uint16_t cellvoltages_mv[98];
 static uint16_t min_cell_voltage_mv = 3700;
 static uint16_t max_cell_voltage_mv = 3700;
 
-CAN_frame_t KIA_7E4_id1 = {.FIR = {.B =
-                                       {
-                                           .DLC = 8,
-                                           .FF = CAN_frame_std,
-                                       }},
-                           .MsgID = 0x7E4,
-                           .data = {0x02, 0x21, 0x01, 0x00, 0x00, 0x00, 0x00, 0x00}};
-CAN_frame_t KIA_7E4_id2 = {.FIR = {.B =
-                                       {
-                                           .DLC = 8,
-                                           .FF = CAN_frame_std,
-                                       }},
-                           .MsgID = 0x7E4,
-                           .data = {0x02, 0x21, 0x02, 0x00, 0x00, 0x00, 0x00, 0x00}};
-CAN_frame_t KIA_7E4_id3 = {.FIR = {.B =
-                                       {
-                                           .DLC = 8,
-                                           .FF = CAN_frame_std,
-                                       }},
-                           .MsgID = 0x7E4,
-                           .data = {0x02, 0x21, 0x03, 0x00, 0x00, 0x00, 0x00, 0x00}};
-CAN_frame_t KIA_7E4_id5 = {.FIR = {.B =
-                                       {
-                                           .DLC = 8,
-                                           .FF = CAN_frame_std,
-                                       }},
-                           .MsgID = 0x7E4,
-                           .data = {0x02, 0x21, 0x05, 0x04, 0x00, 0x00, 0x00, 0x00}};
-CAN_frame_t KIA_7E4_ack = {.FIR = {.B =
-                                       {
-                                           .DLC = 8,
-                                           .FF = CAN_frame_std,
-                                       }},
-                           .MsgID = 0x7E4,  //Ack frame, correct PID is returned. Flow control message
-                           .data = {0x30, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00}};
+CAN_frame KIA_7E4_id1 = {.FD = false,
+                         .ext_ID = false,
+                         .DLC = 8,
+                         .ID = 0x7E4,
+                         .data = {0x02, 0x21, 0x01, 0x00, 0x00, 0x00, 0x00, 0x00}};
+CAN_frame KIA_7E4_id2 = {.FD = false,
+                         .ext_ID = false,
+                         .DLC = 8,
+                         .ID = 0x7E4,
+                         .data = {0x02, 0x21, 0x02, 0x00, 0x00, 0x00, 0x00, 0x00}};
+CAN_frame KIA_7E4_id3 = {.FD = false,
+                         .ext_ID = false,
+                         .DLC = 8,
+                         .ID = 0x7E4,
+                         .data = {0x02, 0x21, 0x03, 0x00, 0x00, 0x00, 0x00, 0x00}};
+CAN_frame KIA_7E4_id5 = {.FD = false,
+                         .ext_ID = false,
+                         .DLC = 8,
+                         .ID = 0x7E4,
+                         .data = {0x02, 0x21, 0x05, 0x04, 0x00, 0x00, 0x00, 0x00}};
+CAN_frame KIA_7E4_ack = {.FD = false,
+                         .ext_ID = false,
+                         .DLC = 8,
+                         .ID = 0x7E4,  //Ack frame, correct PID is returned. Flow control message
+                         .data = {0x30, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00}};
 
 void update_values_battery() {  //This function maps all the values fetched via CAN to the correct parameters used for modbus
 

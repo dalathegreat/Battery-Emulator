@@ -75,49 +75,39 @@ struct x109_EVSE_Status x109_evse_state;
 struct x118_EVSE_Dynamic_Control x118_evse_dyn;
 struct x208_EVSE_Discharge_Capability x208_evse_dischg_cap;
 
-CAN_frame_t CHADEMO_108 = {.FIR = {.B =
-                                       {
-                                           .DLC = 8,
-                                           .FF = CAN_frame_std,
-                                       }},
-                           .MsgID = 0x108,
-                           .data = {0x01, 0xF4, 0x01, 0x0F, 0xB3, 0x01, 0x00, 0x00}};
-CAN_frame_t CHADEMO_109 = {.FIR = {.B =
-                                       {
-                                           .DLC = 8,
-                                           .FF = CAN_frame_std,
-                                       }},
-                           .MsgID = 0x109,
-                           .data = {0x02, 0x00, 0x00, 0x00, 0x01, 0x20, 0xFF, 0xFF}};
+CAN_frame CHADEMO_108 = {.FD = false,
+                         .ext_ID = false,
+                         .DLC = 8,
+                         .ID = 0x108,
+                         .data = {0x01, 0xF4, 0x01, 0x0F, 0xB3, 0x01, 0x00, 0x00}};
+CAN_frame CHADEMO_109 = {.FD = false,
+                         .ext_ID = false,
+                         .DLC = 8,
+                         .ID = 0x109,
+                         .data = {0x02, 0x00, 0x00, 0x00, 0x01, 0x20, 0xFF, 0xFF}};
 //For chademo v2.0 only
-CAN_frame_t CHADEMO_118 = {.FIR = {.B =
-                                       {
-                                           .DLC = 8,
-                                           .FF = CAN_frame_std,
-                                       }},
-                           .MsgID = 0x118,
-                           .data = {0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00}};
+CAN_frame CHADEMO_118 = {.FD = false,
+                         .ext_ID = false,
+                         .DLC = 8,
+                         .ID = 0x118,
+                         .data = {0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00}};
+
 // OLD value from skeleton implementation, indicates dynamic control is possible.
 // Hardcode above as being incompatible for simplicity in current incarnation.
 // .data = {0x10, 0x64, 0x00, 0xB0, 0x00, 0x1E, 0x00, 0x8F}};
 
 //    0x200 : From vehicle-side. A V2X-ready vehicle will send this message to broadcast its “Maximum discharger current”. (It is a similar logic to the limits set in 0x100 or 0x102 during a DC charging session)
 //    0x208 : From EVSE-side. A V2X EVSE will use this to send the “present discharger current” during the session, and the “available input current”. (uses similar logic to 0x108 and 0x109 during a DC charging session)
-CAN_frame_t CHADEMO_208 = {.FIR = {.B =
-                                       {
-                                           .DLC = 8,
-                                           .FF = CAN_frame_std,
-                                       }},
-                           .MsgID = 0x208,
-                           .data = {0xFF, 0xF4, 0x01, 0xF0, 0x00, 0x00, 0xFA, 0x00}};
-
-CAN_frame_t CHADEMO_209 = {.FIR = {.B =
-                                       {
-                                           .DLC = 8,
-                                           .FF = CAN_frame_std,
-                                       }},
-                           .MsgID = 0x209,
-                           .data = {0x02, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00}};
+CAN_frame CHADEMO_208 = {.FD = false,
+                         .ext_ID = false,
+                         .DLC = 8,
+                         .ID = 0x208,
+                         .data = {0xFF, 0xF4, 0x01, 0xF0, 0x00, 0x00, 0xFA, 0x00}};
+CAN_frame CHADEMO_209 = {.FD = false,
+                         .ext_ID = false,
+                         .DLC = 8,
+                         .ID = 0x209,
+                         .data = {0x02, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00}};
 
 //This function maps all the values fetched via CAN to the correct parameters used for the inverter
 void update_values_battery() {
@@ -469,7 +459,7 @@ void evse_init() {
 }
 
 /* updates for x108 */
-void update_evse_capabilities(CAN_frame_t& f) {
+void update_evse_capabilities(CAN_frame& f) {
 
   /* TODO use charger defines/runtime config?
    * for now..leave as a future tweak.
@@ -507,7 +497,7 @@ void update_evse_capabilities(CAN_frame_t& f) {
 }
 
 /* updates for x109 */
-void update_evse_status(CAN_frame_t& f) {
+void update_evse_status(CAN_frame& f) {
 
   x109_evse_state.s.status.EVSE_status = 1;
   x109_evse_state.s.status.EVSE_error = 0;
@@ -598,7 +588,7 @@ void update_evse_status(CAN_frame_t& f) {
  * NOTE: x209 is emitted in CAN logs when x201 isn't even present
  * 	it may not be understood by leaf (or ignored unless >= a certain protocol version or v2h sequence number
  */
-void update_evse_discharge_estimate(CAN_frame_t& f) {
+void update_evse_discharge_estimate(CAN_frame& f) {
 
   //x209_evse_dischg_est.remaining_discharge_time_1m = x201_discharge_estimate.ApproxDischargeCompletionTime;
 
@@ -616,7 +606,7 @@ void update_evse_discharge_estimate(CAN_frame_t& f) {
 }
 
 /* x208 EVSE, peer to 0x200 Vehicle */
-void update_evse_discharge_capabilities(CAN_frame_t& f) {
+void update_evse_discharge_capabilities(CAN_frame& f) {
   //present discharge current is a measured value
   x208_evse_dischg_cap.present_discharge_current = 0xFF - get_measured_current();
 

@@ -15,50 +15,39 @@ static uint8_t mprun10r = 0;                 //counter 0-20 for 0x1F2 message
 static uint8_t mprun10 = 0;                  //counter 0-3
 static uint8_t mprun100 = 0;                 //counter 0-3
 
-CAN_frame_t LEAF_1F2 = {.FIR = {.B =
-                                    {
-                                        .DLC = 8,
-                                        .FF = CAN_frame_std,
-                                    }},
-                        .MsgID = 0x1F2,
-                        .data = {0x10, 0x64, 0x00, 0xB0, 0x00, 0x1E, 0x00, 0x8F}};
-CAN_frame_t LEAF_50B = {.FIR = {.B =
-                                    {
-                                        .DLC = 7,
-                                        .FF = CAN_frame_std,
-                                    }},
-                        .MsgID = 0x50B,
-                        .data = {0x00, 0x00, 0x06, 0xC0, 0x00, 0x00, 0x00}};
-CAN_frame_t LEAF_50C = {.FIR = {.B =
-                                    {
-                                        .DLC = 6,
-                                        .FF = CAN_frame_std,
-                                    }},
-                        .MsgID = 0x50C,
-                        .data = {0x00, 0x00, 0x00, 0x00, 0x00, 0x00}};
-CAN_frame_t LEAF_1D4 = {.FIR = {.B =
-                                    {
-                                        .DLC = 8,
-                                        .FF = CAN_frame_std,
-                                    }},
-                        .MsgID = 0x1D4,
-                        .data = {0x6E, 0x6E, 0x00, 0x04, 0x07, 0x46, 0xE0, 0x44}};
-//These CAN messages need to be sent towards the battery to keep it alive
+// These CAN messages need to be sent towards the battery to keep it alive
+CAN_frame LEAF_1F2 = {.FD = false,
+                      .ext_ID = false,
+                      .DLC = 8,
+                      .ID = 0x1F2,
+                      .data = {0x10, 0x64, 0x00, 0xB0, 0x00, 0x1E, 0x00, 0x8F}};
+CAN_frame LEAF_50B = {.FD = false,
+                      .ext_ID = false,
+                      .DLC = 7,
+                      .ID = 0x50B,
+                      .data = {0x00, 0x00, 0x06, 0xC0, 0x00, 0x00, 0x00}};
+CAN_frame LEAF_50C = {.FD = false,
+                      .ext_ID = false,
+                      .DLC = 6,
+                      .ID = 0x50C,
+                      .data = {0x00, 0x00, 0x00, 0x00, 0x00, 0x00}};
+CAN_frame LEAF_1D4 = {.FD = false,
+                      .ext_ID = false,
+                      .DLC = 8,
+                      .ID = 0x1D4,
+                      .data = {0x6E, 0x6E, 0x00, 0x04, 0x07, 0x46, 0xE0, 0x44}};
+// Active polling messages
+CAN_frame LEAF_GROUP_REQUEST = {.FD = false,
+                                .ext_ID = false,
+                                .DLC = 8,
+                                .ID = 0x79B,
+                                .data = {2, 0x21, 1, 0, 0, 0, 0, 0}};
+CAN_frame LEAF_NEXT_LINE_REQUEST = {.FD = false,
+                                    .ext_ID = false,
+                                    .DLC = 8,
+                                    .ID = 0x79B,
+                                    .data = {0x30, 1, 0, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF}};
 
-CAN_frame_t LEAF_GROUP_REQUEST = {.FIR = {.B =
-                                              {
-                                                  .DLC = 8,
-                                                  .FF = CAN_frame_std,
-                                              }},
-                                  .MsgID = 0x79B,
-                                  .data = {2, 0x21, 1, 0, 0, 0, 0, 0}};
-CAN_frame_t LEAF_NEXT_LINE_REQUEST = {.FIR = {.B =
-                                                  {
-                                                      .DLC = 8,
-                                                      .FF = CAN_frame_std,
-                                                  }},
-                                      .MsgID = 0x79B,
-                                      .data = {0x30, 1, 0, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF}};
 // The Li-ion battery controller only accepts a multi-message query. In fact, the LBC transmits many
 // groups: the first one contains lots of High Voltage battery data as SOC, currents, and voltage; the second
 // replies with all the battery’s cells voltages in millivolt, the third and the fifth one are still unknown, the

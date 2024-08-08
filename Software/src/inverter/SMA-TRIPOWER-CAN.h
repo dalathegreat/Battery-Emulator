@@ -5,6 +5,6 @@
 #define CAN_INVERTER_SELECTED
 
 void send_tripower_init();
-void transmit_can(CAN_frame_t* tx_frame, int interface);
+void transmit_can(CAN_frame* tx_frame, int interface);
 
 #endif

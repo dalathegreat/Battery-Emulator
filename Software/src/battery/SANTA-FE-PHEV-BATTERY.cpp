@@ -37,48 +37,36 @@ static uint8_t checksum_200 = 0;
 static uint8_t StatusBattery = 0;
 static uint16_t cellvoltages_mv[96];
 
-CAN_frame_t SANTAFE_200 = {.FIR = {.B =
-                                       {
-                                           .DLC = 8,
-                                           .FF = CAN_frame_std,
-                                       }},
-                           .MsgID = 0x200,
-                           .data = {0x00, 0x00, 0x00, 0x00, 0x80, 0x10, 0x00, 0x00}};
-CAN_frame_t SANTAFE_2A1 = {.FIR = {.B =
-                                       {
-                                           .DLC = 8,
-                                           .FF = CAN_frame_std,
-                                       }},
-                           .MsgID = 0x2A1,
-                           .data = {0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0xFF, 0x02}};
-CAN_frame_t SANTAFE_2F0 = {.FIR = {.B =
-                                       {
-                                           .DLC = 8,
-                                           .FF = CAN_frame_std,
-                                       }},
-                           .MsgID = 0x2F0,
-                           .data = {0x01, 0x00, 0x00, 0x00, 0x00, 0x00, 0x40, 0x00}};
-CAN_frame_t SANTAFE_523 = {.FIR = {.B =
-                                       {
-                                           .DLC = 8,
-                                           .FF = CAN_frame_std,
-                                       }},
-                           .MsgID = 0x523,
-                           .data = {0x60, 0x00, 0x60, 0, 0, 0, 0, 0}};
-CAN_frame_t SANTAFE_7E4_poll = {.FIR = {.B =
-                                            {
-                                                .DLC = 8,
-                                                .FF = CAN_frame_std,
-                                            }},
-                                .MsgID = 0x7E4,  //Polling frame, 0x22 01 0X
-                                .data = {0x03, 0x22, 0x01, 0x01, 0x00, 0x00, 0x00, 0x00}};
-CAN_frame_t SANTAFE_7E4_ack = {.FIR = {.B =
-                                           {
-                                               .DLC = 8,
-                                               .FF = CAN_frame_std,
-                                           }},
-                               .MsgID = 0x7E4,  //Ack frame, correct PID is returned. Flow control message
-                               .data = {0x30, 0x00, 0x03, 0x00, 0x00, 0x00, 0x00, 0x00}};
+CAN_frame SANTAFE_200 = {.FD = false,
+                         .ext_ID = false,
+                         .DLC = 8,
+                         .ID = 0x200,
+                         .data = {0x00, 0x00, 0x00, 0x00, 0x80, 0x10, 0x00, 0x00}};
+CAN_frame SANTAFE_2A1 = {.FD = false,
+                         .ext_ID = false,
+                         .DLC = 8,
+                         .ID = 0x2A1,
+                         .data = {0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0xFF, 0x02}};
+CAN_frame SANTAFE_2F0 = {.FD = false,
+                         .ext_ID = false,
+                         .DLC = 8,
+                         .ID = 0x2F0,
+                         .data = {0x01, 0x00, 0x00, 0x00, 0x00, 0x00, 0x40, 0x00}};
+CAN_frame SANTAFE_523 = {.FD = false,
+                         .ext_ID = false,
+                         .DLC = 8,
+                         .ID = 0x523,
+                         .data = {0x60, 0x00, 0x60, 0, 0, 0, 0, 0}};
+CAN_frame SANTAFE_7E4_poll = {.FD = false,
+                              .ext_ID = false,
+                              .DLC = 8,
+                              .ID = 0x7E4,  //Polling frame, 0x22 01 0X
+                              .data = {0x03, 0x22, 0x01, 0x01, 0x00, 0x00, 0x00, 0x00}};
+CAN_frame SANTAFE_7E4_ack = {.FD = false,
+                             .ext_ID = false,
+                             .DLC = 8,
+                             .ID = 0x7E4,  //Ack frame, correct PID is returned. Flow control message
+                             .data = {0x30, 0x00, 0x03, 0x00, 0x00, 0x00, 0x00, 0x00}};
 
 void update_values_battery() {  //This function maps all the values fetched via CAN to the correct parameters used for modbus
 

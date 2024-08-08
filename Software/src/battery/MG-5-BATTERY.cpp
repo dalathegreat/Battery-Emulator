@@ -17,13 +17,11 @@ static unsigned long previousMillis100 = 0;  // will store last time a 100ms CAN
 
 static int BMS_SOC = 0;
 
-CAN_frame_t MG_5_100 = {.FIR = {.B =
-                                    {
-                                        .DLC = 8,
-                                        .FF = CAN_frame_std,
-                                    }},
-                        .MsgID = 0x100,
-                        .data = {0x00, 0x00, 0x00, 0x00, 0x80, 0x10, 0x00, 0x00}};
+CAN_frame MG_5_100 = {.FD = false,
+                      .ext_ID = false,
+                      .DLC = 8,
+                      .ID = 0x100,
+                      .data = {0x00, 0x00, 0x00, 0x00, 0x80, 0x10, 0x00, 0x00}};
 
 void update_values_battery() {  //This function maps all the values fetched via CAN to the correct parameters used for modbus
 

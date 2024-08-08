@@ -15,6 +15,6 @@ inline void ISA_handle526(CAN_frame_t* frame);
 inline void ISA_handle527(CAN_frame_t* frame);
 inline void ISA_handle528(CAN_frame_t* frame);
 
-void transmit_can(CAN_frame_t* tx_frame, int interface);
+void transmit_can(CAN_frame* tx_frame, int interface);
 
 #endif

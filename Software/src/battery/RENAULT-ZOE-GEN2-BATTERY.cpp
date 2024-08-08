@@ -19,20 +19,16 @@ static uint16_t LB_Cell_Max_Voltage = 3700;
 static uint16_t LB_Cell_Min_Voltage = 3700;
 static uint16_t LB_Battery_Voltage = 3700;
 
-CAN_frame_t ZOE_373 = {.FIR = {.B =
-                                   {
-                                       .DLC = 8,
-                                       .FF = CAN_frame_std,
-                                   }},
-                       .MsgID = 0x373,
-                       .data = {0xC1, 0x80, 0x5D, 0x5D, 0x00, 0x00, 0xff, 0xcb}};
-CAN_frame_t ZOE_POLL_18DADBF1 = {.FIR = {.B =
-                                             {
-                                                 .DLC = 8,
-                                                 .FF = CAN_frame_ext,
-                                             }},
-                                 .MsgID = 0x18DADBF1,
-                                 .data = {0x03, 0x22, 0x90, 0x00, 0xff, 0xff, 0xff, 0xff}};
+CAN_frame ZOE_373 = {.FD = false,
+                     .ext_ID = false,
+                     .DLC = 8,
+                     .ID = 0x373,
+                     .data = {0xC1, 0x80, 0x5D, 0x5D, 0x00, 0x00, 0xff, 0xcb}};
+CAN_frame ZOE_POLL_18DADBF1 = {.FD = false,
+                               .ext_ID = true,
+                               .DLC = 8,
+                               .ID = 0x18DADBF1,
+                               .data = {0x03, 0x22, 0x90, 0x00, 0xff, 0xff, 0xff, 0xff}};
 
 static unsigned long previousMillis200 = 0;  // will store last time a 200ms CAN Message was sent
 

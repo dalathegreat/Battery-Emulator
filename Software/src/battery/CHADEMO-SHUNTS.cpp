@@ -59,16 +59,11 @@ long lastWh;
  * Please note that all delay/sleep operations are solely in this section of code,
  * not used during normal operation. Such delays are currently commented out.
  */
-CAN_frame_t outframe = {.FIR = {.B =
-                                    {
-                                        .DLC = 8,
-                                        .unknown_2 = 0,
-                                        .RTR = CAN_no_RTR,
-                                        .FF = CAN_frame_std,
-                                    }},
-
-                        .MsgID = 0x411,
-                        .data = {0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00}};
+CAN_frame outframe = {.FD = false,
+                      .ext_ID = false,
+                      .DLC = 8,
+                      .ID = 0x411,
+                      .data = {0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00}};
 
 uint16_t get_measured_voltage() {
   return (uint16_t)Voltage;

@@ -46,31 +46,25 @@ static uint8_t LB_MaxInput_kW = 0;
 static uint8_t LB_MaxOutput_kW = 0;
 static bool GVB_79B_Continue = false;
 
-CAN_frame_t KANGOO_423 = {.FIR = {.B =
-                                      {
-                                          .DLC = 8,
-                                          .FF = CAN_frame_std,
-                                      }},
-                          .MsgID = 0x423,
-                          .data = {0x0B, 0x1D, 0x00, 0x02, 0xB2, 0x20, 0xB2, 0xD9}};  // Charging
+CAN_frame KANGOO_423 = {.FD = false,
+                        .ext_ID = false,
+                        .DLC = 8,
+                        .ID = 0x423,
+                        .data = {0x0B, 0x1D, 0x00, 0x02, 0xB2, 0x20, 0xB2, 0xD9}};  // Charging
 // Driving: 0x07  0x1D  0x00  0x02  0x5D  0x80  0x5D  0xD8
 // Charging: 0x0B   0x1D  0x00  0x02  0xB2  0x20  0xB2  0xD9
 // Fastcharging: 0x07   0x1E  0x00  0x01  0x5D  0x20  0xB2  0xC7
 // Old hardcoded message: .data = {0x33, 0x00, 0xFF, 0xFF, 0x00, 0xE0, 0x00, 0x00}};
-CAN_frame_t KANGOO_79B = {.FIR = {.B =
-                                      {
-                                          .DLC = 8,
-                                          .FF = CAN_frame_std,
-                                      }},
-                          .MsgID = 0x79B,
-                          .data = {0x02, 0x21, 0x01, 0x00, 0x00, 0xE0, 0x00, 0x00}};
-CAN_frame_t KANGOO_79B_Continue = {.FIR = {.B =
-                                               {
-                                                   .DLC = 8,
-                                                   .FF = CAN_frame_std,
-                                               }},
-                                   .MsgID = 0x79B,
-                                   .data = {0x030, 0x01, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00}};
+CAN_frame KANGOO_79B = {.FD = false,
+                        .ext_ID = false,
+                        .DLC = 8,
+                        .ID = 0x79B,
+                        .data = {0x02, 0x21, 0x01, 0x00, 0x00, 0xE0, 0x00, 0x00}};
+CAN_frame KANGOO_79B_Continue = {.FD = false,
+                                 .ext_ID = false,
+                                 .DLC = 8,
+                                 .ID = 0x79B,
+                                 .data = {0x30, 0x01, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00}};
 
 static unsigned long previousMillis10 = 0;    // will store last time a 10ms CAN Message was sent
 static unsigned long previousMillis100 = 0;   // will store last time a 100ms CAN Message was sent

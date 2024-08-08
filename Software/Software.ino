@@ -890,10 +890,17 @@ void check_reset_reason() {
       break;
   }
 }
-void transmit_can(CAN_frame_t* tx_frame, int interface) {
+void transmit_can(CAN_frame* tx_frame, int interface) {
   switch (interface) {
     case CAN_NATIVE:
-      ESP32Can.CANWriteFrame(tx_frame);
+      CAN_frame_t frame;
+      frame.MsgID = tx_frame->ID;
+      frame.FIR.B.FF = tx_frame->ext_ID ? CAN_frame_ext : CAN_frame_std;
+      frame.FIR.B.DLC = tx_frame->DLC;
+      for (uint8_t i = 0; i < tx_frame->DLC; i++) {
+        frame.data.u8[i] = tx_frame->data.u8[i];
+      }
+      ESP32Can.CANWriteFrame(&frame);
       break;
     case CANFD_NATIVE:
       //TODO for stark
@@ -902,9 +909,9 @@ void transmit_can(CAN_frame_t* tx_frame, int interface) {
 #ifdef DUAL_CAN
       //Struct with ACAN2515 library format, needed to use the MCP2515 library for CAN2
       CANMessage MCP2515Frame;
-      MCP2515Frame.id = tx_frame->MsgID;
-      MCP2515Frame.ext = tx_frame->FIR.B.FF;
-      MCP2515Frame.len = tx_frame->FIR.B.DLC;
+      MCP2515Frame.id = tx_frame->ID;
+      MCP2515Frame.ext = tx_frame->ext_ID ? CAN_frame_ext : CAN_frame_std;
+      MCP2515Frame.len = tx_frame->DLC;
       for (uint8_t i = 0; i < MCP2515Frame.len; i++) {
         MCP2515Frame.data[i] = tx_frame->data.u8[i];
       }
@@ -916,9 +923,9 @@ void transmit_can(CAN_frame_t* tx_frame, int interface) {
     case CAN_ADDON_FD_MCP2518: {
 #ifdef CAN_FD
       CANFDMessage MCP2518Frame;
-      MCP2518Frame.id = tx_frame->MsgID;
-      MCP2518Frame.ext = tx_frame->FIR.B.FF;
-      MCP2518Frame.len = tx_frame->FIR.B.DLC;
+      MCP2518Frame.id = tx_frame->ID;
+      MCP2518Frame.ext = tx_frame->ext_ID ? CAN_frame_ext : CAN_frame_std;
+      MCP2518Frame.len = tx_frame->DLC;
       for (uint8_t i = 0; i < MCP2518Frame.len; i++) {
         MCP2518Frame.data[i] = tx_frame->data.u8[i];
       }

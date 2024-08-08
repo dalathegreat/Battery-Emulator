@@ -44,29 +44,21 @@ static uint16_t BMS_highest_cell_voltage_mV = 3300;
 #define POLL_FOR_BATTERY_CELL_MV_MIN 0x2B
 #define UNKNOWN_POLL_1 0xFC
 
-CAN_frame_t ATTO_3_12D = {.FIR = {.B =
-                                      {
-                                          .DLC = 8,
-                                          .FF = CAN_frame_std,
-                                      }},
-                          .MsgID = 0x12D,
-                          .data = {0xA0, 0x28, 0x02, 0xA0, 0x0C, 0x71, 0xCF, 0x49}};
-CAN_frame_t ATTO_3_411 = {.FIR = {.B =
-                                      {
-                                          .DLC = 8,
-                                          .FF = CAN_frame_std,
-                                      }},
-                          .MsgID = 0x411,
-                          .data = {0x98, 0x3A, 0x88, 0x13, 0x9D, 0x00, 0xFF, 0x8C}};
-
-CAN_frame_t ATTO_3_7E7_POLL = {
-    .FIR = {.B =
-                {
-                    .DLC = 8,
-                    .FF = CAN_frame_std,
-                }},
-    .MsgID = 0x7E7,
-    .data = {0x03, 0x22, 0x00, 0x05, 0x00, 0x00, 0x00, 0x00}};  //Poll PID 03 22 00 05 (POLL_FOR_BATTERY_SOC)
+CAN_frame ATTO_3_12D = {.FD = false,
+                        .ext_ID = false,
+                        .DLC = 8,
+                        .ID = 0x12D,
+                        .data = {0xA0, 0x28, 0x02, 0xA0, 0x0C, 0x71, 0xCF, 0x49}};
+CAN_frame ATTO_3_411 = {.FD = false,
+                        .ext_ID = false,
+                        .DLC = 8,
+                        .ID = 0x411,
+                        .data = {0x98, 0x3A, 0x88, 0x13, 0x9D, 0x00, 0xFF, 0x8C}};
+CAN_frame ATTO_3_7E7_POLL = {.FD = false,
+                             .ext_ID = false,
+                             .DLC = 8,
+                             .ID = 0x7E7,  //Poll PID 03 22 00 05 (POLL_FOR_BATTERY_SOC)
+                             .data = {0x03, 0x22, 0x00, 0x05, 0x00, 0x00, 0x00, 0x00}};
 
 // Define the data points for %SOC depending on pack voltage
 const uint8_t numPoints = 14;

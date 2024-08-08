@@ -8,13 +8,11 @@ static unsigned long previousMillis10 = 0;   // will store last time a 10ms CAN 
 static unsigned long previousMillis100 = 0;  // will store last time a 100ms CAN Message was send
 static unsigned long previousMillis10s = 0;  // will store last time a 1s CAN Message was send
 
-CAN_frame_t TEST = {.FIR = {.B =
-                                {
-                                    .DLC = 8,
-                                    .FF = CAN_frame_std,
-                                }},
-                    .MsgID = 0x123,
-                    .data = {0x10, 0x64, 0x00, 0xB0, 0x00, 0x1E, 0x00, 0x8F}};
+CAN_frame TEST = {.FD = false,
+                  .ext_ID = false,
+                  .DLC = 8,
+                  .ID = 0x123,
+                  .data = {0x10, 0x64, 0x00, 0xB0, 0x00, 0x1E, 0x00, 0x8F}};
 
 void print_units(char* header, int value, char* units) {
   Serial.print(header);

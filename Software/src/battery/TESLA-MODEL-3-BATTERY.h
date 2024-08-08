@@ -24,7 +24,7 @@ void printDebugIfActive(uint8_t symbol, const char* message);
 void print_int_with_units(char* header, int value, char* units);
 void print_SOC(char* header, int SOC);
 void setup_battery(void);
-void transmit_can(CAN_frame_t* tx_frame, int interface);
+void transmit_can(CAN_frame* tx_frame, int interface);
 #ifdef DOUBLE_BATTERY
 void printFaultCodesIfActive_battery2();
 #endif  //DOUBLE_BATTERY

@@ -9,6 +9,6 @@
 
 void setup_battery(void);
 void update_number_of_cells();
-void transmit_can(CAN_frame_t* tx_frame, int interface);
+void transmit_can(CAN_frame* tx_frame, int interface);
 
 #endif

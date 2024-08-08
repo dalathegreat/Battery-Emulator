@@ -42,21 +42,16 @@ static bool HVILBattIsolationError = false;
 static bool HVIsolationTestStatus = false;
 
 /* TODO: Actually use a proper keepalive message */
-CAN_frame_t ipace_keep_alive = {.FIR = {.B =
-                                            {
-                                                .DLC = 8,
-                                                .FF = CAN_frame_std,
-                                            }},
-                                .MsgID = 0x063,
-                                .data = {0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00}};
-
-CAN_frame_t ipace_7e4 = {.FIR = {.B =
-                                     {
-                                         .DLC = 8,
-                                         .FF = CAN_frame_std,
-                                     }},
-                         .MsgID = 0x7e4,
-                         .data = {0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00}};
+CAN_frame ipace_keep_alive = {.FD = false,
+                              .ext_ID = false,
+                              .DLC = 8,
+                              .ID = 0x063,
+                              .data = {0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00}};
+CAN_frame ipace_7e4 = {.FD = false,
+                       .ext_ID = false,
+                       .DLC = 8,
+                       .ID = 0x7e4,
+                       .data = {0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00}};
 
 void print_units(char* header, int value, char* units) {
   Serial.print(header);
@@ -263,7 +258,7 @@ void send_can_battery() {
   if (currentMillis - previousMillis500 >= INTERVAL_500_MS) {
     previousMillis500 = currentMillis;
 
-    CAN_frame_t msg;
+    CAN_frame msg;
     int err;
 
     switch (state) {
@@ -273,12 +268,10 @@ void send_can_battery() {
         // response:     7EC 07 59 02 8F F0 01 00 28
         // response:     7EC 03 59 02 8F 00 00 00 00
         //               7EC  8  3 7F 19 11 0 0 0 0
-        msg = {.FIR = {.B =
-                           {
-                               .DLC = 8,
-                               .FF = CAN_frame_std,
-                           }},
-               .MsgID = 0x7e4,
+        msg = {.FD = false,
+               .ext_ID = false,
+               .DLC = 8,
+               .ID = 0x7e4,
                .data = {0x03, 0x19, 0x02, 0x8f, 0x00, 0x00, 0x00, 0x00}};
         transmit_can(&msg, can_config.battery);
         state++;
@@ -287,13 +280,10 @@ void send_can_battery() {
       case 1:
         // car response: 7EC 11 fa 59 04 c0 64 88 28
         // response:
-
-        msg = {.FIR = {.B =
-                           {
-                               .DLC = 8,
-                               .FF = CAN_frame_std,
-                           }},
-               .MsgID = 0x7e4,
+        msg = {.FD = false,
+               .ext_ID = false,
+               .DLC = 8,
+               .ID = 0x7e4,
                .data = {0x06, 0x19, 0x04, 0xc0, 0x64, 0x88, 0xff, 0x00}};
         transmit_can(&msg, can_config.battery);
         state++;

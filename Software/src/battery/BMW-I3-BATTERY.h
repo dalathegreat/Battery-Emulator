@@ -21,6 +21,6 @@
 #define MAX_PACK_VOLTAGE_120AH 4030  // Charge stops if pack voltage exceeds this value
 #define MIN_PACK_VOLTAGE_120AH 2680  // Discharge stops if pack voltage exceeds this value
 void setup_battery(void);
-void transmit_can(CAN_frame_t* tx_frame, int interface);
+void transmit_can(CAN_frame* tx_frame, int interface);
 
 #endif
