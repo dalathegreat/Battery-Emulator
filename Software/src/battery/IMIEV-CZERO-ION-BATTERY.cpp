@@ -165,7 +165,7 @@ void receive_can_battery(CAN_frame rx_frame) {
       datalayer.battery.status.CAN_battery_still_alive = CAN_STILL_ALIVE;
       BMU_Detected = 1;
       //Pid index 0-3
-      pid_index = (rx_frame.MsgID) - 1761;
+      pid_index = (rx_frame.ID) - 1761;
       //cmu index 1-12: ignore high order nibble which appears to sometimes contain other status bits
       cmu_id = (rx_frame.data.u8[0] & 0x0f);
       //

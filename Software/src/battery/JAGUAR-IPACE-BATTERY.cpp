@@ -225,7 +225,7 @@ void receive_can_battery(CAN_frame rx_frame) {
   }
 
   // Discard non-interesting can messages so they do not get logged via serial
-  if (rx_frame.MsgID < 0x500) {
+  if (rx_frame.ID < 0x500) {
     return;
   }
 
