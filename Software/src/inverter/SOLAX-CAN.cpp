@@ -83,10 +83,6 @@ void update_values_can_inverter() {  //This function maps all the values fetched
   if (millis() - LastFrameTime >= SolaxTimeout) {
     datalayer.system.status.inverter_allows_contactor_closing = false;
     STATE = BATTERY_ANNOUNCE;
-#ifndef DUAL_CAN
-    ESP32Can.CANStop();  // Baud rate switching might have taken down the interface. Reboot it!
-    ESP32Can.CANInit();  // TODO: Incase this gets implemented in ESP32Can.cpp, remove these two lines!
-#endif
   }
   //Calculate the required values
   temperature_average =
