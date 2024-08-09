@@ -2,7 +2,6 @@
 #define KIA_E_GMP_BATTERY_H
 #include <Arduino.h>
 #include "../include.h"
-#include "../lib/miwagner-ESP32-Arduino-CAN/ESP32CAN.h"
 #include "../lib/pierremolinaro-ACAN2517FD/ACAN2517FD.h"
 
 extern ACAN2517FD canfd;
@@ -13,5 +12,6 @@ extern ACAN2517FD canfd;
 #define MAXDISCHARGEPOWERALLOWED 10000
 
 void setup_battery(void);
+void transmit_can(CAN_frame* tx_frame, int interface);
 
 #endif

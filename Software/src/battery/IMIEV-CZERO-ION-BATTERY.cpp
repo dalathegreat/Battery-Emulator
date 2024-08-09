@@ -2,8 +2,6 @@
 #ifdef IMIEV_CZERO_ION_BATTERY
 #include "../datalayer/datalayer.h"
 #include "../devboard/utils/events.h"
-#include "../lib/miwagner-ESP32-Arduino-CAN/CAN_config.h"
-#include "../lib/miwagner-ESP32-Arduino-CAN/ESP32CAN.h"
 #include "IMIEV-CZERO-ION-BATTERY.h"
 
 //Code still work in progress, TODO:
@@ -143,8 +141,8 @@ void update_values_battery() {  //This function maps all the values fetched via 
 #endif
 }
 
-void receive_can_battery(CAN_frame_t rx_frame) {
-  switch (rx_frame.MsgID) {
+void receive_can_battery(CAN_frame rx_frame) {
+  switch (rx_frame.ID) {
     case 0x374:  //BMU message, 10ms - SOC
       datalayer.battery.status.CAN_battery_still_alive = CAN_STILL_ALIVE;
       temp_value = ((rx_frame.data.u8[1] - 10) / 2);
@@ -175,7 +173,7 @@ void receive_can_battery(CAN_frame_t rx_frame) {
       datalayer.battery.status.CAN_battery_still_alive = CAN_STILL_ALIVE;
       BMU_Detected = 1;
       //Pid index 0-3
-      pid_index = (rx_frame.MsgID) - 1761;
+      pid_index = (rx_frame.ID) - 1761;
       //cmu index 1-12: ignore high order nibble which appears to sometimes contain other status bits
       cmu_id = (rx_frame.data.u8[0] & 0x0f);
       //

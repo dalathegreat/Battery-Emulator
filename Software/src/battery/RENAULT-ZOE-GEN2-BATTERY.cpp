@@ -2,8 +2,6 @@
 #ifdef RENAULT_ZOE_GEN2_BATTERY
 #include "../datalayer/datalayer.h"
 #include "../devboard/utils/events.h"
-#include "../lib/miwagner-ESP32-Arduino-CAN/CAN_config.h"
-#include "../lib/miwagner-ESP32-Arduino-CAN/ESP32CAN.h"
 #include "RENAULT-ZOE-GEN2-BATTERY.h"
 
 /* Information in this file is based of the OVMS V3 vehicle_renaultzoe.cpp component 
@@ -21,20 +19,16 @@ static uint16_t LB_Cell_Max_Voltage = 3700;
 static uint16_t LB_Cell_Min_Voltage = 3700;
 static uint16_t LB_Battery_Voltage = 3700;
 
-CAN_frame_t ZOE_373 = {.FIR = {.B =
-                                   {
-                                       .DLC = 8,
-                                       .FF = CAN_frame_std,
-                                   }},
-                       .MsgID = 0x373,
-                       .data = {0xC1, 0x80, 0x5D, 0x5D, 0x00, 0x00, 0xff, 0xcb}};
-CAN_frame_t ZOE_POLL_18DADBF1 = {.FIR = {.B =
-                                             {
-                                                 .DLC = 8,
-                                                 .FF = CAN_frame_ext,
-                                             }},
-                                 .MsgID = 0x18DADBF1,
-                                 .data = {0x03, 0x22, 0x90, 0x00, 0xff, 0xff, 0xff, 0xff}};
+CAN_frame ZOE_373 = {.FD = false,
+                     .ext_ID = false,
+                     .DLC = 8,
+                     .ID = 0x373,
+                     .data = {0xC1, 0x80, 0x5D, 0x5D, 0x00, 0x00, 0xff, 0xcb}};
+CAN_frame ZOE_POLL_18DADBF1 = {.FD = false,
+                               .ext_ID = true,
+                               .DLC = 8,
+                               .ID = 0x18DADBF1,
+                               .data = {0x03, 0x22, 0x90, 0x00, 0xff, 0xff, 0xff, 0xff}};
 
 static unsigned long previousMillis200 = 0;  // will store last time a 200ms CAN Message was sent
 
@@ -77,9 +71,9 @@ void update_values_battery() {  //This function maps all the values fetched via 
 #endif
 }
 
-void receive_can_battery(CAN_frame_t rx_frame) {
+void receive_can_battery(CAN_frame rx_frame) {
   datalayer.battery.status.CAN_battery_still_alive = CAN_STILL_ALIVE;
-  switch (rx_frame.MsgID) {
+  switch (rx_frame.ID) {
     case 0x18daf1db:  // LBC Reply from active polling
       break;
     default:
@@ -96,8 +90,8 @@ void send_can_battery() {
       set_event(EVENT_CAN_OVERRUN, (currentMillis - previousMillis200));
     }
     previousMillis200 = currentMillis;
-    ESP32Can.CANWriteFrame(&ZOE_373);
-    ESP32Can.CANWriteFrame(&ZOE_POLL_18DADBF1);
+    transmit_can(&ZOE_373, can_config.battery);
+    transmit_can(&ZOE_POLL_18DADBF1, can_config.battery);
   }
 }
 

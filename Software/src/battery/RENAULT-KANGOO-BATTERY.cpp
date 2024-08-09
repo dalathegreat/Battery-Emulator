@@ -2,8 +2,6 @@
 #ifdef RENAULT_KANGOO_BATTERY
 #include "../datalayer/datalayer.h"
 #include "../devboard/utils/events.h"
-#include "../lib/miwagner-ESP32-Arduino-CAN/CAN_config.h"
-#include "../lib/miwagner-ESP32-Arduino-CAN/ESP32CAN.h"
 #include "RENAULT-KANGOO-BATTERY.h"
 
 /* TODO:
@@ -48,31 +46,25 @@ static uint8_t LB_MaxInput_kW = 0;
 static uint8_t LB_MaxOutput_kW = 0;
 static bool GVB_79B_Continue = false;
 
-CAN_frame_t KANGOO_423 = {.FIR = {.B =
-                                      {
-                                          .DLC = 8,
-                                          .FF = CAN_frame_std,
-                                      }},
-                          .MsgID = 0x423,
-                          .data = {0x0B, 0x1D, 0x00, 0x02, 0xB2, 0x20, 0xB2, 0xD9}};  // Charging
+CAN_frame KANGOO_423 = {.FD = false,
+                        .ext_ID = false,
+                        .DLC = 8,
+                        .ID = 0x423,
+                        .data = {0x0B, 0x1D, 0x00, 0x02, 0xB2, 0x20, 0xB2, 0xD9}};  // Charging
 // Driving: 0x07  0x1D  0x00  0x02  0x5D  0x80  0x5D  0xD8
 // Charging: 0x0B   0x1D  0x00  0x02  0xB2  0x20  0xB2  0xD9
 // Fastcharging: 0x07   0x1E  0x00  0x01  0x5D  0x20  0xB2  0xC7
 // Old hardcoded message: .data = {0x33, 0x00, 0xFF, 0xFF, 0x00, 0xE0, 0x00, 0x00}};
-CAN_frame_t KANGOO_79B = {.FIR = {.B =
-                                      {
-                                          .DLC = 8,
-                                          .FF = CAN_frame_std,
-                                      }},
-                          .MsgID = 0x79B,
-                          .data = {0x02, 0x21, 0x01, 0x00, 0x00, 0xE0, 0x00, 0x00}};
-CAN_frame_t KANGOO_79B_Continue = {.FIR = {.B =
-                                               {
-                                                   .DLC = 8,
-                                                   .FF = CAN_frame_std,
-                                               }},
-                                   .MsgID = 0x79B,
-                                   .data = {0x030, 0x01, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00}};
+CAN_frame KANGOO_79B = {.FD = false,
+                        .ext_ID = false,
+                        .DLC = 8,
+                        .ID = 0x79B,
+                        .data = {0x02, 0x21, 0x01, 0x00, 0x00, 0xE0, 0x00, 0x00}};
+CAN_frame KANGOO_79B_Continue = {.FD = false,
+                                 .ext_ID = false,
+                                 .DLC = 8,
+                                 .ID = 0x79B,
+                                 .data = {0x30, 0x01, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00}};
 
 static unsigned long previousMillis10 = 0;    // will store last time a 10ms CAN Message was sent
 static unsigned long previousMillis100 = 0;   // will store last time a 100ms CAN Message was sent
@@ -155,9 +147,9 @@ void update_values_battery() {  //This function maps all the values fetched via 
 #endif
 }
 
-void receive_can_battery(CAN_frame_t rx_frame) {
+void receive_can_battery(CAN_frame rx_frame) {
 
-  switch (rx_frame.MsgID) {
+  switch (rx_frame.ID) {
     case 0x155:  //BMS1
       datalayer.battery.status.CAN_battery_still_alive =
           CAN_STILL_ALIVE;  //Indicate that we are still getting CAN messages from the BMS
@@ -233,7 +225,7 @@ void send_can_battery() {
   // Send 100ms CAN Message (for 2.4s, then pause 10s)
   if ((currentMillis - previousMillis100) >= (INTERVAL_100_MS + GVL_pause)) {
     previousMillis100 = currentMillis;
-    ESP32Can.CANWriteFrame(&KANGOO_423);
+    transmit_can(&KANGOO_423, can_config.battery);
     GVI_Pollcounter++;
     GVL_pause = 0;
     if (GVI_Pollcounter >= 24) {
@@ -245,9 +237,9 @@ void send_can_battery() {
   if (currentMillis - previousMillis1000 >= INTERVAL_1_S) {
     previousMillis1000 = currentMillis;
     if (GVB_79B_Continue)
-      ESP32Can.CANWriteFrame(&KANGOO_79B_Continue);
+      transmit_can(&KANGOO_79B_Continue, can_config.battery);
   } else {
-    ESP32Can.CANWriteFrame(&KANGOO_79B);
+    transmit_can(&KANGOO_79B, can_config.battery);
   }
 }
 

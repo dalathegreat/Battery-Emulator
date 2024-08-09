@@ -2,7 +2,6 @@
 #ifdef JAGUAR_IPACE_BATTERY
 #include "../datalayer/datalayer.h"
 #include "../devboard/utils/events.h"
-#include "../lib/miwagner-ESP32-Arduino-CAN/ESP32CAN.h"
 #include "JAGUAR-IPACE-BATTERY.h"
 
 /* Do not change code below unless you are sure what you are doing */
@@ -43,21 +42,16 @@ static bool HVILBattIsolationError = false;
 static bool HVIsolationTestStatus = false;
 
 /* TODO: Actually use a proper keepalive message */
-CAN_frame_t ipace_keep_alive = {.FIR = {.B =
-                                            {
-                                                .DLC = 8,
-                                                .FF = CAN_frame_std,
-                                            }},
-                                .MsgID = 0x063,
-                                .data = {0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00}};
-
-CAN_frame_t ipace_7e4 = {.FIR = {.B =
-                                     {
-                                         .DLC = 8,
-                                         .FF = CAN_frame_std,
-                                     }},
-                         .MsgID = 0x7e4,
-                         .data = {0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00}};
+CAN_frame ipace_keep_alive = {.FD = false,
+                              .ext_ID = false,
+                              .DLC = 8,
+                              .ID = 0x063,
+                              .data = {0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00}};
+CAN_frame ipace_7e4 = {.FD = false,
+                       .ext_ID = false,
+                       .DLC = 8,
+                       .ID = 0x7e4,
+                       .data = {0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00}};
 
 void print_units(char* header, int value, char* units) {
   Serial.print(header);
@@ -126,16 +120,16 @@ void update_values_battery() {
 #endif
 }
 
-void receive_can_battery(CAN_frame_t rx_frame) {
+void receive_can_battery(CAN_frame rx_frame) {
 
   // Do not log noisy startup messages - there are many !
-  if (rx_frame.MsgID == 0 && rx_frame.FIR.B.DLC == 8 && rx_frame.data.u8[0] == 0 && rx_frame.data.u8[1] == 0 &&
+  if (rx_frame.ID == 0 && rx_frame.DLC == 8 && rx_frame.data.u8[0] == 0 && rx_frame.data.u8[1] == 0 &&
       rx_frame.data.u8[2] == 0 && rx_frame.data.u8[3] == 0 && rx_frame.data.u8[4] == 0 && rx_frame.data.u8[5] == 0 &&
       rx_frame.data.u8[6] == 0x80 && rx_frame.data.u8[7] == 0) {
     return;
   }
 
-  switch (rx_frame.MsgID) {  // These messages are periodically transmitted by the battery
+  switch (rx_frame.ID) {  // These messages are periodically transmitted by the battery
     case 0x080:
       datalayer.battery.status.CAN_battery_still_alive = CAN_STILL_ALIVE;
       HVBatteryContactorStatus = ((rx_frame.data.u8[0] & 0x80) >> 7);
@@ -231,18 +225,18 @@ void receive_can_battery(CAN_frame_t rx_frame) {
   }
 
   // Discard non-interesting can messages so they do not get logged via serial
-  if (rx_frame.MsgID < 0x500) {
+  if (rx_frame.ID < 0x500) {
     return;
   }
 
   // All CAN messages recieved will be logged via serial
   Serial.print(millis());  // Example printout, time, ID, length, data: 7553  1DB  8  FF C0 B9 EA 0 0 2 5D
   Serial.print("  ");
-  Serial.print(rx_frame.MsgID, HEX);
+  Serial.print(rx_frame.ID, HEX);
   Serial.print("  ");
-  Serial.print(rx_frame.FIR.B.DLC);
+  Serial.print(rx_frame.DLC);
   Serial.print("  ");
-  for (int i = 0; i < rx_frame.FIR.B.DLC; ++i) {
+  for (int i = 0; i < rx_frame.DLC; ++i) {
     Serial.print(rx_frame.data.u8[i], HEX);
     Serial.print(" ");
   }
@@ -257,14 +251,14 @@ void send_can_battery() {
   if (currentMillis - previousMillis100 >= INTERVAL_100_MS) {
     previousMillis100 = currentMillis;
 
-    //ESP32Can.CANWriteFrame(&ipace_keep_alive);
+    //transmit_can(&ipace_keep_alive);
   }
 
   // Send 500ms CAN Message
   if (currentMillis - previousMillis500 >= INTERVAL_500_MS) {
     previousMillis500 = currentMillis;
 
-    CAN_frame_t msg;
+    CAN_frame msg;
     int err;
 
     switch (state) {
@@ -274,32 +268,25 @@ void send_can_battery() {
         // response:     7EC 07 59 02 8F F0 01 00 28
         // response:     7EC 03 59 02 8F 00 00 00 00
         //               7EC  8  3 7F 19 11 0 0 0 0
-        msg = {.FIR = {.B =
-                           {
-                               .DLC = 8,
-                               .FF = CAN_frame_std,
-                           }},
-               .MsgID = 0x7e4,
+        msg = {.FD = false,
+               .ext_ID = false,
+               .DLC = 8,
+               .ID = 0x7e4,
                .data = {0x03, 0x19, 0x02, 0x8f, 0x00, 0x00, 0x00, 0x00}};
-        err = ESP32Can.CANWriteFrame(&msg);
-        if (err == 0)
-          state++;
+        transmit_can(&msg, can_config.battery);
+        state++;
 
         break;
       case 1:
         // car response: 7EC 11 fa 59 04 c0 64 88 28
         // response:
-
-        msg = {.FIR = {.B =
-                           {
-                               .DLC = 8,
-                               .FF = CAN_frame_std,
-                           }},
-               .MsgID = 0x7e4,
+        msg = {.FD = false,
+               .ext_ID = false,
+               .DLC = 8,
+               .ID = 0x7e4,
                .data = {0x06, 0x19, 0x04, 0xc0, 0x64, 0x88, 0xff, 0x00}};
-        err = ESP32Can.CANWriteFrame(&msg);
-        if (err == 0)
-          state++;
+        transmit_can(&msg, can_config.battery);
+        state++;
         break;
       case 2:
         /* reset */

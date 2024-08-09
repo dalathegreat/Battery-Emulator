@@ -36,16 +36,13 @@
 
 #include "esp_intr_alloc.h" // Renamed when migrating ESP32 2.x -> 3.x
 #include "soc/dport_reg.h"
+#include "soc/gpio_sig_map.h"
 #include <math.h>
 
 #include "driver/gpio.h"
 
 #include "can_regdef.h"
 #include "CAN_config.h"
-
-#define TWAI_TX_IDX 123 // TODO: Are these OK? 
-// not sure what file is needed now, maybe "soc/gpio_sig_map.h" but using hard coded values for now
-#define TWAI_RX_IDX 94  // TODO: Are these OK? 
 
 // CAN Filter - no acceptance filter
 static CAN_filter_t __filter = { Dual_Mode, 0, 0, 0, 0, 0Xff, 0Xff, 0Xff, 0Xff };
