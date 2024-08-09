@@ -361,7 +361,7 @@ void receive_canfd_battery(CANFDMessage frame) {
   }
 }
 
-void receive_can_battery(CAN_frame_t frame) {}  // Not used on CAN-FD battery, just included to compile
+void receive_can_battery(CAN_frame frame) {}  // Not used on CAN-FD battery, just included to compile
 
 void send_can_battery() {
 

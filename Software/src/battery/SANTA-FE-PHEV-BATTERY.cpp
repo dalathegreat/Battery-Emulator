@@ -388,7 +388,7 @@ void send_can_battery() {
   }
 }
 
-uint8_t CalculateCRC8(CAN_frame_t rx_frame) {
+uint8_t CalculateCRC8(CAN_frame rx_frame) {
   int crc = 0;
 
   for (uint8_t framepos = 0; framepos < 8; framepos++) {

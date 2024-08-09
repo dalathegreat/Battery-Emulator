@@ -56,7 +56,7 @@ static CAN_frame charger_set_targets = {
     .data = {0x40, 0x00, 0x00, 0x00}};  // data[0] is a static value, meaning unknown
 
 /* We are mostly sending out not receiving */
-void receive_can_charger(CAN_frame_t rx_frame) {
+void receive_can_charger(CAN_frame rx_frame) {
   uint16_t charger_stat_HVcur_temp = 0;
   uint16_t charger_stat_HVvol_temp = 0;
   uint16_t charger_stat_LVcur_temp = 0;
