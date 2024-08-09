@@ -123,7 +123,7 @@ void update_values_battery() {
 void receive_can_battery(CAN_frame rx_frame) {
 
   // Do not log noisy startup messages - there are many !
-  if (rx_frame.MsgID == 0 && rx_frame.FIR.B.DLC == 8 && rx_frame.data.u8[0] == 0 && rx_frame.data.u8[1] == 0 &&
+  if (rx_frame.ID == 0 && rx_frame.DLC == 8 && rx_frame.data.u8[0] == 0 && rx_frame.data.u8[1] == 0 &&
       rx_frame.data.u8[2] == 0 && rx_frame.data.u8[3] == 0 && rx_frame.data.u8[4] == 0 && rx_frame.data.u8[5] == 0 &&
       rx_frame.data.u8[6] == 0x80 && rx_frame.data.u8[7] == 0) {
     return;
@@ -232,11 +232,11 @@ void receive_can_battery(CAN_frame rx_frame) {
   // All CAN messages recieved will be logged via serial
   Serial.print(millis());  // Example printout, time, ID, length, data: 7553  1DB  8  FF C0 B9 EA 0 0 2 5D
   Serial.print("  ");
-  Serial.print(rx_frame.MsgID, HEX);
+  Serial.print(rx_frame.ID, HEX);
   Serial.print("  ");
-  Serial.print(rx_frame.FIR.B.DLC);
+  Serial.print(rx_frame.DLC);
   Serial.print("  ");
-  for (int i = 0; i < rx_frame.FIR.B.DLC; ++i) {
+  for (int i = 0; i < rx_frame.DLC; ++i) {
     Serial.print(rx_frame.data.u8[i], HEX);
     Serial.print(" ");
   }
