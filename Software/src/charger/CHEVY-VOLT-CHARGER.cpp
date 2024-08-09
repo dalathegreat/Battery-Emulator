@@ -42,24 +42,18 @@ extern float charger_stat_LVvol;
 enum CHARGER_MODES : uint8_t { MODE_DISABLED = 0, MODE_LV, MODE_HV, MODE_HVLV };
 
 //Actual content messages
-static CAN_frame_t charger_keepalive_frame = {.FIR = {.B =
-                                                          {
-                                                              //one byte only, indicating enabled or disabled
-                                                              .DLC = 1,
-                                                              .FF = CAN_frame_std,
-                                                          }},
-                                              .MsgID = 0x30E,
-                                              .data = {MODE_DISABLED}};
+static CAN_frame charger_keepalive_frame = {.FD = false,
+                                            .ext_ID = false,
+                                            .DLC = 1,
+                                            .ID = 0x30E,  //one byte only, indicating enabled or disabled
+                                            .data = {MODE_DISABLED}};
 
-static CAN_frame_t charger_set_targets = {.FIR = {.B =
-                                                      {
-                                                          .DLC = 4,
-                                                          .FF = CAN_frame_std,
-                                                      }},
-                                          .MsgID = 0x304,
-
-                                          // data[0] is a static value, meaning unknown
-                                          .data = {0x40, 0x00, 0x00, 0x00}};
+static CAN_frame charger_set_targets = {
+    .FD = false,
+    .ext_ID = false,
+    .DLC = 4,
+    .ID = 0x304,
+    .data = {0x40, 0x00, 0x00, 0x00}};  // data[0] is a static value, meaning unknown
 
 /* We are mostly sending out not receiving */
 void receive_can_charger(CAN_frame_t rx_frame) {

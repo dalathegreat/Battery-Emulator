@@ -60,56 +60,42 @@ extern float charger_stat_LVcur;
 extern float charger_stat_LVvol;
 
 //Actual content messages
-static CAN_frame_t LEAF_1DB = {.FIR = {.B =
-                                           {
-                                               .DLC = 8,
-                                               .FF = CAN_frame_std,
-                                           }},
-                               .MsgID = 0x1DB,
-                               .data = {0x00, 0x00, 0x00, 0x00, 0x40, 0x00, 0x00, 0x00}};
-static CAN_frame_t LEAF_1DC = {.FIR = {.B =
-                                           {
-                                               .DLC = 8,
-                                               .FF = CAN_frame_std,
-                                           }},
-                               .MsgID = 0x1DC,
-                               .data = {0x6E, 0x0A, 0x05, 0xD5, 0x00, 0x00, 0x00, 0x00}};
-static CAN_frame_t LEAF_1F2 = {.FIR = {.B =
-                                           {
-                                               .DLC = 8,
-                                               .FF = CAN_frame_std,
-                                           }},
-                               .MsgID = 0x1F2,
-                               .data = {0x30, 0x00, 0x20, 0xAC, 0x00, 0x3C, 0x00, 0x8F}};
-static CAN_frame_t LEAF_50B = {.FIR = {.B =
-                                           {
-                                               .DLC = 7,
-                                               .FF = CAN_frame_std,
-                                           }},
-                               .MsgID = 0x50B,
-                               .data = {0x00, 0x00, 0x06, 0xC0, 0x00, 0x00, 0x00}};
-static CAN_frame_t LEAF_55B = {.FIR = {.B =
-                                           {
-                                               .DLC = 8,
-                                               .FF = CAN_frame_std,
-                                           }},
-                               .MsgID = 0x55B,
-                               .data = {0xA4, 0x40, 0xAA, 0x00, 0xDF, 0xC0, 0x10, 0x00}};
-static CAN_frame_t LEAF_5BC = {.FIR = {.B =
-                                           {
-                                               .DLC = 8,
-                                               .FF = CAN_frame_std,
-                                           }},
-                               .MsgID = 0x5BC,
-                               .data = {0x3D, 0x80, 0xF0, 0x64, 0xB0, 0x01, 0x00, 0x32}};
+static CAN_frame LEAF_1DB = {.FD = false,
+                             .ext_ID = false,
+                             .DLC = 8,
+                             .ID = 0x1DB,
+                             .data = {0x00, 0x00, 0x00, 0x00, 0x40, 0x00, 0x00, 0x00}};
+static CAN_frame LEAF_1DC = {.FD = false,
+                             .ext_ID = false,
+                             .DLC = 8,
+                             .ID = 0x1DC,
+                             .data = {0x6E, 0x0A, 0x05, 0xD5, 0x00, 0x00, 0x00, 0x00}};
+static CAN_frame LEAF_1F2 = {.FD = false,
+                             .ext_ID = false,
+                             .DLC = 8,
+                             .ID = 0x1F2,
+                             .data = {0x30, 0x00, 0x20, 0xAC, 0x00, 0x3C, 0x00, 0x8F}};
+static CAN_frame LEAF_50B = {.FD = false,
+                             .ext_ID = false,
+                             .DLC = 7,
+                             .ID = 0x50B,
+                             .data = {0x00, 0x00, 0x06, 0xC0, 0x00, 0x00, 0x00}};
+static CAN_frame LEAF_55B = {.FD = false,
+                             .ext_ID = false,
+                             .DLC = 8,
+                             .ID = 0x55B,
+                             .data = {0xA4, 0x40, 0xAA, 0x00, 0xDF, 0xC0, 0x10, 0x00}};
+static CAN_frame LEAF_5BC = {.FD = false,
+                             .ext_ID = false,
+                             .DLC = 8,
+                             .ID = 0x5BC,
+                             .data = {0x3D, 0x80, 0xF0, 0x64, 0xB0, 0x01, 0x00, 0x32}};
 
-static CAN_frame_t LEAF_59E = {.FIR = {.B =
-                                           {
-                                               .DLC = 8,
-                                               .FF = CAN_frame_std,
-                                           }},
-                               .MsgID = 0x59E,
-                               .data = {0x00, 0x00, 0x0C, 0x76, 0x18, 0x00, 0x00, 0x00}};
+static CAN_frame LEAF_59E = {.FD = false,
+                             .ext_ID = false,
+                             .DLC = 8,
+                             .ID = 0x59E,
+                             .data = {0x00, 0x00, 0x0C, 0x76, 0x18, 0x00, 0x00, 0x00}};
 
 static uint8_t crctable[256] = {
     0,   133, 143, 10,  155, 30,  20,  145, 179, 54,  60,  185, 40,  173, 167, 34,  227, 102, 108, 233, 120, 253,

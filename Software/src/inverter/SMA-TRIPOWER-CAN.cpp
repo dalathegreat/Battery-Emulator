@@ -15,110 +15,71 @@
 static unsigned long previousMillis500ms = 0;  // will store last time a 100ms CAN Message was send
 
 //Actual content messages
-static CAN_frame_t SMA_00D = {  // Battery Limits
-    .FIR = {.B =
-                {
-                    .DLC = 8,
-                    .FF = CAN_frame_std,
-                }},
-    .MsgID = 0x00D,
-    .data = {0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00}};
-static CAN_frame_t SMA_00F = {  // Battery State
-    .FIR = {.B =
-                {
-                    .DLC = 8,
-                    .FF = CAN_frame_std,
-                }},
-    .MsgID = 0x00F,
-    .data = {0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00}};
-static CAN_frame_t SMA_011 = {  // Battery Energy
-    .FIR = {.B =
-                {
-                    .DLC = 8,
-                    .FF = CAN_frame_std,
-                }},
-    .MsgID = 0x011,
-    .data = {0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00}};
-static CAN_frame_t SMA_013 = {  // Battery Measurements
-    .FIR = {.B =
-                {
-                    .DLC = 8,
-                    .FF = CAN_frame_std,
-                }},
-    .MsgID = 0x013,
-    .data = {0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00}};
-static CAN_frame_t SMA_014 = {  // Battery Tempeartures and Cellvoltages
-    .FIR = {.B =
-                {
-                    .DLC = 8,
-                    .FF = CAN_frame_std,
-                }},
-    .MsgID = 0x014,
-    .data = {0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00}};
-static CAN_frame_t SMA_005 = {  // Battery Alarms 1
-    .FIR = {.B =
-                {
-                    .DLC = 8,
-                    .FF = CAN_frame_std,
-                }},
-    .MsgID = 0x005,
-    .data = {0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00}};
-static CAN_frame_t SMA_007 = {  // Battery Alarms 2
-    .FIR = {.B =
-                {
-                    .DLC = 8,
-                    .FF = CAN_frame_std,
-                }},
-    .MsgID = 0x007,
-    .data = {0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00}};
-static CAN_frame_t SMA_006 = {  // Battery Error Codes
-    .FIR = {.B =
-                {
-                    .DLC = 8,
-                    .FF = CAN_frame_std,
-                }},
-    .MsgID = 0x006,
-    .data = {0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00}};
-static CAN_frame_t SMA_008 = {  // Battery Events
-    .FIR = {.B =
-                {
-                    .DLC = 8,
-                    .FF = CAN_frame_std,
-                }},
-    .MsgID = 0x008,
-    .data = {0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00}};
-static CAN_frame_t SMA_015 = {  // Battery Data 1
-    .FIR = {.B =
-                {
-                    .DLC = 8,
-                    .FF = CAN_frame_std,
-                }},
-    .MsgID = 0x015,
-    .data = {0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00}};
-static CAN_frame_t SMA_016 = {  // Battery Data 2
-    .FIR = {.B =
-                {
-                    .DLC = 8,
-                    .FF = CAN_frame_std,
-                }},
-    .MsgID = 0x016,
-    .data = {0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00}};
-static CAN_frame_t SMA_017 = {  // Battery Manufacturer
-    .FIR = {.B =
-                {
-                    .DLC = 8,
-                    .FF = CAN_frame_std,
-                }},
-    .MsgID = 0x017,
-    .data = {0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00}};
-static CAN_frame_t SMA_018 = {  // Battery Name
-    .FIR = {.B =
-                {
-                    .DLC = 8,
-                    .FF = CAN_frame_std,
-                }},
-    .MsgID = 0x018,
-    .data = {0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00}};
+CAN_frame SMA_00D = {.FD = false,
+                     .ext_ID = false,
+                     .DLC = 8,
+                     .ID = 0x00D,
+                     .data = {0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00}};
+CAN_frame SMA_00F = {.FD = false,
+                     .ext_ID = false,
+                     .DLC = 8,
+                     .ID = 0x00F,
+                     .data = {0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00}};
+CAN_frame SMA_011 = {.FD = false,
+                     .ext_ID = false,
+                     .DLC = 8,
+                     .ID = 0x011,
+                     .data = {0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00}};
+CAN_frame SMA_013 = {.FD = false,
+                     .ext_ID = false,
+                     .DLC = 8,
+                     .ID = 0x013,
+                     .data = {0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00}};
+CAN_frame SMA_014 = {.FD = false,
+                     .ext_ID = false,
+                     .DLC = 8,
+                     .ID = 0x014,
+                     .data = {0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00}};
+CAN_frame SMA_005 = {.FD = false,
+                     .ext_ID = false,
+                     .DLC = 8,
+                     .ID = 0x005,
+                     .data = {0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00}};
+CAN_frame SMA_007 = {.FD = false,
+                     .ext_ID = false,
+                     .DLC = 8,
+                     .ID = 0x007,
+                     .data = {0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00}};
+CAN_frame SMA_006 = {.FD = false,
+                     .ext_ID = false,
+                     .DLC = 8,
+                     .ID = 0x006,
+                     .data = {0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00}};
+CAN_frame SMA_008 = {.FD = false,
+                     .ext_ID = false,
+                     .DLC = 8,
+                     .ID = 0x008,
+                     .data = {0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00}};
+CAN_frame SMA_015 = {.FD = false,
+                     .ext_ID = false,
+                     .DLC = 8,
+                     .ID = 0x015,
+                     .data = {0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00}};
+CAN_frame SMA_016 = {.FD = false,
+                     .ext_ID = false,
+                     .DLC = 8,
+                     .ID = 0x016,
+                     .data = {0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00}};
+CAN_frame SMA_017 = {.FD = false,
+                     .ext_ID = false,
+                     .DLC = 8,
+                     .ID = 0x017,
+                     .data = {0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00}};
+CAN_frame SMA_018 = {.FD = false,
+                     .ext_ID = false,
+                     .DLC = 8,
+                     .ID = 0x018,
+                     .data = {0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00}};
 
 static uint16_t discharge_current = 0;
 static uint16_t charge_current = 0;

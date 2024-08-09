@@ -15,94 +15,69 @@ static uint8_t char5_151 = 0;
 static uint8_t char6_151 = 0;
 static uint8_t char7_151 = 0;
 
-//Startup messages
-CAN_frame_t BYD_250 = {
-    .FIR = {.B =
-                {
-                    .DLC = 8,
-                    .FF = CAN_frame_std,
-                }},
-    .MsgID = 0x250,
+CAN_frame BYD_250 = {
+    .FD = false,
+    .ext_ID = false,
+    .DLC = 8,
+    .ID = 0x250,
     .data = {0x03, 0x16, 0x00, 0x66, (uint8_t)((BATTERY_WH_MAX / 100) >> 8), (uint8_t)(BATTERY_WH_MAX / 100), 0x02,
              0x09}};  //3.16 FW , Capacity kWh byte4&5 (example 24kWh = 240)
-CAN_frame_t BYD_290 = {.FIR = {.B =
-                                   {
-                                       .DLC = 8,
-                                       .FF = CAN_frame_std,
-                                   }},
-                       .MsgID = 0x290,
-                       .data = {0x06, 0x37, 0x10, 0xD9, 0x00, 0x00, 0x00, 0x00}};
-CAN_frame_t BYD_2D0 = {.FIR = {.B =
-                                   {
-                                       .DLC = 8,
-                                       .FF = CAN_frame_std,
-                                   }},
-                       .MsgID = 0x2D0,
-                       .data = {0x00, 0x42, 0x59, 0x44, 0x00, 0x00, 0x00, 0x00}};  //BYD
-CAN_frame_t BYD_3D0_0 = {.FIR = {.B =
-                                     {
-                                         .DLC = 8,
-                                         .FF = CAN_frame_std,
-                                     }},
-                         .MsgID = 0x3D0,
-                         .data = {0x00, 0x42, 0x61, 0x74, 0x74, 0x65, 0x72, 0x79}};  //Battery
-CAN_frame_t BYD_3D0_1 = {.FIR = {.B =
-                                     {
-                                         .DLC = 8,
-                                         .FF = CAN_frame_std,
-                                     }},
-                         .MsgID = 0x3D0,
-                         .data = {0x01, 0x2D, 0x42, 0x6F, 0x78, 0x20, 0x50, 0x72}};  //-Box Pr
-CAN_frame_t BYD_3D0_2 = {.FIR = {.B =
-                                     {
-                                         .DLC = 8,
-                                         .FF = CAN_frame_std,
-                                     }},
-                         .MsgID = 0x3D0,
-                         .data = {0x02, 0x65, 0x6D, 0x69, 0x75, 0x6D, 0x20, 0x48}};  //emium H
-CAN_frame_t BYD_3D0_3 = {.FIR = {.B =
-                                     {
-                                         .DLC = 8,
-                                         .FF = CAN_frame_std,
-                                     }},
-                         .MsgID = 0x3D0,
-                         .data = {0x03, 0x56, 0x53, 0x00, 0x00, 0x00, 0x00, 0x00}};  //VS
+CAN_frame BYD_290 = {.FD = false,
+                     .ext_ID = false,
+                     .DLC = 8,
+                     .ID = 0x290,
+                     .data = {0x06, 0x37, 0x10, 0xD9, 0x00, 0x00, 0x00, 0x00}};
+CAN_frame BYD_2D0 = {.FD = false,
+                     .ext_ID = false,
+                     .DLC = 8,
+                     .ID = 0x2D0,
+                     .data = {0x00, 0x42, 0x59, 0x44, 0x00, 0x00, 0x00, 0x00}};  //BYD
+CAN_frame BYD_3D0_0 = {.FD = false,
+                       .ext_ID = false,
+                       .DLC = 8,
+                       .ID = 0x3D0,
+                       .data = {0x00, 0x42, 0x61, 0x74, 0x74, 0x65, 0x72, 0x79}};  //Battery
+CAN_frame BYD_3D0_1 = {.FD = false,
+                       .ext_ID = false,
+                       .DLC = 8,
+                       .ID = 0x3D0,
+                       .data = {0x01, 0x2D, 0x42, 0x6F, 0x78, 0x20, 0x50, 0x72}};  //-Box Pr
+CAN_frame BYD_3D0_2 = {.FD = false,
+                       .ext_ID = false,
+                       .DLC = 8,
+                       .ID = 0x3D0,
+                       .data = {0x02, 0x65, 0x6D, 0x69, 0x75, 0x6D, 0x20, 0x48}};  //emium H
+CAN_frame BYD_3D0_3 = {.FD = false,
+                       .ext_ID = false,
+                       .DLC = 8,
+                       .ID = 0x3D0,
+                       .data = {0x03, 0x56, 0x53, 0x00, 0x00, 0x00, 0x00, 0x00}};  //VS
 //Actual content messages
-CAN_frame_t BYD_110 = {.FIR = {.B =
-                                   {
-                                       .DLC = 8,
-                                       .FF = CAN_frame_std,
-                                   }},
-                       .MsgID = 0x110,
-                       .data = {0x01, 0x90, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00}};
-CAN_frame_t BYD_150 = {.FIR = {.B =
-                                   {
-                                       .DLC = 8,
-                                       .FF = CAN_frame_std,
-                                   }},
-                       .MsgID = 0x150,
-                       .data = {0x00, 0x00, 0x00, 0x00, 0x10, 0x27, 0x00, 0x00}};
-CAN_frame_t BYD_190 = {.FIR = {.B =
-                                   {
-                                       .DLC = 8,
-                                       .FF = CAN_frame_std,
-                                   }},
-                       .MsgID = 0x190,
-                       .data = {0x00, 0x00, 0x03, 0x00, 0x00, 0x00, 0x00, 0x00}};
-CAN_frame_t BYD_1D0 = {.FIR = {.B =
-                                   {
-                                       .DLC = 8,
-                                       .FF = CAN_frame_std,
-                                   }},
-                       .MsgID = 0x1D0,
-                       .data = {0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x03, 0x08}};
-CAN_frame_t BYD_210 = {.FIR = {.B =
-                                   {
-                                       .DLC = 8,
-                                       .FF = CAN_frame_std,
-                                   }},
-                       .MsgID = 0x210,
-                       .data = {0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00}};
+CAN_frame BYD_110 = {.FD = false,
+                     .ext_ID = false,
+                     .DLC = 8,
+                     .ID = 0x110,
+                     .data = {0x01, 0x90, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00}};
+CAN_frame BYD_150 = {.FD = false,
+                     .ext_ID = false,
+                     .DLC = 8,
+                     .ID = 0x150,
+                     .data = {0x00, 0x00, 0x00, 0x00, 0x10, 0x27, 0x00, 0x00}};
+CAN_frame BYD_190 = {.FD = false,
+                     .ext_ID = false,
+                     .DLC = 8,
+                     .ID = 0x190,
+                     .data = {0x00, 0x00, 0x03, 0x00, 0x00, 0x00, 0x00, 0x00}};
+CAN_frame BYD_1D0 = {.FD = false,
+                     .ext_ID = false,
+                     .DLC = 8,
+                     .ID = 0x1D0,
+                     .data = {0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x03, 0x08}};
+CAN_frame BYD_210 = {.FD = false,
+                     .ext_ID = false,
+                     .DLC = 8,
+                     .ID = 0x210,
+                     .data = {0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00}};
 
 static uint16_t discharge_current = 0;
 static uint16_t charge_current = 0;

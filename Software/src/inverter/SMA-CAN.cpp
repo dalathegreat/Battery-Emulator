@@ -9,90 +9,65 @@
 static unsigned long previousMillis100ms = 0;  // will store last time a 100ms CAN Message was send
 
 //Actual content messages
-static CAN_frame_t SMA_558 = {
-    .FIR = {.B =
-                {
-                    .DLC = 8,
-                    .FF = CAN_frame_std,
-                }},
-    .MsgID = 0x558,
-    .data = {0x03, 0x12, 0x00, 0x04, 0x00, 0x59, 0x07, 0x07}};  //7x BYD modules, Vendor ID 7 BYD
-static CAN_frame_t SMA_598 = {.FIR = {.B =
-                                          {
-                                              .DLC = 8,
-                                              .FF = CAN_frame_std,
-                                          }},
-                              .MsgID = 0x598,
-                              .data = {0x00, 0x00, 0x12, 0x34, 0x5A, 0xDE, 0x07, 0x4F}};  //B0-4 Serial, rest unknown
-static CAN_frame_t SMA_5D8 = {.FIR = {.B =
-                                          {
-                                              .DLC = 8,
-                                              .FF = CAN_frame_std,
-                                          }},
-                              .MsgID = 0x5D8,
-                              .data = {0x00, 0x42, 0x59, 0x44, 0x00, 0x00, 0x00, 0x00}};  //B Y D
-static CAN_frame_t SMA_618_1 = {.FIR = {.B =
-                                            {
-                                                .DLC = 8,
-                                                .FF = CAN_frame_std,
-                                            }},
-                                .MsgID = 0x618,
-                                .data = {0x00, 0x42, 0x61, 0x74, 0x74, 0x65, 0x72, 0x79}};  //0 B A T T E R Y
-static CAN_frame_t SMA_618_2 = {.FIR = {.B =
-                                            {
-                                                .DLC = 8,
-                                                .FF = CAN_frame_std,
-                                            }},
-                                .MsgID = 0x618,
-                                .data = {0x01, 0x2D, 0x42, 0x6F, 0x78, 0x20, 0x48, 0x39}};  //1 - B O X   H
-static CAN_frame_t SMA_618_3 = {.FIR = {.B =
-                                            {
-                                                .DLC = 8,
-                                                .FF = CAN_frame_std,
-                                            }},
-                                .MsgID = 0x618,
-                                .data = {0x02, 0x2E, 0x30, 0x00, 0x00, 0x00, 0x00, 0x00}};  //2 - 0
-CAN_frame_t SMA_358 = {.FIR = {.B =
-                                   {
-                                       .DLC = 8,
-                                       .FF = CAN_frame_std,
-                                   }},
-                       .MsgID = 0x358,
+CAN_frame SMA_558 = {.FD = false,
+                     .ext_ID = false,
+                     .DLC = 8,
+                     .ID = 0x558,
+                     .data = {0x03, 0x12, 0x00, 0x04, 0x00, 0x59, 0x07, 0x07}};  //7x BYD modules, Vendor ID 7 BYD
+CAN_frame SMA_598 = {.FD = false,
+                     .ext_ID = false,
+                     .DLC = 8,
+                     .ID = 0x598,
+                     .data = {0x00, 0x00, 0x12, 0x34, 0x5A, 0xDE, 0x07, 0x4F}};  //B0-4 Serial, rest unknown
+CAN_frame SMA_5D8 = {.FD = false,
+                     .ext_ID = false,
+                     .DLC = 8,
+                     .ID = 0x5D8,
+                     .data = {0x00, 0x42, 0x59, 0x44, 0x00, 0x00, 0x00, 0x00}};  //B Y D
+CAN_frame SMA_618_1 = {.FD = false,
+                       .ext_ID = false,
+                       .DLC = 8,
+                       .ID = 0x618,
+                       .data = {0x00, 0x42, 0x61, 0x74, 0x74, 0x65, 0x72, 0x79}};  //0 B A T T E R Y
+CAN_frame SMA_618_2 = {.FD = false,
+                       .ext_ID = false,
+                       .DLC = 8,
+                       .ID = 0x618,
+                       .data = {0x01, 0x2D, 0x42, 0x6F, 0x78, 0x20, 0x48, 0x39}};  //1 - B O X   H
+CAN_frame SMA_618_3 = {.FD = false,
+                       .ext_ID = false,
+                       .DLC = 8,
+                       .ID = 0x618,
+                       .data = {0x02, 0x2E, 0x30, 0x00, 0x00, 0x00, 0x00, 0x00}};  //2 - 0
+CAN_frame_t SMA_358 = {.FD = false,
+                       .ext_ID = false,
+                       .DLC = 8,
+                       .ID = 0x358,
                        .data = {0x0F, 0x6C, 0x06, 0x20, 0x00, 0x00, 0x00, 0x00}};
-CAN_frame_t SMA_3D8 = {.FIR = {.B =
-                                   {
-                                       .DLC = 8,
-                                       .FF = CAN_frame_std,
-                                   }},
-                       .MsgID = 0x3D8,
+CAN_frame_t SMA_3D8 = {.FD = false,
+                       .ext_ID = false,
+                       .DLC = 8,
+                       .ID = 0x3D8,
                        .data = {0x04, 0x10, 0x27, 0x10, 0x00, 0x18, 0xF9, 0x00}};
-CAN_frame_t SMA_458 = {.FIR = {.B =
-                                   {
-                                       .DLC = 8,
-                                       .FF = CAN_frame_std,
-                                   }},
-                       .MsgID = 0x458,
+CAN_frame_t SMA_458 = {.FD = false,
+                       .ext_ID = false,
+                       .DLC = 8,
+                       .ID = 0x458,
                        .data = {0x00, 0x00, 0x06, 0x75, 0x00, 0x00, 0x05, 0xD6}};
-CAN_frame_t SMA_518 = {.FIR = {.B =
-                                   {
-                                       .DLC = 8,
-                                       .FF = CAN_frame_std,
-                                   }},
-                       .MsgID = 0x518,
+CAN_frame_t SMA_518 = {.FD = false,
+                       .ext_ID = false,
+                       .DLC = 8,
+                       .ID = 0x518,
                        .data = {0x00, 0x00, 0x00, 0x00, 0xFF, 0xFF, 0xFF, 0xFF}};
-CAN_frame_t SMA_4D8 = {.FIR = {.B =
-                                   {
-                                       .DLC = 8,
-                                       .FF = CAN_frame_std,
-                                   }},
-                       .MsgID = 0x4D8,
+CAN_frame_t SMA_4D8 = {.FD = false,
+                       .ext_ID = false,
+                       .DLC = 8,
+                       .ID = 0x4D8,
                        .data = {0x09, 0xFD, 0x00, 0x00, 0x00, 0xA8, 0x02, 0x08}};
-CAN_frame_t SMA_158 = {.FIR = {.B =
-                                   {
-                                       .DLC = 8,
-                                       .FF = CAN_frame_std,
-                                   }},
-                       .MsgID = 0x158,
+CAN_frame_t SMA_158 = {.FD = false,
+                       .ext_ID = false,
+                       .DLC = 8,
+                       .ID = 0x158,
                        .data = {0xAA, 0xAA, 0xAA, 0xAA, 0xAA, 0x6A, 0xAA, 0xAA}};
 
 static int16_t discharge_current = 0;
