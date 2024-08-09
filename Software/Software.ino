@@ -524,7 +524,15 @@ void receive_canfd() {  // This section checks if we have a complete CAN-FD mess
 #ifdef DEBUG_CANFD_DATA
     print_canfd_frame(frame);
 #endif
-    receive_canfd_battery(frame);
+    CAN_frame rx_frame;
+    rx_frame.ID = frame.id;
+    rx_frame.ext_ID = frame.ext;
+    rx_frame.DLC = frame.len;
+    for (uint8_t i = 0; i < rx_frame.DLC && i < 64; i++) {
+      rx_frame.data.u8[i] = frame.data[i];
+    }
+    //message incoming, pass it on to the handler
+    receive_can(&rx_frame, CAN_ADDON_FD_MCP2518);
   }
 }
 #endif
@@ -540,7 +548,7 @@ void receive_can_native() {  // This section checks if we have a complete CAN me
       rx_frame.ext_ID = true;
     }
     rx_frame.DLC = rx_frame_native.FIR.B.DLC;
-    for (uint8_t i = 0; i < rx_frame.DLC; i++) {
+    for (uint8_t i = 0; i < rx_frame.DLC && i < 8; i++) {
       rx_frame.data.u8[i] = rx_frame_native.data.u8[i];
     }
     //message incoming, pass it on to the handler
@@ -575,7 +583,7 @@ void receive_can_addonMCP2515() {  // This section checks if we have a complete 
     rx_frame_can_addonMCP2515.FIR.B.FF = MCP2515Frame.ext ? CAN_frame_ext : CAN_frame_std;
     rx_frame_can_addonMCP2515.FIR.B.RTR = MCP2515Frame.rtr ? CAN_RTR : CAN_no_RTR;
     rx_frame_can_addonMCP2515.FIR.B.DLC = MCP2515Frame.len;
-    for (uint8_t i = 0; i < MCP2515Frame.len; i++) {
+    for (uint8_t i = 0; i < MCP2515Frame.len && i < 8; i++) {
       rx_frame_can_addonMCP2515.data.u8[i] = MCP2515Frame.data[i];
     }
 
@@ -919,7 +927,6 @@ void transmit_can(CAN_frame* tx_frame, int interface) {
       MCP2518Frame.id = tx_frame->ID;
       MCP2518Frame.ext = tx_frame->ext_ID ? CAN_frame_ext : CAN_frame_std;
       MCP2518Frame.len = tx_frame->DLC;
-      MCP2518Frame.rtr = false;
       for (uint8_t i = 0; i < MCP2518Frame.len; i++) {
         MCP2518Frame.data[i] = tx_frame->data.u8[i];
       }
