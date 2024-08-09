@@ -888,6 +888,7 @@ void transmit_can(CAN_frame* tx_frame, int interface) {
       frame.MsgID = tx_frame->ID;
       frame.FIR.B.FF = tx_frame->ext_ID ? CAN_frame_ext : CAN_frame_std;
       frame.FIR.B.DLC = tx_frame->DLC;
+      frame.FIR.B.RTR = CAN_no_RTR;
       for (uint8_t i = 0; i < tx_frame->DLC; i++) {
         frame.data.u8[i] = tx_frame->data.u8[i];
       }
@@ -903,6 +904,7 @@ void transmit_can(CAN_frame* tx_frame, int interface) {
       MCP2515Frame.id = tx_frame->ID;
       MCP2515Frame.ext = tx_frame->ext_ID ? CAN_frame_ext : CAN_frame_std;
       MCP2515Frame.len = tx_frame->DLC;
+      MCP2515Frame.rtr = false;
       for (uint8_t i = 0; i < MCP2515Frame.len; i++) {
         MCP2515Frame.data[i] = tx_frame->data.u8[i];
       }
@@ -917,6 +919,7 @@ void transmit_can(CAN_frame* tx_frame, int interface) {
       MCP2518Frame.id = tx_frame->ID;
       MCP2518Frame.ext = tx_frame->ext_ID ? CAN_frame_ext : CAN_frame_std;
       MCP2518Frame.len = tx_frame->DLC;
+      MCP2518Frame.rtr = false;
       for (uint8_t i = 0; i < MCP2518Frame.len; i++) {
         MCP2518Frame.data[i] = tx_frame->data.u8[i];
       }
