@@ -120,7 +120,7 @@ void update_values_battery() {
 #endif
 }
 
-void receive_can_battery(CAN_frame_t rx_frame) {
+receive_can_battery(CAN_frame rx_frame) {
 
   // Do not log noisy startup messages - there are many !
   if (rx_frame.MsgID == 0 && rx_frame.FIR.B.DLC == 8 && rx_frame.data.u8[0] == 0 && rx_frame.data.u8[1] == 0 &&
@@ -129,7 +129,7 @@ void receive_can_battery(CAN_frame_t rx_frame) {
     return;
   }
 
-  switch (rx_frame.MsgID) {  // These messages are periodically transmitted by the battery
+  switch (rx_frame.ID) {  // These messages are periodically transmitted by the battery
     case 0x080:
       datalayer.battery.status.CAN_battery_still_alive = CAN_STILL_ALIVE;
       HVBatteryContactorStatus = ((rx_frame.data.u8[0] & 0x80) >> 7);

@@ -230,8 +230,8 @@ void update_values_can_inverter() {  //This function maps all the values fetched
   SOFAR_356.data.u8[3] = (datalayer.battery.status.temperature_max_dC & 0x00FF);
 }
 
-void receive_can_inverter(CAN_frame_t rx_frame) {
-  switch (rx_frame.MsgID) {  //In here we need to respond to the inverter. TODO: make logic
+void receive_can_inverter(CAN_frame rx_frame) {
+  switch (rx_frame.ID) {  //In here we need to respond to the inverter. TODO: make logic
     case 0x605:
       //frame1_605 = rx_frame.data.u8[1];
       //frame3_605 = rx_frame.data.u8[3];

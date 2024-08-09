@@ -129,9 +129,9 @@ static uint8_t calculate_checksum_nibble(CAN_frame* frame) {
   return sum;
 }
 
-void receive_can_charger(CAN_frame_t rx_frame) {
+void receive_can_charger(CAN_frame rx_frame) {
 
-  switch (rx_frame.MsgID) {
+  switch (rx_frame.ID) {
     case 0x679:  // This message fires once when charging cable is plugged in
       OBCwakeup = true;
       charger_aux12V_enabled = true;  //Not possible to turn off 12V charging

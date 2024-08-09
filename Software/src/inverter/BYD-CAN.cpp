@@ -177,8 +177,8 @@ void update_values_can_inverter() {  //This function maps all the values fetched
 #endif
 }
 
-void receive_can_inverter(CAN_frame_t rx_frame) {
-  switch (rx_frame.MsgID) {
+void receive_can_inverter(CAN_frame rx_frame) {
+  switch (rx_frame.ID) {
     case 0x151:  //Message originating from BYD HVS compatible inverter. Reply with CAN identifier!
       if (rx_frame.data.u8[0] & 0x01) {  //Battery requests identification
         send_intial_data();

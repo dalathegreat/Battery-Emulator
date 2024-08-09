@@ -202,8 +202,8 @@ void update_values_can_inverter() {  //This function maps all the values fetched
 */
 }
 
-void receive_can_inverter(CAN_frame_t rx_frame) {
-  switch (rx_frame.MsgID) {
+void receive_can_inverter(CAN_frame rx_frame) {
+  switch (rx_frame.ID) {
     case 0x360:  //Message originating from SMA inverter - Voltage and current
       //Frame0-1 Voltage
       //Frame2-3 Current

@@ -71,16 +71,16 @@ void update_values_battery() { /* This function puts fake values onto the parame
 #endif
 }
 
-void receive_can_battery(CAN_frame_t rx_frame) {
+receive_can_battery(CAN_frame rx_frame) {
   datalayer.battery.status.CAN_battery_still_alive = CAN_STILL_ALIVE;
   // All CAN messages recieved will be logged via serial
   Serial.print(millis());  // Example printout, time, ID, length, data: 7553  1DB  8  FF C0 B9 EA 0 0 2 5D
   Serial.print("  ");
-  Serial.print(rx_frame.MsgID, HEX);
+  Serial.print(rx_frame.ID, HEX);
   Serial.print("  ");
-  Serial.print(rx_frame.FIR.B.DLC);
+  Serial.print(rx_frame.DLC);
   Serial.print("  ");
-  for (int i = 0; i < rx_frame.FIR.B.DLC; ++i) {
+  for (int i = 0; i < rx_frame.DLC; ++i) {
     Serial.print(rx_frame.data.u8[i], HEX);
     Serial.print(" ");
   }

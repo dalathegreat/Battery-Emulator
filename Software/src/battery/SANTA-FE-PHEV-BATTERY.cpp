@@ -106,8 +106,8 @@ void update_values_battery() {  //This function maps all the values fetched via 
 #endif
 }
 
-void receive_can_battery(CAN_frame_t rx_frame) {
-  switch (rx_frame.MsgID) {
+receive_can_battery(CAN_frame rx_frame) {
+  switch (rx_frame.ID) {
     case 0x1FF:
       datalayer.battery.status.CAN_battery_still_alive = CAN_STILL_ALIVE;
       StatusBattery = (rx_frame.data.u8[0] & 0x0F);

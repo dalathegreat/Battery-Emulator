@@ -436,7 +436,7 @@ void update_values_can_inverter() {  //This function maps all the values fetched
 }
 
 void receive_can_inverter(CAN_frame_t rx_frame) {
-  switch (rx_frame.MsgID) {
+  switch (rx_frame.ID) {
     case 0x4200:  //Message originating from inverter. Depending on which data is required, act accordingly
       if (rx_frame.data.u8[0] == 0x02) {
         send_setup_info();

@@ -90,9 +90,9 @@ void update_values_battery() {  //This function maps all the values fetched via 
   }
 }
 
-void receive_can_battery(CAN_frame_t rx_frame) {
+receive_can_battery(CAN_frame rx_frame) {
   datalayer.battery.status.CAN_battery_still_alive = CAN_STILL_ALIVE;
-  switch (rx_frame.MsgID) {
+  switch (rx_frame.ID) {
     case 0x5F1:
       break;
     case 0x51E:

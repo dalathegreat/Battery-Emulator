@@ -16,90 +16,62 @@ static uint16_t capped_remaining_capacity_Wh;
 
 //CAN message translations from this amazing repository: https://github.com/rand12345/solax_can_bus
 
-CAN_frame_t SOLAX_1801 = {.FIR = {.B =
-                                      {
-                                          .DLC = 8,
-                                          .FF = CAN_frame_ext,
-                                      }},
-                          .MsgID = 0x1801,
-                          .data = {0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0}};
-CAN_frame_t SOLAX_1872 = {.FIR = {.B =
-                                      {
-                                          .DLC = 8,
-                                          .FF = CAN_frame_ext,
-                                      }},
-                          .MsgID = 0x1872,
-                          .data = {0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0}};  //BMS_Limits
-CAN_frame_t SOLAX_1873 = {.FIR = {.B =
-                                      {
-                                          .DLC = 8,
-                                          .FF = CAN_frame_ext,
-                                      }},
-                          .MsgID = 0x1873,
-                          .data = {0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0}};  //BMS_PackData
-CAN_frame_t SOLAX_1874 = {.FIR = {.B =
-                                      {
-                                          .DLC = 8,
-                                          .FF = CAN_frame_ext,
-                                      }},
-                          .MsgID = 0x1874,
-                          .data = {0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0}};  //BMS_CellData
-CAN_frame_t SOLAX_1875 = {.FIR = {.B =
-                                      {
-                                          .DLC = 8,
-                                          .FF = CAN_frame_ext,
-                                      }},
-                          .MsgID = 0x1875,
-                          .data = {0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0}};  //BMS_Status
-CAN_frame_t SOLAX_1876 = {.FIR = {.B =
-                                      {
-                                          .DLC = 8,
-                                          .FF = CAN_frame_ext,
-                                      }},
-                          .MsgID = 0x1876,
-                          .data = {0x0, 0x0, 0xE2, 0x0C, 0x0, 0x0, 0xD7, 0x0C}};  //BMS_PackTemps
-CAN_frame_t SOLAX_1877 = {.FIR = {.B =
-                                      {
-                                          .DLC = 8,
-                                          .FF = CAN_frame_ext,
-                                      }},
-                          .MsgID = 0x1877,
-                          .data = {0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0}};
-CAN_frame_t SOLAX_1878 = {.FIR = {.B =
-                                      {
-                                          .DLC = 8,
-                                          .FF = CAN_frame_ext,
-                                      }},
-                          .MsgID = 0x1878,
-                          .data = {0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0}};  //BMS_PackStats
-CAN_frame_t SOLAX_1879 = {.FIR = {.B =
-                                      {
-                                          .DLC = 8,
-                                          .FF = CAN_frame_ext,
-                                      }},
-                          .MsgID = 0x1879,
-                          .data = {0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0}};
-CAN_frame_t SOLAX_1881 = {.FIR = {.B =
-                                      {
-                                          .DLC = 8,
-                                          .FF = CAN_frame_ext,
-                                      }},
-                          .MsgID = 0x1881,
-                          .data = {0x10, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0}};  // E.g.: 0 6 S B M S F A
-CAN_frame_t SOLAX_1882 = {.FIR = {.B =
-                                      {
-                                          .DLC = 8,
-                                          .FF = CAN_frame_ext,
-                                      }},
-                          .MsgID = 0x1882,
-                          .data = {0x10, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0}};  // E.g.: 0 2 3 A B 0 5 2
-CAN_frame_t SOLAX_100A001 = {.FIR = {.B =
-                                         {
-                                             .DLC = 0,
-                                             .FF = CAN_frame_ext,
-                                         }},
-                             .MsgID = 0x100A001,
-                             .data = {}};
+CAN_frame SOLAX_1801 = {.FD = false,
+                        .ext_ID = true,
+                        .DLC = 8,
+                        .ID = 0x1801,
+                        .data = {0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0}};
+CAN_frame SOLAX_1872 = {.FD = false,
+                        .ext_ID = true,
+                        .DLC = 8,
+                        .ID = 0x1872,
+                        .data = {0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0}};  //BMS_Limits
+CAN_frame SOLAX_1873 = {.FD = false,
+                        .ext_ID = true,
+                        .DLC = 8,
+                        .ID = 0x1873,
+                        .data = {0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0}};  //BMS_PackData
+CAN_frame SOLAX_1874 = {.FD = false,
+                        .ext_ID = true,
+                        .DLC = 8,
+                        .ID = 0x1874,
+                        .data = {0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0}};  //BMS_CellData
+CAN_frame SOLAX_1875 = {.FD = false,
+                        .ext_ID = true,
+                        .DLC = 8,
+                        .ID = 0x1875,
+                        .data = {0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0}};  //BMS_Status
+CAN_frame SOLAX_1876 = {.FD = false,
+                        .ext_ID = true,
+                        .DLC = 8,
+                        .ID = 0x1876,
+                        .data = {0x0, 0x0, 0xE2, 0x0C, 0x0, 0x0, 0xD7, 0x0C}};  //BMS_PackTemps
+CAN_frame SOLAX_1877 = {.FD = false,
+                        .ext_ID = true,
+                        .DLC = 8,
+                        .ID = 0x1877,
+                        .data = {0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0}};
+CAN_frame SOLAX_1878 = {.FD = false,
+                        .ext_ID = true,
+                        .DLC = 8,
+                        .ID = 0x1878,
+                        .data = {0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0}};  //BMS_PackStats
+CAN_frame SOLAX_1879 = {.FD = false,
+                        .ext_ID = true,
+                        .DLC = 8,
+                        .ID = 0x1879,
+                        .data = {0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0}};
+CAN_frame SOLAX_1881 = {.FD = false,
+                        .ext_ID = true,
+                        .DLC = 8,
+                        .ID = 0x1881,
+                        .data = {0x10, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0}};  // E.g.: 0 6 S B M S F A
+CAN_frame SOLAX_1882 = {.FD = false,
+                        .ext_ID = true,
+                        .DLC = 8,
+                        .ID = 0x1882,
+                        .data = {0x10, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0}};  // E.g.: 0 2 3 A B 0 5 2
+CAN_frame SOLAX_100A001 = {.FD = false, .ext_ID = true, .DLC = 0, .ID = 0x100A001, .data = {}};
 
 // __builtin_bswap64 needed to convert to ESP32 little endian format
 // Byte[4] defines the requested contactor state: 1 = Closed , 0 = Open
@@ -236,9 +208,9 @@ void send_can_inverter() {
   // No periodic sending used on this protocol, we react only on incoming CAN messages!
 }
 
-void receive_can_inverter(CAN_frame_t rx_frame) {
-  if (rx_frame.MsgID == 0x1871 && rx_frame.data.u8[0] == (0x01) ||
-      rx_frame.MsgID == 0x1871 && rx_frame.data.u8[0] == (0x02)) {
+void receive_can_inverter(CAN_frame rx_frame) {
+  if (rx_frame.ID == 0x1871 && rx_frame.data.u8[0] == (0x01) ||
+      rx_frame.ID == 0x1871 && rx_frame.data.u8[0] == (0x02)) {
     LastFrameTime = millis();
     switch (STATE) {
       case (BATTERY_ANNOUNCE):
@@ -299,14 +271,14 @@ void receive_can_inverter(CAN_frame_t rx_frame) {
     }
   }
 
-  if (rx_frame.MsgID == 0x1871 && rx_frame.data.u64 == __builtin_bswap64(0x0500010000000000)) {
+  if (rx_frame.ID == 0x1871 && rx_frame.data.u64 == __builtin_bswap64(0x0500010000000000)) {
     transmit_can(&SOLAX_1881, can_config.inverter);
     transmit_can(&SOLAX_1882, can_config.inverter);
 #ifdef DEBUG_VIA_USB
     Serial.println("1871 05-frame received from inverter");
 #endif
   }
-  if (rx_frame.MsgID == 0x1871 && rx_frame.data.u8[0] == (0x03)) {
+  if (rx_frame.ID == 0x1871 && rx_frame.data.u8[0] == (0x03)) {
 #ifdef DEBUG_VIA_USB
     Serial.println("1871 03-frame received from inverter");
 #endif

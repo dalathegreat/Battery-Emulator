@@ -2,8 +2,6 @@
 #ifdef KIA_E_GMP_BATTERY
 #include "../datalayer/datalayer.h"
 #include "../devboard/utils/events.h"
-#include "../lib/miwagner-ESP32-Arduino-CAN/CAN_config.h"
-#include "../lib/miwagner-ESP32-Arduino-CAN/ESP32CAN.h"
 #include "../lib/pierremolinaro-ACAN2517FD/ACAN2517FD.h"
 #include "KIA-E-GMP-BATTERY.h"
 

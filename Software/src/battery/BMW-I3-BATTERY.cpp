@@ -326,8 +326,7 @@ static uint8_t battery2_soh = 99;
 static uint8_t message_data[50];
 static uint8_t next_data = 0;
 
-template <typename T>  // Works on both our own CAN implementation, and on miwagner format
-static uint8_t calculateCRC(T rx_frame, uint8_t length, uint8_t initial_value) {
+static uint8_t calculateCRC(CAN_frame rx_frame, uint8_t length, uint8_t initial_value) {
   uint8_t crc = initial_value;
   for (uint8_t j = 1; j < length; j++) {  //start at 1, since 0 is the CRC
     crc = crc8_table[(crc ^ static_cast<uint8_t>(rx_frame.data.u8[j])) % 256];
@@ -483,8 +482,8 @@ void update_values_battery() {  //This function maps all the values fetched via 
 #endif
 }
 
-void receive_can_battery(CAN_frame_t rx_frame) {
-  switch (rx_frame.MsgID) {
+receive_can_battery(CAN_frame_t rx_frame) {
+  switch (rx_frame.ID) {
     case 0x112:  //BMS [10ms] Status Of High-Voltage Battery - 2
       battery_awake = true;
       datalayer.battery.status.CAN_battery_still_alive =
@@ -524,7 +523,7 @@ void receive_can_battery(CAN_frame_t rx_frame) {
       break;
     case 0x2BD:  //BMS [100ms] Status diagnosis high voltage - 1
       battery_awake = true;
-      if (calculateCRC(rx_frame, rx_frame.FIR.B.DLC, 0x15) != rx_frame.data.u8[0]) {
+      if (calculateCRC(rx_frame, rx_frame.DLC, 0x15) != rx_frame.data.u8[0]) {
         //If calculated CRC does not match transmitted CRC, increase CANerror counter
         datalayer.battery.status.CAN_error_counter++;
         break;
@@ -599,17 +598,17 @@ void receive_can_battery(CAN_frame_t rx_frame) {
       battery_ID2 = rx_frame.data.u8[0];
       break;
     case 0x607:  //BMS - responses to message requests on 0x615
-      if (rx_frame.FIR.B.DLC > 6 && next_data == 0 && rx_frame.data.u8[0] == 0xf1) {
+      if (rx_frame.DLC > 6 && next_data == 0 && rx_frame.data.u8[0] == 0xf1) {
         uint8_t count = 6;
-        while (count < rx_frame.FIR.B.DLC && next_data < 49) {
+        while (count < rx_frame.DLC && next_data < 49) {
           message_data[next_data++] = rx_frame.data.u8[count++];
         }
         transmit_can(&BMW_6F1_CONTINUE, can_config.battery);  // tell battery to send additional messages
 
-      } else if (rx_frame.FIR.B.DLC > 3 && next_data > 0 && rx_frame.data.u8[0] == 0xf1 &&
+      } else if (rx_frame.DLC > 3 && next_data > 0 && rx_frame.data.u8[0] == 0xf1 &&
                  ((rx_frame.data.u8[1] & 0xF0) == 0x20)) {
         uint8_t count = 2;
-        while (count < rx_frame.FIR.B.DLC && next_data < 49) {
+        while (count < rx_frame.DLC && next_data < 49) {
           message_data[next_data++] = rx_frame.data.u8[count++];
         }
 
@@ -647,7 +646,7 @@ void receive_can_battery(CAN_frame_t rx_frame) {
   }
 }
 void receive_can_battery2(CAN_frame_t rx_frame) {
-  switch (rx_frame.MsgID) {
+  switch (rx_frame.ID) {
     case 0x112:  //BMS [10ms] Status Of High-Voltage Battery - 2
       battery2_awake = true;
       datalayer.battery2.status.CAN_battery_still_alive =
@@ -688,7 +687,7 @@ void receive_can_battery2(CAN_frame_t rx_frame) {
       break;
     case 0x2BD:  //BMS [100ms] Status diagnosis high voltage - 1
       battery2_awake = true;
-      if (calculateCRC(rx_frame, rx_frame.FIR.B.DLC, 0x15) != rx_frame.data.u8[0]) {
+      if (calculateCRC(rx_frame, rx_frame.DLC, 0x15) != rx_frame.data.u8[0]) {
         //If calculated CRC does not match transmitted CRC, increase CANerror counter
         datalayer.battery2.status.CAN_error_counter++;
         break;
@@ -768,17 +767,17 @@ void receive_can_battery2(CAN_frame_t rx_frame) {
       battery2_ID2 = rx_frame.data.u8[0];
       break;
     case 0x607:  //BMS - responses to message requests on 0x615
-      if (rx_frame.FIR.B.DLC > 6 && next_data == 0 && rx_frame.data.u8[0] == 0xf1) {
+      if (rx_frame.DLC > 6 && next_data == 0 && rx_frame.data.u8[0] == 0xf1) {
         uint8_t count2 = 6;
-        while (count2 < rx_frame.FIR.B.DLC && next_data < 49) {
+        while (count2 < rx_frame.DLC && next_data < 49) {
           message_data[next_data++] = rx_frame.data.u8[count2++];
         }
         transmit_can(&BMW_6F1_CONTINUE, can_config.battery_double);
 
-      } else if (rx_frame.FIR.B.DLC > 3 && next_data > 0 && rx_frame.data.u8[0] == 0xf1 &&
+      } else if (rx_frame.DLC > 3 && next_data > 0 && rx_frame.data.u8[0] == 0xf1 &&
                  ((rx_frame.data.u8[1] & 0xF0) == 0x20)) {
         uint8_t count2 = 2;
-        while (count2 < rx_frame.FIR.B.DLC && next_data < 49) {
+        while (count2 < rx_frame.DLC && next_data < 49) {
           message_data[next_data++] = rx_frame.data.u8[count2++];
         }
 

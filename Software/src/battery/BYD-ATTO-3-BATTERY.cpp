@@ -130,10 +130,10 @@ void update_values_battery() {  //This function maps all the values fetched via 
 #endif
 }
 
-void receive_can_battery(CAN_frame_t rx_frame) {
+receive_can_battery(CAN_frame rx_frame) {
   datalayer.battery.status.CAN_battery_still_alive = CAN_STILL_ALIVE;
-  switch (rx_frame.MsgID) {  //Log values taken with 422V from battery
-    case 0x244:              //00,00,00,04,41,0F,20,8B - Static, values never changes between logs
+  switch (rx_frame.ID) {  //Log values taken with 422V from battery
+    case 0x244:           //00,00,00,04,41,0F,20,8B - Static, values never changes between logs
       break;
     case 0x245:  //01,00,02,19,3A,25,90,F4 Seems to have a mux in frame0
                  //02,00,90,01,79,79,90,EA // Point of interest, went from 7E,75 to 7B,7C when discharging

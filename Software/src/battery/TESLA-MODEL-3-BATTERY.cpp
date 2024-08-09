@@ -444,11 +444,11 @@ void update_values_battery() {  //This function maps all the values fetched via 
 #endif  //DEBUG_VIA_USB
 }
 
-void receive_can_battery(CAN_frame_t rx_frame) {
+receive_can_battery(CAN_frame rx_frame) {
   static uint8_t mux = 0;
   static uint16_t temp = 0;
 
-  switch (rx_frame.MsgID) {
+  switch (rx_frame.ID) {
     case 0x352:
       //SOC
       battery_nominal_full_pack_energy =
@@ -644,11 +644,11 @@ void receive_can_battery(CAN_frame_t rx_frame) {
 
 #ifdef DOUBLE_BATTERY
 
-void receive_can_battery2(CAN_frame_t rx_frame) {
+void receive_can_battery2(CAN_frame rx_frame) {
   static uint8_t mux = 0;
   static uint16_t temp = 0;
 
-  switch (rx_frame.MsgID) {
+  switch (rx_frame.ID) {
     case 0x352:
       //SOC
       battery2_nominal_full_pack_energy =

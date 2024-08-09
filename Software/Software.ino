@@ -530,30 +530,21 @@ void receive_canfd() {  // This section checks if we have a complete CAN-FD mess
 #endif
 
 void receive_can_native() {  // This section checks if we have a complete CAN message incoming on native CAN port
-  // Depending on which battery/inverter is selected, we forward this to their respective CAN handlers
-  CAN_frame_t rx_frame;
-  if (xQueueReceive(CAN_cfg.rx_queue, &rx_frame, 0) == pdTRUE) {
-
-    if (can_config.battery == CAN_NATIVE) {
-#ifndef SERIAL_LINK_RECEIVER
-      receive_can_battery(rx_frame);
-#endif  // SERIAL_LINK_RECEIVER
+  CAN_frame_t rx_frame_native;
+  if (xQueueReceive(CAN_cfg.rx_queue, &rx_frame_native, 0) == pdTRUE) {
+    CAN_frame rx_frame;
+    rx_frame.ID = rx_frame_native.MsgID;
+    if (rx_frame_native.FIR.B.FF == CAN_frame_std) {
+      rx_frame.ext_ID = false;
+    } else {  //CAN_frame_ext == 1
+      rx_frame.ext_ID = true;
     }
-    if (can_config.inverter == CAN_NATIVE) {
-#ifdef CAN_INVERTER_SELECTED
-      receive_can_inverter(rx_frame);
-#endif  // CAN_INVERTER_SELECTED
+    rx_frame.DLC = rx_frame_native.FIR.B.DLC;
+    for (uint8_t i = 0; i < rx_frame.DLC; i++) {
+      rx_frame.data.u8[i] = rx_frame_native.data.u8[i];
     }
-    if (can_config.battery_double == CAN_NATIVE) {
-#ifdef DOUBLE_BATTERY
-      receive_can_battery2(rx_frame);
-#endif  // DOUBLE_BATTERY
-    }
-    if (can_config.charger == CAN_NATIVE) {
-#ifdef CHARGER_SELECTED
-      receive_can_charger(rx_frame);
-#endif  // CHARGER_SELECTED
-    }
+    //message incoming, pass it on to the handler
+    receive_can(&rx_frame, CAN_NATIVE);
   }
 }
 
@@ -937,5 +928,26 @@ void transmit_can(CAN_frame* tx_frame, int interface) {
     default:
       // Invalid interface sent with function call. TODO: Raise event that coders messed up
       break;
+  }
+}
+void receive_can(CAN_frame* rx_frame, int interface) {
+
+  if (interface == can_config.battery) {
+    receive_can_battery(*rx_frame);
+  }
+  if (interface == can_config.inverter) {
+#ifdef CAN_INVERTER_SELECTED
+    receive_can_inverter(*rx_frame);
+#endif
+  }
+  if (interface == can_config.battery_double) {
+#ifdef DOUBLE_BATTERY
+    receive_can_battery2(*rx_frame);
+#endif
+  }
+  if (interface == can_config.charger) {
+#ifdef CHARGER_SELECTED
+    receive_can_charger(*rx_frame);
+#endif
   }
 }

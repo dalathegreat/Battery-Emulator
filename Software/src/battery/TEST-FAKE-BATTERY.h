@@ -1,7 +1,6 @@
 #ifndef TEST_FAKE_BATTERY_H
 #define TEST_FAKE_BATTERY_H
 #include "../include.h"
-#include "../lib/miwagner-ESP32-Arduino-CAN/ESP32CAN.h"
 
 #define BATTERY_SELECTED
 #define MAX_CELL_DEVIATION_MV 9999

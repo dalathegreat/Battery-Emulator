@@ -289,8 +289,8 @@ void update_values_can_inverter() {  //This function maps all the values fetched
   //SMA_018.data.u8[7] = BatteryName;
 }
 
-void receive_can_inverter(CAN_frame_t rx_frame) {
-  switch (rx_frame.MsgID) {
+void receive_can_inverter(CAN_frame rx_frame) {
+  switch (rx_frame.ID) {
     case 0x00D:  //Inverter Measurements
       break;
     case 0x00F:  //Inverter Feedback

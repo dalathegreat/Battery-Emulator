@@ -468,8 +468,8 @@ void update_values_battery2() {  // Handle the values coming in from battery #2
     }
   }
 }
-void receive_can_battery2(CAN_frame_t rx_frame) {
-  switch (rx_frame.MsgID) {
+void receive_can_battery2(CAN_frame rx_frame) {
+  switch (rx_frame.ID) {
     case 0x1DB:
       if (is_message_corrupt(rx_frame)) {
         datalayer.battery2.status.CAN_error_counter++;
@@ -720,8 +720,8 @@ void receive_can_battery2(CAN_frame_t rx_frame) {
 }
 #endif  // DOUBLE_BATTERY
 
-void receive_can_battery(CAN_frame_t rx_frame) {
-  switch (rx_frame.MsgID) {
+void receive_can_battery(CAN_frame rx_frame) {
+  switch (rx_frame.ID) {
     case 0x1DB:
       if (is_message_corrupt(rx_frame)) {
         datalayer.battery.status.CAN_error_counter++;
@@ -1176,7 +1176,7 @@ void send_can_battery() {
   }
 }
 
-bool is_message_corrupt(CAN_frame_t rx_frame) {
+bool is_message_corrupt(CAN_frame rx_frame) {
   uint8_t crc = 0;
   for (uint8_t j = 0; j < 7; j++) {
     crc = crctable[(crc ^ static_cast<uint8_t>(rx_frame.data.u8[j])) % 256];

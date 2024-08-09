@@ -1,7 +1,6 @@
 #ifndef RENAULT_ZOE_GEN1_BATTERY_H
 #define RENAULT_ZOE_GEN1_BATTERY_H
 #include "../include.h"
-#include "../lib/miwagner-ESP32-Arduino-CAN/ESP32CAN.h"
 
 #define BATTERY_SELECTED
 

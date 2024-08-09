@@ -64,7 +64,7 @@ void receive_can_charger(CAN_frame_t rx_frame) {
   uint16_t charger_stat_ACcur_temp = 0;
   uint16_t charger_stat_ACvol_temp = 0;
 
-  switch (rx_frame.MsgID) {
+  switch (rx_frame.ID) {
     //ID 0x212 conveys instantaneous DC charger stats
     case 0x212:
       charger_stat_HVcur_temp = (uint16_t)(rx_frame.data.u8[0] << 8 | rx_frame.data.u8[1]);

@@ -147,9 +147,9 @@ void update_values_battery() {  //This function maps all the values fetched via 
 #endif
 }
 
-void receive_can_battery(CAN_frame_t rx_frame) {
+receive_can_battery(CAN_frame rx_frame) {
 
-  switch (rx_frame.MsgID) {
+  switch (rx_frame.ID) {
     case 0x155:  //BMS1
       datalayer.battery.status.CAN_battery_still_alive =
           CAN_STILL_ALIVE;  //Indicate that we are still getting CAN messages from the BMS

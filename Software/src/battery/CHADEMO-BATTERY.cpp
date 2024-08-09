@@ -367,15 +367,15 @@ inline void process_vehicle_vendor_ID(CAN_frame_t rx_frame) {
       ((rx_frame.data.u8[1] << 8) | rx_frame.data.u8[2]);  //Actually more bytes, but not needed for our purpose
 }
 
-void receive_can_battery(CAN_frame_t rx_frame) {
+receive_can_battery(CAN_frame rx_frame) {
 #ifdef CH_CAN_DEBUG
   Serial.print(millis());  // Example printout, time, ID, length, data: 7553  1DB  8  FF C0 B9 EA 0 0 2 5D
   Serial.print("  ");
-  Serial.print(rx_frame.MsgID, HEX);
+  Serial.print(rx_frame.ID, HEX);
   Serial.print("  ");
-  Serial.print(rx_frame.FIR.B.DLC);
+  Serial.print(rx_frame.DLC);
   Serial.print("  ");
-  for (int i = 0; i < rx_frame.FIR.B.DLC; ++i) {
+  for (int i = 0; i < rx_frame.DLC; ++i) {
     Serial.print(rx_frame.data.u8[i], HEX);
     Serial.print(" ");
   }
@@ -384,7 +384,7 @@ void receive_can_battery(CAN_frame_t rx_frame) {
 
   // CHADEMO coexists with a CAN-based shunt. Only process CHADEMO-specific IDs
   // 202 is unknown
-  if (!((rx_frame.MsgID >= 0x100 && rx_frame.MsgID <= 0x202) || rx_frame.MsgID == 0x700)) {
+  if (!((rx_frame.ID >= 0x100 && rx_frame.ID <= 0x202) || rx_frame.ID == 0x700)) {
     return;
   }
 
@@ -397,7 +397,7 @@ void receive_can_battery(CAN_frame_t rx_frame) {
   datalayer.battery.status.CAN_battery_still_alive =
       CAN_STILL_ALIVE;  //We are getting CAN messages from the vehicle, inform the watchdog
 
-  switch (rx_frame.MsgID) {
+  switch (rx_frame.ID) {
     case 0x100:
       process_vehicle_charging_minimums(rx_frame);
       break;
