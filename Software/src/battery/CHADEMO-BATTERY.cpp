@@ -367,7 +367,7 @@ inline void process_vehicle_vendor_ID(CAN_frame_t rx_frame) {
       ((rx_frame.data.u8[1] << 8) | rx_frame.data.u8[2]);  //Actually more bytes, but not needed for our purpose
 }
 
-receive_can_battery(CAN_frame rx_frame) {
+void receive_can_battery(CAN_frame rx_frame) {
 #ifdef CH_CAN_DEBUG
   Serial.print(millis());  // Example printout, time, ID, length, data: 7553  1DB  8  FF C0 B9 EA 0 0 2 5D
   Serial.print("  ");

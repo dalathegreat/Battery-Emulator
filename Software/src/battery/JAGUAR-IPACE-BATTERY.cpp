@@ -120,7 +120,7 @@ void update_values_battery() {
 #endif
 }
 
-receive_can_battery(CAN_frame rx_frame) {
+void receive_can_battery(CAN_frame rx_frame) {
 
   // Do not log noisy startup messages - there are many !
   if (rx_frame.MsgID == 0 && rx_frame.FIR.B.DLC == 8 && rx_frame.data.u8[0] == 0 && rx_frame.data.u8[1] == 0 &&

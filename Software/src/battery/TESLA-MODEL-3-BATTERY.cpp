@@ -444,7 +444,7 @@ void update_values_battery() {  //This function maps all the values fetched via 
 #endif  //DEBUG_VIA_USB
 }
 
-receive_can_battery(CAN_frame rx_frame) {
+void receive_can_battery(CAN_frame rx_frame) {
   static uint8_t mux = 0;
   static uint16_t temp = 0;
 

@@ -130,7 +130,7 @@ void update_values_battery() {  //This function maps all the values fetched via 
 #endif
 }
 
-receive_can_battery(CAN_frame rx_frame) {
+void receive_can_battery(CAN_frame rx_frame) {
   datalayer.battery.status.CAN_battery_still_alive = CAN_STILL_ALIVE;
   switch (rx_frame.ID) {  //Log values taken with 422V from battery
     case 0x244:           //00,00,00,04,41,0F,20,8B - Static, values never changes between logs

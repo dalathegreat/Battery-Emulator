@@ -233,7 +233,7 @@ void update_number_of_cells() {
   }
 }
 
-receive_can_battery(CAN_frame rx_frame) {
+void receive_can_battery(CAN_frame rx_frame) {
   switch (rx_frame.ID) {
     case 0x4DE:
       startedUp = true;
