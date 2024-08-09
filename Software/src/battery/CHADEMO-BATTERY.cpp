@@ -149,21 +149,21 @@ void update_values_battery() {
 //see IEEE Table A.26—Charge control termination command pattern on pg58
 //for stop conditions
 
-inline void process_vehicle_charging_minimums(CAN_frame_t rx_frame) {
+inline void process_vehicle_charging_minimums(CAN_frame rx_frame) {
   x100_chg_lim.MinimumChargeCurrent = rx_frame.data.u8[0];
   x100_chg_lim.MinimumBatteryVoltage = ((rx_frame.data.u8[2] << 8) | rx_frame.data.u8[3]);
   x100_chg_lim.MaximumBatteryVoltage = ((rx_frame.data.u8[4] << 8) | rx_frame.data.u8[5]);
   x100_chg_lim.ConstantOfChargingRateIndication = rx_frame.data.u8[6];
 }
 
-inline void process_vehicle_charging_maximums(CAN_frame_t rx_frame) {
+inline void process_vehicle_charging_maximums(CAN_frame rx_frame) {
   x101_chg_est.MaxChargingTime10sBit = rx_frame.data.u8[1];
   x101_chg_est.MaxChargingTime1minBit = rx_frame.data.u8[2];
   x101_chg_est.EstimatedChargingTime = rx_frame.data.u8[3];
   x101_chg_est.RatedBatteryCapacity = ((rx_frame.data.u8[5] << 8) | rx_frame.data.u8[6]);
 }
 
-inline void process_vehicle_charging_session(CAN_frame_t rx_frame) {
+inline void process_vehicle_charging_session(CAN_frame rx_frame) {
 
   uint16_t newTargetBatteryVoltage = ((rx_frame.data.u8[1] << 8) | rx_frame.data.u8[2]);
   uint16_t priorChargingCurrentRequest = x102_chg_session.ChargingCurrentRequest;
@@ -305,7 +305,7 @@ inline void process_vehicle_charging_session(CAN_frame_t rx_frame) {
 }
 
 /* x200 Vehicle, peer to x208 EVSE */
-inline void process_vehicle_charging_limits(CAN_frame_t rx_frame) {
+inline void process_vehicle_charging_limits(CAN_frame rx_frame) {
 
   x200_discharge_limits.MaximumDischargeCurrent = rx_frame.data.u8[0];
   x200_discharge_limits.MinimumDischargeVoltage = ((rx_frame.data.u8[4] << 8) | rx_frame.data.u8[5]);
@@ -334,7 +334,7 @@ inline void process_vehicle_charging_limits(CAN_frame_t rx_frame) {
 /* Vehicle 0x201, peer to EVSE 0x209 
  * HOWEVER, 201 isn't even emitted in any of the v2x canlogs available
  */
-inline void process_vehicle_discharge_estimate(CAN_frame_t rx_frame) {
+inline void process_vehicle_discharge_estimate(CAN_frame rx_frame) {
   unsigned long currentMillis = millis();
 
   x201_discharge_estimate.V2HchargeDischargeSequenceNum = rx_frame.data.u8[0];
@@ -352,7 +352,7 @@ inline void process_vehicle_discharge_estimate(CAN_frame_t rx_frame) {
 #endif
 }
 
-inline void process_vehicle_dynamic_control(CAN_frame_t rx_frame) {
+inline void process_vehicle_dynamic_control(CAN_frame rx_frame) {
   //SM Dynamic Control = Charging station can increase of decrease "available output current" during charging.
   //If you set 0x110 byte 0, bit 0 to 1 you say you can do dynamic control.
   //Charging station communicates this in 0x118 byte 0, bit 0
@@ -361,7 +361,7 @@ inline void process_vehicle_dynamic_control(CAN_frame_t rx_frame) {
   x110_vehicle_dyn.u.status.DynamicControlStatus = bitRead(rx_frame.data.u8[0], 0);
 }
 
-inline void process_vehicle_vendor_ID(CAN_frame_t rx_frame) {
+inline void process_vehicle_vendor_ID(CAN_frame rx_frame) {
   x700_vendor_id.AutomakerCode = rx_frame.data.u8[0];
   x700_vendor_id.OptionalContent =
       ((rx_frame.data.u8[1] << 8) | rx_frame.data.u8[2]);  //Actually more bytes, but not needed for our purpose

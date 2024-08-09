@@ -74,15 +74,15 @@ uint16_t get_measured_current() {
 }
 
 //This is our CAN interrupt service routine to catch inbound frames
-inline void ISA_handleFrame(CAN_frame_t* frame) {
+inline void ISA_handleFrame(CAN_frame* frame) {
 
-  if (frame->MsgID < 0x521 || frame->MsgID > 0x528) {
+  if (frame->ID < 0x521 || frame->ID > 0x528) {
     return;
   }
 
   framecount++;
 
-  switch (frame->MsgID) {
+  switch (frame->ID) {
     case 0x511:
       break;
 
@@ -123,7 +123,7 @@ inline void ISA_handleFrame(CAN_frame_t* frame) {
 }
 
 //handle frame for Amperes
-inline void ISA_handle521(CAN_frame_t* frame) {
+inline void ISA_handle521(CAN_frame* frame) {
   long current = 0;
   current =
       (long)((frame->data.u8[5] << 24) | (frame->data.u8[4] << 16) | (frame->data.u8[3] << 8) | (frame->data.u8[2]));
@@ -133,7 +133,7 @@ inline void ISA_handle521(CAN_frame_t* frame) {
 }
 
 //handle frame for Voltage
-inline void ISA_handle522(CAN_frame_t* frame) {
+inline void ISA_handle522(CAN_frame* frame) {
   long volt =
       (long)((frame->data.u8[5] << 24) | (frame->data.u8[4] << 16) | (frame->data.u8[3] << 8) | (frame->data.u8[2]));
 
@@ -156,7 +156,7 @@ inline void ISA_handle522(CAN_frame_t* frame) {
 }
 
 //handle frame for Voltage 2
-inline void ISA_handle523(CAN_frame_t* frame) {
+inline void ISA_handle523(CAN_frame* frame) {
   long volt =
       (long)((frame->data.u8[5] << 24) | (frame->data.u8[4] << 16) | (frame->data.u8[3] << 8) | (frame->data.u8[2]));
 
@@ -175,7 +175,7 @@ inline void ISA_handle523(CAN_frame_t* frame) {
 }
 
 //handle frame for Voltage3
-inline void ISA_handle524(CAN_frame_t* frame) {
+inline void ISA_handle524(CAN_frame* frame) {
   long volt =
       (long)((frame->data.u8[5] << 24) | (frame->data.u8[4] << 16) | (frame->data.u8[3] << 8) | (frame->data.u8[2]));
 
@@ -192,7 +192,7 @@ inline void ISA_handle524(CAN_frame_t* frame) {
 }
 
 //handle frame for Temperature
-inline void ISA_handle525(CAN_frame_t* frame) {
+inline void ISA_handle525(CAN_frame* frame) {
   long temp = 0;
   temp = (long)((frame->data.u8[5] << 24) | (frame->data.u8[4] << 16) | (frame->data.u8[3] << 8) | (frame->data.u8[2]));
 
@@ -200,14 +200,14 @@ inline void ISA_handle525(CAN_frame_t* frame) {
 }
 
 //handle frame for Kilowatts
-inline void ISA_handle526(CAN_frame_t* frame) {
+inline void ISA_handle526(CAN_frame* frame) {
   watt = 0;
   watt = (long)((frame->data.u8[5] << 24) | (frame->data.u8[4] << 16) | (frame->data.u8[3] << 8) | (frame->data.u8[2]));
   KW = watt / 1000.0f;
 }
 
 //handle frame for Ampere-Hours
-inline void ISA_handle527(CAN_frame_t* frame) {
+inline void ISA_handle527(CAN_frame* frame) {
   As = 0;
   As = (frame->data.u8[5] << 24) | (frame->data.u8[4] << 16) | (frame->data.u8[3] << 8) | (frame->data.u8[2]);
 
@@ -216,7 +216,7 @@ inline void ISA_handle527(CAN_frame_t* frame) {
 }
 
 //handle frame for kiloWatt-hours
-inline void ISA_handle528(CAN_frame_t* frame) {
+inline void ISA_handle528(CAN_frame* frame) {
   wh = (long)((frame->data.u8[5] << 24) | (frame->data.u8[4] << 16) | (frame->data.u8[3] << 8) | (frame->data.u8[2]));
   KWH += (wh - lastWh) / 1000.0f;
   lastWh = wh;
