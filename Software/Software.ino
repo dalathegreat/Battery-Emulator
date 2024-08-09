@@ -574,41 +574,22 @@ void send_can() {
 }
 
 #ifdef DUAL_CAN
-void receive_can_addonMCP2515() {  // This section checks if we have a complete CAN message incoming on native CAN port
-  // Depending on which battery/inverter is selected, we forward this to their respective CAN handlers
-  CAN_frame_t
-      rx_frame_can_addonMCP2515;  // Struct with ESP32Can library format, compatible with the rest of the program
-  CANMessage MCP2515Frame;        // Struct with ACAN2515 library format, needed to use thw MCP2515 library
+void receive_can_addonMCP2515() {  // This section checks if we have a complete CAN message incoming on add-on CAN port
+  CAN_frame rx_frame;              // Struct with our CAN format
+  CANMessage MCP2515Frame;         // Struct with ACAN2515 library format, needed to use the MCP2515 library
 
   if (can.available()) {
     can.receive(MCP2515Frame);
 
-    rx_frame_can_addonMCP2515.MsgID = MCP2515Frame.id;
-    rx_frame_can_addonMCP2515.FIR.B.FF = MCP2515Frame.ext ? CAN_frame_ext : CAN_frame_std;
-    rx_frame_can_addonMCP2515.FIR.B.RTR = MCP2515Frame.rtr ? CAN_RTR : CAN_no_RTR;
-    rx_frame_can_addonMCP2515.FIR.B.DLC = MCP2515Frame.len;
+    rx_frame.ID = MCP2515Frame.id;
+    rx_frame.ext_ID = MCP2515Frame.ext ? CAN_frame_ext : CAN_frame_std;
+    rx_frame.DLC = MCP2515Frame.len;
     for (uint8_t i = 0; i < MCP2515Frame.len && i < 8; i++) {
-      rx_frame_can_addonMCP2515.data.u8[i] = MCP2515Frame.data[i];
+      rx_frame.data.u8[i] = MCP2515Frame.data[i];
     }
 
-    if (can_config.battery == CAN_ADDON_MCP2515) {
-      receive_can_battery(rx_frame_can_addonMCP2515);
-    }
-    if (can_config.inverter == CAN_ADDON_MCP2515) {
-#ifdef CAN_INVERTER_SELECTED
-      receive_can_inverter(rx_frame_can_addonMCP2515);
-#endif  // CAN_INVERTER_SELECTED
-    }
-    if (can_config.battery_double == CAN_ADDON_MCP2515) {
-#ifdef DOUBLE_BATTERY
-      receive_can_battery2(rx_frame_can_addonMCP2515);
-#endif  // DOUBLE_BATTERY
-    }
-    if (can_config.charger == CAN_ADDON_MCP2515) {
-#ifdef CHARGER_SELECTED
-      receive_can_charger(rx_frame_can_addonMCP2515);
-#endif  // CHARGER_SELECTED
-    }
+    //message incoming, pass it on to the handler
+    receive_can(&rx_frame, CAN_ADDON_MCP2515);
   }
 }
 #endif  // DUAL_CAN
