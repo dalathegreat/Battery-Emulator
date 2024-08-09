@@ -482,7 +482,7 @@ void update_values_battery() {  //This function maps all the values fetched via 
 #endif
 }
 
-receive_can_battery(CAN_frame_t rx_frame) {
+receive_can_battery(CAN_frame rx_frame) {
   switch (rx_frame.ID) {
     case 0x112:  //BMS [10ms] Status Of High-Voltage Battery - 2
       battery_awake = true;
@@ -645,7 +645,7 @@ receive_can_battery(CAN_frame_t rx_frame) {
       break;
   }
 }
-void receive_can_battery2(CAN_frame_t rx_frame) {
+void receive_can_battery2(CAN_frame rx_frame) {
   switch (rx_frame.ID) {
     case 0x112:  //BMS [10ms] Status Of High-Voltage Battery - 2
       battery2_awake = true;
