@@ -79,7 +79,6 @@
 #endif
 
 void receive_can_battery(CAN_frame rx_frame);
-
 void update_values_battery();
 void send_can_battery();
 void setup_battery(void);
