@@ -502,6 +502,9 @@ String processor(const String& var) {
 #ifdef KIA_HYUNDAI_HYBRID_BATTERY
     content += "Kia/Hyundai Hybrid";
 #endif
+#ifdef MEB_BATTERY
+    content += "Volkswagen Group MEB platform";
+#endif
 #ifdef MG_5_BATTERY
     content += "MG 5";
 #endif
