@@ -2,15 +2,13 @@
 #ifdef IMIEV_CZERO_ION_BATTERY
 #include "../datalayer/datalayer.h"
 #include "../devboard/utils/events.h"
-#include "../lib/miwagner-ESP32-Arduino-CAN/CAN_config.h"
-#include "../lib/miwagner-ESP32-Arduino-CAN/ESP32CAN.h"
 #include "IMIEV-CZERO-ION-BATTERY.h"
 
 //Code still work in progress, TODO:
 //Figure out if CAN messages need to be sent to keep the system happy?
 
 /* Do not change code below unless you are sure what you are doing */
-#define MAX_CELL_VOLTAGE 4100
+#define MAX_CELL_VOLTAGE 4150
 #define MIN_CELL_VOLTAGE 2750
 static uint8_t errorCode = 0;  //stores if we have an error code active from battery control logic
 static uint8_t BMU_Detected = 0;
@@ -71,7 +69,7 @@ void update_values_battery() {  //This function maps all the values fetched via 
     }
   }
 
-  static int m = sizeof(cell_voltages) / sizeof(cell_temperatures[0]);
+  static int m = sizeof(cell_temperatures) / sizeof(cell_temperatures[0]);
   max_temp_cel = cell_temperatures[0];  // Initialize max with the first element of the array
   for (int i = 1; i < m; i++) {
     if (cell_temperatures[i] > max_temp_cel) {
@@ -92,13 +90,21 @@ void update_values_battery() {  //This function maps all the values fetched via 
     datalayer.battery.status.cell_voltages_mV[i] = (uint16_t)(cell_voltages[i] * 1000);
   }
 
-  datalayer.battery.status.cell_max_voltage_mV = (uint16_t)(max_volt_cel * 1000);
+  if (max_volt_cel > 2200) {  // Only update cellvoltage when we have a value
+    datalayer.battery.status.cell_max_voltage_mV = (uint16_t)(max_volt_cel * 1000);
+  }
 
-  datalayer.battery.status.cell_min_voltage_mV = (uint16_t)(min_volt_cel * 1000);
+  if (min_volt_cel > 2200) {  // Only update cellvoltage when we have a value
+    datalayer.battery.status.cell_min_voltage_mV = (uint16_t)(min_volt_cel * 1000);
+  }
 
-  datalayer.battery.status.temperature_min_dC = (int16_t)(min_temp_cel * 10);
+  if (min_temp_cel > -49) {  // Only update temperature when we have a value
+    datalayer.battery.status.temperature_min_dC = (int16_t)(min_temp_cel * 10);
+  }
 
-  datalayer.battery.status.temperature_max_dC = (int16_t)(max_temp_cel * 10);
+  if (max_temp_cel > -49) {  // Only update temperature when we have a value
+    datalayer.battery.status.temperature_max_dC = (int16_t)(max_temp_cel * 10);
+  }
 
   //Check safeties
   if (datalayer.battery.status.cell_max_voltage_mV >= MAX_CELL_VOLTAGE) {
@@ -135,8 +141,8 @@ void update_values_battery() {  //This function maps all the values fetched via 
 #endif
 }
 
-void receive_can_battery(CAN_frame_t rx_frame) {
-  switch (rx_frame.MsgID) {
+void receive_can_battery(CAN_frame rx_frame) {
+  switch (rx_frame.ID) {
     case 0x374:  //BMU message, 10ms - SOC
       datalayer.battery.status.CAN_battery_still_alive = CAN_STILL_ALIVE;
       temp_value = ((rx_frame.data.u8[1] - 10) / 2);
@@ -167,7 +173,7 @@ void receive_can_battery(CAN_frame_t rx_frame) {
       datalayer.battery.status.CAN_battery_still_alive = CAN_STILL_ALIVE;
       BMU_Detected = 1;
       //Pid index 0-3
-      pid_index = (rx_frame.MsgID) - 1761;
+      pid_index = (rx_frame.ID) - 1761;
       //cmu index 1-12: ignore high order nibble which appears to sometimes contain other status bits
       cmu_id = (rx_frame.data.u8[0] & 0x0f);
       //

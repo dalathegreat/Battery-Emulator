@@ -2,8 +2,6 @@
 #ifdef BYD_ATTO_3_BATTERY
 #include "../datalayer/datalayer.h"
 #include "../devboard/utils/events.h"
-#include "../lib/miwagner-ESP32-Arduino-CAN/CAN_config.h"
-#include "../lib/miwagner-ESP32-Arduino-CAN/ESP32CAN.h"
 #include "BYD-ATTO-3-BATTERY.h"
 
 /* TODO: 
@@ -46,29 +44,21 @@ static uint16_t BMS_highest_cell_voltage_mV = 3300;
 #define POLL_FOR_BATTERY_CELL_MV_MIN 0x2B
 #define UNKNOWN_POLL_1 0xFC
 
-CAN_frame_t ATTO_3_12D = {.FIR = {.B =
-                                      {
-                                          .DLC = 8,
-                                          .FF = CAN_frame_std,
-                                      }},
-                          .MsgID = 0x12D,
-                          .data = {0xA0, 0x28, 0x02, 0xA0, 0x0C, 0x71, 0xCF, 0x49}};
-CAN_frame_t ATTO_3_411 = {.FIR = {.B =
-                                      {
-                                          .DLC = 8,
-                                          .FF = CAN_frame_std,
-                                      }},
-                          .MsgID = 0x411,
-                          .data = {0x98, 0x3A, 0x88, 0x13, 0x9D, 0x00, 0xFF, 0x8C}};
-
-CAN_frame_t ATTO_3_7E7_POLL = {
-    .FIR = {.B =
-                {
-                    .DLC = 8,
-                    .FF = CAN_frame_std,
-                }},
-    .MsgID = 0x7E7,
-    .data = {0x03, 0x22, 0x00, 0x05, 0x00, 0x00, 0x00, 0x00}};  //Poll PID 03 22 00 05 (POLL_FOR_BATTERY_SOC)
+CAN_frame ATTO_3_12D = {.FD = false,
+                        .ext_ID = false,
+                        .DLC = 8,
+                        .ID = 0x12D,
+                        .data = {0xA0, 0x28, 0x02, 0xA0, 0x0C, 0x71, 0xCF, 0x49}};
+CAN_frame ATTO_3_411 = {.FD = false,
+                        .ext_ID = false,
+                        .DLC = 8,
+                        .ID = 0x411,
+                        .data = {0x98, 0x3A, 0x88, 0x13, 0x9D, 0x00, 0xFF, 0x8C}};
+CAN_frame ATTO_3_7E7_POLL = {.FD = false,
+                             .ext_ID = false,
+                             .DLC = 8,
+                             .ID = 0x7E7,  //Poll PID 03 22 00 05 (POLL_FOR_BATTERY_SOC)
+                             .data = {0x03, 0x22, 0x00, 0x05, 0x00, 0x00, 0x00, 0x00}};
 
 // Define the data points for %SOC depending on pack voltage
 const uint8_t numPoints = 14;
@@ -140,10 +130,10 @@ void update_values_battery() {  //This function maps all the values fetched via 
 #endif
 }
 
-void receive_can_battery(CAN_frame_t rx_frame) {
+void receive_can_battery(CAN_frame rx_frame) {
   datalayer.battery.status.CAN_battery_still_alive = CAN_STILL_ALIVE;
-  switch (rx_frame.MsgID) {  //Log values taken with 422V from battery
-    case 0x244:              //00,00,00,04,41,0F,20,8B - Static, values never changes between logs
+  switch (rx_frame.ID) {  //Log values taken with 422V from battery
+    case 0x244:           //00,00,00,04,41,0F,20,8B - Static, values never changes between logs
       break;
     case 0x245:  //01,00,02,19,3A,25,90,F4 Seems to have a mux in frame0
                  //02,00,90,01,79,79,90,EA // Point of interest, went from 7E,75 to 7B,7C when discharging
@@ -232,7 +222,7 @@ void receive_can_battery(CAN_frame_t rx_frame) {
       datalayer.battery.status.CAN_battery_still_alive = CAN_STILL_ALIVE;  // Let system know battery is sending CAN
 
       //This message transmits every 5?seconds. Seems like suitable place to poll for a PID
-      ESP32Can.CANWriteFrame(&ATTO_3_7E7_POLL);
+      transmit_can(&ATTO_3_7E7_POLL, can_config.battery);
 
       switch (ATTO_3_7E7_POLL.data.u8[3]) {
         case POLL_FOR_BATTERY_SOC:
@@ -341,7 +331,7 @@ void send_can_battery() {
     ATTO_3_12D.data.u8[6] = (0x0F | (frame6_counter << 4));
     ATTO_3_12D.data.u8[7] = (0x09 | (frame7_counter << 4));
 
-    ESP32Can.CANWriteFrame(&ATTO_3_12D);
+    transmit_can(&ATTO_3_12D, can_config.battery);
   }
   // Send 100ms CAN Message
   if (currentMillis - previousMillis100 >= INTERVAL_100_MS) {
@@ -354,7 +344,7 @@ void send_can_battery() {
       ATTO_3_411.data.u8[7] = 0xF5;
     }
 
-    ESP32Can.CANWriteFrame(&ATTO_3_411);
+    transmit_can(&ATTO_3_411, can_config.battery);
   }
 }
 

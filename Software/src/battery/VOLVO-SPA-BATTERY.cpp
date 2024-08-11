@@ -2,8 +2,6 @@
 #ifdef VOLVO_SPA_BATTERY
 #include "../datalayer/datalayer.h"
 #include "../devboard/utils/events.h"
-#include "../lib/miwagner-ESP32-Arduino-CAN/CAN_config.h"
-#include "../lib/miwagner-ESP32-Arduino-CAN/ESP32CAN.h"
 #include "VOLVO-SPA-BATTERY.h"
 
 /* Do not change code below unless you are sure what you are doing */
@@ -36,42 +34,32 @@ static uint8_t cellcounter = 0;
 static uint32_t remaining_capacity = 0;
 static uint16_t cell_voltages[108];  //array with all the cellvoltages
 
-CAN_frame_t VOLVO_536 = {.FIR = {.B =
-                                     {
-                                         .DLC = 8,
-                                         .FF = CAN_frame_std,
-                                     }},
-                         .MsgID = 0x536,
-                         .data = {0x00, 0x40, 0xFF, 0x00, 0x00, 0x00, 0x00, 0x00}};  //Network manage frame
-CAN_frame_t VOLVO_372 = {
-    .FIR = {.B =
-                {
-                    .DLC = 8,
-                    .FF = CAN_frame_std,
-                }},
-    .MsgID = 0x372,
+CAN_frame VOLVO_536 = {.FD = false,
+                       .ext_ID = false,
+                       .DLC = 8,
+                       .ID = 0x536,
+                       .data = {0x00, 0x40, 0xFF, 0x00, 0x00, 0x00, 0x00, 0x00}};  //Network manage frame
+CAN_frame VOLVO_372 = {
+    .FD = false,
+    .ext_ID = false,
+    .DLC = 8,
+    .ID = 0x372,
     .data = {0x00, 0xA6, 0x07, 0x14, 0x04, 0x00, 0x80, 0x00}};  //Ambient Temp -->>VERIFY this data content!!!<<--
-CAN_frame_t VOLVO_CELL_U_Req = {.FIR = {.B =
-                                            {
-                                                .DLC = 8,
-                                                .FF = CAN_frame_std,
-                                            }},
-                                .MsgID = 0x735,
-                                .data = {0x03, 0x22, 0x4B, 0x00, 0x00, 0x00, 0x00, 0x00}};  //Cell voltage request frame
-CAN_frame_t VOLVO_FlowControl = {.FIR = {.B =
-                                             {
-                                                 .DLC = 8,
-                                                 .FF = CAN_frame_std,
-                                             }},
-                                 .MsgID = 0x735,
-                                 .data = {0x30, 0x00, 0x05, 0x00, 0x00, 0x00, 0x00, 0x00}};  //Flowcontrol
-CAN_frame_t VOLVO_SOH_Req = {.FIR = {.B =
-                                         {
-                                             .DLC = 8,
-                                             .FF = CAN_frame_std,
-                                         }},
-                             .MsgID = 0x735,
-                             .data = {0x03, 0x22, 0x49, 0x6D, 0x00, 0x00, 0x00, 0x00}};  //Battery SOH request frame
+CAN_frame VOLVO_CELL_U_Req = {.FD = false,
+                              .ext_ID = false,
+                              .DLC = 8,
+                              .ID = 0x735,
+                              .data = {0x03, 0x22, 0x4B, 0x00, 0x00, 0x00, 0x00, 0x00}};  //Cell voltage request frame
+CAN_frame VOLVO_FlowControl = {.FD = false,
+                               .ext_ID = false,
+                               .DLC = 8,
+                               .ID = 0x735,
+                               .data = {0x30, 0x00, 0x05, 0x00, 0x00, 0x00, 0x00, 0x00}};  //Flowcontrol
+CAN_frame VOLVO_SOH_Req = {.FD = false,
+                           .ext_ID = false,
+                           .DLC = 8,
+                           .ID = 0x735,
+                           .data = {0x03, 0x22, 0x49, 0x6D, 0x00, 0x00, 0x00, 0x00}};  //Battery SOH request frame
 
 void update_values_battery() {  //This function maps all the values fetched via CAN to the correct parameters used for the inverter
   uint8_t cnt = 0;
@@ -156,9 +144,9 @@ void update_values_battery() {  //This function maps all the values fetched via 
 #endif
 }
 
-void receive_can_battery(CAN_frame_t rx_frame) {
+void receive_can_battery(CAN_frame rx_frame) {
   datalayer.battery.status.CAN_battery_still_alive = CAN_STILL_ALIVE;
-  switch (rx_frame.MsgID) {
+  switch (rx_frame.ID) {
     case 0x3A:
       if ((rx_frame.data.u8[6] & 0x80) == 0x80)
         BATT_I = (0 - ((((rx_frame.data.u8[6] & 0x7F) * 256.0 + rx_frame.data.u8[7]) * 0.1) - 1638));
@@ -279,7 +267,7 @@ void receive_can_battery(CAN_frame_t rx_frame) {
       {
         cell_voltages[battery_request_idx++] = ((rx_frame.data.u8[5] << 8) | rx_frame.data.u8[6]);
         cell_voltages[battery_request_idx] = (rx_frame.data.u8[7] << 8);
-        ESP32Can.CANWriteFrame(&VOLVO_FlowControl);  // Send flow control
+        transmit_can(&VOLVO_FlowControl, can_config.battery);  // Send flow control
         rxConsecutiveFrames = 1;
       } else if ((rx_frame.data.u8[0] == 0x21) && (rxConsecutiveFrames == 1)) {
         cell_voltages[battery_request_idx++] = cell_voltages[battery_request_idx] | rx_frame.data.u8[1];
@@ -289,7 +277,7 @@ void receive_can_battery(CAN_frame_t rx_frame) {
         if (batteryModuleNumber <= 0x2A)  // Run until last pack is read
         {
           VOLVO_CELL_U_Req.data.u8[3] = batteryModuleNumber++;
-          ESP32Can.CANWriteFrame(&VOLVO_CELL_U_Req);  //Send cell voltage read request for next module
+          transmit_can(&VOLVO_CELL_U_Req, can_config.battery);  //Send cell voltage read request for next module
         } else {
           min_max_voltage[0] = 9999;
           min_max_voltage[1] = 0;
@@ -306,7 +294,7 @@ void receive_can_battery(CAN_frame_t rx_frame) {
           if (min_max_voltage[0] <= MIN_CELL_VOLTAGE) {
             set_event(EVENT_CELL_UNDER_VOLTAGE, 0);
           }
-          ESP32Can.CANWriteFrame(&VOLVO_SOH_Req);  //Send SOH read request
+          transmit_can(&VOLVO_SOH_Req, can_config.battery);  //Send SOH read request
         }
         rxConsecutiveFrames = 0;
       }
@@ -321,7 +309,7 @@ void readCellVoltages() {
   batteryModuleNumber = 0x10;
   rxConsecutiveFrames = 0;
   VOLVO_CELL_U_Req.data.u8[3] = batteryModuleNumber++;
-  ESP32Can.CANWriteFrame(&VOLVO_CELL_U_Req);  //Send cell voltage read request for first module
+  transmit_can(&VOLVO_CELL_U_Req, can_config.battery);  //Send cell voltage read request for first module
 }
 
 void send_can_battery() {
@@ -336,8 +324,8 @@ void send_can_battery() {
     }
     previousMillis100 = currentMillis;
 
-    ESP32Can.CANWriteFrame(&VOLVO_536);  //Send 0x536 Network managing frame to keep BMS alive
-    ESP32Can.CANWriteFrame(&VOLVO_372);  //Send 0x372 ECMAmbientTempCalculated
+    transmit_can(&VOLVO_536, can_config.battery);  //Send 0x536 Network managing frame to keep BMS alive
+    transmit_can(&VOLVO_372, can_config.battery);  //Send 0x372 ECMAmbientTempCalculated
 
     if (datalayer.battery.status.bms_status == ACTIVE) {
       datalayer.system.status.battery_allows_contactor_closing = true;

@@ -6,8 +6,6 @@
 #endif
 #include "../datalayer/datalayer.h"
 #include "../devboard/utils/events.h"
-#include "../lib/miwagner-ESP32-Arduino-CAN/CAN_config.h"
-#include "../lib/miwagner-ESP32-Arduino-CAN/ESP32CAN.h"
 
 /* Do not change code below unless you are sure what you are doing */
 static unsigned long previousMillis10 = 0;   // will store last time a 10ms CAN Message was send
@@ -17,50 +15,39 @@ static uint8_t mprun10r = 0;                 //counter 0-20 for 0x1F2 message
 static uint8_t mprun10 = 0;                  //counter 0-3
 static uint8_t mprun100 = 0;                 //counter 0-3
 
-CAN_frame_t LEAF_1F2 = {.FIR = {.B =
-                                    {
-                                        .DLC = 8,
-                                        .FF = CAN_frame_std,
-                                    }},
-                        .MsgID = 0x1F2,
-                        .data = {0x10, 0x64, 0x00, 0xB0, 0x00, 0x1E, 0x00, 0x8F}};
-CAN_frame_t LEAF_50B = {.FIR = {.B =
-                                    {
-                                        .DLC = 7,
-                                        .FF = CAN_frame_std,
-                                    }},
-                        .MsgID = 0x50B,
-                        .data = {0x00, 0x00, 0x06, 0xC0, 0x00, 0x00, 0x00}};
-CAN_frame_t LEAF_50C = {.FIR = {.B =
-                                    {
-                                        .DLC = 6,
-                                        .FF = CAN_frame_std,
-                                    }},
-                        .MsgID = 0x50C,
-                        .data = {0x00, 0x00, 0x00, 0x00, 0x00, 0x00}};
-CAN_frame_t LEAF_1D4 = {.FIR = {.B =
-                                    {
-                                        .DLC = 8,
-                                        .FF = CAN_frame_std,
-                                    }},
-                        .MsgID = 0x1D4,
-                        .data = {0x6E, 0x6E, 0x00, 0x04, 0x07, 0x46, 0xE0, 0x44}};
-//These CAN messages need to be sent towards the battery to keep it alive
+// These CAN messages need to be sent towards the battery to keep it alive
+CAN_frame LEAF_1F2 = {.FD = false,
+                      .ext_ID = false,
+                      .DLC = 8,
+                      .ID = 0x1F2,
+                      .data = {0x10, 0x64, 0x00, 0xB0, 0x00, 0x1E, 0x00, 0x8F}};
+CAN_frame LEAF_50B = {.FD = false,
+                      .ext_ID = false,
+                      .DLC = 7,
+                      .ID = 0x50B,
+                      .data = {0x00, 0x00, 0x06, 0xC0, 0x00, 0x00, 0x00}};
+CAN_frame LEAF_50C = {.FD = false,
+                      .ext_ID = false,
+                      .DLC = 6,
+                      .ID = 0x50C,
+                      .data = {0x00, 0x00, 0x00, 0x00, 0x00, 0x00}};
+CAN_frame LEAF_1D4 = {.FD = false,
+                      .ext_ID = false,
+                      .DLC = 8,
+                      .ID = 0x1D4,
+                      .data = {0x6E, 0x6E, 0x00, 0x04, 0x07, 0x46, 0xE0, 0x44}};
+// Active polling messages
+CAN_frame LEAF_GROUP_REQUEST = {.FD = false,
+                                .ext_ID = false,
+                                .DLC = 8,
+                                .ID = 0x79B,
+                                .data = {2, 0x21, 1, 0, 0, 0, 0, 0}};
+CAN_frame LEAF_NEXT_LINE_REQUEST = {.FD = false,
+                                    .ext_ID = false,
+                                    .DLC = 8,
+                                    .ID = 0x79B,
+                                    .data = {0x30, 1, 0, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF}};
 
-CAN_frame_t LEAF_GROUP_REQUEST = {.FIR = {.B =
-                                              {
-                                                  .DLC = 8,
-                                                  .FF = CAN_frame_std,
-                                              }},
-                                  .MsgID = 0x79B,
-                                  .data = {2, 0x21, 1, 0, 0, 0, 0, 0}};
-CAN_frame_t LEAF_NEXT_LINE_REQUEST = {.FIR = {.B =
-                                                  {
-                                                      .DLC = 8,
-                                                      .FF = CAN_frame_std,
-                                                  }},
-                                      .MsgID = 0x79B,
-                                      .data = {0x30, 1, 0, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF}};
 // The Li-ion battery controller only accepts a multi-message query. In fact, the LBC transmits many
 // groups: the first one contains lots of High Voltage battery data as SOC, currents, and voltage; the second
 // replies with all the battery’s cells voltages in millivolt, the third and the fifth one are still unknown, the
@@ -344,17 +331,6 @@ void update_values_battery() { /* This function maps all the values fetched via 
 
 #ifdef DOUBLE_BATTERY
 
-void CAN_WriteFrame(CAN_frame_t* tx_frame) {
-  CANMessage MCP2515Frame;  //Struct with ACAN2515 library format, needed to use the MCP2515 library for CAN2
-  MCP2515Frame.id = tx_frame->MsgID;
-  //MCP2515Frame.ext = tx_frame->FIR.B.FF;
-  MCP2515Frame.len = tx_frame->FIR.B.DLC;
-  for (uint8_t i = 0; i < MCP2515Frame.len; i++) {
-    MCP2515Frame.data[i] = tx_frame->data.u8[i];
-  }
-  can.tryToSend(MCP2515Frame);
-}
-
 void update_values_battery2() {  // Handle the values coming in from battery #2
   /* Start with mapping all values */
 
@@ -492,8 +468,8 @@ void update_values_battery2() {  // Handle the values coming in from battery #2
     }
   }
 }
-void receive_can_battery2(CAN_frame_t rx_frame) {
-  switch (rx_frame.MsgID) {
+void receive_can_battery2(CAN_frame rx_frame) {
+  switch (rx_frame.ID) {
     case 0x1DB:
       if (is_message_corrupt(rx_frame)) {
         datalayer.battery2.status.CAN_error_counter++;
@@ -611,7 +587,7 @@ void receive_can_battery2(CAN_frame_t rx_frame) {
         break;
       }
 
-      CAN_WriteFrame(&LEAF_NEXT_LINE_REQUEST);  // CAN2
+      transmit_can(&LEAF_NEXT_LINE_REQUEST, can_config.battery_double);
 
       if (battery2_group_7bb == 1)  //High precision SOC, Current, voltages etc.
       {
@@ -744,8 +720,8 @@ void receive_can_battery2(CAN_frame_t rx_frame) {
 }
 #endif  // DOUBLE_BATTERY
 
-void receive_can_battery(CAN_frame_t rx_frame) {
-  switch (rx_frame.MsgID) {
+void receive_can_battery(CAN_frame rx_frame) {
+  switch (rx_frame.ID) {
     case 0x1DB:
       if (is_message_corrupt(rx_frame)) {
         datalayer.battery.status.CAN_error_counter++;
@@ -861,8 +837,7 @@ void receive_can_battery(CAN_frame_t rx_frame) {
       if (stop_battery_query) {  //Leafspy is active, stop our own polling
         break;
       }
-
-      ESP32Can.CANWriteFrame(&LEAF_NEXT_LINE_REQUEST);  //Request the next frame for the group
+      transmit_can(&LEAF_NEXT_LINE_REQUEST, can_config.battery);  //Request the next frame for the group
 
       if (group_7bb == 1)  //High precision SOC, Current, voltages etc.
       {
@@ -1026,10 +1001,10 @@ void send_can_battery() {
           LEAF_1D4.data.u8[7] = 0xDE;
           break;
       }
-      ESP32Can.CANWriteFrame(&LEAF_1D4);
+      transmit_can(&LEAF_1D4, can_config.battery);
 #ifdef DOUBLE_BATTERY
-      CAN_WriteFrame(&LEAF_1D4);  // CAN2
-#endif                            // DOUBLE_BATTERY
+      transmit_can(&LEAF_1D4, can_config.battery_double);
+#endif  // DOUBLE_BATTERY
 
       switch (mprun10r) {
         case (0):
@@ -1122,10 +1097,10 @@ void send_can_battery() {
 
 //Only send this message when NISSANLEAF_CHARGER is not defined (otherwise it will collide!)
 #ifndef NISSANLEAF_CHARGER
-      ESP32Can.CANWriteFrame(&LEAF_1F2);  //Contains (CHG_STA_RQ == 1 == Normal Charge)
+      transmit_can(&LEAF_1F2, can_config.battery);
 #ifdef DOUBLE_BATTERY
-      CAN_WriteFrame(&LEAF_1F2);  // CAN2
-#endif                            // DOUBLE_BATTERY
+      transmit_can(&LEAF_1F2, can_config.battery_double);
+#endif  // DOUBLE_BATTERY
 #endif
 
       mprun10r = (mprun10r + 1) % 20;  // 0x1F2 patter repeats after 20 messages. 0-1..19-0
@@ -1145,10 +1120,10 @@ void send_can_battery() {
       }
 
       // VCM message, containing info if battery should sleep or stay awake
-      ESP32Can.CANWriteFrame(&LEAF_50B);  // HCM_WakeUpSleepCommand == 11b == WakeUp, and CANMASK = 1
+      transmit_can(&LEAF_50B, can_config.battery);  // HCM_WakeUpSleepCommand == 11b == WakeUp, and CANMASK = 1
 #ifdef DOUBLE_BATTERY
-      CAN_WriteFrame(&LEAF_50B);  // CAN2
-#endif                            // DOUBLE_BATTERY
+      transmit_can(&LEAF_50B, can_config.battery_double);
+#endif  // DOUBLE_BATTERY
 
       LEAF_50C.data.u8[3] = mprun100;
       switch (mprun100) {
@@ -1169,10 +1144,10 @@ void send_can_battery() {
           LEAF_50C.data.u8[5] = 0x9A;
           break;
       }
-      ESP32Can.CANWriteFrame(&LEAF_50C);
+      transmit_can(&LEAF_50C, can_config.battery);
 #ifdef DOUBLE_BATTERY
-      CAN_WriteFrame(&LEAF_50C);  // CAN2
-#endif                            // DOUBLE_BATTERY
+      transmit_can(&LEAF_50C, can_config.battery_double);
+#endif  // DOUBLE_BATTERY
 
       mprun100 = (mprun100 + 1) % 4;  // mprun100 cycles between 0-1-2-3-0-1...
     }
@@ -1186,10 +1161,10 @@ void send_can_battery() {
         group = (group == 1) ? 2 : (group == 2) ? 4 : 1;
         // Cycle between group 1, 2, and 4 using ternary operation
         LEAF_GROUP_REQUEST.data.u8[2] = group;
-        ESP32Can.CANWriteFrame(&LEAF_GROUP_REQUEST);
+        transmit_can(&LEAF_GROUP_REQUEST, can_config.battery);
 #ifdef DOUBLE_BATTERY
-        CAN_WriteFrame(&LEAF_GROUP_REQUEST);  // CAN2
-#endif                                        // DOUBLE_BATTERY
+        transmit_can(&LEAF_GROUP_REQUEST, can_config.battery_double);
+#endif  // DOUBLE_BATTERY
       }
 
       if (hold_off_with_polling_10seconds > 0) {
@@ -1201,7 +1176,7 @@ void send_can_battery() {
   }
 }
 
-bool is_message_corrupt(CAN_frame_t rx_frame) {
+bool is_message_corrupt(CAN_frame rx_frame) {
   uint8_t crc = 0;
   for (uint8_t j = 0; j < 7; j++) {
     crc = crctable[(crc ^ static_cast<uint8_t>(rx_frame.data.u8[j])) % 256];
@@ -1246,9 +1221,8 @@ void setup_battery(void) {  // Performs one time setup at startup
 #endif
 
   datalayer.battery.info.number_of_cells = 96;
-  datalayer.battery.info.max_design_voltage_dV =
-      4040;  // 404.4V, over this, charging is not possible (goes into forced discharge)
-  datalayer.battery.info.min_design_voltage_dV = 2600;  // 260.0V under this, discharging further is disabled
+  datalayer.battery.info.max_design_voltage_dV = 4040;  // 404.4V
+  datalayer.battery.info.min_design_voltage_dV = 2600;  // 260.0V
 
 #ifdef DOUBLE_BATTERY
   datalayer.battery2.info.number_of_cells = datalayer.battery.info.number_of_cells;
