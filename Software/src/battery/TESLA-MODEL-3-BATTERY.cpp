@@ -2,8 +2,6 @@
 #ifdef TESLA_MODEL_3_BATTERY
 #include "../datalayer/datalayer.h"
 #include "../devboard/utils/events.h"
-#include "../lib/miwagner-ESP32-Arduino-CAN/CAN_config.h"
-#include "../lib/miwagner-ESP32-Arduino-CAN/ESP32CAN.h"
 #include "TESLA-MODEL-3-BATTERY.h"
 
 /* Do not change code below unless you are sure what you are doing */
@@ -11,21 +9,17 @@
 
 static unsigned long previousMillis30 = 0;  // will store last time a 30ms CAN Message was send
 
-CAN_frame_t TESLA_221_1 = {
-    .FIR = {.B =
-                {
-                    .DLC = 8,
-                    .FF = CAN_frame_std,
-                }},
-    .MsgID = 0x221,
+CAN_frame TESLA_221_1 = {
+    .FD = false,
+    .ext_ID = false,
+    .DLC = 8,
+    .ID = 0x221,
     .data = {0x41, 0x11, 0x01, 0x00, 0x00, 0x00, 0x20, 0x96}};  //Contactor frame 221 - close contactors
-CAN_frame_t TESLA_221_2 = {
-    .FIR = {.B =
-                {
-                    .DLC = 8,
-                    .FF = CAN_frame_std,
-                }},
-    .MsgID = 0x221,
+CAN_frame TESLA_221_2 = {
+    .FD = false,
+    .ext_ID = false,
+    .DLC = 8,
+    .ID = 0x221,
     .data = {0x61, 0x15, 0x01, 0x00, 0x00, 0x00, 0x20, 0xBA}};  //Contactor Frame 221 - hv_up_for_drive
 
 static uint32_t battery_total_discharge = 0;
@@ -450,11 +444,11 @@ void update_values_battery() {  //This function maps all the values fetched via 
 #endif  //DEBUG_VIA_USB
 }
 
-void receive_can_battery(CAN_frame_t rx_frame) {
+void receive_can_battery(CAN_frame rx_frame) {
   static uint8_t mux = 0;
   static uint16_t temp = 0;
 
-  switch (rx_frame.MsgID) {
+  switch (rx_frame.ID) {
     case 0x352:
       //SOC
       battery_nominal_full_pack_energy =
@@ -650,22 +644,11 @@ void receive_can_battery(CAN_frame_t rx_frame) {
 
 #ifdef DOUBLE_BATTERY
 
-void CAN_WriteFrame(CAN_frame_t* tx_frame) {
-  CANMessage MCP2515Frame;  //Struct with ACAN2515 library format, needed to use the MCP2515 library for CAN2
-  MCP2515Frame.id = tx_frame->MsgID;
-  //MCP2515Frame.ext = tx_frame->FIR.B.FF;
-  MCP2515Frame.len = tx_frame->FIR.B.DLC;
-  for (uint8_t i = 0; i < MCP2515Frame.len; i++) {
-    MCP2515Frame.data[i] = tx_frame->data.u8[i];
-  }
-  can.tryToSend(MCP2515Frame);
-}
-
-void receive_can_battery2(CAN_frame_t rx_frame) {
+void receive_can_battery2(CAN_frame rx_frame) {
   static uint8_t mux = 0;
   static uint16_t temp = 0;
 
-  switch (rx_frame.MsgID) {
+  switch (rx_frame.ID) {
     case 0x352:
       //SOC
       battery2_nominal_full_pack_energy =
@@ -1067,12 +1050,12 @@ the first, for a few cycles, then stop all  messages which causes the contactor 
     previousMillis30 = currentMillis;
 
     if (datalayer.system.status.inverter_allows_contactor_closing) {
-      ESP32Can.CANWriteFrame(&TESLA_221_1);
-      ESP32Can.CANWriteFrame(&TESLA_221_2);
+      transmit_can(&TESLA_221_1, can_config.battery);
+      transmit_can(&TESLA_221_2, can_config.battery);
 #ifdef DOUBLE_BATTERY
       if (datalayer.system.status.battery2_allows_contactor_closing) {
-        CAN_WriteFrame(&TESLA_221_1);  // CAN2 connected to battery 2
-        CAN_WriteFrame(&TESLA_221_2);
+        transmit_can(&TESLA_221_1, can_config.battery_double);  // CAN2 connected to battery 2
+        transmit_can(&TESLA_221_2, can_config.battery_double);
       }
 #endif  //DOUBLE_BATTERY
     }

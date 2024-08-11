@@ -2,8 +2,6 @@
 #ifdef SANTA_FE_PHEV_BATTERY
 #include "../datalayer/datalayer.h"
 #include "../devboard/utils/events.h"
-#include "../lib/miwagner-ESP32-Arduino-CAN/CAN_config.h"
-#include "../lib/miwagner-ESP32-Arduino-CAN/ESP32CAN.h"
 #include "SANTA-FE-PHEV-BATTERY.h"
 
 /* Credits go to maciek16c for these findings!
@@ -39,48 +37,36 @@ static uint8_t checksum_200 = 0;
 static uint8_t StatusBattery = 0;
 static uint16_t cellvoltages_mv[96];
 
-CAN_frame_t SANTAFE_200 = {.FIR = {.B =
-                                       {
-                                           .DLC = 8,
-                                           .FF = CAN_frame_std,
-                                       }},
-                           .MsgID = 0x200,
-                           .data = {0x00, 0x00, 0x00, 0x00, 0x80, 0x10, 0x00, 0x00}};
-CAN_frame_t SANTAFE_2A1 = {.FIR = {.B =
-                                       {
-                                           .DLC = 8,
-                                           .FF = CAN_frame_std,
-                                       }},
-                           .MsgID = 0x2A1,
-                           .data = {0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0xFF, 0x02}};
-CAN_frame_t SANTAFE_2F0 = {.FIR = {.B =
-                                       {
-                                           .DLC = 8,
-                                           .FF = CAN_frame_std,
-                                       }},
-                           .MsgID = 0x2F0,
-                           .data = {0x01, 0x00, 0x00, 0x00, 0x00, 0x00, 0x40, 0x00}};
-CAN_frame_t SANTAFE_523 = {.FIR = {.B =
-                                       {
-                                           .DLC = 8,
-                                           .FF = CAN_frame_std,
-                                       }},
-                           .MsgID = 0x523,
-                           .data = {0x60, 0x00, 0x60, 0, 0, 0, 0, 0}};
-CAN_frame_t SANTAFE_7E4_poll = {.FIR = {.B =
-                                            {
-                                                .DLC = 8,
-                                                .FF = CAN_frame_std,
-                                            }},
-                                .MsgID = 0x7E4,  //Polling frame, 0x22 01 0X
-                                .data = {0x03, 0x22, 0x01, 0x01, 0x00, 0x00, 0x00, 0x00}};
-CAN_frame_t SANTAFE_7E4_ack = {.FIR = {.B =
-                                           {
-                                               .DLC = 8,
-                                               .FF = CAN_frame_std,
-                                           }},
-                               .MsgID = 0x7E4,  //Ack frame, correct PID is returned. Flow control message
-                               .data = {0x30, 0x00, 0x03, 0x00, 0x00, 0x00, 0x00, 0x00}};
+CAN_frame SANTAFE_200 = {.FD = false,
+                         .ext_ID = false,
+                         .DLC = 8,
+                         .ID = 0x200,
+                         .data = {0x00, 0x00, 0x00, 0x00, 0x80, 0x10, 0x00, 0x00}};
+CAN_frame SANTAFE_2A1 = {.FD = false,
+                         .ext_ID = false,
+                         .DLC = 8,
+                         .ID = 0x2A1,
+                         .data = {0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0xFF, 0x02}};
+CAN_frame SANTAFE_2F0 = {.FD = false,
+                         .ext_ID = false,
+                         .DLC = 8,
+                         .ID = 0x2F0,
+                         .data = {0x01, 0x00, 0x00, 0x00, 0x00, 0x00, 0x40, 0x00}};
+CAN_frame SANTAFE_523 = {.FD = false,
+                         .ext_ID = false,
+                         .DLC = 8,
+                         .ID = 0x523,
+                         .data = {0x60, 0x00, 0x60, 0, 0, 0, 0, 0}};
+CAN_frame SANTAFE_7E4_poll = {.FD = false,
+                              .ext_ID = false,
+                              .DLC = 8,
+                              .ID = 0x7E4,  //Polling frame, 0x22 01 0X
+                              .data = {0x03, 0x22, 0x01, 0x01, 0x00, 0x00, 0x00, 0x00}};
+CAN_frame SANTAFE_7E4_ack = {.FD = false,
+                             .ext_ID = false,
+                             .DLC = 8,
+                             .ID = 0x7E4,  //Ack frame, correct PID is returned. Flow control message
+                             .data = {0x30, 0x00, 0x03, 0x00, 0x00, 0x00, 0x00, 0x00}};
 
 void update_values_battery() {  //This function maps all the values fetched via CAN to the correct parameters used for modbus
 
@@ -120,8 +106,8 @@ void update_values_battery() {  //This function maps all the values fetched via 
 #endif
 }
 
-void receive_can_battery(CAN_frame_t rx_frame) {
-  switch (rx_frame.MsgID) {
+void receive_can_battery(CAN_frame rx_frame) {
+  switch (rx_frame.ID) {
     case 0x1FF:
       datalayer.battery.status.CAN_battery_still_alive = CAN_STILL_ALIVE;
       StatusBattery = (rx_frame.data.u8[0] & 0x0F);
@@ -175,7 +161,7 @@ void receive_can_battery(CAN_frame_t rx_frame) {
       switch (rx_frame.data.u8[0]) {
         case 0x10:  //"PID Header"
           if (rx_frame.data.u8[4] == poll_data_pid) {
-            ESP32Can.CANWriteFrame(&SANTAFE_7E4_ack);  //Send ack to BMS if the same frame is sent as polled
+            transmit_can(&SANTAFE_7E4_ack, can_config.battery);  //Send ack to BMS if the same frame is sent as polled
           }
           break;
         case 0x21:  //First frame in PID group
@@ -355,11 +341,11 @@ void send_can_battery() {
 
     SANTAFE_200.data.u8[7] = checksum_200;
 
-    ESP32Can.CANWriteFrame(&SANTAFE_200);
+    transmit_can(&SANTAFE_200, can_config.battery);
 
-    ESP32Can.CANWriteFrame(&SANTAFE_2A1);
+    transmit_can(&SANTAFE_2A1, can_config.battery);
 
-    ESP32Can.CANWriteFrame(&SANTAFE_2F0);
+    transmit_can(&SANTAFE_2F0, can_config.battery);
 
     counter_200++;
     if (counter_200 > 0xF) {
@@ -371,7 +357,7 @@ void send_can_battery() {
   if (currentMillis - previousMillis100 >= INTERVAL_100_MS) {
     previousMillis100 = currentMillis;
 
-    ESP32Can.CANWriteFrame(&SANTAFE_523);
+    transmit_can(&SANTAFE_523, can_config.battery);
   }
 
   // Send 500ms CAN Message
@@ -385,24 +371,24 @@ void send_can_battery() {
     poll_data_pid++;
     if (poll_data_pid == 1) {
       SANTAFE_7E4_poll.data.u8[3] = 0x01;
-      ESP32Can.CANWriteFrame(&SANTAFE_7E4_poll);
+      transmit_can(&SANTAFE_7E4_poll, can_config.battery);
     } else if (poll_data_pid == 2) {
       SANTAFE_7E4_poll.data.u8[3] = 0x02;
-      ESP32Can.CANWriteFrame(&SANTAFE_7E4_poll);
+      transmit_can(&SANTAFE_7E4_poll, can_config.battery);
     } else if (poll_data_pid == 3) {
       SANTAFE_7E4_poll.data.u8[3] = 0x03;
-      ESP32Can.CANWriteFrame(&SANTAFE_7E4_poll);
+      transmit_can(&SANTAFE_7E4_poll, can_config.battery);
     } else if (poll_data_pid == 4) {
       SANTAFE_7E4_poll.data.u8[3] = 0x04;
-      ESP32Can.CANWriteFrame(&SANTAFE_7E4_poll);
+      transmit_can(&SANTAFE_7E4_poll, can_config.battery);
     } else if (poll_data_pid == 5) {
       SANTAFE_7E4_poll.data.u8[3] = 0x05;
-      ESP32Can.CANWriteFrame(&SANTAFE_7E4_poll);
+      transmit_can(&SANTAFE_7E4_poll, can_config.battery);
     }
   }
 }
 
-uint8_t CalculateCRC8(CAN_frame_t rx_frame) {
+uint8_t CalculateCRC8(CAN_frame rx_frame) {
   int crc = 0;
 
   for (uint8_t framepos = 0; framepos < 8; framepos++) {

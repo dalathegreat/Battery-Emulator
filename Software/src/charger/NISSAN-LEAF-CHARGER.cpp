@@ -2,8 +2,6 @@
 #ifdef NISSANLEAF_CHARGER
 #include "../datalayer/datalayer.h"
 #include "../devboard/utils/events.h"
-#include "../lib/miwagner-ESP32-Arduino-CAN/CAN_config.h"
-#include "../lib/miwagner-ESP32-Arduino-CAN/ESP32CAN.h"
 #include "NISSAN-LEAF-CHARGER.h"
 
 /* This implements Nissan LEAF PDM charger support. 2013-2024 Gen2/3 PDMs are supported
@@ -62,56 +60,42 @@ extern float charger_stat_LVcur;
 extern float charger_stat_LVvol;
 
 //Actual content messages
-static CAN_frame_t LEAF_1DB = {.FIR = {.B =
-                                           {
-                                               .DLC = 8,
-                                               .FF = CAN_frame_std,
-                                           }},
-                               .MsgID = 0x1DB,
-                               .data = {0x00, 0x00, 0x00, 0x00, 0x40, 0x00, 0x00, 0x00}};
-static CAN_frame_t LEAF_1DC = {.FIR = {.B =
-                                           {
-                                               .DLC = 8,
-                                               .FF = CAN_frame_std,
-                                           }},
-                               .MsgID = 0x1DC,
-                               .data = {0x6E, 0x0A, 0x05, 0xD5, 0x00, 0x00, 0x00, 0x00}};
-static CAN_frame_t LEAF_1F2 = {.FIR = {.B =
-                                           {
-                                               .DLC = 8,
-                                               .FF = CAN_frame_std,
-                                           }},
-                               .MsgID = 0x1F2,
-                               .data = {0x30, 0x00, 0x20, 0xAC, 0x00, 0x3C, 0x00, 0x8F}};
-static CAN_frame_t LEAF_50B = {.FIR = {.B =
-                                           {
-                                               .DLC = 7,
-                                               .FF = CAN_frame_std,
-                                           }},
-                               .MsgID = 0x50B,
-                               .data = {0x00, 0x00, 0x06, 0xC0, 0x00, 0x00, 0x00}};
-static CAN_frame_t LEAF_55B = {.FIR = {.B =
-                                           {
-                                               .DLC = 8,
-                                               .FF = CAN_frame_std,
-                                           }},
-                               .MsgID = 0x55B,
-                               .data = {0xA4, 0x40, 0xAA, 0x00, 0xDF, 0xC0, 0x10, 0x00}};
-static CAN_frame_t LEAF_5BC = {.FIR = {.B =
-                                           {
-                                               .DLC = 8,
-                                               .FF = CAN_frame_std,
-                                           }},
-                               .MsgID = 0x5BC,
-                               .data = {0x3D, 0x80, 0xF0, 0x64, 0xB0, 0x01, 0x00, 0x32}};
+static CAN_frame LEAF_1DB = {.FD = false,
+                             .ext_ID = false,
+                             .DLC = 8,
+                             .ID = 0x1DB,
+                             .data = {0x00, 0x00, 0x00, 0x00, 0x40, 0x00, 0x00, 0x00}};
+static CAN_frame LEAF_1DC = {.FD = false,
+                             .ext_ID = false,
+                             .DLC = 8,
+                             .ID = 0x1DC,
+                             .data = {0x6E, 0x0A, 0x05, 0xD5, 0x00, 0x00, 0x00, 0x00}};
+static CAN_frame LEAF_1F2 = {.FD = false,
+                             .ext_ID = false,
+                             .DLC = 8,
+                             .ID = 0x1F2,
+                             .data = {0x30, 0x00, 0x20, 0xAC, 0x00, 0x3C, 0x00, 0x8F}};
+static CAN_frame LEAF_50B = {.FD = false,
+                             .ext_ID = false,
+                             .DLC = 7,
+                             .ID = 0x50B,
+                             .data = {0x00, 0x00, 0x06, 0xC0, 0x00, 0x00, 0x00}};
+static CAN_frame LEAF_55B = {.FD = false,
+                             .ext_ID = false,
+                             .DLC = 8,
+                             .ID = 0x55B,
+                             .data = {0xA4, 0x40, 0xAA, 0x00, 0xDF, 0xC0, 0x10, 0x00}};
+static CAN_frame LEAF_5BC = {.FD = false,
+                             .ext_ID = false,
+                             .DLC = 8,
+                             .ID = 0x5BC,
+                             .data = {0x3D, 0x80, 0xF0, 0x64, 0xB0, 0x01, 0x00, 0x32}};
 
-static CAN_frame_t LEAF_59E = {.FIR = {.B =
-                                           {
-                                               .DLC = 8,
-                                               .FF = CAN_frame_std,
-                                           }},
-                               .MsgID = 0x59E,
-                               .data = {0x00, 0x00, 0x0C, 0x76, 0x18, 0x00, 0x00, 0x00}};
+static CAN_frame LEAF_59E = {.FD = false,
+                             .ext_ID = false,
+                             .DLC = 8,
+                             .ID = 0x59E,
+                             .data = {0x00, 0x00, 0x0C, 0x76, 0x18, 0x00, 0x00, 0x00}};
 
 static uint8_t crctable[256] = {
     0,   133, 143, 10,  155, 30,  20,  145, 179, 54,  60,  185, 40,  173, 167, 34,  227, 102, 108, 233, 120, 253,
@@ -127,7 +111,7 @@ static uint8_t crctable[256] = {
     196, 65,  75,  206, 76,  201, 195, 70,  215, 82,  88,  221, 255, 122, 112, 245, 100, 225, 235, 110, 175, 42,
     32,  165, 52,  177, 187, 62,  28,  153, 147, 22,  135, 2,   8,   141};
 
-static uint8_t calculate_CRC_Nissan(CAN_frame_t* frame) {
+static uint8_t calculate_CRC_Nissan(CAN_frame* frame) {
   uint8_t crc = 0;
   for (uint8_t j = 0; j < 7; j++) {
     crc = crctable[(crc ^ static_cast<uint8_t>(frame->data.u8[j])) % 256];
@@ -135,7 +119,7 @@ static uint8_t calculate_CRC_Nissan(CAN_frame_t* frame) {
   return crc;
 }
 
-static uint8_t calculate_checksum_nibble(CAN_frame_t* frame) {
+static uint8_t calculate_checksum_nibble(CAN_frame* frame) {
   uint8_t sum = 0;
   for (uint8_t i = 0; i < 7; i++) {
     sum += frame->data.u8[i] >> 4;
@@ -145,9 +129,9 @@ static uint8_t calculate_checksum_nibble(CAN_frame_t* frame) {
   return sum;
 }
 
-void receive_can_charger(CAN_frame_t rx_frame) {
+void receive_can_charger(CAN_frame rx_frame) {
 
-  switch (rx_frame.MsgID) {
+  switch (rx_frame.ID) {
     case 0x679:  // This message fires once when charging cable is plugged in
       OBCwakeup = true;
       charger_aux12V_enabled = true;  //Not possible to turn off 12V charging
@@ -198,13 +182,13 @@ void send_can_charger() {
 #ifndef NISSAN_LEAF_BATTERY
 
     // VCM message, containing info if battery should sleep or stay awake
-    ESP32Can.CANWriteFrame(&LEAF_50B);  // HCM_WakeUpSleepCommand == 11b == WakeUp, and CANMASK = 1
+    transmit_can(&LEAF_50B, can_config.charger);  // HCM_WakeUpSleepCommand == 11b == WakeUp, and CANMASK = 1
 
     LEAF_1DB.data.u8[7] = calculate_CRC_Nissan(&LEAF_1DB);
-    ESP32Can.CANWriteFrame(&LEAF_1DB);
+    transmit_can(&LEAF_1DB, can_config.charger);
 
     LEAF_1DC.data.u8[7] = calculate_CRC_Nissan(&LEAF_1DC);
-    ESP32Can.CANWriteFrame(&LEAF_1DC);
+    transmit_can(&LEAF_1DC, can_config.charger);
 #endif
 
     OBCpowerSetpoint = ((charger_setpoint_HV_IDC * 4) + 0x64);
@@ -249,8 +233,8 @@ void send_can_charger() {
     LEAF_1F2.data.u8[6] = mprun10;
     LEAF_1F2.data.u8[7] = calculate_checksum_nibble(&LEAF_1F2);
 
-    ESP32Can.CANWriteFrame(
-        &LEAF_1F2);  // Sending of 1F2 message is halted in LEAF-BATTERY function incase charger is used!
+    transmit_can(&LEAF_1F2,
+                 can_config.charger);  // Sending of 1F2 message is halted in LEAF-BATTERY function incase used here
   }
 
   /* Send messages every 100ms here */
@@ -268,11 +252,11 @@ void send_can_charger() {
     LEAF_55B.data.u8[6] = ((0x1 << 4) | (mprun100));
 
     LEAF_55B.data.u8[7] = calculate_CRC_Nissan(&LEAF_55B);
-    ESP32Can.CANWriteFrame(&LEAF_55B);
+    transmit_can(&LEAF_55B, can_config.charger);
 
-    ESP32Can.CANWriteFrame(&LEAF_59E);
+    transmit_can(&LEAF_59E, can_config.charger);
 
-    ESP32Can.CANWriteFrame(&LEAF_5BC);
+    transmit_can(&LEAF_5BC, can_config.charger);
 #endif
   }
 }
