@@ -49,7 +49,7 @@ GPIOs on extra header
 #define POSITIVE_CONTACTOR_PIN 32
 #define NEGATIVE_CONTACTOR_PIN 33
 #define PRECHARGE_PIN 25
-#define BMS_POWER 23  // Also connected to MCP_SCK
+#define BMS_POWER 23
 
 // LED
 #define LED_PIN 4
