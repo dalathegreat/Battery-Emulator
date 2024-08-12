@@ -212,28 +212,24 @@ String settings_processor(const String& var) {
 }
 
 const char* getCANInterfaceName(CAN_Interface interface) {
-#ifdef HW_LILYGO
   switch (interface) {
     case CAN_NATIVE:
       return "CAN";
+    case CANFD_NATIVE:
+#ifdef USE_CANFD_INTERFACE_AS_CLASSIC_CAN
+      return "CAN-FD Native (Classic CAN)";
+#else
+      return "CAN-FD Native";
+#endif
     case CAN_ADDON_MCP2515:
       return "Add-on CAN via GPIO MCP2515";
     case CAN_ADDON_FD_MCP2518:
+#ifdef USE_CANFD_INTERFACE_AS_CLASSIC_CAN
+      return "Add-on CAN-FD via GPIO MCP2518 (Classic CAN)";
+#else
       return "Add-on CAN-FD via GPIO MCP2518";
+#endif
     default:
       return "UNKNOWN";
   }
-#endif
-#ifdef HW_STARK
-  switch (interface) {
-    case CAN_NATIVE:
-      return "CAN";
-    case CAN_ADDON_MCP2515:
-      return "CAN_ADDON_MCP2515";
-    case CAN_ADDON_FD_MCP2518:
-      return "CAN_ADDON_FD_MCP2518";
-    default:
-      return "UNKNOWN";
-  }
-#endif
 }
