@@ -27,7 +27,12 @@ CAN_frame MEB_POLLING_FRAME = {.FD = true,
                              .ext_ID = true,
                              .DLC = 8,
                              .ID = 0x1C40007B, // SOC 02 8C
-                             .data = {0x03, 0x22, 0xAA, 0xAA, 0xAA, 0x55, 0x55, 0x55}};
+                             .data = {0x03, 0x22, 0x02, 0x8C, 0x55, 0x55, 0x55, 0x55}};
+CAN_frame MEB_ACK_FRAME = {.FD = true,
+                             .ext_ID = true,
+                             .DLC = 8,
+                             .ID = 0x1C40007B, // Ack
+                             .data = {0x30, 0x00, 0x00, 0x55, 0x55, 0x55, 0x55, 0x55}};
 
 void update_values_battery() {  //This function maps all the values fetched via CAN to the correct parameters used for modbus
 
@@ -67,6 +72,9 @@ void receive_can_battery(CAN_frame rx_frame) {
 datalayer.battery.status.CAN_battery_still_alive = CAN_STILL_ALIVE;
   switch (rx_frame.ID) {
     case 0x1C42007B: // Reply from battery
+      if(rx_frame.data.u8[0] == 0x10){ //PID header
+        transmit_can(&MEB_ACK_FRAME, can_config.battery);
+      }
       break;
     default:
       break;
@@ -80,60 +88,57 @@ void send_can_battery() {
   if (currentMillis - previousMillis500 >= INTERVAL_500_MS) {
     previousMillis500 = currentMillis;
 
-    MEB_POLLING_FRAME.data.u8[2] = PID_SOC;
-    MEB_POLLING_FRAME.data.u8[3] = (uint8_t)(PID_SOC >> 8);
-    /*
     switch (poll_pid) {
       case PID_SOC:
-      MEB_POLLING_FRAME.data.u8[3] = PID_SOC;
-      //MEB_POLLING_FRAME.data.u8[4] = (uint8_t)(PID_SOC << 8);
+      MEB_POLLING_FRAME.data.u8[2] = (uint8_t)(PID_SOC >> 8); // High byte
+      MEB_POLLING_FRAME.data.u8[3] = (uint8_t)PID_SOC;        // Low byte
       poll_pid = PID_VOLTAGE;
         break;
       case PID_VOLTAGE:
-      MEB_POLLING_FRAME.data.u8[3] = (uint8_t)PID_SOC;
-      MEB_POLLING_FRAME.data.u8[4] = (uint8_t)(PID_SOC << 8);
+      MEB_POLLING_FRAME.data.u8[2] = (uint8_t)(PID_VOLTAGE >> 8); // High byte
+      MEB_POLLING_FRAME.data.u8[3] = (uint8_t)PID_VOLTAGE;        // Low byte
       poll_pid = PID_CURRENT;
         break;
       case PID_CURRENT:
-      MEB_POLLING_FRAME.data.u8[3] = (uint8_t)PID_SOC;
-      MEB_POLLING_FRAME.data.u8[4] = (uint8_t)(PID_SOC << 8);
+      MEB_POLLING_FRAME.data.u8[2] = (uint8_t)(PID_CURRENT >> 8); // High byte
+      MEB_POLLING_FRAME.data.u8[3] = (uint8_t)PID_CURRENT;        // Low byte
       poll_pid = PID_MAX_TEMP;
         break;
       case PID_MAX_TEMP:
-      MEB_POLLING_FRAME.data.u8[3] = (uint8_t)PID_SOC;
-      MEB_POLLING_FRAME.data.u8[4] = (uint8_t)(PID_SOC << 8);
+      MEB_POLLING_FRAME.data.u8[2] = (uint8_t)(PID_MAX_TEMP >> 8); // High byte
+      MEB_POLLING_FRAME.data.u8[3] = (uint8_t)PID_MAX_TEMP;        // Low byte
       poll_pid = PID_MIN_TEMP;
         break;
       case PID_MIN_TEMP:
-      MEB_POLLING_FRAME.data.u8[3] = (uint8_t)PID_SOC;
-      MEB_POLLING_FRAME.data.u8[4] = (uint8_t)(PID_SOC << 8);
+      MEB_POLLING_FRAME.data.u8[2] = (uint8_t)(PID_MIN_TEMP >> 8); // High byte
+      MEB_POLLING_FRAME.data.u8[3] = (uint8_t)PID_MIN_TEMP;        // Low byte
       poll_pid = PID_MAX_CHARGE_VOLTAGE;
         break;
       case PID_MAX_CHARGE_VOLTAGE:
-      MEB_POLLING_FRAME.data.u8[3] = (uint8_t)PID_SOC;
-      MEB_POLLING_FRAME.data.u8[4] = (uint8_t)(PID_SOC << 8);
+      MEB_POLLING_FRAME.data.u8[2] = (uint8_t)(PID_MAX_CHARGE_VOLTAGE >> 8); // High byte
+      MEB_POLLING_FRAME.data.u8[3] = (uint8_t)PID_MAX_CHARGE_VOLTAGE;        // Low byte
       poll_pid = PID_MIN_DISCHARGE_VOLTAGE;
         break;
       case PID_MIN_DISCHARGE_VOLTAGE:
-      MEB_POLLING_FRAME.data.u8[3] = (uint8_t)PID_SOC;
-      MEB_POLLING_FRAME.data.u8[4] = (uint8_t)(PID_SOC << 8);
+      MEB_POLLING_FRAME.data.u8[2] = (uint8_t)(PID_MIN_DISCHARGE_VOLTAGE >> 8); // High byte
+      MEB_POLLING_FRAME.data.u8[3] = (uint8_t)PID_MIN_DISCHARGE_VOLTAGE;        // Low byte
       poll_pid = PID_ALLOWED_CHARGE_POWER;
         break;
       case PID_ALLOWED_CHARGE_POWER:
-      MEB_POLLING_FRAME.data.u8[3] = (uint8_t)PID_SOC;
-      MEB_POLLING_FRAME.data.u8[4] = (uint8_t)(PID_SOC << 8);
+      MEB_POLLING_FRAME.data.u8[2] = (uint8_t)(PID_ALLOWED_CHARGE_POWER >> 8); // High byte
+      MEB_POLLING_FRAME.data.u8[3] = (uint8_t)PID_ALLOWED_CHARGE_POWER;        // Low byte
       poll_pid = PID_ALLOWED_DISCHARGE_POWER;
         break;
       case PID_ALLOWED_DISCHARGE_POWER:
-      MEB_POLLING_FRAME.data.u8[3] = (uint8_t)PID_SOC;
-      MEB_POLLING_FRAME.data.u8[4] = (uint8_t)(PID_SOC << 8);
+      MEB_POLLING_FRAME.data.u8[2] = (uint8_t)(PID_ALLOWED_DISCHARGE_POWER >> 8); // High byte
+      MEB_POLLING_FRAME.data.u8[3] = (uint8_t)PID_ALLOWED_DISCHARGE_POWER;        // Low byte
       poll_pid = PID_SOC;
         break;
       default:
         poll_pid = PID_SOC;
         break;
     }
-    */
+
     transmit_can(&MEB_POLLING_FRAME, can_config.battery);
   }
   // Send 10ms CAN Message
