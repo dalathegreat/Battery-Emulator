@@ -13,6 +13,7 @@
 /* Do not change code below unless you are sure what you are doing */
 static unsigned long previousMillis50 = 0;   // will store last time a 50ms CAN Message was send
 static unsigned long previousMillis100 = 0;  // will store last time a 100ms CAN Message was send
+static unsigned long previousMillis500 = 0;  // will store last time a 500ms CAN Message was send
 static uint8_t counter_50ms = 0;
 static uint8_t counter_100ms = 0;
 static uint8_t frame6_counter = 0xB;
@@ -43,6 +44,7 @@ static uint16_t BMS_highest_cell_voltage_mV = 3300;
 #define POLL_FOR_BATTERY_CELL_MV_MAX 0x2D
 #define POLL_FOR_BATTERY_CELL_MV_MIN 0x2B
 #define UNKNOWN_POLL_1 0xFC
+static uint16_t poll_state = POLL_FOR_BATTERY_SOC;
 
 CAN_frame ATTO_3_12D = {.FD = false,
                         .ext_ID = false,
@@ -222,40 +224,6 @@ void receive_can_battery(CAN_frame rx_frame) {
       break;
     case 0x524:  //24,40,00,00,00,00,00,9B - Static, values never changes between logs
       datalayer.battery.status.CAN_battery_still_alive = CAN_STILL_ALIVE;  // Let system know battery is sending CAN
-
-      //This message transmits every 5?seconds. Seems like suitable place to poll for a PID
-      transmit_can(&ATTO_3_7E7_POLL, can_config.battery);
-
-      switch (ATTO_3_7E7_POLL.data.u8[3]) {
-        case POLL_FOR_BATTERY_SOC:
-          ATTO_3_7E7_POLL.data.u8[3] = POLL_FOR_BATTERY_VOLTAGE;
-          break;
-        case POLL_FOR_BATTERY_VOLTAGE:
-          ATTO_3_7E7_POLL.data.u8[3] = POLL_FOR_BATTERY_CURRENT;
-          break;
-        case POLL_FOR_BATTERY_CURRENT:
-          ATTO_3_7E7_POLL.data.u8[3] = POLL_FOR_LOWEST_TEMP_CELL;
-          break;
-        case POLL_FOR_LOWEST_TEMP_CELL:
-          ATTO_3_7E7_POLL.data.u8[3] = POLL_FOR_HIGHEST_TEMP_CELL;
-          break;
-        case POLL_FOR_HIGHEST_TEMP_CELL:
-          ATTO_3_7E7_POLL.data.u8[3] = POLL_FOR_BATTERY_PACK_AVG_TEMP;
-          break;
-        case POLL_FOR_BATTERY_PACK_AVG_TEMP:
-          ATTO_3_7E7_POLL.data.u8[3] = POLL_FOR_BATTERY_CELL_MV_MAX;
-          break;
-        case POLL_FOR_BATTERY_CELL_MV_MAX:
-          ATTO_3_7E7_POLL.data.u8[3] = POLL_FOR_BATTERY_CELL_MV_MIN;
-          break;
-        case POLL_FOR_BATTERY_CELL_MV_MIN:
-          ATTO_3_7E7_POLL.data.u8[3] = POLL_FOR_BATTERY_VOLTAGE;
-          break;
-        default:  //Something went wrong with logic, request voltage
-          ATTO_3_7E7_POLL.data.u8[3] = POLL_FOR_BATTERY_VOLTAGE;
-          break;
-      }
-
       break;
     case 0x7EF:  //OBD2 PID reply from battery
       switch (rx_frame.data.u8[3]) {
@@ -353,6 +321,50 @@ void send_can_battery() {
     }
 
     transmit_can(&ATTO_3_441, can_config.battery);
+  }
+  // Send 500ms CAN Message
+  if (currentMillis - previousMillis500 >= INTERVAL_500_MS) {
+    previousMillis500 = currentMillis;
+
+    switch (poll_state) {
+      case POLL_FOR_BATTERY_SOC:
+        ATTO_3_7E7_POLL.data.u8[3] = POLL_FOR_BATTERY_SOC;
+        poll_state = POLL_FOR_BATTERY_VOLTAGE;
+        break;
+      case POLL_FOR_BATTERY_VOLTAGE:
+        ATTO_3_7E7_POLL.data.u8[3] = POLL_FOR_BATTERY_VOLTAGE;
+        poll_state = POLL_FOR_BATTERY_CURRENT;
+        break;
+      case POLL_FOR_BATTERY_CURRENT:
+        ATTO_3_7E7_POLL.data.u8[3] = POLL_FOR_BATTERY_CURRENT;
+        poll_state = POLL_FOR_LOWEST_TEMP_CELL;
+        break;
+      case POLL_FOR_LOWEST_TEMP_CELL:
+        ATTO_3_7E7_POLL.data.u8[3] = POLL_FOR_LOWEST_TEMP_CELL;
+        poll_state = POLL_FOR_HIGHEST_TEMP_CELL;
+        break;
+      case POLL_FOR_HIGHEST_TEMP_CELL:
+        ATTO_3_7E7_POLL.data.u8[3] = POLL_FOR_HIGHEST_TEMP_CELL;
+        poll_state = POLL_FOR_BATTERY_PACK_AVG_TEMP;
+        break;
+      case POLL_FOR_BATTERY_PACK_AVG_TEMP:
+        ATTO_3_7E7_POLL.data.u8[3] = POLL_FOR_BATTERY_PACK_AVG_TEMP;
+        poll_state = POLL_FOR_BATTERY_CELL_MV_MAX;
+        break;
+      case POLL_FOR_BATTERY_CELL_MV_MAX:
+        ATTO_3_7E7_POLL.data.u8[3] = POLL_FOR_BATTERY_CELL_MV_MAX;
+        poll_state = POLL_FOR_BATTERY_CELL_MV_MIN;
+        break;
+      case POLL_FOR_BATTERY_CELL_MV_MIN:
+        ATTO_3_7E7_POLL.data.u8[3] = POLL_FOR_BATTERY_CELL_MV_MIN;
+        poll_state = POLL_FOR_BATTERY_SOC;
+        break;
+      default:
+        poll_state = POLL_FOR_BATTERY_SOC;
+        break;
+    }
+
+    transmit_can(&ATTO_3_7E7_POLL, can_config.battery);
   }
 }
 
