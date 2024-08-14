@@ -85,7 +85,9 @@ uint16_t estimateSOC(uint16_t packVoltage) {  // Linear interpolation function
 
 void update_values_battery() {  //This function maps all the values fetched via CAN to the correct parameters used for modbus
 
-  datalayer.battery.status.voltage_dV = BMS_voltage * 10;
+  if (BMS_voltage > 0) {
+    datalayer.battery.status.voltage_dV = BMS_voltage * 10;
+  }
 
   //datalayer.battery.status.real_soc = BMS_SOC * 100;  //TODO: This is not yet found!
   // We instead estimate the SOC% based on the battery voltage
