@@ -48,12 +48,12 @@ CAN_frame ATTO_3_12D = {.FD = false,
                         .ext_ID = false,
                         .DLC = 8,
                         .ID = 0x12D,
-                        .data = {0xA0, 0x28, 0x02, 0xA0, 0x0C, 0x71, 0xCF, 0x49}};
-CAN_frame ATTO_3_411 = {.FD = false,
+                        .data = {0x50, 0x18, 0x02, 0x20, 0x04, 0x31, 0x0F, 0x31}};
+CAN_frame ATTO_3_441 = {.FD = false,
                         .ext_ID = false,
                         .DLC = 8,
-                        .ID = 0x411,
-                        .data = {0x98, 0x3A, 0x88, 0x13, 0x9D, 0x00, 0xFF, 0x8C}};
+                        .ID = 0x441,
+                        .data = {0x98, 0x3A, 0x88, 0x13, 0x07, 0x00, 0xFF, 0x8C}};
 CAN_frame ATTO_3_7E7_POLL = {.FD = false,
                              .ext_ID = false,
                              .DLC = 8,
@@ -307,7 +307,7 @@ void send_can_battery() {
     } else {  // Fault state, open contactors!
       datalayer.system.status.battery_allows_contactor_closing = false;
     }
-
+    /*
     counter_50ms++;
     if (counter_50ms > 23) {
       ATTO_3_12D.data.u8[2] = 0x00;  // Goes from 02->00
@@ -315,6 +315,7 @@ void send_can_battery() {
       ATTO_3_12D.data.u8[5] = 0x31;  // Goes from 71->31
       // TODO: handle more variations after more seconds have passed if needed
     }
+    */
 
     // Update the counters in frame 6 & 7 (they are not in sync)
     if (frame6_counter == 0x0) {
@@ -337,14 +338,19 @@ void send_can_battery() {
   if (currentMillis - previousMillis100 >= INTERVAL_100_MS) {
     previousMillis100 = currentMillis;
 
-    counter_100ms++;
-
-    if (counter_100ms > 3) {
-      ATTO_3_411.data.u8[5] = 0x01;
-      ATTO_3_411.data.u8[7] = 0xF5;
+    if (counter_100ms < 100) {
+      counter_100ms++;
     }
 
-    transmit_can(&ATTO_3_411, can_config.battery);
+    if (counter_100ms > 3) {
+
+      ATTO_3_441.data.u8[4] = 0x9D;
+      ATTO_3_441.data.u8[5] = 0x01;
+      ATTO_3_441.data.u8[6] = 0xFF;
+      ATTO_3_441.data.u8[7] = 0xF5;
+    }
+
+    transmit_can(&ATTO_3_441, can_config.battery);
   }
 }
 
