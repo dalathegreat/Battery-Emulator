@@ -1075,7 +1075,7 @@ void setup_battery(void) {  // Performs one time setup at startup
   datalayer.battery2.status.voltage_dV =
       0;  //Init voltage to 0 to allow contactor check to operate without fear of default values colliding
 #endif
-
+  pinMode(WUP_PIN, OUTPUT);
   digitalWrite(WUP_PIN, HIGH);  // Wake up the battery
 }
 
