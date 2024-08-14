@@ -50,7 +50,7 @@ CAN_frame ATTO_3_12D = {.FD = false,
                         .ext_ID = false,
                         .DLC = 8,
                         .ID = 0x12D,
-                        .data = {0x50, 0x18, 0x02, 0x20, 0x04, 0x31, 0x0F, 0x31}};
+                        .data = {0xA0, 0x28, 0x02, 0xA0, 0x0C, 0x71, 0xCF, 0x49}};
 CAN_frame ATTO_3_441 = {.FD = false,
                         .ext_ID = false,
                         .DLC = 8,
@@ -277,7 +277,7 @@ void send_can_battery() {
     } else {  // Fault state, open contactors!
       datalayer.system.status.battery_allows_contactor_closing = false;
     }
-    /*
+
     counter_50ms++;
     if (counter_50ms > 23) {
       ATTO_3_12D.data.u8[2] = 0x00;  // Goes from 02->00
@@ -285,7 +285,6 @@ void send_can_battery() {
       ATTO_3_12D.data.u8[5] = 0x31;  // Goes from 71->31
       // TODO: handle more variations after more seconds have passed if needed
     }
-    */
 
     // Update the counters in frame 6 & 7 (they are not in sync)
     if (frame6_counter == 0x0) {
