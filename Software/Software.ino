@@ -887,9 +887,6 @@ void transmit_can(CAN_frame* tx_frame, int interface) {
       }
       ESP32Can.CANWriteFrame(&frame);
       break;
-    case CANFD_NATIVE:
-      //TODO for stark
-      break;
     case CAN_ADDON_MCP2515: {
 #ifdef DUAL_CAN
       //Struct with ACAN2515 library format, needed to use the MCP2515 library for CAN2
@@ -906,6 +903,7 @@ void transmit_can(CAN_frame* tx_frame, int interface) {
       set_event(EVENT_INTERFACE_MISSING, interface);
 #endif  //DUAL_CAN
     } break;
+    case CANFD_NATIVE:
     case CAN_ADDON_FD_MCP2518: {
 #ifdef CAN_FD
       CANFDMessage MCP2518Frame;
