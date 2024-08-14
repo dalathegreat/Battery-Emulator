@@ -9,7 +9,7 @@
 
 /* Select battery used */
 //#define BMW_I3_BATTERY
-//#define BYD_ATTO_3_BATTERY
+#define BYD_ATTO_3_BATTERY
 //#define CHADEMO_BATTERY	//NOTE: inherently enables CONTACTOR_CONTROL below
 //#define IMIEV_CZERO_ION_BATTERY
 //#define JAGUAR_IPACE_BATTERY
@@ -30,6 +30,7 @@
 
 /* Select inverter communication protocol. See Wiki for which to use with your inverter: https://github.com/dalathegreat/BYD-Battery-Emulator-For-Gen24/wiki */
 //#define BYD_CAN  //Enable this line to emulate a "BYD Battery-Box Premium HVS" over CAN Bus
+#define BYD_SMA //Enable this line to emulate a SMA compatible "BYD Battery-Box HVS 10.2KW battery" over CAN bus
 //#define BYD_MODBUS  //Enable this line to emulate a "BYD 11kWh HVM battery" over Modbus RTU
 //#define LUNA2000_MODBUS  //Enable this line to emulate a "Luna2000 battery" over Modbus RTU
 //#define PYLON_CAN        //Enable this line to emulate a "Pylontech battery" over CAN bus
