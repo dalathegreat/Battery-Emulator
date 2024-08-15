@@ -517,6 +517,9 @@ String processor(const String& var) {
 #ifdef RENAULT_ZOE_GEN2_BATTERY
     content += "Renault Zoe Gen2 50";
 #endif
+#ifdef SANTA_FE_PHEV_BATTERY
+    content += "Santa Fe PHEV";
+#endif
 #ifdef SERIAL_LINK_RECEIVER
     content += "Serial link to another LilyGo board";
 #endif
@@ -528,6 +531,9 @@ String processor(const String& var) {
 #endif
 #ifdef TEST_FAKE_BATTERY
     content += "Fake battery for testing purposes";
+#endif
+#ifdef DOUBLE_BATTERY
+    content += " (Double battery)";
 #endif
     content += "</h4>";
 
@@ -545,8 +551,15 @@ String processor(const String& var) {
     // Close the block
     content += "</div>";
 
+#ifdef DOUBLE_BATTERY
+    // Start a new block with a specific background color. Color changes depending on BMS status
+    content += "<div style='display: flex; width: 100%;'>";
+    content += "<div style='flex: 1; background-color: ";
+#else
     // Start a new block with a specific background color. Color changes depending on system status
     content += "<div style='background-color: ";
+#endif
+
     switch (led_get_color()) {
       case led_color::GREEN:
         content += "#2D3F2F;";
@@ -630,6 +643,83 @@ String processor(const String& var) {
 
     // Close the block
     content += "</div>";
+
+#ifdef DOUBLE_BATTERY
+    content += "<div style='flex: 1; background-color: ";
+    switch (datalayer.battery.status.bms_status) {
+      case ACTIVE:
+        content += "#2D3F2F;";
+        break;
+      case FAULT:
+        content += "#A70107;";
+        break;
+      default:
+        content += "#2D3F2F;";
+        break;
+    }
+    // Add the common style properties
+    content += "padding: 10px; margin-bottom: 10px; border-radius: 50px;'>";
+
+    // Display battery statistics within this block
+    socRealFloat =
+        static_cast<float>(datalayer.battery2.status.real_soc) / 100.0;  // Convert to float and divide by 100
+    //socScaledFloat; // Same value used for bat2
+    sohFloat = static_cast<float>(datalayer.battery2.status.soh_pptt) / 100.0;  // Convert to float and divide by 100
+    voltageFloat =
+        static_cast<float>(datalayer.battery2.status.voltage_dV) / 10.0;  // Convert to float and divide by 10
+    currentFloat =
+        static_cast<float>(datalayer.battery2.status.current_dA) / 10.0;        // Convert to float and divide by 10
+    powerFloat = static_cast<float>(datalayer.battery2.status.active_power_W);  // Convert to float
+    tempMaxFloat = static_cast<float>(datalayer.battery2.status.temperature_max_dC) / 10.0;  // Convert to float
+    tempMinFloat = static_cast<float>(datalayer.battery2.status.temperature_min_dC) / 10.0;  // Convert to float
+
+    content += "<h4 style='color: white;'>Real SOC: " + String(socRealFloat, 2) + "</h4>";
+    content += "<h4 style='color: white;'>Scaled SOC: " + String(socScaledFloat, 2) + "</h4>";
+    content += "<h4 style='color: white;'>SOH: " + String(sohFloat, 2) + "</h4>";
+    content += "<h4 style='color: white;'>Voltage: " + String(voltageFloat, 1) + " V</h4>";
+    content += "<h4 style='color: white;'>Current: " + String(currentFloat, 1) + " A</h4>";
+    content += formatPowerValue("Power", powerFloat, "", 1);
+    content += formatPowerValue("Total capacity", datalayer.battery2.info.total_capacity_Wh, "h", 0);
+    content += formatPowerValue("Remaining capacity", datalayer.battery2.status.remaining_capacity_Wh, "h", 1);
+    content += formatPowerValue("Max discharge power", datalayer.battery2.status.max_discharge_power_W, "", 1);
+    content += formatPowerValue("Max charge power", datalayer.battery2.status.max_charge_power_W, "", 1);
+    content += "<h4>Cell max: " + String(datalayer.battery2.status.cell_max_voltage_mV) + " mV</h4>";
+    content += "<h4>Cell min: " + String(datalayer.battery2.status.cell_min_voltage_mV) + " mV</h4>";
+    content += "<h4>Temperature max: " + String(tempMaxFloat, 1) + " C</h4>";
+    content += "<h4>Temperature min: " + String(tempMinFloat, 1) + " C</h4>";
+    if (datalayer.battery.status.bms_status == ACTIVE) {
+      content += "<h4>System status: OK </h4>";
+    } else if (datalayer.battery.status.bms_status == UPDATING) {
+      content += "<h4>System status: UPDATING </h4>";
+    } else {
+      content += "<h4>System status: FAULT </h4>";
+    }
+    if (datalayer.battery2.status.current_dA == 0) {
+      content += "<h4>Battery idle</h4>";
+    } else if (datalayer.battery2.status.current_dA < 0) {
+      content += "<h4>Battery discharging!</h4>";
+    } else {  // > 0
+      content += "<h4>Battery charging!</h4>";
+    }
+
+    content += "<h4>Automatic contactor closing allowed:</h4>";
+    content += "<h4>Battery: ";
+    if (datalayer.system.status.battery2_allows_contactor_closing == true) {
+      content += "<span>&#10003;</span>";
+    } else {
+      content += "<span style='color: red;'>&#10005;</span>";
+    }
+
+    content += " Inverter: ";
+    if (datalayer.system.status.inverter_allows_contactor_closing == true) {
+      content += "<span>&#10003;</span></h4>";
+    } else {
+      content += "<span style='color: red;'>&#10005;</span></h4>";
+    }
+
+    content += "</div>";
+    content += "</div>";
+#endif
 
 #if defined CHEVYVOLT_CHARGER || defined NISSANLEAF_CHARGER
     // Start a new block with orange background color

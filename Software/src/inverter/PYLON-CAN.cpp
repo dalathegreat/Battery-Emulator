@@ -1,8 +1,6 @@
 #include "../include.h"
 #ifdef PYLON_CAN
 #include "../datalayer/datalayer.h"
-#include "../lib/miwagner-ESP32-Arduino-CAN/CAN_config.h"
-#include "../lib/miwagner-ESP32-Arduino-CAN/ESP32CAN.h"
 #include "PYLON-CAN.h"
 
 #define SEND_0  //If defined, the messages will have ID ending with 0 (useful for some inverters)
@@ -11,165 +9,130 @@
                                //useful for some inverters like Sofar that report the voltages incorrect otherwise
 //#define SET_30K_OFFSET  //If defined, current values are sent with a 30k offest (useful for ferroamp)
 
+/* Some inverters need to see a specific amount of cells/modules to emulate a specific Pylon battery.
+Change the following only if your inverter is generating fault codes about voltage range */
+#define TOTAL_CELL_AMOUNT 120
+#define MODULES_IN_SERIES 4
+#define CELLS_PER_MODULE 30
+#define VOLTAGE_LEVEL 384
+#define AH_CAPACITY 37
+
 /* Do not change code below unless you are sure what you are doing */
 //Actual content messages
-CAN_frame_t PYLON_7310 = {.FIR = {.B =
-                                      {
-                                          .DLC = 8,
-                                          .FF = CAN_frame_ext,
-                                      }},
-                          .MsgID = 0x7310,
-                          .data = {0x01, 0x00, 0x02, 0x01, 0x01, 0x02, 0x00, 0x00}};
-CAN_frame_t PYLON_7320 = {.FIR = {.B =
-                                      {
-                                          .DLC = 8,
-                                          .FF = CAN_frame_ext,
-                                      }},
-                          .MsgID = 0x7320,
-                          .data = {0x4B, 0x00, 0x05, 0x0F, 0x2D, 0x00, 0x56, 0x00}};
-
-CAN_frame_t PYLON_4210 = {.FIR = {.B =
-                                      {
-                                          .DLC = 8,
-                                          .FF = CAN_frame_ext,
-                                      }},
-                          .MsgID = 0x4210,
-                          .data = {0xA5, 0x09, 0x30, 0x75, 0x9D, 0x04, 0x2E, 0x64}};
-CAN_frame_t PYLON_4220 = {.FIR = {.B =
-                                      {
-                                          .DLC = 8,
-                                          .FF = CAN_frame_ext,
-                                      }},
-                          .MsgID = 0x4220,
-                          .data = {0x8C, 0x0A, 0xE9, 0x07, 0x4A, 0x79, 0x4A, 0x79}};
-CAN_frame_t PYLON_4230 = {.FIR = {.B =
-                                      {
-                                          .DLC = 8,
-                                          .FF = CAN_frame_ext,
-                                      }},
-                          .MsgID = 0x4230,
-                          .data = {0xDF, 0x0C, 0xDA, 0x0C, 0x03, 0x00, 0x06, 0x00}};
-CAN_frame_t PYLON_4240 = {.FIR = {.B =
-                                      {
-                                          .DLC = 8,
-                                          .FF = CAN_frame_ext,
-                                      }},
-                          .MsgID = 0x4240,
-                          .data = {0x7E, 0x04, 0x62, 0x04, 0x11, 0x00, 0x03, 0x00}};
-CAN_frame_t PYLON_4250 = {.FIR = {.B =
-                                      {
-                                          .DLC = 8,
-                                          .FF = CAN_frame_ext,
-                                      }},
-                          .MsgID = 0x4250,
-                          .data = {0x03, 0x02, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00}};
-CAN_frame_t PYLON_4260 = {.FIR = {.B =
-                                      {
-                                          .DLC = 8,
-                                          .FF = CAN_frame_ext,
-                                      }},
-                          .MsgID = 0x4260,
-                          .data = {0xAC, 0xC7, 0x74, 0x27, 0x03, 0x00, 0x02, 0x00}};
-CAN_frame_t PYLON_4270 = {.FIR = {.B =
-                                      {
-                                          .DLC = 8,
-                                          .FF = CAN_frame_ext,
-                                      }},
-                          .MsgID = 0x4270,
-                          .data = {0x7E, 0x04, 0x62, 0x04, 0x05, 0x00, 0x01, 0x00}};
-CAN_frame_t PYLON_4280 = {.FIR = {.B =
-                                      {
-                                          .DLC = 8,
-                                          .FF = CAN_frame_ext,
-                                      }},
-                          .MsgID = 0x4280,
-                          .data = {0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00}};
-CAN_frame_t PYLON_4290 = {.FIR = {.B =
-                                      {
-                                          .DLC = 8,
-                                          .FF = CAN_frame_ext,
-                                      }},
-                          .MsgID = 0x4290,
-                          .data = {0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00}};
-
-CAN_frame_t PYLON_7311 = {.FIR = {.B =
-                                      {
-                                          .DLC = 8,
-                                          .FF = CAN_frame_ext,
-                                      }},
-                          .MsgID = 0x7311,
-                          .data = {0x01, 0x00, 0x02, 0x01, 0x01, 0x02, 0x00, 0x00}};
-CAN_frame_t PYLON_7321 = {.FIR = {.B =
-                                      {
-                                          .DLC = 8,
-                                          .FF = CAN_frame_ext,
-                                      }},
-                          .MsgID = 0x7321,
-                          .data = {0x4B, 0x00, 0x05, 0x0F, 0x2D, 0x00, 0x56, 0x00}};
-
-CAN_frame_t PYLON_4211 = {.FIR = {.B =
-                                      {
-                                          .DLC = 8,
-                                          .FF = CAN_frame_ext,
-                                      }},
-                          .MsgID = 0x4211,
-                          .data = {0xA5, 0x09, 0x30, 0x75, 0x9D, 0x04, 0x2E, 0x64}};
-CAN_frame_t PYLON_4221 = {.FIR = {.B =
-                                      {
-                                          .DLC = 8,
-                                          .FF = CAN_frame_ext,
-                                      }},
-                          .MsgID = 0x4221,
-                          .data = {0x8C, 0x0A, 0xE9, 0x07, 0x4A, 0x79, 0x4A, 0x79}};
-CAN_frame_t PYLON_4231 = {.FIR = {.B =
-                                      {
-                                          .DLC = 8,
-                                          .FF = CAN_frame_ext,
-                                      }},
-                          .MsgID = 0x4231,
-                          .data = {0xDF, 0x0C, 0xDA, 0x0C, 0x03, 0x00, 0x06, 0x00}};
-CAN_frame_t PYLON_4241 = {.FIR = {.B =
-                                      {
-                                          .DLC = 8,
-                                          .FF = CAN_frame_ext,
-                                      }},
-                          .MsgID = 0x4241,
-                          .data = {0x7E, 0x04, 0x62, 0x04, 0x11, 0x00, 0x03, 0x00}};
-CAN_frame_t PYLON_4251 = {.FIR = {.B =
-                                      {
-                                          .DLC = 8,
-                                          .FF = CAN_frame_ext,
-                                      }},
-                          .MsgID = 0x4251,
-                          .data = {0x03, 0x02, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00}};
-CAN_frame_t PYLON_4261 = {.FIR = {.B =
-                                      {
-                                          .DLC = 8,
-                                          .FF = CAN_frame_ext,
-                                      }},
-                          .MsgID = 0x4261,
-                          .data = {0xAC, 0xC7, 0x74, 0x27, 0x03, 0x00, 0x02, 0x00}};
-CAN_frame_t PYLON_4271 = {.FIR = {.B =
-                                      {
-                                          .DLC = 8,
-                                          .FF = CAN_frame_ext,
-                                      }},
-                          .MsgID = 0x4271,
-                          .data = {0x7E, 0x04, 0x62, 0x04, 0x05, 0x00, 0x01, 0x00}};
-CAN_frame_t PYLON_4281 = {.FIR = {.B =
-                                      {
-                                          .DLC = 8,
-                                          .FF = CAN_frame_ext,
-                                      }},
-                          .MsgID = 0x4281,
-                          .data = {0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00}};
-CAN_frame_t PYLON_4291 = {.FIR = {.B =
-                                      {
-                                          .DLC = 8,
-                                          .FF = CAN_frame_ext,
-                                      }},
-                          .MsgID = 0x4291,
-                          .data = {0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00}};
+CAN_frame PYLON_7310 = {.FD = false,
+                        .ext_ID = true,
+                        .DLC = 8,
+                        .ID = 0x7310,
+                        .data = {0x01, 0x00, 0x02, 0x01, 0x01, 0x02, 0x00, 0x00}};
+CAN_frame PYLON_7311 = {.FD = false,
+                        .ext_ID = true,
+                        .DLC = 8,
+                        .ID = 0x7311,
+                        .data = {0x01, 0x00, 0x02, 0x01, 0x01, 0x02, 0x00, 0x00}};
+CAN_frame PYLON_7320 = {
+    .FD = false,
+    .ext_ID = true,
+    .DLC = 8,
+    .ID = 0x7320,
+    .data = {TOTAL_CELL_AMOUNT, (uint8_t)(TOTAL_CELL_AMOUNT >> 8), MODULES_IN_SERIES, CELLS_PER_MODULE, VOLTAGE_LEVEL,
+             (uint8_t)(VOLTAGE_LEVEL >> 8), AH_CAPACITY, (uint8_t)(AH_CAPACITY >> 8)}};
+CAN_frame PYLON_7321 = {
+    .FD = false,
+    .ext_ID = true,
+    .DLC = 8,
+    .ID = 0x7321,
+    .data = {TOTAL_CELL_AMOUNT, (uint8_t)(TOTAL_CELL_AMOUNT >> 8), MODULES_IN_SERIES, CELLS_PER_MODULE, VOLTAGE_LEVEL,
+             (uint8_t)(VOLTAGE_LEVEL >> 8), AH_CAPACITY, (uint8_t)(AH_CAPACITY >> 8)}};
+CAN_frame PYLON_4210 = {.FD = false,
+                        .ext_ID = true,
+                        .DLC = 8,
+                        .ID = 0x4210,
+                        .data = {0xA5, 0x09, 0x30, 0x75, 0x9D, 0x04, 0x2E, 0x64}};
+CAN_frame PYLON_4220 = {.FD = false,
+                        .ext_ID = true,
+                        .DLC = 8,
+                        .ID = 0x4220,
+                        .data = {0x8C, 0x0A, 0xE9, 0x07, 0x4A, 0x79, 0x4A, 0x79}};
+CAN_frame PYLON_4230 = {.FD = false,
+                        .ext_ID = true,
+                        .DLC = 8,
+                        .ID = 0x4230,
+                        .data = {0xDF, 0x0C, 0xDA, 0x0C, 0x03, 0x00, 0x06, 0x00}};
+CAN_frame PYLON_4240 = {.FD = false,
+                        .ext_ID = true,
+                        .DLC = 8,
+                        .ID = 0x4240,
+                        .data = {0x7E, 0x04, 0x62, 0x04, 0x11, 0x00, 0x03, 0x00}};
+CAN_frame PYLON_4250 = {.FD = false,
+                        .ext_ID = true,
+                        .DLC = 8,
+                        .ID = 0x4250,
+                        .data = {0x03, 0x02, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00}};
+CAN_frame PYLON_4260 = {.FD = false,
+                        .ext_ID = true,
+                        .DLC = 8,
+                        .ID = 0x4260,
+                        .data = {0xAC, 0xC7, 0x74, 0x27, 0x03, 0x00, 0x02, 0x00}};
+CAN_frame PYLON_4270 = {.FD = false,
+                        .ext_ID = true,
+                        .DLC = 8,
+                        .ID = 0x4270,
+                        .data = {0x7E, 0x04, 0x62, 0x04, 0x05, 0x00, 0x01, 0x00}};
+CAN_frame PYLON_4280 = {.FD = false,
+                        .ext_ID = true,
+                        .DLC = 8,
+                        .ID = 0x4280,
+                        .data = {0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00}};
+CAN_frame PYLON_4290 = {.FD = false,
+                        .ext_ID = true,
+                        .DLC = 8,
+                        .ID = 0x4290,
+                        .data = {0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00}};
+CAN_frame PYLON_4211 = {.FD = false,
+                        .ext_ID = true,
+                        .DLC = 8,
+                        .ID = 0x4211,
+                        .data = {0xA5, 0x09, 0x30, 0x75, 0x9D, 0x04, 0x2E, 0x64}};
+CAN_frame PYLON_4221 = {.FD = false,
+                        .ext_ID = true,
+                        .DLC = 8,
+                        .ID = 0x4221,
+                        .data = {0x8C, 0x0A, 0xE9, 0x07, 0x4A, 0x79, 0x4A, 0x79}};
+CAN_frame PYLON_4231 = {.FD = false,
+                        .ext_ID = true,
+                        .DLC = 8,
+                        .ID = 0x4231,
+                        .data = {0xDF, 0x0C, 0xDA, 0x0C, 0x03, 0x00, 0x06, 0x00}};
+CAN_frame PYLON_4241 = {.FD = false,
+                        .ext_ID = true,
+                        .DLC = 8,
+                        .ID = 0x4241,
+                        .data = {0x7E, 0x04, 0x62, 0x04, 0x11, 0x00, 0x03, 0x00}};
+CAN_frame PYLON_4251 = {.FD = false,
+                        .ext_ID = true,
+                        .DLC = 8,
+                        .ID = 0x4251,
+                        .data = {0x03, 0x02, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00}};
+CAN_frame PYLON_4261 = {.FD = false,
+                        .ext_ID = true,
+                        .DLC = 8,
+                        .ID = 0x4261,
+                        .data = {0xAC, 0xC7, 0x74, 0x27, 0x03, 0x00, 0x02, 0x00}};
+CAN_frame PYLON_4271 = {.FD = false,
+                        .ext_ID = true,
+                        .DLC = 8,
+                        .ID = 0x4271,
+                        .data = {0x7E, 0x04, 0x62, 0x04, 0x05, 0x00, 0x01, 0x00}};
+CAN_frame PYLON_4281 = {.FD = false,
+                        .ext_ID = true,
+                        .DLC = 8,
+                        .ID = 0x4281,
+                        .data = {0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00}};
+CAN_frame PYLON_4291 = {.FD = false,
+                        .ext_ID = true,
+                        .DLC = 8,
+                        .ID = 0x4291,
+                        .data = {0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00}};
 
 static int16_t max_charge_current = 0;
 static int16_t max_discharge_current = 0;
@@ -240,12 +203,14 @@ void update_values_can_inverter() {  //This function maps all the values fetched
   PYLON_4211.data.u8[7] = (datalayer.battery.status.soh_pptt / 100);
 
   // Status=Bit 0,1,2= 0:Sleep, 1:Charge, 2:Discharge 3:Idle. Bit3 ForceChargeReq. Bit4 Balance charge Request
-  if (datalayer.battery.status.current_dA < 0) {
-    PYLON_4251.data.u8[0] = (0x11);  // Charge
+  if (datalayer.battery.status.bms_status == FAULT) {
+    PYLON_4251.data.u8[0] = (0x00);  // Sleep
+  } else if (datalayer.battery.status.current_dA < 0) {
+    PYLON_4251.data.u8[0] = (0x01);  // Charge
   } else if (datalayer.battery.status.current_dA > 0) {
-    PYLON_4251.data.u8[0] = (0x12);  // Discharge
+    PYLON_4251.data.u8[0] = (0x02);  // Discharge
   } else if (datalayer.battery.status.current_dA == 0) {
-    PYLON_4251.data.u8[0] = (0x13);  // Idle
+    PYLON_4251.data.u8[0] = (0x03);  // Idle
   }
 
 #ifdef INVERT_LOW_HIGH_BYTES  //Useful for Sofar inverters
@@ -479,8 +444,8 @@ void update_values_can_inverter() {  //This function maps all the values fetched
   }
 }
 
-void receive_can_inverter(CAN_frame_t rx_frame) {
-  switch (rx_frame.MsgID) {
+void receive_can_inverter(CAN_frame rx_frame) {
+  switch (rx_frame.ID) {
     case 0x4200:  //Message originating from inverter. Depending on which data is required, act accordingly
       if (rx_frame.data.u8[0] == 0x02) {
         send_setup_info();
@@ -499,47 +464,38 @@ void send_can_inverter() {
 }
 
 void send_setup_info() {  //Ensemble information
-  //Amount of cells
-  PYLON_7320.data.u8[0] = datalayer.battery.info.number_of_cells;
-  //Modules in series (not really how EV packs work, but let's map it to a reasonable Pylon value)
-  PYLON_7320.data.u8[2] = (datalayer.battery.info.number_of_cells / 15);
-  //Capacity in AH
-  if (datalayer.battery.status.voltage_dV > 10) {  //div0 safeguard
-    PYLON_7320.data.u8[6] = (datalayer.battery.info.total_capacity_Wh / (datalayer.battery.status.voltage_dV / 10));
-  }
-
 #ifdef SEND_0
-  ESP32Can.CANWriteFrame(&PYLON_7310);
-  ESP32Can.CANWriteFrame(&PYLON_7320);
+  transmit_can(&PYLON_7310, can_config.inverter);
+  transmit_can(&PYLON_7320, can_config.inverter);
 #endif
 #ifdef SEND_1
-  ESP32Can.CANWriteFrame(&PYLON_7311);
-  ESP32Can.CANWriteFrame(&PYLON_7321);
+  transmit_can(&PYLON_7311, can_config.inverter);
+  transmit_can(&PYLON_7321, can_config.inverter);
 #endif
 }
 
 void send_system_data() {  //System equipment information
 #ifdef SEND_0
-  ESP32Can.CANWriteFrame(&PYLON_4210);
-  ESP32Can.CANWriteFrame(&PYLON_4220);
-  ESP32Can.CANWriteFrame(&PYLON_4230);
-  ESP32Can.CANWriteFrame(&PYLON_4240);
-  ESP32Can.CANWriteFrame(&PYLON_4250);
-  ESP32Can.CANWriteFrame(&PYLON_4260);
-  ESP32Can.CANWriteFrame(&PYLON_4270);
-  ESP32Can.CANWriteFrame(&PYLON_4280);
-  ESP32Can.CANWriteFrame(&PYLON_4290);
+  transmit_can(&PYLON_4210, can_config.inverter);
+  transmit_can(&PYLON_4220, can_config.inverter);
+  transmit_can(&PYLON_4230, can_config.inverter);
+  transmit_can(&PYLON_4240, can_config.inverter);
+  transmit_can(&PYLON_4250, can_config.inverter);
+  transmit_can(&PYLON_4260, can_config.inverter);
+  transmit_can(&PYLON_4270, can_config.inverter);
+  transmit_can(&PYLON_4280, can_config.inverter);
+  transmit_can(&PYLON_4290, can_config.inverter);
 #endif
 #ifdef SEND_1
-  ESP32Can.CANWriteFrame(&PYLON_4211);
-  ESP32Can.CANWriteFrame(&PYLON_4221);
-  ESP32Can.CANWriteFrame(&PYLON_4231);
-  ESP32Can.CANWriteFrame(&PYLON_4241);
-  ESP32Can.CANWriteFrame(&PYLON_4251);
-  ESP32Can.CANWriteFrame(&PYLON_4261);
-  ESP32Can.CANWriteFrame(&PYLON_4271);
-  ESP32Can.CANWriteFrame(&PYLON_4281);
-  ESP32Can.CANWriteFrame(&PYLON_4291);
+  transmit_can(&PYLON_4211, can_config.inverter);
+  transmit_can(&PYLON_4221, can_config.inverter);
+  transmit_can(&PYLON_4231, can_config.inverter);
+  transmit_can(&PYLON_4241, can_config.inverter);
+  transmit_can(&PYLON_4251, can_config.inverter);
+  transmit_can(&PYLON_4261, can_config.inverter);
+  transmit_can(&PYLON_4271, can_config.inverter);
+  transmit_can(&PYLON_4281, can_config.inverter);
+  transmit_can(&PYLON_4291, can_config.inverter);
 #endif
 }
 #endif

@@ -161,6 +161,8 @@ typedef struct {
 #endif
   /** True if the battery allows for the contactors to close */
   bool battery_allows_contactor_closing = false;
+  /** True if the second battery allows for the contactors to close */
+  bool battery2_allows_contactor_closing = false;
   /** True if the inverter allows for the contactors to close */
   bool inverter_allows_contactor_closing = true;
 } DATALAYER_SYSTEM_STATUS_TYPE;
@@ -177,6 +179,7 @@ typedef struct {
 class DataLayer {
  public:
   DATALAYER_BATTERY_TYPE battery;
+  DATALAYER_BATTERY_TYPE battery2;
   DATALAYER_SHUNT_TYPE shunt;
   DATALAYER_SYSTEM_TYPE system;
 };

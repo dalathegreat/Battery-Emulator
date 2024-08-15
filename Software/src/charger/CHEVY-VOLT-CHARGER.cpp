@@ -2,8 +2,6 @@
 #ifdef CHEVYVOLT_CHARGER
 #include "../datalayer/datalayer.h"
 #include "../devboard/utils/events.h"
-#include "../lib/miwagner-ESP32-Arduino-CAN/CAN_config.h"
-#include "../lib/miwagner-ESP32-Arduino-CAN/ESP32CAN.h"
 #include "CHEVY-VOLT-CHARGER.h"
 
 /* This implements Chevy Volt / Ampera charger support (2011-2015 model years).
@@ -44,27 +42,21 @@ extern float charger_stat_LVvol;
 enum CHARGER_MODES : uint8_t { MODE_DISABLED = 0, MODE_LV, MODE_HV, MODE_HVLV };
 
 //Actual content messages
-static CAN_frame_t charger_keepalive_frame = {.FIR = {.B =
-                                                          {
-                                                              //one byte only, indicating enabled or disabled
-                                                              .DLC = 1,
-                                                              .FF = CAN_frame_std,
-                                                          }},
-                                              .MsgID = 0x30E,
-                                              .data = {MODE_DISABLED}};
+static CAN_frame charger_keepalive_frame = {.FD = false,
+                                            .ext_ID = false,
+                                            .DLC = 1,
+                                            .ID = 0x30E,  //one byte only, indicating enabled or disabled
+                                            .data = {MODE_DISABLED}};
 
-static CAN_frame_t charger_set_targets = {.FIR = {.B =
-                                                      {
-                                                          .DLC = 4,
-                                                          .FF = CAN_frame_std,
-                                                      }},
-                                          .MsgID = 0x304,
-
-                                          // data[0] is a static value, meaning unknown
-                                          .data = {0x40, 0x00, 0x00, 0x00}};
+static CAN_frame charger_set_targets = {
+    .FD = false,
+    .ext_ID = false,
+    .DLC = 4,
+    .ID = 0x304,
+    .data = {0x40, 0x00, 0x00, 0x00}};  // data[0] is a static value, meaning unknown
 
 /* We are mostly sending out not receiving */
-void receive_can_charger(CAN_frame_t rx_frame) {
+void receive_can_charger(CAN_frame rx_frame) {
   uint16_t charger_stat_HVcur_temp = 0;
   uint16_t charger_stat_HVvol_temp = 0;
   uint16_t charger_stat_LVcur_temp = 0;
@@ -72,7 +64,7 @@ void receive_can_charger(CAN_frame_t rx_frame) {
   uint16_t charger_stat_ACcur_temp = 0;
   uint16_t charger_stat_ACvol_temp = 0;
 
-  switch (rx_frame.MsgID) {
+  switch (rx_frame.ID) {
     //ID 0x212 conveys instantaneous DC charger stats
     case 0x212:
       charger_stat_HVcur_temp = (uint16_t)(rx_frame.data.u8[0] << 8 | rx_frame.data.u8[1]);
@@ -145,7 +137,7 @@ void send_can_charger() {
 
     charger_keepalive_frame.data.u8[0] = charger_mode;
 
-    ESP32Can.CANWriteFrame(&charger_keepalive_frame);
+    transmit_can(&charger_keepalive_frame, can_config.charger);
   }
 
   /* Send current targets every 200ms */
@@ -182,7 +174,7 @@ void send_can_charger() {
     /* LSB of the voltage command. Then MSB LSB is divided by 2 */
     charger_set_targets.data.u8[3] = lowByte(Vol_temp);
 
-    ESP32Can.CANWriteFrame(&charger_set_targets);
+    transmit_can(&charger_set_targets, can_config.charger);
   }
 
 #ifdef DEBUG_VIA_USB

@@ -2,8 +2,6 @@
 #ifdef KIA_E_GMP_BATTERY
 #include "../datalayer/datalayer.h"
 #include "../devboard/utils/events.h"
-#include "../lib/miwagner-ESP32-Arduino-CAN/CAN_config.h"
-#include "../lib/miwagner-ESP32-Arduino-CAN/ESP32CAN.h"
 #include "../lib/pierremolinaro-ACAN2517FD/ACAN2517FD.h"
 #include "KIA-E-GMP-BATTERY.h"
 
@@ -43,8 +41,17 @@ static int8_t temperature_water_inlet = 0;
 static int8_t powerRelayTemperature = 0;
 static int8_t heatertemp = 0;
 
-CANFDMessage EGMP_7E4;
-CANFDMessage EGMP_7E4_ack;
+CAN_frame EGMP_7E4 = {.FD = true,
+                      .ext_ID = false,
+                      .DLC = 8,
+                      .ID = 0x7E4,
+                      .data = {0x03, 0x22, 0x01, 0x01, 0x00, 0x00, 0x00, 0x00}};  //Poll PID 03 22 01 01
+CAN_frame EGMP_7E4_ack = {
+    .FD = true,
+    .ext_ID = false,
+    .DLC = 8,
+    .ID = 0x7E4,
+    .data = {0x30, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00}};  //Ack frame, correct PID is returned
 
 void set_cell_voltages(CANFDMessage frame, int start, int length, int startCell) {
   for (size_t i = 0; i < length; i++) {
@@ -173,18 +180,6 @@ void update_values_battery() {  //This function maps all the values fetched via 
 #endif
 }
 
-void send_canfd_frame(CANFDMessage frame) {
-#ifdef DEBUG_VIA_USB
-  const bool ok = canfd.tryToSend(frame);
-  if (ok) {
-  } else {
-    Serial.println("Send canfd failure.");
-  }
-#else
-  canfd.tryToSend(frame);
-#endif
-}
-
 void receive_canfd_battery(CANFDMessage frame) {
   datalayer.battery.status.CAN_battery_still_alive = CAN_STILL_ALIVE;
   switch (frame.id) {
@@ -195,7 +190,7 @@ void receive_canfd_battery(CANFDMessage frame) {
           // Serial.println ("Send ack");
           poll_data_pid = frame.data[4];
           // if (frame.data[4] == poll_data_pid) {
-          send_canfd_frame(EGMP_7E4_ack);  //Send ack to BMS if the same frame is sent as polled
+          transmit_can(&EGMP_7E4_ack, can_config.battery);  //Send ack to BMS if the same frame is sent as polled
           // }
           break;
         case 0x21:  //First frame in PID group
@@ -366,7 +361,7 @@ void receive_canfd_battery(CANFDMessage frame) {
   }
 }
 
-void receive_can_battery(CAN_frame_t frame) {}  // Not used on CAN-FD battery, just included to compile
+void receive_can_battery(CAN_frame frame) {}  // Not used on CAN-FD battery, just included to compile
 
 void send_can_battery() {
 
@@ -388,8 +383,8 @@ void send_can_battery() {
       datalayer.system.status.battery_allows_contactor_closing = false;
     }
     //  Section end
-    EGMP_7E4.data[3] = KIA_7E4_COUNTER;
-    send_canfd_frame(EGMP_7E4);
+    EGMP_7E4.data.u8[3] = KIA_7E4_COUNTER;
+    transmit_can(&EGMP_7E4, can_config.battery);
 
     KIA_7E4_COUNTER++;
     if (KIA_7E4_COUNTER > 0x0D) {  // gets up to 0x010C before repeating
@@ -409,18 +404,6 @@ void setup_battery(void) {  // Performs one time setup at startup
       8064;  // TODO: define when battery is known, charging is not possible (goes into forced discharge)
   datalayer.battery.info.min_design_voltage_dV =
       4320;  // TODO: define when battery is known. discharging further is disabled
-
-  EGMP_7E4.id = 0x7E4;
-  EGMP_7E4.ext = false;
-  EGMP_7E4.len = 8;
-  uint8_t dataEGMP_7E4[8] = {0x03, 0x22, 0x01, 0x01, 0x00, 0x00, 0x00, 0x00};  //Poll PID 03 22 01 01
-  memcpy(EGMP_7E4.data, dataEGMP_7E4, sizeof(dataEGMP_7E4));
-
-  EGMP_7E4_ack.id = 0x7E4;
-  EGMP_7E4_ack.ext = false;
-  EGMP_7E4_ack.len = 8;
-  uint8_t dataEGMP_7E4_ack[8] = {0x30, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00};  //Ack frame, correct PID is returned
-  memcpy(EGMP_7E4_ack.data, dataEGMP_7E4_ack, sizeof(dataEGMP_7E4_ack));
 }
 
 #endif

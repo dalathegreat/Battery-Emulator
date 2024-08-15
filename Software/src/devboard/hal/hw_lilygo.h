@@ -75,4 +75,10 @@
 #endif
 #endif
 
+#ifdef BMW_I3_BATTERY
+#ifdef CONTACTOR_CONTROL
+#error GPIO PIN 25 cannot be used for both BMWi3 Wakeup and contactor control. Disable CONTACTOR_CONTROL
+#endif
+#endif
+
 #endif

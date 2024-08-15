@@ -2,7 +2,6 @@
 #define RENAULT_KANGOO_BATTERY_H
 #include <Arduino.h>
 #include "../include.h"
-#include "../lib/miwagner-ESP32-Arduino-CAN/ESP32CAN.h"
 
 #define BATTERY_SELECTED
 
@@ -12,5 +11,6 @@
 #define MAX_CHARGE_POWER_W 5000         // Battery can be charged with this amount of power
 
 void setup_battery(void);
+void transmit_can(CAN_frame* tx_frame, int interface);
 
 #endif
