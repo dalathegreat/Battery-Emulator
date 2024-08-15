@@ -19,7 +19,7 @@ static uint16_t SOC_Display = 0;
 static uint16_t batterySOH = 1000;
 static uint16_t CellVoltMax_mV = 3700;
 static uint16_t CellVoltMin_mV = 3700;
-static uint16_t batteryVoltage = 0;
+static uint16_t batteryVoltage = 6700;
 static int16_t leadAcidBatteryVoltage = 120;
 static int16_t batteryAmps = 0;
 static int16_t powerWatt = 0;
@@ -53,10 +53,10 @@ CAN_frame EGMP_7E4_ack = {
     .ID = 0x7E4,
     .data = {0x30, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00}};  //Ack frame, correct PID is returned
 
-void set_cell_voltages(CANFDMessage frame, int start, int length, int startCell) {
+void set_cell_voltages(CAN_frame rx_frame, int start, int length, int startCell) {
   for (size_t i = 0; i < length; i++) {
-    if ((frame.data[start + i] * 20) > 1000) {
-      datalayer.battery.status.cell_voltages_mV[startCell + i] = (frame.data[start + i] * 20);
+    if ((rx_frame.data.u8[start + i] * 20) > 1000) {
+      datalayer.battery.status.cell_voltages_mV[startCell + i] = (rx_frame.data.u8[start + i] * 20);
     }
   }
 }
@@ -180,170 +180,170 @@ void update_values_battery() {  //This function maps all the values fetched via 
 #endif
 }
 
-void receive_canfd_battery(CANFDMessage frame) {
+void receive_can_battery(CAN_frame rx_frame) {
   datalayer.battery.status.CAN_battery_still_alive = CAN_STILL_ALIVE;
-  switch (frame.id) {
+  switch (rx_frame.ID) {
     case 0x7EC:
       // print_canfd_frame(frame);
-      switch (frame.data[0]) {
+      switch (rx_frame.data.u8[0]) {
         case 0x10:  //"PID Header"
           // Serial.println ("Send ack");
-          poll_data_pid = frame.data[4];
-          // if (frame.data[4] == poll_data_pid) {
+          poll_data_pid = rx_frame.data.u8[4];
+          // if (rx_frame.data.u8[4] == poll_data_pid) {
           transmit_can(&EGMP_7E4_ack, can_config.battery);  //Send ack to BMS if the same frame is sent as polled
           // }
           break;
         case 0x21:  //First frame in PID group
           if (poll_data_pid == 1) {
-            allowedChargePower = ((frame.data[3] << 8) + frame.data[4]);
-            allowedDischargePower = ((frame.data[5] << 8) + frame.data[6]);
-            SOC_BMS = frame.data[2] * 5;  //100% = 200 ( 200 * 5 = 1000 )
+            allowedChargePower = ((rx_frame.data.u8[3] << 8) + rx_frame.data.u8[4]);
+            allowedDischargePower = ((rx_frame.data.u8[5] << 8) + rx_frame.data.u8[6]);
+            SOC_BMS = rx_frame.data.u8[2] * 5;  //100% = 200 ( 200 * 5 = 1000 )
 
           } else if (poll_data_pid == 2) {
             // set cell voltages data, start bite, data length from start, start cell
-            set_cell_voltages(frame, 2, 6, 0);
+            set_cell_voltages(rx_frame, 2, 6, 0);
           } else if (poll_data_pid == 3) {
-            set_cell_voltages(frame, 2, 6, 32);
+            set_cell_voltages(rx_frame, 2, 6, 32);
           } else if (poll_data_pid == 4) {
-            set_cell_voltages(frame, 2, 6, 64);
+            set_cell_voltages(rx_frame, 2, 6, 64);
           } else if (poll_data_pid == 0x0A) {
-            set_cell_voltages(frame, 2, 6, 96);
+            set_cell_voltages(rx_frame, 2, 6, 96);
           } else if (poll_data_pid == 0x0B) {
-            set_cell_voltages(frame, 2, 6, 128);
+            set_cell_voltages(rx_frame, 2, 6, 128);
           } else if (poll_data_pid == 0x0C) {
-            set_cell_voltages(frame, 2, 6, 160);
+            set_cell_voltages(rx_frame, 2, 6, 160);
           }
           break;
         case 0x22:  //Second datarow in PID group
           if (poll_data_pid == 1) {
-            batteryVoltage = (frame.data[3] << 8) + frame.data[4];
-            batteryAmps = (frame.data[1] << 8) + frame.data[2];
-            temperatureMax = frame.data[5];
-            temperatureMin = frame.data[6];
-            // temp1 = frame.data[7];
+            batteryVoltage = (rx_frame.data.u8[3] << 8) + rx_frame.data.u8[4];
+            batteryAmps = (rx_frame.data.u8[1] << 8) + rx_frame.data.u8[2];
+            temperatureMax = rx_frame.data.u8[5];
+            temperatureMin = rx_frame.data.u8[6];
+            // temp1 = rx_frame.data.u8[7];
           } else if (poll_data_pid == 2) {
-            set_cell_voltages(frame, 1, 7, 6);
+            set_cell_voltages(rx_frame, 1, 7, 6);
           } else if (poll_data_pid == 3) {
-            set_cell_voltages(frame, 1, 7, 38);
+            set_cell_voltages(rx_frame, 1, 7, 38);
           } else if (poll_data_pid == 4) {
-            set_cell_voltages(frame, 1, 7, 70);
+            set_cell_voltages(rx_frame, 1, 7, 70);
           } else if (poll_data_pid == 0x0A) {
-            set_cell_voltages(frame, 1, 7, 102);
+            set_cell_voltages(rx_frame, 1, 7, 102);
           } else if (poll_data_pid == 0x0B) {
-            set_cell_voltages(frame, 1, 7, 134);
+            set_cell_voltages(rx_frame, 1, 7, 134);
           } else if (poll_data_pid == 0x0C) {
-            set_cell_voltages(frame, 1, 7, 166);
+            set_cell_voltages(rx_frame, 1, 7, 166);
           } else if (poll_data_pid == 6) {
-            batteryManagementMode = frame.data[5];
+            batteryManagementMode = rx_frame.data.u8[5];
           }
           break;
         case 0x23:  //Third datarow in PID group
           if (poll_data_pid == 1) {
-            temperature_water_inlet = frame.data[6];
-            CellVoltMax_mV = (frame.data[7] * 20);  //(volts *50) *20 =mV
-            // temp2 = frame.data[1];
-            // temp3 = frame.data[2];
-            // temp4 = frame.data[3];
+            temperature_water_inlet = rx_frame.data.u8[6];
+            CellVoltMax_mV = (rx_frame.data.u8[7] * 20);  //(volts *50) *20 =mV
+            // temp2 = rx_frame.data.u8[1];
+            // temp3 = rx_frame.data.u8[2];
+            // temp4 = rx_frame.data.u8[3];
           } else if (poll_data_pid == 2) {
-            set_cell_voltages(frame, 1, 7, 13);
+            set_cell_voltages(rx_frame, 1, 7, 13);
           } else if (poll_data_pid == 3) {
-            set_cell_voltages(frame, 1, 7, 45);
+            set_cell_voltages(rx_frame, 1, 7, 45);
           } else if (poll_data_pid == 4) {
-            set_cell_voltages(frame, 1, 7, 77);
+            set_cell_voltages(rx_frame, 1, 7, 77);
           } else if (poll_data_pid == 0x0A) {
-            set_cell_voltages(frame, 1, 7, 109);
+            set_cell_voltages(rx_frame, 1, 7, 109);
           } else if (poll_data_pid == 0x0B) {
-            set_cell_voltages(frame, 1, 7, 141);
+            set_cell_voltages(rx_frame, 1, 7, 141);
           } else if (poll_data_pid == 0x0C) {
-            set_cell_voltages(frame, 1, 7, 173);
+            set_cell_voltages(rx_frame, 1, 7, 173);
           } else if (poll_data_pid == 5) {
-            // ac = frame.data[3];
-            // Vdiff = frame.data[4];
+            // ac = rx_frame.data.u8[3];
+            // Vdiff = rx_frame.data.u8[4];
 
-            // airbag = frame.data[6];
-            heatertemp = frame.data[7];
+            // airbag = rx_frame.data.u8[6];
+            heatertemp = rx_frame.data.u8[7];
           }
           break;
         case 0x24:  //Fourth datarow in PID group
           if (poll_data_pid == 1) {
-            CellVmaxNo = frame.data[1];
-            CellVoltMin_mV = (frame.data[2] * 20);  //(volts *50) *20 =mV
-            CellVminNo = frame.data[3];
-            // fanMod = frame.data[4];
-            // fanSpeed = frame.data[5];
-            leadAcidBatteryVoltage = frame.data[6];  //12v Battery Volts
-            //cumulative_charge_current[0] = frame.data[7];
+            CellVmaxNo = rx_frame.data.u8[1];
+            CellVoltMin_mV = (rx_frame.data.u8[2] * 20);  //(volts *50) *20 =mV
+            CellVminNo = rx_frame.data.u8[3];
+            // fanMod = rx_frame.data.u8[4];
+            // fanSpeed = rx_frame.data.u8[5];
+            leadAcidBatteryVoltage = rx_frame.data.u8[6];  //12v Battery Volts
+            //cumulative_charge_current[0] = rx_frame.data.u8[7];
           } else if (poll_data_pid == 2) {
-            set_cell_voltages(frame, 1, 7, 20);
+            set_cell_voltages(rx_frame, 1, 7, 20);
           } else if (poll_data_pid == 3) {
-            set_cell_voltages(frame, 1, 7, 52);
+            set_cell_voltages(rx_frame, 1, 7, 52);
           } else if (poll_data_pid == 4) {
-            set_cell_voltages(frame, 1, 7, 84);
+            set_cell_voltages(rx_frame, 1, 7, 84);
           } else if (poll_data_pid == 0x0A) {
-            set_cell_voltages(frame, 1, 7, 116);
+            set_cell_voltages(rx_frame, 1, 7, 116);
           } else if (poll_data_pid == 0x0B) {
-            set_cell_voltages(frame, 1, 7, 148);
+            set_cell_voltages(rx_frame, 1, 7, 148);
           } else if (poll_data_pid == 0x0C) {
-            set_cell_voltages(frame, 1, 7, 180);
+            set_cell_voltages(rx_frame, 1, 7, 180);
           } else if (poll_data_pid == 5) {
-            batterySOH = ((frame.data[2] << 8) + frame.data[3]);
-            // maxDetCell = frame.data[4];
-            // minDet = (frame.data[5] << 8) + frame.data[6];
-            // minDetCell = frame.data[7];
+            batterySOH = ((rx_frame.data.u8[2] << 8) + rx_frame.data.u8[3]);
+            // maxDetCell = rx_frame.data.u8[4];
+            // minDet = (rx_frame.data.u8[5] << 8) + rx_frame.data.u8[6];
+            // minDetCell = rx_frame.data.u8[7];
           }
           break;
         case 0x25:  //Fifth datarow in PID group
           if (poll_data_pid == 1) {
-            //cumulative_charge_current[1] = frame.data[1];
-            //cumulative_charge_current[2] = frame.data[2];
-            //cumulative_charge_current[3] = frame.data[3];
-            //cumulative_discharge_current[0] = frame.data[4];
-            //cumulative_discharge_current[1] = frame.data[5];
-            //cumulative_discharge_current[2] = frame.data[6];
-            //cumulative_discharge_current[3] = frame.data[7];
+            //cumulative_charge_current[1] = rx_frame.data.u8[1];
+            //cumulative_charge_current[2] = rx_frame.data.u8[2];
+            //cumulative_charge_current[3] = rx_frame.data.u8[3];
+            //cumulative_discharge_current[0] = rx_frame.data.u8[4];
+            //cumulative_discharge_current[1] = rx_frame.data.u8[5];
+            //cumulative_discharge_current[2] = rx_frame.data.u8[6];
+            //cumulative_discharge_current[3] = rx_frame.data.u8[7];
             //set_cumulative_charge_current();
             //set_cumulative_discharge_current();
           } else if (poll_data_pid == 2) {
-            set_cell_voltages(frame, 1, 5, 27);
+            set_cell_voltages(rx_frame, 1, 5, 27);
           } else if (poll_data_pid == 3) {
-            set_cell_voltages(frame, 1, 5, 59);
+            set_cell_voltages(rx_frame, 1, 5, 59);
           } else if (poll_data_pid == 4) {
-            set_cell_voltages(frame, 1, 5, 91);
+            set_cell_voltages(rx_frame, 1, 5, 91);
           } else if (poll_data_pid == 0x0A) {
-            set_cell_voltages(frame, 1, 5, 123);
+            set_cell_voltages(rx_frame, 1, 5, 123);
           } else if (poll_data_pid == 0x0B) {
-            set_cell_voltages(frame, 1, 5, 155);
+            set_cell_voltages(rx_frame, 1, 5, 155);
           } else if (poll_data_pid == 0x0C) {
-            set_cell_voltages(frame, 1, 5, 187);
+            set_cell_voltages(rx_frame, 1, 5, 187);
             //set_cell_count();
           } else if (poll_data_pid == 5) {
             // datalayer.battery.info.number_of_cells = 98;
-            SOC_Display = frame.data[1] * 5;
+            SOC_Display = rx_frame.data.u8[1] * 5;
           }
           break;
         case 0x26:  //Sixth datarow in PID group
           if (poll_data_pid == 1) {
-            //cumulative_energy_charged[0] = frame.data[1];
-            // cumulative_energy_charged[1] = frame.data[2];
-            //cumulative_energy_charged[2] = frame.data[3];
-            //cumulative_energy_charged[3] = frame.data[4];
-            //cumulative_energy_discharged[0] = frame.data[5];
-            //cumulative_energy_discharged[1] = frame.data[6];
-            //cumulative_energy_discharged[2] = frame.data[7];
+            //cumulative_energy_charged[0] = rx_frame.data.u8[1];
+            // cumulative_energy_charged[1] = rx_frame.data.u8[2];
+            //cumulative_energy_charged[2] = rx_frame.data.u8[3];
+            //cumulative_energy_charged[3] = rx_frame.data.u8[4];
+            //cumulative_energy_discharged[0] = rx_frame.data.u8[5];
+            //cumulative_energy_discharged[1] = rx_frame.data.u8[6];
+            //cumulative_energy_discharged[2] = rx_frame.data.u8[7];
             // set_cumulative_energy_charged();
           }
           break;
         case 0x27:  //Seventh datarow in PID group
           if (poll_data_pid == 1) {
-            //cumulative_energy_discharged[3] = frame.data[1];
+            //cumulative_energy_discharged[3] = rx_frame.data.u8[1];
 
-            //opTimeBytes[0] = frame.data[2];
-            //opTimeBytes[1] = frame.data[3];
-            //opTimeBytes[2] = frame.data[4];
-            //opTimeBytes[3] = frame.data[5];
+            //opTimeBytes[0] = rx_frame.data.u8[2];
+            //opTimeBytes[1] = rx_frame.data.u8[3];
+            //opTimeBytes[2] = rx_frame.data.u8[4];
+            //opTimeBytes[3] = rx_frame.data.u8[5];
 
-            BMS_ign = frame.data[6];
-            inverterVoltageFrameHigh = frame.data[7];  // BMS Capacitoir
+            BMS_ign = rx_frame.data.u8[6];
+            inverterVoltageFrameHigh = rx_frame.data.u8[7];  // BMS Capacitoir
 
             // set_cumulative_energy_discharged();
             // set_opTime();
@@ -351,7 +351,7 @@ void receive_canfd_battery(CANFDMessage frame) {
           break;
         case 0x28:  //Eighth datarow in PID group
           if (poll_data_pid == 1) {
-            inverterVoltage = (inverterVoltageFrameHigh << 8) + frame.data[1];  // BMS Capacitoir
+            inverterVoltage = (inverterVoltageFrameHigh << 8) + rx_frame.data.u8[1];  // BMS Capacitoir
           }
           break;
       }
@@ -360,8 +360,6 @@ void receive_canfd_battery(CANFDMessage frame) {
       break;
   }
 }
-
-void receive_can_battery(CAN_frame frame) {}  // Not used on CAN-FD battery, just included to compile
 
 void send_can_battery() {
 
