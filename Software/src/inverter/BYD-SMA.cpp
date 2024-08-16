@@ -37,7 +37,7 @@ CAN_frame SMA_4D8 = {.FD = false,
 CAN_frame SMA_158 = {.FD = false,
                      .ext_ID = false,
                      .DLC = 8,
-                     .ID = 0x158, // All 0xAA, no faults active
+                     .ID = 0x158,  // All 0xAA, no faults active
                      .data = {0xAA, 0xAA, 0xAA, 0xAA, 0xAA, 0xAA, 0xAA, 0xAA}};
 
 static int16_t discharge_current = 0;
@@ -178,10 +178,16 @@ void receive_can_inverter(CAN_frame rx_frame) {
       //Frame0-1 Voltage
       //Frame2-3 Current
       break;
-    case 0x420:  //Message originating from SMA inverter - Timestamp
-      //Frame0-3 Timestamp
-      break;
     case 0x3E0:  //Message originating from SMA inverter - ?
+      break;
+    case 0x420:  //Message originating from SMA inverter - Timestamp
+                 //Frame0-3 Timestamp
+      transmit_can(&SMA_158, can_config.inverter);
+      transmit_can(&SMA_358, can_config.inverter);
+      transmit_can(&SMA_3D8, can_config.inverter);
+      transmit_can(&SMA_458, can_config.inverter);
+      transmit_can(&SMA_518, can_config.inverter);
+      transmit_can(&SMA_4D8, can_config.inverter);
       break;
     case 0x5E0:  //Message originating from SMA inverter - String
       break;
@@ -198,13 +204,6 @@ void send_can_inverter() {
   // Send CAN Message every 5s
   if (currentMillis - previousMillis5s >= INTERVAL_5_S) {
     previousMillis5s = currentMillis;
-
-    transmit_can(&SMA_358, can_config.inverter);
-    transmit_can(&SMA_3D8, can_config.inverter);
-    transmit_can(&SMA_458, can_config.inverter);
-    transmit_can(&SMA_518, can_config.inverter);
-    transmit_can(&SMA_4D8, can_config.inverter);
-    transmit_can(&SMA_158, can_config.inverter);
   }
 }
 #endif
