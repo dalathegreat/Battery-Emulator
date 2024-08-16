@@ -40,6 +40,39 @@ CAN_frame SMA_158 = {.FD = false,
                      .ID = 0x158,  // All 0xAA, no faults active
                      .data = {0xAA, 0xAA, 0xAA, 0xAA, 0xAA, 0xAA, 0xAA, 0xAA}};
 
+// Pairing/Battery setup information
+
+CAN_frame SMA_558 = {.FD = false,
+                     .ext_ID = false,
+                     .DLC = 8,
+                     .ID = 0x558,
+                     .data = {0x03, 0x13, 0x00, 0x03, 0x00, 0x66, 0x04, 0x07}};
+CAN_frame SMA_598 = {.FD = false,
+                     .ext_ID = false,
+                     .DLC = 8,
+                     .ID = 0x598,
+                     .data = {0x00, 0xD3, 0x00, 0x01, 0x5C, 0x98, 0xB6, 0xEE}};
+CAN_frame SMA_5D8 = {.FD = false,
+                     .ext_ID = false,
+                     .DLC = 8,
+                     .ID = 0x5D8,
+                     .data = {0x00, 0x42, 0x59, 0x44, 0x00, 0x00, 0x00, 0x00}};  //B Y D
+CAN_frame SMA_618_1 = {.FD = false,
+                       .ext_ID = false,
+                       .DLC = 8,
+                       .ID = 0x618,
+                       .data = {0x00, 0x42, 0x61, 0x74, 0x74, 0x65, 0x72, 0x79}};  //0 B A T T E R Y
+CAN_frame SMA_618_2 = {.FD = false,
+                       .ext_ID = false,
+                       .DLC = 8,
+                       .ID = 0x618,
+                       .data = {0x01, 0x2D, 0x42, 0x6F, 0x78, 0x20, 0x48, 0x31}};
+CAN_frame SMA_618_3 = {.FD = false,
+                       .ext_ID = false,
+                       .DLC = 8,
+                       .ID = 0x618,
+                       .data = {0x02, 0x30, 0x2E, 0x32, 0x00, 0x00, 0x00, 0x00}};
+
 static int16_t discharge_current = 0;
 static int16_t charge_current = 0;
 static int16_t temperature_average = 0;
@@ -192,6 +225,14 @@ void receive_can_inverter(CAN_frame rx_frame) {
     case 0x5E0:  //Message originating from SMA inverter - String
       break;
     case 0x560:  //Message originating from SMA inverter - Init
+      break;
+    case 0x5e7:  //Pairing request
+      transmit_can(&SMA_558, can_config.inverter);
+      transmit_can(&SMA_598, can_config.inverter);
+      transmit_can(&SMA_5D8, can_config.inverter);
+      transmit_can(&SMA_618_1, can_config.inverter);
+      transmit_can(&SMA_618_2, can_config.inverter);
+      transmit_can(&SMA_618_3, can_config.inverter);
       break;
     default:
       break;
