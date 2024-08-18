@@ -23,12 +23,12 @@ CAN_frame SMA_458 = {.FD = false,
                      .ext_ID = false,
                      .DLC = 8,
                      .ID = 0x458,
-                     .data = {0x00, 0x00, 0x11, 0xBB, 0x00, 0x00, 0x0E, 0xE9}};
+                     .data = {0x00, 0x00, 0x11, 0xC8, 0x00, 0x00, 0x0E, 0xF4}};
 CAN_frame SMA_518 = {.FD = false,
                      .ext_ID = false,
                      .DLC = 8,
                      .ID = 0x518,
-                     .data = {0x01, 0x34, 0x01, 0x0D, 0xFF, 0xFF, 0xFF, 0xFF}};
+                     .data = {0x01, 0x4A, 0x01, 0x25, 0xFF, 0xFF, 0xFF, 0xFF}};
 CAN_frame SMA_4D8 = {.FD = false,
                      .ext_ID = false,
                      .DLC = 8,
@@ -114,12 +114,12 @@ void update_values_can_inverter() {  //This function maps all the values fetched
 
   //Map values to CAN messages
   //Maxvoltage (eg 400.0V = 4000 , 16bits long)
-  SMA_358.data.u8[0] = (datalayer.battery.info.max_design_voltage_dV >> 8);
-  SMA_358.data.u8[1] = (datalayer.battery.info.max_design_voltage_dV & 0x00FF);
+  //SMA_358.data.u8[0] = (datalayer.battery.info.max_design_voltage_dV >> 8);
+  //SMA_358.data.u8[1] = (datalayer.battery.info.max_design_voltage_dV & 0x00FF);
   //Minvoltage (eg 300.0V = 3000 , 16bits long)
-  SMA_358.data.u8[2] = (datalayer.battery.info.min_design_voltage_dV >>
-                        8);  //Minvoltage behaves strange on SMA, cuts out at 56% of the set value?
-  SMA_358.data.u8[3] = (datalayer.battery.info.min_design_voltage_dV & 0x00FF);
+  //SMA_358.data.u8[2] = (datalayer.battery.info.min_design_voltage_dV >>
+  //                      8);  //Minvoltage behaves strange on SMA, cuts out at 56% of the set value?
+  //SMA_358.data.u8[3] = (datalayer.battery.info.min_design_voltage_dV & 0x00FF);
   //Discharge limited current, 500 = 50A, (0.1, A)
   SMA_358.data.u8[4] = (discharge_current >> 8);
   SMA_358.data.u8[5] = (discharge_current & 0x00FF);
@@ -233,6 +233,12 @@ void receive_can_inverter(CAN_frame rx_frame) {
       transmit_can(&SMA_618_1, can_config.inverter);
       transmit_can(&SMA_618_2, can_config.inverter);
       transmit_can(&SMA_618_3, can_config.inverter);
+      transmit_can(&SMA_158, can_config.inverter);
+      transmit_can(&SMA_358, can_config.inverter);
+      transmit_can(&SMA_3D8, can_config.inverter);
+      transmit_can(&SMA_458, can_config.inverter);
+      transmit_can(&SMA_518, can_config.inverter);
+      transmit_can(&SMA_4D8, can_config.inverter);
       break;
     default:
       break;
