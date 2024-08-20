@@ -184,6 +184,7 @@ static uint32_t BMW_328_counter = 0;
 static bool battery_awake = false;
 static bool battery2_awake = false;
 static bool battery_info_available = false;
+static bool battery2_info_available = false;
 
 static uint32_t battery_serial_number = 0;
 static uint32_t battery_available_power_shortterm_charge = 0;
@@ -347,7 +348,7 @@ void update_values_battery2() {  //This function maps all the values fetched via
     return;
   }
 
-  datalayer.battery2.status.real_soc = (battery2_HVBatt_SOC * 10);
+  datalayer.battery2.status.real_soc = (battery2_display_SOC * 50);
 
   datalayer.battery2.status.voltage_dV = battery2_volts;  //Unit V+1 (5000 = 500.0V)
 
@@ -385,13 +386,15 @@ void update_values_battery() {  //This function maps all the values fetched via 
     return;
   }
 
-  datalayer.battery.status.real_soc = (battery_HVBatt_SOC * 10);
+  datalayer.battery.status.real_soc = (battery_display_SOC * 50);
 
   datalayer.battery.status.voltage_dV = battery_volts;  //Unit V+1 (5000 = 500.0V)
 
   datalayer.battery.status.current_dA = battery_current;
 
-  datalayer.battery.status.remaining_capacity_Wh = (battery_energy_content_maximum_kWh * 1000);  // Convert kWh to Wh
+  datalayer.battery.info.total_capacity_Wh = (battery_energy_content_maximum_kWh * 1000);  // Convert kWh to Wh
+
+  datalayer.battery.status.remaining_capacity_Wh = battery_predicted_energy_charge_condition;
 
   datalayer.battery.status.soh_pptt = battery_soh * 100;
 
@@ -514,8 +517,8 @@ void receive_can_battery(CAN_frame rx_frame) {
       battery_status_cold_shutoff_valve = (rx_frame.data.u8[3] & 0x0F);
       battery_temperature_HV = (rx_frame.data.u8[4] - 50);
       battery_temperature_heat_exchanger = (rx_frame.data.u8[5] - 50);
-      battery_temperature_max = (rx_frame.data.u8[6] - 50);
-      battery_temperature_min = (rx_frame.data.u8[7] - 50);
+      battery_temperature_min = (rx_frame.data.u8[6] - 50);
+      battery_temperature_max = (rx_frame.data.u8[7] - 50);
       break;
     case 0x239:                                                                                      //BMS [200ms]
       battery_predicted_energy_charge_condition = (rx_frame.data.u8[2] << 8 | rx_frame.data.u8[1]);  //Wh
@@ -577,9 +580,9 @@ void receive_can_battery(CAN_frame rx_frame) {
       battery_prediction_duration_charging_minutes = (rx_frame.data.u8[3] << 8 | rx_frame.data.u8[2]);
       battery_prediction_time_end_of_charging_minutes = rx_frame.data.u8[4];
       battery_energy_content_maximum_kWh = (((rx_frame.data.u8[6] & 0x0F) << 8 | rx_frame.data.u8[5])) / 50;
-      if (battery_energy_content_maximum_kWh > 37) {
+      if (battery_energy_content_maximum_kWh > 33) {
         detectedBattery = BATTERY_120AH;
-      } else if (battery_energy_content_maximum_kWh > 25) {
+      } else if (battery_energy_content_maximum_kWh > 20) {
         detectedBattery = BATTERY_94AH;
       } else {
         detectedBattery = BATTERY_60AH;
@@ -590,7 +593,7 @@ void receive_can_battery(CAN_frame rx_frame) {
       battery_target_voltage_in_CV_mode = ((rx_frame.data.u8[1] << 4 | rx_frame.data.u8[0] >> 4)) / 10;
       battery_request_charging_condition_minimum = (rx_frame.data.u8[2] / 2);
       battery_request_charging_condition_maximum = (rx_frame.data.u8[3] / 2);
-      battery_display_SOC = (rx_frame.data.u8[4] / 2);
+      battery_display_SOC = rx_frame.data.u8[4];
       break;
     case 0x507:  //BMS [640ms] Network Management - 2 - This message is sent on the bus for sleep coordination purposes
       break;
@@ -678,8 +681,8 @@ void receive_can_battery2(CAN_frame rx_frame) {
       battery2_status_cold_shutoff_valve = (rx_frame.data.u8[3] & 0x0F);
       battery2_temperature_HV = (rx_frame.data.u8[4] - 50);
       battery2_temperature_heat_exchanger = (rx_frame.data.u8[5] - 50);
-      battery2_temperature_max = (rx_frame.data.u8[6] - 50);
-      battery2_temperature_min = (rx_frame.data.u8[7] - 50);
+      battery2_temperature_min = (rx_frame.data.u8[6] - 50);
+      battery2_temperature_max = (rx_frame.data.u8[7] - 50);
       break;
     case 0x239:                                                                                       //BMS [200ms]
       battery2_predicted_energy_charge_condition = (rx_frame.data.u8[2] << 8 | rx_frame.data.u8[1]);  //Wh
@@ -759,7 +762,7 @@ void receive_can_battery2(CAN_frame rx_frame) {
       battery2_target_voltage_in_CV_mode = ((rx_frame.data.u8[1] << 4 | rx_frame.data.u8[0] >> 4)) / 10;
       battery2_request_charging_condition_minimum = (rx_frame.data.u8[2] / 2);
       battery2_request_charging_condition_maximum = (rx_frame.data.u8[3] / 2);
-      battery2_display_SOC = (rx_frame.data.u8[4] / 2);
+      battery2_display_SOC = rx_frame.data.u8[4];
       break;
     case 0x507:  //BMS [640ms] Network Management - 2 - This message is sent on the bus for sleep coordination purposes
       break;
@@ -797,6 +800,7 @@ void receive_can_battery2(CAN_frame rx_frame) {
           case SOH:
             if (next_data >= 4) {
               battery2_soh = message_data[3];
+              battery2_info_available = true;
             }
             break;
           case SOC:
