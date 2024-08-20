@@ -32,7 +32,7 @@
 
 Preferences settings;  // Store user settings
 // The current software version, shown on webserver
-const char* version_number = "6.6.dev";
+const char* version_number = "7.1.dev";
 
 // Interval settings
 uint16_t intervalUpdateValues = INTERVAL_5_S;  // Interval at which to update inverter values / Modbus registers
@@ -887,9 +887,6 @@ void transmit_can(CAN_frame* tx_frame, int interface) {
       }
       ESP32Can.CANWriteFrame(&frame);
       break;
-    case CANFD_NATIVE:
-      //TODO for stark
-      break;
     case CAN_ADDON_MCP2515: {
 #ifdef DUAL_CAN
       //Struct with ACAN2515 library format, needed to use the MCP2515 library for CAN2
@@ -906,6 +903,7 @@ void transmit_can(CAN_frame* tx_frame, int interface) {
       set_event(EVENT_INTERFACE_MISSING, interface);
 #endif  //DUAL_CAN
     } break;
+    case CANFD_NATIVE:
     case CAN_ADDON_FD_MCP2518: {
 #ifdef CAN_FD
       CANFDMessage MCP2518Frame;
