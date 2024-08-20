@@ -643,6 +643,8 @@ void handle_contactors() {
   // After that, check if we are OK to start turning on the battery
   if (contactorStatus == DISCONNECTED) {
     digitalWrite(PRECHARGE_PIN, LOW);
+    digitalWrite(NEGATIVE_CONTACTOR_PIN, LOW);
+    digitalWrite(POSITIVE_CONTACTOR_PIN, LOW);
 #ifdef PWM_CONTACTOR_CONTROL
     ledcWrite(POSITIVE_PWM_Ch, 0);
     ledcWrite(NEGATIVE_PWM_Ch, 0);
