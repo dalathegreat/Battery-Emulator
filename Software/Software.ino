@@ -495,6 +495,10 @@ void init_inverter() {
   datalayer.system.status.inverter_allows_contactor_closing = false;  // The inverter needs to allow first
   intervalUpdateValues = 800;  // This protocol also requires the values to be updated faster
 #endif
+#ifdef BYD_SMA
+  datalayer.system.status.inverter_allows_contactor_closing = false;  // The inverter needs to allow first
+  pinMode(INVERTER_CONTACTOR_ENABLE_PIN, INPUT);
+#endif
 }
 
 void init_battery() {
@@ -614,6 +618,11 @@ void check_interconnect_available() {
 
 #ifdef CONTACTOR_CONTROL
 void handle_contactors() {
+
+#ifdef BYD_SMA
+  datalayer.system.status.inverter_allows_contactor_closing = digitalRead(INVERTER_CONTACTOR_ENABLE_PIN);
+#endif
+
   // First check if we have any active errors, incase we do, turn off the battery
   if (datalayer.battery.status.bms_status == FAULT) {
     timeSpentInFaultedMode++;
