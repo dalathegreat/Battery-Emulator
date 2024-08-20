@@ -114,12 +114,12 @@ void update_values_can_inverter() {  //This function maps all the values fetched
 
   //Map values to CAN messages
   //Maxvoltage (eg 400.0V = 4000 , 16bits long)
-  //SMA_358.data.u8[0] = (datalayer.battery.info.max_design_voltage_dV >> 8);
-  //SMA_358.data.u8[1] = (datalayer.battery.info.max_design_voltage_dV & 0x00FF);
+  SMA_358.data.u8[0] = (datalayer.battery.info.max_design_voltage_dV >> 8);
+  SMA_358.data.u8[1] = (datalayer.battery.info.max_design_voltage_dV & 0x00FF);
   //Minvoltage (eg 300.0V = 3000 , 16bits long)
-  //SMA_358.data.u8[2] = (datalayer.battery.info.min_design_voltage_dV >>
-  //                      8);  //Minvoltage behaves strange on SMA, cuts out at 56% of the set value?
-  //SMA_358.data.u8[3] = (datalayer.battery.info.min_design_voltage_dV & 0x00FF);
+  SMA_358.data.u8[2] = (datalayer.battery.info.min_design_voltage_dV >>
+                        8);  //Minvoltage behaves strange on SMA, cuts out at 56% of the set value?
+  SMA_358.data.u8[3] = (datalayer.battery.info.min_design_voltage_dV & 0x00FF);
   //Discharge limited current, 500 = 50A, (0.1, A)
   SMA_358.data.u8[4] = (discharge_current >> 8);
   SMA_358.data.u8[5] = (discharge_current & 0x00FF);
@@ -154,6 +154,12 @@ void update_values_can_inverter() {  //This function maps all the values fetched
   }
 
   //Error bits
+  if (!datalayer.system.status.inverter_allows_contactor_closing) {
+    SMA_158.data.u8[2] = 0x6A;
+  } else {
+    SMA_158.data.u8[2] = 0xAA;
+  }
+
   /*
   //SMA_158.data.u8[0] = //bit12 Fault high temperature, bit34Battery cellundervoltage, bit56 Battery cell overvoltage, bit78 batterysystemdefect
   //TODO: add all error bits. Sending message with all 0xAA until that.
