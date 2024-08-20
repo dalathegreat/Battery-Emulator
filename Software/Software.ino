@@ -224,9 +224,7 @@ void core_loop(void* task_time_us) {
     if (millis() - previousMillis10ms >= INTERVAL_10_MS) {
       previousMillis10ms = millis();
       led_exe();
-#ifdef CONTACTOR_CONTROL
       handle_contactors();  // Take care of startup precharge/contactor closing
-#endif
 #ifdef DOUBLE_BATTERY
       check_interconnect_available();
 #endif
@@ -616,12 +614,13 @@ void check_interconnect_available() {
 }
 #endif  //DOUBLE_BATTERY
 
-#ifdef CONTACTOR_CONTROL
 void handle_contactors() {
 
 #ifdef BYD_SMA
   datalayer.system.status.inverter_allows_contactor_closing = digitalRead(INVERTER_CONTACTOR_ENABLE_PIN);
 #endif
+
+#ifdef CONTACTOR_CONTROL
 
   // First check if we have any active errors, incase we do, turn off the battery
   if (datalayer.battery.status.bms_status == FAULT) {
@@ -706,8 +705,8 @@ void handle_contactors() {
     default:
       break;
   }
+#endif  // CONTACTOR_CONTROL
 }
-#endif
 
 void update_SOC() {
   if (datalayer.battery.settings.soc_scaling_active) {
