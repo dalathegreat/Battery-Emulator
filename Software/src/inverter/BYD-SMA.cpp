@@ -226,7 +226,7 @@ void receive_can_inverter(CAN_frame rx_frame) {
       break;
     case 0x560:  //Message originating from SMA inverter - Init
       break;
-    case 0x5e7:  //Pairing request
+    case 0x5E7:  //Pairing request
       transmit_can(&SMA_558, can_config.inverter);
       transmit_can(&SMA_598, can_config.inverter);
       transmit_can(&SMA_5D8, can_config.inverter);
