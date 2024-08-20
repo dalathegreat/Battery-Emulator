@@ -6,10 +6,30 @@
 #include "KIA-E-GMP-BATTERY.h"
 
 /* Do not change code below unless you are sure what you are doing */
+static unsigned long previousMillis20ms = 0;   // will store last time a 20ms CAN Message was send
+static unsigned long previousMillis200ms = 0;  // will store last time a 200ms CAN Message was send
 static unsigned long previousMillis500ms = 0;  // will store last time a 500ms CAN Message was send
 
 #define MAX_CELL_VOLTAGE 4250  //Battery is put into emergency stop if one cell goes over this value
 #define MIN_CELL_VOLTAGE 2950  //Battery is put into emergency stop if one cell goes below this value
+
+const unsigned char crc8_table[256] =
+    {  // CRC8_SAE_J1850_ZER0 formula,0x1D Poly,initial value 0x3F,Final XOR value varies
+        0x00, 0x1D, 0x3A, 0x27, 0x74, 0x69, 0x4E, 0x53, 0xE8, 0xF5, 0xD2, 0xCF, 0x9C, 0x81, 0xA6, 0xBB, 0xCD, 0xD0,
+        0xF7, 0xEA, 0xB9, 0xA4, 0x83, 0x9E, 0x25, 0x38, 0x1F, 0x02, 0x51, 0x4C, 0x6B, 0x76, 0x87, 0x9A, 0xBD, 0xA0,
+        0xF3, 0xEE, 0xC9, 0xD4, 0x6F, 0x72, 0x55, 0x48, 0x1B, 0x06, 0x21, 0x3C, 0x4A, 0x57, 0x70, 0x6D, 0x3E, 0x23,
+        0x04, 0x19, 0xA2, 0xBF, 0x98, 0x85, 0xD6, 0xCB, 0xEC, 0xF1, 0x13, 0x0E, 0x29, 0x34, 0x67, 0x7A, 0x5D, 0x40,
+        0xFB, 0xE6, 0xC1, 0xDC, 0x8F, 0x92, 0xB5, 0xA8, 0xDE, 0xC3, 0xE4, 0xF9, 0xAA, 0xB7, 0x90, 0x8D, 0x36, 0x2B,
+        0x0C, 0x11, 0x42, 0x5F, 0x78, 0x65, 0x94, 0x89, 0xAE, 0xB3, 0xE0, 0xFD, 0xDA, 0xC7, 0x7C, 0x61, 0x46, 0x5B,
+        0x08, 0x15, 0x32, 0x2F, 0x59, 0x44, 0x63, 0x7E, 0x2D, 0x30, 0x17, 0x0A, 0xB1, 0xAC, 0x8B, 0x96, 0xC5, 0xD8,
+        0xFF, 0xE2, 0x26, 0x3B, 0x1C, 0x01, 0x52, 0x4F, 0x68, 0x75, 0xCE, 0xD3, 0xF4, 0xE9, 0xBA, 0xA7, 0x80, 0x9D,
+        0xEB, 0xF6, 0xD1, 0xCC, 0x9F, 0x82, 0xA5, 0xB8, 0x03, 0x1E, 0x39, 0x24, 0x77, 0x6A, 0x4D, 0x50, 0xA1, 0xBC,
+        0x9B, 0x86, 0xD5, 0xC8, 0xEF, 0xF2, 0x49, 0x54, 0x73, 0x6E, 0x3D, 0x20, 0x07, 0x1A, 0x6C, 0x71, 0x56, 0x4B,
+        0x18, 0x05, 0x22, 0x3F, 0x84, 0x99, 0xBE, 0xA3, 0xF0, 0xED, 0xCA, 0xD7, 0x35, 0x28, 0x0F, 0x12, 0x41, 0x5C,
+        0x7B, 0x66, 0xDD, 0xC0, 0xE7, 0xFA, 0xA9, 0xB4, 0x93, 0x8E, 0xF8, 0xE5, 0xC2, 0xDF, 0x8C, 0x91, 0xB6, 0xAB,
+        0x10, 0x0D, 0x2A, 0x37, 0x64, 0x79, 0x5E, 0x43, 0xB2, 0xAF, 0x88, 0x95, 0xC6, 0xDB, 0xFC, 0xE1, 0x5A, 0x47,
+        0x60, 0x7D, 0x2E, 0x33, 0x14, 0x09, 0x7F, 0x62, 0x45, 0x58, 0x0B, 0x16, 0x31, 0x2C, 0x97, 0x8A, 0xAD, 0xB0,
+        0xE3, 0xFE, 0xD9, 0xC4};
 
 static uint16_t inverterVoltageFrameHigh = 0;
 static uint16_t inverterVoltage = 0;
@@ -41,6 +61,99 @@ static int8_t temperature_water_inlet = 0;
 static int8_t powerRelayTemperature = 0;
 static int8_t heatertemp = 0;
 
+static uint8_t ticks_200ms_counter = 0;
+static uint8_t EGMP_1CF_counter = 0;
+
+CAN_frame EGMP_1CF = {.FD = true,
+                      .ext_ID = false,
+                      .DLC = 8,
+                      .ID = 0x1CF,
+                      .data = {0x56, 0x00, 0x00, 0x20, 0x00, 0x00, 0x00, 0x00}};
+CAN_frame EGMP_3AA = {.FD = true,
+                      .ext_ID = false,
+                      .DLC = 8,
+                      .ID = 0x3AA,
+                      .data = {0xFF, 0x00, 0x00, 0x00, 0x54, 0x00, 0x00, 0x00}};
+CAN_frame EGMP_4B4 = {.FD = true,
+                      .ext_ID = false,
+                      .DLC = 8,
+                      .ID = 0x4B4,
+                      .data = {0x00, 0x00, 0xC0, 0x3F, 0x00, 0x00, 0x00, 0x00}};
+CAN_frame EGMP_4B5 = {.FD = true,
+                      .ext_ID = false,
+                      .DLC = 8,
+                      .ID = 0x4B5,
+                      .data = {0x08, 0x00, 0xF0, 0x07, 0x00, 0x00, 0x00, 0x00}};
+CAN_frame EGMP_4B7 = {.FD = true,
+                      .ext_ID = false,
+                      .DLC = 8,
+                      .ID = 0x4B7,
+                      .data = {0x08, 0x00, 0xF0, 0x07, 0x00, 0x00, 0x00, 0x00}};
+CAN_frame EGMP_4CC = {.FD = true,
+                      .ext_ID = false,
+                      .DLC = 8,
+                      .ID = 0x4CC,
+                      .data = {0x08, 0x00, 0x00, 0x27, 0x00, 0x00, 0x00, 0x00}};
+CAN_frame EGMP_4CE = {.FD = true,
+                      .ext_ID = false,
+                      .DLC = 8,
+                      .ID = 0x4CE,
+                      .data = {0x16, 0xCF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF}};
+CAN_frame EGMP_4D8 = {.FD = true,
+                      .ext_ID = false,
+                      .DLC = 8,
+                      .ID = 0x4D8,
+                      .data = {0x40, 0x10, 0xF0, 0xF0, 0x40, 0xF2, 0x1E, 0xCC}};
+CAN_frame EGMP_4DD = {.FD = true,
+                      .ext_ID = false,
+                      .DLC = 8,
+                      .ID = 0x4DD,
+                      .data = {0x3F, 0xFC, 0xFF, 0x00, 0x38, 0x00, 0x00, 0x00}};
+CAN_frame EGMP_4E7 = {.FD = true,
+                      .ext_ID = false,
+                      .DLC = 8,
+                      .ID = 0x4E7,
+                      .data = {0x00, 0x30, 0x00, 0x00, 0x00, 0x00, 0x10, 0x00}};
+CAN_frame EGMP_4E9 = {.FD = true,
+                      .ext_ID = false,
+                      .DLC = 8,
+                      .ID = 0x4E9,
+                      .data = {0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00}};
+CAN_frame EGMP_4EA = {.FD = true,
+                      .ext_ID = false,
+                      .DLC = 8,
+                      .ID = 0x4EA,
+                      .data = {0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00}};
+CAN_frame EGMP_4EB = {.FD = true,
+                      .ext_ID = false,
+                      .DLC = 8,
+                      .ID = 0x4EB,
+                      .data = {0x01, 0x50, 0x0B, 0x26, 0x00, 0x00, 0x00, 0x00}};
+CAN_frame EGMP_4EC = {.FD = true,
+                      .ext_ID = false,
+                      .DLC = 8,
+                      .ID = 0x4EC,
+                      .data = {0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0x0F}};
+CAN_frame EGMP_4ED = {.FD = true,
+                      .ext_ID = false,
+                      .DLC = 8,
+                      .ID = 0x4ED,
+                      .data = {0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0x1F}};
+CAN_frame EGMP_4EE = {.FD = true,
+                      .ext_ID = false,
+                      .DLC = 8,
+                      .ID = 0x4EE,
+                      .data = {0xFF, 0xFF, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00}};
+CAN_frame EGMP_4EF = {.FD = true,
+                      .ext_ID = false,
+                      .DLC = 8,
+                      .ID = 0x4EF,
+                      .data = {0x2B, 0xFE, 0x00, 0x00, 0x10, 0x00, 0x00, 0x00}};
+CAN_frame EGMP_641 = {.FD = true,
+                      .ext_ID = false,
+                      .DLC = 8,
+                      .ID = 0x641,
+                      .data = {0xFF, 0xFF, 0xFF, 0xFF, 0x0F, 0xFF, 0xFF, 0xFF}};
 CAN_frame EGMP_7E4 = {.FD = true,
                       .ext_ID = false,
                       .DLC = 8,
@@ -59,6 +172,14 @@ void set_cell_voltages(CAN_frame rx_frame, int start, int length, int startCell)
       datalayer.battery.status.cell_voltages_mV[startCell + i] = (rx_frame.data.u8[start + i] * 20);
     }
   }
+}
+
+static uint8_t calculateCRC(CAN_frame rx_frame, uint8_t length, uint8_t initial_value) {
+  uint8_t crc = initial_value;
+  for (uint8_t j = 1; j < length; j++) {  //start at 1, since 0 is the CRC
+    crc = crc8_table[(crc ^ static_cast<uint8_t>(rx_frame.data.u8[j])) % 256];
+  }
+  return crc;
 }
 
 void update_values_battery() {  //This function maps all the values fetched via CAN to the correct parameters used for modbus
@@ -414,6 +535,72 @@ void receive_can_battery(CAN_frame rx_frame) {
 void send_can_battery() {
 
   unsigned long currentMillis = millis();
+
+  //Send 20ms CANFD message
+  if (currentMillis - previousMillis20ms >= INTERVAL_20_MS) {
+    previousMillis20ms = currentMillis;
+
+    EGMP_1CF.data.u8[1] = (EGMP_1CF_counter % 15) * 0x10;
+    EGMP_1CF_counter++;
+    if (EGMP_1CF_counter > 0xE) {
+      EGMP_1CF_counter = 0;
+    }
+    EGMP_1CF.data.u8[0] = calculateCRC(EGMP_1CF, EGMP_1CF.DLC, 0x0A);  // Set CRC bit, initial Value 0x0A
+
+    transmit_can(&EGMP_1CF, can_config.battery);
+  }
+
+  //Send 200ms CANFD message
+  if (currentMillis - previousMillis200ms >= INTERVAL_200_MS) {
+    previousMillis200ms = currentMillis;
+
+    transmit_can(&EGMP_4B4, can_config.battery);
+    transmit_can(&EGMP_4B5, can_config.battery);
+    transmit_can(&EGMP_4B7, can_config.battery);
+    transmit_can(&EGMP_4CC, can_config.battery);
+    transmit_can(&EGMP_4CE, can_config.battery);
+    transmit_can(&EGMP_4D8, can_config.battery);
+    transmit_can(&EGMP_4DD, can_config.battery);
+    transmit_can(&EGMP_4E7, can_config.battery);
+    transmit_can(&EGMP_4E9, can_config.battery);
+    transmit_can(&EGMP_4EA, can_config.battery);
+    transmit_can(&EGMP_4EB, can_config.battery);
+    transmit_can(&EGMP_4EC, can_config.battery);
+    transmit_can(&EGMP_4ED, can_config.battery);
+    transmit_can(&EGMP_4EE, can_config.battery);
+    transmit_can(&EGMP_4EF, can_config.battery);
+    transmit_can(&EGMP_641, can_config.battery);
+    transmit_can(&EGMP_3AA, can_config.battery);
+
+    if (ticks_200ms_counter < 254) {
+      ticks_200ms_counter++;
+    }
+    if (ticks_200ms_counter > 28) {
+      EGMP_4B4.data.u8[2] = 0;
+      EGMP_4B4.data.u8[3] = 0;
+    }
+    if (ticks_200ms_counter > 32) {
+      EGMP_4CE.data.u8[0] = 0x22;
+      EGMP_4CE.data.u8[1] = 0x41;
+      EGMP_4CE.data.u8[6] = 0x47;
+      EGMP_4CE.data.u8[7] = 0x1F;
+    }
+    if (ticks_200ms_counter > 43) {
+      EGMP_4EB.data.u8[2] = 0x0D;
+      EGMP_4EB.data.u8[3] = 0x3B;
+    }
+    if (ticks_200ms_counter > 46) {
+      EGMP_4EB.data.u8[2] = 0x0E;
+      EGMP_4EB.data.u8[3] = 0x00;
+    }
+    if (ticks_200ms_counter > 24) {
+      EGMP_4ED.data.u8[1] = 0x00;
+      EGMP_4ED.data.u8[2] = 0x00;
+      EGMP_4ED.data.u8[3] = 0x00;
+      EGMP_4ED.data.u8[4] = 0x00;
+    }
+  }
+
   //Send 500ms CANFD message
   if (currentMillis - previousMillis500ms >= INTERVAL_500_MS) {
 
@@ -424,13 +611,7 @@ void send_can_battery() {
       clear_event(EVENT_CAN_OVERRUN);
     }
     previousMillis500ms = currentMillis;
-    //  Section added to close contractor
-    if (datalayer.battery.status.bms_status == ACTIVE) {
-      datalayer.system.status.battery_allows_contactor_closing = true;
-    } else {  //datalayer.battery.status.bms_status == FAULT or inverter requested opening contactors
-      datalayer.system.status.battery_allows_contactor_closing = false;
-    }
-    //  Section end
+
     EGMP_7E4.data.u8[3] = KIA_7E4_COUNTER;
     transmit_can(&EGMP_7E4, can_config.battery);
 
@@ -445,6 +626,8 @@ void setup_battery(void) {  // Performs one time setup at startup
 #ifdef DEBUG_VIA_USB
   Serial.println("Hyundai E-GMP (Electric Global Modular Platform) battery selected");
 #endif
+
+  datalayer.system.status.battery_allows_contactor_closing = true;
 
   datalayer.battery.info.number_of_cells = 192;  // TODO: will vary depending on battery
 
