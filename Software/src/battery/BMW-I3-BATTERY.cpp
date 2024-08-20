@@ -348,7 +348,7 @@ void update_values_battery2() {  //This function maps all the values fetched via
     return;
   }
 
-  datalayer.battery2.status.real_soc = (battery2_HVBatt_SOC * 10);
+  datalayer.battery2.status.real_soc = (battery2_display_SOC * 50);
 
   datalayer.battery2.status.voltage_dV = battery2_volts;  //Unit V+1 (5000 = 500.0V)
 
