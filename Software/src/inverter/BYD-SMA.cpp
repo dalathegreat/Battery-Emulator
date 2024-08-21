@@ -46,7 +46,7 @@ CAN_frame SMA_558 = {.FD = false,
                      .ext_ID = false,
                      .DLC = 8,
                      .ID = 0x558,
-                     .data = {0x03, 0x13, 0x00, 0x03, 0x00, 0x66, 0x04, 0x07}};
+                     .data = {0x03, 0x13, 0x00, 0x03, 0x00, 0x66, 0x04, 0x07}};  //4x BYD modules, Vendor ID 7 BYD
 CAN_frame SMA_598 = {.FD = false,
                      .ext_ID = false,
                      .DLC = 8,
@@ -66,12 +66,12 @@ CAN_frame SMA_618_2 = {.FD = false,
                        .ext_ID = false,
                        .DLC = 8,
                        .ID = 0x618,
-                       .data = {0x01, 0x2D, 0x42, 0x6F, 0x78, 0x20, 0x48, 0x31}};
+                       .data = {0x01, 0x2D, 0x42, 0x6F, 0x78, 0x20, 0x48, 0x31}};  //- B o x  H 1
 CAN_frame SMA_618_3 = {.FD = false,
                        .ext_ID = false,
                        .DLC = 8,
                        .ID = 0x618,
-                       .data = {0x02, 0x30, 0x2E, 0x32, 0x00, 0x00, 0x00, 0x00}};
+                       .data = {0x02, 0x30, 0x2E, 0x32, 0x00, 0x00, 0x00, 0x00}};  // 0 . 2
 
 static int16_t discharge_current = 0;
 static int16_t charge_current = 0;
