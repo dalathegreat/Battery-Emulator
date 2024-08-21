@@ -185,6 +185,10 @@ static bool battery_awake = false;
 static bool battery2_awake = false;
 static bool battery_info_available = false;
 static bool battery2_info_available = false;
+static bool skipCRCCheck = false;
+static bool CRCCheckPassedPreviously = false;
+static bool skipCRCCheck_battery2 = false;
+static bool CRCCheckPassedPreviously_battery2 = false;
 
 static uint32_t battery_serial_number = 0;
 static uint32_t battery_available_power_shortterm_charge = 0;
@@ -526,11 +530,23 @@ void receive_can_battery(CAN_frame rx_frame) {
       break;
     case 0x2BD:  //BMS [100ms] Status diagnosis high voltage - 1
       battery_awake = true;
-      if (calculateCRC(rx_frame, rx_frame.DLC, 0x15) != rx_frame.data.u8[0]) {
-        //If calculated CRC does not match transmitted CRC, increase CANerror counter
-        datalayer.battery.status.CAN_error_counter++;
-        break;
+      if (!skipCRCCheck) {
+        if (calculateCRC(rx_frame, rx_frame.DLC, 0x15) != rx_frame.data.u8[0]) {
+          // If calculated CRC does not match transmitted CRC, increase CANerror counter
+          datalayer.battery.status.CAN_error_counter++;
+
+          // If the CRC check has never passed before, set the flag to skip future checks. Some SMEs have differing CRC checks.
+          if (!CRCCheckPassedPreviously) {
+            skipCRCCheck = true;
+          }
+          break;
+        } else {
+          // If CRC check passes, update the flag
+          CRCCheckPassedPreviously = true;
+        }
       }
+
+      // Process the data since CRC check is either passed or skipped
       battery_status_diagnostics_HV = (rx_frame.data.u8[2] & 0x0F);
       break;
     case 0x2F5:  //BMS [100ms] High-Voltage Battery Charge/Discharge Limitations
@@ -690,11 +706,23 @@ void receive_can_battery2(CAN_frame rx_frame) {
       break;
     case 0x2BD:  //BMS [100ms] Status diagnosis high voltage - 1
       battery2_awake = true;
-      if (calculateCRC(rx_frame, rx_frame.DLC, 0x15) != rx_frame.data.u8[0]) {
-        //If calculated CRC does not match transmitted CRC, increase CANerror counter
-        datalayer.battery2.status.CAN_error_counter++;
-        break;
+      if (!skipCRCCheck_battery2) {
+        if (calculateCRC(rx_frame, rx_frame.DLC, 0x15) != rx_frame.data.u8[0]) {
+          // If calculated CRC does not match transmitted CRC, increase CANerror counter
+          datalayer.battery2.status.CAN_error_counter++;
+
+          // If the CRC check has never passed before, set the flag to skip future checks. Some SMEs have differing CRC checks.
+          if (!CRCCheckPassedPreviously_battery2) {
+            skipCRCCheck_battery2 = true;
+          }
+          break;
+        } else {
+          // If CRC check passes, update the flag
+          CRCCheckPassedPreviously_battery2 = true;
+        }
       }
+
+      // Process the data since CRC check is either passed or skipped
       battery2_status_diagnostics_HV = (rx_frame.data.u8[2] & 0x0F);
       break;
     case 0x2F5:  //BMS [100ms] High-Voltage Battery Charge/Discharge Limitations
