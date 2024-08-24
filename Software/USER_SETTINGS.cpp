@@ -14,17 +14,22 @@ CAN_ADDON_FD_MCP2518 = Add-on CAN-FD MCP2518 connected to GPIO pins
 volatile CAN_Configuration can_config = {
     .battery = CAN_NATIVE,   // Which CAN is your battery connected to?
     .inverter = CAN_NATIVE,  // Which CAN is your inverter connected to? (No need to configure incase you use RS485)
+#ifdef DOUBLE_BATTERY
     .battery_double = CAN_ADDON_MCP2515,  // (OPTIONAL) Which CAN is your second battery connected to?
-    .charger = CAN_NATIVE                 // (OPTIONAL) Which CAN is your charger connected to?
+#endif
+#ifdef CHARGER_SELECTED
+    .charger = CAN_NATIVE  // (OPTIONAL) Which CAN is your charger connected to?
+#endif
 };
 
 #ifdef WEBSERVER
-volatile uint8_t AccessPointEnabled = true;           //Set to either true/false to enable direct wifi access point
 std::string ssid = "REPLACE_WITH_YOUR_SSID";          // Maximum of 63 characters;
 std::string password = "REPLACE_WITH_YOUR_PASSWORD";  // Minimum of 8 characters;
-const char* ssidAP = "Battery Emulator";              // Maximum of 63 characters;
+const char* ssidAP = "Battery Emulator";  // Maximum of 63 characters, also used for device name on web interface
+#ifdef WIFIAP
 const char* passwordAP = "123456789";  // Minimum of 8 characters; set to NULL if you want the access point to be open
-const uint8_t wifi_channel = 0;        // Set to 0 for automatic channel selection
+#endif
+const uint8_t wifi_channel = 0;  // Set to 0 for automatic channel selection
 // MQTT
 #ifdef MQTT
 const char* mqtt_user = "REDACTED";

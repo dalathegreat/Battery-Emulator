@@ -26,9 +26,15 @@
 #include "src/datalayer/datalayer.h"
 
 #ifdef WEBSERVER
-#include <ESPmDNS.h>
 #include "src/devboard/webserver/webserver.h"
-#endif
+#ifdef MDNSRESPONDER
+#include <ESPmDNS.h>
+#endif  // MDNSRESONDER
+#else   // WEBSERVER
+#ifdef MDNSRESPONDER
+#error WEBSERVER needs to be enabled for MDNSRESPONDER!
+#endif  // MDNSRSPONDER
+#endif  // WEBSERVER
 
 Preferences settings;  // Store user settings
 // The current software version, shown on webserver
@@ -167,7 +173,9 @@ void loop() {
 void connectivity_loop(void* task_time_us) {
   // Init
   init_webserver();
+#ifdef MDNSRESPONDER
   init_mDNS();
+#endif
 #ifdef MQTT
   init_mqtt();
 #endif
@@ -286,7 +294,7 @@ void core_loop(void* task_time_us) {
   }
 }
 
-#ifdef WEBSERVER
+#ifdef MDNSRESPONDER
 // Initialise mDNS
 void init_mDNS() {
 
@@ -305,7 +313,7 @@ void init_mDNS() {
     MDNS.addService("battery_emulator", "tcp", 80);
   }
 }
-#endif
+#endif  // MDNSRESPONDER
 
 // Initialization functions
 void init_serial() {
@@ -928,19 +936,19 @@ void receive_can(CAN_frame* rx_frame, int interface) {
   if (interface == can_config.battery) {
     receive_can_battery(*rx_frame);
   }
-  if (interface == can_config.inverter) {
 #ifdef CAN_INVERTER_SELECTED
+  if (interface == can_config.inverter) {
     receive_can_inverter(*rx_frame);
-#endif
   }
-  if (interface == can_config.battery_double) {
+#endif
 #ifdef DOUBLE_BATTERY
+  if (interface == can_config.battery_double) {
     receive_can_battery2(*rx_frame);
-#endif
   }
-  if (interface == can_config.charger) {
+#endif
 #ifdef CHARGER_SELECTED
+  if (interface == can_config.charger) {
     receive_can_charger(*rx_frame);
-#endif
   }
+#endif
 }

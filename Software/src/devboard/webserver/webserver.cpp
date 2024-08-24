@@ -37,12 +37,12 @@ unsigned long last_wifi_attempt_time = millis();  //init millis so wifi monitor 
 
 void init_webserver() {
   // Configure WiFi
-  if (AccessPointEnabled) {
-    WiFi.mode(WIFI_AP_STA);  // Simultaneous WiFi AP and Router connection
-    init_WiFi_AP();
-  } else {
-    WiFi.mode(WIFI_STA);  // Only Router connection
-  }
+#ifdef WIFIAP
+  WiFi.mode(WIFI_AP_STA);  // Simultaneous WiFi AP and Router connection
+  init_WiFi_AP();
+#else
+  WiFi.mode(WIFI_STA);  // Only Router connection
+#endif
   init_WiFi_STA(ssid.c_str(), password.c_str(), wifi_channel);
 
   String content = index_html;
@@ -286,6 +286,7 @@ void init_webserver() {
 #endif
 }
 
+#ifdef WIFIAP
 void init_WiFi_AP() {
 #ifdef DEBUG_VIA_USB
   Serial.println("Creating Access Point: " + String(ssidAP));
@@ -299,6 +300,7 @@ void init_WiFi_AP() {
   Serial.println(IP);
 #endif
 }
+#endif
 
 String getConnectResultString(wl_status_t status) {
   switch (status) {

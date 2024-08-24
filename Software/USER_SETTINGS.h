@@ -54,6 +54,8 @@
 //#define SERIAL_LINK_RECEIVER  //Enable this line to receive battery data over RS485 pins from another Lilygo (This LilyGo interfaces with inverter)
 //#define SERIAL_LINK_TRANSMITTER  //Enable this line to send battery data over RS485 pins to another Lilygo (This LilyGo interfaces with battery)
 #define WEBSERVER  //Enable this line to enable WiFi, and to run the webserver. See USER_SETTINGS.cpp for the Wifi settings.
+#define MDNSRESPONDER  //Enable this line to enable MDNS, allows battery monitor te be found by .local address. Requires WEBSERVER to be enabled.
+#define WIFIAP  //Enable this line to make battery monitor create an wifi access point. When disabled make sure to hardcode wifi settings to make battery emulator connect to you home wifi.
 #define LOAD_SAVED_SETTINGS_ON_BOOT  //Enable this line to read settings stored via the webserver on boot (overrides Wifi/battery settings set below)
 //#define FUNCTION_TIME_MEASUREMENT  // Enable this to record execution times and present them in the web UI (WARNING, raises CPU load, do not use for production)
 
@@ -89,11 +91,14 @@ typedef enum { CAN_NATIVE = 0, CANFD_NATIVE = 1, CAN_ADDON_MCP2515 = 2, CAN_ADDO
 typedef struct {
   CAN_Interface battery;
   CAN_Interface inverter;
+#ifdef DOUBLE_BATTERY
   CAN_Interface battery_double;
+#endif
+#ifdef CHARGER_SELECTED
   CAN_Interface charger;
+#endif
 } CAN_Configuration;
 extern volatile CAN_Configuration can_config;
-extern volatile uint8_t AccessPointEnabled;
 extern const uint8_t wifi_channel;
 extern volatile float charger_setpoint_HV_VDC;
 extern volatile float charger_setpoint_HV_IDC;
