@@ -369,8 +369,8 @@ void init_CAN() {
   digitalWrite(CAN_SE_PIN, LOW);
 #endif
   CAN_cfg.speed = CAN_SPEED_500KBPS;
-  CAN_cfg.tx_pin_id = GPIO_NUM_27;
-  CAN_cfg.rx_pin_id = GPIO_NUM_26;
+  CAN_cfg.tx_pin_id = CAN_TX_PIN;
+  CAN_cfg.rx_pin_id = CAN_RX_PIN;
   CAN_cfg.rx_queue = xQueueCreate(rx_queue_size, sizeof(CAN_frame_t));
   // Init CAN Module
   ESP32Can.CANInit();
