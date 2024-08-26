@@ -19,8 +19,9 @@ static unsigned long previousMillis10000 = 0;  // will store last time a 10000ms
 enum BatterySize { BATTERY_60AH, BATTERY_94AH, BATTERY_120AH };
 static BatterySize detectedBattery = BATTERY_60AH;
 
-enum CmdState { SOH, CELL_VOLTAGE, SOC, CELL_VOLTAGE_AVG };
-static CmdState cmdState = SOH;
+enum CmdState { SOH, CELL_VOLTAGE_MINMAX, SOC, CELL_VOLTAGE_CELLNO, CELL_VOLTAGE_CELLNO_LAST };
+
+static CmdState cmdState = SOC;
 
 const unsigned char crc8_table[256] =
     {  // CRC8_SAE_J1850_ZER0 formula,0x1D Poly,initial value 0x3F,Final XOR value varies
@@ -44,6 +45,7 @@ const unsigned char crc8_table[256] =
 0AA 105 13D 0BB 0AD 0A5 150 100 1A1 10E 153 197 429 1AA 12F 59A 2E3 2BE 211 2b3 3FD 2E8 2B7 108 29D 29C 29B 2C0 330
 3E9 32F 19E 326 55E 515 509 50A 51A 2F5 3A4 432 3C9 
 */
+
 CAN_frame BMW_10B = {.FD = false,
                      .ext_ID = false,
                      .DLC = 3,
@@ -168,6 +170,17 @@ CAN_frame BMW_6F1_CELL_VOLTAGE_AVG = {.FD = false,
                                       .ID = 0x6F1,
                                       .data = {0x07, 0x03, 0x22, 0xDF, 0xA0}};
 CAN_frame BMW_6F1_CONTINUE = {.FD = false, .ext_ID = false, .DLC = 4, .ID = 0x6F1, .data = {0x07, 0x30, 0x00, 0x02}};
+CAN_frame BMW_6F4_CELL_VOLTAGE_CELLNO = {.FD = false,
+                                         .ext_ID = false,
+                                         .DLC = 7,
+                                         .ID = 0x6F4,
+                                         .data = {0x07, 0x05, 0x31, 0x01, 0xAD, 0x6E, 0x01}};
+CAN_frame BMW_6F4_CELL_CONTINUE = {.FD = false,
+                                   .ext_ID = false,
+                                   .DLC = 6,
+                                   .ID = 0x6F4,
+                                   .data = {0x07, 0x04, 0x31, 0x03, 0xAD, 0x6E}};
+
 //The above CAN messages need to be sent towards the battery to keep it alive
 
 static uint8_t startup_counter_contactor = 0;
@@ -330,6 +343,7 @@ static uint8_t battery2_soh = 99;
 
 static uint8_t message_data[50];
 static uint8_t next_data = 0;
+static uint8_t current_cell_polled = 0;
 
 static uint8_t calculateCRC(CAN_frame rx_frame, uint8_t length, uint8_t initial_value) {
   uint8_t crc = initial_value;
@@ -414,11 +428,6 @@ void update_values_battery() {  //This function maps all the values fetched via 
 
   datalayer.battery.status.temperature_max_dC = battery_temperature_max * 10;  // Add a decimal
 
-  if (datalayer.battery.status.cell_voltages_mV[0] > 0 && datalayer.battery.status.cell_voltages_mV[2] > 0) {
-    datalayer.battery.status.cell_min_voltage_mV = datalayer.battery.status.cell_voltages_mV[0];
-    datalayer.battery.status.cell_max_voltage_mV = datalayer.battery.status.cell_voltages_mV[2];
-  }
-
   if (battery_info_available) {
     // Start checking safeties. First up, cellvoltages!
     if (detectedBattery == BATTERY_60AH) {
@@ -465,9 +474,12 @@ void update_values_battery() {  //This function maps all the values fetched via 
 
 #ifdef DEBUG_VIA_USB
   Serial.println(" ");
-  Serial.print("Values sent to inverter: ");
-  Serial.print("Real SOC%: ");
-  Serial.print(datalayer.battery.status.real_soc * 0.01);
+  Serial.print("Battery display SOC%: ");
+  Serial.print(battery_display_SOC * 50);
+  Serial.print("Battery display SOC%: ");
+  Serial.print(battery_HVBatt_SOC * 10);
+  Serial.print("Battery polled SOC%: ");
+  Serial.print(battery_soc);
   Serial.print(" Battery voltage: ");
   Serial.print(datalayer.battery.status.voltage_dV * 0.1);
   Serial.print(" Battery current: ");
@@ -617,6 +629,16 @@ void receive_can_battery(CAN_frame rx_frame) {
       battery_ID2 = rx_frame.data.u8[0];
       break;
     case 0x607:  //BMS - responses to message requests on 0x615
+      if ((cmdState == CELL_VOLTAGE_CELLNO || cmdState == CELL_VOLTAGE_CELLNO_LAST) && (rx_frame.data.u8[0] == 0xF4)) {
+        if (rx_frame.DLC == 6) {
+          transmit_can(&BMW_6F4_CELL_CONTINUE, can_config.battery);  // tell battery to send the cellvoltage
+        }
+        if (rx_frame.DLC == 8) {  // We have the full value, map it
+          datalayer.battery.status.cell_voltages_mV[current_cell_polled - 1] =
+              (rx_frame.data.u8[6] << 8 | rx_frame.data.u8[7]);
+        }
+      }
+
       if (rx_frame.DLC > 6 && next_data == 0 && rx_frame.data.u8[0] == 0xf1) {
         uint8_t count = 6;
         while (count < rx_frame.DLC && next_data < 49) {
@@ -632,16 +654,10 @@ void receive_can_battery(CAN_frame rx_frame) {
         }
 
         switch (cmdState) {
-          case CELL_VOLTAGE:
+          case CELL_VOLTAGE_MINMAX:
             if (next_data >= 4) {
-              datalayer.battery.status.cell_voltages_mV[0] = (message_data[0] << 8 | message_data[1]);
-              datalayer.battery.status.cell_voltages_mV[2] = (message_data[2] << 8 | message_data[3]);
-            }
-            break;
-          case CELL_VOLTAGE_AVG:
-            if (next_data >= 30) {
-              datalayer.battery.status.cell_voltages_mV[1] = (message_data[10] << 8 | message_data[11]) / 10;
-              battery_capacity_cah = (message_data[4] << 8 | message_data[5]);
+              datalayer.battery.status.cell_min_voltage_mV = (message_data[0] << 8 | message_data[1]);
+              datalayer.battery.status.cell_max_voltage_mV = (message_data[2] << 8 | message_data[3]);
             }
             break;
           case SOH:
@@ -813,16 +829,10 @@ void receive_can_battery2(CAN_frame rx_frame) {
         }
 
         switch (cmdState) {
-          case CELL_VOLTAGE:
+          case CELL_VOLTAGE_MINMAX:
             if (next_data >= 4) {
-              datalayer.battery2.status.cell_voltages_mV[0] = (message_data[0] << 8 | message_data[1]);
-              datalayer.battery2.status.cell_voltages_mV[2] = (message_data[2] << 8 | message_data[3]);
-            }
-            break;
-          case CELL_VOLTAGE_AVG:
-            if (next_data >= 30) {
-              datalayer.battery2.status.cell_voltages_mV[1] = (message_data[10] << 8 | message_data[11]) / 10;
-              battery2_capacity_cah = (message_data[4] << 8 | message_data[5]);
+              datalayer.battery2.status.cell_min_voltage_mV = (message_data[0] << 8 | message_data[1]);
+              datalayer.battery2.status.cell_max_voltage_mV = (message_data[2] << 8 | message_data[3]);
             }
             break;
           case SOH:
@@ -1007,9 +1017,9 @@ void send_can_battery() {
 #ifdef DOUBLE_BATTERY
           transmit_can(&BMW_6F1_CELL, can_config.battery_double);
 #endif
-          cmdState = CELL_VOLTAGE;
+          cmdState = CELL_VOLTAGE_MINMAX;
           break;
-        case CELL_VOLTAGE:
+        case CELL_VOLTAGE_MINMAX:
           transmit_can(&BMW_6F1_SOH, can_config.battery);
 #ifdef DOUBLE_BATTERY
           transmit_can(&BMW_6F1_SOH, can_config.battery_double);
@@ -1021,9 +1031,26 @@ void send_can_battery() {
 #ifdef DOUBLE_BATTERY
           transmit_can(&BMW_6F1_CELL_VOLTAGE_AVG, can_config.battery_double);
 #endif
-          cmdState = CELL_VOLTAGE_AVG;
+          cmdState = CELL_VOLTAGE_CELLNO;
+          current_cell_polled = 0;
+
           break;
-        case CELL_VOLTAGE_AVG:
+        case CELL_VOLTAGE_CELLNO:
+          current_cell_polled++;
+          if (current_cell_polled > 96) {
+            datalayer.battery.info.number_of_cells = 97;
+            cmdState = CELL_VOLTAGE_CELLNO_LAST;
+          } else {
+            cmdState = CELL_VOLTAGE_CELLNO;
+
+            BMW_6F4_CELL_VOLTAGE_CELLNO.data.u8[6] = current_cell_polled;
+            transmit_can(&BMW_6F4_CELL_VOLTAGE_CELLNO, can_config.battery);
+#ifdef DOUBLE_BATTERY
+            transmit_can(&BMW_6F4_CELL_VOLTAGE_CELLNO, can_config.battery_double);
+#endif
+          }
+          break;
+        case CELL_VOLTAGE_CELLNO_LAST:
           transmit_can(&BMW_6F1_SOC, can_config.battery);
 #ifdef DOUBLE_BATTERY
           transmit_can(&BMW_6F1_SOC, can_config.battery_double);
