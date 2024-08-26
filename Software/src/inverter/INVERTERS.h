@@ -11,6 +11,10 @@
 #include "BYD-MODBUS.h"
 #endif
 
+#ifdef BYD_SMA
+#include "BYD-SMA.h"
+#endif
+
 #ifdef LUNA2000_MODBUS
 #include "LUNA2000-MODBUS.h"
 #endif
@@ -40,9 +44,8 @@
 #endif
 
 #ifdef CAN_INVERTER_SELECTED
-#include "../lib/miwagner-ESP32-Arduino-CAN/ESP32CAN.h"  // This include is annoying, consider defining a frame type in types.h
 void update_values_can_inverter();
-void receive_can_inverter(CAN_frame_t rx_frame);
+void receive_can_inverter(CAN_frame rx_frame);
 void send_can_inverter();
 #endif
 

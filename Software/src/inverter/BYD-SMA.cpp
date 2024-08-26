@@ -1,24 +1,57 @@
 #include "../include.h"
-#ifdef SMA_CAN
+#ifdef BYD_SMA
 #include "../datalayer/datalayer.h"
-#include "SMA-CAN.h"
+#include "BYD-SMA.h"
 
 /* TODO: Map error bits in 0x158 */
 
 /* Do not change code below unless you are sure what you are doing */
-static unsigned long previousMillis100ms = 0;  // will store last time a 100ms CAN Message was send
+static unsigned long previousMillis60s = 0;
 
 //Actual content messages
+CAN_frame SMA_358 = {.FD = false,
+                     .ext_ID = false,
+                     .DLC = 8,
+                     .ID = 0x358,
+                     .data = {0x11, 0xA0, 0x07, 0x00, 0x01, 0x5E, 0x00, 0xC8}};
+CAN_frame SMA_3D8 = {.FD = false,
+                     .ext_ID = false,
+                     .DLC = 8,
+                     .ID = 0x3D8,
+                     .data = {0x13, 0x2E, 0x27, 0x10, 0x00, 0x45, 0xF9, 0x00}};
+CAN_frame SMA_458 = {.FD = false,
+                     .ext_ID = false,
+                     .DLC = 8,
+                     .ID = 0x458,
+                     .data = {0x00, 0x00, 0x11, 0xC8, 0x00, 0x00, 0x0E, 0xF4}};
+CAN_frame SMA_518 = {.FD = false,
+                     .ext_ID = false,
+                     .DLC = 8,
+                     .ID = 0x518,
+                     .data = {0x01, 0x4A, 0x01, 0x25, 0xFF, 0xFF, 0xFF, 0xFF}};
+CAN_frame SMA_4D8 = {.FD = false,
+                     .ext_ID = false,
+                     .DLC = 8,
+                     .ID = 0x4D8,
+                     .data = {0x10, 0x62, 0x00, 0x16, 0x01, 0x68, 0x03, 0x08}};
+CAN_frame SMA_158 = {.FD = false,
+                     .ext_ID = false,
+                     .DLC = 8,
+                     .ID = 0x158,  // All 0xAA, no faults active
+                     .data = {0xAA, 0xAA, 0xAA, 0xAA, 0xAA, 0xAA, 0xAA, 0xAA}};
+
+// Pairing/Battery setup information
+
 CAN_frame SMA_558 = {.FD = false,
                      .ext_ID = false,
                      .DLC = 8,
                      .ID = 0x558,
-                     .data = {0x03, 0x12, 0x00, 0x04, 0x00, 0x59, 0x07, 0x07}};  //7x BYD modules, Vendor ID 7 BYD
+                     .data = {0x03, 0x13, 0x00, 0x03, 0x00, 0x66, 0x04, 0x07}};
 CAN_frame SMA_598 = {.FD = false,
                      .ext_ID = false,
                      .DLC = 8,
                      .ID = 0x598,
-                     .data = {0x00, 0x00, 0x12, 0x34, 0x5A, 0xDE, 0x07, 0x4F}};  //B0-4 Serial, rest unknown
+                     .data = {0x00, 0xD3, 0x00, 0x01, 0x5C, 0x98, 0xB6, 0xEE}};
 CAN_frame SMA_5D8 = {.FD = false,
                      .ext_ID = false,
                      .DLC = 8,
@@ -33,42 +66,12 @@ CAN_frame SMA_618_2 = {.FD = false,
                        .ext_ID = false,
                        .DLC = 8,
                        .ID = 0x618,
-                       .data = {0x01, 0x2D, 0x42, 0x6F, 0x78, 0x20, 0x48, 0x39}};  //1 - B O X   H
+                       .data = {0x01, 0x2D, 0x42, 0x6F, 0x78, 0x20, 0x48, 0x31}};
 CAN_frame SMA_618_3 = {.FD = false,
                        .ext_ID = false,
                        .DLC = 8,
                        .ID = 0x618,
-                       .data = {0x02, 0x2E, 0x30, 0x00, 0x00, 0x00, 0x00, 0x00}};  //2 - 0
-CAN_frame SMA_358 = {.FD = false,
-                     .ext_ID = false,
-                     .DLC = 8,
-                     .ID = 0x358,
-                     .data = {0x0F, 0x6C, 0x06, 0x20, 0x00, 0x00, 0x00, 0x00}};
-CAN_frame SMA_3D8 = {.FD = false,
-                     .ext_ID = false,
-                     .DLC = 8,
-                     .ID = 0x3D8,
-                     .data = {0x04, 0x10, 0x27, 0x10, 0x00, 0x18, 0xF9, 0x00}};
-CAN_frame SMA_458 = {.FD = false,
-                     .ext_ID = false,
-                     .DLC = 8,
-                     .ID = 0x458,
-                     .data = {0x00, 0x00, 0x06, 0x75, 0x00, 0x00, 0x05, 0xD6}};
-CAN_frame SMA_518 = {.FD = false,
-                     .ext_ID = false,
-                     .DLC = 8,
-                     .ID = 0x518,
-                     .data = {0x00, 0x00, 0x00, 0x00, 0xFF, 0xFF, 0xFF, 0xFF}};
-CAN_frame SMA_4D8 = {.FD = false,
-                     .ext_ID = false,
-                     .DLC = 8,
-                     .ID = 0x4D8,
-                     .data = {0x09, 0xFD, 0x00, 0x00, 0x00, 0xA8, 0x02, 0x08}};
-CAN_frame SMA_158 = {.FD = false,
-                     .ext_ID = false,
-                     .DLC = 8,
-                     .ID = 0x158,
-                     .data = {0xAA, 0xAA, 0xAA, 0xAA, 0xAA, 0x6A, 0xAA, 0xAA}};
+                       .data = {0x02, 0x30, 0x2E, 0x32, 0x00, 0x00, 0x00, 0x00}};
 
 static int16_t discharge_current = 0;
 static int16_t charge_current = 0;
@@ -151,6 +154,12 @@ void update_values_can_inverter() {  //This function maps all the values fetched
   }
 
   //Error bits
+  if (!datalayer.system.status.inverter_allows_contactor_closing) {
+    SMA_158.data.u8[2] = 0x6A;
+  } else {
+    SMA_158.data.u8[2] = 0xAA;
+  }
+
   /*
   //SMA_158.data.u8[0] = //bit12 Fault high temperature, bit34Battery cellundervoltage, bit56 Battery cell overvoltage, bit78 batterysystemdefect
   //TODO: add all error bits. Sending message with all 0xAA until that.
@@ -208,14 +217,34 @@ void receive_can_inverter(CAN_frame rx_frame) {
       //Frame0-1 Voltage
       //Frame2-3 Current
       break;
-    case 0x420:  //Message originating from SMA inverter - Timestamp
-      //Frame0-3 Timestamp
-      break;
     case 0x3E0:  //Message originating from SMA inverter - ?
+      break;
+    case 0x420:  //Message originating from SMA inverter - Timestamp
+                 //Frame0-3 Timestamp
+      transmit_can(&SMA_158, can_config.inverter);
+      transmit_can(&SMA_358, can_config.inverter);
+      transmit_can(&SMA_3D8, can_config.inverter);
+      transmit_can(&SMA_458, can_config.inverter);
+      transmit_can(&SMA_518, can_config.inverter);
+      transmit_can(&SMA_4D8, can_config.inverter);
       break;
     case 0x5E0:  //Message originating from SMA inverter - String
       break;
     case 0x560:  //Message originating from SMA inverter - Init
+      break;
+    case 0x5E7:  //Pairing request
+      transmit_can(&SMA_558, can_config.inverter);
+      transmit_can(&SMA_598, can_config.inverter);
+      transmit_can(&SMA_5D8, can_config.inverter);
+      transmit_can(&SMA_618_1, can_config.inverter);
+      transmit_can(&SMA_618_2, can_config.inverter);
+      transmit_can(&SMA_618_3, can_config.inverter);
+      transmit_can(&SMA_158, can_config.inverter);
+      transmit_can(&SMA_358, can_config.inverter);
+      transmit_can(&SMA_3D8, can_config.inverter);
+      transmit_can(&SMA_458, can_config.inverter);
+      transmit_can(&SMA_518, can_config.inverter);
+      transmit_can(&SMA_4D8, can_config.inverter);
       break;
     default:
       break;
@@ -225,22 +254,15 @@ void receive_can_inverter(CAN_frame rx_frame) {
 void send_can_inverter() {
   unsigned long currentMillis = millis();
 
-  // Send CAN Message every 100ms
-  if (currentMillis - previousMillis100ms >= INTERVAL_100_MS) {
-    previousMillis100ms = currentMillis;
-
-    transmit_can(&SMA_558, can_config.inverter);
-    transmit_can(&SMA_598, can_config.inverter);
-    transmit_can(&SMA_5D8, can_config.inverter);
-    transmit_can(&SMA_618_1, can_config.inverter);  // TODO, should these 3x
-    transmit_can(&SMA_618_2, can_config.inverter);  // be sent as batch?
-    transmit_can(&SMA_618_3, can_config.inverter);  // or alternate on each send?
+  // Send CAN Message every 60s
+  if (currentMillis - previousMillis60s >= INTERVAL_60_S) {
+    previousMillis60s = currentMillis;
+    transmit_can(&SMA_158, can_config.inverter);
     transmit_can(&SMA_358, can_config.inverter);
     transmit_can(&SMA_3D8, can_config.inverter);
     transmit_can(&SMA_458, can_config.inverter);
     transmit_can(&SMA_518, can_config.inverter);
     transmit_can(&SMA_4D8, can_config.inverter);
-    transmit_can(&SMA_158, can_config.inverter);
   }
 }
 #endif

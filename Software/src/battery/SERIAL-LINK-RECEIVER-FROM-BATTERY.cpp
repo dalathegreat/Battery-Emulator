@@ -221,7 +221,9 @@ void update_values_serial_link() {
 void setup_battery(void) {
   Serial.println("SERIAL_DATA_LINK_RECEIVER selected");
 }
+// Needed to make the compiler happy
 void update_values_battery() {}
 void send_can_battery() {}
+void receive_can_battery(CAN_frame rx_frame) {}
 
 #endif

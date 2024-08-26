@@ -19,6 +19,22 @@ String settings_processor(const String& var) {
         "<h4 style='color: white;'>Password: ######## <span id='Password'></span> <button "
         "onclick='editPassword()'>Edit</button></h4>";
 
+    content += "<h4 style='color: white;'>Battery interface: <span id='Battery'>" +
+               String(getCANInterfaceName(can_config.battery)) + "</span></h4>";
+
+#ifdef DOUBLE_BATTERY
+    content += "<h4 style='color: white;'>Battery #2 interface: <span id='Battery'>" +
+               String(getCANInterfaceName(can_config.battery_double)) + "</span></h4>";
+#endif  // DOUBLE_BATTERY
+
+#ifdef CAN_INVERTER_SELECTED
+    content += "<h4 style='color: white;'>Inverter interface: <span id='Inverter'>" +
+               String(getCANInterfaceName(can_config.inverter)) + "</span></h4>";
+#endif  //CAN_INVERTER_SELECTED
+#ifdef MODBUS_INVERTER_SELECTED
+    content += "<h4 style='color: white;'>Inverter interface: RS485<span id='Inverter'></span></h4>";
+#endif
+
     // Close the block
     content += "</div>";
 
@@ -193,4 +209,27 @@ String settings_processor(const String& var) {
     return content;
   }
   return String();
+}
+
+const char* getCANInterfaceName(CAN_Interface interface) {
+  switch (interface) {
+    case CAN_NATIVE:
+      return "CAN";
+    case CANFD_NATIVE:
+#ifdef USE_CANFD_INTERFACE_AS_CLASSIC_CAN
+      return "CAN-FD Native (Classic CAN)";
+#else
+      return "CAN-FD Native";
+#endif
+    case CAN_ADDON_MCP2515:
+      return "Add-on CAN via GPIO MCP2515";
+    case CAN_ADDON_FD_MCP2518:
+#ifdef USE_CANFD_INTERFACE_AS_CLASSIC_CAN
+      return "Add-on CAN-FD via GPIO MCP2518 (Classic CAN)";
+#else
+      return "Add-on CAN-FD via GPIO MCP2518";
+#endif
+    default:
+      return "UNKNOWN";
+  }
 }

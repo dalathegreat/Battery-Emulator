@@ -27,6 +27,13 @@
 #error CAN-FD AND DUAL-CAN CANNOT BE USED SIMULTANEOUSLY
 #endif
 
+#ifdef USE_CANFD_INTERFACE_AS_CLASSIC_CAN
+#if !defined(CAN_FD)
+// Check that user did not try to use classic CAN over FD, without FD component
+#error PLEASE ENABLE CAN_FD TO USE CLASSIC CAN OVER CANFD INTERFACE
+#endif
+#endif
+
 #ifdef MODBUS_INVERTER_SELECTED
 #if defined(SERIAL_LINK_RECEIVER) || defined(SERIAL_LINK_TRANSMITTER)
 // Check that Dual LilyGo via RS485 option isn't enabled, this collides with Modbus!
