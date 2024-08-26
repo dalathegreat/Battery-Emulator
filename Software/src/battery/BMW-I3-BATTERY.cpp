@@ -1158,7 +1158,7 @@ void send_can_battery() {
           if (current_cell_polled > 96) {
             datalayer.battery.info.number_of_cells = 97;
             cmdState = CELL_VOLTAGE_CELLNO_LAST;
-          } else { 
+          } else {
             cmdState = CELL_VOLTAGE_CELLNO;
 
             BMW_6F4_CELL_VOLTAGE_CELLNO.data.u8[6] = current_cell_polled;
