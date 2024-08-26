@@ -7,6 +7,8 @@
 
 /* Do not change code below unless you are sure what you are doing */
 static unsigned long previousMillis20ms = 0;   // will store last time a 20ms CAN Message was send
+static unsigned long previousMillis30ms = 0;   // will store last time a 30ms CAN Message was send
+static unsigned long previousMillis100ms = 0;  // will store last time a 100ms CAN Message was send
 static unsigned long previousMillis200ms = 0;  // will store last time a 200ms CAN Message was send
 static unsigned long previousMillis500ms = 0;  // will store last time a 500ms CAN Message was send
 
@@ -63,6 +65,7 @@ static int8_t heatertemp = 0;
 
 static uint8_t ticks_200ms_counter = 0;
 static uint8_t EGMP_1CF_counter = 0;
+static uint8_t EGMP_3XF_counter = 0;
 
 CAN_frame EGMP_1CF = {.FD = true,
                       .ext_ID = false,
@@ -74,6 +77,26 @@ CAN_frame EGMP_3AA = {.FD = true,
                       .DLC = 8,
                       .ID = 0x3AA,
                       .data = {0xFF, 0x00, 0x00, 0x00, 0x54, 0x00, 0x00, 0x00}};
+CAN_frame EGMP_3E0 = {.FD = true,
+                      .ext_ID = false,
+                      .DLC = 8,
+                      .ID = 0x3E0,
+                      .data = {0xC3, 0x10, 0x01, 0x00, 0x00, 0x00, 0x00, 0x00}};
+CAN_frame EGMP_3E1 = {.FD = true,
+                      .ext_ID = false,
+                      .DLC = 8,
+                      .ID = 0x3E1,
+                      .data = {0x59, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00}};
+CAN_frame EGMP_36F = {.FD = true,
+                      .ext_ID = false,
+                      .DLC = 8,
+                      .ID = 0x36F,
+                      .data = {0x28, 0x31, 0x01, 0x00, 0x00, 0x00, 0x00, 0x00}};
+CAN_frame EGMP_37F = {.FD = true,
+                      .ext_ID = false,
+                      .DLC = 8,
+                      .ID = 0x37F,
+                      .data = {0x9B, 0x30, 0x52, 0x24, 0x41, 0x02, 0x00, 0x00}};
 CAN_frame EGMP_4B4 = {.FD = true,
                       .ext_ID = false,
                       .DLC = 8,
@@ -149,6 +172,31 @@ CAN_frame EGMP_4EF = {.FD = true,
                       .DLC = 8,
                       .ID = 0x4EF,
                       .data = {0x2B, 0xFE, 0x00, 0x00, 0x10, 0x00, 0x00, 0x00}};
+CAN_frame EGMP_405 = {.FD = true,
+                      .ext_ID = false,
+                      .DLC = 8,
+                      .ID = 0x405,
+                      .data = {0xE4, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00}};
+CAN_frame EGMP_410 = {.FD = true,
+                      .ext_ID = false,
+                      .DLC = 8,
+                      .ID = 0x410,
+                      .data = {0xA6, 0x10, 0xFF, 0x3C, 0xFF, 0x7F, 0xFF, 0xFF}};
+CAN_frame EGMP_419 = {.FD = true,
+                      .ext_ID = false,
+                      .DLC = 8,
+                      .ID = 0x419,
+                      .data = {0xC7, 0x90, 0xB9, 0xD2, 0x0D, 0x62, 0x7A, 0x00}};
+CAN_frame EGMP_422 = {.FD = true,
+                      .ext_ID = false,
+                      .DLC = 8,
+                      .ID = 0x422,
+                      .data = {0x15, 0x10, 0x11, 0x00, 0x00, 0x00, 0x00, 0x00}};
+CAN_frame EGMP_444 = {.FD = true,
+                      .ext_ID = false,
+                      .DLC = 8,
+                      .ID = 0x444,
+                      .data = {0x96, 0x20, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00}};
 CAN_frame EGMP_641 = {.FD = true,
                       .ext_ID = false,
                       .DLC = 8,
@@ -550,6 +598,30 @@ void send_can_battery() {
     transmit_can(&EGMP_1CF, can_config.battery);
   }
 
+  //Send 30ms CANFD message
+  if (currentMillis - previousMillis30ms >= INTERVAL_30_MS) {
+    previousMillis30ms = currentMillis;
+
+    transmit_can(&EGMP_419, can_config.battery);  // TODO: Handle variations better
+  }
+
+  //Send 100ms CANFD message
+  if (currentMillis - previousMillis100ms >= INTERVAL_100_MS) {
+    previousMillis100ms = currentMillis;
+
+    EGMP_36F.data.u8[1] = ((EGMP_3XF_counter % 15) << 4) + 0x01;
+    EGMP_37F.data.u8[1] = ((EGMP_3XF_counter % 15) << 4);
+    EGMP_3XF_counter++;
+    if (EGMP_3XF_counter > 0xE) {
+      EGMP_3XF_counter = 0;
+    }
+    EGMP_36F.data.u8[0] = calculateCRC(EGMP_36F, EGMP_36F.DLC, 0x8A);  // Set CRC bit, initial Value 0x8A
+    EGMP_37F.data.u8[0] = calculateCRC(EGMP_37F, EGMP_37F.DLC, 0x38);  // Set CRC bit, initial Value 0x38
+
+    transmit_can(&EGMP_36F, can_config.battery);
+    transmit_can(&EGMP_37F, can_config.battery);
+  }
+
   //Send 200ms CANFD message
   if (currentMillis - previousMillis200ms >= INTERVAL_200_MS) {
     previousMillis200ms = currentMillis;
@@ -571,6 +643,12 @@ void send_can_battery() {
     transmit_can(&EGMP_4EF, can_config.battery);
     transmit_can(&EGMP_641, can_config.battery);
     transmit_can(&EGMP_3AA, can_config.battery);
+    transmit_can(&EGMP_3E0, can_config.battery);
+    transmit_can(&EGMP_3E1, can_config.battery);
+    transmit_can(&EGMP_422, can_config.battery);
+    transmit_can(&EGMP_444, can_config.battery);
+    transmit_can(&EGMP_405, can_config.battery);
+    transmit_can(&EGMP_410, can_config.battery);
 
     if (ticks_200ms_counter < 254) {
       ticks_200ms_counter++;
@@ -598,6 +676,33 @@ void send_can_battery() {
       EGMP_4ED.data.u8[2] = 0x00;
       EGMP_4ED.data.u8[3] = 0x00;
       EGMP_4ED.data.u8[4] = 0x00;
+    }
+    if (ticks_200ms_counter > 21) {
+      EGMP_3E1.data.u8[0] = 0x49;
+      EGMP_3E1.data.u8[1] = 0x10;
+      EGMP_3E1.data.u8[2] = 0x12;
+      EGMP_3E1.data.u8[3] = 0x15;
+
+      EGMP_422.data.u8[0] = 0xEE;
+      EGMP_422.data.u8[1] = 0x20;
+      EGMP_422.data.u8[2] = 0x11;
+      EGMP_422.data.u8[6] = 0x04;
+
+      EGMP_405.data.u8[0] = 0xD2;
+      EGMP_405.data.u8[1] = 0x10;
+      EGMP_405.data.u8[5] = 0x01;
+    }
+    if (ticks_200ms_counter > 12) {
+      EGMP_444.data.u8[0] = 0xEE;
+      EGMP_444.data.u8[1] = 0x30;
+      EGMP_444.data.u8[3] = 0x20;
+      if (ticks_200ms_counter > 12) {  // TODO: Could be handled better
+        EGMP_444.data.u8[0] = 0xE4;
+        EGMP_444.data.u8[1] = 0x60;
+        EGMP_444.data.u8[2] = 0x25;
+        EGMP_444.data.u8[3] = 0x4E;
+        EGMP_444.data.u8[4] = 0x04;
+      }
     }
   }
 
