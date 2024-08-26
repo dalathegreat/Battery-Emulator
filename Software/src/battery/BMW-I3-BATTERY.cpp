@@ -170,8 +170,16 @@ CAN_frame BMW_6F1_CELL_VOLTAGE_AVG = {.FD = false,
                                       .ID = 0x6F1,
                                       .data = {0x07, 0x03, 0x22, 0xDF, 0xA0}};
 CAN_frame BMW_6F1_CONTINUE = {.FD = false, .ext_ID = false, .DLC = 4, .ID = 0x6F1, .data = {0x07, 0x30, 0x00, 0x02}};
-CAN_frame BMW_6F4_CELL_VOLTAGE_CELLNO = {.FD = false, .ext_ID = false, .DLC = 7, .ID = 0x6F4, .data = {0x07, 0x05, 0x31, 0x01, 0xAD, 0x6E, 0x01}};
-CAN_frame BMW_6F4_CELL_CONTINUE = {.FD = false, .ext_ID = false, .DLC = 6, .ID = 0x6F4, .data = {0x07, 0x04, 0x31, 0x03, 0xAD, 0x6E}};
+CAN_frame BMW_6F4_CELL_VOLTAGE_CELLNO = {.FD = false,
+                                         .ext_ID = false,
+                                         .DLC = 7,
+                                         .ID = 0x6F4,
+                                         .data = {0x07, 0x05, 0x31, 0x01, 0xAD, 0x6E, 0x01}};
+CAN_frame BMW_6F4_CELL_CONTINUE = {.FD = false,
+                                   .ext_ID = false,
+                                   .DLC = 6,
+                                   .ID = 0x6F4,
+                                   .data = {0x07, 0x04, 0x31, 0x03, 0xAD, 0x6E}};
 
 //The above CAN messages need to be sent towards the battery to keep it alive
 
@@ -466,9 +474,12 @@ void update_values_battery() {  //This function maps all the values fetched via 
 
 #ifdef DEBUG_VIA_USB
   Serial.println(" ");
-  Serial.print("Values sent to inverter: ");
-  Serial.print("Real SOC%: ");
-  Serial.print(datalayer.battery.status.real_soc * 0.01);
+  Serial.print("Battery display SOC%: ");
+  Serial.print(battery_display_SOC * 50);
+  Serial.print("Battery display SOC%: ");
+  Serial.print(battery_HVBatt_SOC * 10);
+  Serial.print("Battery polled SOC%: ");
+  Serial.print(battery_soc);
   Serial.print(" Battery voltage: ");
   Serial.print(datalayer.battery.status.voltage_dV * 0.1);
   Serial.print(" Battery current: ");
@@ -1033,9 +1044,9 @@ void send_can_battery() {
             cmdState = CELL_VOLTAGE_CELLNO;
 
             BMW_6F4_CELL_VOLTAGE_CELLNO.data.u8[6] = current_cell_polled;
-            ESP32Can.CANWriteFrame(&BMW_6F4_CELL_VOLTAGE_CELLNO);
+            transmit_can(&BMW_6F4_CELL_VOLTAGE_CELLNO, can_config.battery);
 #ifdef DOUBLE_BATTERY
-            CAN_WriteFrame(&BMW_6F4_CELL_VOLTAGE_CELLNO);
+            transmit_can(&BMW_6F4_CELL_VOLTAGE_CELLNO, can_config.battery_double);
 #endif
           }
           break;
