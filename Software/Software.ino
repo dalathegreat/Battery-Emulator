@@ -936,19 +936,19 @@ void receive_can(CAN_frame* rx_frame, int interface) {
   if (interface == can_config.battery) {
     receive_can_battery(*rx_frame);
   }
-#ifdef CAN_INVERTER_SELECTED
   if (interface == can_config.inverter) {
+#ifdef CAN_INVERTER_SELECTED
     receive_can_inverter(*rx_frame);
-  }
 #endif
-#ifdef DOUBLE_BATTERY
+  }
   if (interface == can_config.battery_double) {
+#ifdef DOUBLE_BATTERY
     receive_can_battery2(*rx_frame);
-  }
 #endif
-#ifdef CHARGER_SELECTED
+  }
   if (interface == can_config.charger) {
+#ifdef CHARGER_SELECTED
     receive_can_charger(*rx_frame);
-  }
 #endif
+  }
 }
