@@ -31,7 +31,9 @@ static String generateCellVoltageAutoConfigTopic(int cell_number, const char* ho
 }
 
 static void publish_cell_voltages(void) {
+#ifdef HA_AUTODISCOVERY
   static bool mqtt_first_transmission = true;
+#endif
   static JsonDocument doc;
   static const char* hostname = WiFi.getHostname();
   static String state_topic = String("battery-emulator_") + String(hostname) + "/spec_data";
@@ -40,7 +42,7 @@ static void publish_cell_voltages(void) {
   if (datalayer.battery.info.number_of_cells == 0u) {
     return;
   }
-
+#ifdef HA_AUTODISCOVERY
   if (mqtt_first_transmission == true) {
     mqtt_first_transmission = false;
     String topic = "homeassistant/sensor/battery-emulator/cell_voltage";
@@ -71,6 +73,7 @@ static void publish_cell_voltages(void) {
     }
     doc.clear();  // clear after sending autoconfig
   } else {
+#endif  // HA_AUTODISCOVERY
     // If cell voltages haven't been populated...
     if (datalayer.battery.info.number_of_cells == 0u ||
         datalayer.battery.status.cell_voltages_mV[datalayer.battery.info.number_of_cells - 1] == 0u) {
@@ -90,7 +93,9 @@ static void publish_cell_voltages(void) {
 #endif
     }
     doc.clear();
+#ifdef HA_AUTODISCOVERY
   }
+#endif  // HA_AUTODISCOVERY
 }
 
 struct SensorConfig {
@@ -120,9 +125,12 @@ static String generateCommonInfoAutoConfigTopic(const char* object_id, const cha
 
 static void publish_common_info(void) {
   static JsonDocument doc;
+#ifdef HA_AUTODISCOVERY
   static bool mqtt_first_transmission = true;
+#endif  // HA_AUTODISCOVERY
   static const char* hostname = WiFi.getHostname();
   static String state_topic = String("battery-emulator_") + String(hostname) + "/info";
+#ifdef HA_AUTODISCOVERY
   if (mqtt_first_transmission == true) {
     mqtt_first_transmission = false;
     for (int i = 0; i < sizeof(sensorConfigs) / sizeof(sensorConfigs[0]); i++) {
@@ -149,6 +157,7 @@ static void publish_common_info(void) {
     }
     doc.clear();
   } else {
+#endif  // HA_AUTODISCOVERY
     doc["SOC"] = ((float)datalayer.battery.status.reported_soc) / 100.0;
     doc["SOC_real"] = ((float)datalayer.battery.status.real_soc) / 100.0;
     doc["state_of_health"] = ((float)datalayer.battery.status.soh_pptt) / 100.0;
@@ -170,7 +179,9 @@ static void publish_common_info(void) {
 #endif
     }
     doc.clear();
+#ifdef HA_AUTODISCOVERY
   }
+#endif  // HA_AUTODISCOVERY
 }
 
 /* If we lose the connection, get it back */

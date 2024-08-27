@@ -32,10 +32,10 @@ const char* passwordAP = "123456789";  // Minimum of 8 characters; set to NULL i
 const uint8_t wifi_channel = 0;  // Set to 0 for automatic channel selection
 // MQTT
 #ifdef MQTT
-const char* mqtt_user = "REDACTED";
-const char* mqtt_password = "REDACTED";
-#endif  // USE_MQTT
-#endif  // WEBSERVER
+const char* mqtt_user = "REDACTED";      // Set NULL for no username
+const char* mqtt_password = "REDACTED";  // Set NULL for no password
+#endif                                   // USE_MQTT
+#endif                                   // WEBSERVER
 
 /* Charger settings (Optional, when using generator charging) */
 volatile float CHARGER_SET_HV = 384;      // Reasonably appropriate 4.0v per cell charging of a 96s pack
