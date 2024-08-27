@@ -25,10 +25,12 @@ static void publish_values(void) {
   publish_cell_voltages();
 }
 
+#ifdef HA_AUTODISCOVERY
 static String generateCellVoltageAutoConfigTopic(int cell_number, const char* hostname) {
   return String("homeassistant/sensor/battery-emulator_") + String(hostname) + "/cell_voltage" + String(cell_number) +
          "/config";
 }
+#endif  // HA_AUTODISCOVERY
 
 static void publish_cell_voltages(void) {
 #ifdef HA_AUTODISCOVERY
@@ -106,6 +108,7 @@ struct SensorConfig {
   const char* device_class;
 };
 
+#ifdef HA_AUTODISCOVERY
 SensorConfig sensorConfigs[] = {
     {"SOC", "Battery Emulator SOC (scaled)", "{{ value_json.SOC }}", "%", "battery"},
     {"SOC_real", "Battery Emulator SOC (real)", "{{ value_json.SOC_real }}", "%", "battery"},
@@ -122,6 +125,7 @@ SensorConfig sensorConfigs[] = {
 static String generateCommonInfoAutoConfigTopic(const char* object_id, const char* hostname) {
   return String("homeassistant/sensor/battery-emulator_") + String(hostname) + "/" + String(object_id) + "/config";
 }
+#endif  // HA_AUTODISCOVERY
 
 static void publish_common_info(void) {
   static JsonDocument doc;
