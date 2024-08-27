@@ -23,9 +23,7 @@ extern std::string ssid;
 extern std::string password;
 extern const uint8_t wifi_channel;
 extern const char* ssidAP;
-#ifdef WIFI_AP
 extern const char* passwordAP;
-#endif
 
 // Common charger parameters
 extern float charger_stat_HVcur;
@@ -56,7 +54,7 @@ void init_webserver();
  */
 void wifi_monitor();
 
-#ifdef WIFI_AP
+#ifdef WIFIAP
 /**
  * @brief Initialization function that creates a WiFi Access Point.
  *
@@ -65,7 +63,7 @@ void wifi_monitor();
  * @return void
  */
 void init_WiFi_AP();
-#endif
+#endif  // WIFIAP
 
 /**
  * @brief Initialization function that connects to an existing network.

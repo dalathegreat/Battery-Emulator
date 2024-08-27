@@ -38,11 +38,15 @@ unsigned long last_wifi_attempt_time = millis();  //init millis so wifi monitor 
 void init_webserver() {
   // Configure WiFi
 #ifdef WIFIAP
-  WiFi.mode(WIFI_AP_STA);  // Simultaneous WiFi AP and Router connection
-  init_WiFi_AP();
+  if (AccessPointEnabled) {
+    WiFi.mode(WIFI_AP_STA);  // Simultaneous WiFi AP and Router connection
+    init_WiFi_AP();
+  } else {
+    WiFi.mode(WIFI_STA);  // Only Router connection
+  }
 #else
   WiFi.mode(WIFI_STA);  // Only Router connection
-#endif
+#endif  // WIFIAP
   init_WiFi_STA(ssid.c_str(), password.c_str(), wifi_channel);
 
   String content = index_html;
