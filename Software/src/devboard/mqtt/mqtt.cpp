@@ -12,7 +12,6 @@
 WiFiClient espClient;
 PubSubClient client(espClient);
 char mqtt_msg[MQTT_MSG_BUFFER_SIZE];
-int value = 0;
 static unsigned long previousMillisUpdateVal;
 MyTimer publish_global_timer(5000);
 
@@ -100,6 +99,7 @@ static void publish_cell_voltages(void) {
 #endif  // HA_AUTODISCOVERY
 }
 
+#ifdef HA_AUTODISCOVER
 struct SensorConfig {
   const char* object_id;
   const char* name;
@@ -108,7 +108,6 @@ struct SensorConfig {
   const char* device_class;
 };
 
-#ifdef HA_AUTODISCOVERY
 SensorConfig sensorConfigs[] = {
     {"SOC", "Battery Emulator SOC (scaled)", "{{ value_json.SOC }}", "%", "battery"},
     {"SOC_real", "Battery Emulator SOC (real)", "{{ value_json.SOC_real }}", "%", "battery"},
