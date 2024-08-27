@@ -155,7 +155,6 @@ String settings_processor(const String& var) {
         "XMLHttpRequest();xhr.onload=editComplete;xhr.onerror=editError;xhr.open('GET','/"
         "updateMaxDischargeA?value='+value,true);xhr.send();}else{alert('Invalid value. Please enter a value between 0 "
         "and 1000.0');}}}";
-    content += "</script>";
 
 #ifdef TEST_FAKE_BATTERY
     content +=
