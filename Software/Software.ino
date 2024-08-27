@@ -209,6 +209,9 @@ void core_loop(void* task_time_us) {
 #ifdef DUAL_CAN
     receive_can_addonMCP2515();  // Receive CAN messages on add-on MCP2515 chip
 #endif
+#ifdef RS485_INVERTER_SELECTED
+    receive_RS485();  // Process serial2 RS485 interface
+#endif
 #if defined(SERIAL_LINK_RECEIVER) || defined(SERIAL_LINK_TRANSMITTER)
     runSerialDataLink();
 #endif
@@ -767,6 +770,9 @@ void update_values_inverter() {
 #endif
 #ifdef MODBUS_INVERTER_SELECTED
   update_modbus_registers_inverter();
+#endif
+#ifdef RS485_INVERTER_SELECTED
+  update_RS485_registers_inverter();
 #endif
 }
 
