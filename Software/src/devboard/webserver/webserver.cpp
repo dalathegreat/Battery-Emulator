@@ -457,6 +457,9 @@ String processor(const String& var) {
 #ifdef BYD_MODBUS
     content += "BYD 11kWh HVM battery over Modbus RTU";
 #endif
+#ifdef BYD_KOSTAL_RS485
+    content += "BYD 11kWh HVM battery over Kostal RS485";
+#endif
 #ifdef LUNA2000_MODBUS
     content += "Luna2000 battery over Modbus RTU";
 #endif
