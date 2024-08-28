@@ -185,7 +185,7 @@ void init_webserver() {
 
     request->send(200, "text/plain", "Updated successfully");
   });
-#endif
+#endif  // TEST_FAKE_BATTERY
 
 #if defined CHEVYVOLT_CHARGER || defined NISSANLEAF_CHARGER
   // Route for editing ChargerTargetV
@@ -264,7 +264,7 @@ void init_webserver() {
       request->send(400, "text/plain", "Bad Request");
     }
   });
-#endif
+#endif  // defined CHEVYVOLT_CHARGER || defined NISSANLEAF_CHARGER
 
   // Send a GET request to <ESP_IP>/update
   server.on("/debug", HTTP_GET,
@@ -287,7 +287,7 @@ void init_webserver() {
 #ifdef MQTT
   // Init MQTT
   init_mqtt();
-#endif
+#endif  // MQTT
 }
 
 #ifdef WIFIAP
@@ -295,16 +295,16 @@ void init_WiFi_AP() {
 #ifdef DEBUG_VIA_USB
   Serial.println("Creating Access Point: " + String(ssidAP));
   Serial.println("With password: " + String(passwordAP));
-#endif
+#endif  // DEBUG_VIA_USB
   WiFi.softAP(ssidAP, passwordAP);
   IPAddress IP = WiFi.softAPIP();
 #ifdef DEBUG_VIA_USB
   Serial.println("Access Point created.");
   Serial.print("IP address: ");
   Serial.println(IP);
-#endif
+#endif  // DEBUG_VIA_USB
 }
-#endif
+#endif  // WIFIAP
 
 String getConnectResultString(wl_status_t status) {
   switch (status) {
@@ -337,7 +337,7 @@ void wifi_monitor() {
     if (status != WL_CONNECTED && status != WL_IDLE_STATUS) {
 #ifdef DEBUG_VIA_USB
       Serial.println(getConnectResultString(status));
-#endif
+#endif                           // DEBUG_VIA_USB
       if (wifi_state == INIT) {  //we haven't been connected yet, try the init logic
         init_WiFi_STA(ssid.c_str(), password.c_str(), wifi_channel);
       } else {  //we were connected before, try the reconnect logic
@@ -345,7 +345,7 @@ void wifi_monitor() {
           last_wifi_attempt_time = currentMillis;
 #ifdef DEBUG_VIA_USB
           Serial.println("WiFi not connected, trying to reconnect...");
-#endif
+#endif  // DEBUG_VIA_USB
           wifi_state = RECONNECTING;
           WiFi.reconnect();
           wifi_reconnect_interval = min(wifi_reconnect_interval * 2, MAX_WIFI_RETRY_INTERVAL);
@@ -361,7 +361,7 @@ void wifi_monitor() {
       Serial.print(" Signal Strength: " + String(WiFi.RSSI()) + " dBm");
       Serial.println(" Channel: " + String(WiFi.channel()));
       Serial.println(" Hostname: " + String(WiFi.getHostname()));
-#endif
+#endif  // DEBUG_VIA_USB
     }
   }
 
@@ -379,7 +379,7 @@ void init_WiFi_STA(const char* ssid, const char* password, const uint8_t wifi_ch
 #ifdef DEBUG_VIA_USB
   Serial.print("Connecting to ");
   Serial.println(ssid);
-#endif
+#endif  // DEBUG_VIA_USB
   WiFi.begin(ssid, password, wifi_channel);
   WiFi.setAutoReconnect(true);  // Enable auto reconnect
   wl_status_t result = static_cast<wl_status_t>(WiFi.waitForConnectResult(INIT_WIFI_CONNECT_TIMEOUT));
@@ -414,10 +414,10 @@ String processor(const String& var) {
 // Show hardware used:
 #ifdef HW_LILYGO
     content += "<h4>Hardware: LilyGo T-CAN485</h4>";
-#endif
+#endif  // HW_LILYGO
 #ifdef HW_STARK
     content += "<h4>Hardware: Stark CMR Module</h4>";
-#endif
+#endif  // HW_STARK
     content += "<h4>Uptime: " + uptime_formatter::getUptime() + "</h4>";
 #ifdef FUNCTION_TIME_MEASUREMENT
     // Load information
@@ -437,7 +437,7 @@ String processor(const String& var) {
     content += "<h4>CAN/serial RX function timing: " + String(datalayer.system.status.time_snap_comm_us) + " us</h4>";
     content += "<h4>CAN TX function timing: " + String(datalayer.system.status.time_snap_cantx_us) + " us</h4>";
     content += "<h4>OTA function timing: " + String(datalayer.system.status.time_snap_ota_us) + " us</h4>";
-#endif
+#endif  // FUNCTION_TIME_MEASUREMENT
 
     wl_status_t status = WiFi.status();
     // Display ssid of network connected to and, if connected to the WiFi, its own IP
@@ -459,100 +459,100 @@ String processor(const String& var) {
     content += "<h4 style='color: white;'>Inverter protocol: ";
 #ifdef BYD_CAN
     content += "BYD Battery-Box Premium HVS over CAN Bus";
-#endif
+#endif  // BYD_CAN
 #ifdef BYD_MODBUS
     content += "BYD 11kWh HVM battery over Modbus RTU";
-#endif
+#endif  // BYD_MODBUS
 #ifdef LUNA2000_MODBUS
     content += "Luna2000 battery over Modbus RTU";
-#endif
+#endif  // LUNA2000_MODBUS
 #ifdef PYLON_CAN
     content += "Pylontech battery over CAN bus";
-#endif
+#endif  // PYLON_CAN
 #ifdef SERIAL_LINK_TRANSMITTER
     content += "Serial link to another LilyGo board";
-#endif
+#endif  // SERIAL_LINK_TRANSMITTER
 #ifdef SMA_CAN
     content += "BYD Battery-Box H 8.9kWh, 7 mod over CAN bus";
-#endif
+#endif  // SMA_CAN
 #ifdef SOFAR_CAN
     content += "Sofar Energy Storage Inverter High Voltage BMS General Protocol (Extended Frame) over CAN bus";
-#endif
+#endif  // SOFAR_CAN
 #ifdef SOLAX_CAN
     content += "SolaX Triple Power LFP over CAN bus";
-#endif
+#endif  // SOLAX_CAN
     content += "</h4>";
 
     content += "<h4 style='color: white;'>Battery protocol: ";
 #ifdef BMW_I3_BATTERY
     content += "BMW i3";
-#endif
+#endif  // BMW_I3_BATTERY
 #ifdef BYD_ATTO_3_BATTERY
     content += "BYD Atto 3";
-#endif
+#endif  // BYD_ATTO_3_BATTERY
 #ifdef CHADEMO_BATTERY
     content += "Chademo V2X mode";
-#endif
+#endif  // CHADEMO_BATTERY
 #ifdef IMIEV_CZERO_ION_BATTERY
     content += "I-Miev / C-Zero / Ion Triplet";
-#endif
+#endif  // IMIEV_CZERO_ION_BATTERY
 #ifdef JAGUAR_IPACE_BATTERY
     content += "Jaguar I-PACE";
-#endif
+#endif  // JAGUAR_IPACE_BATTERY
 #ifdef KIA_HYUNDAI_64_BATTERY
     content += "Kia/Hyundai 64kWh";
-#endif
+#endif  // KIA_HYUNDAI_64_BATTERY
 #ifdef KIA_E_GMP_BATTERY
     content += "Kia/Hyundai EGMP platform";
-#endif
+#endif  // KIA_E_GMP_BATTERY
 #ifdef KIA_HYUNDAI_HYBRID_BATTERY
     content += "Kia/Hyundai Hybrid";
-#endif
+#endif  // KIA_HYUNDAI_HYBRID_BATTERY
 #ifdef MG_5_BATTERY
     content += "MG 5";
-#endif
+#endif  // MG_5_BATTERY
 #ifdef NISSAN_LEAF_BATTERY
     content += "Nissan LEAF";
-#endif
+#endif  // NISSAN_LEAF_BATTERY
 #ifdef RENAULT_KANGOO_BATTERY
     content += "Renault Kangoo";
-#endif
+#endif  // RENAULT_KANGOO_BATTERY
 #ifdef RENAULT_ZOE_GEN1_BATTERY
     content += "Renault Zoe Gen1 22/40";
-#endif
+#endif  // RENAULT_ZOE_GEN1_BATTERY
 #ifdef RENAULT_ZOE_GEN2_BATTERY
     content += "Renault Zoe Gen2 50";
-#endif
+#endif  // RENAULT_ZOE_GEN2_BATTERY
 #ifdef SANTA_FE_PHEV_BATTERY
     content += "Santa Fe PHEV";
-#endif
+#endif  // SANTA_FE_PHEV_BATTERY
 #ifdef SERIAL_LINK_RECEIVER
     content += "Serial link to another LilyGo board";
-#endif
+#endif  // SERIAL_LINK_RECEIVER
 #ifdef TESLA_MODEL_3_BATTERY
     content += "Tesla Model S/3/X/Y";
-#endif
+#endif  // TESLA_MODEL_3_BATTERY
 #ifdef VOLVO_SPA_BATTERY
     content += "Volvo / Polestar 78kWh battery";
-#endif
+#endif  // VOLVO_SPA_BATTERY
 #ifdef TEST_FAKE_BATTERY
     content += "Fake battery for testing purposes";
-#endif
+#endif  // TEST_FAKE_BATTERY
 #ifdef DOUBLE_BATTERY
     content += " (Double battery)";
-#endif
+#endif  // DOUBLE_BATTERY
     content += "</h4>";
 
 #if defined CHEVYVOLT_CHARGER || defined NISSANLEAF_CHARGER
     content += "<h4 style='color: white;'>Charger protocol: ";
 #ifdef CHEVYVOLT_CHARGER
     content += "Chevy Volt Gen1 Charger";
-#endif
+#endif  // CHEVYVOLT_CHARGER
 #ifdef NISSANLEAF_CHARGER
     content += "Nissan LEAF 2013-2024 PDM charger";
-#endif
+#endif  // NISSANLEAF_CHARGER
     content += "</h4>";
-#endif
+#endif  // defined CHEVYVOLT_CHARGER || defined NISSANLEAF_CHARGER
 
     // Close the block
     content += "</div>";
@@ -564,7 +564,7 @@ String processor(const String& var) {
 #else
     // Start a new block with a specific background color. Color changes depending on system status
     content += "<div style='background-color: ";
-#endif
+#endif  // DOUBLE_BATTERY
 
     switch (led_get_color()) {
       case led_color::GREEN:
@@ -725,7 +725,7 @@ String processor(const String& var) {
 
     content += "</div>";
     content += "</div>";
-#endif
+#endif  // DOUBLE_BATTERY
 
 #if defined CHEVYVOLT_CHARGER || defined NISSANLEAF_CHARGER
     // Start a new block with orange background color
@@ -765,7 +765,7 @@ String processor(const String& var) {
     content += "<h4 style='color: white;'>Charger LVDC Output V: " + String(LVvol, 2) + "</h4>";
     content += "<h4 style='color: white;'>Charger AC Input V: " + String(ACvol, 2) + " VAC</h4>";
     content += "<h4 style='color: white;'>Charger AC Input I: " + String(ACcur, 2) + " A</h4>";
-#endif
+#endif  // CHEVYVOLT_CHARGER
 #ifdef NISSANLEAF_CHARGER
     float chgPwrDC = static_cast<float>(charger_stat_HVcur * 100);
     charger_stat_HVcur = chgPwrDC / (datalayer.battery.status.voltage_dV / 10);  // P/U=I
@@ -778,10 +778,10 @@ String processor(const String& var) {
     content += "<h4 style='color: white;'>Charger HVDC Output V: " + String(HVvol, 2) + " V</h4>";
     content += "<h4 style='color: white;'>Charger HVDC Output I: " + String(HVcur, 2) + " A</h4>";
     content += "<h4 style='color: white;'>Charger AC Input V: " + String(ACvol, 2) + " VAC</h4>";
-#endif
+#endif  // NISSANLEAF_CHARGER
     // Close the block
     content += "</div>";
-#endif
+#endif  // defined CHEVYVOLT_CHARGER || defined NISSANLEAF_CHARGER
 
     content += "<button onclick='OTA()'>Perform OTA update</button>";
     content += " ";
@@ -835,7 +835,7 @@ void onOTAProgress(size_t current, size_t final) {
     ota_progress_millis = millis();
 #ifdef DEBUG_VIA_USB
     Serial.printf("OTA Progress Current: %u bytes, Final: %u bytes\n", current, final);
-#endif
+#endif  // DEBUG_VIA_USB
     // Reset the "watchdog"
     ota_timeout_timer.reset();
   }
@@ -846,11 +846,11 @@ void onOTAEnd(bool success) {
   if (success) {
 #ifdef DEBUG_VIA_USB
     Serial.println("OTA update finished successfully!");
-#endif
+#endif  // DEBUG_VIA_USB
   } else {
 #ifdef DEBUG_VIA_USB
     Serial.println("There was an error during OTA update!");
-#endif
+#endif  // DEBUG_VIA_USB
 
     // If we fail without a timeout, try to restore CAN
     ESP32Can.CANInit();
