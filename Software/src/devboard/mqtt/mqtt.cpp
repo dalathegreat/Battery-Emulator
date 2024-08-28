@@ -26,7 +26,7 @@ static void publish_values(void) {
 }
 
 static String generateCellVoltageAutoConfigTopic(int cell_number, const char* hostname) {
-  return String("homeassistant/sensor/battery-emulator_") + String(hostname) + "/cell_voltage" + String(cell_number) +
+  return String("rangetherapy/sensor/battery-emulator_") + String(hostname) + "/cell_voltage" + String(cell_number) +
          "/config";
 }
 
@@ -34,7 +34,7 @@ static void publish_cell_voltages(void) {
   static bool mqtt_first_transmission = true;
   static JsonDocument doc;
   static const char* hostname = WiFi.getHostname();
-  static String state_topic = String("battery-emulator_") + String(hostname) + "/spec_data";
+  static String state_topic = String("rangetherapy/sensor/battery-emulator_") + String(hostname) + "/spec_data";
 
   // If the cell voltage number isn't initialized...
   if (datalayer.battery.info.number_of_cells == 0u) {
@@ -43,7 +43,7 @@ static void publish_cell_voltages(void) {
 
   if (mqtt_first_transmission == true) {
     mqtt_first_transmission = false;
-    String topic = "homeassistant/sensor/battery-emulator/cell_voltage";
+    String topic = "rangetherapy/sensor/battery-emulator/cell_voltage";
 
     for (int i = 0; i < datalayer.battery.info.number_of_cells; i++) {
       int cellNumber = i + 1;
@@ -115,14 +115,14 @@ SensorConfig sensorConfigs[] = {
 };
 
 static String generateCommonInfoAutoConfigTopic(const char* object_id, const char* hostname) {
-  return String("homeassistant/sensor/battery-emulator_") + String(hostname) + "/" + String(object_id) + "/config";
+  return String("rangetherapy/sensor/battery-emulator_") + String(hostname) + "/" + String(object_id) + "/config";
 }
 
 static void publish_common_info(void) {
   static JsonDocument doc;
   static bool mqtt_first_transmission = true;
   static const char* hostname = WiFi.getHostname();
-  static String state_topic = String("battery-emulator_") + String(hostname) + "/info";
+  static String state_topic = String("rangetherapy/sensor/battery-emulator_") + String(hostname) + "/info";
   if (mqtt_first_transmission == true) {
     mqtt_first_transmission = false;
     for (int i = 0; i < sizeof(sensorConfigs) / sizeof(sensorConfigs[0]); i++) {
@@ -224,8 +224,18 @@ void mqtt_loop(void) {
 }
 
 bool mqtt_publish(const char* topic, const char* mqtt_msg, bool retain) {
+  #ifdef DEBUG_VIA_USB
+    Serial.print ("Publish to ");
+    Serial.println (topic);
+  #endif
   if (client.connected() == true) {
     return client.publish(topic, mqtt_msg, retain);
   }
   return false;
+}
+
+void mqtt_publish_event (const char* event_level, const char* event_msg){
+  static const char* hostname = WiFi.getHostname();
+  String event_topic = String("rangetherapy/sensor/alert/") + String(hostname) + "/" + String(event_level);
+  mqtt_publish (event_topic.c_str(), event_msg, true);
 }

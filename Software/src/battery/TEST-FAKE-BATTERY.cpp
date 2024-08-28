@@ -2,6 +2,9 @@
 #ifdef TEST_FAKE_BATTERY
 #include "../datalayer/datalayer.h"
 #include "TEST-FAKE-BATTERY.h"
+#include "../devboard/utils/timer.h"
+
+MyTimer battery_fault_timer(20000);
 
 /* Do not change code below unless you are sure what you are doing */
 static unsigned long previousMillis10 = 0;   // will store last time a 10ms CAN Message was send
@@ -51,12 +54,20 @@ void update_values_battery() { /* This function puts fake values onto the parame
   for (int i = 0; i < 97; ++i) {
     datalayer.battery.status.cell_voltages_mV[i] = 3500 + i;
   }
+  if (battery_fault_timer.elapsed() == true) { // Every 20s
+    datalayer.battery.status.cell_voltages_mV[3] = 3000;
+    datalayer.battery.status.temperature_max_dC = 6000;  // 600.0*C
+  } else {
+    datalayer.battery.status.cell_voltages_mV[3] = 3500;
+    datalayer.battery.status.temperature_max_dC = 60;  // 6.0*C
+  }
 
   //Fake that we get CAN messages
   datalayer.battery.status.CAN_battery_still_alive = CAN_STILL_ALIVE;
 
 /*Finally print out values to serial if configured to do so*/
 #ifdef DEBUG_VIA_USB
+#ifndef EK_MIN_OUTPUT
   Serial.println("FAKE Values going to inverter");
   print_units("SOH%: ", (datalayer.battery.status.soh_pptt * 0.01), "% ");
   print_units(", SOC%: ", (datalayer.battery.status.reported_soc * 0.01), "% ");
@@ -69,11 +80,12 @@ void update_values_battery() { /* This function puts fake values onto the parame
   print_units(", Min cell voltage: ", datalayer.battery.status.cell_min_voltage_mV, "mV ");
   Serial.println("");
 #endif
+#endif
 }
 
 void receive_can_battery(CAN_frame rx_frame) {
   datalayer.battery.status.CAN_battery_still_alive = CAN_STILL_ALIVE;
-  // All CAN messages recieved will be logged via serial
+  // All CAN messages received will be logged via serial
   Serial.print(millis());  // Example printout, time, ID, length, data: 7553  1DB  8  FF C0 B9 EA 0 0 2 5D
   Serial.print("  ");
   Serial.print(rx_frame.ID, HEX);
@@ -100,6 +112,7 @@ void setup_battery(void) {  // Performs one time setup at startup
 #ifdef DEBUG_VIA_USB
   Serial.println("Test mode with fake battery selected");
 #endif
+  datalayer.battery.info.number_of_cells = 10;
 
   datalayer.battery.info.max_design_voltage_dV =
       4040;  // 404.4V, over this, charging is not possible (goes into forced discharge)

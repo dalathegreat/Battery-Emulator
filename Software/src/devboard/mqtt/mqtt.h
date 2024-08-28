@@ -49,5 +49,6 @@ extern char mqtt_msg[MQTT_MSG_BUFFER_SIZE];
 void init_mqtt(void);
 void mqtt_loop(void);
 bool mqtt_publish(const char* topic, const char* mqtt_msg, bool retain);
+void mqtt_publish_event (const char* event_level, const char* event_msg);
 
 #endif
