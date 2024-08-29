@@ -11,6 +11,8 @@ static unsigned long previousMillis30ms = 0;   // will store last time a 30ms CA
 static unsigned long previousMillis100ms = 0;  // will store last time a 100ms CAN Message was send
 static unsigned long previousMillis200ms = 0;  // will store last time a 200ms CAN Message was send
 static unsigned long previousMillis500ms = 0;  // will store last time a 500ms CAN Message was send
+static unsigned long previousMillis1s = 0;     // will store last time a 1s CAN Message was send
+static unsigned long previousMillis2s = 0;     // will store last time a 2s CAN Message was send
 
 #define MAX_CELL_VOLTAGE 4250  //Battery is put into emergency stop if one cell goes over this value
 #define MIN_CELL_VOLTAGE 2950  //Battery is put into emergency stop if one cell goes below this value
@@ -182,6 +184,71 @@ CAN_frame EGMP_410 = {.FD = true,
                       .DLC = 8,
                       .ID = 0x410,
                       .data = {0xA6, 0x10, 0xFF, 0x3C, 0xFF, 0x7F, 0xFF, 0xFF}};
+CAN_frame EGMP_411 = {.FD = true,
+                      .ext_ID = false,
+                      .DLC = 8,
+                      .ID = 0x411,
+                      .data = {0xEA, 0x22, 0x50, 0x51, 0x00, 0x00, 0x00, 0x40}};
+CAN_frame EGMP_412 = {.FD = true,
+                      .ext_ID = false,
+                      .DLC = 8,
+                      .ID = 0x412,
+                      .data = {0xDC, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00}};
+CAN_frame EGMP_413 = {.FD = true,
+                      .ext_ID = false,
+                      .DLC = 8,
+                      .ID = 0x413,
+                      .data = {0xB9, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00}};
+CAN_frame EGMP_414 = {.FD = true,
+                      .ext_ID = false,
+                      .DLC = 8,
+                      .ID = 0x414,
+                      .data = {0xF0, 0x10, 0x00, 0x00, 0x28, 0x00, 0x00, 0x00}};
+CAN_frame EGMP_416 = {.FD = true,
+                      .ext_ID = false,
+                      .DLC = 8,
+                      .ID = 0x416,
+                      .data = {0x55, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00}};
+CAN_frame EGMP_417 = {.FD = true,
+                      .ext_ID = false,
+                      .DLC = 8,
+                      .ID = 0x417,
+                      .data = {0xC7, 0x10, 0x00, 0x00, 0x04, 0x00, 0x00, 0x00}};
+CAN_frame EGMP_418 = {.FD = true,
+                      .ext_ID = false,
+                      .DLC = 8,
+                      .ID = 0x418,
+                      .data = {0x17, 0x20, 0x00, 0x00, 0x14, 0x0C, 0x00, 0x00}};
+CAN_frame EGMP_3C1 = {.FD = true,
+                      .ext_ID = false,
+                      .DLC = 8,
+                      .ID = 0x3C1,
+                      .data = {0x59, 0x00, 0x30, 0x00, 0x00, 0x00, 0x00, 0x00}};
+CAN_frame EGMP_3C2 = {.FD = true,
+                      .ext_ID = false,
+                      .DLC = 8,
+                      .ID = 0x3C2,
+                      .data = {0x07, 0x00, 0x11, 0x40, 0x00, 0x00, 0x00, 0x00}};
+CAN_frame EGMP_4F0 = {.FD = true,
+                      .ext_ID = false,
+                      .DLC = 8,
+                      .ID = 0x4F0,
+                      .data = {0x8A, 0x0A, 0x0D, 0x34, 0x60, 0x18, 0x12, 0xFC}};
+CAN_frame EGMP_4F2 = {.FD = true,
+                      .ext_ID = false,
+                      .DLC = 8,
+                      .ID = 0x4F2,
+                      .data = {0x0A, 0xC3, 0xD5, 0xFF, 0x0F, 0x21, 0x80, 0x2B}};
+CAN_frame EGMP_4FE = {.FD = true,
+                      .ext_ID = false,
+                      .DLC = 8,
+                      .ID = 0x4FE,
+                      .data = {0x69, 0x3F, 0x00, 0x04, 0xDF, 0x01, 0x4C, 0xA8}};
+CAN_frame EGMP_48F = {.FD = true,
+                      .ext_ID = false,
+                      .DLC = 8,
+                      .ID = 0x48F,
+                      .data = {0xAD, 0x10, 0x41, 0x00, 0x05, 0x00, 0x00, 0x00}};
 CAN_frame EGMP_419 = {.FD = true,
                       .ext_ID = false,
                       .DLC = 8,
@@ -649,13 +716,59 @@ void send_can_battery() {
     transmit_can(&EGMP_444, can_config.battery);
     transmit_can(&EGMP_405, can_config.battery);
     transmit_can(&EGMP_410, can_config.battery);
+    transmit_can(&EGMP_411, can_config.battery);
+    transmit_can(&EGMP_412, can_config.battery);
+    transmit_can(&EGMP_412, can_config.battery);
+    transmit_can(&EGMP_413, can_config.battery);
+    transmit_can(&EGMP_414, can_config.battery);
+    transmit_can(&EGMP_416, can_config.battery);
+    transmit_can(&EGMP_417, can_config.battery);
+    transmit_can(&EGMP_418, can_config.battery);
+    transmit_can(&EGMP_3C1, can_config.battery);
+    transmit_can(&EGMP_3C2, can_config.battery);
+    transmit_can(&EGMP_4F0, can_config.battery);  //TODO: could be handled better
+    transmit_can(&EGMP_4F2, can_config.battery);  //TODO: could be handled better
 
     if (ticks_200ms_counter < 254) {
       ticks_200ms_counter++;
     }
+    if (ticks_200ms_counter > 11) {
+      EGMP_412.data.u8[0] = 0x48;
+      EGMP_412.data.u8[1] = 0x10;
+      EGMP_412.data.u8[6] = 0x04;
+
+      EGMP_418.data.u8[0] = 0xCE;
+      EGMP_418.data.u8[1] = 0x30;
+      EGMP_418.data.u8[4] = 0x14;
+      EGMP_418.data.u8[5] = 0x4C;
+      if (ticks_200ms_counter > 39) {
+        EGMP_412.data.u8[0] = 0xB3;
+        EGMP_412.data.u8[1] = 0x20;
+        EGMP_412.data.u8[6] = 0x00;
+
+        EGMP_418.data.u8[0] = 0xA6;
+        EGMP_418.data.u8[1] = 0x40;
+        EGMP_418.data.u8[5] = 0x0C;
+      }
+    }
+    if (ticks_200ms_counter > 20) {
+      EGMP_413.data.u8[0] = 0xF5;
+      EGMP_413.data.u8[1] = 0x10;
+      EGMP_413.data.u8[3] = 0x41;
+    }
     if (ticks_200ms_counter > 28) {
       EGMP_4B4.data.u8[2] = 0;
       EGMP_4B4.data.u8[3] = 0;
+    }
+    if (ticks_200ms_counter > 26) {
+      EGMP_411.data.u8[0] = 0x9E;
+      EGMP_411.data.u8[1] = 0x32;
+      EGMP_411.data.u8[7] = 0x50;
+
+      EGMP_417.data.u8[0] = 0x9E;
+      EGMP_417.data.u8[1] = 0x20;
+      EGMP_417.data.u8[4] = 0x04;
+      EGMP_417.data.u8[5] = 0x01;
     }
     if (ticks_200ms_counter > 32) {
       EGMP_4CE.data.u8[0] = 0x22;
@@ -696,7 +809,7 @@ void send_can_battery() {
       EGMP_444.data.u8[0] = 0xEE;
       EGMP_444.data.u8[1] = 0x30;
       EGMP_444.data.u8[3] = 0x20;
-      if (ticks_200ms_counter > 12) {  // TODO: Could be handled better
+      if (ticks_200ms_counter > 23) {  // TODO: Could be handled better
         EGMP_444.data.u8[0] = 0xE4;
         EGMP_444.data.u8[1] = 0x60;
         EGMP_444.data.u8[2] = 0x25;
@@ -724,6 +837,18 @@ void send_can_battery() {
     if (KIA_7E4_COUNTER > 0x0D) {  // gets up to 0x010C before repeating
       KIA_7E4_COUNTER = 0x01;
     }
+  }
+  //Send 1s CANFD message
+  if (currentMillis - previousMillis1s >= INTERVAL_1_S) {
+    previousMillis1s = currentMillis;
+
+    transmit_can(&EGMP_48F, can_config.battery);
+  }
+  //Send 2s CANFD message
+  if (currentMillis - previousMillis2s >= INTERVAL_2_S) {
+    previousMillis2s = currentMillis;
+
+    transmit_can(&EGMP_4FE, can_config.battery);
   }
 }
 
