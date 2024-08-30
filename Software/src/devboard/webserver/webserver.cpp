@@ -457,9 +457,6 @@ String processor(const String& var) {
 #ifdef BYD_MODBUS
     content += "BYD 11kWh HVM battery over Modbus RTU";
 #endif
-#ifdef LUNA2000_MODBUS
-    content += "Luna2000 battery over Modbus RTU";
-#endif
 #ifdef PYLON_CAN
     content += "Pylontech battery over CAN bus";
 #endif

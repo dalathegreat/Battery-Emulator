@@ -55,7 +55,6 @@ jobs:
           - BYD_CAN
           - BYD_SMA
           - BYD_MODBUS
-          - LUNA2000_MODBUS
           - PYLON_CAN
           - SMA_CAN
           - SMA_TRIPOWER_CAN
