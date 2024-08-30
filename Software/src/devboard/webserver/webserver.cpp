@@ -15,6 +15,7 @@ unsigned long ota_progress_millis = 0;
 #include "events_html.h"
 #include "index_html.cpp"
 #include "settings_html.h"
+#include "advanced_battery_html.h"
 
 enum WifiState {
   INIT,          //before connecting first time
@@ -58,6 +59,10 @@ void init_webserver() {
   // Route for going to settings web page
   server.on("/settings", HTTP_GET,
             [](AsyncWebServerRequest* request) { request->send_P(200, "text/html", index_html, settings_processor); });
+
+  // Route for going to advanced battery info web page
+  server.on("/advanced", HTTP_GET,
+            [](AsyncWebServerRequest* request) { request->send_P(200, "text/html", index_html, advanced_battery_processor); });
 
   // Route for going to cellmonitor web page
   server.on("/cellmonitor", HTTP_GET, [](AsyncWebServerRequest* request) {
