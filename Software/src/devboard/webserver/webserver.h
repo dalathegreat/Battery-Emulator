@@ -54,6 +54,7 @@ void init_webserver();
  */
 void wifi_monitor();
 
+#ifdef WIFIAP
 /**
  * @brief Initialization function that creates a WiFi Access Point.
  *
@@ -62,6 +63,7 @@ void wifi_monitor();
  * @return void
  */
 void init_WiFi_AP();
+#endif  // WIFIAP
 
 /**
  * @brief Initialization function that connects to an existing network.

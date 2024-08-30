@@ -12,7 +12,6 @@
 WiFiClient espClient;
 PubSubClient client(espClient);
 char mqtt_msg[MQTT_MSG_BUFFER_SIZE];
-int value = 0;
 static unsigned long previousMillisUpdateVal;
 MyTimer publish_global_timer(5000);
 
@@ -25,13 +24,17 @@ static void publish_values(void) {
   publish_cell_voltages();
 }
 
+#ifdef HA_AUTODISCOVERY
 static String generateCellVoltageAutoConfigTopic(int cell_number, const char* hostname) {
   return String("homeassistant/sensor/battery-emulator_") + String(hostname) + "/cell_voltage" + String(cell_number) +
          "/config";
 }
+#endif  // HA_AUTODISCOVERY
 
 static void publish_cell_voltages(void) {
+#ifdef HA_AUTODISCOVERY
   static bool mqtt_first_transmission = true;
+#endif  // HA_AUTODISCOVERY
   static JsonDocument doc;
   static const char* hostname = WiFi.getHostname();
   static String state_topic = String("battery-emulator_") + String(hostname) + "/spec_data";
@@ -40,7 +43,7 @@ static void publish_cell_voltages(void) {
   if (datalayer.battery.info.number_of_cells == 0u) {
     return;
   }
-
+#ifdef HA_AUTODISCOVERY
   if (mqtt_first_transmission == true) {
     mqtt_first_transmission = false;
     String topic = "homeassistant/sensor/battery-emulator/cell_voltage";
@@ -71,6 +74,7 @@ static void publish_cell_voltages(void) {
     }
     doc.clear();  // clear after sending autoconfig
   } else {
+#endif  // HA_AUTODISCOVERY
     // If cell voltages haven't been populated...
     if (datalayer.battery.info.number_of_cells == 0u ||
         datalayer.battery.status.cell_voltages_mV[datalayer.battery.info.number_of_cells - 1] == 0u) {
@@ -87,12 +91,15 @@ static void publish_cell_voltages(void) {
     if (!mqtt_publish(state_topic.c_str(), mqtt_msg, false)) {
 #ifdef DEBUG_VIA_USB
       Serial.println("Cell voltage MQTT msg could not be sent");
-#endif
+#endif  // DEBUG_VIA_USB
     }
     doc.clear();
+#ifdef HA_AUTODISCOVERY
   }
+#endif  // HA_AUTODISCOVERY
 }
 
+#ifdef HA_AUTODISCOVERY
 struct SensorConfig {
   const char* object_id;
   const char* name;
@@ -117,12 +124,16 @@ SensorConfig sensorConfigs[] = {
 static String generateCommonInfoAutoConfigTopic(const char* object_id, const char* hostname) {
   return String("homeassistant/sensor/battery-emulator_") + String(hostname) + "/" + String(object_id) + "/config";
 }
+#endif  // HA_AUTODISCOVERY
 
 static void publish_common_info(void) {
   static JsonDocument doc;
+#ifdef HA_AUTODISCOVERY
   static bool mqtt_first_transmission = true;
+#endif  // HA_AUTODISCOVERY
   static const char* hostname = WiFi.getHostname();
   static String state_topic = String("battery-emulator_") + String(hostname) + "/info";
+#ifdef HA_AUTODISCOVERY
   if (mqtt_first_transmission == true) {
     mqtt_first_transmission = false;
     for (int i = 0; i < sizeof(sensorConfigs) / sizeof(sensorConfigs[0]); i++) {
@@ -149,6 +160,7 @@ static void publish_common_info(void) {
     }
     doc.clear();
   } else {
+#endif  // HA_AUTODISCOVERY
     doc["SOC"] = ((float)datalayer.battery.status.reported_soc) / 100.0;
     doc["SOC_real"] = ((float)datalayer.battery.status.real_soc) / 100.0;
     doc["state_of_health"] = ((float)datalayer.battery.status.soh_pptt) / 100.0;
@@ -167,10 +179,12 @@ static void publish_common_info(void) {
     if (!mqtt_publish(state_topic.c_str(), mqtt_msg, false)) {
 #ifdef DEBUG_VIA_USB
       Serial.println("Common info MQTT msg could not be sent");
-#endif
+#endif  // DEBUG_VIA_USB
     }
     doc.clear();
+#ifdef HA_AUTODISCOVERY
   }
+#endif  // HA_AUTODISCOVERY
 }
 
 /* If we lose the connection, get it back */
@@ -178,7 +192,7 @@ static void reconnect() {
 // attempt one reconnection
 #ifdef DEBUG_VIA_USB
   Serial.print("Attempting MQTT connection... ");
-#endif
+#endif  // DEBUG_VIA_USB
   const char* hostname = WiFi.getHostname();
   char clientId[64];  // Adjust the size as needed
   snprintf(clientId, sizeof(clientId), "LilyGoClient-%s", hostname);
@@ -186,13 +200,13 @@ static void reconnect() {
   if (client.connect(clientId, mqtt_user, mqtt_password)) {
 #ifdef DEBUG_VIA_USB
     Serial.println("connected");
-#endif
+#endif  // DEBUG_VIA_USB
   } else {
 #ifdef DEBUG_VIA_USB
     Serial.print("failed, rc=");
     Serial.print(client.state());
     Serial.println(" try again in 5 seconds");
-#endif
+#endif  // DEBUG_VIA_USB
     // Wait 5 seconds before retrying
   }
 }
@@ -201,7 +215,7 @@ void init_mqtt(void) {
   client.setServer(MQTT_SERVER, MQTT_PORT);
 #ifdef DEBUG_VIA_USB
   Serial.println("MQTT initialized");
-#endif
+#endif  // DEBUG_VIA_USB
 
   previousMillisUpdateVal = millis();
   reconnect();
