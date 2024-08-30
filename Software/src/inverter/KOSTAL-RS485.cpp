@@ -6,6 +6,8 @@
 
 static const byte KOSTAL_FRAMEHEADER[5] = {0x62, 0xFF, 0x02, 0xFF, 0x29};
 static const byte KOSTAL_FRAMEHEADER2[5] = {0x63, 0xFF, 0x02, 0xFF, 0x29};
+static uint16_t discharge_current = 0;
+static uint16_t charge_current = 0;
 
 union f32b {
   float f;
@@ -193,6 +195,32 @@ void receive_RS485()  // Runs as fast as possible to handle the serial stream
 
 void update_RS485_registers_inverter() {
 
+  if (datalayer.battery.status.voltage_dV > 10) {  // Only update value when we have voltage available to avoid div0
+    charge_current =
+        ((datalayer.battery.status.max_charge_power_W * 10) /
+         datalayer.battery.status.voltage_dV);  //Charge power in W , max volt in V+1decimal (P=UI, solve for I)
+    //The above calculation results in (30 000*10)/3700=81A
+    charge_current = (charge_current * 10);  //Value needs a decimal before getting sent to inverter (81.0A)
+
+    discharge_current =
+        ((datalayer.battery.status.max_discharge_power_W * 10) /
+         datalayer.battery.status.voltage_dV);  //Charge power in W , max volt in V+1decimal (P=UI, solve for I)
+    //The above calculation results in (30 000*10)/3700=81A
+    discharge_current = (discharge_current * 10);  //Value needs a decimal before getting sent to inverter (81.0A)
+  }
+
+  if (charge_current > datalayer.battery.info.max_charge_amp_dA) {
+    charge_current =
+        datalayer.battery.info
+            .max_charge_amp_dA;  //Cap the value to the max allowed Amp. Some inverters cannot handle large values.
+  }
+
+  if (discharge_current > datalayer.battery.info.max_discharge_amp_dA) {
+    discharge_current =
+        datalayer.battery.info
+            .max_discharge_amp_dA;  //Cap the value to the max allowed Amp. Some inverters cannot handle large values.
+  }
+
   float2frame(frame2, (float)datalayer.battery.status.voltage_dV / 10, 6);
 
   float2frameMSB(frame2, (float)datalayer.battery.info.max_design_voltage_dV / 10, 12);
@@ -200,11 +228,11 @@ void update_RS485_registers_inverter() {
       frame2, (float)(datalayer.battery.status.temperature_max_dC + datalayer.battery.status.temperature_min_dC) / 20,
       16);
 
-  float2frameMSB(frame2, (float)datalayer.battery.status.current_dA / 10, 20);
-  float2frameMSB(frame2, (float)datalayer.battery.status.current_dA / 10, 24);
+  float2frameMSB(frame2, (float)datalayer.battery.status.current_dA, 20);
+  float2frameMSB(frame2, (float)datalayer.battery.status.current_dA, 24);
 
-  float2frameMSB(frame2, (float)datalayer.battery.info.max_discharge_amp_dA / 10, 28);
-  float2frameMSB(frame2, (float)datalayer.battery.info.max_discharge_amp_dA / 10, 32);
+  float2frameMSB(frame2, (float)discharge_current / 10, 28);
+  float2frameMSB(frame2, (float)discharge_current / 10, 32);
 
   float2frameMSB(frame2, (float)datalayer.battery.status.temperature_max_dC / 10, 40);
   float2frameMSB(frame2, (float)datalayer.battery.status.temperature_min_dC / 10, 44);
