@@ -10,14 +10,15 @@ String advanced_battery_processor(const String& var) {
     content += "body { background-color: black; color: white; }";
     content += "</style>";
 
+    content += "<button onclick='goToMainPage()'>Back to main page</button>";
+
     // Start a new block with a specific background color
     content += "<div style='background-color: #303E47; padding: 10px; margin-bottom: 10px;border-radius: 50px'>";
 
-    content += "<h4 style='color: white;'>SSID: <span id='SSID'></span> <button onclick='editSSID()'>Edit</button></h4>";
+    content += "No extra information available for this battery type";
 
     content += "</div>";
 
-    content += "<button onclick='goToMainPage()'>Back to main page</button>";
     content += "<script>";
     content += "function goToMainPage() { window.location.href = '/'; }";
     content += "</script>";

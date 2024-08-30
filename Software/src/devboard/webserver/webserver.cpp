@@ -11,11 +11,11 @@ AsyncWebServer server(80);
 // Measure OTA progress
 unsigned long ota_progress_millis = 0;
 
+#include "advanced_battery_html.h"
 #include "cellmonitor_html.h"
 #include "events_html.h"
 #include "index_html.cpp"
 #include "settings_html.h"
-#include "advanced_battery_html.h"
 
 enum WifiState {
   INIT,          //before connecting first time
@@ -61,8 +61,9 @@ void init_webserver() {
             [](AsyncWebServerRequest* request) { request->send_P(200, "text/html", index_html, settings_processor); });
 
   // Route for going to advanced battery info web page
-  server.on("/advanced", HTTP_GET,
-            [](AsyncWebServerRequest* request) { request->send_P(200, "text/html", index_html, advanced_battery_processor); });
+  server.on("/advanced", HTTP_GET, [](AsyncWebServerRequest* request) {
+    request->send_P(200, "text/html", index_html, advanced_battery_processor);
+  });
 
   // Route for going to cellmonitor web page
   server.on("/cellmonitor", HTTP_GET, [](AsyncWebServerRequest* request) {
@@ -410,6 +411,14 @@ String processor(const String& var) {
     content += "<style>";
     content += "body { background-color: black; color: white; }";
     content += "</style>";
+
+    // Draw buttons
+    content += "<button onclick='OTA()'>Perform OTA update</button> ";
+    content += "<button onclick='Settings()'>Change Settings</button> ";
+    content += "<button onclick='Advanced()'>Advanced Battery Insights</button> ";
+    content += "<button onclick='Cellmon()'>Cellmonitor</button> ";
+    content += "<button onclick='Events()'>Events</button> ";
+    content += "<button onclick='askReboot()'>Reboot Emulator</button>";
 
     // Start a new block with a specific background color
     content += "<div style='background-color: #303E47; padding: 10px; margin-bottom: 10px;border-radius: 50px'>";
@@ -788,19 +797,11 @@ String processor(const String& var) {
     content += "</div>";
 #endif  // defined CHEVYVOLT_CHARGER || defined NISSANLEAF_CHARGER
 
-    content += "<button onclick='OTA()'>Perform OTA update</button>";
-    content += " ";
-    content += "<button onclick='Settings()'>Change Settings</button>";
-    content += " ";
-    content += "<button onclick='Cellmon()'>Cellmonitor</button>";
-    content += " ";
-    content += "<button onclick='Events()'>Events</button>";
-    content += " ";
-    content += "<button onclick='askReboot()'>Reboot Emulator</button>";
     content += "<script>";
     content += "function OTA() { window.location.href = '/update'; }";
     content += "function Cellmon() { window.location.href = '/cellmonitor'; }";
     content += "function Settings() { window.location.href = '/settings'; }";
+    content += "function Advanced() { window.location.href = '/advanced'; }";
     content += "function Events() { window.location.href = '/events'; }";
     content +=
         "function askReboot() { if (window.confirm('Are you sure you want to reboot the emulator? NOTE: If "
