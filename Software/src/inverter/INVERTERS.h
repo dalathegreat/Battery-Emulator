@@ -15,10 +15,6 @@
 #include "BYD-SMA.h"
 #endif
 
-#ifdef LUNA2000_MODBUS
-#include "LUNA2000-MODBUS.h"
-#endif
-
 #ifdef PYLON_CAN
 #include "PYLON-CAN.h"
 #endif
