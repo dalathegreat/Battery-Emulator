@@ -26,13 +26,19 @@
 #include "src/datalayer/datalayer.h"
 
 #ifdef WEBSERVER
-#include <ESPmDNS.h>
 #include "src/devboard/webserver/webserver.h"
-#endif
+#ifdef MDNSRESPONDER
+#include <ESPmDNS.h>
+#endif  // MDNSRESONDER
+#else   // WEBSERVER
+#ifdef MDNSRESPONDER
+#error WEBSERVER needs to be enabled for MDNSRESPONDER!
+#endif  // MDNSRSPONDER
+#endif  // WEBSERVER
 
 Preferences settings;  // Store user settings
 // The current software version, shown on webserver
-const char* version_number = "7.1.dev";
+const char* version_number = "7.2.dev";
 
 // Interval settings
 uint16_t intervalUpdateValues = INTERVAL_5_S;  // Interval at which to update inverter values / Modbus registers
@@ -167,7 +173,9 @@ void loop() {
 void connectivity_loop(void* task_time_us) {
   // Init
   init_webserver();
+#ifdef MDNSRESPONDER
   init_mDNS();
+#endif
 #ifdef MQTT
   init_mqtt();
 #endif
@@ -287,7 +295,7 @@ void core_loop(void* task_time_us) {
   }
 }
 
-#ifdef WEBSERVER
+#ifdef MDNSRESPONDER
 // Initialise mDNS
 void init_mDNS() {
 
@@ -306,7 +314,7 @@ void init_mDNS() {
     MDNS.addService("battery_emulator", "tcp", 80);
   }
 }
-#endif
+#endif  // MDNSRESPONDER
 
 // Initialization functions
 void init_serial() {
