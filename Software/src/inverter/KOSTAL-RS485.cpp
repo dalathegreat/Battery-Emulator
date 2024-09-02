@@ -6,8 +6,9 @@
 
 static const uint8_t KOSTAL_FRAMEHEADER[5] = {0x62, 0xFF, 0x02, 0xFF, 0x29};
 static const uint8_t KOSTAL_FRAMEHEADER2[5] = {0x63, 0xFF, 0x02, 0xFF, 0x29};
-static uint16_t discharge_current = 0;
-static uint16_t charge_current = 0;
+static uint16_t discharge_current_dA = 0;
+static uint16_t charge_current_dA = 0;
+static int16_t average_temperature_dC = 0;
 
 union f32b {
   float f;
@@ -21,38 +22,40 @@ uint8_t frame1[40] = {
 
 // values in frame2 will be overwritten at update_modbus_registers_inverter()
 uint8_t frame2[64] = {0x0A, 0xE2, 0xFF, 0x02, 0xFF, 0x29,  // frame Header
-                      0x1D, 0x5A, 0x85, 0x43,              // Voltage     (float)           Modbus register 216
+                      0x1D, 0x5A, 0x85, 0x43,              // Voltage     (float)           Modbus register 216, Bit 6-9
 
-                      0x01, 0x03, 0x8D, 0x43,  // Max Voltage (2 byte float)
+                      0x01, 0x03, 0x8D, 0x43,  // Max Voltage (2 byte float), Bit 10-13
+                                               // 0x8D43 = 36163 (361.63) DALA: Is this nominal voltage?
+                      0x01, 0x03, 0xAC, 0x41,  // Temp        (2 byte float)    Modbus register 214, Bit 14-17
+                      0x01, 0x01, 0x01, 0x01,  // Current, Bit 18-21
+                      0x01, 0x01, 0x01, 0x01,  // Current, Bit 22-25
 
-                      0x01, 0x03, 0xAC, 0x41,  // Temp        (2 byte float)    Modbus register 214
-                      0x01, 0x01, 0x01, 0x01,  // Current
-                      0x01, 0x01, 0x01, 0x01,  // Current
+                      0x01, 0x03, 0x48, 0x42,  // Peak discharge current (2 byte float), Bit 26-29
 
-                      0x01, 0x03, 0x48, 0x42,  // Peak discharge current (2 byte float)
-
-                      0x01, 0x03, 0xC8, 0x41,  // Nominal discharge I (2 byte float)
+                      0x01, 0x03, 0xC8, 0x41,  // Nominal discharge I (2 byte float) , Bit 30-33
 
                       0x01, 0x01,  // Unknown
-                      0x01, 0x05,  //  Max charge? (2 byte float)
+                      0x01, 0x05,  //  Max charge? (2 byte float) Bit 36-37
 
                       0xCD, 0xCC,  // Unknown
-                      0xB4, 0x41,  // MaxCellTemp (2 byte float)
+                      0xB4, 0x41,  // MaxCellTemp (2 byte float) Bit 40-41
 
                       0x01, 0x0C,  // Maybe cell information?
-                      0xA4, 0x41,  // MinCellTemp (2 byte float)
+                      0xA4, 0x41,  // MinCellTemp (2 byte float) Bit 44-45
 
-                      0xA4, 0x70, 0x55, 0x40,  // MaxCellVolt  (float)
-                      0x7D, 0x3F, 0x55, 0x40,  // MinCellVolt  (float)
+                      0xA4, 0x70, 0x55, 0x40,  // MaxCellVolt  (float), Bit 46-49
+                                               // 0xA470 = 4.2096V
+                      0x7D, 0x3F, 0x55, 0x40,  // MinCellVolt  (float), Bit 50-53
+                                               // 0x7D3F = 3.2063V
 
-                      0xFE,        // Cylce count
-                      0x04,        // Cycle count?
-                      0x01, 0x40,  // ??
-                      0x64,        // SOC
+                      0xFE,        // Cylce count , Bit 54
+                      0x04,        // Cycle count? , Bit 55
+                      0x01, 0x40,  // ??  , Bit 56, 57
+                      0x64,        // SOC , Bit 58
                       0x01,        // Unknown, Mostly 0x01, seen also 0x02
                       0x01,        // Unknown, Seen only 0x01
                       0x02,        // Unknown, Mostly 0x02. seen also 0x01
-                      0x00,        // CRC (inverted sum of bytes 1-62 + 0xC0)
+                      0x00,        // CRC (inverted sum of bytes 1-62 + 0xC0), Bit 62
                       0x00};
 
 uint8_t frame3[9] = {
@@ -188,43 +191,49 @@ void receive_RS485()  // Runs as fast as possible to handle the serial stream
 void update_RS485_registers_inverter() {
 
   if (datalayer.battery.status.voltage_dV > 10) {  // Only update value when we have voltage available to avoid div0
-    charge_current =
+    charge_current_dA =
         ((datalayer.battery.status.max_charge_power_W * 10) /
          datalayer.battery.status.voltage_dV);  //Charge power in W , max volt in V+1decimal (P=UI, solve for I)
     //The above calculation results in (30 000*10)/3700=81A
-    charge_current = (charge_current * 10);  //Value needs a decimal before getting sent to inverter (81.0A)
+    charge_current_dA = (charge_current_dA * 10);  //Value needs a decimal before getting sent to inverter (81.0A)
 
-    discharge_current =
+    discharge_current_dA =
         ((datalayer.battery.status.max_discharge_power_W * 10) /
          datalayer.battery.status.voltage_dV);  //Charge power in W , max volt in V+1decimal (P=UI, solve for I)
     //The above calculation results in (30 000*10)/3700=81A
-    discharge_current = (discharge_current * 10);  //Value needs a decimal before getting sent to inverter (81.0A)
+    discharge_current_dA = (discharge_current_dA * 10);  //Value needs a decimal before getting sent to inverter (81.0A)
   }
 
-  if (charge_current > datalayer.battery.info.max_charge_amp_dA) {
-    charge_current =
+  if (charge_current_dA > datalayer.battery.info.max_charge_amp_dA) {
+    charge_current_dA =
         datalayer.battery.info
             .max_charge_amp_dA;  //Cap the value to the max allowed Amp. Some inverters cannot handle large values.
   }
 
-  if (discharge_current > datalayer.battery.info.max_discharge_amp_dA) {
-    discharge_current =
+  if (discharge_current_dA > datalayer.battery.info.max_discharge_amp_dA) {
+    discharge_current_dA =
         datalayer.battery.info
             .max_discharge_amp_dA;  //Cap the value to the max allowed Amp. Some inverters cannot handle large values.
   }
 
-  float2frame(frame2, (float)(datalayer.battery.status.voltage_dV / 10), 6);
+  average_temperature_dC =
+      ((datalayer.battery.status.temperature_max_dC + datalayer.battery.status.temperature_min_dC) / 2);
+  if (datalayer.battery.status.temperature_min_dC < 0) {
+    average_temperature_dC = 0;
+  }
+
+  float2frame(frame2, (float)(datalayer.battery.status.voltage_dV / 10), 6);  // Confirmed OK mapping
 
   float2frameMSB(frame2, (float)(datalayer.battery.info.max_design_voltage_dV / 10), 12);
-  float2frameMSB(
-      frame2, (float)((datalayer.battery.status.temperature_max_dC + datalayer.battery.status.temperature_min_dC) / 20),
-      16);
 
-  float2frameMSB(frame2, (float)datalayer.battery.status.current_dA, 20);
-  float2frameMSB(frame2, (float)datalayer.battery.status.current_dA, 24);
+  frame2[16] = (uint8_t)(average_temperature_dC / 10);
 
-  float2frameMSB(frame2, (float)(discharge_current / 10), 28);
-  float2frameMSB(frame2, (float)(discharge_current / 10), 32);
+  float2frameMSB(frame2, (float)datalayer.battery.status.current_dA / 10,
+                 20);  // Peak discharge? current (2 byte float)
+  float2frameMSB(frame2, (float)datalayer.battery.status.current_dA / 10, 24);
+
+  float2frameMSB(frame2, (float)(discharge_current_dA / 10), 28);  // Nominal discharge? I (2 byte float)
+  float2frameMSB(frame2, (float)(discharge_current_dA / 10), 32);
 
   float2frameMSB(frame2, (float)(datalayer.battery.status.temperature_max_dC / 10), 40);
   float2frameMSB(frame2, (float)(datalayer.battery.status.temperature_min_dC / 10), 44);
@@ -232,7 +241,7 @@ void update_RS485_registers_inverter() {
   float2frame(frame2, (float)(datalayer.battery.status.cell_max_voltage_mV / 1000), 46);
   float2frame(frame2, (float)(datalayer.battery.status.cell_min_voltage_mV / 1000), 50);
 
-  frame2[58] = (byte)(datalayer.battery.status.reported_soc / 100);
+  frame2[58] = (byte)(datalayer.battery.status.reported_soc / 100);  // Confirmed OK mapping
 
   register_content_ok = true;
 }
