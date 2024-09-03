@@ -42,11 +42,11 @@ static bool HVILBattIsolationError = false;
 static bool HVIsolationTestStatus = false;
 
 /* TODO: Actually use a proper keepalive message */
-CAN_frame ipace_keep_alive = {.FD = false,
+CAN_frame Simulated GWM NM = {.FD = false,
                               .ext_ID = false,
                               .DLC = 8,
-                              .ID = 0x063,
-                              .data = {0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00}};
+                              .ID = 0x59E,
+                              .data = {0x9E, 0x00, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF}};
 CAN_frame ipace_7e4 = {.FD = false,
                        .ext_ID = false,
                        .DLC = 8,
