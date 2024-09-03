@@ -82,7 +82,7 @@ static void check_ee_write(void);
 void run_event_handling(void) {
   update_event_time();
   run_sequence_on_target();
-  check_ee_write();
+  //check_ee_write();
   update_event_level();
 }
 
