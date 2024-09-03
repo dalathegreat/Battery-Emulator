@@ -291,7 +291,7 @@ void update_values_battery() {  //This function maps all the values fetched via 
   } else if (battery_soc_vi >
              RAMPDOWN_SOC) {  // When real SOC is between RAMPDOWN_SOC-99%, ramp the value between Max<->0
     datalayer.battery.status.max_charge_power_W =
-        MAXCHARGEPOWERALLOWED * (1 - (battery_soc_vi - RAMPDOWN_SOC) / (1000.0 - RAMPDOWN_SOC));
+        RAMPDOWNPOWERALLOWED * (1 - (battery_soc_vi - RAMPDOWN_SOC) / (1000.0 - RAMPDOWN_SOC));
     //If the cellvoltages start to reach overvoltage, only allow a small amount of power in
     if (datalayer.battery.info.chemistry == battery_chemistry_enum::LFP) {
       if (battery_cell_max_v > (MAX_CELL_VOLTAGE_LFP - FLOAT_START_MV)) {
