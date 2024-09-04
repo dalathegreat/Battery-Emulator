@@ -121,6 +121,7 @@ typedef struct {
   EVENTS_LEVEL_TYPE level;  // Event level, i.e. ERROR/WARNING...
   EVENTS_STATE_TYPE state;  // Event state, i.e. ACTIVE/INACTIVE...
   bool log;
+  bool MQTTpublished;
 } EVENTS_STRUCT_TYPE;
 
 const char* get_event_enum_string(EVENTS_ENUM_TYPE event);
@@ -135,6 +136,7 @@ void init_events(void);
 void set_event_latched(EVENTS_ENUM_TYPE event, uint8_t data);
 void set_event(EVENTS_ENUM_TYPE event, uint8_t data);
 void clear_event(EVENTS_ENUM_TYPE event);
+void set_event_MQTTpublished(EVENTS_ENUM_TYPE event);
 
 const EVENTS_STRUCT_TYPE* get_event_pointer(EVENTS_ENUM_TYPE event);
 
