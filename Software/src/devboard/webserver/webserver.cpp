@@ -645,6 +645,16 @@ String processor(const String& var) {
     else
       content += "<h4 style='color: red;'>Pause status: " + String(get_emulator_pause_status().c_str()) + " </h4>";
 
+#ifdef CONTACTOR_CONTROL
+    content += "<h4>Contactors controlled by Battery-Emulator: ";
+    if (datalayer.system.status.contactor_control_closed) {
+      content += "<span style='color: green;'>ON</span>";
+    } else {
+      content += "<span style='color: red;'>OFF</span>";
+    }
+    content += "</h4>";
+#endif
+
     // Close the block
     content += "</div>";
 
@@ -720,6 +730,17 @@ String processor(const String& var) {
     } else {
       content += "<span style='color: red;'>&#10005;</span></h4>";
     }
+
+#ifdef CONTACTOR_CONTROL
+    content += "<h4>Contactors controlled by Battery-Emulator: ";
+    if (datalayer.system.status.contactor_control_closed) {
+      content += "<span style='color: green;'>ON</span>";
+    } else {
+      content += "<span style='color: red;'>OFF</span>";
+    }
+    content += "</h4>";
+#endif
+
     if (emulator_pause_status == NORMAL)
       content += "<h4>Pause status: " + String(get_emulator_pause_status().c_str()) + " </h4>";
     else

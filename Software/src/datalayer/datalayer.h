@@ -165,6 +165,10 @@ typedef struct {
   bool battery2_allows_contactor_closing = false;
   /** True if the inverter allows for the contactors to close */
   bool inverter_allows_contactor_closing = true;
+#ifdef CONTACTOR_CONTROL
+  /** True if the contactor controlled by battery-emulator is closed */
+  bool contactor_control_closed = false;
+#endif
 } DATALAYER_SYSTEM_STATUS_TYPE;
 
 typedef struct {
