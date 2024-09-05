@@ -5,9 +5,7 @@
 #include "JAGUAR-IPACE-BATTERY.h"
 
 /* Do not change code below unless you are sure what you are doing */
-static unsigned long previousMillis10 = 0;   // will store last time a 10ms CAN Message was send
-static unsigned long previousMillis100 = 0;  // will store last time a 100ms CAN Message was send
-static unsigned long previousMillis500 = 0;  // will store last time a 500ms CAN Message was send
+static unsigned long previousMillisKeepAlive = 0;
 
 static uint8_t HVBattAvgSOC = 0;
 static uint8_t HVBattFastChgCounter = 0;
@@ -41,17 +39,22 @@ static bool HVBattHVILError = false;
 static bool HVILBattIsolationError = false;
 static bool HVIsolationTestStatus = false;
 
-/* TODO: Actually use a proper keepalive message */
+/* KeepAlive: PMZ_CAN_GWM_OSEK_NM_Pdu every 200ms.
+ */
 CAN_frame ipace_keep_alive = {.FD = false,
                               .ext_ID = false,
                               .DLC = 8,
-                              .ID = 0x063,
-                              .data = {0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00}};
-CAN_frame ipace_7e4 = {.FD = false,
-                       .ext_ID = false,
-                       .DLC = 8,
-                       .ID = 0x7e4,
-                       .data = {0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00}};
+                              .ID = 0x51e,
+                              .data = {0x22, 0x02, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00}};
+
+/* KeepAlive: PMZ_CAN_NodeGWM_NM every 1s.
+ * TODO: This may be needed for >2021 models.
+ */
+/*CAN_frame ipace_keep_alive = {.FD = false,
+                              .ext_ID = false,
+                              .DLC = 8,
+                              .ID = 0x59e,
+                              .data = {0x9E, 0x00, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF}};*/
 
 void print_units(char* header, int value, char* units) {
   Serial.print(header);
@@ -243,58 +246,14 @@ void receive_can_battery(CAN_frame rx_frame) {
   Serial.println("");
 }
 
-int state = 0;
-
 void send_can_battery() {
   unsigned long currentMillis = millis();
-  // Send 100ms CAN Message
-  if (currentMillis - previousMillis100 >= INTERVAL_100_MS) {
-    previousMillis100 = currentMillis;
 
-    //transmit_can(&ipace_keep_alive);
-  }
-
-  // Send 500ms CAN Message
-  if (currentMillis - previousMillis500 >= INTERVAL_500_MS) {
-    previousMillis500 = currentMillis;
-
-    CAN_frame msg;
-    int err;
-
-    switch (state) {
-      case 0:
-
-        // car response: 7ec 07 59 02 8f c0 64 88 28
-        // response:     7EC 07 59 02 8F F0 01 00 28
-        // response:     7EC 03 59 02 8F 00 00 00 00
-        //               7EC  8  3 7F 19 11 0 0 0 0
-        msg = {.FD = false,
-               .ext_ID = false,
-               .DLC = 8,
-               .ID = 0x7e4,
-               .data = {0x03, 0x19, 0x02, 0x8f, 0x00, 0x00, 0x00, 0x00}};
-        transmit_can(&msg, can_config.battery);
-        state++;
-
-        break;
-      case 1:
-        // car response: 7EC 11 fa 59 04 c0 64 88 28
-        // response:
-        msg = {.FD = false,
-               .ext_ID = false,
-               .DLC = 8,
-               .ID = 0x7e4,
-               .data = {0x06, 0x19, 0x04, 0xc0, 0x64, 0x88, 0xff, 0x00}};
-        transmit_can(&msg, can_config.battery);
-        state++;
-        break;
-      case 2:
-        /* reset */
-        state = 0;
-        break;
-      default:
-        break;
-    }
+  /* Send keep-alive every 200ms */
+  if (currentMillis - previousMillisKeepAlive >= INTERVAL_200_MS) {
+    previousMillisKeepAlive = currentMillis;
+    transmit_can(&ipace_keep_alive, can_config.battery);
+    return;
   }
 }
 
