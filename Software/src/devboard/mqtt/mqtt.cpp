@@ -23,9 +23,9 @@ static void publish_events(void);
 
 /** Publish global values and call callbacks for specific modules */
 static void publish_values(void) {
+  publish_events();
   publish_common_info();
   publish_cell_voltages();
-  publish_events();
 }
 
 #ifdef HA_AUTODISCOVERY
@@ -207,7 +207,9 @@ void publish_events() {
     doc["state_topic"] = state_topic;
     doc["unique_id"] = "battery-emulator_" + String(hostname) + "_event";
     doc["object_id"] = String(hostname) + "_event";
-    doc["value_template"] = "{{ value_json.message }}";
+    doc["value_template"] =
+        "{{ value_json.event_type ~ ' (c:' ~ value_json.count ~ ',m:' ~  value_json.milis ~ ') ' ~ value_json.message "
+        "}}";
     doc["json_attributes_topic"] = state_topic;
     doc["json_attributes_template"] = "{{ value_json | tojson }}";
     doc["enabled_by_default"] = true;
@@ -243,6 +245,7 @@ void publish_events() {
         doc["count"] = String(event_pointer->occurences);
         doc["data"] = String(event_pointer->data);
         doc["message"] = String(get_event_message_string(event_handle));
+        doc["milis"] = String(millis());
 
         serializeJson(doc, mqtt_msg);
         if (!mqtt_publish(state_topic.c_str(), mqtt_msg, false)) {
