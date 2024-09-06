@@ -130,6 +130,7 @@ void init_events(void) {
     events.entries[i].timestamp = 0;
     events.entries[i].occurences = 0;
     events.entries[i].log = true;
+    events.entries[i].MQTTpublished = false;  // Not published by default
   }
 
   events.entries[EVENT_CANFD_INIT_FAILURE].level = EVENT_LEVEL_WARNING;
@@ -220,6 +221,10 @@ void clear_event(EVENTS_ENUM_TYPE event) {
     update_event_level();
     update_bms_status();
   }
+}
+
+void set_event_MQTTpublished(EVENTS_ENUM_TYPE event) {
+  events.entries[event].MQTTpublished = true;
 }
 
 const char* get_event_message_string(EVENTS_ENUM_TYPE event) {
@@ -397,6 +402,7 @@ static void set_event(EVENTS_ENUM_TYPE event, uint8_t data, bool latched) {
   if ((events.entries[event].state != EVENT_STATE_ACTIVE) &&
       (events.entries[event].state != EVENT_STATE_ACTIVE_LATCHED)) {
     events.entries[event].occurences++;
+    events.entries[event].MQTTpublished = false;
     if (events.entries[event].log) {
       log_event(event, data);
     }
