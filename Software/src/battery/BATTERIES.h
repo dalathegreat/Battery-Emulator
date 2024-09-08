@@ -62,7 +62,8 @@
 #include "SANTA-FE-PHEV-BATTERY.h"
 #endif
 
-#if defined(TESLA_MODEL_S_BATTERY) || defined(TESLA_MODEL_3_BATTERY) || defined(TESLA_MODEL_X_BATTERY) || defined(TESLA_MODEL_Y_BATTERY)
+#if defined(TESLA_MODEL_S_BATTERY) || defined(TESLA_MODEL_3_BATTERY) || defined(TESLA_MODEL_X_BATTERY) || \
+    defined(TESLA_MODEL_Y_BATTERY)
 #include "TESLA-BATTERY.h"
 #endif
 

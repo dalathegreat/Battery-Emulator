@@ -526,7 +526,8 @@ String processor(const String& var) {
 #ifdef SERIAL_LINK_RECEIVER
     content += "Serial link to another LilyGo board";
 #endif  // SERIAL_LINK_RECEIVER
-#if defined(TESLA_MODEL_S_BATTERY) || defined(TESLA_MODEL_3_BATTERY) || defined(TESLA_MODEL_X_BATTERY) || defined(TESLA_MODEL_Y_BATTERY)
+#if defined(TESLA_MODEL_S_BATTERY) || defined(TESLA_MODEL_3_BATTERY) || defined(TESLA_MODEL_X_BATTERY) || \
+    defined(TESLA_MODEL_Y_BATTERY)
     content += "Tesla Model S/3/X/Y";
 #endif  // TESLA_MODEL_#_BATTERY
 #ifdef VOLVO_SPA_BATTERY
