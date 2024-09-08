@@ -51,25 +51,41 @@ void init_webserver() {
 
   String content = index_html;
 
+  server.on("/logout", HTTP_GET, [](AsyncWebServerRequest* request) { request->send(401); });
+
   // Route for root / web page
-  server.on("/", HTTP_GET,
-            [](AsyncWebServerRequest* request) { request->send_P(200, "text/html", index_html, processor); });
+  server.on("/", HTTP_GET, [](AsyncWebServerRequest* request) {
+    if (WEBSERVER_AUTH_REQUIRED && !request->authenticate(http_username, http_password))
+      return request->requestAuthentication();
+    request->send_P(200, "text/html", index_html, processor);
+  });
 
   // Route for going to settings web page
-  server.on("/settings", HTTP_GET,
-            [](AsyncWebServerRequest* request) { request->send_P(200, "text/html", index_html, settings_processor); });
+  server.on("/settings", HTTP_GET, [](AsyncWebServerRequest* request) {
+    if (WEBSERVER_AUTH_REQUIRED && !request->authenticate(http_username, http_password))
+      return request->requestAuthentication();
+    request->send_P(200, "text/html", index_html, settings_processor);
+  });
 
   // Route for going to cellmonitor web page
   server.on("/cellmonitor", HTTP_GET, [](AsyncWebServerRequest* request) {
+    if (WEBSERVER_AUTH_REQUIRED && !request->authenticate(http_username, http_password))
+      return request->requestAuthentication();
     request->send_P(200, "text/html", index_html, cellmonitor_processor);
   });
 
   // Route for going to event log web page
-  server.on("/events", HTTP_GET,
-            [](AsyncWebServerRequest* request) { request->send_P(200, "text/html", index_html, events_processor); });
+  server.on("/events", HTTP_GET, [](AsyncWebServerRequest* request) {
+    if (WEBSERVER_AUTH_REQUIRED && !request->authenticate(http_username, http_password))
+      return request->requestAuthentication();
+    request->send_P(200, "text/html", index_html, events_processor);
+  });
 
   // Route for editing SSID
   server.on("/updateSSID", HTTP_GET, [](AsyncWebServerRequest* request) {
+    if (WEBSERVER_AUTH_REQUIRED && !request->authenticate(http_username, http_password))
+      return request->requestAuthentication();
+
     if (request->hasParam("value")) {
       String value = request->getParam("value")->value();
       if (value.length() <= 63) {  // Check if SSID is within the allowable length
@@ -85,6 +101,8 @@ void init_webserver() {
   });
   // Route for editing Password
   server.on("/updatePassword", HTTP_GET, [](AsyncWebServerRequest* request) {
+    if (WEBSERVER_AUTH_REQUIRED && !request->authenticate(http_username, http_password))
+      return request->requestAuthentication();
     if (request->hasParam("value")) {
       String value = request->getParam("value")->value();
       if (value.length() > 8) {  // Check if password is within the allowable length
@@ -101,6 +119,8 @@ void init_webserver() {
 
   // Route for editing Wh
   server.on("/updateBatterySize", HTTP_GET, [](AsyncWebServerRequest* request) {
+    if (WEBSERVER_AUTH_REQUIRED && !request->authenticate(http_username, http_password))
+      return request->requestAuthentication();
     if (request->hasParam("value")) {
       String value = request->getParam("value")->value();
       datalayer.battery.info.total_capacity_Wh = value.toInt();
@@ -113,6 +133,8 @@ void init_webserver() {
 
   // Route for editing USE_SCALED_SOC
   server.on("/updateUseScaledSOC", HTTP_GET, [](AsyncWebServerRequest* request) {
+    if (WEBSERVER_AUTH_REQUIRED && !request->authenticate(http_username, http_password))
+      return request->requestAuthentication();
     if (request->hasParam("value")) {
       String value = request->getParam("value")->value();
       datalayer.battery.settings.soc_scaling_active = value.toInt();
@@ -125,6 +147,8 @@ void init_webserver() {
 
   // Route for editing SOCMax
   server.on("/updateSocMax", HTTP_GET, [](AsyncWebServerRequest* request) {
+    if (WEBSERVER_AUTH_REQUIRED && !request->authenticate(http_username, http_password))
+      return request->requestAuthentication();
     if (request->hasParam("value")) {
       String value = request->getParam("value")->value();
       datalayer.battery.settings.max_percentage = static_cast<uint16_t>(value.toFloat() * 100);
@@ -137,6 +161,8 @@ void init_webserver() {
 
   // Route for editing SOCMin
   server.on("/updateSocMin", HTTP_GET, [](AsyncWebServerRequest* request) {
+    if (WEBSERVER_AUTH_REQUIRED && !request->authenticate(http_username, http_password))
+      return request->requestAuthentication();
     if (request->hasParam("value")) {
       String value = request->getParam("value")->value();
       datalayer.battery.settings.min_percentage = static_cast<uint16_t>(value.toFloat() * 100);
@@ -149,6 +175,8 @@ void init_webserver() {
 
   // Route for editing MaxChargeA
   server.on("/updateMaxChargeA", HTTP_GET, [](AsyncWebServerRequest* request) {
+    if (WEBSERVER_AUTH_REQUIRED && !request->authenticate(http_username, http_password))
+      return request->requestAuthentication();
     if (request->hasParam("value")) {
       String value = request->getParam("value")->value();
       datalayer.battery.info.max_charge_amp_dA = static_cast<uint16_t>(value.toFloat() * 10);
@@ -161,6 +189,8 @@ void init_webserver() {
 
   // Route for editing MaxDischargeA
   server.on("/updateMaxDischargeA", HTTP_GET, [](AsyncWebServerRequest* request) {
+    if (WEBSERVER_AUTH_REQUIRED && !request->authenticate(http_username, http_password))
+      return request->requestAuthentication();
     if (request->hasParam("value")) {
       String value = request->getParam("value")->value();
       datalayer.battery.info.max_discharge_amp_dA = static_cast<uint16_t>(value.toFloat() * 10);
@@ -174,6 +204,8 @@ void init_webserver() {
 #ifdef TEST_FAKE_BATTERY
   // Route for editing FakeBatteryVoltage
   server.on("/updateFakeBatteryVoltage", HTTP_GET, [](AsyncWebServerRequest* request) {
+    if (WEBSERVER_AUTH_REQUIRED && !request->authenticate(http_username, http_password))
+      return request->requestAuthentication();
     if (!request->hasParam("value")) {
       request->send(400, "text/plain", "Bad Request");
     }
@@ -190,6 +222,8 @@ void init_webserver() {
 #if defined CHEVYVOLT_CHARGER || defined NISSANLEAF_CHARGER
   // Route for editing ChargerTargetV
   server.on("/updateChargeSetpointV", HTTP_GET, [](AsyncWebServerRequest* request) {
+    if (WEBSERVER_AUTH_REQUIRED && !request->authenticate(http_username, http_password))
+      return request->requestAuthentication();
     if (!request->hasParam("value")) {
       request->send(400, "text/plain", "Bad Request");
     }
@@ -212,6 +246,8 @@ void init_webserver() {
 
   // Route for editing ChargerTargetA
   server.on("/updateChargeSetpointA", HTTP_GET, [](AsyncWebServerRequest* request) {
+    if (WEBSERVER_AUTH_REQUIRED && !request->authenticate(http_username, http_password))
+      return request->requestAuthentication();
     if (!request->hasParam("value")) {
       request->send(400, "text/plain", "Bad Request");
     }
@@ -234,6 +270,8 @@ void init_webserver() {
 
   // Route for editing ChargerEndA
   server.on("/updateChargeEndA", HTTP_GET, [](AsyncWebServerRequest* request) {
+    if (WEBSERVER_AUTH_REQUIRED && !request->authenticate(http_username, http_password))
+      return request->requestAuthentication();
     if (request->hasParam("value")) {
       String value = request->getParam("value")->value();
       charger_setpoint_HV_IDC_END = value.toFloat();
@@ -245,6 +283,8 @@ void init_webserver() {
 
   // Route for enabling/disabling HV charger
   server.on("/updateChargerHvEnabled", HTTP_GET, [](AsyncWebServerRequest* request) {
+    if (WEBSERVER_AUTH_REQUIRED && !request->authenticate(http_username, http_password))
+      return request->requestAuthentication();
     if (request->hasParam("value")) {
       String value = request->getParam("value")->value();
       charger_HV_enabled = (bool)value.toInt();
@@ -256,6 +296,8 @@ void init_webserver() {
 
   // Route for enabling/disabling aux12v charger
   server.on("/updateChargerAux12vEnabled", HTTP_GET, [](AsyncWebServerRequest* request) {
+    if (WEBSERVER_AUTH_REQUIRED && !request->authenticate(http_username, http_password))
+      return request->requestAuthentication();
     if (request->hasParam("value")) {
       String value = request->getParam("value")->value();
       charger_aux12V_enabled = (bool)value.toInt();
@@ -267,11 +309,16 @@ void init_webserver() {
 #endif  // defined CHEVYVOLT_CHARGER || defined NISSANLEAF_CHARGER
 
   // Send a GET request to <ESP_IP>/update
-  server.on("/debug", HTTP_GET,
-            [](AsyncWebServerRequest* request) { request->send(200, "text/plain", "Debug: all OK."); });
+  server.on("/debug", HTTP_GET, [](AsyncWebServerRequest* request) {
+    if (WEBSERVER_AUTH_REQUIRED && !request->authenticate(http_username, http_password))
+      return request->requestAuthentication();
+    request->send(200, "text/plain", "Debug: all OK.");
+  });
 
   // Route to handle reboot command
   server.on("/reboot", HTTP_GET, [](AsyncWebServerRequest* request) {
+    if (WEBSERVER_AUTH_REQUIRED && !request->authenticate(http_username, http_password))
+      return request->requestAuthentication();
     request->send(200, "text/plain", "Rebooting server...");
     //TODO: Should we handle contactors gracefully? Ifdef CONTACTOR_CONTROL then what?
     delay(1000);
@@ -789,6 +836,8 @@ String processor(const String& var) {
     content += "<button onclick='Events()'>Events</button>";
     content += " ";
     content += "<button onclick='askReboot()'>Reboot Emulator</button>";
+    if (WEBSERVER_AUTH_REQUIRED)
+      content += "<button onclick='logout()'>Logout</button>";
     content += "<script>";
     content += "function OTA() { window.location.href = '/update'; }";
     content += "function Cellmon() { window.location.href = '/cellmonitor'; }";
@@ -803,6 +852,15 @@ String processor(const String& var) {
     content += "  xhr.open('GET', '/reboot', true);";
     content += "  xhr.send();";
     content += "}";
+    if (WEBSERVER_AUTH_REQUIRED) {
+      content += "function logout() {";
+      content += "  var xhr = new XMLHttpRequest();";
+      content += "  xhr.open('GET', '/logout', true);";
+      content += "  xhr.send();";
+      content += "  setTimeout(function(){ window.open(\"/\",\"_self\"); }, 1000);";
+      content += "}";
+    }
+
     content += "</script>";
 
     //Script for refreshing page

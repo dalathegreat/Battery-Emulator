@@ -25,6 +25,9 @@ std::string password = "REPLACE_WITH_YOUR_PASSWORD";  // Minimum of 8 characters
 const char* ssidAP = "Battery Emulator";  // Maximum of 63 characters, also used for device name on web interface
 const char* passwordAP = "123456789";  // Minimum of 8 characters; set to NULL if you want the access point to be open
 const uint8_t wifi_channel = 0;        // Set to 0 for automatic channel selection
+const char* http_username = "admin";   // username to webserver authentication;
+const char* http_password = "admin";   // password to webserver authentication;
+
 // MQTT
 #ifdef MQTT
 const char* mqtt_user = "REDACTED";      // Set NULL for no username
