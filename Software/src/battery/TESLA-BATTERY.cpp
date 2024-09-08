@@ -334,16 +334,16 @@ void update_values_battery() {  //This function maps all the values fetched via 
   if (datalayer.battery.info.number_of_cells > 101) {
     datalayer.battery.info.chemistry = battery_chemistry_enum::LFP;
   }
-#endif  // TESLA_MODEL_3_BATTERY || TESLA_MODEL_Y_BATTERY
 
   //Once cell chemistry is determined, set maximum and minimum total pack voltage safety limits
   if (datalayer.battery.info.chemistry == battery_chemistry_enum::LFP) {
-    datalayer.battery.info.max_design_voltage_dV = MAX_PACK_VOLTAGE_LFP;
-    datalayer.battery.info.min_design_voltage_dV = MIN_PACK_VOLTAGE_LFP;
+    datalayer.battery.info.max_design_voltage_dV = MAX_PACK_VOLTAGE_3Y_LFP;
+    datalayer.battery.info.min_design_voltage_dV = MIN_PACK_VOLTAGE_3Y_LFP;
   } else {  // NCM/A chemistry
-    datalayer.battery.info.max_design_voltage_dV = MAX_PACK_VOLTAGE_NCMA;
-    datalayer.battery.info.min_design_voltage_dV = MIN_PACK_VOLTAGE_NCMA;
+    datalayer.battery.info.max_design_voltage_dV = MAX_PACK_VOLTAGE_3Y_NCMA;
+    datalayer.battery.info.min_design_voltage_dV = MIN_PACK_VOLTAGE_3Y_NCMA;
   }
+#endif  // TESLA_MODEL_3_BATTERY || TESLA_MODEL_Y_BATTERY
 
   //Check if SOC% is plausible
   if (datalayer.battery.status.voltage_dV >
@@ -916,16 +916,17 @@ void update_values_battery2() {  //This function maps all the values fetched via
   if (datalayer.battery2.info.number_of_cells > 101) {
     datalayer.battery2.info.chemistry = battery_chemistry_enum::LFP;
   }
-#endif  // TESLA_MODEL_3_BATTERY || TESLA_MODEL_Y_BATTERY
 
   //Once cell chemistry is determined, set maximum and minimum total pack voltage safety limits
   if (datalayer.battery2.info.chemistry == battery_chemistry_enum::LFP) {
-    datalayer.battery2.info.max_design_voltage_dV = MAX_PACK_VOLTAGE_LFP;
-    datalayer.battery2.info.min_design_voltage_dV = MIN_PACK_VOLTAGE_LFP;
+    datalayer.battery2.info.max_design_voltage_dV = MAX_PACK_VOLTAGE_3Y_LFP;
+    datalayer.battery2.info.min_design_voltage_dV = MIN_PACK_VOLTAGE_3Y_LFP;
   } else {  // NCM/A chemistry
-    datalayer.battery2.info.max_design_voltage_dV = MAX_PACK_VOLTAGE_NCMA;
-    datalayer.battery2.info.min_design_voltage_dV = MIN_PACK_VOLTAGE_NCMA;
+    datalayer.battery2.info.max_design_voltage_dV = MAX_PACK_VOLTAGE_3Y_NCMA;
+    datalayer.battery2.info.min_design_voltage_dV = MIN_PACK_VOLTAGE_3Y_NCMA;
   }
+
+#endif  // TESLA_MODEL_3_BATTERY || TESLA_MODEL_Y_BATTERY
 
   //Check if SOC% is plausible
   if (datalayer.battery2.status.voltage_dV >
