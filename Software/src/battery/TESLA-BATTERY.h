@@ -6,7 +6,6 @@
 
 /* Modify these if needed */
 //#define LFP_CHEMISTRY // Enable this line to startup in LFP mode
-//#define NCM_CHEMISTRY // Enable this line to startup in NCM/A mode
 #define MAXCHARGEPOWERALLOWED 15000     // 15000W we use a define since the value supplied by Tesla is always 0
 #define MAXDISCHARGEPOWERALLOWED 60000  // 60000W we use a define since the value supplied by Tesla is always 0
 
@@ -18,11 +17,11 @@
 
 #define MAX_PACK_VOLTAGE_SX_NCMA 4600  // V+1, if pack voltage goes over this, charge stops
 #define MIN_PACK_VOLTAGE_SX_NCMA 3100  // V+1, if pack voltage goes over this, charge stops
-#define MAX_PACK_VOLTAGE_NCMA 4030  // V+1, if pack voltage goes over this, charge stops
-#define MIN_PACK_VOLTAGE_NCMA 3100  // V+1, if pack voltage goes below this, discharge stops
-#define MAX_PACK_VOLTAGE_LFP 3880   // V+1, if pack voltage goes over this, charge stops
-#define MIN_PACK_VOLTAGE_LFP 2968   // V+1, if pack voltage goes below this, discharge stops
-#define MAX_CELL_DEVIATION_MV 9999  // Handled inside the Tesla.cpp file, just for compilation
+#define MAX_PACK_VOLTAGE_3Y_NCMA 4030  // V+1, if pack voltage goes over this, charge stops
+#define MIN_PACK_VOLTAGE_3Y_NCMA 3100  // V+1, if pack voltage goes below this, discharge stops
+#define MAX_PACK_VOLTAGE_3Y_LFP 3880   // V+1, if pack voltage goes over this, charge stops
+#define MIN_PACK_VOLTAGE_3Y_LFP 2968   // V+1, if pack voltage goes below this, discharge stops
+#define MAX_CELL_DEVIATION_MV 9999     // Handled inside the Tesla.cpp file, just for compilation
 
 void printFaultCodesIfActive();
 void printDebugIfActive(uint8_t symbol, const char* message);
