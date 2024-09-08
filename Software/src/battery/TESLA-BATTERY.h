@@ -1,11 +1,12 @@
-#ifndef TESLA_MODEL_3_BATTERY_H
-#define TESLA_MODEL_3_BATTERY_H
+#ifndef TESLA_BATTERY_H
+#define TESLA_BATTERY_H
 #include "../include.h"
 
 #define BATTERY_SELECTED
 
 /* Modify these if needed */
 //#define LFP_CHEMISTRY // Enable this line to startup in LFP mode
+//#define NCM_CHEMISTRY // Enable this line to startup in NCM/A mode
 #define MAXCHARGEPOWERALLOWED 15000     // 15000W we use a define since the value supplied by Tesla is always 0
 #define MAXDISCHARGEPOWERALLOWED 60000  // 60000W we use a define since the value supplied by Tesla is always 0
 
@@ -14,6 +15,9 @@
 #define RAMPDOWNPOWERALLOWED 15000  // What power we ramp down from towards top balancing
 #define FLOAT_MAX_POWER_W 200       // W, what power to allow for top balancing battery
 #define FLOAT_START_MV 20           // mV, how many mV under overvoltage to start float charging
+
+#define MAX_PACK_VOLTAGE_SX_NCMA 4600  // V+1, if pack voltage goes over this, charge stops
+#define MIN_PACK_VOLTAGE_SX_NCMA 3100  // V+1, if pack voltage goes over this, charge stops
 #define MAX_PACK_VOLTAGE_NCMA 4030  // V+1, if pack voltage goes over this, charge stops
 #define MIN_PACK_VOLTAGE_NCMA 3100  // V+1, if pack voltage goes below this, discharge stops
 #define MAX_PACK_VOLTAGE_LFP 3880   // V+1, if pack voltage goes over this, charge stops
