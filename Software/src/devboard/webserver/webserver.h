@@ -24,6 +24,8 @@ extern std::string password;
 extern const uint8_t wifi_channel;
 extern const char* ssidAP;
 extern const char* passwordAP;
+extern const char* http_username;
+extern const char* http_password;
 
 // Common charger parameters
 extern float charger_stat_HVcur;
