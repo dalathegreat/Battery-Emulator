@@ -1,5 +1,5 @@
-#ifndef TESLA_MODEL_3_BATTERY_H
-#define TESLA_MODEL_3_BATTERY_H
+#ifndef TESLA_BATTERY_H
+#define TESLA_BATTERY_H
 #include "../include.h"
 
 #define BATTERY_SELECTED
@@ -14,11 +14,14 @@
 #define RAMPDOWNPOWERALLOWED 15000  // What power we ramp down from towards top balancing
 #define FLOAT_MAX_POWER_W 200       // W, what power to allow for top balancing battery
 #define FLOAT_START_MV 20           // mV, how many mV under overvoltage to start float charging
-#define MAX_PACK_VOLTAGE_NCMA 4030  // V+1, if pack voltage goes over this, charge stops
-#define MIN_PACK_VOLTAGE_NCMA 3100  // V+1, if pack voltage goes below this, discharge stops
-#define MAX_PACK_VOLTAGE_LFP 3880   // V+1, if pack voltage goes over this, charge stops
-#define MIN_PACK_VOLTAGE_LFP 2968   // V+1, if pack voltage goes below this, discharge stops
-#define MAX_CELL_DEVIATION_MV 9999  // Handled inside the Tesla.cpp file, just for compilation
+
+#define MAX_PACK_VOLTAGE_SX_NCMA 4600  // V+1, if pack voltage goes over this, charge stops
+#define MIN_PACK_VOLTAGE_SX_NCMA 3100  // V+1, if pack voltage goes over this, charge stops
+#define MAX_PACK_VOLTAGE_3Y_NCMA 4030  // V+1, if pack voltage goes over this, charge stops
+#define MIN_PACK_VOLTAGE_3Y_NCMA 3100  // V+1, if pack voltage goes below this, discharge stops
+#define MAX_PACK_VOLTAGE_3Y_LFP 3880   // V+1, if pack voltage goes over this, charge stops
+#define MIN_PACK_VOLTAGE_3Y_LFP 2968   // V+1, if pack voltage goes below this, discharge stops
+#define MAX_CELL_DEVIATION_MV 9999     // Handled inside the Tesla.cpp file, just for compilation
 
 void printFaultCodesIfActive();
 void printDebugIfActive(uint8_t symbol, const char* message);
