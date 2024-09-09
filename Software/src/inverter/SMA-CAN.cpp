@@ -266,4 +266,5 @@ void send_can_inverter() {
       transmit_can(&SMA_4D8, can_config.inverter);
     }
   }
+}
 #endif
