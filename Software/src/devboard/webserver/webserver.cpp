@@ -558,6 +558,9 @@ String processor(const String& var) {
 #ifdef NISSAN_LEAF_BATTERY
     content += "Nissan LEAF";
 #endif  // NISSAN_LEAF_BATTERY
+#ifdef RJXZS_BMS
+    content += "RJXZS BMS, DIY battery";
+#endif  // RJXZS_BMS
 #ifdef RENAULT_KANGOO_BATTERY
     content += "Renault Kangoo";
 #endif  // RENAULT_KANGOO_BATTERY

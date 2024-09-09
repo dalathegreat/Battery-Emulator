@@ -377,6 +377,9 @@ void init_CAN() {
   digitalWrite(CAN_SE_PIN, LOW);
 #endif
   CAN_cfg.speed = CAN_SPEED_500KBPS;
+#ifdef NATIVECAN_250KBPS  // Some component is requesting lower CAN speed
+  CAN_cfg.speed = CAN_SPEED_250KBPS;
+#endif
   CAN_cfg.tx_pin_id = CAN_TX_PIN;
   CAN_cfg.rx_pin_id = CAN_RX_PIN;
   CAN_cfg.rx_queue = xQueueCreate(rx_queue_size, sizeof(CAN_frame_t));
