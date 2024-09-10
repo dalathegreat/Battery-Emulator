@@ -71,21 +71,13 @@ static uint16_t hall_sensor_type = 0;
 static uint16_t fan_start_setting_value = 0;
 static uint16_t ptc_heating_start_setting_value = 0;
 static uint16_t default_channel_state = 0;
-static uint16_t SOC_calculated_pptt = 0;
 
 void update_values_battery() {
 
-  if (battery_pack_capacity > 1) {  //div0 safeguard
-    SOC_calculated_pptt = ((battery_pack_capacity - remaining_capacity) / battery_pack_capacity) * 100;
-    if (SOC_calculated_pptt > 10000) {  //Calculation has gone wrong
-      SOC_calculated_pptt = 10000;
-    }
-  } else {
-    SOC_calculated_pptt = 0;
-    //TODO: set alert, no SOC% available?
+  datalayer.battery.status.real_soc = battery_capacity_percentage * 100;
+  if (battery_capacity_percentage == 0) {
+    //SOC% not available. Raise warning event?
   }
-
-  datalayer.battery.status.real_soc = SOC_calculated_pptt;
 
   datalayer.battery.status.soh_pptt;  // This BMS does not have a SOH% formula
 
