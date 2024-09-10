@@ -6,7 +6,7 @@
 /* TODO: Map error bits in 0x158 */
 
 /* Do not change code below unless you are sure what you are doing */
-static unsigned long previousMillis60s = 0;
+static unsigned long previousMillis100ms = 0;
 
 //Actual content messages
 CAN_frame SMA_358 = {.FD = false,
@@ -258,8 +258,8 @@ void send_can_inverter() {
 
   // Send CAN Message every 100ms if we're enabled
   if (datalayer.system.status.inverter_allows_contactor_closing) {
-    if (currentMillis - previousMillis60s >= 100) {
-      previousMillis60s = currentMillis;
+    if (currentMillis - previousMillis100ms >= 100) {
+      previousMillis100ms = currentMillis;
       transmit_can(&SMA_158, can_config.inverter);
       transmit_can(&SMA_358, can_config.inverter);
       transmit_can(&SMA_3D8, can_config.inverter);
