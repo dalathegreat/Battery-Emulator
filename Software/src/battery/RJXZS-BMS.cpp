@@ -33,6 +33,8 @@ static uint16_t charging_protection_voltage = 0;
 static int16_t protection_temperature = 0;
 static bool temperature_below_zero_mod1_4 = false;
 static bool temperature_below_zero_mod5_8 = false;
+static bool temperature_below_zero_mod9_12 = false;
+static bool temperature_below_zero_mod13_16 = false;
 static uint16_t module_1_temperature = 0;
 static uint16_t module_2_temperature = 0;
 static uint16_t module_3_temperature = 0;
@@ -49,17 +51,43 @@ static uint16_t module_13_temperature = 0;
 static uint16_t module_14_temperature = 0;
 static uint16_t module_15_temperature = 0;
 static uint16_t module_16_temperature = 0;
+static uint16_t low_voltage_power_outage_protection = 0;
+static uint16_t low_voltage_power_outage_delayed = 0;
+static uint16_t num_of_triggering_protection_cells = 0;
 static uint16_t balanced_reference_voltage = 0;
 static uint16_t minimum_cell_voltage = 0;
 static uint16_t maximum_cell_voltage = 0;
 static uint16_t cellvoltages[MAX_AMOUNT_CELLS];
 static uint8_t populated_cellvoltages = 0;
+static uint16_t accumulated_total_capacity_high = 0;
+static uint16_t accumulated_total_capacity_low = 0;
+static uint16_t pre_charge_delay_time = 0;
+static uint16_t LCD_status = 0;
+static uint16_t differential_pressure_setting_value = 0;
+static uint16_t use_capacity_to_automatically_reset = 0;
+static uint16_t low_temperature_protection_setting_value = 0;
+static uint16_t protecting_historical_logs = 0;
+static uint16_t hall_sensor_type = 0;
+static uint16_t fan_start_setting_value = 0;
+static uint16_t ptc_heating_start_setting_value = 0;
+static uint16_t default_channel_state = 0;
+static uint16_t SOC_calculated_pptt = 0;
 
 void update_values_battery() {
 
-  datalayer.battery.status.real_soc = battery_capacity_percentage;
+  if (battery_pack_capacity > 1) {  //div0 safeguard
+    SOC_calculated_pptt = ((battery_pack_capacity - remaining_capacity) / battery_pack_capacity) * 100;
+    if (SOC_calculated_pptt > 10000) {  //Calculation has gone wrong
+      SOC_calculated_pptt = 10000;
+    }
+  } else {
+    SOC_calculated_pptt = 0;
+    //TODO: set alert, no SOC% available?
+  }
 
-  datalayer.battery.status.soh_pptt;
+  datalayer.battery.status.real_soc = SOC_calculated_pptt;
+
+  datalayer.battery.status.soh_pptt;  // This BMS does not have a SOH% formula
 
   datalayer.battery.status.voltage_dV = total_voltage;
 
@@ -68,9 +96,9 @@ void update_values_battery() {
   datalayer.battery.status.active_power_W =  //Power in watts, Negative = charging batt
       ((datalayer.battery.status.voltage_dV * datalayer.battery.status.current_dA) / 100);
 
-  datalayer.battery.status.max_charge_power_W = protective_current * total_voltage;
+  datalayer.battery.status.max_charge_power_W = (protective_current * total_voltage) / 10;
 
-  datalayer.battery.status.max_discharge_power_W = protective_current * total_voltage;
+  datalayer.battery.status.max_discharge_power_W = (protective_current * total_voltage) / 10;
 
   uint16_t temperatures[] = {
       module_1_temperature,  module_2_temperature,  module_3_temperature,  module_4_temperature,
@@ -119,6 +147,7 @@ void update_values_battery() {
 
 void receive_can_battery(CAN_frame rx_frame) {
 
+  /*
   // All CAN messages recieved will be logged via serial
   Serial.print(millis());  // Example printout, time, ID, length, data: 7553  1DB  8  FF C0 B9 EA 0 0 2 5D
   Serial.print("  ");
@@ -131,7 +160,7 @@ void receive_can_battery(CAN_frame rx_frame) {
     Serial.print(" ");
   }
   Serial.println("");
-
+  */
   switch (rx_frame.ID) {
     case 0xF5:                 // This is the only message is sent from BMS
       setup_completed = true;  // Let the function know we no longer need to send startup messages
@@ -322,6 +351,102 @@ void receive_can_battery(CAN_frame rx_frame) {
         cellvoltages[117] = (rx_frame.data.u8[1] << 8) | rx_frame.data.u8[2];
         cellvoltages[118] = (rx_frame.data.u8[3] << 8) | rx_frame.data.u8[4];
         cellvoltages[119] = (rx_frame.data.u8[5] << 8) | rx_frame.data.u8[6];
+      } else if (mux == 0x2F) {  // Cellvoltages 121-123
+        cellvoltages[120] = (rx_frame.data.u8[1] << 8) | rx_frame.data.u8[2];
+        cellvoltages[121] = (rx_frame.data.u8[3] << 8) | rx_frame.data.u8[4];
+        cellvoltages[122] = (rx_frame.data.u8[5] << 8) | rx_frame.data.u8[6];
+      } else if (mux == 0x30) {  // Cellvoltages 124-126
+        cellvoltages[123] = (rx_frame.data.u8[1] << 8) | rx_frame.data.u8[2];
+        cellvoltages[124] = (rx_frame.data.u8[3] << 8) | rx_frame.data.u8[4];
+        cellvoltages[125] = (rx_frame.data.u8[5] << 8) | rx_frame.data.u8[6];
+      } else if (mux == 0x31) {  // Cellvoltages 127-129
+        cellvoltages[126] = (rx_frame.data.u8[1] << 8) | rx_frame.data.u8[2];
+        cellvoltages[127] = (rx_frame.data.u8[3] << 8) | rx_frame.data.u8[4];
+        cellvoltages[128] = (rx_frame.data.u8[5] << 8) | rx_frame.data.u8[6];
+      } else if (mux == 0x32) {  // Cellvoltages 130-132
+        cellvoltages[129] = (rx_frame.data.u8[1] << 8) | rx_frame.data.u8[2];
+        cellvoltages[130] = (rx_frame.data.u8[3] << 8) | rx_frame.data.u8[4];
+        cellvoltages[131] = (rx_frame.data.u8[5] << 8) | rx_frame.data.u8[6];
+      } else if (mux == 0x33) {  // Cellvoltages 133-135
+        cellvoltages[132] = (rx_frame.data.u8[1] << 8) | rx_frame.data.u8[2];
+        cellvoltages[133] = (rx_frame.data.u8[3] << 8) | rx_frame.data.u8[4];
+        cellvoltages[134] = (rx_frame.data.u8[5] << 8) | rx_frame.data.u8[6];
+      } else if (mux == 0x34) {  // Cellvoltages 136-138
+        cellvoltages[135] = (rx_frame.data.u8[1] << 8) | rx_frame.data.u8[2];
+        cellvoltages[136] = (rx_frame.data.u8[3] << 8) | rx_frame.data.u8[4];
+        cellvoltages[137] = (rx_frame.data.u8[5] << 8) | rx_frame.data.u8[6];
+      } else if (mux == 0x35) {  // Cellvoltages 139-141
+        cellvoltages[138] = (rx_frame.data.u8[1] << 8) | rx_frame.data.u8[2];
+        cellvoltages[139] = (rx_frame.data.u8[3] << 8) | rx_frame.data.u8[4];
+        cellvoltages[140] = (rx_frame.data.u8[5] << 8) | rx_frame.data.u8[6];
+      } else if (mux == 0x36) {  // Cellvoltages 142-144
+        cellvoltages[141] = (rx_frame.data.u8[1] << 8) | rx_frame.data.u8[2];
+        cellvoltages[142] = (rx_frame.data.u8[3] << 8) | rx_frame.data.u8[4];
+        cellvoltages[143] = (rx_frame.data.u8[5] << 8) | rx_frame.data.u8[6];
+      } else if (mux == 0x37) {  // Cellvoltages 145-147
+        cellvoltages[144] = (rx_frame.data.u8[1] << 8) | rx_frame.data.u8[2];
+        cellvoltages[145] = (rx_frame.data.u8[3] << 8) | rx_frame.data.u8[4];
+        cellvoltages[146] = (rx_frame.data.u8[5] << 8) | rx_frame.data.u8[6];
+      } else if (mux == 0x38) {  // Cellvoltages 148-150
+        cellvoltages[147] = (rx_frame.data.u8[1] << 8) | rx_frame.data.u8[2];
+        cellvoltages[148] = (rx_frame.data.u8[3] << 8) | rx_frame.data.u8[4];
+        cellvoltages[149] = (rx_frame.data.u8[5] << 8) | rx_frame.data.u8[6];
+      } else if (mux == 0x39) {  // Cellvoltages 151-153
+        cellvoltages[150] = (rx_frame.data.u8[1] << 8) | rx_frame.data.u8[2];
+        cellvoltages[151] = (rx_frame.data.u8[3] << 8) | rx_frame.data.u8[4];
+        cellvoltages[152] = (rx_frame.data.u8[5] << 8) | rx_frame.data.u8[6];
+      } else if (mux == 0x3A) {  // Cellvoltages 154-156
+        cellvoltages[153] = (rx_frame.data.u8[1] << 8) | rx_frame.data.u8[2];
+        cellvoltages[154] = (rx_frame.data.u8[3] << 8) | rx_frame.data.u8[4];
+        cellvoltages[155] = (rx_frame.data.u8[5] << 8) | rx_frame.data.u8[6];
+      } else if (mux == 0x3B) {  // Cellvoltages 157-159
+        cellvoltages[156] = (rx_frame.data.u8[1] << 8) | rx_frame.data.u8[2];
+        cellvoltages[157] = (rx_frame.data.u8[3] << 8) | rx_frame.data.u8[4];
+        cellvoltages[158] = (rx_frame.data.u8[5] << 8) | rx_frame.data.u8[6];
+      } else if (mux == 0x3C) {  // Cellvoltages 160-162
+        cellvoltages[159] = (rx_frame.data.u8[1] << 8) | rx_frame.data.u8[2];
+        cellvoltages[160] = (rx_frame.data.u8[3] << 8) | rx_frame.data.u8[4];
+        cellvoltages[161] = (rx_frame.data.u8[5] << 8) | rx_frame.data.u8[6];
+      } else if (mux == 0x3D) {  // Cellvoltages 163-165
+        cellvoltages[162] = (rx_frame.data.u8[1] << 8) | rx_frame.data.u8[2];
+        cellvoltages[163] = (rx_frame.data.u8[3] << 8) | rx_frame.data.u8[4];
+        cellvoltages[164] = (rx_frame.data.u8[5] << 8) | rx_frame.data.u8[6];
+      } else if (mux == 0x3E) {  // Cellvoltages 166-167
+        cellvoltages[165] = (rx_frame.data.u8[1] << 8) | rx_frame.data.u8[2];
+        cellvoltages[166] = (rx_frame.data.u8[3] << 8) | rx_frame.data.u8[4];
+        cellvoltages[167] = (rx_frame.data.u8[5] << 8) | rx_frame.data.u8[6];
+      } else if (mux == 0x3F) {  // Cellvoltages 169-171
+        cellvoltages[168] = (rx_frame.data.u8[1] << 8) | rx_frame.data.u8[2];
+        cellvoltages[169] = (rx_frame.data.u8[3] << 8) | rx_frame.data.u8[4];
+        cellvoltages[170] = (rx_frame.data.u8[5] << 8) | rx_frame.data.u8[6];
+      } else if (mux == 0x40) {  // Cellvoltages 172-174
+        cellvoltages[171] = (rx_frame.data.u8[1] << 8) | rx_frame.data.u8[2];
+        cellvoltages[172] = (rx_frame.data.u8[3] << 8) | rx_frame.data.u8[4];
+        cellvoltages[173] = (rx_frame.data.u8[5] << 8) | rx_frame.data.u8[6];
+      } else if (mux == 0x41) {  // Cellvoltages 175-177
+        cellvoltages[174] = (rx_frame.data.u8[1] << 8) | rx_frame.data.u8[2];
+        cellvoltages[175] = (rx_frame.data.u8[3] << 8) | rx_frame.data.u8[4];
+        cellvoltages[176] = (rx_frame.data.u8[5] << 8) | rx_frame.data.u8[6];
+      } else if (mux == 0x42) {  // Cellvoltages 178-180
+        cellvoltages[177] = (rx_frame.data.u8[1] << 8) | rx_frame.data.u8[2];
+        cellvoltages[178] = (rx_frame.data.u8[3] << 8) | rx_frame.data.u8[4];
+        cellvoltages[179] = (rx_frame.data.u8[5] << 8) | rx_frame.data.u8[6];
+      } else if (mux == 0x43) {  // Cellvoltages 181-183
+        cellvoltages[180] = (rx_frame.data.u8[1] << 8) | rx_frame.data.u8[2];
+        cellvoltages[181] = (rx_frame.data.u8[3] << 8) | rx_frame.data.u8[4];
+        cellvoltages[182] = (rx_frame.data.u8[5] << 8) | rx_frame.data.u8[6];
+      } else if (mux == 0x44) {  // Cellvoltages 184-186
+        cellvoltages[183] = (rx_frame.data.u8[1] << 8) | rx_frame.data.u8[2];
+        cellvoltages[184] = (rx_frame.data.u8[3] << 8) | rx_frame.data.u8[4];
+        cellvoltages[185] = (rx_frame.data.u8[5] << 8) | rx_frame.data.u8[6];
+      } else if (mux == 0x45) {  // Cellvoltages 187-189
+        cellvoltages[186] = (rx_frame.data.u8[1] << 8) | rx_frame.data.u8[2];
+        cellvoltages[187] = (rx_frame.data.u8[3] << 8) | rx_frame.data.u8[4];
+        cellvoltages[188] = (rx_frame.data.u8[5] << 8) | rx_frame.data.u8[6];
+      } else if (mux == 0x46) {  // Cellvoltages 190-192
+        cellvoltages[189] = (rx_frame.data.u8[1] << 8) | rx_frame.data.u8[2];
+        cellvoltages[190] = (rx_frame.data.u8[3] << 8) | rx_frame.data.u8[4];
+        cellvoltages[191] = (rx_frame.data.u8[5] << 8) | rx_frame.data.u8[6];
       } else if (mux == 0x47) {
         temperature_below_zero_mod1_4 = rx_frame.data.u8[2];
         module_1_temperature = (rx_frame.data.u8[3] << 8) | rx_frame.data.u8[4];
@@ -338,10 +463,41 @@ void receive_can_battery(CAN_frame rx_frame) {
         module_7_temperature = (rx_frame.data.u8[5] << 8) | rx_frame.data.u8[6];
       } else if (mux == 0x4C) {
         module_8_temperature = (rx_frame.data.u8[3] << 8) | rx_frame.data.u8[4];
+      } else if (mux == 0x4D) {
+        temperature_below_zero_mod9_12 = rx_frame.data.u8[2];
+        module_9_temperature = (rx_frame.data.u8[3] << 8) | rx_frame.data.u8[4];
+        module_10_temperature = (rx_frame.data.u8[5] << 8) | rx_frame.data.u8[6];
+      } else if (mux == 0x4E) {
+        module_11_temperature = (rx_frame.data.u8[1] << 8) | rx_frame.data.u8[2];
+        module_12_temperature = (rx_frame.data.u8[3] << 8) | rx_frame.data.u8[4];
+        module_13_temperature = (rx_frame.data.u8[5] << 8) | rx_frame.data.u8[6];
+      } else if (mux == 0x4F) {
+        module_14_temperature = (rx_frame.data.u8[1] << 8) | rx_frame.data.u8[2];
+        module_15_temperature = (rx_frame.data.u8[3] << 8) | rx_frame.data.u8[4];
+        module_16_temperature = (rx_frame.data.u8[5] << 8) | rx_frame.data.u8[6];
+      } else if (mux == 0x50) {
+        low_voltage_power_outage_protection = (rx_frame.data.u8[1] << 8) | rx_frame.data.u8[2];
+        low_voltage_power_outage_delayed = (rx_frame.data.u8[3] << 8) | rx_frame.data.u8[4];
+        num_of_triggering_protection_cells = (rx_frame.data.u8[5] << 8) | rx_frame.data.u8[6];
       } else if (mux == 0x51) {
         balanced_reference_voltage = (rx_frame.data.u8[1] << 8) | rx_frame.data.u8[2];
         minimum_cell_voltage = (rx_frame.data.u8[3] << 8) | rx_frame.data.u8[4];
         maximum_cell_voltage = (rx_frame.data.u8[5] << 8) | rx_frame.data.u8[6];
+      } else if (mux == 0x52) {
+        accumulated_total_capacity_high = (rx_frame.data.u8[1] << 8) | rx_frame.data.u8[2];
+        accumulated_total_capacity_low = (rx_frame.data.u8[3] << 8) | rx_frame.data.u8[4];
+        pre_charge_delay_time = (rx_frame.data.u8[5] << 8) | rx_frame.data.u8[6];
+        LCD_status = rx_frame.data.u8[7];
+      } else if (mux == 0x53) {
+        differential_pressure_setting_value = (rx_frame.data.u8[1] << 8) | rx_frame.data.u8[2];
+        use_capacity_to_automatically_reset = (rx_frame.data.u8[3] << 8) | rx_frame.data.u8[4];
+        low_temperature_protection_setting_value = (rx_frame.data.u8[5] << 8) | rx_frame.data.u8[6];
+        protecting_historical_logs = rx_frame.data.u8[7];
+      } else if (mux == 0x54) {
+        hall_sensor_type = (rx_frame.data.u8[1] << 8) | rx_frame.data.u8[2];
+        fan_start_setting_value = (rx_frame.data.u8[3] << 8) | rx_frame.data.u8[4];
+        ptc_heating_start_setting_value = (rx_frame.data.u8[5] << 8) | rx_frame.data.u8[6];
+        default_channel_state = rx_frame.data.u8[7];
       }
       break;
     default:
@@ -355,6 +511,11 @@ void send_can_battery() {
   if (currentMillis - previousMillis10s >= INTERVAL_10_S) {
 
     previousMillis10s = currentMillis;
+
+    if (datalayer.battery.status.bms_status == FAULT) {
+      // Incase we loose BMS comms, resend CAN start
+      setup_completed = false;
+    }
 
     if (!setup_completed) {
       transmit_can(&RJXZS_10, can_config.battery);  // Communication connected flag
