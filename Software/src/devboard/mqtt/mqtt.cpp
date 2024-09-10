@@ -48,6 +48,15 @@ SensorConfig sensorConfigs[] = {
     {"cell_max_voltage", "Battery Emulator Cell Max Voltage", "{{ value_json.cell_max_voltage }}", "V", "voltage"},
     {"cell_min_voltage", "Battery Emulator Cell Min Voltage", "{{ value_json.cell_min_voltage }}", "V", "voltage"},
     {"battery_voltage", "Battery Emulator Battery Voltage", "{{ value_json.battery_voltage }}", "V", "voltage"},
+    {"total_capacity", "Battery Emulator Battery Total Capacity", "{{ value_json.total_capacity }}", "Wh", "energy"},
+    {"remaining_capacity", "Battery Emulator Battery Remaining Capacity", "{{ value_json.remaining_capacity }}", "Wh",
+     "energy"},
+    {"max_discharge_power", "Battery Emulator Battery Max Discharge Power", "{{ value_json.max_discharge_power }}", "W",
+     "power"},
+    {"max_charge_power", "Battery Emulator Battery Max Charge Power", "{{ value_json.max_charge_power }}", "W",
+     "power"},
+    {"bms_status", "Battery Emulator BMS Status", "{{ value_json.bms_status }}", "", ""},
+
 };
 
 static String generateCommonInfoAutoConfigTopic(const char* object_id, const char* hostname) {
@@ -81,10 +90,13 @@ static void publish_common_info(void) {
       doc["unique_id"] = "battery-emulator_" + String(hostname) + "_" + String(config.object_id);
       doc["object_id"] = String(hostname) + "_" + String(config.object_id);
       doc["value_template"] = config.value_template;
-      doc["unit_of_measurement"] = config.unit;
-      doc["device_class"] = config.device_class;
+      if (config.unit != nullptr && strlen(config.unit) > 0)
+        doc["unit_of_measurement"] = config.unit;
+      if (config.device_class != nullptr && strlen(config.device_class) > 0) {
+        doc["device_class"] = config.device_class;
+        doc["state_class"] = "measurement";
+      }
       doc["enabled_by_default"] = true;
-      doc["state_class"] = "measurement";
       doc["expire_after"] = 240;
       doc["device"]["identifiers"][0] = "battery-emulator";
       doc["device"]["manufacturer"] = "DalaTech";
@@ -95,8 +107,9 @@ static void publish_common_info(void) {
       doc["origin"]["url"] = "https://github.com/dalathegreat/Battery-Emulator";
       serializeJson(doc, mqtt_msg);
       mqtt_publish(generateCommonInfoAutoConfigTopic(config.object_id, hostname).c_str(), mqtt_msg, true);
+      doc.clear();
     }
-    doc.clear();
+
   } else {
 #endif  // HA_AUTODISCOVERY
     doc["SOC"] = ((float)datalayer.battery.status.reported_soc) / 100.0;
@@ -113,6 +126,12 @@ static void publish_common_info(void) {
       doc["cell_max_voltage"] = ((float)datalayer.battery.status.cell_max_voltage_mV) / 1000.0;
       doc["cell_min_voltage"] = ((float)datalayer.battery.status.cell_min_voltage_mV) / 1000.0;
     }
+    doc["total_capacity"] = ((float)datalayer.battery.info.total_capacity_Wh);
+    doc["remaining_capacity"] = ((float)datalayer.battery.status.remaining_capacity_Wh);
+    doc["max_discharge_power"] = ((float)datalayer.battery.status.max_discharge_power_W);
+    doc["max_charge_power"] = ((float)datalayer.battery.status.max_charge_power_W);
+    doc["bms_status"] = getBMSStatus(datalayer.battery.status.bms_status);
+
     serializeJson(doc, mqtt_msg);
     if (!mqtt_publish(state_topic.c_str(), mqtt_msg, false)) {
 #ifdef DEBUG_VIA_USB
