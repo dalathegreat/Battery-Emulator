@@ -18,6 +18,11 @@ static uint16_t LB_kWh_Remaining = 0;
 static uint16_t LB_Cell_Max_Voltage = 3700;
 static uint16_t LB_Cell_Min_Voltage = 3700;
 static uint16_t LB_Battery_Voltage = 3700;
+static uint8_t frame0 = 0;
+static uint8_t current_poll = 0;
+static uint8_t group = 0;
+static uint16_t cellvoltages[96];
+static uint8_t highbyte_cell_next_frame = 0;
 
 CAN_frame ZOE_423 = {.FD = false,
                      .ext_ID = false,
@@ -27,11 +32,22 @@ CAN_frame ZOE_423 = {.FD = false,
 CAN_frame ZOE_POLL_79B = {.FD = false,
                           .ext_ID = false,
                           .DLC = 8,
-                          .ID = 0x79B,  //0x41 = cell bat module 1-62 , 0x42 = cell bat module 63-96
+                          .ID = 0x79B,
                           .data = {0x02, 0x21, 0x41, 0x00, 0x00, 0x00, 0x00, 0x00}};
+CAN_frame ZOE_ACK_79B = {.FD = false,
+                         .ext_ID = false,
+                         .DLC = 8,
+                         .ID = 0x79B,
+                         .data = {0x30, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00}};
 
-static unsigned long previousMillis100 = 0;   // will store last time a 100ms CAN Message was sent
-static unsigned long previousMillis5000 = 0;  // will store last time a 1000ms CAN Message was sent
+#define GROUP1_CELLVOLTAGES_1_POLL 0x41
+#define GROUP2_CELLVOLTAGES_2_POLL 0x42
+#define GROUP3 0x61
+#define GROUP4 0x03
+#define GROUP5_TEMPERATURE_POLL 0x04
+
+static unsigned long previousMillis100 = 0;  // will store last time a 100ms CAN Message was sent
+static unsigned long previousMillis250 = 0;  // will store last time a 250ms CAN Message was sent
 static uint8_t counter_423 = 0;
 
 void update_values_battery() {  //This function maps all the values fetched via CAN to the correct parameters used for modbus
@@ -60,6 +76,9 @@ void update_values_battery() {  //This function maps all the values fetched via 
   datalayer.battery.status.cell_min_voltage_mV;
 
   datalayer.battery.status.cell_max_voltage_mV;
+
+  //Map all cell voltages to the global array
+  memcpy(datalayer.battery.status.cell_voltages_mV, cellvoltages, 96 * sizeof(uint16_t));
 
   if (LB_Cell_Max_Voltage >= ABSOLUTE_CELL_MAX_VOLTAGE) {
     set_event(EVENT_CELL_OVER_VOLTAGE, 0);
@@ -91,8 +110,53 @@ void receive_can_battery(CAN_frame rx_frame) {
       LB_SOH = (rx_frame.data.u8[4] & 0x7F);
       break;
     case 0x7BB:  //Reply from active polling
-      // TODO: Handle the cellvoltages
+      frame0 = rx_frame.data.u8[0];
+      if (frame0 == 0x10) {  //PID HEADER
+        transmit_can(&ZOE_ACK_79B, can_config.battery);
 
+        if (current_poll == GROUP1_CELLVOLTAGES_1_POLL) {
+          cellvoltages[0] = (rx_frame.data.u8[4] << 8) | rx_frame.data.u8[5];
+          cellvoltages[1] = (rx_frame.data.u8[6] << 8) | rx_frame.data.u8[7];
+        }
+      }
+      if (frame0 == 0x21) {  //Group 1
+        if (current_poll == GROUP1_CELLVOLTAGES_1_POLL) {
+          cellvoltages[2] = (rx_frame.data.u8[1] << 8) | rx_frame.data.u8[2];
+          cellvoltages[3] = (rx_frame.data.u8[3] << 8) | rx_frame.data.u8[4];
+          cellvoltages[4] = (rx_frame.data.u8[5] << 8) | rx_frame.data.u8[6];
+          highbyte_cell_next_frame = rx_frame.data.u8[7];
+        }
+      }
+      if (frame0 == 0x22) {  //Group 2
+      }
+      if (frame0 == 0x23) {  //Group 3
+      }
+      if (frame0 == 0x24) {  //Group 4
+      }
+      if (frame0 == 0x25) {  //Group 5
+      }
+      if (frame0 == 0x26) {  //Group 6
+      }
+      if (frame0 == 0x27) {  //Group 7
+      }
+      if (frame0 == 0x28) {  //Group 8
+      }
+      if (frame0 == 0x29) {  //Group 9
+      }
+      if (frame0 == 0x2A) {  //Group 10
+      }
+      if (frame0 == 0x2B) {  //Group 11
+      }
+      if (frame0 == 0x2C) {  //Group 12
+      }
+      if (frame0 == 0x2D) {  //Group 13
+      }
+      if (frame0 == 0x2E) {  //Group 14
+      }
+      if (frame0 == 0x2F) {  //Group 15
+      }
+      if (frame0 == 0x20) {  //Group 0?
+      }
       break;
     default:
       break;
@@ -119,9 +183,34 @@ void send_can_battery() {
     }
     counter_423 = (counter_423 + 1) % 10;
   }
-  // 5000ms CAN handling
-  if (currentMillis - previousMillis5000 >= INTERVAL_5_S) {
-    previousMillis5000 = currentMillis;
+  // 250ms CAN handling
+  if (currentMillis - previousMillis250 >= INTERVAL_250_MS) {
+    previousMillis250 = currentMillis;
+
+    switch (group) {
+      case 0:
+        current_poll = GROUP1_CELLVOLTAGES_1_POLL;
+        break;
+      case 1:
+        current_poll = GROUP2_CELLVOLTAGES_2_POLL;
+        break;
+      case 2:
+        current_poll = GROUP3;
+        break;
+      case 3:
+        current_poll = GROUP4;
+        break;
+      case 4:
+        current_poll = GROUP5_TEMPERATURE_POLL;
+        break;
+      default:
+        break;
+    }
+
+    group = (group + 1) % 5;  // Cycle 0-1-2-3-4-0-1...
+
+    ZOE_POLL_79B.data.u8[2] = current_poll;
+
     transmit_can(&ZOE_POLL_79B, can_config.battery);
   }
 }
