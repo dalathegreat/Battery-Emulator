@@ -1,5 +1,6 @@
 #include "../include.h"
 #ifdef RENAULT_ZOE_GEN1_BATTERY
+#include <algorithm>  // For std::min and std::max
 #include "../datalayer/datalayer.h"
 #include "../devboard/utils/events.h"
 #include "RENAULT-ZOE-GEN1-BATTERY.h"
@@ -20,9 +21,25 @@ static uint16_t LB_Cell_Min_Voltage = 3700;
 static uint16_t LB_Battery_Voltage = 3700;
 static uint8_t frame0 = 0;
 static uint8_t current_poll = 0;
+static uint8_t requested_poll = 0;
 static uint8_t group = 0;
 static uint16_t cellvoltages[96];
 static uint8_t highbyte_cell_next_frame = 0;
+static uint16_t SOC_polled = 50;
+static int16_t cell_1_temperature_polled = 0;
+static int16_t cell_2_temperature_polled = 0;
+static int16_t cell_3_temperature_polled = 0;
+static int16_t cell_4_temperature_polled = 0;
+static int16_t cell_5_temperature_polled = 0;
+static int16_t cell_6_temperature_polled = 0;
+static int16_t cell_7_temperature_polled = 0;
+static int16_t cell_8_temperature_polled = 0;
+static int16_t cell_9_temperature_polled = 0;
+static int16_t cell_10_temperature_polled = 0;
+static int16_t cell_11_temperature_polled = 0;
+static int16_t cell_12_temperature_polled = 0;
+static uint16_t battery_mileage_in_km = 0;
+static uint16_t kWh_from_beginning_of_battery_life = 0;
 
 CAN_frame ZOE_423 = {.FD = false,
                      .ext_ID = false,
@@ -42,8 +59,8 @@ CAN_frame ZOE_ACK_79B = {.FD = false,
 
 #define GROUP1_CELLVOLTAGES_1_POLL 0x41
 #define GROUP2_CELLVOLTAGES_2_POLL 0x42
-#define GROUP3 0x61
-#define GROUP4 0x03
+#define GROUP3_METRICS 0x61
+#define GROUP4_SOC 0x03
 #define GROUP5_TEMPERATURE_POLL 0x04
 
 static unsigned long previousMillis100 = 0;  // will store last time a 100ms CAN Message was sent
@@ -53,7 +70,7 @@ static uint8_t counter_423 = 0;
 void update_values_battery() {  //This function maps all the values fetched via CAN to the correct parameters used for modbus
   datalayer.battery.status.soh_pptt = (LB_SOH * 100);  // Increase range from 99% -> 99.00%
 
-  datalayer.battery.status.real_soc = (LB_SOC * 10);  // Increase LB_SOC range from 0-100.0 -> 100.00
+  datalayer.battery.status.real_soc = SOC_polled;
 
   datalayer.battery.status.voltage_dV = LB_Battery_Voltage;
 
@@ -69,9 +86,18 @@ void update_values_battery() {  //This function maps all the values fetched via 
 
   datalayer.battery.status.active_power_W;
 
-  datalayer.battery.status.temperature_min_dC = LB_Average_Temperature;
+  int16_t temperatures[] = {cell_1_temperature_polled,  cell_2_temperature_polled,  cell_3_temperature_polled,
+                            cell_4_temperature_polled,  cell_5_temperature_polled,  cell_6_temperature_polled,
+                            cell_7_temperature_polled,  cell_8_temperature_polled,  cell_9_temperature_polled,
+                            cell_10_temperature_polled, cell_11_temperature_polled, cell_12_temperature_polled};
 
-  datalayer.battery.status.temperature_max_dC = LB_Average_Temperature;
+  // Find the minimum and maximum temperatures
+  int16_t min_temperature = *std::min_element(temperatures, temperatures + 12);
+  int16_t max_temperature = *std::max_element(temperatures, temperatures + 12);
+
+  datalayer.battery.status.temperature_min_dC = min_temperature * 10;
+
+  datalayer.battery.status.temperature_max_dC = max_temperature * 10;
 
   datalayer.battery.status.cell_min_voltage_mV;
 
@@ -111,41 +137,123 @@ void receive_can_battery(CAN_frame rx_frame) {
       break;
     case 0x7BB:  //Reply from active polling
       frame0 = rx_frame.data.u8[0];
-      if (frame0 == 0x10) {  //PID HEADER
+      if (frame0 == 0x10) {  //PID HEADER, datarow 0
+        requested_poll = rx_frame.data.u8[3];
         transmit_can(&ZOE_ACK_79B, can_config.battery);
 
-        if (current_poll == GROUP1_CELLVOLTAGES_1_POLL) {
+        if (requested_poll == GROUP1_CELLVOLTAGES_1_POLL) {
           cellvoltages[0] = (rx_frame.data.u8[4] << 8) | rx_frame.data.u8[5];
           cellvoltages[1] = (rx_frame.data.u8[6] << 8) | rx_frame.data.u8[7];
         }
+        if (requested_poll == GROUP3_METRICS) {
+          //10,14,61,61,00,0A,8C,00,
+        }
+        if (requested_poll == GROUP4_SOC) {
+          //10,1D,61,03,01,94,1F,85, (1F85 = 8069 real SOC?)
+        }
+        if (requested_poll == GROUP5_TEMPERATURE_POLL) {
+          //10,4D,61,04,09,12,3A,09,
+          cell_1_temperature_polled = (rx_frame.data.u8[6] - 29);
+        }
       }
-      if (frame0 == 0x21) {  //Group 1
-        if (current_poll == GROUP1_CELLVOLTAGES_1_POLL) {
+      if (frame0 == 0x21) {  //First datarow in PID group
+        if (requested_poll == GROUP1_CELLVOLTAGES_1_POLL) {
           cellvoltages[2] = (rx_frame.data.u8[1] << 8) | rx_frame.data.u8[2];
           cellvoltages[3] = (rx_frame.data.u8[3] << 8) | rx_frame.data.u8[4];
           cellvoltages[4] = (rx_frame.data.u8[5] << 8) | rx_frame.data.u8[6];
           highbyte_cell_next_frame = rx_frame.data.u8[7];
         }
+        if (requested_poll == GROUP3_METRICS) {
+          //21,C8,C8,C8,C0,C0,00,00,
+        }
+        if (requested_poll == GROUP4_SOC) {
+          //21,21,32,00,00,00,00,01, (2132 = 8498 dash SOC?)
+          SOC_polled = (rx_frame.data.u8[1] << 8) | rx_frame.data.u8[2];
+        }
+        if (requested_poll == GROUP5_TEMPERATURE_POLL) {
+          cell_2_temperature_polled = (rx_frame.data.u8[2] - 29);
+          cell_3_temperature_polled = (rx_frame.data.u8[5] - 29);
+          //21,11,3A,09,14,3A,09,0D,
+        }
       }
-      if (frame0 == 0x22) {  //Group 2
+      if (frame0 == 0x22) {  //Second datarow in PID group
+        if (requested_poll == GROUP1_CELLVOLTAGES_1_POLL) {
+          cellvoltages[5] = (highbyte_cell_next_frame << 8) | rx_frame.data.u8[1];
+          cellvoltages[6] = (rx_frame.data.u8[2] << 8) | rx_frame.data.u8[3];
+          cellvoltages[7] = (rx_frame.data.u8[4] << 8) | rx_frame.data.u8[5];
+          cellvoltages[8] = (rx_frame.data.u8[6] << 8) | rx_frame.data.u8[7];
+        }
+        if (requested_poll == GROUP3_METRICS) {
+          //22,BB,7C,00,00,23,E4,FF, (BB7C = 47996km) (23E4 = 9188kWh)
+          battery_mileage_in_km = (rx_frame.data.u8[1] << 8) | rx_frame.data.u8[2];
+          kWh_from_beginning_of_battery_life = (rx_frame.data.u8[5] << 8) | rx_frame.data.u8[6];
+        }
+        if (requested_poll == GROUP4_SOC) {
+          //22,95,01,93,00,00,00,FF,
+        }
+        if (requested_poll == GROUP5_TEMPERATURE_POLL) {
+          cell_4_temperature_polled = (rx_frame.data.u8[1] - 29);
+          cell_5_temperature_polled = (rx_frame.data.u8[4] - 29);
+          cell_6_temperature_polled = (rx_frame.data.u8[7] - 29);
+          //22,3A,08,F6,3B,08,EE,3B,
+        }
       }
-      if (frame0 == 0x23) {  //Group 3
+      if (frame0 == 0x23) {  //Third datarow in PID group
+        if (requested_poll == GROUP4_SOC) {
+          //23,FF,FF,FF,01,20,7B,00,
+        }
+        if (requested_poll == GROUP5_TEMPERATURE_POLL) {
+          //23,08,AC,3D,08,C0,3C,09,
+          cell_7_temperature_polled = (rx_frame.data.u8[3] - 29);
+          cell_8_temperature_polled = (rx_frame.data.u8[6] - 29);
+        }
       }
-      if (frame0 == 0x24) {  //Group 4
+      if (frame0 == 0x24) {  //Fourth datarow in PID group
+        if (requested_poll == GROUP4_SOC) {
+          //24,00,00,00,00,00,00,00,
+        }
+        if (requested_poll == GROUP5_TEMPERATURE_POLL) {
+          //24,03,3A,09,11,3A,09,19,
+          cell_9_temperature_polled = (rx_frame.data.u8[2] - 29);
+          cell_10_temperature_polled = (rx_frame.data.u8[5] - 29);
+        }
       }
-      if (frame0 == 0x25) {  //Group 5
+      if (frame0 == 0x25) {  //Fifth datarow in PID group
+        if (requested_poll == GROUP5_TEMPERATURE_POLL) {
+          //25,3A,09,14,3A,FF,FF,FF,
+          cell_11_temperature_polled = (rx_frame.data.u8[1] - 29);
+          cell_12_temperature_polled = (rx_frame.data.u8[4] - 29);
+        }
       }
-      if (frame0 == 0x26) {  //Group 6
+      if (frame0 == 0x26) {  //Sixth datarow in PID group
+        if (requested_poll == GROUP5_TEMPERATURE_POLL) {
+          //26,FF,FF,FF,FF,FF,FF,FF,G
+        }
       }
-      if (frame0 == 0x27) {  //Group 7
+      if (frame0 == 0x27) {  //Seventh datarow in PID group
+        if (requested_poll == GROUP5_TEMPERATURE_POLL) {
+          //27,FF,FF,FF,FF,FF,FF,FF,
+        }
       }
       if (frame0 == 0x28) {  //Group 8
+        if (requested_poll == GROUP5_TEMPERATURE_POLL) {
+          //28,FF,FF,FF,FF,FF,FF,FF,
+        }
       }
       if (frame0 == 0x29) {  //Group 9
+        if (requested_poll == GROUP5_TEMPERATURE_POLL) {
+          //29,FF,FF,FF,FF,FF,FF,FF,
+        }
       }
       if (frame0 == 0x2A) {  //Group 10
+        if (requested_poll == GROUP5_TEMPERATURE_POLL) {
+          //2A,FF,FF,FF,FF,FF,3A,3A,
+        }
       }
       if (frame0 == 0x2B) {  //Group 11
+        if (requested_poll == GROUP5_TEMPERATURE_POLL) {
+          //2B,3D,00,00,00,00,00,00,
+        }
       }
       if (frame0 == 0x2C) {  //Group 12
       }
@@ -195,10 +303,10 @@ void send_can_battery() {
         current_poll = GROUP2_CELLVOLTAGES_2_POLL;
         break;
       case 2:
-        current_poll = GROUP3;
+        current_poll = GROUP3_METRICS;
         break;
       case 3:
-        current_poll = GROUP4;
+        current_poll = GROUP4_SOC;
         break;
       case 4:
         current_poll = GROUP5_TEMPERATURE_POLL;
@@ -219,7 +327,7 @@ void setup_battery(void) {  // Performs one time setup at startup
 #ifdef DEBUG_VIA_USB
   Serial.println("Renault Zoe 22/40kWh battery selected");
 #endif
-
+  datalayer.battery.info.number_of_cells = 96;
   datalayer.battery.info.max_design_voltage_dV = 4040;
   datalayer.battery.info.min_design_voltage_dV = 2700;
 }
