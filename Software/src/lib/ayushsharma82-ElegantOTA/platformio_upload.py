@@ -6,12 +6,13 @@
 #
 # extra_scripts = platformio_upload.py
 # upload_protocol = custom
-# upload_url = <your upload URL>
+# custom_upload_url = <your upload URL>
 # 
 # An example of an upload URL:
-#                upload_url = http://192.168.1.123/update 
-# also possible: upload_url = http://domainname/update
+#                custom_upload_url = http://192.168.1.123/update 
+# also possible: custom_upload_url = http://domainname/update
 
+import sys
 import requests
 import hashlib
 from urllib.parse import urlparse
@@ -54,7 +55,10 @@ def on_upload(source, target, env):
             'Connection': 'keep-alive'
             }
         
-        checkAuthResponse = requests.get(f"{upload_url_compatibility}/update")
+        try:
+            checkAuthResponse = requests.get(f"{upload_url_compatibility}/update")
+        except Exception as e:
+            return 'Error checking auth: ' + repr(e)
         
         if checkAuthResponse.status_code == 401:
             try:
@@ -66,24 +70,27 @@ def on_upload(source, target, env):
                 print("No authentication values specified.")
                 print('Please, add some Options in your .ini file like: \n\ncustom_username=username\ncustom_password=password\n')
             if username is None or password is None:
-                print("Authentication required, but no credentials provided.")
-                return
+                return "Authentication required, but no credentials provided."
             print("Serverconfiguration: authentication needed.")
             auth = HTTPDigestAuth(username, password)
-            doUpdateAuth = requests.get(start_url, headers=start_headers, auth=auth)
+            try:
+                doUpdateAuth = requests.get(start_url, headers=start_headers, auth=auth)
+            except Exception as e:
+                return 'Error while authenticating: ' + repr(e)
 
             if doUpdateAuth.status_code != 200:
-                print("authentication faild " + str(doUpdateAuth.status_code))
-                return
-            print("Authentication successfull")
+                return "Authentication failed " + str(doUpdateAuth.status_code)
+            print("Authentication successful")
         else:
             auth = None
-            print("Serverconfiguration: autentication not needed.")
-            doUpdate = requests.get(start_url, headers=start_headers)
+            print("Serverconfiguration: authentication not needed.")
+            try:
+                doUpdate = requests.get(start_url, headers=start_headers)
+            except Exception as e:
+                return 'Error while starting upload: ' + repr(e)
 
             if doUpdate.status_code != 200:
-                print("start-request faild " + str(doUpdate.status_code))
-                return
+                return "Start request failed " + str(doUpdate.status_code)
 
         firmware.seek(0)
         encoder = MultipartEncoder(fields={
@@ -114,14 +121,16 @@ def on_upload(source, target, env):
             'Origin': f'{upload_url}'
         }
 
-
-        response = requests.post(f"{upload_url}/ota/upload", data=monitor, headers=post_headers, auth=auth)
+        try:
+            response = requests.post(f"{upload_url}/ota/upload", data=monitor, headers=post_headers, auth=auth)
+        except Exception as e:
+            return 'Error while uploading: ' + repr(e)
         
         bar.close()
         time.sleep(0.1)
         
         if response.status_code != 200:
-            message = "\nUpload faild.\nServer response: " + response.text
+            message = "\nUpload failed.\nServer response: " + response.text
             tqdm.write(message)
         else:
             message = "\nUpload successful.\nServer response: " + response.text
