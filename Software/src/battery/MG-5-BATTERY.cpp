@@ -3,6 +3,7 @@
 #include "../datalayer/datalayer.h"
 #include "../devboard/utils/events.h"
 #include "MG-5-BATTERY.h"
+#include "../devboard/utils/pause.h"
 
 /* TODO: 
 - Get contactor closing working

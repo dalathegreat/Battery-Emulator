@@ -717,9 +717,7 @@ String processor(const String& var) {
     if (emulator_pause_status == NORMAL)
       content += "<h4>Pause status: " + String(get_emulator_pause_status().c_str()) + " </h4>";
     else
-      content +=
-          "<h4 style='color: red;'>Pause status: " + String(get_emulator_pause_status().c_str()) +
-          " </h4>";
+      content += "<h4 style='color: red;'>Pause status: " + String(get_emulator_pause_status().c_str()) + " </h4>";
 
     // Close the block
     content += "</div>";
@@ -799,9 +797,7 @@ String processor(const String& var) {
     if (emulator_pause_status == NORMAL)
       content += "<h4>Pause status: " + String(get_emulator_pause_status().c_str()) + " </h4>";
     else
-      content +=
-          "<h4 style='color: red;'>Pause status: " + String(get_emulator_pause_status().c_str()) +
-          " </h4>";
+      content += "<h4 style='color: red;'>Pause status: " + String(get_emulator_pause_status().c_str()) + " </h4>";
 
     content += "</div>";
     content += "</div>";

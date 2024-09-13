@@ -3,6 +3,7 @@
 #include "../datalayer/datalayer.h"
 #include "../devboard/utils/events.h"
 #include "IMIEV-CZERO-ION-BATTERY.h"
+#include "../devboard/utils/pause.h"
 
 //Code still work in progress, TODO:
 //Figure out if CAN messages need to be sent to keep the system happy?

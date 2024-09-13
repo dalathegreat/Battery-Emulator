@@ -3,6 +3,7 @@
 #include "../datalayer/datalayer.h"
 #include "../devboard/utils/events.h"
 #include "BYD-ATTO-3-BATTERY.h"
+#include "../devboard/utils/pause.h"
 
 /* TODO: 
 - Map all values from battery CAN messages

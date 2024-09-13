@@ -3,6 +3,7 @@
 #include "../datalayer/datalayer.h"
 #include "../devboard/utils/events.h"
 #include "JAGUAR-IPACE-BATTERY.h"
+#include "../devboard/utils/pause.h"
 
 /* Do not change code below unless you are sure what you are doing */
 static unsigned long previousMillisKeepAlive = 0;
