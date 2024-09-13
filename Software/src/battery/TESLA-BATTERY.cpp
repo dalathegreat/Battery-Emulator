@@ -3,7 +3,6 @@
 #include "../datalayer/datalayer.h"
 #include "../devboard/utils/events.h"
 #include "TESLA-BATTERY.h"
-#include "../devboard/utils/pause.h"
 
 /* Do not change code below unless you are sure what you are doing */
 /* Credits: Most of the code comes from Per Carlen's bms_comms_tesla_model3.py (https://gitlab.com/pelle8/batt2gen24/) */

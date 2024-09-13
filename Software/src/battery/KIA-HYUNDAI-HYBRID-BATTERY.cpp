@@ -3,7 +3,6 @@
 #include "../datalayer/datalayer.h"
 #include "../devboard/utils/events.h"
 #include "KIA-HYUNDAI-HYBRID-BATTERY.h"
-#include "../devboard/utils/pause.h"
 
 /* TODO: 
 - The HEV battery seems to turn off after 1 minute of use. When this happens SOC% stops updating.

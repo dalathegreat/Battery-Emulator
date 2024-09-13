@@ -1,7 +1,6 @@
 #include "../include.h"
 #ifdef TEST_FAKE_BATTERY
 #include "../datalayer/datalayer.h"
-#include "../devboard/utils/pause.h"
 
 #include "TEST-FAKE-BATTERY.h"
 

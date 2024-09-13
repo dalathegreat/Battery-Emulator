@@ -3,7 +3,6 @@
 #include "../../datalayer/datalayer.h"
 #include "../utils/events.h"
 #include "../utils/led_handler.h"
-#include "../utils/pause.h"
 #include "../utils/timer.h"
 
 // Create AsyncWebServer object on port 80

@@ -8,7 +8,6 @@
 #include "../../lib/bblanchon-ArduinoJson/ArduinoJson.h"
 #include "../../lib/knolleary-pubsubclient/PubSubClient.h"
 #include "../utils/events.h"
-#include "../utils/pause.h"
 #include "../utils/timer.h"
 
 WiFiClient espClient;

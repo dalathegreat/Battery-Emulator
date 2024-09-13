@@ -3,8 +3,6 @@
 #include "../datalayer/datalayer.h"
 #include "../devboard/utils/events.h"
 #include "BMW-I3-BATTERY.h"
-#include "../devboard/utils/pause.h"
-
 
 /* Do not change code below unless you are sure what you are doing */
 static unsigned long previousMillis20 = 0;     // will store last time a 20ms CAN Message was send

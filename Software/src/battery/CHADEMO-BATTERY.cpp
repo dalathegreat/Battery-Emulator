@@ -7,8 +7,6 @@
 #include "CHADEMO-BATTERY-INTERNAL.h"
 #include "CHADEMO-BATTERY.h"
 #include "CHADEMO-SHUNTS.h"
-#include "../devboard/utils/pause.h"
-
 
 /* CHADEMO handling runs at 6.25 times the rate of most other code, so, rather than the
  *  default value of 12 (for 12 iterations of the 5s value update loop) * 5 for a 60s timeout,

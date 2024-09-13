@@ -3,7 +3,6 @@
 #include "../datalayer/datalayer.h"
 #include "../devboard/utils/events.h"
 #include "RENAULT-KANGOO-BATTERY.h"
-#include "../devboard/utils/pause.h"
 
 /* TODO:
 There seems to be some values on the Kangoo that differ between the 22/33 kWh version

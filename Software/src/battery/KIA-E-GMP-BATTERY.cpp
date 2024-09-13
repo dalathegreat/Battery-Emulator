@@ -4,7 +4,6 @@
 #include "../devboard/utils/events.h"
 #include "../lib/pierremolinaro-ACAN2517FD/ACAN2517FD.h"
 #include "KIA-E-GMP-BATTERY.h"
-#include "../devboard/utils/pause.h"
 
 /* Do not change code below unless you are sure what you are doing */
 static unsigned long previousMillis20ms = 0;   // will store last time a 20ms CAN Message was send

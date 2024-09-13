@@ -22,7 +22,6 @@
 #include "CHADEMO-BATTERY-INTERNAL.h"
 #include "CHADEMO-BATTERY.h"
 #include "CHADEMO-SHUNTS.h"
-#include "../devboard/utils/pause.h"
 
 /* Initial frames received from ISA shunts provide invalid during initialization */
 static int framecount = 0;
