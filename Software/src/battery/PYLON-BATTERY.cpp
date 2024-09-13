@@ -63,10 +63,7 @@ void update_values_battery() {
   datalayer.battery.status.active_power_W =  //Power in watts, Negative = charging batt
       ((datalayer.battery.status.voltage_dV * datalayer.battery.status.current_dA) / 100);
 
-  if (emulator_pause_request_ON) {
-    datalayer.battery.status.max_discharge_power_W = 0;
-    datalayer.battery.status.max_charge_power_W = 0;
-  } else {
+  if (!emulator_pause_request_ON) {
     datalayer.battery.status.max_charge_power_W = (max_charge_current * (voltage_dV / 10));
     datalayer.battery.status.max_discharge_power_W = (-max_discharge_current * (voltage_dV / 10));
   }

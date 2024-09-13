@@ -310,10 +310,7 @@ void update_values_battery() {  //This function maps all the values fetched via 
   datalayer.battery.status.remaining_capacity_Wh = static_cast<uint32_t>(
       (static_cast<double>(datalayer.battery.status.real_soc) / 10000) * datalayer.battery.info.total_capacity_Wh);
 
-  if (emulator_pause_request_ON) {
-    datalayer.battery.status.max_discharge_power_W = 0;
-    datalayer.battery.status.max_charge_power_W = 0;
-  } else {
+  if (!emulator_pause_request_ON) {
     //datalayer.battery.status.max_charge_power_W = (uint16_t)allowedChargePower * 10;  //From kW*100 to Watts
     //The allowed charge power is not available. We hardcode this value for now
     datalayer.battery.status.max_charge_power_W = MAXCHARGEPOWERALLOWED;

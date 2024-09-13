@@ -942,10 +942,12 @@ void onOTAProgress(size_t current, size_t final) {
 
 void onOTAEnd(bool success) {
 
-  //try to Resume the battery
-  setBatteryPause(false, false);
+  ota_active = false;
+  clear_event(EVENT_OTA_UPDATE);
+
   // Log when OTA has finished
   if (success) {
+    // a reboot will be done by the OTA library. no need to do anything here
 #ifdef DEBUG_VIA_USB
     Serial.println("OTA update finished successfully!");
 #endif  // DEBUG_VIA_USB
@@ -953,9 +955,9 @@ void onOTAEnd(bool success) {
 #ifdef DEBUG_VIA_USB
     Serial.println("There was an error during OTA update!");
 #endif  // DEBUG_VIA_USB
+    //try to Resume the battery pause and CAN communication
+    setBatteryPause(false, false);
   }
-  ota_active = false;
-  clear_event(EVENT_OTA_UPDATE);
 }
 
 template <typename T>  // This function makes power values appear as W when under 1000, and kW when over

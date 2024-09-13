@@ -114,10 +114,7 @@ void update_values_battery() {
 
   datalayer.battery.status.real_soc = x102_chg_session.StateOfCharge;
 
-  if (emulator_pause_request_ON) {
-    datalayer.battery.status.max_discharge_power_W = 0;
-    datalayer.battery.status.max_charge_power_W = 0;
-  } else {
+  if (!emulator_pause_request_ON) {
     datalayer.battery.status.max_discharge_power_W = 10000;  //TODO: Map from CAN later on
     datalayer.battery.status.max_charge_power_W = 1000;
   }
