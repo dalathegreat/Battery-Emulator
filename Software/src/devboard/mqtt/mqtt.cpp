@@ -8,6 +8,7 @@
 #include "../../lib/bblanchon-ArduinoJson/ArduinoJson.h"
 #include "../../lib/knolleary-pubsubclient/PubSubClient.h"
 #include "../utils/events.h"
+#include "../utils/pause.h"
 #include "../utils/timer.h"
 
 WiFiClient espClient;
@@ -56,6 +57,7 @@ SensorConfig sensorConfigs[] = {
     {"max_charge_power", "Battery Emulator Battery Max Charge Power", "{{ value_json.max_charge_power }}", "W",
      "power"},
     {"bms_status", "Battery Emulator BMS Status", "{{ value_json.bms_status }}", "", ""},
+    {"pause_status", "Battery Emulator Pause Status", "{{ value_json.pause_status }}", "", ""},
 
 };
 
@@ -112,25 +114,30 @@ static void publish_common_info(void) {
 
   } else {
 #endif  // HA_AUTODISCOVERY
-    doc["SOC"] = ((float)datalayer.battery.status.reported_soc) / 100.0;
-    doc["SOC_real"] = ((float)datalayer.battery.status.real_soc) / 100.0;
-    doc["state_of_health"] = ((float)datalayer.battery.status.soh_pptt) / 100.0;
-    doc["temperature_min"] = ((float)((int16_t)datalayer.battery.status.temperature_min_dC)) / 10.0;
-    doc["temperature_max"] = ((float)((int16_t)datalayer.battery.status.temperature_max_dC)) / 10.0;
-    doc["stat_batt_power"] = ((float)((int32_t)datalayer.battery.status.active_power_W));
-    doc["battery_current"] = ((float)((int16_t)datalayer.battery.status.current_dA)) / 10.0;
-    doc["battery_voltage"] = ((float)datalayer.battery.status.voltage_dV) / 10.0;
-    // publish only if cell voltages have been populated...
-    if (datalayer.battery.info.number_of_cells != 0u &&
-        datalayer.battery.status.cell_voltages_mV[datalayer.battery.info.number_of_cells - 1] != 0u) {
-      doc["cell_max_voltage"] = ((float)datalayer.battery.status.cell_max_voltage_mV) / 1000.0;
-      doc["cell_min_voltage"] = ((float)datalayer.battery.status.cell_min_voltage_mV) / 1000.0;
-    }
-    doc["total_capacity"] = ((float)datalayer.battery.info.total_capacity_Wh);
-    doc["remaining_capacity"] = ((float)datalayer.battery.status.remaining_capacity_Wh);
-    doc["max_discharge_power"] = ((float)datalayer.battery.status.max_discharge_power_W);
-    doc["max_charge_power"] = ((float)datalayer.battery.status.max_charge_power_W);
     doc["bms_status"] = getBMSStatus(datalayer.battery.status.bms_status);
+    doc["pause_status"] = get_emulator_pause_status();
+
+    //only publish these values if BMS is active and we are comunication  with the battery (can send CAN messages to the battery)
+    if (datalayer.battery.status.bms_status == ACTIVE && can_send_CAN) {
+      doc["SOC"] = ((float)datalayer.battery.status.reported_soc) / 100.0;
+      doc["SOC_real"] = ((float)datalayer.battery.status.real_soc) / 100.0;
+      doc["state_of_health"] = ((float)datalayer.battery.status.soh_pptt) / 100.0;
+      doc["temperature_min"] = ((float)((int16_t)datalayer.battery.status.temperature_min_dC)) / 10.0;
+      doc["temperature_max"] = ((float)((int16_t)datalayer.battery.status.temperature_max_dC)) / 10.0;
+      doc["stat_batt_power"] = ((float)((int32_t)datalayer.battery.status.active_power_W));
+      doc["battery_current"] = ((float)((int16_t)datalayer.battery.status.current_dA)) / 10.0;
+      doc["battery_voltage"] = ((float)datalayer.battery.status.voltage_dV) / 10.0;
+      // publish only if cell voltages have been populated...
+      if (datalayer.battery.info.number_of_cells != 0u &&
+          datalayer.battery.status.cell_voltages_mV[datalayer.battery.info.number_of_cells - 1] != 0u) {
+        doc["cell_max_voltage"] = ((float)datalayer.battery.status.cell_max_voltage_mV) / 1000.0;
+        doc["cell_min_voltage"] = ((float)datalayer.battery.status.cell_min_voltage_mV) / 1000.0;
+      }
+      doc["total_capacity"] = ((float)datalayer.battery.info.total_capacity_Wh);
+      doc["remaining_capacity"] = ((float)datalayer.battery.status.remaining_capacity_Wh);
+      doc["max_discharge_power"] = ((float)datalayer.battery.status.max_discharge_power_W);
+      doc["max_charge_power"] = ((float)datalayer.battery.status.max_charge_power_W);
+    }
 
     serializeJson(doc, mqtt_msg);
     if (!mqtt_publish(state_topic.c_str(), mqtt_msg, false)) {

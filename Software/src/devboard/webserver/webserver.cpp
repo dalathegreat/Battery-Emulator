@@ -3,6 +3,7 @@
 #include "../../datalayer/datalayer.h"
 #include "../utils/events.h"
 #include "../utils/led_handler.h"
+#include "../utils/pause.h"
 #include "../utils/timer.h"
 
 // Create AsyncWebServer object on port 80
@@ -153,6 +154,19 @@ void init_webserver() {
       String value = request->getParam("value")->value();
       datalayer.battery.settings.max_percentage = static_cast<uint16_t>(value.toFloat() * 100);
       storeSettings();
+      request->send(200, "text/plain", "Updated successfully");
+    } else {
+      request->send(400, "text/plain", "Bad Request");
+    }
+  });
+
+  // Route for pause/resume Battery emulator
+  server.on("/pause", HTTP_GET, [](AsyncWebServerRequest* request) {
+    if (WEBSERVER_AUTH_REQUIRED && !request->authenticate(http_username, http_password))
+      return request->requestAuthentication();
+    if (request->hasParam("p")) {
+      String valueStr = request->getParam("p")->value();
+      setBatteryPause(valueStr == "true" || valueStr == "1", false);
       request->send(200, "text/plain", "Updated successfully");
     } else {
       request->send(400, "text/plain", "Bad Request");
@@ -414,10 +428,8 @@ void wifi_monitor() {
 
   if (ota_active && ota_timeout_timer.elapsed()) {
     // OTA timeout, try to restore can and clear the update event
-    ESP32Can.CANInit();
-    clear_event(EVENT_OTA_UPDATE);
     set_event(EVENT_OTA_UPDATE_TIMEOUT, 0);
-    ota_active = false;
+    onOTAEnd(false);
   }
 }
 
@@ -702,6 +714,12 @@ String processor(const String& var) {
     } else {
       content += "<span style='color: red;'>&#10005;</span></h4>";
     }
+    if (emulator_pause_status == NORMAL)
+      content += "<h4>Pause status: " + String(get_emulator_pause_status().c_str()) + " </h4>";
+    else
+      content +=
+          "<h4 style='color: red;'>Pause status: " + String(get_emulator_pause_status().c_str()) +
+          " </h4>";
 
     // Close the block
     content += "</div>";
@@ -778,6 +796,12 @@ String processor(const String& var) {
     } else {
       content += "<span style='color: red;'>&#10005;</span></h4>";
     }
+    if (emulator_pause_status == NORMAL)
+      content += "<h4>Pause status: " + String(get_emulator_pause_status().c_str()) + " </h4>";
+    else
+      content +=
+          "<h4 style='color: red;'>Pause status: " + String(get_emulator_pause_status().c_str()) +
+          " </h4>";
 
     content += "</div>";
     content += "</div>";
@@ -839,6 +863,11 @@ String processor(const String& var) {
     content += "</div>";
 #endif  // defined CHEVYVOLT_CHARGER || defined NISSANLEAF_CHARGER
 
+    if (emulator_pause_request_ON)
+      content += "<button onclick='PauseBattery(false)'>Resume Battery</button>";
+    else
+      content += "<button onclick='PauseBattery(true)'>Pause Battery</button>";
+
     content += "<button onclick='OTA()'>Perform OTA update</button>";
     content += " ";
     content += "<button onclick='Settings()'>Change Settings</button>";
@@ -872,6 +901,12 @@ String processor(const String& var) {
       content += "  setTimeout(function(){ window.open(\"/\",\"_self\"); }, 1000);";
       content += "}";
     }
+    content += "function PauseBattery(pause){";
+    content +=
+        "var xhr=new "
+        "XMLHttpRequest();xhr.onload=function() { "
+        "window.location.reload();};xhr.open('GET','/pause?p='+pause,true);xhr.send();";
+    content += "}";
 
     content += "</script>";
 
@@ -886,8 +921,10 @@ String processor(const String& var) {
 }
 
 void onOTAStart() {
+  //try to Pause the battery
+  setBatteryPause(true, true);
+
   // Log when OTA has started
-  ESP32Can.CANStop();
   set_event(EVENT_OTA_UPDATE, 0);
 
   // If already set, make a new attempt
@@ -909,6 +946,9 @@ void onOTAProgress(size_t current, size_t final) {
 }
 
 void onOTAEnd(bool success) {
+
+  //try to Resume the battery
+  setBatteryPause(false, false);
   // Log when OTA has finished
   if (success) {
 #ifdef DEBUG_VIA_USB
@@ -918,9 +958,6 @@ void onOTAEnd(bool success) {
 #ifdef DEBUG_VIA_USB
     Serial.println("There was an error during OTA update!");
 #endif  // DEBUG_VIA_USB
-
-    // If we fail without a timeout, try to restore CAN
-    ESP32Can.CANInit();
   }
   ota_active = false;
   clear_event(EVENT_OTA_UPDATE);

@@ -6,6 +6,7 @@
 #endif
 #include "../datalayer/datalayer.h"
 #include "../devboard/utils/events.h"
+#include "../devboard/utils/pause.h"
 
 /* Do not change code below unless you are sure what you are doing */
 static unsigned long previousMillis10 = 0;   // will store last time a 10ms CAN Message was send
@@ -228,9 +229,13 @@ void update_values_battery() { /* This function maps all the values fetched via 
     }
   }
 
-  datalayer.battery.status.max_discharge_power_W = (battery_Discharge_Power_Limit * 1000);  //kW to W
-
-  datalayer.battery.status.max_charge_power_W = (battery_Charge_Power_Limit * 1000);  //kW to W
+  if (emulator_pause_request_ON) {
+    datalayer.battery.status.max_discharge_power_W = 0;
+    datalayer.battery.status.max_charge_power_W = 0;
+  } else {
+    datalayer.battery.status.max_discharge_power_W = (battery_Discharge_Power_Limit * 1000);  //kW to W
+    datalayer.battery.status.max_charge_power_W = (battery_Charge_Power_Limit * 1000);        //kW to W
+  }
 
   /*Extra safety functions below*/
   if (battery_GIDS < 10)  //700Wh left in battery!
@@ -379,9 +384,13 @@ void update_values_battery2() {  // Handle the values coming in from battery #2
     }
   }
 
-  datalayer.battery2.status.max_discharge_power_W = (battery2_Discharge_Power_Limit * 1000);  //kW to W
-
-  datalayer.battery2.status.max_charge_power_W = (battery2_Charge_Power_Limit * 1000);  //kW to W
+  if (emulator_pause_request_ON) {
+    datalayer.battery2.status.max_discharge_power_W = 0;
+    datalayer.battery2.status.max_charge_power_W = 0;
+  } else {
+    datalayer.battery2.status.max_discharge_power_W = (battery2_Discharge_Power_Limit * 1000);  //kW to W
+    datalayer.battery2.status.max_charge_power_W = (battery2_Charge_Power_Limit * 1000);        //kW to W
+  }
 
   /*Extra safety functions below*/
   if (battery2_GIDS < 10)  //700Wh left in battery!

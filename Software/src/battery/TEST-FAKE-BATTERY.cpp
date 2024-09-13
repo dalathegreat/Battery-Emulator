@@ -1,6 +1,8 @@
 #include "../include.h"
 #ifdef TEST_FAKE_BATTERY
 #include "../datalayer/datalayer.h"
+#include "../devboard/utils/pause.h"
+
 #include "TEST-FAKE-BATTERY.h"
 
 /* Do not change code below unless you are sure what you are doing */
@@ -44,9 +46,13 @@ void update_values_battery() { /* This function puts fake values onto the parame
 
   datalayer.battery.status.temperature_max_dC = 60;  // 6.0*C
 
-  datalayer.battery.status.max_discharge_power_W = 5000;  // 5kW
-
-  datalayer.battery.status.max_charge_power_W = 5000;  // 5kW
+  if (emulator_pause_request_ON) {
+    datalayer.battery.status.max_discharge_power_W = 0;
+    datalayer.battery.status.max_charge_power_W = 0;
+  } else {
+    datalayer.battery.status.max_discharge_power_W = 5000;  // 5kW
+    datalayer.battery.status.max_charge_power_W = 5000;     // 5kW
+  }
 
   for (int i = 0; i < 97; ++i) {
     datalayer.battery.status.cell_voltages_mV[i] = 3500 + i;

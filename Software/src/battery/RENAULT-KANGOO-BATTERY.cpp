@@ -87,13 +87,19 @@ void update_values_battery() {  //This function maps all the values fetched via 
   datalayer.battery.status.remaining_capacity_Wh = static_cast<uint32_t>(
       (static_cast<double>(datalayer.battery.status.real_soc) / 10000) * datalayer.battery.info.total_capacity_Wh);
 
-  /* Define power able to be discharged from battery */
-  datalayer.battery.status.max_discharge_power_W =
-      (LB_Discharge_Power_Limit * 500);  //Convert value fetched from battery to watts
+  if (emulator_pause_request_ON) {
+    datalayer.battery.status.max_discharge_power_W = 0;
+    datalayer.battery.status.max_charge_power_W = 0;
+  } else {
 
-  LB_Charge_Power_Limit_Watts = (LB_Charge_Power_Limit * 500);  //Convert value fetched from battery to watts
-  //The above value is 0 on some packs. We instead hardcode this now.
-  datalayer.battery.status.max_charge_power_W = MAX_CHARGE_POWER_W;
+    datalayer.battery.status.max_discharge_power_W =
+        (LB_Discharge_Power_Limit * 500);  //Convert value fetched from battery to watts
+
+    LB_Charge_Power_Limit_Watts = (LB_Charge_Power_Limit * 500);  //Convert value fetched from battery to watts
+
+    //The above value is 0 on some packs. We instead hardcode this now.
+    datalayer.battery.status.max_charge_power_W = MAX_CHARGE_POWER_W;
+  }
 
   datalayer.battery.status.active_power_W =
       ((datalayer.battery.status.voltage_dV * datalayer.battery.status.current_dA) / 100);

@@ -114,8 +114,13 @@ void update_values_battery() {
 
   datalayer.battery.status.real_soc = x102_chg_session.StateOfCharge;
 
-  datalayer.battery.status.max_discharge_power_W =
-      (x200_discharge_limits.MaximumDischargeCurrent * x100_chg_lim.MaximumBatteryVoltage);  //In Watts, Convert A to P
+  if (emulator_pause_request_ON) {
+    datalayer.battery.status.max_discharge_power_W = 0;
+    datalayer.battery.status.max_charge_power_W = 0;
+  } else {
+    datalayer.battery.status.max_discharge_power_W = 10000;  //TODO: Map from CAN later on
+    datalayer.battery.status.max_charge_power_W = 1000;
+  }
 
   datalayer.battery.status.voltage_dV = get_measured_voltage() * 10;
 

@@ -47,9 +47,13 @@ void update_values_battery() {  //This function maps all the values fetched via 
   datalayer.battery.status.remaining_capacity_Wh = static_cast<uint32_t>(
       (static_cast<double>(datalayer.battery.status.real_soc) / 10000) * datalayer.battery.info.total_capacity_Wh);
 
-  datalayer.battery.status.max_discharge_power_W = 5000;  //TODO: Take from CAN
-
-  datalayer.battery.status.max_charge_power_W = LB_Charge_Power_W;
+  if (emulator_pause_request_ON) {
+    datalayer.battery.status.max_discharge_power_W = 0;
+    datalayer.battery.status.max_charge_power_W = 0;
+  } else {
+    datalayer.battery.status.max_discharge_power_W = 5000;  //TODO: Take from CAN
+    datalayer.battery.status.max_charge_power_W = LB_Charge_Power_W;
+  }
 
   datalayer.battery.status.active_power_W;
 
