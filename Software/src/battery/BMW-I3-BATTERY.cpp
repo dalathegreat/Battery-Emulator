@@ -390,761 +390,761 @@ void update_values_battery2() {  //This function maps all the values fetched via
     } else {
       datalayer.battery2.status.max_charge_power_W = battery2_BEV_available_power_longterm_charge;
     }
-
-    battery2_power = (datalayer.battery2.status.current_dA * (datalayer.battery2.status.voltage_dV / 100));
-
-    datalayer.battery2.status.active_power_W = battery2_power;
-
-    datalayer.battery2.status.temperature_min_dC = battery2_temperature_min * 10;  // Add a decimal
-
-    datalayer.battery2.status.temperature_max_dC = battery2_temperature_max * 10;  // Add a decimal
-
-    datalayer.battery2.status.cell_min_voltage_mV = datalayer.battery2.status.cell_voltages_mV[0];
-    datalayer.battery2.status.cell_max_voltage_mV = datalayer.battery2.status.cell_voltages_mV[1];
   }
 
-  void update_values_battery() {  //This function maps all the values fetched via CAN to the battery datalayer
-    if (!battery_awake) {
-      return;
-    }
+  battery2_power = (datalayer.battery2.status.current_dA * (datalayer.battery2.status.voltage_dV / 100));
 
-    datalayer.battery.status.real_soc = (battery_display_SOC * 50);
+  datalayer.battery2.status.active_power_W = battery2_power;
 
-    datalayer.battery.status.voltage_dV = battery_volts;  //Unit V+1 (5000 = 500.0V)
+  datalayer.battery2.status.temperature_min_dC = battery2_temperature_min * 10;  // Add a decimal
 
-    datalayer.battery.status.current_dA = battery_current;
+  datalayer.battery2.status.temperature_max_dC = battery2_temperature_max * 10;  // Add a decimal
 
-    datalayer.battery.info.total_capacity_Wh = (battery_energy_content_maximum_kWh * 1000);  // Convert kWh to Wh
+  datalayer.battery2.status.cell_min_voltage_mV = datalayer.battery2.status.cell_voltages_mV[0];
+  datalayer.battery2.status.cell_max_voltage_mV = datalayer.battery2.status.cell_voltages_mV[1];
+}
 
-    datalayer.battery.status.remaining_capacity_Wh = battery_predicted_energy_charge_condition;
+void update_values_battery() {  //This function maps all the values fetched via CAN to the battery datalayer
+  if (!battery_awake) {
+    return;
+  }
 
-    datalayer.battery.status.soh_pptt = battery_soh * 100;
+  datalayer.battery.status.real_soc = (battery_display_SOC * 50);
 
-    if (emulator_pause_request_ON) {
-      datalayer.battery.status.max_discharge_power_W = 0;
-      datalayer.battery.status.max_charge_power_W = 0;
-    } else {
-      datalayer.battery.status.max_discharge_power_W = battery_BEV_available_power_longterm_discharge;
-      datalayer.battery.status.max_charge_power_W = battery_BEV_available_power_longterm_charge;
-    }
+  datalayer.battery.status.voltage_dV = battery_volts;  //Unit V+1 (5000 = 500.0V)
 
-    battery_power = (datalayer.battery.status.current_dA * (datalayer.battery.status.voltage_dV / 100));
+  datalayer.battery.status.current_dA = battery_current;
 
-    datalayer.battery.status.active_power_W = battery_power;
+  datalayer.battery.info.total_capacity_Wh = (battery_energy_content_maximum_kWh * 1000);  // Convert kWh to Wh
 
-    datalayer.battery.status.temperature_min_dC = battery_temperature_min * 10;  // Add a decimal
+  datalayer.battery.status.remaining_capacity_Wh = battery_predicted_energy_charge_condition;
 
-    datalayer.battery.status.temperature_max_dC = battery_temperature_max * 10;  // Add a decimal
+  datalayer.battery.status.soh_pptt = battery_soh * 100;
 
-    if (battery_info_available) {
-      // Start checking safeties. First up, cellvoltages!
-      if (detectedBattery == BATTERY_60AH) {
-        datalayer.battery.info.max_design_voltage_dV = MAX_PACK_VOLTAGE_60AH;
-        datalayer.battery.info.min_design_voltage_dV = MIN_PACK_VOLTAGE_60AH;
-        if (datalayer.battery.status.cell_max_voltage_mV >= MAX_CELL_VOLTAGE_60AH) {
-          set_event(EVENT_CELL_OVER_VOLTAGE, 0);
-        }
-        if (datalayer.battery.status.cell_min_voltage_mV <= MIN_CELL_VOLTAGE_60AH) {
-          set_event(EVENT_CELL_UNDER_VOLTAGE, 0);
-        }
-      } else if (detectedBattery == BATTERY_94AH) {
-        datalayer.battery.info.max_design_voltage_dV = MAX_PACK_VOLTAGE_94AH;
-        datalayer.battery.info.min_design_voltage_dV = MIN_PACK_VOLTAGE_94AH;
-        if (datalayer.battery.status.cell_max_voltage_mV >= MAX_CELL_VOLTAGE_94AH) {
-          set_event(EVENT_CELL_OVER_VOLTAGE, 0);
-        }
-        if (datalayer.battery.status.cell_min_voltage_mV <= MIN_CELL_VOLTAGE_94AH) {
-          set_event(EVENT_CELL_UNDER_VOLTAGE, 0);
-        }
-      } else {  // BATTERY_120AH
-        datalayer.battery.info.max_design_voltage_dV = MAX_PACK_VOLTAGE_120AH;
-        datalayer.battery.info.min_design_voltage_dV = MIN_PACK_VOLTAGE_120AH;
-        if (datalayer.battery.status.cell_max_voltage_mV >= MAX_CELL_VOLTAGE_120AH) {
-          set_event(EVENT_CELL_OVER_VOLTAGE, 0);
-        }
-        if (datalayer.battery.status.cell_min_voltage_mV <= MIN_CELL_VOLTAGE_120AH) {
-          set_event(EVENT_CELL_UNDER_VOLTAGE, 0);
-        }
+  if (emulator_pause_request_ON) {
+    datalayer.battery.status.max_discharge_power_W = 0;
+    datalayer.battery.status.max_charge_power_W = 0;
+  } else {
+    datalayer.battery.status.max_discharge_power_W = battery_BEV_available_power_longterm_discharge;
+    datalayer.battery.status.max_charge_power_W = battery_BEV_available_power_longterm_charge;
+  }
+
+  battery_power = (datalayer.battery.status.current_dA * (datalayer.battery.status.voltage_dV / 100));
+
+  datalayer.battery.status.active_power_W = battery_power;
+
+  datalayer.battery.status.temperature_min_dC = battery_temperature_min * 10;  // Add a decimal
+
+  datalayer.battery.status.temperature_max_dC = battery_temperature_max * 10;  // Add a decimal
+
+  if (battery_info_available) {
+    // Start checking safeties. First up, cellvoltages!
+    if (detectedBattery == BATTERY_60AH) {
+      datalayer.battery.info.max_design_voltage_dV = MAX_PACK_VOLTAGE_60AH;
+      datalayer.battery.info.min_design_voltage_dV = MIN_PACK_VOLTAGE_60AH;
+      if (datalayer.battery.status.cell_max_voltage_mV >= MAX_CELL_VOLTAGE_60AH) {
+        set_event(EVENT_CELL_OVER_VOLTAGE, 0);
+      }
+      if (datalayer.battery.status.cell_min_voltage_mV <= MIN_CELL_VOLTAGE_60AH) {
+        set_event(EVENT_CELL_UNDER_VOLTAGE, 0);
+      }
+    } else if (detectedBattery == BATTERY_94AH) {
+      datalayer.battery.info.max_design_voltage_dV = MAX_PACK_VOLTAGE_94AH;
+      datalayer.battery.info.min_design_voltage_dV = MIN_PACK_VOLTAGE_94AH;
+      if (datalayer.battery.status.cell_max_voltage_mV >= MAX_CELL_VOLTAGE_94AH) {
+        set_event(EVENT_CELL_OVER_VOLTAGE, 0);
+      }
+      if (datalayer.battery.status.cell_min_voltage_mV <= MIN_CELL_VOLTAGE_94AH) {
+        set_event(EVENT_CELL_UNDER_VOLTAGE, 0);
+      }
+    } else {  // BATTERY_120AH
+      datalayer.battery.info.max_design_voltage_dV = MAX_PACK_VOLTAGE_120AH;
+      datalayer.battery.info.min_design_voltage_dV = MIN_PACK_VOLTAGE_120AH;
+      if (datalayer.battery.status.cell_max_voltage_mV >= MAX_CELL_VOLTAGE_120AH) {
+        set_event(EVENT_CELL_OVER_VOLTAGE, 0);
+      }
+      if (datalayer.battery.status.cell_min_voltage_mV <= MIN_CELL_VOLTAGE_120AH) {
+        set_event(EVENT_CELL_UNDER_VOLTAGE, 0);
       }
     }
+  }
 
-    // Perform other safety checks
-    if (battery_status_error_locking == 2) {  // HVIL seated?
-      set_event(EVENT_HVIL_FAILURE, 0);
-    } else {
-      clear_event(EVENT_HVIL_FAILURE);
-    }
-    if (battery_status_precharge_locked == 2) {  // Capacitor seated?
-      set_event(EVENT_PRECHARGE_FAILURE, 0);
-    } else {
-      clear_event(EVENT_PRECHARGE_FAILURE);
-    }
+  // Perform other safety checks
+  if (battery_status_error_locking == 2) {  // HVIL seated?
+    set_event(EVENT_HVIL_FAILURE, 0);
+  } else {
+    clear_event(EVENT_HVIL_FAILURE);
+  }
+  if (battery_status_precharge_locked == 2) {  // Capacitor seated?
+    set_event(EVENT_PRECHARGE_FAILURE, 0);
+  } else {
+    clear_event(EVENT_PRECHARGE_FAILURE);
+  }
 
 #ifdef DEBUG_VIA_USB
-    Serial.println(" ");
-    Serial.print("Battery display SOC%: ");
-    Serial.print(battery_display_SOC * 50);
-    Serial.print("Battery display SOC%: ");
-    Serial.print(battery_HVBatt_SOC * 10);
-    Serial.print("Battery polled SOC%: ");
-    Serial.print(battery_soc);
-    Serial.print(" Battery voltage: ");
-    Serial.print(datalayer.battery.status.voltage_dV * 0.1);
-    Serial.print(" Battery current: ");
-    Serial.print(datalayer.battery.status.current_dA * 0.1);
-    Serial.print(" Wh when full: ");
-    Serial.print(datalayer.battery.info.total_capacity_Wh);
-    Serial.print(" Remaining Wh: ");
-    Serial.print(datalayer.battery.status.remaining_capacity_Wh);
-    Serial.print(" Max charge power: ");
-    Serial.print(datalayer.battery.status.max_charge_power_W);
-    Serial.print(" Max discharge power: ");
-    Serial.print(datalayer.battery.status.max_discharge_power_W);
-    Serial.print(" Active power: ");
-    Serial.print(datalayer.battery.status.active_power_W);
-    Serial.print(" Min temp: ");
-    Serial.print(datalayer.battery.status.temperature_min_dC * 0.1);
-    Serial.print(" Max temp: ");
-    Serial.print(datalayer.battery.status.temperature_max_dC * 0.1);
+  Serial.println(" ");
+  Serial.print("Battery display SOC%: ");
+  Serial.print(battery_display_SOC * 50);
+  Serial.print("Battery display SOC%: ");
+  Serial.print(battery_HVBatt_SOC * 10);
+  Serial.print("Battery polled SOC%: ");
+  Serial.print(battery_soc);
+  Serial.print(" Battery voltage: ");
+  Serial.print(datalayer.battery.status.voltage_dV * 0.1);
+  Serial.print(" Battery current: ");
+  Serial.print(datalayer.battery.status.current_dA * 0.1);
+  Serial.print(" Wh when full: ");
+  Serial.print(datalayer.battery.info.total_capacity_Wh);
+  Serial.print(" Remaining Wh: ");
+  Serial.print(datalayer.battery.status.remaining_capacity_Wh);
+  Serial.print(" Max charge power: ");
+  Serial.print(datalayer.battery.status.max_charge_power_W);
+  Serial.print(" Max discharge power: ");
+  Serial.print(datalayer.battery.status.max_discharge_power_W);
+  Serial.print(" Active power: ");
+  Serial.print(datalayer.battery.status.active_power_W);
+  Serial.print(" Min temp: ");
+  Serial.print(datalayer.battery.status.temperature_min_dC * 0.1);
+  Serial.print(" Max temp: ");
+  Serial.print(datalayer.battery.status.temperature_max_dC * 0.1);
 #endif
-  }
+}
 
-  void receive_can_battery(CAN_frame rx_frame) {
-    switch (rx_frame.ID) {
-      case 0x112:  //BMS [10ms] Status Of High-Voltage Battery - 2
-        battery_awake = true;
-        datalayer.battery.status.CAN_battery_still_alive =
-            CAN_STILL_ALIVE;  //This message is only sent if 30C (Wakeup pin on battery) is energized with 12V
-        battery_current = (rx_frame.data.u8[1] << 8 | rx_frame.data.u8[0]) - 8192;  //deciAmps (-819.2 to 819.0A)
-        battery_volts = (rx_frame.data.u8[3] << 8 | rx_frame.data.u8[2]);           //500.0 V
-        datalayer.battery.status.voltage_dV = battery_volts;  // Update the datalayer as soon as possible with this info
-        battery_HVBatt_SOC = ((rx_frame.data.u8[5] & 0x0F) << 8 | rx_frame.data.u8[4]);
-        battery_request_open_contactors = (rx_frame.data.u8[5] & 0xC0) >> 6;
-        battery_request_open_contactors_instantly = (rx_frame.data.u8[6] & 0x03);
-        battery_request_open_contactors_fast = (rx_frame.data.u8[6] & 0x0C) >> 2;
-        battery_charging_condition_delta = (rx_frame.data.u8[6] & 0xF0) >> 4;
-        battery_DC_link_voltage = rx_frame.data.u8[7];
-        break;
-      case 0x1FA:  //BMS [1000ms] Status Of High-Voltage Battery - 1
-        battery_status_error_isolation_external_Bordnetz = (rx_frame.data.u8[0] & 0x03);
-        battery_status_error_isolation_internal_Bordnetz = (rx_frame.data.u8[0] & 0x0C) >> 2;
-        battery_request_cooling = (rx_frame.data.u8[0] & 0x30) >> 4;
-        battery_status_valve_cooling = (rx_frame.data.u8[0] & 0xC0) >> 6;
-        battery_status_error_locking = (rx_frame.data.u8[1] & 0x03);
-        battery_status_precharge_locked = (rx_frame.data.u8[1] & 0x0C) >> 2;
-        battery_status_disconnecting_switch = (rx_frame.data.u8[1] & 0x30) >> 4;
-        battery_status_emergency_mode = (rx_frame.data.u8[1] & 0xC0) >> 6;
-        battery_request_service = (rx_frame.data.u8[2] & 0x03);
-        battery_error_emergency_mode = (rx_frame.data.u8[2] & 0x0C) >> 2;
-        battery_status_error_disconnecting_switch = (rx_frame.data.u8[2] & 0x30) >> 4;
-        battery_status_warning_isolation = (rx_frame.data.u8[2] & 0xC0) >> 6;
-        battery_status_cold_shutoff_valve = (rx_frame.data.u8[3] & 0x0F);
-        battery_temperature_HV = (rx_frame.data.u8[4] - 50);
-        battery_temperature_heat_exchanger = (rx_frame.data.u8[5] - 50);
-        battery_temperature_min = (rx_frame.data.u8[6] - 50);
-        battery_temperature_max = (rx_frame.data.u8[7] - 50);
-        break;
-      case 0x239:                                                                                      //BMS [200ms]
-        battery_predicted_energy_charge_condition = (rx_frame.data.u8[2] << 8 | rx_frame.data.u8[1]);  //Wh
-        battery_predicted_energy_charging_target = ((rx_frame.data.u8[4] << 8 | rx_frame.data.u8[3]) * 0.02);  //kWh
-        break;
-      case 0x2BD:  //BMS [100ms] Status diagnosis high voltage - 1
-        battery_awake = true;
-        if (!skipCRCCheck) {
-          if (calculateCRC(rx_frame, rx_frame.DLC, 0x15) != rx_frame.data.u8[0]) {
-            // If calculated CRC does not match transmitted CRC, increase CANerror counter
-            datalayer.battery.status.CAN_error_counter++;
+void receive_can_battery(CAN_frame rx_frame) {
+  switch (rx_frame.ID) {
+    case 0x112:  //BMS [10ms] Status Of High-Voltage Battery - 2
+      battery_awake = true;
+      datalayer.battery.status.CAN_battery_still_alive =
+          CAN_STILL_ALIVE;  //This message is only sent if 30C (Wakeup pin on battery) is energized with 12V
+      battery_current = (rx_frame.data.u8[1] << 8 | rx_frame.data.u8[0]) - 8192;  //deciAmps (-819.2 to 819.0A)
+      battery_volts = (rx_frame.data.u8[3] << 8 | rx_frame.data.u8[2]);           //500.0 V
+      datalayer.battery.status.voltage_dV = battery_volts;  // Update the datalayer as soon as possible with this info
+      battery_HVBatt_SOC = ((rx_frame.data.u8[5] & 0x0F) << 8 | rx_frame.data.u8[4]);
+      battery_request_open_contactors = (rx_frame.data.u8[5] & 0xC0) >> 6;
+      battery_request_open_contactors_instantly = (rx_frame.data.u8[6] & 0x03);
+      battery_request_open_contactors_fast = (rx_frame.data.u8[6] & 0x0C) >> 2;
+      battery_charging_condition_delta = (rx_frame.data.u8[6] & 0xF0) >> 4;
+      battery_DC_link_voltage = rx_frame.data.u8[7];
+      break;
+    case 0x1FA:  //BMS [1000ms] Status Of High-Voltage Battery - 1
+      battery_status_error_isolation_external_Bordnetz = (rx_frame.data.u8[0] & 0x03);
+      battery_status_error_isolation_internal_Bordnetz = (rx_frame.data.u8[0] & 0x0C) >> 2;
+      battery_request_cooling = (rx_frame.data.u8[0] & 0x30) >> 4;
+      battery_status_valve_cooling = (rx_frame.data.u8[0] & 0xC0) >> 6;
+      battery_status_error_locking = (rx_frame.data.u8[1] & 0x03);
+      battery_status_precharge_locked = (rx_frame.data.u8[1] & 0x0C) >> 2;
+      battery_status_disconnecting_switch = (rx_frame.data.u8[1] & 0x30) >> 4;
+      battery_status_emergency_mode = (rx_frame.data.u8[1] & 0xC0) >> 6;
+      battery_request_service = (rx_frame.data.u8[2] & 0x03);
+      battery_error_emergency_mode = (rx_frame.data.u8[2] & 0x0C) >> 2;
+      battery_status_error_disconnecting_switch = (rx_frame.data.u8[2] & 0x30) >> 4;
+      battery_status_warning_isolation = (rx_frame.data.u8[2] & 0xC0) >> 6;
+      battery_status_cold_shutoff_valve = (rx_frame.data.u8[3] & 0x0F);
+      battery_temperature_HV = (rx_frame.data.u8[4] - 50);
+      battery_temperature_heat_exchanger = (rx_frame.data.u8[5] - 50);
+      battery_temperature_min = (rx_frame.data.u8[6] - 50);
+      battery_temperature_max = (rx_frame.data.u8[7] - 50);
+      break;
+    case 0x239:                                                                                      //BMS [200ms]
+      battery_predicted_energy_charge_condition = (rx_frame.data.u8[2] << 8 | rx_frame.data.u8[1]);  //Wh
+      battery_predicted_energy_charging_target = ((rx_frame.data.u8[4] << 8 | rx_frame.data.u8[3]) * 0.02);  //kWh
+      break;
+    case 0x2BD:  //BMS [100ms] Status diagnosis high voltage - 1
+      battery_awake = true;
+      if (!skipCRCCheck) {
+        if (calculateCRC(rx_frame, rx_frame.DLC, 0x15) != rx_frame.data.u8[0]) {
+          // If calculated CRC does not match transmitted CRC, increase CANerror counter
+          datalayer.battery.status.CAN_error_counter++;
 
-            // If the CRC check has never passed before, set the flag to skip future checks. Some SMEs have differing CRC checks.
-            if (!CRCCheckPassedPreviously) {
-              skipCRCCheck = true;
-            }
-            break;
-          } else {
-            // If CRC check passes, update the flag
-            CRCCheckPassedPreviously = true;
+          // If the CRC check has never passed before, set the flag to skip future checks. Some SMEs have differing CRC checks.
+          if (!CRCCheckPassedPreviously) {
+            skipCRCCheck = true;
           }
-        }
-
-        // Process the data since CRC check is either passed or skipped
-        battery_status_diagnostics_HV = (rx_frame.data.u8[2] & 0x0F);
-        break;
-      case 0x2F5:  //BMS [100ms] High-Voltage Battery Charge/Discharge Limitations
-        battery_max_charge_voltage = (rx_frame.data.u8[1] << 8 | rx_frame.data.u8[0]);
-        battery_max_charge_amperage = (((rx_frame.data.u8[3] << 8) | rx_frame.data.u8[2]) - 819.2);
-        battery_min_discharge_voltage = (rx_frame.data.u8[5] << 8 | rx_frame.data.u8[4]);
-        battery_max_discharge_amperage = (((rx_frame.data.u8[7] << 8) | rx_frame.data.u8[6]) - 819.2);
-        break;
-      case 0x2FF:  //BMS [100ms] Status Heating High-Voltage Battery
-        battery_awake = true;
-        battery_actual_value_power_heating = (rx_frame.data.u8[1] << 4 | rx_frame.data.u8[0] >> 4);
-        break;
-      case 0x363:  //BMS [1s] Identification High-Voltage Battery
-        battery_serial_number =
-            (rx_frame.data.u8[3] << 24 | rx_frame.data.u8[2] << 16 | rx_frame.data.u8[1] << 8 | rx_frame.data.u8[0]);
-        break;
-      case 0x3C2:  //BMS (94AH exclusive) - Status diagnostics OBD 2 powertrain
-        battery_status_diagnosis_powertrain_maximum_multiplexer =
-            ((rx_frame.data.u8[1] & 0x03) << 4 | rx_frame.data.u8[0] >> 4);
-        battery_status_diagnosis_powertrain_immediate_multiplexer = (rx_frame.data.u8[0] & 0xFC) >> 2;
-        break;
-      case 0x3EB:  //BMS [1s] Status of charging high-voltage storage - 3
-        battery_available_power_shortterm_charge = (rx_frame.data.u8[1] << 8 | rx_frame.data.u8[0]) * 3;
-        battery_available_power_shortterm_discharge = (rx_frame.data.u8[3] << 8 | rx_frame.data.u8[2]) * 3;
-        battery_available_power_longterm_charge = (rx_frame.data.u8[5] << 8 | rx_frame.data.u8[4]) * 3;
-        battery_available_power_longterm_discharge = (rx_frame.data.u8[7] << 8 | rx_frame.data.u8[6]) * 3;
-        break;
-      case 0x40D:  //BMS [1s] Charging status of high-voltage storage - 1
-        battery_BEV_available_power_shortterm_charge = (rx_frame.data.u8[1] << 8 | rx_frame.data.u8[0]) * 3;
-        battery_BEV_available_power_shortterm_discharge = (rx_frame.data.u8[3] << 8 | rx_frame.data.u8[2]) * 3;
-        battery_BEV_available_power_longterm_charge = (rx_frame.data.u8[5] << 8 | rx_frame.data.u8[4]) * 3;
-        battery_BEV_available_power_longterm_discharge = (rx_frame.data.u8[7] << 8 | rx_frame.data.u8[6]) * 3;
-        break;
-      case 0x41C:  //BMS [1s] Operating Mode Status Of Hybrid - 2
-        battery_status_cooling_HV = (rx_frame.data.u8[1] & 0x03);
-        break;
-      case 0x430:  //BMS [1s] - Charging status of high-voltage battery - 2
-        battery_prediction_voltage_shortterm_charge = (rx_frame.data.u8[1] << 8 | rx_frame.data.u8[0]);
-        battery_prediction_voltage_shortterm_discharge = (rx_frame.data.u8[3] << 8 | rx_frame.data.u8[2]);
-        battery_prediction_voltage_longterm_charge = (rx_frame.data.u8[5] << 8 | rx_frame.data.u8[4]);
-        battery_prediction_voltage_longterm_discharge = (rx_frame.data.u8[7] << 8 | rx_frame.data.u8[6]);
-        break;
-      case 0x431:  //BMS [200ms] Data High-Voltage Battery Unit
-        battery_status_service_disconnection_plug = (rx_frame.data.u8[0] & 0x0F);
-        battery_status_measurement_isolation = (rx_frame.data.u8[0] & 0x0C) >> 2;
-        battery_request_abort_charging = (rx_frame.data.u8[0] & 0x30) >> 4;
-        battery_prediction_duration_charging_minutes = (rx_frame.data.u8[3] << 8 | rx_frame.data.u8[2]);
-        battery_prediction_time_end_of_charging_minutes = rx_frame.data.u8[4];
-        battery_energy_content_maximum_kWh = (((rx_frame.data.u8[6] & 0x0F) << 8 | rx_frame.data.u8[5])) / 50;
-        if (battery_energy_content_maximum_kWh > 33) {
-          detectedBattery = BATTERY_120AH;
-        } else if (battery_energy_content_maximum_kWh > 20) {
-          detectedBattery = BATTERY_94AH;
+          break;
         } else {
-          detectedBattery = BATTERY_60AH;
+          // If CRC check passes, update the flag
+          CRCCheckPassedPreviously = true;
         }
-        break;
-      case 0x432:  //BMS [200ms] SOC% info
-        battery_request_operating_mode = (rx_frame.data.u8[0] & 0x03);
-        battery_target_voltage_in_CV_mode = ((rx_frame.data.u8[1] << 4 | rx_frame.data.u8[0] >> 4)) / 10;
-        battery_request_charging_condition_minimum = (rx_frame.data.u8[2] / 2);
-        battery_request_charging_condition_maximum = (rx_frame.data.u8[3] / 2);
-        battery_display_SOC = rx_frame.data.u8[4];
-        break;
-      case 0x507:  //BMS [640ms] Network Management - 2 - This message is sent on the bus for sleep coordination purposes
-        break;
-      case 0x587:  //BMS [5s] Services
-        battery_ID2 = rx_frame.data.u8[0];
-        break;
-      case 0x607:  //BMS - responses to message requests on 0x615
-        if ((cmdState == CELL_VOLTAGE_CELLNO || cmdState == CELL_VOLTAGE_CELLNO_LAST) &&
-            (rx_frame.data.u8[0] == 0xF4)) {
-          if (rx_frame.DLC == 6) {
-            transmit_can(&BMW_6F4_CELL_CONTINUE, can_config.battery);  // tell battery to send the cellvoltage
-          }
-          if (rx_frame.DLC == 8) {  // We have the full value, map it
-            datalayer.battery.status.cell_voltages_mV[current_cell_polled - 1] =
-                (rx_frame.data.u8[6] << 8 | rx_frame.data.u8[7]);
-          }
-        }
-
-        if (rx_frame.DLC > 6 && next_data == 0 && rx_frame.data.u8[0] == 0xf1) {
-          uint8_t count = 6;
-          while (count < rx_frame.DLC && next_data < 49) {
-            message_data[next_data++] = rx_frame.data.u8[count++];
-          }
-          transmit_can(&BMW_6F1_CONTINUE, can_config.battery);  // tell battery to send additional messages
-
-        } else if (rx_frame.DLC > 3 && next_data > 0 && rx_frame.data.u8[0] == 0xf1 &&
-                   ((rx_frame.data.u8[1] & 0xF0) == 0x20)) {
-          uint8_t count = 2;
-          while (count < rx_frame.DLC && next_data < 49) {
-            message_data[next_data++] = rx_frame.data.u8[count++];
-          }
-
-          switch (cmdState) {
-            case CELL_VOLTAGE_MINMAX:
-              if (next_data >= 4) {
-                datalayer.battery.status.cell_min_voltage_mV = (message_data[0] << 8 | message_data[1]);
-                datalayer.battery.status.cell_max_voltage_mV = (message_data[2] << 8 | message_data[3]);
-              }
-              break;
-            case SOH:
-              if (next_data >= 4) {
-                battery_soh = message_data[3];
-                battery_info_available = true;
-              }
-              break;
-            case SOC:
-              if (next_data >= 6) {
-                battery_soc = (message_data[0] << 8 | message_data[1]);
-                battery_soc_hvmax = (message_data[2] << 8 | message_data[3]);
-                battery_soc_hvmin = (message_data[4] << 8 | message_data[5]);
-              }
-              break;
-          }
-        }
-        break;
-      default:
-        break;
-    }
-  }
-  void receive_can_battery2(CAN_frame rx_frame) {
-    switch (rx_frame.ID) {
-      case 0x112:  //BMS [10ms] Status Of High-Voltage Battery - 2
-        battery2_awake = true;
-        datalayer.battery2.status.CAN_battery_still_alive =
-            CAN_STILL_ALIVE;  //This message is only sent if 30C (Wakeup pin on battery) is energized with 12V
-        battery2_current = (rx_frame.data.u8[1] << 8 | rx_frame.data.u8[0]) - 8192;  //deciAmps (-819.2 to 819.0A)
-        battery2_volts = (rx_frame.data.u8[3] << 8 | rx_frame.data.u8[2]);           //500.0 V
-        datalayer.battery2.status.voltage_dV =
-            battery2_volts;  // Update the datalayer as soon as possible with this info, needed for contactor control
-        battery2_HVBatt_SOC = ((rx_frame.data.u8[5] & 0x0F) << 8 | rx_frame.data.u8[4]);
-        battery2_request_open_contactors = (rx_frame.data.u8[5] & 0xC0) >> 6;
-        battery2_request_open_contactors_instantly = (rx_frame.data.u8[6] & 0x03);
-        battery2_request_open_contactors_fast = (rx_frame.data.u8[6] & 0x0C) >> 2;
-        battery2_charging_condition_delta = (rx_frame.data.u8[6] & 0xF0) >> 4;
-        battery2_DC_link_voltage = rx_frame.data.u8[7];
-        break;
-      case 0x1FA:  //BMS [1000ms] Status Of High-Voltage Battery - 1
-        battery2_status_error_isolation_external_Bordnetz = (rx_frame.data.u8[0] & 0x03);
-        battery2_status_error_isolation_internal_Bordnetz = (rx_frame.data.u8[0] & 0x0C) >> 2;
-        battery2_request_cooling = (rx_frame.data.u8[0] & 0x30) >> 4;
-        battery2_status_valve_cooling = (rx_frame.data.u8[0] & 0xC0) >> 6;
-        battery2_status_error_locking = (rx_frame.data.u8[1] & 0x03);
-        battery2_status_precharge_locked = (rx_frame.data.u8[1] & 0x0C) >> 2;
-        battery2_status_disconnecting_switch = (rx_frame.data.u8[1] & 0x30) >> 4;
-        battery2_status_emergency_mode = (rx_frame.data.u8[1] & 0xC0) >> 6;
-        battery2_request_service = (rx_frame.data.u8[2] & 0x03);
-        battery2_error_emergency_mode = (rx_frame.data.u8[2] & 0x0C) >> 2;
-        battery2_status_error_disconnecting_switch = (rx_frame.data.u8[2] & 0x30) >> 4;
-        battery2_status_warning_isolation = (rx_frame.data.u8[2] & 0xC0) >> 6;
-        battery2_status_cold_shutoff_valve = (rx_frame.data.u8[3] & 0x0F);
-        battery2_temperature_HV = (rx_frame.data.u8[4] - 50);
-        battery2_temperature_heat_exchanger = (rx_frame.data.u8[5] - 50);
-        battery2_temperature_min = (rx_frame.data.u8[6] - 50);
-        battery2_temperature_max = (rx_frame.data.u8[7] - 50);
-        break;
-      case 0x239:                                                                                       //BMS [200ms]
-        battery2_predicted_energy_charge_condition = (rx_frame.data.u8[2] << 8 | rx_frame.data.u8[1]);  //Wh
-        battery2_predicted_energy_charging_target = ((rx_frame.data.u8[4] << 8 | rx_frame.data.u8[3]) * 0.02);  //kWh
-        break;
-      case 0x2BD:  //BMS [100ms] Status diagnosis high voltage - 1
-        battery2_awake = true;
-        if (!skipCRCCheck_battery2) {
-          if (calculateCRC(rx_frame, rx_frame.DLC, 0x15) != rx_frame.data.u8[0]) {
-            // If calculated CRC does not match transmitted CRC, increase CANerror counter
-            datalayer.battery2.status.CAN_error_counter++;
-
-            // If the CRC check has never passed before, set the flag to skip future checks. Some SMEs have differing CRC checks.
-            if (!CRCCheckPassedPreviously_battery2) {
-              skipCRCCheck_battery2 = true;
-            }
-            break;
-          } else {
-            // If CRC check passes, update the flag
-            CRCCheckPassedPreviously_battery2 = true;
-          }
-        }
-
-        // Process the data since CRC check is either passed or skipped
-        battery2_status_diagnostics_HV = (rx_frame.data.u8[2] & 0x0F);
-        break;
-      case 0x2F5:  //BMS [100ms] High-Voltage Battery Charge/Discharge Limitations
-        battery2_max_charge_voltage = (rx_frame.data.u8[1] << 8 | rx_frame.data.u8[0]);
-        battery2_max_charge_amperage = (((rx_frame.data.u8[3] << 8) | rx_frame.data.u8[2]) - 819.2);
-        battery2_min_discharge_voltage = (rx_frame.data.u8[5] << 8 | rx_frame.data.u8[4]);
-        battery2_max_discharge_amperage = (((rx_frame.data.u8[7] << 8) | rx_frame.data.u8[6]) - 819.2);
-        break;
-      case 0x2FF:  //BMS [100ms] Status Heating High-Voltage Battery
-        battery2_awake = true;
-        battery2_actual_value_power_heating = (rx_frame.data.u8[1] << 4 | rx_frame.data.u8[0] >> 4);
-        break;
-      case 0x363:  //BMS [1s] Identification High-Voltage Battery
-        battery2_serial_number =
-            (rx_frame.data.u8[3] << 24 | rx_frame.data.u8[2] << 16 | rx_frame.data.u8[1] << 8 | rx_frame.data.u8[0]);
-        break;
-      case 0x3C2:  //BMS (94AH exclusive) - Status diagnostics OBD 2 powertrain
-        battery2_status_diagnosis_powertrain_maximum_multiplexer =
-            ((rx_frame.data.u8[1] & 0x03) << 4 | rx_frame.data.u8[0] >> 4);
-        battery2_status_diagnosis_powertrain_immediate_multiplexer = (rx_frame.data.u8[0] & 0xFC) >> 2;
-        break;
-      case 0x3EB:  //BMS [1s] Status of charging high-voltage storage - 3
-        battery2_available_power_shortterm_charge = (rx_frame.data.u8[1] << 8 | rx_frame.data.u8[0]) * 3;
-        battery2_available_power_shortterm_discharge = (rx_frame.data.u8[3] << 8 | rx_frame.data.u8[2]) * 3;
-        battery2_available_power_longterm_charge = (rx_frame.data.u8[5] << 8 | rx_frame.data.u8[4]) * 3;
-        battery2_available_power_longterm_discharge = (rx_frame.data.u8[7] << 8 | rx_frame.data.u8[6]) * 3;
-        break;
-      case 0x40D:  //BMS [1s] Charging status of high-voltage storage - 1
-        battery2_BEV_available_power_shortterm_charge = (rx_frame.data.u8[1] << 8 | rx_frame.data.u8[0]) * 3;
-        battery2_BEV_available_power_shortterm_discharge = (rx_frame.data.u8[3] << 8 | rx_frame.data.u8[2]) * 3;
-        battery2_BEV_available_power_longterm_charge = (rx_frame.data.u8[5] << 8 | rx_frame.data.u8[4]) * 3;
-        battery2_BEV_available_power_longterm_discharge = (rx_frame.data.u8[7] << 8 | rx_frame.data.u8[6]) * 3;
-        break;
-      case 0x41C:  //BMS [1s] Operating Mode Status Of Hybrid - 2
-        battery2_status_cooling_HV = (rx_frame.data.u8[1] & 0x03);
-        break;
-      case 0x426:  // TODO: Figure out how to trigger sending of this. Does the SME require some CAN command?
-        battery2_cellvoltage_mux = rx_frame.data.u8[0];
-        if (battery2_cellvoltage_mux == 0) {
-          datalayer.battery2.status.cell_voltages_mV[0] = ((rx_frame.data.u8[1] * 10) + 1800);
-          datalayer.battery2.status.cell_voltages_mV[1] = ((rx_frame.data.u8[2] * 10) + 1800);
-          datalayer.battery2.status.cell_voltages_mV[2] = ((rx_frame.data.u8[3] * 10) + 1800);
-          datalayer.battery2.status.cell_voltages_mV[3] = ((rx_frame.data.u8[4] * 10) + 1800);
-          datalayer.battery2.status.cell_voltages_mV[4] = ((rx_frame.data.u8[5] * 10) + 1800);
-          datalayer.battery2.status.cell_voltages_mV[5] = ((rx_frame.data.u8[6] * 10) + 1800);
-          datalayer.battery2.status.cell_voltages_mV[5] = ((rx_frame.data.u8[7] * 10) + 1800);
-        }
-        break;
-      case 0x430:  //BMS [1s] - Charging status of high-voltage battery - 2
-        battery2_prediction_voltage_shortterm_charge = (rx_frame.data.u8[1] << 8 | rx_frame.data.u8[0]);
-        battery2_prediction_voltage_shortterm_discharge = (rx_frame.data.u8[3] << 8 | rx_frame.data.u8[2]);
-        battery2_prediction_voltage_longterm_charge = (rx_frame.data.u8[5] << 8 | rx_frame.data.u8[4]);
-        battery2_prediction_voltage_longterm_discharge = (rx_frame.data.u8[7] << 8 | rx_frame.data.u8[6]);
-        break;
-      case 0x431:  //BMS [200ms] Data High-Voltage Battery Unit
-        battery2_status_service_disconnection_plug = (rx_frame.data.u8[0] & 0x0F);
-        battery2_status_measurement_isolation = (rx_frame.data.u8[0] & 0x0C) >> 2;
-        battery2_request_abort_charging = (rx_frame.data.u8[0] & 0x30) >> 4;
-        battery2_prediction_duration_charging_minutes = (rx_frame.data.u8[3] << 8 | rx_frame.data.u8[2]);
-        battery2_prediction_time_end_of_charging_minutes = rx_frame.data.u8[4];
-        battery2_energy_content_maximum_kWh = (((rx_frame.data.u8[6] & 0x0F) << 8 | rx_frame.data.u8[5])) / 50;
-        break;
-      case 0x432:  //BMS [200ms] SOC% info
-        battery2_request_operating_mode = (rx_frame.data.u8[0] & 0x03);
-        battery2_target_voltage_in_CV_mode = ((rx_frame.data.u8[1] << 4 | rx_frame.data.u8[0] >> 4)) / 10;
-        battery2_request_charging_condition_minimum = (rx_frame.data.u8[2] / 2);
-        battery2_request_charging_condition_maximum = (rx_frame.data.u8[3] / 2);
-        battery2_display_SOC = rx_frame.data.u8[4];
-        break;
-      case 0x507:  //BMS [640ms] Network Management - 2 - This message is sent on the bus for sleep coordination purposes
-        break;
-      case 0x587:  //BMS [5s] Services
-        battery2_ID2 = rx_frame.data.u8[0];
-        break;
-      case 0x607:  //BMS - responses to message requests on 0x615
-        if (rx_frame.DLC > 6 && next_data == 0 && rx_frame.data.u8[0] == 0xf1) {
-          uint8_t count2 = 6;
-          while (count2 < rx_frame.DLC && next_data < 49) {
-            message_data[next_data++] = rx_frame.data.u8[count2++];
-          }
-          transmit_can(&BMW_6F1_CONTINUE, can_config.battery_double);
-
-        } else if (rx_frame.DLC > 3 && next_data > 0 && rx_frame.data.u8[0] == 0xf1 &&
-                   ((rx_frame.data.u8[1] & 0xF0) == 0x20)) {
-          uint8_t count2 = 2;
-          while (count2 < rx_frame.DLC && next_data < 49) {
-            message_data[next_data++] = rx_frame.data.u8[count2++];
-          }
-
-          switch (cmdState) {
-            case CELL_VOLTAGE_MINMAX:
-              if (next_data >= 4) {
-                datalayer.battery2.status.cell_min_voltage_mV = (message_data[0] << 8 | message_data[1]);
-                datalayer.battery2.status.cell_max_voltage_mV = (message_data[2] << 8 | message_data[3]);
-              }
-              break;
-            case SOH:
-              if (next_data >= 4) {
-                battery2_soh = message_data[3];
-                battery2_info_available = true;
-              }
-              break;
-            case SOC:
-              if (next_data >= 6) {
-                battery2_soc = (message_data[0] << 8 | message_data[1]);
-                battery2_soc_hvmax = (message_data[2] << 8 | message_data[3]);
-                battery2_soc_hvmin = (message_data[4] << 8 | message_data[5]);
-              }
-              break;
-          }
-        }
-        break;
-      default:
-        break;
-    }
-  }
-  void send_can_battery() {
-    unsigned long currentMillis = millis();
-
-    if (battery_awake) {
-      //Send 20ms message
-      if (currentMillis - previousMillis20 >= INTERVAL_20_MS) {
-        // Check if sending of CAN messages has been delayed too much.
-        if ((currentMillis - previousMillis20 >= INTERVAL_20_MS_DELAYED) && (currentMillis > BOOTUP_TIME)) {
-          set_event(EVENT_CAN_OVERRUN, (currentMillis - previousMillis20));
-        } else {
-          clear_event(EVENT_CAN_OVERRUN);
-        }
-        previousMillis20 = currentMillis;
-
-        if (startup_counter_contactor < 160) {
-          startup_counter_contactor++;
-        } else {                      //After 160 messages, turn on the request
-          BMW_10B.data.u8[1] = 0x10;  // Close contactors
-        }
-
-        BMW_10B.data.u8[1] = ((BMW_10B.data.u8[1] & 0xF0) + alive_counter_20ms);
-        BMW_10B.data.u8[0] = calculateCRC(BMW_10B, 3, 0x3F);
-
-        alive_counter_20ms = increment_alive_counter(alive_counter_20ms);
-
-        BMW_13E_counter++;
-        BMW_13E.data.u8[4] = BMW_13E_counter;
-
-        if (datalayer.battery.status.bms_status == FAULT) {
-        }  //If battery is not in Fault mode, allow contactor to close by sending 10B
-        else {
-          transmit_can(&BMW_10B, can_config.battery);
-        }
-
-#ifdef DOUBLE_BATTERY  //If second battery is allowed to join in, also send 10B
-        if (datalayer.system.status.battery2_allows_contactor_closing == true) {
-          transmit_can(&BMW_10B, can_config.battery_double);
-        }
-#endif
       }
-      // Send 100ms CAN Message
-      if (currentMillis - previousMillis100 >= INTERVAL_100_MS) {
-        previousMillis100 = currentMillis;
 
-        BMW_12F.data.u8[1] = ((BMW_12F.data.u8[1] & 0xF0) + alive_counter_100ms);
-        BMW_12F.data.u8[0] = calculateCRC(BMW_12F, 8, 0x60);
-
-        alive_counter_100ms = increment_alive_counter(alive_counter_100ms);
-
-        transmit_can(&BMW_12F, can_config.battery);
-#ifdef DOUBLE_BATTERY
-        transmit_can(&BMW_12F, can_config.battery_double);
-#endif
+      // Process the data since CRC check is either passed or skipped
+      battery_status_diagnostics_HV = (rx_frame.data.u8[2] & 0x0F);
+      break;
+    case 0x2F5:  //BMS [100ms] High-Voltage Battery Charge/Discharge Limitations
+      battery_max_charge_voltage = (rx_frame.data.u8[1] << 8 | rx_frame.data.u8[0]);
+      battery_max_charge_amperage = (((rx_frame.data.u8[3] << 8) | rx_frame.data.u8[2]) - 819.2);
+      battery_min_discharge_voltage = (rx_frame.data.u8[5] << 8 | rx_frame.data.u8[4]);
+      battery_max_discharge_amperage = (((rx_frame.data.u8[7] << 8) | rx_frame.data.u8[6]) - 819.2);
+      break;
+    case 0x2FF:  //BMS [100ms] Status Heating High-Voltage Battery
+      battery_awake = true;
+      battery_actual_value_power_heating = (rx_frame.data.u8[1] << 4 | rx_frame.data.u8[0] >> 4);
+      break;
+    case 0x363:  //BMS [1s] Identification High-Voltage Battery
+      battery_serial_number =
+          (rx_frame.data.u8[3] << 24 | rx_frame.data.u8[2] << 16 | rx_frame.data.u8[1] << 8 | rx_frame.data.u8[0]);
+      break;
+    case 0x3C2:  //BMS (94AH exclusive) - Status diagnostics OBD 2 powertrain
+      battery_status_diagnosis_powertrain_maximum_multiplexer =
+          ((rx_frame.data.u8[1] & 0x03) << 4 | rx_frame.data.u8[0] >> 4);
+      battery_status_diagnosis_powertrain_immediate_multiplexer = (rx_frame.data.u8[0] & 0xFC) >> 2;
+      break;
+    case 0x3EB:  //BMS [1s] Status of charging high-voltage storage - 3
+      battery_available_power_shortterm_charge = (rx_frame.data.u8[1] << 8 | rx_frame.data.u8[0]) * 3;
+      battery_available_power_shortterm_discharge = (rx_frame.data.u8[3] << 8 | rx_frame.data.u8[2]) * 3;
+      battery_available_power_longterm_charge = (rx_frame.data.u8[5] << 8 | rx_frame.data.u8[4]) * 3;
+      battery_available_power_longterm_discharge = (rx_frame.data.u8[7] << 8 | rx_frame.data.u8[6]) * 3;
+      break;
+    case 0x40D:  //BMS [1s] Charging status of high-voltage storage - 1
+      battery_BEV_available_power_shortterm_charge = (rx_frame.data.u8[1] << 8 | rx_frame.data.u8[0]) * 3;
+      battery_BEV_available_power_shortterm_discharge = (rx_frame.data.u8[3] << 8 | rx_frame.data.u8[2]) * 3;
+      battery_BEV_available_power_longterm_charge = (rx_frame.data.u8[5] << 8 | rx_frame.data.u8[4]) * 3;
+      battery_BEV_available_power_longterm_discharge = (rx_frame.data.u8[7] << 8 | rx_frame.data.u8[6]) * 3;
+      break;
+    case 0x41C:  //BMS [1s] Operating Mode Status Of Hybrid - 2
+      battery_status_cooling_HV = (rx_frame.data.u8[1] & 0x03);
+      break;
+    case 0x430:  //BMS [1s] - Charging status of high-voltage battery - 2
+      battery_prediction_voltage_shortterm_charge = (rx_frame.data.u8[1] << 8 | rx_frame.data.u8[0]);
+      battery_prediction_voltage_shortterm_discharge = (rx_frame.data.u8[3] << 8 | rx_frame.data.u8[2]);
+      battery_prediction_voltage_longterm_charge = (rx_frame.data.u8[5] << 8 | rx_frame.data.u8[4]);
+      battery_prediction_voltage_longterm_discharge = (rx_frame.data.u8[7] << 8 | rx_frame.data.u8[6]);
+      break;
+    case 0x431:  //BMS [200ms] Data High-Voltage Battery Unit
+      battery_status_service_disconnection_plug = (rx_frame.data.u8[0] & 0x0F);
+      battery_status_measurement_isolation = (rx_frame.data.u8[0] & 0x0C) >> 2;
+      battery_request_abort_charging = (rx_frame.data.u8[0] & 0x30) >> 4;
+      battery_prediction_duration_charging_minutes = (rx_frame.data.u8[3] << 8 | rx_frame.data.u8[2]);
+      battery_prediction_time_end_of_charging_minutes = rx_frame.data.u8[4];
+      battery_energy_content_maximum_kWh = (((rx_frame.data.u8[6] & 0x0F) << 8 | rx_frame.data.u8[5])) / 50;
+      if (battery_energy_content_maximum_kWh > 33) {
+        detectedBattery = BATTERY_120AH;
+      } else if (battery_energy_content_maximum_kWh > 20) {
+        detectedBattery = BATTERY_94AH;
+      } else {
+        detectedBattery = BATTERY_60AH;
       }
-      // Send 200ms CAN Message
-      if (currentMillis - previousMillis200 >= INTERVAL_200_MS) {
-        previousMillis200 = currentMillis;
-
-        BMW_19B.data.u8[1] = ((BMW_19B.data.u8[1] & 0xF0) + alive_counter_200ms);
-        BMW_19B.data.u8[0] = calculateCRC(BMW_19B, 8, 0x6C);
-
-        alive_counter_200ms = increment_alive_counter(alive_counter_200ms);
-
-        transmit_can(&BMW_19B, can_config.battery);
-#ifdef DOUBLE_BATTERY
-        transmit_can(&BMW_19B, can_config.battery_double);
-#endif
+      break;
+    case 0x432:  //BMS [200ms] SOC% info
+      battery_request_operating_mode = (rx_frame.data.u8[0] & 0x03);
+      battery_target_voltage_in_CV_mode = ((rx_frame.data.u8[1] << 4 | rx_frame.data.u8[0] >> 4)) / 10;
+      battery_request_charging_condition_minimum = (rx_frame.data.u8[2] / 2);
+      battery_request_charging_condition_maximum = (rx_frame.data.u8[3] / 2);
+      battery_display_SOC = rx_frame.data.u8[4];
+      break;
+    case 0x507:  //BMS [640ms] Network Management - 2 - This message is sent on the bus for sleep coordination purposes
+      break;
+    case 0x587:  //BMS [5s] Services
+      battery_ID2 = rx_frame.data.u8[0];
+      break;
+    case 0x607:  //BMS - responses to message requests on 0x615
+      if ((cmdState == CELL_VOLTAGE_CELLNO || cmdState == CELL_VOLTAGE_CELLNO_LAST) && (rx_frame.data.u8[0] == 0xF4)) {
+        if (rx_frame.DLC == 6) {
+          transmit_can(&BMW_6F4_CELL_CONTINUE, can_config.battery);  // tell battery to send the cellvoltage
+        }
+        if (rx_frame.DLC == 8) {  // We have the full value, map it
+          datalayer.battery.status.cell_voltages_mV[current_cell_polled - 1] =
+              (rx_frame.data.u8[6] << 8 | rx_frame.data.u8[7]);
+        }
       }
-      // Send 500ms CAN Message
-      if (currentMillis - previousMillis500 >= INTERVAL_500_MS) {
-        previousMillis500 = currentMillis;
 
-        BMW_30B.data.u8[1] = ((BMW_30B.data.u8[1] & 0xF0) + alive_counter_500ms);
-        BMW_30B.data.u8[0] = calculateCRC(BMW_30B, 8, 0xBE);
+      if (rx_frame.DLC > 6 && next_data == 0 && rx_frame.data.u8[0] == 0xf1) {
+        uint8_t count = 6;
+        while (count < rx_frame.DLC && next_data < 49) {
+          message_data[next_data++] = rx_frame.data.u8[count++];
+        }
+        transmit_can(&BMW_6F1_CONTINUE, can_config.battery);  // tell battery to send additional messages
 
-        alive_counter_500ms = increment_alive_counter(alive_counter_500ms);
+      } else if (rx_frame.DLC > 3 && next_data > 0 && rx_frame.data.u8[0] == 0xf1 &&
+                 ((rx_frame.data.u8[1] & 0xF0) == 0x20)) {
+        uint8_t count = 2;
+        while (count < rx_frame.DLC && next_data < 49) {
+          message_data[next_data++] = rx_frame.data.u8[count++];
+        }
 
-        transmit_can(&BMW_30B, can_config.battery);
-#ifdef DOUBLE_BATTERY
-        transmit_can(&BMW_30B, can_config.battery_double);
-#endif
-      }
-      // Send 640ms CAN Message
-      if (currentMillis - previousMillis640 >= INTERVAL_640_MS) {
-        previousMillis640 = currentMillis;
-
-        transmit_can(&BMW_512, can_config.battery);  // Keep BMS alive
-        transmit_can(&BMW_5F8, can_config.battery);
-#ifdef DOUBLE_BATTERY
-        transmit_can(&BMW_512, can_config.battery_double);
-        transmit_can(&BMW_5F8, can_config.battery_double);
-#endif
-      }
-      // Send 1000ms CAN Message
-      if (currentMillis - previousMillis1000 >= INTERVAL_1_S) {
-        previousMillis1000 = currentMillis;
-
-        BMW_328_counter++;  // Used to increment seconds
-        BMW_328.data.u8[0] = BMW_328_counter;
-        BMW_328.data.u8[1] = BMW_328_counter << 8;
-        BMW_328.data.u8[2] = BMW_328_counter << 16;
-        BMW_328.data.u8[3] = BMW_328_counter << 24;
-
-        BMW_1D0.data.u8[1] = ((BMW_1D0.data.u8[1] & 0xF0) + alive_counter_1000ms);
-        BMW_1D0.data.u8[0] = calculateCRC(BMW_1D0, 8, 0xF9);
-
-        BMW_3F9.data.u8[1] = ((BMW_3F9.data.u8[1] & 0xF0) + alive_counter_1000ms);
-        BMW_3F9.data.u8[0] = calculateCRC(BMW_3F9, 8, 0x38);
-
-        BMW_3EC.data.u8[1] = ((BMW_3EC.data.u8[1] & 0xF0) + alive_counter_1000ms);
-        BMW_3EC.data.u8[0] = calculateCRC(BMW_3EC, 8, 0x53);
-
-        BMW_3A7.data.u8[1] = ((BMW_3A7.data.u8[1] & 0xF0) + alive_counter_1000ms);
-        BMW_3A7.data.u8[0] = calculateCRC(BMW_3A7, 8, 0x05);
-
-        alive_counter_1000ms = increment_alive_counter(alive_counter_1000ms);
-
-        transmit_can(&BMW_3E8, can_config.battery);  //Order comes from CAN logs
-        transmit_can(&BMW_328, can_config.battery);
-        transmit_can(&BMW_3F9, can_config.battery);
-        transmit_can(&BMW_2E2, can_config.battery);
-        transmit_can(&BMW_41D, can_config.battery);
-        transmit_can(&BMW_3D0, can_config.battery);
-        transmit_can(&BMW_3CA, can_config.battery);
-        transmit_can(&BMW_3A7, can_config.battery);
-        transmit_can(&BMW_2CA, can_config.battery);
-        transmit_can(&BMW_3FB, can_config.battery);
-        transmit_can(&BMW_418, can_config.battery);
-        transmit_can(&BMW_1D0, can_config.battery);
-        transmit_can(&BMW_3EC, can_config.battery);
-        transmit_can(&BMW_192, can_config.battery);
-        transmit_can(&BMW_13E, can_config.battery);
-        transmit_can(&BMW_433, can_config.battery);
-#ifdef DOUBLE_BATTERY
-        transmit_can(&BMW_3E8, can_config.battery_double);
-        transmit_can(&BMW_328, can_config.battery_double);
-        transmit_can(&BMW_3F9, can_config.battery_double);
-        transmit_can(&BMW_2E2, can_config.battery_double);
-        transmit_can(&BMW_41D, can_config.battery_double);
-        transmit_can(&BMW_3D0, can_config.battery_double);
-        transmit_can(&BMW_3CA, can_config.battery_double);
-        transmit_can(&BMW_3A7, can_config.battery_double);
-        transmit_can(&BMW_2CA, can_config.battery_double);
-        transmit_can(&BMW_3FB, can_config.battery_double);
-        transmit_can(&BMW_418, can_config.battery_double);
-        transmit_can(&BMW_1D0, can_config.battery_double);
-        transmit_can(&BMW_3EC, can_config.battery_double);
-        transmit_can(&BMW_192, can_config.battery_double);
-        transmit_can(&BMW_13E, can_config.battery_double);
-        transmit_can(&BMW_433, can_config.battery_double);
-#endif
-
-        BMW_433.data.u8[1] = 0x01;  // First 433 message byte1 we send is unique, once we sent initial value send this
-        BMW_3E8.data.u8[0] = 0xF1;  // First 3E8 message byte0 we send is unique, once we sent initial value send this
-
-        next_data = 0;
         switch (cmdState) {
-          case SOC:
-            transmit_can(&BMW_6F1_CELL, can_config.battery);
-#ifdef DOUBLE_BATTERY
-            transmit_can(&BMW_6F1_CELL, can_config.battery_double);
-#endif
-            cmdState = CELL_VOLTAGE_MINMAX;
-            break;
           case CELL_VOLTAGE_MINMAX:
-            transmit_can(&BMW_6F1_SOH, can_config.battery);
-#ifdef DOUBLE_BATTERY
-            transmit_can(&BMW_6F1_SOH, can_config.battery_double);
-#endif
-            cmdState = SOH;
+            if (next_data >= 4) {
+              datalayer.battery.status.cell_min_voltage_mV = (message_data[0] << 8 | message_data[1]);
+              datalayer.battery.status.cell_max_voltage_mV = (message_data[2] << 8 | message_data[3]);
+            }
             break;
           case SOH:
-            transmit_can(&BMW_6F1_CELL_VOLTAGE_AVG, can_config.battery);
-#ifdef DOUBLE_BATTERY
-            transmit_can(&BMW_6F1_CELL_VOLTAGE_AVG, can_config.battery_double);
-#endif
-            cmdState = CELL_VOLTAGE_CELLNO;
-            current_cell_polled = 0;
-
-            break;
-          case CELL_VOLTAGE_CELLNO:
-            current_cell_polled++;
-            if (current_cell_polled > 96) {
-              datalayer.battery.info.number_of_cells = 97;
-              cmdState = CELL_VOLTAGE_CELLNO_LAST;
-            } else {
-              cmdState = CELL_VOLTAGE_CELLNO;
-
-              BMW_6F4_CELL_VOLTAGE_CELLNO.data.u8[6] = current_cell_polled;
-              transmit_can(&BMW_6F4_CELL_VOLTAGE_CELLNO, can_config.battery);
-#ifdef DOUBLE_BATTERY
-              transmit_can(&BMW_6F4_CELL_VOLTAGE_CELLNO, can_config.battery_double);
-#endif
+            if (next_data >= 4) {
+              battery_soh = message_data[3];
+              battery_info_available = true;
             }
             break;
-          case CELL_VOLTAGE_CELLNO_LAST:
-            transmit_can(&BMW_6F1_SOC, can_config.battery);
-#ifdef DOUBLE_BATTERY
-            transmit_can(&BMW_6F1_SOC, can_config.battery_double);
-#endif
-            cmdState = SOC;
+          case SOC:
+            if (next_data >= 6) {
+              battery_soc = (message_data[0] << 8 | message_data[1]);
+              battery_soc_hvmax = (message_data[2] << 8 | message_data[3]);
+              battery_soc_hvmin = (message_data[4] << 8 | message_data[5]);
+            }
             break;
         }
       }
-      // Send 5000ms CAN Message
-      if (currentMillis - previousMillis5000 >= INTERVAL_5_S) {
-        previousMillis5000 = currentMillis;
+      break;
+    default:
+      break;
+  }
+}
+void receive_can_battery2(CAN_frame rx_frame) {
+  switch (rx_frame.ID) {
+    case 0x112:  //BMS [10ms] Status Of High-Voltage Battery - 2
+      battery2_awake = true;
+      datalayer.battery2.status.CAN_battery_still_alive =
+          CAN_STILL_ALIVE;  //This message is only sent if 30C (Wakeup pin on battery) is energized with 12V
+      battery2_current = (rx_frame.data.u8[1] << 8 | rx_frame.data.u8[0]) - 8192;  //deciAmps (-819.2 to 819.0A)
+      battery2_volts = (rx_frame.data.u8[3] << 8 | rx_frame.data.u8[2]);           //500.0 V
+      datalayer.battery2.status.voltage_dV =
+          battery2_volts;  // Update the datalayer as soon as possible with this info, needed for contactor control
+      battery2_HVBatt_SOC = ((rx_frame.data.u8[5] & 0x0F) << 8 | rx_frame.data.u8[4]);
+      battery2_request_open_contactors = (rx_frame.data.u8[5] & 0xC0) >> 6;
+      battery2_request_open_contactors_instantly = (rx_frame.data.u8[6] & 0x03);
+      battery2_request_open_contactors_fast = (rx_frame.data.u8[6] & 0x0C) >> 2;
+      battery2_charging_condition_delta = (rx_frame.data.u8[6] & 0xF0) >> 4;
+      battery2_DC_link_voltage = rx_frame.data.u8[7];
+      break;
+    case 0x1FA:  //BMS [1000ms] Status Of High-Voltage Battery - 1
+      battery2_status_error_isolation_external_Bordnetz = (rx_frame.data.u8[0] & 0x03);
+      battery2_status_error_isolation_internal_Bordnetz = (rx_frame.data.u8[0] & 0x0C) >> 2;
+      battery2_request_cooling = (rx_frame.data.u8[0] & 0x30) >> 4;
+      battery2_status_valve_cooling = (rx_frame.data.u8[0] & 0xC0) >> 6;
+      battery2_status_error_locking = (rx_frame.data.u8[1] & 0x03);
+      battery2_status_precharge_locked = (rx_frame.data.u8[1] & 0x0C) >> 2;
+      battery2_status_disconnecting_switch = (rx_frame.data.u8[1] & 0x30) >> 4;
+      battery2_status_emergency_mode = (rx_frame.data.u8[1] & 0xC0) >> 6;
+      battery2_request_service = (rx_frame.data.u8[2] & 0x03);
+      battery2_error_emergency_mode = (rx_frame.data.u8[2] & 0x0C) >> 2;
+      battery2_status_error_disconnecting_switch = (rx_frame.data.u8[2] & 0x30) >> 4;
+      battery2_status_warning_isolation = (rx_frame.data.u8[2] & 0xC0) >> 6;
+      battery2_status_cold_shutoff_valve = (rx_frame.data.u8[3] & 0x0F);
+      battery2_temperature_HV = (rx_frame.data.u8[4] - 50);
+      battery2_temperature_heat_exchanger = (rx_frame.data.u8[5] - 50);
+      battery2_temperature_min = (rx_frame.data.u8[6] - 50);
+      battery2_temperature_max = (rx_frame.data.u8[7] - 50);
+      break;
+    case 0x239:                                                                                       //BMS [200ms]
+      battery2_predicted_energy_charge_condition = (rx_frame.data.u8[2] << 8 | rx_frame.data.u8[1]);  //Wh
+      battery2_predicted_energy_charging_target = ((rx_frame.data.u8[4] << 8 | rx_frame.data.u8[3]) * 0.02);  //kWh
+      break;
+    case 0x2BD:  //BMS [100ms] Status diagnosis high voltage - 1
+      battery2_awake = true;
+      if (!skipCRCCheck_battery2) {
+        if (calculateCRC(rx_frame, rx_frame.DLC, 0x15) != rx_frame.data.u8[0]) {
+          // If calculated CRC does not match transmitted CRC, increase CANerror counter
+          datalayer.battery2.status.CAN_error_counter++;
 
-        BMW_3FC.data.u8[1] = ((BMW_3FC.data.u8[1] & 0xF0) + alive_counter_5000ms);
-        BMW_3C5.data.u8[0] = ((BMW_3C5.data.u8[0] & 0xF0) + alive_counter_5000ms);
-
-        transmit_can(&BMW_3FC, can_config.battery);  //Order comes from CAN logs
-        transmit_can(&BMW_3C5, can_config.battery);
-        transmit_can(&BMW_3A0, can_config.battery);
-        transmit_can(&BMW_592_0, can_config.battery);
-        transmit_can(&BMW_592_1, can_config.battery);
-#ifdef DOUBLE_BATTERY
-        transmit_can(&BMW_3FC, can_config.battery_double);
-        transmit_can(&BMW_3C5, can_config.battery_double);
-        transmit_can(&BMW_3A0, can_config.battery_double);
-        transmit_can(&BMW_592_0, can_config.battery_double);
-        transmit_can(&BMW_592_1, can_config.battery_double);
-#endif
-
-        alive_counter_5000ms = increment_alive_counter(alive_counter_5000ms);
-
-        if (BMW_380_counter < 3) {
-          transmit_can(&BMW_380, can_config.battery);  // This message stops after 3 times on startup
-#ifdef DOUBLE_BATTERY
-          transmit_can(&BMW_380, can_config.battery_double);
-#endif
-          BMW_380_counter++;
+          // If the CRC check has never passed before, set the flag to skip future checks. Some SMEs have differing CRC checks.
+          if (!CRCCheckPassedPreviously_battery2) {
+            skipCRCCheck_battery2 = true;
+          }
+          break;
+        } else {
+          // If CRC check passes, update the flag
+          CRCCheckPassedPreviously_battery2 = true;
         }
       }
-      // Send 10000ms CAN Message
-      if (currentMillis - previousMillis10000 >= INTERVAL_10_S) {
-        previousMillis10000 = currentMillis;
 
-        transmit_can(&BMW_3E5, can_config.battery);  //Order comes from CAN logs
-        transmit_can(&BMW_3E4, can_config.battery);
-        transmit_can(&BMW_37B, can_config.battery);
-#ifdef DOUBLE_BATTERY
-        transmit_can(&BMW_3E5, can_config.battery_double);
-        transmit_can(&BMW_3E4, can_config.battery_double);
-        transmit_can(&BMW_37B, can_config.battery_double);
-#endif
-
-        BMW_3E5.data.u8[0] = 0xFD;  // First 3E5 message byte0 we send is unique, once we sent initial value send this
+      // Process the data since CRC check is either passed or skipped
+      battery2_status_diagnostics_HV = (rx_frame.data.u8[2] & 0x0F);
+      break;
+    case 0x2F5:  //BMS [100ms] High-Voltage Battery Charge/Discharge Limitations
+      battery2_max_charge_voltage = (rx_frame.data.u8[1] << 8 | rx_frame.data.u8[0]);
+      battery2_max_charge_amperage = (((rx_frame.data.u8[3] << 8) | rx_frame.data.u8[2]) - 819.2);
+      battery2_min_discharge_voltage = (rx_frame.data.u8[5] << 8 | rx_frame.data.u8[4]);
+      battery2_max_discharge_amperage = (((rx_frame.data.u8[7] << 8) | rx_frame.data.u8[6]) - 819.2);
+      break;
+    case 0x2FF:  //BMS [100ms] Status Heating High-Voltage Battery
+      battery2_awake = true;
+      battery2_actual_value_power_heating = (rx_frame.data.u8[1] << 4 | rx_frame.data.u8[0] >> 4);
+      break;
+    case 0x363:  //BMS [1s] Identification High-Voltage Battery
+      battery2_serial_number =
+          (rx_frame.data.u8[3] << 24 | rx_frame.data.u8[2] << 16 | rx_frame.data.u8[1] << 8 | rx_frame.data.u8[0]);
+      break;
+    case 0x3C2:  //BMS (94AH exclusive) - Status diagnostics OBD 2 powertrain
+      battery2_status_diagnosis_powertrain_maximum_multiplexer =
+          ((rx_frame.data.u8[1] & 0x03) << 4 | rx_frame.data.u8[0] >> 4);
+      battery2_status_diagnosis_powertrain_immediate_multiplexer = (rx_frame.data.u8[0] & 0xFC) >> 2;
+      break;
+    case 0x3EB:  //BMS [1s] Status of charging high-voltage storage - 3
+      battery2_available_power_shortterm_charge = (rx_frame.data.u8[1] << 8 | rx_frame.data.u8[0]) * 3;
+      battery2_available_power_shortterm_discharge = (rx_frame.data.u8[3] << 8 | rx_frame.data.u8[2]) * 3;
+      battery2_available_power_longterm_charge = (rx_frame.data.u8[5] << 8 | rx_frame.data.u8[4]) * 3;
+      battery2_available_power_longterm_discharge = (rx_frame.data.u8[7] << 8 | rx_frame.data.u8[6]) * 3;
+      break;
+    case 0x40D:  //BMS [1s] Charging status of high-voltage storage - 1
+      battery2_BEV_available_power_shortterm_charge = (rx_frame.data.u8[1] << 8 | rx_frame.data.u8[0]) * 3;
+      battery2_BEV_available_power_shortterm_discharge = (rx_frame.data.u8[3] << 8 | rx_frame.data.u8[2]) * 3;
+      battery2_BEV_available_power_longterm_charge = (rx_frame.data.u8[5] << 8 | rx_frame.data.u8[4]) * 3;
+      battery2_BEV_available_power_longterm_discharge = (rx_frame.data.u8[7] << 8 | rx_frame.data.u8[6]) * 3;
+      break;
+    case 0x41C:  //BMS [1s] Operating Mode Status Of Hybrid - 2
+      battery2_status_cooling_HV = (rx_frame.data.u8[1] & 0x03);
+      break;
+    case 0x426:  // TODO: Figure out how to trigger sending of this. Does the SME require some CAN command?
+      battery2_cellvoltage_mux = rx_frame.data.u8[0];
+      if (battery2_cellvoltage_mux == 0) {
+        datalayer.battery2.status.cell_voltages_mV[0] = ((rx_frame.data.u8[1] * 10) + 1800);
+        datalayer.battery2.status.cell_voltages_mV[1] = ((rx_frame.data.u8[2] * 10) + 1800);
+        datalayer.battery2.status.cell_voltages_mV[2] = ((rx_frame.data.u8[3] * 10) + 1800);
+        datalayer.battery2.status.cell_voltages_mV[3] = ((rx_frame.data.u8[4] * 10) + 1800);
+        datalayer.battery2.status.cell_voltages_mV[4] = ((rx_frame.data.u8[5] * 10) + 1800);
+        datalayer.battery2.status.cell_voltages_mV[5] = ((rx_frame.data.u8[6] * 10) + 1800);
+        datalayer.battery2.status.cell_voltages_mV[5] = ((rx_frame.data.u8[7] * 10) + 1800);
       }
-    } else {
-      previousMillis20 = currentMillis;
-      previousMillis100 = currentMillis;
-      previousMillis200 = currentMillis;
-      previousMillis500 = currentMillis;
-      previousMillis640 = currentMillis;
-      previousMillis1000 = currentMillis;
-      previousMillis5000 = currentMillis;
-      previousMillis10000 = currentMillis;
-    }
-  }
+      break;
+    case 0x430:  //BMS [1s] - Charging status of high-voltage battery - 2
+      battery2_prediction_voltage_shortterm_charge = (rx_frame.data.u8[1] << 8 | rx_frame.data.u8[0]);
+      battery2_prediction_voltage_shortterm_discharge = (rx_frame.data.u8[3] << 8 | rx_frame.data.u8[2]);
+      battery2_prediction_voltage_longterm_charge = (rx_frame.data.u8[5] << 8 | rx_frame.data.u8[4]);
+      battery2_prediction_voltage_longterm_discharge = (rx_frame.data.u8[7] << 8 | rx_frame.data.u8[6]);
+      break;
+    case 0x431:  //BMS [200ms] Data High-Voltage Battery Unit
+      battery2_status_service_disconnection_plug = (rx_frame.data.u8[0] & 0x0F);
+      battery2_status_measurement_isolation = (rx_frame.data.u8[0] & 0x0C) >> 2;
+      battery2_request_abort_charging = (rx_frame.data.u8[0] & 0x30) >> 4;
+      battery2_prediction_duration_charging_minutes = (rx_frame.data.u8[3] << 8 | rx_frame.data.u8[2]);
+      battery2_prediction_time_end_of_charging_minutes = rx_frame.data.u8[4];
+      battery2_energy_content_maximum_kWh = (((rx_frame.data.u8[6] & 0x0F) << 8 | rx_frame.data.u8[5])) / 50;
+      break;
+    case 0x432:  //BMS [200ms] SOC% info
+      battery2_request_operating_mode = (rx_frame.data.u8[0] & 0x03);
+      battery2_target_voltage_in_CV_mode = ((rx_frame.data.u8[1] << 4 | rx_frame.data.u8[0] >> 4)) / 10;
+      battery2_request_charging_condition_minimum = (rx_frame.data.u8[2] / 2);
+      battery2_request_charging_condition_maximum = (rx_frame.data.u8[3] / 2);
+      battery2_display_SOC = rx_frame.data.u8[4];
+      break;
+    case 0x507:  //BMS [640ms] Network Management - 2 - This message is sent on the bus for sleep coordination purposes
+      break;
+    case 0x587:  //BMS [5s] Services
+      battery2_ID2 = rx_frame.data.u8[0];
+      break;
+    case 0x607:  //BMS - responses to message requests on 0x615
+      if (rx_frame.DLC > 6 && next_data == 0 && rx_frame.data.u8[0] == 0xf1) {
+        uint8_t count2 = 6;
+        while (count2 < rx_frame.DLC && next_data < 49) {
+          message_data[next_data++] = rx_frame.data.u8[count2++];
+        }
+        transmit_can(&BMW_6F1_CONTINUE, can_config.battery_double);
 
-  void setup_battery(void) {  // Performs one time setup at startup
-#ifdef DEBUG_VIA_USB
-    Serial.println("BMW i3 battery selected");
+      } else if (rx_frame.DLC > 3 && next_data > 0 && rx_frame.data.u8[0] == 0xf1 &&
+                 ((rx_frame.data.u8[1] & 0xF0) == 0x20)) {
+        uint8_t count2 = 2;
+        while (count2 < rx_frame.DLC && next_data < 49) {
+          message_data[next_data++] = rx_frame.data.u8[count2++];
+        }
+
+        switch (cmdState) {
+          case CELL_VOLTAGE_MINMAX:
+            if (next_data >= 4) {
+              datalayer.battery2.status.cell_min_voltage_mV = (message_data[0] << 8 | message_data[1]);
+              datalayer.battery2.status.cell_max_voltage_mV = (message_data[2] << 8 | message_data[3]);
+            }
+            break;
+          case SOH:
+            if (next_data >= 4) {
+              battery2_soh = message_data[3];
+              battery2_info_available = true;
+            }
+            break;
+          case SOC:
+            if (next_data >= 6) {
+              battery2_soc = (message_data[0] << 8 | message_data[1]);
+              battery2_soc_hvmax = (message_data[2] << 8 | message_data[3]);
+              battery2_soc_hvmin = (message_data[4] << 8 | message_data[5]);
+            }
+            break;
+        }
+      }
+      break;
+    default:
+      break;
+  }
+}
+void send_can_battery() {
+  unsigned long currentMillis = millis();
+
+  if (battery_awake) {
+    //Send 20ms message
+    if (currentMillis - previousMillis20 >= INTERVAL_20_MS) {
+      // Check if sending of CAN messages has been delayed too much.
+      if ((currentMillis - previousMillis20 >= INTERVAL_20_MS_DELAYED) && (currentMillis > BOOTUP_TIME)) {
+        set_event(EVENT_CAN_OVERRUN, (currentMillis - previousMillis20));
+      } else {
+        clear_event(EVENT_CAN_OVERRUN);
+      }
+      previousMillis20 = currentMillis;
+
+      if (startup_counter_contactor < 160) {
+        startup_counter_contactor++;
+      } else {                      //After 160 messages, turn on the request
+        BMW_10B.data.u8[1] = 0x10;  // Close contactors
+      }
+
+      BMW_10B.data.u8[1] = ((BMW_10B.data.u8[1] & 0xF0) + alive_counter_20ms);
+      BMW_10B.data.u8[0] = calculateCRC(BMW_10B, 3, 0x3F);
+
+      alive_counter_20ms = increment_alive_counter(alive_counter_20ms);
+
+      BMW_13E_counter++;
+      BMW_13E.data.u8[4] = BMW_13E_counter;
+
+      if (datalayer.battery.status.bms_status == FAULT) {
+      }  //If battery is not in Fault mode, allow contactor to close by sending 10B
+      else {
+        transmit_can(&BMW_10B, can_config.battery);
+      }
+
+#ifdef DOUBLE_BATTERY  //If second battery is allowed to join in, also send 10B
+      if (datalayer.system.status.battery2_allows_contactor_closing == true) {
+        transmit_can(&BMW_10B, can_config.battery_double);
+      }
+#endif
+    }
+    // Send 100ms CAN Message
+    if (currentMillis - previousMillis100 >= INTERVAL_100_MS) {
+      previousMillis100 = currentMillis;
+
+      BMW_12F.data.u8[1] = ((BMW_12F.data.u8[1] & 0xF0) + alive_counter_100ms);
+      BMW_12F.data.u8[0] = calculateCRC(BMW_12F, 8, 0x60);
+
+      alive_counter_100ms = increment_alive_counter(alive_counter_100ms);
+
+      transmit_can(&BMW_12F, can_config.battery);
+#ifdef DOUBLE_BATTERY
+      transmit_can(&BMW_12F, can_config.battery_double);
+#endif
+    }
+    // Send 200ms CAN Message
+    if (currentMillis - previousMillis200 >= INTERVAL_200_MS) {
+      previousMillis200 = currentMillis;
+
+      BMW_19B.data.u8[1] = ((BMW_19B.data.u8[1] & 0xF0) + alive_counter_200ms);
+      BMW_19B.data.u8[0] = calculateCRC(BMW_19B, 8, 0x6C);
+
+      alive_counter_200ms = increment_alive_counter(alive_counter_200ms);
+
+      transmit_can(&BMW_19B, can_config.battery);
+#ifdef DOUBLE_BATTERY
+      transmit_can(&BMW_19B, can_config.battery_double);
+#endif
+    }
+    // Send 500ms CAN Message
+    if (currentMillis - previousMillis500 >= INTERVAL_500_MS) {
+      previousMillis500 = currentMillis;
+
+      BMW_30B.data.u8[1] = ((BMW_30B.data.u8[1] & 0xF0) + alive_counter_500ms);
+      BMW_30B.data.u8[0] = calculateCRC(BMW_30B, 8, 0xBE);
+
+      alive_counter_500ms = increment_alive_counter(alive_counter_500ms);
+
+      transmit_can(&BMW_30B, can_config.battery);
+#ifdef DOUBLE_BATTERY
+      transmit_can(&BMW_30B, can_config.battery_double);
+#endif
+    }
+    // Send 640ms CAN Message
+    if (currentMillis - previousMillis640 >= INTERVAL_640_MS) {
+      previousMillis640 = currentMillis;
+
+      transmit_can(&BMW_512, can_config.battery);  // Keep BMS alive
+      transmit_can(&BMW_5F8, can_config.battery);
+#ifdef DOUBLE_BATTERY
+      transmit_can(&BMW_512, can_config.battery_double);
+      transmit_can(&BMW_5F8, can_config.battery_double);
+#endif
+    }
+    // Send 1000ms CAN Message
+    if (currentMillis - previousMillis1000 >= INTERVAL_1_S) {
+      previousMillis1000 = currentMillis;
+
+      BMW_328_counter++;  // Used to increment seconds
+      BMW_328.data.u8[0] = BMW_328_counter;
+      BMW_328.data.u8[1] = BMW_328_counter << 8;
+      BMW_328.data.u8[2] = BMW_328_counter << 16;
+      BMW_328.data.u8[3] = BMW_328_counter << 24;
+
+      BMW_1D0.data.u8[1] = ((BMW_1D0.data.u8[1] & 0xF0) + alive_counter_1000ms);
+      BMW_1D0.data.u8[0] = calculateCRC(BMW_1D0, 8, 0xF9);
+
+      BMW_3F9.data.u8[1] = ((BMW_3F9.data.u8[1] & 0xF0) + alive_counter_1000ms);
+      BMW_3F9.data.u8[0] = calculateCRC(BMW_3F9, 8, 0x38);
+
+      BMW_3EC.data.u8[1] = ((BMW_3EC.data.u8[1] & 0xF0) + alive_counter_1000ms);
+      BMW_3EC.data.u8[0] = calculateCRC(BMW_3EC, 8, 0x53);
+
+      BMW_3A7.data.u8[1] = ((BMW_3A7.data.u8[1] & 0xF0) + alive_counter_1000ms);
+      BMW_3A7.data.u8[0] = calculateCRC(BMW_3A7, 8, 0x05);
+
+      alive_counter_1000ms = increment_alive_counter(alive_counter_1000ms);
+
+      transmit_can(&BMW_3E8, can_config.battery);  //Order comes from CAN logs
+      transmit_can(&BMW_328, can_config.battery);
+      transmit_can(&BMW_3F9, can_config.battery);
+      transmit_can(&BMW_2E2, can_config.battery);
+      transmit_can(&BMW_41D, can_config.battery);
+      transmit_can(&BMW_3D0, can_config.battery);
+      transmit_can(&BMW_3CA, can_config.battery);
+      transmit_can(&BMW_3A7, can_config.battery);
+      transmit_can(&BMW_2CA, can_config.battery);
+      transmit_can(&BMW_3FB, can_config.battery);
+      transmit_can(&BMW_418, can_config.battery);
+      transmit_can(&BMW_1D0, can_config.battery);
+      transmit_can(&BMW_3EC, can_config.battery);
+      transmit_can(&BMW_192, can_config.battery);
+      transmit_can(&BMW_13E, can_config.battery);
+      transmit_can(&BMW_433, can_config.battery);
+#ifdef DOUBLE_BATTERY
+      transmit_can(&BMW_3E8, can_config.battery_double);
+      transmit_can(&BMW_328, can_config.battery_double);
+      transmit_can(&BMW_3F9, can_config.battery_double);
+      transmit_can(&BMW_2E2, can_config.battery_double);
+      transmit_can(&BMW_41D, can_config.battery_double);
+      transmit_can(&BMW_3D0, can_config.battery_double);
+      transmit_can(&BMW_3CA, can_config.battery_double);
+      transmit_can(&BMW_3A7, can_config.battery_double);
+      transmit_can(&BMW_2CA, can_config.battery_double);
+      transmit_can(&BMW_3FB, can_config.battery_double);
+      transmit_can(&BMW_418, can_config.battery_double);
+      transmit_can(&BMW_1D0, can_config.battery_double);
+      transmit_can(&BMW_3EC, can_config.battery_double);
+      transmit_can(&BMW_192, can_config.battery_double);
+      transmit_can(&BMW_13E, can_config.battery_double);
+      transmit_can(&BMW_433, can_config.battery_double);
 #endif
 
-    //Before we have started up and detected which battery is in use, use 60AH values
-    datalayer.battery.info.max_design_voltage_dV = MAX_PACK_VOLTAGE_60AH;
-    datalayer.battery.info.min_design_voltage_dV = MIN_PACK_VOLTAGE_60AH;
+      BMW_433.data.u8[1] = 0x01;  // First 433 message byte1 we send is unique, once we sent initial value send this
+      BMW_3E8.data.u8[0] = 0xF1;  // First 3E8 message byte0 we send is unique, once we sent initial value send this
 
-    datalayer.system.status.battery_allows_contactor_closing = true;
+      next_data = 0;
+      switch (cmdState) {
+        case SOC:
+          transmit_can(&BMW_6F1_CELL, can_config.battery);
+#ifdef DOUBLE_BATTERY
+          transmit_can(&BMW_6F1_CELL, can_config.battery_double);
+#endif
+          cmdState = CELL_VOLTAGE_MINMAX;
+          break;
+        case CELL_VOLTAGE_MINMAX:
+          transmit_can(&BMW_6F1_SOH, can_config.battery);
+#ifdef DOUBLE_BATTERY
+          transmit_can(&BMW_6F1_SOH, can_config.battery_double);
+#endif
+          cmdState = SOH;
+          break;
+        case SOH:
+          transmit_can(&BMW_6F1_CELL_VOLTAGE_AVG, can_config.battery);
+#ifdef DOUBLE_BATTERY
+          transmit_can(&BMW_6F1_CELL_VOLTAGE_AVG, can_config.battery_double);
+#endif
+          cmdState = CELL_VOLTAGE_CELLNO;
+          current_cell_polled = 0;
+
+          break;
+        case CELL_VOLTAGE_CELLNO:
+          current_cell_polled++;
+          if (current_cell_polled > 96) {
+            datalayer.battery.info.number_of_cells = 97;
+            cmdState = CELL_VOLTAGE_CELLNO_LAST;
+          } else {
+            cmdState = CELL_VOLTAGE_CELLNO;
+
+            BMW_6F4_CELL_VOLTAGE_CELLNO.data.u8[6] = current_cell_polled;
+            transmit_can(&BMW_6F4_CELL_VOLTAGE_CELLNO, can_config.battery);
+#ifdef DOUBLE_BATTERY
+            transmit_can(&BMW_6F4_CELL_VOLTAGE_CELLNO, can_config.battery_double);
+#endif
+          }
+          break;
+        case CELL_VOLTAGE_CELLNO_LAST:
+          transmit_can(&BMW_6F1_SOC, can_config.battery);
+#ifdef DOUBLE_BATTERY
+          transmit_can(&BMW_6F1_SOC, can_config.battery_double);
+#endif
+          cmdState = SOC;
+          break;
+      }
+    }
+    // Send 5000ms CAN Message
+    if (currentMillis - previousMillis5000 >= INTERVAL_5_S) {
+      previousMillis5000 = currentMillis;
+
+      BMW_3FC.data.u8[1] = ((BMW_3FC.data.u8[1] & 0xF0) + alive_counter_5000ms);
+      BMW_3C5.data.u8[0] = ((BMW_3C5.data.u8[0] & 0xF0) + alive_counter_5000ms);
+
+      transmit_can(&BMW_3FC, can_config.battery);  //Order comes from CAN logs
+      transmit_can(&BMW_3C5, can_config.battery);
+      transmit_can(&BMW_3A0, can_config.battery);
+      transmit_can(&BMW_592_0, can_config.battery);
+      transmit_can(&BMW_592_1, can_config.battery);
+#ifdef DOUBLE_BATTERY
+      transmit_can(&BMW_3FC, can_config.battery_double);
+      transmit_can(&BMW_3C5, can_config.battery_double);
+      transmit_can(&BMW_3A0, can_config.battery_double);
+      transmit_can(&BMW_592_0, can_config.battery_double);
+      transmit_can(&BMW_592_1, can_config.battery_double);
+#endif
+
+      alive_counter_5000ms = increment_alive_counter(alive_counter_5000ms);
+
+      if (BMW_380_counter < 3) {
+        transmit_can(&BMW_380, can_config.battery);  // This message stops after 3 times on startup
+#ifdef DOUBLE_BATTERY
+        transmit_can(&BMW_380, can_config.battery_double);
+#endif
+        BMW_380_counter++;
+      }
+    }
+    // Send 10000ms CAN Message
+    if (currentMillis - previousMillis10000 >= INTERVAL_10_S) {
+      previousMillis10000 = currentMillis;
+
+      transmit_can(&BMW_3E5, can_config.battery);  //Order comes from CAN logs
+      transmit_can(&BMW_3E4, can_config.battery);
+      transmit_can(&BMW_37B, can_config.battery);
+#ifdef DOUBLE_BATTERY
+      transmit_can(&BMW_3E5, can_config.battery_double);
+      transmit_can(&BMW_3E4, can_config.battery_double);
+      transmit_can(&BMW_37B, can_config.battery_double);
+#endif
+
+      BMW_3E5.data.u8[0] = 0xFD;  // First 3E5 message byte0 we send is unique, once we sent initial value send this
+    }
+  } else {
+    previousMillis20 = currentMillis;
+    previousMillis100 = currentMillis;
+    previousMillis200 = currentMillis;
+    previousMillis500 = currentMillis;
+    previousMillis640 = currentMillis;
+    previousMillis1000 = currentMillis;
+    previousMillis5000 = currentMillis;
+    previousMillis10000 = currentMillis;
+  }
+}
+
+void setup_battery(void) {  // Performs one time setup at startup
+#ifdef DEBUG_VIA_USB
+  Serial.println("BMW i3 battery selected");
+#endif
+
+  //Before we have started up and detected which battery is in use, use 60AH values
+  datalayer.battery.info.max_design_voltage_dV = MAX_PACK_VOLTAGE_60AH;
+  datalayer.battery.info.min_design_voltage_dV = MIN_PACK_VOLTAGE_60AH;
+
+  datalayer.system.status.battery_allows_contactor_closing = true;
 
 #ifdef DOUBLE_BATTERY
-    Serial.println("Another BMW i3 battery also selected!");
-    datalayer.battery2.info.max_design_voltage_dV = datalayer.battery.info.max_design_voltage_dV;
-    datalayer.battery2.info.min_design_voltage_dV = datalayer.battery.info.min_design_voltage_dV;
-    datalayer.battery2.status.voltage_dV =
-        0;  //Init voltage to 0 to allow contactor check to operate without fear of default values colliding
+  Serial.println("Another BMW i3 battery also selected!");
+  datalayer.battery2.info.max_design_voltage_dV = datalayer.battery.info.max_design_voltage_dV;
+  datalayer.battery2.info.min_design_voltage_dV = datalayer.battery.info.min_design_voltage_dV;
+  datalayer.battery2.status.voltage_dV =
+      0;  //Init voltage to 0 to allow contactor check to operate without fear of default values colliding
 #endif
-    pinMode(WUP_PIN, OUTPUT);
-    digitalWrite(WUP_PIN, HIGH);  // Wake up the battery
-  }
+  pinMode(WUP_PIN, OUTPUT);
+  digitalWrite(WUP_PIN, HIGH);  // Wake up the battery
+}
 
 #endif
