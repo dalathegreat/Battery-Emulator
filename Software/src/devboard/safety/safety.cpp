@@ -199,10 +199,11 @@ void setBatteryPause(bool pause_battery, bool pause_CAN) {
 
   } else {
     clear_event(EVENT_PAUSE_BEGIN);
-    set_event(EVENT_PAUSE_END, 1);
+    set_event(EVENT_PAUSE_END, 0);
     emulator_pause_request_ON = false;
     emulator_pause_CAN_send_ON = false;
     emulator_pause_status = RESUMING;
+    clear_event(EVENT_PAUSE_END);
   }
 }
 
