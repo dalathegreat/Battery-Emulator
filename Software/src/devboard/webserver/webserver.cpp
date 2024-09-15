@@ -573,18 +573,12 @@ String processor(const String& var) {
 #ifdef SERIAL_LINK_RECEIVER
     content += "Serial link to another LilyGo board";
 #endif  // SERIAL_LINK_RECEIVER
-#ifdef TESLA_MODEL_S_BATTERY
-    content += "Tesla Model S";
-#endif  // TESLA_MODEL_S_BATTERY
-#ifdef TESLA_MODEL_3_BATTERY
-    content += "Tesla Model 3";
-#endif  // TESLA_MODEL_3_BATTERY
-#ifdef TESLA_MODEL_X_BATTERY
-    content += "Tesla Model X";
-#endif  // TESLA_MODEL_X_BATTERY
-#ifdef TESLA_MODEL_Y_BATTERY
-    content += "Tesla Model Y";
-#endif  // TESLA_MODEL_Y_BATTERY
+#ifdef TESLA_MODEL_SX_BATTERY
+    content += "Tesla Model S/X";
+#endif  // TESLA_MODEL_SX_BATTERY
+#ifdef TESLA_MODEL_3Y_BATTERY
+    content += "Tesla Model 3/Y";
+#endif  // TESLA_MODEL_3Y_BATTERY
 #ifdef VOLVO_SPA_BATTERY
     content += "Volvo / Polestar 78kWh battery";
 #endif  // VOLVO_SPA_BATTERY

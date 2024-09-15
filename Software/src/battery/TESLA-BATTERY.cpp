@@ -327,7 +327,7 @@ void update_values_battery() {  //This function maps all the values fetched via 
 
   battery_cell_deviation_mV = (battery_cell_max_v - battery_cell_min_v);
 
-#if defined(TESLA_MODEL_3_BATTERY) || defined(TESLA_MODEL_Y_BATTERY)
+#ifdef TESLA_MODEL_3Y_BATTERY
   // Autodetect algoritm for chemistry on 3/Y packs.
   // NCM/A batteries have 96s, LFP has 102-106s
   // Drawback with this check is that it takes 3-5minutes before all cells have been counted!
@@ -343,7 +343,7 @@ void update_values_battery() {  //This function maps all the values fetched via 
     datalayer.battery.info.max_design_voltage_dV = MAX_PACK_VOLTAGE_3Y_NCMA;
     datalayer.battery.info.min_design_voltage_dV = MIN_PACK_VOLTAGE_3Y_NCMA;
   }
-#endif  // TESLA_MODEL_3_BATTERY || TESLA_MODEL_Y_BATTERY
+#endif  // TESLA_MODEL_3Y_BATTERY
 
   //Check if SOC% is plausible
   if (datalayer.battery.status.voltage_dV >
@@ -909,7 +909,7 @@ void update_values_battery2() {  //This function maps all the values fetched via
 
   battery2_cell_deviation_mV = (battery2_cell_max_v - battery2_cell_min_v);
 
-#if defined(TESLA_MODEL_3_BATTERY) || defined(TESLA_MODEL_Y_BATTERY)
+#ifdef TESLA_MODEL_3Y_BATTERY
   // Autodetect algoritm for chemistry on 3/Y packs.
   // NCM/A batteries have 96s, LFP has 102-106s
   // Drawback with this check is that it takes 3-5minutes before all cells have been counted!
@@ -926,7 +926,7 @@ void update_values_battery2() {  //This function maps all the values fetched via
     datalayer.battery2.info.min_design_voltage_dV = MIN_PACK_VOLTAGE_3Y_NCMA;
   }
 
-#endif  // TESLA_MODEL_3_BATTERY || TESLA_MODEL_Y_BATTERY
+#endif  // TESLA_MODEL_3Y_BATTERY
 
   //Check if SOC% is plausible
   if (datalayer.battery2.status.voltage_dV >
@@ -1251,16 +1251,16 @@ void setup_battery(void) {  // Performs one time setup at startup
 
   datalayer.system.status.battery_allows_contactor_closing = true;
 
-#if defined(TESLA_MODEL_S_BATTERY) || defined(TESLA_MODEL_X_BATTERY)  // Always use NCM/A mode on S/X packs
+#ifdef TESLA_MODEL_SX_BATTERY  // Always use NCM/A mode on S/X packs
   datalayer.battery.info.max_design_voltage_dV = MAX_PACK_VOLTAGE_SX_NCMA;
   datalayer.battery.info.min_design_voltage_dV = MIN_PACK_VOLTAGE_SX_NCMA;
 #ifdef DOUBLE_BATTERY
   datalayer.battery2.info.max_design_voltage_dV = MAX_PACK_VOLTAGE_SX_NCMA;
   datalayer.battery2.info.min_design_voltage_dV = MIN_PACK_VOLTAGE_SX_NCMA;
 #endif  // DOUBLE_BATTERY
-#endif  // TESLA_MODEL_S_BATTERY || TESLA_MODEL_X_BATTERY
+#endif  // TESLA_MODEL_SX_BATTERY
 
-#if defined(TESLA_MODEL_3_BATTERY) || defined(TESLA_MODEL_Y_BATTERY)  // Model 3/Y can be either LFP or NCM/A
+#ifdef TESLA_MODEL_3Y_BATTERY  // Model 3/Y can be either LFP or NCM/A
 #ifdef LFP_CHEMISTRY
   datalayer.battery.info.chemistry = battery_chemistry_enum::LFP;
   datalayer.battery.info.max_design_voltage_dV = MAX_PACK_VOLTAGE_3Y_LFP;
@@ -1278,7 +1278,7 @@ void setup_battery(void) {  // Performs one time setup at startup
   datalayer.battery2.info.min_design_voltage_dV = MIN_PACK_VOLTAGE_3Y_NCMA;
 #endif  // DOUBLE_BATTERY
 #endif  // !LFP_CHEMISTRY
-#endif  // TESLA_MODEL_3_BATTERY || TESLA_MODEL_Y_BATTERY
+#endif  // TESLA_MODEL_3Y_BATTERY
 }
 
 #endif  // TESLA_BATTERY
