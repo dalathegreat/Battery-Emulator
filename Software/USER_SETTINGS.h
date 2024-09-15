@@ -23,10 +23,8 @@
 //#define RENAULT_ZOE_GEN1_BATTERY
 //#define RENAULT_ZOE_GEN2_BATTERY
 //#define SANTA_FE_PHEV_BATTERY
-//#define TESLA_MODEL_S_BATTERY
-//#define TESLA_MODEL_3_BATTERY
-//#define TESLA_MODEL_X_BATTERY
-//#define TESLA_MODEL_Y_BATTERY
+//#define TESLA_MODEL_SX_BATTERY
+//#define TESLA_MODEL_3Y_BATTERY
 //#define VOLVO_SPA_BATTERY
 //#define TEST_FAKE_BATTERY
 //#define DOUBLE_BATTERY  //Enable this line if you use two identical batteries at the same time (requires DUAL_CAN setup)
