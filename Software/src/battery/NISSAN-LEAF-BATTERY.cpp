@@ -228,10 +228,9 @@ void update_values_battery() { /* This function maps all the values fetched via 
     }
   }
 
-  if (!emulator_pause_request_ON) {
-    datalayer.battery.status.max_discharge_power_W = (battery_Discharge_Power_Limit * 1000);  //kW to W
-    datalayer.battery.status.max_charge_power_W = (battery_Charge_Power_Limit * 1000);        //kW to W
-  }
+  datalayer.battery.status.max_discharge_power_W = (battery_Discharge_Power_Limit * 1000);  //kW to W
+
+  datalayer.battery.status.max_charge_power_W = (battery_Charge_Power_Limit * 1000);  //kW to W
 
   /*Extra safety functions below*/
   if (battery_GIDS < 10)  //700Wh left in battery!
@@ -380,10 +379,9 @@ void update_values_battery2() {  // Handle the values coming in from battery #2
     }
   }
 
-  if (!emulator_pause_request_ON) {
-    datalayer.battery2.status.max_discharge_power_W = (battery2_Discharge_Power_Limit * 1000);  //kW to W
-    datalayer.battery2.status.max_charge_power_W = (battery2_Charge_Power_Limit * 1000);        //kW to W
-  }
+  datalayer.battery2.status.max_discharge_power_W = (battery2_Discharge_Power_Limit * 1000);  //kW to W
+
+  datalayer.battery2.status.max_charge_power_W = (battery2_Charge_Power_Limit * 1000);  //kW to W
 
   /*Extra safety functions below*/
   if (battery2_GIDS < 10)  //700Wh left in battery!

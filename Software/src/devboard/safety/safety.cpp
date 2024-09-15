@@ -20,6 +20,12 @@ battery_pause_status emulator_pause_status = NORMAL;
 void update_machineryprotection() {
   // Start checking that the battery is within reason. Incase we see any funny business, raise an event!
 
+  // Pause function is on
+  if (emulator_pause_request_ON) {
+    datalayer.battery.status.max_discharge_power_W = 0;
+    datalayer.battery.status.max_charge_power_W = 0;
+  }
+
   // Battery is overheated!
   if (datalayer.battery.status.temperature_max_dC > 500) {
     set_event(EVENT_BATTERY_OVERHEAT, datalayer.battery.status.temperature_max_dC);
@@ -146,6 +152,13 @@ void update_machineryprotection() {
 
 #ifdef DOUBLE_BATTERY  // Additional Double-Battery safeties are checked here
   // Check if the Battery 2 BMS is still sending CAN messages. If we go 60s without messages we raise an error
+
+  // Pause function is on
+  if (emulator_pause_request_ON) {
+    datalayer.battery2.status.max_discharge_power_W = 0;
+    datalayer.battery2.status.max_charge_power_W = 0;
+  }
+
   if (!datalayer.battery2.status.CAN_battery_still_alive) {
     set_event(EVENT_CAN2_RX_FAILURE, 0);
   } else {

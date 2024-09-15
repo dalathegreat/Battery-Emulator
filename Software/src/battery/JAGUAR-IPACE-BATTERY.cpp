@@ -89,11 +89,11 @@ void update_values_battery() {
 
   datalayer.battery.status.temperature_max_dC = HVBattCellTempHottest * 10;  // C to dC
 
-  if (!emulator_pause_request_ON) {
-    datalayer.battery.status.max_discharge_power_W = HVBattDischargeContiniousPowerLimit * 10;  // kWh+2 to W
-    datalayer.battery.status.max_charge_power_W =
-        HVBattChargeContiniousPowerLimit * 10;  // kWh+2 to W (TODO: Check that scaling is right way)
-  }
+  datalayer.battery.status.max_discharge_power_W =
+      HVBattDischargeContiniousPowerLimit * 10;  // kWh+2 to W (TODO: Check that scaling is right way)
+
+  datalayer.battery.status.max_charge_power_W =
+      HVBattChargeContiniousPowerLimit * 10;  // kWh+2 to W (TODO: Check that scaling is right way)
 
   if (HVBattHVILError) {  // Alert user incase the high voltage interlock is not OK
     set_event(EVENT_HVIL_FAILURE, 0);

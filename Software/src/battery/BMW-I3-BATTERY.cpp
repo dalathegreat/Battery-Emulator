@@ -376,17 +376,15 @@ void update_values_battery2() {  //This function maps all the values fetched via
 
   datalayer.battery2.status.soh_pptt = battery2_soh * 100;
 
-  if (!emulator_pause_request_ON) {
-    if (battery2_BEV_available_power_longterm_discharge > 65000) {
-      datalayer.battery2.status.max_discharge_power_W = 65000;
-    } else {
-      datalayer.battery2.status.max_discharge_power_W = battery2_BEV_available_power_longterm_discharge;
-    }
-    if (battery2_BEV_available_power_longterm_charge > 65000) {
-      datalayer.battery2.status.max_charge_power_W = 65000;
-    } else {
-      datalayer.battery2.status.max_charge_power_W = battery2_BEV_available_power_longterm_charge;
-    }
+  if (battery2_BEV_available_power_longterm_discharge > 65000) {
+    datalayer.battery2.status.max_discharge_power_W = 65000;
+  } else {
+    datalayer.battery2.status.max_discharge_power_W = battery2_BEV_available_power_longterm_discharge;
+  }
+  if (battery2_BEV_available_power_longterm_charge > 65000) {
+    datalayer.battery2.status.max_charge_power_W = 65000;
+  } else {
+    datalayer.battery2.status.max_charge_power_W = battery2_BEV_available_power_longterm_charge;
   }
 
   battery2_power = (datalayer.battery2.status.current_dA * (datalayer.battery2.status.voltage_dV / 100));
@@ -418,10 +416,9 @@ void update_values_battery() {  //This function maps all the values fetched via 
 
   datalayer.battery.status.soh_pptt = battery_soh * 100;
 
-  if (!emulator_pause_request_ON) {
-    datalayer.battery.status.max_discharge_power_W = battery_BEV_available_power_longterm_discharge;
-    datalayer.battery.status.max_charge_power_W = battery_BEV_available_power_longterm_charge;
-  }
+  datalayer.battery.status.max_discharge_power_W = battery_BEV_available_power_longterm_discharge;
+
+  datalayer.battery.status.max_charge_power_W = battery_BEV_available_power_longterm_charge;
 
   battery_power = (datalayer.battery.status.current_dA * (datalayer.battery.status.voltage_dV / 100));
 
