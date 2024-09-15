@@ -1,6 +1,7 @@
 #include "webserver.h"
 #include <Preferences.h>
 #include "../../datalayer/datalayer.h"
+#include "../../lib/bblanchon-ArduinoJson/ArduinoJson.h"
 #include "../utils/events.h"
 #include "../utils/led_handler.h"
 #include "../utils/timer.h"
@@ -34,6 +35,7 @@ unsigned const long MAX_WIFI_RETRY_INTERVAL = 90000;         // Maximum wifi ret
 unsigned long last_wifi_monitor_time = millis();             //init millis so wifi monitor doesn't run immediately
 unsigned long wifi_reconnect_interval = DEFAULT_WIFI_RECONNECT_INTERVAL;
 unsigned long last_wifi_attempt_time = millis();  //init millis so wifi monitor doesn't run immediately
+const char get_firmware_info_html[] = R"rawliteral(%X%)rawliteral";
 
 void init_webserver() {
   // Configure WiFi
@@ -52,6 +54,13 @@ void init_webserver() {
   String content = index_html;
 
   server.on("/logout", HTTP_GET, [](AsyncWebServerRequest* request) { request->send(401); });
+
+  // Route for firmware info from ota update page
+  server.on("/GetFirmwareInfo", HTTP_GET, [](AsyncWebServerRequest* request) {
+    if (WEBSERVER_AUTH_REQUIRED && !request->authenticate(http_username, http_password))
+      return request->requestAuthentication();
+    request->send_P(200, "application/json", get_firmware_info_html, get_firmware_info_processor);
+  });
 
   // Route for root / web page
   server.on("/", HTTP_GET, [](AsyncWebServerRequest* request) {
@@ -453,6 +462,24 @@ void init_ElegantOTA() {
   ElegantOTA.onStart(onOTAStart);
   ElegantOTA.onProgress(onOTAProgress);
   ElegantOTA.onEnd(onOTAEnd);
+}
+
+String get_firmware_info_processor(const String& var) {
+  if (var == "X") {
+    String content = "";
+    static JsonDocument doc;
+#ifdef HW_LILYGO
+    doc["hardware"] = "LilyGo T-CAN485";
+#endif  // HW_LILYGO
+#ifdef HW_STARK
+    doc["hardware"] = "Stark CMR Module";
+#endif  // HW_STARK
+
+    doc["firmware"] = String(version_number);
+    serializeJson(doc, content);
+    return content;
+  }
+  return String();
 }
 
 String processor(const String& var) {
