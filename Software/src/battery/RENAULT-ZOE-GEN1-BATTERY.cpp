@@ -22,6 +22,7 @@ static uint8_t current_poll = 0;
 static uint8_t requested_poll = 0;
 static uint8_t group = 0;
 static uint16_t cellvoltages[96];
+static uint32_t calculated_total_pack_voltage_mV = 370000;
 static uint8_t highbyte_cell_next_frame = 0;
 static uint16_t SOC_polled = 50;
 static int16_t cell_1_temperature_polled = 0;
@@ -71,8 +72,6 @@ void update_values_battery() {  //This function maps all the values fetched via 
 
   datalayer.battery.status.real_soc = SOC_polled;
 
-  datalayer.battery.status.voltage_dV = LB_Battery_Voltage;
-
   datalayer.battery.status.current_dA = LB_Current;  //TODO: Take from CAN
 
   //Calculate the remaining Wh amount from SOC% and max Wh value.
@@ -104,22 +103,27 @@ void update_values_battery() {  //This function maps all the values fetched via 
   // Initialize min and max, lets find which cells are min and max!
   uint16_t min_cell_mv_value = std::numeric_limits<uint16_t>::max();
   uint16_t max_cell_mv_value = 0;
+  calculated_total_pack_voltage_mV = 0;
   // Loop to find the min and max while ignoring zero values
-  for (int i = 0; i < datalayer.battery.info.number_of_cells; ++i) {
-    uint16_t voltage = cellvoltages[i];
-    if (voltage != 0) {  // Skip unread values (0)
-      min_cell_mv_value = std::min(min_cell_mv_value, voltage);
-      max_cell_mv_value = std::max(max_cell_mv_value, voltage);
+  for (uint8_t i = 0; i < datalayer.battery.info.number_of_cells; ++i) {
+    uint16_t voltage_mV = datalayer.battery.status.cell_voltages_mV[i];
+    calculated_total_pack_voltage_mV += voltage_mV;
+    if (voltage_mV != 0) {  // Skip unread values (0)
+      min_cell_mv_value = std::min(min_cell_mv_value, voltage_mV);
+      max_cell_mv_value = std::max(max_cell_mv_value, voltage_mV);
     }
   }
   // If all array values are 0, reset min/max to 3700
   if (min_cell_mv_value == std::numeric_limits<uint16_t>::max()) {
     min_cell_mv_value = 3700;
     max_cell_mv_value = 3700;
+    calculated_total_pack_voltage_mV = 370000;
   }
 
   datalayer.battery.status.cell_min_voltage_mV = min_cell_mv_value;
   datalayer.battery.status.cell_max_voltage_mV = max_cell_mv_value;
+  datalayer.battery.status.voltage_dV =
+      static_cast<uint32_t>((calculated_total_pack_voltage_mV / 100));  // Convert from mV to dV
 
   if (datalayer.battery.status.cell_max_voltage_mV >= ABSOLUTE_CELL_MAX_VOLTAGE) {
     set_event(EVENT_CELL_OVER_VOLTAGE, 0);
