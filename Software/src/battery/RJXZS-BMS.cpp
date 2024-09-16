@@ -11,6 +11,8 @@ static unsigned long previousMillis10s = 0;  // will store last time a 10s CAN M
 CAN_frame RJXZS_1C = {.FD = false, .ext_ID = true, .DLC = 3, .ID = 0xF4, .data = {0x1C, 0x00, 0x02}};
 CAN_frame RJXZS_10 = {.FD = false, .ext_ID = true, .DLC = 3, .ID = 0xF4, .data = {0x10, 0x00, 0x02}};
 
+#define FIVE_MINUTES 60
+
 static uint8_t mux = 0;
 static bool setup_completed = false;
 static uint16_t total_voltage = 0;
@@ -71,12 +73,20 @@ static uint16_t hall_sensor_type = 0;
 static uint16_t fan_start_setting_value = 0;
 static uint16_t ptc_heating_start_setting_value = 0;
 static uint16_t default_channel_state = 0;
+static uint8_t timespent_without_soc = 0;
 
 void update_values_battery() {
 
   datalayer.battery.status.real_soc = battery_capacity_percentage * 100;
   if (battery_capacity_percentage == 0) {
-    //SOC% not available. Raise warning event?
+    //SOC% not available. Raise warning event if we go too long without SOC
+    timespent_without_soc++;
+    if (timespent_without_soc > FIVE_MINUTES) {
+      set_event(EVENT_SOC_PLAUSIBILITY_ERROR, 0);
+    }
+  } else {  //SOC is available, stop counting and clear error
+    timespent_without_soc = 0;
+    clear_event(EVENT_SOC_PLAUSIBILITY_ERROR);
   }
 
   datalayer.battery.status.soh_pptt;  // This BMS does not have a SOH% formula
