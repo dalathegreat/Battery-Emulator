@@ -94,6 +94,8 @@ MyTimer connectivity_task_timer_10s(INTERVAL_10_S);
 
 MyTimer loop_task_timer_10s(INTERVAL_10_S);
 
+MyTimer check_pause_2s(INTERVAL_2_S);
+
 // Contactor parameters
 #ifdef CONTACTOR_CONTROL
 enum State { DISCONNECTED, PRECHARGE, NEGATIVE, POSITIVE, PRECHARGE_OFF, COMPLETED, SHUTDOWN_REQUESTED };
@@ -287,6 +289,10 @@ void core_loop(void* task_time_us) {
       datalayer.system.status.time_cantx_us = 0;
       datalayer.system.status.core_task_10s_max_us = 0;
     }
+    if (check_pause_2s.elapsed()) {
+      emulator_pause_state_send_CAN_battery();
+    }
+
 #endif
     vTaskDelayUntil(&xLastWakeTime, xFrequency);
   }
@@ -572,14 +578,16 @@ void receive_can_native() {  // This section checks if we have a complete CAN me
 
 void send_can() {
 
-  send_can_battery();
+  if (can_send_CAN)
+    send_can_battery();
 
 #ifdef CAN_INVERTER_SELECTED
   send_can_inverter();
 #endif  // CAN_INVERTER_SELECTED
 
 #ifdef CHARGER_SELECTED
-  send_can_charger();
+  if (can_send_CAN)
+    send_can_charger();
 #endif  // CHARGER_SELECTED
 }
 
