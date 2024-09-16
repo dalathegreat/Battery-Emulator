@@ -174,7 +174,7 @@ void receive_can_battery(CAN_frame rx_frame) {
           }
           if (requested_poll == GROUP5_TEMPERATURE_POLL) {
             //10,4D,61,04,09,12,3A,09,
-            cell_1_temperature_polled = (rx_frame.data.u8[6] - 29);
+            cell_1_temperature_polled = (rx_frame.data.u8[6] - 40);
           }
           break;
         case 0x21:  //First datarow in PID group
@@ -204,8 +204,8 @@ void receive_can_battery(CAN_frame rx_frame) {
             SOC_polled = (rx_frame.data.u8[1] << 8) | rx_frame.data.u8[2];
           }
           if (requested_poll == GROUP5_TEMPERATURE_POLL) {
-            cell_2_temperature_polled = (rx_frame.data.u8[2] - 29);
-            cell_3_temperature_polled = (rx_frame.data.u8[5] - 29);
+            cell_2_temperature_polled = (rx_frame.data.u8[2] - 40);
+            cell_3_temperature_polled = (rx_frame.data.u8[5] - 40);
             //21,11,3A,09,14,3A,09,0D,
           }
           break;
@@ -235,9 +235,9 @@ void receive_can_battery(CAN_frame rx_frame) {
             //22,95,01,93,00,00,00,FF,
           }
           if (requested_poll == GROUP5_TEMPERATURE_POLL) {
-            cell_4_temperature_polled = (rx_frame.data.u8[1] - 29);
-            cell_5_temperature_polled = (rx_frame.data.u8[4] - 29);
-            cell_6_temperature_polled = (rx_frame.data.u8[7] - 29);
+            cell_4_temperature_polled = (rx_frame.data.u8[1] - 40);
+            cell_5_temperature_polled = (rx_frame.data.u8[4] - 40);
+            cell_6_temperature_polled = (rx_frame.data.u8[7] - 40);
             //22,3A,08,F6,3B,08,EE,3B,
           }
           break;
@@ -259,8 +259,8 @@ void receive_can_battery(CAN_frame rx_frame) {
           }
           if (requested_poll == GROUP5_TEMPERATURE_POLL) {
             //23,08,AC,3D,08,C0,3C,09,
-            cell_7_temperature_polled = (rx_frame.data.u8[3] - 29);
-            cell_8_temperature_polled = (rx_frame.data.u8[6] - 29);
+            cell_7_temperature_polled = (rx_frame.data.u8[3] - 40);
+            cell_8_temperature_polled = (rx_frame.data.u8[6] - 40);
           }
           break;
         case 0x24:  //Fourth datarow in PID group
@@ -281,8 +281,8 @@ void receive_can_battery(CAN_frame rx_frame) {
           }
           if (requested_poll == GROUP5_TEMPERATURE_POLL) {
             //24,03,3A,09,11,3A,09,19,
-            cell_9_temperature_polled = (rx_frame.data.u8[2] - 29);
-            cell_10_temperature_polled = (rx_frame.data.u8[5] - 29);
+            cell_9_temperature_polled = (rx_frame.data.u8[2] - 40);
+            cell_10_temperature_polled = (rx_frame.data.u8[5] - 40);
           }
           break;
         case 0x25:  //Fifth datarow in PID group
@@ -300,8 +300,8 @@ void receive_can_battery(CAN_frame rx_frame) {
           }
           if (requested_poll == GROUP5_TEMPERATURE_POLL) {
             //25,3A,09,14,3A,FF,FF,FF,
-            cell_11_temperature_polled = (rx_frame.data.u8[1] - 29);
-            cell_12_temperature_polled = (rx_frame.data.u8[4] - 29);
+            cell_11_temperature_polled = (rx_frame.data.u8[1] - 40);
+            cell_12_temperature_polled = (rx_frame.data.u8[4] - 40);
           }
           break;
         case 0x26:
