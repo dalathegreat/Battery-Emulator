@@ -44,6 +44,7 @@ jobs:
           - KIA_HYUNDAI_HYBRID_BATTERY
           - NISSAN_LEAF_BATTERY
           - PYLON_BATTERY
+          - RJXZS_BMS
           - RENAULT_KANGOO_BATTERY
           - RENAULT_ZOE_GEN1_BATTERY
           - RENAULT_ZOE_GEN2_BATTERY

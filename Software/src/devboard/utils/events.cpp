@@ -145,6 +145,7 @@ void init_events(void) {
   events.entries[EVENT_DISCHARGE_LIMIT_EXCEEDED].level = EVENT_LEVEL_INFO;
   events.entries[EVENT_12V_LOW].level = EVENT_LEVEL_WARNING;
   events.entries[EVENT_SOC_PLAUSIBILITY_ERROR].level = EVENT_LEVEL_ERROR;
+  events.entries[EVENT_SOC_UNAVAILABLE].level = EVENT_LEVEL_WARNING;
   events.entries[EVENT_KWH_PLAUSIBILITY_ERROR].level = EVENT_LEVEL_INFO;
   events.entries[EVENT_BATTERY_EMPTY].level = EVENT_LEVEL_INFO;
   events.entries[EVENT_BATTERY_FULL].level = EVENT_LEVEL_INFO;
@@ -255,6 +256,8 @@ const char* get_event_message_string(EVENTS_ENUM_TYPE event) {
       return "12V battery source below required voltage to safely close contactors. Inspect the supply/battery!";
     case EVENT_SOC_PLAUSIBILITY_ERROR:
       return "ERROR: SOC% reported by battery not plausible. Restart battery!";
+    case EVENT_SOC_UNAVAILABLE:
+      return "Warning: SOC% not sent by BMS. Calibrate BMS via app.";
     case EVENT_KWH_PLAUSIBILITY_ERROR:
       return "Info: kWh remaining reported by battery not plausible. Battery needs cycling.";
     case EVENT_BATTERY_EMPTY:

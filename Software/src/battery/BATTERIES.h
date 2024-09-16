@@ -46,6 +46,10 @@
 #include "PYLON-BATTERY.h"
 #endif
 
+#ifdef RJXZS_BMS
+#include "RJXZS-BMS.h"
+#endif
+
 #ifdef RENAULT_KANGOO_BATTERY
 #include "RENAULT-KANGOO-BATTERY.h"
 #endif
