@@ -18,6 +18,7 @@
 //#define KIA_HYUNDAI_HYBRID_BATTERY
 //#define MG_5_BATTERY
 //#define NISSAN_LEAF_BATTERY
+//#define ECMP_BATTERY
 //#define PYLON_BATTERY
 //#define RJXZS_BMS
 //#define RENAULT_KANGOO_BATTERY
