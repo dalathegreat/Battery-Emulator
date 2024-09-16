@@ -82,11 +82,11 @@ void update_values_battery() {
     //SOC% not available. Raise warning event if we go too long without SOC
     timespent_without_soc++;
     if (timespent_without_soc > FIVE_MINUTES) {
-      set_event(EVENT_SOC_PLAUSIBILITY_ERROR, 0);
+      set_event(EVENT_SOC_UNAVAILABLE, 0);
     }
   } else {  //SOC is available, stop counting and clear error
     timespent_without_soc = 0;
-    clear_event(EVENT_SOC_PLAUSIBILITY_ERROR);
+    clear_event(EVENT_SOC_UNAVAILABLE);
   }
 
   datalayer.battery.status.soh_pptt;  // This BMS does not have a SOH% formula
