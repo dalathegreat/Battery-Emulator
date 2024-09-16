@@ -66,8 +66,9 @@
 #include "SANTA-FE-PHEV-BATTERY.h"
 #endif
 
-#ifdef TESLA_MODEL_3_BATTERY
-#include "TESLA-MODEL-3-BATTERY.h"
+#if defined(TESLA_MODEL_SX_BATTERY) || defined(TESLA_MODEL_3Y_BATTERY)
+#define TESLA_BATTERY
+#include "TESLA-BATTERY.h"
 #endif
 
 #ifdef TEST_FAKE_BATTERY

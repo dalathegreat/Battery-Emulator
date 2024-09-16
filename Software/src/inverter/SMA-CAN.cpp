@@ -6,7 +6,7 @@
 /* TODO: Map error bits in 0x158 */
 
 /* Do not change code below unless you are sure what you are doing */
-static unsigned long previousMillis60s = 0;
+static unsigned long previousMillis100ms = 0;
 
 //Actual content messages
 CAN_frame SMA_558 = {.FD = false,
@@ -218,12 +218,14 @@ void receive_can_inverter(CAN_frame rx_frame) {
       break;
     case 0x420:  //Message originating from SMA inverter - Timestamp
       //Frame0-3 Timestamp
+      /*
       transmit_can(&SMA_158, can_config.inverter);
       transmit_can(&SMA_358, can_config.inverter);
       transmit_can(&SMA_3D8, can_config.inverter);
       transmit_can(&SMA_458, can_config.inverter);
       transmit_can(&SMA_518, can_config.inverter);
       transmit_can(&SMA_4D8, can_config.inverter);
+      */
       break;
     case 0x5E0:  //Message originating from SMA inverter - String
       break;
@@ -251,16 +253,18 @@ void receive_can_inverter(CAN_frame rx_frame) {
 void send_can_inverter() {
   unsigned long currentMillis = millis();
 
-  // Send CAN Message every 60s
-  if (currentMillis - previousMillis60s >= INTERVAL_60_S) {
-    previousMillis60s = currentMillis;
+  // Send CAN Message every 100ms if Enable line is HIGH
+  if (datalayer.system.status.inverter_allows_contactor_closing) {
+    if (currentMillis - previousMillis100ms >= 100) {
+      previousMillis100ms = currentMillis;
 
-    transmit_can(&SMA_158, can_config.inverter);
-    transmit_can(&SMA_358, can_config.inverter);
-    transmit_can(&SMA_3D8, can_config.inverter);
-    transmit_can(&SMA_458, can_config.inverter);
-    transmit_can(&SMA_518, can_config.inverter);
-    transmit_can(&SMA_4D8, can_config.inverter);
+      transmit_can(&SMA_158, can_config.inverter);
+      transmit_can(&SMA_358, can_config.inverter);
+      transmit_can(&SMA_3D8, can_config.inverter);
+      transmit_can(&SMA_458, can_config.inverter);
+      transmit_can(&SMA_518, can_config.inverter);
+      transmit_can(&SMA_4D8, can_config.inverter);
+    }
   }
 }
 #endif

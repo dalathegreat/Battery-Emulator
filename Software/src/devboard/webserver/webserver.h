@@ -103,6 +103,7 @@ void init_ElegantOTA();
  * @return String
  */
 String processor(const String& var);
+String get_firmware_info_processor(const String& var);
 
 /**
  * @brief Executes on OTA start 

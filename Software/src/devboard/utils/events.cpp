@@ -198,6 +198,8 @@ void init_events(void) {
   events.entries[EVENT_RESET_EFUSE].level = EVENT_LEVEL_INFO;
   events.entries[EVENT_RESET_PWR_GLITCH].level = EVENT_LEVEL_INFO;
   events.entries[EVENT_RESET_CPU_LOCKUP].level = EVENT_LEVEL_WARNING;
+  events.entries[EVENT_PAUSE_BEGIN].level = EVENT_LEVEL_WARNING;
+  events.entries[EVENT_PAUSE_END].level = EVENT_LEVEL_INFO;
 
   events.entries[EVENT_EEPROM_WRITE].log = false;  // Don't log the logger...
 
@@ -367,6 +369,10 @@ const char* get_event_message_string(EVENTS_ENUM_TYPE event) {
       return "Info: The board was reset due to a detected power glitch";
     case EVENT_RESET_CPU_LOCKUP:
       return "Warning: The board was reset due to CPU lockup. Inform developers!";
+    case EVENT_PAUSE_BEGIN:
+      return "Warning: The emulator is trying to pause the battery.";
+    case EVENT_PAUSE_END:
+      return "Info: The emulator is attempting to resume battery operation from pause.";
     default:
       return "";
   }

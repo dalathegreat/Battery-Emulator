@@ -1,6 +1,7 @@
 #include "webserver.h"
 #include <Preferences.h>
 #include "../../datalayer/datalayer.h"
+#include "../../lib/bblanchon-ArduinoJson/ArduinoJson.h"
 #include "../utils/events.h"
 #include "../utils/led_handler.h"
 #include "../utils/timer.h"
@@ -34,6 +35,7 @@ unsigned const long MAX_WIFI_RETRY_INTERVAL = 90000;         // Maximum wifi ret
 unsigned long last_wifi_monitor_time = millis();             //init millis so wifi monitor doesn't run immediately
 unsigned long wifi_reconnect_interval = DEFAULT_WIFI_RECONNECT_INTERVAL;
 unsigned long last_wifi_attempt_time = millis();  //init millis so wifi monitor doesn't run immediately
+const char get_firmware_info_html[] = R"rawliteral(%X%)rawliteral";
 
 void init_webserver() {
   // Configure WiFi
@@ -52,6 +54,13 @@ void init_webserver() {
   String content = index_html;
 
   server.on("/logout", HTTP_GET, [](AsyncWebServerRequest* request) { request->send(401); });
+
+  // Route for firmware info from ota update page
+  server.on("/GetFirmwareInfo", HTTP_GET, [](AsyncWebServerRequest* request) {
+    if (WEBSERVER_AUTH_REQUIRED && !request->authenticate(http_username, http_password))
+      return request->requestAuthentication();
+    request->send_P(200, "application/json", get_firmware_info_html, get_firmware_info_processor);
+  });
 
   // Route for root / web page
   server.on("/", HTTP_GET, [](AsyncWebServerRequest* request) {
@@ -153,6 +162,19 @@ void init_webserver() {
       String value = request->getParam("value")->value();
       datalayer.battery.settings.max_percentage = static_cast<uint16_t>(value.toFloat() * 100);
       storeSettings();
+      request->send(200, "text/plain", "Updated successfully");
+    } else {
+      request->send(400, "text/plain", "Bad Request");
+    }
+  });
+
+  // Route for pause/resume Battery emulator
+  server.on("/pause", HTTP_GET, [](AsyncWebServerRequest* request) {
+    if (WEBSERVER_AUTH_REQUIRED && !request->authenticate(http_username, http_password))
+      return request->requestAuthentication();
+    if (request->hasParam("p")) {
+      String valueStr = request->getParam("p")->value();
+      setBatteryPause(valueStr == "true" || valueStr == "1", false);
       request->send(200, "text/plain", "Updated successfully");
     } else {
       request->send(400, "text/plain", "Bad Request");
@@ -414,10 +436,8 @@ void wifi_monitor() {
 
   if (ota_active && ota_timeout_timer.elapsed()) {
     // OTA timeout, try to restore can and clear the update event
-    ESP32Can.CANInit();
-    clear_event(EVENT_OTA_UPDATE);
     set_event(EVENT_OTA_UPDATE_TIMEOUT, 0);
-    ota_active = false;
+    onOTAEnd(false);
   }
 }
 
@@ -442,6 +462,24 @@ void init_ElegantOTA() {
   ElegantOTA.onStart(onOTAStart);
   ElegantOTA.onProgress(onOTAProgress);
   ElegantOTA.onEnd(onOTAEnd);
+}
+
+String get_firmware_info_processor(const String& var) {
+  if (var == "X") {
+    String content = "";
+    static JsonDocument doc;
+#ifdef HW_LILYGO
+    doc["hardware"] = "LilyGo T-CAN485";
+#endif  // HW_LILYGO
+#ifdef HW_STARK
+    doc["hardware"] = "Stark CMR Module";
+#endif  // HW_STARK
+
+    doc["firmware"] = String(version_number);
+    serializeJson(doc, content);
+    return content;
+  }
+  return String();
 }
 
 String processor(const String& var) {
@@ -576,9 +614,12 @@ String processor(const String& var) {
 #ifdef SERIAL_LINK_RECEIVER
     content += "Serial link to another LilyGo board";
 #endif  // SERIAL_LINK_RECEIVER
-#ifdef TESLA_MODEL_3_BATTERY
-    content += "Tesla Model S/3/X/Y";
-#endif  // TESLA_MODEL_3_BATTERY
+#ifdef TESLA_MODEL_SX_BATTERY
+    content += "Tesla Model S/X";
+#endif  // TESLA_MODEL_SX_BATTERY
+#ifdef TESLA_MODEL_3Y_BATTERY
+    content += "Tesla Model 3/Y";
+#endif  // TESLA_MODEL_3Y_BATTERY
 #ifdef VOLVO_SPA_BATTERY
     content += "Volvo / Polestar 78kWh battery";
 #endif  // VOLVO_SPA_BATTERY
@@ -587,6 +628,9 @@ String processor(const String& var) {
 #endif  // TEST_FAKE_BATTERY
 #ifdef DOUBLE_BATTERY
     content += " (Double battery)";
+    if (datalayer.battery.info.chemistry == battery_chemistry_enum::LFP) {
+      content += " (LFP)";
+    }
 #endif  // DOUBLE_BATTERY
     content += "</h4>";
 
@@ -693,6 +737,10 @@ String processor(const String& var) {
     } else {
       content += "<span style='color: red;'>&#10005;</span></h4>";
     }
+    if (emulator_pause_status == NORMAL)
+      content += "<h4>Pause status: " + String(get_emulator_pause_status().c_str()) + " </h4>";
+    else
+      content += "<h4 style='color: red;'>Pause status: " + String(get_emulator_pause_status().c_str()) + " </h4>";
 
     // Close the block
     content += "</div>";
@@ -769,6 +817,10 @@ String processor(const String& var) {
     } else {
       content += "<span style='color: red;'>&#10005;</span></h4>";
     }
+    if (emulator_pause_status == NORMAL)
+      content += "<h4>Pause status: " + String(get_emulator_pause_status().c_str()) + " </h4>";
+    else
+      content += "<h4 style='color: red;'>Pause status: " + String(get_emulator_pause_status().c_str()) + " </h4>";
 
     content += "</div>";
     content += "</div>";
@@ -830,6 +882,11 @@ String processor(const String& var) {
     content += "</div>";
 #endif  // defined CHEVYVOLT_CHARGER || defined NISSANLEAF_CHARGER
 
+    if (emulator_pause_request_ON)
+      content += "<button onclick='PauseBattery(false)'>Resume Battery</button>";
+    else
+      content += "<button onclick='PauseBattery(true)'>Pause Battery</button>";
+
     content += "<button onclick='OTA()'>Perform OTA update</button>";
     content += " ";
     content += "<button onclick='Settings()'>Change Settings</button>";
@@ -863,6 +920,12 @@ String processor(const String& var) {
       content += "  setTimeout(function(){ window.open(\"/\",\"_self\"); }, 1000);";
       content += "}";
     }
+    content += "function PauseBattery(pause){";
+    content +=
+        "var xhr=new "
+        "XMLHttpRequest();xhr.onload=function() { "
+        "window.location.reload();};xhr.open('GET','/pause?p='+pause,true);xhr.send();";
+    content += "}";
 
     content += "</script>";
 
@@ -877,8 +940,10 @@ String processor(const String& var) {
 }
 
 void onOTAStart() {
+  //try to Pause the battery
+  setBatteryPause(true, true);
+
   // Log when OTA has started
-  ESP32Can.CANStop();
   set_event(EVENT_OTA_UPDATE, 0);
 
   // If already set, make a new attempt
@@ -900,8 +965,13 @@ void onOTAProgress(size_t current, size_t final) {
 }
 
 void onOTAEnd(bool success) {
+
+  ota_active = false;
+  clear_event(EVENT_OTA_UPDATE);
+
   // Log when OTA has finished
   if (success) {
+    // a reboot will be done by the OTA library. no need to do anything here
 #ifdef DEBUG_VIA_USB
     Serial.println("OTA update finished successfully!");
 #endif  // DEBUG_VIA_USB
@@ -909,12 +979,9 @@ void onOTAEnd(bool success) {
 #ifdef DEBUG_VIA_USB
     Serial.println("There was an error during OTA update!");
 #endif  // DEBUG_VIA_USB
-
-    // If we fail without a timeout, try to restore CAN
-    ESP32Can.CANInit();
+    //try to Resume the battery pause and CAN communication
+    setBatteryPause(false, false);
   }
-  ota_active = false;
-  clear_event(EVENT_OTA_UPDATE);
 }
 
 template <typename T>  // This function makes power values appear as W when under 1000, and kW when over

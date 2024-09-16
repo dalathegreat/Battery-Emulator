@@ -16,16 +16,20 @@ void ElegantOTAClass::begin(ELEGANTOTA_WEBSERVER *server, const char * username,
 
   #if ELEGANTOTA_USE_ASYNC_WEBSERVER == 1
     _server->on("/update", HTTP_GET, [&](AsyncWebServerRequest *request){
-      if(_authenticate && !request->authenticate(_username, _password)){
+      if(_authenticate && !request->authenticate(_username.c_str(), _password.c_str())){
         return request->requestAuthentication();
       }
-      AsyncWebServerResponse *response = request->beginResponse_P(200, "text/html", ELEGANT_HTML, sizeof(ELEGANT_HTML));
+      #if defined(ASYNCWEBSERVER_VERSION) && ASYNCWEBSERVER_VERSION_MAJOR > 2  // This means we are using recommended fork of AsyncWebServer
+        AsyncWebServerResponse *response = request->beginResponse(200, "text/html", ELEGANT_HTML, sizeof(ELEGANT_HTML));
+      #else
+        AsyncWebServerResponse *response = request->beginResponse_P(200, "text/html", ELEGANT_HTML, sizeof(ELEGANT_HTML));
+      #endif
       response->addHeader("Content-Encoding", "gzip");
       request->send(response);
     });
   #else
     _server->on("/update", HTTP_GET, [&](){
-      if (_authenticate && !_server->authenticate(_username, _password)) {
+      if (_authenticate && !_server->authenticate(_username.c_str(), _password.c_str())) {
         return _server->requestAuthentication();
       }
       _server->sendHeader("Content-Encoding", "gzip");
@@ -35,8 +39,17 @@ void ElegantOTAClass::begin(ELEGANTOTA_WEBSERVER *server, const char * username,
 
   #if ELEGANTOTA_USE_ASYNC_WEBSERVER == 1
     _server->on("/ota/start", HTTP_GET, [&](AsyncWebServerRequest *request) {
-      if (_authenticate && !request->authenticate(_username, _password)) {
+      if (_authenticate && !request->authenticate(_username.c_str(), _password.c_str())) {
         return request->requestAuthentication();
+      }
+
+      // Pre-OTA update callback
+      if (preUpdateCallback != NULL) preUpdateCallback();
+      
+     // Sleep for 3 seconds to allow asynchronous preUpdateCallback tasks to complete
+      unsigned long sleepStart = millis();
+      while (millis() - sleepStart < 3000) { // Sleep for 3 second
+        delay(1); // Yield to other tasks
       }
 
       // Get header x-ota-mode value, if present
@@ -69,7 +82,7 @@ void ElegantOTAClass::begin(ELEGANTOTA_WEBSERVER *server, const char * username,
       #endif
 
       // Pre-OTA update callback
-      if (preUpdateCallback != NULL) preUpdateCallback();
+      //if (preUpdateCallback != NULL) preUpdateCallback();
 
       // Start update process
       #if defined(ESP8266)
@@ -84,7 +97,7 @@ void ElegantOTAClass::begin(ELEGANTOTA_WEBSERVER *server, const char * username,
           StreamString str;
           Update.printError(str);
           _update_error_str = str.c_str();
-          _update_error_str += "\n";
+          _update_error_str.concat("\n");
           ELEGANTOTA_DEBUG_MSG(_update_error_str.c_str());
         }
       #elif defined(ESP32)  
@@ -94,7 +107,7 @@ void ElegantOTAClass::begin(ELEGANTOTA_WEBSERVER *server, const char * username,
           StreamString str;
           Update.printError(str);
           _update_error_str = str.c_str();
-          _update_error_str += "\n";
+          _update_error_str.concat("\n");
           ELEGANTOTA_DEBUG_MSG(_update_error_str.c_str());
         }        
       #endif
@@ -103,7 +116,7 @@ void ElegantOTAClass::begin(ELEGANTOTA_WEBSERVER *server, const char * username,
     });
   #else
     _server->on("/ota/start", HTTP_GET, [&]() {
-      if (_authenticate && !_server->authenticate(_username, _password)) {
+      if (_authenticate && !_server->authenticate(_username.c_str(), _password.c_str())) {
         return _server->requestAuthentication();
       }
 
@@ -152,7 +165,7 @@ void ElegantOTAClass::begin(ELEGANTOTA_WEBSERVER *server, const char * username,
           StreamString str;
           Update.printError(str);
           _update_error_str = str.c_str();
-          _update_error_str += "\n";
+          _update_error_str.concat("\n");
           ELEGANTOTA_DEBUG_MSG(_update_error_str.c_str());
         }
       #elif defined(ESP32)  
@@ -162,7 +175,7 @@ void ElegantOTAClass::begin(ELEGANTOTA_WEBSERVER *server, const char * username,
           StreamString str;
           Update.printError(str);
           _update_error_str = str.c_str();
-          _update_error_str += "\n";
+          _update_error_str.concat("\n");
           ELEGANTOTA_DEBUG_MSG(_update_error_str.c_str());
         }
       #elif defined(TARGET_RP2040)
@@ -191,7 +204,7 @@ void ElegantOTAClass::begin(ELEGANTOTA_WEBSERVER *server, const char * username,
 
   #if ELEGANTOTA_USE_ASYNC_WEBSERVER == 1
     _server->on("/ota/upload", HTTP_POST, [&](AsyncWebServerRequest *request) {
-        if(_authenticate && !request->authenticate(_username, _password)){
+        if(_authenticate && !request->authenticate(_username.c_str(), _password.c_str())){
           return request->requestAuthentication();
         }
         // Post-OTA update callback
@@ -210,7 +223,7 @@ void ElegantOTAClass::begin(ELEGANTOTA_WEBSERVER *server, const char * username,
     }, [&](AsyncWebServerRequest *request, String filename, size_t index, uint8_t *data, size_t len, bool final) {
         //Upload handler chunks in data
         if(_authenticate){
-            if(!request->authenticate(_username, _password)){
+            if(!request->authenticate(_username.c_str(), _password.c_str())){
                 return request->requestAuthentication();
             }
         }
@@ -236,7 +249,7 @@ void ElegantOTAClass::begin(ELEGANTOTA_WEBSERVER *server, const char * username,
                 StreamString str;
                 Update.printError(str);
                 _update_error_str = str.c_str();
-                _update_error_str += "\n";
+                _update_error_str.concat("\n");
                 ELEGANTOTA_DEBUG_MSG(_update_error_str.c_str());
             }
         }else{
@@ -245,7 +258,7 @@ void ElegantOTAClass::begin(ELEGANTOTA_WEBSERVER *server, const char * username,
     });
   #else
     _server->on("/ota/upload", HTTP_POST, [&](){
-      if (_authenticate && !_server->authenticate(_username, _password)) {
+      if (_authenticate && !_server->authenticate(_username.c_str(), _password.c_str())) {
         return _server->requestAuthentication();
       }
       // Post-OTA update callback
@@ -264,7 +277,7 @@ void ElegantOTAClass::begin(ELEGANTOTA_WEBSERVER *server, const char * username,
       HTTPUpload& upload = _server->upload();
       if (upload.status == UPLOAD_FILE_START) {
         // Check authentication
-        if (_authenticate && !_server->authenticate(_username, _password)) {
+        if (_authenticate && !_server->authenticate(_username.c_str(), _password.c_str())) {
           ELEGANTOTA_DEBUG_MSG("Authentication Failed on UPLOAD_FILE_START\n");
           return;
         }
@@ -289,7 +302,7 @@ void ElegantOTAClass::begin(ELEGANTOTA_WEBSERVER *server, const char * username,
               StreamString str;
               Update.printError(str);
               _update_error_str = str.c_str();
-              _update_error_str += "\n";
+              _update_error_str.concat("\n");
               ELEGANTOTA_DEBUG_MSG(_update_error_str.c_str());
           }
 
@@ -304,11 +317,9 @@ void ElegantOTAClass::begin(ELEGANTOTA_WEBSERVER *server, const char * username,
 }
 
 void ElegantOTAClass::setAuth(const char * username, const char * password){
-  if (strlen(username) > 0 && strlen(password) > 0) {
-    strlcpy(_username, username, sizeof(_username));
-    strlcpy(_password, password, sizeof(_password));
-    _authenticate = true;
-  }
+  _username = username;
+  _password = password;
+  _authenticate = _username.length() && _password.length();
 }
 
 void ElegantOTAClass::clearAuth(){
