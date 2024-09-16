@@ -16,8 +16,6 @@ static int16_t LB_Average_Temperature = 0;
 static uint32_t LB_Charge_Power_W = 0;
 static int32_t LB_Current = 0;
 static uint16_t LB_kWh_Remaining = 0;
-static uint16_t LB_Cell_Max_Voltage = 3700;
-static uint16_t LB_Cell_Min_Voltage = 3700;
 static uint16_t LB_Battery_Voltage = 3700;
 static uint8_t frame0 = 0;
 static uint8_t current_poll = 0;
@@ -100,17 +98,33 @@ void update_values_battery() {  //This function maps all the values fetched via 
 
   datalayer.battery.status.temperature_max_dC = max_temperature * 10;
 
-  datalayer.battery.status.cell_min_voltage_mV;
-
-  datalayer.battery.status.cell_max_voltage_mV;
-
   //Map all cell voltages to the global array
   memcpy(datalayer.battery.status.cell_voltages_mV, cellvoltages, 96 * sizeof(uint16_t));
 
-  if (LB_Cell_Max_Voltage >= ABSOLUTE_CELL_MAX_VOLTAGE) {
+  // Initialize min and max, lets find which cells are min and max!
+  uint16_t min_cell_mv_value = std::numeric_limits<uint16_t>::max();
+  uint16_t max_cell_mv_value = 0;
+  // Loop to find the min and max while ignoring zero values
+  for (int i = 0; i < datalayer.battery.info.number_of_cells; ++i) {
+    uint16_t voltage = cellvoltages[i];
+    if (voltage != 0) {  // Skip unread values (0)
+      min_cell_mv_value = std::min(min_cell_mv_value, voltage);
+      max_cell_mv_value = std::max(max_cell_mv_value, voltage);
+    }
+  }
+  // If all array values are 0, reset min/max to 3700
+  if (min_cell_mv_value == std::numeric_limits<uint16_t>::max()) {
+    min_cell_mv_value = 3700;
+    max_cell_mv_value = 3700;
+  }
+
+  datalayer.battery.status.cell_min_voltage_mV = min_cell_mv_value;
+  datalayer.battery.status.cell_max_voltage_mV = max_cell_mv_value;
+
+  if (datalayer.battery.status.cell_max_voltage_mV >= ABSOLUTE_CELL_MAX_VOLTAGE) {
     set_event(EVENT_CELL_OVER_VOLTAGE, 0);
   }
-  if (LB_Cell_Min_Voltage <= ABSOLUTE_CELL_MIN_VOLTAGE) {
+  if (datalayer.battery.status.cell_min_voltage_mV <= ABSOLUTE_CELL_MIN_VOLTAGE) {
     set_event(EVENT_CELL_UNDER_VOLTAGE, 0);
   }
 
