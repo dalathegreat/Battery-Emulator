@@ -26,6 +26,8 @@ static int16_t highest_temperature = 0;
 static int16_t calc_min_temperature = 0;
 static int16_t calc_max_temperature = 0;
 
+static uint16_t highprecision_SOC = 0;
+static uint16_t lowprecision_SOC = 0;
 static uint16_t BMS_SOC = 0;
 static uint16_t BMS_voltage = 0;
 static int16_t BMS_current = 0;
@@ -129,6 +131,14 @@ void update_values_battery() {  //This function maps all the values fetched via 
   datalayer.battery.status.temperature_min_dC = calc_min_temperature * 10;  // Add decimals
   datalayer.battery.status.temperature_max_dC = calc_max_temperature * 10;
 
+  //TODO: Remove once confirmed which work
+  Serial.print("Polled: ");
+  Serial.println(BMS_SOC);
+  Serial.print("Highprec: ");
+  Serial.println(highprecision_SOC);
+  Serial.print("Lowprec: ");
+  Serial.println(lowprecision_SOC);
+
 #ifdef DEBUG_VIA_USB
 
 #endif
@@ -209,16 +219,18 @@ void receive_can_battery(CAN_frame rx_frame) {
     case 0x444:  //9E,01,88,13,64,64,98,65
                  //9A,01,B6,13,64,64,98,3B //407.5V 18deg
                  //9B,01,B8,13,64,64,98,38 //408.5V 14deg
+      //lowprecision_SOC =  ???
       break;
     case 0x445:  //00,98,FF,FF,63,20,4E,98 - Static, values never changes between logs
       break;
     case 0x446:  //2C,D4,0C,4D,21,DC,0C,9D - 0,1,7th frame varies a lot
       break;
-    case 0x447:                                          // Seems to contain more temperatures, highest and lowest?
-                                                         //06,38,01,3B,E0,03,39,69
-                                                         //06,36,02,36,E0,03,36,72,
-      lowest_temperature = (rx_frame.data.u8[1] - 40);   //Best guess for now
-      highest_temperature = (rx_frame.data.u8[3] - 40);  //Best guess for now
+    case 0x447:  // Seems to contain more temperatures, highest and lowest?
+                 //06,38,01,3B,E0,03,39,69
+                 //06,36,02,36,E0,03,36,72,
+      highprecision_SOC = (rx_frame.data.u8[5] << 8) | rx_frame.data.u8[4];  // 03 E0 = 992 = 99.2%
+      lowest_temperature = (rx_frame.data.u8[1] - 40);                       //Best guess for now
+      highest_temperature = (rx_frame.data.u8[3] - 40);                      //Best guess for now
       break;
     case 0x47B:  //01,FF,FF,FF,FF,FF,FF,FF - Static, values never changes between logs
       break;
