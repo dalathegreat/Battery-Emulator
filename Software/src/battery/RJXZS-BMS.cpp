@@ -89,6 +89,9 @@ void update_values_battery() {
     clear_event(EVENT_SOC_UNAVAILABLE);
   }
 
+  datalayer.battery.status.remaining_capacity_Wh = static_cast<uint32_t>(
+      (static_cast<double>(datalayer.battery.status.real_soc) / 10000) * datalayer.battery.info.total_capacity_Wh);
+
   datalayer.battery.status.soh_pptt;  // This BMS does not have a SOH% formula
 
   datalayer.battery.status.voltage_dV = total_voltage;
@@ -98,9 +101,20 @@ void update_values_battery() {
   datalayer.battery.status.active_power_W =  //Power in watts, Negative = charging batt
       ((datalayer.battery.status.voltage_dV * datalayer.battery.status.current_dA) / 100);
 
-  datalayer.battery.status.max_charge_power_W = (protective_current * total_voltage) / 10;
+  // Charge power is set in .h file
+  if (datalayer.battery.status.real_soc > 9900) {
+    datalayer.battery.status.max_charge_power_W = MAX_CHARGE_POWER_WHEN_TOPBALANCING_W;
+  } else if (datalayer.battery.status.real_soc > RAMPDOWN_SOC) {
+    // When real SOC is between RAMPDOWN_SOC-99%, ramp the value between Max<->0
+    datalayer.battery.status.max_charge_power_W =
+        MAX_CHARGE_POWER_ALLOWED_W *
+        (1 - (datalayer.battery.status.real_soc - RAMPDOWN_SOC) / (10000.0 - RAMPDOWN_SOC));
+  } else {  // No limits, max charging power allowed
+    datalayer.battery.status.max_charge_power_W = MAX_CHARGE_POWER_ALLOWED_W;
+  }
 
-  datalayer.battery.status.max_discharge_power_W = (protective_current * total_voltage) / 10;
+  // Discharge power is also set in .h file
+  datalayer.battery.status.max_discharge_power_W = MAX_DISCHARGE_POWER_ALLOWED_W;
 
   uint16_t temperatures[] = {
       module_1_temperature,  module_2_temperature,  module_3_temperature,  module_4_temperature,
