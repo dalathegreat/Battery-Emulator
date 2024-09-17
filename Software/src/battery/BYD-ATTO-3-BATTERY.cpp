@@ -93,10 +93,14 @@ void update_values_battery() {  //This function maps all the values fetched via 
     datalayer.battery.status.voltage_dV = BMS_voltage * 10;
   }
 
-  //datalayer.battery.status.real_soc = BMS_SOC * 100;  //TODO: This is not yet found!
-  // We instead estimate the SOC% based on the battery voltage
-  // This is a very bad solution, and as soon as an usable SOC% value has been found on CAN, we should switch to that!
+#ifdef USE_ESTIMATED_SOC
+  // When the battery is crashed hard, it locks itself and SOC becomes unavailable.
+  // We instead estimate the SOC% based on the battery voltage.
+  // This is a bad solution, you wont be able to use 100% of the battery
   datalayer.battery.status.real_soc = estimateSOC(datalayer.battery.status.voltage_dV);
+#else  // Pack is not crashed, we can use periodically transmitted SOC
+  datalayer.battery.status.real_soc = highprecision_SOC * 10;
+#endif
 
   datalayer.battery.status.current_dA = -BMS_current;
 
@@ -130,14 +134,6 @@ void update_values_battery() {  //This function maps all the values fetched via 
 
   datalayer.battery.status.temperature_min_dC = calc_min_temperature * 10;  // Add decimals
   datalayer.battery.status.temperature_max_dC = calc_max_temperature * 10;
-
-  //TODO: Remove once confirmed which work
-  Serial.print("Polled: ");
-  Serial.println(BMS_SOC);
-  Serial.print("Highprec: ");
-  Serial.println(highprecision_SOC);
-  Serial.print("Lowprec: ");
-  Serial.println(lowprecision_SOC);
 
 #ifdef DEBUG_VIA_USB
 
