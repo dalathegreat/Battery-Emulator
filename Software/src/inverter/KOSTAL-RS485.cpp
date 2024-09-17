@@ -37,16 +37,13 @@ uint8_t frame2[64] = {0x0A, 0xE2, 0xFF, 0x02, 0xFF, 0x29,  // frame Header
                       0x01, 0x01,  // Unknown
                       0x01, 0x05,  //  Max charge? (2 byte float) Bit 36-37
 
-                      0xCD, 0xCC,  // Unknown
-                      0xB4, 0x41,  // MaxCellTemp (2 byte float) Bit 40-41
+                      0xCD, 0xCC, 0xB4, 0x41,  // MaxCellTemp (4 byte float) Bit 38-41
 
-                      0x01, 0x0C,  // Maybe cell information?
-                      0xA4, 0x41,  // MinCellTemp (2 byte float) Bit 44-45
+                      0x01, 0x0C,  0xA4, 0x41,  // MinCellTemp (4 byte float) Bit 42-45
 
                       0xA4, 0x70, 0x55, 0x40,  // MaxCellVolt  (float), Bit 46-49
-                                               // 0xA470 = 4.2096V
+
                       0x7D, 0x3F, 0x55, 0x40,  // MinCellVolt  (float), Bit 50-53
-                                               // 0x7D3F = 3.2063V
 
                       0xFE,        // Cylce count , Bit 54
                       0x04,        // Cycle count? , Bit 55
@@ -228,18 +225,17 @@ void update_RS485_registers_inverter() {
 
   float2frameMSB(frame2, (float)(average_temperature_dC / 10), 16);
 
-  float2frameMSB(frame2, (float)datalayer.battery.status.current_dA / 10,
-                 20);  // Peak discharge? current (2 byte float)
+  float2frameMSB(frame2, (float)datalayer.battery.status.current_dA / 10, 20);  // Peak discharge? current (2 byte float)
   float2frameMSB(frame2, (float)datalayer.battery.status.current_dA / 10, 24);
 
   float2frameMSB(frame2, (float)(discharge_current_dA / 10), 28);  // Nominal discharge? I (2 byte float)
   float2frameMSB(frame2, (float)(discharge_current_dA / 10), 32);
 
-  float2frameMSB(frame2, (float)(datalayer.battery.status.temperature_max_dC / 10), 40);
-  float2frameMSB(frame2, (float)(datalayer.battery.status.temperature_min_dC / 10), 44);
+  float2frame(frame2, (float)(datalayer.battery.status.temperature_max_dC / 10), 40);
+  float2frame(frame2, (float)(datalayer.battery.status.temperature_min_dC / 10), 44);
 
-  float2frameMSB(frame2, (float)(datalayer.battery.status.cell_max_voltage_mV / 1000), 46);
-  float2frameMSB(frame2, (float)(datalayer.battery.status.cell_min_voltage_mV / 1000), 50);
+  float2frame(frame2, (float)(datalayer.battery.status.cell_max_voltage_mV / 1000), 46);
+  float2frame(frame2, (float)(datalayer.battery.status.cell_min_voltage_mV / 1000), 50);
 
   frame2[58] = (byte)(datalayer.battery.status.reported_soc / 100);  // Confirmed OK mapping
 
