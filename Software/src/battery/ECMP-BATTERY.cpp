@@ -15,10 +15,11 @@ CAN_frame ECMP_XXX = {.FD = false,
                       .data = {0x01, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00}};
 
 static uint16_t battery_voltage = 37000;
+static uint16_t battery_soc = 0;
 
 void update_values_battery() {
 
-  datalayer.battery.status.real_soc;
+  datalayer.battery.status.real_soc = battery_soc * 100;
 
   datalayer.battery.status.soh_pptt;
 
@@ -73,6 +74,7 @@ void receive_can_battery(CAN_frame rx_frame) {
     case 0x594:
       break;
     case 0x6D0:
+      battery_soc = (100 - rx_frame.data.u8[0]);
       break;
     case 0x6D1:
       break;
