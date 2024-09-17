@@ -226,7 +226,7 @@ void update_RS485_registers_inverter() {
 
   float2frameMSB(frame2, (float)(datalayer.battery.info.max_design_voltage_dV / 10), 12);
 
-  frame2[16] = (uint8_t)(average_temperature_dC / 10);
+  float2frameMSB(frame2, (float)average_temperature_dC, 16);
 
   float2frameMSB(frame2, (float)datalayer.battery.status.current_dA / 10,
                  20);  // Peak discharge? current (2 byte float)
@@ -238,8 +238,8 @@ void update_RS485_registers_inverter() {
   float2frameMSB(frame2, (float)(datalayer.battery.status.temperature_max_dC / 10), 40);
   float2frameMSB(frame2, (float)(datalayer.battery.status.temperature_min_dC / 10), 44);
 
-  float2frame(frame2, (float)(datalayer.battery.status.cell_max_voltage_mV / 1000), 46);
-  float2frame(frame2, (float)(datalayer.battery.status.cell_min_voltage_mV / 1000), 50);
+  float2frameMSB(frame2, (float)(datalayer.battery.status.cell_max_voltage_mV / 1000), 46);
+  float2frameMSB(frame2, (float)(datalayer.battery.status.cell_min_voltage_mV / 1000), 50);
 
   frame2[58] = (byte)(datalayer.battery.status.reported_soc / 100);  // Confirmed OK mapping
 
