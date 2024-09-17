@@ -226,7 +226,7 @@ void update_RS485_registers_inverter() {
 
   float2frameMSB(frame2, (float)(datalayer.battery.info.max_design_voltage_dV / 10), 12);
 
-  float2frameMSB(frame2, (float)average_temperature_dC, 16);
+  float2frameMSB(frame2, (float)(average_temperature_dC / 10), 16);
 
   float2frameMSB(frame2, (float)datalayer.battery.status.current_dA / 10,
                  20);  // Peak discharge? current (2 byte float)
