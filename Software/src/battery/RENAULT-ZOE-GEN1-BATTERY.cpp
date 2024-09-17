@@ -7,6 +7,11 @@
 
 /* Information in this file is based of the OVMS V3 vehicle_renaultzoe.cpp component 
 https://github.com/openvehicles/Open-Vehicle-Monitoring-System-3/blob/master/vehicle/OVMS.V3/components/vehicle_renaultzoe/src/vehicle_renaultzoe.cpp
+The Zoe BMS apparently does not send total pack voltage, so we use the polled 96x cellvoltages summed up as total voltage
+Still TODO:
+- Find max discharge and max charge values (for now hardcoded to 5kW)
+- Find current sensor value (OVMS code reads this from inverter, which we dont have)
+- Figure out why SOH% is not read (low prio)
 /*
 
 /* Do not change code below unless you are sure what you are doing */
@@ -80,9 +85,11 @@ void update_values_battery() {  //This function maps all the values fetched via 
 
   datalayer.battery.status.max_discharge_power_W = 5000;  //TODO: Take from CAN
 
-  datalayer.battery.status.max_charge_power_W = LB_Charge_Power_W;
+  datalayer.battery.status.max_charge_power_W = 5000;  //TODO: Take from CAN
 
-  datalayer.battery.status.active_power_W;
+  //Power in watts, Negative = charging batt
+  datalayer.battery.status.active_power_W =
+      ((datalayer.battery.status.voltage_dV * datalayer.battery.status.current_dA) / 100);
 
   int16_t temperatures[] = {cell_1_temperature_polled,  cell_2_temperature_polled,  cell_3_temperature_polled,
                             cell_4_temperature_polled,  cell_5_temperature_polled,  cell_6_temperature_polled,
