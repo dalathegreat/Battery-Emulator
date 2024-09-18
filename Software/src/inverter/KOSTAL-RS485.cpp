@@ -34,8 +34,8 @@ uint8_t frame2[64] = {0x0A, 0xE2, 0xFF, 0x02, 0xFF, 0x29,  // frame Header
 
                       0x01, 0x03, 0xC8, 0x41,  // Nominal discharge I (2 byte float) , Bit 30-33
 
-                      0x01, 0x01,  // Unknown
-                      0x01, 0x05,  //  Max charge? (2 byte float) Bit 36-37
+                      0x01, 0x16,  // Unknown
+                      0xA0, 0x41,  //  Max charge? (2 byte float) Bit 36-37
 
                       0xCD, 0xCC, 0xB4, 0x41,  // MaxCellTemp (4 byte float) Bit 38-41
 
@@ -230,9 +230,10 @@ void update_RS485_registers_inverter() {
 
   float2frameMSB(frame2, (float)(discharge_current_dA / 10), 28);  // Nominal discharge? I (2 byte float)
   float2frameMSB(frame2, (float)(discharge_current_dA / 10), 32);
+  float2frameMSB(frame2, (float)(charge_current_dA / 10), 36);
 
-  float2frame(frame2, (float)(datalayer.battery.status.temperature_max_dC / 10), 40);
-  float2frame(frame2, (float)(datalayer.battery.status.temperature_min_dC / 10), 44);
+  float2frame(frame2, (float)(datalayer.battery.status.temperature_max_dC / 10), 38);
+  float2frame(frame2, (float)(datalayer.battery.status.temperature_min_dC / 10), 42);
 
   float2frame(frame2, (float)(datalayer.battery.status.cell_max_voltage_mV / 1000), 46);
   float2frame(frame2, (float)(datalayer.battery.status.cell_min_voltage_mV / 1000), 50);
