@@ -201,6 +201,8 @@ void init_events(void) {
   events.entries[EVENT_RESET_CPU_LOCKUP].level = EVENT_LEVEL_WARNING;
   events.entries[EVENT_PAUSE_BEGIN].level = EVENT_LEVEL_WARNING;
   events.entries[EVENT_PAUSE_END].level = EVENT_LEVEL_INFO;
+  events.entries[EVENT_WIFI_CONNECT].level = EVENT_LEVEL_INFO;
+  events.entries[EVENT_WIFI_DISCONNECT].level = EVENT_LEVEL_INFO;
 
   events.entries[EVENT_EEPROM_WRITE].log = false;  // Don't log the logger...
 
@@ -376,6 +378,10 @@ const char* get_event_message_string(EVENTS_ENUM_TYPE event) {
       return "Warning: The emulator is trying to pause the battery.";
     case EVENT_PAUSE_END:
       return "Info: The emulator is attempting to resume battery operation from pause.";
+    case EVENT_WIFI_CONNECT:
+      return "Info: Wifi connected.";
+    case EVENT_WIFI_DISCONNECT:
+      return "Info: Wifi disconnected.";
     default:
       return "";
   }

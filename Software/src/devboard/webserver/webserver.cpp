@@ -17,39 +17,12 @@ unsigned long ota_progress_millis = 0;
 #include "index_html.cpp"
 #include "settings_html.h"
 
-enum WifiState {
-  INIT,          //before connecting first time
-  RECONNECTING,  //we've connected before, but lost connection
-  CONNECTED      //we are connected
-};
-
-WifiState wifi_state = INIT;
-
 MyTimer ota_timeout_timer = MyTimer(15000);
 bool ota_active = false;
 
-unsigned const long WIFI_MONITOR_INTERVAL_TIME = 15000;
-unsigned const long INIT_WIFI_CONNECT_TIMEOUT = 8000;        // Timeout for initial WiFi connect in milliseconds
-unsigned const long DEFAULT_WIFI_RECONNECT_INTERVAL = 1000;  // Default WiFi reconnect interval in ms
-unsigned const long MAX_WIFI_RETRY_INTERVAL = 90000;         // Maximum wifi retry interval in ms
-unsigned long last_wifi_monitor_time = millis();             //init millis so wifi monitor doesn't run immediately
-unsigned long wifi_reconnect_interval = DEFAULT_WIFI_RECONNECT_INTERVAL;
-unsigned long last_wifi_attempt_time = millis();  //init millis so wifi monitor doesn't run immediately
 const char get_firmware_info_html[] = R"rawliteral(%X%)rawliteral";
 
 void init_webserver() {
-  // Configure WiFi
-#ifdef WIFIAP
-  if (AccessPointEnabled) {
-    WiFi.mode(WIFI_AP_STA);  // Simultaneous WiFi AP and Router connection
-    init_WiFi_AP();
-  } else {
-    WiFi.mode(WIFI_STA);  // Only Router connection
-  }
-#else
-  WiFi.mode(WIFI_STA);  // Only Router connection
-#endif  // WIFIAP
-  init_WiFi_STA(ssid.c_str(), password.c_str(), wifi_channel);
 
   String content = index_html;
 
@@ -352,28 +325,7 @@ void init_webserver() {
 
   // Start server
   server.begin();
-
-#ifdef MQTT
-  // Init MQTT
-  init_mqtt();
-#endif  // MQTT
 }
-
-#ifdef WIFIAP
-void init_WiFi_AP() {
-#ifdef DEBUG_VIA_USB
-  Serial.println("Creating Access Point: " + String(ssidAP));
-  Serial.println("With password: " + String(passwordAP));
-#endif  // DEBUG_VIA_USB
-  WiFi.softAP(ssidAP, passwordAP);
-  IPAddress IP = WiFi.softAPIP();
-#ifdef DEBUG_VIA_USB
-  Serial.println("Access Point created.");
-  Serial.print("IP address: ");
-  Serial.println(IP);
-#endif  // DEBUG_VIA_USB
-}
-#endif  // WIFIAP
 
 String getConnectResultString(wl_status_t status) {
   switch (status) {
@@ -398,60 +350,11 @@ String getConnectResultString(wl_status_t status) {
   }
 }
 
-void wifi_monitor() {
-  unsigned long currentMillis = millis();
-  if (currentMillis - last_wifi_monitor_time > WIFI_MONITOR_INTERVAL_TIME) {
-    last_wifi_monitor_time = currentMillis;
-    wl_status_t status = WiFi.status();
-    if (status != WL_CONNECTED && status != WL_IDLE_STATUS) {
-#ifdef DEBUG_VIA_USB
-      Serial.println(getConnectResultString(status));
-#endif                           // DEBUG_VIA_USB
-      if (wifi_state == INIT) {  //we haven't been connected yet, try the init logic
-        init_WiFi_STA(ssid.c_str(), password.c_str(), wifi_channel);
-      } else {  //we were connected before, try the reconnect logic
-        if (currentMillis - last_wifi_attempt_time > wifi_reconnect_interval) {
-          last_wifi_attempt_time = currentMillis;
-#ifdef DEBUG_VIA_USB
-          Serial.println("WiFi not connected, trying to reconnect...");
-#endif  // DEBUG_VIA_USB
-          wifi_state = RECONNECTING;
-          WiFi.reconnect();
-          wifi_reconnect_interval = min(wifi_reconnect_interval * 2, MAX_WIFI_RETRY_INTERVAL);
-        }
-      }
-    } else if (status == WL_CONNECTED && wifi_state != CONNECTED) {
-      wifi_state = CONNECTED;
-      wifi_reconnect_interval = DEFAULT_WIFI_RECONNECT_INTERVAL;
-// Print local IP address and start web server
-#ifdef DEBUG_VIA_USB
-      Serial.print("Connected to WiFi network: " + String(ssid.c_str()));
-      Serial.print(" IP address: " + WiFi.localIP().toString());
-      Serial.print(" Signal Strength: " + String(WiFi.RSSI()) + " dBm");
-      Serial.println(" Channel: " + String(WiFi.channel()));
-      Serial.println(" Hostname: " + String(WiFi.getHostname()));
-#endif  // DEBUG_VIA_USB
-    }
-  }
-
+void ota_monitor() {
   if (ota_active && ota_timeout_timer.elapsed()) {
     // OTA timeout, try to restore can and clear the update event
     set_event(EVENT_OTA_UPDATE_TIMEOUT, 0);
     onOTAEnd(false);
-  }
-}
-
-void init_WiFi_STA(const char* ssid, const char* password, const uint8_t wifi_channel) {
-// Connect to Wi-Fi network with SSID and password
-#ifdef DEBUG_VIA_USB
-  Serial.print("Connecting to ");
-  Serial.println(ssid);
-#endif  // DEBUG_VIA_USB
-  WiFi.begin(ssid, password, wifi_channel);
-  WiFi.setAutoReconnect(true);  // Enable auto reconnect
-  wl_status_t result = static_cast<wl_status_t>(WiFi.waitForConnectResult(INIT_WIFI_CONNECT_TIMEOUT));
-  if (result) {
-    //TODO: Add event or serial print?
   }
 }
 

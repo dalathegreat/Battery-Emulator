@@ -25,6 +25,8 @@
 
 #include "src/datalayer/datalayer.h"
 
+#ifdef WIFI
+#include "src/devboard/wifi/wifi.h"
 #ifdef WEBSERVER
 #include "src/devboard/webserver/webserver.h"
 #ifdef MDNSRESPONDER
@@ -35,6 +37,7 @@
 #error WEBSERVER needs to be enabled for MDNSRESPONDER!
 #endif  // MDNSRSPONDER
 #endif  // WEBSERVER
+#endif  // WIFI
 
 Preferences settings;  // Store user settings
 // The current software version, shown on webserver
@@ -129,7 +132,7 @@ void setup() {
 
   init_stored_settings();
 
-#ifdef WEBSERVER
+#ifdef WIFI
   xTaskCreatePinnedToCore((TaskFunction_t)&connectivity_loop, "connectivity_loop", 4096, &connectivity_task_time_us,
                           TASK_CONNECTIVITY_PRIO, &connectivity_loop_task, WIFI_CORE);
 #endif
@@ -171,10 +174,16 @@ void loop() {
 #endif
 }
 
-#ifdef WEBSERVER
+#ifdef WIFI
 void connectivity_loop(void* task_time_us) {
-  // Init
+
+  // Init wifi
+  init_WiFi();
+
+#ifdef WEBSERVER
+  // Init webserver
   init_webserver();
+#endif
 #ifdef MDNSRESPONDER
   init_mDNS();
 #endif
@@ -185,6 +194,9 @@ void connectivity_loop(void* task_time_us) {
   while (true) {
     START_TIME_MEASUREMENT(wifi);
     wifi_monitor();
+#ifdef WEBSERVER
+    ota_monitor();
+#endif
     END_TIME_MEASUREMENT_MAX(wifi, datalayer.system.status.wifi_task_10s_max_us);
 #ifdef MQTT
     START_TIME_MEASUREMENT(mqtt);
@@ -297,27 +309,6 @@ void core_loop(void* task_time_us) {
     vTaskDelayUntil(&xLastWakeTime, xFrequency);
   }
 }
-
-#ifdef MDNSRESPONDER
-// Initialise mDNS
-void init_mDNS() {
-
-  // Calulate the host name using the last two chars from the MAC address so each one is likely unique on a network.
-  // e.g batteryemulator8C.local where the mac address is 08:F9:E0:D1:06:8C
-  String mac = WiFi.macAddress();
-  String mdnsHost = "batteryemulator" + mac.substring(mac.length() - 2);
-
-  // Initialize mDNS .local resolution
-  if (!MDNS.begin(mdnsHost)) {
-#ifdef DEBUG_VIA_USB
-    Serial.println("Error setting up MDNS responder!");
-#endif
-  } else {
-    // Advertise via bonjour the service so we can auto discover these battery emulators on the local network.
-    MDNS.addService("battery_emulator", "tcp", 80);
-  }
-}
-#endif  // MDNSRESPONDER
 
 // Initialization functions
 void init_serial() {

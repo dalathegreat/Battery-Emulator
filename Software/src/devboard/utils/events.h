@@ -96,6 +96,8 @@
   XX(EVENT_RESET_CPU_LOCKUP)            \
   XX(EVENT_PAUSE_BEGIN)                 \
   XX(EVENT_PAUSE_END)                   \
+  XX(EVENT_WIFI_CONNECT)                \
+  XX(EVENT_WIFI_DISCONNECT)             \
   XX(EVENT_NOF_EVENTS)
 
 typedef enum { EVENTS_ENUM_TYPE(GENERATE_ENUM) } EVENTS_ENUM_TYPE;
