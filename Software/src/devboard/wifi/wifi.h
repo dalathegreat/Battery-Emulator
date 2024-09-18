@@ -2,15 +2,14 @@
 #define WIFI_H
 
 #include <WiFi.h>
-#include "../../include.h"
 #include <string>
+#include "../../include.h"
 
 extern std::string ssid;
 extern std::string password;
 extern const uint8_t wifi_channel;
 extern const char* ssidAP;
 extern const char* passwordAP;
-
 
 void init_WiFi();
 void wifi_monitor();
@@ -20,8 +19,6 @@ static void onWifiConnect(WiFiEvent_t event, WiFiEventInfo_t info);
 static void onWifiDisconnect(WiFiEvent_t event, WiFiEventInfo_t info);
 static void onWifiGotIP(WiFiEvent_t event, WiFiEventInfo_t info);
 
-
-
 #ifdef WIFIAP
 void init_WiFi_AP();
 #endif  // WIFIAP
@@ -29,7 +26,6 @@ void init_WiFi_AP();
 #ifdef MDNSRESPONDER
 // Initialise mDNS
 void init_mDNS();
-#endif // MDNSRESPONDER
-
+#endif  // MDNSRESPONDER
 
 #endif
