@@ -37,6 +37,9 @@
 #error WEBSERVER needs to be enabled for MDNSRESPONDER!
 #endif  // MDNSRSPONDER
 #endif  // WEBSERVER
+#ifdef MQTT
+#include "src/devboard/mqtt/mqtt.h"
+#endif  // MQTT
 #endif  // WIFI
 
 Preferences settings;  // Store user settings
