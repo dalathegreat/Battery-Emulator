@@ -3,10 +3,12 @@
 #include "../utils/events.h"
 
 // Configuration Parameters
-static const uint16_t WIFI_CHECK_INTERVAL = 5000;                 // 5 seconds
-static const uint16_t INIT_WIFI_FULL_RECONNECT_INTERVAL = 10000;  // 10 seconds
-static const uint16_t MAX_WIFI_FULL_RECONNECT_INTERVAL = 60000;   // 60 seconds
-static const uint16_t STEP_WIFI_FULL_RECONNECT_INTERVAL = 5000;   // 5 seconds
+static const uint16_t WIFI_CHECK_INTERVAL = 5000;  // 5 seconds normal check interval when last connected
+static const uint16_t INIT_WIFI_FULL_RECONNECT_INTERVAL =
+    10000;  // 10 seconds starting wait interval for full reconnects and first connection
+static const uint16_t MAX_WIFI_FULL_RECONNECT_INTERVAL = 60000;  // 60 seconds maximum wait interval for full reconnects
+static const uint16_t STEP_WIFI_FULL_RECONNECT_INTERVAL =
+    5000;  // 5 seconds wait step increase in checks for full reconnects
 static const uint16_t MAX_RECONNECT_ATTEMPTS =
     3;  // Maximum number of reconnect attempts before forcing a full connection
 
@@ -18,7 +20,6 @@ static uint16_t reconnectAttempts = 0;  // Counter for reconnect attempts
 static uint16_t current_full_reconnect_interval = INIT_WIFI_FULL_RECONNECT_INTERVAL;
 
 void init_WiFi() {
-  Serial.begin(115200);
 
 #ifdef WIFIAP
   if (AccessPointEnabled) {
@@ -53,29 +54,38 @@ void wifi_monitor() {
   unsigned long currentMillis = millis();
 
   // Check if it's time to monitor the Wi-Fi status
-  if (currentMillis - lastWiFiCheck > WIFI_CHECK_INTERVAL) {
+  // WIFI_CHECK_INTERVAL for normal checks and INIT_WIFI_FULL_RECONNECT_INTERVAL for first connections or  full connect attepts
+  if ((hasConnectedBefore && (currentMillis - lastWiFiCheck > WIFI_CHECK_INTERVAL)) ||
+      (!hasConnectedBefore && (currentMillis - lastWiFiCheck > INIT_WIFI_FULL_RECONNECT_INTERVAL))) {
     lastWiFiCheck = currentMillis;
 
     wl_status_t status = WiFi.status();
     if (status != WL_CONNECTED) {
+#ifdef DEBUG_VIA_USB
       Serial.println("Wi-Fi not connected, attempting to reconnect...");
-
+#endif
       // Try WiFi.reconnect() if it was successfully connected at least once
       if (hasConnectedBefore) {
         if (WiFi.reconnect()) {
+#ifdef DEBUG_VIA_USB
           Serial.println("Wi-Fi reconnect attempt...");
+#endif
           reconnectAttempts = 0;  // Reset the attempt counter on successful reconnect
         } else {
           reconnectAttempts++;
           if (reconnectAttempts >= MAX_RECONNECT_ATTEMPTS) {
+#ifdef DEBUG_VIA_USB
             Serial.println("Failed to reconnect multiple times, forcing a full connection attempt...");
+#endif
             FullReconnectToWiFi();
           }
         }
       } else {
         // If no previous connection, force a full connection attempt
         if (currentMillis - lastReconnectAttempt > current_full_reconnect_interval) {
+#ifdef DEBUG_VIA_USB
           Serial.println("No previous OK connection, force a full connection attempt...");
+#endif
           FullReconnectToWiFi();
         }
       }
@@ -99,7 +109,9 @@ static void FullReconnectToWiFi() {
 // Function to handle Wi-Fi connection
 static void connectToWiFi() {
   if (WiFi.status() != WL_CONNECTED) {
+#ifdef DEBUG_VIA_USB
     Serial.println("Connecting to Wi-Fi...");
+#endif
     WiFi.begin(ssid.c_str(), password.c_str(), wifi_channel);
   } else {
     Serial.println("Wi-Fi already connected.");
@@ -109,9 +121,11 @@ static void connectToWiFi() {
 // Event handler for successful Wi-Fi connection
 static void onWifiConnect(WiFiEvent_t event, WiFiEventInfo_t info) {
   set_event(EVENT_WIFI_CONNECT, 0);
+#ifdef DEBUG_VIA_USB
   Serial.println("Wi-Fi connected.");
   Serial.print("IP address: ");
   Serial.println(WiFi.localIP());
+#endif
   hasConnectedBefore = true;                                            // Mark as successfully connected at least once
   reconnectAttempts = 0;                                                // Reset the attempt counter
   current_full_reconnect_interval = INIT_WIFI_FULL_RECONNECT_INTERVAL;  // Reset the full reconnect interval
@@ -120,16 +134,22 @@ static void onWifiConnect(WiFiEvent_t event, WiFiEventInfo_t info) {
 
 // Event handler for Wi-Fi Got IP
 static void onWifiGotIP(WiFiEvent_t event, WiFiEventInfo_t info) {
+#ifdef DEBUG_VIA_USB
   Serial.println("Wi-Fi Got IP.");
   Serial.print("IP address: ");
   Serial.println(WiFi.localIP());
+#endif
 }
 
 // Event handler for Wi-Fi disconnection
 static void onWifiDisconnect(WiFiEvent_t event, WiFiEventInfo_t info) {
   set_event(EVENT_WIFI_DISCONNECT, 0);
+#ifdef DEBUG_VIA_USB
   Serial.println("Wi-Fi disconnected.");
+#endif
   lastReconnectAttempt = millis();  // Reset reconnection attempt timer
+  lastWiFiCheck =
+      millis() - WIFI_CHECK_INTERVAL;  //force to attempt to reconnect immediatly on next checkInterval cycle
   clear_event(EVENT_WIFI_DISCONNECT);
 }
 

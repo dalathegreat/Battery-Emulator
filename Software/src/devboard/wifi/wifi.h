@@ -5,6 +5,10 @@
 #include <string>
 #include "../../include.h"
 
+#ifdef MDNSRESPONDER
+#include <ESPmDNS.h>
+#endif  // MDNSRESONDER
+
 extern std::string ssid;
 extern std::string password;
 extern const uint8_t wifi_channel;
