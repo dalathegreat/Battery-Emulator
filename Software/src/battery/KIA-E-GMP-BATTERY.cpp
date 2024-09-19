@@ -874,15 +874,17 @@ void send_can_battery() {
       EGMP_1CF_counter = 0;
     }
     EGMP_1CF.data.u8[0] = calculateCRC(EGMP_1CF, EGMP_1CF.DLC, 0x0A);  // Set CRC bit, initial Value 0x0A
-
+    /* COMMENTED OUT WHILE CONTACTOR CLOSING TESTING
     transmit_can(&EGMP_1CF, can_config.battery);
+    */
   }
 
   //Send 30ms CANFD message
   if (currentMillis - previousMillis30ms >= INTERVAL_30_MS) {
     previousMillis30ms = currentMillis;
-
+    /* COMMENTED OUT WHILE CONTACTOR CLOSING TESTING
     transmit_can(&EGMP_419, can_config.battery);  // TODO: Handle variations better
+    */
   }
 
   //Send 100ms CANFD message
@@ -959,14 +961,16 @@ void send_can_battery() {
     transmit_can(&EGMP_255, can_config.battery);  // Needed for contactor closing (UNSURE IF THIS IS 100ms)
     transmit_can(&EGMP_3B5, can_config.battery);  // Needed for contactor closing (UNSURE IF THIS IS 100ms)
     transmit_can(&EGMP_2C0, can_config.battery);  // Needed for contactor closing (UNSURE IF THIS IS 100ms)
+    /* COMMENTED OUT WHILE CONTACTOR CLOSING TESTING
     transmit_can(&EGMP_36F, can_config.battery);
     transmit_can(&EGMP_37F, can_config.battery);
+    */
   }
 
   //Send 200ms CANFD message
   if (currentMillis - previousMillis200ms >= INTERVAL_200_MS) {
     previousMillis200ms = currentMillis;
-
+    /* COMMENTED OUT WHILE CONTACTOR CLOSING TESTING
     transmit_can(&EGMP_4B4, can_config.battery);
     transmit_can(&EGMP_4B5, can_config.battery);
     transmit_can(&EGMP_4B7, can_config.battery);
@@ -1002,6 +1006,7 @@ void send_can_battery() {
     transmit_can(&EGMP_3C2, can_config.battery);
     transmit_can(&EGMP_4F0, can_config.battery);  //TODO: could be handled better
     transmit_can(&EGMP_4F2, can_config.battery);  //TODO: could be handled better
+    */
 
     if (ticks_200ms_counter < 254) {
       ticks_200ms_counter++;
@@ -1115,14 +1120,16 @@ void send_can_battery() {
   //Send 1s CANFD message
   if (currentMillis - previousMillis1s >= INTERVAL_1_S) {
     previousMillis1s = currentMillis;
-
+    /* COMMENTED OUT WHILE CONTACTOR CLOSING TESTING
     transmit_can(&EGMP_48F, can_config.battery);
+    */
   }
   //Send 2s CANFD message
   if (currentMillis - previousMillis2s >= INTERVAL_2_S) {
     previousMillis2s = currentMillis;
-
+    /* COMMENTED OUT WHILE CONTACTOR CLOSING TESTING
     transmit_can(&EGMP_4FE, can_config.battery);
+    */
   }
 }
 
