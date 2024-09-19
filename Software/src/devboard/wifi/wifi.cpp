@@ -139,6 +139,7 @@ static void connectToWiFi() {
 
 // Event handler for successful Wi-Fi connection
 static void onWifiConnect(WiFiEvent_t event, WiFiEventInfo_t info) {
+  clear_event(EVENT_WIFI_DISCONNECT);
   set_event(EVENT_WIFI_CONNECT, 0);
 #ifdef DEBUG_VIA_USB
   Serial.println("Wi-Fi connected.");
@@ -154,6 +155,8 @@ static void onWifiConnect(WiFiEvent_t event, WiFiEventInfo_t info) {
 
 // Event handler for Wi-Fi Got IP
 static void onWifiGotIP(WiFiEvent_t event, WiFiEventInfo_t info) {
+  //clear disconnects events if we got a IP
+  clear_event(EVENT_WIFI_DISCONNECT);
 #ifdef DEBUG_VIA_USB
   Serial.println("Wi-Fi Got IP.");
   Serial.print("IP address: ");
@@ -167,16 +170,14 @@ static void onWifiDisconnect(WiFiEvent_t event, WiFiEventInfo_t info) {
 #ifdef DEBUG_VIA_USB
   Serial.println("Wi-Fi disconnected.");
 #endif
-  //do not do anything here, the reconnect will be handled by the monitor
+  //we dont do anything here, the reconnect will be handled by the monitor
   //too many events received when the connection is lost
-  //normal reconnects start at fit second
-  clear_event(EVENT_WIFI_DISCONNECT);
+  //normal reconnect retry start at first 2 seconds
 }
 
 #ifdef MDNSRESPONDER
 // Initialise mDNS
 void init_mDNS() {
-
   // Calulate the host name using the last two chars from the MAC address so each one is likely unique on a network.
   // e.g batteryemulator8C.local where the mac address is 08:F9:E0:D1:06:8C
   String mac = WiFi.macAddress();
