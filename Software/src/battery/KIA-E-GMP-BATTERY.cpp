@@ -96,6 +96,7 @@ static uint8_t EGMP_19A_byte1[16] = {0x9b, 0x05, 0x5c, 0xb7, 0xee, 0xa2, 0xfb, 0
                                      0x49, 0xd7, 0x8e, 0x65, 0x3c, 0x48, 0x11, 0xfa};
 static uint8_t EGMP_19A_byte2[16] = {0x7b, 0x7c, 0x7d, 0x7e, 0x7f, 0x80, 0x81, 0x82,
                                      0x83, 0x84, 0x85, 0x86, 0x87, 0x88, 0x89, 0x8a};
+static bool alternate_100ms = false;
 CAN_frame EGMP_F5 = {
     .FD = true,
     .ext_ID = false,
@@ -896,6 +897,51 @@ void send_can_battery() {
     }
     EGMP_36F.data.u8[0] = calculateCRC(EGMP_36F, EGMP_36F.DLC, 0x8A);  // Set CRC bit, initial Value 0x8A
     EGMP_37F.data.u8[0] = calculateCRC(EGMP_37F, EGMP_37F.DLC, 0x38);  // Set CRC bit, initial Value 0x38
+
+    if (alternate_100ms) {
+      EGMP_30A.data.u8[0] = 0xB1;
+      EGMP_30A.data.u8[1] = 0xE0;
+      EGMP_30A.data.u8[2] = 0x26;
+
+      EGMP_320.data.u8[0] = 0xC6;
+      EGMP_320.data.u8[1] = 0xAB;
+      EGMP_320.data.u8[2] = 0x26;
+
+      EGMP_2AA.data.u8[0] = 0x86;
+      EGMP_2AA.data.u8[1] = 0xEA;
+      EGMP_2AA.data.u8[2] = 0x42;
+
+      EGMP_2B5.data.u8[0] = 0xBD;
+      EGMP_2B5.data.u8[1] = 0xB2;
+      EGMP_2B5.data.u8[2] = 0x42;
+
+      EGMP_2E0.data.u8[0] = 0xC1;
+      EGMP_2E0.data.u8[1] = 0xF2;
+      EGMP_2E0.data.u8[2] = 0x42;
+
+      alternate_100ms = false;
+    } else {
+      EGMP_30A.data.u8[0] = 0xD3;
+      EGMP_30A.data.u8[1] = 0x11;
+      EGMP_30A.data.u8[2] = 0x27;
+
+      EGMP_320.data.u8[0] = 0x80;
+      EGMP_320.data.u8[1] = 0xF2;
+      EGMP_320.data.u8[2] = 0x27;
+
+      EGMP_2AA.data.u8[0] = 0xC0;
+      EGMP_2AA.data.u8[1] = 0xB3;
+      EGMP_2AA.data.u8[2] = 0x43;
+
+      EGMP_2B5.data.u8[0] = 0xFB;
+      EGMP_2B5.data.u8[1] = 0xEB;
+      EGMP_2B5.data.u8[2] = 0x43;
+
+      EGMP_2E0.data.u8[0] = 0x87;
+      EGMP_2E0.data.u8[1] = 0xAB;
+      EGMP_2E0.data.u8[2] = 0x43;
+      alternate_100ms = true;
+    }
 
     transmit_can(&EGMP_30A, can_config.battery);  // Needed for contactor closing
     transmit_can(&EGMP_320, can_config.battery);  // Needed for contactor closing
