@@ -330,6 +330,8 @@ void init_stored_settings() {
   settings.clear();  // If this clear function is executed, no settings will be read from storage
 #endif
 
+#ifdef WIFI
+
   char tempSSIDstring[63];  // Allocate buffer with sufficient size
   size_t lengthSSID = settings.getString("SSID", tempSSIDstring, sizeof(tempSSIDstring));
   if (lengthSSID > 0) {  // Successfully read the string from memory. Set it to SSID!
@@ -342,6 +344,7 @@ void init_stored_settings() {
     password = tempPasswordString;
   } else {  // Reading from settings failed. Do nothing with SSID. Raise event?
   }
+#endif
 
   static uint32_t temp = 0;
   temp = settings.getUInt("BATTERY_WH_MAX", false);
@@ -808,8 +811,10 @@ void init_serialDataLink() {
 
 void storeSettings() {
   settings.begin("batterySettings", false);
+#ifdef WIFI
   settings.putString("SSID", String(ssid.c_str()));
   settings.putString("PASSWORD", String(password.c_str()));
+#endif
   settings.putUInt("BATTERY_WH_MAX", datalayer.battery.info.total_capacity_Wh);
   settings.putUInt("MAXPERCENTAGE",
                    datalayer.battery.settings.max_percentage / 10);  // Divide by 10 for backwards compatibility
