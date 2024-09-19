@@ -6,15 +6,14 @@
 #include "KIA-E-GMP-BATTERY.h"
 
 /* Do not change code below unless you are sure what you are doing */
-static unsigned long previousMillis10ms = 0;          // will store last time a 10ms CAN Message was send
-static unsigned long previousMillis20ms = 0;          // will store last time a 20ms CAN Message was send
-static unsigned long previousMillis30ms = 0;          // will store last time a 30ms CAN Message was send
-static unsigned long previousMillis100ms = 0;         // will store last time a 100ms CAN Message was send
-static unsigned long previousMillis100ms_batch2 = 0;  // will store last time a batch2 100ms CAN Message was send
-static unsigned long previousMillis200ms = 0;         // will store last time a 200ms CAN Message was send
-static unsigned long previousMillis500ms = 0;         // will store last time a 500ms CAN Message was send
-static unsigned long previousMillis1s = 0;            // will store last time a 1s CAN Message was send
-static unsigned long previousMillis2s = 0;            // will store last time a 2s CAN Message was send
+static unsigned long previousMillis10ms = 0;   // will store last time a 10ms CAN Message was send
+static unsigned long previousMillis20ms = 0;   // will store last time a 20ms CAN Message was send
+static unsigned long previousMillis30ms = 0;   // will store last time a 30ms CAN Message was send
+static unsigned long previousMillis100ms = 0;  // will store last time a 100ms CAN Message was send
+static unsigned long previousMillis200ms = 0;  // will store last time a 200ms CAN Message was send
+static unsigned long previousMillis500ms = 0;  // will store last time a 500ms CAN Message was send
+static unsigned long previousMillis1s = 0;     // will store last time a 1s CAN Message was send
+static unsigned long previousMillis2s = 0;     // will store last time a 2s CAN Message was send
 
 #define MAX_CELL_VOLTAGE 4250  //Battery is put into emergency stop if one cell goes over this value
 #define MIN_CELL_VOLTAGE 2950  //Battery is put into emergency stop if one cell goes below this value
@@ -865,7 +864,7 @@ void send_can_battery() {
       transmit_can(&EGMP_19A, can_config.battery);  // Needed for contactor closing
       transmit_can(&EGMP_35, can_config.battery);   // Needed for contactor closing
     }
-
+    /* COMMENTED OUT WHILE CONTACTOR CLOSING TESTING
     //Send 20ms CANFD message
     if (currentMillis - previousMillis20ms >= INTERVAL_20_MS) {
       previousMillis20ms = currentMillis;
@@ -876,39 +875,21 @@ void send_can_battery() {
         EGMP_1CF_counter = 0;
       }
       EGMP_1CF.data.u8[0] = calculateCRC(EGMP_1CF, EGMP_1CF.DLC, 0x0A);  // Set CRC bit, initial Value 0x0A
-      /* COMMENTED OUT WHILE CONTACTOR CLOSING TESTING
+ 
         transmit_can(&EGMP_1CF, can_config.battery);
-        */
+
     }
 
     //Send 30ms CANFD message
     if (currentMillis - previousMillis30ms >= INTERVAL_30_MS) {
       previousMillis30ms = currentMillis;
-      /* COMMENTED OUT WHILE CONTACTOR CLOSING TESTING
         transmit_can(&EGMP_419, can_config.battery);  // TODO: Handle variations better
-        */
     }
-
-    //Send a few 100ms CANFD message (Offset by 5ms to allow FD buffer to clear)
-    if ((currentMillis + 5) - previousMillis100ms_batch2 >= INTERVAL_100_MS) {
-      previousMillis100ms_batch2 = currentMillis;
-      transmit_can(&EGMP_255, can_config.battery);  // Needed for contactor closing (UNSURE IF THIS IS 100ms)
-      transmit_can(&EGMP_3B5, can_config.battery);  // Needed for contactor closing (UNSURE IF THIS IS 100ms)
-      transmit_can(&EGMP_2C0, can_config.battery);  // Needed for contactor closing (UNSURE IF THIS IS 100ms)
-    }
+    */
 
     //Send 100ms CANFD message
     if (currentMillis - previousMillis100ms >= INTERVAL_100_MS) {
       previousMillis100ms = currentMillis;
-
-      EGMP_36F.data.u8[1] = ((EGMP_3XF_counter % 15) << 4) + 0x01;
-      EGMP_37F.data.u8[1] = ((EGMP_3XF_counter % 15) << 4);
-      EGMP_3XF_counter++;
-      if (EGMP_3XF_counter > 0xE) {
-        EGMP_3XF_counter = 0;
-      }
-      EGMP_36F.data.u8[0] = calculateCRC(EGMP_36F, EGMP_36F.DLC, 0x8A);  // Set CRC bit, initial Value 0x8A
-      EGMP_37F.data.u8[0] = calculateCRC(EGMP_37F, EGMP_37F.DLC, 0x38);  // Set CRC bit, initial Value 0x38
 
       if (alternate_100ms) {
         EGMP_30A.data.u8[0] = 0xB1;
@@ -968,7 +949,19 @@ void send_can_battery() {
       transmit_can(&EGMP_33A, can_config.battery);  // Needed for contactor closing (UNSURE IF THIS IS 100ms)
       transmit_can(&EGMP_350, can_config.battery);  // Needed for contactor closing (UNSURE IF THIS IS 100ms)
       transmit_can(&EGMP_2E5, can_config.battery);  // Needed for contactor closing (UNSURE IF THIS IS 100ms)
+      transmit_can(&EGMP_255, can_config.battery);  // Needed for contactor closing (UNSURE IF THIS IS 100ms)
+      transmit_can(&EGMP_3B5, can_config.battery);  // Needed for contactor closing (UNSURE IF THIS IS 100ms)
+      transmit_can(&EGMP_2C0, can_config.battery);  // Needed for contactor closing (UNSURE IF THIS IS 100ms)
       /* COMMENTED OUT WHILE CONTACTOR CLOSING TESTING
+
+      EGMP_36F.data.u8[1] = ((EGMP_3XF_counter % 15) << 4) + 0x01;
+      EGMP_37F.data.u8[1] = ((EGMP_3XF_counter % 15) << 4);
+      EGMP_3XF_counter++;
+      if (EGMP_3XF_counter > 0xE) {
+        EGMP_3XF_counter = 0;
+      }
+      EGMP_36F.data.u8[0] = calculateCRC(EGMP_36F, EGMP_36F.DLC, 0x8A);  // Set CRC bit, initial Value 0x8A
+      EGMP_37F.data.u8[0] = calculateCRC(EGMP_37F, EGMP_37F.DLC, 0x38);  // Set CRC bit, initial Value 0x38
         transmit_can(&EGMP_36F, can_config.battery);
         transmit_can(&EGMP_37F, can_config.battery);
         */
@@ -1013,7 +1006,7 @@ void send_can_battery() {
         transmit_can(&EGMP_3C2, can_config.battery);
         transmit_can(&EGMP_4F0, can_config.battery);  //TODO: could be handled better
         transmit_can(&EGMP_4F2, can_config.battery);  //TODO: could be handled better
-        */
+
 
       if (ticks_200ms_counter < 254) {
         ticks_200ms_counter++;
@@ -1103,6 +1096,7 @@ void send_can_battery() {
           EGMP_444.data.u8[4] = 0x04;
         }
       }
+          */
     }
 
     //Send 500ms CANFD message
