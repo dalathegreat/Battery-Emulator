@@ -6,14 +6,15 @@
 #include "KIA-E-GMP-BATTERY.h"
 
 /* Do not change code below unless you are sure what you are doing */
-static unsigned long previousMillis10ms = 0;   // will store last time a 10ms CAN Message was send
-static unsigned long previousMillis20ms = 0;   // will store last time a 20ms CAN Message was send
-static unsigned long previousMillis30ms = 0;   // will store last time a 30ms CAN Message was send
-static unsigned long previousMillis100ms = 0;  // will store last time a 100ms CAN Message was send
-static unsigned long previousMillis200ms = 0;  // will store last time a 200ms CAN Message was send
-static unsigned long previousMillis500ms = 0;  // will store last time a 500ms CAN Message was send
-static unsigned long previousMillis1s = 0;     // will store last time a 1s CAN Message was send
-static unsigned long previousMillis2s = 0;     // will store last time a 2s CAN Message was send
+static unsigned long previousMillis10ms = 0;          // will store last time a 10ms CAN Message was send
+static unsigned long previousMillis20ms = 0;          // will store last time a 20ms CAN Message was send
+static unsigned long previousMillis30ms = 0;          // will store last time a 30ms CAN Message was send
+static unsigned long previousMillis100ms = 0;         // will store last time a 100ms CAN Message was send
+static unsigned long previousMillis100ms_batch2 = 0;  // will store last time a batch2 100ms CAN Message was send
+static unsigned long previousMillis200ms = 0;         // will store last time a 200ms CAN Message was send
+static unsigned long previousMillis500ms = 0;         // will store last time a 500ms CAN Message was send
+static unsigned long previousMillis1s = 0;            // will store last time a 1s CAN Message was send
+static unsigned long previousMillis2s = 0;            // will store last time a 2s CAN Message was send
 
 #define MAX_CELL_VOLTAGE 4250  //Battery is put into emergency stop if one cell goes over this value
 #define MIN_CELL_VOLTAGE 2950  //Battery is put into emergency stop if one cell goes below this value
@@ -888,6 +889,14 @@ void send_can_battery() {
         */
     }
 
+    //Send a few 100ms CANFD message (Offset by 5ms to allow FD buffer to clear)
+    if ((currentMillis + 5) - previousMillis100ms_batch2 >= INTERVAL_100_MS) {
+      previousMillis100ms_batch2 = currentMillis;
+      transmit_can(&EGMP_255, can_config.battery);  // Needed for contactor closing (UNSURE IF THIS IS 100ms)
+      transmit_can(&EGMP_3B5, can_config.battery);  // Needed for contactor closing (UNSURE IF THIS IS 100ms)
+      transmit_can(&EGMP_2C0, can_config.battery);  // Needed for contactor closing (UNSURE IF THIS IS 100ms)
+    }
+
     //Send 100ms CANFD message
     if (currentMillis - previousMillis100ms >= INTERVAL_100_MS) {
       previousMillis100ms = currentMillis;
@@ -959,9 +968,6 @@ void send_can_battery() {
       transmit_can(&EGMP_33A, can_config.battery);  // Needed for contactor closing (UNSURE IF THIS IS 100ms)
       transmit_can(&EGMP_350, can_config.battery);  // Needed for contactor closing (UNSURE IF THIS IS 100ms)
       transmit_can(&EGMP_2E5, can_config.battery);  // Needed for contactor closing (UNSURE IF THIS IS 100ms)
-      transmit_can(&EGMP_255, can_config.battery);  // Needed for contactor closing (UNSURE IF THIS IS 100ms)
-      transmit_can(&EGMP_3B5, can_config.battery);  // Needed for contactor closing (UNSURE IF THIS IS 100ms)
-      transmit_can(&EGMP_2C0, can_config.battery);  // Needed for contactor closing (UNSURE IF THIS IS 100ms)
       /* COMMENTED OUT WHILE CONTACTOR CLOSING TESTING
         transmit_can(&EGMP_36F, can_config.battery);
         transmit_can(&EGMP_37F, can_config.battery);
