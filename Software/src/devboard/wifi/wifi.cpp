@@ -155,6 +155,8 @@ static void onWifiConnect(WiFiEvent_t event, WiFiEventInfo_t info) {
 
 // Event handler for Wi-Fi Got IP
 static void onWifiGotIP(WiFiEvent_t event, WiFiEventInfo_t info) {
+  //clear disconnects events if we got a IP
+  clear_event(EVENT_WIFI_DISCONNECT);
 #ifdef DEBUG_VIA_USB
   Serial.println("Wi-Fi Got IP.");
   Serial.print("IP address: ");
