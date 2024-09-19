@@ -86,6 +86,19 @@ void update_values_battery() {  //This function maps all the values fetched via 
   datalayer.battery.status.max_discharge_power_W = 5000;  //TODO: Take from CAN
 
   datalayer.battery.status.max_charge_power_W = 5000;  //TODO: Take from CAN
+  // TODO: Remove this hacky wacky scaling down charge power when we find value from CAN
+  if (datalayer.battery.status.real_soc > 9500) {
+    datalayer.battery.status.max_charge_power_W = 3000;
+  }
+  if (datalayer.battery.status.real_soc > 9600) {
+    datalayer.battery.status.max_charge_power_W = 2000;
+  }
+  if (datalayer.battery.status.real_soc > 9700) {
+    datalayer.battery.status.max_charge_power_W = 1000;
+  }
+  if (datalayer.battery.status.real_soc > 9800) {
+    datalayer.battery.status.max_charge_power_W = 500;
+  }
 
   //Power in watts, Negative = charging batt
   datalayer.battery.status.active_power_W =
