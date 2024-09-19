@@ -48,6 +48,7 @@ unsigned long previousMillisUpdateVal = 0;
 // CAN parameters
 CAN_device_t CAN_cfg;          // CAN Config
 const int rx_queue_size = 10;  // Receive Queue size
+volatile bool send_ok = 0;
 
 #ifdef DUAL_CAN
 #include "src/lib/pierremolinaro-acan2515/ACAN2515.h"
@@ -942,7 +943,10 @@ void transmit_can(CAN_frame* tx_frame, int interface) {
       for (uint8_t i = 0; i < MCP2518Frame.len; i++) {
         MCP2518Frame.data[i] = tx_frame->data.u8[i];
       }
-      canfd.tryToSend(MCP2518Frame);
+      send_ok = canfd.tryToSend(MCP2518Frame);
+      if (!send_ok) {
+        set_event(EVENT_CANFD_BUFFER_FULL, interface);
+      }
 #else   // Interface not compiled, and settings try to use it
       set_event(EVENT_INTERFACE_MISSING, interface);
 #endif  //CAN_FD
