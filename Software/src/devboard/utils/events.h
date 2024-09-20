@@ -120,20 +120,28 @@ typedef enum {
 } EVENTS_STATE_TYPE;
 
 typedef struct {
-  uint32_t timestamp;       // Time in seconds since startup when the event occurred
-  uint8_t data;             // Custom data passed when setting the event, for example cell number for under voltage
-  uint8_t occurences;       // Number of occurrences since startup
-  EVENTS_LEVEL_TYPE level;  // Event level, i.e. ERROR/WARNING...
-  EVENTS_STATE_TYPE state;  // Event state, i.e. ACTIVE/INACTIVE...
+  uint32_t timestamp;           // Time in seconds since startup when the event occurred
+  uint8_t millisrolloverCount;  // number of times millis rollovers before timestamp
+  uint8_t data;                 // Custom data passed when setting the event, for example cell number for under voltage
+  uint8_t occurences;           // Number of occurrences since startup
+  EVENTS_LEVEL_TYPE level;      // Event level, i.e. ERROR/WARNING...
+  EVENTS_STATE_TYPE state;      // Event state, i.e. ACTIVE/INACTIVE...
   bool log;
   bool MQTTpublished;
 } EVENTS_STRUCT_TYPE;
+
+// Define a struct to hold event data
+struct EventData {
+  EVENTS_ENUM_TYPE event_handle;
+  const EVENTS_STRUCT_TYPE* event_pointer;
+};
+
+extern uint8_t millisrolloverCount;  // number of times millis rollovers
 
 const char* get_event_enum_string(EVENTS_ENUM_TYPE event);
 const char* get_event_message_string(EVENTS_ENUM_TYPE event);
 const char* get_event_level_string(EVENTS_ENUM_TYPE event);
 const char* get_event_type(EVENTS_ENUM_TYPE event);
-unsigned long get_current_event_time_secs(void);
 
 EVENTS_LEVEL_TYPE get_event_level(void);
 
@@ -148,5 +156,8 @@ const EVENTS_STRUCT_TYPE* get_event_pointer(EVENTS_ENUM_TYPE event);
 void run_event_handling(void);
 
 void run_sequence_on_target(void);
+
+bool compareEventsByTimestampAsc(const EventData& a, const EventData& b);
+bool compareEventsByTimestampDesc(const EventData& a, const EventData& b);
 
 #endif  // __MYTIMER_H__
