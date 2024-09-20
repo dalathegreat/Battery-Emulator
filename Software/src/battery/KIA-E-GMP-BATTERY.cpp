@@ -826,45 +826,44 @@ void receive_can_battery(CAN_frame rx_frame) {
 }
 
 void send_can_battery() {
-  if (startedUp) {
-    unsigned long currentMillis = millis();
+  unsigned long currentMillis = millis();
 
-    //Send 10ms CANFD message
-    if (currentMillis - previousMillis10ms >= INTERVAL_10_MS) {
-      previousMillis10ms = currentMillis;
+  //Send 10ms CANFD message
+  if (currentMillis - previousMillis10ms >= INTERVAL_10_MS) {
+    previousMillis10ms = currentMillis;
 
-      EGMP_F5.data.u8[0] = EGMP_F5_byte0[counter_10ms];
-      EGMP_F5.data.u8[1] = EGMP_F5_byte1[counter_10ms];
-      EGMP_F5.data.u8[2] = EGMP_counter_byte2[counter_10ms];
+    EGMP_F5.data.u8[0] = EGMP_F5_byte0[counter_10ms];
+    EGMP_F5.data.u8[1] = EGMP_F5_byte1[counter_10ms];
+    EGMP_F5.data.u8[2] = EGMP_counter_byte2[counter_10ms];
 
-      EGMP_10A.data.u8[0] = EGMP_10A_byte0[counter_10ms];
-      EGMP_10A.data.u8[1] = EGMP_10A_byte1[counter_10ms];
-      EGMP_10A.data.u8[2] = EGMP_counter_byte2[counter_10ms];
+    EGMP_10A.data.u8[0] = EGMP_10A_byte0[counter_10ms];
+    EGMP_10A.data.u8[1] = EGMP_10A_byte1[counter_10ms];
+    EGMP_10A.data.u8[2] = EGMP_counter_byte2[counter_10ms];
 
-      EGMP_120.data.u8[0] = EGMP_120_byte0[counter_10ms];
-      EGMP_120.data.u8[1] = EGMP_120_byte1[counter_10ms];
-      EGMP_120.data.u8[2] = EGMP_counter_byte2[counter_10ms];
+    EGMP_120.data.u8[0] = EGMP_120_byte0[counter_10ms];
+    EGMP_120.data.u8[1] = EGMP_120_byte1[counter_10ms];
+    EGMP_120.data.u8[2] = EGMP_counter_byte2[counter_10ms];
 
-      EGMP_35.data.u8[0] = EGMP_35_byte0[counter_10ms];
-      EGMP_35.data.u8[1] = EGMP_35_byte1[counter_10ms];
-      EGMP_35.data.u8[2] = EGMP_counter_byte2[counter_10ms];
+    EGMP_35.data.u8[0] = EGMP_35_byte0[counter_10ms];
+    EGMP_35.data.u8[1] = EGMP_35_byte1[counter_10ms];
+    EGMP_35.data.u8[2] = EGMP_counter_byte2[counter_10ms];
 
-      EGMP_19A.data.u8[0] = EGMP_19A_byte0[counter_10ms];
-      EGMP_19A.data.u8[1] = EGMP_19A_byte1[counter_10ms];
-      EGMP_19A.data.u8[2] = EGMP_19A_byte2[counter_10ms];
+    EGMP_19A.data.u8[0] = EGMP_19A_byte0[counter_10ms];
+    EGMP_19A.data.u8[1] = EGMP_19A_byte1[counter_10ms];
+    EGMP_19A.data.u8[2] = EGMP_19A_byte2[counter_10ms];
 
-      counter_10ms++;
-      if (counter_10ms > 15) {
-        counter_10ms = 0;
-      }
-
-      transmit_can(&EGMP_F5, can_config.battery);   // Needed for contactor closing
-      transmit_can(&EGMP_10A, can_config.battery);  // Needed for contactor closing
-      transmit_can(&EGMP_120, can_config.battery);  // Needed for contactor closing
-      transmit_can(&EGMP_19A, can_config.battery);  // Needed for contactor closing
-      transmit_can(&EGMP_35, can_config.battery);   // Needed for contactor closing
+    counter_10ms++;
+    if (counter_10ms > 15) {
+      counter_10ms = 0;
     }
-    /* COMMENTED OUT WHILE CONTACTOR CLOSING TESTING
+
+    transmit_can(&EGMP_F5, can_config.battery);   // Needed for contactor closing
+    transmit_can(&EGMP_10A, can_config.battery);  // Needed for contactor closing
+    transmit_can(&EGMP_120, can_config.battery);  // Needed for contactor closing
+    transmit_can(&EGMP_19A, can_config.battery);  // Needed for contactor closing
+    transmit_can(&EGMP_35, can_config.battery);   // Needed for contactor closing
+  }
+  /* COMMENTED OUT WHILE CONTACTOR CLOSING TESTING
     //Send 20ms CANFD message
     if (currentMillis - previousMillis20ms >= INTERVAL_20_MS) {
       previousMillis20ms = currentMillis;
@@ -887,72 +886,72 @@ void send_can_battery() {
     }
     */
 
-    //Send 100ms CANFD message
-    if (currentMillis - previousMillis100ms >= INTERVAL_100_MS) {
-      previousMillis100ms = currentMillis;
+  //Send 100ms CANFD message
+  if (currentMillis - previousMillis100ms >= INTERVAL_100_MS) {
+    previousMillis100ms = currentMillis;
 
-      if (alternate_100ms) {
-        EGMP_30A.data.u8[0] = 0xB1;
-        EGMP_30A.data.u8[1] = 0xE0;
-        EGMP_30A.data.u8[2] = 0x26;
+    if (alternate_100ms) {
+      EGMP_30A.data.u8[0] = 0xB1;
+      EGMP_30A.data.u8[1] = 0xE0;
+      EGMP_30A.data.u8[2] = 0x26;
 
-        EGMP_320.data.u8[0] = 0xC6;
-        EGMP_320.data.u8[1] = 0xAB;
-        EGMP_320.data.u8[2] = 0x26;
+      EGMP_320.data.u8[0] = 0xC6;
+      EGMP_320.data.u8[1] = 0xAB;
+      EGMP_320.data.u8[2] = 0x26;
 
-        EGMP_2AA.data.u8[0] = 0x86;
-        EGMP_2AA.data.u8[1] = 0xEA;
-        EGMP_2AA.data.u8[2] = 0x42;
+      EGMP_2AA.data.u8[0] = 0x86;
+      EGMP_2AA.data.u8[1] = 0xEA;
+      EGMP_2AA.data.u8[2] = 0x42;
 
-        EGMP_2B5.data.u8[0] = 0xBD;
-        EGMP_2B5.data.u8[1] = 0xB2;
-        EGMP_2B5.data.u8[2] = 0x42;
+      EGMP_2B5.data.u8[0] = 0xBD;
+      EGMP_2B5.data.u8[1] = 0xB2;
+      EGMP_2B5.data.u8[2] = 0x42;
 
-        EGMP_2E0.data.u8[0] = 0xC1;
-        EGMP_2E0.data.u8[1] = 0xF2;
-        EGMP_2E0.data.u8[2] = 0x42;
+      EGMP_2E0.data.u8[0] = 0xC1;
+      EGMP_2E0.data.u8[1] = 0xF2;
+      EGMP_2E0.data.u8[2] = 0x42;
 
-        alternate_100ms = false;
-      } else {
-        EGMP_30A.data.u8[0] = 0xD3;
-        EGMP_30A.data.u8[1] = 0x11;
-        EGMP_30A.data.u8[2] = 0x27;
+      alternate_100ms = false;
+    } else {
+      EGMP_30A.data.u8[0] = 0xD3;
+      EGMP_30A.data.u8[1] = 0x11;
+      EGMP_30A.data.u8[2] = 0x27;
 
-        EGMP_320.data.u8[0] = 0x80;
-        EGMP_320.data.u8[1] = 0xF2;
-        EGMP_320.data.u8[2] = 0x27;
+      EGMP_320.data.u8[0] = 0x80;
+      EGMP_320.data.u8[1] = 0xF2;
+      EGMP_320.data.u8[2] = 0x27;
 
-        EGMP_2AA.data.u8[0] = 0xC0;
-        EGMP_2AA.data.u8[1] = 0xB3;
-        EGMP_2AA.data.u8[2] = 0x43;
+      EGMP_2AA.data.u8[0] = 0xC0;
+      EGMP_2AA.data.u8[1] = 0xB3;
+      EGMP_2AA.data.u8[2] = 0x43;
 
-        EGMP_2B5.data.u8[0] = 0xFB;
-        EGMP_2B5.data.u8[1] = 0xEB;
-        EGMP_2B5.data.u8[2] = 0x43;
+      EGMP_2B5.data.u8[0] = 0xFB;
+      EGMP_2B5.data.u8[1] = 0xEB;
+      EGMP_2B5.data.u8[2] = 0x43;
 
-        EGMP_2E0.data.u8[0] = 0x87;
-        EGMP_2E0.data.u8[1] = 0xAB;
-        EGMP_2E0.data.u8[2] = 0x43;
-        alternate_100ms = true;
-      }
+      EGMP_2E0.data.u8[0] = 0x87;
+      EGMP_2E0.data.u8[1] = 0xAB;
+      EGMP_2E0.data.u8[2] = 0x43;
+      alternate_100ms = true;
+    }
 
-      transmit_can(&EGMP_30A, can_config.battery);  // Needed for contactor closing
-      transmit_can(&EGMP_320, can_config.battery);  // Needed for contactor closing
-      transmit_can(&EGMP_2AA, can_config.battery);  // Needed for contactor closing
-      transmit_can(&EGMP_2B5, can_config.battery);  // Needed for contactor closing
-      transmit_can(&EGMP_2E0, can_config.battery);  // Needed for contactor closing
-      transmit_can(&EGMP_2D5, can_config.battery);  // Needed for contactor closing (UNSURE IF THIS IS 100ms)
-      transmit_can(&EGMP_27A, can_config.battery);  // Needed for contactor closing (UNSURE IF THIS IS 100ms)
-      transmit_can(&EGMP_2EA, can_config.battery);  // Needed for contactor closing (UNSURE IF THIS IS 100ms)
-      transmit_can(&EGMP_306, can_config.battery);  // Needed for contactor closing (UNSURE IF THIS IS 100ms)
-      transmit_can(&EGMP_308, can_config.battery);  // Needed for contactor closing (UNSURE IF THIS IS 100ms)
-      transmit_can(&EGMP_33A, can_config.battery);  // Needed for contactor closing (UNSURE IF THIS IS 100ms)
-      transmit_can(&EGMP_350, can_config.battery);  // Needed for contactor closing (UNSURE IF THIS IS 100ms)
-      transmit_can(&EGMP_2E5, can_config.battery);  // Needed for contactor closing (UNSURE IF THIS IS 100ms)
-      transmit_can(&EGMP_255, can_config.battery);  // Needed for contactor closing (UNSURE IF THIS IS 100ms)
-      transmit_can(&EGMP_3B5, can_config.battery);  // Needed for contactor closing (UNSURE IF THIS IS 100ms)
-      transmit_can(&EGMP_2C0, can_config.battery);  // Needed for contactor closing (UNSURE IF THIS IS 100ms)
-      /* COMMENTED OUT WHILE CONTACTOR CLOSING TESTING
+    transmit_can(&EGMP_30A, can_config.battery);  // Needed for contactor closing
+    transmit_can(&EGMP_320, can_config.battery);  // Needed for contactor closing
+    transmit_can(&EGMP_2AA, can_config.battery);  // Needed for contactor closing
+    transmit_can(&EGMP_2B5, can_config.battery);  // Needed for contactor closing
+    transmit_can(&EGMP_2E0, can_config.battery);  // Needed for contactor closing
+    transmit_can(&EGMP_2D5, can_config.battery);  // Needed for contactor closing (UNSURE IF THIS IS 100ms)
+    transmit_can(&EGMP_27A, can_config.battery);  // Needed for contactor closing (UNSURE IF THIS IS 100ms)
+    transmit_can(&EGMP_2EA, can_config.battery);  // Needed for contactor closing (UNSURE IF THIS IS 100ms)
+    transmit_can(&EGMP_306, can_config.battery);  // Needed for contactor closing (UNSURE IF THIS IS 100ms)
+    transmit_can(&EGMP_308, can_config.battery);  // Needed for contactor closing (UNSURE IF THIS IS 100ms)
+    transmit_can(&EGMP_33A, can_config.battery);  // Needed for contactor closing (UNSURE IF THIS IS 100ms)
+    transmit_can(&EGMP_350, can_config.battery);  // Needed for contactor closing (UNSURE IF THIS IS 100ms)
+    transmit_can(&EGMP_2E5, can_config.battery);  // Needed for contactor closing (UNSURE IF THIS IS 100ms)
+    transmit_can(&EGMP_255, can_config.battery);  // Needed for contactor closing (UNSURE IF THIS IS 100ms)
+    transmit_can(&EGMP_3B5, can_config.battery);  // Needed for contactor closing (UNSURE IF THIS IS 100ms)
+    transmit_can(&EGMP_2C0, can_config.battery);  // Needed for contactor closing (UNSURE IF THIS IS 100ms)
+    /* COMMENTED OUT WHILE CONTACTOR CLOSING TESTING
 
       EGMP_36F.data.u8[1] = ((EGMP_3XF_counter % 15) << 4) + 0x01;
       EGMP_37F.data.u8[1] = ((EGMP_3XF_counter % 15) << 4);
@@ -965,12 +964,12 @@ void send_can_battery() {
         transmit_can(&EGMP_36F, can_config.battery);
         transmit_can(&EGMP_37F, can_config.battery);
         */
-    }
+  }
 
-    //Send 200ms CANFD message
-    if (currentMillis - previousMillis200ms >= INTERVAL_200_MS) {
-      previousMillis200ms = currentMillis;
-      /* COMMENTED OUT WHILE CONTACTOR CLOSING TESTING
+  //Send 200ms CANFD message
+  if (currentMillis - previousMillis200ms >= INTERVAL_200_MS) {
+    previousMillis200ms = currentMillis;
+    /* COMMENTED OUT WHILE CONTACTOR CLOSING TESTING
         transmit_can(&EGMP_4B4, can_config.battery);
         transmit_can(&EGMP_4B5, can_config.battery);
         transmit_can(&EGMP_4B7, can_config.battery);
@@ -1097,41 +1096,43 @@ void send_can_battery() {
         }
       }
           */
+  }
+
+  //Send 500ms CANFD message
+  if (currentMillis - previousMillis500ms >= INTERVAL_500_MS) {
+
+    // Check if sending of CAN messages has been delayed too much.
+    if ((currentMillis - previousMillis500ms >= INTERVAL_500_MS_DELAYED) && (currentMillis > BOOTUP_TIME)) {
+      set_event(EVENT_CAN_OVERRUN, (currentMillis - previousMillis500ms));
+    } else {
+      clear_event(EVENT_CAN_OVERRUN);
     }
+    previousMillis500ms = currentMillis;
 
-    //Send 500ms CANFD message
-    if (currentMillis - previousMillis500ms >= INTERVAL_500_MS) {
+    EGMP_7E4.data.u8[3] = KIA_7E4_COUNTER;
 
-      // Check if sending of CAN messages has been delayed too much.
-      if ((currentMillis - previousMillis500ms >= INTERVAL_500_MS_DELAYED) && (currentMillis > BOOTUP_TIME)) {
-        set_event(EVENT_CAN_OVERRUN, (currentMillis - previousMillis500ms));
-      } else {
-        clear_event(EVENT_CAN_OVERRUN);
-      }
-      previousMillis500ms = currentMillis;
-
-      EGMP_7E4.data.u8[3] = KIA_7E4_COUNTER;
+    if (startedUp) {
       transmit_can(&EGMP_7E4, can_config.battery);
-
-      KIA_7E4_COUNTER++;
-      if (KIA_7E4_COUNTER > 0x0D) {  // gets up to 0x010C before repeating
-        KIA_7E4_COUNTER = 0x01;
-      }
     }
-    //Send 1s CANFD message
-    if (currentMillis - previousMillis1s >= INTERVAL_1_S) {
-      previousMillis1s = currentMillis;
-      /* COMMENTED OUT WHILE CONTACTOR CLOSING TESTING
+
+    KIA_7E4_COUNTER++;
+    if (KIA_7E4_COUNTER > 0x0D) {  // gets up to 0x010C before repeating
+      KIA_7E4_COUNTER = 0x01;
+    }
+  }
+  //Send 1s CANFD message
+  if (currentMillis - previousMillis1s >= INTERVAL_1_S) {
+    previousMillis1s = currentMillis;
+    /* COMMENTED OUT WHILE CONTACTOR CLOSING TESTING
         transmit_can(&EGMP_48F, can_config.battery);
         */
-    }
-    //Send 2s CANFD message
-    if (currentMillis - previousMillis2s >= INTERVAL_2_S) {
-      previousMillis2s = currentMillis;
-      /* COMMENTED OUT WHILE CONTACTOR CLOSING TESTING
+  }
+  //Send 2s CANFD message
+  if (currentMillis - previousMillis2s >= INTERVAL_2_S) {
+    previousMillis2s = currentMillis;
+    /* COMMENTED OUT WHILE CONTACTOR CLOSING TESTING
         transmit_can(&EGMP_4FE, can_config.battery);
         */
-    }
   }
 }
 
