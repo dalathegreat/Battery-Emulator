@@ -44,16 +44,14 @@
 
 typedef struct {
   EVENTS_ENUM_TYPE event;
+  uint8_t millisrolloverCount;
   uint32_t timestamp;
   uint8_t data;
 } EVENT_LOG_ENTRY_TYPE;
 
 typedef struct {
   EVENTS_STRUCT_TYPE entries[EVENT_NOF_EVENTS];
-  unsigned long time_seconds;
-  MyTimer second_timer;
   MyTimer ee_timer;
-  MyTimer update_timer;
   EVENTS_LEVEL_TYPE level;
   uint16_t event_log_head_index;
   uint16_t event_log_tail_index;
@@ -66,21 +64,29 @@ static EVENT_TYPE events;
 static const char* EVENTS_ENUM_TYPE_STRING[] = {EVENTS_ENUM_TYPE(GENERATE_STRING)};
 static const char* EVENTS_LEVEL_TYPE_STRING[] = {EVENTS_LEVEL_TYPE(GENERATE_STRING)};
 
+static uint32_t lastMillis = millis();
+
 /* Local function prototypes */
-static void update_event_time(void);
 static void set_event(EVENTS_ENUM_TYPE event, uint8_t data, bool latched);
 static void update_event_level(void);
 static void update_bms_status(void);
 
-static void log_event(EVENTS_ENUM_TYPE event, uint8_t data);
+static void log_event(EVENTS_ENUM_TYPE event, uint8_t millisrolloverCount, uint32_t timestamp, uint8_t data);
 static void print_event_log(void);
 static void check_ee_write(void);
+
+uint8_t millisrolloverCount = 0;
 
 /* Exported functions */
 
 /* Main execution function, should handle various continuous functionality */
 void run_event_handling(void) {
-  update_event_time();
+  uint32_t currentMillis = millis();
+  if (currentMillis < lastMillis) {  // Overflow detected
+    millisrolloverCount++;
+  }
+  lastMillis = currentMillis;
+
   run_sequence_on_target();
   //check_ee_write();
   update_event_level();
@@ -100,7 +106,7 @@ void init_events(void) {
     EEPROM.writeUShort(EE_EVENT_LOG_TAIL_INDEX_ADDRESS, 0);
 
     // Prepare an empty event block to write
-    EVENT_LOG_ENTRY_TYPE entry = {.event = EVENT_NOF_EVENTS, .timestamp = 0, .data = 0};
+    EVENT_LOG_ENTRY_TYPE entry = {.event = EVENT_NOF_EVENTS, .millisrolloverCount = 0, .timestamp = 0, .data = 0};
 
     // Put the event in (what I guess is) the RAM EEPROM mirror, or write buffer
 
@@ -128,6 +134,7 @@ void init_events(void) {
   for (uint16_t i = 0; i < EVENT_NOF_EVENTS; i++) {
     events.entries[i].data = 0;
     events.entries[i].timestamp = 0;
+    events.entries[i].millisrolloverCount = 0;
     events.entries[i].occurences = 0;
     events.entries[i].log = true;
     events.entries[i].MQTTpublished = false;  // Not published by default
@@ -206,10 +213,8 @@ void init_events(void) {
 
   events.entries[EVENT_EEPROM_WRITE].log = false;  // Don't log the logger...
 
-  events.second_timer.set_interval(600);
   // Write to EEPROM every X minutes (if an event has been set)
   events.ee_timer.set_interval(EE_WRITE_PERIOD_MINUTES * 60 * 1000);
-  events.update_timer.set_interval(2000);
 }
 
 void set_event(EVENTS_ENUM_TYPE event, uint8_t data) {
@@ -419,12 +424,13 @@ static void set_event(EVENTS_ENUM_TYPE event, uint8_t data, bool latched) {
     events.entries[event].occurences++;
     events.entries[event].MQTTpublished = false;
     if (events.entries[event].log) {
-      log_event(event, data);
+      log_event(event, events.entries[event].millisrolloverCount, events.entries[event].timestamp, data);
     }
   }
 
   // We should set the event, update event info
-  events.entries[event].timestamp = events.time_seconds;
+  events.entries[event].timestamp = millis();
+  events.entries[event].millisrolloverCount = millisrolloverCount;
   events.entries[event].data = data;
   // Check if the event is latching
   events.entries[event].state = latched ? EVENT_STATE_ACTIVE_LATCHED : EVENT_STATE_ACTIVE;
@@ -457,6 +463,14 @@ static void update_bms_status(void) {
   }
 }
 
+// Function to compare events by timestamp
+bool compareEventsByTimestamp(const EventData& a, const EventData& b) {
+  if (a.event_pointer->millisrolloverCount != b.event_pointer->millisrolloverCount) {
+    return a.event_pointer->millisrolloverCount > b.event_pointer->millisrolloverCount;
+  }
+  return a.event_pointer->timestamp > b.event_pointer->timestamp;
+}
+
 static void update_event_level(void) {
   EVENTS_LEVEL_TYPE temporary_level = EVENT_LEVEL_INFO;
   for (uint8_t i = 0u; i < EVENT_NOF_EVENTS; i++) {
@@ -467,22 +481,7 @@ static void update_event_level(void) {
   events.level = temporary_level;
 }
 
-static void update_event_time(void) {
-  // This should run roughly 2 times per second
-  if (events.second_timer.elapsed() == true) {
-    uptime::calculateUptime();  // millis() overflows every 50 days, so update occasionally to adjust
-    events.time_seconds = uptime::getDays() * DAYS_TO_SECS;
-    events.time_seconds += uptime::getHours() * HOURS_TO_SECS;
-    events.time_seconds += uptime::getMinutes() * MINUTES_TO_SECS;
-    events.time_seconds += uptime::getSeconds();
-  }
-}
-
-unsigned long get_current_event_time_secs(void) {
-  return events.time_seconds;
-}
-
-static void log_event(EVENTS_ENUM_TYPE event, uint8_t data) {
+static void log_event(EVENTS_ENUM_TYPE event, uint8_t millisrolloverCount, uint32_t timestamp, uint8_t data) {
   // Update head with wrap to 0
   if (++events.event_log_head_index == EE_NOF_EVENT_ENTRIES) {
     events.event_log_head_index = 0;
@@ -500,7 +499,8 @@ static void log_event(EVENTS_ENUM_TYPE event, uint8_t data) {
   int entry_address = EE_EVENT_ENTRY_START_ADDRESS + EE_EVENT_ENTRY_SIZE * events.event_log_head_index;
 
   // Prepare an event block to write
-  EVENT_LOG_ENTRY_TYPE entry = {.event = event, .timestamp = events.time_seconds, .data = data};
+  EVENT_LOG_ENTRY_TYPE entry = {
+      .event = event, .millisrolloverCount = millisrolloverCount, .timestamp = timestamp, .data = data};
 
   // Put the event in (what I guess is) the RAM EEPROM mirror, or write buffer
   EEPROM.put(entry_address, entry);
