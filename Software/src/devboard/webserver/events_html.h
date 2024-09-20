@@ -14,10 +14,5 @@
  * @return String
  */
 String events_processor(const String& var);
-// Define a struct to hold event data
-struct EventData {
-  EVENTS_ENUM_TYPE event_handle;
-  const EVENTS_STRUCT_TYPE* event_pointer;
-};
 
 #endif

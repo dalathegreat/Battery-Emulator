@@ -60,6 +60,8 @@ SensorConfig sensorConfigs[] = {
 
 };
 
+static std::vector<EventData> order_events;
+
 static String generateCommonInfoAutoConfigTopic(const char* object_id, const char* hostname) {
   return String("homeassistant/sensor/battery-emulator_") + String(hostname) + "/" + String(object_id) + "/config";
 }
@@ -233,7 +235,7 @@ void publish_events() {
     doc["unique_id"] = "battery-emulator_" + String(hostname) + "_event";
     doc["object_id"] = String(hostname) + "_event";
     doc["value_template"] =
-        "{{ value_json.event_type ~ ' (c:' ~ value_json.count ~ ',m:' ~  value_json.milis ~ ') ' ~ value_json.message "
+        "{{ value_json.event_type ~ ' (c:' ~ value_json.count ~ ',m:' ~  value_json.millis ~ ') ' ~ value_json.message "
         "}}";
     doc["json_attributes_topic"] = state_topic;
     doc["json_attributes_template"] = "{{ value_json | tojson }}";
@@ -253,35 +255,42 @@ void publish_events() {
 #endif  // HA_AUTODISCOVERY
 
     const EVENTS_STRUCT_TYPE* event_pointer;
-    unsigned long timestamp_now = get_current_event_time_secs();
 
+    //clear the vector
+    order_events.clear();
+    // Collect all events
     for (int i = 0; i < EVENT_NOF_EVENTS; i++) {
       event_pointer = get_event_pointer((EVENTS_ENUM_TYPE)i);
-      EVENTS_ENUM_TYPE event_handle = static_cast<EVENTS_ENUM_TYPE>(i);
-
       if (event_pointer->occurences > 0 && !event_pointer->MQTTpublished) {
-
-        doc["event_type"] = String(get_event_enum_string(event_handle));
-        doc["severity"] = String(get_event_level_string(event_handle));
-
-        time_t time_difference = timestamp_now - event_pointer->timestamp;
-
-        doc["last_event"] = String(timestamp_now - event_pointer->timestamp);
-        doc["count"] = String(event_pointer->occurences);
-        doc["data"] = String(event_pointer->data);
-        doc["message"] = String(get_event_message_string(event_handle));
-        doc["milis"] = String(millis());
-
-        serializeJson(doc, mqtt_msg);
-        if (!mqtt_publish(state_topic.c_str(), mqtt_msg, false)) {
-#ifdef DEBUG_VIA_USB
-          Serial.println("Common info MQTT msg could not be sent");
-#endif  // DEBUG_VIA_USB
-        } else {
-          set_event_MQTTpublished(event_handle);
-        }
-        doc.clear();
+        order_events.push_back({static_cast<EVENTS_ENUM_TYPE>(i), event_pointer});
       }
+    }
+    // Sort events by timestamp
+    std::sort(order_events.begin(), order_events.end(), compareEventsByTimestampAsc);
+
+    for (const auto& event : order_events) {
+
+      EVENTS_ENUM_TYPE event_handle = event.event_handle;
+      event_pointer = event.event_pointer;
+
+      doc["event_type"] = String(get_event_enum_string(event_handle));
+      doc["severity"] = String(get_event_level_string(event_handle));
+      doc["count"] = String(event_pointer->occurences);
+      doc["data"] = String(event_pointer->data);
+      doc["message"] = String(get_event_message_string(event_handle));
+      doc["millis"] = String(event_pointer->timestamp);
+
+      serializeJson(doc, mqtt_msg);
+      if (!mqtt_publish(state_topic.c_str(), mqtt_msg, false)) {
+#ifdef DEBUG_VIA_USB
+        Serial.println("Common info MQTT msg could not be sent");
+#endif  // DEBUG_VIA_USB
+      } else {
+        set_event_MQTTpublished(event_handle);
+      }
+      doc.clear();
+      //clear the vector
+      order_events.clear();
     }
 #ifdef HA_AUTODISCOVERY
   }
