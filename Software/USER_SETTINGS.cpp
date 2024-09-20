@@ -40,12 +40,12 @@ IPAddress subnet(255, 255, 255, 0);
 const char* http_username = "admin";  // username to webserver authentication;
 const char* http_password = "admin";  // password to webserver authentication;
 
+#endif  // WEBSERVER
 // MQTT
 #ifdef MQTT
 const char* mqtt_user = "REDACTED";      // Set NULL for no username
 const char* mqtt_password = "REDACTED";  // Set NULL for no password
 #endif                                   // USE_MQTT
-#endif                                   // WEBSERVER
 #endif                                   // WIFI
 
 /* Charger settings (Optional, when using generator charging) */
