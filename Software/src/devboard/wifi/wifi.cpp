@@ -24,6 +24,7 @@ static bool hasConnectedBefore = false;
 static uint16_t reconnectAttempts = 0;  // Counter for reconnect attempts
 static uint16_t current_full_reconnect_interval = INIT_WIFI_FULL_RECONNECT_INTERVAL;
 static uint16_t current_check_interval = WIFI_CHECK_INTERVAL;
+static bool connected_once = false;
 
 void init_WiFi() {
 
@@ -141,6 +142,7 @@ static void connectToWiFi() {
 static void onWifiConnect(WiFiEvent_t event, WiFiEventInfo_t info) {
   clear_event(EVENT_WIFI_DISCONNECT);
   set_event(EVENT_WIFI_CONNECT, 0);
+  connected_once = true;
 #ifdef DEBUG_VIA_USB
   Serial.println("Wi-Fi connected.");
   Serial.print("IP address: ");
@@ -166,7 +168,8 @@ static void onWifiGotIP(WiFiEvent_t event, WiFiEventInfo_t info) {
 
 // Event handler for Wi-Fi disconnection
 static void onWifiDisconnect(WiFiEvent_t event, WiFiEventInfo_t info) {
-  set_event(EVENT_WIFI_DISCONNECT, 0);
+  if (connected_once)
+    set_event(EVENT_WIFI_DISCONNECT, 0);
 #ifdef DEBUG_VIA_USB
   Serial.println("Wi-Fi disconnected.");
 #endif
