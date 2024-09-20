@@ -40,7 +40,7 @@ IPAddress subnet(255, 255, 255, 0);
 const char* http_username = "admin";  // username to webserver authentication;
 const char* http_password = "admin";  // password to webserver authentication;
 
-#endif                                   // WEBSERVER
+#endif  // WEBSERVER
 // MQTT
 #ifdef MQTT
 const char* mqtt_user = "REDACTED";      // Set NULL for no username
