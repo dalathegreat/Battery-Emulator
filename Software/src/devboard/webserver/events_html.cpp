@@ -30,7 +30,7 @@ String events_processor(const String& var) {
       }
     }
     // Sort events by timestamp
-    std::sort(order_events.begin(), order_events.end(), compareEventsByTimestamp);
+    std::sort(order_events.begin(), order_events.end(), compareEventsByTimestampDesc);
     unsigned long timestamp_now = millis();
 
     // Generate HTML and debug output

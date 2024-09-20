@@ -157,6 +157,7 @@ void run_event_handling(void);
 
 void run_sequence_on_target(void);
 
-bool compareEventsByTimestamp(const EventData& a, const EventData& b);
+bool compareEventsByTimestampAsc(const EventData& a, const EventData& b);
+bool compareEventsByTimestampDesc(const EventData& a, const EventData& b);
 
 #endif  // __MYTIMER_H__

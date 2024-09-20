@@ -266,7 +266,7 @@ void publish_events() {
       }
     }
     // Sort events by timestamp
-    std::sort(order_events.begin(), order_events.end(), compareEventsByTimestamp);
+    std::sort(order_events.begin(), order_events.end(), compareEventsByTimestampAsc);
 
     for (const auto& event : order_events) {
 

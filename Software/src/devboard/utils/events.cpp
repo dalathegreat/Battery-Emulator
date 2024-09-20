@@ -463,12 +463,20 @@ static void update_bms_status(void) {
   }
 }
 
-// Function to compare events by timestamp
-bool compareEventsByTimestamp(const EventData& a, const EventData& b) {
+// Function to compare events by timestamp descending
+bool compareEventsByTimestampDesc(const EventData& a, const EventData& b) {
   if (a.event_pointer->millisrolloverCount != b.event_pointer->millisrolloverCount) {
     return a.event_pointer->millisrolloverCount > b.event_pointer->millisrolloverCount;
   }
   return a.event_pointer->timestamp > b.event_pointer->timestamp;
+}
+
+// Function to compare events by timestamp ascending
+bool compareEventsByTimestampAsc(const EventData& a, const EventData& b) {
+  if (a.event_pointer->millisrolloverCount != b.event_pointer->millisrolloverCount) {
+    return a.event_pointer->millisrolloverCount < b.event_pointer->millisrolloverCount;
+  }
+  return a.event_pointer->timestamp < b.event_pointer->timestamp;
 }
 
 static void update_event_level(void) {
