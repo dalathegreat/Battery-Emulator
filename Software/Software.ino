@@ -462,7 +462,7 @@ void init_contactors() {
   digitalWrite(PRECHARGE_PIN, LOW);
 #endif
 // Init BMS contactor
-#ifdef HW_STARK  // TODO: Rewrite this so LilyGo can aslo handle this BMS contactor
+#ifdef HW_STARK  // TODO: Rewrite this so LilyGo can also handle this BMS contactor
   pinMode(BMS_POWER, OUTPUT);
   digitalWrite(BMS_POWER, HIGH);
 #endif
@@ -653,6 +653,7 @@ void handle_contactors() {
     digitalWrite(NEGATIVE_CONTACTOR_PIN, LOW);
     digitalWrite(POSITIVE_CONTACTOR_PIN, LOW);
     set_event(EVENT_ERROR_OPEN_CONTACTOR, 0);
+    datalayer.system.status.contactor_control_closed = false;
     return;  // A fault scenario latches the contactor control. It is not possible to recover without a powercycle (and investigation why fault occured)
   }
 
@@ -718,6 +719,7 @@ void handle_contactors() {
         ledcWrite(POSITIVE_PWM_Ch, PWM_Hold_Duty);
 #endif
         contactorStatus = COMPLETED;
+        datalayer.system.status.contactor_control_closed = true;
       }
       break;
     default:
