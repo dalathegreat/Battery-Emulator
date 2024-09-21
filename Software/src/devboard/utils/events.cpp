@@ -264,9 +264,9 @@ const char* get_event_message_string(EVENTS_ENUM_TYPE event) {
     case EVENT_12V_LOW:
       return "12V battery source below required voltage to safely close contactors. Inspect the supply/battery!";
     case EVENT_SOC_PLAUSIBILITY_ERROR:
-      return "ERROR: SOC% reported by battery not plausible. Restart battery!";
+      return "ERROR: SOC reported by battery not plausible. Restart battery!";
     case EVENT_SOC_UNAVAILABLE:
-      return "Warning: SOC% not sent by BMS. Calibrate BMS via app.";
+      return "Warning: SOC not sent by BMS. Calibrate BMS via app.";
     case EVENT_KWH_PLAUSIBILITY_ERROR:
       return "Info: kWh remaining reported by battery not plausible. Battery needs cycling.";
     case EVENT_BATTERY_EMPTY:
