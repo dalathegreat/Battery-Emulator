@@ -23,53 +23,49 @@ uint8_t frame1[40] = {
     0x01, 0x08, 0x80, 0x43,  // 256.063 Nominal voltage / 5*51.2=256      first byte 0x01 or 0x04
     0xE4, 0x70, 0x8A, 0x5C,  // 266.74
     0xB5, 0x02, 0xD3, 0x01,  // Battery Serial number? Modbus register 527
-    0x01, 0x05, 0xC8, 0x41,  // 25.0024  Battery capacity??
+    0x01, 0x05, 0xC8, 0x41,  // 25.0024  ?
     0xC2, 0x18,              // Battery Firmware, modbus register 586
-    0x01, 0x03, 0x59, 0x42,  // 0x00005942 = 54.25
+    0x01, 0x03, 0x59, 0x42,  // 0x00005942 = 54.25 ??
     0x01, 0x01, 0x01, 0x02,
     0x05, 0x02, 0xA0, 0x01, 0x01, 0x02,
     0x4D,                    // CRC
     0x00};                   //
-                             // We have also modbus registers:
-                             //   512: Battery gross capacity, value, U32 0x00000019 = 25
-                             //   588: battery type, value 0x0004, that's from kostal settings.
-                             // 
 
 
 // values in frame2 will be overwritten at update_modbus_registers_inverter()
 uint8_t frame2[64] = {0x0A, 0xE2, 0xFF, 0x02, 0xFF, 0x29,  // frame Header
-                      0x1D, 0x5A, 0x85, 0x43,              // Voltage     (float)           Modbus register 216, Bit 6-9
 
-                      0x01, 0x03, 0x8D, 0x43,  // Max Voltage (2 byte float), Bit 10-13
-                                               // 0x8D43 = 36163 (361.63) DALA: Is this nominal voltage?
-                      0x01, 0x03, 0xAC, 0x41,  // Temp        (2 byte float)    Modbus register 214, Bit 14-17
-                      0x01, 0x01, 0x01, 0x01,  // Current, Bit 18-21
-                      0x01, 0x01, 0x01, 0x01,  // Current, Bit 22-25
-
-                      0x01, 0x03, 0x48, 0x42,  // Peak discharge current (2 byte float), Bit 26-29
-
-                      0x01, 0x03, 0xC8, 0x41,  // Nominal discharge I (2 byte float) , Bit 30-33
-
-                      0x01, 0x16,  // Unknown
-                      0xA0, 0x41,  //  Max charge? (2 byte float) Bit 36-37
-
-                      0xCD, 0xCC, 0xB4, 0x41,  // MaxCellTemp (4 byte float) Bit 38-41
-
+                      0x1D, 0x5A, 0x85, 0x43,   // Cyrrent Voltage     (float)           Modbus register 216, Bit 6-9
+                      0x01, 0x03, 0x8D, 0x43,   // Max Voltage (2 byte float), Bit 10-13
+                                                // 0x8D43 = 36163 (361.63) DALA: Is this nominal voltage?
+                      0x01, 0x03, 0xAC, 0x41,   // Temp        (2 byte float)    Modbus register 214, Bit 14-17
+                      0x01, 0x01, 0x01, 0x01,   // Current, Bit 18-21
+                      0x01, 0x01, 0x01, 0x01,   // Current, Bit 22-25
+                      0x01, 0x03, 0x48, 0x42,   // Max discharge current (2 byte float), Bit 26-29,
+                                                // Sunspec: ADisChaMax
+                      0x01, 0x03,               // Unknown
+                      0xC8, 0x41,               // Battery gross capacity, Ah (2 byte float) , Bytes 30-33, Modbus 512
+                      0x01, 0x16,               // Unknown
+                      0xA0, 0x41,               //  Max charge current (2 byte float) Bit 36-37
+                                                //  Sunspec: AChaMax
+                      0xCD, 0xCC, 0xB4, 0x41,   // MaxCellTemp (4 byte float) Bit 38-41
                       0x01, 0x0C,  0xA4, 0x41,  // MinCellTemp (4 byte float) Bit 42-45
-
-                      0xA4, 0x70, 0x55, 0x40,  // MaxCellVolt  (float), Bit 46-49
-
-                      0x7D, 0x3F, 0x55, 0x40,  // MinCellVolt  (float), Bit 50-53
-
-                      0xFE,        // Cylce count , Bit 54
-                      0x04,        // Cycle count? , Bit 55
-                      0x01, 0x40,  // ??  , Bit 56, 57
-                      0x64,        // SOC , Bit 58
-                      0x01,        // Unknown, Mostly 0x01, seen also 0x02
-                      0x01,        // Unknown, Seen only 0x01
-                      0x02,        // Unknown, Mostly 0x02. seen also 0x01
-                      0x00,        // CRC (inverted sum of bytes 1-62 + 0xC0), Bit 62
+                      0xA4, 0x70, 0x55, 0x40,   // MaxCellVolt  (float), Bit 46-49
+                      0x7D, 0x3F, 0x55, 0x40,   // MinCellVolt  (float), Bit 50-53
+                      0xFE,                     // Cylce count , Bit 54
+                      0x04,                     // Cycle count? , Bit 55
+                      0x01, 0x40,               // ??  , Bit 56, 57
+                      0x64,                     // SOC , Bit 58
+                      0x01,                     // Unknown, Mostly 0x01, seen also 0x02
+                      0x01,                     // Unknown, Seen only 0x01
+                      0x02,                     // Unknown, Mostly 0x02. seen also 0x01
+                      0x00,                     // CRC (inverted sum of bytes 1-62 + 0xC0), Bit 62
                       0x00};
+
+
+// FE 04 01 40 xx 01 01 02 yy (fully charged)
+// FE 02 01 02 xx 01 01 02 yy (charging or discharging)
+
 
 uint8_t frame3[9] = {
     0x08, 0xE2, 0xFF, 0x02, 0xFF, 0x29,  //header
@@ -122,6 +118,14 @@ byte calculate_longframe_crc(byte* lfc, int lastbyte) {
     sum += lfc[i];
   }
   return ((byte) ~(sum + 0xc0) & 0xff);
+}
+
+byte calculate_frame1_crc(byte* lfc, int lastbyte) {
+  unsigned int sum = 0;
+  for (int i = 0; i < lastbyte; ++i) {
+    sum += lfc[i];
+  }
+  return ((byte) ~(sum + 0x28) & 0xff);
 }
 
 bool check_kostal_frame_crc() {
@@ -237,6 +241,8 @@ void update_RS485_registers_inverter() {
 
   float2frame(frame2, (float)(datalayer.battery.status.voltage_dV / 10), 6);  // Confirmed OK mapping
 
+  float2frame(frame1, (float)(datalayer.battery.status.voltage_dV / 10), 6);  // This shall be nominal voltage, but not available
+
   float2frameMSB(frame2, (float)(datalayer.battery.info.max_design_voltage_dV / 10), 12);
 
   float2frameMSB(frame2, (float)(average_temperature_dC / 10), 16);
@@ -244,7 +250,8 @@ void update_RS485_registers_inverter() {
   float2frameMSB(frame2, (float)datalayer.battery.status.current_dA / 10, 20);  // Peak discharge? current (2 byte float)
   float2frameMSB(frame2, (float)datalayer.battery.status.current_dA / 10, 24);
 
-  float2frameMSB(frame2, (float)(discharge_current_dA / 10), 28);  // Nominal discharge? I (2 byte float)
+  float2frameMSB(frame2, (float)(discharge_current_dA / 10), 28);  // BAttery capacity Ah
+
   float2frameMSB(frame2, (float)(discharge_current_dA / 10), 32);
   float2frameMSB(frame2, (float)(charge_current_dA / 10), 36);
 
@@ -257,5 +264,7 @@ void update_RS485_registers_inverter() {
   frame2[58] = (byte)(datalayer.battery.status.reported_soc / 100);  // Confirmed OK mapping
 
   register_content_ok = true;
+
+  frame1[38] = calculate_frame1_crc(frame1, 38);
 }
 #endif
