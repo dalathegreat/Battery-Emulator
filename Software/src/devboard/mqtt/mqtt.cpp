@@ -13,9 +13,15 @@
 WiFiClient espClient;
 PubSubClient client(espClient);
 char mqtt_msg[MQTT_MSG_BUFFER_SIZE];
-static unsigned long previousMillisUpdateVal;
-MyTimer publish_global_timer(5000);
+MyTimer publish_global_timer(5000);  //publish timer
+MyTimer check_global_timer(800);     // check timmer - low-priority MQTT checks, where responsiveness is not critical.
 static const char* hostname = WiFi.getHostname();
+
+// Tracking reconnection attempts and failures
+static unsigned long lastReconnectAttempt = 0;
+static uint8_t reconnectAttempts = 0;
+static const uint8_t maxReconnectAttempts = 5;
+static bool connected_once = false;
 
 static void publish_common_info(void);
 static void publish_cell_voltages(void);
@@ -298,7 +304,7 @@ void publish_events() {
 }
 
 /* If we lose the connection, get it back */
-static void reconnect() {
+static bool reconnect() {
 // attempt one reconnection
 #ifdef DEBUG_VIA_USB
   Serial.print("Attempting MQTT connection... ");
@@ -307,10 +313,18 @@ static void reconnect() {
   snprintf(clientId, sizeof(clientId), "LilyGoClient-%s", hostname);
   // Attempt to connect
   if (client.connect(clientId, mqtt_user, mqtt_password)) {
+    connected_once = true;
+    clear_event(EVENT_MQTT_DISCONNECT);
+    set_event(EVENT_MQTT_CONNECT, 0);
+    reconnectAttempts = 0;  // Reset attempts on successful connection
 #ifdef DEBUG_VIA_USB
     Serial.println("connected");
 #endif  // DEBUG_VIA_USB
+    clear_event(EVENT_MQTT_CONNECT);
   } else {
+    if (connected_once)
+      set_event(EVENT_MQTT_DISCONNECT, 0);
+    reconnectAttempts++;  // Count failed attempts
 #ifdef DEBUG_VIA_USB
     Serial.print("failed, rc=");
     Serial.print(client.state());
@@ -318,6 +332,7 @@ static void reconnect() {
 #endif  // DEBUG_VIA_USB
     // Wait 5 seconds before retrying
   }
+  return client.connected();
 }
 
 void init_mqtt(void) {
@@ -326,22 +341,38 @@ void init_mqtt(void) {
   Serial.println("MQTT initialized");
 #endif  // DEBUG_VIA_USB
 
-  previousMillisUpdateVal = millis();
+  client.setKeepAlive(30);  // Increase keepalive to manage network latency better. default is 15
+
+  lastReconnectAttempt = millis();
   reconnect();
 }
 
 void mqtt_loop(void) {
-  if (client.connected()) {
-    client.loop();
-    if (publish_global_timer.elapsed() == true)  // Every 5s
-    {
-      publish_values();
-    }
-  } else {
-    if (millis() - previousMillisUpdateVal >= 5000)  // Every 5s
-    {
-      previousMillisUpdateVal = millis();
-      reconnect();
+  // Only attempt to publish/reconnect MQTT if Wi-Fi is connectedand checkTimmer is elapsed
+  if (check_global_timer.elapsed() && WiFi.status() == WL_CONNECTED) {
+    if (client.connected()) {
+      client.loop();
+      if (publish_global_timer.elapsed())  // Every 5s
+      {
+        publish_values();
+      }
+    } else {
+      if (connected_once)
+        set_event(EVENT_MQTT_DISCONNECT, 0);
+      unsigned long now = millis();
+      if (now - lastReconnectAttempt >= 5000)  // Every 5s
+      {
+        lastReconnectAttempt = now;
+        if (reconnect()) {
+          lastReconnectAttempt = 0;
+        } else if (reconnectAttempts >= maxReconnectAttempts) {
+#ifdef DEBUG_VIA_USB
+          Serial.println("Too many failed reconnect attempts, restarting client.");
+#endif
+          client.disconnect();    // Force close the MQTT client connection
+          reconnectAttempts = 0;  // Reset attempts to avoid infinite loop
+        }
+      }
     }
   }
 }
@@ -350,5 +381,8 @@ bool mqtt_publish(const char* topic, const char* mqtt_msg, bool retain) {
   if (client.connected() == true) {
     return client.publish(topic, mqtt_msg, retain);
   }
+  if (connected_once)
+    set_event(EVENT_MQTT_DISCONNECT, 0);
+
   return false;
 }

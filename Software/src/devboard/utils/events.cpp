@@ -210,6 +210,8 @@ void init_events(void) {
   events.entries[EVENT_PAUSE_END].level = EVENT_LEVEL_INFO;
   events.entries[EVENT_WIFI_CONNECT].level = EVENT_LEVEL_INFO;
   events.entries[EVENT_WIFI_DISCONNECT].level = EVENT_LEVEL_INFO;
+  events.entries[EVENT_MQTT_CONNECT].level = EVENT_LEVEL_INFO;
+  events.entries[EVENT_MQTT_DISCONNECT].level = EVENT_LEVEL_INFO;
 
   events.entries[EVENT_EEPROM_WRITE].log = false;  // Don't log the logger...
 
@@ -387,6 +389,10 @@ const char* get_event_message_string(EVENTS_ENUM_TYPE event) {
       return "Info: Wifi connected.";
     case EVENT_WIFI_DISCONNECT:
       return "Info: Wifi disconnected.";
+    case EVENT_MQTT_CONNECT:
+      return "Info: MQTT connected.";
+    case EVENT_MQTT_DISCONNECT:
+      return "Info: MQTT disconnected.";
     default:
       return "";
   }

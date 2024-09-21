@@ -98,6 +98,8 @@
   XX(EVENT_PAUSE_END)                   \
   XX(EVENT_WIFI_CONNECT)                \
   XX(EVENT_WIFI_DISCONNECT)             \
+  XX(EVENT_MQTT_CONNECT)                \
+  XX(EVENT_MQTT_DISCONNECT)             \
   XX(EVENT_NOF_EVENTS)
 
 typedef enum { EVENTS_ENUM_TYPE(GENERATE_ENUM) } EVENTS_ENUM_TYPE;
