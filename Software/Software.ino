@@ -304,11 +304,12 @@ void core_loop(void* task_time_us) {
       datalayer.system.status.time_cantx_us = 0;
       datalayer.system.status.core_task_10s_max_us = 0;
     }
+
+#endif
     if (check_pause_2s.elapsed()) {
       emulator_pause_state_send_CAN_battery();
     }
 
-#endif
     vTaskDelayUntil(&xLastWakeTime, xFrequency);
   }
 }
