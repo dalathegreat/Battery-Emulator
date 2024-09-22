@@ -21,7 +21,7 @@ union f32b {
 uint8_t frame1[40] = {
     0x06, 0xE2, 0xFF, 0x02, 0xFF, 0x29,  // Frame header
     0x01, 0x08, 0x80, 0x43,  // 256.063 Nominal voltage / 5*51.2=256      first byte 0x01 or 0x04
-    0xE4, 0x70, 0x8A, 0x5C,  // 266.74
+    0xE4, 0x70, 0x8A, 0x5C,  // 266.74  => Voltage at 100% SOC
     0xB5, 0x02, 0xD3, 0x01,  // Battery Serial number? Modbus register 527
     0x01, 0x05, 0xC8, 0x41,  // 25.0024  ?
     0xC2, 0x18,              // Battery Firmware, modbus register 586
@@ -39,22 +39,24 @@ uint8_t frame2[64] = {0x0A, 0xE2, 0xFF, 0x02, 0xFF, 0x29,  // frame Header
                       0x01, 0x03, 0x8D, 0x43,   // Max Voltage (2 byte float), Bit 10-13
                                                 // 0x8D43 = 36163 (361.63) DALA: Is this nominal voltage?
                       0x01, 0x03, 0xAC, 0x41,   // Temp        (2 byte float)    Modbus register 214, Bit 14-17
-                      0x01, 0x01, 0x01, 0x01,   // Current, Bit 18-21
-                      0x01, 0x01, 0x01, 0x01,   // Current, Bit 22-25
+                      0x01, 0x01, 0x01, 0x01,   // Peak Current (1s period), Bytes 18-21
+                      0x01, 0x01, 0x01, 0x01,   // Avg current  (1s period), Bytes 22-25
                       0x01, 0x03, 0x48, 0x42,   // Max discharge current (2 byte float), Bit 26-29,
                                                 // Sunspec: ADisChaMax
                       0x01, 0x03,               // Unknown
                       0xC8, 0x41,               // Battery gross capacity, Ah (2 byte float) , Bytes 30-33, Modbus 512
-                      0x01, 0x16,               // Unknown
-                      0xA0, 0x41,               //  Max charge current (2 byte float) Bit 36-37
-                                                //  Sunspec: AChaMax
+                      0x01,                     // Unknown
+                      0x16,                     // This seems to have something to do with cell temperatures
+                      0xA0, 0x41,               // Max charge current (2 byte float) Bit 36-37, ZERO WHEN SOC=100
+                                                // Sunspec: AChaMax
                       0xCD, 0xCC, 0xB4, 0x41,   // MaxCellTemp (4 byte float) Bit 38-41
                       0x01, 0x0C,  0xA4, 0x41,  // MinCellTemp (4 byte float) Bit 42-45
                       0xA4, 0x70, 0x55, 0x40,   // MaxCellVolt  (float), Bit 46-49
                       0x7D, 0x3F, 0x55, 0x40,   // MinCellVolt  (float), Bit 50-53
                       0xFE,                     // Cylce count , Bit 54
                       0x04,                     // Cycle count? , Bit 55
-                      0x01, 0x40,               // ??  , Bit 56, 57
+                      0x01,                     // Byte 56
+                      0x40,                     // When SOC=100 Byte57=0x40, otherwise 0x02 or 0x03
                       0x64,                     // SOC , Bit 58
                       0x01,                     // Unknown, Mostly 0x01, seen also 0x02
                       0x01,                     // Unknown, Seen only 0x01
@@ -221,6 +223,7 @@ void update_RS485_registers_inverter() {
     discharge_current_dA = (discharge_current_dA * 10);  //Value needs a decimal before getting sent to inverter (81.0A)
   }
 
+
   if (charge_current_dA > datalayer.battery.info.max_charge_amp_dA) {
     charge_current_dA =
         datalayer.battery.info
@@ -253,7 +256,20 @@ void update_RS485_registers_inverter() {
   float2frameMSB(frame2, (float)(discharge_current_dA / 10), 28);  // BAttery capacity Ah
 
   float2frameMSB(frame2, (float)(discharge_current_dA / 10), 32);
-  float2frameMSB(frame2, (float)(charge_current_dA / 10), 36);
+
+
+  // When SOC = 100%, drop down allowed charge current down.
+
+  if((datalayer.battery.status.reported_soc / 100)<100)
+     {
+     float2frameMSB(frame2, (float)(charge_current_dA / 10), 36);
+     frame2[57]=0x02;  
+     }
+  else
+     {
+     float2frameMSB(frame2, 0.0 , 36);
+     frame2[57]=0x40;  
+     }
 
   float2frame(frame2, (float)(datalayer.battery.status.temperature_max_dC / 10), 38);
   float2frame(frame2, (float)(datalayer.battery.status.temperature_min_dC / 10), 42);
