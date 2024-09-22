@@ -4,11 +4,15 @@
 #include "../devboard/utils/events.h"
 #include "KOSTAL-RS485.h"
 
+#define RS485_HEALTHY \
+  12  // How many value updates we can go without inverter gets reported as missing \
+      // e.g. value set to 12, 12*5sec=60seconds without comm before event is raised
 static const uint8_t KOSTAL_FRAMEHEADER[5] = {0x62, 0xFF, 0x02, 0xFF, 0x29};
 static const uint8_t KOSTAL_FRAMEHEADER2[5] = {0x63, 0xFF, 0x02, 0xFF, 0x29};
 static uint16_t discharge_current_dA = 0;
 static uint16_t charge_current_dA = 0;
 static int16_t average_temperature_dC = 0;
+static uint8_t incoming_message_counter = RS485_HEALTHY;
 
 union f32b {
   float f;
@@ -39,7 +43,7 @@ uint8_t frame2[64] = {0x0A, 0xE2, 0xFF, 0x02, 0xFF, 0x29,  // frame Header
 
                       0xCD, 0xCC, 0xB4, 0x41,  // MaxCellTemp (4 byte float) Bit 38-41
 
-                      0x01, 0x0C,  0xA4, 0x41,  // MinCellTemp (4 byte float) Bit 42-45
+                      0x01, 0x0C, 0xA4, 0x41,  // MinCellTemp (4 byte float) Bit 42-45
 
                       0xA4, 0x70, 0x55, 0x40,  // MaxCellVolt  (float), Bit 46-49
 
@@ -139,6 +143,7 @@ void receive_RS485()  // Runs as fast as possible to handle the serial stream
 #endif
         rx_index = 0;
         if (check_kostal_frame_crc()) {
+          incoming_message_counter = RS485_HEALTHY;
           bool headerA = true;
           bool headerB = true;
           for (uint8_t i = 0; i < 5; i++) {
@@ -225,7 +230,8 @@ void update_RS485_registers_inverter() {
 
   float2frameMSB(frame2, (float)(average_temperature_dC / 10), 16);
 
-  float2frameMSB(frame2, (float)datalayer.battery.status.current_dA / 10, 20);  // Peak discharge? current (2 byte float)
+  float2frameMSB(frame2, (float)datalayer.battery.status.current_dA / 10,
+                 20);  // Peak discharge? current (2 byte float)
   float2frameMSB(frame2, (float)datalayer.battery.status.current_dA / 10, 24);
 
   float2frameMSB(frame2, (float)(discharge_current_dA / 10), 28);  // Nominal discharge? I (2 byte float)
@@ -241,5 +247,15 @@ void update_RS485_registers_inverter() {
   frame2[58] = (byte)(datalayer.battery.status.reported_soc / 100);  // Confirmed OK mapping
 
   register_content_ok = true;
+
+  if (incoming_message_counter > 0) {
+    incoming_message_counter--;
+  }
+
+  if (incoming_message_counter == 0) {
+    set_event(EVENT_MODBUS_INVERTER_MISSING, 0);
+  } else {
+    clear_event(EVENT_MODBUS_INVERTER_MISSING);
+  }
 }
 #endif
