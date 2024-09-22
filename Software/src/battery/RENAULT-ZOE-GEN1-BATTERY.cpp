@@ -10,6 +10,7 @@ https://github.com/openvehicles/Open-Vehicle-Monitoring-System-3/blob/master/veh
 The Zoe BMS apparently does not send total pack voltage, so we use the polled 96x cellvoltages summed up as total voltage
 Still TODO:
 - Find max discharge and max charge values (for now hardcoded to 5kW)
+- Fix the missing cell96 issue (Only cells 1-95 is shown)
 - Find current sensor value (OVMS code reads this from inverter, which we dont have)
 - Figure out why SOH% is not read (low prio)
 /*
@@ -99,6 +100,9 @@ void update_values_battery() {  //This function maps all the values fetched via 
   if (datalayer.battery.status.real_soc > 9800) {
     datalayer.battery.status.max_charge_power_W = 500;
   }
+  if (datalayer.battery.status.real_soc > 9900) {
+    datalayer.battery.status.max_charge_power_W = 50;
+  }
 
   //Power in watts, Negative = charging batt
   datalayer.battery.status.active_power_W =
@@ -123,7 +127,9 @@ void update_values_battery() {  //This function maps all the values fetched via 
   // Initialize min and max, lets find which cells are min and max!
   uint16_t min_cell_mv_value = std::numeric_limits<uint16_t>::max();
   uint16_t max_cell_mv_value = 0;
-  calculated_total_pack_voltage_mV = 0;
+  calculated_total_pack_voltage_mV =
+      datalayer.battery.status.cell_voltages_mV
+          [0];  // cell96 issue, this value should be initialized to 0, but for now it is initialized to cell0
   // Loop to find the min and max while ignoring zero values
   for (uint8_t i = 0; i < datalayer.battery.info.number_of_cells; ++i) {
     uint16_t voltage_mV = datalayer.battery.status.cell_voltages_mV[i];
