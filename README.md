@@ -40,19 +40,21 @@ For more examples showing wiring, see each battery types own Wiki page. For inst
 
 ## How to compile the software 💻
 1. Download the Arduino IDE: https://www.arduino.cc/en/software
-2. When the Arduino IDE has been started;
-Click "File" in the upper left corner -> Preferences -> Additional Development >Board Manager URL -> Enter the URL in the input box https://raw.githubusercontent.com/espressif/arduino-esp32/gh-pages/package_esp32_index.json
-3. Go to "Boards Manager", and install the ESP32 package by Espressif Systems. **NOTE: The version depends on which release of Battery-Emulator you are running!**
+2. Open the Arduino IDE.
+3. Click `File` menu -> `Preferences` -> `Additional Development` -> `Additional Board Manager URLs` -> Enter the URL in the input box: `https://raw.githubusercontent.com/espressif/arduino-esp32/gh-pages/package_esp32_index.json` and click OK.
+4. Click `Tools` menu -> `Board: "...."` -> `Boards Manager...`, install the `esp32` package by `Espressif Systems` (not `Arduino ESP32 Boards`), then press `Close`.
+
+**NOTE: The version depends on which release of Battery-Emulator you are running!**
 
 - ⚠️ Make sure to use a 2.x.x version if you are on a release **older** than 6.0.0 (For instance ESP32 v2.0.11 when using Battery-Emulator v5.4.0)
 - ⚠️ Make sure to use a 3.x.x version if you are on a release **newer** than 6.0.0 (For instance ESP32 v3.0.0 when using Battery-Emulator v6.0.0)
 
 ![bild](https://github.com/dalathegreat/Battery-Emulator/assets/26695010/6a2414b1-f2ca-4746-8e8d-9afd78bd9252)
 
-4. The arduino settings should be set to "ESP32 Dev Module" with the following settings;
+5. The Arduino board should be set to `ESP32 Dev Module` (under `Tools` -> `Board` -> `ESP32 Arduino`) with the following settings:
 ![alt text](https://github.com/Xinyuan-LilyGO/T-CAN485/blob/main/img/arduino_setting.png)
-5. Select which battery type you will use, along with other optional settings. This is done in the USER_SETTINGS.h file.
-6. Press Verify and Upload to send the sketch to the board.
+6. Select which battery type you will use, along with other optional settings. This is done in the `USER_SETTINGS.h` file.
+7. Press `Verify` and `Upload` to send the sketch to the board.
 NOTE: In some cases, the LilyGo must be powered through the main power connector instead of USB-C
       when performing the initial firsmware upload.
 NOTE: On Mac, the following USB driver may need to be installed: https://github.com/WCHSoftGroup/ch34xser_macos

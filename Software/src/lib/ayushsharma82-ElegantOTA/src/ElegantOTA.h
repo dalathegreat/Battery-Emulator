@@ -119,8 +119,8 @@ class ElegantOTAClass{
     ELEGANTOTA_WEBSERVER *_server;
 
     bool _authenticate;
-    char _username[64];
-    char _password[64];
+    String _username;
+    String _password;
 
     bool _auto_reboot = true;
     bool _reboot = false;

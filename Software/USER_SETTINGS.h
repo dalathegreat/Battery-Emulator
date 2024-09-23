@@ -1,5 +1,6 @@
 #ifndef __USER_SETTINGS_H__
 #define __USER_SETTINGS_H__
+#include <WiFi.h>
 #include <stdint.h>
 
 /* This file contains all the battery/inverter protocol settings Battery-Emulator software */
@@ -20,19 +21,21 @@
 //#define MG_5_BATTERY
 //#define NISSAN_LEAF_BATTERY
 //#define PYLON_BATTERY
+//#define RJXZS_BMS
 //#define RENAULT_KANGOO_BATTERY
 //#define RENAULT_ZOE_GEN1_BATTERY
 //#define RENAULT_ZOE_GEN2_BATTERY
 //#define SANTA_FE_PHEV_BATTERY
-//#define TESLA_MODEL_3_BATTERY
+//#define TESLA_MODEL_SX_BATTERY
+//#define TESLA_MODEL_3Y_BATTERY
 //#define VOLVO_SPA_BATTERY
 //#define TEST_FAKE_BATTERY
 //#define DOUBLE_BATTERY  //Enable this line if you use two identical batteries at the same time (requires DUAL_CAN setup)
 
 /* Select inverter communication protocol. See Wiki for which to use with your inverter: https://github.com/dalathegreat/BYD-Battery-Emulator-For-Gen24/wiki */
 //#define BYD_CAN  //Enable this line to emulate a "BYD Battery-Box Premium HVS" over CAN Bus
+//#define BYD_SMA //Enable this line to emulate a SMA compatible "BYD Battery-Box HVS 10.2KW battery" over CAN bus
 //#define BYD_MODBUS  //Enable this line to emulate a "BYD 11kWh HVM battery" over Modbus RTU
-//#define LUNA2000_MODBUS  //Enable this line to emulate a "Luna2000 battery" over Modbus RTU
 //#define PYLON_CAN        //Enable this line to emulate a "Pylontech battery" over CAN bus
 //#define SMA_CAN          //Enable this line to emulate a "BYD Battery-Box H 8.9kWh, 7 mod" over CAN bus
 //#define SMA_TRIPOWER_CAN //Enable this line to emulate a "SMA Home Storage battery" over CAN bus
@@ -54,7 +57,13 @@
 //#define USE_CANFD_INTERFACE_AS_CLASSIC_CAN // Enable this line if you intend to use the CANFD as normal CAN
 //#define SERIAL_LINK_RECEIVER  //Enable this line to receive battery data over RS485 pins from another Lilygo (This LilyGo interfaces with inverter)
 //#define SERIAL_LINK_TRANSMITTER  //Enable this line to send battery data over RS485 pins to another Lilygo (This LilyGo interfaces with battery)
+#define WIFI
+//#define WIFICONFIG  //Enable this line to set a static IP address / gateway /subnet mask for the device. see USER_SETTINGS.cpp for the settings
 #define WEBSERVER  //Enable this line to enable WiFi, and to run the webserver. See USER_SETTINGS.cpp for the Wifi settings.
+#define WEBSERVER_AUTH_REQUIRED \
+  false         //Enable this line to enable webserver authentication. See USER_SETTINGS.cpp  setting the credentials.
+#define WIFIAP  //Disable this line to permanently disable WIFI AP mode (make sure to hardcode ssid and password of you home wifi network). When enabled WIFI AP can still be disabled by a setting in the future.
+#define MDNSRESPONDER  //Enable this line to enable MDNS, allows battery monitor te be found by .local address. Requires WEBSERVER to be enabled.
 #define LOAD_SAVED_SETTINGS_ON_BOOT  //Enable this line to read settings stored via the webserver on boot (overrides Wifi/battery settings set below)
 //#define FUNCTION_TIME_MEASUREMENT  // Enable this to record execution times and present them in the web UI (WARNING, raises CPU load, do not use for production)
 
@@ -62,6 +71,9 @@
 // #define MQTT  // Enable this line to enable MQTT
 #define MQTT_SERVER "192.168.xxx.yyy"
 #define MQTT_PORT 1883
+
+/* Home Assistant options */
+#define HA_AUTODISCOVERY  // Enable this line to send Home Assistant autodiscovery messages. If not enabled manual configuration of Home Assitant is required
 
 /* Event options*/
 #define DUMMY_EVENT_ENABLED false  //Enable this line to have a dummy event that gets logged to test the interface
@@ -107,5 +119,13 @@ extern volatile float CHARGER_MAX_A;
 extern volatile float CHARGER_END_A;
 extern bool charger_HV_enabled;
 extern bool charger_aux12V_enabled;
+
+#ifdef WIFICONFIG
+extern IPAddress local_IP;
+// Set your Gateway IP address
+extern IPAddress gateway;
+// Set your Subnet IP address
+extern IPAddress subnet;
+#endif
 
 #endif  // __USER_SETTINGS_H__

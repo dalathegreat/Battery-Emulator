@@ -51,6 +51,9 @@ GPIOs on extra header
 #define PRECHARGE_PIN 25
 #define BMS_POWER 23
 
+// SMA CAN contactor pins
+#define INVERTER_CONTACTOR_ENABLE_PIN 19
+
 // LED
 #define LED_PIN 4
 #define LED_MAX_BRIGHTNESS 40

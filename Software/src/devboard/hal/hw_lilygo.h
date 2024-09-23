@@ -52,6 +52,9 @@
 #define NEGATIVE_CONTACTOR_PIN 33
 #define PRECHARGE_PIN 25
 
+// SMA CAN contactor pins
+#define INVERTER_CONTACTOR_ENABLE_PIN 5
+
 // SD card
 #define SD_MISO_PIN 2
 #define SD_MOSI_PIN 15
