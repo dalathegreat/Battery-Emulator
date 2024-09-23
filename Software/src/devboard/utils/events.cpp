@@ -141,6 +141,7 @@ void init_events(void) {
   }
 
   events.entries[EVENT_CANFD_INIT_FAILURE].level = EVENT_LEVEL_WARNING;
+  events.entries[EVENT_CANFD_BUFFER_FULL].level = EVENT_LEVEL_WARNING;
   events.entries[EVENT_CAN_OVERRUN].level = EVENT_LEVEL_INFO;
   events.entries[EVENT_CAN_RX_FAILURE].level = EVENT_LEVEL_ERROR;
   events.entries[EVENT_CAN2_RX_FAILURE].level = EVENT_LEVEL_WARNING;
@@ -243,6 +244,8 @@ const char* get_event_message_string(EVENTS_ENUM_TYPE event) {
   switch (event) {
     case EVENT_CANFD_INIT_FAILURE:
       return "CAN-FD initialization failed. Check hardware or bitrate settings";
+    case EVENT_CANFD_BUFFER_FULL:
+      return "CAN-FD buffer overflowed. Some CAN messages were not sent. Contact developers.";
     case EVENT_CAN_OVERRUN:
       return "CAN message failed to send within defined time. Contact developers, CPU load might be too high.";
     case EVENT_CAN_RX_FAILURE:
