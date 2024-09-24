@@ -265,6 +265,8 @@ void setup_battery(void) {  // Performs one time setup at startup
   datalayer.battery.info.number_of_cells = 108;
   datalayer.battery.info.max_design_voltage_dV = 4546;
   datalayer.battery.info.min_design_voltage_dV = 3370;
+
+  datalayer.system.status.battery_allows_contactor_closing = true;
 }
 
 #endif
