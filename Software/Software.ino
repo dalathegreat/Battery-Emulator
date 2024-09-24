@@ -42,6 +42,12 @@
 #endif  // MQTT
 #endif  // WIFI
 
+#ifndef CONTACTOR_CONTROL
+#ifdef PWM_CONTACTOR_CONTROL
+#error CONTACTOR_CONTROL needs to be enabled for PWM_CONTACTOR_CONTROL
+#endif
+#endif
+
 Preferences settings;  // Store user settings
 // The current software version, shown on webserver
 const char* version_number = "7.4.dev";
