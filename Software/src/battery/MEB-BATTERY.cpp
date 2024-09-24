@@ -192,11 +192,11 @@ void update_values_battery() {  //This function maps all the values fetched via 
   datalayer.battery.status.remaining_capacity_Wh = static_cast<uint32_t>(
       (static_cast<double>(datalayer.battery.status.real_soc) / 10000) * datalayer.battery.info.total_capacity_Wh);
 
-  datalayer.battery.status.max_charge_power_W =
-      battery_allowed_charge_power * 10;  //TODO: Value is 0. Satisfy battery somehow?
+  datalayer.battery.status.max_charge_power_W = 5000;
+  //battery_allowed_charge_power * 10;  //TODO: Value is 0. Satisfy battery somehow?
 
-  datalayer.battery.status.max_discharge_power_W =
-      battery_allowed_discharge_power * 10;  //TODO: Value is 0. Satisfy battery somehow?
+  datalayer.battery.status.max_discharge_power_W = 5000;
+  //battery_allowed_discharge_power * 10;  //TODO: Value is 0. Satisfy battery somehow?
 
   //Power in watts, Negative = charging batt
   datalayer.battery.status.active_power_W =
@@ -213,7 +213,7 @@ void update_values_battery() {  //This function maps all the values fetched via 
   uint16_t min_cell_mv_value = std::numeric_limits<uint16_t>::max();
   uint16_t max_cell_mv_value = 0;
   // Loop to find the min and max while ignoring zero values
-  for (uint8_t i = 0; i < datalayer.battery.info.number_of_cells; ++i) {
+  for (uint8_t i = 0; i < 108; ++i) {
     uint16_t voltage_mV = datalayer.battery.status.cell_voltages_mV[i];
     if (voltage_mV != 0) {  // Skip unread values (0)
       min_cell_mv_value = std::min(min_cell_mv_value, voltage_mV);
@@ -550,7 +550,7 @@ void receive_can_battery(CAN_frame rx_frame) {
           break;
         case PID_CELLVOLTAGE_CELL_85:
           tempval = ((rx_frame.data.u8[4] << 8) | rx_frame.data.u8[5]);
-          if (tempval = !0xFFE) {
+          if (tempval != 0xFFE) {
             cellvoltages[84] = (tempval + 1000);
           } else {  // Cell 85 unavailable. We have a 84S battery (48kWh)
             datalayer.battery.info.number_of_cells = 84;
@@ -558,73 +558,73 @@ void receive_can_battery(CAN_frame rx_frame) {
           break;
         case PID_CELLVOLTAGE_CELL_86:
           tempval = ((rx_frame.data.u8[4] << 8) | rx_frame.data.u8[5]);
-          if (tempval = !0xFFE) {
+          if (tempval != 0xFFE) {
             cellvoltages[85] = (tempval + 1000);
           }
           break;
         case PID_CELLVOLTAGE_CELL_87:
           tempval = ((rx_frame.data.u8[4] << 8) | rx_frame.data.u8[5]);
-          if (tempval = !0xFFE) {
+          if (tempval != 0xFFE) {
             cellvoltages[86] = (tempval + 1000);
           }
           break;
         case PID_CELLVOLTAGE_CELL_88:
           tempval = ((rx_frame.data.u8[4] << 8) | rx_frame.data.u8[5]);
-          if (tempval = !0xFFE) {
+          if (tempval != 0xFFE) {
             cellvoltages[87] = (tempval + 1000);
           }
           break;
         case PID_CELLVOLTAGE_CELL_89:
           tempval = ((rx_frame.data.u8[4] << 8) | rx_frame.data.u8[5]);
-          if (tempval = !0xFFE) {
+          if (tempval != 0xFFE) {
             cellvoltages[88] = (tempval + 1000);
           }
           break;
         case PID_CELLVOLTAGE_CELL_90:
           tempval = ((rx_frame.data.u8[4] << 8) | rx_frame.data.u8[5]);
-          if (tempval = !0xFFE) {
+          if (tempval != 0xFFE) {
             cellvoltages[89] = (tempval + 1000);
           }
           break;
         case PID_CELLVOLTAGE_CELL_91:
           tempval = ((rx_frame.data.u8[4] << 8) | rx_frame.data.u8[5]);
-          if (tempval = !0xFFE) {
+          if (tempval != 0xFFE) {
             cellvoltages[90] = (tempval + 1000);
           }
           break;
         case PID_CELLVOLTAGE_CELL_92:
           tempval = ((rx_frame.data.u8[4] << 8) | rx_frame.data.u8[5]);
-          if (tempval = !0xFFE) {
+          if (tempval != 0xFFE) {
             cellvoltages[91] = (tempval + 1000);
           }
           break;
         case PID_CELLVOLTAGE_CELL_93:
           tempval = ((rx_frame.data.u8[4] << 8) | rx_frame.data.u8[5]);
-          if (tempval = !0xFFE) {
+          if (tempval != 0xFFE) {
             cellvoltages[92] = (tempval + 1000);
           }
           break;
         case PID_CELLVOLTAGE_CELL_94:
           tempval = ((rx_frame.data.u8[4] << 8) | rx_frame.data.u8[5]);
-          if (tempval = !0xFFE) {
+          if (tempval != 0xFFE) {
             cellvoltages[93] = (tempval + 1000);
           }
           break;
         case PID_CELLVOLTAGE_CELL_95:
           tempval = ((rx_frame.data.u8[4] << 8) | rx_frame.data.u8[5]);
-          if (tempval = !0xFFE) {
+          if (tempval != 0xFFE) {
             cellvoltages[94] = (tempval + 1000);
           }
           break;
         case PID_CELLVOLTAGE_CELL_96:
           tempval = ((rx_frame.data.u8[4] << 8) | rx_frame.data.u8[5]);
-          if (tempval = !0xFFE) {
+          if (tempval != 0xFFE) {
             cellvoltages[95] = (tempval + 1000);
           }
           break;
         case PID_CELLVOLTAGE_CELL_97:
           tempval = ((rx_frame.data.u8[4] << 8) | rx_frame.data.u8[5]);
-          if (tempval = !0xFFE) {
+          if (tempval != 0xFFE) {
             cellvoltages[96] = (tempval + 1000);
           } else {  // Cell 97 unavailable. We have a 96S battery (55kWh) (Unless already specified as 84S)
             if (datalayer.battery.info.number_of_cells == 84) {
@@ -636,67 +636,67 @@ void receive_can_battery(CAN_frame rx_frame) {
           break;
         case PID_CELLVOLTAGE_CELL_98:
           tempval = ((rx_frame.data.u8[4] << 8) | rx_frame.data.u8[5]);
-          if (tempval = !0xFFE) {
+          if (tempval != 0xFFE) {
             cellvoltages[97] = (tempval + 1000);
           }
           break;
         case PID_CELLVOLTAGE_CELL_99:
           tempval = ((rx_frame.data.u8[4] << 8) | rx_frame.data.u8[5]);
-          if (tempval = !0xFFE) {
+          if (tempval != 0xFFE) {
             cellvoltages[98] = (tempval + 1000);
           }
           break;
         case PID_CELLVOLTAGE_CELL_100:
           tempval = ((rx_frame.data.u8[4] << 8) | rx_frame.data.u8[5]);
-          if (tempval = !0xFFE) {
+          if (tempval != 0xFFE) {
             cellvoltages[99] = (tempval + 1000);
           }
           break;
         case PID_CELLVOLTAGE_CELL_101:
           tempval = ((rx_frame.data.u8[4] << 8) | rx_frame.data.u8[5]);
-          if (tempval = !0xFFE) {
+          if (tempval != 0xFFE) {
             cellvoltages[100] = (tempval + 1000);
           }
           break;
         case PID_CELLVOLTAGE_CELL_102:
           tempval = ((rx_frame.data.u8[4] << 8) | rx_frame.data.u8[5]);
-          if (tempval = !0xFFE) {
+          if (tempval != 0xFFE) {
             cellvoltages[101] = (tempval + 1000);
           }
           break;
         case PID_CELLVOLTAGE_CELL_103:
           tempval = ((rx_frame.data.u8[4] << 8) | rx_frame.data.u8[5]);
-          if (tempval = !0xFFE) {
+          if (tempval != 0xFFE) {
             cellvoltages[102] = (tempval + 1000);
           }
           break;
         case PID_CELLVOLTAGE_CELL_104:
           tempval = ((rx_frame.data.u8[4] << 8) | rx_frame.data.u8[5]);
-          if (tempval = !0xFFE) {
+          if (tempval != 0xFFE) {
             cellvoltages[103] = (tempval + 1000);
           }
           break;
         case PID_CELLVOLTAGE_CELL_105:
           tempval = ((rx_frame.data.u8[4] << 8) | rx_frame.data.u8[5]);
-          if (tempval = !0xFFE) {
+          if (tempval != 0xFFE) {
             cellvoltages[104] = (tempval + 1000);
           }
           break;
         case PID_CELLVOLTAGE_CELL_106:
           tempval = ((rx_frame.data.u8[4] << 8) | rx_frame.data.u8[5]);
-          if (tempval = !0xFFE) {
+          if (tempval != 0xFFE) {
             cellvoltages[105] = (tempval + 1000);
           }
           break;
         case PID_CELLVOLTAGE_CELL_107:
           tempval = ((rx_frame.data.u8[4] << 8) | rx_frame.data.u8[5]);
-          if (tempval = !0xFFE) {
+          if (tempval != 0xFFE) {
             cellvoltages[106] = (tempval + 1000);
           }
           break;
         case PID_CELLVOLTAGE_CELL_108:
           tempval = ((rx_frame.data.u8[4] << 8) | rx_frame.data.u8[5]);
-          if (tempval = !0xFFE) {
+          if (tempval != 0xFFE) {
             cellvoltages[107] = (tempval + 1000);
           }
           break;
@@ -1219,9 +1219,9 @@ void setup_battery(void) {  // Performs one time setup at startup
 #ifdef DEBUG_VIA_USB
   Serial.println("Volkswagen Group MEB platform battery selected");
 #endif
-  datalayer.battery.info.number_of_cells = 108;         //Startup in 108S mode. We figure out the actual count later.
-  datalayer.battery.info.max_design_voltage_dV = 4040;  // 404.0V TODO
-  datalayer.battery.info.min_design_voltage_dV = 3100;  // 310.0V TODO
+  datalayer.battery.info.number_of_cells = 108;  //Startup in 108S mode. We figure out the actual count later.
+  datalayer.battery.info.max_design_voltage_dV = 4536;
+  datalayer.battery.info.min_design_voltage_dV = 2436;
 }
 
 #endif
