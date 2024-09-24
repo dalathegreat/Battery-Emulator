@@ -248,7 +248,7 @@ void update_RS485_registers_inverter() {
 
   float2frame(frame2, (float)(datalayer.battery.status.voltage_dV / 10), 6);  // Confirmed OK mapping
 
-  float2frame(frame1, (float)(datalayer.battery.status.voltage_dV / 10), 6);  // This shall be nominal voltage, but not available
+#  float2frame(frame1, (float)(datalayer.battery.status.voltage_dV / 10), 6);  // This shall be nominal voltage, but not available
 
   float2frameMSB(frame2, (float)(datalayer.battery.info.max_design_voltage_dV / 10), 12);
 
@@ -286,7 +286,7 @@ void update_RS485_registers_inverter() {
 
   register_content_ok = true;
 
-  frame1[38] = calculate_frame1_crc(frame1, 38);
+#  frame1[38] = calculate_frame1_crc(frame1, 38);
 
   if (incoming_message_counter > 0) {
     incoming_message_counter--;
