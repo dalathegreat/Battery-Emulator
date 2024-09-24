@@ -26,6 +26,8 @@ static int16_t highest_temperature = 0;
 static int16_t calc_min_temperature = 0;
 static int16_t calc_max_temperature = 0;
 
+static uint16_t highprecision_SOC = 0;
+static uint16_t lowprecision_SOC = 0;
 static uint16_t BMS_SOC = 0;
 static uint16_t BMS_voltage = 0;
 static int16_t BMS_current = 0;
@@ -91,10 +93,14 @@ void update_values_battery() {  //This function maps all the values fetched via 
     datalayer.battery.status.voltage_dV = BMS_voltage * 10;
   }
 
-  //datalayer.battery.status.real_soc = BMS_SOC * 100;  //TODO: This is not yet found!
-  // We instead estimate the SOC% based on the battery voltage
-  // This is a very bad solution, and as soon as an usable SOC% value has been found on CAN, we should switch to that!
+#ifdef USE_ESTIMATED_SOC
+  // When the battery is crashed hard, it locks itself and SOC becomes unavailable.
+  // We instead estimate the SOC% based on the battery voltage.
+  // This is a bad solution, you wont be able to use 100% of the battery
   datalayer.battery.status.real_soc = estimateSOC(datalayer.battery.status.voltage_dV);
+#else  // Pack is not crashed, we can use periodically transmitted SOC
+  datalayer.battery.status.real_soc = highprecision_SOC * 10;
+#endif
 
   datalayer.battery.status.current_dA = -BMS_current;
 
@@ -209,16 +215,18 @@ void receive_can_battery(CAN_frame rx_frame) {
     case 0x444:  //9E,01,88,13,64,64,98,65
                  //9A,01,B6,13,64,64,98,3B //407.5V 18deg
                  //9B,01,B8,13,64,64,98,38 //408.5V 14deg
+      //lowprecision_SOC =  ???
       break;
     case 0x445:  //00,98,FF,FF,63,20,4E,98 - Static, values never changes between logs
       break;
     case 0x446:  //2C,D4,0C,4D,21,DC,0C,9D - 0,1,7th frame varies a lot
       break;
-    case 0x447:                                          // Seems to contain more temperatures, highest and lowest?
-                                                         //06,38,01,3B,E0,03,39,69
-                                                         //06,36,02,36,E0,03,36,72,
-      lowest_temperature = (rx_frame.data.u8[1] - 40);   //Best guess for now
-      highest_temperature = (rx_frame.data.u8[3] - 40);  //Best guess for now
+    case 0x447:  // Seems to contain more temperatures, highest and lowest?
+                 //06,38,01,3B,E0,03,39,69
+                 //06,36,02,36,E0,03,36,72,
+      highprecision_SOC = (rx_frame.data.u8[5] << 8) | rx_frame.data.u8[4];  // 03 E0 = 992 = 99.2%
+      lowest_temperature = (rx_frame.data.u8[1] - 40);                       //Best guess for now
+      highest_temperature = (rx_frame.data.u8[3] - 40);                      //Best guess for now
       break;
     case 0x47B:  //01,FF,FF,FF,FF,FF,FF,FF - Static, values never changes between logs
       break;
