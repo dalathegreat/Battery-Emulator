@@ -92,7 +92,7 @@ void send_can_battery() {
   if (currentMillis - previousMillis100 >= INTERVAL_100_MS) {
     previousMillis100 = currentMillis;
     // Put fake messages here incase you want to test sending CAN
-    transmit_can(&TEST, can_config.battery);
+    //transmit_can(&TEST, can_config.battery);
   }
 }
 
