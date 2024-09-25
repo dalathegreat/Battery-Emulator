@@ -554,6 +554,8 @@ void receive_can_battery(CAN_frame rx_frame) {
             cellvoltages[84] = (tempval + 1000);
           } else {  // Cell 85 unavailable. We have a 84S battery (48kWh)
             datalayer.battery.info.number_of_cells = 84;
+            datalayer.battery.info.max_design_voltage_dV = 3528;
+            datalayer.battery.info.min_design_voltage_dV = 2520;
           }
           break;
         case PID_CELLVOLTAGE_CELL_86:
@@ -631,6 +633,8 @@ void receive_can_battery(CAN_frame rx_frame) {
               // Do nothing, we already identified it as 84S
             } else {
               datalayer.battery.info.number_of_cells = 96;
+              datalayer.battery.info.max_design_voltage_dV = 4032;
+              datalayer.battery.info.min_design_voltage_dV = 2880;
             }
           }
           break;
@@ -698,6 +702,9 @@ void receive_can_battery(CAN_frame rx_frame) {
           tempval = ((rx_frame.data.u8[4] << 8) | rx_frame.data.u8[5]);
           if (tempval != 0xFFE) {
             cellvoltages[107] = (tempval + 1000);
+            datalayer.battery.info.number_of_cells = 108;
+            datalayer.battery.info.max_design_voltage_dV = 4536;
+            datalayer.battery.info.min_design_voltage_dV = 3240;
           }
           break;
         default:
