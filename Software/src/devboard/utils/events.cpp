@@ -240,12 +240,15 @@ void reset_all_events() {
   events.nof_logged_events = 0;
   for (uint16_t i = 0; i < EVENT_NOF_EVENTS; i++) {
     events.entries[i].data = 0;
+    events.entries[i].state = EVENT_STATE_INACTIVE;
     events.entries[i].timestamp = 0;
     events.entries[i].millisrolloverCount = 0;
     events.entries[i].occurences = 0;
     events.entries[i].log = true;
     events.entries[i].MQTTpublished = false;  // Not published by default
   }
+  events.level = EVENT_LEVEL_INFO;
+  update_bms_status();
 }
 
 void set_event_MQTTpublished(EVENTS_ENUM_TYPE event) {
