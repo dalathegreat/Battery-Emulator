@@ -6,7 +6,7 @@
 #include "KIA-E-GMP-BATTERY.h"
 
 /* Do not change code below unless you are sure what you are doing */
-static unsigned long previousMillis200ms = 0;  // will store last time a 200ms CAN Message was send
+static unsigned long previousMillis500ms = 0;  // will store last time a 500ms CAN Message was send
 static unsigned long previousMillis10s = 0;    // will store last time a 10s CAN Message was send
 
 #define MAX_CELL_VOLTAGE 4250  //Battery is put into emergency stop if one cell goes over this value
@@ -60,7 +60,7 @@ static uint8_t KIA_7E4_COUNTER = 0x01;
 static int8_t temperature_water_inlet = 0;
 static int8_t powerRelayTemperature = 0;
 static int8_t heatertemp = 0;
-
+static bool set_voltage_limits = false;
 static uint8_t ticks_200ms_counter = 0;
 static uint8_t EGMP_1CF_counter = 0;
 static uint8_t EGMP_3XF_counter = 0;
@@ -622,6 +622,7 @@ void set_voltage_minmax_limits() {
     datalayer.battery.info.min_design_voltage_dV = 5760;
   } else {
     // We are still starting up? Not all cells available.
+    set_voltage_limits = false;
   }
 }
 
@@ -666,7 +667,8 @@ void update_values_battery() {  //This function maps all the values fetched via 
 
   datalayer.battery.status.cell_min_voltage_mV = CellVoltMin_mV;
 
-  if (millis() > INTERVAL_60_S) {
+  if ((millis() > INTERVAL_60_S) && !set_voltage_limits) {
+    set_voltage_limits = true;
     set_voltage_minmax_limits();  // Count cells, and set voltage limits accordingly
   }
 
@@ -1011,16 +1013,16 @@ void send_can_battery() {
       messageIndex = 0;
     }
 
-    //Send 200ms CANFD message
-    if (currentMillis - previousMillis200ms >= INTERVAL_200_MS) {
-      previousMillis200ms = currentMillis;
+    //Send 500ms CANFD message
+    if (currentMillis - previousMillis500ms >= INTERVAL_500_MS) {
+      previousMillis500ms = currentMillis;
       // Check if sending of CAN messages has been delayed too much.
-      if ((currentMillis - previousMillis200ms >= INTERVAL_200_MS_DELAYED) && (currentMillis > BOOTUP_TIME)) {
+      if ((currentMillis - previousMillis500ms >= INTERVAL_500_MS_DELAYED) && (currentMillis > BOOTUP_TIME)) {
         set_event(EVENT_CAN_OVERRUN, (currentMillis - previousMillis200ms));
       } else {
         clear_event(EVENT_CAN_OVERRUN);
       }
-      previousMillis200ms = currentMillis;
+      previousMillis500ms = currentMillis;
 
       EGMP_7E4.data.u8[3] = KIA_7E4_COUNTER;
 
