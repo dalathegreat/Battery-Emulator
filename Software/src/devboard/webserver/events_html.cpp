@@ -5,10 +5,9 @@ const char EVENTS_HTML_START[] = R"=====(
 )=====";
 const char EVENTS_HTML_END[] = R"=====(
 </div></div>
-<button onclick='clear()'>Clear all events</button>
-<button onclick='home()'>Back to main page</button>
-<style>.event:nth-child(even){background-color:#455a64}.event:nth-child(odd){background-color:#394b52}</style>
-<script>function showEvent(){document.querySelectorAll(".event").forEach(function(e){var n=e.querySelector(".sec-ago");n&&(n.innerText=new Date(Date.now()-((+n.innerText.split(';')[0])*4294967296+ +n.innerText.split(';')[1])).toLocaleString());})}function home(){window.location.href="/"}window.onload=function(){showEvent()}</script>
+<button onclick="askClear()">Clear all events</button>
+<button onclick="home()">Back to main page</button>
+<style>.event:nth-child(even){background-color:#455a64}.event:nth-child(odd){background-color:#394b52}</style><script>function showEvent(){document.querySelectorAll(".event").forEach(function(e){var n=e.querySelector(".sec-ago");n&&(n.innerText=new Date(Date.now()-(4294967296*+n.innerText.split(";")[0]+ +n.innerText.split(";")[1])).toLocaleString())})}function askClear(){window.confirm("Are you sure you want to clear all events?")&&(window.location.href="/clearevents")}function home(){window.location.href="/"}window.onload=function(){showEvent()}</script>
 )=====";
 
 static std::vector<EventData> order_events;
@@ -64,7 +63,7 @@ String events_processor(const String& var) {
 }
 
 /* Script for displaying event log before it gets minified
-<button onclick="clear()">Clear all events</button>
+<button onclick="askClear()">Clear all events</button>
 <button onclick="home()">Back to main page</button>
 <style>
     .event:nth-child(even) {
@@ -80,6 +79,11 @@ String events_processor(const String& var) {
             var n = e.querySelector(".sec-ago");
             n && (n.innerText = new Date(Date.now() - (+n.innerText.split(";")[0] * 4294967296 + +n.innerText.split(";")[1])).toLocaleString());
         });
+    }
+    function askClear() { 
+        if (window.confirm('Are you sure you want to clear all events?')) {
+            window.location.href = '/clearevents';
+        } 
     }
     function home() {
         window.location.href = "/";
