@@ -69,7 +69,7 @@ SensorConfig sensorConfigs[] = {
 static std::vector<EventData> order_events;
 
 static String generateCommonInfoAutoConfigTopic(const char* object_id, const char* hostname) {
-  return String("homeassistant/sensor/battery-emulator_") + String(hostname) + "/" + String(object_id) + "/config";
+  return String("rangetherapy/sensor/battery-emulator_") + String(hostname) + "/" + String(object_id) + "/config";
 }
 
 static String generateCellVoltageAutoConfigTopic(int cell_number, const char* hostname) {
@@ -78,7 +78,7 @@ static String generateCellVoltageAutoConfigTopic(int cell_number, const char* ho
 }
 
 static String generateEventsAutoConfigTopic(const char* object_id, const char* hostname) {
-  return String("homeassistant/sensor/battery-emulator_") + String(hostname) + "/" + String(object_id) + "/config";
+  return String("rangetherapy/sensor/battery-emulator_") + String(hostname) + "/" + String(object_id) + "/config";
 }
 
 #endif  // HA_AUTODISCOVERY
@@ -163,7 +163,6 @@ static void publish_cell_voltages(void) {
   static bool mqtt_first_transmission = true;
 #endif  // HA_AUTODISCOVERY
   static JsonDocument doc;
-  static const char* hostname = WiFi.getHostname();
   static String state_topic = String("rangetherapy/sensor/battery-emulator_") + String(hostname) + "/spec_data";
 
   // If the cell voltage number isn't initialized...
@@ -391,9 +390,10 @@ bool mqtt_publish(const char* topic, const char* mqtt_msg, bool retain) {
 
   return false;
 }
-
+/* EK removing as already handled
 void mqtt_publish_event (const char* event_level, const char* event_msg){
   static const char* hostname = WiFi.getHostname();
   String event_topic = String("rangetherapy/sensor/alert/") + String(hostname) + "/" + String(event_level);
   mqtt_publish (event_topic.c_str(), event_msg, true);
 }
+*/

@@ -535,7 +535,7 @@ static void log_event(EVENTS_ENUM_TYPE event, uint8_t millisrolloverCount, uint3
   events.nof_logged_events += (events.nof_logged_events < 255) ? 1 : 0;
 
   // EK 28/8/2024 push the event out
-  mqtt_publish_event (get_event_level_string(event), get_event_message_string(event));
+  //mqtt_publish_event (get_event_level_string(event), get_event_message_string(event));
 }
 
 static void print_event_log(void) {
