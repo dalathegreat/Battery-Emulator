@@ -88,6 +88,7 @@ void update_machineryprotection() {
     clear_event(EVENT_SOH_LOW);
   }
 
+#ifndef PYLON_BATTERY
   // Check if SOC% is plausible
   if (datalayer.battery.status.voltage_dV >
       (datalayer.battery.info.max_design_voltage_dV -
@@ -98,6 +99,7 @@ void update_machineryprotection() {
       clear_event(EVENT_SOC_PLAUSIBILITY_ERROR);
     }
   }
+#endif
 
   // Check diff between highest and lowest cell
   cell_deviation_mV = (datalayer.battery.status.cell_max_voltage_mV - datalayer.battery.status.cell_min_voltage_mV);
