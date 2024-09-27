@@ -246,28 +246,28 @@ void update_RS485_registers_inverter() {
     average_temperature_dC = 0;
   }
 
-  float2frame(frame2, (float)(datalayer.battery.status.voltage_dV / 10), 6);  // Confirmed OK mapping
+  float2frame(frame2, (float)datalayer.battery.status.voltage_dV / 10, 6);  // Confirmed OK mapping
 
-  float2frameMSB(frame1, (float)(datalayer.battery.status.voltage_dV / 10), 8);  // This shall be nominal voltage, but not available
+  float2frameMSB(frame1, (float)datalayer.battery.status.voltage_dV / 10, 8);  // This shall be nominal voltage, but not available
 
-  float2frameMSB(frame2, (float)(datalayer.battery.info.max_design_voltage_dV / 10), 12);
+  float2frameMSB(frame2, (float)datalayer.battery.info.max_design_voltage_dV / 10, 12);
 
-  float2frameMSB(frame2, (float)(average_temperature_dC / 10), 16);
+  float2frameMSB(frame2, (float)average_temperature_dC / 10, 16);
 
   float2frameMSB(frame2, (float)datalayer.battery.status.current_dA / 10,
                  20);  // Peak discharge? current (2 byte float)
   float2frameMSB(frame2, (float)datalayer.battery.status.current_dA / 10, 24);
 
-  float2frameMSB(frame2, (float)(discharge_current_dA / 10), 28);  // BAttery capacity Ah
+  float2frameMSB(frame2, (float)discharge_current_dA / 10, 28);  // BAttery capacity Ah
 
-  float2frameMSB(frame2, (float)(discharge_current_dA / 10), 32);
+  float2frameMSB(frame2, (float)discharge_current_dA / 10, 32);
 
 
   // When SOC = 100%, drop down allowed charge current down.
 
   if((datalayer.battery.status.reported_soc / 100)<100)
      {
-     float2frameMSB(frame2, (float)(charge_current_dA / 10), 36);
+     float2frameMSB(frame2, (float)charge_current_dA / 10, 36);
      frame2[57]=0x02;  
      }
   else
@@ -276,11 +276,11 @@ void update_RS485_registers_inverter() {
      frame2[57]=0x40;  
      }
 
-  float2frame(frame2, (float)(datalayer.battery.status.temperature_max_dC / 10), 38);
-  float2frame(frame2, (float)(datalayer.battery.status.temperature_min_dC / 10), 42);
+  float2frame(frame2, (float)datalayer.battery.status.temperature_max_dC / 10, 38);
+  float2frame(frame2, (float)datalayer.battery.status.temperature_min_dC / 10, 42);
 
-  float2frame(frame2, (float)(datalayer.battery.status.cell_max_voltage_mV / 1000), 46);
-  float2frame(frame2, (float)(datalayer.battery.status.cell_min_voltage_mV / 1000), 50);
+  float2frame(frame2, (float)datalayer.battery.status.cell_max_voltage_mV / 1000, 46);
+  float2frame(frame2, (float)datalayer.battery.status.cell_min_voltage_mV / 1000, 50);
 
   frame2[58] = (byte)(datalayer.battery.status.reported_soc / 100);  // Confirmed OK mapping
 
