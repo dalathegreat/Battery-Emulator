@@ -100,3 +100,115 @@ BEGIN
     -- Execute the dynamically generated SQL statement
     EXECUTE select_sql;
 END $$;
+
+# To build
++ go to Platform IO on left hand panel
++ press Build
++ press Upload
+
+# MQTT topics
+## Cell voltages
++ Topic: rangetherapy/sensor/battery-emulator_esp32-CFF924/spec_data
++ { "cell_voltages": [ 3.5, 3.501, 3.502, 3.5, 3.504, 3.505, 3.506, 3.507, 3.508, 3.509]}
+
+## Events
++ Topic: rangetherapy/sensor/battery-emulator_esp32-CFF924/events
+{
+  "event_type": "BATTERY_OVERHEAT",
+  "severity": "ERROR",
+  "count": "238",
+  "data": "112",
+  "message": "ERROR: Battery overheated. Shutting down to prevent thermal runaway!",
+  "millis": "9885100"
+}
+
+## Other messages which will be ignored (turned off using HA_AUTODISCOVERY) - but this kills the common info
++ Topic: rangetherapy/sensor/battery-emulator_esp32-CFF924/temperature_min/config
+{
+  "name": "Battery Emulator Temperature Min",
+  "state_topic": "battery-emulator_esp32-CFF924/info",
+  "unique_id": "battery-emulator_esp32-CFF924_temperature_min",
+  "object_id": "esp32-CFF924_temperature_min",
+  "value_template": "{{ value_json.temperature_min }}",
+  "unit_of_measurement": "°C",
+  "device_class": "temperature",
+  "state_class": "measurement",
+  "enabled_by_default": true,
+  "expire_after": 240,
+  "device": {
+    "identifiers": [
+      "battery-emulator"
+    ],
+    "manufacturer": "DalaTech",
+    "model": "BatteryEmulator",
+    "name": "BatteryEmulator_esp32-CFF924"
+  },
+  "origin": {
+    "name": "BatteryEmulator",
+    "sw": "7.4.dev-mqtt",
+    "url": "https://github.com/dalathegreat/Battery-Emulator"
+  }
+}
+
++ Topic: rangetherapy/sensor/battery-emulator_esp32-CFF924/temperature_max/config
+{
+  "name": "Battery Emulator Temperature Max",
+  "state_topic": "battery-emulator_esp32-CFF924/info",
+  "unique_id": "battery-emulator_esp32-CFF924_temperature_max",
+  "object_id": "esp32-CFF924_temperature_max",
+  "value_template": "{{ value_json.temperature_max }}",
+  "unit_of_measurement": "°C",
+  "device_class": "temperature",
+  "state_class": "measurement",
+  "enabled_by_default": true,
+  "expire_after": 240,
+  "device": {
+    "identifiers": [
+      "battery-emulator"
+    ],
+    "manufacturer": "DalaTech",
+    "model": "BatteryEmulator",
+    "name": "BatteryEmulator_esp32-CFF924"
+  },
+  "origin": {
+    "name": "BatteryEmulator",
+    "sw": "7.4.dev-mqtt",
+    "url": "https://github.com/dalathegreat/Battery-Emulator"
+  }
+}
++  Topic: rangetherapy/sensor/battery-emulator_esp32-CFF924/total_capacity/config
++  Topic: rangetherapy/sensor/battery-emulator_esp32-CFF924/state_of_health/config
++  Topic: rangetherapy/sensor/battery-emulator_esp32-CFF924/stat_batt_power/config
++  Topic: rangetherapy/sensor/battery-emulator_esp32-CFF924/remaining_capacity/config
++  Topic: rangetherapy/sensor/battery-emulator_esp32-CFF924/pause_status/config
++  Topic: rangetherapy/sensor/battery-emulator_esp32-CFF924/max_discharge_power/config
++  Topic: rangetherapy/sensor/battery-emulator_esp32-CFF924/max_charge_power/config
++  Topic: rangetherapy/sensor/battery-emulator_esp32-CFF924/event/config
++  Topic: rangetherapy/sensor/battery-emulator_esp32-CFF924/cell_voltage9/config - one of these for each cell when the device is powered up
+{
+  "name": "Battery Cell Voltage 6",
+  "object_id": "battery_voltage_cell6",
+  "unique_id": "battery-emulator_esp32-CFF924_battery_voltage_cell6",
+  "device_class": "voltage",
+  "state_class": "measurement",
+  "state_topic": "rangetherapy/sensor/battery-emulator_esp32-CFF924/spec_data",
+  "unit_of_measurement": "V",
+  "enabled_by_default": true,
+  "expire_after": 240,
+  "value_template": "{{ value_json.cell_voltages[5] }}",
+  "device": {
+    "identifiers": [
+      "battery-emulator"
+    ],
+    "manufacturer": "DalaTech",
+    "model": "BatteryEmulator",
+    "name": "BatteryEmulator_esp32-CFF924"
+  },
+  "origin": {
+    "name": "BatteryEmulator",
+    "sw": "7.4.dev-mqtt",
+    "url": "https://github.com/dalathegreat/Battery-Emulator"
+  }
+}
+
++  Topic: rangetherapy/sensor/battery-emulator_esp32-CFF924/bms_status/config

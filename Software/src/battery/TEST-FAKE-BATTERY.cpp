@@ -51,11 +51,12 @@ void update_values_battery() { /* This function puts fake values onto the parame
 
   datalayer.battery.status.max_charge_power_W = 5000;  // 5kW
 
-  for (int i = 0; i < 97; ++i) {
+  for (int i = 0; i < datalayer.battery.info.number_of_cells; ++i) {
     datalayer.battery.status.cell_voltages_mV[i] = 3500 + i;
   }
   if (battery_fault_timer.elapsed() == true) { // Every 20s
     datalayer.battery.status.cell_voltages_mV[3] = 3000;
+    datalayer.battery.status.cell_voltages_mV[6] = 2000;
     datalayer.battery.status.temperature_max_dC = 6000;  // 600.0*C
   } else {
     datalayer.battery.status.cell_voltages_mV[3] = 3500;
@@ -103,8 +104,8 @@ void send_can_battery() {
   // Send 100ms CAN Message
   if (currentMillis - previousMillis100 >= INTERVAL_100_MS) {
     previousMillis100 = currentMillis;
-    // Put fake messages here incase you want to test sending CAN
-    //transmit_can(&TEST, can_config.battery);
+    // Put fake messages here in case you want to test sending CAN - EK 27/09/2024
+    transmit_can(&TEST, can_config.battery);
   }
 }
 
@@ -112,7 +113,7 @@ void setup_battery(void) {  // Performs one time setup at startup
 #ifdef DEBUG_VIA_USB
   Serial.println("Test mode with fake battery selected");
 #endif
-  datalayer.battery.info.number_of_cells = 10;
+  datalayer.battery.info.number_of_cells = 96;
 
   datalayer.battery.info.max_design_voltage_dV =
       4040;  // 404.4V, over this, charging is not possible (goes into forced discharge)

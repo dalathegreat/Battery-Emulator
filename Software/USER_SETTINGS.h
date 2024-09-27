@@ -74,7 +74,7 @@
 #define MQTT_PORT 1883
 
 /* Home Assistant options */
-#define HA_AUTODISCOVERY  // Enable this line to send Home Assistant autodiscovery messages. If not enabled manual configuration of Home Assitant is required
+// #define HA_AUTODISCOVERY  // Enable this line to send Home Assistant autodiscovery messages. If not enabled manual configuration of Home Assitant is required
 
 /* Event options*/
 #define DUMMY_EVENT_ENABLED false  //Enable this line to have a dummy event that gets logged to test the interface

@@ -66,8 +66,6 @@ SensorConfig sensorConfigs[] = {
 
 };
 
-static std::vector<EventData> order_events;
-
 static String generateCommonInfoAutoConfigTopic(const char* object_id, const char* hostname) {
   return String("rangetherapy/sensor/battery-emulator_") + String(hostname) + "/" + String(object_id) + "/config";
 }
@@ -82,6 +80,7 @@ static String generateEventsAutoConfigTopic(const char* object_id, const char* h
 }
 
 #endif  // HA_AUTODISCOVERY
+static std::vector<EventData> order_events;
 
 static void publish_common_info(void) {
   static JsonDocument doc;
