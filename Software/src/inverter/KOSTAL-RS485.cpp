@@ -145,71 +145,7 @@ bool check_kostal_frame_crc() {
   }
 }
 
-static uint8_t rx_index = 0;
 
-void receive_RS485()  // Runs as fast as possible to handle the serial stream
-{
-  if (Serial2.available()) {
-    RS485_RXFRAME[rx_index] = Serial2.read();
-    rx_index++;
-    if (RS485_RXFRAME[rx_index - 1] == 0x00) {
-      if ((rx_index == 10) && (RS485_RXFRAME[0] == 0x09) && register_content_ok) {
-#ifdef DEBUG_KOSTAL_RS485_DATA
-        Serial.print("RX: ");
-        for (uint8_t i = 0; i < 10; i++) {
-          Serial.print(RS485_RXFRAME[i], HEX);
-          Serial.print(" ");
-        }
-        Serial.println("");
-#endif
-        rx_index = 0;
-        if (check_kostal_frame_crc()) {
-          incoming_message_counter = RS485_HEALTHY;
-          bool headerA = true;
-          bool headerB = true;
-          for (uint8_t i = 0; i < 5; i++) {
-            if (RS485_RXFRAME[i + 1] != KOSTAL_FRAMEHEADER[i]) {
-              headerA = false;
-            }
-            if (RS485_RXFRAME[i + 1] != KOSTAL_FRAMEHEADER2[i]) {
-              headerB = false;
-            }
-          }
-
-          // "frame B1", maybe reset request, seen after battery power on/partial data
-          if (headerB && (RS485_RXFRAME[6] == 0x5E) && (RS485_RXFRAME[7] == 0xFF)) {
-            send_kostal(frameB1, 10);
-            Serial2.flush();
-            delay(1);
-            send_kostal(frameB1b, 10);
-          }
-
-          if (headerA && (RS485_RXFRAME[6] == 0x4A) && (RS485_RXFRAME[7] == 0x08)) {  // "frame 1"
-            send_kostal(frame1, 40);
-          }
-          if (headerA && (RS485_RXFRAME[6] == 0x4A) && (RS485_RXFRAME[7] == 0x04)) {  // "frame 2"
-            byte tmpframe[64];  //copy values to prevent data manipulation during rewrite/crc calculation
-            memcpy(tmpframe, frame2, 64);
-            for (int i = 1; i < 63; i++) {
-              if (tmpframe[i] == 0x00) {
-                tmpframe[i] = 0x01;
-              }
-            }
-            tmpframe[62] = calculate_longframe_crc(tmpframe, 62);
-            send_kostal(tmpframe, 64);
-          }
-          if (headerA && (RS485_RXFRAME[6] == 0x53) && (RS485_RXFRAME[7] == 0x03)) {  // "frame 3"
-            send_kostal(frame3, 9);
-          }
-        }
-      }
-      rx_index = 0;
-    }
-    if (rx_index >= 10) {
-      rx_index = 0;
-    }
-  }
-}
 
 void update_RS485_registers_inverter() {
 
@@ -298,4 +234,77 @@ void update_RS485_registers_inverter() {
     clear_event(EVENT_MODBUS_INVERTER_MISSING);
   }
 }
+
+static uint8_t rx_index = 0;
+
+void receive_RS485()  // Runs as fast as possible to handle the serial stream
+{
+  if (Serial2.available()) {
+    RS485_RXFRAME[rx_index] = Serial2.read();
+    rx_index++;
+    if (RS485_RXFRAME[rx_index - 1] == 0x00) {
+
+
+      if ((rx_index == 10) && (RS485_RXFRAME[0] == 0x09) && register_content_ok) {
+#ifdef DEBUG_KOSTAL_RS485_DATA
+        Serial.print("RX: ");
+        for (uint8_t i = 0; i < 10; i++) {
+          Serial.print(RS485_RXFRAME[i], HEX);
+          Serial.print(" ");
+        }
+        Serial.println("");
+#endif
+        rx_index = 0;
+        if (check_kostal_frame_crc()) {
+          incoming_message_counter = RS485_HEALTHY;
+          bool headerA = true;
+          bool headerB = true;
+          for (uint8_t i = 0; i < 5; i++) {
+            if (RS485_RXFRAME[i + 1] != KOSTAL_FRAMEHEADER[i]) {
+              headerA = false;
+            }
+            if (RS485_RXFRAME[i + 1] != KOSTAL_FRAMEHEADER2[i]) {
+              headerB = false;
+            }
+          }
+
+          // "frame B1", maybe reset request, seen after battery power on/partial data
+          if (headerB && (RS485_RXFRAME[6] == 0x5E) && (RS485_RXFRAME[7] == 0xFF)) {
+            send_kostal(frameB1, 10);
+            Serial2.flush();
+            delay(1);
+            send_kostal(frameB1b, 10);
+          }
+
+          if (headerA && (RS485_RXFRAME[6] == 0x4A) && (RS485_RXFRAME[7] == 0x08)) {  // "frame 1"
+            send_kostal(frame1, 40);
+          }
+          if (headerA && (RS485_RXFRAME[6] == 0x4A) && (RS485_RXFRAME[7] == 0x04)) {  // "frame 2"
+
+            update_values_battery();
+            update_RS485_registers_inverter();
+
+            byte tmpframe[64];  //copy values to prevent data manipulation during rewrite/crc calculation
+            memcpy(tmpframe, frame2, 64);
+            for (int i = 1; i < 63; i++) {
+              if (tmpframe[i] == 0x00) {
+                tmpframe[i] = 0x01;
+              }
+            }
+            tmpframe[62] = calculate_longframe_crc(tmpframe, 62);
+            send_kostal(tmpframe, 64);
+          }
+          if (headerA && (RS485_RXFRAME[6] == 0x53) && (RS485_RXFRAME[7] == 0x03)) {  // "frame 3"
+            send_kostal(frame3, 9);
+          }
+        }
+      }
+      rx_index = 0;
+    }
+    if (rx_index >= 10) {
+      rx_index = 0;
+    }
+  }
+}
+
 #endif
