@@ -104,7 +104,7 @@ void send_can_battery() {
   if (currentMillis - previousMillis100 >= INTERVAL_100_MS) {
     previousMillis100 = currentMillis;
     // Put fake messages here incase you want to test sending CAN
-    transmit_can(&TEST, can_config.battery);
+    //transmit_can(&TEST, can_config.battery);
   }
 }
 
@@ -117,6 +117,8 @@ void setup_battery(void) {  // Performs one time setup at startup
   datalayer.battery.info.max_design_voltage_dV =
       4040;  // 404.4V, over this, charging is not possible (goes into forced discharge)
   datalayer.battery.info.min_design_voltage_dV = 2450;  // 245.0V under this, discharging further is disabled
+
+  datalayer.system.status.battery_allows_contactor_closing = true;
 }
 
 #endif

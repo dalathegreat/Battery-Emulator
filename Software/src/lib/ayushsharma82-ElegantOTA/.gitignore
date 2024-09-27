@@ -37,3 +37,4 @@ node_modules
 .vscode
 /build
 /portal
+.pio

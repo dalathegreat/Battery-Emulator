@@ -19,6 +19,10 @@ To update the software over the air:
 - In your webbrowser, go to the url consisting of the IP address, followed by `/update`, for instance `http://192.168.0.224/update`.
 - In the webbrowser, follow the steps to select the `.bin` file and to upload the file to the board.
 
+Security Concerns
+(https://randomnerdtutorials.com/esp32-esp8266-web-server-http-authentication/)
+Authentication implemented here is meant to be used in your local network to protect from anyone just typing the ESP IP address and accessing the web server (like unauthorized family member or friend).
+
 ## Future work
 This section lists a number of features that can be implemented as part of the webserver in the future.
 

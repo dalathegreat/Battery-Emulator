@@ -25,14 +25,32 @@
 
 #include "src/datalayer/datalayer.h"
 
+#ifdef WIFI
+#include "src/devboard/wifi/wifi.h"
 #ifdef WEBSERVER
-#include <ESPmDNS.h>
 #include "src/devboard/webserver/webserver.h"
+#ifdef MDNSRESPONDER
+#include <ESPmDNS.h>
+#endif  // MDNSRESONDER
+#else   // WEBSERVER
+#ifdef MDNSRESPONDER
+#error WEBSERVER needs to be enabled for MDNSRESPONDER!
+#endif  // MDNSRSPONDER
+#endif  // WEBSERVER
+#ifdef MQTT
+#include "src/devboard/mqtt/mqtt.h"
+#endif  // MQTT
+#endif  // WIFI
+
+#ifndef CONTACTOR_CONTROL
+#ifdef PWM_CONTACTOR_CONTROL
+#error CONTACTOR_CONTROL needs to be enabled for PWM_CONTACTOR_CONTROL
+#endif
 #endif
 
 Preferences settings;  // Store user settings
 // The current software version, shown on webserver
-const char* version_number = "7.1.dev";
+const char* version_number = "7.4.dev";
 
 // Interval settings
 uint16_t intervalUpdateValues = INTERVAL_5_S;  // Interval at which to update inverter values / Modbus registers
@@ -42,6 +60,7 @@ unsigned long previousMillisUpdateVal = 0;
 // CAN parameters
 CAN_device_t CAN_cfg;          // CAN Config
 const int rx_queue_size = 10;  // Receive Queue size
+volatile bool send_ok = 0;
 
 #ifdef DUAL_CAN
 #include "src/lib/pierremolinaro-acan2515/ACAN2515.h"
@@ -88,6 +107,8 @@ MyTimer connectivity_task_timer_10s(INTERVAL_10_S);
 
 MyTimer loop_task_timer_10s(INTERVAL_10_S);
 
+MyTimer check_pause_2s(INTERVAL_2_S);
+
 // Contactor parameters
 #ifdef CONTACTOR_CONTROL
 enum State { DISCONNECTED, PRECHARGE, NEGATIVE, POSITIVE, PRECHARGE_OFF, COMPLETED, SHUTDOWN_REQUESTED };
@@ -104,6 +125,8 @@ State contactorStatus = DISCONNECTED;
 #define PWM_Freq 20000  // 20 kHz frequency, beyond audible range
 #define PWM_Res 10      // 10 Bit resolution 0 to 1023, maps 'nicely' to 0% 100%
 #define PWM_Hold_Duty 250
+#define PWM_Off_Duty 0
+#define PWM_On_Duty 1023
 #define POSITIVE_PWM_Ch 0
 #define NEGATIVE_PWM_Ch 1
 #endif
@@ -121,7 +144,7 @@ void setup() {
 
   init_stored_settings();
 
-#ifdef WEBSERVER
+#ifdef WIFI
   xTaskCreatePinnedToCore((TaskFunction_t)&connectivity_loop, "connectivity_loop", 4096, &connectivity_task_time_us,
                           TASK_CONNECTIVITY_PRIO, &connectivity_loop_task, WIFI_CORE);
 #endif
@@ -163,11 +186,19 @@ void loop() {
 #endif
 }
 
-#ifdef WEBSERVER
+#ifdef WIFI
 void connectivity_loop(void* task_time_us) {
-  // Init
+
+  // Init wifi
+  init_WiFi();
+
+#ifdef WEBSERVER
+  // Init webserver
   init_webserver();
+#endif
+#ifdef MDNSRESPONDER
   init_mDNS();
+#endif
 #ifdef MQTT
   init_mqtt();
 #endif
@@ -175,6 +206,9 @@ void connectivity_loop(void* task_time_us) {
   while (true) {
     START_TIME_MEASUREMENT(wifi);
     wifi_monitor();
+#ifdef WEBSERVER
+    ota_monitor();
+#endif
     END_TIME_MEASUREMENT_MAX(wifi, datalayer.system.status.wifi_task_10s_max_us);
 #ifdef MQTT
     START_TIME_MEASUREMENT(mqtt);
@@ -279,31 +313,15 @@ void core_loop(void* task_time_us) {
       datalayer.system.status.time_cantx_us = 0;
       datalayer.system.status.core_task_10s_max_us = 0;
     }
+
 #endif
+    if (check_pause_2s.elapsed()) {
+      emulator_pause_state_send_CAN_battery();
+    }
+
     vTaskDelayUntil(&xLastWakeTime, xFrequency);
   }
 }
-
-#ifdef WEBSERVER
-// Initialise mDNS
-void init_mDNS() {
-
-  // Calulate the host name using the last two chars from the MAC address so each one is likely unique on a network.
-  // e.g batteryemulator8C.local where the mac address is 08:F9:E0:D1:06:8C
-  String mac = WiFi.macAddress();
-  String mdnsHost = "batteryemulator" + mac.substring(mac.length() - 2);
-
-  // Initialize mDNS .local resolution
-  if (!MDNS.begin(mdnsHost)) {
-#ifdef DEBUG_VIA_USB
-    Serial.println("Error setting up MDNS responder!");
-#endif
-  } else {
-    // Advertise via bonjour the service so we can auto discover these battery emulators on the local network.
-    MDNS.addService("battery_emulator", "tcp", 80);
-  }
-}
-#endif
 
 // Initialization functions
 void init_serial() {
@@ -322,6 +340,8 @@ void init_stored_settings() {
   settings.clear();  // If this clear function is executed, no settings will be read from storage
 #endif
 
+#ifdef WIFI
+
   char tempSSIDstring[63];  // Allocate buffer with sufficient size
   size_t lengthSSID = settings.getString("SSID", tempSSIDstring, sizeof(tempSSIDstring));
   if (lengthSSID > 0) {  // Successfully read the string from memory. Set it to SSID!
@@ -334,6 +354,7 @@ void init_stored_settings() {
     password = tempPasswordString;
   } else {  // Reading from settings failed. Do nothing with SSID. Raise event?
   }
+#endif
 
   static uint32_t temp = 0;
   temp = settings.getUInt("BATTERY_WH_MAX", false);
@@ -369,6 +390,9 @@ void init_CAN() {
   digitalWrite(CAN_SE_PIN, LOW);
 #endif
   CAN_cfg.speed = CAN_SPEED_500KBPS;
+#ifdef NATIVECAN_250KBPS  // Some component is requesting lower CAN speed
+  CAN_cfg.speed = CAN_SPEED_250KBPS;
+#endif
   CAN_cfg.tx_pin_id = CAN_TX_PIN;
   CAN_cfg.rx_pin_id = CAN_RX_PIN;
   CAN_cfg.rx_queue = xQueueCreate(rx_queue_size, sizeof(CAN_frame_t));
@@ -432,23 +456,24 @@ void init_CAN() {
 void init_contactors() {
   // Init contactor pins
 #ifdef CONTACTOR_CONTROL
+#ifndef PWM_CONTACTOR_CONTROL
   pinMode(POSITIVE_CONTACTOR_PIN, OUTPUT);
   digitalWrite(POSITIVE_CONTACTOR_PIN, LOW);
   pinMode(NEGATIVE_CONTACTOR_PIN, OUTPUT);
   digitalWrite(NEGATIVE_CONTACTOR_PIN, LOW);
-#ifdef PWM_CONTACTOR_CONTROL
+#else
   ledcAttachChannel(POSITIVE_CONTACTOR_PIN, PWM_Freq, PWM_Res,
                     POSITIVE_PWM_Ch);  // Setup PWM Channel Frequency and Resolution
   ledcAttachChannel(NEGATIVE_CONTACTOR_PIN, PWM_Freq, PWM_Res,
-                    NEGATIVE_PWM_Ch);  // Setup PWM Channel Frequency and Resolution
-  ledcWrite(POSITIVE_PWM_Ch, 0);       // Set Positive PWM to 0%
-  ledcWrite(NEGATIVE_PWM_Ch, 0);       // Set Negative PWM to 0%
+                    NEGATIVE_PWM_Ch);               // Setup PWM Channel Frequency and Resolution
+  ledcWrite(POSITIVE_CONTACTOR_PIN, PWM_Off_Duty);  // Set Positive PWM to 0%
+  ledcWrite(NEGATIVE_CONTACTOR_PIN, PWM_Off_Duty);  // Set Negative PWM to 0%
 #endif
   pinMode(PRECHARGE_PIN, OUTPUT);
   digitalWrite(PRECHARGE_PIN, LOW);
 #endif
 // Init BMS contactor
-#ifdef HW_STARK  // TODO: Rewrite this so LilyGo can aslo handle this BMS contactor
+#ifdef HW_STARK  // TODO: Rewrite this so LilyGo can also handle this BMS contactor
   pinMode(BMS_POWER, OUTPUT);
   digitalWrite(BMS_POWER, HIGH);
 #endif
@@ -564,14 +589,16 @@ void receive_can_native() {  // This section checks if we have a complete CAN me
 
 void send_can() {
 
-  send_can_battery();
+  if (can_send_CAN)
+    send_can_battery();
 
 #ifdef CAN_INVERTER_SELECTED
   send_can_inverter();
 #endif  // CAN_INVERTER_SELECTED
 
 #ifdef CHARGER_SELECTED
-  send_can_charger();
+  if (can_send_CAN)
+    send_can_charger();
 #endif  // CHARGER_SELECTED
 }
 
@@ -615,13 +642,11 @@ void check_interconnect_available() {
 #endif  //DOUBLE_BATTERY
 
 void handle_contactors() {
-
 #ifdef BYD_SMA
   datalayer.system.status.inverter_allows_contactor_closing = digitalRead(INVERTER_CONTACTOR_ENABLE_PIN);
 #endif
 
 #ifdef CONTACTOR_CONTROL
-
   // First check if we have any active errors, incase we do, turn off the battery
   if (datalayer.battery.status.bms_status == FAULT) {
     timeSpentInFaultedMode++;
@@ -634,20 +659,27 @@ void handle_contactors() {
   }
   if (contactorStatus == SHUTDOWN_REQUESTED) {
     digitalWrite(PRECHARGE_PIN, LOW);
+#ifndef PWM_CONTACTOR_CONTROL
     digitalWrite(NEGATIVE_CONTACTOR_PIN, LOW);
     digitalWrite(POSITIVE_CONTACTOR_PIN, LOW);
+#else
+    ledcWrite(NEGATIVE_CONTACTOR_PIN, PWM_Off_Duty);
+    ledcWrite(POSITIVE_CONTACTOR_PIN, PWM_Off_Duty);
+#endif
     set_event(EVENT_ERROR_OPEN_CONTACTOR, 0);
+    datalayer.system.status.contactor_control_closed = false;
     return;  // A fault scenario latches the contactor control. It is not possible to recover without a powercycle (and investigation why fault occured)
   }
 
   // After that, check if we are OK to start turning on the battery
   if (contactorStatus == DISCONNECTED) {
     digitalWrite(PRECHARGE_PIN, LOW);
+#ifndef PWM_CONTACTOR_CONTROL
     digitalWrite(NEGATIVE_CONTACTOR_PIN, LOW);
     digitalWrite(POSITIVE_CONTACTOR_PIN, LOW);
-#ifdef PWM_CONTACTOR_CONTROL
-    ledcWrite(POSITIVE_PWM_Ch, 0);
-    ledcWrite(NEGATIVE_PWM_Ch, 0);
+#else
+    ledcWrite(NEGATIVE_CONTACTOR_PIN, PWM_Off_Duty);
+    ledcWrite(POSITIVE_CONTACTOR_PIN, PWM_Off_Duty);
 #endif
 
     if (datalayer.system.status.battery_allows_contactor_closing &&
@@ -675,9 +707,10 @@ void handle_contactors() {
 
     case NEGATIVE:
       if (currentTime - prechargeStartTime >= PRECHARGE_TIME_MS) {
+#ifndef PWM_CONTACTOR_CONTROL
         digitalWrite(NEGATIVE_CONTACTOR_PIN, HIGH);
-#ifdef PWM_CONTACTOR_CONTROL
-        ledcWrite(NEGATIVE_PWM_Ch, 1023);
+#else
+        ledcWrite(NEGATIVE_CONTACTOR_PIN, PWM_On_Duty);
 #endif
         negativeStartTime = currentTime;
         contactorStatus = POSITIVE;
@@ -686,9 +719,10 @@ void handle_contactors() {
 
     case POSITIVE:
       if (currentTime - negativeStartTime >= NEGATIVE_CONTACTOR_TIME_MS) {
+#ifndef PWM_CONTACTOR_CONTROL
         digitalWrite(POSITIVE_CONTACTOR_PIN, HIGH);
-#ifdef PWM_CONTACTOR_CONTROL
-        ledcWrite(POSITIVE_PWM_Ch, 1023);
+#else
+        ledcWrite(POSITIVE_CONTACTOR_PIN, PWM_On_Duty);
 #endif
         contactorStatus = PRECHARGE_OFF;
       }
@@ -698,10 +732,11 @@ void handle_contactors() {
       if (currentTime - negativeStartTime >= POSITIVE_CONTACTOR_TIME_MS) {
         digitalWrite(PRECHARGE_PIN, LOW);
 #ifdef PWM_CONTACTOR_CONTROL
-        ledcWrite(NEGATIVE_PWM_Ch, PWM_Hold_Duty);
-        ledcWrite(POSITIVE_PWM_Ch, PWM_Hold_Duty);
+        ledcWrite(NEGATIVE_CONTACTOR_PIN, PWM_Hold_Duty);
+        ledcWrite(POSITIVE_CONTACTOR_PIN, PWM_Hold_Duty);
 #endif
         contactorStatus = COMPLETED;
+        datalayer.system.status.contactor_control_closed = true;
       }
       break;
     default:
@@ -795,8 +830,10 @@ void init_serialDataLink() {
 
 void storeSettings() {
   settings.begin("batterySettings", false);
+#ifdef WIFI
   settings.putString("SSID", String(ssid.c_str()));
   settings.putString("PASSWORD", String(password.c_str()));
+#endif
   settings.putUInt("BATTERY_WH_MAX", datalayer.battery.info.total_capacity_Wh);
   settings.putUInt("MAXPERCENTAGE",
                    datalayer.battery.settings.max_percentage / 10);  // Divide by 10 for backwards compatibility
@@ -923,7 +960,10 @@ void transmit_can(CAN_frame* tx_frame, int interface) {
       for (uint8_t i = 0; i < MCP2518Frame.len; i++) {
         MCP2518Frame.data[i] = tx_frame->data.u8[i];
       }
-      canfd.tryToSend(MCP2518Frame);
+      send_ok = canfd.tryToSend(MCP2518Frame);
+      if (!send_ok) {
+        set_event(EVENT_CANFD_BUFFER_FULL, interface);
+      }
 #else   // Interface not compiled, and settings try to use it
       set_event(EVENT_INTERFACE_MISSING, interface);
 #endif  //CAN_FD

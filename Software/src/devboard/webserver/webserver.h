@@ -6,24 +6,17 @@
 #include "../../include.h"
 #include "../../lib/YiannisBourkelis-Uptime-Library/src/uptime_formatter.h"
 #include "../../lib/ayushsharma82-ElegantOTA/src/ElegantOTA.h"
-#ifdef MQTT
-#include "../../lib/knolleary-pubsubclient/PubSubClient.h"
-#endif
 #include "../../lib/me-no-dev-AsyncTCP/src/AsyncTCP.h"
 #include "../../lib/me-no-dev-ESPAsyncWebServer/src/ESPAsyncWebServer.h"
 #include "../../lib/miwagner-ESP32-Arduino-CAN/ESP32CAN.h"
-#ifdef MQTT
-#include "../mqtt/mqtt.h"
-#endif
 
 extern const char* version_number;  // The current software version, shown on webserver
 
 #include <string>
-extern std::string ssid;
-extern std::string password;
-extern const uint8_t wifi_channel;
+extern const char* http_username;
+extern const char* http_password;
+
 extern const char* ssidAP;
-extern const char* passwordAP;
 
 // Common charger parameters
 extern float charger_stat_HVcur;
@@ -44,34 +37,6 @@ extern uint16_t OBC_Charge_Power;
  * @return void
  */
 void init_webserver();
-
-/**
- * @brief Monitoring loop for WiFi. Will attempt to reconnect to access point if the connection goes down.
- *
- * @param[in] void
- * 
- * @return void
- */
-void wifi_monitor();
-
-/**
- * @brief Initialization function that creates a WiFi Access Point.
- *
- * @param[in] void
- * 
- * @return void
- */
-void init_WiFi_AP();
-
-/**
- * @brief Initialization function that connects to an existing network.
- *
- * @param[in] ssid WiFi network name
- * @param[in] password WiFi network password
- * 
- * @return void
- */
-void init_WiFi_STA(const char* ssid, const char* password, const uint8_t channel);
 
 // /**
 //  * @brief Function to handle WiFi reconnection.
@@ -99,6 +64,7 @@ void init_ElegantOTA();
  * @return String
  */
 String processor(const String& var);
+String get_firmware_info_processor(const String& var);
 
 /**
  * @brief Executes on OTA start 
@@ -139,5 +105,7 @@ template <typename T>
 String formatPowerValue(String label, T value, String unit, int precision);
 
 extern void storeSettings();
+
+void ota_monitor();
 
 #endif
