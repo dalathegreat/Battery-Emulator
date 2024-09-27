@@ -86,6 +86,7 @@ It is also based on the information found in the following excellent repositorie
 - https://github.com/dalathegreat/leaf_can_bus_messages
 - https://github.com/rand12345/solax_can_bus
 - https://github.com/Tom-evnut/BMWI3BMS/ SMA-CAN
+- https://github.com/FozzieUK/FoxESS-Canbus-Protocol FoxESS-CAN
 - https://github.com/maciek16c/hyundai-santa-fe-phev-battery
 - https://github.com/ljames28/Renault-Zoe-PH2-ZE50-Canbus-LBC-Information
 - Renault Zoe CAN Matrix https://docs.google.com/spreadsheets/u/0/d/1Qnk-yzzcPiMArO-QDzO4a8ptAS2Sa4HhVu441zBzlpM/edit?pli=1#gid=0
