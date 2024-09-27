@@ -63,6 +63,18 @@ void init_webserver() {
     request->send_P(200, "text/html", index_html, events_processor);
   });
 
+  // Route for clearing all events
+  server.on("/clearevents", HTTP_GET, [](AsyncWebServerRequest* request) {
+    if (WEBSERVER_AUTH_REQUIRED && !request->authenticate(http_username, http_password))
+      return request->requestAuthentication();
+    reset_all_events();
+    // Send back a response that includes an instant redirect to /events
+    String response = "<html><body>";
+    response += "<script>window.location.href = '/events';</script>";  // Instant redirect
+    response += "</body></html>";
+    request->send(200, "text/html", response);
+  });
+
   // Route for editing SSID
   server.on("/updateSSID", HTTP_GET, [](AsyncWebServerRequest* request) {
     if (WEBSERVER_AUTH_REQUIRED && !request->authenticate(http_username, http_password))
@@ -499,6 +511,9 @@ String processor(const String& var) {
 #ifdef NISSAN_LEAF_BATTERY
     content += "Nissan LEAF";
 #endif  // NISSAN_LEAF_BATTERY
+#ifdef PYLON_BATTERY
+    content += "Pylon compatible battery";
+#endif  // PYLON_BATTERY
 #ifdef RJXZS_BMS
     content += "RJXZS BMS, DIY battery";
 #endif  // RJXZS_BMS
@@ -810,7 +825,7 @@ String processor(const String& var) {
       content += "<button onclick='PauseBattery(false)'>Resume Battery</button>";
     else
       content += "<button onclick='PauseBattery(true)'>Pause Battery</button>";
-
+    content += " ";
     content += "<button onclick='OTA()'>Perform OTA update</button>";
     content += " ";
     content += "<button onclick='Settings()'>Change Settings</button>";

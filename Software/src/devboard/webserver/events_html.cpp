@@ -5,9 +5,9 @@ const char EVENTS_HTML_START[] = R"=====(
 )=====";
 const char EVENTS_HTML_END[] = R"=====(
 </div></div>
-<button onclick='home()'>Back to main page</button>
-<style>.event:nth-child(even){background-color:#455a64}.event:nth-child(odd){background-color:#394b52}</style>
-<script>function showEvent(){document.querySelectorAll(".event").forEach(function(e){var n=e.querySelector(".sec-ago");n&&(n.innerText=new Date(Date.now()-((+n.innerText.split(';')[0])*4294967296+ +n.innerText.split(';')[1])).toLocaleString());})}function home(){window.location.href="/"}window.onload=function(){showEvent()}</script>
+<button onclick="askClear()">Clear all events</button>
+<button onclick="home()">Back to main page</button>
+<style>.event:nth-child(even){background-color:#455a64}.event:nth-child(odd){background-color:#394b52}</style><script>function showEvent(){document.querySelectorAll(".event").forEach(function(e){var n=e.querySelector(".sec-ago");n&&(n.innerText=new Date(Date.now()-(4294967296*+n.innerText.split(";")[0]+ +n.innerText.split(";")[1])).toLocaleString())})}function askClear(){window.confirm("Are you sure you want to clear all events?")&&(window.location.href="/clearevents")}function home(){window.location.href="/"}window.onload=function(){showEvent()}</script>
 )=====";
 
 static std::vector<EventData> order_events;
@@ -63,36 +63,33 @@ String events_processor(const String& var) {
 }
 
 /* Script for displaying event log before it gets minified
+<button onclick="askClear()">Clear all events</button>
+<button onclick="home()">Back to main page</button>
+<style>
+    .event:nth-child(even) {
+        background-color: #455a64;
+    }
+    .event:nth-child(odd) {
+        background-color: #394b52;
+    }
+</style>
 <script>
-function showEvent() {
-    var eventLogElement = document.querySelector('.event-log');
-    // Get the current time on the client side
-    var currentTime = new Date().getTime() / 1000; // Convert milliseconds to seconds
-    // Loop through the events and update the "Last Event" column
-    var events = document.querySelectorAll('.event');
-    events.forEach(function(event) {
-        var secondsAgoElement = event.querySelector('.sec-ago');
-        var timestampElement = event.querySelector('.timestamp');
-        if (secondsAgoElement && timestampElement) {
-            var secondsAgo = parseInt(secondsAgoElement.innerText, 10);
-            var uptimeTimestamp = parseFloat(timestampElement.innerText); // Parse as float to handle seconds with decimal parts
-            // Calculate the actual system time based on the client-side current time
-            var actualTime = new Date((currentTime - uptimeTimestamp + secondsAgo) * 1000);
-            // Format the date and time
-            var formattedTime = actualTime.toLocaleString();
-            // Update the "Last Event" column with the formatted time
-            secondsAgoElement.innerText = formattedTime;
-        }
-    });
-}
-
-// Call the showEvent function when the page is loaded
-window.onload = function() {
-    showEvent();
-};
-
-function home() {
-    window.location.href = '/';
-}
+    function showEvent() {
+        document.querySelectorAll(".event").forEach(function (e) {
+            var n = e.querySelector(".sec-ago");
+            n && (n.innerText = new Date(Date.now() - (+n.innerText.split(";")[0] * 4294967296 + +n.innerText.split(";")[1])).toLocaleString());
+        });
+    }
+    function askClear() { 
+        if (window.confirm('Are you sure you want to clear all events?')) {
+            window.location.href = '/clearevents';
+        } 
+    }
+    function home() {
+        window.location.href = "/";
+    }
+    window.onload = function () {
+        showEvent();
+    };
 </script>
 */
