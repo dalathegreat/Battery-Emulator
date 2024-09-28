@@ -965,9 +965,9 @@ void transmit_can(CAN_frame* tx_frame, int interface) {
       if (!send_ok) {
         set_event(EVENT_CANFD_BUFFER_FULL, interface);
       } else {
-        #ifdef DEBUG_CANFD_DATA
-          print_canfd_frame(MCP2518Frame, "Sent out");
-        #endif
+#ifdef DEBUG_CANFD_DATA
+        print_canfd_frame(MCP2518Frame, "Sent out");
+#endif
       }
 #else   // Interface not compiled, and settings try to use it
       set_event(EVENT_INTERFACE_MISSING, interface);
