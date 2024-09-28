@@ -14,12 +14,11 @@ static uint16_t charge_current_dA = 0;
 static int16_t average_temperature_dC = 0;
 static uint8_t incoming_message_counter = RS485_HEALTHY;
 
+
 union f32b {
   float f;
   byte b[4];
 };
-
-
 
 
 uint8_t frame1[40] = {
@@ -78,6 +77,12 @@ uint8_t frame3[9] = {
     0xEF,                                //CRC
     0x00                                 //endbyte
 };
+
+uint8_t frame4[8] = {
+    0x07, 0xE3, 0xFF,  0x02, 0xFF,0x29,
+    0xF4,
+    0x00
+}
 
 uint8_t frameB1[10] = {0x07, 0x63, 0xFF, 0x02, 0xFF, 0x29, 0x5E, 0x02, 0x16, 0x00};
 uint8_t frameB1b[10] = {0x07, 0xE3, 0xFF, 0x02, 0xFF, 0x29, 0xF4, 0x00};
@@ -274,6 +279,12 @@ void receive_RS485()  // Runs as fast as possible to handle the serial stream
             Serial2.flush();
             delay(1);
             send_kostal(frameB1b, 10);
+          }
+
+          // "frame B1", maybe reset request, seen after battery power on/partial data
+          if (headerB && (RS485_RXFRAME[6] == 0x5E) && (RS485_RXFRAME[7] == 0x04)) {
+            send_kostal(frame4, 8);
+            Serial2.flush();
           }
 
           if (headerA && (RS485_RXFRAME[6] == 0x4A) && (RS485_RXFRAME[7] == 0x08)) {  // "frame 1"
