@@ -12,7 +12,7 @@ static bool battery_empty_event_fired = false;
 //battery pause status begin
 bool emulator_pause_request_ON = false;
 bool emulator_pause_CAN_send_ON = false;
-bool can_send_CAN = true;
+bool allowed_to_send_CAN = true;
 
 battery_pause_status emulator_pause_status = NORMAL;
 //battery pause status end
@@ -224,8 +224,9 @@ void setBatteryPause(bool pause_battery, bool pause_CAN) {
 /// @return true if CAN messages should be sent to battery, false if not
 void emulator_pause_state_send_CAN_battery() {
 
-  if (emulator_pause_status == NORMAL)
-    can_send_CAN = true;
+  if (emulator_pause_status == NORMAL) {
+    allowed_to_send_CAN = true;
+  }
 
   // in some inverters this values are not accurate, so we need to check if we are consider 1.8 amps as the limit
   if (emulator_pause_request_ON && emulator_pause_status == PAUSING && datalayer.battery.status.current_dA < 18 &&
@@ -235,10 +236,10 @@ void emulator_pause_state_send_CAN_battery() {
 
   if (!emulator_pause_request_ON && emulator_pause_status == RESUMING) {
     emulator_pause_status = NORMAL;
-    can_send_CAN = true;
+    allowed_to_send_CAN = true;
   }
 
-  can_send_CAN = (!emulator_pause_CAN_send_ON || emulator_pause_status == NORMAL);
+  allowed_to_send_CAN = (!emulator_pause_CAN_send_ON || emulator_pause_status == NORMAL);
 }
 
 std::string get_emulator_pause_status() {
