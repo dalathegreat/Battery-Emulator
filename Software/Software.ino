@@ -588,8 +588,9 @@ void receive_can_native() {  // This section checks if we have a complete CAN me
 }
 
 void send_can() {
-  if (!can_send_CAN)
+  if (!allowed_to_send_CAN) {
     return;
+  }
 
   send_can_battery();
 
@@ -921,9 +922,11 @@ void check_reset_reason() {
       break;
   }
 }
+
 void transmit_can(CAN_frame* tx_frame, int interface) {
-  if (!can_send_CAN)
+  if (!allowed_to_send_CAN) {
     return;
+  }
 
   switch (interface) {
     case CAN_NATIVE:
