@@ -536,8 +536,9 @@ void init_battery() {
 #ifdef CAN_FD
 // Functions
 #ifdef DEBUG_CANFD_DATA
-void print_canfd_frame(CANFDMessage rx_frame) {
+void print_canfd_frame(CANFDMessage rx_frame, String direction) {
   int i = 0;
+  Serial.print(direction + " : ");
   Serial.print(rx_frame.id, HEX);
   Serial.print(" ");
   for (i = 0; i < rx_frame.len; i++) {
@@ -553,7 +554,7 @@ void receive_canfd() {  // This section checks if we have a complete CAN-FD mess
   if (canfd.available()) {
     canfd.receive(frame);
 #ifdef DEBUG_CANFD_DATA
-    print_canfd_frame(frame);
+    print_canfd_frame(frame, "Received");
 #endif
     CAN_frame rx_frame;
     rx_frame.ID = frame.id;
@@ -963,6 +964,10 @@ void transmit_can(CAN_frame* tx_frame, int interface) {
       send_ok = canfd.tryToSend(MCP2518Frame);
       if (!send_ok) {
         set_event(EVENT_CANFD_BUFFER_FULL, interface);
+      } else {
+#ifdef DEBUG_CANFD_DATA
+        print_canfd_frame(MCP2518Frame, "Sent out");
+#endif
       }
 #else   // Interface not compiled, and settings try to use it
       set_event(EVENT_INTERFACE_MISSING, interface);
