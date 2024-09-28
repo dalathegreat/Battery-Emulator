@@ -28,6 +28,10 @@ static uint16_t capped_remaining_capacity_Wh;
 static uint16_t voltage_per_pack = 0;
 static int16_t current_per_pack = 0;
 
+static bool send_cellvoltages = false;
+static unsigned long previousMillisCellvoltage = 0;  // Store the last time a cellvoltage CAN messages were sent
+static uint8_t can_message_cellvolt_index = 0;
+
 //CAN message translations from this amazing repository: https://github.com/rand12345/FOXESS_can_bus
 
 CAN_frame FOXESS_1872 = {.FD = false,
@@ -591,8 +595,93 @@ void update_values_can_inverter() {  //This function maps all the values fetched
   // So do we really need to map the same two values over and over to 32 places?
 }
 
-void send_can_inverter() {
-  // No periodic sending used on this protocol, we react only on incoming CAN messages!
+void send_can_inverter() {  // This function loops as fast as possible
+
+  if (send_cellvoltages) {
+    unsigned long currentMillis = millis();  // Get the current time
+
+    // Check if enough time has passed since the last batch
+    if (currentMillis - previousMillisCellvoltage >= INTERVAL_10_MS) {
+      previousMillisCellvoltage = currentMillis;  // Update the time of the last message batch
+
+      // Send a subset of messages per iteration to avoid overloading the CAN bus / transmit buffer
+      switch (can_message_cellvolt_index) {
+        case 0:
+#ifdef DEBUG_VIA_USB
+          Serial.println("Sending large batch");
+#endif
+          transmit_can(&FOXESS_0C1D, can_config.inverter);
+          transmit_can(&FOXESS_0C21, can_config.inverter);
+          transmit_can(&FOXESS_0C29, can_config.inverter);
+          transmit_can(&FOXESS_0C2D, can_config.inverter);
+          transmit_can(&FOXESS_0C31, can_config.inverter);
+          break;
+        case 1:
+          transmit_can(&FOXESS_0C35, can_config.inverter);
+          transmit_can(&FOXESS_0C39, can_config.inverter);
+          transmit_can(&FOXESS_0C3D, can_config.inverter);
+          transmit_can(&FOXESS_0C41, can_config.inverter);
+          transmit_can(&FOXESS_0C45, can_config.inverter);
+          break;
+        case 2:
+          transmit_can(&FOXESS_0C49, can_config.inverter);
+          transmit_can(&FOXESS_0C4D, can_config.inverter);
+          transmit_can(&FOXESS_0C51, can_config.inverter);
+          transmit_can(&FOXESS_0C55, can_config.inverter);
+          transmit_can(&FOXESS_0C59, can_config.inverter);
+          break;
+        case 3:
+          transmit_can(&FOXESS_0C5D, can_config.inverter);
+          transmit_can(&FOXESS_0C61, can_config.inverter);
+          transmit_can(&FOXESS_0C65, can_config.inverter);
+          transmit_can(&FOXESS_0C69, can_config.inverter);
+          transmit_can(&FOXESS_0C6D, can_config.inverter);
+          break;
+        case 4:
+          transmit_can(&FOXESS_0C71, can_config.inverter);
+          transmit_can(&FOXESS_0C75, can_config.inverter);
+          transmit_can(&FOXESS_0C79, can_config.inverter);
+          transmit_can(&FOXESS_0C7D, can_config.inverter);
+          transmit_can(&FOXESS_0C81, can_config.inverter);
+          break;
+        case 5:
+          transmit_can(&FOXESS_0C85, can_config.inverter);
+          transmit_can(&FOXESS_0C89, can_config.inverter);
+          transmit_can(&FOXESS_0C8D, can_config.inverter);
+          transmit_can(&FOXESS_0C91, can_config.inverter);
+          transmit_can(&FOXESS_0C95, can_config.inverter);
+          break;
+        case 6:
+          transmit_can(&FOXESS_0C99, can_config.inverter);
+          transmit_can(&FOXESS_0C9D, can_config.inverter);
+          transmit_can(&FOXESS_0CA1, can_config.inverter);
+          transmit_can(&FOXESS_0CA5, can_config.inverter);
+          transmit_can(&FOXESS_0CA9, can_config.inverter);
+          break;
+        case 7:  //Celltemperatures
+          transmit_can(&FOXESS_0D21, can_config.inverter);
+          transmit_can(&FOXESS_0D29, can_config.inverter);
+          transmit_can(&FOXESS_0D31, can_config.inverter);
+          transmit_can(&FOXESS_0D39, can_config.inverter);
+          transmit_can(&FOXESS_0D41, can_config.inverter);
+          transmit_can(&FOXESS_0D49, can_config.inverter);
+          transmit_can(&FOXESS_0D51, can_config.inverter);
+          transmit_can(&FOXESS_0D59, can_config.inverter);
+#ifdef DEBUG_VIA_USB
+          Serial.println("Sending completed");
+#endif
+          send_cellvoltages = false;
+          break;
+      }
+
+      // Increment message index and wrap around if needed
+      can_message_cellvolt_index++;
+
+      if (send_cellvoltages == false) {
+        can_message_cellvolt_index = 0;
+      }
+    }
+  }
 }
 
 void receive_can_inverter(CAN_frame rx_frame) {
@@ -636,51 +725,7 @@ void receive_can_inverter(CAN_frame rx_frame) {
 #ifdef DEBUG_VIA_USB
         Serial.println("Inverter requests cellvoltages and temps, we reply");
 #endif
-        //Cellvoltages 1-144
-        transmit_can(&FOXESS_0C1D, can_config.inverter);  //TODO, this might be too much for the CAN handler
-        transmit_can(&FOXESS_0C21, can_config.inverter);  //Batch firing 44 CAN messages at once is not good!
-        transmit_can(&FOXESS_0C29, can_config.inverter);
-        transmit_can(&FOXESS_0C2D, can_config.inverter);
-        transmit_can(&FOXESS_0C31, can_config.inverter);
-        transmit_can(&FOXESS_0C35, can_config.inverter);
-        transmit_can(&FOXESS_0C39, can_config.inverter);
-        transmit_can(&FOXESS_0C3D, can_config.inverter);
-        transmit_can(&FOXESS_0C41, can_config.inverter);
-        transmit_can(&FOXESS_0C45, can_config.inverter);
-        transmit_can(&FOXESS_0C49, can_config.inverter);
-        transmit_can(&FOXESS_0C4D, can_config.inverter);
-        transmit_can(&FOXESS_0C51, can_config.inverter);
-        transmit_can(&FOXESS_0C55, can_config.inverter);
-        transmit_can(&FOXESS_0C59, can_config.inverter);
-        transmit_can(&FOXESS_0C5D, can_config.inverter);
-        transmit_can(&FOXESS_0C61, can_config.inverter);
-        transmit_can(&FOXESS_0C65, can_config.inverter);
-        transmit_can(&FOXESS_0C69, can_config.inverter);
-        transmit_can(&FOXESS_0C6D, can_config.inverter);
-        transmit_can(&FOXESS_0C71, can_config.inverter);
-        transmit_can(&FOXESS_0C75, can_config.inverter);
-        transmit_can(&FOXESS_0C79, can_config.inverter);
-        transmit_can(&FOXESS_0C7D, can_config.inverter);
-        transmit_can(&FOXESS_0C81, can_config.inverter);
-        transmit_can(&FOXESS_0C85, can_config.inverter);
-        transmit_can(&FOXESS_0C89, can_config.inverter);
-        transmit_can(&FOXESS_0C8D, can_config.inverter);
-        transmit_can(&FOXESS_0C91, can_config.inverter);
-        transmit_can(&FOXESS_0C95, can_config.inverter);
-        transmit_can(&FOXESS_0C99, can_config.inverter);
-        transmit_can(&FOXESS_0C9D, can_config.inverter);
-        transmit_can(&FOXESS_0CA1, can_config.inverter);
-        transmit_can(&FOXESS_0CA5, can_config.inverter);
-        transmit_can(&FOXESS_0CA9, can_config.inverter);
-        //Celltemperatures
-        transmit_can(&FOXESS_0D21, can_config.inverter);
-        transmit_can(&FOXESS_0D29, can_config.inverter);
-        transmit_can(&FOXESS_0D31, can_config.inverter);
-        transmit_can(&FOXESS_0D39, can_config.inverter);
-        transmit_can(&FOXESS_0D41, can_config.inverter);
-        transmit_can(&FOXESS_0D49, can_config.inverter);
-        transmit_can(&FOXESS_0D51, can_config.inverter);
-        transmit_can(&FOXESS_0D59, can_config.inverter);
+        send_cellvoltages = true;
       }
     } else if (rx_frame.data.u8[0] == 0x02) {  //0x1871 [0x02, 0x00, 0x01, 0x00, 0x01, 0x00, 0x00, 0x00]
 // Ack message
