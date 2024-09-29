@@ -12,7 +12,7 @@ enum battery_pause_status { NORMAL = 0, PAUSING = 1, PAUSED = 2, RESUMING = 3 };
 extern bool emulator_pause_request_ON;
 extern bool emulator_pause_CAN_send_ON;
 extern battery_pause_status emulator_pause_status;
-extern bool can_send_CAN;
+extern bool allowed_to_send_CAN;
 //battery pause status end
 
 void update_machineryprotection();

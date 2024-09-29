@@ -591,17 +591,18 @@ void receive_can_native() {  // This section checks if we have a complete CAN me
 }
 
 void send_can() {
+  if (!allowed_to_send_CAN) {
+    return;
+  }
 
-  if (can_send_CAN)
-    send_can_battery();
+  send_can_battery();
 
 #ifdef CAN_INVERTER_SELECTED
   send_can_inverter();
 #endif  // CAN_INVERTER_SELECTED
 
 #ifdef CHARGER_SELECTED
-  if (can_send_CAN)
-    send_can_charger();
+  send_can_charger();
 #endif  // CHARGER_SELECTED
 }
 
@@ -924,7 +925,12 @@ void check_reset_reason() {
       break;
   }
 }
+
 void transmit_can(CAN_frame* tx_frame, int interface) {
+  if (!allowed_to_send_CAN) {
+    return;
+  }
+
   switch (interface) {
     case CAN_NATIVE:
       CAN_frame_t frame;
