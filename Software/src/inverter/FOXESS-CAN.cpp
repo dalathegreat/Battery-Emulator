@@ -23,8 +23,6 @@ below that you can customize, incase you use a lower voltage battery with this p
 static uint16_t max_charge_rate_amp = 0;
 static uint16_t max_discharge_rate_amp = 0;
 static int16_t temperature_average = 0;
-static uint16_t capped_capacity_Wh;
-static uint16_t capped_remaining_capacity_Wh;
 static uint16_t voltage_per_pack = 0;
 static int16_t current_per_pack = 0;
 static uint8_t temperature_max_per_pack = 0;
@@ -397,19 +395,6 @@ void update_values_can_inverter() {  //This function maps all the values fetched
     }
   }
 
-  // Batteries might be larger than uint16_t value can take
-  if (datalayer.battery.info.total_capacity_Wh > 65000) {
-    capped_capacity_Wh = 65000;
-  } else {
-    capped_capacity_Wh = datalayer.battery.info.total_capacity_Wh;
-  }
-  // Batteries might be larger than uint16_t value can take
-  if (datalayer.battery.status.remaining_capacity_Wh > 65000) {
-    capped_remaining_capacity_Wh = 65000;
-  } else {
-    capped_remaining_capacity_Wh = datalayer.battery.status.remaining_capacity_Wh;
-  }
-
   //Put the values into the CAN messages
   //BMS_Limits
   FOXESS_1872.data.u8[0] = (uint8_t)datalayer.battery.info.max_design_voltage_dV;
@@ -428,8 +413,8 @@ void update_values_can_inverter() {  //This function maps all the values fetched
   FOXESS_1873.data.u8[3] = (datalayer.battery.status.current_dA >> 8);
   FOXESS_1873.data.u8[4] = (uint8_t)(datalayer.battery.status.reported_soc / 100);  //SOC (0-100%)
   FOXESS_1873.data.u8[5] = 0x00;
-  FOXESS_1873.data.u8[6] = (uint8_t)(capped_remaining_capacity_Wh / 10);
-  FOXESS_1873.data.u8[7] = ((capped_remaining_capacity_Wh / 10) >> 8);
+  FOXESS_1873.data.u8[6] = (uint8_t)(datalayer.battery.status.remaining_capacity_Wh / 10);
+  FOXESS_1873.data.u8[7] = ((datalayer.battery.status.remaining_capacity_Wh / 10) >> 8);
 
   //BMS_CellData
   FOXESS_1874.data.u8[0] = (int8_t)datalayer.battery.status.temperature_max_dC;
@@ -452,8 +437,16 @@ void update_values_can_inverter() {  //This function maps all the values fetched
   FOXESS_1875.data.u8[7] = (uint8_t)0;     //Cycle count
 
   //BMS_PackTemps
-  FOXESS_1876.data.u8[0] =
-      (uint8_t)0;  //0x1876 b0 bit 0 appears to be 1 when at maxsoc and BMS says charge is not allowed - when at 0 indicates charge is possible - addn'l note there is something more to it than this, it's not as straight forward - needs more testing to find what sets/unsets bit0 of byte0
+  // 0x1876 b0 bit 0 appears to be 1 when at maxsoc and BMS says charge is not allowed -
+  // when at 0 indicates charge is possible - additional note there is something more to it than this,
+  // it's not as straight forward - needs more testing to find what sets/unsets bit0 of byte0
+  if ((max_charge_rate_amp == 0) || (datalayer.battery.status.reported_soc == 10000) ||
+      (datalayer.battery.status.bms_status == FAULT)) {
+    FOXESS_1876.data.u8[0] = 0x01;
+  } else {  //continue using battery
+    FOXESS_1876.data.u8[0] = 0x00;
+  }
+
   FOXESS_1876.data.u8[1] = (uint8_t)0;  //Unused
   FOXESS_1876.data.u8[2] = (uint8_t)datalayer.battery.status.cell_max_voltage_mV;
   FOXESS_1876.data.u8[3] = (datalayer.battery.status.cell_max_voltage_mV >> 8);
