@@ -218,6 +218,9 @@ void setBatteryPause(bool pause_battery, bool pause_CAN) {
     emulator_pause_status = RESUMING;
     clear_event(EVENT_PAUSE_END);
   }
+
+  //immidiate check if we can send CAN messages
+  emulator_pause_state_send_CAN_battery();
 }
 
 /// @brief handle emulator pause status
