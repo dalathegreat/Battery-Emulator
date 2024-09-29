@@ -933,7 +933,6 @@ void onOTAEnd(bool success) {
     setBatteryPause(false, false);
     //resume CAN communication
     ESP32Can.CANInit();
-
   }
 }
 
