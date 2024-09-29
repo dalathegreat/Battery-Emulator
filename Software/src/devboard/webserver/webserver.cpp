@@ -620,8 +620,15 @@ String processor(const String& var) {
     content += formatPowerValue("Power", powerFloat, "", 1);
     content += formatPowerValue("Total capacity", datalayer.battery.info.total_capacity_Wh, "h", 0);
     content += formatPowerValue("Remaining capacity", datalayer.battery.status.remaining_capacity_Wh, "h", 1);
-    content += formatPowerValue("Max discharge power", datalayer.battery.status.max_discharge_power_W, "", 1);
-    content += formatPowerValue("Max charge power", datalayer.battery.status.max_charge_power_W, "", 1);
+
+    if (emulator_pause_status == NORMAL) {
+      content += formatPowerValue("Max discharge power", datalayer.battery.status.max_discharge_power_W, "", 1);
+      content += formatPowerValue("Max charge power", datalayer.battery.status.max_charge_power_W, "", 1);
+    } else {
+      content += formatPowerValue("Max discharge power", datalayer.battery.status.max_discharge_power_W, "", 1, "red");
+      content += formatPowerValue("Max charge power", datalayer.battery.status.max_charge_power_W, "", 1, "red");
+    }
+
     content += "<h4>Cell max: " + String(datalayer.battery.status.cell_max_voltage_mV) + " mV</h4>";
     content += "<h4>Cell min: " + String(datalayer.battery.status.cell_min_voltage_mV) + " mV</h4>";
     content += "<h4>Temperature max: " + String(tempMaxFloat, 1) + " C</h4>";
@@ -656,9 +663,9 @@ String processor(const String& var) {
       content += "<span style='color: red;'>&#10005;</span></h4>";
     }
     if (emulator_pause_status == NORMAL)
-      content += "<h4>Pause status: " + String(get_emulator_pause_status().c_str()) + " </h4>";
+      content += "<h4>Power status: " + String(get_emulator_pause_status().c_str()) + " </h4>";
     else
-      content += "<h4 style='color: red;'>Pause status: " + String(get_emulator_pause_status().c_str()) + " </h4>";
+      content += "<h4 style='color: red;'>Power status: " + String(get_emulator_pause_status().c_str()) + " </h4>";
 
 #ifdef CONTACTOR_CONTROL
     content += "<h4>Contactors controlled by Battery-Emulator: ";
@@ -822,9 +829,9 @@ String processor(const String& var) {
 #endif  // defined CHEVYVOLT_CHARGER || defined NISSANLEAF_CHARGER
 
     if (emulator_pause_request_ON)
-      content += "<button onclick='PauseBattery(false)'>Resume Battery</button>";
+      content += "<button onclick='PauseBattery(false)'>Resume charge/discharge</button>";
     else
-      content += "<button onclick='PauseBattery(true)'>Pause Battery</button>";
+      content += "<button onclick='PauseBattery(true)'>Pause charge/discharge</button>";
     content += " ";
     content += "<button onclick='OTA()'>Perform OTA update</button>";
     content += " ";
@@ -888,6 +895,10 @@ void onOTAStart() {
   // If already set, make a new attempt
   clear_event(EVENT_OTA_UPDATE_TIMEOUT);
   ota_active = true;
+
+  //completely force stop the CAN communication
+  ESP32Can.CANStop();
+
   ota_timeout_timer.reset();
 }
 
@@ -920,12 +931,14 @@ void onOTAEnd(bool success) {
 #endif  // DEBUG_VIA_USB
     //try to Resume the battery pause and CAN communication
     setBatteryPause(false, false);
+    //resume CAN communication
+    ESP32Can.CANInit();
   }
 }
 
 template <typename T>  // This function makes power values appear as W when under 1000, and kW when over
-String formatPowerValue(String label, T value, String unit, int precision) {
-  String result = "<h4 style='color: white;'>" + label + ": ";
+String formatPowerValue(String label, T value, String unit, int precision, String color) {
+  String result = "<h4 style='color: " + color + ";'>" + label + ": ";
 
   if (std::is_same<T, float>::value || std::is_same<T, uint16_t>::value || std::is_same<T, uint32_t>::value) {
     float convertedValue = static_cast<float>(value);
