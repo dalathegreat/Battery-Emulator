@@ -407,7 +407,18 @@ void init_CAN() {
   SPI.begin(MCP2515_SCK, MCP2515_MISO, MCP2515_MOSI);
   ACAN2515Settings settings(QUARTZ_FREQUENCY, 500UL * 1000UL);  // CAN bit rate 500 kb/s
   settings.mRequestedMode = ACAN2515Settings::NormalMode;
-  can.begin(settings, [] { can.isr(); });
+  const uint16_t errorCodeMCP = can.begin(settings, [] { can.isr(); });
+  if (errorCodeMCP == 0) {
+#ifdef DEBUG_VIA_USB
+    Serial.println("Can ok");
+#endif
+  } else {
+#ifdef DEBUG_VIA_USB
+    Serial.print("Error Can: 0x");
+    Serial.println(errorCodeMCP, HEX);
+#endif
+    set_event(EVENT_CANMCP_INIT_FAILURE, (uint8_t)errorCodeMCP);
+  }
 #endif
 
 #ifdef CAN_FD

@@ -6,7 +6,7 @@
 
 // #define INCLUDE_EVENTS_TEST  // Enable to run an event test loop, see events_test_on_target.cpp
 
-#define EE_MAGIC_HEADER_VALUE 0x0013  // 0x0000 to 0xFFFF
+#define EE_MAGIC_HEADER_VALUE 0x0014  // 0x0000 to 0xFFFF
 
 #define GENERATE_ENUM(ENUM) ENUM,
 #define GENERATE_STRING(STRING) #STRING,
@@ -27,6 +27,7 @@
 
 #define EVENTS_ENUM_TYPE(XX)            \
   XX(EVENT_CANFD_INIT_FAILURE)          \
+  XX(EVENT_CANMCP_INIT_FAILURE)         \
   XX(EVENT_CANFD_BUFFER_FULL)           \
   XX(EVENT_CAN_OVERRUN)                 \
   XX(EVENT_CAN_RX_FAILURE)              \
