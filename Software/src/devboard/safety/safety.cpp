@@ -12,7 +12,7 @@ static bool battery_empty_event_fired = false;
 //battery pause status begin
 bool emulator_pause_request_ON = false;
 bool emulator_pause_CAN_send_ON = false;
-bool can_send_CAN = true;
+bool allowed_to_send_CAN = true;
 
 battery_pause_status emulator_pause_status = NORMAL;
 //battery pause status end
@@ -88,6 +88,7 @@ void update_machineryprotection() {
     clear_event(EVENT_SOH_LOW);
   }
 
+#ifndef PYLON_BATTERY
   // Check if SOC% is plausible
   if (datalayer.battery.status.voltage_dV >
       (datalayer.battery.info.max_design_voltage_dV -
@@ -98,6 +99,7 @@ void update_machineryprotection() {
       clear_event(EVENT_SOC_PLAUSIBILITY_ERROR);
     }
   }
+#endif
 
   // Check diff between highest and lowest cell
   cell_deviation_mV = (datalayer.battery.status.cell_max_voltage_mV - datalayer.battery.status.cell_min_voltage_mV);
@@ -218,14 +220,18 @@ void setBatteryPause(bool pause_battery, bool pause_CAN) {
     emulator_pause_status = RESUMING;
     clear_event(EVENT_PAUSE_END);
   }
+
+  //immediate check if we can send CAN messages
+  emulator_pause_state_send_CAN_battery();
 }
 
 /// @brief handle emulator pause status
 /// @return true if CAN messages should be sent to battery, false if not
 void emulator_pause_state_send_CAN_battery() {
 
-  if (emulator_pause_status == NORMAL)
-    can_send_CAN = true;
+  if (emulator_pause_status == NORMAL) {
+    allowed_to_send_CAN = true;
+  }
 
   // in some inverters this values are not accurate, so we need to check if we are consider 1.8 amps as the limit
   if (emulator_pause_request_ON && emulator_pause_status == PAUSING && datalayer.battery.status.current_dA < 18 &&
@@ -235,10 +241,10 @@ void emulator_pause_state_send_CAN_battery() {
 
   if (!emulator_pause_request_ON && emulator_pause_status == RESUMING) {
     emulator_pause_status = NORMAL;
-    can_send_CAN = true;
+    allowed_to_send_CAN = true;
   }
 
-  can_send_CAN = (!emulator_pause_CAN_send_ON || emulator_pause_status == NORMAL);
+  allowed_to_send_CAN = (!emulator_pause_CAN_send_ON || emulator_pause_status == NORMAL);
 }
 
 std::string get_emulator_pause_status() {

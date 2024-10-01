@@ -89,12 +89,12 @@ void update_values_battery() {  //This function maps all the values fetched via 
   for (int i = 0; i < 88; ++i) {
     datalayer.battery.status.cell_voltages_mV[i] = (uint16_t)(cell_voltages[i] * 1000);
   }
-
-  if (max_volt_cel > 2200) {  // Only update cellvoltage when we have a value
+  datalayer.battery.info.number_of_cells = 88;
+  if (max_volt_cel > 2.2) {  // Only update cellvoltage when we have a value
     datalayer.battery.status.cell_max_voltage_mV = (uint16_t)(max_volt_cel * 1000);
   }
 
-  if (min_volt_cel > 2200) {  // Only update cellvoltage when we have a value
+  if (min_volt_cel > 2.2) {  // Only update cellvoltage when we have a value
     datalayer.battery.status.cell_min_voltage_mV = (uint16_t)(min_volt_cel * 1000);
   }
 

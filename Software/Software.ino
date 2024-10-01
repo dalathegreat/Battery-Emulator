@@ -50,7 +50,7 @@
 
 Preferences settings;  // Store user settings
 // The current software version, shown on webserver
-const char* version_number = "7.4.dev";
+const char* version_number = "7.4.0";
 
 // Interval settings
 uint16_t intervalUpdateValues = INTERVAL_5_S;  // Interval at which to update inverter values / Modbus registers
@@ -547,8 +547,11 @@ void init_battery() {
 #ifdef CAN_FD
 // Functions
 #ifdef DEBUG_CANFD_DATA
-void print_canfd_frame(CANFDMessage rx_frame) {
+enum frameDirection { MSG_RX, MSG_TX };
+void print_canfd_frame(CANFDMessage rx_frame, frameDirection msgDir);  // Needs to be declared before it is defined
+void print_canfd_frame(CANFDMessage rx_frame, frameDirection msgDir) {
   int i = 0;
+  (msgDir == 0) ? Serial.print("RX ") : Serial.print("TX ");
   Serial.print(rx_frame.id, HEX);
   Serial.print(" ");
   for (i = 0; i < rx_frame.len; i++) {
@@ -564,7 +567,7 @@ void receive_canfd() {  // This section checks if we have a complete CAN-FD mess
   if (canfd.available()) {
     canfd.receive(frame);
 #ifdef DEBUG_CANFD_DATA
-    print_canfd_frame(frame);
+    print_canfd_frame(frame, frameDirection(MSG_RX));
 #endif
     CAN_frame rx_frame;
     rx_frame.ID = frame.id;
@@ -599,17 +602,18 @@ void receive_can_native() {  // This section checks if we have a complete CAN me
 }
 
 void send_can() {
+  if (!allowed_to_send_CAN) {
+    return;
+  }
 
-  if (can_send_CAN)
-    send_can_battery();
+  send_can_battery();
 
 #ifdef CAN_INVERTER_SELECTED
   send_can_inverter();
 #endif  // CAN_INVERTER_SELECTED
 
 #ifdef CHARGER_SELECTED
-  if (can_send_CAN)
-    send_can_charger();
+  send_can_charger();
 #endif  // CHARGER_SELECTED
 }
 
@@ -932,7 +936,12 @@ void check_reset_reason() {
       break;
   }
 }
+
 void transmit_can(CAN_frame* tx_frame, int interface) {
+  if (!allowed_to_send_CAN) {
+    return;
+  }
+
   switch (interface) {
     case CAN_NATIVE:
       CAN_frame_t frame;
@@ -974,6 +983,10 @@ void transmit_can(CAN_frame* tx_frame, int interface) {
       send_ok = canfd.tryToSend(MCP2518Frame);
       if (!send_ok) {
         set_event(EVENT_CANFD_BUFFER_FULL, interface);
+      } else {
+#ifdef DEBUG_CANFD_DATA
+        print_canfd_frame(MCP2518Frame, frameDirection(MSG_TX));
+#endif
       }
 #else   // Interface not compiled, and settings try to use it
       set_event(EVENT_INTERFACE_MISSING, interface);

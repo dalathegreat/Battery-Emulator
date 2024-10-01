@@ -4,6 +4,10 @@
 #include "../devboard/utils/events.h"
 #include "PYLON-BATTERY.h"
 
+/* Change the following to suit your battery */
+#define MAX_PACK_VOLTAGE 5000  //5000 = 500.0V
+#define MIN_PACK_VOLTAGE 1500
+
 /* Do not change code below unless you are sure what you are doing */
 static unsigned long previousMillis1000 = 0;  // will store last time a 1s CAN Message was sent
 
@@ -179,8 +183,8 @@ void setup_battery(void) {  // Performs one time setup at startup
   Serial.println("Pylon battery selected");
 #endif
 
-  datalayer.battery.info.max_design_voltage_dV = 4040;  // 404.0V, charging over this is not possible
-  datalayer.battery.info.min_design_voltage_dV = 3100;  // 310.0V, under this, discharging further is disabled
+  datalayer.battery.info.max_design_voltage_dV = MAX_PACK_VOLTAGE;
+  datalayer.battery.info.min_design_voltage_dV = MIN_PACK_VOLTAGE;
 }
 
 #endif
