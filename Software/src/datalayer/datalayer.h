@@ -172,6 +172,7 @@ typedef struct {
 } DATALAYER_SYSTEM_STATUS_TYPE;
 
 typedef struct {
+  bool equipment_stop_active = false;
 } DATALAYER_SYSTEM_SETTINGS_TYPE;
 
 typedef struct {

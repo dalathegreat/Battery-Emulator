@@ -166,6 +166,23 @@ void init_webserver() {
     }
   });
 
+  // Route for emergency stop/resume
+  server.on("/estop", HTTP_GET, [](AsyncWebServerRequest* request) {
+    if (WEBSERVER_AUTH_REQUIRED && !request->authenticate(http_username, http_password))
+      return request->requestAuthentication();
+    if (request->hasParam("stop")) {
+      String valueStr = request->getParam("stop")->value();
+      if (valueStr == "true" || valueStr == "1") {
+        setBatteryPause(true, true, true);
+      } else {
+        setBatteryPause(false, false, false);
+      }
+      request->send(200, "text/plain", "Updated successfully");
+    } else {
+      request->send(400, "text/plain", "Bad Request");
+    }
+  });
+
   // Route for editing SOCMin
   server.on("/updateSocMin", HTTP_GET, [](AsyncWebServerRequest* request) {
     if (WEBSERVER_AUTH_REQUIRED && !request->authenticate(http_username, http_password))
@@ -844,6 +861,21 @@ String processor(const String& var) {
     content += "<button onclick='askReboot()'>Reboot Emulator</button>";
     if (WEBSERVER_AUTH_REQUIRED)
       content += "<button onclick='logout()'>Logout</button>";
+    if (!datalayer.system.settings.equipment_stop_active)
+      content +=
+          "<br/><br/><button style=\"background:red;color:white;cursor:pointer;\""
+          " onclick=\""
+          "if(confirm('This action will open contactors on the battery and stop all CAN communications. Are you "
+          "sure?')) { estop(true); }\""
+          ">EQUIPMENT STOP</button><br/>";
+    else
+      content +=
+          "<br/><br/><button style=\"background:green;color:white;cursor:pointer;\""
+          "20px;font-size:16px;font-weight:bold;cursor:pointer;border-radius:5px; margin:10px;"
+          " onclick=\""
+          "if(confirm('This action will restore the battery state. Are you sure?')) { estop(false); }\""
+          ">RESUME FROM EQUIPMENT STOP</button><br/>";
+
     content += "<script>";
     content += "function OTA() { window.location.href = '/update'; }";
     content += "function Cellmon() { window.location.href = '/cellmonitor'; }";
@@ -872,7 +904,12 @@ String processor(const String& var) {
         "XMLHttpRequest();xhr.onload=function() { "
         "window.location.reload();};xhr.open('GET','/pause?p='+pause,true);xhr.send();";
     content += "}";
-
+    content += "function estop(stop){";
+    content +=
+        "var xhr=new "
+        "XMLHttpRequest();xhr.onload=function() { "
+        "window.location.reload();};xhr.open('GET','/estop?stop='+stop,true);xhr.send();";
+    content += "}";
     content += "</script>";
 
     //Script for refreshing page

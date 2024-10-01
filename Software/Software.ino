@@ -334,10 +334,24 @@ void init_serial() {
 }
 
 void init_stored_settings() {
+  static uint32_t temp = 0;
   settings.begin("batterySettings", false);
+
+  //allways get the emergency stop status
+  temp = settings.getBool("EMERGENGY_STOP", false);
+  datalayer.system.settings.equipment_stop_active = temp;
+  if (datalayer.system.settings.equipment_stop_active) {
+    set_event(EVENT_EMERGENCY_STOP, 1);
+  }
 
 #ifndef LOAD_SAVED_SETTINGS_ON_BOOT
   settings.clear();  // If this clear function is executed, no settings will be read from storage
+
+  //always save the emergency stop status
+  if (datalayer.system.settings.equipment_stop_active) {
+    settings.putBool("EMERGENGY_STOP", datalayer.system.settings.equipment_stop_active);
+  }
+
 #endif
 
 #ifdef WIFI
@@ -356,7 +370,6 @@ void init_stored_settings() {
   }
 #endif
 
-  static uint32_t temp = 0;
   temp = settings.getUInt("BATTERY_WH_MAX", false);
   if (temp != 0) {
     datalayer.battery.info.total_capacity_Wh = temp;
@@ -658,8 +671,13 @@ void handle_contactors() {
     timeSpentInFaultedMode = 0;
   }
 
-  if (timeSpentInFaultedMode > MAX_ALLOWED_FAULT_TICKS) {
+  //handle contactor control SHUTDOWN_REQUESTED vs DISCONNECTED
+  if (timeSpentInFaultedMode > MAX_ALLOWED_FAULT_TICKS ||
+      (datalayer.system.settings.equipment_stop_active && contactorStatus != SHUTDOWN_REQUESTED)) {
     contactorStatus = SHUTDOWN_REQUESTED;
+  }
+  if (contactorStatus == SHUTDOWN_REQUESTED && !datalayer.system.settings.equipment_stop_active) {
+    contactorStatus = DISCONNECTED;
   }
   if (contactorStatus == SHUTDOWN_REQUESTED) {
     digitalWrite(PRECHARGE_PIN, LOW);
@@ -830,6 +848,12 @@ void init_serialDataLink() {
 #if defined(SERIAL_LINK_RECEIVER) || defined(SERIAL_LINK_TRANSMITTER)
   Serial2.begin(9600, SERIAL_8N1, RS485_RX_PIN, RS485_TX_PIN);
 #endif
+}
+
+void store_settings_emergency_stop() {
+  settings.begin("batterySettings", false);
+  settings.putBool("EMERGENGY_STOP", datalayer.system.settings.equipment_stop_active);
+  settings.end();
 }
 
 void storeSettings() {

@@ -213,6 +213,7 @@ void init_events(void) {
   events.entries[EVENT_WIFI_DISCONNECT].level = EVENT_LEVEL_INFO;
   events.entries[EVENT_MQTT_CONNECT].level = EVENT_LEVEL_INFO;
   events.entries[EVENT_MQTT_DISCONNECT].level = EVENT_LEVEL_INFO;
+  events.entries[EVENT_EMERGENCY_STOP].level = EVENT_LEVEL_ERROR;
 
   events.entries[EVENT_EEPROM_WRITE].log = false;  // Don't log the logger...
 
@@ -411,6 +412,8 @@ const char* get_event_message_string(EVENTS_ENUM_TYPE event) {
       return "Info: MQTT connected.";
     case EVENT_MQTT_DISCONNECT:
       return "Info: MQTT disconnected.";
+    case EVENT_EMERGENCY_STOP:
+      return "ERROR: EMERGENCY STOP ACTIVATED!!!";
     default:
       return "";
   }
