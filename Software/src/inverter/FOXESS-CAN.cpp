@@ -27,6 +27,7 @@ static uint16_t voltage_per_pack = 0;
 static int16_t current_per_pack = 0;
 static uint8_t temperature_max_per_pack = 0;
 static uint8_t temperature_min_per_pack = 0;
+static uint8_t inverterStillAlive = CAN_STILL_ALIVE;
 
 static bool send_cellvoltages = false;
 static unsigned long previousMillisCellvoltage = 0;  // Store the last time a cellvoltage CAN messages were sent
@@ -354,7 +355,8 @@ CAN_frame FOXESS_0D59 = {.FD = false,
                          .ID = 0x0D59,  //Celltemperatures Pack 8
                          .data = {0x49, 0x48, 0x47, 0x47, 0x48, 0x49, 0x46, 0x47}};
 
-void update_values_can_inverter() {  //This function maps all the values fetched from battery CAN to the correct CAN messages
+void update_values_can_inverter() {  //This function maps all the CAN values fetched from battery. It also checks some safeties.
+
   //Calculate the required values
   temperature_average =
       ((datalayer.battery.status.temperature_max_dC + datalayer.battery.status.temperature_min_dC) / 2);
@@ -393,6 +395,24 @@ void update_values_can_inverter() {  //This function maps all the values fetched
         max_discharge_rate_amp = 0;
       }
     }
+  }
+
+  //Cap the value according to user settings. Some inverters cannot handle large values.
+  if ((max_charge_rate_amp * 10) > datalayer.battery.info.max_charge_amp_dA) {
+    max_charge_rate_amp = (datalayer.battery.info.max_charge_amp_dA / 10);
+  }
+  if ((max_discharge_rate_amp * 10) > datalayer.battery.info.max_discharge_amp_dA) {
+    max_discharge_rate_amp = (datalayer.battery.info.max_discharge_amp_dA / 10);
+  }
+
+  if (inverterStillAlive > 0) {
+    inverterStillAlive--;
+  }
+
+  if (!inverterStillAlive) {
+    set_event(EVENT_CAN_INVERTER_MISSING, 0);
+  } else {
+    clear_event(EVENT_CAN_INVERTER_MISSING);
   }
 
   //Put the values into the CAN messages
@@ -692,6 +712,7 @@ void send_can_inverter() {  // This function loops as fast as possible
 void receive_can_inverter(CAN_frame rx_frame) {
 
   if (rx_frame.ID == 0x1871) {
+    inverterStillAlive = CAN_STILL_ALIVE;
     if (rx_frame.data.u8[0] == 0x03) {  //0x1871 [0x03, 0x06, 0x17, 0x05, 0x09, 0x09, 0x28, 0x22]
 //This message is sent by the inverter every '6' seconds (0.5s after the pack serial numbers)
 //and contains a timestamp in bytes 2-7 i.e. <YY>,<MM>,<DD>,<HH>,<mm>,<ss>
