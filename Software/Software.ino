@@ -352,7 +352,7 @@ void init_stored_settings() {
   static uint32_t temp = 0;
   settings.begin("batterySettings", false);
 
-  //allways get the emergency stop status
+  // Always get the emergency stop status
   temp = settings.getBool("EMERGENGY_STOP", false);
   datalayer.system.settings.equipment_stop_active = temp;
   if (datalayer.system.settings.equipment_stop_active) {
