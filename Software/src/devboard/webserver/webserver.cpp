@@ -344,7 +344,10 @@ void init_webserver() {
     if (WEBSERVER_AUTH_REQUIRED && !request->authenticate(http_username, http_password))
       return request->requestAuthentication();
     request->send(200, "text/plain", "Rebooting server...");
-    //TODO: Should we handle contactors gracefully? Ifdef CONTACTOR_CONTROL then what?
+
+    //Equipment STOP without persisting the emergency state before restart
+    // Max Charge/Discharge = 0; CAN = stop; contactors = open
+    setBatteryPause(true, true, true, false);
     delay(1000);
     ESP.restart();
   });
