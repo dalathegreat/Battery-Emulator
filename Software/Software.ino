@@ -138,10 +138,11 @@ unsigned long timeSpentInFaultedMode = 0;
 #ifdef EQUIPMENT_STOP_BUTTON
 volatile unsigned long equipment_button_press_time = 0;           // Time when button is pressed
 const unsigned long equipment_button_long_press_duration = 5000;  // 5 seconds for long press
-int equipment_button_lastState = LOW;                             // the previous state from the input pin
+int equipment_button_lastState = HIGH;                            // the previous state from the input pin NC
 int equipment_button_currentState;                                // the current reading from the input pin
 unsigned long equipment_button_pressedTime = 0;
 unsigned long equipment_button_releasedTime = 0;
+bool first_run_after_boot = true;
 #endif
 TaskHandle_t main_loop_task;
 TaskHandle_t connectivity_loop_task;
@@ -352,9 +353,8 @@ void init_stored_settings() {
   static uint32_t temp = 0;
   settings.begin("batterySettings", false);
 
-  //allways get the emergency stop status
-  temp = settings.getBool("EMERGENGY_STOP", false);
-  datalayer.system.settings.equipment_stop_active = temp;
+  // Always get the emergency stop status
+  datalayer.system.settings.equipment_stop_active = settings.getBool("EMERGENCY_STOP", false);
   if (datalayer.system.settings.equipment_stop_active) {
     set_event(EVENT_EMERGENCY_STOP, 1);
   }
@@ -363,9 +363,7 @@ void init_stored_settings() {
   settings.clear();  // If this clear function is executed, no settings will be read from storage
 
   //always save the emergency stop status
-  if (datalayer.system.settings.equipment_stop_active) {
-    settings.putBool("EMERGENGY_STOP", datalayer.system.settings.equipment_stop_active);
-  }
+  settings.putBool("EMERGENCY_STOP", datalayer.system.settings.equipment_stop_active);
 
 #endif
 
@@ -564,32 +562,48 @@ void init_battery() {
 #ifdef EQUIPMENT_STOP_BUTTON
 
 void monitor_equipment_stop_button() {
+  //NC Logic
   // read the state of the switch/button:
   equipment_button_currentState = digitalRead(EQUIPMENT_STOP_PIN);
 
-  if (equipment_button_lastState == LOW && equipment_button_currentState == HIGH)  // button is pressed
-    equipment_button_pressedTime = millis();
-  else if (equipment_button_lastState == HIGH && equipment_button_currentState == LOW) {  // button is released
-    equipment_button_releasedTime = millis();
+  if (equipment_stop_behavior == TOGGLE_SWITCH) {
+    if (equipment_button_lastState != equipment_button_currentState || first_run_after_boot) {
+      if (!equipment_button_currentState) {
+        // Changed to ON – initiating equipment stop.
+        setBatteryPause(true, true, true);
+      } else {
+        // Changed to OFF – ending equipment stop.
+        setBatteryPause(false, false, false);
+      }
+    }
+  } else if (equipment_stop_behavior == PERSISTENT_ACTIVATION_SWITCH) {
+    if (equipment_button_lastState == HIGH && equipment_button_currentState == LOW) {  // button is pressed
+      equipment_button_pressedTime = millis();
+    } else if (equipment_button_lastState == LOW && equipment_button_currentState == HIGH) {  // button is released
+      equipment_button_releasedTime = millis();
 
-    long pressDuration = equipment_button_releasedTime - equipment_button_pressedTime;
+      long pressDuration = equipment_button_releasedTime - equipment_button_pressedTime;
 
-    if (pressDuration < equipment_button_long_press_duration) {
-      // Short press detected, trigger emergency stop
-      setBatteryPause(true, true, true);
-    } else {
-      // Long press detected, reset equipment stop state
-      setBatteryPause(false, false, false);
+      if (pressDuration < equipment_button_long_press_duration) {
+        // Short press detected, trigger emergency stop
+        setBatteryPause(true, true, true);
+      } else {
+        // Long press detected, reset equipment stop state
+        setBatteryPause(false, false, false);
+      }
     }
   }
 
   // save the the last state
   equipment_button_lastState = equipment_button_currentState;
+
+  if (first_run_after_boot) {
+    first_run_after_boot = false;
+  }
 }
 
 void init_equipment_stop_button() {
-
-  //using external pulldown resistors
+  //using external pullup resistors NC
   pinMode(EQUIPMENT_STOP_PIN, INPUT);
 }
 
@@ -901,7 +915,7 @@ void init_serialDataLink() {
 
 void store_settings_emergency_stop() {
   settings.begin("batterySettings", false);
-  settings.putBool("EMERGENGY_STOP", datalayer.system.settings.equipment_stop_active);
+  settings.putBool("EMERGENCY_STOP", datalayer.system.settings.equipment_stop_active);
   settings.end();
 }
 

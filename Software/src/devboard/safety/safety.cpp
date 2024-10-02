@@ -198,7 +198,7 @@ void update_machineryprotection() {
 //battery pause status begin
 void setBatteryPause(bool pause_battery, bool pause_CAN, bool emergency_stop) {
 
-  //fist handle emergency stop / resume
+  // First handle emergency stop / resume
   if (emergency_stop && !datalayer.system.settings.equipment_stop_active) {
     datalayer.system.settings.equipment_stop_active = true;
     store_settings_emergency_stop();

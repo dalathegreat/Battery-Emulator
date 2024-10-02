@@ -48,6 +48,13 @@ const char* mqtt_password = "REDACTED";  // Set NULL for no password
 #endif                                   // USE_MQTT
 #endif                                   // WIFI
 
+#ifdef EQUIPMENT_STOP_BUTTON
+// Equipment stop button behavior. Use NC button for safety reasons.
+//TOGGLE_SWITCH                - activated while pressed, deactivated when released, button state is reflected in the emulator state
+//PERSISTENT_ACTIVATION_SWITCH - short press to activate, long press to deactivate, state is persisted between reboots
+volatile STOP_BUTTON_BEHAVIOR equipment_stop_behavior = TOGGLE_SWITCH;
+#endif
+
 /* Charger settings (Optional, when using generator charging) */
 volatile float CHARGER_SET_HV = 384;      // Reasonably appropriate 4.0v per cell charging of a 96s pack
 volatile float CHARGER_MAX_HV = 420;      // Max permissible output (VDC) of charger
