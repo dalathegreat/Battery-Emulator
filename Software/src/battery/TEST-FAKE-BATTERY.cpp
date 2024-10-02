@@ -4,7 +4,7 @@
 #include "TEST-FAKE-BATTERY.h"
 #include "../devboard/utils/timer.h"
 
-MyTimer battery_fault_timer(20000);
+MyTimer battery_fault_timer(1800000); // every 30 minutes
 
 /* Do not change code below unless you are sure what you are doing */
 static unsigned long previousMillis10 = 0;   // will store last time a 10ms CAN Message was send
@@ -24,7 +24,7 @@ void print_units(char* header, int value, char* units) {
 }
 
 void update_values_battery() { /* This function puts fake values onto the parameters sent towards the inverter */
-
+  datalayer.battery.status.bms_status = ACTIVE; // EK otherwise we don't get these values
   datalayer.battery.status.real_soc = 5000;  // 50.00%
 
   datalayer.battery.status.soh_pptt = 9900;  // 99.00%
@@ -58,9 +58,13 @@ void update_values_battery() { /* This function puts fake values onto the parame
     datalayer.battery.status.cell_voltages_mV[3] = 3000;
     datalayer.battery.status.cell_voltages_mV[6] = 2000;
     datalayer.battery.status.temperature_max_dC = 6000;  // 600.0*C
+          Serial.print("Timer elapsed, temp is ");
+          Serial.println(datalayer.battery.status.temperature_max_dC);
+
   } else {
     datalayer.battery.status.cell_voltages_mV[3] = 3500;
-    datalayer.battery.status.temperature_max_dC = 60;  // 6.0*C
+          Serial.print("Timer FINE, temp is ");
+          Serial.println(datalayer.battery.status.temperature_max_dC);
   }
 
   //Fake that we get CAN messages

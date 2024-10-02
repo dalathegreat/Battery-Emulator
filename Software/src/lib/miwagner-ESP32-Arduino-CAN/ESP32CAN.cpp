@@ -17,7 +17,9 @@ int ESP32CAN::CANWriteFrame(const CAN_frame_t* p_frame) {
       Serial.println("CAN failure! Check wires");
 #endif
       #endif
+#ifndef TEST_FAKE_BATTERY
       set_event(EVENT_CAN_TX_FAILURE, 0);
+#endif
       start_time = millis();
     } else {
       clear_event(EVENT_CAN_TX_FAILURE);

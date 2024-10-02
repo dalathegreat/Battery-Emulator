@@ -121,6 +121,31 @@ END $$;
   "message": "ERROR: Battery overheated. Shutting down to prevent thermal runaway!",
   "millis": "9885100"
 }
+## BMS Status
++ Topic: rangetherapy/sensor/+/info
+{
+  "bms_status": "FAULT",
+  "pause_status": "RUNNING"
+}
++ OR
+{
+  "bms_status": "ACTIVE",
+  "pause_status": "RUNNING",
+  "SOC": 50,
+  "SOC_real": 50,
+  "state_of_health": 99,
+  "temperature_min": 5,
+  "temperature_max": 6,
+  "stat_batt_power": 0,
+  "battery_current": 0,
+  "battery_voltage": 370,
+  "cell_max_voltage": 3.596,
+  "cell_min_voltage": 3.5,
+  "total_capacity": 30000,
+  "remaining_capacity": 15000,
+  "max_discharge_power": 5000,
+  "max_charge_power": 5000
+}
 
 ## Other messages which will be ignored (turned off using HA_AUTODISCOVERY) - but this kills the common info
 + Topic: rangetherapy/sensor/battery-emulator_esp32-CFF924/temperature_min/config
