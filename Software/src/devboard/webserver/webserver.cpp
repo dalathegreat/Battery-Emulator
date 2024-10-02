@@ -933,9 +933,6 @@ void onOTAStart() {
   clear_event(EVENT_OTA_UPDATE_TIMEOUT);
   ota_active = true;
 
-  //completely force stop the CAN communication
-  ESP32Can.CANStop();
-
   ota_timeout_timer.reset();
 }
 
@@ -968,8 +965,6 @@ void onOTAEnd(bool success) {
 #endif  // DEBUG_VIA_USB
     //try to Resume the battery pause and CAN communication
     setBatteryPause(false, false);
-    //resume CAN communication
-    ESP32Can.CANInit();
   }
 }
 

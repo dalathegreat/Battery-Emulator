@@ -2,6 +2,7 @@
 #define SAFETY_H
 #include <Arduino.h>
 #include <string>
+#include "../../lib/miwagner-ESP32-Arduino-CAN/ESP32CAN.h"
 
 #define MAX_CAN_FAILURES 50
 

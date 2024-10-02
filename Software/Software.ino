@@ -135,6 +135,14 @@ unsigned long negativeStartTime = 0;
 unsigned long timeSpentInFaultedMode = 0;
 #endif
 
+#ifdef EQUIPMENT_STOP_BUTTON
+volatile unsigned long equipment_button_press_time = 0;           // Time when button is pressed
+const unsigned long equipment_button_long_press_duration = 5000;  // 5 seconds for long press
+int equipment_button_lastState = LOW;                             // the previous state from the input pin
+int equipment_button_currentState;                                // the current reading from the input pin
+unsigned long equipment_button_pressedTime = 0;
+unsigned long equipment_button_releasedTime = 0;
+#endif
 TaskHandle_t main_loop_task;
 TaskHandle_t connectivity_loop_task;
 
@@ -163,6 +171,9 @@ void setup() {
 
   init_battery();
 
+#ifdef EQUIPMENT_STOP_BUTTON
+  init_equipment_stop_button();
+#endif
   // BOOT button at runtime is used as an input for various things
   pinMode(0, INPUT_PULLUP);
 
@@ -235,6 +246,8 @@ void core_loop(void* task_time_us) {
   while (true) {
     START_TIME_MEASUREMENT(all);
     START_TIME_MEASUREMENT(comm);
+    monitor_equipment_stop_button();
+
     // Input, Runs as fast as possible
     receive_can_native();  // Receive CAN messages from native CAN port
 #ifdef CAN_FD
@@ -545,6 +558,40 @@ void init_battery() {
   intervalUpdateValues = 800;  // This mode requires the values to be updated faster
 #endif
 }
+
+#ifdef EQUIPMENT_STOP_BUTTON
+
+void monitor_equipment_stop_button() {
+  // read the state of the switch/button:
+  equipment_button_currentState = digitalRead(EQUIPMENT_STOP_PIN);
+
+  if (equipment_button_lastState == LOW && equipment_button_currentState == HIGH)  // button is pressed
+    equipment_button_pressedTime = millis();
+  else if (equipment_button_lastState == HIGH && equipment_button_currentState == LOW) {  // button is released
+    equipment_button_releasedTime = millis();
+
+    long pressDuration = equipment_button_releasedTime - equipment_button_pressedTime;
+
+    if (pressDuration < equipment_button_long_press_duration) {
+      // Short press detected, trigger emergency stop
+      setBatteryPause(true, true, true);
+    } else {
+      // Long press detected, reset equipment stop state
+      setBatteryPause(false, false, false);
+    }
+  }
+
+  // save the the last state
+  equipment_button_lastState = equipment_button_currentState;
+}
+
+void init_equipment_stop_button() {
+
+  //using external pulldown resistors
+  pinMode(EQUIPMENT_STOP_PIN, INPUT);
+}
+
+#endif
 
 #ifdef CAN_FD
 // Functions
