@@ -246,7 +246,9 @@ void core_loop(void* task_time_us) {
   while (true) {
     START_TIME_MEASUREMENT(all);
     START_TIME_MEASUREMENT(comm);
+#ifdef EQUIPMENT_STOP_BUTTON
     monitor_equipment_stop_button();
+#endif
 
     // Input, Runs as fast as possible
     receive_can_native();  // Receive CAN messages from native CAN port
