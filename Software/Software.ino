@@ -566,7 +566,7 @@ void monitor_equipment_stop_button() {
   // read the state of the switch/button:
   equipment_button_currentState = digitalRead(EQUIPMENT_STOP_PIN);
 
-  if (equipment_stop_behavior == TOGGLE_SWITCH) {
+  if (equipment_stop_behavior == LATCHING_SWITCH) {
     if (equipment_button_lastState != equipment_button_currentState || first_run_after_boot) {
       if (!equipment_button_currentState) {
         // Changed to ON – initiating equipment stop.
@@ -576,7 +576,7 @@ void monitor_equipment_stop_button() {
         setBatteryPause(false, false, false);
       }
     }
-  } else if (equipment_stop_behavior == PERSISTENT_ACTIVATION_SWITCH) {
+  } else if (equipment_stop_behavior == MOMENTARY_SWITCH) {
     if (equipment_button_lastState == HIGH && equipment_button_currentState == LOW) {  // button is pressed
       equipment_button_pressedTime = millis();
     } else if (equipment_button_lastState == LOW && equipment_button_currentState == HIGH) {  // button is released

@@ -50,9 +50,9 @@ const char* mqtt_password = "REDACTED";  // Set NULL for no password
 
 #ifdef EQUIPMENT_STOP_BUTTON
 // Equipment stop button behavior. Use NC button for safety reasons.
-//TOGGLE_SWITCH                - activated while pressed, deactivated when released, button state is reflected in the emulator state
-//PERSISTENT_ACTIVATION_SWITCH - short press to activate, long press to deactivate, state is persisted between reboots
-volatile STOP_BUTTON_BEHAVIOR equipment_stop_behavior = TOGGLE_SWITCH;
+//LATCHING_SWITCH  - Normally closed (NC), latching switch. When pressed it activates e-stop
+//MOMENTARY_SWITCH - Short press to activate e-stop, long 5s press to deactivate. E-stop is persistent between reboots
+volatile STOP_BUTTON_BEHAVIOR equipment_stop_behavior = LATCHING_SWITCH;
 #endif
 
 /* Charger settings (Optional, when using generator charging) */

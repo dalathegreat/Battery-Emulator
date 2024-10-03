@@ -121,7 +121,7 @@ extern bool charger_HV_enabled;
 extern bool charger_aux12V_enabled;
 
 #ifdef EQUIPMENT_STOP_BUTTON
-typedef enum { TOGGLE_SWITCH = 0, PERSISTENT_ACTIVATION_SWITCH = 1 } STOP_BUTTON_BEHAVIOR;
+typedef enum { LATCHING_SWITCH = 0, MOMENTARY_SWITCH = 1 } STOP_BUTTON_BEHAVIOR;
 extern volatile STOP_BUTTON_BEHAVIOR equipment_stop_behavior;
 #endif
 
