@@ -136,10 +136,10 @@ unsigned long timeSpentInFaultedMode = 0;
 #endif
 
 #ifdef EQUIPMENT_STOP_BUTTON
-volatile unsigned long equipment_button_press_time = 0;           // Time when button is pressed
-const unsigned long equipment_button_long_press_duration = 5000;  // 5 seconds for long press
-int equipment_button_lastState = HIGH;                            // the previous state from the input pin NC
-int equipment_button_currentState;                                // the current reading from the input pin
+volatile unsigned long equipment_button_press_time = 0;            // Time when button is pressed
+const unsigned long equipment_button_long_press_duration = 15000;  // 15 seconds for long press
+int equipment_button_lastState = HIGH;                             // the previous state from the input pin NC
+int equipment_button_currentState;                                 // the current reading from the input pin
 unsigned long equipment_button_pressedTime = 0;
 unsigned long equipment_button_releasedTime = 0;
 bool first_run_after_boot = true;
