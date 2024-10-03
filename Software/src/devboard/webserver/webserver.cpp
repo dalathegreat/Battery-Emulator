@@ -870,14 +870,14 @@ String processor(const String& var) {
           " onclick=\""
           "if(confirm('This action will open contactors on the battery and stop all CAN communications. Are you "
           "sure?')) { estop(true); }\""
-          ">EQUIPMENT STOP</button><br/>";
+          ">Open Contactors</button><br/>";
     else
       content +=
           "<br/><br/><button style=\"background:green;color:white;cursor:pointer;\""
           "20px;font-size:16px;font-weight:bold;cursor:pointer;border-radius:5px; margin:10px;"
           " onclick=\""
           "if(confirm('This action will restore the battery state. Are you sure?')) { estop(false); }\""
-          ">RESUME FROM EQUIPMENT STOP</button><br/>";
+          ">Close Contactors</button><br/>";
 
     content += "<script>";
     content += "function OTA() { window.location.href = '/update'; }";
