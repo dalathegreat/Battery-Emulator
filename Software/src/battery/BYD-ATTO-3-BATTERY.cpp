@@ -135,14 +135,14 @@ void update_values_battery() {  //This function maps all the values fetched via 
 }
 
 void receive_can_battery(CAN_frame rx_frame) {
-  datalayer.battery.status.CAN_battery_still_alive = CAN_STILL_ALIVE;
   switch (rx_frame.ID) {  //Log values taken with 422V from battery
     case 0x244:           //00,00,00,04,41,0F,20,8B - Static, values never changes between logs
       break;
     case 0x245:  //01,00,02,19,3A,25,90,F4 Seems to have a mux in frame0
-                 //02,00,90,01,79,79,90,EA // Point of interest, went from 7E,75 to 7B,7C when discharging
-                 //03,C6,88,12,FD,48,90,5C
-                 //04,00,FF,FF,00,00,90,6D
+      datalayer.battery.status.CAN_battery_still_alive = CAN_STILL_ALIVE;
+      //02,00,90,01,79,79,90,EA // Point of interest, went from 7E,75 to 7B,7C when discharging
+      //03,C6,88,12,FD,48,90,5C
+      //04,00,FF,FF,00,00,90,6D
       if (rx_frame.data.u8[0] == 0x01) {
         temperature_ambient = (rx_frame.data.u8[4] - 40);  // TODO, check if this is actually temperature_ambient
       }
@@ -371,9 +371,13 @@ void setup_battery(void) {  // Performs one time setup at startup
 #ifdef DEBUG_VIA_USB
   Serial.println("BYD Atto 3 battery selected");
 #endif
-
-  datalayer.battery.info.max_design_voltage_dV = 4410;  // Over this charging is not possible
-  datalayer.battery.info.min_design_voltage_dV = 3800;  // Under this discharging is disabled
+  datalayer.battery.info.number_of_cells = 126;
+  datalayer.battery.info.chemistry = battery_chemistry_enum::LFP;
+  datalayer.battery.info.max_design_voltage_dV = MAX_PACK_VOLTAGE_DV;
+  datalayer.battery.info.min_design_voltage_dV = MIN_PACK_VOLTAGE_DV;
+  datalayer.battery.info.max_cell_voltage_mV = MAX_CELL_VOLTAGE_MV;
+  datalayer.battery.info.min_cell_voltage_mV = MIN_CELL_VOLTAGE_MV;
+  datalayer.battery.info.max_cell_voltage_deviation_mV = MAX_CELL_DEVIATION_MV;
 }
 
 #endif

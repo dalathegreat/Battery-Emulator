@@ -75,9 +75,7 @@ static uint8_t crctable[256] = {
 #define ZE1_BATTERY 2
 static uint8_t LEAF_battery_Type = ZE0_BATTERY;
 static bool battery_can_alive = false;
-#define MAX_CELL_VOLTAGE 4250  //Battery is put into emergency stop if one cell goes over this value
-#define MIN_CELL_VOLTAGE 2700  //Battery is put into emergency stop if one cell goes below this value
-#define WH_PER_GID 77          //One GID is this amount of Watt hours
+#define WH_PER_GID 77                               //One GID is this amount of Watt hours
 static uint16_t battery_Discharge_Power_Limit = 0;  //Limit in kW
 static uint16_t battery_Charge_Power_Limit = 0;     //Limit in kW
 static int16_t battery_MAX_POWER_FOR_CHARGER = 0;   //Limit in kW
@@ -634,12 +632,6 @@ void receive_can_battery2(CAN_frame rx_frame) {
           datalayer.battery2.status.cell_max_voltage_mV = battery2_min_max_voltage[1];
           datalayer.battery2.status.cell_min_voltage_mV = battery2_min_max_voltage[0];
 
-          if (battery2_min_max_voltage[1] >= MAX_CELL_VOLTAGE) {
-            set_event(EVENT_CELL_OVER_VOLTAGE, 0);
-          }
-          if (battery2_min_max_voltage[0] <= MIN_CELL_VOLTAGE) {
-            set_event(EVENT_CELL_UNDER_VOLTAGE, 0);
-          }
           break;
         }
 
@@ -884,12 +876,6 @@ void receive_can_battery(CAN_frame rx_frame) {
           datalayer.battery.status.cell_max_voltage_mV = battery_min_max_voltage[1];
           datalayer.battery.status.cell_min_voltage_mV = battery_min_max_voltage[0];
 
-          if (battery_min_max_voltage[1] >= MAX_CELL_VOLTAGE) {
-            set_event(EVENT_CELL_OVER_VOLTAGE, 0);
-          }
-          if (battery_min_max_voltage[0] <= MIN_CELL_VOLTAGE) {
-            set_event(EVENT_CELL_UNDER_VOLTAGE, 0);
-          }
           break;
         }
 
@@ -1221,13 +1207,19 @@ void setup_battery(void) {  // Performs one time setup at startup
 #endif
 
   datalayer.battery.info.number_of_cells = 96;
-  datalayer.battery.info.max_design_voltage_dV = 4040;  // 404.4V
-  datalayer.battery.info.min_design_voltage_dV = 2600;  // 260.0V
+  datalayer.battery.info.max_design_voltage_dV = MAX_PACK_VOLTAGE_DV;
+  datalayer.battery.info.min_design_voltage_dV = MIN_PACK_VOLTAGE_DV;
+  datalayer.battery.info.max_cell_voltage_mV = MAX_CELL_VOLTAGE_MV;
+  datalayer.battery.info.min_cell_voltage_mV = MIN_CELL_VOLTAGE_MV;
+  datalayer.battery.info.max_cell_voltage_deviation_mV = MAX_CELL_DEVIATION_MV;
 
 #ifdef DOUBLE_BATTERY
   datalayer.battery2.info.number_of_cells = datalayer.battery.info.number_of_cells;
   datalayer.battery2.info.max_design_voltage_dV = datalayer.battery.info.max_design_voltage_dV;
   datalayer.battery2.info.min_design_voltage_dV = datalayer.battery.info.min_design_voltage_dV;
+  datalayer.battery2.info.max_cell_voltage_mV = datalayer.battery.info.max_cell_voltage_mV;
+  datalayer.battery2.info.min_cell_voltage_mV = datalayer.battery.info.min_cell_voltage_mV;
+  datalayer.battery2.info.max_cell_voltage_deviation_mV = datalayer.battery.info.max_cell_voltage_deviation_mV;
 #endif  //DOUBLE_BATTERY
 }
 

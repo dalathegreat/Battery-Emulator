@@ -253,16 +253,6 @@ static const char* hvilStatusState[] = {"NOT OK",
                                         "UNKNOWN(14)",
                                         "UNKNOWN(15)"};
 
-#define MAX_CELL_VOLTAGE_NCA_NCM 4250   //Battery is put into emergency stop if one cell goes over this value
-#define MIN_CELL_VOLTAGE_NCA_NCM 2950   //Battery is put into emergency stop if one cell goes below this value
-#define MAX_CELL_DEVIATION_NCA_NCM 500  //LED turns yellow on the board if mv delta exceeds this value
-
-#define MAX_CELL_VOLTAGE_LFP 3550   //Battery is put into emergency stop if one cell goes over this value
-#define MIN_CELL_VOLTAGE_LFP 2800   //Battery is put into emergency stop if one cell goes below this value
-#define MAX_CELL_DEVIATION_LFP 200  //LED turns yellow on the board if mv delta exceeds this value
-
-#define REASONABLE_ENERGYAMOUNT 20  //When the BMS stops making sense on some values, they are always <20
-
 void update_values_battery() {  //This function maps all the values fetched via CAN to the correct parameters used for modbus
   //After values are mapped, we perform some safety checks, and do some serial printouts
 
@@ -316,6 +306,8 @@ void update_values_battery() {  //This function maps all the values fetched via 
 
   datalayer.battery.status.cell_min_voltage_mV = battery_cell_min_v;
 
+  battery_cell_deviation_mV = (battery_cell_max_v - battery_cell_min_v);
+
   /* Value mapping is completed. Start to check all safeties */
 
   if (battery_hvil_status ==
@@ -324,8 +316,6 @@ void update_values_battery() {  //This function maps all the values fetched via 
   } else {
     clear_event(EVENT_INTERNAL_OPEN_FAULT);
   }
-
-  battery_cell_deviation_mV = (battery_cell_max_v - battery_cell_min_v);
 
 #ifdef TESLA_MODEL_3Y_BATTERY
   // Autodetect algoritm for chemistry on 3/Y packs.
@@ -339,48 +329,17 @@ void update_values_battery() {  //This function maps all the values fetched via 
   if (datalayer.battery.info.chemistry == battery_chemistry_enum::LFP) {
     datalayer.battery.info.max_design_voltage_dV = MAX_PACK_VOLTAGE_3Y_LFP;
     datalayer.battery.info.min_design_voltage_dV = MIN_PACK_VOLTAGE_3Y_LFP;
+    datalayer.battery.info.max_cell_voltage_mV = MAX_CELL_VOLTAGE_LFP;
+    datalayer.battery.info.min_cell_voltage_mV = MIN_CELL_VOLTAGE_LFP;
+    datalayer.battery.info.max_cell_voltage_deviation_mV = MAX_CELL_DEVIATION_LFP;
   } else {  // NCM/A chemistry
     datalayer.battery.info.max_design_voltage_dV = MAX_PACK_VOLTAGE_3Y_NCMA;
     datalayer.battery.info.min_design_voltage_dV = MIN_PACK_VOLTAGE_3Y_NCMA;
+    datalayer.battery.info.max_cell_voltage_mV = MAX_CELL_VOLTAGE_NCA_NCM;
+    datalayer.battery.info.min_cell_voltage_mV = MIN_CELL_VOLTAGE_NCA_NCM;
+    datalayer.battery.info.max_cell_voltage_deviation_mV = MAX_CELL_DEVIATION_NCA_NCM;
   }
 #endif  // TESLA_MODEL_3Y_BATTERY
-
-  //Check if SOC% is plausible
-  if (datalayer.battery.status.voltage_dV >
-      (datalayer.battery.info.max_design_voltage_dV -
-       20)) {  // When pack voltage is close to max, and SOC% is still low, raise FAULT
-    if (datalayer.battery.status.real_soc < 5000) {  //When SOC is less than 50.00% when approaching max voltage
-      set_event(EVENT_SOC_PLAUSIBILITY_ERROR, datalayer.battery.status.real_soc / 100);
-    }
-  }
-
-  if (datalayer.battery.info.chemistry == battery_chemistry_enum::LFP) {  //LFP limits used for voltage safeties
-    if (battery_cell_max_v >= MAX_CELL_VOLTAGE_LFP) {
-      set_event(EVENT_CELL_OVER_VOLTAGE, (battery_cell_max_v - MAX_CELL_VOLTAGE_LFP));
-    }
-    if (battery_cell_min_v <= MIN_CELL_VOLTAGE_LFP) {
-      set_event(EVENT_CELL_UNDER_VOLTAGE, (MIN_CELL_VOLTAGE_LFP - battery_cell_min_v));
-    }
-    if (battery_cell_deviation_mV > MAX_CELL_DEVIATION_LFP) {
-      set_event(EVENT_CELL_DEVIATION_HIGH, battery_cell_deviation_mV);
-    } else {
-      clear_event(EVENT_CELL_DEVIATION_HIGH);
-    }
-  } else {  //NCA/NCM limits used
-    if (battery_cell_max_v >= MAX_CELL_VOLTAGE_NCA_NCM) {
-      set_event(EVENT_CELL_OVER_VOLTAGE, (battery_cell_max_v - MAX_CELL_VOLTAGE_NCA_NCM));
-    }
-    if (battery_cell_min_v <= MIN_CELL_VOLTAGE_NCA_NCM) {
-      set_event(EVENT_CELL_UNDER_VOLTAGE, (MIN_CELL_VOLTAGE_NCA_NCM - battery_cell_min_v));
-    }
-    if (battery_cell_deviation_mV > MAX_CELL_DEVIATION_NCA_NCM) {
-      set_event(EVENT_CELL_DEVIATION_HIGH, battery_cell_deviation_mV);
-    } else {
-      clear_event(EVENT_CELL_DEVIATION_HIGH);
-    }
-  }
-
-  /* Safeties verified. Perform USB serial printout if configured to do so */
 
 #ifdef DEBUG_VIA_USB
 
@@ -898,6 +857,8 @@ void update_values_battery2() {  //This function maps all the values fetched via
 
   datalayer.battery2.status.cell_min_voltage_mV = battery2_cell_min_v;
 
+  battery2_cell_deviation_mV = (battery2_cell_max_v - battery2_cell_min_v);
+
   /* Value mapping is completed. Start to check all safeties */
 
   if (battery2_hvil_status ==
@@ -906,8 +867,6 @@ void update_values_battery2() {  //This function maps all the values fetched via
   } else {
     clear_event(EVENT_INTERNAL_OPEN_FAULT);
   }
-
-  battery2_cell_deviation_mV = (battery2_cell_max_v - battery2_cell_min_v);
 
 #ifdef TESLA_MODEL_3Y_BATTERY
   // Autodetect algoritm for chemistry on 3/Y packs.
@@ -921,56 +880,17 @@ void update_values_battery2() {  //This function maps all the values fetched via
   if (datalayer.battery2.info.chemistry == battery_chemistry_enum::LFP) {
     datalayer.battery2.info.max_design_voltage_dV = MAX_PACK_VOLTAGE_3Y_LFP;
     datalayer.battery2.info.min_design_voltage_dV = MIN_PACK_VOLTAGE_3Y_LFP;
+    datalayer.battery2.info.max_cell_voltage_mV = MAX_CELL_VOLTAGE_LFP;
+    datalayer.battery2.info.min_cell_voltage_mV = MIN_CELL_VOLTAGE_LFP;
+    datalayer.battery2.info.max_cell_voltage_deviation_mV = MAX_CELL_DEVIATION_LFP;
   } else {  // NCM/A chemistry
     datalayer.battery2.info.max_design_voltage_dV = MAX_PACK_VOLTAGE_3Y_NCMA;
     datalayer.battery2.info.min_design_voltage_dV = MIN_PACK_VOLTAGE_3Y_NCMA;
+    datalayer.battery2.info.max_cell_voltage_mV = MAX_CELL_VOLTAGE_NCA_NCM;
+    datalayer.battery2.info.min_cell_voltage_mV = MIN_CELL_VOLTAGE_NCA_NCM;
+    datalayer.battery2.info.max_cell_voltage_deviation_mV = MAX_CELL_DEVIATION_NCA_NCM;
   }
-
 #endif  // TESLA_MODEL_3Y_BATTERY
-
-  //Check if SOC% is plausible
-  if (datalayer.battery2.status.voltage_dV >
-      (datalayer.battery2.info.max_design_voltage_dV -
-       20)) {  // When pack voltage is close to max, and SOC% is still low, raise FAULT
-    if (datalayer.battery2.status.real_soc < 5000) {  //When SOC is less than 50.00% when approaching max voltage
-      set_event(EVENT_SOC_PLAUSIBILITY_ERROR, datalayer.battery2.status.real_soc / 100);
-    }
-  }
-
-  //Check if BMS is in need of recalibration
-  if (battery2_nominal_full_pack_energy > 1 && battery2_nominal_full_pack_energy < REASONABLE_ENERGYAMOUNT) {
-    set_event(EVENT_KWH_PLAUSIBILITY_ERROR, battery2_nominal_full_pack_energy);
-  } else if (battery2_nominal_full_pack_energy <= 1) {
-    set_event(EVENT_KWH_PLAUSIBILITY_ERROR, battery2_nominal_full_pack_energy);
-  }
-
-  if (datalayer.battery2.info.chemistry == battery_chemistry_enum::LFP) {  //LFP limits used for voltage safeties
-    if (battery2_cell_max_v >= MAX_CELL_VOLTAGE_LFP) {
-      set_event(EVENT_CELL_OVER_VOLTAGE, (battery2_cell_max_v - MAX_CELL_VOLTAGE_LFP));
-    }
-    if (battery2_cell_min_v <= MIN_CELL_VOLTAGE_LFP) {
-      set_event(EVENT_CELL_UNDER_VOLTAGE, (MIN_CELL_VOLTAGE_LFP - battery2_cell_min_v));
-    }
-    if (battery2_cell_deviation_mV > MAX_CELL_DEVIATION_LFP) {
-      set_event(EVENT_CELL_DEVIATION_HIGH, battery2_cell_deviation_mV);
-    } else {
-      clear_event(EVENT_CELL_DEVIATION_HIGH);
-    }
-  } else {  //NCA/NCM limits used
-    if (battery2_cell_max_v >= MAX_CELL_VOLTAGE_NCA_NCM) {
-      set_event(EVENT_CELL_OVER_VOLTAGE, (battery2_cell_max_v - MAX_CELL_VOLTAGE_NCA_NCM));
-    }
-    if (battery2_cell_min_v <= MIN_CELL_VOLTAGE_NCA_NCM) {
-      set_event(EVENT_CELL_UNDER_VOLTAGE, (MIN_CELL_VOLTAGE_NCA_NCM - battery2_cell_min_v));
-    }
-    if (battery2_cell_deviation_mV > MAX_CELL_DEVIATION_NCA_NCM) {
-      set_event(EVENT_CELL_DEVIATION_HIGH, battery2_cell_deviation_mV);
-    } else {
-      clear_event(EVENT_CELL_DEVIATION_HIGH);
-    }
-  }
-
-  /* Safeties verified. Perform USB serial printout if configured to do so */
 
 #ifdef DEBUG_VIA_USB
 
@@ -1254,9 +1174,15 @@ void setup_battery(void) {  // Performs one time setup at startup
 #ifdef TESLA_MODEL_SX_BATTERY  // Always use NCM/A mode on S/X packs
   datalayer.battery.info.max_design_voltage_dV = MAX_PACK_VOLTAGE_SX_NCMA;
   datalayer.battery.info.min_design_voltage_dV = MIN_PACK_VOLTAGE_SX_NCMA;
+  datalayer.battery.info.max_cell_voltage_mV = MAX_CELL_VOLTAGE_NCA_NCM;
+  datalayer.battery.info.min_cell_voltage_mV = MIN_CELL_VOLTAGE_NCA_NCM;
+  datalayer.battery.info.max_cell_voltage_deviation_mV = MAX_CELL_DEVIATION_NCA_NCM;
 #ifdef DOUBLE_BATTERY
   datalayer.battery2.info.max_design_voltage_dV = MAX_PACK_VOLTAGE_SX_NCMA;
   datalayer.battery2.info.min_design_voltage_dV = MIN_PACK_VOLTAGE_SX_NCMA;
+  datalayer.battery2.info.max_cell_voltage_mV = MAX_CELL_VOLTAGE_NCA_NCM;
+  datalayer.battery2.info.min_cell_voltage_mV = MIN_CELL_VOLTAGE_NCA_NCM;
+  datalayer.battery2.info.max_cell_voltage_deviation_mV = MAX_CELL_DEVIATION_NCA_NCM;
 #endif  // DOUBLE_BATTERY
 #endif  // TESLA_MODEL_SX_BATTERY
 
@@ -1265,17 +1191,29 @@ void setup_battery(void) {  // Performs one time setup at startup
   datalayer.battery.info.chemistry = battery_chemistry_enum::LFP;
   datalayer.battery.info.max_design_voltage_dV = MAX_PACK_VOLTAGE_3Y_LFP;
   datalayer.battery.info.min_design_voltage_dV = MIN_PACK_VOLTAGE_3Y_LFP;
+  datalayer.battery.info.max_cell_voltage_mV = MAX_CELL_VOLTAGE_LFP;
+  datalayer.battery.info.min_cell_voltage_mV = MIN_CELL_VOLTAGE_LFP;
+  datalayer.battery.info.max_cell_voltage_deviation_mV = MAX_CELL_DEVIATION_LFP;
 #ifdef DOUBLE_BATTERY
   datalayer.battery2.info.chemistry = battery_chemistry_enum::LFP;
   datalayer.battery2.info.max_design_voltage_dV = MAX_PACK_VOLTAGE_3Y_LFP;
   datalayer.battery2.info.min_design_voltage_dV = MIN_PACK_VOLTAGE_3Y_LFP;
+  datalayer.battery2.info.max_cell_voltage_mV = MAX_CELL_VOLTAGE_LFP;
+  datalayer.battery2.info.min_cell_voltage_mV = MIN_CELL_VOLTAGE_LFP;
+  datalayer.battery2.info.max_cell_voltage_deviation_mV = MAX_CELL_DEVIATION_LFP;
 #endif  // DOUBLE_BATTERY
 #else   // Startup in NCM/A mode
   datalayer.battery.info.max_design_voltage_dV = MAX_PACK_VOLTAGE_3Y_NCMA;
   datalayer.battery.info.min_design_voltage_dV = MIN_PACK_VOLTAGE_3Y_NCMA;
+  datalayer.battery.info.max_cell_voltage_mV = MAX_CELL_VOLTAGE_NCA_NCM;
+  datalayer.battery.info.min_cell_voltage_mV = MIN_CELL_VOLTAGE_NCA_NCM;
+  datalayer.battery.info.max_cell_voltage_deviation_mV = MAX_CELL_DEVIATION_NCA_NCM;
 #ifdef DOUBLE_BATTERY
   datalayer.battery2.info.max_design_voltage_dV = MAX_PACK_VOLTAGE_3Y_NCMA;
   datalayer.battery2.info.min_design_voltage_dV = MIN_PACK_VOLTAGE_3Y_NCMA;
+  datalayer.battery2.info.max_cell_voltage_mV = MAX_CELL_VOLTAGE_NCA_NCM;
+  datalayer.battery2.info.min_cell_voltage_mV = MIN_CELL_VOLTAGE_NCA_NCM;
+  datalayer.battery2.info.max_cell_voltage_deviation_mV = MAX_CELL_DEVIATION_NCA_NCM;
 #endif  // DOUBLE_BATTERY
 #endif  // !LFP_CHEMISTRY
 #endif  // TESLA_MODEL_3Y_BATTERY

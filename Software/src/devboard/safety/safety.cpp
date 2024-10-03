@@ -54,6 +54,15 @@ void update_machineryprotection() {
     clear_event(EVENT_BATTERY_UNDERVOLTAGE);
   }
 
+  // Cell overvoltage, critical latching error without automatic reset. Requires user action.
+  if (datalayer.battery.status.cell_max_voltage_mV >= datalayer.battery.info.max_cell_voltage_mV) {
+    set_event(EVENT_CELL_OVER_VOLTAGE, 0);
+  }
+  // Cell undervoltage, critical latching error without automatic reset. Requires user action.
+  if (datalayer.battery.status.cell_min_voltage_mV <= datalayer.battery.info.min_cell_voltage_mV) {
+    set_event(EVENT_CELL_UNDER_VOLTAGE, 0);
+  }
+
   // Battery is fully charged. Dont allow any more power into it
   // Normally the BMS will send 0W allowed, but this acts as an additional layer of safety
   if (datalayer.battery.status.reported_soc == 10000)  //Scaled SOC% value is 100.00%
@@ -103,7 +112,7 @@ void update_machineryprotection() {
 
   // Check diff between highest and lowest cell
   cell_deviation_mV = (datalayer.battery.status.cell_max_voltage_mV - datalayer.battery.status.cell_min_voltage_mV);
-  if (cell_deviation_mV > MAX_CELL_DEVIATION_MV) {
+  if (cell_deviation_mV > datalayer.battery.info.max_cell_voltage_deviation_mV) {
     set_event(EVENT_CELL_DEVIATION_HIGH, (cell_deviation_mV / 20));
   } else {
     clear_event(EVENT_CELL_DEVIATION_HIGH);
@@ -173,6 +182,23 @@ void update_machineryprotection() {
     set_event(EVENT_CAN_RX_WARNING, 2);
   } else {
     clear_event(EVENT_CAN_RX_WARNING);
+  }
+
+  // Cell overvoltage, critical latching error without automatic reset. Requires user action.
+  if (datalayer.battery2.status.cell_max_voltage_mV >= datalayer.battery2.info.max_cell_voltage_mV) {
+    set_event(EVENT_CELL_OVER_VOLTAGE, 0);
+  }
+  // Cell undervoltage, critical latching error without automatic reset. Requires user action.
+  if (datalayer.battery2.status.cell_min_voltage_mV <= datalayer.battery2.info.min_cell_voltage_mV) {
+    set_event(EVENT_CELL_UNDER_VOLTAGE, 0);
+  }
+
+  // Check diff between highest and lowest cell
+  cell_deviation_mV = (datalayer.battery2.status.cell_max_voltage_mV - datalayer.battery2.status.cell_min_voltage_mV);
+  if (cell_deviation_mV > datalayer.battery2.info.max_cell_voltage_deviation_mV) {
+    set_event(EVENT_CELL_DEVIATION_HIGH, (cell_deviation_mV / 20));
+  } else {
+    clear_event(EVENT_CELL_DEVIATION_HIGH);
   }
 
   // Check if SOH% between the packs is too large
