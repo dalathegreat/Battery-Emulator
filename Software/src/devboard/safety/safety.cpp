@@ -196,22 +196,22 @@ void update_machineryprotection() {
 }
 
 //battery pause status begin
-void setBatteryPause(bool pause_battery, bool pause_CAN, bool emergency_stop, bool store_settings) {
+void setBatteryPause(bool pause_battery, bool pause_CAN, bool equipment_stop, bool store_settings) {
 
-  // First handle emergency stop / resume
-  if (emergency_stop && !datalayer.system.settings.equipment_stop_active) {
+  // First handle equipment stop / resume
+  if (equipment_stop && !datalayer.system.settings.equipment_stop_active) {
     datalayer.system.settings.equipment_stop_active = true;
     if (store_settings) {
-      store_settings_emergency_stop();
+      store_settings_equipment_stop();
     }
 
-    set_event(EVENT_EMERGENCY_STOP, 1);
-  } else if (!emergency_stop && datalayer.system.settings.equipment_stop_active) {
+    set_event(EVENT_EQUIPMENT_STOP, 1);
+  } else if (!equipment_stop && datalayer.system.settings.equipment_stop_active) {
     datalayer.system.settings.equipment_stop_active = false;
     if (store_settings) {
-      store_settings_emergency_stop();
+      store_settings_equipment_stop();
     }
-    clear_event(EVENT_EMERGENCY_STOP);
+    clear_event(EVENT_EQUIPMENT_STOP);
   }
 
   emulator_pause_CAN_send_ON = pause_CAN;

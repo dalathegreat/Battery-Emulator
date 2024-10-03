@@ -166,8 +166,8 @@ void init_webserver() {
     }
   });
 
-  // Route for emergency stop/resume
-  server.on("/emergencyStop", HTTP_GET, [](AsyncWebServerRequest* request) {
+  // Route for equipment stop/resume
+  server.on("/equipmentStop", HTTP_GET, [](AsyncWebServerRequest* request) {
     if (WEBSERVER_AUTH_REQUIRED && !request->authenticate(http_username, http_password))
       return request->requestAuthentication();
     if (request->hasParam("stop")) {
@@ -345,7 +345,7 @@ void init_webserver() {
       return request->requestAuthentication();
     request->send(200, "text/plain", "Rebooting server...");
 
-    //Equipment STOP without persisting the emergency state before restart
+    //Equipment STOP without persisting the equipment state before restart
     // Max Charge/Discharge = 0; CAN = stop; contactors = open
     setBatteryPause(true, true, true, false);
     delay(1000);
@@ -911,7 +911,7 @@ String processor(const String& var) {
     content +=
         "var xhr=new "
         "XMLHttpRequest();xhr.onload=function() { "
-        "window.location.reload();};xhr.open('GET','/emergencyStop?stop='+stop,true);xhr.send();";
+        "window.location.reload();};xhr.open('GET','/equipmentStop?stop='+stop,true);xhr.send();";
     content += "}";
     content += "</script>";
 
@@ -958,6 +958,9 @@ void onOTAEnd(bool success) {
 
   // Log when OTA has finished
   if (success) {
+    //Equipment STOP without persisting the equipment state before restart
+    // Max Charge/Discharge = 0; CAN = stop; contactors = open
+    setBatteryPause(true, true, true, false);
     // a reboot will be done by the OTA library. no need to do anything here
 #ifdef DEBUG_VIA_USB
     Serial.println("OTA update finished successfully!");

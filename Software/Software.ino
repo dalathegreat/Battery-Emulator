@@ -353,17 +353,17 @@ void init_stored_settings() {
   static uint32_t temp = 0;
   settings.begin("batterySettings", false);
 
-  // Always get the emergency stop status
-  datalayer.system.settings.equipment_stop_active = settings.getBool("EMERGENCY_STOP", false);
+  // Always get the equipment stop status
+  datalayer.system.settings.equipment_stop_active = settings.getBool("EQUIPMENT_STOP", false);
   if (datalayer.system.settings.equipment_stop_active) {
-    set_event(EVENT_EMERGENCY_STOP, 1);
+    set_event(EVENT_EQUIPMENT_STOP, 1);
   }
 
 #ifndef LOAD_SAVED_SETTINGS_ON_BOOT
   settings.clear();  // If this clear function is executed, no settings will be read from storage
 
-  //always save the emergency stop status
-  settings.putBool("EMERGENCY_STOP", datalayer.system.settings.equipment_stop_active);
+  //always save the equipment stop status
+  settings.putBool("EQUIPMENT_STOP", datalayer.system.settings.equipment_stop_active);
 
 #endif
 
@@ -585,7 +585,7 @@ void monitor_equipment_stop_button() {
       long pressDuration = equipment_button_releasedTime - equipment_button_pressedTime;
 
       if (pressDuration < equipment_button_long_press_duration) {
-        // Short press detected, trigger emergency stop
+        // Short press detected, trigger equipment stop
         setBatteryPause(true, true, true);
       } else {
         // Long press detected, reset equipment stop state
@@ -913,9 +913,9 @@ void init_serialDataLink() {
 #endif
 }
 
-void store_settings_emergency_stop() {
+void store_settings_equipment_stop() {
   settings.begin("batterySettings", false);
-  settings.putBool("EMERGENCY_STOP", datalayer.system.settings.equipment_stop_active);
+  settings.putBool("EQUIPMENT_STOP", datalayer.system.settings.equipment_stop_active);
   settings.end();
 }
 
