@@ -135,6 +135,15 @@ unsigned long negativeStartTime = 0;
 unsigned long timeSpentInFaultedMode = 0;
 #endif
 
+#ifdef EQUIPMENT_STOP_BUTTON
+volatile unsigned long equipment_button_press_time = 0;            // Time when button is pressed
+const unsigned long equipment_button_long_press_duration = 15000;  // 15 seconds for long press
+int equipment_button_lastState = HIGH;                             // the previous state from the input pin NC
+int equipment_button_currentState;                                 // the current reading from the input pin
+unsigned long equipment_button_pressedTime = 0;
+unsigned long equipment_button_releasedTime = 0;
+bool first_run_after_boot = true;
+#endif
 TaskHandle_t main_loop_task;
 TaskHandle_t connectivity_loop_task;
 
@@ -163,6 +172,9 @@ void setup() {
 
   init_battery();
 
+#ifdef EQUIPMENT_STOP_BUTTON
+  init_equipment_stop_button();
+#endif
   // BOOT button at runtime is used as an input for various things
   pinMode(0, INPUT_PULLUP);
 
@@ -235,6 +247,10 @@ void core_loop(void* task_time_us) {
   while (true) {
     START_TIME_MEASUREMENT(all);
     START_TIME_MEASUREMENT(comm);
+#ifdef EQUIPMENT_STOP_BUTTON
+    monitor_equipment_stop_button();
+#endif
+
     // Input, Runs as fast as possible
     receive_can_native();  // Receive CAN messages from native CAN port
 #ifdef CAN_FD
@@ -334,10 +350,21 @@ void init_serial() {
 }
 
 void init_stored_settings() {
+  static uint32_t temp = 0;
   settings.begin("batterySettings", false);
+
+  // Always get the equipment stop status
+  datalayer.system.settings.equipment_stop_active = settings.getBool("EQUIPMENT_STOP", false);
+  if (datalayer.system.settings.equipment_stop_active) {
+    set_event(EVENT_EQUIPMENT_STOP, 1);
+  }
 
 #ifndef LOAD_SAVED_SETTINGS_ON_BOOT
   settings.clear();  // If this clear function is executed, no settings will be read from storage
+
+  //always save the equipment stop status
+  settings.putBool("EQUIPMENT_STOP", datalayer.system.settings.equipment_stop_active);
+
 #endif
 
 #ifdef WIFI
@@ -356,7 +383,6 @@ void init_stored_settings() {
   }
 #endif
 
-  static uint32_t temp = 0;
   temp = settings.getUInt("BATTERY_WH_MAX", false);
   if (temp != 0) {
     datalayer.battery.info.total_capacity_Wh = temp;
@@ -533,6 +559,56 @@ void init_battery() {
 #endif
 }
 
+#ifdef EQUIPMENT_STOP_BUTTON
+
+void monitor_equipment_stop_button() {
+  //NC Logic
+  // read the state of the switch/button:
+  equipment_button_currentState = digitalRead(EQUIPMENT_STOP_PIN);
+
+  if (equipment_stop_behavior == LATCHING_SWITCH) {
+    if (equipment_button_lastState != equipment_button_currentState || first_run_after_boot) {
+      if (!equipment_button_currentState) {
+        // Changed to ON – initiating equipment stop.
+        setBatteryPause(true, true, true);
+      } else {
+        // Changed to OFF – ending equipment stop.
+        setBatteryPause(false, false, false);
+      }
+    }
+  } else if (equipment_stop_behavior == MOMENTARY_SWITCH) {
+    if (equipment_button_lastState == HIGH && equipment_button_currentState == LOW) {  // button is pressed
+      equipment_button_pressedTime = millis();
+    } else if (equipment_button_lastState == LOW && equipment_button_currentState == HIGH) {  // button is released
+      equipment_button_releasedTime = millis();
+
+      long pressDuration = equipment_button_releasedTime - equipment_button_pressedTime;
+
+      if (pressDuration < equipment_button_long_press_duration) {
+        // Short press detected, trigger equipment stop
+        setBatteryPause(true, true, true);
+      } else {
+        // Long press detected, reset equipment stop state
+        setBatteryPause(false, false, false);
+      }
+    }
+  }
+
+  // save the the last state
+  equipment_button_lastState = equipment_button_currentState;
+
+  if (first_run_after_boot) {
+    first_run_after_boot = false;
+  }
+}
+
+void init_equipment_stop_button() {
+  //using external pullup resistors NC
+  pinMode(EQUIPMENT_STOP_PIN, INPUT);
+}
+
+#endif
+
 #ifdef CAN_FD
 // Functions
 #ifdef DEBUG_CANFD_DATA
@@ -658,8 +734,13 @@ void handle_contactors() {
     timeSpentInFaultedMode = 0;
   }
 
-  if (timeSpentInFaultedMode > MAX_ALLOWED_FAULT_TICKS) {
+  //handle contactor control SHUTDOWN_REQUESTED vs DISCONNECTED
+  if (timeSpentInFaultedMode > MAX_ALLOWED_FAULT_TICKS ||
+      (datalayer.system.settings.equipment_stop_active && contactorStatus != SHUTDOWN_REQUESTED)) {
     contactorStatus = SHUTDOWN_REQUESTED;
+  }
+  if (contactorStatus == SHUTDOWN_REQUESTED && !datalayer.system.settings.equipment_stop_active) {
+    contactorStatus = DISCONNECTED;
   }
   if (contactorStatus == SHUTDOWN_REQUESTED) {
     digitalWrite(PRECHARGE_PIN, LOW);
@@ -830,6 +911,12 @@ void init_serialDataLink() {
 #if defined(SERIAL_LINK_RECEIVER) || defined(SERIAL_LINK_TRANSMITTER)
   Serial2.begin(9600, SERIAL_8N1, RS485_RX_PIN, RS485_TX_PIN);
 #endif
+}
+
+void store_settings_equipment_stop() {
+  settings.begin("batterySettings", false);
+  settings.putBool("EQUIPMENT_STOP", datalayer.system.settings.equipment_stop_active);
+  settings.end();
 }
 
 void storeSettings() {

@@ -196,7 +196,23 @@ void update_machineryprotection() {
 }
 
 //battery pause status begin
-void setBatteryPause(bool pause_battery, bool pause_CAN) {
+void setBatteryPause(bool pause_battery, bool pause_CAN, bool equipment_stop, bool store_settings) {
+
+  // First handle equipment stop / resume
+  if (equipment_stop && !datalayer.system.settings.equipment_stop_active) {
+    datalayer.system.settings.equipment_stop_active = true;
+    if (store_settings) {
+      store_settings_equipment_stop();
+    }
+
+    set_event(EVENT_EQUIPMENT_STOP, 1);
+  } else if (!equipment_stop && datalayer.system.settings.equipment_stop_active) {
+    datalayer.system.settings.equipment_stop_active = false;
+    if (store_settings) {
+      store_settings_equipment_stop();
+    }
+    clear_event(EVENT_EQUIPMENT_STOP);
+  }
 
   emulator_pause_CAN_send_ON = pause_CAN;
 
@@ -228,6 +244,7 @@ void setBatteryPause(bool pause_battery, bool pause_CAN) {
 /// @brief handle emulator pause status
 /// @return true if CAN messages should be sent to battery, false if not
 void emulator_pause_state_send_CAN_battery() {
+  bool previous_allowed_to_send_CAN = allowed_to_send_CAN;
 
   if (emulator_pause_status == NORMAL) {
     allowed_to_send_CAN = true;
@@ -245,6 +262,14 @@ void emulator_pause_state_send_CAN_battery() {
   }
 
   allowed_to_send_CAN = (!emulator_pause_CAN_send_ON || emulator_pause_status == NORMAL);
+
+  if (previous_allowed_to_send_CAN && !allowed_to_send_CAN) {
+    //completely force stop the CAN communication
+    ESP32Can.CANStop();
+  } else if (!previous_allowed_to_send_CAN && allowed_to_send_CAN) {
+    //resume CAN communication
+    ESP32Can.CANInit();
+  }
 }
 
 std::string get_emulator_pause_status() {

@@ -58,6 +58,9 @@ GPIOs on extra header
 #define LED_PIN 4
 #define LED_MAX_BRIGHTNESS 40
 
+// Equipment stop pin
+#define EQUIPMENT_STOP_PIN 2
+
 /* ----- Error checks below, don't change (can't be moved to separate file) ----- */
 #ifndef HW_CONFIGURED
 #define HW_CONFIGURED

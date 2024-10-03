@@ -65,6 +65,7 @@
 #define MDNSRESPONDER  //Enable this line to enable MDNS, allows battery monitor te be found by .local address. Requires WEBSERVER to be enabled.
 #define LOAD_SAVED_SETTINGS_ON_BOOT  //Enable this line to read settings stored via the webserver on boot (overrides Wifi/battery settings set below)
 //#define FUNCTION_TIME_MEASUREMENT  // Enable this to record execution times and present them in the web UI (WARNING, raises CPU load, do not use for production)
+//#define EQUIPMENT_STOP_BUTTON      // Enable this to allow an equipment stop button connected to the Battery-Emulator to disengage the battery
 
 /* MQTT options */
 // #define MQTT  // Enable this line to enable MQTT
@@ -118,6 +119,11 @@ extern volatile float CHARGER_MAX_A;
 extern volatile float CHARGER_END_A;
 extern bool charger_HV_enabled;
 extern bool charger_aux12V_enabled;
+
+#ifdef EQUIPMENT_STOP_BUTTON
+typedef enum { LATCHING_SWITCH = 0, MOMENTARY_SWITCH = 1 } STOP_BUTTON_BEHAVIOR;
+extern volatile STOP_BUTTON_BEHAVIOR equipment_stop_behavior;
+#endif
 
 #ifdef WIFICONFIG
 extern IPAddress local_IP;
