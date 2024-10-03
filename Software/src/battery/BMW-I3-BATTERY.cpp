@@ -395,8 +395,37 @@ void update_values_battery2() {  //This function maps all the values fetched via
 
   datalayer.battery2.status.temperature_max_dC = battery2_temperature_max * 10;  // Add a decimal
 
-  datalayer.battery2.status.cell_min_voltage_mV = datalayer.battery2.status.cell_voltages_mV[0];
-  datalayer.battery2.status.cell_max_voltage_mV = datalayer.battery2.status.cell_voltages_mV[1];
+  if (battery2_info_available) {
+    // Start checking safeties. First up, cellvoltages!
+    if (detectedBattery == BATTERY_60AH) {
+      datalayer.battery2.info.max_design_voltage_dV = MAX_PACK_VOLTAGE_60AH;
+      datalayer.battery2.info.min_design_voltage_dV = MIN_PACK_VOLTAGE_60AH;
+      datalayer.battery2.info.max_cell_voltage_mV = MAX_CELL_VOLTAGE_60AH;
+      datalayer.battery2.info.min_cell_voltage_mV = MIN_CELL_VOLTAGE_60AH;
+    } else if (detectedBattery == BATTERY_94AH) {
+      datalayer.battery2.info.max_design_voltage_dV = MAX_PACK_VOLTAGE_94AH;
+      datalayer.battery2.info.min_design_voltage_dV = MIN_PACK_VOLTAGE_94AH;
+      datalayer.battery2.info.max_cell_voltage_mV = MAX_CELL_VOLTAGE_94AH;
+      datalayer.battery2.info.min_cell_voltage_mV = MIN_CELL_VOLTAGE_94AH;
+    } else {  // BATTERY_120AH
+      datalayer.battery2.info.max_design_voltage_dV = MAX_PACK_VOLTAGE_120AH;
+      datalayer.battery2.info.min_design_voltage_dV = MIN_PACK_VOLTAGE_120AH;
+      datalayer.battery2.info.max_cell_voltage_mV = MAX_CELL_VOLTAGE_120AH;
+      datalayer.battery2.info.min_cell_voltage_mV = MIN_CELL_VOLTAGE_120AH;
+    }
+  }
+
+  // Perform other safety checks
+  if (battery2_status_error_locking == 2) {  // HVIL seated?
+    set_event(EVENT_HVIL_FAILURE, 2);
+  } else {
+    clear_event(EVENT_HVIL_FAILURE);
+  }
+  if (battery2_status_precharge_locked == 2) {  // Capacitor seated?
+    set_event(EVENT_PRECHARGE_FAILURE, 2);
+  } else {
+    clear_event(EVENT_PRECHARGE_FAILURE);
+  }
 }
 
 void update_values_battery() {  //This function maps all the values fetched via CAN to the battery datalayer
@@ -433,30 +462,18 @@ void update_values_battery() {  //This function maps all the values fetched via 
     if (detectedBattery == BATTERY_60AH) {
       datalayer.battery.info.max_design_voltage_dV = MAX_PACK_VOLTAGE_60AH;
       datalayer.battery.info.min_design_voltage_dV = MIN_PACK_VOLTAGE_60AH;
-      if (datalayer.battery.status.cell_max_voltage_mV >= MAX_CELL_VOLTAGE_60AH) {
-        set_event(EVENT_CELL_OVER_VOLTAGE, 0);
-      }
-      if (datalayer.battery.status.cell_min_voltage_mV <= MIN_CELL_VOLTAGE_60AH) {
-        set_event(EVENT_CELL_UNDER_VOLTAGE, 0);
-      }
+      datalayer.battery.info.max_cell_voltage_mV = MAX_CELL_VOLTAGE_60AH;
+      datalayer.battery.info.min_cell_voltage_mV = MIN_CELL_VOLTAGE_60AH;
     } else if (detectedBattery == BATTERY_94AH) {
       datalayer.battery.info.max_design_voltage_dV = MAX_PACK_VOLTAGE_94AH;
       datalayer.battery.info.min_design_voltage_dV = MIN_PACK_VOLTAGE_94AH;
-      if (datalayer.battery.status.cell_max_voltage_mV >= MAX_CELL_VOLTAGE_94AH) {
-        set_event(EVENT_CELL_OVER_VOLTAGE, 0);
-      }
-      if (datalayer.battery.status.cell_min_voltage_mV <= MIN_CELL_VOLTAGE_94AH) {
-        set_event(EVENT_CELL_UNDER_VOLTAGE, 0);
-      }
+      datalayer.battery.info.max_cell_voltage_mV = MAX_CELL_VOLTAGE_94AH;
+      datalayer.battery.info.min_cell_voltage_mV = MIN_CELL_VOLTAGE_94AH;
     } else {  // BATTERY_120AH
       datalayer.battery.info.max_design_voltage_dV = MAX_PACK_VOLTAGE_120AH;
       datalayer.battery.info.min_design_voltage_dV = MIN_PACK_VOLTAGE_120AH;
-      if (datalayer.battery.status.cell_max_voltage_mV >= MAX_CELL_VOLTAGE_120AH) {
-        set_event(EVENT_CELL_OVER_VOLTAGE, 0);
-      }
-      if (datalayer.battery.status.cell_min_voltage_mV <= MIN_CELL_VOLTAGE_120AH) {
-        set_event(EVENT_CELL_UNDER_VOLTAGE, 0);
-      }
+      datalayer.battery.info.max_cell_voltage_mV = MAX_CELL_VOLTAGE_120AH;
+      datalayer.battery.info.min_cell_voltage_mV = MIN_CELL_VOLTAGE_120AH;
     }
   }
 
@@ -1124,13 +1141,14 @@ void setup_battery(void) {  // Performs one time setup at startup
   //Before we have started up and detected which battery is in use, use 60AH values
   datalayer.battery.info.max_design_voltage_dV = MAX_PACK_VOLTAGE_60AH;
   datalayer.battery.info.min_design_voltage_dV = MIN_PACK_VOLTAGE_60AH;
-
+  datalayer.battery.info.max_cell_voltage_deviation_mV = MAX_CELL_DEVIATION_MV;
   datalayer.system.status.battery_allows_contactor_closing = true;
 
 #ifdef DOUBLE_BATTERY
   Serial.println("Another BMW i3 battery also selected!");
   datalayer.battery2.info.max_design_voltage_dV = datalayer.battery.info.max_design_voltage_dV;
   datalayer.battery2.info.min_design_voltage_dV = datalayer.battery.info.min_design_voltage_dV;
+  datalayer.battery2.info.max_cell_voltage_deviation_mV = datalayer.battery.info.max_cell_voltage_deviation_mV;
   datalayer.battery2.status.voltage_dV =
       0;  //Init voltage to 0 to allow contactor check to operate without fear of default values colliding
 #endif

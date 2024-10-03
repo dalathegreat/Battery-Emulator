@@ -13,6 +13,12 @@ typedef struct {
   uint16_t max_design_voltage_dV = 5000;
   /** The minimum intended packvoltage, in deciVolt. 3300 = 330.0 V */
   uint16_t min_design_voltage_dV = 2500;
+  /** The maximum cellvoltage before shutting down, in milliVolt. 4300 = 4.250 V */
+  uint16_t max_cell_voltage_mV = 4300;
+  /** The minimum cellvoltage before shutting down, in milliVolt. 2700 = 2.700 V */
+  uint16_t min_cell_voltage_mV = 2700;
+  /** The maxumum allowed deviation between cells, in milliVolt. 500 = 0.500 V */
+  uint16_t max_cell_voltage_deviation_mV = 500;
   /** BYD CAN specific setting, max charge in deciAmpere. 300 = 30.0 A */
   uint16_t max_charge_amp_dA = BATTERY_MAX_CHARGE_AMP;
   /** BYD CAN specific setting, max discharge in deciAmpere. 300 = 30.0 A */

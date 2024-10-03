@@ -264,9 +264,11 @@ void setup_battery(void) {  // Performs one time setup at startup
 #ifdef DEBUG_VIA_USB
   Serial.println("Kia/Hyundai Hybrid battery selected");
 #endif
-  datalayer.battery.info.number_of_cells = 56;          // HEV , TODO: Make dynamic according to HEV/PHEV
-  datalayer.battery.info.max_design_voltage_dV = 2550;  //TODO: Values OK?
-  datalayer.battery.info.min_design_voltage_dV = 1700;
+  datalayer.battery.info.number_of_cells = 56;  // HEV , TODO: Make dynamic according to HEV/PHEV
+  datalayer.battery.info.max_design_voltage_dV = MAX_PACK_VOLTAGE_DV;
+  datalayer.battery.info.min_design_voltage_dV = MIN_PACK_VOLTAGE_DV;
+  datalayer.battery.info.max_cell_voltage_mV = MAX_CELL_VOLTAGE_MV;
+  datalayer.battery.info.min_cell_voltage_mV = MIN_CELL_VOLTAGE_MV;
 }
 
 #endif
