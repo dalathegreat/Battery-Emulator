@@ -13,6 +13,7 @@ static uint16_t discharge_current_dA = 0;
 static uint16_t charge_current_dA = 0;
 static int16_t average_temperature_dC = 0;
 static uint8_t incoming_message_counter = RS485_HEALTHY;
+static int8_t f2_startup_count = 0;
 
 
 union f32b {
@@ -85,9 +86,10 @@ uint8_t frame4[8] = {
 };
 
 uint8_t frameB1[10] = {0x07, 0x63, 0xFF, 0x02, 0xFF, 0x29, 0x5E, 0x02, 0x16, 0x00};
-uint8_t frameB1b[10] = {0x07, 0xE3, 0xFF, 0x02, 0xFF, 0x29, 0xF4, 0x00};
+uint8_t frameB1b[8] = {0x07, 0xE3, 0xFF, 0x02, 0xFF, 0x29, 0xF4, 0x00};
 
 uint8_t RS485_RXFRAME[10];
+
 
 bool register_content_ok = false;
 
@@ -217,6 +219,12 @@ void update_RS485_registers_inverter() {
      frame2[57]=0x40;  
      }
 
+  // On startup, byte 57 seems to be always 0x03 couple of frames, mostly 5 frames.
+  if (f2_startup_count<7)
+     {
+     frame2[57]=0x03;
+     }
+
   float2frame(frame2, (float)datalayer.battery.status.temperature_max_dC / 10, 38);
   float2frame(frame2, (float)datalayer.battery.status.temperature_min_dC / 10, 42);
 
@@ -278,7 +286,7 @@ void receive_RS485()  // Runs as fast as possible to handle the serial stream
             send_kostal(frameB1, 10);
             Serial2.flush();
             delay(1);
-            send_kostal(frameB1b, 10);
+            send_kostal(frameB1b, 8);
           }
 
           // "frame B1", maybe reset request, seen after battery power on/partial data
@@ -294,6 +302,11 @@ void receive_RS485()  // Runs as fast as possible to handle the serial stream
 
             update_values_battery();
             update_RS485_registers_inverter();
+            if (f2_startup_count<7)
+              {
+              f2_startup_count++;
+              }
+
 
             byte tmpframe[64];  //copy values to prevent data manipulation during rewrite/crc calculation
             memcpy(tmpframe, frame2, 64);
