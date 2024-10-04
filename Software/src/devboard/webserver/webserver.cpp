@@ -851,7 +851,10 @@ String processor(const String& var) {
     if (emulator_pause_request_ON)
       content += "<button onclick='PauseBattery(false)'>Resume charge/discharge</button>";
     else
-      content += "<button onclick='PauseBattery(true)'>Pause charge/discharge</button>";
+      content +=
+          "<button onclick=\"if(confirm('Are you sure you want to pause charging and discharging? This will set the "
+          "maximum charge and discharge values to zero, preventing any further power flow.')) { PauseBattery(true); "
+          "}\">Pause charge/discharge</button>";
     content += " ";
     content += "<button onclick='OTA()'>Perform OTA update</button>";
     content += " ";
