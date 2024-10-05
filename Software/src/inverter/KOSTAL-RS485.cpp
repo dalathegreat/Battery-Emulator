@@ -37,7 +37,9 @@ uint8_t frame1[40] = {
 
 
 // values in frame2 will be overwritten at update_modbus_registers_inverter()
-uint8_t frame2[64] = {0x0A, 0xE2, 0xFF, 0x02, 0xFF, 0x29,  // frame Header
+
+uint8_t frame2[64] = {0x0A,                     // This may also been 0x06, seen at startup when live values not valid, but also occasionally single frames.
+                      0xE2, 0xFF, 0x02, 0xFF, 0x29,  // frame Header
 
                       0x1D, 0x5A, 0x85, 0x43,   // Cyrrent Voltage     (float)           Modbus register 216, Bit 6-9
                       0x01, 0x03, 0x8D, 0x43,   // Max Voltage (2 byte float), Bit 10-13
@@ -60,9 +62,9 @@ uint8_t frame2[64] = {0x0A, 0xE2, 0xFF, 0x02, 0xFF, 0x29,  // frame Header
                       0xFE,                     // Cylce count , Bit 54
                       0x04,                     // Cycle count? , Bit 55
                       0x01,                     // Byte 56
-                      0x40,                     // When SOC=100 Byte57=0x40, otherwise 0x02 or 0x03
+                      0x40,                     // When SOC=100 Byte57=0x40, at startup 0x03 (about 7 times), otherwise 0x02
                       0x64,                     // SOC , Bit 58
-                      0x01,                     // Unknown, Mostly 0x01, seen also 0x02
+                      0x01,                     // Unknown, when byte 57 = 0x03, this 0x02, otherwise 0x01 
                       0x01,                     // Unknown, Seen only 0x01
                       0x02,                     // Unknown, Mostly 0x02. seen also 0x01
                       0x00,                     // CRC (inverted sum of bytes 1-62 + 0xC0), Bit 62
@@ -189,8 +191,19 @@ void update_RS485_registers_inverter() {
     average_temperature_dC = 0;
   }
 
-  float2frame(frame2, (float)datalayer.battery.status.voltage_dV / 10, 6);  // Confirmed OK mapping
 
+
+  if (f2_startup_count>8)
+     {
+     float2frame(frame2, (float)datalayer.battery.status.voltage_dV / 10, 6);  // Confirmed OK mapping
+     datalayer.system.status.inverter_allows_contactor_closing = true;
+     frame2[0]=0x0A;
+     }
+  else
+     {
+     frame2[0]=0x06;
+     float2frame(frame2, 0.0, 6);
+     }
   float2frameMSB(frame1, (float)datalayer.battery.status.voltage_dV / 10, 8);  // This shall be nominal voltage, but not available
 
   float2frameMSB(frame2, (float)datalayer.battery.info.max_design_voltage_dV / 10, 12);
@@ -211,18 +224,21 @@ void update_RS485_registers_inverter() {
   if((datalayer.battery.status.reported_soc / 100)<100)
      {
      float2frameMSB(frame2, (float)charge_current_dA / 10, 36);
-     frame2[57]=0x02;  
+     frame2[57]=0x02;
+     frame2[59]=0x01;
      }
   else
      {
      float2frameMSB(frame2, 0.0 , 36);
-     frame2[57]=0x40;  
+     frame2[57]=0x40;
+     frame2[59]=0x01;
      }
 
-  // On startup, byte 57 seems to be always 0x03 couple of frames, mostly 5 frames.
-  if (f2_startup_count<7)
+  // On startup, byte 57 seems to be always 0x03 couple of frames,.
+  if (f2_startup_count<14)
      {
      frame2[57]=0x03;
+     frame2[59]=0x02;
      }
 
   float2frame(frame2, (float)datalayer.battery.status.temperature_max_dC / 10, 38);
@@ -292,6 +308,7 @@ void receive_RS485()  // Runs as fast as possible to handle the serial stream
           // "frame B1", maybe reset request, seen after battery power on/partial data
           if (headerB && (RS485_RXFRAME[6] == 0x5E) && (RS485_RXFRAME[7] == 0x04)) {
             send_kostal(frame4, 8);
+            datalayer.system.status.inverter_allows_contactor_closing = false;
             Serial2.flush();
           }
 
@@ -302,7 +319,7 @@ void receive_RS485()  // Runs as fast as possible to handle the serial stream
 
             update_values_battery();
             update_RS485_registers_inverter();
-            if (f2_startup_count<7)
+            if (f2_startup_count<15)
               {
               f2_startup_count++;
               }
