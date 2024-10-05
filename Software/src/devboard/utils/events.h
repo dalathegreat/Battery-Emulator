@@ -101,6 +101,7 @@
   XX(EVENT_WIFI_DISCONNECT)             \
   XX(EVENT_MQTT_CONNECT)                \
   XX(EVENT_MQTT_DISCONNECT)             \
+  XX(EVENT_EQUIPMENT_STOP)              \
   XX(EVENT_NOF_EVENTS)
 
 typedef enum { EVENTS_ENUM_TYPE(GENERATE_ENUM) } EVENTS_ENUM_TYPE;
@@ -152,6 +153,7 @@ void init_events(void);
 void set_event_latched(EVENTS_ENUM_TYPE event, uint8_t data);
 void set_event(EVENTS_ENUM_TYPE event, uint8_t data);
 void clear_event(EVENTS_ENUM_TYPE event);
+void reset_all_events();
 void set_event_MQTTpublished(EVENTS_ENUM_TYPE event);
 
 const EVENTS_STRUCT_TYPE* get_event_pointer(EVENTS_ENUM_TYPE event);

@@ -8,9 +8,6 @@
 static unsigned long previousMillis100 = 0;  // will store last time a 100ms CAN Message was send
 static unsigned long previousMillis10 = 0;   // will store last time a 10s CAN Message was send
 
-#define MAX_CELL_VOLTAGE 4250  //Battery is put into emergency stop if one cell goes over this value
-#define MIN_CELL_VOLTAGE 2950  //Battery is put into emergency stop if one cell goes below this value
-
 static uint16_t soc_calculated = 0;
 static uint16_t SOC_BMS = 0;
 static uint16_t SOC_Display = 0;
@@ -145,14 +142,6 @@ void update_values_battery() {  //This function maps all the values fetched via 
 
   if (leadAcidBatteryVoltage < 110) {
     set_event(EVENT_12V_LOW, leadAcidBatteryVoltage);
-  }
-
-  // Check if cell voltages are within allowed range
-  if (CellVoltMax_mV >= MAX_CELL_VOLTAGE) {
-    set_event(EVENT_CELL_OVER_VOLTAGE, 0);
-  }
-  if (CellVoltMin_mV <= MIN_CELL_VOLTAGE) {
-    set_event(EVENT_CELL_UNDER_VOLTAGE, 0);
   }
 
   /* Safeties verified. Perform USB serial printout if configured to do so */
@@ -550,9 +539,10 @@ void setup_battery(void) {  // Performs one time setup at startup
 #ifdef DEBUG_VIA_USB
   Serial.println("Kia Niro / Hyundai Kona 64kWh battery selected");
 #endif
-
-  datalayer.battery.info.max_design_voltage_dV = 4040;  // 404.0V
-  datalayer.battery.info.min_design_voltage_dV = 3100;  // 310.0V
+  datalayer.battery.info.max_design_voltage_dV = 4040;  //startup with 98S max value. Precised later
+  datalayer.battery.info.min_design_voltage_dV = 2250;  //startup with 90S min value. Precised later
+  datalayer.battery.info.max_cell_voltage_mV = MAX_CELL_VOLTAGE_MV;
+  datalayer.battery.info.min_cell_voltage_mV = MIN_CELL_VOLTAGE_MV;
 }
 
 #endif

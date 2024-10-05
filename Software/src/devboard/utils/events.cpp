@@ -213,6 +213,7 @@ void init_events(void) {
   events.entries[EVENT_WIFI_DISCONNECT].level = EVENT_LEVEL_INFO;
   events.entries[EVENT_MQTT_CONNECT].level = EVENT_LEVEL_INFO;
   events.entries[EVENT_MQTT_DISCONNECT].level = EVENT_LEVEL_INFO;
+  events.entries[EVENT_EQUIPMENT_STOP].level = EVENT_LEVEL_ERROR;
 
   events.entries[EVENT_EEPROM_WRITE].log = false;  // Don't log the logger...
 
@@ -234,6 +235,21 @@ void clear_event(EVENTS_ENUM_TYPE event) {
     update_event_level();
     update_bms_status();
   }
+}
+
+void reset_all_events() {
+  events.nof_logged_events = 0;
+  for (uint16_t i = 0; i < EVENT_NOF_EVENTS; i++) {
+    events.entries[i].data = 0;
+    events.entries[i].state = EVENT_STATE_INACTIVE;
+    events.entries[i].timestamp = 0;
+    events.entries[i].millisrolloverCount = 0;
+    events.entries[i].occurences = 0;
+    events.entries[i].log = true;
+    events.entries[i].MQTTpublished = false;  // Not published by default
+  }
+  events.level = EVENT_LEVEL_INFO;
+  update_bms_status();
 }
 
 void set_event_MQTTpublished(EVENTS_ENUM_TYPE event) {
@@ -396,6 +412,8 @@ const char* get_event_message_string(EVENTS_ENUM_TYPE event) {
       return "Info: MQTT connected.";
     case EVENT_MQTT_DISCONNECT:
       return "Info: MQTT disconnected.";
+    case EVENT_EQUIPMENT_STOP:
+      return "ERROR: EQUIPMENT STOP ACTIVATED!!!";
     default:
       return "";
   }

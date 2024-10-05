@@ -48,6 +48,13 @@ const char* mqtt_password = "REDACTED";  // Set NULL for no password
 #endif                                   // USE_MQTT
 #endif                                   // WIFI
 
+#ifdef EQUIPMENT_STOP_BUTTON
+// Equipment stop button behavior. Use NC button for safety reasons.
+//LATCHING_SWITCH  - Normally closed (NC), latching switch. When pressed it activates e-stop
+//MOMENTARY_SWITCH - Short press to activate e-stop, long 15s press to deactivate. E-stop is persistent between reboots
+volatile STOP_BUTTON_BEHAVIOR equipment_stop_behavior = LATCHING_SWITCH;
+#endif
+
 /* Charger settings (Optional, when using generator charging) */
 volatile float CHARGER_SET_HV = 384;      // Reasonably appropriate 4.0v per cell charging of a 96s pack
 volatile float CHARGER_MAX_HV = 420;      // Max permissible output (VDC) of charger
