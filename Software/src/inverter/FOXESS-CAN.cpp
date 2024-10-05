@@ -11,11 +11,13 @@ below that you can customize, incase you use a lower voltage battery with this p
 
 #define STATUS_OPERATIONAL_PACKS \
   0b11111111  //0x1875 b2 contains status for operational packs (responding) in binary so 01111111 is pack 8 not operational, 11101101 is pack 5 & 2 not operational
-#define NUMBER_OF_PACKS 8  //1-8
-#define BATTERY_TYPE 0x82  //0x82 is HV2600 V1, 0x83 is ECS4100 v1, 0x84 is HV2600 V2
-#define FIRMWARE_VERSION \
-  0x20  //for the PACK_ID (b7 =10,20,30,40,50,60,70,80) then FIRMWARE_VERSION 0x1F = 0001 1111, version is v1.15, and if FIRMWARE_VERSION was 0x20 = 0010 0000 then = v2.0
-#define PACK_ID 0x10
+#define NUMBER_OF_PACKS 8         //1-8
+#define BATTERY_TYPE_MASTER 0x52  //0x52 is HV2600 V2 BMS master
+#define BATTERY_TYPE_SLAVE 0x82   //0x82 is HV2600 V1, 0x83 is ECS4100 v1, 0x84 is HV2600 V2
+#define FIRMWARE_VERSION_MASTER 0xFF
+#define FIRMWARE_VERSION_SLAVE 0x20
+//for the PACK_ID (b7 =10,20,30,40,50,60,70,80) then FIRMWARE_VERSION 0x1F = 0001 1111, version is v1.15, and if FIRMWARE_VERSION was 0x20 = 0010 0000 then = v2.0
+#define MASTER 0
 #define MAX_AC_VOLTAGE 2567              //256.7VAC max
 #define TOTAL_LIFETIME_WH_ACCUMULATED 0  //We dont have this value in the emulator
 
@@ -27,7 +29,8 @@ static uint16_t voltage_per_pack = 0;
 static int16_t current_per_pack = 0;
 static uint8_t temperature_max_per_pack = 0;
 static uint8_t temperature_min_per_pack = 0;
-static uint8_t inverterStillAlive = CAN_STILL_ALIVE;
+static uint8_t current_pack_info = 0;
+static uint8_t inverterStillAlive = 60;  // Inverter can be missing for 1minute on startup
 
 static bool send_cellvoltages = false;
 static unsigned long previousMillisCellvoltage = 0;  // Store the last time a cellvoltage CAN messages were sent
@@ -79,17 +82,17 @@ CAN_frame FOXESS_1881 = {.FD = false,
                          .ext_ID = true,
                          .DLC = 8,
                          .ID = 0x1881,
-                         .data = {0x10, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0}};  // E.g.: 0 6 S B M S F A
+                         .data = {0x10, 0x01, 0x02, 0x03, 0x04, 0x05, 0x06, 0x07}};
 CAN_frame FOXESS_1882 = {.FD = false,
                          .ext_ID = true,
                          .DLC = 8,
                          .ID = 0x1882,
-                         .data = {0x10, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0}};  // E.g.: 0 2 3 A B 0 5 2
+                         .data = {0x10, 0x01, 0x02, 0x03, 0x04, 0x05, 0x06, 0x07}};
 CAN_frame FOXESS_1883 = {.FD = false,
                          .ext_ID = true,
                          .DLC = 8,
                          .ID = 0x1883,
-                         .data = {0x10, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0}};  // E.g.: 0 2 3 A B 0 5 2
+                         .data = {0x10, 0x01, 0x02, 0x03, 0x04, 0x05, 0x06, 0x07}};
 
 CAN_frame FOXESS_0C05 = {.FD = false,
                          .ext_ID = true,
@@ -476,14 +479,26 @@ void update_values_can_inverter() {  //This function maps all the CAN values fet
   FOXESS_1876.data.u8[7] = (datalayer.battery.status.cell_min_voltage_mV >> 8);
 
   //BMS_ErrorsBrand
-  FOXESS_1877.data.u8[0] = (uint8_t)0;  //0x1877 b0 appears to be an error code, 0x02 when pack is in error.
+  //0x1877 b0 appears to be an error code, 0x02 when pack is in error.
+  if (datalayer.battery.status.bms_status == FAULT) {
+    FOXESS_1877.data.u8[0] = (uint8_t)0x02;
+  } else {
+    FOXESS_1877.data.u8[0] = (uint8_t)0;
+  }
   FOXESS_1877.data.u8[1] = (uint8_t)0;  //Unused
   FOXESS_1877.data.u8[2] = (uint8_t)0;  //Unused
   FOXESS_1877.data.u8[3] = (uint8_t)0;  //Unused
-  FOXESS_1877.data.u8[4] = (uint8_t)BATTERY_TYPE;
   FOXESS_1877.data.u8[5] = (uint8_t)0;  //Unused
-  FOXESS_1877.data.u8[6] = (uint8_t)FIRMWARE_VERSION;
-  FOXESS_1877.data.u8[7] = (uint8_t)PACK_ID;
+  if (current_pack_info == MASTER) {
+    FOXESS_1877.data.u8[4] = (uint8_t)BATTERY_TYPE_MASTER;
+    FOXESS_1877.data.u8[5] = (uint8_t)0x22;  //Unused?
+    FOXESS_1877.data.u8[6] = (uint8_t)FIRMWARE_VERSION_MASTER;
+    FOXESS_1877.data.u8[7] = (uint8_t)0x01;
+  } else {  // 1-8
+    FOXESS_1877.data.u8[4] = (uint8_t)BATTERY_TYPE_SLAVE;
+    FOXESS_1877.data.u8[6] = (uint8_t)FIRMWARE_VERSION_SLAVE;
+    FOXESS_1877.data.u8[7] = (uint8_t)(current_pack_info << 4);
+  }
 
   //BMS_PackStats
   FOXESS_1878.data.u8[0] = (uint8_t)(MAX_AC_VOLTAGE);
@@ -502,6 +517,11 @@ void update_values_can_inverter() {  //This function maps all the CAN values fet
   }                                 // Mappings taken from https://github.com/FozzieUK/FoxESS-Canbus-Protocol
   else {
     FOXESS_1879.data.u8[1] = 0x2B;  //Discharging
+  }
+
+  current_pack_info = (current_pack_info + 1);
+  if (current_pack_info > NUMBER_OF_PACKS) {
+    current_pack_info = 0;
   }
 
   if (NUMBER_OF_PACKS > 0) {  //div0 safeguard
@@ -762,10 +782,11 @@ void receive_can_inverter(CAN_frame rx_frame) {
 #ifdef DEBUG_VIA_USB
       Serial.println("Inverter wants to know serial numbers, we reply");
 #endif
-      for (int i = 0; i < (NUMBER_OF_PACKS + 1); i++) {
+      for (uint8_t i = 0; i < (NUMBER_OF_PACKS + 1); i++) {
         FOXESS_1881.data.u8[0] = (uint8_t)i;
         FOXESS_1882.data.u8[0] = (uint8_t)i;
         FOXESS_1883.data.u8[0] = (uint8_t)i;
+        //TODO, should we add something to serial number field?
         transmit_can(&FOXESS_1881, can_config.inverter);
         transmit_can(&FOXESS_1882, can_config.inverter);
         transmit_can(&FOXESS_1883, can_config.inverter);
