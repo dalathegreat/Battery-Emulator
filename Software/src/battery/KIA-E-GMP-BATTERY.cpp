@@ -645,8 +645,16 @@ void update_values_battery() {  //This function maps all the values fetched via 
       (static_cast<double>(datalayer.battery.status.real_soc) / 10000) * datalayer.battery.info.total_capacity_Wh);
 
   //datalayer.battery.status.max_charge_power_W = (uint16_t)allowedChargePower * 10;  //From kW*100 to Watts
-  //The allowed charge power is not available. We hardcode this value for now
-  datalayer.battery.status.max_charge_power_W = MAXCHARGEPOWERALLOWED;
+  //The allowed charge power is not available. We estimate this value for now
+  if (datalayer.battery.status.real_soc > 9900) {
+    datalayer.battery.status.max_charge_power_W = 0;
+  } else if (datalayer.battery.status.real_soc >
+             RAMPDOWN_SOC) {  // When real SOC is between 90-99%, ramp the value between Max<->0
+    datalayer.battery.status.max_charge_power_W =
+        RAMPDOWNPOWERALLOWED * (1 - (datalayer.battery.status.real_soc - RAMPDOWN_SOC) / (10000.0 - RAMPDOWN_SOC));
+  } else {  // No limits, max charging power allowed
+    datalayer.battery.status.max_charge_power_W = MAXCHARGEPOWERALLOWED;
+  }
 
   //datalayer.battery.status.max_discharge_power_W = (uint16_t)allowedDischargePower * 10;  //From kW*100 to Watts
   //The allowed discharge power is not available. We hardcode this value for now
