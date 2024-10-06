@@ -211,12 +211,15 @@ void update_values_can_inverter() {  //This function maps all the values fetched
 void receive_can_inverter(CAN_frame rx_frame) {
   switch (rx_frame.ID) {
     case 0x360:  //Message originating from SMA inverter - Voltage and current
+      datalayer.system.status.CAN_inverter_still_alive = CAN_STILL_ALIVE;
       //Frame0-1 Voltage
       //Frame2-3 Current
       break;
     case 0x3E0:  //Message originating from SMA inverter - ?
+      datalayer.system.status.CAN_inverter_still_alive = CAN_STILL_ALIVE;
       break;
     case 0x420:  //Message originating from SMA inverter - Timestamp
+      datalayer.system.status.CAN_inverter_still_alive = CAN_STILL_ALIVE;
       //Frame0-3 Timestamp
       /*
       transmit_can(&SMA_158, can_config.inverter);
@@ -228,10 +231,13 @@ void receive_can_inverter(CAN_frame rx_frame) {
       */
       break;
     case 0x5E0:  //Message originating from SMA inverter - String
+      datalayer.system.status.CAN_inverter_still_alive = CAN_STILL_ALIVE;
       break;
     case 0x560:  //Message originating from SMA inverter - Init
+      datalayer.system.status.CAN_inverter_still_alive = CAN_STILL_ALIVE;
       break;
     case 0x5E7:  //Pairing request
+      datalayer.system.status.CAN_inverter_still_alive = CAN_STILL_ALIVE;
       transmit_can(&SMA_558, can_config.inverter);
       transmit_can(&SMA_598, can_config.inverter);
       transmit_can(&SMA_5D8, can_config.inverter);

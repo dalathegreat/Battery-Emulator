@@ -180,6 +180,7 @@ void update_values_can_inverter() {  //This function maps all the values fetched
 void receive_can_inverter(CAN_frame rx_frame) {
   switch (rx_frame.ID) {
     case 0x151:  //Message originating from BYD HVS compatible inverter. Reply with CAN identifier!
+      datalayer.system.status.CAN_inverter_still_alive = CAN_STILL_ALIVE;
       if (rx_frame.data.u8[0] & 0x01) {  //Battery requests identification
         send_intial_data();
       } else {  // We can identify what inverter type we are connected to
@@ -193,12 +194,15 @@ void receive_can_inverter(CAN_frame rx_frame) {
       }
       break;
     case 0x091:
+      datalayer.system.status.CAN_inverter_still_alive = CAN_STILL_ALIVE;
       inverter_voltage = ((rx_frame.data.u8[1] << 8) | rx_frame.data.u8[0]) * 0.1;
       break;
     case 0x0D1:
+      datalayer.system.status.CAN_inverter_still_alive = CAN_STILL_ALIVE;
       inverter_SOC = ((rx_frame.data.u8[1] << 8) | rx_frame.data.u8[0]) * 0.1;
       break;
     case 0x111:
+      datalayer.system.status.CAN_inverter_still_alive = CAN_STILL_ALIVE;
       inverter_timestamp = ((rx_frame.data.u8[3] << 24) | (rx_frame.data.u8[2] << 16) | (rx_frame.data.u8[1] << 8) |
                             rx_frame.data.u8[0]);
       break;
