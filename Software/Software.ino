@@ -11,6 +11,7 @@
 #include "freertos/FreeRTOS.h"
 #include "freertos/task.h"
 #include "src/charger/CHARGERS.h"
+#include "src/datalayer/datalayer.h"
 #include "src/devboard/utils/events.h"
 #include "src/devboard/utils/led_handler.h"
 #include "src/devboard/utils/value_mapping.h"
@@ -22,8 +23,6 @@
 #include "src/lib/eModbus-eModbus/scripts/mbServerFCs.h"
 #include "src/lib/miwagner-ESP32-Arduino-CAN/CAN_config.h"
 #include "src/lib/miwagner-ESP32-Arduino-CAN/ESP32CAN.h"
-
-#include "src/datalayer/datalayer.h"
 
 #ifdef WIFI
 #include "src/devboard/wifi/wifi.h"
@@ -46,6 +45,10 @@
 #ifdef PWM_CONTACTOR_CONTROL
 #error CONTACTOR_CONTROL needs to be enabled for PWM_CONTACTOR_CONTROL
 #endif
+#endif
+
+#ifdef EQUIPMENT_STOP_BUTTON
+#include "src/devboard/utils/debounce_button.h"
 #endif
 
 Preferences settings;  // Store user settings
@@ -136,14 +139,13 @@ unsigned long timeSpentInFaultedMode = 0;
 #endif
 
 #ifdef EQUIPMENT_STOP_BUTTON
-volatile unsigned long equipment_button_press_time = 0;            // Time when button is pressed
-const unsigned long equipment_button_long_press_duration = 15000;  // 15 seconds for long press
-int equipment_button_lastState = HIGH;                             // the previous state from the input pin NC
-int equipment_button_currentState;                                 // the current reading from the input pin
-unsigned long equipment_button_pressedTime = 0;
-unsigned long equipment_button_releasedTime = 0;
-bool first_run_after_boot = true;
+const unsigned long equipment_button_long_press_duration =
+    15000;                                                     // 15 seconds for long press in case of MOMENTARY_SWITCH
+const unsigned long equipment_button_debounce_duration = 200;  // 250ms for debouncing the button
+unsigned long timeSincePress = 0;                              // Variable to store the time since the last press
+DebouncedButton equipment_stop_button;                         // Debounced button object
 #endif
+
 TaskHandle_t main_loop_task;
 TaskHandle_t connectivity_loop_task;
 
@@ -562,29 +564,21 @@ void init_battery() {
 #ifdef EQUIPMENT_STOP_BUTTON
 
 void monitor_equipment_stop_button() {
-  //NC Logic
-  // read the state of the switch/button:
-  equipment_button_currentState = digitalRead(EQUIPMENT_STOP_PIN);
+
+  ButtonState changed_state = debounceButton(equipment_stop_button, timeSincePress);
 
   if (equipment_stop_behavior == LATCHING_SWITCH) {
-    if (equipment_button_lastState != equipment_button_currentState || first_run_after_boot) {
-      if (!equipment_button_currentState) {
-        // Changed to ON – initiating equipment stop.
-        setBatteryPause(true, true, true);
-      } else {
-        // Changed to OFF – ending equipment stop.
-        setBatteryPause(false, false, false);
-      }
+    if (changed_state == PRESSED) {
+      // Changed to ON – initiating equipment stop.
+      setBatteryPause(true, true, true);
+    } else if (changed_state == RELEASED) {
+      // Changed to OFF – ending equipment stop.
+      setBatteryPause(false, false, false);
     }
   } else if (equipment_stop_behavior == MOMENTARY_SWITCH) {
-    if (equipment_button_lastState == HIGH && equipment_button_currentState == LOW) {  // button is pressed
-      equipment_button_pressedTime = millis();
-    } else if (equipment_button_lastState == LOW && equipment_button_currentState == HIGH) {  // button is released
-      equipment_button_releasedTime = millis();
+    if (changed_state == RELEASED) {  // button is released
 
-      long pressDuration = equipment_button_releasedTime - equipment_button_pressedTime;
-
-      if (pressDuration < equipment_button_long_press_duration) {
+      if (timeSincePress < equipment_button_long_press_duration) {
         // Short press detected, trigger equipment stop
         setBatteryPause(true, true, true);
       } else {
@@ -593,18 +587,13 @@ void monitor_equipment_stop_button() {
       }
     }
   }
-
-  // save the the last state
-  equipment_button_lastState = equipment_button_currentState;
-
-  if (first_run_after_boot) {
-    first_run_after_boot = false;
-  }
 }
 
 void init_equipment_stop_button() {
   //using external pullup resistors NC
   pinMode(EQUIPMENT_STOP_PIN, INPUT);
+  // Initialize the debounced button with NC switch type and equipment_button_debounce_duration debounce time
+  initDebouncedButton(equipment_stop_button, EQUIPMENT_STOP_PIN, NC, equipment_button_debounce_duration);
 }
 
 #endif
