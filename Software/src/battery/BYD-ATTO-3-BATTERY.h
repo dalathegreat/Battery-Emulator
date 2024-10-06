@@ -1,6 +1,6 @@
 #ifndef ATTO_3_BATTERY_H
 #define ATTO_3_BATTERY_H
-#include <Arduino.h>
+
 #include "../include.h"
 
 #define BATTERY_SELECTED
