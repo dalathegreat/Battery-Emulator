@@ -632,6 +632,7 @@ void receive_canfd() {  // This section checks if we have a complete CAN-FD mess
     }
     //message incoming, pass it on to the handler
     receive_can(&rx_frame, CAN_ADDON_FD_MCP2518);
+    receive_can(&rx_frame, CANFD_NATIVE);
   }
 }
 #endif
