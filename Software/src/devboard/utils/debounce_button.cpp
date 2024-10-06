@@ -1,7 +1,7 @@
 #include "debounce_button.h"
 
 // Function to initialize the debounced button with pin, switch type, and debounce delay
-void initDebouncedButton(DebouncedButton &button, int pin, SwitchType type, unsigned long debounceDelay) {
+void initDebouncedButton(DebouncedButton& button, int pin, SwitchType type, unsigned long debounceDelay) {
   button.pin = pin;
   button.debounceDelay = debounceDelay;
   button.lastDebounceTime = 0;
@@ -11,7 +11,7 @@ void initDebouncedButton(DebouncedButton &button, int pin, SwitchType type, unsi
   pinMode(pin, INPUT);  // Setup pin mode
 }
 
-ButtonState debounceButton(DebouncedButton &button, unsigned long &timeSincePress) {
+ButtonState debounceButton(DebouncedButton& button, unsigned long& timeSincePress) {
   int reading = digitalRead(button.pin);
 
   // If the button state has changed due to noise or a press
