@@ -15,8 +15,10 @@ TODO list
 */
 
 /* Do not change code below unless you are sure what you are doing */
-static unsigned long previousMillis200 = 0;  // will store last time a 200ms CAN Message was send
-static unsigned long previousMillis10 = 0;   // will store last time a 10ms CAN Message was send
+static unsigned long previousMillis200 = 0;    // will store last time a 200ms CAN Message was send
+static unsigned long previousMillis10 = 0;     // will store last time a 10ms CAN Message was send
+static unsigned long previousMillis1s = 0;     // will store last time a 1s CAN Message was send
+static unsigned long previousMillis100ms = 0;  // will store last time a 100ms CAN Message was send
 
 #define MAX_CELL_VOLTAGE 4250  //Battery is put into emergency stop if one cell goes over this value
 #define MIN_CELL_VOLTAGE 2950  //Battery is put into emergency stop if one cell goes below this value
@@ -178,6 +180,38 @@ CAN_frame MEB_ACK_FRAME = {.FD = true,
                            .DLC = 8,
                            .ID = 0x1C40007B,  // Ack
                            .data = {0x30, 0x00, 0x00, 0x55, 0x55, 0x55, 0x55, 0x55}};
+//Messages that might be needed for contactor closing
+CAN_frame MEB_1A555564 = {.FD = true,
+                          .ext_ID = true,
+                          .DLC = 8,
+                          .ID = 0x1A555564,
+                          .data = {0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0}};
+CAN_frame MEB_12DD5513 = {.FD = true,
+                          .ext_ID = true,
+                          .DLC = 8,
+                          .ID = 0x12DD5513,
+                          .data = {0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0}};
+CAN_frame MEB_16A954FA = {
+    .FD = true,
+    .ext_ID = true,
+    .DLC = 16,
+    .ID = 0x16A954FA,
+    .data = {0x00, 0x00, 0xD0, 0x01, 0x00, 0x00, 0x70, 0x00, 0x00, 0x00, 0x00, 0x09, 0x00, 0x00, 0x00, 0x00}};
+CAN_frame MEB_12DD54D0 = {.FD = true,
+                          .ext_ID = true,
+                          .DLC = 8,
+                          .ID = 0x12DD54D0,
+                          .data = {0x00, 0x50, 0xF2, 0x9A, 0xD0, 0xDC, 0x49, 0x2D}};
+CAN_frame MEB_12DD54D1 = {.FD = true,
+                          .ext_ID = true,
+                          .DLC = 8,
+                          .ID = 0x12DD54D1,
+                          .data = {0x00, 0x80, 0x00, 0x87, 0x3E, 0xFA, 0x9A, 0x1B}};
+CAN_frame MEB_12DD54D2 = {.FD = true,
+                          .ext_ID = true,
+                          .DLC = 8,
+                          .ID = 0x12DD54D2,
+                          .data = {0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0}};
 
 void update_values_battery() {  //This function maps all the values fetched via CAN to the correct parameters used for modbus
 
@@ -244,6 +278,10 @@ void update_values_battery() {  //This function maps all the values fetched via 
 void receive_can_battery(CAN_frame rx_frame) {
   datalayer.battery.status.CAN_battery_still_alive = CAN_STILL_ALIVE;
   switch (rx_frame.ID) {
+    case 0x17F0007B:  // Suspected to be from BMS
+      break;
+    case 0x17FE007B:  // Suspected to be from BMS
+      break;
     case 0xCF:  //BMS_20 , TODO: confirm location for all these
       BMS_20_CRC = rx_frame.data.u8[0];
       BMS_20_BZ = (rx_frame.data.u8[1] & 0x0F);
@@ -718,10 +756,30 @@ void receive_can_battery(CAN_frame rx_frame) {
 
 void send_can_battery() {
   unsigned long currentMillis = millis();
+  // Send 10ms CAN Message
+  if (currentMillis - previousMillis10 >= INTERVAL_10_MS) {
+    // Check if sending of CAN messages has been delayed too much.
+    if ((currentMillis - previousMillis10 >= INTERVAL_10_MS_DELAYED) && (currentMillis > BOOTUP_TIME)) {
+      set_event(EVENT_CAN_OVERRUN, (currentMillis - previousMillis10));
+    } else {
+      clear_event(EVENT_CAN_OVERRUN);
+    }
+    previousMillis10 = currentMillis;
+  }
+  // Send 100ms CAN Message
+  if (currentMillis - previousMillis100ms >= INTERVAL_100_MS) {
+    previousMillis100ms = currentMillis;
 
+    transmit_can(&MEB_12DD5513, can_config.battery);
+    transmit_can(&MEB_12DD54D0, can_config.battery);
+    transmit_can(&MEB_12DD54D1, can_config.battery);
+    transmit_can(&MEB_12DD54D2, can_config.battery);
+  }
   //Send 200ms message
   if (currentMillis - previousMillis200 >= INTERVAL_200_MS) {
     previousMillis200 = currentMillis;
+
+    transmit_can(&MEB_16A954FA, can_config.battery);
 
     switch (poll_pid) {
       case PID_SOC:
@@ -1210,15 +1268,11 @@ void send_can_battery() {
 
     transmit_can(&MEB_POLLING_FRAME, can_config.battery);
   }
-  // Send 10ms CAN Message
-  if (currentMillis - previousMillis10 >= INTERVAL_10_MS) {
-    // Check if sending of CAN messages has been delayed too much.
-    if ((currentMillis - previousMillis10 >= INTERVAL_10_MS_DELAYED) && (currentMillis > BOOTUP_TIME)) {
-      set_event(EVENT_CAN_OVERRUN, (currentMillis - previousMillis10));
-    } else {
-      clear_event(EVENT_CAN_OVERRUN);
-    }
-    previousMillis10 = currentMillis;
+
+  //Send 1s CANFD message
+  if (currentMillis - previousMillis1s >= INTERVAL_1_S) {
+    previousMillis1s = currentMillis;
+    transmit_can(&MEB_1A555564, can_config.battery);
   }
 }
 
