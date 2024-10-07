@@ -166,6 +166,23 @@ void init_webserver() {
     }
   });
 
+  // Route for equipment stop/resume
+  server.on("/equipmentStop", HTTP_GET, [](AsyncWebServerRequest* request) {
+    if (WEBSERVER_AUTH_REQUIRED && !request->authenticate(http_username, http_password))
+      return request->requestAuthentication();
+    if (request->hasParam("stop")) {
+      String valueStr = request->getParam("stop")->value();
+      if (valueStr == "true" || valueStr == "1") {
+        setBatteryPause(true, true, true);
+      } else {
+        setBatteryPause(false, false, false);
+      }
+      request->send(200, "text/plain", "Updated successfully");
+    } else {
+      request->send(400, "text/plain", "Bad Request");
+    }
+  });
+
   // Route for editing SOCMin
   server.on("/updateSocMin", HTTP_GET, [](AsyncWebServerRequest* request) {
     if (WEBSERVER_AUTH_REQUIRED && !request->authenticate(http_username, http_password))
@@ -327,7 +344,10 @@ void init_webserver() {
     if (WEBSERVER_AUTH_REQUIRED && !request->authenticate(http_username, http_password))
       return request->requestAuthentication();
     request->send(200, "text/plain", "Rebooting server...");
-    //TODO: Should we handle contactors gracefully? Ifdef CONTACTOR_CONTROL then what?
+
+    //Equipment STOP without persisting the equipment state before restart
+    // Max Charge/Discharge = 0; CAN = stop; contactors = open
+    setBatteryPause(true, true, true, false);
     delay(1000);
     ESP.restart();
   });
@@ -834,7 +854,10 @@ String processor(const String& var) {
     if (emulator_pause_request_ON)
       content += "<button onclick='PauseBattery(false)'>Resume charge/discharge</button>";
     else
-      content += "<button onclick='PauseBattery(true)'>Pause charge/discharge</button>";
+      content +=
+          "<button onclick=\"if(confirm('Are you sure you want to pause charging and discharging? This will set the "
+          "maximum charge and discharge values to zero, preventing any further power flow.')) { PauseBattery(true); "
+          "}\">Pause charge/discharge</button>";
     content += " ";
     content += "<button onclick='OTA()'>Perform OTA update</button>";
     content += " ";
@@ -847,6 +870,21 @@ String processor(const String& var) {
     content += "<button onclick='askReboot()'>Reboot Emulator</button>";
     if (WEBSERVER_AUTH_REQUIRED)
       content += "<button onclick='logout()'>Logout</button>";
+    if (!datalayer.system.settings.equipment_stop_active)
+      content +=
+          "<br/><br/><button style=\"background:red;color:white;cursor:pointer;\""
+          " onclick=\""
+          "if(confirm('This action will open contactors on the battery and stop all CAN communications. Are you "
+          "sure?')) { estop(true); }\""
+          ">Open Contactors</button><br/>";
+    else
+      content +=
+          "<br/><br/><button style=\"background:green;color:white;cursor:pointer;\""
+          "20px;font-size:16px;font-weight:bold;cursor:pointer;border-radius:5px; margin:10px;"
+          " onclick=\""
+          "if(confirm('This action will restore the battery state. Are you sure?')) { estop(false); }\""
+          ">Close Contactors</button><br/>";
+
     content += "<script>";
     content += "function OTA() { window.location.href = '/update'; }";
     content += "function Cellmon() { window.location.href = '/cellmonitor'; }";
@@ -875,7 +913,12 @@ String processor(const String& var) {
         "XMLHttpRequest();xhr.onload=function() { "
         "window.location.reload();};xhr.open('GET','/pause?p='+pause,true);xhr.send();";
     content += "}";
-
+    content += "function estop(stop){";
+    content +=
+        "var xhr=new "
+        "XMLHttpRequest();xhr.onload=function() { "
+        "window.location.reload();};xhr.open('GET','/equipmentStop?stop='+stop,true);xhr.send();";
+    content += "}";
     content += "</script>";
 
     //Script for refreshing page
@@ -899,9 +942,6 @@ void onOTAStart() {
   clear_event(EVENT_OTA_UPDATE_TIMEOUT);
   ota_active = true;
 
-  //completely force stop the CAN communication
-  ESP32Can.CANStop();
-
   ota_timeout_timer.reset();
 }
 
@@ -924,6 +964,9 @@ void onOTAEnd(bool success) {
 
   // Log when OTA has finished
   if (success) {
+    //Equipment STOP without persisting the equipment state before restart
+    // Max Charge/Discharge = 0; CAN = stop; contactors = open
+    setBatteryPause(true, true, true, false);
     // a reboot will be done by the OTA library. no need to do anything here
 #ifdef DEBUG_VIA_USB
     Serial.println("OTA update finished successfully!");
@@ -934,8 +977,6 @@ void onOTAEnd(bool success) {
 #endif  // DEBUG_VIA_USB
     //try to Resume the battery pause and CAN communication
     setBatteryPause(false, false);
-    //resume CAN communication
-    ESP32Can.CANInit();
   }
 }
 

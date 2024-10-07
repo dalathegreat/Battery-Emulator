@@ -54,6 +54,15 @@ void update_machineryprotection() {
     clear_event(EVENT_BATTERY_UNDERVOLTAGE);
   }
 
+  // Cell overvoltage, critical latching error without automatic reset. Requires user action.
+  if (datalayer.battery.status.cell_max_voltage_mV >= datalayer.battery.info.max_cell_voltage_mV) {
+    set_event(EVENT_CELL_OVER_VOLTAGE, 0);
+  }
+  // Cell undervoltage, critical latching error without automatic reset. Requires user action.
+  if (datalayer.battery.status.cell_min_voltage_mV <= datalayer.battery.info.min_cell_voltage_mV) {
+    set_event(EVENT_CELL_UNDER_VOLTAGE, 0);
+  }
+
   // Battery is fully charged. Dont allow any more power into it
   // Normally the BMS will send 0W allowed, but this acts as an additional layer of safety
   if (datalayer.battery.status.reported_soc == 10000)  //Scaled SOC% value is 100.00%
@@ -103,7 +112,7 @@ void update_machineryprotection() {
 
   // Check diff between highest and lowest cell
   cell_deviation_mV = (datalayer.battery.status.cell_max_voltage_mV - datalayer.battery.status.cell_min_voltage_mV);
-  if (cell_deviation_mV > MAX_CELL_DEVIATION_MV) {
+  if (cell_deviation_mV > datalayer.battery.info.max_cell_voltage_deviation_mV) {
     set_event(EVENT_CELL_DEVIATION_HIGH, (cell_deviation_mV / 20));
   } else {
     clear_event(EVENT_CELL_DEVIATION_HIGH);
@@ -175,6 +184,23 @@ void update_machineryprotection() {
     clear_event(EVENT_CAN_RX_WARNING);
   }
 
+  // Cell overvoltage, critical latching error without automatic reset. Requires user action.
+  if (datalayer.battery2.status.cell_max_voltage_mV >= datalayer.battery2.info.max_cell_voltage_mV) {
+    set_event(EVENT_CELL_OVER_VOLTAGE, 0);
+  }
+  // Cell undervoltage, critical latching error without automatic reset. Requires user action.
+  if (datalayer.battery2.status.cell_min_voltage_mV <= datalayer.battery2.info.min_cell_voltage_mV) {
+    set_event(EVENT_CELL_UNDER_VOLTAGE, 0);
+  }
+
+  // Check diff between highest and lowest cell
+  cell_deviation_mV = (datalayer.battery2.status.cell_max_voltage_mV - datalayer.battery2.status.cell_min_voltage_mV);
+  if (cell_deviation_mV > datalayer.battery2.info.max_cell_voltage_deviation_mV) {
+    set_event(EVENT_CELL_DEVIATION_HIGH, (cell_deviation_mV / 20));
+  } else {
+    clear_event(EVENT_CELL_DEVIATION_HIGH);
+  }
+
   // Check if SOH% between the packs is too large
   if ((datalayer.battery.status.soh_pptt != 9900) && (datalayer.battery2.status.soh_pptt != 9900)) {
     // Both values available, check diff
@@ -196,7 +222,23 @@ void update_machineryprotection() {
 }
 
 //battery pause status begin
-void setBatteryPause(bool pause_battery, bool pause_CAN) {
+void setBatteryPause(bool pause_battery, bool pause_CAN, bool equipment_stop, bool store_settings) {
+
+  // First handle equipment stop / resume
+  if (equipment_stop && !datalayer.system.settings.equipment_stop_active) {
+    datalayer.system.settings.equipment_stop_active = true;
+    if (store_settings) {
+      store_settings_equipment_stop();
+    }
+
+    set_event(EVENT_EQUIPMENT_STOP, 1);
+  } else if (!equipment_stop && datalayer.system.settings.equipment_stop_active) {
+    datalayer.system.settings.equipment_stop_active = false;
+    if (store_settings) {
+      store_settings_equipment_stop();
+    }
+    clear_event(EVENT_EQUIPMENT_STOP);
+  }
 
   emulator_pause_CAN_send_ON = pause_CAN;
 
@@ -228,6 +270,7 @@ void setBatteryPause(bool pause_battery, bool pause_CAN) {
 /// @brief handle emulator pause status
 /// @return true if CAN messages should be sent to battery, false if not
 void emulator_pause_state_send_CAN_battery() {
+  bool previous_allowed_to_send_CAN = allowed_to_send_CAN;
 
   if (emulator_pause_status == NORMAL) {
     allowed_to_send_CAN = true;
@@ -245,6 +288,14 @@ void emulator_pause_state_send_CAN_battery() {
   }
 
   allowed_to_send_CAN = (!emulator_pause_CAN_send_ON || emulator_pause_status == NORMAL);
+
+  if (previous_allowed_to_send_CAN && !allowed_to_send_CAN) {
+    //completely force stop the CAN communication
+    ESP32Can.CANStop();
+  } else if (!previous_allowed_to_send_CAN && allowed_to_send_CAN) {
+    //resume CAN communication
+    ESP32Can.CANInit();
+  }
 }
 
 std::string get_emulator_pause_status() {

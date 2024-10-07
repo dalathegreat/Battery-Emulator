@@ -149,7 +149,7 @@ void init_events(void) {
   events.entries[EVENT_CANFD_RX_FAILURE].level = EVENT_LEVEL_ERROR;
   events.entries[EVENT_CAN_RX_WARNING].level = EVENT_LEVEL_WARNING;
   events.entries[EVENT_CAN_TX_FAILURE].level = EVENT_LEVEL_ERROR;
-  events.entries[EVENT_CAN_INVERTER_MISSING].level = EVENT_LEVEL_ERROR;
+  events.entries[EVENT_CAN_INVERTER_MISSING].level = EVENT_LEVEL_WARNING;
   events.entries[EVENT_WATER_INGRESS].level = EVENT_LEVEL_ERROR;
   events.entries[EVENT_CHARGE_LIMIT_EXCEEDED].level = EVENT_LEVEL_INFO;
   events.entries[EVENT_DISCHARGE_LIMIT_EXCEEDED].level = EVENT_LEVEL_INFO;
@@ -215,6 +215,7 @@ void init_events(void) {
   events.entries[EVENT_WIFI_DISCONNECT].level = EVENT_LEVEL_INFO;
   events.entries[EVENT_MQTT_CONNECT].level = EVENT_LEVEL_INFO;
   events.entries[EVENT_MQTT_DISCONNECT].level = EVENT_LEVEL_INFO;
+  events.entries[EVENT_EQUIPMENT_STOP].level = EVENT_LEVEL_ERROR;
 
   events.entries[EVENT_EEPROM_WRITE].log = false;  // Don't log the logger...
 
@@ -278,7 +279,7 @@ const char* get_event_message_string(EVENTS_ENUM_TYPE event) {
     case EVENT_CAN_TX_FAILURE:
       return "ERROR: CAN messages failed to transmit, or no one on the bus to ACK the message!";
     case EVENT_CAN_INVERTER_MISSING:
-      return "ERROR: Inverter missing on CAN bus! Check wiring!";
+      return "Warning: Inverter not sending messages on CAN bus. Check wiring!";
     case EVENT_CHARGE_LIMIT_EXCEEDED:
       return "Info: Inverter is charging faster than battery is allowing.";
     case EVENT_DISCHARGE_LIMIT_EXCEEDED:
@@ -417,6 +418,8 @@ const char* get_event_message_string(EVENTS_ENUM_TYPE event) {
       return "Info: MQTT connected.";
     case EVENT_MQTT_DISCONNECT:
       return "Info: MQTT disconnected.";
+    case EVENT_EQUIPMENT_STOP:
+      return "ERROR: EQUIPMENT STOP ACTIVATED!!!";
     default:
       return "";
   }

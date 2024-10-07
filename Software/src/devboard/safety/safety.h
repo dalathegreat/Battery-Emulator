@@ -2,6 +2,7 @@
 #define SAFETY_H
 #include <Arduino.h>
 #include <string>
+#include "../../lib/miwagner-ESP32-Arduino-CAN/ESP32CAN.h"
 
 #define MAX_CAN_FAILURES 50
 
@@ -15,10 +16,12 @@ extern battery_pause_status emulator_pause_status;
 extern bool allowed_to_send_CAN;
 //battery pause status end
 
+extern void store_settings_equipment_stop();
+
 void update_machineryprotection();
 
 //battery pause status begin
-void setBatteryPause(bool pause_battery, bool pause_CAN);
+void setBatteryPause(bool pause_battery, bool pause_CAN, bool equipment_stop = false, bool store_settings = true);
 void emulator_pause_state_send_CAN_battery();
 std::string get_emulator_pause_status();
 //battery pause status end

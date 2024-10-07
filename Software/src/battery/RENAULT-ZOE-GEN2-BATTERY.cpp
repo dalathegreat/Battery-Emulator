@@ -59,13 +59,6 @@ void update_values_battery() {  //This function maps all the values fetched via 
 
   datalayer.battery.status.cell_max_voltage_mV;
 
-  if (LB_Cell_Max_Voltage >= ABSOLUTE_CELL_MAX_VOLTAGE) {
-    set_event(EVENT_CELL_OVER_VOLTAGE, 0);
-  }
-  if (LB_Cell_Min_Voltage <= ABSOLUTE_CELL_MIN_VOLTAGE) {
-    set_event(EVENT_CELL_UNDER_VOLTAGE, 0);
-  }
-
 #ifdef DEBUG_VIA_USB
 
 #endif
@@ -99,9 +92,13 @@ void setup_battery(void) {  // Performs one time setup at startup
 #ifdef DEBUG_VIA_USB
   Serial.println("Renault Zoe 50kWh battery selected");
 #endif
-
-  datalayer.battery.info.max_design_voltage_dV = 4040;
-  datalayer.battery.info.min_design_voltage_dV = 3100;
+  datalayer.system.status.battery_allows_contactor_closing = true;
+  datalayer.battery.info.number_of_cells = 96;
+  datalayer.battery.info.max_design_voltage_dV = MAX_PACK_VOLTAGE_DV;
+  datalayer.battery.info.min_design_voltage_dV = MIN_PACK_VOLTAGE_DV;
+  datalayer.battery.info.max_cell_voltage_mV = MAX_CELL_VOLTAGE_MV;
+  datalayer.battery.info.min_cell_voltage_mV = MIN_CELL_VOLTAGE_MV;
+  datalayer.battery.info.max_cell_voltage_deviation_mV = MAX_CELL_DEVIATION_MV;
 }
 
 #endif

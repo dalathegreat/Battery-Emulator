@@ -11,6 +11,7 @@
 #include "freertos/FreeRTOS.h"
 #include "freertos/task.h"
 #include "src/charger/CHARGERS.h"
+#include "src/datalayer/datalayer.h"
 #include "src/devboard/utils/events.h"
 #include "src/devboard/utils/led_handler.h"
 #include "src/devboard/utils/value_mapping.h"
@@ -22,8 +23,6 @@
 #include "src/lib/eModbus-eModbus/scripts/mbServerFCs.h"
 #include "src/lib/miwagner-ESP32-Arduino-CAN/CAN_config.h"
 #include "src/lib/miwagner-ESP32-Arduino-CAN/ESP32CAN.h"
-
-#include "src/datalayer/datalayer.h"
 
 #ifdef WIFI
 #include "src/devboard/wifi/wifi.h"
@@ -48,9 +47,13 @@
 #endif
 #endif
 
+#ifdef EQUIPMENT_STOP_BUTTON
+#include "src/devboard/utils/debounce_button.h"
+#endif
+
 Preferences settings;  // Store user settings
 // The current software version, shown on webserver
-const char* version_number = "7.4.0";
+const char* version_number = "7.5.dev";
 
 // Interval settings
 uint16_t intervalUpdateValues = INTERVAL_5_S;  // Interval at which to update inverter values / Modbus registers
@@ -64,7 +67,7 @@ volatile bool send_ok = 0;
 
 #ifdef DUAL_CAN
 #include "src/lib/pierremolinaro-acan2515/ACAN2515.h"
-static const uint32_t QUARTZ_FREQUENCY = 8UL * 1000UL * 1000UL;  // 8 MHz
+static const uint32_t QUARTZ_FREQUENCY = CRYSTAL_FREQUENCY_MHZ * 1000000UL;  //MHZ configured in USER_SETTINGS.h
 ACAN2515 can(MCP2515_CS, SPI, MCP2515_INT);
 static ACAN2515_Buffer16 gBuffer;
 #endif
@@ -135,6 +138,14 @@ unsigned long negativeStartTime = 0;
 unsigned long timeSpentInFaultedMode = 0;
 #endif
 
+#ifdef EQUIPMENT_STOP_BUTTON
+const unsigned long equipment_button_long_press_duration =
+    15000;                                                     // 15 seconds for long press in case of MOMENTARY_SWITCH
+const unsigned long equipment_button_debounce_duration = 200;  // 250ms for debouncing the button
+unsigned long timeSincePress = 0;                              // Variable to store the time since the last press
+DebouncedButton equipment_stop_button;                         // Debounced button object
+#endif
+
 TaskHandle_t main_loop_task;
 TaskHandle_t connectivity_loop_task;
 
@@ -163,6 +174,9 @@ void setup() {
 
   init_battery();
 
+#ifdef EQUIPMENT_STOP_BUTTON
+  init_equipment_stop_button();
+#endif
   // BOOT button at runtime is used as an input for various things
   pinMode(0, INPUT_PULLUP);
 
@@ -235,6 +249,10 @@ void core_loop(void* task_time_us) {
   while (true) {
     START_TIME_MEASUREMENT(all);
     START_TIME_MEASUREMENT(comm);
+#ifdef EQUIPMENT_STOP_BUTTON
+    monitor_equipment_stop_button();
+#endif
+
     // Input, Runs as fast as possible
     receive_can_native();  // Receive CAN messages from native CAN port
 #ifdef CAN_FD
@@ -334,10 +352,21 @@ void init_serial() {
 }
 
 void init_stored_settings() {
+  static uint32_t temp = 0;
   settings.begin("batterySettings", false);
+
+  // Always get the equipment stop status
+  datalayer.system.settings.equipment_stop_active = settings.getBool("EQUIPMENT_STOP", false);
+  if (datalayer.system.settings.equipment_stop_active) {
+    set_event(EVENT_EQUIPMENT_STOP, 1);
+  }
 
 #ifndef LOAD_SAVED_SETTINGS_ON_BOOT
   settings.clear();  // If this clear function is executed, no settings will be read from storage
+
+  //always save the equipment stop status
+  settings.putBool("EQUIPMENT_STOP", datalayer.system.settings.equipment_stop_active);
+
 #endif
 
 #ifdef WIFI
@@ -356,7 +385,6 @@ void init_stored_settings() {
   }
 #endif
 
-  static uint32_t temp = 0;
   temp = settings.getUInt("BATTERY_WH_MAX", false);
   if (temp != 0) {
     datalayer.battery.info.total_capacity_Wh = temp;
@@ -547,6 +575,43 @@ void init_battery() {
 #endif
 }
 
+#ifdef EQUIPMENT_STOP_BUTTON
+
+void monitor_equipment_stop_button() {
+
+  ButtonState changed_state = debounceButton(equipment_stop_button, timeSincePress);
+
+  if (equipment_stop_behavior == LATCHING_SWITCH) {
+    if (changed_state == PRESSED) {
+      // Changed to ON – initiating equipment stop.
+      setBatteryPause(true, true, true);
+    } else if (changed_state == RELEASED) {
+      // Changed to OFF – ending equipment stop.
+      setBatteryPause(false, false, false);
+    }
+  } else if (equipment_stop_behavior == MOMENTARY_SWITCH) {
+    if (changed_state == RELEASED) {  // button is released
+
+      if (timeSincePress < equipment_button_long_press_duration) {
+        // Short press detected, trigger equipment stop
+        setBatteryPause(true, true, true);
+      } else {
+        // Long press detected, reset equipment stop state
+        setBatteryPause(false, false, false);
+      }
+    }
+  }
+}
+
+void init_equipment_stop_button() {
+  //using external pullup resistors NC
+  pinMode(EQUIPMENT_STOP_PIN, INPUT);
+  // Initialize the debounced button with NC switch type and equipment_button_debounce_duration debounce time
+  initDebouncedButton(equipment_stop_button, EQUIPMENT_STOP_PIN, NC, equipment_button_debounce_duration);
+}
+
+#endif
+
 #ifdef CAN_FD
 // Functions
 #ifdef DEBUG_CANFD_DATA
@@ -581,6 +646,7 @@ void receive_canfd() {  // This section checks if we have a complete CAN-FD mess
     }
     //message incoming, pass it on to the handler
     receive_can(&rx_frame, CAN_ADDON_FD_MCP2518);
+    receive_can(&rx_frame, CANFD_NATIVE);
   }
 }
 #endif
@@ -672,8 +738,13 @@ void handle_contactors() {
     timeSpentInFaultedMode = 0;
   }
 
-  if (timeSpentInFaultedMode > MAX_ALLOWED_FAULT_TICKS) {
+  //handle contactor control SHUTDOWN_REQUESTED vs DISCONNECTED
+  if (timeSpentInFaultedMode > MAX_ALLOWED_FAULT_TICKS ||
+      (datalayer.system.settings.equipment_stop_active && contactorStatus != SHUTDOWN_REQUESTED)) {
     contactorStatus = SHUTDOWN_REQUESTED;
+  }
+  if (contactorStatus == SHUTDOWN_REQUESTED && !datalayer.system.settings.equipment_stop_active) {
+    contactorStatus = DISCONNECTED;
   }
   if (contactorStatus == SHUTDOWN_REQUESTED) {
     digitalWrite(PRECHARGE_PIN, LOW);
@@ -844,6 +915,12 @@ void init_serialDataLink() {
 #if defined(SERIAL_LINK_RECEIVER) || defined(SERIAL_LINK_TRANSMITTER)
   Serial2.begin(9600, SERIAL_8N1, RS485_RX_PIN, RS485_TX_PIN);
 #endif
+}
+
+void store_settings_equipment_stop() {
+  settings.begin("batterySettings", false);
+  settings.putBool("EQUIPMENT_STOP", datalayer.system.settings.equipment_stop_active);
+  settings.end();
 }
 
 void storeSettings() {
