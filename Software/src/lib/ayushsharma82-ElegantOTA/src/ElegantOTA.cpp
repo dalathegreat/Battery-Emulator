@@ -45,12 +45,6 @@ void ElegantOTAClass::begin(ELEGANTOTA_WEBSERVER *server, const char * username,
 
       // Pre-OTA update callback
       if (preUpdateCallback != NULL) preUpdateCallback();
-      
-     // Sleep for 3 seconds to allow asynchronous preUpdateCallback tasks to complete
-      unsigned long sleepStart = millis();
-      while (millis() - sleepStart < 3000) { // Sleep for 3 second
-        delay(1); // Yield to other tasks
-      }
 
       // Get header x-ota-mode value, if present
       OTA_Mode mode = OTA_MODE_FIRMWARE;

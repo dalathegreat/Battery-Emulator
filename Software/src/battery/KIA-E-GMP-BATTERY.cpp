@@ -15,9 +15,6 @@ static unsigned long previousMillis500ms = 0;  // will store last time a 500ms C
 static unsigned long previousMillis1s = 0;     // will store last time a 1s CAN Message was send
 static unsigned long previousMillis10s = 0;    // will store last time a 10s CAN Message was send
 
-#define MAX_CELL_VOLTAGE 4250  //Battery is put into emergency stop if one cell goes over this value
-#define MIN_CELL_VOLTAGE 2950  //Battery is put into emergency stop if one cell goes below this value
-
 const unsigned char crc8_table[256] =
     {  // CRC8_SAE_J1850_ZER0 formula,0x1D Poly,initial value 0x3F,Final XOR value varies
         0x00, 0x1D, 0x3A, 0x27, 0x74, 0x69, 0x4E, 0x53, 0xE8, 0xF5, 0xD2, 0xCF, 0x9C, 0x81, 0xA6, 0xBB, 0xCD, 0xD0,
@@ -864,14 +861,6 @@ void update_values_battery() {  //This function maps all the values fetched via 
     set_event(EVENT_12V_LOW, leadAcidBatteryVoltage);
   }
 
-  // Check if cell voltages are within allowed range
-  if (CellVoltMax_mV >= MAX_CELL_VOLTAGE) {
-    set_event(EVENT_CELL_OVER_VOLTAGE, 0);
-  }
-  if (CellVoltMin_mV <= MIN_CELL_VOLTAGE) {
-    set_event(EVENT_CELL_UNDER_VOLTAGE, 0);
-  }
-
   /* Safeties verified. Perform USB serial printout if configured to do so */
 
 #ifdef DEBUG_VIA_USB
@@ -1239,11 +1228,10 @@ void setup_battery(void) {  // Performs one time setup at startup
   datalayer.system.status.battery_allows_contactor_closing = true;
 
   datalayer.battery.info.number_of_cells = 192;  // TODO: will vary depending on battery
-
-  datalayer.battery.info.max_design_voltage_dV =
-      8064;  // TODO: define when battery is known, charging is not possible (goes into forced discharge)
-  datalayer.battery.info.min_design_voltage_dV =
-      4320;  // TODO: define when battery is known. discharging further is disabled
+  datalayer.battery.info.max_design_voltage_dV = MAX_PACK_VOLTAGE_DV;
+  datalayer.battery.info.min_design_voltage_dV = MIN_PACK_VOLTAGE_DV;
+  datalayer.battery.info.max_cell_voltage_mV = MAX_CELL_VOLTAGE_MV;
+  datalayer.battery.info.min_cell_voltage_mV = MIN_CELL_VOLTAGE_MV;
 }
 
 #endif

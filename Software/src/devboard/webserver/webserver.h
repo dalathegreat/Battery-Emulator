@@ -102,7 +102,7 @@ void onOTAEnd(bool success);
  * @return string: values
  */
 template <typename T>
-String formatPowerValue(String label, T value, String unit, int precision);
+String formatPowerValue(String label, T value, String unit, int precision, String color = "white");
 
 extern void storeSettings();
 

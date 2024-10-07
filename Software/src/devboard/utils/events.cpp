@@ -141,6 +141,7 @@ void init_events(void) {
   }
 
   events.entries[EVENT_CANFD_INIT_FAILURE].level = EVENT_LEVEL_WARNING;
+  events.entries[EVENT_CANMCP_INIT_FAILURE].level = EVENT_LEVEL_WARNING;
   events.entries[EVENT_CANFD_BUFFER_FULL].level = EVENT_LEVEL_WARNING;
   events.entries[EVENT_CAN_OVERRUN].level = EVENT_LEVEL_INFO;
   events.entries[EVENT_CAN_RX_FAILURE].level = EVENT_LEVEL_ERROR;
@@ -148,6 +149,7 @@ void init_events(void) {
   events.entries[EVENT_CANFD_RX_FAILURE].level = EVENT_LEVEL_ERROR;
   events.entries[EVENT_CAN_RX_WARNING].level = EVENT_LEVEL_WARNING;
   events.entries[EVENT_CAN_TX_FAILURE].level = EVENT_LEVEL_ERROR;
+  events.entries[EVENT_CAN_INVERTER_MISSING].level = EVENT_LEVEL_WARNING;
   events.entries[EVENT_WATER_INGRESS].level = EVENT_LEVEL_ERROR;
   events.entries[EVENT_CHARGE_LIMIT_EXCEEDED].level = EVENT_LEVEL_INFO;
   events.entries[EVENT_DISCHARGE_LIMIT_EXCEEDED].level = EVENT_LEVEL_INFO;
@@ -213,6 +215,7 @@ void init_events(void) {
   events.entries[EVENT_WIFI_DISCONNECT].level = EVENT_LEVEL_INFO;
   events.entries[EVENT_MQTT_CONNECT].level = EVENT_LEVEL_INFO;
   events.entries[EVENT_MQTT_DISCONNECT].level = EVENT_LEVEL_INFO;
+  events.entries[EVENT_EQUIPMENT_STOP].level = EVENT_LEVEL_ERROR;
 
   events.entries[EVENT_EEPROM_WRITE].log = false;  // Don't log the logger...
 
@@ -236,6 +239,21 @@ void clear_event(EVENTS_ENUM_TYPE event) {
   }
 }
 
+void reset_all_events() {
+  events.nof_logged_events = 0;
+  for (uint16_t i = 0; i < EVENT_NOF_EVENTS; i++) {
+    events.entries[i].data = 0;
+    events.entries[i].state = EVENT_STATE_INACTIVE;
+    events.entries[i].timestamp = 0;
+    events.entries[i].millisrolloverCount = 0;
+    events.entries[i].occurences = 0;
+    events.entries[i].log = true;
+    events.entries[i].MQTTpublished = false;  // Not published by default
+  }
+  events.level = EVENT_LEVEL_INFO;
+  update_bms_status();
+}
+
 void set_event_MQTTpublished(EVENTS_ENUM_TYPE event) {
   events.entries[event].MQTTpublished = true;
 }
@@ -244,6 +262,8 @@ const char* get_event_message_string(EVENTS_ENUM_TYPE event) {
   switch (event) {
     case EVENT_CANFD_INIT_FAILURE:
       return "CAN-FD initialization failed. Check hardware or bitrate settings";
+    case EVENT_CANMCP_INIT_FAILURE:
+      return "CAN-MCP addon initialization failed. Check hardware";
     case EVENT_CANFD_BUFFER_FULL:
       return "CAN-FD buffer overflowed. Some CAN messages were not sent. Contact developers.";
     case EVENT_CAN_OVERRUN:
@@ -258,6 +278,8 @@ const char* get_event_message_string(EVENTS_ENUM_TYPE event) {
       return "ERROR: High amount of corrupted CAN messages detected. Check CAN wire shielding!";
     case EVENT_CAN_TX_FAILURE:
       return "ERROR: CAN messages failed to transmit, or no one on the bus to ACK the message!";
+    case EVENT_CAN_INVERTER_MISSING:
+      return "Warning: Inverter not sending messages on CAN bus. Check wiring!";
     case EVENT_CHARGE_LIMIT_EXCEEDED:
       return "Info: Inverter is charging faster than battery is allowing.";
     case EVENT_DISCHARGE_LIMIT_EXCEEDED:
@@ -396,6 +418,8 @@ const char* get_event_message_string(EVENTS_ENUM_TYPE event) {
       return "Info: MQTT connected.";
     case EVENT_MQTT_DISCONNECT:
       return "Info: MQTT disconnected.";
+    case EVENT_EQUIPMENT_STOP:
+      return "ERROR: EQUIPMENT STOP ACTIVATED!!!";
     default:
       return "";
   }

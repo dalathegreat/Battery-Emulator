@@ -15,6 +15,10 @@
 #include "BYD-SMA.h"
 #endif
 
+#ifdef FOXESS_CAN
+#include "FOXESS-CAN.h"
+#endif
+
 #ifdef PYLON_CAN
 #include "PYLON-CAN.h"
 #endif

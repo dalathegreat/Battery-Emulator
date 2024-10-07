@@ -63,6 +63,18 @@ void init_webserver() {
     request->send_P(200, "text/html", index_html, events_processor);
   });
 
+  // Route for clearing all events
+  server.on("/clearevents", HTTP_GET, [](AsyncWebServerRequest* request) {
+    if (WEBSERVER_AUTH_REQUIRED && !request->authenticate(http_username, http_password))
+      return request->requestAuthentication();
+    reset_all_events();
+    // Send back a response that includes an instant redirect to /events
+    String response = "<html><body>";
+    response += "<script>window.location.href = '/events';</script>";  // Instant redirect
+    response += "</body></html>";
+    request->send(200, "text/html", response);
+  });
+
   // Route for editing SSID
   server.on("/updateSSID", HTTP_GET, [](AsyncWebServerRequest* request) {
     if (WEBSERVER_AUTH_REQUIRED && !request->authenticate(http_username, http_password))
@@ -148,6 +160,23 @@ void init_webserver() {
     if (request->hasParam("p")) {
       String valueStr = request->getParam("p")->value();
       setBatteryPause(valueStr == "true" || valueStr == "1", false);
+      request->send(200, "text/plain", "Updated successfully");
+    } else {
+      request->send(400, "text/plain", "Bad Request");
+    }
+  });
+
+  // Route for equipment stop/resume
+  server.on("/equipmentStop", HTTP_GET, [](AsyncWebServerRequest* request) {
+    if (WEBSERVER_AUTH_REQUIRED && !request->authenticate(http_username, http_password))
+      return request->requestAuthentication();
+    if (request->hasParam("stop")) {
+      String valueStr = request->getParam("stop")->value();
+      if (valueStr == "true" || valueStr == "1") {
+        setBatteryPause(true, true, true);
+      } else {
+        setBatteryPause(false, false, false);
+      }
       request->send(200, "text/plain", "Updated successfully");
     } else {
       request->send(400, "text/plain", "Bad Request");
@@ -315,7 +344,10 @@ void init_webserver() {
     if (WEBSERVER_AUTH_REQUIRED && !request->authenticate(http_username, http_password))
       return request->requestAuthentication();
     request->send(200, "text/plain", "Rebooting server...");
-    //TODO: Should we handle contactors gracefully? Ifdef CONTACTOR_CONTROL then what?
+
+    //Equipment STOP without persisting the equipment state before restart
+    // Max Charge/Discharge = 0; CAN = stop; contactors = open
+    setBatteryPause(true, true, true, false);
     delay(1000);
     ESP.restart();
   });
@@ -451,6 +483,9 @@ String processor(const String& var) {
 #ifdef BYD_MODBUS
     content += "BYD 11kWh HVM battery over Modbus RTU";
 #endif  // BYD_MODBUS
+#ifdef FOXESS_CAN
+    content += "FoxESS compatible HV2600/ECS4100 battery";
+#endif  // FOXESS_CAN
 #ifdef PYLON_CAN
     content += "Pylontech battery over CAN bus";
 #endif  // PYLON_CAN
@@ -502,6 +537,9 @@ String processor(const String& var) {
 #ifdef NISSAN_LEAF_BATTERY
     content += "Nissan LEAF";
 #endif  // NISSAN_LEAF_BATTERY
+#ifdef PYLON_BATTERY
+    content += "Pylon compatible battery";
+#endif  // PYLON_BATTERY
 #ifdef RJXZS_BMS
     content += "RJXZS BMS, DIY battery";
 #endif  // RJXZS_BMS
@@ -608,8 +646,15 @@ String processor(const String& var) {
     content += formatPowerValue("Power", powerFloat, "", 1);
     content += formatPowerValue("Total capacity", datalayer.battery.info.total_capacity_Wh, "h", 0);
     content += formatPowerValue("Remaining capacity", datalayer.battery.status.remaining_capacity_Wh, "h", 1);
-    content += formatPowerValue("Max discharge power", datalayer.battery.status.max_discharge_power_W, "", 1);
-    content += formatPowerValue("Max charge power", datalayer.battery.status.max_charge_power_W, "", 1);
+
+    if (emulator_pause_status == NORMAL) {
+      content += formatPowerValue("Max discharge power", datalayer.battery.status.max_discharge_power_W, "", 1);
+      content += formatPowerValue("Max charge power", datalayer.battery.status.max_charge_power_W, "", 1);
+    } else {
+      content += formatPowerValue("Max discharge power", datalayer.battery.status.max_discharge_power_W, "", 1, "red");
+      content += formatPowerValue("Max charge power", datalayer.battery.status.max_charge_power_W, "", 1, "red");
+    }
+
     content += "<h4>Cell max: " + String(datalayer.battery.status.cell_max_voltage_mV) + " mV</h4>";
     content += "<h4>Cell min: " + String(datalayer.battery.status.cell_min_voltage_mV) + " mV</h4>";
     content += "<h4>Temperature max: " + String(tempMaxFloat, 1) + " C</h4>";
@@ -644,9 +689,9 @@ String processor(const String& var) {
       content += "<span style='color: red;'>&#10005;</span></h4>";
     }
     if (emulator_pause_status == NORMAL)
-      content += "<h4>Pause status: " + String(get_emulator_pause_status().c_str()) + " </h4>";
+      content += "<h4>Power status: " + String(get_emulator_pause_status().c_str()) + " </h4>";
     else
-      content += "<h4 style='color: red;'>Pause status: " + String(get_emulator_pause_status().c_str()) + " </h4>";
+      content += "<h4 style='color: red;'>Power status: " + String(get_emulator_pause_status().c_str()) + " </h4>";
 
 #ifdef CONTACTOR_CONTROL
     content += "<h4>Contactors controlled by Battery-Emulator: ";
@@ -810,10 +855,13 @@ String processor(const String& var) {
 #endif  // defined CHEVYVOLT_CHARGER || defined NISSANLEAF_CHARGER
 
     if (emulator_pause_request_ON)
-      content += "<button onclick='PauseBattery(false)'>Resume Battery</button>";
+      content += "<button onclick='PauseBattery(false)'>Resume charge/discharge</button>";
     else
-      content += "<button onclick='PauseBattery(true)'>Pause Battery</button>";
-
+      content +=
+          "<button onclick=\"if(confirm('Are you sure you want to pause charging and discharging? This will set the "
+          "maximum charge and discharge values to zero, preventing any further power flow.')) { PauseBattery(true); "
+          "}\">Pause charge/discharge</button>";
+    content += " ";
     content += "<button onclick='OTA()'>Perform OTA update</button>";
     content += " ";
     content += "<button onclick='Settings()'>Change Settings</button>";
@@ -825,6 +873,21 @@ String processor(const String& var) {
     content += "<button onclick='askReboot()'>Reboot Emulator</button>";
     if (WEBSERVER_AUTH_REQUIRED)
       content += "<button onclick='logout()'>Logout</button>";
+    if (!datalayer.system.settings.equipment_stop_active)
+      content +=
+          "<br/><br/><button style=\"background:red;color:white;cursor:pointer;\""
+          " onclick=\""
+          "if(confirm('This action will open contactors on the battery and stop all CAN communications. Are you "
+          "sure?')) { estop(true); }\""
+          ">Open Contactors</button><br/>";
+    else
+      content +=
+          "<br/><br/><button style=\"background:green;color:white;cursor:pointer;\""
+          "20px;font-size:16px;font-weight:bold;cursor:pointer;border-radius:5px; margin:10px;"
+          " onclick=\""
+          "if(confirm('This action will restore the battery state. Are you sure?')) { estop(false); }\""
+          ">Close Contactors</button><br/>";
+
     content += "<script>";
     content += "function OTA() { window.location.href = '/update'; }";
     content += "function Cellmon() { window.location.href = '/cellmonitor'; }";
@@ -853,7 +916,12 @@ String processor(const String& var) {
         "XMLHttpRequest();xhr.onload=function() { "
         "window.location.reload();};xhr.open('GET','/pause?p='+pause,true);xhr.send();";
     content += "}";
-
+    content += "function estop(stop){";
+    content +=
+        "var xhr=new "
+        "XMLHttpRequest();xhr.onload=function() { "
+        "window.location.reload();};xhr.open('GET','/equipmentStop?stop='+stop,true);xhr.send();";
+    content += "}";
     content += "</script>";
 
     //Script for refreshing page
@@ -876,6 +944,7 @@ void onOTAStart() {
   // If already set, make a new attempt
   clear_event(EVENT_OTA_UPDATE_TIMEOUT);
   ota_active = true;
+
   ota_timeout_timer.reset();
 }
 
@@ -898,6 +967,9 @@ void onOTAEnd(bool success) {
 
   // Log when OTA has finished
   if (success) {
+    //Equipment STOP without persisting the equipment state before restart
+    // Max Charge/Discharge = 0; CAN = stop; contactors = open
+    setBatteryPause(true, true, true, false);
     // a reboot will be done by the OTA library. no need to do anything here
 #ifdef DEBUG_VIA_USB
     Serial.println("OTA update finished successfully!");
@@ -912,8 +984,8 @@ void onOTAEnd(bool success) {
 }
 
 template <typename T>  // This function makes power values appear as W when under 1000, and kW when over
-String formatPowerValue(String label, T value, String unit, int precision) {
-  String result = "<h4 style='color: white;'>" + label + ": ";
+String formatPowerValue(String label, T value, String unit, int precision, String color) {
+  String result = "<h4 style='color: " + color + ";'>" + label + ": ";
 
   if (std::is_same<T, float>::value || std::is_same<T, uint16_t>::value || std::is_same<T, uint32_t>::value) {
     float convertedValue = static_cast<float>(value);
