@@ -435,7 +435,18 @@ void init_CAN() {
   SPI.begin(MCP2515_SCK, MCP2515_MISO, MCP2515_MOSI);
   ACAN2515Settings settings(QUARTZ_FREQUENCY, 500UL * 1000UL);  // CAN bit rate 500 kb/s
   settings.mRequestedMode = ACAN2515Settings::NormalMode;
-  can.begin(settings, [] { can.isr(); });
+  const uint16_t errorCodeMCP = can.begin(settings, [] { can.isr(); });
+  if (errorCodeMCP == 0) {
+#ifdef DEBUG_VIA_USB
+    Serial.println("Can ok");
+#endif
+  } else {
+#ifdef DEBUG_VIA_USB
+    Serial.print("Error Can: 0x");
+    Serial.println(errorCodeMCP, HEX);
+#endif
+    set_event(EVENT_CANMCP_INIT_FAILURE, (uint8_t)errorCodeMCP);
+  }
 #endif
 
 #ifdef CAN_FD
@@ -545,6 +556,9 @@ void init_inverter() {
 #ifdef SOLAX_CAN
   datalayer.system.status.inverter_allows_contactor_closing = false;  // The inverter needs to allow first
   intervalUpdateValues = 800;  // This protocol also requires the values to be updated faster
+#endif
+#ifdef FOXESS_CAN
+  intervalUpdateValues = 950;  // This protocol also requires the values to be updated faster
 #endif
 #ifdef BYD_SMA
   datalayer.system.status.inverter_allows_contactor_closing = false;  // The inverter needs to allow first
