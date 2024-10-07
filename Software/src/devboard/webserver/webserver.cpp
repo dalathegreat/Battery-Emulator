@@ -482,7 +482,10 @@ String processor(const String& var) {
 #endif  // BYD_CAN
 #ifdef BYD_MODBUS
     content += "BYD 11kWh HVM battery over Modbus RTU";
-#endif  // BYD_MODBUS
+#endif// BYD_MODBUS
+#ifdef BYD_KOSTAL_RS485
+    content += "BYD 11kWh HVM battery over Kostal RS485";
+#endif //BYD_KOSTAL_RS485
 #ifdef PYLON_CAN
     content += "Pylontech battery over CAN bus";
 #endif  // PYLON_CAN

@@ -15,6 +15,10 @@
 #include "BYD-SMA.h"
 #endif
 
+#ifdef BYD_KOSTAL_RS485
+#include "KOSTAL-RS485.h"
+#endif
+
 #ifdef PYLON_CAN
 #include "PYLON-CAN.h"
 #endif
@@ -47,6 +51,11 @@ void send_can_inverter();
 
 #ifdef MODBUS_INVERTER_SELECTED
 void update_modbus_registers_inverter();
+#endif
+
+#ifdef RS485_INVERTER_SELECTED
+void receive_RS485();
+void update_RS485_registers_inverter();
 #endif
 
 #endif
