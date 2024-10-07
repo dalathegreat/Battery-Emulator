@@ -212,12 +212,12 @@ void update_number_of_cells() {
     // Check if we have 98S or 90S battery
     if (datalayer.battery.status.cell_voltages_mV[97] > 0) {
       datalayer.battery.info.number_of_cells = 98;
-      datalayer.battery.info.max_design_voltage_dV = 4040;
-      datalayer.battery.info.min_design_voltage_dV = 3100;
+      datalayer.battery.info.max_design_voltage_dV = MAX_PACK_VOLTAGE_98S_DV;
+      datalayer.battery.info.min_design_voltage_dV = MIN_PACK_VOLTAGE_98S_DV;
     } else {
       datalayer.battery.info.number_of_cells = 90;
-      datalayer.battery.info.max_design_voltage_dV = 3870;
-      datalayer.battery.info.min_design_voltage_dV = 2250;
+      datalayer.battery.info.max_design_voltage_dV = MAX_PACK_VOLTAGE_90S_DV;
+      datalayer.battery.info.min_design_voltage_dV = MIN_PACK_VOLTAGE_90S_DV;
     }
   }
 }
@@ -539,8 +539,8 @@ void setup_battery(void) {  // Performs one time setup at startup
 #ifdef DEBUG_VIA_USB
   Serial.println("Kia Niro / Hyundai Kona 64kWh battery selected");
 #endif
-  datalayer.battery.info.max_design_voltage_dV = 4040;  //startup with 98S max value. Precised later
-  datalayer.battery.info.min_design_voltage_dV = 2250;  //startup with 90S min value. Precised later
+  datalayer.battery.info.max_design_voltage_dV = MAX_PACK_VOLTAGE_98S_DV;  //Start with 98S value. Precised later
+  datalayer.battery.info.min_design_voltage_dV = MIN_PACK_VOLTAGE_90S_DV;  //Start with 90S value. Precised later
   datalayer.battery.info.max_cell_voltage_mV = MAX_CELL_VOLTAGE_MV;
   datalayer.battery.info.min_cell_voltage_mV = MIN_CELL_VOLTAGE_MV;
 }
