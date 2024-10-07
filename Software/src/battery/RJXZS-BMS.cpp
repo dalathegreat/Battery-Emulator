@@ -509,6 +509,38 @@ void receive_can_battery(CAN_frame rx_frame) {
         use_capacity_to_automatically_reset = (rx_frame.data.u8[3] << 8) | rx_frame.data.u8[4];
         low_temperature_protection_setting_value = (rx_frame.data.u8[5] << 8) | rx_frame.data.u8[6];
         protecting_historical_logs = rx_frame.data.u8[7];
+
+        if (protecting_historical_logs == 0x01) {
+          // Overcurrent protection
+          set_event(EVENT_DISCHARGE_LIMIT_EXCEEDED, 0);  // could also be EVENT_CHARGE_LIMIT_EXCEEDED
+        } else if (protecting_historical_logs == 0x02) {
+          // over discharge protection
+          set_event(EVENT_BATTERY_UNDERVOLTAGE, 0);
+        } else if (protecting_historical_logs == 0x03) {
+          // overcharge protection
+          set_event(EVENT_BATTERY_OVERVOLTAGE, 0);
+        } else if (protecting_historical_logs == 0x04) {
+          // Over temperature protection
+          set_event(EVENT_BATTERY_OVERHEAT, 0);
+        } else if (protecting_historical_logs == 0x05) {
+          // Battery string error protection
+          set_event(EVENT_BATTERY_CAUTION, 0);
+        } else if (protecting_historical_logs == 0x06) {
+          // Damaged charging relay
+          set_event(EVENT_BATTERY_CHG_STOP_REQ, 0);
+        } else if (protecting_historical_logs == 0x07) {
+          // Damaged discharge relay
+          set_event(EVENT_BATTERY_DISCHG_STOP_REQ, 0);
+        } else if (protecting_historical_logs == 0x08) {
+          // Low voltage power outage protection
+          set_event(EVENT_12V_LOW, 0);
+        } else if (protecting_historical_logs == 0x09) {
+          // Voltage difference protection
+          set_event(EVENT_VOLTAGE_DIFFERENCE, differential_pressure_setting_value);
+        } else if (protecting_historical_logs == 0x0A) {
+          // Low temperature protection
+          set_event(EVENT_BATTERY_FROZEN, low_temperature_protection_setting_value);
+        }
       } else if (mux == 0x54) {
         hall_sensor_type = (rx_frame.data.u8[1] << 8) | rx_frame.data.u8[2];
         fan_start_setting_value = (rx_frame.data.u8[3] << 8) | rx_frame.data.u8[4];
