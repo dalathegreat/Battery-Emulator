@@ -634,6 +634,8 @@ String processor(const String& var) {
     float powerFloat = static_cast<float>(datalayer.battery.status.active_power_W);               // Convert to float
     float tempMaxFloat = static_cast<float>(datalayer.battery.status.temperature_max_dC) / 10.0;  // Convert to float
     float tempMinFloat = static_cast<float>(datalayer.battery.status.temperature_min_dC) / 10.0;  // Convert to float
+    uint16_t cell_delta_mv =
+        datalayer.battery.status.cell_max_voltage_mV - datalayer.battery.status.cell_min_voltage_mV;
 
     content += "<h4 style='color: white;'>Real SOC: " + String(socRealFloat, 2) + "</h4>";
     content += "<h4 style='color: white;'>Scaled SOC: " + String(socScaledFloat, 2) + "</h4>";
@@ -654,6 +656,11 @@ String processor(const String& var) {
 
     content += "<h4>Cell max: " + String(datalayer.battery.status.cell_max_voltage_mV) + " mV</h4>";
     content += "<h4>Cell min: " + String(datalayer.battery.status.cell_min_voltage_mV) + " mV</h4>";
+    if (cell_delta_mv > datalayer.battery.info.max_cell_voltage_deviation_mV) {
+      content += "<h4 style='color: red;'>Cell delta: " + String(cell_delta_mv) + " mV</h4>";
+    } else {
+      content += "<h4>Cell delta: " + String(cell_delta_mv) + " mV</h4>";
+    }
     content += "<h4>Temperature max: " + String(tempMaxFloat, 1) + " C</h4>";
     content += "<h4>Temperature min: " + String(tempMinFloat, 1) + " C</h4>";
     if (datalayer.battery.status.bms_status == ACTIVE) {
@@ -731,6 +738,7 @@ String processor(const String& var) {
     powerFloat = static_cast<float>(datalayer.battery2.status.active_power_W);  // Convert to float
     tempMaxFloat = static_cast<float>(datalayer.battery2.status.temperature_max_dC) / 10.0;  // Convert to float
     tempMinFloat = static_cast<float>(datalayer.battery2.status.temperature_min_dC) / 10.0;  // Convert to float
+    cell_delta_mv = datalayer.battery2.status.cell_max_voltage_mV - datalayer.battery2.status.cell_min_voltage_mV;
 
     content += "<h4 style='color: white;'>Real SOC: " + String(socRealFloat, 2) + "</h4>";
     content += "<h4 style='color: white;'>Scaled SOC: " + String(socScaledFloat, 2) + "</h4>";
@@ -744,6 +752,11 @@ String processor(const String& var) {
     content += formatPowerValue("Max charge power", datalayer.battery2.status.max_charge_power_W, "", 1);
     content += "<h4>Cell max: " + String(datalayer.battery2.status.cell_max_voltage_mV) + " mV</h4>";
     content += "<h4>Cell min: " + String(datalayer.battery2.status.cell_min_voltage_mV) + " mV</h4>";
+    if (cell_delta_mv > datalayer.battery2.info.max_cell_voltage_deviation_mV) {
+      content += "<h4 style='color: red;'>Cell delta: " + String(cell_delta_mv) + " mV</h4>";
+    } else {
+      content += "<h4>Cell delta: " + String(cell_delta_mv) + " mV</h4>";
+    }
     content += "<h4>Temperature max: " + String(tempMaxFloat, 1) + " C</h4>";
     content += "<h4>Temperature min: " + String(tempMinFloat, 1) + " C</h4>";
     if (datalayer.battery.status.bms_status == ACTIVE) {
