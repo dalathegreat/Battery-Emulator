@@ -15,6 +15,8 @@ static int16_t average_temperature_dC = 0;
 static uint8_t incoming_message_counter = RS485_HEALTHY;
 static int8_t f2_startup_count = 0;
 
+static boolean B1_delay = false;
+static unsigned long B1_last_millis = 0;
 
 union f32b {
   float f;
@@ -154,8 +156,6 @@ bool check_kostal_frame_crc() {
   }
 }
 
-
-
 void update_RS485_registers_inverter() {
 
   if (datalayer.battery.status.voltage_dV > 10) {  // Only update value when we have voltage available to avoid div0
@@ -171,7 +171,6 @@ void update_RS485_registers_inverter() {
     //The above calculation results in (30 000*10)/3700=81A
     discharge_current_dA = (discharge_current_dA * 10);  //Value needs a decimal before getting sent to inverter (81.0A)
   }
-
 
   if (charge_current_dA > datalayer.battery.info.max_charge_amp_dA) {
     charge_current_dA =
@@ -191,8 +190,6 @@ void update_RS485_registers_inverter() {
     average_temperature_dC = 0;
   }
 
-
-
   if (f2_startup_count>8)
      {
      float2frame(frame2, (float)datalayer.battery.status.voltage_dV / 10, 6);  // Confirmed OK mapping
@@ -204,7 +201,7 @@ void update_RS485_registers_inverter() {
      frame2[0]=0x06;
      float2frame(frame2, 0.0, 6);
      }
-  float2frameMSB(frame1, (float)datalayer.battery.status.voltage_dV / 10, 8);  // This shall be nominal voltage, but not available
+  float2frameMSB(frame1, (float)datalayer.battery.info.nominal_dV / 10, 8);
 
   float2frameMSB(frame2, (float)datalayer.battery.info.max_design_voltage_dV / 10, 12);
 
@@ -268,12 +265,19 @@ static uint8_t rx_index = 0;
 
 void receive_RS485()  // Runs as fast as possible to handle the serial stream
 {
-  if (Serial2.available()) {
+  unsigned long currentMillis = millis();
+  if(B1_delay)
+    {
+    if ((currentMillis - B1_last_millis) >1000)
+      {
+      send_kostal(frameB1b, 8);
+      B1_delay=false;
+      }
+    }
+  else if (Serial2.available()) {
     RS485_RXFRAME[rx_index] = Serial2.read();
     rx_index++;
     if (RS485_RXFRAME[rx_index - 1] == 0x00) {
-
-
       if ((rx_index == 10) && (RS485_RXFRAME[0] == 0x09) && register_content_ok) {
 #ifdef DEBUG_KOSTAL_RS485_DATA
         Serial.print("RX: ");
@@ -300,31 +304,27 @@ void receive_RS485()  // Runs as fast as possible to handle the serial stream
           // "frame B1", maybe reset request, seen after battery power on/partial data
           if (headerB && (RS485_RXFRAME[6] == 0x5E) && (RS485_RXFRAME[7] == 0xFF)) {
             send_kostal(frameB1, 10);
-            Serial2.flush();
-            delay(1);
-            send_kostal(frameB1b, 8);
+            B1_delay=true;
+            B1_last_millis=currentMillis;
           }
 
           // "frame B1", maybe reset request, seen after battery power on/partial data
           if (headerB && (RS485_RXFRAME[6] == 0x5E) && (RS485_RXFRAME[7] == 0x04)) {
             send_kostal(frame4, 8);
-            datalayer.system.status.inverter_allows_contactor_closing = false;
-            Serial2.flush();
+            // This needs more reverse engineering, disabled...
+            // datalayer.system.status.inverter_allows_contactor_closing = false;
           }
 
           if (headerA && (RS485_RXFRAME[6] == 0x4A) && (RS485_RXFRAME[7] == 0x08)) {  // "frame 1"
             send_kostal(frame1, 40);
           }
           if (headerA && (RS485_RXFRAME[6] == 0x4A) && (RS485_RXFRAME[7] == 0x04)) {  // "frame 2"
-
             update_values_battery();
             update_RS485_registers_inverter();
             if (f2_startup_count<15)
               {
               f2_startup_count++;
               }
-
-
             byte tmpframe[64];  //copy values to prevent data manipulation during rewrite/crc calculation
             memcpy(tmpframe, frame2, 64);
             for (int i = 1; i < 63; i++) {

@@ -17,6 +17,8 @@ typedef struct {
   uint16_t max_charge_amp_dA = BATTERY_MAX_CHARGE_AMP;
   /** BYD CAN specific setting, max discharge in deciAmpere. 300 = 30.0 A */
   uint16_t max_discharge_amp_dA = BATTERY_MAX_DISCHARGE_AMP;
+  /** Kostal specific setting, */
+  uint16_t nominal_dV = BATTERY_NOMINAL_VOLTAGE ;
 
   /** uint8_t */
   /** Total number of cells in the pack */

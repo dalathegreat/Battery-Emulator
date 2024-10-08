@@ -88,6 +88,8 @@
 #define BATTERY_MAX_CHARGE_AMP 300
 // 300 = 30.0A , BYD CAN specific setting, Max discharge in Amp (Some inverters needs to be limited)
 #define BATTERY_MAX_DISCHARGE_AMP 300
+// Battery nominal voltage dV
+#define BATTERY_NOMINAL_VOLTAGE  3600
 
 /* Do not change any code below this line unless you are sure what you are doing */
 /* Only change battery specific settings in "USER_SETTINGS.h" */
