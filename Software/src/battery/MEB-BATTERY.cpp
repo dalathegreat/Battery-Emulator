@@ -19,6 +19,7 @@ static unsigned long previousMillis200 = 0;    // will store last time a 200ms C
 static unsigned long previousMillis10 = 0;     // will store last time a 10ms CAN Message was send
 static unsigned long previousMillis1s = 0;     // will store last time a 1s CAN Message was send
 static unsigned long previousMillis100ms = 0;  // will store last time a 100ms CAN Message was send
+static unsigned long previousMillis70ms = 0;   // will store last time a 70ms CAN Message was send
 
 #define MAX_CELL_VOLTAGE 4250  //Battery is put into emergency stop if one cell goes over this value
 #define MIN_CELL_VOLTAGE 2950  //Battery is put into emergency stop if one cell goes below this value
@@ -181,6 +182,16 @@ CAN_frame MEB_ACK_FRAME = {.FD = true,
                            .ID = 0x1C40007B,  // Ack
                            .data = {0x30, 0x00, 0x00, 0x55, 0x55, 0x55, 0x55, 0x55}};
 //Messages that might be needed for contactor closing
+CAN_frame MEB_17FC007B_poll = {.FD = true,
+                               .ext_ID = true,
+                               .DLC = 8,
+                               .ID = 0x17FC007B,
+                               .data = {0x03, 0x22, 0x1E, 0x3D, 0x55, 0x55, 0x55, 0x55}};
+CAN_frame MEB_17FC007B_reply = {.FD = true,
+                                .ext_ID = true,
+                                .DLC = 8,
+                                .ID = 0x17FC007B,
+                                .data = {0x30, 0x00, 0x01, 0x55, 0x55, 0x55, 0x55, 0x55}};
 CAN_frame MEB_1A555564 = {.FD = true,
                           .ext_ID = true,
                           .DLC = 8,
@@ -197,21 +208,6 @@ CAN_frame MEB_16A954FA = {
     .DLC = 16,
     .ID = 0x16A954FA,
     .data = {0x00, 0x00, 0xD0, 0x01, 0x00, 0x00, 0x70, 0x00, 0x00, 0x00, 0x00, 0x09, 0x00, 0x00, 0x00, 0x00}};
-CAN_frame MEB_12DD54D0 = {.FD = true,
-                          .ext_ID = true,
-                          .DLC = 8,
-                          .ID = 0x12DD54D0,
-                          .data = {0x00, 0x50, 0xF2, 0x9A, 0xD0, 0xDC, 0x49, 0x2D}};
-CAN_frame MEB_12DD54D1 = {.FD = true,
-                          .ext_ID = true,
-                          .DLC = 8,
-                          .ID = 0x12DD54D1,
-                          .data = {0x00, 0x80, 0x00, 0x87, 0x3E, 0xFA, 0x9A, 0x1B}};
-CAN_frame MEB_12DD54D2 = {.FD = true,
-                          .ext_ID = true,
-                          .DLC = 8,
-                          .ID = 0x12DD54D2,
-                          .data = {0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0}};
 
 void update_values_battery() {  //This function maps all the values fetched via CAN to the correct parameters used for modbus
 
@@ -280,9 +276,53 @@ void receive_can_battery(CAN_frame rx_frame) {
   switch (rx_frame.ID) {
     case 0x17F0007B:  // Suspected to be from BMS
       break;
-    case 0x17FE007B:  // Suspected to be from BMS
+    case 0x17FE007B:  // BMS - Handshake?
+      //If the message is (10 08 62 1E 3D 00 02 49)
+      //We reply with
+      //17FC007B  [08]  30 00 01 55 55 55 55 55
+      //If the message is (21 F0 34 AA AA AA AA AA)
+      //We do not need to send anything
+      if (rx_frame.data.u8[7] == 0xAA) {
+        // Do nothing
+      } else {
+        transmit_can(&MEB_17FC007B_reply, can_config.battery);
+      }
       break;
-    case 0xCF:  //BMS_20 , TODO: confirm location for all these
+    case 0x1B00007B:  // Suspected to be from BMS
+      break;
+    case 0x12DD54D0:  // BMS 100ms
+      break;
+    case 0x12DD54D1:  // BMS 100ms
+      break;
+    case 0x12DD54D2:  // BMS 100ms
+      break;
+    case 0x1A555550:  // BMS
+      break;
+    case 0x1A555551:  // BMS
+      break;
+    case 0x1A5555B2:  // BMS
+      break;
+    case 0x16A954A6:  // BMS
+      break;
+    case 0x16A954F8:  // BMS
+      break;
+    case 0x16A954E8:  // BMS
+      break;
+    case 0x1C42017B:  // BMS
+      break;
+    case 0x1A5555B0:  // BMS
+      break;
+    case 0x1A5555B1:  // BMS
+      break;
+    case 0x2AF:  // BMS
+      break;
+    case 0x578:  // BMS
+      break;
+    case 0x5A2:  // BMS
+      break;
+    case 0x5CA:  // BMS
+      break;
+    case 0x0CF:  //BMS_20 , TODO: confirm location for all these
       BMS_20_CRC = rx_frame.data.u8[0];
       BMS_20_BZ = (rx_frame.data.u8[1] & 0x0F);
       BMS_fault_status_contactor = (rx_frame.data.u8[1] & 0x20) >> 5;
@@ -766,14 +806,18 @@ void send_can_battery() {
     }
     previousMillis10 = currentMillis;
   }
+
+  // Send 70ms CAN Message
+  if (currentMillis - previousMillis70ms >= INTERVAL_70_MS) {
+    previousMillis70ms = currentMillis;
+
+    transmit_can(&MEB_17FC007B_poll, can_config.battery);
+  }
   // Send 100ms CAN Message
   if (currentMillis - previousMillis100ms >= INTERVAL_100_MS) {
     previousMillis100ms = currentMillis;
 
     transmit_can(&MEB_12DD5513, can_config.battery);
-    transmit_can(&MEB_12DD54D0, can_config.battery);
-    transmit_can(&MEB_12DD54D1, can_config.battery);
-    transmit_can(&MEB_12DD54D2, can_config.battery);
   }
   //Send 200ms message
   if (currentMillis - previousMillis200 >= INTERVAL_200_MS) {
