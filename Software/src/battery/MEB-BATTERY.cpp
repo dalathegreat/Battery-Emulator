@@ -15,11 +15,104 @@ TODO list
 */
 
 /* Do not change code below unless you are sure what you are doing */
+
+/** Calculate the CRC checksum for VAG CAN Messages
+ *
+ * The method used is described in Chapter "7.2.1.2 8-bit 0x2F polynomial CRC Calculation".
+ * CRC Parameters:
+ *     0x2F - Polynomial
+ *     0xFF - Initial Value
+ *     0xFF - XOR Output
+ * 
+ * @see https://github.com/crasbe/VW-OnBoard-Charger
+ * @see https://github.com/colinoflynn/crcbeagle for CRC hacking :)
+ * @see https://github.com/commaai/opendbc/blob/master/can/common.cc#L110
+ * @see https://www.autosar.org/fileadmin/user_upload/standards/classic/4-3/AUTOSAR_SWS_CRCLibrary.pdf
+ * @see https://web.archive.org/web/20221105210302/https://www.autosar.org/fileadmin/user_upload/standards/classic/4-3/AUTOSAR_SWS_CRCLibrary.pdf
+ */
+uint8_t vw_crc_calc(uint8_t* inputBytes, uint8_t length, uint16_t address) {
+
+  const uint8_t poly = 0x2F;
+  const uint8_t xor_output = 0xFF;
+  // VAG Magic Bytes
+  const uint8_t MB0040[16] = {0x40, 0x40, 0x40, 0x40, 0x40, 0x40, 0x40, 0x40,
+                              0x40, 0x40, 0x40, 0x40, 0x40, 0x40, 0x40, 0x40};
+  const uint8_t MB0097[16] = {0x3C, 0x54, 0xCF, 0xA3, 0x81, 0x93, 0x0B, 0xC7,
+                              0x3E, 0xDF, 0x1C, 0xB0, 0xA7, 0x25, 0xD3, 0xD8};
+  const uint8_t MB0124[16] = {0x12, 0x7E, 0x34, 0x16, 0x25, 0x8F, 0x8E, 0x35,
+                              0xBA, 0x7F, 0xEA, 0x59, 0x4C, 0xF0, 0x88, 0x15};
+  const uint8_t MB0187[16] = {0x7F, 0xED, 0x17, 0xC2, 0x7C, 0xEB, 0x44, 0x21,
+                              0x01, 0xFA, 0xDB, 0x15, 0x4A, 0x6B, 0x23, 0x05};
+  const uint8_t MB03A6[16] = {0xB6, 0x1C, 0xC1, 0x23, 0x6D, 0x8B, 0x0C, 0x51,
+                              0x38, 0x32, 0x24, 0xA8, 0x3F, 0x3A, 0xA4, 0x02};
+  const uint8_t MB03AF[16] = {0x94, 0x6A, 0xB5, 0x38, 0x8A, 0xB4, 0xAB, 0x27,
+                              0xCB, 0x22, 0x88, 0xEF, 0xA3, 0xE1, 0xD0, 0xBB};
+  const uint8_t MB06A3[16] = {0xC1, 0x8B, 0x38, 0xA8, 0xA4, 0x27, 0xEB, 0xC8,
+                              0xEF, 0x05, 0x9A, 0xBB, 0x39, 0xF7, 0x80, 0xA7};
+  const uint8_t MB06A4[16] = {0xC7, 0xD8, 0xF1, 0xC4, 0xE3, 0x5E, 0x9A, 0xE2,
+                              0xA1, 0xCB, 0x02, 0x4F, 0x57, 0x4E, 0x8E, 0xE4};
+
+  uint8_t crc = 0xFF;
+  uint8_t magicByte = 0x00;
+  uint8_t counter = inputBytes[1] & 0x0F;  // only the low byte of the couner is relevant
+
+  switch (address) {
+    case 0x0040:  // Airbag
+      magicByte = MB0040[counter];
+      break;
+    case 0x0097:  // ??
+      magicByte = MB0097[counter];
+      break;
+    case 0x0124:  // ??
+      magicByte = MB0124[counter];
+      break;
+    case 0x0187:  // EV_Gearshift "Gear" selection data for EVs with no gearbox
+      magicByte = MB0187[counter];
+      break;
+    case 0x03A6:  // ??
+      magicByte = MB03A6[counter];
+      break;
+    case 0x03AF:  // ??
+      magicByte = MB03AF[counter];
+      break;
+    case 0x06A3:  // ??
+      magicByte = MB06A3[counter];
+      break;
+    case 0x06A4:  // ??
+      magicByte = MB06A4[counter];
+      break;
+    default:  // this won't lead to correct CRC checksums
+      magicByte = 0x00;
+      break;
+  }
+
+  for (uint8_t i = 1; i < length + 1; i++) {
+    // We skip the empty CRC position and start at the timer
+    // The last element is the VAG magic byte for address 0x187 depending on the counter value.
+    if (i < length)
+      crc ^= inputBytes[i];
+    else
+      crc ^= magicByte;
+
+    for (uint8_t j = 0; j < 8; j++) {
+      if (crc & 0x80)
+        crc = (crc << 1) ^ poly;
+      else
+        crc = (crc << 1);
+    }
+  }
+
+  crc ^= xor_output;
+
+  return crc;
+}
+
 static unsigned long previousMillis200 = 0;    // will store last time a 200ms CAN Message was send
 static unsigned long previousMillis10 = 0;     // will store last time a 10ms CAN Message was send
 static unsigned long previousMillis1s = 0;     // will store last time a 1s CAN Message was send
 static unsigned long previousMillis100ms = 0;  // will store last time a 100ms CAN Message was send
 static unsigned long previousMillis70ms = 0;   // will store last time a 70ms CAN Message was send
+static unsigned long previousMillis40ms = 0;   // will store last time a 40ms CAN Message was send
 
 #define MAX_CELL_VOLTAGE 4250  //Battery is put into emergency stop if one cell goes over this value
 #define MIN_CELL_VOLTAGE 2950  //Battery is put into emergency stop if one cell goes below this value
@@ -182,6 +275,11 @@ CAN_frame MEB_ACK_FRAME = {.FD = true,
                            .ID = 0x1C40007B,  // Ack
                            .data = {0x30, 0x00, 0x00, 0x55, 0x55, 0x55, 0x55, 0x55}};
 //Messages that might be needed for contactor closing
+CAN_frame MEB_040 = {.FD = true,
+                     .ext_ID = true,
+                     .DLC = 8,
+                     .ID = 0x040,
+                     .data = {0x7E, 0x83, 0x00, 0x05, 0x40, 0x00, 0x1C, 0x00}};
 CAN_frame MEB_17FC007B_poll = {.FD = true,
                                .ext_ID = true,
                                .DLC = 8,
@@ -806,7 +904,14 @@ void send_can_battery() {
     }
     previousMillis10 = currentMillis;
   }
+  // Send 40ms CAN Message
+  if (currentMillis - previousMillis40ms >= INTERVAL_40_MS) {
+    previousMillis40ms = currentMillis;
 
+    MEB_040.data.u8[0] = vw_crc_calc(MEB_040.data.u8, MEB_040.DLC, MEB_040.ID);
+    transmit_can(&MEB_040, can_config.battery);
+    Serial.println(MEB_040.data.u8[0]);
+  }
   // Send 70ms CAN Message
   if (currentMillis - previousMillis70ms >= INTERVAL_70_MS) {
     previousMillis70ms = currentMillis;
