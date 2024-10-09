@@ -18,7 +18,6 @@ static unsigned long LastFrameTime = 0;
 static uint8_t number_of_batteries = 1;
 static uint16_t capped_capacity_Wh;
 static uint16_t capped_remaining_capacity_Wh;
-static uint16_t inverter_missing_on_can = 0;
 
 //CAN message translations from this amazing repository: https://github.com/rand12345/solax_can_bus
 
@@ -89,12 +88,6 @@ void update_values_can_inverter() {  //This function maps all the values fetched
   if (millis() - LastFrameTime >= SolaxTimeout) {
     datalayer.system.status.inverter_allows_contactor_closing = false;
     STATE = BATTERY_ANNOUNCE;
-    inverter_missing_on_can++;
-    if (inverter_missing_on_can > CAN_STILL_ALIVE) {
-      set_event(EVENT_CAN_INVERTER_MISSING, 0);
-    } else {
-      clear_event(EVENT_CAN_INVERTER_MISSING);
-    }
   }
   //Calculate the required values
   temperature_average =
@@ -225,6 +218,11 @@ void send_can_inverter() {
 }
 
 void receive_can_inverter(CAN_frame rx_frame) {
+
+  if (rx_frame.ID == 0x1871) {
+    datalayer.system.status.CAN_inverter_still_alive = CAN_STILL_ALIVE;
+  }
+
   if (rx_frame.ID == 0x1871 && rx_frame.data.u8[0] == (0x01) ||
       rx_frame.ID == 0x1871 && rx_frame.data.u8[0] == (0x02)) {
     LastFrameTime = millis();
