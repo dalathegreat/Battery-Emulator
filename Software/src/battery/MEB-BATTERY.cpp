@@ -25,7 +25,10 @@ static unsigned long previousMillis40ms = 0;   // will store last time a 40ms CA
 static bool battery_awake = false;
 static bool toggle = false;
 static uint8_t counter_40ms = 0;
+static uint8_t counter_10ms = 0;
 static uint8_t counter_040 = 0;
+static uint8_t counter_0F7 = 0;
+static uint8_t counter_3b5 = 0;
 
 static uint32_t poll_pid = 0;
 static uint32_t pid_reply = 0;
@@ -70,6 +73,31 @@ CAN_frame MEB_040 = {.FD = true,
                      .DLC = 8,
                      .ID = 0x040,
                      .data = {0x7E, 0x83, 0x00, 0x01, 0x00, 0x00, 0x15, 0x00}};
+CAN_frame MEB_0F7 = {.FD = true,
+                     .ext_ID = true,
+                     .DLC = 8,
+                     .ID = 0x0F7,
+                     .data = {0x73, 0x00, 0x00, 0x00, 0x20, 0xF0, 0x1F, 0x64}};
+CAN_frame MEB_3B5 = {.FD = true,
+                     .ext_ID = true,
+                     .DLC = 8,
+                     .ID = 0x3B5,
+                     .data = {0x00, 0xFE, 0x00, 0x00, 0x0C, 0x00, 0x20, 0x00}};
+CAN_frame MEB_3E9 = {.FD = true,
+                     .ext_ID = true,
+                     .DLC = 8,
+                     .ID = 0x3E9,
+                     .data = {0x04, 0x3F, 0xE0, 0x03, 0x00, 0x00, 0xF0, 0xC7}};
+CAN_frame MEB_530 = {.FD = true,
+                     .ext_ID = true,
+                     .DLC = 8,
+                     .ID = 0x530,
+                     .data = {0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0}};
+CAN_frame MEB_5E7 = {.FD = true,
+                     .ext_ID = true,
+                     .DLC = 8,
+                     .ID = 0x5E7,
+                     .data = {0xFF, 0xFF, 0x0, 0x07, 0x03, 0x0, 0x0, 0x0}};
 CAN_frame MEB_17FC007B_poll = {.FD = true,
                                .ext_ID = true,
                                .DLC = 8,
@@ -120,6 +148,8 @@ uint8_t vw_crc_calc(uint8_t* inputBytes, uint8_t length, uint16_t address) {
                               0x40, 0x40, 0x40, 0x40, 0x40, 0x40, 0x40, 0x40};
   const uint8_t MB0097[16] = {0x3C, 0x54, 0xCF, 0xA3, 0x81, 0x93, 0x0B, 0xC7,
                               0x3E, 0xDF, 0x1C, 0xB0, 0xA7, 0x25, 0xD3, 0xD8};
+  const uint8_t MB00F7[16] = {0x5F, 0xA0, 0x44, 0xD0, 0x63, 0x59, 0x5B, 0xA2,
+                              0x68, 0x04, 0x90, 0x87, 0x52, 0x12, 0xB4, 0x9E};
   const uint8_t MB0124[16] = {0x12, 0x7E, 0x34, 0x16, 0x25, 0x8F, 0x8E, 0x35,
                               0xBA, 0x7F, 0xEA, 0x59, 0x4C, 0xF0, 0x88, 0x15};
   const uint8_t MB0187[16] = {0x7F, 0xED, 0x17, 0xC2, 0x7C, 0xEB, 0x44, 0x21,
@@ -143,6 +173,9 @@ uint8_t vw_crc_calc(uint8_t* inputBytes, uint8_t length, uint16_t address) {
       break;
     case 0x0097:  // ??
       magicByte = MB0097[counter];
+      break;
+    case 0x00F7:  // ??
+      magicByte = MB00F7[counter];
       break;
     case 0x0124:  // ??
       magicByte = MB0124[counter];
@@ -790,6 +823,28 @@ void send_can_battery() {
       clear_event(EVENT_CAN_OVERRUN);
     }
     previousMillis10 = currentMillis;
+
+    /* Handle content for 0x0F7 message */
+    if (counter_0F7 < 250) {
+      counter_0F7++;
+    }
+    if (counter_0F7 > 40) {
+      MEB_0F7.data.u8[4] = 0x40;
+      MEB_0F7.data.u8[5] = 0xD2;
+    }
+    if (counter_0F7 > 50) {
+      MEB_0F7.data.u8[4] = 0x44;
+      MEB_0F7.data.u8[5] = 0xF2;
+    }
+    if (counter_0F7 > 70) {
+      MEB_0F7.data.u8[4] = 0xC0;
+      MEB_0F7.data.u8[5] = 0xF4;
+    }
+    MEB_0F7.data.u8[1] = ((MEB_0F7.data.u8[1] & 0xF0) | counter_10ms);
+    MEB_0F7.data.u8[0] = vw_crc_calc(MEB_0F7.data.u8, MEB_0F7.DLC, MEB_0F7.ID);
+    counter_10ms = (counter_10ms + 1) % 16;  //Goes from 0-1-2-3...15-0-1-2-3..
+
+    transmit_can(&MEB_0F7, can_config.battery);
   }
   // Send 40ms CAN Message
   if (currentMillis - previousMillis40ms >= INTERVAL_40_MS) {
@@ -817,13 +872,28 @@ void send_can_battery() {
   if (currentMillis - previousMillis100ms >= INTERVAL_100_MS) {
     previousMillis100ms = currentMillis;
 
+    if (counter_3b5 < 250) {
+      counter_3b5++;
+    }
+    if (counter_3b5 > 4) {
+      MEB_3B5.data.u8[2] = 0x12;
+
+      MEB_3E9.data.u8[0] = 0x00;
+      MEB_3E9.data.u8[1] = 0x01;
+      MEB_3E9.data.u8[2] = 0xC0;
+      MEB_3E9.data.u8[3] = 0x03;
+    }
+
+    transmit_can(&MEB_3B5, can_config.battery);
+    transmit_can(&MEB_3E9, can_config.battery);
     transmit_can(&MEB_12DD5513, can_config.battery);
   }
   //Send 200ms message
   if (currentMillis - previousMillis200 >= INTERVAL_200_MS) {
     previousMillis200 = currentMillis;
-
+    transmit_can(&MEB_530, can_config.battery);
     transmit_can(&MEB_16A954FA, can_config.battery);
+    transmit_can(&MEB_5E7, can_config.battery);
 
     switch (poll_pid) {
       case PID_SOC:
