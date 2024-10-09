@@ -16,6 +16,87 @@ TODO list
 
 /* Do not change code below unless you are sure what you are doing */
 
+static unsigned long previousMillis200 = 0;    // will store last time a 200ms CAN Message was send
+static unsigned long previousMillis10 = 0;     // will store last time a 10ms CAN Message was send
+static unsigned long previousMillis1s = 0;     // will store last time a 1s CAN Message was send
+static unsigned long previousMillis100ms = 0;  // will store last time a 100ms CAN Message was send
+static unsigned long previousMillis70ms = 0;   // will store last time a 70ms CAN Message was send
+static unsigned long previousMillis40ms = 0;   // will store last time a 40ms CAN Message was send
+static bool battery_awake = false;
+static bool toggle = false;
+static uint8_t counter_40ms = 0;
+static uint8_t counter_040 = 0;
+
+static uint32_t poll_pid = 0;
+static uint32_t pid_reply = 0;
+static uint16_t battery_soc = 0;
+static uint16_t battery_voltage = 0;
+static int16_t battery_current = 0;
+static int16_t battery_max_temp = 600;
+static int16_t battery_min_temp = 600;
+static uint16_t battery_max_charge_voltage = 0;
+static uint16_t battery_min_discharge_voltage = 0;
+static uint16_t battery_allowed_charge_power = 0;
+static uint16_t battery_allowed_discharge_power = 0;
+static uint16_t cellvoltages[108];
+static uint16_t tempval = 0;
+static uint8_t BMS_20_CRC = 0;
+static uint8_t BMS_20_BZ = 0;
+static bool BMS_fault_status_contactor = false;
+static bool BMS_exp_limits_active = 0;
+static uint8_t BMS_is_mode = 0;
+static bool BMS_HVIL_status = 0;
+static bool BMS_fault_HVbatt_shutdown = 0;
+static bool BMS_fault_HVbatt_shutdown_req = 0;
+static bool BMS_fault_performance = 0;
+static uint16_t BMS_current = 0;
+static bool BMS_fault_emergency_shutdown_crash = 0;
+static uint32_t BMS_voltage_intermediate = 0;
+static uint32_t BMS_voltage = 0;
+
+CAN_frame MEB_POLLING_FRAME = {.FD = true,
+                               .ext_ID = true,
+                               .DLC = 8,
+                               .ID = 0x1C40007B,  // SOC 02 8C
+                               .data = {0x03, 0x22, 0x02, 0x8C, 0x55, 0x55, 0x55, 0x55}};
+CAN_frame MEB_ACK_FRAME = {.FD = true,
+                           .ext_ID = true,
+                           .DLC = 8,
+                           .ID = 0x1C40007B,  // Ack
+                           .data = {0x30, 0x00, 0x00, 0x55, 0x55, 0x55, 0x55, 0x55}};
+//Messages that might be needed for contactor closing
+CAN_frame MEB_040 = {.FD = true,
+                     .ext_ID = true,
+                     .DLC = 8,
+                     .ID = 0x040,
+                     .data = {0x7E, 0x83, 0x00, 0x01, 0x00, 0x00, 0x15, 0x00}};
+CAN_frame MEB_17FC007B_poll = {.FD = true,
+                               .ext_ID = true,
+                               .DLC = 8,
+                               .ID = 0x17FC007B,
+                               .data = {0x03, 0x22, 0x1E, 0x3D, 0x55, 0x55, 0x55, 0x55}};
+CAN_frame MEB_17FC007B_reply = {.FD = true,
+                                .ext_ID = true,
+                                .DLC = 8,
+                                .ID = 0x17FC007B,
+                                .data = {0x30, 0x00, 0x01, 0x55, 0x55, 0x55, 0x55, 0x55}};
+CAN_frame MEB_1A555564 = {.FD = true,
+                          .ext_ID = true,
+                          .DLC = 8,
+                          .ID = 0x1A555564,
+                          .data = {0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0}};
+CAN_frame MEB_12DD5513 = {.FD = true,
+                          .ext_ID = true,
+                          .DLC = 8,
+                          .ID = 0x12DD5513,
+                          .data = {0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0}};
+CAN_frame MEB_16A954FA = {
+    .FD = true,
+    .ext_ID = true,
+    .DLC = 16,
+    .ID = 0x16A954FA,
+    .data = {0x00, 0x00, 0xD0, 0x01, 0x00, 0x00, 0x70, 0x00, 0x00, 0x00, 0x00, 0x09, 0x00, 0x00, 0x00, 0x00}};
+
 /** Calculate the CRC checksum for VAG CAN Messages
  *
  * The method used is described in Chapter "7.2.1.2 8-bit 0x2F polynomial CRC Calculation".
@@ -107,206 +188,6 @@ uint8_t vw_crc_calc(uint8_t* inputBytes, uint8_t length, uint16_t address) {
   return crc;
 }
 
-static unsigned long previousMillis200 = 0;    // will store last time a 200ms CAN Message was send
-static unsigned long previousMillis10 = 0;     // will store last time a 10ms CAN Message was send
-static unsigned long previousMillis1s = 0;     // will store last time a 1s CAN Message was send
-static unsigned long previousMillis100ms = 0;  // will store last time a 100ms CAN Message was send
-static unsigned long previousMillis70ms = 0;   // will store last time a 70ms CAN Message was send
-static unsigned long previousMillis40ms = 0;   // will store last time a 40ms CAN Message was send
-
-#define MAX_CELL_VOLTAGE 4250  //Battery is put into emergency stop if one cell goes over this value
-#define MIN_CELL_VOLTAGE 2950  //Battery is put into emergency stop if one cell goes below this value
-
-#define PID_SOC 0x028C
-#define PID_VOLTAGE 0x1E3B
-#define PID_CURRENT 0x1E3D
-#define PID_MAX_TEMP 0x1E0E
-#define PID_MIN_TEMP 0x1E0F
-#define PID_MAX_CHARGE_VOLTAGE 0x5171
-#define PID_MIN_DISCHARGE_VOLTAGE 0x5170
-#define PID_ALLOWED_CHARGE_POWER 0x1E1B
-#define PID_ALLOWED_DISCHARGE_POWER 0x1E1C
-#define PID_CELLVOLTAGE_CELL_1 0x1E40
-#define PID_CELLVOLTAGE_CELL_2 0x1E41
-#define PID_CELLVOLTAGE_CELL_3 0x1E42
-#define PID_CELLVOLTAGE_CELL_4 0x1E43
-#define PID_CELLVOLTAGE_CELL_5 0x1E44
-#define PID_CELLVOLTAGE_CELL_6 0x1E45
-#define PID_CELLVOLTAGE_CELL_7 0x1E46
-#define PID_CELLVOLTAGE_CELL_8 0x1E47
-#define PID_CELLVOLTAGE_CELL_9 0x1E48
-#define PID_CELLVOLTAGE_CELL_10 0x1E49
-#define PID_CELLVOLTAGE_CELL_11 0x1E4A
-#define PID_CELLVOLTAGE_CELL_12 0x1E4B
-#define PID_CELLVOLTAGE_CELL_13 0x1E4C
-#define PID_CELLVOLTAGE_CELL_14 0x1E4D
-#define PID_CELLVOLTAGE_CELL_15 0x1E4E
-#define PID_CELLVOLTAGE_CELL_16 0x1E4F
-#define PID_CELLVOLTAGE_CELL_17 0x1E50
-#define PID_CELLVOLTAGE_CELL_18 0x1E51
-#define PID_CELLVOLTAGE_CELL_19 0x1E52
-#define PID_CELLVOLTAGE_CELL_20 0x1E53
-#define PID_CELLVOLTAGE_CELL_21 0x1E54
-#define PID_CELLVOLTAGE_CELL_22 0x1E55
-#define PID_CELLVOLTAGE_CELL_23 0x1E56
-#define PID_CELLVOLTAGE_CELL_24 0x1E57
-#define PID_CELLVOLTAGE_CELL_25 0x1E58
-#define PID_CELLVOLTAGE_CELL_26 0x1E59
-#define PID_CELLVOLTAGE_CELL_27 0x1E5A
-#define PID_CELLVOLTAGE_CELL_28 0x1E5B
-#define PID_CELLVOLTAGE_CELL_29 0x1E5C
-#define PID_CELLVOLTAGE_CELL_30 0x1E5D
-#define PID_CELLVOLTAGE_CELL_31 0x1E5E
-#define PID_CELLVOLTAGE_CELL_32 0x1E5F
-#define PID_CELLVOLTAGE_CELL_33 0x1E60
-#define PID_CELLVOLTAGE_CELL_34 0x1E61
-#define PID_CELLVOLTAGE_CELL_35 0x1E62
-#define PID_CELLVOLTAGE_CELL_36 0x1E63
-#define PID_CELLVOLTAGE_CELL_37 0x1E64
-#define PID_CELLVOLTAGE_CELL_38 0x1E65
-#define PID_CELLVOLTAGE_CELL_39 0x1E66
-#define PID_CELLVOLTAGE_CELL_40 0x1E67
-#define PID_CELLVOLTAGE_CELL_41 0x1E68
-#define PID_CELLVOLTAGE_CELL_42 0x1E69
-#define PID_CELLVOLTAGE_CELL_43 0x1E6A
-#define PID_CELLVOLTAGE_CELL_44 0x1E6B
-#define PID_CELLVOLTAGE_CELL_45 0x1E6C
-#define PID_CELLVOLTAGE_CELL_46 0x1E6D
-#define PID_CELLVOLTAGE_CELL_47 0x1E6E
-#define PID_CELLVOLTAGE_CELL_48 0x1E6F
-#define PID_CELLVOLTAGE_CELL_49 0x1E70
-#define PID_CELLVOLTAGE_CELL_50 0x1E71
-#define PID_CELLVOLTAGE_CELL_51 0x1E72
-#define PID_CELLVOLTAGE_CELL_52 0x1E73
-#define PID_CELLVOLTAGE_CELL_53 0x1E74
-#define PID_CELLVOLTAGE_CELL_54 0x1E75
-#define PID_CELLVOLTAGE_CELL_55 0x1E76
-#define PID_CELLVOLTAGE_CELL_56 0x1E77
-#define PID_CELLVOLTAGE_CELL_57 0x1E78
-#define PID_CELLVOLTAGE_CELL_58 0x1E79
-#define PID_CELLVOLTAGE_CELL_59 0x1E7A
-#define PID_CELLVOLTAGE_CELL_60 0x1E7B
-#define PID_CELLVOLTAGE_CELL_61 0x1E7C
-#define PID_CELLVOLTAGE_CELL_62 0x1E7D
-#define PID_CELLVOLTAGE_CELL_63 0x1E7E
-#define PID_CELLVOLTAGE_CELL_64 0x1E7F
-#define PID_CELLVOLTAGE_CELL_65 0x1E80
-#define PID_CELLVOLTAGE_CELL_66 0x1E81
-#define PID_CELLVOLTAGE_CELL_67 0x1E82
-#define PID_CELLVOLTAGE_CELL_68 0x1E83
-#define PID_CELLVOLTAGE_CELL_69 0x1E84
-#define PID_CELLVOLTAGE_CELL_70 0x1E85
-#define PID_CELLVOLTAGE_CELL_71 0x1E86
-#define PID_CELLVOLTAGE_CELL_72 0x1E87
-#define PID_CELLVOLTAGE_CELL_73 0x1E88
-#define PID_CELLVOLTAGE_CELL_74 0x1E89
-#define PID_CELLVOLTAGE_CELL_75 0x1E8A
-#define PID_CELLVOLTAGE_CELL_76 0x1E8B
-#define PID_CELLVOLTAGE_CELL_77 0x1E8C
-#define PID_CELLVOLTAGE_CELL_78 0x1E8D
-#define PID_CELLVOLTAGE_CELL_79 0x1E8E
-#define PID_CELLVOLTAGE_CELL_80 0x1E8F
-#define PID_CELLVOLTAGE_CELL_81 0x1E90
-#define PID_CELLVOLTAGE_CELL_82 0x1E91
-#define PID_CELLVOLTAGE_CELL_83 0x1E92
-#define PID_CELLVOLTAGE_CELL_84 0x1E93
-#define PID_CELLVOLTAGE_CELL_85 0x1E94
-#define PID_CELLVOLTAGE_CELL_86 0x1E95
-#define PID_CELLVOLTAGE_CELL_87 0x1E96
-#define PID_CELLVOLTAGE_CELL_88 0x1E97
-#define PID_CELLVOLTAGE_CELL_89 0x1E98
-#define PID_CELLVOLTAGE_CELL_90 0x1E99
-#define PID_CELLVOLTAGE_CELL_91 0x1E9A
-#define PID_CELLVOLTAGE_CELL_92 0x1E9B
-#define PID_CELLVOLTAGE_CELL_93 0x1E9C
-#define PID_CELLVOLTAGE_CELL_94 0x1E9D
-#define PID_CELLVOLTAGE_CELL_95 0x1E9E
-#define PID_CELLVOLTAGE_CELL_96 0x1E9F
-#define PID_CELLVOLTAGE_CELL_97 0x1EA0
-#define PID_CELLVOLTAGE_CELL_98 0x1EA1
-#define PID_CELLVOLTAGE_CELL_99 0x1EA2
-#define PID_CELLVOLTAGE_CELL_100 0x1EA3
-#define PID_CELLVOLTAGE_CELL_101 0x1EA4
-#define PID_CELLVOLTAGE_CELL_102 0x1EA5
-#define PID_CELLVOLTAGE_CELL_103 0x1EA6
-#define PID_CELLVOLTAGE_CELL_104 0x1EA7
-#define PID_CELLVOLTAGE_CELL_105 0x1EA8
-#define PID_CELLVOLTAGE_CELL_106 0x1EA9
-#define PID_CELLVOLTAGE_CELL_107 0x1EAA
-#define PID_CELLVOLTAGE_CELL_108 0x1EAB
-
-static uint32_t poll_pid = 0;
-static uint32_t pid_reply = 0;
-
-static uint16_t battery_soc = 0;
-static uint16_t battery_voltage = 0;
-static int16_t battery_current = 0;
-static int16_t battery_max_temp = 600;
-static int16_t battery_min_temp = 600;
-static uint16_t battery_max_charge_voltage = 0;
-static uint16_t battery_min_discharge_voltage = 0;
-static uint16_t battery_allowed_charge_power = 0;
-static uint16_t battery_allowed_discharge_power = 0;
-static uint16_t cellvoltages[108];
-static uint16_t tempval = 0;
-
-static uint8_t BMS_20_CRC = 0;
-static uint8_t BMS_20_BZ = 0;
-static bool BMS_fault_status_contactor = false;
-static bool BMS_exp_limits_active = 0;
-static uint8_t BMS_is_mode = 0;
-static bool BMS_HVIL_status = 0;
-static bool BMS_fault_HVbatt_shutdown = 0;
-static bool BMS_fault_HVbatt_shutdown_req = 0;
-static bool BMS_fault_performance = 0;
-static uint16_t BMS_current = 0;
-static bool BMS_fault_emergency_shutdown_crash = 0;
-static uint32_t BMS_voltage_intermediate = 0;
-static uint32_t BMS_voltage = 0;
-
-CAN_frame MEB_POLLING_FRAME = {.FD = true,
-                               .ext_ID = true,
-                               .DLC = 8,
-                               .ID = 0x1C40007B,  // SOC 02 8C
-                               .data = {0x03, 0x22, 0x02, 0x8C, 0x55, 0x55, 0x55, 0x55}};
-CAN_frame MEB_ACK_FRAME = {.FD = true,
-                           .ext_ID = true,
-                           .DLC = 8,
-                           .ID = 0x1C40007B,  // Ack
-                           .data = {0x30, 0x00, 0x00, 0x55, 0x55, 0x55, 0x55, 0x55}};
-//Messages that might be needed for contactor closing
-CAN_frame MEB_040 = {.FD = true,
-                     .ext_ID = true,
-                     .DLC = 8,
-                     .ID = 0x040,
-                     .data = {0x7E, 0x83, 0x00, 0x05, 0x40, 0x00, 0x1C, 0x00}};
-CAN_frame MEB_17FC007B_poll = {.FD = true,
-                               .ext_ID = true,
-                               .DLC = 8,
-                               .ID = 0x17FC007B,
-                               .data = {0x03, 0x22, 0x1E, 0x3D, 0x55, 0x55, 0x55, 0x55}};
-CAN_frame MEB_17FC007B_reply = {.FD = true,
-                                .ext_ID = true,
-                                .DLC = 8,
-                                .ID = 0x17FC007B,
-                                .data = {0x30, 0x00, 0x01, 0x55, 0x55, 0x55, 0x55, 0x55}};
-CAN_frame MEB_1A555564 = {.FD = true,
-                          .ext_ID = true,
-                          .DLC = 8,
-                          .ID = 0x1A555564,
-                          .data = {0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0}};
-CAN_frame MEB_12DD5513 = {.FD = true,
-                          .ext_ID = true,
-                          .DLC = 8,
-                          .ID = 0x12DD5513,
-                          .data = {0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0}};
-CAN_frame MEB_16A954FA = {
-    .FD = true,
-    .ext_ID = true,
-    .DLC = 16,
-    .ID = 0x16A954FA,
-    .data = {0x00, 0x00, 0xD0, 0x01, 0x00, 0x00, 0x70, 0x00, 0x00, 0x00, 0x00, 0x09, 0x00, 0x00, 0x00, 0x00}};
-
 void update_values_battery() {  //This function maps all the values fetched via CAN to the correct parameters used for modbus
 
   datalayer.battery.status.real_soc = battery_soc * 10;
@@ -370,7 +251,7 @@ void update_values_battery() {  //This function maps all the values fetched via 
 }
 
 void receive_can_battery(CAN_frame rx_frame) {
-  datalayer.battery.status.CAN_battery_still_alive = CAN_STILL_ALIVE;
+  battery_awake = true;
   switch (rx_frame.ID) {
     case 0x17F0007B:  // Suspected to be from BMS
       break;
@@ -389,10 +270,13 @@ void receive_can_battery(CAN_frame rx_frame) {
     case 0x1B00007B:  // Suspected to be from BMS
       break;
     case 0x12DD54D0:  // BMS 100ms
+      datalayer.battery.status.CAN_battery_still_alive = CAN_STILL_ALIVE;
       break;
     case 0x12DD54D1:  // BMS 100ms
+      datalayer.battery.status.CAN_battery_still_alive = CAN_STILL_ALIVE;
       break;
     case 0x12DD54D2:  // BMS 100ms
+      datalayer.battery.status.CAN_battery_still_alive = CAN_STILL_ALIVE;
       break;
     case 0x1A555550:  // BMS
       break;
@@ -730,8 +614,8 @@ void receive_can_battery(CAN_frame rx_frame) {
             cellvoltages[84] = (tempval + 1000);
           } else {  // Cell 85 unavailable. We have a 84S battery (48kWh)
             datalayer.battery.info.number_of_cells = 84;
-            datalayer.battery.info.max_design_voltage_dV = 3528;
-            datalayer.battery.info.min_design_voltage_dV = 2520;
+            datalayer.battery.info.max_design_voltage_dV = MAX_PACK_VOLTAGE_84S_DV;
+            datalayer.battery.info.min_design_voltage_dV = MIN_PACK_VOLTAGE_84S_DV;
           }
           break;
         case PID_CELLVOLTAGE_CELL_86:
@@ -809,8 +693,8 @@ void receive_can_battery(CAN_frame rx_frame) {
               // Do nothing, we already identified it as 84S
             } else {
               datalayer.battery.info.number_of_cells = 96;
-              datalayer.battery.info.max_design_voltage_dV = 4032;
-              datalayer.battery.info.min_design_voltage_dV = 2880;
+              datalayer.battery.info.max_design_voltage_dV = MAX_PACK_VOLTAGE_96S_DV;
+              datalayer.battery.info.min_design_voltage_dV = MIN_PACK_VOLTAGE_96S_DV;
             }
           }
           break;
@@ -879,8 +763,8 @@ void receive_can_battery(CAN_frame rx_frame) {
           if (tempval != 0xFFE) {
             cellvoltages[107] = (tempval + 1000);
             datalayer.battery.info.number_of_cells = 108;
-            datalayer.battery.info.max_design_voltage_dV = 4536;
-            datalayer.battery.info.min_design_voltage_dV = 3240;
+            datalayer.battery.info.max_design_voltage_dV = MAX_PACK_VOLTAGE_108S_DV;
+            datalayer.battery.info.min_design_voltage_dV = MIN_PACK_VOLTAGE_108S_DV;
           }
           break;
         default:
@@ -893,6 +777,9 @@ void receive_can_battery(CAN_frame rx_frame) {
 }
 
 void send_can_battery() {
+  if (!battery_awake) {
+    return;
+  }
   unsigned long currentMillis = millis();
   // Send 10ms CAN Message
   if (currentMillis - previousMillis10 >= INTERVAL_10_MS) {
@@ -908,9 +795,17 @@ void send_can_battery() {
   if (currentMillis - previousMillis40ms >= INTERVAL_40_MS) {
     previousMillis40ms = currentMillis;
 
+    /* Handle content for 0x040 message*/
+    MEB_040.data.u8[7] = counter_040;
+    MEB_040.data.u8[1] = ((MEB_040.data.u8[1] & 0xF0) | counter_40ms);
     MEB_040.data.u8[0] = vw_crc_calc(MEB_040.data.u8, MEB_040.DLC, MEB_040.ID);
-    transmit_can(&MEB_040, can_config.battery);
-    Serial.println(MEB_040.data.u8[0]);
+    counter_40ms = (counter_40ms + 1) % 16;  //Goes from 0-1-2-3...15-0-1-2-3..
+    if (toggle) {
+      counter_040 = (counter_040 + 1) % 256;  // Increment only on every other pass
+    }
+    toggle = !toggle;  // Flip the toggle each time the code block is executed
+
+    transmit_can(&MEB_040, can_config.battery);  // Airbag message
   }
   // Send 70ms CAN Message
   if (currentMillis - previousMillis70ms >= INTERVAL_70_MS) {
@@ -1430,8 +1325,8 @@ void setup_battery(void) {  // Performs one time setup at startup
   Serial.println("Volkswagen Group MEB platform battery selected");
 #endif
   datalayer.battery.info.number_of_cells = 108;  //Startup in 108S mode. We figure out the actual count later.
-  datalayer.battery.info.max_design_voltage_dV = 4536;
-  datalayer.battery.info.min_design_voltage_dV = 2436;
+  datalayer.battery.info.max_design_voltage_dV = MAX_PACK_VOLTAGE_108S_DV;  //Defined later to correct pack size
+  datalayer.battery.info.min_design_voltage_dV = MIN_PACK_VOLTAGE_84S_DV;   //Defined later to correct pack size
 }
 
 #endif
