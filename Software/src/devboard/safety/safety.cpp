@@ -65,7 +65,14 @@ void update_machineryprotection() {
 
   // Battery is fully charged. Dont allow any more power into it
   // Normally the BMS will send 0W allowed, but this acts as an additional layer of safety
-  if (datalayer.battery.status.reported_soc == 10000)  //Scaled SOC% value is 100.00%
+  
+#ifdef LFP_CHEMISTRY //Allow 101% SOC charging if LFP battery chemistry selected
+	#define MAX_SOC 10100
+#else
+	#define MAX_SOC 10000
+#endif
+
+  if (datalayer.battery.status.reported_soc >= MAX_SOC)  //Scaled SOC% value - defined based on battery chemistry/type
   {
     if (!battery_full_event_fired) {
       set_event(EVENT_BATTERY_FULL, 0);
