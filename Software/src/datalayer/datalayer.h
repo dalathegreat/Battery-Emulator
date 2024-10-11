@@ -84,7 +84,28 @@ typedef struct {
    * we report the battery as missing entirely on the CAN bus.
    */
   uint8_t CAN_battery_still_alive = CAN_STILL_ALIVE;
-
+  
+  uint16_t tesla_battery_bms_min_voltage = 0;
+  uint16_t tesla_battery_bms_max_voltage = 0;
+  uint16_t tesla_max_charge_current = 0;
+  uint16_t tesla_max_discharge_current = 0; 
+  uint32_t tesla_battery_total_discharge = 0;
+  uint32_t tesla_battery_total_charge = 0;
+  int16_t tesla_battery_amps = 0;       // A
+  uint16_t tesla_battery_raw_amps = 0;  // A
+  uint16_t tesla_battery_energy_to_charge_complete = 0;
+  uint16_t tesla_battery_expected_energy_remaining = 0;
+  uint8_t tesla_battery_full_charge_complete = 0;
+  uint16_t tesla_battery_ideal_energy_remaining = 0;
+  uint16_t tesla_battery_nominal_energy_remaining = 0;
+  uint16_t tesla_battery_nominal_full_pack_energy = 0;
+  uint16_t tesla_battery_beginning_of_life = 0;
+  uint16_t tesla_battery_charge_time_remaining = 0;  // Minutes
+  uint16_t tesla_battery_regenerative_limit = 0;
+  uint16_t tesla_battery_discharge_limit = 0;
+  uint16_t tesla_battery_high_voltage = 0;
+  uint16_t tesla_battery_low_voltage = 0;
+  
   /** Other */
   /** The current BMS status */
   bms_status_enum bms_status = ACTIVE;

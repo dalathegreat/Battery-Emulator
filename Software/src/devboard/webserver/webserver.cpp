@@ -653,6 +653,50 @@ String processor(const String& var) {
       content += formatPowerValue("Max discharge power", datalayer.battery.status.max_discharge_power_W, "", 1, "red");
       content += formatPowerValue("Max charge power", datalayer.battery.status.max_charge_power_W, "", 1, "red");
     }
+    
+    float teslaBMSminVoltageFloat =
+        static_cast<float>(datalayer.battery.status.tesla_battery_bms_min_voltage);  // Convert to float
+    content += "<h4 style='color: white;'>tesla_battery_bms_min_voltage: " + String(teslaBMSminVoltageFloat, 2) + " V</h4>";
+
+    float teslaBMSmaxVoltageFloat =
+        static_cast<float>(datalayer.battery.status.tesla_battery_bms_max_voltage);  // Convert to float
+    content += "<h4 style='color: white;'>tesla_battery_bms_max_voltage: " + String(teslaBMSmaxVoltageFloat, 2) + " V</h4>";
+    
+    float teslaMaxChargeCurrentFloat =
+        static_cast<float>(datalayer.battery.status.tesla_max_charge_current);  // Convert to float and divide by 10
+    content += "<h4 style='color: white;'>tesla_max_charge_current: " + String(teslaMaxChargeCurrentFloat, 2) + " A</h4>";
+    
+    float teslaMaxDischargeCurrentFloat =
+        static_cast<float>(datalayer.battery.status.tesla_max_discharge_current);  // Convert to float and divide by 10
+    content += "<h4 style='color: white;'>tesla_max_discharge_current: " + String(teslaMaxDischargeCurrentFloat, 2) + " A</h4>";
+
+//SG_ BMS_maxRegenPower : 0|16@1+ (0.01,0) [0|655.35] "kW"  Receiver
+    content += "<h4 style='color: white;'>tesla_battery_regenerative_limit: " + String(static_cast<float>(datalayer.battery.status.tesla_battery_regenerative_limit * 0.01), 2) + " kW</h4>";
+
+// SG_ BMS_maxDischargePower : 16|16@1+ (0.013,0) [0|655.35] "kW"  Receiver
+    content += "<h4 style='color: white;'>tesla_battery_discharge_limit: " + String(static_cast<float>(datalayer.battery.status.tesla_battery_discharge_limit * 0.013), 2) + " kW</h4>";
+
+    content += "<h4 style='color: white;'>tesla_battery_beginning_of_life: " + String(static_cast<float>(datalayer.battery.status.tesla_battery_beginning_of_life / 10), 2) + " kWh</h4>";
+
+    content += "<h4 style='color: white;'>tesla_battery_total_charge: " + String(static_cast<float>(datalayer.battery.status.tesla_battery_total_charge * .001), 2) + " kWh</h4>";
+    content += "<h4 style='color: white;'>tesla_battery_total_discharge: " + String(static_cast<float>(datalayer.battery.status.tesla_battery_total_discharge * .001), 2) + " kWh</h4>";
+
+
+    float teslaBatteryRegenLimitFloat =
+    static_cast<float>(datalayer.battery.status.tesla_battery_regenerative_limit);  // Convert to float and divide by 10
+    content += "<h4 style='color: white;'>tesla_battery_regenerative_limit_float: " + String(teslaBatteryRegenLimitFloat, 2) + " W</h4>";
+    content += "<h4 style='color: white;'>tesla_battery_regenerative_limit: " + String(datalayer.battery.status.tesla_battery_regenerative_limit) + " W</h4>";
+
+    content += "<h4 style='color: white;'>tesla_battery_energy_to_charge_complete_float: " + String(static_cast<float>(datalayer.battery.status.tesla_battery_energy_to_charge_complete / 10), 2) + " kWh</h4>";
+
+    content += "<h4 style='color: white;'>tesla_battery_expected_energy_remaining: " + String((static_cast<float>(datalayer.battery.status.tesla_battery_expected_energy_remaining / 10)), 2) + " kWh</h4>";
+
+//  uint8_t tesla_battery_full_charge_complete = 0;
+//  uint16_t tesla_battery_ideal_energy_remaining = 0;
+//  uint16_t tesla_battery_nominal_energy_remaining = 0;
+
+    content += "<h4 style='color: white;'>tesla_battery_nominal_full_pack_energy: " + String((static_cast<float>(datalayer.battery.status.tesla_battery_nominal_full_pack_energy / 10)), 2) + " kWh</h4>";
+
 
     content += "<h4>Cell max: " + String(datalayer.battery.status.cell_max_voltage_mV) + " mV</h4>";
     content += "<h4>Cell min: " + String(datalayer.battery.status.cell_min_voltage_mV) + " mV</h4>";

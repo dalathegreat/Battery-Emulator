@@ -415,16 +415,18 @@ void receive_can_battery(CAN_frame rx_frame) {
       //SOC
       battery_nominal_full_pack_energy =
           (((rx_frame.data.u8[1] & 0x0F) << 8) | (rx_frame.data.u8[0]));  //Example 752 (75.2kWh)
-      battery_nominal_energy_remaining = (((rx_frame.data.u8[2] & 0x3F) << 5) | ((rx_frame.data.u8[1] & 0xF8) >> 3)) *
-                                         0.1;  //Example 1247 * 0.1 = 124.7kWh
+      datalayer.battery.status.tesla_battery_nominal_full_pack_energy = battery_nominal_full_pack_energy;
+      battery_nominal_energy_remaining = (((rx_frame.data.u8[2] & 0x3F) << 5) | ((rx_frame.data.u8[1] & 0xF8) >> 3));  //Example 1247 * 0.1 = 124.7kWh
+      datalayer.battery.status.tesla_battery_nominal_energy_remaining = battery_nominal_energy_remaining;
       battery_expected_energy_remaining = (((rx_frame.data.u8[4] & 0x01) << 10) | (rx_frame.data.u8[3] << 2) |
                                            ((rx_frame.data.u8[2] & 0xC0) >> 6));  //Example 622 (62.2kWh)
-      battery_ideal_energy_remaining = (((rx_frame.data.u8[5] & 0x0F) << 7) | ((rx_frame.data.u8[4] & 0xFE) >> 1)) *
-                                       0.1;  //Example 311 * 0.1 = 31.1kWh
-      battery_energy_to_charge_complete = (((rx_frame.data.u8[6] & 0x7F) << 4) | ((rx_frame.data.u8[5] & 0xF0) >> 4)) *
-                                          0.1;  //Example 147 * 0.1 = 14.7kWh
+      datalayer.battery.status.tesla_battery_expected_energy_remaining = battery_expected_energy_remaining;
+      battery_ideal_energy_remaining = (((rx_frame.data.u8[5] & 0x0F) << 7) | ((rx_frame.data.u8[4] & 0xFE) >> 1));  //Example 311 * 0.1 = 31.1kWh
+      datalayer.battery.status.tesla_battery_ideal_energy_remaining = battery_ideal_energy_remaining;
+      battery_energy_to_charge_complete = (((rx_frame.data.u8[6] & 0x7F) << 4) | ((rx_frame.data.u8[5] & 0xF0) >> 4));  //Example 147 * 0.1 = 14.7kWh
+      datalayer.battery.status.tesla_battery_energy_to_charge_complete = battery_energy_to_charge_complete;
       battery_energy_buffer =
-          (((rx_frame.data.u8[7] & 0x7F) << 1) | ((rx_frame.data.u8[6] & 0x80) >> 7)) * 0.1;  //Example 1 * 0.1 = 0
+          (((rx_frame.data.u8[7] & 0x7F) << 1) | ((rx_frame.data.u8[6] & 0x80) >> 7));  //Example 1 * 0.1 = 0
       battery_full_charge_complete = ((rx_frame.data.u8[7] & 0x80) >> 7);
       break;
     case 0x20A:
@@ -440,21 +442,23 @@ void receive_can_battery(CAN_frame rx_frame) {
     case 0x252:
       //Limits
       battery_regenerative_limit =
-          ((rx_frame.data.u8[1] << 8) | rx_frame.data.u8[0]) * 0.01;  //Example 4715 * 0.01 = 47.15kW
+          ((rx_frame.data.u8[1] << 8) | rx_frame.data.u8[0]);  //Example 4715 * 0.01 = 47.15kW //SG_ BMS_maxRegenPower : 0|16@1+ (0.01,0) [0|655.35] "kW"  Receiver
+      datalayer.battery.status.tesla_battery_regenerative_limit = battery_regenerative_limit;
       battery_discharge_limit =
-          ((rx_frame.data.u8[3] << 8) | rx_frame.data.u8[2]) * 0.013;  //Example 2009 * 0.013 = 26.117???
+          ((rx_frame.data.u8[3] << 8) | rx_frame.data.u8[2]);  //Example 2009 * 0.013 = 26.117??? SG_ BMS_maxDischargePower : 16|16@1+ (0.013,0) [0|655.35] "kW"  Receiver
+      datalayer.battery.status.tesla_battery_discharge_limit = battery_discharge_limit;
       battery_max_heat_park =
-          (((rx_frame.data.u8[5] & 0x03) << 8) | rx_frame.data.u8[4]) * 0.01;  //Example 500 * 0.01 = 5kW
+          (((rx_frame.data.u8[5] & 0x03) << 8) | rx_frame.data.u8[4]);  //Example 500 * 0.01 = 5kW
       battery_hvac_max_power =
-          (((rx_frame.data.u8[7] << 6) | ((rx_frame.data.u8[6] & 0xFC) >> 2))) * 0.02;  //Example 1000 * 0.02 = 20kW?
+          (((rx_frame.data.u8[7] << 6) | ((rx_frame.data.u8[6] & 0xFC) >> 2));  //Example 1000 * 0.02 = 20kW?
       break;
     case 0x132:
       //battery amps/volts
-      battery_volts = ((rx_frame.data.u8[1] << 8) | rx_frame.data.u8[0]) * 0.01;  //Example 37030mv * 0.01 = 370V
+      battery_volts = ((rx_frame.data.u8[1] << 8) | rx_frame.data.u8[0]);  //Example 37030mv * 0.01 = 370V
       battery_amps = ((rx_frame.data.u8[3] << 8) | rx_frame.data.u8[2]);          //Example 65492 (-4.3A) OR 225 (22.5A)
-      battery_raw_amps = ((rx_frame.data.u8[5] << 8) | rx_frame.data.u8[4]) * -0.05;  //Example 10425 * -0.05 = ?
+      battery_raw_amps = ((rx_frame.data.u8[5] << 8) | rx_frame.data.u8[4]);  //Example 10425 * -0.05 = ?
       battery_charge_time_remaining =
-          (((rx_frame.data.u8[7] & 0x0F) << 8) | rx_frame.data.u8[6]) * 0.1;  //Example 228 * 0.1 = 22.8min
+          (((rx_frame.data.u8[7] & 0x0F) << 8) | rx_frame.data.u8[6]);  //Example 228 * 0.1 = 22.8min
       if (battery_charge_time_remaining == 4095) {
         battery_charge_time_remaining = 0;
       }
@@ -463,11 +467,11 @@ void receive_can_battery(CAN_frame rx_frame) {
     case 0x3D2:
       // total charge/discharge kwh
       battery_total_discharge = ((rx_frame.data.u8[3] << 24) | (rx_frame.data.u8[2] << 16) |
-                                 (rx_frame.data.u8[1] << 8) | rx_frame.data.u8[0]) *
-                                0.001;
+                                 (rx_frame.data.u8[1] << 8) | rx_frame.data.u8[0]);  // SG_ TotalDischargeKWh3D2 : 0|32@1+ (0.001,0) [0|4294970] "kWh"  Receiver
+      datalayer.battery.status.tesla_battery_total_discharge = battery_total_discharge;
       battery_total_charge = ((rx_frame.data.u8[7] << 24) | (rx_frame.data.u8[6] << 16) | (rx_frame.data.u8[5] << 8) |
-                              rx_frame.data.u8[4]) *
-                             0.001;
+                              rx_frame.data.u8[4]);  //  SG_ TotalChargeKWh3D2 : 32|32@1+ (0.001,0) [0|4294970] "kWh"  Receiver
+      datalayer.battery.status.tesla_battery_total_charge = battery_total_charge;
       break;
     case 0x332:
       //min/max hist values
@@ -526,12 +530,16 @@ void receive_can_battery(CAN_frame rx_frame) {
       //Min / max limits
       battery_bms_min_voltage =
           ((rx_frame.data.u8[1] << 8) | rx_frame.data.u8[0]) * 0.01 * 2;  //Example 24148mv * 0.01 = 241.48 V
+      datalayer.battery.status.tesla_battery_bms_min_voltage = battery_bms_min_voltage;
       battery_bms_max_voltage =
           ((rx_frame.data.u8[3] << 8) | rx_frame.data.u8[2]) * 0.01 * 2;  //Example 40282mv * 0.01 = 402.82 V
+      datalayer.battery.status.tesla_battery_bms_max_voltage = battery_bms_max_voltage;
       battery_max_charge_current =
           (((rx_frame.data.u8[5] & 0x3F) << 8) | rx_frame.data.u8[4]) * 0.1;  //Example 1301? * 0.1 = 130.1?
+      datalayer.battery.status.tesla_max_charge_current = battery_max_charge_current;
       battery_max_discharge_current =
           (((rx_frame.data.u8[7] & 0x3F) << 8) | rx_frame.data.u8[6]) * 0.128;  //Example 430? * 0.128 = 55.4?
+      datalayer.battery.status.tesla_max_discharge_current = battery_max_discharge_current;
       break;
     case 0x2b4:
       battery_low_voltage = (((rx_frame.data.u8[1] & 0x03) << 8) | rx_frame.data.u8[0]) * 0.0390625;
@@ -541,6 +549,7 @@ void receive_can_battery(CAN_frame rx_frame) {
     case 0x292:
       datalayer.battery.status.CAN_battery_still_alive = CAN_STILL_ALIVE;  //We are getting CAN messages from the BMS
       battery_beginning_of_life = (((rx_frame.data.u8[6] & 0x03) << 8) | rx_frame.data.u8[5]);
+      datalayer.battery.status.tesla_battery_beginning_of_life = battery_beginning_of_life;
       battery_soc_min = (((rx_frame.data.u8[1] & 0x03) << 8) | rx_frame.data.u8[0]);
       battery_soc_vi = (((rx_frame.data.u8[2] & 0x0F) << 6) | ((rx_frame.data.u8[1] & 0xFC) >> 2));
       battery_soc_max = (((rx_frame.data.u8[3] & 0x3F) << 4) | ((rx_frame.data.u8[2] & 0xF0) >> 4));
