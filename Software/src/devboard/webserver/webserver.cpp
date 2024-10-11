@@ -432,14 +432,6 @@ String processor(const String& var) {
     content += "body { background-color: black; color: white; }";
     content += "</style>";
 
-    // Draw buttons
-    content += "<button onclick='OTA()'>Perform OTA update</button> ";
-    content += "<button onclick='Settings()'>Change Settings</button> ";
-    content += "<button onclick='Advanced()'>Advanced Battery Insights</button> ";
-    content += "<button onclick='Cellmon()'>Cellmonitor</button> ";
-    content += "<button onclick='Events()'>Events</button> ";
-    content += "<button onclick='askReboot()'>Reboot Emulator</button>";
-
     // Start a new block with a specific background color
     content += "<div style='background-color: #303E47; padding: 10px; margin-bottom: 10px;border-radius: 50px'>";
 
@@ -879,21 +871,18 @@ String processor(const String& var) {
 #endif  // defined CHEVYVOLT_CHARGER || defined NISSANLEAF_CHARGER
 
     if (emulator_pause_request_ON)
-      content += "<button onclick='PauseBattery(false)'>Resume charge/discharge</button>";
+      content += "<button onclick='PauseBattery(false)'>Resume charge/discharge</button> ";
     else
       content +=
           "<button onclick=\"if(confirm('Are you sure you want to pause charging and discharging? This will set the "
           "maximum charge and discharge values to zero, preventing any further power flow.')) { PauseBattery(true); "
-          "}\">Pause charge/discharge</button>";
-    content += " ";
-    content += "<button onclick='OTA()'>Perform OTA update</button>";
-    content += " ";
-    content += "<button onclick='Settings()'>Change Settings</button>";
-    content += " ";
-    content += "<button onclick='Cellmon()'>Cellmonitor</button>";
-    content += " ";
-    content += "<button onclick='Events()'>Events</button>";
-    content += " ";
+          "}\">Pause charge/discharge</button> ";
+
+    content += "<button onclick='OTA()'>Perform OTA update</button> ";
+    content += "<button onclick='Settings()'>Change Settings</button> ";
+    content += "<button onclick='Advanced()'>Advanced Battery Insights</button> ";
+    content += "<button onclick='Cellmon()'>Cellmonitor</button> ";
+    content += "<button onclick='Events()'>Events</button> ";
     content += "<button onclick='askReboot()'>Reboot Emulator</button>";
     if (WEBSERVER_AUTH_REQUIRED)
       content += "<button onclick='logout()'>Logout</button>";
