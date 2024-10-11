@@ -260,7 +260,7 @@ void update_values_battery() {  //This function maps all the values fetched via 
 
   datalayer.battery.status.real_soc = (battery_soc_vi * 10);  //increase SOC range from 0-100.0 -> 100.00
 
-  datalayer.battery.status.voltage_dV = (battery_volts * 10);  //One more decimal needed (370 -> 3700)
+  datalayer.battery.status.voltage_dV = (battery_volts * 0.1);  //Remove one decimal 
 
   datalayer.battery.status.current_dA = battery_amps;  //13.0A
 
@@ -269,7 +269,7 @@ void update_values_battery() {  //This function maps all the values fetched via 
       (static_cast<double>(datalayer.battery.status.real_soc) / 10000) * datalayer.battery.info.total_capacity_Wh);
 
   // Define the allowed discharge power
-  datalayer.battery.status.max_discharge_power_W = (battery_max_discharge_current * battery_volts);
+  datalayer.battery.status.max_discharge_power_W = (battery_max_discharge_current * (battery_volts * .01));
   // Cap the allowed discharge power if higher than the maximum discharge power allowed
   if (datalayer.battery.status.max_discharge_power_W > MAXDISCHARGEPOWERALLOWED) {
     datalayer.battery.status.max_discharge_power_W = MAXDISCHARGEPOWERALLOWED;
@@ -296,7 +296,7 @@ void update_values_battery() {  //This function maps all the values fetched via 
     datalayer.battery.status.max_charge_power_W = MAXCHARGEPOWERALLOWED;
   }
 
-  datalayer.battery.status.active_power_W = ((battery_volts / 10) * battery_amps);
+  datalayer.battery.status.active_power_W = ((battery_volts * 0.01) * battery_amps);
 
   datalayer.battery.status.temperature_min_dC = battery_min_temp;
 
