@@ -296,7 +296,7 @@ void update_values_battery() {  //This function maps all the values fetched via 
     datalayer.battery.status.max_charge_power_W = MAXCHARGEPOWERALLOWED;
   }
 
-  datalayer.battery.status.active_power_W = ((battery_volts * 0.01) * battery_amps);
+  datalayer.battery.status.active_power_W = ((battery_volts * 0.01) * (battery_amps * 0.1)); 
 
   datalayer.battery.status.temperature_min_dC = battery_min_temp;
 
