@@ -13,5 +13,4 @@
  */
 String advanced_battery_processor(const String& var);
 
-
 #endif
