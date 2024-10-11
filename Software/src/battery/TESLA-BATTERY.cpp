@@ -450,7 +450,7 @@ void receive_can_battery(CAN_frame rx_frame) {
       battery_max_heat_park =
           (((rx_frame.data.u8[5] & 0x03) << 8) | rx_frame.data.u8[4]);  //Example 500 * 0.01 = 5kW
       battery_hvac_max_power =
-          (((rx_frame.data.u8[7] << 6) | ((rx_frame.data.u8[6] & 0xFC) >> 2));  //Example 1000 * 0.02 = 20kW?
+          (((rx_frame.data.u8[7] << 6) | ((rx_frame.data.u8[6] & 0xFC) >> 2)));  //Example 1000 * 0.02 = 20kW?
       break;
     case 0x132:
       //battery amps/volts
