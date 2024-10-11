@@ -57,6 +57,7 @@ void update_machineryprotection() {
   // Cell overvoltage, critical latching error without automatic reset. Requires user action.
   if (datalayer.battery.status.cell_max_voltage_mV >= datalayer.battery.info.max_cell_voltage_mV) {
     set_event(EVENT_CELL_OVER_VOLTAGE, 0);
+    datalayer.battery.status.max_charge_power_W = 0; // Stop charging if cell over voltage limit
   }
   // Cell undervoltage, critical latching error without automatic reset. Requires user action.
   if (datalayer.battery.status.cell_min_voltage_mV <= datalayer.battery.info.min_cell_voltage_mV) {
@@ -67,9 +68,9 @@ void update_machineryprotection() {
   // Normally the BMS will send 0W allowed, but this acts as an additional layer of safety
   
 #ifdef LFP_CHEMISTRY //Allow 101% SOC charging if LFP battery chemistry selected
-	#define MAX_SOC 10100
+    #define MAX_SOC 10100
 #else
-	#define MAX_SOC 10000
+    #define MAX_SOC 10000
 #endif
 
   if (datalayer.battery.status.reported_soc >= MAX_SOC)  //Scaled SOC% value - defined based on battery chemistry/type
