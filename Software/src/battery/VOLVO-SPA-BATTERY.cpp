@@ -8,9 +8,6 @@
 static unsigned long previousMillis100 = 0;  // will store last time a 100ms CAN Message was send
 static unsigned long previousMillis60s = 0;  // will store last time a 60s CAN Message was send
 
-#define MAX_CELL_VOLTAGE 4210  //Battery is put into emergency stop if one cell goes over this value
-#define MIN_CELL_VOLTAGE 2700  //Battery is put into emergency stop if one cell goes below this value
-
 static float BATT_U = 0;                 //0x3A
 static float MAX_U = 0;                  //0x3A
 static float MIN_U = 0;                  //0x3A
@@ -22,8 +19,8 @@ static float BATT_T_MIN = 0;             //0x413
 static float BATT_T_AVG = 0;             //0x413
 static uint16_t SOC_BMS = 0;             //0X37D
 static uint16_t SOC_CALC = 0;
-static uint16_t CELL_U_MAX = 0;             //0x37D
-static uint16_t CELL_U_MIN = 0;             //0x37D
+static uint16_t CELL_U_MAX = 3700;          //0x37D
+static uint16_t CELL_U_MIN = 3700;          //0x37D
 static uint8_t CELL_ID_U_MAX = 0;           //0x37D
 static uint16_t HvBattPwrLimDchaSoft = 0;   //0x369
 static uint8_t batteryModuleNumber = 0x10;  // First battery module
@@ -288,12 +285,6 @@ void receive_can_battery(CAN_frame rx_frame) {
               min_max_voltage[1] = cell_voltages[cellcounter];
           }
 
-          if (min_max_voltage[1] >= MAX_CELL_VOLTAGE) {
-            set_event(EVENT_CELL_OVER_VOLTAGE, 0);
-          }
-          if (min_max_voltage[0] <= MIN_CELL_VOLTAGE) {
-            set_event(EVENT_CELL_UNDER_VOLTAGE, 0);
-          }
           transmit_can(&VOLVO_SOH_Req, can_config.battery);  //Send SOH read request
         }
         rxConsecutiveFrames = 0;
@@ -347,8 +338,10 @@ void setup_battery(void) {  // Performs one time setup at startup
 #endif
 
   datalayer.battery.info.number_of_cells = 108;
-  datalayer.battery.info.max_design_voltage_dV =
-      4540;  // 454.0V, over this, charging is not possible (goes into forced discharge)
-  datalayer.battery.info.min_design_voltage_dV = 2938;  // 293.8V under this, discharging further is disabled
+  datalayer.battery.info.max_design_voltage_dV = MAX_PACK_VOLTAGE_DV;
+  datalayer.battery.info.min_design_voltage_dV = MIN_PACK_VOLTAGE_DV;
+  datalayer.battery.info.max_cell_voltage_mV = MAX_CELL_VOLTAGE_MV;
+  datalayer.battery.info.min_cell_voltage_mV = MIN_CELL_VOLTAGE_MV;
+  datalayer.battery.info.max_cell_voltage_deviation_mV = MAX_CELL_DEVIATION_MV;
 }
 #endif

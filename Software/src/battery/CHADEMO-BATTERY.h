@@ -4,7 +4,6 @@
 #include "../include.h"
 
 #define BATTERY_SELECTED
-#define MAX_CELL_DEVIATION_MV 9999
 
 //Contactor control is required for CHADEMO support
 #define CONTACTOR_CONTROL

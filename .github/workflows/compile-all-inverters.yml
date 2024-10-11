@@ -39,13 +39,13 @@ jobs:
 #         - KIA_HYUNDAI_64_BATTERY
           - NISSAN_LEAF_BATTERY
 #         - RENAULT_ZOE_BATTERY
-#         - TESLA_MODEL_3_BATTERY
+#         - TESLA_MODEL_3Y_BATTERY
         # These are the emulated inverter communication protocols for which the code will be compiled.
         inverter:
           - BYD_CAN
           - BYD_SMA
           - BYD_MODBUS
-          - LUNA2000_MODBUS
+          - FOXESS_CAN
           - PYLON_CAN
           - SMA_CAN
           - SMA_TRIPOWER_CAN

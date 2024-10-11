@@ -11,6 +11,7 @@
 #include "freertos/FreeRTOS.h"
 #include "freertos/task.h"
 #include "src/charger/CHARGERS.h"
+#include "src/datalayer/datalayer.h"
 #include "src/devboard/utils/events.h"
 #include "src/devboard/utils/led_handler.h"
 #include "src/devboard/utils/value_mapping.h"
@@ -23,8 +24,8 @@
 #include "src/lib/miwagner-ESP32-Arduino-CAN/CAN_config.h"
 #include "src/lib/miwagner-ESP32-Arduino-CAN/ESP32CAN.h"
 
-#include "src/datalayer/datalayer.h"
-
+#ifdef WIFI
+#include "src/devboard/wifi/wifi.h"
 #ifdef WEBSERVER
 #include "src/devboard/webserver/webserver.h"
 #ifdef MDNSRESPONDER
@@ -35,10 +36,24 @@
 #error WEBSERVER needs to be enabled for MDNSRESPONDER!
 #endif  // MDNSRSPONDER
 #endif  // WEBSERVER
+#ifdef MQTT
+#include "src/devboard/mqtt/mqtt.h"
+#endif  // MQTT
+#endif  // WIFI
+
+#ifndef CONTACTOR_CONTROL
+#ifdef PWM_CONTACTOR_CONTROL
+#error CONTACTOR_CONTROL needs to be enabled for PWM_CONTACTOR_CONTROL
+#endif
+#endif
+
+#ifdef EQUIPMENT_STOP_BUTTON
+#include "src/devboard/utils/debounce_button.h"
+#endif
 
 Preferences settings;  // Store user settings
 // The current software version, shown on webserver
-const char* version_number = "7.1.dev";
+const char* version_number = "7.5.dev";
 
 // Interval settings
 uint16_t intervalUpdateValues = INTERVAL_5_S;  // Interval at which to update inverter values / Modbus registers
@@ -48,10 +63,11 @@ unsigned long previousMillisUpdateVal = 0;
 // CAN parameters
 CAN_device_t CAN_cfg;          // CAN Config
 const int rx_queue_size = 10;  // Receive Queue size
+volatile bool send_ok = 0;
 
 #ifdef DUAL_CAN
 #include "src/lib/pierremolinaro-acan2515/ACAN2515.h"
-static const uint32_t QUARTZ_FREQUENCY = 8UL * 1000UL * 1000UL;  // 8 MHz
+static const uint32_t QUARTZ_FREQUENCY = CRYSTAL_FREQUENCY_MHZ * 1000000UL;  //MHZ configured in USER_SETTINGS.h
 ACAN2515 can(MCP2515_CS, SPI, MCP2515_INT);
 static ACAN2515_Buffer16 gBuffer;
 #endif
@@ -94,6 +110,8 @@ MyTimer connectivity_task_timer_10s(INTERVAL_10_S);
 
 MyTimer loop_task_timer_10s(INTERVAL_10_S);
 
+MyTimer check_pause_2s(INTERVAL_2_S);
+
 // Contactor parameters
 #ifdef CONTACTOR_CONTROL
 enum State { DISCONNECTED, PRECHARGE, NEGATIVE, POSITIVE, PRECHARGE_OFF, COMPLETED, SHUTDOWN_REQUESTED };
@@ -110,12 +128,22 @@ State contactorStatus = DISCONNECTED;
 #define PWM_Freq 20000  // 20 kHz frequency, beyond audible range
 #define PWM_Res 10      // 10 Bit resolution 0 to 1023, maps 'nicely' to 0% 100%
 #define PWM_Hold_Duty 250
+#define PWM_Off_Duty 0
+#define PWM_On_Duty 1023
 #define POSITIVE_PWM_Ch 0
 #define NEGATIVE_PWM_Ch 1
 #endif
 unsigned long prechargeStartTime = 0;
 unsigned long negativeStartTime = 0;
 unsigned long timeSpentInFaultedMode = 0;
+#endif
+
+#ifdef EQUIPMENT_STOP_BUTTON
+const unsigned long equipment_button_long_press_duration =
+    15000;                                                     // 15 seconds for long press in case of MOMENTARY_SWITCH
+const unsigned long equipment_button_debounce_duration = 200;  // 250ms for debouncing the button
+unsigned long timeSincePress = 0;                              // Variable to store the time since the last press
+DebouncedButton equipment_stop_button;                         // Debounced button object
 #endif
 
 TaskHandle_t main_loop_task;
@@ -127,7 +155,7 @@ void setup() {
 
   init_stored_settings();
 
-#ifdef WEBSERVER
+#ifdef WIFI
   xTaskCreatePinnedToCore((TaskFunction_t)&connectivity_loop, "connectivity_loop", 4096, &connectivity_task_time_us,
                           TASK_CONNECTIVITY_PRIO, &connectivity_loop_task, WIFI_CORE);
 #endif
@@ -146,6 +174,9 @@ void setup() {
 
   init_battery();
 
+#ifdef EQUIPMENT_STOP_BUTTON
+  init_equipment_stop_button();
+#endif
   // BOOT button at runtime is used as an input for various things
   pinMode(0, INPUT_PULLUP);
 
@@ -169,10 +200,16 @@ void loop() {
 #endif
 }
 
-#ifdef WEBSERVER
+#ifdef WIFI
 void connectivity_loop(void* task_time_us) {
-  // Init
+
+  // Init wifi
+  init_WiFi();
+
+#ifdef WEBSERVER
+  // Init webserver
   init_webserver();
+#endif
 #ifdef MDNSRESPONDER
   init_mDNS();
 #endif
@@ -183,6 +220,9 @@ void connectivity_loop(void* task_time_us) {
   while (true) {
     START_TIME_MEASUREMENT(wifi);
     wifi_monitor();
+#ifdef WEBSERVER
+    ota_monitor();
+#endif
     END_TIME_MEASUREMENT_MAX(wifi, datalayer.system.status.wifi_task_10s_max_us);
 #ifdef MQTT
     START_TIME_MEASUREMENT(mqtt);
@@ -209,6 +249,10 @@ void core_loop(void* task_time_us) {
   while (true) {
     START_TIME_MEASUREMENT(all);
     START_TIME_MEASUREMENT(comm);
+#ifdef EQUIPMENT_STOP_BUTTON
+    monitor_equipment_stop_button();
+#endif
+
     // Input, Runs as fast as possible
     receive_can_native();  // Receive CAN messages from native CAN port
 #ifdef CAN_FD
@@ -287,31 +331,15 @@ void core_loop(void* task_time_us) {
       datalayer.system.status.time_cantx_us = 0;
       datalayer.system.status.core_task_10s_max_us = 0;
     }
+
 #endif
+    if (check_pause_2s.elapsed()) {
+      emulator_pause_state_send_CAN_battery();
+    }
+
     vTaskDelayUntil(&xLastWakeTime, xFrequency);
   }
 }
-
-#ifdef MDNSRESPONDER
-// Initialise mDNS
-void init_mDNS() {
-
-  // Calulate the host name using the last two chars from the MAC address so each one is likely unique on a network.
-  // e.g batteryemulator8C.local where the mac address is 08:F9:E0:D1:06:8C
-  String mac = WiFi.macAddress();
-  String mdnsHost = "batteryemulator" + mac.substring(mac.length() - 2);
-
-  // Initialize mDNS .local resolution
-  if (!MDNS.begin(mdnsHost)) {
-#ifdef DEBUG_VIA_USB
-    Serial.println("Error setting up MDNS responder!");
-#endif
-  } else {
-    // Advertise via bonjour the service so we can auto discover these battery emulators on the local network.
-    MDNS.addService("battery_emulator", "tcp", 80);
-  }
-}
-#endif  // MDNSRESPONDER
 
 // Initialization functions
 void init_serial() {
@@ -324,11 +352,24 @@ void init_serial() {
 }
 
 void init_stored_settings() {
+  static uint32_t temp = 0;
   settings.begin("batterySettings", false);
+
+  // Always get the equipment stop status
+  datalayer.system.settings.equipment_stop_active = settings.getBool("EQUIPMENT_STOP", false);
+  if (datalayer.system.settings.equipment_stop_active) {
+    set_event(EVENT_EQUIPMENT_STOP, 1);
+  }
 
 #ifndef LOAD_SAVED_SETTINGS_ON_BOOT
   settings.clear();  // If this clear function is executed, no settings will be read from storage
+
+  //always save the equipment stop status
+  settings.putBool("EQUIPMENT_STOP", datalayer.system.settings.equipment_stop_active);
+
 #endif
+
+#ifdef WIFI
 
   char tempSSIDstring[63];  // Allocate buffer with sufficient size
   size_t lengthSSID = settings.getString("SSID", tempSSIDstring, sizeof(tempSSIDstring));
@@ -342,8 +383,8 @@ void init_stored_settings() {
     password = tempPasswordString;
   } else {  // Reading from settings failed. Do nothing with SSID. Raise event?
   }
+#endif
 
-  static uint32_t temp = 0;
   temp = settings.getUInt("BATTERY_WH_MAX", false);
   if (temp != 0) {
     datalayer.battery.info.total_capacity_Wh = temp;
@@ -377,6 +418,9 @@ void init_CAN() {
   digitalWrite(CAN_SE_PIN, LOW);
 #endif
   CAN_cfg.speed = CAN_SPEED_500KBPS;
+#ifdef NATIVECAN_250KBPS  // Some component is requesting lower CAN speed
+  CAN_cfg.speed = CAN_SPEED_250KBPS;
+#endif
   CAN_cfg.tx_pin_id = CAN_TX_PIN;
   CAN_cfg.rx_pin_id = CAN_RX_PIN;
   CAN_cfg.rx_queue = xQueueCreate(rx_queue_size, sizeof(CAN_frame_t));
@@ -391,7 +435,18 @@ void init_CAN() {
   SPI.begin(MCP2515_SCK, MCP2515_MISO, MCP2515_MOSI);
   ACAN2515Settings settings(QUARTZ_FREQUENCY, 500UL * 1000UL);  // CAN bit rate 500 kb/s
   settings.mRequestedMode = ACAN2515Settings::NormalMode;
-  can.begin(settings, [] { can.isr(); });
+  const uint16_t errorCodeMCP = can.begin(settings, [] { can.isr(); });
+  if (errorCodeMCP == 0) {
+#ifdef DEBUG_VIA_USB
+    Serial.println("Can ok");
+#endif
+  } else {
+#ifdef DEBUG_VIA_USB
+    Serial.print("Error Can: 0x");
+    Serial.println(errorCodeMCP, HEX);
+#endif
+    set_event(EVENT_CANMCP_INIT_FAILURE, (uint8_t)errorCodeMCP);
+  }
 #endif
 
 #ifdef CAN_FD
@@ -440,23 +495,24 @@ void init_CAN() {
 void init_contactors() {
   // Init contactor pins
 #ifdef CONTACTOR_CONTROL
+#ifndef PWM_CONTACTOR_CONTROL
   pinMode(POSITIVE_CONTACTOR_PIN, OUTPUT);
   digitalWrite(POSITIVE_CONTACTOR_PIN, LOW);
   pinMode(NEGATIVE_CONTACTOR_PIN, OUTPUT);
   digitalWrite(NEGATIVE_CONTACTOR_PIN, LOW);
-#ifdef PWM_CONTACTOR_CONTROL
+#else
   ledcAttachChannel(POSITIVE_CONTACTOR_PIN, PWM_Freq, PWM_Res,
                     POSITIVE_PWM_Ch);  // Setup PWM Channel Frequency and Resolution
   ledcAttachChannel(NEGATIVE_CONTACTOR_PIN, PWM_Freq, PWM_Res,
-                    NEGATIVE_PWM_Ch);  // Setup PWM Channel Frequency and Resolution
-  ledcWrite(POSITIVE_PWM_Ch, 0);       // Set Positive PWM to 0%
-  ledcWrite(NEGATIVE_PWM_Ch, 0);       // Set Negative PWM to 0%
+                    NEGATIVE_PWM_Ch);               // Setup PWM Channel Frequency and Resolution
+  ledcWrite(POSITIVE_CONTACTOR_PIN, PWM_Off_Duty);  // Set Positive PWM to 0%
+  ledcWrite(NEGATIVE_CONTACTOR_PIN, PWM_Off_Duty);  // Set Negative PWM to 0%
 #endif
   pinMode(PRECHARGE_PIN, OUTPUT);
   digitalWrite(PRECHARGE_PIN, LOW);
 #endif
 // Init BMS contactor
-#ifdef HW_STARK  // TODO: Rewrite this so LilyGo can aslo handle this BMS contactor
+#ifdef HW_STARK  // TODO: Rewrite this so LilyGo can also handle this BMS contactor
   pinMode(BMS_POWER, OUTPUT);
   digitalWrite(BMS_POWER, HIGH);
 #endif
@@ -501,6 +557,9 @@ void init_inverter() {
   datalayer.system.status.inverter_allows_contactor_closing = false;  // The inverter needs to allow first
   intervalUpdateValues = 800;  // This protocol also requires the values to be updated faster
 #endif
+#ifdef FOXESS_CAN
+  intervalUpdateValues = 950;  // This protocol also requires the values to be updated faster
+#endif
 #ifdef BYD_SMA
   datalayer.system.status.inverter_allows_contactor_closing = false;  // The inverter needs to allow first
   pinMode(INVERTER_CONTACTOR_ENABLE_PIN, INPUT);
@@ -516,11 +575,51 @@ void init_battery() {
 #endif
 }
 
+#ifdef EQUIPMENT_STOP_BUTTON
+
+void monitor_equipment_stop_button() {
+
+  ButtonState changed_state = debounceButton(equipment_stop_button, timeSincePress);
+
+  if (equipment_stop_behavior == LATCHING_SWITCH) {
+    if (changed_state == PRESSED) {
+      // Changed to ON – initiating equipment stop.
+      setBatteryPause(true, true, true);
+    } else if (changed_state == RELEASED) {
+      // Changed to OFF – ending equipment stop.
+      setBatteryPause(false, false, false);
+    }
+  } else if (equipment_stop_behavior == MOMENTARY_SWITCH) {
+    if (changed_state == RELEASED) {  // button is released
+
+      if (timeSincePress < equipment_button_long_press_duration) {
+        // Short press detected, trigger equipment stop
+        setBatteryPause(true, true, true);
+      } else {
+        // Long press detected, reset equipment stop state
+        setBatteryPause(false, false, false);
+      }
+    }
+  }
+}
+
+void init_equipment_stop_button() {
+  //using external pullup resistors NC
+  pinMode(EQUIPMENT_STOP_PIN, INPUT);
+  // Initialize the debounced button with NC switch type and equipment_button_debounce_duration debounce time
+  initDebouncedButton(equipment_stop_button, EQUIPMENT_STOP_PIN, NC, equipment_button_debounce_duration);
+}
+
+#endif
+
 #ifdef CAN_FD
 // Functions
 #ifdef DEBUG_CANFD_DATA
-void print_canfd_frame(CANFDMessage rx_frame) {
+enum frameDirection { MSG_RX, MSG_TX };
+void print_canfd_frame(CANFDMessage rx_frame, frameDirection msgDir);  // Needs to be declared before it is defined
+void print_canfd_frame(CANFDMessage rx_frame, frameDirection msgDir) {
   int i = 0;
+  (msgDir == 0) ? Serial.print("RX ") : Serial.print("TX ");
   Serial.print(rx_frame.id, HEX);
   Serial.print(" ");
   for (i = 0; i < rx_frame.len; i++) {
@@ -536,7 +635,7 @@ void receive_canfd() {  // This section checks if we have a complete CAN-FD mess
   if (canfd.available()) {
     canfd.receive(frame);
 #ifdef DEBUG_CANFD_DATA
-    print_canfd_frame(frame);
+    print_canfd_frame(frame, frameDirection(MSG_RX));
 #endif
     CAN_frame rx_frame;
     rx_frame.ID = frame.id;
@@ -547,6 +646,7 @@ void receive_canfd() {  // This section checks if we have a complete CAN-FD mess
     }
     //message incoming, pass it on to the handler
     receive_can(&rx_frame, CAN_ADDON_FD_MCP2518);
+    receive_can(&rx_frame, CANFD_NATIVE);
   }
 }
 #endif
@@ -571,6 +671,9 @@ void receive_can_native() {  // This section checks if we have a complete CAN me
 }
 
 void send_can() {
+  if (!allowed_to_send_CAN) {
+    return;
+  }
 
   send_can_battery();
 
@@ -623,13 +726,11 @@ void check_interconnect_available() {
 #endif  //DOUBLE_BATTERY
 
 void handle_contactors() {
-
 #ifdef BYD_SMA
   datalayer.system.status.inverter_allows_contactor_closing = digitalRead(INVERTER_CONTACTOR_ENABLE_PIN);
 #endif
 
 #ifdef CONTACTOR_CONTROL
-
   // First check if we have any active errors, incase we do, turn off the battery
   if (datalayer.battery.status.bms_status == FAULT) {
     timeSpentInFaultedMode++;
@@ -637,25 +738,37 @@ void handle_contactors() {
     timeSpentInFaultedMode = 0;
   }
 
-  if (timeSpentInFaultedMode > MAX_ALLOWED_FAULT_TICKS) {
+  //handle contactor control SHUTDOWN_REQUESTED vs DISCONNECTED
+  if (timeSpentInFaultedMode > MAX_ALLOWED_FAULT_TICKS ||
+      (datalayer.system.settings.equipment_stop_active && contactorStatus != SHUTDOWN_REQUESTED)) {
     contactorStatus = SHUTDOWN_REQUESTED;
+  }
+  if (contactorStatus == SHUTDOWN_REQUESTED && !datalayer.system.settings.equipment_stop_active) {
+    contactorStatus = DISCONNECTED;
   }
   if (contactorStatus == SHUTDOWN_REQUESTED) {
     digitalWrite(PRECHARGE_PIN, LOW);
+#ifndef PWM_CONTACTOR_CONTROL
     digitalWrite(NEGATIVE_CONTACTOR_PIN, LOW);
     digitalWrite(POSITIVE_CONTACTOR_PIN, LOW);
+#else
+    ledcWrite(NEGATIVE_CONTACTOR_PIN, PWM_Off_Duty);
+    ledcWrite(POSITIVE_CONTACTOR_PIN, PWM_Off_Duty);
+#endif
     set_event(EVENT_ERROR_OPEN_CONTACTOR, 0);
+    datalayer.system.status.contactor_control_closed = false;
     return;  // A fault scenario latches the contactor control. It is not possible to recover without a powercycle (and investigation why fault occured)
   }
 
   // After that, check if we are OK to start turning on the battery
   if (contactorStatus == DISCONNECTED) {
     digitalWrite(PRECHARGE_PIN, LOW);
+#ifndef PWM_CONTACTOR_CONTROL
     digitalWrite(NEGATIVE_CONTACTOR_PIN, LOW);
     digitalWrite(POSITIVE_CONTACTOR_PIN, LOW);
-#ifdef PWM_CONTACTOR_CONTROL
-    ledcWrite(POSITIVE_PWM_Ch, 0);
-    ledcWrite(NEGATIVE_PWM_Ch, 0);
+#else
+    ledcWrite(NEGATIVE_CONTACTOR_PIN, PWM_Off_Duty);
+    ledcWrite(POSITIVE_CONTACTOR_PIN, PWM_Off_Duty);
 #endif
 
     if (datalayer.system.status.battery_allows_contactor_closing &&
@@ -683,9 +796,10 @@ void handle_contactors() {
 
     case NEGATIVE:
       if (currentTime - prechargeStartTime >= PRECHARGE_TIME_MS) {
+#ifndef PWM_CONTACTOR_CONTROL
         digitalWrite(NEGATIVE_CONTACTOR_PIN, HIGH);
-#ifdef PWM_CONTACTOR_CONTROL
-        ledcWrite(NEGATIVE_PWM_Ch, 1023);
+#else
+        ledcWrite(NEGATIVE_CONTACTOR_PIN, PWM_On_Duty);
 #endif
         negativeStartTime = currentTime;
         contactorStatus = POSITIVE;
@@ -694,9 +808,10 @@ void handle_contactors() {
 
     case POSITIVE:
       if (currentTime - negativeStartTime >= NEGATIVE_CONTACTOR_TIME_MS) {
+#ifndef PWM_CONTACTOR_CONTROL
         digitalWrite(POSITIVE_CONTACTOR_PIN, HIGH);
-#ifdef PWM_CONTACTOR_CONTROL
-        ledcWrite(POSITIVE_PWM_Ch, 1023);
+#else
+        ledcWrite(POSITIVE_CONTACTOR_PIN, PWM_On_Duty);
 #endif
         contactorStatus = PRECHARGE_OFF;
       }
@@ -706,10 +821,11 @@ void handle_contactors() {
       if (currentTime - negativeStartTime >= POSITIVE_CONTACTOR_TIME_MS) {
         digitalWrite(PRECHARGE_PIN, LOW);
 #ifdef PWM_CONTACTOR_CONTROL
-        ledcWrite(NEGATIVE_PWM_Ch, PWM_Hold_Duty);
-        ledcWrite(POSITIVE_PWM_Ch, PWM_Hold_Duty);
+        ledcWrite(NEGATIVE_CONTACTOR_PIN, PWM_Hold_Duty);
+        ledcWrite(POSITIVE_CONTACTOR_PIN, PWM_Hold_Duty);
 #endif
         contactorStatus = COMPLETED;
+        datalayer.system.status.contactor_control_closed = true;
       }
       break;
     default:
@@ -801,10 +917,18 @@ void init_serialDataLink() {
 #endif
 }
 
+void store_settings_equipment_stop() {
+  settings.begin("batterySettings", false);
+  settings.putBool("EQUIPMENT_STOP", datalayer.system.settings.equipment_stop_active);
+  settings.end();
+}
+
 void storeSettings() {
   settings.begin("batterySettings", false);
+#ifdef WIFI
   settings.putString("SSID", String(ssid.c_str()));
   settings.putString("PASSWORD", String(password.c_str()));
+#endif
   settings.putUInt("BATTERY_WH_MAX", datalayer.battery.info.total_capacity_Wh);
   settings.putUInt("MAXPERCENTAGE",
                    datalayer.battery.settings.max_percentage / 10);  // Divide by 10 for backwards compatibility
@@ -892,7 +1016,12 @@ void check_reset_reason() {
       break;
   }
 }
+
 void transmit_can(CAN_frame* tx_frame, int interface) {
+  if (!allowed_to_send_CAN) {
+    return;
+  }
+
   switch (interface) {
     case CAN_NATIVE:
       CAN_frame_t frame;
@@ -931,7 +1060,14 @@ void transmit_can(CAN_frame* tx_frame, int interface) {
       for (uint8_t i = 0; i < MCP2518Frame.len; i++) {
         MCP2518Frame.data[i] = tx_frame->data.u8[i];
       }
-      canfd.tryToSend(MCP2518Frame);
+      send_ok = canfd.tryToSend(MCP2518Frame);
+      if (!send_ok) {
+        set_event(EVENT_CANFD_BUFFER_FULL, interface);
+      } else {
+#ifdef DEBUG_CANFD_DATA
+        print_canfd_frame(MCP2518Frame, frameDirection(MSG_TX));
+#endif
+      }
 #else   // Interface not compiled, and settings try to use it
       set_event(EVENT_INTERFACE_MISSING, interface);
 #endif  //CAN_FD
