@@ -5,6 +5,7 @@
 #include "../devboard/mqtt/mqtt.h"
 #endif
 #include "../datalayer/datalayer.h"
+#include "../datalayer/datalayer_web.h"  //For Advanced Battery Insights webpage
 #include "../devboard/utils/events.h"
 
 /* Do not change code below unless you are sure what you are doing */
@@ -314,6 +315,22 @@ void update_values_battery() { /* This function maps all the values fetched via 
       set_event(EVENT_BATTERY_REQUESTS_HEAT, 0);
     }
   }
+
+  // Update webserver datalayer
+  datalayer_web.nissanleaf.LEAF_gen = LEAF_battery_Type;
+  datalayer_web.nissanleaf.GIDS = battery_GIDS;
+  datalayer_web.nissanleaf.ChargePowerLimit = battery_Charge_Power_Limit;
+  datalayer_web.nissanleaf.MaxPowerForCharger = battery_MAX_POWER_FOR_CHARGER;
+  datalayer_web.nissanleaf.Interlock = battery_Interlock;
+  datalayer_web.nissanleaf.RelayCutRequest = battery_Relay_Cut_Request;
+  datalayer_web.nissanleaf.FailsafeStatus = battery_Failsafe_Status;
+  datalayer_web.nissanleaf.Full = battery_Full_CHARGE_flag;
+  datalayer_web.nissanleaf.Empty = battery_Capacity_Empty;
+  datalayer_web.nissanleaf.MainRelayOn = battery_MainRelayOn_flag;
+  datalayer_web.nissanleaf.HeatExist = battery_HeatExist;
+  datalayer_web.nissanleaf.HeatingStop = battery_Heating_Stop;
+  datalayer_web.nissanleaf.HeatingStart = battery_Heating_Start;
+  datalayer_web.nissanleaf.HeaterSendRequest = battery_Batt_Heater_Mail_Send_Request;
 
 /*Finally print out values to serial if configured to do so*/
 #ifdef DEBUG_VIA_USB

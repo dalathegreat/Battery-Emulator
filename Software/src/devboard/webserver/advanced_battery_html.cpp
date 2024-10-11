@@ -26,7 +26,24 @@ String advanced_battery_processor(const String& var) {
     content += "<h4>Pyrotest: " + String(datalayer_web.tesla.pyroTestInProgress) + "</h4>";
 #endif
 
-#ifndef TESLA_BATTERY  //Only the listed types have extra info
+#ifdef NISSAN_LEAF_BATTERY
+    content += "<h4>LEAF generation: " + String(datalayer_web.nissanleaf.LEAF_gen) + "</h4>";
+    content += "<h4>GIDS: " + String(datalayer_web.nissanleaf.GIDS) + "</h4>";
+    content += "<h4>Regen kW: " + String(datalayer_web.nissanleaf.ChargePowerLimit) + "</h4>";
+    content += "<h4>Charge kW: " + String(datalayer_web.nissanleaf.MaxPowerForCharger) + "</h4>";
+    content += "<h4>Interlock: " + String(datalayer_web.nissanleaf.Interlock) + "</h4>";
+    content += "<h4>Relay cut request: " + String(datalayer_web.nissanleaf.RelayCutRequest) + "</h4>";
+    content += "<h4>Failsafe status: " + String(datalayer_web.nissanleaf.FailsafeStatus) + "</h4>";
+    content += "<h4>Fully charged: " + String(datalayer_web.nissanleaf.Full) + "</h4>";
+    content += "<h4>Battery empty: " + String(datalayer_web.nissanleaf.Empty) + "</h4>";
+    content += "<h4>Main relay ON: " + String(datalayer_web.nissanleaf.MainRelayOn) + "</h4>";
+    content += "<h4>Heater present: " + String(datalayer_web.nissanleaf.HeatExist) + "</h4>";
+    content += "<h4>Heating stopped: " + String(datalayer_web.nissanleaf.HeatingStop) + "</h4>";
+    content += "<h4>Heating started: " + String(datalayer_web.nissanleaf.HeatingStart) + "</h4>";
+    content += "<h4>Heating requested: " + String(datalayer_web.nissanleaf.HeaterSendRequest) + "</h4>";
+#endif
+
+#if !defined(TESLA_BATTERY) && !defined(NISSAN_LEAF_BATTERY)  //Only the listed types have extra info
     content += "No extra information available for this battery type";
 #endif
 
