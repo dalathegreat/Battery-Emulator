@@ -56,6 +56,8 @@ static uint16_t BMS_current = 0;
 static bool BMS_fault_emergency_shutdown_crash = 0;
 static uint32_t BMS_voltage_intermediate = 0;
 static uint32_t BMS_voltage = 0;
+static bool service_disconnect_switch_missing = false;
+static bool pilotline_open = false;
 
 CAN_frame MEB_POLLING_FRAME = {.FD = true,
                                .ext_ID = true,
@@ -271,6 +273,17 @@ void update_values_battery() {  //This function maps all the values fetched via 
   datalayer.battery.status.cell_min_voltage_mV = min_cell_mv_value;
   datalayer.battery.status.cell_max_voltage_mV = max_cell_mv_value;
 
+  if (service_disconnect_switch_missing) {
+    set_event(EVENT_HVIL_FAILURE, 1);
+  } else {
+    clear_event(EVENT_HVIL_FAILURE);
+  }
+  if (pilotline_open) {
+    set_event(EVENT_HVIL_FAILURE, 2);
+  } else {
+    clear_event(EVENT_HVIL_FAILURE);
+  }
+
 #ifdef DEBUG_VIA_USB
   Serial.println();  //sepatator
   Serial.println("Values from battery: ");
@@ -334,6 +347,8 @@ void receive_can_battery(CAN_frame rx_frame) {
     case 0x578:  // BMS
       break;
     case 0x5A2:  // BMS
+      service_disconnect_switch_missing = (rx_frame.data.u8[1] & 0x20) >> 5;
+      pilotline_open = (rx_frame.data.u8[1] & 0x10) >> 4;
       break;
     case 0x5CA:  // BMS
       break;
