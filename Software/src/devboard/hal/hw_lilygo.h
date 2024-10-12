@@ -65,6 +65,9 @@
 #define LED_PIN 4
 #define LED_MAX_BRIGHTNESS 40
 
+// Equipment stop pin
+#define EQUIPMENT_STOP_PIN 35
+
 /* ----- Error checks below, don't change (can't be moved to separate file) ----- */
 #ifndef HW_CONFIGURED
 #define HW_CONFIGURED
@@ -75,6 +78,18 @@
 #ifdef CHADEMO_BATTERY
 #ifdef DUAL_CAN
 #error CHADEMO and DUAL_CAN cannot coexist due to overlapping GPIO pin usage
+#endif
+#endif
+
+#ifdef EQUIPMENT_STOP_BUTTON
+#ifdef DUAL_CAN
+#error EQUIPMENT_STOP_BUTTON and DUAL_CAN cannot coexist due to overlapping GPIO pin usage
+#endif
+#ifdef CAN_FD
+#error EQUIPMENT_STOP_BUTTON and CAN_FD cannot coexist due to overlapping GPIO pin usage
+#endif
+#ifdef CHADEMO_BATTERY
+#error EQUIPMENT_STOP_BUTTON and CHADEMO_BATTERY cannot coexist due to overlapping GPIO pin usage
 #endif
 #endif
 

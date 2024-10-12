@@ -4,9 +4,6 @@
 #define SERIAL_LINK_RECEIVER_FROM_BATTERY_H
 
 #define BATTERY_SELECTED
-#ifndef MAX_CELL_DEVIATION_MV
-#define MAX_CELL_DEVIATION_MV 9999
-#endif
 
 #include "../include.h"
 #include "../lib/mackelec-SerialDataLink/SerialDataLink.h"

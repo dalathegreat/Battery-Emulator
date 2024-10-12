@@ -1,6 +1,8 @@
 #ifndef _TYPES_H_
 #define _TYPES_H_
 
+#include <string>
+
 enum bms_status_enum { STANDBY = 0, INACTIVE = 1, DARKSTART = 2, ACTIVE = 3, FAULT = 4, UPDATING = 5 };
 enum battery_chemistry_enum { NCA, NMC, LFP };
 enum led_color { GREEN, YELLOW, RED, BLUE, RGB };
@@ -14,6 +16,7 @@ enum led_color { GREEN, YELLOW, RED, BLUE, RGB };
 #define INTERVAL_50_MS 50
 #define INTERVAL_100_MS 100
 #define INTERVAL_200_MS 200
+#define INTERVAL_250_MS 250
 #define INTERVAL_500_MS 500
 #define INTERVAL_640_MS 640
 #define INTERVAL_1_S 1000
@@ -45,5 +48,7 @@ typedef struct {
     uint64_t u64;
   } data;
 } CAN_frame;
+
+std::string getBMSStatus(bms_status_enum status);
 
 #endif

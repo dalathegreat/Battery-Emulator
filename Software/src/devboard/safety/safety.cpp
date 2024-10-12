@@ -9,8 +9,22 @@ static bool battery_empty_event_fired = false;
 
 #define MAX_SOH_DEVIATION_PPTT 2500
 
+//battery pause status begin
+bool emulator_pause_request_ON = false;
+bool emulator_pause_CAN_send_ON = false;
+bool allowed_to_send_CAN = true;
+
+battery_pause_status emulator_pause_status = NORMAL;
+//battery pause status end
+
 void update_machineryprotection() {
   // Start checking that the battery is within reason. Incase we see any funny business, raise an event!
+
+  // Pause function is on
+  if (emulator_pause_request_ON) {
+    datalayer.battery.status.max_discharge_power_W = 0;
+    datalayer.battery.status.max_charge_power_W = 0;
+  }
 
   // Battery is overheated!
   if (datalayer.battery.status.temperature_max_dC > 500) {
@@ -38,6 +52,15 @@ void update_machineryprotection() {
     set_event(EVENT_BATTERY_UNDERVOLTAGE, datalayer.battery.status.voltage_dV);
   } else {
     clear_event(EVENT_BATTERY_UNDERVOLTAGE);
+  }
+
+  // Cell overvoltage, critical latching error without automatic reset. Requires user action.
+  if (datalayer.battery.status.cell_max_voltage_mV >= datalayer.battery.info.max_cell_voltage_mV) {
+    set_event(EVENT_CELL_OVER_VOLTAGE, 0);
+  }
+  // Cell undervoltage, critical latching error without automatic reset. Requires user action.
+  if (datalayer.battery.status.cell_min_voltage_mV <= datalayer.battery.info.min_cell_voltage_mV) {
+    set_event(EVENT_CELL_UNDER_VOLTAGE, 0);
   }
 
   // Battery is fully charged. Dont allow any more power into it
@@ -74,6 +97,7 @@ void update_machineryprotection() {
     clear_event(EVENT_SOH_LOW);
   }
 
+#ifndef PYLON_BATTERY
   // Check if SOC% is plausible
   if (datalayer.battery.status.voltage_dV >
       (datalayer.battery.info.max_design_voltage_dV -
@@ -84,10 +108,11 @@ void update_machineryprotection() {
       clear_event(EVENT_SOC_PLAUSIBILITY_ERROR);
     }
   }
+#endif
 
   // Check diff between highest and lowest cell
   cell_deviation_mV = (datalayer.battery.status.cell_max_voltage_mV - datalayer.battery.status.cell_min_voltage_mV);
-  if (cell_deviation_mV > MAX_CELL_DEVIATION_MV) {
+  if (cell_deviation_mV > datalayer.battery.info.max_cell_voltage_deviation_mV) {
     set_event(EVENT_CELL_DEVIATION_HIGH, (cell_deviation_mV / 20));
   } else {
     clear_event(EVENT_CELL_DEVIATION_HIGH);
@@ -136,8 +161,25 @@ void update_machineryprotection() {
     clear_event(EVENT_CAN_RX_WARNING);
   }
 
+#ifdef CAN_INVERTER_SELECTED
+  // Check if the inverter is still sending CAN messages. If we go 60s without messages we raise an error
+  if (!datalayer.system.status.CAN_inverter_still_alive) {
+    set_event(EVENT_CAN_INVERTER_MISSING, 0);
+  } else {
+    datalayer.system.status.CAN_inverter_still_alive--;
+    clear_event(EVENT_CAN_INVERTER_MISSING);
+  }
+#endif  //CAN_INVERTER_SELECTED
+
 #ifdef DOUBLE_BATTERY  // Additional Double-Battery safeties are checked here
   // Check if the Battery 2 BMS is still sending CAN messages. If we go 60s without messages we raise an error
+
+  // Pause function is on
+  if (emulator_pause_request_ON) {
+    datalayer.battery2.status.max_discharge_power_W = 0;
+    datalayer.battery2.status.max_charge_power_W = 0;
+  }
+
   if (!datalayer.battery2.status.CAN_battery_still_alive) {
     set_event(EVENT_CAN2_RX_FAILURE, 0);
   } else {
@@ -150,6 +192,23 @@ void update_machineryprotection() {
     set_event(EVENT_CAN_RX_WARNING, 2);
   } else {
     clear_event(EVENT_CAN_RX_WARNING);
+  }
+
+  // Cell overvoltage, critical latching error without automatic reset. Requires user action.
+  if (datalayer.battery2.status.cell_max_voltage_mV >= datalayer.battery2.info.max_cell_voltage_mV) {
+    set_event(EVENT_CELL_OVER_VOLTAGE, 0);
+  }
+  // Cell undervoltage, critical latching error without automatic reset. Requires user action.
+  if (datalayer.battery2.status.cell_min_voltage_mV <= datalayer.battery2.info.min_cell_voltage_mV) {
+    set_event(EVENT_CELL_UNDER_VOLTAGE, 0);
+  }
+
+  // Check diff between highest and lowest cell
+  cell_deviation_mV = (datalayer.battery2.status.cell_max_voltage_mV - datalayer.battery2.status.cell_min_voltage_mV);
+  if (cell_deviation_mV > datalayer.battery2.info.max_cell_voltage_deviation_mV) {
+    set_event(EVENT_CELL_DEVIATION_HIGH, (cell_deviation_mV / 20));
+  } else {
+    clear_event(EVENT_CELL_DEVIATION_HIGH);
   }
 
   // Check if SOH% between the packs is too large
@@ -171,3 +230,96 @@ void update_machineryprotection() {
 
 #endif  // DOUBLE_BATTERY
 }
+
+//battery pause status begin
+void setBatteryPause(bool pause_battery, bool pause_CAN, bool equipment_stop, bool store_settings) {
+
+  // First handle equipment stop / resume
+  if (equipment_stop && !datalayer.system.settings.equipment_stop_active) {
+    datalayer.system.settings.equipment_stop_active = true;
+    if (store_settings) {
+      store_settings_equipment_stop();
+    }
+
+    set_event(EVENT_EQUIPMENT_STOP, 1);
+  } else if (!equipment_stop && datalayer.system.settings.equipment_stop_active) {
+    datalayer.system.settings.equipment_stop_active = false;
+    if (store_settings) {
+      store_settings_equipment_stop();
+    }
+    clear_event(EVENT_EQUIPMENT_STOP);
+  }
+
+  emulator_pause_CAN_send_ON = pause_CAN;
+
+  if (pause_battery) {
+
+    set_event(EVENT_PAUSE_BEGIN, 1);
+    emulator_pause_request_ON = true;
+    emulator_pause_status = PAUSING;
+    datalayer.battery.status.max_discharge_power_W = 0;
+    datalayer.battery.status.max_charge_power_W = 0;
+#ifdef DOUBLE_BATTERY
+    datalayer.battery2.status.max_discharge_power_W = 0;
+    datalayer.battery2.status.max_charge_power_W = 0;
+#endif
+
+  } else {
+    clear_event(EVENT_PAUSE_BEGIN);
+    set_event(EVENT_PAUSE_END, 0);
+    emulator_pause_request_ON = false;
+    emulator_pause_CAN_send_ON = false;
+    emulator_pause_status = RESUMING;
+    clear_event(EVENT_PAUSE_END);
+  }
+
+  //immediate check if we can send CAN messages
+  emulator_pause_state_send_CAN_battery();
+}
+
+/// @brief handle emulator pause status
+/// @return true if CAN messages should be sent to battery, false if not
+void emulator_pause_state_send_CAN_battery() {
+  bool previous_allowed_to_send_CAN = allowed_to_send_CAN;
+
+  if (emulator_pause_status == NORMAL) {
+    allowed_to_send_CAN = true;
+  }
+
+  // in some inverters this values are not accurate, so we need to check if we are consider 1.8 amps as the limit
+  if (emulator_pause_request_ON && emulator_pause_status == PAUSING && datalayer.battery.status.current_dA < 18 &&
+      datalayer.battery.status.current_dA > -18) {
+    emulator_pause_status = PAUSED;
+  }
+
+  if (!emulator_pause_request_ON && emulator_pause_status == RESUMING) {
+    emulator_pause_status = NORMAL;
+    allowed_to_send_CAN = true;
+  }
+
+  allowed_to_send_CAN = (!emulator_pause_CAN_send_ON || emulator_pause_status == NORMAL);
+
+  if (previous_allowed_to_send_CAN && !allowed_to_send_CAN) {
+    //completely force stop the CAN communication
+    ESP32Can.CANStop();
+  } else if (!previous_allowed_to_send_CAN && allowed_to_send_CAN) {
+    //resume CAN communication
+    ESP32Can.CANInit();
+  }
+}
+
+std::string get_emulator_pause_status() {
+  switch (emulator_pause_status) {
+    case NORMAL:
+      return "RUNNING";
+    case PAUSING:
+      return "PAUSING";
+    case PAUSED:
+      return "PAUSED";
+    case RESUMING:
+      return "RESUMING";
+    default:
+      return "UNKNOWN";
+  }
+}
+//battery pause status

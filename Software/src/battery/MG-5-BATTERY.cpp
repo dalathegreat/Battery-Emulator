@@ -141,8 +141,10 @@ void setup_battery(void) {  // Performs one time setup at startup
   Serial.println("MG 5 battery selected");
 #endif
 
-  datalayer.battery.info.max_design_voltage_dV = 4040;  // Over this charging is not possible
-  datalayer.battery.info.min_design_voltage_dV = 3100;  // Under this discharging is disabled
+  datalayer.battery.info.max_design_voltage_dV = MAX_PACK_VOLTAGE_DV;
+  datalayer.battery.info.min_design_voltage_dV = MIN_PACK_VOLTAGE_DV;
+  datalayer.battery.info.max_cell_voltage_mV = MAX_CELL_VOLTAGE_MV;
+  datalayer.battery.info.min_cell_voltage_mV = MIN_CELL_VOLTAGE_MV;
 }
 
 #endif
