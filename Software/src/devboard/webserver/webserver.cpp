@@ -1,6 +1,7 @@
 #include "webserver.h"
 #include <Preferences.h>
 #include "../../datalayer/datalayer.h"
+#include "../../lib/bblanchon-ArduinoJson/ArduinoJson.h"
 #include "../utils/events.h"
 #include "../utils/led_handler.h"
 #include "../utils/timer.h"
@@ -16,60 +17,69 @@ unsigned long ota_progress_millis = 0;
 #include "index_html.cpp"
 #include "settings_html.h"
 
-enum WifiState {
-  INIT,          //before connecting first time
-  RECONNECTING,  //we've connected before, but lost connection
-  CONNECTED      //we are connected
-};
-
-WifiState wifi_state = INIT;
-
 MyTimer ota_timeout_timer = MyTimer(15000);
 bool ota_active = false;
 
-unsigned const long WIFI_MONITOR_INTERVAL_TIME = 15000;
-unsigned const long INIT_WIFI_CONNECT_TIMEOUT = 8000;        // Timeout for initial WiFi connect in milliseconds
-unsigned const long DEFAULT_WIFI_RECONNECT_INTERVAL = 1000;  // Default WiFi reconnect interval in ms
-unsigned const long MAX_WIFI_RETRY_INTERVAL = 90000;         // Maximum wifi retry interval in ms
-unsigned long last_wifi_monitor_time = millis();             //init millis so wifi monitor doesn't run immediately
-unsigned long wifi_reconnect_interval = DEFAULT_WIFI_RECONNECT_INTERVAL;
-unsigned long last_wifi_attempt_time = millis();  //init millis so wifi monitor doesn't run immediately
+const char get_firmware_info_html[] = R"rawliteral(%X%)rawliteral";
 
 void init_webserver() {
-  // Configure WiFi
-#ifdef WIFIAP
-  if (AccessPointEnabled) {
-    WiFi.mode(WIFI_AP_STA);  // Simultaneous WiFi AP and Router connection
-    init_WiFi_AP();
-  } else {
-    WiFi.mode(WIFI_STA);  // Only Router connection
-  }
-#else
-  WiFi.mode(WIFI_STA);  // Only Router connection
-#endif  // WIFIAP
-  init_WiFi_STA(ssid.c_str(), password.c_str(), wifi_channel);
 
   String content = index_html;
 
+  server.on("/logout", HTTP_GET, [](AsyncWebServerRequest* request) { request->send(401); });
+
+  // Route for firmware info from ota update page
+  server.on("/GetFirmwareInfo", HTTP_GET, [](AsyncWebServerRequest* request) {
+    if (WEBSERVER_AUTH_REQUIRED && !request->authenticate(http_username, http_password))
+      return request->requestAuthentication();
+    request->send_P(200, "application/json", get_firmware_info_html, get_firmware_info_processor);
+  });
+
   // Route for root / web page
-  server.on("/", HTTP_GET,
-            [](AsyncWebServerRequest* request) { request->send_P(200, "text/html", index_html, processor); });
+  server.on("/", HTTP_GET, [](AsyncWebServerRequest* request) {
+    if (WEBSERVER_AUTH_REQUIRED && !request->authenticate(http_username, http_password))
+      return request->requestAuthentication();
+    request->send_P(200, "text/html", index_html, processor);
+  });
 
   // Route for going to settings web page
-  server.on("/settings", HTTP_GET,
-            [](AsyncWebServerRequest* request) { request->send_P(200, "text/html", index_html, settings_processor); });
+  server.on("/settings", HTTP_GET, [](AsyncWebServerRequest* request) {
+    if (WEBSERVER_AUTH_REQUIRED && !request->authenticate(http_username, http_password))
+      return request->requestAuthentication();
+    request->send_P(200, "text/html", index_html, settings_processor);
+  });
 
   // Route for going to cellmonitor web page
   server.on("/cellmonitor", HTTP_GET, [](AsyncWebServerRequest* request) {
+    if (WEBSERVER_AUTH_REQUIRED && !request->authenticate(http_username, http_password))
+      return request->requestAuthentication();
     request->send_P(200, "text/html", index_html, cellmonitor_processor);
   });
 
   // Route for going to event log web page
-  server.on("/events", HTTP_GET,
-            [](AsyncWebServerRequest* request) { request->send_P(200, "text/html", index_html, events_processor); });
+  server.on("/events", HTTP_GET, [](AsyncWebServerRequest* request) {
+    if (WEBSERVER_AUTH_REQUIRED && !request->authenticate(http_username, http_password))
+      return request->requestAuthentication();
+    request->send_P(200, "text/html", index_html, events_processor);
+  });
+
+  // Route for clearing all events
+  server.on("/clearevents", HTTP_GET, [](AsyncWebServerRequest* request) {
+    if (WEBSERVER_AUTH_REQUIRED && !request->authenticate(http_username, http_password))
+      return request->requestAuthentication();
+    reset_all_events();
+    // Send back a response that includes an instant redirect to /events
+    String response = "<html><body>";
+    response += "<script>window.location.href = '/events';</script>";  // Instant redirect
+    response += "</body></html>";
+    request->send(200, "text/html", response);
+  });
 
   // Route for editing SSID
   server.on("/updateSSID", HTTP_GET, [](AsyncWebServerRequest* request) {
+    if (WEBSERVER_AUTH_REQUIRED && !request->authenticate(http_username, http_password))
+      return request->requestAuthentication();
+
     if (request->hasParam("value")) {
       String value = request->getParam("value")->value();
       if (value.length() <= 63) {  // Check if SSID is within the allowable length
@@ -85,6 +95,8 @@ void init_webserver() {
   });
   // Route for editing Password
   server.on("/updatePassword", HTTP_GET, [](AsyncWebServerRequest* request) {
+    if (WEBSERVER_AUTH_REQUIRED && !request->authenticate(http_username, http_password))
+      return request->requestAuthentication();
     if (request->hasParam("value")) {
       String value = request->getParam("value")->value();
       if (value.length() > 8) {  // Check if password is within the allowable length
@@ -101,6 +113,8 @@ void init_webserver() {
 
   // Route for editing Wh
   server.on("/updateBatterySize", HTTP_GET, [](AsyncWebServerRequest* request) {
+    if (WEBSERVER_AUTH_REQUIRED && !request->authenticate(http_username, http_password))
+      return request->requestAuthentication();
     if (request->hasParam("value")) {
       String value = request->getParam("value")->value();
       datalayer.battery.info.total_capacity_Wh = value.toInt();
@@ -113,6 +127,8 @@ void init_webserver() {
 
   // Route for editing USE_SCALED_SOC
   server.on("/updateUseScaledSOC", HTTP_GET, [](AsyncWebServerRequest* request) {
+    if (WEBSERVER_AUTH_REQUIRED && !request->authenticate(http_username, http_password))
+      return request->requestAuthentication();
     if (request->hasParam("value")) {
       String value = request->getParam("value")->value();
       datalayer.battery.settings.soc_scaling_active = value.toInt();
@@ -125,6 +141,8 @@ void init_webserver() {
 
   // Route for editing SOCMax
   server.on("/updateSocMax", HTTP_GET, [](AsyncWebServerRequest* request) {
+    if (WEBSERVER_AUTH_REQUIRED && !request->authenticate(http_username, http_password))
+      return request->requestAuthentication();
     if (request->hasParam("value")) {
       String value = request->getParam("value")->value();
       datalayer.battery.settings.max_percentage = static_cast<uint16_t>(value.toFloat() * 100);
@@ -135,8 +153,40 @@ void init_webserver() {
     }
   });
 
+  // Route for pause/resume Battery emulator
+  server.on("/pause", HTTP_GET, [](AsyncWebServerRequest* request) {
+    if (WEBSERVER_AUTH_REQUIRED && !request->authenticate(http_username, http_password))
+      return request->requestAuthentication();
+    if (request->hasParam("p")) {
+      String valueStr = request->getParam("p")->value();
+      setBatteryPause(valueStr == "true" || valueStr == "1", false);
+      request->send(200, "text/plain", "Updated successfully");
+    } else {
+      request->send(400, "text/plain", "Bad Request");
+    }
+  });
+
+  // Route for equipment stop/resume
+  server.on("/equipmentStop", HTTP_GET, [](AsyncWebServerRequest* request) {
+    if (WEBSERVER_AUTH_REQUIRED && !request->authenticate(http_username, http_password))
+      return request->requestAuthentication();
+    if (request->hasParam("stop")) {
+      String valueStr = request->getParam("stop")->value();
+      if (valueStr == "true" || valueStr == "1") {
+        setBatteryPause(true, true, true);
+      } else {
+        setBatteryPause(false, false, false);
+      }
+      request->send(200, "text/plain", "Updated successfully");
+    } else {
+      request->send(400, "text/plain", "Bad Request");
+    }
+  });
+
   // Route for editing SOCMin
   server.on("/updateSocMin", HTTP_GET, [](AsyncWebServerRequest* request) {
+    if (WEBSERVER_AUTH_REQUIRED && !request->authenticate(http_username, http_password))
+      return request->requestAuthentication();
     if (request->hasParam("value")) {
       String value = request->getParam("value")->value();
       datalayer.battery.settings.min_percentage = static_cast<uint16_t>(value.toFloat() * 100);
@@ -149,6 +199,8 @@ void init_webserver() {
 
   // Route for editing MaxChargeA
   server.on("/updateMaxChargeA", HTTP_GET, [](AsyncWebServerRequest* request) {
+    if (WEBSERVER_AUTH_REQUIRED && !request->authenticate(http_username, http_password))
+      return request->requestAuthentication();
     if (request->hasParam("value")) {
       String value = request->getParam("value")->value();
       datalayer.battery.info.max_charge_amp_dA = static_cast<uint16_t>(value.toFloat() * 10);
@@ -161,6 +213,8 @@ void init_webserver() {
 
   // Route for editing MaxDischargeA
   server.on("/updateMaxDischargeA", HTTP_GET, [](AsyncWebServerRequest* request) {
+    if (WEBSERVER_AUTH_REQUIRED && !request->authenticate(http_username, http_password))
+      return request->requestAuthentication();
     if (request->hasParam("value")) {
       String value = request->getParam("value")->value();
       datalayer.battery.info.max_discharge_amp_dA = static_cast<uint16_t>(value.toFloat() * 10);
@@ -174,6 +228,8 @@ void init_webserver() {
 #ifdef TEST_FAKE_BATTERY
   // Route for editing FakeBatteryVoltage
   server.on("/updateFakeBatteryVoltage", HTTP_GET, [](AsyncWebServerRequest* request) {
+    if (WEBSERVER_AUTH_REQUIRED && !request->authenticate(http_username, http_password))
+      return request->requestAuthentication();
     if (!request->hasParam("value")) {
       request->send(400, "text/plain", "Bad Request");
     }
@@ -190,6 +246,8 @@ void init_webserver() {
 #if defined CHEVYVOLT_CHARGER || defined NISSANLEAF_CHARGER
   // Route for editing ChargerTargetV
   server.on("/updateChargeSetpointV", HTTP_GET, [](AsyncWebServerRequest* request) {
+    if (WEBSERVER_AUTH_REQUIRED && !request->authenticate(http_username, http_password))
+      return request->requestAuthentication();
     if (!request->hasParam("value")) {
       request->send(400, "text/plain", "Bad Request");
     }
@@ -212,6 +270,8 @@ void init_webserver() {
 
   // Route for editing ChargerTargetA
   server.on("/updateChargeSetpointA", HTTP_GET, [](AsyncWebServerRequest* request) {
+    if (WEBSERVER_AUTH_REQUIRED && !request->authenticate(http_username, http_password))
+      return request->requestAuthentication();
     if (!request->hasParam("value")) {
       request->send(400, "text/plain", "Bad Request");
     }
@@ -234,6 +294,8 @@ void init_webserver() {
 
   // Route for editing ChargerEndA
   server.on("/updateChargeEndA", HTTP_GET, [](AsyncWebServerRequest* request) {
+    if (WEBSERVER_AUTH_REQUIRED && !request->authenticate(http_username, http_password))
+      return request->requestAuthentication();
     if (request->hasParam("value")) {
       String value = request->getParam("value")->value();
       charger_setpoint_HV_IDC_END = value.toFloat();
@@ -245,6 +307,8 @@ void init_webserver() {
 
   // Route for enabling/disabling HV charger
   server.on("/updateChargerHvEnabled", HTTP_GET, [](AsyncWebServerRequest* request) {
+    if (WEBSERVER_AUTH_REQUIRED && !request->authenticate(http_username, http_password))
+      return request->requestAuthentication();
     if (request->hasParam("value")) {
       String value = request->getParam("value")->value();
       charger_HV_enabled = (bool)value.toInt();
@@ -256,6 +320,8 @@ void init_webserver() {
 
   // Route for enabling/disabling aux12v charger
   server.on("/updateChargerAux12vEnabled", HTTP_GET, [](AsyncWebServerRequest* request) {
+    if (WEBSERVER_AUTH_REQUIRED && !request->authenticate(http_username, http_password))
+      return request->requestAuthentication();
     if (request->hasParam("value")) {
       String value = request->getParam("value")->value();
       charger_aux12V_enabled = (bool)value.toInt();
@@ -267,13 +333,21 @@ void init_webserver() {
 #endif  // defined CHEVYVOLT_CHARGER || defined NISSANLEAF_CHARGER
 
   // Send a GET request to <ESP_IP>/update
-  server.on("/debug", HTTP_GET,
-            [](AsyncWebServerRequest* request) { request->send(200, "text/plain", "Debug: all OK."); });
+  server.on("/debug", HTTP_GET, [](AsyncWebServerRequest* request) {
+    if (WEBSERVER_AUTH_REQUIRED && !request->authenticate(http_username, http_password))
+      return request->requestAuthentication();
+    request->send(200, "text/plain", "Debug: all OK.");
+  });
 
   // Route to handle reboot command
   server.on("/reboot", HTTP_GET, [](AsyncWebServerRequest* request) {
+    if (WEBSERVER_AUTH_REQUIRED && !request->authenticate(http_username, http_password))
+      return request->requestAuthentication();
     request->send(200, "text/plain", "Rebooting server...");
-    //TODO: Should we handle contactors gracefully? Ifdef CONTACTOR_CONTROL then what?
+
+    //Equipment STOP without persisting the equipment state before restart
+    // Max Charge/Discharge = 0; CAN = stop; contactors = open
+    setBatteryPause(true, true, true, false);
     delay(1000);
     ESP.restart();
   });
@@ -283,28 +357,7 @@ void init_webserver() {
 
   // Start server
   server.begin();
-
-#ifdef MQTT
-  // Init MQTT
-  init_mqtt();
-#endif  // MQTT
 }
-
-#ifdef WIFIAP
-void init_WiFi_AP() {
-#ifdef DEBUG_VIA_USB
-  Serial.println("Creating Access Point: " + String(ssidAP));
-  Serial.println("With password: " + String(passwordAP));
-#endif  // DEBUG_VIA_USB
-  WiFi.softAP(ssidAP, passwordAP);
-  IPAddress IP = WiFi.softAPIP();
-#ifdef DEBUG_VIA_USB
-  Serial.println("Access Point created.");
-  Serial.print("IP address: ");
-  Serial.println(IP);
-#endif  // DEBUG_VIA_USB
-}
-#endif  // WIFIAP
 
 String getConnectResultString(wl_status_t status) {
   switch (status) {
@@ -329,62 +382,11 @@ String getConnectResultString(wl_status_t status) {
   }
 }
 
-void wifi_monitor() {
-  unsigned long currentMillis = millis();
-  if (currentMillis - last_wifi_monitor_time > WIFI_MONITOR_INTERVAL_TIME) {
-    last_wifi_monitor_time = currentMillis;
-    wl_status_t status = WiFi.status();
-    if (status != WL_CONNECTED && status != WL_IDLE_STATUS) {
-#ifdef DEBUG_VIA_USB
-      Serial.println(getConnectResultString(status));
-#endif                           // DEBUG_VIA_USB
-      if (wifi_state == INIT) {  //we haven't been connected yet, try the init logic
-        init_WiFi_STA(ssid.c_str(), password.c_str(), wifi_channel);
-      } else {  //we were connected before, try the reconnect logic
-        if (currentMillis - last_wifi_attempt_time > wifi_reconnect_interval) {
-          last_wifi_attempt_time = currentMillis;
-#ifdef DEBUG_VIA_USB
-          Serial.println("WiFi not connected, trying to reconnect...");
-#endif  // DEBUG_VIA_USB
-          wifi_state = RECONNECTING;
-          WiFi.reconnect();
-          wifi_reconnect_interval = min(wifi_reconnect_interval * 2, MAX_WIFI_RETRY_INTERVAL);
-        }
-      }
-    } else if (status == WL_CONNECTED && wifi_state != CONNECTED) {
-      wifi_state = CONNECTED;
-      wifi_reconnect_interval = DEFAULT_WIFI_RECONNECT_INTERVAL;
-// Print local IP address and start web server
-#ifdef DEBUG_VIA_USB
-      Serial.print("Connected to WiFi network: " + String(ssid.c_str()));
-      Serial.print(" IP address: " + WiFi.localIP().toString());
-      Serial.print(" Signal Strength: " + String(WiFi.RSSI()) + " dBm");
-      Serial.println(" Channel: " + String(WiFi.channel()));
-      Serial.println(" Hostname: " + String(WiFi.getHostname()));
-#endif  // DEBUG_VIA_USB
-    }
-  }
-
+void ota_monitor() {
   if (ota_active && ota_timeout_timer.elapsed()) {
     // OTA timeout, try to restore can and clear the update event
-    ESP32Can.CANInit();
-    clear_event(EVENT_OTA_UPDATE);
     set_event(EVENT_OTA_UPDATE_TIMEOUT, 0);
-    ota_active = false;
-  }
-}
-
-void init_WiFi_STA(const char* ssid, const char* password, const uint8_t wifi_channel) {
-// Connect to Wi-Fi network with SSID and password
-#ifdef DEBUG_VIA_USB
-  Serial.print("Connecting to ");
-  Serial.println(ssid);
-#endif  // DEBUG_VIA_USB
-  WiFi.begin(ssid, password, wifi_channel);
-  WiFi.setAutoReconnect(true);  // Enable auto reconnect
-  wl_status_t result = static_cast<wl_status_t>(WiFi.waitForConnectResult(INIT_WIFI_CONNECT_TIMEOUT));
-  if (result) {
-    //TODO: Add event or serial print?
+    onOTAEnd(false);
   }
 }
 
@@ -395,6 +397,24 @@ void init_ElegantOTA() {
   ElegantOTA.onStart(onOTAStart);
   ElegantOTA.onProgress(onOTAProgress);
   ElegantOTA.onEnd(onOTAEnd);
+}
+
+String get_firmware_info_processor(const String& var) {
+  if (var == "X") {
+    String content = "";
+    static JsonDocument doc;
+#ifdef HW_LILYGO
+    doc["hardware"] = "LilyGo T-CAN485";
+#endif  // HW_LILYGO
+#ifdef HW_STARK
+    doc["hardware"] = "Stark CMR Module";
+#endif  // HW_STARK
+
+    doc["firmware"] = String(version_number);
+    serializeJson(doc, content);
+    return content;
+  }
+  return String();
 }
 
 String processor(const String& var) {
@@ -462,10 +482,13 @@ String processor(const String& var) {
 #endif  // BYD_CAN
 #ifdef BYD_MODBUS
     content += "BYD 11kWh HVM battery over Modbus RTU";
-#endif// BYD_MODBUS
+#endif  // BYD_MODBUS
 #ifdef BYD_KOSTAL_RS485
     content += "BYD 11kWh HVM battery over Kostal RS485";
-#endif //BYD_KOSTAL_RS485
+#endif  //BYD_KOSTAL_RS485
+#ifdef FOXESS_CAN
+    content += "FoxESS compatible HV2600/ECS4100 battery";
+#endif  // FOXESS_CAN
 #ifdef PYLON_CAN
     content += "Pylontech battery over CAN bus";
 #endif  // PYLON_CAN
@@ -514,6 +537,12 @@ String processor(const String& var) {
 #ifdef NISSAN_LEAF_BATTERY
     content += "Nissan LEAF";
 #endif  // NISSAN_LEAF_BATTERY
+#ifdef PYLON_BATTERY
+    content += "Pylon compatible battery";
+#endif  // PYLON_BATTERY
+#ifdef RJXZS_BMS
+    content += "RJXZS BMS, DIY battery";
+#endif  // RJXZS_BMS
 #ifdef RENAULT_KANGOO_BATTERY
     content += "Renault Kangoo";
 #endif  // RENAULT_KANGOO_BATTERY
@@ -529,9 +558,12 @@ String processor(const String& var) {
 #ifdef SERIAL_LINK_RECEIVER
     content += "Serial link to another LilyGo board";
 #endif  // SERIAL_LINK_RECEIVER
-#ifdef TESLA_MODEL_3_BATTERY
-    content += "Tesla Model S/3/X/Y";
-#endif  // TESLA_MODEL_3_BATTERY
+#ifdef TESLA_MODEL_SX_BATTERY
+    content += "Tesla Model S/X";
+#endif  // TESLA_MODEL_SX_BATTERY
+#ifdef TESLA_MODEL_3Y_BATTERY
+    content += "Tesla Model 3/Y";
+#endif  // TESLA_MODEL_3Y_BATTERY
 #ifdef VOLVO_SPA_BATTERY
     content += "Volvo / Polestar 78kWh battery";
 #endif  // VOLVO_SPA_BATTERY
@@ -540,6 +572,9 @@ String processor(const String& var) {
 #endif  // TEST_FAKE_BATTERY
 #ifdef DOUBLE_BATTERY
     content += " (Double battery)";
+    if (datalayer.battery.info.chemistry == battery_chemistry_enum::LFP) {
+      content += " (LFP)";
+    }
 #endif  // DOUBLE_BATTERY
     content += "</h4>";
 
@@ -602,6 +637,8 @@ String processor(const String& var) {
     float powerFloat = static_cast<float>(datalayer.battery.status.active_power_W);               // Convert to float
     float tempMaxFloat = static_cast<float>(datalayer.battery.status.temperature_max_dC) / 10.0;  // Convert to float
     float tempMinFloat = static_cast<float>(datalayer.battery.status.temperature_min_dC) / 10.0;  // Convert to float
+    uint16_t cell_delta_mv =
+        datalayer.battery.status.cell_max_voltage_mV - datalayer.battery.status.cell_min_voltage_mV;
 
     content += "<h4 style='color: white;'>Real SOC: " + String(socRealFloat, 2) + "</h4>";
     content += "<h4 style='color: white;'>Scaled SOC: " + String(socScaledFloat, 2) + "</h4>";
@@ -611,10 +648,22 @@ String processor(const String& var) {
     content += formatPowerValue("Power", powerFloat, "", 1);
     content += formatPowerValue("Total capacity", datalayer.battery.info.total_capacity_Wh, "h", 0);
     content += formatPowerValue("Remaining capacity", datalayer.battery.status.remaining_capacity_Wh, "h", 1);
-    content += formatPowerValue("Max discharge power", datalayer.battery.status.max_discharge_power_W, "", 1);
-    content += formatPowerValue("Max charge power", datalayer.battery.status.max_charge_power_W, "", 1);
+
+    if (emulator_pause_status == NORMAL) {
+      content += formatPowerValue("Max discharge power", datalayer.battery.status.max_discharge_power_W, "", 1);
+      content += formatPowerValue("Max charge power", datalayer.battery.status.max_charge_power_W, "", 1);
+    } else {
+      content += formatPowerValue("Max discharge power", datalayer.battery.status.max_discharge_power_W, "", 1, "red");
+      content += formatPowerValue("Max charge power", datalayer.battery.status.max_charge_power_W, "", 1, "red");
+    }
+
     content += "<h4>Cell max: " + String(datalayer.battery.status.cell_max_voltage_mV) + " mV</h4>";
     content += "<h4>Cell min: " + String(datalayer.battery.status.cell_min_voltage_mV) + " mV</h4>";
+    if (cell_delta_mv > datalayer.battery.info.max_cell_voltage_deviation_mV) {
+      content += "<h4 style='color: red;'>Cell delta: " + String(cell_delta_mv) + " mV</h4>";
+    } else {
+      content += "<h4>Cell delta: " + String(cell_delta_mv) + " mV</h4>";
+    }
     content += "<h4>Temperature max: " + String(tempMaxFloat, 1) + " C</h4>";
     content += "<h4>Temperature min: " + String(tempMinFloat, 1) + " C</h4>";
     if (datalayer.battery.status.bms_status == ACTIVE) {
@@ -646,6 +695,20 @@ String processor(const String& var) {
     } else {
       content += "<span style='color: red;'>&#10005;</span></h4>";
     }
+    if (emulator_pause_status == NORMAL)
+      content += "<h4>Power status: " + String(get_emulator_pause_status().c_str()) + " </h4>";
+    else
+      content += "<h4 style='color: red;'>Power status: " + String(get_emulator_pause_status().c_str()) + " </h4>";
+
+#ifdef CONTACTOR_CONTROL
+    content += "<h4>Contactors controlled by Battery-Emulator: ";
+    if (datalayer.system.status.contactor_control_closed) {
+      content += "<span style='color: green;'>ON</span>";
+    } else {
+      content += "<span style='color: red;'>OFF</span>";
+    }
+    content += "</h4>";
+#endif
 
     // Close the block
     content += "</div>";
@@ -678,6 +741,7 @@ String processor(const String& var) {
     powerFloat = static_cast<float>(datalayer.battery2.status.active_power_W);  // Convert to float
     tempMaxFloat = static_cast<float>(datalayer.battery2.status.temperature_max_dC) / 10.0;  // Convert to float
     tempMinFloat = static_cast<float>(datalayer.battery2.status.temperature_min_dC) / 10.0;  // Convert to float
+    cell_delta_mv = datalayer.battery2.status.cell_max_voltage_mV - datalayer.battery2.status.cell_min_voltage_mV;
 
     content += "<h4 style='color: white;'>Real SOC: " + String(socRealFloat, 2) + "</h4>";
     content += "<h4 style='color: white;'>Scaled SOC: " + String(socScaledFloat, 2) + "</h4>";
@@ -691,6 +755,11 @@ String processor(const String& var) {
     content += formatPowerValue("Max charge power", datalayer.battery2.status.max_charge_power_W, "", 1);
     content += "<h4>Cell max: " + String(datalayer.battery2.status.cell_max_voltage_mV) + " mV</h4>";
     content += "<h4>Cell min: " + String(datalayer.battery2.status.cell_min_voltage_mV) + " mV</h4>";
+    if (cell_delta_mv > datalayer.battery2.info.max_cell_voltage_deviation_mV) {
+      content += "<h4 style='color: red;'>Cell delta: " + String(cell_delta_mv) + " mV</h4>";
+    } else {
+      content += "<h4>Cell delta: " + String(cell_delta_mv) + " mV</h4>";
+    }
     content += "<h4>Temperature max: " + String(tempMaxFloat, 1) + " C</h4>";
     content += "<h4>Temperature min: " + String(tempMinFloat, 1) + " C</h4>";
     if (datalayer.battery.status.bms_status == ACTIVE) {
@@ -722,6 +791,21 @@ String processor(const String& var) {
     } else {
       content += "<span style='color: red;'>&#10005;</span></h4>";
     }
+
+#ifdef CONTACTOR_CONTROL
+    content += "<h4>Contactors controlled by Battery-Emulator: ";
+    if (datalayer.system.status.contactor_control_closed) {
+      content += "<span style='color: green;'>ON</span>";
+    } else {
+      content += "<span style='color: red;'>OFF</span>";
+    }
+    content += "</h4>";
+#endif
+
+    if (emulator_pause_status == NORMAL)
+      content += "<h4>Pause status: " + String(get_emulator_pause_status().c_str()) + " </h4>";
+    else
+      content += "<h4 style='color: red;'>Pause status: " + String(get_emulator_pause_status().c_str()) + " </h4>";
 
     content += "</div>";
     content += "</div>";
@@ -783,6 +867,14 @@ String processor(const String& var) {
     content += "</div>";
 #endif  // defined CHEVYVOLT_CHARGER || defined NISSANLEAF_CHARGER
 
+    if (emulator_pause_request_ON)
+      content += "<button onclick='PauseBattery(false)'>Resume charge/discharge</button>";
+    else
+      content +=
+          "<button onclick=\"if(confirm('Are you sure you want to pause charging and discharging? This will set the "
+          "maximum charge and discharge values to zero, preventing any further power flow.')) { PauseBattery(true); "
+          "}\">Pause charge/discharge</button>";
+    content += " ";
     content += "<button onclick='OTA()'>Perform OTA update</button>";
     content += " ";
     content += "<button onclick='Settings()'>Change Settings</button>";
@@ -792,6 +884,23 @@ String processor(const String& var) {
     content += "<button onclick='Events()'>Events</button>";
     content += " ";
     content += "<button onclick='askReboot()'>Reboot Emulator</button>";
+    if (WEBSERVER_AUTH_REQUIRED)
+      content += "<button onclick='logout()'>Logout</button>";
+    if (!datalayer.system.settings.equipment_stop_active)
+      content +=
+          "<br/><br/><button style=\"background:red;color:white;cursor:pointer;\""
+          " onclick=\""
+          "if(confirm('This action will open contactors on the battery and stop all CAN communications. Are you "
+          "sure?')) { estop(true); }\""
+          ">Open Contactors</button><br/>";
+    else
+      content +=
+          "<br/><br/><button style=\"background:green;color:white;cursor:pointer;\""
+          "20px;font-size:16px;font-weight:bold;cursor:pointer;border-radius:5px; margin:10px;"
+          " onclick=\""
+          "if(confirm('This action will restore the battery state. Are you sure?')) { estop(false); }\""
+          ">Close Contactors</button><br/>";
+
     content += "<script>";
     content += "function OTA() { window.location.href = '/update'; }";
     content += "function Cellmon() { window.location.href = '/cellmonitor'; }";
@@ -806,6 +915,26 @@ String processor(const String& var) {
     content += "  xhr.open('GET', '/reboot', true);";
     content += "  xhr.send();";
     content += "}";
+    if (WEBSERVER_AUTH_REQUIRED) {
+      content += "function logout() {";
+      content += "  var xhr = new XMLHttpRequest();";
+      content += "  xhr.open('GET', '/logout', true);";
+      content += "  xhr.send();";
+      content += "  setTimeout(function(){ window.open(\"/\",\"_self\"); }, 1000);";
+      content += "}";
+    }
+    content += "function PauseBattery(pause){";
+    content +=
+        "var xhr=new "
+        "XMLHttpRequest();xhr.onload=function() { "
+        "window.location.reload();};xhr.open('GET','/pause?p='+pause,true);xhr.send();";
+    content += "}";
+    content += "function estop(stop){";
+    content +=
+        "var xhr=new "
+        "XMLHttpRequest();xhr.onload=function() { "
+        "window.location.reload();};xhr.open('GET','/equipmentStop?stop='+stop,true);xhr.send();";
+    content += "}";
     content += "</script>";
 
     //Script for refreshing page
@@ -819,13 +948,16 @@ String processor(const String& var) {
 }
 
 void onOTAStart() {
+  //try to Pause the battery
+  setBatteryPause(true, true);
+
   // Log when OTA has started
-  ESP32Can.CANStop();
   set_event(EVENT_OTA_UPDATE, 0);
 
   // If already set, make a new attempt
   clear_event(EVENT_OTA_UPDATE_TIMEOUT);
   ota_active = true;
+
   ota_timeout_timer.reset();
 }
 
@@ -842,8 +974,16 @@ void onOTAProgress(size_t current, size_t final) {
 }
 
 void onOTAEnd(bool success) {
+
+  ota_active = false;
+  clear_event(EVENT_OTA_UPDATE);
+
   // Log when OTA has finished
   if (success) {
+    //Equipment STOP without persisting the equipment state before restart
+    // Max Charge/Discharge = 0; CAN = stop; contactors = open
+    setBatteryPause(true, true, true, false);
+    // a reboot will be done by the OTA library. no need to do anything here
 #ifdef DEBUG_VIA_USB
     Serial.println("OTA update finished successfully!");
 #endif  // DEBUG_VIA_USB
@@ -851,17 +991,14 @@ void onOTAEnd(bool success) {
 #ifdef DEBUG_VIA_USB
     Serial.println("There was an error during OTA update!");
 #endif  // DEBUG_VIA_USB
-
-    // If we fail without a timeout, try to restore CAN
-    ESP32Can.CANInit();
+    //try to Resume the battery pause and CAN communication
+    setBatteryPause(false, false);
   }
-  ota_active = false;
-  clear_event(EVENT_OTA_UPDATE);
 }
 
 template <typename T>  // This function makes power values appear as W when under 1000, and kW when over
-String formatPowerValue(String label, T value, String unit, int precision) {
-  String result = "<h4 style='color: white;'>" + label + ": ";
+String formatPowerValue(String label, T value, String unit, int precision, String color) {
+  String result = "<h4 style='color: " + color + ";'>" + label + ": ";
 
   if (std::is_same<T, float>::value || std::is_same<T, uint16_t>::value || std::is_same<T, uint32_t>::value) {
     float convertedValue = static_cast<float>(value);

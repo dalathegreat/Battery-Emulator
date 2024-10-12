@@ -292,15 +292,20 @@ void update_values_can_inverter() {  //This function maps all the values fetched
 void receive_can_inverter(CAN_frame rx_frame) {
   switch (rx_frame.ID) {
     case 0x00D:  //Inverter Measurements
+      datalayer.system.status.CAN_inverter_still_alive = CAN_STILL_ALIVE;
       break;
     case 0x00F:  //Inverter Feedback
+      datalayer.system.status.CAN_inverter_still_alive = CAN_STILL_ALIVE;
       break;
     case 0x010:  //Time from inverter
+      datalayer.system.status.CAN_inverter_still_alive = CAN_STILL_ALIVE;
       break;
     case 0x015:  //Initialization message from inverter
+      datalayer.system.status.CAN_inverter_still_alive = CAN_STILL_ALIVE;
       send_tripower_init();
       break;
     case 0x017:  //Initialization message from inverter 2
+      datalayer.system.status.CAN_inverter_still_alive = CAN_STILL_ALIVE;
       //send_tripower_init();
       break;
     default:

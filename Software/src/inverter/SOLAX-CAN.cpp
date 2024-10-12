@@ -129,6 +129,14 @@ void update_values_can_inverter() {  //This function maps all the values fetched
     }
   }
 
+  //Cap the value according to user settings. Some inverters cannot handle large values.
+  if ((max_charge_rate_amp * 10) > datalayer.battery.info.max_charge_amp_dA) {
+    max_charge_rate_amp = (datalayer.battery.info.max_charge_amp_dA / 10);
+  }
+  if ((max_discharge_rate_amp * 10) > datalayer.battery.info.max_discharge_amp_dA) {
+    max_discharge_rate_amp = (datalayer.battery.info.max_discharge_amp_dA / 10);
+  }
+
   // Batteries might be larger than uint16_t value can take
   if (datalayer.battery.info.total_capacity_Wh > 65000) {
     capped_capacity_Wh = 65000;
@@ -210,6 +218,11 @@ void send_can_inverter() {
 }
 
 void receive_can_inverter(CAN_frame rx_frame) {
+
+  if (rx_frame.ID == 0x1871) {
+    datalayer.system.status.CAN_inverter_still_alive = CAN_STILL_ALIVE;
+  }
+
   if (rx_frame.ID == 0x1871 && rx_frame.data.u8[0] == (0x01) ||
       rx_frame.ID == 0x1871 && rx_frame.data.u8[0] == (0x02)) {
     LastFrameTime = millis();
