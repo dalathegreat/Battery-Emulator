@@ -17,17 +17,17 @@ static int8_t f2_startup_count = 0;
 
 static boolean B1_delay = false;
 static unsigned long B1_last_millis = 0;
+static  unsigned long currentMillis;
 
 union f32b {
   float f;
   byte b[4];
 };
 
-
 uint8_t frame1[40] = {
     0x06, 0xE2, 0xFF, 0x02, 0xFF, 0x29,  // Frame header
     0x01, 0x08, 0x80, 0x43,  // 256.063 Nominal voltage / 5*51.2=256      first byte 0x01 or 0x04
-    0xE4, 0x70, 0x8A, 0x5C,  // 266.74  => Voltage at 100% SOC
+    0xE4, 0x70, 0x8A, 0x5C,  // These might be Umin & Unax, Uint16
     0xB5, 0x02, 0xD3, 0x01,  // Battery Serial number? Modbus register 527
     0x01, 0x05, 0xC8, 0x41,  // 25.0024  ?
     0xC2, 0x18,              // Battery Firmware, modbus register 586
@@ -43,24 +43,32 @@ uint8_t frame1[40] = {
 uint8_t frame2[64] = {0x0A,                     // This may also been 0x06, seen at startup when live values not valid, but also occasionally single frames.
                       0xE2, 0xFF, 0x02, 0xFF, 0x29,  // frame Header
 
-                      0x1D, 0x5A, 0x85, 0x43,   // Cyrrent Voltage     (float)           Modbus register 216, Bit 6-9
-                      0x01, 0x03, 0x8D, 0x43,   // Max Voltage (2 byte float), Bit 10-13
-                                                // 0x8D43 = 36163 (361.63) DALA: Is this nominal voltage?
-                      0x01, 0x03, 0xAC, 0x41,   // Temp        (2 byte float)    Modbus register 214, Bit 14-17
-                      0x01, 0x01, 0x01, 0x01,   // Peak Current (1s period), Bytes 18-21
-                      0x01, 0x01, 0x01, 0x01,   // Avg current  (1s period), Bytes 22-25
+                      0x1D, 0x5A, 0x85, 0x43,   // Current Voltage  (float)                        Modbus register 216, Bytes 6-9
+                      0x01, 0x03, 0x8D, 0x43,   // Max Voltage      (2 byte float),                                     Bytes 10-13
+
+                      0x01, 0x03,               // Unknown, 0x03 seen also 0x0F, 0x07, might hava something to do with current
+                      0xAC, 0x41,               // BAttery Temperature        (2 byte float)       Modbus register 214, Bytes 16-17
+                      0x01, 0x01, 0x01, 0x01,   // Peak Current (1s period?),  Bytes 18-21 - Communication fault seen with some values (>10A?)
+                      0x01, 0x01, 0x01, 0x01,   // Avg current  (1s period?), Bytes 22-25  - Communication fault seen with some values (>10A?)
+
                       0x01, 0x03, 0x48, 0x42,   // Max discharge current (2 byte float), Bit 26-29,
                                                 // Sunspec: ADisChaMax
+
                       0x01, 0x03,               // Unknown
                       0xC8, 0x41,               // Battery gross capacity, Ah (2 byte float) , Bytes 30-33, Modbus 512
+
                       0x01,                     // Unknown
                       0x16,                     // This seems to have something to do with cell temperatures
+
                       0xA0, 0x41,               // Max charge current (2 byte float) Bit 36-37, ZERO WHEN SOC=100
                                                 // Sunspec: AChaMax
+
                       0xCD, 0xCC, 0xB4, 0x41,   // MaxCellTemp (4 byte float) Bit 38-41
-                      0x01, 0x0C, 0xA4, 0x41,  // MinCellTemp (4 byte float) Bit 42-45
+                      0x01, 0x0C, 0xA4, 0x41,   // MinCellTemp (4 byte float) Bit 42-45
+
                       0xA4, 0x70, 0x55, 0x40,   // MaxCellVolt  (float), Bit 46-49
                       0x7D, 0x3F, 0x55, 0x40,   // MinCellVolt  (float), Bit 50-53
+
                       0xFE,                     // Cylce count , Bit 54
                       0x04,                     // Cycle count? , Bit 55
                       0x01,                     // Byte 56
@@ -207,9 +215,9 @@ void update_RS485_registers_inverter() {
 
   float2frameMSB(frame2, (float)average_temperature_dC / 10, 16);
 
-  float2frameMSB(frame2, (float)datalayer.battery.status.current_dA / 10,
-                 20);  // Peak discharge? current (2 byte float)
-  float2frameMSB(frame2, (float)datalayer.battery.status.current_dA / 10, 24);
+//  Some current values causes communication error, must be resolved, why. 
+//  float2frameMSB(frame2, (float)datalayer.battery.status.current_dA / 10, 20);  // Peak discharge? current (2 byte float)
+//  float2frameMSB(frame2, (float)datalayer.battery.status.current_dA / 10, 24);
 
   float2frameMSB(frame2, (float)discharge_current_dA / 10, 28);  // BAttery capacity Ah
 
@@ -265,7 +273,7 @@ static uint8_t rx_index = 0;
 
 void receive_RS485()  // Runs as fast as possible to handle the serial stream
 {
-  unsigned long currentMillis = millis();
+  currentMillis = millis();
   if(B1_delay)
     {
     if ((currentMillis - B1_last_millis) >1000)
