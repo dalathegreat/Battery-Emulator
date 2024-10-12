@@ -43,11 +43,13 @@ static uint16_t battery_allowed_charge_power = 0;
 static uint16_t battery_allowed_discharge_power = 0;
 static uint16_t cellvoltages[108];
 static uint16_t tempval = 0;
-static uint8_t BMS_20_CRC = 0;
-static uint8_t BMS_20_BZ = 0;
+static uint8_t BMS_0CF_CRC = 0;
+static uint8_t BMS_0CF_counter = 0;
+static uint8_t BMS_578_CRC = 0;
+static uint8_t BMS_578_counter = 0;
 static bool BMS_fault_status_contactor = false;
 static bool BMS_exp_limits_active = 0;
-static uint8_t BMS_is_mode = 0;
+static uint8_t BMS_mode = 0x07;
 static bool BMS_HVIL_status = 0;
 static bool BMS_fault_HVbatt_shutdown = 0;
 static bool BMS_fault_HVbatt_shutdown_req = 0;
@@ -160,6 +162,8 @@ uint8_t vw_crc_calc(uint8_t* inputBytes, uint8_t length, uint16_t address) {
                               0x38, 0x32, 0x24, 0xA8, 0x3F, 0x3A, 0xA4, 0x02};
   const uint8_t MB03AF[16] = {0x94, 0x6A, 0xB5, 0x38, 0x8A, 0xB4, 0xAB, 0x27,
                               0xCB, 0x22, 0x88, 0xEF, 0xA3, 0xE1, 0xD0, 0xBB};
+  const uint8_t MB0578[16] = {0x48, 0x48, 0x48, 0x48, 0x48, 0x48, 0x48, 0x48,
+                              0x48, 0x48, 0x48, 0x48, 0x48, 0x48, 0x48, 0x48};
   const uint8_t MB06A3[16] = {0xC1, 0x8B, 0x38, 0xA8, 0xA4, 0x27, 0xEB, 0xC8,
                               0xEF, 0x05, 0x9A, 0xBB, 0x39, 0xF7, 0x80, 0xA7};
   const uint8_t MB06A4[16] = {0xC7, 0xD8, 0xF1, 0xC4, 0xE3, 0x5E, 0x9A, 0xE2,
@@ -190,6 +194,9 @@ uint8_t vw_crc_calc(uint8_t* inputBytes, uint8_t length, uint16_t address) {
       break;
     case 0x03AF:  // ??
       magicByte = MB03AF[counter];
+      break;
+    case 0x0578:  // BMS DC
+      magicByte = MB0578[counter];
       break;
     case 0x06A3:  // ??
       magicByte = MB06A3[counter];
@@ -231,13 +238,12 @@ void update_values_battery() {  //This function maps all the values fetched via 
 
   datalayer.battery.status.voltage_dV = battery_voltage * 2.5;
 
-  datalayer.battery.status.current_dA = battery_current / 10;  //TODO: scaling?
+  datalayer.battery.status.current_dA = (BMS_current / 10) - 1630;
 
   datalayer.battery.status.remaining_capacity_Wh = static_cast<uint32_t>(
       (static_cast<double>(datalayer.battery.status.real_soc) / 10000) * datalayer.battery.info.total_capacity_Wh);
 
-  datalayer.battery.status.max_charge_power_W = 5000;
-  //battery_allowed_charge_power * 10;  //TODO: Value is 0. Satisfy battery somehow?
+  datalayer.battery.status.max_charge_power_W = (max_charging_current_amp * (datalayer.battery.status.voltage_dV / 10));
 
   datalayer.battery.status.max_discharge_power_W = 5000;
   //battery_allowed_discharge_power * 10;  //TODO: Value is 0. Satisfy battery somehow?
@@ -287,12 +293,11 @@ void update_values_battery() {  //This function maps all the values fetched via 
 #ifdef DEBUG_VIA_USB
   Serial.println();  //sepatator
   Serial.println("Values from battery: ");
-  Serial.print("SOC BMS: ");
-  Serial.print(BMS_voltage);
-  Serial.print(" HVIL: ");
+  Serial.print("HVIL: ");
   Serial.print(BMS_HVIL_status);
-  Serial.print(" Current: ");
-  Serial.print(BMS_current);
+  Serial.print(" BMS mode: ");
+  Serial.print(BMS_mode);
+  //0 = HV inactive, 1 = HV active, 2 = Balancing, 3 = Extern charging, 4 = AC charging, 5 = Battery error, 6 = DC charging, 7 = init
 #endif
 }
 
@@ -324,9 +329,9 @@ void receive_can_battery(CAN_frame rx_frame) {
     case 0x12DD54D2:  // BMS 100ms
       datalayer.battery.status.CAN_battery_still_alive = CAN_STILL_ALIVE;
       break;
-    case 0x1A555550:  // BMS
+    case 0x1A555550:  // BMS 500ms
       break;
-    case 0x1A555551:  // BMS
+    case 0x1A555551:  // BMS 500ms
       break;
     case 0x1A5555B2:  // BMS
       break;
@@ -340,32 +345,40 @@ void receive_can_battery(CAN_frame rx_frame) {
       break;
     case 0x1A5555B0:  // BMS
       break;
-    case 0x1A5555B1:  // BMS
+    case 0x1A5555B1:  // BMS 1000ms
       break;
     case 0x2AF:  // BMS
       break;
-    case 0x578:  // BMS
+    case 0x578:                                        // BMS 100ms
+      BMS_578_CRC = rx_frame.data.u8[0];               // Can be used to check CAN signal integrity later on
+      BMS_578_counter = (rx_frame.data.u8[1] & 0x0F);  // Can be used to check CAN signal integrity later on
+      max_charging_current_amp = ((rx_frame.data.u8[4] & 0x01) << 8) | rx_frame.data.u8[3];
+      DC_voltage = (rx_frame.data.u8[4] << 6) | (rx_frame.data.u8[1] >> 6);
+      DC_voltage_chargeport = (rx_frame.data.u8[7] << 4) | (rx_frame.data.u8[6] >> 4);
       break;
-    case 0x5A2:  // BMS
+    case 0x5A2:                                        // BMS 500ms normal, 100ms fast
+      BMS_5A2_CRC = rx_frame.data.u8[0];               // Can be used to check CAN signal integrity later on
+      BMS_5A2_counter = (rx_frame.data.u8[1] & 0x0F);  // Can be used to check CAN signal integrity later on
       service_disconnect_switch_missing = (rx_frame.data.u8[1] & 0x20) >> 5;
       pilotline_open = (rx_frame.data.u8[1] & 0x10) >> 4;
       break;
     case 0x5CA:  // BMS
       break;
-    case 0x0CF:  //BMS_20 , TODO: confirm location for all these
-      BMS_20_CRC = rx_frame.data.u8[0];
-      BMS_20_BZ = (rx_frame.data.u8[1] & 0x0F);
+    case 0x0CF:                                        //BMS 10ms
+      BMS_0CF_CRC = rx_frame.data.u8[0];               // Can be used to check CAN signal integrity later on
+      BMS_0CF_counter = (rx_frame.data.u8[1] & 0x0F);  // Can be used to check CAN signal integrity later on
       BMS_fault_status_contactor = (rx_frame.data.u8[1] & 0x20) >> 5;
-      //BMS_exp_limits_active
-      BMS_is_mode = (rx_frame.data.u8[2] & 0x07);
+      BMS_welded_contactors_status = (rx_frame.data.u8[1] & 0x60) >> 5;
+      BMS_error_shutdown_request = (rx_frame.data.u8[2] & 0x40) >> 6;
+      BMS_error_shutdown = (rx_frame.data.u8[2] & 0x20) >> 5;
+      BMS_mode = (rx_frame.data.u8[2] & 0x07);
       BMS_HVIL_status = (rx_frame.data.u8[2] & 0x08) >> 3;
-      //BMS_fault_HVbatt_shutdown
-      //BMS_fault_HVbatt_shutdown_req
+      //BMS_exp_limits_active
       //BMS_fault_performance
-      BMS_current = (rx_frame.data.u8[4] << 8) + rx_frame.data.u8[3];
       //BMS_fault_emergency_shutdown_crash
-      BMS_voltage_intermediate = (((rx_frame.data.u8[6] & 0x0F) << 8) + (rx_frame.data.u8[5])) * 25;
-      BMS_voltage = ((rx_frame.data.u8[7] << 4) + ((rx_frame.data.u8[6] & 0xF0) >> 4)) * 25;
+      BMS_current = ((rx_frame.data.u8[4] & 0x7F) << 8) | rx_frame.data.u8[3];
+      BMS_voltage_intermediate = (((rx_frame.data.u8[6] & 0x0F) << 8) + (rx_frame.data.u8[5]));
+      BMS_voltage = ((rx_frame.data.u8[7] << 4) + ((rx_frame.data.u8[6] & 0xF0) >> 4));
       break;
     case 0x1C42007B:                      // Reply from battery
       if (rx_frame.data.u8[0] == 0x10) {  //PID header
