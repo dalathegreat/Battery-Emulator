@@ -32,9 +32,9 @@ static uint8_t counter_3b5 = 0;
 
 static uint32_t poll_pid = 0;
 static uint32_t pid_reply = 0;
-static uint16_t battery_soc = 0;
-static uint16_t battery_voltage = 0;
-static int16_t battery_current = 0;
+static uint16_t battery_soc_polled = 0;
+static uint16_t battery_voltage_polled = 0;
+static int16_t battery_current_polled = 0;
 static int16_t battery_max_temp = 600;
 static int16_t battery_min_temp = 600;
 static uint16_t battery_max_charge_voltage = 0;
@@ -60,6 +60,20 @@ static uint32_t BMS_voltage_intermediate = 0;
 static uint32_t BMS_voltage = 0;
 static bool service_disconnect_switch_missing = false;
 static bool pilotline_open = false;
+static bool balancing_request = false;
+static uint8_t battery_diagnostic = 0;
+static uint16_t battery_Wh_left = 0;
+static uint16_t battery_Wh_max = 0;
+static uint8_t battery_potential_status = 0;
+static uint8_t battery_temperature_warning = 0;
+static uint16_t max_discharge_power_watt = 0;
+static uint16_t max_discharge_current_amp = 0;
+static uint16_t max_charge_power_watt = 0;
+static uint16_t max_charge_current_amp = 0;
+static uint16_t battery_SOC = 0;
+static uint16_t usable_energy_amount_Wh = 0;
+static uint8_t status_HV_line = 0;
+static uint8_t warning_support = 0;
 
 CAN_frame MEB_POLLING_FRAME = {.FD = true,
                                .ext_ID = true,
@@ -164,6 +178,7 @@ uint8_t vw_crc_calc(uint8_t* inputBytes, uint8_t length, uint16_t address) {
                               0xCB, 0x22, 0x88, 0xEF, 0xA3, 0xE1, 0xD0, 0xBB};
   const uint8_t MB0578[16] = {0x48, 0x48, 0x48, 0x48, 0x48, 0x48, 0x48, 0x48,
                               0x48, 0x48, 0x48, 0x48, 0x48, 0x48, 0x48, 0x48};
+  const uint8_t MB05CA[16] = {0x43,0x43,0x43,0x43,0x43,0x43,0x43,0x43,0x43,0x43,0x43,0x43,0x43,0x43,0x43,0x43};
   const uint8_t MB06A3[16] = {0xC1, 0x8B, 0x38, 0xA8, 0xA4, 0x27, 0xEB, 0xC8,
                               0xEF, 0x05, 0x9A, 0xBB, 0x39, 0xF7, 0x80, 0xA7};
   const uint8_t MB06A4[16] = {0xC7, 0xD8, 0xF1, 0xC4, 0xE3, 0x5E, 0x9A, 0xE2,
@@ -197,6 +212,9 @@ uint8_t vw_crc_calc(uint8_t* inputBytes, uint8_t length, uint16_t address) {
       break;
     case 0x0578:  // BMS DC
       magicByte = MB0578[counter];
+      break;
+    case 0x05CA:  // BMS
+      magicByte = MB05CA[counter];
       break;
     case 0x06A3:  // ??
       magicByte = MB06A3[counter];
@@ -232,21 +250,22 @@ uint8_t vw_crc_calc(uint8_t* inputBytes, uint8_t length, uint16_t address) {
 
 void update_values_battery() {  //This function maps all the values fetched via CAN to the correct parameters used for modbus
 
-  datalayer.battery.status.real_soc = battery_soc * 10;
+  datalayer.battery.status.real_soc = battery_soc_polled * 10;
+  //Alternatively use battery_SOC for more precision
 
   datalayer.battery.status.soh_pptt;
 
-  datalayer.battery.status.voltage_dV = battery_voltage * 2.5;
+  datalayer.battery.status.voltage_dV = battery_voltage_polled * 2.5;
 
   datalayer.battery.status.current_dA = (BMS_current / 10) - 1630;
 
   datalayer.battery.status.remaining_capacity_Wh = static_cast<uint32_t>(
       (static_cast<double>(datalayer.battery.status.real_soc) / 10000) * datalayer.battery.info.total_capacity_Wh);
+  //Alternatively use battery_Wh_left
 
-  datalayer.battery.status.max_charge_power_W = (max_charging_current_amp * (datalayer.battery.status.voltage_dV / 10));
+  datalayer.battery.status.max_charge_power_W = (max_charge_power_watt*100);
 
-  datalayer.battery.status.max_discharge_power_W = 5000;
-  //battery_allowed_discharge_power * 10;  //TODO: Value is 0. Satisfy battery somehow?
+  datalayer.battery.status.max_discharge_power_W = (max_discharge_power_watt*100);
 
   //Power in watts, Negative = charging batt
   datalayer.battery.status.active_power_W =
@@ -298,6 +317,17 @@ void update_values_battery() {  //This function maps all the values fetched via 
   Serial.print(" BMS mode: ");
   Serial.print(BMS_mode);
   //0 = HV inactive, 1 = HV active, 2 = Balancing, 3 = Extern charging, 4 = AC charging, 5 = Battery error, 6 = DC charging, 7 = init
+  Serial.print(" Diag: ");
+  Serial.print(battery_diagnostic);
+  //1 = Battery display, 4 = Battery display OK, 4 = Display battery charging, 6 = Display battery check, 7 = Fault
+  Serial.print(" HV line: ");
+  Serial.print(status_HV_line);
+  // 0 = init, 1 = no open HV line detected, 2 = open HV line , 3 = fault
+  Serial.print(" Support: ");
+  Serial.print(warning_support);
+  // 0 = OK, 1 = Not OK, 0x06 = init, 0x07 = fault
+  
+
 #endif
 }
 
@@ -320,11 +350,21 @@ void receive_can_battery(CAN_frame rx_frame) {
       break;
     case 0x1B00007B:  // Suspected to be from BMS
       break;
-    case 0x12DD54D0:  // BMS 100ms
+    case 0x12DD54D0:  // BMS Limits 100ms
       datalayer.battery.status.CAN_battery_still_alive = CAN_STILL_ALIVE;
+      max_discharge_power_watt = ((rx_frame.data.u8[6] & 0x07) << 10)  | (rx_frame.data.u8[5] << 2) | (rx_frame.data.u8[4] & 0xC0) >> 6; //*100
+      max_discharge_current_amp = ((rx_frame.data.u8[3] & 0x01) << 12) | (rx_frame.data.u8[2] << 4) | (rx_frame.data.u8[1] >> 4); //*0.2
+      max_charge_power_watt = (rx_frame.data.u8[7] << 5) | (rx_frame.data.u8[6] >> 3); //*100
+      max_charge_current_amp = ((rx_frame.data.u8[4] & 0x3F) << 7) | (rx_frame.data.u8[3] >> 1);//*0.2
       break;
     case 0x12DD54D1:  // BMS 100ms
       datalayer.battery.status.CAN_battery_still_alive = CAN_STILL_ALIVE;
+      battery_SOC = ((rx_frame.data.u8[3] & 0x0F) << 7) | (rx_frame.data.u8[2] >> 1); //*0.05
+      usable_energy_amount_Wh = (rx_frame.data.u8[7] << 8) | rx_frame.data.u8[6]; //*5
+      performance_discharge_percentage = ((rx_frame.data.u8[4] & 0x3F) << 4) | rx_frame.data.u8[3] >> 4; //*0.2
+      performance_charge_percentage = (rx_frame.data.u8[5] << 2) | rx_frame.data.u8[4] >> 6; //*0.2
+      status_HV_line = ((rx_frame.data.u8[2] & 0x01) << 2) | rx_frame.data.u8[1] >> 7;
+      warning_support = (rx_frame.data.u8[1] & 0x70) >> 4;
       break;
     case 0x12DD54D2:  // BMS 100ms
       datalayer.battery.status.CAN_battery_still_alive = CAN_STILL_ALIVE;
@@ -347,12 +387,15 @@ void receive_can_battery(CAN_frame rx_frame) {
       break;
     case 0x1A5555B1:  // BMS 1000ms
       break;
-    case 0x2AF:  // BMS
+    case 0x2AF:  // BMS 50ms
+      actual_battery_voltage = ((rx_frame.data.u8[1] & 0x3F) << 8) | rx_frame.data.u8[0]; //*0.0625
+      regen_battery = ((rx_frame.data.u8[5] & 0x7F) << 8) | rx_frame.data.u8[4]; 
+      energy_extracted_from_battery = ((rx_frame.data.u8[7] & 0x7F) << 8) | rx_frame.data.u8[6];
       break;
     case 0x578:                                        // BMS 100ms
       BMS_578_CRC = rx_frame.data.u8[0];               // Can be used to check CAN signal integrity later on
       BMS_578_counter = (rx_frame.data.u8[1] & 0x0F);  // Can be used to check CAN signal integrity later on
-      max_charging_current_amp = ((rx_frame.data.u8[4] & 0x01) << 8) | rx_frame.data.u8[3];
+      max_fastcharging_current_amp = ((rx_frame.data.u8[4] & 0x01) << 8) | rx_frame.data.u8[3];
       DC_voltage = (rx_frame.data.u8[4] << 6) | (rx_frame.data.u8[1] >> 6);
       DC_voltage_chargeport = (rx_frame.data.u8[7] << 4) | (rx_frame.data.u8[6] >> 4);
       break;
@@ -362,7 +405,15 @@ void receive_can_battery(CAN_frame rx_frame) {
       service_disconnect_switch_missing = (rx_frame.data.u8[1] & 0x20) >> 5;
       pilotline_open = (rx_frame.data.u8[1] & 0x10) >> 4;
       break;
-    case 0x5CA:  // BMS
+    case 0x5CA:  // BMS 500ms
+      BMS_5CA_CRC = rx_frame.data.u8[0];               // Can be used to check CAN signal integrity later on
+      BMS_5CA_counter = (rx_frame.data.u8[1] & 0x0F);  // Can be used to check CAN signal integrity later on
+      balancing_request = (rx_frame.data.u8[5] & 0x08) >> 3; //True/False
+      battery_diagnostic = (rx_frame.data.u8[3] & 0x07);
+      battery_Wh_left = (rx_frame.data.u8[2] << 4) | (rx_frame.data.u8[1] >> 4); //*50
+      battery_potential_status = (rx_frame.data.u8[5] & 0x30) >> 4; //0 = function not enabled, 1= no potential, 2 = potential on, 3 = fault
+      battery_temperature_warning = (rx_frame.data.u8[7] & 0x0C) >> 2; // 0 = no warning, 1 = temp level 1, 2=temp level 2
+      battery_Wh_max = ((rx_frame.data.u8[5] & 0x07) << 8) | rx_frame.data.u8[4]; //*50
       break;
     case 0x0CF:                                        //BMS 10ms
       BMS_0CF_CRC = rx_frame.data.u8[0];               // Can be used to check CAN signal integrity later on
@@ -392,12 +443,12 @@ void receive_can_battery(CAN_frame rx_frame) {
 
       switch (pid_reply) {
         case PID_SOC:
-          battery_soc = rx_frame.data.u8[4] * 4;  // 135*4 = 54.0%
+          battery_soc_polled = rx_frame.data.u8[4] * 4;  // 135*4 = 54.0%
         case PID_VOLTAGE:
-          battery_voltage = ((rx_frame.data.u8[4] << 8) | rx_frame.data.u8[5]);
+          battery_voltage_polled = ((rx_frame.data.u8[4] << 8) | rx_frame.data.u8[5]);
           break;
         case PID_CURRENT:  // IDLE 0A: 00 08 62 1E 3D (00 02) 49 F0 39 AA AA
-          battery_current = ((rx_frame.data.u8[5] << 8) | rx_frame.data.u8[6]);  //TODO: right bits?
+          battery_current_polled = ((rx_frame.data.u8[5] << 8) | rx_frame.data.u8[6]);  //TODO: right bits?
           break;
         case PID_MAX_TEMP:
           battery_max_temp = ((rx_frame.data.u8[4] << 8) | rx_frame.data.u8[5]);
