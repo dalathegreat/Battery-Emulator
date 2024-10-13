@@ -682,9 +682,6 @@ String processor(const String& var) {
     content += "<h4 style='color: white;'>tesla_battery_total_discharge: " + String(static_cast<float>(datalayer.battery.status.tesla_battery_total_discharge * .001), 2) + " kWh</h4>";
 
 
-    float teslaBatteryRegenLimitFloat =
-    static_cast<float>(datalayer.battery.status.tesla_battery_regenerative_limit);  // Convert to float and divide by 10
-    content += "<h4 style='color: white;'>tesla_battery_regenerative_limit_float: " + String(teslaBatteryRegenLimitFloat, 2) + " W</h4>";
     content += "<h4 style='color: white;'>tesla_battery_regenerative_limit: " + String(datalayer.battery.status.tesla_battery_regenerative_limit) + " W</h4>";
 
     content += "<h4 style='color: white;'>tesla_battery_energy_to_charge_complete_float: " + String(static_cast<float>(datalayer.battery.status.tesla_battery_energy_to_charge_complete / 10), 2) + " kWh</h4>";
