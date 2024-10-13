@@ -33,6 +33,7 @@ typedef struct {
   battery_chemistry_enum chemistry = battery_chemistry_enum::NCA;
 } DATALAYER_BATTERY_INFO_TYPE;
 
+
 typedef struct {
   /** int32_t */
   /** Instantaneous battery power in Watts */
@@ -85,27 +86,48 @@ typedef struct {
    */
   uint8_t CAN_battery_still_alive = CAN_STILL_ALIVE;
   
+#ifdef TESLA_MODEL_3Y_BATTERY
+
+  uint16_t tesla_battery_nominal_full_pack_energy = 0;  // 0|11@1+ (0.1,0) [0|204.6] "KWh"  Receiver
+  uint16_t tesla_battery_nominal_energy_remaining = 0;  // 11|11@1+ (0.1,0) [0|204.6] "KWh"  Receiver
+  uint16_t tesla_battery_expected_energy_remaining = 0; // 22|11@1+ (0.1,0) [0|204.6] "KWh"  Receiver
+  uint16_t tesla_battery_ideal_energy_remaining = 0;    // 33|11@1+ (0.1,0) [0|204.6] "KWh"  Receiver
+  uint16_t tesla_battery_energy_to_charge_complete = 0; // 44|11@1+ (0.1,0) [0|204.6] "KWh"  Receiver
+  uint8_t  tesla_battery_full_charge_complete = 0;      // 63|1@1+ (1,0) [0|1] ""  Receiver
+  uint16_t tesla_battery_energy_buffer = 0;                   // 55|8@1+ (0.1,0) [0|25.4] "KWh"  Receiver
+
+  uint16_t tesla_PCS_dcdcHvBusVolt = 0;                       // PCS_dcdcHvBusVolt : 10|12@1+ (0.146484,0) [0|599.854] "V"  Receiver
+  uint16_t tesla_PCS_dcdcLvBusVolt = 0;                       // PCS_dcdcLvBusVolt : 0|10@1+ (0.0390625,0) [0|39.9609] "V"  Receiver
+  uint16_t tesla_PCS_dcdcLvOutputCurrent = 0;                 // PCS_dcdcLvOutputCurrent : 24|12@1+ (0.1,0) [0|400] "A"  Receiver
+
+  uint16_t tesla_PCS_ChargeLineVoltage264 = 0;      // 0|14@1+ (0.0333,0) [0|545.554] "V" 
+  uint16_t tesla_PCS_ChargeLineCurrent264 = 0;      // 14|9@1+ (0.1,0) [0|51.1] "A"
+  uint16_t tesla_PCS_ChargeLinePower264 = 0;        // 24|8@1+ (0.1,0) [0|25.5] "kW"
+  uint16_t tesla_PCS_ChargeLineCurrentLimit264 = 0; // 32|10@1+ (0.1,0) [0|102.3] "A"  Receiver
+
   uint16_t tesla_battery_bms_min_voltage = 0;
   uint16_t tesla_battery_bms_max_voltage = 0;
   uint16_t tesla_max_charge_current = 0;
   uint16_t tesla_max_discharge_current = 0; 
   uint32_t tesla_battery_total_discharge = 0;
   uint32_t tesla_battery_total_charge = 0;
-  int16_t tesla_battery_amps = 0;       // A
+  int16_t  tesla_battery_amps = 0;       // A
   uint16_t tesla_battery_raw_amps = 0;  // A
-  uint16_t tesla_battery_energy_to_charge_complete = 0;
-  uint16_t tesla_battery_expected_energy_remaining = 0;
-  uint8_t tesla_battery_full_charge_complete = 0;
-  uint16_t tesla_battery_ideal_energy_remaining = 0;
-  uint16_t tesla_battery_nominal_energy_remaining = 0;
-  uint16_t tesla_battery_nominal_full_pack_energy = 0;
+
   uint16_t tesla_battery_beginning_of_life = 0;
   uint16_t tesla_battery_charge_time_remaining = 0;  // Minutes
   uint16_t tesla_battery_regenerative_limit = 0;
   uint16_t tesla_battery_discharge_limit = 0;
   uint16_t tesla_battery_high_voltage = 0;
   uint16_t tesla_battery_low_voltage = 0;
+
+  uint16_t tesla_BMS_acChargePowerRequest = 0;  // 0|16@1+ (0.001,0) [0|0] "kW"
+  uint8_t  tesla_BMS_pcsClearFaultRequest = 0;   // 16|1@1+ (1,0) [0|0] ""
+  uint8_t  tesla_BMS_acChargeEnable = 0;         // 17|1@1+ (1,0) [0|0] ""
+
   
+
+#endif
   /** Other */
   /** The current BMS status */
   bms_status_enum bms_status = ACTIVE;
