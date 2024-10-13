@@ -59,7 +59,7 @@ static bool BMS_HVIL_status = 0;
 static bool BMS_fault_HVbatt_shutdown = 0;
 static bool BMS_fault_HVbatt_shutdown_req = 0;
 static bool BMS_fault_performance = 0;
-static uint16_t BMS_current = 0;
+static uint16_t BMS_current = 16300;
 static bool BMS_fault_emergency_shutdown_crash = 0;
 static uint32_t BMS_voltage_intermediate = 0;
 static uint32_t BMS_voltage = 0;
@@ -80,8 +80,8 @@ static uint16_t usable_energy_amount_Wh = 0;
 static uint8_t status_HV_line = 0;
 static uint8_t warning_support = 0;
 static bool battery_heating_active = false;
-static uint16_t performance_discharge_percentage = 0;
-static uint16_t performance_charge_percentage = 0;
+static uint16_t power_discharge_percentage = 0;
+static uint16_t power_charge_percentage = 0;
 static uint16_t actual_battery_voltage = 0;
 static uint16_t regen_battery = 0;
 static uint16_t energy_extracted_from_battery = 0;
@@ -91,6 +91,28 @@ static uint16_t DC_voltage_chargeport = 0;
 static uint8_t BMS_welded_contactors_status = 0;
 static uint8_t BMS_error_shutdown_request = 0;
 static uint8_t BMS_error_shutdown = 0;
+static uint16_t power_battery_heating_watt = 0;
+static uint16_t power_battery_heating_req_watt = 0;
+static uint8_t cooling_request =
+    0;  //0 = No cooling, 1 = Light cooling, cabin prio, 2= higher cooling, 3 = immediate cooling, 4 = emergency cooling
+static uint8_t heating_request = 0;       //0 = init, 1= maintain temp, 2=higher demand, 3 = immediate heat demand
+static uint8_t balancing_active = false;  //0 = init, 1 active, 2 not active
+static bool charging_active = false;
+static uint16_t max_energy_Wh = 0;
+static uint16_t max_charge_percent = 0;
+static uint16_t min_charge_percent = 0;
+static uint16_t isolation_resistance_kOhm = 0;
+static bool battery_heating_installed = false;
+static bool error_NT_circuit = false;
+static uint8_t pump_1_control = 0;  //0x0D not installed, 0x0E init, 0x0F fault
+static uint8_t pump_2_control = 0;  //0x0D not installed, 0x0E init, 0x0F fault
+static uint8_t target_flow_temperature_C = 0;
+static uint8_t return_temperature_C = 0;
+static uint8_t status_valve_1 = 0;  //0 not active, 1 active, 5 not installed, 6 init, 7 fault
+static uint8_t status_valve_2 = 0;  //0 not active, 1 active, 5 not installed, 6 init, 7 fault
+static uint8_t battery_temperature = 0;
+static uint8_t temperature_request =
+    0;  //0 high cooling, 1 medium cooling, 2 low cooling, 3 no temp requirement init, 4 low heating , 5 medium heating, 6 high heating, 7 circulation
 
 CAN_frame MEB_POLLING_FRAME = {.FD = true,
                                .ext_ID = true,
@@ -367,20 +389,40 @@ void receive_can_battery(CAN_frame rx_frame) {
       break;
     case 0x12DD54D1:  // BMS 100ms
       datalayer.battery.status.CAN_battery_still_alive = CAN_STILL_ALIVE;
-      battery_SOC = ((rx_frame.data.u8[3] & 0x0F) << 7) | (rx_frame.data.u8[2] >> 1);                     //*0.05
-      usable_energy_amount_Wh = (rx_frame.data.u8[7] << 8) | rx_frame.data.u8[6];                         //*5
-      performance_discharge_percentage = ((rx_frame.data.u8[4] & 0x3F) << 4) | rx_frame.data.u8[3] >> 4;  //*0.2
-      performance_charge_percentage = (rx_frame.data.u8[5] << 2) | rx_frame.data.u8[4] >> 6;              //*0.2
+      battery_SOC = ((rx_frame.data.u8[3] & 0x0F) << 7) | (rx_frame.data.u8[2] >> 1);               //*0.05
+      usable_energy_amount_Wh = (rx_frame.data.u8[7] << 8) | rx_frame.data.u8[6];                   //*5
+      power_discharge_percentage = ((rx_frame.data.u8[4] & 0x3F) << 4) | rx_frame.data.u8[3] >> 4;  //*0.2
+      power_charge_percentage = (rx_frame.data.u8[5] << 2) | rx_frame.data.u8[4] >> 6;              //*0.2
       status_HV_line = ((rx_frame.data.u8[2] & 0x01) << 2) | rx_frame.data.u8[1] >> 7;
       warning_support = (rx_frame.data.u8[1] & 0x70) >> 4;
       break;
     case 0x12DD54D2:  // BMS 100ms
       datalayer.battery.status.CAN_battery_still_alive = CAN_STILL_ALIVE;
       battery_heating_active = (rx_frame.data.u8[4] & 0x40) >> 6;
+      heating_request = (rx_frame.data.u8[5] & 0xE0) >> 5;
+      cooling_request = (rx_frame.data.u8[5] & 0x1C) >> 2;
+      power_battery_heating_watt = rx_frame.data.u8[6];
+      power_battery_heating_req_watt = rx_frame.data.u8[7];
       break;
     case 0x1A555550:  // BMS 500ms
+      balancing_active = (rx_frame.data.u8[1] & 0xC0) >> 6;
+      charging_active = (rx_frame.data.u8[2] & 0x01);
+      max_energy_Wh = ((rx_frame.data.u8[6] & 0x1F) << 8) | rx_frame.data.u8[5];                     //*40
+      max_charge_percent = ((rx_frame.data.u8[7] << 3) | rx_frame.data.u8[6] >> 5);                  //*0.05
+      min_charge_percent = ((rx_frame.data.u8[4] << 3) | rx_frame.data.u8[3] >> 5);                  //*0.05
+      isolation_resistance_kOhm = (((rx_frame.data.u8[3] & 0x1F) << 7) | rx_frame.data.u8[2] >> 1);  //*5
       break;
     case 0x1A555551:  // BMS 500ms
+      battery_heating_installed = (rx_frame.data.u8[1] & 0x20) >> 5;
+      error_NT_circuit = (rx_frame.data.u8[1] & 0x40) >> 6;
+      pump_1_control = rx_frame.data.u8[2] & 0x0F;         //*10, percent
+      pump_2_control = (rx_frame.data.u8[2] & 0xF0) >> 4;  //*10, percent
+      status_valve_1 = (rx_frame.data.u8[3] & 0x1C) >> 2;
+      status_valve_2 = (rx_frame.data.u8[3] & 0xE0) >> 5;
+      temperature_request = (((rx_frame.data.u8[2] & 0x03) << 1) | rx_frame.data.u8[1] >> 7);
+      battery_temperature = rx_frame.data.u8[5];        //*0,5 -40
+      target_flow_temperature_C = rx_frame.data.u8[6];  //*0,5 -40
+      return_temperature_C = rx_frame.data.u8[7];       //*0,5 -40
       break;
     case 0x1A5555B2:  // BMS
       break;
