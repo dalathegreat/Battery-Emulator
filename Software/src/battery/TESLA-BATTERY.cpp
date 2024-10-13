@@ -22,6 +22,214 @@ CAN_frame TESLA_221_2 = {
     .ID = 0x221,
     .data = {0x61, 0x15, 0x01, 0x00, 0x00, 0x00, 0x20, 0xBA}};  //Contactor Frame 221 - hv_up_for_drive
 
+
+/*
+40 41 05 05 00 50 B1 AF    <VCFRONT_LVPowerState>
+VCFRONT_LVPowerStateChecksum: 175
+VCFRONT_LVPowerStateCounter: 11
+VCFRONT_LVPowerStateIndex: Mux0
+VCFRONT_parkLVState: ON
+VCFRONT_espLVState: OFF
+VCFRONT_radcLVState: OFF
+VCFRONT_hvacCompLVState: ON
+VCFRONT_ptcLVRequest: ON
+VCFRONT_sccmLVRequest: ON
+VCFRONT_tpmsLVRequest: OFF
+VCFRONT_rcmLVRequest: OFF
+VCFRONT_iBoosterLVState: ON
+VCFRONT_tunerLVRequest: ON
+VCFRONT_amplifierLVRequest: OFF
+VCFRONT_das1HighCurrentLVState: OFF
+VCFRONT_das2HighCurrentLVState: OFF
+VCFRONT_diLVRequest: OFF
+VCFRONT_disLVState: OFF
+VCFRONT_oilPumpFrontLVState: OFF
+VCFRONT_oilPumpRearLVRequest: OFF
+VCFRONT_ocsLVRequest: OFF
+VCFRONT_vcleftHiCurrentLVState: ON
+VCFRONT_vcrightHiCurrentLVState: ON
+VCFRONT_uiHiCurrentLVState: ON
+VCFRONT_uiAudioLVState: OFFVCFRONT_vehiclePowerState: ACCESSORY
+*/
+CAN_frame TESLA_221_3 = {
+    .FD = false,
+    .ext_ID = false,
+    .DLC = 8,
+    .ID = 0x221,
+    .data = {0x40, 0x41, 0x05, 0x05, 0x00, 0x50, 0xB1, 0xAF}};  // WHILE CHARGING 5KW ac
+
+/*
+41 01 55 00 00 00 E0 9A    <VCFRONT_LVPowerState>
+VCFRONT_LVPowerStateChecksum: 154
+VCFRONT_LVPowerStateCounter: 14
+VCFRONT_LVPowerStateIndex: Mux1
+VCFRONT_cpLVRequest: ON
+VCFRONT_epasLVState: OFF
+VCFRONT_hvcLVRequest: OFF
+VCFRONT_tasLVState: OFF
+VCFRONT_pcsLVState: ONVCFRONT_vehiclePowerState: ACCESSORY
+*/
+CAN_frame TESLA_221_4 = {
+    .FD = false,
+    .ext_ID = false,
+    .DLC = 8,
+    .ID = 0x221,
+    .data = {0x41, 0x01, 0x55, 0x00, 0x00, 0x00, 0xE0, 0x9A}};  // WHILE CHARGING 5KW ac
+
+/*
+0x2D1 
+7F 01    <VCFRONT_okToUseHighPower>
+VCFRONT_cpOkToUseHighPower: 1
+VCFRONT_das1OkToUseHighPower: 1
+VCFRONT_das2OkToUseHighPower: 1
+VCFRONT_premAudioOkToUseHiPower: 0
+VCFRONT_uiAudioOkToUseHighPower: 1
+VCFRONT_uiOkToUseHighPower: 1
+VCFRONT_vcleftOkToUseHighPower: 1
+VCFRONT_vcrightOkToUseHighPower: 1
+*/
+CAN_frame TESLA_2D1_VCFRONT_okToUseHighPower = { //  <VCFRONT_sensors>
+    .FD = false,
+    .ext_ID = false,
+    .DLC = 2,
+    .ID = 0x2D1,
+    .data = {0x7F, 0x01}};  // WHILE CHARGING 5KW ac
+
+/*
+0x321
+EA B1 A7 71 02 6A 00 43    <VCFRONT_sensors>
+VCFRONT_battSensorIrrational: 0
+VCFRONT_brakeFluidLevel: NORMAL
+VCFRONT_coolantLevel: FILLED
+VCFRONT_ptSensorIrrational: 0
+VCFRONT_tempAmbient: 16degC
+VCFRONT_tempAmbientFiltered: 13degC
+VCFRONT_tempCoolantBatInlet: 21degC
+VCFRONT_tempCoolantPTInlet: 21degC
+VCFRONT_washerFluidLevel: NORMAL
+*/
+
+CAN_frame TESLA_321_VCFRONT_sensors = {
+    .FD = false,
+    .ext_ID = false,
+    .DLC = 8,
+    .ID = 0x321,
+    .data = {0xEA, 0xB1, 0xA7, 0x71, 0x02, 0x6A, 0x00, 0x43}};  // WHILE CHARGING 5KW ac
+
+/*
+0x3A1
+C8 62 49 15 01 20 E2 1C    <VCFRONT_vehicleStatus>
+VCFRONT_12vStatusForDrive: READY_FOR_DRIVE_12V
+VCFRONT_2RowCenterUnbuckled: NONE
+VCFRONT_2RowLeftUnbuckled: NONE
+VCFRONT_2RowRightUnbuckled: NONE
+VCFRONT_APGlassHeaterState: OFF
+VCFRONT_LVLoadRequest: 1
+VCFRONT_batterySupportRequest: 0
+VCFRONT_bmsHvChargeEnable: 0
+VCFRONT_diPowerOnState: POWERED_OFF
+VCFRONT_driverBuckleStatus: UNBUCKLED
+VCFRONT_driverDoorStatus: OPEN
+VCFRONT_driverIsLeaving: 1
+VCFRONT_driverIsLeavingAnySpeed: 1
+VCFRONT_driverUnbuckled: OCCUPIED_AND_UNBUCKLED
+VCFRONT_is12VBatterySupported: 0
+VCFRONT_ota12VSupportRequest: 0
+VCFRONT_passengerUnbuckled: NONE
+VCFRONT_pcs12vVoltageTarget: 13.53V
+VCFRONT_pcsEFuseVoltage: 13V
+VCFRONT_preconditionRequest: 0
+VCFRONT_vehicleStatusChecksum: 28
+VCFRONT_vehicleStatusCounter: 14
+*/
+CAN_frame TESLA_3A1_VCFRONT_vehicleStatus = {
+    .FD = false,
+    .ext_ID = false,
+    .DLC = 8,
+    .ID = 0x3A1,
+    .data = {0xC8, 0x62, 0x49, 0x15, 0x01, 0x20, 0xE2, 0x1C}};  // WHILE CHARGING 5KW ac
+
+
+
+
+
+
+
+
+/* Interesting CAN values to maybe add
+BO_ 786 ID312BMSthermal: 8 VehicleBus
+ SG_ BMSdissipation312 : 0|10@1+ (0.02,0) [0|20] "kW"  Receiver
+ SG_ BMSflowRequest312 : 10|7@1+ (0.3,0) [0|30] "LPM"  Receiver
+ SG_ BMSinletActiveCoolTarget312 : 17|9@1+ (0.25,-25) [-25|100] "C"  Receiver
+ SG_ BMSinletActiveHeatTarget312 : 35|9@1+ (0.25,-25) [-25|100] "C"  Receiver
+ SG_ BMSinletPassiveTarget312 : 26|9@1+ (0.25,-25) [-25|100] "C"  Receiver
+ SG_ BMSnoFlowRequest312 : 63|1@1+ (1,0) [0|1] ""  Receiver
+ SG_ BMSpcsNoFlowRequest312 : 62|1@1+ (1,0) [0|1] ""  Receiver
+ SG_ BMSmaxPackTemperature : 53|9@1+ (0.25,-25) [-25|100] "C"  Receiver
+ SG_ BMSminPackTemperature : 44|9@1+ (0.25,-25) [-25|100] "C"  Receiver
+
+
+BO_ 690 BMS_chargerRequest: 3 ETH
+ SG_ BMS_acChargeEnable: 17|1@1+ (1,0) [0|0] "" X
+ SG_ BMS_acChargePowerRequest: 0|16@1+ (0.001,0) [0|0] "kW" X
+ SG_ BMS_pcsClearFaultRequest: 16|1@1+ (1,0) [0|0] "" X
+
+86 13 00 00 00    <BMS_chargerRequest>
+BMS_acChargeEnable: 0
+BMS_acChargePowerRequest: 4.998kW
+BMS_pcsClearFaultRequest: 0
+
+A6 07 32 32 46 46 46 11    <PCS_chgStatus>
+PCS_chargeStatus: FAULTED
+PCS_chgInstantAcPowerAvailable: 5kW
+PCS_chgMainState: ENABLE
+PCS_chgMaxAcPowerAvailable: 5kW
+PCS_chgPHAEnable: 1
+PCS_chgPHALineCurrentRequest: 7A
+PCS_chgPHBEnable: 1
+PCS_chgPHBLineCurrentRequest: 7A
+PCS_chgPHCEnable: 1
+PCS_chgPHCLineCurrentRequest: 7A
+PCS_chgPwmEnableLine: 1
+PCS_gridConfig: THREE_PHASE
+
+00 00 5D 16    <ID22AHVP_pcsControl>
+HVP_dcLinkVoltageFiltered: 357V
+HVP_dcLinkVoltageRequest: 0V
+HVP_pcsChargeHwEnabled: 1
+HVP_pcsControlRequest: SUPPORT
+HVP_pcsDcdcHwEnabled: 1
+
+
+05 0E AA 1A FF 02    <CP_chargeStatus>
+CP_acChargeCurrentLimit: 7A
+CP_chargeShutdownRequest: NO_SHUTDOWN_REQUESTED
+CP_evseChargeType: AC_CHARGER_PRESENT
+CP_hvChargeStatus: CP_CHARGE_ENABLED
+CP_internalMaxAcCurrentLimit: 127.5A
+CP_internalMaxDcCurrentLimit: 1000.02A
+CP_vehicleIsoCheckRequired: 0
+CP_vehiclePrechargeRequired: 0
+
+0A 02 D4 09 CB 04 00 00    <ID232BMS_contactorRequest>
+BMS_ensShouldBeActiveForDrive: 0
+BMS_fcContactorRequest: SET_REQUEST_OPEN
+BMS_fcLinkOkToEnergizeRequest: 3
+BMS_gpoHasCompleted: 0
+BMS_internalHvilSenseV: 2V
+BMS_packContactorRequest: SET_REQUEST_CLOSE
+BMS_pcsPwmDisable: 0
+
+84 07 0B 06 03    <UI_chargeRequest>
+UI_acChargeCurrentLimit: 7A
+UI_chargeEnableRequest: 1
+UI_chargeTerminationPct: 52.3%
+UI_closeChargePortDoorRequest: 0
+UI_openChargePortDoorRequest: 0
+
+
+ */
+
 static uint32_t battery_total_discharge = 0;
 static uint32_t battery_total_charge = 0;
 static uint16_t battery_volts = 0;     // V
@@ -46,9 +254,20 @@ static uint16_t battery_max_discharge_current = 0;
 static uint16_t battery_max_charge_current = 0;
 static uint16_t battery_bms_max_voltage = 0;
 static uint16_t battery_bms_min_voltage = 0;
-static uint16_t battery_high_voltage = 0;
-static uint16_t battery_low_voltage = 0;
-static uint16_t battery_output_current = 0;
+
+static uint16_t PCS_dcdcHvBusVolt = 0;
+static uint16_t PCS_dcdcLvBusVolt = 0;
+static uint16_t PCS_dcdcLvOutputCurrent = 0;
+
+static uint16_t PCS_ChargeLineVoltage264 = 0;      // 0|14@1+ (0.0333,0) [0|545.554] "V" 
+static uint16_t PCS_ChargeLineCurrent264 = 0;      // 14|9@1+ (0.1,0) [0|51.1] "A"
+static uint16_t PCS_ChargeLinePower264 = 0;        // 24|8@1+ (0.1,0) [0|25.5] "kW"
+static uint16_t PCS_ChargeLineCurrentLimit264 = 0; // 32|10@1+ (0.1,0) [0|102.3] "A"  Receiver
+
+static uint16_t BMS_acChargePowerRequest = 0;      // 0|16@1+ (0.001,0) [0|0] "kW"
+static uint8_t  BMS_pcsClearFaultRequest = 0;      // 16|1@1+ (1,0) [0|0] ""
+static uint8_t  BMS_acChargeEnable = 0;            // 17|1@1+ (1,0) [0|0] ""
+
 static uint16_t battery_soc_min = 0;
 static uint16_t battery_soc_max = 0;
 static uint16_t battery_soc_vi = 0;
@@ -386,11 +605,11 @@ void update_values_battery() {  //This function maps all the values fetched via 
   Serial.print(battery_cell_deviation_mV);
   Serial.println("mV.");
 
-  print_int_with_units("High Voltage Output Pins: ", battery_high_voltage, "V");
+  print_int_with_units("High Voltage Output Pins: ", PCS_dcdcHvBusVolt, "V");
   Serial.print(", ");
-  print_int_with_units("Low Voltage: ", battery_low_voltage, "V");
+  print_int_with_units("Low Voltage: ", PCS_dcdcLvBusVolt, "V");
   Serial.println("");
-  print_int_with_units("DC/DC 12V current: ", battery_output_current, "A");
+  print_int_with_units("DC/DC 12V current: ", PCS_dcdcLvOutputCurrent, "A");
   Serial.println("");
 
   Serial.println("Values passed to the inverter: ");
@@ -411,23 +630,68 @@ void receive_can_battery(CAN_frame rx_frame) {
   static uint16_t temp = 0;
 
   switch (rx_frame.ID) {
-    case 0x352:
+
+    case 0x2B2: // 690 0x2B2 BMS_chargerRequest: 3 ETH
+     /*  
+      SG_ BMS_acChargePowerRequest: 0|16@1+ (0.001,0) [0|0] "kW" X
+      SG_ BMS_pcsClearFaultRequest: 16|1@1+ (1,0) [0|0] "" X
+      SG_ BMS_acChargeEnable: 17|1@1+ (1,0) [0|0] "" X
+
+      86 13 00 00 00    <BMS_chargerRequest>
+      BMS_acChargePowerRequest: 4.998kW
+      BMS_pcsClearFaultRequest: 0
+      BMS_acChargeEnable: 0
+     */
+
+      BMS_acChargePowerRequest = ((rx_frame.data.u8[1] << 8) | (rx_frame.data.u8[0]));         //  0|16@1+ (0.001,0) [0|0] "kW"
+      datalayer.battery.status.tesla_BMS_acChargePowerRequest = BMS_acChargePowerRequest;
+      BMS_pcsClearFaultRequest = ((rx_frame.data.u8[1] << 8) | (rx_frame.data.u8[0]));         //  16|1@1+ (1,0) [0|0] ""
+      datalayer.battery.status.tesla_BMS_pcsClearFaultRequest = BMS_pcsClearFaultRequest;
+      BMS_acChargeEnable = ((rx_frame.data.u8[1] << 8) | (rx_frame.data.u8[0]));         //  17|1@1+ (1,0) [0|0] ""
+      datalayer.battery.status.tesla_BMS_acChargeEnable = BMS_acChargeEnable;
+
+      break;
+    case 0x264: // 612 ID264ChargeLineStatus
+      /*  
+      SG_ ChargeLineVoltage264      : 0|14@1+ (0.0333,0) [0|545.554] "V"  Receiver
+      SG_ ChargeLineCurrent264      : 14|9@1+ (0.1,0) [0|51.1] "A"  Receiver
+      SG_ ChargeLinePower264        : 24|8@1+ (0.1,0) [0|25.5] "kW"  Receiver
+      SG_ ChargeLineCurrentLimit264 : 32|10@1+ (0.1,0) [0|102.3] "A"  Receiver
+
+      6E 9C 11 33 46 00    <PCS_chgLineStatus>
+      PCS_chgAcCurrentLimit: 7A
+      PCS_chgInputPower: 5.1kW
+      PCS_chgInputVoltage: 240.174V
+      PCS_chgLineCurrent: 7A
+
+      */
+
+      PCS_ChargeLineVoltage264 = (((rx_frame.data.u8[1] & 0b01111111) << 8) | (rx_frame.data.u8[0]));         // 0|14@1+ (0.0333,0) [0|545.554] "V"
+      datalayer.battery.status.tesla_PCS_ChargeLineVoltage264 = PCS_ChargeLineVoltage264;
+      PCS_ChargeLineCurrent264 = ((rx_frame.data.u8[2] << 7) | ((rx_frame.data.u8[1] & 0b10000000) >> 1));    // 14|9@1+ (0.1,0) [0|51.1] "A"
+      datalayer.battery.status.tesla_PCS_ChargeLineCurrent264 = PCS_ChargeLineCurrent264;
+      PCS_ChargeLinePower264 =   rx_frame.data.u8[3];                                                         // 24|8@1+ (0.1,0) [0|25.5] "kW"
+      datalayer.battery.status.tesla_PCS_ChargeLinePower264 = PCS_ChargeLinePower264;                                               
+      PCS_ChargeLineCurrentLimit264 = (((rx_frame.data.u8[5] & 0b00000011) << 8) | rx_frame.data.u8[4]);      // 32|10@1+ (0.1,0) [0|102.3] "A"  Receiver
+      datalayer.battery.status.tesla_PCS_ChargeLineCurrentLimit264 = PCS_ChargeLineCurrentLimit264;
+
+      break;
+    case 0x352:  //850 ID352BMS_energyStatus: 8 VehicleBus
       //SOC
       battery_nominal_full_pack_energy =
-          (((rx_frame.data.u8[1] & 0x0F) << 8) | (rx_frame.data.u8[0]));  //Example 752 (75.2kWh)
+          (((rx_frame.data.u8[1] & 0x0F) << 8) | (rx_frame.data.u8[0]));                                               // 0|11@1+ (0.1,0) [0|204.6] "KWh"  Receiver
       datalayer.battery.status.tesla_battery_nominal_full_pack_energy = battery_nominal_full_pack_energy;
-      battery_nominal_energy_remaining = (((rx_frame.data.u8[2] & 0x3F) << 5) | ((rx_frame.data.u8[1] & 0xF8) >> 3));  //Example 1247 * 0.1 = 124.7kWh
+      battery_nominal_energy_remaining = (((rx_frame.data.u8[2] & 0x3F) << 5) | ((rx_frame.data.u8[1] & 0xF8) >> 3));  // 11|11@1+ (0.1,0) [0|204.6] "KWh"  Receiver
       datalayer.battery.status.tesla_battery_nominal_energy_remaining = battery_nominal_energy_remaining;
       battery_expected_energy_remaining = (((rx_frame.data.u8[4] & 0x01) << 10) | (rx_frame.data.u8[3] << 2) |
-                                           ((rx_frame.data.u8[2] & 0xC0) >> 6));  //Example 622 (62.2kWh)
+                                           ((rx_frame.data.u8[2] & 0xC0) >> 6));                                       // 22|11@1+ (0.1,0) [0|204.6] "KWh"  Receiver
       datalayer.battery.status.tesla_battery_expected_energy_remaining = battery_expected_energy_remaining;
-      battery_ideal_energy_remaining = (((rx_frame.data.u8[5] & 0x0F) << 7) | ((rx_frame.data.u8[4] & 0xFE) >> 1));  //Example 311 * 0.1 = 31.1kWh
+      battery_ideal_energy_remaining = (((rx_frame.data.u8[5] & 0x0F) << 7) | ((rx_frame.data.u8[4] & 0xFE) >> 1));    // 33|11@1+ (0.1,0) [0|204.6] "KWh"  Receiver
       datalayer.battery.status.tesla_battery_ideal_energy_remaining = battery_ideal_energy_remaining;
-      battery_energy_to_charge_complete = (((rx_frame.data.u8[6] & 0x7F) << 4) | ((rx_frame.data.u8[5] & 0xF0) >> 4));  //Example 147 * 0.1 = 14.7kWh
+      battery_energy_to_charge_complete = (((rx_frame.data.u8[6] & 0x7F) << 4) | ((rx_frame.data.u8[5] & 0xF0) >> 4)); // 44|11@1+ (0.1,0) [0|204.6] "KWh"  Receiver
       datalayer.battery.status.tesla_battery_energy_to_charge_complete = battery_energy_to_charge_complete;
-      battery_energy_buffer =
-          (((rx_frame.data.u8[7] & 0x7F) << 1) | ((rx_frame.data.u8[6] & 0x80) >> 7));  //Example 1 * 0.1 = 0
-      battery_full_charge_complete = ((rx_frame.data.u8[7] & 0x80) >> 7);
+      battery_full_charge_complete = ((rx_frame.data.u8[7] & 0x80) >> 7);                                              // 63|1@1+ (1,0) [0|1] ""  Receiver
+      battery_energy_buffer = (((rx_frame.data.u8[7] & 0x7F) << 1) | ((rx_frame.data.u8[6] & 0x80) >> 7));             // 55|8@1+ (0.1,0) [0|25.4] "KWh"  Receiver
       break;
     case 0x20A:
       //Contactor state
@@ -441,24 +705,23 @@ void receive_can_battery(CAN_frame rx_frame) {
       break;
     case 0x252:
       //Limits
-      battery_regenerative_limit =
-          ((rx_frame.data.u8[1] << 8) | rx_frame.data.u8[0]);  //Example 4715 * 0.01 = 47.15kW //SG_ BMS_maxRegenPower : 0|16@1+ (0.01,0) [0|655.35] "kW"  Receiver
+      battery_regenerative_limit = ((rx_frame.data.u8[1] << 8) | rx_frame.data.u8[0]);                   // 0|16@1+ (0.01,0) [0|655.35] "kW"  Receiver
       datalayer.battery.status.tesla_battery_regenerative_limit = battery_regenerative_limit;
-      battery_discharge_limit =
-          ((rx_frame.data.u8[3] << 8) | rx_frame.data.u8[2]);  //Example 2009 * 0.013 = 26.117??? SG_ BMS_maxDischargePower : 16|16@1+ (0.013,0) [0|655.35] "kW"  Receiver
+
+      battery_discharge_limit = ((rx_frame.data.u8[3] << 8) | rx_frame.data.u8[2]);                      // 16|16@1+ (0.013,0) [0|655.35] "kW"  Receiver
       datalayer.battery.status.tesla_battery_discharge_limit = battery_discharge_limit;
-      battery_max_heat_park =
-          (((rx_frame.data.u8[5] & 0x03) << 8) | rx_frame.data.u8[4]);  //Example 500 * 0.01 = 5kW
-      battery_hvac_max_power =
-          (((rx_frame.data.u8[7] << 6) | ((rx_frame.data.u8[6] & 0xFC) >> 2)));  //Example 1000 * 0.02 = 20kW?
+
+      battery_max_heat_park = (((rx_frame.data.u8[5] & 0x03) << 8) | rx_frame.data.u8[4]);               // 32|10@1+ (0.01,0) [0|10.23] "kW"  Receiver
+                                                                         // BMS_notEnoughPowerForHeatPump : 42|1@1+ (1,0) [0|1] ""  Receiver
+                                                                              // SG_ BMS_powerLimitsState : 48|1@1+ (1,0) [0|1] ""  Receiver
+      battery_hvac_max_power = (((rx_frame.data.u8[7] << 6) | ((rx_frame.data.u8[6] & 0xFC) >> 2)));     // 50|10@1+ (0.02,0) [0|20.46] "kW"  Receiver
       break;
     case 0x132:
       //battery amps/volts
-      battery_volts = ((rx_frame.data.u8[1] << 8) | rx_frame.data.u8[0]);  //Example 37030mv * 0.01 = 370V
-      battery_amps = ((rx_frame.data.u8[3] << 8) | rx_frame.data.u8[2]);          //Example 65492 (-4.3A) OR 225 (22.5A)
-      battery_raw_amps = ((rx_frame.data.u8[5] << 8) | rx_frame.data.u8[4]);  //Example 10425 * -0.05 = ?
-      battery_charge_time_remaining =
-          (((rx_frame.data.u8[7] & 0x0F) << 8) | rx_frame.data.u8[6]);  //Example 228 * 0.1 = 22.8min
+      battery_volts = ((rx_frame.data.u8[1] << 8) | rx_frame.data.u8[0]);     // 0|16@1+ (0.01,0) [0|655.35] "V"  Receiver
+      battery_amps = ((rx_frame.data.u8[3] << 8) | rx_frame.data.u8[2]);      // 16|16@1- (-0.1,0) [-3276.7|3276.7] "A"  Receiver
+      battery_raw_amps = ((rx_frame.data.u8[5] << 8) | rx_frame.data.u8[4]);  // 32|16@1- (-0.05,822) [-1138.35|2138.4] "A"  Receiver
+      battery_charge_time_remaining = (((rx_frame.data.u8[7] & 0x0F) << 8) | rx_frame.data.u8[6]);  //Example 228 * 0.1 = 22.8min 48|12@1+ (1,0) [0|4095] "Min"  Receiver
       if (battery_charge_time_remaining == 4095) {
         battery_charge_time_remaining = 0;
       }
@@ -470,7 +733,7 @@ void receive_can_battery(CAN_frame rx_frame) {
                                  (rx_frame.data.u8[1] << 8) | rx_frame.data.u8[0]);  // SG_ TotalDischargeKWh3D2 : 0|32@1+ (0.001,0) [0|4294970] "kWh"  Receiver
       datalayer.battery.status.tesla_battery_total_discharge = battery_total_discharge;
       battery_total_charge = ((rx_frame.data.u8[7] << 24) | (rx_frame.data.u8[6] << 16) | (rx_frame.data.u8[5] << 8) |
-                              rx_frame.data.u8[4]);  //  SG_ TotalChargeKWh3D2 : 32|32@1+ (0.001,0) [0|4294970] "kWh"  Receiver
+                              rx_frame.data.u8[4]);                                  //  SG_ TotalChargeKWh3D2 : 32|32@1+ (0.001,0) [0|4294970] "kWh"  Receiver
       datalayer.battery.status.tesla_battery_total_charge = battery_total_charge;
       break;
     case 0x332:
@@ -542,9 +805,12 @@ void receive_can_battery(CAN_frame rx_frame) {
       datalayer.battery.status.tesla_max_discharge_current = battery_max_discharge_current;
       break;
     case 0x2b4:
-      battery_low_voltage = (((rx_frame.data.u8[1] & 0x03) << 8) | rx_frame.data.u8[0]) * 0.0390625;
-      battery_high_voltage = ((((rx_frame.data.u8[2] & 0x3F) << 6) | ((rx_frame.data.u8[1] & 0xFC) >> 2))) * 0.146484;
-      battery_output_current = (((rx_frame.data.u8[4] & 0x0F) << 8) | rx_frame.data.u8[3]) / 100;
+      PCS_dcdcLvBusVolt = (((rx_frame.data.u8[1] & 0x03) << 8) | rx_frame.data.u8[0]);                   // PCS_dcdcLvBusVolt : 0|10@1+ (0.0390625,0) [0|39.9609] "V"  Receiver
+      datalayer.battery.status.tesla_PCS_dcdcLvBusVolt = PCS_dcdcLvBusVolt;
+      PCS_dcdcHvBusVolt = ((((rx_frame.data.u8[2] & 0x3F) << 6) | ((rx_frame.data.u8[1] & 0xFC) >> 2))); // PCS_dcdcHvBusVolt : 10|12@1+ (0.146484,0) [0|599.854] "V"  Receiver
+      datalayer.battery.status.tesla_PCS_dcdcHvBusVolt = PCS_dcdcHvBusVolt;
+      PCS_dcdcLvOutputCurrent = (((rx_frame.data.u8[4] & 0x0F) << 8) | rx_frame.data.u8[3]);             // PCS_dcdcLvOutputCurrent : 24|12@1+ (0.1,0) [0|400] "A"  Receiver
+      datalayer.battery.status.tesla_PCS_dcdcLvOutputCurrent = PCS_dcdcLvOutputCurrent;
       break;
     case 0x292:
       datalayer.battery.status.CAN_battery_still_alive = CAN_STILL_ALIVE;  //We are getting CAN messages from the BMS
@@ -976,9 +1242,9 @@ the first, for a few cycles, then stop all  messages which causes the contactor 
 
   unsigned long currentMillis = millis();
   //Send 30ms message
-  if (currentMillis - previousMillis30 >= INTERVAL_30_MS) {
+  if (currentMillis - previousMillis30 >= INTERVAL_10_MS) {
     // Check if sending of CAN messages has been delayed too much.
-    if ((currentMillis - previousMillis30 >= INTERVAL_30_MS_DELAYED) && (currentMillis > BOOTUP_TIME)) {
+    if ((currentMillis - previousMillis30 >= INTERVAL_10_MS_DELAYED) && (currentMillis > BOOTUP_TIME)) {
       set_event(EVENT_CAN_OVERRUN, (currentMillis - previousMillis30));
     } else {
       clear_event(EVENT_CAN_OVERRUN);
@@ -988,6 +1254,10 @@ the first, for a few cycles, then stop all  messages which causes the contactor 
     if (datalayer.system.status.inverter_allows_contactor_closing) {
       transmit_can(&TESLA_221_1, can_config.battery);
       transmit_can(&TESLA_221_2, can_config.battery);
+      //transmit_can(&TESLA_221_3, can_config.battery);
+      //transmit_can(&TESLA_321_VCFRONT_sensors, can_config.battery);
+      //transmit_can(&TESLA_2D1_VCFRONT_okToUseHighPower, can_config.battery);  
+      //transmit_can(&TESLA_3A1_VCFRONT_vehicleStatus, can_config.battery);
 #ifdef DOUBLE_BATTERY
       if (datalayer.system.status.battery2_allows_contactor_closing) {
         transmit_can(&TESLA_221_1, can_config.battery_double);  // CAN2 connected to battery 2
