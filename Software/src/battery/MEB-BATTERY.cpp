@@ -74,6 +74,7 @@ static uint16_t battery_SOC = 0;
 static uint16_t usable_energy_amount_Wh = 0;
 static uint8_t status_HV_line = 0;
 static uint8_t warning_support = 0;
+static bool battery_heating_active = false;
 
 CAN_frame MEB_POLLING_FRAME = {.FD = true,
                                .ext_ID = true,
@@ -368,6 +369,7 @@ void receive_can_battery(CAN_frame rx_frame) {
       break;
     case 0x12DD54D2:  // BMS 100ms
       datalayer.battery.status.CAN_battery_still_alive = CAN_STILL_ALIVE;
+      battery_heating_active = (rx_frame.data.u8[4] & 0x40) >> 6; 
       break;
     case 0x1A555550:  // BMS 500ms
       break;
