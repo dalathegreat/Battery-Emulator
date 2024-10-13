@@ -1,6 +1,7 @@
 #include "../include.h"
 #ifdef TESLA_BATTERY
 #include "../datalayer/datalayer.h"
+#include "../datalayer/datalayer_extended.h"  //For Advanced Battery Insights webpage
 #include "../devboard/utils/events.h"
 #include "TESLA-BATTERY.h"
 
@@ -340,6 +341,15 @@ void update_values_battery() {  //This function maps all the values fetched via 
     datalayer.battery.info.max_cell_voltage_deviation_mV = MAX_CELL_DEVIATION_NCA_NCM;
   }
 #endif  // TESLA_MODEL_3Y_BATTERY
+
+  // Update webserver datalayer
+  datalayer_extended.tesla.status_contactor = battery_contactor;
+  datalayer_extended.tesla.hvil_status = battery_hvil_status;
+  datalayer_extended.tesla.packContNegativeState = battery_packContNegativeState;
+  datalayer_extended.tesla.packContPositiveState = battery_packContPositiveState;
+  datalayer_extended.tesla.packContactorSetState = battery_packContactorSetState;
+  datalayer_extended.tesla.packCtrsClosingAllowed = battery_packCtrsClosingAllowed;
+  datalayer_extended.tesla.pyroTestInProgress = battery_pyroTestInProgress;
 
 #ifdef DEBUG_VIA_USB
 
