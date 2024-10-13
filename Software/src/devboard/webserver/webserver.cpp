@@ -12,6 +12,7 @@ AsyncWebServer server(80);
 // Measure OTA progress
 unsigned long ota_progress_millis = 0;
 
+#include "advanced_battery_html.h"
 #include "cellmonitor_html.h"
 #include "events_html.h"
 #include "index_html.cpp"
@@ -47,6 +48,11 @@ void init_webserver() {
     if (WEBSERVER_AUTH_REQUIRED && !request->authenticate(http_username, http_password))
       return request->requestAuthentication();
     request->send_P(200, "text/html", index_html, settings_processor);
+  });
+
+  // Route for going to advanced battery info web page
+  server.on("/advanced", HTTP_GET, [](AsyncWebServerRequest* request) {
+    request->send_P(200, "text/html", index_html, advanced_battery_processor);
   });
 
   // Route for going to cellmonitor web page
@@ -865,21 +871,18 @@ String processor(const String& var) {
 #endif  // defined CHEVYVOLT_CHARGER || defined NISSANLEAF_CHARGER
 
     if (emulator_pause_request_ON)
-      content += "<button onclick='PauseBattery(false)'>Resume charge/discharge</button>";
+      content += "<button onclick='PauseBattery(false)'>Resume charge/discharge</button> ";
     else
       content +=
           "<button onclick=\"if(confirm('Are you sure you want to pause charging and discharging? This will set the "
           "maximum charge and discharge values to zero, preventing any further power flow.')) { PauseBattery(true); "
-          "}\">Pause charge/discharge</button>";
-    content += " ";
-    content += "<button onclick='OTA()'>Perform OTA update</button>";
-    content += " ";
-    content += "<button onclick='Settings()'>Change Settings</button>";
-    content += " ";
-    content += "<button onclick='Cellmon()'>Cellmonitor</button>";
-    content += " ";
-    content += "<button onclick='Events()'>Events</button>";
-    content += " ";
+          "}\">Pause charge/discharge</button> ";
+
+    content += "<button onclick='OTA()'>Perform OTA update</button> ";
+    content += "<button onclick='Settings()'>Change Settings</button> ";
+    content += "<button onclick='Advanced()'>More Battery Info</button> ";
+    content += "<button onclick='Cellmon()'>Cellmonitor</button> ";
+    content += "<button onclick='Events()'>Events</button> ";
     content += "<button onclick='askReboot()'>Reboot Emulator</button>";
     if (WEBSERVER_AUTH_REQUIRED)
       content += "<button onclick='logout()'>Logout</button>";
@@ -897,11 +900,11 @@ String processor(const String& var) {
           " onclick=\""
           "if(confirm('This action will restore the battery state. Are you sure?')) { estop(false); }\""
           ">Close Contactors</button><br/>";
-
     content += "<script>";
     content += "function OTA() { window.location.href = '/update'; }";
     content += "function Cellmon() { window.location.href = '/cellmonitor'; }";
     content += "function Settings() { window.location.href = '/settings'; }";
+    content += "function Advanced() { window.location.href = '/advanced'; }";
     content += "function Events() { window.location.href = '/events'; }";
     content +=
         "function askReboot() { if (window.confirm('Are you sure you want to reboot the emulator? NOTE: If "
