@@ -1,5 +1,5 @@
-#ifndef _DATALAYER_WEB_H_
-#define _DATALAYER_WEB_H_
+#ifndef _DATALAYER_EXTENDED_H_
+#define _DATALAYER_EXTENDED_H_
 
 #include "../include.h"
 
@@ -74,12 +74,12 @@ typedef struct {
 
 } DATALAYER_INFO_NISSAN_LEAF;
 
-class DataLayerWeb {
+class DataLayerExtended {
  public:
   DATALAYER_INFO_TESLA tesla;
   DATALAYER_INFO_NISSAN_LEAF nissanleaf;
 };
 
-extern DataLayerWeb datalayer_web;
+extern DataLayerExtended datalayer_extended;
 
 #endif

@@ -5,7 +5,7 @@
 #include "../devboard/mqtt/mqtt.h"
 #endif
 #include "../datalayer/datalayer.h"
-#include "../datalayer/datalayer_web.h"  //For Advanced Battery Insights webpage
+#include "../datalayer/datalayer_extended.h"  //For "More battery info" webpage
 #include "../devboard/utils/events.h"
 
 /* Do not change code below unless you are sure what you are doing */
@@ -317,20 +317,20 @@ void update_values_battery() { /* This function maps all the values fetched via 
   }
 
   // Update webserver datalayer
-  datalayer_web.nissanleaf.LEAF_gen = LEAF_battery_Type;
-  datalayer_web.nissanleaf.GIDS = battery_GIDS;
-  datalayer_web.nissanleaf.ChargePowerLimit = battery_Charge_Power_Limit;
-  datalayer_web.nissanleaf.MaxPowerForCharger = battery_MAX_POWER_FOR_CHARGER;
-  datalayer_web.nissanleaf.Interlock = battery_Interlock;
-  datalayer_web.nissanleaf.RelayCutRequest = battery_Relay_Cut_Request;
-  datalayer_web.nissanleaf.FailsafeStatus = battery_Failsafe_Status;
-  datalayer_web.nissanleaf.Full = battery_Full_CHARGE_flag;
-  datalayer_web.nissanleaf.Empty = battery_Capacity_Empty;
-  datalayer_web.nissanleaf.MainRelayOn = battery_MainRelayOn_flag;
-  datalayer_web.nissanleaf.HeatExist = battery_HeatExist;
-  datalayer_web.nissanleaf.HeatingStop = battery_Heating_Stop;
-  datalayer_web.nissanleaf.HeatingStart = battery_Heating_Start;
-  datalayer_web.nissanleaf.HeaterSendRequest = battery_Batt_Heater_Mail_Send_Request;
+  datalayer_extended.nissanleaf.LEAF_gen = LEAF_battery_Type;
+  datalayer_extended.nissanleaf.GIDS = battery_GIDS;
+  datalayer_extended.nissanleaf.ChargePowerLimit = battery_Charge_Power_Limit;
+  datalayer_extended.nissanleaf.MaxPowerForCharger = battery_MAX_POWER_FOR_CHARGER;
+  datalayer_extended.nissanleaf.Interlock = battery_Interlock;
+  datalayer_extended.nissanleaf.RelayCutRequest = battery_Relay_Cut_Request;
+  datalayer_extended.nissanleaf.FailsafeStatus = battery_Failsafe_Status;
+  datalayer_extended.nissanleaf.Full = battery_Full_CHARGE_flag;
+  datalayer_extended.nissanleaf.Empty = battery_Capacity_Empty;
+  datalayer_extended.nissanleaf.MainRelayOn = battery_MainRelayOn_flag;
+  datalayer_extended.nissanleaf.HeatExist = battery_HeatExist;
+  datalayer_extended.nissanleaf.HeatingStop = battery_Heating_Stop;
+  datalayer_extended.nissanleaf.HeatingStart = battery_Heating_Start;
+  datalayer_extended.nissanleaf.HeaterSendRequest = battery_Batt_Heater_Mail_Send_Request;
 
 /*Finally print out values to serial if configured to do so*/
 #ifdef DEBUG_VIA_USB

@@ -880,7 +880,7 @@ String processor(const String& var) {
 
     content += "<button onclick='OTA()'>Perform OTA update</button> ";
     content += "<button onclick='Settings()'>Change Settings</button> ";
-    content += "<button onclick='Advanced()'>Advanced Battery Insights</button> ";
+    content += "<button onclick='Advanced()'>More Battery Info</button> ";
     content += "<button onclick='Cellmon()'>Cellmonitor</button> ";
     content += "<button onclick='Events()'>Events</button> ";
     content += "<button onclick='askReboot()'>Reboot Emulator</button>";
