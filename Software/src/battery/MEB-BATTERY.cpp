@@ -2,6 +2,7 @@
 #ifdef MEB_BATTERY
 #include <algorithm>  // For std::min and std::max
 #include "../datalayer/datalayer.h"
+#include "../datalayer/datalayer_extended.h"  //For "More battery info" webpage
 #include "../devboard/utils/events.h"
 #include "MEB-BATTERY.h"
 
@@ -43,9 +44,13 @@ static uint16_t battery_allowed_charge_power = 0;
 static uint16_t battery_allowed_discharge_power = 0;
 static uint16_t cellvoltages[108];
 static uint16_t tempval = 0;
+static uint8_t BMS_5A2_CRC = 0;
+static uint8_t BMS_5CA_CRC = 0;
 static uint8_t BMS_0CF_CRC = 0;
-static uint8_t BMS_0CF_counter = 0;
 static uint8_t BMS_578_CRC = 0;
+static uint8_t BMS_5A2_counter = 0;
+static uint8_t BMS_5CA_counter = 0;
+static uint8_t BMS_0CF_counter = 0;
 static uint8_t BMS_578_counter = 0;
 static bool BMS_fault_status_contactor = false;
 static bool BMS_exp_limits_active = 0;
@@ -75,6 +80,17 @@ static uint16_t usable_energy_amount_Wh = 0;
 static uint8_t status_HV_line = 0;
 static uint8_t warning_support = 0;
 static bool battery_heating_active = false;
+static uint16_t performance_discharge_percentage = 0;
+static uint16_t performance_charge_percentage = 0;
+static uint16_t actual_battery_voltage = 0;
+static uint16_t regen_battery = 0;
+static uint16_t energy_extracted_from_battery = 0;
+static uint16_t max_fastcharging_current_amp = 0;
+static uint16_t DC_voltage = 0;
+static uint16_t DC_voltage_chargeport = 0;
+static uint8_t BMS_welded_contactors_status = 0;
+static uint8_t BMS_error_shutdown_request = 0;
+static uint8_t BMS_error_shutdown = 0;
 
 CAN_frame MEB_POLLING_FRAME = {.FD = true,
                                .ext_ID = true,
@@ -179,7 +195,8 @@ uint8_t vw_crc_calc(uint8_t* inputBytes, uint8_t length, uint16_t address) {
                               0xCB, 0x22, 0x88, 0xEF, 0xA3, 0xE1, 0xD0, 0xBB};
   const uint8_t MB0578[16] = {0x48, 0x48, 0x48, 0x48, 0x48, 0x48, 0x48, 0x48,
                               0x48, 0x48, 0x48, 0x48, 0x48, 0x48, 0x48, 0x48};
-  const uint8_t MB05CA[16] = {0x43,0x43,0x43,0x43,0x43,0x43,0x43,0x43,0x43,0x43,0x43,0x43,0x43,0x43,0x43,0x43};
+  const uint8_t MB05CA[16] = {0x43, 0x43, 0x43, 0x43, 0x43, 0x43, 0x43, 0x43,
+                              0x43, 0x43, 0x43, 0x43, 0x43, 0x43, 0x43, 0x43};
   const uint8_t MB06A3[16] = {0xC1, 0x8B, 0x38, 0xA8, 0xA4, 0x27, 0xEB, 0xC8,
                               0xEF, 0x05, 0x9A, 0xBB, 0x39, 0xF7, 0x80, 0xA7};
   const uint8_t MB06A4[16] = {0xC7, 0xD8, 0xF1, 0xC4, 0xE3, 0x5E, 0x9A, 0xE2,
@@ -264,9 +281,9 @@ void update_values_battery() {  //This function maps all the values fetched via 
       (static_cast<double>(datalayer.battery.status.real_soc) / 10000) * datalayer.battery.info.total_capacity_Wh);
   //Alternatively use battery_Wh_left
 
-  datalayer.battery.status.max_charge_power_W = (max_charge_power_watt*100);
+  datalayer.battery.status.max_charge_power_W = (max_charge_power_watt * 100);
 
-  datalayer.battery.status.max_discharge_power_W = (max_discharge_power_watt*100);
+  datalayer.battery.status.max_discharge_power_W = (max_discharge_power_watt * 100);
 
   //Power in watts, Negative = charging batt
   datalayer.battery.status.active_power_W =
@@ -310,26 +327,14 @@ void update_values_battery() {  //This function maps all the values fetched via 
     clear_event(EVENT_HVIL_FAILURE);
   }
 
-#ifdef DEBUG_VIA_USB
-  Serial.println();  //sepatator
-  Serial.println("Values from battery: ");
-  Serial.print("HVIL: ");
-  Serial.print(BMS_HVIL_status);
-  Serial.print(" BMS mode: ");
-  Serial.print(BMS_mode);
-  //0 = HV inactive, 1 = HV active, 2 = Balancing, 3 = Extern charging, 4 = AC charging, 5 = Battery error, 6 = DC charging, 7 = init
-  Serial.print(" Diag: ");
-  Serial.print(battery_diagnostic);
-  //1 = Battery display, 4 = Battery display OK, 4 = Display battery charging, 6 = Display battery check, 7 = Fault
-  Serial.print(" HV line: ");
-  Serial.print(status_HV_line);
-  // 0 = init, 1 = no open HV line detected, 2 = open HV line , 3 = fault
-  Serial.print(" Support: ");
-  Serial.print(warning_support);
-  // 0 = OK, 1 = Not OK, 0x06 = init, 0x07 = fault
-  
-
-#endif
+  // Update webserver datalayer for "More battery info" page
+  datalayer_extended.meb.SDSW = service_disconnect_switch_missing;
+  datalayer_extended.meb.pilotline = pilotline_open;
+  datalayer_extended.meb.HVIL = BMS_HVIL_status;
+  datalayer_extended.meb.BMS_mode = BMS_mode;
+  datalayer_extended.meb.battery_diagnostic = battery_diagnostic;
+  datalayer_extended.meb.status_HV_line = status_HV_line;
+  datalayer_extended.meb.warning_support = warning_support;
 }
 
 void receive_can_battery(CAN_frame rx_frame) {
@@ -353,23 +358,25 @@ void receive_can_battery(CAN_frame rx_frame) {
       break;
     case 0x12DD54D0:  // BMS Limits 100ms
       datalayer.battery.status.CAN_battery_still_alive = CAN_STILL_ALIVE;
-      max_discharge_power_watt = ((rx_frame.data.u8[6] & 0x07) << 10)  | (rx_frame.data.u8[5] << 2) | (rx_frame.data.u8[4] & 0xC0) >> 6; //*100
-      max_discharge_current_amp = ((rx_frame.data.u8[3] & 0x01) << 12) | (rx_frame.data.u8[2] << 4) | (rx_frame.data.u8[1] >> 4); //*0.2
-      max_charge_power_watt = (rx_frame.data.u8[7] << 5) | (rx_frame.data.u8[6] >> 3); //*100
-      max_charge_current_amp = ((rx_frame.data.u8[4] & 0x3F) << 7) | (rx_frame.data.u8[3] >> 1);//*0.2
+      max_discharge_power_watt =
+          ((rx_frame.data.u8[6] & 0x07) << 10) | (rx_frame.data.u8[5] << 2) | (rx_frame.data.u8[4] & 0xC0) >> 6;  //*100
+      max_discharge_current_amp =
+          ((rx_frame.data.u8[3] & 0x01) << 12) | (rx_frame.data.u8[2] << 4) | (rx_frame.data.u8[1] >> 4);  //*0.2
+      max_charge_power_watt = (rx_frame.data.u8[7] << 5) | (rx_frame.data.u8[6] >> 3);                     //*100
+      max_charge_current_amp = ((rx_frame.data.u8[4] & 0x3F) << 7) | (rx_frame.data.u8[3] >> 1);           //*0.2
       break;
     case 0x12DD54D1:  // BMS 100ms
       datalayer.battery.status.CAN_battery_still_alive = CAN_STILL_ALIVE;
-      battery_SOC = ((rx_frame.data.u8[3] & 0x0F) << 7) | (rx_frame.data.u8[2] >> 1); //*0.05
-      usable_energy_amount_Wh = (rx_frame.data.u8[7] << 8) | rx_frame.data.u8[6]; //*5
-      performance_discharge_percentage = ((rx_frame.data.u8[4] & 0x3F) << 4) | rx_frame.data.u8[3] >> 4; //*0.2
-      performance_charge_percentage = (rx_frame.data.u8[5] << 2) | rx_frame.data.u8[4] >> 6; //*0.2
+      battery_SOC = ((rx_frame.data.u8[3] & 0x0F) << 7) | (rx_frame.data.u8[2] >> 1);                     //*0.05
+      usable_energy_amount_Wh = (rx_frame.data.u8[7] << 8) | rx_frame.data.u8[6];                         //*5
+      performance_discharge_percentage = ((rx_frame.data.u8[4] & 0x3F) << 4) | rx_frame.data.u8[3] >> 4;  //*0.2
+      performance_charge_percentage = (rx_frame.data.u8[5] << 2) | rx_frame.data.u8[4] >> 6;              //*0.2
       status_HV_line = ((rx_frame.data.u8[2] & 0x01) << 2) | rx_frame.data.u8[1] >> 7;
       warning_support = (rx_frame.data.u8[1] & 0x70) >> 4;
       break;
     case 0x12DD54D2:  // BMS 100ms
       datalayer.battery.status.CAN_battery_still_alive = CAN_STILL_ALIVE;
-      battery_heating_active = (rx_frame.data.u8[4] & 0x40) >> 6; 
+      battery_heating_active = (rx_frame.data.u8[4] & 0x40) >> 6;
       break;
     case 0x1A555550:  // BMS 500ms
       break;
@@ -389,9 +396,9 @@ void receive_can_battery(CAN_frame rx_frame) {
       break;
     case 0x1A5555B1:  // BMS 1000ms
       break;
-    case 0x2AF:  // BMS 50ms
-      actual_battery_voltage = ((rx_frame.data.u8[1] & 0x3F) << 8) | rx_frame.data.u8[0]; //*0.0625
-      regen_battery = ((rx_frame.data.u8[5] & 0x7F) << 8) | rx_frame.data.u8[4]; 
+    case 0x2AF:                                                                            // BMS 50ms
+      actual_battery_voltage = ((rx_frame.data.u8[1] & 0x3F) << 8) | rx_frame.data.u8[0];  //*0.0625
+      regen_battery = ((rx_frame.data.u8[5] & 0x7F) << 8) | rx_frame.data.u8[4];
       energy_extracted_from_battery = ((rx_frame.data.u8[7] & 0x7F) << 8) | rx_frame.data.u8[6];
       break;
     case 0x578:                                        // BMS 100ms
@@ -407,15 +414,17 @@ void receive_can_battery(CAN_frame rx_frame) {
       service_disconnect_switch_missing = (rx_frame.data.u8[1] & 0x20) >> 5;
       pilotline_open = (rx_frame.data.u8[1] & 0x10) >> 4;
       break;
-    case 0x5CA:  // BMS 500ms
-      BMS_5CA_CRC = rx_frame.data.u8[0];               // Can be used to check CAN signal integrity later on
-      BMS_5CA_counter = (rx_frame.data.u8[1] & 0x0F);  // Can be used to check CAN signal integrity later on
-      balancing_request = (rx_frame.data.u8[5] & 0x08) >> 3; //True/False
+    case 0x5CA:                                               // BMS 500ms
+      BMS_5CA_CRC = rx_frame.data.u8[0];                      // Can be used to check CAN signal integrity later on
+      BMS_5CA_counter = (rx_frame.data.u8[1] & 0x0F);         // Can be used to check CAN signal integrity later on
+      balancing_request = (rx_frame.data.u8[5] & 0x08) >> 3;  //True/False
       battery_diagnostic = (rx_frame.data.u8[3] & 0x07);
-      battery_Wh_left = (rx_frame.data.u8[2] << 4) | (rx_frame.data.u8[1] >> 4); //*50
-      battery_potential_status = (rx_frame.data.u8[5] & 0x30) >> 4; //0 = function not enabled, 1= no potential, 2 = potential on, 3 = fault
-      battery_temperature_warning = (rx_frame.data.u8[7] & 0x0C) >> 2; // 0 = no warning, 1 = temp level 1, 2=temp level 2
-      battery_Wh_max = ((rx_frame.data.u8[5] & 0x07) << 8) | rx_frame.data.u8[4]; //*50
+      battery_Wh_left = (rx_frame.data.u8[2] << 4) | (rx_frame.data.u8[1] >> 4);  //*50
+      battery_potential_status =
+          (rx_frame.data.u8[5] & 0x30) >> 4;  //0 = function not enabled, 1= no potential, 2 = potential on, 3 = fault
+      battery_temperature_warning =
+          (rx_frame.data.u8[7] & 0x0C) >> 2;  // 0 = no warning, 1 = temp level 1, 2=temp level 2
+      battery_Wh_max = ((rx_frame.data.u8[5] & 0x07) << 8) | rx_frame.data.u8[4];  //*50
       break;
     case 0x0CF:                                        //BMS 10ms
       BMS_0CF_CRC = rx_frame.data.u8[0];               // Can be used to check CAN signal integrity later on
