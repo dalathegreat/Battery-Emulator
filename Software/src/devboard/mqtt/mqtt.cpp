@@ -13,7 +13,7 @@
 WiFiClient espClient;
 PubSubClient client(espClient);
 char mqtt_msg[MQTT_MSG_BUFFER_SIZE];
-MyTimer publish_global_timer(5000);  //publish timer
+MyTimer publish_global_timer(10000);  //publish timer - was 5000 or 5 seconds
 MyTimer check_global_timer(800);     // check timmer - low-priority MQTT checks, where responsiveness is not critical.
 static const char* hostname = WiFi.getHostname();
 
@@ -64,7 +64,43 @@ SensorConfig sensorConfigs[] = {
     {"bms_status", "Battery Emulator BMS Status", "{{ value_json.bms_status }}", "", ""},
     {"pause_status", "Battery Emulator Pause Status", "{{ value_json.pause_status }}", "", ""},
 
+#ifdef TESLA_MODEL_3Y_BATTERY
+
+    {"tesla_PCS_dcdcLvBusVolt", "Tesla Battery PCS DC-DC LV Bus Voltage", "{{ value_json.tesla_PCS_dcdcLvBusVolt }}", "V", "voltage"},
+/*
+    {"tesla_battery_total_discharge", "Tesla Battery Total Discharge", "{{ value_json.tesla_battery_total_discharge }}", "kWh", "energy"},
+    {"tesla_battery_total_charge", "Tesla Battery Total Charge", "{{ value_json.tesla_battery_total_charge }}", "kWh", "energy"},
+
+    {"tesla_battery_nominal_full_pack_energy", "Tesla Battery Nominal Full Pack Energy", "{{ value_json.tesla_battery_nominal_full_pack_energy }}", "kWh", "energy"},
+    {"tesla_battery_nominal_energy_remaining", "Tesla Battery Nominal Energy Remaining", "{{ value_json.tesla_battery_nominal_energy_remaining }}", "kWh", "energy"},
+    {"tesla_battery_expected_energy_remaining", "Tesla Battery Expected Energy Remaining", "{{ value_json.tesla_battery_expected_energy_remaining }}", "kWh", "energy"},
+    {"tesla_battery_ideal_energy_remaining", "Tesla Battery Ideal Energy Remaining", "{{ value_json.tesla_battery_ideal_energy_remaining }}", "kWh", "energy"},
+    {"tesla_battery_energy_to_charge_complete", "Tesla Battery Energy To Charge Complete", "{{ value_json.tesla_battery_energy_to_charge_complete }}", "kWh", "energy"},
+    {"tesla_battery_full_charge_complete", "Tesla Battery Full Charge Complete", "{{ value_json.tesla_battery_full_charge_complete }}", "kWh", "energy"},
+    {"tesla_battery_energy_buffer", "Tesla Battery Energy Buffer", "{{ value_json.tesla_battery_energy_buffer }}", "???", "energy"},
+
+    {"tesla_PCS_dcdcHvBusVolt", "Tesla Battery PCS DC-DC HV Bus Voltage", "{{ value_json.tesla_PCS_dcdcHvBusVolt }}", "V", "voltage"},
+    {"tesla_PCS_dcdcLvBusVolt", "Tesla Battery PCS DC-DC LV Bus Voltage", "{{ value_json.tesla_PCS_dcdcLvBusVolt }}", "V", "voltage"},
+    {"tesla_PCS_dcdcLvOutputCurrent", "Tesla Battery PCS DC-DC LV Output Current", "{{ value_json.tesla_PCS_dcdcLvOutputCurrent }}", "A", "current"},
+
+    {"tesla_PCS_ChargeLineVoltage264", "Tesla Battery PCS Charge Line Voltage", "{{ value_json.tesla_PCS_ChargeLineVoltage264 }}", "V", "voltage"},
+    {"tesla_PCS_ChargeLineCurrent264", "Tesla Battery PCS Charge Line Current", "{{ value_json.tesla_PCS_ChargeLineCurrent264 }}", "A", "current"},
+    {"tesla_PCS_ChargeLinePower264", "Tesla Battery PCS Charge Line Power", "{{ value_json.tesla_PCS_ChargeLinePower264 }}", "kW", "power"},
+    {"tesla_PCS_ChargeLineCurrentLimit264", "Tesla Battery PCS Charge Line Current Limit", "{{ value_json.tesla_PCS_ChargeLineCurrentLimit264 }}", "A", "current"},
+
+    {"tesla_BMS_acChargePowerRequest", "Tesla BMS Charge Power Request", "{{ value_json.tesla_BMS_acChargePowerRequest }}", "kW", "power"},
+    {"tesla_BMS_pcsClearFaultRequest", "Tesla BMS PCS Clear Fault Request", "{{ value_json.tesla_BMS_pcsClearFaultRequest }}", "", ""},
+    {"tesla_BMS_acChargeEnable", "Tesla BMS AC Charge Enable", "{{ value_json.tesla_BMS_acChargeEnable }}", "", ""},
+*/
+#endif
+
 };
+
+/*
+static uint16_t BMS_acChargePowerRequest = 0;      // 0|16@1+ (0.001,0) [0|0] "kW"
+static uint8_t  BMS_pcsClearFaultRequest = 0;      // 16|1@1+ (1,0) [0|0] ""
+static uint8_t  BMS_acChargeEnable = 0;            // 17|1@1+ (1,0) [0|0] ""
+*/
 
 static String generateCommonInfoAutoConfigTopic(const char* object_id, const char* hostname) {
   return String("homeassistant/sensor/battery-emulator_") + String(hostname) + "/" + String(object_id) + "/config";
@@ -144,6 +180,45 @@ static void publish_common_info(void) {
       doc["remaining_capacity"] = ((float)datalayer.battery.status.remaining_capacity_Wh);
       doc["max_discharge_power"] = ((float)datalayer.battery.status.max_discharge_power_W);
       doc["max_charge_power"] = ((float)datalayer.battery.status.max_charge_power_W);
+
+#ifdef TESLA_MODEL_3Y_BATTERY
+
+      doc["tesla_PCS_dcdcLvBusVolt"] = ((float)datalayer.battery.status.tesla_PCS_dcdcLvBusVolt) * 0.0390625;
+/*
+      doc["tesla_battery_total_discharge"] = ((float)datalayer.battery.status.tesla_battery_total_discharge) / 1000.0;
+      doc["tesla_battery_total_charge"] = ((float)datalayer.battery.status.tesla_battery_total_charge) / 1000.0;
+
+      doc["tesla_battery_nominal_full_pack_energy"] = ((float)datalayer.battery.status.tesla_battery_nominal_full_pack_energy) / 10.0;
+      doc["tesla_battery_nominal_energy_remaining"] = ((float)datalayer.battery.status.tesla_battery_nominal_energy_remaining) / 10.0;
+      doc["tesla_battery_expected_energy_remaining"] = ((float)datalayer.battery.status.tesla_battery_expected_energy_remaining) / 10.0;
+      doc["tesla_battery_ideal_energy_remaining"] = ((float)datalayer.battery.status.tesla_battery_ideal_energy_remaining) / 10.0;
+      doc["tesla_battery_energy_to_charge_complete"] = ((float)datalayer.battery.status.tesla_battery_energy_to_charge_complete) / 10.0;
+      doc["tesla_battery_full_charge_complete"] = ((float)datalayer.battery.status.tesla_battery_full_charge_complete) / 10.0;
+      doc["tesla_battery_energy_buffer"] = ((float)datalayer.battery.status.tesla_battery_energy_buffer);
+
+      doc["tesla_PCS_dcdcHvBusVolt"] = ((float)datalayer.battery.status.tesla_PCS_dcdcHvBusVolt) * 0.146484;
+      doc["tesla_PCS_dcdcLvBusVolt"] = ((float)datalayer.battery.status.tesla_PCS_dcdcLvBusVolt) * 0.0390625;
+      doc["tesla_PCS_dcdcLvOutputCurrent"] = ((float)datalayer.battery.status.tesla_PCS_dcdcLvOutputCurrent * 0.001);
+/*
+      doc["tesla_PCS_ChargeLineVoltage264"] = ((float)datalayer.battery.status.tesla_PCS_ChargeLineVoltage264) * 0.0333;
+      doc["tesla_PCS_ChargeLineCurrent264"] = ((float)datalayer.battery.status.tesla_PCS_ChargeLineCurrent264) * 0.1;
+      doc["tesla_PCS_ChargeLinePower264"] = ((float)datalayer.battery.status.tesla_PCS_ChargeLinePower264 * 0.1);
+      doc["tesla_PCS_ChargeLineCurrentLimit264"] = ((float)datalayer.battery.status.tesla_PCS_ChargeLineCurrentLimit264 * 0.1);
+
+      doc["tesla_BMS_acChargePowerRequest"] = ((float)((int16_t)datalayer.battery.status.tesla_BMS_acChargePowerRequest * 0.001));
+      doc["tesla_BMS_pcsClearFaultRequest"] = datalayer.battery.status.tesla_BMS_pcsClearFaultRequest;
+      doc["tesla_BMS_acChargeEnable"] = datalayer.battery.status.tesla_BMS_acChargeEnable;
+
+
+/*
+static uint16_t BMS_acChargePowerRequest = 0;      // 0|16@1+ (0.001,0) [0|0] "kW"
+static uint8_t  BMS_pcsClearFaultRequest = 0;      // 16|1@1+ (1,0) [0|0] ""
+static uint8_t  BMS_acChargeEnable = 0;            // 17|1@1+ (1,0) [0|0] ""
+
+*/
+
+#endif
+
     }
 
     serializeJson(doc, mqtt_msg);
@@ -355,6 +430,7 @@ void mqtt_loop(void) {
       if (publish_global_timer.elapsed())  // Every 5s
       {
         publish_values();
+        
       }
     } else {
       if (connected_once)
