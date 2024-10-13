@@ -161,6 +161,16 @@ void update_machineryprotection() {
     clear_event(EVENT_CAN_RX_WARNING);
   }
 
+#ifdef CAN_INVERTER_SELECTED
+  // Check if the inverter is still sending CAN messages. If we go 60s without messages we raise an error
+  if (!datalayer.system.status.CAN_inverter_still_alive) {
+    set_event(EVENT_CAN_INVERTER_MISSING, 0);
+  } else {
+    datalayer.system.status.CAN_inverter_still_alive--;
+    clear_event(EVENT_CAN_INVERTER_MISSING);
+  }
+#endif  //CAN_INVERTER_SELECTED
+
 #ifdef DOUBLE_BATTERY  // Additional Double-Battery safeties are checked here
   // Check if the Battery 2 BMS is still sending CAN messages. If we go 60s without messages we raise an error
 
