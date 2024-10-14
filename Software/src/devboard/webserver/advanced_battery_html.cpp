@@ -43,7 +43,27 @@ String advanced_battery_processor(const String& var) {
     content += "<h4>Heating requested: " + String(datalayer_extended.nissanleaf.HeaterSendRequest) + "</h4>";
 #endif
 
-#if !defined(TESLA_BATTERY) && !defined(NISSAN_LEAF_BATTERY)  //Only the listed types have extra info
+#ifdef MEB_BATTERY
+    content += datalayer_extended.meb.SDSW ? "<h4>Service disconnect switch: Missing!</h4>"
+                                           : "<h4>Service disconnect switch: OK</h4>";
+    content += datalayer_extended.meb.pilotline ? "<h4>Pilotline: Open!</h4>" : "<h4>Pilotline: OK</h4>";
+    const char* HVIL_status[] = {"Init", "Closed", "Open!", "Fault"};
+    content += "<h4>HVIL status: " + String(HVIL_status[datalayer_extended.meb.HVIL]) + "</h4>";
+    const char* BMS_modes[] = {"HV inactive", "HV active",     "Balancing",   "Extern charging",
+                               "AC charging", "Battery error", "DC charging", "Init"};
+    content += "<h4>BMS mode: " + String(BMS_modes[datalayer_extended.meb.BMS_mode]) + "</h4>";
+    const char* diagnostic_modes[] = {"Init", "Battery display",       "",     "", "Battery display OK",
+                                      "",     "Display battery check", "Fault"};
+    content += "<h4>Diagnostic: " + String(diagnostic_modes[datalayer_extended.meb.battery_diagnostic]) + "</h4>";
+    const char* HV_line_status[] = {"Init", "No open HV line detected", "Open HV line", "Fault"};
+    content += "<h4>HV line status: " + String(HV_line_status[datalayer_extended.meb.status_HV_line]) + "</h4>";
+    const char* warning_support_status[] = {"OK", "Not OK", "", "", "", "", "Init", "Fault"};
+    content +=
+        "<h4>Warning support: " + String(warning_support_status[datalayer_extended.meb.warning_support]) + "</h4>";
+#endif
+
+#if !defined(TESLA_BATTERY) && !defined(NISSAN_LEAF_BATTERY) && \
+    !defined(MEB_BATTERY)  //Only the listed types have extra info
     content += "No extra information available for this battery type";
 #endif
 

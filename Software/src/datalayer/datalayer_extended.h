@@ -74,10 +74,36 @@ typedef struct {
 
 } DATALAYER_INFO_NISSAN_LEAF;
 
+typedef struct {
+  /** uint8_t */
+  /** Service disconnect switch status */
+  bool SDSW = 0;
+  /** uint8_t */
+  /** Pilotline status */
+  bool pilotline = 0;
+  /** uint8_t */
+  /** HVIL status, 0 = Init, 1 = Closed, 2 = Open!, 3 = Fault */
+  uint8_t HVIL = 0;
+  /** uint8_t */
+  /** 0 = HV inactive, 1 = HV active, 2 = Balancing, 3 = Extern charging, 4 = AC charging, 5 = Battery error, 6 = DC charging, 7 = init */
+  uint8_t BMS_mode = 0;
+  /** uint8_t */
+  /** 1 = Battery display, 4 = Battery display OK, 4 = Display battery charging, 6 = Display battery check, 7 = Fault */
+  uint8_t battery_diagnostic = 0;
+  /** uint8_t */
+  /** 0 = init, 1 = no open HV line detected, 2 = open HV line , 3 = fault */
+  uint8_t status_HV_line = 0;
+  /** uint8_t */
+  /** 0 = OK, 1 = Not OK, 0x06 = init, 0x07 = fault */
+  uint8_t warning_support = 0;
+
+} DATALAYER_INFO_MEB;
+
 class DataLayerExtended {
  public:
   DATALAYER_INFO_TESLA tesla;
   DATALAYER_INFO_NISSAN_LEAF nissanleaf;
+  DATALAYER_INFO_MEB meb;
 };
 
 extern DataLayerExtended datalayer_extended;
