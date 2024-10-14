@@ -42,16 +42,18 @@ static uint16_t battery_max_charge_voltage = 0;
 static uint16_t battery_min_discharge_voltage = 0;
 static uint16_t battery_allowed_charge_power = 0;
 static uint16_t battery_allowed_discharge_power = 0;
-static uint16_t cellvoltages[108];
+static uint16_t cellvoltages_polled[108];
 static uint16_t tempval = 0;
 static uint8_t BMS_5A2_CRC = 0;
 static uint8_t BMS_5CA_CRC = 0;
 static uint8_t BMS_0CF_CRC = 0;
 static uint8_t BMS_578_CRC = 0;
+static uint8_t BMS_16A954A6_CRC = 0;
 static uint8_t BMS_5A2_counter = 0;
 static uint8_t BMS_5CA_counter = 0;
 static uint8_t BMS_0CF_counter = 0;
 static uint8_t BMS_578_counter = 0;
+static uint8_t BMS_16A954A6_counter = 0;
 static bool BMS_fault_status_contactor = false;
 static bool BMS_exp_limits_active = 0;
 static uint8_t BMS_mode = 0x07;
@@ -104,15 +106,34 @@ static uint16_t min_charge_percent = 0;
 static uint16_t isolation_resistance_kOhm = 0;
 static bool battery_heating_installed = false;
 static bool error_NT_circuit = false;
-static uint8_t pump_1_control = 0;  //0x0D not installed, 0x0E init, 0x0F fault
-static uint8_t pump_2_control = 0;  //0x0D not installed, 0x0E init, 0x0F fault
-static uint8_t target_flow_temperature_C = 0;
-static uint8_t return_temperature_C = 0;
-static uint8_t status_valve_1 = 0;  //0 not active, 1 active, 5 not installed, 6 init, 7 fault
-static uint8_t status_valve_2 = 0;  //0 not active, 1 active, 5 not installed, 6 init, 7 fault
+static uint8_t pump_1_control = 0;             //0x0D not installed, 0x0E init, 0x0F fault
+static uint8_t pump_2_control = 0;             //0x0D not installed, 0x0E init, 0x0F fault
+static uint8_t target_flow_temperature_C = 0;  //*0,5 -40
+static uint8_t return_temperature_C = 0;       //*0,5 -40
+static uint8_t status_valve_1 = 0;             //0 not active, 1 active, 5 not installed, 6 init, 7 fault
+static uint8_t status_valve_2 = 0;             //0 not active, 1 active, 5 not installed, 6 init, 7 fault
 static uint8_t battery_temperature = 0;
 static uint8_t temperature_request =
     0;  //0 high cooling, 1 medium cooling, 2 low cooling, 3 no temp requirement init, 4 low heating , 5 medium heating, 6 high heating, 7 circulation
+static uint16_t performance_index_discharge_peak_temperature_percentage = 0;
+static uint16_t performance_index_charge_peak_temperature_percentage = 0;
+static uint8_t temperature_status_discharge =
+    0;  //0 init, 1 temp under optimal, 2 temp optimal, 3 temp over optimal, 7 fault
+static uint8_t temperature_status_charge =
+    0;  //0 init, 1 temp under optimal, 2 temp optimal, 3 temp over optimal, 7 fault
+static uint8_t isolation_fault =
+    0;  //0 init, 1 no iso fault, 2 iso fault threshold1, 3 iso fault threshold2, 4 IWU defective
+static uint8_t isolation_status =
+    0;  // 0 init, 1 = larger threshold1, 2 = smaller threshold1 total, 3 = smaller threshold1 intern, 4 = smaller threshold2 total, 5 = smaller threshold2 intern, 6 = no measurement, 7 = measurement active
+static uint8_t actual_temperature_highest_C = 0;    //*0,5 -40
+static uint8_t actual_temperature_lowest_C = 0;     //*0,5 -40
+static uint16_t actual_cellvoltage_highest_mV = 0;  //bias 1000
+static uint16_t actual_cellvoltage_lowest_mV = 0;   //bias 1000
+static uint16_t predicted_power_dyn_standard_watt = 0;
+static uint8_t predicted_time_dyn_standard_minutes = 0;
+static uint8_t mux = 0;
+static int8_t celltemperature[56] = {0};  //Temperatures 1-56. Value is 0xFD if sensor not present
+static uint16_t cellvoltages[160] = {0};
 
 CAN_frame MEB_POLLING_FRAME = {.FD = true,
                                .ext_ID = true,
@@ -223,6 +244,8 @@ uint8_t vw_crc_calc(uint8_t* inputBytes, uint8_t length, uint16_t address) {
                               0xEF, 0x05, 0x9A, 0xBB, 0x39, 0xF7, 0x80, 0xA7};
   const uint8_t MB06A4[16] = {0xC7, 0xD8, 0xF1, 0xC4, 0xE3, 0x5E, 0x9A, 0xE2,
                               0xA1, 0xCB, 0x02, 0x4F, 0x57, 0x4E, 0x8E, 0xE4};
+  const uint8_t MB16A954A6[16] = {0x79, 0xB9, 0x67, 0xAD, 0xD5, 0xF7, 0x70, 0xAA,
+                                  0x44, 0x61, 0x5A, 0xDC, 0x26, 0xB4, 0xD2, 0xC3};
 
   uint8_t crc = 0xFF;
   uint8_t magicByte = 0x00;
@@ -261,6 +284,9 @@ uint8_t vw_crc_calc(uint8_t* inputBytes, uint8_t length, uint16_t address) {
       break;
     case 0x06A4:  // ??
       magicByte = MB06A4[counter];
+      break;
+    case 0x16A954A6:
+      magicByte = MB16A954A6[counter];
       break;
     default:  // this won't lead to correct CRC checksums
       magicByte = 0x00;
@@ -316,7 +342,7 @@ void update_values_battery() {  //This function maps all the values fetched via 
   datalayer.battery.status.temperature_max_dC = ((battery_max_temp / 2) - 350);
 
   //Map all cell voltages to the global array
-  memcpy(datalayer.battery.status.cell_voltages_mV, cellvoltages, 108 * sizeof(uint16_t));
+  memcpy(datalayer.battery.status.cell_voltages_mV, cellvoltages_polled, 108 * sizeof(uint16_t));
 
   // Initialize min and max, lets find which cells are min and max!
   uint16_t min_cell_mv_value = std::numeric_limits<uint16_t>::max();
@@ -337,6 +363,7 @@ void update_values_battery() {  //This function maps all the values fetched via 
 
   datalayer.battery.status.cell_min_voltage_mV = min_cell_mv_value;
   datalayer.battery.status.cell_max_voltage_mV = max_cell_mv_value;
+  //TODO, use actual_cellvoltage_lowest_mV instead to save performance
 
   if (service_disconnect_switch_missing) {
     set_event(EVENT_HVIL_FAILURE, 1);
@@ -425,12 +452,88 @@ void receive_can_battery(CAN_frame rx_frame) {
       return_temperature_C = rx_frame.data.u8[7];       //*0,5 -40
       break;
     case 0x1A5555B2:  // BMS
+      performance_index_discharge_peak_temperature_percentage =
+          (((rx_frame.data.u8[3] & 0x07) << 6) | rx_frame.data.u8[2] >> 2);  //*0.2
+      performance_index_charge_peak_temperature_percentage =
+          (((rx_frame.data.u8[4] & 0x3F) << 3) | rx_frame.data.u8[3] >> 5);  //*0.2
+      temperature_status_discharge = (rx_frame.data.u8[1] & 0x70) >> 4;
+      temperature_status_charge = (((rx_frame.data.u8[2] & 0x03) << 1) | rx_frame.data.u8[1] >> 7);
       break;
-    case 0x16A954A6:  // BMS
+    case 0x16A954A6:                                        // BMS
+      BMS_16A954A6_CRC = rx_frame.data.u8[0];               // Can be used to check CAN signal integrity later on
+      BMS_16A954A6_counter = (rx_frame.data.u8[1] & 0x0F);  // Can be used to check CAN signal integrity later on
+      isolation_fault = (rx_frame.data.u8[2] & 0xE0) >> 5;
+      isolation_status = (rx_frame.data.u8[2] & 0x1E) >> 1;
+      actual_temperature_highest_C = rx_frame.data.u8[3];  //*0,5 -40
+      actual_temperature_lowest_C = rx_frame.data.u8[4];   //*0,5 -40
+      actual_cellvoltage_highest_mV = (((rx_frame.data.u8[6] & 0x0F) << 8) | rx_frame.data.u8[5]);
+      actual_cellvoltage_lowest_mV = ((rx_frame.data.u8[7] << 4) | rx_frame.data.u8[6] >> 4);
       break;
-    case 0x16A954F8:  // BMS
+    case 0x16A954F8:                                                                                // BMS
+      predicted_power_dyn_standard_watt = ((rx_frame.data.u8[6] << 1) | rx_frame.data.u8[5] >> 7);  //*50
+      predicted_time_dyn_standard_minutes = rx_frame.data.u8[7];
       break;
-    case 0x16A954E8:  // BMS
+    case 0x16A954E8:  // BMS Temperature and cellvoltages - 180ms
+      mux = (rx_frame.data.u8[0] & 0x0F);
+      switch (mux) {
+        case 0:  // Temperatures 1-56. Value is 0xFD if sensor not present
+          for (uint8_t i = 0; i < 56; i++) {
+            celltemperature[i] = (rx_frame.data.u8[i + 1] / 2) - 40;
+          }
+          break;
+        case 1:  // Cellvoltages 1-42
+          cellvoltages[0] = (((rx_frame.data.u8[2] & 0x0F) << 8) | rx_frame.data.u8[1]) + 1000;
+          cellvoltages[1] = ((rx_frame.data.u8[3] << 4) | (rx_frame.data.u8[2] >> 4)) + 1000;
+          cellvoltages[2] = (((rx_frame.data.u8[5] & 0x0F) << 8) | rx_frame.data.u8[4]) + 1000;
+          cellvoltages[3] = ((rx_frame.data.u8[6] << 4) | (rx_frame.data.u8[5] >> 4)) + 1000;
+          cellvoltages[4] = (((rx_frame.data.u8[8] & 0x0F) << 8) | rx_frame.data.u8[7]) + 1000;
+          cellvoltages[5] = ((rx_frame.data.u8[9] << 4) | (rx_frame.data.u8[8] >> 4)) + 1000;
+          cellvoltages[6] = (((rx_frame.data.u8[11] & 0x0F) << 8) | rx_frame.data.u8[10]) + 1000;
+          cellvoltages[7] = ((rx_frame.data.u8[12] << 4) | (rx_frame.data.u8[11] >> 4)) + 1000;
+          cellvoltages[8] = (((rx_frame.data.u8[14] & 0x0F) << 8) | rx_frame.data.u8[13]) + 1000;
+          cellvoltages[9] = ((rx_frame.data.u8[15] << 4) | (rx_frame.data.u8[14] >> 4)) + 1000;
+          cellvoltages[10] = (((rx_frame.data.u8[17] & 0x0F) << 8) | rx_frame.data.u8[16]) + 1000;
+          cellvoltages[11] = ((rx_frame.data.u8[18] << 4) | (rx_frame.data.u8[17] >> 4)) + 1000;
+          cellvoltages[12] = (((rx_frame.data.u8[20] & 0x0F) << 8) | rx_frame.data.u8[19]) + 1000;
+          cellvoltages[13] = ((rx_frame.data.u8[21] << 4) | (rx_frame.data.u8[20] >> 4)) + 1000;
+          cellvoltages[14] = (((rx_frame.data.u8[23] & 0x0F) << 8) | rx_frame.data.u8[22]) + 1000;
+          cellvoltages[15] = ((rx_frame.data.u8[24] << 4) | (rx_frame.data.u8[23] >> 4)) + 1000;
+          cellvoltages[16] = (((rx_frame.data.u8[26] & 0x0F) << 8) | rx_frame.data.u8[25]) + 1000;
+          cellvoltages[17] = ((rx_frame.data.u8[27] << 4) | (rx_frame.data.u8[26] >> 4)) + 1000;
+          cellvoltages[18] = (((rx_frame.data.u8[29] & 0x0F) << 8) | rx_frame.data.u8[28]) + 1000;
+          cellvoltages[19] = ((rx_frame.data.u8[30] << 4) | (rx_frame.data.u8[29] >> 4)) + 1000;
+          cellvoltages[20] = (((rx_frame.data.u8[32] & 0x0F) << 8) | rx_frame.data.u8[31]) + 1000;
+          cellvoltages[21] = ((rx_frame.data.u8[33] << 4) | (rx_frame.data.u8[32] >> 4)) + 1000;
+          cellvoltages[22] = (((rx_frame.data.u8[35] & 0x0F) << 8) | rx_frame.data.u8[34]) + 1000;
+          cellvoltages[23] = ((rx_frame.data.u8[36] << 4) | (rx_frame.data.u8[35] >> 4)) + 1000;
+          cellvoltages[24] = (((rx_frame.data.u8[38] & 0x0F) << 8) | rx_frame.data.u8[37]) + 1000;
+          cellvoltages[25] = ((rx_frame.data.u8[39] << 4) | (rx_frame.data.u8[38] >> 4)) + 1000;
+          cellvoltages[26] = (((rx_frame.data.u8[41] & 0x0F) << 8) | rx_frame.data.u8[40]) + 1000;
+          cellvoltages[27] = ((rx_frame.data.u8[42] << 4) | (rx_frame.data.u8[41] >> 4)) + 1000;
+          cellvoltages[28] = (((rx_frame.data.u8[44] & 0x0F) << 8) | rx_frame.data.u8[43]) + 1000;
+          cellvoltages[29] = ((rx_frame.data.u8[45] << 4) | (rx_frame.data.u8[44] >> 4)) + 1000;
+          cellvoltages[30] = (((rx_frame.data.u8[47] & 0x0F) << 8) | rx_frame.data.u8[46]) + 1000;
+          cellvoltages[31] = ((rx_frame.data.u8[48] << 4) | (rx_frame.data.u8[47] >> 4)) + 1000;
+          cellvoltages[32] = (((rx_frame.data.u8[50] & 0x0F) << 8) | rx_frame.data.u8[49]) + 1000;
+          cellvoltages[33] = ((rx_frame.data.u8[51] << 4) | (rx_frame.data.u8[50] >> 4)) + 1000;
+          cellvoltages[34] = (((rx_frame.data.u8[53] & 0x0F) << 8) | rx_frame.data.u8[52]) + 1000;
+          cellvoltages[35] = ((rx_frame.data.u8[54] << 4) | (rx_frame.data.u8[53] >> 4)) + 1000;
+          cellvoltages[36] = (((rx_frame.data.u8[56] & 0x0F) << 8) | rx_frame.data.u8[55]) + 1000;
+          cellvoltages[37] = ((rx_frame.data.u8[57] << 4) | (rx_frame.data.u8[56] >> 4)) + 1000;
+          cellvoltages[38] = (((rx_frame.data.u8[59] & 0x0F) << 8) | rx_frame.data.u8[58]) + 1000;
+          cellvoltages[39] = ((rx_frame.data.u8[60] << 4) | (rx_frame.data.u8[59] >> 4)) + 1000;
+          cellvoltages[40] = (((rx_frame.data.u8[62] & 0x0F) << 8) | rx_frame.data.u8[61]) + 1000;
+          cellvoltages[41] = ((rx_frame.data.u8[63] << 4) | (rx_frame.data.u8[62] >> 4)) + 1000;
+          break;
+        case 2:
+          break;
+        case 3:
+          break;
+        case 4:
+          break;
+        default:
+          break;
+      }
       break;
     case 0x1C42017B:  // BMS
       break;
@@ -522,261 +625,261 @@ void receive_can_battery(CAN_frame rx_frame) {
           battery_allowed_discharge_power = ((rx_frame.data.u8[4] << 8) | rx_frame.data.u8[5]);
           break;
         case PID_CELLVOLTAGE_CELL_1:
-          cellvoltages[0] = (((rx_frame.data.u8[4] << 8) | rx_frame.data.u8[5]) + 1000);
+          cellvoltages_polled[0] = (((rx_frame.data.u8[4] << 8) | rx_frame.data.u8[5]) + 1000);
           break;
         case PID_CELLVOLTAGE_CELL_2:
-          cellvoltages[1] = (((rx_frame.data.u8[4] << 8) | rx_frame.data.u8[5]) + 1000);
+          cellvoltages_polled[1] = (((rx_frame.data.u8[4] << 8) | rx_frame.data.u8[5]) + 1000);
           break;
         case PID_CELLVOLTAGE_CELL_3:
-          cellvoltages[2] = (((rx_frame.data.u8[4] << 8) | rx_frame.data.u8[5]) + 1000);
+          cellvoltages_polled[2] = (((rx_frame.data.u8[4] << 8) | rx_frame.data.u8[5]) + 1000);
           break;
         case PID_CELLVOLTAGE_CELL_4:
-          cellvoltages[3] = (((rx_frame.data.u8[4] << 8) | rx_frame.data.u8[5]) + 1000);
+          cellvoltages_polled[3] = (((rx_frame.data.u8[4] << 8) | rx_frame.data.u8[5]) + 1000);
           break;
         case PID_CELLVOLTAGE_CELL_5:
-          cellvoltages[4] = (((rx_frame.data.u8[4] << 8) | rx_frame.data.u8[5]) + 1000);
+          cellvoltages_polled[4] = (((rx_frame.data.u8[4] << 8) | rx_frame.data.u8[5]) + 1000);
           break;
         case PID_CELLVOLTAGE_CELL_6:
-          cellvoltages[5] = (((rx_frame.data.u8[4] << 8) | rx_frame.data.u8[5]) + 1000);
+          cellvoltages_polled[5] = (((rx_frame.data.u8[4] << 8) | rx_frame.data.u8[5]) + 1000);
           break;
         case PID_CELLVOLTAGE_CELL_7:
-          cellvoltages[6] = (((rx_frame.data.u8[4] << 8) | rx_frame.data.u8[5]) + 1000);
+          cellvoltages_polled[6] = (((rx_frame.data.u8[4] << 8) | rx_frame.data.u8[5]) + 1000);
           break;
         case PID_CELLVOLTAGE_CELL_8:
-          cellvoltages[7] = (((rx_frame.data.u8[4] << 8) | rx_frame.data.u8[5]) + 1000);
+          cellvoltages_polled[7] = (((rx_frame.data.u8[4] << 8) | rx_frame.data.u8[5]) + 1000);
           break;
         case PID_CELLVOLTAGE_CELL_9:
-          cellvoltages[8] = (((rx_frame.data.u8[4] << 8) | rx_frame.data.u8[5]) + 1000);
+          cellvoltages_polled[8] = (((rx_frame.data.u8[4] << 8) | rx_frame.data.u8[5]) + 1000);
           break;
         case PID_CELLVOLTAGE_CELL_10:
-          cellvoltages[9] = (((rx_frame.data.u8[4] << 8) | rx_frame.data.u8[5]) + 1000);
+          cellvoltages_polled[9] = (((rx_frame.data.u8[4] << 8) | rx_frame.data.u8[5]) + 1000);
           break;
         case PID_CELLVOLTAGE_CELL_11:
-          cellvoltages[10] = (((rx_frame.data.u8[4] << 8) | rx_frame.data.u8[5]) + 1000);
+          cellvoltages_polled[10] = (((rx_frame.data.u8[4] << 8) | rx_frame.data.u8[5]) + 1000);
           break;
         case PID_CELLVOLTAGE_CELL_12:
-          cellvoltages[11] = (((rx_frame.data.u8[4] << 8) | rx_frame.data.u8[5]) + 1000);
+          cellvoltages_polled[11] = (((rx_frame.data.u8[4] << 8) | rx_frame.data.u8[5]) + 1000);
           break;
         case PID_CELLVOLTAGE_CELL_13:
-          cellvoltages[12] = (((rx_frame.data.u8[4] << 8) | rx_frame.data.u8[5]) + 1000);
+          cellvoltages_polled[12] = (((rx_frame.data.u8[4] << 8) | rx_frame.data.u8[5]) + 1000);
           break;
         case PID_CELLVOLTAGE_CELL_14:
-          cellvoltages[13] = (((rx_frame.data.u8[4] << 8) | rx_frame.data.u8[5]) + 1000);
+          cellvoltages_polled[13] = (((rx_frame.data.u8[4] << 8) | rx_frame.data.u8[5]) + 1000);
           break;
         case PID_CELLVOLTAGE_CELL_15:
-          cellvoltages[14] = (((rx_frame.data.u8[4] << 8) | rx_frame.data.u8[5]) + 1000);
+          cellvoltages_polled[14] = (((rx_frame.data.u8[4] << 8) | rx_frame.data.u8[5]) + 1000);
           break;
         case PID_CELLVOLTAGE_CELL_16:
-          cellvoltages[15] = (((rx_frame.data.u8[4] << 8) | rx_frame.data.u8[5]) + 1000);
+          cellvoltages_polled[15] = (((rx_frame.data.u8[4] << 8) | rx_frame.data.u8[5]) + 1000);
           break;
         case PID_CELLVOLTAGE_CELL_17:
-          cellvoltages[16] = (((rx_frame.data.u8[4] << 8) | rx_frame.data.u8[5]) + 1000);
+          cellvoltages_polled[16] = (((rx_frame.data.u8[4] << 8) | rx_frame.data.u8[5]) + 1000);
           break;
         case PID_CELLVOLTAGE_CELL_18:
-          cellvoltages[17] = (((rx_frame.data.u8[4] << 8) | rx_frame.data.u8[5]) + 1000);
+          cellvoltages_polled[17] = (((rx_frame.data.u8[4] << 8) | rx_frame.data.u8[5]) + 1000);
           break;
         case PID_CELLVOLTAGE_CELL_19:
-          cellvoltages[18] = (((rx_frame.data.u8[4] << 8) | rx_frame.data.u8[5]) + 1000);
+          cellvoltages_polled[18] = (((rx_frame.data.u8[4] << 8) | rx_frame.data.u8[5]) + 1000);
           break;
         case PID_CELLVOLTAGE_CELL_20:
-          cellvoltages[19] = (((rx_frame.data.u8[4] << 8) | rx_frame.data.u8[5]) + 1000);
+          cellvoltages_polled[19] = (((rx_frame.data.u8[4] << 8) | rx_frame.data.u8[5]) + 1000);
           break;
         case PID_CELLVOLTAGE_CELL_21:
-          cellvoltages[20] = (((rx_frame.data.u8[4] << 8) | rx_frame.data.u8[5]) + 1000);
+          cellvoltages_polled[20] = (((rx_frame.data.u8[4] << 8) | rx_frame.data.u8[5]) + 1000);
           break;
         case PID_CELLVOLTAGE_CELL_22:
-          cellvoltages[21] = (((rx_frame.data.u8[4] << 8) | rx_frame.data.u8[5]) + 1000);
+          cellvoltages_polled[21] = (((rx_frame.data.u8[4] << 8) | rx_frame.data.u8[5]) + 1000);
           break;
         case PID_CELLVOLTAGE_CELL_23:
-          cellvoltages[22] = (((rx_frame.data.u8[4] << 8) | rx_frame.data.u8[5]) + 1000);
+          cellvoltages_polled[22] = (((rx_frame.data.u8[4] << 8) | rx_frame.data.u8[5]) + 1000);
           break;
         case PID_CELLVOLTAGE_CELL_24:
-          cellvoltages[23] = (((rx_frame.data.u8[4] << 8) | rx_frame.data.u8[5]) + 1000);
+          cellvoltages_polled[23] = (((rx_frame.data.u8[4] << 8) | rx_frame.data.u8[5]) + 1000);
           break;
         case PID_CELLVOLTAGE_CELL_25:
-          cellvoltages[24] = (((rx_frame.data.u8[4] << 8) | rx_frame.data.u8[5]) + 1000);
+          cellvoltages_polled[24] = (((rx_frame.data.u8[4] << 8) | rx_frame.data.u8[5]) + 1000);
           break;
         case PID_CELLVOLTAGE_CELL_26:
-          cellvoltages[25] = (((rx_frame.data.u8[4] << 8) | rx_frame.data.u8[5]) + 1000);
+          cellvoltages_polled[25] = (((rx_frame.data.u8[4] << 8) | rx_frame.data.u8[5]) + 1000);
           break;
         case PID_CELLVOLTAGE_CELL_27:
-          cellvoltages[26] = (((rx_frame.data.u8[4] << 8) | rx_frame.data.u8[5]) + 1000);
+          cellvoltages_polled[26] = (((rx_frame.data.u8[4] << 8) | rx_frame.data.u8[5]) + 1000);
           break;
         case PID_CELLVOLTAGE_CELL_28:
-          cellvoltages[27] = (((rx_frame.data.u8[4] << 8) | rx_frame.data.u8[5]) + 1000);
+          cellvoltages_polled[27] = (((rx_frame.data.u8[4] << 8) | rx_frame.data.u8[5]) + 1000);
           break;
         case PID_CELLVOLTAGE_CELL_29:
-          cellvoltages[28] = (((rx_frame.data.u8[4] << 8) | rx_frame.data.u8[5]) + 1000);
+          cellvoltages_polled[28] = (((rx_frame.data.u8[4] << 8) | rx_frame.data.u8[5]) + 1000);
           break;
         case PID_CELLVOLTAGE_CELL_30:
-          cellvoltages[29] = (((rx_frame.data.u8[4] << 8) | rx_frame.data.u8[5]) + 1000);
+          cellvoltages_polled[29] = (((rx_frame.data.u8[4] << 8) | rx_frame.data.u8[5]) + 1000);
           break;
         case PID_CELLVOLTAGE_CELL_31:
-          cellvoltages[30] = (((rx_frame.data.u8[4] << 8) | rx_frame.data.u8[5]) + 1000);
+          cellvoltages_polled[30] = (((rx_frame.data.u8[4] << 8) | rx_frame.data.u8[5]) + 1000);
           break;
         case PID_CELLVOLTAGE_CELL_32:
-          cellvoltages[31] = (((rx_frame.data.u8[4] << 8) | rx_frame.data.u8[5]) + 1000);
+          cellvoltages_polled[31] = (((rx_frame.data.u8[4] << 8) | rx_frame.data.u8[5]) + 1000);
           break;
         case PID_CELLVOLTAGE_CELL_33:
-          cellvoltages[32] = (((rx_frame.data.u8[4] << 8) | rx_frame.data.u8[5]) + 1000);
+          cellvoltages_polled[32] = (((rx_frame.data.u8[4] << 8) | rx_frame.data.u8[5]) + 1000);
           break;
         case PID_CELLVOLTAGE_CELL_34:
-          cellvoltages[33] = (((rx_frame.data.u8[4] << 8) | rx_frame.data.u8[5]) + 1000);
+          cellvoltages_polled[33] = (((rx_frame.data.u8[4] << 8) | rx_frame.data.u8[5]) + 1000);
           break;
         case PID_CELLVOLTAGE_CELL_35:
-          cellvoltages[34] = (((rx_frame.data.u8[4] << 8) | rx_frame.data.u8[5]) + 1000);
+          cellvoltages_polled[34] = (((rx_frame.data.u8[4] << 8) | rx_frame.data.u8[5]) + 1000);
           break;
         case PID_CELLVOLTAGE_CELL_36:
-          cellvoltages[35] = (((rx_frame.data.u8[4] << 8) | rx_frame.data.u8[5]) + 1000);
+          cellvoltages_polled[35] = (((rx_frame.data.u8[4] << 8) | rx_frame.data.u8[5]) + 1000);
           break;
         case PID_CELLVOLTAGE_CELL_37:
-          cellvoltages[36] = (((rx_frame.data.u8[4] << 8) | rx_frame.data.u8[5]) + 1000);
+          cellvoltages_polled[36] = (((rx_frame.data.u8[4] << 8) | rx_frame.data.u8[5]) + 1000);
           break;
         case PID_CELLVOLTAGE_CELL_38:
-          cellvoltages[37] = (((rx_frame.data.u8[4] << 8) | rx_frame.data.u8[5]) + 1000);
+          cellvoltages_polled[37] = (((rx_frame.data.u8[4] << 8) | rx_frame.data.u8[5]) + 1000);
           break;
         case PID_CELLVOLTAGE_CELL_39:
-          cellvoltages[38] = (((rx_frame.data.u8[4] << 8) | rx_frame.data.u8[5]) + 1000);
+          cellvoltages_polled[38] = (((rx_frame.data.u8[4] << 8) | rx_frame.data.u8[5]) + 1000);
           break;
         case PID_CELLVOLTAGE_CELL_40:
-          cellvoltages[39] = (((rx_frame.data.u8[4] << 8) | rx_frame.data.u8[5]) + 1000);
+          cellvoltages_polled[39] = (((rx_frame.data.u8[4] << 8) | rx_frame.data.u8[5]) + 1000);
           break;
         case PID_CELLVOLTAGE_CELL_41:
-          cellvoltages[40] = (((rx_frame.data.u8[4] << 8) | rx_frame.data.u8[5]) + 1000);
+          cellvoltages_polled[40] = (((rx_frame.data.u8[4] << 8) | rx_frame.data.u8[5]) + 1000);
           break;
         case PID_CELLVOLTAGE_CELL_42:
-          cellvoltages[41] = (((rx_frame.data.u8[4] << 8) | rx_frame.data.u8[5]) + 1000);
+          cellvoltages_polled[41] = (((rx_frame.data.u8[4] << 8) | rx_frame.data.u8[5]) + 1000);
           break;
         case PID_CELLVOLTAGE_CELL_43:
-          cellvoltages[42] = (((rx_frame.data.u8[4] << 8) | rx_frame.data.u8[5]) + 1000);
+          cellvoltages_polled[42] = (((rx_frame.data.u8[4] << 8) | rx_frame.data.u8[5]) + 1000);
           break;
         case PID_CELLVOLTAGE_CELL_44:
-          cellvoltages[43] = (((rx_frame.data.u8[4] << 8) | rx_frame.data.u8[5]) + 1000);
+          cellvoltages_polled[43] = (((rx_frame.data.u8[4] << 8) | rx_frame.data.u8[5]) + 1000);
           break;
         case PID_CELLVOLTAGE_CELL_45:
-          cellvoltages[44] = (((rx_frame.data.u8[4] << 8) | rx_frame.data.u8[5]) + 1000);
+          cellvoltages_polled[44] = (((rx_frame.data.u8[4] << 8) | rx_frame.data.u8[5]) + 1000);
           break;
         case PID_CELLVOLTAGE_CELL_46:
-          cellvoltages[45] = (((rx_frame.data.u8[4] << 8) | rx_frame.data.u8[5]) + 1000);
+          cellvoltages_polled[45] = (((rx_frame.data.u8[4] << 8) | rx_frame.data.u8[5]) + 1000);
           break;
         case PID_CELLVOLTAGE_CELL_47:
-          cellvoltages[46] = (((rx_frame.data.u8[4] << 8) | rx_frame.data.u8[5]) + 1000);
+          cellvoltages_polled[46] = (((rx_frame.data.u8[4] << 8) | rx_frame.data.u8[5]) + 1000);
           break;
         case PID_CELLVOLTAGE_CELL_48:
-          cellvoltages[47] = (((rx_frame.data.u8[4] << 8) | rx_frame.data.u8[5]) + 1000);
+          cellvoltages_polled[47] = (((rx_frame.data.u8[4] << 8) | rx_frame.data.u8[5]) + 1000);
           break;
         case PID_CELLVOLTAGE_CELL_49:
-          cellvoltages[48] = (((rx_frame.data.u8[4] << 8) | rx_frame.data.u8[5]) + 1000);
+          cellvoltages_polled[48] = (((rx_frame.data.u8[4] << 8) | rx_frame.data.u8[5]) + 1000);
           break;
         case PID_CELLVOLTAGE_CELL_50:
-          cellvoltages[49] = (((rx_frame.data.u8[4] << 8) | rx_frame.data.u8[5]) + 1000);
+          cellvoltages_polled[49] = (((rx_frame.data.u8[4] << 8) | rx_frame.data.u8[5]) + 1000);
           break;
         case PID_CELLVOLTAGE_CELL_51:
-          cellvoltages[50] = (((rx_frame.data.u8[4] << 8) | rx_frame.data.u8[5]) + 1000);
+          cellvoltages_polled[50] = (((rx_frame.data.u8[4] << 8) | rx_frame.data.u8[5]) + 1000);
           break;
         case PID_CELLVOLTAGE_CELL_52:
-          cellvoltages[51] = (((rx_frame.data.u8[4] << 8) | rx_frame.data.u8[5]) + 1000);
+          cellvoltages_polled[51] = (((rx_frame.data.u8[4] << 8) | rx_frame.data.u8[5]) + 1000);
           break;
         case PID_CELLVOLTAGE_CELL_53:
-          cellvoltages[52] = (((rx_frame.data.u8[4] << 8) | rx_frame.data.u8[5]) + 1000);
+          cellvoltages_polled[52] = (((rx_frame.data.u8[4] << 8) | rx_frame.data.u8[5]) + 1000);
           break;
         case PID_CELLVOLTAGE_CELL_54:
-          cellvoltages[53] = (((rx_frame.data.u8[4] << 8) | rx_frame.data.u8[5]) + 1000);
+          cellvoltages_polled[53] = (((rx_frame.data.u8[4] << 8) | rx_frame.data.u8[5]) + 1000);
           break;
         case PID_CELLVOLTAGE_CELL_55:
-          cellvoltages[54] = (((rx_frame.data.u8[4] << 8) | rx_frame.data.u8[5]) + 1000);
+          cellvoltages_polled[54] = (((rx_frame.data.u8[4] << 8) | rx_frame.data.u8[5]) + 1000);
           break;
         case PID_CELLVOLTAGE_CELL_56:
-          cellvoltages[55] = (((rx_frame.data.u8[4] << 8) | rx_frame.data.u8[5]) + 1000);
+          cellvoltages_polled[55] = (((rx_frame.data.u8[4] << 8) | rx_frame.data.u8[5]) + 1000);
           break;
         case PID_CELLVOLTAGE_CELL_57:
-          cellvoltages[56] = (((rx_frame.data.u8[4] << 8) | rx_frame.data.u8[5]) + 1000);
+          cellvoltages_polled[56] = (((rx_frame.data.u8[4] << 8) | rx_frame.data.u8[5]) + 1000);
           break;
         case PID_CELLVOLTAGE_CELL_58:
-          cellvoltages[57] = (((rx_frame.data.u8[4] << 8) | rx_frame.data.u8[5]) + 1000);
+          cellvoltages_polled[57] = (((rx_frame.data.u8[4] << 8) | rx_frame.data.u8[5]) + 1000);
           break;
         case PID_CELLVOLTAGE_CELL_59:
-          cellvoltages[58] = (((rx_frame.data.u8[4] << 8) | rx_frame.data.u8[5]) + 1000);
+          cellvoltages_polled[58] = (((rx_frame.data.u8[4] << 8) | rx_frame.data.u8[5]) + 1000);
           break;
         case PID_CELLVOLTAGE_CELL_60:
-          cellvoltages[59] = (((rx_frame.data.u8[4] << 8) | rx_frame.data.u8[5]) + 1000);
+          cellvoltages_polled[59] = (((rx_frame.data.u8[4] << 8) | rx_frame.data.u8[5]) + 1000);
           break;
         case PID_CELLVOLTAGE_CELL_61:
-          cellvoltages[60] = (((rx_frame.data.u8[4] << 8) | rx_frame.data.u8[5]) + 1000);
+          cellvoltages_polled[60] = (((rx_frame.data.u8[4] << 8) | rx_frame.data.u8[5]) + 1000);
           break;
         case PID_CELLVOLTAGE_CELL_62:
-          cellvoltages[61] = (((rx_frame.data.u8[4] << 8) | rx_frame.data.u8[5]) + 1000);
+          cellvoltages_polled[61] = (((rx_frame.data.u8[4] << 8) | rx_frame.data.u8[5]) + 1000);
           break;
         case PID_CELLVOLTAGE_CELL_63:
-          cellvoltages[62] = (((rx_frame.data.u8[4] << 8) | rx_frame.data.u8[5]) + 1000);
+          cellvoltages_polled[62] = (((rx_frame.data.u8[4] << 8) | rx_frame.data.u8[5]) + 1000);
           break;
         case PID_CELLVOLTAGE_CELL_64:
-          cellvoltages[63] = (((rx_frame.data.u8[4] << 8) | rx_frame.data.u8[5]) + 1000);
+          cellvoltages_polled[63] = (((rx_frame.data.u8[4] << 8) | rx_frame.data.u8[5]) + 1000);
           break;
         case PID_CELLVOLTAGE_CELL_65:
-          cellvoltages[64] = (((rx_frame.data.u8[4] << 8) | rx_frame.data.u8[5]) + 1000);
+          cellvoltages_polled[64] = (((rx_frame.data.u8[4] << 8) | rx_frame.data.u8[5]) + 1000);
           break;
         case PID_CELLVOLTAGE_CELL_66:
-          cellvoltages[65] = (((rx_frame.data.u8[4] << 8) | rx_frame.data.u8[5]) + 1000);
+          cellvoltages_polled[65] = (((rx_frame.data.u8[4] << 8) | rx_frame.data.u8[5]) + 1000);
           break;
         case PID_CELLVOLTAGE_CELL_67:
-          cellvoltages[66] = (((rx_frame.data.u8[4] << 8) | rx_frame.data.u8[5]) + 1000);
+          cellvoltages_polled[66] = (((rx_frame.data.u8[4] << 8) | rx_frame.data.u8[5]) + 1000);
           break;
         case PID_CELLVOLTAGE_CELL_68:
-          cellvoltages[67] = (((rx_frame.data.u8[4] << 8) | rx_frame.data.u8[5]) + 1000);
+          cellvoltages_polled[67] = (((rx_frame.data.u8[4] << 8) | rx_frame.data.u8[5]) + 1000);
           break;
         case PID_CELLVOLTAGE_CELL_69:
-          cellvoltages[68] = (((rx_frame.data.u8[4] << 8) | rx_frame.data.u8[5]) + 1000);
+          cellvoltages_polled[68] = (((rx_frame.data.u8[4] << 8) | rx_frame.data.u8[5]) + 1000);
           break;
         case PID_CELLVOLTAGE_CELL_70:
-          cellvoltages[69] = (((rx_frame.data.u8[4] << 8) | rx_frame.data.u8[5]) + 1000);
+          cellvoltages_polled[69] = (((rx_frame.data.u8[4] << 8) | rx_frame.data.u8[5]) + 1000);
           break;
         case PID_CELLVOLTAGE_CELL_71:
-          cellvoltages[70] = (((rx_frame.data.u8[4] << 8) | rx_frame.data.u8[5]) + 1000);
+          cellvoltages_polled[70] = (((rx_frame.data.u8[4] << 8) | rx_frame.data.u8[5]) + 1000);
           break;
         case PID_CELLVOLTAGE_CELL_72:
-          cellvoltages[71] = (((rx_frame.data.u8[4] << 8) | rx_frame.data.u8[5]) + 1000);
+          cellvoltages_polled[71] = (((rx_frame.data.u8[4] << 8) | rx_frame.data.u8[5]) + 1000);
           break;
         case PID_CELLVOLTAGE_CELL_73:
-          cellvoltages[72] = (((rx_frame.data.u8[4] << 8) | rx_frame.data.u8[5]) + 1000);
+          cellvoltages_polled[72] = (((rx_frame.data.u8[4] << 8) | rx_frame.data.u8[5]) + 1000);
           break;
         case PID_CELLVOLTAGE_CELL_74:
-          cellvoltages[73] = (((rx_frame.data.u8[4] << 8) | rx_frame.data.u8[5]) + 1000);
+          cellvoltages_polled[73] = (((rx_frame.data.u8[4] << 8) | rx_frame.data.u8[5]) + 1000);
           break;
         case PID_CELLVOLTAGE_CELL_75:
-          cellvoltages[74] = (((rx_frame.data.u8[4] << 8) | rx_frame.data.u8[5]) + 1000);
+          cellvoltages_polled[74] = (((rx_frame.data.u8[4] << 8) | rx_frame.data.u8[5]) + 1000);
           break;
         case PID_CELLVOLTAGE_CELL_76:
-          cellvoltages[75] = (((rx_frame.data.u8[4] << 8) | rx_frame.data.u8[5]) + 1000);
+          cellvoltages_polled[75] = (((rx_frame.data.u8[4] << 8) | rx_frame.data.u8[5]) + 1000);
           break;
         case PID_CELLVOLTAGE_CELL_77:
-          cellvoltages[76] = (((rx_frame.data.u8[4] << 8) | rx_frame.data.u8[5]) + 1000);
+          cellvoltages_polled[76] = (((rx_frame.data.u8[4] << 8) | rx_frame.data.u8[5]) + 1000);
           break;
         case PID_CELLVOLTAGE_CELL_78:
-          cellvoltages[77] = (((rx_frame.data.u8[4] << 8) | rx_frame.data.u8[5]) + 1000);
+          cellvoltages_polled[77] = (((rx_frame.data.u8[4] << 8) | rx_frame.data.u8[5]) + 1000);
           break;
         case PID_CELLVOLTAGE_CELL_79:
-          cellvoltages[78] = (((rx_frame.data.u8[4] << 8) | rx_frame.data.u8[5]) + 1000);
+          cellvoltages_polled[78] = (((rx_frame.data.u8[4] << 8) | rx_frame.data.u8[5]) + 1000);
           break;
         case PID_CELLVOLTAGE_CELL_80:
-          cellvoltages[79] = (((rx_frame.data.u8[4] << 8) | rx_frame.data.u8[5]) + 1000);
+          cellvoltages_polled[79] = (((rx_frame.data.u8[4] << 8) | rx_frame.data.u8[5]) + 1000);
           break;
         case PID_CELLVOLTAGE_CELL_81:
-          cellvoltages[80] = (((rx_frame.data.u8[4] << 8) | rx_frame.data.u8[5]) + 1000);
+          cellvoltages_polled[80] = (((rx_frame.data.u8[4] << 8) | rx_frame.data.u8[5]) + 1000);
           break;
         case PID_CELLVOLTAGE_CELL_82:
-          cellvoltages[81] = (((rx_frame.data.u8[4] << 8) | rx_frame.data.u8[5]) + 1000);
+          cellvoltages_polled[81] = (((rx_frame.data.u8[4] << 8) | rx_frame.data.u8[5]) + 1000);
           break;
         case PID_CELLVOLTAGE_CELL_83:
-          cellvoltages[82] = (((rx_frame.data.u8[4] << 8) | rx_frame.data.u8[5]) + 1000);
+          cellvoltages_polled[82] = (((rx_frame.data.u8[4] << 8) | rx_frame.data.u8[5]) + 1000);
           break;
         case PID_CELLVOLTAGE_CELL_84:
-          cellvoltages[83] = (((rx_frame.data.u8[4] << 8) | rx_frame.data.u8[5]) + 1000);
+          cellvoltages_polled[83] = (((rx_frame.data.u8[4] << 8) | rx_frame.data.u8[5]) + 1000);
           break;
         case PID_CELLVOLTAGE_CELL_85:
           tempval = ((rx_frame.data.u8[4] << 8) | rx_frame.data.u8[5]);
           if (tempval != 0xFFE) {
-            cellvoltages[84] = (tempval + 1000);
+            cellvoltages_polled[84] = (tempval + 1000);
           } else {  // Cell 85 unavailable. We have a 84S battery (48kWh)
             datalayer.battery.info.number_of_cells = 84;
             datalayer.battery.info.max_design_voltage_dV = MAX_PACK_VOLTAGE_84S_DV;
@@ -786,73 +889,73 @@ void receive_can_battery(CAN_frame rx_frame) {
         case PID_CELLVOLTAGE_CELL_86:
           tempval = ((rx_frame.data.u8[4] << 8) | rx_frame.data.u8[5]);
           if (tempval != 0xFFE) {
-            cellvoltages[85] = (tempval + 1000);
+            cellvoltages_polled[85] = (tempval + 1000);
           }
           break;
         case PID_CELLVOLTAGE_CELL_87:
           tempval = ((rx_frame.data.u8[4] << 8) | rx_frame.data.u8[5]);
           if (tempval != 0xFFE) {
-            cellvoltages[86] = (tempval + 1000);
+            cellvoltages_polled[86] = (tempval + 1000);
           }
           break;
         case PID_CELLVOLTAGE_CELL_88:
           tempval = ((rx_frame.data.u8[4] << 8) | rx_frame.data.u8[5]);
           if (tempval != 0xFFE) {
-            cellvoltages[87] = (tempval + 1000);
+            cellvoltages_polled[87] = (tempval + 1000);
           }
           break;
         case PID_CELLVOLTAGE_CELL_89:
           tempval = ((rx_frame.data.u8[4] << 8) | rx_frame.data.u8[5]);
           if (tempval != 0xFFE) {
-            cellvoltages[88] = (tempval + 1000);
+            cellvoltages_polled[88] = (tempval + 1000);
           }
           break;
         case PID_CELLVOLTAGE_CELL_90:
           tempval = ((rx_frame.data.u8[4] << 8) | rx_frame.data.u8[5]);
           if (tempval != 0xFFE) {
-            cellvoltages[89] = (tempval + 1000);
+            cellvoltages_polled[89] = (tempval + 1000);
           }
           break;
         case PID_CELLVOLTAGE_CELL_91:
           tempval = ((rx_frame.data.u8[4] << 8) | rx_frame.data.u8[5]);
           if (tempval != 0xFFE) {
-            cellvoltages[90] = (tempval + 1000);
+            cellvoltages_polled[90] = (tempval + 1000);
           }
           break;
         case PID_CELLVOLTAGE_CELL_92:
           tempval = ((rx_frame.data.u8[4] << 8) | rx_frame.data.u8[5]);
           if (tempval != 0xFFE) {
-            cellvoltages[91] = (tempval + 1000);
+            cellvoltages_polled[91] = (tempval + 1000);
           }
           break;
         case PID_CELLVOLTAGE_CELL_93:
           tempval = ((rx_frame.data.u8[4] << 8) | rx_frame.data.u8[5]);
           if (tempval != 0xFFE) {
-            cellvoltages[92] = (tempval + 1000);
+            cellvoltages_polled[92] = (tempval + 1000);
           }
           break;
         case PID_CELLVOLTAGE_CELL_94:
           tempval = ((rx_frame.data.u8[4] << 8) | rx_frame.data.u8[5]);
           if (tempval != 0xFFE) {
-            cellvoltages[93] = (tempval + 1000);
+            cellvoltages_polled[93] = (tempval + 1000);
           }
           break;
         case PID_CELLVOLTAGE_CELL_95:
           tempval = ((rx_frame.data.u8[4] << 8) | rx_frame.data.u8[5]);
           if (tempval != 0xFFE) {
-            cellvoltages[94] = (tempval + 1000);
+            cellvoltages_polled[94] = (tempval + 1000);
           }
           break;
         case PID_CELLVOLTAGE_CELL_96:
           tempval = ((rx_frame.data.u8[4] << 8) | rx_frame.data.u8[5]);
           if (tempval != 0xFFE) {
-            cellvoltages[95] = (tempval + 1000);
+            cellvoltages_polled[95] = (tempval + 1000);
           }
           break;
         case PID_CELLVOLTAGE_CELL_97:
           tempval = ((rx_frame.data.u8[4] << 8) | rx_frame.data.u8[5]);
           if (tempval != 0xFFE) {
-            cellvoltages[96] = (tempval + 1000);
+            cellvoltages_polled[96] = (tempval + 1000);
           } else {  // Cell 97 unavailable. We have a 96S battery (55kWh) (Unless already specified as 84S)
             if (datalayer.battery.info.number_of_cells == 84) {
               // Do nothing, we already identified it as 84S
@@ -866,67 +969,67 @@ void receive_can_battery(CAN_frame rx_frame) {
         case PID_CELLVOLTAGE_CELL_98:
           tempval = ((rx_frame.data.u8[4] << 8) | rx_frame.data.u8[5]);
           if (tempval != 0xFFE) {
-            cellvoltages[97] = (tempval + 1000);
+            cellvoltages_polled[97] = (tempval + 1000);
           }
           break;
         case PID_CELLVOLTAGE_CELL_99:
           tempval = ((rx_frame.data.u8[4] << 8) | rx_frame.data.u8[5]);
           if (tempval != 0xFFE) {
-            cellvoltages[98] = (tempval + 1000);
+            cellvoltages_polled[98] = (tempval + 1000);
           }
           break;
         case PID_CELLVOLTAGE_CELL_100:
           tempval = ((rx_frame.data.u8[4] << 8) | rx_frame.data.u8[5]);
           if (tempval != 0xFFE) {
-            cellvoltages[99] = (tempval + 1000);
+            cellvoltages_polled[99] = (tempval + 1000);
           }
           break;
         case PID_CELLVOLTAGE_CELL_101:
           tempval = ((rx_frame.data.u8[4] << 8) | rx_frame.data.u8[5]);
           if (tempval != 0xFFE) {
-            cellvoltages[100] = (tempval + 1000);
+            cellvoltages_polled[100] = (tempval + 1000);
           }
           break;
         case PID_CELLVOLTAGE_CELL_102:
           tempval = ((rx_frame.data.u8[4] << 8) | rx_frame.data.u8[5]);
           if (tempval != 0xFFE) {
-            cellvoltages[101] = (tempval + 1000);
+            cellvoltages_polled[101] = (tempval + 1000);
           }
           break;
         case PID_CELLVOLTAGE_CELL_103:
           tempval = ((rx_frame.data.u8[4] << 8) | rx_frame.data.u8[5]);
           if (tempval != 0xFFE) {
-            cellvoltages[102] = (tempval + 1000);
+            cellvoltages_polled[102] = (tempval + 1000);
           }
           break;
         case PID_CELLVOLTAGE_CELL_104:
           tempval = ((rx_frame.data.u8[4] << 8) | rx_frame.data.u8[5]);
           if (tempval != 0xFFE) {
-            cellvoltages[103] = (tempval + 1000);
+            cellvoltages_polled[103] = (tempval + 1000);
           }
           break;
         case PID_CELLVOLTAGE_CELL_105:
           tempval = ((rx_frame.data.u8[4] << 8) | rx_frame.data.u8[5]);
           if (tempval != 0xFFE) {
-            cellvoltages[104] = (tempval + 1000);
+            cellvoltages_polled[104] = (tempval + 1000);
           }
           break;
         case PID_CELLVOLTAGE_CELL_106:
           tempval = ((rx_frame.data.u8[4] << 8) | rx_frame.data.u8[5]);
           if (tempval != 0xFFE) {
-            cellvoltages[105] = (tempval + 1000);
+            cellvoltages_polled[105] = (tempval + 1000);
           }
           break;
         case PID_CELLVOLTAGE_CELL_107:
           tempval = ((rx_frame.data.u8[4] << 8) | rx_frame.data.u8[5]);
           if (tempval != 0xFFE) {
-            cellvoltages[106] = (tempval + 1000);
+            cellvoltages_polled[106] = (tempval + 1000);
           }
           break;
         case PID_CELLVOLTAGE_CELL_108:
           tempval = ((rx_frame.data.u8[4] << 8) | rx_frame.data.u8[5]);
           if (tempval != 0xFFE) {
-            cellvoltages[107] = (tempval + 1000);
+            cellvoltages_polled[107] = (tempval + 1000);
             datalayer.battery.info.number_of_cells = 108;
             datalayer.battery.info.max_design_voltage_dV = MAX_PACK_VOLTAGE_108S_DV;
             datalayer.battery.info.min_design_voltage_dV = MIN_PACK_VOLTAGE_108S_DV;
