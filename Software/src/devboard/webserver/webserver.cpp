@@ -179,7 +179,7 @@ void init_webserver() {
     if (request->hasParam("stop")) {
       String valueStr = request->getParam("stop")->value();
       if (valueStr == "true" || valueStr == "1") {
-        setBatteryPause(true, true, true);
+        setBatteryPause(true, false, true);
       } else {
         setBatteryPause(false, false, false);
       }

@@ -584,7 +584,7 @@ void monitor_equipment_stop_button() {
   if (equipment_stop_behavior == LATCHING_SWITCH) {
     if (changed_state == PRESSED) {
       // Changed to ON – initiating equipment stop.
-      setBatteryPause(true, true, true);
+      setBatteryPause(true, false, true);
     } else if (changed_state == RELEASED) {
       // Changed to OFF – ending equipment stop.
       setBatteryPause(false, false, false);
@@ -594,7 +594,7 @@ void monitor_equipment_stop_button() {
 
       if (timeSincePress < equipment_button_long_press_duration) {
         // Short press detected, trigger equipment stop
-        setBatteryPause(true, true, true);
+        setBatteryPause(true, false, true);
       } else {
         // Long press detected, reset equipment stop state
         setBatteryPause(false, false, false);
