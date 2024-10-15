@@ -43,6 +43,10 @@ CAN_frame PYLON_35E = {.FD = false,
 void update_values_can_inverter() {
   // This function maps all the values fetched from battery CAN to the correct CAN messages
 
+  // do not update values unless we have some voltage, as we will run into IntegerDivideByZero exceptions otherwise
+  if (datalayer.battery.status.voltage_dV == 0)
+    return;
+
   // TODO: officially this value is "battery charge voltage". Do we need to add something here to the actual voltage?
   PYLON_351.data.u8[0] = datalayer.battery.status.voltage_dV & 0xff;
   PYLON_351.data.u8[1] = datalayer.battery.status.voltage_dV >> 8;
