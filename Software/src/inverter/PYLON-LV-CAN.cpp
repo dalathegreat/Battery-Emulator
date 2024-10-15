@@ -5,7 +5,6 @@
 
 /* Do not change code below unless you are sure what you are doing */
 
-static unsigned long previousInverterPacketMillis = 0;
 static unsigned long previousMillis1000ms = 0;
 
 CAN_frame PYLON_351 = {.FD = false,
@@ -119,8 +118,7 @@ void receive_can_inverter(CAN_frame rx_frame) {
   switch (rx_frame.ID) {
     case 0x305:  //Message originating from inverter.
       // according to the spec, this message includes only 0-bytes
-      datalayer.system.status.CAN_inverter_still_alive = true;
-      previousInverterPacketMillis = millis();
+      datalayer.system.status.CAN_inverter_still_alive = CAN_STILL_ALIVE;
       break;
     default:
       break;
@@ -129,10 +127,6 @@ void receive_can_inverter(CAN_frame rx_frame) {
 
 void send_can_inverter() {
   unsigned long currentMillis = millis();
-
-  if (currentMillis - previousInverterPacketMillis >= 3000) {
-    datalayer.system.status.CAN_inverter_still_alive = false;
-  }
 
   if (currentMillis - previousMillis1000ms >= 1000) {
     previousMillis1000ms = currentMillis;
