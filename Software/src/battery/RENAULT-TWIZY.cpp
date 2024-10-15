@@ -7,15 +7,16 @@
 
 /* Do not change code below unless you are sure what you are doing */
 
-static int16_t cell_temperatures_dC[8] = {0};
+static int16_t cell_temperatures_dC[7] = {0};
 static int16_t current_dA = 0;
 static uint16_t voltage_dV = 0;
 static int16_t cellvoltages_mV[14] = {0};
 static int16_t max_discharge_power = 0;
 static int16_t max_recup_power = 0;
 static int16_t max_charge_power = 0;
-static uint8_t SOC = 0;
-static uint8_t SOH = 0;
+static uint16_t SOC = 0;
+static uint16_t SOH = 0;
+static uint16_t remaining_capacity_Wh = 0;
 
 int16_t max_value(int16_t* entries, size_t len) {
   int result = INT16_MIN;
@@ -39,13 +40,11 @@ int16_t min_value(int16_t* entries, size_t len) {
 
 void update_values_battery() {
 
-  datalayer.battery.status.real_soc = (SOC * 100);  //increase SOC range from 0-100 -> 100.00
-
-  datalayer.battery.status.soh_pptt = (SOH * 100);  //Increase decimals from 100% -> 100.00%
-
+  datalayer.battery.status.real_soc = SOC;
+  datalayer.battery.status.soh_pptt = SOH;
   datalayer.battery.status.voltage_dV = voltage_dV;  //value is *10 (3700 = 370.0)
-
-  datalayer.battery.status.current_dA = current_dA;  //value is *10 (150 = 15.0) , invert the sign
+  datalayer.battery.status.current_dA = current_dA;  //value is *10 (150 = 15.0)
+  datalayer.battery.status.remaining_capacity_Wh = remaining_capacity_Wh;
 
   datalayer.battery.status.active_power_W =  //Power in watts, Negative = charging batt
       ((datalayer.battery.status.voltage_dV * datalayer.battery.status.current_dA) / 100);
@@ -73,23 +72,25 @@ void receive_can_battery(CAN_frame rx_frame) {
   datalayer.battery.status.CAN_battery_still_alive = CAN_STILL_ALIVE;
   switch (rx_frame.ID) {
     case 0x155:
+      // max charge power is in steps of 300W from 0 to 7
+      max_charge_power = (uint16_t)rx_frame.data.u8[0] * 300;
+
       // current is encoded as a 12 bit integer with Amps = value / 4 - 500
       current_dA = (((rx_frame.data.u8[1] << 8) | rx_frame.data.u8[2]) & 0xfff) * 10 / 4 - 5000;
 
       // SOC is encoded as 16 bit integer with SOC% = value / 400
-      SOC = ((rx_frame.data.u8[4] << 8) | rx_frame.data.u8[5]) / 4;
+      SOC = (((uint16_t)rx_frame.data.u8[4] << 8) | (uint16_t)rx_frame.data.u8[5]) / 4;
       break;
     case 0x424:
       max_recup_power = rx_frame.data.u8[2] * 500;
       max_discharge_power = rx_frame.data.u8[3] * 500;
-      SOH = rx_frame.data.u8[5];
+      SOH = (uint16_t)rx_frame.data.u8[5] * 100;
       break;
     case 0x425:
-      // rx_frame.data.u8[1] / 10 contains the current stored energy in kWh
-      // TODO: can we store this kWh value somewhere in datalayer?
+      remaining_capacity_Wh = (uint16_t)rx_frame.data.u8[1] * 100;
       break;
     case 0x554:
-      for (int i = 0; i < 8; i++)
+      for (int i = 0; i < 7; i++)
         cell_temperatures_dC[i] = (int16_t)rx_frame.data.u8[i] * 10 - 400;
       break;
     case 0x556:
@@ -143,6 +144,7 @@ void setup_battery(void) {  // Performs one time setup at startup
   datalayer.battery.info.min_design_voltage_dV = MIN_PACK_VOLTAGE_DV;
   datalayer.battery.info.max_cell_voltage_mV = MAX_CELL_VOLTAGE_MV;
   datalayer.battery.info.min_cell_voltage_mV = MIN_CELL_VOLTAGE_MV;
+  datalayer.battery.info.total_capacity_Wh = 6600;
 }
 
 #endif

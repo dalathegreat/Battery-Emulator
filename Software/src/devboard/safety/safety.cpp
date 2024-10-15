@@ -97,7 +97,7 @@ void update_machineryprotection() {
     clear_event(EVENT_SOH_LOW);
   }
 
-#ifndef PYLON_BATTERY
+#if !defined(PYLON_BATTERY) && !defined(RENAULT_TWIZY_BATTERY)
   // Check if SOC% is plausible
   if (datalayer.battery.status.voltage_dV >
       (datalayer.battery.info.max_design_voltage_dV -
