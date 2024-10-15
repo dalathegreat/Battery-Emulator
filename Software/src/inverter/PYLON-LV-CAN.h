@@ -6,7 +6,8 @@
 
 #define MANUFACTURER_NAME "BatEmuLV"
 #define PACK_NUMBER 0x01
-#define WARNINGS_PERCENT 80 // 80 means after reaching 80% of a nominal value a warning is produced (e.g. 80% of max current)
+// 80 means after reaching 80% of a nominal value a warning is produced (e.g. 80% of max current)
+#define WARNINGS_PERCENT 80
 
 void send_system_data();
 void send_setup_info();

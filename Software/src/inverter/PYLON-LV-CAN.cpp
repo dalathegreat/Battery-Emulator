@@ -13,11 +13,7 @@ CAN_frame PYLON_351 = {.FD = false,
                        .DLC = 6,
                        .ID = 0x351,
                        .data = {0x00, 0x00, 0x00, 0x00, 0x00, 0x00}};
-CAN_frame PYLON_355 = {.FD = false,
-                       .ext_ID = false,
-                       .DLC = 4,
-                       .ID = 0x355,
-                       .data = {0x00, 0x00, 0x00, 0x00}};
+CAN_frame PYLON_355 = {.FD = false, .ext_ID = false, .DLC = 4, .ID = 0x355, .data = {0x00, 0x00, 0x00, 0x00}};
 CAN_frame PYLON_356 = {.FD = false,
                        .ext_ID = false,
                        .DLC = 6,
@@ -28,27 +24,23 @@ CAN_frame PYLON_359 = {.FD = false,
                        .DLC = 7,
                        .ID = 0x359,
                        .data = {0x00, 0x00, 0x00, 0x00, PACK_NUMBER, 'P', 'N'}};
-CAN_frame PYLON_35C = {.FD = false,
-                       .ext_ID = false,
-                       .DLC = 2,
-                       .ID = 0x35C,
-                       .data = {0x00, 0x00}};
+CAN_frame PYLON_35C = {.FD = false, .ext_ID = false, .DLC = 2, .ID = 0x35C, .data = {0x00, 0x00}};
 CAN_frame PYLON_35E = {.FD = false,
                        .ext_ID = false,
                        .DLC = 8,
                        .ID = 0x35E,
                        .data = {
-                          MANUFACTURER_NAME[0],
-                          MANUFACTURER_NAME[1],
-                          MANUFACTURER_NAME[2],
-                          MANUFACTURER_NAME[3],
-                          MANUFACTURER_NAME[4],
-                          MANUFACTURER_NAME[5],
-                          MANUFACTURER_NAME[6],
-                          MANUFACTURER_NAME[7],
-                        }};
+                           MANUFACTURER_NAME[0],
+                           MANUFACTURER_NAME[1],
+                           MANUFACTURER_NAME[2],
+                           MANUFACTURER_NAME[3],
+                           MANUFACTURER_NAME[4],
+                           MANUFACTURER_NAME[5],
+                           MANUFACTURER_NAME[6],
+                           MANUFACTURER_NAME[7],
+                       }};
 
-void update_values_can_inverter() { 
+void update_values_can_inverter() {
   // This function maps all the values fetched from battery CAN to the correct CAN messages
 
   // TODO: officially this value is "battery charge voltage". Do we need to add something here to the actual voltage?
@@ -57,7 +49,8 @@ void update_values_can_inverter() {
   int16_t maxChargeCurrent = datalayer.battery.status.max_charge_power_W * 10 / datalayer.battery.status.voltage_dV;
   PYLON_351.data.u8[2] = maxChargeCurrent & 0xff;
   PYLON_351.data.u8[3] = maxChargeCurrent >> 8;
-  int16_t maxDischargeCurrent = datalayer.battery.status.max_discharge_power_W * 10 / datalayer.battery.status.voltage_dV;
+  int16_t maxDischargeCurrent =
+      datalayer.battery.status.max_discharge_power_W * 10 / datalayer.battery.status.voltage_dV;
   PYLON_351.data.u8[4] = maxDischargeCurrent & 0xff;
   PYLON_351.data.u8[5] = maxDischargeCurrent >> 8;
 
@@ -83,37 +76,37 @@ void update_values_can_inverter() {
   PYLON_359.data.u8[6] = 'N';
 
   // ERRORS
-  if(datalayer.battery.status.current_dA >= maxDischargeCurrent)
+  if (datalayer.battery.status.current_dA >= maxDischargeCurrent)
     PYLON_359.data.u8[0] |= 0x80;
-  if(datalayer.battery.status.temperature_min_dC <= BATTERY_MINTEMPERATURE)
+  if (datalayer.battery.status.temperature_min_dC <= BATTERY_MINTEMPERATURE)
     PYLON_359.data.u8[0] |= 0x10;
-  if(datalayer.battery.status.temperature_max_dC >= BATTERY_MAXTEMPERATURE)
+  if (datalayer.battery.status.temperature_max_dC >= BATTERY_MAXTEMPERATURE)
     PYLON_359.data.u8[0] |= 0x0C;
-  if(datalayer.battery.status.voltage_dV * 100 <= datalayer.battery.info.min_cell_voltage_mV)
+  if (datalayer.battery.status.voltage_dV * 100 <= datalayer.battery.info.min_cell_voltage_mV)
     PYLON_359.data.u8[0] |= 0x04;
   // we never set PYLON_359.data.u8[1] |= 0x80 called "BMS internal"
-  if(datalayer.battery.status.current_dA <= -1 * maxChargeCurrent)
+  if (datalayer.battery.status.current_dA <= -1 * maxChargeCurrent)
     PYLON_359.data.u8[1] |= 0x01;
 
   // WARNINGS (using same rules as errors but reporting earlier)
-  if(datalayer.battery.status.current_dA >= maxDischargeCurrent * WARNINGS_PERCENT / 100)
+  if (datalayer.battery.status.current_dA >= maxDischargeCurrent * WARNINGS_PERCENT / 100)
     PYLON_359.data.u8[2] |= 0x80;
-  if(datalayer.battery.status.temperature_min_dC <= BATTERY_MINTEMPERATURE * WARNINGS_PERCENT / 100)
+  if (datalayer.battery.status.temperature_min_dC <= BATTERY_MINTEMPERATURE * WARNINGS_PERCENT / 100)
     PYLON_359.data.u8[2] |= 0x10;
-  if(datalayer.battery.status.temperature_max_dC >= BATTERY_MAXTEMPERATURE * WARNINGS_PERCENT / 100)
+  if (datalayer.battery.status.temperature_max_dC >= BATTERY_MAXTEMPERATURE * WARNINGS_PERCENT / 100)
     PYLON_359.data.u8[2] |= 0x0C;
-  if(datalayer.battery.status.voltage_dV * 100 <= datalayer.battery.info.min_cell_voltage_mV + 100)
+  if (datalayer.battery.status.voltage_dV * 100 <= datalayer.battery.info.min_cell_voltage_mV + 100)
     PYLON_359.data.u8[2] |= 0x04;
   // we never set PYLON_359.data.u8[3] |= 0x80 called "BMS internal"
-  if(datalayer.battery.status.current_dA <= -1 * maxChargeCurrent * WARNINGS_PERCENT / 100)
+  if (datalayer.battery.status.current_dA <= -1 * maxChargeCurrent * WARNINGS_PERCENT / 100)
     PYLON_359.data.u8[3] |= 0x01;
 
-  PYLON_35C.data.u8[0] = 0xC0; // enable charging and discharging
+  PYLON_35C.data.u8[0] = 0xC0;  // enable charging and discharging
   PYLON_35C.data.u8[1] = 0x00;
-  if(datalayer.battery.status.real_soc <= datalayer.battery.settings.min_percentage)
-    PYLON_35C.data.u8[0] = 0xA0; // enable charing, set charge immediately
-  if(datalayer.battery.status.real_soc >= datalayer.battery.settings.max_percentage)
-    PYLON_35C.data.u8[0] = 0x40; // enable discharging only
+  if (datalayer.battery.status.real_soc <= datalayer.battery.settings.min_percentage)
+    PYLON_35C.data.u8[0] = 0xA0;  // enable charing, set charge immediately
+  if (datalayer.battery.status.real_soc >= datalayer.battery.settings.max_percentage)
+    PYLON_35C.data.u8[0] = 0x40;  // enable discharging only
 
   // PYLON_35E is pre-filled with the manufacturer name
 }
@@ -133,7 +126,7 @@ void receive_can_inverter(CAN_frame rx_frame) {
 void send_can_inverter() {
   unsigned long currentMillis = millis();
 
-  if(currentMillis - previousInverterPacketMillis >= 3000) {
+  if (currentMillis - previousInverterPacketMillis >= 3000) {
     datalayer.system.status.CAN_inverter_still_alive = false;
   }
 
