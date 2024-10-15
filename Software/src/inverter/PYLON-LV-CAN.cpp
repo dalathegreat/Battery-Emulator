@@ -85,9 +85,9 @@ void update_values_can_inverter() {
   // ERRORS
   if(datalayer.battery.status.current_dA >= maxDischargeCurrent)
     PYLON_359.data.u8[0] |= 0x80;
-  if(datalayer.battery.status.temperature_min_dC <= MIN_TEMPERATURE)
+  if(datalayer.battery.status.temperature_min_dC <= BATTERY_MINTEMPERATURE)
     PYLON_359.data.u8[0] |= 0x10;
-  if(datalayer.battery.status.temperature_max_dC >= 500)
+  if(datalayer.battery.status.temperature_max_dC >= BATTERY_MAXTEMPERATURE)
     PYLON_359.data.u8[0] |= 0x0C;
   if(datalayer.battery.status.voltage_dV * 100 <= datalayer.battery.info.min_cell_voltage_mV)
     PYLON_359.data.u8[0] |= 0x04;
@@ -98,9 +98,9 @@ void update_values_can_inverter() {
   // WARNINGS (using same rules as errors but reporting earlier)
   if(datalayer.battery.status.current_dA >= maxDischargeCurrent * WARNINGS_PERCENT / 100)
     PYLON_359.data.u8[2] |= 0x80;
-  if(datalayer.battery.status.temperature_min_dC <= MIN_TEMPERATURE * WARNINGS_PERCENT / 100)
+  if(datalayer.battery.status.temperature_min_dC <= BATTERY_MINTEMPERATURE * WARNINGS_PERCENT / 100)
     PYLON_359.data.u8[2] |= 0x10;
-  if(datalayer.battery.status.temperature_max_dC >= MAX_TEMPERATURE * WARNINGS_PERCENT / 100)
+  if(datalayer.battery.status.temperature_max_dC >= BATTERY_MAXTEMPERATURE * WARNINGS_PERCENT / 100)
     PYLON_359.data.u8[2] |= 0x0C;
   if(datalayer.battery.status.voltage_dV * 100 <= datalayer.battery.info.min_cell_voltage_mV + 100)
     PYLON_359.data.u8[2] |= 0x04;
