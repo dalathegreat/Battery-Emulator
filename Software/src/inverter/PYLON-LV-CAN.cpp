@@ -50,11 +50,11 @@ void update_values_can_inverter() {
   // TODO: officially this value is "battery charge voltage". Do we need to add something here to the actual voltage?
   PYLON_351.data.u8[0] = datalayer.battery.status.voltage_dV & 0xff;
   PYLON_351.data.u8[1] = datalayer.battery.status.voltage_dV >> 8;
-  int16_t maxChargeCurrent = datalayer.battery.status.max_charge_power_W * 10 / datalayer.battery.status.voltage_dV;
+  int16_t maxChargeCurrent = datalayer.battery.status.max_charge_power_W * 100 / datalayer.battery.status.voltage_dV;
   PYLON_351.data.u8[2] = maxChargeCurrent & 0xff;
   PYLON_351.data.u8[3] = maxChargeCurrent >> 8;
   int16_t maxDischargeCurrent =
-      datalayer.battery.status.max_discharge_power_W * 10 / datalayer.battery.status.voltage_dV;
+      datalayer.battery.status.max_discharge_power_W * 100 / datalayer.battery.status.voltage_dV;
   PYLON_351.data.u8[4] = maxDischargeCurrent & 0xff;
   PYLON_351.data.u8[5] = maxDischargeCurrent >> 8;
 
