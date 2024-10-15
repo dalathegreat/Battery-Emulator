@@ -1,5 +1,5 @@
-#include "../include.h"
 #include <cstdint>
+#include "../include.h"
 #ifdef RENAULT_TWIZY_BATTERY
 #include "../datalayer/datalayer.h"
 #include "../devboard/utils/events.h"
@@ -7,30 +7,30 @@
 
 /* Do not change code below unless you are sure what you are doing */
 
-static int16_t cell_temperatures_dC[8] = { 0 };
+static int16_t cell_temperatures_dC[8] = {0};
 static int16_t current_dA = 0;
 static uint16_t voltage_dV = 0;
-static int16_t cellvoltages_mV[14] = { 0 };
+static int16_t cellvoltages_mV[14] = {0};
 static int16_t max_discharge_power = 0;
 static int16_t max_recup_power = 0;
 static int16_t max_charge_power = 0;
 static uint8_t SOC = 0;
 static uint8_t SOH = 0;
 
-int16_t max_value(int16_t *entries, size_t len) {
+int16_t max_value(int16_t* entries, size_t len) {
   int result = INT16_MIN;
-  for(int i = 0; i < len; i++) {
-    if(entries[i] > result)
+  for (int i = 0; i < len; i++) {
+    if (entries[i] > result)
       result = entries[i];
   }
 
   return result;
 }
 
-int16_t min_value(int16_t *entries, size_t len) {
+int16_t min_value(int16_t* entries, size_t len) {
   int result = INT16_MAX;
-  for(int i = 0; i < len; i++) {
-    if(entries[i] < result)
+  for (int i = 0; i < len; i++) {
+    if (entries[i] < result)
       result = entries[i];
   }
 
@@ -58,11 +58,15 @@ void update_values_battery() {
   datalayer.battery.status.max_discharge_power_W = max_discharge_power;
 
   memcpy(datalayer.battery.status.cell_voltages_mV, cellvoltages_mV, sizeof(cellvoltages_mV));
-  datalayer.battery.status.cell_min_voltage_mV = min_value(cellvoltages_mV, sizeof(cellvoltages_mV) / sizeof(*cellvoltages_mV));
-  datalayer.battery.status.cell_max_voltage_mV = max_value(cellvoltages_mV, sizeof(cellvoltages_mV) / sizeof(*cellvoltages_mV));
+  datalayer.battery.status.cell_min_voltage_mV =
+      min_value(cellvoltages_mV, sizeof(cellvoltages_mV) / sizeof(*cellvoltages_mV));
+  datalayer.battery.status.cell_max_voltage_mV =
+      max_value(cellvoltages_mV, sizeof(cellvoltages_mV) / sizeof(*cellvoltages_mV));
 
-  datalayer.battery.status.temperature_min_dC = min_value(cell_temperatures_dC, sizeof(cell_temperatures_dC) / sizeof(*cell_temperatures_dC));
-  datalayer.battery.status.temperature_max_dC = max_value(cell_temperatures_dC, sizeof(cell_temperatures_dC) / sizeof(*cell_temperatures_dC));
+  datalayer.battery.status.temperature_min_dC =
+      min_value(cell_temperatures_dC, sizeof(cell_temperatures_dC) / sizeof(*cell_temperatures_dC));
+  datalayer.battery.status.temperature_max_dC =
+      max_value(cell_temperatures_dC, sizeof(cell_temperatures_dC) / sizeof(*cell_temperatures_dC));
 }
 
 void receive_can_battery(CAN_frame rx_frame) {
@@ -85,7 +89,7 @@ void receive_can_battery(CAN_frame rx_frame) {
       // TODO: can we store this kWh value somewhere in datalayer?
       break;
     case 0x554:
-      for(int i = 0; i < 8; i++)
+      for (int i = 0; i < 8; i++)
         cell_temperatures_dC[i] = (int16_t)rx_frame.data.u8[i] * 10 - 400;
       break;
     case 0x556:
