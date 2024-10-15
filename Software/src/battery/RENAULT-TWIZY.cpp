@@ -3,7 +3,7 @@
 #ifdef RENAULT_TWIZY_BATTERY
 #include "../datalayer/datalayer.h"
 #include "../devboard/utils/events.h"
-#include "TWIZY-BATTERY.h"
+#include "RENAULT-TWIZY.h"
 
 /* Do not change code below unless you are sure what you are doing */
 
@@ -17,7 +17,6 @@ static int16_t max_charge_power = 0;
 static uint8_t SOC = 0;
 static uint8_t SOH = 0;
 
-// TODO can we use std::max_element for this? Or some other function in Arduino / in this project?
 int16_t max_value(int16_t *entries, size_t len) {
   int result = INT16_MIN;
   for(int i = 0; i < len; i++) {
@@ -27,6 +26,7 @@ int16_t max_value(int16_t *entries, size_t len) {
 
   return result;
 }
+
 int16_t min_value(int16_t *entries, size_t len) {
   int result = INT16_MAX;
   for(int i = 0; i < len; i++) {
@@ -50,13 +50,14 @@ void update_values_battery() {
   datalayer.battery.status.active_power_W =  //Power in watts, Negative = charging batt
       ((datalayer.battery.status.voltage_dV * datalayer.battery.status.current_dA) / 100);
 
-  // TODO: the twizy provides two values: one for the maximum charge provided by the on-board charger
+  // The twizy provides two values: one for the maximum charge provided by the on-board charger
   //    and one for the maximum charge during recuperation.
   //    For now we use the lower of the two (usually the charger one)
   datalayer.battery.status.max_charge_power_W = max_charge_power < max_recup_power ? max_charge_power : max_recup_power;
 
   datalayer.battery.status.max_discharge_power_W = max_discharge_power;
 
+  memcpy(datalayer.battery.status.cell_voltages_mV, cellvoltages_mV, sizeof(cellvoltages_mV));
   datalayer.battery.status.cell_min_voltage_mV = min_value(cellvoltages_mV, sizeof(cellvoltages_mV) / sizeof(*cellvoltages_mV));
   datalayer.battery.status.cell_max_voltage_mV = max_value(cellvoltages_mV, sizeof(cellvoltages_mV) / sizeof(*cellvoltages_mV));
 
@@ -115,7 +116,7 @@ void receive_can_battery(CAN_frame rx_frame) {
       // TODO: twizy has two pack voltages, assumingly the minimum and maximum measured.
       // They usually only differ by 0.1V. We use the lower one here
       // The other one is in the last 12 bit of the CAN packet
-      
+
       // pack voltage is encoded as 16 bit integer in dV
       voltage_dV = (((int16_t)rx_frame.data.u8[5] << 4) | ((int16_t)rx_frame.data.u8[6] >> 4));
       break;
@@ -133,6 +134,7 @@ void setup_battery(void) {  // Performs one time setup at startup
   Serial.println("Renault Twizy battery selected");
 #endif
 
+  datalayer.battery.info.number_of_cells = 14;
   datalayer.battery.info.max_design_voltage_dV = MAX_PACK_VOLTAGE_DV;
   datalayer.battery.info.min_design_voltage_dV = MIN_PACK_VOLTAGE_DV;
   datalayer.battery.info.max_cell_voltage_mV = MAX_CELL_VOLTAGE_MV;
