@@ -549,6 +549,9 @@ String processor(const String& var) {
 #ifdef RENAULT_KANGOO_BATTERY
     content += "Renault Kangoo";
 #endif  // RENAULT_KANGOO_BATTERY
+#ifdef RENAULT_TWIZY_BATTERY
+    content += "Renault Twizy";
+#endif  // RENAULT_TWIZY_BATTERY
 #ifdef RENAULT_ZOE_GEN1_BATTERY
     content += "Renault Zoe Gen1 22/40";
 #endif  // RENAULT_ZOE_GEN1_BATTERY

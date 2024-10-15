@@ -54,6 +54,10 @@
 #include "RENAULT-KANGOO-BATTERY.h"
 #endif
 
+#ifdef RENAULT_TWIZY_BATTERY
+#include "RENAULT-TWIZY.h"
+#endif
+
 #ifdef RENAULT_ZOE_GEN1_BATTERY
 #include "RENAULT-ZOE-GEN1-BATTERY.h"
 #endif
