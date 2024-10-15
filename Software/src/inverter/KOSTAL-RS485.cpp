@@ -44,9 +44,9 @@ uint8_t frame2[64] = {0x0A,                     // This may also been 0x06, seen
                       0xE2, 0xFF, 0x02, 0xFF, 0x29,  // frame Header
 
                       0x1D, 0x5A, 0x85, 0x43,   // Current Voltage  (float)                        Modbus register 216, Bytes 6-9
-                      0x01, 0x03, 0x8D, 0x43,   // Max Voltage      (2 byte float),                                     Bytes 10-13
-
                       0x01, 0x03,               // Unknown, 0x03 seen also 0x0F, 0x07, might hava something to do with current
+                      0x8D, 0x43,               // Max Voltage      (2 byte float),                                     Bytes 12-13
+                      0x01, 0x03, 
                       0xAC, 0x41,               // BAttery Temperature        (2 byte float)       Modbus register 214, Bytes 16-17
                       0x01, 0x01, 0x01, 0x01,   // Peak Current (1s period?),  Bytes 18-21 - Communication fault seen with some values (>10A?)
                       0x01, 0x01, 0x01, 0x01,   // Avg current  (1s period?), Bytes 22-25  - Communication fault seen with some values (>10A?)
@@ -235,7 +235,8 @@ void update_RS485_registers_inverter() {
   else
      {
      float2frameMSB(frame2, 0.0 , 36);
-     frame2[57]=0x40;
+//     frame2[57]=0x40;
+     frame2[57]=0x02;
      frame2[59]=0x01;
      }
 
