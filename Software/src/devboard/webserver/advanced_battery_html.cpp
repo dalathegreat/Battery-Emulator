@@ -17,13 +17,35 @@ String advanced_battery_processor(const String& var) {
     content += "<div style='background-color: #303E47; padding: 10px; margin-bottom: 10px;border-radius: 50px'>";
 
 #ifdef TESLA_BATTERY
-    content += "<h4>Contactor Status: " + String(datalayer_extended.tesla.status_contactor) + "</h4>";
-    content += "<h4>HVIL: " + String(datalayer_extended.tesla.hvil_status) + "</h4>";
-    content += "<h4>Negative contactor: " + String(datalayer_extended.tesla.packContNegativeState) + "</h4>";
-    content += "<h4>Positive contactor: " + String(datalayer_extended.tesla.packContPositiveState) + "</h4>";
-    content += "<h4>Contactor set state: " + String(datalayer_extended.tesla.packContactorSetState) + "</h4>";
-    content += "<h4>Closing allowed?: " + String(datalayer_extended.tesla.packCtrsClosingAllowed) + "</h4>";
-    content += "<h4>Pyrotest: " + String(datalayer_extended.tesla.pyroTestInProgress) + "</h4>";
+    static const char* contactorText[] = {"UNKNOWN(0)",  "OPEN",        "CLOSING",    "BLOCKED", "OPENING",
+                                          "CLOSED",      "UNKNOWN(6)",  "WELDED",     "POS_CL",  "NEG_CL",
+                                          "UNKNOWN(10)", "UNKNOWN(11)", "UNKNOWN(12)"};
+    content += "<h4>Contactor Status: " + String(contactorText[datalayer_extended.tesla.status_contactor]) + "</h4>";
+    static const char* hvilStatusState[] = {"NOT OK",
+                                          "STATUS_OK",
+                                          "CURRENT_SOURCE_FAULT",
+                                          "INTERNAL_OPEN_FAULT",
+                                          "VEHICLE_OPEN_FAULT",
+                                          "PENTHOUSE_LID_OPEN_FAULT",
+                                          "UNKNOWN_LOCATION_OPEN_FAULT",
+                                          "VEHICLE_NODE_FAULT",
+                                          "NO_12V_SUPPLY",
+                                          "VEHICLE_OR_PENTHOUSE_LID_OPENFAULT",
+                                          "UNKNOWN(10)",
+                                          "UNKNOWN(11)",
+                                          "UNKNOWN(12)",
+                                          "UNKNOWN(13)",
+                                          "UNKNOWN(14)",
+                                          "UNKNOWN(15)"};
+    content += "<h4>HVIL: " + String(hvilStatusState[datalayer_extended.tesla.hvil_status]) + "</h4>";
+    static const char* contactorState[] = {"SNA",        "OPEN",       "PRECHARGE",   "BLOCKED",
+                                          "PULLED_IN",  "OPENING",    "ECONOMIZED",  "WELDED",
+                                          "UNKNOWN(8)", "UNKNOWN(9)", "UNKNOWN(10)", "UNKNOWN(11)"};
+    content += "<h4>Negative contactor: " + String(contactorState[datalayer_extended.tesla.packContNegativeState]) + "</h4>";
+    content += "<h4>Positive contactor: " + String(contactorState[datalayer_extended.tesla.packContPositiveState]) + "</h4>";
+    static const char* falseTrue[] = {"False", "True"};
+    content += "<h4>Closing allowed?: " + String(falseTrue[datalayer_extended.tesla.packCtrsClosingAllowed]) + "</h4>";
+    content += "<h4>Pyrotest: " + String(falseTrue[datalayer_extended.tesla.pyroTestInProgress]) + "</h4>";
 #endif
 
 #ifdef NISSAN_LEAF_BATTERY
