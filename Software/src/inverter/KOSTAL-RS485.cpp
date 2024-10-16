@@ -17,7 +17,11 @@ static int8_t f2_startup_count = 0;
 
 static boolean B1_delay = false;
 static unsigned long B1_last_millis = 0;
-static  unsigned long currentMillis;
+static unsigned long currentMillis;
+static unsigned long startupMillis=0;
+static unsigned long contactorMillis=0;
+
+static boolean RX_allow = false;
 
 union f32b {
   float f;
@@ -198,10 +202,9 @@ void update_RS485_registers_inverter() {
     average_temperature_dC = 0;
   }
 
-  if (f2_startup_count>8)
+  if (datalayer.system.status.contactor_control_closed )
      {
      float2frame(frame2, (float)datalayer.battery.status.voltage_dV / 10, 6);  // Confirmed OK mapping
-     datalayer.system.status.inverter_allows_contactor_closing = true;
      frame2[0]=0x0A;
      }
   else
@@ -274,7 +277,32 @@ static uint8_t rx_index = 0;
 
 void receive_RS485()  // Runs as fast as possible to handle the serial stream
 {
+
   currentMillis = millis();
+
+
+  if(datalayer.system.status.contactor_control_closed & !contactorMillis)
+    {
+    contactorMillis=currentMillis;
+    }
+  if (currentMillis-contactorMillis >= 2000 & !RX_allow)
+    {
+    RX_allow=true;
+    }
+
+  if(((currentMillis-startupMillis) >= 2000 & currentMillis-startupMillis <=7000 )& datalayer.system.status.inverter_allows_contactor_closing)
+    {
+    // Disconnect allowed only, when curren zero
+    if (datalayer.battery.status.current_dA == 0)
+      {
+      datalayer.system.status.inverter_allows_contactor_closing = false;
+      }
+    }
+  else if(((currentMillis-startupMillis) >= 7000) & datalayer.system.status.inverter_allows_contactor_closing == false)
+    {
+      datalayer.system.status.inverter_allows_contactor_closing = true;
+    }
+
   if(B1_delay)
     {
     if ((currentMillis - B1_last_millis) >1000)
@@ -285,9 +313,11 @@ void receive_RS485()  // Runs as fast as possible to handle the serial stream
     }
   else if (Serial2.available()) {
     RS485_RXFRAME[rx_index] = Serial2.read();
-    rx_index++;
-    if (RS485_RXFRAME[rx_index - 1] == 0x00) {
-      if ((rx_index == 10) && (RS485_RXFRAME[0] == 0x09) && register_content_ok) {
+     if (RX_allow)
+     {
+      rx_index++;
+      if (RS485_RXFRAME[rx_index - 1] == 0x00) {
+        if ((rx_index == 10) && (RS485_RXFRAME[0] == 0x09) && register_content_ok) {
 #ifdef DEBUG_KOSTAL_RS485_DATA
         Serial.print("RX: ");
         for (uint8_t i = 0; i < 10; i++) {
@@ -321,11 +351,14 @@ void receive_RS485()  // Runs as fast as possible to handle the serial stream
           if (headerB && (RS485_RXFRAME[6] == 0x5E) && (RS485_RXFRAME[7] == 0x04)) {
             send_kostal(frame4, 8);
             // This needs more reverse engineering, disabled...
-            // datalayer.system.status.inverter_allows_contactor_closing = false;
           }
 
           if (headerA && (RS485_RXFRAME[6] == 0x4A) && (RS485_RXFRAME[7] == 0x08)) {  // "frame 1"
             send_kostal(frame1, 40);
+            if (!startupMillis)
+              {
+              startupMillis=currentMillis;
+              }
           }
           if (headerA && (RS485_RXFRAME[6] == 0x4A) && (RS485_RXFRAME[7] == 0x04)) {  // "frame 2"
             update_values_battery();
@@ -350,6 +383,7 @@ void receive_RS485()  // Runs as fast as possible to handle the serial stream
         }
       }
       rx_index = 0;
+     }
     }
     if (rx_index >= 10) {
       rx_index = 0;
