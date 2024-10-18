@@ -24,7 +24,7 @@ static unsigned long previousMillis1s = 0;     // will store last time a 1s CAN 
 static unsigned long previousMillis100ms = 0;  // will store last time a 100ms CAN Message was send
 static unsigned long previousMillis70ms = 0;   // will store last time a 70ms CAN Message was send
 static unsigned long previousMillis40ms = 0;   // will store last time a 40ms CAN Message was send
-static unsigned long previousMillis50ms = 0;     // will store last time a 50ms CAN Message was send
+static unsigned long previousMillis50ms = 0;   // will store last time a 50ms CAN Message was send
 static bool battery_awake = false;
 static bool toggle = false;
 static uint8_t counter_40ms = 0;
@@ -179,17 +179,19 @@ CAN_frame MEB_ACK_FRAME = {.FD = true,
                            .ID = 0x1C40007B,  // Ack
                            .data = {0x30, 0x00, 0x00, 0x55, 0x55, 0x55, 0x55, 0x55}};
 //Messages needed for contactor closing
-CAN_frame MEB_040 = {.FD = true, // Airbag
+CAN_frame MEB_040 = {.FD = true,  // Airbag
                      .ext_ID = false,
                      .DLC = 8,
-                     .ID = 0x040, //Frame5 has HV deactivate request. Needs to be 0x00
+                     .ID = 0x040,  //Frame5 has HV deactivate request. Needs to be 0x00
                      .data = {0x7E, 0x83, 0x00, 0x01, 0x00, 0x00, 0x15, 0x00}};
-                     //
-CAN_frame MEB_0C0 = {.FD = true, // 
-                     .ext_ID = false,
-                     .DLC = 32,
-                     .ID = 0x0C0, //
-                     .data = {0x77, 0x0A, 0xFE, 0xE7, 0x7F, 0x10, 0x27, 0x00, 0xE0, 0x7F, 0xFF, 0xF3, 0x3F, 0xFF, 0xF3, 0x3F, 0xFC, 0x0F, 0x00, 0x00, 0xC0, 0xFF, 0xFE, 0x07, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00}};
+//
+CAN_frame MEB_0C0 = {
+    .FD = true,  //
+    .ext_ID = false,
+    .DLC = 32,
+    .ID = 0x0C0,  //
+    .data = {0x77, 0x0A, 0xFE, 0xE7, 0x7F, 0x10, 0x27, 0x00, 0xE0, 0x7F, 0xFF, 0xF3, 0x3F, 0xFF, 0xF3, 0x3F,
+             0xFC, 0x0F, 0x00, 0x00, 0xC0, 0xFF, 0xFE, 0x07, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00}};
 CAN_frame MEB_0F7 = {.FD = true,
                      .ext_ID = false,
                      .DLC = 8,
@@ -215,7 +217,7 @@ CAN_frame MEB_5E7 = {.FD = true,
                      .DLC = 8,
                      .ID = 0x5E7,
                      .data = {0xFF, 0xFF, 0x0, 0x07, 0x03, 0x0, 0x0, 0x0}};
-CAN_frame MEB_6B2 = {.FD = true, // Diagnostics
+CAN_frame MEB_6B2 = {.FD = true,  // Diagnostics
                      .ext_ID = false,
                      .DLC = 8,
                      .ID = 0x6B2,
@@ -268,7 +270,8 @@ uint8_t vw_crc_calc(uint8_t* inputBytes, uint8_t length, uint16_t address) {
   // VAG Magic Bytes
   const uint8_t MB0040[16] = {0x40, 0x40, 0x40, 0x40, 0x40, 0x40, 0x40, 0x40,
                               0x40, 0x40, 0x40, 0x40, 0x40, 0x40, 0x40, 0x40};
-  const uint8_t MB00C0[16] = {0x2f,0x44,0x72,0xd3,0x07,0xf2,0x39,0x09,0x8d,0x6f,0x57,0x20,0x37,0xf9,0x9b,0xfa};
+  const uint8_t MB00C0[16] = {0x2f, 0x44, 0x72, 0xd3, 0x07, 0xf2, 0x39, 0x09,
+                              0x8d, 0x6f, 0x57, 0x20, 0x37, 0xf9, 0x9b, 0xfa};
   const uint8_t MB0097[16] = {0x3C, 0x54, 0xCF, 0xA3, 0x81, 0x93, 0x0B, 0xC7,
                               0x3E, 0xDF, 0x1C, 0xB0, 0xA7, 0x25, 0xD3, 0xD8};
   const uint8_t MB00F7[16] = {0x5F, 0xA0, 0x44, 0xD0, 0x63, 0x59, 0x5B, 0xA2,
@@ -446,14 +449,15 @@ void receive_can_battery(CAN_frame rx_frame) {
       //1 = communication after terminal 15 = OFF (run-on, cannot be woken up)
       //2 = communication when terminal 15 = OFF (run-on, can be woken up)
       bus_knockout_timer = rx_frame.data.u8[5];
-      hybrid_wakeup_reason = rx_frame.data.u8[6]; //(if several active, lowest wins)
+      hybrid_wakeup_reason = rx_frame.data.u8[6];  //(if several active, lowest wins)
       //0 = wakeup cause not known 1 = Bus wakeup2 = KL15 HW 3 = TPA active
       break;
     case 0x17FE007B:  // BMS - Offboard tester diag response
       break;
     case 0x1B00007B:  // BMS - 200ms
-      wakeup_type = ((rx_frame.data.u8[1] & 0x10) >> 4); //0 passive, SG has not woken up, 1 active, SG has woken up the network
-      instrumentation_cluster_request = ((rx_frame.data.u8[1] & 0x40) >> 6); //True/false
+      wakeup_type =
+          ((rx_frame.data.u8[1] & 0x10) >> 4);  //0 passive, SG has not woken up, 1 active, SG has woken up the network
+      instrumentation_cluster_request = ((rx_frame.data.u8[1] & 0x40) >> 6);  //True/false
       break;
     case 0x12DD54D0:  // BMS Limits 100ms
       datalayer.battery.status.CAN_battery_still_alive = CAN_STILL_ALIVE;
@@ -575,7 +579,7 @@ void receive_can_battery(CAN_frame rx_frame) {
           cellvoltages[40] = (((rx_frame.data.u8[62] & 0x0F) << 8) | rx_frame.data.u8[61]) + 1000;
           cellvoltages[41] = ((rx_frame.data.u8[63] << 4) | (rx_frame.data.u8[62] >> 4)) + 1000;
           break;
-        case 2: // Cellvoltages 43-84
+        case 2:  // Cellvoltages 43-84
           cellvoltages[42] = (((rx_frame.data.u8[2] & 0x0F) << 8) | rx_frame.data.u8[1]) + 1000;
           cellvoltages[43] = ((rx_frame.data.u8[3] << 4) | (rx_frame.data.u8[2] >> 4)) + 1000;
           cellvoltages[44] = (((rx_frame.data.u8[5] & 0x0F) << 8) | rx_frame.data.u8[4]) + 1000;
@@ -619,7 +623,7 @@ void receive_can_battery(CAN_frame rx_frame) {
           cellvoltages[82] = (((rx_frame.data.u8[62] & 0x0F) << 8) | rx_frame.data.u8[61]) + 1000;
           cellvoltages[83] = ((rx_frame.data.u8[63] << 4) | (rx_frame.data.u8[62] >> 4)) + 1000;
           break;
-        case 3: // Cellvoltages 85-126
+        case 3:  // Cellvoltages 85-126
           cellvoltages[84] = (((rx_frame.data.u8[2] & 0x0F) << 8) | rx_frame.data.u8[1]) + 1000;
           cellvoltages[85] = ((rx_frame.data.u8[3] << 4) | (rx_frame.data.u8[2] >> 4)) + 1000;
           cellvoltages[86] = (((rx_frame.data.u8[5] & 0x0F) << 8) | rx_frame.data.u8[4]) + 1000;
@@ -663,7 +667,7 @@ void receive_can_battery(CAN_frame rx_frame) {
           cellvoltages[124] = (((rx_frame.data.u8[62] & 0x0F) << 8) | rx_frame.data.u8[61]) + 1000;
           cellvoltages[125] = ((rx_frame.data.u8[63] << 4) | (rx_frame.data.u8[62] >> 4)) + 1000;
           break;
-        case 4: //Cellvoltages 127-160
+        case 4:  //Cellvoltages 127-160
           cellvoltages[126] = (((rx_frame.data.u8[2] & 0x0F) << 8) | rx_frame.data.u8[1]) + 1000;
           cellvoltages[127] = ((rx_frame.data.u8[3] << 4) | (rx_frame.data.u8[2] >> 4)) + 1000;
           cellvoltages[128] = (((rx_frame.data.u8[5] & 0x0F) << 8) | rx_frame.data.u8[4]) + 1000;
@@ -699,7 +703,7 @@ void receive_can_battery(CAN_frame rx_frame) {
           cellvoltages[158] = (((rx_frame.data.u8[50] & 0x0F) << 8) | rx_frame.data.u8[49]) + 1000;
           cellvoltages[159] = ((rx_frame.data.u8[51] << 4) | (rx_frame.data.u8[50] >> 4)) + 1000;
           break;
-        default: //Invalid mux
+        default:  //Invalid mux
           //TODO: Add corrupted CAN message counter tick?
           break;
       }
@@ -729,12 +733,12 @@ void receive_can_battery(CAN_frame rx_frame) {
       realtime_cell_overvoltage_warning = ((rx_frame.data.u8[7] & 0x03) << 1) | rx_frame.data.u8[6] >> 7;
       realtime_cell_undervoltage_warning = (rx_frame.data.u8[7] & 0x1C) >> 2;
       realtime_cell_imbalance_warning = (rx_frame.data.u8[7] & 0xE0) >> 5;
-      for (uint8_t i = 0; i < 26; i++) { // Frame 9 to 34 is S/N for battery
-       battery_serialnumber[i] = rx_frame.data.u8[i + 9];
+      for (uint8_t i = 0; i < 26; i++) {  // Frame 9 to 34 is S/N for battery
+        battery_serialnumber[i] = rx_frame.data.u8[i + 9];
       }
-      realtime_warning_battery_unathorized = (rx_frame.data.u8[40] & 0x07); 
+      realtime_warning_battery_unathorized = (rx_frame.data.u8[40] & 0x07);
       break;
-    case 0x2AF:                                         // BMS 50ms
+    case 0x2AF:                                                                            // BMS 50ms
       actual_battery_voltage = ((rx_frame.data.u8[1] & 0x3F) << 8) | rx_frame.data.u8[0];  //*0.0625
       regen_battery = ((rx_frame.data.u8[5] & 0x7F) << 8) | rx_frame.data.u8[4];
       energy_extracted_from_battery = ((rx_frame.data.u8[7] & 0x7F) << 8) | rx_frame.data.u8[6];
@@ -1829,7 +1833,7 @@ void send_can_battery() {
   if (currentMillis - previousMillis1s >= INTERVAL_1_S) {
     previousMillis1s = currentMillis;
     transmit_can(&MEB_1A555564, can_config.battery);
-    transmit_can(&MEB_6B2, can_config.battery); // Diagnostics - Needed for contactor closing
+    transmit_can(&MEB_6B2, can_config.battery);  // Diagnostics - Needed for contactor closing
   }
 }
 
