@@ -8,6 +8,7 @@
 
 /*
 TODO list
+- Should 0x### length CAN message IDs have extended or not? .ext_ID true/false?
 - Get contactors closing
 - What CAN messages needs to be sent towards the battery to keep it alive
 - Check value mappings on the PID polls
@@ -23,9 +24,11 @@ static unsigned long previousMillis1s = 0;     // will store last time a 1s CAN 
 static unsigned long previousMillis100ms = 0;  // will store last time a 100ms CAN Message was send
 static unsigned long previousMillis70ms = 0;   // will store last time a 70ms CAN Message was send
 static unsigned long previousMillis40ms = 0;   // will store last time a 40ms CAN Message was send
+static unsigned long previousMillis50ms = 0;     // will store last time a 50ms CAN Message was send
 static bool battery_awake = false;
 static bool toggle = false;
 static uint8_t counter_40ms = 0;
+static uint8_t counter_50ms = 0;
 static uint8_t counter_10ms = 0;
 static uint8_t counter_040 = 0;
 static uint8_t counter_0F7 = 0;
@@ -48,10 +51,12 @@ static uint8_t BMS_5A2_CRC = 0;
 static uint8_t BMS_5CA_CRC = 0;
 static uint8_t BMS_0CF_CRC = 0;
 static uint8_t BMS_578_CRC = 0;
+static uint8_t BMS_0C0_CRC = 0;
 static uint8_t BMS_16A954A6_CRC = 0;
 static uint8_t BMS_5A2_counter = 0;
 static uint8_t BMS_5CA_counter = 0;
 static uint8_t BMS_0CF_counter = 0;
+static uint8_t BMS_0C0_counter = 0;
 static uint8_t BMS_578_counter = 0;
 static uint8_t BMS_16A954A6_counter = 0;
 static bool BMS_fault_status_contactor = false;
@@ -134,6 +139,34 @@ static uint8_t predicted_time_dyn_standard_minutes = 0;
 static uint8_t mux = 0;
 static int8_t celltemperature[56] = {0};  //Temperatures 1-56. Value is 0xFD if sensor not present
 static uint16_t cellvoltages[160] = {0};
+static uint16_t duration_discharge_power_watt = 0;
+static uint16_t duration_charge_power_watt = 0;
+static uint16_t maximum_voltage = 0;
+static uint16_t minimum_voltage = 0;
+static uint8_t battery_serialnumber[26];
+static uint8_t realtime_overcurrent_monitor = 0;
+static uint8_t realtime_CAN_communication_fault = 0;
+static uint8_t realtime_overcharge_warning = 0;
+static uint8_t realtime_SOC_too_high = 0;
+static uint8_t realtime_SOC_too_low = 0;
+static uint8_t realtime_SOC_jumping_warning = 0;
+static uint8_t realtime_temperature_difference_warning = 0;
+static uint8_t realtime_cell_overtemperature_warning = 0;
+static uint8_t realtime_cell_undertemperature_warning = 0;
+static uint8_t realtime_battery_overvoltage_warning = 0;
+static uint8_t realtime_battery_undervoltage_warning = 0;
+static uint8_t realtime_cell_overvoltage_warning = 0;
+static uint8_t realtime_cell_undervoltage_warning = 0;
+static uint8_t realtime_cell_imbalance_warning = 0;
+static uint8_t realtime_warning_battery_unathorized = 0;
+static bool component_protection_active = false;
+static bool shutdown_active = false;
+static bool transportation_mode_active = false;
+static uint8_t KL15_mode = 0;
+static uint8_t bus_knockout_timer = 0;
+static uint8_t hybrid_wakeup_reason = 0;
+static uint8_t wakeup_type = 0;
+static bool instrumentation_cluster_request = false;
 
 CAN_frame MEB_POLLING_FRAME = {.FD = true,
                                .ext_ID = true,
@@ -145,37 +178,48 @@ CAN_frame MEB_ACK_FRAME = {.FD = true,
                            .DLC = 8,
                            .ID = 0x1C40007B,  // Ack
                            .data = {0x30, 0x00, 0x00, 0x55, 0x55, 0x55, 0x55, 0x55}};
-//Messages that might be needed for contactor closing
-CAN_frame MEB_040 = {.FD = true,
-                     .ext_ID = true,
+//Messages needed for contactor closing
+CAN_frame MEB_040 = {.FD = true, // Airbag
+                     .ext_ID = false,
                      .DLC = 8,
-                     .ID = 0x040,
+                     .ID = 0x040, //Frame5 has HV deactivate request. Needs to be 0x00
                      .data = {0x7E, 0x83, 0x00, 0x01, 0x00, 0x00, 0x15, 0x00}};
+                     //
+CAN_frame MEB_0C0 = {.FD = true, // 
+                     .ext_ID = false,
+                     .DLC = 32,
+                     .ID = 0x0C0, //
+                     .data = {0x77, 0x0A, 0xFE, 0xE7, 0x7F, 0x10, 0x27, 0x00, 0xE0, 0x7F, 0xFF, 0xF3, 0x3F, 0xFF, 0xF3, 0x3F, 0xFC, 0x0F, 0x00, 0x00, 0xC0, 0xFF, 0xFE, 0x07, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00}};
 CAN_frame MEB_0F7 = {.FD = true,
-                     .ext_ID = true,
+                     .ext_ID = false,
                      .DLC = 8,
                      .ID = 0x0F7,
                      .data = {0x73, 0x00, 0x00, 0x00, 0x20, 0xF0, 0x1F, 0x64}};
 CAN_frame MEB_3B5 = {.FD = true,
-                     .ext_ID = true,
+                     .ext_ID = false,
                      .DLC = 8,
                      .ID = 0x3B5,
                      .data = {0x00, 0xFE, 0x00, 0x00, 0x0C, 0x00, 0x20, 0x00}};
 CAN_frame MEB_3E9 = {.FD = true,
-                     .ext_ID = true,
+                     .ext_ID = false,
                      .DLC = 8,
                      .ID = 0x3E9,
                      .data = {0x04, 0x3F, 0xE0, 0x03, 0x00, 0x00, 0xF0, 0xC7}};
 CAN_frame MEB_530 = {.FD = true,
-                     .ext_ID = true,
+                     .ext_ID = false,
                      .DLC = 8,
                      .ID = 0x530,
                      .data = {0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0}};
 CAN_frame MEB_5E7 = {.FD = true,
-                     .ext_ID = true,
+                     .ext_ID = false,
                      .DLC = 8,
                      .ID = 0x5E7,
                      .data = {0xFF, 0xFF, 0x0, 0x07, 0x03, 0x0, 0x0, 0x0}};
+CAN_frame MEB_6B2 = {.FD = true, // Diagnostics
+                     .ext_ID = false,
+                     .DLC = 8,
+                     .ID = 0x6B2,
+                     .data = {0x6A, 0xA7, 0x37, 0x80, 0xC9, 0xBD, 0xF6, 0xC2}};
 CAN_frame MEB_17FC007B_poll = {.FD = true,
                                .ext_ID = true,
                                .DLC = 8,
@@ -224,6 +268,7 @@ uint8_t vw_crc_calc(uint8_t* inputBytes, uint8_t length, uint16_t address) {
   // VAG Magic Bytes
   const uint8_t MB0040[16] = {0x40, 0x40, 0x40, 0x40, 0x40, 0x40, 0x40, 0x40,
                               0x40, 0x40, 0x40, 0x40, 0x40, 0x40, 0x40, 0x40};
+  const uint8_t MB00C0[16] = {0x2f,0x44,0x72,0xd3,0x07,0xf2,0x39,0x09,0x8d,0x6f,0x57,0x20,0x37,0xf9,0x9b,0xfa};
   const uint8_t MB0097[16] = {0x3C, 0x54, 0xCF, 0xA3, 0x81, 0x93, 0x0B, 0xC7,
                               0x3E, 0xDF, 0x1C, 0xB0, 0xA7, 0x25, 0xD3, 0xD8};
   const uint8_t MB00F7[16] = {0x5F, 0xA0, 0x44, 0xD0, 0x63, 0x59, 0x5B, 0xA2,
@@ -254,6 +299,9 @@ uint8_t vw_crc_calc(uint8_t* inputBytes, uint8_t length, uint16_t address) {
   switch (address) {
     case 0x0040:  // Airbag
       magicByte = MB0040[counter];
+      break;
+    case 0x00C0:  //
+      magicByte = MB00C0[counter];
       break;
     case 0x0097:  // ??
       magicByte = MB0097[counter];
@@ -389,21 +437,23 @@ void update_values_battery() {  //This function maps all the values fetched via 
 void receive_can_battery(CAN_frame rx_frame) {
   battery_awake = true;
   switch (rx_frame.ID) {
-    case 0x17F0007B:  // Suspected to be from BMS
+    case 0x17F0007B:  // BMS 500ms
+      component_protection_active = (rx_frame.data.u8[0] & 0x01);
+      shutdown_active = ((rx_frame.data.u8[0] & 0x02) >> 1);
+      transportation_mode_active = ((rx_frame.data.u8[0] & 0x02) >> 1);
+      KL15_mode = ((rx_frame.data.u8[0] & 0xF0) >> 4);
+      //0 = communication only when terminal 15 = ON (no run-on, cannot be woken up)
+      //1 = communication after terminal 15 = OFF (run-on, cannot be woken up)
+      //2 = communication when terminal 15 = OFF (run-on, can be woken up)
+      bus_knockout_timer = rx_frame.data.u8[5];
+      hybrid_wakeup_reason = rx_frame.data.u8[6]; //(if several active, lowest wins)
+      //0 = wakeup cause not known 1 = Bus wakeup2 = KL15 HW 3 = TPA active
       break;
-    case 0x17FE007B:  // BMS - Handshake?
-      //If the message is (10 08 62 1E 3D 00 02 49)
-      //We reply with
-      //17FC007B  [08]  30 00 01 55 55 55 55 55
-      //If the message is (21 F0 34 AA AA AA AA AA)
-      //We do not need to send anything
-      if (rx_frame.data.u8[7] == 0xAA) {
-        // Do nothing
-      } else {
-        transmit_can(&MEB_17FC007B_reply, can_config.battery);
-      }
+    case 0x17FE007B:  // BMS - Offboard tester diag response
       break;
-    case 0x1B00007B:  // Suspected to be from BMS
+    case 0x1B00007B:  // BMS - 200ms
+      wakeup_type = ((rx_frame.data.u8[1] & 0x10) >> 4); //0 passive, SG has not woken up, 1 active, SG has woken up the network
+      instrumentation_cluster_request = ((rx_frame.data.u8[1] & 0x40) >> 6); //True/false
       break;
     case 0x12DD54D0:  // BMS Limits 100ms
       datalayer.battery.status.CAN_battery_still_alive = CAN_STILL_ALIVE;
@@ -525,23 +575,166 @@ void receive_can_battery(CAN_frame rx_frame) {
           cellvoltages[40] = (((rx_frame.data.u8[62] & 0x0F) << 8) | rx_frame.data.u8[61]) + 1000;
           cellvoltages[41] = ((rx_frame.data.u8[63] << 4) | (rx_frame.data.u8[62] >> 4)) + 1000;
           break;
-        case 2:
+        case 2: // Cellvoltages 43-84
+          cellvoltages[42] = (((rx_frame.data.u8[2] & 0x0F) << 8) | rx_frame.data.u8[1]) + 1000;
+          cellvoltages[43] = ((rx_frame.data.u8[3] << 4) | (rx_frame.data.u8[2] >> 4)) + 1000;
+          cellvoltages[44] = (((rx_frame.data.u8[5] & 0x0F) << 8) | rx_frame.data.u8[4]) + 1000;
+          cellvoltages[45] = ((rx_frame.data.u8[6] << 4) | (rx_frame.data.u8[5] >> 4)) + 1000;
+          cellvoltages[46] = (((rx_frame.data.u8[8] & 0x0F) << 8) | rx_frame.data.u8[7]) + 1000;
+          cellvoltages[47] = ((rx_frame.data.u8[9] << 4) | (rx_frame.data.u8[8] >> 4)) + 1000;
+          cellvoltages[48] = (((rx_frame.data.u8[11] & 0x0F) << 8) | rx_frame.data.u8[10]) + 1000;
+          cellvoltages[49] = ((rx_frame.data.u8[12] << 4) | (rx_frame.data.u8[11] >> 4)) + 1000;
+          cellvoltages[50] = (((rx_frame.data.u8[14] & 0x0F) << 8) | rx_frame.data.u8[13]) + 1000;
+          cellvoltages[51] = ((rx_frame.data.u8[15] << 4) | (rx_frame.data.u8[14] >> 4)) + 1000;
+          cellvoltages[52] = (((rx_frame.data.u8[17] & 0x0F) << 8) | rx_frame.data.u8[16]) + 1000;
+          cellvoltages[53] = ((rx_frame.data.u8[18] << 4) | (rx_frame.data.u8[17] >> 4)) + 1000;
+          cellvoltages[54] = (((rx_frame.data.u8[20] & 0x0F) << 8) | rx_frame.data.u8[19]) + 1000;
+          cellvoltages[55] = ((rx_frame.data.u8[21] << 4) | (rx_frame.data.u8[20] >> 4)) + 1000;
+          cellvoltages[56] = (((rx_frame.data.u8[23] & 0x0F) << 8) | rx_frame.data.u8[22]) + 1000;
+          cellvoltages[57] = ((rx_frame.data.u8[24] << 4) | (rx_frame.data.u8[23] >> 4)) + 1000;
+          cellvoltages[58] = (((rx_frame.data.u8[26] & 0x0F) << 8) | rx_frame.data.u8[25]) + 1000;
+          cellvoltages[59] = ((rx_frame.data.u8[27] << 4) | (rx_frame.data.u8[26] >> 4)) + 1000;
+          cellvoltages[60] = (((rx_frame.data.u8[29] & 0x0F) << 8) | rx_frame.data.u8[28]) + 1000;
+          cellvoltages[61] = ((rx_frame.data.u8[30] << 4) | (rx_frame.data.u8[29] >> 4)) + 1000;
+          cellvoltages[62] = (((rx_frame.data.u8[32] & 0x0F) << 8) | rx_frame.data.u8[31]) + 1000;
+          cellvoltages[63] = ((rx_frame.data.u8[33] << 4) | (rx_frame.data.u8[32] >> 4)) + 1000;
+          cellvoltages[64] = (((rx_frame.data.u8[35] & 0x0F) << 8) | rx_frame.data.u8[34]) + 1000;
+          cellvoltages[65] = ((rx_frame.data.u8[36] << 4) | (rx_frame.data.u8[35] >> 4)) + 1000;
+          cellvoltages[66] = (((rx_frame.data.u8[38] & 0x0F) << 8) | rx_frame.data.u8[37]) + 1000;
+          cellvoltages[67] = ((rx_frame.data.u8[39] << 4) | (rx_frame.data.u8[38] >> 4)) + 1000;
+          cellvoltages[68] = (((rx_frame.data.u8[41] & 0x0F) << 8) | rx_frame.data.u8[40]) + 1000;
+          cellvoltages[69] = ((rx_frame.data.u8[42] << 4) | (rx_frame.data.u8[41] >> 4)) + 1000;
+          cellvoltages[70] = (((rx_frame.data.u8[44] & 0x0F) << 8) | rx_frame.data.u8[43]) + 1000;
+          cellvoltages[71] = ((rx_frame.data.u8[45] << 4) | (rx_frame.data.u8[44] >> 4)) + 1000;
+          cellvoltages[72] = (((rx_frame.data.u8[47] & 0x0F) << 8) | rx_frame.data.u8[46]) + 1000;
+          cellvoltages[73] = ((rx_frame.data.u8[48] << 4) | (rx_frame.data.u8[47] >> 4)) + 1000;
+          cellvoltages[74] = (((rx_frame.data.u8[50] & 0x0F) << 8) | rx_frame.data.u8[49]) + 1000;
+          cellvoltages[75] = ((rx_frame.data.u8[51] << 4) | (rx_frame.data.u8[50] >> 4)) + 1000;
+          cellvoltages[76] = (((rx_frame.data.u8[53] & 0x0F) << 8) | rx_frame.data.u8[52]) + 1000;
+          cellvoltages[77] = ((rx_frame.data.u8[54] << 4) | (rx_frame.data.u8[53] >> 4)) + 1000;
+          cellvoltages[78] = (((rx_frame.data.u8[56] & 0x0F) << 8) | rx_frame.data.u8[55]) + 1000;
+          cellvoltages[79] = ((rx_frame.data.u8[57] << 4) | (rx_frame.data.u8[56] >> 4)) + 1000;
+          cellvoltages[80] = (((rx_frame.data.u8[59] & 0x0F) << 8) | rx_frame.data.u8[58]) + 1000;
+          cellvoltages[81] = ((rx_frame.data.u8[60] << 4) | (rx_frame.data.u8[59] >> 4)) + 1000;
+          cellvoltages[82] = (((rx_frame.data.u8[62] & 0x0F) << 8) | rx_frame.data.u8[61]) + 1000;
+          cellvoltages[83] = ((rx_frame.data.u8[63] << 4) | (rx_frame.data.u8[62] >> 4)) + 1000;
           break;
-        case 3:
+        case 3: // Cellvoltages 85-126
+          cellvoltages[84] = (((rx_frame.data.u8[2] & 0x0F) << 8) | rx_frame.data.u8[1]) + 1000;
+          cellvoltages[85] = ((rx_frame.data.u8[3] << 4) | (rx_frame.data.u8[2] >> 4)) + 1000;
+          cellvoltages[86] = (((rx_frame.data.u8[5] & 0x0F) << 8) | rx_frame.data.u8[4]) + 1000;
+          cellvoltages[87] = ((rx_frame.data.u8[6] << 4) | (rx_frame.data.u8[5] >> 4)) + 1000;
+          cellvoltages[88] = (((rx_frame.data.u8[8] & 0x0F) << 8) | rx_frame.data.u8[7]) + 1000;
+          cellvoltages[89] = ((rx_frame.data.u8[9] << 4) | (rx_frame.data.u8[8] >> 4)) + 1000;
+          cellvoltages[90] = (((rx_frame.data.u8[11] & 0x0F) << 8) | rx_frame.data.u8[10]) + 1000;
+          cellvoltages[91] = ((rx_frame.data.u8[12] << 4) | (rx_frame.data.u8[11] >> 4)) + 1000;
+          cellvoltages[92] = (((rx_frame.data.u8[14] & 0x0F) << 8) | rx_frame.data.u8[13]) + 1000;
+          cellvoltages[93] = ((rx_frame.data.u8[15] << 4) | (rx_frame.data.u8[14] >> 4)) + 1000;
+          cellvoltages[94] = (((rx_frame.data.u8[17] & 0x0F) << 8) | rx_frame.data.u8[16]) + 1000;
+          cellvoltages[95] = ((rx_frame.data.u8[18] << 4) | (rx_frame.data.u8[17] >> 4)) + 1000;
+          cellvoltages[96] = (((rx_frame.data.u8[20] & 0x0F) << 8) | rx_frame.data.u8[19]) + 1000;
+          cellvoltages[97] = ((rx_frame.data.u8[21] << 4) | (rx_frame.data.u8[20] >> 4)) + 1000;
+          cellvoltages[98] = (((rx_frame.data.u8[23] & 0x0F) << 8) | rx_frame.data.u8[22]) + 1000;
+          cellvoltages[99] = ((rx_frame.data.u8[24] << 4) | (rx_frame.data.u8[23] >> 4)) + 1000;
+          cellvoltages[100] = (((rx_frame.data.u8[26] & 0x0F) << 8) | rx_frame.data.u8[25]) + 1000;
+          cellvoltages[101] = ((rx_frame.data.u8[27] << 4) | (rx_frame.data.u8[26] >> 4)) + 1000;
+          cellvoltages[102] = (((rx_frame.data.u8[29] & 0x0F) << 8) | rx_frame.data.u8[28]) + 1000;
+          cellvoltages[103] = ((rx_frame.data.u8[30] << 4) | (rx_frame.data.u8[29] >> 4)) + 1000;
+          cellvoltages[104] = (((rx_frame.data.u8[32] & 0x0F) << 8) | rx_frame.data.u8[31]) + 1000;
+          cellvoltages[105] = ((rx_frame.data.u8[33] << 4) | (rx_frame.data.u8[32] >> 4)) + 1000;
+          cellvoltages[106] = (((rx_frame.data.u8[35] & 0x0F) << 8) | rx_frame.data.u8[34]) + 1000;
+          cellvoltages[107] = ((rx_frame.data.u8[36] << 4) | (rx_frame.data.u8[35] >> 4)) + 1000;
+          cellvoltages[108] = (((rx_frame.data.u8[38] & 0x0F) << 8) | rx_frame.data.u8[37]) + 1000;
+          cellvoltages[109] = ((rx_frame.data.u8[39] << 4) | (rx_frame.data.u8[38] >> 4)) + 1000;
+          cellvoltages[110] = (((rx_frame.data.u8[41] & 0x0F) << 8) | rx_frame.data.u8[40]) + 1000;
+          cellvoltages[111] = ((rx_frame.data.u8[42] << 4) | (rx_frame.data.u8[41] >> 4)) + 1000;
+          cellvoltages[112] = (((rx_frame.data.u8[44] & 0x0F) << 8) | rx_frame.data.u8[43]) + 1000;
+          cellvoltages[113] = ((rx_frame.data.u8[45] << 4) | (rx_frame.data.u8[44] >> 4)) + 1000;
+          cellvoltages[114] = (((rx_frame.data.u8[47] & 0x0F) << 8) | rx_frame.data.u8[46]) + 1000;
+          cellvoltages[115] = ((rx_frame.data.u8[48] << 4) | (rx_frame.data.u8[47] >> 4)) + 1000;
+          cellvoltages[116] = (((rx_frame.data.u8[50] & 0x0F) << 8) | rx_frame.data.u8[49]) + 1000;
+          cellvoltages[117] = ((rx_frame.data.u8[51] << 4) | (rx_frame.data.u8[50] >> 4)) + 1000;
+          cellvoltages[118] = (((rx_frame.data.u8[53] & 0x0F) << 8) | rx_frame.data.u8[52]) + 1000;
+          cellvoltages[119] = ((rx_frame.data.u8[54] << 4) | (rx_frame.data.u8[53] >> 4)) + 1000;
+          cellvoltages[120] = (((rx_frame.data.u8[56] & 0x0F) << 8) | rx_frame.data.u8[55]) + 1000;
+          cellvoltages[121] = ((rx_frame.data.u8[57] << 4) | (rx_frame.data.u8[56] >> 4)) + 1000;
+          cellvoltages[122] = (((rx_frame.data.u8[59] & 0x0F) << 8) | rx_frame.data.u8[58]) + 1000;
+          cellvoltages[123] = ((rx_frame.data.u8[60] << 4) | (rx_frame.data.u8[59] >> 4)) + 1000;
+          cellvoltages[124] = (((rx_frame.data.u8[62] & 0x0F) << 8) | rx_frame.data.u8[61]) + 1000;
+          cellvoltages[125] = ((rx_frame.data.u8[63] << 4) | (rx_frame.data.u8[62] >> 4)) + 1000;
           break;
-        case 4:
+        case 4: //Cellvoltages 127-160
+          cellvoltages[126] = (((rx_frame.data.u8[2] & 0x0F) << 8) | rx_frame.data.u8[1]) + 1000;
+          cellvoltages[127] = ((rx_frame.data.u8[3] << 4) | (rx_frame.data.u8[2] >> 4)) + 1000;
+          cellvoltages[128] = (((rx_frame.data.u8[5] & 0x0F) << 8) | rx_frame.data.u8[4]) + 1000;
+          cellvoltages[129] = ((rx_frame.data.u8[6] << 4) | (rx_frame.data.u8[5] >> 4)) + 1000;
+          cellvoltages[130] = (((rx_frame.data.u8[8] & 0x0F) << 8) | rx_frame.data.u8[7]) + 1000;
+          cellvoltages[131] = ((rx_frame.data.u8[9] << 4) | (rx_frame.data.u8[8] >> 4)) + 1000;
+          cellvoltages[132] = (((rx_frame.data.u8[11] & 0x0F) << 8) | rx_frame.data.u8[10]) + 1000;
+          cellvoltages[133] = ((rx_frame.data.u8[12] << 4) | (rx_frame.data.u8[11] >> 4)) + 1000;
+          cellvoltages[134] = (((rx_frame.data.u8[14] & 0x0F) << 8) | rx_frame.data.u8[13]) + 1000;
+          cellvoltages[135] = ((rx_frame.data.u8[15] << 4) | (rx_frame.data.u8[14] >> 4)) + 1000;
+          cellvoltages[136] = (((rx_frame.data.u8[17] & 0x0F) << 8) | rx_frame.data.u8[16]) + 1000;
+          cellvoltages[137] = ((rx_frame.data.u8[18] << 4) | (rx_frame.data.u8[17] >> 4)) + 1000;
+          cellvoltages[138] = (((rx_frame.data.u8[20] & 0x0F) << 8) | rx_frame.data.u8[19]) + 1000;
+          cellvoltages[139] = ((rx_frame.data.u8[21] << 4) | (rx_frame.data.u8[20] >> 4)) + 1000;
+          cellvoltages[140] = (((rx_frame.data.u8[23] & 0x0F) << 8) | rx_frame.data.u8[22]) + 1000;
+          cellvoltages[141] = ((rx_frame.data.u8[24] << 4) | (rx_frame.data.u8[23] >> 4)) + 1000;
+          cellvoltages[142] = (((rx_frame.data.u8[26] & 0x0F) << 8) | rx_frame.data.u8[25]) + 1000;
+          cellvoltages[143] = ((rx_frame.data.u8[27] << 4) | (rx_frame.data.u8[26] >> 4)) + 1000;
+          cellvoltages[144] = (((rx_frame.data.u8[29] & 0x0F) << 8) | rx_frame.data.u8[28]) + 1000;
+          cellvoltages[145] = ((rx_frame.data.u8[30] << 4) | (rx_frame.data.u8[29] >> 4)) + 1000;
+          cellvoltages[146] = (((rx_frame.data.u8[32] & 0x0F) << 8) | rx_frame.data.u8[31]) + 1000;
+          cellvoltages[147] = ((rx_frame.data.u8[33] << 4) | (rx_frame.data.u8[32] >> 4)) + 1000;
+          cellvoltages[148] = (((rx_frame.data.u8[35] & 0x0F) << 8) | rx_frame.data.u8[34]) + 1000;
+          cellvoltages[149] = ((rx_frame.data.u8[36] << 4) | (rx_frame.data.u8[35] >> 4)) + 1000;
+          cellvoltages[150] = (((rx_frame.data.u8[38] & 0x0F) << 8) | rx_frame.data.u8[37]) + 1000;
+          cellvoltages[151] = ((rx_frame.data.u8[39] << 4) | (rx_frame.data.u8[38] >> 4)) + 1000;
+          cellvoltages[152] = (((rx_frame.data.u8[41] & 0x0F) << 8) | rx_frame.data.u8[40]) + 1000;
+          cellvoltages[153] = ((rx_frame.data.u8[42] << 4) | (rx_frame.data.u8[41] >> 4)) + 1000;
+          cellvoltages[154] = (((rx_frame.data.u8[44] & 0x0F) << 8) | rx_frame.data.u8[43]) + 1000;
+          cellvoltages[155] = ((rx_frame.data.u8[45] << 4) | (rx_frame.data.u8[44] >> 4)) + 1000;
+          cellvoltages[156] = (((rx_frame.data.u8[47] & 0x0F) << 8) | rx_frame.data.u8[46]) + 1000;
+          cellvoltages[157] = ((rx_frame.data.u8[48] << 4) | (rx_frame.data.u8[47] >> 4)) + 1000;
+          cellvoltages[158] = (((rx_frame.data.u8[50] & 0x0F) << 8) | rx_frame.data.u8[49]) + 1000;
+          cellvoltages[159] = ((rx_frame.data.u8[51] << 4) | (rx_frame.data.u8[50] >> 4)) + 1000;
           break;
-        default:
+        default: //Invalid mux
+          //TODO: Add corrupted CAN message counter tick?
           break;
       }
       break;
-    case 0x1C42017B:  // BMS
+    case 0x1C42017B:  // BMS - Non-Cyclic, TP_ISO
+      //hybrid_01_response_fd_data (Whole frame)
       break;
-    case 0x1A5555B0:  // BMS
+    case 0x1A5555B0:  // BMS 1000ms cyclic
+      duration_discharge_power_watt = ((rx_frame.data.u8[6] & 0x0F) << 8) | rx_frame.data.u8[5];
+      duration_charge_power_watt = (rx_frame.data.u8[7] << 4) | rx_frame.data.u8[6] >> 4;
+      maximum_voltage = ((rx_frame.data.u8[3] & 0x3F) << 4) | rx_frame.data.u8[2] >> 4;
+      minimum_voltage = (rx_frame.data.u8[4] << 2) | rx_frame.data.u8[3] >> 6;
       break;
-    case 0x1A5555B1:  // BMS 1000ms
+    case 0x1A5555B1:  // BMS 1000ms cyclic
+      // All realtime_ have same enumeration, 0 = no fault, 1 = error level 1, 2 error level 2, 3 error level 3
+      realtime_overcurrent_monitor = ((rx_frame.data.u8[3] & 0x01) << 2) | rx_frame.data.u8[2] >> 6;
+      realtime_CAN_communication_fault = (rx_frame.data.u8[3] & 0x0F) >> 1;
+      realtime_overcharge_warning = (rx_frame.data.u8[3] & 0x70) >> 4;
+      realtime_SOC_too_high = ((rx_frame.data.u8[4] & 0x03) << 1) | rx_frame.data.u8[3] >> 7;
+      realtime_SOC_too_low = (rx_frame.data.u8[4] & 0x1C) >> 2;
+      realtime_SOC_jumping_warning = (rx_frame.data.u8[4] & 0xE0) >> 5;
+      realtime_temperature_difference_warning = rx_frame.data.u8[5] & 0x07;
+      realtime_cell_overtemperature_warning = (rx_frame.data.u8[5] & 0x38) >> 3;
+      realtime_cell_undertemperature_warning = ((rx_frame.data.u8[6] & 0x01) << 2) | rx_frame.data.u8[5] >> 6;
+      realtime_battery_overvoltage_warning = (rx_frame.data.u8[6] & 0x0E) >> 1;
+      realtime_battery_undervoltage_warning = (rx_frame.data.u8[6] & 0x70) >> 4;
+      realtime_cell_overvoltage_warning = ((rx_frame.data.u8[7] & 0x03) << 1) | rx_frame.data.u8[6] >> 7;
+      realtime_cell_undervoltage_warning = (rx_frame.data.u8[7] & 0x1C) >> 2;
+      realtime_cell_imbalance_warning = (rx_frame.data.u8[7] & 0xE0) >> 5;
+      for (uint8_t i = 0; i < 26; i++) { // Frame 9 to 34 is S/N for battery
+       battery_serialnumber[i] = rx_frame.data.u8[i + 9];
+      }
+      realtime_warning_battery_unathorized = (rx_frame.data.u8[40] & 0x07); 
       break;
-    case 0x2AF:                                                                            // BMS 50ms
+    case 0x2AF:                                         // BMS 50ms
       actual_battery_voltage = ((rx_frame.data.u8[1] & 0x3F) << 8) | rx_frame.data.u8[0];  //*0.0625
       regen_battery = ((rx_frame.data.u8[5] & 0x7F) << 8) | rx_frame.data.u8[4];
       energy_extracted_from_battery = ((rx_frame.data.u8[7] & 0x7F) << 8) | rx_frame.data.u8[6];
@@ -1085,7 +1278,8 @@ void send_can_battery() {
   if (currentMillis - previousMillis40ms >= INTERVAL_40_MS) {
     previousMillis40ms = currentMillis;
 
-    /* Handle content for 0x040 message*/
+    /* Handle content for 0x040 message */
+    /* Airbag message, needed for BMS to function */
     MEB_040.data.u8[7] = counter_040;
     MEB_040.data.u8[1] = ((MEB_040.data.u8[1] & 0xF0) | counter_40ms);
     MEB_040.data.u8[0] = vw_crc_calc(MEB_040.data.u8, MEB_040.DLC, MEB_040.ID);
@@ -1095,7 +1289,20 @@ void send_can_battery() {
     }
     toggle = !toggle;  // Flip the toggle each time the code block is executed
 
-    transmit_can(&MEB_040, can_config.battery);  // Airbag message
+    transmit_can(&MEB_040, can_config.battery);  // Airbag message - Needed for contactor closing
+  }
+  // Send 50ms CAN Message
+  if (currentMillis - previousMillis50ms >= INTERVAL_50_MS) {
+    previousMillis50ms = currentMillis;
+
+    /* Handle content for 0x0C0 message */
+    /* BMS needs to see this EM1 message. Content located in frame5&6 especially (can be static)*/
+    /* Also the voltage seen externally to battery is in frame 7&8, we maybe need to set this also? TODO */
+    MEB_0C0.data.u8[1] = ((MEB_0C0.data.u8[1] & 0xF0) | counter_50ms);
+    MEB_0C0.data.u8[0] = vw_crc_calc(MEB_0C0.data.u8, MEB_0C0.DLC, MEB_0C0.ID);
+    counter_50ms = (counter_50ms + 1) % 16;  //Goes from 0-1-2-3...15-0-1-2-3..
+
+    transmit_can(&MEB_0C0, can_config.battery);  //  Needed for contactor closing
   }
   // Send 70ms CAN Message
   if (currentMillis - previousMillis70ms >= INTERVAL_70_MS) {
@@ -1622,6 +1829,7 @@ void send_can_battery() {
   if (currentMillis - previousMillis1s >= INTERVAL_1_S) {
     previousMillis1s = currentMillis;
     transmit_can(&MEB_1A555564, can_config.battery);
+    transmit_can(&MEB_6B2, can_config.battery); // Diagnostics - Needed for contactor closing
   }
 }
 
