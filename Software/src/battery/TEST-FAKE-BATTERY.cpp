@@ -22,6 +22,8 @@ void print_units(char* header, int value, char* units) {
 
 void update_values_battery() { /* This function puts fake values onto the parameters sent towards the inverter */
 
+  datalayer.system.status.battery_allows_contactor_closing = true;
+
   datalayer.battery.status.real_soc = 5000;  // 50.00%
 
   datalayer.battery.status.soh_pptt = 9900;  // 99.00%
