@@ -35,7 +35,7 @@
 //#define BYD_CAN  //Enable this line to emulate a "BYD Battery-Box Premium HVS" over CAN Bus
 //#define BYD_SMA //Enable this line to emulate a SMA compatible "BYD Battery-Box HVS 10.2KW battery" over CAN bus
 //#define BYD_MODBUS  //Enable this line to emulate a "BYD 11kWh HVM battery" over Modbus RTU
-//#define BYD_KOSTAL_RS485 //Enable this line to emulate a "BYD 11kWh HVM battery" over Kostal RS485
+//#define BYD_KOSTAL_RS485  //Enable this line to emulate a "BYD 11kWh HVM battery" over Kostal RS485
 //#define FOXESS_CAN       //Enable this line to emulate a "HV2600/ECS4100 battery" over CAN bus
 //#define PYLON_CAN        //Enable this line to emulate a "Pylontech battery" over CAN bus
 //#define SMA_CAN          //Enable this line to emulate a "BYD Battery-Box H 8.9kWh, 7 mod" over CAN bus
@@ -98,8 +98,6 @@
 #define BATTERY_MAX_CHARGE_AMP 300
 // 300 = 30.0A , BYD CAN specific setting, Max discharge in Amp (Some inverters needs to be limited)
 #define BATTERY_MAX_DISCHARGE_AMP 300
-// Battery nominal voltage dV
-#define BATTERY_NOMINAL_VOLTAGE 3600
 
 /* Do not change any code below this line unless you are sure what you are doing */
 /* Only change battery specific settings in "USER_SETTINGS.h" */
