@@ -196,7 +196,7 @@ void update_RS485_registers_inverter() {
     average_temperature_dC = 0;
   }
 
-  if (datalayer.system.status.battery_allows_contactor_closing) {
+  if (datalayer.system.status.battery_allows_contactor_closing & datalayer.system.status.inverter_allows_contactor_closing ) {
     float2frame(frame2, (float)datalayer.battery.status.voltage_dV / 10, 6);  // Confirmed OK mapping
     frame2[0] = 0x0A;
   } else {
@@ -276,15 +276,17 @@ void receive_RS485()  // Runs as fast as possible to handle the serial stream
     RX_allow = true;
   }
 
-  if (((currentMillis - startupMillis) >= INTERVAL_2_S & currentMillis - startupMillis <= 7000) &
+  if (startupMillis) {
+    if (((currentMillis - startupMillis) >= INTERVAL_2_S & currentMillis - startupMillis <= 7000) &
       datalayer.system.status.inverter_allows_contactor_closing) {
-    // Disconnect allowed only, when curren zero
-    if (datalayer.battery.status.current_dA == 0) {
-      datalayer.system.status.inverter_allows_contactor_closing = false;
+      // Disconnect allowed only, when curren zero
+      if (datalayer.battery.status.current_dA == 0) {
+        datalayer.system.status.inverter_allows_contactor_closing = false;
+      }
+    } else if (((currentMillis - startupMillis) >= 7000) &
+               datalayer.system.status.inverter_allows_contactor_closing == false) {
+      datalayer.system.status.inverter_allows_contactor_closing = true;
     }
-  } else if (((currentMillis - startupMillis) >= 7000) &
-             datalayer.system.status.inverter_allows_contactor_closing == false) {
-    datalayer.system.status.inverter_allows_contactor_closing = true;
   }
 
   if (B1_delay) {
