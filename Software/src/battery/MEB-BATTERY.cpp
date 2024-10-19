@@ -19,7 +19,7 @@ TODO list
 /* Do not change code below unless you are sure what you are doing */
 
 static unsigned long previousMillis200 = 0;    // will store last time a 200ms CAN Message was send
-static unsigned long previousMillis10 = 0;     // will store last time a 10ms CAN Message was send
+static unsigned long previousMillis10ms = 0;   // will store last time a 10ms CAN Message was send
 static unsigned long previousMillis1s = 0;     // will store last time a 1s CAN Message was send
 static unsigned long previousMillis100ms = 0;  // will store last time a 100ms CAN Message was send
 static unsigned long previousMillis70ms = 0;   // will store last time a 70ms CAN Message was send
@@ -184,14 +184,22 @@ CAN_frame MEB_040 = {.FD = true,  // Airbag
                      .DLC = 8,
                      .ID = 0x040,  //Frame5 has HV deactivate request. Needs to be 0x00
                      .data = {0x7E, 0x83, 0x00, 0x01, 0x00, 0x00, 0x15, 0x00}};
-//
 CAN_frame MEB_0C0 = {
-    .FD = true,  //
+    .FD = true,  // EM1 message
     .ext_ID = false,
     .DLC = 32,
-    .ID = 0x0C0,  //
+    .ID = 0x0C0,  //Frame 5-6 and maybe 7-8 important (external voltage at inverter)
     .data = {0x77, 0x0A, 0xFE, 0xE7, 0x7F, 0x10, 0x27, 0x00, 0xE0, 0x7F, 0xFF, 0xF3, 0x3F, 0xFF, 0xF3, 0x3F,
              0xFC, 0x0F, 0x00, 0x00, 0xC0, 0xFF, 0xFE, 0x07, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00}};
+CAN_frame MEB_0FC = {
+    .FD = true,  //
+    .ext_ID = false,
+    .DLC = 48,
+    .ID = 0x0FC,  //This message contains emergency regen request?(byte19), battery needs to see this message
+    .data = {0x07, 0x08, 0x00, 0x00, 0x7E, 0x00, 0x40, 0x06, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+             0xFE, 0xFE, 0x10, 0x00, 0x00, 0x00, 0x00, 0x00, 0x08, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+             0x00, 0x00, 0x00, 0xF4, 0x01, 0x40, 0xFF, 0xEB, 0x7F, 0x0A, 0x88, 0xE3, 0x81, 0xAF, 0x42}};
+
 CAN_frame MEB_0F7 = {.FD = true,
                      .ext_ID = false,
                      .DLC = 8,
@@ -272,6 +280,8 @@ uint8_t vw_crc_calc(uint8_t* inputBytes, uint8_t length, uint16_t address) {
                               0x40, 0x40, 0x40, 0x40, 0x40, 0x40, 0x40, 0x40};
   const uint8_t MB00C0[16] = {0x2f, 0x44, 0x72, 0xd3, 0x07, 0xf2, 0x39, 0x09,
                               0x8d, 0x6f, 0x57, 0x20, 0x37, 0xf9, 0x9b, 0xfa};
+  const uint8_t MB00FC[16] = {0x77, 0x5c, 0xa0, 0x89, 0x4b, 0x7c, 0xbb, 0xd6,
+                              0x1f, 0x6c, 0x4f, 0xf6, 0x20, 0x2b, 0x43, 0xdd};
   const uint8_t MB0097[16] = {0x3C, 0x54, 0xCF, 0xA3, 0x81, 0x93, 0x0B, 0xC7,
                               0x3E, 0xDF, 0x1C, 0xB0, 0xA7, 0x25, 0xD3, 0xD8};
   const uint8_t MB00F7[16] = {0x5F, 0xA0, 0x44, 0xD0, 0x63, 0x59, 0x5B, 0xA2,
@@ -305,6 +315,9 @@ uint8_t vw_crc_calc(uint8_t* inputBytes, uint8_t length, uint16_t address) {
       break;
     case 0x00C0:  //
       magicByte = MB00C0[counter];
+      break;
+    case 0x00FC:
+      magicByte = MB00FC[counter];
       break;
     case 0x0097:  // ??
       magicByte = MB0097[counter];
@@ -1247,14 +1260,14 @@ void send_can_battery() {
   }
   unsigned long currentMillis = millis();
   // Send 10ms CAN Message
-  if (currentMillis - previousMillis10 >= INTERVAL_10_MS) {
+  if (currentMillis - previousMillis10ms >= INTERVAL_10_MS) {
     // Check if sending of CAN messages has been delayed too much.
-    if ((currentMillis - previousMillis10 >= INTERVAL_10_MS_DELAYED) && (currentMillis > BOOTUP_TIME)) {
-      set_event(EVENT_CAN_OVERRUN, (currentMillis - previousMillis10));
+    if ((currentMillis - previousMillis10ms >= INTERVAL_10_MS_DELAYED) && (currentMillis > BOOTUP_TIME)) {
+      set_event(EVENT_CAN_OVERRUN, (currentMillis - previousMillis10ms));
     } else {
       clear_event(EVENT_CAN_OVERRUN);
     }
-    previousMillis10 = currentMillis;
+    previousMillis10ms = currentMillis;
 
     /* Handle content for 0x0F7 message */
     if (counter_0F7 < 250) {
@@ -1274,9 +1287,14 @@ void send_can_battery() {
     }
     MEB_0F7.data.u8[1] = ((MEB_0F7.data.u8[1] & 0xF0) | counter_10ms);
     MEB_0F7.data.u8[0] = vw_crc_calc(MEB_0F7.data.u8, MEB_0F7.DLC, MEB_0F7.ID);
+
+    MEB_0FC.data.u8[1] = ((MEB_0FC.data.u8[1] & 0xF0) | counter_10ms);
+    MEB_0FC.data.u8[0] = vw_crc_calc(MEB_0FC.data.u8, MEB_0FC.DLC, MEB_0FC.ID);
+
     counter_10ms = (counter_10ms + 1) % 16;  //Goes from 0-1-2-3...15-0-1-2-3..
 
     transmit_can(&MEB_0F7, can_config.battery);
+    transmit_can(&MEB_0FC, can_config.battery);  // Required for contactor closing
   }
   // Send 40ms CAN Message
   if (currentMillis - previousMillis40ms >= INTERVAL_40_MS) {
@@ -1300,9 +1318,11 @@ void send_can_battery() {
     previousMillis50ms = currentMillis;
 
     /* Handle content for 0x0C0 message */
-    /* BMS needs to see this EM1 message. Content located in frame5&6 especially (can be static)*/
+    /* BMS needs to see this EM1 message. Content located in frame5&6 especially (can be static?)*/
     /* Also the voltage seen externally to battery is in frame 7&8, we maybe need to set this also? TODO */
     MEB_0C0.data.u8[1] = ((MEB_0C0.data.u8[1] & 0xF0) | counter_50ms);
+    MEB_0C0.data.u8[7] = ((datalayer.battery.status.voltage_dV / 10) * 4) & 0x00FF;
+    MEB_0C0.data.u8[8] = ((MEB_0C0.data.u8[8] & 0xF0) | ((datalayer.battery.status.voltage_dV / 10) * 4) >> 8);
     MEB_0C0.data.u8[0] = vw_crc_calc(MEB_0C0.data.u8, MEB_0C0.DLC, MEB_0C0.ID);
     counter_50ms = (counter_50ms + 1) % 16;  //Goes from 0-1-2-3...15-0-1-2-3..
 
