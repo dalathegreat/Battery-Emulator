@@ -82,6 +82,35 @@ typedef struct {
   /** Pilotline status */
   bool pilotline = 0;
   /** uint8_t */
+  /** Transportation mode status */
+  bool transportmode = 0;
+  /** uint8_t */
+  /** Componentprotection mode status */
+  bool componentprotection = 0;
+  /** uint8_t */
+  /** Shutdown status */
+  bool shutdown_active = 0;
+  /** uint8_t */
+  /** Battery heating status */
+  bool battery_heating = 0;
+  /** uint8_t */
+  /** All realtime_ warnings have same enumeration, 0 = no fault, 1 = error level 1, 2 error level 2, 3 error level 3 */
+  uint8_t rt_overcurrent = 0;
+  uint8_t rt_CAN_fault = 0;
+  uint8_t rt_overcharge = 0;
+  uint8_t rt_SOC_high = 0;
+  uint8_t rt_SOC_low = 0;
+  uint8_t rt_SOC_jumping = 0;
+  uint8_t rt_temp_difference = 0;
+  uint8_t rt_cell_overtemp = 0;
+  uint8_t rt_cell_undertemp = 0;
+  uint8_t rt_battery_overvolt = 0;
+  uint8_t rt_battery_undervol = 0;
+  uint8_t rt_cell_overvolt = 0;
+  uint8_t rt_cell_undervol = 0;
+  uint8_t rt_cell_imbalance = 0;
+  uint8_t rt_battery_unathorized = 0;
+  /** uint8_t */
   /** HVIL status, 0 = Init, 1 = Closed, 2 = Open!, 3 = Fault */
   uint8_t HVIL = 0;
   /** uint8_t */
@@ -96,6 +125,9 @@ typedef struct {
   /** uint8_t */
   /** 0 = OK, 1 = Not OK, 0x06 = init, 0x07 = fault */
   uint8_t warning_support = 0;
+  /** uint32_t */
+  /** Isolation resistance in kOhm */
+  uint32_t isolation_resistance = 0;
 
 } DATALAYER_INFO_MEB;
 

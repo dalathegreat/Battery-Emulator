@@ -496,11 +496,31 @@ void update_values_battery() {  //This function maps all the values fetched via 
   // Update webserver datalayer for "More battery info" page
   datalayer_extended.meb.SDSW = service_disconnect_switch_missing;
   datalayer_extended.meb.pilotline = pilotline_open;
+  datalayer_extended.meb.transportmode = transportation_mode_active;
+  datalayer_extended.meb.componentprotection = component_protection_active;
+  datalayer_extended.meb.shutdown_active = shutdown_active;
   datalayer_extended.meb.HVIL = BMS_HVIL_status;
   datalayer_extended.meb.BMS_mode = BMS_mode;
   datalayer_extended.meb.battery_diagnostic = battery_diagnostic;
   datalayer_extended.meb.status_HV_line = status_HV_line;
   datalayer_extended.meb.warning_support = warning_support;
+  datalayer_extended.meb.isolation_resistance == isolation_resistance_kOhm * 5;
+  datalayer_extended.meb.battery_heating = battery_heating_active;
+  datalayer_extended.meb.rt_overcurrent = realtime_overcurrent_monitor;
+  datalayer_extended.meb.rt_CAN_fault = realtime_CAN_communication_fault;
+  datalayer_extended.meb.rt_overcharge = realtime_overcharge_warning;
+  datalayer_extended.meb.rt_SOC_high = realtime_SOC_too_high;
+  datalayer_extended.meb.rt_SOC_low = realtime_SOC_too_low;
+  datalayer_extended.meb.rt_SOC_jumping = realtime_SOC_jumping_warning;
+  datalayer_extended.meb.rt_temp_difference = realtime_temperature_difference_warning;
+  datalayer_extended.meb.rt_cell_overtemp = realtime_cell_overtemperature_warning;
+  datalayer_extended.meb.rt_cell_undertemp = realtime_cell_undertemperature_warning;
+  datalayer_extended.meb.rt_battery_overvolt = realtime_battery_overvoltage_warning;
+  datalayer_extended.meb.rt_battery_undervol = realtime_battery_undervoltage_warning;
+  datalayer_extended.meb.rt_cell_overvolt = realtime_cell_overvoltage_warning;
+  datalayer_extended.meb.rt_cell_undervol = realtime_cell_undervoltage_warning;
+  datalayer_extended.meb.rt_cell_imbalance = realtime_cell_imbalance_warning;
+  datalayer_extended.meb.rt_battery_unathorized = realtime_warning_battery_unathorized;
 }
 
 void receive_can_battery(CAN_frame rx_frame) {

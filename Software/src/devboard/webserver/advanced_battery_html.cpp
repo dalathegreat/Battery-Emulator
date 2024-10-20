@@ -47,6 +47,10 @@ String advanced_battery_processor(const String& var) {
     content += datalayer_extended.meb.SDSW ? "<h4>Service disconnect switch: Missing!</h4>"
                                            : "<h4>Service disconnect switch: OK</h4>";
     content += datalayer_extended.meb.pilotline ? "<h4>Pilotline: Open!</h4>" : "<h4>Pilotline: OK</h4>";
+    content += datalayer_extended.meb.transportmode ? "<h4>Transportmode: Locked!</h4>" : "<h4>Transportmode: OK</h4>";
+    content += datalayer_extended.meb.shutdown_active ? "<h4>Shutdown: Active!</h4>" : "<h4>Shutdown: No</h4>";
+    content += datalayer_extended.meb.componentprotection ? "<h4>Component protection: Active!</h4>"
+                                                          : "<h4>Component protection: No</h4>";
     const char* HVIL_status[] = {"Init", "Closed", "Open!", "Fault"};
     content += "<h4>HVIL status: " + String(HVIL_status[datalayer_extended.meb.HVIL]) + "</h4>";
     const char* BMS_modes[] = {"HV inactive", "HV active",     "Balancing",   "Extern charging",
@@ -60,6 +64,25 @@ String advanced_battery_processor(const String& var) {
     const char* warning_support_status[] = {"OK", "Not OK", "", "", "", "", "Init", "Fault"};
     content +=
         "<h4>Warning support: " + String(warning_support_status[datalayer_extended.meb.warning_support]) + "</h4>";
+    content += "<h4>Isolation resistance: " + String(datalayer_extended.meb.isolation_resistance) + " kOhm</h4>";
+    content +=
+        datalayer_extended.meb.battery_heating ? "<h4>Battery heating: Active!</h4>" : "<h4>Battery heating: Off</h4>";
+    const char* rt_enum[] = {"No", "Error level 1", "Error level 2", "Error level 3"};
+    content += "<h4>Overcurrent: " + String(rt_enum[datalayer_extended.meb.rt_overcurrent]) + "</h4>";
+    content += "<h4>CAN fault: " + String(rt_enum[datalayer_extended.meb.rt_CAN_fault]) + "</h4>";
+    content += "<h4>Overcharged: " + String(rt_enum[datalayer_extended.meb.rt_overcharge]) + "</h4>";
+    content += "<h4>SOC too high: " + String(rt_enum[datalayer_extended.meb.rt_SOC_high]) + "</h4>";
+    content += "<h4>SOC too low: " + String(rt_enum[datalayer_extended.meb.rt_SOC_low]) + "</h4>";
+    content += "<h4>SOC jumping: " + String(rt_enum[datalayer_extended.meb.rt_SOC_jumping]) + "</h4>";
+    content += "<h4>Temp difference: " + String(rt_enum[datalayer_extended.meb.rt_temp_difference]) + "</h4>";
+    content += "<h4>Cell overtemp: " + String(rt_enum[datalayer_extended.meb.rt_cell_overtemp]) + "</h4>";
+    content += "<h4>Cell undertemp: " + String(rt_enum[datalayer_extended.meb.rt_cell_undertemp]) + "</h4>";
+    content += "<h4>Battery overvoltage: " + String(rt_enum[datalayer_extended.meb.rt_battery_overvolt]) + "</h4>";
+    content += "<h4>Battery undervoltage: " + String(rt_enum[datalayer_extended.meb.rt_battery_undervol]) + "</h4>";
+    content += "<h4>Cell overvoltage: " + String(rt_enum[datalayer_extended.meb.rt_cell_overvolt]) + "</h4>";
+    content += "<h4>Cell undervoltage: " + String(rt_enum[datalayer_extended.meb.rt_cell_undervol]) + "</h4>";
+    content += "<h4>Cell imbalance: " + String(rt_enum[datalayer_extended.meb.rt_cell_imbalance]) + "</h4>";
+    content += "<h4>Battery unathorized: " + String(rt_enum[datalayer_extended.meb.rt_battery_unathorized]) + "</h4>";
 #endif
 
 #if !defined(TESLA_BATTERY) && !defined(NISSAN_LEAF_BATTERY) && \
