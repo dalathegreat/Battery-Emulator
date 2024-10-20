@@ -14,21 +14,24 @@ TODO list
 - Check value mappings on the PID polls
 - Check value mappings on the constantly broadcasted messages
 - Check all TODO:s in the code
+- 0x1B000044 & 1B00008F seems to be missing from logs?
 */
 
 /* Do not change code below unless you are sure what you are doing */
-
-static unsigned long previousMillis200 = 0;    // will store last time a 200ms CAN Message was send
 static unsigned long previousMillis10ms = 0;   // will store last time a 10ms CAN Message was send
-static unsigned long previousMillis1s = 0;     // will store last time a 1s CAN Message was send
-static unsigned long previousMillis100ms = 0;  // will store last time a 100ms CAN Message was send
-static unsigned long previousMillis70ms = 0;   // will store last time a 70ms CAN Message was send
+static unsigned long previousMillis20ms = 0;   // will store last time a 20ms CAN Message was send
 static unsigned long previousMillis40ms = 0;   // will store last time a 40ms CAN Message was send
 static unsigned long previousMillis50ms = 0;   // will store last time a 50ms CAN Message was send
+static unsigned long previousMillis100ms = 0;  // will store last time a 100ms CAN Message was send
+static unsigned long previousMillis200ms = 0;  // will store last time a 200ms CAN Message was send
+static unsigned long previousMillis500ms = 0;  // will store last time a 200ms CAN Message was send
+static unsigned long previousMillis1s = 0;     // will store last time a 1s CAN Message was send
+
 static bool battery_awake = false;
 static bool toggle = false;
 static uint8_t counter_40ms = 0;
 static uint8_t counter_50ms = 0;
+static uint8_t counter_20ms = 0;
 static uint8_t counter_10ms = 0;
 static uint8_t counter_040 = 0;
 static uint8_t counter_0F7 = 0;
@@ -199,64 +202,114 @@ CAN_frame MEB_0FC = {
     .data = {0x07, 0x08, 0x00, 0x00, 0x7E, 0x00, 0x40, 0x06, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
              0xFE, 0xFE, 0x10, 0x00, 0x00, 0x00, 0x00, 0x00, 0x08, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
              0x00, 0x00, 0x00, 0xF4, 0x01, 0x40, 0xFF, 0xEB, 0x7F, 0x0A, 0x88, 0xE3, 0x81, 0xAF, 0x42}};
-
-CAN_frame MEB_0F7 = {.FD = true,
-                     .ext_ID = false,
-                     .DLC = 8,
-                     .ID = 0x0F7,
-                     .data = {0x73, 0x00, 0x00, 0x00, 0x20, 0xF0, 0x1F, 0x64}};
-CAN_frame MEB_3B5 = {.FD = true,
-                     .ext_ID = false,
-                     .DLC = 8,
-                     .ID = 0x3B5,
-                     .data = {0x00, 0xFE, 0x00, 0x00, 0x0C, 0x00, 0x20, 0x00}};
-CAN_frame MEB_3E9 = {.FD = true,
-                     .ext_ID = false,
-                     .DLC = 8,
-                     .ID = 0x3E9,
-                     .data = {0x04, 0x3F, 0xE0, 0x03, 0x00, 0x00, 0xF0, 0xC7}};
-CAN_frame MEB_530 = {.FD = true,
-                     .ext_ID = false,
-                     .DLC = 8,
-                     .ID = 0x530,
-                     .data = {0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0}};
-CAN_frame MEB_5E7 = {.FD = true,
-                     .ext_ID = false,
-                     .DLC = 8,
-                     .ID = 0x5E7,
-                     .data = {0xFF, 0xFF, 0x0, 0x07, 0x03, 0x0, 0x0, 0x0}};
 CAN_frame MEB_6B2 = {.FD = true,  // Diagnostics
                      .ext_ID = false,
                      .DLC = 8,
                      .ID = 0x6B2,
                      .data = {0x6A, 0xA7, 0x37, 0x80, 0xC9, 0xBD, 0xF6, 0xC2}};
-CAN_frame MEB_17FC007B_poll = {.FD = true,
+CAN_frame MEB_17FC007B_poll = {.FD = true,  // Non period request
                                .ext_ID = true,
                                .DLC = 8,
                                .ID = 0x17FC007B,
                                .data = {0x03, 0x22, 0x1E, 0x3D, 0x55, 0x55, 0x55, 0x55}};
-CAN_frame MEB_17FC007B_reply = {.FD = true,
-                                .ext_ID = true,
-                                .DLC = 8,
-                                .ID = 0x17FC007B,
-                                .data = {0x30, 0x00, 0x01, 0x55, 0x55, 0x55, 0x55, 0x55}};
-CAN_frame MEB_1A555564 = {.FD = true,
+CAN_frame MEB_1A5555A6 = {.FD = true,
                           .ext_ID = true,
                           .DLC = 8,
-                          .ID = 0x1A555564,
-                          .data = {0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0}};
-CAN_frame MEB_12DD5513 = {.FD = true,
+                          .ID = 0x1A5555A6,
+                          .data = {0x00, 0x00, 0x7F, 0x00, 0x00, 0x00, 0x00, 0x00}};
+CAN_frame MEB_585 = {.FD = true,
+                     .ext_ID = false,
+                     .DLC = 8,
+                     .ID = 0x585,
+                     .data = {0xCF, 0x38, 0x20, 0x02, 0x25, 0xF7, 0x30, 0x00}};
+CAN_frame MEB_5F5 = {.FD = true,
+                     .ext_ID = false,
+                     .DLC = 8,
+                     .ID = 0x5F5,
+                     .data = {0x23, 0x02, 0x39, 0xC0, 0x1B, 0x8B, 0xC8, 0x1B}};
+CAN_frame MEB_641 = {.FD = true,
+                     .ext_ID = false,
+                     .DLC = 8,
+                     .ID = 0x641,
+                     .data = {0x37, 0x18, 0x00, 0x00, 0xF0, 0x00, 0xAA, 0x70}};
+CAN_frame MEB_3C0 = {.FD = true, .ext_ID = false, .DLC = 4, .ID = 0x3C0, .data = {0x66, 0x00, 0x00, 0x00}};
+CAN_frame MEB_0FD = {.FD = true,
+                     .ext_ID = false,
+                     .DLC = 8,
+                     .ID = 0x0FD,  //CRC and counter, otherwise static
+                     .data = {0x5F, 0xD0, 0x1F, 0x81, 0x00, 0x00, 0x00, 0x00}};
+CAN_frame MEB_16A954FB = {.FD = true,
                           .ext_ID = true,
                           .DLC = 8,
-                          .ID = 0x12DD5513,
-                          .data = {0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0}};
-CAN_frame MEB_16A954FA = {
-    .FD = true,
-    .ext_ID = true,
-    .DLC = 16,
-    .ID = 0x16A954FA,
-    .data = {0x00, 0x00, 0xD0, 0x01, 0x00, 0x00, 0x70, 0x00, 0x00, 0x00, 0x00, 0x09, 0x00, 0x00, 0x00, 0x00}};
-
+                          .ID = 0x16A954FB,
+                          .data = {0x00, 0xC0, 0x02, 0x00, 0x00, 0x00, 0x00, 0x00}};
+CAN_frame MEB_1A555548 = {.FD = true,
+                          .ext_ID = true,
+                          .DLC = 8,
+                          .ID = 0x1A555548,
+                          .data = {0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00}};
+CAN_frame MEB_1A55552B = {.FD = true,
+                          .ext_ID = true,
+                          .DLC = 8,
+                          .ID = 0x1A55552B,
+                          .data = {0x00, 0x00, 0x00, 0xA0, 0x02, 0x04, 0x00, 0x30}};
+CAN_frame MEB_569 = {.FD = true,
+                     .ext_ID = false,
+                     .DLC = 8,
+                     .ID = 0x569,
+                     .data = {0x00, 0x00, 0x01, 0x3A, 0x00, 0x00, 0x00, 0x00}};
+CAN_frame MEB_16A954B4 = {.FD = true,
+                          .ext_ID = true,
+                          .DLC = 8,
+                          .ID = 0x16A954B4,
+                          .data = {0xFE, 0xB6, 0x0D, 0x00, 0x00, 0xD0, 0x48, 0xFD}};
+CAN_frame MEB_1B000046 = {.FD = true,
+                          .ext_ID = true,
+                          .DLC = 8,
+                          .ID = 0x1B000046,
+                          .data = {0x00, 0x40, 0x08, 0x01, 0x00, 0x00, 0x00, 0x00}};
+CAN_frame MEB_1B000010 = {.FD = true,
+                          .ext_ID = true,
+                          .DLC = 8,
+                          .ID = 0x1B000010,
+                          .data = {0x00, 0x50, 0x08, 0x50, 0x01, 0xFF, 0x30, 0x00}};
+CAN_frame MEB_1B0000B9 = {.FD = true,
+                          .ext_ID = true,
+                          .DLC = 8,
+                          .ID = 0x1B0000B9,
+                          .data = {0x00, 0x40, 0x08, 0x08, 0x00, 0x00, 0x00, 0x00}};
+CAN_frame MEB_153 = {.FD = true,
+                     .ext_ID = false,
+                     .DLC = 8,
+                     .ID = 0x153,  // Static content
+                     .data = {0x00, 0x00, 0x00, 0xFF, 0xEF, 0xFE, 0xFF, 0xFF}};
+CAN_frame MEB_5E1 = {.FD = true,
+                     .ext_ID = false,
+                     .DLC = 8,
+                     .ID = 0x5E1,  // Static content
+                     .data = {0x7F, 0x2A, 0x00, 0x60, 0xFE, 0x00, 0x00, 0x00}};
+CAN_frame MEB_3BE = {.FD = true,
+                     .ext_ID = false,
+                     .DLC = 8,
+                     .ID = 0x3BE,  // CRC, otherwise Static content
+                     .data = {0x57, 0x0D, 0x00, 0x00, 0x00, 0x02, 0x04, 0x40}};
+CAN_frame MEB_272 = {.FD = true,
+                     .ext_ID = false,
+                     .DLC = 8,
+                     .ID = 0x272,  // Static content
+                     .data = {0x00, 0x00, 0x00, 0x00, 0x48, 0x08, 0x00, 0x94}};
+CAN_frame MEB_503 = {.FD = true,
+                     .ext_ID = false,
+                     .DLC = 8,
+                     .ID = 0x503,  // Content varies
+                     .data = {0x5D, 0x61, 0x00, 0xFF, 0x7F, 0x80, 0xE3, 0x03}};
+CAN_frame MEB_14C = {
+    .FD = true,  //Motor message
+    .ext_ID = false,
+    .DLC = 32,
+    .ID = 0x14C,  //CRC needed, static content otherwise
+    .data = {0x38, 0x0A, 0xFF, 0x01, 0x01, 0xFF, 0x01, 0x24, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0xFE,
+             0xFF, 0xFF, 0x00, 0xFF, 0xFF, 0x25, 0x00, 0x02, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0xFE}};
 /** Calculate the CRC checksum for VAG CAN Messages
  *
  * The method used is described in Chapter "7.2.1.2 8-bit 0x2F polynomial CRC Calculation".
@@ -1269,32 +1322,23 @@ void send_can_battery() {
     }
     previousMillis10ms = currentMillis;
 
-    /* Handle content for 0x0F7 message */
-    if (counter_0F7 < 250) {
-      counter_0F7++;
-    }
-    if (counter_0F7 > 40) {
-      MEB_0F7.data.u8[4] = 0x40;
-      MEB_0F7.data.u8[5] = 0xD2;
-    }
-    if (counter_0F7 > 50) {
-      MEB_0F7.data.u8[4] = 0x44;
-      MEB_0F7.data.u8[5] = 0xF2;
-    }
-    if (counter_0F7 > 70) {
-      MEB_0F7.data.u8[4] = 0xC0;
-      MEB_0F7.data.u8[5] = 0xF4;
-    }
-    MEB_0F7.data.u8[1] = ((MEB_0F7.data.u8[1] & 0xF0) | counter_10ms);
-    MEB_0F7.data.u8[0] = vw_crc_calc(MEB_0F7.data.u8, MEB_0F7.DLC, MEB_0F7.ID);
-
     MEB_0FC.data.u8[1] = ((MEB_0FC.data.u8[1] & 0xF0) | counter_10ms);
     MEB_0FC.data.u8[0] = vw_crc_calc(MEB_0FC.data.u8, MEB_0FC.DLC, MEB_0FC.ID);
 
     counter_10ms = (counter_10ms + 1) % 16;  //Goes from 0-1-2-3...15-0-1-2-3..
 
-    transmit_can(&MEB_0F7, can_config.battery);
     transmit_can(&MEB_0FC, can_config.battery);  // Required for contactor closing
+  }
+  // Send 20ms CAN Message
+  if (currentMillis - previousMillis20ms >= INTERVAL_20_MS) {
+    previousMillis20ms = currentMillis;
+
+    MEB_0FD.data.u8[1] = ((MEB_0FD.data.u8[1] & 0xF0) | counter_20ms);
+    MEB_0FD.data.u8[0] = vw_crc_calc(MEB_0FD.data.u8, MEB_0FD.DLC, MEB_0FD.ID);
+
+    counter_20ms = (counter_20ms + 1) % 16;  //Goes from 0-1-2-3...15-0-1-2-3..
+
+    transmit_can(&MEB_0FD, can_config.battery);  // Required for contactor closing
   }
   // Send 40ms CAN Message
   if (currentMillis - previousMillis40ms >= INTERVAL_40_MS) {
@@ -1328,38 +1372,25 @@ void send_can_battery() {
 
     transmit_can(&MEB_0C0, can_config.battery);  //  Needed for contactor closing
   }
-  // Send 70ms CAN Message
-  if (currentMillis - previousMillis70ms >= INTERVAL_70_MS) {
-    previousMillis70ms = currentMillis;
-
-    transmit_can(&MEB_17FC007B_poll, can_config.battery);
-  }
   // Send 100ms CAN Message
   if (currentMillis - previousMillis100ms >= INTERVAL_100_MS) {
     previousMillis100ms = currentMillis;
 
-    if (counter_3b5 < 250) {
-      counter_3b5++;
-    }
-    if (counter_3b5 > 4) {
-      MEB_3B5.data.u8[2] = 0x12;
-
-      MEB_3E9.data.u8[0] = 0x00;
-      MEB_3E9.data.u8[1] = 0x01;
-      MEB_3E9.data.u8[2] = 0xC0;
-      MEB_3E9.data.u8[3] = 0x03;
-    }
-
-    transmit_can(&MEB_3B5, can_config.battery);
-    transmit_can(&MEB_3E9, can_config.battery);
-    transmit_can(&MEB_12DD5513, can_config.battery);
+    transmit_can(&MEB_503, can_config.battery);
+    transmit_can(&MEB_272, can_config.battery);
+    transmit_can(&MEB_3C0, can_config.battery);
+    transmit_can(&MEB_3BE, can_config.battery);
+    transmit_can(&MEB_14C, can_config.battery);
   }
   //Send 200ms message
-  if (currentMillis - previousMillis200 >= INTERVAL_200_MS) {
-    previousMillis200 = currentMillis;
-    transmit_can(&MEB_530, can_config.battery);
-    transmit_can(&MEB_16A954FA, can_config.battery);
-    transmit_can(&MEB_5E7, can_config.battery);
+  if (currentMillis - previousMillis200ms >= INTERVAL_200_MS) {
+    previousMillis200ms = currentMillis;
+
+    transmit_can(&MEB_5E1, can_config.battery);
+    transmit_can(&MEB_153, can_config.battery);
+    transmit_can(&MEB_1B0000B9, can_config.battery);
+    transmit_can(&MEB_1B000010, can_config.battery);
+    transmit_can(&MEB_1B000046, can_config.battery);
 
     switch (poll_pid) {
       case PID_SOC:
@@ -1849,11 +1880,25 @@ void send_can_battery() {
     transmit_can(&MEB_POLLING_FRAME, can_config.battery);
   }
 
+  // Send 500ms CAN Message
+  if (currentMillis - previousMillis500ms >= INTERVAL_500_MS) {
+    previousMillis500ms = currentMillis;
+
+    transmit_can(&MEB_16A954B4, can_config.battery);
+    transmit_can(&MEB_569, can_config.battery);
+    transmit_can(&MEB_1A55552B, can_config.battery);
+    transmit_can(&MEB_1A555548, can_config.battery);
+    transmit_can(&MEB_16A954FB, can_config.battery);
+  }
+
   //Send 1s CANFD message
   if (currentMillis - previousMillis1s >= INTERVAL_1_S) {
     previousMillis1s = currentMillis;
-    transmit_can(&MEB_1A555564, can_config.battery);
     transmit_can(&MEB_6B2, can_config.battery);  // Diagnostics - Needed for contactor closing
+    transmit_can(&MEB_641, can_config.battery);
+    transmit_can(&MEB_5F5, can_config.battery);
+    transmit_can(&MEB_585, can_config.battery);
+    transmit_can(&MEB_1A5555A6, can_config.battery);
   }
 }
 
