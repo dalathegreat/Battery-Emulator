@@ -51,16 +51,16 @@ For more examples showing wiring, see each battery types own Wiki page. For inst
 
 ![bild](https://github.com/dalathegreat/Battery-Emulator/assets/26695010/6a2414b1-f2ca-4746-8e8d-9afd78bd9252)
 
-5. The Arduino board should be set to `ESP32 Dev Module` (under `Tools` -> `Board` -> `ESP32 Arduino`) with the following settings:
+5. The Arduino board should be set to `ESP32 Dev Module` (under `Tools` -> `Board` -> `ESP32 Arduino`, near the top of the list) with the following settings:
 ![alt text](https://github.com/Xinyuan-LilyGO/T-CAN485/blob/main/img/arduino_setting.png)
 6. Select which battery type you will use, along with other optional settings. This is done in the `USER_SETTINGS.h` file.
 7. Press `Verify` and `Upload` to send the sketch to the board.
 NOTE: In some cases, the LilyGo must be powered through the main power connector instead of USB-C
-      when performing the initial firsmware upload.
+      when performing the initial firmware upload.
 NOTE: On Mac, the following USB driver may need to be installed: https://github.com/WCHSoftGroup/ch34xser_macos
 
 This video explains all the above mentioned steps:
-https://youtu.be/_mH2AjnAjDk
+<https://youtu.be/_mH2AjnAjDk>
 
 ## Dependencies 📖
 This code uses the following excellent libraries: 
