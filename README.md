@@ -56,11 +56,22 @@ For more examples showing wiring, see each battery types own Wiki page. For inst
 6. Select which battery type you will use, along with other optional settings. This is done in the `USER_SETTINGS.h` file.
 7. Press `Verify` and `Upload` to send the sketch to the board.
 NOTE: In some cases, the LilyGo must be powered through the main power connector instead of USB-C
-      when performing the initial firsmware upload.
+      when performing the initial firmware upload.
 NOTE: On Mac, the following USB driver may need to be installed: https://github.com/WCHSoftGroup/ch34xser_macos
 
 This video explains all the above mentioned steps:
-https://youtu.be/_mH2AjnAjDk
+<https://youtu.be/_mH2AjnAjDk>
+
+
+### Linux Development Environment Setup
+In addition to the steps above, ESP32 requires a dependency for a Python module, pyserial install using the cli.
+
+```python3 -m pip install pyserial```
+
+If you're using Ubuntu , use apt to manage the dependencies of arduino:
+
+Arduino install: ```sudo apt install arduino```\
+pyserial install: ```sudo apt install python3-serial```
 
 ## Dependencies 📖
 This code uses the following excellent libraries: 
