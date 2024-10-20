@@ -574,6 +574,14 @@ void init_battery() {
 
 #ifdef CHADEMO_BATTERY
   intervalUpdateValues = 800;  // This mode requires the values to be updated faster
+  pinMode(CHADEMO_PIN_2, OUTPUT);
+  digitalWrite(CHADEMO_PIN_2, LOW);
+  pinMode(CHADEMO_PIN_10, OUTPUT);
+  digitalWrite(CHADEMO_PIN_10, LOW);
+  pinMode(CHADEMO_LOCK, OUTPUT);
+  digitalWrite(CHADEMO_LOCK, LOW);
+  pinMode(CHADEMO_PIN_4, INPUT);
+  pinMode(CHADEMO_PIN_7, INPUT);
 #endif
 }
 
