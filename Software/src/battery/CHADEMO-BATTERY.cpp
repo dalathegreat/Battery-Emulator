@@ -164,6 +164,7 @@ inline void process_vehicle_charging_maximums(CAN_frame rx_frame) {
 }
 
 inline void process_vehicle_charging_session(CAN_frame rx_frame) {
+  pinMode(CHADEMO_PIN_4, INPUT);
 
   uint16_t newTargetBatteryVoltage = ((rx_frame.data.u8[1] << 8) | rx_frame.data.u8[2]);
   uint16_t priorChargingCurrentRequest = x102_chg_session.ChargingCurrentRequest;
@@ -770,6 +771,7 @@ void handle_chademo_sequence() {
   switch (CHADEMO_Status) {
     case CHADEMO_IDLE:
       /* this is where we can unlock connector */
+      pinMode(CHADEMO_PIN_7, INPUT);
       digitalWrite(CHADEMO_LOCK, LOW);
       plug_inserted = digitalRead(CHADEMO_PIN_7);
 
