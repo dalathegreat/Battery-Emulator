@@ -59,19 +59,21 @@ NOTE: In some cases, the LilyGo must be powered through the main power connector
       when performing the initial firmware upload.
 NOTE: On Mac, the following USB driver may need to be installed: https://github.com/WCHSoftGroup/ch34xser_macos
 
+NOTE: If you see garbled messages on the serial console, change the serial console to match the baud rate to the code, currently 115200.
+
 This video explains all the above mentioned steps:
 <https://youtu.be/_mH2AjnAjDk>
 
 
 ### Linux Development Environment Setup
-In addition to the steps above, ESP32 requires a dependency for a Python module, pyserial install using the cli.
-
+In addition to the steps above, ESP32 requires a dependency for a Python module, pyserial install using the cli.\
 ```python3 -m pip install pyserial```
 
-If you're using Ubuntu , use apt to manage the dependencies of arduino:
-
-Arduino install: ```sudo apt install arduino```\
+If you're using Ubuntu , use apt to manage the dependencies of arduino:\
 pyserial install: ```sudo apt install python3-serial```
+
+Arduino AppImage must be set as executable after downloading to run correctly\
+example: ```chmod 775 arduino-ide_2.3.3_Linux_64bit.AppImage```
 
 ## Dependencies 📖
 This code uses the following excellent libraries: 
