@@ -28,6 +28,8 @@
 #define MAX_CELL_VOLTAGE_LFP 3550       //Battery is put into emergency stop if one cell goes over this value
 #define MIN_CELL_VOLTAGE_LFP 2800       //Battery is put into emergency stop if one cell goes below this value
 
+//#define EXP_TESLA_BMS_DIGITAL_HVIL // Experimental mode. Enables the sending of additional CAN messages, required for new firmwares
+
 void printFaultCodesIfActive();
 void printDebugIfActive(uint8_t symbol, const char* message);
 void print_int_with_units(char* header, int value, char* units);
