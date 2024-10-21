@@ -29,8 +29,11 @@ static unsigned long previousMillis1s = 0;     // will store last time a 1s CAN 
 
 static bool battery_awake = false;
 static bool toggle = false;
-static uint8_t counter_40ms = 0;
+static uint8_t counter_1000ms = 0;
+static uint8_t counter_200ms = 0;
+static uint8_t counter_100ms = 0;
 static uint8_t counter_50ms = 0;
+static uint8_t counter_40ms = 0;
 static uint8_t counter_20ms = 0;
 static uint8_t counter_10ms = 0;
 static uint8_t counter_040 = 0;
@@ -262,7 +265,7 @@ CAN_frame MEB_16A954B4 = {.FD = true,
                           .ext_ID = true,
                           .DLC = 8,
                           .ID = 0x16A954B4,
-                          .data = {0xFE, 0xB6, 0x0D, 0x00, 0x00, 0xD0, 0x48, 0xFD}};
+                          .data = {0xFE, 0xB6, 0x0D, 0x00, 0x00, 0xD5, 0x48, 0xFD}};
 CAN_frame MEB_1B000046 = {.FD = true,
                           .ext_ID = true,
                           .DLC = 8,
@@ -335,22 +338,36 @@ uint8_t vw_crc_calc(uint8_t* inputBytes, uint8_t length, uint16_t address) {
                               0x8d, 0x6f, 0x57, 0x20, 0x37, 0xf9, 0x9b, 0xfa};
   const uint8_t MB00FC[16] = {0x77, 0x5c, 0xa0, 0x89, 0x4b, 0x7c, 0xbb, 0xd6,
                               0x1f, 0x6c, 0x4f, 0xf6, 0x20, 0x2b, 0x43, 0xdd};
+  const uint8_t MB00FD[16] = {0xb4, 0xef, 0xf8, 0x49, 0x1e, 0xe5, 0xc2, 0xc0,
+                              0x97, 0x19, 0x3c, 0xc9, 0xf1, 0x98, 0xd6, 0x61};
   const uint8_t MB0097[16] = {0x3C, 0x54, 0xCF, 0xA3, 0x81, 0x93, 0x0B, 0xC7,
                               0x3E, 0xDF, 0x1C, 0xB0, 0xA7, 0x25, 0xD3, 0xD8};
   const uint8_t MB00F7[16] = {0x5F, 0xA0, 0x44, 0xD0, 0x63, 0x59, 0x5B, 0xA2,
                               0x68, 0x04, 0x90, 0x87, 0x52, 0x12, 0xB4, 0x9E};
   const uint8_t MB0124[16] = {0x12, 0x7E, 0x34, 0x16, 0x25, 0x8F, 0x8E, 0x35,
                               0xBA, 0x7F, 0xEA, 0x59, 0x4C, 0xF0, 0x88, 0x15};
+  const uint8_t MB0153[16] = {0x03, 0x13, 0x23, 0x7a, 0x40, 0x51, 0x68, 0xba,
+                              0xa8, 0xbe, 0x55, 0x02, 0x11, 0x31, 0x76, 0xec};
+  const uint8_t MB014C[16] = {0x16, 0x35, 0x59, 0x15, 0x9a, 0x2a, 0x97, 0xb8,
+                              0x0e, 0x4e, 0x30, 0xcc, 0xb3, 0x07, 0x01, 0xad};
   const uint8_t MB0187[16] = {0x7F, 0xED, 0x17, 0xC2, 0x7C, 0xEB, 0x44, 0x21,
                               0x01, 0xFA, 0xDB, 0x15, 0x4A, 0x6B, 0x23, 0x05};
   const uint8_t MB03A6[16] = {0xB6, 0x1C, 0xC1, 0x23, 0x6D, 0x8B, 0x0C, 0x51,
                               0x38, 0x32, 0x24, 0xA8, 0x3F, 0x3A, 0xA4, 0x02};
   const uint8_t MB03AF[16] = {0x94, 0x6A, 0xB5, 0x38, 0x8A, 0xB4, 0xAB, 0x27,
                               0xCB, 0x22, 0x88, 0xEF, 0xA3, 0xE1, 0xD0, 0xBB};
+  const uint8_t MB03BE[16] = {0x1f, 0x28, 0xc6, 0x85, 0xe6, 0xf8, 0xb0, 0x19,
+                              0x5b, 0x64, 0x35, 0x21, 0xe4, 0xf7, 0x9c, 0x24};
+  const uint8_t MB03C0[16] = {0xc3, 0xc3, 0xc3, 0xc3, 0xc3, 0xc3, 0xc3, 0xc3,
+                              0xc3, 0xc3, 0xc3, 0xc3, 0xc3, 0xc3, 0xc3, 0xc3};
+  const uint8_t MB0503[16] = {0xed, 0xd6, 0x96, 0x63, 0xa5, 0x12, 0xd5, 0x9a,
+                              0x1e, 0x0d, 0x24, 0xcd, 0x8c, 0xa6, 0x2f, 0x41};
   const uint8_t MB0578[16] = {0x48, 0x48, 0x48, 0x48, 0x48, 0x48, 0x48, 0x48,
                               0x48, 0x48, 0x48, 0x48, 0x48, 0x48, 0x48, 0x48};
   const uint8_t MB05CA[16] = {0x43, 0x43, 0x43, 0x43, 0x43, 0x43, 0x43, 0x43,
                               0x43, 0x43, 0x43, 0x43, 0x43, 0x43, 0x43, 0x43};
+  const uint8_t MB0641[16] = {0x47, 0x47, 0x47, 0x47, 0x47, 0x47, 0x47, 0x47,
+                              0x47, 0x47, 0x47, 0x47, 0x47, 0x47, 0x47, 0x47};
   const uint8_t MB06A3[16] = {0xC1, 0x8B, 0x38, 0xA8, 0xA4, 0x27, 0xEB, 0xC8,
                               0xEF, 0x05, 0x9A, 0xBB, 0x39, 0xF7, 0x80, 0xA7};
   const uint8_t MB06A4[16] = {0xC7, 0xD8, 0xF1, 0xC4, 0xE3, 0x5E, 0x9A, 0xE2,
@@ -372,6 +389,9 @@ uint8_t vw_crc_calc(uint8_t* inputBytes, uint8_t length, uint16_t address) {
     case 0x00FC:
       magicByte = MB00FC[counter];
       break;
+    case 0x00FD:
+      magicByte = MB00FD[counter];
+      break;
     case 0x0097:  // ??
       magicByte = MB0097[counter];
       break;
@@ -380,6 +400,12 @@ uint8_t vw_crc_calc(uint8_t* inputBytes, uint8_t length, uint16_t address) {
       break;
     case 0x0124:  // ??
       magicByte = MB0124[counter];
+      break;
+    case 0x014C:  // Motor
+      magicByte = MB014C[counter];
+      break;
+    case 0x0153:  // HYB30
+      magicByte = MB0153[counter];
       break;
     case 0x0187:  // EV_Gearshift "Gear" selection data for EVs with no gearbox
       magicByte = MB0187[counter];
@@ -390,11 +416,23 @@ uint8_t vw_crc_calc(uint8_t* inputBytes, uint8_t length, uint16_t address) {
     case 0x03AF:  // ??
       magicByte = MB03AF[counter];
       break;
+    case 0x03BE:  // Motor
+      magicByte = MB03BE[counter];
+      break;
+    case 0x03C0:  // Klemmen status
+      magicByte = MB03C0[counter];
+      break;
+    case 0x0503:  // HVK
+      magicByte = MB0503[counter];
+      break;
     case 0x0578:  // BMS DC
       magicByte = MB0578[counter];
       break;
     case 0x05CA:  // BMS
       magicByte = MB05CA[counter];
+      break;
+    case 0x0641:  // Motor
+      magicByte = MB0641[counter];
       break;
     case 0x06A3:  // ??
       magicByte = MB06A3[counter];
@@ -1396,6 +1434,23 @@ void send_can_battery() {
   if (currentMillis - previousMillis100ms >= INTERVAL_100_MS) {
     previousMillis100ms = currentMillis;
 
+    //TODO: HV request and DC/DC control lies in 503
+    MEB_503.data.u8[1] = ((MEB_503.data.u8[1] & 0xF0) | counter_100ms);
+    MEB_503.data.u8[0] = vw_crc_calc(MEB_503.data.u8, MEB_503.DLC, MEB_503.ID);
+
+    //TODO: 272 content?
+
+    //TODO: 3C0 byte3 has KL15 status that BMS needs
+    MEB_3C0.data.u8[1] = ((MEB_3C0.data.u8[1] & 0xF0) | counter_100ms);
+    MEB_3C0.data.u8[0] = vw_crc_calc(MEB_3C0.data.u8, MEB_3C0.DLC, MEB_3C0.ID);
+
+    MEB_3BE.data.u8[1] = ((MEB_3BE.data.u8[1] & 0xF0) | counter_100ms);
+    MEB_3BE.data.u8[0] = vw_crc_calc(MEB_3BE.data.u8, MEB_3BE.DLC, MEB_3BE.ID);
+
+    MEB_14C.data.u8[1] = ((MEB_14C.data.u8[1] & 0xF0) | counter_100ms);
+    MEB_14C.data.u8[0] = vw_crc_calc(MEB_14C.data.u8, MEB_14C.DLC, MEB_14C.ID);
+
+    counter_100ms = (counter_100ms + 1) % 16;  //Goes from 0-1-2-3...15-0-1-2-3..
     transmit_can(&MEB_503, can_config.battery);
     transmit_can(&MEB_272, can_config.battery);
     transmit_can(&MEB_3C0, can_config.battery);
@@ -1405,6 +1460,10 @@ void send_can_battery() {
   //Send 200ms message
   if (currentMillis - previousMillis200ms >= INTERVAL_200_MS) {
     previousMillis200ms = currentMillis;
+
+    //TODO: 153 does not seem to need CRC even though it has it? Empty in some logs and still works
+
+    //TODO: MEB_1B0000B9 & MEB_1B000010 & MEB_1B000046 has CAN sleep commands, static OK?
 
     transmit_can(&MEB_5E1, can_config.battery);
     transmit_can(&MEB_153, can_config.battery);
@@ -1904,21 +1963,28 @@ void send_can_battery() {
   if (currentMillis - previousMillis500ms >= INTERVAL_500_MS) {
     previousMillis500ms = currentMillis;
 
-    transmit_can(&MEB_16A954B4, can_config.battery);
-    transmit_can(&MEB_569, can_config.battery);
-    transmit_can(&MEB_1A55552B, can_config.battery);
-    transmit_can(&MEB_1A555548, can_config.battery);
-    transmit_can(&MEB_16A954FB, can_config.battery);
+    transmit_can(&MEB_16A954B4, can_config.battery);  //eTM, Cooling valves and pumps for BMS
+    transmit_can(&MEB_569, can_config.battery);       // Battery heating requests
+    transmit_can(&MEB_1A55552B, can_config.battery);  //Climate, heatpump and priorities
+    transmit_can(&MEB_1A555548, can_config.battery);  //ORU, OTA update message for reserving battery
+    transmit_can(&MEB_16A954FB, can_config.battery);  //Climate, request to BMS for starting preconditioning
   }
 
   //Send 1s CANFD message
   if (currentMillis - previousMillis1s >= INTERVAL_1_S) {
     previousMillis1s = currentMillis;
-    transmit_can(&MEB_6B2, can_config.battery);  // Diagnostics - Needed for contactor closing
-    transmit_can(&MEB_641, can_config.battery);
-    transmit_can(&MEB_5F5, can_config.battery);
-    transmit_can(&MEB_585, can_config.battery);
-    transmit_can(&MEB_1A5555A6, can_config.battery);
+
+    //TODO: 6B2, implement seconds, minutes, hours, days, year?
+
+    MEB_641.data.u8[1] = ((MEB_641.data.u8[1] & 0xF0) | counter_1000ms);
+    MEB_641.data.u8[0] = vw_crc_calc(MEB_641.data.u8, MEB_641.DLC, MEB_641.ID);
+
+    counter_1000ms = (counter_1000ms + 1) % 16;       //Goes from 0-1-2-3...15-0-1-2-3..
+    transmit_can(&MEB_6B2, can_config.battery);       // Diagnostics - Needed for contactor closing
+    transmit_can(&MEB_641, can_config.battery);       // Motor - OBD
+    transmit_can(&MEB_5F5, can_config.battery);       // Loading profile
+    transmit_can(&MEB_585, can_config.battery);       // Systeminfo
+    transmit_can(&MEB_1A5555A6, can_config.battery);  // Temperature QBit
   }
 }
 
