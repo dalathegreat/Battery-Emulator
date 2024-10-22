@@ -28,7 +28,10 @@
 #define MAX_CELL_VOLTAGE_LFP 3550       //Battery is put into emergency stop if one cell goes over this value
 #define MIN_CELL_VOLTAGE_LFP 2800       //Battery is put into emergency stop if one cell goes below this value
 
-//#define EXP_TESLA_BMS_DIGITAL_HVIL // Experimental mode. Enables the sending of additional CAN messages, required for new firmwares
+// Forces the transmission of additional CAN frames for experimental purposes.
+// Can be used with any Tesla battery configuration, including Model 3/Y, to test potential firmware-related issues.
+// Needed to validate the hypothesis that newer BMS firmware versions for Model 3/Y, which will include a 16V battery, may also require these CAN frames.
+//#define EXP_TESLA_BMS_DIGITAL_HVIL
 
 void printFaultCodesIfActive();
 void printDebugIfActive(uint8_t symbol, const char* message);
