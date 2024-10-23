@@ -43,6 +43,12 @@ typedef struct {
   /** uint32_t */
   /** Remaining energy capacity in Watt-hours */
   uint32_t remaining_capacity_Wh;
+  /** The remaining capacity reported to the inverter based on min percentage setting, in Watt-hours 
+   * This value will either be scaled or not scaled depending on the value of
+   * battery.settings.soc_scaling_active
+   */
+  uint32_t reported_remaining_capacity_Wh;
+
   /** Maximum allowed battery discharge power in Watts */
   uint32_t max_discharge_power_W = 0;
   /** Maximum allowed battery charge power in Watts */
