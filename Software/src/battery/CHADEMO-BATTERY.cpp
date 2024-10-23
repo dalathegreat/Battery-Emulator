@@ -346,9 +346,9 @@ inline void process_vehicle_discharge_estimate(CAN_frame rx_frame) {
 #ifdef DEBUG_VIA_USB
   if (currentMillis - previousMillis5000 >= INTERVAL_5_S) {
     previousMillis5000 = currentMillis;
-    Serial.println("x201 availabile vehicle energy, completion time: ");
+    Serial.print("x201 availabile vehicle energy, completion time: ");
     Serial.println(x201_discharge_estimate.AvailableVehicleEnergy);
-    Serial.println("x201 approx vehicle completion time: ");
+    Serial.print("x201 approx vehicle completion time: ");
     Serial.println(x201_discharge_estimate.ApproxDischargeCompletionTime);
   }
 #endif
