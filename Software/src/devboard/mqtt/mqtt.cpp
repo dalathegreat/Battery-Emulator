@@ -55,8 +55,10 @@ SensorConfig sensorConfigs[] = {
     {"cell_min_voltage", "Battery Emulator Cell Min Voltage", "{{ value_json.cell_min_voltage }}", "V", "voltage"},
     {"battery_voltage", "Battery Emulator Battery Voltage", "{{ value_json.battery_voltage }}", "V", "voltage"},
     {"total_capacity", "Battery Emulator Battery Total Capacity", "{{ value_json.total_capacity }}", "Wh", "energy"},
-    {"remaining_capacity", "Battery Emulator Battery Remaining Capacity", "{{ value_json.remaining_capacity }}", "Wh",
-     "energy"},
+    {"remaining_capacity", "Battery Emulator Battery Remaining Capacity (scaled)",
+     "{{ value_json.remaining_capacity }}", "Wh", "energy"},
+    {"remaining_capacity_real", "Battery Emulator Battery Remaining Capacity (real)",
+     "{{ value_json.remaining_capacity_real }}", "Wh", "energy"},
     {"max_discharge_power", "Battery Emulator Battery Max Discharge Power", "{{ value_json.max_discharge_power }}", "W",
      "power"},
     {"max_charge_power", "Battery Emulator Battery Max Charge Power", "{{ value_json.max_charge_power }}", "W",
@@ -141,7 +143,8 @@ static void publish_common_info(void) {
         doc["cell_min_voltage"] = ((float)datalayer.battery.status.cell_min_voltage_mV) / 1000.0;
       }
       doc["total_capacity"] = ((float)datalayer.battery.info.total_capacity_Wh);
-      doc["remaining_capacity"] = ((float)datalayer.battery.status.remaining_capacity_Wh);
+      doc["remaining_capacity_real"] = ((float)datalayer.battery.status.remaining_capacity_Wh);
+      doc["remaining_capacity"] = ((float)datalayer.battery.status.reported_remaining_capacity_Wh);
       doc["max_discharge_power"] = ((float)datalayer.battery.status.max_discharge_power_W);
       doc["max_charge_power"] = ((float)datalayer.battery.status.max_charge_power_W);
     }
