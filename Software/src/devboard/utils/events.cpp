@@ -167,6 +167,7 @@ void init_events(void) {
   events.entries[EVENT_BATTERY_OVERHEAT].level = EVENT_LEVEL_ERROR;
   events.entries[EVENT_BATTERY_OVERVOLTAGE].level = EVENT_LEVEL_WARNING;
   events.entries[EVENT_BATTERY_UNDERVOLTAGE].level = EVENT_LEVEL_WARNING;
+  events.entries[EVENT_BATTERY_VALUE_UNAVAILABLE].level = EVENT_LEVEL_WARNING;
   events.entries[EVENT_BATTERY_ISOLATION].level = EVENT_LEVEL_WARNING;
   events.entries[EVENT_VOLTAGE_DIFFERENCE].level = EVENT_LEVEL_INFO;
   events.entries[EVENT_SOH_DIFFERENCE].level = EVENT_LEVEL_WARNING;
@@ -318,6 +319,8 @@ const char* get_event_message_string(EVENTS_ENUM_TYPE event) {
       return "Warning: Battery exceeding maximum design voltage. Discharge battery to prevent damage!";
     case EVENT_BATTERY_UNDERVOLTAGE:
       return "Warning: Battery under minimum design voltage. Charge battery to prevent damage!";
+    case EVENT_BATTERY_VALUE_UNAVAILABLE:
+      return "Warning: Battery measurement unavailable. Check 12V power supply and battery wiring!";
     case EVENT_BATTERY_ISOLATION:
       return "Warning: Battery reports isolation error. High voltage might be leaking to ground. Check battery!";
     case EVENT_VOLTAGE_DIFFERENCE:

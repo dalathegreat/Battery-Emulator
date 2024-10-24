@@ -253,6 +253,12 @@ void update_values_battery() { /* This function maps all the values fetched via 
     clear_event(EVENT_BATTERY_EMPTY);
   }
 
+  if (battery_Total_Voltage2 == 0x3FF) {  //Battery reports critical measurement unavailable
+    set_event(EVENT_BATTERY_VALUE_UNAVAILABLE, 0);
+  } else {
+    clear_event(EVENT_BATTERY_VALUE_UNAVAILABLE);
+  }
+
   if (battery_Relay_Cut_Request) {  //battery_FAIL, BMS requesting shutdown and contactors to be opened
     //Note, this is sometimes triggered during the night while idle, and the BMS recovers after a while. Removed latching from this scenario
     datalayer.battery.status.max_discharge_power_W = 0;
@@ -418,6 +424,12 @@ void update_values_battery2() {  // Handle the values coming in from battery #2
     datalayer.battery2.status.max_discharge_power_W = 0;
   } else {
     clear_event(EVENT_BATTERY_EMPTY);
+  }
+
+  if (battery2_Total_Voltage2 == 0x3FF) {  //Battery reports critical measurement unavailable
+    set_event(EVENT_BATTERY_VALUE_UNAVAILABLE, 0);
+  } else {
+    clear_event(EVENT_BATTERY_VALUE_UNAVAILABLE);
   }
 
   if (battery2_Relay_Cut_Request) {  //battery2_FAIL, BMS requesting shutdown and contactors to be opened
