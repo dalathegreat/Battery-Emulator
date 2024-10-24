@@ -507,6 +507,9 @@ String processor(const String& var) {
 #ifdef SOLAX_CAN
     content += "SolaX Triple Power LFP over CAN bus";
 #endif  // SOLAX_CAN
+#ifdef SUNGROW_CAN
+    content += "Sungrow SBR064 battery over CAN bus";
+#endif  // SUNGROW_CAN
     content += "</h4>";
 
     content += "<h4 style='color: white;'>Battery protocol: ";
