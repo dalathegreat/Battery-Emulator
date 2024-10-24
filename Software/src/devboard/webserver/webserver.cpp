@@ -489,6 +489,9 @@ String processor(const String& var) {
 #ifdef BYD_MODBUS
     content += "BYD 11kWh HVM battery over Modbus RTU";
 #endif  // BYD_MODBUS
+#ifdef BYD_KOSTAL_RS485
+    content += "BYD 11kWh HVM battery over Kostal RS485";
+#endif  //BYD_KOSTAL_RS485
 #ifdef FOXESS_CAN
     content += "FoxESS compatible HV2600/ECS4100 battery";
 #endif  // FOXESS_CAN
