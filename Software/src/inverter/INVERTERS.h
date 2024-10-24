@@ -27,6 +27,10 @@
 #include "PYLON-CAN.h"
 #endif
 
+#ifdef PYLON_LV_CAN
+#include "PYLON-LV-CAN.h"
+#endif
+
 #ifdef SMA_CAN
 #include "SMA-CAN.h"
 #endif
