@@ -10,6 +10,7 @@
 
 /* Select battery used */
 //#define BMW_I3_BATTERY
+//#define BMW_IX_BATTERY
 //#define BYD_ATTO_3_BATTERY
 //#define CHADEMO_BATTERY	//NOTE: inherently enables CONTACTOR_CONTROL below
 //#define IMIEV_CZERO_ION_BATTERY
