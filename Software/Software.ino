@@ -866,12 +866,14 @@ void update_scaled_values() {
     datalayer.battery.status.reported_soc = calc_soc;
 
     // Calculate the scaled remaining capacity in Wh
-    if (datalayer.battery.info.total_capacity_Wh > 0) {
-      uint32_t calc_capacity;
-      // remove % capacity not used in min_percentage to total_capacity_Wh
-      calc_capacity = datalayer.battery.settings.min_percentage * datalayer.battery.info.total_capacity_Wh / 10000;
-      calc_capacity = datalayer.battery.status.remaining_capacity_Wh - calc_capacity;
-      datalayer.battery.status.reported_remaining_capacity_Wh = calc_capacity;
+    if (datalayer.battery.info.total_capacity_Wh > 0 && datalayer.battery.status.real_soc > 0) {
+      uint32_t calc_max_capacity;
+      uint32_t calc_reserved_capacity;
+      calc_max_capacity = (datalayer.battery.status.remaining_capacity_Wh * 10000 / datalayer.battery.status.real_soc);
+      calc_reserved_capacity = calc_max_capacity * datalayer.battery.settings.min_percentage / 10000;
+      // remove % capacity reserved in min_percentage to total_capacity_Wh
+      datalayer.battery.status.reported_remaining_capacity_Wh =
+          datalayer.battery.status.remaining_capacity_Wh - calc_reserved_capacity;
     } else {
       datalayer.battery.status.reported_remaining_capacity_Wh = datalayer.battery.status.remaining_capacity_Wh;
     }
