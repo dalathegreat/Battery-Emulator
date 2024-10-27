@@ -33,7 +33,10 @@ Suspected Vehicle comms required:
 
 No vehicle  log available, SME asks for:
   0x125 (CCU)
-  0x16 (CCU)
+  0x16E (CCU)
+  0x340 (CCU)
+  0x4F8 (CCU)
+  0x188 (CCU)
   0x91 (EME1)
   0xAA (EME2)
   0x?? Suspect there is a drive mode flag somewhere - balancing might only be active in some modes
@@ -175,6 +178,7 @@ static bool battery_awake = false;
 //iX Intermediate vars
 static int32_t battery_current = 0;
 static int16_t battery_voltage = 0;
+static int16_t terminal30_12v_voltage = 0;
 static int16_t battery_voltage_after_contactor = 0;
 static int16_t min_soc_state = 0;
 static int16_t avg_soc_state = 0;
@@ -197,7 +201,7 @@ static uint8_t current_cell_polled = 0;
 
 static uint8_t increment_uds_req_id_counter(uint8_t counter) {
   counter++;
-  if (counter > 7) {
+  if (counter > 8) {
     counter = 0;
   }
   return counter;
@@ -253,6 +257,8 @@ void update_values_battery() {  //This function maps all the values fetched via 
   datalayer.battery.status.CAN_battery_still_alive = CAN_STILL_ALIVE;
 
   datalayer.battery.info.number_of_cells = 108; //Hardcoded for the 108S SE27 battery. SE26 96S TODO
+
+  datalayer_extended.bmwix.T30_Voltage = terminal30_12v_voltage;
 }
 
 void receive_can_battery(CAN_frame rx_frame) {
@@ -346,7 +352,9 @@ void receive_can_battery(CAN_frame rx_frame) {
        }
        if (rx_frame.DLC = 7 && rx_frame.data.u8[4] == 0xA3) { //Main Contactor Temperature CHECK FINGERPRINT 2 LEVEL
         main_contactor_temperature = (rx_frame.data.u8[5] <<8 | rx_frame.data.u8[6]);
-
+       }
+       if (rx_frame.DLC = 7 && rx_frame.data.u8[4] == 0xA7) { //Terminal 30 Voltage (12V SME supply)
+        terminal30_12v_voltage = (rx_frame.data.u8[5] <<8 | rx_frame.data.u8[6]);
        }
       break;
     default:
@@ -407,6 +415,10 @@ void send_can_battery() {
       break;
       case 7:
       BMWiX_6F4.data.u8[4] = 0x54;
+      transmit_can(&BMWiX_6F4, can_config.battery);
+      break;
+      case 8:
+      BMWiX_6F4.data.u8[4] = 0xA7; //Terminal 30 12v voltage
       transmit_can(&BMWiX_6F4, can_config.battery);
       break;
       }
