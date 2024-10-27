@@ -36,6 +36,7 @@ No vehicle  log available, SME asks for:
   0x16 (CCU)
   0x91 (EME1)
   0xAA (EME2)
+  0x?? Suspect there is a drive mode flag somewhere - balancing might only be active in some modes
 
 SME Output:
 
@@ -178,8 +179,8 @@ static int16_t battery_voltage_after_contactor = 0;
 static int16_t min_soc_state = 0;
 static int16_t avg_soc_state = 0;
 static int16_t max_soc_state = 0;
-static int16_t remaining_capacity = 0;
-static int16_t max_capacity = 0;
+static int32_t remaining_capacity = 0;
+static int32_t max_capacity = 0;
 static int16_t min_battery_temperature = 0;
 static int16_t avg_battery_temperature = 0;
 static int16_t max_battery_temperature = 0;
@@ -251,7 +252,7 @@ void update_values_battery() {  //This function maps all the values fetched via 
   
   datalayer.battery.status.CAN_battery_still_alive = CAN_STILL_ALIVE;
 
-  datalayer.battery.info.number_of_cells = 108; //Hardcoded for the SE26 battery until values found
+  datalayer.battery.info.number_of_cells = 108; //Hardcoded for the 108S SE27 battery. SE26 96S TODO
 }
 
 void receive_can_battery(CAN_frame rx_frame) {
@@ -329,8 +330,8 @@ void receive_can_battery(CAN_frame rx_frame) {
        }
 
        if (rx_frame.DLC = 12 && rx_frame.data.u8[4] == 0xE5 && rx_frame.data.u8[5] == 0xC7) { //Current and max capacity kWh. Stored in kWh as 0.01 scale with -50  bias
-        remaining_capacity = ((rx_frame.data.u8[6] <<8 | rx_frame.data.u8[7]) *1) -5000;
-        max_capacity = ((rx_frame.data.u8[8] <<8 | rx_frame.data.u8[9]) *1) -5000; //uint16 limits to 65
+        remaining_capacity = ((rx_frame.data.u8[6] <<8 | rx_frame.data.u8[7]) *10) -50000;
+        max_capacity = ((rx_frame.data.u8[8] <<8 | rx_frame.data.u8[9]) *10) -50000; 
                 #ifdef DEBUG_VIA_USB
                 Serial.print("Remaining Capacty: ");
                 Serial.println( remaining_capacity);
