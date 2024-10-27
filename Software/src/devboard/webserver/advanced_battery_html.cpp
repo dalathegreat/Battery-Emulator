@@ -16,6 +16,11 @@ String advanced_battery_processor(const String& var) {
     // Start a new block with a specific background color
     content += "<div style='background-color: #303E47; padding: 10px; margin-bottom: 10px;border-radius: 50px'>";
 
+
+#ifdef BMW_IX_BATTERY
+    content += "<h4>T30 Terminal Voltage: " + String(datalayer_extended.bmwix.T30_Voltage) + "mV</h4>";
+#endif  //BMW_IX_BATTERY
+
 #ifdef BMW_I3_BATTERY
     content += "<h4>SOC raw: " + String(datalayer_extended.bmwi3.SOC_raw) + "</h4>";
     content += "<h4>SOC dash: " + String(datalayer_extended.bmwi3.SOC_dash) + "</h4>";
@@ -152,7 +157,7 @@ String advanced_battery_processor(const String& var) {
 #endif
 
 #if !defined(TESLA_BATTERY) && !defined(NISSAN_LEAF_BATTERY) && \
-    !defined(BMW_I3_BATTERY)  //Only the listed types have extra info
+    !defined(BMW_I3_BATTERY)&& !defined(BMW_IX_BATTERY)  //Only the listed types have extra info
     content += "No extra information available for this battery type";
 #endif
 
