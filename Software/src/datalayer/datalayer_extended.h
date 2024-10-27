@@ -5,6 +5,15 @@
 
 typedef struct {
   /** uint16_t */
+  /** Terminal 30 - 12V SME Supply Voltage */
+  uint16_t T30_Voltage = 0;
+  /** Status HVIL, 1 HVIL OK, 0 HVIL disconnected*/
+  uint8_t HVIL_Status= 0;
+} DATALAYER_INFO_BMWIX;
+
+
+typedef struct {
+  /** uint16_t */
   /** SOC% raw battery value. Might not always reach 100% */
   uint16_t SOC_raw = 0;
   /** uint16_t */
@@ -118,6 +127,7 @@ typedef struct {
 
 class DataLayerExtended {
  public:
+  DATALAYER_INFO_BMWIX bmwix;
   DATALAYER_INFO_BMWI3 bmwi3;
   DATALAYER_INFO_TESLA tesla;
   DATALAYER_INFO_NISSAN_LEAF nissanleaf;
