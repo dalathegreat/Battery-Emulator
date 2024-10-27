@@ -332,12 +332,6 @@ void receive_can_battery(CAN_frame rx_frame) {
        if (rx_frame.DLC = 12 && rx_frame.data.u8[4] == 0xE5 && rx_frame.data.u8[5] == 0xC7) { //Current and max capacity kWh. Stored in kWh as 0.01 scale with -50  bias
         remaining_capacity = ((rx_frame.data.u8[6] <<8 | rx_frame.data.u8[7]) *10) -50000;
         max_capacity = ((rx_frame.data.u8[8] <<8 | rx_frame.data.u8[9]) *10) -50000; 
-                #ifdef DEBUG_VIA_USB
-                Serial.print("Remaining Capacty: ");
-                Serial.println( remaining_capacity);
-                Serial.print("Max Capacty: ");
-                Serial.println(max_capacity);
-                #endif  //DEBUG_VIA_USB
        }
 
        if (rx_frame.DLC = 12 && rx_frame.data.u8[4] == 0xE5 && rx_frame.data.u8[5] == 0x53) { //Min and max cell voltage 
