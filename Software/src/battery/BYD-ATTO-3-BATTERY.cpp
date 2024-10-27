@@ -1,6 +1,7 @@
 #include "../include.h"
 #ifdef BYD_ATTO_3_BATTERY
 #include "../datalayer/datalayer.h"
+#include "../datalayer/datalayer_extended.h"
 #include "../devboard/utils/events.h"
 #include "BYD-ATTO-3-BATTERY.h"
 
@@ -18,13 +19,14 @@ static uint8_t counter_50ms = 0;
 static uint8_t counter_100ms = 0;
 static uint8_t frame6_counter = 0xB;
 static uint8_t frame7_counter = 0x5;
-
+static uint16_t battery_voltage = 0;
 static int16_t battery_temperature_ambient = 0;
 static int16_t battery_daughterboard_temperatures[10];
 static int16_t battery_lowest_temperature = 0;
 static int16_t battery_highest_temperature = 0;
 static int16_t battery_calc_min_temperature = 0;
 static int16_t battery_calc_max_temperature = 0;
+static uint16_t battery_highprecision_SOC = 0;
 static uint16_t BMS_SOC = 0;
 static uint16_t BMS_voltage = 0;
 static int16_t BMS_current = 0;
@@ -40,6 +42,7 @@ static int16_t battery2_lowest_temperature = 0;
 static int16_t battery2_highest_temperature = 0;
 static int16_t battery2_calc_min_temperature = 0;
 static int16_t battery2_calc_max_temperature = 0;
+static uint16_t battery2_highprecision_SOC = 0;
 static uint16_t BMS2_SOC = 0;
 static uint16_t BMS2_voltage = 0;
 static int16_t BMS2_current = 0;
@@ -142,6 +145,14 @@ void update_values_battery() {  //This function maps all the values fetched via 
 
   datalayer.battery.status.temperature_min_dC = battery_calc_min_temperature * 10;  // Add decimals
   datalayer.battery.status.temperature_max_dC = battery_calc_max_temperature * 10;
+
+  // Update webserver datalayer
+  datalayer_extended.bydAtto3.SOC_estimated = datalayer.battery.status.real_soc;
+  //Once we implement switching logic, remember to change from where the estimated is taken
+  datalayer_extended.bydAtto3.SOC_highprec = battery_highprecision_SOC;
+  datalayer_extended.bydAtto3.SOC_polled = BMS_SOC;
+  datalayer_extended.bydAtto3.voltage_periodic = battery_voltage;
+  datalayer_extended.bydAtto3.voltage_polled = BMS_voltage;
 }
 
 void receive_can_battery(CAN_frame rx_frame) {
@@ -220,6 +231,8 @@ void receive_can_battery(CAN_frame rx_frame) {
     case 0x444:  //9E,01,88,13,64,64,98,65
                  //9A,01,B6,13,64,64,98,3B //407.5V 18deg
                  //9B,01,B8,13,64,64,98,38 //408.5V 14deg
+      battery_voltage = ((rx_frame.data.u8[1] & 0x0F) << 8) | rx_frame.data.u8[0];
+      //battery_temperature_something = rx_frame.data.u8[7] - 40; resides in frame 7
       break;
     case 0x445:  //00,98,FF,FF,63,20,4E,98 - Static, values never changes between logs
       break;
@@ -228,8 +241,9 @@ void receive_can_battery(CAN_frame rx_frame) {
     case 0x447:  // Seems to contain more temperatures, highest and lowest?
                  //06,38,01,3B,E0,03,39,69
                  //06,36,02,36,E0,03,36,72,
-      battery_lowest_temperature = (rx_frame.data.u8[1] - 40);   //Best guess for now
-      battery_highest_temperature = (rx_frame.data.u8[3] - 40);  //Best guess for now
+      battery_highprecision_SOC = ((rx_frame.data.u8[5] & 0x0F) << 8) | rx_frame.data.u8[4];  // 03 E0 = 992 = 99.2%
+      battery_lowest_temperature = (rx_frame.data.u8[1] - 40);                                //Best guess for now
+      battery_highest_temperature = (rx_frame.data.u8[3] - 40);                               //Best guess for now
       break;
     case 0x47B:  //01,FF,FF,FF,FF,FF,FF,FF - Static, values never changes between logs
       break;
@@ -540,8 +554,9 @@ void receive_can_battery2(CAN_frame rx_frame) {
     case 0x447:  // Seems to contain more temperatures, highest and lowest?
                  //06,38,01,3B,E0,03,39,69
                  //06,36,02,36,E0,03,36,72,
-      battery2_lowest_temperature = (rx_frame.data.u8[1] - 40);   //Best guess for now
-      battery2_highest_temperature = (rx_frame.data.u8[3] - 40);  //Best guess for now
+      battery2_highprecision_SOC = ((rx_frame.data.u8[5] & 0x0F) << 8) | rx_frame.data.u8[4];  // 03 E0 = 992 = 99.2%
+      battery2_lowest_temperature = (rx_frame.data.u8[1] - 40);                                //Best guess for now
+      battery2_highest_temperature = (rx_frame.data.u8[3] - 40);                               //Best guess for now
       break;
     case 0x47B:  //01,FF,FF,FF,FF,FF,FF,FF - Static, values never changes between logs
       break;

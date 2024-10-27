@@ -100,6 +100,14 @@ String advanced_battery_processor(const String& var) {
 
 #endif  //BMW_I3_BATTERY
 
+#ifdef BYD_ATTO_3_BATTERY
+    content += "<h4>SOC estimated: " + String(datalayer_extended.bydAtto3.SOC_estimated) + "</h4>";
+    content += "<h4>SOC highprec: " + String(datalayer_extended.bydAtto3.SOC_highprec) + "</h4>";
+    content += "<h4>SOC OBD2: " + String(datalayer_extended.bydAtto3.SOC_polled) + "</h4>";
+    content += "<h4>Voltage periodic: " + String(datalayer_extended.bydAtto3.voltage_periodic) + "</h4>";
+    content += "<h4>Voltage OBD2: " + String(datalayer_extended.bydAtto3.voltage_polled) + "</h4>";
+#endif  //BYD_ATTO_3_BATTERY
+
 #ifdef TESLA_BATTERY
     static const char* contactorText[] = {"UNKNOWN(0)",  "OPEN",        "CLOSING",    "BLOCKED", "OPENING",
                                           "CLOSED",      "UNKNOWN(6)",  "WELDED",     "POS_CL",  "NEG_CL",
@@ -151,8 +159,8 @@ String advanced_battery_processor(const String& var) {
     content += "<h4>Heating requested: " + String(datalayer_extended.nissanleaf.HeaterSendRequest) + "</h4>";
 #endif
 
-#if !defined(TESLA_BATTERY) && !defined(NISSAN_LEAF_BATTERY) && \
-    !defined(BMW_I3_BATTERY)  //Only the listed types have extra info
+#if !defined(TESLA_BATTERY) && !defined(NISSAN_LEAF_BATTERY) && !defined(BMW_I3_BATTERY) && \
+    !defined(BYD_ATTO_3_BATTERY)  //Only the listed types have extra info
     content += "No extra information available for this battery type";
 #endif
 
