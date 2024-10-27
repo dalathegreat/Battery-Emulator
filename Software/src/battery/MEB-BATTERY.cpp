@@ -27,7 +27,6 @@ static unsigned long previousMillis200ms = 0;  // will store last time a 200ms C
 static unsigned long previousMillis500ms = 0;  // will store last time a 200ms CAN Message was send
 static unsigned long previousMillis1s = 0;     // will store last time a 1s CAN Message was send
 
-static bool battery_awake = false;
 static bool toggle = false;
 static uint8_t counter_1000ms = 0;
 static uint8_t counter_200ms = 0;
@@ -562,7 +561,6 @@ void update_values_battery() {  //This function maps all the values fetched via 
 }
 
 void receive_can_battery(CAN_frame rx_frame) {
-  battery_awake = true;
   switch (rx_frame.ID) {
     case 0x17F0007B:  // BMS 500ms
       component_protection_active = (rx_frame.data.u8[0] & 0x01);
@@ -1366,9 +1364,6 @@ void receive_can_battery(CAN_frame rx_frame) {
 }
 
 void send_can_battery() {
-  if (!battery_awake) {
-    return;
-  }
   unsigned long currentMillis = millis();
   // Send 10ms CAN Message
   if (currentMillis - previousMillis10ms >= INTERVAL_10_MS) {
