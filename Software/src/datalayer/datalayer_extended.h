@@ -46,6 +46,25 @@ typedef struct {
 } DATALAYER_INFO_BMWI3;
 
 typedef struct {
+  /** uint16_t */
+  /** SOC% estimate. Estimated from total pack voltage */
+  uint16_t SOC_estimated = 0;
+  /** uint16_t */
+  /** SOC% raw battery value. Highprecision. Can be locked if pack is crashed */
+  uint16_t SOC_highprec = 0;
+  /** uint16_t */
+  /** SOC% polled OBD2 value. Can be locked if pack is crashed */
+  uint16_t SOC_polled = 0;
+  /** uint16_t */
+  /** Voltage raw battery value */
+  uint16_t voltage_periodic = 0;
+  /** uint16_t */
+  /** Voltage polled OBD2*/
+  uint16_t voltage_polled = 0;
+
+} DATALAYER_INFO_BYDATTO3;
+
+typedef struct {
   /** uint8_t */
   /** Contactor status */
   uint8_t status_contactor = 0;
@@ -119,6 +138,7 @@ typedef struct {
 class DataLayerExtended {
  public:
   DATALAYER_INFO_BMWI3 bmwi3;
+  DATALAYER_INFO_BYDATTO3 bydAtto3;
   DATALAYER_INFO_TESLA tesla;
   DATALAYER_INFO_NISSAN_LEAF nissanleaf;
 };
