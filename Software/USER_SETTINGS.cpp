@@ -51,7 +51,7 @@ const char* mqtt_topic_name =
 const char* mqtt_object_id_prefix =
     "be_";  // Custom prefix for MQTT object ID. Previously, the prefix was automatically set to "esp32-XXXXXX_"
 const char* mqtt_device_name =
-    "BatteryEmulator_esp32";  // Custom device name in Home Assistant. Previously, the name was automatically set to "BatteryEmulator_esp32-XXXXXX"
+    "Battery Emulator";  // Custom device name in Home Assistant. Previously, the name was automatically set to "BatteryEmulator_esp32-XXXXXX"
 #endif  // MQTT_MANUAL_TOPIC_OBJECT_NAME
 #endif  // USE_MQTT
 #endif  // WIFI
