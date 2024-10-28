@@ -72,15 +72,15 @@ SensorConfig sensorConfigs[] = {
 };
 
 static String generateCommonInfoAutoConfigTopic(const char* object_id) {
-  return String("homeassistant/sensor/") + String(topic_name) + "/" + String(object_id) + "/config";
+  return "homeassistant/sensor/" + topic_name + "/" + String(object_id) + "/config";
 }
 
 static String generateCellVoltageAutoConfigTopic(int cell_number) {
-  return String("homeassistant/sensor/") + String(topic_name) + "/cell_voltage" + String(cell_number) + "/config";
+  return "homeassistant/sensor/" + topic_name + "/cell_voltage" + String(cell_number) + "/config";
 }
 
 static String generateEventsAutoConfigTopic(const char* object_id) {
-  return String("homeassistant/sensor/") + String(topic_name) + "/" + String(object_id) + "/config";
+  return "homeassistant/sensor/" + topic_name + "/" + String(object_id) + "/config";
 }
 
 #endif  // HA_AUTODISCOVERY
@@ -92,7 +92,7 @@ static void publish_common_info(void) {
 #ifdef HA_AUTODISCOVERY
   static bool mqtt_first_transmission = true;
 #endif  // HA_AUTODISCOVERY
-  static String state_topic = String(topic_name) + "/info";
+  static String state_topic = topic_name + "/info";
 #ifdef HA_AUTODISCOVERY
   if (mqtt_first_transmission == true) {
     mqtt_first_transmission = false;
@@ -100,8 +100,8 @@ static void publish_common_info(void) {
       SensorConfig& config = sensorConfigs[i];
       doc["name"] = config.name;
       doc["state_topic"] = state_topic;
-      doc["unique_id"] = String(topic_name) + "_" + String(config.object_id);
-      doc["object_id"] = String(object_id_prefix) + String(config.object_id);
+      doc["unique_id"] = topic_name + "_" + String(config.object_id);
+      doc["object_id"] = object_id_prefix + String(config.object_id);
       doc["value_template"] = config.value_template;
       if (config.unit != nullptr && strlen(config.unit) > 0)
         doc["unit_of_measurement"] = config.unit;
@@ -168,7 +168,7 @@ static void publish_cell_voltages(void) {
   static bool mqtt_first_transmission = true;
 #endif  // HA_AUTODISCOVERY
   static JsonDocument doc;
-  static String state_topic = String(topic_name) + "/spec_data";
+  static String state_topic = topic_name + "/spec_data";
 
   // If the cell voltage number isn't initialized...
   if (datalayer.battery.info.number_of_cells == 0u) {
@@ -183,7 +183,7 @@ static void publish_cell_voltages(void) {
       int cellNumber = i + 1;
       doc["name"] = "Battery Cell Voltage " + String(cellNumber);
       doc["object_id"] = "battery_voltage_cell" + String(cellNumber);
-      doc["unique_id"] = String(topic_name) + "_battery_voltage_cell" + String(cellNumber);
+      doc["unique_id"] = topic_name + "_battery_voltage_cell" + String(cellNumber);
       doc["device_class"] = "voltage";
       doc["state_class"] = "measurement";
       doc["state_topic"] = state_topic;
@@ -235,15 +235,15 @@ void publish_events() {
 #ifdef HA_AUTODISCOVERY
   static bool mqtt_first_transmission = true;
 #endif  // HA_AUTODISCOVERY
-  static String state_topic = String(topic_name) + "/events";
+  static String state_topic = topic_name + "/events";
 #ifdef HA_AUTODISCOVERY
   if (mqtt_first_transmission == true) {
     mqtt_first_transmission = false;
 
     doc["name"] = "Battery Emulator Event";
     doc["state_topic"] = state_topic;
-    doc["unique_id"] = String(topic_name) + "_event";
-    doc["object_id"] = String(object_id_prefix) + "event";
+    doc["unique_id"] = topic_name + "_event";
+    doc["object_id"] = object_id_prefix + "event";
     doc["value_template"] =
         "{{ value_json.event_type ~ ' (c:' ~ value_json.count ~ ',m:' ~  value_json.millis ~ ') ' ~ value_json.message "
         "}}";
@@ -349,7 +349,7 @@ void init_mqtt(void) {
   device_name = mqtt_device_name;
 #else
   // Use default naming based on WiFi hostname for topic, object ID prefix, and device name
-  topic_name = String("battery-emulator_") + String(WiFi.getHostname());
+  topic_name = "battery-emulator_" + String(WiFi.getHostname());
   object_id_prefix = String(WiFi.getHostname()) + String("_");
   device_name = "BatteryEmulator_" + String(WiFi.getHostname());
 
