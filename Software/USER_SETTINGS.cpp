@@ -45,8 +45,14 @@ const char* http_password = "admin";  // password to webserver authentication;
 #ifdef MQTT
 const char* mqtt_user = "REDACTED";      // Set NULL for no username
 const char* mqtt_password = "REDACTED";  // Set NULL for no password
-#endif                                   // USE_MQTT
-#endif                                   // WIFI
+#ifdef MQTT_MANUAL_TOPIC_OBJECT_NAME
+const char* mqtt_topic_name = "BE";            // Custom MQTT topic name. Default: "battery-emulator_esp32-XXXXXX"
+const char* mqtt_object_id_prefix = "esp32_";  // Custom prefix for MQTT object ID. Default: "esp32-XXXXXX_"
+const char* mqtt_device_name =
+    "BatteryEmulator_esp32";  // Custom device name in Home Assistant. Default: "BatteryEmulator_esp32-XXXXXX"
+#endif                        // MQTT_MANUAL_TOPIC_OBJECT_NAME
+#endif                        // USE_MQTT
+#endif                        // WIFI
 
 #ifdef EQUIPMENT_STOP_BUTTON
 // Equipment stop button behavior. Use NC button for safety reasons.
