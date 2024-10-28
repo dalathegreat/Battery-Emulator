@@ -16,9 +16,9 @@ char mqtt_msg[MQTT_MSG_BUFFER_SIZE];
 MyTimer publish_global_timer(5000);  //publish timer
 MyTimer check_global_timer(800);     // check timmer - low-priority MQTT checks, where responsiveness is not critical.
 
-static  String topic_name = "";
-static  String object_id_prefix = "";
-static  String device_name = "";
+static String topic_name = "";
+static String object_id_prefix = "";
+static String device_name = "";
 
 // Tracking reconnection attempts and failures
 static unsigned long lastReconnectAttempt = 0;
@@ -352,7 +352,7 @@ void init_mqtt(void) {
   topic_name = String("battery-emulator_") + String(WiFi.getHostname());
   object_id_prefix = String(WiFi.getHostname()) + String("_");
   device_name = "BatteryEmulator_" + String(WiFi.getHostname());
-   
+
 #endif
 #endif
 
