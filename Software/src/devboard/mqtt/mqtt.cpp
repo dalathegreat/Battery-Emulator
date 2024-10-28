@@ -16,9 +16,9 @@ char mqtt_msg[MQTT_MSG_BUFFER_SIZE];
 MyTimer publish_global_timer(5000);  //publish timer
 MyTimer check_global_timer(800);     // check timmer - low-priority MQTT checks, where responsiveness is not critical.
 
-static const char* topic_name = "";
-static const char* object_id_prefix = "";
-static const char* device_name = "";
+static  String topic_name = "";
+static  String object_id_prefix = "";
+static  String device_name = "";
 
 // Tracking reconnection attempts and failures
 static unsigned long lastReconnectAttempt = 0;
@@ -314,7 +314,7 @@ static bool reconnect() {
   Serial.print("Attempting MQTT connection... ");
 #endif                // DEBUG_VIA_USB
   char clientId[64];  // Adjust the size as needed
-  snprintf(clientId, sizeof(clientId), "LilyGoClient-%s", topic_name);
+  snprintf(clientId, sizeof(clientId), "BatteryEmulatorClient-%s", WiFi.getHostname());
   // Attempt to connect
   if (client.connect(clientId, mqtt_user, mqtt_password)) {
     connected_once = true;
@@ -349,9 +349,10 @@ void init_mqtt(void) {
   device_name = mqtt_device_name;
 #else
   // Use default naming based on WiFi hostname for topic, object ID prefix, and device name
-  topic_name = String("battery-emulator_") + WiFi.getHostname();
-  object_id_prefix = WiFi.getHostname() + String("_");
-  device_name = "BatteryEmulator_" + String(hostname);
+  topic_name = String("battery-emulator_") + String(WiFi.getHostname());
+  object_id_prefix = String(WiFi.getHostname()) + String("_");
+  device_name = "BatteryEmulator_" + String(WiFi.getHostname());
+   
 #endif
 #endif
 
