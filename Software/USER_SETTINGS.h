@@ -75,6 +75,13 @@
 // #define MQTT  // Enable this line to enable MQTT
 #define MQTT_SERVER "192.168.xxx.yyy"
 #define MQTT_PORT 1883
+#define MQTT_MANUAL_TOPIC_OBJECT_NAME  // Enable this to use custom MQTT topic, object ID prefix, and device name.    \
+                                       // WARNING: If this is not defined, the previous default naming format         \
+                                       // 'battery-emulator_esp32-XXXXXX' (based on hardware ID) will be used.        \
+                                       // This naming convention was in place until version 7.5.0.                    \
+                                       // Users should check the version from which they are updating, as this change \
+                                       // may break compatibility with previous versions of MQTT naming.              \
+                                       // Please refer to USER_SETTINGS.cpp for configuration options.
 
 /* Home Assistant options */
 #define HA_AUTODISCOVERY  // Enable this line to send Home Assistant autodiscovery messages. If not enabled manual configuration of Home Assitant is required
