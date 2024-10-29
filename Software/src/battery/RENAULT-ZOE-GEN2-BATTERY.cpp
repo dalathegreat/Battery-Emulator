@@ -19,13 +19,13 @@ static uint16_t battery_pack_voltage = 370;
 static uint16_t battery_max_cell_voltage = 3700;
 static uint16_t battery_min_cell_voltage = 3700;
 static uint16_t battery_12v = 0;
-static uint16_t battery_avg_temp = 0;
-static uint16_t battery_min_temp = 0;
-static uint16_t battery_max_temp = 0;
+static uint16_t battery_avg_temp = 920;
+static uint16_t battery_min_temp = 920;
+static uint16_t battery_max_temp = 920;
 static uint16_t battery_max_power = 0;
 static uint16_t battery_interlock = 0;
 static uint16_t battery_kwh = 0;
-static uint16_t battery_current = 0;
+static uint16_t battery_current = 32640;
 static uint16_t battery_current_offset = 0;
 static uint16_t battery_max_generated = 0;
 static uint16_t battery_max_available = 0;
@@ -135,29 +135,34 @@ static unsigned long previousMillis200 = 0;  // will store last time a 200ms CAN
 void update_values_battery() {  //This function maps all the values fetched via CAN to the correct parameters used for modbus
   datalayer.battery.status.soh_pptt = battery_soh;
 
-  datalayer.battery.status.real_soc = battery_usable_soc;
+  if (battery_soc >= 300) {
+    datalayer.battery.status.real_soc = battery_soc - 300;
+  } else {
+    datalayer.battery.status.real_soc = 0;
+  }
 
   datalayer.battery.status.voltage_dV = battery_pack_voltage;
 
-  datalayer.battery.status.current_dA = battery_current;
+  datalayer.battery.status.current_dA = ((battery_current - 32640) * 0.3125);
 
   //Calculate the remaining Wh amount from SOC% and max Wh value.
   datalayer.battery.status.remaining_capacity_Wh = static_cast<uint32_t>(
       (static_cast<double>(datalayer.battery.status.real_soc) / 10000) * datalayer.battery.info.total_capacity_Wh);
 
-  datalayer.battery.status.max_discharge_power_W;
+  datalayer.battery.status.max_discharge_power_W = battery_max_available * 10;
 
-  datalayer.battery.status.max_charge_power_W;
+  datalayer.battery.status.max_charge_power_W = battery_max_generated * 10;
 
-  datalayer.battery.status.active_power_W;
+  datalayer.battery.status.active_power_W =
+      (datalayer.battery.status.current_dA * (datalayer.battery.status.voltage_dV / 100));
 
-  datalayer.battery.status.temperature_min_dC = battery_min_temp;
+  datalayer.battery.status.temperature_min_dC = ((battery_min_temp - 400) / 2);
 
-  datalayer.battery.status.temperature_max_dC = battery_max_temp;
+  datalayer.battery.status.temperature_max_dC = ((battery_max_temp - 400) / 2);
 
-  datalayer.battery.status.cell_min_voltage_mV = battery_min_cell_voltage;
+  datalayer.battery.status.cell_min_voltage_mV = (battery_min_cell_voltage * 0.976563);
 
-  datalayer.battery.status.cell_max_voltage_mV = battery_max_cell_voltage;
+  datalayer.battery.status.cell_max_voltage_mV = (battery_max_cell_voltage * 0.976563);
 
   // Update webserver datalayer
   datalayer_extended.zoePH2.battery_soc = battery_soc;
