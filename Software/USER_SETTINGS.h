@@ -46,7 +46,7 @@
 //#define SOLAX_CAN        //Enable this line to emulate a "SolaX Triple Power LFP" over CAN bus
 
 /* Select hardware used for Battery-Emulator */
-//#define HW_LILYGO
+#define HW_LILYGO
 //#define HW_STARK
 
 /* Other options */
