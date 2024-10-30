@@ -516,6 +516,9 @@ String processor(const String& var) {
 #ifdef BYD_ATTO_3_BATTERY
     content += "BYD Atto 3";
 #endif  // BYD_ATTO_3_BATTERY
+#ifdef CELLPOWER_BMS
+    content += "Cellpower BMS";
+#endif  // CELLPOWER_BMS
 #ifdef CHADEMO_BATTERY
     content += "Chademo V2X mode";
 #endif  // CHADEMO_BATTERY

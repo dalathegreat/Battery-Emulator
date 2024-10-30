@@ -10,6 +10,10 @@
 #include "BYD-ATTO-3-BATTERY.h"
 #endif
 
+#ifdef CELLPOWER_BMS
+#include "CELLPOWER-BMS.h"
+#endif
+
 #ifdef CHADEMO_BATTERY
 #include "CHADEMO-BATTERY.h"
 #endif
