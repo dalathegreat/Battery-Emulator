@@ -156,9 +156,9 @@ void update_values_battery() {  //This function maps all the values fetched via 
   datalayer.battery.status.active_power_W =
       (datalayer.battery.status.current_dA * (datalayer.battery.status.voltage_dV / 100));
 
-  datalayer.battery.status.temperature_min_dC = ((battery_min_temp - 400) / 2);
+  datalayer.battery.status.temperature_min_dC = ((battery_min_temp - 640) * 0.625);
 
-  datalayer.battery.status.temperature_max_dC = ((battery_max_temp - 400) / 2);
+  datalayer.battery.status.temperature_max_dC = ((battery_max_temp - 640) * 0.625);
 
   datalayer.battery.status.cell_min_voltage_mV = (battery_min_cell_voltage * 0.976563);
 
