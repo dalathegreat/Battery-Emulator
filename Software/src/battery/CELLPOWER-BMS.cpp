@@ -139,6 +139,69 @@ void update_values_battery() {
 
   datalayer.battery.status.cell_min_voltage_mV = cell_voltage_min_mV;
 
+  /* Update webserver datalayer */
+  datalayer_extended.cellpower.system_state_discharge = system_state_discharge;
+  datalayer_extended.cellpower.system_state_charge = system_state_charge;
+  datalayer_extended.cellpower.system_state_cellbalancing = system_state_cellbalancing;
+  datalayer_extended.cellpower.system_state_tricklecharge = system_state_tricklecharge;
+  datalayer_extended.cellpower.system_state_idle = system_state_idle;
+  datalayer_extended.cellpower.system_state_chargecompleted = system_state_chargecompleted;
+  datalayer_extended.cellpower.system_state_maintenancecharge = system_state_maintenancecharge;
+  datalayer_extended.cellpower.IO_state_main_positive_relay = IO_state_main_positive_relay;
+  datalayer_extended.cellpower.IO_state_main_negative_relay = IO_state_main_negative_relay;
+  datalayer_extended.cellpower.IO_state_charge_enable = IO_state_charge_enable;
+  datalayer_extended.cellpower.IO_state_precharge_relay = IO_state_precharge_relay;
+  datalayer_extended.cellpower.IO_state_discharge_enable = IO_state_discharge_enable;
+  datalayer_extended.cellpower.IO_state_IO_6 = IO_state_IO_6;
+  datalayer_extended.cellpower.IO_state_IO_7 = IO_state_IO_7;
+  datalayer_extended.cellpower.IO_state_IO_8 = IO_state_IO_8;
+  datalayer_extended.cellpower.error_Cell_overvoltage = error_Cell_overvoltage;
+  datalayer_extended.cellpower.error_Cell_undervoltage = error_Cell_undervoltage;
+  datalayer_extended.cellpower.error_Cell_end_of_life_voltage = error_Cell_end_of_life_voltage;
+  datalayer_extended.cellpower.error_Cell_voltage_misread = error_Cell_voltage_misread;
+  datalayer_extended.cellpower.error_Cell_over_temperature = error_Cell_over_temperature;
+  datalayer_extended.cellpower.error_Cell_under_temperature = error_Cell_under_temperature;
+  datalayer_extended.cellpower.error_Cell_unmanaged = error_Cell_unmanaged;
+  datalayer_extended.cellpower.error_LMU_over_temperature = error_LMU_over_temperature;
+  datalayer_extended.cellpower.error_LMU_under_temperature = error_LMU_under_temperature;
+  datalayer_extended.cellpower.error_Temp_sensor_open_circuit = error_Temp_sensor_open_circuit;
+  datalayer_extended.cellpower.error_Temp_sensor_short_circuit = error_Temp_sensor_short_circuit;
+  datalayer_extended.cellpower.error_SUB_communication = error_SUB_communication;
+  datalayer_extended.cellpower.error_LMU_communication = error_LMU_communication;
+  datalayer_extended.cellpower.error_Over_current_IN = error_Over_current_IN;
+  datalayer_extended.cellpower.error_Over_current_OUT = error_Over_current_OUT;
+  datalayer_extended.cellpower.error_Short_circuit = error_Short_circuit;
+  datalayer_extended.cellpower.error_Leak_detected = error_Leak_detected;
+  datalayer_extended.cellpower.error_Leak_detection_failed = error_Leak_detection_failed;
+  datalayer_extended.cellpower.error_Voltage_difference = error_Voltage_difference;
+  datalayer_extended.cellpower.error_BMCU_supply_over_voltage = error_BMCU_supply_over_voltage;
+  datalayer_extended.cellpower.error_BMCU_supply_under_voltage = error_BMCU_supply_under_voltage;
+  datalayer_extended.cellpower.error_Main_positive_contactor = error_Main_positive_contactor;
+  datalayer_extended.cellpower.error_Main_negative_contactor = error_Main_negative_contactor;
+  datalayer_extended.cellpower.error_Precharge_contactor = error_Precharge_contactor;
+  datalayer_extended.cellpower.error_Midpack_contactor = error_Midpack_contactor;
+  datalayer_extended.cellpower.error_Precharge_timeout = error_Precharge_timeout;
+  datalayer_extended.cellpower.error_Emergency_connector_override = error_Emergency_connector_override;
+  datalayer_extended.cellpower.warning_High_cell_voltage = warning_High_cell_voltage;
+  datalayer_extended.cellpower.warning_Low_cell_voltage = warning_Low_cell_voltage;
+  datalayer_extended.cellpower.warning_High_cell_temperature = warning_High_cell_temperature;
+  datalayer_extended.cellpower.warning_Low_cell_temperature = warning_Low_cell_temperature;
+  datalayer_extended.cellpower.warning_High_LMU_temperature = warning_High_LMU_temperature;
+  datalayer_extended.cellpower.warning_Low_LMU_temperature = warning_Low_LMU_temperature;
+  datalayer_extended.cellpower.warning_SUB_communication_interfered = warning_SUB_communication_interfered;
+  datalayer_extended.cellpower.warning_LMU_communication_interfered = warning_LMU_communication_interfered;
+  datalayer_extended.cellpower.warning_High_current_IN = warning_High_current_IN;
+  datalayer_extended.cellpower.warning_High_current_OUT = warning_High_current_OUT;
+  datalayer_extended.cellpower.warning_Pack_resistance_difference = warning_Pack_resistance_difference;
+  datalayer_extended.cellpower.warning_High_pack_resistance = warning_High_pack_resistance;
+  datalayer_extended.cellpower.warning_Cell_resistance_difference = warning_Cell_resistance_difference;
+  datalayer_extended.cellpower.warning_High_cell_resistance = warning_High_cell_resistance;
+  datalayer_extended.cellpower.warning_High_BMCU_supply_voltage = warning_High_BMCU_supply_voltage;
+  datalayer_extended.cellpower.warning_Low_BMCU_supply_voltage = warning_Low_BMCU_supply_voltage;
+  datalayer_extended.cellpower.warning_Low_SOC = warning_Low_SOC;
+  datalayer_extended.cellpower.warning_Balancing_required_OCV_model = warning_Balancing_required_OCV_model;
+  datalayer_extended.cellpower.warning_Charger_not_responding = warning_Charger_not_responding;
+
   /* Peform safety checks */
   if (system_state_chargecompleted) {
     //TODO, shall we set max_charge_power_W to 0 incase this is true?
