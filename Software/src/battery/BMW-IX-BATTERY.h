@@ -5,8 +5,8 @@
 
 #define BATTERY_SELECTED
 
-#define WUP_PIN 25
-#define MAX_PACK_VOLTAGE_DV 5000  //5000 = 500.0V
+//#define WUP_PIN 25 //Not used
+#define MAX_PACK_VOLTAGE_DV 4600  //4600 = 460.0V
 #define MIN_PACK_VOLTAGE_DV 3000
 #define MAX_CELL_DEVIATION_MV 500
 #define MAX_CELL_VOLTAGE_MV 4250  //Battery is put into emergency stop if one cell goes over this value
