@@ -14,7 +14,7 @@ TODO list
 - Check value mappings on the PID polls
 - Check value mappings on the constantly broadcasted messages
 - Check all TODO:s in the code
-- 0x1B000044 & 1B00008F seems to be missing from logs?
+- 0x1B000044 & 1B00008F seems to be missing from logs? (Classic CAN)
 */
 
 /* Do not change code below unless you are sure what you are doing */
@@ -258,27 +258,27 @@ CAN_frame MEB_1A55552B = {.FD = true,
 CAN_frame MEB_569 = {.FD = true,
                      .ext_ID = false,
                      .DLC = 8,
-                     .ID = 0x569,
+                     .ID = 0x569,  //HVEM
                      .data = {0x00, 0x00, 0x01, 0x3A, 0x00, 0x00, 0x00, 0x00}};
 CAN_frame MEB_16A954B4 = {.FD = true,
                           .ext_ID = true,
                           .DLC = 8,
-                          .ID = 0x16A954B4,
+                          .ID = 0x16A954B4,  //eTM
                           .data = {0xFE, 0xB6, 0x0D, 0x00, 0x00, 0xD5, 0x48, 0xFD}};
-CAN_frame MEB_1B000046 = {.FD = true,
+CAN_frame MEB_1B000046 = {.FD = false,  // Not FD
                           .ext_ID = true,
                           .DLC = 8,
-                          .ID = 0x1B000046,
+                          .ID = 0x1B000046,  // Klima
                           .data = {0x00, 0x40, 0x08, 0x01, 0x00, 0x00, 0x00, 0x00}};
-CAN_frame MEB_1B000010 = {.FD = true,
+CAN_frame MEB_1B000010 = {.FD = false,  // Not FD
                           .ext_ID = true,
                           .DLC = 8,
-                          .ID = 0x1B000010,
+                          .ID = 0x1B000010,  // Gateway
                           .data = {0x00, 0x50, 0x08, 0x50, 0x01, 0xFF, 0x30, 0x00}};
-CAN_frame MEB_1B0000B9 = {.FD = true,
+CAN_frame MEB_1B0000B9 = {.FD = false,  // Not FD
                           .ext_ID = true,
                           .DLC = 8,
-                          .ID = 0x1B0000B9,
+                          .ID = 0x1B0000B9,  //DC/DC converter
                           .data = {0x00, 0x40, 0x08, 0x08, 0x00, 0x00, 0x00, 0x00}};
 CAN_frame MEB_153 = {.FD = true,
                      .ext_ID = false,
