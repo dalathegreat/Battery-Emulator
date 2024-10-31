@@ -56,7 +56,7 @@ Preferences settings;  // Store user settings
 const char* version_number = "7.6.dev";
 
 // Interval settings
-uint16_t intervalUpdateValues = INTERVAL_5_S;  // Interval at which to update inverter values / Modbus registers
+uint16_t intervalUpdateValues = INTERVAL_1_S;  // Interval at which to update inverter values / Modbus registers
 unsigned long previousMillis10ms = 50;
 unsigned long previousMillisUpdateVal = 0;
 
@@ -283,9 +283,8 @@ void core_loop(void* task_time_us) {
     }
     END_TIME_MEASUREMENT_MAX(time_10ms, datalayer.system.status.time_10ms_us);
 
-    START_TIME_MEASUREMENT(time_5s);
-    if (millis() - previousMillisUpdateVal >= intervalUpdateValues)  // Every 5s normally
-    {
+    START_TIME_MEASUREMENT(time_values);
+    if (millis() - previousMillisUpdateVal >= intervalUpdateValues) {
       previousMillisUpdateVal = millis();  // Order matters on the update_loop!
       update_values_battery();             // Fetch battery values
 #ifdef DOUBLE_BATTERY
@@ -300,7 +299,7 @@ void core_loop(void* task_time_us) {
         set_event(EVENT_DUMMY_ERROR, (uint8_t)millis());
       }
     }
-    END_TIME_MEASUREMENT_MAX(time_5s, datalayer.system.status.time_5s_us);
+    END_TIME_MEASUREMENT_MAX(time_values, datalayer.system.status.time_values_us);
 
     START_TIME_MEASUREMENT(cantx);
     // Output
@@ -316,7 +315,7 @@ void core_loop(void* task_time_us) {
       // Record snapshots of task times
       datalayer.system.status.time_snap_comm_us = datalayer.system.status.time_comm_us;
       datalayer.system.status.time_snap_10ms_us = datalayer.system.status.time_10ms_us;
-      datalayer.system.status.time_snap_5s_us = datalayer.system.status.time_5s_us;
+      datalayer.system.status.time_snap_values_us = datalayer.system.status.time_values_us;
       datalayer.system.status.time_snap_cantx_us = datalayer.system.status.time_cantx_us;
       datalayer.system.status.time_snap_ota_us = datalayer.system.status.time_ota_us;
     }
@@ -327,7 +326,7 @@ void core_loop(void* task_time_us) {
       datalayer.system.status.time_ota_us = 0;
       datalayer.system.status.time_comm_us = 0;
       datalayer.system.status.time_10ms_us = 0;
-      datalayer.system.status.time_5s_us = 0;
+      datalayer.system.status.time_values_us = 0;
       datalayer.system.status.time_cantx_us = 0;
       datalayer.system.status.core_task_10s_max_us = 0;
     }
