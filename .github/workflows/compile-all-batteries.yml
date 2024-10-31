@@ -35,6 +35,7 @@ jobs:
         battery:
           - BMW_I3_BATTERY
           - BYD_ATTO_3_BATTERY
+          - CELLPOWER_BMS
           - CHADEMO_BATTERY
           - IMIEV_CZERO_ION_BATTERY
           - JAGUAR_IPACE_BATTERY
