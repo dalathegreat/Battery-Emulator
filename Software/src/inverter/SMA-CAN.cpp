@@ -105,8 +105,9 @@ void update_values_can_inverter() {  //This function maps all the values fetched
       ((datalayer.battery.status.temperature_max_dC + datalayer.battery.status.temperature_min_dC) / 2);
 
   if (datalayer.battery.status.voltage_dV > 10) {  // Only update value when we have voltage available to avoid div0
-    ampere_hours_remaining = ((datalayer.battery.status.remaining_capacity_Wh / datalayer.battery.status.voltage_dV) *
-                              100);  //(WH[10000] * V+1[3600])*100 = 270 (27.0Ah)
+    ampere_hours_remaining =
+        ((datalayer.battery.status.reported_remaining_capacity_Wh / datalayer.battery.status.voltage_dV) *
+         100);  //(WH[10000] * V+1[3600])*100 = 270 (27.0Ah)
   }
 
   //Map values to CAN messages

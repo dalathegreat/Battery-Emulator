@@ -53,10 +53,10 @@
 
 Preferences settings;  // Store user settings
 // The current software version, shown on webserver
-const char* version_number = "7.5.dev";
+const char* version_number = "7.6.dev";
 
 // Interval settings
-uint16_t intervalUpdateValues = INTERVAL_5_S;  // Interval at which to update inverter values / Modbus registers
+uint16_t intervalUpdateValues = INTERVAL_1_S;  // Interval at which to update inverter values / Modbus registers
 unsigned long previousMillis10ms = 50;
 unsigned long previousMillisUpdateVal = 0;
 
@@ -283,15 +283,14 @@ void core_loop(void* task_time_us) {
     }
     END_TIME_MEASUREMENT_MAX(time_10ms, datalayer.system.status.time_10ms_us);
 
-    START_TIME_MEASUREMENT(time_5s);
-    if (millis() - previousMillisUpdateVal >= intervalUpdateValues)  // Every 5s normally
-    {
+    START_TIME_MEASUREMENT(time_values);
+    if (millis() - previousMillisUpdateVal >= intervalUpdateValues) {
       previousMillisUpdateVal = millis();  // Order matters on the update_loop!
       update_values_battery();             // Fetch battery values
 #ifdef DOUBLE_BATTERY
       update_values_battery2();
 #endif
-      update_SOC();  // Check if real or calculated SOC% value should be sent
+      update_scaled_values();  // Check if real or calculated SOC% value should be sent
 #ifndef SERIAL_LINK_RECEIVER
       update_machineryprotection();  // Check safeties (Not on serial link reciever board)
 #endif
@@ -300,7 +299,7 @@ void core_loop(void* task_time_us) {
         set_event(EVENT_DUMMY_ERROR, (uint8_t)millis());
       }
     }
-    END_TIME_MEASUREMENT_MAX(time_5s, datalayer.system.status.time_5s_us);
+    END_TIME_MEASUREMENT_MAX(time_values, datalayer.system.status.time_values_us);
 
     START_TIME_MEASUREMENT(cantx);
     // Output
@@ -316,7 +315,7 @@ void core_loop(void* task_time_us) {
       // Record snapshots of task times
       datalayer.system.status.time_snap_comm_us = datalayer.system.status.time_comm_us;
       datalayer.system.status.time_snap_10ms_us = datalayer.system.status.time_10ms_us;
-      datalayer.system.status.time_snap_5s_us = datalayer.system.status.time_5s_us;
+      datalayer.system.status.time_snap_values_us = datalayer.system.status.time_values_us;
       datalayer.system.status.time_snap_cantx_us = datalayer.system.status.time_cantx_us;
       datalayer.system.status.time_snap_ota_us = datalayer.system.status.time_ota_us;
     }
@@ -327,7 +326,7 @@ void core_loop(void* task_time_us) {
       datalayer.system.status.time_ota_us = 0;
       datalayer.system.status.time_comm_us = 0;
       datalayer.system.status.time_10ms_us = 0;
-      datalayer.system.status.time_5s_us = 0;
+      datalayer.system.status.time_values_us = 0;
       datalayer.system.status.time_cantx_us = 0;
       datalayer.system.status.core_task_10s_max_us = 0;
     }
@@ -454,7 +453,7 @@ void init_CAN() {
   Serial.println("CAN FD add-on (ESP32+MCP2517) selected");
 #endif
   SPI.begin(MCP2517_SCK, MCP2517_SDO, MCP2517_SDI);
-  ACAN2517FDSettings settings(ACAN2517FDSettings::OSC_40MHz, 500 * 1000,
+  ACAN2517FDSettings settings(CAN_FD_CRYSTAL_FREQUENCY_MHZ, 500 * 1000,
                               DataBitRateFactor::x4);  // Arbitration bit rate: 500 kbit/s, data bit rate: 2 Mbit/s
 #ifdef USE_CANFD_INTERFACE_AS_CLASSIC_CAN
   settings.mRequestedMode = ACAN2517FDSettings::Normal20B;  // ListenOnly / Normal20B / NormalFD
@@ -584,7 +583,7 @@ void monitor_equipment_stop_button() {
   if (equipment_stop_behavior == LATCHING_SWITCH) {
     if (changed_state == PRESSED) {
       // Changed to ON – initiating equipment stop.
-      setBatteryPause(true, true, true);
+      setBatteryPause(true, false, true);
     } else if (changed_state == RELEASED) {
       // Changed to OFF – ending equipment stop.
       setBatteryPause(false, false, false);
@@ -594,7 +593,7 @@ void monitor_equipment_stop_button() {
 
       if (timeSincePress < equipment_button_long_press_duration) {
         // Short press detected, trigger equipment stop
-        setBatteryPause(true, true, true);
+        setBatteryPause(true, false, true);
       } else {
         // Long press detected, reset equipment stop state
         setBatteryPause(false, false, false);
@@ -834,7 +833,7 @@ void handle_contactors() {
 #endif  // CONTACTOR_CONTROL
 }
 
-void update_SOC() {
+void update_scaled_values() {
   if (datalayer.battery.settings.soc_scaling_active) {
     /** SOC Scaling
      * 
@@ -864,23 +863,42 @@ void update_SOC() {
     calc_soc = 10000 * (calc_soc - datalayer.battery.settings.min_percentage);
     calc_soc = calc_soc / (datalayer.battery.settings.max_percentage - datalayer.battery.settings.min_percentage);
     datalayer.battery.status.reported_soc = calc_soc;
+
+    // Calculate the scaled remaining capacity in Wh
+    if (datalayer.battery.info.total_capacity_Wh > 0 && datalayer.battery.status.real_soc > 0) {
+      uint32_t calc_max_capacity;
+      uint32_t calc_reserved_capacity;
+      calc_max_capacity = (datalayer.battery.status.remaining_capacity_Wh * 10000 / datalayer.battery.status.real_soc);
+      calc_reserved_capacity = calc_max_capacity * datalayer.battery.settings.min_percentage / 10000;
+      // remove % capacity reserved in min_percentage to total_capacity_Wh
+      datalayer.battery.status.reported_remaining_capacity_Wh =
+          datalayer.battery.status.remaining_capacity_Wh - calc_reserved_capacity;
+    } else {
+      datalayer.battery.status.reported_remaining_capacity_Wh = datalayer.battery.status.remaining_capacity_Wh;
+    }
+
   } else {  // No SOC window wanted. Set scaled to same as real.
     datalayer.battery.status.reported_soc = datalayer.battery.status.real_soc;
+    datalayer.battery.status.reported_remaining_capacity_Wh = datalayer.battery.status.remaining_capacity_Wh;
   }
 #ifdef DOUBLE_BATTERY
   // Perform extra SOC sanity checks on double battery setups
   if (datalayer.battery.status.real_soc < 100) {  //If this battery is under 1.00%, use this as SOC instead of average
     datalayer.battery.status.reported_soc = datalayer.battery.status.real_soc;
+    datalayer.battery.status.reported_remaining_capacity_Wh = datalayer.battery.status.remaining_capacity_Wh;
   }
   if (datalayer.battery2.status.real_soc < 100) {  //If this battery is under 1.00%, use this as SOC instead of average
     datalayer.battery.status.reported_soc = datalayer.battery2.status.real_soc;
+    datalayer.battery.status.reported_remaining_capacity_Wh = datalayer.battery2.status.remaining_capacity_Wh;
   }
 
   if (datalayer.battery.status.real_soc > 9900) {  //If this battery is over 99.00%, use this as SOC instead of average
     datalayer.battery.status.reported_soc = datalayer.battery.status.real_soc;
+    datalayer.battery.status.reported_remaining_capacity_Wh = datalayer.battery.status.remaining_capacity_Wh;
   }
   if (datalayer.battery2.status.real_soc > 9900) {  //If this battery is over 99.00%, use this as SOC instead of average
     datalayer.battery.status.reported_soc = datalayer.battery2.status.real_soc;
+    datalayer.battery.status.reported_remaining_capacity_Wh = datalayer.battery2.status.remaining_capacity_Wh;
   }
 #endif  //DOUBLE_BATTERY
 }

@@ -179,7 +179,7 @@ void init_webserver() {
     if (request->hasParam("stop")) {
       String valueStr = request->getParam("stop")->value();
       if (valueStr == "true" || valueStr == "1") {
-        setBatteryPause(true, true, true);
+        setBatteryPause(true, false, true);
       } else {
         setBatteryPause(false, false, false);
       }
@@ -459,7 +459,7 @@ String processor(const String& var) {
         "<h4>loop() task max load last 10 s: " + String(datalayer.system.status.loop_task_10s_max_us) + " us</h4>";
     content += "<h4>Max load @ worst case execution of core task:</h4>";
     content += "<h4>10ms function timing: " + String(datalayer.system.status.time_snap_10ms_us) + " us</h4>";
-    content += "<h4>5s function timing: " + String(datalayer.system.status.time_snap_5s_us) + " us</h4>";
+    content += "<h4>Values function timing: " + String(datalayer.system.status.time_snap_values_us) + " us</h4>";
     content += "<h4>CAN/serial RX function timing: " + String(datalayer.system.status.time_snap_comm_us) + " us</h4>";
     content += "<h4>CAN TX function timing: " + String(datalayer.system.status.time_snap_cantx_us) + " us</h4>";
     content += "<h4>OTA function timing: " + String(datalayer.system.status.time_snap_ota_us) + " us</h4>";
@@ -516,6 +516,9 @@ String processor(const String& var) {
 #ifdef BYD_ATTO_3_BATTERY
     content += "BYD Atto 3";
 #endif  // BYD_ATTO_3_BATTERY
+#ifdef CELLPOWER_BMS
+    content += "Cellpower BMS";
+#endif  // CELLPOWER_BMS
 #ifdef CHADEMO_BATTERY
     content += "Chademo V2X mode";
 #endif  // CHADEMO_BATTERY
@@ -552,6 +555,9 @@ String processor(const String& var) {
 #ifdef RENAULT_KANGOO_BATTERY
     content += "Renault Kangoo";
 #endif  // RENAULT_KANGOO_BATTERY
+#ifdef RENAULT_TWIZY_BATTERY
+    content += "Renault Twizy";
+#endif  // RENAULT_TWIZY_BATTERY
 #ifdef RENAULT_ZOE_GEN1_BATTERY
     content += "Renault Zoe Gen1 22/40";
 #endif  // RENAULT_ZOE_GEN1_BATTERY
@@ -653,7 +659,9 @@ String processor(const String& var) {
     content += "<h4 style='color: white;'>Current: " + String(currentFloat, 1) + " A</h4>";
     content += formatPowerValue("Power", powerFloat, "", 1);
     content += formatPowerValue("Total capacity", datalayer.battery.info.total_capacity_Wh, "h", 0);
-    content += formatPowerValue("Remaining capacity", datalayer.battery.status.remaining_capacity_Wh, "h", 1);
+    content += formatPowerValue("Real Remaining capacity", datalayer.battery.status.remaining_capacity_Wh, "h", 1);
+    content +=
+        formatPowerValue("Scaled Remaining capacity", datalayer.battery.status.reported_remaining_capacity_Wh, "h", 1);
 
     if (emulator_pause_status == NORMAL) {
       content += formatPowerValue("Max discharge power", datalayer.battery.status.max_discharge_power_W, "", 1);

@@ -3,6 +3,10 @@
 
 #include "../../USER_SETTINGS.h"
 
+#ifdef AFORE_CAN
+#include "AFORE-CAN.h"
+#endif
+
 #ifdef BYD_CAN
 #include "BYD-CAN.h"
 #endif

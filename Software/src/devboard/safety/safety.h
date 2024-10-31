@@ -6,7 +6,7 @@
 
 #define MAX_CAN_FAILURES 50
 
-#define MAX_CHARGE_DISCHARGE_LIMIT_FAILURES 1
+#define MAX_CHARGE_DISCHARGE_LIMIT_FAILURES 5
 
 //battery pause status begin
 enum battery_pause_status { NORMAL = 0, PAUSING = 1, PAUSED = 2, RESUMING = 3 };
