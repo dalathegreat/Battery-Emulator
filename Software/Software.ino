@@ -85,6 +85,9 @@ uint16_t mbPV[MB_RTU_NUM_VALUES];  // Process variable memory
 // Create a ModbusRTU server instance listening on Serial2 with 2000ms timeout
 ModbusServerRTU MBserver(Serial2, 2000);
 #endif
+#if  defined(SERIAL_LINK_RECEIVER) || defined(SERIAL_LINK_TRANSMITTER)
+#define SERIAL_LINK_BAUDRATE 112500 
+#endif
 
 // Common charger parameters
 volatile float charger_setpoint_HV_VDC = 0.0f;
