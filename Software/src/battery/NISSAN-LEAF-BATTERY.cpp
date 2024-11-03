@@ -1288,12 +1288,12 @@ uint16_t Temp_fromRAW_to_F(uint16_t temperature) {  //This function feels horrib
 }
 
 void clearSOH(void) {
-  challengeFailed = false;
   stop_battery_query = true;
   hold_off_with_polling_10seconds = 10;  // Active battery polling is paused for 100 seconds
 
   switch (stateMachineClearSOH) {
     case 0:  // Wait until polling actually stops
+      challengeFailed = false;
       stateMachineClearSOH = 1;
       break;
     case 1:  // Set CAN_PROCESS_FLAG to 0xC0
@@ -1325,7 +1325,7 @@ void clearSOH(void) {
     case 3:  // Request challenge to solve
       LEAF_CLEAR_SOH.data.u8[0] = 0x02;
       LEAF_CLEAR_SOH.data.u8[1] = 0x27;
-      LEAF_CLEAR_SOH.data.u8[2] = 0x65;  // 0x66 on 24kWh?
+      LEAF_CLEAR_SOH.data.u8[2] = 0x65;
       LEAF_CLEAR_SOH.data.u8[3] = 0x00;
       LEAF_CLEAR_SOH.data.u8[4] = 0x00;
       LEAF_CLEAR_SOH.data.u8[5] = 0x00;
@@ -1339,7 +1339,7 @@ void clearSOH(void) {
       LEAF_CLEAR_SOH.data.u8[0] = 0x10;
       LEAF_CLEAR_SOH.data.u8[1] = 0x0A;
       LEAF_CLEAR_SOH.data.u8[2] = 0x27;
-      LEAF_CLEAR_SOH.data.u8[3] = 0x65;  // 0x66 on 24kWh?
+      LEAF_CLEAR_SOH.data.u8[3] = 0x66;
       LEAF_CLEAR_SOH.data.u8[4] = 0x77;
       LEAF_CLEAR_SOH.data.u8[5] = solvedChallenge[0];
       LEAF_CLEAR_SOH.data.u8[6] = solvedChallenge[1];
@@ -1405,6 +1405,18 @@ void clearSOH(void) {
     default:
       break;
   }
+  // All CAN messages semt will be logged via serial during development of this function
+  Serial.print(millis());  // Example printout, time, ID, length, data: 7553  7B9  8  FF C0 B9 EA 0 0 2 5D
+  Serial.print("  ");
+  Serial.print(LEAF_CLEAR_SOH.ID, HEX);
+  Serial.print("  ");
+  Serial.print(LEAF_CLEAR_SOH.DLC);
+  Serial.print("  ");
+  for (int i = 0; i < LEAF_CLEAR_SOH.DLC; ++i) {
+    Serial.print(LEAF_CLEAR_SOH.data.u8[i], HEX);
+    Serial.print(" ");
+  }
+  Serial.println("");
 }
 
 uint32_t CyclicXorHash16Bit(uint32_t param_1, uint32_t param_2) {
