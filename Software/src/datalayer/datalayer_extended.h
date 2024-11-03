@@ -22,6 +22,9 @@ typedef struct {
   int32_t allowable_charge_amps = 0;
   int32_t allowable_discharge_amps = 0;
   int16_t balancing_status = 0;
+  int16_t battery_voltage_after_contactor = 0;
+  unsigned long min_cell_voltage_data_age = 0;
+  unsigned long max_cell_voltage_data_age = 0;
 
 } DATALAYER_INFO_BMWIX;
 
