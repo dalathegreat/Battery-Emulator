@@ -430,7 +430,7 @@ void update_values_battery2() {  //This function maps all the values fetched via
 }
 
 void update_values_battery() {  //This function maps all the values fetched via CAN to the battery datalayer
-  if (datalayer.system.status.pause_active == true) {
+  if (datalayer.system.settings.equipment_stop_active == true) {
     digitalWrite(WUP_PIN, LOW);  // Turn off WUP_PIN
   } else {
     digitalWrite(WUP_PIN, HIGH);  // Wake up the battery
