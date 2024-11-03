@@ -29,14 +29,21 @@ union f32b {
   byte b[4];
 };
 
-uint8_t frame1[40] = {0x06, 0xE2, 0xFF, 0x02, 0xFF, 0x29,  // Frame header
+
+
+
+uint8_t BATTERY_INFO[40] = {0x06, 0xE2, 0xFF, 0x02, 0xFF, 0x29,  // Frame header
                       0x01, 0x08, 0x80, 0x43,  // 256.063 Nominal voltage / 5*51.2=256      first byte 0x01 or 0x04
-                      0xE4, 0x70, 0x8A, 0x5C,  // These might be Umin & Unax, Uint16
-                      0xB5, 0x02, 0xD3, 0x01,  // Battery Serial number? Modbus register 527
-                      0x01, 0x05, 0xC8, 0x41,  // 25.0024  ?
-                      0xC2, 0x18,              // Battery Firmware, modbus register 586
-                      0x01, 0x03, 0x59, 0x42,  // 0x00005942 = 54.25 ??
-                      0x01, 0x01, 0x01, 0x02, 0x05, 0x02, 0xA0, 0x01, 0x01, 0x02,
+                      0xE4, 0x70, 0x8A, 0x5C,  // Manufacture date (Epoch time) (BYD: GetBatteryInfo this[0x10ac])
+                      0xB5, 0x02, 0xD3, 0x01,  // Battery Serial number? Modbus register 527 - 0x10b0
+                      0x01, 0x05, 0xC8, 0x41,  // 0x10b4
+                      0xC2, 0x18,              // Battery Firmware, modbus register 586  (0x10b8)
+                      0x01,                    // Static (BYD: GetBatteryInfo this[0x10ba])
+                      0x03,                    // ?
+                      0x59, 0x42,              // Static (BYD: GetBatteryInfo this[0x10bc]) 
+                      0x01, 0x01,              // Static (BYD: GetBatteryInfo this[0x10be]) 
+                      0x01, 0x02,              
+                      0x05, 0x02, 0xA0, 0x01, 0x01, 0x02,
                       0x4D,   // CRC
                       0x00};  //
 
@@ -207,7 +214,7 @@ void update_RS485_registers_inverter() {
   nominal_voltage_dV =
       (((datalayer.battery.info.max_design_voltage_dV - datalayer.battery.info.min_design_voltage_dV) / 2) +
        datalayer.battery.info.min_design_voltage_dV);
-  float2frameMSB(frame1, (float)nominal_voltage_dV / 10, 8);
+  float2frameMSB(BATTERY_INFO, (float)nominal_voltage_dV / 10, 8);
 
   float2frameMSB(frame2, (float)datalayer.battery.info.max_design_voltage_dV / 10, 12);
 
@@ -250,7 +257,7 @@ void update_RS485_registers_inverter() {
 
   register_content_ok = true;
 
-  frame1[38] = calculate_frame1_crc(frame1, 38);
+  BATTERY_INFO[38] = calculate_frame1_crc(BATTERY_INFO, 38);
 
   if (incoming_message_counter > 0) {
     incoming_message_counter--;
@@ -336,7 +343,7 @@ void receive_RS485()  // Runs as fast as possible to handle the serial stream
             }
 
             if (headerA && (RS485_RXFRAME[6] == 0x4A) && (RS485_RXFRAME[7] == 0x08)) {  // "frame 1"
-              send_kostal(frame1, 40);
+              send_kostal(BATTERY_INFO, 40);
               if (!startupMillis) {
                 startupMillis = currentMillis;
               }
