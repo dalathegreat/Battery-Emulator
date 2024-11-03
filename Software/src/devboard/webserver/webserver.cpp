@@ -1,6 +1,7 @@
 #include "webserver.h"
 #include <Preferences.h>
 #include "../../datalayer/datalayer.h"
+#include "../../datalayer/datalayer_extended.h"
 #include "../../lib/bblanchon-ArduinoJson/ArduinoJson.h"
 #include "../utils/events.h"
 #include "../utils/led_handler.h"
@@ -229,6 +230,15 @@ void init_webserver() {
     } else {
       request->send(400, "text/plain", "Bad Request");
     }
+  });
+
+  // Route for resetting SOH on Nissan LEAF batteries
+  server.on("/resetSOH", HTTP_GET, [](AsyncWebServerRequest* request) {
+    if (WEBSERVER_AUTH_REQUIRED && !request->authenticate(http_username, http_password)) {
+      return request->requestAuthentication();
+    }
+    datalayer_extended.nissanleaf.UserRequestSOHreset = true;
+    request->send(200, "text/plain", "Updated successfully");
   });
 
 #ifdef TEST_FAKE_BATTERY

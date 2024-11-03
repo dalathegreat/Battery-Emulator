@@ -174,6 +174,18 @@ static int16_t battery2_temp_polled_max = 0;
 static int16_t battery2_temp_polled_min = 0;
 #endif  // DOUBLE_BATTERY
 
+// Clear SOH values
+static uint8_t stateMachineClearSOH = 0xFF;
+static uint32_t incomingChallenge = 0xFFFFFFFF;
+static uint8_t solvedChallenge[8];
+static bool challengeFailed = false;
+
+CAN_frame LEAF_CLEAR_SOH = {.FD = false,
+                            .ext_ID = false,
+                            .DLC = 8,
+                            .ID = 0x79B,
+                            .data = {0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF}};
+
 void print_with_units(char* header, int value, char* units) {
   Serial.print(header);
   Serial.print(value);
@@ -337,6 +349,18 @@ void update_values_battery() { /* This function maps all the values fetched via 
   datalayer_extended.nissanleaf.HeatingStop = battery_Heating_Stop;
   datalayer_extended.nissanleaf.HeatingStart = battery_Heating_Start;
   datalayer_extended.nissanleaf.HeaterSendRequest = battery_Batt_Heater_Mail_Send_Request;
+  datalayer_extended.nissanleaf.CryptoChallenge = incomingChallenge;
+  datalayer_extended.nissanleaf.SolvedChallengeMSB =
+      ((solvedChallenge[7] << 24) | (solvedChallenge[6] << 16) | (solvedChallenge[5] << 8) | solvedChallenge[4]);
+  datalayer_extended.nissanleaf.SolvedChallengeLSB =
+      ((solvedChallenge[3] << 24) | (solvedChallenge[2] << 16) | (solvedChallenge[1] << 8) | solvedChallenge[0]);
+
+  // Update requests from webserver datalayer
+  if (datalayer_extended.nissanleaf.UserRequestSOHreset) {
+    Serial.println("REQUEST FROM WEBSERVER");
+    stateMachineClearSOH = 0;  //Start the statemachine
+    datalayer_extended.nissanleaf.UserRequestSOHreset = false;
+  }
 
 /*Finally print out values to serial if configured to do so*/
 #ifdef DEBUG_VIA_USB
@@ -610,7 +634,7 @@ void receive_can_battery2(CAN_frame rx_frame) {
         }
       }
 
-      if (stop_battery_query) {  //Leafspy is active, stop our own polling
+      if (stop_battery_query) {  //Leafspy/Service request is active, stop our own polling
         break;
       }
 
@@ -847,6 +871,34 @@ void receive_can_battery(CAN_frame rx_frame) {
       hold_off_with_polling_10seconds = 10;  //Polling is paused for 100s
       break;
     case 0x7BB:
+
+      // This section checks if we are doing a SOH reset towards BMS
+      if (stateMachineClearSOH < 255) {
+        //Intercept the messages based on state machine
+        if (rx_frame.data.u8[0] == 0x06) {  // Incoming challenge data!
+          incomingChallenge = ((rx_frame.data.u8[3] << 24) | (rx_frame.data.u8[4] << 16) | (rx_frame.data.u8[5] << 8) |
+                               rx_frame.data.u8[6]);
+        }
+        //Error checking
+        if ((rx_frame.data.u8[0] == 0x03) && (rx_frame.data.u8[1] == 0x7F)) {
+          challengeFailed = true;
+          Serial.print("Challenge solving failed");
+        }
+        // All CAN messages recieved from BMS will be logged via serial during development of this function
+        Serial.print(millis());  // Example printout, time, ID, length, data: 7553  1DB  8  FF C0 B9 EA 0 0 2 5D
+        Serial.print("  ");
+        Serial.print(rx_frame.ID, HEX);
+        Serial.print("  ");
+        Serial.print(rx_frame.DLC);
+        Serial.print("  ");
+        for (int i = 0; i < rx_frame.DLC; ++i) {
+          Serial.print(rx_frame.data.u8[i], HEX);
+          Serial.print(" ");
+        }
+        Serial.println("");
+        break;
+      }
+
       //First check which group data we are getting
       if (rx_frame.data.u8[0] == 0x10) {  //First message of a group
         group_7bb = rx_frame.data.u8[3];
@@ -1127,6 +1179,10 @@ void send_can_battery() {
     if (currentMillis - previousMillis100 >= INTERVAL_100_MS) {
       previousMillis100 = currentMillis;
 
+      if (stateMachineClearSOH < 255) {  // Enter the ClearSOH statemachine only if we request it
+        clearSOH();
+      }
+
       //When battery requests heating pack status change, ack this
       if (battery_Batt_Heater_Mail_Send_Request) {
         LEAF_50B.data.u8[6] = 0x20;  //Batt_Heater_Mail_Send_OK
@@ -1228,6 +1284,254 @@ uint16_t Temp_fromRAW_to_F(uint16_t temperature) {  //This function feels horrib
     return static_cast<uint16_t>(1022 + (340 - temperature) * 2.25);
   }
   return static_cast<uint16_t>(1094 + (309 - temperature) * 2.5714285714285715);
+}
+
+void clearSOH(void) {
+
+  stop_battery_query = true;
+  hold_off_with_polling_10seconds = 10;  // Active battery polling is paused for 100 seconds
+
+  switch (stateMachineClearSOH) {
+    case 0:  // Wait until polling actually stops
+      stateMachineClearSOH = 1;
+      break;
+    case 1:  // Set CAN_PROCESS_FLAG to 0xC0
+      LEAF_CLEAR_SOH.data.u8[0] = 0x02;
+      LEAF_CLEAR_SOH.data.u8[1] = 0x10;
+      LEAF_CLEAR_SOH.data.u8[2] = 0xC0;
+      LEAF_CLEAR_SOH.data.u8[3] = 0x00;
+      LEAF_CLEAR_SOH.data.u8[4] = 0x00;
+      LEAF_CLEAR_SOH.data.u8[5] = 0x00;
+      LEAF_CLEAR_SOH.data.u8[6] = 0x00;
+      LEAF_CLEAR_SOH.data.u8[7] = 0x00;
+      transmit_can(&LEAF_CLEAR_SOH, can_config.battery);
+      // BMS should reply 02 50 C0 FF FF FF FF FF
+      stateMachineClearSOH = 2;
+      break;
+    case 2:  // Set something ?
+      LEAF_CLEAR_SOH.data.u8[0] = 0x02;
+      LEAF_CLEAR_SOH.data.u8[1] = 0x3E;
+      LEAF_CLEAR_SOH.data.u8[2] = 0x01;
+      LEAF_CLEAR_SOH.data.u8[3] = 0x00;
+      LEAF_CLEAR_SOH.data.u8[4] = 0x00;
+      LEAF_CLEAR_SOH.data.u8[5] = 0x00;
+      LEAF_CLEAR_SOH.data.u8[6] = 0x00;
+      LEAF_CLEAR_SOH.data.u8[7] = 0x00;
+      transmit_can(&LEAF_CLEAR_SOH, can_config.battery);
+      // BMS should reply 7E FF FF FF FF FF FF
+      stateMachineClearSOH = 3;
+      break;
+    case 3:  // Request challenge to solve
+      LEAF_CLEAR_SOH.data.u8[0] = 0x02;
+      LEAF_CLEAR_SOH.data.u8[1] = 0x27;
+      LEAF_CLEAR_SOH.data.u8[2] = 0x65;
+      LEAF_CLEAR_SOH.data.u8[3] = 0x00;
+      LEAF_CLEAR_SOH.data.u8[4] = 0x00;
+      LEAF_CLEAR_SOH.data.u8[5] = 0x00;
+      LEAF_CLEAR_SOH.data.u8[6] = 0x00;
+      LEAF_CLEAR_SOH.data.u8[7] = 0x00;
+      transmit_can(&LEAF_CLEAR_SOH, can_config.battery);
+      stateMachineClearSOH = 4;
+      break;
+    case 4:  // Send back decoded challenge data
+      decodeChallengeData(incomingChallenge, solvedChallenge);
+      LEAF_CLEAR_SOH.data.u8[0] = 0x10;
+      LEAF_CLEAR_SOH.data.u8[1] = 0x0A;
+      LEAF_CLEAR_SOH.data.u8[2] = 0x27;
+      LEAF_CLEAR_SOH.data.u8[3] = 0x66;
+      LEAF_CLEAR_SOH.data.u8[4] = 0x77;
+      LEAF_CLEAR_SOH.data.u8[5] = solvedChallenge[0];
+      LEAF_CLEAR_SOH.data.u8[6] = solvedChallenge[1];
+      LEAF_CLEAR_SOH.data.u8[7] = solvedChallenge[2];
+      transmit_can(&LEAF_CLEAR_SOH, can_config.battery);
+      // BMS should reply 7BB 8 30 01 00 FF FF FF FF FF // Proceed with more data (PID ACK)
+      stateMachineClearSOH = 5;
+      break;
+    case 5:  // Reply with even more decoded challenge data
+      LEAF_CLEAR_SOH.data.u8[0] = solvedChallenge[3];
+      LEAF_CLEAR_SOH.data.u8[1] = solvedChallenge[4];
+      LEAF_CLEAR_SOH.data.u8[2] = solvedChallenge[5];
+      LEAF_CLEAR_SOH.data.u8[3] = solvedChallenge[6];
+      LEAF_CLEAR_SOH.data.u8[4] = solvedChallenge[7];
+      LEAF_CLEAR_SOH.data.u8[5] = 0x00;
+      LEAF_CLEAR_SOH.data.u8[6] = 0x00;
+      LEAF_CLEAR_SOH.data.u8[7] = 0x00;
+      transmit_can(&LEAF_CLEAR_SOH, can_config.battery);
+      // BMS should reply 02 67 66 FF FF FF FF FF // Thank you for the data
+      stateMachineClearSOH = 6;
+      break;
+    case 6:  // Check if solved data was OK
+      LEAF_CLEAR_SOH.data.u8[0] = 0x03;
+      LEAF_CLEAR_SOH.data.u8[1] = 0x31;
+      LEAF_CLEAR_SOH.data.u8[2] = 0x03;
+      LEAF_CLEAR_SOH.data.u8[3] = 0x00;
+      LEAF_CLEAR_SOH.data.u8[4] = 0x00;
+      LEAF_CLEAR_SOH.data.u8[5] = 0x00;
+      LEAF_CLEAR_SOH.data.u8[6] = 0x00;
+      LEAF_CLEAR_SOH.data.u8[7] = 0x00;
+      transmit_can(&LEAF_CLEAR_SOH, can_config.battery);
+      //7BB 8 03 71 03 01 FF FF FF FF // If all is well, BMS replies with 03 71 03 01.
+      //Incase you sent wrong challenge, you get 03 7f 31 12
+      stateMachineClearSOH = 7;
+      break;
+    case 7:  // Reset SOH% request
+      LEAF_CLEAR_SOH.data.u8[0] = 0x03;
+      LEAF_CLEAR_SOH.data.u8[1] = 0x31;
+      LEAF_CLEAR_SOH.data.u8[2] = 0x03;
+      LEAF_CLEAR_SOH.data.u8[3] = 0x01;
+      LEAF_CLEAR_SOH.data.u8[4] = 0x00;
+      LEAF_CLEAR_SOH.data.u8[5] = 0x00;
+      LEAF_CLEAR_SOH.data.u8[6] = 0x00;
+      LEAF_CLEAR_SOH.data.u8[7] = 0x00;
+      transmit_can(&LEAF_CLEAR_SOH, can_config.battery);
+      //7BB 8 03 71 03 02 FF FF FF FF // 03 71 03 02 means that BMS accepted command.
+      //7BB 03 7f 31 12 means your challenge was wrong, so command ignored
+      stateMachineClearSOH = 8;
+      break;
+    case 8:  // Please proceed with resetting SOH
+      LEAF_CLEAR_SOH.data.u8[0] = 0x02;
+      LEAF_CLEAR_SOH.data.u8[1] = 0x10;
+      LEAF_CLEAR_SOH.data.u8[2] = 0x81;
+      LEAF_CLEAR_SOH.data.u8[3] = 0x00;
+      LEAF_CLEAR_SOH.data.u8[4] = 0x00;
+      LEAF_CLEAR_SOH.data.u8[5] = 0x00;
+      LEAF_CLEAR_SOH.data.u8[6] = 0x00;
+      LEAF_CLEAR_SOH.data.u8[7] = 0x00;
+      transmit_can(&LEAF_CLEAR_SOH, can_config.battery);
+      // 7BB 8 02 50 81 FF FF FF FF FF // SOH reset OK
+      stateMachineClearSOH = 255;
+      break;
+    default:
+      break;
+  }
+}
+
+uint32_t CyclicXorHash16Bit(uint32_t param_1, uint32_t param_2) {
+  bool bVar1;
+  uint32_t uVar2;
+  uint32_t uVar3;
+  uint32_t uVar4;
+  uint32_t uVar5;
+  uint32_t uVar6;
+  uint32_t uVar7;
+  uint32_t uVar8;
+  uint32_t uVar9;
+  uint32_t uVar10;
+  uint32_t uVar11;
+  uint32_t iVar12;
+
+  param_1 = param_1 & 0xffff;
+  param_2 = param_2 & 0xffff;
+  uVar10 = 0xffff;
+  iVar12 = 2;
+  do {
+    uVar2 = param_2;
+    if ((param_1 & 1) == 1) {
+      uVar2 = param_1 >> 1;
+    }
+    uVar3 = param_2;
+    if ((param_1 >> 1 & 1) == 1) {
+      uVar3 = param_1 >> 2;
+    }
+    uVar4 = param_2;
+    if ((param_1 >> 2 & 1) == 1) {
+      uVar4 = param_1 >> 3;
+    }
+    uVar5 = param_2;
+    if ((param_1 >> 3 & 1) == 1) {
+      uVar5 = param_1 >> 4;
+    }
+    uVar6 = param_2;
+    if ((param_1 >> 4 & 1) == 1) {
+      uVar6 = param_1 >> 5;
+    }
+    uVar7 = param_2;
+    if ((param_1 >> 5 & 1) == 1) {
+      uVar7 = param_1 >> 6;
+    }
+    uVar11 = param_1 >> 7;
+    uVar8 = param_2;
+    if ((param_1 >> 6 & 1) == 1) {
+      uVar8 = uVar11;
+    }
+    param_1 = param_1 >> 8;
+    uVar9 = param_2;
+    if ((uVar11 & 1) == 1) {
+      uVar9 = param_1;
+    }
+    uVar10 =
+        (((((((((((((((uVar10 & 0x7fff) << 1 ^ uVar2) & 0x7fff) << 1 ^ uVar3) & 0x7fff) << 1 ^ uVar4) & 0x7fff) << 1 ^
+                uVar5) &
+               0x7fff)
+                  << 1 ^
+              uVar6) &
+             0x7fff)
+                << 1 ^
+            uVar7) &
+           0x7fff)
+              << 1 ^
+          uVar8) &
+         0x7fff)
+            << 1 ^
+        uVar9;
+    bVar1 = iVar12 != 1;
+    iVar12 = iVar12 + -1;
+  } while (bVar1);
+  return uVar10;
+}
+
+uint32_t ComputeMaskedXorProduct(uint32_t param_1, uint32_t param_2, uint32_t param_3) {
+  return (param_3 ^ 0x780 | param_2 ^ 0x116) * ((param_1 & 0xffff) >> 8 ^ param_1 & 0xff) & 0xffff;
+}
+
+short ShortMaskedSumAndProduct(short param_1, short param_2) {
+  unsigned short uVar1;
+
+  uVar1 = param_2 + param_1 * 0x5ba & 0xff;
+  return (uVar1 + param_1) * (uVar1 + param_2);
+}
+
+uint32_t MaskedBitwiseRotateMultiply(uint32_t param_1, uint32_t param_2) {
+  uint32_t uVar1;
+
+  param_1 = param_1 & 0xffff;
+  param_2 = param_2 & 0xffff;
+  uVar1 = param_2 & (param_1 | 0x5ba) & 0xf;
+  return ((uint32_t)param_1 >> uVar1 | param_1 << (0x10 - uVar1 & 0x1f)) *
+             (param_2 << uVar1 | (uint32_t)param_2 >> (0x10 - uVar1 & 0x1f)) &
+         0xffff;
+}
+
+uint32_t CryptAlgo(uint32_t param_1, uint32_t param_2, uint32_t param_3) {
+  uint32_t uVar1;
+  uint32_t uVar2;
+  uint32_t iVar3;
+  uint32_t iVar4;
+
+  uVar1 = MaskedBitwiseRotateMultiply(param_2, param_3);
+  uVar2 = ShortMaskedSumAndProduct(param_2, param_3);
+  uVar1 = ComputeMaskedXorProduct(param_1, uVar1, uVar2);
+  uVar2 = ComputeMaskedXorProduct(param_1, uVar2, uVar1);
+  iVar3 = CyclicXorHash16Bit(uVar1, 0xffc4);
+  iVar4 = CyclicXorHash16Bit(uVar2, 0xffc4);
+  return iVar4 + iVar3 * 0x10000;
+}
+
+void decodeChallengeData(uint32_t incomingChallenge, unsigned char* solvedChallenge) {
+  uint32_t uVar1;
+  uint32_t uVar2;
+
+  uVar1 = CryptAlgo(0x609, 0xDD2, incomingChallenge >> 0x10);
+  uVar2 = CryptAlgo(incomingChallenge & 0xffff, incomingChallenge >> 0x10, 0x609);
+  *solvedChallenge = (unsigned char)uVar1;
+  solvedChallenge[1] = (unsigned char)uVar2;
+  solvedChallenge[2] = (unsigned char)((uint32_t)uVar2 >> 8);
+  solvedChallenge[3] = (unsigned char)((uint32_t)uVar1 >> 8);
+  solvedChallenge[4] = (unsigned char)((uint32_t)uVar2 >> 16);
+  solvedChallenge[5] = (unsigned char)((uint32_t)uVar1 >> 16);
+  solvedChallenge[6] = (unsigned char)((uint32_t)uVar2 >> 24);
+  solvedChallenge[7] = (unsigned char)((uint32_t)uVar1 >> 24);
+  return;
 }
 
 void setup_battery(void) {  // Performs one time setup at startup
