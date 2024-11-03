@@ -719,6 +719,27 @@ String processor(const String& var) {
       content += "<span style='color: red;'>OFF</span>";
     }
     content += "</h4>";
+
+    content += "<h4>Pre Charge: ";
+    if (digitalRead(PRECHARGE_PIN) == HIGH) {
+      content += "<span style='color: green;'>&#10003;</span>";
+    } else {
+      content += "<span style='color: red;'>&#10005;</span>";
+    }
+    content += " Cont. Neg.: ";
+    if (digitalRead(NEGATIVE_CONTACTOR_PIN) == HIGH) {
+      content += "<span style='color: green;'>&#10003;</span>";
+    } else {
+      content += "<span style='color: red;'>&#10005;</span>";
+    }
+
+    content += " Cont. Pos.: ";
+    if (digitalRead(POSITIVE_CONTACTOR_PIN) == HIGH) {
+      content += "<span style='color: green;'>&#10003;</span>";
+    } else {
+      content += "<span style='color: red;'>&#10005;</span>";
+    }
+    content += "</h4>";
 #endif
 
     // Close the block

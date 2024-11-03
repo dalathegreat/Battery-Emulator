@@ -744,6 +744,7 @@ void handle_contactors() {
   if (timeSpentInFaultedMode > MAX_ALLOWED_FAULT_TICKS ||
       (datalayer.system.settings.equipment_stop_active && contactorStatus != SHUTDOWN_REQUESTED)) {
     contactorStatus = SHUTDOWN_REQUESTED;
+    datalayer.system.settings.equipment_stop_active = true;
   }
   if (contactorStatus == SHUTDOWN_REQUESTED && !datalayer.system.settings.equipment_stop_active) {
     contactorStatus = DISCONNECTED;
