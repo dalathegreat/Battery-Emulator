@@ -177,6 +177,9 @@ typedef struct {
    * we report the inverter as missing entirely on the CAN bus.
    */
   uint8_t CAN_inverter_still_alive = CAN_STILL_ALIVE;
+
+  /** True if a pause is active, requested via webserver */
+  bool pause_active = false;
   /** True if the battery allows for the contactors to close */
   bool battery_allows_contactor_closing = false;
   /** True if the second battery allows for the contactors to close */

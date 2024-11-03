@@ -257,6 +257,7 @@ void setBatteryPause(bool pause_battery, bool pause_CAN, bool equipment_stop, bo
     set_event(EVENT_PAUSE_BEGIN, 1);
     emulator_pause_request_ON = true;
     emulator_pause_status = PAUSING;
+    datalayer.system.status.pause_active = true;
     datalayer.battery.status.max_discharge_power_W = 0;
     datalayer.battery.status.max_charge_power_W = 0;
 #ifdef DOUBLE_BATTERY
@@ -270,6 +271,7 @@ void setBatteryPause(bool pause_battery, bool pause_CAN, bool equipment_stop, bo
     emulator_pause_request_ON = false;
     emulator_pause_CAN_send_ON = false;
     emulator_pause_status = RESUMING;
+    datalayer.system.status.pause_active = false;
     clear_event(EVENT_PAUSE_END);
   }
 
