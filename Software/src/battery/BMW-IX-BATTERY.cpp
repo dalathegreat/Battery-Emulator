@@ -56,16 +56,11 @@ No vehicle  log available, SME asks for:
   0xAA (EME2)
   0x?? Suspect there is a drive mode flag somewhere - balancing might only be active in some modes
 
-
-
 TODO
-
 - Request batt serial number on F1 8C (already parsing RX)
-- Check PWM required from ACSM
-- Use voltage qualifier for extended data?
+- Check PWM state required from ACSM
 - More Balancing values
-- Check for stale min/max values
-- Prevent fault state on SME reset
+- MIN /max cell voltag e- implement safety limits?
 
 */
 
@@ -119,10 +114,12 @@ CAN_frame BMWiX_6F4_REQUEST_UPTIME = {.FD = true, .ext_ID = false, .DLC = 5, .ID
 CAN_frame BMWiX_6F4_REQUEST_HVIL = {.FD = true, .ext_ID = false, .DLC = 5, .ID = 0x6F4, .data = {0x07, 0x03, 0x22, 0xE5, 0x69}};  // Request HVIL State
 CAN_frame BMWiX_6F4_REQUEST_BALANCINGSTATUS = {.FD = true, .ext_ID = false, .DLC = 5, .ID = 0x6F4, .data = {0x07, 0x03, 0x22, 0xE4, 0xCA}};  // Request Balancing Data
 CAN_frame BMWiX_6F4_REQUEST_MAX_CHARGE_DISCHARGE_AMPS = {.FD = true, .ext_ID = false, .DLC = 5, .ID = 0x6F4, .data = {0x07, 0x03, 0x22, 0xE5, 0x62}};  // Request allowable charge discharge amps
-CAN_frame BMWiX_6F4_REQUEST_QUALIFIER_CHECK = {.FD = true, .ext_ID = false, .DLC = 5, .ID = 0x6F4, .data = {0x07, 0x03, 0x22, 0xE5, 0x4B}};  // Request HV Voltage Qualifier
+CAN_frame BMWiX_6F4_REQUEST_VOLTAGE_QUALIFIER_CHECK = {.FD = true, .ext_ID = false, .DLC = 5, .ID = 0x6F4, .data = {0x07, 0x03, 0x22, 0xE5, 0x4B}};  // Request HV Voltage Qualifier
 CAN_frame BMWiX_6F4_REQUEST_CONTACTORS_CLOSE = {.FD = true, .ext_ID = false, .DLC = 6, .ID = 0x6F4, .data = {0x07, 0x03, 0x22, 0xE5, 0x51, 0x01}};  // Request Contactors Close - Unconfirmed
 CAN_frame BMWiX_6F4_REQUEST_CONTACTORS_OPEN = {.FD = true, .ext_ID = false, .DLC = 6, .ID = 0x6F4, .data = {0x07, 0x03, 0x22, 0xE5, 0x51, 0x01}};  // Request Contactors Open - Unconfirmed
 CAN_frame BMWiX_6F4_REQUEST_BALANCING_START = {.FD = true, .ext_ID = false, .DLC = 6, .ID = 0x6F4, .data = {0xF4, 0x04, 0x71, 0x01, 0xAE, 0x77}};  // Request Balancing command?
+CAN_frame BMWiX_6F4_REQUEST_PACK_VOLTAGE_LIMITS = {.FD = true, .ext_ID = false, .DLC = 5, .ID = 0x6F4, .data = {0x07, 0x03, 0x22, 0xE5, 0x4C}};  // Request pack voltage limits
+
 
 CAN_frame BMWiX_6F4_CONTINUE_DATA = {.FD = true, .ext_ID = false, .DLC = 4, .ID = 0x6F4, .data = {0x07, 0x30, 0x00, 0x02}};
 
@@ -152,11 +149,13 @@ CAN_frame* UDS_REQUESTS100MS[] = {
   &BMWiX_6F4_REQUEST_EOL_ISO,
   &BMWiX_6F4_REQUEST_HVIL,
   &BMWiX_6F4_REQUEST_MAX_CHARGE_DISCHARGE_AMPS,
-  &BMWiX_6F4_REQUEST_BALANCINGSTATUS
+  &BMWiX_6F4_REQUEST_BALANCINGSTATUS,
+  &BMWiX_6F4_REQUEST_PACK_VOLTAGE_LIMITS
   };
 int numUDSreqs = sizeof(UDS_REQUESTS100MS) / sizeof(UDS_REQUESTS100MS[0]); // Number of elements in the array
 
 //iX Intermediate vars
+static bool battery_info_available = false;
 static uint32_t battery_serial_number = 0;
 static int32_t battery_current = 0;
 static int16_t battery_voltage = 370;
@@ -168,8 +167,8 @@ static int16_t max_soc_state = 50;
 static int16_t min_soh_state = 99;// Uses E5 45, also available in 78 73
 static int16_t avg_soh_state = 99;// Uses E5 45, also available in 78 73
 static int16_t max_soh_state = 99;// Uses E5 45, also available in 78 73
-static uint16_t battery_max_charge_voltage = 0;
-static uint16_t battery_min_discharge_voltage = 0;
+static uint16_t max_design_voltage = 0;
+static uint16_t min_design_voltage = 0;
 static int32_t remaining_capacity = 0;
 static int32_t max_capacity = 0;
 static int16_t min_battery_temperature = 0;
@@ -178,6 +177,8 @@ static int16_t max_battery_temperature = 0;
 static int16_t main_contactor_temperature = 0;
 static int16_t min_cell_voltage = 0;
 static int16_t max_cell_voltage = 0;
+static unsigned long min_cell_voltage_lastchanged = 0;
+static unsigned long max_cell_voltage_lastchanged = 0;
 static unsigned min_cell_voltage_lastreceived = 0;
 static unsigned max_cell_voltage_lastreceived = 0;
 static int16_t battery_power = 0;
@@ -200,12 +201,31 @@ static uint8_t pyro_status_pss1 = 0; //Using AC 93
 static uint8_t pyro_status_pss4 = 0; //Using AC 93
 static uint8_t pyro_status_pss6 = 0; //Using AC 93
 static uint8_t uds_req_id_counter = 0;
+const unsigned long STALE_PERIOD = STALE_PERIOD_CONFIG ;  // Time in milliseconds to check for staleness (e.g., 5000 ms = 5 seconds)
+
+
 
 static byte iX_0C0_counter = 0xF0; // Initialize to 0xF0
 
 //End iX Intermediate vars
 
 static uint8_t current_cell_polled = 0;
+
+// Function to check if a value has gone stale over a specified time period
+bool isStale(int16_t currentValue, uint16_t &lastValue, unsigned long &lastChangeTime) {
+  unsigned long currentTime = millis();
+
+  // Check if the value has changed
+  if (currentValue != lastValue) {
+    // Update the last change time and value
+    lastChangeTime = currentTime;
+    lastValue = currentValue;
+    return false;  // Value is fresh because it has changed
+  }
+
+  // Check if the value has stayed the same for the specified staleness period
+  return (currentTime - lastChangeTime >= STALE_PERIOD);
+}
 
 static uint8_t increment_uds_req_id_counter(uint8_t index) {
   index++;
@@ -246,9 +266,23 @@ void update_values_battery() {  //This function maps all the values fetched via 
 
   datalayer.battery.status.soh_pptt = min_soh_state;
 
-  datalayer.battery.status.max_discharge_power_W = 10000; //Aux HV Port has 100A Fuse
+  datalayer.battery.status.max_discharge_power_W =  3200; //10000; //Aux HV Port has 100A Fuse
 
-  datalayer.battery.status.max_charge_power_W = 10000; //Aux HV Port has 100A Fuse
+  //datalayer.battery.status.max_charge_power_W = 3200; //10000; //Aux HV Port has 100A Fuse  Moved to Ramping
+
+
+    // Charge power is set in .h file
+  if (datalayer.battery.status.real_soc > 9900) {
+    datalayer.battery.status.max_charge_power_W = MAX_CHARGE_POWER_WHEN_TOPBALANCING_W;
+  } else if (datalayer.battery.status.real_soc > RAMPDOWN_SOC) {
+    // When real SOC is between RAMPDOWN_SOC-99%, ramp the value between Max<->0
+    datalayer.battery.status.max_charge_power_W =
+        MAX_CHARGE_POWER_ALLOWED_W *
+        (1 - (datalayer.battery.status.real_soc - RAMPDOWN_SOC) / (10000.0 - RAMPDOWN_SOC));
+  } else {  // No limits, max charging power allowed
+    datalayer.battery.status.max_charge_power_W = MAX_CHARGE_POWER_ALLOWED_W;
+  }
+
 
   battery_power = (datalayer.battery.status.current_dA * (datalayer.battery.status.voltage_dV / 100));
 
@@ -258,11 +292,31 @@ void update_values_battery() {  //This function maps all the values fetched via 
 
   datalayer.battery.status.temperature_max_dC = max_battery_temperature;
 
-  datalayer.battery.status.cell_min_voltage_mV = min_cell_voltage;
-
-  datalayer.battery.status.cell_max_voltage_mV = max_cell_voltage;
   
-  datalayer.battery.status.CAN_battery_still_alive = CAN_STILL_ALIVE;
+
+  if (isStale(min_cell_voltage, datalayer.battery.status.cell_min_voltage_mV, min_cell_voltage_lastchanged)) {//TODO prevent flipflop after error
+    Serial.println("min_cell_voltage has gone stale.");
+    datalayer.battery.status.cell_min_voltage_mV = 9999; //Stale values force stop
+    set_event(EVENT_CAN_RX_FAILURE,0); 
+  } else {
+    datalayer.battery.status.cell_min_voltage_mV = min_cell_voltage; //Value is alive
+  }
+
+  if (isStale(max_cell_voltage, datalayer.battery.status.cell_max_voltage_mV, max_cell_voltage_lastchanged)) { //TODO prevent flipflop after error
+    Serial.println("max_cell_voltage has gone stale.");
+    datalayer.battery.status.cell_max_voltage_mV = 9999; //Stale values force stop
+    set_event(EVENT_CAN_RX_FAILURE,0); 
+  } else {
+    datalayer.battery.status.cell_max_voltage_mV = max_cell_voltage; //Value is alive
+  }
+
+  datalayer_extended.bmwix.min_cell_voltage_data_age = (millis() - min_cell_voltage_lastchanged);
+
+  datalayer_extended.bmwix.max_cell_voltage_data_age = (millis() - max_cell_voltage_lastchanged);
+
+  datalayer.battery.info.max_design_voltage_dV = max_design_voltage;
+
+  datalayer.battery.info.min_design_voltage_dV = min_design_voltage;
 
   datalayer.battery.info.number_of_cells = 108; //init with 108S before autodetection
 
@@ -282,13 +336,27 @@ void update_values_battery() {  //This function maps all the values fetched via 
 
   datalayer_extended.bmwix.iso_safety_negative = iso_safety_negative;
 
-  datalayer_extended.bmwix.iso_safety_parallel= iso_safety_parallel;
+  datalayer_extended.bmwix.iso_safety_parallel = iso_safety_parallel;
 
   datalayer_extended.bmwix.allowable_charge_amps = allowable_charge_amps;
 
   datalayer_extended.bmwix.allowable_discharge_amps= allowable_discharge_amps;
 
   datalayer_extended.bmwix.balancing_status = balancing_status;
+
+  datalayer_extended.bmwix.battery_voltage_after_contactor = battery_voltage_after_contactor;
+
+
+
+
+
+  if (battery_info_available) {
+    // If we have data from battery - override the defaults to suit
+      datalayer.battery.info.max_design_voltage_dV = max_design_voltage;
+      datalayer.battery.info.min_design_voltage_dV = min_design_voltage;
+      datalayer.battery.info.max_cell_voltage_mV = MAX_CELL_VOLTAGE_MV;
+      datalayer.battery.info.min_cell_voltage_mV = MIN_CELL_VOLTAGE_MV;
+  }
 
 
 }
@@ -366,15 +434,15 @@ void receive_can_battery(CAN_frame rx_frame) {
        }
 
        if (rx_frame.DLC = 7 && rx_frame.data.u8[4] == 0x4A) { //Main Battery Voltage (After Contactor)
-        battery_voltage_after_contactor = (rx_frame.data.u8[5] <<8 | rx_frame.data.u8[6]);
+        battery_voltage_after_contactor = (rx_frame.data.u8[5] <<8 | rx_frame.data.u8[6])/10;
        }
 
 
        if (rx_frame.DLC = 12 && rx_frame.data.u8[4] == 0xE5 && rx_frame.data.u8[5] == 0x61) { //Current amps 32bit signed MSB. dA . negative is discharge
-        battery_current = (int32_t)((rx_frame.data.u8[5] << 24) |
-                                (rx_frame.data.u8[6] << 16) |
-                                (rx_frame.data.u8[7] << 8) |
-                                rx_frame.data.u8[8]);
+        battery_current = ((int32_t)((rx_frame.data.u8[6] << 24) |
+                                (rx_frame.data.u8[7] << 16) |
+                                (rx_frame.data.u8[8] << 8) |
+                                rx_frame.data.u8[9]))*0.1;
        }
 
        if (rx_frame.DLC = 64 && rx_frame.data.u8[4] == 0xE4 && rx_frame.data.u8[5] == 0xCA) { //Balancing Data
@@ -398,8 +466,8 @@ void receive_can_battery(CAN_frame rx_frame) {
        }
 
        if (rx_frame.DLC = 10 && rx_frame.data.u8[4] == 0xE5 && rx_frame.data.u8[5] == 0x62) { //Max allowed charge and discharge current - Signed 16bit
-        allowable_charge_amps = (int16_t)((rx_frame.data.u8[6] <<8 | rx_frame.data.u8[7]));
-        allowable_discharge_amps = (int16_t)((rx_frame.data.u8[8] <<8 | rx_frame.data.u8[9])); 
+        allowable_charge_amps = (int16_t)((rx_frame.data.u8[6] <<8 | rx_frame.data.u8[7]))/10;
+        allowable_discharge_amps = (int16_t)((rx_frame.data.u8[8] <<8 | rx_frame.data.u8[9]))/10; 
        }     
 
        if (rx_frame.DLC = 9 && rx_frame.data.u8[4] == 0xE5 && rx_frame.data.u8[5] == 0x4B) { //Max allowed charge and discharge current - Signed 16bit
@@ -424,6 +492,9 @@ void receive_can_battery(CAN_frame rx_frame) {
        }
 
        if (rx_frame.DLC = 12 && rx_frame.data.u8[4] == 0xE5 && rx_frame.data.u8[5] == 0x53) { //Min and max cell voltage   10V = Qualifier Invalid
+
+        datalayer.battery.status.CAN_battery_still_alive = CAN_STILL_ALIVE; //This is the most important safety values, if we receive this we reset CAN alive counter.
+
         if((rx_frame.data.u8[6] <<8 | rx_frame.data.u8[7]) == 10000 && (rx_frame.data.u8[8] <<8 | rx_frame.data.u8[9]) == 10000){ //Qualifier Invalid Mode - Request Reboot
            #ifdef DEBUG_VIA_USB
             Serial.println("Cell MinMax Qualifier Invalid - Requesting BMS Reset");
@@ -447,9 +518,18 @@ void receive_can_battery(CAN_frame rx_frame) {
        if (rx_frame.DLC = 7 && rx_frame.data.u8[4] == 0xA7) { //Terminal 30 Voltage (12V SME supply)
         terminal30_12v_voltage = (rx_frame.data.u8[5] <<8 | rx_frame.data.u8[6]);
        }
-       if (rx_frame.DLC = 6 && rx_frame.data.u8[3] == 0xE5 && rx_frame.data.u8[4] == 0x69) { //HVIL Status
+       if (rx_frame.DLC = 6 && rx_frame.data.u8[0] == 0xF4 && rx_frame.data.u8[1] == 0x04 && rx_frame.data.u8[2] == 0x62 && rx_frame.data.u8[3] == 0xE5 && rx_frame.data.u8[4] == 0x69) { //HVIL Status
        hvil_status = ( rx_frame.data.u8[5]);
        }
+
+       if (rx_frame.DLC = 12 && rx_frame.data.u8[2] == 0x07 && rx_frame.data.u8[3] == 0x62 && rx_frame.data.u8[4] == 0xE5 && rx_frame.data.u8[5] == 0x4C) { //Pack Voltage Limits
+       if ((rx_frame.data.u8[6] <<8 | rx_frame.data.u8[7]) < 4700 &&  (rx_frame.data.u8[8] <<8 | rx_frame.data.u8[9]) > 2600) { //Make sure values are plausible
+       battery_info_available = true;
+       max_design_voltage = (rx_frame.data.u8[6] <<8 | rx_frame.data.u8[7]);
+       min_design_voltage = (rx_frame.data.u8[8] <<8 | rx_frame.data.u8[9]);
+       }
+       }
+
        if (rx_frame.DLC = 16 && rx_frame.data.u8[3] == 0xF1 && rx_frame.data.u8[4] == 0x8C ) { //Battery Serial Number
           //Convert hex bytes to ASCII characters and combine them into a string
           char numberString[11]; // 10 characters + null terminator
@@ -549,24 +629,25 @@ void setup_battery(void) {  // Performs one time setup at startup
   //Before we have started up and detected which battery is in use, use 108S values
   datalayer.battery.info.max_design_voltage_dV = MAX_PACK_VOLTAGE_DV;
   datalayer.battery.info.min_design_voltage_dV = MIN_PACK_VOLTAGE_DV;
+  datalayer.battery.info.max_cell_voltage_mV = MAX_CELL_VOLTAGE_MV;
+  datalayer.battery.info.min_cell_voltage_mV = MIN_CELL_VOLTAGE_MV;
   datalayer.battery.info.max_cell_voltage_deviation_mV = MAX_CELL_DEVIATION_MV;
   datalayer.system.status.battery_allows_contactor_closing = true;
 
-  //pinMode(WUP_PIN, OUTPUT); // Not needed - can hold WUP pin High with iX BMS
-  //digitalWrite(WUP_PIN, HIGH);  // Wake up the battery // Not needed - can hold WUP pin High with iX BMS
+      //pinMode(WUP_PIN, OUTPUT); // Not needed - can hold WUP pin High with iX BMS
+      //digitalWrite(WUP_PIN, HIGH);  // Wake up the battery // Not needed - can hold WUP pin High with iX BMS
 
-      //Wake Battery
-      //Send SME Keep alive values 100ms
+
+    //Send SME Keep alive values 100ms
       transmit_can(&BMWiX_510, can_config.battery);
-      //Send SME Keep alive values 200ms
+    //Send SME Keep alive values 200ms
       BMWiX_0C0.data.u8[0] =  increment_0C0_counter(BMWiX_0C0.data.u8[0]); //Keep Alive 1
       transmit_can(&BMWiX_0C0, can_config.battery);
       
-      
-      //Send SME Keep alive values 1000ms
-      //test disable transmit_can(&BMWiX_06D, can_config.battery);
-      //test disable transmit_can(&BMWiX_2F1, can_config.battery);
-      //test disable transmit_can(&BMWiX_439, can_config.battery);
+    //Send SME Keep alive values 1000ms
+      //Not needed transmit_can(&BMWiX_06D, can_config.battery);
+      //Not needed transmit_can(&BMWiX_2F1, can_config.battery);
+      //Not needed transmit_can(&BMWiX_439, can_config.battery);
 }
 
 #endif
