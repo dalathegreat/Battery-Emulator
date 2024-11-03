@@ -1325,7 +1325,7 @@ void clearSOH(void) {
     case 3:  // Request challenge to solve
       LEAF_CLEAR_SOH.data.u8[0] = 0x02;
       LEAF_CLEAR_SOH.data.u8[1] = 0x27;
-      LEAF_CLEAR_SOH.data.u8[2] = 0x65;
+      LEAF_CLEAR_SOH.data.u8[2] = 0x65;  // 0x66 on 24kWh?
       LEAF_CLEAR_SOH.data.u8[3] = 0x00;
       LEAF_CLEAR_SOH.data.u8[4] = 0x00;
       LEAF_CLEAR_SOH.data.u8[5] = 0x00;
@@ -1339,7 +1339,7 @@ void clearSOH(void) {
       LEAF_CLEAR_SOH.data.u8[0] = 0x10;
       LEAF_CLEAR_SOH.data.u8[1] = 0x0A;
       LEAF_CLEAR_SOH.data.u8[2] = 0x27;
-      LEAF_CLEAR_SOH.data.u8[3] = 0x66;
+      LEAF_CLEAR_SOH.data.u8[3] = 0x65;  // 0x66 on 24kWh?
       LEAF_CLEAR_SOH.data.u8[4] = 0x77;
       LEAF_CLEAR_SOH.data.u8[5] = solvedChallenge[0];
       LEAF_CLEAR_SOH.data.u8[6] = solvedChallenge[1];
