@@ -201,6 +201,9 @@ typedef struct {
   /** bool */
   /** User requesting SOH reset via WebUI*/
   bool UserRequestSOHreset = false;
+  /** bool */
+  /** True if the crypto challenge response from BMS is signalling a failed attempt*/
+  bool challengeFailed = false;
   /** uint32_t */
   /** Cryptographic challenge to be solved */
   uint32_t CryptoChallenge = 0;

@@ -354,6 +354,7 @@ void update_values_battery() { /* This function maps all the values fetched via 
       ((solvedChallenge[7] << 24) | (solvedChallenge[6] << 16) | (solvedChallenge[5] << 8) | solvedChallenge[4]);
   datalayer_extended.nissanleaf.SolvedChallengeLSB =
       ((solvedChallenge[3] << 24) | (solvedChallenge[2] << 16) | (solvedChallenge[1] << 8) | solvedChallenge[0]);
+  datalayer_extended.nissanleaf.challengeFailed = challengeFailed;
 
   // Update requests from webserver datalayer
   if (datalayer_extended.nissanleaf.UserRequestSOHreset) {
@@ -1287,7 +1288,7 @@ uint16_t Temp_fromRAW_to_F(uint16_t temperature) {  //This function feels horrib
 }
 
 void clearSOH(void) {
-
+  challengeFailed = false;
   stop_battery_query = true;
   hold_off_with_polling_10seconds = 10;  // Active battery polling is paused for 100 seconds
 
