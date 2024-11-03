@@ -127,7 +127,7 @@ static void publish_common_info(void) {
     doc["pause_status"] = get_emulator_pause_status();
 
     //only publish these values if BMS is active and we are comunication  with the battery (can send CAN messages to the battery)
-    if (datalayer.battery.status.bms_status == ACTIVE && allowed_to_send_CAN && millis() > BOOTUP_TIME) {
+    if (datalayer.battery.status.CAN_battery_still_alive && allowed_to_send_CAN && millis() > BOOTUP_TIME) {
       doc["SOC"] = ((float)datalayer.battery.status.reported_soc) / 100.0;
       doc["SOC_real"] = ((float)datalayer.battery.status.real_soc) / 100.0;
       doc["state_of_health"] = ((float)datalayer.battery.status.soh_pptt) / 100.0;
