@@ -145,8 +145,8 @@ typedef struct {
   int64_t time_comm_us = 0;
   /** 10 ms function measurement variable */
   int64_t time_10ms_us = 0;
-  /** 5 s function measurement variable */
-  int64_t time_5s_us = 0;
+  /** Value update function measurement variable */
+  int64_t time_values_us = 0;
   /** CAN TX function measurement variable */
   int64_t time_cantx_us = 0;
 
@@ -163,9 +163,9 @@ typedef struct {
    */
   int64_t time_snap_10ms_us = 0;
   /** Function measurement snapshot variable.
-   * This will show the performance of the 5 s functionality of the core task when the total time reached a new worst case
+   * This will show the performance of the values functionality of the core task when the total time reached a new worst case
    */
-  int64_t time_snap_5s_us = 0;
+  int64_t time_snap_values_us = 0;
   /** Function measurement snapshot variable.
    * This will show the performance of CAN TX when the total time reached a new worst case
    */

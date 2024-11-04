@@ -47,27 +47,25 @@ struct SensorConfig {
 };
 
 SensorConfig sensorConfigs[] = {
-    {"SOC", "Battery Emulator SOC (scaled)", "{{ value_json.SOC }}", "%", "battery"},
-    {"SOC_real", "Battery Emulator SOC (real)", "{{ value_json.SOC_real }}", "%", "battery"},
-    {"state_of_health", "Battery Emulator State Of Health", "{{ value_json.state_of_health }}", "%", "battery"},
-    {"temperature_min", "Battery Emulator Temperature Min", "{{ value_json.temperature_min }}", "°C", "temperature"},
-    {"temperature_max", "Battery Emulator Temperature Max", "{{ value_json.temperature_max }}", "°C", "temperature"},
-    {"stat_batt_power", "Battery Emulator Stat Batt Power", "{{ value_json.stat_batt_power }}", "W", "power"},
-    {"battery_current", "Battery Emulator Battery Current", "{{ value_json.battery_current }}", "A", "current"},
-    {"cell_max_voltage", "Battery Emulator Cell Max Voltage", "{{ value_json.cell_max_voltage }}", "V", "voltage"},
-    {"cell_min_voltage", "Battery Emulator Cell Min Voltage", "{{ value_json.cell_min_voltage }}", "V", "voltage"},
-    {"battery_voltage", "Battery Emulator Battery Voltage", "{{ value_json.battery_voltage }}", "V", "voltage"},
-    {"total_capacity", "Battery Emulator Battery Total Capacity", "{{ value_json.total_capacity }}", "Wh", "energy"},
-    {"remaining_capacity", "Battery Emulator Battery Remaining Capacity (scaled)",
-     "{{ value_json.remaining_capacity }}", "Wh", "energy"},
-    {"remaining_capacity_real", "Battery Emulator Battery Remaining Capacity (real)",
-     "{{ value_json.remaining_capacity_real }}", "Wh", "energy"},
-    {"max_discharge_power", "Battery Emulator Battery Max Discharge Power", "{{ value_json.max_discharge_power }}", "W",
-     "power"},
-    {"max_charge_power", "Battery Emulator Battery Max Charge Power", "{{ value_json.max_charge_power }}", "W",
-     "power"},
-    {"bms_status", "Battery Emulator BMS Status", "{{ value_json.bms_status }}", "", ""},
-    {"pause_status", "Battery Emulator Pause Status", "{{ value_json.pause_status }}", "", ""},
+    {"SOC", "SOC (scaled)", "{{ value_json.SOC }}", "%", "battery"},
+    {"SOC_real", "SOC (real)", "{{ value_json.SOC_real }}", "%", "battery"},
+    {"state_of_health", "State Of Health", "{{ value_json.state_of_health }}", "%", "battery"},
+    {"temperature_min", "Temperature Min", "{{ value_json.temperature_min }}", "°C", "temperature"},
+    {"temperature_max", "Temperature Max", "{{ value_json.temperature_max }}", "°C", "temperature"},
+    {"stat_batt_power", "Stat Batt Power", "{{ value_json.stat_batt_power }}", "W", "power"},
+    {"battery_current", "Battery Current", "{{ value_json.battery_current }}", "A", "current"},
+    {"cell_max_voltage", "Cell Max Voltage", "{{ value_json.cell_max_voltage }}", "V", "voltage"},
+    {"cell_min_voltage", "Cell Min Voltage", "{{ value_json.cell_min_voltage }}", "V", "voltage"},
+    {"battery_voltage", "Battery Voltage", "{{ value_json.battery_voltage }}", "V", "voltage"},
+    {"total_capacity", "Battery Total Capacity", "{{ value_json.total_capacity }}", "Wh", "energy"},
+    {"remaining_capacity", "Battery Remaining Capacity (scaled)", "{{ value_json.remaining_capacity }}", "Wh",
+     "energy"},
+    {"remaining_capacity_real", "Battery Remaining Capacity (real)", "{{ value_json.remaining_capacity_real }}", "Wh",
+     "energy"},
+    {"max_discharge_power", "Battery Max Discharge Power", "{{ value_json.max_discharge_power }}", "W", "power"},
+    {"max_charge_power", "Battery Max Charge Power", "{{ value_json.max_charge_power }}", "W", "power"},
+    {"bms_status", "BMS Status", "{{ value_json.bms_status }}", "", ""},
+    {"pause_status", "Pause Status", "{{ value_json.pause_status }}", "", ""},
 
 };
 
@@ -129,7 +127,7 @@ static void publish_common_info(void) {
     doc["pause_status"] = get_emulator_pause_status();
 
     //only publish these values if BMS is active and we are comunication  with the battery (can send CAN messages to the battery)
-    if (datalayer.battery.status.bms_status == ACTIVE && allowed_to_send_CAN && millis() > BOOTUP_TIME) {
+    if (datalayer.battery.status.CAN_battery_still_alive && allowed_to_send_CAN && millis() > BOOTUP_TIME) {
       doc["SOC"] = ((float)datalayer.battery.status.reported_soc) / 100.0;
       doc["SOC_real"] = ((float)datalayer.battery.status.real_soc) / 100.0;
       doc["state_of_health"] = ((float)datalayer.battery.status.soh_pptt) / 100.0;
@@ -182,7 +180,7 @@ static void publish_cell_voltages(void) {
     for (int i = 0; i < datalayer.battery.info.number_of_cells; i++) {
       int cellNumber = i + 1;
       doc["name"] = "Battery Cell Voltage " + String(cellNumber);
-      doc["object_id"] = "battery_voltage_cell" + String(cellNumber);
+      doc["object_id"] = object_id_prefix + "battery_voltage_cell" + String(cellNumber);
       doc["unique_id"] = topic_name + "_battery_voltage_cell" + String(cellNumber);
       doc["device_class"] = "voltage";
       doc["state_class"] = "measurement";
@@ -240,7 +238,7 @@ void publish_events() {
   if (mqtt_first_transmission == true) {
     mqtt_first_transmission = false;
 
-    doc["name"] = "Battery Emulator Event";
+    doc["name"] = "Event";
     doc["state_topic"] = state_topic;
     doc["unique_id"] = topic_name + "_event";
     doc["object_id"] = object_id_prefix + "event";

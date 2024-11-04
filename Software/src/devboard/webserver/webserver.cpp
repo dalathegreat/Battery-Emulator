@@ -459,7 +459,7 @@ String processor(const String& var) {
         "<h4>loop() task max load last 10 s: " + String(datalayer.system.status.loop_task_10s_max_us) + " us</h4>";
     content += "<h4>Max load @ worst case execution of core task:</h4>";
     content += "<h4>10ms function timing: " + String(datalayer.system.status.time_snap_10ms_us) + " us</h4>";
-    content += "<h4>5s function timing: " + String(datalayer.system.status.time_snap_5s_us) + " us</h4>";
+    content += "<h4>Values function timing: " + String(datalayer.system.status.time_snap_values_us) + " us</h4>";
     content += "<h4>CAN/serial RX function timing: " + String(datalayer.system.status.time_snap_comm_us) + " us</h4>";
     content += "<h4>CAN TX function timing: " + String(datalayer.system.status.time_snap_cantx_us) + " us</h4>";
     content += "<h4>OTA function timing: " + String(datalayer.system.status.time_snap_ota_us) + " us</h4>";
@@ -516,6 +516,9 @@ String processor(const String& var) {
 #ifdef BYD_ATTO_3_BATTERY
     content += "BYD Atto 3";
 #endif  // BYD_ATTO_3_BATTERY
+#ifdef CELLPOWER_BMS
+    content += "Cellpower BMS";
+#endif  // CELLPOWER_BMS
 #ifdef CHADEMO_BATTERY
     content += "Chademo V2X mode";
 #endif  // CHADEMO_BATTERY
@@ -714,6 +717,27 @@ String processor(const String& var) {
       content += "<span style='color: green;'>ON</span>";
     } else {
       content += "<span style='color: red;'>OFF</span>";
+    }
+    content += "</h4>";
+
+    content += "<h4>Pre Charge: ";
+    if (digitalRead(PRECHARGE_PIN) == HIGH) {
+      content += "<span style='color: green;'>&#10003;</span>";
+    } else {
+      content += "<span style='color: red;'>&#10005;</span>";
+    }
+    content += " Cont. Neg.: ";
+    if (digitalRead(NEGATIVE_CONTACTOR_PIN) == HIGH) {
+      content += "<span style='color: green;'>&#10003;</span>";
+    } else {
+      content += "<span style='color: red;'>&#10005;</span>";
+    }
+
+    content += " Cont. Pos.: ";
+    if (digitalRead(POSITIVE_CONTACTOR_PIN) == HIGH) {
+      content += "<span style='color: green;'>&#10003;</span>";
+    } else {
+      content += "<span style='color: red;'>&#10005;</span>";
     }
     content += "</h4>";
 #endif

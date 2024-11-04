@@ -65,6 +65,72 @@ typedef struct {
 } DATALAYER_INFO_BYDATTO3;
 
 typedef struct {
+  /** bool */
+  /** All values either True or false */
+  bool system_state_discharge = false;
+  bool system_state_charge = false;
+  bool system_state_cellbalancing = false;
+  bool system_state_tricklecharge = false;
+  bool system_state_idle = false;
+  bool system_state_chargecompleted = false;
+  bool system_state_maintenancecharge = false;
+  bool IO_state_main_positive_relay = false;
+  bool IO_state_main_negative_relay = false;
+  bool IO_state_charge_enable = false;
+  bool IO_state_precharge_relay = false;
+  bool IO_state_discharge_enable = false;
+  bool IO_state_IO_6 = false;
+  bool IO_state_IO_7 = false;
+  bool IO_state_IO_8 = false;
+  bool error_Cell_overvoltage = false;
+  bool error_Cell_undervoltage = false;
+  bool error_Cell_end_of_life_voltage = false;
+  bool error_Cell_voltage_misread = false;
+  bool error_Cell_over_temperature = false;
+  bool error_Cell_under_temperature = false;
+  bool error_Cell_unmanaged = false;
+  bool error_LMU_over_temperature = false;
+  bool error_LMU_under_temperature = false;
+  bool error_Temp_sensor_open_circuit = false;
+  bool error_Temp_sensor_short_circuit = false;
+  bool error_SUB_communication = false;
+  bool error_LMU_communication = false;
+  bool error_Over_current_IN = false;
+  bool error_Over_current_OUT = false;
+  bool error_Short_circuit = false;
+  bool error_Leak_detected = false;
+  bool error_Leak_detection_failed = false;
+  bool error_Voltage_difference = false;
+  bool error_BMCU_supply_over_voltage = false;
+  bool error_BMCU_supply_under_voltage = false;
+  bool error_Main_positive_contactor = false;
+  bool error_Main_negative_contactor = false;
+  bool error_Precharge_contactor = false;
+  bool error_Midpack_contactor = false;
+  bool error_Precharge_timeout = false;
+  bool error_Emergency_connector_override = false;
+  bool warning_High_cell_voltage = false;
+  bool warning_Low_cell_voltage = false;
+  bool warning_High_cell_temperature = false;
+  bool warning_Low_cell_temperature = false;
+  bool warning_High_LMU_temperature = false;
+  bool warning_Low_LMU_temperature = false;
+  bool warning_SUB_communication_interfered = false;
+  bool warning_LMU_communication_interfered = false;
+  bool warning_High_current_IN = false;
+  bool warning_High_current_OUT = false;
+  bool warning_Pack_resistance_difference = false;
+  bool warning_High_pack_resistance = false;
+  bool warning_Cell_resistance_difference = false;
+  bool warning_High_cell_resistance = false;
+  bool warning_High_BMCU_supply_voltage = false;
+  bool warning_Low_BMCU_supply_voltage = false;
+  bool warning_Low_SOC = false;
+  bool warning_Balancing_required_OCV_model = false;
+  bool warning_Charger_not_responding = false;
+} DATALAYER_INFO_CELLPOWER;
+
+typedef struct {
   /** uint8_t */
   /** Contactor status */
   uint8_t status_contactor = 0;
@@ -185,6 +251,7 @@ class DataLayerExtended {
  public:
   DATALAYER_INFO_BMWI3 bmwi3;
   DATALAYER_INFO_BYDATTO3 bydAtto3;
+  DATALAYER_INFO_CELLPOWER cellpower;
   DATALAYER_INFO_TESLA tesla;
   DATALAYER_INFO_NISSAN_LEAF nissanleaf;
   DATALAYER_INFO_ZOE_PH2 zoePH2;

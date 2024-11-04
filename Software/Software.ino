@@ -53,10 +53,10 @@
 
 Preferences settings;  // Store user settings
 // The current software version, shown on webserver
-const char* version_number = "7.6.dev";
+const char* version_number = "7.7.dev";
 
 // Interval settings
-uint16_t intervalUpdateValues = INTERVAL_5_S;  // Interval at which to update inverter values / Modbus registers
+uint16_t intervalUpdateValues = INTERVAL_1_S;  // Interval at which to update inverter values / Modbus registers
 unsigned long previousMillis10ms = 50;
 unsigned long previousMillisUpdateVal = 0;
 
@@ -84,6 +84,9 @@ typedef char CANFDMessage;
 uint16_t mbPV[MB_RTU_NUM_VALUES];  // Process variable memory
 // Create a ModbusRTU server instance listening on Serial2 with 2000ms timeout
 ModbusServerRTU MBserver(Serial2, 2000);
+#endif
+#if defined(SERIAL_LINK_RECEIVER) || defined(SERIAL_LINK_TRANSMITTER)
+#define SERIAL_LINK_BAUDRATE 112500
 #endif
 
 // Common charger parameters
@@ -283,9 +286,8 @@ void core_loop(void* task_time_us) {
     }
     END_TIME_MEASUREMENT_MAX(time_10ms, datalayer.system.status.time_10ms_us);
 
-    START_TIME_MEASUREMENT(time_5s);
-    if (millis() - previousMillisUpdateVal >= intervalUpdateValues)  // Every 5s normally
-    {
+    START_TIME_MEASUREMENT(time_values);
+    if (millis() - previousMillisUpdateVal >= intervalUpdateValues) {
       previousMillisUpdateVal = millis();  // Order matters on the update_loop!
       update_values_battery();             // Fetch battery values
 #ifdef DOUBLE_BATTERY
@@ -300,7 +302,7 @@ void core_loop(void* task_time_us) {
         set_event(EVENT_DUMMY_ERROR, (uint8_t)millis());
       }
     }
-    END_TIME_MEASUREMENT_MAX(time_5s, datalayer.system.status.time_5s_us);
+    END_TIME_MEASUREMENT_MAX(time_values, datalayer.system.status.time_values_us);
 
     START_TIME_MEASUREMENT(cantx);
     // Output
@@ -316,7 +318,7 @@ void core_loop(void* task_time_us) {
       // Record snapshots of task times
       datalayer.system.status.time_snap_comm_us = datalayer.system.status.time_comm_us;
       datalayer.system.status.time_snap_10ms_us = datalayer.system.status.time_10ms_us;
-      datalayer.system.status.time_snap_5s_us = datalayer.system.status.time_5s_us;
+      datalayer.system.status.time_snap_values_us = datalayer.system.status.time_values_us;
       datalayer.system.status.time_snap_cantx_us = datalayer.system.status.time_cantx_us;
       datalayer.system.status.time_snap_ota_us = datalayer.system.status.time_ota_us;
     }
@@ -327,7 +329,7 @@ void core_loop(void* task_time_us) {
       datalayer.system.status.time_ota_us = 0;
       datalayer.system.status.time_comm_us = 0;
       datalayer.system.status.time_10ms_us = 0;
-      datalayer.system.status.time_5s_us = 0;
+      datalayer.system.status.time_values_us = 0;
       datalayer.system.status.time_cantx_us = 0;
       datalayer.system.status.core_task_10s_max_us = 0;
     }
@@ -454,7 +456,7 @@ void init_CAN() {
   Serial.println("CAN FD add-on (ESP32+MCP2517) selected");
 #endif
   SPI.begin(MCP2517_SCK, MCP2517_SDO, MCP2517_SDI);
-  ACAN2517FDSettings settings(ACAN2517FDSettings::OSC_40MHz, 500 * 1000,
+  ACAN2517FDSettings settings(CAN_FD_CRYSTAL_FREQUENCY_MHZ, 500 * 1000,
                               DataBitRateFactor::x4);  // Arbitration bit rate: 500 kbit/s, data bit rate: 2 Mbit/s
 #ifdef USE_CANFD_INTERFACE_AS_CLASSIC_CAN
   settings.mRequestedMode = ACAN2517FDSettings::Normal20B;  // ListenOnly / Normal20B / NormalFD
@@ -742,6 +744,7 @@ void handle_contactors() {
   if (timeSpentInFaultedMode > MAX_ALLOWED_FAULT_TICKS ||
       (datalayer.system.settings.equipment_stop_active && contactorStatus != SHUTDOWN_REQUESTED)) {
     contactorStatus = SHUTDOWN_REQUESTED;
+    datalayer.system.settings.equipment_stop_active = true;
   }
   if (contactorStatus == SHUTDOWN_REQUESTED && !datalayer.system.settings.equipment_stop_active) {
     contactorStatus = DISCONNECTED;
@@ -932,7 +935,7 @@ void runSerialDataLink() {
 
 void init_serialDataLink() {
 #if defined(SERIAL_LINK_RECEIVER) || defined(SERIAL_LINK_TRANSMITTER)
-  Serial2.begin(9600, SERIAL_8N1, RS485_RX_PIN, RS485_TX_PIN);
+  Serial2.begin(SERIAL_LINK_BAUDRATE, SERIAL_8N1, RS485_RX_PIN, RS485_TX_PIN);
 #endif
 }
 
