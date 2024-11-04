@@ -66,15 +66,35 @@ SensorConfig sensorConfigs[] = {
     {"max_charge_power", "Battery Max Charge Power", "{{ value_json.max_charge_power }}", "W", "power"},
     {"bms_status", "BMS Status", "{{ value_json.bms_status }}", "", ""},
     {"pause_status", "Pause Status", "{{ value_json.pause_status }}", "", ""},
-
+#ifdef DOUBLE_BATTERY
+    {"SOC_2", "SOC 2 (scaled)", "{{ value_json.SOC_2 }}", "%", "battery"},
+    {"SOC_real_2", "SOC 2 (real)", "{{ value_json.SOC_real_2 }}", "%", "battery"},
+    {"state_of_health_2", "State Of Health 2", "{{ value_json.state_of_health_2 }}", "%", "battery"},
+    {"temperature_min_2", "Temperature Min 2", "{{ value_json.temperature_min_2 }}", "°C", "temperature"},
+    {"temperature_max_2", "Temperature Max 2", "{{ value_json.temperature_max_2 }}", "°C", "temperature"},
+    {"stat_batt_power_2", "Stat Batt Power 2", "{{ value_json.stat_batt_power_2 }}", "W", "power"},
+    {"battery_current_2", "Battery 2 Current", "{{ value_json.battery_current_2 }}", "A", "current"},
+    {"cell_max_voltage_2", "Cell Max Voltage 2", "{{ value_json.cell_max_voltage_2 }}", "V", "voltage"},
+    {"cell_min_voltage_2", "Cell Min Voltage 2", "{{ value_json.cell_min_voltage_2 }}", "V", "voltage"},
+    {"battery_voltage_2", "Battery 2 Voltage", "{{ value_json.battery_voltage_2 }}", "V", "voltage"},
+    {"total_capacity_2", "Battery 2 Total Capacity", "{{ value_json.total_capacity_2 }}", "Wh", "energy"},
+    {"remaining_capacity_2", "Battery 2 Remaining Capacity (scaled)", "{{ value_json.remaining_capacity_2 }}", "Wh",
+     "energy"},
+    {"remaining_capacity_real_2", "Battery 2 Remaining Capacity (real)", "{{ value_json.remaining_capacity_real_2 }}",
+     "Wh", "energy"},
+    {"max_discharge_power_2", "Battery 2 Max Discharge Power", "{{ value_json.max_discharge_power_2 }}", "W", "power"},
+    {"max_charge_power_2", "Battery 2 Max Charge Power", "{{ value_json.max_charge_power_2 }}", "W", "power"},
+    {"bms_status_2", "BMS 2 Status", "{{ value_json.bms_status_2 }}", "", ""},
+    {"pause_status_2", "Pause Status 2", "{{ value_json.pause_status_2 }}", "", ""},
+#endif  // DOUBLE_BATTERY
 };
 
 static String generateCommonInfoAutoConfigTopic(const char* object_id) {
   return "homeassistant/sensor/" + topic_name + "/" + String(object_id) + "/config";
 }
 
-static String generateCellVoltageAutoConfigTopic(int cell_number) {
-  return "homeassistant/sensor/" + topic_name + "/cell_voltage" + String(cell_number) + "/config";
+static String generateCellVoltageAutoConfigTopic(int cell_number, String battery_suffix) {
+  return "homeassistant/sensor/" + topic_name + "/cell_voltage" + battery_suffix + String(cell_number) + "/config";
 }
 
 static String generateEventsAutoConfigTopic(const char* object_id) {
@@ -148,7 +168,30 @@ static void publish_common_info(void) {
       doc["max_discharge_power"] = ((float)datalayer.battery.status.max_discharge_power_W);
       doc["max_charge_power"] = ((float)datalayer.battery.status.max_charge_power_W);
     }
-
+#ifdef DOUBLE_BATTERY
+    //only publish these values if BMS is active and we are comunication  with the battery (can send CAN messages to the battery)
+    if (datalayer.battery2.status.CAN_battery_still_alive && allowed_to_send_CAN && millis() > BOOTUP_TIME) {
+      doc["SOC_2"] = ((float)datalayer.battery2.status.reported_soc) / 100.0;
+      doc["SOC_real_2"] = ((float)datalayer.battery2.status.real_soc) / 100.0;
+      doc["state_of_health_2"] = ((float)datalayer.battery2.status.soh_pptt) / 100.0;
+      doc["temperature_min_2"] = ((float)((int16_t)datalayer.battery2.status.temperature_min_dC)) / 10.0;
+      doc["temperature_max_2"] = ((float)((int16_t)datalayer.battery2.status.temperature_max_dC)) / 10.0;
+      doc["stat_batt_power_2"] = ((float)((int32_t)datalayer.battery2.status.active_power_W));
+      doc["battery_current_2"] = ((float)((int16_t)datalayer.battery2.status.current_dA)) / 10.0;
+      doc["battery_voltage_2"] = ((float)datalayer.battery2.status.voltage_dV) / 10.0;
+      // publish only if cell voltages have been populated...
+      if (datalayer.battery2.info.number_of_cells != 0u &&
+          datalayer.battery2.status.cell_voltages_mV[datalayer.battery2.info.number_of_cells - 1] != 0u) {
+        doc["cell_max_voltage_2"] = ((float)datalayer.battery2.status.cell_max_voltage_mV) / 1000.0;
+        doc["cell_min_voltage_2"] = ((float)datalayer.battery2.status.cell_min_voltage_mV) / 1000.0;
+      }
+      doc["total_capacity_2"] = ((float)datalayer.battery2.info.total_capacity_Wh);
+      doc["remaining_capacity_real_2"] = ((float)datalayer.battery2.status.remaining_capacity_Wh);
+      doc["remaining_capacity_2"] = ((float)datalayer.battery2.status.reported_remaining_capacity_Wh);
+      doc["max_discharge_power_2"] = ((float)datalayer.battery2.status.max_discharge_power_W);
+      doc["max_charge_power_2"] = ((float)datalayer.battery2.status.max_charge_power_W);
+    }
+#endif  // DOUBLE_BATTERY
     serializeJson(doc, mqtt_msg);
     if (!mqtt_publish(state_topic.c_str(), mqtt_msg, false)) {
 #ifdef DEBUG_VIA_USB
@@ -167,47 +210,79 @@ static void publish_cell_voltages(void) {
 #endif  // HA_AUTODISCOVERY
   static JsonDocument doc;
   static String state_topic = topic_name + "/spec_data";
+#ifdef DOUBLE_BATTERY
+  static String state_topic_2 = topic_name + "/spec_data_2";
 
-  // If the cell voltage number isn't initialized...
-  if (datalayer.battery.info.number_of_cells == 0u) {
-    return;
-  }
+#endif  // DOUBLE_BATTERY
+
 #ifdef HA_AUTODISCOVERY
   if (mqtt_first_transmission == true) {
     mqtt_first_transmission = false;
-    String topic = "homeassistant/sensor/battery-emulator/cell_voltage";
 
-    for (int i = 0; i < datalayer.battery.info.number_of_cells; i++) {
-      int cellNumber = i + 1;
-      doc["name"] = "Battery Cell Voltage " + String(cellNumber);
-      doc["object_id"] = object_id_prefix + "battery_voltage_cell" + String(cellNumber);
-      doc["unique_id"] = topic_name + "_battery_voltage_cell" + String(cellNumber);
-      doc["device_class"] = "voltage";
-      doc["state_class"] = "measurement";
-      doc["state_topic"] = state_topic;
-      doc["unit_of_measurement"] = "V";
-      doc["enabled_by_default"] = true;
-      doc["expire_after"] = 240;
-      doc["value_template"] = "{{ value_json.cell_voltages[" + String(i) + "] }}";
-      doc["device"]["identifiers"][0] = "battery-emulator";
-      doc["device"]["manufacturer"] = "DalaTech";
-      doc["device"]["model"] = "BatteryEmulator";
-      doc["device"]["name"] = device_name;
-      doc["origin"]["name"] = "BatteryEmulator";
-      doc["origin"]["sw"] = String(version_number) + "-mqtt";
-      doc["origin"]["url"] = "https://github.com/dalathegreat/Battery-Emulator";
+    // If the cell voltage number isn't initialized...
+    if (datalayer.battery.info.number_of_cells != 0u) {
 
-      serializeJson(doc, mqtt_msg, sizeof(mqtt_msg));
-      mqtt_publish(generateCellVoltageAutoConfigTopic(cellNumber).c_str(), mqtt_msg, true);
+      for (int i = 0; i < datalayer.battery.info.number_of_cells; i++) {
+        int cellNumber = i + 1;
+        doc["name"] = "Battery Cell Voltage " + String(cellNumber);
+        doc["object_id"] = object_id_prefix + "battery_voltage_cell" + String(cellNumber);
+        doc["unique_id"] = topic_name + "_battery_voltage_cell" + String(cellNumber);
+        doc["device_class"] = "voltage";
+        doc["state_class"] = "measurement";
+        doc["state_topic"] = state_topic;
+        doc["unit_of_measurement"] = "V";
+        doc["enabled_by_default"] = true;
+        doc["expire_after"] = 240;
+        doc["value_template"] = "{{ value_json.cell_voltages[" + String(i) + "] }}";
+        doc["device"]["identifiers"][0] = "battery-emulator";
+        doc["device"]["manufacturer"] = "DalaTech";
+        doc["device"]["model"] = "BatteryEmulator";
+        doc["device"]["name"] = device_name;
+        doc["origin"]["name"] = "BatteryEmulator";
+        doc["origin"]["sw"] = String(version_number) + "-mqtt";
+        doc["origin"]["url"] = "https://github.com/dalathegreat/Battery-Emulator";
+
+        serializeJson(doc, mqtt_msg, sizeof(mqtt_msg));
+        mqtt_publish(generateCellVoltageAutoConfigTopic(cellNumber, "").c_str(), mqtt_msg, true);
+      }
+      doc.clear();  // clear after sending autoconfig
     }
-    doc.clear();  // clear after sending autoconfig
-  } else {
+#ifdef DOUBLE_BATTERY
+    // If the cell voltage number isn't initialized...
+    if (datalayer.battery2.info.number_of_cells != 0u) {
+
+      for (int i = 0; i < datalayer.battery.info.number_of_cells; i++) {
+        int cellNumber = i + 1;
+        doc["name"] = "Battery 2 Cell Voltage " + String(cellNumber);
+        doc["object_id"] = object_id_prefix + "battery_2_voltage_cell" + String(cellNumber);
+        doc["unique_id"] = topic_name + "_battery_2_voltage_cell" + String(cellNumber);
+        doc["device_class"] = "voltage";
+        doc["state_class"] = "measurement";
+        doc["state_topic"] = state_topic_2;
+        doc["unit_of_measurement"] = "V";
+        doc["enabled_by_default"] = true;
+        doc["expire_after"] = 240;
+        doc["value_template"] = "{{ value_json.cell_voltages[" + String(i) + "] }}";
+        doc["device"]["identifiers"][0] = "battery-emulator";
+        doc["device"]["manufacturer"] = "DalaTech";
+        doc["device"]["model"] = "BatteryEmulator";
+        doc["device"]["name"] = device_name;
+        doc["origin"]["name"] = "BatteryEmulator";
+        doc["origin"]["sw"] = String(version_number) + "-mqtt";
+        doc["origin"]["url"] = "https://github.com/dalathegreat/Battery-Emulator";
+
+        serializeJson(doc, mqtt_msg, sizeof(mqtt_msg));
+        mqtt_publish(generateCellVoltageAutoConfigTopic(cellNumber, "_2_").c_str(), mqtt_msg, true);
+      }
+      doc.clear();  // clear after sending autoconfig
+    }
+#endif  // DOUBLE_BATTERY
+  }
 #endif  // HA_AUTODISCOVERY
-    // If cell voltages haven't been populated...
-    if (datalayer.battery.info.number_of_cells == 0u ||
-        datalayer.battery.status.cell_voltages_mV[datalayer.battery.info.number_of_cells - 1] == 0u) {
-      return;
-    }
+
+  // If cell voltages have been populated...
+  if (datalayer.battery.info.number_of_cells != 0u &&
+      datalayer.battery.status.cell_voltages_mV[datalayer.battery.info.number_of_cells - 1] != 0u) {
 
     JsonArray cell_voltages = doc["cell_voltages"].to<JsonArray>();
     for (size_t i = 0; i < datalayer.battery.info.number_of_cells; ++i) {
@@ -222,9 +297,28 @@ static void publish_cell_voltages(void) {
 #endif  // DEBUG_VIA_USB
     }
     doc.clear();
-#ifdef HA_AUTODISCOVERY
   }
-#endif  // HA_AUTODISCOVERY
+
+#ifdef DOUBLE_BATTERY
+  // If cell voltages have been populated...
+  if (datalayer.battery2.info.number_of_cells != 0u &&
+      datalayer.battery2.status.cell_voltages_mV[datalayer.battery2.info.number_of_cells - 1] != 0u) {
+
+    JsonArray cell_voltages = doc["cell_voltages"].to<JsonArray>();
+    for (size_t i = 0; i < datalayer.battery2.info.number_of_cells; ++i) {
+      cell_voltages.add(((float)datalayer.battery2.status.cell_voltages_mV[i]) / 1000.0);
+    }
+
+    serializeJson(doc, mqtt_msg, sizeof(mqtt_msg));
+
+    if (!mqtt_publish(state_topic_2.c_str(), mqtt_msg, false)) {
+#ifdef DEBUG_VIA_USB
+      Serial.println("Cell voltage MQTT msg could not be sent");
+#endif  // DEBUG_VIA_USB
+    }
+    doc.clear();
+  }
+#endif  // DOUBLE_BATTERY
 }
 
 void publish_events() {
