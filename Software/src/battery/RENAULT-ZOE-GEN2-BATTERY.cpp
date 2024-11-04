@@ -5,6 +5,17 @@
 #include "../devboard/utils/events.h"
 #include "RENAULT-ZOE-GEN2-BATTERY.h"
 
+/* TODO
+- Add //NVROL Reset
+- Add //Enable temporisation before sleep (see ljames28 repo)
+
+"If the pack is in a state where it is confused about the time, you may need to reset it's NVROL memory. 
+However, if the power is later power cycled, it will revert back to his previous confused state. 
+Therefore, after resetting the NVROL you must enable "temporisation before sleep", and then stop streaming 373. 
+It will then save the data and go to sleep. When the pack is confused, the state of charge may reset back to incorrect value 
+every time the power is reset which can be dangerous. In this state, the voltage will still be accurate"
+*/
+
 /* Information in this file is based on:
 https://github.com/openvehicles/Open-Vehicle-Monitoring-System-3/blob/master/vehicle/OVMS.V3/components/vehicle_renaultzoe_ph2_obd/src/vehicle_renaultzoe_ph2_obd.cpp
 https://github.com/ljames28/Renault-Zoe-PH2-ZE50-Canbus-LBC-Information?tab=readme-ov-file
