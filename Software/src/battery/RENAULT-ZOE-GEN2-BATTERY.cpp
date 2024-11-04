@@ -25,7 +25,7 @@ static uint16_t battery_max_temp = 920;
 static uint16_t battery_max_power = 0;
 static uint16_t battery_interlock = 0;
 static uint16_t battery_kwh = 0;
-static uint16_t battery_current = 32640;
+static int32_t battery_current = 32640;
 static uint16_t battery_current_offset = 0;
 static uint16_t battery_max_generated = 0;
 static uint16_t battery_max_available = 0;
@@ -87,7 +87,9 @@ CAN_frame ZOE_SLEEP_2_18DADBF1 = {.FD = false,
                                   .ID = 0x18DADBF1,
                                   .data = {0x04, 0x2E, 0x92, 0x81, 0x01, 0xAA, 0xAA, 0xAA}};
 
-const uint16_t poll_commands[41] = {POLL_SOH,
+const uint16_t poll_commands[41] = {POLL_SOC,
+                                    POLL_USABLE_SOC,
+                                    POLL_SOH,
                                     POLL_PACK_VOLTAGE,
                                     POLL_MAX_CELL_VOLTAGE,
                                     POLL_MIN_CELL_VOLTAGE,
