@@ -422,10 +422,10 @@ void update_values_battery2() {  //This function maps all the values fetched via
   } else {
     clear_event(EVENT_HVIL_FAILURE);
   }
-  if (battery2_status_precharge_locked == 2) {  // Capacitor seated?
-    set_event(EVENT_PRECHARGE_FAILURE, 2);
+  if (battery2_status_error_disconnecting_switch > 0) {  // Check if contactors are sticking / welded
+    set_event(EVENT_CONTACTOR_WELDED, 0);
   } else {
-    clear_event(EVENT_PRECHARGE_FAILURE);
+    clear_event(EVENT_CONTACTOR_WELDED);
   }
 }
 
@@ -490,10 +490,10 @@ void update_values_battery() {  //This function maps all the values fetched via 
   } else {
     clear_event(EVENT_HVIL_FAILURE);
   }
-  if (battery_status_precharge_locked == 2) {  // Capacitor seated?
-    set_event(EVENT_PRECHARGE_FAILURE, 0);
+  if (battery_status_error_disconnecting_switch > 0) {  // Check if contactors are sticking / welded
+    set_event(EVENT_CONTACTOR_WELDED, 0);
   } else {
-    clear_event(EVENT_PRECHARGE_FAILURE);
+    clear_event(EVENT_CONTACTOR_WELDED);
   }
 
   // Update webserver datalayer
