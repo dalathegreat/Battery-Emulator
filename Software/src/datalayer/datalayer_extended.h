@@ -201,6 +201,52 @@ typedef struct {
 
 } DATALAYER_INFO_NISSAN_LEAF;
 
+typedef struct {
+  /** uint16_t */
+  /** Values WIP*/
+  uint16_t battery_soc = 0;
+  uint16_t battery_usable_soc = 0;
+  uint16_t battery_soh = 0;
+  uint16_t battery_pack_voltage = 0;
+  uint16_t battery_max_cell_voltage = 0;
+  uint16_t battery_min_cell_voltage = 0;
+  uint16_t battery_12v = 0;
+  uint16_t battery_avg_temp = 0;
+  uint16_t battery_min_temp = 0;
+  uint16_t battery_max_temp = 0;
+  uint16_t battery_max_power = 0;
+  uint16_t battery_interlock = 0;
+  uint16_t battery_kwh = 0;
+  uint16_t battery_current = 0;
+  uint16_t battery_current_offset = 0;
+  uint16_t battery_max_generated = 0;
+  uint16_t battery_max_available = 0;
+  uint16_t battery_current_voltage = 0;
+  uint16_t battery_charging_status = 0;
+  uint16_t battery_remaining_charge = 0;
+  uint16_t battery_balance_capacity_total = 0;
+  uint16_t battery_balance_time_total = 0;
+  uint16_t battery_balance_capacity_sleep = 0;
+  uint16_t battery_balance_time_sleep = 0;
+  uint16_t battery_balance_capacity_wake = 0;
+  uint16_t battery_balance_time_wake = 0;
+  uint16_t battery_bms_state = 0;
+  uint16_t battery_balance_switches = 0;
+  uint16_t battery_energy_complete = 0;
+  uint16_t battery_energy_partial = 0;
+  uint16_t battery_slave_failures = 0;
+  uint16_t battery_mileage = 0;
+  uint16_t battery_fan_speed = 0;
+  uint16_t battery_fan_period = 0;
+  uint16_t battery_fan_control = 0;
+  uint16_t battery_fan_duty = 0;
+  uint16_t battery_temporisation = 0;
+  uint16_t battery_time = 0;
+  uint16_t battery_pack_time = 0;
+  uint16_t battery_soc_min = 0;
+  uint16_t battery_soc_max = 0;
+} DATALAYER_INFO_ZOE_PH2;
+
 class DataLayerExtended {
  public:
   DATALAYER_INFO_BMWI3 bmwi3;
@@ -208,6 +254,7 @@ class DataLayerExtended {
   DATALAYER_INFO_CELLPOWER cellpower;
   DATALAYER_INFO_TESLA tesla;
   DATALAYER_INFO_NISSAN_LEAF nissanleaf;
+  DATALAYER_INFO_ZOE_PH2 zoePH2;
 };
 
 extern DataLayerExtended datalayer_extended;
