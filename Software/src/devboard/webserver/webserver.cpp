@@ -495,6 +495,9 @@ String processor(const String& var) {
 #ifdef PYLON_CAN
     content += "Pylontech battery over CAN bus";
 #endif  // PYLON_CAN
+#ifdef PYLON_LV_CAN
+    content += "Pylontech LV battery over CAN bus";
+#endif  // PYLON_LV_CAN
 #ifdef SERIAL_LINK_TRANSMITTER
     content += "Serial link to another LilyGo board";
 #endif  // SERIAL_LINK_TRANSMITTER
