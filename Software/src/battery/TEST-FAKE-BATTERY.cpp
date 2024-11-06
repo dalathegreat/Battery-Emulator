@@ -122,42 +122,40 @@ void update_values_battery2() {  // Handle the values coming in from battery #2
   print_units(", Min cell voltage 2: ", datalayer.battery2.status.cell_min_voltage_mV, "mV ");
   Serial.println("");
 #endif
-
 }
 
-  void receive_can_battery2(CAN_frame rx_frame) {
-    datalayer.battery2.status.CAN_battery_still_alive = CAN_STILL_ALIVE;
-    // All CAN messages recieved will be logged via serial
-    Serial.print(millis());  // Example printout, time, ID, length, data: 7553  1DB  8  FF C0 B9 EA 0 0 2 5D
-    Serial.print("  ");
-    Serial.print(rx_frame.ID, HEX);
-    Serial.print("  ");
-    Serial.print(rx_frame.DLC);
-    Serial.print("  ");
-    for (int i = 0; i < rx_frame.DLC; ++i) {
-      Serial.print(rx_frame.data.u8[i], HEX);
-      Serial.print(" ");
-    }
-    Serial.println("");
+void receive_can_battery2(CAN_frame rx_frame) {
+  datalayer.battery2.status.CAN_battery_still_alive = CAN_STILL_ALIVE;
+  // All CAN messages recieved will be logged via serial
+  Serial.print(millis());  // Example printout, time, ID, length, data: 7553  1DB  8  FF C0 B9 EA 0 0 2 5D
+  Serial.print("  ");
+  Serial.print(rx_frame.ID, HEX);
+  Serial.print("  ");
+  Serial.print(rx_frame.DLC);
+  Serial.print("  ");
+  for (int i = 0; i < rx_frame.DLC; ++i) {
+    Serial.print(rx_frame.data.u8[i], HEX);
+    Serial.print(" ");
   }
-#endif // DOUBLE_BATTERY
+  Serial.println("");
+}
+#endif  // DOUBLE_BATTERY
 
-
-  void receive_can_battery(CAN_frame rx_frame) {
-    datalayer.battery.status.CAN_battery_still_alive = CAN_STILL_ALIVE;
-    // All CAN messages recieved will be logged via serial
-    Serial.print(millis());  // Example printout, time, ID, length, data: 7553  1DB  8  FF C0 B9 EA 0 0 2 5D
-    Serial.print("  ");
-    Serial.print(rx_frame.ID, HEX);
-    Serial.print("  ");
-    Serial.print(rx_frame.DLC);
-    Serial.print("  ");
-    for (int i = 0; i < rx_frame.DLC; ++i) {
-      Serial.print(rx_frame.data.u8[i], HEX);
-      Serial.print(" ");
-    }
-    Serial.println("");
+void receive_can_battery(CAN_frame rx_frame) {
+  datalayer.battery.status.CAN_battery_still_alive = CAN_STILL_ALIVE;
+  // All CAN messages recieved will be logged via serial
+  Serial.print(millis());  // Example printout, time, ID, length, data: 7553  1DB  8  FF C0 B9 EA 0 0 2 5D
+  Serial.print("  ");
+  Serial.print(rx_frame.ID, HEX);
+  Serial.print("  ");
+  Serial.print(rx_frame.DLC);
+  Serial.print("  ");
+  for (int i = 0; i < rx_frame.DLC; ++i) {
+    Serial.print(rx_frame.data.u8[i], HEX);
+    Serial.print(" ");
   }
+  Serial.println("");
+}
 void send_can_battery() {
   unsigned long currentMillis = millis();
   // Send 100ms CAN Message
