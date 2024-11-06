@@ -27,14 +27,14 @@ void update_machineryprotection() {
   }
 
   // Battery is overheated!
-  if (datalayer.battery.status.temperature_max_dC > 500) {
+  if (datalayer.battery.status.temperature_max_dC > BATTERY_MAXTEMPERATURE) {
     set_event(EVENT_BATTERY_OVERHEAT, datalayer.battery.status.temperature_max_dC);
   } else {
     clear_event(EVENT_BATTERY_OVERHEAT);
   }
 
   // Battery is frozen!
-  if (datalayer.battery.status.temperature_min_dC < -250) {
+  if (datalayer.battery.status.temperature_min_dC < BATTERY_MINTEMPERATURE) {
     set_event(EVENT_BATTERY_FROZEN, datalayer.battery.status.temperature_min_dC);
   } else {
     clear_event(EVENT_BATTERY_FROZEN);
@@ -97,7 +97,7 @@ void update_machineryprotection() {
     clear_event(EVENT_SOH_LOW);
   }
 
-#ifndef PYLON_BATTERY
+#if !defined(PYLON_BATTERY) && !defined(RENAULT_TWIZY_BATTERY)
   // Check if SOC% is plausible
   if (datalayer.battery.status.voltage_dV >
       (datalayer.battery.info.max_design_voltage_dV -

@@ -154,7 +154,7 @@ void init_events(void) {
   events.entries[EVENT_CHARGE_LIMIT_EXCEEDED].level = EVENT_LEVEL_INFO;
   events.entries[EVENT_DISCHARGE_LIMIT_EXCEEDED].level = EVENT_LEVEL_INFO;
   events.entries[EVENT_12V_LOW].level = EVENT_LEVEL_WARNING;
-  events.entries[EVENT_SOC_PLAUSIBILITY_ERROR].level = EVENT_LEVEL_ERROR;
+  events.entries[EVENT_SOC_PLAUSIBILITY_ERROR].level = EVENT_LEVEL_WARNING;
   events.entries[EVENT_SOC_UNAVAILABLE].level = EVENT_LEVEL_WARNING;
   events.entries[EVENT_KWH_PLAUSIBILITY_ERROR].level = EVENT_LEVEL_INFO;
   events.entries[EVENT_BATTERY_EMPTY].level = EVENT_LEVEL_INFO;
@@ -167,6 +167,7 @@ void init_events(void) {
   events.entries[EVENT_BATTERY_OVERHEAT].level = EVENT_LEVEL_ERROR;
   events.entries[EVENT_BATTERY_OVERVOLTAGE].level = EVENT_LEVEL_WARNING;
   events.entries[EVENT_BATTERY_UNDERVOLTAGE].level = EVENT_LEVEL_WARNING;
+  events.entries[EVENT_BATTERY_VALUE_UNAVAILABLE].level = EVENT_LEVEL_WARNING;
   events.entries[EVENT_BATTERY_ISOLATION].level = EVENT_LEVEL_WARNING;
   events.entries[EVENT_VOLTAGE_DIFFERENCE].level = EVENT_LEVEL_INFO;
   events.entries[EVENT_SOH_DIFFERENCE].level = EVENT_LEVEL_WARNING;
@@ -289,7 +290,7 @@ const char* get_event_message_string(EVENTS_ENUM_TYPE event) {
     case EVENT_12V_LOW:
       return "12V battery source below required voltage to safely close contactors. Inspect the supply/battery!";
     case EVENT_SOC_PLAUSIBILITY_ERROR:
-      return "ERROR: SOC reported by battery not plausible. Restart battery!";
+      return "Warning: SOC reported by battery not plausible. Restart battery!";
     case EVENT_SOC_UNAVAILABLE:
       return "Warning: SOC not sent by BMS. Calibrate BMS via app.";
     case EVENT_KWH_PLAUSIBILITY_ERROR:
@@ -318,6 +319,8 @@ const char* get_event_message_string(EVENTS_ENUM_TYPE event) {
       return "Warning: Battery exceeding maximum design voltage. Discharge battery to prevent damage!";
     case EVENT_BATTERY_UNDERVOLTAGE:
       return "Warning: Battery under minimum design voltage. Charge battery to prevent damage!";
+    case EVENT_BATTERY_VALUE_UNAVAILABLE:
+      return "Warning: Battery measurement unavailable. Check 12V power supply and battery wiring!";
     case EVENT_BATTERY_ISOLATION:
       return "Warning: Battery reports isolation error. High voltage might be leaking to ground. Check battery!";
     case EVENT_VOLTAGE_DIFFERENCE:

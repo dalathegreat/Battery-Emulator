@@ -10,6 +10,10 @@
 #include "BYD-ATTO-3-BATTERY.h"
 #endif
 
+#ifdef CELLPOWER_BMS
+#include "CELLPOWER-BMS.h"
+#endif
+
 #ifdef CHADEMO_BATTERY
 #include "CHADEMO-BATTERY.h"
 #endif
@@ -52,6 +56,10 @@
 
 #ifdef RENAULT_KANGOO_BATTERY
 #include "RENAULT-KANGOO-BATTERY.h"
+#endif
+
+#ifdef RENAULT_TWIZY_BATTERY
+#include "RENAULT-TWIZY.h"
 #endif
 
 #ifdef RENAULT_ZOE_GEN1_BATTERY

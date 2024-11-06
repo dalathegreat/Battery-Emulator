@@ -1,6 +1,7 @@
 #include "../include.h"
 #ifdef BMW_I3_BATTERY
 #include "../datalayer/datalayer.h"
+#include "../datalayer/datalayer_extended.h"
 #include "../devboard/utils/events.h"
 #include "BMW-I3-BATTERY.h"
 
@@ -429,6 +430,12 @@ void update_values_battery2() {  //This function maps all the values fetched via
 }
 
 void update_values_battery() {  //This function maps all the values fetched via CAN to the battery datalayer
+  if (datalayer.system.settings.equipment_stop_active == true) {
+    digitalWrite(WUP_PIN, LOW);  // Turn off WUP_PIN
+  } else {
+    digitalWrite(WUP_PIN, HIGH);  // Wake up the battery
+  }
+
   if (!battery_awake) {
     return;
   }
@@ -489,33 +496,20 @@ void update_values_battery() {  //This function maps all the values fetched via 
     clear_event(EVENT_PRECHARGE_FAILURE);
   }
 
-#ifdef DEBUG_VIA_USB
-  Serial.println(" ");
-  Serial.print("Battery display SOC%: ");
-  Serial.print(battery_display_SOC * 50);
-  Serial.print("Battery display SOC%: ");
-  Serial.print(battery_HVBatt_SOC * 10);
-  Serial.print("Battery polled SOC%: ");
-  Serial.print(battery_soc);
-  Serial.print(" Battery voltage: ");
-  Serial.print(datalayer.battery.status.voltage_dV * 0.1);
-  Serial.print(" Battery current: ");
-  Serial.print(datalayer.battery.status.current_dA * 0.1);
-  Serial.print(" Wh when full: ");
-  Serial.print(datalayer.battery.info.total_capacity_Wh);
-  Serial.print(" Remaining Wh: ");
-  Serial.print(datalayer.battery.status.remaining_capacity_Wh);
-  Serial.print(" Max charge power: ");
-  Serial.print(datalayer.battery.status.max_charge_power_W);
-  Serial.print(" Max discharge power: ");
-  Serial.print(datalayer.battery.status.max_discharge_power_W);
-  Serial.print(" Active power: ");
-  Serial.print(datalayer.battery.status.active_power_W);
-  Serial.print(" Min temp: ");
-  Serial.print(datalayer.battery.status.temperature_min_dC * 0.1);
-  Serial.print(" Max temp: ");
-  Serial.print(datalayer.battery.status.temperature_max_dC * 0.1);
-#endif
+  // Update webserver datalayer
+  datalayer_extended.bmwi3.SOC_raw = (battery_display_SOC * 50);
+  datalayer_extended.bmwi3.SOC_dash = (battery_HVBatt_SOC * 10);
+  datalayer_extended.bmwi3.SOC_OBD2 = battery_soc;
+  datalayer_extended.bmwi3.ST_iso_ext = battery_status_error_isolation_external_Bordnetz;
+  datalayer_extended.bmwi3.ST_iso_int = battery_status_error_isolation_internal_Bordnetz;
+  datalayer_extended.bmwi3.ST_valve_cooling = battery_status_valve_cooling;
+  datalayer_extended.bmwi3.ST_interlock = battery_status_error_locking;
+  datalayer_extended.bmwi3.ST_precharge = battery_status_precharge_locked;
+  datalayer_extended.bmwi3.ST_DCSW = battery_status_disconnecting_switch;
+  datalayer_extended.bmwi3.ST_EMG = battery_status_emergency_mode;
+  datalayer_extended.bmwi3.ST_WELD = battery_status_error_disconnecting_switch;
+  datalayer_extended.bmwi3.ST_isolation = battery_status_warning_isolation;
+  datalayer_extended.bmwi3.ST_cold_shutoff_valve = battery_status_cold_shutoff_valve;
 }
 
 void receive_can_battery(CAN_frame rx_frame) {
@@ -1136,7 +1130,7 @@ void send_can_battery() {
 void setup_battery(void) {  // Performs one time setup at startup
 #ifdef DEBUG_VIA_USB
   Serial.println("BMW i3 battery selected");
-#endif
+#endif  //DEBUG_VIA_USB
 
   //Before we have started up and detected which battery is in use, use 60AH values
   datalayer.battery.info.max_design_voltage_dV = MAX_PACK_VOLTAGE_60AH;
@@ -1145,7 +1139,9 @@ void setup_battery(void) {  // Performs one time setup at startup
   datalayer.system.status.battery_allows_contactor_closing = true;
 
 #ifdef DOUBLE_BATTERY
+#ifdef DEBUG_VIA_USB
   Serial.println("Another BMW i3 battery also selected!");
+#endif  //DEBUG_VIA_USB
   datalayer.battery2.info.max_design_voltage_dV = datalayer.battery.info.max_design_voltage_dV;
   datalayer.battery2.info.min_design_voltage_dV = datalayer.battery.info.min_design_voltage_dV;
   datalayer.battery2.info.max_cell_voltage_deviation_mV = datalayer.battery.info.max_cell_voltage_deviation_mV;

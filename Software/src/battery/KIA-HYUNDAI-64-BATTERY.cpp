@@ -214,10 +214,12 @@ void update_number_of_cells() {
       datalayer.battery.info.number_of_cells = 98;
       datalayer.battery.info.max_design_voltage_dV = MAX_PACK_VOLTAGE_98S_DV;
       datalayer.battery.info.min_design_voltage_dV = MIN_PACK_VOLTAGE_98S_DV;
+      datalayer.battery.info.total_capacity_Wh = 64000;
     } else {
       datalayer.battery.info.number_of_cells = 90;
       datalayer.battery.info.max_design_voltage_dV = MAX_PACK_VOLTAGE_90S_DV;
       datalayer.battery.info.min_design_voltage_dV = MIN_PACK_VOLTAGE_90S_DV;
+      datalayer.battery.info.total_capacity_Wh = 40000;
     }
   }
 }

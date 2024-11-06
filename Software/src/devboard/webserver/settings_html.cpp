@@ -10,6 +10,8 @@ String settings_processor(const String& var) {
     content += "body { background-color: black; color: white; }";
     content += "</style>";
 
+    content += "<button onclick='goToMainPage()'>Back to main page</button>";
+
     // Start a new block with a specific background color
     content += "<div style='background-color: #303E47; padding: 10px; margin-bottom: 10px;border-radius: 50px'>";
 
@@ -201,7 +203,6 @@ String settings_processor(const String& var) {
 #endif
     content += "</script>";
 
-    content += "<button onclick='goToMainPage()'>Back to main page</button>";
     content += "<script>";
     content += "function goToMainPage() { window.location.href = '/'; }";
     content += "</script>";

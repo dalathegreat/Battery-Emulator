@@ -12,6 +12,7 @@ AsyncWebServer server(80);
 // Measure OTA progress
 unsigned long ota_progress_millis = 0;
 
+#include "advanced_battery_html.h"
 #include "cellmonitor_html.h"
 #include "events_html.h"
 #include "index_html.cpp"
@@ -47,6 +48,11 @@ void init_webserver() {
     if (WEBSERVER_AUTH_REQUIRED && !request->authenticate(http_username, http_password))
       return request->requestAuthentication();
     request->send_P(200, "text/html", index_html, settings_processor);
+  });
+
+  // Route for going to advanced battery info web page
+  server.on("/advanced", HTTP_GET, [](AsyncWebServerRequest* request) {
+    request->send_P(200, "text/html", index_html, advanced_battery_processor);
   });
 
   // Route for going to cellmonitor web page
@@ -173,7 +179,7 @@ void init_webserver() {
     if (request->hasParam("stop")) {
       String valueStr = request->getParam("stop")->value();
       if (valueStr == "true" || valueStr == "1") {
-        setBatteryPause(true, true, true);
+        setBatteryPause(true, false, true);
       } else {
         setBatteryPause(false, false, false);
       }
@@ -453,7 +459,7 @@ String processor(const String& var) {
         "<h4>loop() task max load last 10 s: " + String(datalayer.system.status.loop_task_10s_max_us) + " us</h4>";
     content += "<h4>Max load @ worst case execution of core task:</h4>";
     content += "<h4>10ms function timing: " + String(datalayer.system.status.time_snap_10ms_us) + " us</h4>";
-    content += "<h4>5s function timing: " + String(datalayer.system.status.time_snap_5s_us) + " us</h4>";
+    content += "<h4>Values function timing: " + String(datalayer.system.status.time_snap_values_us) + " us</h4>";
     content += "<h4>CAN/serial RX function timing: " + String(datalayer.system.status.time_snap_comm_us) + " us</h4>";
     content += "<h4>CAN TX function timing: " + String(datalayer.system.status.time_snap_cantx_us) + " us</h4>";
     content += "<h4>OTA function timing: " + String(datalayer.system.status.time_snap_ota_us) + " us</h4>";
@@ -492,6 +498,9 @@ String processor(const String& var) {
 #ifdef PYLON_CAN
     content += "Pylontech battery over CAN bus";
 #endif  // PYLON_CAN
+#ifdef PYLON_LV_CAN
+    content += "Pylontech LV battery over CAN bus";
+#endif  // PYLON_LV_CAN
 #ifdef SERIAL_LINK_TRANSMITTER
     content += "Serial link to another LilyGo board";
 #endif  // SERIAL_LINK_TRANSMITTER
@@ -513,6 +522,9 @@ String processor(const String& var) {
 #ifdef BYD_ATTO_3_BATTERY
     content += "BYD Atto 3";
 #endif  // BYD_ATTO_3_BATTERY
+#ifdef CELLPOWER_BMS
+    content += "Cellpower BMS";
+#endif  // CELLPOWER_BMS
 #ifdef CHADEMO_BATTERY
     content += "Chademo V2X mode";
 #endif  // CHADEMO_BATTERY
@@ -546,6 +558,9 @@ String processor(const String& var) {
 #ifdef RENAULT_KANGOO_BATTERY
     content += "Renault Kangoo";
 #endif  // RENAULT_KANGOO_BATTERY
+#ifdef RENAULT_TWIZY_BATTERY
+    content += "Renault Twizy";
+#endif  // RENAULT_TWIZY_BATTERY
 #ifdef RENAULT_ZOE_GEN1_BATTERY
     content += "Renault Zoe Gen1 22/40";
 #endif  // RENAULT_ZOE_GEN1_BATTERY
@@ -647,7 +662,9 @@ String processor(const String& var) {
     content += "<h4 style='color: white;'>Current: " + String(currentFloat, 1) + " A</h4>";
     content += formatPowerValue("Power", powerFloat, "", 1);
     content += formatPowerValue("Total capacity", datalayer.battery.info.total_capacity_Wh, "h", 0);
-    content += formatPowerValue("Remaining capacity", datalayer.battery.status.remaining_capacity_Wh, "h", 1);
+    content += formatPowerValue("Real Remaining capacity", datalayer.battery.status.remaining_capacity_Wh, "h", 1);
+    content +=
+        formatPowerValue("Scaled Remaining capacity", datalayer.battery.status.reported_remaining_capacity_Wh, "h", 1);
 
     if (emulator_pause_status == NORMAL) {
       content += formatPowerValue("Max discharge power", datalayer.battery.status.max_discharge_power_W, "", 1);
@@ -706,6 +723,27 @@ String processor(const String& var) {
       content += "<span style='color: green;'>ON</span>";
     } else {
       content += "<span style='color: red;'>OFF</span>";
+    }
+    content += "</h4>";
+
+    content += "<h4>Pre Charge: ";
+    if (digitalRead(PRECHARGE_PIN) == HIGH) {
+      content += "<span style='color: green;'>&#10003;</span>";
+    } else {
+      content += "<span style='color: red;'>&#10005;</span>";
+    }
+    content += " Cont. Neg.: ";
+    if (digitalRead(NEGATIVE_CONTACTOR_PIN) == HIGH) {
+      content += "<span style='color: green;'>&#10003;</span>";
+    } else {
+      content += "<span style='color: red;'>&#10005;</span>";
+    }
+
+    content += " Cont. Pos.: ";
+    if (digitalRead(POSITIVE_CONTACTOR_PIN) == HIGH) {
+      content += "<span style='color: green;'>&#10003;</span>";
+    } else {
+      content += "<span style='color: red;'>&#10005;</span>";
     }
     content += "</h4>";
 #endif
@@ -868,21 +906,18 @@ String processor(const String& var) {
 #endif  // defined CHEVYVOLT_CHARGER || defined NISSANLEAF_CHARGER
 
     if (emulator_pause_request_ON)
-      content += "<button onclick='PauseBattery(false)'>Resume charge/discharge</button>";
+      content += "<button onclick='PauseBattery(false)'>Resume charge/discharge</button> ";
     else
       content +=
           "<button onclick=\"if(confirm('Are you sure you want to pause charging and discharging? This will set the "
           "maximum charge and discharge values to zero, preventing any further power flow.')) { PauseBattery(true); "
-          "}\">Pause charge/discharge</button>";
-    content += " ";
-    content += "<button onclick='OTA()'>Perform OTA update</button>";
-    content += " ";
-    content += "<button onclick='Settings()'>Change Settings</button>";
-    content += " ";
-    content += "<button onclick='Cellmon()'>Cellmonitor</button>";
-    content += " ";
-    content += "<button onclick='Events()'>Events</button>";
-    content += " ";
+          "}\">Pause charge/discharge</button> ";
+
+    content += "<button onclick='OTA()'>Perform OTA update</button> ";
+    content += "<button onclick='Settings()'>Change Settings</button> ";
+    content += "<button onclick='Advanced()'>More Battery Info</button> ";
+    content += "<button onclick='Cellmon()'>Cellmonitor</button> ";
+    content += "<button onclick='Events()'>Events</button> ";
     content += "<button onclick='askReboot()'>Reboot Emulator</button>";
     if (WEBSERVER_AUTH_REQUIRED)
       content += "<button onclick='logout()'>Logout</button>";
@@ -900,11 +935,11 @@ String processor(const String& var) {
           " onclick=\""
           "if(confirm('This action will restore the battery state. Are you sure?')) { estop(false); }\""
           ">Close Contactors</button><br/>";
-
     content += "<script>";
     content += "function OTA() { window.location.href = '/update'; }";
     content += "function Cellmon() { window.location.href = '/cellmonitor'; }";
     content += "function Settings() { window.location.href = '/settings'; }";
+    content += "function Advanced() { window.location.href = '/advanced'; }";
     content += "function Events() { window.location.href = '/events'; }";
     content +=
         "function askReboot() { if (window.confirm('Are you sure you want to reboot the emulator? NOTE: If "

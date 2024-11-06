@@ -5,6 +5,7 @@
 #include "../devboard/mqtt/mqtt.h"
 #endif
 #include "../datalayer/datalayer.h"
+#include "../datalayer/datalayer_extended.h"  //For "More battery info" webpage
 #include "../devboard/utils/events.h"
 
 /* Do not change code below unless you are sure what you are doing */
@@ -252,6 +253,12 @@ void update_values_battery() { /* This function maps all the values fetched via 
     clear_event(EVENT_BATTERY_EMPTY);
   }
 
+  if (battery_Total_Voltage2 == 0x3FF) {  //Battery reports critical measurement unavailable
+    set_event(EVENT_BATTERY_VALUE_UNAVAILABLE, 0);
+  } else {
+    clear_event(EVENT_BATTERY_VALUE_UNAVAILABLE);
+  }
+
   if (battery_Relay_Cut_Request) {  //battery_FAIL, BMS requesting shutdown and contactors to be opened
     //Note, this is sometimes triggered during the night while idle, and the BMS recovers after a while. Removed latching from this scenario
     datalayer.battery.status.max_discharge_power_W = 0;
@@ -314,6 +321,22 @@ void update_values_battery() { /* This function maps all the values fetched via 
       set_event(EVENT_BATTERY_REQUESTS_HEAT, 0);
     }
   }
+
+  // Update webserver datalayer
+  datalayer_extended.nissanleaf.LEAF_gen = LEAF_battery_Type;
+  datalayer_extended.nissanleaf.GIDS = battery_GIDS;
+  datalayer_extended.nissanleaf.ChargePowerLimit = battery_Charge_Power_Limit;
+  datalayer_extended.nissanleaf.MaxPowerForCharger = battery_MAX_POWER_FOR_CHARGER;
+  datalayer_extended.nissanleaf.Interlock = battery_Interlock;
+  datalayer_extended.nissanleaf.RelayCutRequest = battery_Relay_Cut_Request;
+  datalayer_extended.nissanleaf.FailsafeStatus = battery_Failsafe_Status;
+  datalayer_extended.nissanleaf.Full = battery_Full_CHARGE_flag;
+  datalayer_extended.nissanleaf.Empty = battery_Capacity_Empty;
+  datalayer_extended.nissanleaf.MainRelayOn = battery_MainRelayOn_flag;
+  datalayer_extended.nissanleaf.HeatExist = battery_HeatExist;
+  datalayer_extended.nissanleaf.HeatingStop = battery_Heating_Stop;
+  datalayer_extended.nissanleaf.HeatingStart = battery_Heating_Start;
+  datalayer_extended.nissanleaf.HeaterSendRequest = battery_Batt_Heater_Mail_Send_Request;
 
 /*Finally print out values to serial if configured to do so*/
 #ifdef DEBUG_VIA_USB
@@ -401,6 +424,12 @@ void update_values_battery2() {  // Handle the values coming in from battery #2
     datalayer.battery2.status.max_discharge_power_W = 0;
   } else {
     clear_event(EVENT_BATTERY_EMPTY);
+  }
+
+  if (battery2_Total_Voltage2 == 0x3FF) {  //Battery reports critical measurement unavailable
+    set_event(EVENT_BATTERY_VALUE_UNAVAILABLE, 0);
+  } else {
+    clear_event(EVENT_BATTERY_VALUE_UNAVAILABLE);
   }
 
   if (battery2_Relay_Cut_Request) {  //battery2_FAIL, BMS requesting shutdown and contactors to be opened
