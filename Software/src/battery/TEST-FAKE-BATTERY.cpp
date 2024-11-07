@@ -22,6 +22,8 @@ void print_units(char* header, int value, char* units) {
 
 void update_values_battery() { /* This function puts fake values onto the parameters sent towards the inverter */
 
+  datalayer.battery.info.number_of_cells = 96;
+
   datalayer.battery.status.real_soc = 5000;  // 50.00%
 
   datalayer.battery.status.soh_pptt = 9900;  // 99.00%
@@ -49,7 +51,7 @@ void update_values_battery() { /* This function puts fake values onto the parame
   datalayer.battery.status.max_charge_power_W = 5000;  // 5kW
 
   for (int i = 0; i < 97; ++i) {
-    datalayer.battery.status.cell_voltages_mV[i] = 3500 + i;
+    datalayer.battery.status.cell_voltages_mV[i] = 3700 + random(-20, 21);
   }
 
   //Fake that we get CAN messages
@@ -74,6 +76,8 @@ void update_values_battery() { /* This function puts fake values onto the parame
 #ifdef DOUBLE_BATTERY
 
 void update_values_battery2() {  // Handle the values coming in from battery #2
+
+  datalayer.battery2.info.number_of_cells = 96;
 
   datalayer.battery2.status.real_soc = 5000;  // 50.00%
 
@@ -102,7 +106,7 @@ void update_values_battery2() {  // Handle the values coming in from battery #2
   datalayer.battery2.status.max_charge_power_W = 5000;  // 5kW
 
   for (int i = 0; i < 97; ++i) {
-    datalayer.battery2.status.cell_voltages_mV[i] = 3500 + i;
+    datalayer.battery2.status.cell_voltages_mV[i] = 3700 + random(-20, 21);
   }
 
   //Fake that we get CAN messages
@@ -167,6 +171,8 @@ void send_can_battery() {
 }
 
 void setup_battery(void) {  // Performs one time setup at startup
+  randomSeed(analogRead(0));
+
 #ifdef DEBUG_VIA_USB
   Serial.println("Test mode with fake battery selected");
 #endif
