@@ -860,6 +860,8 @@ void update_scaled_values() {
      * Before we use real_soc, we must make sure that it's within the range of min_percentage and max_percentage.
     */
     uint32_t calc_soc;
+    uint32_t calc_max_capacity;
+    uint32_t calc_reserved_capacity;
     // Make sure that the SOC starts out between min and max percentages
     calc_soc = CONSTRAIN(datalayer.battery.status.real_soc, datalayer.battery.settings.min_percentage,
                          datalayer.battery.settings.max_percentage);
@@ -870,8 +872,6 @@ void update_scaled_values() {
 
     // Calculate the scaled remaining capacity in Wh
     if (datalayer.battery.info.total_capacity_Wh > 0 && datalayer.battery.status.real_soc > 0) {
-      uint32_t calc_max_capacity;
-      uint32_t calc_reserved_capacity;
       calc_max_capacity = (datalayer.battery.status.remaining_capacity_Wh * 10000 / datalayer.battery.status.real_soc);
       calc_reserved_capacity = calc_max_capacity * datalayer.battery.settings.min_percentage / 10000;
       // remove % capacity reserved in min_percentage to total_capacity_Wh
@@ -881,9 +881,28 @@ void update_scaled_values() {
       datalayer.battery.status.reported_remaining_capacity_Wh = datalayer.battery.status.remaining_capacity_Wh;
     }
 
+#ifdef DOUBLE_BATTERY
+
+    // Calculate the scaled remaining capacity in Wh
+    if (datalayer.battery2.info.total_capacity_Wh > 0 && datalayer.battery2.status.real_soc > 0) {
+      calc_max_capacity =
+          (datalayer.battery2.status.remaining_capacity_Wh * 10000 / datalayer.battery2.status.real_soc);
+      calc_reserved_capacity = calc_max_capacity * datalayer.battery2.settings.min_percentage / 10000;
+      // remove % capacity reserved in min_percentage to total_capacity_Wh
+      datalayer.battery2.status.reported_remaining_capacity_Wh =
+          datalayer.battery2.status.remaining_capacity_Wh - calc_reserved_capacity;
+    } else {
+      datalayer.battery2.status.reported_remaining_capacity_Wh = datalayer.battery2.status.remaining_capacity_Wh;
+    }
+#endif
+
   } else {  // No SOC window wanted. Set scaled to same as real.
     datalayer.battery.status.reported_soc = datalayer.battery.status.real_soc;
     datalayer.battery.status.reported_remaining_capacity_Wh = datalayer.battery.status.remaining_capacity_Wh;
+#ifdef DOUBLE_BATTERY
+    datalayer.battery2.status.reported_soc = datalayer.battery2.status.real_soc;
+    datalayer.battery2.status.reported_remaining_capacity_Wh = datalayer.battery2.status.remaining_capacity_Wh;
+#endif
   }
 #ifdef DOUBLE_BATTERY
   // Perform extra SOC sanity checks on double battery setups
