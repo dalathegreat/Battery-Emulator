@@ -877,6 +877,7 @@ void receive_can_battery(CAN_frame rx_frame) {
       if (stateMachineClearSOH < 255) {
         //Intercept the messages based on state machine
         if (rx_frame.data.u8[0] == 0x06) {  // Incoming challenge data!
+                                            // BMS should reply with (challenge) 06 67 65 (02 DD 86 43) FF
           incomingChallenge = ((rx_frame.data.u8[3] << 24) | (rx_frame.data.u8[4] << 16) | (rx_frame.data.u8[5] << 8) |
                                rx_frame.data.u8[6]);
         }
@@ -1332,6 +1333,7 @@ void clearSOH(void) {
       LEAF_CLEAR_SOH.data.u8[6] = 0x00;
       LEAF_CLEAR_SOH.data.u8[7] = 0x00;
       transmit_can(&LEAF_CLEAR_SOH, can_config.battery);
+      // BMS should reply with (challenge) 06 67 65 (02 DD 86 43) FF
       stateMachineClearSOH = 4;
       break;
     case 4:  // Send back decoded challenge data
@@ -1340,16 +1342,16 @@ void clearSOH(void) {
       LEAF_CLEAR_SOH.data.u8[1] = 0x0A;
       LEAF_CLEAR_SOH.data.u8[2] = 0x27;
       LEAF_CLEAR_SOH.data.u8[3] = 0x66;
-      LEAF_CLEAR_SOH.data.u8[4] = 0x77;
-      LEAF_CLEAR_SOH.data.u8[5] = solvedChallenge[0];
-      LEAF_CLEAR_SOH.data.u8[6] = solvedChallenge[1];
-      LEAF_CLEAR_SOH.data.u8[7] = solvedChallenge[2];
+      LEAF_CLEAR_SOH.data.u8[4] = solvedChallenge[0];
+      LEAF_CLEAR_SOH.data.u8[5] = solvedChallenge[1];
+      LEAF_CLEAR_SOH.data.u8[6] = solvedChallenge[2];
+      LEAF_CLEAR_SOH.data.u8[7] = solvedChallenge[3];
       transmit_can(&LEAF_CLEAR_SOH, can_config.battery);
       // BMS should reply 7BB 8 30 01 00 FF FF FF FF FF // Proceed with more data (PID ACK)
       stateMachineClearSOH = 5;
       break;
     case 5:  // Reply with even more decoded challenge data
-      LEAF_CLEAR_SOH.data.u8[0] = solvedChallenge[3];
+      LEAF_CLEAR_SOH.data.u8[0] = 0x21;
       LEAF_CLEAR_SOH.data.u8[1] = solvedChallenge[4];
       LEAF_CLEAR_SOH.data.u8[2] = solvedChallenge[5];
       LEAF_CLEAR_SOH.data.u8[3] = solvedChallenge[6];
