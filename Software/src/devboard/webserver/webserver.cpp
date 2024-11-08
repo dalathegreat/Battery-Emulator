@@ -505,6 +505,9 @@ String processor(const String& var) {
 #ifdef PYLON_CAN
     content += "Pylontech battery over CAN bus";
 #endif  // PYLON_CAN
+#ifdef PYLON_LV_CAN
+    content += "Pylontech LV battery over CAN bus";
+#endif  // PYLON_LV_CAN
 #ifdef SERIAL_LINK_TRANSMITTER
     content += "Serial link to another LilyGo board";
 #endif  // SERIAL_LINK_TRANSMITTER
@@ -729,6 +732,27 @@ String processor(const String& var) {
       content += "<span style='color: red;'>OFF</span>";
     }
     content += "</h4>";
+
+    content += "<h4>Pre Charge: ";
+    if (digitalRead(PRECHARGE_PIN) == HIGH) {
+      content += "<span style='color: green;'>&#10003;</span>";
+    } else {
+      content += "<span style='color: red;'>&#10005;</span>";
+    }
+    content += " Cont. Neg.: ";
+    if (digitalRead(NEGATIVE_CONTACTOR_PIN) == HIGH) {
+      content += "<span style='color: green;'>&#10003;</span>";
+    } else {
+      content += "<span style='color: red;'>&#10005;</span>";
+    }
+
+    content += " Cont. Pos.: ";
+    if (digitalRead(POSITIVE_CONTACTOR_PIN) == HIGH) {
+      content += "<span style='color: green;'>&#10003;</span>";
+    } else {
+      content += "<span style='color: red;'>&#10005;</span>";
+    }
+    content += "</h4>";
 #endif
 
     // Close the block
@@ -771,7 +795,9 @@ String processor(const String& var) {
     content += "<h4 style='color: white;'>Current: " + String(currentFloat, 1) + " A</h4>";
     content += formatPowerValue("Power", powerFloat, "", 1);
     content += formatPowerValue("Total capacity", datalayer.battery2.info.total_capacity_Wh, "h", 0);
-    content += formatPowerValue("Remaining capacity", datalayer.battery2.status.remaining_capacity_Wh, "h", 1);
+    content += formatPowerValue("Real Remaining capacity", datalayer.battery2.status.remaining_capacity_Wh, "h", 1);
+    content +=
+        formatPowerValue("Scaled Remaining capacity", datalayer.battery2.status.reported_remaining_capacity_Wh, "h", 1);
     content += formatPowerValue("Max discharge power", datalayer.battery2.status.max_discharge_power_W, "", 1);
     content += formatPowerValue("Max charge power", datalayer.battery2.status.max_charge_power_W, "", 1);
     content += "<h4>Cell max: " + String(datalayer.battery2.status.cell_max_voltage_mV) + " mV</h4>";
@@ -813,6 +839,11 @@ String processor(const String& var) {
       content += "<span style='color: red;'>&#10005;</span></h4>";
     }
 
+    if (emulator_pause_status == NORMAL)
+      content += "<h4>Power status: " + String(get_emulator_pause_status().c_str()) + " </h4>";
+    else
+      content += "<h4 style='color: red;'>Power status: " + String(get_emulator_pause_status().c_str()) + " </h4>";
+
 #ifdef CONTACTOR_CONTROL
     content += "<h4>Contactors controlled by Battery-Emulator: ";
     if (datalayer.system.status.contactor_control_closed) {
@@ -821,12 +852,28 @@ String processor(const String& var) {
       content += "<span style='color: red;'>OFF</span>";
     }
     content += "</h4>";
-#endif
 
-    if (emulator_pause_status == NORMAL)
-      content += "<h4>Pause status: " + String(get_emulator_pause_status().c_str()) + " </h4>";
-    else
-      content += "<h4 style='color: red;'>Pause status: " + String(get_emulator_pause_status().c_str()) + " </h4>";
+    content += "<h4>Pre Charge: ";
+    if (digitalRead(PRECHARGE_PIN) == HIGH) {
+      content += "<span style='color: green;'>&#10003;</span>";
+    } else {
+      content += "<span style='color: red;'>&#10005;</span>";
+    }
+    content += " Cont. Neg.: ";
+    if (digitalRead(NEGATIVE_CONTACTOR_PIN) == HIGH) {
+      content += "<span style='color: green;'>&#10003;</span>";
+    } else {
+      content += "<span style='color: red;'>&#10005;</span>";
+    }
+
+    content += " Cont. Pos.: ";
+    if (digitalRead(POSITIVE_CONTACTOR_PIN) == HIGH) {
+      content += "<span style='color: green;'>&#10003;</span>";
+    } else {
+      content += "<span style='color: red;'>&#10005;</span>";
+    }
+    content += "</h4>";
+#endif
 
     content += "</div>";
     content += "</div>";
