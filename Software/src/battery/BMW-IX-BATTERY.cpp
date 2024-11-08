@@ -58,9 +58,6 @@ No vehicle  log available, SME asks for:
 
 TODO
 - Request batt serial number on F1 8C (already parsing RX)
-- Check PWM state required from ACSM
-- More Balancing values
-- MIN /max cell voltag e- implement safety limits?
 
 */
 
