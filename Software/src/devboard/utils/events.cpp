@@ -150,6 +150,7 @@ void init_events(void) {
   events.entries[EVENT_CAN_RX_WARNING].level = EVENT_LEVEL_WARNING;
   events.entries[EVENT_CAN_TX_FAILURE].level = EVENT_LEVEL_ERROR;
   events.entries[EVENT_CAN_INVERTER_MISSING].level = EVENT_LEVEL_WARNING;
+  events.entries[EVENT_CONTACTOR_WELDED].level = EVENT_LEVEL_WARNING;
   events.entries[EVENT_WATER_INGRESS].level = EVENT_LEVEL_ERROR;
   events.entries[EVENT_CHARGE_LIMIT_EXCEEDED].level = EVENT_LEVEL_INFO;
   events.entries[EVENT_DISCHARGE_LIMIT_EXCEEDED].level = EVENT_LEVEL_INFO;
@@ -281,6 +282,8 @@ const char* get_event_message_string(EVENTS_ENUM_TYPE event) {
       return "ERROR: CAN messages failed to transmit, or no one on the bus to ACK the message!";
     case EVENT_CAN_INVERTER_MISSING:
       return "Warning: Inverter not sending messages on CAN bus. Check wiring!";
+    case EVENT_CONTACTOR_WELDED:
+      return "Warning: Contactors sticking/welded. Inspect battery with caution!";
     case EVENT_CHARGE_LIMIT_EXCEEDED:
       return "Info: Inverter is charging faster than battery is allowing.";
     case EVENT_DISCHARGE_LIMIT_EXCEEDED:
