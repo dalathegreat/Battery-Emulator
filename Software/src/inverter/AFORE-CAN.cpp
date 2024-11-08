@@ -72,31 +72,10 @@ CAN_frame AFORE_35A = {.FD = false,                                             
                        .DLC = 8,
                        .ID = 0x35A,
                        .data = {0x65, 0x6D, 0x75, 0x6C, 0x61, 0x74, 0x6F, 0x72}};  // Emulator
-static int16_t max_charge_current_dA = 0;
-static int16_t max_discharge_current_dA = 0;
 
 void update_values_can_inverter() {  //This function maps all the values fetched from battery CAN to the correct CAN messages
   //There are more mappings that could be added, but this should be enough to use as a starting point
-  // Note we map both 0 and 1 messages
 
-  if (datalayer.battery.status.voltage_dV > 10) {  //div0 safeguard
-    max_charge_current_dA = (datalayer.battery.status.max_charge_power_W * 100) / datalayer.battery.status.voltage_dV;
-    if (max_charge_current_dA > datalayer.battery.info.max_charge_amp_dA) {
-      max_charge_current_dA =
-          datalayer.battery.info
-              .max_charge_amp_dA;  //Cap the value to the max allowed Amp. Some inverters cannot handle large values.
-    }
-    max_discharge_current_dA =
-        (datalayer.battery.status.max_discharge_power_W * 100) / datalayer.battery.status.voltage_dV;
-    if (max_discharge_current_dA > datalayer.battery.info.max_discharge_amp_dA) {
-      max_discharge_current_dA =
-          datalayer.battery.info
-              .max_discharge_amp_dA;  //Cap the value to the max allowed Amp. Some inverters cannot handle large values.
-    }
-  } else {
-    max_charge_current_dA = 0;
-    max_discharge_current_dA = 0;
-  }
   /*0x350 Operation Information*/
   AFORE_350.data.u8[0] = (datalayer.battery.status.voltage_dV & 0x00FF);
   AFORE_350.data.u8[1] = (datalayer.battery.status.voltage_dV >> 8);
@@ -115,11 +94,11 @@ void update_values_can_inverter() {  //This function maps all the values fetched
   AFORE_351.data.u8[2] = SOCMAX;
   AFORE_351.data.u8[3] = SOCMIN;
   AFORE_351.data.u8[4] = 0x03;  //Bit0 and Bit1 set
-  if ((max_charge_current_dA == 0) || (datalayer.battery.status.reported_soc == 10000) ||
+  if ((datalayer.battery.status.max_charge_current_dA == 0) || (datalayer.battery.status.reported_soc == 10000) ||
       (datalayer.battery.status.bms_status == FAULT)) {
     AFORE_351.data.u8[4] &= ~0x01;  // Remove Bit0 (clear) Charge enable flag
   }
-  if ((max_discharge_current_dA == 0) || (datalayer.battery.status.reported_soc == 0) ||
+  if ((datalayer.battery.status.max_discharge_current_dA == 0) || (datalayer.battery.status.reported_soc == 0) ||
       (datalayer.battery.status.bms_status == FAULT)) {
     AFORE_351.data.u8[4] &= ~0x02;  // Remove Bit1 (clear) Discharge enable flag
   }
@@ -135,10 +114,10 @@ void update_values_can_inverter() {  //This function maps all the values fetched
   AFORE_351.data.u8[7] = (datalayer.battery.info.number_of_cells >> 8);
 
   /*0x352 - Protection parameters*/
-  AFORE_352.data.u8[0] = (max_charge_current_dA & 0x00FF);
-  AFORE_352.data.u8[1] = (max_charge_current_dA >> 8);
-  AFORE_352.data.u8[2] = (max_discharge_current_dA & 0x00FF);
-  AFORE_352.data.u8[3] = (max_discharge_current_dA >> 8);
+  AFORE_352.data.u8[0] = (datalayer.battery.status.max_charge_current_dA & 0x00FF);
+  AFORE_352.data.u8[1] = (datalayer.battery.status.max_charge_current_dA >> 8);
+  AFORE_352.data.u8[2] = (datalayer.battery.status.max_discharge_current_dA & 0x00FF);
+  AFORE_352.data.u8[3] = (datalayer.battery.status.max_discharge_current_dA >> 8);
   AFORE_352.data.u8[4] = (datalayer.battery.info.max_design_voltage_dV & 0x00FF);
   AFORE_352.data.u8[5] = (datalayer.battery.info.max_design_voltage_dV >> 8);
   AFORE_352.data.u8[6] = (datalayer.battery.info.min_design_voltage_dV & 0x00FF);

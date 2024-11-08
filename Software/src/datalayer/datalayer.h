@@ -49,10 +49,14 @@ typedef struct {
    */
   uint32_t reported_remaining_capacity_Wh;
 
-  /** Maximum allowed battery discharge power in Watts */
+  /** Maximum allowed battery discharge power in Watts. Set by battery */
   uint32_t max_discharge_power_W = 0;
-  /** Maximum allowed battery charge power in Watts */
+  /** Maximum allowed battery charge power in Watts. Set by battery */
   uint32_t max_charge_power_W = 0;
+  /** Maximum allowed battery discharge current in dA. Calculated based on allowed W and Voltage */
+  uint16_t max_discharge_current_dA = 0;
+  /** Maximum allowed battery charge current in dA. Calculated based on allowed W and Voltage  */
+  uint16_t max_charge_current_dA = 0;
 
   /** int16_t */
   /** Maximum temperature currently measured in the pack, in d°C. 150 = 15.0 °C */

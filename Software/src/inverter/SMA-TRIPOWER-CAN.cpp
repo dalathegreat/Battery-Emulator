@@ -81,8 +81,6 @@ CAN_frame SMA_018 = {.FD = false,
                      .ID = 0x018,
                      .data = {0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00}};
 
-static uint16_t discharge_current = 0;
-static uint16_t charge_current = 0;
 static int16_t temperature_average = 0;
 static uint16_t ampere_hours_remaining = 0;
 static uint16_t ampere_hours_max = 0;
@@ -123,29 +121,6 @@ InvInitState invInitState = SYSTEM_FREQUENCY;
 void update_values_can_inverter() {  //This function maps all the values fetched from battery CAN to the inverter CAN
   //Calculate values
 
-  if (datalayer.battery.status.voltage_dV > 10) {  // Only update value when we have voltage available to avoid div0
-    charge_current =
-        ((datalayer.battery.status.max_charge_power_W * 10) /
-         datalayer.battery.status.voltage_dV);  //Charge power in W , max volt in V+1decimal (P=UI, solve for I)
-    charge_current = (charge_current * 10);     //Value needs a decimal before getting sent to inverter (81.0A)
-    discharge_current =
-        ((datalayer.battery.status.max_discharge_power_W * 10) /
-         datalayer.battery.status.voltage_dV);     //Charge power in W , max volt in V+1decimal (P=UI, solve for I)
-    discharge_current = (discharge_current * 10);  //Value needs a decimal before getting sent to inverter (81.0A)
-  }
-
-  if (charge_current > datalayer.battery.info.max_charge_amp_dA) {
-    charge_current =
-        datalayer.battery.info
-            .max_charge_amp_dA;  //Cap the value to the max allowed Amp. Some inverters cannot handle large values.
-  }
-
-  if (discharge_current > datalayer.battery.info.max_discharge_amp_dA) {
-    discharge_current =
-        datalayer.battery.info
-            .max_discharge_amp_dA;  //Cap the value to the max allowed Amp. Some inverters cannot handle large values.
-  }
-
   temperature_average =
       ((datalayer.battery.status.temperature_max_dC + datalayer.battery.status.temperature_min_dC) / 2);
 
@@ -167,11 +142,11 @@ void update_values_can_inverter() {  //This function maps all the values fetched
   SMA_00D.data.u8[2] = (datalayer.battery.info.min_design_voltage_dV >> 8);
   SMA_00D.data.u8[3] = (datalayer.battery.info.min_design_voltage_dV & 0x00FF);
   //Discharge limited current, 500 = 50A, (0.1, A)
-  SMA_00D.data.u8[4] = (discharge_current >> 8);
-  SMA_00D.data.u8[5] = (discharge_current & 0x00FF);
+  SMA_00D.data.u8[4] = (datalayer.battery.status.max_discharge_current_dA >> 8);
+  SMA_00D.data.u8[5] = (datalayer.battery.status.max_discharge_current_dA & 0x00FF);
   //Charge limited current, 125 =12.5A (0.1, A)
-  SMA_00D.data.u8[6] = (charge_current >> 8);
-  SMA_00D.data.u8[7] = (charge_current & 0x00FF);
+  SMA_00D.data.u8[6] = (datalayer.battery.status.max_charge_current_dA >> 8);
+  SMA_00D.data.u8[7] = (datalayer.battery.status.max_charge_current_dA & 0x00FF);
 
   // Battery State
   //SOC (100.00%)

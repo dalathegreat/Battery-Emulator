@@ -652,6 +652,10 @@ String processor(const String& var) {
     float powerFloat = static_cast<float>(datalayer.battery.status.active_power_W);               // Convert to float
     float tempMaxFloat = static_cast<float>(datalayer.battery.status.temperature_max_dC) / 10.0;  // Convert to float
     float tempMinFloat = static_cast<float>(datalayer.battery.status.temperature_min_dC) / 10.0;  // Convert to float
+    float maxCurrentChargeFloat =
+        static_cast<float>(datalayer.battery.status.max_charge_current_dA) / 10.0;  // Convert to float
+    float maxCurrentDischargeFloat =
+        static_cast<float>(datalayer.battery.status.max_discharge_current_dA) / 10.0;  // Convert to float
     uint16_t cell_delta_mv =
         datalayer.battery.status.cell_max_voltage_mV - datalayer.battery.status.cell_min_voltage_mV;
 
@@ -669,9 +673,13 @@ String processor(const String& var) {
     if (emulator_pause_status == NORMAL) {
       content += formatPowerValue("Max discharge power", datalayer.battery.status.max_discharge_power_W, "", 1);
       content += formatPowerValue("Max charge power", datalayer.battery.status.max_charge_power_W, "", 1);
+      content += "<h4 style='color: white;'>Max discharge current: " + String(maxCurrentDischargeFloat, 1) + " A</h4>";
+      content += "<h4 style='color: white;'>Max charge current: " + String(maxCurrentChargeFloat, 1) + " A</h4>";
     } else {
       content += formatPowerValue("Max discharge power", datalayer.battery.status.max_discharge_power_W, "", 1, "red");
       content += formatPowerValue("Max charge power", datalayer.battery.status.max_charge_power_W, "", 1, "red");
+      content += "<h4 style='color: red;'>Max discharge current: " + String(maxCurrentDischargeFloat, 1) + " A</h4>";
+      content += "<h4 style='color: red;'>Max charge current: " + String(maxCurrentChargeFloat, 1) + " A</h4>";
     }
 
     content += "<h4>Cell max: " + String(datalayer.battery.status.cell_max_voltage_mV) + " mV</h4>";
