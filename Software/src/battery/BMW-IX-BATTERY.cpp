@@ -437,7 +437,7 @@ void update_values_battery() {  //This function maps all the values fetched via 
 
   datalayer.battery.status.soh_pptt = min_soh_state;
 
-  datalayer.battery.status.max_discharge_power_W = 3200;  //10000; //Aux HV Port has 100A Fuse
+  datalayer.battery.status.max_discharge_power_W = MAX_DISCHARGE_POWER_ALLOWED_W;
 
   //datalayer.battery.status.max_charge_power_W = 3200; //10000; //Aux HV Port has 100A Fuse  Moved to Ramping
 
@@ -593,7 +593,10 @@ void receive_can_battery(CAN_frame rx_frame) {
 
         for (int i = start_index; i < (start_index + num_voltages * 2); i += 2) {
           uint16_t voltage = (rx_frame.data.u8[i] << 8) | rx_frame.data.u8[i + 1];
-          datalayer.battery.status.cell_voltages_mV[voltage_index++] = voltage;
+          if (voltage < 10000) {  //Check reading is plausible - otherwise ignore
+            datalayer.battery.status.cell_voltages_mV[voltage_index] = voltage;
+          }
+          voltage_index++;
         }
       }
       if (rx_frame.DLC = 7 && rx_frame.data.u8[4] == 0x4D) {  //Main Battery Voltage (Pre Contactor)
