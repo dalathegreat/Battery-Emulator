@@ -461,33 +461,29 @@ void update_values_battery() {  //This function maps all the values fetched via 
 
   datalayer.battery.status.temperature_max_dC = max_battery_temperature;
 
-  if (isStale(min_cell_voltage, datalayer.battery.status.cell_min_voltage_mV,
-              min_cell_voltage_lastchanged)) {  //TODO prevent flipflop after error
-    Serial.println("min_cell_voltage has gone stale.");
+  if (isStale(min_cell_voltage, datalayer.battery.status.cell_min_voltage_mV, min_cell_voltage_lastchanged)) {
     datalayer.battery.status.cell_min_voltage_mV = 9999;  //Stale values force stop
     set_event(EVENT_CAN_RX_FAILURE, 0);
   } else {
     datalayer.battery.status.cell_min_voltage_mV = min_cell_voltage;  //Value is alive
   }
 
-  if (isStale(max_cell_voltage, datalayer.battery.status.cell_max_voltage_mV,
-              max_cell_voltage_lastchanged)) {  //TODO prevent flipflop after error
-    Serial.println("max_cell_voltage has gone stale.");
+  if (isStale(max_cell_voltage, datalayer.battery.status.cell_max_voltage_mV, max_cell_voltage_lastchanged)) {
     datalayer.battery.status.cell_max_voltage_mV = 9999;  //Stale values force stop
     set_event(EVENT_CAN_RX_FAILURE, 0);
   } else {
     datalayer.battery.status.cell_max_voltage_mV = max_cell_voltage;  //Value is alive
   }
 
-  datalayer_extended.bmwix.min_cell_voltage_data_age = (millis() - min_cell_voltage_lastchanged);
-
-  datalayer_extended.bmwix.max_cell_voltage_data_age = (millis() - max_cell_voltage_lastchanged);
-
   datalayer.battery.info.max_design_voltage_dV = max_design_voltage;
 
   datalayer.battery.info.min_design_voltage_dV = min_design_voltage;
 
   datalayer.battery.info.number_of_cells = 108;  //init with 108S before autodetection
+
+  datalayer_extended.bmwix.min_cell_voltage_data_age = (millis() - min_cell_voltage_lastchanged);
+
+  datalayer_extended.bmwix.max_cell_voltage_data_age = (millis() - max_cell_voltage_lastchanged);
 
   datalayer_extended.bmwix.T30_Voltage = terminal30_12v_voltage;
 
@@ -735,16 +731,6 @@ void send_can_battery() {
   unsigned long currentMillis = millis();
 
   //if (battery_awake) { //We can always send CAN as the iX BMS will wake up on vehicle comms
-  //Send 20ms message
-  if (currentMillis - previousMillis20 >= INTERVAL_20_MS) {
-    // Check if sending of CAN messages has been delayed too much.
-    if ((currentMillis - previousMillis20 >= INTERVAL_20_MS_DELAYED) && (currentMillis > BOOTUP_TIME)) {
-      set_event(EVENT_CAN_OVERRUN, (currentMillis - previousMillis20));
-    } else {
-      clear_event(EVENT_CAN_OVERRUN);
-    }
-    previousMillis20 = currentMillis;
-  }
   // Send 100ms CAN Message
   if (currentMillis - previousMillis100 >= INTERVAL_100_MS) {
     previousMillis100 = currentMillis;
@@ -764,22 +750,14 @@ void send_can_battery() {
     BMWiX_0C0.data.u8[0] = increment_0C0_counter(BMWiX_0C0.data.u8[0]);  //Keep Alive 1
     transmit_can(&BMWiX_0C0, can_config.battery);
   }
-  // Send 500ms CAN Message
-  if (currentMillis - previousMillis500 >= INTERVAL_500_MS) {
-    previousMillis500 = currentMillis;
-  }
-  // Send 640ms CAN Message
-  if (currentMillis - previousMillis640 >= INTERVAL_640_MS) {
-    previousMillis640 = currentMillis;
-  }
   // Send 1000ms CAN Message
   if (currentMillis - previousMillis1000 >= INTERVAL_1_S) {
     previousMillis1000 = currentMillis;
 
     //Send SME Keep alive values 1000ms
-    //test disable transmit_can(&BMWiX_06D, can_config.battery);
-    //test disable transmit_can(&BMWiX_2F1, can_config.battery);
-    //test disable transmit_can(&BMWiX_439, can_config.battery);
+    //Don't believe this is needed: transmit_can(&BMWiX_06D, can_config.battery);
+    //Don't believe this is needed: transmit_can(&BMWiX_2F1, can_config.battery);
+    //Don't believe this is needed: transmit_can(&BMWiX_439, can_config.battery);
   }
   // Send 5000ms CAN Message
   if (currentMillis - previousMillis5000 >= INTERVAL_5_S) {
@@ -815,20 +793,6 @@ void setup_battery(void) {  // Performs one time setup at startup
   datalayer.battery.info.min_cell_voltage_mV = MIN_CELL_VOLTAGE_MV;
   datalayer.battery.info.max_cell_voltage_deviation_mV = MAX_CELL_DEVIATION_MV;
   datalayer.system.status.battery_allows_contactor_closing = true;
-
-  //pinMode(WUP_PIN, OUTPUT); // Not needed - can hold WUP pin High with iX BMS
-  //digitalWrite(WUP_PIN, HIGH);  // Wake up the battery // Not needed - can hold WUP pin High with iX BMS
-
-  //Send SME Keep alive values 100ms
-  transmit_can(&BMWiX_510, can_config.battery);
-  //Send SME Keep alive values 200ms
-  BMWiX_0C0.data.u8[0] = increment_0C0_counter(BMWiX_0C0.data.u8[0]);  //Keep Alive 1
-  transmit_can(&BMWiX_0C0, can_config.battery);
-
-  //Send SME Keep alive values 1000ms
-  //Not needed transmit_can(&BMWiX_06D, can_config.battery);
-  //Not needed transmit_can(&BMWiX_2F1, can_config.battery);
-  //Not needed transmit_can(&BMWiX_439, can_config.battery);
 }
 
 #endif
