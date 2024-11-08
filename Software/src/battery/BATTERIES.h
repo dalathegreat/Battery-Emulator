@@ -6,6 +6,10 @@
 #include "BMW-I3-BATTERY.h"
 #endif
 
+#ifdef BMW_IX_BATTERY
+#include "BMW-IX-BATTERY.h"
+#endif
+
 #ifdef BYD_ATTO_3_BATTERY
 #include "BYD-ATTO-3-BATTERY.h"
 #endif

@@ -516,6 +516,9 @@ String processor(const String& var) {
 #ifdef BMW_I3_BATTERY
     content += "BMW i3";
 #endif  // BMW_I3_BATTERY
+#ifdef BMW_IX_BATTERY
+    content += "BMW iX and i4-7 platform";
+#endif  // BMW_IX_BATTERY
 #ifdef BYD_ATTO_3_BATTERY
     content += "BYD Atto 3";
 #endif  // BYD_ATTO_3_BATTERY
