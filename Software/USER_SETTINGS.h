@@ -49,6 +49,7 @@
 /* Select hardware used for Battery-Emulator */
 #define HW_LILYGO
 //#define HW_STARK
+//#define HW_3LB
 
 /* Other options */
 //#define DEBUG_VIA_USB  //Enable this line to have the USB port output serial diagnostic data while program runs (WARNING, raises CPU load, do not use for production)
