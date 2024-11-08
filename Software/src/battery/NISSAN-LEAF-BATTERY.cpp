@@ -1298,108 +1298,54 @@ void clearSOH(void) {
       stateMachineClearSOH = 1;
       break;
     case 1:  // Set CAN_PROCESS_FLAG to 0xC0
-      LEAF_CLEAR_SOH.data.u8[0] = 0x02;
-      LEAF_CLEAR_SOH.data.u8[1] = 0x10;
-      LEAF_CLEAR_SOH.data.u8[2] = 0xC0;
-      LEAF_CLEAR_SOH.data.u8[3] = 0x00;
-      LEAF_CLEAR_SOH.data.u8[4] = 0x00;
-      LEAF_CLEAR_SOH.data.u8[5] = 0x00;
-      LEAF_CLEAR_SOH.data.u8[6] = 0x00;
-      LEAF_CLEAR_SOH.data.u8[7] = 0x00;
+      LEAF_CLEAR_SOH.data = {0x02, 0x10, 0xC0, 0x00, 0x00, 0x00, 0x00, 0x00};
       transmit_can(&LEAF_CLEAR_SOH, can_config.battery);
       // BMS should reply 02 50 C0 FF FF FF FF FF
       stateMachineClearSOH = 2;
       break;
     case 2:  // Set something ?
-      LEAF_CLEAR_SOH.data.u8[0] = 0x02;
-      LEAF_CLEAR_SOH.data.u8[1] = 0x3E;
-      LEAF_CLEAR_SOH.data.u8[2] = 0x01;
-      LEAF_CLEAR_SOH.data.u8[3] = 0x00;
-      LEAF_CLEAR_SOH.data.u8[4] = 0x00;
-      LEAF_CLEAR_SOH.data.u8[5] = 0x00;
-      LEAF_CLEAR_SOH.data.u8[6] = 0x00;
-      LEAF_CLEAR_SOH.data.u8[7] = 0x00;
+      LEAF_CLEAR_SOH.data = {0x02, 0x3E, 0x01, 0x00, 0x00, 0x00, 0x00, 0x00};
       transmit_can(&LEAF_CLEAR_SOH, can_config.battery);
       // BMS should reply 7E FF FF FF FF FF FF
       stateMachineClearSOH = 3;
       break;
     case 3:  // Request challenge to solve
-      LEAF_CLEAR_SOH.data.u8[0] = 0x02;
-      LEAF_CLEAR_SOH.data.u8[1] = 0x27;
-      LEAF_CLEAR_SOH.data.u8[2] = 0x65;
-      LEAF_CLEAR_SOH.data.u8[3] = 0x00;
-      LEAF_CLEAR_SOH.data.u8[4] = 0x00;
-      LEAF_CLEAR_SOH.data.u8[5] = 0x00;
-      LEAF_CLEAR_SOH.data.u8[6] = 0x00;
-      LEAF_CLEAR_SOH.data.u8[7] = 0x00;
+      LEAF_CLEAR_SOH.data = {0x02, 0x27, 0x65, 0x00, 0x00, 0x00, 0x00, 0x00};
       transmit_can(&LEAF_CLEAR_SOH, can_config.battery);
       // BMS should reply with (challenge) 06 67 65 (02 DD 86 43) FF
       stateMachineClearSOH = 4;
       break;
     case 4:  // Send back decoded challenge data
       decodeChallengeData(incomingChallenge, solvedChallenge);
-      LEAF_CLEAR_SOH.data.u8[0] = 0x10;
-      LEAF_CLEAR_SOH.data.u8[1] = 0x0A;
-      LEAF_CLEAR_SOH.data.u8[2] = 0x27;
-      LEAF_CLEAR_SOH.data.u8[3] = 0x66;
-      LEAF_CLEAR_SOH.data.u8[4] = solvedChallenge[0];
-      LEAF_CLEAR_SOH.data.u8[5] = solvedChallenge[1];
-      LEAF_CLEAR_SOH.data.u8[6] = solvedChallenge[2];
-      LEAF_CLEAR_SOH.data.u8[7] = solvedChallenge[3];
+      LEAF_CLEAR_SOH.data = {
+          0x10, 0x0A, 0x27, 0x66, solvedChallenge[0], solvedChallenge[1], solvedChallenge[2], solvedChallenge[3]};
       transmit_can(&LEAF_CLEAR_SOH, can_config.battery);
       // BMS should reply 7BB 8 30 01 00 FF FF FF FF FF // Proceed with more data (PID ACK)
       stateMachineClearSOH = 5;
       break;
     case 5:  // Reply with even more decoded challenge data
-      LEAF_CLEAR_SOH.data.u8[0] = 0x21;
-      LEAF_CLEAR_SOH.data.u8[1] = solvedChallenge[4];
-      LEAF_CLEAR_SOH.data.u8[2] = solvedChallenge[5];
-      LEAF_CLEAR_SOH.data.u8[3] = solvedChallenge[6];
-      LEAF_CLEAR_SOH.data.u8[4] = solvedChallenge[7];
-      LEAF_CLEAR_SOH.data.u8[5] = 0x00;
-      LEAF_CLEAR_SOH.data.u8[6] = 0x00;
-      LEAF_CLEAR_SOH.data.u8[7] = 0x00;
+      LEAF_CLEAR_SOH.data = {
+          0x21, solvedChallenge[4], solvedChallenge[5], solvedChallenge[6], solvedChallenge[7], 0x00, 0x00, 0x00};
       transmit_can(&LEAF_CLEAR_SOH, can_config.battery);
       // BMS should reply 02 67 66 FF FF FF FF FF // Thank you for the data
       stateMachineClearSOH = 6;
       break;
     case 6:  // Check if solved data was OK
-      LEAF_CLEAR_SOH.data.u8[0] = 0x03;
-      LEAF_CLEAR_SOH.data.u8[1] = 0x31;
-      LEAF_CLEAR_SOH.data.u8[2] = 0x03;
-      LEAF_CLEAR_SOH.data.u8[3] = 0x00;
-      LEAF_CLEAR_SOH.data.u8[4] = 0x00;
-      LEAF_CLEAR_SOH.data.u8[5] = 0x00;
-      LEAF_CLEAR_SOH.data.u8[6] = 0x00;
-      LEAF_CLEAR_SOH.data.u8[7] = 0x00;
+      LEAF_CLEAR_SOH.data = {0x03, 0x31, 0x03, 0x00, 0x00, 0x00, 0x00, 0x00};
       transmit_can(&LEAF_CLEAR_SOH, can_config.battery);
       //7BB 8 03 71 03 01 FF FF FF FF // If all is well, BMS replies with 03 71 03 01.
       //Incase you sent wrong challenge, you get 03 7f 31 12
       stateMachineClearSOH = 7;
       break;
     case 7:  // Reset SOH% request
-      LEAF_CLEAR_SOH.data.u8[0] = 0x03;
-      LEAF_CLEAR_SOH.data.u8[1] = 0x31;
-      LEAF_CLEAR_SOH.data.u8[2] = 0x03;
-      LEAF_CLEAR_SOH.data.u8[3] = 0x01;
-      LEAF_CLEAR_SOH.data.u8[4] = 0x00;
-      LEAF_CLEAR_SOH.data.u8[5] = 0x00;
-      LEAF_CLEAR_SOH.data.u8[6] = 0x00;
-      LEAF_CLEAR_SOH.data.u8[7] = 0x00;
+      LEAF_CLEAR_SOH.data = {0x03, 0x31, 0x03, 0x01, 0x00, 0x00, 0x00, 0x00};
       transmit_can(&LEAF_CLEAR_SOH, can_config.battery);
       //7BB 8 03 71 03 02 FF FF FF FF // 03 71 03 02 means that BMS accepted command.
       //7BB 03 7f 31 12 means your challenge was wrong, so command ignored
       stateMachineClearSOH = 8;
       break;
     case 8:  // Please proceed with resetting SOH
-      LEAF_CLEAR_SOH.data.u8[0] = 0x02;
-      LEAF_CLEAR_SOH.data.u8[1] = 0x10;
-      LEAF_CLEAR_SOH.data.u8[2] = 0x81;
-      LEAF_CLEAR_SOH.data.u8[3] = 0x00;
-      LEAF_CLEAR_SOH.data.u8[4] = 0x00;
-      LEAF_CLEAR_SOH.data.u8[5] = 0x00;
-      LEAF_CLEAR_SOH.data.u8[6] = 0x00;
-      LEAF_CLEAR_SOH.data.u8[7] = 0x00;
+      LEAF_CLEAR_SOH.data = {0x02, 0x10, 0x81, 0x00, 0x00, 0x00, 0x00, 0x00};
       transmit_can(&LEAF_CLEAR_SOH, can_config.battery);
       // 7BB 8 02 50 81 FF FF FF FF FF // SOH reset OK
       stateMachineClearSOH = 255;
@@ -1423,17 +1369,7 @@ void clearSOH(void) {
 
 uint32_t CyclicXorHash16Bit(uint32_t param_1, uint32_t param_2) {
   bool bVar1;
-  uint32_t uVar2;
-  uint32_t uVar3;
-  uint32_t uVar4;
-  uint32_t uVar5;
-  uint32_t uVar6;
-  uint32_t uVar7;
-  uint32_t uVar8;
-  uint32_t uVar9;
-  uint32_t uVar10;
-  uint32_t uVar11;
-  uint32_t iVar12;
+  uint32_t uVar2, uVar3, uVar4, uVar5, uVar6, uVar7, uVar8, uVar9, uVar10, uVar11, iVar12;
 
   param_1 = param_1 & 0xffff;
   param_2 = param_2 & 0xffff;
@@ -1518,10 +1454,7 @@ uint32_t MaskedBitwiseRotateMultiply(uint32_t param_1, uint32_t param_2) {
 }
 
 uint32_t CryptAlgo(uint32_t param_1, uint32_t param_2, uint32_t param_3) {
-  uint32_t uVar1;
-  uint32_t uVar2;
-  uint32_t iVar3;
-  uint32_t iVar4;
+  uint32_t uVar1, uVar2, iVar3, iVar4;
 
   uVar1 = MaskedBitwiseRotateMultiply(param_2, param_3);
   uVar2 = ShortMaskedSumAndProduct(param_2, param_3);
@@ -1533,8 +1466,7 @@ uint32_t CryptAlgo(uint32_t param_1, uint32_t param_2, uint32_t param_3) {
 }
 
 void decodeChallengeData(uint32_t incomingChallenge, unsigned char* solvedChallenge) {
-  uint32_t uVar1;
-  uint32_t uVar2;
+  uint32_t uVar1, uVar2;
 
   uVar1 = CryptAlgo(0x609, 0xDD2, incomingChallenge >> 0x10);
   uVar2 = CryptAlgo(incomingChallenge & 0xffff, incomingChallenge >> 0x10, 0x609);
