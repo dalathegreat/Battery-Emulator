@@ -332,9 +332,11 @@ void receive_RS485()  // Runs as fast as possible to handle the serial stream
                 }
                 if (code == 0x84a) {
                   //Send  battery info
-                  BATTERY_INFO[38] = calculate_kostal_crc(BATTERY_INFO, 38);
-                  scramble_null_bytes(BATTERY_INFO,40);
-                  send_kostal(BATTERY_INFO, 40);
+                  byte tmpframe[40];  //copy values to prevent data manipulation during rewrite/crc calculation
+                  memcpy(tmpframe, BATTERY_INFO, 40);
+                  tmpframe[38] = calculate_kostal_crc(tmpframe, 38);
+                  scramble_null_bytes(tmpframe, 40);
+                  send_kostal(tmpframe, 40);
                   if (!startupMillis) {
                     startupMillis = currentMillis;
                   }
