@@ -8,7 +8,6 @@
 
 /*
 TODO list
-- Should 0x### length CAN message IDs have extended or not? .ext_ID true/false?
 - Get contactors closing
 - What CAN messages needs to be sent towards the battery to keep it alive
 - Check value mappings on the PID polls
@@ -173,6 +172,18 @@ static uint8_t hybrid_wakeup_reason = 0;
 static uint8_t wakeup_type = 0;
 static bool instrumentation_cluster_request = false;
 
+#define BMS_TARGET_HV_OFF 0
+#define BMS_TARGET_HV_ON 1
+#define BMS_TARGET_AC_CHARGING_EXT 3  //(HS + AC_2 contactors closed)
+#define BMS_TARGET_AC_CHARGING 4      //(HS + AC contactors closed)
+#define BMS_TARGET_DC_CHARGING 6      //(HS + DC contactors closed)
+#define BMS_TARGET_INIT 7
+
+#define DC_FASTCHARGE_NO_START_REQUEST 0x00
+#define DC_FASTCHARGE_VEHICLE 0x40
+#define DC_FASTCHARGE_LS1 0x80
+#define DC_FASTCHARGE_LS1 0xC0
+
 CAN_frame MEB_POLLING_FRAME = {.FD = true,
                                .ext_ID = true,
                                .DLC = 8,
@@ -234,7 +245,11 @@ CAN_frame MEB_641 = {.FD = true,
                      .DLC = 8,
                      .ID = 0x641,
                      .data = {0x37, 0x18, 0x00, 0x00, 0xF0, 0x00, 0xAA, 0x70}};
-CAN_frame MEB_3C0 = {.FD = true, .ext_ID = false, .DLC = 4, .ID = 0x3C0, .data = {0x66, 0x00, 0x00, 0x00}};
+CAN_frame MEB_3C0 = {.FD = true,
+                     .ext_ID = false,
+                     .DLC = 4,
+                     .ID = 0x3C0,
+                     .data = {0x66, 0x00, 0x00, 0x00}};  // Klemmen_status_01
 CAN_frame MEB_0FD = {.FD = true,
                      .ext_ID = false,
                      .DLC = 8,
@@ -295,15 +310,15 @@ CAN_frame MEB_3BE = {.FD = true,
                      .DLC = 8,
                      .ID = 0x3BE,  // CRC, otherwise Static content
                      .data = {0x57, 0x0D, 0x00, 0x00, 0x00, 0x02, 0x04, 0x40}};
-CAN_frame MEB_272 = {.FD = true,
+CAN_frame MEB_272 = {.FD = true,  //HVLM_14
                      .ext_ID = false,
                      .DLC = 8,
                      .ID = 0x272,  // Static content
                      .data = {0x00, 0x00, 0x00, 0x00, 0x48, 0x08, 0x00, 0x94}};
-CAN_frame MEB_503 = {.FD = true,
+CAN_frame MEB_503 = {.FD = true,  //HVK_01
                      .ext_ID = false,
                      .DLC = 8,
-                     .ID = 0x503,  // Content varies
+                     .ID = 0x503,  // Content varies. Frame1 & 3 has HV req
                      .data = {0x5D, 0x61, 0x00, 0xFF, 0x7F, 0x80, 0xE3, 0x03}};
 CAN_frame MEB_14C = {
     .FD = true,  //Motor message
@@ -1419,7 +1434,7 @@ void send_can_battery() {
     /* Also the voltage seen externally to battery is in frame 7&8, we maybe need to set this also? TODO */
     MEB_0C0.data.u8[1] = ((MEB_0C0.data.u8[1] & 0xF0) | counter_50ms);
     MEB_0C0.data.u8[7] = ((datalayer.battery.status.voltage_dV / 10) * 4) & 0x00FF;
-    MEB_0C0.data.u8[8] = ((MEB_0C0.data.u8[8] & 0xF0) | ((datalayer.battery.status.voltage_dV / 10) * 4) >> 8);
+    MEB_0C0.data.u8[8] = ((MEB_0C0.data.u8[8] & 0xF0) | ((datalayer.battery.status.voltage_dV / 10) * 4) >> 4);
     MEB_0C0.data.u8[0] = vw_crc_calc(MEB_0C0.data.u8, MEB_0C0.DLC, MEB_0C0.ID);
     counter_50ms = (counter_50ms + 1) % 16;  //Goes from 0-1-2-3...15-0-1-2-3..
 
@@ -1429,13 +1444,30 @@ void send_can_battery() {
   if (currentMillis - previousMillis100ms >= INTERVAL_100_MS) {
     previousMillis100ms = currentMillis;
 
-    //TODO: HV request and DC/DC control lies in 503
+    //HV request and DC/DC control lies in 0x503
+    if (datalayer.battery.status.bms_status != FAULT) {
+      MEB_503.data.u8[1] = 0xB0;
+      MEB_503.data.u8[3] = BMS_TARGET_AC_CHARGING;  //TODO, should we try AC_2 or DC charging?
+      MEB_503.data.u8[5] = 0x82;                    // Bordnetz Active
+      MEB_503.data.u8[6] = 0xE0;                    // Request emergency shutdown HV system == 0, false
+    } else {                                        //FAULT STATE, open contactors
+      MEB_503.data.u8[1] = 0x90;
+      MEB_503.data.u8[3] = BMS_TARGET_HV_OFF;
+      MEB_503.data.u8[5] = 0x80;  // Bordnetz Inactive
+      MEB_503.data.u8[6] =
+          0xE3;  // Request emergency shutdown HV system == init (3) (not sure if we dare activate this, this is done with 0xE1)
+    }
     MEB_503.data.u8[1] = ((MEB_503.data.u8[1] & 0xF0) | counter_100ms);
     MEB_503.data.u8[0] = vw_crc_calc(MEB_503.data.u8, MEB_503.DLC, MEB_503.ID);
 
-    //TODO: 272 content?
+    //Bidirectional charging message
+    MEB_272.data.u8[1] = 0x80;  // Bidirectional charging active (Set to 0x00 incase no bidirectional charging wanted)
+    MEB_272.data.u8[2] =
+        0x01;  // High load bidirectional charging active (Set to 0x00 incase no bidirectional charging wanted)
+    MEB_272.data.u8[5] = DC_FASTCHARGE_VEHICLE;  //DC charging
 
-    //TODO: 3C0 byte3 has KL15 status that BMS needs
+    //Klemmen status
+    MEB_3C0.data.u8[2] = 0x02;  //bit to signal that KL_15 is ON
     MEB_3C0.data.u8[1] = ((MEB_3C0.data.u8[1] & 0xF0) | counter_100ms);
     MEB_3C0.data.u8[0] = vw_crc_calc(MEB_3C0.data.u8, MEB_3C0.DLC, MEB_3C0.ID);
 
