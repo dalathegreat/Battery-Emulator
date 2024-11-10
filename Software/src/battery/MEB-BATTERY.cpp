@@ -182,7 +182,7 @@ static bool instrumentation_cluster_request = false;
 #define DC_FASTCHARGE_NO_START_REQUEST 0x00
 #define DC_FASTCHARGE_VEHICLE 0x40
 #define DC_FASTCHARGE_LS1 0x80
-#define DC_FASTCHARGE_LS1 0xC0
+#define DC_FASTCHARGE_LS2 0xC0
 
 CAN_frame MEB_POLLING_FRAME = {.FD = true,
                                .ext_ID = true,
@@ -1434,7 +1434,8 @@ void send_can_battery() {
     /* Also the voltage seen externally to battery is in frame 7&8, we maybe need to set this also? TODO */
     MEB_0C0.data.u8[1] = ((MEB_0C0.data.u8[1] & 0xF0) | counter_50ms);
     MEB_0C0.data.u8[7] = ((datalayer.battery.status.voltage_dV / 10) * 4) & 0x00FF;
-    MEB_0C0.data.u8[8] = ((MEB_0C0.data.u8[8] & 0xF0) | ((datalayer.battery.status.voltage_dV / 10) * 4) >> 4);
+    MEB_0C0.data.u8[8] =
+        ((MEB_0C0.data.u8[8] & 0xF0) | ((((datalayer.battery.status.voltage_dV / 10) * 4) >> 8) & 0x0F));
     MEB_0C0.data.u8[0] = vw_crc_calc(MEB_0C0.data.u8, MEB_0C0.DLC, MEB_0C0.ID);
     counter_50ms = (counter_50ms + 1) % 16;  //Goes from 0-1-2-3...15-0-1-2-3..
 
@@ -2005,6 +2006,8 @@ void send_can_battery() {
 
     MEB_641.data.u8[1] = ((MEB_641.data.u8[1] & 0xF0) | counter_1000ms);
     MEB_641.data.u8[0] = vw_crc_calc(MEB_641.data.u8, MEB_641.DLC, MEB_641.ID);
+
+    MEB_1A5555A6.data.u8[2] = 0x7F;  //Outside temperature, factor 0.5, offset -50
 
     counter_1000ms = (counter_1000ms + 1) % 16;       //Goes from 0-1-2-3...15-0-1-2-3..
     transmit_can(&MEB_6B2, can_config.battery);       // Diagnostics - Needed for contactor closing
