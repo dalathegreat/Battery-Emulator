@@ -373,6 +373,7 @@ static uint8_t pyro_status_pss1 = 0;            //Using AC 93
 static uint8_t pyro_status_pss4 = 0;            //Using AC 93
 static uint8_t pyro_status_pss6 = 0;            //Using AC 93
 static uint8_t uds_req_id_counter = 0;
+static uint8_t detected_number_of_cells = 108;
 const unsigned long STALE_PERIOD =
     STALE_PERIOD_CONFIG;  // Time in milliseconds to check for staleness (e.g., 5000 ms = 5 seconds)
 
@@ -479,7 +480,7 @@ void update_values_battery() {  //This function maps all the values fetched via 
 
   datalayer.battery.info.min_design_voltage_dV = min_design_voltage;
 
-  datalayer.battery.info.number_of_cells = 108;  //init with 108S before autodetection
+  datalayer.battery.info.number_of_cells = detected_number_of_cells;
 
   datalayer_extended.bmwix.min_cell_voltage_data_age = (millis() - min_cell_voltage_lastchanged);
 
@@ -581,10 +582,10 @@ void receive_can_battery(CAN_frame rx_frame) {
         int num_voltages;
         if (rx_frame.data.u8[12] == 0xFF && rx_frame.data.u8[13] == 0xFF) {  //97th cell is blank - assume 96S Battery
           num_voltages = 5;  //  number of voltage readings to get - 6 more to get on 96S
-          datalayer.battery.info.number_of_cells = 96;
+          detected_number_of_cells = 96;
         } else {              //We have data in 97th cell, assume 108S Battery
           num_voltages = 17;  //  number of voltage readings to get - 17 more to get on 108S
-          datalayer.battery.info.number_of_cells = 108;
+          detected_number_of_cells = 108;
         }
 
         for (int i = start_index; i < (start_index + num_voltages * 2); i += 2) {
@@ -671,7 +672,7 @@ void receive_can_battery(CAN_frame rx_frame) {
         datalayer.battery.status.CAN_battery_still_alive =
             CAN_STILL_ALIVE;  //This is the most important safety values, if we receive this we reset CAN alive counter.
 
-        if ((rx_frame.data.u8[6] << 8 | rx_frame.data.u8[7]) == 10000 &&
+        if ((rx_frame.data.u8[6] << 8 | rx_frame.data.u8[7]) == 10000 ||
             (rx_frame.data.u8[8] << 8 | rx_frame.data.u8[9]) == 10000) {  //Qualifier Invalid Mode - Request Reboot
 #ifdef DEBUG_VIA_USB
           Serial.println("Cell MinMax Qualifier Invalid - Requesting BMS Reset");
