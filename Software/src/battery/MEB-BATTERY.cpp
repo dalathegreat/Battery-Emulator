@@ -171,6 +171,14 @@ static uint8_t bus_knockout_timer = 0;
 static uint8_t hybrid_wakeup_reason = 0;
 static uint8_t wakeup_type = 0;
 static bool instrumentation_cluster_request = false;
+static uint8_t seconds = 0;
+
+#define TIME_YEAR 2024
+#define TIME_MONTH 8
+#define TIME_DAY 20
+#define TIME_HOUR 10
+#define TIME_MINUTE 5
+#define TIME_SECOND 0
 
 #define BMS_TARGET_HV_OFF 0
 #define BMS_TARGET_HV_ON 1
@@ -2002,12 +2010,19 @@ void send_can_battery() {
   if (currentMillis - previousMillis1s >= INTERVAL_1_S) {
     previousMillis1s = currentMillis;
 
-    //TODO: 6B2, implement seconds, minutes, hours, days, year?
-
     MEB_641.data.u8[1] = ((MEB_641.data.u8[1] & 0xF0) | counter_1000ms);
     MEB_641.data.u8[0] = vw_crc_calc(MEB_641.data.u8, MEB_641.DLC, MEB_641.ID);
 
     MEB_1A5555A6.data.u8[2] = 0x7F;  //Outside temperature, factor 0.5, offset -50
+
+    MEB_6B2.data.u8[0] =  //driving cycle counter, 0-254 wrap around. 255 = invalid value
+        //MEB_6B2.data.u8[1-2-3b0-4] // Odometer, km (20 bits long)
+        MEB_6B2.data.u8[3] = (uint8_t)((TIME_YEAR - 2000) << 4) | MEB_6B2.data.u8[3];
+    MEB_6B2.data.u8[4] = (uint8_t)((TIME_DAY & 0x01) << 7 | TIME_MONTH << 3 | (TIME_YEAR - 2000) >> 4);
+    MEB_6B2.data.u8[5] = (uint8_t)((TIME_HOUR & 0x0F) << 4 | TIME_DAY >> 1);
+    MEB_6B2.data.u8[6] = (uint8_t)((seconds & 0x01) << 7 | TIME_MINUTE << 1 | TIME_HOUR >> 4);
+    MEB_6B2.data.u8[7] = (uint8_t)((seconds & 0x3E) >> 1);
+    seconds = (seconds + 1) % 60;
 
     counter_1000ms = (counter_1000ms + 1) % 16;       //Goes from 0-1-2-3...15-0-1-2-3..
     transmit_can(&MEB_6B2, can_config.battery);       // Diagnostics - Needed for contactor closing
