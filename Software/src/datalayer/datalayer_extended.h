@@ -5,6 +5,31 @@
 
 typedef struct {
   /** uint16_t */
+  /** Terminal 30 - 12V SME Supply Voltage */
+  uint16_t T30_Voltage = 0;
+  /** Status HVIL, 1 HVIL OK, 0 HVIL disconnected*/
+  uint8_t hvil_status = 0;
+  /** Min/Max Cell SOH*/
+  uint16_t min_soh_state = 0;
+  uint16_t max_soh_state = 0;
+  uint32_t bms_uptime = 0;
+  uint8_t pyro_status_pss1 = 0;
+  uint8_t pyro_status_pss4 = 0;
+  uint8_t pyro_status_pss6 = 0;
+  int32_t iso_safety_positive = 0;
+  int32_t iso_safety_negative = 0;
+  int32_t iso_safety_parallel = 0;
+  int32_t allowable_charge_amps = 0;
+  int32_t allowable_discharge_amps = 0;
+  int16_t balancing_status = 0;
+  int16_t battery_voltage_after_contactor = 0;
+  unsigned long min_cell_voltage_data_age = 0;
+  unsigned long max_cell_voltage_data_age = 0;
+
+} DATALAYER_INFO_BMWIX;
+
+typedef struct {
+  /** uint16_t */
   /** SOC% raw battery value. Might not always reach 100% */
   uint16_t SOC_raw = 0;
   /** uint16_t */
@@ -255,17 +280,64 @@ typedef struct {
   /** uint32_t */
   /** Isolation resistance in kOhm */
   uint32_t isolation_resistance = 0;
-
 } DATALAYER_INFO_MEB;
+
+typedef struct {
+  /** uint16_t */
+  /** Values WIP*/
+  uint16_t battery_soc = 0;
+  uint16_t battery_usable_soc = 0;
+  uint16_t battery_soh = 0;
+  uint16_t battery_pack_voltage = 0;
+  uint16_t battery_max_cell_voltage = 0;
+  uint16_t battery_min_cell_voltage = 0;
+  uint16_t battery_12v = 0;
+  uint16_t battery_avg_temp = 0;
+  uint16_t battery_min_temp = 0;
+  uint16_t battery_max_temp = 0;
+  uint16_t battery_max_power = 0;
+  uint16_t battery_interlock = 0;
+  uint16_t battery_kwh = 0;
+  uint16_t battery_current = 0;
+  uint16_t battery_current_offset = 0;
+  uint16_t battery_max_generated = 0;
+  uint16_t battery_max_available = 0;
+  uint16_t battery_current_voltage = 0;
+  uint16_t battery_charging_status = 0;
+  uint16_t battery_remaining_charge = 0;
+  uint16_t battery_balance_capacity_total = 0;
+  uint16_t battery_balance_time_total = 0;
+  uint16_t battery_balance_capacity_sleep = 0;
+  uint16_t battery_balance_time_sleep = 0;
+  uint16_t battery_balance_capacity_wake = 0;
+  uint16_t battery_balance_time_wake = 0;
+  uint16_t battery_bms_state = 0;
+  uint16_t battery_balance_switches = 0;
+  uint16_t battery_energy_complete = 0;
+  uint16_t battery_energy_partial = 0;
+  uint16_t battery_slave_failures = 0;
+  uint16_t battery_mileage = 0;
+  uint16_t battery_fan_speed = 0;
+  uint16_t battery_fan_period = 0;
+  uint16_t battery_fan_control = 0;
+  uint16_t battery_fan_duty = 0;
+  uint16_t battery_temporisation = 0;
+  uint16_t battery_time = 0;
+  uint16_t battery_pack_time = 0;
+  uint16_t battery_soc_min = 0;
+  uint16_t battery_soc_max = 0;
+} DATALAYER_INFO_ZOE_PH2;
 
 class DataLayerExtended {
  public:
+  DATALAYER_INFO_BMWIX bmwix;
   DATALAYER_INFO_BMWI3 bmwi3;
   DATALAYER_INFO_BYDATTO3 bydAtto3;
   DATALAYER_INFO_CELLPOWER cellpower;
   DATALAYER_INFO_TESLA tesla;
   DATALAYER_INFO_NISSAN_LEAF nissanleaf;
   DATALAYER_INFO_MEB meb;
+  DATALAYER_INFO_ZOE_PH2 zoePH2;
 };
 
 extern DataLayerExtended datalayer_extended;

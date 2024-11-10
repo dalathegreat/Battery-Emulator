@@ -14,6 +14,8 @@ extern ACAN2517FD canfd;
 #define MIN_CELL_VOLTAGE_MV 2950  //Battery is put into emergency stop if one cell goes below this value
 #define MAXCHARGEPOWERALLOWED 10000
 #define MAXDISCHARGEPOWERALLOWED 10000
+#define RAMPDOWN_SOC 9000           // 90.00 SOC% to start ramping down from max charge power towards 0 at 100.00%
+#define RAMPDOWNPOWERALLOWED 10000  // What power we ramp down from towards top balancing
 
 void setup_battery(void);
 void transmit_can(CAN_frame* tx_frame, int interface);

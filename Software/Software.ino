@@ -53,7 +53,7 @@
 
 Preferences settings;  // Store user settings
 // The current software version, shown on webserver
-const char* version_number = "7.6.dev";
+const char* version_number = "7.7.dev";
 
 // Interval settings
 uint16_t intervalUpdateValues = INTERVAL_1_S;  // Interval at which to update inverter values / Modbus registers
@@ -84,6 +84,9 @@ typedef char CANFDMessage;
 uint16_t mbPV[MB_RTU_NUM_VALUES];  // Process variable memory
 // Create a ModbusRTU server instance listening on Serial2 with 2000ms timeout
 ModbusServerRTU MBserver(Serial2, 2000);
+#endif
+#if defined(SERIAL_LINK_RECEIVER) || defined(SERIAL_LINK_TRANSMITTER)
+#define SERIAL_LINK_BAUDRATE 112500
 #endif
 
 // Common charger parameters
@@ -741,6 +744,7 @@ void handle_contactors() {
   if (timeSpentInFaultedMode > MAX_ALLOWED_FAULT_TICKS ||
       (datalayer.system.settings.equipment_stop_active && contactorStatus != SHUTDOWN_REQUESTED)) {
     contactorStatus = SHUTDOWN_REQUESTED;
+    datalayer.system.settings.equipment_stop_active = true;
   }
   if (contactorStatus == SHUTDOWN_REQUESTED && !datalayer.system.settings.equipment_stop_active) {
     contactorStatus = DISCONNECTED;
@@ -856,6 +860,8 @@ void update_scaled_values() {
      * Before we use real_soc, we must make sure that it's within the range of min_percentage and max_percentage.
     */
     uint32_t calc_soc;
+    uint32_t calc_max_capacity;
+    uint32_t calc_reserved_capacity;
     // Make sure that the SOC starts out between min and max percentages
     calc_soc = CONSTRAIN(datalayer.battery.status.real_soc, datalayer.battery.settings.min_percentage,
                          datalayer.battery.settings.max_percentage);
@@ -866,8 +872,6 @@ void update_scaled_values() {
 
     // Calculate the scaled remaining capacity in Wh
     if (datalayer.battery.info.total_capacity_Wh > 0 && datalayer.battery.status.real_soc > 0) {
-      uint32_t calc_max_capacity;
-      uint32_t calc_reserved_capacity;
       calc_max_capacity = (datalayer.battery.status.remaining_capacity_Wh * 10000 / datalayer.battery.status.real_soc);
       calc_reserved_capacity = calc_max_capacity * datalayer.battery.settings.min_percentage / 10000;
       // remove % capacity reserved in min_percentage to total_capacity_Wh
@@ -877,9 +881,28 @@ void update_scaled_values() {
       datalayer.battery.status.reported_remaining_capacity_Wh = datalayer.battery.status.remaining_capacity_Wh;
     }
 
+#ifdef DOUBLE_BATTERY
+
+    // Calculate the scaled remaining capacity in Wh
+    if (datalayer.battery2.info.total_capacity_Wh > 0 && datalayer.battery2.status.real_soc > 0) {
+      calc_max_capacity =
+          (datalayer.battery2.status.remaining_capacity_Wh * 10000 / datalayer.battery2.status.real_soc);
+      calc_reserved_capacity = calc_max_capacity * datalayer.battery2.settings.min_percentage / 10000;
+      // remove % capacity reserved in min_percentage to total_capacity_Wh
+      datalayer.battery2.status.reported_remaining_capacity_Wh =
+          datalayer.battery2.status.remaining_capacity_Wh - calc_reserved_capacity;
+    } else {
+      datalayer.battery2.status.reported_remaining_capacity_Wh = datalayer.battery2.status.remaining_capacity_Wh;
+    }
+#endif
+
   } else {  // No SOC window wanted. Set scaled to same as real.
     datalayer.battery.status.reported_soc = datalayer.battery.status.real_soc;
     datalayer.battery.status.reported_remaining_capacity_Wh = datalayer.battery.status.remaining_capacity_Wh;
+#ifdef DOUBLE_BATTERY
+    datalayer.battery2.status.reported_soc = datalayer.battery2.status.real_soc;
+    datalayer.battery2.status.reported_remaining_capacity_Wh = datalayer.battery2.status.remaining_capacity_Wh;
+#endif
   }
 #ifdef DOUBLE_BATTERY
   // Perform extra SOC sanity checks on double battery setups
@@ -931,7 +954,7 @@ void runSerialDataLink() {
 
 void init_serialDataLink() {
 #if defined(SERIAL_LINK_RECEIVER) || defined(SERIAL_LINK_TRANSMITTER)
-  Serial2.begin(9600, SERIAL_8N1, RS485_RX_PIN, RS485_TX_PIN);
+  Serial2.begin(SERIAL_LINK_BAUDRATE, SERIAL_8N1, RS485_RX_PIN, RS485_TX_PIN);
 #endif
 }
 

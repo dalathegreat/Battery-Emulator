@@ -6,13 +6,7 @@
 #include "KIA-E-GMP-BATTERY.h"
 
 /* Do not change code below unless you are sure what you are doing */
-static unsigned long previousMillis10ms = 0;   // will store last time a 10ms CAN Message was send
-static unsigned long previousMillis20ms = 0;   // will store last time a 20ms CAN Message was send
-static unsigned long previousMillis30ms = 0;   // will store last time a 30ms CAN Message was send
-static unsigned long previousMillis100ms = 0;  // will store last time a 100ms CAN Message was send
 static unsigned long previousMillis200ms = 0;  // will store last time a 200ms CAN Message was send
-static unsigned long previousMillis500ms = 0;  // will store last time a 500ms CAN Message was send
-static unsigned long previousMillis1s = 0;     // will store last time a 1s CAN Message was send
 static unsigned long previousMillis10s = 0;    // will store last time a 10s CAN Message was send
 
 const unsigned char crc8_table[256] =
@@ -63,7 +57,7 @@ static uint8_t KIA_7E4_COUNTER = 0x01;
 static int8_t temperature_water_inlet = 0;
 static int8_t powerRelayTemperature = 0;
 static int8_t heatertemp = 0;
-
+static bool set_voltage_limits = false;
 static uint8_t ticks_200ms_counter = 0;
 static uint8_t EGMP_1CF_counter = 0;
 static uint8_t EGMP_3XF_counter = 0;
@@ -582,208 +576,7 @@ CAN_frame* messages[] = {&message_1,  &message_2,  &message_3,  &message_4,  &me
                          &message_43, &message_44, &message_45, &message_46, &message_47, &message_48, &message_49,
                          &message_50, &message_51, &message_52, &message_53, &message_54, &message_55, &message_56,
                          &message_57, &message_58, &message_59, &message_60, &message_61, &message_62, &message_63};
-
-/* These messages are rest of the vehicle messages, to reduce number of active fault codes */
-CAN_frame EGMP_1CF = {.FD = true,
-                      .ext_ID = false,
-                      .DLC = 8,
-                      .ID = 0x1CF,
-                      .data = {0x56, 0x00, 0x00, 0x20, 0x00, 0x00, 0x00, 0x00}};
-CAN_frame EGMP_3AA = {.FD = true,
-                      .ext_ID = false,
-                      .DLC = 8,
-                      .ID = 0x3AA,
-                      .data = {0xFF, 0x00, 0x00, 0x00, 0x54, 0x00, 0x00, 0x00}};
-CAN_frame EGMP_3E0 = {.FD = true,
-                      .ext_ID = false,
-                      .DLC = 8,
-                      .ID = 0x3E0,
-                      .data = {0xC3, 0x10, 0x01, 0x00, 0x00, 0x00, 0x00, 0x00}};
-CAN_frame EGMP_3E1 = {.FD = true,
-                      .ext_ID = false,
-                      .DLC = 8,
-                      .ID = 0x3E1,
-                      .data = {0x59, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00}};
-CAN_frame EGMP_36F = {.FD = true,
-                      .ext_ID = false,
-                      .DLC = 8,
-                      .ID = 0x36F,
-                      .data = {0x28, 0x31, 0x01, 0x00, 0x00, 0x00, 0x00, 0x00}};
-CAN_frame EGMP_37F = {.FD = true,
-                      .ext_ID = false,
-                      .DLC = 8,
-                      .ID = 0x37F,
-                      .data = {0x9B, 0x30, 0x52, 0x24, 0x41, 0x02, 0x00, 0x00}};
-CAN_frame EGMP_4B4 = {.FD = true,
-                      .ext_ID = false,
-                      .DLC = 8,
-                      .ID = 0x4B4,
-                      .data = {0x00, 0x00, 0xC0, 0x3F, 0x00, 0x00, 0x00, 0x00}};
-CAN_frame EGMP_4B5 = {.FD = true,
-                      .ext_ID = false,
-                      .DLC = 8,
-                      .ID = 0x4B5,
-                      .data = {0x08, 0x00, 0xF0, 0x07, 0x00, 0x00, 0x00, 0x00}};
-CAN_frame EGMP_4B7 = {.FD = true,
-                      .ext_ID = false,
-                      .DLC = 8,
-                      .ID = 0x4B7,
-                      .data = {0x08, 0x00, 0xF0, 0x07, 0x00, 0x00, 0x00, 0x00}};
-CAN_frame EGMP_4CC = {.FD = true,
-                      .ext_ID = false,
-                      .DLC = 8,
-                      .ID = 0x4CC,
-                      .data = {0x08, 0x00, 0x00, 0x27, 0x00, 0x00, 0x00, 0x00}};
-CAN_frame EGMP_4CE = {.FD = true,
-                      .ext_ID = false,
-                      .DLC = 8,
-                      .ID = 0x4CE,
-                      .data = {0x16, 0xCF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF}};
-CAN_frame EGMP_4D8 = {.FD = true,
-                      .ext_ID = false,
-                      .DLC = 8,
-                      .ID = 0x4D8,
-                      .data = {0x40, 0x10, 0xF0, 0xF0, 0x40, 0xF2, 0x1E, 0xCC}};
-CAN_frame EGMP_4DD = {.FD = true,
-                      .ext_ID = false,
-                      .DLC = 8,
-                      .ID = 0x4DD,
-                      .data = {0x3F, 0xFC, 0xFF, 0x00, 0x38, 0x00, 0x00, 0x00}};
-CAN_frame EGMP_4E7 = {.FD = true,
-                      .ext_ID = false,
-                      .DLC = 8,
-                      .ID = 0x4E7,
-                      .data = {0x00, 0x30, 0x00, 0x00, 0x00, 0x00, 0x10, 0x00}};
-CAN_frame EGMP_4E9 = {.FD = true,
-                      .ext_ID = false,
-                      .DLC = 8,
-                      .ID = 0x4E9,
-                      .data = {0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00}};
-CAN_frame EGMP_4EA = {.FD = true,
-                      .ext_ID = false,
-                      .DLC = 8,
-                      .ID = 0x4EA,
-                      .data = {0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00}};
-CAN_frame EGMP_4EB = {.FD = true,
-                      .ext_ID = false,
-                      .DLC = 8,
-                      .ID = 0x4EB,
-                      .data = {0x01, 0x50, 0x0B, 0x26, 0x00, 0x00, 0x00, 0x00}};
-CAN_frame EGMP_4EC = {.FD = true,
-                      .ext_ID = false,
-                      .DLC = 8,
-                      .ID = 0x4EC,
-                      .data = {0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0x0F}};
-CAN_frame EGMP_4ED = {.FD = true,
-                      .ext_ID = false,
-                      .DLC = 8,
-                      .ID = 0x4ED,
-                      .data = {0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0x1F}};
-CAN_frame EGMP_4EE = {.FD = true,
-                      .ext_ID = false,
-                      .DLC = 8,
-                      .ID = 0x4EE,
-                      .data = {0xFF, 0xFF, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00}};
-CAN_frame EGMP_4EF = {.FD = true,
-                      .ext_ID = false,
-                      .DLC = 8,
-                      .ID = 0x4EF,
-                      .data = {0x2B, 0xFE, 0x00, 0x00, 0x10, 0x00, 0x00, 0x00}};
-CAN_frame EGMP_405 = {.FD = true,
-                      .ext_ID = false,
-                      .DLC = 8,
-                      .ID = 0x405,
-                      .data = {0xE4, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00}};
-CAN_frame EGMP_410 = {.FD = true,
-                      .ext_ID = false,
-                      .DLC = 8,
-                      .ID = 0x410,
-                      .data = {0xA6, 0x10, 0xFF, 0x3C, 0xFF, 0x7F, 0xFF, 0xFF}};
-CAN_frame EGMP_411 = {.FD = true,
-                      .ext_ID = false,
-                      .DLC = 8,
-                      .ID = 0x411,
-                      .data = {0xEA, 0x22, 0x50, 0x51, 0x00, 0x00, 0x00, 0x40}};
-CAN_frame EGMP_412 = {.FD = true,
-                      .ext_ID = false,
-                      .DLC = 8,
-                      .ID = 0x412,
-                      .data = {0xDC, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00}};
-CAN_frame EGMP_413 = {.FD = true,
-                      .ext_ID = false,
-                      .DLC = 8,
-                      .ID = 0x413,
-                      .data = {0xB9, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00}};
-CAN_frame EGMP_414 = {.FD = true,
-                      .ext_ID = false,
-                      .DLC = 8,
-                      .ID = 0x414,
-                      .data = {0xF0, 0x10, 0x00, 0x00, 0x28, 0x00, 0x00, 0x00}};
-CAN_frame EGMP_416 = {.FD = true,
-                      .ext_ID = false,
-                      .DLC = 8,
-                      .ID = 0x416,
-                      .data = {0x55, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00}};
-CAN_frame EGMP_417 = {.FD = true,
-                      .ext_ID = false,
-                      .DLC = 8,
-                      .ID = 0x417,
-                      .data = {0xC7, 0x10, 0x00, 0x00, 0x04, 0x00, 0x00, 0x00}};
-CAN_frame EGMP_418 = {.FD = true,
-                      .ext_ID = false,
-                      .DLC = 8,
-                      .ID = 0x418,
-                      .data = {0x17, 0x20, 0x00, 0x00, 0x14, 0x0C, 0x00, 0x00}};
-CAN_frame EGMP_3C1 = {.FD = true,
-                      .ext_ID = false,
-                      .DLC = 8,
-                      .ID = 0x3C1,
-                      .data = {0x59, 0x00, 0x30, 0x00, 0x00, 0x00, 0x00, 0x00}};
-CAN_frame EGMP_3C2 = {.FD = true,
-                      .ext_ID = false,
-                      .DLC = 8,
-                      .ID = 0x3C2,
-                      .data = {0x07, 0x00, 0x11, 0x40, 0x00, 0x00, 0x00, 0x00}};
-CAN_frame EGMP_4F0 = {.FD = true,
-                      .ext_ID = false,
-                      .DLC = 8,
-                      .ID = 0x4F0,
-                      .data = {0x8A, 0x0A, 0x0D, 0x34, 0x60, 0x18, 0x12, 0xFC}};
-CAN_frame EGMP_4F2 = {.FD = true,
-                      .ext_ID = false,
-                      .DLC = 8,
-                      .ID = 0x4F2,
-                      .data = {0x0A, 0xC3, 0xD5, 0xFF, 0x0F, 0x21, 0x80, 0x2B}};
-CAN_frame EGMP_4FE = {.FD = true,
-                      .ext_ID = false,
-                      .DLC = 8,
-                      .ID = 0x4FE,
-                      .data = {0x69, 0x3F, 0x00, 0x04, 0xDF, 0x01, 0x4C, 0xA8}};
-CAN_frame EGMP_48F = {.FD = true,
-                      .ext_ID = false,
-                      .DLC = 8,
-                      .ID = 0x48F,
-                      .data = {0xAD, 0x10, 0x41, 0x00, 0x05, 0x00, 0x00, 0x00}};
-CAN_frame EGMP_419 = {.FD = true,
-                      .ext_ID = false,
-                      .DLC = 8,
-                      .ID = 0x419,
-                      .data = {0xC7, 0x90, 0xB9, 0xD2, 0x0D, 0x62, 0x7A, 0x00}};
-CAN_frame EGMP_422 = {.FD = true,
-                      .ext_ID = false,
-                      .DLC = 8,
-                      .ID = 0x422,
-                      .data = {0x15, 0x10, 0x11, 0x00, 0x00, 0x00, 0x00, 0x00}};
-CAN_frame EGMP_444 = {.FD = true,
-                      .ext_ID = false,
-                      .DLC = 8,
-                      .ID = 0x444,
-                      .data = {0x96, 0x20, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00}};
-CAN_frame EGMP_641 = {.FD = true,
-                      .ext_ID = false,
-                      .DLC = 8,
-                      .ID = 0x641,
-                      .data = {0xFF, 0xFF, 0xFF, 0xFF, 0x0F, 0xFF, 0xFF, 0xFF}};
+/* PID polling messages */
 CAN_frame EGMP_7E4 = {.FD = true,
                       .ext_ID = false,
                       .DLC = 8,
@@ -801,6 +594,32 @@ void set_cell_voltages(CAN_frame rx_frame, int start, int length, int startCell)
     if ((rx_frame.data.u8[start + i] * 20) > 1000) {
       datalayer.battery.status.cell_voltages_mV[startCell + i] = (rx_frame.data.u8[start + i] * 20);
     }
+  }
+}
+
+void set_voltage_minmax_limits() {
+
+  uint8_t valid_cell_count = 0;
+  for (int i = 0; i < MAX_AMOUNT_CELLS; ++i) {
+    if (datalayer.battery.status.cell_voltages_mV[i] > 0) {
+      ++valid_cell_count;
+    }
+  }
+  if (valid_cell_count == 144) {
+    datalayer.battery.info.number_of_cells = valid_cell_count;
+    datalayer.battery.info.max_design_voltage_dV = 6048;
+    datalayer.battery.info.min_design_voltage_dV = 4320;
+  } else if (valid_cell_count == 180) {
+    datalayer.battery.info.number_of_cells = valid_cell_count;
+    datalayer.battery.info.max_design_voltage_dV = 7560;
+    datalayer.battery.info.min_design_voltage_dV = 5400;
+  } else if (valid_cell_count == 192) {
+    datalayer.battery.info.number_of_cells = valid_cell_count;
+    datalayer.battery.info.max_design_voltage_dV = 8064;
+    datalayer.battery.info.min_design_voltage_dV = 5760;
+  } else {
+    // We are still starting up? Not all cells available.
+    set_voltage_limits = false;
   }
 }
 
@@ -826,8 +645,16 @@ void update_values_battery() {  //This function maps all the values fetched via 
       (static_cast<double>(datalayer.battery.status.real_soc) / 10000) * datalayer.battery.info.total_capacity_Wh);
 
   //datalayer.battery.status.max_charge_power_W = (uint16_t)allowedChargePower * 10;  //From kW*100 to Watts
-  //The allowed charge power is not available. We hardcode this value for now
-  datalayer.battery.status.max_charge_power_W = MAXCHARGEPOWERALLOWED;
+  //The allowed charge power is not available. We estimate this value for now
+  if (datalayer.battery.status.real_soc > 9900) {
+    datalayer.battery.status.max_charge_power_W = 0;
+  } else if (datalayer.battery.status.real_soc >
+             RAMPDOWN_SOC) {  // When real SOC is between 90-99%, ramp the value between Max<->0
+    datalayer.battery.status.max_charge_power_W =
+        RAMPDOWNPOWERALLOWED * (1 - (datalayer.battery.status.real_soc - RAMPDOWN_SOC) / (10000.0 - RAMPDOWN_SOC));
+  } else {  // No limits, max charging power allowed
+    datalayer.battery.status.max_charge_power_W = MAXCHARGEPOWERALLOWED;
+  }
 
   //datalayer.battery.status.max_discharge_power_W = (uint16_t)allowedDischargePower * 10;  //From kW*100 to Watts
   //The allowed discharge power is not available. We hardcode this value for now
@@ -844,6 +671,11 @@ void update_values_battery() {  //This function maps all the values fetched via 
   datalayer.battery.status.cell_max_voltage_mV = CellVoltMax_mV;
 
   datalayer.battery.status.cell_min_voltage_mV = CellVoltMin_mV;
+
+  if ((millis() > INTERVAL_60_S) && !set_voltage_limits) {
+    set_voltage_limits = true;
+    set_voltage_minmax_limits();  // Count cells, and set voltage limits accordingly
+  }
 
   /* Check if the BMS is still sending CAN messages. If we go 60s without messages we raise an error*/
   if (!datalayer.battery.status.CAN_battery_still_alive) {
@@ -1178,16 +1010,16 @@ void send_can_battery() {
       messageIndex = 0;
     }
 
-    //Send 500ms CANFD message
-    if (currentMillis - previousMillis500ms >= INTERVAL_500_MS) {
-      previousMillis500ms = currentMillis;
+    //Send 200ms CANFD message
+    if (currentMillis - previousMillis200ms >= INTERVAL_200_MS) {
+      previousMillis200ms = currentMillis;
       // Check if sending of CAN messages has been delayed too much.
-      if ((currentMillis - previousMillis500ms >= INTERVAL_500_MS_DELAYED) && (currentMillis > BOOTUP_TIME)) {
-        set_event(EVENT_CAN_OVERRUN, (currentMillis - previousMillis500ms));
+      if ((currentMillis - previousMillis200ms >= INTERVAL_200_MS_DELAYED) && (currentMillis > BOOTUP_TIME)) {
+        set_event(EVENT_CAN_OVERRUN, (currentMillis - previousMillis200ms));
       } else {
         clear_event(EVENT_CAN_OVERRUN);
       }
-      previousMillis500ms = currentMillis;
+      previousMillis200ms = currentMillis;
 
       EGMP_7E4.data.u8[3] = KIA_7E4_COUNTER;
 
@@ -1200,19 +1032,10 @@ void send_can_battery() {
         KIA_7E4_COUNTER = 0x01;
       }
     }
-    //Send 1s CANFD message
-    if (currentMillis - previousMillis1s >= INTERVAL_1_S) {
-      previousMillis1s = currentMillis;
-      /* COMMENTED OUT WHILE CONTACTOR CLOSING TESTING
-        transmit_can(&EGMP_48F, can_config.battery);
-        */
-    }
     //Send 10s CANFD message
     if (currentMillis - previousMillis10s >= INTERVAL_10_S) {
       previousMillis10s = currentMillis;
-      /* COMMENTED OUT WHILE CONTACTOR CLOSING TESTING
-        transmit_can(&EGMP_4FE, can_config.battery);
-        */
+
       ok_start_polling_battery = true;
     }
   }
@@ -1232,6 +1055,7 @@ void setup_battery(void) {  // Performs one time setup at startup
   datalayer.battery.info.min_design_voltage_dV = MIN_PACK_VOLTAGE_DV;
   datalayer.battery.info.max_cell_voltage_mV = MAX_CELL_VOLTAGE_MV;
   datalayer.battery.info.min_cell_voltage_mV = MIN_CELL_VOLTAGE_MV;
+  datalayer.battery.info.max_cell_voltage_deviation_mV = MAX_CELL_DEVIATION_MV;
 }
 
 #endif

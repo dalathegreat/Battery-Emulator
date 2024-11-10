@@ -15,13 +15,13 @@ static uint8_t char5_151 = 0;
 static uint8_t char6_151 = 0;
 static uint8_t char7_151 = 0;
 
-CAN_frame BYD_250 = {
-    .FD = false,
-    .ext_ID = false,
-    .DLC = 8,
-    .ID = 0x250,
-    .data = {0x03, 0x16, 0x00, 0x66, (uint8_t)((BATTERY_WH_MAX / 100) >> 8), (uint8_t)(BATTERY_WH_MAX / 100), 0x02,
-             0x09}};  //3.16 FW , Capacity kWh byte4&5 (example 24kWh = 240)
+CAN_frame BYD_250 = {.FD = false,
+                     .ext_ID = false,
+                     .DLC = 8,
+                     .ID = 0x250,
+                     .data = {FW_MAJOR_VERSION, FW_MINOR_VERSION, 0x00, 0x66, (uint8_t)((BATTERY_WH_MAX / 100) >> 8),
+                              (uint8_t)(BATTERY_WH_MAX / 100), 0x02,
+                              0x09}};  //0-1 FW version , Capacity kWh byte4&5 (example 24kWh = 240)
 CAN_frame BYD_290 = {.FD = false,
                      .ext_ID = false,
                      .DLC = 8,
