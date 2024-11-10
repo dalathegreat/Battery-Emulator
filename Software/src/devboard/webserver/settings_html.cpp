@@ -58,10 +58,10 @@ String settings_processor(const String& var) {
                ";'>SOC min percentage: " + String(datalayer.battery.settings.min_percentage / 100.0, 1) +
                " </span> <button onclick='editSocMin()'>Edit</button></h4>";
     content += "<h4 style='color: white;'>Max charge speed: " +
-               String(datalayer.battery.info.max_user_set_charge_dA / 10.0, 1) +
+               String(datalayer.battery.settings.max_user_set_charge_dA / 10.0, 1) +
                " A </span> <button onclick='editMaxChargeA()'>Edit</button></h4>";
     content += "<h4 style='color: white;'>Max discharge speed: " +
-               String(datalayer.battery.info.max_user_set_discharge_dA / 10.0, 1) +
+               String(datalayer.battery.settings.max_user_set_discharge_dA / 10.0, 1) +
                " A </span> <button onclick='editMaxDischargeA()'>Edit</button></h4>";
     // Close the block
     content += "</div>";

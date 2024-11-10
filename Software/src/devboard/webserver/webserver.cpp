@@ -209,7 +209,7 @@ void init_webserver() {
       return request->requestAuthentication();
     if (request->hasParam("value")) {
       String value = request->getParam("value")->value();
-      datalayer.battery.info.max_user_set_charge_dA = static_cast<uint16_t>(value.toFloat() * 10);
+      datalayer.battery.settings.max_user_set_charge_dA = static_cast<uint16_t>(value.toFloat() * 10);
       storeSettings();
       request->send(200, "text/plain", "Updated successfully");
     } else {
@@ -223,7 +223,7 @@ void init_webserver() {
       return request->requestAuthentication();
     if (request->hasParam("value")) {
       String value = request->getParam("value")->value();
-      datalayer.battery.info.max_user_set_discharge_dA = static_cast<uint16_t>(value.toFloat() * 10);
+      datalayer.battery.settings.max_user_set_discharge_dA = static_cast<uint16_t>(value.toFloat() * 10);
       storeSettings();
       request->send(200, "text/plain", "Updated successfully");
     } else {
@@ -285,7 +285,7 @@ void init_webserver() {
     String value = request->getParam("value")->value();
     float val = value.toFloat();
 
-    if (!(val <= datalayer.battery.info.max_user_set_charge_dA && val <= CHARGER_MAX_A)) {
+    if (!(val <= datalayer.battery.settings.max_user_set_charge_dA && val <= CHARGER_MAX_A)) {
       request->send(400, "text/plain", "Bad Request");
     }
 

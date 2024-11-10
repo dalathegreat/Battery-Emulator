@@ -19,10 +19,6 @@ typedef struct {
   uint16_t min_cell_voltage_mV = 2700;
   /** The maxumum allowed deviation between cells, in milliVolt. 500 = 0.500 V */
   uint16_t max_cell_voltage_deviation_mV = 500;
-  /** The user specified maximum allowed charge rate, in deciAmpere. 300 = 30.0 A */
-  uint16_t max_user_set_charge_dA = BATTERY_MAX_CHARGE_AMP;
-  /** The user specified maximum allowed discharge rate, in deciAmpere. 300 = 30.0 A */
-  uint16_t max_user_set_discharge_dA = BATTERY_MAX_DISCHARGE_AMP;
 
   /** uint8_t */
   /** Total number of cells in the pack */
@@ -111,6 +107,10 @@ typedef struct {
    * you want the inverter to be able to use. At this real SOC, the inverter
    * will "see" 100% */
   uint16_t max_percentage = BATTERY_MAXPERCENTAGE;
+  /** The user specified maximum allowed charge rate, in deciAmpere. 300 = 30.0 A */
+  uint16_t max_user_set_charge_dA = BATTERY_MAX_CHARGE_AMP;
+  /** The user specified maximum allowed discharge rate, in deciAmpere. 300 = 30.0 A */
+  uint16_t max_user_set_discharge_dA = BATTERY_MAX_DISCHARGE_AMP;
 } DATALAYER_BATTERY_SETTINGS_TYPE;
 
 typedef struct {

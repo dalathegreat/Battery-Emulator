@@ -401,11 +401,11 @@ void init_stored_settings() {
   }
   temp = settings.getUInt("MAXCHARGEAMP", false);
   if (temp != 0) {
-    datalayer.battery.info.max_charge_amp_dA = temp;
+    datalayer.battery.settings.max_user_set_charge_dA = temp;
   }
   temp = settings.getUInt("MAXDISCHARGEAMP", false);
   if (temp != 0) {
-    datalayer.battery.info.max_discharge_amp_dA = temp;
+    datalayer.battery.settings.max_user_set_discharge_dA = temp;
     temp = settings.getBool("USE_SCALED_SOC", false);
     datalayer.battery.settings.soc_scaling_active = temp;  //This bool needs to be checked inside the temp!= block
   }                                                        // No way to know if it wasnt reset otherwise
@@ -847,11 +847,11 @@ void update_calculated_values() {
         ((datalayer.battery.status.max_discharge_power_W * 100) / datalayer.battery.status.voltage_dV);
   }
   /* Restrict values from user settings if needed*/
-  if (datalayer.battery.status.max_charge_current_dA > datalayer.battery.info.max_charge_amp_dA) {
-    datalayer.battery.status.max_charge_current_dA = datalayer.battery.info.max_charge_amp_dA;
+  if (datalayer.battery.status.max_charge_current_dA > datalayer.battery.settings.max_user_set_charge_dA) {
+    datalayer.battery.status.max_charge_current_dA = datalayer.battery.settings.max_user_set_charge_dA;
   }
-  if (datalayer.battery.status.max_discharge_current_dA > datalayer.battery.info.max_discharge_amp_dA) {
-    datalayer.battery.status.max_discharge_current_dA = datalayer.battery.info.max_discharge_amp_dA;
+  if (datalayer.battery.status.max_discharge_current_dA > datalayer.battery.settings.max_user_set_discharge_dA) {
+    datalayer.battery.status.max_discharge_current_dA = datalayer.battery.settings.max_user_set_discharge_dA;
   }
 
   if (datalayer.battery.settings.soc_scaling_active) {
@@ -991,8 +991,8 @@ void storeSettings() {
                    datalayer.battery.settings.max_percentage / 10);  // Divide by 10 for backwards compatibility
   settings.putUInt("MINPERCENTAGE",
                    datalayer.battery.settings.min_percentage / 10);  // Divide by 10 for backwards compatibility
-  settings.putUInt("MAXCHARGEAMP", datalayer.battery.info.max_charge_amp_dA);
-  settings.putUInt("MAXDISCHARGEAMP", datalayer.battery.info.max_discharge_amp_dA);
+  settings.putUInt("MAXCHARGEAMP", datalayer.battery.settings.max_user_set_charge_dA);
+  settings.putUInt("MAXDISCHARGEAMP", datalayer.battery.settings.max_user_set_discharge_dA);
   settings.putBool("USE_SCALED_SOC", datalayer.battery.settings.soc_scaling_active);
   settings.end();
 }
