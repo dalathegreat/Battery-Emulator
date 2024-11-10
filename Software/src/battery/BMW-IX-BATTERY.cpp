@@ -672,7 +672,7 @@ void receive_can_battery(CAN_frame rx_frame) {
         datalayer.battery.status.CAN_battery_still_alive =
             CAN_STILL_ALIVE;  //This is the most important safety values, if we receive this we reset CAN alive counter.
 
-        if ((rx_frame.data.u8[6] << 8 | rx_frame.data.u8[7]) == 10000 &&
+        if ((rx_frame.data.u8[6] << 8 | rx_frame.data.u8[7]) == 10000 ||
             (rx_frame.data.u8[8] << 8 | rx_frame.data.u8[9]) == 10000) {  //Qualifier Invalid Mode - Request Reboot
 #ifdef DEBUG_VIA_USB
           Serial.println("Cell MinMax Qualifier Invalid - Requesting BMS Reset");
