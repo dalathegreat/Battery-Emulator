@@ -28,7 +28,6 @@ static int16_t current_per_pack = 0;
 static uint8_t temperature_max_per_pack = 0;
 static uint8_t temperature_min_per_pack = 0;
 static uint8_t current_pack_info = 0;
-static uint8_t inverterStillAlive = 60;  // Inverter can be missing for 1minute on startup
 
 static bool send_cellvoltages = false;
 static unsigned long previousMillisCellvoltage = 0;  // Store the last time a cellvoltage CAN messages were sent
@@ -362,16 +361,6 @@ void update_values_can_inverter() {  //This function maps all the CAN values fet
   temperature_average =
       ((datalayer.battery.status.temperature_max_dC + datalayer.battery.status.temperature_min_dC) / 2);
 
-  if (inverterStillAlive > 0) {
-    inverterStillAlive--;
-  }
-
-  if (!inverterStillAlive) {
-    set_event(EVENT_CAN_INVERTER_MISSING, 0);
-  } else {
-    clear_event(EVENT_CAN_INVERTER_MISSING);
-  }
-
   //Put the values into the CAN messages
   //BMS_Limits
   FOXESS_1872.data.u8[0] = (uint8_t)datalayer.battery.info.max_design_voltage_dV;
@@ -686,7 +675,7 @@ void send_can_inverter() {  // This function loops as fast as possible
 void receive_can_inverter(CAN_frame rx_frame) {
 
   if (rx_frame.ID == 0x1871) {
-    inverterStillAlive = CAN_STILL_ALIVE;
+    datalayer.system.status.CAN_inverter_still_alive = CAN_STILL_ALIVE;
     if (rx_frame.data.u8[0] == 0x03) {  //0x1871 [0x03, 0x06, 0x17, 0x05, 0x09, 0x09, 0x28, 0x22]
 //This message is sent by the inverter every '6' seconds (0.5s after the pack serial numbers)
 //and contains a timestamp in bytes 2-7 i.e. <YY>,<MM>,<DD>,<HH>,<mm>,<ss>
