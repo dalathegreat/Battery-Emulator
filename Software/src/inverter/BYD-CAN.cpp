@@ -79,8 +79,6 @@ CAN_frame BYD_210 = {.FD = false,
                      .ID = 0x210,
                      .data = {0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00}};
 
-static uint16_t discharge_current = 0;
-static uint16_t charge_current = 0;
 static int16_t temperature_average = 0;
 static uint16_t inverter_voltage = 0;
 static uint16_t inverter_SOC = 0;
@@ -90,32 +88,6 @@ static long inverter_timestamp = 0;
 static bool initialDataSent = 0;
 
 void update_values_can_inverter() {  //This function maps all the values fetched from battery CAN to the correct CAN messages
-
-  /* Calculate allowed charge/discharge currents*/
-  if (datalayer.battery.status.voltage_dV > 10) {  // Only update value when we have voltage available to avoid div0
-    charge_current =
-        ((datalayer.battery.status.max_charge_power_W * 10) /
-         datalayer.battery.status.voltage_dV);  //Charge power in W , max volt in V+1decimal (P=UI, solve for I)
-    //The above calculation results in (30 000*10)/3700=81A
-    charge_current = (charge_current * 10);  //Value needs a decimal before getting sent to inverter (81.0A)
-
-    discharge_current =
-        ((datalayer.battery.status.max_discharge_power_W * 10) /
-         datalayer.battery.status.voltage_dV);  //Charge power in W , max volt in V+1decimal (P=UI, solve for I)
-    //The above calculation results in (30 000*10)/3700=81A
-    discharge_current = (discharge_current * 10);  //Value needs a decimal before getting sent to inverter (81.0A)
-  }
-  /* Restrict values from user settings if needed*/
-  if (charge_current > datalayer.battery.info.max_charge_amp_dA) {
-    charge_current =
-        datalayer.battery.info
-            .max_charge_amp_dA;  //Cap the value to the max allowed Amp. Some inverters cannot handle large values.
-  }
-  if (discharge_current > datalayer.battery.info.max_discharge_amp_dA) {
-    discharge_current =
-        datalayer.battery.info
-            .max_discharge_amp_dA;  //Cap the value to the max allowed Amp. Some inverters cannot handle large values.
-  }
 
   /* Calculate temperature */
   temperature_average =
@@ -137,11 +109,11 @@ void update_values_can_inverter() {  //This function maps all the values fetched
   BYD_110.data.u8[2] = (datalayer.battery.info.min_design_voltage_dV >> 8);
   BYD_110.data.u8[3] = (datalayer.battery.info.min_design_voltage_dV & 0x00FF);
   //Maximum discharge power allowed (Unit: A+1)
-  BYD_110.data.u8[4] = (discharge_current >> 8);
-  BYD_110.data.u8[5] = (discharge_current & 0x00FF);
+  BYD_110.data.u8[4] = (datalayer.battery.status.max_discharge_current_dA >> 8);
+  BYD_110.data.u8[5] = (datalayer.battery.status.max_discharge_current_dA & 0x00FF);
   //Maximum charge power allowed (Unit: A+1)
-  BYD_110.data.u8[6] = (charge_current >> 8);
-  BYD_110.data.u8[7] = (charge_current & 0x00FF);
+  BYD_110.data.u8[6] = (datalayer.battery.status.max_charge_current_dA >> 8);
+  BYD_110.data.u8[7] = (datalayer.battery.status.max_charge_current_dA & 0x00FF);
 
   //SOC (100.00%)
   BYD_150.data.u8[0] = (datalayer.battery.status.reported_soc >> 8);

@@ -293,7 +293,7 @@ void core_loop(void* task_time_us) {
 #ifdef DOUBLE_BATTERY
       update_values_battery2();
 #endif
-      update_scaled_values();  // Check if real or calculated SOC% value should be sent
+      update_calculated_values();
 #ifndef SERIAL_LINK_RECEIVER
       update_machineryprotection();  // Check safeties (Not on serial link reciever board)
 #endif
@@ -401,11 +401,11 @@ void init_stored_settings() {
   }
   temp = settings.getUInt("MAXCHARGEAMP", false);
   if (temp != 0) {
-    datalayer.battery.info.max_charge_amp_dA = temp;
+    datalayer.battery.settings.max_user_set_charge_dA = temp;
   }
   temp = settings.getUInt("MAXDISCHARGEAMP", false);
   if (temp != 0) {
-    datalayer.battery.info.max_discharge_amp_dA = temp;
+    datalayer.battery.settings.max_user_set_discharge_dA = temp;
     temp = settings.getBool("USE_SCALED_SOC", false);
     datalayer.battery.settings.soc_scaling_active = temp;  //This bool needs to be checked inside the temp!= block
   }                                                        // No way to know if it wasnt reset otherwise
@@ -837,7 +837,23 @@ void handle_contactors() {
 #endif  // CONTACTOR_CONTROL
 }
 
-void update_scaled_values() {
+void update_calculated_values() {
+  /* Calculate allowed charge/discharge currents*/
+  if (datalayer.battery.status.voltage_dV > 10) {
+    // Only update value when we have voltage available to avoid div0. TODO: This should be based on nominal voltage
+    datalayer.battery.status.max_charge_current_dA =
+        ((datalayer.battery.status.max_charge_power_W * 100) / datalayer.battery.status.voltage_dV);
+    datalayer.battery.status.max_discharge_current_dA =
+        ((datalayer.battery.status.max_discharge_power_W * 100) / datalayer.battery.status.voltage_dV);
+  }
+  /* Restrict values from user settings if needed*/
+  if (datalayer.battery.status.max_charge_current_dA > datalayer.battery.settings.max_user_set_charge_dA) {
+    datalayer.battery.status.max_charge_current_dA = datalayer.battery.settings.max_user_set_charge_dA;
+  }
+  if (datalayer.battery.status.max_discharge_current_dA > datalayer.battery.settings.max_user_set_discharge_dA) {
+    datalayer.battery.status.max_discharge_current_dA = datalayer.battery.settings.max_user_set_discharge_dA;
+  }
+
   if (datalayer.battery.settings.soc_scaling_active) {
     /** SOC Scaling
      * 
@@ -896,7 +912,7 @@ void update_scaled_values() {
     }
 #endif
 
-  } else {  // No SOC window wanted. Set scaled to same as real.
+  } else {  // soc_scaling_active == false. No SOC window wanted. Set scaled to same as real.
     datalayer.battery.status.reported_soc = datalayer.battery.status.real_soc;
     datalayer.battery.status.reported_remaining_capacity_Wh = datalayer.battery.status.remaining_capacity_Wh;
 #ifdef DOUBLE_BATTERY
@@ -975,8 +991,8 @@ void storeSettings() {
                    datalayer.battery.settings.max_percentage / 10);  // Divide by 10 for backwards compatibility
   settings.putUInt("MINPERCENTAGE",
                    datalayer.battery.settings.min_percentage / 10);  // Divide by 10 for backwards compatibility
-  settings.putUInt("MAXCHARGEAMP", datalayer.battery.info.max_charge_amp_dA);
-  settings.putUInt("MAXDISCHARGEAMP", datalayer.battery.info.max_discharge_amp_dA);
+  settings.putUInt("MAXCHARGEAMP", datalayer.battery.settings.max_user_set_charge_dA);
+  settings.putUInt("MAXDISCHARGEAMP", datalayer.battery.settings.max_user_set_discharge_dA);
   settings.putBool("USE_SCALED_SOC", datalayer.battery.settings.soc_scaling_active);
   settings.end();
 }
