@@ -415,6 +415,9 @@ String get_firmware_info_processor(const String& var) {
 #ifdef HW_STARK
     doc["hardware"] = "Stark CMR Module";
 #endif  // HW_STARK
+#ifdef HW_3LB
+    doc["hardware"] = "3LB board";
+#endif  // HW_STARK
 
     doc["firmware"] = String(version_number);
     serializeJson(doc, content);
