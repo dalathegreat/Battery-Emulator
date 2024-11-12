@@ -614,31 +614,32 @@ void init_equipment_stop_button() {
 
 #endif
 
-#ifdef CAN_FD
-// Functions
-#ifdef DEBUG_CANFD_DATA
-enum frameDirection { MSG_RX, MSG_TX };
-void print_canfd_frame(CANFDMessage rx_frame, frameDirection msgDir);  // Needs to be declared before it is defined
-void print_canfd_frame(CANFDMessage rx_frame, frameDirection msgDir) {
-  int i = 0;
-  (msgDir == 0) ? Serial.print("RX ") : Serial.print("TX ");
-  Serial.print(rx_frame.id, HEX);
+enum frameDirection { MSG_RX, MSG_TX };  //RX = 0, TX = 1
+void print_can_frame(CAN_frame frame, frameDirection msgDir);
+void print_can_frame(CAN_frame frame, frameDirection msgDir) {
+  uint8_t i = 0;
+  Serial.print(millis());
   Serial.print(" ");
-  for (i = 0; i < rx_frame.len; i++) {
-    Serial.print(rx_frame.data[i] < 16 ? "0" : "");
-    Serial.print(rx_frame.data[i], HEX);
+  (msgDir == 0) ? Serial.print("RX ") : Serial.print("TX ");
+  Serial.print(frame.ID, HEX);
+  Serial.print(" ");
+  Serial.print(frame.DLC);
+  Serial.print(" ");
+  for (i = 0; i < frame.DLC; i++) {
+    Serial.print(frame.data.u8[i] < 16 ? "0" : "");
+    Serial.print(frame.data.u8[i], HEX);
     Serial.print(" ");
   }
   Serial.println(" ");
 }
-#endif
+
+#ifdef CAN_FD
+// Functions
 void receive_canfd() {  // This section checks if we have a complete CAN-FD message incoming
   CANFDMessage frame;
   if (canfd.available()) {
     canfd.receive(frame);
-#ifdef DEBUG_CANFD_DATA
-    print_canfd_frame(frame, frameDirection(MSG_RX));
-#endif
+
     CAN_frame rx_frame;
     rx_frame.ID = frame.id;
     rx_frame.ext_ID = frame.ext;
@@ -1078,6 +1079,9 @@ void transmit_can(CAN_frame* tx_frame, int interface) {
   if (!allowed_to_send_CAN) {
     return;
   }
+#ifdef DEBUG_CAN_DATA
+  print_can_frame(*tx_frame, frameDirection(MSG_TX));
+#endif  //DEBUG_CAN_DATA
 
   switch (interface) {
     case CAN_NATIVE:
@@ -1120,10 +1124,6 @@ void transmit_can(CAN_frame* tx_frame, int interface) {
       send_ok = canfd.tryToSend(MCP2518Frame);
       if (!send_ok) {
         set_event(EVENT_CANFD_BUFFER_FULL, interface);
-      } else {
-#ifdef DEBUG_CANFD_DATA
-        print_canfd_frame(MCP2518Frame, frameDirection(MSG_TX));
-#endif
       }
 #else   // Interface not compiled, and settings try to use it
       set_event(EVENT_INTERFACE_MISSING, interface);
@@ -1135,6 +1135,10 @@ void transmit_can(CAN_frame* tx_frame, int interface) {
   }
 }
 void receive_can(CAN_frame* rx_frame, int interface) {
+
+#ifdef DEBUG_CAN_DATA
+  print_can_frame(*rx_frame, frameDirection(MSG_RX));
+#endif  //DEBUG_CAN_DATA
 
   if (interface == can_config.battery) {
     receive_can_battery(*rx_frame);
