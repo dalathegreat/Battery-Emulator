@@ -558,6 +558,9 @@ String processor(const String& var) {
 #ifdef RJXZS_BMS
     content += "RJXZS BMS, DIY battery";
 #endif  // RJXZS_BMS
+#ifdef RANGE_ROVER_PHEV_BATTERY
+    content += "Range Rover 13kWh PHEV battery (L494/L405)";
+#endif  //RANGE_ROVER_PHEV_BATTERY
 #ifdef RENAULT_KANGOO_BATTERY
     content += "Renault Kangoo";
 #endif  // RENAULT_KANGOO_BATTERY
