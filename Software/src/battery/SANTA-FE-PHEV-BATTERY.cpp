@@ -85,10 +85,6 @@ void update_values_battery() {  //This function maps all the values fetched via 
 
   datalayer.battery.status.max_charge_power_W = allowedChargePower * 10;
 
-  //Power in watts, Negative = charging batt
-  datalayer.battery.status.active_power_W =
-      ((datalayer.battery.status.voltage_dV * datalayer.battery.status.current_dA) / 100);
-
   datalayer.battery.status.cell_max_voltage_mV = CellVoltMax_mV;
 
   datalayer.battery.status.cell_min_voltage_mV = CellVoltMin_mV;

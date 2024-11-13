@@ -40,8 +40,6 @@ void update_values_battery() { /* This function puts fake values onto the parame
 
   datalayer.battery.status.cell_min_voltage_mV = 3500;
 
-  datalayer.battery.status.active_power_W = 0;  // 0W
-
   datalayer.battery.status.temperature_min_dC = 50;  // 5.0*C
 
   datalayer.battery.status.temperature_max_dC = 60;  // 6.0*C
@@ -94,8 +92,6 @@ void update_values_battery2() {  // Handle the values coming in from battery #2
   datalayer.battery2.status.cell_max_voltage_mV = 3596;
 
   datalayer.battery2.status.cell_min_voltage_mV = 3500;
-
-  datalayer.battery2.status.active_power_W = 0;  // 0W
 
   datalayer.battery2.status.temperature_min_dC = 50;  // 5.0*C
 

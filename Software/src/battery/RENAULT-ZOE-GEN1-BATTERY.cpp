@@ -104,10 +104,6 @@ void update_values_battery() {  //This function maps all the values fetched via 
     datalayer.battery.status.max_charge_power_W = 50;
   }
 
-  //Power in watts, Negative = charging batt
-  datalayer.battery.status.active_power_W =
-      ((datalayer.battery.status.voltage_dV * datalayer.battery.status.current_dA) / 100);
-
   int16_t temperatures[] = {cell_1_temperature_polled,  cell_2_temperature_polled,  cell_3_temperature_polled,
                             cell_4_temperature_polled,  cell_5_temperature_polled,  cell_6_temperature_polled,
                             cell_7_temperature_polled,  cell_8_temperature_polled,  cell_9_temperature_polled,

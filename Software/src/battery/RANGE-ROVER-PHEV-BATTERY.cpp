@@ -160,9 +160,6 @@ void update_values_battery() {
 
   datalayer.battery.status.current_dA = (CurrentExt * 0.025) - 209715;
 
-  datalayer.battery.status.active_power_W =  //Power in watts, Negative = charging batt
-      ((datalayer.battery.status.voltage_dV * datalayer.battery.status.current_dA) / 100);
-
   datalayer.battery.status.max_charge_power_W = (ChargeContPwrLmt * 10) - 6550;
 
   datalayer.battery.status.max_discharge_power_W = (DischargeContPwrLmt * 10) - 6550;

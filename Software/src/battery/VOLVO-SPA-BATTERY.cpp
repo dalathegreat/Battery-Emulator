@@ -83,7 +83,6 @@ void update_values_battery() {  //This function maps all the values fetched via 
   //datalayer.battery.status.max_discharge_power_W = HvBattPwrLimDchaSoft * 1000;	// Use power limit reported from BMS, not trusted ATM
   datalayer.battery.status.max_discharge_power_W = 30000;
   datalayer.battery.status.max_charge_power_W = 30000;
-  datalayer.battery.status.active_power_W = (BATT_U)*BATT_I;
   datalayer.battery.status.temperature_min_dC = BATT_T_MIN;
   datalayer.battery.status.temperature_max_dC = BATT_T_MAX;
 

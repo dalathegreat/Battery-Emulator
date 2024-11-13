@@ -197,9 +197,6 @@ void update_values_battery() { /* This function maps all the values fetched via 
 
   datalayer.battery.status.remaining_capacity_Wh = battery_Wh_Remaining;
 
-  datalayer.battery.status.active_power_W = ((battery_Total_Voltage2 * battery_Current2) /
-                                             4);  //P = U * I (Both values are 0.5 per bit so the math is non-intuitive)
-
   //Update temperature readings. Method depends on which generation LEAF battery is used
   if (LEAF_battery_Type == ZE0_BATTERY) {
     //Since we only have average value, send the minimum as -1.0 degrees below average
@@ -368,10 +365,6 @@ void update_values_battery2() {  // Handle the values coming in from battery #2
   datalayer.battery2.info.total_capacity_Wh = (battery2_Max_GIDS * WH_PER_GID);
 
   datalayer.battery2.status.remaining_capacity_Wh = battery2_Wh_Remaining;
-
-  datalayer.battery2.status.active_power_W =
-      ((battery2_Total_Voltage2 * battery2_Current2) /
-       4);  //P = U * I (Both values are 0.5 per bit so the math is non-intuitive)
 
   //Update temperature readings. Method depends on which generation LEAF battery is used
   if (LEAF_battery2_Type == ZE0_BATTERY) {

@@ -854,6 +854,9 @@ void update_calculated_values() {
   if (datalayer.battery.status.max_discharge_current_dA > datalayer.battery.settings.max_user_set_discharge_dA) {
     datalayer.battery.status.max_discharge_current_dA = datalayer.battery.settings.max_user_set_discharge_dA;
   }
+  /* Calculate active power based on voltage and current*/
+  datalayer.battery.status.active_power_W =
+      (datalayer.battery.status.current_dA * (datalayer.battery.status.voltage_dV / 100));
 
   if (datalayer.battery.settings.soc_scaling_active) {
     /** SOC Scaling
@@ -899,6 +902,9 @@ void update_calculated_values() {
     }
 
 #ifdef DOUBLE_BATTERY
+    /* Calculate active power based on voltage and current*/
+    datalayer.battery2.status.active_power_W =
+        (datalayer.battery2.status.current_dA * (datalayer.battery2.status.voltage_dV / 100));
 
     // Calculate the scaled remaining capacity in Wh
     if (datalayer.battery2.info.total_capacity_Wh > 0 && datalayer.battery2.status.real_soc > 0) {

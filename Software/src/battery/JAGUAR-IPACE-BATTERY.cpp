@@ -81,10 +81,6 @@ void update_values_battery() {
 
   datalayer.battery.status.cell_min_voltage_mV = HVBattCellVoltageMinMv;
 
-  //Power in watts, Negative = charging batt
-  datalayer.battery.status.active_power_W =
-      ((datalayer.battery.status.voltage_dV * datalayer.battery.status.current_dA) / 100);
-
   datalayer.battery.status.temperature_min_dC = HVBattCellTempColdest * 10;  // C to dC
 
   datalayer.battery.status.temperature_max_dC = HVBattCellTempHottest * 10;  // C to dC

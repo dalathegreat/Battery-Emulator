@@ -297,8 +297,6 @@ void update_values_battery() {  //This function maps all the values fetched via 
     datalayer.battery.status.max_charge_power_W = MAXCHARGEPOWERALLOWED;
   }
 
-  datalayer.battery.status.active_power_W = ((battery_volts / 10) * battery_amps);
-
   datalayer.battery.status.temperature_min_dC = battery_min_temp;
 
   datalayer.battery.status.temperature_max_dC = battery_max_temp;
@@ -856,8 +854,6 @@ void update_values_battery2() {  //This function maps all the values fetched via
   } else {  // No limits, max charging power allowed
     datalayer.battery2.status.max_charge_power_W = MAXCHARGEPOWERALLOWED;
   }
-
-  datalayer.battery2.status.active_power_W = ((battery2_volts / 10) * battery2_amps);
 
   datalayer.battery2.status.temperature_min_dC = battery2_min_temp;
 

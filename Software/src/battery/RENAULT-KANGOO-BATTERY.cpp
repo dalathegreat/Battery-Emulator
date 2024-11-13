@@ -95,9 +95,6 @@ void update_values_battery() {  //This function maps all the values fetched via 
   //The above value is 0 on some packs. We instead hardcode this now.
   datalayer.battery.status.max_charge_power_W = MAX_CHARGE_POWER_W;
 
-  datalayer.battery.status.active_power_W =
-      ((datalayer.battery.status.voltage_dV * datalayer.battery.status.current_dA) / 100);
-
   datalayer.battery.status.temperature_min_dC = (LB_MIN_TEMPERATURE * 10);
 
   datalayer.battery.status.temperature_max_dC = (LB_MAX_TEMPERATURE * 10);
