@@ -31,7 +31,7 @@ typedef struct {
 
 typedef struct {
   /** int32_t */
-  /** Instantaneous battery power in Watts */
+  /** Instantaneous battery power in Watts. Calculated based on voltage_dV and current_dA */
   /* Positive value = Battery Charging */
   /* Negative value = Battery Discharging */
   int32_t active_power_W;
