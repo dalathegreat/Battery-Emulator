@@ -6,8 +6,16 @@
 #include "BMW-I3-BATTERY.h"
 #endif
 
+#ifdef BMW_IX_BATTERY
+#include "BMW-IX-BATTERY.h"
+#endif
+
 #ifdef BYD_ATTO_3_BATTERY
 #include "BYD-ATTO-3-BATTERY.h"
+#endif
+
+#ifdef CELLPOWER_BMS
+#include "CELLPOWER-BMS.h"
 #endif
 
 #ifdef CHADEMO_BATTERY
@@ -50,8 +58,16 @@
 #include "RJXZS-BMS.h"
 #endif
 
+#ifdef RANGE_ROVER_PHEV_BATTERY
+#include "RANGE-ROVER-PHEV-BATTERY.h"
+#endif
+
 #ifdef RENAULT_KANGOO_BATTERY
 #include "RENAULT-KANGOO-BATTERY.h"
+#endif
+
+#ifdef RENAULT_TWIZY_BATTERY
+#include "RENAULT-TWIZY.h"
 #endif
 
 #ifdef RENAULT_ZOE_GEN1_BATTERY

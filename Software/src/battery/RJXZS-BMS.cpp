@@ -89,6 +89,9 @@ void update_values_battery() {
     clear_event(EVENT_SOC_UNAVAILABLE);
   }
 
+  datalayer.battery.status.remaining_capacity_Wh = static_cast<uint32_t>(
+      (static_cast<double>(datalayer.battery.status.real_soc) / 10000) * datalayer.battery.info.total_capacity_Wh);
+
   datalayer.battery.status.soh_pptt;  // This BMS does not have a SOH% formula
 
   datalayer.battery.status.voltage_dV = total_voltage;
@@ -98,9 +101,20 @@ void update_values_battery() {
   datalayer.battery.status.active_power_W =  //Power in watts, Negative = charging batt
       ((datalayer.battery.status.voltage_dV * datalayer.battery.status.current_dA) / 100);
 
-  datalayer.battery.status.max_charge_power_W = (protective_current * total_voltage) / 10;
+  // Charge power is set in .h file
+  if (datalayer.battery.status.real_soc > 9900) {
+    datalayer.battery.status.max_charge_power_W = MAX_CHARGE_POWER_WHEN_TOPBALANCING_W;
+  } else if (datalayer.battery.status.real_soc > RAMPDOWN_SOC) {
+    // When real SOC is between RAMPDOWN_SOC-99%, ramp the value between Max<->0
+    datalayer.battery.status.max_charge_power_W =
+        MAX_CHARGE_POWER_ALLOWED_W *
+        (1 - (datalayer.battery.status.real_soc - RAMPDOWN_SOC) / (10000.0 - RAMPDOWN_SOC));
+  } else {  // No limits, max charging power allowed
+    datalayer.battery.status.max_charge_power_W = MAX_CHARGE_POWER_ALLOWED_W;
+  }
 
-  datalayer.battery.status.max_discharge_power_W = (protective_current * total_voltage) / 10;
+  // Discharge power is also set in .h file
+  datalayer.battery.status.max_discharge_power_W = MAX_DISCHARGE_POWER_ALLOWED_W;
 
   uint16_t temperatures[] = {
       module_1_temperature,  module_2_temperature,  module_3_temperature,  module_4_temperature,
@@ -495,6 +509,38 @@ void receive_can_battery(CAN_frame rx_frame) {
         use_capacity_to_automatically_reset = (rx_frame.data.u8[3] << 8) | rx_frame.data.u8[4];
         low_temperature_protection_setting_value = (rx_frame.data.u8[5] << 8) | rx_frame.data.u8[6];
         protecting_historical_logs = rx_frame.data.u8[7];
+
+        if (protecting_historical_logs == 0x01) {
+          // Overcurrent protection
+          set_event(EVENT_DISCHARGE_LIMIT_EXCEEDED, 0);  // could also be EVENT_CHARGE_LIMIT_EXCEEDED
+        } else if (protecting_historical_logs == 0x02) {
+          // over discharge protection
+          set_event(EVENT_BATTERY_UNDERVOLTAGE, 0);
+        } else if (protecting_historical_logs == 0x03) {
+          // overcharge protection
+          set_event(EVENT_BATTERY_OVERVOLTAGE, 0);
+        } else if (protecting_historical_logs == 0x04) {
+          // Over temperature protection
+          set_event(EVENT_BATTERY_OVERHEAT, 0);
+        } else if (protecting_historical_logs == 0x05) {
+          // Battery string error protection
+          set_event(EVENT_BATTERY_CAUTION, 0);
+        } else if (protecting_historical_logs == 0x06) {
+          // Damaged charging relay
+          set_event(EVENT_BATTERY_CHG_STOP_REQ, 0);
+        } else if (protecting_historical_logs == 0x07) {
+          // Damaged discharge relay
+          set_event(EVENT_BATTERY_DISCHG_STOP_REQ, 0);
+        } else if (protecting_historical_logs == 0x08) {
+          // Low voltage power outage protection
+          set_event(EVENT_12V_LOW, 0);
+        } else if (protecting_historical_logs == 0x09) {
+          // Voltage difference protection
+          set_event(EVENT_VOLTAGE_DIFFERENCE, differential_pressure_setting_value);
+        } else if (protecting_historical_logs == 0x0A) {
+          // Low temperature protection
+          set_event(EVENT_BATTERY_FROZEN, low_temperature_protection_setting_value);
+        }
       } else if (mux == 0x54) {
         hall_sensor_type = (rx_frame.data.u8[1] << 8) | rx_frame.data.u8[2];
         fan_start_setting_value = (rx_frame.data.u8[3] << 8) | rx_frame.data.u8[4];
@@ -531,8 +577,10 @@ void setup_battery(void) {  // Performs one time setup at startup
   Serial.println("RJXZS BMS selected");
 #endif
 
-  datalayer.battery.info.max_design_voltage_dV = 5000;
-  datalayer.battery.info.min_design_voltage_dV = 1000;
+  datalayer.battery.info.max_design_voltage_dV = MAX_PACK_VOLTAGE_DV;
+  datalayer.battery.info.min_design_voltage_dV = MIN_PACK_VOLTAGE_DV;
+  datalayer.battery.info.max_cell_voltage_mV = MAX_CELL_VOLTAGE_MV;
+  datalayer.battery.info.min_cell_voltage_mV = MIN_CELL_VOLTAGE_MV;
 }
 
 #endif  // RJXZS_BMS

@@ -3,6 +3,10 @@
 
 #include "../../USER_SETTINGS.h"
 
+#ifdef AFORE_CAN
+#include "AFORE-CAN.h"
+#endif
+
 #ifdef BYD_CAN
 #include "BYD-CAN.h"
 #endif
@@ -15,8 +19,16 @@
 #include "BYD-SMA.h"
 #endif
 
+#ifdef FOXESS_CAN
+#include "FOXESS-CAN.h"
+#endif
+
 #ifdef PYLON_CAN
 #include "PYLON-CAN.h"
+#endif
+
+#ifdef PYLON_LV_CAN
+#include "PYLON-LV-CAN.h"
 #endif
 
 #ifdef SMA_CAN

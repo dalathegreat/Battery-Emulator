@@ -67,6 +67,9 @@ void update_values_battery() {
 
   datalayer.battery.status.max_discharge_power_W = (-max_discharge_current * (voltage_dV / 10));
 
+  datalayer.battery.status.remaining_capacity_Wh = static_cast<uint32_t>(
+      (static_cast<double>(datalayer.battery.status.real_soc) / 10000) * datalayer.battery.info.total_capacity_Wh);
+
   datalayer.battery.status.cell_max_voltage_mV = cellvoltage_max_mV;
 
   datalayer.battery.status.cell_min_voltage_mV = cellvoltage_min_mV;
@@ -179,8 +182,10 @@ void setup_battery(void) {  // Performs one time setup at startup
   Serial.println("Pylon battery selected");
 #endif
 
-  datalayer.battery.info.max_design_voltage_dV = 4040;  // 404.0V, charging over this is not possible
-  datalayer.battery.info.min_design_voltage_dV = 3100;  // 310.0V, under this, discharging further is disabled
+  datalayer.battery.info.max_design_voltage_dV = MAX_PACK_VOLTAGE_DV;
+  datalayer.battery.info.min_design_voltage_dV = MIN_PACK_VOLTAGE_DV;
+  datalayer.battery.info.max_cell_voltage_mV = MAX_CELL_VOLTAGE_MV;
+  datalayer.battery.info.min_cell_voltage_mV = MIN_CELL_VOLTAGE_MV;
 }
 
 #endif

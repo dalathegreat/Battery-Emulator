@@ -6,7 +6,7 @@
 
 // #define INCLUDE_EVENTS_TEST  // Enable to run an event test loop, see events_test_on_target.cpp
 
-#define EE_MAGIC_HEADER_VALUE 0x0012  // 0x0000 to 0xFFFF
+#define EE_MAGIC_HEADER_VALUE 0x0017  // 0x0000 to 0xFFFF
 
 #define GENERATE_ENUM(ENUM) ENUM,
 #define GENERATE_STRING(STRING) #STRING,
@@ -27,13 +27,17 @@
 
 #define EVENTS_ENUM_TYPE(XX)            \
   XX(EVENT_CANFD_INIT_FAILURE)          \
+  XX(EVENT_CANMCP_INIT_FAILURE)         \
+  XX(EVENT_CANFD_BUFFER_FULL)           \
   XX(EVENT_CAN_OVERRUN)                 \
   XX(EVENT_CAN_RX_FAILURE)              \
   XX(EVENT_CAN2_RX_FAILURE)             \
   XX(EVENT_CANFD_RX_FAILURE)            \
   XX(EVENT_CAN_RX_WARNING)              \
   XX(EVENT_CAN_TX_FAILURE)              \
+  XX(EVENT_CAN_INVERTER_MISSING)        \
   XX(EVENT_CHARGE_LIMIT_EXCEEDED)       \
+  XX(EVENT_CONTACTOR_WELDED)            \
   XX(EVENT_DISCHARGE_LIMIT_EXCEEDED)    \
   XX(EVENT_WATER_INGRESS)               \
   XX(EVENT_12V_LOW)                     \
@@ -50,6 +54,7 @@
   XX(EVENT_BATTERY_OVERHEAT)            \
   XX(EVENT_BATTERY_OVERVOLTAGE)         \
   XX(EVENT_BATTERY_UNDERVOLTAGE)        \
+  XX(EVENT_BATTERY_VALUE_UNAVAILABLE)   \
   XX(EVENT_BATTERY_ISOLATION)           \
   XX(EVENT_BATTERY_REQUESTS_HEAT)       \
   XX(EVENT_BATTERY_WARMED_UP)           \
@@ -96,6 +101,11 @@
   XX(EVENT_RESET_CPU_LOCKUP)            \
   XX(EVENT_PAUSE_BEGIN)                 \
   XX(EVENT_PAUSE_END)                   \
+  XX(EVENT_WIFI_CONNECT)                \
+  XX(EVENT_WIFI_DISCONNECT)             \
+  XX(EVENT_MQTT_CONNECT)                \
+  XX(EVENT_MQTT_DISCONNECT)             \
+  XX(EVENT_EQUIPMENT_STOP)              \
   XX(EVENT_NOF_EVENTS)
 
 typedef enum { EVENTS_ENUM_TYPE(GENERATE_ENUM) } EVENTS_ENUM_TYPE;
@@ -118,20 +128,28 @@ typedef enum {
 } EVENTS_STATE_TYPE;
 
 typedef struct {
-  uint32_t timestamp;       // Time in seconds since startup when the event occurred
-  uint8_t data;             // Custom data passed when setting the event, for example cell number for under voltage
-  uint8_t occurences;       // Number of occurrences since startup
-  EVENTS_LEVEL_TYPE level;  // Event level, i.e. ERROR/WARNING...
-  EVENTS_STATE_TYPE state;  // Event state, i.e. ACTIVE/INACTIVE...
+  uint32_t timestamp;           // Time in seconds since startup when the event occurred
+  uint8_t millisrolloverCount;  // number of times millis rollovers before timestamp
+  uint8_t data;                 // Custom data passed when setting the event, for example cell number for under voltage
+  uint8_t occurences;           // Number of occurrences since startup
+  EVENTS_LEVEL_TYPE level;      // Event level, i.e. ERROR/WARNING...
+  EVENTS_STATE_TYPE state;      // Event state, i.e. ACTIVE/INACTIVE...
   bool log;
   bool MQTTpublished;
 } EVENTS_STRUCT_TYPE;
+
+// Define a struct to hold event data
+struct EventData {
+  EVENTS_ENUM_TYPE event_handle;
+  const EVENTS_STRUCT_TYPE* event_pointer;
+};
+
+extern uint8_t millisrolloverCount;  // number of times millis rollovers
 
 const char* get_event_enum_string(EVENTS_ENUM_TYPE event);
 const char* get_event_message_string(EVENTS_ENUM_TYPE event);
 const char* get_event_level_string(EVENTS_ENUM_TYPE event);
 const char* get_event_type(EVENTS_ENUM_TYPE event);
-unsigned long get_current_event_time_secs(void);
 
 EVENTS_LEVEL_TYPE get_event_level(void);
 
@@ -139,6 +157,7 @@ void init_events(void);
 void set_event_latched(EVENTS_ENUM_TYPE event, uint8_t data);
 void set_event(EVENTS_ENUM_TYPE event, uint8_t data);
 void clear_event(EVENTS_ENUM_TYPE event);
+void reset_all_events();
 void set_event_MQTTpublished(EVENTS_ENUM_TYPE event);
 
 const EVENTS_STRUCT_TYPE* get_event_pointer(EVENTS_ENUM_TYPE event);
@@ -146,5 +165,8 @@ const EVENTS_STRUCT_TYPE* get_event_pointer(EVENTS_ENUM_TYPE event);
 void run_event_handling(void);
 
 void run_sequence_on_target(void);
+
+bool compareEventsByTimestampAsc(const EventData& a, const EventData& b);
+bool compareEventsByTimestampDesc(const EventData& a, const EventData& b);
 
 #endif  // __MYTIMER_H__

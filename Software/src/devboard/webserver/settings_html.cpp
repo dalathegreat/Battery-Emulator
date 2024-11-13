@@ -10,6 +10,8 @@ String settings_processor(const String& var) {
     content += "body { background-color: black; color: white; }";
     content += "</style>";
 
+    content += "<button onclick='goToMainPage()'>Back to main page</button>";
+
     // Start a new block with a specific background color
     content += "<div style='background-color: #303E47; padding: 10px; margin-bottom: 10px;border-radius: 50px'>";
 
@@ -55,11 +57,11 @@ String settings_processor(const String& var) {
     content += "<h4 style='color: " + String(datalayer.battery.settings.soc_scaling_active ? "white" : "darkgrey") +
                ";'>SOC min percentage: " + String(datalayer.battery.settings.min_percentage / 100.0, 1) +
                " </span> <button onclick='editSocMin()'>Edit</button></h4>";
-    content +=
-        "<h4 style='color: white;'>Max charge speed: " + String(datalayer.battery.info.max_charge_amp_dA / 10.0, 1) +
-        " A </span> <button onclick='editMaxChargeA()'>Edit</button></h4>";
+    content += "<h4 style='color: white;'>Max charge speed: " +
+               String(datalayer.battery.settings.max_user_set_charge_dA / 10.0, 1) +
+               " A </span> <button onclick='editMaxChargeA()'>Edit</button></h4>";
     content += "<h4 style='color: white;'>Max discharge speed: " +
-               String(datalayer.battery.info.max_discharge_amp_dA / 10.0, 1) +
+               String(datalayer.battery.settings.max_user_set_discharge_dA / 10.0, 1) +
                " A </span> <button onclick='editMaxDischargeA()'>Edit</button></h4>";
     // Close the block
     content += "</div>";
@@ -201,7 +203,6 @@ String settings_processor(const String& var) {
 #endif
     content += "</script>";
 
-    content += "<button onclick='goToMainPage()'>Back to main page</button>";
     content += "<script>";
     content += "function goToMainPage() { window.location.href = '/'; }";
     content += "</script>";

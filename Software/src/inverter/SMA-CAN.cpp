@@ -70,43 +70,19 @@ CAN_frame SMA_158 = {.FD = false,
                      .ID = 0x158,
                      .data = {0xAA, 0xAA, 0xAA, 0xAA, 0xAA, 0x6A, 0xAA, 0xAA}};
 
-static int16_t discharge_current = 0;
-static int16_t charge_current = 0;
 static int16_t temperature_average = 0;
 static uint16_t ampere_hours_remaining = 0;
 
 void update_values_can_inverter() {  //This function maps all the values fetched from battery CAN to the correct CAN messages
   //Calculate values
 
-  if (datalayer.battery.status.voltage_dV > 10) {  // Only update value when we have voltage available to avoid div0
-    discharge_current =
-        ((datalayer.battery.status.max_discharge_power_W * 10) /
-         datalayer.battery.status.voltage_dV);     //Charge power in W , max volt in V+1decimal (P=UI, solve for I)
-    discharge_current = (discharge_current * 10);  //Value needs a decimal before getting sent to inverter (81.0A)
-    charge_current =
-        ((datalayer.battery.status.max_charge_power_W * 10) /
-         datalayer.battery.status.voltage_dV);  //Charge power in W , max volt in V+1decimal (P=UI, solve for I)
-    charge_current = (charge_current * 10);     //Value needs a decimal before getting sent to inverter (81.0A)
-  }
-
-  if (charge_current > datalayer.battery.info.max_charge_amp_dA) {
-    charge_current =
-        datalayer.battery.info
-            .max_charge_amp_dA;  //Cap the value to the max allowed Amp. Some inverters cannot handle large values.
-  }
-
-  if (discharge_current > datalayer.battery.info.max_discharge_amp_dA) {
-    discharge_current =
-        datalayer.battery.info
-            .max_discharge_amp_dA;  //Cap the value to the max allowed Amp. Some inverters cannot handle large values.
-  }
-
   temperature_average =
       ((datalayer.battery.status.temperature_max_dC + datalayer.battery.status.temperature_min_dC) / 2);
 
   if (datalayer.battery.status.voltage_dV > 10) {  // Only update value when we have voltage available to avoid div0
-    ampere_hours_remaining = ((datalayer.battery.status.remaining_capacity_Wh / datalayer.battery.status.voltage_dV) *
-                              100);  //(WH[10000] * V+1[3600])*100 = 270 (27.0Ah)
+    ampere_hours_remaining =
+        ((datalayer.battery.status.reported_remaining_capacity_Wh / datalayer.battery.status.voltage_dV) *
+         100);  //(WH[10000] * V+1[3600])*100 = 270 (27.0Ah)
   }
 
   //Map values to CAN messages
@@ -118,11 +94,11 @@ void update_values_can_inverter() {  //This function maps all the values fetched
                         8);  //Minvoltage behaves strange on SMA, cuts out at 56% of the set value?
   SMA_358.data.u8[3] = (datalayer.battery.info.min_design_voltage_dV & 0x00FF);
   //Discharge limited current, 500 = 50A, (0.1, A)
-  SMA_358.data.u8[4] = (discharge_current >> 8);
-  SMA_358.data.u8[5] = (discharge_current & 0x00FF);
+  SMA_358.data.u8[4] = (datalayer.battery.status.max_discharge_current_dA >> 8);
+  SMA_358.data.u8[5] = (datalayer.battery.status.max_discharge_current_dA & 0x00FF);
   //Charge limited current, 125 =12.5A (0.1, A)
-  SMA_358.data.u8[6] = (charge_current >> 8);
-  SMA_358.data.u8[7] = (charge_current & 0x00FF);
+  SMA_358.data.u8[6] = (datalayer.battery.status.max_charge_current_dA >> 8);
+  SMA_358.data.u8[7] = (datalayer.battery.status.max_charge_current_dA & 0x00FF);
 
   //SOC (100.00%)
   SMA_3D8.data.u8[0] = (datalayer.battery.status.reported_soc >> 8);
@@ -211,12 +187,15 @@ void update_values_can_inverter() {  //This function maps all the values fetched
 void receive_can_inverter(CAN_frame rx_frame) {
   switch (rx_frame.ID) {
     case 0x360:  //Message originating from SMA inverter - Voltage and current
+      datalayer.system.status.CAN_inverter_still_alive = CAN_STILL_ALIVE;
       //Frame0-1 Voltage
       //Frame2-3 Current
       break;
     case 0x3E0:  //Message originating from SMA inverter - ?
+      datalayer.system.status.CAN_inverter_still_alive = CAN_STILL_ALIVE;
       break;
     case 0x420:  //Message originating from SMA inverter - Timestamp
+      datalayer.system.status.CAN_inverter_still_alive = CAN_STILL_ALIVE;
       //Frame0-3 Timestamp
       /*
       transmit_can(&SMA_158, can_config.inverter);
@@ -228,10 +207,13 @@ void receive_can_inverter(CAN_frame rx_frame) {
       */
       break;
     case 0x5E0:  //Message originating from SMA inverter - String
+      datalayer.system.status.CAN_inverter_still_alive = CAN_STILL_ALIVE;
       break;
     case 0x560:  //Message originating from SMA inverter - Init
+      datalayer.system.status.CAN_inverter_still_alive = CAN_STILL_ALIVE;
       break;
     case 0x5E7:  //Pairing request
+      datalayer.system.status.CAN_inverter_still_alive = CAN_STILL_ALIVE;
       transmit_can(&SMA_558, can_config.inverter);
       transmit_can(&SMA_598, can_config.inverter);
       transmit_can(&SMA_5D8, can_config.inverter);
