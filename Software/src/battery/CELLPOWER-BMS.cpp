@@ -124,9 +124,6 @@ void update_values_battery() {
 
   datalayer.battery.status.current_dA = battery_pack_current_dA;
 
-  datalayer.battery.status.active_power_W =  //Power in watts, Negative = charging batt
-      ((datalayer.battery.status.voltage_dV * datalayer.battery.status.current_dA) / 100);
-
   datalayer.battery.status.max_charge_power_W = 5000;  //TODO, is this available via CAN?
 
   datalayer.battery.status.max_discharge_power_W = 5000;  //TODO, is this available via CAN?

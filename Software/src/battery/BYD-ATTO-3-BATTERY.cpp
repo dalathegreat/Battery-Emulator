@@ -122,9 +122,6 @@ void update_values_battery() {  //This function maps all the values fetched via 
 
   datalayer.battery.status.max_charge_power_W = 10000;  //TODO: Map from CAN later on
 
-  datalayer.battery.status.active_power_W =
-      (datalayer.battery.status.current_dA * (datalayer.battery.status.voltage_dV / 100));
-
   datalayer.battery.status.cell_max_voltage_mV = BMS_highest_cell_voltage_mV;
 
   datalayer.battery.status.cell_min_voltage_mV = BMS_lowest_cell_voltage_mV;
@@ -444,9 +441,6 @@ void update_values_battery2() {  //This function maps all the values fetched via
   datalayer.battery2.status.max_discharge_power_W = 10000;  //TODO: Map from CAN later on
 
   datalayer.battery2.status.max_charge_power_W = 10000;  //TODO: Map from CAN later on
-
-  datalayer.battery2.status.active_power_W =
-      (datalayer.battery2.status.current_dA * (datalayer.battery2.status.voltage_dV / 100));
 
   datalayer.battery2.status.cell_max_voltage_mV = BMS2_highest_cell_voltage_mV;
 

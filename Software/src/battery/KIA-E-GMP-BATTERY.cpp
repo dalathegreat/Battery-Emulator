@@ -38,7 +38,6 @@ static uint16_t CellVoltMin_mV = 3700;
 static uint16_t batteryVoltage = 6700;
 static int16_t leadAcidBatteryVoltage = 120;
 static int16_t batteryAmps = 0;
-static int16_t powerWatt = 0;
 static int16_t temperatureMax = 0;
 static int16_t temperatureMin = 0;
 static int16_t allowedDischargePower = 0;
@@ -659,10 +658,6 @@ void update_values_battery() {  //This function maps all the values fetched via 
   //datalayer.battery.status.max_discharge_power_W = (uint16_t)allowedDischargePower * 10;  //From kW*100 to Watts
   //The allowed discharge power is not available. We hardcode this value for now
   datalayer.battery.status.max_discharge_power_W = MAXDISCHARGEPOWERALLOWED;
-
-  powerWatt = ((batteryVoltage * batteryAmps) / 100);
-
-  datalayer.battery.status.active_power_W = powerWatt;  //Power in watts, Negative = charging batt
 
   datalayer.battery.status.temperature_min_dC = (int8_t)temperatureMin * 10;  //Increase decimals, 17C -> 17.0C
 

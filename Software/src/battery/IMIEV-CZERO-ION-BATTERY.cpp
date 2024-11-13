@@ -51,8 +51,6 @@ void update_values_battery() {  //This function maps all the values fetched via 
 
   datalayer.battery.status.max_discharge_power_W = 10000;  // 10kW   //TODO: Fix when CAN is decoded
 
-  datalayer.battery.status.active_power_W = BMU_Power;  //TODO: Scaling?
-
   static int n = sizeof(cell_voltages) / sizeof(cell_voltages[0]);
   max_volt_cel = cell_voltages[0];  // Initialize max with the first element of the array
   for (int i = 1; i < n; i++) {

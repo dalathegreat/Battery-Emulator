@@ -46,9 +46,6 @@ void update_values_battery() {
   datalayer.battery.status.current_dA = current_dA;  //value is *10 (150 = 15.0)
   datalayer.battery.status.remaining_capacity_Wh = remaining_capacity_Wh;
 
-  datalayer.battery.status.active_power_W =  //Power in watts, Negative = charging batt
-      ((datalayer.battery.status.voltage_dV * datalayer.battery.status.current_dA) / 100);
-
   // The twizy provides two values: one for the maximum charge provided by the on-board charger
   //    and one for the maximum charge during recuperation.
   //    For now we use the lower of the two (usually the charger one)

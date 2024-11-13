@@ -98,9 +98,6 @@ void update_values_battery() {
 
   datalayer.battery.status.current_dA = total_current;
 
-  datalayer.battery.status.active_power_W =  //Power in watts, Negative = charging batt
-      ((datalayer.battery.status.voltage_dV * datalayer.battery.status.current_dA) / 100);
-
   // Charge power is set in .h file
   if (datalayer.battery.status.real_soc > 9900) {
     datalayer.battery.status.max_charge_power_W = MAX_CHARGE_POWER_WHEN_TOPBALANCING_W;
