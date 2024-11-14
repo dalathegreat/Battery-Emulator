@@ -7,13 +7,6 @@
 static unsigned long previousMillis2s = 0;   // will store last time a 2s CAN Message was send
 static unsigned long previousMillis10s = 0;  // will store last time a 10s CAN Message was send
 static unsigned long previousMillis60s = 0;  // will store last time a 60s CAN Message was send
-static uint8_t char1_151 = 0;
-static uint8_t char2_151 = 0;
-static uint8_t char3_151 = 0;
-static uint8_t char4_151 = 0;
-static uint8_t char5_151 = 0;
-static uint8_t char6_151 = 0;
-static uint8_t char7_151 = 0;
 
 CAN_frame BYD_250 = {.FD = false,
                      .ext_ID = false,
@@ -79,6 +72,7 @@ CAN_frame BYD_210 = {.FD = false,
                      .ID = 0x210,
                      .data = {0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00}};
 
+static uint8_t inverter_name[7] = {0};
 static int16_t temperature_average = 0;
 static uint16_t inverter_voltage = 0;
 static uint16_t inverter_SOC = 0;
@@ -146,15 +140,12 @@ void update_values_can_inverter() {  //This function maps all the values fetched
   BYD_210.data.u8[3] = (datalayer.battery.status.temperature_min_dC & 0x00FF);
 
 #ifdef DEBUG_VIA_USB
-  if (char1_151 != 0) {
+  if (inverter_name[0] != 0) {
     Serial.print("Detected inverter: ");
-    Serial.print((char)char1_151);
-    Serial.print((char)char2_151);
-    Serial.print((char)char3_151);
-    Serial.print((char)char4_151);
-    Serial.print((char)char5_151);
-    Serial.print((char)char6_151);
-    Serial.println((char)char7_151);
+    for (uint8_t i = 0; i < 7; i++) {
+      Serial.print((char)inverter_name[i]);
+    }
+    Serial.println();
   }
 #endif
 }
@@ -166,27 +157,23 @@ void receive_can_inverter(CAN_frame rx_frame) {
       if (rx_frame.data.u8[0] & 0x01) {  //Battery requests identification
         send_intial_data();
       } else {  // We can identify what inverter type we are connected to
-        char1_151 = rx_frame.data.u8[1];
-        char2_151 = rx_frame.data.u8[2];
-        char3_151 = rx_frame.data.u8[3];
-        char4_151 = rx_frame.data.u8[4];
-        char5_151 = rx_frame.data.u8[5];
-        char6_151 = rx_frame.data.u8[6];
-        char7_151 = rx_frame.data.u8[7];
+        for (uint8_t i = 0; i < 7; i++) {
+          inverter_name[i] = rx_frame.data.u8[i + 1];
+        }
       }
       break;
     case 0x091:
       datalayer.system.status.CAN_inverter_still_alive = CAN_STILL_ALIVE;
-      inverter_voltage = ((rx_frame.data.u8[1] << 8) | rx_frame.data.u8[0]) * 0.1;
+      inverter_voltage = ((rx_frame.data.u8[0] << 8) | rx_frame.data.u8[1]) * 0.1;
       break;
     case 0x0D1:
       datalayer.system.status.CAN_inverter_still_alive = CAN_STILL_ALIVE;
-      inverter_SOC = ((rx_frame.data.u8[1] << 8) | rx_frame.data.u8[0]) * 0.1;
+      inverter_SOC = ((rx_frame.data.u8[0] << 8) | rx_frame.data.u8[1]) * 0.1;
       break;
     case 0x111:
       datalayer.system.status.CAN_inverter_still_alive = CAN_STILL_ALIVE;
-      inverter_timestamp = ((rx_frame.data.u8[3] << 24) | (rx_frame.data.u8[2] << 16) | (rx_frame.data.u8[1] << 8) |
-                            rx_frame.data.u8[0]);
+      inverter_timestamp = ((rx_frame.data.u8[0] << 24) | (rx_frame.data.u8[1] << 16) | (rx_frame.data.u8[2] << 8) |
+                            rx_frame.data.u8[3]);
       break;
     default:
       break;
