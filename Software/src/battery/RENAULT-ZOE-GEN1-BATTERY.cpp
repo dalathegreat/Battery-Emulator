@@ -518,9 +518,10 @@ void send_can_battery() {
 }
 
 void setup_battery(void) {  // Performs one time setup at startup
-#ifdef DEBUG_VIA_USB
-  Serial.println("Renault Zoe 22/40kWh battery selected");
-#endif
+  strncpy(datalayer.system.info.battery_protocol, "Renault Zoe Gen1 22/40kWh",
+          sizeof(datalayer.system.info.battery_protocol) - 1);
+  datalayer.system.info.battery_protocol[sizeof(datalayer.system.info.battery_protocol) - 1] =
+      '\0';  // Ensure null termination
   datalayer.system.status.battery_allows_contactor_closing = true;
   datalayer.battery.info.number_of_cells = 96;
   datalayer.battery.info.max_design_voltage_dV = MAX_PACK_VOLTAGE_DV;

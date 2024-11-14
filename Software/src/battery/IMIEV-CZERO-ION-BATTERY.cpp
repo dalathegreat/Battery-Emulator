@@ -224,9 +224,10 @@ void send_can_battery() {
 }
 
 void setup_battery(void) {  // Performs one time setup at startup
-#ifdef DEBUG_VIA_USB
-  Serial.println("Mitsubishi i-MiEV / Citroen C-Zero / Peugeot Ion battery selected");
-#endif
+  strncpy(datalayer.system.info.battery_protocol, "I-Miev / C-Zero / Ion Triplet",
+          sizeof(datalayer.system.info.battery_protocol) - 1);
+  datalayer.system.info.battery_protocol[sizeof(datalayer.system.info.battery_protocol) - 1] =
+      '\0';  // Ensure null termination
   datalayer.battery.info.max_design_voltage_dV = MAX_PACK_VOLTAGE_DV;
   datalayer.battery.info.min_design_voltage_dV = MIN_PACK_VOLTAGE_DV;
   datalayer.battery.info.max_cell_voltage_mV = MAX_CELL_VOLTAGE_MV;

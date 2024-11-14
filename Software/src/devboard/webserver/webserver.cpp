@@ -486,6 +486,7 @@ String processor(const String& var) {
 
     // Display which components are used
     content += "<h4 style='color: white;'>Inverter protocol: ";
+    content += datalayer.system.info.inverter_protocol;
 #ifdef BYD_CAN
     content += "BYD Battery-Box Premium HVS over CAN Bus";
 #endif  // BYD_CAN
@@ -514,83 +515,8 @@ String processor(const String& var) {
     content += "SolaX Triple Power LFP over CAN bus";
 #endif  // SOLAX_CAN
     content += "</h4>";
-
     content += "<h4 style='color: white;'>Battery protocol: ";
-#ifdef BMW_I3_BATTERY
-    content += "BMW i3";
-#endif  // BMW_I3_BATTERY
-#ifdef BMW_IX_BATTERY
-    content += "BMW iX and i4-7 platform";
-#endif  // BMW_IX_BATTERY
-#ifdef BYD_ATTO_3_BATTERY
-    content += "BYD Atto 3";
-#endif  // BYD_ATTO_3_BATTERY
-#ifdef CELLPOWER_BMS
-    content += "Cellpower BMS";
-#endif  // CELLPOWER_BMS
-#ifdef CHADEMO_BATTERY
-    content += "Chademo V2X mode";
-#endif  // CHADEMO_BATTERY
-#ifdef IMIEV_CZERO_ION_BATTERY
-    content += "I-Miev / C-Zero / Ion Triplet";
-#endif  // IMIEV_CZERO_ION_BATTERY
-#ifdef JAGUAR_IPACE_BATTERY
-    content += "Jaguar I-PACE";
-#endif  // JAGUAR_IPACE_BATTERY
-#ifdef KIA_HYUNDAI_64_BATTERY
-    content += "Kia/Hyundai 64kWh";
-#endif  // KIA_HYUNDAI_64_BATTERY
-#ifdef KIA_E_GMP_BATTERY
-    content += "Kia/Hyundai EGMP platform";
-#endif  // KIA_E_GMP_BATTERY
-#ifdef KIA_HYUNDAI_HYBRID_BATTERY
-    content += "Kia/Hyundai Hybrid";
-#endif  // KIA_HYUNDAI_HYBRID_BATTERY
-#ifdef MG_5_BATTERY
-    content += "MG 5";
-#endif  // MG_5_BATTERY
-#ifdef NISSAN_LEAF_BATTERY
-    content += "Nissan LEAF";
-#endif  // NISSAN_LEAF_BATTERY
-#ifdef PYLON_BATTERY
-    content += "Pylon compatible battery";
-#endif  // PYLON_BATTERY
-#ifdef RJXZS_BMS
-    content += "RJXZS BMS, DIY battery";
-#endif  // RJXZS_BMS
-#ifdef RANGE_ROVER_PHEV_BATTERY
-    content += "Range Rover 13kWh PHEV battery (L494/L405)";
-#endif  //RANGE_ROVER_PHEV_BATTERY
-#ifdef RENAULT_KANGOO_BATTERY
-    content += "Renault Kangoo";
-#endif  // RENAULT_KANGOO_BATTERY
-#ifdef RENAULT_TWIZY_BATTERY
-    content += "Renault Twizy";
-#endif  // RENAULT_TWIZY_BATTERY
-#ifdef RENAULT_ZOE_GEN1_BATTERY
-    content += "Renault Zoe Gen1 22/40";
-#endif  // RENAULT_ZOE_GEN1_BATTERY
-#ifdef RENAULT_ZOE_GEN2_BATTERY
-    content += "Renault Zoe Gen2 50";
-#endif  // RENAULT_ZOE_GEN2_BATTERY
-#ifdef SANTA_FE_PHEV_BATTERY
-    content += "Santa Fe PHEV";
-#endif  // SANTA_FE_PHEV_BATTERY
-#ifdef SERIAL_LINK_RECEIVER
-    content += "Serial link to another LilyGo board";
-#endif  // SERIAL_LINK_RECEIVER
-#ifdef TESLA_MODEL_SX_BATTERY
-    content += "Tesla Model S/X";
-#endif  // TESLA_MODEL_SX_BATTERY
-#ifdef TESLA_MODEL_3Y_BATTERY
-    content += "Tesla Model 3/Y";
-#endif  // TESLA_MODEL_3Y_BATTERY
-#ifdef VOLVO_SPA_BATTERY
-    content += "Volvo / Polestar 78kWh battery";
-#endif  // VOLVO_SPA_BATTERY
-#ifdef TEST_FAKE_BATTERY
-    content += "Fake battery for testing purposes";
-#endif  // TEST_FAKE_BATTERY
+    content += datalayer.system.info.battery_protocol;
 #ifdef DOUBLE_BATTERY
     content += " (Double battery)";
     if (datalayer.battery.info.chemistry == battery_chemistry_enum::LFP) {

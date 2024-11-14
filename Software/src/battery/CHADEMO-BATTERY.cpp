@@ -1031,9 +1031,11 @@ void handle_chademo_sequence() {
 }
 
 void setup_battery(void) {  // Performs one time setup at startup
-#ifdef DEBUG_VIA_USB
-  Serial.println("Chademo battery selected");
-#endif
+
+  strncpy(datalayer.system.info.battery_protocol, "Chademo V2X mode",
+          sizeof(datalayer.system.info.battery_protocol) - 1);
+  datalayer.system.info.battery_protocol[sizeof(datalayer.system.info.battery_protocol) - 1] =
+      '\0';  // Ensure null termination
 
   CHADEMO_Status = CHADEMO_IDLE;
 

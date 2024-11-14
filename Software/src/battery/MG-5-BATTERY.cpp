@@ -135,9 +135,9 @@ void send_can_battery() {
 }
 
 void setup_battery(void) {  // Performs one time setup at startup
-#ifdef DEBUG_VIA_USB
-  Serial.println("MG 5 battery selected");
-#endif
+  strncpy(datalayer.system.info.battery_protocol, "MG 5 battery", sizeof(datalayer.system.info.battery_protocol) - 1);
+  datalayer.system.info.battery_protocol[sizeof(datalayer.system.info.battery_protocol) - 1] =
+      '\0';  // Ensure null termination
 
   datalayer.battery.info.max_design_voltage_dV = MAX_PACK_VOLTAGE_DV;
   datalayer.battery.info.min_design_voltage_dV = MIN_PACK_VOLTAGE_DV;

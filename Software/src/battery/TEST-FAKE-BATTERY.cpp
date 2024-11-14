@@ -145,9 +145,10 @@ void send_can_battery() {
 void setup_battery(void) {  // Performs one time setup at startup
   randomSeed(analogRead(0));
 
-#ifdef DEBUG_VIA_USB
-  Serial.println("Test mode with fake battery selected");
-#endif
+  strncpy(datalayer.system.info.battery_protocol, "Fake battery for testing purposes",
+          sizeof(datalayer.system.info.battery_protocol) - 1);
+  datalayer.system.info.battery_protocol[sizeof(datalayer.system.info.battery_protocol) - 1] =
+      '\0';  // Ensure null termination
 
   datalayer.battery.info.max_design_voltage_dV =
       4040;  // 404.4V, over this, charging is not possible (goes into forced discharge)
