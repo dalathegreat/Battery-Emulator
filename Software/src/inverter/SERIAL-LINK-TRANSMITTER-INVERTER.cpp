@@ -128,6 +128,8 @@ void manageSerialLinkTransmitter() {
     static unsigned long updateDataTime = 0;
 
     if (currentTime - updateDataTime > INTERVAL_1_S) {
+      strncpy(datalayer.system.info.inverter_protocol, "Serial link to another LilyGo board", 63);
+      datalayer.system.info.inverter_protocol[63] = '\0';
       updateDataTime = currentTime;
       dataLinkTransmit.updateData(0, datalayer.battery.status.real_soc);
       dataLinkTransmit.updateData(1, datalayer.battery.status.soh_pptt);
@@ -159,10 +161,6 @@ void printSendingValues() {
   Serial.print(datalayer.battery.status.soh_pptt);
   Serial.print(" Voltage: ");
   Serial.print(datalayer.battery.status.voltage_dV);
-  void setup_inverter(void) {  // Performs one time setup at startup over CAN bus
-    strncpy(datalayer.system.info.inverter_protocol, "Serial link to another LilyGo board", 63);
-    datalayer.system.info.inverter_protocol[63] = '\0';
-  }
   Serial.print(" Current: ");
   Serial.print(datalayer.battery.status.current_dA);
   Serial.print(" Capacity: ");
@@ -193,9 +191,5 @@ void printSendingValues() {
   Serial.print(datalayer.system.status.inverter_allows_contactor_closing);
 
   Serial.println("");
-}
-void setup_inverter(void) {  // Performs one time setup at startup over CAN bus
-  strncpy(datalayer.system.info.inverter_protocol, "Serial link to another LilyGo board", 63);
-  datalayer.system.info.inverter_protocol[63] = '\0';
 }
 #endif
