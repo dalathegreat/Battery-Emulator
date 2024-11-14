@@ -147,8 +147,7 @@ void setup_battery(void) {  // Performs one time setup at startup
 
   strncpy(datalayer.system.info.battery_protocol, "Fake battery for testing purposes",
           sizeof(datalayer.system.info.battery_protocol) - 1);
-  datalayer.system.info.battery_protocol[sizeof(datalayer.system.info.battery_protocol) - 1] =
-      '\0';  // Ensure null termination
+  datalayer.system.info.battery_protocol[sizeof(datalayer.system.info.battery_protocol) - 1] = '\0';
 
   datalayer.battery.info.max_design_voltage_dV =
       4040;  // 404.4V, over this, charging is not possible (goes into forced discharge)

@@ -1034,8 +1034,7 @@ void setup_battery(void) {  // Performs one time setup at startup
 
   strncpy(datalayer.system.info.battery_protocol, "Chademo V2X mode",
           sizeof(datalayer.system.info.battery_protocol) - 1);
-  datalayer.system.info.battery_protocol[sizeof(datalayer.system.info.battery_protocol) - 1] =
-      '\0';  // Ensure null termination
+  datalayer.system.info.battery_protocol[sizeof(datalayer.system.info.battery_protocol) - 1] = '\0';
 
   CHADEMO_Status = CHADEMO_IDLE;
 
