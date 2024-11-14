@@ -47,6 +47,7 @@ jobs:
           - BYD_MODBUS
           - FOXESS_CAN
           - PYLON_CAN
+          - SCHNEIDER_CAN
           - SMA_CAN
           - SMA_TRIPOWER_CAN
           - SOFAR_CAN
