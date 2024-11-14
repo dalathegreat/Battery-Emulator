@@ -76,6 +76,8 @@ static uint8_t inverter_name[7] = {0};
 static int16_t temperature_average = 0;
 static uint16_t inverter_voltage = 0;
 static uint16_t inverter_SOC = 0;
+static int16_t inverter_current = 0;
+static int16_t inverter_temperature = 0;
 static uint16_t remaining_capacity_ah = 0;
 static uint16_t fully_charged_capacity_ah = 0;
 static long inverter_timestamp = 0;
@@ -165,6 +167,8 @@ void receive_can_inverter(CAN_frame rx_frame) {
     case 0x091:
       datalayer.system.status.CAN_inverter_still_alive = CAN_STILL_ALIVE;
       inverter_voltage = ((rx_frame.data.u8[0] << 8) | rx_frame.data.u8[1]) * 0.1;
+      inverter_current = ((rx_frame.data.u8[2] << 8) | rx_frame.data.u8[3]) * 0.1;
+      inverter_temperature = ((rx_frame.data.u8[4] << 8) | rx_frame.data.u8[5]) * 0.1;
       break;
     case 0x0D1:
       datalayer.system.status.CAN_inverter_still_alive = CAN_STILL_ALIVE;
