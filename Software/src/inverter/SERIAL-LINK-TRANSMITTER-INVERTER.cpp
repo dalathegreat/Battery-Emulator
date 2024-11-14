@@ -159,6 +159,10 @@ void printSendingValues() {
   Serial.print(datalayer.battery.status.soh_pptt);
   Serial.print(" Voltage: ");
   Serial.print(datalayer.battery.status.voltage_dV);
+  void setup_inverter(void) {  // Performs one time setup at startup over CAN bus
+    strncpy(datalayer.system.info.inverter_protocol, "Serial link to another LilyGo board", 63);
+    datalayer.system.info.inverter_protocol[63] = '\0';
+  }
   Serial.print(" Current: ");
   Serial.print(datalayer.battery.status.current_dA);
   Serial.print(" Capacity: ");
@@ -189,5 +193,9 @@ void printSendingValues() {
   Serial.print(datalayer.system.status.inverter_allows_contactor_closing);
 
   Serial.println("");
+}
+void setup_inverter(void) {  // Performs one time setup at startup over CAN bus
+  strncpy(datalayer.system.info.inverter_protocol, "Serial link to another LilyGo board", 63);
+  datalayer.system.info.inverter_protocol[63] = '\0';
 }
 #endif

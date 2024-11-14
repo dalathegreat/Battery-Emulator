@@ -487,33 +487,6 @@ String processor(const String& var) {
     // Display which components are used
     content += "<h4 style='color: white;'>Inverter protocol: ";
     content += datalayer.system.info.inverter_protocol;
-#ifdef BYD_CAN
-    content += "BYD Battery-Box Premium HVS over CAN Bus";
-#endif  // BYD_CAN
-#ifdef BYD_MODBUS
-    content += "BYD 11kWh HVM battery over Modbus RTU";
-#endif  // BYD_MODBUS
-#ifdef FOXESS_CAN
-    content += "FoxESS compatible HV2600/ECS4100 battery";
-#endif  // FOXESS_CAN
-#ifdef PYLON_CAN
-    content += "Pylontech battery over CAN bus";
-#endif  // PYLON_CAN
-#ifdef PYLON_LV_CAN
-    content += "Pylontech LV battery over CAN bus";
-#endif  // PYLON_LV_CAN
-#ifdef SERIAL_LINK_TRANSMITTER
-    content += "Serial link to another LilyGo board";
-#endif  // SERIAL_LINK_TRANSMITTER
-#ifdef SMA_CAN
-    content += "BYD Battery-Box H 8.9kWh, 7 mod over CAN bus";
-#endif  // SMA_CAN
-#ifdef SOFAR_CAN
-    content += "Sofar Energy Storage Inverter High Voltage BMS General Protocol (Extended Frame) over CAN bus";
-#endif  // SOFAR_CAN
-#ifdef SOLAX_CAN
-    content += "SolaX Triple Power LFP over CAN bus";
-#endif  // SOLAX_CAN
     content += "</h4>";
     content += "<h4 style='color: white;'>Battery protocol: ";
     content += datalayer.system.info.battery_protocol;

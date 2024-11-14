@@ -477,4 +477,8 @@ void send_system_data() {  //System equipment information
   transmit_can(&PYLON_4291, can_config.inverter);
 #endif
 }
+void setup_inverter(void) {  // Performs one time setup at startup over CAN bus
+  strncpy(datalayer.system.info.inverter_protocol, "Pylontech battery over CAN bus", 63);
+  datalayer.system.info.inverter_protocol[63] = '\0';
+}
 #endif

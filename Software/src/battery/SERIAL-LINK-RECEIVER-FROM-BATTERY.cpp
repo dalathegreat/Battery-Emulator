@@ -219,9 +219,8 @@ void update_values_serial_link() {
 }
 
 void setup_battery(void) {
-  strncpy(datalayer.system.info.battery_protocol, "Serial link to another LilyGo board",
-          sizeof(datalayer.system.info.battery_protocol) - 1);
-  datalayer.system.info.battery_protocol[sizeof(datalayer.system.info.battery_protocol) - 1] = '\0';
+  strncpy(datalayer.system.info.battery_protocol, "Serial link to another LilyGo board", 63);
+  datalayer.system.info.battery_protocol[63] = '\0';
 }
 // Needed to make the compiler happy
 void update_values_battery() {}

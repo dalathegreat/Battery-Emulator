@@ -555,26 +555,13 @@ void init_rs485() {
 }
 
 void init_inverter() {
-#ifdef SOLAX_CAN
-  datalayer.system.status.inverter_allows_contactor_closing = false;  // The inverter needs to allow first
-  intervalUpdateValues = 800;  // This protocol also requires the values to be updated faster
-#endif
-#ifdef FOXESS_CAN
-  intervalUpdateValues = 950;  // This protocol also requires the values to be updated faster
-#endif
-#ifdef BYD_SMA
-  datalayer.system.status.inverter_allows_contactor_closing = false;  // The inverter needs to allow first
-  pinMode(INVERTER_CONTACTOR_ENABLE_PIN, INPUT);
-#endif
+  // Inform user what inverter is used and perform setup
+  setup_inverter();
 }
 
 void init_battery() {
   // Inform user what battery is used and perform setup
   setup_battery();
-
-#ifdef CHADEMO_BATTERY
-  intervalUpdateValues = 800;  // This mode requires the values to be updated faster
-#endif
 }
 
 #ifdef EQUIPMENT_STOP_BUTTON

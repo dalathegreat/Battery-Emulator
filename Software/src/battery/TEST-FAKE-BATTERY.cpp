@@ -145,9 +145,8 @@ void send_can_battery() {
 void setup_battery(void) {  // Performs one time setup at startup
   randomSeed(analogRead(0));
 
-  strncpy(datalayer.system.info.battery_protocol, "Fake battery for testing purposes",
-          sizeof(datalayer.system.info.battery_protocol) - 1);
-  datalayer.system.info.battery_protocol[sizeof(datalayer.system.info.battery_protocol) - 1] = '\0';
+  strncpy(datalayer.system.info.battery_protocol, "Fake battery for testing purposes", 63);
+  datalayer.system.info.battery_protocol[63] = '\0';
 
   datalayer.battery.info.max_design_voltage_dV =
       4040;  // 404.4V, over this, charging is not possible (goes into forced discharge)

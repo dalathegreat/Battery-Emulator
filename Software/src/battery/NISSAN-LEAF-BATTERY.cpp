@@ -1224,9 +1224,8 @@ uint16_t Temp_fromRAW_to_F(uint16_t temperature) {  //This function feels horrib
 }
 
 void setup_battery(void) {  // Performs one time setup at startup
-  strncpy(datalayer.system.info.battery_protocol, "Nissan LEAF battery",
-          sizeof(datalayer.system.info.battery_protocol) - 1);
-  datalayer.system.info.battery_protocol[sizeof(datalayer.system.info.battery_protocol) - 1] = '\0';
+  strncpy(datalayer.system.info.battery_protocol, "Nissan LEAF battery", 63);
+  datalayer.system.info.battery_protocol[63] = '\0';
 
   datalayer.battery.info.number_of_cells = 96;
   datalayer.battery.info.max_design_voltage_dV = MAX_PACK_VOLTAGE_DV;
