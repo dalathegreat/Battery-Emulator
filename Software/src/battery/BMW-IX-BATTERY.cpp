@@ -463,8 +463,12 @@ void update_values_battery() {  //This function maps all the values fetched via 
   datalayer.battery.status.temperature_max_dC = max_battery_temperature;
 
   //Check stale values. As values dont change much during idle only consider stale if both parts of this message freeze.
-  if (isStale(min_cell_voltage, datalayer.battery.status.cell_min_voltage_mV, min_cell_voltage_lastchanged) &&
-      isStale(max_cell_voltage, datalayer.battery.status.cell_max_voltage_mV, max_cell_voltage_lastchanged)) {
+  bool isMinCellVoltageStale =
+      isStale(min_cell_voltage, datalayer.battery.status.cell_min_voltage_mV, min_cell_voltage_lastchanged);
+  bool isMaxCellVoltageStale =
+      isStale(max_cell_voltage, datalayer.battery.status.cell_max_voltage_mV, max_cell_voltage_lastchanged);
+
+  if (isMinCellVoltageStale && isMaxCellVoltageStale) {
     datalayer.battery.status.cell_min_voltage_mV = 9999;  //Stale values force stop
     datalayer.battery.status.cell_max_voltage_mV = 9999;  //Stale values force stop
     set_event(EVENT_CAN_RX_FAILURE, 0);
