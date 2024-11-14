@@ -492,10 +492,10 @@ String processor(const String& var) {
     content += datalayer.system.info.battery_protocol;
 #ifdef DOUBLE_BATTERY
     content += " (Double battery)";
+#endif  // DOUBLE_BATTERY
     if (datalayer.battery.info.chemistry == battery_chemistry_enum::LFP) {
       content += " (LFP)";
     }
-#endif  // DOUBLE_BATTERY
     content += "</h4>";
 
 #if defined CHEVYVOLT_CHARGER || defined NISSANLEAF_CHARGER
