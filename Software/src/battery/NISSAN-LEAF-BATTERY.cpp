@@ -186,12 +186,6 @@ CAN_frame LEAF_CLEAR_SOH = {.FD = false,
                             .ID = 0x79B,
                             .data = {0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF}};
 
-void print_with_units(char* header, int value, char* units) {
-  Serial.print(header);
-  Serial.print(value);
-  Serial.print(units);
-}
-
 void update_values_battery() { /* This function maps all the values fetched via CAN to the correct parameters used for modbus */
   /* Start with mapping all values */
 
@@ -358,21 +352,9 @@ void update_values_battery() { /* This function maps all the values fetched via 
 
   // Update requests from webserver datalayer
   if (datalayer_extended.nissanleaf.UserRequestSOHreset) {
-    Serial.println("REQUEST FROM WEBSERVER");
     stateMachineClearSOH = 0;  //Start the statemachine
     datalayer_extended.nissanleaf.UserRequestSOHreset = false;
   }
-
-/*Finally print out values to serial if configured to do so*/
-#ifdef DEBUG_VIA_USB
-  Serial.println("Values from battery");
-  print_with_units("Real SOC%: ", (battery_SOC * 0.1), "% ");
-  print_with_units(", GIDS: ", battery_GIDS, " (x77Wh) ");
-  print_with_units(", Battery gen: ", LEAF_battery_Type, " ");
-  print_with_units(", Has heater: ", battery_HeatExist, " ");
-  print_with_units(", Max cell voltage: ", battery_min_max_voltage[1], "mV ");
-  print_with_units(", Min cell voltage: ", battery_min_max_voltage[0], "mV ");
-#endif
 }
 
 #ifdef DOUBLE_BATTERY
@@ -1456,9 +1438,6 @@ void decodeChallengeData(unsigned int incomingChallenge, unsigned char* solvedCh
 }
 
 void setup_battery(void) {  // Performs one time setup at startup
-#ifdef DEBUG_VIA_USB
-  Serial.println("Nissan LEAF battery selected");
-#endif
 
   datalayer.battery.info.number_of_cells = 96;
   datalayer.battery.info.max_design_voltage_dV = MAX_PACK_VOLTAGE_DV;
