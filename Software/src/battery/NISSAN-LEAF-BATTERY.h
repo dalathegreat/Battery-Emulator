@@ -16,11 +16,11 @@ void setup_battery(void);
 void transmit_can(CAN_frame* tx_frame, int interface);
 void clearSOH(void);
 //Cryptographic functions
-void decodeChallengeData(uint32_t incomingChallenge, unsigned char* solvedChallenge);
-uint32_t CyclicXorHash16Bit(uint32_t param_1, uint32_t param_2);
-uint32_t ComputeMaskedXorProduct(uint32_t param_1, uint32_t param_2, uint32_t param_3);
+void decodeChallengeData(unsigned int SeedInput, unsigned char* Crypt_Output_Buffer);
+unsigned int CyclicXorHash16Bit(unsigned int param_1, unsigned int param_2);
+unsigned int ComputeMaskedXorProduct(unsigned int param_1, unsigned int param_2, unsigned int param_3);
 short ShortMaskedSumAndProduct(short param_1, short param_2);
-uint32_t MaskedBitwiseRotateMultiply(uint32_t param_1, uint32_t param_2);
-uint32_t CryptAlgo(uint32_t param_1, uint32_t param_2, uint32_t param_3);
+unsigned int MaskedBitwiseRotateMultiply(unsigned int param_1, unsigned int param_2);
+unsigned int CryptAlgo(unsigned int param_1, unsigned int param_2, unsigned int param_3);
 
 #endif

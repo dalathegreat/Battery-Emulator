@@ -884,20 +884,7 @@ void receive_can_battery(CAN_frame rx_frame) {
         //Error checking
         if ((rx_frame.data.u8[0] == 0x03) && (rx_frame.data.u8[1] == 0x7F)) {
           challengeFailed = true;
-          Serial.print("Challenge solving failed");
         }
-        // All CAN messages recieved from BMS will be logged via serial during development of this function
-        Serial.print(millis());  // Example printout, time, ID, length, data: 7553  1DB  8  FF C0 B9 EA 0 0 2 5D
-        Serial.print("  ");
-        Serial.print(rx_frame.ID, HEX);
-        Serial.print("  ");
-        Serial.print(rx_frame.DLC);
-        Serial.print("  ");
-        for (int i = 0; i < rx_frame.DLC; ++i) {
-          Serial.print(rx_frame.data.u8[i], HEX);
-          Serial.print(" ");
-        }
-        Serial.println("");
         break;
       }
 
@@ -1353,23 +1340,11 @@ void clearSOH(void) {
     default:
       break;
   }
-  // All CAN messages semt will be logged via serial during development of this function
-  Serial.print(millis());  // Example printout, time, ID, length, data: 7553  7B9  8  FF C0 B9 EA 0 0 2 5D
-  Serial.print("  ");
-  Serial.print(LEAF_CLEAR_SOH.ID, HEX);
-  Serial.print("  ");
-  Serial.print(LEAF_CLEAR_SOH.DLC);
-  Serial.print("  ");
-  for (int i = 0; i < LEAF_CLEAR_SOH.DLC; ++i) {
-    Serial.print(LEAF_CLEAR_SOH.data.u8[i], HEX);
-    Serial.print(" ");
-  }
-  Serial.println("");
 }
 
-uint32_t CyclicXorHash16Bit(uint32_t param_1, uint32_t param_2) {
+unsigned int CyclicXorHash16Bit(unsigned int param_1, unsigned int param_2) {
   bool bVar1;
-  uint32_t uVar2, uVar3, uVar4, uVar5, uVar6, uVar7, uVar8, uVar9, uVar10, uVar11, iVar12;
+  unsigned int uVar2, uVar3, uVar4, uVar5, uVar6, uVar7, uVar8, uVar9, uVar10, uVar11, iVar12;
 
   param_1 = param_1 & 0xffff;
   param_2 = param_2 & 0xffff;
@@ -1430,54 +1405,53 @@ uint32_t CyclicXorHash16Bit(uint32_t param_1, uint32_t param_2) {
   } while (bVar1);
   return uVar10;
 }
-
-uint32_t ComputeMaskedXorProduct(uint32_t param_1, uint32_t param_2, uint32_t param_3) {
-  return (param_3 ^ 0x780 | param_2 ^ 0x116) * ((param_1 & 0xffff) >> 8 ^ param_1 & 0xff) & 0xffff;
+unsigned int ComputeMaskedXorProduct(unsigned int param_1, unsigned int param_2, unsigned int param_3) {
+  return (param_3 ^ 0x7F88 | param_2 ^ 0x8FE7) * ((param_1 & 0xffff) >> 8 ^ param_1 & 0xff) & 0xffff;
 }
 
 short ShortMaskedSumAndProduct(short param_1, short param_2) {
   unsigned short uVar1;
 
-  uVar1 = param_2 + param_1 * 0x5ba & 0xff;
+  uVar1 = param_2 + param_1 * 0x0006 & 0xff;
   return (uVar1 + param_1) * (uVar1 + param_2);
 }
 
-uint32_t MaskedBitwiseRotateMultiply(uint32_t param_1, uint32_t param_2) {
-  uint32_t uVar1;
+unsigned int MaskedBitwiseRotateMultiply(unsigned int param_1, unsigned int param_2) {
+  unsigned int uVar1;
 
   param_1 = param_1 & 0xffff;
   param_2 = param_2 & 0xffff;
-  uVar1 = param_2 & (param_1 | 0x5ba) & 0xf;
-  return ((uint32_t)param_1 >> uVar1 | param_1 << (0x10 - uVar1 & 0x1f)) *
-             (param_2 << uVar1 | (uint32_t)param_2 >> (0x10 - uVar1 & 0x1f)) &
+  uVar1 = param_2 & (param_1 | 0x0006) & 0xf;
+  return ((unsigned int)param_1 >> uVar1 | param_1 << (0x10 - uVar1 & 0x1f)) *
+             (param_2 << uVar1 | (unsigned int)param_2 >> (0x10 - uVar1 & 0x1f)) &
          0xffff;
 }
 
-uint32_t CryptAlgo(uint32_t param_1, uint32_t param_2, uint32_t param_3) {
-  uint32_t uVar1, uVar2, iVar3, iVar4;
+unsigned int CryptAlgo(unsigned int param_1, unsigned int param_2, unsigned int param_3) {
+  unsigned int uVar1, uVar2, iVar3, iVar4;
 
   uVar1 = MaskedBitwiseRotateMultiply(param_2, param_3);
   uVar2 = ShortMaskedSumAndProduct(param_2, param_3);
   uVar1 = ComputeMaskedXorProduct(param_1, uVar1, uVar2);
   uVar2 = ComputeMaskedXorProduct(param_1, uVar2, uVar1);
-  iVar3 = CyclicXorHash16Bit(uVar1, 0xffc4);
-  iVar4 = CyclicXorHash16Bit(uVar2, 0xffc4);
+  iVar3 = CyclicXorHash16Bit(uVar1, 0x8421);
+  iVar4 = CyclicXorHash16Bit(uVar2, 0x8421);
   return iVar4 + iVar3 * 0x10000;
 }
 
-void decodeChallengeData(uint32_t incomingChallenge, unsigned char* solvedChallenge) {
-  uint32_t uVar1, uVar2;
+void decodeChallengeData(unsigned int incomingChallenge, unsigned char* solvedChallenge) {
+  unsigned int uVar1, uVar2;
 
-  uVar1 = CryptAlgo(0x609, 0xDD2, incomingChallenge >> 0x10);
-  uVar2 = CryptAlgo(incomingChallenge & 0xffff, incomingChallenge >> 0x10, 0x609);
+  uVar1 = CryptAlgo(0x54e9, 0x3afd, incomingChallenge >> 0x10);
+  uVar2 = CryptAlgo(incomingChallenge & 0xffff, incomingChallenge >> 0x10, 0x54e9);
   *solvedChallenge = (unsigned char)uVar1;
   solvedChallenge[1] = (unsigned char)uVar2;
-  solvedChallenge[2] = (unsigned char)((uint32_t)uVar2 >> 8);
-  solvedChallenge[3] = (unsigned char)((uint32_t)uVar1 >> 8);
-  solvedChallenge[4] = (unsigned char)((uint32_t)uVar2 >> 16);
-  solvedChallenge[5] = (unsigned char)((uint32_t)uVar1 >> 16);
-  solvedChallenge[6] = (unsigned char)((uint32_t)uVar2 >> 24);
-  solvedChallenge[7] = (unsigned char)((uint32_t)uVar1 >> 24);
+  solvedChallenge[2] = (unsigned char)((unsigned int)uVar2 >> 8);
+  solvedChallenge[3] = (unsigned char)((unsigned int)uVar1 >> 8);
+  solvedChallenge[4] = (unsigned char)((unsigned int)uVar2 >> 0x10);
+  solvedChallenge[5] = (unsigned char)((unsigned int)uVar1 >> 0x10);
+  solvedChallenge[6] = (unsigned char)((unsigned int)uVar2 >> 0x18);
+  solvedChallenge[7] = (unsigned char)((unsigned int)uVar1 >> 0x18);
   return;
 }
 
