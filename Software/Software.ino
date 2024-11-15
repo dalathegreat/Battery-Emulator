@@ -120,6 +120,16 @@ MyTimer check_pause_2s(INTERVAL_2_S);
 enum State { DISCONNECTED, PRECHARGE, NEGATIVE, POSITIVE, PRECHARGE_OFF, COMPLETED, SHUTDOWN_REQUESTED };
 State contactorStatus = DISCONNECTED;
 
+#define ON 1
+#define OFF 0
+
+#ifdef NC_CONTACTORS //Normally closed contactors use inverted logic
+  #undef ON
+  #define ON 0
+  #undef OFF
+  #define OFF 1
+#endif
+
 #define MAX_ALLOWED_FAULT_TICKS 1000
 /* NOTE: modify the precharge time constant below to account for the resistance and capacitance of the target system.
  *	t=3RC at minimum, t=5RC ideally 
@@ -127,19 +137,33 @@ State contactorStatus = DISCONNECTED;
 #define PRECHARGE_TIME_MS 160
 #define NEGATIVE_CONTACTOR_TIME_MS 1000
 #define POSITIVE_CONTACTOR_TIME_MS 2000
-#ifdef PWM_CONTACTOR_CONTROL
 #define PWM_Freq 20000  // 20 kHz frequency, beyond audible range
 #define PWM_Res 10      // 10 Bit resolution 0 to 1023, maps 'nicely' to 0% 100%
-#define PWM_Hold_Duty 250
-#define PWM_Off_Duty 0
-#define PWM_On_Duty 1023
+#define PWM_HOLD_DUTY 250
+#define PWM_OFF_DUTY 0
+#define PWM_ON_DUTY 1023
 #define POSITIVE_PWM_Ch 0
 #define NEGATIVE_PWM_Ch 1
-#endif
 unsigned long prechargeStartTime = 0;
 unsigned long negativeStartTime = 0;
 unsigned long timeSpentInFaultedMode = 0;
 #endif
+
+void set(uint8_t pin, bool direction, uint32_t pwm_freq = 0xFFFFFFFFFF){
+  #ifdef PWM_CONTACTOR_CONTROL
+  if(pwm_freq != 0xFFFFFFFFFF)
+  {
+    ledcWrite(pin, pwm_freq);
+    return;
+  }
+  #endif
+  if(direction == 1){
+    digitalWrite(pin, HIGH);
+  }
+  else{ // 0
+    digitalWrite(pin, LOW);
+  }
+}
 
 #ifdef EQUIPMENT_STOP_BUTTON
 const unsigned long equipment_button_long_press_duration =
@@ -497,27 +521,27 @@ void init_CAN() {
 void init_contactors() {
   // Init contactor pins
 #ifdef CONTACTOR_CONTROL
-#ifndef PWM_CONTACTOR_CONTROL
-  pinMode(POSITIVE_CONTACTOR_PIN, OUTPUT);
-  digitalWrite(POSITIVE_CONTACTOR_PIN, LOW);
-  pinMode(NEGATIVE_CONTACTOR_PIN, OUTPUT);
-  digitalWrite(NEGATIVE_CONTACTOR_PIN, LOW);
-#else
+#ifdef PWM_CONTACTOR_CONTROL
   ledcAttachChannel(POSITIVE_CONTACTOR_PIN, PWM_Freq, PWM_Res,
                     POSITIVE_PWM_Ch);  // Setup PWM Channel Frequency and Resolution
   ledcAttachChannel(NEGATIVE_CONTACTOR_PIN, PWM_Freq, PWM_Res,
                     NEGATIVE_PWM_Ch);               // Setup PWM Channel Frequency and Resolution
-  ledcWrite(POSITIVE_CONTACTOR_PIN, PWM_Off_Duty);  // Set Positive PWM to 0%
-  ledcWrite(NEGATIVE_CONTACTOR_PIN, PWM_Off_Duty);  // Set Negative PWM to 0%
+  ledcWrite(POSITIVE_CONTACTOR_PIN, PWM_OFF_DUTY);  // Set Positive PWM to 0%
+  ledcWrite(NEGATIVE_CONTACTOR_PIN, PWM_OFF_DUTY);  // Set Negative PWM to 0%
+#else //Normal CONTACTOR_CONTROL
+  pinMode(POSITIVE_CONTACTOR_PIN, OUTPUT);
+  set(POSITIVE_CONTACTOR_PIN, OFF);
+  pinMode(NEGATIVE_CONTACTOR_PIN, OUTPUT);
+  set(NEGATIVE_CONTACTOR_PIN, OFF);
 #endif
   pinMode(PRECHARGE_PIN, OUTPUT);
-  digitalWrite(PRECHARGE_PIN, LOW);
-#endif
+  set(PRECHARGE_PIN, OFF);
+#endif //CONTACTOR_CONTROL
 // Init BMS contactor
 #ifdef HW_STARK  // TODO: Rewrite this so LilyGo can also handle this BMS contactor
   pinMode(BMS_POWER, OUTPUT);
-  digitalWrite(BMS_POWER, HIGH);
-#endif
+  set(BMS_POWER, ON);
+#endif //HW_STARK
 }
 
 void init_rs485() {
@@ -751,14 +775,9 @@ void handle_contactors() {
     contactorStatus = DISCONNECTED;
   }
   if (contactorStatus == SHUTDOWN_REQUESTED) {
-    digitalWrite(PRECHARGE_PIN, LOW);
-#ifndef PWM_CONTACTOR_CONTROL
-    digitalWrite(NEGATIVE_CONTACTOR_PIN, LOW);
-    digitalWrite(POSITIVE_CONTACTOR_PIN, LOW);
-#else
-    ledcWrite(NEGATIVE_CONTACTOR_PIN, PWM_Off_Duty);
-    ledcWrite(POSITIVE_CONTACTOR_PIN, PWM_Off_Duty);
-#endif
+    set(PRECHARGE_PIN, OFF);
+    set(NEGATIVE_CONTACTOR_PIN, OFF, PWM_OFF_DUTY);
+    set(POSITIVE_CONTACTOR_PIN, OFF, PWM_OFF_DUTY);
     set_event(EVENT_ERROR_OPEN_CONTACTOR, 0);
     datalayer.system.status.contactor_control_closed = false;
     return;  // A fault scenario latches the contactor control. It is not possible to recover without a powercycle (and investigation why fault occured)
@@ -766,14 +785,9 @@ void handle_contactors() {
 
   // After that, check if we are OK to start turning on the battery
   if (contactorStatus == DISCONNECTED) {
-    digitalWrite(PRECHARGE_PIN, LOW);
-#ifndef PWM_CONTACTOR_CONTROL
-    digitalWrite(NEGATIVE_CONTACTOR_PIN, LOW);
-    digitalWrite(POSITIVE_CONTACTOR_PIN, LOW);
-#else
-    ledcWrite(NEGATIVE_CONTACTOR_PIN, PWM_Off_Duty);
-    ledcWrite(POSITIVE_CONTACTOR_PIN, PWM_Off_Duty);
-#endif
+    set(PRECHARGE_PIN, OFF);
+    set(NEGATIVE_CONTACTOR_PIN, OFF, PWM_OFF_DUTY);
+    set(POSITIVE_CONTACTOR_PIN, OFF, PWM_OFF_DUTY);
 
     if (datalayer.system.status.battery_allows_contactor_closing &&
         datalayer.system.status.inverter_allows_contactor_closing) {
@@ -783,8 +797,9 @@ void handle_contactors() {
 
   // In case the inverter requests contactors to open, set the state accordingly
   if (contactorStatus == COMPLETED) {
-    if (!datalayer.system.status.inverter_allows_contactor_closing)
+    if (!datalayer.system.status.inverter_allows_contactor_closing){
       contactorStatus = DISCONNECTED;
+    }
     // Skip running the state machine below if it has already completed
     return;
   }
@@ -793,18 +808,14 @@ void handle_contactors() {
   // Handle actual state machine. This first turns on Precharge, then Negative, then Positive, and finally turns OFF precharge
   switch (contactorStatus) {
     case PRECHARGE:
-      digitalWrite(PRECHARGE_PIN, HIGH);
+      set(PRECHARGE_PIN, ON);
       prechargeStartTime = currentTime;
       contactorStatus = NEGATIVE;
       break;
 
     case NEGATIVE:
       if (currentTime - prechargeStartTime >= PRECHARGE_TIME_MS) {
-#ifndef PWM_CONTACTOR_CONTROL
-        digitalWrite(NEGATIVE_CONTACTOR_PIN, HIGH);
-#else
-        ledcWrite(NEGATIVE_CONTACTOR_PIN, PWM_On_Duty);
-#endif
+        set(NEGATIVE_CONTACTOR_PIN, ON, PWM_ON_DUTY);
         negativeStartTime = currentTime;
         contactorStatus = POSITIVE;
       }
@@ -812,22 +823,16 @@ void handle_contactors() {
 
     case POSITIVE:
       if (currentTime - negativeStartTime >= NEGATIVE_CONTACTOR_TIME_MS) {
-#ifndef PWM_CONTACTOR_CONTROL
-        digitalWrite(POSITIVE_CONTACTOR_PIN, HIGH);
-#else
-        ledcWrite(POSITIVE_CONTACTOR_PIN, PWM_On_Duty);
-#endif
+        set(POSITIVE_CONTACTOR_PIN, ON, PWM_ON_DUTY);
         contactorStatus = PRECHARGE_OFF;
       }
       break;
 
     case PRECHARGE_OFF:
       if (currentTime - negativeStartTime >= POSITIVE_CONTACTOR_TIME_MS) {
-        digitalWrite(PRECHARGE_PIN, LOW);
-#ifdef PWM_CONTACTOR_CONTROL
-        ledcWrite(NEGATIVE_CONTACTOR_PIN, PWM_Hold_Duty);
-        ledcWrite(POSITIVE_CONTACTOR_PIN, PWM_Hold_Duty);
-#endif
+        set(PRECHARGE_PIN, OFF);
+        set(NEGATIVE_CONTACTOR_PIN, PWM_HOLD_DUTY);
+        set(POSITIVE_CONTACTOR_PIN, PWM_HOLD_DUTY);
         contactorStatus = COMPLETED;
         datalayer.system.status.contactor_control_closed = true;
       }
