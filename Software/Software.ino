@@ -123,11 +123,11 @@ State contactorStatus = DISCONNECTED;
 #define ON 1
 #define OFF 0
 
-#ifdef NC_CONTACTORS //Normally closed contactors use inverted logic
-  #undef ON
-  #define ON 0
-  #undef OFF
-  #define OFF 1
+#ifdef NC_CONTACTORS  //Normally closed contactors use inverted logic
+#undef ON
+#define ON 0
+#undef OFF
+#define OFF 1
 #endif
 
 #define MAX_ALLOWED_FAULT_TICKS 1000
@@ -149,18 +149,16 @@ unsigned long negativeStartTime = 0;
 unsigned long timeSpentInFaultedMode = 0;
 #endif
 
-void set(uint8_t pin, bool direction, uint32_t pwm_freq = 0xFFFFFFFFFF){
-  #ifdef PWM_CONTACTOR_CONTROL
-  if(pwm_freq != 0xFFFFFFFFFF)
-  {
+void set(uint8_t pin, bool direction, uint32_t pwm_freq = 0xFFFFFFFFFF) {
+#ifdef PWM_CONTACTOR_CONTROL
+  if (pwm_freq != 0xFFFFFFFFFF) {
     ledcWrite(pin, pwm_freq);
     return;
   }
-  #endif
-  if(direction == 1){
+#endif
+  if (direction == 1) {
     digitalWrite(pin, HIGH);
-  }
-  else{ // 0
+  } else {  // 0
     digitalWrite(pin, LOW);
   }
 }
@@ -528,7 +526,7 @@ void init_contactors() {
                     NEGATIVE_PWM_Ch);               // Setup PWM Channel Frequency and Resolution
   ledcWrite(POSITIVE_CONTACTOR_PIN, PWM_OFF_DUTY);  // Set Positive PWM to 0%
   ledcWrite(NEGATIVE_CONTACTOR_PIN, PWM_OFF_DUTY);  // Set Negative PWM to 0%
-#else //Normal CONTACTOR_CONTROL
+#else                                               //Normal CONTACTOR_CONTROL
   pinMode(POSITIVE_CONTACTOR_PIN, OUTPUT);
   set(POSITIVE_CONTACTOR_PIN, OFF);
   pinMode(NEGATIVE_CONTACTOR_PIN, OUTPUT);
@@ -536,12 +534,18 @@ void init_contactors() {
 #endif
   pinMode(PRECHARGE_PIN, OUTPUT);
   set(PRECHARGE_PIN, OFF);
-#endif //CONTACTOR_CONTROL
+#endif  //CONTACTOR_CONTROL
+#ifdef CONTACTOR_CONTROL_DOUBLE_BATTERY
+  pinMode(SECOND_POSITIVE_CONTACTOR_PIN, OUTPUT);
+  set(SECOND_POSITIVE_CONTACTOR_PIN, OFF);
+  pinMode(SECOND_NEGATIVE_CONTACTOR_PIN, OUTPUT);
+  set(SECOND_NEGATIVE_CONTACTOR_PIN, OFF);
+#endif  //CONTACTOR_CONTROL_DOUBLE_BATTERY
 // Init BMS contactor
 #ifdef HW_STARK  // TODO: Rewrite this so LilyGo can also handle this BMS contactor
   pinMode(BMS_POWER, OUTPUT);
-  set(BMS_POWER, ON);
-#endif //HW_STARK
+  digitalWrite(BMS_POWER, HIGH);
+#endif  //HW_STARK
 }
 
 void init_rs485() {
@@ -797,9 +801,18 @@ void handle_contactors() {
 
   // In case the inverter requests contactors to open, set the state accordingly
   if (contactorStatus == COMPLETED) {
-    if (!datalayer.system.status.inverter_allows_contactor_closing){
+    if (!datalayer.system.status.inverter_allows_contactor_closing) {
       contactorStatus = DISCONNECTED;
     }
+#ifdef CONTACTOR_CONTROL_DOUBLE_BATTERY
+    if (datalayer.system.status.battery2_allows_contactor_closing) {
+      set(SECOND_NEGATIVE_CONTACTOR_PIN, ON);
+      set(SECOND_POSITIVE_CONTACTOR_PIN, ON);
+    } else {
+      set(SECOND_NEGATIVE_CONTACTOR_PIN, OFF);
+      set(SECOND_POSITIVE_CONTACTOR_PIN, OFF);
+    }
+#endif  //CONTACTOR_CONTROL_DOUBLE_BATTERY
     // Skip running the state machine below if it has already completed
     return;
   }
@@ -831,8 +844,8 @@ void handle_contactors() {
     case PRECHARGE_OFF:
       if (currentTime - negativeStartTime >= POSITIVE_CONTACTOR_TIME_MS) {
         set(PRECHARGE_PIN, OFF);
-        set(NEGATIVE_CONTACTOR_PIN, PWM_HOLD_DUTY);
-        set(POSITIVE_CONTACTOR_PIN, PWM_HOLD_DUTY);
+        set(NEGATIVE_CONTACTOR_PIN, ON, PWM_HOLD_DUTY);
+        set(POSITIVE_CONTACTOR_PIN, ON, PWM_HOLD_DUTY);
         contactorStatus = COMPLETED;
         datalayer.system.status.contactor_control_closed = true;
       }
