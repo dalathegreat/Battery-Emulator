@@ -1118,9 +1118,8 @@ void send_can_battery() {
 }
 
 void setup_battery(void) {  // Performs one time setup at startup
-#ifdef DEBUG_VIA_USB
-  Serial.println("BMW i3 battery selected");
-#endif  //DEBUG_VIA_USB
+  strncpy(datalayer.system.info.battery_protocol, "BMW i3", 63);
+  datalayer.system.info.battery_protocol[63] = '\0';
 
   //Before we have started up and detected which battery is in use, use 60AH values
   datalayer.battery.info.max_design_voltage_dV = MAX_PACK_VOLTAGE_60AH;
@@ -1129,9 +1128,6 @@ void setup_battery(void) {  // Performs one time setup at startup
   datalayer.system.status.battery_allows_contactor_closing = true;
 
 #ifdef DOUBLE_BATTERY
-#ifdef DEBUG_VIA_USB
-  Serial.println("Another BMW i3 battery also selected!");
-#endif  //DEBUG_VIA_USB
   datalayer.battery2.info.max_design_voltage_dV = datalayer.battery.info.max_design_voltage_dV;
   datalayer.battery2.info.min_design_voltage_dV = datalayer.battery.info.min_design_voltage_dV;
   datalayer.battery2.info.max_cell_voltage_deviation_mV = datalayer.battery.info.max_cell_voltage_deviation_mV;

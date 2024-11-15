@@ -14,4 +14,5 @@ void verify_temperature_modbus();
 void verify_inverter_modbus();
 void handle_update_data_modbusp201_byd();
 void handle_update_data_modbusp301_byd();
+void setup_inverter(void);
 #endif

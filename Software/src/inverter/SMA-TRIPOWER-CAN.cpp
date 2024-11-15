@@ -320,4 +320,9 @@ void send_tripower_init() {
   transmit_can(&SMA_017, can_config.inverter);  // Battery Manufacturer
   transmit_can(&SMA_018, can_config.inverter);  // Battery Name
 }
+
+void setup_inverter(void) {  // Performs one time setup at startup over CAN bus
+  strncpy(datalayer.system.info.inverter_protocol, "SMA Tripower CAN", 63);
+  datalayer.system.info.inverter_protocol[63] = '\0';
+}
 #endif

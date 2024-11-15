@@ -252,4 +252,9 @@ void receive_can_inverter(CAN_frame rx_frame) {
 #endif
   }
 }
+void setup_inverter(void) {  // Performs one time setup at startup
+  strncpy(datalayer.system.info.inverter_protocol, "SolaX Triple Power LFP over CAN bus", 63);
+  datalayer.system.info.inverter_protocol[63] = '\0';
+  datalayer.system.status.inverter_allows_contactor_closing = false;  // The inverter needs to allow first
+}
 #endif
