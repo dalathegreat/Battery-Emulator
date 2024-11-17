@@ -66,7 +66,7 @@ static uint8_t BMS_16A954A6_counter = 0;
 static bool BMS_fault_status_contactor = false;
 static bool BMS_exp_limits_active = 0;
 static uint8_t BMS_mode = 0x07;
-static bool BMS_HVIL_status = 0;
+static uint8_t BMS_HVIL_status = 0;  //0 init, 1 seated, 2 open, 3 fault
 static bool BMS_fault_HVbatt_shutdown = 0;
 static bool BMS_fault_HVbatt_shutdown_req = 0;
 static bool BMS_fault_performance = 0;
@@ -88,7 +88,7 @@ static uint16_t max_charge_power_watt = 0;
 static uint16_t max_charge_current_amp = 0;
 static uint16_t battery_SOC = 0;
 static uint16_t usable_energy_amount_Wh = 0;
-static uint8_t status_HV_line = 0;
+static uint8_t status_HV_line = 0;  //0 init, 1 No open HV line, 2 open HV line detected, 3 fault
 static uint8_t warning_support = 0;
 static bool battery_heating_active = false;
 static uint16_t power_discharge_percentage = 0;
@@ -619,7 +619,7 @@ void receive_can_battery(CAN_frame rx_frame) {
       usable_energy_amount_Wh = (rx_frame.data.u8[7] << 8) | rx_frame.data.u8[6];                   //*5
       power_discharge_percentage = ((rx_frame.data.u8[4] & 0x3F) << 4) | rx_frame.data.u8[3] >> 4;  //*0.2
       power_charge_percentage = (rx_frame.data.u8[5] << 2) | rx_frame.data.u8[4] >> 6;              //*0.2
-      status_HV_line = ((rx_frame.data.u8[2] & 0x01) << 2) | rx_frame.data.u8[1] >> 7;
+      status_HV_line = ((rx_frame.data.u8[2] & 0x01) << 1) | rx_frame.data.u8[1] >> 7;
       warning_support = (rx_frame.data.u8[1] & 0x70) >> 4;
       break;
     case 0x12DD54D2:  // BMS 100ms
@@ -921,7 +921,7 @@ void receive_can_battery(CAN_frame rx_frame) {
       BMS_error_shutdown_request = (rx_frame.data.u8[2] & 0x40) >> 6;
       BMS_error_shutdown = (rx_frame.data.u8[2] & 0x20) >> 5;
       BMS_mode = (rx_frame.data.u8[2] & 0x07);
-      BMS_HVIL_status = (rx_frame.data.u8[2] & 0x08) >> 3;
+      BMS_HVIL_status = (rx_frame.data.u8[2] & 0x18) >> 3;
       //BMS_exp_limits_active
       //BMS_fault_performance
       //BMS_fault_emergency_shutdown_crash
