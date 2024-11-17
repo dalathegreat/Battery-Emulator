@@ -331,11 +331,6 @@ String advanced_battery_processor(const String& var) {
     content += "<h4>Heating stopped: " + String(datalayer_extended.nissanleaf.HeatingStop) + "</h4>";
     content += "<h4>Heating started: " + String(datalayer_extended.nissanleaf.HeatingStart) + "</h4>";
     content += "<h4>Heating requested: " + String(datalayer_extended.nissanleaf.HeaterSendRequest) + "</h4>";
-    content += "<button onclick='askResetSOH()'>Reset degradation data</button>";
-    content += "<h4>CryptoChallenge: " + String(datalayer_extended.nissanleaf.CryptoChallenge) + "</h4>";
-    content += "<h4>SolvedChallenge: " + String(datalayer_extended.nissanleaf.SolvedChallengeMSB) +
-               String(datalayer_extended.nissanleaf.SolvedChallengeLSB) + "</h4>";
-    content += "<h4>Challenge failed: " + String(datalayer_extended.nissanleaf.challengeFailed) + "</h4>";
 #endif
 
 #ifdef MEB_BATTERY
@@ -346,20 +341,52 @@ String advanced_battery_processor(const String& var) {
     content += datalayer_extended.meb.shutdown_active ? "<h4>Shutdown: Active!</h4>" : "<h4>Shutdown: No</h4>";
     content += datalayer_extended.meb.componentprotection ? "<h4>Component protection: Active!</h4>"
                                                           : "<h4>Component protection: No</h4>";
-    const char* HVIL_status[] = {"Init", "Closed", "Open!", "Fault"};
-    content += "<h4>HVIL status: " + String(HVIL_status[datalayer_extended.meb.HVIL]) + "</h4>";
-    const char* BMS_modes[] = {"HV inactive", "HV active",     "Balancing",   "Extern charging",
-                               "AC charging", "Battery error", "DC charging", "Init"};
-    content += "<h4>BMS mode: " + String(BMS_modes[datalayer_extended.meb.BMS_mode]) + "</h4>";
-    const char* diagnostic_modes[] = {"Init", "Battery display",       "",     "", "Battery display OK",
-                                      "",     "Display battery check", "Fault"};
-    content += "<h4>Diagnostic: " + String(diagnostic_modes[datalayer_extended.meb.battery_diagnostic]) + "</h4>";
-    const char* HV_line_status[] = {"Init", "No open HV line detected", "Open HV line", "Fault"};
-    content += "<h4>HV line status: " + String(HV_line_status[datalayer_extended.meb.status_HV_line]) + "</h4>";
-    const char* warning_support_status[] = {"OK", "Not OK", "", "", "", "", "Init", "Fault"};
-    content +=
-        "<h4>Warning support: " + String(warning_support_status[datalayer_extended.meb.warning_support]) + "</h4>";
-    content += "<h4>Isolation resistance: " + String(datalayer_extended.meb.isolation_resistance) + " kOhm</h4>";
+    content += "<h4>HVIL status: ";
+    switch (datalayer_extended.meb.HVIL){
+      case 0: content+= String("Init"); break;
+      case 1: content+= String("Closed"); break;
+      case 2: content+= String("Open!"); break;
+      case 3: content+= String("Fault"); break;
+      default: content += String("?");
+    }
+    content += "</h4><h4>BMS mode: ";
+    switch (datalayer_extended.meb.BMS_mode){
+      case 0: content+= String("HV inactive"); break;
+      case 1: content+= String("HV active"); break;
+      case 2: content+= String("Balancing"); break;
+      case 3: content+= String("Extern charging"); break;
+      case 4: content+= String("AC charging"); break;
+      case 5: content+= String("Battery error"); break;
+      case 6: content+= String("DC charging"); break;
+      case 7: content+= String("Init"); break;
+      default: content += String("?");
+    }
+    content += "</h4><h4>Diagnostic: ";
+    switch (datalayer_extended.meb.battery_diagnostic){
+      case 0: content+= String("Init"); break;
+      case 1: content+= String("Battery display"); break;
+      case 4: content+= String("Battery display OK"); break;
+      case 6: content+= String("Battery display check"); break;
+      case 7: content+= String("Fault"); break;
+      default: content += String("?");
+    }
+    content += "</h4><h4>HV line status: ";
+    switch (datalayer_extended.meb.status_HV_line){
+      case 0: content+= String("Init"); break;
+      case 1: content+= String("No open HV line detected"); break;
+      case 2: content+= String("Open HV line"); break;
+      case 3: content+= String("Fault"); break;
+      default: content += String("? ") + String(datalayer_extended.meb.status_HV_line);
+    }
+    content += "</h4><h4>Warning support: ";
+    switch (datalayer_extended.meb.warning_support){
+      case 0: content+= String("OK"); break;
+      case 1: content+= String("Not OK"); break;
+      case 6: content+= String("Init"); break;
+      case 7: content+= String("Fault"); break;
+      default: content += String("?");
+    }
+    content += "</h4><h4>Isolation resistance: " + String(datalayer_extended.meb.isolation_resistance) + " kOhm</h4>";
     content +=
         datalayer_extended.meb.battery_heating ? "<h4>Battery heating: Active!</h4>" : "<h4>Battery heating: Off</h4>";
     const char* rt_enum[] = {"No", "Error level 1", "Error level 2", "Error level 3"};
@@ -436,15 +463,6 @@ String advanced_battery_processor(const String& var) {
     content += "</div>";
 
     content += "<script>";
-    content +=
-        "function askResetSOH() { if (window.confirm('Are you sure you want to reset degradation data? "
-        "Note this should only be used on 2011-2017 24/30kWh batteries!')) { "
-        "resetSOH(); } }";
-    content += "function resetSOH() {";
-    content += "  var xhr = new XMLHttpRequest();";
-    content += "  xhr.open('GET', '/resetSOH', true);";
-    content += "  xhr.send();";
-    content += "}";
     content += "function goToMainPage() { window.location.href = '/'; }";
     content += "</script>";
     return content;
