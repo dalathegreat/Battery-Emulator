@@ -15,6 +15,7 @@
 static unsigned long previousMillis50 = 0;   // will store last time a 50ms CAN Message was send
 static unsigned long previousMillis100 = 0;  // will store last time a 100ms CAN Message was send
 static unsigned long previousMillis500 = 0;  // will store last time a 500ms CAN Message was send
+static bool SOC_method = false;
 static uint8_t counter_50ms = 0;
 static uint8_t counter_100ms = 0;
 static uint8_t frame6_counter = 0xB;
@@ -61,6 +62,8 @@ static uint16_t BMS2_highest_cell_voltage_mV = 3300;
 #define POLL_FOR_BATTERY_CELL_MV_MAX 0x2D
 #define POLL_FOR_BATTERY_CELL_MV_MIN 0x2B
 #define UNKNOWN_POLL_1 0xFC
+#define ESTIMATED 0
+#define MEASURED 1
 static uint16_t poll_state = POLL_FOR_BATTERY_SOC;
 
 CAN_frame ATTO_3_12D = {.FD = false,
@@ -113,8 +116,10 @@ void update_values_battery() {  //This function maps all the values fetched via 
   // We instead estimate the SOC% based on the battery voltage.
   // This is a bad solution, you wont be able to use 100% of the battery
   datalayer.battery.status.real_soc = estimateSOC(datalayer.battery.status.voltage_dV);
+  SOC_method = ESTIMATED;
 #else  // Pack is not crashed, we can use periodically transmitted SOC
   datalayer.battery.status.real_soc = highprecision_SOC * 100;
+  SOC_method = MEASURED;
 #endif
 
   datalayer.battery.status.current_dA = -BMS_current;
@@ -151,6 +156,7 @@ void update_values_battery() {  //This function maps all the values fetched via 
   datalayer.battery.status.temperature_max_dC = battery_calc_max_temperature * 10;
 
   // Update webserver datalayer
+  datalayer_extended.bydAtto3.SOC_method = SOC_method;
   datalayer_extended.bydAtto3.SOC_estimated = datalayer.battery.status.real_soc;
   //Once we implement switching logic, remember to change from where the estimated is taken
   datalayer_extended.bydAtto3.SOC_highprec = battery_highprecision_SOC;

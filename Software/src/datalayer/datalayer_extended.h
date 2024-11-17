@@ -71,6 +71,9 @@ typedef struct {
 } DATALAYER_INFO_BMWI3;
 
 typedef struct {
+  /** bool */
+  /** Which SOC method currently used. 0 = Estimated, 1 = Measured */
+  bool SOC_method = 0;
   /** uint16_t */
   /** SOC% estimate. Estimated from total pack voltage */
   uint16_t SOC_estimated = 0;
