@@ -32,6 +32,7 @@ static uint8_t BMS_ign = 0;
 static uint8_t batteryRelay = 0;
 static uint8_t waterleakageSensor = 164;
 static uint8_t counter_200 = 0;
+static uint8_t startup_counter_200 = 0;
 static int8_t temperature_water_inlet = 0;
 static int8_t heatertemp = 0;
 static int8_t powerRelayTemperature = 0;
@@ -240,7 +241,7 @@ void receive_can_battery(CAN_frame rx_frame) {
       startedUp = true;
       batteryVoltage = (rx_frame.data.u8[7] << 8) + rx_frame.data.u8[6];
       batteryAmps = (rx_frame.data.u8[5] << 8) + rx_frame.data.u8[4];
-      if (counter_200 > 3) {
+      if (startup_counter_200 > 3) {
         KIA_HYUNDAI_524.data.u8[0] = (uint8_t)(batteryVoltage / 10);
         KIA_HYUNDAI_524.data.u8[1] = (uint8_t)((batteryVoltage / 10) >> 8);
       }  //VCU measured voltage sent back to bms
@@ -263,7 +264,7 @@ void receive_can_battery(CAN_frame rx_frame) {
       startedUp = true;
 
       //PID data is polled after last message sent from battery:
-      if (poll_data_pid >= 10) {  //polling one of ten PIDs at 100ms, resolution = 1s
+      if (poll_data_pid >= 7) {  //polling one of six PIDs at 100ms, resolution = 600ms
         poll_data_pid = 0;
       }
       poll_data_pid++;
@@ -279,10 +280,7 @@ void receive_can_battery(CAN_frame rx_frame) {
         transmit_can(&KIA64_7E4_id5, can_config.battery);
       } else if (poll_data_pid == 6) {
         transmit_can(&KIA64_7E4_id6, can_config.battery);
-      } else if (poll_data_pid == 7) {
-      } else if (poll_data_pid == 8) {
-      } else if (poll_data_pid == 9) {
-      } else if (poll_data_pid == 10) {
+      } else {
       }
       break;
     case 0x7EC:  //Data From polled PID group, BigEndian
@@ -472,8 +470,10 @@ void send_can_battery() {
     previousMillis100 = currentMillis;
 
     transmit_can(&KIA64_553, can_config.battery);
-    transmit_can(&KIA64_57F, can_config.battery);
-    transmit_can(&KIA64_2A1, can_config.battery);
+    if (datalayer.battery.status.bms_status != FAULT) {  // Only proceed sending if we are not in fault state
+      transmit_can(&KIA64_57F, can_config.battery);
+      transmit_can(&KIA64_2A1, can_config.battery);
+    }
   }
   // Send 10ms CAN Message
   if (currentMillis - previousMillis10 >= INTERVAL_10_MS) {
@@ -485,51 +485,38 @@ void send_can_battery() {
     }
     previousMillis10 = currentMillis;
 
-    switch (counter_200) {
-      case 0:
-        KIA_HYUNDAI_200.data.u8[5] = 0x17;
-        ++counter_200;
-        break;
-      case 1:
-        KIA_HYUNDAI_200.data.u8[5] = 0x57;
-        ++counter_200;
-        break;
-      case 2:
-        KIA_HYUNDAI_200.data.u8[5] = 0x97;
-        ++counter_200;
-        break;
-      case 3:
-        KIA_HYUNDAI_200.data.u8[5] = 0xD7;
-        ++counter_200;
-        break;
-      case 4:
-        KIA_HYUNDAI_200.data.u8[3] = 0x10;
-        KIA_HYUNDAI_200.data.u8[5] = 0xFF;
-        ++counter_200;
-        break;
-      case 5:
-        KIA_HYUNDAI_200.data.u8[5] = 0x3B;
-        ++counter_200;
-        break;
-      case 6:
-        KIA_HYUNDAI_200.data.u8[5] = 0x7B;
-        ++counter_200;
-        break;
-      case 7:
-        KIA_HYUNDAI_200.data.u8[5] = 0xBB;
-        ++counter_200;
-        break;
-      case 8:
-        KIA_HYUNDAI_200.data.u8[5] = 0xFB;
-        counter_200 = 5;
-        break;
+    if (datalayer.battery.status.bms_status == FAULT) {  // Open contactors
+      KIA_HYUNDAI_200.data = {0x09, 0x00, 0x9D, 0x00, 0x00, 0x00, 0xD0, 0x00};
+    } else {  //Normal startup sequence for contactor closing
+      KIA_HYUNDAI_200.data = {0x00, 0x80, 0xD8, 0x10, 0x00, 0x17, 0xD0, 0x00};
+      switch (startup_counter_200) {
+        case 0:
+        case 1:
+        case 2:
+        case 3:
+          KIA_HYUNDAI_200.data.u8[3] = 0x04;
+          ++startup_counter_200;
+          break;
+        case 4:
+          KIA_HYUNDAI_200.data.u8[5] = 0xFF;
+          ++startup_counter_200;
+          counter_200 = 3;
+          break;
+        case 5:
+          KIA_HYUNDAI_200.data.u8[5] = 0x3B;
+          break;
+        default:
+          break;
+      }
     }
+    KIA_HYUNDAI_200.data.u8[5] = (counter_200 << 6) | KIA_HYUNDAI_200.data.u8[5];
+    counter_200 = (counter_200 + 1) % 4;  // cycles between 0-1-2-3-0-1...
 
     transmit_can(&KIA_HYUNDAI_200, can_config.battery);
-
-    transmit_can(&KIA_HYUNDAI_523, can_config.battery);
-
-    transmit_can(&KIA_HYUNDAI_524, can_config.battery);
+    if (datalayer.battery.status.bms_status != FAULT) {  // Only proceed sending if we are not in fault state
+      transmit_can(&KIA_HYUNDAI_523, can_config.battery);
+      transmit_can(&KIA_HYUNDAI_524, can_config.battery);
+    }
   }
 }
 
