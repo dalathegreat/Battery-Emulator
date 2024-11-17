@@ -164,8 +164,6 @@ inline void process_vehicle_charging_maximums(CAN_frame rx_frame) {
 }
 
 inline void process_vehicle_charging_session(CAN_frame rx_frame) {
-  pinMode(CHADEMO_PIN_4, INPUT);
-
   uint16_t newTargetBatteryVoltage = ((rx_frame.data.u8[2] << 8) | rx_frame.data.u8[1]);
   uint16_t priorTargetBatteryVoltage = x102_chg_session.TargetBatteryVoltage;
   uint8_t newChargingCurrentRequest = rx_frame.data.u8[3];
@@ -773,7 +771,6 @@ void handle_chademo_sequence() {
   switch (CHADEMO_Status) {
     case CHADEMO_IDLE:
       /* this is where we can unlock connector */
-      pinMode(CHADEMO_PIN_7, INPUT);
       digitalWrite(CHADEMO_LOCK, LOW);
       plug_inserted = digitalRead(CHADEMO_PIN_7);
 
@@ -1034,9 +1031,19 @@ void handle_chademo_sequence() {
 }
 
 void setup_battery(void) {  // Performs one time setup at startup
-#ifdef DEBUG_VIA_USB
-  Serial.println("Chademo battery selected");
-#endif
+
+  intervalUpdateValues = 800;  // This mode requires the values to be updated faster
+  pinMode(CHADEMO_PIN_2, OUTPUT);
+  digitalWrite(CHADEMO_PIN_2, LOW);
+  pinMode(CHADEMO_PIN_10, OUTPUT);
+  digitalWrite(CHADEMO_PIN_10, LOW);
+  pinMode(CHADEMO_LOCK, OUTPUT);
+  digitalWrite(CHADEMO_LOCK, LOW);
+  pinMode(CHADEMO_PIN_4, INPUT);
+  pinMode(CHADEMO_PIN_7, INPUT);
+
+  strncpy(datalayer.system.info.battery_protocol, "Chademo V2X mode", 63);
+  datalayer.system.info.battery_protocol[63] = '\0';
 
   CHADEMO_Status = CHADEMO_IDLE;
 
@@ -1078,6 +1085,9 @@ void setup_battery(void) {  // Performs one time setup at startup
   x109_evse_state.s.status.ChgDischStopControl = 1;
 
   handle_chademo_sequence();
+//  ISA_deFAULT();        // ISA Setup - it is sufficient to set it once, because it is saved in SUNT
+//  ISA_initialize();     // ISA Setup - it is sufficient to set it once, because it is saved in SUNT
+//  ISA_RESTART();
 
   setupMillis = millis();
 }

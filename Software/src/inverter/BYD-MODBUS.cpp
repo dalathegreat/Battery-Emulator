@@ -143,4 +143,8 @@ void verify_inverter_modbus() {
     history_index = (history_index + 1) % HISTORY_LENGTH;
   }
 }
+void setup_inverter(void) {  // Performs one time setup at startup over CAN bus
+  strncpy(datalayer.system.info.inverter_protocol, "BYD 11kWh HVM battery over Modbus RTU", 63);
+  datalayer.system.info.inverter_protocol[63] = '\0';
+}
 #endif

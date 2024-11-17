@@ -233,4 +233,8 @@ void send_can_inverter() {
     time_to_send_info = false;
   }
 }
+void setup_inverter(void) {  // Performs one time setup at startup over CAN bus
+  strncpy(datalayer.system.info.inverter_protocol, "Afore battery over CAN", 63);
+  datalayer.system.info.inverter_protocol[63] = '\0';
+}
 #endif

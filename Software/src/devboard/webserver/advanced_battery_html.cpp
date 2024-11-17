@@ -331,6 +331,11 @@ String advanced_battery_processor(const String& var) {
     content += "<h4>Heating stopped: " + String(datalayer_extended.nissanleaf.HeatingStop) + "</h4>";
     content += "<h4>Heating started: " + String(datalayer_extended.nissanleaf.HeatingStart) + "</h4>";
     content += "<h4>Heating requested: " + String(datalayer_extended.nissanleaf.HeaterSendRequest) + "</h4>";
+    content += "<button onclick='askResetSOH()'>Reset degradation data</button>";
+    content += "<h4>CryptoChallenge: " + String(datalayer_extended.nissanleaf.CryptoChallenge) + "</h4>";
+    content += "<h4>SolvedChallenge: " + String(datalayer_extended.nissanleaf.SolvedChallengeMSB) +
+               String(datalayer_extended.nissanleaf.SolvedChallengeLSB) + "</h4>";
+    content += "<h4>Challenge failed: " + String(datalayer_extended.nissanleaf.challengeFailed) + "</h4>";
 #endif
 
 #ifdef RENAULT_ZOE_GEN2_BATTERY
@@ -388,6 +393,15 @@ String advanced_battery_processor(const String& var) {
     content += "</div>";
 
     content += "<script>";
+    content +=
+        "function askResetSOH() { if (window.confirm('Are you sure you want to reset degradation data? "
+        "Note this should only be used on 2011-2017 24/30kWh batteries!')) { "
+        "resetSOH(); } }";
+    content += "function resetSOH() {";
+    content += "  var xhr = new XMLHttpRequest();";
+    content += "  xhr.open('GET', '/resetSOH', true);";
+    content += "  xhr.send();";
+    content += "}";
     content += "function goToMainPage() { window.location.href = '/'; }";
     content += "</script>";
     return content;
