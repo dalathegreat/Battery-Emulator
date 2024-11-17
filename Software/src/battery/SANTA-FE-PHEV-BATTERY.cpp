@@ -85,10 +85,6 @@ void update_values_battery() {  //This function maps all the values fetched via 
 
   datalayer.battery.status.max_charge_power_W = allowedChargePower * 10;
 
-  //Power in watts, Negative = charging batt
-  datalayer.battery.status.active_power_W =
-      ((datalayer.battery.status.voltage_dV * datalayer.battery.status.current_dA) / 100);
-
   datalayer.battery.status.cell_max_voltage_mV = CellVoltMax_mV;
 
   datalayer.battery.status.cell_min_voltage_mV = CellVoltMin_mV;
@@ -406,9 +402,8 @@ uint8_t CalculateCRC8(CAN_frame rx_frame) {
 }
 
 void setup_battery(void) {  // Performs one time setup at startup
-#ifdef DEBUG_VIA_USB
-  Serial.println("Hyundai Santa Fe PHEV battery selected");
-#endif
+  strncpy(datalayer.system.info.battery_protocol, "Santa Fe PHEV", 63);
+  datalayer.system.info.battery_protocol[63] = '\0';
   datalayer.battery.info.number_of_cells = 96;
   datalayer.battery.info.max_design_voltage_dV = MAX_PACK_VOLTAGE_DV;
   datalayer.battery.info.min_design_voltage_dV = MIN_PACK_VOLTAGE_DV;

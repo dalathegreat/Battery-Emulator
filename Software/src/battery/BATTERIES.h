@@ -62,6 +62,10 @@
 #include "RJXZS-BMS.h"
 #endif
 
+#ifdef RANGE_ROVER_PHEV_BATTERY
+#include "RANGE-ROVER-PHEV-BATTERY.h"
+#endif
+
 #ifdef RENAULT_KANGOO_BATTERY
 #include "RENAULT-KANGOO-BATTERY.h"
 #endif

@@ -239,7 +239,6 @@ static int16_t battery_temperature_max = 0;
 static int16_t battery_temperature_min = 0;
 static int16_t battery_max_charge_amperage = 0;
 static int16_t battery_max_discharge_amperage = 0;
-static int16_t battery_power = 0;
 static int16_t battery_current = 0;
 static uint8_t battery_status_error_isolation_external_Bordnetz = 0;
 static uint8_t battery_status_error_isolation_internal_Bordnetz = 0;
@@ -308,7 +307,6 @@ static int16_t battery2_temperature_max = 0;
 static int16_t battery2_temperature_min = 0;
 static int16_t battery2_max_charge_amperage = 0;
 static int16_t battery2_max_discharge_amperage = 0;
-static int16_t battery2_power = 0;
 static int16_t battery2_current = 0;
 static uint8_t battery2_status_error_isolation_external_Bordnetz = 0;
 static uint8_t battery2_status_error_isolation_internal_Bordnetz = 0;
@@ -388,10 +386,6 @@ void update_values_battery2() {  //This function maps all the values fetched via
     datalayer.battery2.status.max_charge_power_W = battery2_BEV_available_power_longterm_charge;
   }
 
-  battery2_power = (datalayer.battery2.status.current_dA * (datalayer.battery2.status.voltage_dV / 100));
-
-  datalayer.battery2.status.active_power_W = battery2_power;
-
   datalayer.battery2.status.temperature_min_dC = battery2_temperature_min * 10;  // Add a decimal
 
   datalayer.battery2.status.temperature_max_dC = battery2_temperature_max * 10;  // Add a decimal
@@ -455,10 +449,6 @@ void update_values_battery() {  //This function maps all the values fetched via 
   datalayer.battery.status.max_discharge_power_W = battery_BEV_available_power_longterm_discharge;
 
   datalayer.battery.status.max_charge_power_W = battery_BEV_available_power_longterm_charge;
-
-  battery_power = (datalayer.battery.status.current_dA * (datalayer.battery.status.voltage_dV / 100));
-
-  datalayer.battery.status.active_power_W = battery_power;
 
   datalayer.battery.status.temperature_min_dC = battery_temperature_min * 10;  // Add a decimal
 
@@ -1128,9 +1118,8 @@ void send_can_battery() {
 }
 
 void setup_battery(void) {  // Performs one time setup at startup
-#ifdef DEBUG_VIA_USB
-  Serial.println("BMW i3 battery selected");
-#endif  //DEBUG_VIA_USB
+  strncpy(datalayer.system.info.battery_protocol, "BMW i3", 63);
+  datalayer.system.info.battery_protocol[63] = '\0';
 
   //Before we have started up and detected which battery is in use, use 60AH values
   datalayer.battery.info.max_design_voltage_dV = MAX_PACK_VOLTAGE_60AH;
@@ -1139,9 +1128,6 @@ void setup_battery(void) {  // Performs one time setup at startup
   datalayer.system.status.battery_allows_contactor_closing = true;
 
 #ifdef DOUBLE_BATTERY
-#ifdef DEBUG_VIA_USB
-  Serial.println("Another BMW i3 battery also selected!");
-#endif  //DEBUG_VIA_USB
   datalayer.battery2.info.max_design_voltage_dV = datalayer.battery.info.max_design_voltage_dV;
   datalayer.battery2.info.min_design_voltage_dV = datalayer.battery.info.min_design_voltage_dV;
   datalayer.battery2.info.max_cell_voltage_deviation_mV = datalayer.battery.info.max_cell_voltage_deviation_mV;

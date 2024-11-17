@@ -19,10 +19,6 @@ typedef struct {
   uint16_t min_cell_voltage_mV = 2700;
   /** The maxumum allowed deviation between cells, in milliVolt. 500 = 0.500 V */
   uint16_t max_cell_voltage_deviation_mV = 500;
-  /** BYD CAN specific setting, max charge in deciAmpere. 300 = 30.0 A */
-  uint16_t max_charge_amp_dA = BATTERY_MAX_CHARGE_AMP;
-  /** BYD CAN specific setting, max discharge in deciAmpere. 300 = 30.0 A */
-  uint16_t max_discharge_amp_dA = BATTERY_MAX_DISCHARGE_AMP;
 
   /** uint8_t */
   /** Total number of cells in the pack */
@@ -35,7 +31,7 @@ typedef struct {
 
 typedef struct {
   /** int32_t */
-  /** Instantaneous battery power in Watts */
+  /** Instantaneous battery power in Watts. Calculated based on voltage_dV and current_dA */
   /* Positive value = Battery Charging */
   /* Negative value = Battery Discharging */
   int32_t active_power_W;
@@ -49,10 +45,14 @@ typedef struct {
    */
   uint32_t reported_remaining_capacity_Wh;
 
-  /** Maximum allowed battery discharge power in Watts */
+  /** Maximum allowed battery discharge power in Watts. Set by battery */
   uint32_t max_discharge_power_W = 0;
-  /** Maximum allowed battery charge power in Watts */
+  /** Maximum allowed battery charge power in Watts. Set by battery */
   uint32_t max_charge_power_W = 0;
+  /** Maximum allowed battery discharge current in dA. Calculated based on allowed W and Voltage */
+  uint16_t max_discharge_current_dA = 0;
+  /** Maximum allowed battery charge current in dA. Calculated based on allowed W and Voltage  */
+  uint16_t max_charge_current_dA = 0;
 
   /** int16_t */
   /** Maximum temperature currently measured in the pack, in d°C. 150 = 15.0 °C */
@@ -107,6 +107,10 @@ typedef struct {
    * you want the inverter to be able to use. At this real SOC, the inverter
    * will "see" 100% */
   uint16_t max_percentage = BATTERY_MAXPERCENTAGE;
+  /** The user specified maximum allowed charge rate, in deciAmpere. 300 = 30.0 A */
+  uint16_t max_user_set_charge_dA = BATTERY_MAX_CHARGE_AMP;
+  /** The user specified maximum allowed discharge rate, in deciAmpere. 300 = 30.0 A */
+  uint16_t max_user_set_discharge_dA = BATTERY_MAX_DISCHARGE_AMP;
 } DATALAYER_BATTERY_SETTINGS_TYPE;
 
 typedef struct {
@@ -123,7 +127,10 @@ typedef struct {
 } DATALAYER_SHUNT_TYPE;
 
 typedef struct {
-  // TODO
+  /** array with type of battery used, for displaying on webserver */
+  char battery_protocol[64] = {0};
+  /** array with type of inverter used, for displaying on webserver */
+  char inverter_protocol[64] = {0};
 } DATALAYER_SYSTEM_INFO_TYPE;
 
 typedef struct {

@@ -22,7 +22,7 @@ CAN_frame TESLA_221_2 = {
     .DLC = 8,
     .ID = 0x221,
     .data = {0x61, 0x15, 0x01, 0x00, 0x00, 0x00, 0x20, 0xBA}};  //Contactor Frame 221 - hv_up_for_drive
-
+static uint16_t sendContactorClosingMessagesStill = 300;
 static uint32_t battery_total_discharge = 0;
 static uint32_t battery_total_charge = 0;
 static uint16_t battery_volts = 0;     // V
@@ -296,8 +296,6 @@ void update_values_battery() {  //This function maps all the values fetched via 
   } else {  // No limits, max charging power allowed
     datalayer.battery.status.max_charge_power_W = MAXCHARGEPOWERALLOWED;
   }
-
-  datalayer.battery.status.active_power_W = ((battery_volts / 10) * battery_amps);
 
   datalayer.battery.status.temperature_min_dC = battery_min_temp;
 
@@ -857,8 +855,6 @@ void update_values_battery2() {  //This function maps all the values fetched via
     datalayer.battery2.status.max_charge_power_W = MAXCHARGEPOWERALLOWED;
   }
 
-  datalayer.battery2.status.active_power_W = ((battery2_volts / 10) * battery2_amps);
-
   datalayer.battery2.status.temperature_min_dC = battery2_min_temp;
 
   datalayer.battery2.status.temperature_max_dC = battery2_max_temp;
@@ -1003,7 +999,7 @@ unsigned long lastSend118 = 0;
 
 int index_1CF = 0;
 int index_118 = 0;
-#endif
+#endif  //defined(TESLA_MODEL_SX_BATTERY) || defined(EXP_TESLA_BMS_DIGITAL_HVIL)
 
 void send_can_battery() {
   /*From bielec: My fist 221 message, to close the contactors is 0x41, 0x11, 0x01, 0x00, 0x00, 0x00, 0x20, 0x96 and then, 
@@ -1014,13 +1010,13 @@ the first, for a few cycles, then stop all  messages which causes the contactor 
   unsigned long currentMillis = millis();
 
 #if defined(TESLA_MODEL_SX_BATTERY) || defined(EXP_TESLA_BMS_DIGITAL_HVIL)
-  if (datalayer.system.status.inverter_allows_contactor_closing) {
+  if ((datalayer.system.status.inverter_allows_contactor_closing) && (datalayer.battery.status.bms_status != FAULT)) {
     if (currentMillis - lastSend1CF >= 10) {
       transmit_can(&can_msg_1CF[index_1CF], can_config.battery);
 
 #ifdef DOUBLE_BATTERY
       transmit_can(&can_msg_1CF[index_1CF], can_config.battery_double);
-#endif
+#endif  // DOUBLE_BATTERY
 
       index_1CF = (index_1CF + 1) % 8;
       lastSend1CF = currentMillis;
@@ -1030,7 +1026,7 @@ the first, for a few cycles, then stop all  messages which causes the contactor 
       transmit_can(&can_msg_118[index_118], can_config.battery);
 #ifdef DOUBLE_BATTERY
       transmit_can(&can_msg_1CF[index_1CF], can_config.battery_double);
-#endif
+#endif  //DOUBLE_BATTERY
 
       index_118 = (index_118 + 1) % 16;
       lastSend118 = currentMillis;
@@ -1039,7 +1035,7 @@ the first, for a few cycles, then stop all  messages which causes the contactor 
     index_1CF = 0;
     index_118 = 0;
   }
-#endif
+#endif  //defined(TESLA_MODEL_SX_BATTERY) || defined(EXP_TESLA_BMS_DIGITAL_HVIL)
 
   //Send 30ms message
   if (currentMillis - previousMillis30 >= INTERVAL_30_MS) {
@@ -1051,15 +1047,26 @@ the first, for a few cycles, then stop all  messages which causes the contactor 
     }
     previousMillis30 = currentMillis;
 
-    if (datalayer.system.status.inverter_allows_contactor_closing) {
+    if ((datalayer.system.status.inverter_allows_contactor_closing == true) &&
+        (datalayer.battery.status.bms_status != FAULT)) {
+      sendContactorClosingMessagesStill = 300;
       transmit_can(&TESLA_221_1, can_config.battery);
       transmit_can(&TESLA_221_2, can_config.battery);
 #ifdef DOUBLE_BATTERY
       if (datalayer.system.status.battery2_allows_contactor_closing) {
-        transmit_can(&TESLA_221_1, can_config.battery_double);  // CAN2 connected to battery 2
+        transmit_can(&TESLA_221_1, can_config.battery_double);
         transmit_can(&TESLA_221_2, can_config.battery_double);
       }
+#endif        //DOUBLE_BATTERY
+    } else {  // Faulted state, or inverter blocks contactor closing
+      if (sendContactorClosingMessagesStill > 0) {
+        transmit_can(&TESLA_221_1, can_config.battery);
+        sendContactorClosingMessagesStill--;
+
+#ifdef DOUBLE_BATTERY
+        transmit_can(&TESLA_221_1, can_config.battery_double);
 #endif  //DOUBLE_BATTERY
+      }
     }
   }
 }
@@ -1091,7 +1098,8 @@ void printFaultCodesIfActive() {
   }
   if (datalayer.system.status.inverter_allows_contactor_closing == false) {
     Serial.println(
-        "ERROR: Solar inverter does not allow for contactor closing. Check communication connection to the inverter OR "
+        "ERROR: Solar inverter does not allow for contactor closing. Check communication connection to the inverter "
+        "OR "
         "disable the inverter protocol to proceed with contactor closing");
   }
   // Check each symbol and print debug information if its value is 1
@@ -1166,7 +1174,8 @@ void printFaultCodesIfActive_battery2() {
   }
   if (datalayer.system.status.inverter_allows_contactor_closing == false) {
     Serial.println(
-        "ERROR: Solar inverter does not allow for contactor closing. Check communication connection to the inverter OR "
+        "ERROR: Solar inverter does not allow for contactor closing. Check communication connection to the inverter "
+        "OR "
         "disable the inverter protocol to proceed with contactor closing");
   }
   // Check each symbol and print debug information if its value is 1
@@ -1240,13 +1249,11 @@ void printDebugIfActive(uint8_t symbol, const char* message) {
 }
 
 void setup_battery(void) {  // Performs one time setup at startup
-#ifdef DEBUG_VIA_USB
-  Serial.println("Tesla Model S/3/X/Y battery selected");
-#endif
-
   datalayer.system.status.battery_allows_contactor_closing = true;
 
 #ifdef TESLA_MODEL_SX_BATTERY  // Always use NCM/A mode on S/X packs
+  strncpy(datalayer.system.info.battery_protocol, "Tesla Model S/X", 63);
+  datalayer.system.info.battery_protocol[63] = '\0';
   datalayer.battery.info.max_design_voltage_dV = MAX_PACK_VOLTAGE_SX_NCMA;
   datalayer.battery.info.min_design_voltage_dV = MIN_PACK_VOLTAGE_SX_NCMA;
   datalayer.battery.info.max_cell_voltage_mV = MAX_CELL_VOLTAGE_NCA_NCM;
@@ -1262,6 +1269,8 @@ void setup_battery(void) {  // Performs one time setup at startup
 #endif  // TESLA_MODEL_SX_BATTERY
 
 #ifdef TESLA_MODEL_3Y_BATTERY  // Model 3/Y can be either LFP or NCM/A
+  strncpy(datalayer.system.info.battery_protocol, "Tesla Model 3/Y", 63);
+  datalayer.system.info.battery_protocol[63] = '\0';
 #ifdef LFP_CHEMISTRY
   datalayer.battery.info.chemistry = battery_chemistry_enum::LFP;
   datalayer.battery.info.max_design_voltage_dV = MAX_PACK_VOLTAGE_3Y_LFP;

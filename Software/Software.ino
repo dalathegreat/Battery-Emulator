@@ -70,13 +70,11 @@ volatile bool send_ok = 0;
 static const uint32_t QUARTZ_FREQUENCY = CRYSTAL_FREQUENCY_MHZ * 1000000UL;  //MHZ configured in USER_SETTINGS.h
 ACAN2515 can(MCP2515_CS, SPI, MCP2515_INT);
 static ACAN2515_Buffer16 gBuffer;
-#endif
+#endif  //DUAL_CAN
 #ifdef CAN_FD
 #include "src/lib/pierremolinaro-ACAN2517FD/ACAN2517FD.h"
 ACAN2517FD canfd(MCP2517_CS, SPI, MCP2517_INT);
-#else
-typedef char CANFDMessage;
-#endif
+#endif  //CAN_FD
 
 // ModbusRTU parameters
 #ifdef MODBUS_INVERTER_SELECTED
@@ -172,11 +170,10 @@ void setup() {
   init_rs485();
 
   init_serialDataLink();
-
-  init_inverter();
-
-  init_battery();
-
+#if defined(CAN_INVERTER_SELECTED) || defined(MODBUS_INVERTER_SELECTED)
+  setup_inverter();
+#endif
+  setup_battery();
 #ifdef EQUIPMENT_STOP_BUTTON
   init_equipment_stop_button();
 #endif
@@ -293,7 +290,7 @@ void core_loop(void* task_time_us) {
 #ifdef DOUBLE_BATTERY
       update_values_battery2();
 #endif
-      update_scaled_values();  // Check if real or calculated SOC% value should be sent
+      update_calculated_values();
 #ifndef SERIAL_LINK_RECEIVER
       update_machineryprotection();  // Check safeties (Not on serial link reciever board)
 #endif
@@ -401,11 +398,11 @@ void init_stored_settings() {
   }
   temp = settings.getUInt("MAXCHARGEAMP", false);
   if (temp != 0) {
-    datalayer.battery.info.max_charge_amp_dA = temp;
+    datalayer.battery.settings.max_user_set_charge_dA = temp;
   }
   temp = settings.getUInt("MAXDISCHARGEAMP", false);
   if (temp != 0) {
-    datalayer.battery.info.max_discharge_amp_dA = temp;
+    datalayer.battery.settings.max_user_set_discharge_dA = temp;
     temp = settings.getBool("USE_SCALED_SOC", false);
     datalayer.battery.settings.soc_scaling_active = temp;  //This bool needs to be checked inside the temp!= block
   }                                                        // No way to know if it wasnt reset otherwise
@@ -554,29 +551,6 @@ void init_rs485() {
 #endif
 }
 
-void init_inverter() {
-#ifdef SOLAX_CAN
-  datalayer.system.status.inverter_allows_contactor_closing = false;  // The inverter needs to allow first
-  intervalUpdateValues = 800;  // This protocol also requires the values to be updated faster
-#endif
-#ifdef FOXESS_CAN
-  intervalUpdateValues = 950;  // This protocol also requires the values to be updated faster
-#endif
-#ifdef BYD_SMA
-  datalayer.system.status.inverter_allows_contactor_closing = false;  // The inverter needs to allow first
-  pinMode(INVERTER_CONTACTOR_ENABLE_PIN, INPUT);
-#endif
-}
-
-void init_battery() {
-  // Inform user what battery is used and perform setup
-  setup_battery();
-
-#ifdef CHADEMO_BATTERY
-  intervalUpdateValues = 800;  // This mode requires the values to be updated faster
-#endif
-}
-
 #ifdef EQUIPMENT_STOP_BUTTON
 
 void monitor_equipment_stop_button() {
@@ -614,31 +588,32 @@ void init_equipment_stop_button() {
 
 #endif
 
-#ifdef CAN_FD
-// Functions
-#ifdef DEBUG_CANFD_DATA
-enum frameDirection { MSG_RX, MSG_TX };
-void print_canfd_frame(CANFDMessage rx_frame, frameDirection msgDir);  // Needs to be declared before it is defined
-void print_canfd_frame(CANFDMessage rx_frame, frameDirection msgDir) {
-  int i = 0;
-  (msgDir == 0) ? Serial.print("RX ") : Serial.print("TX ");
-  Serial.print(rx_frame.id, HEX);
+enum frameDirection { MSG_RX, MSG_TX };  //RX = 0, TX = 1
+void print_can_frame(CAN_frame frame, frameDirection msgDir);
+void print_can_frame(CAN_frame frame, frameDirection msgDir) {
+  uint8_t i = 0;
+  Serial.print(millis());
   Serial.print(" ");
-  for (i = 0; i < rx_frame.len; i++) {
-    Serial.print(rx_frame.data[i] < 16 ? "0" : "");
-    Serial.print(rx_frame.data[i], HEX);
+  (msgDir == 0) ? Serial.print("RX ") : Serial.print("TX ");
+  Serial.print(frame.ID, HEX);
+  Serial.print(" ");
+  Serial.print(frame.DLC);
+  Serial.print(" ");
+  for (i = 0; i < frame.DLC; i++) {
+    Serial.print(frame.data.u8[i] < 16 ? "0" : "");
+    Serial.print(frame.data.u8[i], HEX);
     Serial.print(" ");
   }
   Serial.println(" ");
 }
-#endif
+
+#ifdef CAN_FD
+// Functions
 void receive_canfd() {  // This section checks if we have a complete CAN-FD message incoming
   CANFDMessage frame;
   if (canfd.available()) {
     canfd.receive(frame);
-#ifdef DEBUG_CANFD_DATA
-    print_canfd_frame(frame, frameDirection(MSG_RX));
-#endif
+
     CAN_frame rx_frame;
     rx_frame.ID = frame.id;
     rx_frame.ext_ID = frame.ext;
@@ -837,7 +812,26 @@ void handle_contactors() {
 #endif  // CONTACTOR_CONTROL
 }
 
-void update_scaled_values() {
+void update_calculated_values() {
+  /* Calculate allowed charge/discharge currents*/
+  if (datalayer.battery.status.voltage_dV > 10) {
+    // Only update value when we have voltage available to avoid div0. TODO: This should be based on nominal voltage
+    datalayer.battery.status.max_charge_current_dA =
+        ((datalayer.battery.status.max_charge_power_W * 100) / datalayer.battery.status.voltage_dV);
+    datalayer.battery.status.max_discharge_current_dA =
+        ((datalayer.battery.status.max_discharge_power_W * 100) / datalayer.battery.status.voltage_dV);
+  }
+  /* Restrict values from user settings if needed*/
+  if (datalayer.battery.status.max_charge_current_dA > datalayer.battery.settings.max_user_set_charge_dA) {
+    datalayer.battery.status.max_charge_current_dA = datalayer.battery.settings.max_user_set_charge_dA;
+  }
+  if (datalayer.battery.status.max_discharge_current_dA > datalayer.battery.settings.max_user_set_discharge_dA) {
+    datalayer.battery.status.max_discharge_current_dA = datalayer.battery.settings.max_user_set_discharge_dA;
+  }
+  /* Calculate active power based on voltage and current*/
+  datalayer.battery.status.active_power_W =
+      (datalayer.battery.status.current_dA * (datalayer.battery.status.voltage_dV / 100));
+
   if (datalayer.battery.settings.soc_scaling_active) {
     /** SOC Scaling
      * 
@@ -882,6 +876,9 @@ void update_scaled_values() {
     }
 
 #ifdef DOUBLE_BATTERY
+    /* Calculate active power based on voltage and current*/
+    datalayer.battery2.status.active_power_W =
+        (datalayer.battery2.status.current_dA * (datalayer.battery2.status.voltage_dV / 100));
 
     // Calculate the scaled remaining capacity in Wh
     if (datalayer.battery2.info.total_capacity_Wh > 0 && datalayer.battery2.status.real_soc > 0) {
@@ -896,7 +893,7 @@ void update_scaled_values() {
     }
 #endif
 
-  } else {  // No SOC window wanted. Set scaled to same as real.
+  } else {  // soc_scaling_active == false. No SOC window wanted. Set scaled to same as real.
     datalayer.battery.status.reported_soc = datalayer.battery.status.real_soc;
     datalayer.battery.status.reported_remaining_capacity_Wh = datalayer.battery.status.remaining_capacity_Wh;
 #ifdef DOUBLE_BATTERY
@@ -975,8 +972,8 @@ void storeSettings() {
                    datalayer.battery.settings.max_percentage / 10);  // Divide by 10 for backwards compatibility
   settings.putUInt("MINPERCENTAGE",
                    datalayer.battery.settings.min_percentage / 10);  // Divide by 10 for backwards compatibility
-  settings.putUInt("MAXCHARGEAMP", datalayer.battery.info.max_charge_amp_dA);
-  settings.putUInt("MAXDISCHARGEAMP", datalayer.battery.info.max_discharge_amp_dA);
+  settings.putUInt("MAXCHARGEAMP", datalayer.battery.settings.max_user_set_charge_dA);
+  settings.putUInt("MAXDISCHARGEAMP", datalayer.battery.settings.max_user_set_discharge_dA);
   settings.putBool("USE_SCALED_SOC", datalayer.battery.settings.soc_scaling_active);
   settings.end();
 }
@@ -1062,6 +1059,9 @@ void transmit_can(CAN_frame* tx_frame, int interface) {
   if (!allowed_to_send_CAN) {
     return;
   }
+#ifdef DEBUG_CAN_DATA
+  print_can_frame(*tx_frame, frameDirection(MSG_TX));
+#endif  //DEBUG_CAN_DATA
 
   switch (interface) {
     case CAN_NATIVE:
@@ -1109,10 +1109,6 @@ void transmit_can(CAN_frame* tx_frame, int interface) {
       send_ok = canfd.tryToSend(MCP2518Frame);
       if (!send_ok) {
         set_event(EVENT_CANFD_BUFFER_FULL, interface);
-      } else {
-#ifdef DEBUG_CANFD_DATA
-        print_canfd_frame(MCP2518Frame, frameDirection(MSG_TX));
-#endif
       }
 #else   // Interface not compiled, and settings try to use it
       set_event(EVENT_INTERFACE_MISSING, interface);
@@ -1124,6 +1120,10 @@ void transmit_can(CAN_frame* tx_frame, int interface) {
   }
 }
 void receive_can(CAN_frame* rx_frame, int interface) {
+
+#ifdef DEBUG_CAN_DATA
+  print_can_frame(*rx_frame, frameDirection(MSG_RX));
+#endif  //DEBUG_CAN_DATA
 
   if (interface == can_config.battery) {
     receive_can_battery(*rx_frame);

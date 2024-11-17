@@ -42,20 +42,13 @@ CAN_frame PYLON_35E = {.FD = false,
 void update_values_can_inverter() {
   // This function maps all the values fetched from battery CAN to the correct CAN messages
 
-  // do not update values unless we have some voltage, as we will run into IntegerDivideByZero exceptions otherwise
-  if (datalayer.battery.status.voltage_dV == 0)
-    return;
-
   // TODO: officially this value is "battery charge voltage". Do we need to add something here to the actual voltage?
   PYLON_351.data.u8[0] = datalayer.battery.status.voltage_dV & 0xff;
   PYLON_351.data.u8[1] = datalayer.battery.status.voltage_dV >> 8;
-  int16_t maxChargeCurrent = datalayer.battery.status.max_charge_power_W * 100 / datalayer.battery.status.voltage_dV;
-  PYLON_351.data.u8[2] = maxChargeCurrent & 0xff;
-  PYLON_351.data.u8[3] = maxChargeCurrent >> 8;
-  int16_t maxDischargeCurrent =
-      datalayer.battery.status.max_discharge_power_W * 100 / datalayer.battery.status.voltage_dV;
-  PYLON_351.data.u8[4] = maxDischargeCurrent & 0xff;
-  PYLON_351.data.u8[5] = maxDischargeCurrent >> 8;
+  PYLON_351.data.u8[2] = datalayer.battery.status.max_charge_current_dA & 0xff;
+  PYLON_351.data.u8[3] = datalayer.battery.status.max_charge_current_dA >> 8;
+  PYLON_351.data.u8[4] = datalayer.battery.status.max_discharge_current_dA & 0xff;
+  PYLON_351.data.u8[5] = datalayer.battery.status.max_discharge_current_dA >> 8;
 
   PYLON_355.data.u8[0] = (datalayer.battery.status.reported_soc / 10) & 0xff;
   PYLON_355.data.u8[1] = (datalayer.battery.status.reported_soc / 10) >> 8;
@@ -75,11 +68,11 @@ void update_values_can_inverter() {
   PYLON_359.data.u8[2] = 0x00;
   PYLON_359.data.u8[3] = 0x00;
   PYLON_359.data.u8[4] = PACK_NUMBER;
-  PYLON_359.data.u8[5] = 'P';
-  PYLON_359.data.u8[6] = 'N';
+  PYLON_359.data.u8[5] = 0x50;  //P
+  PYLON_359.data.u8[6] = 0x4E;  //N
 
   // ERRORS
-  if (datalayer.battery.status.current_dA >= maxDischargeCurrent)
+  if (datalayer.battery.status.current_dA >= (datalayer.battery.status.max_discharge_current_dA + 10))
     PYLON_359.data.u8[0] |= 0x80;
   if (datalayer.battery.status.temperature_min_dC <= BATTERY_MINTEMPERATURE)
     PYLON_359.data.u8[0] |= 0x10;
@@ -88,11 +81,11 @@ void update_values_can_inverter() {
   if (datalayer.battery.status.voltage_dV * 100 <= datalayer.battery.info.min_cell_voltage_mV)
     PYLON_359.data.u8[0] |= 0x04;
   // we never set PYLON_359.data.u8[1] |= 0x80 called "BMS internal"
-  if (datalayer.battery.status.current_dA <= -1 * maxChargeCurrent)
+  if (datalayer.battery.status.current_dA <= -1 * datalayer.battery.status.max_charge_current_dA)
     PYLON_359.data.u8[1] |= 0x01;
 
   // WARNINGS (using same rules as errors but reporting earlier)
-  if (datalayer.battery.status.current_dA >= maxDischargeCurrent * WARNINGS_PERCENT / 100)
+  if (datalayer.battery.status.current_dA >= datalayer.battery.status.max_discharge_current_dA * WARNINGS_PERCENT / 100)
     PYLON_359.data.u8[2] |= 0x80;
   if (datalayer.battery.status.temperature_min_dC <= BATTERY_MINTEMPERATURE * WARNINGS_PERCENT / 100)
     PYLON_359.data.u8[2] |= 0x10;
@@ -101,7 +94,8 @@ void update_values_can_inverter() {
   if (datalayer.battery.status.voltage_dV * 100 <= datalayer.battery.info.min_cell_voltage_mV + 100)
     PYLON_359.data.u8[2] |= 0x04;
   // we never set PYLON_359.data.u8[3] |= 0x80 called "BMS internal"
-  if (datalayer.battery.status.current_dA <= -1 * maxChargeCurrent * WARNINGS_PERCENT / 100)
+  if (datalayer.battery.status.current_dA <=
+      -1 * datalayer.battery.status.max_charge_current_dA * WARNINGS_PERCENT / 100)
     PYLON_359.data.u8[3] |= 0x01;
 
   PYLON_35C.data.u8[0] = 0xC0;  // enable charging and discharging
@@ -138,5 +132,9 @@ void send_can_inverter() {
     transmit_can(&PYLON_35C, can_config.inverter);
     transmit_can(&PYLON_35E, can_config.inverter);
   }
+}
+void setup_inverter(void) {  // Performs one time setup at startup over CAN bus
+  strncpy(datalayer.system.info.inverter_protocol, "Pylontech LV battery over CAN bus", 63);
+  datalayer.system.info.inverter_protocol[63] = '\0';
 }
 #endif

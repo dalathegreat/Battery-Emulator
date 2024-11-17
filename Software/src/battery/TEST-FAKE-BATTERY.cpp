@@ -40,8 +40,6 @@ void update_values_battery() { /* This function puts fake values onto the parame
 
   datalayer.battery.status.cell_min_voltage_mV = 3500;
 
-  datalayer.battery.status.active_power_W = 0;  // 0W
-
   datalayer.battery.status.temperature_min_dC = 50;  // 5.0*C
 
   datalayer.battery.status.temperature_max_dC = 60;  // 6.0*C
@@ -95,8 +93,6 @@ void update_values_battery2() {  // Handle the values coming in from battery #2
 
   datalayer.battery2.status.cell_min_voltage_mV = 3500;
 
-  datalayer.battery2.status.active_power_W = 0;  // 0W
-
   datalayer.battery2.status.temperature_min_dC = 50;  // 5.0*C
 
   datalayer.battery2.status.temperature_max_dC = 60;  // 6.0*C
@@ -130,35 +126,11 @@ void update_values_battery2() {  // Handle the values coming in from battery #2
 
 void receive_can_battery2(CAN_frame rx_frame) {
   datalayer.battery2.status.CAN_battery_still_alive = CAN_STILL_ALIVE;
-  // All CAN messages recieved will be logged via serial
-  Serial.print(millis());  // Example printout, time, ID, length, data: 7553  1DB  8  FF C0 B9 EA 0 0 2 5D
-  Serial.print("  ");
-  Serial.print(rx_frame.ID, HEX);
-  Serial.print("  ");
-  Serial.print(rx_frame.DLC);
-  Serial.print("  ");
-  for (int i = 0; i < rx_frame.DLC; ++i) {
-    Serial.print(rx_frame.data.u8[i], HEX);
-    Serial.print(" ");
-  }
-  Serial.println("");
 }
 #endif  // DOUBLE_BATTERY
 
 void receive_can_battery(CAN_frame rx_frame) {
   datalayer.battery.status.CAN_battery_still_alive = CAN_STILL_ALIVE;
-  // All CAN messages recieved will be logged via serial
-  Serial.print(millis());  // Example printout, time, ID, length, data: 7553  1DB  8  FF C0 B9 EA 0 0 2 5D
-  Serial.print("  ");
-  Serial.print(rx_frame.ID, HEX);
-  Serial.print("  ");
-  Serial.print(rx_frame.DLC);
-  Serial.print("  ");
-  for (int i = 0; i < rx_frame.DLC; ++i) {
-    Serial.print(rx_frame.data.u8[i], HEX);
-    Serial.print(" ");
-  }
-  Serial.println("");
 }
 void send_can_battery() {
   unsigned long currentMillis = millis();
@@ -173,9 +145,8 @@ void send_can_battery() {
 void setup_battery(void) {  // Performs one time setup at startup
   randomSeed(analogRead(0));
 
-#ifdef DEBUG_VIA_USB
-  Serial.println("Test mode with fake battery selected");
-#endif
+  strncpy(datalayer.system.info.battery_protocol, "Fake battery for testing purposes", 63);
+  datalayer.system.info.battery_protocol[63] = '\0';
 
   datalayer.battery.info.max_design_voltage_dV =
       4040;  // 404.4V, over this, charging is not possible (goes into forced discharge)

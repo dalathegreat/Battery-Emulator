@@ -122,9 +122,6 @@ void update_values_battery() {  //This function maps all the values fetched via 
 
   datalayer.battery.status.max_charge_power_W = 10000;  //TODO: Map from CAN later on
 
-  datalayer.battery.status.active_power_W =
-      (datalayer.battery.status.current_dA * (datalayer.battery.status.voltage_dV / 100));
-
   datalayer.battery.status.cell_max_voltage_mV = BMS_highest_cell_voltage_mV;
 
   datalayer.battery.status.cell_min_voltage_mV = BMS_lowest_cell_voltage_mV;
@@ -402,9 +399,8 @@ void send_can_battery() {
 }
 
 void setup_battery(void) {  // Performs one time setup at startup
-#ifdef DEBUG_VIA_USB
-  Serial.println("BYD Atto 3 battery selected");
-#endif
+  strncpy(datalayer.system.info.battery_protocol, "BYD Atto 3", 63);
+  datalayer.system.info.battery_protocol[63] = '\0';
   datalayer.battery.info.number_of_cells = 126;
   datalayer.battery.info.chemistry = battery_chemistry_enum::LFP;
   datalayer.battery.info.max_design_voltage_dV = MAX_PACK_VOLTAGE_DV;
@@ -444,9 +440,6 @@ void update_values_battery2() {  //This function maps all the values fetched via
   datalayer.battery2.status.max_discharge_power_W = 10000;  //TODO: Map from CAN later on
 
   datalayer.battery2.status.max_charge_power_W = 10000;  //TODO: Map from CAN later on
-
-  datalayer.battery2.status.active_power_W =
-      (datalayer.battery2.status.current_dA * (datalayer.battery2.status.voltage_dV / 100));
 
   datalayer.battery2.status.cell_max_voltage_mV = BMS2_highest_cell_voltage_mV;
 
