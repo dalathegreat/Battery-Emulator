@@ -1032,7 +1032,7 @@ void handle_chademo_sequence() {
 
 void setup_battery(void) {  // Performs one time setup at startup
 
-  intervalUpdateValues = 800;  // This mode requires the values to be updated faster
+//  intervalUpdateValues = 800;  // This mode requires the values to be updated faster
   pinMode(CHADEMO_PIN_2, OUTPUT);
   digitalWrite(CHADEMO_PIN_2, LOW);
   pinMode(CHADEMO_PIN_10, OUTPUT);
