@@ -619,7 +619,7 @@ void receive_can_battery(CAN_frame rx_frame) {
       usable_energy_amount_Wh = (rx_frame.data.u8[7] << 8) | rx_frame.data.u8[6];                   //*5
       power_discharge_percentage = ((rx_frame.data.u8[4] & 0x3F) << 4) | rx_frame.data.u8[3] >> 4;  //*0.2
       power_charge_percentage = (rx_frame.data.u8[5] << 2) | rx_frame.data.u8[4] >> 6;              //*0.2
-      status_HV_line = ((rx_frame.data.u8[2] & 0x01) << 2) | rx_frame.data.u8[1] >> 7;
+      status_HV_line = ((rx_frame.data.u8[2] & 0x01) << 1) | rx_frame.data.u8[1] >> 7;
       warning_support = (rx_frame.data.u8[1] & 0x70) >> 4;
       break;
     case 0x12DD54D2:  // BMS 100ms
@@ -921,7 +921,7 @@ void receive_can_battery(CAN_frame rx_frame) {
       BMS_error_shutdown_request = (rx_frame.data.u8[2] & 0x40) >> 6;
       BMS_error_shutdown = (rx_frame.data.u8[2] & 0x20) >> 5;
       BMS_mode = (rx_frame.data.u8[2] & 0x07);
-      BMS_HVIL_status = (rx_frame.data.u8[2] & 0x08) >> 3;
+      BMS_HVIL_status = (rx_frame.data.u8[2] & 0x18) >> 3;
       //BMS_exp_limits_active
       //BMS_fault_performance
       //BMS_fault_emergency_shutdown_crash
