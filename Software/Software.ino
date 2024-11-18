@@ -53,7 +53,7 @@
 
 Preferences settings;  // Store user settings
 // The current software version, shown on webserver
-const char* version_number = "7.7.dev";
+const char* version_number = "7.8.dev";
 
 // Interval settings
 uint16_t intervalUpdateValues = INTERVAL_1_S;  // Interval at which to update inverter values / Modbus registers
@@ -70,13 +70,11 @@ volatile bool send_ok = 0;
 static const uint32_t QUARTZ_FREQUENCY = CRYSTAL_FREQUENCY_MHZ * 1000000UL;  //MHZ configured in USER_SETTINGS.h
 ACAN2515 can(MCP2515_CS, SPI, MCP2515_INT);
 static ACAN2515_Buffer16 gBuffer;
-#endif
+#endif  //DUAL_CAN
 #ifdef CAN_FD
 #include "src/lib/pierremolinaro-ACAN2517FD/ACAN2517FD.h"
 ACAN2517FD canfd(MCP2517_CS, SPI, MCP2517_INT);
-#else
-typedef char CANFDMessage;
-#endif
+#endif  //CAN_FD
 
 // ModbusRTU parameters
 #ifdef MODBUS_INVERTER_SELECTED
@@ -172,11 +170,10 @@ void setup() {
   init_rs485();
 
   init_serialDataLink();
-
-  init_inverter();
-
-  init_battery();
-
+#if defined(CAN_INVERTER_SELECTED) || defined(MODBUS_INVERTER_SELECTED)
+  setup_inverter();
+#endif
+  setup_battery();
 #ifdef EQUIPMENT_STOP_BUTTON
   init_equipment_stop_button();
 #endif
@@ -551,29 +548,6 @@ void init_rs485() {
   MBserver.registerWorker(MBTCP_ID, R_W_MULT_REGISTERS, &FC23);
   // Start ModbusRTU background task
   MBserver.begin(Serial2, MODBUS_CORE);
-#endif
-}
-
-void init_inverter() {
-#ifdef SOLAX_CAN
-  datalayer.system.status.inverter_allows_contactor_closing = false;  // The inverter needs to allow first
-  intervalUpdateValues = 800;  // This protocol also requires the values to be updated faster
-#endif
-#ifdef FOXESS_CAN
-  intervalUpdateValues = 950;  // This protocol also requires the values to be updated faster
-#endif
-#ifdef BYD_SMA
-  datalayer.system.status.inverter_allows_contactor_closing = false;  // The inverter needs to allow first
-  pinMode(INVERTER_CONTACTOR_ENABLE_PIN, INPUT);
-#endif
-}
-
-void init_battery() {
-  // Inform user what battery is used and perform setup
-  setup_battery();
-
-#ifdef CHADEMO_BATTERY
-  intervalUpdateValues = 800;  // This mode requires the values to be updated faster
 #endif
 }
 

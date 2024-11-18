@@ -263,4 +263,9 @@ void send_can_inverter() {
     transmit_can(&SOFAR_35A, can_config.inverter);
   }
 }
+
+void setup_inverter(void) {  // Performs one time setup at startup over CAN bus
+  strncpy(datalayer.system.info.inverter_protocol, "Sofar BMS (Extended Frame) over CAN bus", 63);
+  datalayer.system.info.inverter_protocol[63] = '\0';
+}
 #endif

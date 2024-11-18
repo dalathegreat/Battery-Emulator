@@ -778,9 +778,8 @@ void send_can_battery() {
 //} //We can always send CAN as the iX BMS will wake up on vehicle comms
 
 void setup_battery(void) {  // Performs one time setup at startup
-#ifdef DEBUG_VIA_USB
-  Serial.println("BMW iX battery selected");
-#endif  //DEBUG_VIA_USB
+  strncpy(datalayer.system.info.battery_protocol, "BMW iX and i4-7 platform", 63);
+  datalayer.system.info.battery_protocol[63] = '\0';
 
   //Before we have started up and detected which battery is in use, use 108S values
   datalayer.battery.info.max_design_voltage_dV = MAX_PACK_VOLTAGE_DV;

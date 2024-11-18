@@ -15,6 +15,7 @@
 static unsigned long previousMillis50 = 0;   // will store last time a 50ms CAN Message was send
 static unsigned long previousMillis100 = 0;  // will store last time a 100ms CAN Message was send
 static unsigned long previousMillis500 = 0;  // will store last time a 500ms CAN Message was send
+static bool SOC_method = false;
 static uint8_t counter_50ms = 0;
 static uint8_t counter_100ms = 0;
 static uint8_t frame6_counter = 0xB;
@@ -61,6 +62,8 @@ static uint16_t BMS2_highest_cell_voltage_mV = 3300;
 #define POLL_FOR_BATTERY_CELL_MV_MAX 0x2D
 #define POLL_FOR_BATTERY_CELL_MV_MIN 0x2B
 #define UNKNOWN_POLL_1 0xFC
+#define ESTIMATED 0
+#define MEASURED 1
 static uint16_t poll_state = POLL_FOR_BATTERY_SOC;
 
 CAN_frame ATTO_3_12D = {.FD = false,
@@ -108,19 +111,25 @@ void update_values_battery() {  //This function maps all the values fetched via 
     datalayer.battery.status.voltage_dV = BMS_voltage * 10;
   }
 
-  //datalayer.battery.status.real_soc = BMS_SOC * 100;  //TODO: This is not yet found!
-  // We instead estimate the SOC% based on the battery voltage
-  // This is a very bad solution, and as soon as an usable SOC% value has been found on CAN, we should switch to that!
+#ifdef USE_ESTIMATED_SOC
+  // When the battery is crashed hard, it locks itself and SOC becomes unavailable.
+  // We instead estimate the SOC% based on the battery voltage.
+  // This is a bad solution, you wont be able to use 100% of the battery
   datalayer.battery.status.real_soc = estimateSOC(datalayer.battery.status.voltage_dV);
+  SOC_method = ESTIMATED;
+#else  // Pack is not crashed, we can use periodically transmitted SOC
+  datalayer.battery.status.real_soc = highprecision_SOC * 100;
+  SOC_method = MEASURED;
+#endif
 
   datalayer.battery.status.current_dA = -BMS_current;
 
   datalayer.battery.status.remaining_capacity_Wh = static_cast<uint32_t>(
       (static_cast<double>(datalayer.battery.status.real_soc) / 10000) * datalayer.battery.info.total_capacity_Wh);
 
-  datalayer.battery.status.max_discharge_power_W = 10000;  //TODO: Map from CAN later on
+  datalayer.battery.status.max_discharge_power_W = MAXPOWER_DISCHARGE_W;  //TODO: Map from CAN later on
 
-  datalayer.battery.status.max_charge_power_W = 10000;  //TODO: Map from CAN later on
+  datalayer.battery.status.max_charge_power_W = MAXPOWER_CHARGE_W;  //TODO: Map from CAN later on
 
   datalayer.battery.status.cell_max_voltage_mV = BMS_highest_cell_voltage_mV;
 
@@ -144,6 +153,7 @@ void update_values_battery() {  //This function maps all the values fetched via 
   datalayer.battery.status.temperature_max_dC = battery_calc_max_temperature * 10;
 
   // Update webserver datalayer
+  datalayer_extended.bydAtto3.SOC_method = SOC_method;
   datalayer_extended.bydAtto3.SOC_estimated = datalayer.battery.status.real_soc;
   //Once we implement switching logic, remember to change from where the estimated is taken
   datalayer_extended.bydAtto3.SOC_highprec = battery_highprecision_SOC;
@@ -228,6 +238,7 @@ void receive_can_battery(CAN_frame rx_frame) {
     case 0x444:  //9E,01,88,13,64,64,98,65
                  //9A,01,B6,13,64,64,98,3B //407.5V 18deg
                  //9B,01,B8,13,64,64,98,38 //408.5V 14deg
+      //lowprecision_SOC =  ???
       battery_voltage = ((rx_frame.data.u8[1] & 0x0F) << 8) | rx_frame.data.u8[0];
       //battery_temperature_something = rx_frame.data.u8[7] - 40; resides in frame 7
       break;
@@ -399,9 +410,8 @@ void send_can_battery() {
 }
 
 void setup_battery(void) {  // Performs one time setup at startup
-#ifdef DEBUG_VIA_USB
-  Serial.println("BYD Atto 3 battery selected");
-#endif
+  strncpy(datalayer.system.info.battery_protocol, "BYD Atto 3", 63);
+  datalayer.system.info.battery_protocol[63] = '\0';
   datalayer.battery.info.number_of_cells = 126;
   datalayer.battery.info.chemistry = battery_chemistry_enum::LFP;
   datalayer.battery.info.max_design_voltage_dV = MAX_PACK_VOLTAGE_DV;

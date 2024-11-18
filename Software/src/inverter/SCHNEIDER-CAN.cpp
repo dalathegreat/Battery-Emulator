@@ -297,4 +297,9 @@ void send_can_inverter() {
   }
 }
 
+void setup_inverter(void) {  // Performs one time setup
+  strncpy(datalayer.system.info.inverter_protocol, "Schneider V2 SE BMS CAN", 63);
+  datalayer.system.info.inverter_protocol[63] = '\0';
+}
+
 #endif
