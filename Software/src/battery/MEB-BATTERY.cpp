@@ -41,7 +41,7 @@ static uint8_t counter_3b5 = 0;
 static uint32_t poll_pid = 0;
 static uint32_t pid_reply = 0;
 static uint16_t battery_soc_polled = 0;
-static uint16_t battery_voltage_polled = 0;
+static uint16_t battery_voltage_polled = 1480;
 static int16_t battery_current_polled = 0;
 static int16_t battery_max_temp = 600;
 static int16_t battery_min_temp = 600;
@@ -74,12 +74,21 @@ static uint16_t BMS_current = 16300;
 static bool BMS_fault_emergency_shutdown_crash = 0;
 static uint32_t BMS_voltage_intermediate = 0;
 static uint32_t BMS_voltage = 0;
+static uint8_t BMS_status_voltage_free =
+    0;  //0=Init, 1=BMS intermediate circuit voltage-free (U_Zwkr < 20V), 2=BMS intermediate circuit not voltage-free (U_Zwkr >/= 25V, hysteresis), 3=Error
+static bool BMS_OBD_MIL = false;
+static uint8_t BMS_error_status =
+    0x7;  //0 Component_IO, 1 Restricted_CompFkt_Isoerror_I, 2 Restricted_CompFkt_Isoerror_II, 3 Restricted_CompFkt_Interlock, 4 Restricted_CompFkt_SD, 5 Restricted_CompFkt_Performance red, 6 = No component function, 7 = Init
+static uint16_t BMS_capacity_ah = 0;
+static bool BMS_error_lamp_req = false;
+static bool BMS_warning_lamp_req = false;
+static uint8_t BMS_Kl30c_Status = 0;  // 0 init, 1 closed, 2 open, 3 fault
 static bool service_disconnect_switch_missing = false;
 static bool pilotline_open = false;
 static bool balancing_request = false;
 static uint8_t battery_diagnostic = 0;
 static uint16_t battery_Wh_left = 0;
-static uint16_t battery_Wh_max = 0;
+static uint16_t battery_Wh_max = 1000;
 static uint8_t battery_potential_status = 0;
 static uint8_t battery_temperature_warning = 0;
 static uint16_t max_discharge_power_watt = 0;
@@ -502,6 +511,8 @@ void update_values_battery() {  //This function maps all the values fetched via 
 
   datalayer.battery.status.current_dA = (BMS_current / 10) - 1630;
 
+  datalayer.battery.info.total_capacity_Wh = (battery_Wh_max * 50);
+
   datalayer.battery.status.remaining_capacity_Wh = static_cast<uint32_t>(
       (static_cast<double>(datalayer.battery.status.real_soc) / 10000) * datalayer.battery.info.total_capacity_Wh);
   //Alternatively use battery_Wh_left
@@ -564,6 +575,12 @@ void update_values_battery() {  //This function maps all the values fetched via 
   datalayer_extended.meb.battery_diagnostic = battery_diagnostic;
   datalayer_extended.meb.status_HV_line = status_HV_line;
   datalayer_extended.meb.warning_support = warning_support;
+  datalayer_extended.meb.BMS_status_voltage_free = BMS_status_voltage_free;
+  datalayer_extended.meb.BMS_OBD_MIL = BMS_OBD_MIL;
+  datalayer_extended.meb.BMS_error_status = BMS_error_status;
+  datalayer_extended.meb.BMS_error_lamp_req = BMS_error_lamp_req;
+  datalayer_extended.meb.BMS_warning_lamp_req = BMS_warning_lamp_req;
+  datalayer_extended.meb.BMS_Kl30c_Status = BMS_Kl30c_Status;
   datalayer_extended.meb.isolation_resistance == isolation_resistance_kOhm * 5;
   datalayer_extended.meb.battery_heating = battery_heating_active;
   datalayer_extended.meb.rt_overcurrent = realtime_overcurrent_monitor;
@@ -900,6 +917,13 @@ void receive_can_battery(CAN_frame rx_frame) {
       BMS_5A2_counter = (rx_frame.data.u8[1] & 0x0F);  // Can be used to check CAN signal integrity later on
       service_disconnect_switch_missing = (rx_frame.data.u8[1] & 0x20) >> 5;
       pilotline_open = (rx_frame.data.u8[1] & 0x10) >> 4;
+      BMS_status_voltage_free = (rx_frame.data.u8[1] & 0xC0) >> 6;
+      BMS_OBD_MIL = (rx_frame.data.u8[2] & 0x01);
+      BMS_error_status = (rx_frame.data.u8[2] & 0x70) >> 4;
+      BMS_capacity_ah = (rx_frame.data.u8[4] << 9) | (rx_frame.data.u8[3] << 1) | (rx_frame.data.u8[2] >> 7);
+      BMS_error_lamp_req = (rx_frame.data.u8[4] & 0x04) >> 2;
+      BMS_warning_lamp_req = (rx_frame.data.u8[4] & 0x08) >> 3;
+      BMS_Kl30c_Status = (rx_frame.data.u8[4] & 0x30) >> 4;
       break;
     case 0x5CA:                                               // BMS 500ms
       BMS_5CA_CRC = rx_frame.data.u8[0];                      // Can be used to check CAN signal integrity later on
