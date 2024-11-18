@@ -28,5 +28,6 @@
 #define COMMAND_STOP 0x08
 
 void transmit_can(CAN_frame* tx_frame, int interface);
+void setup_inverter(void);
 
 #endif
