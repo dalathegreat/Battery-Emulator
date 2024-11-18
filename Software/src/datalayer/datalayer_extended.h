@@ -280,6 +280,20 @@ typedef struct {
   /** uint32_t */
   /** Isolation resistance in kOhm */
   uint32_t isolation_resistance = 0;
+  /** uint8_t */
+  /** 0=Init, 1=BMS intermediate circuit voltage-free (U_Zwkr < 20V), 2=BMS intermediate circuit not voltage-free (U_Zwkr >/= 25V, hysteresis), 3=Error */
+  uint8_t BMS_status_voltage_free = 0;
+  /** uint8_t */
+  /** 0 Component_IO, 1 Restricted_CompFkt_Isoerror_I, 2 Restricted_CompFkt_Isoerror_II, 3 Restricted_CompFkt_Interlock, 4 Restricted_CompFkt_SD, 5 Restricted_CompFkt_Performance red, 6 = No component function, 7 = Init */
+  uint8_t BMS_error_status = 0;
+  /** uint8_t */
+  /** 0 init, 1 closed, 2 open, 3 fault */
+  uint8_t BMS_Kl30c_Status = 0;
+  /** bool */
+  /** true if BMS requests error/warning light */
+  bool BMS_OBD_MIL = 0;
+  bool BMS_error_lamp_req = 0;
+  bool BMS_warning_lamp_req = 0;
 } DATALAYER_INFO_MEB;
 
 typedef struct {
