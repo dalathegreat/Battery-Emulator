@@ -275,6 +275,8 @@ String advanced_battery_processor(const String& var) {
 #endif  //CELLPOWER_BMS
 
 #ifdef BYD_ATTO_3_BATTERY
+    static const char* SOCmethod[2] = {"Estimated from voltage", "Measured by BMS"};
+    content += "<h4>SOC method used: " + String(SOCmethod[datalayer_extended.bydAtto3.SOC_method]) + "</h4>";
     content += "<h4>SOC estimated: " + String(datalayer_extended.bydAtto3.SOC_estimated) + "</h4>";
     content += "<h4>SOC highprec: " + String(datalayer_extended.bydAtto3.SOC_highprec) + "</h4>";
     content += "<h4>SOC OBD2: " + String(datalayer_extended.bydAtto3.SOC_polled) + "</h4>";
