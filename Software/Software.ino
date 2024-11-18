@@ -785,7 +785,7 @@ void handle_contactors() {
     set(NEGATIVE_CONTACTOR_PIN, OFF, PWM_OFF_DUTY);
     set(POSITIVE_CONTACTOR_PIN, OFF, PWM_OFF_DUTY);
     set_event(EVENT_ERROR_OPEN_CONTACTOR, 0);
-    datalayer.system.status.contactor_control_closed = false;
+    datalayer.system.status.contactors_engaged = false;
     return;  // A fault scenario latches the contactor control. It is not possible to recover without a powercycle (and investigation why fault occured)
   }
 
@@ -810,9 +810,11 @@ void handle_contactors() {
     if (datalayer.system.status.battery2_allows_contactor_closing) {
       set(SECOND_NEGATIVE_CONTACTOR_PIN, ON);
       set(SECOND_POSITIVE_CONTACTOR_PIN, ON);
+      datalayer.system.status.contactors_battery2_engaged = true;
     } else {  // Closing contactors on secondary battery not allowed
       set(SECOND_NEGATIVE_CONTACTOR_PIN, OFF);
       set(SECOND_POSITIVE_CONTACTOR_PIN, OFF);
+      datalayer.system.status.contactors_battery2_engaged = false;
     }
 #endif  //CONTACTOR_CONTROL_DOUBLE_BATTERY
     // Skip running the state machine below if it has already completed
@@ -849,7 +851,7 @@ void handle_contactors() {
         set(NEGATIVE_CONTACTOR_PIN, ON, PWM_HOLD_DUTY);
         set(POSITIVE_CONTACTOR_PIN, ON, PWM_HOLD_DUTY);
         contactorStatus = COMPLETED;
-        datalayer.system.status.contactor_control_closed = true;
+        datalayer.system.status.contactors_engaged = true;
       }
       break;
     default:

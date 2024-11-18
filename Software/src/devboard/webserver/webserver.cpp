@@ -733,7 +733,7 @@ String processor(const String& var) {
 
 #ifdef CONTACTOR_CONTROL
     content += "<h4>Contactors controlled by Battery-Emulator: ";
-    if (datalayer.system.status.contactor_control_closed) {
+    if (datalayer.system.status.contactors_engaged) {
       content += "<span style='color: green;'>ON</span>";
     } else {
       content += "<span style='color: red;'>OFF</span>";
@@ -853,34 +853,35 @@ String processor(const String& var) {
 
 #ifdef CONTACTOR_CONTROL
     content += "<h4>Contactors controlled by Battery-Emulator: ";
-    if (datalayer.system.status.contactor_control_closed) {
+    if (datalayer.system.status.contactors_battery2_engaged) {
       content += "<span style='color: green;'>ON</span>";
     } else {
       content += "<span style='color: red;'>OFF</span>";
     }
     content += "</h4>";
-
+#ifdef CONTACTOR_CONTROL_DOUBLE_BATTERY
     content += "<h4>Pre Charge: ";
-    if (digitalRead(PRECHARGE_PIN) == HIGH) {
+    if (digitalRead(SECOND_PRECHARGE_PIN) == HIGH) {
       content += "<span style='color: green;'>&#10003;</span>";
     } else {
       content += "<span style='color: red;'>&#10005;</span>";
     }
     content += " Cont. Neg.: ";
-    if (digitalRead(NEGATIVE_CONTACTOR_PIN) == HIGH) {
+    if (digitalRead(SECOND_NEGATIVE_CONTACTOR_PIN) == HIGH) {
       content += "<span style='color: green;'>&#10003;</span>";
     } else {
       content += "<span style='color: red;'>&#10005;</span>";
     }
 
     content += " Cont. Pos.: ";
-    if (digitalRead(POSITIVE_CONTACTOR_PIN) == HIGH) {
+    if (digitalRead(SECOND_POSITIVE_CONTACTOR_PIN) == HIGH) {
       content += "<span style='color: green;'>&#10003;</span>";
     } else {
       content += "<span style='color: red;'>&#10005;</span>";
     }
     content += "</h4>";
-#endif
+#endif  // CONTACTOR_CONTROL_DOUBLE_BATTERY
+#endif  // CONTACTOR_CONTROL
 
     content += "</div>";
     content += "</div>";
