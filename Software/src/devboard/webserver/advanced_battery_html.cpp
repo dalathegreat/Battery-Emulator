@@ -361,7 +361,7 @@ String advanced_battery_processor(const String& var) {
         "<h4>Voltage status: " + String(voltage_free_status[datalayer_extended.meb.BMS_status_voltage_free]) + "</h4>";
     const char* bms_error_status[] = {"Component IO", "Iso Error 1",     "Iso Error 2",           "Interlock",
                                       "SD",           "Performance red", "No component function", "Init"};
-    content += "<h4>Voltage status: " + String(bms_error_status[datalayer_extended.meb.BMS_error_status]) + "</h4>";
+    content += "<h4>BMS error status: " + String(bms_error_status[datalayer_extended.meb.BMS_error_status]) + "</h4>";
     content += datalayer_extended.meb.BMS_OBD_MIL ? "<h4>OBD MIL: ON!</h4>" : "<h4>OBD MIL: Off</h4>";
     content +=
         datalayer_extended.meb.BMS_error_lamp_req ? "<h4>Red error lamp: ON!</h4>" : "<h4>Red error lamp: Off</h4>";
