@@ -807,7 +807,8 @@ void handle_contactors() {
       contactorStatus = DISCONNECTED;
     }
 #ifdef CONTACTOR_CONTROL_DOUBLE_BATTERY
-    if (datalayer.system.status.battery2_allows_contactor_closing) {
+    if (datalayer.system.status.battery2_allows_contactor_closing &&
+        datalayer.system.status.inverter_allows_contactor_closing) {
       set(SECOND_NEGATIVE_CONTACTOR_PIN, ON);
       set(SECOND_POSITIVE_CONTACTOR_PIN, ON);
       datalayer.system.status.contactors_battery2_engaged = true;
