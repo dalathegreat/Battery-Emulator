@@ -349,6 +349,14 @@ String advanced_battery_processor(const String& var) {
       case 3: content+= String("Fault"); break;
       default: content += String("?");
     }
+    content += "</h4><h4>KL30C status: ";
+    switch (datalayer_extended.meb.BMS_Kl30c_Status){
+      case 0: content+= String("Init"); break;
+      case 1: content+= String("Closed"); break;
+      case 2: content+= String("Open!"); break;
+      case 3: content+= String("Fault"); break;
+      default: content += String("?");
+    }
     content += "</h4><h4>BMS mode: ";
     switch (datalayer_extended.meb.BMS_mode){
       case 0: content+= String("HV inactive"); break;
@@ -386,6 +394,32 @@ String advanced_battery_processor(const String& var) {
       case 7: content+= String("Fault"); break;
       default: content += String("?");
     }
+    content += "</h4><h4>Voltage status: ";
+    switch (datalayer_extended.meb.BMS_error_status){
+      case 0: content+= String("Init"); break;
+      case 1: content+= String("BMS interm circuit voltage free (U<20V)"); break;
+      case 2: content+= String("BMS interm circuit not voltage free (U >= 25V)"); break;
+      case 3: content+= String("Error"); break;
+      default: content += String("?");
+    }
+    content += "</h4><h4>BMS error status: ";
+    switch (datalayer_extended.meb.BMS_error_status){
+      case 0: content+= String("Component IO"); break;
+      case 1: content+= String("Iso Error 1"); break;
+      case 2: content+= String("Iso Error 2"); break;
+      case 3: content+= String("Interlock"); break;
+      case 4: content+= String("SD"); break;
+      case 5: content+= String("Performance red"); break;
+      case 6: content+= String("No component function"); break;
+      case 7: content+= String("Init"); break;
+      default: content += String("?");
+    }
+    
+    content += datalayer_extended.meb.BMS_OBD_MIL ? "<h4>OBD MIL: ON!</h4>" : "<h4>OBD MIL: Off</h4>";
+    content +=
+        datalayer_extended.meb.BMS_error_lamp_req ? "<h4>Red error lamp: ON!</h4>" : "<h4>Red error lamp: Off</h4>";
+    content += datalayer_extended.meb.BMS_warning_lamp_req ? "<h4>Yellow warning lamp: ON!</h4>"
+                                                           : "<h4>Yellow warning lamp: Off</h4>";
     content += "</h4><h4>Isolation resistance: " + String(datalayer_extended.meb.isolation_resistance) + " kOhm</h4>";
     content +=
         datalayer_extended.meb.battery_heating ? "<h4>Battery heating: Active!</h4>" : "<h4>Battery heating: Off</h4>";
