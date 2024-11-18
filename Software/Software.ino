@@ -763,6 +763,10 @@ void handle_contactors() {
   datalayer.system.status.inverter_allows_contactor_closing = digitalRead(INVERTER_CONTACTOR_ENABLE_PIN);
 #endif
 
+#ifdef CONTACTOR_CONTROL_DOUBLE_BATTERY
+  handle_contactors_battery2();
+#endif
+
 #ifdef CONTACTOR_CONTROL
   // First check if we have any active errors, incase we do, turn off the battery
   if (datalayer.battery.status.bms_status == FAULT) {
@@ -803,21 +807,10 @@ void handle_contactors() {
 
   // In case the inverter requests contactors to open, set the state accordingly
   if (contactorStatus == COMPLETED) {
+    //Incase inverter requests contactors to open, make state machine jump to Disconnected state
     if (!datalayer.system.status.inverter_allows_contactor_closing) {
       contactorStatus = DISCONNECTED;
     }
-#ifdef CONTACTOR_CONTROL_DOUBLE_BATTERY
-    if (datalayer.system.status.battery2_allows_contactor_closing &&
-        datalayer.system.status.inverter_allows_contactor_closing) {
-      set(SECOND_NEGATIVE_CONTACTOR_PIN, ON);
-      set(SECOND_POSITIVE_CONTACTOR_PIN, ON);
-      datalayer.system.status.contactors_battery2_engaged = true;
-    } else {  // Closing contactors on secondary battery not allowed
-      set(SECOND_NEGATIVE_CONTACTOR_PIN, OFF);
-      set(SECOND_POSITIVE_CONTACTOR_PIN, OFF);
-      datalayer.system.status.contactors_battery2_engaged = false;
-    }
-#endif  //CONTACTOR_CONTROL_DOUBLE_BATTERY
     // Skip running the state machine below if it has already completed
     return;
   }
@@ -860,6 +853,21 @@ void handle_contactors() {
   }
 #endif  // CONTACTOR_CONTROL
 }
+
+#ifdef CONTACTOR_CONTROL_DOUBLE_BATTERY
+void handle_contactors_battery2() {
+  if ((contactorStatus == COMPLETED) && datalayer.system.status.battery2_allows_contactor_closing &&
+      datalayer.system.status.inverter_allows_contactor_closing) {
+    set(SECOND_NEGATIVE_CONTACTOR_PIN, ON);
+    set(SECOND_POSITIVE_CONTACTOR_PIN, ON);
+    datalayer.system.status.contactors_battery2_engaged = true;
+  } else {  // Closing contactors on secondary battery not allowed
+    set(SECOND_NEGATIVE_CONTACTOR_PIN, OFF);
+    set(SECOND_POSITIVE_CONTACTOR_PIN, OFF);
+    datalayer.system.status.contactors_battery2_engaged = false;
+  }
+}
+#endif  //CONTACTOR_CONTROL_DOUBLE_BATTERY
 
 void update_calculated_values() {
   /* Calculate allowed charge/discharge currents*/
