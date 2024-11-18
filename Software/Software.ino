@@ -748,6 +748,8 @@ void check_interconnect_available() {
     clear_event(EVENT_VOLTAGE_DIFFERENCE);
     if (datalayer.battery.status.bms_status != FAULT) {  // Only proceed if we are not in faulted state
       datalayer.system.status.battery2_allows_contactor_closing = true;
+    } else {  // If main battery is in fault state, disengage the second battery
+      datalayer.system.status.battery2_allows_contactor_closing = false;
     }
   } else {  //We are over 3.0V diff
     set_event(EVENT_VOLTAGE_DIFFERENCE,
@@ -808,7 +810,7 @@ void handle_contactors() {
     if (datalayer.system.status.battery2_allows_contactor_closing) {
       set(SECOND_NEGATIVE_CONTACTOR_PIN, ON);
       set(SECOND_POSITIVE_CONTACTOR_PIN, ON);
-    } else {
+    } else {  // Closing contactors on secondary battery not allowed
       set(SECOND_NEGATIVE_CONTACTOR_PIN, OFF);
       set(SECOND_POSITIVE_CONTACTOR_PIN, OFF);
     }
