@@ -285,58 +285,54 @@ String advanced_battery_processor(const String& var) {
 #endif  //BYD_ATTO_3_BATTERY
 
 #ifdef TESLA_BATTERY
-    float beginning_of_life = static_cast<float>(datalayer_extended.tesla.battery_beginning_of_life) * 0.1;
+    float beginning_of_life = static_cast<float>(datalayer_extended.tesla.battery_beginning_of_life);
     content += "<h4>Battery Beginning of Life: " + String(beginning_of_life) + " kWh</h4>";
-    float battTempPct = static_cast<float>(datalayer_extended.tesla.battery_battTempPct) * 0.4;
+    float battTempPct = static_cast<float>(datalayer_extended.tesla.battery_battTempPct);
     content += "<h4>BattTempPct: " + String(battTempPct) + " </h4>";
-    float dcdcLvBusVolt = static_cast<float>(datalayer_extended.tesla.battery_dcdcLvBusVolt) * 0.0390625;
+    float dcdcLvBusVolt = static_cast<float>(datalayer_extended.tesla.battery_dcdcLvBusVolt);
     content += "<h4>PCS Lv Bus: " + String(dcdcLvBusVolt) + " V</h4>";
-    float dcdcHvBusVolt = static_cast<float>(datalayer_extended.tesla.battery_dcdcHvBusVolt) * 0.146484;
+    float dcdcHvBusVolt = static_cast<float>(datalayer_extended.tesla.battery_dcdcHvBusVolt);
     content += "<h4>PCS Hv Bus: " + String(dcdcHvBusVolt) + " V</h4>";
-    float dcdcLvOutputCurrent = static_cast<float>(datalayer_extended.tesla.battery_dcdcLvOutputCurrent) * 0.1;
+    float dcdcLvOutputCurrent = static_cast<float>(datalayer_extended.tesla.battery_dcdcLvOutputCurrent);
     content += "<h4>PCS Lv Output: " + String(dcdcLvOutputCurrent) + " A</h4>";
-    float nominal_full_pack_energy =
-        static_cast<float>(datalayer_extended.tesla.battery_nominal_full_pack_energy) * 0.1;
+    float nominal_full_pack_energy = static_cast<float>(datalayer_extended.tesla.battery_nominal_full_pack_energy);
     content += "<h4>Nominal Full Pack Energy: " + String(nominal_full_pack_energy) + " kWh</h4>";
-    float nominal_energy_remaining =
-        static_cast<float>(datalayer_extended.tesla.battery_nominal_energy_remaining) * 0.1;
+    float nominal_energy_remaining = static_cast<float>(datalayer_extended.tesla.battery_nominal_energy_remaining);
     content += "<h4>Nominal Energy Remaining: " + String(nominal_energy_remaining) + " kWh</h4>";
-    float ideal_energy_remaining = static_cast<float>(datalayer_extended.tesla.battery_ideal_energy_remaining) * 0.1;
+    float ideal_energy_remaining = static_cast<float>(datalayer_extended.tesla.battery_ideal_energy_remaining);
     content += "<h4>Ideal Energy Remaining: " + String(ideal_energy_remaining) + " kWh</h4>";
-    float energy_to_charge_complete =
-        static_cast<float>(datalayer_extended.tesla.battery_energy_to_charge_complete) * 0.1;
+    float energy_to_charge_complete = static_cast<float>(datalayer_extended.tesla.battery_energy_to_charge_complete);
     content += "<h4>Energy to Charge Complete: " + String(energy_to_charge_complete) + " kWh</h4>";
-    float energy_buffer = static_cast<float>(datalayer_extended.tesla.battery_energy_buffer) * 0.1;
+    float energy_buffer = static_cast<float>(datalayer_extended.tesla.battery_energy_buffer);
     content += "<h4>Energy Buffer: " + String(energy_buffer) + " kWh</h4>";
     content += "<h4>packConfigMultiplexer: " + String(datalayer_extended.tesla.battery_packConfigMultiplexer) + "</h4>";
     content += "<h4>moduleType: " + String(datalayer_extended.tesla.battery_moduleType) + "</h4>";
     content += "<h4>reserveConfig: " + String(datalayer_extended.tesla.battery_reservedConfig) + "</h4>";
     content += "<h4>Full Charge Complete: " + String(datalayer_extended.tesla.battery_full_charge_complete) +
                "</h4>";  // no float needed
-    float total_discharge = static_cast<float>(datalayer_extended.tesla.battery_total_discharge) * 0.001;
+    float total_discharge = static_cast<float>(datalayer_extended.tesla.battery_total_discharge);
     content += "<h4>Total Discharge: " + String(total_discharge) + " kWh</h4>";
-    float total_charge = static_cast<float>(datalayer_extended.tesla.battery_total_charge) * 0.001;
+    float total_charge = static_cast<float>(datalayer_extended.tesla.battery_total_charge);
     content += "<h4>Total Charge: " + String(total_charge) + " kWh</h4>";
-    float packMass = static_cast<float>(datalayer_extended.tesla.battery_packMass) + 300;
+    float packMass = static_cast<float>(datalayer_extended.tesla.battery_packMass);
     content += "<h4>Battery Pack Mass: " + String(packMass) + " KG</h4>";
-    float platformMaxBusVoltage =
-        static_cast<float>(datalayer_extended.tesla.battery_platformMaxBusVoltage) * 0.1 + 375;
+    float platformMaxBusVoltage = static_cast<float>(datalayer_extended.tesla.battery_platformMaxBusVoltage);
     content += "<h4>Platform Max Bus Voltage: " + String(platformMaxBusVoltage) + " V</h4>";
-    float bms_min_voltage = static_cast<float>(datalayer_extended.tesla.battery_bms_min_voltage) * 0.01 * 2;
+    float bms_min_voltage = static_cast<float>(datalayer_extended.tesla.battery_bms_min_voltage);
     content += "<h4>BMS Min Voltage: " + String(bms_min_voltage) + " V</h4>";
-    float bms_max_voltage = static_cast<float>(datalayer_extended.tesla.battery_bms_max_voltage) * 0.01 * 2;
+    float bms_max_voltage = static_cast<float>(datalayer_extended.tesla.battery_bms_max_voltage);
     content += "<h4>BMS Max Voltage: " + String(bms_max_voltage) + " V</h4>";
-    float max_charge_current = static_cast<float>(datalayer_extended.tesla.battery_max_charge_current) * 0.1;
+    float max_charge_current = static_cast<float>(datalayer_extended.tesla.battery_max_charge_current);
     content += "<h4>Max Charge Current: " + String(max_charge_current) + " A</h4>";
-    float max_discharge_current = static_cast<float>(datalayer_extended.tesla.battery_max_discharge_current) * 0.128;
+    float max_discharge_current = static_cast<float>(datalayer_extended.tesla.battery_max_discharge_current);
     content += "<h4>Max Discharge Current: " + String(max_discharge_current) + " A</h4>";
-    float soc_ave = static_cast<float>(datalayer_extended.tesla.battery_soc_ave) * 0.1;
+    float soc_ave = static_cast<float>(datalayer_extended.tesla.battery_soc_ave);
     content += "<h4>Battery SOC Ave: " + String(soc_ave) + " </h4>";
-    float soc_max = static_cast<float>(datalayer_extended.tesla.battery_soc_max) * 0.1;
+    float soc_max = static_cast<float>(datalayer_extended.tesla.battery_soc_max);
     content += "<h4>Battery SOC Max: " + String(soc_max) + " </h4>";
-    float soc_min = static_cast<float>(datalayer_extended.tesla.battery_soc_min) * 0.1;
+    float soc_min = static_cast<float>(datalayer_extended.tesla.battery_soc_min);
     content += "<h4>Battery SOC Min: " + String(soc_min) + " </h4>";
-    float soc_ui = static_cast<float>(datalayer_extended.tesla.battery_soc_ui) * 0.1;
+    float soc_ui = static_cast<float>(datalayer_extended.tesla.battery_soc_ui);
     content += "<h4>Battery SOC UI: " + String(soc_ui) + " </h4>";
     static const char* contactorText[] = {"UNKNOWN(0)",  "OPEN",        "CLOSING",    "BLOCKED", "OPENING",
                                           "CLOSED",      "UNKNOWN(6)",  "WELDED",     "POS_CL",  "NEG_CL",

@@ -463,90 +463,107 @@ void receive_can_battery(CAN_frame rx_frame) {
   switch (rx_frame.ID) {
     case 0x352:
       mux = (rx_frame.data.u8[0] & 0x02);  //BMS_energyStatusIndex M : 0|2@1+ (1,0) [0|0] ""  X
-      if (mux == 3) {
-        battery_nominal_full_pack_energy =  //BMS_nominalFullPackEnergy : 0|11@1+ (0.1,0) [0|204.6] "KWh" //((_d[1] & (0x07U)) << 8) | (_d[0] & (0xFFU));
-            (((rx_frame.data.u8[1] & 0x07) << 8) | (rx_frame.data.u8[0]));  //Example 752 (75.2kWh)
-        battery_nominal_energy_remaining =  //BMS_nominalEnergyRemaining : 11|11@1+ (0.1,0) [0|204.6] "KWh" //((_d[2] & (0x3FU)) << 5) | ((_d[1] >> 3) & (0x1FU));
-            (((rx_frame.data.u8[2] & 0x3F) << 5) |
-             ((rx_frame.data.u8[1] & 0x1F) >> 3));  //Example 1247 * 0.1 = 124.7kWh
-        battery_expected_energy_remaining =  //BMS_expectedEnergyRemaining : 22|11@1+ (0.1,0) [0|204.6] "KWh"// ((_d[4] & (0x01U)) << 10) | ((_d[3] & (0xFFU)) << 2) | ((_d[2] >> 6) & (0x03U));
-            (((rx_frame.data.u8[4] & 0x01) << 10) | (rx_frame.data.u8[3] << 2) |
-             ((rx_frame.data.u8[2] & 0x03) >> 6));  //Example 622 (62.2kWh)
-        battery_ideal_energy_remaining =  //BMS_idealEnergyRemaining : 33|11@1+ (0.1,0) [0|204.6] "KWh" //((_d[5] & (0x0FU)) << 7) | ((_d[4] >> 1) & (0x7FU));
-            (((rx_frame.data.u8[5] & 0x0F) << 7) | ((rx_frame.data.u8[4] & 0x7F) >> 1));  //Example 311 * 0.1 = 31.1kWh
-        battery_energy_to_charge_complete =  // BMS_energyToChargeComplete : 44|11@1+ (0.1,0) [0|204.6] "KWh"// ((_d[6] & (0x7FU)) << 4) | ((_d[5] >> 4) & (0x0FU));
-            (((rx_frame.data.u8[6] & 0x7F) << 4) | ((rx_frame.data.u8[5] & 0x0F) << 4));  //Example 147 * 0.1 = 14.7kWh
-        battery_energy_buffer =  //BMS_energyBuffer : 55|8@1+ (0.1,0) [0|25.4] "KWh"// ((_d[7] & (0x7FU)) << 1) | ((_d[6] >> 7) & (0x01U));
-            (((rx_frame.data.u8[7] & 0x7F) << 1) | ((rx_frame.data.u8[6] & 0x01) >> 7));  //Example 1 * 0.1 = 0
-        battery_full_charge_complete =  //BMS_fullChargeComplete : 63|1@1+ (1,0) [0|1] ""//((_d[7] >> 7) & (0x01U));
-            ((rx_frame.data.u8[7] & 0x01) >> 7);
-      }
+
+      battery_nominal_full_pack_energy =  //BMS_nominalFullPackEnergy : 0|11@1+ (0.1,0) [0|204.6] "KWh" //((_d[1] & (0x07U)) << 8) | (_d[0] & (0xFFU));
+          (((rx_frame.data.u8[1] & 0x07) << 8) | (rx_frame.data.u8[0])) * 0.1;  //Example 752 (75.2kWh)
+      battery_nominal_energy_remaining =  //BMS_nominalEnergyRemaining : 11|11@1+ (0.1,0) [0|204.6] "KWh" //((_d[2] & (0x3FU)) << 5) | ((_d[1] >> 3) & (0x1FU));
+          (((rx_frame.data.u8[2] & 0x3F) << 5) | ((rx_frame.data.u8[1] & 0x1F) >> 3)) *
+          0.1;                             //Example 1247 * 0.1 = 124.7kWh
+      battery_expected_energy_remaining =  //BMS_expectedEnergyRemaining : 22|11@1+ (0.1,0) [0|204.6] "KWh"// ((_d[4] & (0x01U)) << 10) | ((_d[3] & (0xFFU)) << 2) | ((_d[2] >> 6) & (0x03U));
+          (((rx_frame.data.u8[4] & 0x01) << 10) | (rx_frame.data.u8[3] << 2) | ((rx_frame.data.u8[2] & 0x03) >> 6)) *
+          0.1;  //Example 622 (62.2kWh)
+      battery_ideal_energy_remaining =  //BMS_idealEnergyRemaining : 33|11@1+ (0.1,0) [0|204.6] "KWh" //((_d[5] & (0x0FU)) << 7) | ((_d[4] >> 1) & (0x7FU));
+          (((rx_frame.data.u8[5] & 0x0F) << 7) | ((rx_frame.data.u8[4] & 0x7F) >> 1)) *
+          0.1;  //Example 311 * 0.1 = 31.1kWh
+      battery_energy_to_charge_complete =  // BMS_energyToChargeComplete : 44|11@1+ (0.1,0) [0|204.6] "KWh"// ((_d[6] & (0x7FU)) << 4) | ((_d[5] >> 4) & (0x0FU));
+          (((rx_frame.data.u8[6] & 0x7F) << 4) | ((rx_frame.data.u8[5] & 0x0F) << 4)) *
+          0.1;  //Example 147 * 0.1 = 14.7kWh
+      battery_energy_buffer =  //BMS_energyBuffer : 55|8@1+ (0.1,0) [0|25.4] "KWh"// ((_d[7] & (0x7FU)) << 1) | ((_d[6] >> 7) & (0x01U));
+          (((rx_frame.data.u8[7] & 0x7F) << 1) | ((rx_frame.data.u8[6] & 0x01) >> 7)) * 0.1;  //Example 1 * 0.1 = 0
+      battery_full_charge_complete =  //BMS_fullChargeComplete : 63|1@1+ (1,0) [0|1] ""//((_d[7] >> 7) & (0x01U));
+          ((rx_frame.data.u8[7] & 0x01) >> 7);
+
       if (mux == 0) {
-        battery_nominal_full_pack_energy =
-            (rx_frame.data.u8[3] |
-             rx_frame.data.u8[2]);  //SG_ BMS_nominalFullPackEnergy m0 : 16|16@1+ (0.02,0) [0|0] "kWh"  X
-        battery_nominal_energy_remaining =
-            (rx_frame.data.u8[5] |
-             rx_frame.data.u8[4]);  //SG_ BMS_nominalEnergyRemaining m0 : 32|16@1+ (0.02,0) [0|0] "kWh"  X
-        battery_ideal_energy_remaining =
-            (rx_frame.data.u8[7] |
-             rx_frame.data.u8[6]);  //SG_ BMS_idealEnergyRemaining m0 : 48|16@1+ (0.02,0) [0|0] "kWh"  X
+        battery_nominal_full_pack_energy = ((rx_frame.data.u8[3] << 8) | rx_frame.data.u8[2]) *
+                                           0.02;  //BMS_nominalFullPackEnergy m0 : 16|16@1+ (0.02,0) [0|0] "kWh"  X
+        battery_nominal_energy_remaining = ((rx_frame.data.u8[5] << 8) | rx_frame.data.u8[4]) *
+                                           0.02;  //BMS_nominalEnergyRemaining m0 : 32|16@1+ (0.02,0) [0|0] "kWh"  X
+        battery_ideal_energy_remaining = ((rx_frame.data.u8[7] << 8) | rx_frame.data.u8[6]) *
+                                         0.02;  //BMS_idealEnergyRemaining m0 : 48|16@1+ (0.02,0) [0|0] "kWh"  X
       }
       if (mux == 1) {
-        battery_fully_charged = (rx_frame.data.u8[1] & 0x01);  //SG_ BMS_fullyCharged m1 : 15|1@1+ (1,0) [0|1] ""  X
-        battery_energy_buffer =
-            (rx_frame.data.u8[3] | rx_frame.data.u8[2]);  //SG_ BMS_energyBuffer m1 : 16|16@1+ (0.01,0) [0|0] "kWh"  X
-        battery_expected_energy_remaining =
-            (rx_frame.data.u8[5] |
-             rx_frame.data.u8[4]);  //SG_ BMS_expectedEnergyRemaining m1 : 32|16@1+ (0.02,0) [0|0] "kWh"  X
-        battery_energy_to_charge_complete =
-            (rx_frame.data.u8[7] |
-             rx_frame.data.u8[6]);  //SG_ BMS_energyToChargeComplete m1 : 48|16@1+ (0.02,0) [0|0] "kWh"  X
+        battery_fully_charged = (rx_frame.data.u8[1] & 0x01);  //BMS_fullyCharged m1 : 15|1@1+ (1,0) [0|1] ""  X
+        battery_energy_buffer = (rx_frame.data.u8[3] | rx_frame.data.u8[2]) *
+                                0.01;  //BMS_energyBuffer m1 : 16|16@1+ (0.01,0) [0|0] "kWh"  X
+        battery_expected_energy_remaining = (rx_frame.data.u8[5] | rx_frame.data.u8[4]) *
+                                            0.02;  //BMS_expectedEnergyRemaining m1 : 32|16@1+ (0.02,0) [0|0] "kWh"  X
+        battery_energy_to_charge_complete = (rx_frame.data.u8[7] | rx_frame.data.u8[6]) *
+                                            0.02;  //BMS_energyToChargeComplete m1 : 48|16@1+ (0.02,0) [0|0] "kWh"  X
       }
       break;
-    case 0x20A:
-      //Contactor state
-      battery_packContNegativeState = (rx_frame.data.u8[0] & 0x07);
-      battery_packContPositiveState = (rx_frame.data.u8[0] & 0x38) >> 3;
-      battery_contactor = (rx_frame.data.u8[1] & 0x0F);
-      battery_packContactorSetState = (rx_frame.data.u8[1] & 0x0F);
-      battery_packCtrsClosingAllowed = (rx_frame.data.u8[4] & 0x08) >> 3;
-      battery_pyroTestInProgress = (rx_frame.data.u8[4] & 0x20) >> 5;
-      battery_hvil_status = (rx_frame.data.u8[5] & 0x0F);
+    case 0x20A:                                                           //Contactor state //HVP_contactorState:
+      battery_packContNegativeState = (rx_frame.data.u8[0] & 0x07);       //0|3@1+ (1,0) [0|7] ""
+      battery_packContPositiveState = (rx_frame.data.u8[0] & 0x38) >> 3;  //3|3@1+ (1,0) [0|7] ""
+      battery_contactor = (rx_frame.data.u8[1] & 0x0F);              //HVP_packContactorSetState : 8|4@1+ (1,0) [0|9] ""
+      battery_packContactorSetState = (rx_frame.data.u8[1] & 0x0F);  //HVP_packContactorSetState : 8|4@1+ (1,0) [0|9] ""
+      battery_packCtrsClosingAllowed = (rx_frame.data.u8[4] & 0x08) >> 3;  //35|1@1+ (1,0) [0|1] ""
+      battery_pyroTestInProgress = (rx_frame.data.u8[4] & 0x20) >> 5;      //37|1@1+ (1,0) [0|1] ""
+      battery_hvil_status = (rx_frame.data.u8[5] & 0x0F);                  //40|4@1+ (1,0) [0|9] ""
+      //HVP_packCtrsOpenNowRequested : 33|1@1+ (1,0) [0|1] ""
+      //HVP_packCtrsOpenRequested : 34|1@1+ (1,0) [0|1] ""
+      //HVP_packCtrsRequestStatus : 30|2@1+ (1,0) [0|2] ""
+      //HVP_packCtrsResetRequestRequired : 32|1@1+ (1,0) [0|1] ""
+      //HVP_dcLinkAllowedToEnergize : 36|1@1+ (1,0) [0|1] ""  Receiver
+      //HVP_fcContNegativeAuxOpen : 7|1@1+ (1,0) [0|1] ""  Receiver
+      //HVP_fcContNegativeState : 12|3@1+ (1,0) [0|7] ""  Receiver
+      //HVP_fcContPositiveAuxOpen : 6|1@1+ (1,0) [0|1] ""  Receiver
+      //HVP_fcContPositiveState : 16|3@1+ (1,0) [0|7] ""  Receiver
+      //HVP_fcContactorSetState : 19|4@1+ (1,0) [0|9] ""  Receiver
+      //HVP_fcCtrsClosingAllowed : 29|1@1+ (1,0) [0|1] ""  Receiver
+      //HVP_fcCtrsOpenNowRequested : 27|1@1+ (1,0) [0|1] ""  Receiver
+      //HVP_fcCtrsOpenRequested : 28|1@1+ (1,0) [0|1] ""  Receiver
+      //HVP_fcCtrsRequestStatus : 24|2@1+ (1,0) [0|2] ""  Receiver
+      //HVP_fcCtrsResetRequestRequired : 26|1@1+ (1,0) [0|1] ""  Receiver
+      //HVP_fcLinkAllowedToEnergize : 44|2@1+ (1,0) [0|2] ""  Receiver
       break;
-    case 0x252:
-      //Limits
-      battery_regenerative_limit =
-          ((rx_frame.data.u8[1] << 8) | rx_frame.data.u8[0]) * 0.01;  //Example 4715 * 0.01 = 47.15kW
-      battery_discharge_limit =
-          ((rx_frame.data.u8[3] << 8) | rx_frame.data.u8[2]) * 0.013;  //Example 2009 * 0.013 = 26.117???
-      battery_max_heat_park =
-          (((rx_frame.data.u8[5] & 0x03) << 8) | rx_frame.data.u8[4]) * 0.01;  //Example 500 * 0.01 = 5kW
-      battery_hvac_max_power =
-          (((rx_frame.data.u8[7] << 6) | ((rx_frame.data.u8[6] & 0xFC) >> 2))) * 0.02;  //Example 1000 * 0.02 = 20kW?
+    case 0x252:  //Limit //BMS_powerAvailable252:
+      battery_regenerative_limit = ((rx_frame.data.u8[1] << 8) | rx_frame.data.u8[0]) *
+                                   0.01;  //0|16@1+ (0.01,0) [0|655.35] "kW"  //Example 4715 * 0.01 = 47.15kW
+      battery_discharge_limit = ((rx_frame.data.u8[3] << 8) | rx_frame.data.u8[2]) *
+                                0.013;  //16|16@1+ (0.013,0) [0|655.35] "kW"  //Example 2009 * 0.013 = 26.117???
+      battery_max_heat_park = (((rx_frame.data.u8[5] & 0x03) << 8) | rx_frame.data.u8[4]) *
+                              0.01;  //32|10@1+ (0.01,0) [0|10.23] "kW"  //Example 500 * 0.01 = 5kW
+      battery_hvac_max_power = (((rx_frame.data.u8[7] << 6) | ((rx_frame.data.u8[6] & 0xFC) >> 2))) *
+                               0.02;  //50|10@1+ (0.02,0) [0|20.46] "kW"  //Example 1000 * 0.02 = 20kW?
+                                      //BMS_notEnoughPowerForHeatPump : 42|1@1+ (1,0) [0|1] ""  Receiver
+                                      //BMS_powerLimitsState : 48|1@1+ (1,0) [0|1] ""  Receiver
       break;
-    case 0x132:
-      //battery amps/volts
-      battery_volts = ((rx_frame.data.u8[1] << 8) | rx_frame.data.u8[0]) * 0.01;  //Example 37030mv * 0.01 = 370V
-      battery_amps = ((rx_frame.data.u8[3] << 8) | rx_frame.data.u8[2]);          //Example 65492 (-4.3A) OR 225 (22.5A)
-      battery_raw_amps = ((rx_frame.data.u8[5] << 8) | rx_frame.data.u8[4]) * -0.05;  //Example 10425 * -0.05 = ?
+    case 0x132:  //battery amps/volts //HVBattAmpVolt
+      battery_volts = ((rx_frame.data.u8[1] << 8) | rx_frame.data.u8[0]) *
+                      0.01;  //0|16@1+ (0.01,0) [0|655.35] "V"  //Example 37030mv * 0.01 = 370V
+      battery_amps =
+          ((rx_frame.data.u8[3] << 8) | rx_frame.data.u8[2]) *
+          -0.1;  //SmoothBattCurrent : 16|16@1- (-0.1,0) [-3276.7|3276.7] "A"         //Example 65492 (-4.3A) OR 225 (22.5A)
+      battery_raw_amps =
+          ((rx_frame.data.u8[5] << 8) | rx_frame.data.u8[4]) * -0.05 +
+          822;  //RawBattCurrent : 32|16@1- (-0.05,822) [-1138.35|2138.4] "A"  //Example 10425 * -0.05 = ?
       battery_charge_time_remaining =
-          (((rx_frame.data.u8[7] & 0x0F) << 8) | rx_frame.data.u8[6]) * 0.1;  //Example 228 * 0.1 = 22.8min
+          (((rx_frame.data.u8[7] & 0x0F) << 8) |
+           rx_frame.data.u8[6]);  //ChargeHoursRemaining : 48|12@1+ (1,0) [0|4095] "Min"  //Example 228 * 0.1 = 22.8min
       if (battery_charge_time_remaining == 4095) {
         battery_charge_time_remaining = 0;
       }
-
       break;
-    case 0x3D2:
-      // total charge/discharge kwh
+    case 0x3D2:  //TotalChargeDischarge:
       battery_total_discharge = ((rx_frame.data.u8[3] << 24) | (rx_frame.data.u8[2] << 16) |
-                                 (rx_frame.data.u8[1] << 8) | rx_frame.data.u8[0]);
+                                 (rx_frame.data.u8[1] << 8) | rx_frame.data.u8[0]) *
+                                0.001;  //0|32@1+ (0.001,0) [0|4294970] "kWh"
       battery_total_charge = ((rx_frame.data.u8[7] << 24) | (rx_frame.data.u8[6] << 16) | (rx_frame.data.u8[5] << 8) |
-                              rx_frame.data.u8[4]);
+                              rx_frame.data.u8[4]) *
+                             0.001;  //32|32@1+ (0.001,0) [0|4294970] "kWh"
       break;
-    case 0x332:
-      //min/max hist values
-      mux = (rx_frame.data.u8[0] & 0x03);
+    case 0x332:                            //min/max hist values //BattBrickMinMax:
+      mux = (rx_frame.data.u8[0] & 0x03);  //BattBrickMultiplexer M : 0|2@1+ (1,0) [0|0] ""
 
       if (mux == 1)  //Cell voltages
       {
@@ -565,10 +582,24 @@ void receive_can_battery(CAN_frame rx_frame) {
         battery_min_temp =
             (rx_frame.data.u8[3] * 5) - 400;  //Multiply by 5 and remove offset to get C+1 (0x61*5=485-400=8.5*C)
       }
+      //BattBrickMultiplexer M : 0|2@1+ (1,0) [0|0] ""  Receiver
+      //BattBrickTempMaxNum m0 : 2|4@1+ (1,0) [0|0] ""  Receiver
+      //BattBrickTempMinNum m0 : 8|4@1+ (1,0) [0|0] ""  Receiver
+      //BattBrickTempMax m0 : 16|8@1+ (0.5,-40) [0|0] "C"  Receiver
+      //BattBrickTempMin m0 : 24|8@1+ (0.5,-40) [0|0] "C"  Receiver
+      //BattBrickModelTMax m0 : 32|8@1+ (0.5,-40) [0|0] "C"  Receiver
+      //BattBrickModelTMin m0 : 40|8@1+ (0.5,-40) [0|0] "C"  Receiver
+      //BattBrickVoltageMax m1 : 2|12@1+ (0.002,0) [0|0] "V"  Receiver
+      //BattBrickVoltageMin m1 : 16|12@1+ (0.002,0) [0|0] "V"  Receiver
+      //BattBrickVoltageMaxNum m1 : 32|7@1+ (1,1) [0|0] ""  Receiver
+      //BattBrickVoltageMinNum m1 : 40|7@1+ (1,1) [0|0] ""  Receiver
       break;
-    case 0x401:  // Cell stats
-      mux = (rx_frame.data.u8[0]);
-
+    case 0x401:                     // Cell stats  //BrickVoltages
+      mux = (rx_frame.data.u8[0]);  //MultiplexSelector M : 0|8@1+ (1,0) [0|0] ""
+                                    //StatusFlags : 8|8@1+ (1,0) [0|0] ""
+                                    //Brick0 m0 : 16|16@1+ (0.0001,0) [0|0] "V"
+                                    //Brick1 m0 : 32|16@1+ (0.0001,0) [0|0] "V"
+                                    //Brick2 m0 : 48|16@1+ (0.0001,0) [0|0] "V"
       static uint16_t volts;
       static uint8_t mux_zero_counter = 0u;
       static uint8_t mux_max = 0u;
@@ -597,41 +628,50 @@ void receive_can_battery(CAN_frame rx_frame) {
         }
       }
       break;
-    case 0x2d2:
-      //Min / max limits //BMSVAlimits: //move factoring to datalayer?
-      battery_bms_min_voltage = ((rx_frame.data.u8[1] << 8) | rx_frame.data.u8[0]);  //Example 24148mv * 0.01 = 241.48 V
-      battery_bms_max_voltage = ((rx_frame.data.u8[3] << 8) | rx_frame.data.u8[2]);  //Example 40282mv * 0.01 = 402.82 V
-      battery_max_charge_current =
-          (((rx_frame.data.u8[5] & 0x3F) << 8) | rx_frame.data.u8[4]);  //Example 1301? * 0.1 = 130.1?
-      battery_max_discharge_current =
-          (((rx_frame.data.u8[7] & 0x3F) << 8) | rx_frame.data.u8[6]);  //Example 430? * 0.128 = 55.4?
+    case 0x2d2:  //BMSVAlimits:
+      battery_bms_min_voltage = ((rx_frame.data.u8[1] << 8) | rx_frame.data.u8[0]) *
+                                0.1;  //0|16@1+ (0.01,0) [0|430] "V"  //Example 24148mv * 0.01 = 241.48 V
+      battery_bms_max_voltage = ((rx_frame.data.u8[3] << 8) | rx_frame.data.u8[2]) *
+                                0.1;  //16|16@1+ (0.01,0) [0|430] "V"  //Example 40282mv * 0.01 = 402.82 V
+      battery_max_charge_current = (((rx_frame.data.u8[5] & 0x3F) << 8) | rx_frame.data.u8[4]) *
+                                   0.1;  //32|14@1+ (0.1,0) [0|1638.2] "A"  //Example 1301? * 0.1 = 130.1?
+      battery_max_discharge_current = (((rx_frame.data.u8[7] & 0x3F) << 8) | rx_frame.data.u8[6]) *
+                                      0.128;  //48|14@1+ (0.128,0) [0|2096.9] "A"  //Example 430? * 0.128 = 55.4?
       break;
-    case 0x2b4:                                                                             //PCS_dcdcRailStatus:
-      battery_dcdcLvBusVolt = (((rx_frame.data.u8[1] & 0x03) << 8) | rx_frame.data.u8[0]);  //update name move factoring
-      battery_dcdcHvBusVolt =
-          ((((rx_frame.data.u8[2] & 0x3F) << 6) | ((rx_frame.data.u8[1] & 0xFC) >> 2)));  //update name move factoring
+    case 0x2b4:  //PCS_dcdcRailStatus:
+      battery_dcdcLvBusVolt = (((rx_frame.data.u8[1] & 0x03) << 8) | rx_frame.data.u8[0]) *
+                              0.0390625;  //0|10@1+ (0.0390625,0) [0|39.9609] "V"
+      battery_dcdcHvBusVolt = ((((rx_frame.data.u8[2] & 0x3F) << 6) | ((rx_frame.data.u8[1] & 0xFC) >> 2))) *
+                              0.146484;  //10|12@1+ (0.146484,0) [0|599.854] "V"
       battery_dcdcLvOutputCurrent =
-          (((rx_frame.data.u8[4] & 0x0F) << 8) | rx_frame.data.u8[3]);  //update name move factoring
+          (((rx_frame.data.u8[4] & 0x0F) << 8) | rx_frame.data.u8[3]) * 0.1;  //24|12@1+ (0.1,0) [0|400] "A"
       break;
     case 0x292:                                                            //BMS_socStatus
       datalayer.battery.status.CAN_battery_still_alive = CAN_STILL_ALIVE;  //We are getting CAN messages from the BMS
-      battery_beginning_of_life = (((rx_frame.data.u8[6] & 0x03) << 8) | rx_frame.data.u8[5]);
-      battery_soc_min = (((rx_frame.data.u8[1] & 0x03) << 8) | rx_frame.data.u8[0]);
-      battery_soc_ui = (((rx_frame.data.u8[2] & 0x0F) << 6) | ((rx_frame.data.u8[1] & 0xFC) >> 2));
-      battery_soc_max = (((rx_frame.data.u8[3] & 0x3F) << 4) | ((rx_frame.data.u8[2] & 0xF0) >> 4));
-      battery_soc_ave = ((rx_frame.data.u8[4] << 2) | ((rx_frame.data.u8[3] & 0xC0) >> 6));
-      battery_battTempPct = ((rx_frame.data.u8[7] & 0x03) << 6) | (rx_frame.data.u8[6] & (0x3F) >> 2);
+      battery_beginning_of_life =
+          (((rx_frame.data.u8[6] & 0x03) << 8) | rx_frame.data.u8[5]) * 0.1;  //40|10@1+ (0.1,0) [0|102.3] "kWh"
+      battery_soc_min =
+          (((rx_frame.data.u8[1] & 0x03) << 8) | rx_frame.data.u8[0]) * 0.1;  //0|10@1+ (0.1,0) [0|102.3] "%"
+      battery_soc_ui = (((rx_frame.data.u8[2] & 0x0F) << 6) | ((rx_frame.data.u8[1] & 0xFC) >> 2)) *
+                       0.1;  //10|10@1+ (0.1,0) [0|102.3] "%"
+      battery_soc_max = (((rx_frame.data.u8[3] & 0x3F) << 4) | ((rx_frame.data.u8[2] & 0xF0) >> 4)) *
+                        0.1;  //20|10@1+ (0.1,0) [0|102.3] "%"
+      battery_soc_ave =
+          ((rx_frame.data.u8[4] << 2) | ((rx_frame.data.u8[3] & 0xC0) >> 6)) * 0.1;  //30|10@1+ (0.1,0) [0|102.3] "%"
+      battery_battTempPct = ((rx_frame.data.u8[7] & 0x03) << 6) |
+                            (rx_frame.data.u8[6] & (0x3F) >> 2) * 0.4;  //50|8@1+ (0.4,0) [0|100] "%"
       break;
     case 0x392:  //BMS_packConfig
       mux = (rx_frame.data.u8[0] & (0xFF));
       if (mux == 1) {
-        battery_packConfigMultiplexer = (rx_frame.data.u8[0] & (0xff));
-        battery_moduleType = (rx_frame.data.u8[1] & (0x07));
-        battery_packMass = (rx_frame.data.u8[2]);
-        battery_platformMaxBusVoltage = ((rx_frame.data.u8[4] & 0x03) << 8) | (rx_frame.data.u8[3]);
+        battery_packConfigMultiplexer = (rx_frame.data.u8[0] & (0xff));  //0|8@1+ (1,0) [0|1] ""
+        battery_moduleType = (rx_frame.data.u8[1] & (0x07));             //8|3@1+ (1,0) [0|4] ""
+        battery_packMass = (rx_frame.data.u8[2]) + 300;                  //16|8@1+ (1,300) [342|469] "kg"
+        battery_platformMaxBusVoltage =
+            ((rx_frame.data.u8[4] & 0x03) << 8) | (rx_frame.data.u8[3]) * 0.1 + 375;  //24|10@1+ (0.1,375) [0|0] "V"
       }
       if (mux == 0) {
-        battery_reservedConfig = (rx_frame.data.u8[1] & (0x1F));
+        battery_reservedConfig = (rx_frame.data.u8[1] & (0x1F));  //8|5@1+ (1,0) [0|31] ""
       }
       break;
     case 0x3aa:  //HVP_alertMatrix1
