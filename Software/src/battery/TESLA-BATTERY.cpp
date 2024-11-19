@@ -641,7 +641,7 @@ void receive_can_battery(CAN_frame rx_frame) {
     case 0x2b4:  //PCS_dcdcRailStatus:
       battery_dcdcLvBusVolt = (((rx_frame.data.u8[1] & 0x03) << 8) | rx_frame.data.u8[0]) *
                               0.0390625;  //0|10@1+ (0.0390625,0) [0|39.9609] "V"
-      battery_dcdcHvBusVolt = ((((rx_frame.data.u8[2] & 0x3F) << 6) | ((rx_frame.data.u8[1] & 0xFC) >> 2))) *
+      battery_dcdcHvBusVolt = (((rx_frame.data.u8[2] & 0x3F) << 6) | ((rx_frame.data.u8[1] & 0xFC) >> 2)) *
                               0.146484;  //10|12@1+ (0.146484,0) [0|599.854] "V"
       battery_dcdcLvOutputCurrent =
           (((rx_frame.data.u8[4] & 0x0F) << 8) | rx_frame.data.u8[3]) * 0.1;  //24|12@1+ (0.1,0) [0|400] "A"
@@ -658,8 +658,8 @@ void receive_can_battery(CAN_frame rx_frame) {
                         0.1;  //20|10@1+ (0.1,0) [0|102.3] "%"
       battery_soc_ave =
           ((rx_frame.data.u8[4] << 2) | ((rx_frame.data.u8[3] & 0xC0) >> 6)) * 0.1;  //30|10@1+ (0.1,0) [0|102.3] "%"
-      battery_battTempPct = ((rx_frame.data.u8[7] & 0x03) << 6) |
-                            (rx_frame.data.u8[6] & (0x3F) >> 2) * 0.4;  //50|8@1+ (0.4,0) [0|100] "%"
+      battery_battTempPct = (((rx_frame.data.u8[7] & 0x03) << 6) | (rx_frame.data.u8[6] & 0x3F) >> 2) *
+                            0.4;  //50|8@1+ (0.4,0) [0|100] "%"
       break;
     case 0x392:  //BMS_packConfig
       mux = (rx_frame.data.u8[0] & (0xFF));
@@ -668,7 +668,7 @@ void receive_can_battery(CAN_frame rx_frame) {
         battery_moduleType = (rx_frame.data.u8[1] & (0x07));             //8|3@1+ (1,0) [0|4] ""
         battery_packMass = (rx_frame.data.u8[2]) + 300;                  //16|8@1+ (1,300) [342|469] "kg"
         battery_platformMaxBusVoltage =
-            ((rx_frame.data.u8[4] & 0x03) << 8) | (rx_frame.data.u8[3]) * 0.1 + 375;  //24|10@1+ (0.1,375) [0|0] "V"
+            (((rx_frame.data.u8[4] & 0x03) << 8) | (rx_frame.data.u8[3])) * 0.1 + 375;  //24|10@1+ (0.1,375) [0|0] "V"
       }
       if (mux == 0) {
         battery_reservedConfig = (rx_frame.data.u8[1] & (0x1F));  //8|5@1+ (1,0) [0|31] ""
