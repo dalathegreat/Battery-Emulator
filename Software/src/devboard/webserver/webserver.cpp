@@ -714,8 +714,19 @@ String processor(const String& var) {
     content += formatPowerValue("Real Remaining capacity", datalayer.battery2.status.remaining_capacity_Wh, "h", 1);
     content +=
         formatPowerValue("Scaled Remaining capacity", datalayer.battery2.status.reported_remaining_capacity_Wh, "h", 1);
-    content += formatPowerValue("Max discharge power", datalayer.battery2.status.max_discharge_power_W, "", 1);
-    content += formatPowerValue("Max charge power", datalayer.battery2.status.max_charge_power_W, "", 1);
+
+    if (emulator_pause_status == NORMAL) {
+      content += formatPowerValue("Max discharge power", datalayer.battery2.status.max_discharge_power_W, "", 1);
+      content += formatPowerValue("Max charge power", datalayer.battery2.status.max_charge_power_W, "", 1);
+      content += "<h4 style='color: white;'>Max discharge current: " + String(maxCurrentDischargeFloat, 1) + " A</h4>";
+      content += "<h4 style='color: white;'>Max charge current: " + String(maxCurrentChargeFloat, 1) + " A</h4>";
+    } else {
+      content += formatPowerValue("Max discharge power", datalayer.battery2.status.max_discharge_power_W, "", 1, "red");
+      content += formatPowerValue("Max charge power", datalayer.battery2.status.max_charge_power_W, "", 1, "red");
+      content += "<h4 style='color: red;'>Max discharge current: " + String(maxCurrentDischargeFloat, 1) + " A</h4>";
+      content += "<h4 style='color: red;'>Max charge current: " + String(maxCurrentChargeFloat, 1) + " A</h4>";
+    }
+
     content += "<h4>Cell max: " + String(datalayer.battery2.status.cell_max_voltage_mV) + " mV</h4>";
     content += "<h4>Cell min: " + String(datalayer.battery2.status.cell_min_voltage_mV) + " mV</h4>";
     if (cell_delta_mv > datalayer.battery2.info.max_cell_voltage_deviation_mV) {
