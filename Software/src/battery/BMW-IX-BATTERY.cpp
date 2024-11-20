@@ -457,17 +457,18 @@ void update_values_battery() {  //This function maps all the values fetched via 
 
   datalayer.battery.status.temperature_max_dC = max_battery_temperature;
 
-  if (isStale(min_cell_voltage, datalayer.battery.status.cell_min_voltage_mV, min_cell_voltage_lastchanged)) {
-    datalayer.battery.status.cell_min_voltage_mV = 9999;  //Stale values force stop
-    set_event(EVENT_CAN_RX_FAILURE, 0);
-  } else {
-    datalayer.battery.status.cell_min_voltage_mV = min_cell_voltage;  //Value is alive
-  }
+  //Check stale values. As values dont change much during idle only consider stale if both parts of this message freeze.
+  bool isMinCellVoltageStale =
+      isStale(min_cell_voltage, datalayer.battery.status.cell_min_voltage_mV, min_cell_voltage_lastchanged);
+  bool isMaxCellVoltageStale =
+      isStale(max_cell_voltage, datalayer.battery.status.cell_max_voltage_mV, max_cell_voltage_lastchanged);
 
-  if (isStale(max_cell_voltage, datalayer.battery.status.cell_max_voltage_mV, max_cell_voltage_lastchanged)) {
+  if (isMinCellVoltageStale && isMaxCellVoltageStale) {
+    datalayer.battery.status.cell_min_voltage_mV = 9999;  //Stale values force stop
     datalayer.battery.status.cell_max_voltage_mV = 9999;  //Stale values force stop
     set_event(EVENT_CAN_RX_FAILURE, 0);
   } else {
+    datalayer.battery.status.cell_min_voltage_mV = min_cell_voltage;  //Value is alive
     datalayer.battery.status.cell_max_voltage_mV = max_cell_voltage;  //Value is alive
   }
 
@@ -672,7 +673,7 @@ void receive_can_battery(CAN_frame rx_frame) {
 #ifdef DEBUG_VIA_USB
           Serial.println("Cell MinMax Qualifier Invalid - Requesting BMS Reset");
 #endif
-          set_event(EVENT_SOC_UNAVAILABLE, (millis()));
+          //set_event(EVENT_BATTERY_VALUE_UNAVAILABLE, (millis())); //Eventually need new Info level event type
           transmit_can(&BMWiX_6F4_REQUEST_HARD_RESET, can_config.battery);
         } else {  //Only ingest values if they are not the 10V Error state
           min_cell_voltage = (rx_frame.data.u8[6] << 8 | rx_frame.data.u8[7]);
