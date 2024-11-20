@@ -7,21 +7,14 @@
 static unsigned long previousMillis2s = 0;   // will store last time a 2s CAN Message was send
 static unsigned long previousMillis10s = 0;  // will store last time a 10s CAN Message was send
 static unsigned long previousMillis60s = 0;  // will store last time a 60s CAN Message was send
-static uint8_t char1_151 = 0;
-static uint8_t char2_151 = 0;
-static uint8_t char3_151 = 0;
-static uint8_t char4_151 = 0;
-static uint8_t char5_151 = 0;
-static uint8_t char6_151 = 0;
-static uint8_t char7_151 = 0;
 
-CAN_frame BYD_250 = {
-    .FD = false,
-    .ext_ID = false,
-    .DLC = 8,
-    .ID = 0x250,
-    .data = {0x03, 0x16, 0x00, 0x66, (uint8_t)((BATTERY_WH_MAX / 100) >> 8), (uint8_t)(BATTERY_WH_MAX / 100), 0x02,
-             0x09}};  //3.16 FW , Capacity kWh byte4&5 (example 24kWh = 240)
+CAN_frame BYD_250 = {.FD = false,
+                     .ext_ID = false,
+                     .DLC = 8,
+                     .ID = 0x250,
+                     .data = {FW_MAJOR_VERSION, FW_MINOR_VERSION, 0x00, 0x66, (uint8_t)((BATTERY_WH_MAX / 100) >> 8),
+                              (uint8_t)(BATTERY_WH_MAX / 100), 0x02,
+                              0x09}};  //0-1 FW version , Capacity kWh byte4&5 (example 24kWh = 240)
 CAN_frame BYD_290 = {.FD = false,
                      .ext_ID = false,
                      .DLC = 8,
@@ -79,43 +72,18 @@ CAN_frame BYD_210 = {.FD = false,
                      .ID = 0x210,
                      .data = {0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00}};
 
-static uint16_t discharge_current = 0;
-static uint16_t charge_current = 0;
+static uint8_t inverter_name[7] = {0};
 static int16_t temperature_average = 0;
 static uint16_t inverter_voltage = 0;
 static uint16_t inverter_SOC = 0;
+static int16_t inverter_current = 0;
+static int16_t inverter_temperature = 0;
 static uint16_t remaining_capacity_ah = 0;
 static uint16_t fully_charged_capacity_ah = 0;
 static long inverter_timestamp = 0;
 static bool initialDataSent = 0;
 
 void update_values_can_inverter() {  //This function maps all the values fetched from battery CAN to the correct CAN messages
-
-  /* Calculate allowed charge/discharge currents*/
-  if (datalayer.battery.status.voltage_dV > 10) {  // Only update value when we have voltage available to avoid div0
-    charge_current =
-        ((datalayer.battery.status.max_charge_power_W * 10) /
-         datalayer.battery.status.voltage_dV);  //Charge power in W , max volt in V+1decimal (P=UI, solve for I)
-    //The above calculation results in (30 000*10)/3700=81A
-    charge_current = (charge_current * 10);  //Value needs a decimal before getting sent to inverter (81.0A)
-
-    discharge_current =
-        ((datalayer.battery.status.max_discharge_power_W * 10) /
-         datalayer.battery.status.voltage_dV);  //Charge power in W , max volt in V+1decimal (P=UI, solve for I)
-    //The above calculation results in (30 000*10)/3700=81A
-    discharge_current = (discharge_current * 10);  //Value needs a decimal before getting sent to inverter (81.0A)
-  }
-  /* Restrict values from user settings if needed*/
-  if (charge_current > datalayer.battery.info.max_charge_amp_dA) {
-    charge_current =
-        datalayer.battery.info
-            .max_charge_amp_dA;  //Cap the value to the max allowed Amp. Some inverters cannot handle large values.
-  }
-  if (discharge_current > datalayer.battery.info.max_discharge_amp_dA) {
-    discharge_current =
-        datalayer.battery.info
-            .max_discharge_amp_dA;  //Cap the value to the max allowed Amp. Some inverters cannot handle large values.
-  }
 
   /* Calculate temperature */
   temperature_average =
@@ -137,11 +105,11 @@ void update_values_can_inverter() {  //This function maps all the values fetched
   BYD_110.data.u8[2] = (datalayer.battery.info.min_design_voltage_dV >> 8);
   BYD_110.data.u8[3] = (datalayer.battery.info.min_design_voltage_dV & 0x00FF);
   //Maximum discharge power allowed (Unit: A+1)
-  BYD_110.data.u8[4] = (discharge_current >> 8);
-  BYD_110.data.u8[5] = (discharge_current & 0x00FF);
+  BYD_110.data.u8[4] = (datalayer.battery.status.max_discharge_current_dA >> 8);
+  BYD_110.data.u8[5] = (datalayer.battery.status.max_discharge_current_dA & 0x00FF);
   //Maximum charge power allowed (Unit: A+1)
-  BYD_110.data.u8[6] = (charge_current >> 8);
-  BYD_110.data.u8[7] = (charge_current & 0x00FF);
+  BYD_110.data.u8[6] = (datalayer.battery.status.max_charge_current_dA >> 8);
+  BYD_110.data.u8[7] = (datalayer.battery.status.max_charge_current_dA & 0x00FF);
 
   //SOC (100.00%)
   BYD_150.data.u8[0] = (datalayer.battery.status.reported_soc >> 8);
@@ -174,15 +142,12 @@ void update_values_can_inverter() {  //This function maps all the values fetched
   BYD_210.data.u8[3] = (datalayer.battery.status.temperature_min_dC & 0x00FF);
 
 #ifdef DEBUG_VIA_USB
-  if (char1_151 != 0) {
+  if (inverter_name[0] != 0) {
     Serial.print("Detected inverter: ");
-    Serial.print((char)char1_151);
-    Serial.print((char)char2_151);
-    Serial.print((char)char3_151);
-    Serial.print((char)char4_151);
-    Serial.print((char)char5_151);
-    Serial.print((char)char6_151);
-    Serial.println((char)char7_151);
+    for (uint8_t i = 0; i < 7; i++) {
+      Serial.print((char)inverter_name[i]);
+    }
+    Serial.println();
   }
 #endif
 }
@@ -194,27 +159,25 @@ void receive_can_inverter(CAN_frame rx_frame) {
       if (rx_frame.data.u8[0] & 0x01) {  //Battery requests identification
         send_intial_data();
       } else {  // We can identify what inverter type we are connected to
-        char1_151 = rx_frame.data.u8[1];
-        char2_151 = rx_frame.data.u8[2];
-        char3_151 = rx_frame.data.u8[3];
-        char4_151 = rx_frame.data.u8[4];
-        char5_151 = rx_frame.data.u8[5];
-        char6_151 = rx_frame.data.u8[6];
-        char7_151 = rx_frame.data.u8[7];
+        for (uint8_t i = 0; i < 7; i++) {
+          inverter_name[i] = rx_frame.data.u8[i + 1];
+        }
       }
       break;
     case 0x091:
       datalayer.system.status.CAN_inverter_still_alive = CAN_STILL_ALIVE;
-      inverter_voltage = ((rx_frame.data.u8[1] << 8) | rx_frame.data.u8[0]) * 0.1;
+      inverter_voltage = ((rx_frame.data.u8[0] << 8) | rx_frame.data.u8[1]) * 0.1;
+      inverter_current = ((rx_frame.data.u8[2] << 8) | rx_frame.data.u8[3]) * 0.1;
+      inverter_temperature = ((rx_frame.data.u8[4] << 8) | rx_frame.data.u8[5]) * 0.1;
       break;
     case 0x0D1:
       datalayer.system.status.CAN_inverter_still_alive = CAN_STILL_ALIVE;
-      inverter_SOC = ((rx_frame.data.u8[1] << 8) | rx_frame.data.u8[0]) * 0.1;
+      inverter_SOC = ((rx_frame.data.u8[0] << 8) | rx_frame.data.u8[1]) * 0.1;
       break;
     case 0x111:
       datalayer.system.status.CAN_inverter_still_alive = CAN_STILL_ALIVE;
-      inverter_timestamp = ((rx_frame.data.u8[3] << 24) | (rx_frame.data.u8[2] << 16) | (rx_frame.data.u8[1] << 8) |
-                            rx_frame.data.u8[0]);
+      inverter_timestamp = ((rx_frame.data.u8[0] << 24) | (rx_frame.data.u8[1] << 16) | (rx_frame.data.u8[2] << 8) |
+                            rx_frame.data.u8[3]);
       break;
     default:
       break;
@@ -259,5 +222,9 @@ void send_intial_data() {
   transmit_can(&BYD_3D0_1, can_config.inverter);
   transmit_can(&BYD_3D0_2, can_config.inverter);
   transmit_can(&BYD_3D0_3, can_config.inverter);
+}
+void setup_inverter(void) {  // Performs one time setup at startup over CAN bus
+  strncpy(datalayer.system.info.inverter_protocol, "BYD Battery-Box Premium HVS over CAN Bus", 63);
+  datalayer.system.info.inverter_protocol[63] = '\0';
 }
 #endif
