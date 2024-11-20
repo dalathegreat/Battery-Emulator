@@ -57,7 +57,7 @@ const char* version_number = "7.7.dev";
 
 // Interval settings
 uint16_t intervalUpdateValues = INTERVAL_1_S;  // Interval at which to update inverter values / Modbus registers
-unsigned long previousMillis10ms = 50;
+unsigned long previousMillis10ms = 0;
 unsigned long previousMillisUpdateVal = 0;
 
 // CAN parameters
@@ -302,9 +302,6 @@ void core_loop(void* task_time_us) {
       previousMillis10ms = millis();
       led_exe();
       handle_contactors();  // Take care of startup precharge/contactor closing
-#ifdef DOUBLE_BATTERY
-      check_interconnect_available();
-#endif
     }
     END_TIME_MEASUREMENT_MAX(time_10ms, datalayer.system.status.time_10ms_us);
 
@@ -314,6 +311,7 @@ void core_loop(void* task_time_us) {
       update_values_battery();             // Fetch battery values
 #ifdef DOUBLE_BATTERY
       update_values_battery2();
+      check_interconnect_available();
 #endif
       update_calculated_values();
 #ifndef SERIAL_LINK_RECEIVER
@@ -536,6 +534,7 @@ void init_contactors() {
   set(PRECHARGE_PIN, OFF);
 #endif  //CONTACTOR_CONTROL
 #ifdef CONTACTOR_CONTROL_DOUBLE_BATTERY
+
   pinMode(SECOND_POSITIVE_CONTACTOR_PIN, OUTPUT);
   set(SECOND_POSITIVE_CONTACTOR_PIN, OFF);
   pinMode(SECOND_NEGATIVE_CONTACTOR_PIN, OUTPUT);
@@ -775,15 +774,11 @@ void handle_contactors() {
     timeSpentInFaultedMode = 0;
   }
 
-  //handle contactor control SHUTDOWN_REQUESTED vs DISCONNECTED
-  if (timeSpentInFaultedMode > MAX_ALLOWED_FAULT_TICKS ||
-      (datalayer.system.settings.equipment_stop_active && contactorStatus != SHUTDOWN_REQUESTED)) {
+  //handle contactor control SHUTDOWN_REQUESTED
+  if (timeSpentInFaultedMode > MAX_ALLOWED_FAULT_TICKS) {
     contactorStatus = SHUTDOWN_REQUESTED;
-    datalayer.system.settings.equipment_stop_active = true;
   }
-  if (contactorStatus == SHUTDOWN_REQUESTED && !datalayer.system.settings.equipment_stop_active) {
-    contactorStatus = DISCONNECTED;
-  }
+
   if (contactorStatus == SHUTDOWN_REQUESTED) {
     set(PRECHARGE_PIN, OFF);
     set(NEGATIVE_CONTACTOR_PIN, OFF, PWM_OFF_DUTY);
@@ -800,15 +795,15 @@ void handle_contactors() {
     set(POSITIVE_CONTACTOR_PIN, OFF, PWM_OFF_DUTY);
 
     if (datalayer.system.status.battery_allows_contactor_closing &&
-        datalayer.system.status.inverter_allows_contactor_closing) {
+        datalayer.system.status.inverter_allows_contactor_closing && !datalayer.system.settings.equipment_stop_active) {
       contactorStatus = PRECHARGE;
     }
   }
 
   // In case the inverter requests contactors to open, set the state accordingly
   if (contactorStatus == COMPLETED) {
-    //Incase inverter requests contactors to open, make state machine jump to Disconnected state
-    if (!datalayer.system.status.inverter_allows_contactor_closing) {
+    //Incase inverter (or estop) requests contactors to open, make state machine jump to Disconnected state (recoverable)
+    if (!datalayer.system.status.inverter_allows_contactor_closing || datalayer.system.settings.equipment_stop_active) {
       contactorStatus = DISCONNECTED;
     }
     // Skip running the state machine below if it has already completed
@@ -856,8 +851,7 @@ void handle_contactors() {
 
 #ifdef CONTACTOR_CONTROL_DOUBLE_BATTERY
 void handle_contactors_battery2() {
-  if ((contactorStatus == COMPLETED) && datalayer.system.status.battery2_allows_contactor_closing &&
-      datalayer.system.status.inverter_allows_contactor_closing) {
+  if ((contactorStatus == COMPLETED) && datalayer.system.status.battery2_allows_contactor_closing) {
     set(SECOND_NEGATIVE_CONTACTOR_PIN, ON);
     set(SECOND_POSITIVE_CONTACTOR_PIN, ON);
     datalayer.system.status.contactors_battery2_engaged = true;

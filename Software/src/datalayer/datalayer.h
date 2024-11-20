@@ -190,7 +190,7 @@ typedef struct {
 #ifdef CONTACTOR_CONTROL
   /** True if the contactor controlled by battery-emulator is closed */
   bool contactors_engaged = false;
-  /** True if the contactor controlled by battery-emulator is closed */
+  /** True if the contactor controlled by battery-emulator is closed. Determined by check_interconnect_available(); if voltage is OK */
   bool contactors_battery2_engaged = false;
 #endif
 } DATALAYER_SYSTEM_STATUS_TYPE;
