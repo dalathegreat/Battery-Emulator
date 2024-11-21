@@ -1032,7 +1032,6 @@ void handle_chademo_sequence() {
 
 void setup_battery(void) {  // Performs one time setup at startup
 
-//  intervalUpdateValues = 800;  // This mode requires the values to be updated faster
   pinMode(CHADEMO_PIN_2, OUTPUT);
   digitalWrite(CHADEMO_PIN_2, LOW);
   pinMode(CHADEMO_PIN_10, OUTPUT);
@@ -1085,9 +1084,9 @@ void setup_battery(void) {  // Performs one time setup at startup
   x109_evse_state.s.status.ChgDischStopControl = 1;
 
   handle_chademo_sequence();
-//  ISA_deFAULT();        // ISA Setup - it is sufficient to set it once, because it is saved in SUNT
-//  ISA_initialize();     // ISA Setup - it is sufficient to set it once, because it is saved in SUNT
-//  ISA_RESTART();
+  //  ISA_deFAULT();        // ISA Setup - it is sufficient to set it once, because it is saved in SUNT
+  //  ISA_initialize();     // ISA Setup - it is sufficient to set it once, because it is saved in SUNT
+  //  ISA_RESTART();
 
   setupMillis = millis();
 }
