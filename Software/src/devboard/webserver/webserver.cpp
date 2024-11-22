@@ -1,6 +1,7 @@
 #include "webserver.h"
 #include <Preferences.h>
 #include "../../datalayer/datalayer.h"
+#include "../../datalayer/datalayer_extended.h"
 #include "../../lib/bblanchon-ArduinoJson/ArduinoJson.h"
 #include "../utils/events.h"
 #include "../utils/led_handler.h"
@@ -209,7 +210,7 @@ void init_webserver() {
       return request->requestAuthentication();
     if (request->hasParam("value")) {
       String value = request->getParam("value")->value();
-      datalayer.battery.info.max_charge_amp_dA = static_cast<uint16_t>(value.toFloat() * 10);
+      datalayer.battery.settings.max_user_set_charge_dA = static_cast<uint16_t>(value.toFloat() * 10);
       storeSettings();
       request->send(200, "text/plain", "Updated successfully");
     } else {
@@ -223,12 +224,21 @@ void init_webserver() {
       return request->requestAuthentication();
     if (request->hasParam("value")) {
       String value = request->getParam("value")->value();
-      datalayer.battery.info.max_discharge_amp_dA = static_cast<uint16_t>(value.toFloat() * 10);
+      datalayer.battery.settings.max_user_set_discharge_dA = static_cast<uint16_t>(value.toFloat() * 10);
       storeSettings();
       request->send(200, "text/plain", "Updated successfully");
     } else {
       request->send(400, "text/plain", "Bad Request");
     }
+  });
+
+  // Route for resetting SOH on Nissan LEAF batteries
+  server.on("/resetSOH", HTTP_GET, [](AsyncWebServerRequest* request) {
+    if (WEBSERVER_AUTH_REQUIRED && !request->authenticate(http_username, http_password)) {
+      return request->requestAuthentication();
+    }
+    datalayer_extended.nissanleaf.UserRequestSOHreset = true;
+    request->send(200, "text/plain", "Updated successfully");
   });
 
 #ifdef TEST_FAKE_BATTERY
@@ -285,7 +295,7 @@ void init_webserver() {
     String value = request->getParam("value")->value();
     float val = value.toFloat();
 
-    if (!(val <= datalayer.battery.info.max_charge_amp_dA && val <= CHARGER_MAX_A)) {
+    if (!(val <= datalayer.battery.settings.max_user_set_charge_dA && val <= CHARGER_MAX_A)) {
       request->send(400, "text/plain", "Bad Request");
     }
 
@@ -415,6 +425,9 @@ String get_firmware_info_processor(const String& var) {
 #ifdef HW_STARK
     doc["hardware"] = "Stark CMR Module";
 #endif  // HW_STARK
+#ifdef HW_3LB
+    doc["hardware"] = "3LB board";
+#endif  // HW_STARK
 
     doc["firmware"] = String(version_number);
     serializeJson(doc, content);
@@ -483,114 +496,16 @@ String processor(const String& var) {
 
     // Display which components are used
     content += "<h4 style='color: white;'>Inverter protocol: ";
-#ifdef BYD_CAN
-    content += "BYD Battery-Box Premium HVS over CAN Bus";
-#endif  // BYD_CAN
-#ifdef BYD_MODBUS
-    content += "BYD 11kWh HVM battery over Modbus RTU";
-#endif  // BYD_MODBUS
-#ifdef BYD_KOSTAL_RS485
-    content += "BYD 11kWh HVM battery over Kostal RS485";
-#endif  //BYD_KOSTAL_RS485
-#ifdef FOXESS_CAN
-    content += "FoxESS compatible HV2600/ECS4100 battery";
-#endif  // FOXESS_CAN
-#ifdef PYLON_CAN
-    content += "Pylontech battery over CAN bus";
-#endif  // PYLON_CAN
-#ifdef PYLON_LV_CAN
-    content += "Pylontech LV battery over CAN bus";
-#endif  // PYLON_LV_CAN
-#ifdef SERIAL_LINK_TRANSMITTER
-    content += "Serial link to another LilyGo board";
-#endif  // SERIAL_LINK_TRANSMITTER
-#ifdef SMA_CAN
-    content += "BYD Battery-Box H 8.9kWh, 7 mod over CAN bus";
-#endif  // SMA_CAN
-#ifdef SOFAR_CAN
-    content += "Sofar Energy Storage Inverter High Voltage BMS General Protocol (Extended Frame) over CAN bus";
-#endif  // SOFAR_CAN
-#ifdef SOLAX_CAN
-    content += "SolaX Triple Power LFP over CAN bus";
-#endif  // SOLAX_CAN
+    content += datalayer.system.info.inverter_protocol;
     content += "</h4>";
-
     content += "<h4 style='color: white;'>Battery protocol: ";
-#ifdef BMW_I3_BATTERY
-    content += "BMW i3";
-#endif  // BMW_I3_BATTERY
-#ifdef BYD_ATTO_3_BATTERY
-    content += "BYD Atto 3";
-#endif  // BYD_ATTO_3_BATTERY
-#ifdef CELLPOWER_BMS
-    content += "Cellpower BMS";
-#endif  // CELLPOWER_BMS
-#ifdef CHADEMO_BATTERY
-    content += "Chademo V2X mode";
-#endif  // CHADEMO_BATTERY
-#ifdef IMIEV_CZERO_ION_BATTERY
-    content += "I-Miev / C-Zero / Ion Triplet";
-#endif  // IMIEV_CZERO_ION_BATTERY
-#ifdef JAGUAR_IPACE_BATTERY
-    content += "Jaguar I-PACE";
-#endif  // JAGUAR_IPACE_BATTERY
-#ifdef KIA_HYUNDAI_64_BATTERY
-    content += "Kia/Hyundai 64kWh";
-#endif  // KIA_HYUNDAI_64_BATTERY
-#ifdef KIA_E_GMP_BATTERY
-    content += "Kia/Hyundai EGMP platform";
-#endif  // KIA_E_GMP_BATTERY
-#ifdef KIA_HYUNDAI_HYBRID_BATTERY
-    content += "Kia/Hyundai Hybrid";
-#endif  // KIA_HYUNDAI_HYBRID_BATTERY
-#ifdef MG_5_BATTERY
-    content += "MG 5";
-#endif  // MG_5_BATTERY
-#ifdef NISSAN_LEAF_BATTERY
-    content += "Nissan LEAF";
-#endif  // NISSAN_LEAF_BATTERY
-#ifdef PYLON_BATTERY
-    content += "Pylon compatible battery";
-#endif  // PYLON_BATTERY
-#ifdef RJXZS_BMS
-    content += "RJXZS BMS, DIY battery";
-#endif  // RJXZS_BMS
-#ifdef RENAULT_KANGOO_BATTERY
-    content += "Renault Kangoo";
-#endif  // RENAULT_KANGOO_BATTERY
-#ifdef RENAULT_TWIZY_BATTERY
-    content += "Renault Twizy";
-#endif  // RENAULT_TWIZY_BATTERY
-#ifdef RENAULT_ZOE_GEN1_BATTERY
-    content += "Renault Zoe Gen1 22/40";
-#endif  // RENAULT_ZOE_GEN1_BATTERY
-#ifdef RENAULT_ZOE_GEN2_BATTERY
-    content += "Renault Zoe Gen2 50";
-#endif  // RENAULT_ZOE_GEN2_BATTERY
-#ifdef SANTA_FE_PHEV_BATTERY
-    content += "Santa Fe PHEV";
-#endif  // SANTA_FE_PHEV_BATTERY
-#ifdef SERIAL_LINK_RECEIVER
-    content += "Serial link to another LilyGo board";
-#endif  // SERIAL_LINK_RECEIVER
-#ifdef TESLA_MODEL_SX_BATTERY
-    content += "Tesla Model S/X";
-#endif  // TESLA_MODEL_SX_BATTERY
-#ifdef TESLA_MODEL_3Y_BATTERY
-    content += "Tesla Model 3/Y";
-#endif  // TESLA_MODEL_3Y_BATTERY
-#ifdef VOLVO_SPA_BATTERY
-    content += "Volvo / Polestar 78kWh battery";
-#endif  // VOLVO_SPA_BATTERY
-#ifdef TEST_FAKE_BATTERY
-    content += "Fake battery for testing purposes";
-#endif  // TEST_FAKE_BATTERY
+    content += datalayer.system.info.battery_protocol;
 #ifdef DOUBLE_BATTERY
     content += " (Double battery)";
+#endif  // DOUBLE_BATTERY
     if (datalayer.battery.info.chemistry == battery_chemistry_enum::LFP) {
       content += " (LFP)";
     }
-#endif  // DOUBLE_BATTERY
     content += "</h4>";
 
 #if defined CHEVYVOLT_CHARGER || defined NISSANLEAF_CHARGER
@@ -652,6 +567,10 @@ String processor(const String& var) {
     float powerFloat = static_cast<float>(datalayer.battery.status.active_power_W);               // Convert to float
     float tempMaxFloat = static_cast<float>(datalayer.battery.status.temperature_max_dC) / 10.0;  // Convert to float
     float tempMinFloat = static_cast<float>(datalayer.battery.status.temperature_min_dC) / 10.0;  // Convert to float
+    float maxCurrentChargeFloat =
+        static_cast<float>(datalayer.battery.status.max_charge_current_dA) / 10.0;  // Convert to float
+    float maxCurrentDischargeFloat =
+        static_cast<float>(datalayer.battery.status.max_discharge_current_dA) / 10.0;  // Convert to float
     uint16_t cell_delta_mv =
         datalayer.battery.status.cell_max_voltage_mV - datalayer.battery.status.cell_min_voltage_mV;
 
@@ -666,12 +585,16 @@ String processor(const String& var) {
     content +=
         formatPowerValue("Scaled Remaining capacity", datalayer.battery.status.reported_remaining_capacity_Wh, "h", 1);
 
-    if (emulator_pause_status == NORMAL) {
-      content += formatPowerValue("Max discharge power", datalayer.battery.status.max_discharge_power_W, "", 1);
-      content += formatPowerValue("Max charge power", datalayer.battery.status.max_charge_power_W, "", 1);
-    } else {
+    if (datalayer.system.settings.equipment_stop_active) {
       content += formatPowerValue("Max discharge power", datalayer.battery.status.max_discharge_power_W, "", 1, "red");
       content += formatPowerValue("Max charge power", datalayer.battery.status.max_charge_power_W, "", 1, "red");
+      content += "<h4 style='color: red;'>Max discharge current: " + String(maxCurrentDischargeFloat, 1) + " A</h4>";
+      content += "<h4 style='color: red;'>Max charge current: " + String(maxCurrentChargeFloat, 1) + " A</h4>";
+    } else {
+      content += formatPowerValue("Max discharge power", datalayer.battery.status.max_discharge_power_W, "", 1);
+      content += formatPowerValue("Max charge power", datalayer.battery.status.max_charge_power_W, "", 1);
+      content += "<h4 style='color: white;'>Max discharge current: " + String(maxCurrentDischargeFloat, 1) + " A</h4>";
+      content += "<h4 style='color: white;'>Max charge current: " + String(maxCurrentChargeFloat, 1) + " A</h4>";
     }
 
     content += "<h4>Cell max: " + String(datalayer.battery.status.cell_max_voltage_mV) + " mV</h4>";
@@ -788,9 +711,22 @@ String processor(const String& var) {
     content += "<h4 style='color: white;'>Current: " + String(currentFloat, 1) + " A</h4>";
     content += formatPowerValue("Power", powerFloat, "", 1);
     content += formatPowerValue("Total capacity", datalayer.battery2.info.total_capacity_Wh, "h", 0);
-    content += formatPowerValue("Remaining capacity", datalayer.battery2.status.remaining_capacity_Wh, "h", 1);
-    content += formatPowerValue("Max discharge power", datalayer.battery2.status.max_discharge_power_W, "", 1);
-    content += formatPowerValue("Max charge power", datalayer.battery2.status.max_charge_power_W, "", 1);
+    content += formatPowerValue("Real Remaining capacity", datalayer.battery2.status.remaining_capacity_Wh, "h", 1);
+    content +=
+        formatPowerValue("Scaled Remaining capacity", datalayer.battery2.status.reported_remaining_capacity_Wh, "h", 1);
+
+    if (datalayer.system.settings.equipment_stop_active) {
+      content += formatPowerValue("Max discharge power", datalayer.battery2.status.max_discharge_power_W, "", 1, "red");
+      content += formatPowerValue("Max charge power", datalayer.battery2.status.max_charge_power_W, "", 1, "red");
+      content += "<h4 style='color: red;'>Max discharge current: " + String(maxCurrentDischargeFloat, 1) + " A</h4>";
+      content += "<h4 style='color: red;'>Max charge current: " + String(maxCurrentChargeFloat, 1) + " A</h4>";
+    } else {
+      content += formatPowerValue("Max discharge power", datalayer.battery2.status.max_discharge_power_W, "", 1);
+      content += formatPowerValue("Max charge power", datalayer.battery2.status.max_charge_power_W, "", 1);
+      content += "<h4 style='color: white;'>Max discharge current: " + String(maxCurrentDischargeFloat, 1) + " A</h4>";
+      content += "<h4 style='color: white;'>Max charge current: " + String(maxCurrentChargeFloat, 1) + " A</h4>";
+    }
+
     content += "<h4>Cell max: " + String(datalayer.battery2.status.cell_max_voltage_mV) + " mV</h4>";
     content += "<h4>Cell min: " + String(datalayer.battery2.status.cell_min_voltage_mV) + " mV</h4>";
     if (cell_delta_mv > datalayer.battery2.info.max_cell_voltage_deviation_mV) {
@@ -830,6 +766,11 @@ String processor(const String& var) {
       content += "<span style='color: red;'>&#10005;</span></h4>";
     }
 
+    if (emulator_pause_status == NORMAL)
+      content += "<h4>Power status: " + String(get_emulator_pause_status().c_str()) + " </h4>";
+    else
+      content += "<h4 style='color: red;'>Power status: " + String(get_emulator_pause_status().c_str()) + " </h4>";
+
 #ifdef CONTACTOR_CONTROL
     content += "<h4>Contactors controlled by Battery-Emulator: ";
     if (datalayer.system.status.contactor_control_closed) {
@@ -838,12 +779,28 @@ String processor(const String& var) {
       content += "<span style='color: red;'>OFF</span>";
     }
     content += "</h4>";
-#endif
 
-    if (emulator_pause_status == NORMAL)
-      content += "<h4>Pause status: " + String(get_emulator_pause_status().c_str()) + " </h4>";
-    else
-      content += "<h4 style='color: red;'>Pause status: " + String(get_emulator_pause_status().c_str()) + " </h4>";
+    content += "<h4>Pre Charge: ";
+    if (digitalRead(PRECHARGE_PIN) == HIGH) {
+      content += "<span style='color: green;'>&#10003;</span>";
+    } else {
+      content += "<span style='color: red;'>&#10005;</span>";
+    }
+    content += " Cont. Neg.: ";
+    if (digitalRead(NEGATIVE_CONTACTOR_PIN) == HIGH) {
+      content += "<span style='color: green;'>&#10003;</span>";
+    } else {
+      content += "<span style='color: red;'>&#10005;</span>";
+    }
+
+    content += " Cont. Pos.: ";
+    if (digitalRead(POSITIVE_CONTACTOR_PIN) == HIGH) {
+      content += "<span style='color: green;'>&#10003;</span>";
+    } else {
+      content += "<span style='color: red;'>&#10005;</span>";
+    }
+    content += "</h4>";
+#endif
 
     content += "</div>";
     content += "</div>";

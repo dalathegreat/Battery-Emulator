@@ -46,9 +46,6 @@ void update_values_battery() {
   datalayer.battery.status.current_dA = current_dA;  //value is *10 (150 = 15.0)
   datalayer.battery.status.remaining_capacity_Wh = remaining_capacity_Wh;
 
-  datalayer.battery.status.active_power_W =  //Power in watts, Negative = charging batt
-      ((datalayer.battery.status.voltage_dV * datalayer.battery.status.current_dA) / 100);
-
   // The twizy provides two values: one for the maximum charge provided by the on-board charger
   //    and one for the maximum charge during recuperation.
   //    For now we use the lower of the two (usually the charger one)
@@ -135,10 +132,8 @@ void send_can_battery() {
 }
 
 void setup_battery(void) {  // Performs one time setup at startup
-#ifdef DEBUG_VIA_USB
-  Serial.println("Renault Twizy battery selected");
-#endif
-
+  strncpy(datalayer.system.info.battery_protocol, "Renault Twizy", 63);
+  datalayer.system.info.battery_protocol[63] = '\0';
   datalayer.battery.info.number_of_cells = 14;
   datalayer.battery.info.max_design_voltage_dV = MAX_PACK_VOLTAGE_DV;
   datalayer.battery.info.min_design_voltage_dV = MIN_PACK_VOLTAGE_DV;

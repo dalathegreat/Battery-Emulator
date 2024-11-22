@@ -35,6 +35,10 @@
 #include "PYLON-LV-CAN.h"
 #endif
 
+#ifdef SCHNEIDER_CAN
+#include "SCHNEIDER-CAN.h"
+#endif
+
 #ifdef SMA_CAN
 #include "SMA-CAN.h"
 #endif

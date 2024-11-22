@@ -10,8 +10,6 @@
 // https://github.com/dalathegreat/Battery-Emulator/wiki/Solax-inverters
 
 /* Do not change code below unless you are sure what you are doing */
-static uint16_t max_charge_rate_amp = 0;
-static uint16_t max_discharge_rate_amp = 0;
 static int16_t temperature_average = 0;
 static uint8_t STATE = BATTERY_ANNOUNCE;
 static unsigned long LastFrameTime = 0;
@@ -93,50 +91,6 @@ void update_values_can_inverter() {  //This function maps all the values fetched
   temperature_average =
       ((datalayer.battery.status.temperature_max_dC + datalayer.battery.status.temperature_min_dC) / 2);
 
-  //datalayer.battery.status.max_charge_power_W (30000W max)
-  if (datalayer.battery.status.reported_soc > 9999) {  // 99.99%
-    // Additional safety incase SOC% is 100, then do not charge battery further
-    max_charge_rate_amp = 0;
-  } else {  // We can pass on the battery charge rate (in W) to the inverter (that takes A)
-    if (datalayer.battery.status.max_charge_power_W >= 30000) {
-      max_charge_rate_amp = 75;  // Incase battery can take over 30kW, cap value to 75A
-    } else {                     // Calculate the W value into A
-      if (datalayer.battery.status.voltage_dV > 10) {
-        max_charge_rate_amp =
-            datalayer.battery.status.max_charge_power_W / (datalayer.battery.status.voltage_dV * 0.1);  // P/U=I
-      } else {  // We avoid dividing by 0 and crashing the board
-        // If we have no voltage, something has gone wrong, do not allow charging
-        max_charge_rate_amp = 0;
-      }
-    }
-  }
-
-  //datalayer.battery.status.max_discharge_power_W (30000W max)
-  if (datalayer.battery.status.reported_soc < 100) {  // 1.00%
-    // Additional safety in case SOC% is below 1, then do not discharge battery further
-    max_discharge_rate_amp = 0;
-  } else {  // We can pass on the battery discharge rate to the inverter
-    if (datalayer.battery.status.max_discharge_power_W >= 30000) {
-      max_discharge_rate_amp = 75;  // Incase battery can be charged with over 30kW, cap value to 75A
-    } else {                        // Calculate the W value into A
-      if (datalayer.battery.status.voltage_dV > 10) {
-        max_discharge_rate_amp =
-            datalayer.battery.status.max_discharge_power_W / (datalayer.battery.status.voltage_dV * 0.1);  // P/U=I
-      } else {  // We avoid dividing by 0 and crashing the board
-        // If we have no voltage, something has gone wrong, do not allow discharging
-        max_discharge_rate_amp = 0;
-      }
-    }
-  }
-
-  //Cap the value according to user settings. Some inverters cannot handle large values.
-  if ((max_charge_rate_amp * 10) > datalayer.battery.info.max_charge_amp_dA) {
-    max_charge_rate_amp = (datalayer.battery.info.max_charge_amp_dA / 10);
-  }
-  if ((max_discharge_rate_amp * 10) > datalayer.battery.info.max_discharge_amp_dA) {
-    max_discharge_rate_amp = (datalayer.battery.info.max_discharge_amp_dA / 10);
-  }
-
   // Batteries might be larger than uint16_t value can take
   if (datalayer.battery.info.total_capacity_Wh > 65000) {
     capped_capacity_Wh = 65000;
@@ -156,10 +110,10 @@ void update_values_can_inverter() {  //This function maps all the values fetched
   SOLAX_1872.data.u8[1] = (datalayer.battery.info.max_design_voltage_dV >> 8);
   SOLAX_1872.data.u8[2] = (uint8_t)datalayer.battery.info.min_design_voltage_dV;
   SOLAX_1872.data.u8[3] = (datalayer.battery.info.min_design_voltage_dV >> 8);
-  SOLAX_1872.data.u8[4] = (uint8_t)(max_charge_rate_amp * 10);
-  SOLAX_1872.data.u8[5] = ((max_charge_rate_amp * 10) >> 8);
-  SOLAX_1872.data.u8[6] = (uint8_t)(max_discharge_rate_amp * 10);
-  SOLAX_1872.data.u8[7] = ((max_discharge_rate_amp * 10) >> 8);
+  SOLAX_1872.data.u8[4] = (uint8_t)datalayer.battery.status.max_charge_current_dA;
+  SOLAX_1872.data.u8[5] = (datalayer.battery.status.max_charge_current_dA >> 8);
+  SOLAX_1872.data.u8[6] = (uint8_t)datalayer.battery.status.max_discharge_current_dA;
+  SOLAX_1872.data.u8[7] = (datalayer.battery.status.max_discharge_current_dA >> 8);
 
   //BMS_PackData
   SOLAX_1873.data.u8[0] = (uint8_t)datalayer.battery.status.voltage_dV;  // OK
@@ -297,5 +251,10 @@ void receive_can_inverter(CAN_frame rx_frame) {
     Serial.println("1871 03-frame received from inverter");
 #endif
   }
+}
+void setup_inverter(void) {  // Performs one time setup at startup
+  strncpy(datalayer.system.info.inverter_protocol, "SolaX Triple Power LFP over CAN bus", 63);
+  datalayer.system.info.inverter_protocol[63] = '\0';
+  datalayer.system.status.inverter_allows_contactor_closing = false;  // The inverter needs to allow first
 }
 #endif

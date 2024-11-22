@@ -6,7 +6,7 @@
 
 // #define INCLUDE_EVENTS_TEST  // Enable to run an event test loop, see events_test_on_target.cpp
 
-#define EE_MAGIC_HEADER_VALUE 0x0016  // 0x0000 to 0xFFFF
+#define EE_MAGIC_HEADER_VALUE 0x0017  // 0x0000 to 0xFFFF
 
 #define GENERATE_ENUM(ENUM) ENUM,
 #define GENERATE_STRING(STRING) #STRING,
@@ -37,6 +37,7 @@
   XX(EVENT_CAN_TX_FAILURE)              \
   XX(EVENT_CAN_INVERTER_MISSING)        \
   XX(EVENT_CHARGE_LIMIT_EXCEEDED)       \
+  XX(EVENT_CONTACTOR_WELDED)            \
   XX(EVENT_DISCHARGE_LIMIT_EXCEEDED)    \
   XX(EVENT_WATER_INGRESS)               \
   XX(EVENT_12V_LOW)                     \

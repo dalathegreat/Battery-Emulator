@@ -42,11 +42,14 @@ jobs:
 #         - TESLA_MODEL_3Y_BATTERY
         # These are the emulated inverter communication protocols for which the code will be compiled.
         inverter:
+          - AFORE_CAN
           - BYD_CAN
           - BYD_SMA
           - BYD_MODBUS
           - FOXESS_CAN
+          - PYLON_LV_CAN
           - PYLON_CAN
+          - SCHNEIDER_CAN
           - SMA_CAN
           - SMA_TRIPOWER_CAN
           - SOFAR_CAN

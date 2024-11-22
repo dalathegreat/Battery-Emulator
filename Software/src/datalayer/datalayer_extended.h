@@ -5,6 +5,31 @@
 
 typedef struct {
   /** uint16_t */
+  /** Terminal 30 - 12V SME Supply Voltage */
+  uint16_t T30_Voltage = 0;
+  /** Status HVIL, 1 HVIL OK, 0 HVIL disconnected*/
+  uint8_t hvil_status = 0;
+  /** Min/Max Cell SOH*/
+  uint16_t min_soh_state = 0;
+  uint16_t max_soh_state = 0;
+  uint32_t bms_uptime = 0;
+  uint8_t pyro_status_pss1 = 0;
+  uint8_t pyro_status_pss4 = 0;
+  uint8_t pyro_status_pss6 = 0;
+  int32_t iso_safety_positive = 0;
+  int32_t iso_safety_negative = 0;
+  int32_t iso_safety_parallel = 0;
+  int32_t allowable_charge_amps = 0;
+  int32_t allowable_discharge_amps = 0;
+  int16_t balancing_status = 0;
+  int16_t battery_voltage_after_contactor = 0;
+  unsigned long min_cell_voltage_data_age = 0;
+  unsigned long max_cell_voltage_data_age = 0;
+
+} DATALAYER_INFO_BMWIX;
+
+typedef struct {
+  /** uint16_t */
   /** SOC% raw battery value. Might not always reach 100% */
   uint16_t SOC_raw = 0;
   /** uint16_t */
@@ -46,6 +71,9 @@ typedef struct {
 } DATALAYER_INFO_BMWI3;
 
 typedef struct {
+  /** bool */
+  /** Which SOC method currently used. 0 = Estimated, 1 = Measured */
+  bool SOC_method = 0;
   /** uint16_t */
   /** SOC% estimate. Estimated from total pack voltage */
   uint16_t SOC_estimated = 0;
@@ -198,6 +226,21 @@ typedef struct {
   /** bool */
   /** Heat request sent*/
   bool HeaterSendRequest = false;
+  /** bool */
+  /** User requesting SOH reset via WebUI*/
+  bool UserRequestSOHreset = false;
+  /** bool */
+  /** True if the crypto challenge response from BMS is signalling a failed attempt*/
+  bool challengeFailed = false;
+  /** uint32_t */
+  /** Cryptographic challenge to be solved */
+  uint32_t CryptoChallenge = 0;
+  /** uint32_t */
+  /** Solution for crypto challenge, MSBs */
+  uint32_t SolvedChallengeMSB = 0;
+  /** uint32_t */
+  /** Solution for crypto challenge, LSBs */
+  uint32_t SolvedChallengeLSB = 0;
 
 } DATALAYER_INFO_NISSAN_LEAF;
 
@@ -249,6 +292,7 @@ typedef struct {
 
 class DataLayerExtended {
  public:
+  DATALAYER_INFO_BMWIX bmwix;
   DATALAYER_INFO_BMWI3 bmwi3;
   DATALAYER_INFO_BYDATTO3 bydAtto3;
   DATALAYER_INFO_CELLPOWER cellpower;
