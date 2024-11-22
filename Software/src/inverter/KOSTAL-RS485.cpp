@@ -199,26 +199,26 @@ void update_RS485_registers_inverter() {
   nominal_voltage_dV =
       (((datalayer.battery.info.max_design_voltage_dV - datalayer.battery.info.min_design_voltage_dV) / 2) +
        datalayer.battery.info.min_design_voltage_dV);
-  float2frame(BATTERY_INFO, (float)nominal_voltage_dV / 10, 8);
+  float2frame(BATTERY_INFO, (float)nominal_voltage_dV / 10, 6);
 
-  float2frame(CyclicData, (float)datalayer.battery.info.max_design_voltage_dV / 10, 12);
+  float2frame(CyclicData, (float)datalayer.battery.info.max_design_voltage_dV / 10, 10);
 
-  float2frame(CyclicData, (float)average_temperature_dC / 10, 16);
+  float2frame(CyclicData, (float)average_temperature_dC / 10, 14);
 
   //  Some current values causes communication error, must be resolved, why.
-  float2frame(CyclicData, (float)datalayer.battery.status.current_dA / 10, 20);  // Peak discharge? current (2 byte float)
-  float2frame(CyclicData, (float)datalayer.battery.status.current_dA / 10, 24);
+  float2frame(CyclicData, (float)datalayer.battery.status.current_dA / 10, 18);  // Peak discharge? current (2 byte float)
+  float2frame(CyclicData, (float)datalayer.battery.status.current_dA / 10, 22);
 
-  float2frame(CyclicData, (float)discharge_current_dA / 10, 28);  // BAttery capacity Ah
+  float2frame(CyclicData, (float)discharge_current_dA / 10, 26);  // BAttery capacity Ah
 
-  float2frame(CyclicData, (float)discharge_current_dA / 10, 32);
+  float2frame(CyclicData, (float)discharge_current_dA / 10, 30);
 
   // When SOC = 100%, drop down allowed charge current down.
 
   if ((datalayer.battery.status.reported_soc / 100) < 100) {
-    float2frame(CyclicData, (float)charge_current_dA / 10, 36);
+    float2frame(CyclicData, (float)charge_current_dA / 10, 34);
   } else {
-    float2frame(CyclicData, 0.0, 36);
+    float2frame(CyclicData, 0.0, 34);
   }
 
   float2frame(CyclicData, (float)datalayer.battery.status.temperature_max_dC / 10, 38);
