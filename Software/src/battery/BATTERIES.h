@@ -20,6 +20,7 @@
 
 #ifdef CHADEMO_BATTERY
 #include "CHADEMO-BATTERY.h"
+#include "CHADEMO-SHUNTS.h"
 #endif
 
 #ifdef IMIEV_CZERO_ION_BATTERY
@@ -60,6 +61,10 @@
 
 #ifdef RJXZS_BMS
 #include "RJXZS-BMS.h"
+#endif
+
+#ifdef RANGE_ROVER_PHEV_BATTERY
+#include "RANGE-ROVER-PHEV-BATTERY.h"
 #endif
 
 #ifdef RENAULT_KANGOO_BATTERY

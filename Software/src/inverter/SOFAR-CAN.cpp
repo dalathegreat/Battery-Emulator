@@ -207,10 +207,10 @@ void update_values_can_inverter() {  //This function maps all the values fetched
   //Maxvoltage (eg 400.0V = 4000 , 16bits long) Charge Cutoff Voltage
   SOFAR_351.data.u8[0] = (datalayer.battery.info.max_design_voltage_dV >> 8);
   SOFAR_351.data.u8[1] = (datalayer.battery.info.max_design_voltage_dV & 0x00FF);
-  //SOFAR_351.data.u8[2] = DC charge current limitation (Default 25.0A)
-  //SOFAR_351.data.u8[3] = DC charge current limitation
-  //SOFAR_351.data.u8[4] = DC discharge current limitation (Default 25.0A)
-  //SOFAR_351.data.u8[5] = DC discharge current limitation
+  SOFAR_351.data.u8[2] = (datalayer.battery.status.max_charge_current_dA >> 8);
+  SOFAR_351.data.u8[3] = (datalayer.battery.status.max_charge_current_dA & 0x00FF);
+  SOFAR_351.data.u8[4] = (datalayer.battery.status.max_discharge_current_dA >> 8);
+  SOFAR_351.data.u8[5] = (datalayer.battery.status.max_discharge_current_dA & 0x00FF);
   //Minvoltage (eg 300.0V = 3000 , 16bits long) Discharge Cutoff Voltage
   SOFAR_351.data.u8[6] = (datalayer.battery.info.min_design_voltage_dV >> 8);
   SOFAR_351.data.u8[7] = (datalayer.battery.info.min_design_voltage_dV & 0x00FF);
@@ -262,5 +262,10 @@ void send_can_inverter() {
     transmit_can(&SOFAR_35F, can_config.inverter);
     transmit_can(&SOFAR_35A, can_config.inverter);
   }
+}
+
+void setup_inverter(void) {  // Performs one time setup at startup over CAN bus
+  strncpy(datalayer.system.info.inverter_protocol, "Sofar BMS (Extended Frame) over CAN bus", 63);
+  datalayer.system.info.inverter_protocol[63] = '\0';
 }
 #endif

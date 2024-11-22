@@ -39,8 +39,6 @@ void update_values_battery() {  //This function maps all the values fetched via 
 
   datalayer.battery.status.max_charge_power_W;
 
-  datalayer.battery.status.active_power_W;
-
   datalayer.battery.status.temperature_min_dC;
 
   datalayer.battery.status.temperature_max_dC;
@@ -137,9 +135,8 @@ void send_can_battery() {
 }
 
 void setup_battery(void) {  // Performs one time setup at startup
-#ifdef DEBUG_VIA_USB
-  Serial.println("MG 5 battery selected");
-#endif
+  strncpy(datalayer.system.info.battery_protocol, "MG 5 battery", 63);
+  datalayer.system.info.battery_protocol[63] = '\0';
 
   datalayer.battery.info.max_design_voltage_dV = MAX_PACK_VOLTAGE_DV;
   datalayer.battery.info.min_design_voltage_dV = MIN_PACK_VOLTAGE_DV;

@@ -353,7 +353,6 @@ static unsigned long min_cell_voltage_lastchanged = 0;
 static unsigned long max_cell_voltage_lastchanged = 0;
 static unsigned min_cell_voltage_lastreceived = 0;
 static unsigned max_cell_voltage_lastreceived = 0;
-static int16_t battery_power = 0;
 static uint32_t sme_uptime = 0;               //Uses E4 C0
 static int16_t allowable_charge_amps = 0;     //E5 62
 static int16_t allowable_discharge_amps = 0;  //E5 62
@@ -454,25 +453,22 @@ void update_values_battery() {  //This function maps all the values fetched via 
     datalayer.battery.status.max_charge_power_W = MAX_CHARGE_POWER_ALLOWED_W;
   }
 
-  battery_power = (datalayer.battery.status.current_dA * (datalayer.battery.status.voltage_dV / 100));
-
-  datalayer.battery.status.active_power_W = battery_power;
-
   datalayer.battery.status.temperature_min_dC = min_battery_temperature;
 
   datalayer.battery.status.temperature_max_dC = max_battery_temperature;
 
-  if (isStale(min_cell_voltage, datalayer.battery.status.cell_min_voltage_mV, min_cell_voltage_lastchanged)) {
-    datalayer.battery.status.cell_min_voltage_mV = 9999;  //Stale values force stop
-    set_event(EVENT_CAN_RX_FAILURE, 0);
-  } else {
-    datalayer.battery.status.cell_min_voltage_mV = min_cell_voltage;  //Value is alive
-  }
+  //Check stale values. As values dont change much during idle only consider stale if both parts of this message freeze.
+  bool isMinCellVoltageStale =
+      isStale(min_cell_voltage, datalayer.battery.status.cell_min_voltage_mV, min_cell_voltage_lastchanged);
+  bool isMaxCellVoltageStale =
+      isStale(max_cell_voltage, datalayer.battery.status.cell_max_voltage_mV, max_cell_voltage_lastchanged);
 
-  if (isStale(max_cell_voltage, datalayer.battery.status.cell_max_voltage_mV, max_cell_voltage_lastchanged)) {
+  if (isMinCellVoltageStale && isMaxCellVoltageStale) {
+    datalayer.battery.status.cell_min_voltage_mV = 9999;  //Stale values force stop
     datalayer.battery.status.cell_max_voltage_mV = 9999;  //Stale values force stop
     set_event(EVENT_CAN_RX_FAILURE, 0);
   } else {
+    datalayer.battery.status.cell_min_voltage_mV = min_cell_voltage;  //Value is alive
     datalayer.battery.status.cell_max_voltage_mV = max_cell_voltage;  //Value is alive
   }
 
@@ -677,7 +673,7 @@ void receive_can_battery(CAN_frame rx_frame) {
 #ifdef DEBUG_VIA_USB
           Serial.println("Cell MinMax Qualifier Invalid - Requesting BMS Reset");
 #endif
-          set_event(EVENT_SOC_UNAVAILABLE, (millis()));
+          //set_event(EVENT_BATTERY_VALUE_UNAVAILABLE, (millis())); //Eventually need new Info level event type
           transmit_can(&BMWiX_6F4_REQUEST_HARD_RESET, can_config.battery);
         } else {  //Only ingest values if they are not the 10V Error state
           min_cell_voltage = (rx_frame.data.u8[6] << 8 | rx_frame.data.u8[7]);
@@ -783,9 +779,8 @@ void send_can_battery() {
 //} //We can always send CAN as the iX BMS will wake up on vehicle comms
 
 void setup_battery(void) {  // Performs one time setup at startup
-#ifdef DEBUG_VIA_USB
-  Serial.println("BMW iX battery selected");
-#endif  //DEBUG_VIA_USB
+  strncpy(datalayer.system.info.battery_protocol, "BMW iX and i4-7 platform", 63);
+  datalayer.system.info.battery_protocol[63] = '\0';
 
   //Before we have started up and detected which battery is in use, use 108S values
   datalayer.battery.info.max_design_voltage_dV = MAX_PACK_VOLTAGE_DV;

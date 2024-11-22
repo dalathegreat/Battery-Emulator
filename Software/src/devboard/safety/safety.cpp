@@ -229,6 +229,14 @@ void update_machineryprotection() {
   }
 
 #endif  // DOUBLE_BATTERY
+
+  //Safeties verified, Zero charge/discharge ampere values incase any safety wrote the W to 0
+  if (datalayer.battery.status.max_discharge_power_W == 0) {
+    datalayer.battery.status.max_discharge_current_dA = 0;
+  }
+  if (datalayer.battery.status.max_charge_power_W == 0) {
+    datalayer.battery.status.max_charge_current_dA = 0;
+  }
 }
 
 //battery pause status begin
