@@ -1122,7 +1122,9 @@ void transmit_can(CAN_frame* tx_frame, int interface) {
 void receive_can(CAN_frame* rx_frame, int interface) {
 
 #ifdef DEBUG_CAN_DATA
-  print_can_frame(*rx_frame, frameDirection(MSG_RX));
+  if (interface != CAN_ADDON_FD_MCP2518) {  //Avoid double printing Native+Addon
+    print_can_frame(*rx_frame, frameDirection(MSG_RX));
+  }
 #endif  //DEBUG_CAN_DATA
 
   if (interface == can_config.battery) {
