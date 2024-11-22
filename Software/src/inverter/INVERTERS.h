@@ -72,6 +72,7 @@ void update_modbus_registers_inverter();
 #ifdef RS485_INVERTER_SELECTED
 void receive_RS485();
 void update_RS485_registers_inverter();
+void setup_inverter();
 #endif
 
 #endif

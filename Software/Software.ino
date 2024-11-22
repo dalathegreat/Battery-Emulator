@@ -170,7 +170,7 @@ void setup() {
   init_rs485();
 
   init_serialDataLink();
-#if defined(CAN_INVERTER_SELECTED) || defined(MODBUS_INVERTER_SELECTED)
+#if defined(CAN_INVERTER_SELECTED) || defined(MODBUS_INVERTER_SELECTED) || defined(RS485_INVERTER_SELECTED)
   setup_inverter();
 #endif
   setup_battery();
