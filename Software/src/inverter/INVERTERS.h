@@ -39,6 +39,10 @@
 #include "SMA-CAN.h"
 #endif
 
+#ifdef SMA_LV_CAN
+#include "SMA-LV-CAN.h"
+#endif
+
 #ifdef SMA_TRIPOWER_CAN
 #include "SMA-TRIPOWER-CAN.h"
 #endif
