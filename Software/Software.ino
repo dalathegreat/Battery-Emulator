@@ -743,16 +743,18 @@ void check_interconnect_available() {
     return;  // Both voltage values need to be available to start check
   }
 
-  if (abs(datalayer.battery.status.voltage_dV - datalayer.battery2.status.voltage_dV) < 30) {  // If we are within 3.0V
+  uint16_t voltage_diff = abs(datalayer.battery.status.voltage_dV - datalayer.battery2.status.voltage_dV);
+
+  if (voltage_diff <= 30) {  // If we are within 3.0V between the batteries
     clear_event(EVENT_VOLTAGE_DIFFERENCE);
-    if (datalayer.battery.status.bms_status != FAULT) {  // Only proceed if we are not in faulted state
-      datalayer.system.status.battery2_allows_contactor_closing = true;
-    } else {  // If main battery is in fault state, disengage the second battery
+    if (datalayer.battery.status.bms_status == FAULT) {
+      // If main battery is in fault state, disengage the second battery
       datalayer.system.status.battery2_allows_contactor_closing = false;
+    } else {  // If main battery is OK, allow second battery to join
+      datalayer.system.status.battery2_allows_contactor_closing = true;
     }
-  } else {  //We are over 3.0V diff
-    set_event(EVENT_VOLTAGE_DIFFERENCE,
-              (uint8_t)(abs(datalayer.battery.status.voltage_dV - datalayer.battery2.status.voltage_dV) / 10));
+  } else {  //Voltage between the two packs is too large
+    set_event(EVENT_VOLTAGE_DIFFERENCE, (uint8_t)(voltage_diff / 10));
   }
 }
 #endif  //DOUBLE_BATTERY
