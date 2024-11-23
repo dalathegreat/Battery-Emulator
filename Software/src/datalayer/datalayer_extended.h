@@ -186,10 +186,15 @@ typedef struct {
   uint16_t battery_dcdcHvBusVolt = 0;
   uint16_t battery_dcdcLvOutputCurrent = 0;
   uint16_t battery_nominal_full_pack_energy = 0;
+  uint16_t battery_nominal_full_pack_energy_m0 = 0;
   uint16_t battery_nominal_energy_remaining = 0;
+  uint16_t battery_nominal_energy_remaining_m0 = 0;
   uint16_t battery_ideal_energy_remaining = 0;
+  uint16_t battery_ideal_energy_remaining_m0 = 0;
   uint16_t battery_energy_to_charge_complete = 0;
+  uint16_t battery_energy_to_charge_complete_m1 = 0;
   uint16_t battery_energy_buffer = 0;
+  uint16_t battery_energy_buffer_m1 = 0;
   uint16_t battery_full_charge_complete = 0;
   uint8_t battery_fully_charged = 0;
   uint16_t battery_total_discharge = 0;
