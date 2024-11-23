@@ -170,7 +170,7 @@ void setup() {
   init_rs485();
 
   init_serialDataLink();
-#if defined(CAN_INVERTER_SELECTED) || defined(MODBUS_INVERTER_SELECTED)
+#if defined(CAN_INVERTER_SELECTED) || defined(MODBUS_INVERTER_SELECTED) || defined(RS485_INVERTER_SELECTED)
   setup_inverter();
 #endif
   setup_battery();
@@ -260,6 +260,9 @@ void core_loop(void* task_time_us) {
 #endif
 #ifdef DUAL_CAN
     receive_can_addonMCP2515();  // Receive CAN messages on add-on MCP2515 chip
+#endif
+#ifdef RS485_INVERTER_SELECTED
+    receive_RS485();  // Process serial2 RS485 interface
 #endif
 #if defined(SERIAL_LINK_RECEIVER) || defined(SERIAL_LINK_TRANSMITTER)
     runSerialDataLink();
@@ -531,7 +534,9 @@ void init_rs485() {
   pinMode(PIN_5V_EN, OUTPUT);
   digitalWrite(PIN_5V_EN, HIGH);
 #endif
-
+#ifdef RS485_INVERTER_SELECTED
+  Serial2.begin(57600, SERIAL_8N1, RS485_RX_PIN, RS485_TX_PIN);
+#endif
 #ifdef MODBUS_INVERTER_SELECTED
 #ifdef BYD_MODBUS
   // Init Static data to the RTU Modbus
@@ -929,6 +934,9 @@ void update_values_inverter() {
 #endif
 #ifdef MODBUS_INVERTER_SELECTED
   update_modbus_registers_inverter();
+#endif
+#ifdef RS485_INVERTER_SELECTED
+  update_RS485_registers_inverter();
 #endif
 }
 
