@@ -120,7 +120,7 @@ void update_values_battery() {
   datalayer.battery.status.voltage_dV = get_measured_voltage() * 10;
 
   datalayer.battery.info.total_capacity_Wh =
-      ((x101_chg_est.RatedBatteryCapacity / 0.11) *
+      ((x101_chg_est.RatedBatteryCapacity / 0.1) *
        1000);  //(Added in CHAdeMO v1.0.1), maybe handle hardcoded on lower protocol version?
 
   /* TODO max charging rate = 
@@ -151,8 +151,8 @@ void update_values_battery() {
 
 inline void process_vehicle_charging_minimums(CAN_frame rx_frame) {
   x100_chg_lim.MinimumChargeCurrent = rx_frame.data.u8[0];
-  x100_chg_lim.MinimumBatteryVoltage = ((rx_frame.data.u8[2] << 8) | rx_frame.data.u8[3]);
-  x100_chg_lim.MaximumBatteryVoltage = ((rx_frame.data.u8[4] << 8) | rx_frame.data.u8[5]);
+  x100_chg_lim.MinimumBatteryVoltage = ((rx_frame.data.u8[3] << 8) | rx_frame.data.u8[2]);
+  x100_chg_lim.MaximumBatteryVoltage = ((rx_frame.data.u8[5] << 8) | rx_frame.data.u8[4]);
   x100_chg_lim.ConstantOfChargingRateIndication = rx_frame.data.u8[6];
 }
 
@@ -160,15 +160,14 @@ inline void process_vehicle_charging_maximums(CAN_frame rx_frame) {
   x101_chg_est.MaxChargingTime10sBit = rx_frame.data.u8[1];
   x101_chg_est.MaxChargingTime1minBit = rx_frame.data.u8[2];
   x101_chg_est.EstimatedChargingTime = rx_frame.data.u8[3];
-  x101_chg_est.RatedBatteryCapacity = ((rx_frame.data.u8[5] << 8) | rx_frame.data.u8[6]);
+  x101_chg_est.RatedBatteryCapacity = ((rx_frame.data.u8[6] << 8) | rx_frame.data.u8[5]);
 }
 
 inline void process_vehicle_charging_session(CAN_frame rx_frame) {
-
-  uint16_t newTargetBatteryVoltage = ((rx_frame.data.u8[1] << 8) | rx_frame.data.u8[2]);
-  uint16_t priorChargingCurrentRequest = x102_chg_session.ChargingCurrentRequest;
-  uint8_t priorTargetBatteryVoltage = x102_chg_session.TargetBatteryVoltage;
+  uint16_t newTargetBatteryVoltage = ((rx_frame.data.u8[2] << 8) | rx_frame.data.u8[1]);
+  uint16_t priorTargetBatteryVoltage = x102_chg_session.TargetBatteryVoltage;
   uint8_t newChargingCurrentRequest = rx_frame.data.u8[3];
+  uint8_t priorChargingCurrentRequest = x102_chg_session.ChargingCurrentRequest;
 
   vehicle_can_initialized = true;
 
@@ -187,6 +186,7 @@ inline void process_vehicle_charging_session(CAN_frame rx_frame) {
   x102_chg_session.s.status.StatusChargingError = bitRead(rx_frame.data.u8[5], 2);
   x102_chg_session.s.status.StatusVehicle = bitRead(rx_frame.data.u8[5], 3);
   x102_chg_session.s.status.StatusNormalStopRequest = bitRead(rx_frame.data.u8[5], 4);
+  x102_chg_session.s.status.StatusVehicleDischargeCompatible = bitRead(rx_frame.data.u8[5], 7);
 
   x102_chg_session.StateOfCharge = rx_frame.data.u8[6];
 
@@ -202,7 +202,7 @@ inline void process_vehicle_charging_session(CAN_frame rx_frame) {
   uint8_t chargingrate = 0;
   if (x100_chg_lim.ConstantOfChargingRateIndication > 0) {
     chargingrate = x102_chg_session.StateOfCharge / x100_chg_lim.ConstantOfChargingRateIndication * 100;
-    Serial.print("Charge Rate (kW):");
+    Serial.print("Charge Rate (kW): ");
     Serial.println(chargingrate);
   }
 #endif
@@ -308,7 +308,7 @@ inline void process_vehicle_charging_session(CAN_frame rx_frame) {
 inline void process_vehicle_charging_limits(CAN_frame rx_frame) {
 
   x200_discharge_limits.MaximumDischargeCurrent = rx_frame.data.u8[0];
-  x200_discharge_limits.MinimumDischargeVoltage = ((rx_frame.data.u8[4] << 8) | rx_frame.data.u8[5]);
+  x200_discharge_limits.MinimumDischargeVoltage = ((rx_frame.data.u8[5] << 8) | rx_frame.data.u8[4]);
   x200_discharge_limits.MinimumBatteryDischargeLevel = rx_frame.data.u8[6];
   x200_discharge_limits.MaxRemainingCapacityForCharging = rx_frame.data.u8[7];
 
@@ -338,15 +338,15 @@ inline void process_vehicle_discharge_estimate(CAN_frame rx_frame) {
   unsigned long currentMillis = millis();
 
   x201_discharge_estimate.V2HchargeDischargeSequenceNum = rx_frame.data.u8[0];
-  x201_discharge_estimate.ApproxDischargeCompletionTime = ((rx_frame.data.u8[1] << 8) | rx_frame.data.u8[2]);
-  x201_discharge_estimate.AvailableVehicleEnergy = ((rx_frame.data.u8[3] << 8) | rx_frame.data.u8[4]);
+  x201_discharge_estimate.ApproxDischargeCompletionTime = ((rx_frame.data.u8[2] << 8) | rx_frame.data.u8[1]);
+  x201_discharge_estimate.AvailableVehicleEnergy = ((rx_frame.data.u8[4] << 8) | rx_frame.data.u8[3]);
 
 #ifdef DEBUG_VIA_USB
   if (currentMillis - previousMillis5000 >= INTERVAL_5_S) {
     previousMillis5000 = currentMillis;
-    Serial.println("x201 availabile vehicle energy, completion time");
+    Serial.print("x201 availabile vehicle energy, completion time: ");
     Serial.println(x201_discharge_estimate.AvailableVehicleEnergy);
-    Serial.println("x201 approx vehicle completion time");
+    Serial.print("x201 approx vehicle completion time: ");
     Serial.println(x201_discharge_estimate.ApproxDischargeCompletionTime);
   }
 #endif
@@ -364,7 +364,7 @@ inline void process_vehicle_dynamic_control(CAN_frame rx_frame) {
 inline void process_vehicle_vendor_ID(CAN_frame rx_frame) {
   x700_vendor_id.AutomakerCode = rx_frame.data.u8[0];
   x700_vendor_id.OptionalContent =
-      ((rx_frame.data.u8[1] << 8) | rx_frame.data.u8[2]);  //Actually more bytes, but not needed for our purpose
+      ((rx_frame.data.u8[2] << 8) | rx_frame.data.u8[1]);  //Actually more bytes, but not needed for our purpose
 }
 
 void receive_can_battery(CAN_frame rx_frame) {
@@ -557,7 +557,7 @@ void update_evse_status(CAN_frame& f) {
 	 *
 	 */
   if ((x102_chg_session.TargetBatteryVoltage > x108_evse_cap.available_output_voltage) ||
-      (x100_chg_lim.MaximumBatteryVoltage > x108_evse_cap.threshold_voltage)) {
+      (x100_chg_lim.MaximumBatteryVoltage < x108_evse_cap.threshold_voltage)) {
     //Toggle battery incompatibility flag 109.5.3
     x109_evse_state.s.status.EVSE_error = 1;
     x109_evse_state.s.status.battery_incompatible = 1;
@@ -602,7 +602,8 @@ void update_evse_discharge_estimate(CAN_frame& f) {
 	*/
 
   CHADEMO_209.data.u8[0] = x209_evse_dischg_est.sequence_control_number;
-  CHADEMO_209.data.u8[1] = x209_evse_dischg_est.remaining_discharge_time;
+  CHADEMO_209.data.u8[1] = lowByte(x209_evse_dischg_est.remaining_discharge_time);
+  CHADEMO_209.data.u8[2] = highByte(x209_evse_dischg_est.remaining_discharge_time);
 }
 
 /* x208 EVSE, peer to 0x200 Vehicle */
@@ -751,7 +752,7 @@ void handle_chademo_sequence() {
 
   /* -------------------    State override conditions checks	------------------- */
   /* ------------------------------------------------------------------------------ */
-  if (CHADEMO_Status >= CHADEMO_EV_ALLOWED && !x102_chg_session.s.status.StatusVehicleShifterPosition) {
+  if (CHADEMO_Status >= CHADEMO_EV_ALLOWED && x102_chg_session.s.status.StatusVehicleShifterPosition) {
 #ifdef DEBUG_VIA_USB
     Serial.println("Vehicle is not parked, abort.");
 #endif
@@ -777,7 +778,6 @@ void handle_chademo_sequence() {
 #ifdef DEBUG_VIA_USB
 //        Commented unless needed for debug
 //        Serial.println("CHADEMO plug is not inserted.");
-//
 #endif
         return;
       }
@@ -1032,6 +1032,15 @@ void handle_chademo_sequence() {
 
 void setup_battery(void) {  // Performs one time setup at startup
 
+  pinMode(CHADEMO_PIN_2, OUTPUT);
+  digitalWrite(CHADEMO_PIN_2, LOW);
+  pinMode(CHADEMO_PIN_10, OUTPUT);
+  digitalWrite(CHADEMO_PIN_10, LOW);
+  pinMode(CHADEMO_LOCK, OUTPUT);
+  digitalWrite(CHADEMO_LOCK, LOW);
+  pinMode(CHADEMO_PIN_4, INPUT);
+  pinMode(CHADEMO_PIN_7, INPUT);
+
   strncpy(datalayer.system.info.battery_protocol, "Chademo V2X mode", 63);
   datalayer.system.info.battery_protocol[63] = '\0';
 
@@ -1075,6 +1084,9 @@ void setup_battery(void) {  // Performs one time setup at startup
   x109_evse_state.s.status.ChgDischStopControl = 1;
 
   handle_chademo_sequence();
+  //  ISA_deFAULT();        // ISA Setup - it is sufficient to set it once, because it is saved in SUNT
+  //  ISA_initialize();     // ISA Setup - it is sufficient to set it once, because it is saved in SUNT
+  //  ISA_RESTART();
 
   setupMillis = millis();
 }

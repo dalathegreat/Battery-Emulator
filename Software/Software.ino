@@ -1122,6 +1122,9 @@ void receive_can(CAN_frame* rx_frame, int interface) {
 
   if (interface == can_config.battery) {
     receive_can_battery(*rx_frame);
+#ifdef CHADEMO_BATTERY
+    ISA_handleFrame(rx_frame);
+#endif
   }
   if (interface == can_config.inverter) {
 #ifdef CAN_INVERTER_SELECTED
