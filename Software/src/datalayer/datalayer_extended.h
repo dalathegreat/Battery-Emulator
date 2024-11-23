@@ -71,6 +71,9 @@ typedef struct {
 } DATALAYER_INFO_BMWI3;
 
 typedef struct {
+  /** bool */
+  /** Which SOC method currently used. 0 = Estimated, 1 = Measured */
+  bool SOC_method = 0;
   /** uint16_t */
   /** SOC% estimate. Estimated from total pack voltage */
   uint16_t SOC_estimated = 0;
@@ -223,6 +226,21 @@ typedef struct {
   /** bool */
   /** Heat request sent*/
   bool HeaterSendRequest = false;
+  /** bool */
+  /** User requesting SOH reset via WebUI*/
+  bool UserRequestSOHreset = false;
+  /** bool */
+  /** True if the crypto challenge response from BMS is signalling a failed attempt*/
+  bool challengeFailed = false;
+  /** uint32_t */
+  /** Cryptographic challenge to be solved */
+  uint32_t CryptoChallenge = 0;
+  /** uint32_t */
+  /** Solution for crypto challenge, MSBs */
+  uint32_t SolvedChallengeMSB = 0;
+  /** uint32_t */
+  /** Solution for crypto challenge, LSBs */
+  uint32_t SolvedChallengeLSB = 0;
 
 } DATALAYER_INFO_NISSAN_LEAF;
 

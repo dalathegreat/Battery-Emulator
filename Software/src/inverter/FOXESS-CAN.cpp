@@ -737,4 +737,8 @@ void receive_can_inverter(CAN_frame rx_frame) {
     }
   }
 }
+void setup_inverter(void) {  // Performs one time setup at startup over CAN bus
+  strncpy(datalayer.system.info.inverter_protocol, "FoxESS compatible HV2600/ECS4100 battery", 63);
+  datalayer.system.info.inverter_protocol[63] = '\0';
+}
 #endif

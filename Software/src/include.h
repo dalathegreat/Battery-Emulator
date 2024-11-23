@@ -45,10 +45,4 @@
 #error No battery selected! Choose one from the USER_SETTINGS.h file
 #endif
 
-#ifdef KIA_E_GMP_BATTERY
-#ifndef CAN_FD
-#error KIA HYUNDAI EGMP BATTERIES CANNOT BE USED WITHOUT CAN FD
-#endif
-#endif
-
 #endif

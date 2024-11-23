@@ -127,7 +127,10 @@ typedef struct {
 } DATALAYER_SHUNT_TYPE;
 
 typedef struct {
-  // TODO
+  /** array with type of battery used, for displaying on webserver */
+  char battery_protocol[64] = {0};
+  /** array with type of inverter used, for displaying on webserver */
+  char inverter_protocol[64] = {0};
 } DATALAYER_SYSTEM_INFO_TYPE;
 
 typedef struct {

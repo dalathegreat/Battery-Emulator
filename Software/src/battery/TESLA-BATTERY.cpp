@@ -1249,13 +1249,11 @@ void printDebugIfActive(uint8_t symbol, const char* message) {
 }
 
 void setup_battery(void) {  // Performs one time setup at startup
-#ifdef DEBUG_VIA_USB
-  Serial.println("Tesla Model S/3/X/Y battery selected");
-#endif
-
   datalayer.system.status.battery_allows_contactor_closing = true;
 
 #ifdef TESLA_MODEL_SX_BATTERY  // Always use NCM/A mode on S/X packs
+  strncpy(datalayer.system.info.battery_protocol, "Tesla Model S/X", 63);
+  datalayer.system.info.battery_protocol[63] = '\0';
   datalayer.battery.info.max_design_voltage_dV = MAX_PACK_VOLTAGE_SX_NCMA;
   datalayer.battery.info.min_design_voltage_dV = MIN_PACK_VOLTAGE_SX_NCMA;
   datalayer.battery.info.max_cell_voltage_mV = MAX_CELL_VOLTAGE_NCA_NCM;
@@ -1271,6 +1269,8 @@ void setup_battery(void) {  // Performs one time setup at startup
 #endif  // TESLA_MODEL_SX_BATTERY
 
 #ifdef TESLA_MODEL_3Y_BATTERY  // Model 3/Y can be either LFP or NCM/A
+  strncpy(datalayer.system.info.battery_protocol, "Tesla Model 3/Y", 63);
+  datalayer.system.info.battery_protocol[63] = '\0';
 #ifdef LFP_CHEMISTRY
   datalayer.battery.info.chemistry = battery_chemistry_enum::LFP;
   datalayer.battery.info.max_design_voltage_dV = MAX_PACK_VOLTAGE_3Y_LFP;

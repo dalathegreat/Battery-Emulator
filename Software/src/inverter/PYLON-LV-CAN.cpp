@@ -133,4 +133,8 @@ void send_can_inverter() {
     transmit_can(&PYLON_35E, can_config.inverter);
   }
 }
+void setup_inverter(void) {  // Performs one time setup at startup over CAN bus
+  strncpy(datalayer.system.info.inverter_protocol, "Pylontech LV battery over CAN bus", 63);
+  datalayer.system.info.inverter_protocol[63] = '\0';
+}
 #endif
