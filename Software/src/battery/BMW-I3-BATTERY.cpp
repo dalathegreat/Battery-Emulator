@@ -487,8 +487,8 @@ void update_values_battery() {  //This function maps all the values fetched via 
   }
 
   // Update webserver datalayer
-  datalayer_extended.bmwi3.SOC_raw = (battery_display_SOC * 50);
-  datalayer_extended.bmwi3.SOC_dash = (battery_HVBatt_SOC * 10);
+  datalayer_extended.bmwi3.SOC_raw = (battery_HVBatt_SOC * 10);
+  datalayer_extended.bmwi3.SOC_dash = (battery_display_SOC * 50);
   datalayer_extended.bmwi3.SOC_OBD2 = battery_soc;
   datalayer_extended.bmwi3.ST_iso_ext = battery_status_error_isolation_external_Bordnetz;
   datalayer_extended.bmwi3.ST_iso_int = battery_status_error_isolation_internal_Bordnetz;

@@ -22,8 +22,6 @@ void print_units(char* header, int value, char* units) {
 
 void update_values_battery() { /* This function puts fake values onto the parameters sent towards the inverter */
 
-  datalayer.battery.info.number_of_cells = 96;
-
   datalayer.battery.status.real_soc = 5000;  // 50.00%
 
   datalayer.battery.status.soh_pptt = 9900;  // 99.00%
@@ -151,7 +149,7 @@ void setup_battery(void) {  // Performs one time setup at startup
   datalayer.battery.info.max_design_voltage_dV =
       4040;  // 404.4V, over this, charging is not possible (goes into forced discharge)
   datalayer.battery.info.min_design_voltage_dV = 2450;  // 245.0V under this, discharging further is disabled
-
+  datalayer.battery.info.number_of_cells = 96;
   datalayer.system.status.battery_allows_contactor_closing = true;
 }
 
