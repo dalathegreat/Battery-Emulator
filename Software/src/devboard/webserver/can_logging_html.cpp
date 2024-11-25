@@ -18,7 +18,7 @@ String can_logger_processor(const String& var) {
         ".can-message { background-color: #404E57; margin-bottom: 5px; padding: 10px; border-radius: 5px; font-family: "
         "monospace; }";
     content += "</style>";
-
+    content += "<button onclick='refreshPage()'>Refresh data</button> ";
     content += "<button onclick='goToMainPage()'>Back to main page</button>";
 
     // Start a new block for the CAN messages
@@ -26,7 +26,7 @@ String can_logger_processor(const String& var) {
 
     // Check for messages
     if (datalayer.system.info.logged_can_messages[0] == 0) {
-      content += "No incoming/outgoing CAN messages yet";
+      content += "CAN logger started! Refresh page to display incoming(RX) and outgoing(TX) messages";
     } else {
       // Split the messages using the newline character
       String messages = String(datalayer.system.info.logged_can_messages);
@@ -46,6 +46,7 @@ String can_logger_processor(const String& var) {
     // Add JavaScript for navigation
     content += "<script>";
     content += "function goToMainPage() { window.location.href = '/'; }";
+    content += "function refreshPage(){ location.reload(true); }";
     content += "</script>";
     return content;
   }
