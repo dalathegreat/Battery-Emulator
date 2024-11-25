@@ -331,6 +331,7 @@ void update_values_battery() { /* This function maps all the values fetched via 
   datalayer_extended.nissanleaf.ChargePowerLimit = battery_Charge_Power_Limit;
   datalayer_extended.nissanleaf.MaxPowerForCharger = battery_MAX_POWER_FOR_CHARGER;
   datalayer_extended.nissanleaf.Interlock = battery_Interlock;
+  datalayer_extended.nissanleaf.Insulation = battery_insulation;
   datalayer_extended.nissanleaf.RelayCutRequest = battery_Relay_Cut_Request;
   datalayer_extended.nissanleaf.FailsafeStatus = battery_Failsafe_Status;
   datalayer_extended.nissanleaf.Full = battery_Full_CHARGE_flag;
