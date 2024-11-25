@@ -20,6 +20,8 @@ static uint32_t inverter_time = 0;
 static uint16_t inverter_voltage = 0;
 static int16_t inverter_current = 0;
 static bool pairing_completed = false;
+static int16_t temperature_average = 0;
+static uint16_t ampere_hours_remaining = 0;
 
 //Actual content messages
 CAN_frame SMA_558 = {.FD = false,  //Pairing first message
@@ -84,7 +86,15 @@ CAN_frame SMA_518 = {.FD = false,
                      .data = {0x00, 0x96, 0x00, 0x78, 0x00, 0x00, 0x00, 0x00}};
 
 void update_values_can_inverter() {  //This function maps all the values fetched from battery CAN to the inverter CAN
+  // Update values
+  temperature_average =
+      ((datalayer.battery.status.temperature_max_dC + datalayer.battery.status.temperature_min_dC) / 2);
 
+  if (datalayer.battery.status.voltage_dV > 10) {  // Only update value when we have voltage available to avoid div0
+    ampere_hours_remaining =
+        ((datalayer.battery.status.reported_remaining_capacity_Wh / datalayer.battery.status.voltage_dV) *
+         100);  //(WH[10000] * V+1[3600])*100 = 270 (27.0Ah)
+  }
   //Map values to CAN messages
 
   //Maxvoltage (eg 400.0V = 4000 , 16bits long)
