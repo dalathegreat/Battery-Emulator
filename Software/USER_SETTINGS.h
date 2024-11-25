@@ -46,6 +46,7 @@
 //#define PYLON_CAN        //Enable this line to emulate a "High Voltage Pylontech battery" over CAN bus
 //#define SCHNEIDER_CAN    //Enable this line to emulate a "Schneider Version 2: SE BMS" over CAN bus
 //#define SMA_CAN          //Enable this line to emulate a "BYD Battery-Box H 8.9kWh, 7 mod" over CAN bus
+//#define SMA_LV_CAN       //Enable this line to emulate a "SMA Sunny Island 48V battery" over CAN bus
 //#define SMA_TRIPOWER_CAN //Enable this line to emulate a "SMA Home Storage battery" over CAN bus
 //#define SOFAR_CAN        //Enable this line to emulate a "Sofar Energy Storage Inverter High Voltage BMS General Protocol (Extended Frame)" over CAN bus
 //#define SOLAX_CAN        //Enable this line to emulate a "SolaX Triple Power LFP" over CAN bus

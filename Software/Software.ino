@@ -53,7 +53,7 @@
 
 Preferences settings;  // Store user settings
 // The current software version, shown on webserver
-const char* version_number = "7.8.dev";
+const char* version_number = "7.9.dev";
 
 // Interval settings
 uint16_t intervalUpdateValues = INTERVAL_1_S;  // Interval at which to update inverter values / Modbus registers
@@ -901,8 +901,13 @@ void update_calculated_values() {
       calc_max_capacity = (datalayer.battery.status.remaining_capacity_Wh * 10000 / datalayer.battery.status.real_soc);
       calc_reserved_capacity = calc_max_capacity * datalayer.battery.settings.min_percentage / 10000;
       // remove % capacity reserved in min_percentage to total_capacity_Wh
-      datalayer.battery.status.reported_remaining_capacity_Wh =
-          datalayer.battery.status.remaining_capacity_Wh - calc_reserved_capacity;
+      if (datalayer.battery.status.remaining_capacity_Wh > calc_reserved_capacity) {
+        datalayer.battery.status.reported_remaining_capacity_Wh =
+            datalayer.battery.status.remaining_capacity_Wh - calc_reserved_capacity;
+      } else {
+        datalayer.battery.status.reported_remaining_capacity_Wh = 0;
+      }
+
     } else {
       datalayer.battery.status.reported_remaining_capacity_Wh = datalayer.battery.status.remaining_capacity_Wh;
     }
@@ -918,8 +923,12 @@ void update_calculated_values() {
           (datalayer.battery2.status.remaining_capacity_Wh * 10000 / datalayer.battery2.status.real_soc);
       calc_reserved_capacity = calc_max_capacity * datalayer.battery2.settings.min_percentage / 10000;
       // remove % capacity reserved in min_percentage to total_capacity_Wh
-      datalayer.battery2.status.reported_remaining_capacity_Wh =
-          datalayer.battery2.status.remaining_capacity_Wh - calc_reserved_capacity;
+      if (datalayer.battery2.status.remaining_capacity_Wh > calc_reserved_capacity) {
+        datalayer.battery2.status.reported_remaining_capacity_Wh =
+            datalayer.battery2.status.remaining_capacity_Wh - calc_reserved_capacity;
+      } else {
+        datalayer.battery2.status.reported_remaining_capacity_Wh = 0;
+      }
     } else {
       datalayer.battery2.status.reported_remaining_capacity_Wh = datalayer.battery2.status.remaining_capacity_Wh;
     }

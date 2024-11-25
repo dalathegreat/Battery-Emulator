@@ -393,11 +393,13 @@ String advanced_battery_processor(const String& var) {
 #endif
 
 #ifdef NISSAN_LEAF_BATTERY
-    content += "<h4>LEAF generation: " + String(datalayer_extended.nissanleaf.LEAF_gen) + "</h4>";
+    static const char* LEAFgen[] = {"ZE0", "AZE0", "ZE1"};
+    content += "<h4>LEAF generation: " + String(LEAFgen[datalayer_extended.nissanleaf.LEAF_gen]) + "</h4>";
     content += "<h4>GIDS: " + String(datalayer_extended.nissanleaf.GIDS) + "</h4>";
     content += "<h4>Regen kW: " + String(datalayer_extended.nissanleaf.ChargePowerLimit) + "</h4>";
     content += "<h4>Charge kW: " + String(datalayer_extended.nissanleaf.MaxPowerForCharger) + "</h4>";
     content += "<h4>Interlock: " + String(datalayer_extended.nissanleaf.Interlock) + "</h4>";
+    content += "<h4>Insulation: " + String(datalayer_extended.nissanleaf.Insulation) + "</h4>";
     content += "<h4>Relay cut request: " + String(datalayer_extended.nissanleaf.RelayCutRequest) + "</h4>";
     content += "<h4>Failsafe status: " + String(datalayer_extended.nissanleaf.FailsafeStatus) + "</h4>";
     content += "<h4>Fully charged: " + String(datalayer_extended.nissanleaf.Full) + "</h4>";
