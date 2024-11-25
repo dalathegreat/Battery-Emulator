@@ -923,8 +923,12 @@ void update_calculated_values() {
           (datalayer.battery2.status.remaining_capacity_Wh * 10000 / datalayer.battery2.status.real_soc);
       calc_reserved_capacity = calc_max_capacity * datalayer.battery2.settings.min_percentage / 10000;
       // remove % capacity reserved in min_percentage to total_capacity_Wh
-      datalayer.battery2.status.reported_remaining_capacity_Wh =
-          datalayer.battery2.status.remaining_capacity_Wh - calc_reserved_capacity;
+      if (datalayer.battery2.status.remaining_capacity_Wh > calc_reserved_capacity) {
+        datalayer.battery2.status.reported_remaining_capacity_Wh =
+            datalayer.battery2.status.remaining_capacity_Wh - calc_reserved_capacity;
+      } else {
+        datalayer.battery2.status.reported_remaining_capacity_Wh = 0;
+      }
     } else {
       datalayer.battery2.status.reported_remaining_capacity_Wh = datalayer.battery2.status.remaining_capacity_Wh;
     }
