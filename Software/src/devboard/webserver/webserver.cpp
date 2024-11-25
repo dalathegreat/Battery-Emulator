@@ -14,6 +14,7 @@ AsyncWebServer server(80);
 unsigned long ota_progress_millis = 0;
 
 #include "advanced_battery_html.h"
+#include "can_logging_html.h"
 #include "cellmonitor_html.h"
 #include "events_html.h"
 #include "index_html.cpp"
@@ -54,6 +55,11 @@ void init_webserver() {
   // Route for going to advanced battery info web page
   server.on("/advanced", HTTP_GET, [](AsyncWebServerRequest* request) {
     request->send_P(200, "text/html", index_html, advanced_battery_processor);
+  });
+
+  // Route for going to CAN logging web page
+  server.on("/canlog", HTTP_GET, [](AsyncWebServerRequest* request) {
+    request->send_P(200, "text/html", index_html, can_logger_processor);
   });
 
   // Route for going to cellmonitor web page
@@ -443,6 +449,10 @@ String processor(const String& var) {
     //Page format
     content += "<style>";
     content += "body { background-color: black; color: white; }";
+    content +=
+        "button { background-color: #505E67; color: white; border: none; padding: 10px 20px; margin-bottom: 20px; "
+        "cursor: pointer; border-radius: 10px; }";
+    content += "button:hover { background-color: #3A4A52; }";
     content += "</style>";
 
     // Start a new block with a specific background color
@@ -874,6 +884,7 @@ String processor(const String& var) {
     content += "<button onclick='OTA()'>Perform OTA update</button> ";
     content += "<button onclick='Settings()'>Change Settings</button> ";
     content += "<button onclick='Advanced()'>More Battery Info</button> ";
+    content += "<button onclick='CANlog()'>CAN logger</button> ";
     content += "<button onclick='Cellmon()'>Cellmonitor</button> ";
     content += "<button onclick='Events()'>Events</button> ";
     content += "<button onclick='askReboot()'>Reboot Emulator</button>";
@@ -898,6 +909,7 @@ String processor(const String& var) {
     content += "function Cellmon() { window.location.href = '/cellmonitor'; }";
     content += "function Settings() { window.location.href = '/settings'; }";
     content += "function Advanced() { window.location.href = '/advanced'; }";
+    content += "function CANlog() { window.location.href = '/canlog'; }";
     content += "function Events() { window.location.href = '/events'; }";
     content +=
         "function askReboot() { if (window.confirm('Are you sure you want to reboot the emulator? NOTE: If "
