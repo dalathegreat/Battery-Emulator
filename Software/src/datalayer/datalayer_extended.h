@@ -199,6 +199,9 @@ typedef struct {
   /** bool */
   /** Interlock status */
   bool Interlock = false;
+  /** int16_t */
+  /** Insulation resistance, most likely kOhm */
+  uint16_t Insulation = 0;
   /** uint8_t */
   /** battery_FAIL status */
   uint8_t RelayCutRequest = 0;
