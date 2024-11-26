@@ -19,6 +19,7 @@ String can_logger_processor(const String& var) {
         "monospace; }";
     content += "</style>";
     content += "<button onclick='refreshPage()'>Refresh data</button> ";
+    content += "<button onclick='exportLogs()'>Export to .txt</button> ";
     content += "<button onclick='stopLoggingAndGoToMainPage()'>Back to main page</button>";
 
     // Start a new block for the CAN messages
@@ -46,6 +47,7 @@ String can_logger_processor(const String& var) {
     // Add JavaScript for navigation
     content += "<script>";
     content += "function refreshPage(){ location.reload(true); }";
+    content += "function exportLogs() { window.location.href = '/export_logs'; }";
     content += "function stopLoggingAndGoToMainPage() {";
     content += "  fetch('/stop_logging').then(() => window.location.href = '/');";
     content += "}";

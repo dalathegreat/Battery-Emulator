@@ -132,7 +132,7 @@ typedef struct {
   /** array with type of inverter used, for displaying on webserver */
   char inverter_protocol[64] = {0};
   /** array with incoming CAN messages, for displaying on webserver */
-  char logged_can_messages[10000] = {0};
+  char logged_can_messages[50000] = {0};
   /** bool, determines if CAN messages should be logged for webserver */
   bool can_logging_active = false;
 
