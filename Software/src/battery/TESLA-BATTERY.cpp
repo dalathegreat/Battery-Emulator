@@ -345,7 +345,7 @@ void update_values_battery() {  //This function maps all the values fetched via 
 
 #ifdef TESLA_MODEL_3Y_BATTERY
   // Autodetect algoritm for chemistry on 3/Y packs.
-  // NCM/A batteries have 96s, LFP has 102-106s
+  // NCM/A batteries have 96s, LFP has 102-108s
   // Drawback with this check is that it takes 3-5minutes before all cells have been counted!
   if (datalayer.battery.info.number_of_cells > 101) {
     datalayer.battery.info.chemistry = battery_chemistry_enum::LFP;
@@ -431,7 +431,7 @@ void update_values_battery() {  //This function maps all the values fetched via 
   Serial.print("Real SOC: ");
   Serial.print(battery_soc_ui / 10.0, 1);
   print_int_with_units(", Battery voltage: ", battery_volts, "V");
-  print_int_with_units(", Battery HV current: ", (battery_amps), "A");  // (battery_amps * 0.1)
+  print_int_with_units(", Battery HV current: ", (battery_amps * 0.1), "A");
   Serial.print(", Fully charged?: ");
   if (battery_full_charge_complete)
     Serial.print("YES, ");
@@ -552,8 +552,9 @@ void receive_can_battery(CAN_frame rx_frame) {
       battery_volts = ((rx_frame.data.u8[1] << 8) | rx_frame.data.u8[0]) *
                       0.01;  //0|16@1+ (0.01,0) [0|655.35] "V"  //Example 37030mv * 0.01 = 370V
       battery_amps =
-          ((rx_frame.data.u8[3] << 8) | rx_frame.data.u8[2]) *
-          -0.1;  //SmoothBattCurrent : 16|16@1- (-0.1,0) [-3276.7|3276.7] "A"         //Example 65492 (-4.3A) OR 225 (22.5A)
+          ((rx_frame.data.u8[3] << 8) |
+           rx_frame.data.u8
+               [2]);  //SmoothBattCurrent : 16|16@1- (-0.1,0) [-3276.7|3276.7] "A"//Example 65492 (-4.3A) OR 225 (22.5A)
       battery_raw_amps =
           ((rx_frame.data.u8[5] << 8) | rx_frame.data.u8[4]) * -0.05 +
           822;  //RawBattCurrent : 32|16@1- (-0.05,822) [-1138.35|2138.4] "A"  //Example 10425 * -0.05 = ?
