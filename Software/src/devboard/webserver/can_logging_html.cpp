@@ -19,7 +19,7 @@ String can_logger_processor(const String& var) {
         "monospace; }";
     content += "</style>";
     content += "<button onclick='refreshPage()'>Refresh data</button> ";
-    content += "<button onclick='goToMainPage()'>Back to main page</button>";
+    content += "<button onclick='stopLoggingAndGoToMainPage()'>Back to main page</button>";
 
     // Start a new block for the CAN messages
     content += "<div style='background-color: #303E47; padding: 20px; border-radius: 15px'>";
@@ -45,8 +45,10 @@ String can_logger_processor(const String& var) {
 
     // Add JavaScript for navigation
     content += "<script>";
-    content += "function goToMainPage() { window.location.href = '/'; }";
     content += "function refreshPage(){ location.reload(true); }";
+    content += "function stopLoggingAndGoToMainPage() {";
+    content += "  fetch('/stop_logging').then(() => window.location.href = '/');";
+    content += "}";
     content += "</script>";
     return content;
   }

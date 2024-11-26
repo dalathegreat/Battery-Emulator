@@ -62,6 +62,12 @@ void init_webserver() {
     request->send_P(200, "text/html", index_html, can_logger_processor);
   });
 
+  // Define the handler to stop logging
+  server.on("/stop_logging", HTTP_GET, [](AsyncWebServerRequest* request) {
+    datalayer.system.info.can_logging_active = false;
+    request->send_P(200, "text/plain", "Logging stopped");
+  });
+
   // Route for going to cellmonitor web page
   server.on("/cellmonitor", HTTP_GET, [](AsyncWebServerRequest* request) {
     if (WEBSERVER_AUTH_REQUIRED && !request->authenticate(http_username, http_password))
