@@ -581,6 +581,12 @@ void init_contactors() {
   pinMode(BMS_POWER, OUTPUT);
   digitalWrite(BMS_POWER, HIGH);
 #endif  //HW_STARK
+#ifdef HW_3LB
+  pinMode(BMS_POWER, OUTPUT);
+  digitalWrite(BMS_POWER, HIGH);
+  pinMode(BMS2_POWER, OUTPUT);
+  digitalWrite(BMS2_POWER, HIGH);
+#endif  //HW_3LB
 }
 
 void init_rs485() {
@@ -1247,7 +1253,7 @@ void transmit_can(CAN_frame* tx_frame, int interface) {
 #endif  //CAN_FD
     } break;
     case CANFD_TRIPLE: {
-#ifdef CAN_FD
+#if defined(CAN_FD) && defined(HW_3LB)
       CANFDMessage MCP2518Frame2;
       MCP2518Frame2.id = tx_frame->ID;
       MCP2518Frame2.ext = tx_frame->ext_ID ? CAN_frame_ext : CAN_frame_std;
