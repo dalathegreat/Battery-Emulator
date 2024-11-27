@@ -9,6 +9,10 @@ String advanced_battery_processor(const String& var) {
     //Page format
     content += "<style>";
     content += "body { background-color: black; color: white; }";
+    content +=
+        "button { background-color: #505E67; color: white; border: none; padding: 10px 20px; margin-bottom: 20px; "
+        "cursor: pointer; border-radius: 10px; }";
+    content += "button:hover { background-color: #3A4A52; }";
     content += "</style>";
 
     content += "<button onclick='goToMainPage()'>Back to main page</button>";

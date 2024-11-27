@@ -4,7 +4,7 @@
 
 #define MODBUS_INVERTER_SELECTED
 
-#define MB_RTU_NUM_VALUES 30000
+#define MB_RTU_NUM_VALUES 13100
 #define MAX_POWER 40960  //BYD Modbus specific value
 
 extern uint16_t mbPV[MB_RTU_NUM_VALUES];
