@@ -78,7 +78,7 @@ ACAN2517FD canfd(MCP2517_CS, SPI, MCP2517_INT);
 
 // ModbusRTU parameters
 #ifdef MODBUS_INVERTER_SELECTED
-#define MB_RTU_NUM_VALUES 30000
+#define MB_RTU_NUM_VALUES 13100
 uint16_t mbPV[MB_RTU_NUM_VALUES];  // Process variable memory
 // Create a ModbusRTU server instance listening on Serial2 with 2000ms timeout
 ModbusServerRTU MBserver(Serial2, 2000);
