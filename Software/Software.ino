@@ -74,6 +74,10 @@ static ACAN2515_Buffer16 gBuffer;
 #ifdef CAN_FD
 #include "src/lib/pierremolinaro-ACAN2517FD/ACAN2517FD.h"
 ACAN2517FD canfd(MCP2517_CS, SPI, MCP2517_INT);
+#ifdef HW_3LB
+//The 3LB board has 2x CAN-FD channels added on
+ACAN2517FD canfd2(SECOND_MCP2517_CS, SPI, SECOND_MCP2517_INT);
+#endif
 #endif  //CAN_FD
 
 // ModbusRTU parameters
@@ -511,6 +515,38 @@ void init_CAN() {
 #endif
     set_event(EVENT_CANFD_INIT_FAILURE, (uint8_t)errorCode);
   }
+#ifdef HW_3LB
+  // Initialize CAN-FD2
+  const uint32_t errorCode2 = canfd2.begin(settings, [] { canfd2.isr(); });
+  canfd2.poll();
+  if (errorCode2 == 0) {
+#ifdef DEBUG_VIA_USB
+    Serial.print("CAN-FD2 initialized. Bit Rate prescaler: ");
+    Serial.println(settings.mBitRatePrescaler);
+    Serial.print("Arbitration Phase segment 1: ");
+    Serial.println(settings.mArbitrationPhaseSegment1);
+    Serial.print("Arbitration Phase segment 2: ");
+    Serial.println(settings.mArbitrationPhaseSegment2);
+    Serial.print("Arbitration SJW: ");
+    Serial.println(settings.mArbitrationSJW);
+    Serial.print("Actual Arbitration Bit Rate: ");
+    Serial.print(settings.actualArbitrationBitRate());
+    Serial.println(" bit/s");
+    Serial.print("Exact Arbitration Bit Rate ? ");
+    Serial.println(settings.exactArbitrationBitRate() ? "yes" : "no");
+    Serial.print("Arbitration Sample point: ");
+    Serial.print(settings.arbitrationSamplePointFromBitStart());
+    Serial.println("%");
+#endif
+  } else {
+#ifdef DEBUG_VIA_USB
+    Serial.print("CAN-FD2 Configuration error 0x");
+    Serial.println(errorCode2, HEX);
+#endif
+    set_event(EVENT_CANFD_INIT_FAILURE, (uint8_t)errorCode2);
+  }
+#endif  //HW_3LB
+
 #endif
 }
 
@@ -700,6 +736,22 @@ void receive_canfd() {  // This section checks if we have a complete CAN-FD mess
     receive_can(&rx_frame, CAN_ADDON_FD_MCP2518);
     receive_can(&rx_frame, CANFD_NATIVE);
   }
+#ifdef HW_3LB
+  CANFDMessage frame2;
+  if (canfd2.available()) {
+    canfd2.receive(frame2);
+
+    CAN_frame rx_frame2;
+    rx_frame2.ID = frame2.id;
+    rx_frame2.ext_ID = frame2.ext;
+    rx_frame2.DLC = frame2.len;
+    for (uint8_t i = 0; i < rx_frame2.DLC && i < 64; i++) {
+      rx_frame2.data.u8[i] = frame2.data[i];
+    }
+    //message incoming, pass it on to the handler
+    receive_can(&rx_frame2, CANFD_TRIPLE);
+  }
+#endif
 }
 #endif
 
@@ -1187,6 +1239,23 @@ void transmit_can(CAN_frame* tx_frame, int interface) {
         MCP2518Frame.data[i] = tx_frame->data.u8[i];
       }
       send_ok = canfd.tryToSend(MCP2518Frame);
+      if (!send_ok) {
+        set_event(EVENT_CANFD_BUFFER_FULL, interface);
+      }
+#else   // Interface not compiled, and settings try to use it
+      set_event(EVENT_INTERFACE_MISSING, interface);
+#endif  //CAN_FD
+    } break;
+    case CANFD_TRIPLE: {
+#ifdef CAN_FD
+      CANFDMessage MCP2518Frame2;
+      MCP2518Frame2.id = tx_frame->ID;
+      MCP2518Frame2.ext = tx_frame->ext_ID ? CAN_frame_ext : CAN_frame_std;
+      MCP2518Frame2.len = tx_frame->DLC;
+      for (uint8_t i = 0; i < MCP2518Frame2.len; i++) {
+        MCP2518Frame2.data[i] = tx_frame->data.u8[i];
+      }
+      send_ok = canfd2.tryToSend(MCP2518Frame2);
       if (!send_ok) {
         set_event(EVENT_CANFD_BUFFER_FULL, interface);
       }
