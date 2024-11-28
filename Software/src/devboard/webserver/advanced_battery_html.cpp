@@ -426,7 +426,7 @@ String advanced_battery_processor(const String& var) {
         datalayer_extended.meb.BMS_error_lamp_req ? "<h4>Red error lamp: ON!</h4>" : "<h4>Red error lamp: Off</h4>";
     content += datalayer_extended.meb.BMS_warning_lamp_req ? "<h4>Yellow warning lamp: ON!</h4>"
                                                            : "<h4>Yellow warning lamp: Off</h4>";
-    content += "</h4><h4>Isolation resistance: " + String(datalayer_extended.meb.isolation_resistance) + " kOhm</h4>";
+    content += "<h4>Isolation resistance: " + String(datalayer_extended.meb.isolation_resistance) + " kOhm</h4>";
     content +=
         datalayer_extended.meb.battery_heating ? "<h4>Battery heating: Active!</h4>" : "<h4>Battery heating: Off</h4>";
     const char* rt_enum[] = {"No", "Error level 1", "Error level 2", "Error level 3"};
