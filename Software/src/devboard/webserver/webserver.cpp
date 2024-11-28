@@ -499,82 +499,7 @@ String processor(const String& var) {
     content += datalayer.system.info.inverter_protocol;
     content += "</h4>";
     content += "<h4 style='color: white;'>Battery protocol: ";
-
-#ifdef BMW_I3_BATTERY
-    content += "BMW i3";
-#endif  // BMW_I3_BATTERY
-#ifdef BMW_IX_BATTERY
-    content += "BMW iX and i4-7 platform";
-#endif  // BMW_IX_BATTERY
-#ifdef BYD_ATTO_3_BATTERY
-    content += "BYD Atto 3";
-#endif  // BYD_ATTO_3_BATTERY
-#ifdef CELLPOWER_BMS
-    content += "Cellpower BMS";
-#endif  // CELLPOWER_BMS
-#ifdef CHADEMO_BATTERY
-    content += "Chademo V2X mode";
-#endif  // CHADEMO_BATTERY
-#ifdef IMIEV_CZERO_ION_BATTERY
-    content += "I-Miev / C-Zero / Ion Triplet";
-#endif  // IMIEV_CZERO_ION_BATTERY
-#ifdef JAGUAR_IPACE_BATTERY
-    content += "Jaguar I-PACE";
-#endif  // JAGUAR_IPACE_BATTERY
-#ifdef KIA_HYUNDAI_64_BATTERY
-    content += "Kia/Hyundai 64kWh";
-#endif  // KIA_HYUNDAI_64_BATTERY
-#ifdef KIA_E_GMP_BATTERY
-    content += "Kia/Hyundai EGMP platform";
-#endif  // KIA_E_GMP_BATTERY
-#ifdef KIA_HYUNDAI_HYBRID_BATTERY
-    content += "Kia/Hyundai Hybrid";
-#endif  //KIA_HYUNDAI_HYBRID_BATTERY
-#ifdef MEB_BATTERY
-    content += "Volkswagen Group MEB platform";
-#endif  //MEB_BATTERY
-#ifdef MG_5_BATTERY
-    content += "MG 5";
-#endif  // MG_5_BATTERY
-#ifdef NISSAN_LEAF_BATTERY
-    content += "Nissan LEAF";
-#endif  // NISSAN_LEAF_BATTERY
-#ifdef PYLON_BATTERY
-    content += "Pylon compatible battery";
-#endif  // PYLON_BATTERY
-#ifdef RJXZS_BMS
-    content += "RJXZS BMS, DIY battery";
-#endif  // RJXZS_BMS
-#ifdef RENAULT_KANGOO_BATTERY
-    content += "Renault Kangoo";
-#endif  // RENAULT_KANGOO_BATTERY
-#ifdef RENAULT_TWIZY_BATTERY
-    content += "Renault Twizy";
-#endif  // RENAULT_TWIZY_BATTERY
-#ifdef RENAULT_ZOE_GEN1_BATTERY
-    content += "Renault Zoe Gen1 22/40";
-#endif  // RENAULT_ZOE_GEN1_BATTERY
-#ifdef RENAULT_ZOE_GEN2_BATTERY
-    content += "Renault Zoe Gen2 50";
-#endif  // RENAULT_ZOE_GEN2_BATTERY
-#ifdef SANTA_FE_PHEV_BATTERY
-    content += "Santa Fe PHEV";
-#endif  // SANTA_FE_PHEV_BATTERY
-#ifdef SERIAL_LINK_RECEIVER
-    content += "Serial link to another LilyGo board";
-#endif  // SERIAL_LINK_RECEIVER
-#ifdef TESLA_MODEL_SX_BATTERY
-    content += "Tesla Model S/X";
-#endif  // TESLA_MODEL_SX_BATTERY
-#ifdef TESLA_MODEL_3Y_BATTERY
-    content += "Tesla Model 3/Y";
-#endif  // TESLA_MODEL_3Y_BATTERY
-#ifdef VOLVO_SPA_BATTERY
-    content += "Volvo / Polestar 78kWh battery";
-#endif  // VOLVO_SPA_BATTERY
-#ifdef TEST_FAKE_BATTERY
-    content += "Fake battery for testing purposes";
-#endif  // TEST_FAKE_BATTERY
+    content += datalayer.system.info.battery_protocol;
 #ifdef DOUBLE_BATTERY
     content += " (Double battery)";
 #endif  // DOUBLE_BATTERY
@@ -660,16 +585,16 @@ String processor(const String& var) {
     content +=
         formatPowerValue("Scaled Remaining capacity", datalayer.battery.status.reported_remaining_capacity_Wh, "h", 1);
 
-    if (emulator_pause_status == NORMAL) {
-      content += formatPowerValue("Max discharge power", datalayer.battery.status.max_discharge_power_W, "", 1);
-      content += formatPowerValue("Max charge power", datalayer.battery.status.max_charge_power_W, "", 1);
-      content += "<h4 style='color: white;'>Max discharge current: " + String(maxCurrentDischargeFloat, 1) + " A</h4>";
-      content += "<h4 style='color: white;'>Max charge current: " + String(maxCurrentChargeFloat, 1) + " A</h4>";
-    } else {
+    if (datalayer.system.settings.equipment_stop_active) {
       content += formatPowerValue("Max discharge power", datalayer.battery.status.max_discharge_power_W, "", 1, "red");
       content += formatPowerValue("Max charge power", datalayer.battery.status.max_charge_power_W, "", 1, "red");
       content += "<h4 style='color: red;'>Max discharge current: " + String(maxCurrentDischargeFloat, 1) + " A</h4>";
       content += "<h4 style='color: red;'>Max charge current: " + String(maxCurrentChargeFloat, 1) + " A</h4>";
+    } else {
+      content += formatPowerValue("Max discharge power", datalayer.battery.status.max_discharge_power_W, "", 1);
+      content += formatPowerValue("Max charge power", datalayer.battery.status.max_charge_power_W, "", 1);
+      content += "<h4 style='color: white;'>Max discharge current: " + String(maxCurrentDischargeFloat, 1) + " A</h4>";
+      content += "<h4 style='color: white;'>Max charge current: " + String(maxCurrentChargeFloat, 1) + " A</h4>";
     }
 
     content += "<h4>Cell max: " + String(datalayer.battery.status.cell_max_voltage_mV) + " mV</h4>";
@@ -789,8 +714,19 @@ String processor(const String& var) {
     content += formatPowerValue("Real Remaining capacity", datalayer.battery2.status.remaining_capacity_Wh, "h", 1);
     content +=
         formatPowerValue("Scaled Remaining capacity", datalayer.battery2.status.reported_remaining_capacity_Wh, "h", 1);
-    content += formatPowerValue("Max discharge power", datalayer.battery2.status.max_discharge_power_W, "", 1);
-    content += formatPowerValue("Max charge power", datalayer.battery2.status.max_charge_power_W, "", 1);
+
+    if (datalayer.system.settings.equipment_stop_active) {
+      content += formatPowerValue("Max discharge power", datalayer.battery2.status.max_discharge_power_W, "", 1, "red");
+      content += formatPowerValue("Max charge power", datalayer.battery2.status.max_charge_power_W, "", 1, "red");
+      content += "<h4 style='color: red;'>Max discharge current: " + String(maxCurrentDischargeFloat, 1) + " A</h4>";
+      content += "<h4 style='color: red;'>Max charge current: " + String(maxCurrentChargeFloat, 1) + " A</h4>";
+    } else {
+      content += formatPowerValue("Max discharge power", datalayer.battery2.status.max_discharge_power_W, "", 1);
+      content += formatPowerValue("Max charge power", datalayer.battery2.status.max_charge_power_W, "", 1);
+      content += "<h4 style='color: white;'>Max discharge current: " + String(maxCurrentDischargeFloat, 1) + " A</h4>";
+      content += "<h4 style='color: white;'>Max charge current: " + String(maxCurrentChargeFloat, 1) + " A</h4>";
+    }
+
     content += "<h4>Cell max: " + String(datalayer.battery2.status.cell_max_voltage_mV) + " mV</h4>";
     content += "<h4>Cell min: " + String(datalayer.battery2.status.cell_min_voltage_mV) + " mV</h4>";
     if (cell_delta_mv > datalayer.battery2.info.max_cell_voltage_deviation_mV) {

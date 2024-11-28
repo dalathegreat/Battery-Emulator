@@ -20,6 +20,7 @@
 
 #ifdef CHADEMO_BATTERY
 #include "CHADEMO-BATTERY.h"
+#include "CHADEMO-SHUNTS.h"
 #endif
 
 #ifdef IMIEV_CZERO_ION_BATTERY

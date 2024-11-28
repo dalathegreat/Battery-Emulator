@@ -53,7 +53,7 @@
 
 Preferences settings;  // Store user settings
 // The current software version, shown on webserver
-const char* version_number = "7.7.dev";
+const char* version_number = "7.8.dev";
 
 // Interval settings
 uint16_t intervalUpdateValues = INTERVAL_1_S;  // Interval at which to update inverter values / Modbus registers
@@ -1122,11 +1122,16 @@ void transmit_can(CAN_frame* tx_frame, int interface) {
 void receive_can(CAN_frame* rx_frame, int interface) {
 
 #ifdef DEBUG_CAN_DATA
-  print_can_frame(*rx_frame, frameDirection(MSG_RX));
+  if (interface != CAN_ADDON_FD_MCP2518) {  //Avoid double printing Native+Addon
+    print_can_frame(*rx_frame, frameDirection(MSG_RX));
+  }
 #endif  //DEBUG_CAN_DATA
 
   if (interface == can_config.battery) {
     receive_can_battery(*rx_frame);
+#ifdef CHADEMO_BATTERY
+    ISA_handleFrame(rx_frame);
+#endif
   }
   if (interface == can_config.inverter) {
 #ifdef CAN_INVERTER_SELECTED

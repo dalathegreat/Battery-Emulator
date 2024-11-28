@@ -49,6 +49,7 @@ jobs:
           - FOXESS_CAN
           - PYLON_LV_CAN
           - PYLON_CAN
+          - SCHNEIDER_CAN
           - SMA_CAN
           - SMA_TRIPOWER_CAN
           - SOFAR_CAN
