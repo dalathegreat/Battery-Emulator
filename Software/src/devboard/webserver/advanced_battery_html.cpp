@@ -396,8 +396,8 @@ String advanced_battery_processor(const String& var) {
       case 7: content+= String("Fault"); break;
       default: content += String("?");
     }
-    content += "</h4><h4>Voltage status: ";
-    switch (datalayer_extended.meb.BMS_error_status){
+    content += "</h4><h4>Interm. Voltage ("+ String(datalayer_extended.meb.BMS_voltage_intermediate_dV/10.0, 1)+"V) status: ";
+    switch (datalayer_extended.meb.BMS_status_voltage_free){
       case 0: content+= String("Init"); break;
       case 1: content+= String("BMS interm circuit voltage free (U<20V)"); break;
       case 2: content+= String("BMS interm circuit not voltage free (U >= 25V)"); break;
@@ -416,7 +416,7 @@ String advanced_battery_processor(const String& var) {
       case 7: content+= String("Init"); break;
       default: content += String("?");
     }
-    
+    content += "</h4><h4>BMS voltage: " + String(datalayer_extended.meb.BMS_voltage_dV/10.0, 1) + "</h4>";
     content += datalayer_extended.meb.BMS_OBD_MIL ? "<h4>OBD MIL: ON!</h4>" : "<h4>OBD MIL: Off</h4>";
     content +=
         datalayer_extended.meb.BMS_error_lamp_req ? "<h4>Red error lamp: ON!</h4>" : "<h4>Red error lamp: Off</h4>";

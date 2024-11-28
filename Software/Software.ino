@@ -58,6 +58,7 @@ const char* version_number = "7.8.dev";
 // Interval settings
 uint16_t intervalUpdateValues = INTERVAL_1_S;  // Interval at which to update inverter values / Modbus registers
 unsigned long previousMillis10ms = 50;
+unsigned long previousMillis1s = 0;
 unsigned long previousMillisUpdateVal = 0;
 
 // CAN parameters
@@ -257,6 +258,20 @@ void core_loop(void* task_time_us) {
     receive_can_native();  // Receive CAN messages from native CAN port
 #ifdef CAN_FD
     receive_canfd();  // Receive CAN-FD messages.
+    if (millis() - previousMillis1s >= INTERVAL_1_S) {
+      previousMillis10ms = millis();
+      int overflow = canfd.hardwareReceiveBufferOverflowCount();
+      if (overflow > 0){
+        set_event(EVENT_CANFD_RX_OVERRUN, overflow);
+        canfd.resetHardwareReceiveBufferOverflowCount();
+        #ifdef DEBUG_CAN_DATA
+        Serial.print(millis());
+        Serial.print(" RX overrun, lost ");
+        Serial.print(overflow);
+        Serial.println(" messages during 1s.");
+        #endif
+      }
+    }
 #endif
 #ifdef DUAL_CAN
     receive_can_addonMCP2515();  // Receive CAN messages on add-on MCP2515 chip
@@ -611,16 +626,15 @@ void print_can_frame(CAN_frame frame, frameDirection msgDir) {
 // Functions
 void receive_canfd() {  // This section checks if we have a complete CAN-FD message incoming
   CANFDMessage frame;
-  if (canfd.available()) {
+  int count = 0;
+  while (canfd.available() && count++ < 16) {
     canfd.receive(frame);
 
     CAN_frame rx_frame;
     rx_frame.ID = frame.id;
     rx_frame.ext_ID = frame.ext;
     rx_frame.DLC = frame.len;
-    for (uint8_t i = 0; i < rx_frame.DLC && i < 64; i++) {
-      rx_frame.data.u8[i] = frame.data[i];
-    }
+    memcpy(rx_frame.data.u8, frame.data, MIN(rx_frame.DLC, 64));
     //message incoming, pass it on to the handler
     receive_can(&rx_frame, CAN_ADDON_FD_MCP2518);
     receive_can(&rx_frame, CANFD_NATIVE);
