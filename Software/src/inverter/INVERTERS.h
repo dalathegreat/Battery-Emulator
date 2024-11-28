@@ -51,10 +51,6 @@
 #include "SOLAX-CAN.h"
 #endif
 
-#ifdef GROWATT_CAN
-#include "GROWATT-CAN.h"
-#endif
-
 #ifdef SERIAL_LINK_TRANSMITTER
 #include "SERIAL-LINK-TRANSMITTER-INVERTER.h"
 #endif
