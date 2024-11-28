@@ -63,15 +63,18 @@ static uint8_t BMS_0CF_counter = 0;
 static uint8_t BMS_0C0_counter = 0;
 static uint8_t BMS_578_counter = 0;
 static uint8_t BMS_16A954A6_counter = 0;
-static bool BMS_fault_status_contactor = false;
-static bool BMS_exp_limits_active = 0;
-static uint8_t BMS_mode = 0x07;
+static bool BMS_ext_limits_active =
+    false;  //The current current limits of the HV battery are expanded to start the combustion engine / confirmation of the request
+static uint8_t BMS_mode =
+    0x07;  //0: standby; Gates open; Communication active 1: Main contactor closed / HV network activated / normal driving operation
+//2: assigned depending on the project (e.g. balancing, extended DC fast charging) //3: external charging
 static uint8_t BMS_HVIL_status = 0;  //0 init, 1 seated, 2 open, 3 fault
-static bool BMS_fault_HVbatt_shutdown = 0;
-static bool BMS_fault_HVbatt_shutdown_req = 0;
-static bool BMS_fault_performance = 0;
+static bool BMS_fault_HVbatt_shutdown = false;
+static bool BMS_fault_HVbatt_shutdown_req = false;
+static bool BMS_fault_performance = false;  //Error: Battery performance is limited (e.g. due to sensor or fan failure)
 static uint16_t BMS_current = 16300;
-static bool BMS_fault_emergency_shutdown_crash = 0;
+static bool BMS_fault_emergency_shutdown_crash =
+    false;  //Error: Safety-critical error (crash detection) Battery contactors are already opened / will be opened immediately Signal is read directly by the EMS and initiates an AKS of the PWR and an active discharge of the DC link
 static uint32_t BMS_voltage_intermediate = 0;
 static uint32_t BMS_voltage = 0;
 static uint8_t BMS_status_voltage_free =
@@ -109,8 +112,10 @@ static uint16_t max_fastcharging_current_amp = 0;
 static uint16_t DC_voltage = 0;
 static uint16_t DC_voltage_chargeport = 0;
 static uint8_t BMS_welded_contactors_status = 0;
-static uint8_t BMS_error_shutdown_request = 0;
-static uint8_t BMS_error_shutdown = 0;
+static bool BMS_error_shutdown_request =
+    false;  // Fault: Fault condition, requires battery contactors to be opened internal battery error; Advance notification of an impending opening of the battery contactors by the BMS
+static bool BMS_error_shutdown =
+    false;  // Fault: Fault condition, requires battery contactors to be opened Internal battery error, battery contactors opened without notice by the BMS
 static uint16_t power_battery_heating_watt = 0;
 static uint16_t power_battery_heating_req_watt = 0;
 static uint8_t cooling_request =
@@ -940,16 +945,15 @@ void receive_can_battery(CAN_frame rx_frame) {
     case 0x0CF:                                        //BMS 10ms
       BMS_0CF_CRC = rx_frame.data.u8[0];               // Can be used to check CAN signal integrity later on
       BMS_0CF_counter = (rx_frame.data.u8[1] & 0x0F);  // Can be used to check CAN signal integrity later on
-      BMS_fault_status_contactor = (rx_frame.data.u8[1] & 0x20) >> 5;
       BMS_welded_contactors_status = (rx_frame.data.u8[1] & 0x60) >> 5;
-      BMS_error_shutdown_request = (rx_frame.data.u8[2] & 0x40) >> 6;
-      BMS_error_shutdown = (rx_frame.data.u8[2] & 0x20) >> 5;
+      BMS_ext_limits_active = (rx_frame.data.u8[1] & 0x80) >> 7;
       BMS_mode = (rx_frame.data.u8[2] & 0x07);
       BMS_HVIL_status = (rx_frame.data.u8[2] & 0x18) >> 3;
-      //BMS_exp_limits_active
-      //BMS_fault_performance
-      //BMS_fault_emergency_shutdown_crash
+      BMS_error_shutdown = (rx_frame.data.u8[2] & 0x20) >> 5;
+      BMS_error_shutdown_request = (rx_frame.data.u8[2] & 0x40) >> 6;
+      BMS_fault_performance = (rx_frame.data.u8[2] & 0x80) >> 7;
       BMS_current = ((rx_frame.data.u8[4] & 0x7F) << 8) | rx_frame.data.u8[3];
+      BMS_fault_emergency_shutdown_crash = (rx_frame.data.u8[4] & 0x80) >> 7;
       BMS_voltage_intermediate = (((rx_frame.data.u8[6] & 0x0F) << 8) + (rx_frame.data.u8[5]));
       BMS_voltage = ((rx_frame.data.u8[7] << 4) + ((rx_frame.data.u8[6] & 0xF0) >> 4));
       break;
