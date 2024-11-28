@@ -275,6 +275,8 @@ String advanced_battery_processor(const String& var) {
 #endif  //CELLPOWER_BMS
 
 #ifdef BYD_ATTO_3_BATTERY
+    static const char* SOCmethod[2] = {"Estimated from voltage", "Measured by BMS"};
+    content += "<h4>SOC method used: " + String(SOCmethod[datalayer_extended.bydAtto3.SOC_method]) + "</h4>";
     content += "<h4>SOC estimated: " + String(datalayer_extended.bydAtto3.SOC_estimated) + "</h4>";
     content += "<h4>SOC highprec: " + String(datalayer_extended.bydAtto3.SOC_highprec) + "</h4>";
     content += "<h4>SOC OBD2: " + String(datalayer_extended.bydAtto3.SOC_polled) + "</h4>";
@@ -331,6 +333,11 @@ String advanced_battery_processor(const String& var) {
     content += "<h4>Heating stopped: " + String(datalayer_extended.nissanleaf.HeatingStop) + "</h4>";
     content += "<h4>Heating started: " + String(datalayer_extended.nissanleaf.HeatingStart) + "</h4>";
     content += "<h4>Heating requested: " + String(datalayer_extended.nissanleaf.HeaterSendRequest) + "</h4>";
+    content += "<button onclick='askResetSOH()'>Reset degradation data</button>";
+    content += "<h4>CryptoChallenge: " + String(datalayer_extended.nissanleaf.CryptoChallenge) + "</h4>";
+    content += "<h4>SolvedChallenge: " + String(datalayer_extended.nissanleaf.SolvedChallengeMSB) +
+               String(datalayer_extended.nissanleaf.SolvedChallengeLSB) + "</h4>";
+    content += "<h4>Challenge failed: " + String(datalayer_extended.nissanleaf.challengeFailed) + "</h4>";
 #endif
 
 #ifdef MEB_BATTERY
@@ -444,6 +451,15 @@ String advanced_battery_processor(const String& var) {
     content += "</div>";
 
     content += "<script>";
+    content +=
+        "function askResetSOH() { if (window.confirm('Are you sure you want to reset degradation data? "
+        "Note this should only be used on 2011-2017 24/30kWh batteries!')) { "
+        "resetSOH(); } }";
+    content += "function resetSOH() {";
+    content += "  var xhr = new XMLHttpRequest();";
+    content += "  xhr.open('GET', '/resetSOH', true);";
+    content += "  xhr.send();";
+    content += "}";
     content += "function goToMainPage() { window.location.href = '/'; }";
     content += "</script>";
     return content;

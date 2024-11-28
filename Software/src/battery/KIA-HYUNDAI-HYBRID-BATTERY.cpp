@@ -68,10 +68,6 @@ void update_values_battery() {  //This function maps all the values fetched via 
 
   datalayer.battery.status.max_charge_power_W = available_charge_power * 10;
 
-  //Power in watts, Negative = charging batt
-  datalayer.battery.status.active_power_W =
-      ((datalayer.battery.status.voltage_dV * datalayer.battery.status.current_dA) / 100);
-
   datalayer.battery.status.temperature_min_dC = (int16_t)(battery_module_min_temperature * 10);
 
   datalayer.battery.status.temperature_max_dC = (int16_t)(battery_module_max_temperature * 10);
@@ -261,9 +257,9 @@ void send_can_battery() {
 }
 
 void setup_battery(void) {  // Performs one time setup at startup
-#ifdef DEBUG_VIA_USB
-  Serial.println("Kia/Hyundai Hybrid battery selected");
-#endif
+  strncpy(datalayer.system.info.battery_protocol, "Kia/Hyundai Hybrid", 63);
+  datalayer.system.info.battery_protocol[63] = '\0';
+
   datalayer.battery.info.number_of_cells = 56;  // HEV , TODO: Make dynamic according to HEV/PHEV
   datalayer.battery.info.max_design_voltage_dV = MAX_PACK_VOLTAGE_DV;
   datalayer.battery.info.min_design_voltage_dV = MIN_PACK_VOLTAGE_DV;
