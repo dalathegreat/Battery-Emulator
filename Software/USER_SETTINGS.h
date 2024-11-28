@@ -125,10 +125,16 @@
 #define BATTERY_MAXTEMPERATURE 500
 // -250 = -25.0 °C , Min temperature (Will produce a battery frozen event if below)
 #define BATTERY_MINTEMPERATURE -250
-// 300 = 30.0A , BYD CAN specific setting, Max charge in Amp (Some inverters needs to be limited)
+// 300 = 30.0A , Max charge in Amp (Some inverters needs to be limited)
 #define BATTERY_MAX_CHARGE_AMP 300
-// 300 = 30.0A , BYD CAN specific setting, Max discharge in Amp (Some inverters needs to be limited)
+// 300 = 30.0A , Max discharge in Amp (Some inverters needs to be limited)
 #define BATTERY_MAX_DISCHARGE_AMP 300
+// Enable this to manually set voltage limits on how much battery can be discharged/charged. Normally not used.
+#define BATTERY_USE_VOLTAGE_LIMITS false
+// 5000 = 500.0V , Target charge voltage (Value can be tuned on the fly via webserver). Not used unless BATTERY_USE_VOLTAGE_LIMITS = true
+#define BATTERY_MAX_CHARGE_VOLTAGE 5000
+// 3000 = 300.0V, Target discharge voltage (Value can be tuned on the fly via webserver). Not used unless BATTERY_USE_VOLTAGE_LIMITS = true
+#define BATTERY_MAX_DISCHARGE_VOLTAGE 3000
 
 /* Do not change any code below this line unless you are sure what you are doing */
 /* Only change battery specific settings in "USER_SETTINGS.h" */

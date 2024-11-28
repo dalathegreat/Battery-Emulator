@@ -191,6 +191,7 @@ void init_events(void) {
   events.entries[EVENT_DUMMY_DEBUG].level = EVENT_LEVEL_DEBUG;
   events.entries[EVENT_DUMMY_WARNING].level = EVENT_LEVEL_WARNING;
   events.entries[EVENT_DUMMY_ERROR].level = EVENT_LEVEL_ERROR;
+  events.entries[EVENT_PERSISTENT_SAVE_INFO].level = EVENT_LEVEL_INFO;
   events.entries[EVENT_SERIAL_RX_WARNING].level = EVENT_LEVEL_WARNING;
   events.entries[EVENT_SERIAL_RX_FAILURE].level = EVENT_LEVEL_ERROR;
   events.entries[EVENT_SERIAL_TX_FAILURE].level = EVENT_LEVEL_ERROR;
@@ -368,6 +369,8 @@ const char* get_event_message_string(EVENTS_ENUM_TYPE event) {
       return "The dummy warning event was set!";  // Don't change this event message!
     case EVENT_DUMMY_ERROR:
       return "The dummy error event was set!";  // Don't change this event message!
+    case EVENT_PERSISTENT_SAVE_INFO:
+      return "Info: Failed to save user settings. Namespace full?";
     case EVENT_SERIAL_RX_WARNING:
       return "Error in serial function: No data received for some time, see data for minutes";
     case EVENT_SERIAL_RX_FAILURE:
