@@ -6,7 +6,7 @@
 
 // #define INCLUDE_EVENTS_TEST  // Enable to run an event test loop, see events_test_on_target.cpp
 
-#define EE_MAGIC_HEADER_VALUE 0x0017  // 0x0000 to 0xFFFF
+#define EE_MAGIC_HEADER_VALUE 0x0018  // 0x0000 to 0xFFFF
 
 #define GENERATE_ENUM(ENUM) ENUM,
 #define GENERATE_STRING(STRING) #STRING,
@@ -78,6 +78,7 @@
   XX(EVENT_DUMMY_DEBUG)                 \
   XX(EVENT_DUMMY_WARNING)               \
   XX(EVENT_DUMMY_ERROR)                 \
+  XX(EVENT_PERSISTENT_SAVE_INFO)        \
   XX(EVENT_SERIAL_RX_WARNING)           \
   XX(EVENT_SERIAL_RX_FAILURE)           \
   XX(EVENT_SERIAL_TX_FAILURE)           \

@@ -389,7 +389,7 @@ void init_stored_settings() {
   //always save the equipment stop status
   settings.putBool("EQUIPMENT_STOP", datalayer.system.settings.equipment_stop_active);
 
-#endif
+#endif  //LOAD_SAVED_SETTINGS_ON_BOOT
 
 #ifdef WIFI
 
@@ -405,7 +405,7 @@ void init_stored_settings() {
     password = tempPasswordString;
   } else {  // Reading from settings failed. Do nothing with SSID. Raise event?
   }
-#endif
+#endif  //WIFI
 
   temp = settings.getUInt("BATTERY_WH_MAX", false);
   if (temp != 0) {
@@ -426,10 +426,20 @@ void init_stored_settings() {
   temp = settings.getUInt("MAXDISCHARGEAMP", false);
   if (temp != 0) {
     datalayer.battery.settings.max_user_set_discharge_dA = temp;
-    temp = settings.getBool("USE_SCALED_SOC", false);
-    datalayer.battery.settings.soc_scaling_active = temp;  //This bool needs to be checked inside the temp!= block
-  }                                                        // No way to know if it wasnt reset otherwise
+  }
+  datalayer.battery.settings.soc_scaling_active = settings.getBool("USE_SCALED_SOC", false);
+  settings.end();
 
+  settings.begin("batteryExtra", false);
+  temp = settings.getUInt("TARGETCHARGEVOLTAGE", false);
+  if (temp != 0) {
+    datalayer.battery.settings.max_user_set_charge_voltage_dV = temp;
+  }
+  temp = settings.getUInt("TARGETDISCHARGEVOLTAGE", false);
+  if (temp != 0) {
+    datalayer.battery.settings.max_user_set_discharge_voltage_dV = temp;
+  }
+  datalayer.battery.settings.user_set_voltage_limits_active = settings.getBool("USE_VOLTAGE_LIMITS", false);
   settings.end();
 }
 
@@ -1049,20 +1059,48 @@ void store_settings_equipment_stop() {
 }
 
 void storeSettings() {
-  settings.begin("batterySettings", false);
+  if (!settings.begin("batterySettings", false)) {
+    set_event(EVENT_PERSISTENT_SAVE_INFO, 0);
+    return;
+  }
+
 #ifdef WIFI
-  settings.putString("SSID", String(ssid.c_str()));
-  settings.putString("PASSWORD", String(password.c_str()));
+  if (!settings.putString("SSID", String(ssid.c_str()))) {
+    set_event(EVENT_PERSISTENT_SAVE_INFO, 1);
+  }
+  if (!settings.putString("PASSWORD", String(password.c_str()))) {
+    set_event(EVENT_PERSISTENT_SAVE_INFO, 2);
+  }
 #endif
-  settings.putUInt("BATTERY_WH_MAX", datalayer.battery.info.total_capacity_Wh);
-  settings.putUInt("MAXPERCENTAGE",
-                   datalayer.battery.settings.max_percentage / 10);  // Divide by 10 for backwards compatibility
-  settings.putUInt("MINPERCENTAGE",
-                   datalayer.battery.settings.min_percentage / 10);  // Divide by 10 for backwards compatibility
-  settings.putUInt("MAXCHARGEAMP", datalayer.battery.settings.max_user_set_charge_dA);
-  settings.putUInt("MAXDISCHARGEAMP", datalayer.battery.settings.max_user_set_discharge_dA);
-  settings.putBool("USE_SCALED_SOC", datalayer.battery.settings.soc_scaling_active);
-  settings.end();
+
+  if (!settings.putUInt("BATTERY_WH_MAX", datalayer.battery.info.total_capacity_Wh)) {
+    set_event(EVENT_PERSISTENT_SAVE_INFO, 3);
+  }
+  if (!settings.putBool("USE_SCALED_SOC", datalayer.battery.settings.soc_scaling_active)) {
+    set_event(EVENT_PERSISTENT_SAVE_INFO, 4);
+  }
+  if (!settings.putUInt("MAXPERCENTAGE", datalayer.battery.settings.max_percentage / 10)) {
+    set_event(EVENT_PERSISTENT_SAVE_INFO, 5);
+  }
+  if (!settings.putUInt("MINPERCENTAGE", datalayer.battery.settings.min_percentage / 10)) {
+    set_event(EVENT_PERSISTENT_SAVE_INFO, 6);
+  }
+  if (!settings.putUInt("MAXCHARGEAMP", datalayer.battery.settings.max_user_set_charge_dA)) {
+    set_event(EVENT_PERSISTENT_SAVE_INFO, 7);
+  }
+  if (!settings.putUInt("MAXDISCHARGEAMP", datalayer.battery.settings.max_user_set_discharge_dA)) {
+    set_event(EVENT_PERSISTENT_SAVE_INFO, 8);
+  }
+  if (!settings.putBool("USE_VOLTAGE_LIMITS", datalayer.battery.settings.user_set_voltage_limits_active)) {
+    set_event(EVENT_PERSISTENT_SAVE_INFO, 9);
+  }
+  if (!settings.putUInt("TARGETCHARGEVOLTAGE", datalayer.battery.settings.max_user_set_charge_voltage_dV)) {
+    set_event(EVENT_PERSISTENT_SAVE_INFO, 10);
+  }
+  if (!settings.putUInt("TARGETDISCHARGEVOLTAGE", datalayer.battery.settings.max_user_set_discharge_voltage_dV)) {
+    set_event(EVENT_PERSISTENT_SAVE_INFO, 11);
+  }
+  settings.end();  // Close preferences handle
 }
 
 /** Reset reason numbering and description
