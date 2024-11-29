@@ -530,9 +530,9 @@ void update_values_battery() {  //This function maps all the values fetched via 
   datalayer.battery.status.active_power_W =
       ((datalayer.battery.status.voltage_dV * datalayer.battery.status.current_dA) / 100);
 
-  datalayer.battery.status.temperature_min_dC = ((battery_min_temp / 2) - 350);
+  datalayer.battery.status.temperature_min_dC = (battery_min_temp - 350) / 2;
 
-  datalayer.battery.status.temperature_max_dC = ((battery_max_temp / 2) - 350);
+  datalayer.battery.status.temperature_max_dC = (battery_max_temp - 350) / 2;
 
   //Map all cell voltages to the global array
   memcpy(datalayer.battery.status.cell_voltages_mV, cellvoltages_polled, 108 * sizeof(uint16_t));
@@ -586,7 +586,9 @@ void update_values_battery() {  //This function maps all the values fetched via 
   datalayer_extended.meb.BMS_error_lamp_req = BMS_error_lamp_req;
   datalayer_extended.meb.BMS_warning_lamp_req = BMS_warning_lamp_req;
   datalayer_extended.meb.BMS_Kl30c_Status = BMS_Kl30c_Status;
-  datalayer_extended.meb.isolation_resistance == isolation_resistance_kOhm * 5;
+  datalayer_extended.meb.BMS_voltage_intermediate_dV = (BMS_voltage_intermediate - 2000) * 10 / 2 ;
+  datalayer_extended.meb.BMS_voltage_dV = BMS_voltage * 10 / 4;
+  datalayer_extended.meb.isolation_resistance = isolation_resistance_kOhm * 5;
   datalayer_extended.meb.battery_heating = battery_heating_active;
   datalayer_extended.meb.rt_overcurrent = realtime_overcurrent_monitor;
   datalayer_extended.meb.rt_CAN_fault = realtime_CAN_communication_fault;
@@ -926,6 +928,7 @@ void receive_can_battery(CAN_frame rx_frame) {
       BMS_OBD_MIL = (rx_frame.data.u8[2] & 0x01);
       BMS_error_status = (rx_frame.data.u8[2] & 0x70) >> 4;
       BMS_capacity_ah = (rx_frame.data.u8[4] << 9) | (rx_frame.data.u8[3] << 1) | (rx_frame.data.u8[2] >> 7);
+      BMS_capacity_ah = (rx_frame.data.u8[4] & 0x03 << 9) | (rx_frame.data.u8[3] << 1) | (rx_frame.data.u8[2] >> 7);
       BMS_error_lamp_req = (rx_frame.data.u8[4] & 0x04) >> 2;
       BMS_warning_lamp_req = (rx_frame.data.u8[4] & 0x08) >> 3;
       BMS_Kl30c_Status = (rx_frame.data.u8[4] & 0x30) >> 4;
