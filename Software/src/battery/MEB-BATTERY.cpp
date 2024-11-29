@@ -68,9 +68,7 @@ static bool BMS_ext_limits_active =
 static uint8_t BMS_mode =
     0x07;  //0: standby; Gates open; Communication active 1: Main contactor closed / HV network activated / normal driving operation
 //2: assigned depending on the project (e.g. balancing, extended DC fast charging) //3: external charging
-static uint8_t BMS_HVIL_status = 0;  //0 init, 1 seated, 2 open, 3 fault
-static bool BMS_fault_HVbatt_shutdown = false;
-static bool BMS_fault_HVbatt_shutdown_req = false;
+static uint8_t BMS_HVIL_status = 0;         //0 init, 1 seated, 2 open, 3 fault
 static bool BMS_fault_performance = false;  //Error: Battery performance is limited (e.g. due to sensor or fan failure)
 static uint16_t BMS_current = 16300;
 static bool BMS_fault_emergency_shutdown_crash =
@@ -111,7 +109,8 @@ static uint16_t energy_extracted_from_battery = 0;
 static uint16_t max_fastcharging_current_amp = 0;
 static uint16_t DC_voltage = 0;
 static uint16_t DC_voltage_chargeport = 0;
-static uint8_t BMS_welded_contactors_status = 0;
+static uint8_t BMS_welded_contactors_status =
+    0;  //0: Init no diagnostic result, 1: no contactor welded, 2: at least 1 contactor welded, 3: Protection status detection error
 static bool BMS_error_shutdown_request =
     false;  // Fault: Fault condition, requires battery contactors to be opened internal battery error; Advance notification of an impending opening of the battery contactors by the BMS
 static bool BMS_error_shutdown =
