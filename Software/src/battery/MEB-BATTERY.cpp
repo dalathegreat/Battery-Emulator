@@ -931,7 +931,6 @@ void receive_can_battery(CAN_frame rx_frame) {
       BMS_status_voltage_free = (rx_frame.data.u8[1] & 0xC0) >> 6;
       BMS_OBD_MIL = (rx_frame.data.u8[2] & 0x01);
       BMS_error_status = (rx_frame.data.u8[2] & 0x70) >> 4;
-      BMS_capacity_ah = (rx_frame.data.u8[4] << 9) | (rx_frame.data.u8[3] << 1) | (rx_frame.data.u8[2] >> 7);
       BMS_capacity_ah = (rx_frame.data.u8[4] & 0x03 << 9) | (rx_frame.data.u8[3] << 1) | (rx_frame.data.u8[2] >> 7);
       BMS_error_lamp_req = (rx_frame.data.u8[4] & 0x04) >> 2;
       BMS_warning_lamp_req = (rx_frame.data.u8[4] & 0x08) >> 3;
