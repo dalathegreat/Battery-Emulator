@@ -106,9 +106,13 @@ static uint16_t power_charge_percentage = 0;
 static uint16_t actual_battery_voltage = 0;
 static uint16_t regen_battery = 0;
 static uint16_t energy_extracted_from_battery = 0;
-static uint16_t max_fastcharging_current_amp = 0;
-static uint16_t DC_voltage = 0;
-static uint16_t DC_voltage_chargeport = 0;
+static uint16_t max_fastcharging_current_amp = 0;  //maximum DC charging current allowed
+static uint8_t BMS_Status_DCLS =
+    0;  //Status of the voltage monitoring on the DC charging interface. 0 inactive, 1 I_O , 2 N_I_O , 3 active
+static uint16_t DC_voltage_DCLS =
+    0;  //Factor 1, DC voltage of the charging station. Measurement between the DC HV lines.
+static uint16_t DC_voltage_chargeport =
+    0;  //Factor 0.5,  Current voltage at the HV battery DC charging terminals; Outlet to the DC charging plug.
 static uint8_t BMS_welded_contactors_status =
     0;  //0: Init no diagnostic result, 1: no contactor welded, 2: at least 1 contactor welded, 3: Protection status detection error
 static bool BMS_error_shutdown_request =
@@ -912,8 +916,9 @@ void receive_can_battery(CAN_frame rx_frame) {
     case 0x578:                                        // BMS 100ms
       BMS_578_CRC = rx_frame.data.u8[0];               // Can be used to check CAN signal integrity later on
       BMS_578_counter = (rx_frame.data.u8[1] & 0x0F);  // Can be used to check CAN signal integrity later on
+      BMS_Status_DCLS = ((rx_frame.data.u8[1] & 0x30) >> 4);
+      DC_voltage_DCLS = (rx_frame.data.u8[2] << 6) | (rx_frame.data.u8[1] >> 6);
       max_fastcharging_current_amp = ((rx_frame.data.u8[4] & 0x01) << 8) | rx_frame.data.u8[3];
-      DC_voltage = (rx_frame.data.u8[4] << 6) | (rx_frame.data.u8[1] >> 6);
       DC_voltage_chargeport = (rx_frame.data.u8[7] << 4) | (rx_frame.data.u8[6] >> 4);
       break;
     case 0x5A2:                                        // BMS 500ms normal, 100ms fast
