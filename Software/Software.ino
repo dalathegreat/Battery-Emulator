@@ -607,19 +607,20 @@ enum frameDirection { MSG_RX, MSG_TX };  //RX = 0, TX = 1
 void print_can_frame(CAN_frame frame, frameDirection msgDir);
 void print_can_frame(CAN_frame frame, frameDirection msgDir) {
   uint8_t i = 0;
-  Serial.print(millis());
-  Serial.print(" ");
-  (msgDir == 0) ? Serial.print("RX ") : Serial.print("TX ");
+  Serial.print("(");
+  Serial.print(millis()/1000.0);
+  (msgDir == MSG_RX) ? Serial.print(") RX0 ") : Serial.print(") TX1 ");
   Serial.print(frame.ID, HEX);
-  Serial.print(" ");
+  Serial.print(" [");
   Serial.print(frame.DLC);
-  Serial.print(" ");
+  Serial.print("] ");
   for (i = 0; i < frame.DLC; i++) {
     Serial.print(frame.data.u8[i] < 16 ? "0" : "");
     Serial.print(frame.data.u8[i], HEX);
-    Serial.print(" ");
+    if (i < frame.DLC-1)
+      Serial.print(" ");
   }
-  Serial.println(" ");
+  Serial.println("");
 }
 
 #ifdef CAN_FD
