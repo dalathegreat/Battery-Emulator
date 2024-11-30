@@ -338,6 +338,7 @@ String advanced_battery_processor(const String& var) {
     content += "<h4>SolvedChallenge: " + String(datalayer_extended.nissanleaf.SolvedChallengeMSB) +
                String(datalayer_extended.nissanleaf.SolvedChallengeLSB) + "</h4>";
     content += "<h4>Challenge failed: " + String(datalayer_extended.nissanleaf.challengeFailed) + "</h4>";#endif
+#endif
 
 #ifdef MEB_BATTERY
     content += datalayer_extended.meb.SDSW ? "<h4>Service disconnect switch: Missing!</h4>"
