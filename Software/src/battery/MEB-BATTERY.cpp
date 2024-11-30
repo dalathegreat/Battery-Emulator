@@ -892,7 +892,7 @@ void receive_can_battery(CAN_frame rx_frame) {
     case 0x1A5555B1:  // BMS 1000ms cyclic
       // All realtime_ have same enumeration, 0 = no fault, 1 = error level 1, 2 error level 2, 3 error level 3
       realtime_overcurrent_monitor = ((rx_frame.data.u8[3] & 0x01) << 2) | rx_frame.data.u8[2] >> 6;
-      realtime_CAN_communication_fault = (rx_frame.data.u8[3] & 0x0F) >> 1;
+      realtime_CAN_communication_fault = (rx_frame.data.u8[3] & 0x0E) >> 1;
       realtime_overcharge_warning = (rx_frame.data.u8[3] & 0x70) >> 4;
       realtime_SOC_too_high = ((rx_frame.data.u8[4] & 0x03) << 1) | rx_frame.data.u8[3] >> 7;
       realtime_SOC_too_low = (rx_frame.data.u8[4] & 0x1C) >> 2;
