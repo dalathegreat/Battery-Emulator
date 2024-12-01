@@ -171,7 +171,10 @@ void receive_can_inverter(CAN_frame rx_frame) {
 void send_can_inverter() {
   unsigned long currentMillis = millis();
 
-  //TODO, should we break before pairing_completed? Or rely on Enable line?
+  // Send CAN Message only if we're enabled by inverter
+  if (!datalayer.system.status.inverter_allows_contactor_closing) {
+    return;
+  }
 
   // Send CAN Message every 2s
   if (currentMillis - previousMillis2s >= INTERVAL_2_S) {

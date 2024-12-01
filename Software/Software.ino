@@ -545,10 +545,6 @@ void init_contactors() {
   pinMode(BMS_POWER, OUTPUT);
   digitalWrite(BMS_POWER, HIGH);
 #endif  //HW_STARK
-#ifdef SMA_TRIPOWER_CAN
-  //pinMode(INVERTER_CONTACTOR_ENABLE_PIN, OUTPUT); //Incase this is an output
-  //digitalWrite(INVERTER_CONTACTOR_ENABLE_PIN, LOW); //Incase this is an output
-#endif  //SMA_TRIPOWER_CAN
 }
 
 void init_rs485() {
@@ -743,13 +739,8 @@ void check_interconnect_available() {
 #endif  //DOUBLE_BATTERY
 
 void handle_contactors() {
-#ifdef BYD_SMA
+#if defined(BYD_SMA) || defined(SMA_TRIPOWER_CAN)
   datalayer.system.status.inverter_allows_contactor_closing = digitalRead(INVERTER_CONTACTOR_ENABLE_PIN);
-#endif
-#ifdef SMA_TRIPOWER_CAN
-  //set(INVERTER_CONTACTOR_ENABLE_PIN, ON); //TODO: is this an input, or an output? Figure out and make logic
-  datalayer.system.status.inverter_allows_contactor_closing =
-      digitalRead(INVERTER_CONTACTOR_ENABLE_PIN);  //Incase it is input
 #endif
 
 #ifdef CONTACTOR_CONTROL_DOUBLE_BATTERY
