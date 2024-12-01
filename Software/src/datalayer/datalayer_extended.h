@@ -312,6 +312,8 @@ typedef struct {
   bool BMS_OBD_MIL = 0;
   bool BMS_error_lamp_req = 0;
   bool BMS_warning_lamp_req = 0;
+  int32_t BMS_voltage_intermediate_dV = 0;
+  int32_t BMS_voltage_dV = 0;
 } DATALAYER_INFO_MEB;
 
 typedef struct {

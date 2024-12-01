@@ -30,6 +30,7 @@
   XX(EVENT_CANMCP_INIT_FAILURE)         \
   XX(EVENT_CANFD_BUFFER_FULL)           \
   XX(EVENT_CAN_OVERRUN)                 \
+  XX(EVENT_CANFD_RX_OVERRUN)            \
   XX(EVENT_CAN_RX_FAILURE)              \
   XX(EVENT_CAN2_RX_FAILURE)             \
   XX(EVENT_CANFD_RX_FAILURE)            \
