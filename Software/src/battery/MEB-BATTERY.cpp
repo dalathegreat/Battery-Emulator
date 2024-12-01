@@ -259,7 +259,8 @@ CAN_frame MEB_585 = {.FD = true,
                      .ext_ID = false,
                      .DLC = 8,
                      .ID = 0x585,
-                     .data = {0xCF, 0x38, 0x20, 0x02, 0x25, 0xF7, 0x30, 0x00}};
+                     .data = {0xCF, 0x38, 0xAF, 0x5B, 0x25, 0x00, 0x00, 0x00}}; // CF 38 AF 5B 25 00 00 00 in start4.log
+//                     .data = {0xCF, 0x38, 0x20, 0x02, 0x25, 0xF7, 0x30, 0x00}}; // CF 38 AF 5B 25 00 00 00 in start4.log
 CAN_frame MEB_5F5 = {.FD = true,
                      .ext_ID = false,
                      .DLC = 8,
@@ -611,6 +612,9 @@ void update_values_battery() {  //This function maps all the values fetched via 
 }
 
 void receive_can_battery(CAN_frame rx_frame) {
+  last_can_msg_timestamp = millis();
+  if (first_can_msg == 0)
+      first_can_msg = last_can_msg_timestamp;
   switch (rx_frame.ID) {
     case 0x17F0007B:  // BMS 500ms
       component_protection_active = (rx_frame.data.u8[0] & 0x01);
@@ -911,7 +915,7 @@ void receive_can_battery(CAN_frame rx_frame) {
       realtime_warning_battery_unathorized = (rx_frame.data.u8[40] & 0x07);
       break;
     case 0x2AF:                                                                            // BMS 50ms
-      actual_battery_voltage = ((rx_frame.data.u8[1] & 0x3F) << 8) | rx_frame.data.u8[0];  //*0.0625
+      actual_battery_voltage = ((rx_frame.data.u8[1] & 0x3F) << 8) | rx_frame.data.u8[0];  //*0.0625 // Seems to be 0.125 in logging
       regen_battery = ((rx_frame.data.u8[5] & 0x7F) << 8) | rx_frame.data.u8[4];
       energy_extracted_from_battery = ((rx_frame.data.u8[7] & 0x7F) << 8) | rx_frame.data.u8[6];
       break;
@@ -1423,6 +1427,10 @@ void receive_can_battery(CAN_frame rx_frame) {
 void send_can_battery() {
   unsigned long currentMillis = millis();
   // Send 10ms CAN Message
+  if (currentMillis > last_can_msg_timestamp + 500){
+    first_can_msg = 0;
+  }
+
   if (currentMillis - previousMillis10ms >= INTERVAL_10_MS) {
     // Check if sending of CAN messages has been delayed too much.
     if ((currentMillis - previousMillis10ms >= INTERVAL_10_MS_DELAYED) && (currentMillis > BOOTUP_TIME)) {
@@ -1488,29 +1496,36 @@ void send_can_battery() {
     previousMillis100ms = currentMillis;
 
     //HV request and DC/DC control lies in 0x503
-    if (datalayer.battery.status.bms_status != FAULT) {
+    MEB_503.data.u8[3] = 0x00;
+    if (/*datalayer.battery.status.bms_status != FAULT &&*/ first_can_msg > 0 && currentMillis > first_can_msg + 2000) {
+#ifdef DEBUG_VIA_USB
+      Serial.println("Requesting HV");
+#endif
       MEB_503.data.u8[1] = 0xB0;
-      MEB_503.data.u8[3] = BMS_TARGET_AC_CHARGING;  //TODO, should we try AC_2 or DC charging?
+      MEB_503.data.u8[3] = BMS_TARGET_HV_ON; //BMS_TARGET_AC_CHARGING;  //TODO, should we try AC_2 or DC charging?
       MEB_503.data.u8[5] = 0x82;                    // Bordnetz Active
       MEB_503.data.u8[6] = 0xE0;                    // Request emergency shutdown HV system == 0, false
-    } else {                                        //FAULT STATE, open contactors
+    } /*else if (first_can_msg > 0 && millis() > first_can_msg + 2000){                                        //FAULT STATE, open contactors
+#ifdef DEBUG_VIA_USB
+      Serial.println("Requesting HV off");
+#endif
       MEB_503.data.u8[1] = 0x90;
       MEB_503.data.u8[3] = BMS_TARGET_HV_OFF;
       MEB_503.data.u8[5] = 0x80;  // Bordnetz Inactive
       MEB_503.data.u8[6] =
           0xE3;  // Request emergency shutdown HV system == init (3) (not sure if we dare activate this, this is done with 0xE1)
-    }
+    }*/
     MEB_503.data.u8[1] = ((MEB_503.data.u8[1] & 0xF0) | counter_100ms);
     MEB_503.data.u8[0] = vw_crc_calc(MEB_503.data.u8, MEB_503.DLC, MEB_503.ID);
 
     //Bidirectional charging message
-    MEB_272.data.u8[1] = 0x80;  // Bidirectional charging active (Set to 0x00 incase no bidirectional charging wanted)
-    MEB_272.data.u8[2] =
-        0x01;  // High load bidirectional charging active (Set to 0x00 incase no bidirectional charging wanted)
-    MEB_272.data.u8[5] = DC_FASTCHARGE_VEHICLE;  //DC charging
+    MEB_272.data.u8[1] = 0x00;//0x80;  // Bidirectional charging active (Set to 0x00 incase no bidirectional charging wanted)
+    MEB_272.data.u8[2] = 0x00;
+        //0x01;  // High load bidirectional charging active (Set to 0x00 incase no bidirectional charging wanted)
+    MEB_272.data.u8[5] = DC_FASTCHARGE_NO_START_REQUEST;//DC_FASTCHARGE_VEHICLE;  //DC charging
 
     //Klemmen status
-    MEB_3C0.data.u8[2] = 0x02;  //bit to signal that KL_15 is ON
+    MEB_3C0.data.u8[2] = 0x00;//0x02;  //bit to signal that KL_15 is ON // Always 0 in start4.log
     MEB_3C0.data.u8[1] = ((MEB_3C0.data.u8[1] & 0xF0) | counter_100ms);
     MEB_3C0.data.u8[0] = vw_crc_calc(MEB_3C0.data.u8, MEB_3C0.DLC, MEB_3C0.ID);
 
