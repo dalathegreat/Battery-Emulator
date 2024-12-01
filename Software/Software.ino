@@ -782,7 +782,7 @@ void check_interconnect_available() {
 #endif  //DOUBLE_BATTERY
 
 void handle_contactors() {
-#ifdef BYD_SMA
+#if defined(BYD_SMA) || defined(SMA_TRIPOWER_CAN)
   datalayer.system.status.inverter_allows_contactor_closing = digitalRead(INVERTER_CONTACTOR_ENABLE_PIN);
 #endif
 
