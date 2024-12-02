@@ -653,7 +653,7 @@ void receive_can_battery(CAN_frame rx_frame) {
       break;
     case 0x12DD54D1:  // BMS 100ms
       datalayer.battery.status.CAN_battery_still_alive = CAN_STILL_ALIVE;
-      if (rx_frame.data.u8[6] != 0xFE || rx_frame.data.u8[7] != 0xFF){  // Init state, values below invalid
+      if (rx_frame.data.u8[6] != 0xFE || rx_frame.data.u8[7] != 0xFF) {  // Init state, values below invalid
         battery_SOC = ((rx_frame.data.u8[3] & 0x0F) << 7) | (rx_frame.data.u8[2] >> 1);               //*0.05
         usable_energy_amount_Wh = (rx_frame.data.u8[7] << 8) | rx_frame.data.u8[6];                   //*5
         power_discharge_percentage = ((rx_frame.data.u8[4] & 0x3F) << 4) | rx_frame.data.u8[3] >> 4;  //*0.2
@@ -1435,7 +1435,7 @@ void receive_can_battery(CAN_frame rx_frame) {
           break;
         case PID_CELLVOLTAGE_CELL_108:
           tempval = ((rx_frame.data.u8[4] << 8) | rx_frame.data.u8[5]);
-          nof_cells_determined = true;  // This is placed outside of the if, to make 
+          nof_cells_determined = true;  // This is placed outside of the if, to make
           // sure we only take the shortcuts to determine the number of cells once.
           if (tempval != 0xFFE) {
             cellvoltages_polled[107] = (tempval + 1000);
