@@ -1483,7 +1483,7 @@ void send_can_battery() {
 
     /* Handle content for 0x0C0 message */
     /* BMS needs to see this EM1 message. Content located in frame5&6 especially (can be static?)*/
-    /* Also the voltage seen externally to battery is in frame 7&8, we maybe need to set this also? TODO */
+    /* Also the voltage seen externally to battery is in frame 7&8. At least for the 62kWh ID3 version does not seem to matter, but we send it anyway. */
     MEB_0C0.data.u8[1] = ((MEB_0C0.data.u8[1] & 0xF0) | counter_50ms);
     MEB_0C0.data.u8[7] = ((datalayer.battery.status.voltage_dV / 10) * 4) & 0x00FF;
     MEB_0C0.data.u8[8] =
@@ -1504,7 +1504,7 @@ void send_can_battery() {
       MEB_503.data.u8[3] = BMS_TARGET_HV_ON; //BMS_TARGET_AC_CHARGING;  //TODO, should we try AC_2 or DC charging?
       MEB_503.data.u8[5] = 0x82;                    // Bordnetz Active
       MEB_503.data.u8[6] = 0xE0;                    // Request emergency shutdown HV system == 0, false
-    } else if (first_can_msg > 0 && millis() > first_can_msg + 2000){                                        //FAULT STATE, open contactors
+    } else if (first_can_msg > 0 && currentMillis > first_can_msg + 2000){                                        //FAULT STATE, open contactors
       MEB_503.data.u8[1] = 0x90;
       MEB_503.data.u8[3] = BMS_TARGET_HV_OFF;
       MEB_503.data.u8[5] = 0x80;  // Bordnetz Inactive
@@ -2036,8 +2036,9 @@ void send_can_battery() {
         poll_pid = PID_SOC;
         break;
     }
-
-    transmit_can(&MEB_POLLING_FRAME, can_config.battery);
+    if ( first_can_msg > 0 && currentMillis > first_can_msg + 2000) {
+      transmit_can(&MEB_POLLING_FRAME, can_config.battery);
+    }
   }
 
   // Send 500ms CAN Message
