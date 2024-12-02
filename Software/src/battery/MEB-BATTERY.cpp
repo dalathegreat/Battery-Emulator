@@ -1435,6 +1435,7 @@ void receive_can_battery(CAN_frame rx_frame) {
           break;
         case PID_CELLVOLTAGE_CELL_108:
           tempval = ((rx_frame.data.u8[4] << 8) | rx_frame.data.u8[5]);
+          nof_cells_determined = true;  // This is placed outside of the if, to make 
           // sure we only take the shortcuts to determine the number of cells once.
           if (tempval != 0xFFE) {
             cellvoltages_polled[107] = (tempval + 1000);
