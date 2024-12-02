@@ -189,6 +189,8 @@ static uint8_t hybrid_wakeup_reason = 0;
 static uint8_t wakeup_type = 0;
 static bool instrumentation_cluster_request = false;
 static uint8_t seconds = 0;
+static uint32_t first_can_msg = 0;
+static uint32_t last_can_msg_timestamp = 0;
 
 #define TIME_YEAR 2024
 #define TIME_MONTH 8
