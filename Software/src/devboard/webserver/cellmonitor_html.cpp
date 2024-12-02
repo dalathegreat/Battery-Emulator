@@ -8,6 +8,10 @@ String cellmonitor_processor(const String& var) {
     // Page format
     content += "<style>";
     content += "body { background-color: black; color: white; }";
+    content +=
+        "button { background-color: #505E67; color: white; border: none; padding: 10px 20px; margin-bottom: 20px; "
+        "cursor: pointer; border-radius: 10px; }";
+    content += "button:hover { background-color: #3A4A52; }";
     content += ".container { display: flex; flex-wrap: wrap; justify-content: space-around; }";
     content += ".cell { width: 48%; margin: 1%; padding: 10px; border: 1px solid white; text-align: center; }";
     content += ".low-voltage { color: red; }";              // Style for low voltage text

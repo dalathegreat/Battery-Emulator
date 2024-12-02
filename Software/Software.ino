@@ -78,7 +78,7 @@ ACAN2517FD canfd(MCP2517_CS, SPI, MCP2517_INT);
 
 // ModbusRTU parameters
 #ifdef MODBUS_INVERTER_SELECTED
-#define MB_RTU_NUM_VALUES 30000
+#define MB_RTU_NUM_VALUES 13100
 uint16_t mbPV[MB_RTU_NUM_VALUES];  // Process variable memory
 // Create a ModbusRTU server instance listening on Serial2 with 2000ms timeout
 ModbusServerRTU MBserver(Serial2, 2000);
@@ -623,6 +623,7 @@ void init_equipment_stop_button() {
 enum frameDirection { MSG_RX, MSG_TX };  //RX = 0, TX = 1
 void print_can_frame(CAN_frame frame, frameDirection msgDir);
 void print_can_frame(CAN_frame frame, frameDirection msgDir) {
+#ifdef DEBUG_CAN_DATA  // If enabled in user settings, print out the CAN messages via USB
   uint8_t i = 0;
   Serial.print(millis());
   Serial.print(" ");
@@ -637,6 +638,48 @@ void print_can_frame(CAN_frame frame, frameDirection msgDir) {
     Serial.print(" ");
   }
   Serial.println(" ");
+#endif  //#DEBUG_CAN_DATA
+
+  if (datalayer.system.info.can_logging_active) {  // If user clicked on CAN Logging page in webserver, start recording
+
+    char message_string[128];  // Buffer to hold the message string
+    int offset = 0;            // Keeps track of the current position in the buffer
+
+    // Add timestamp
+    offset += snprintf(message_string + offset, sizeof(message_string) - offset, "%lu ", millis());
+
+    // Add direction
+    offset +=
+        snprintf(message_string + offset, sizeof(message_string) - offset, "%s ", (msgDir == MSG_RX) ? "RX" : "TX");
+
+    // Add ID and DLC
+    offset += snprintf(message_string + offset, sizeof(message_string) - offset, "%X %u ", frame.ID, frame.DLC);
+
+    // Add data bytes
+    for (uint8_t i = 0; i < frame.DLC; i++) {
+      offset += snprintf(message_string + offset, sizeof(message_string) - offset, "%s%X ",
+                         frame.data.u8[i] < 16 ? "0" : "", frame.data.u8[i]);
+    }
+    // Add linebreak
+    offset += snprintf(message_string + offset, sizeof(message_string) - offset, "\n");
+
+    // Ensure the string is null-terminated
+    message_string[sizeof(message_string) - 1] = '\0';
+
+    // Append the message string to the system info structure
+    size_t current_len =
+        strnlen(datalayer.system.info.logged_can_messages, sizeof(datalayer.system.info.logged_can_messages));
+    size_t available_space =
+        sizeof(datalayer.system.info.logged_can_messages) - current_len - 1;  // Space left for new data
+
+    if (available_space < strlen(message_string) + 1) {
+      // Not enough space, reset and start from the beginning
+      current_len = 0;
+      datalayer.system.info.logged_can_messages[0] = '\0';
+    }
+
+    strncat(datalayer.system.info.logged_can_messages, message_string, available_space);
+  }
 }
 
 #ifdef CAN_FD
@@ -1103,9 +1146,7 @@ void transmit_can(CAN_frame* tx_frame, int interface) {
   if (!allowed_to_send_CAN) {
     return;
   }
-#ifdef DEBUG_CAN_DATA
   print_can_frame(*tx_frame, frameDirection(MSG_TX));
-#endif  //DEBUG_CAN_DATA
 
   switch (interface) {
     case CAN_NATIVE:
@@ -1160,9 +1201,7 @@ void transmit_can(CAN_frame* tx_frame, int interface) {
 }
 void receive_can(CAN_frame* rx_frame, int interface) {
 
-#ifdef DEBUG_CAN_DATA
   print_can_frame(*rx_frame, frameDirection(MSG_RX));
-#endif  //DEBUG_CAN_DATA
 
   if (interface == can_config.battery) {
     receive_can_battery(*rx_frame);
