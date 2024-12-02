@@ -8,12 +8,15 @@
 
 /*
 TODO list
-- Get contactors closing
-- What CAN messages needs to be sent towards the battery to keep it alive
 - Check value mappings on the PID polls
-- Check value mappings on the constantly broadcasted messages
 - Check all TODO:s in the code
 - 0x1B000044 & 1B00008F seems to be missing from logs? (Classic CAN)
+- Scaled remaining capacity, should take already scaled total capacity into account, or we 
+should undo the scaling on the total capacity (which is calculated from the ah value now, 
+which is scaled already).
+- Investigate why opening and then closing contactors from webpage does not always work
+- Invertigate why contactors don't close when lilygo and battery are powered on simultaneously -> timeout on can msgs triggers to late, reset when open contactors is executed
+- Find out how to get the battery in balancing mode
 */
 
 /* Do not change code below unless you are sure what you are doing */
@@ -38,7 +41,8 @@ static uint8_t counter_040 = 0;
 static uint8_t counter_0F7 = 0;
 static uint8_t counter_3b5 = 0;
 
-static uint32_t poll_pid = 0;
+static uint32_t poll_pid = PID_CELLVOLTAGE_CELL_85;  // We start here to quickly determine the cell size of the pack.
+static bool nof_cells_determined = false;
 static uint32_t pid_reply = 0;
 static uint16_t battery_soc_polled = 0;
 static uint16_t battery_voltage_polled = 1480;
@@ -74,7 +78,7 @@ static uint16_t BMS_current = 16300;
 static bool BMS_fault_emergency_shutdown_crash =
     false;  //Error: Safety-critical error (crash detection) Battery contactors are already opened / will be opened immediately Signal is read directly by the EMS and initiates an AKS of the PWR and an active discharge of the DC link
 static uint32_t BMS_voltage_intermediate = 0;
-static uint32_t BMS_voltage = 0;
+static uint32_t BMS_voltage = 1480;
 static uint8_t BMS_status_voltage_free =
     0;  //0=Init, 1=BMS intermediate circuit voltage-free (U_Zwkr < 20V), 2=BMS intermediate circuit not voltage-free (U_Zwkr >/= 25V, hysteresis), 3=Error
 static bool BMS_OBD_MIL = false;
@@ -96,7 +100,7 @@ static uint16_t max_discharge_power_watt = 0;
 static uint16_t max_discharge_current_amp = 0;
 static uint16_t max_charge_power_watt = 0;
 static uint16_t max_charge_current_amp = 0;
-static uint16_t battery_SOC = 0;
+static uint16_t battery_SOC = 1;
 static uint16_t usable_energy_amount_Wh = 0;
 static uint8_t status_HV_line = 0;  //0 init, 1 No open HV line, 2 open HV line detected, 3 fault
 static uint8_t warning_support = 0;
@@ -514,12 +518,12 @@ uint8_t vw_crc_calc(uint8_t* inputBytes, uint8_t length, uint16_t address) {
 
 void update_values_battery() {  //This function maps all the values fetched via CAN to the correct parameters used for modbus
 
-  datalayer.battery.status.real_soc = battery_soc_polled * 10;
+  datalayer.battery.status.real_soc = battery_SOC * 5;  //*0.05*100   battery_soc_polled * 10;
   //Alternatively use battery_SOC for more precision
 
   datalayer.battery.status.soh_pptt;
 
-  datalayer.battery.status.voltage_dV = battery_voltage_polled * 2.5;
+  datalayer.battery.status.voltage_dV = BMS_voltage * 2.5;  // *0.25*10
 
   datalayer.battery.status.current_dA = (BMS_current / 10) - 1630;
 
@@ -570,7 +574,7 @@ void update_values_battery() {  //This function maps all the values fetched via 
   } else {
     clear_event(EVENT_HVIL_FAILURE);
   }
-  if (pilotline_open) {
+  if (pilotline_open || BMS_HVIL_status == 2) {
     set_event(EVENT_HVIL_FAILURE, 2);
   } else {
     clear_event(EVENT_HVIL_FAILURE);
@@ -649,10 +653,12 @@ void receive_can_battery(CAN_frame rx_frame) {
       break;
     case 0x12DD54D1:  // BMS 100ms
       datalayer.battery.status.CAN_battery_still_alive = CAN_STILL_ALIVE;
-      battery_SOC = ((rx_frame.data.u8[3] & 0x0F) << 7) | (rx_frame.data.u8[2] >> 1);               //*0.05
-      usable_energy_amount_Wh = (rx_frame.data.u8[7] << 8) | rx_frame.data.u8[6];                   //*5
-      power_discharge_percentage = ((rx_frame.data.u8[4] & 0x3F) << 4) | rx_frame.data.u8[3] >> 4;  //*0.2
-      power_charge_percentage = (rx_frame.data.u8[5] << 2) | rx_frame.data.u8[4] >> 6;              //*0.2
+      if (rx_frame.data.u8[6] != 0xFE || rx_frame.data.u8[7] != 0xFF) {  // Init state, values below invalid
+        battery_SOC = ((rx_frame.data.u8[3] & 0x0F) << 7) | (rx_frame.data.u8[2] >> 1);               //*0.05
+        usable_energy_amount_Wh = (rx_frame.data.u8[7] << 8) | rx_frame.data.u8[6];                   //*5
+        power_discharge_percentage = ((rx_frame.data.u8[4] & 0x3F) << 4) | rx_frame.data.u8[3] >> 4;  //*0.2
+        power_charge_percentage = (rx_frame.data.u8[5] << 2) | rx_frame.data.u8[4] >> 6;              //*0.2
+      }
       status_HV_line = ((rx_frame.data.u8[2] & 0x01) << 1) | rx_frame.data.u8[1] >> 7;
       warning_support = (rx_frame.data.u8[1] & 0x70) >> 4;
       break;
@@ -939,10 +945,12 @@ void receive_can_battery(CAN_frame rx_frame) {
       BMS_status_voltage_free = (rx_frame.data.u8[1] & 0xC0) >> 6;
       BMS_OBD_MIL = (rx_frame.data.u8[2] & 0x01);
       BMS_error_status = (rx_frame.data.u8[2] & 0x70) >> 4;
-      BMS_capacity_ah = ((rx_frame.data.u8[4] & 0x03) << 9) | (rx_frame.data.u8[3] << 1) | (rx_frame.data.u8[2] >> 7);
       BMS_error_lamp_req = (rx_frame.data.u8[4] & 0x04) >> 2;
       BMS_warning_lamp_req = (rx_frame.data.u8[4] & 0x08) >> 3;
       BMS_Kl30c_Status = (rx_frame.data.u8[4] & 0x30) >> 4;
+      if (BMS_Kl30c_Status != 0) {  // init state
+        BMS_capacity_ah = ((rx_frame.data.u8[4] & 0x03) << 9) | (rx_frame.data.u8[3] << 1) | (rx_frame.data.u8[2] >> 7);
+      }
       break;
     case 0x5CA:                                               // BMS 500ms
       BMS_5CA_CRC = rx_frame.data.u8[0];                      // Can be used to check CAN signal integrity later on
@@ -977,10 +985,12 @@ void receive_can_battery(CAN_frame rx_frame) {
       BMS_error_shutdown = (rx_frame.data.u8[2] & 0x20) >> 5;
       BMS_error_shutdown_request = (rx_frame.data.u8[2] & 0x40) >> 6;
       BMS_fault_performance = (rx_frame.data.u8[2] & 0x80) >> 7;
-      BMS_current = ((rx_frame.data.u8[4] & 0x7F) << 8) | rx_frame.data.u8[3];
       BMS_fault_emergency_shutdown_crash = (rx_frame.data.u8[4] & 0x80) >> 7;
-      BMS_voltage_intermediate = (((rx_frame.data.u8[6] & 0x0F) << 8) + (rx_frame.data.u8[5]));
-      BMS_voltage = ((rx_frame.data.u8[7] << 4) + ((rx_frame.data.u8[6] & 0xF0) >> 4));
+      if (BMS_mode != 7) {  // Init state, values below are invalid
+        BMS_current = ((rx_frame.data.u8[4] & 0x7F) << 8) | rx_frame.data.u8[3];
+        BMS_voltage_intermediate = (((rx_frame.data.u8[6] & 0x0F) << 8) + (rx_frame.data.u8[5]));
+        BMS_voltage = ((rx_frame.data.u8[7] << 4) + ((rx_frame.data.u8[6] & 0xF0) >> 4));
+      }
       break;
     case 0x1C42007B:                      // Reply from battery
       if (rx_frame.data.u8[0] == 0x10) {  //PID header
@@ -1277,6 +1287,7 @@ void receive_can_battery(CAN_frame rx_frame) {
             cellvoltages_polled[84] = (tempval + 1000);
           } else {  // Cell 85 unavailable. We have a 84S battery (48kWh)
             datalayer.battery.info.number_of_cells = 84;
+            nof_cells_determined = true;
             datalayer.battery.info.max_design_voltage_dV = MAX_PACK_VOLTAGE_84S_DV;
             datalayer.battery.info.min_design_voltage_dV = MIN_PACK_VOLTAGE_84S_DV;
           }
@@ -1356,6 +1367,7 @@ void receive_can_battery(CAN_frame rx_frame) {
               // Do nothing, we already identified it as 84S
             } else {
               datalayer.battery.info.number_of_cells = 96;
+              nof_cells_determined = true;
               datalayer.battery.info.max_design_voltage_dV = MAX_PACK_VOLTAGE_96S_DV;
               datalayer.battery.info.min_design_voltage_dV = MIN_PACK_VOLTAGE_96S_DV;
             }
@@ -1423,6 +1435,8 @@ void receive_can_battery(CAN_frame rx_frame) {
           break;
         case PID_CELLVOLTAGE_CELL_108:
           tempval = ((rx_frame.data.u8[4] << 8) | rx_frame.data.u8[5]);
+          nof_cells_determined = true;  // This is placed outside of the if, to make
+          // sure we only take the shortcuts to determine the number of cells once.
           if (tempval != 0xFFE) {
             cellvoltages_polled[107] = (tempval + 1000);
             datalayer.battery.info.number_of_cells = 108;
@@ -1948,7 +1962,15 @@ void send_can_battery() {
         break;
       case PID_CELLVOLTAGE_CELL_84:
         MEB_POLLING_FRAME.data.u8[3] = (uint8_t)PID_CELLVOLTAGE_CELL_84;
-        poll_pid = PID_CELLVOLTAGE_CELL_85;
+        if (datalayer.battery.info.number_of_cells > 84) {
+          if (nof_cells_determined) {
+            poll_pid = PID_CELLVOLTAGE_CELL_85;
+          } else {
+            poll_pid = PID_CELLVOLTAGE_CELL_97;
+          }
+        } else {
+          poll_pid = PID_SOC;
+        }
         break;
       case PID_CELLVOLTAGE_CELL_85:
         MEB_POLLING_FRAME.data.u8[3] = (uint8_t)PID_CELLVOLTAGE_CELL_85;
@@ -1996,7 +2018,10 @@ void send_can_battery() {
         break;
       case PID_CELLVOLTAGE_CELL_96:
         MEB_POLLING_FRAME.data.u8[3] = (uint8_t)PID_CELLVOLTAGE_CELL_96;
-        poll_pid = PID_CELLVOLTAGE_CELL_97;
+        if (datalayer.battery.info.number_of_cells > 96)
+          poll_pid = PID_CELLVOLTAGE_CELL_97;
+        else
+          poll_pid = PID_SOC;
         break;
       case PID_CELLVOLTAGE_CELL_97:
         MEB_POLLING_FRAME.data.u8[3] = (uint8_t)PID_CELLVOLTAGE_CELL_97;
