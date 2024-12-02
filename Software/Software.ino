@@ -625,19 +625,20 @@ void print_can_frame(CAN_frame frame, frameDirection msgDir);
 void print_can_frame(CAN_frame frame, frameDirection msgDir) {
 #ifdef DEBUG_CAN_DATA  // If enabled in user settings, print out the CAN messages via USB
   uint8_t i = 0;
-  Serial.print(millis());
-  Serial.print(" ");
-  (msgDir == 0) ? Serial.print("RX ") : Serial.print("TX ");
+  Serial.print("(");
+  Serial.print(millis() / 1000.0);
+  (msgDir == MSG_RX) ? Serial.print(") RX0 ") : Serial.print(") TX1 ");
   Serial.print(frame.ID, HEX);
-  Serial.print(" ");
+  Serial.print(" [");
   Serial.print(frame.DLC);
-  Serial.print(" ");
+  Serial.print("] ");
   for (i = 0; i < frame.DLC; i++) {
     Serial.print(frame.data.u8[i] < 16 ? "0" : "");
     Serial.print(frame.data.u8[i], HEX);
-    Serial.print(" ");
+    if (i < frame.DLC - 1)
+      Serial.print(" ");
   }
-  Serial.println(" ");
+  Serial.println("");
 #endif  //#DEBUG_CAN_DATA
 
   if (datalayer.system.info.can_logging_active) {  // If user clicked on CAN Logging page in webserver, start recording
@@ -686,16 +687,15 @@ void print_can_frame(CAN_frame frame, frameDirection msgDir) {
 // Functions
 void receive_canfd() {  // This section checks if we have a complete CAN-FD message incoming
   CANFDMessage frame;
-  if (canfd.available()) {
+  int count = 0;
+  while (canfd.available() && count++ < 16) {
     canfd.receive(frame);
 
     CAN_frame rx_frame;
     rx_frame.ID = frame.id;
     rx_frame.ext_ID = frame.ext;
     rx_frame.DLC = frame.len;
-    for (uint8_t i = 0; i < rx_frame.DLC && i < 64; i++) {
-      rx_frame.data.u8[i] = frame.data[i];
-    }
+    memcpy(rx_frame.data.u8, frame.data, MIN(rx_frame.DLC, 64));
     //message incoming, pass it on to the handler
     receive_can(&rx_frame, CAN_ADDON_FD_MCP2518);
     receive_can(&rx_frame, CANFD_NATIVE);
@@ -1180,6 +1180,11 @@ void transmit_can(CAN_frame* tx_frame, int interface) {
     case CAN_ADDON_FD_MCP2518: {
 #ifdef CAN_FD
       CANFDMessage MCP2518Frame;
+      if (tx_frame->FD) {
+        MCP2518Frame.type = CANFDMessage::CANFD_WITH_BIT_RATE_SWITCH;
+      } else {  //Classic CAN message
+        MCP2518Frame.type = CANFDMessage::CAN_DATA;
+      }
       MCP2518Frame.id = tx_frame->ID;
       MCP2518Frame.ext = tx_frame->ext_ID ? CAN_frame_ext : CAN_frame_std;
       MCP2518Frame.len = tx_frame->DLC;

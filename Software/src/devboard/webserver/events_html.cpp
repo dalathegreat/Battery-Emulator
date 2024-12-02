@@ -60,8 +60,8 @@ String events_processor(const String& var) {
     order_events.clear();
     content.concat(FPSTR(EVENTS_HTML_END));
     return content;
-    return String();
   }
+  return String();
 }
 
 /* Script for displaying event log before it gets minified

@@ -420,6 +420,205 @@ String advanced_battery_processor(const String& var) {
     content += "<h4>Challenge failed: " + String(datalayer_extended.nissanleaf.challengeFailed) + "</h4>";
 #endif
 
+#ifdef MEB_BATTERY
+    content += datalayer_extended.meb.SDSW ? "<h4>Service disconnect switch: Missing!</h4>"
+                                           : "<h4>Service disconnect switch: OK</h4>";
+    content += datalayer_extended.meb.pilotline ? "<h4>Pilotline: Open!</h4>" : "<h4>Pilotline: OK</h4>";
+    content += datalayer_extended.meb.transportmode ? "<h4>Transportmode: Locked!</h4>" : "<h4>Transportmode: OK</h4>";
+    content += datalayer_extended.meb.shutdown_active ? "<h4>Shutdown: Active!</h4>" : "<h4>Shutdown: No</h4>";
+    content += datalayer_extended.meb.componentprotection ? "<h4>Component protection: Active!</h4>"
+                                                          : "<h4>Component protection: No</h4>";
+    content += "<h4>HVIL status: ";
+    switch (datalayer_extended.meb.HVIL) {
+      case 0:
+        content += String("Init");
+        break;
+      case 1:
+        content += String("Closed");
+        break;
+      case 2:
+        content += String("Open!");
+        break;
+      case 3:
+        content += String("Fault");
+        break;
+      default:
+        content += String("?");
+    }
+    content += "</h4><h4>KL30C status: ";
+    switch (datalayer_extended.meb.BMS_Kl30c_Status) {
+      case 0:
+        content += String("Init");
+        break;
+      case 1:
+        content += String("Closed");
+        break;
+      case 2:
+        content += String("Open!");
+        break;
+      case 3:
+        content += String("Fault");
+        break;
+      default:
+        content += String("?");
+    }
+    content += "</h4><h4>BMS mode: ";
+    switch (datalayer_extended.meb.BMS_mode) {
+      case 0:
+        content += String("HV inactive");
+        break;
+      case 1:
+        content += String("HV active");
+        break;
+      case 2:
+        content += String("Balancing");
+        break;
+      case 3:
+        content += String("Extern charging");
+        break;
+      case 4:
+        content += String("AC charging");
+        break;
+      case 5:
+        content += String("Battery error");
+        break;
+      case 6:
+        content += String("DC charging");
+        break;
+      case 7:
+        content += String("Init");
+        break;
+      default:
+        content += String("?");
+    }
+    content += "</h4><h4>Diagnostic: ";
+    switch (datalayer_extended.meb.battery_diagnostic) {
+      case 0:
+        content += String("Init");
+        break;
+      case 1:
+        content += String("Battery display");
+        break;
+      case 4:
+        content += String("Battery display OK");
+        break;
+      case 6:
+        content += String("Battery display check");
+        break;
+      case 7:
+        content += String("Fault");
+        break;
+      default:
+        content += String("?");
+    }
+    content += "</h4><h4>HV line status: ";
+    switch (datalayer_extended.meb.status_HV_line) {
+      case 0:
+        content += String("Init");
+        break;
+      case 1:
+        content += String("No open HV line detected");
+        break;
+      case 2:
+        content += String("Open HV line");
+        break;
+      case 3:
+        content += String("Fault");
+        break;
+      default:
+        content += String("? ") + String(datalayer_extended.meb.status_HV_line);
+    }
+    content += "</h4><h4>Warning support: ";
+    switch (datalayer_extended.meb.warning_support) {
+      case 0:
+        content += String("OK");
+        break;
+      case 1:
+        content += String("Not OK");
+        break;
+      case 6:
+        content += String("Init");
+        break;
+      case 7:
+        content += String("Fault");
+        break;
+      default:
+        content += String("?");
+    }
+    content += "</h4><h4>Interm. Voltage (" + String(datalayer_extended.meb.BMS_voltage_intermediate_dV / 10.0, 1) +
+               "V) status: ";
+    switch (datalayer_extended.meb.BMS_status_voltage_free) {
+      case 0:
+        content += String("Init");
+        break;
+      case 1:
+        content += String("BMS interm circuit voltage free (U<20V)");
+        break;
+      case 2:
+        content += String("BMS interm circuit not voltage free (U >= 25V)");
+        break;
+      case 3:
+        content += String("Error");
+        break;
+      default:
+        content += String("?");
+    }
+    content += "</h4><h4>BMS error status: ";
+    switch (datalayer_extended.meb.BMS_error_status) {
+      case 0:
+        content += String("Component IO");
+        break;
+      case 1:
+        content += String("Iso Error 1");
+        break;
+      case 2:
+        content += String("Iso Error 2");
+        break;
+      case 3:
+        content += String("Interlock");
+        break;
+      case 4:
+        content += String("SD");
+        break;
+      case 5:
+        content += String("Performance red");
+        break;
+      case 6:
+        content += String("No component function");
+        break;
+      case 7:
+        content += String("Init");
+        break;
+      default:
+        content += String("?");
+    }
+    content += "</h4><h4>BMS voltage: " + String(datalayer_extended.meb.BMS_voltage_dV / 10.0, 1) + "</h4>";
+    content += datalayer_extended.meb.BMS_OBD_MIL ? "<h4>OBD MIL: ON!</h4>" : "<h4>OBD MIL: Off</h4>";
+    content +=
+        datalayer_extended.meb.BMS_error_lamp_req ? "<h4>Red error lamp: ON!</h4>" : "<h4>Red error lamp: Off</h4>";
+    content += datalayer_extended.meb.BMS_warning_lamp_req ? "<h4>Yellow warning lamp: ON!</h4>"
+                                                           : "<h4>Yellow warning lamp: Off</h4>";
+    content += "<h4>Isolation resistance: " + String(datalayer_extended.meb.isolation_resistance) + " kOhm</h4>";
+    content +=
+        datalayer_extended.meb.battery_heating ? "<h4>Battery heating: Active!</h4>" : "<h4>Battery heating: Off</h4>";
+    const char* rt_enum[] = {"No", "Error level 1", "Error level 2", "Error level 3"};
+    content += "<h4>Overcurrent: " + String(rt_enum[datalayer_extended.meb.rt_overcurrent]) + "</h4>";
+    content += "<h4>CAN fault: " + String(rt_enum[datalayer_extended.meb.rt_CAN_fault]) + "</h4>";
+    content += "<h4>Overcharged: " + String(rt_enum[datalayer_extended.meb.rt_overcharge]) + "</h4>";
+    content += "<h4>SOC too high: " + String(rt_enum[datalayer_extended.meb.rt_SOC_high]) + "</h4>";
+    content += "<h4>SOC too low: " + String(rt_enum[datalayer_extended.meb.rt_SOC_low]) + "</h4>";
+    content += "<h4>SOC jumping: " + String(rt_enum[datalayer_extended.meb.rt_SOC_jumping]) + "</h4>";
+    content += "<h4>Temp difference: " + String(rt_enum[datalayer_extended.meb.rt_temp_difference]) + "</h4>";
+    content += "<h4>Cell overtemp: " + String(rt_enum[datalayer_extended.meb.rt_cell_overtemp]) + "</h4>";
+    content += "<h4>Cell undertemp: " + String(rt_enum[datalayer_extended.meb.rt_cell_undertemp]) + "</h4>";
+    content += "<h4>Battery overvoltage: " + String(rt_enum[datalayer_extended.meb.rt_battery_overvolt]) + "</h4>";
+    content += "<h4>Battery undervoltage: " + String(rt_enum[datalayer_extended.meb.rt_battery_undervol]) + "</h4>";
+    content += "<h4>Cell overvoltage: " + String(rt_enum[datalayer_extended.meb.rt_cell_overvolt]) + "</h4>";
+    content += "<h4>Cell undervoltage: " + String(rt_enum[datalayer_extended.meb.rt_cell_undervol]) + "</h4>";
+    content += "<h4>Cell imbalance: " + String(rt_enum[datalayer_extended.meb.rt_cell_imbalance]) + "</h4>";
+    content += "<h4>Battery unathorized: " + String(rt_enum[datalayer_extended.meb.rt_battery_unathorized]) + "</h4>";
+#endif  //MEB_BATTERY
+
 #ifdef RENAULT_ZOE_GEN2_BATTERY
     content += "<h4>soc: " + String(datalayer_extended.zoePH2.battery_soc) + "</h4>";
     content += "<h4>usable soc: " + String(datalayer_extended.zoePH2.battery_usable_soc) + "</h4>";
@@ -467,8 +666,9 @@ String advanced_battery_processor(const String& var) {
     content += "<h4>soc max: " + String(datalayer_extended.zoePH2.battery_soc_max) + "</h4>";
 #endif  //RENAULT_ZOE_GEN2_BATTERY
 
-#if !defined(TESLA_BATTERY) && !defined(NISSAN_LEAF_BATTERY) && !defined(BMW_I3_BATTERY) && \
-    !defined(BYD_ATTO_3_BATTERY) && !defined(RENAULT_ZOE_GEN2_BATTERY) && !defined(CELLPOWER_BMS)
+#if !defined(TESLA_BATTERY) && !defined(NISSAN_LEAF_BATTERY) && !defined(BMW_I3_BATTERY) &&          \
+    !defined(BYD_ATTO_3_BATTERY) && !defined(RENAULT_ZOE_GEN2_BATTERY) && !defined(CELLPOWER_BMS) && \
+    !defined(MEB_BATTERY)  //Only the listed types have extra info
     content += "No extra information available for this battery type";
 #endif
 

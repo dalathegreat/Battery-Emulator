@@ -19,6 +19,7 @@
 //#define KIA_HYUNDAI_64_BATTERY
 //#define KIA_E_GMP_BATTERY
 //#define KIA_HYUNDAI_HYBRID_BATTERY
+//#define MEB_BATTERY
 //#define MG_5_BATTERY
 //#define NISSAN_LEAF_BATTERY
 //#define PYLON_BATTERY
