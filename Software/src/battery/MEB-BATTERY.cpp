@@ -948,7 +948,7 @@ void receive_can_battery(CAN_frame rx_frame) {
       BMS_error_lamp_req = (rx_frame.data.u8[4] & 0x04) >> 2;
       BMS_warning_lamp_req = (rx_frame.data.u8[4] & 0x08) >> 3;
       BMS_Kl30c_Status = (rx_frame.data.u8[4] & 0x30) >> 4;
-      if (BMS_Kl30c_Status != 0){ // init state
+      if (BMS_Kl30c_Status != 0) {  // init state
         BMS_capacity_ah = ((rx_frame.data.u8[4] & 0x03) << 9) | (rx_frame.data.u8[3] << 1) | (rx_frame.data.u8[2] >> 7);
       }
       break;
@@ -1962,7 +1962,7 @@ void send_can_battery() {
         break;
       case PID_CELLVOLTAGE_CELL_84:
         MEB_POLLING_FRAME.data.u8[3] = (uint8_t)PID_CELLVOLTAGE_CELL_84;
-        if (datalayer.battery.info.number_of_cells > 84){
+        if (datalayer.battery.info.number_of_cells > 84) {
           if (nof_cells_determined) {
             poll_pid = PID_CELLVOLTAGE_CELL_85;
           } else {
