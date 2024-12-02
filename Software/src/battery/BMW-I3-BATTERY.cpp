@@ -894,13 +894,13 @@ void send_can_battery() {
       if (startup_counter_contactor < 160) {
         startup_counter_contactor++;
       } else {  //After 160 messages, turn on the request
-        static bool first = true;
 #ifdef DEBUG_VIA_USB
+        static bool first = true;
         if (first) {
-           Serial.print("[");
-           Serial.print(millis());
-           Serial.println(" ms] BMW i3: close contactors");
-           first = false;
+          Serial.print("[");
+          Serial.print(millis());
+          Serial.println(" ms] BMW i3: close contactors");
+          first = false;
         }
 #endif
         BMW_10B.data.u8[1] = 0x10;  // Close contactors
