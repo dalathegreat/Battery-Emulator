@@ -573,7 +573,7 @@ void update_values_battery() {  //This function maps all the values fetched via 
   } else {
     clear_event(EVENT_HVIL_FAILURE);
   }
-  if (pilotline_open) {
+  if (pilotline_open || BMS_HVIL_status == 2) {
     set_event(EVENT_HVIL_FAILURE, 2);
   } else {
     clear_event(EVENT_HVIL_FAILURE);
