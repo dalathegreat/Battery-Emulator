@@ -1,5 +1,6 @@
 #include "webserver.h"
 #include <Preferences.h>
+#include <ctime>
 #include "../../datalayer/datalayer.h"
 #include "../../datalayer/datalayer_extended.h"
 #include "../../lib/bblanchon-ArduinoJson/ArduinoJson.h"
@@ -14,6 +15,7 @@ AsyncWebServer server(80);
 unsigned long ota_progress_millis = 0;
 
 #include "advanced_battery_html.h"
+#include "can_logging_html.h"
 #include "cellmonitor_html.h"
 #include "events_html.h"
 #include "index_html.cpp"
@@ -54,6 +56,44 @@ void init_webserver() {
   // Route for going to advanced battery info web page
   server.on("/advanced", HTTP_GET, [](AsyncWebServerRequest* request) {
     request->send_P(200, "text/html", index_html, advanced_battery_processor);
+  });
+
+  // Route for going to CAN logging web page
+  server.on("/canlog", HTTP_GET, [](AsyncWebServerRequest* request) {
+    request->send_P(200, "text/html", index_html, can_logger_processor);
+  });
+
+  // Define the handler to stop logging
+  server.on("/stop_logging", HTTP_GET, [](AsyncWebServerRequest* request) {
+    datalayer.system.info.can_logging_active = false;
+    request->send_P(200, "text/plain", "Logging stopped");
+  });
+
+  // Define the handler to export logs
+  server.on("/export_logs", HTTP_GET, [](AsyncWebServerRequest* request) {
+    String logs = String(datalayer.system.info.logged_can_messages);
+    if (logs.length() == 0) {
+      logs = "No logs available.";
+    }
+
+    // Get the current time
+    time_t now = time(nullptr);
+    struct tm timeinfo;
+    localtime_r(&now, &timeinfo);
+
+    // Ensure time retrieval was successful
+    char filename[32];
+    if (strftime(filename, sizeof(filename), "canlog_%H-%M-%S.txt", &timeinfo)) {
+      // Valid filename created
+    } else {
+      // Fallback filename if automatic timestamping failed
+      strcpy(filename, "battery_emulator_can_log.txt");
+    }
+
+    // Use request->send with dynamic headers
+    AsyncWebServerResponse* response = request->beginResponse(200, "text/plain", logs);
+    response->addHeader("Content-Disposition", String("attachment; filename=\"") + String(filename) + "\"");
+    request->send(response);
   });
 
   // Route for going to cellmonitor web page
@@ -443,6 +483,10 @@ String processor(const String& var) {
     //Page format
     content += "<style>";
     content += "body { background-color: black; color: white; }";
+    content +=
+        "button { background-color: #505E67; color: white; border: none; padding: 10px 20px; margin-bottom: 20px; "
+        "cursor: pointer; border-radius: 10px; }";
+    content += "button:hover { background-color: #3A4A52; }";
     content += "</style>";
 
     // Start a new block with a specific background color
@@ -642,7 +686,7 @@ String processor(const String& var) {
 
 #ifdef CONTACTOR_CONTROL
     content += "<h4>Contactors controlled by Battery-Emulator: ";
-    if (datalayer.system.status.contactor_control_closed) {
+    if (datalayer.system.status.contactors_engaged) {
       content += "<span style='color: green;'>ON</span>";
     } else {
       content += "<span style='color: red;'>OFF</span>";
@@ -773,34 +817,35 @@ String processor(const String& var) {
 
 #ifdef CONTACTOR_CONTROL
     content += "<h4>Contactors controlled by Battery-Emulator: ";
-    if (datalayer.system.status.contactor_control_closed) {
+    if (datalayer.system.status.contactors_battery2_engaged) {
       content += "<span style='color: green;'>ON</span>";
     } else {
       content += "<span style='color: red;'>OFF</span>";
     }
     content += "</h4>";
-
+#ifdef CONTACTOR_CONTROL_DOUBLE_BATTERY
     content += "<h4>Pre Charge: ";
-    if (digitalRead(PRECHARGE_PIN) == HIGH) {
+    if (digitalRead(SECOND_PRECHARGE_PIN) == HIGH) {
       content += "<span style='color: green;'>&#10003;</span>";
     } else {
       content += "<span style='color: red;'>&#10005;</span>";
     }
     content += " Cont. Neg.: ";
-    if (digitalRead(NEGATIVE_CONTACTOR_PIN) == HIGH) {
+    if (digitalRead(SECOND_NEGATIVE_CONTACTOR_PIN) == HIGH) {
       content += "<span style='color: green;'>&#10003;</span>";
     } else {
       content += "<span style='color: red;'>&#10005;</span>";
     }
 
     content += " Cont. Pos.: ";
-    if (digitalRead(POSITIVE_CONTACTOR_PIN) == HIGH) {
+    if (digitalRead(SECOND_POSITIVE_CONTACTOR_PIN) == HIGH) {
       content += "<span style='color: green;'>&#10003;</span>";
     } else {
       content += "<span style='color: red;'>&#10005;</span>";
     }
     content += "</h4>";
-#endif
+#endif  // CONTACTOR_CONTROL_DOUBLE_BATTERY
+#endif  // CONTACTOR_CONTROL
 
     content += "</div>";
     content += "</div>";
@@ -873,6 +918,7 @@ String processor(const String& var) {
     content += "<button onclick='OTA()'>Perform OTA update</button> ";
     content += "<button onclick='Settings()'>Change Settings</button> ";
     content += "<button onclick='Advanced()'>More Battery Info</button> ";
+    content += "<button onclick='CANlog()'>CAN logger</button> ";
     content += "<button onclick='Cellmon()'>Cellmonitor</button> ";
     content += "<button onclick='Events()'>Events</button> ";
     content += "<button onclick='askReboot()'>Reboot Emulator</button>";
@@ -897,6 +943,7 @@ String processor(const String& var) {
     content += "function Cellmon() { window.location.href = '/cellmonitor'; }";
     content += "function Settings() { window.location.href = '/settings'; }";
     content += "function Advanced() { window.location.href = '/advanced'; }";
+    content += "function CANlog() { window.location.href = '/canlog'; }";
     content += "function Events() { window.location.href = '/events'; }";
     content +=
         "function askReboot() { if (window.confirm('Are you sure you want to reboot the emulator? NOTE: If "

@@ -136,10 +136,10 @@ static uint16_t battery2_TEMP = 0;                   //Temporary value used in s
 static uint16_t battery2_Wh_Remaining = 0;           //Amount of energy in battery, in Wh
 static uint16_t battery2_GIDS = 273;                 //Startup in 24kWh mode
 static uint16_t battery2_MAX = 0;
-static uint16_t battery2_Max_GIDS = 273;        //Startup in 24kWh mode
-static uint16_t battery2_StateOfHealth = 99;    //State of health %
-static uint16_t battery2_Total_Voltage2 = 740;  //Battery voltage (0-450V) [0.5V/bit, so actual range 0-800]
-static int16_t battery2_Current2 = 0;           //Battery current (-400-200A) [0.5A/bit, so actual range -800-400]
+static uint16_t battery2_Max_GIDS = 273;      //Startup in 24kWh mode
+static uint16_t battery2_StateOfHealth = 99;  //State of health %
+static uint16_t battery2_Total_Voltage2 = 0;  //Battery voltage (0-450V) [0.5V/bit, so actual range 0-800]
+static int16_t battery2_Current2 = 0;         //Battery current (-400-200A) [0.5A/bit, so actual range -800-400]
 static int16_t battery2_HistData_Temperature_MAX = 6;  //-40 to 86*C
 static int16_t battery2_HistData_Temperature_MIN = 5;  //-40 to 86*C
 static int16_t battery2_AverageTemperature = 6;        //Only available on ZE0, in celcius, -40 to +55
@@ -331,6 +331,7 @@ void update_values_battery() { /* This function maps all the values fetched via 
   datalayer_extended.nissanleaf.ChargePowerLimit = battery_Charge_Power_Limit;
   datalayer_extended.nissanleaf.MaxPowerForCharger = battery_MAX_POWER_FOR_CHARGER;
   datalayer_extended.nissanleaf.Interlock = battery_Interlock;
+  datalayer_extended.nissanleaf.Insulation = battery_insulation;
   datalayer_extended.nissanleaf.RelayCutRequest = battery_Relay_Cut_Request;
   datalayer_extended.nissanleaf.FailsafeStatus = battery_Failsafe_Status;
   datalayer_extended.nissanleaf.Full = battery_Full_CHARGE_flag;
@@ -514,11 +515,7 @@ void receive_can_battery2(CAN_frame rx_frame) {
       battery2_Relay_Cut_Request = ((rx_frame.data.u8[1] & 0x18) >> 3);
       battery2_Failsafe_Status = (rx_frame.data.u8[1] & 0x07);
       battery2_MainRelayOn_flag = (bool)((rx_frame.data.u8[3] & 0x20) >> 5);
-      if (battery2_MainRelayOn_flag) {
-        datalayer.system.status.battery2_allows_contactor_closing = true;
-      } else {
-        datalayer.system.status.battery2_allows_contactor_closing = false;
-      }
+      //battery2_allows_contactor_closing written by check_interconnect_available();
       battery2_Full_CHARGE_flag = (bool)((rx_frame.data.u8[3] & 0x10) >> 4);
       battery2_Interlock = (bool)((rx_frame.data.u8[3] & 0x08) >> 3);
       break;

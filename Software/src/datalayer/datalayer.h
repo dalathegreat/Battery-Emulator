@@ -131,6 +131,11 @@ typedef struct {
   char battery_protocol[64] = {0};
   /** array with type of inverter used, for displaying on webserver */
   char inverter_protocol[64] = {0};
+  /** array with incoming CAN messages, for displaying on webserver */
+  char logged_can_messages[15000] = {0};
+  /** bool, determines if CAN messages should be logged for webserver */
+  bool can_logging_active = false;
+
 } DATALAYER_SYSTEM_INFO_TYPE;
 
 typedef struct {
@@ -192,7 +197,9 @@ typedef struct {
   bool inverter_allows_contactor_closing = true;
 #ifdef CONTACTOR_CONTROL
   /** True if the contactor controlled by battery-emulator is closed */
-  bool contactor_control_closed = false;
+  bool contactors_engaged = false;
+  /** True if the contactor controlled by battery-emulator is closed. Determined by check_interconnect_available(); if voltage is OK */
+  bool contactors_battery2_engaged = false;
 #endif
 } DATALAYER_SYSTEM_STATUS_TYPE;
 

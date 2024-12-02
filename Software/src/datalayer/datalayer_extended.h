@@ -180,7 +180,38 @@ typedef struct {
   /** uint8_t */
   /** Pyro test in progress */
   uint8_t pyroTestInProgress = 0;
-
+  uint8_t battery_beginning_of_life = 0;
+  uint8_t battery_battTempPct = 0;
+  uint16_t battery_dcdcLvBusVolt = 0;
+  uint16_t battery_dcdcHvBusVolt = 0;
+  uint16_t battery_dcdcLvOutputCurrent = 0;
+  uint16_t battery_nominal_full_pack_energy = 0;
+  uint16_t battery_nominal_full_pack_energy_m0 = 0;
+  uint16_t battery_nominal_energy_remaining = 0;
+  uint16_t battery_nominal_energy_remaining_m0 = 0;
+  uint16_t battery_ideal_energy_remaining = 0;
+  uint16_t battery_ideal_energy_remaining_m0 = 0;
+  uint16_t battery_energy_to_charge_complete = 0;
+  uint16_t battery_energy_to_charge_complete_m1 = 0;
+  uint16_t battery_energy_buffer = 0;
+  uint16_t battery_energy_buffer_m1 = 0;
+  uint16_t battery_full_charge_complete = 0;
+  uint8_t battery_fully_charged = 0;
+  uint16_t battery_total_discharge = 0;
+  uint16_t battery_total_charge = 0;
+  uint16_t battery_packConfigMultiplexer = 0;
+  uint16_t battery_moduleType = 0;
+  uint16_t battery_reservedConfig = 0;
+  uint32_t battery_packMass = 0;
+  uint32_t battery_platformMaxBusVoltage = 0;
+  uint32_t battery_bms_min_voltage = 0;
+  uint32_t battery_bms_max_voltage = 0;
+  uint32_t battery_max_charge_current = 0;
+  uint32_t battery_max_discharge_current = 0;
+  uint32_t battery_soc_min = 0;
+  uint32_t battery_soc_max = 0;
+  uint32_t battery_soc_ave = 0;
+  uint32_t battery_soc_ui = 0;
 } DATALAYER_INFO_TESLA;
 
 typedef struct {
@@ -199,6 +230,9 @@ typedef struct {
   /** bool */
   /** Interlock status */
   bool Interlock = false;
+  /** int16_t */
+  /** Insulation resistance, most likely kOhm */
+  uint16_t Insulation = 0;
   /** uint8_t */
   /** battery_FAIL status */
   uint8_t RelayCutRequest = 0;

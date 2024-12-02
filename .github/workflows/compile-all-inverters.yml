@@ -44,6 +44,7 @@ jobs:
         inverter:
           - AFORE_CAN
           - BYD_CAN
+          - BYD_KOSTAL_RS485
           - BYD_SMA
           - BYD_MODBUS
           - FOXESS_CAN

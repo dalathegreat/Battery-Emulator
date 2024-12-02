@@ -19,6 +19,10 @@
 #include "BYD-SMA.h"
 #endif
 
+#ifdef BYD_KOSTAL_RS485
+#include "KOSTAL-RS485.h"
+#endif
+
 #ifdef FOXESS_CAN
 #include "FOXESS-CAN.h"
 #endif
@@ -37,6 +41,10 @@
 
 #ifdef SMA_CAN
 #include "SMA-CAN.h"
+#endif
+
+#ifdef SMA_LV_CAN
+#include "SMA-LV-CAN.h"
 #endif
 
 #ifdef SMA_TRIPOWER_CAN
@@ -63,6 +71,12 @@ void send_can_inverter();
 
 #ifdef MODBUS_INVERTER_SELECTED
 void update_modbus_registers_inverter();
+#endif
+
+#ifdef RS485_INVERTER_SELECTED
+void receive_RS485();
+void update_RS485_registers_inverter();
+void setup_inverter();
 #endif
 
 #endif

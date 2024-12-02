@@ -54,6 +54,7 @@ jobs:
         # These are the emulated inverter communication protocols for which the code will be compiled.
         inverter:
           - BYD_CAN
+          - BYD_KOSTAL_RS485
           - BYD_SMA
           - BYD_MODBUS
           - FOXESS_CAN
