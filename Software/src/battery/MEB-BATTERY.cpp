@@ -522,10 +522,9 @@ void update_values_battery() {  //This function maps all the values fetched via 
 
   datalayer.battery.status.current_dA = (BMS_current / 10) - 1630;
 
-  datalayer.battery.info.total_capacity_Wh = (battery_Wh_max * 50);
+  datalayer.battery.info.total_capacity_Wh = ((float)datalayer.battery.info.number_of_cells) * 3.6458 * ((float)BMS_capacity_ah) * 0.2;
 
-  datalayer.battery.status.remaining_capacity_Wh = static_cast<uint32_t>(
-      (static_cast<double>(datalayer.battery.status.real_soc) / 10000) * datalayer.battery.info.total_capacity_Wh);
+  datalayer.battery.status.remaining_capacity_Wh = usable_energy_amount_Wh * 5;
   //Alternatively use battery_Wh_left
 
   datalayer.battery.status.max_charge_power_W = (max_charge_power_watt * 100);
@@ -937,7 +936,7 @@ void receive_can_battery(CAN_frame rx_frame) {
       BMS_status_voltage_free = (rx_frame.data.u8[1] & 0xC0) >> 6;
       BMS_OBD_MIL = (rx_frame.data.u8[2] & 0x01);
       BMS_error_status = (rx_frame.data.u8[2] & 0x70) >> 4;
-      BMS_capacity_ah = (rx_frame.data.u8[4] & 0x03 << 9) | (rx_frame.data.u8[3] << 1) | (rx_frame.data.u8[2] >> 7);
+      BMS_capacity_ah = ((rx_frame.data.u8[4] & 0x03) << 9) | (rx_frame.data.u8[3] << 1) | (rx_frame.data.u8[2] >> 7);
       BMS_error_lamp_req = (rx_frame.data.u8[4] & 0x04) >> 2;
       BMS_warning_lamp_req = (rx_frame.data.u8[4] & 0x08) >> 3;
       BMS_Kl30c_Status = (rx_frame.data.u8[4] & 0x30) >> 4;
@@ -947,12 +946,12 @@ void receive_can_battery(CAN_frame rx_frame) {
       BMS_5CA_counter = (rx_frame.data.u8[1] & 0x0F);         // Can be used to check CAN signal integrity later on
       balancing_request = (rx_frame.data.u8[5] & 0x08) >> 3;  //True/False
       battery_diagnostic = (rx_frame.data.u8[3] & 0x07);
-      battery_Wh_left = (rx_frame.data.u8[2] << 4) | (rx_frame.data.u8[1] >> 4);  //*50
+      battery_Wh_left = (rx_frame.data.u8[2] << 4) | (rx_frame.data.u8[1] >> 4);  //*50  ! Not usable, seems to always contain 0x7F0
       battery_potential_status =
           (rx_frame.data.u8[5] & 0x30) >> 4;  //0 = function not enabled, 1= no potential, 2 = potential on, 3 = fault
       battery_temperature_warning =
           (rx_frame.data.u8[7] & 0x0C) >> 2;  // 0 = no warning, 1 = temp level 1, 2=temp level 2
-      battery_Wh_max = ((rx_frame.data.u8[5] & 0x07) << 8) | rx_frame.data.u8[4];  //*50
+      battery_Wh_max = ((rx_frame.data.u8[5] & 0x07) << 8) | rx_frame.data.u8[4];  //*50  ! Not usable, seems to always contain 0x7F0
       break;
     case 0x0CF:                                        //BMS 10ms
       BMS_0CF_CRC = rx_frame.data.u8[0];               // Can be used to check CAN signal integrity later on
@@ -960,6 +959,15 @@ void receive_can_battery(CAN_frame rx_frame) {
       BMS_welded_contactors_status = (rx_frame.data.u8[1] & 0x60) >> 5;
       BMS_ext_limits_active = (rx_frame.data.u8[1] & 0x80) >> 7;
       BMS_mode = (rx_frame.data.u8[2] & 0x07);
+      switch (BMS_mode){
+        case 1: 
+        case 3: 
+        case 4: 
+          datalayer.system.status.battery_allows_contactor_closing = true;
+          break;
+        default:
+          datalayer.system.status.battery_allows_contactor_closing = false;
+      }
       BMS_HVIL_status = (rx_frame.data.u8[2] & 0x18) >> 3;
       BMS_error_shutdown = (rx_frame.data.u8[2] & 0x20) >> 5;
       BMS_error_shutdown_request = (rx_frame.data.u8[2] & 0x40) >> 6;
@@ -2085,6 +2093,9 @@ void setup_battery(void) {  // Performs one time setup at startup
   datalayer.battery.info.number_of_cells = 108;  //Startup in 108S mode. We figure out the actual count later.
   datalayer.battery.info.max_design_voltage_dV = MAX_PACK_VOLTAGE_108S_DV;  //Defined later to correct pack size
   datalayer.battery.info.min_design_voltage_dV = MIN_PACK_VOLTAGE_84S_DV;   //Defined later to correct pack size
+  datalayer.battery.info.max_cell_voltage_mV = MAX_CELL_VOLTAGE_MV;
+  datalayer.battery.info.min_cell_voltage_mV = MIN_CELL_VOLTAGE_MV;
+  datalayer.battery.info.max_cell_voltage_deviation_mV = MAX_CELL_DEVIATION_MV;
 }
 
 #endif
