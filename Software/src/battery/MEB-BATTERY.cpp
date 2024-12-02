@@ -1505,7 +1505,7 @@ void send_can_battery() {
       MEB_503.data.u8[3] = BMS_TARGET_HV_ON; //BMS_TARGET_AC_CHARGING;  //TODO, should we try AC_2 or DC charging?
       MEB_503.data.u8[5] = 0x82;                    // Bordnetz Active
       MEB_503.data.u8[6] = 0xE0;                    // Request emergency shutdown HV system == 0, false
-    } /*else if (first_can_msg > 0 && millis() > first_can_msg + 2000){                                        //FAULT STATE, open contactors
+    } else if (first_can_msg > 0 && millis() > first_can_msg + 2000){                                        //FAULT STATE, open contactors
 #ifdef DEBUG_VIA_USB
       Serial.println("Requesting HV off");
 #endif
@@ -1514,7 +1514,7 @@ void send_can_battery() {
       MEB_503.data.u8[5] = 0x80;  // Bordnetz Inactive
       MEB_503.data.u8[6] =
           0xE3;  // Request emergency shutdown HV system == init (3) (not sure if we dare activate this, this is done with 0xE1)
-    }*/
+    }
     MEB_503.data.u8[1] = ((MEB_503.data.u8[1] & 0xF0) | counter_100ms);
     MEB_503.data.u8[0] = vw_crc_calc(MEB_503.data.u8, MEB_503.DLC, MEB_503.ID);
 
