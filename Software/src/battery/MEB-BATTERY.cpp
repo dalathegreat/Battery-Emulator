@@ -1499,18 +1499,12 @@ void send_can_battery() {
 
     //HV request and DC/DC control lies in 0x503
     MEB_503.data.u8[3] = 0x00;
-    if (/*datalayer.battery.status.bms_status != FAULT &&*/ first_can_msg > 0 && currentMillis > first_can_msg + 2000) {
-#ifdef DEBUG_VIA_USB
-      Serial.println("Requesting HV");
-#endif
+    if (datalayer.battery.status.bms_status != FAULT && first_can_msg > 0 && currentMillis > first_can_msg + 2000) {
       MEB_503.data.u8[1] = 0xB0;
       MEB_503.data.u8[3] = BMS_TARGET_HV_ON; //BMS_TARGET_AC_CHARGING;  //TODO, should we try AC_2 or DC charging?
       MEB_503.data.u8[5] = 0x82;                    // Bordnetz Active
       MEB_503.data.u8[6] = 0xE0;                    // Request emergency shutdown HV system == 0, false
     } else if (first_can_msg > 0 && millis() > first_can_msg + 2000){                                        //FAULT STATE, open contactors
-#ifdef DEBUG_VIA_USB
-      Serial.println("Requesting HV off");
-#endif
       MEB_503.data.u8[1] = 0x90;
       MEB_503.data.u8[3] = BMS_TARGET_HV_OFF;
       MEB_503.data.u8[5] = 0x80;  // Bordnetz Inactive
