@@ -16,6 +16,7 @@ should undo the scaling on the total capacity (which is calculated from the ah v
 which is scaled already).
 - Investigate why opening and then closing contactors from webpage does not always work
 - Invertigate why contactors don't close when lilygo and battery are powered on simultaneously -> timeout on can msgs triggers to late, reset when open contactors is executed
+- Find out how to get the battery in balancing mode
 */
 
 /* Do not change code below unless you are sure what you are doing */
@@ -652,7 +653,7 @@ void receive_can_battery(CAN_frame rx_frame) {
       break;
     case 0x12DD54D1:  // BMS 100ms
       datalayer.battery.status.CAN_battery_still_alive = CAN_STILL_ALIVE;
-      if (rx_frame.data.u8[6] != 0xFE || rx_frame.data.u8[7] != 0xFF){ // Init state, values below invalid
+      if (rx_frame.data.u8[6] != 0xFE || rx_frame.data.u8[7] != 0xFF){  // Init state, values below invalid
         battery_SOC = ((rx_frame.data.u8[3] & 0x0F) << 7) | (rx_frame.data.u8[2] >> 1);               //*0.05
         usable_energy_amount_Wh = (rx_frame.data.u8[7] << 8) | rx_frame.data.u8[6];                   //*5
         power_discharge_percentage = ((rx_frame.data.u8[4] & 0x3F) << 4) | rx_frame.data.u8[3] >> 4;  //*0.2
@@ -985,7 +986,7 @@ void receive_can_battery(CAN_frame rx_frame) {
       BMS_error_shutdown_request = (rx_frame.data.u8[2] & 0x40) >> 6;
       BMS_fault_performance = (rx_frame.data.u8[2] & 0x80) >> 7;
       BMS_fault_emergency_shutdown_crash = (rx_frame.data.u8[4] & 0x80) >> 7;
-      if (BMS_mode != 7) { // Init state, values below are invalid
+      if (BMS_mode != 7) {  // Init state, values below are invalid
         BMS_current = ((rx_frame.data.u8[4] & 0x7F) << 8) | rx_frame.data.u8[3];
         BMS_voltage_intermediate = (((rx_frame.data.u8[6] & 0x0F) << 8) + (rx_frame.data.u8[5]));
         BMS_voltage = ((rx_frame.data.u8[7] << 4) + ((rx_frame.data.u8[6] & 0xF0) >> 4));
@@ -1434,7 +1435,6 @@ void receive_can_battery(CAN_frame rx_frame) {
           break;
         case PID_CELLVOLTAGE_CELL_108:
           tempval = ((rx_frame.data.u8[4] << 8) | rx_frame.data.u8[5]);
-          nof_cells_determined = true; // This is placed outside of the if, to make 
           // sure we only take the shortcuts to determine the number of cells once.
           if (tempval != 0xFFE) {
             cellvoltages_polled[107] = (tempval + 1000);
@@ -1962,7 +1962,7 @@ void send_can_battery() {
       case PID_CELLVOLTAGE_CELL_84:
         MEB_POLLING_FRAME.data.u8[3] = (uint8_t)PID_CELLVOLTAGE_CELL_84;
         if (datalayer.battery.info.number_of_cells > 84){
-          if (nof_cells_determined){
+          if (nof_cells_determined) {
             poll_pid = PID_CELLVOLTAGE_CELL_85;
           } else {
             poll_pid = PID_CELLVOLTAGE_CELL_97;
