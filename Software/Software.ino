@@ -642,7 +642,7 @@ void print_can_frame(CAN_frame frame, frameDirection msgDir) {
 #endif  //#DEBUG_CAN_DATA
 
   if (datalayer.system.info.can_logging_active) {  // If user clicked on CAN Logging page in webserver, start recording
-    char *message_string = datalayer.system.info.logged_can_messages;
+    char* message_string = datalayer.system.info.logged_can_messages;
     int offset = datalayer.system.info.logged_can_messages_offset;  // Keeps track of the current position in the buffer
     
     if (offset + 128 > sizeof(datalayer.system.info.logged_can_messages)) {
@@ -652,7 +652,8 @@ void print_can_frame(CAN_frame frame, frameDirection msgDir) {
     size_t message_string_size = sizeof(datalayer.system.info.logged_can_messages);
     unsigned long currentTime = millis();
     // Add timestamp
-    offset += snprintf(message_string + offset, message_string_size - offset, "(%lu.%03lu) ", currentTime/1000, currentTime%1000);
+    offset += snprintf(message_string + offset, message_string_size - offset, "(%lu.%03lu) ", currentTime / 1000, 
+                       currentTime % 1000);
 
     // Add direction. The 0 and 1 after RX and TX ensures that SavvyCAN puts TX and RX in a different bus.
     offset +=
@@ -663,7 +664,7 @@ void print_can_frame(CAN_frame frame, frameDirection msgDir) {
 
     // Add data bytes
     for (uint8_t i = 0; i < frame.DLC; i++) {
-      if (i < frame.DLC-1) {
+      if (i < frame.DLC - 1) {
         offset += snprintf(message_string + offset, message_string_size - offset, "%02X ", frame.data.u8[i]);
       } else {
         offset += snprintf(message_string + offset, message_string_size - offset, "%02X", frame.data.u8[i]);
