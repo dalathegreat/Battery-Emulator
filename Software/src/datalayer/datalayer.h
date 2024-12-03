@@ -133,6 +133,7 @@ typedef struct {
   char inverter_protocol[64] = {0};
   /** array with incoming CAN messages, for displaying on webserver */
   char logged_can_messages[15000] = {0};
+  size_t logged_can_messages_offset = 0;
   /** bool, determines if CAN messages should be logged for webserver */
   bool can_logging_active = false;
 
