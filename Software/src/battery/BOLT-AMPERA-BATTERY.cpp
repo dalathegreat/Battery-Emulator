@@ -33,6 +33,7 @@ static uint16_t battery_internal_resistance = 0;
 static uint16_t battery_min_voltage = 0;
 static uint16_t battery_max_voltage = 0;
 static uint16_t battery_voltage = 3700;
+static uint16_t battery_voltage_periodic = 0;
 static uint16_t battery_vehicle_isolation = 0;
 static uint16_t battery_isolation_kohm = 0;
 static uint16_t battery_HV_locked = 0;
@@ -48,6 +49,7 @@ static int16_t temperature_5 = 0;
 static int16_t temperature_6 = 0;
 static int16_t temperature_highest = 0;
 static int16_t temperature_lowest = 0;
+static uint8_t mux = 0;
 
 static uint8_t poll_index = 0;
 static uint16_t currentpoll = POLL_CAPACITY_EST_GEN1;
@@ -173,7 +175,8 @@ void update_values_battery() {  //This function maps all the values fetched via 
 
   datalayer.battery.status.real_soc = (battery_SOC_display * 100 / 255);
 
-  datalayer.battery.status.voltage_dV = battery_voltage * 0.52;
+  //datalayer.battery.status.voltage_dV = battery_voltage * 0.52;
+  datalayer.battery.status.voltage_dV = (battery_voltage_periodic / 8) * 10;
 
   datalayer.battery.status.current_dA = battery_current / -6.675;
 
@@ -216,18 +219,23 @@ void receive_can_battery(CAN_frame rx_frame) {
   switch (rx_frame.ID) {
     case 0x200:
       datalayer.battery.status.CAN_battery_still_alive = CAN_STILL_ALIVE;
+      mux = ((rx_frame.data.u8[6] & 0xE0) >> 5);  //goes from 0-7
       break;
     case 0x202:
       datalayer.battery.status.CAN_battery_still_alive = CAN_STILL_ALIVE;
+      mux = ((rx_frame.data.u8[6] & 0xE0) >> 5);  //goes from 0-7
       break;
     case 0x204:
       datalayer.battery.status.CAN_battery_still_alive = CAN_STILL_ALIVE;
+      mux = ((rx_frame.data.u8[6] & 0xE0) >> 5);  //goes from 0-7
       break;
     case 0x206:
       datalayer.battery.status.CAN_battery_still_alive = CAN_STILL_ALIVE;
+      mux = ((rx_frame.data.u8[6] & 0xE0) >> 5);  //goes from 0-7
       break;
     case 0x208:
       datalayer.battery.status.CAN_battery_still_alive = CAN_STILL_ALIVE;
+      mux = ((rx_frame.data.u8[6] & 0xE0) >> 5);  //goes from 0-7
       break;
     case 0x20C:
       datalayer.battery.status.CAN_battery_still_alive = CAN_STILL_ALIVE;
@@ -237,6 +245,7 @@ void receive_can_battery(CAN_frame rx_frame) {
       break;
     case 0x2C7:
       datalayer.battery.status.CAN_battery_still_alive = CAN_STILL_ALIVE;
+      battery_voltage_periodic = (rx_frame.data.u8[3] << 4) | (rx_frame.data.u8[4] >> 4);
       break;
     case 0x260:
       datalayer.battery.status.CAN_battery_still_alive = CAN_STILL_ALIVE;
