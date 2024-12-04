@@ -40,6 +40,14 @@ static uint16_t battery_crash_event = 0;
 static uint16_t battery_HVIL = 0;
 static uint16_t battery_HVIL_status = 0;
 static int16_t battery_current = 0;
+static int16_t temperature_1 = 0;
+static int16_t temperature_2 = 0;
+static int16_t temperature_3 = 0;
+static int16_t temperature_4 = 0;
+static int16_t temperature_5 = 0;
+static int16_t temperature_6 = 0;
+static int16_t temperature_highest = 0;
+static int16_t temperature_lowest = 0;
 
 static uint8_t poll_index = 0;
 static uint16_t currentpoll = POLL_CAPACITY_EST_GEN1;
@@ -179,9 +187,26 @@ void update_values_battery() {  //This function maps all the values fetched via 
 
   datalayer.battery.status.max_charge_power_W;
 
-  datalayer.battery.status.temperature_min_dC;
+  // Store temperatures in an array
+  int16_t temperatures[] = {temperature_1, temperature_2, temperature_3, temperature_4, temperature_5, temperature_6};
 
-  datalayer.battery.status.temperature_max_dC;
+  // Initialize highest and lowest to the first element
+  temperature_highest = temperatures[0];
+  temperature_lowest = temperatures[0];
+
+  // Iterate through the array to find the highest and lowest values
+  for (uint8_t i = 1; i < 6; ++i) {
+    if (temperatures[i] > temperature_highest) {
+      temperature_highest = temperatures[i];
+    }
+    if (temperatures[i] < temperature_lowest) {
+      temperature_lowest = temperatures[i];
+    }
+  }
+
+  datalayer.battery.status.temperature_min_dC = temperature_lowest * 10;
+
+  datalayer.battery.status.temperature_max_dC = temperature_highest * 10;
 
   //Map all cell voltages to the global array
   memcpy(datalayer.battery.status.cell_voltages_mV, battery_cell_voltages, 96 * sizeof(uint16_t));
@@ -189,10 +214,60 @@ void update_values_battery() {  //This function maps all the values fetched via 
 
 void receive_can_battery(CAN_frame rx_frame) {
   switch (rx_frame.ID) {
+    case 0x200:
+      datalayer.battery.status.CAN_battery_still_alive = CAN_STILL_ALIVE;
+      break;
+    case 0x202:
+      datalayer.battery.status.CAN_battery_still_alive = CAN_STILL_ALIVE;
+      break;
+    case 0x204:
+      datalayer.battery.status.CAN_battery_still_alive = CAN_STILL_ALIVE;
+      break;
+    case 0x206:
+      datalayer.battery.status.CAN_battery_still_alive = CAN_STILL_ALIVE;
+      break;
+    case 0x208:
+      datalayer.battery.status.CAN_battery_still_alive = CAN_STILL_ALIVE;
+      break;
+    case 0x20C:
+      datalayer.battery.status.CAN_battery_still_alive = CAN_STILL_ALIVE;
+      break;
+    case 0x216:
+      datalayer.battery.status.CAN_battery_still_alive = CAN_STILL_ALIVE;
+      break;
     case 0x2C7:
       datalayer.battery.status.CAN_battery_still_alive = CAN_STILL_ALIVE;
       break;
+    case 0x260:
+      datalayer.battery.status.CAN_battery_still_alive = CAN_STILL_ALIVE;
+      break;
+    case 0x270:
+      datalayer.battery.status.CAN_battery_still_alive = CAN_STILL_ALIVE;
+      break;
+    case 0x272:
+      datalayer.battery.status.CAN_battery_still_alive = CAN_STILL_ALIVE;
+      break;
+    case 0x274:
+      datalayer.battery.status.CAN_battery_still_alive = CAN_STILL_ALIVE;
+      break;
+    case 0x302:
+      datalayer.battery.status.CAN_battery_still_alive = CAN_STILL_ALIVE;
+      //302 8 03 5C 5C 5D 5D 5C 5C 1E
+      //Could be temperatures here?
+      temperature_1 = (rx_frame.data.u8[1] - 40);
+      temperature_2 = (rx_frame.data.u8[2] - 40);
+      temperature_3 = (rx_frame.data.u8[3] - 40);
+      temperature_4 = (rx_frame.data.u8[4] - 40);
+      temperature_5 = (rx_frame.data.u8[5] - 40);
+      temperature_6 = (rx_frame.data.u8[6] - 40);
+      break;
     case 0x3E3:
+      datalayer.battery.status.CAN_battery_still_alive = CAN_STILL_ALIVE;
+      break;
+    case 0x460:
+      datalayer.battery.status.CAN_battery_still_alive = CAN_STILL_ALIVE;
+      break;
+    case 0x5EF:
       datalayer.battery.status.CAN_battery_still_alive = CAN_STILL_ALIVE;
       break;
     case 0x7EC:  //TODO: Confirm if this is the reply from BMS when polling
