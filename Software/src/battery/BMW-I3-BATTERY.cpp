@@ -360,6 +360,12 @@ static uint8_t increment_alive_counter(uint8_t counter) {
   return counter;
 }
 
+static void print_units(char* header, int value, char* units) {
+  Serial.print(header);
+  Serial.print(value);
+  Serial.print(units);
+}
+
 void update_values_battery2() {  //This function maps all the values fetched via CAN2 to the battery2 datalayer
   if (!battery2_awake) {
     return;
@@ -500,6 +506,21 @@ void update_values_battery() {  //This function maps all the values fetched via 
   datalayer_extended.bmwi3.ST_WELD = battery_status_error_disconnecting_switch;
   datalayer_extended.bmwi3.ST_isolation = battery_status_warning_isolation;
   datalayer_extended.bmwi3.ST_cold_shutoff_valve = battery_status_cold_shutoff_valve;
+
+/*Finally print out values to serial if configured to do so*/
+#ifdef DEBUG_VIA_USB
+  Serial.println("BMW i3 battery values going to inverter");
+  print_units("SOH%: ", (datalayer.battery.status.soh_pptt * 0.01), "% ");
+  print_units(", SOC%: ", (datalayer.battery.status.reported_soc * 0.01), "% ");
+  print_units(", Voltage: ", (datalayer.battery.status.voltage_dV * 0.1), "V ");
+  print_units(", Max discharge power: ", datalayer.battery.status.max_discharge_power_W, "W ");
+  print_units(", Max charge power: ", datalayer.battery.status.max_charge_power_W, "W ");
+  print_units(", Max temp: ", (datalayer.battery.status.temperature_max_dC * 0.1), "°C ");
+  print_units(", Min temp: ", (datalayer.battery.status.temperature_min_dC * 0.1), "°C ");
+  print_units(", Max cell voltage: ", datalayer.battery.status.cell_max_voltage_mV, "mV ");
+  print_units(", Min cell voltage: ", datalayer.battery.status.cell_min_voltage_mV, "mV ");
+  Serial.println("");
+#endif
 }
 
 void receive_can_battery(CAN_frame rx_frame) {
@@ -872,7 +893,16 @@ void send_can_battery() {
 
       if (startup_counter_contactor < 160) {
         startup_counter_contactor++;
-      } else {                      //After 160 messages, turn on the request
+      } else {  //After 160 messages, turn on the request
+#ifdef DEBUG_VIA_USB
+        static bool first = true;
+        if (first) {
+          Serial.print("[");
+          Serial.print(millis());
+          Serial.println(" ms] BMW i3: close contactors");
+          first = false;
+        }
+#endif
         BMW_10B.data.u8[1] = 0x10;  // Close contactors
       }
 
