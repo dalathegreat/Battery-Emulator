@@ -263,12 +263,12 @@ void receive_can_battery(CAN_frame rx_frame) {
       datalayer.battery.status.CAN_battery_still_alive = CAN_STILL_ALIVE;
       //302 8 03 5C 5C 5D 5D 5C 5C 1E
       //Could be temperatures here?
-      temperature_1 = (rx_frame.data.u8[1] - 40);
-      temperature_2 = (rx_frame.data.u8[2] - 40);
-      temperature_3 = (rx_frame.data.u8[3] - 40);
-      temperature_4 = (rx_frame.data.u8[4] - 40);
-      temperature_5 = (rx_frame.data.u8[5] - 40);
-      temperature_6 = (rx_frame.data.u8[6] - 40);
+      temperature_1 = ((rx_frame.data.u8[1] / 2) - 40);
+      temperature_2 = ((rx_frame.data.u8[2] / 2) - 40);
+      temperature_3 = ((rx_frame.data.u8[3] / 2) - 40);
+      temperature_4 = ((rx_frame.data.u8[4] / 2) - 40);
+      temperature_5 = ((rx_frame.data.u8[5] / 2) - 40);
+      temperature_6 = ((rx_frame.data.u8[6] / 2) - 40);
       break;
     case 0x3E3:
       datalayer.battery.status.CAN_battery_still_alive = CAN_STILL_ALIVE;
