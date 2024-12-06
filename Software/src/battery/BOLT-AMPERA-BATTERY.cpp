@@ -18,7 +18,7 @@ CAN_frame BOLT_POLL_7E4 = {.FD = false,
                            .ext_ID = false,
                            .DLC = 8,
                            .ID = 0x7E4,
-                           .data = {0x02, 0x22, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00}};
+                           .data = {0x01, 0x22, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00}};
 
 static uint16_t battery_cell_voltages[96];  //array with all the cellvoltages
 static uint16_t battery_capacity_my17_18 = 0;
