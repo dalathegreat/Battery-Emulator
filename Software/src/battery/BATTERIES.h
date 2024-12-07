@@ -10,6 +10,10 @@
 #include "BMW-IX-BATTERY.h"
 #endif
 
+#ifdef BOLT_AMPERA_BATTERY
+#include "BOLT-AMPERA-BATTERY.h"
+#endif
+
 #ifdef BYD_ATTO_3_BATTERY
 #include "BYD-ATTO-3-BATTERY.h"
 #endif
