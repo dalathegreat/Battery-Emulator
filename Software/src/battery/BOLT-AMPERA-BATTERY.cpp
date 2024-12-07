@@ -18,7 +18,25 @@ CAN_frame BOLT_POLL_7E4 = {.FD = false,
                            .ext_ID = false,
                            .DLC = 8,
                            .ID = 0x7E4,
-                           .data = {0x01, 0x22, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00}};
+                           .data = {0x02, 0x22, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00}};
+CAN_frame BOLT_ACK_7E4 = {.FD = false,
+                          .ext_ID = false,
+                          .DLC = 8,
+                          .ID = 0x7E4,
+                          .data = {0x30, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00}};
+CAN_frame BOLT_POLL_7E7 = {.FD = false,
+                           .ext_ID = false,
+                           .DLC = 8,
+                           .ID = 0x7E7,
+                           .data = {0x02, 0x22, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00}};
+CAN_frame BOLT_ACK_7E7 = {.FD = false,
+                          .ext_ID = false,
+                          .DLC = 8,
+                          .ID = 0x7E7,
+                          .data = {0x30, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00}};
+
+// 7E4 Battery , reply 000007EC
+// 7E7 Battery (Cell voltages), reply 000007EF
 
 static uint16_t battery_cell_voltages[96];  //array with all the cellvoltages
 static uint16_t battery_capacity_my17_18 = 0;
@@ -261,14 +279,12 @@ void receive_can_battery(CAN_frame rx_frame) {
       break;
     case 0x302:
       datalayer.battery.status.CAN_battery_still_alive = CAN_STILL_ALIVE;
-      //302 8 03 5C 5C 5D 5D 5C 5C 1E
-      //Could be temperatures here?
-      temperature_1 = ((rx_frame.data.u8[1] / 2) - 40);
-      temperature_2 = ((rx_frame.data.u8[2] / 2) - 40);
-      temperature_3 = ((rx_frame.data.u8[3] / 2) - 40);
-      temperature_4 = ((rx_frame.data.u8[4] / 2) - 40);
-      temperature_5 = ((rx_frame.data.u8[5] / 2) - 40);
-      temperature_6 = ((rx_frame.data.u8[6] / 2) - 40);
+      temperature_1 = ((rx_frame.data.u8[1] / 2) - 40);  //Module 1 Temperature
+      temperature_2 = ((rx_frame.data.u8[2] / 2) - 40);  //Module 2 Temperature
+      temperature_3 = ((rx_frame.data.u8[3] / 2) - 40);  //Module 3 Temperature
+      temperature_4 = ((rx_frame.data.u8[4] / 2) - 40);  //Module 4 Temperature
+      temperature_5 = ((rx_frame.data.u8[5] / 2) - 40);  //Module 5 Temperature
+      temperature_6 = ((rx_frame.data.u8[6] / 2) - 40);  //Module 6 Temperature
       break;
     case 0x3E3:
       datalayer.battery.status.CAN_battery_still_alive = CAN_STILL_ALIVE;
@@ -279,7 +295,18 @@ void receive_can_battery(CAN_frame rx_frame) {
     case 0x5EF:
       datalayer.battery.status.CAN_battery_still_alive = CAN_STILL_ALIVE;
       break;
-    case 0x7EC:  //TODO: Confirm if this is the reply from BMS when polling
+    case 0x7EC:  //When polling 7E4 BMS replies with 7EC ??
+    case 0x7EF:  //When polling 7E7 BMS replies with 7EF ??
+
+      if (rx_frame.data.u8[0] == 0x10) {  //"PID Header"
+        if (rx_frame.ID == 0x7EC) {
+          transmit_can(&BOLT_ACK_7E4, can_config.battery);
+        }
+        if (rx_frame.ID == 0x7EF) {
+          transmit_can(&BOLT_ACK_7E7, can_config.battery);
+        }
+      }
+
       //Frame 2 & 3 contains reply
       reply_poll = (rx_frame.data.u8[2] << 8) | rx_frame.data.u8[3];
 
@@ -663,7 +690,11 @@ void send_can_battery() {
     BOLT_POLL_7E4.data.u8[2] = (uint8_t)((currentpoll & 0xFF00) >> 8);
     BOLT_POLL_7E4.data.u8[3] = (uint8_t)(currentpoll & 0x00FF);
 
+    BOLT_POLL_7E7.data.u8[2] = (uint8_t)((currentpoll & 0xFF00) >> 8);
+    BOLT_POLL_7E7.data.u8[3] = (uint8_t)(currentpoll & 0x00FF);
+
     transmit_can(&BOLT_POLL_7E4, can_config.battery);
+    transmit_can(&BOLT_POLL_7E7, can_config.battery);
   }
 }
 
