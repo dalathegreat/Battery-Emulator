@@ -7,12 +7,12 @@ typedef struct {
   /** uint16_t */
   /** PID polling parameters */
   uint16_t battery_5V_ref = 0;
-  uint16_t battery_module_temp_1 = 0;
-  uint16_t battery_module_temp_2 = 0;
-  uint16_t battery_module_temp_3 = 0;
-  uint16_t battery_module_temp_4 = 0;
-  uint16_t battery_module_temp_5 = 0;
-  uint16_t battery_module_temp_6 = 0;
+  int16_t battery_module_temp_1 = 0;
+  int16_t battery_module_temp_2 = 0;
+  int16_t battery_module_temp_3 = 0;
+  int16_t battery_module_temp_4 = 0;
+  int16_t battery_module_temp_5 = 0;
+  int16_t battery_module_temp_6 = 0;
   uint16_t battery_cell_average_voltage = 0;
   uint16_t battery_cell_average_voltage_2 = 0;
   uint16_t battery_terminal_voltage = 0;
