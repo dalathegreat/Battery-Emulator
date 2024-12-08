@@ -6,17 +6,18 @@
 /* They can be defined here, or later on in the WebUI */
 /* Most important is to select which CAN interface each component is connected to */
 /* 
-CAN_NATIVE = Native CAN port on the LilyGo & Stark hardware
-CANFD_NATIVE = Native CANFD port on the Stark CMR hardware
+CAN_NATIVE = Native CAN port on the LilyGo, Stark and 3LB hardware
+CANFD_NATIVE = Native CANFD port on the Stark CMR hardware (CAN2 on 3LB)
 CAN_ADDON_MCP2515 = Add-on CAN MCP2515 connected to GPIO pins
 CAN_ADDON_FD_MCP2518 = Add-on CAN-FD MCP2518 connected to GPIO pins
+CANFD_TRIPLE = CAN3 on 3LB hardware
 */
 
 volatile CAN_Configuration can_config = {
-    .battery = CAN_NATIVE,   // Which CAN is your battery connected to?
-    .inverter = CAN_NATIVE,  // Which CAN is your inverter connected to? (No need to configure incase you use RS485)
-    .battery_double = CAN_ADDON_MCP2515,  // (OPTIONAL) Which CAN is your second battery connected to?
-    .charger = CAN_NATIVE                 // (OPTIONAL) Which CAN is your charger connected to?
+    .battery = CAN_NATIVE,     // Which CAN is your battery connected to?
+    .inverter = CANFD_NATIVE,  // Which CAN is your inverter connected to? (No need to configure incase you use RS485)
+    .battery_double = CANFD_TRIPLE,  // (OPTIONAL) Which CAN is your second battery connected to?
+    .charger = CAN_NATIVE            // (OPTIONAL) Which CAN is your charger connected to?
 };
 
 #ifdef WIFI
