@@ -22,6 +22,7 @@
 //#define MEB_BATTERY
 //#define MG_5_BATTERY
 //#define NISSAN_LEAF_BATTERY
+//#define ECMP_BATTERY
 //#define PYLON_BATTERY
 //#define RJXZS_BMS
 //#define RANGE_ROVER_PHEV_BATTERY
