@@ -92,7 +92,6 @@
 
 /* MQTT options */
 // #define MQTT  // Enable this line to enable MQTT
-#define MQTT_SERVER "192.168.xxx.yyy"
 #define MQTT_PORT 1883
 #define MQTT_MANUAL_TOPIC_OBJECT_NAME  // Enable this to use custom MQTT topic, object ID prefix, and device name.    \
                                        // WARNING: If this is not defined, the previous default naming format         \
