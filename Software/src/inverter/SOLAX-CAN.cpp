@@ -64,6 +64,31 @@ CAN_frame SOLAX_1879 = {.FD = false,
                         .DLC = 8,
                         .ID = 0x1879,
                         .data = {0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0}};
+CAN_frame SOLAX_187E = {.FD = false,  //Needed for Ultra
+                        .ext_ID = true,
+                        .DLC = 8,
+                        .ID = 0x187E,
+                        .data = {0x0, 0x2D, 0x0, 0x0, 0x0, 0x5F, 0x0, 0x0}};
+CAN_frame SOLAX_187D = {.FD = false,  //Needed for Ultra
+                        .ext_ID = true,
+                        .DLC = 8,
+                        .ID = 0x187D,
+                        .data = {0x8B, 0x01, 0x0, 0x0, 0x8B, 0x1, 0x0, 0x0}};
+CAN_frame SOLAX_187C = {.FD = false,  //Needed for Ultra
+                        .ext_ID = true,
+                        .DLC = 8,
+                        .ID = 0x187C,
+                        .data = {0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0}};
+CAN_frame SOLAX_187B = {.FD = false,  //Needed for Ultra
+                        .ext_ID = true,
+                        .DLC = 8,
+                        .ID = 0x187B,
+                        .data = {0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0}};
+CAN_frame SOLAX_187A = {.FD = false,  //Needed for Ultra
+                        .ext_ID = true,
+                        .DLC = 8,
+                        .ID = 0x187A,
+                        .data = {0x01, 0x40, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0}};
 CAN_frame SOLAX_1881 = {.FD = false,
                         .ext_ID = true,
                         .DLC = 8,
@@ -256,5 +281,12 @@ void setup_inverter(void) {  // Performs one time setup at startup
   strncpy(datalayer.system.info.inverter_protocol, "SolaX Triple Power LFP over CAN bus", 63);
   datalayer.system.info.inverter_protocol[63] = '\0';
   datalayer.system.status.inverter_allows_contactor_closing = false;  // The inverter needs to allow first
+
+  // Sending these messages once towards the inverter makes SOC% work on the Ultra variant
+  transmit_can(&SOLAX_187E, can_config.inverter);
+  transmit_can(&SOLAX_187D, can_config.inverter);
+  transmit_can(&SOLAX_187C, can_config.inverter);
+  transmit_can(&SOLAX_187B, can_config.inverter);
+  transmit_can(&SOLAX_187A, can_config.inverter);
 }
 #endif
