@@ -1,5 +1,6 @@
 #include "USER_SETTINGS.h"
 #include <string>
+#include "USER_SECRETS.h"
 #include "src/devboard/hal/hal.h"
 
 /* This file contains all the battery settings and limits */
@@ -21,12 +22,12 @@ volatile CAN_Configuration can_config = {
 
 #ifdef WIFI
 
-volatile uint8_t AccessPointEnabled = true;           //Set to either true/false to enable direct wifi access point
-std::string ssid = "REPLACE_WITH_YOUR_SSID";          // Maximum of 63 characters
-std::string password = "REPLACE_WITH_YOUR_PASSWORD";  // Minimum of 8 characters
-const char* ssidAP = "Battery Emulator";  // Maximum of 63 characters, also used for device name on web interface
-const char* passwordAP = "123456789";  // Minimum of 8 characters; set to NULL if you want the access point to be open
-const uint8_t wifi_channel = 0;        // Set to 0 for automatic channel selection
+volatile uint8_t AccessPointEnabled = true;  //Set to either true/false to enable direct wifi access point
+std::string ssid = WIFI_SSID;                // Set in USER_SECRETS.h
+std::string password = WIFI_PASSWORD;        // Set in USER_SECRETS.h
+const char* ssidAP = "Battery Emulator";     // Maximum of 63 characters, also used for device name on web interface
+const char* passwordAP = AP_PASSWORD;        // Set in USER_SECRETS.h
+const uint8_t wifi_channel = 0;              // Set to 0 for automatic channel selection
 
 #ifdef WIFICONFIG
 // Set your Static IP address
@@ -37,14 +38,14 @@ IPAddress gateway(192, 168, 10, 1);
 IPAddress subnet(255, 255, 255, 0);
 #endif
 #ifdef WEBSERVER
-const char* http_username = "admin";  // username to webserver authentication;
-const char* http_password = "admin";  // password to webserver authentication;
+const char* http_username = HTTP_USERNAME;  // Set in USER_SECRETS.h
+const char* http_password = HTTP_PASSWORD;  // Set in USER_SECRETS.h
 
 #endif  // WEBSERVER
 // MQTT
 #ifdef MQTT
-const char* mqtt_user = "REDACTED";      // Set NULL for no username
-const char* mqtt_password = "REDACTED";  // Set NULL for no password
+const char* mqtt_user = MQTT_USER;          // Set in USER_SECRETS.h
+const char* mqtt_password = MQTT_PASSWORD;  // Set in USER_SECRETS.h
 #ifdef MQTT_MANUAL_TOPIC_OBJECT_NAME
 const char* mqtt_topic_name =
     "BE";  // Custom MQTT topic name. Previously, the name was automatically set to "battery-emulator_esp32-XXXXXX"

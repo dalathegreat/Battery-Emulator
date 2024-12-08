@@ -2,6 +2,7 @@
 #include <Arduino.h>
 #include <WiFi.h>
 #include <freertos/FreeRTOS.h>
+#include "../../../USER_SECRETS.h"
 #include "../../../USER_SETTINGS.h"
 #include "../../battery/BATTERIES.h"
 #include "../../datalayer/datalayer.h"
