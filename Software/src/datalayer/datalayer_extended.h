@@ -17,7 +17,26 @@ typedef struct {
   uint16_t battery_cell_average_voltage_2 = 0;
   uint16_t battery_terminal_voltage = 0;
   uint16_t battery_ignition_power_mode = 0;
-  int16_t battery_current = 0;
+  int16_t battery_current_7E7 = 0;
+  uint16_t battery_capacity_my17_18 = 0;
+  uint16_t battery_capacity_my19plus = 0;
+  uint16_t battery_SOC_display = 0;
+  uint16_t battery_SOC_raw_highprec = 0;
+  uint16_t battery_max_temperature = 0;
+  uint16_t battery_min_temperature = 0;
+  uint16_t battery_max_cell_voltage = 0;
+  uint16_t battery_min_cell_voltage = 0;
+  uint16_t battery_lowest_cell = 0;
+  uint16_t battery_highest_cell = 0;
+  uint16_t battery_internal_resistance = 0;
+  uint16_t battery_voltage_polled = 0;
+  uint16_t battery_vehicle_isolation = 0;
+  uint16_t battery_isolation_kohm = 0;
+  uint16_t battery_HV_locked = 0;
+  uint16_t battery_crash_event = 0;
+  uint16_t battery_HVIL = 0;
+  uint16_t battery_HVIL_status = 0;
+  int16_t battery_current_7E4 = 0;
 } DATALAYER_INFO_BOLTAMPERA;
 
 typedef struct {

@@ -35,7 +35,27 @@ String advanced_battery_processor(const String& var) {
     content += "<h4>Terminal voltage: " + String(datalayer_extended.boltampera.battery_terminal_voltage) + "</h4>";
     content +=
         "<h4>Ignition power mode: " + String(datalayer_extended.boltampera.battery_ignition_power_mode) + "</h4>";
-    content += "<h4>Battery current: " + String(datalayer_extended.boltampera.battery_current) + "</h4>";
+    content += "<h4>Battery current (7E7): " + String(datalayer_extended.boltampera.battery_current_7E7) + "</h4>";
+    content += "<h4>Capacity MY17-18: " + String(datalayer_extended.boltampera.battery_capacity_my17_18) + "</h4>";
+    content += "<h4>Capacity MY19+: " + String(datalayer_extended.boltampera.battery_capacity_my19plus) + "</h4>";
+    content += "<h4>SOC Display: " + String(datalayer_extended.boltampera.battery_SOC_display) + "</h4>";
+    content += "<h4>SOC Raw highprec: " + String(datalayer_extended.boltampera.battery_SOC_raw_highprec) + "</h4>";
+    content += "<h4>Max temp: " + String(datalayer_extended.boltampera.battery_max_temperature) + "</h4>";
+    content += "<h4>Min temp: " + String(datalayer_extended.boltampera.battery_min_temperature) + "</h4>";
+    content += "<h4>Cell max mV: " + String(datalayer_extended.boltampera.battery_max_cell_voltage) + "</h4>";
+    content += "<h4>Cell min mV: " + String(datalayer_extended.boltampera.battery_min_cell_voltage) + "</h4>";
+    content += "<h4>Lowest cell: " + String(datalayer_extended.boltampera.battery_lowest_cell) + "</h4>";
+    content += "<h4>Highest cell: " + String(datalayer_extended.boltampera.battery_highest_cell) + "</h4>";
+    content +=
+        "<h4>Internal resistance: " + String(datalayer_extended.boltampera.battery_internal_resistance) + "</h4>";
+    content += "<h4>Voltage: " + String(datalayer_extended.boltampera.battery_voltage_polled) + "</h4>";
+    content += "<h4>Isolation Ohm: " + String(datalayer_extended.boltampera.battery_vehicle_isolation) + "</h4>";
+    content += "<h4>Isolation kOhm: " + String(datalayer_extended.boltampera.battery_isolation_kohm) + "</h4>";
+    content += "<h4>HV locked: " + String(datalayer_extended.boltampera.battery_HV_locked) + "</h4>";
+    content += "<h4>Crash event: " + String(datalayer_extended.boltampera.battery_crash_event) + "</h4>";
+    content += "<h4>HVIL: " + String(datalayer_extended.boltampera.battery_HVIL) + "</h4>";
+    content += "<h4>HVIL status: " + String(datalayer_extended.boltampera.battery_HVIL_status) + "</h4>";
+    content += "<h4>Current (7E4): " + String(datalayer_extended.boltampera.battery_current_7E4) + "</h4>";
 #endif  //BOLT_AMPERA_BATTERY
 
 #ifdef BMW_IX_BATTERY

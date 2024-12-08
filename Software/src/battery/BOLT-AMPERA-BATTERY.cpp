@@ -7,7 +7,8 @@
 
 /* Do not change code below unless you are sure what you are doing */
 static unsigned long previousMillis20ms = 0;   // will store last time a 20ms CAN Message was send
-static unsigned long previousMillis200ms = 0;  // will store last time a 200ms CAN Message was send
+static unsigned long previousMillis100ms = 0;  // will store last time a 100ms CAN Message was send
+static unsigned long previousMillis120ms = 0;  // will store last time a 120ms CAN Message was send
 
 CAN_frame BOLT_778 = {.FD = false,  // Unsure of what this message is, added only as example
                       .ext_ID = false,
@@ -18,7 +19,7 @@ CAN_frame BOLT_POLL_7E4 = {.FD = false,
                            .ext_ID = false,
                            .DLC = 8,
                            .ID = 0x7E4,
-                           .data = {0x02, 0x22, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00}};
+                           .data = {0x03, 0x22, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00}};
 CAN_frame BOLT_ACK_7E4 = {.FD = false,
                           .ext_ID = false,
                           .DLC = 8,
@@ -35,7 +36,7 @@ CAN_frame BOLT_ACK_7E7 = {.FD = false,
                           .ID = 0x7E7,
                           .data = {0x30, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00}};
 
-// 7E4 Battery , reply 000007EC (For some reason does not work)
+// 7E4 Battery , reply 000007EC
 // 7E7 Battery (Cell voltages), reply 000007EF
 
 static uint16_t battery_cell_voltages[96];  //array with all the cellvoltages
@@ -48,9 +49,9 @@ static uint16_t battery_min_temperature = 0;
 static uint16_t battery_min_cell_voltage = 0;
 static uint16_t battery_max_cell_voltage = 0;
 static uint16_t battery_internal_resistance = 0;
-static uint16_t battery_min_voltage = 0;
-static uint16_t battery_max_voltage = 0;
-static uint16_t battery_voltage = 3700;
+static uint16_t battery_lowest_cell = 0;
+static uint16_t battery_highest_cell = 0;
+static uint16_t battery_voltage_polled = 0;
 static uint16_t battery_voltage_periodic = 0;
 static uint16_t battery_vehicle_isolation = 0;
 static uint16_t battery_isolation_kohm = 0;
@@ -59,6 +60,7 @@ static uint16_t battery_crash_event = 0;
 static uint16_t battery_HVIL = 0;
 static uint16_t battery_HVIL_status = 0;
 static uint16_t battery_5V_ref = 0;
+static int16_t battery_current_7E4 = 0;
 static int16_t battery_module_temp_1 = 0;
 static int16_t battery_module_temp_2 = 0;
 static int16_t battery_module_temp_3 = 0;
@@ -69,7 +71,7 @@ static uint16_t battery_cell_average_voltage = 0;
 static uint16_t battery_cell_average_voltage_2 = 0;
 static uint16_t battery_terminal_voltage = 0;
 static uint16_t battery_ignition_power_mode = 0;
-static int16_t battery_current = 0;
+static int16_t battery_current_7E7 = 0;
 static int16_t temperature_1 = 0;
 static int16_t temperature_2 = 0;
 static int16_t temperature_3 = 0;
@@ -79,10 +81,32 @@ static int16_t temperature_6 = 0;
 static int16_t temperature_highest = 0;
 static int16_t temperature_lowest = 0;
 static uint8_t mux = 0;
+static uint8_t poll_index_7E4 = 0;
+static uint16_t currentpoll_7E4 = POLL_7E4_CAPACITY_EST_GEN1;
+static uint16_t reply_poll_7E4 = 0;
+static uint8_t poll_index_7E7 = 0;
+static uint16_t currentpoll_7E7 = POLL_7E7_CURRENT;
+static uint16_t reply_poll_7E7 = 0;
 
-static uint8_t poll_index = 0;
-static uint16_t currentpoll = POLL_7E7_CURRENT;
-static uint16_t reply_poll = 0;
+const uint16_t poll_commands_7E4[19] = {POLL_7E4_CAPACITY_EST_GEN1,
+                                        POLL_7E4_CAPACITY_EST_GEN2,
+                                        POLL_7E4_SOC_DISPLAY,
+                                        POLL_7E4_SOC_RAW_HIGHPREC,
+                                        POLL_7E4_MAX_TEMPERATURE,
+                                        POLL_7E4_MIN_TEMPERATURE,
+                                        POLL_7E4_MIN_CELL_V,
+                                        POLL_7E4_MAX_CELL_V,
+                                        POLL_7E4_INTERNAL_RES,
+                                        POLL_7E4_LOWEST_CELL_NUMBER,
+                                        POLL_7E4_HIGHEST_CELL_NUMBER,
+                                        POLL_7E4_VOLTAGE,
+                                        POLL_7E4_VEHICLE_ISOLATION,
+                                        POLL_7E4_ISOLATION_TEST_KOHM,
+                                        POLL_7E4_HV_LOCKED_OUT,
+                                        POLL_7E4_CRASH_EVENT,
+                                        POLL_7E4_HVIL,
+                                        POLL_7E4_HVIL_STATUS,
+                                        POLL_7E4_CURRENT};
 
 const uint16_t poll_commands_7E7[108] = {POLL_7E7_CURRENT,          POLL_7E7_5V_REF,
                                          POLL_7E7_MODULE_TEMP_1,    POLL_7E7_MODULE_TEMP_2,
@@ -141,12 +165,12 @@ const uint16_t poll_commands_7E7[108] = {POLL_7E7_CURRENT,          POLL_7E7_5V_
 
 void update_values_battery() {  //This function maps all the values fetched via CAN to the battery datalayer
 
-  datalayer.battery.status.real_soc = (battery_SOC_display * 100 / 255);
+  datalayer.battery.status.real_soc = battery_SOC_display;
 
   //datalayer.battery.status.voltage_dV = battery_voltage * 0.52;
   datalayer.battery.status.voltage_dV = (battery_voltage_periodic / 8) * 10;
 
-  datalayer.battery.status.current_dA = battery_current;
+  datalayer.battery.status.current_dA = battery_current_7E7;
 
   datalayer.battery.info.total_capacity_Wh;
 
@@ -194,7 +218,26 @@ void update_values_battery() {  //This function maps all the values fetched via 
   datalayer_extended.boltampera.battery_cell_average_voltage_2 = battery_cell_average_voltage_2;
   datalayer_extended.boltampera.battery_terminal_voltage = battery_terminal_voltage;
   datalayer_extended.boltampera.battery_ignition_power_mode = battery_ignition_power_mode;
-  datalayer_extended.boltampera.battery_current = battery_current;
+  datalayer_extended.boltampera.battery_current_7E7 = battery_current_7E7;
+  datalayer_extended.boltampera.battery_capacity_my17_18 = battery_capacity_my17_18;
+  datalayer_extended.boltampera.battery_capacity_my19plus = battery_capacity_my19plus;
+  datalayer_extended.boltampera.battery_SOC_display = battery_SOC_display;
+  datalayer_extended.boltampera.battery_SOC_raw_highprec = battery_SOC_raw_highprec;
+  datalayer_extended.boltampera.battery_max_temperature = battery_max_temperature;
+  datalayer_extended.boltampera.battery_min_temperature = battery_min_temperature;
+  datalayer_extended.boltampera.battery_min_cell_voltage = battery_min_cell_voltage;
+  datalayer_extended.boltampera.battery_max_cell_voltage = battery_max_cell_voltage;
+  datalayer_extended.boltampera.battery_lowest_cell = battery_lowest_cell;
+  datalayer_extended.boltampera.battery_highest_cell = battery_highest_cell;
+  datalayer_extended.boltampera.battery_internal_resistance = battery_internal_resistance;
+  datalayer_extended.boltampera.battery_voltage_polled = battery_voltage_polled;
+  datalayer_extended.boltampera.battery_vehicle_isolation = battery_vehicle_isolation;
+  datalayer_extended.boltampera.battery_isolation_kohm = battery_isolation_kohm;
+  datalayer_extended.boltampera.battery_HV_locked = battery_HV_locked;
+  datalayer_extended.boltampera.battery_crash_event = battery_crash_event;
+  datalayer_extended.boltampera.battery_HVIL = battery_HVIL;
+  datalayer_extended.boltampera.battery_HVIL_status = battery_HVIL_status;
+  datalayer_extended.boltampera.battery_current_7E4 = battery_current_7E4;
 }
 
 void receive_can_battery(CAN_frame rx_frame) {
@@ -260,6 +303,76 @@ void receive_can_battery(CAN_frame rx_frame) {
       datalayer.battery.status.CAN_battery_still_alive = CAN_STILL_ALIVE;
       break;
     case 0x7EC:  //When polling 7E4 BMS replies with 7EC ??
+
+      if (rx_frame.data.u8[0] == 0x10) {  //"PID Header"
+        transmit_can(&BOLT_ACK_7E4, can_config.battery);
+      }
+
+      //Frame 2 & 3 contains reply
+      reply_poll_7E4 = (rx_frame.data.u8[2] << 8) | rx_frame.data.u8[3];
+
+      switch (reply_poll_7E4) {
+        case POLL_7E4_CAPACITY_EST_GEN1:
+          battery_capacity_my17_18 = ((rx_frame.data.u8[4] << 8) | rx_frame.data.u8[5]);
+          break;
+        case POLL_7E4_CAPACITY_EST_GEN2:
+          battery_capacity_my19plus = ((rx_frame.data.u8[4] << 8) | rx_frame.data.u8[5]);
+          break;
+        case POLL_7E4_SOC_DISPLAY:
+          battery_SOC_display = ((rx_frame.data.u8[4] * 100) / 255);
+          break;
+        case POLL_7E4_SOC_RAW_HIGHPREC:
+          battery_SOC_raw_highprec = ((((rx_frame.data.u8[4] << 8) | rx_frame.data.u8[5]) * 100) / 65535);
+          break;
+        case POLL_7E4_MAX_TEMPERATURE:
+          battery_max_temperature = (rx_frame.data.u8[4] - 40);
+          break;
+        case POLL_7E4_MIN_TEMPERATURE:
+          battery_min_temperature = (rx_frame.data.u8[4] - 40);
+          break;
+        case POLL_7E4_MIN_CELL_V:
+          battery_min_cell_voltage = ((rx_frame.data.u8[4] << 8) | rx_frame.data.u8[5]) / 1666;
+          break;
+        case POLL_7E4_MAX_CELL_V:
+          battery_max_cell_voltage = ((rx_frame.data.u8[4] << 8) | rx_frame.data.u8[5]) / 1666;
+          break;
+        case POLL_7E4_INTERNAL_RES:
+          battery_internal_resistance = ((rx_frame.data.u8[4] << 8) | rx_frame.data.u8[5]) / 2;
+          break;
+        case POLL_7E4_LOWEST_CELL_NUMBER:
+          battery_lowest_cell = rx_frame.data.u8[4];
+          break;
+        case POLL_7E4_HIGHEST_CELL_NUMBER:
+          battery_highest_cell = rx_frame.data.u8[4];
+          break;
+        case POLL_7E4_VOLTAGE:
+          battery_voltage_polled = (((rx_frame.data.u8[4] << 8) | rx_frame.data.u8[5]) * 0.52);
+          break;
+        case POLL_7E4_VEHICLE_ISOLATION:
+          battery_vehicle_isolation = ((rx_frame.data.u8[4] << 8) | rx_frame.data.u8[5]);
+          break;
+        case POLL_7E4_ISOLATION_TEST_KOHM:
+          battery_isolation_kohm = (rx_frame.data.u8[4] * 25);
+          break;
+        case POLL_7E4_HV_LOCKED_OUT:
+          battery_HV_locked = rx_frame.data.u8[4];
+          break;
+        case POLL_7E4_CRASH_EVENT:
+          battery_crash_event = rx_frame.data.u8[4];
+          break;
+        case POLL_7E4_HVIL:
+          battery_HVIL = rx_frame.data.u8[4];
+          break;
+        case POLL_7E4_HVIL_STATUS:
+          battery_HVIL_status = rx_frame.data.u8[4];
+          break;
+        case POLL_7E4_CURRENT:
+          battery_current_7E4 = (((rx_frame.data.u8[4] << 8) | rx_frame.data.u8[5]) / (-6.675));
+          break;
+        default:
+          break;
+      }
+
       break;
     case 0x7EF:  //When polling 7E7 BMS replies with 7EF
 
@@ -268,11 +381,11 @@ void receive_can_battery(CAN_frame rx_frame) {
       }
 
       //Frame 2 & 3 contains reply
-      reply_poll = (rx_frame.data.u8[2] << 8) | rx_frame.data.u8[3];
+      reply_poll_7E7 = (rx_frame.data.u8[2] << 8) | rx_frame.data.u8[3];
 
-      switch (reply_poll) {
+      switch (reply_poll_7E7) {
         case POLL_7E7_CURRENT:
-          battery_current = (rx_frame.data.u8[4] << 8) | rx_frame.data.u8[5];
+          battery_current_7E7 = (rx_frame.data.u8[4] << 8) | rx_frame.data.u8[5];
           break;
         case POLL_7E7_5V_REF:
           battery_5V_ref = ((((rx_frame.data.u8[4] << 8) | rx_frame.data.u8[5]) * 5) / 65535);
@@ -618,18 +731,32 @@ void send_can_battery() {
     transmit_can(&BOLT_778, can_config.battery);
   }
 
-  //Send 200ms message
-  if (currentMillis - previousMillis200ms >= INTERVAL_200_MS) {
-    previousMillis200ms = currentMillis;
+  //Send 100ms message
+  if (currentMillis - previousMillis100ms >= INTERVAL_100_MS) {
+    previousMillis100ms = currentMillis;
 
     // Update current poll from the 7E7 array
-    currentpoll = poll_commands_7E7[poll_index];
-    poll_index = (poll_index + 1) % 108;
+    currentpoll_7E7 = poll_commands_7E7[poll_index_7E7];
+    poll_index_7E7 = (poll_index_7E7 + 1) % 108;
 
-    BOLT_POLL_7E7.data.u8[2] = (uint8_t)((currentpoll & 0xFF00) >> 8);
-    BOLT_POLL_7E7.data.u8[3] = (uint8_t)(currentpoll & 0x00FF);
+    BOLT_POLL_7E7.data.u8[2] = (uint8_t)((currentpoll_7E7 & 0xFF00) >> 8);
+    BOLT_POLL_7E7.data.u8[3] = (uint8_t)(currentpoll_7E7 & 0x00FF);
 
     transmit_can(&BOLT_POLL_7E7, can_config.battery);
+  }
+
+  //Send 120ms message
+  if (currentMillis - previousMillis120ms >= 120) {
+    previousMillis120ms = currentMillis;
+
+    // Update current poll from the 7E4 array
+    currentpoll_7E4 = poll_commands_7E4[poll_index_7E4];
+    poll_index_7E4 = (poll_index_7E4 + 1) % 19;
+
+    BOLT_POLL_7E4.data.u8[2] = (uint8_t)((currentpoll_7E4 & 0xFF00) >> 8);
+    BOLT_POLL_7E4.data.u8[3] = (uint8_t)(currentpoll_7E4 & 0x00FF);
+
+    transmit_can(&BOLT_POLL_7E4, can_config.battery);
   }
 }
 
