@@ -28,14 +28,14 @@ CAN_frame BOLT_POLL_7E7 = {.FD = false,
                            .ext_ID = false,
                            .DLC = 8,
                            .ID = 0x7E7,
-                           .data = {0x02, 0x22, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00}};
+                           .data = {0x03, 0x22, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00}};
 CAN_frame BOLT_ACK_7E7 = {.FD = false,
                           .ext_ID = false,
                           .DLC = 8,
                           .ID = 0x7E7,
                           .data = {0x30, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00}};
 
-// 7E4 Battery , reply 000007EC
+// 7E4 Battery , reply 000007EC (For some reason does not work)
 // 7E7 Battery (Cell voltages), reply 000007EF
 
 static uint16_t battery_cell_voltages[96];  //array with all the cellvoltages
@@ -58,6 +58,17 @@ static uint16_t battery_HV_locked = 0;
 static uint16_t battery_crash_event = 0;
 static uint16_t battery_HVIL = 0;
 static uint16_t battery_HVIL_status = 0;
+static uint16_t battery_5V_ref = 0;
+static uint16_t battery_module_temp_1 = 0;
+static uint16_t battery_module_temp_2 = 0;
+static uint16_t battery_module_temp_3 = 0;
+static uint16_t battery_module_temp_4 = 0;
+static uint16_t battery_module_temp_5 = 0;
+static uint16_t battery_module_temp_6 = 0;
+static uint16_t battery_cell_average_voltage = 0;
+static uint16_t battery_cell_average_voltage_2 = 0;
+static uint16_t battery_terminal_voltage = 0;
+static uint16_t battery_ignition_power_mode = 0;
 static int16_t battery_current = 0;
 static int16_t temperature_1 = 0;
 static int16_t temperature_2 = 0;
@@ -70,124 +81,63 @@ static int16_t temperature_lowest = 0;
 static uint8_t mux = 0;
 
 static uint8_t poll_index = 0;
-static uint16_t currentpoll = POLL_CAPACITY_EST_GEN1;
+static uint16_t currentpoll = POLL_7E7_CURRENT;
 static uint16_t reply_poll = 0;
 
-const uint16_t poll_commands[115] = {POLL_CAPACITY_EST_GEN1,
-                                     POLL_CAPACITY_EST_GEN2,
-                                     POLL_SOC_DISPLAY,
-                                     POLL_SOC_RAW_HIGHPREC,
-                                     POLL_MAX_TEMPERATURE,
-                                     POLL_MIN_TEMPERATURE,
-                                     POLL_MIN_CELL_V,
-                                     POLL_MAX_CELL_V,
-                                     POLL_INTERNAL_RES,
-                                     POLL_MIN_BATT_V,
-                                     POLL_MAX_BATT_V,
-                                     POLL_VOLTAGE,
-                                     POLL_VEHICLE_ISOLATION,
-                                     POLL_ISOLATION_TEST_KOHM,
-                                     POLL_HV_LOCKED_OUT,
-                                     POLL_CRASH_EVENT,
-                                     POLL_HVIL,
-                                     POLL_HVIL_STATUS,
-                                     POLL_CURRENT,
-                                     POLL_CELL_01,
-                                     POLL_CELL_02,
-                                     POLL_CELL_03,
-                                     POLL_CELL_04,
-                                     POLL_CELL_05,
-                                     POLL_CELL_06,
-                                     POLL_CELL_07,
-                                     POLL_CELL_08,
-                                     POLL_CELL_09,
-                                     POLL_CELL_10,
-                                     POLL_CELL_11,
-                                     POLL_CELL_12,
-                                     POLL_CELL_13,
-                                     POLL_CELL_14,
-                                     POLL_CELL_15,
-                                     POLL_CELL_16,
-                                     POLL_CELL_17,
-                                     POLL_CELL_18,
-                                     POLL_CELL_19,
-                                     POLL_CELL_20,
-                                     POLL_CELL_21,
-                                     POLL_CELL_22,
-                                     POLL_CELL_23,
-                                     POLL_CELL_24,
-                                     POLL_CELL_25,
-                                     POLL_CELL_26,
-                                     POLL_CELL_27,
-                                     POLL_CELL_28,
-                                     POLL_CELL_29,
-                                     POLL_CELL_30,
-                                     POLL_CELL_31,
-                                     POLL_CELL_32,
-                                     POLL_CELL_33,
-                                     POLL_CELL_34,
-                                     POLL_CELL_35,
-                                     POLL_CELL_36,
-                                     POLL_CELL_37,
-                                     POLL_CELL_38,
-                                     POLL_CELL_39,
-                                     POLL_CELL_40,
-                                     POLL_CELL_41,
-                                     POLL_CELL_42,
-                                     POLL_CELL_43,
-                                     POLL_CELL_44,
-                                     POLL_CELL_45,
-                                     POLL_CELL_46,
-                                     POLL_CELL_47,
-                                     POLL_CELL_48,
-                                     POLL_CELL_49,
-                                     POLL_CELL_50,
-                                     POLL_CELL_51,
-                                     POLL_CELL_52,
-                                     POLL_CELL_53,
-                                     POLL_CELL_54,
-                                     POLL_CELL_55,
-                                     POLL_CELL_56,
-                                     POLL_CELL_57,
-                                     POLL_CELL_58,
-                                     POLL_CELL_59,
-                                     POLL_CELL_60,
-                                     POLL_CELL_61,
-                                     POLL_CELL_62,
-                                     POLL_CELL_63,
-                                     POLL_CELL_64,
-                                     POLL_CELL_65,
-                                     POLL_CELL_66,
-                                     POLL_CELL_67,
-                                     POLL_CELL_68,
-                                     POLL_CELL_69,
-                                     POLL_CELL_70,
-                                     POLL_CELL_71,
-                                     POLL_CELL_72,
-                                     POLL_CELL_73,
-                                     POLL_CELL_74,
-                                     POLL_CELL_75,
-                                     POLL_CELL_76,
-                                     POLL_CELL_77,
-                                     POLL_CELL_78,
-                                     POLL_CELL_79,
-                                     POLL_CELL_80,
-                                     POLL_CELL_81,
-                                     POLL_CELL_82,
-                                     POLL_CELL_83,
-                                     POLL_CELL_84,
-                                     POLL_CELL_85,
-                                     POLL_CELL_86,
-                                     POLL_CELL_87,
-                                     POLL_CELL_88,
-                                     POLL_CELL_89,
-                                     POLL_CELL_90,
-                                     POLL_CELL_91,
-                                     POLL_CELL_92,
-                                     POLL_CELL_93,
-                                     POLL_CELL_94,
-                                     POLL_CELL_95,
-                                     POLL_CELL_96};
+const uint16_t poll_commands_7E7[108] = {POLL_7E7_CURRENT,          POLL_7E7_5V_REF,
+                                         POLL_7E7_MODULE_TEMP_1,    POLL_7E7_MODULE_TEMP_2,
+                                         POLL_7E7_MODULE_TEMP_3,    POLL_7E7_MODULE_TEMP_4,
+                                         POLL_7E7_MODULE_TEMP_5,    POLL_7E7_MODULE_TEMP_6,
+                                         POLL_7E7_CELL_AVG_VOLTAGE, POLL_7E7_CELL_AVG_VOLTAGE_2,
+                                         POLL_7E7_TERMINAL_VOLTAGE, POLL_7E7_IGNITION_POWER_MODE,
+                                         POLL_7E7_CELL_01,          POLL_7E7_CELL_02,
+                                         POLL_7E7_CELL_03,          POLL_7E7_CELL_04,
+                                         POLL_7E7_CELL_05,          POLL_7E7_CELL_06,
+                                         POLL_7E7_CELL_07,          POLL_7E7_CELL_08,
+                                         POLL_7E7_CELL_09,          POLL_7E7_CELL_10,
+                                         POLL_7E7_CELL_11,          POLL_7E7_CELL_12,
+                                         POLL_7E7_CELL_13,          POLL_7E7_CELL_14,
+                                         POLL_7E7_CELL_15,          POLL_7E7_CELL_16,
+                                         POLL_7E7_CELL_17,          POLL_7E7_CELL_18,
+                                         POLL_7E7_CELL_19,          POLL_7E7_CELL_20,
+                                         POLL_7E7_CELL_21,          POLL_7E7_CELL_22,
+                                         POLL_7E7_CELL_23,          POLL_7E7_CELL_24,
+                                         POLL_7E7_CELL_25,          POLL_7E7_CELL_26,
+                                         POLL_7E7_CELL_27,          POLL_7E7_CELL_28,
+                                         POLL_7E7_CELL_29,          POLL_7E7_CELL_30,
+                                         POLL_7E7_CELL_31,          POLL_7E7_CELL_32,
+                                         POLL_7E7_CELL_33,          POLL_7E7_CELL_34,
+                                         POLL_7E7_CELL_35,          POLL_7E7_CELL_36,
+                                         POLL_7E7_CELL_37,          POLL_7E7_CELL_38,
+                                         POLL_7E7_CELL_39,          POLL_7E7_CELL_40,
+                                         POLL_7E7_CELL_41,          POLL_7E7_CELL_42,
+                                         POLL_7E7_CELL_43,          POLL_7E7_CELL_44,
+                                         POLL_7E7_CELL_45,          POLL_7E7_CELL_46,
+                                         POLL_7E7_CELL_47,          POLL_7E7_CELL_48,
+                                         POLL_7E7_CELL_49,          POLL_7E7_CELL_50,
+                                         POLL_7E7_CELL_51,          POLL_7E7_CELL_52,
+                                         POLL_7E7_CELL_53,          POLL_7E7_CELL_54,
+                                         POLL_7E7_CELL_55,          POLL_7E7_CELL_56,
+                                         POLL_7E7_CELL_57,          POLL_7E7_CELL_58,
+                                         POLL_7E7_CELL_59,          POLL_7E7_CELL_60,
+                                         POLL_7E7_CELL_61,          POLL_7E7_CELL_62,
+                                         POLL_7E7_CELL_63,          POLL_7E7_CELL_64,
+                                         POLL_7E7_CELL_65,          POLL_7E7_CELL_66,
+                                         POLL_7E7_CELL_67,          POLL_7E7_CELL_68,
+                                         POLL_7E7_CELL_69,          POLL_7E7_CELL_70,
+                                         POLL_7E7_CELL_71,          POLL_7E7_CELL_72,
+                                         POLL_7E7_CELL_73,          POLL_7E7_CELL_74,
+                                         POLL_7E7_CELL_75,          POLL_7E7_CELL_76,
+                                         POLL_7E7_CELL_77,          POLL_7E7_CELL_78,
+                                         POLL_7E7_CELL_79,          POLL_7E7_CELL_80,
+                                         POLL_7E7_CELL_81,          POLL_7E7_CELL_82,
+                                         POLL_7E7_CELL_83,          POLL_7E7_CELL_84,
+                                         POLL_7E7_CELL_85,          POLL_7E7_CELL_86,
+                                         POLL_7E7_CELL_87,          POLL_7E7_CELL_88,
+                                         POLL_7E7_CELL_89,          POLL_7E7_CELL_90,
+                                         POLL_7E7_CELL_91,          POLL_7E7_CELL_92,
+                                         POLL_7E7_CELL_93,          POLL_7E7_CELL_94,
+                                         POLL_7E7_CELL_95,          POLL_7E7_CELL_96};
 
 void update_values_battery() {  //This function maps all the values fetched via CAN to the battery datalayer
 
@@ -196,7 +146,7 @@ void update_values_battery() {  //This function maps all the values fetched via 
   //datalayer.battery.status.voltage_dV = battery_voltage * 0.52;
   datalayer.battery.status.voltage_dV = (battery_voltage_periodic / 8) * 10;
 
-  datalayer.battery.status.current_dA = battery_current / -6.675;
+  datalayer.battery.status.current_dA = (battery_current / 20) - 400;
 
   datalayer.battery.info.total_capacity_Wh;
 
@@ -231,6 +181,20 @@ void update_values_battery() {  //This function maps all the values fetched via 
 
   //Map all cell voltages to the global array
   memcpy(datalayer.battery.status.cell_voltages_mV, battery_cell_voltages, 96 * sizeof(uint16_t));
+
+  // Update webserver datalayer
+  datalayer_extended.boltampera.battery_5V_ref = battery_5V_ref;
+  datalayer_extended.boltampera.battery_module_temp_1 = battery_module_temp_1;
+  datalayer_extended.boltampera.battery_module_temp_2 = battery_module_temp_2;
+  datalayer_extended.boltampera.battery_module_temp_3 = battery_module_temp_3;
+  datalayer_extended.boltampera.battery_module_temp_4 = battery_module_temp_4;
+  datalayer_extended.boltampera.battery_module_temp_5 = battery_module_temp_5;
+  datalayer_extended.boltampera.battery_module_temp_6 = battery_module_temp_6;
+  datalayer_extended.boltampera.battery_cell_average_voltage = battery_cell_average_voltage;
+  datalayer_extended.boltampera.battery_cell_average_voltage_2 = battery_cell_average_voltage_2;
+  datalayer_extended.boltampera.battery_terminal_voltage = battery_terminal_voltage;
+  datalayer_extended.boltampera.battery_ignition_power_mode = battery_ignition_power_mode;
+  datalayer_extended.boltampera.battery_current = battery_current;
 }
 
 void receive_can_battery(CAN_frame rx_frame) {
@@ -296,364 +260,339 @@ void receive_can_battery(CAN_frame rx_frame) {
       datalayer.battery.status.CAN_battery_still_alive = CAN_STILL_ALIVE;
       break;
     case 0x7EC:  //When polling 7E4 BMS replies with 7EC ??
-    case 0x7EF:  //When polling 7E7 BMS replies with 7EF ??
+      break;
+    case 0x7EF:  //When polling 7E7 BMS replies with 7EF
 
       if (rx_frame.data.u8[0] == 0x10) {  //"PID Header"
-        if (rx_frame.ID == 0x7EC) {
-          transmit_can(&BOLT_ACK_7E4, can_config.battery);
-        }
-        if (rx_frame.ID == 0x7EF) {
-          transmit_can(&BOLT_ACK_7E7, can_config.battery);
-        }
+        transmit_can(&BOLT_ACK_7E7, can_config.battery);
       }
 
       //Frame 2 & 3 contains reply
       reply_poll = (rx_frame.data.u8[2] << 8) | rx_frame.data.u8[3];
 
       switch (reply_poll) {
-        case POLL_CAPACITY_EST_GEN1:
-          battery_capacity_my17_18 = (rx_frame.data.u8[4] << 8) | rx_frame.data.u8[5];
-          break;
-        case POLL_CAPACITY_EST_GEN2:
-          battery_capacity_my19plus = (rx_frame.data.u8[4] << 8) | rx_frame.data.u8[5];
-          break;
-        case POLL_SOC_DISPLAY:
-          battery_SOC_display = (rx_frame.data.u8[4] << 8) | rx_frame.data.u8[5];
-          break;
-        case POLL_SOC_RAW_HIGHPREC:
-          battery_SOC_raw_highprec = (rx_frame.data.u8[4] << 8) | rx_frame.data.u8[5];
-          break;
-        case POLL_MAX_TEMPERATURE:
-          battery_max_temperature = (rx_frame.data.u8[4] << 8) | rx_frame.data.u8[5];
-          break;
-        case POLL_MIN_TEMPERATURE:
-          battery_min_temperature = (rx_frame.data.u8[4] << 8) | rx_frame.data.u8[5];
-          break;
-        case POLL_MIN_CELL_V:
-          battery_min_cell_voltage = (rx_frame.data.u8[4] << 8) | rx_frame.data.u8[5];
-          break;
-        case POLL_MAX_CELL_V:
-          battery_max_cell_voltage = (rx_frame.data.u8[4] << 8) | rx_frame.data.u8[5];
-          break;
-        case POLL_INTERNAL_RES:
-          battery_internal_resistance = (rx_frame.data.u8[4] << 8) | rx_frame.data.u8[5];
-          break;
-        case POLL_MIN_BATT_V:
-          battery_min_voltage = (rx_frame.data.u8[4] << 8) | rx_frame.data.u8[5];
-          break;
-        case POLL_MAX_BATT_V:
-          battery_max_voltage = (rx_frame.data.u8[4] << 8) | rx_frame.data.u8[5];
-          break;
-        case POLL_VOLTAGE:
-          battery_voltage = (rx_frame.data.u8[4] << 8) | rx_frame.data.u8[5];
-          break;
-        case POLL_VEHICLE_ISOLATION:
-          battery_vehicle_isolation = (rx_frame.data.u8[4] << 8) | rx_frame.data.u8[5];
-          break;
-        case POLL_ISOLATION_TEST_KOHM:
-          battery_isolation_kohm = (rx_frame.data.u8[4] << 8) | rx_frame.data.u8[5];
-          break;
-        case POLL_HV_LOCKED_OUT:
-          battery_HV_locked = (rx_frame.data.u8[4] << 8) | rx_frame.data.u8[5];
-          break;
-        case POLL_CRASH_EVENT:
-          battery_crash_event = (rx_frame.data.u8[4] << 8) | rx_frame.data.u8[5];
-          break;
-        case POLL_HVIL:
-          battery_HVIL = (rx_frame.data.u8[4] << 8) | rx_frame.data.u8[5];
-          break;
-        case POLL_HVIL_STATUS:
-          battery_HVIL_status = (rx_frame.data.u8[4] << 8) | rx_frame.data.u8[5];
-          break;
-        case POLL_CURRENT:
+        case POLL_7E7_CURRENT:
           battery_current = (rx_frame.data.u8[4] << 8) | rx_frame.data.u8[5];
           break;
-        case POLL_CELL_01:
+        case POLL_7E7_5V_REF:
+          battery_5V_ref = (rx_frame.data.u8[4] << 8) | rx_frame.data.u8[5];
+          break;
+        case POLL_7E7_MODULE_TEMP_1:
+          battery_module_temp_1 = (rx_frame.data.u8[4] << 8) | rx_frame.data.u8[5];
+          break;
+        case POLL_7E7_MODULE_TEMP_2:
+          battery_module_temp_2 = (rx_frame.data.u8[4] << 8) | rx_frame.data.u8[5];
+          break;
+        case POLL_7E7_MODULE_TEMP_3:
+          battery_module_temp_3 = (rx_frame.data.u8[4] << 8) | rx_frame.data.u8[5];
+          break;
+        case POLL_7E7_MODULE_TEMP_4:
+          battery_module_temp_4 = (rx_frame.data.u8[4] << 8) | rx_frame.data.u8[5];
+          break;
+        case POLL_7E7_MODULE_TEMP_5:
+          battery_module_temp_5 = (rx_frame.data.u8[4] << 8) | rx_frame.data.u8[5];
+          break;
+        case POLL_7E7_MODULE_TEMP_6:
+          battery_module_temp_6 = (rx_frame.data.u8[4] << 8) | rx_frame.data.u8[5];
+          break;
+        case POLL_7E7_CELL_AVG_VOLTAGE:
+          battery_cell_average_voltage = (rx_frame.data.u8[4] << 8) | rx_frame.data.u8[5];
+          break;
+        case POLL_7E7_CELL_AVG_VOLTAGE_2:
+          battery_cell_average_voltage_2 = (rx_frame.data.u8[4] << 8) | rx_frame.data.u8[5];
+          break;
+        case POLL_7E7_TERMINAL_VOLTAGE:
+          battery_terminal_voltage = (rx_frame.data.u8[4] << 8) | rx_frame.data.u8[5];
+          break;
+        case POLL_7E7_IGNITION_POWER_MODE:
+          battery_ignition_power_mode = (rx_frame.data.u8[4] << 8) | rx_frame.data.u8[5];
+          break;
+        case POLL_7E7_CELL_01:
           battery_cell_voltages[0] = (rx_frame.data.u8[4] << 8) | rx_frame.data.u8[5];
           break;
-        case POLL_CELL_02:
+        case POLL_7E7_CELL_02:
           battery_cell_voltages[1] = (rx_frame.data.u8[4] << 8) | rx_frame.data.u8[5];
           break;
-        case POLL_CELL_03:
+        case POLL_7E7_CELL_03:
           battery_cell_voltages[2] = (rx_frame.data.u8[4] << 8) | rx_frame.data.u8[5];
           break;
-        case POLL_CELL_04:
+        case POLL_7E7_CELL_04:
           battery_cell_voltages[3] = (rx_frame.data.u8[4] << 8) | rx_frame.data.u8[5];
           break;
-        case POLL_CELL_05:
+        case POLL_7E7_CELL_05:
           battery_cell_voltages[4] = (rx_frame.data.u8[4] << 8) | rx_frame.data.u8[5];
           break;
-        case POLL_CELL_06:
+        case POLL_7E7_CELL_06:
           battery_cell_voltages[5] = (rx_frame.data.u8[4] << 8) | rx_frame.data.u8[5];
           break;
-        case POLL_CELL_07:
+        case POLL_7E7_CELL_07:
           battery_cell_voltages[6] = (rx_frame.data.u8[4] << 8) | rx_frame.data.u8[5];
           break;
-        case POLL_CELL_08:
+        case POLL_7E7_CELL_08:
           battery_cell_voltages[7] = (rx_frame.data.u8[4] << 8) | rx_frame.data.u8[5];
           break;
-        case POLL_CELL_09:
+        case POLL_7E7_CELL_09:
           battery_cell_voltages[8] = (rx_frame.data.u8[4] << 8) | rx_frame.data.u8[5];
           break;
-        case POLL_CELL_10:
+        case POLL_7E7_CELL_10:
           battery_cell_voltages[9] = (rx_frame.data.u8[4] << 8) | rx_frame.data.u8[5];
           break;
-        case POLL_CELL_11:
+        case POLL_7E7_CELL_11:
           battery_cell_voltages[10] = (rx_frame.data.u8[4] << 8) | rx_frame.data.u8[5];
           break;
-        case POLL_CELL_12:
+        case POLL_7E7_CELL_12:
           battery_cell_voltages[11] = (rx_frame.data.u8[4] << 8) | rx_frame.data.u8[5];
           break;
-        case POLL_CELL_13:
+        case POLL_7E7_CELL_13:
           battery_cell_voltages[12] = (rx_frame.data.u8[4] << 8) | rx_frame.data.u8[5];
           break;
-        case POLL_CELL_14:
+        case POLL_7E7_CELL_14:
           battery_cell_voltages[13] = (rx_frame.data.u8[4] << 8) | rx_frame.data.u8[5];
           break;
-        case POLL_CELL_15:
+        case POLL_7E7_CELL_15:
           battery_cell_voltages[14] = (rx_frame.data.u8[4] << 8) | rx_frame.data.u8[5];
           break;
-        case POLL_CELL_16:
+        case POLL_7E7_CELL_16:
           battery_cell_voltages[15] = (rx_frame.data.u8[4] << 8) | rx_frame.data.u8[5];
           break;
-        case POLL_CELL_17:
+        case POLL_7E7_CELL_17:
           battery_cell_voltages[16] = (rx_frame.data.u8[4] << 8) | rx_frame.data.u8[5];
           break;
-        case POLL_CELL_18:
+        case POLL_7E7_CELL_18:
           battery_cell_voltages[17] = (rx_frame.data.u8[4] << 8) | rx_frame.data.u8[5];
           break;
-        case POLL_CELL_19:
+        case POLL_7E7_CELL_19:
           battery_cell_voltages[18] = (rx_frame.data.u8[4] << 8) | rx_frame.data.u8[5];
           break;
-        case POLL_CELL_20:
+        case POLL_7E7_CELL_20:
           battery_cell_voltages[19] = (rx_frame.data.u8[4] << 8) | rx_frame.data.u8[5];
           break;
-        case POLL_CELL_21:
+        case POLL_7E7_CELL_21:
           battery_cell_voltages[20] = (rx_frame.data.u8[4] << 8) | rx_frame.data.u8[5];
           break;
-        case POLL_CELL_22:
+        case POLL_7E7_CELL_22:
           battery_cell_voltages[21] = (rx_frame.data.u8[4] << 8) | rx_frame.data.u8[5];
           break;
-        case POLL_CELL_23:
+        case POLL_7E7_CELL_23:
           battery_cell_voltages[22] = (rx_frame.data.u8[4] << 8) | rx_frame.data.u8[5];
           break;
-        case POLL_CELL_24:
+        case POLL_7E7_CELL_24:
           battery_cell_voltages[23] = (rx_frame.data.u8[4] << 8) | rx_frame.data.u8[5];
           break;
-        case POLL_CELL_25:
+        case POLL_7E7_CELL_25:
           battery_cell_voltages[24] = (rx_frame.data.u8[4] << 8) | rx_frame.data.u8[5];
           break;
-        case POLL_CELL_26:
+        case POLL_7E7_CELL_26:
           battery_cell_voltages[25] = (rx_frame.data.u8[4] << 8) | rx_frame.data.u8[5];
           break;
-        case POLL_CELL_27:
+        case POLL_7E7_CELL_27:
           battery_cell_voltages[26] = (rx_frame.data.u8[4] << 8) | rx_frame.data.u8[5];
           break;
-        case POLL_CELL_28:
+        case POLL_7E7_CELL_28:
           battery_cell_voltages[27] = (rx_frame.data.u8[4] << 8) | rx_frame.data.u8[5];
           break;
-        case POLL_CELL_29:
+        case POLL_7E7_CELL_29:
           battery_cell_voltages[28] = (rx_frame.data.u8[4] << 8) | rx_frame.data.u8[5];
           break;
-        case POLL_CELL_30:
+        case POLL_7E7_CELL_30:
           battery_cell_voltages[29] = (rx_frame.data.u8[4] << 8) | rx_frame.data.u8[5];
           break;
-        case POLL_CELL_31:
+        case POLL_7E7_CELL_31:
           battery_cell_voltages[30] = (rx_frame.data.u8[4] << 8) | rx_frame.data.u8[5];
           break;
-        case POLL_CELL_32:
+        case POLL_7E7_CELL_32:
           battery_cell_voltages[31] = (rx_frame.data.u8[4] << 8) | rx_frame.data.u8[5];
           break;
-        case POLL_CELL_33:
+        case POLL_7E7_CELL_33:
           battery_cell_voltages[32] = (rx_frame.data.u8[4] << 8) | rx_frame.data.u8[5];
           break;
-        case POLL_CELL_34:
+        case POLL_7E7_CELL_34:
           battery_cell_voltages[33] = (rx_frame.data.u8[4] << 8) | rx_frame.data.u8[5];
           break;
-        case POLL_CELL_35:
+        case POLL_7E7_CELL_35:
           battery_cell_voltages[34] = (rx_frame.data.u8[4] << 8) | rx_frame.data.u8[5];
           break;
-        case POLL_CELL_36:
+        case POLL_7E7_CELL_36:
           battery_cell_voltages[35] = (rx_frame.data.u8[4] << 8) | rx_frame.data.u8[5];
           break;
-        case POLL_CELL_37:
+        case POLL_7E7_CELL_37:
           battery_cell_voltages[36] = (rx_frame.data.u8[4] << 8) | rx_frame.data.u8[5];
           break;
-        case POLL_CELL_38:
+        case POLL_7E7_CELL_38:
           battery_cell_voltages[37] = (rx_frame.data.u8[4] << 8) | rx_frame.data.u8[5];
           break;
-        case POLL_CELL_39:
+        case POLL_7E7_CELL_39:
           battery_cell_voltages[38] = (rx_frame.data.u8[4] << 8) | rx_frame.data.u8[5];
           break;
-        case POLL_CELL_40:
+        case POLL_7E7_CELL_40:
           battery_cell_voltages[39] = (rx_frame.data.u8[4] << 8) | rx_frame.data.u8[5];
           break;
-        case POLL_CELL_41:
+        case POLL_7E7_CELL_41:
           battery_cell_voltages[40] = (rx_frame.data.u8[4] << 8) | rx_frame.data.u8[5];
           break;
-        case POLL_CELL_42:
+        case POLL_7E7_CELL_42:
           battery_cell_voltages[41] = (rx_frame.data.u8[4] << 8) | rx_frame.data.u8[5];
           break;
-        case POLL_CELL_43:
+        case POLL_7E7_CELL_43:
           battery_cell_voltages[42] = (rx_frame.data.u8[4] << 8) | rx_frame.data.u8[5];
           break;
-        case POLL_CELL_44:
+        case POLL_7E7_CELL_44:
           battery_cell_voltages[43] = (rx_frame.data.u8[4] << 8) | rx_frame.data.u8[5];
           break;
-        case POLL_CELL_45:
+        case POLL_7E7_CELL_45:
           battery_cell_voltages[44] = (rx_frame.data.u8[4] << 8) | rx_frame.data.u8[5];
           break;
-        case POLL_CELL_46:
+        case POLL_7E7_CELL_46:
           battery_cell_voltages[45] = (rx_frame.data.u8[4] << 8) | rx_frame.data.u8[5];
           break;
-        case POLL_CELL_47:
+        case POLL_7E7_CELL_47:
           battery_cell_voltages[46] = (rx_frame.data.u8[4] << 8) | rx_frame.data.u8[5];
           break;
-        case POLL_CELL_48:
+        case POLL_7E7_CELL_48:
           battery_cell_voltages[47] = (rx_frame.data.u8[4] << 8) | rx_frame.data.u8[5];
           break;
-        case POLL_CELL_49:
+        case POLL_7E7_CELL_49:
           battery_cell_voltages[48] = (rx_frame.data.u8[4] << 8) | rx_frame.data.u8[5];
           break;
-        case POLL_CELL_50:
+        case POLL_7E7_CELL_50:
           battery_cell_voltages[49] = (rx_frame.data.u8[4] << 8) | rx_frame.data.u8[5];
           break;
-        case POLL_CELL_51:
+        case POLL_7E7_CELL_51:
           battery_cell_voltages[50] = (rx_frame.data.u8[4] << 8) | rx_frame.data.u8[5];
           break;
-        case POLL_CELL_52:
+        case POLL_7E7_CELL_52:
           battery_cell_voltages[51] = (rx_frame.data.u8[4] << 8) | rx_frame.data.u8[5];
           break;
-        case POLL_CELL_53:
+        case POLL_7E7_CELL_53:
           battery_cell_voltages[52] = (rx_frame.data.u8[4] << 8) | rx_frame.data.u8[5];
           break;
-        case POLL_CELL_54:
+        case POLL_7E7_CELL_54:
           battery_cell_voltages[53] = (rx_frame.data.u8[4] << 8) | rx_frame.data.u8[5];
           break;
-        case POLL_CELL_55:
+        case POLL_7E7_CELL_55:
           battery_cell_voltages[54] = (rx_frame.data.u8[4] << 8) | rx_frame.data.u8[5];
           break;
-        case POLL_CELL_56:
+        case POLL_7E7_CELL_56:
           battery_cell_voltages[55] = (rx_frame.data.u8[4] << 8) | rx_frame.data.u8[5];
           break;
-        case POLL_CELL_57:
+        case POLL_7E7_CELL_57:
           battery_cell_voltages[56] = (rx_frame.data.u8[4] << 8) | rx_frame.data.u8[5];
           break;
-        case POLL_CELL_58:
+        case POLL_7E7_CELL_58:
           battery_cell_voltages[57] = (rx_frame.data.u8[4] << 8) | rx_frame.data.u8[5];
           break;
-        case POLL_CELL_59:
+        case POLL_7E7_CELL_59:
           battery_cell_voltages[58] = (rx_frame.data.u8[4] << 8) | rx_frame.data.u8[5];
           break;
-        case POLL_CELL_60:
+        case POLL_7E7_CELL_60:
           battery_cell_voltages[59] = (rx_frame.data.u8[4] << 8) | rx_frame.data.u8[5];
           break;
-        case POLL_CELL_61:
+        case POLL_7E7_CELL_61:
           battery_cell_voltages[60] = (rx_frame.data.u8[4] << 8) | rx_frame.data.u8[5];
           break;
-        case POLL_CELL_62:
+        case POLL_7E7_CELL_62:
           battery_cell_voltages[61] = (rx_frame.data.u8[4] << 8) | rx_frame.data.u8[5];
           break;
-        case POLL_CELL_63:
+        case POLL_7E7_CELL_63:
           battery_cell_voltages[62] = (rx_frame.data.u8[4] << 8) | rx_frame.data.u8[5];
           break;
-        case POLL_CELL_64:
+        case POLL_7E7_CELL_64:
           battery_cell_voltages[63] = (rx_frame.data.u8[4] << 8) | rx_frame.data.u8[5];
           break;
-        case POLL_CELL_65:
+        case POLL_7E7_CELL_65:
           battery_cell_voltages[64] = (rx_frame.data.u8[4] << 8) | rx_frame.data.u8[5];
           break;
-        case POLL_CELL_66:
+        case POLL_7E7_CELL_66:
           battery_cell_voltages[65] = (rx_frame.data.u8[4] << 8) | rx_frame.data.u8[5];
           break;
-        case POLL_CELL_67:
+        case POLL_7E7_CELL_67:
           battery_cell_voltages[66] = (rx_frame.data.u8[4] << 8) | rx_frame.data.u8[5];
           break;
-        case POLL_CELL_68:
+        case POLL_7E7_CELL_68:
           battery_cell_voltages[67] = (rx_frame.data.u8[4] << 8) | rx_frame.data.u8[5];
           break;
-        case POLL_CELL_69:
+        case POLL_7E7_CELL_69:
           battery_cell_voltages[68] = (rx_frame.data.u8[4] << 8) | rx_frame.data.u8[5];
           break;
-        case POLL_CELL_70:
+        case POLL_7E7_CELL_70:
           battery_cell_voltages[69] = (rx_frame.data.u8[4] << 8) | rx_frame.data.u8[5];
           break;
-        case POLL_CELL_71:
+        case POLL_7E7_CELL_71:
           battery_cell_voltages[70] = (rx_frame.data.u8[4] << 8) | rx_frame.data.u8[5];
           break;
-        case POLL_CELL_72:
+        case POLL_7E7_CELL_72:
           battery_cell_voltages[71] = (rx_frame.data.u8[4] << 8) | rx_frame.data.u8[5];
           break;
-        case POLL_CELL_73:
+        case POLL_7E7_CELL_73:
           battery_cell_voltages[72] = (rx_frame.data.u8[4] << 8) | rx_frame.data.u8[5];
           break;
-        case POLL_CELL_74:
+        case POLL_7E7_CELL_74:
           battery_cell_voltages[73] = (rx_frame.data.u8[4] << 8) | rx_frame.data.u8[5];
           break;
-        case POLL_CELL_75:
+        case POLL_7E7_CELL_75:
           battery_cell_voltages[74] = (rx_frame.data.u8[4] << 8) | rx_frame.data.u8[5];
           break;
-        case POLL_CELL_76:
+        case POLL_7E7_CELL_76:
           battery_cell_voltages[75] = (rx_frame.data.u8[4] << 8) | rx_frame.data.u8[5];
           break;
-        case POLL_CELL_77:
+        case POLL_7E7_CELL_77:
           battery_cell_voltages[76] = (rx_frame.data.u8[4] << 8) | rx_frame.data.u8[5];
           break;
-        case POLL_CELL_78:
+        case POLL_7E7_CELL_78:
           battery_cell_voltages[77] = (rx_frame.data.u8[4] << 8) | rx_frame.data.u8[5];
           break;
-        case POLL_CELL_79:
+        case POLL_7E7_CELL_79:
           battery_cell_voltages[78] = (rx_frame.data.u8[4] << 8) | rx_frame.data.u8[5];
           break;
-        case POLL_CELL_80:
+        case POLL_7E7_CELL_80:
           battery_cell_voltages[79] = (rx_frame.data.u8[4] << 8) | rx_frame.data.u8[5];
           break;
-        case POLL_CELL_81:
+        case POLL_7E7_CELL_81:
           battery_cell_voltages[80] = (rx_frame.data.u8[4] << 8) | rx_frame.data.u8[5];
           break;
-        case POLL_CELL_82:
+        case POLL_7E7_CELL_82:
           battery_cell_voltages[81] = (rx_frame.data.u8[4] << 8) | rx_frame.data.u8[5];
           break;
-        case POLL_CELL_83:
+        case POLL_7E7_CELL_83:
           battery_cell_voltages[82] = (rx_frame.data.u8[4] << 8) | rx_frame.data.u8[5];
           break;
-        case POLL_CELL_84:
+        case POLL_7E7_CELL_84:
           battery_cell_voltages[83] = (rx_frame.data.u8[4] << 8) | rx_frame.data.u8[5];
           break;
-        case POLL_CELL_85:
+        case POLL_7E7_CELL_85:
           battery_cell_voltages[84] = (rx_frame.data.u8[4] << 8) | rx_frame.data.u8[5];
           break;
-        case POLL_CELL_86:
+        case POLL_7E7_CELL_86:
           battery_cell_voltages[85] = (rx_frame.data.u8[4] << 8) | rx_frame.data.u8[5];
           break;
-        case POLL_CELL_87:
+        case POLL_7E7_CELL_87:
           battery_cell_voltages[86] = (rx_frame.data.u8[4] << 8) | rx_frame.data.u8[5];
           break;
-        case POLL_CELL_88:
+        case POLL_7E7_CELL_88:
           battery_cell_voltages[87] = (rx_frame.data.u8[4] << 8) | rx_frame.data.u8[5];
           break;
-        case POLL_CELL_89:
+        case POLL_7E7_CELL_89:
           battery_cell_voltages[88] = (rx_frame.data.u8[4] << 8) | rx_frame.data.u8[5];
           break;
-        case POLL_CELL_90:
+        case POLL_7E7_CELL_90:
           battery_cell_voltages[89] = (rx_frame.data.u8[4] << 8) | rx_frame.data.u8[5];
           break;
-        case POLL_CELL_91:
+        case POLL_7E7_CELL_91:
           battery_cell_voltages[90] = (rx_frame.data.u8[4] << 8) | rx_frame.data.u8[5];
           break;
-        case POLL_CELL_92:
+        case POLL_7E7_CELL_92:
           battery_cell_voltages[91] = (rx_frame.data.u8[4] << 8) | rx_frame.data.u8[5];
           break;
-        case POLL_CELL_93:
+        case POLL_7E7_CELL_93:
           battery_cell_voltages[92] = (rx_frame.data.u8[4] << 8) | rx_frame.data.u8[5];
           break;
-        case POLL_CELL_94:
+        case POLL_7E7_CELL_94:
           battery_cell_voltages[93] = (rx_frame.data.u8[4] << 8) | rx_frame.data.u8[5];
           break;
-        case POLL_CELL_95:
+        case POLL_7E7_CELL_95:
           battery_cell_voltages[94] = (rx_frame.data.u8[4] << 8) | rx_frame.data.u8[5];
           break;
-        case POLL_CELL_96:
+        case POLL_7E7_CELL_96:
           battery_cell_voltages[95] = (rx_frame.data.u8[4] << 8) | rx_frame.data.u8[5];
           break;
         default:
@@ -683,17 +622,13 @@ void send_can_battery() {
   if (currentMillis - previousMillis200ms >= INTERVAL_200_MS) {
     previousMillis200ms = currentMillis;
 
-    // Update current poll from the array
-    currentpoll = poll_commands[poll_index];
-    poll_index = (poll_index + 1) % 115;
-
-    BOLT_POLL_7E4.data.u8[2] = (uint8_t)((currentpoll & 0xFF00) >> 8);
-    BOLT_POLL_7E4.data.u8[3] = (uint8_t)(currentpoll & 0x00FF);
+    // Update current poll from the 7E7 array
+    currentpoll = poll_commands_7E7[poll_index];
+    poll_index = (poll_index + 1) % 108;
 
     BOLT_POLL_7E7.data.u8[2] = (uint8_t)((currentpoll & 0xFF00) >> 8);
     BOLT_POLL_7E7.data.u8[3] = (uint8_t)(currentpoll & 0x00FF);
 
-    transmit_can(&BOLT_POLL_7E4, can_config.battery);
     transmit_can(&BOLT_POLL_7E7, can_config.battery);
   }
 }

@@ -20,6 +20,24 @@ String advanced_battery_processor(const String& var) {
     // Start a new block with a specific background color
     content += "<div style='background-color: #303E47; padding: 10px; margin-bottom: 10px;border-radius: 50px'>";
 
+#ifdef BOLT_AMPERA_BATTERY
+    content += "<h4>5V Reference: " + String(datalayer_extended.boltampera.battery_5V_ref) + "</h4>";
+    content += "<h4>Module 1 temp: " + String(datalayer_extended.boltampera.battery_module_temp_1) + "</h4>";
+    content += "<h4>Module 2 temp: " + String(datalayer_extended.boltampera.battery_module_temp_2) + "</h4>";
+    content += "<h4>Module 3 temp: " + String(datalayer_extended.boltampera.battery_module_temp_3) + "</h4>";
+    content += "<h4>Module 4 temp: " + String(datalayer_extended.boltampera.battery_module_temp_4) + "</h4>";
+    content += "<h4>Module 5 temp: " + String(datalayer_extended.boltampera.battery_module_temp_5) + "</h4>";
+    content += "<h4>Module 6 temp: " + String(datalayer_extended.boltampera.battery_module_temp_6) + "</h4>";
+    content +=
+        "<h4>Cell average voltage: " + String(datalayer_extended.boltampera.battery_cell_average_voltage) + "</h4>";
+    content +=
+        "<h4>Cell average voltage 2: " + String(datalayer_extended.boltampera.battery_cell_average_voltage_2) + "</h4>";
+    content += "<h4>Terminal voltage: " + String(datalayer_extended.boltampera.battery_terminal_voltage) + "</h4>";
+    content +=
+        "<h4>Ignition power mode: " + String(datalayer_extended.boltampera.battery_ignition_power_mode) + "</h4>";
+    content += "<h4>Battery current: " + String(datalayer_extended.boltampera.battery_current) + "</h4>";
+#endif  //BOLT_AMPERA_BATTERY
+
 #ifdef BMW_IX_BATTERY
     content +=
         "<h4>Battery Voltage after Contactor: " + String(datalayer_extended.bmwix.battery_voltage_after_contactor) +
@@ -467,8 +485,9 @@ String advanced_battery_processor(const String& var) {
     content += "<h4>soc max: " + String(datalayer_extended.zoePH2.battery_soc_max) + "</h4>";
 #endif  //RENAULT_ZOE_GEN2_BATTERY
 
-#if !defined(TESLA_BATTERY) && !defined(NISSAN_LEAF_BATTERY) && !defined(BMW_I3_BATTERY) && \
-    !defined(BYD_ATTO_3_BATTERY) && !defined(RENAULT_ZOE_GEN2_BATTERY) && !defined(CELLPOWER_BMS)
+#if !defined(BMW_IX_BATTERY) && !defined(BOLT_AMPERA_BATTERY) && !defined(TESLA_BATTERY) &&      \
+    !defined(NISSAN_LEAF_BATTERY) && !defined(BMW_I3_BATTERY) && !defined(BYD_ATTO_3_BATTERY) && \
+    !defined(RENAULT_ZOE_GEN2_BATTERY) && !defined(CELLPOWER_BMS)
     content += "No extra information available for this battery type";
 #endif
 
