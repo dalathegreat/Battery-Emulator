@@ -16,7 +16,8 @@ volatile CAN_Configuration can_config = {
     .battery = CAN_NATIVE,   // Which CAN is your battery connected to?
     .inverter = CAN_NATIVE,  // Which CAN is your inverter connected to? (No need to configure incase you use RS485)
     .battery_double = CAN_ADDON_MCP2515,  // (OPTIONAL) Which CAN is your second battery connected to?
-    .charger = CAN_NATIVE                 // (OPTIONAL) Which CAN is your charger connected to?
+    .charger = CAN_NATIVE,                 // (OPTIONAL) Which CAN is your charger connected to?
+    .shunt = CAN_NATIVE                 // (OPTIONAL) Which CAN is your charger connected to?
 };
 
 #ifdef WIFI
