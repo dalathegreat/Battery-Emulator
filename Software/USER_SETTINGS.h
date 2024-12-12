@@ -58,6 +58,8 @@
 //#define HW_3LB
 
 /* Contactor settings. If you have a battery that does not activate contactors via CAN, configure this section */
+#define PRECHARGE_TIME_MS \
+  500  //Duration of precharge in milliseconds. Modify to account for the resistance and capacitance of the inverter (See wiki for more info)
 //#define CONTACTOR_CONTROL     //Enable this line to have the emulator handle automatic precharge/contactor+/contactor- closing sequence (See wiki for pins)
 //#define CONTACTOR_CONTROL_DOUBLE_BATTERY //Enable this line to have the emulator hardware control secondary set of contactors for double battery setups (See wiki for pins)
 //#define PWM_CONTACTOR_CONTROL //Enable this line to use PWM for CONTACTOR_CONTROL, which lowers power consumption and heat generation. CONTACTOR_CONTROL must be enabled.
