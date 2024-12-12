@@ -40,8 +40,8 @@ jobs:
           - CHADEMO_BATTERY
           - IMIEV_CZERO_ION_BATTERY
           - JAGUAR_IPACE_BATTERY
-          - KIA_HYUNDAI_64_BATTERY
           - KIA_E_GMP_BATTERY
+          - KIA_HYUNDAI_64_BATTERY
           - KIA_HYUNDAI_HYBRID_BATTERY
           - MEB_BATTERY
           - MG_5_BATTERY
@@ -55,6 +55,7 @@ jobs:
           - RENAULT_ZOE_GEN2_BATTERY
           - SANTA_FE_PHEV_BATTERY
           - TESLA_MODEL_3Y_BATTERY
+          - TESLA_MODEL_SX_BATTERY
           - VOLVO_SPA_BATTERY
           - TEST_FAKE_BATTERY
           - SERIAL_LINK_RECEIVER

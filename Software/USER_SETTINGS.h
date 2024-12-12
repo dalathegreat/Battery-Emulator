@@ -16,8 +16,8 @@
 //#define CHADEMO_BATTERY	//NOTE: inherently enables CONTACTOR_CONTROL below
 //#define IMIEV_CZERO_ION_BATTERY
 //#define JAGUAR_IPACE_BATTERY
-//#define KIA_HYUNDAI_64_BATTERY
 //#define KIA_E_GMP_BATTERY
+//#define KIA_HYUNDAI_64_BATTERY
 //#define KIA_HYUNDAI_HYBRID_BATTERY
 //#define MEB_BATTERY
 //#define MG_5_BATTERY
@@ -30,18 +30,18 @@
 //#define RENAULT_ZOE_GEN1_BATTERY
 //#define RENAULT_ZOE_GEN2_BATTERY
 //#define SANTA_FE_PHEV_BATTERY
-//#define TESLA_MODEL_SX_BATTERY
 //#define TESLA_MODEL_3Y_BATTERY
+//#define TESLA_MODEL_SX_BATTERY
 //#define VOLVO_SPA_BATTERY
 //#define TEST_FAKE_BATTERY
 //#define DOUBLE_BATTERY  //Enable this line if you use two identical batteries at the same time (requires DUAL_CAN setup)
 
 /* Select inverter communication protocol. See Wiki for which to use with your inverter: https://github.com/dalathegreat/BYD-Battery-Emulator-For-Gen24/wiki */
-//#define AFORE_CAN //Enable this line to emulate an "Afore battery" over CAN bus
-//#define BYD_CAN  //Enable this line to emulate a "BYD Battery-Box Premium HVS" over CAN Bus
-//#define BYD_SMA //Enable this line to emulate a SMA compatible "BYD Battery-Box HVS 10.2KW battery" over CAN bus
-//#define BYD_MODBUS  //Enable this line to emulate a "BYD 11kWh HVM battery" over Modbus RTU
-//#define BYD_KOSTAL_RS485  //Enable this line to emulate a "BYD 11kWh HVM battery" over Kostal RS485
+//#define AFORE_CAN        //Enable this line to emulate an "Afore battery" over CAN bus
+//#define BYD_CAN          //Enable this line to emulate a "BYD Battery-Box Premium HVS" over CAN Bus
+//#define BYD_KOSTAL_RS485 //Enable this line to emulate a "BYD 11kWh HVM battery" over Kostal RS485
+//#define BYD_MODBUS       //Enable this line to emulate a "BYD 11kWh HVM battery" over Modbus RTU
+//#define BYD_SMA          //Enable this line to emulate a SMA compatible "BYD Battery-Box HVS 10.2KW battery" over CAN bus
 //#define FOXESS_CAN       //Enable this line to emulate a "HV2600/ECS4100 battery" over CAN bus
 //#define PYLON_LV_CAN     //Enable this line to emulate a "48V Pylontech battery" over CAN bus
 //#define PYLON_CAN        //Enable this line to emulate a "High Voltage Pylontech battery" over CAN bus
