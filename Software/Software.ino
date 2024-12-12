@@ -775,6 +775,15 @@ void check_interconnect_available() {
 }
 #endif  //DOUBLE_BATTERY
 
+static void debug_contactors(const char* state) {
+#ifdef DEBUG_VIA_USB
+  Serial.print("[");
+  Serial.print(millis());
+  Serial.print(" ms] contactors: ");
+  Serial.println(state);
+#endif
+}
+
 void handle_contactors() {
 #ifdef BYD_SMA
   datalayer.system.status.inverter_allows_contactor_closing = digitalRead(INVERTER_CONTACTOR_ENABLE_PIN);
@@ -835,6 +844,7 @@ void handle_contactors() {
       set(PRECHARGE_PIN, ON);
       prechargeStartTime = currentTime;
       contactorStatus = NEGATIVE;
+      debug_contactors("PRECHARGE");
       break;
 
     case NEGATIVE:
@@ -842,6 +852,7 @@ void handle_contactors() {
         set(NEGATIVE_CONTACTOR_PIN, ON, PWM_ON_DUTY);
         negativeStartTime = currentTime;
         contactorStatus = POSITIVE;
+        debug_contactors("NEGATIVE");
       }
       break;
 
@@ -849,6 +860,7 @@ void handle_contactors() {
       if (currentTime - negativeStartTime >= NEGATIVE_CONTACTOR_TIME_MS) {
         set(POSITIVE_CONTACTOR_PIN, ON, PWM_ON_DUTY);
         contactorStatus = PRECHARGE_OFF;
+        debug_contactors("POSITIVE");
       }
       break;
 
@@ -859,6 +871,7 @@ void handle_contactors() {
         set(POSITIVE_CONTACTOR_PIN, ON, PWM_HOLD_DUTY);
         contactorStatus = COMPLETED;
         datalayer.system.status.contactors_engaged = true;
+        debug_contactors("PRECHARGE_OFF");
       }
       break;
     default:
