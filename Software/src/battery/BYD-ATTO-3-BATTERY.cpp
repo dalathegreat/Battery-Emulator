@@ -118,7 +118,7 @@ void update_values_battery() {  //This function maps all the values fetched via 
   datalayer.battery.status.real_soc = estimateSOC(datalayer.battery.status.voltage_dV);
   SOC_method = ESTIMATED;
 #else  // Pack is not crashed, we can use periodically transmitted SOC
-  datalayer.battery.status.real_soc = battery_highprecision_SOC * 100;
+  datalayer.battery.status.real_soc = battery_highprecision_SOC * 10;
   SOC_method = MEASURED;
 #endif
 
