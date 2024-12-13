@@ -65,16 +65,16 @@ CAN_device_t CAN_cfg;          // CAN Config
 const int rx_queue_size = 10;  // Receive Queue size
 volatile bool send_ok = 0;
 
-#ifdef DUAL_CAN
+#ifdef CAN_ADDON
 #include "src/lib/pierremolinaro-acan2515/ACAN2515.h"
 static const uint32_t QUARTZ_FREQUENCY = CRYSTAL_FREQUENCY_MHZ * 1000000UL;  //MHZ configured in USER_SETTINGS.h
 ACAN2515 can(MCP2515_CS, SPI, MCP2515_INT);
 static ACAN2515_Buffer16 gBuffer;
-#endif  //DUAL_CAN
-#ifdef CAN_FD
+#endif  //CAN_ADDON
+#ifdef CANFD_ADDON
 #include "src/lib/pierremolinaro-ACAN2517FD/ACAN2517FD.h"
 ACAN2517FD canfd(MCP2517_CS, SPI, MCP2517_INT);
-#endif  //CAN_FD
+#endif  //CANFD_ADDON
 
 // ModbusRTU parameters
 #ifdef MODBUS_INVERTER_SELECTED
@@ -276,10 +276,10 @@ void core_loop(void* task_time_us) {
 
     // Input, Runs as fast as possible
     receive_can_native();  // Receive CAN messages from native CAN port
-#ifdef CAN_FD
+#ifdef CANFD_ADDON
     receive_canfd();  // Receive CAN-FD messages.
 #endif
-#ifdef DUAL_CAN
+#ifdef CAN_ADDON
     receive_can_addonMCP2515();  // Receive CAN messages on add-on MCP2515 chip
 #endif
 #ifdef RS485_INVERTER_SELECTED
@@ -456,7 +456,7 @@ void init_CAN() {
   // Init CAN Module
   ESP32Can.CANInit();
 
-#ifdef DUAL_CAN
+#ifdef CAN_ADDON
 #ifdef DEBUG_VIA_USB
   Serial.println("Dual CAN Bus (ESP32+MCP2515) selected");
 #endif
@@ -478,12 +478,12 @@ void init_CAN() {
   }
 #endif
 
-#ifdef CAN_FD
+#ifdef CANFD_ADDON
 #ifdef DEBUG_VIA_USB
   Serial.println("CAN FD add-on (ESP32+MCP2517) selected");
 #endif
   SPI.begin(MCP2517_SCK, MCP2517_SDO, MCP2517_SDI);
-  ACAN2517FDSettings settings(CAN_FD_CRYSTAL_FREQUENCY_MHZ, 500 * 1000,
+  ACAN2517FDSettings settings(CANFD_ADDON_CRYSTAL_FREQUENCY_MHZ, 500 * 1000,
                               DataBitRateFactor::x4);  // Arbitration bit rate: 500 kbit/s, data bit rate: 2 Mbit/s
 #ifdef USE_CANFD_INTERFACE_AS_CLASSIC_CAN
   settings.mRequestedMode = ACAN2517FDSettings::Normal20B;  // ListenOnly / Normal20B / NormalFD
@@ -683,7 +683,7 @@ void print_can_frame(CAN_frame frame, frameDirection msgDir) {
   }
 }
 
-#ifdef CAN_FD
+#ifdef CANFD_ADDON
 // Functions
 void receive_canfd() {  // This section checks if we have a complete CAN-FD message incoming
   CANFDMessage frame;
@@ -697,7 +697,7 @@ void receive_canfd() {  // This section checks if we have a complete CAN-FD mess
     rx_frame.DLC = frame.len;
     memcpy(rx_frame.data.u8, frame.data, MIN(rx_frame.DLC, 64));
     //message incoming, pass it on to the handler
-    receive_can(&rx_frame, CAN_ADDON_FD_MCP2518);
+    receive_can(&rx_frame, CANFD_ADDON_MCP2518);
     receive_can(&rx_frame, CANFD_NATIVE);
   }
 }
@@ -738,7 +738,7 @@ void send_can() {
 #endif  // CHARGER_SELECTED
 }
 
-#ifdef DUAL_CAN
+#ifdef CAN_ADDON
 void receive_can_addonMCP2515() {  // This section checks if we have a complete CAN message incoming on add-on CAN port
   CAN_frame rx_frame;              // Struct with our CAN format
   CANMessage MCP2515Frame;         // Struct with ACAN2515 library format, needed to use the MCP2515 library
@@ -757,7 +757,7 @@ void receive_can_addonMCP2515() {  // This section checks if we have a complete 
     receive_can(&rx_frame, CAN_ADDON_MCP2515);
   }
 }
-#endif  // DUAL_CAN
+#endif  // CAN_ADDON
 
 #ifdef DOUBLE_BATTERY
 void check_interconnect_available() {
@@ -1198,7 +1198,7 @@ void transmit_can(CAN_frame* tx_frame, int interface) {
       ESP32Can.CANWriteFrame(&frame);
       break;
     case CAN_ADDON_MCP2515: {
-#ifdef DUAL_CAN
+#ifdef CAN_ADDON
       //Struct with ACAN2515 library format, needed to use the MCP2515 library for CAN2
       CANMessage MCP2515Frame;
       MCP2515Frame.id = tx_frame->ID;
@@ -1211,11 +1211,11 @@ void transmit_can(CAN_frame* tx_frame, int interface) {
       can.tryToSend(MCP2515Frame);
 #else   // Interface not compiled, and settings try to use it
       set_event(EVENT_INTERFACE_MISSING, interface);
-#endif  //DUAL_CAN
+#endif  //CAN_ADDON
     } break;
     case CANFD_NATIVE:
-    case CAN_ADDON_FD_MCP2518: {
-#ifdef CAN_FD
+    case CANFD_ADDON_MCP2518: {
+#ifdef CANFD_ADDON
       CANFDMessage MCP2518Frame;
       if (tx_frame->FD) {
         MCP2518Frame.type = CANFDMessage::CANFD_WITH_BIT_RATE_SWITCH;
@@ -1234,7 +1234,7 @@ void transmit_can(CAN_frame* tx_frame, int interface) {
       }
 #else   // Interface not compiled, and settings try to use it
       set_event(EVENT_INTERFACE_MISSING, interface);
-#endif  //CAN_FD
+#endif  //CANFD_ADDON
     } break;
     default:
       // Invalid interface sent with function call. TODO: Raise event that coders messed up

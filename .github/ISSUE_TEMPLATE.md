@@ -23,6 +23,6 @@
 - Inverter communication protocol: ``
 - Hardware used for Battery-Emulator: `HW_LILYGO, HW_STARK, Custom`
 - CONTACTOR_CONTROL: `yes/no`
-- DUAL_CAN: `yes/no`
+- CAN_ADDON: `yes/no`
 - WEBSERVER: `yes/no`
 - MQTT: `yes/no`
