@@ -34,32 +34,34 @@ jobs:
         # These are the batteries for which the code will be compiled.
         battery:
           - BMW_I3_BATTERY
+          - BMW_IX_BATTERY
           - BYD_ATTO_3_BATTERY
+          - CELLPOWER_BMS
           - CHADEMO_BATTERY
           - IMIEV_CZERO_ION_BATTERY
           - JAGUAR_IPACE_BATTERY
+          - KIA_E_GMP_BATTERY
           - KIA_HYUNDAI_64_BATTERY
           - KIA_HYUNDAI_HYBRID_BATTERY
+          - MEB_BATTERY
+          - MG_5_BATTERY
           - NISSAN_LEAF_BATTERY
           - PYLON_BATTERY
           - RJXZS_BMS
+          - RANGE_ROVER_PHEV_BATTERY
           - RENAULT_KANGOO_BATTERY
+          - RENAULT_TWIZY_BATTERY
           - RENAULT_ZOE_GEN1_BATTERY
           - RENAULT_ZOE_GEN2_BATTERY
+          - SANTA_FE_PHEV_BATTERY
           - TESLA_MODEL_3Y_BATTERY
+          - TESLA_MODEL_SX_BATTERY
           - VOLVO_SPA_BATTERY
           - TEST_FAKE_BATTERY
           - SERIAL_LINK_RECEIVER
         # These are the emulated inverter communication protocols for which the code will be compiled.
         inverter:
           - BYD_CAN
-#         - BYD_MODBUS
-#         - PYLON_CAN
-#         - SMA_CAN
-#         - SMA_TRIPOWER_CAN
-#         - SOFAR_CAN
-#         - SOLAX_CAN
-
     # This is the platform GitHub will use to run our workflow.
     runs-on: ubuntu-latest
 

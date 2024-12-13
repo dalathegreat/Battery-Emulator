@@ -219,7 +219,8 @@ void update_values_serial_link() {
 }
 
 void setup_battery(void) {
-  Serial.println("SERIAL_DATA_LINK_RECEIVER selected");
+  strncpy(datalayer.system.info.battery_protocol, "Serial link to another LilyGo board", 63);
+  datalayer.system.info.battery_protocol[63] = '\0';
 }
 // Needed to make the compiler happy
 void update_values_battery() {}

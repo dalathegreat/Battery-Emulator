@@ -144,17 +144,19 @@ void init_events(void) {
   events.entries[EVENT_CANMCP_INIT_FAILURE].level = EVENT_LEVEL_WARNING;
   events.entries[EVENT_CANFD_BUFFER_FULL].level = EVENT_LEVEL_WARNING;
   events.entries[EVENT_CAN_OVERRUN].level = EVENT_LEVEL_INFO;
+  events.entries[EVENT_CANFD_RX_OVERRUN].level = EVENT_LEVEL_WARNING;
   events.entries[EVENT_CAN_RX_FAILURE].level = EVENT_LEVEL_ERROR;
   events.entries[EVENT_CAN2_RX_FAILURE].level = EVENT_LEVEL_WARNING;
   events.entries[EVENT_CANFD_RX_FAILURE].level = EVENT_LEVEL_ERROR;
   events.entries[EVENT_CAN_RX_WARNING].level = EVENT_LEVEL_WARNING;
   events.entries[EVENT_CAN_TX_FAILURE].level = EVENT_LEVEL_ERROR;
   events.entries[EVENT_CAN_INVERTER_MISSING].level = EVENT_LEVEL_WARNING;
+  events.entries[EVENT_CONTACTOR_WELDED].level = EVENT_LEVEL_WARNING;
   events.entries[EVENT_WATER_INGRESS].level = EVENT_LEVEL_ERROR;
   events.entries[EVENT_CHARGE_LIMIT_EXCEEDED].level = EVENT_LEVEL_INFO;
   events.entries[EVENT_DISCHARGE_LIMIT_EXCEEDED].level = EVENT_LEVEL_INFO;
   events.entries[EVENT_12V_LOW].level = EVENT_LEVEL_WARNING;
-  events.entries[EVENT_SOC_PLAUSIBILITY_ERROR].level = EVENT_LEVEL_ERROR;
+  events.entries[EVENT_SOC_PLAUSIBILITY_ERROR].level = EVENT_LEVEL_WARNING;
   events.entries[EVENT_SOC_UNAVAILABLE].level = EVENT_LEVEL_WARNING;
   events.entries[EVENT_KWH_PLAUSIBILITY_ERROR].level = EVENT_LEVEL_INFO;
   events.entries[EVENT_BATTERY_EMPTY].level = EVENT_LEVEL_INFO;
@@ -167,6 +169,7 @@ void init_events(void) {
   events.entries[EVENT_BATTERY_OVERHEAT].level = EVENT_LEVEL_ERROR;
   events.entries[EVENT_BATTERY_OVERVOLTAGE].level = EVENT_LEVEL_WARNING;
   events.entries[EVENT_BATTERY_UNDERVOLTAGE].level = EVENT_LEVEL_WARNING;
+  events.entries[EVENT_BATTERY_VALUE_UNAVAILABLE].level = EVENT_LEVEL_WARNING;
   events.entries[EVENT_BATTERY_ISOLATION].level = EVENT_LEVEL_WARNING;
   events.entries[EVENT_VOLTAGE_DIFFERENCE].level = EVENT_LEVEL_INFO;
   events.entries[EVENT_SOH_DIFFERENCE].level = EVENT_LEVEL_WARNING;
@@ -268,6 +271,8 @@ const char* get_event_message_string(EVENTS_ENUM_TYPE event) {
       return "CAN-FD buffer overflowed. Some CAN messages were not sent. Contact developers.";
     case EVENT_CAN_OVERRUN:
       return "CAN message failed to send within defined time. Contact developers, CPU load might be too high.";
+    case EVENT_CANFD_RX_OVERRUN:
+      return "CAN-FD failed to receive all messages from CAN bus. Contact developers, CPU load might be too high.";
     case EVENT_CAN_RX_FAILURE:
       return "No CAN communication detected for 60s. Shutting down battery control.";
     case EVENT_CAN2_RX_FAILURE:
@@ -280,6 +285,8 @@ const char* get_event_message_string(EVENTS_ENUM_TYPE event) {
       return "ERROR: CAN messages failed to transmit, or no one on the bus to ACK the message!";
     case EVENT_CAN_INVERTER_MISSING:
       return "Warning: Inverter not sending messages on CAN bus. Check wiring!";
+    case EVENT_CONTACTOR_WELDED:
+      return "Warning: Contactors sticking/welded. Inspect battery with caution!";
     case EVENT_CHARGE_LIMIT_EXCEEDED:
       return "Info: Inverter is charging faster than battery is allowing.";
     case EVENT_DISCHARGE_LIMIT_EXCEEDED:
@@ -289,7 +296,7 @@ const char* get_event_message_string(EVENTS_ENUM_TYPE event) {
     case EVENT_12V_LOW:
       return "12V battery source below required voltage to safely close contactors. Inspect the supply/battery!";
     case EVENT_SOC_PLAUSIBILITY_ERROR:
-      return "ERROR: SOC reported by battery not plausible. Restart battery!";
+      return "Warning: SOC reported by battery not plausible. Restart battery!";
     case EVENT_SOC_UNAVAILABLE:
       return "Warning: SOC not sent by BMS. Calibrate BMS via app.";
     case EVENT_KWH_PLAUSIBILITY_ERROR:
@@ -318,6 +325,8 @@ const char* get_event_message_string(EVENTS_ENUM_TYPE event) {
       return "Warning: Battery exceeding maximum design voltage. Discharge battery to prevent damage!";
     case EVENT_BATTERY_UNDERVOLTAGE:
       return "Warning: Battery under minimum design voltage. Charge battery to prevent damage!";
+    case EVENT_BATTERY_VALUE_UNAVAILABLE:
+      return "Warning: Battery measurement unavailable. Check 12V power supply and battery wiring!";
     case EVENT_BATTERY_ISOLATION:
       return "Warning: Battery reports isolation error. High voltage might be leaking to ground. Check battery!";
     case EVENT_VOLTAGE_DIFFERENCE:

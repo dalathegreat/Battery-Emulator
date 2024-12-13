@@ -51,8 +51,6 @@ void update_values_battery() {  //This function maps all the values fetched via 
 
   datalayer.battery.status.max_discharge_power_W = 10000;  // 10kW   //TODO: Fix when CAN is decoded
 
-  datalayer.battery.status.active_power_W = BMU_Power;  //TODO: Scaling?
-
   static int n = sizeof(cell_voltages) / sizeof(cell_voltages[0]);
   max_volt_cel = cell_voltages[0];  // Initialize max with the first element of the array
   for (int i = 1; i < n; i++) {
@@ -226,9 +224,8 @@ void send_can_battery() {
 }
 
 void setup_battery(void) {  // Performs one time setup at startup
-#ifdef DEBUG_VIA_USB
-  Serial.println("Mitsubishi i-MiEV / Citroen C-Zero / Peugeot Ion battery selected");
-#endif
+  strncpy(datalayer.system.info.battery_protocol, "I-Miev / C-Zero / Ion Triplet", 63);
+  datalayer.system.info.battery_protocol[63] = '\0';
   datalayer.battery.info.max_design_voltage_dV = MAX_PACK_VOLTAGE_DV;
   datalayer.battery.info.min_design_voltage_dV = MIN_PACK_VOLTAGE_DV;
   datalayer.battery.info.max_cell_voltage_mV = MAX_CELL_VOLTAGE_MV;

@@ -3,6 +3,12 @@
 
 #include "../include.h"
 
+#define USE_ESTIMATED_SOC  // If enabled, SOC is estimated from pack voltage. Useful for locked packs. \
+                           // Uncomment this only if you know your BMS is unlocked and able to send SOC%
+#define MAXPOWER_CHARGE_W 10000
+#define MAXPOWER_DISCHARGE_W 10000
+
+/* Do not modify the rows below */
 #define BATTERY_SELECTED
 #define MAX_PACK_VOLTAGE_DV 4410  //5000 = 500.0V
 #define MIN_PACK_VOLTAGE_DV 3800

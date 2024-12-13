@@ -13,7 +13,9 @@ enum led_color { GREEN, YELLOW, RED, BLUE, RGB };
 #define INTERVAL_10_MS 10
 #define INTERVAL_20_MS 20
 #define INTERVAL_30_MS 30
+#define INTERVAL_40_MS 40
 #define INTERVAL_50_MS 50
+#define INTERVAL_70_MS 70
 #define INTERVAL_100_MS 100
 #define INTERVAL_200_MS 200
 #define INTERVAL_250_MS 250
@@ -33,8 +35,8 @@ enum led_color { GREEN, YELLOW, RED, BLUE, RGB };
 #define INTERVAL_200_MS_DELAYED 240
 #define INTERVAL_500_MS_DELAYED 550
 
-#define CAN_STILL_ALIVE 12
-// Set by battery each time we get a CAN message. Decrements every 5seconds. When reaching 0, sets event
+#define CAN_STILL_ALIVE 60
+// Set by battery each time we get a CAN message. Decrements every second. When reaching 0, sets event
 
 /* CAN Frame structure */
 typedef struct {

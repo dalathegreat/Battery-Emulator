@@ -4,7 +4,7 @@
 
 #define MODBUS_INVERTER_SELECTED
 
-#define MB_RTU_NUM_VALUES 30000
+#define MB_RTU_NUM_VALUES 13100
 #define MAX_POWER 40960  //BYD Modbus specific value
 
 extern uint16_t mbPV[MB_RTU_NUM_VALUES];
@@ -14,4 +14,5 @@ void verify_temperature_modbus();
 void verify_inverter_modbus();
 void handle_update_data_modbusp201_byd();
 void handle_update_data_modbusp301_byd();
+void setup_inverter(void);
 #endif

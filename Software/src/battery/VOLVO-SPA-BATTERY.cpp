@@ -83,7 +83,6 @@ void update_values_battery() {  //This function maps all the values fetched via 
   //datalayer.battery.status.max_discharge_power_W = HvBattPwrLimDchaSoft * 1000;	// Use power limit reported from BMS, not trusted ATM
   datalayer.battery.status.max_discharge_power_W = 30000;
   datalayer.battery.status.max_charge_power_W = 30000;
-  datalayer.battery.status.active_power_W = (BATT_U)*BATT_I;
   datalayer.battery.status.temperature_min_dC = BATT_T_MIN;
   datalayer.battery.status.temperature_max_dC = BATT_T_MAX;
 
@@ -333,10 +332,8 @@ void send_can_battery() {
 }
 
 void setup_battery(void) {  // Performs one time setup at startup
-#ifdef DEBUG_VIA_USB
-  Serial.println("Volvo SPA XC40 Recharge / Polestar2 78kWh battery selected");
-#endif
-
+  strncpy(datalayer.system.info.battery_protocol, "Volvo / Polestar 78kWh battery", 63);
+  datalayer.system.info.battery_protocol[63] = '\0';
   datalayer.battery.info.number_of_cells = 108;
   datalayer.battery.info.max_design_voltage_dV = MAX_PACK_VOLTAGE_DV;
   datalayer.battery.info.min_design_voltage_dV = MIN_PACK_VOLTAGE_DV;

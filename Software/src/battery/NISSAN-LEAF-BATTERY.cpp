@@ -136,10 +136,10 @@ static uint16_t battery2_TEMP = 0;                   //Temporary value used in s
 static uint16_t battery2_Wh_Remaining = 0;           //Amount of energy in battery, in Wh
 static uint16_t battery2_GIDS = 273;                 //Startup in 24kWh mode
 static uint16_t battery2_MAX = 0;
-static uint16_t battery2_Max_GIDS = 273;        //Startup in 24kWh mode
-static uint16_t battery2_StateOfHealth = 99;    //State of health %
-static uint16_t battery2_Total_Voltage2 = 740;  //Battery voltage (0-450V) [0.5V/bit, so actual range 0-800]
-static int16_t battery2_Current2 = 0;           //Battery current (-400-200A) [0.5A/bit, so actual range -800-400]
+static uint16_t battery2_Max_GIDS = 273;      //Startup in 24kWh mode
+static uint16_t battery2_StateOfHealth = 99;  //State of health %
+static uint16_t battery2_Total_Voltage2 = 0;  //Battery voltage (0-450V) [0.5V/bit, so actual range 0-800]
+static int16_t battery2_Current2 = 0;         //Battery current (-400-200A) [0.5A/bit, so actual range -800-400]
 static int16_t battery2_HistData_Temperature_MAX = 6;  //-40 to 86*C
 static int16_t battery2_HistData_Temperature_MIN = 5;  //-40 to 86*C
 static int16_t battery2_AverageTemperature = 6;        //Only available on ZE0, in celcius, -40 to +55
@@ -174,11 +174,17 @@ static int16_t battery2_temp_polled_max = 0;
 static int16_t battery2_temp_polled_min = 0;
 #endif  // DOUBLE_BATTERY
 
-void print_with_units(char* header, int value, char* units) {
-  Serial.print(header);
-  Serial.print(value);
-  Serial.print(units);
-}
+// Clear SOH values
+static uint8_t stateMachineClearSOH = 0xFF;
+static uint32_t incomingChallenge = 0xFFFFFFFF;
+static uint8_t solvedChallenge[8];
+static bool challengeFailed = false;
+
+CAN_frame LEAF_CLEAR_SOH = {.FD = false,
+                            .ext_ID = false,
+                            .DLC = 8,
+                            .ID = 0x79B,
+                            .data = {0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF}};
 
 void update_values_battery() { /* This function maps all the values fetched via CAN to the correct parameters used for modbus */
   /* Start with mapping all values */
@@ -196,9 +202,6 @@ void update_values_battery() { /* This function maps all the values fetched via 
   datalayer.battery.info.total_capacity_Wh = (battery_Max_GIDS * WH_PER_GID);
 
   datalayer.battery.status.remaining_capacity_Wh = battery_Wh_Remaining;
-
-  datalayer.battery.status.active_power_W = ((battery_Total_Voltage2 * battery_Current2) /
-                                             4);  //P = U * I (Both values are 0.5 per bit so the math is non-intuitive)
 
   //Update temperature readings. Method depends on which generation LEAF battery is used
   if (LEAF_battery_Type == ZE0_BATTERY) {
@@ -251,6 +254,12 @@ void update_values_battery() { /* This function maps all the values fetched via 
     datalayer.battery.status.max_discharge_power_W = 0;
   } else {
     clear_event(EVENT_BATTERY_EMPTY);
+  }
+
+  if (battery_Total_Voltage2 == 0x3FF) {  //Battery reports critical measurement unavailable
+    set_event(EVENT_BATTERY_VALUE_UNAVAILABLE, 0);
+  } else {
+    clear_event(EVENT_BATTERY_VALUE_UNAVAILABLE);
   }
 
   if (battery_Relay_Cut_Request) {  //battery_FAIL, BMS requesting shutdown and contactors to be opened
@@ -322,6 +331,7 @@ void update_values_battery() { /* This function maps all the values fetched via 
   datalayer_extended.nissanleaf.ChargePowerLimit = battery_Charge_Power_Limit;
   datalayer_extended.nissanleaf.MaxPowerForCharger = battery_MAX_POWER_FOR_CHARGER;
   datalayer_extended.nissanleaf.Interlock = battery_Interlock;
+  datalayer_extended.nissanleaf.Insulation = battery_insulation;
   datalayer_extended.nissanleaf.RelayCutRequest = battery_Relay_Cut_Request;
   datalayer_extended.nissanleaf.FailsafeStatus = battery_Failsafe_Status;
   datalayer_extended.nissanleaf.Full = battery_Full_CHARGE_flag;
@@ -331,17 +341,18 @@ void update_values_battery() { /* This function maps all the values fetched via 
   datalayer_extended.nissanleaf.HeatingStop = battery_Heating_Stop;
   datalayer_extended.nissanleaf.HeatingStart = battery_Heating_Start;
   datalayer_extended.nissanleaf.HeaterSendRequest = battery_Batt_Heater_Mail_Send_Request;
+  datalayer_extended.nissanleaf.CryptoChallenge = incomingChallenge;
+  datalayer_extended.nissanleaf.SolvedChallengeMSB =
+      ((solvedChallenge[7] << 24) | (solvedChallenge[6] << 16) | (solvedChallenge[5] << 8) | solvedChallenge[4]);
+  datalayer_extended.nissanleaf.SolvedChallengeLSB =
+      ((solvedChallenge[3] << 24) | (solvedChallenge[2] << 16) | (solvedChallenge[1] << 8) | solvedChallenge[0]);
+  datalayer_extended.nissanleaf.challengeFailed = challengeFailed;
 
-/*Finally print out values to serial if configured to do so*/
-#ifdef DEBUG_VIA_USB
-  Serial.println("Values from battery");
-  print_with_units("Real SOC%: ", (battery_SOC * 0.1), "% ");
-  print_with_units(", GIDS: ", battery_GIDS, " (x77Wh) ");
-  print_with_units(", Battery gen: ", LEAF_battery_Type, " ");
-  print_with_units(", Has heater: ", battery_HeatExist, " ");
-  print_with_units(", Max cell voltage: ", battery_min_max_voltage[1], "mV ");
-  print_with_units(", Min cell voltage: ", battery_min_max_voltage[0], "mV ");
-#endif
+  // Update requests from webserver datalayer
+  if (datalayer_extended.nissanleaf.UserRequestSOHreset) {
+    stateMachineClearSOH = 0;  //Start the statemachine
+    datalayer_extended.nissanleaf.UserRequestSOHreset = false;
+  }
 }
 
 #ifdef DOUBLE_BATTERY
@@ -362,10 +373,6 @@ void update_values_battery2() {  // Handle the values coming in from battery #2
   datalayer.battery2.info.total_capacity_Wh = (battery2_Max_GIDS * WH_PER_GID);
 
   datalayer.battery2.status.remaining_capacity_Wh = battery2_Wh_Remaining;
-
-  datalayer.battery2.status.active_power_W =
-      ((battery2_Total_Voltage2 * battery2_Current2) /
-       4);  //P = U * I (Both values are 0.5 per bit so the math is non-intuitive)
 
   //Update temperature readings. Method depends on which generation LEAF battery is used
   if (LEAF_battery2_Type == ZE0_BATTERY) {
@@ -418,6 +425,12 @@ void update_values_battery2() {  // Handle the values coming in from battery #2
     datalayer.battery2.status.max_discharge_power_W = 0;
   } else {
     clear_event(EVENT_BATTERY_EMPTY);
+  }
+
+  if (battery2_Total_Voltage2 == 0x3FF) {  //Battery reports critical measurement unavailable
+    set_event(EVENT_BATTERY_VALUE_UNAVAILABLE, 0);
+  } else {
+    clear_event(EVENT_BATTERY_VALUE_UNAVAILABLE);
   }
 
   if (battery2_Relay_Cut_Request) {  //battery2_FAIL, BMS requesting shutdown and contactors to be opened
@@ -502,11 +515,7 @@ void receive_can_battery2(CAN_frame rx_frame) {
       battery2_Relay_Cut_Request = ((rx_frame.data.u8[1] & 0x18) >> 3);
       battery2_Failsafe_Status = (rx_frame.data.u8[1] & 0x07);
       battery2_MainRelayOn_flag = (bool)((rx_frame.data.u8[3] & 0x20) >> 5);
-      if (battery2_MainRelayOn_flag) {
-        datalayer.system.status.battery2_allows_contactor_closing = true;
-      } else {
-        datalayer.system.status.battery2_allows_contactor_closing = false;
-      }
+      //battery2_allows_contactor_closing written by check_interconnect_available();
       battery2_Full_CHARGE_flag = (bool)((rx_frame.data.u8[3] & 0x10) >> 4);
       battery2_Interlock = (bool)((rx_frame.data.u8[3] & 0x08) >> 3);
       break;
@@ -598,7 +607,7 @@ void receive_can_battery2(CAN_frame rx_frame) {
         }
       }
 
-      if (stop_battery_query) {  //Leafspy is active, stop our own polling
+      if (stop_battery_query) {  //Leafspy/Service request is active, stop our own polling
         break;
       }
 
@@ -835,6 +844,22 @@ void receive_can_battery(CAN_frame rx_frame) {
       hold_off_with_polling_10seconds = 10;  //Polling is paused for 100s
       break;
     case 0x7BB:
+
+      // This section checks if we are doing a SOH reset towards BMS
+      if (stateMachineClearSOH < 255) {
+        //Intercept the messages based on state machine
+        if (rx_frame.data.u8[0] == 0x06) {  // Incoming challenge data!
+                                            // BMS should reply with (challenge) 06 67 65 (02 DD 86 43) FF
+          incomingChallenge = ((rx_frame.data.u8[3] << 24) | (rx_frame.data.u8[4] << 16) | (rx_frame.data.u8[5] << 8) |
+                               rx_frame.data.u8[6]);
+        }
+        //Error checking
+        if ((rx_frame.data.u8[0] == 0x03) && (rx_frame.data.u8[1] == 0x7F)) {
+          challengeFailed = true;
+        }
+        break;
+      }
+
       //First check which group data we are getting
       if (rx_frame.data.u8[0] == 0x10) {  //First message of a group
         group_7bb = rx_frame.data.u8[3];
@@ -1115,6 +1140,10 @@ void send_can_battery() {
     if (currentMillis - previousMillis100 >= INTERVAL_100_MS) {
       previousMillis100 = currentMillis;
 
+      if (stateMachineClearSOH < 255) {  // Enter the ClearSOH statemachine only if we request it
+        clearSOH();
+      }
+
       //When battery requests heating pack status change, ack this
       if (battery_Batt_Heater_Mail_Send_Request) {
         LEAF_50B.data.u8[6] = 0x20;  //Batt_Heater_Mail_Send_OK
@@ -1218,10 +1247,189 @@ uint16_t Temp_fromRAW_to_F(uint16_t temperature) {  //This function feels horrib
   return static_cast<uint16_t>(1094 + (309 - temperature) * 2.5714285714285715);
 }
 
+void clearSOH(void) {
+  stop_battery_query = true;
+  hold_off_with_polling_10seconds = 10;  // Active battery polling is paused for 100 seconds
+
+  switch (stateMachineClearSOH) {
+    case 0:  // Wait until polling actually stops
+      challengeFailed = false;
+      stateMachineClearSOH = 1;
+      break;
+    case 1:  // Set CAN_PROCESS_FLAG to 0xC0
+      LEAF_CLEAR_SOH.data = {0x02, 0x10, 0xC0, 0x00, 0x00, 0x00, 0x00, 0x00};
+      transmit_can(&LEAF_CLEAR_SOH, can_config.battery);
+      // BMS should reply 02 50 C0 FF FF FF FF FF
+      stateMachineClearSOH = 2;
+      break;
+    case 2:  // Set something ?
+      LEAF_CLEAR_SOH.data = {0x02, 0x3E, 0x01, 0x00, 0x00, 0x00, 0x00, 0x00};
+      transmit_can(&LEAF_CLEAR_SOH, can_config.battery);
+      // BMS should reply 7E FF FF FF FF FF FF
+      stateMachineClearSOH = 3;
+      break;
+    case 3:  // Request challenge to solve
+      LEAF_CLEAR_SOH.data = {0x02, 0x27, 0x65, 0x00, 0x00, 0x00, 0x00, 0x00};
+      transmit_can(&LEAF_CLEAR_SOH, can_config.battery);
+      // BMS should reply with (challenge) 06 67 65 (02 DD 86 43) FF
+      stateMachineClearSOH = 4;
+      break;
+    case 4:  // Send back decoded challenge data
+      decodeChallengeData(incomingChallenge, solvedChallenge);
+      LEAF_CLEAR_SOH.data = {
+          0x10, 0x0A, 0x27, 0x66, solvedChallenge[0], solvedChallenge[1], solvedChallenge[2], solvedChallenge[3]};
+      transmit_can(&LEAF_CLEAR_SOH, can_config.battery);
+      // BMS should reply 7BB 8 30 01 00 FF FF FF FF FF // Proceed with more data (PID ACK)
+      stateMachineClearSOH = 5;
+      break;
+    case 5:  // Reply with even more decoded challenge data
+      LEAF_CLEAR_SOH.data = {
+          0x21, solvedChallenge[4], solvedChallenge[5], solvedChallenge[6], solvedChallenge[7], 0x00, 0x00, 0x00};
+      transmit_can(&LEAF_CLEAR_SOH, can_config.battery);
+      // BMS should reply 02 67 66 FF FF FF FF FF // Thank you for the data
+      stateMachineClearSOH = 6;
+      break;
+    case 6:  // Check if solved data was OK
+      LEAF_CLEAR_SOH.data = {0x03, 0x31, 0x03, 0x00, 0x00, 0x00, 0x00, 0x00};
+      transmit_can(&LEAF_CLEAR_SOH, can_config.battery);
+      //7BB 8 03 71 03 01 FF FF FF FF // If all is well, BMS replies with 03 71 03 01.
+      //Incase you sent wrong challenge, you get 03 7f 31 12
+      stateMachineClearSOH = 7;
+      break;
+    case 7:  // Reset SOH% request
+      LEAF_CLEAR_SOH.data = {0x03, 0x31, 0x03, 0x01, 0x00, 0x00, 0x00, 0x00};
+      transmit_can(&LEAF_CLEAR_SOH, can_config.battery);
+      //7BB 8 03 71 03 02 FF FF FF FF // 03 71 03 02 means that BMS accepted command.
+      //7BB 03 7f 31 12 means your challenge was wrong, so command ignored
+      stateMachineClearSOH = 8;
+      break;
+    case 8:  // Please proceed with resetting SOH
+      LEAF_CLEAR_SOH.data = {0x02, 0x10, 0x81, 0x00, 0x00, 0x00, 0x00, 0x00};
+      transmit_can(&LEAF_CLEAR_SOH, can_config.battery);
+      // 7BB 8 02 50 81 FF FF FF FF FF // SOH reset OK
+      stateMachineClearSOH = 255;
+      break;
+    default:
+      break;
+  }
+}
+
+unsigned int CyclicXorHash16Bit(unsigned int param_1, unsigned int param_2) {
+  bool bVar1;
+  unsigned int uVar2, uVar3, uVar4, uVar5, uVar6, uVar7, uVar8, uVar9, uVar10, uVar11, iVar12;
+
+  param_1 = param_1 & 0xffff;
+  param_2 = param_2 & 0xffff;
+  uVar10 = 0xffff;
+  iVar12 = 2;
+  do {
+    uVar2 = param_2;
+    if ((param_1 & 1) == 1) {
+      uVar2 = param_1 >> 1;
+    }
+    uVar3 = param_2;
+    if ((param_1 >> 1 & 1) == 1) {
+      uVar3 = param_1 >> 2;
+    }
+    uVar4 = param_2;
+    if ((param_1 >> 2 & 1) == 1) {
+      uVar4 = param_1 >> 3;
+    }
+    uVar5 = param_2;
+    if ((param_1 >> 3 & 1) == 1) {
+      uVar5 = param_1 >> 4;
+    }
+    uVar6 = param_2;
+    if ((param_1 >> 4 & 1) == 1) {
+      uVar6 = param_1 >> 5;
+    }
+    uVar7 = param_2;
+    if ((param_1 >> 5 & 1) == 1) {
+      uVar7 = param_1 >> 6;
+    }
+    uVar11 = param_1 >> 7;
+    uVar8 = param_2;
+    if ((param_1 >> 6 & 1) == 1) {
+      uVar8 = uVar11;
+    }
+    param_1 = param_1 >> 8;
+    uVar9 = param_2;
+    if ((uVar11 & 1) == 1) {
+      uVar9 = param_1;
+    }
+    uVar10 =
+        (((((((((((((((uVar10 & 0x7fff) << 1 ^ uVar2) & 0x7fff) << 1 ^ uVar3) & 0x7fff) << 1 ^ uVar4) & 0x7fff) << 1 ^
+                uVar5) &
+               0x7fff)
+                  << 1 ^
+              uVar6) &
+             0x7fff)
+                << 1 ^
+            uVar7) &
+           0x7fff)
+              << 1 ^
+          uVar8) &
+         0x7fff)
+            << 1 ^
+        uVar9;
+    bVar1 = iVar12 != 1;
+    iVar12 = iVar12 + -1;
+  } while (bVar1);
+  return uVar10;
+}
+unsigned int ComputeMaskedXorProduct(unsigned int param_1, unsigned int param_2, unsigned int param_3) {
+  return (param_3 ^ 0x7F88 | param_2 ^ 0x8FE7) * ((param_1 & 0xffff) >> 8 ^ param_1 & 0xff) & 0xffff;
+}
+
+short ShortMaskedSumAndProduct(short param_1, short param_2) {
+  unsigned short uVar1;
+
+  uVar1 = param_2 + param_1 * 0x0006 & 0xff;
+  return (uVar1 + param_1) * (uVar1 + param_2);
+}
+
+unsigned int MaskedBitwiseRotateMultiply(unsigned int param_1, unsigned int param_2) {
+  unsigned int uVar1;
+
+  param_1 = param_1 & 0xffff;
+  param_2 = param_2 & 0xffff;
+  uVar1 = param_2 & (param_1 | 0x0006) & 0xf;
+  return ((unsigned int)param_1 >> uVar1 | param_1 << (0x10 - uVar1 & 0x1f)) *
+             (param_2 << uVar1 | (unsigned int)param_2 >> (0x10 - uVar1 & 0x1f)) &
+         0xffff;
+}
+
+unsigned int CryptAlgo(unsigned int param_1, unsigned int param_2, unsigned int param_3) {
+  unsigned int uVar1, uVar2, iVar3, iVar4;
+
+  uVar1 = MaskedBitwiseRotateMultiply(param_2, param_3);
+  uVar2 = ShortMaskedSumAndProduct(param_2, param_3);
+  uVar1 = ComputeMaskedXorProduct(param_1, uVar1, uVar2);
+  uVar2 = ComputeMaskedXorProduct(param_1, uVar2, uVar1);
+  iVar3 = CyclicXorHash16Bit(uVar1, 0x8421);
+  iVar4 = CyclicXorHash16Bit(uVar2, 0x8421);
+  return iVar4 + iVar3 * 0x10000;
+}
+
+void decodeChallengeData(unsigned int incomingChallenge, unsigned char* solvedChallenge) {
+  unsigned int uVar1, uVar2;
+
+  uVar1 = CryptAlgo(0x54e9, 0x3afd, incomingChallenge >> 0x10);
+  uVar2 = CryptAlgo(incomingChallenge & 0xffff, incomingChallenge >> 0x10, 0x54e9);
+  *solvedChallenge = (unsigned char)uVar1;
+  solvedChallenge[1] = (unsigned char)uVar2;
+  solvedChallenge[2] = (unsigned char)((unsigned int)uVar2 >> 8);
+  solvedChallenge[3] = (unsigned char)((unsigned int)uVar1 >> 8);
+  solvedChallenge[4] = (unsigned char)((unsigned int)uVar2 >> 0x10);
+  solvedChallenge[5] = (unsigned char)((unsigned int)uVar1 >> 0x10);
+  solvedChallenge[6] = (unsigned char)((unsigned int)uVar2 >> 0x18);
+  solvedChallenge[7] = (unsigned char)((unsigned int)uVar1 >> 0x18);
+  return;
+}
+
 void setup_battery(void) {  // Performs one time setup at startup
-#ifdef DEBUG_VIA_USB
-  Serial.println("Nissan LEAF battery selected");
-#endif
+  strncpy(datalayer.system.info.battery_protocol, "Nissan LEAF battery", 63);
+  datalayer.system.info.battery_protocol[63] = '\0';
 
   datalayer.battery.info.number_of_cells = 96;
   datalayer.battery.info.max_design_voltage_dV = MAX_PACK_VOLTAGE_DV;

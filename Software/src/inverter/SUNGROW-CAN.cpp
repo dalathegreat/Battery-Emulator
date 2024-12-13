@@ -595,5 +595,8 @@ void send_can_inverter() {
     }
   }
 }
-
+void setup_inverter(void) {  // Performs one time setup at startup over CAN bus
+  strncpy(datalayer.system.info.inverter_protocol, "Sungrow SBR064 battery over CAN bus", 63);
+  datalayer.system.info.inverter_protocol[63] = '\0';
+}
 #endif

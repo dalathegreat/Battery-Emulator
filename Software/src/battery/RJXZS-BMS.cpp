@@ -98,9 +98,6 @@ void update_values_battery() {
 
   datalayer.battery.status.current_dA = total_current;
 
-  datalayer.battery.status.active_power_W =  //Power in watts, Negative = charging batt
-      ((datalayer.battery.status.voltage_dV * datalayer.battery.status.current_dA) / 100);
-
   // Charge power is set in .h file
   if (datalayer.battery.status.real_soc > 9900) {
     datalayer.battery.status.max_charge_power_W = MAX_CHARGE_POWER_WHEN_TOPBALANCING_W;
@@ -573,10 +570,8 @@ void send_can_battery() {
 }
 
 void setup_battery(void) {  // Performs one time setup at startup
-#ifdef DEBUG_VIA_USB
-  Serial.println("RJXZS BMS selected");
-#endif
-
+  strncpy(datalayer.system.info.battery_protocol, "RJXZS BMS, DIY battery", 63);
+  datalayer.system.info.battery_protocol[63] = '\0';
   datalayer.battery.info.max_design_voltage_dV = MAX_PACK_VOLTAGE_DV;
   datalayer.battery.info.min_design_voltage_dV = MIN_PACK_VOLTAGE_DV;
   datalayer.battery.info.max_cell_voltage_mV = MAX_CELL_VOLTAGE_MV;

@@ -22,15 +22,12 @@ below that you can customize, incase you use a lower voltage battery with this p
 #define TOTAL_LIFETIME_WH_ACCUMULATED 0  //We dont have this value in the emulator
 
 /* Do not change code below unless you are sure what you are doing */
-static uint16_t max_charge_rate_amp = 0;
-static uint16_t max_discharge_rate_amp = 0;
 static int16_t temperature_average = 0;
 static uint16_t voltage_per_pack = 0;
 static int16_t current_per_pack = 0;
 static uint8_t temperature_max_per_pack = 0;
 static uint8_t temperature_min_per_pack = 0;
 static uint8_t current_pack_info = 0;
-static uint8_t inverterStillAlive = 60;  // Inverter can be missing for 1minute on startup
 
 static bool send_cellvoltages = false;
 static unsigned long previousMillisCellvoltage = 0;  // Store the last time a cellvoltage CAN messages were sent
@@ -364,70 +361,16 @@ void update_values_can_inverter() {  //This function maps all the CAN values fet
   temperature_average =
       ((datalayer.battery.status.temperature_max_dC + datalayer.battery.status.temperature_min_dC) / 2);
 
-  //datalayer.battery.status.max_charge_power_W (30000W max)
-  if (datalayer.battery.status.reported_soc > 9999) {  // 99.99%
-    // Additional safety incase SOC% is 100, then do not charge battery further
-    max_charge_rate_amp = 0;
-  } else {  // We can pass on the battery charge rate (in W) to the inverter (that takes A)
-    if (datalayer.battery.status.max_charge_power_W >= 30000) {
-      max_charge_rate_amp = 75;  // Incase battery can take over 30kW, cap value to 75A
-    } else {                     // Calculate the W value into A
-      if (datalayer.battery.status.voltage_dV > 10) {
-        max_charge_rate_amp =
-            datalayer.battery.status.max_charge_power_W / (datalayer.battery.status.voltage_dV * 0.1);  // P/U=I
-      } else {  // We avoid dividing by 0 and crashing the board
-        // If we have no voltage, something has gone wrong, do not allow charging
-        max_charge_rate_amp = 0;
-      }
-    }
-  }
-
-  //datalayer.battery.status.max_discharge_power_W (30000W max)
-  if (datalayer.battery.status.reported_soc < 100) {  // 1.00%
-    // Additional safety in case SOC% is below 1, then do not discharge battery further
-    max_discharge_rate_amp = 0;
-  } else {  // We can pass on the battery discharge rate to the inverter
-    if (datalayer.battery.status.max_discharge_power_W >= 30000) {
-      max_discharge_rate_amp = 75;  // Incase battery can be charged with over 30kW, cap value to 75A
-    } else {                        // Calculate the W value into A
-      if (datalayer.battery.status.voltage_dV > 10) {
-        max_discharge_rate_amp =
-            datalayer.battery.status.max_discharge_power_W / (datalayer.battery.status.voltage_dV * 0.1);  // P/U=I
-      } else {  // We avoid dividing by 0 and crashing the board
-        // If we have no voltage, something has gone wrong, do not allow discharging
-        max_discharge_rate_amp = 0;
-      }
-    }
-  }
-
-  //Cap the value according to user settings. Some inverters cannot handle large values.
-  if ((max_charge_rate_amp * 10) > datalayer.battery.info.max_charge_amp_dA) {
-    max_charge_rate_amp = (datalayer.battery.info.max_charge_amp_dA / 10);
-  }
-  if ((max_discharge_rate_amp * 10) > datalayer.battery.info.max_discharge_amp_dA) {
-    max_discharge_rate_amp = (datalayer.battery.info.max_discharge_amp_dA / 10);
-  }
-
-  if (inverterStillAlive > 0) {
-    inverterStillAlive--;
-  }
-
-  if (!inverterStillAlive) {
-    set_event(EVENT_CAN_INVERTER_MISSING, 0);
-  } else {
-    clear_event(EVENT_CAN_INVERTER_MISSING);
-  }
-
   //Put the values into the CAN messages
   //BMS_Limits
   FOXESS_1872.data.u8[0] = (uint8_t)datalayer.battery.info.max_design_voltage_dV;
   FOXESS_1872.data.u8[1] = (datalayer.battery.info.max_design_voltage_dV >> 8);
   FOXESS_1872.data.u8[2] = (uint8_t)datalayer.battery.info.min_design_voltage_dV;
   FOXESS_1872.data.u8[3] = (datalayer.battery.info.min_design_voltage_dV >> 8);
-  FOXESS_1872.data.u8[4] = (uint8_t)(max_charge_rate_amp * 10);
-  FOXESS_1872.data.u8[5] = ((max_charge_rate_amp * 10) >> 8);
-  FOXESS_1872.data.u8[6] = (uint8_t)(max_discharge_rate_amp * 10);
-  FOXESS_1872.data.u8[7] = ((max_discharge_rate_amp * 10) >> 8);
+  FOXESS_1872.data.u8[4] = (uint8_t)datalayer.battery.status.max_charge_current_dA;
+  FOXESS_1872.data.u8[5] = (datalayer.battery.status.max_charge_current_dA >> 8);
+  FOXESS_1872.data.u8[6] = (uint8_t)datalayer.battery.status.max_discharge_current_dA;
+  FOXESS_1872.data.u8[7] = (datalayer.battery.status.max_discharge_current_dA >> 8);
 
   //BMS_PackData
   FOXESS_1873.data.u8[0] = (uint8_t)datalayer.battery.status.voltage_dV;  // OK
@@ -436,8 +379,8 @@ void update_values_can_inverter() {  //This function maps all the CAN values fet
   FOXESS_1873.data.u8[3] = (datalayer.battery.status.current_dA >> 8);
   FOXESS_1873.data.u8[4] = (uint8_t)(datalayer.battery.status.reported_soc / 100);  //SOC (0-100%)
   FOXESS_1873.data.u8[5] = 0x00;
-  FOXESS_1873.data.u8[6] = (uint8_t)(datalayer.battery.status.remaining_capacity_Wh / 10);
-  FOXESS_1873.data.u8[7] = ((datalayer.battery.status.remaining_capacity_Wh / 10) >> 8);
+  FOXESS_1873.data.u8[6] = (uint8_t)(datalayer.battery.status.reported_remaining_capacity_Wh / 10);
+  FOXESS_1873.data.u8[7] = ((datalayer.battery.status.reported_remaining_capacity_Wh / 10) >> 8);
 
   //BMS_CellData
   FOXESS_1874.data.u8[0] = (int8_t)datalayer.battery.status.temperature_max_dC;
@@ -463,7 +406,7 @@ void update_values_can_inverter() {  //This function maps all the CAN values fet
   // 0x1876 b0 bit 0 appears to be 1 when at maxsoc and BMS says charge is not allowed -
   // when at 0 indicates charge is possible - additional note there is something more to it than this,
   // it's not as straight forward - needs more testing to find what sets/unsets bit0 of byte0
-  if ((max_charge_rate_amp == 0) || (datalayer.battery.status.reported_soc == 10000) ||
+  if ((datalayer.battery.status.max_charge_current_dA == 0) || (datalayer.battery.status.reported_soc == 10000) ||
       (datalayer.battery.status.bms_status == FAULT)) {
     FOXESS_1876.data.u8[0] = 0x01;
   } else {  //continue using battery
@@ -732,7 +675,7 @@ void send_can_inverter() {  // This function loops as fast as possible
 void receive_can_inverter(CAN_frame rx_frame) {
 
   if (rx_frame.ID == 0x1871) {
-    inverterStillAlive = CAN_STILL_ALIVE;
+    datalayer.system.status.CAN_inverter_still_alive = CAN_STILL_ALIVE;
     if (rx_frame.data.u8[0] == 0x03) {  //0x1871 [0x03, 0x06, 0x17, 0x05, 0x09, 0x09, 0x28, 0x22]
 //This message is sent by the inverter every '6' seconds (0.5s after the pack serial numbers)
 //and contains a timestamp in bytes 2-7 i.e. <YY>,<MM>,<DD>,<HH>,<mm>,<ss>
@@ -793,5 +736,9 @@ void receive_can_inverter(CAN_frame rx_frame) {
       }
     }
   }
+}
+void setup_inverter(void) {  // Performs one time setup at startup over CAN bus
+  strncpy(datalayer.system.info.inverter_protocol, "FoxESS compatible HV2600/ECS4100 battery", 63);
+  datalayer.system.info.inverter_protocol[63] = '\0';
 }
 #endif

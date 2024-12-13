@@ -10,35 +10,44 @@
 
 /* Select battery used */
 //#define BMW_I3_BATTERY
+//#define BMW_IX_BATTERY
 //#define BYD_ATTO_3_BATTERY
+//#define CELLPOWER_BMS
 //#define CHADEMO_BATTERY	//NOTE: inherently enables CONTACTOR_CONTROL below
 //#define IMIEV_CZERO_ION_BATTERY
 //#define JAGUAR_IPACE_BATTERY
-//#define KIA_HYUNDAI_64_BATTERY
 //#define KIA_E_GMP_BATTERY
+//#define KIA_HYUNDAI_64_BATTERY
 //#define KIA_HYUNDAI_HYBRID_BATTERY
+//#define MEB_BATTERY
 //#define MG_5_BATTERY
 //#define NISSAN_LEAF_BATTERY
 //#define PYLON_BATTERY
 //#define RJXZS_BMS
+//#define RANGE_ROVER_PHEV_BATTERY
 //#define RENAULT_KANGOO_BATTERY
 //#define RENAULT_TWIZY_BATTERY
 //#define RENAULT_ZOE_GEN1_BATTERY
 //#define RENAULT_ZOE_GEN2_BATTERY
 //#define SANTA_FE_PHEV_BATTERY
-//#define TESLA_MODEL_SX_BATTERY
 //#define TESLA_MODEL_3Y_BATTERY
+//#define TESLA_MODEL_SX_BATTERY
 //#define VOLVO_SPA_BATTERY
 //#define TEST_FAKE_BATTERY
 //#define DOUBLE_BATTERY  //Enable this line if you use two identical batteries at the same time (requires DUAL_CAN setup)
 
 /* Select inverter communication protocol. See Wiki for which to use with your inverter: https://github.com/dalathegreat/BYD-Battery-Emulator-For-Gen24/wiki */
-//#define BYD_CAN  //Enable this line to emulate a "BYD Battery-Box Premium HVS" over CAN Bus
-//#define BYD_SMA //Enable this line to emulate a SMA compatible "BYD Battery-Box HVS 10.2KW battery" over CAN bus
-//#define BYD_MODBUS  //Enable this line to emulate a "BYD 11kWh HVM battery" over Modbus RTU
+//#define AFORE_CAN        //Enable this line to emulate an "Afore battery" over CAN bus
+//#define BYD_CAN          //Enable this line to emulate a "BYD Battery-Box Premium HVS" over CAN Bus
+//#define BYD_KOSTAL_RS485 //Enable this line to emulate a "BYD 11kWh HVM battery" over Kostal RS485
+//#define BYD_MODBUS       //Enable this line to emulate a "BYD 11kWh HVM battery" over Modbus RTU
+//#define BYD_SMA          //Enable this line to emulate a SMA compatible "BYD Battery-Box HVS 10.2KW battery" over CAN bus
 //#define FOXESS_CAN       //Enable this line to emulate a "HV2600/ECS4100 battery" over CAN bus
-//#define PYLON_CAN        //Enable this line to emulate a "Pylontech battery" over CAN bus
+//#define PYLON_LV_CAN     //Enable this line to emulate a "48V Pylontech battery" over CAN bus
+//#define PYLON_CAN        //Enable this line to emulate a "High Voltage Pylontech battery" over CAN bus
+//#define SCHNEIDER_CAN    //Enable this line to emulate a "Schneider Version 2: SE BMS" over CAN bus
 //#define SMA_CAN          //Enable this line to emulate a "BYD Battery-Box H 8.9kWh, 7 mod" over CAN bus
+//#define SMA_LV_CAN       //Enable this line to emulate a "SMA Sunny Island 48V battery" over CAN bus
 //#define SMA_TRIPOWER_CAN //Enable this line to emulate a "SMA Home Storage battery" over CAN bus
 //#define SOFAR_CAN        //Enable this line to emulate a "Sofar Energy Storage Inverter High Voltage BMS General Protocol (Extended Frame)" over CAN bus
 //#define SOLAX_CAN        //Enable this line to emulate a "SolaX Triple Power LFP" over CAN bus
@@ -47,16 +56,26 @@
 /* Select hardware used for Battery-Emulator */
 #define HW_LILYGO
 //#define HW_STARK
+//#define HW_3LB
+
+/* Contactor settings. If you have a battery that does not activate contactors via CAN, configure this section */
+//#define CONTACTOR_CONTROL     //Enable this line to have the emulator handle automatic precharge/contactor+/contactor- closing sequence (See wiki for pins)
+//#define CONTACTOR_CONTROL_DOUBLE_BATTERY //Enable this line to have the emulator hardware control secondary set of contactors for double battery setups (See wiki for pins)
+//#define PWM_CONTACTOR_CONTROL //Enable this line to use PWM for CONTACTOR_CONTROL, which lowers power consumption and heat generation. CONTACTOR_CONTROL must be enabled.
+//#define NC_CONTACTORS         //Enable this line to control normally closed contactors. CONTACTOR_CONTROL must be enabled for this option. Extremely rare setting!
 
 /* Other options */
 //#define DEBUG_VIA_USB  //Enable this line to have the USB port output serial diagnostic data while program runs (WARNING, raises CPU load, do not use for production)
-//#define DEBUG_CANFD_DATA    //Enable this line to have the USB port output CAN-FD data while program runs (WARNING, raises CPU load, do not use for production)
+//#define DEBUG_CAN_DATA    //Enable this line to print incoming/outgoing CAN & CAN-FD messages to USB serial (WARNING, raises CPU load, do not use for production)
 //#define INTERLOCK_REQUIRED  //Nissan LEAF specific setting, if enabled requires both high voltage conenctors to be seated before starting
-//#define CONTACTOR_CONTROL     //Enable this line to have pins 25,32,33 handle automatic precharge/contactor+/contactor- closing sequence
-//#define PWM_CONTACTOR_CONTROL //Enable this line to use PWM for CONTACTOR_CONTROL, which lowers power consumption and heat generation. CONTACTOR_CONTROL must be enabled.
 //#define DUAL_CAN  //Enable this line to activate an isolated secondary CAN Bus using add-on MCP2515 chip (Needed for some inverters / double battery)
 #define CRYSTAL_FREQUENCY_MHZ 8  //DUAL_CAN option, what is your MCP2515 add-on boards crystal frequency?
 //#define CAN_FD  //Enable this line to activate an isolated secondary CAN-FD bus using add-on MCP2518FD chip / Native CANFD on Stark board
+#ifdef CAN_FD  // CAN_FD additional options if enabled
+#define CAN_FD_CRYSTAL_FREQUENCY_MHZ \
+  ACAN2517FDSettings::               \
+      OSC_40MHz  //CAN_FD option, what is your MCP2518 add-on boards crystal frequency? (Default OSC_40MHz)
+#endif
 //#define USE_CANFD_INTERFACE_AS_CLASSIC_CAN // Enable this line if you intend to use the CANFD as normal CAN
 //#define SERIAL_LINK_RECEIVER  //Enable this line to receive battery data over RS485 pins from another Lilygo (This LilyGo interfaces with inverter)
 //#define SERIAL_LINK_TRANSMITTER  //Enable this line to send battery data over RS485 pins to another Lilygo (This LilyGo interfaces with battery)
@@ -75,6 +94,13 @@
 // #define MQTT  // Enable this line to enable MQTT
 #define MQTT_SERVER "192.168.xxx.yyy"
 #define MQTT_PORT 1883
+#define MQTT_MANUAL_TOPIC_OBJECT_NAME  // Enable this to use custom MQTT topic, object ID prefix, and device name.    \
+                                       // WARNING: If this is not defined, the previous default naming format         \
+                                       // 'battery-emulator_esp32-XXXXXX' (based on hardware ID) will be used.        \
+                                       // This naming convention was in place until version 7.5.0.                    \
+                                       // Users should check the version from which they are updating, as this change \
+                                       // may break compatibility with previous versions of MQTT naming.              \
+                                       // Please refer to USER_SETTINGS.cpp for configuration options.
 
 /* Home Assistant options */
 #define HA_AUTODISCOVERY  // Enable this line to send Home Assistant autodiscovery messages. If not enabled manual configuration of Home Assitant is required
@@ -95,6 +121,10 @@
 #define BATTERY_MAXPERCENTAGE 8000
 // 2000 = 20.0% , Min percentage the battery will discharge to (Inverter gets 0% when reached)
 #define BATTERY_MINPERCENTAGE 2000
+// 500 = 50.0 °C , Max temperature (Will produce a battery overheat event if above)
+#define BATTERY_MAXTEMPERATURE 500
+// -250 = -25.0 °C , Min temperature (Will produce a battery frozen event if below)
+#define BATTERY_MINTEMPERATURE -250
 // 300 = 30.0A , BYD CAN specific setting, Max charge in Amp (Some inverters needs to be limited)
 #define BATTERY_MAX_CHARGE_AMP 300
 // 300 = 30.0A , BYD CAN specific setting, Max discharge in Amp (Some inverters needs to be limited)

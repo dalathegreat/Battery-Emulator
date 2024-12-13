@@ -81,10 +81,6 @@ void update_values_battery() {
 
   datalayer.battery.status.cell_min_voltage_mV = HVBattCellVoltageMinMv;
 
-  //Power in watts, Negative = charging batt
-  datalayer.battery.status.active_power_W =
-      ((datalayer.battery.status.voltage_dV * datalayer.battery.status.current_dA) / 100);
-
   datalayer.battery.status.temperature_min_dC = HVBattCellTempColdest * 10;  // C to dC
 
   datalayer.battery.status.temperature_max_dC = HVBattCellTempHottest * 10;  // C to dC
@@ -258,10 +254,8 @@ void send_can_battery() {
 }
 
 void setup_battery(void) {  // Performs one time setup at startup
-#ifdef DEBUG_VIA_USB
-  Serial.println("Jaguar iPace 90kWh battery selected");
-#endif
-
+  strncpy(datalayer.system.info.battery_protocol, "Jaguar I-PACE", 63);
+  datalayer.system.info.battery_protocol[63] = '\0';
   datalayer.battery.info.number_of_cells = 108;
   datalayer.battery.info.max_design_voltage_dV = MAX_PACK_VOLTAGE_DV;
   datalayer.battery.info.min_design_voltage_dV = MIN_PACK_VOLTAGE_DV;

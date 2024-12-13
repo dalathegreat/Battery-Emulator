@@ -5,6 +5,8 @@ const char EVENTS_HTML_START[] = R"=====(
 )=====";
 const char EVENTS_HTML_END[] = R"=====(
 </div></div>
+<style> button { background-color: #505E67; color: white; border: none; padding: 10px 20px; margin-bottom: 20px; cursor: pointer; border-radius: 10px; }
+button:hover { background-color: #3A4A52; }</style>
 <button onclick="askClear()">Clear all events</button>
 <button onclick="home()">Back to main page</button>
 <style>.event:nth-child(even){background-color:#455a64}.event:nth-child(odd){background-color:#394b52}</style><script>function showEvent(){document.querySelectorAll(".event").forEach(function(e){var n=e.querySelector(".sec-ago");n&&(n.innerText=new Date(Date.now()-(4294967296*+n.innerText.split(";")[0]+ +n.innerText.split(";")[1])).toLocaleString())})}function askClear(){window.confirm("Are you sure you want to clear all events?")&&(window.location.href="/clearevents")}function home(){window.location.href="/"}window.onload=function(){showEvent()}</script>
@@ -58,8 +60,8 @@ String events_processor(const String& var) {
     order_events.clear();
     content.concat(FPSTR(EVENTS_HTML_END));
     return content;
-    return String();
   }
+  return String();
 }
 
 /* Script for displaying event log before it gets minified
