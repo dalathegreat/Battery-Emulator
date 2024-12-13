@@ -132,7 +132,7 @@ State contactorStatus = DISCONNECTED;
 #define NEGATIVE_CONTACTOR_TIME_MS \
   500  // Time after negative contactor is turned on, to start precharge (not actual precharge time!)
 #define PRECHARGE_COMPLETED_TIME_MS \
-  1000  // Time after precharge completed, that we should turn off the precharge resistor (and economize if PWM is on)
+  1000  // After successful precharge, resistor is turned off after this delay (and contactors are economized if PWM enabled)
 #define PWM_Freq 20000  // 20 kHz frequency, beyond audible range
 #define PWM_Res 10      // 10 Bit resolution 0 to 1023, maps 'nicely' to 0% 100%
 #define PWM_HOLD_DUTY 250
