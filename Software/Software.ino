@@ -13,6 +13,7 @@
 #include "src/charger/CHARGERS.h"
 #include "src/communication/can/comm_can.h"
 #include "src/communication/contactorcontrol/comm_contactorcontrol.h"
+#include "src/communication/equipmentstopbutton/comm_equipmentstopbutton.h"
 #include "src/communication/rs485/comm_rs485.h"
 #include "src/communication/seriallink/comm_seriallink.h"
 #include "src/datalayer/datalayer.h"
@@ -44,10 +45,6 @@
 #include "src/devboard/mqtt/mqtt.h"
 #endif  // MQTT
 #endif  // WIFI
-
-#ifdef EQUIPMENT_STOP_BUTTON
-#include "src/devboard/utils/debounce_button.h"
-#endif
 
 Preferences settings;  // Store user settings
 // The current software version, shown on webserver
@@ -83,15 +80,6 @@ MyTimer connectivity_task_timer_10s(INTERVAL_10_S);
 MyTimer loop_task_timer_10s(INTERVAL_10_S);
 
 MyTimer check_pause_2s(INTERVAL_2_S);
-
-
-#ifdef EQUIPMENT_STOP_BUTTON
-const unsigned long equipment_button_long_press_duration =
-    15000;                                                     // 15 seconds for long press in case of MOMENTARY_SWITCH
-const unsigned long equipment_button_debounce_duration = 200;  // 250ms for debouncing the button
-unsigned long timeSincePress = 0;                              // Variable to store the time since the last press
-DebouncedButton equipment_stop_button;                         // Debounced button object
-#endif
 
 TaskHandle_t main_loop_task;
 TaskHandle_t connectivity_loop_task;
@@ -360,41 +348,6 @@ void init_stored_settings() {
   datalayer.battery.settings.user_set_voltage_limits_active = settings.getBool("USEVOLTLIMITS", false);
   settings.end();
 }
-
-#ifdef EQUIPMENT_STOP_BUTTON
-void monitor_equipment_stop_button() {
-
-  ButtonState changed_state = debounceButton(equipment_stop_button, timeSincePress);
-
-  if (equipment_stop_behavior == LATCHING_SWITCH) {
-    if (changed_state == PRESSED) {
-      // Changed to ON – initiating equipment stop.
-      setBatteryPause(true, false, true);
-    } else if (changed_state == RELEASED) {
-      // Changed to OFF – ending equipment stop.
-      setBatteryPause(false, false, false);
-    }
-  } else if (equipment_stop_behavior == MOMENTARY_SWITCH) {
-    if (changed_state == RELEASED) {  // button is released
-
-      if (timeSincePress < equipment_button_long_press_duration) {
-        // Short press detected, trigger equipment stop
-        setBatteryPause(true, false, true);
-      } else {
-        // Long press detected, reset equipment stop state
-        setBatteryPause(false, false, false);
-      }
-    }
-  }
-}
-
-void init_equipment_stop_button() {
-  //using external pullup resistors NC
-  pinMode(EQUIPMENT_STOP_PIN, INPUT);
-  // Initialize the debounced button with NC switch type and equipment_button_debounce_duration debounce time
-  initDebouncedButton(equipment_stop_button, EQUIPMENT_STOP_PIN, NC, equipment_button_debounce_duration);
-}
-#endif  // EQUIPMENT_STOP_BUTTON
 
 #ifdef DOUBLE_BATTERY
 void check_interconnect_available() {
