@@ -12,6 +12,8 @@
 #include "freertos/task.h"
 #include "src/charger/CHARGERS.h"
 #include "src/communication/can/comm_can.h"
+#include "src/communication/rs485/comm_rs485.h"
+#include "src/communication/seriallink/comm_seriallink.h"
 #include "src/datalayer/datalayer.h"
 #include "src/devboard/utils/events.h"
 #include "src/devboard/utils/led_handler.h"
@@ -60,17 +62,6 @@ const char* version_number = "8.0.dev";
 uint16_t intervalUpdateValues = INTERVAL_1_S;  // Interval at which to update inverter values / Modbus registers
 unsigned long previousMillis10ms = 0;
 unsigned long previousMillisUpdateVal = 0;
-
-// ModbusRTU parameters
-#ifdef MODBUS_INVERTER_SELECTED
-#define MB_RTU_NUM_VALUES 13100
-uint16_t mbPV[MB_RTU_NUM_VALUES];  // Process variable memory
-// Create a ModbusRTU server instance listening on Serial2 with 2000ms timeout
-ModbusServerRTU MBserver(Serial2, 2000);
-#endif
-#if defined(SERIAL_LINK_RECEIVER) || defined(SERIAL_LINK_TRANSMITTER)
-#define SERIAL_LINK_BAUDRATE 112500
-#endif
 
 // Common charger parameters
 volatile float charger_setpoint_HV_VDC = 0.0f;
@@ -458,41 +449,6 @@ void init_contactors() {
 #endif  // HW_STARK
 }
 
-void init_rs485() {
-// Set up Modbus RTU Server
-#ifdef RS485_EN_PIN
-  pinMode(RS485_EN_PIN, OUTPUT);
-  digitalWrite(RS485_EN_PIN, HIGH);
-#endif  // RS485_EN_PIN
-#ifdef RS485_SE_PIN
-  pinMode(RS485_SE_PIN, OUTPUT);
-  digitalWrite(RS485_SE_PIN, HIGH);
-#endif  // RS485_SE_PIN
-#ifdef PIN_5V_EN
-  pinMode(PIN_5V_EN, OUTPUT);
-  digitalWrite(PIN_5V_EN, HIGH);
-#endif  // PIN_5V_EN
-#ifdef RS485_INVERTER_SELECTED
-  Serial2.begin(57600, SERIAL_8N1, RS485_RX_PIN, RS485_TX_PIN);
-#endif  // RS485_INVERTER_SELECTED
-#ifdef MODBUS_INVERTER_SELECTED
-#ifdef BYD_MODBUS
-  // Init Static data to the RTU Modbus
-  handle_static_data_modbus_byd();
-#endif  // BYD_MODBUS
-  // Init Serial2 connected to the RTU Modbus
-  RTUutils::prepareHardwareSerial(Serial2);
-  Serial2.begin(9600, SERIAL_8N1, RS485_RX_PIN, RS485_TX_PIN);
-  // Register served function code worker for server
-  MBserver.registerWorker(MBTCP_ID, READ_HOLD_REGISTER, &FC03);
-  MBserver.registerWorker(MBTCP_ID, WRITE_HOLD_REGISTER, &FC06);
-  MBserver.registerWorker(MBTCP_ID, WRITE_MULT_REGISTERS, &FC16);
-  MBserver.registerWorker(MBTCP_ID, R_W_MULT_REGISTERS, &FC23);
-  // Start ModbusRTU background task
-  MBserver.begin(Serial2, MODBUS_CORE);
-#endif  // MODBUS_INVERTER_SELECTED
-}
-
 #ifdef EQUIPMENT_STOP_BUTTON
 void monitor_equipment_stop_button() {
 
@@ -794,29 +750,6 @@ void update_values_inverter() {
 #ifdef RS485_INVERTER_SELECTED
   update_RS485_registers_inverter();
 #endif  // CAN_INVERTER_SELECTED
-}
-
-#if defined(SERIAL_LINK_RECEIVER) || defined(SERIAL_LINK_TRANSMITTER)
-void runSerialDataLink() {
-  static unsigned long updateTime = 0;
-  unsigned long currentMillis = millis();
-
-  if ((currentMillis - updateTime) > 1) {  //Every 2ms
-    updateTime = currentMillis;
-#ifdef SERIAL_LINK_RECEIVER
-    manageSerialLinkReceiver();
-#endif
-#ifdef SERIAL_LINK_TRANSMITTER
-    manageSerialLinkTransmitter();
-#endif
-  }
-}
-#endif  // SERIAL_LINK_RECEIVER || SERIAL_LINK_TRANSMITTER
-
-void init_serialDataLink() {
-#if defined(SERIAL_LINK_RECEIVER) || defined(SERIAL_LINK_TRANSMITTER)
-  Serial2.begin(SERIAL_LINK_BAUDRATE, SERIAL_8N1, RS485_RX_PIN, RS485_TX_PIN);
-#endif  // SERIAL_LINK_RECEIVER || SERIAL_LINK_TRANSMITTER
 }
 
 void store_settings_equipment_stop() {
