@@ -78,7 +78,7 @@ void store_settings_equipment_stop() {
   settings.end();
 }
 
-void storeSettings() {
+void store_settings() {
   //  ATTENTION ! The maximum length for settings keys is 15 characters
   if (!settings.begin("batterySettings", false)) {
     set_event(EVENT_PERSISTENT_SAVE_INFO, 0);

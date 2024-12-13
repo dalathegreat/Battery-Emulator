@@ -199,7 +199,7 @@ void core_loop(void* task_time_us) {
     receive_RS485();  // Process serial2 RS485 interface
 #endif                // RS485_INVERTER_SELECTED
 #if defined(SERIAL_LINK_RECEIVER) || defined(SERIAL_LINK_TRANSMITTER)
-    runSerialDataLink();
+    run_serialDataLink();
 #endif  // SERIAL_LINK_RECEIVER || SERIAL_LINK_TRANSMITTER
     END_TIME_MEASUREMENT_MAX(comm, datalayer.system.status.time_comm_us);
 #ifdef WEBSERVER

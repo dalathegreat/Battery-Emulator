@@ -207,26 +207,6 @@ void receive_can(CAN_frame* rx_frame, int interface) {
   }
 }
 
-#ifdef CANFD_ADDON
-// Functions
-void receive_canfd_addon() {  // This section checks if we have a complete CAN-FD message incoming
-  CANFDMessage frame;
-  int count = 0;
-  while (canfd.available() && count++ < 16) {
-    canfd.receive(frame);
-
-    CAN_frame rx_frame;
-    rx_frame.ID = frame.id;
-    rx_frame.ext_ID = frame.ext;
-    rx_frame.DLC = frame.len;
-    memcpy(rx_frame.data.u8, frame.data, MIN(rx_frame.DLC, 64));
-    //message incoming, pass it on to the handler
-    receive_can(&rx_frame, CANFD_ADDON_MCP2518);
-    receive_can(&rx_frame, CANFD_NATIVE);
-  }
-}
-#endif  // CANFD_ADDON
-
 void receive_can_native() {  // This section checks if we have a complete CAN message incoming on native CAN port
   CAN_frame_t rx_frame_native;
   if (xQueueReceive(CAN_cfg.rx_queue, &rx_frame_native, 0) == pdTRUE) {
@@ -266,6 +246,26 @@ void receive_can_addon() {  // This section checks if we have a complete CAN mes
   }
 }
 #endif  // CAN_ADDON
+
+#ifdef CANFD_ADDON
+// Functions
+void receive_canfd_addon() {  // This section checks if we have a complete CAN-FD message incoming
+  CANFDMessage frame;
+  int count = 0;
+  while (canfd.available() && count++ < 16) {
+    canfd.receive(frame);
+
+    CAN_frame rx_frame;
+    rx_frame.ID = frame.id;
+    rx_frame.ext_ID = frame.ext;
+    rx_frame.DLC = frame.len;
+    memcpy(rx_frame.data.u8, frame.data, MIN(rx_frame.DLC, 64));
+    //message incoming, pass it on to the handler
+    receive_can(&rx_frame, CANFD_ADDON_MCP2518);
+    receive_can(&rx_frame, CANFD_NATIVE);
+  }
+}
+#endif  // CANFD_ADDON
 
 // Support functions
 void print_can_frame(CAN_frame frame, frameDirection msgDir) {

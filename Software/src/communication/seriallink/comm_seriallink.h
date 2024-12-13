@@ -3,8 +3,15 @@
 
 #include "../../include.h"
 
+/**
+ * @brief Initialization of serial data link
+ *
+ * @param[in] void
+ *
+ * @return void
+ */
 void init_serialDataLink();
 
-void runSerialDataLink();
+void run_serialDataLink();
 
 #endif

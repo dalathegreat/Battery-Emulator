@@ -18,7 +18,7 @@ void init_serialDataLink() {
 // Main functions
 
 #if defined(SERIAL_LINK_RECEIVER) || defined(SERIAL_LINK_TRANSMITTER)
-void runSerialDataLink() {
+void run_serialDataLink() {
   static unsigned long updateTime = 0;
   unsigned long currentMillis = millis();
 

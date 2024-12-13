@@ -7,6 +7,13 @@
 #include "../../lib/eModbus-eModbus/ModbusServerRTU.h"
 #include "../../lib/eModbus-eModbus/scripts/mbServerFCs.h"
 
+/**
+ * @brief Initialization of RS485
+ *
+ * @param[in] void
+ *
+ * @return void
+ */
 void init_rs485();
 
 #endif
