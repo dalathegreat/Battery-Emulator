@@ -277,23 +277,23 @@ void core_loop(void* task_time_us) {
     // Input, Runs as fast as possible
     receive_can_native();  // Receive CAN messages from native CAN port
 #ifdef CANFD_ADDON
-    receive_canfd();  // Receive CAN-FD messages.
-#endif
+    receive_canfd_addon();  // Receive CAN-FD messages.
+#endif                      // CANFD_ADDON
 #ifdef CAN_ADDON
-    receive_can_addonMCP2515();  // Receive CAN messages on add-on MCP2515 chip
-#endif
+    receive_can_addon();  // Receive CAN messages on add-on MCP2515 chip
+#endif                    // CAN_ADDON
 #ifdef RS485_INVERTER_SELECTED
     receive_RS485();  // Process serial2 RS485 interface
-#endif
+#endif                // RS485_INVERTER_SELECTED
 #if defined(SERIAL_LINK_RECEIVER) || defined(SERIAL_LINK_TRANSMITTER)
     runSerialDataLink();
-#endif
+#endif  // SERIAL_LINK_RECEIVER || SERIAL_LINK_TRANSMITTER
     END_TIME_MEASUREMENT_MAX(comm, datalayer.system.status.time_comm_us);
 #ifdef WEBSERVER
     START_TIME_MEASUREMENT(ota);
     ElegantOTA.loop();
     END_TIME_MEASUREMENT_MAX(ota, datalayer.system.status.time_ota_us);
-#endif
+#endif  // WEBSERVER
 
     START_TIME_MEASUREMENT(time_10ms);
     // Process
@@ -311,12 +311,12 @@ void core_loop(void* task_time_us) {
 #ifdef DOUBLE_BATTERY
       update_values_battery2();
       check_interconnect_available();
-#endif
+#endif  // DOUBLE_BATTERY
       update_calculated_values();
 #ifndef SERIAL_LINK_RECEIVER
       update_machineryprotection();  // Check safeties (Not on serial link reciever board)
-#endif
-      update_values_inverter();  // Update values heading towards inverter
+#endif                               // SERIAL_LINK_RECEIVER
+      update_values_inverter();      // Update values heading towards inverter
       if (DUMMY_EVENT_ENABLED) {
         set_event(EVENT_DUMMY_ERROR, (uint8_t)millis());
       }
@@ -330,7 +330,6 @@ void core_loop(void* task_time_us) {
     END_TIME_MEASUREMENT_MAX(cantx, datalayer.system.status.time_cantx_us);
     END_TIME_MEASUREMENT_MAX(all, datalayer.system.status.core_task_10s_max_us);
 #ifdef FUNCTION_TIME_MEASUREMENT
-
     if (datalayer.system.status.core_task_10s_max_us > datalayer.system.status.core_task_max_us) {
       // Update worst case total time
       datalayer.system.status.core_task_max_us = datalayer.system.status.core_task_10s_max_us;
@@ -352,8 +351,7 @@ void core_loop(void* task_time_us) {
       datalayer.system.status.time_cantx_us = 0;
       datalayer.system.status.core_task_10s_max_us = 0;
     }
-
-#endif
+#endif  // FUNCTION_TIME_MEASUREMENT
     if (check_pause_2s.elapsed()) {
       emulator_pause_state_send_CAN_battery();
     }
@@ -369,7 +367,7 @@ void init_serial() {
   while (!Serial) {}
 #ifdef DEBUG_VIA_USB
   Serial.println("__ OK __");
-#endif
+#endif  // DEBUG_VIA_USB
 }
 
 void init_stored_settings() {
@@ -388,11 +386,14 @@ void init_stored_settings() {
 
   //always save the equipment stop status
   settings.putBool("EQUIPMENT_STOP", datalayer.system.settings.equipment_stop_active);
+<<<<<<< HEAD
 
 #endif  //LOAD_SAVED_SETTINGS_ON_BOOT
+=======
+#endif  // LOAD_SAVED_SETTINGS_ON_BOOT
+>>>>>>> f4051ff (add comments for #endif statements)
 
 #ifdef WIFI
-
   char tempSSIDstring[63];  // Allocate buffer with sufficient size
   size_t lengthSSID = settings.getString("SSID", tempSSIDstring, sizeof(tempSSIDstring));
   if (lengthSSID > 0) {  // Successfully read the string from memory. Set it to SSID!
@@ -405,7 +406,7 @@ void init_stored_settings() {
     password = tempPasswordString;
   } else {  // Reading from settings failed. Do nothing with SSID. Raise event?
   }
-#endif  //WIFI
+#endif  // WIFI
 
   temp = settings.getUInt("BATTERY_WH_MAX", false);
   if (temp != 0) {
@@ -445,11 +446,11 @@ void init_CAN() {
 #ifdef CAN_SE_PIN
   pinMode(CAN_SE_PIN, OUTPUT);
   digitalWrite(CAN_SE_PIN, LOW);
-#endif
+#endif  // CAN_SE_PIN
   CAN_cfg.speed = CAN_SPEED_500KBPS;
 #ifdef NATIVECAN_250KBPS  // Some component is requesting lower CAN speed
   CAN_cfg.speed = CAN_SPEED_250KBPS;
-#endif
+#endif  // NATIVECAN_250KBPS
   CAN_cfg.tx_pin_id = CAN_TX_PIN;
   CAN_cfg.rx_pin_id = CAN_RX_PIN;
   CAN_cfg.rx_queue = xQueueCreate(rx_queue_size, sizeof(CAN_frame_t));
@@ -459,7 +460,7 @@ void init_CAN() {
 #ifdef CAN_ADDON
 #ifdef DEBUG_VIA_USB
   Serial.println("Dual CAN Bus (ESP32+MCP2515) selected");
-#endif
+#endif  // DEBUG_VIA_USB
   gBuffer.initWithSize(25);
   SPI.begin(MCP2515_SCK, MCP2515_MISO, MCP2515_MOSI);
   ACAN2515Settings settings(QUARTZ_FREQUENCY, 500UL * 1000UL);  // CAN bit rate 500 kb/s
@@ -468,28 +469,28 @@ void init_CAN() {
   if (errorCodeMCP == 0) {
 #ifdef DEBUG_VIA_USB
     Serial.println("Can ok");
-#endif
+#endif  // DEBUG_VIA_USB
   } else {
 #ifdef DEBUG_VIA_USB
     Serial.print("Error Can: 0x");
     Serial.println(errorCodeMCP, HEX);
-#endif
+#endif  // DEBUG_VIA_USB
     set_event(EVENT_CANMCP_INIT_FAILURE, (uint8_t)errorCodeMCP);
   }
-#endif
+#endif  // CAN_ADDON
 
 #ifdef CANFD_ADDON
 #ifdef DEBUG_VIA_USB
   Serial.println("CAN FD add-on (ESP32+MCP2517) selected");
-#endif
+#endif  // DEBUG_VIA_USB
   SPI.begin(MCP2517_SCK, MCP2517_SDO, MCP2517_SDI);
   ACAN2517FDSettings settings(CANFD_ADDON_CRYSTAL_FREQUENCY_MHZ, 500 * 1000,
                               DataBitRateFactor::x4);  // Arbitration bit rate: 500 kbit/s, data bit rate: 2 Mbit/s
 #ifdef USE_CANFD_INTERFACE_AS_CLASSIC_CAN
   settings.mRequestedMode = ACAN2517FDSettings::Normal20B;  // ListenOnly / Normal20B / NormalFD
-#else
+#else                                                       // not USE_CANFD_INTERFACE_AS_CLASSIC_CAN
   settings.mRequestedMode = ACAN2517FDSettings::NormalFD;  // ListenOnly / Normal20B / NormalFD
-#endif
+#endif                                                      // USE_CANFD_INTERFACE_AS_CLASSIC_CAN
   const uint32_t errorCode = canfd.begin(settings, [] { canfd.isr(); });
   canfd.poll();
   if (errorCode == 0) {
@@ -510,15 +511,15 @@ void init_CAN() {
     Serial.print("Arbitration Sample point: ");
     Serial.print(settings.arbitrationSamplePointFromBitStart());
     Serial.println("%");
-#endif
+#endif  // DEBUG_VIA_USB
   } else {
 #ifdef DEBUG_VIA_USB
     Serial.print("CAN-FD Configuration error 0x");
     Serial.println(errorCode, HEX);
-#endif
+#endif  // DEBUG_VIA_USB
     set_event(EVENT_CANFD_INIT_FAILURE, (uint8_t)errorCode);
   }
-#endif
+#endif  // CANFD_ADDON
 }
 
 void init_contactors() {
@@ -539,18 +540,18 @@ void init_contactors() {
 #endif  // Precharge never has PWM regardless of setting
   pinMode(PRECHARGE_PIN, OUTPUT);
   set(PRECHARGE_PIN, OFF);
-#endif  //CONTACTOR_CONTROL
+#endif  // CONTACTOR_CONTROL
 #ifdef CONTACTOR_CONTROL_DOUBLE_BATTERY
   pinMode(SECOND_POSITIVE_CONTACTOR_PIN, OUTPUT);
   set(SECOND_POSITIVE_CONTACTOR_PIN, OFF);
   pinMode(SECOND_NEGATIVE_CONTACTOR_PIN, OUTPUT);
   set(SECOND_NEGATIVE_CONTACTOR_PIN, OFF);
-#endif  //CONTACTOR_CONTROL_DOUBLE_BATTERY
+#endif  // CONTACTOR_CONTROL_DOUBLE_BATTERY
 // Init BMS contactor
 #ifdef HW_STARK  // TODO: Rewrite this so LilyGo can also handle this BMS contactor
   pinMode(BMS_POWER, OUTPUT);
   digitalWrite(BMS_POWER, HIGH);
-#endif  //HW_STARK
+#endif  // HW_STARK
 }
 
 void init_rs485() {
@@ -558,24 +559,23 @@ void init_rs485() {
 #ifdef RS485_EN_PIN
   pinMode(RS485_EN_PIN, OUTPUT);
   digitalWrite(RS485_EN_PIN, HIGH);
-#endif
+#endif  // RS485_EN_PIN
 #ifdef RS485_SE_PIN
   pinMode(RS485_SE_PIN, OUTPUT);
   digitalWrite(RS485_SE_PIN, HIGH);
-#endif
+#endif  // RS485_SE_PIN
 #ifdef PIN_5V_EN
   pinMode(PIN_5V_EN, OUTPUT);
   digitalWrite(PIN_5V_EN, HIGH);
-#endif
+#endif  // PIN_5V_EN
 #ifdef RS485_INVERTER_SELECTED
   Serial2.begin(57600, SERIAL_8N1, RS485_RX_PIN, RS485_TX_PIN);
-#endif
+#endif  // RS485_INVERTER_SELECTED
 #ifdef MODBUS_INVERTER_SELECTED
 #ifdef BYD_MODBUS
   // Init Static data to the RTU Modbus
   handle_static_data_modbus_byd();
-#endif
-
+#endif  // BYD_MODBUS
   // Init Serial2 connected to the RTU Modbus
   RTUutils::prepareHardwareSerial(Serial2);
   Serial2.begin(9600, SERIAL_8N1, RS485_RX_PIN, RS485_TX_PIN);
@@ -586,11 +586,10 @@ void init_rs485() {
   MBserver.registerWorker(MBTCP_ID, R_W_MULT_REGISTERS, &FC23);
   // Start ModbusRTU background task
   MBserver.begin(Serial2, MODBUS_CORE);
-#endif
+#endif  // MODBUS_INVERTER_SELECTED
 }
 
 #ifdef EQUIPMENT_STOP_BUTTON
-
 void monitor_equipment_stop_button() {
 
   ButtonState changed_state = debounceButton(equipment_stop_button, timeSincePress);
@@ -623,8 +622,7 @@ void init_equipment_stop_button() {
   // Initialize the debounced button with NC switch type and equipment_button_debounce_duration debounce time
   initDebouncedButton(equipment_stop_button, EQUIPMENT_STOP_PIN, NC, equipment_button_debounce_duration);
 }
-
-#endif
+#endif  // EQUIPMENT_STOP_BUTTON
 
 enum frameDirection { MSG_RX, MSG_TX };  //RX = 0, TX = 1
 void print_can_frame(CAN_frame frame, frameDirection msgDir);
@@ -645,7 +643,7 @@ void print_can_frame(CAN_frame frame, frameDirection msgDir) {
       Serial.print(" ");
   }
   Serial.println("");
-#endif  //#DEBUG_CAN_DATA
+#endif  // DEBUG_CAN_DATA
 
   if (datalayer.system.info.can_logging_active) {  // If user clicked on CAN Logging page in webserver, start recording
     char* message_string = datalayer.system.info.logged_can_messages;
@@ -685,7 +683,7 @@ void print_can_frame(CAN_frame frame, frameDirection msgDir) {
 
 #ifdef CANFD_ADDON
 // Functions
-void receive_canfd() {  // This section checks if we have a complete CAN-FD message incoming
+void receive_canfd_addon() {  // This section checks if we have a complete CAN-FD message incoming
   CANFDMessage frame;
   int count = 0;
   while (canfd.available() && count++ < 16) {
@@ -701,7 +699,7 @@ void receive_canfd() {  // This section checks if we have a complete CAN-FD mess
     receive_can(&rx_frame, CANFD_NATIVE);
   }
 }
-#endif
+#endif  // CANFD_ADDON
 
 void receive_can_native() {  // This section checks if we have a complete CAN message incoming on native CAN port
   CAN_frame_t rx_frame_native;
@@ -726,7 +724,6 @@ void send_can() {
   if (!allowed_to_send_CAN) {
     return;
   }
-
   send_can_battery();
 
 #ifdef CAN_INVERTER_SELECTED
@@ -739,9 +736,9 @@ void send_can() {
 }
 
 #ifdef CAN_ADDON
-void receive_can_addonMCP2515() {  // This section checks if we have a complete CAN message incoming on add-on CAN port
-  CAN_frame rx_frame;              // Struct with our CAN format
-  CANMessage MCP2515Frame;         // Struct with ACAN2515 library format, needed to use the MCP2515 library
+void receive_can_addon() {  // This section checks if we have a complete CAN message incoming on add-on CAN port
+  CAN_frame rx_frame;       // Struct with our CAN format
+  CANMessage MCP2515Frame;  // Struct with ACAN2515 library format, needed to use the MCP2515 library
 
   if (can.available()) {
     can.receive(MCP2515Frame);
@@ -779,16 +776,16 @@ void check_interconnect_available() {
     set_event(EVENT_VOLTAGE_DIFFERENCE, (uint8_t)(voltage_diff / 10));
   }
 }
-#endif  //DOUBLE_BATTERY
+#endif  // DOUBLE_BATTERY
 
 void handle_contactors() {
 #ifdef BYD_SMA
   datalayer.system.status.inverter_allows_contactor_closing = digitalRead(INVERTER_CONTACTOR_ENABLE_PIN);
-#endif
+#endif  // BYD_SMA
 
 #ifdef CONTACTOR_CONTROL_DOUBLE_BATTERY
   handle_contactors_battery2();
-#endif
+#endif  // CONTACTOR_CONTROL_DOUBLE_BATTERY
 
 #ifdef CONTACTOR_CONTROL
   // First check if we have any active errors, incase we do, turn off the battery
@@ -893,7 +890,7 @@ void handle_contactors_battery2() {
     datalayer.system.status.contactors_battery2_engaged = false;
   }
 }
-#endif  //CONTACTOR_CONTROL_DOUBLE_BATTERY
+#endif  // CONTACTOR_CONTROL_DOUBLE_BATTERY
 
 void update_calculated_values() {
   /* Calculate allowed charge/discharge currents*/
@@ -983,7 +980,7 @@ void update_calculated_values() {
     } else {
       datalayer.battery2.status.reported_remaining_capacity_Wh = datalayer.battery2.status.remaining_capacity_Wh;
     }
-#endif
+#endif  // DOUBLE_BATTERY
 
   } else {  // soc_scaling_active == false. No SOC window wanted. Set scaled to same as real.
     datalayer.battery.status.reported_soc = datalayer.battery.status.real_soc;
@@ -1012,19 +1009,19 @@ void update_calculated_values() {
     datalayer.battery.status.reported_soc = datalayer.battery2.status.real_soc;
     datalayer.battery.status.reported_remaining_capacity_Wh = datalayer.battery2.status.remaining_capacity_Wh;
   }
-#endif  //DOUBLE_BATTERY
+#endif  // DOUBLE_BATTERY
 }
 
 void update_values_inverter() {
 #ifdef CAN_INVERTER_SELECTED
   update_values_can_inverter();
-#endif
+#endif  // CAN_INVERTER_SELECTED
 #ifdef MODBUS_INVERTER_SELECTED
   update_modbus_registers_inverter();
-#endif
+#endif  // CAN_INVERTER_SELECTED
 #ifdef RS485_INVERTER_SELECTED
   update_RS485_registers_inverter();
-#endif
+#endif  // CAN_INVERTER_SELECTED
 }
 
 #if defined(SERIAL_LINK_RECEIVER) || defined(SERIAL_LINK_TRANSMITTER)
@@ -1042,12 +1039,12 @@ void runSerialDataLink() {
 #endif
   }
 }
-#endif
+#endif  // SERIAL_LINK_RECEIVER || SERIAL_LINK_TRANSMITTER
 
 void init_serialDataLink() {
 #if defined(SERIAL_LINK_RECEIVER) || defined(SERIAL_LINK_TRANSMITTER)
   Serial2.begin(SERIAL_LINK_BAUDRATE, SERIAL_8N1, RS485_RX_PIN, RS485_TX_PIN);
-#endif
+#endif  // SERIAL_LINK_RECEIVER || SERIAL_LINK_TRANSMITTER
 }
 
 void store_settings_equipment_stop() {
