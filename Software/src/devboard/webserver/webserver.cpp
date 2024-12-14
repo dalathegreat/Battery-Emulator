@@ -685,7 +685,7 @@ String processor(const String& var) {
       content += "<h4 style='color: red;'>Power status: " + String(get_emulator_pause_status().c_str()) + " </h4>";
 
 #ifdef CONTACTOR_CONTROL
-    content += "<h4>Contactors controlled by Battery-Emulator: ";
+    content += "<h4>Contactors controlled by emulator, state: ";
     if (datalayer.system.status.contactors_engaged) {
       content += "<span style='color: green;'>ON</span>";
     } else {
@@ -693,13 +693,21 @@ String processor(const String& var) {
     }
     content += "</h4>";
 
-    content += "<h4>Pre Charge: ";
-    if (digitalRead(PRECHARGE_PIN) == HIGH) {
-      content += "<span style='color: green;'>&#10003;</span>";
+    content += "<h4>Precharge: (";
+    content += PRECHARGE_TIME_MS;
+    content += " ms) Cont. Neg.: ";
+#ifdef PWM_CONTACTOR_CONTROL
+    if (datalayer.system.status.contactors_engaged) {
+      content += "<span style='color: green;'>Economized</span>";
+      content += " Cont. Pos.: ";
+      content += "<span style='color: green;'>Economized</span>";
     } else {
       content += "<span style='color: red;'>&#10005;</span>";
+      content += " Cont. Pos.: ";
+      content += "<span style='color: red;'>&#10005;</span>";
     }
-    content += " Cont. Neg.: ";
+
+#else   // No PWM_CONTACTOR_CONTROL , we can read the pin and see feedback. Helpful if channel overloaded
     if (digitalRead(NEGATIVE_CONTACTOR_PIN) == HIGH) {
       content += "<span style='color: green;'>&#10003;</span>";
     } else {
@@ -712,6 +720,7 @@ String processor(const String& var) {
     } else {
       content += "<span style='color: red;'>&#10005;</span>";
     }
+#endif  //no PWM_CONTACTOR_CONTROL
     content += "</h4>";
 #endif
 
@@ -816,7 +825,7 @@ String processor(const String& var) {
       content += "<h4 style='color: red;'>Power status: " + String(get_emulator_pause_status().c_str()) + " </h4>";
 
 #ifdef CONTACTOR_CONTROL
-    content += "<h4>Contactors controlled by Battery-Emulator: ";
+    content += "<h4>Contactors controlled by emulator, state: ";
     if (datalayer.system.status.contactors_battery2_engaged) {
       content += "<span style='color: green;'>ON</span>";
     } else {
@@ -824,13 +833,19 @@ String processor(const String& var) {
     }
     content += "</h4>";
 #ifdef CONTACTOR_CONTROL_DOUBLE_BATTERY
-    content += "<h4>Pre Charge: ";
-    if (digitalRead(SECOND_PRECHARGE_PIN) == HIGH) {
-      content += "<span style='color: green;'>&#10003;</span>";
+    content += "<h4>Cont. Neg.: ";
+#ifdef PWM_CONTACTOR_CONTROL
+    if (datalayer.system.status.contactors_battery2_engaged) {
+      content += "<span style='color: green;'>Economized</span>";
+      content += " Cont. Pos.: ";
+      content += "<span style='color: green;'>Economized</span>";
     } else {
       content += "<span style='color: red;'>&#10005;</span>";
+      content += " Cont. Pos.: ";
+      content += "<span style='color: red;'>&#10005;</span>";
     }
-    content += " Cont. Neg.: ";
+
+#else   // No PWM_CONTACTOR_CONTROL , we can read the pin and see feedback. Helpful if channel overloaded
     if (digitalRead(SECOND_NEGATIVE_CONTACTOR_PIN) == HIGH) {
       content += "<span style='color: green;'>&#10003;</span>";
     } else {
@@ -843,6 +858,7 @@ String processor(const String& var) {
     } else {
       content += "<span style='color: red;'>&#10005;</span>";
     }
+#endif  //no PWM_CONTACTOR_CONTROL
     content += "</h4>";
 #endif  // CONTACTOR_CONTROL_DOUBLE_BATTERY
 #endif  // CONTACTOR_CONTROL

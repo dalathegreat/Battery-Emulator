@@ -115,7 +115,7 @@ MyTimer check_pause_2s(INTERVAL_2_S);
 
 // Contactor parameters
 #ifdef CONTACTOR_CONTROL
-enum State { DISCONNECTED, PRECHARGE, NEGATIVE, POSITIVE, PRECHARGE_OFF, COMPLETED, SHUTDOWN_REQUESTED };
+enum State { DISCONNECTED, START_PRECHARGE, PRECHARGE, POSITIVE, PRECHARGE_OFF, COMPLETED, SHUTDOWN_REQUESTED };
 State contactorStatus = DISCONNECTED;
 
 #define ON 1
@@ -126,30 +126,29 @@ State contactorStatus = DISCONNECTED;
 #define ON 0
 #undef OFF
 #define OFF 1
-#endif
+#endif  //NC_CONTACTORS
 
 #define MAX_ALLOWED_FAULT_TICKS 1000
-/* NOTE: modify the precharge time constant below to account for the resistance and capacitance of the target system.
- *	t=3RC at minimum, t=5RC ideally 
- */
-#define PRECHARGE_TIME_MS 160
-#define NEGATIVE_CONTACTOR_TIME_MS 1000
-#define POSITIVE_CONTACTOR_TIME_MS 2000
+#define NEGATIVE_CONTACTOR_TIME_MS \
+  500  // Time after negative contactor is turned on, to start precharge (not actual precharge time!)
+#define PRECHARGE_COMPLETED_TIME_MS \
+  1000  // After successful precharge, resistor is turned off after this delay (and contactors are economized if PWM enabled)
 #define PWM_Freq 20000  // 20 kHz frequency, beyond audible range
 #define PWM_Res 10      // 10 Bit resolution 0 to 1023, maps 'nicely' to 0% 100%
 #define PWM_HOLD_DUTY 250
 #define PWM_OFF_DUTY 0
 #define PWM_ON_DUTY 1023
-#define POSITIVE_PWM_Ch 0
-#define NEGATIVE_PWM_Ch 1
+#define PWM_Positive_Channel 0
+#define PWM_Negative_Channel 1
 unsigned long prechargeStartTime = 0;
 unsigned long negativeStartTime = 0;
+unsigned long prechargeCompletedTime = 0;
 unsigned long timeSpentInFaultedMode = 0;
 #endif
 
-void set(uint8_t pin, bool direction, uint32_t pwm_freq = 0xFFFFFFFFFF) {
+void set(uint8_t pin, bool direction, uint32_t pwm_freq = 0xFFFF) {
 #ifdef PWM_CONTACTOR_CONTROL
-  if (pwm_freq != 0xFFFFFFFFFF) {
+  if (pwm_freq != 0xFFFF) {
     ledcWrite(pin, pwm_freq);
     return;
   }
@@ -518,23 +517,22 @@ void init_contactors() {
   // Init contactor pins
 #ifdef CONTACTOR_CONTROL
 #ifdef PWM_CONTACTOR_CONTROL
-  ledcAttachChannel(POSITIVE_CONTACTOR_PIN, PWM_Freq, PWM_Res,
-                    POSITIVE_PWM_Ch);  // Setup PWM Channel Frequency and Resolution
-  ledcAttachChannel(NEGATIVE_CONTACTOR_PIN, PWM_Freq, PWM_Res,
-                    NEGATIVE_PWM_Ch);               // Setup PWM Channel Frequency and Resolution
-  ledcWrite(POSITIVE_CONTACTOR_PIN, PWM_OFF_DUTY);  // Set Positive PWM to 0%
-  ledcWrite(NEGATIVE_CONTACTOR_PIN, PWM_OFF_DUTY);  // Set Negative PWM to 0%
-#else                                               //Normal CONTACTOR_CONTROL
+  // Setup PWM Channel Frequency and Resolution
+  ledcAttachChannel(POSITIVE_CONTACTOR_PIN, PWM_Freq, PWM_Res, PWM_Positive_Channel);
+  ledcAttachChannel(NEGATIVE_CONTACTOR_PIN, PWM_Freq, PWM_Res, PWM_Negative_Channel);
+  // Set all pins OFF (0% PWM)
+  ledcWrite(POSITIVE_CONTACTOR_PIN, PWM_OFF_DUTY);
+  ledcWrite(NEGATIVE_CONTACTOR_PIN, PWM_OFF_DUTY);
+#else   //Normal CONTACTOR_CONTROL
   pinMode(POSITIVE_CONTACTOR_PIN, OUTPUT);
   set(POSITIVE_CONTACTOR_PIN, OFF);
   pinMode(NEGATIVE_CONTACTOR_PIN, OUTPUT);
   set(NEGATIVE_CONTACTOR_PIN, OFF);
-#endif
+#endif  // Precharge never has PWM regardless of setting
   pinMode(PRECHARGE_PIN, OUTPUT);
   set(PRECHARGE_PIN, OFF);
 #endif  //CONTACTOR_CONTROL
 #ifdef CONTACTOR_CONTROL_DOUBLE_BATTERY
-
   pinMode(SECOND_POSITIVE_CONTACTOR_PIN, OUTPUT);
   set(SECOND_POSITIVE_CONTACTOR_PIN, OFF);
   pinMode(SECOND_NEGATIVE_CONTACTOR_PIN, OUTPUT);
@@ -814,7 +812,7 @@ void handle_contactors() {
 
     if (datalayer.system.status.battery_allows_contactor_closing &&
         datalayer.system.status.inverter_allows_contactor_closing && !datalayer.system.settings.equipment_stop_active) {
-      contactorStatus = PRECHARGE;
+      contactorStatus = START_PRECHARGE;
     }
   }
 
@@ -829,31 +827,32 @@ void handle_contactors() {
   }
 
   unsigned long currentTime = millis();
-  // Handle actual state machine. This first turns on Precharge, then Negative, then Positive, and finally turns OFF precharge
+  // Handle actual state machine. This first turns on Negative, then Precharge, then Positive, and finally turns OFF precharge
   switch (contactorStatus) {
-    case PRECHARGE:
-      set(PRECHARGE_PIN, ON);
+    case START_PRECHARGE:
+      set(NEGATIVE_CONTACTOR_PIN, ON, PWM_ON_DUTY);
       prechargeStartTime = currentTime;
-      contactorStatus = NEGATIVE;
+      contactorStatus = PRECHARGE;
       break;
 
-    case NEGATIVE:
-      if (currentTime - prechargeStartTime >= PRECHARGE_TIME_MS) {
-        set(NEGATIVE_CONTACTOR_PIN, ON, PWM_ON_DUTY);
+    case PRECHARGE:
+      if (currentTime - prechargeStartTime >= NEGATIVE_CONTACTOR_TIME_MS) {
+        set(PRECHARGE_PIN, ON);
         negativeStartTime = currentTime;
         contactorStatus = POSITIVE;
       }
       break;
 
     case POSITIVE:
-      if (currentTime - negativeStartTime >= NEGATIVE_CONTACTOR_TIME_MS) {
+      if (currentTime - negativeStartTime >= PRECHARGE_TIME_MS) {
         set(POSITIVE_CONTACTOR_PIN, ON, PWM_ON_DUTY);
+        prechargeCompletedTime = currentTime;
         contactorStatus = PRECHARGE_OFF;
       }
       break;
 
     case PRECHARGE_OFF:
-      if (currentTime - negativeStartTime >= POSITIVE_CONTACTOR_TIME_MS) {
+      if (currentTime - prechargeCompletedTime >= PRECHARGE_COMPLETED_TIME_MS) {
         set(PRECHARGE_PIN, OFF);
         set(NEGATIVE_CONTACTOR_PIN, ON, PWM_HOLD_DUTY);
         set(POSITIVE_CONTACTOR_PIN, ON, PWM_HOLD_DUTY);
