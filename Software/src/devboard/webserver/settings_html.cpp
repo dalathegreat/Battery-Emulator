@@ -271,7 +271,7 @@ const char* getCANInterfaceName(CAN_Interface interface) {
 #endif
     case CAN_ADDON_MCP2515:
       return "Add-on CAN via GPIO MCP2515";
-    case CAN_ADDON_FD_MCP2518:
+    case CANFD_ADDON_MCP2518:
 #ifdef USE_CANFD_INTERFACE_AS_CLASSIC_CAN
       return "Add-on CAN-FD via GPIO MCP2518 (Classic CAN)";
 #else

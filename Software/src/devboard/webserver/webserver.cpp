@@ -131,7 +131,7 @@ void init_webserver() {
       String value = request->getParam("value")->value();
       if (value.length() <= 63) {  // Check if SSID is within the allowable length
         ssid = value.c_str();
-        storeSettings();
+        store_settings();
         request->send(200, "text/plain", "Updated successfully");
       } else {
         request->send(400, "text/plain", "SSID must be 63 characters or less");
@@ -148,7 +148,7 @@ void init_webserver() {
       String value = request->getParam("value")->value();
       if (value.length() > 8) {  // Check if password is within the allowable length
         password = value.c_str();
-        storeSettings();
+        store_settings();
         request->send(200, "text/plain", "Updated successfully");
       } else {
         request->send(400, "text/plain", "Password must be atleast 8 characters");
@@ -165,7 +165,7 @@ void init_webserver() {
     if (request->hasParam("value")) {
       String value = request->getParam("value")->value();
       datalayer.battery.info.total_capacity_Wh = value.toInt();
-      storeSettings();
+      store_settings();
       request->send(200, "text/plain", "Updated successfully");
     } else {
       request->send(400, "text/plain", "Bad Request");
@@ -179,7 +179,7 @@ void init_webserver() {
     if (request->hasParam("value")) {
       String value = request->getParam("value")->value();
       datalayer.battery.settings.soc_scaling_active = value.toInt();
-      storeSettings();
+      store_settings();
       request->send(200, "text/plain", "Updated successfully");
     } else {
       request->send(400, "text/plain", "Bad Request");
@@ -193,7 +193,7 @@ void init_webserver() {
     if (request->hasParam("value")) {
       String value = request->getParam("value")->value();
       datalayer.battery.settings.max_percentage = static_cast<uint16_t>(value.toFloat() * 100);
-      storeSettings();
+      store_settings();
       request->send(200, "text/plain", "Updated successfully");
     } else {
       request->send(400, "text/plain", "Bad Request");
@@ -237,7 +237,7 @@ void init_webserver() {
     if (request->hasParam("value")) {
       String value = request->getParam("value")->value();
       datalayer.battery.settings.min_percentage = static_cast<uint16_t>(value.toFloat() * 100);
-      storeSettings();
+      store_settings();
       request->send(200, "text/plain", "Updated successfully");
     } else {
       request->send(400, "text/plain", "Bad Request");
@@ -251,7 +251,7 @@ void init_webserver() {
     if (request->hasParam("value")) {
       String value = request->getParam("value")->value();
       datalayer.battery.settings.max_user_set_charge_dA = static_cast<uint16_t>(value.toFloat() * 10);
-      storeSettings();
+      store_settings();
       request->send(200, "text/plain", "Updated successfully");
     } else {
       request->send(400, "text/plain", "Bad Request");
@@ -265,7 +265,7 @@ void init_webserver() {
     if (request->hasParam("value")) {
       String value = request->getParam("value")->value();
       datalayer.battery.settings.max_user_set_discharge_dA = static_cast<uint16_t>(value.toFloat() * 10);
-      storeSettings();
+      store_settings();
       request->send(200, "text/plain", "Updated successfully");
     } else {
       request->send(400, "text/plain", "Bad Request");
@@ -279,7 +279,7 @@ void init_webserver() {
     if (request->hasParam("value")) {
       String value = request->getParam("value")->value();
       datalayer.battery.settings.user_set_voltage_limits_active = value.toInt();
-      storeSettings();
+      store_settings();
       request->send(200, "text/plain", "Updated successfully");
     } else {
       request->send(400, "text/plain", "Bad Request");
@@ -293,7 +293,7 @@ void init_webserver() {
     if (request->hasParam("value")) {
       String value = request->getParam("value")->value();
       datalayer.battery.settings.max_user_set_charge_voltage_dV = static_cast<uint16_t>(value.toFloat() * 10);
-      storeSettings();
+      store_settings();
       request->send(200, "text/plain", "Updated successfully");
     } else {
       request->send(400, "text/plain", "Bad Request");
@@ -307,7 +307,7 @@ void init_webserver() {
     if (request->hasParam("value")) {
       String value = request->getParam("value")->value();
       datalayer.battery.settings.max_user_set_discharge_voltage_dV = static_cast<uint16_t>(value.toFloat() * 10);
-      storeSettings();
+      store_settings();
       request->send(200, "text/plain", "Updated successfully");
     } else {
       request->send(400, "text/plain", "Bad Request");
