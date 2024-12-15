@@ -130,6 +130,7 @@ void send_can_shunt() {
         SBOX_100.data.u8[0]=0xA6;          // Precharge + Negative        
         negativeStartTime = currentTime;
         contactorStatus = POSITIVE;
+        datalayer.shunt.precharging = true;
       }
       break;
 
@@ -138,6 +139,7 @@ void send_can_shunt() {
         SBOX_100.data.u8[0]=0xAA;          // Precharge + Negative + Positive       
         positiveStartTime = currentTime;
         contactorStatus = PRECHARGE_OFF;
+        datalayer.shunt.precharging = false;
       }
       break;
 

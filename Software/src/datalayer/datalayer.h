@@ -130,6 +130,8 @@ typedef struct {
   uint32_t measured_outvoltage_mV = 0;
   /** measured amperage in mA (eg. S-BOX) **/
   uint32_t measured_amperage_mA = 0;
+  /** True if contactors are precharging state */
+  bool precharging = false;
   /** True if the contactor controlled by battery-emulator is closed */
   bool contactors_engaged = false;
 } DATALAYER_SHUNT_TYPE;
