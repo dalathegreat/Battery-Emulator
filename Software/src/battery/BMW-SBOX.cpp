@@ -103,7 +103,7 @@ void send_can_shunt() {
     datalayer.shunt.contactors_engaged = false;
     SBOX_100.data.u8[0]=0x55;  // All open
     if (datalayer.system.status.battery_allows_contactor_closing &&
-        datalayer.system.status.inverter_allows_contactor_closing && !datalayer.system.settings.equipment_stop_active) {
+        datalayer.system.status.inverter_allows_contactor_closing && !datalayer.system.settings.equipment_stop_active && ( measured_voltage_mV => MINIMUM_INPUT_VOLTAGE*1000)) {
       contactorStatus = PRECHARGE;
     }
   }
@@ -134,7 +134,7 @@ void send_can_shunt() {
       break;
 
     case POSITIVE:
-      if (currentTime - negativeStartTime >= NEGATIVE_CONTACTOR_TIME_MS) {
+      if (currentTime - negativeStartTime >= NEGATIVE_CONTACTOR_TIME_MS && (measured_voltage_mV * MAX_PRECHARGE_RESISTOR_VOLTAGE_RATIO < measured_outvoltage_mV)) {
         SBOX_100.data.u8[0]=0xAA;          // Precharge + Negative + Positive       
         positiveStartTime = currentTime;
         contactorStatus = PRECHARGE_OFF;
