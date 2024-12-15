@@ -135,7 +135,7 @@ void send_can_shunt() {
       break;
 
     case POSITIVE:
-      if (currentTime - negativeStartTime >= NEGATIVE_CONTACTOR_TIME_MS && (measured_voltage_mV * MAX_PRECHARGE_RESISTOR_VOLTAGE_PERCENT < dataalyer.shunt.measured_outvoltage_mV)) {
+      if (currentTime - negativeStartTime >= NEGATIVE_CONTACTOR_TIME_MS && (datalayer.shunt.measured_voltage_mV * MAX_PRECHARGE_RESISTOR_VOLTAGE_PERCENT < datalalyer.shunt.measured_outvoltage_mV)) {
         SBOX_100.data.u8[0]=0xAA;          // Precharge + Negative + Positive       
         positiveStartTime = currentTime;
         contactorStatus = PRECHARGE_OFF;
