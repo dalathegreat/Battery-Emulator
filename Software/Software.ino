@@ -429,9 +429,6 @@ void init_stored_settings() {
     datalayer.battery.settings.max_user_set_discharge_dA = temp;
   }
   datalayer.battery.settings.soc_scaling_active = settings.getBool("USE_SCALED_SOC", false);
-  settings.end();
-
-  settings.begin("batteryExtra", false);
   temp = settings.getUInt("TARGETCHVOLT", false);
   if (temp != 0) {
     datalayer.battery.settings.max_user_set_charge_voltage_dV = temp;
