@@ -374,6 +374,7 @@ void init_serial() {
 
 void init_stored_settings() {
   static uint32_t temp = 0;
+  //  ATTENTION ! The maximum length for settings keys is 15 characters
   settings.begin("batterySettings", false);
 
   // Always get the equipment stop status
@@ -430,15 +431,15 @@ void init_stored_settings() {
   settings.end();
 
   settings.begin("batteryExtra", false);
-  temp = settings.getUInt("TARGETCHARGEVOLTAGE", false);
+  temp = settings.getUInt("TARGETCHVOLT", false);
   if (temp != 0) {
     datalayer.battery.settings.max_user_set_charge_voltage_dV = temp;
   }
-  temp = settings.getUInt("TARGETDISCHARGEVOLTAGE", false);
+  temp = settings.getUInt("TARGETDISCHVOLT", false);
   if (temp != 0) {
     datalayer.battery.settings.max_user_set_discharge_voltage_dV = temp;
   }
-  datalayer.battery.settings.user_set_voltage_limits_active = settings.getBool("USE_VOLTAGE_LIMITS", false);
+  datalayer.battery.settings.user_set_voltage_limits_active = settings.getBool("USEVOLTLIMITS", false);
   settings.end();
 }
 
@@ -1059,6 +1060,7 @@ void store_settings_equipment_stop() {
 }
 
 void storeSettings() {
+  //  ATTENTION ! The maximum length for settings keys is 15 characters
   if (!settings.begin("batterySettings", false)) {
     set_event(EVENT_PERSISTENT_SAVE_INFO, 0);
     return;
@@ -1091,13 +1093,13 @@ void storeSettings() {
   if (!settings.putUInt("MAXDISCHARGEAMP", datalayer.battery.settings.max_user_set_discharge_dA)) {
     set_event(EVENT_PERSISTENT_SAVE_INFO, 8);
   }
-  if (!settings.putBool("USE_VOLTAGE_LIMITS", datalayer.battery.settings.user_set_voltage_limits_active)) {
+  if (!settings.putBool("USEVOLTLIMITS", datalayer.battery.settings.user_set_voltage_limits_active)) {
     set_event(EVENT_PERSISTENT_SAVE_INFO, 9);
   }
-  if (!settings.putUInt("TARGETCHARGEVOLTAGE", datalayer.battery.settings.max_user_set_charge_voltage_dV)) {
+  if (!settings.putUInt("TARGETCHVOLT", datalayer.battery.settings.max_user_set_charge_voltage_dV)) {
     set_event(EVENT_PERSISTENT_SAVE_INFO, 10);
   }
-  if (!settings.putUInt("TARGETDISCHARGEVOLTAGE", datalayer.battery.settings.max_user_set_discharge_voltage_dV)) {
+  if (!settings.putUInt("TARGETDISCHVOLT", datalayer.battery.settings.max_user_set_discharge_voltage_dV)) {
     set_event(EVENT_PERSISTENT_SAVE_INFO, 11);
   }
   settings.end();  // Close preferences handle
