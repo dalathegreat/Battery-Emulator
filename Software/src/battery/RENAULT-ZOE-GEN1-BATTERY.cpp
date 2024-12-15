@@ -13,6 +13,8 @@ Still TODO:
 - Fix the missing cell96 issue (Only cells 1-95 is shown)
 - Find current sensor value (OVMS code reads this from inverter, which we dont have)
 - Figure out why SOH% is not read (low prio)
+   - Most likely relates to the CAN message not being present on 41kWh packs
+- Automatically detect if we are on 22 or 41kWh battery
 /*
 
 /* Do not change code below unless you are sure what you are doing */
@@ -152,21 +154,51 @@ void update_values_battery() {  //This function maps all the values fetched via 
 }
 
 void receive_can_battery(CAN_frame rx_frame) {
-  datalayer.battery.status.CAN_battery_still_alive = CAN_STILL_ALIVE;
   switch (rx_frame.ID) {
-    case 0x427:
+    case 0x155:  //10ms - Unknown content
+      datalayer.battery.status.CAN_battery_still_alive = CAN_STILL_ALIVE;
+      break;
+    case 0x427:  // NOTE: Not present on 41kWh battery!
+      datalayer.battery.status.CAN_battery_still_alive = CAN_STILL_ALIVE;
       LB_Charge_Power_W = rx_frame.data.u8[5] * 300;
       LB_kWh_Remaining = (((((rx_frame.data.u8[6] << 8) | (rx_frame.data.u8[7])) >> 6) & 0x3ff) * 0.1);
       break;
-    case 0x42E:  //HV SOC & Battery Temp & Charging Power
+    case 0x42E:  //NOTE: Not present on 41kWh battery! HV SOC & Battery Temp & Charging Power
+      datalayer.battery.status.CAN_battery_still_alive = CAN_STILL_ALIVE;
       LB_Battery_Voltage = (((((rx_frame.data.u8[3] << 8) | (rx_frame.data.u8[4])) >> 5) & 0x3ff) * 0.5);  //0.5V/bit
       LB_Average_Temperature = (((((rx_frame.data.u8[5] << 8) | (rx_frame.data.u8[6])) >> 5) & 0x7F) - 40);
       break;
+    case 0x424:
+      datalayer.battery.status.CAN_battery_still_alive = CAN_STILL_ALIVE;
+      //Sent only? by 41kWh battery (potential use for detecting which generation we are on)
+      break;
+    case 0x425:
+      datalayer.battery.status.CAN_battery_still_alive = CAN_STILL_ALIVE;
+      //Sent only? by 41kWh battery (potential use for detecting which generation we are on)
+      break;
+    case 0x445:
+      datalayer.battery.status.CAN_battery_still_alive = CAN_STILL_ALIVE;
+      //Sent only? by 41kWh battery (potential use for detecting which generation we are on)
+      break;
+    case 0x4AE:
+      datalayer.battery.status.CAN_battery_still_alive = CAN_STILL_ALIVE;
+      //Sent only? by 41kWh battery (potential use for detecting which generation we are on)
+      break;
+    case 0x4AF:
+      datalayer.battery.status.CAN_battery_still_alive = CAN_STILL_ALIVE;
+      //Sent only? by 41kWh battery (potential use for detecting which generation we are on)
+      break;
     case 0x654:  //SOC
+      datalayer.battery.status.CAN_battery_still_alive = CAN_STILL_ALIVE;
       LB_SOC = rx_frame.data.u8[3];
       break;
-    case 0x658:  //SOH
+    case 0x658:  //SOH - NOTE: Not present on 41kWh battery!
+      datalayer.battery.status.CAN_battery_still_alive = CAN_STILL_ALIVE;
       LB_SOH = (rx_frame.data.u8[4] & 0x7F);
+      break;
+    case 0x659:
+      datalayer.battery.status.CAN_battery_still_alive = CAN_STILL_ALIVE;
+      //Sent only? by 41kWh battery (potential use for detecting which generation we are on)
       break;
     case 0x7BB:  //Reply from active polling
       frame0 = rx_frame.data.u8[0];
