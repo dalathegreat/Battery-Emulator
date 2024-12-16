@@ -66,19 +66,6 @@ jobs:
           - KIA_HYUNDAI_HYBRID_BATTERY
           - MEB_BATTERY
           - MG_5_BATTERY
-          - NISSAN_LEAF_BATTERY
-          - PYLON_BATTERY
-          - RJXZS_BMS
-          - RANGE_ROVER_PHEV_BATTERY
-          - RENAULT_KANGOO_BATTERY
-          - RENAULT_TWIZY_BATTERY
-          - RENAULT_ZOE_GEN1_BATTERY
-          - RENAULT_ZOE_GEN2_BATTERY
-          - SANTA_FE_PHEV_BATTERY
-          - TESLA_MODEL_3Y_BATTERY
-          - TESLA_MODEL_SX_BATTERY
-          - VOLVO_SPA_BATTERY
-          - TEST_FAKE_BATTERY
         # These are the emulated inverter communication protocols for which the code will be compiled.
         inverter:
           - AFORE_CAN
