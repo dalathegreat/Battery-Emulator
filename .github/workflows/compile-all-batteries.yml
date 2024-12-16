@@ -11,7 +11,7 @@ on:
 # This is the list of jobs that will be run concurrently.
 jobs:
   # This pre-job is run to skip workflows in case a workflow is already run, i.e. because the workflow is triggered by both push and pull_request
-  pre_job:
+  skip-duplicate-actions:
     runs-on: ubuntu-latest
     # Map a step output to a job output
     outputs:
@@ -29,8 +29,8 @@ jobs:
   # started depends on how many configurations the matrix
   # will produce.
   build-batteries:
-    needs: pre_job
-    if: needs.pre_job.outputs.should_skip != 'true'
+    needs: skip-duplicate-actions
+    if: needs.skip-duplicate-actions.outputs.should_skip != 'true'
 
     # Here we tell GitHub that the jobs must be determined
     # dynamically depending on a matrix configuration.
