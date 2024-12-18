@@ -23,7 +23,6 @@ CAN_frame TESLA_221_2 = {
     .ID = 0x221,
     .data = {0x61, 0x15, 0x01, 0x00, 0x00, 0x00, 0x20, 0xBA}};  //Contactor Frame 221 - hv_up_for_drive
 
-
 static uint16_t sendContactorClosingMessagesStill = 300;
 static uint16_t battery_cell_max_v = 3700;
 static uint16_t battery_cell_min_v = 3700;
@@ -47,15 +46,15 @@ static uint16_t battery_nominal_energy_remaining_m0 = 0;    // kWh
 static uint16_t battery_nominal_full_pack_energy = 600;     // Kwh
 static uint16_t battery_nominal_full_pack_energy_m0 = 600;  // Kwh
 //0x132 306 HVBattAmpVolt
-static uint16_t battery_volts = 0;                          // V
-static int16_t battery_amps = 0;                            // A
-static uint16_t battery_raw_amps = 0;                       // A
-static uint16_t battery_charge_time_remaining = 0;          // Minutes
+static uint16_t battery_volts = 0;                  // V
+static int16_t battery_amps = 0;                    // A
+static uint16_t battery_raw_amps = 0;               // A
+static uint16_t battery_charge_time_remaining = 0;  // Minutes
 //0x252 594 BMS_powerAvailable
-static uint16_t BMS_regenerative_limit = 0; //rename from battery_regenerative_limit
-static uint16_t BMS_discharge_limit = 0; // rename from battery_discharge_limit
-static uint16_t BMS_max_heat_park = 0; //rename from battery_max_heat_park
-static uint16_t BMS_hvac_max_power = 0; //rename from battery_hvac_max_power
+static uint16_t BMS_regenerative_limit = 0;  //rename from battery_regenerative_limit
+static uint16_t BMS_discharge_limit = 0;     // rename from battery_discharge_limit
+static uint16_t BMS_max_heat_park = 0;       //rename from battery_max_heat_park
+static uint16_t BMS_hvac_max_power = 0;      //rename from battery_hvac_max_power
 //0x2d2: 722 BMSVAlimits
 static uint16_t battery_max_discharge_current = 0;
 static uint16_t battery_max_charge_current = 0;
@@ -64,9 +63,10 @@ static uint16_t battery_bms_min_voltage = 0;
 //0x2b4: 692 PCS_dcdcRailStatus
 static uint16_t battery_dcdcHvBusVolt = 0;  // Change name from battery_high_voltage to battery_dcdcHvBusVolt
 static uint16_t battery_dcdcLvBusVolt = 0;  // Change name from battery_low_voltage to battery_dcdcLvBusVolt
-static uint16_t battery_dcdcLvOutputCurrent = 0;  // Change name from battery_output_current to battery_dcdcLvOutputCurrent
+static uint16_t battery_dcdcLvOutputCurrent =
+    0;  // Change name from battery_output_current to battery_dcdcLvOutputCurrent
 //0x292: 658 BMS_socStatus
-static uint16_t battery_beginning_of_life = 600;            // kWh
+static uint16_t battery_beginning_of_life = 600;  // kWh
 static uint16_t battery_soc_min = 0;
 static uint16_t battery_soc_max = 0;
 static uint16_t battery_soc_ui = 0;  //Change name from battery_soc_vi to reflect DBC battery_soc_ui
@@ -79,10 +79,10 @@ static uint32_t battery_packConfigMultiplexer = 0;
 static uint32_t battery_moduleType = 0;
 static uint32_t battery_reservedConfig = 0;
 //0x332: 818 BattBrickMinMax:BMS_bmbMinMax
-static int16_t battery_max_temp = 0;                        // C*
-static int16_t battery_min_temp = 0;                        // C*
-static uint16_t battery_BrickVoltageMax = 0; 
-static uint16_t battery_BrickVoltageMin = 0; 
+static int16_t battery_max_temp = 0;  // C*
+static int16_t battery_min_temp = 0;  // C*
+static uint16_t battery_BrickVoltageMax = 0;
+static uint16_t battery_BrickVoltageMin = 0;
 static uint8_t battery_BrickTempMaxNum = 0;
 static uint8_t battery_BrickTempMinNum = 0;
 static uint8_t battery_BrickModelTMax = 0;
@@ -403,7 +403,7 @@ static uint8_t battery_BMS_a174_SW_Charge_Failure = 1;
 static uint8_t battery_BMS_a179_SW_Hvp_12V_Fault = 1;
 static uint8_t battery_BMS_a180_SW_ECU_reset_blocked = 1;
 
-#ifdef DOUBLE_BATTERY //need to update for battery2 
+#ifdef DOUBLE_BATTERY  //need to update for battery2
 static uint32_t battery2_total_discharge = 0;
 static uint32_t battery2_total_charge = 0;
 static uint16_t battery2_volts = 0;     // V
@@ -852,7 +852,7 @@ void receive_can_battery(CAN_frame rx_frame) {
       mux = (rx_frame.data.u8[0] & 0x02);  //BMS_energyStatusIndex M : 0|2@1+ (1,0) [0|0] ""  X
 
       if (mux == 0) {
-         battery_nominal_full_pack_energy_m0 =
+        battery_nominal_full_pack_energy_m0 =
             ((rx_frame.data.u8[3] << 8) | rx_frame.data.u8[2]);  //16|16@1+ (0.02,0) [0|0] "kWh"//to datalayer_extended
         battery_nominal_energy_remaining_m0 =
             ((rx_frame.data.u8[5] << 8) | rx_frame.data.u8[4]);  //32|16@1+ (0.02,0) [0|0] "kWh"//to datalayer_extended
@@ -958,7 +958,7 @@ void receive_can_battery(CAN_frame rx_frame) {
       battery_BMS_ecuLogUploadRequest = ((rx_frame.data.u8[6] >> 6) & (0x03U));
       battery_BMS_minPackTemperature = (rx_frame.data.u8[7] & (0xFFU));  //56|8@1+ (0.5,-40) [0|0] "DegC
       break;
-    case 0x224: //548 PCS_dcdcStatus:
+    case 0x224:                                                                   //548 PCS_dcdcStatus:
       battery_PCS_dcdcPrechargeStatus = (rx_frame.data.u8[0] & (0x03U));          //0 "IDLE" 1 "ACTIVE" 2 "FAULTED" ;
       battery_PCS_dcdc12VSupportStatus = ((rx_frame.data.u8[0] >> 2) & (0x03U));  //0 "IDLE" 1 "ACTIVE" 2 "FAULTED"
       battery_PCS_dcdcHvBusDischargeStatus = ((rx_frame.data.u8[0] >> 4) & (0x03U));  //0 "IDLE" 1 "ACTIVE" 2 "FAULTED"
@@ -987,15 +987,15 @@ void receive_can_battery(CAN_frame rx_frame) {
       break;
     case 0x252:  //Limit //BMS_powerAvailable252:
       BMS_regenerative_limit = ((rx_frame.data.u8[1] << 8) | rx_frame.data.u8[0]) *
-                                   0.01;  //0|16@1+ (0.01,0) [0|655.35] "kW"  //Example 4715 * 0.01 = 47.15kW
+                               0.01;  //0|16@1+ (0.01,0) [0|655.35] "kW"  //Example 4715 * 0.01 = 47.15kW
       BMS_discharge_limit = ((rx_frame.data.u8[3] << 8) | rx_frame.data.u8[2]) *
-                                0.013;  //16|16@1+ (0.013,0) [0|655.35] "kW"  //Example 2009 * 0.013 = 26.117???
+                            0.013;  //16|16@1+ (0.013,0) [0|655.35] "kW"  //Example 2009 * 0.013 = 26.117???
       BMS_max_heat_park = (((rx_frame.data.u8[5] & 0x03) << 8) | rx_frame.data.u8[4]) *
-                              0.01;  //32|10@1+ (0.01,0) [0|10.23] "kW"  //Example 500 * 0.01 = 5kW
+                          0.01;  //32|10@1+ (0.01,0) [0|10.23] "kW"  //Example 500 * 0.01 = 5kW
       BMS_hvac_max_power = (((rx_frame.data.u8[7] << 6) | ((rx_frame.data.u8[6] & 0xFC) >> 2))) *
-                               0.02;  //50|10@1+ (0.02,0) [0|20.46] "kW"  //Example 1000 * 0.02 = 20kW?
-                                      //BMS_notEnoughPowerForHeatPump : 42|1@1+ (1,0) [0|1] ""  Receiver
-                                      //BMS_powerLimitsState : 48|1@1+ (1,0) [0|1] ""  Receiver
+                           0.02;  //50|10@1+ (0.02,0) [0|20.46] "kW"  //Example 1000 * 0.02 = 20kW?
+                                  //BMS_notEnoughPowerForHeatPump : 42|1@1+ (1,0) [0|1] ""  Receiver
+                                  //BMS_powerLimitsState : 48|1@1+ (1,0) [0|1] ""  Receiver
       break;
     case 0x132:  //battery amps/volts //HVBattAmpVolt
       battery_volts = ((rx_frame.data.u8[1] << 8) | rx_frame.data.u8[0]) *
@@ -1148,7 +1148,7 @@ void receive_can_battery(CAN_frame rx_frame) {
                                         ((rx_frame.data.u8[2] & (0xFFU)) << 8) |
                                         (rx_frame.data.u8[1] & (0xFFU));  // m22 : 8|24@1+ (0.01,0) [0|0] "kWh"  X
       }
-      break;  
+      break;
     case 0x401:                     // Cell stats  //BrickVoltages
       mux = (rx_frame.data.u8[0]);  //MultiplexSelector M : 0|8@1+ (1,0) [0|0] ""
                                     //StatusFlags : 8|8@1+ (1,0) [0|0] ""
@@ -1221,13 +1221,17 @@ void receive_can_battery(CAN_frame rx_frame) {
       mux = (rx_frame.data.u8[0] & (0xFF));
       if (mux == 1) {
         battery_packConfigMultiplexer = (rx_frame.data.u8[0] & (0xff));  //0|8@1+ (1,0) [0|1] ""
-        battery_moduleType = (rx_frame.data.u8[1] & (0x07));             //8|3@1+ (1,0) [0|4] ""//0 "UNKNOWN" 1 "E3_NCT" 2 "E1_NCT" 3 "E3_CT" 4 "E1_CT" 5 "E1_CP" ;//to datalayer_extended
-        battery_packMass = (rx_frame.data.u8[2]) + 300;                  //16|8@1+ (1,300) [342|469] "kg"
+        battery_moduleType =
+            (rx_frame.data.u8[1] &
+             (0x07));  //8|3@1+ (1,0) [0|4] ""//0 "UNKNOWN" 1 "E3_NCT" 2 "E1_NCT" 3 "E3_CT" 4 "E1_CT" 5 "E1_CP" ;//to datalayer_extended
+        battery_packMass = (rx_frame.data.u8[2]) + 300;  //16|8@1+ (1,300) [342|469] "kg"
         battery_platformMaxBusVoltage =
             (((rx_frame.data.u8[4] & 0x03) << 8) | (rx_frame.data.u8[3]));  //24|10@1+ (0.1,375) [0|0] "V"
       }
       if (mux == 0) {
-        battery_reservedConfig = (rx_frame.data.u8[1] & (0x1F));  //8|5@1+ (1,0) [0|31] ""//0 "BMS_CONFIG_0" 1 "BMS_CONFIG_1" 10 "BMS_CONFIG_10" 11 "BMS_CONFIG_11" 12 "BMS_CONFIG_12" 13 "BMS_CONFIG_13" 14 "BMS_CONFIG_14" 15 "BMS_CONFIG_15" 16 "BMS_CONFIG_16" 17 "BMS_CONFIG_17" 18 "BMS_CONFIG_18" 19 "BMS_CONFIG_19" 2 "BMS_CONFIG_2" 20 "BMS_CONFIG_20" 21 "BMS_CONFIG_21" 22 "BMS_CONFIG_22" 23 "BMS_CONFIG_23" 24 "BMS_CONFIG_24" 25 "BMS_CONFIG_25" 26 "BMS_CONFIG_26" 27 "BMS_CONFIG_27" 28 "BMS_CONFIG_28" 29 "BMS_CONFIG_29" 3 "BMS_CONFIG_3" 30 "BMS_CONFIG_30" 31 "BMS_CONFIG_31" 4 "BMS_CONFIG_4" 5 "BMS_CONFIG_5" 6 "BMS_CONFIG_6" 7 "BMS_CONFIG_7" 8 "BMS_CONFIG_8" 9 "BMS_CONFIG_9" ;
+        battery_reservedConfig =
+            (rx_frame.data.u8[1] &
+             (0x1F));  //8|5@1+ (1,0) [0|31] ""//0 "BMS_CONFIG_0" 1 "BMS_CONFIG_1" 10 "BMS_CONFIG_10" 11 "BMS_CONFIG_11" 12 "BMS_CONFIG_12" 13 "BMS_CONFIG_13" 14 "BMS_CONFIG_14" 15 "BMS_CONFIG_15" 16 "BMS_CONFIG_16" 17 "BMS_CONFIG_17" 18 "BMS_CONFIG_18" 19 "BMS_CONFIG_19" 2 "BMS_CONFIG_2" 20 "BMS_CONFIG_20" 21 "BMS_CONFIG_21" 22 "BMS_CONFIG_22" 23 "BMS_CONFIG_23" 24 "BMS_CONFIG_24" 25 "BMS_CONFIG_25" 26 "BMS_CONFIG_26" 27 "BMS_CONFIG_27" 28 "BMS_CONFIG_28" 29 "BMS_CONFIG_29" 3 "BMS_CONFIG_3" 30 "BMS_CONFIG_30" 31 "BMS_CONFIG_31" 4 "BMS_CONFIG_4" 5 "BMS_CONFIG_5" 6 "BMS_CONFIG_6" 7 "BMS_CONFIG_7" 8 "BMS_CONFIG_8" 9 "BMS_CONFIG_9" ;
       }
       break;
     case 0x7AA:  //1962 HVP_debugMessage:
@@ -1489,7 +1493,7 @@ void receive_can_battery(CAN_frame rx_frame) {
   }
 }
 
-#ifdef DOUBLE_BATTERY //Need to update battery2
+#ifdef DOUBLE_BATTERY  //Need to update battery2
 
 void receive_can_battery2(CAN_frame rx_frame) {
   static uint8_t mux = 0;
@@ -2190,7 +2194,7 @@ void printFaultCodesIfActive() {
   printDebugIfActive(battery_BMS_a180_SW_ECU_reset_blocked, "ERROR: BMS_a180_SW_ECU_reset_blocked");
 }
 
-#ifdef DOUBLE_BATTERY //need to update battery2
+#ifdef DOUBLE_BATTERY  //need to update battery2
 void printFaultCodesIfActive_battery2() {
   if (battery2_packCtrsClosingAllowed == 0) {
     Serial.println(
