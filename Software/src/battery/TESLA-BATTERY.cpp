@@ -427,9 +427,9 @@ static uint16_t battery2_nominal_energy_remaining_m0 = 0;  // kWh
 static uint16_t battery2_nominal_full_pack_energy = 600;
 static uint16_t battery2_nominal_full_pack_energy_m0 = 600;  // Kwh
 //0x132 306 HVBattAmpVolt
-static uint16_t battery2_volts = 0;     // V
-static int16_t battery2_amps = 0;       // A
-static uint16_t battery2_raw_amps = 0;  // A
+static uint16_t battery2_volts = 0;                  // V
+static int16_t battery2_amps = 0;                    // A
+static uint16_t battery2_raw_amps = 0;               // A
 static uint16_t battery2_charge_time_remaining = 0;  // Minutes
 //0x252 594 BMS_powerAvailable
 static uint16_t BMS2_regenerative_limit = 0;
@@ -459,16 +459,16 @@ static uint32_t battery2_packConfigMultiplexer = 0;
 static uint32_t battery2_moduleType = 0;
 static uint32_t battery2_reservedConfig = 0;
 //0x332: 818 BattBrickMinMax:BMS_bmbMinMax
-static int16_t battery2_max_temp = 0;   // C*
-static int16_t battery2_min_temp = 0;   // C*
+static int16_t battery2_max_temp = 0;  // C*
+static int16_t battery2_min_temp = 0;  // C*
 static uint16_t battery2_BrickVoltageMax = 0;
 static uint16_t battery2_BrickVoltageMin = 0;
 static uint8_t battery2_BrickTempMaxNum = 0;
 static uint8_t battery2_BrickTempMinNum = 0;
 static uint8_t battery2_BrickModelTMax = 0;
 static uint8_t battery2_BrickModelTMin = 0;
-static uint8_t battery2_BrickVoltageMaxNum = 0; //rename from battery_max_vno
-static uint8_t battery2_BrickVoltageMinNum = 0; //rename from battery_min_vno
+static uint8_t battery2_BrickVoltageMaxNum = 0;  //rename from battery_max_vno
+static uint8_t battery2_BrickVoltageMinNum = 0;  //rename from battery_min_vno
 //0x20A: 522 HVP_contactorState
 static uint8_t battery2_contactor = 0;  //State of contactor
 static uint8_t battery2_hvil_status = 0;
@@ -1783,9 +1783,11 @@ void receive_can_battery2(CAN_frame rx_frame) {
         battery2_energy_buffer_m1 =
             (rx_frame.data.u8[3] | rx_frame.data.u8[2]);  //BMS_energyBuffer m1 : 16|16@1+ (0.01,0) [0|0] "kWh"  X
         battery2_expected_energy_remaining_m1 =
-            (rx_frame.data.u8[5] | rx_frame.data.u8[4]);  //BMS_expectedEnergyRemaining m1 : 32|16@1+ (0.02,0) [0|0] "kWh"  X
+            (rx_frame.data.u8[5] |
+             rx_frame.data.u8[4]);  //BMS_expectedEnergyRemaining m1 : 32|16@1+ (0.02,0) [0|0] "kWh"  X
         battery2_energy_to_charge_complete_m1 =
-            (rx_frame.data.u8[7] | rx_frame.data.u8[6]);  //BMS_energyToChargeComplete m1 : 48|16@1+ (0.02,0) [0|0] "kWh"  X
+            (rx_frame.data.u8[7] |
+             rx_frame.data.u8[6]);  //BMS_energyToChargeComplete m1 : 48|16@1+ (0.02,0) [0|0] "kWh"  X
       }
       if (mux == 2) {}
       // Additional information needed on this mux, example frame: 02 26 02 20 02 80 00 00 doesn't change
@@ -1796,7 +1798,7 @@ void receive_can_battery2(CAN_frame rx_frame) {
           (((rx_frame.data.u8[2] & 0x3F) << 5) | ((rx_frame.data.u8[1] & 0x1F) >> 3));  //Example 1247 * 0.1 = 124.7kWh
       battery2_expected_energy_remaining =  //BMS_expectedEnergyRemaining : 22|11@1+ (0.1,0) [0|204.6] "KWh"// ((_d[4] & (0x01U)) << 10) | ((_d[3] & (0xFFU)) << 2) | ((_d[2] >> 6) & (0x03U));
           (((rx_frame.data.u8[4] & 0x01) << 10) | (rx_frame.data.u8[3] << 2) |
-          ((rx_frame.data.u8[2] & 0x03) >> 6));  //Example 622 (62.2kWh)
+           ((rx_frame.data.u8[2] & 0x03) >> 6));  //Example 622 (62.2kWh)
       battery2_ideal_energy_remaining =  //BMS_idealEnergyRemaining : 33|11@1+ (0.1,0) [0|204.6] "KWh" //((_d[5] & (0x0FU)) << 7) | ((_d[4] >> 1) & (0x7FU));
           (((rx_frame.data.u8[5] & 0x0F) << 7) | ((rx_frame.data.u8[4] & 0x7F) >> 1));  //Example 311 * 0.1 = 31.1kWh
       battery2_energy_to_charge_complete =  // BMS_energyToChargeComplete : 44|11@1+ (0.1,0) [0|204.6] "KWh"// ((_d[6] & (0x7FU)) << 4) | ((_d[5] >> 4) & (0x0FU));
@@ -1806,7 +1808,7 @@ void receive_can_battery2(CAN_frame rx_frame) {
       battery2_full_charge_complete =  //BMS_fullChargeComplete : 63|1@1+ (1,0) [0|1] ""//((_d[7] >> 7) & (0x01U));
           ((rx_frame.data.u8[7] & 0x01) >> 7);
       break;
-    case 0x20A: //522 HVP_contactorState:
+    case 0x20A:  //522 HVP_contactorState:
       battery2_packContNegativeState = (rx_frame.data.u8[0] & 0x07);
       battery2_packContPositiveState = (rx_frame.data.u8[0] & 0x38) >> 3;
       battery2_contactor = (rx_frame.data.u8[1] & 0x0F);
@@ -1864,14 +1866,15 @@ void receive_can_battery2(CAN_frame rx_frame) {
       battery2_BMS_diLimpRequest = ((rx_frame.data.u8[4] >> 3) & (0x01U));
       battery2_BMS_okToShipByAir = ((rx_frame.data.u8[4] >> 4) & (0x01U));
       battery2_BMS_okToShipByLand = ((rx_frame.data.u8[4] >> 5) & (0x01U));
-      battery2_BMS_chgPowerAvailable = ((rx_frame.data.u8[6] & (0x01U)) << 10) | ((rx_frame.data.u8[5] & (0xFFU)) << 2) |
-                                      ((rx_frame.data.u8[4] >> 6) & (0x03U));  //38|11@1+ (0.125,0) [0|0] "kW"
+      battery2_BMS_chgPowerAvailable = ((rx_frame.data.u8[6] & (0x01U)) << 10) |
+                                       ((rx_frame.data.u8[5] & (0xFFU)) << 2) |
+                                       ((rx_frame.data.u8[4] >> 6) & (0x03U));  //38|11@1+ (0.125,0) [0|0] "kW"
       battery2_BMS_chargeRetryCount = ((rx_frame.data.u8[6] >> 1) & (0x0FU));
       battery2_BMS_pcsPwmEnabled = ((rx_frame.data.u8[6] >> 5) & (0x01U));
       battery2_BMS_ecuLogUploadRequest = ((rx_frame.data.u8[6] >> 6) & (0x03U));
       battery2_BMS_minPackTemperature = (rx_frame.data.u8[7] & (0xFFU));  //56|8@1+ (0.5,-40) [0|0] "DegC
       break;
-    case 0x224:                                                                   //548 PCS_dcdcStatus:
+    case 0x224:                                                                    //548 PCS_dcdcStatus:
       battery2_PCS_dcdcPrechargeStatus = (rx_frame.data.u8[0] & (0x03U));          //0 "IDLE" 1 "ACTIVE" 2 "FAULTED" ;
       battery2_PCS_dcdc12VSupportStatus = ((rx_frame.data.u8[0] >> 2) & (0x03U));  //0 "IDLE" 1 "ACTIVE" 2 "FAULTED"
       battery2_PCS_dcdcHvBusDischargeStatus = ((rx_frame.data.u8[0] >> 4) & (0x03U));  //0 "IDLE" 1 "ACTIVE" 2 "FAULTED"
@@ -1885,8 +1888,8 @@ void receive_can_battery2(CAN_frame rx_frame) {
       battery2_PCS_dcdcFaulted = ((rx_frame.data.u8[1] >> 7) & (0x01U));
       battery2_PCS_dcdcOutputIsLimited = ((rx_frame.data.u8[3] >> 4) & (0x01U));
       battery2_PCS_dcdcMaxOutputCurrentAllowed = ((rx_frame.data.u8[5] & (0x01U)) << 11) |
-                                                ((rx_frame.data.u8[4] & (0xFFU)) << 3) |
-                                                ((rx_frame.data.u8[3] >> 5) & (0x07U));  //29|12@1+ (0.1,0) [0|0] "A"
+                                                 ((rx_frame.data.u8[4] & (0xFFU)) << 3) |
+                                                 ((rx_frame.data.u8[3] >> 5) & (0x07U));  //29|12@1+ (0.1,0) [0|0] "A"
       battery2_PCS_dcdcPrechargeRtyCnt = ((rx_frame.data.u8[5] >> 1) & (0x07U));
       battery2_PCS_dcdc12VSupportRtyCnt = ((rx_frame.data.u8[5] >> 4) & (0x0FU));
       battery2_PCS_dcdcDischargeRtyCnt = (rx_frame.data.u8[6] & (0x0FU));
@@ -1920,7 +1923,7 @@ void receive_can_battery2(CAN_frame rx_frame) {
         battery2_charge_time_remaining = 0;
       }
       break;
-    case 0x3D2: // total charge/discharge kwh
+    case 0x3D2:  // total charge/discharge kwh
       battery2_total_discharge = ((rx_frame.data.u8[3] << 24) | (rx_frame.data.u8[2] << 16) |
                                   (rx_frame.data.u8[1] << 8) | rx_frame.data.u8[0]) *
                                  0.001;
@@ -1968,17 +1971,17 @@ void receive_can_battery2(CAN_frame rx_frame) {
       BMS2_powerDissipation =
           ((rx_frame.data.u8[1] & (0x03U)) << 8) | (rx_frame.data.u8[0] & (0xFFU));  //0|10@1+ (0.02,0) [0|0] "kW"
       BMS2_flowRequest = ((rx_frame.data.u8[2] & (0x01U)) << 6) |
-                        ((rx_frame.data.u8[1] >> 2) & (0x3FU));  //10|7@1+ (0.3,0) [0|0] "LPM"
+                         ((rx_frame.data.u8[1] >> 2) & (0x3FU));  //10|7@1+ (0.3,0) [0|0] "LPM"
       BMS2_inletActiveCoolTargetT = ((rx_frame.data.u8[3] & (0x03U)) << 7) |
-                                   ((rx_frame.data.u8[2] >> 1) & (0x7FU));  //17|9@1+ (0.25,-25) [0|0] "DegC"
+                                    ((rx_frame.data.u8[2] >> 1) & (0x7FU));  //17|9@1+ (0.25,-25) [0|0] "DegC"
       BMS2_inletPassiveTargetT = ((rx_frame.data.u8[4] & (0x07U)) << 6) |
-                                ((rx_frame.data.u8[3] >> 2) & (0x3FU));  //26|9@1+ (0.25,-25) [0|0] "DegC"  X
+                                 ((rx_frame.data.u8[3] >> 2) & (0x3FU));  //26|9@1+ (0.25,-25) [0|0] "DegC"  X
       BMS2_inletActiveHeatTargetT = ((rx_frame.data.u8[5] & (0x0FU)) << 5) |
-                                   ((rx_frame.data.u8[4] >> 3) & (0x1FU));  //35|9@1+ (0.25,-25) [0|0] "DegC"
+                                    ((rx_frame.data.u8[4] >> 3) & (0x1FU));  //35|9@1+ (0.25,-25) [0|0] "DegC"
       BMS2_packTMin = ((rx_frame.data.u8[6] & (0x1FU)) << 4) |
-                     ((rx_frame.data.u8[5] >> 4) & (0x0FU));  //44|9@1+ (0.25,-25) [-25|100] "DegC"
+                      ((rx_frame.data.u8[5] >> 4) & (0x0FU));  //44|9@1+ (0.25,-25) [-25|100] "DegC"
       BMS2_packTMax = ((rx_frame.data.u8[7] & (0x3FU)) << 3) |
-                     ((rx_frame.data.u8[6] >> 5) & (0x07U));          //53|9@1+ (0.25,-25) [-25|100] "DegC"
+                      ((rx_frame.data.u8[6] >> 5) & (0x07U));          //53|9@1+ (0.25,-25) [-25|100] "DegC"
       BMS2_pcsNoFlowRequest = ((rx_frame.data.u8[7] >> 6) & (0x01U));  // 62|1@1+ (1,0) [0|0] ""
       BMS2_noFlowRequest = ((rx_frame.data.u8[7] >> 7) & (0x01U));     //63|1@1+ (1,0) [0|0] ""
       break;
@@ -1990,7 +1993,7 @@ void receive_can_battery2(CAN_frame rx_frame) {
       PCS2_chgPhCTemp =
           ((rx_frame.data.u8[4] & (0x07U)) << 8) | (rx_frame.data.u8[3] & (0xFFU));  //24|11@1- (0.1,40) [0|0] "C"
       PCS2_dcdcTemp = ((rx_frame.data.u8[5] & (0x3FU)) << 5) |
-                     ((rx_frame.data.u8[4] >> 3) & (0x1FU));  //35|11@1- (0.1,40) [0|0] "C"
+                      ((rx_frame.data.u8[4] >> 3) & (0x1FU));  //35|11@1- (0.1,40) [0|0] "C"
       PCS2_ambientTemp =
           ((rx_frame.data.u8[7] & (0x07U)) << 8) | (rx_frame.data.u8[6] & (0xFFU));  //48|11@1- (0.1,40) [0|0] "C"
       break;
@@ -1999,56 +2002,57 @@ void receive_can_battery2(CAN_frame rx_frame) {
       //PCS_logMessageSelect = (rx_frame.data.u8[0] & (0x1FU));  //0|5@1+ (1,0) [0|0] ""
       if (mux == 6) {
         PCS2_dcdcMaxLvOutputCurrent = ((rx_frame.data.u8[4] & (0xFFU)) << 4) |
-                                     ((rx_frame.data.u8[3] >> 4) & (0x0FU));  //m6 : 28|12@1+ (0.1,0) [0|0] "A"  X
+                                      ((rx_frame.data.u8[3] >> 4) & (0x0FU));  //m6 : 28|12@1+ (0.1,0) [0|0] "A"  X
         PCS2_dcdcCurrentLimit = ((rx_frame.data.u8[6] & (0x0FU)) << 8) |
-                               (rx_frame.data.u8[5] & (0xFFU));  //m6 : 40|12@1+ (0.1,0) [0|0] "A"  X
-        PCS2_dcdcLvOutputCurrentTempLimit = ((rx_frame.data.u8[7] & (0xFFU)) << 4) |
-                                           ((rx_frame.data.u8[6] >> 4) & (0x0FU));  //m6 : 52|12@1+ (0.1,0) [0|0] "A"  X
+                                (rx_frame.data.u8[5] & (0xFFU));  //m6 : 40|12@1+ (0.1,0) [0|0] "A"  X
+        PCS2_dcdcLvOutputCurrentTempLimit =
+            ((rx_frame.data.u8[7] & (0xFFU)) << 4) |
+            ((rx_frame.data.u8[6] >> 4) & (0x0FU));  //m6 : 52|12@1+ (0.1,0) [0|0] "A"  X
       }
       if (mux == 7) {
         PCS2_dcdcUnifiedCommand = ((rx_frame.data.u8[1] & (0x7FU)) << 3) |
-                                 ((rx_frame.data.u8[0] >> 5) & (0x07U));  //m7 : 5|10@1+ (0.001,0) [0|0] "1"  X
+                                  ((rx_frame.data.u8[0] >> 5) & (0x07U));  //m7 : 5|10@1+ (0.001,0) [0|0] "1"  X
         PCS2_dcdcCLAControllerOutput = ((rx_frame.data.u8[3] & (0x03U)) << 8) |
-                                      (rx_frame.data.u8[2] & (0xFFU));  //m7 : 16|10@1+ (0.001,0) [0|0] "1"  X
+                                       (rx_frame.data.u8[2] & (0xFFU));  //m7 : 16|10@1+ (0.001,0) [0|0] "1"  X
         PCS2_dcdcTankVoltage = ((rx_frame.data.u8[4] & (0x1FU)) << 6) |
-                              ((rx_frame.data.u8[3] >> 2) & (0x3FU));  //m7 : 26|11@1- (1,0) [0|0] "V"  X
+                               ((rx_frame.data.u8[3] >> 2) & (0x3FU));  //m7 : 26|11@1- (1,0) [0|0] "V"  X
         PCS2_dcdcTankVoltageTarget = ((rx_frame.data.u8[5] & (0x7FU)) << 3) |
-                                    ((rx_frame.data.u8[4] >> 5) & (0x07U));  // m7 : 37|10@1+ (1,0) [0|0] "V"  X
+                                     ((rx_frame.data.u8[4] >> 5) & (0x07U));  // m7 : 37|10@1+ (1,0) [0|0] "V"  X
         PCS2_dcdcClaCurrentFreq = ((rx_frame.data.u8[7] & (0x0FU)) << 8) |
-                                 (rx_frame.data.u8[6] & (0xFFU));  //P m7 : 48|12@1+ (0.0976563,0) [0|0] "kHz"  X
+                                  (rx_frame.data.u8[6] & (0xFFU));  //P m7 : 48|12@1+ (0.0976563,0) [0|0] "kHz"  X
       }
       if (mux == 8) {
         PCS2_dcdcTCommMeasured = ((rx_frame.data.u8[2] & (0xFFU)) << 8) |
-                                (rx_frame.data.u8[1] & (0xFFU));  // m8 : 8|16@1- (0.00195313,0) [0|0] "us"  X
+                                 (rx_frame.data.u8[1] & (0xFFU));  // m8 : 8|16@1- (0.00195313,0) [0|0] "us"  X
         PCS2_dcdcShortTimeUs = ((rx_frame.data.u8[4] & (0xFFU)) << 8) |
-                              (rx_frame.data.u8[3] & (0xFFU));  // m8 : 24|16@1+ (0.000488281,0) [0|0] "us"  X
+                               (rx_frame.data.u8[3] & (0xFFU));  // m8 : 24|16@1+ (0.000488281,0) [0|0] "us"  X
         PCS2_dcdcHalfPeriodUs = ((rx_frame.data.u8[6] & (0xFFU)) << 8) |
-                               (rx_frame.data.u8[5] & (0xFFU));  // m8 : 40|16@1+ (0.000488281,0) [0|0] "us"  X
+                                (rx_frame.data.u8[5] & (0xFFU));  // m8 : 40|16@1+ (0.000488281,0) [0|0] "us"  X
       }
       if (mux == 18) {
         PCS2_dcdcIntervalMaxFrequency = ((rx_frame.data.u8[2] & (0x0FU)) << 8) |
-                                       (rx_frame.data.u8[1] & (0xFFU));  // m18 : 8|12@1+ (1,0) [0|0] "kHz"  X
+                                        (rx_frame.data.u8[1] & (0xFFU));  // m18 : 8|12@1+ (1,0) [0|0] "kHz"  X
         PCS2_dcdcIntervalMaxHvBusVolt = ((rx_frame.data.u8[4] & (0x1FU)) << 8) |
-                                       (rx_frame.data.u8[3] & (0xFFU));  //m18 : 24|13@1+ (0.1,0) [0|0] "V"  X
+                                        (rx_frame.data.u8[3] & (0xFFU));  //m18 : 24|13@1+ (0.1,0) [0|0] "V"  X
         PCS2_dcdcIntervalMaxLvBusVolt = ((rx_frame.data.u8[5] & (0x3FU)) << 3) |
-                                       ((rx_frame.data.u8[4] >> 5) & (0x07U));  // m18 : 37|9@1+ (0.1,0) [0|0] "V"  X
+                                        ((rx_frame.data.u8[4] >> 5) & (0x07U));  // m18 : 37|9@1+ (0.1,0) [0|0] "V"  X
         PCS2_dcdcIntervalMaxLvOutputCurr = ((rx_frame.data.u8[7] & (0x0FU)) << 8) |
-                                          (rx_frame.data.u8[6] & (0xFFU));  //m18 : 48|12@1+ (1,0) [0|0] "A"  X
+                                           (rx_frame.data.u8[6] & (0xFFU));  //m18 : 48|12@1+ (1,0) [0|0] "A"  X
       }
       if (mux == 19) {
         PCS2_dcdcIntervalMinFrequency = ((rx_frame.data.u8[2] & (0x0FU)) << 8) |
-                                       (rx_frame.data.u8[1] & (0xFFU));  //m19 : 8|12@1+ (1,0) [0|0] "kHz"  X
+                                        (rx_frame.data.u8[1] & (0xFFU));  //m19 : 8|12@1+ (1,0) [0|0] "kHz"  X
         PCS2_dcdcIntervalMinHvBusVolt = ((rx_frame.data.u8[4] & (0x1FU)) << 8) |
-                                       (rx_frame.data.u8[3] & (0xFFU));  //m19 : 24|13@1+ (0.1,0) [0|0] "V"  X
+                                        (rx_frame.data.u8[3] & (0xFFU));  //m19 : 24|13@1+ (0.1,0) [0|0] "V"  X
         PCS2_dcdcIntervalMinLvBusVolt = ((rx_frame.data.u8[5] & (0x3FU)) << 3) |
-                                       ((rx_frame.data.u8[4] >> 5) & (0x07U));  //m19 : 37|9@1+ (0.1,0) [0|0] "V"  X
+                                        ((rx_frame.data.u8[4] >> 5) & (0x07U));  //m19 : 37|9@1+ (0.1,0) [0|0] "V"  X
         PCS2_dcdcIntervalMinLvOutputCurr = ((rx_frame.data.u8[7] & (0x0FU)) << 8) |
-                                          (rx_frame.data.u8[6] & (0xFFU));  // m19 : 48|12@1+ (1,0) [0|0] "A"  X
+                                           (rx_frame.data.u8[6] & (0xFFU));  // m19 : 48|12@1+ (1,0) [0|0] "A"  X
       }
       if (mux == 22) {
         PCS2_dcdc12vSupportLifetimekWh = ((rx_frame.data.u8[3] & (0xFFU)) << 16) |
-                                        ((rx_frame.data.u8[2] & (0xFFU)) << 8) |
-                                        (rx_frame.data.u8[1] & (0xFFU));  // m22 : 8|24@1+ (0.01,0) [0|0] "kWh"  X
+                                         ((rx_frame.data.u8[2] & (0xFFU)) << 8) |
+                                         (rx_frame.data.u8[1] & (0xFFU));  // m22 : 8|24@1+ (0.01,0) [0|0] "kWh"  X
       }
       break;
     case 0x401:  // Cell stats
@@ -2148,11 +2152,11 @@ void receive_can_battery2(CAN_frame rx_frame) {
         HVP2_gpioHvilEnable = ((rx_frame.data.u8[3] >> 2) & (0x01U));            //: 26|1@1+ (1,0) [0|1] ""  Receiver
         HVP2_gpioSecDrdy = ((rx_frame.data.u8[3] >> 3) & (0x01U));               //: 27|1@1+ (1,0) [0|1] ""  Receiver
         HVP2_hvp1v5Ref = ((rx_frame.data.u8[4] & (0xFFU)) << 4) |
-                        ((rx_frame.data.u8[3] >> 4) & (0x0FU));  //: 28|12@1+ (0.1,0) [0|3] "V"  Receiver
+                         ((rx_frame.data.u8[3] >> 4) & (0x0FU));  //: 28|12@1+ (0.1,0) [0|3] "V"  Receiver
         HVP2_shuntCurrentDebug = ((rx_frame.data.u8[6] & (0xFFU)) << 8) |
-                                (rx_frame.data.u8[5] & (0xFFU));     //: 40|16@1- (0.1,0) [-3276.8|3276.7] "A"  Receiver
-        HVP2_packCurrentMia = (rx_frame.data.u8[7] & (0x01U));        //: 56|1@1+ (1,0) [0|1] ""  Receiver
-        HVP2_auxCurrentMia = ((rx_frame.data.u8[7] >> 1) & (0x01U));  //: 57|1@1+ (1,0) [0|1] ""  Receiver
+                                 (rx_frame.data.u8[5] & (0xFFU));  //: 40|16@1- (0.1,0) [-3276.8|3276.7] "A"  Receiver
+        HVP2_packCurrentMia = (rx_frame.data.u8[7] & (0x01U));     //: 56|1@1+ (1,0) [0|1] ""  Receiver
+        HVP2_auxCurrentMia = ((rx_frame.data.u8[7] >> 1) & (0x01U));            //: 57|1@1+ (1,0) [0|1] ""  Receiver
         HVP2_currentSenseMia = ((rx_frame.data.u8[7] >> 2) & (0x03U));          //: 58|1@1+ (1,0) [0|1] ""  Receiver
         HVP2_shuntRefVoltageMismatch = ((rx_frame.data.u8[7] >> 3) & (0x01U));  //: 59|1@1+ (1,0) [0|1] ""  Receiver
         HVP2_shuntThermistorMia = ((rx_frame.data.u8[7] >> 4) & (0x01U));       //: 60|1@1+ (1,0) [0|1] ""  Receiver
@@ -2160,57 +2164,58 @@ void receive_can_battery2(CAN_frame rx_frame) {
       }
       if (mux == 1) {
         HVP2_dcLinkVoltage = ((rx_frame.data.u8[2] & (0xFFU)) << 8) |
-                            (rx_frame.data.u8[1] & (0xFFU));  //: 8|16@1- (0.1,0) [-3276.8|3276.7] "V"  Receiver
+                             (rx_frame.data.u8[1] & (0xFFU));  //: 8|16@1- (0.1,0) [-3276.8|3276.7] "V"  Receiver
         HVP2_packVoltage = ((rx_frame.data.u8[4] & (0xFFU)) << 8) |
-                          (rx_frame.data.u8[3] & (0xFFU));  //: 24|16@1- (0.1,0) [-3276.8|3276.7] "V"  Receiver
+                           (rx_frame.data.u8[3] & (0xFFU));  //: 24|16@1- (0.1,0) [-3276.8|3276.7] "V"  Receiver
         HVP2_fcLinkVoltage = ((rx_frame.data.u8[6] & (0xFFU)) << 8) |
-                            (rx_frame.data.u8[5] & (0xFFU));  //: 40|16@1- (0.1,0) [-3276.8|3276.7] "V"  Receiver
+                             (rx_frame.data.u8[5] & (0xFFU));  //: 40|16@1- (0.1,0) [-3276.8|3276.7] "V"  Receiver
       }
       if (mux == 2) {
         HVP2_packContVoltage = ((rx_frame.data.u8[1] & (0xFFU)) << 4) |
-                              ((rx_frame.data.u8[0] >> 4) & (0x0FU));  //: 4|12@1+ (0.1,0) [0|30] "V"  Receiver
+                               ((rx_frame.data.u8[0] >> 4) & (0x0FU));  //: 4|12@1+ (0.1,0) [0|30] "V"  Receiver
         HVP2_packNegativeV = ((rx_frame.data.u8[3] & (0xFFU)) << 8) |
-                            (rx_frame.data.u8[2] & (0xFFU));  //: 16|16@1- (0.1,0) [-550|550] "V"  Receiver
+                             (rx_frame.data.u8[2] & (0xFFU));  //: 16|16@1- (0.1,0) [-550|550] "V"  Receiver
         HVP2_packPositiveV = ((rx_frame.data.u8[5] & (0xFFU)) << 8) |
-                            (rx_frame.data.u8[4] & (0xFFU));  //: 32|16@1- (0.1,0) [-550|550] "V"  Receiver
+                             (rx_frame.data.u8[4] & (0xFFU));  //: 32|16@1- (0.1,0) [-550|550] "V"  Receiver
         HVP2_pyroAnalog = ((rx_frame.data.u8[7] & (0x0FU)) << 8) |
-                         (rx_frame.data.u8[6] & (0xFFU));  //: 48|12@1+ (0.1,0) [0|3] "V"  Receiver
+                          (rx_frame.data.u8[6] & (0xFFU));  //: 48|12@1+ (0.1,0) [0|3] "V"  Receiver
       }
       if (mux == 3) {
         HVP2_dcLinkNegativeV = ((rx_frame.data.u8[2] & (0xFFU)) << 8) |
-                              (rx_frame.data.u8[1] & (0xFFU));  //: 8|16@1- (0.1,0) [-550|550] "V"  Receiver
+                               (rx_frame.data.u8[1] & (0xFFU));  //: 8|16@1- (0.1,0) [-550|550] "V"  Receiver
         HVP2_dcLinkPositiveV = ((rx_frame.data.u8[4] & (0xFFU)) << 8) |
-                              (rx_frame.data.u8[3] & (0xFFU));  //: 24|16@1- (0.1,0) [-550|550] "V"  Receiver
+                               (rx_frame.data.u8[3] & (0xFFU));  //: 24|16@1- (0.1,0) [-550|550] "V"  Receiver
         HVP2_fcLinkNegativeV = ((rx_frame.data.u8[6] & (0xFFU)) << 8) |
-                              (rx_frame.data.u8[5] & (0xFFU));  //: 40|16@1- (0.1,0) [-550|550] "V"  Receiver
+                               (rx_frame.data.u8[5] & (0xFFU));  //: 40|16@1- (0.1,0) [-550|550] "V"  Receiver
       }
       if (mux == 4) {
         HVP2_fcContCoilCurrent = ((rx_frame.data.u8[1] & (0xFFU)) << 4) |
-                                ((rx_frame.data.u8[0] >> 4) & (0x0FU));  //: 4|12@1+ (0.1,0) [0|7.5] "A"  Receiver
+                                 ((rx_frame.data.u8[0] >> 4) & (0x0FU));  //: 4|12@1+ (0.1,0) [0|7.5] "A"  Receiver
         HVP2_fcContVoltage = ((rx_frame.data.u8[3] & (0x0FU)) << 8) |
-                            (rx_frame.data.u8[2] & (0xFFU));  //: 16|12@1+ (0.1,0) [0|30] "V"  Receiver
+                             (rx_frame.data.u8[2] & (0xFFU));  //: 16|12@1+ (0.1,0) [0|30] "V"  Receiver
         HVP2_hvilInVoltage = ((rx_frame.data.u8[4] & (0xFFU)) << 4) |
-                            ((rx_frame.data.u8[3] >> 4) & (0x0FU));  //: 28|12@1+ (0.1,0) [0|30] "V"  Receiver
+                             ((rx_frame.data.u8[3] >> 4) & (0x0FU));  //: 28|12@1+ (0.1,0) [0|30] "V"  Receiver
         HVP2_hvilOutVoltage = ((rx_frame.data.u8[6] & (0x0FU)) << 8) |
-                             (rx_frame.data.u8[5] & (0xFFU));  //: 40|12@1+ (0.1,0) [0|30] "V"  Receiver
+                              (rx_frame.data.u8[5] & (0xFFU));  //: 40|12@1+ (0.1,0) [0|30] "V"  Receiver
       }
       if (mux == 5) {
         HVP2_fcLinkPositiveV = ((rx_frame.data.u8[2] & (0xFFU)) << 8) |
-                              (rx_frame.data.u8[1] & (0xFFU));  //: 8|16@1- (0.1,0) [-550|550] "V"  Receiver
+                               (rx_frame.data.u8[1] & (0xFFU));  //: 8|16@1- (0.1,0) [-550|550] "V"  Receiver
         HVP2_packContCoilCurrent = ((rx_frame.data.u8[4] & (0x0FU)) << 8) |
-                                  (rx_frame.data.u8[3] & (0xFFU));  //: 24|12@1+ (0.1,0) [0|7.5] "A"  Receiver
+                                   (rx_frame.data.u8[3] & (0xFFU));  //: 24|12@1+ (0.1,0) [0|7.5] "A"  Receiver
         HVP2_battery12V = ((rx_frame.data.u8[5] & (0xFFU)) << 4) |
-                         ((rx_frame.data.u8[4] >> 4) & (0x0FU));  //: 36|12@1+ (0.1,0) [0|30] "V"  Receiver
-        HVP2_shuntRefVoltageDbg = ((rx_frame.data.u8[7] & (0xFFU)) << 8) |
-                                 (rx_frame.data.u8[6] & (0xFFU));  //: 48|16@1- (0.001,0) [-32.768|32.767] "V"  Receiver
+                          ((rx_frame.data.u8[4] >> 4) & (0x0FU));  //: 36|12@1+ (0.1,0) [0|30] "V"  Receiver
+        HVP2_shuntRefVoltageDbg =
+            ((rx_frame.data.u8[7] & (0xFFU)) << 8) |
+            (rx_frame.data.u8[6] & (0xFFU));  //: 48|16@1- (0.001,0) [-32.768|32.767] "V"  Receiver
       }
       if (mux == 6) {
         HVP2_shuntAuxCurrentDbg = ((rx_frame.data.u8[2] & (0xFFU)) << 8) |
-                                 (rx_frame.data.u8[1] & (0xFFU));  //: 8|16@1- (0.1,0) [-3276.8|3276.7] "A"  Receiver
+                                  (rx_frame.data.u8[1] & (0xFFU));  //: 8|16@1- (0.1,0) [-3276.8|3276.7] "A"  Receiver
         HVP2_shuntBarTempDbg = ((rx_frame.data.u8[4] & (0xFFU)) << 8) |
-                              (rx_frame.data.u8[3] & (0xFFU));  //: 24|16@1- (0.01,0) [-327.67|327.67] "C"  Receiver
+                               (rx_frame.data.u8[3] & (0xFFU));  //: 24|16@1- (0.01,0) [-327.67|327.67] "C"  Receiver
         HVP2_shuntAsicTempDbg = ((rx_frame.data.u8[6] & (0xFFU)) << 8) |
-                               (rx_frame.data.u8[5] & (0xFFU));  //: 40|16@1- (0.01,0) [-327.67|327.67] "C"  Receiver
+                                (rx_frame.data.u8[5] & (0xFFU));  //: 40|16@1- (0.01,0) [-327.67|327.67] "C"  Receiver
         HVP2_shuntAuxCurrentStatus = (rx_frame.data.u8[7] & (0x03U));       //: 56|2@1+ (1,0) [0|3] ""  Receiver
         HVP2_shuntBarTempStatus = ((rx_frame.data.u8[7] >> 2) & (0x03U));   //: 58|2@1+ (1,0) [0|3] ""  Receiver
         HVP2_shuntAsicTempStatus = ((rx_frame.data.u8[7] >> 4) & (0x03U));  //: 60|2@1+ (1,0) [0|3] ""  Receiver
@@ -2273,7 +2278,7 @@ void receive_can_battery2(CAN_frame rx_frame) {
       mux = (rx_frame.data.u8[0] & (0x0F));
       if (mux == 0)
         ;
-      {                                                                                   //mux0
+      {                                                                                    //mux0
         battery2_BMS_matrixIndex = (rx_frame.data.u8[0] & (0x0F));                         // 0|4@1+ (1,0) [0|0] ""  X
         battery2_BMS_a017_SW_Brick_OV = ((rx_frame.data.u8[2] >> 4) & (0x01));             //20|1@1+ (1,0) [0|0] ""  X
         battery2_BMS_a018_SW_Brick_UV = ((rx_frame.data.u8[2] >> 5) & (0x01));             //21|1@1+ (1,0) [0|0] ""  X
@@ -2305,7 +2310,7 @@ void receive_can_battery2(CAN_frame rx_frame) {
         battery2_BMS_a059_SW_Pack_Voltage_Sensing = ((rx_frame.data.u8[7] >> 6) & (0x01U));  //62|1@1+ (1,0) [0|0] ""  X
         battery2_BMS_a060_SW_Leakage_Test_Failure = ((rx_frame.data.u8[7] >> 7) & (0x01U));  //63|1@1+ (1,0) [0|0] ""  X
       }
-      if (mux == 1) {                                                                       //mux1
+      if (mux == 1) {                                                                        //mux1
         battery2_BMS_a061_robinBrickOverVoltage = ((rx_frame.data.u8[0] >> 4) & (0x01U));    //4|1@1+ (1,0) [0|0] ""  X
         battery2_BMS_a062_SW_BrickV_Imbalance = ((rx_frame.data.u8[0] >> 5) & (0x01U));      //5|1@1+ (1,0) [0|0] ""  X
         battery2_BMS_a063_SW_ChargePort_Fault = ((rx_frame.data.u8[0] >> 6) & (0x01U));      //6|1@1+ (1,0) [0|0] ""  X
@@ -2331,7 +2336,7 @@ void receive_can_battery2(CAN_frame rx_frame) {
         battery2_BMS_a106_SW_All_Module_Tsense = ((rx_frame.data.u8[6] >> 1) & (0x01U));     //49|1@1+ (1,0) [0|0] ""  X
         battery2_BMS_a107_SW_Stack_Voltage_MIA = ((rx_frame.data.u8[6] >> 2) & (0x01U));     //50|1@1+ (1,0) [0|0] ""  X
       }
-      if (mux == 2) {                                                                       //mux2
+      if (mux == 2) {                                                                        //mux2
         battery2_BMS_a121_SW_NVRAM_Config_Error = ((rx_frame.data.u8[0] >> 4) & (0x01U));    // 4|1@1+ (1,0) [0|0] ""  X
         battery2_BMS_a122_SW_BMS_Therm_Irrational = ((rx_frame.data.u8[0] >> 5) & (0x01U));  //5|1@1+ (1,0) [0|0] ""  X
         battery2_BMS_a123_SW_Internal_Isolation = ((rx_frame.data.u8[0] >> 6) & (0x01U));    //6|1@1+ (1,0) [0|0] ""  X
