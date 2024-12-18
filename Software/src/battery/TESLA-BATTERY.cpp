@@ -404,13 +404,14 @@ static uint8_t battery_BMS_a179_SW_Hvp_12V_Fault = 1;
 static uint8_t battery_BMS_a180_SW_ECU_reset_blocked = 1;
 
 #ifdef DOUBLE_BATTERY  //need to update for battery2
+
+static uint16_t battery2_cell_max_v = 3700;
+static uint16_t battery2_cell_min_v = 3700;
+static uint16_t battery2_cell_deviation_mV = 0;  //contains the deviation between highest and lowest cell in mV
+//0x3d2: 978 BMS_kwhCounter
 static uint32_t battery2_total_discharge = 0;
 static uint32_t battery2_total_charge = 0;
-static uint16_t battery2_volts = 0;     // V
-static int16_t battery2_amps = 0;       // A
-static uint16_t battery2_raw_amps = 0;  // A
-static int16_t battery2_max_temp = 0;   // C*
-static int16_t battery2_min_temp = 0;   // C*
+//0x352: 850 BMS_energyStatus
 static uint16_t battery2_energy_buffer = 0;
 static uint16_t battery2_energy_buffer_m1 = 0;  // kWh
 static uint16_t battery2_energy_to_charge_complete = 0;
@@ -425,28 +426,50 @@ static uint16_t battery2_nominal_energy_remaining = 0;
 static uint16_t battery2_nominal_energy_remaining_m0 = 0;  // kWh
 static uint16_t battery2_nominal_full_pack_energy = 600;
 static uint16_t battery2_nominal_full_pack_energy_m0 = 600;  // Kwh
-static uint16_t battery2_beginning_of_life = 600;
+//0x132 306 HVBattAmpVolt
+static uint16_t battery2_volts = 0;     // V
+static int16_t battery2_amps = 0;       // A
+static uint16_t battery2_raw_amps = 0;  // A
 static uint16_t battery2_charge_time_remaining = 0;  // Minutes
-static uint16_t battery2_regenerative_limit = 0;
-static uint16_t battery2_discharge_limit = 0;
-static uint16_t battery2_max_heat_park = 0;
-static uint16_t battery2_hvac_max_power = 0;
+//0x252 594 BMS_powerAvailable
+static uint16_t BMS2_regenerative_limit = 0;
+static uint16_t BMS2_discharge_limit = 0;
+static uint16_t BMS2_max_heat_park = 0;
+static uint16_t BMS2_hvac_max_power = 0;
+//0x2d2: 722 BMSVAlimits
 static uint16_t battery2_max_discharge_current = 0;
 static uint16_t battery2_max_charge_current = 0;
 static uint16_t battery2_bms_max_voltage = 0;
 static uint16_t battery2_bms_min_voltage = 0;
+//0x2b4: 692 PCS_dcdcRailStatus
 static uint16_t battery2_dcdcHvBusVolt = 0;        //update name
 static uint16_t battery2_dcdcLvBusVolt = 0;        //update name
 static uint16_t battery2_dcdcLvOutputCurrent = 0;  //update name
+//0x292: 658 BMS_socStatus
+static uint16_t battery2_beginning_of_life = 600;
 static uint16_t battery2_soc_min = 0;
 static uint16_t battery2_soc_max = 0;
 static uint16_t battery2_soc_ui = 0;
 static uint16_t battery2_soc_ave = 0;
-static uint16_t battery2_cell_max_v = 3700;
-static uint16_t battery2_cell_min_v = 3700;
-static uint16_t battery2_cell_deviation_mV = 0;  //contains the deviation between highest and lowest cell in mV
-static uint8_t battery2_max_vno = 0;
-static uint8_t battery2_min_vno = 0;
+static uint8_t battery2_battTempPct = 0;
+//0x392: BMS_packConfig
+static uint32_t battery2_packMass = 0;
+static uint32_t battery2_platformMaxBusVoltage = 0;
+static uint32_t battery2_packConfigMultiplexer = 0;
+static uint32_t battery2_moduleType = 0;
+static uint32_t battery2_reservedConfig = 0;
+//0x332: 818 BattBrickMinMax:BMS_bmbMinMax
+static int16_t battery2_max_temp = 0;   // C*
+static int16_t battery2_min_temp = 0;   // C*
+static uint16_t battery2_BrickVoltageMax = 0;
+static uint16_t battery2_BrickVoltageMin = 0;
+static uint8_t battery2_BrickTempMaxNum = 0;
+static uint8_t battery2_BrickTempMinNum = 0;
+static uint8_t battery2_BrickModelTMax = 0;
+static uint8_t battery2_BrickModelTMin = 0;
+static uint8_t battery2_BrickVoltageMaxNum = 0; //rename from battery_max_vno
+static uint8_t battery2_BrickVoltageMinNum = 0; //rename from battery_min_vno
+//0x20A: 522 HVP_contactorState
 static uint8_t battery2_contactor = 0;  //State of contactor
 static uint8_t battery2_hvil_status = 0;
 static uint8_t battery2_packContNegativeState = 0;
@@ -454,13 +477,159 @@ static uint8_t battery2_packContPositiveState = 0;
 static uint8_t battery2_packContactorSetState = 0;
 static uint8_t battery2_packCtrsClosingAllowed = 0;
 static uint8_t battery2_pyroTestInProgress = 0;
-static uint8_t battery2_battTempPct = 0;
-static uint32_t battery2_packMass = 0;
-static uint32_t battery2_platformMaxBusVoltage = 0;
-static uint32_t battery2_packConfigMultiplexer = 0;
-static uint32_t battery2_moduleType = 0;
-static uint32_t battery2_reservedConfig = 0;
-//Fault codes
+static uint8_t battery2_packCtrsOpenNowRequested = 0;
+static uint8_t battery2_packCtrsOpenRequested = 0;
+static uint8_t battery2_packCtrsRequestStatus = 0;
+static uint8_t battery2_packCtrsResetRequestRequired = 0;
+static uint8_t battery2_dcLinkAllowedToEnergize = 0;
+static uint8_t battery2_fcContNegativeAuxOpen = 0;
+static uint8_t battery2_fcContNegativeState = 0;
+static uint8_t battery2_fcContPositiveAuxOpen = 0;
+static uint8_t battery2_fcContPositiveState = 0;
+static uint8_t battery2_fcContactorSetState = 0;
+static uint8_t battery2_fcCtrsClosingAllowed = 0;
+static uint8_t battery2_fcCtrsOpenNowRequested = 0;
+static uint8_t battery2_fcCtrsOpenRequested = 0;
+static uint8_t battery2_fcCtrsRequestStatus = 0;
+static uint8_t battery2_fcCtrsResetRequestRequired = 0;
+static uint8_t battery2_fcLinkAllowedToEnergize = 0;
+//0x212: 530 BMS_status
+static uint8_t battery2_BMS_hvacPowerRequest = 0;
+static uint8_t battery2_BMS_notEnoughPowerForDrive = 0;
+static uint8_t battery2_BMS_notEnoughPowerForSupport = 0;
+static uint8_t battery2_BMS_preconditionAllowed = 0;
+static uint8_t battery2_BMS_updateAllowed = 0;
+static uint8_t battery2_BMS_activeHeatingWorthwhile = 0;
+static uint8_t battery2_BMS_cpMiaOnHvs = 0;
+static uint8_t battery2_BMS_contactorState = 0;
+static uint8_t battery2_BMS_state = 0;
+static uint8_t battery2_BMS_hvState = 0;
+static uint16_t battery2_BMS_isolationResistance = 0;
+static uint8_t battery2_BMS_chargeRequest = 0;
+static uint8_t battery2_BMS_keepWarmRequest = 0;
+static uint8_t battery2_BMS_uiChargeStatus = 0;
+static uint8_t battery2_BMS_diLimpRequest = 0;
+static uint8_t battery2_BMS_okToShipByAir = 0;
+static uint8_t battery2_BMS_okToShipByLand = 0;
+static uint32_t battery2_BMS_chgPowerAvailable = 0;
+static uint8_t battery2_BMS_chargeRetryCount = 0;
+static uint8_t battery2_BMS_pcsPwmEnabled = 0;
+static uint8_t battery2_BMS_ecuLogUploadRequest = 0;
+static uint8_t battery2_BMS_minPackTemperature = 0;
+// 0x224:548 PCS_dcdcStatus
+static uint8_t battery2_PCS_dcdcPrechargeStatus = 0;
+static uint8_t battery2_PCS_dcdc12VSupportStatus = 0;
+static uint8_t battery2_PCS_dcdcHvBusDischargeStatus = 0;
+static uint16_t battery2_PCS_dcdcMainState = 0;
+static uint8_t battery2_PCS_dcdcSubState = 0;
+static uint8_t battery2_PCS_dcdcFaulted = 0;
+static uint8_t battery2_PCS_dcdcOutputIsLimited = 0;
+static uint32_t battery2_PCS_dcdcMaxOutputCurrentAllowed = 0;
+static uint8_t battery2_PCS_dcdcPrechargeRtyCnt = 0;
+static uint8_t battery2_PCS_dcdc12VSupportRtyCnt = 0;
+static uint8_t battery2_PCS_dcdcDischargeRtyCnt = 0;
+static uint8_t battery2_PCS_dcdcPwmEnableLine = 0;
+static uint8_t battery2_PCS_dcdcSupportingFixedLvTarget = 0;
+static uint8_t battery2_PCS_ecuLogUploadRequest = 0;
+static uint8_t battery2_PCS_dcdcPrechargeRestartCnt = 0;
+static uint8_t battery2_PCS_dcdcInitialPrechargeSubState = 0;
+//0x312: 786 BMS_thermalStatus
+static uint16_t BMS2_powerDissipation = 0;
+static uint16_t BMS2_flowRequest = 0;
+static uint16_t BMS2_inletActiveCoolTargetT = 0;
+static uint16_t BMS2_inletPassiveTargetT = 0;
+static uint16_t BMS2_inletActiveHeatTargetT = 0;
+static uint16_t BMS2_packTMin = 0;
+static uint16_t BMS2_packTMax = 0;
+static uint16_t BMS2_pcsNoFlowRequest = 0;
+static uint16_t BMS2_noFlowRequest = 0;
+//0x2A4; 676 PCS_thermalStatus
+static uint16_t PCS2_chgPhATemp = 0;
+static uint16_t PCS2_chgPhBTemp = 0;
+static uint16_t PCS2_chgPhCTemp = 0;
+static uint16_t PCS2_dcdcTemp = 0;
+static uint16_t PCS2_ambientTemp = 0;
+//0x2C4; 708 PCS_logging
+static uint16_t PCS2_logMessageSelect = 0;
+static uint16_t PCS2_dcdcMaxLvOutputCurrent = 0;
+static uint16_t PCS2_dcdcCurrentLimit = 0;
+static uint16_t PCS2_dcdcLvOutputCurrentTempLimit = 0;
+static uint16_t PCS2_dcdcUnifiedCommand = 0;
+static uint16_t PCS2_dcdcCLAControllerOutput = 0;
+static uint16_t PCS2_dcdcTankVoltage = 0;
+static uint16_t PCS2_dcdcTankVoltageTarget = 0;
+static uint16_t PCS2_dcdcClaCurrentFreq = 0;
+static uint16_t PCS2_dcdcTCommMeasured = 0;
+static uint16_t PCS2_dcdcShortTimeUs = 0;
+static uint16_t PCS2_dcdcHalfPeriodUs = 0;
+static uint16_t PCS2_dcdcIntervalMaxFrequency = 0;
+static uint16_t PCS2_dcdcIntervalMaxHvBusVolt = 0;
+static uint16_t PCS2_dcdcIntervalMaxLvBusVolt = 0;
+static uint16_t PCS2_dcdcIntervalMaxLvOutputCurr = 0;
+static uint16_t PCS2_dcdcIntervalMinFrequency = 0;
+static uint16_t PCS2_dcdcIntervalMinHvBusVolt = 0;
+static uint16_t PCS2_dcdcIntervalMinLvBusVolt = 0;
+static uint16_t PCS2_dcdcIntervalMinLvOutputCurr = 0;
+static uint32_t PCS2_dcdc12vSupportLifetimekWh = 0;
+//0x7AA: //1962 HVP_debugMessage:
+static uint8_t HVP2_debugMessageMultiplexer = 0;
+static uint8_t HVP2_gpioPassivePyroDepl = 0;
+static uint8_t HVP2_gpioPyroIsoEn = 0;
+static uint8_t HVP2_gpioCpFaultIn = 0;
+static uint8_t HVP2_gpioPackContPowerEn = 0;
+static uint8_t HVP2_gpioHvCablesOk = 0;
+static uint8_t HVP2_gpioHVPSelfEnable = 0;
+static uint8_t HVP2_gpioLed = 0;
+static uint8_t HVP2_gpioCrashSignal = 0;
+static uint8_t HVP2_gpioShuntDataReady = 0;
+static uint8_t HVP2_gpioFcContPosAux = 0;
+static uint8_t HVP2_gpioFcContNegAux = 0;
+static uint8_t HVP2_gpioBmsEout = 0;
+static uint8_t HVP2_gpioCpFaultOut = 0;
+static uint8_t HVP2_gpioPyroPor = 0;
+static uint8_t HVP2_gpioShuntEn = 0;
+static uint8_t HVP2_gpioHVPVerEn = 0;
+static uint8_t HVP2_gpioPackCoontPosFlywheel = 0;
+static uint8_t HVP2_gpioCpLatchEnable = 0;
+static uint8_t HVP2_gpioPcsEnable = 0;
+static uint8_t HVP2_gpioPcsDcdcPwmEnable = 0;
+static uint8_t HVP2_gpioPcsChargePwmEnable = 0;
+static uint8_t HVP2_gpioFcContPowerEnable = 0;
+static uint8_t HVP2_gpioHvilEnable = 0;
+static uint8_t HVP2_gpioSecDrdy = 0;
+static uint16_t HVP2_hvp1v5Ref = 0;
+static uint16_t HVP2_shuntCurrentDebug = 0;
+static uint8_t HVP2_packCurrentMia = 0;
+static uint8_t HVP2_auxCurrentMia = 0;
+static uint8_t HVP2_currentSenseMia = 0;
+static uint8_t HVP2_shuntRefVoltageMismatch = 0;
+static uint8_t HVP2_shuntThermistorMia = 0;
+static uint8_t HVP2_shuntHwMia = 0;
+static uint16_t HVP2_dcLinkVoltage = 0;
+static uint16_t HVP2_packVoltage = 0;
+static uint16_t HVP2_fcLinkVoltage = 0;
+static uint16_t HVP2_packContVoltage = 0;
+static uint16_t HVP2_packNegativeV = 0;
+static uint16_t HVP2_packPositiveV = 0;
+static uint16_t HVP2_pyroAnalog = 0;
+static uint16_t HVP2_dcLinkNegativeV = 0;
+static uint16_t HVP2_dcLinkPositiveV = 0;
+static uint16_t HVP2_fcLinkNegativeV = 0;
+static uint16_t HVP2_fcContCoilCurrent = 0;
+static uint16_t HVP2_fcContVoltage = 0;
+static uint16_t HVP2_hvilInVoltage = 0;
+static uint16_t HVP2_hvilOutVoltage = 0;
+static uint16_t HVP2_fcLinkPositiveV = 0;
+static uint16_t HVP2_packContCoilCurrent = 0;
+static uint16_t HVP2_battery12V = 0;
+static uint16_t HVP2_shuntRefVoltageDbg = 0;
+static uint16_t HVP2_shuntAuxCurrentDbg = 0;
+static uint16_t HVP2_shuntBarTempDbg = 0;
+static uint16_t HVP2_shuntAsicTempDbg = 0;
+static uint8_t HVP2_shuntAuxCurrentStatus = 0;
+static uint8_t HVP2_shuntBarTempStatus = 0;
+static uint8_t HVP2_shuntAsicTempStatus = 0;
+//0x3aa: HVP_alertMatrix1 Fault codes
 static uint8_t battery2_WatchdogReset = 0;   //Warns if the processor has experienced a reset due to watchdog reset.
 static uint8_t battery2_PowerLossReset = 0;  //Warns if the processor has experienced a reset due to power loss.
 static uint8_t battery2_SwAssertion = 0;     //An internal software assertion has failed.
@@ -519,6 +688,101 @@ static uint8_t battery2_logUploadRequest = 0;
 static uint8_t battery2_packCtrCloseFailed = 0;
 static uint8_t battery2_fcCtrCloseFailed = 0;
 static uint8_t battery2_shuntThermistorMia = 0;
+//0x320: 800 BMS_alertMatrix
+static uint8_t battery2_BMS_matrixIndex = 4;
+static uint8_t battery2_BMS_a061_robinBrickOverVoltage = 1;
+static uint8_t battery2_BMS_a062_SW_BrickV_Imbalance = 1;
+static uint8_t battery2_BMS_a063_SW_ChargePort_Fault = 1;
+static uint8_t battery2_BMS_a064_SW_SOC_Imbalance = 1;
+static uint8_t battery2_BMS_a127_SW_shunt_SNA = 1;
+static uint8_t battery2_BMS_a128_SW_shunt_MIA = 1;
+static uint8_t battery2_BMS_a069_SW_Low_Power = 1;
+static uint8_t battery2_BMS_a130_IO_CAN_Error = 1;
+static uint8_t battery2_BMS_a071_SW_SM_TransCon_Not_Met = 1;
+static uint8_t battery2_BMS_a132_HW_BMB_OTP_Uncorrctbl = 1;
+static uint8_t battery2_BMS_a134_SW_Delayed_Ctr_Off = 1;
+static uint8_t battery2_BMS_a075_SW_Chg_Disable_Failure = 1;
+static uint8_t battery2_BMS_a076_SW_Dch_While_Charging = 1;
+static uint8_t battery2_BMS_a017_SW_Brick_OV = 1;
+static uint8_t battery2_BMS_a018_SW_Brick_UV = 1;
+static uint8_t battery2_BMS_a019_SW_Module_OT = 1;
+static uint8_t battery2_BMS_a021_SW_Dr_Limits_Regulation = 1;
+static uint8_t battery2_BMS_a022_SW_Over_Current = 1;
+static uint8_t battery2_BMS_a023_SW_Stack_OV = 1;
+static uint8_t battery2_BMS_a024_SW_Islanded_Brick = 1;
+static uint8_t battery2_BMS_a025_SW_PwrBalance_Anomaly = 1;
+static uint8_t battery2_BMS_a026_SW_HFCurrent_Anomaly = 1;
+static uint8_t battery2_BMS_a087_SW_Feim_Test_Blocked = 1;
+static uint8_t battery2_BMS_a088_SW_VcFront_MIA_InDrive = 1;
+static uint8_t battery2_BMS_a089_SW_VcFront_MIA = 1;
+static uint8_t battery2_BMS_a090_SW_Gateway_MIA = 1;
+static uint8_t battery2_BMS_a091_SW_ChargePort_MIA = 1;
+static uint8_t battery2_BMS_a092_SW_ChargePort_Mia_On_Hv = 1;
+static uint8_t battery2_BMS_a034_SW_Passive_Isolation = 1;
+static uint8_t battery2_BMS_a035_SW_Isolation = 1;
+static uint8_t battery2_BMS_a036_SW_HvpHvilFault = 1;
+static uint8_t battery2_BMS_a037_SW_Flood_Port_Open = 1;
+static uint8_t battery2_BMS_a158_SW_HVP_HVI_Comms = 1;
+static uint8_t battery2_BMS_a039_SW_DC_Link_Over_Voltage = 1;
+static uint8_t battery2_BMS_a041_SW_Power_On_Reset = 1;
+static uint8_t battery2_BMS_a042_SW_MPU_Error = 1;
+static uint8_t battery2_BMS_a043_SW_Watch_Dog_Reset = 1;
+static uint8_t battery2_BMS_a044_SW_Assertion = 1;
+static uint8_t battery2_BMS_a045_SW_Exception = 1;
+static uint8_t battery2_BMS_a046_SW_Task_Stack_Usage = 1;
+static uint8_t battery2_BMS_a047_SW_Task_Stack_Overflow = 1;
+static uint8_t battery2_BMS_a048_SW_Log_Upload_Request = 1;
+static uint8_t battery2_BMS_a169_SW_FC_Pack_Weld = 1;
+static uint8_t battery2_BMS_a050_SW_Brick_Voltage_MIA = 1;
+static uint8_t battery2_BMS_a051_SW_HVC_Vref_Bad = 1;
+static uint8_t battery2_BMS_a052_SW_PCS_MIA = 1;
+static uint8_t battery2_BMS_a053_SW_ThermalModel_Sanity = 1;
+static uint8_t battery2_BMS_a054_SW_Ver_Supply_Fault = 1;
+static uint8_t battery2_BMS_a176_SW_GracefulPowerOff = 1;
+static uint8_t battery2_BMS_a059_SW_Pack_Voltage_Sensing = 1;
+static uint8_t battery2_BMS_a060_SW_Leakage_Test_Failure = 1;
+static uint8_t battery2_BMS_a077_SW_Charger_Regulation = 1;
+static uint8_t battery2_BMS_a081_SW_Ctr_Close_Blocked = 1;
+static uint8_t battery2_BMS_a082_SW_Ctr_Force_Open = 1;
+static uint8_t battery2_BMS_a083_SW_Ctr_Close_Failure = 1;
+static uint8_t battery2_BMS_a084_SW_Sleep_Wake_Aborted = 1;
+static uint8_t battery2_BMS_a094_SW_Drive_Inverter_MIA = 1;
+static uint8_t battery2_BMS_a099_SW_BMB_Communication = 1;
+static uint8_t battery2_BMS_a105_SW_One_Module_Tsense = 1;
+static uint8_t battery2_BMS_a106_SW_All_Module_Tsense = 1;
+static uint8_t battery2_BMS_a107_SW_Stack_Voltage_MIA = 1;
+static uint8_t battery2_BMS_a121_SW_NVRAM_Config_Error = 1;
+static uint8_t battery2_BMS_a122_SW_BMS_Therm_Irrational = 1;
+static uint8_t battery2_BMS_a123_SW_Internal_Isolation = 1;
+static uint8_t battery2_BMS_a129_SW_VSH_Failure = 1;
+static uint8_t battery2_BMS_a131_Bleed_FET_Failure = 1;
+static uint8_t battery2_BMS_a136_SW_Module_OT_Warning = 1;
+static uint8_t battery2_BMS_a137_SW_Brick_UV_Warning = 1;
+static uint8_t battery2_BMS_a138_SW_Brick_OV_Warning = 1;
+static uint8_t battery2_BMS_a139_SW_DC_Link_V_Irrational = 1;
+static uint8_t battery2_BMS_a141_SW_BMB_Status_Warning = 1;
+static uint8_t battery2_BMS_a144_Hvp_Config_Mismatch = 1;
+static uint8_t battery2_BMS_a145_SW_SOC_Change = 1;
+static uint8_t battery2_BMS_a146_SW_Brick_Overdischarged = 1;
+static uint8_t battery2_BMS_a149_SW_Missing_Config_Block = 1;
+static uint8_t battery2_BMS_a151_SW_external_isolation = 1;
+static uint8_t battery2_BMS_a156_SW_BMB_Vref_bad = 1;
+static uint8_t battery2_BMS_a157_SW_HVP_HVS_Comms = 1;
+static uint8_t battery2_BMS_a159_SW_HVP_ECU_Error = 1;
+static uint8_t battery2_BMS_a161_SW_DI_Open_Request = 1;
+static uint8_t battery2_BMS_a162_SW_No_Power_For_Support = 1;
+static uint8_t battery2_BMS_a163_SW_Contactor_Mismatch = 1;
+static uint8_t battery2_BMS_a164_SW_Uncontrolled_Regen = 1;
+static uint8_t battery2_BMS_a165_SW_Pack_Partial_Weld = 1;
+static uint8_t battery2_BMS_a166_SW_Pack_Full_Weld = 1;
+static uint8_t battery2_BMS_a167_SW_FC_Partial_Weld = 1;
+static uint8_t battery2_BMS_a168_SW_FC_Full_Weld = 1;
+static uint8_t battery2_BMS_a170_SW_Limp_Mode = 1;
+static uint8_t battery2_BMS_a171_SW_Stack_Voltage_Sense = 1;
+static uint8_t battery2_BMS_a174_SW_Charge_Failure = 1;
+static uint8_t battery2_BMS_a179_SW_Hvp_12V_Fault = 1;
+static uint8_t battery2_BMS_a180_SW_ECU_reset_blocked = 1;
+
 #endif  //DOUBLE_BATTERY
 
 static const char* contactorText[] = {"UNKNOWN(0)",  "OPEN",        "CLOSING",    "BLOCKED", "OPENING",
@@ -1519,33 +1783,30 @@ void receive_can_battery2(CAN_frame rx_frame) {
         battery2_energy_buffer_m1 =
             (rx_frame.data.u8[3] | rx_frame.data.u8[2]);  //BMS_energyBuffer m1 : 16|16@1+ (0.01,0) [0|0] "kWh"  X
         battery2_expected_energy_remaining_m1 =
-            (rx_frame.data.u8[5] |
-             rx_frame.data.u8[4]);  //BMS_expectedEnergyRemaining m1 : 32|16@1+ (0.02,0) [0|0] "kWh"  X
+            (rx_frame.data.u8[5] | rx_frame.data.u8[4]);  //BMS_expectedEnergyRemaining m1 : 32|16@1+ (0.02,0) [0|0] "kWh"  X
         battery2_energy_to_charge_complete_m1 =
-            (rx_frame.data.u8[7] |
-             rx_frame.data.u8[6]);  //BMS_energyToChargeComplete m1 : 48|16@1+ (0.02,0) [0|0] "kWh"  X
+            (rx_frame.data.u8[7] | rx_frame.data.u8[6]);  //BMS_energyToChargeComplete m1 : 48|16@1+ (0.02,0) [0|0] "kWh"  X
       }
       if (mux == 2) {}
       // Additional information needed on this mux, example frame: 02 26 02 20 02 80 00 00 doesn't change
       // older BMS <2021 without mux
-      //battery2_nominal_full_pack_energy =  //BMS_nominalFullPackEnergy : 0|11@1+ (0.1,0) [0|204.6] "KWh" //((_d[1] & (0x07U)) << 8) | (_d[0] & (0xFFU));
-      (((rx_frame.data.u8[1] & 0x07) << 8) | (rx_frame.data.u8[0]));  //Example 752 (75.2kWh)
-      //battery2_nominal_energy_remaining =  //BMS_nominalEnergyRemaining : 11|11@1+ (0.1,0) [0|204.6] "KWh" //((_d[2] & (0x3FU)) << 5) | ((_d[1] >> 3) & (0x1FU));
-      (((rx_frame.data.u8[2] & 0x3F) << 5) | ((rx_frame.data.u8[1] & 0x1F) >> 3));  //Example 1247 * 0.1 = 124.7kWh
-      //battery2_expected_energy_remaining =  //BMS_expectedEnergyRemaining : 22|11@1+ (0.1,0) [0|204.6] "KWh"// ((_d[4] & (0x01U)) << 10) | ((_d[3] & (0xFFU)) << 2) | ((_d[2] >> 6) & (0x03U));
-      (((rx_frame.data.u8[4] & 0x01) << 10) | (rx_frame.data.u8[3] << 2) |
-       ((rx_frame.data.u8[2] & 0x03) >> 6));  //Example 622 (62.2kWh)
-      //battery2_ideal_energy_remaining =  //BMS_idealEnergyRemaining : 33|11@1+ (0.1,0) [0|204.6] "KWh" //((_d[5] & (0x0FU)) << 7) | ((_d[4] >> 1) & (0x7FU));
-      (((rx_frame.data.u8[5] & 0x0F) << 7) | ((rx_frame.data.u8[4] & 0x7F) >> 1));  //Example 311 * 0.1 = 31.1kWh
-      //battery2_energy_to_charge_complete =  // BMS_energyToChargeComplete : 44|11@1+ (0.1,0) [0|204.6] "KWh"// ((_d[6] & (0x7FU)) << 4) | ((_d[5] >> 4) & (0x0FU));
-      (((rx_frame.data.u8[6] & 0x7F) << 4) | ((rx_frame.data.u8[5] & 0x0F) << 4));  //Example 147 * 0.1 = 14.7kWh
-      //battery2_energy_buffer =  //BMS_energyBuffer : 55|8@1+ (0.1,0) [0|25.4] "KWh"// ((_d[7] & (0x7FU)) << 1) | ((_d[6] >> 7) & (0x01U));
-      (((rx_frame.data.u8[7] & 0x7F) << 1) | ((rx_frame.data.u8[6] & 0x01) >> 7));  //Example 1 * 0.1 = 0
-      //battery2_full_charge_complete =  //BMS_fullChargeComplete : 63|1@1+ (1,0) [0|1] ""//((_d[7] >> 7) & (0x01U));
-      ((rx_frame.data.u8[7] & 0x01) >> 7);
+      battery2_nominal_full_pack_energy =  //BMS_nominalFullPackEnergy : 0|11@1+ (0.1,0) [0|204.6] "KWh" //((_d[1] & (0x07U)) << 8) | (_d[0] & (0xFFU));
+          (((rx_frame.data.u8[1] & 0x07) << 8) | (rx_frame.data.u8[0]));  //Example 752 (75.2kWh)
+      battery2_nominal_energy_remaining =  //BMS_nominalEnergyRemaining : 11|11@1+ (0.1,0) [0|204.6] "KWh" //((_d[2] & (0x3FU)) << 5) | ((_d[1] >> 3) & (0x1FU));
+          (((rx_frame.data.u8[2] & 0x3F) << 5) | ((rx_frame.data.u8[1] & 0x1F) >> 3));  //Example 1247 * 0.1 = 124.7kWh
+      battery2_expected_energy_remaining =  //BMS_expectedEnergyRemaining : 22|11@1+ (0.1,0) [0|204.6] "KWh"// ((_d[4] & (0x01U)) << 10) | ((_d[3] & (0xFFU)) << 2) | ((_d[2] >> 6) & (0x03U));
+          (((rx_frame.data.u8[4] & 0x01) << 10) | (rx_frame.data.u8[3] << 2) |
+          ((rx_frame.data.u8[2] & 0x03) >> 6));  //Example 622 (62.2kWh)
+      battery2_ideal_energy_remaining =  //BMS_idealEnergyRemaining : 33|11@1+ (0.1,0) [0|204.6] "KWh" //((_d[5] & (0x0FU)) << 7) | ((_d[4] >> 1) & (0x7FU));
+          (((rx_frame.data.u8[5] & 0x0F) << 7) | ((rx_frame.data.u8[4] & 0x7F) >> 1));  //Example 311 * 0.1 = 31.1kWh
+      battery2_energy_to_charge_complete =  // BMS_energyToChargeComplete : 44|11@1+ (0.1,0) [0|204.6] "KWh"// ((_d[6] & (0x7FU)) << 4) | ((_d[5] >> 4) & (0x0FU));
+          (((rx_frame.data.u8[6] & 0x7F) << 4) | ((rx_frame.data.u8[5] & 0x0F) << 4));  //Example 147 * 0.1 = 14.7kWh
+      battery2_energy_buffer =  //BMS_energyBuffer : 55|8@1+ (0.1,0) [0|25.4] "KWh"// ((_d[7] & (0x7FU)) << 1) | ((_d[6] >> 7) & (0x01U));
+          (((rx_frame.data.u8[7] & 0x7F) << 1) | ((rx_frame.data.u8[6] & 0x01) >> 7));  //Example 1 * 0.1 = 0
+      battery2_full_charge_complete =  //BMS_fullChargeComplete : 63|1@1+ (1,0) [0|1] ""//((_d[7] >> 7) & (0x01U));
+          ((rx_frame.data.u8[7] & 0x01) >> 7);
       break;
-    case 0x20A:
-      //Contactor state
+    case 0x20A: //522 HVP_contactorState:
       battery2_packContNegativeState = (rx_frame.data.u8[0] & 0x07);
       battery2_packContPositiveState = (rx_frame.data.u8[0] & 0x38) >> 3;
       battery2_contactor = (rx_frame.data.u8[1] & 0x0F);
@@ -1553,22 +1814,89 @@ void receive_can_battery2(CAN_frame rx_frame) {
       battery2_packCtrsClosingAllowed = (rx_frame.data.u8[4] & 0x08) >> 3;
       battery2_pyroTestInProgress = (rx_frame.data.u8[4] & 0x20) >> 5;
       battery2_hvil_status = (rx_frame.data.u8[5] & 0x0F);
-      //HVP_packCtrsOpenNowRequested : 33|1@1+ (1,0) [0|1] ""
-      //HVP_packCtrsOpenRequested : 34|1@1+ (1,0) [0|1] ""
-      //HVP_packCtrsRequestStatus : 30|2@1+ (1,0) [0|2] ""
-      //HVP_packCtrsResetRequestRequired : 32|1@1+ (1,0) [0|1] ""
-      //HVP_dcLinkAllowedToEnergize : 36|1@1+ (1,0) [0|1] ""  Receiver
-      //HVP_fcContNegativeAuxOpen : 7|1@1+ (1,0) [0|1] ""  Receiver
-      //HVP_fcContNegativeState : 12|3@1+ (1,0) [0|7] ""  Receiver
-      //HVP_fcContPositiveAuxOpen : 6|1@1+ (1,0) [0|1] ""  Receiver
-      //HVP_fcContPositiveState : 16|3@1+ (1,0) [0|7] ""  Receiver
-      //HVP_fcContactorSetState : 19|4@1+ (1,0) [0|9] ""  Receiver
-      //HVP_fcCtrsClosingAllowed : 29|1@1+ (1,0) [0|1] ""  Receiver
-      //HVP_fcCtrsOpenNowRequested : 27|1@1+ (1,0) [0|1] ""  Receiver
-      //HVP_fcCtrsOpenRequested : 28|1@1+ (1,0) [0|1] ""  Receiver
-      //HVP_fcCtrsRequestStatus : 24|2@1+ (1,0) [0|2] ""  Receiver
-      //HVP_fcCtrsResetRequestRequired : 26|1@1+ (1,0) [0|1] ""  Receiver
-      //HVP_fcLinkAllowedToEnergize : 44|2@1+ (1,0) [0|2] ""  Receiver
+      battery2_packCtrsOpenNowRequested =
+          ((rx_frame.data.u8[4] >> 1) & (0x01U));  //33|1@1+ (1,0) [0|1] //to datalayer_extended
+      battery2_packCtrsOpenRequested =
+          ((rx_frame.data.u8[4] >> 2) & (0x01U));  //34|1@1+ (1,0) [0|1] //to datalayer_extended
+      battery2_packCtrsRequestStatus =
+          ((rx_frame.data.u8[3] >> 6) & (0x03U));  //30|2@1+ (1,0) [0|2] //to datalayer_extended
+      battery2_packCtrsResetRequestRequired =
+          (rx_frame.data.u8[4] & (0x01U));  //32|1@1+ (1,0) [0|1] //to datalayer_extended
+      battery2_dcLinkAllowedToEnergize =
+          ((rx_frame.data.u8[4] >> 4) & (0x01U));  //36|1@1+ (1,0) [0|1] //to datalayer_extended
+      battery2_fcContNegativeAuxOpen = ((rx_frame.data.u8[0] >> 7) & (0x01U));       //7|1@1+ (1,0) [0|1] ""  Receiver
+      battery2_fcContNegativeState = ((rx_frame.data.u8[1] >> 4) & (0x07U));         //12|3@1+ (1,0) [0|7] ""  Receiver
+      battery2_fcContPositiveAuxOpen = ((rx_frame.data.u8[0] >> 6) & (0x01U));       //6|1@1+ (1,0) [0|1] ""  Receiver
+      battery2_fcContPositiveState = (rx_frame.data.u8[2] & (0x07U));                //16|3@1+ (1,0) [0|7] ""  Receiver
+      battery2_fcContactorSetState = ((rx_frame.data.u8[2] >> 3) & (0x0FU));         //19|4@1+ (1,0) [0|9] ""  Receiver
+      battery2_fcCtrsClosingAllowed = ((rx_frame.data.u8[3] >> 5) & (0x01U));        //29|1@1+ (1,0) [0|1] ""  Receiver
+      battery2_fcCtrsOpenNowRequested = ((rx_frame.data.u8[3] >> 3) & (0x01U));      //27|1@1+ (1,0) [0|1] ""  Receiver
+      battery2_fcCtrsOpenRequested = ((rx_frame.data.u8[3] >> 4) & (0x01U));         //28|1@1+ (1,0) [0|1] ""  Receiver
+      battery2_fcCtrsRequestStatus = (rx_frame.data.u8[3] & (0x03U));                //24|2@1+ (1,0) [0|2] ""  Receiver
+      battery2_fcCtrsResetRequestRequired = ((rx_frame.data.u8[3] >> 2) & (0x01U));  //26|1@1+ (1,0) [0|1] ""  Receiver
+      battery2_fcLinkAllowedToEnergize = ((rx_frame.data.u8[5] >> 4) & (0x03U));     //44|2@1+ (1,0) [0|2] ""  Receiver
+      break;
+    case 0x212:  //530 BMS_status: 8
+      battery2_BMS_hvacPowerRequest = (rx_frame.data.u8[0] & (0x01U));
+      battery2_BMS_notEnoughPowerForDrive = ((rx_frame.data.u8[0] >> 1) & (0x01U));
+      battery2_BMS_notEnoughPowerForSupport = ((rx_frame.data.u8[0] >> 2) & (0x01U));
+      battery2_BMS_preconditionAllowed = ((rx_frame.data.u8[0] >> 3) & (0x01U));
+      battery2_BMS_updateAllowed = ((rx_frame.data.u8[0] >> 4) & (0x01U));
+      battery2_BMS_activeHeatingWorthwhile = ((rx_frame.data.u8[0] >> 5) & (0x01U));
+      battery2_BMS_cpMiaOnHvs = ((rx_frame.data.u8[0] >> 6) & (0x01U));
+      battery2_BMS_contactorState =
+          (rx_frame.data.u8[1] &
+           (0x07U));  //0 "SNA" 1 "OPEN" 2 "OPENING" 3 "CLOSING" 4 "CLOSED" 5 "WELDED" 6 "BLOCKED" ;
+      battery2_BMS_state =
+          ((rx_frame.data.u8[1] >> 3) &
+           (0x0FU));  //0 "STANDBY" 1 "DRIVE" 2 "SUPPORT" 3 "CHARGE" 4 "FEIM" 5 "CLEAR_FAULT" 6 "FAULT" 7 "WELD" 8 "TEST" 9 "SNA" ;
+      battery2_BMS_hvState =
+          (rx_frame.data.u8[2] &
+           (0x07U));  //0 "DOWN" 1 "COMING_UP" 2 "GOING_DOWN" 3 "UP_FOR_DRIVE" 4 "UP_FOR_CHARGE" 5 "UP_FOR_DC_CHARGE" 6 "UP" ;
+      battery2_BMS_isolationResistance =
+          ((rx_frame.data.u8[3] & (0x1FU)) << 5) |
+          ((rx_frame.data.u8[2] >> 3) & (0x1FU));  //19|10@1+ (10,0) [0|0] "kOhm"/to datalayer_extended
+      battery2_BMS_chargeRequest = ((rx_frame.data.u8[3] >> 5) & (0x01U));
+      battery2_BMS_keepWarmRequest = ((rx_frame.data.u8[3] >> 6) & (0x01U));
+      battery2_BMS_uiChargeStatus =
+          (rx_frame.data.u8[4] &
+           (0x07U));  // 0 "DISCONNECTED" 1 "NO_POWER" 2 "ABOUT_TO_CHARGE" 3 "CHARGING" 4 "CHARGE_COMPLETE" 5 "CHARGE_STOPPED" ;
+      battery2_BMS_diLimpRequest = ((rx_frame.data.u8[4] >> 3) & (0x01U));
+      battery2_BMS_okToShipByAir = ((rx_frame.data.u8[4] >> 4) & (0x01U));
+      battery2_BMS_okToShipByLand = ((rx_frame.data.u8[4] >> 5) & (0x01U));
+      battery2_BMS_chgPowerAvailable = ((rx_frame.data.u8[6] & (0x01U)) << 10) | ((rx_frame.data.u8[5] & (0xFFU)) << 2) |
+                                      ((rx_frame.data.u8[4] >> 6) & (0x03U));  //38|11@1+ (0.125,0) [0|0] "kW"
+      battery2_BMS_chargeRetryCount = ((rx_frame.data.u8[6] >> 1) & (0x0FU));
+      battery2_BMS_pcsPwmEnabled = ((rx_frame.data.u8[6] >> 5) & (0x01U));
+      battery2_BMS_ecuLogUploadRequest = ((rx_frame.data.u8[6] >> 6) & (0x03U));
+      battery2_BMS_minPackTemperature = (rx_frame.data.u8[7] & (0xFFU));  //56|8@1+ (0.5,-40) [0|0] "DegC
+      break;
+    case 0x224:                                                                   //548 PCS_dcdcStatus:
+      battery2_PCS_dcdcPrechargeStatus = (rx_frame.data.u8[0] & (0x03U));          //0 "IDLE" 1 "ACTIVE" 2 "FAULTED" ;
+      battery2_PCS_dcdc12VSupportStatus = ((rx_frame.data.u8[0] >> 2) & (0x03U));  //0 "IDLE" 1 "ACTIVE" 2 "FAULTED"
+      battery2_PCS_dcdcHvBusDischargeStatus = ((rx_frame.data.u8[0] >> 4) & (0x03U));  //0 "IDLE" 1 "ACTIVE" 2 "FAULTED"
+      battery2_PCS_dcdcMainState =
+          ((rx_frame.data.u8[1] & (0x03U)) << 2) |
+          ((rx_frame.data.u8[0] >> 6) &
+           (0x03U));  //0 "STANDBY" 1 "12V_SUPPORT_ACTIVE" 2 "PRECHARGE_STARTUP" 3 "PRECHARGE_ACTIVE" 4 "DIS_HVBUS_ACTIVE" 5 "SHUTDOWN" 6 "FAULTED" ;
+      battery2_PCS_dcdcSubState =
+          ((rx_frame.data.u8[1] >> 2) &
+           (0x1FU));  //0 "PWR_UP_INIT" 1 "STANDBY" 2 "12V_SUPPORT_ACTIVE" 3 "DIS_HVBUS" 4 "PCHG_FAST_DIS_HVBUS" 5 "PCHG_SLOW_DIS_HVBUS" 6 "PCHG_DWELL_CHARGE" 7 "PCHG_DWELL_WAIT" 8 "PCHG_DI_RECOVERY_WAIT" 9 "PCHG_ACTIVE" 10 "PCHG_FLT_FAST_DIS_HVBUS" 11 "SHUTDOWN" 12 "12V_SUPPORT_FAULTED" 13 "DIS_HVBUS_FAULTED" 14 "PCHG_FAULTED" 15 "CLEAR_FAULTS" 16 "FAULTED" 17 "NUM" ;
+      battery2_PCS_dcdcFaulted = ((rx_frame.data.u8[1] >> 7) & (0x01U));
+      battery2_PCS_dcdcOutputIsLimited = ((rx_frame.data.u8[3] >> 4) & (0x01U));
+      battery2_PCS_dcdcMaxOutputCurrentAllowed = ((rx_frame.data.u8[5] & (0x01U)) << 11) |
+                                                ((rx_frame.data.u8[4] & (0xFFU)) << 3) |
+                                                ((rx_frame.data.u8[3] >> 5) & (0x07U));  //29|12@1+ (0.1,0) [0|0] "A"
+      battery2_PCS_dcdcPrechargeRtyCnt = ((rx_frame.data.u8[5] >> 1) & (0x07U));
+      battery2_PCS_dcdc12VSupportRtyCnt = ((rx_frame.data.u8[5] >> 4) & (0x0FU));
+      battery2_PCS_dcdcDischargeRtyCnt = (rx_frame.data.u8[6] & (0x0FU));
+      battery2_PCS_dcdcPwmEnableLine = ((rx_frame.data.u8[6] >> 4) & (0x01U));
+      battery2_PCS_dcdcSupportingFixedLvTarget = ((rx_frame.data.u8[6] >> 5) & (0x01U));
+      battery2_PCS_ecuLogUploadRequest = ((rx_frame.data.u8[6] >> 6) & (0x03U));
+      battery2_PCS_dcdcPrechargeRestartCnt = (rx_frame.data.u8[7] & (0x07U));
+      battery2_PCS_dcdcInitialPrechargeSubState =
+          ((rx_frame.data.u8[7] >> 3) &
+           (0x1FU));  //0 "PWR_UP_INIT" 1 "STANDBY" 2 "12V_SUPPORT_ACTIVE" 3 "DIS_HVBUS" 4 "PCHG_FAST_DIS_HVBUS" 5 "PCHG_SLOW_DIS_HVBUS" 6 "PCHG_DWELL_CHARGE" 7 "PCHG_DWELL_WAIT" 8 "PCHG_DI_RECOVERY_WAIT" 9 "PCHG_ACTIVE" 10 "PCHG_FLT_FAST_DIS_HVBUS" 11 "SHUTDOWN" 12 "12V_SUPPORT_FAULTED" 13 "DIS_HVBUS_FAULTED" 14 "PCHG_FAULTED" 15 "CLEAR_FAULTS" 16 "FAULTED" 17 "NUM" ;
       break;
     case 0x252:
       //Limits
@@ -1591,10 +1919,8 @@ void receive_can_battery2(CAN_frame rx_frame) {
       if (battery2_charge_time_remaining == 4095) {
         battery2_charge_time_remaining = 0;
       }
-
       break;
-    case 0x3D2:
-      // total charge/discharge kwh
+    case 0x3D2: // total charge/discharge kwh
       battery2_total_discharge = ((rx_frame.data.u8[3] << 24) | (rx_frame.data.u8[2] << 16) |
                                   (rx_frame.data.u8[1] << 8) | rx_frame.data.u8[0]) *
                                  0.001;
@@ -1602,8 +1928,7 @@ void receive_can_battery2(CAN_frame rx_frame) {
                                rx_frame.data.u8[4]) *
                               0.001;
       break;
-    case 0x332:
-      //min/max hist values
+    case 0x332:  //min/max hist values //BattBrickMinMax:
       mux = (rx_frame.data.u8[0] & 0x03);
 
       if (mux == 1)  //Cell voltages
@@ -1614,14 +1939,116 @@ void receive_can_battery2(CAN_frame rx_frame) {
         temp = ((rx_frame.data.u8[3] << 8) | rx_frame.data.u8[2]);
         temp = (temp & 0xFFF);
         battery2_cell_min_v = temp * 2;
-        battery2_max_vno = 1 + (rx_frame.data.u8[4] & 0x7F);  //This cell has highest voltage
-        battery2_min_vno = 1 + (rx_frame.data.u8[5] & 0x7F);  //This cell has lowest voltage
+        //BattBrickVoltageMax m1 : 2|12@1+ (0.002,0) [0|0] "V"  Receiver ((_d[1] & (0x3FU)) << 6) | ((_d[0] >> 2) & (0x3FU));
+        battery2_BrickVoltageMax =
+            ((rx_frame.data.u8[1] & (0x3F)) << 6) | ((rx_frame.data.u8[0] >> 2) & (0x3F));  //to datalayer_extended
+        //BattBrickVoltageMin m1 : 16|12@1+ (0.002,0) [0|0] "V"  Receiver ((_d[3] & (0x0FU)) << 8) | (_d[2] & (0xFFU));
+        battery2_BrickVoltageMin =
+            ((rx_frame.data.u8[3] & (0x0F)) << 8) | (rx_frame.data.u8[2] & (0xFF));  //to datalayer_extended
+        //BattBrickVoltageMaxNum m1 : 32|7@1+ (1,1) [0|0] ""  Receiver
+        battery2_BrickVoltageMaxNum = 1 + (rx_frame.data.u8[4] & 0x7F);  //This cell has highest voltage
+        battery2_BrickVoltageMinNum = 1 + (rx_frame.data.u8[5] & 0x7F);  //This cell has lowest voltage
       }
       if (mux == 0)  //Temperature sensors
       {
         battery2_max_temp = (rx_frame.data.u8[2] * 5) - 400;  //Temperature values have 40.0*C offset, 0.5*C /bit
         battery2_min_temp =
             (rx_frame.data.u8[3] * 5) - 400;  //Multiply by 5 and remove offset to get C+1 (0x61*5=485-400=8.5*C)
+        //BattBrickTempMaxNum m0 : 2|4@1+ (1,0) [0|0] "" ((_d[0] >> 2) & (0x0FU));
+        battery2_BrickTempMaxNum = ((rx_frame.data.u8[0] >> 2) & (0x0F));  //to datalayer_extended
+        //BattBrickTempMinNum m0 : 8|4@1+ (1,0) [0|0] "" (_d[1] & (0x0FU));
+        battery2_BrickTempMinNum = (rx_frame.data.u8[1] & (0x0F));  //to datalayer_extended
+        //BattBrickModelTMax m0 : 32|8@1+ (0.5,-40) [0|0] "C" (_d[4] & (0xFFU));
+        battery2_BrickModelTMax = (rx_frame.data.u8[4] & (0xFFU));  //to datalayer_extended
+        //BattBrickModelTMin m0 : 40|8@1+ (0.5,-40) [0|0] "C" (_d[5] & (0xFFU));
+        battery2_BrickModelTMin = (rx_frame.data.u8[5] & (0xFFU));  //to datalayer_extended
+      }
+      break;
+    case 0x312:  // 786 BMS_thermalStatus
+      BMS2_powerDissipation =
+          ((rx_frame.data.u8[1] & (0x03U)) << 8) | (rx_frame.data.u8[0] & (0xFFU));  //0|10@1+ (0.02,0) [0|0] "kW"
+      BMS2_flowRequest = ((rx_frame.data.u8[2] & (0x01U)) << 6) |
+                        ((rx_frame.data.u8[1] >> 2) & (0x3FU));  //10|7@1+ (0.3,0) [0|0] "LPM"
+      BMS2_inletActiveCoolTargetT = ((rx_frame.data.u8[3] & (0x03U)) << 7) |
+                                   ((rx_frame.data.u8[2] >> 1) & (0x7FU));  //17|9@1+ (0.25,-25) [0|0] "DegC"
+      BMS2_inletPassiveTargetT = ((rx_frame.data.u8[4] & (0x07U)) << 6) |
+                                ((rx_frame.data.u8[3] >> 2) & (0x3FU));  //26|9@1+ (0.25,-25) [0|0] "DegC"  X
+      BMS2_inletActiveHeatTargetT = ((rx_frame.data.u8[5] & (0x0FU)) << 5) |
+                                   ((rx_frame.data.u8[4] >> 3) & (0x1FU));  //35|9@1+ (0.25,-25) [0|0] "DegC"
+      BMS2_packTMin = ((rx_frame.data.u8[6] & (0x1FU)) << 4) |
+                     ((rx_frame.data.u8[5] >> 4) & (0x0FU));  //44|9@1+ (0.25,-25) [-25|100] "DegC"
+      BMS2_packTMax = ((rx_frame.data.u8[7] & (0x3FU)) << 3) |
+                     ((rx_frame.data.u8[6] >> 5) & (0x07U));          //53|9@1+ (0.25,-25) [-25|100] "DegC"
+      BMS2_pcsNoFlowRequest = ((rx_frame.data.u8[7] >> 6) & (0x01U));  // 62|1@1+ (1,0) [0|0] ""
+      BMS2_noFlowRequest = ((rx_frame.data.u8[7] >> 7) & (0x01U));     //63|1@1+ (1,0) [0|0] ""
+      break;
+    case 0x2A4:  //676 PCS_thermalStatus
+      PCS2_chgPhATemp =
+          ((rx_frame.data.u8[1] & (0x07U)) << 8) | (rx_frame.data.u8[0] & (0xFFU));  //0|11@1- (0.1,40) [0|0] "C
+      PCS2_chgPhBTemp =
+          ((rx_frame.data.u8[2] & (0x3FU)) << 5) | ((rx_frame.data.u8[1] >> 3) & (0x1FU));  //11|11@1- (0.1,40) [0|0] "C
+      PCS2_chgPhCTemp =
+          ((rx_frame.data.u8[4] & (0x07U)) << 8) | (rx_frame.data.u8[3] & (0xFFU));  //24|11@1- (0.1,40) [0|0] "C"
+      PCS2_dcdcTemp = ((rx_frame.data.u8[5] & (0x3FU)) << 5) |
+                     ((rx_frame.data.u8[4] >> 3) & (0x1FU));  //35|11@1- (0.1,40) [0|0] "C"
+      PCS2_ambientTemp =
+          ((rx_frame.data.u8[7] & (0x07U)) << 8) | (rx_frame.data.u8[6] & (0xFFU));  //48|11@1- (0.1,40) [0|0] "C"
+      break;
+    case 0x2C4:  // 708 PCS_logging: not all frames are listed, just ones relating to dcdc
+      mux = (rx_frame.data.u8[0] & (0x1FU));
+      //PCS_logMessageSelect = (rx_frame.data.u8[0] & (0x1FU));  //0|5@1+ (1,0) [0|0] ""
+      if (mux == 6) {
+        PCS2_dcdcMaxLvOutputCurrent = ((rx_frame.data.u8[4] & (0xFFU)) << 4) |
+                                     ((rx_frame.data.u8[3] >> 4) & (0x0FU));  //m6 : 28|12@1+ (0.1,0) [0|0] "A"  X
+        PCS2_dcdcCurrentLimit = ((rx_frame.data.u8[6] & (0x0FU)) << 8) |
+                               (rx_frame.data.u8[5] & (0xFFU));  //m6 : 40|12@1+ (0.1,0) [0|0] "A"  X
+        PCS2_dcdcLvOutputCurrentTempLimit = ((rx_frame.data.u8[7] & (0xFFU)) << 4) |
+                                           ((rx_frame.data.u8[6] >> 4) & (0x0FU));  //m6 : 52|12@1+ (0.1,0) [0|0] "A"  X
+      }
+      if (mux == 7) {
+        PCS2_dcdcUnifiedCommand = ((rx_frame.data.u8[1] & (0x7FU)) << 3) |
+                                 ((rx_frame.data.u8[0] >> 5) & (0x07U));  //m7 : 5|10@1+ (0.001,0) [0|0] "1"  X
+        PCS2_dcdcCLAControllerOutput = ((rx_frame.data.u8[3] & (0x03U)) << 8) |
+                                      (rx_frame.data.u8[2] & (0xFFU));  //m7 : 16|10@1+ (0.001,0) [0|0] "1"  X
+        PCS2_dcdcTankVoltage = ((rx_frame.data.u8[4] & (0x1FU)) << 6) |
+                              ((rx_frame.data.u8[3] >> 2) & (0x3FU));  //m7 : 26|11@1- (1,0) [0|0] "V"  X
+        PCS2_dcdcTankVoltageTarget = ((rx_frame.data.u8[5] & (0x7FU)) << 3) |
+                                    ((rx_frame.data.u8[4] >> 5) & (0x07U));  // m7 : 37|10@1+ (1,0) [0|0] "V"  X
+        PCS2_dcdcClaCurrentFreq = ((rx_frame.data.u8[7] & (0x0FU)) << 8) |
+                                 (rx_frame.data.u8[6] & (0xFFU));  //P m7 : 48|12@1+ (0.0976563,0) [0|0] "kHz"  X
+      }
+      if (mux == 8) {
+        PCS2_dcdcTCommMeasured = ((rx_frame.data.u8[2] & (0xFFU)) << 8) |
+                                (rx_frame.data.u8[1] & (0xFFU));  // m8 : 8|16@1- (0.00195313,0) [0|0] "us"  X
+        PCS2_dcdcShortTimeUs = ((rx_frame.data.u8[4] & (0xFFU)) << 8) |
+                              (rx_frame.data.u8[3] & (0xFFU));  // m8 : 24|16@1+ (0.000488281,0) [0|0] "us"  X
+        PCS2_dcdcHalfPeriodUs = ((rx_frame.data.u8[6] & (0xFFU)) << 8) |
+                               (rx_frame.data.u8[5] & (0xFFU));  // m8 : 40|16@1+ (0.000488281,0) [0|0] "us"  X
+      }
+      if (mux == 18) {
+        PCS2_dcdcIntervalMaxFrequency = ((rx_frame.data.u8[2] & (0x0FU)) << 8) |
+                                       (rx_frame.data.u8[1] & (0xFFU));  // m18 : 8|12@1+ (1,0) [0|0] "kHz"  X
+        PCS2_dcdcIntervalMaxHvBusVolt = ((rx_frame.data.u8[4] & (0x1FU)) << 8) |
+                                       (rx_frame.data.u8[3] & (0xFFU));  //m18 : 24|13@1+ (0.1,0) [0|0] "V"  X
+        PCS2_dcdcIntervalMaxLvBusVolt = ((rx_frame.data.u8[5] & (0x3FU)) << 3) |
+                                       ((rx_frame.data.u8[4] >> 5) & (0x07U));  // m18 : 37|9@1+ (0.1,0) [0|0] "V"  X
+        PCS2_dcdcIntervalMaxLvOutputCurr = ((rx_frame.data.u8[7] & (0x0FU)) << 8) |
+                                          (rx_frame.data.u8[6] & (0xFFU));  //m18 : 48|12@1+ (1,0) [0|0] "A"  X
+      }
+      if (mux == 19) {
+        PCS2_dcdcIntervalMinFrequency = ((rx_frame.data.u8[2] & (0x0FU)) << 8) |
+                                       (rx_frame.data.u8[1] & (0xFFU));  //m19 : 8|12@1+ (1,0) [0|0] "kHz"  X
+        PCS2_dcdcIntervalMinHvBusVolt = ((rx_frame.data.u8[4] & (0x1FU)) << 8) |
+                                       (rx_frame.data.u8[3] & (0xFFU));  //m19 : 24|13@1+ (0.1,0) [0|0] "V"  X
+        PCS2_dcdcIntervalMinLvBusVolt = ((rx_frame.data.u8[5] & (0x3FU)) << 3) |
+                                       ((rx_frame.data.u8[4] >> 5) & (0x07U));  //m19 : 37|9@1+ (0.1,0) [0|0] "V"  X
+        PCS2_dcdcIntervalMinLvOutputCurr = ((rx_frame.data.u8[7] & (0x0FU)) << 8) |
+                                          (rx_frame.data.u8[6] & (0xFFU));  // m19 : 48|12@1+ (1,0) [0|0] "A"  X
+      }
+      if (mux == 22) {
+        PCS2_dcdc12vSupportLifetimekWh = ((rx_frame.data.u8[3] & (0xFFU)) << 16) |
+                                        ((rx_frame.data.u8[2] & (0xFFU)) << 8) |
+                                        (rx_frame.data.u8[1] & (0xFFU));  // m22 : 8|24@1+ (0.01,0) [0|0] "kWh"  X
       }
       break;
     case 0x401:  // Cell stats
@@ -1692,6 +2119,103 @@ void receive_can_battery2(CAN_frame rx_frame) {
         battery2_reservedConfig = (rx_frame.data.u8[1] & (0x1F));
       }
       break;
+    case 0x7AA:  //1962 HVP_debugMessage:
+      mux = (rx_frame.data.u8[0] & (0x0FU));
+      //HVP_debugMessageMultiplexer = (rx_frame.data.u8[0] & (0x0FU));  //0|4@1+ (1,0) [0|6] ""
+      if (mux == 0) {
+        HVP2_gpioPassivePyroDepl = ((rx_frame.data.u8[0] >> 4) & (0x01U));       //: 4|1@1+ (1,0) [0|1] ""  Receiver
+        HVP2_gpioPyroIsoEn = ((rx_frame.data.u8[0] >> 5) & (0x01U));             //: 5|1@1+ (1,0) [0|1] ""  Receiver
+        HVP2_gpioCpFaultIn = ((rx_frame.data.u8[0] >> 6) & (0x01U));             //: 6|1@1+ (1,0) [0|1] ""  Receiver
+        HVP2_gpioPackContPowerEn = ((rx_frame.data.u8[0] >> 7) & (0x01U));       //: 7|1@1+ (1,0) [0|1] ""  Receiver
+        HVP2_gpioHvCablesOk = (rx_frame.data.u8[1] & (0x01U));                   //: 8|1@1+ (1,0) [0|1] ""  Receiver
+        HVP2_gpioHvpSelfEnable = ((rx_frame.data.u8[1] >> 1) & (0x01U));         //: 9|1@1+ (1,0) [0|1] ""  Receiver
+        HVP2_gpioLed = ((rx_frame.data.u8[1] >> 2) & (0x01U));                   //: 10|1@1+ (1,0) [0|1] ""  Receiver
+        HVP2_gpioCrashSignal = ((rx_frame.data.u8[1] >> 3) & (0x01U));           //: 11|1@1+ (1,0) [0|1] ""  Receiver
+        HVP2_gpioShuntDataReady = ((rx_frame.data.u8[1] >> 4) & (0x01U));        //: 12|1@1+ (1,0) [0|1] ""  Receiver
+        HVP2_gpioFcContPosAux = ((rx_frame.data.u8[1] >> 5) & (0x01U));          //: 13|1@1+ (1,0) [0|1] ""  Receiver
+        HVP2_gpioFcContNegAux = ((rx_frame.data.u8[1] >> 6) & (0x01U));          //: 14|1@1+ (1,0) [0|1] ""  Receiver
+        HVP2_gpioBmsEout = ((rx_frame.data.u8[1] >> 7) & (0x01U));               //: 15|1@1+ (1,0) [0|1] ""  Receiver
+        HVP2_gpioCpFaultOut = (rx_frame.data.u8[2] & (0x01U));                   //: 16|1@1+ (1,0) [0|1] ""  Receiver
+        HVP2_gpioPyroPor = ((rx_frame.data.u8[2] >> 1) & (0x01U));               //: 17|1@1+ (1,0) [0|1] ""  Receiver
+        HVP2_gpioShuntEn = ((rx_frame.data.u8[2] >> 2) & (0x01U));               //: 18|1@1+ (1,0) [0|1] ""  Receiver
+        HVP2_gpioHvpVerEn = ((rx_frame.data.u8[2] >> 3) & (0x01U));              //: 19|1@1+ (1,0) [0|1] ""  Receiver
+        HVP2_gpioPackCoontPosFlywheel = ((rx_frame.data.u8[2] >> 4) & (0x01U));  //: 20|1@1+ (1,0) [0|1] ""  Receiver
+        HVP2_gpioCpLatchEnable = ((rx_frame.data.u8[2] >> 5) & (0x01U));         //: 21|1@1+ (1,0) [0|1] ""  Receiver
+        HVP2_gpioPcsEnable = ((rx_frame.data.u8[2] >> 6) & (0x01U));             //: 22|1@1+ (1,0) [0|1] ""  Receiver
+        HVP2_gpioPcsDcdcPwmEnable = ((rx_frame.data.u8[2] >> 7) & (0x01U));      //: 23|1@1+ (1,0) [0|1] ""  Receiver
+        HVP2_gpioPcsChargePwmEnable = (rx_frame.data.u8[3] & (0x01U));           //: 24|1@1+ (1,0) [0|1] ""  Receiver
+        HVP2_gpioFcContPowerEnable = ((rx_frame.data.u8[3] >> 1) & (0x01U));     //: 25|1@1+ (1,0) [0|1] ""  Receiver
+        HVP2_gpioHvilEnable = ((rx_frame.data.u8[3] >> 2) & (0x01U));            //: 26|1@1+ (1,0) [0|1] ""  Receiver
+        HVP2_gpioSecDrdy = ((rx_frame.data.u8[3] >> 3) & (0x01U));               //: 27|1@1+ (1,0) [0|1] ""  Receiver
+        HVP2_hvp1v5Ref = ((rx_frame.data.u8[4] & (0xFFU)) << 4) |
+                        ((rx_frame.data.u8[3] >> 4) & (0x0FU));  //: 28|12@1+ (0.1,0) [0|3] "V"  Receiver
+        HVP2_shuntCurrentDebug = ((rx_frame.data.u8[6] & (0xFFU)) << 8) |
+                                (rx_frame.data.u8[5] & (0xFFU));     //: 40|16@1- (0.1,0) [-3276.8|3276.7] "A"  Receiver
+        HVP2_packCurrentMia = (rx_frame.data.u8[7] & (0x01U));        //: 56|1@1+ (1,0) [0|1] ""  Receiver
+        HVP2_auxCurrentMia = ((rx_frame.data.u8[7] >> 1) & (0x01U));  //: 57|1@1+ (1,0) [0|1] ""  Receiver
+        HVP2_currentSenseMia = ((rx_frame.data.u8[7] >> 2) & (0x03U));          //: 58|1@1+ (1,0) [0|1] ""  Receiver
+        HVP2_shuntRefVoltageMismatch = ((rx_frame.data.u8[7] >> 3) & (0x01U));  //: 59|1@1+ (1,0) [0|1] ""  Receiver
+        HVP2_shuntThermistorMia = ((rx_frame.data.u8[7] >> 4) & (0x01U));       //: 60|1@1+ (1,0) [0|1] ""  Receiver
+        HVP2_shuntHwMia = ((rx_frame.data.u8[7] >> 5) & (0x01U));               //: 61|1@1+ (1,0) [0|1] ""  Receiver
+      }
+      if (mux == 1) {
+        HVP2_dcLinkVoltage = ((rx_frame.data.u8[2] & (0xFFU)) << 8) |
+                            (rx_frame.data.u8[1] & (0xFFU));  //: 8|16@1- (0.1,0) [-3276.8|3276.7] "V"  Receiver
+        HVP2_packVoltage = ((rx_frame.data.u8[4] & (0xFFU)) << 8) |
+                          (rx_frame.data.u8[3] & (0xFFU));  //: 24|16@1- (0.1,0) [-3276.8|3276.7] "V"  Receiver
+        HVP2_fcLinkVoltage = ((rx_frame.data.u8[6] & (0xFFU)) << 8) |
+                            (rx_frame.data.u8[5] & (0xFFU));  //: 40|16@1- (0.1,0) [-3276.8|3276.7] "V"  Receiver
+      }
+      if (mux == 2) {
+        HVP2_packContVoltage = ((rx_frame.data.u8[1] & (0xFFU)) << 4) |
+                              ((rx_frame.data.u8[0] >> 4) & (0x0FU));  //: 4|12@1+ (0.1,0) [0|30] "V"  Receiver
+        HVP2_packNegativeV = ((rx_frame.data.u8[3] & (0xFFU)) << 8) |
+                            (rx_frame.data.u8[2] & (0xFFU));  //: 16|16@1- (0.1,0) [-550|550] "V"  Receiver
+        HVP2_packPositiveV = ((rx_frame.data.u8[5] & (0xFFU)) << 8) |
+                            (rx_frame.data.u8[4] & (0xFFU));  //: 32|16@1- (0.1,0) [-550|550] "V"  Receiver
+        HVP2_pyroAnalog = ((rx_frame.data.u8[7] & (0x0FU)) << 8) |
+                         (rx_frame.data.u8[6] & (0xFFU));  //: 48|12@1+ (0.1,0) [0|3] "V"  Receiver
+      }
+      if (mux == 3) {
+        HVP2_dcLinkNegativeV = ((rx_frame.data.u8[2] & (0xFFU)) << 8) |
+                              (rx_frame.data.u8[1] & (0xFFU));  //: 8|16@1- (0.1,0) [-550|550] "V"  Receiver
+        HVP2_dcLinkPositiveV = ((rx_frame.data.u8[4] & (0xFFU)) << 8) |
+                              (rx_frame.data.u8[3] & (0xFFU));  //: 24|16@1- (0.1,0) [-550|550] "V"  Receiver
+        HVP2_fcLinkNegativeV = ((rx_frame.data.u8[6] & (0xFFU)) << 8) |
+                              (rx_frame.data.u8[5] & (0xFFU));  //: 40|16@1- (0.1,0) [-550|550] "V"  Receiver
+      }
+      if (mux == 4) {
+        HVP2_fcContCoilCurrent = ((rx_frame.data.u8[1] & (0xFFU)) << 4) |
+                                ((rx_frame.data.u8[0] >> 4) & (0x0FU));  //: 4|12@1+ (0.1,0) [0|7.5] "A"  Receiver
+        HVP2_fcContVoltage = ((rx_frame.data.u8[3] & (0x0FU)) << 8) |
+                            (rx_frame.data.u8[2] & (0xFFU));  //: 16|12@1+ (0.1,0) [0|30] "V"  Receiver
+        HVP2_hvilInVoltage = ((rx_frame.data.u8[4] & (0xFFU)) << 4) |
+                            ((rx_frame.data.u8[3] >> 4) & (0x0FU));  //: 28|12@1+ (0.1,0) [0|30] "V"  Receiver
+        HVP2_hvilOutVoltage = ((rx_frame.data.u8[6] & (0x0FU)) << 8) |
+                             (rx_frame.data.u8[5] & (0xFFU));  //: 40|12@1+ (0.1,0) [0|30] "V"  Receiver
+      }
+      if (mux == 5) {
+        HVP2_fcLinkPositiveV = ((rx_frame.data.u8[2] & (0xFFU)) << 8) |
+                              (rx_frame.data.u8[1] & (0xFFU));  //: 8|16@1- (0.1,0) [-550|550] "V"  Receiver
+        HVP2_packContCoilCurrent = ((rx_frame.data.u8[4] & (0x0FU)) << 8) |
+                                  (rx_frame.data.u8[3] & (0xFFU));  //: 24|12@1+ (0.1,0) [0|7.5] "A"  Receiver
+        HVP2_battery12V = ((rx_frame.data.u8[5] & (0xFFU)) << 4) |
+                         ((rx_frame.data.u8[4] >> 4) & (0x0FU));  //: 36|12@1+ (0.1,0) [0|30] "V"  Receiver
+        HVP2_shuntRefVoltageDbg = ((rx_frame.data.u8[7] & (0xFFU)) << 8) |
+                                 (rx_frame.data.u8[6] & (0xFFU));  //: 48|16@1- (0.001,0) [-32.768|32.767] "V"  Receiver
+      }
+      if (mux == 6) {
+        HVP2_shuntAuxCurrentDbg = ((rx_frame.data.u8[2] & (0xFFU)) << 8) |
+                                 (rx_frame.data.u8[1] & (0xFFU));  //: 8|16@1- (0.1,0) [-3276.8|3276.7] "A"  Receiver
+        HVP2_shuntBarTempDbg = ((rx_frame.data.u8[4] & (0xFFU)) << 8) |
+                              (rx_frame.data.u8[3] & (0xFFU));  //: 24|16@1- (0.01,0) [-327.67|327.67] "C"  Receiver
+        HVP2_shuntAsicTempDbg = ((rx_frame.data.u8[6] & (0xFFU)) << 8) |
+                               (rx_frame.data.u8[5] & (0xFFU));  //: 40|16@1- (0.01,0) [-327.67|327.67] "C"  Receiver
+        HVP2_shuntAuxCurrentStatus = (rx_frame.data.u8[7] & (0x03U));       //: 56|2@1+ (1,0) [0|3] ""  Receiver
+        HVP2_shuntBarTempStatus = ((rx_frame.data.u8[7] >> 2) & (0x03U));   //: 58|2@1+ (1,0) [0|3] ""  Receiver
+        HVP2_shuntAsicTempStatus = ((rx_frame.data.u8[7] >> 4) & (0x03U));  //: 60|2@1+ (1,0) [0|3] ""  Receiver
+      }
+      break;
     case 0x3aa:  //HVP_alertMatrix1
       battery2_WatchdogReset = (rx_frame.data.u8[0] & 0x01);
       battery2_PowerLossReset = ((rx_frame.data.u8[0] & 0x02) >> 1);
@@ -1744,6 +2268,110 @@ void receive_can_battery2(CAN_frame rx_frame) {
       battery2_packCtrCloseFailed = (rx_frame.data.u8[6] & 0x01);
       battery2_fcCtrCloseFailed = ((rx_frame.data.u8[6] & 0x02) >> 1);
       battery2_shuntThermistorMia = ((rx_frame.data.u8[6] & 0x04) >> 2);
+      break;
+    case 0x320:  //800 BMS_alertMatrix                                                //BMS_alertMatrix 800 BMS_alertMatrix: 8 VEH
+      mux = (rx_frame.data.u8[0] & (0x0F));
+      if (mux == 0)
+        ;
+      {                                                                                   //mux0
+        battery2_BMS_matrixIndex = (rx_frame.data.u8[0] & (0x0F));                         // 0|4@1+ (1,0) [0|0] ""  X
+        battery2_BMS_a017_SW_Brick_OV = ((rx_frame.data.u8[2] >> 4) & (0x01));             //20|1@1+ (1,0) [0|0] ""  X
+        battery2_BMS_a018_SW_Brick_UV = ((rx_frame.data.u8[2] >> 5) & (0x01));             //21|1@1+ (1,0) [0|0] ""  X
+        battery2_BMS_a019_SW_Module_OT = ((rx_frame.data.u8[2] >> 6) & (0x01));            //22|1@1+ (1,0) [0|0] ""  X
+        battery2_BMS_a021_SW_Dr_Limits_Regulation = (rx_frame.data.u8[3] & (0x01U));       //24|1@1+ (1,0) [0|0] ""  X
+        battery2_BMS_a022_SW_Over_Current = ((rx_frame.data.u8[3] >> 1) & (0x01U));        //25|1@1+ (1,0) [0|0] ""  X
+        battery2_BMS_a023_SW_Stack_OV = ((rx_frame.data.u8[3] >> 2) & (0x01U));            //26|1@1+ (1,0) [0|0] ""  X
+        battery2_BMS_a024_SW_Islanded_Brick = ((rx_frame.data.u8[3] >> 3) & (0x01U));      //27|1@1+ (1,0) [0|0] ""  X
+        battery2_BMS_a025_SW_PwrBalance_Anomaly = ((rx_frame.data.u8[3] >> 4) & (0x01U));  //28|1@1+ (1,0) [0|0] ""  X
+        battery2_BMS_a026_SW_HFCurrent_Anomaly = ((rx_frame.data.u8[3] >> 5) & (0x01U));   //29|1@1+ (1,0) [0|0] ""  X
+        battery2_BMS_a034_SW_Passive_Isolation = ((rx_frame.data.u8[4] >> 5) & (0x01U));   //37|1@1+ (1,0) [0|0] ""  X ?
+        battery2_BMS_a035_SW_Isolation = ((rx_frame.data.u8[4] >> 6) & (0x01U));           //38|1@1+ (1,0) [0|0] ""  X
+        battery2_BMS_a036_SW_HvpHvilFault = ((rx_frame.data.u8[4] >> 6) & (0x01U));        //39|1@1+ (1,0) [0|0] ""  X
+        battery2_BMS_a037_SW_Flood_Port_Open = (rx_frame.data.u8[5] & (0x01U));            //40|1@1+ (1,0) [0|0] ""  X
+        battery2_BMS_a039_SW_DC_Link_Over_Voltage = ((rx_frame.data.u8[5] >> 2) & (0x01U));  //42|1@1+ (1,0) [0|0] ""  X
+        battery2_BMS_a041_SW_Power_On_Reset = ((rx_frame.data.u8[5] >> 4) & (0x01U));        //44|1@1+ (1,0) [0|0] ""  X
+        battery2_BMS_a042_SW_MPU_Error = ((rx_frame.data.u8[5] >> 5) & (0x01U));             //45|1@1+ (1,0) [0|0] ""  X
+        battery2_BMS_a043_SW_Watch_Dog_Reset = ((rx_frame.data.u8[5] >> 6) & (0x01U));       //46|1@1+ (1,0) [0|0] ""  X
+        battery2_BMS_a044_SW_Assertion = ((rx_frame.data.u8[5] >> 7) & (0x01U));             //47|1@1+ (1,0) [0|0] ""  X
+        battery2_BMS_a045_SW_Exception = (rx_frame.data.u8[6] & (0x01U));                    //48|1@1+ (1,0) [0|0] ""  X
+        battery2_BMS_a046_SW_Task_Stack_Usage = ((rx_frame.data.u8[6] >> 1) & (0x01U));      //49|1@1+ (1,0) [0|0] ""  X
+        battery2_BMS_a047_SW_Task_Stack_Overflow = ((rx_frame.data.u8[6] >> 2) & (0x01U));   //50|1@1+ (1,0) [0|0] ""  X
+        battery2_BMS_a048_SW_Log_Upload_Request = ((rx_frame.data.u8[6] >> 3) & (0x01U));    //51|1@1+ (1,0) [0|0] ""  X
+        battery2_BMS_a050_SW_Brick_Voltage_MIA = ((rx_frame.data.u8[6] >> 5) & (0x01U));     //53|1@1+ (1,0) [0|0] ""  X
+        battery2_BMS_a051_SW_HVC_Vref_Bad = ((rx_frame.data.u8[6] >> 6) & (0x01U));          //54|1@1+ (1,0) [0|0] ""  X
+        battery2_BMS_a052_SW_PCS_MIA = ((rx_frame.data.u8[6] >> 7) & (0x01U));               //55|1@1+ (1,0) [0|0] ""  X
+        battery2_BMS_a053_SW_ThermalModel_Sanity = (rx_frame.data.u8[7] & (0x01U));          //56|1@1+ (1,0) [0|0] ""  X
+        battery2_BMS_a054_SW_Ver_Supply_Fault = ((rx_frame.data.u8[7] >> 1) & (0x01U));      //57|1@1+ (1,0) [0|0] ""  X
+        battery2_BMS_a059_SW_Pack_Voltage_Sensing = ((rx_frame.data.u8[7] >> 6) & (0x01U));  //62|1@1+ (1,0) [0|0] ""  X
+        battery2_BMS_a060_SW_Leakage_Test_Failure = ((rx_frame.data.u8[7] >> 7) & (0x01U));  //63|1@1+ (1,0) [0|0] ""  X
+      }
+      if (mux == 1) {                                                                       //mux1
+        battery2_BMS_a061_robinBrickOverVoltage = ((rx_frame.data.u8[0] >> 4) & (0x01U));    //4|1@1+ (1,0) [0|0] ""  X
+        battery2_BMS_a062_SW_BrickV_Imbalance = ((rx_frame.data.u8[0] >> 5) & (0x01U));      //5|1@1+ (1,0) [0|0] ""  X
+        battery2_BMS_a063_SW_ChargePort_Fault = ((rx_frame.data.u8[0] >> 6) & (0x01U));      //6|1@1+ (1,0) [0|0] ""  X
+        battery2_BMS_a064_SW_SOC_Imbalance = ((rx_frame.data.u8[0] >> 7) & (0x01U));         //7|1@1+ (1,0) [0|0] ""  X
+        battery2_BMS_a069_SW_Low_Power = ((rx_frame.data.u8[1] >> 4) & (0x01U));             //12|1@1+ (1,0) [0|0] ""  X
+        battery2_BMS_a071_SW_SM_TransCon_Not_Met = ((rx_frame.data.u8[1] >> 6) & (0x01U));   //14|1@1+ (1,0) [0|0] ""  X
+        battery2_BMS_a075_SW_Chg_Disable_Failure = ((rx_frame.data.u8[2] >> 2) & (0x01U));   //18|1@1+ (1,0) [0|0] ""  X
+        battery2_BMS_a076_SW_Dch_While_Charging = ((rx_frame.data.u8[2] >> 3) & (0x01U));    //19|1@1+ (1,0) [0|0] ""  X
+        battery2_BMS_a077_SW_Charger_Regulation = ((rx_frame.data.u8[2] >> 4) & (0x01U));    //20|1@1+ (1,0) [0|0] ""  X
+        battery2_BMS_a081_SW_Ctr_Close_Blocked = (rx_frame.data.u8[3] & (0x01U));            //24|1@1+ (1,0) [0|0] ""  X
+        battery2_BMS_a082_SW_Ctr_Force_Open = ((rx_frame.data.u8[3] >> 1) & (0x01U));        //25|1@1+ (1,0) [0|0] ""  X
+        battery2_BMS_a083_SW_Ctr_Close_Failure = ((rx_frame.data.u8[3] >> 2) & (0x01U));     //26|1@1+ (1,0) [0|0] ""  X
+        battery2_BMS_a084_SW_Sleep_Wake_Aborted = ((rx_frame.data.u8[3] >> 3) & (0x01U));    //27|1@1+ (1,0) [0|0] ""  X
+        battery2_BMS_a087_SW_Feim_Test_Blocked = ((rx_frame.data.u8[3] >> 6) & (0x01U));     //30|1@1+ (1,0) [0|0] ""  X
+        battery2_BMS_a088_SW_VcFront_MIA_InDrive = ((rx_frame.data.u8[3] >> 7) & (0x01U));   //31|1@1+ (1,0) [0|0] ""  X
+        battery2_BMS_a089_SW_VcFront_MIA = (rx_frame.data.u8[4] & (0x01U));                  //32|1@1+ (1,0) [0|0] ""  X
+        battery2_BMS_a090_SW_Gateway_MIA = ((rx_frame.data.u8[4] >> 1) & (0x01U));           //33|1@1+ (1,0) [0|0] ""  X
+        battery2_BMS_a091_SW_ChargePort_MIA = ((rx_frame.data.u8[4] >> 2) & (0x01U));        //34|1@1+ (1,0) [0|0] ""  X
+        battery2_BMS_a092_SW_ChargePort_Mia_On_Hv = ((rx_frame.data.u8[4] >> 3) & (0x01U));  //35|1@1+ (1,0) [0|0] ""  X
+        battery2_BMS_a094_SW_Drive_Inverter_MIA = ((rx_frame.data.u8[4] >> 5) & (0x01U));    //37|1@1+ (1,0) [0|0] ""  X
+        battery2_BMS_a099_SW_BMB_Communication = ((rx_frame.data.u8[5] >> 2) & (0x01U));     //42|1@1+ (1,0) [0|0] ""  X
+        battery2_BMS_a105_SW_One_Module_Tsense = (rx_frame.data.u8[6] & (0x01U));            //48|1@1+ (1,0) [0|0] ""  X
+        battery2_BMS_a106_SW_All_Module_Tsense = ((rx_frame.data.u8[6] >> 1) & (0x01U));     //49|1@1+ (1,0) [0|0] ""  X
+        battery2_BMS_a107_SW_Stack_Voltage_MIA = ((rx_frame.data.u8[6] >> 2) & (0x01U));     //50|1@1+ (1,0) [0|0] ""  X
+      }
+      if (mux == 2) {                                                                       //mux2
+        battery2_BMS_a121_SW_NVRAM_Config_Error = ((rx_frame.data.u8[0] >> 4) & (0x01U));    // 4|1@1+ (1,0) [0|0] ""  X
+        battery2_BMS_a122_SW_BMS_Therm_Irrational = ((rx_frame.data.u8[0] >> 5) & (0x01U));  //5|1@1+ (1,0) [0|0] ""  X
+        battery2_BMS_a123_SW_Internal_Isolation = ((rx_frame.data.u8[0] >> 6) & (0x01U));    //6|1@1+ (1,0) [0|0] ""  X
+        battery2_BMS_a127_SW_shunt_SNA = ((rx_frame.data.u8[1] >> 2) & (0x01U));             //10|1@1+ (1,0) [0|0] ""  X
+        battery2_BMS_a128_SW_shunt_MIA = ((rx_frame.data.u8[1] >> 3) & (0x01U));             //11|1@1+ (1,0) [0|0] ""  X
+        battery2_BMS_a129_SW_VSH_Failure = ((rx_frame.data.u8[1] >> 4) & (0x01U));           //12|1@1+ (1,0) [0|0] ""  X
+        battery2_BMS_a130_IO_CAN_Error = ((rx_frame.data.u8[1] >> 5) & (0x01U));             //13|1@1+ (1,0) [0|0] ""  X
+        battery2_BMS_a131_Bleed_FET_Failure = ((rx_frame.data.u8[1] >> 6) & (0x01U));        //14|1@1+ (1,0) [0|0] ""  X
+        battery2_BMS_a132_HW_BMB_OTP_Uncorrctbl = ((rx_frame.data.u8[1] >> 7) & (0x01U));    //15|1@1+ (1,0) [0|0] ""  X
+        battery2_BMS_a134_SW_Delayed_Ctr_Off = ((rx_frame.data.u8[2] >> 1) & (0x01U));       //17|1@1+ (1,0) [0|0] ""  X
+        battery2_BMS_a136_SW_Module_OT_Warning = ((rx_frame.data.u8[2] >> 3) & (0x01U));     //19|1@1+ (1,0) [0|0] ""  X
+        battery2_BMS_a137_SW_Brick_UV_Warning = ((rx_frame.data.u8[2] >> 4) & (0x01U));      //20|1@1+ (1,0) [0|0] ""  X
+        battery2_BMS_a138_SW_Brick_OV_Warning = ((rx_frame.data.u8[2] >> 5) & (0x01U));      //21|1@1+ (1,0) [0|0] ""  X
+        battery2_BMS_a139_SW_DC_Link_V_Irrational = ((rx_frame.data.u8[2] >> 6) & (0x01U));  //22|1@1+ (1,0) [0|0] ""  X
+        battery2_BMS_a141_SW_BMB_Status_Warning = (rx_frame.data.u8[3] & (0x01U));           //24|1@1+ (1,0) [0|0] ""  X
+        battery2_BMS_a144_Hvp_Config_Mismatch = ((rx_frame.data.u8[3] >> 3) & (0x01U));      //27|1@1+ (1,0) [0|0] ""  X
+        battery2_BMS_a145_SW_SOC_Change = ((rx_frame.data.u8[3] >> 4) & (0x01U));            //28|1@1+ (1,0) [0|0] ""  X
+        battery2_BMS_a146_SW_Brick_Overdischarged = ((rx_frame.data.u8[3] >> 5) & (0x01U));  //29|1@1+ (1,0) [0|0] ""  X
+        battery2_BMS_a149_SW_Missing_Config_Block = (rx_frame.data.u8[4] & (0x01U));         //32|1@1+ (1,0) [0|0] ""  X
+        battery2_BMS_a151_SW_external_isolation = ((rx_frame.data.u8[4] >> 2) & (0x01U));    //34|1@1+ (1,0) [0|0] ""  X
+        battery2_BMS_a156_SW_BMB_Vref_bad = ((rx_frame.data.u8[4] >> 7) & (0x01U));          //39|1@1+ (1,0) [0|0] ""  X
+        battery2_BMS_a157_SW_HVP_HVS_Comms = (rx_frame.data.u8[5] & (0x01U));                //40|1@1+ (1,0) [0|0] ""  X
+        battery2_BMS_a158_SW_HVP_HVI_Comms = ((rx_frame.data.u8[5] >> 1) & (0x01U));         //41|1@1+ (1,0) [0|0] ""  X
+        battery2_BMS_a159_SW_HVP_ECU_Error = ((rx_frame.data.u8[5] >> 2) & (0x01U));         //42|1@1+ (1,0) [0|0] ""  X
+        battery2_BMS_a161_SW_DI_Open_Request = ((rx_frame.data.u8[5] >> 4) & (0x01U));       //44|1@1+ (1,0) [0|0] ""  X
+        battery2_BMS_a162_SW_No_Power_For_Support = ((rx_frame.data.u8[5] >> 5) & (0x01U));  //45|1@1+ (1,0) [0|0] ""  X
+        battery2_BMS_a163_SW_Contactor_Mismatch = ((rx_frame.data.u8[5] >> 6) & (0x01U));    //46|1@1+ (1,0) [0|0] ""  X
+        battery2_BMS_a164_SW_Uncontrolled_Regen = ((rx_frame.data.u8[5] >> 7) & (0x01U));    //47|1@1+ (1,0) [0|0] ""  X
+        battery2_BMS_a165_SW_Pack_Partial_Weld = (rx_frame.data.u8[6] & (0x01U));            //48|1@1+ (1,0) [0|0] ""  X
+        battery2_BMS_a166_SW_Pack_Full_Weld = ((rx_frame.data.u8[6] >> 1) & (0x01U));        //49|1@1+ (1,0) [0|0] ""  X
+        battery2_BMS_a167_SW_FC_Partial_Weld = ((rx_frame.data.u8[6] >> 2) & (0x01U));       //50|1@1+ (1,0) [0|0] ""  X
+        battery2_BMS_a168_SW_FC_Full_Weld = ((rx_frame.data.u8[6] >> 3) & (0x01U));          //51|1@1+ (1,0) [0|0] ""  X
+        battery2_BMS_a169_SW_FC_Pack_Weld = ((rx_frame.data.u8[6] >> 4) & (0x01U));          //52|1@1+ (1,0) [0|0] ""  X
+        battery2_BMS_a170_SW_Limp_Mode = ((rx_frame.data.u8[6] >> 5) & (0x01U));             //53|1@1+ (1,0) [0|0] ""  X
+        battery2_BMS_a171_SW_Stack_Voltage_Sense = ((rx_frame.data.u8[6] >> 6) & (0x01U));   //54|1@1+ (1,0) [0|0] ""  X
+        battery2_BMS_a174_SW_Charge_Failure = ((rx_frame.data.u8[7] >> 1) & (0x01U));        //57|1@1+ (1,0) [0|0] ""  X
+        battery2_BMS_a176_SW_GracefulPowerOff = ((rx_frame.data.u8[7] >> 3) & (0x01U));      //59|1@1+ (1,0) [0|0] ""  X
+        battery2_BMS_a179_SW_Hvp_12V_Fault = ((rx_frame.data.u8[7] >> 6) & (0x01U));         //62|1@1+ (1,0) [0|0] ""  X
+        battery2_BMS_a180_SW_ECU_reset_blocked = ((rx_frame.data.u8[7] >> 7) & (0x01U));     //63|1@1+ (1,0) [0|0] ""  X
+      }
       break;
     default:
       break;
@@ -1801,7 +2429,7 @@ void update_values_battery2() {  //This function maps all the values fetched via
 
   datalayer.battery2.status.cell_min_voltage_mV = battery2_cell_min_v;
 
-  datalayer.battery2_cell_deviation_mV = (battery2_cell_max_v - battery2_cell_min_v);
+  battery2_cell_deviation_mV = (battery2_cell_max_v - battery2_cell_min_v);
 
   /* Value mapping is completed. Start to check all safeties */
 
@@ -2270,6 +2898,98 @@ void printFaultCodesIfActive_battery2() {
   printDebugIfActive(battery2_packCtrCloseFailed, "ERROR: packCtrCloseFailed is active");
   printDebugIfActive(battery2_fcCtrCloseFailed, "ERROR: fcCtrCloseFailed is active");
   printDebugIfActive(battery2_shuntThermistorMia, "ERROR: shuntThermistorMia is active");
+  // 0x320 800 BMS_alertMatrix
+  printDebugIfActive(battery2_BMS_a017_SW_Brick_OV, "ERROR: BMS_a017_SW_Brick_OV");
+  printDebugIfActive(battery2_BMS_a018_SW_Brick_UV, "ERROR: BMS_a018_SW_Brick_UV");
+  printDebugIfActive(battery2_BMS_a019_SW_Module_OT, "ERROR: BMS_a019_SW_Module_OT");
+  printDebugIfActive(battery2_BMS_a021_SW_Dr_Limits_Regulation, "ERROR: BMS_a021_SW_Dr_Limits_Regulation");
+  printDebugIfActive(battery2_BMS_a022_SW_Over_Current, "ERROR: BMS_a022_SW_Over_Current");
+  printDebugIfActive(battery2_BMS_a023_SW_Stack_OV, "ERROR: BMS_a023_SW_Stack_OV");
+  printDebugIfActive(battery2_BMS_a024_SW_Islanded_Brick, "ERROR: BMS_a024_SW_Islanded_Brick");
+  printDebugIfActive(battery2_BMS_a025_SW_PwrBalance_Anomaly, "ERROR: BMS_a025_SW_PwrBalance_Anomaly");
+  printDebugIfActive(battery2_BMS_a026_SW_HFCurrent_Anomaly, "ERROR: BMS_a026_SW_HFCurrent_Anomaly");
+  printDebugIfActive(battery2_BMS_a034_SW_Passive_Isolation, "ERROR: BMS_a034_SW_Passive_Isolation");
+  printDebugIfActive(battery2_BMS_a035_SW_Isolation, "ERROR: BMS_a035_SW_Isolation");
+  printDebugIfActive(battery2_BMS_a036_SW_HvpHvilFault, "ERROR: BMS_a036_SW_HvpHvilFault");
+  printDebugIfActive(battery2_BMS_a037_SW_Flood_Port_Open, "ERROR: BMS_a037_SW_Flood_Port_Open");
+  printDebugIfActive(battery2_BMS_a039_SW_DC_Link_Over_Voltage, "ERROR: BMS_a039_SW_DC_Link_Over_Voltage");
+  printDebugIfActive(battery2_BMS_a041_SW_Power_On_Reset, "ERROR: BMS_a041_SW_Power_On_Reset");
+  printDebugIfActive(battery2_BMS_a042_SW_MPU_Error, "ERROR: BMS_a042_SW_MPU_Error");
+  printDebugIfActive(battery2_BMS_a043_SW_Watch_Dog_Reset, "ERROR: BMS_a043_SW_Watch_Dog_Reset");
+  printDebugIfActive(battery2_BMS_a044_SW_Assertion, "ERROR: BMS_a044_SW_Assertion");
+  printDebugIfActive(battery2_BMS_a045_SW_Exception, "ERROR: BMS_a045_SW_Exception");
+  printDebugIfActive(battery2_BMS_a046_SW_Task_Stack_Usage, "ERROR: BMS_a046_SW_Task_Stack_Usage");
+  printDebugIfActive(battery2_BMS_a047_SW_Task_Stack_Overflow, "ERROR: BMS_a047_SW_Task_Stack_Overflow");
+  printDebugIfActive(battery2_BMS_a048_SW_Log_Upload_Request, "ERROR: BMS_a048_SW_Log_Upload_Request");
+  printDebugIfActive(battery2_BMS_a050_SW_Brick_Voltage_MIA, "ERROR: BMS_a050_SW_Brick_Voltage_MIA");
+  printDebugIfActive(battery2_BMS_a051_SW_HVC_Vref_Bad, "ERROR: BMS_a051_SW_HVC_Vref_Bad");
+  printDebugIfActive(battery2_BMS_a052_SW_PCS_MIA, "ERROR: BMS_a052_SW_PCS_MIA");
+  printDebugIfActive(battery2_BMS_a053_SW_ThermalModel_Sanity, "ERROR: BMS_a053_SW_ThermalModel_Sanity");
+  printDebugIfActive(battery2_BMS_a054_SW_Ver_Supply_Fault, "ERROR: BMS_a054_SW_Ver_Supply_Fault");
+  printDebugIfActive(battery2_BMS_a059_SW_Pack_Voltage_Sensing, "ERROR: BMS_a059_SW_Pack_Voltage_Sensing");
+  printDebugIfActive(battery2_BMS_a060_SW_Leakage_Test_Failure, "ERROR: BMS_a060_SW_Leakage_Test_Failure");
+  printDebugIfActive(battery2_BMS_a061_robinBrickOverVoltage, "ERROR: BMS_a061_robinBrickOverVoltage");
+  printDebugIfActive(battery2_BMS_a062_SW_BrickV_Imbalance, "ERROR: BMS_a062_SW_BrickV_Imbalance");
+  printDebugIfActive(battery2_BMS_a063_SW_ChargePort_Fault, "ERROR: BMS_a063_SW_ChargePort_Fault");
+  printDebugIfActive(battery2_BMS_a064_SW_SOC_Imbalance, "ERROR: BMS_a064_SW_SOC_Imbalance");
+  printDebugIfActive(battery2_BMS_a069_SW_Low_Power, "ERROR: BMS_a069_SW_Low_Power");
+  printDebugIfActive(battery2_BMS_a071_SW_SM_TransCon_Not_Met, "ERROR: BMS_a071_SW_SM_TransCon_Not_Met");
+  printDebugIfActive(battery2_BMS_a075_SW_Chg_Disable_Failure, "ERROR: BMS_a075_SW_Chg_Disable_Failure");
+  printDebugIfActive(battery2_BMS_a076_SW_Dch_While_Charging, "ERROR: BMS_a076_SW_Dch_While_Charging");
+  printDebugIfActive(battery2_BMS_a077_SW_Charger_Regulation, "ERROR: BMS_a077_SW_Charger_Regulation");
+  printDebugIfActive(battery2_BMS_a081_SW_Ctr_Close_Blocked, "ERROR: BMS_a081_SW_Ctr_Close_Blocked");
+  printDebugIfActive(battery2_BMS_a082_SW_Ctr_Force_Open, "ERROR: BMS_a082_SW_Ctr_Force_Open");
+  printDebugIfActive(battery2_BMS_a083_SW_Ctr_Close_Failure, "ERROR: BMS_a083_SW_Ctr_Close_Failure");
+  printDebugIfActive(battery2_BMS_a084_SW_Sleep_Wake_Aborted, "ERROR: BMS_a084_SW_Sleep_Wake_Aborted");
+  printDebugIfActive(battery2_BMS_a087_SW_Feim_Test_Blocked, "ERROR: BMS_a087_SW_Feim_Test_Blocked");
+  printDebugIfActive(battery2_BMS_a088_SW_VcFront_MIA_InDrive, "ERROR: BMS_a088_SW_VcFront_MIA_InDrive");
+  printDebugIfActive(battery2_BMS_a089_SW_VcFront_MIA, "ERROR: BMS_a089_SW_VcFront_MIA");
+  printDebugIfActive(battery2_BMS_a090_SW_Gateway_MIA, "ERROR: BMS_a090_SW_Gateway_MIA");
+  printDebugIfActive(battery2_BMS_a091_SW_ChargePort_MIA, "ERROR: BMS_a091_SW_ChargePort_MIA");
+  printDebugIfActive(battery2_BMS_a092_SW_ChargePort_Mia_On_Hv, "ERROR: BMS_a092_SW_ChargePort_Mia_On_Hv");
+  printDebugIfActive(battery2_BMS_a094_SW_Drive_Inverter_MIA, "ERROR: BMS_a094_SW_Drive_Inverter_MIA");
+  printDebugIfActive(battery2_BMS_a099_SW_BMB_Communication, "ERROR: BMS_a099_SW_BMB_Communication");
+  printDebugIfActive(battery2_BMS_a105_SW_One_Module_Tsense, "ERROR: BMS_a105_SW_One_Module_Tsense");
+  printDebugIfActive(battery2_BMS_a106_SW_All_Module_Tsense, "ERROR: BMS_a106_SW_All_Module_Tsense");
+  printDebugIfActive(battery2_BMS_a107_SW_Stack_Voltage_MIA, "ERROR: BMS_a107_SW_Stack_Voltage_MIA");
+  printDebugIfActive(battery2_BMS_a121_SW_NVRAM_Config_Error, "ERROR: BMS_a121_SW_NVRAM_Config_Error");
+  printDebugIfActive(battery2_BMS_a122_SW_BMS_Therm_Irrational, "ERROR: BMS_a122_SW_BMS_Therm_Irrational");
+  printDebugIfActive(battery2_BMS_a123_SW_Internal_Isolation, "ERROR: BMS_a123_SW_Internal_Isolation");
+  printDebugIfActive(battery2_BMS_a127_SW_shunt_SNA, "ERROR: BMS_a127_SW_shunt_SNA");
+  printDebugIfActive(battery2_BMS_a128_SW_shunt_MIA, "ERROR: BMS_a128_SW_shunt_MIA");
+  printDebugIfActive(battery2_BMS_a129_SW_VSH_Failure, "ERROR: BMS_a129_SW_VSH_Failure");
+  printDebugIfActive(battery2_BMS_a130_IO_CAN_Error, "ERROR: BMS_a130_IO_CAN_Error");
+  printDebugIfActive(battery2_BMS_a131_Bleed_FET_Failure, "ERROR: BMS_a131_Bleed_FET_Failure");
+  printDebugIfActive(battery2_BMS_a132_HW_BMB_OTP_Uncorrctbl, "ERROR: BMS_a132_HW_BMB_OTP_Uncorrctbl");
+  printDebugIfActive(battery2_BMS_a134_SW_Delayed_Ctr_Off, "ERROR: BMS_a134_SW_Delayed_Ctr_Off");
+  printDebugIfActive(battery2_BMS_a136_SW_Module_OT_Warning, "ERROR: BMS_a136_SW_Module_OT_Warning");
+  printDebugIfActive(battery2_BMS_a137_SW_Brick_UV_Warning, "ERROR: BMS_a137_SW_Brick_UV_Warning");
+  printDebugIfActive(battery2_BMS_a139_SW_DC_Link_V_Irrational, "ERROR: BMS_a139_SW_DC_Link_V_Irrational");
+  printDebugIfActive(battery2_BMS_a141_SW_BMB_Status_Warning, "ERROR: BMS_a141_SW_BMB_Status_Warning");
+  printDebugIfActive(battery2_BMS_a144_Hvp_Config_Mismatch, "ERROR: BMS_a144_Hvp_Config_Mismatch");
+  printDebugIfActive(battery2_BMS_a145_SW_SOC_Change, "ERROR: BMS_a145_SW_SOC_Change");
+  printDebugIfActive(battery2_BMS_a146_SW_Brick_Overdischarged, "ERROR: BMS_a146_SW_Brick_Overdischarged");
+  printDebugIfActive(battery2_BMS_a149_SW_Missing_Config_Block, "ERROR: BMS_a149_SW_Missing_Config_Block");
+  printDebugIfActive(battery2_BMS_a151_SW_external_isolation, "ERROR: BMS_a151_SW_external_isolation");
+  printDebugIfActive(battery2_BMS_a156_SW_BMB_Vref_bad, "ERROR: BMS_a156_SW_BMB_Vref_bad");
+  printDebugIfActive(battery2_BMS_a157_SW_HVP_HVS_Comms, "ERROR: BMS_a157_SW_HVP_HVS_Comms");
+  printDebugIfActive(battery2_BMS_a158_SW_HVP_HVI_Comms, "ERROR: BMS_a158_SW_HVP_HVI_Comms");
+  printDebugIfActive(battery2_BMS_a159_SW_HVP_ECU_Error, "ERROR: BMS_a159_SW_HVP_ECU_Error");
+  printDebugIfActive(battery2_BMS_a161_SW_DI_Open_Request, "ERROR: BMS_a161_SW_DI_Open_Request");
+  printDebugIfActive(battery2_BMS_a162_SW_No_Power_For_Support, "ERROR: BMS_a162_SW_No_Power_For_Support");
+  printDebugIfActive(battery2_BMS_a163_SW_Contactor_Mismatch, "ERROR: BMS_a163_SW_Contactor_Mismatch");
+  printDebugIfActive(battery2_BMS_a164_SW_Uncontrolled_Regen, "ERROR: BMS_a164_SW_Uncontrolled_Regen");
+  printDebugIfActive(battery2_BMS_a165_SW_Pack_Partial_Weld, "ERROR: BMS_a165_SW_Pack_Partial_Weld");
+  printDebugIfActive(battery2_BMS_a166_SW_Pack_Full_Weld, "ERROR: BMS_a166_SW_Pack_Full_Weld");
+  printDebugIfActive(battery2_BMS_a167_SW_FC_Partial_Weld, "ERROR: BMS_a167_SW_FC_Partial_Weld");
+  printDebugIfActive(battery2_BMS_a168_SW_FC_Full_Weld, "ERROR: BMS_a168_SW_FC_Full_Weld");
+  printDebugIfActive(battery2_BMS_a169_SW_FC_Pack_Weld, "ERROR: BMS_a169_SW_FC_Pack_Weld");
+  printDebugIfActive(battery2_BMS_a170_SW_Limp_Mode, "ERROR: BMS_a170_SW_Limp_Mode");
+  printDebugIfActive(battery2_BMS_a171_SW_Stack_Voltage_Sense, "ERROR: BMS_a171_SW_Stack_Voltage_Sense");
+  printDebugIfActive(battery2_BMS_a174_SW_Charge_Failure, "ERROR: BMS_a174_SW_Charge_Failure");
+  printDebugIfActive(battery2_BMS_a176_SW_GracefulPowerOff, "ERROR: BMS_a176_SW_GracefulPowerOff");
+  printDebugIfActive(battery2_BMS_a179_SW_Hvp_12V_Fault, "ERROR: BMS_a179_SW_Hvp_12V_Fault");
+  printDebugIfActive(battery2_BMS_a180_SW_ECU_reset_blocked, "ERROR: BMS_a180_SW_ECU_reset_blocked");
 }
 #endif  //DOUBLE_BATTERY
 
