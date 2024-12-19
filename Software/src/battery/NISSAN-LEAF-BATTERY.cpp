@@ -38,11 +38,13 @@ CAN_frame LEAF_1D4 = {.FD = false,
                       .ID = 0x1D4,
                       .data = {0x6E, 0x6E, 0x00, 0x04, 0x07, 0x46, 0xE0, 0x44}};
 // Active polling messages
+uint8_t PIDgroups[] = {0x01, 0x02, 0x04, 0x83, 0x84, 0x90};
+uint8_t PIDindex = 0;
 CAN_frame LEAF_GROUP_REQUEST = {.FD = false,
                                 .ext_ID = false,
                                 .DLC = 8,
                                 .ID = 0x79B,
-                                .data = {2, 0x21, 1, 0, 0, 0, 0, 0}};
+                                .data = {0x02, 0x21, PIDgroups[0], 0, 0, 0, 0, 0}};
 CAN_frame LEAF_NEXT_LINE_REQUEST = {.FD = false,
                                     .ext_ID = false,
                                     .DLC = 8,
@@ -107,7 +109,6 @@ static bool battery_Batt_Heater_Mail_Send_Request = false;  //Stores info when a
 // Nissan LEAF battery data from polled CAN messages
 static uint8_t battery_request_idx = 0;
 static uint8_t group_7bb = 0;
-static uint8_t group = 1;
 static bool stop_battery_query = true;
 static uint8_t hold_off_with_polling_10seconds = 10;
 static uint16_t battery_cell_voltages[97];  //array with all the cellvoltages
@@ -124,7 +125,9 @@ static uint16_t battery_temp_raw_max = 0;
 static uint16_t battery_temp_raw_min = 0;
 static int16_t battery_temp_polled_max = 0;
 static int16_t battery_temp_polled_min = 0;
-
+static uint8_t BatterySerialNumber[15] = {0};  // Stores raw HEX values for ASCII chars
+static uint8_t BatteryPartNumber[7] = {0};     // Stores raw HEX values for ASCII chars
+static uint8_t BMSIDcode[8] = {0};
 #ifdef DOUBLE_BATTERY
 static uint8_t LEAF_battery2_Type = ZE0_BATTERY;
 static bool battery2_can_alive = false;
@@ -598,20 +601,16 @@ void receive_can_battery2(CAN_frame rx_frame) {
       hold_off_with_polling_10seconds = 10;  //Polling is paused for 100s
       break;
     case 0x7BB:
-      //First check which group data we are getting
-      if (rx_frame.data.u8[0] == 0x10) {  //First message of a group
-        battery2_group_7bb = rx_frame.data.u8[3];
-        if (battery2_group_7bb != 1 && battery2_group_7bb != 2 &&
-            battery2_group_7bb != 4) {  //We are only interested in groups 1,2 and 4
-          break;
-        }
-      }
 
       if (stop_battery_query) {  //Leafspy/Service request is active, stop our own polling
         break;
       }
 
-      transmit_can(&LEAF_NEXT_LINE_REQUEST, can_config.battery_double);
+      //First check which group data we are getting
+      if (rx_frame.data.u8[0] == 0x10) {  //First message of a group
+        battery2_group_7bb = rx_frame.data.u8[3];
+        transmit_can(&LEAF_NEXT_LINE_REQUEST, can_config.battery_double);
+      }
 
       if (battery2_group_7bb == 1)  //High precision SOC, Current, voltages etc.
       {
@@ -845,7 +844,7 @@ void receive_can_battery(CAN_frame rx_frame) {
       break;
     case 0x7BB:
 
-      // This section checks if we are doing a SOH reset towards BMS
+      // This section checks if we are doing a SOH reset towards BMS. If we do, all 7BB handling is halted
       if (stateMachineClearSOH < 255) {
         //Intercept the messages based on state machine
         if (rx_frame.data.u8[0] == 0x06) {  // Incoming challenge data!
@@ -860,18 +859,16 @@ void receive_can_battery(CAN_frame rx_frame) {
         break;
       }
 
-      //First check which group data we are getting
-      if (rx_frame.data.u8[0] == 0x10) {  //First message of a group
-        group_7bb = rx_frame.data.u8[3];
-        if (group_7bb != 1 && group_7bb != 2 && group_7bb != 4) {  //We are only interested in groups 1,2 and 4
-          break;
-        }
-      }
-
       if (stop_battery_query) {  //Leafspy is active, stop our own polling
         break;
       }
-      transmit_can(&LEAF_NEXT_LINE_REQUEST, can_config.battery);  //Request the next frame for the group
+
+      //First check which group data we are getting
+      if (rx_frame.data.u8[0] == 0x10) {  //First message of a group
+        group_7bb = rx_frame.data.u8[3];
+
+        transmit_can(&LEAF_NEXT_LINE_REQUEST, can_config.battery);  //Request the next frame for the group
+      }
 
       if (group_7bb == 1)  //High precision SOC, Current, voltages etc.
       {
@@ -988,6 +985,66 @@ void receive_can_battery(CAN_frame rx_frame) {
               battery_temp_raw_min = battery_temp_raw_4;
             }
           }
+        }
+      }
+
+      if (group_7bb == 0x83)  //BatteryPartNumber
+      {
+        if (rx_frame.data.u8[0] == 0x10) {  //First frame (101A6183334E4B32)
+          BatteryPartNumber[0] = rx_frame.data.u8[4];
+          BatteryPartNumber[1] = rx_frame.data.u8[5];
+          BatteryPartNumber[2] = rx_frame.data.u8[6];
+          BatteryPartNumber[3] = rx_frame.data.u8[7];
+        }
+        if (rx_frame.data.u8[0] == 0x21) {  //Second frame (2141524205170000)
+          BatteryPartNumber[4] = rx_frame.data.u8[1];
+          BatteryPartNumber[5] = rx_frame.data.u8[2];
+          BatteryPartNumber[6] = rx_frame.data.u8[3];
+        }
+        if (rx_frame.data.u8[0] == 0x22) {  //Third frame (2200000002101311)
+        }
+
+        if (rx_frame.data.u8[0] == 0x23) {  //Fourth frame (23000000000080FF)
+        }
+      }
+      if (group_7bb == 0x84) {              //BatterySerialNumber
+        if (rx_frame.data.u8[0] == 0x10) {  //First frame (10 16 61 84 32 33 30 55)
+          BatterySerialNumber[0] = rx_frame.data.u8[7];
+        }
+        if (rx_frame.data.u8[0] == 0x21) {  //Second frame (21 4B 31 31 39 32 45 30)
+          BatterySerialNumber[1] = rx_frame.data.u8[1];
+          BatterySerialNumber[2] = rx_frame.data.u8[2];
+          BatterySerialNumber[3] = rx_frame.data.u8[3];
+          BatterySerialNumber[4] = rx_frame.data.u8[4];
+          BatterySerialNumber[5] = rx_frame.data.u8[5];
+          BatterySerialNumber[6] = rx_frame.data.u8[6];
+          BatterySerialNumber[7] = rx_frame.data.u8[7];
+        }
+        if (rx_frame.data.u8[0] == 0x22) {  //Third frame (22 30 31 34 38 32 20 A0)
+          BatterySerialNumber[8] = rx_frame.data.u8[1];
+          BatterySerialNumber[9] = rx_frame.data.u8[2];
+          BatterySerialNumber[10] = rx_frame.data.u8[3];
+          BatterySerialNumber[11] = rx_frame.data.u8[4];
+          BatterySerialNumber[12] = rx_frame.data.u8[5];
+          BatterySerialNumber[13] = rx_frame.data.u8[6];
+          BatterySerialNumber[14] = rx_frame.data.u8[7];
+        }
+        if (rx_frame.data.u8[0] == 0x23) {  //Fourth frame (23 00 00 00 00 00 00 00)
+        }
+      }
+
+      if (group_7bb == 0x90) {              //BMSIDcode
+        if (rx_frame.data.u8[0] == 0x10) {  //First frame (100A619044434131)
+          BMSIDcode[0] = rx_frame.data.u8[4];
+          BMSIDcode[1] = rx_frame.data.u8[5];
+          BMSIDcode[2] = rx_frame.data.u8[6];
+          BMSIDcode[3] = rx_frame.data.u8[7];
+        }
+        if (rx_frame.data.u8[0] == 0x21) {  //Second frame (2130303535FFFFFF)
+          BMSIDcode[4] = rx_frame.data.u8[1];
+          BMSIDcode[5] = rx_frame.data.u8[2];
+          BMSIDcode[6] = rx_frame.data.u8[3];
+          BMSIDcode[7] = rx_frame.data.u8[4];
         }
       }
 
@@ -1190,9 +1247,11 @@ void send_can_battery() {
 
       //Every 10s, ask diagnostic data from the battery. Don't ask if someone is already polling on the bus (Leafspy?)
       if (!stop_battery_query) {
-        group = (group == 1) ? 2 : (group == 2) ? 4 : 1;
-        // Cycle between group 1, 2, and 4 using ternary operation
-        LEAF_GROUP_REQUEST.data.u8[2] = group;
+
+        // Move to the next group
+        PIDindex = (PIDindex + 1) % 6;  // 6 = amount of elements in the PIDgroups[]
+        LEAF_GROUP_REQUEST.data.u8[2] = PIDgroups[PIDindex];
+
         transmit_can(&LEAF_GROUP_REQUEST, can_config.battery);
 #ifdef DOUBLE_BATTERY
         transmit_can(&LEAF_GROUP_REQUEST, can_config.battery_double);
