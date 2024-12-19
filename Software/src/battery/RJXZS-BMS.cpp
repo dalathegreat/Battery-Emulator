@@ -162,17 +162,17 @@ void receive_can_battery(CAN_frame rx_frame) {
 
   /*
   // All CAN messages recieved will be logged via serial
-  Serial.print(millis());  // Example printout, time, ID, length, data: 7553  1DB  8  FF C0 B9 EA 0 0 2 5D
-  Serial.print("  ");
-  Serial.print(rx_frame.ID, HEX);
-  Serial.print("  ");
-  Serial.print(rx_frame.DLC);
-  Serial.print("  ");
+  logging.print(millis());  // Example printout, time, ID, length, data: 7553  1DB  8  FF C0 B9 EA 0 0 2 5D
+  logging.print("  ");
+  logging.print(rx_frame.ID, HEX);
+  logging.print("  ");
+  logging.print(rx_frame.DLC);
+  logging.print("  ");
   for (int i = 0; i < rx_frame.DLC; ++i) {
-    Serial.print(rx_frame.data.u8[i], HEX);
-    Serial.print(" ");
+    logging.print(rx_frame.data.u8[i], HEX);
+    logging.print(" ");
   }
-  Serial.println("");
+  logging.println("");
   */
   switch (rx_frame.ID) {
     case 0xF5:                 // This is the only message is sent from BMS

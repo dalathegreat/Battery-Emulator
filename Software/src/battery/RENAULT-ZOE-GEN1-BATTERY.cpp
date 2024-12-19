@@ -148,7 +148,7 @@ void update_values_battery() {  //This function maps all the values fetched via 
   datalayer.battery.status.cell_max_voltage_mV = max_cell_mv_value;
   datalayer.battery.status.voltage_dV = static_cast<uint32_t>((calculated_total_pack_voltage_mV / 100));  // mV to dV
 
-#ifdef DEBUG_VIA_USB
+#ifdef DEBUG_LOG
 
 #endif
 }

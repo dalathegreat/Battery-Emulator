@@ -66,6 +66,11 @@
 
 /* Other options */
 //#define DEBUG_VIA_USB          //Enable this line to have the USB port output serial diagnostic data while program runs (WARNING, raises CPU load, do not use for production)
+//#define DEBUG_VIA_WEB          //Enable this line to log diagnostic data while program runs, which can be viewed via webpage (WARNING, slightly raises CPU load, do not use for production) 
+#if defined(DEBUG_VIA_USB) || defined(DEBUG_VIA_WEB)
+#define DEBUG_LOG
+#endif
+
 //#define DEBUG_CAN_DATA         //Enable this line to print incoming/outgoing CAN & CAN-FD messages to USB serial (WARNING, raises CPU load, do not use for production)
 //#define INTERLOCK_REQUIRED     //Nissan LEAF specific setting, if enabled requires both high voltage conenctors to be seated before starting
 //#define CAN_ADDON              //Enable this line to activate an isolated secondary CAN Bus using add-on MCP2515 chip (Needed for some inverters / double battery)
