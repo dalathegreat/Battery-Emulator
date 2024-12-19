@@ -419,6 +419,9 @@ void setup_battery(void) {  // Performs one time setup at startup
   datalayer.battery.info.max_cell_voltage_mV = MAX_CELL_VOLTAGE_MV;
   datalayer.battery.info.min_cell_voltage_mV = MIN_CELL_VOLTAGE_MV;
   datalayer.battery.info.max_cell_voltage_deviation_mV = MAX_CELL_DEVIATION_MV;
+  //Due to the Datalayer having 370.0V as startup value, which is 10V lower than the Atto 3 min voltage 380.0V
+  //We now init the value to 380.1V to avoid false positive events.
+  datalayer.battery.status.voltage_dV = MIN_PACK_VOLTAGE_DV + 1;
 #ifdef DOUBLE_BATTERY
   datalayer.battery2.info.number_of_cells = 126;
   datalayer.battery2.info.chemistry = battery_chemistry_enum::LFP;

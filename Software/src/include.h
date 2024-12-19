@@ -11,6 +11,7 @@
 #include "devboard/safety/safety.h"
 #include "devboard/utils/time_meas.h"
 #include "devboard/utils/types.h"
+#include "devboard/utils/logging.h"
 
 #include "battery/BATTERIES.h"
 #include "charger/CHARGERS.h"

@@ -22,6 +22,7 @@
 #include "src/devboard/utils/events.h"
 #include "src/devboard/utils/led_handler.h"
 #include "src/devboard/utils/value_mapping.h"
+#include "src/devboard/utils/logging.h"
 #include "src/lib/YiannisBourkelis-Uptime-Library/src/uptime.h"
 #include "src/lib/YiannisBourkelis-Uptime-Library/src/uptime_formatter.h"
 #include "src/lib/bblanchon-ArduinoJson/ArduinoJson.h"
@@ -84,6 +85,8 @@ MyTimer check_pause_2s(INTERVAL_2_S);
 
 TaskHandle_t main_loop_task;
 TaskHandle_t connectivity_loop_task;
+
+Logging logging;
 
 // Initialization
 void setup() {

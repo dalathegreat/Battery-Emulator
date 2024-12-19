@@ -153,13 +153,13 @@ void update_values_can_inverter() {  //This function maps all the values fetched
   BYD_210.data.u8[2] = (datalayer.battery.status.temperature_min_dC >> 8);
   BYD_210.data.u8[3] = (datalayer.battery.status.temperature_min_dC & 0x00FF);
 
-#ifdef DEBUG_VIA_USB
+#ifdef DEBUG_LOG
   if (inverter_name[0] != 0) {
-    Serial.print("Detected inverter: ");
+    logging.print("Detected inverter: ");
     for (uint8_t i = 0; i < 7; i++) {
-      Serial.print((char)inverter_name[i]);
+      logging.print((char)inverter_name[i]);
     }
-    Serial.println();
+    logging.println();
   }
 #endif
 }
