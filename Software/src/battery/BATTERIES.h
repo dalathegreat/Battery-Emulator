@@ -23,6 +23,10 @@
 #include "CHADEMO-SHUNTS.h"
 #endif
 
+#ifdef ECMP_BATTERY
+#include "ECMP-BATTERY.h"
+#endif
+
 #ifdef IMIEV_CZERO_ION_BATTERY
 #include "IMIEV-CZERO-ION-BATTERY.h"
 #endif
