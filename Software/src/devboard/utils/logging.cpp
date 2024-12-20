@@ -68,7 +68,7 @@ void Logging::printf(const char* fmt, ...) {
   va_list(args);
   va_start(args, fmt);
   offset += vsnprintf(message_string + offset, message_string_size - offset - 1, fmt, args);
-  va_end(args);    
+  va_end(args);
 
   if (datalayer.system.info.can_logging_active) {
     size_t size = offset;
