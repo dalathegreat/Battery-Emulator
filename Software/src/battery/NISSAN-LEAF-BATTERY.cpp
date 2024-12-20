@@ -329,6 +329,9 @@ void update_values_battery() { /* This function maps all the values fetched via 
   }
 
   // Update webserver datalayer
+  memcpy(datalayer_extended.nissanleaf.BatterySerialNumber, BatterySerialNumber, sizeof(BatterySerialNumber));
+  memcpy(datalayer_extended.nissanleaf.BatteryPartNumber, BatteryPartNumber, sizeof(BatteryPartNumber));
+  memcpy(datalayer_extended.nissanleaf.BMSIDcode, BMSIDcode, sizeof(BMSIDcode));
   datalayer_extended.nissanleaf.LEAF_gen = LEAF_battery_Type;
   datalayer_extended.nissanleaf.GIDS = battery_GIDS;
   datalayer_extended.nissanleaf.ChargePowerLimit = battery_Charge_Power_Limit;
