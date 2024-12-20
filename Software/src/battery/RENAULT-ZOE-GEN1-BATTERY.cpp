@@ -82,7 +82,7 @@ void update_values_battery() {  //This function maps all the values fetched via 
   datalayer.battery.status.real_soc = SOC_polled;
   //datalayer.battery.status.real_soc = LB_Display_SOC; //Alternative would be to use Dash SOC%
 
-  datalayer.battery.status.current_dA = LB_Current;
+  datalayer.battery.status.current_dA = LB_Current * 10;  //Convert A to dA
 
   //Calculate the remaining Wh amount from SOC% and max Wh value.
   datalayer.battery.status.remaining_capacity_Wh = static_cast<uint32_t>(
