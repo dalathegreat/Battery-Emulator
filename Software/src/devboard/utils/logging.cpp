@@ -1,7 +1,7 @@
 #include "logging.h"
 #include "../../datalayer/datalayer.h"
 
-size_t Logging::write(const uint8_t *buffer, size_t size){
+size_t Logging::write(const uint8_t *buffer, size_t size) {
 #ifdef DEBUG_LOG
   char* message_string = datalayer.system.info.logged_can_messages;
   int offset = datalayer.system.info.logged_can_messages_offset;  // Keeps track of the current position in the buffer
@@ -10,24 +10,24 @@ size_t Logging::write(const uint8_t *buffer, size_t size){
 #ifdef DEBUG_VIA_USB
   size_t n = 0;
   while (size--) {
-    if (Serial.write(*buffer++)) 
+    if (Serial.write(*buffer++))
       n++;
-    else 
+    else
       break;
   }
   return n;
 #endif
 #ifdef DEBUG_VIA_WEB
-  if (datalayer.system.info.can_logging_active){
+  if (datalayer.system.info.can_logging_active) {
     return 0;
   }
   if (offset + size + 13 > sizeof(datalayer.system.info.logged_can_messages)) {
     offset = 0;
   }
-  if (buffer[0]!='\r' && buffer[0]!='\n' && 
-     (offset == 0 || message_string[offset-1]=='\r' || message_string[offset-1]=='\n')){
+  if (buffer[0] != '\r' && buffer[0] != '\n' && 
+     (offset == 0 || message_string[offset-1] == '\r' || message_string[offset-1] == '\n')){
     offset += snprintf(message_string + offset, message_string_size - offset - 1, "%8lu.%03lu ", currentTime / 1000,
-                      currentTime % 1000);
+                       currentTime % 1000);
   }
   memcpy(message_string + offset, buffer, size);
   datalayer.system.info.logged_can_messages_offset = offset + size;  // Update offset in buffer
@@ -37,7 +37,7 @@ size_t Logging::write(const uint8_t *buffer, size_t size){
   return 0;
 }
 
-void Logging::printf(const char *fmt, ...) {
+void Logging::printf(const char* fmt, ...) {
 #ifdef DEBUG_LOG
   char* message_string = datalayer.system.info.logged_can_messages;
   int offset = datalayer.system.info.logged_can_messages_offset;  // Keeps track of the current position in the buffer
