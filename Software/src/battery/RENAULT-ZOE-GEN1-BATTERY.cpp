@@ -140,7 +140,7 @@ void receive_can_battery(CAN_frame rx_frame) {
     case 0x155:  //10ms - Charging power, current and SOC
       datalayer.battery.status.CAN_battery_still_alive = CAN_STILL_ALIVE;
       LB_Charging_Power_W = rx_frame.data.u8[0] * 300;
-      LB_Current = (((((rx_frame.data.u8[1] & 0xF0) << 8) | rx_frame.data.u8[2]) * 0.25) - 500);
+      LB_Current = (((((rx_frame.data.u8[1] & 0x0F) << 8) | rx_frame.data.u8[2]) * 0.25) - 500);
       LB_Display_SOC = ((rx_frame.data.u8[4] << 8) | rx_frame.data.u8[5]);
       break;
     case 0x427:  // NOTE: Not present on 41kWh battery!
