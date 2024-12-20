@@ -4,9 +4,9 @@
 
 String can_logger_processor(const String& var) {
   if (var == "X") {
-    if (!datalayer.system.info.can_logging_active){
+    if (!datalayer.system.info.can_logging_active) {
       datalayer.system.info.logged_can_messages_offset = 0;
-      datalayer.system.info.logged_can_messages[0]='\0';
+      datalayer.system.info.logged_can_messages[0] = '\0';
     }
     datalayer.system.info.can_logging_active =
         true;  // Signal to main loop that we should log messages. Disabled by default for performance reasons

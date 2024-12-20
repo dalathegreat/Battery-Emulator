@@ -16,8 +16,8 @@ unsigned long ota_progress_millis = 0;
 
 #include "advanced_battery_html.h"
 #include "can_logging_html.h"
-#include "debug_logging_html.h"
 #include "cellmonitor_html.h"
+#include "debug_logging_html.h"
 #include "events_html.h"
 #include "index_html.cpp"
 #include "settings_html.h"

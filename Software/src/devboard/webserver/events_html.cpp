@@ -41,9 +41,9 @@ String events_processor(const String& var) {
       event_pointer = event.event_pointer;
 #ifdef DEBUG_LOG
       logging.println("Showing Event: " + String(get_event_enum_string(event_handle)) +
-                     " count: " + String(event_pointer->occurences) + " seconds: " + String(event_pointer->timestamp) +
-                     " data: " + String(event_pointer->data) +
-                     " level: " + String(get_event_level_string(event_handle)));
+                      " count: " + String(event_pointer->occurences) + " seconds: " + String(event_pointer->timestamp) +
+                      " data: " + String(event_pointer->data) +
+                      " level: " + String(get_event_level_string(event_handle)));
 #endif
       content.concat("<div class='event'>");
       content.concat("<div>" + String(get_event_enum_string(event_handle)) + "</div>");
