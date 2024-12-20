@@ -24,8 +24,8 @@ size_t Logging::write(const uint8_t* buffer, size_t size) {
   if (offset + size + 13 > sizeof(datalayer.system.info.logged_can_messages)) {
     offset = 0;
   }
-  if (buffer[0] != '\r' && buffer[0] != '\n' && 
-     (offset == 0 || message_string[offset - 1] == '\r' || message_string[offset - 1] == '\n')){
+  if (buffer[0] != '\r' && buffer[0] != '\n' &&
+      (offset == 0 || message_string[offset - 1] == '\r' || message_string[offset - 1] == '\n')) {
     offset += snprintf(message_string + offset, message_string_size - offset - 1, "%8lu.%03lu ", currentTime / 1000,
                        currentTime % 1000);
   }
@@ -63,12 +63,12 @@ void Logging::printf(const char* fmt, ...) {
   unsigned long currentTime = millis();
   // Add timestamp
   offset += snprintf(message_string + offset, message_string_size - offset - 1, "%8lu.%03lu ", currentTime / 1000,
-                    currentTime % 1000);
+                     currentTime % 1000);
 
   va_list(args);
-  va_start (args, fmt);
+  va_start(args, fmt);
   offset += vsnprintf(message_string + offset, message_string_size - offset - 1, fmt, args);
-  va_end (args);    
+  va_end(args);    
 
   if (datalayer.system.info.can_logging_active) {
     size_t size = offset;
