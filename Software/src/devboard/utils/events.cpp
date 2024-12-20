@@ -488,7 +488,6 @@ static void set_event(EVENTS_ENUM_TYPE event, uint8_t data, bool latched) {
   events.level = max(events.level, events.entries[event].level);
 
   update_bms_status();
-
 }
 
 static void update_bms_status(void) {
