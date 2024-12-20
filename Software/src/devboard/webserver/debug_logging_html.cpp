@@ -32,6 +32,5 @@ String debug_logger_processor(const String& var) {
   content += "function goToMainPage() { window.location.href = '/'; }";
   content += "</script>";
   return content;
-
 }
 #endif  // DEBUG_VIA_WEB

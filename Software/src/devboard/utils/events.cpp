@@ -591,7 +591,7 @@ static void print_event_log(void) {
     }
 #ifdef DEBUG_LOG
     logging.println("Event: " + String(get_event_enum_string(entry.event)) + ", data: " + String(entry.data) +
-                   ", time: " + String(entry.timestamp));
+                    ", time: " + String(entry.timestamp));
 #endif
     if (index == events.event_log_head_index) {
       break;

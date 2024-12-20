@@ -1,7 +1,7 @@
 #include "logging.h"
 #include "../../datalayer/datalayer.h"
 
-size_t Logging::write(const uint8_t *buffer, size_t size) {
+size_t Logging::write(const uint8_t* buffer, size_t size) {
 #ifdef DEBUG_LOG
   char* message_string = datalayer.system.info.logged_can_messages;
   int offset = datalayer.system.info.logged_can_messages_offset;  // Keeps track of the current position in the buffer
@@ -25,7 +25,7 @@ size_t Logging::write(const uint8_t *buffer, size_t size) {
     offset = 0;
   }
   if (buffer[0] != '\r' && buffer[0] != '\n' && 
-     (offset == 0 || message_string[offset-1] == '\r' || message_string[offset-1] == '\n')){
+     (offset == 0 || message_string[offset - 1] == '\r' || message_string[offset - 1] == '\n')){
     offset += snprintf(message_string + offset, message_string_size - offset - 1, "%8lu.%03lu ", currentTime / 1000,
                        currentTime % 1000);
   }
@@ -49,45 +49,34 @@ void Logging::printf(const char* fmt, ...) {
   message_string_size = sizeof(buf);
 #endif
 #ifdef DEBUG_VIA_WEB
-  if (datalayer.system.info.can_logging_active){
+  if (datalayer.system.info.can_logging_active) {
     return;
   }
   message_string = datalayer.system.info.logged_can_messages;
   offset = datalayer.system.info.logged_can_messages_offset;  // Keeps track of the current position in the buffer
   message_string_size = sizeof(datalayer.system.info.logged_can_messages);
-#endif    
+#endif
   if (offset + 128 > sizeof(datalayer.system.info.logged_can_messages)) {
     // Not enough space, reset and start from the beginning
     offset = 0;
   }
   unsigned long currentTime = millis();
   // Add timestamp
-#ifdef NTP
-  if (timeClient && timeClient->isTimeSet()){
-    offset += snprintf(message_string + offset, message_string_size - offset - 1, "%02u:%02u:%02u.%03lu ", 
-                      timeClient->getHours(), timeClient->getMinutes(), timeClient->getSeconds(),
-                      (currentTime /*- timeClient->_lastUpdate*/) % 1000);
-  } else {
-#endif
-    offset += snprintf(message_string + offset, message_string_size - offset - 1, "%8lu.%03lu ", currentTime / 1000,
-                      currentTime % 1000);
-#ifdef NTP
-  }
-#endif
+  offset += snprintf(message_string + offset, message_string_size - offset - 1, "%8lu.%03lu ", currentTime / 1000,
+                    currentTime % 1000);
 
   va_list(args);
   va_start (args, fmt);
-  offset +=
-      vsnprintf(message_string + offset, message_string_size - offset - 1, fmt, args);
+  offset += vsnprintf(message_string + offset, message_string_size - offset - 1, fmt, args);
   va_end (args);    
 
-  if (datalayer.system.info.can_logging_active){
+  if (datalayer.system.info.can_logging_active) {
     size_t size = offset;
     size_t n = 0;
     while (size--) {
-      if (Serial.write(*message_string++)) 
+      if (Serial.write(*message_string++))
         n++;
-      else 
+      else
         break;
     }
   } else {
