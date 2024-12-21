@@ -199,9 +199,6 @@ void setup() {
 #ifdef EQUIPMENT_STOP_BUTTON
   init_equipment_stop_button();
 #endif
-#ifdef CAN_SHUNT_SELECTED
-  setup_can_shunt();
-#endif
   // BOOT button at runtime is used as an input for various things
   pinMode(0, INPUT_PULLUP);
 
@@ -733,10 +730,6 @@ void send_can() {
 #ifdef CHARGER_SELECTED
   send_can_charger();
 #endif  // CHARGER_SELECTED
-
-#ifdef CAN_SHUNT_SELECTED
-  send_can_shunt();
-#endif  // CAN_SHUNT_SELECTED
 }
 
 #ifdef DUAL_CAN
@@ -1015,7 +1008,6 @@ void update_values_inverter() {
 #ifdef MODBUS_INVERTER_SELECTED
   update_modbus_registers_inverter();
 #endif
-
 #ifdef RS485_INVERTER_SELECTED
   update_RS485_registers_inverter();
 #endif
@@ -1229,11 +1221,6 @@ void receive_can(CAN_frame* rx_frame, int interface) {
   if (interface == can_config.charger) {
 #ifdef CHARGER_SELECTED
     receive_can_charger(*rx_frame);
-#endif
-  }
-  if (interface == can_config.shunt) {
-#ifdef CAN_SHUNT_SELECTED
-    receive_can_shunt(*rx_frame);
 #endif
   }
 }
