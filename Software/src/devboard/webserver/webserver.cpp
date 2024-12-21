@@ -932,13 +932,28 @@ String processor(const String& var) {
     }
     content += "<h4>Temperature max: " + String(tempMaxFloat, 1) + " C</h4>";
     content += "<h4>Temperature min: " + String(tempMinFloat, 1) + " C</h4>";
-    if (datalayer.battery.status.bms_status == ACTIVE) {
-      content += "<h4>System status: OK </h4>";
-    } else if (datalayer.battery.status.bms_status == UPDATING) {
-      content += "<h4>System status: UPDATING </h4>";
-    } else {
-      content += "<h4>System status: FAULT </h4>";
+    content += "<h4>System status: ";
+    switch (datalayer.battery2.status.bms_status) {
+      case ACTIVE:
+        content += String("OK");
+        break;
+      case UPDATING:
+        content += String("UPDATING");
+        break;
+      case FAULT:
+        content += String("FAULT");
+        break;
+      case INACTIVE:
+        content += String("INACTIVE");
+        break;
+      case STANDBY:
+        content += String("STANDBY");
+        break;
+      default:
+        content += String("??");
+        break;
     }
+    content += "</h4>";
     if (datalayer.battery2.status.current_dA == 0) {
       content += "<h4>Battery idle</h4>";
     } else if (datalayer.battery2.status.current_dA < 0) {
