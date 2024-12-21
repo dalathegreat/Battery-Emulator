@@ -693,6 +693,20 @@ String advanced_battery_processor(const String& var) {
 #ifdef NISSAN_LEAF_BATTERY
     static const char* LEAFgen[] = {"ZE0", "AZE0", "ZE1"};
     content += "<h4>LEAF generation: " + String(LEAFgen[datalayer_extended.nissanleaf.LEAF_gen]) + "</h4>";
+    char readableSerialNumber[16];  // One extra space for null terminator
+    memcpy(readableSerialNumber, datalayer_extended.nissanleaf.BatterySerialNumber,
+           sizeof(datalayer_extended.nissanleaf.BatterySerialNumber));
+    readableSerialNumber[15] = '\0';  // Null terminate the string
+    content += "<h4>Serial number: " + String(readableSerialNumber) + "</h4>";
+    char readablePartNumber[8];  // One extra space for null terminator
+    memcpy(readablePartNumber, datalayer_extended.nissanleaf.BatteryPartNumber,
+           sizeof(datalayer_extended.nissanleaf.BatteryPartNumber));
+    readablePartNumber[7] = '\0';  // Null terminate the string
+    content += "<h4>Part number: " + String(readablePartNumber) + "</h4>";
+    char readableBMSID[9];  // One extra space for null terminator
+    memcpy(readableBMSID, datalayer_extended.nissanleaf.BMSIDcode, sizeof(datalayer_extended.nissanleaf.BMSIDcode));
+    readableBMSID[8] = '\0';  // Null terminate the string
+    content += "<h4>BMS ID: " + String(readableBMSID) + "</h4>";
     content += "<h4>GIDS: " + String(datalayer_extended.nissanleaf.GIDS) + "</h4>";
     content += "<h4>Regen kW: " + String(datalayer_extended.nissanleaf.ChargePowerLimit) + "</h4>";
     content += "<h4>Charge kW: " + String(datalayer_extended.nissanleaf.MaxPowerForCharger) + "</h4>";
