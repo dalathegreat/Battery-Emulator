@@ -131,7 +131,7 @@ void init_webserver() {
       String value = request->getParam("value")->value();
       if (value.length() <= 63) {  // Check if SSID is within the allowable length
         ssid = value.c_str();
-        storeSettings();
+        store_settings();
         request->send(200, "text/plain", "Updated successfully");
       } else {
         request->send(400, "text/plain", "SSID must be 63 characters or less");
@@ -148,7 +148,7 @@ void init_webserver() {
       String value = request->getParam("value")->value();
       if (value.length() > 8) {  // Check if password is within the allowable length
         password = value.c_str();
-        storeSettings();
+        store_settings();
         request->send(200, "text/plain", "Updated successfully");
       } else {
         request->send(400, "text/plain", "Password must be atleast 8 characters");
@@ -165,7 +165,7 @@ void init_webserver() {
     if (request->hasParam("value")) {
       String value = request->getParam("value")->value();
       datalayer.battery.info.total_capacity_Wh = value.toInt();
-      storeSettings();
+      store_settings();
       request->send(200, "text/plain", "Updated successfully");
     } else {
       request->send(400, "text/plain", "Bad Request");
@@ -179,7 +179,7 @@ void init_webserver() {
     if (request->hasParam("value")) {
       String value = request->getParam("value")->value();
       datalayer.battery.settings.soc_scaling_active = value.toInt();
-      storeSettings();
+      store_settings();
       request->send(200, "text/plain", "Updated successfully");
     } else {
       request->send(400, "text/plain", "Bad Request");
@@ -193,7 +193,7 @@ void init_webserver() {
     if (request->hasParam("value")) {
       String value = request->getParam("value")->value();
       datalayer.battery.settings.max_percentage = static_cast<uint16_t>(value.toFloat() * 100);
-      storeSettings();
+      store_settings();
       request->send(200, "text/plain", "Updated successfully");
     } else {
       request->send(400, "text/plain", "Bad Request");
@@ -237,7 +237,7 @@ void init_webserver() {
     if (request->hasParam("value")) {
       String value = request->getParam("value")->value();
       datalayer.battery.settings.min_percentage = static_cast<uint16_t>(value.toFloat() * 100);
-      storeSettings();
+      store_settings();
       request->send(200, "text/plain", "Updated successfully");
     } else {
       request->send(400, "text/plain", "Bad Request");
@@ -251,7 +251,7 @@ void init_webserver() {
     if (request->hasParam("value")) {
       String value = request->getParam("value")->value();
       datalayer.battery.settings.max_user_set_charge_dA = static_cast<uint16_t>(value.toFloat() * 10);
-      storeSettings();
+      store_settings();
       request->send(200, "text/plain", "Updated successfully");
     } else {
       request->send(400, "text/plain", "Bad Request");
@@ -265,7 +265,49 @@ void init_webserver() {
     if (request->hasParam("value")) {
       String value = request->getParam("value")->value();
       datalayer.battery.settings.max_user_set_discharge_dA = static_cast<uint16_t>(value.toFloat() * 10);
-      storeSettings();
+      store_settings();
+      request->send(200, "text/plain", "Updated successfully");
+    } else {
+      request->send(400, "text/plain", "Bad Request");
+    }
+  });
+
+  // Route for editing BATTERY_USE_VOLTAGE_LIMITS
+  server.on("/updateUseVoltageLimit", HTTP_GET, [](AsyncWebServerRequest* request) {
+    if (WEBSERVER_AUTH_REQUIRED && !request->authenticate(http_username, http_password))
+      return request->requestAuthentication();
+    if (request->hasParam("value")) {
+      String value = request->getParam("value")->value();
+      datalayer.battery.settings.user_set_voltage_limits_active = value.toInt();
+      store_settings();
+      request->send(200, "text/plain", "Updated successfully");
+    } else {
+      request->send(400, "text/plain", "Bad Request");
+    }
+  });
+
+  // Route for editing MaxChargeVoltage
+  server.on("/updateMaxChargeVoltage", HTTP_GET, [](AsyncWebServerRequest* request) {
+    if (WEBSERVER_AUTH_REQUIRED && !request->authenticate(http_username, http_password))
+      return request->requestAuthentication();
+    if (request->hasParam("value")) {
+      String value = request->getParam("value")->value();
+      datalayer.battery.settings.max_user_set_charge_voltage_dV = static_cast<uint16_t>(value.toFloat() * 10);
+      store_settings();
+      request->send(200, "text/plain", "Updated successfully");
+    } else {
+      request->send(400, "text/plain", "Bad Request");
+    }
+  });
+
+  // Route for editing MaxDischargeVoltage
+  server.on("/updateMaxDischargeVoltage", HTTP_GET, [](AsyncWebServerRequest* request) {
+    if (WEBSERVER_AUTH_REQUIRED && !request->authenticate(http_username, http_password))
+      return request->requestAuthentication();
+    if (request->hasParam("value")) {
+      String value = request->getParam("value")->value();
+      datalayer.battery.settings.max_user_set_discharge_voltage_dV = static_cast<uint16_t>(value.toFloat() * 10);
+      store_settings();
       request->send(200, "text/plain", "Updated successfully");
     } else {
       request->send(400, "text/plain", "Bad Request");
@@ -691,7 +733,7 @@ String processor(const String& var) {
       content += "<h4 style='color: red;'>Power status: " + String(get_emulator_pause_status().c_str()) + " </h4>";
 
 #ifdef CONTACTOR_CONTROL
-    content += "<h4>Contactors controlled by Battery-Emulator: ";
+    content += "<h4>Contactors controlled by emulator, state: ";
     if (datalayer.system.status.contactors_engaged) {
       content += "<span style='color: green;'>ON</span>";
     } else {
@@ -699,13 +741,21 @@ String processor(const String& var) {
     }
     content += "</h4>";
 
-    content += "<h4>Pre Charge: ";
-    if (digitalRead(PRECHARGE_PIN) == HIGH) {
-      content += "<span style='color: green;'>&#10003;</span>";
+    content += "<h4>Precharge: (";
+    content += PRECHARGE_TIME_MS;
+    content += " ms) Cont. Neg.: ";
+#ifdef PWM_CONTACTOR_CONTROL
+    if (datalayer.system.status.contactors_engaged) {
+      content += "<span style='color: green;'>Economized</span>";
+      content += " Cont. Pos.: ";
+      content += "<span style='color: green;'>Economized</span>";
     } else {
       content += "<span style='color: red;'>&#10005;</span>";
+      content += " Cont. Pos.: ";
+      content += "<span style='color: red;'>&#10005;</span>";
     }
-    content += " Cont. Neg.: ";
+
+#else   // No PWM_CONTACTOR_CONTROL , we can read the pin and see feedback. Helpful if channel overloaded
     if (digitalRead(NEGATIVE_CONTACTOR_PIN) == HIGH) {
       content += "<span style='color: green;'>&#10003;</span>";
     } else {
@@ -718,6 +768,7 @@ String processor(const String& var) {
     } else {
       content += "<span style='color: red;'>&#10005;</span>";
     }
+#endif  //no PWM_CONTACTOR_CONTROL
     content += "</h4>";
 #endif
 
@@ -822,7 +873,7 @@ String processor(const String& var) {
       content += "<h4 style='color: red;'>Power status: " + String(get_emulator_pause_status().c_str()) + " </h4>";
 
 #ifdef CONTACTOR_CONTROL
-    content += "<h4>Contactors controlled by Battery-Emulator: ";
+    content += "<h4>Contactors controlled by emulator, state: ";
     if (datalayer.system.status.contactors_battery2_engaged) {
       content += "<span style='color: green;'>ON</span>";
     } else {
@@ -830,13 +881,19 @@ String processor(const String& var) {
     }
     content += "</h4>";
 #ifdef CONTACTOR_CONTROL_DOUBLE_BATTERY
-    content += "<h4>Pre Charge: ";
-    if (digitalRead(SECOND_PRECHARGE_PIN) == HIGH) {
-      content += "<span style='color: green;'>&#10003;</span>";
+    content += "<h4>Cont. Neg.: ";
+#ifdef PWM_CONTACTOR_CONTROL
+    if (datalayer.system.status.contactors_battery2_engaged) {
+      content += "<span style='color: green;'>Economized</span>";
+      content += " Cont. Pos.: ";
+      content += "<span style='color: green;'>Economized</span>";
     } else {
       content += "<span style='color: red;'>&#10005;</span>";
+      content += " Cont. Pos.: ";
+      content += "<span style='color: red;'>&#10005;</span>";
     }
-    content += " Cont. Neg.: ";
+
+#else   // No PWM_CONTACTOR_CONTROL , we can read the pin and see feedback. Helpful if channel overloaded
     if (digitalRead(SECOND_NEGATIVE_CONTACTOR_PIN) == HIGH) {
       content += "<span style='color: green;'>&#10003;</span>";
     } else {
@@ -849,6 +906,7 @@ String processor(const String& var) {
     } else {
       content += "<span style='color: red;'>&#10005;</span>";
     }
+#endif  //no PWM_CONTACTOR_CONTROL
     content += "</h4>";
 #endif  // CONTACTOR_CONTROL_DOUBLE_BATTERY
 #endif  // CONTACTOR_CONTROL

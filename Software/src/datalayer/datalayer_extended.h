@@ -216,6 +216,11 @@ typedef struct {
 
 typedef struct {
   /** uint8_t */
+  /** Battery info, stores raw HEX values for ASCII chars */
+  uint8_t BatterySerialNumber[15] = {0};
+  uint8_t BatteryPartNumber[7] = {0};
+  uint8_t BMSIDcode[8] = {0};
+  /** uint8_t */
   /** Enum, ZE0 = 0, AZE0 = 1, ZE1 = 2 */
   uint8_t LEAF_gen = 0;
   /** uint16_t */
