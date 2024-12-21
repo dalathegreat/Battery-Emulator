@@ -22,3 +22,6 @@ compile.bat
 
 # Ignore binary files
 *.bin
+
+# Ignore secret file
+USER_SECRETS.h

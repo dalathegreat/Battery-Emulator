@@ -54,7 +54,8 @@ For more examples showing wiring, see each battery types own Wiki page. For inst
 5. The Arduino board should be set to `ESP32 Dev Module` (under `Tools` -> `Board` -> `ESP32 Arduino`) with the following settings:
 ![alt text](https://github.com/Xinyuan-LilyGO/T-CAN485/blob/main/img/arduino_setting.png)
 6. Select which battery type you will use, along with other optional settings. This is done in the `USER_SETTINGS.h` file.
-7. Press `Verify` and `Upload` to send the sketch to the board.
+7. Copy the `USER_SECRETS.TEMPLATE.h` file to `USER_SECRETS.h` and update relevant secrets.
+8. Press `Verify` and `Upload` to send the sketch to the board.
 NOTE: In some cases, the LilyGo must be powered through the main power connector instead of USB-C
       when performing the initial firmware upload.
 NOTE: On Mac, the following USB driver may need to be installed: https://github.com/WCHSoftGroup/ch34xser_macos
