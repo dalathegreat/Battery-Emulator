@@ -43,7 +43,7 @@ void update_values_battery() {  //This function maps all the values fetched via 
 
   datalayer.battery.status.temperature_max_dC;
 
-#ifdef DEBUG_VIA_USB
+#ifdef DEBUG_LOG
 
 #endif
 }

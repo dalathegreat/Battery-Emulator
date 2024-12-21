@@ -119,15 +119,15 @@ void float2frameMSB(byte* arr, float value, byte framepointer) {
 
 void send_kostal(byte* arr, int alen) {
 #ifdef DEBUG_KOSTAL_RS485_DATA
-  Serial.print("TX: ");
+  logging.print("TX: ");
   for (int i = 0; i < alen; i++) {
     if (arr[i] < 0x10) {
-      Serial.print("0");
+      logging.print("0");
     }
-    Serial.print(arr[i], HEX);
-    Serial.print(" ");
+    logging.print(arr[i], HEX);
+    logging.print(" ");
   }
-  Serial.println("\n");
+  logging.println("\n");
 #endif
   Serial2.write(arr, alen);
 }
@@ -274,12 +274,12 @@ void receive_RS485()  // Runs as fast as possible to handle the serial stream
       if (RS485_RXFRAME[rx_index - 1] == 0x00) {
         if ((rx_index == 10) && (RS485_RXFRAME[0] == 0x09) && register_content_ok) {
 #ifdef DEBUG_KOSTAL_RS485_DATA
-          Serial.print("RX: ");
+          logging.print("RX: ");
           for (uint8_t i = 0; i < 10; i++) {
-            Serial.print(RS485_RXFRAME[i], HEX);
-            Serial.print(" ");
+            logging.print(RS485_RXFRAME[i], HEX);
+            logging.print(" ");
           }
-          Serial.println("");
+          logging.println("");
 #endif
           rx_index = 0;
           if (check_kostal_frame_crc()) {

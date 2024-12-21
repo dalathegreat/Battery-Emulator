@@ -207,8 +207,8 @@ void receive_can_inverter(CAN_frame rx_frame) {
     LastFrameTime = millis();
     switch (STATE) {
       case (BATTERY_ANNOUNCE):
-#ifdef DEBUG_VIA_USB
-        Serial.println("Solax Battery State: Announce");
+#ifdef DEBUG_LOG
+        logging.println("Solax Battery State: Announce");
 #endif
         datalayer.system.status.inverter_allows_contactor_closing = false;
         SOLAX_1875.data.u8[4] = (0x00);  // Inform Inverter: Contactor 0=off, 1=on.
@@ -239,8 +239,8 @@ void receive_can_inverter(CAN_frame rx_frame) {
         transmit_can(&SOLAX_1878, can_config.inverter);
         transmit_can(&SOLAX_1801, can_config.inverter);  // Announce that the battery will be connected
         STATE = CONTACTOR_CLOSED;                        // Jump to Contactor Closed State
-#ifdef DEBUG_VIA_USB
-        Serial.println("Solax Battery State: Contactor Closed");
+#ifdef DEBUG_LOG
+        logging.println("Solax Battery State: Contactor Closed");
 #endif
         break;
 
@@ -267,13 +267,13 @@ void receive_can_inverter(CAN_frame rx_frame) {
   if (rx_frame.ID == 0x1871 && rx_frame.data.u64 == __builtin_bswap64(0x0500010000000000)) {
     transmit_can(&SOLAX_1881, can_config.inverter);
     transmit_can(&SOLAX_1882, can_config.inverter);
-#ifdef DEBUG_VIA_USB
-    Serial.println("1871 05-frame received from inverter");
+#ifdef DEBUG_LOG
+    logging.println("1871 05-frame received from inverter");
 #endif
   }
   if (rx_frame.ID == 0x1871 && rx_frame.data.u8[0] == (0x03)) {
-#ifdef DEBUG_VIA_USB
-    Serial.println("1871 03-frame received from inverter");
+#ifdef DEBUG_LOG
+    logging.println("1871 03-frame received from inverter");
 #endif
   }
 }

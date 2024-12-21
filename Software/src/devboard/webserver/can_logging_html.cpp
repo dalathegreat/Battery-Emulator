@@ -4,6 +4,10 @@
 
 String can_logger_processor(const String& var) {
   if (var == "X") {
+    if (!datalayer.system.info.can_logging_active) {
+      datalayer.system.info.logged_can_messages_offset = 0;
+      datalayer.system.info.logged_can_messages[0] = '\0';
+    }
     datalayer.system.info.can_logging_active =
         true;  // Signal to main loop that we should log messages. Disabled by default for performance reasons
     String content = "";
@@ -19,7 +23,7 @@ String can_logger_processor(const String& var) {
         "monospace; }";
     content += "</style>";
     content += "<button onclick='refreshPage()'>Refresh data</button> ";
-    content += "<button onclick='exportLogs()'>Export to .txt</button> ";
+    content += "<button onclick='exportLog()'>Export to .txt</button> ";
     content += "<button onclick='stopLoggingAndGoToMainPage()'>Back to main page</button>";
 
     // Start a new block for the CAN messages
@@ -47,9 +51,9 @@ String can_logger_processor(const String& var) {
     // Add JavaScript for navigation
     content += "<script>";
     content += "function refreshPage(){ location.reload(true); }";
-    content += "function exportLogs() { window.location.href = '/export_logs'; }";
+    content += "function exportLog() { window.location.href = '/export_can_log'; }";
     content += "function stopLoggingAndGoToMainPage() {";
-    content += "  fetch('/stop_logging').then(() => window.location.href = '/');";
+    content += "  fetch('/stop_can_logging').then(() => window.location.href = '/');";
     content += "}";
     content += "</script>";
     return content;
