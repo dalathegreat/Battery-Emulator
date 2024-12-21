@@ -70,6 +70,9 @@
 /* Shunt/Contactor settings */
 //#define BMW_SBOX  // SBOX relay control & battery current/voltage measurement
 
+/* Automatic Precharge settings. If you have a battery that expects an external voltage applied before opening contactors (within the battery), configure this section */
+//#define PRECHARGE_CONTROL      //Enable this line to control a modified HIA4V1 (see wiki) by PWM on the PRECHARGE_PIN.
+
 /* Other options */
 //#define LOG_TO_SD              //Enable this line to log diagnostic data to SD card
 //#define DEBUG_VIA_USB          //Enable this line to have the USB port output serial diagnostic data while program runs (WARNING, raises CPU load, do not use for production)

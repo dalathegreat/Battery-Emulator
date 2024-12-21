@@ -79,15 +79,17 @@ void update_machineryprotection() {
 
   // Battery is empty. Do not allow further discharge.
   // Normally the BMS will send 0W allowed, but this acts as an additional layer of safety
-  if (datalayer.battery.status.reported_soc == 0) {  //Scaled SOC% value is 0.00%
-    if (!battery_empty_event_fired) {
-      set_event(EVENT_BATTERY_EMPTY, 0);
-      battery_empty_event_fired = true;
+  if (datalayer.battery.status.bms_status == ACTIVE) {
+    if (datalayer.battery.status.reported_soc == 0) {  //Scaled SOC% value is 0.00%
+      if (!battery_empty_event_fired) {
+        set_event(EVENT_BATTERY_EMPTY, 0);
+        battery_empty_event_fired = true;
+      }
+      datalayer.battery.status.max_discharge_power_W = 0;
+    } else {
+      clear_event(EVENT_BATTERY_EMPTY);
+      battery_empty_event_fired = false;
     }
-    datalayer.battery.status.max_discharge_power_W = 0;
-  } else {
-    clear_event(EVENT_BATTERY_EMPTY);
-    battery_empty_event_fired = false;
   }
 
   // Battery is extremely degraded, not fit for secondlifestorage!
@@ -309,10 +311,12 @@ void emulator_pause_state_transmit_can_battery() {
   allowed_to_send_CAN = (!emulator_pause_CAN_send_ON || emulator_pause_status == NORMAL);
 
   if (previous_allowed_to_send_CAN && !allowed_to_send_CAN) {
+    logging.printf("Safety: Pausing CAN sending");
     //completely force stop the CAN communication
     ESP32Can.CANStop();
   } else if (!previous_allowed_to_send_CAN && allowed_to_send_CAN) {
     //resume CAN communication
+    logging.printf("Safety: Resuming CAN sending");
     ESP32Can.CANInit();
   }
 }

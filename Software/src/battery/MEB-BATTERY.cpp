@@ -6,6 +6,8 @@
 #include "../devboard/utils/events.h"
 #include "MEB-BATTERY.h"
 
+#define PRECHARGE_CONTROL
+
 /*
 TODO list
 - Check value mappings on the PID polls
@@ -77,7 +79,7 @@ static bool BMS_fault_performance = false;  //Error: Battery performance is limi
 static uint16_t BMS_current = 16300;
 static bool BMS_fault_emergency_shutdown_crash =
     false;  //Error: Safety-critical error (crash detection) Battery contactors are already opened / will be opened immediately Signal is read directly by the EMS and initiates an AKS of the PWR and an active discharge of the DC link
-static uint32_t BMS_voltage_intermediate = 0;
+static uint32_t BMS_voltage_intermediate = 2000;
 static uint32_t BMS_voltage = 1480;
 static uint8_t BMS_status_voltage_free =
     0;  //0=Init, 1=BMS intermediate circuit voltage-free (U_Zwkr < 20V), 2=BMS intermediate circuit not voltage-free (U_Zwkr >/= 25V, hysteresis), 3=Error
@@ -360,6 +362,23 @@ CAN_frame MEB_14C = {
     .ID = 0x14C,  //CRC needed, static content otherwise
     .data = {0x38, 0x0A, 0xFF, 0x01, 0x01, 0xFF, 0x01, 0x24, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0xFE,
              0xFF, 0xFF, 0x00, 0xFF, 0xFF, 0x25, 0x00, 0x02, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0xFE}};
+
+uint32_t can_msg_received = 0;
+#define RX_0x17F0007B 0x0001
+#define RX_0x12DD54D0 0x0002
+#define RX_0x12DD54D1 0x0004
+#define RX_0x12DD54D2 0x0008
+#define RX_0x1A555550 0x0010
+#define RX_0x1A555551 0x0020
+#define RX_0x1A5555B2 0x0040
+#define RX_0x16A954A6 0x0080
+#define RX_0x1A5555B0 0x0100
+#define RX_0x1A5555B1 0x0200
+#define RX_0x5A2 0x0400
+#define RX_0x5CA 0x0800
+#define RX_0x0CF 0x1000
+#define RX_DEFAULT 0xE000
+
 /** Calculate the CRC checksum for VAG CAN Messages
  *
  * The method used is described in Chapter "7.2.1.2 8-bit 0x2F polynomial CRC Calculation".
@@ -624,6 +643,7 @@ void handle_incoming_can_frame_battery(CAN_frame rx_frame) {
     first_can_msg = last_can_msg_timestamp;
   switch (rx_frame.ID) {
     case 0x17F0007B:  // BMS 500ms
+      can_msg_received |= RX_0x17F0007B;
       component_protection_active = (rx_frame.data.u8[0] & 0x01);
       shutdown_active = ((rx_frame.data.u8[0] & 0x02) >> 1);
       transportation_mode_active = ((rx_frame.data.u8[0] & 0x02) >> 1);
@@ -643,7 +663,7 @@ void handle_incoming_can_frame_battery(CAN_frame rx_frame) {
       instrumentation_cluster_request = ((rx_frame.data.u8[1] & 0x40) >> 6);  //True/false
       break;
     case 0x12DD54D0:  // BMS Limits 100ms
-      datalayer.battery.status.CAN_battery_still_alive = CAN_STILL_ALIVE;
+      can_msg_received |= RX_0x12DD54D0;
       max_discharge_power_watt =
           ((rx_frame.data.u8[6] & 0x07) << 10) | (rx_frame.data.u8[5] << 2) | (rx_frame.data.u8[4] & 0xC0) >> 6;  //*100
       max_discharge_current_amp =
@@ -652,7 +672,7 @@ void handle_incoming_can_frame_battery(CAN_frame rx_frame) {
       max_charge_current_amp = ((rx_frame.data.u8[4] & 0x3F) << 7) | (rx_frame.data.u8[3] >> 1);           //*0.2
       break;
     case 0x12DD54D1:  // BMS 100ms
-      datalayer.battery.status.CAN_battery_still_alive = CAN_STILL_ALIVE;
+      can_msg_received |= RX_0x12DD54D1;
       if (rx_frame.data.u8[6] != 0xFE || rx_frame.data.u8[7] != 0xFF) {  // Init state, values below invalid
         battery_SOC = ((rx_frame.data.u8[3] & 0x0F) << 7) | (rx_frame.data.u8[2] >> 1);               //*0.05
         usable_energy_amount_Wh = (rx_frame.data.u8[7] << 8) | rx_frame.data.u8[6];                   //*5
@@ -663,7 +683,7 @@ void handle_incoming_can_frame_battery(CAN_frame rx_frame) {
       warning_support = (rx_frame.data.u8[1] & 0x70) >> 4;
       break;
     case 0x12DD54D2:  // BMS 100ms
-      datalayer.battery.status.CAN_battery_still_alive = CAN_STILL_ALIVE;
+      can_msg_received |= RX_0x12DD54D2;
       battery_heating_active = (rx_frame.data.u8[4] & 0x40) >> 6;
       heating_request = (rx_frame.data.u8[5] & 0xE0) >> 5;
       cooling_request = (rx_frame.data.u8[5] & 0x1C) >> 2;
@@ -671,6 +691,7 @@ void handle_incoming_can_frame_battery(CAN_frame rx_frame) {
       power_battery_heating_req_watt = rx_frame.data.u8[7];
       break;
     case 0x1A555550:  // BMS 500ms
+      can_msg_received |= RX_0x1A555550;
       balancing_active = (rx_frame.data.u8[1] & 0xC0) >> 6;
       charging_active = (rx_frame.data.u8[2] & 0x01);
       max_energy_Wh = ((rx_frame.data.u8[6] & 0x1F) << 8) | rx_frame.data.u8[5];                     //*40
@@ -679,6 +700,7 @@ void handle_incoming_can_frame_battery(CAN_frame rx_frame) {
       isolation_resistance_kOhm = (((rx_frame.data.u8[3] & 0x1F) << 7) | rx_frame.data.u8[2] >> 1);  //*5
       break;
     case 0x1A555551:  // BMS 500ms
+      can_msg_received |= RX_0x1A555551;
       battery_heating_installed = (rx_frame.data.u8[1] & 0x20) >> 5;
       error_NT_circuit = (rx_frame.data.u8[1] & 0x40) >> 6;
       pump_1_control = rx_frame.data.u8[2] & 0x0F;         //*10, percent
@@ -691,6 +713,7 @@ void handle_incoming_can_frame_battery(CAN_frame rx_frame) {
       return_temperature_C = rx_frame.data.u8[7];       //*0,5 -40
       break;
     case 0x1A5555B2:  // BMS
+      can_msg_received |= RX_0x1A5555B2;
       performance_index_discharge_peak_temperature_percentage =
           (((rx_frame.data.u8[3] & 0x07) << 6) | rx_frame.data.u8[2] >> 2);  //*0.2
       performance_index_charge_peak_temperature_percentage =
@@ -698,7 +721,8 @@ void handle_incoming_can_frame_battery(CAN_frame rx_frame) {
       temperature_status_discharge = (rx_frame.data.u8[1] & 0x70) >> 4;
       temperature_status_charge = (((rx_frame.data.u8[2] & 0x03) << 1) | rx_frame.data.u8[1] >> 7);
       break;
-    case 0x16A954A6:                                        // BMS
+    case 0x16A954A6:  // BMS
+      can_msg_received |= RX_0x16A954A6;
       BMS_16A954A6_CRC = rx_frame.data.u8[0];               // Can be used to check CAN signal integrity later on
       BMS_16A954A6_counter = (rx_frame.data.u8[1] & 0x0F);  // Can be used to check CAN signal integrity later on
       isolation_fault = (rx_frame.data.u8[2] & 0xE0) >> 5;
@@ -897,12 +921,14 @@ void handle_incoming_can_frame_battery(CAN_frame rx_frame) {
       //hybrid_01_response_fd_data (Whole frame)
       break;
     case 0x1A5555B0:  // BMS 1000ms cyclic
+      can_msg_received |= RX_0x1A5555B0;
       duration_discharge_power_watt = ((rx_frame.data.u8[6] & 0x0F) << 8) | rx_frame.data.u8[5];
       duration_charge_power_watt = (rx_frame.data.u8[7] << 4) | rx_frame.data.u8[6] >> 4;
       maximum_voltage = ((rx_frame.data.u8[3] & 0x3F) << 4) | rx_frame.data.u8[2] >> 4;
       minimum_voltage = (rx_frame.data.u8[4] << 2) | rx_frame.data.u8[3] >> 6;
       break;
     case 0x1A5555B1:  // BMS 1000ms cyclic
+      can_msg_received |= RX_0x1A5555B1;
       // All realtime_ have same enumeration, 0 = no fault, 1 = error level 1, 2 error level 2, 3 error level 3
       realtime_overcurrent_monitor = ((rx_frame.data.u8[3] & 0x01) << 2) | rx_frame.data.u8[2] >> 6;
       realtime_CAN_communication_fault = (rx_frame.data.u8[3] & 0x0E) >> 1;
@@ -937,7 +963,8 @@ void handle_incoming_can_frame_battery(CAN_frame rx_frame) {
       max_fastcharging_current_amp = ((rx_frame.data.u8[4] & 0x01) << 8) | rx_frame.data.u8[3];
       DC_voltage_chargeport = (rx_frame.data.u8[7] << 4) | (rx_frame.data.u8[6] >> 4);
       break;
-    case 0x5A2:                                        // BMS 500ms normal, 100ms fast
+    case 0x5A2:  // BMS 500ms normal, 100ms fast
+      can_msg_received |= RX_0x5A2;
       BMS_5A2_CRC = rx_frame.data.u8[0];               // Can be used to check CAN signal integrity later on
       BMS_5A2_counter = (rx_frame.data.u8[1] & 0x0F);  // Can be used to check CAN signal integrity later on
       service_disconnect_switch_missing = (rx_frame.data.u8[1] & 0x20) >> 5;
@@ -952,7 +979,8 @@ void handle_incoming_can_frame_battery(CAN_frame rx_frame) {
         BMS_capacity_ah = ((rx_frame.data.u8[4] & 0x03) << 9) | (rx_frame.data.u8[3] << 1) | (rx_frame.data.u8[2] >> 7);
       }
       break;
-    case 0x5CA:                                               // BMS 500ms
+    case 0x5CA:  // BMS 500ms
+      can_msg_received |= RX_0x5CA;
       BMS_5CA_CRC = rx_frame.data.u8[0];                      // Can be used to check CAN signal integrity later on
       BMS_5CA_counter = (rx_frame.data.u8[1] & 0x0F);         // Can be used to check CAN signal integrity later on
       balancing_request = (rx_frame.data.u8[5] & 0x08) >> 3;  //True/False
@@ -966,19 +994,43 @@ void handle_incoming_can_frame_battery(CAN_frame rx_frame) {
       battery_Wh_max =
           ((rx_frame.data.u8[5] & 0x07) << 8) | rx_frame.data.u8[4];  //*50  ! Not usable, seems to always contain 0x7F0
       break;
-    case 0x0CF:                                        //BMS 10ms
+    case 0x0CF:  //BMS 10ms
+      can_msg_received |= RX_0x0CF;
       BMS_0CF_CRC = rx_frame.data.u8[0];               // Can be used to check CAN signal integrity later on
       BMS_0CF_counter = (rx_frame.data.u8[1] & 0x0F);  // Can be used to check CAN signal integrity later on
       BMS_welded_contactors_status = (rx_frame.data.u8[1] & 0x60) >> 5;
       BMS_ext_limits_active = (rx_frame.data.u8[1] & 0x80) >> 7;
       BMS_mode = (rx_frame.data.u8[2] & 0x07);
       switch (BMS_mode) {
-        case 1:
-        case 3:
-        case 4:
+        case 1:  // HV_ACTIVE
+        case 3:  // EXTERN CHARGING
+        case 4:  // AC_CHARGING
+        case 6:  // DC_CHARGING
+          if (!datalayer.system.status.battery_allows_contactor_closing)
+            logging.printf("MEB Contactors closed\n");
+          if (datalayer.battery.status.bms_status != FAULT)
+            datalayer.battery.status.bms_status = ACTIVE;
           datalayer.system.status.battery_allows_contactor_closing = true;
           break;
+        case 5:  // Error
+          if (datalayer.system.status.battery_allows_contactor_closing)
+            logging.printf("MEB Contactors opened\n");
+          datalayer.battery.status.bms_status = FAULT;
+          datalayer.system.status.battery_allows_contactor_closing = false;
+          break;
+        case 7:  // Init
+          if (datalayer.system.status.battery_allows_contactor_closing)
+            logging.printf("MEB Contactors opened\n");
+          if (datalayer.battery.status.bms_status != FAULT)
+            datalayer.battery.status.bms_status = INACTIVE;
+          datalayer.system.status.battery_allows_contactor_closing = false;
+          break;
+        case 2:  // BALANCING
         default:
+          if (datalayer.system.status.battery_allows_contactor_closing)
+            logging.printf("MEB Contactors opened\n");
+          if (datalayer.battery.status.bms_status != FAULT)
+            datalayer.battery.status.bms_status = STANDBY;
           datalayer.system.status.battery_allows_contactor_closing = false;
       }
       BMS_HVIL_status = (rx_frame.data.u8[2] & 0x18) >> 3;
@@ -1451,13 +1503,21 @@ void handle_incoming_can_frame_battery(CAN_frame rx_frame) {
     default:
       break;
   }
+  datalayer.battery.status.CAN_battery_still_alive = CAN_STILL_ALIVE;
+  if (can_msg_received == 0xFFFF) {
+    if (datalayer.battery.status.bms_status == INACTIVE)
+      datalayer.battery.status.bms_status = STANDBY;
+  }
 }
 
 void transmit_can_battery() {
   unsigned long currentMillis = millis();
   // Send 10ms CAN Message
-  if (currentMillis > last_can_msg_timestamp + 500) {
+  if (datalayer.system.settings.equipment_stop_active || currentMillis > last_can_msg_timestamp + 500) {
+    can_msg_received = RX_DEFAULT;
     first_can_msg = 0;
+    if (datalayer.battery.status.bms_status != FAULT)
+      datalayer.battery.status.bms_status = INACTIVE;
   }
 
   if (currentMillis - previousMillis10ms >= INTERVAL_10_MS) {
@@ -1525,18 +1585,27 @@ void transmit_can_battery() {
     previousMillis100ms = currentMillis;
 
     //HV request and DC/DC control lies in 0x503
-    MEB_503.data.u8[3] = 0x00;
-    if (datalayer.battery.status.bms_status != FAULT && first_can_msg > 0 && currentMillis > first_can_msg + 2000) {
+
+    if (datalayer.battery.status.bms_status != FAULT && /*first_can_msg > 0 && currentMillis > first_can_msg + 2000*/
+        (datalayer.battery.status.bms_status == STANDBY || datalayer.battery.status.bms_status == ACTIVE) &&
+        (labs(((int32_t)datalayer.battery.status.voltage_dV) -
+              ((int32_t)datalayer_extended.meb.BMS_voltage_intermediate_dV)) < 200)) {
+      if (MEB_503.data.u8[3] == BMS_TARGET_HV_OFF) {
+        logging.printf("MEB Requesting HV\n");
+      }
       MEB_503.data.u8[1] = 0xB0;
-      MEB_503.data.u8[3] = BMS_TARGET_HV_ON;  //BMS_TARGET_AC_CHARGING;  //TODO, should we try AC_2 or DC charging?
-      MEB_503.data.u8[5] = 0x82;              // Bordnetz Active
-      MEB_503.data.u8[6] = 0xE0;              // Request emergency shutdown HV system == 0, false
-    } else if (first_can_msg > 0 && currentMillis > first_can_msg + 2000) {  //FAULT STATE, open contactors
+      MEB_503.data.u8[3] = BMS_TARGET_AC_CHARGING;  //TODO, should we try AC_2 or DC charging?
+      MEB_503.data.u8[5] = 0x82;                    // Bordnetz Active
+      MEB_503.data.u8[6] = 0xE0;                    // Request emergency shutdown HV system == 0, false
+    } else if (first_can_msg > 0 && currentMillis > first_can_msg + 2000 && BMS_mode != 0 &&
+               BMS_mode != 7) {  //FAULT STATE, open contactors
       MEB_503.data.u8[1] = 0x90;
       MEB_503.data.u8[3] = BMS_TARGET_HV_OFF;
       MEB_503.data.u8[5] = 0x80;  // Bordnetz Inactive
       MEB_503.data.u8[6] =
           0xE3;  // Request emergency shutdown HV system == init (3) (not sure if we dare activate this, this is done with 0xE1)
+    } else {
+      MEB_503.data.u8[3] = 0;
     }
     MEB_503.data.u8[1] = ((MEB_503.data.u8[1] & 0xF0) | counter_100ms);
     MEB_503.data.u8[0] = vw_crc_calc(MEB_503.data.u8, MEB_503.DLC, MEB_503.ID);
@@ -1549,7 +1618,7 @@ void transmit_can_battery() {
     MEB_272.data.u8[5] = DC_FASTCHARGE_NO_START_REQUEST;  //DC_FASTCHARGE_VEHICLE;  //DC charging
 
     //Klemmen status
-    MEB_3C0.data.u8[2] = 0x00;  //0x02;  //bit to signal that KL_15 is ON // Always 0 in start4.log
+    MEB_3C0.data.u8[2] = 0x02;  //bit to signal that KL_15 is ON // Always 0 in start4.log
     MEB_3C0.data.u8[1] = ((MEB_3C0.data.u8[1] & 0xF0) | counter_100ms);
     MEB_3C0.data.u8[0] = vw_crc_calc(MEB_3C0.data.u8, MEB_3C0.DLC, MEB_3C0.ID);
 
