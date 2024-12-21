@@ -42,7 +42,7 @@ String settings_processor(const String& var) {
 #endif
 
 #ifdef CAN_SHUNT_SELECTED
-    content += "<h4 style='color: white;'>Shunt Interface: <span id='BMW S-BOX'>" +
+    content += "<h4 style='color: white;'>Shunt Interface: <span id='Shunt'>" +
                String(getCANInterfaceName(can_config.shunt)) + "</span></h4>";
 #endif  //CAN_SHUNT_SELECTED
 

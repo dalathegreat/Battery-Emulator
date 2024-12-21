@@ -129,7 +129,11 @@ typedef struct {
   /** measured output voltage in mV (eg. S-BOX) **/
   uint32_t measured_outvoltage_mV = 0;
   /** measured amperage in mA (eg. S-BOX) **/
-  uint32_t measured_amperage_mA = 0;
+  int32_t measured_amperage_mA = 0;
+  /** Sum of current readings during measuring period **/
+  int32_t measured_avg1S_amperage_mA = 0;
+  /** Number of samples **/
+  uint16_t measured_sum_amperage_count = 0;
   /** True if contactors are precharging state */
   bool precharging = false;
   /** True if the contactor controlled by battery-emulator is closed */

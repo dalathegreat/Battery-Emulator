@@ -3,24 +3,22 @@
 #include "../datalayer/datalayer.h"
 #include "BMW-SBOX.h"
 
-
 #define MAX_ALLOWED_FAULT_TICKS 1000
-/* NOTE: modify the precharge time constant below to account for the resistance and capacitance of the target system.
- *      t=3RC at minimum, t=5RC ideally
- */
 
-#define PRECHARGE_TIME_MS 160           // Time before negative contactor engages and precharging starts
-#define NEGATIVE_CONTACTOR_TIME_MS 1000 // Precharge time before precharge resistor is bypassed by positive contactor
-#define POSITIVE_CONTACTOR_TIME_MS 2000 // Precharge relay lead time after positive contactor has been engaged
-
-enum State { DISCONNECTED, PRECHARGE, NEGATIVE, POSITIVE, PRECHARGE_OFF, COMPLETED, SHUTDOWN_REQUESTED };
-State contactorStatus = DISCONNECTED;
+enum SboxState { DISCONNECTED, PRECHARGE, NEGATIVE, POSITIVE, PRECHARGE_OFF, COMPLETED, SHUTDOWN_REQUESTED };
+SboxState contactorStatus = DISCONNECTED;
 
 unsigned long prechargeStartTime = 0;
 unsigned long negativeStartTime = 0;
 unsigned long positiveStartTime = 0;
 unsigned long timeSpentInFaultedMode = 0;
 unsigned long LastMsgTime = 0;  // will store last time a 20ms CAN Message was send
+unsigned long LastAvgTime = 0;  // Last current storage time
+
+uint32_t avg_mA_array[10];
+uint32_t avg_sum;
+
+uint8_t k;  //avg array pointer
 
 uint8_t CAN100_cnt=0;
 
@@ -46,6 +44,8 @@ uint8_t reverse_bits(uint8_t byte) {
   return reversed;
 }
 
+
+/** CRC8, both inverted, poly 0x31 **/
 uint8_t calculateCRC(CAN_frame CAN) {
   uint8_t crc = 0;
   for (size_t i = 0; i < CAN.DLC; i++) {
@@ -65,100 +65,131 @@ uint8_t calculateCRC(CAN_frame CAN) {
 }
 
 void receive_can_shunt(CAN_frame rx_frame) {
+  unsigned long currentTime = millis();
   if(rx_frame.ID ==0x200)
   { 
     datalayer.shunt.measured_amperage_mA=((rx_frame.data.u8[2]<<24)| (rx_frame.data.u8[1]<<16)| (rx_frame.data.u8[0]<<8))/256;
+
+    /** Calculate 1S avg current **/
+    if(LastAvgTime+100<currentTime)
+    {
+      LastAvgTime=currentTime;
+      if(k>9) {
+        k=0;
+      }
+      avg_mA_array[k]=datalayer.shunt.measured_amperage_mA;
+      k++;
+      avg_sum=0;
+      for (uint8_t i = 0; i < 10; i++)
+      {
+        avg_sum=avg_sum+avg_mA_array[i];
+      }
+      datalayer.shunt.measured_avg1S_amperage_mA=avg_sum/10;
+    }
   }
-  else if(rx_frame.ID ==0x210) //Battery voltage
+  else if(rx_frame.ID ==0x210) //SBOX input (battery side) voltage
   { 
-    datalayer.shunt.measured_voltage_mV==((rx_frame.data.u8[2]<<24)| (rx_frame.data.u8[1]<<16)| (rx_frame.data.u8[0]<<8))/256;
+    datalayer.shunt.measured_voltage_mV=((rx_frame.data.u8[2]<<16)| (rx_frame.data.u8[1]<<8)| (rx_frame.data.u8[0]));
   }  
   else if(rx_frame.ID ==0x220) //SBOX output voltage
   { 
-    datalayer.shunt.measured_outvoltage_mV==((rx_frame.data.u8[2]<<24)| (rx_frame.data.u8[1]<<16)| (rx_frame.data.u8[0]<<8))/256;
+    datalayer.shunt.measured_outvoltage_mV=((rx_frame.data.u8[2]<<16)| (rx_frame.data.u8[1]<<8)| (rx_frame.data.u8[0]));
   }
 }
 
 void send_can_shunt() {
-  // First check if we have any active errors, incase we do, turn off the battery
-  if (datalayer.battery.status.bms_status == FAULT) {
-    timeSpentInFaultedMode++;
-  } else {
-    timeSpentInFaultedMode = 0;
-  }
-
-  //handle contactor control SHUTDOWN_REQUESTED
-  if (timeSpentInFaultedMode > MAX_ALLOWED_FAULT_TICKS) {
-    contactorStatus = SHUTDOWN_REQUESTED;
-    SBOX_100.data.u8[0]=0x55;  // All open
-  }
-
-  if (contactorStatus == SHUTDOWN_REQUESTED) {
-    datalayer.shunt.contactors_engaged = false;
-    return;  // A fault scenario latches the contactor control. It is not possible to recover without a powercycle (and investigation why fault occured)
-  }
-
-  // After that, check if we are OK to start turning on the battery
-  if (contactorStatus == DISCONNECTED) {
-    datalayer.shunt.contactors_engaged = false;
-    SBOX_100.data.u8[0]=0x55;  // All open
-    if (datalayer.system.status.battery_allows_contactor_closing &&
-        datalayer.system.status.inverter_allows_contactor_closing && !datalayer.system.settings.equipment_stop_active && ( datalayer.shunt.measured_voltage_mV => MINIMUM_INPUT_VOLTAGE*1000)) {
-      contactorStatus = PRECHARGE;
-    }
-  }
-
-  // In case the inverter requests contactors to open, set the state accordingly
-  if (contactorStatus == COMPLETED) {
-    //Incase inverter (or estop) requests contactors to open, make state machine jump to Disconnected state (recoverable)
-    if (!datalayer.system.status.inverter_allows_contactor_closing || datalayer.system.settings.equipment_stop_active) {
-      contactorStatus = DISCONNECTED;
-    }
-  }
-
   unsigned long currentTime = millis();
-  // Handle actual state machine. This first turns on Precharge, then Negative, then Positive, and finally turns OFF precharge
-  switch (contactorStatus) {
-    case PRECHARGE:
-      SBOX_100.data.u8[0]=0x86;          // Precharge relay only
-      prechargeStartTime = currentTime;
-      contactorStatus = NEGATIVE;
-      break;
-
-    case NEGATIVE:
-      if (currentTime - prechargeStartTime >= PRECHARGE_TIME_MS) {
-        SBOX_100.data.u8[0]=0xA6;          // Precharge + Negative        
-        negativeStartTime = currentTime;
-        contactorStatus = POSITIVE;
-        datalayer.shunt.precharging = true;
-      }
-      break;
-
-    case POSITIVE:
-      if (currentTime - negativeStartTime >= NEGATIVE_CONTACTOR_TIME_MS && (datalayer.shunt.measured_voltage_mV * MAX_PRECHARGE_RESISTOR_VOLTAGE_PERCENT < datalalyer.shunt.measured_outvoltage_mV)) {
-        SBOX_100.data.u8[0]=0xAA;          // Precharge + Negative + Positive       
-        positiveStartTime = currentTime;
-        contactorStatus = PRECHARGE_OFF;
-        datalayer.shunt.precharging = false;
-      }
-      break;
-
-    case PRECHARGE_OFF:
-      if (currentTime - positiveStartTime >= POSITIVE_CONTACTOR_TIME_MS) {
-        SBOX_100.data.u8[0]=0x6A;          // Negative + Positive
-        contactorStatus = COMPLETED;
-        datalayer.shunt.contactors_engaged = true;
-      }
-      break;
-    case COMPLETED:
-      SBOX_100.data.u8[0]=0x6A;          // Negative + Positive
-    default:
-      break;
-  }
-
   // Send 20ms CAN Message
   if (currentTime - LastMsgTime >= INTERVAL_20_MS) {
     LastMsgTime = currentTime;
+    // First check if we have any active errors, incase we do, turn off the battery
+    if (datalayer.battery.status.bms_status == FAULT) {
+      timeSpentInFaultedMode++;
+    } else {
+      timeSpentInFaultedMode = 0;
+    }
+
+    //handle contactor control SHUTDOWN_REQUESTED
+    if (timeSpentInFaultedMode > MAX_ALLOWED_FAULT_TICKS) {
+      contactorStatus = SHUTDOWN_REQUESTED;
+      SBOX_100.data.u8[0]=0x55;  // All open
+    }
+
+    if (contactorStatus == SHUTDOWN_REQUESTED) {
+      datalayer.shunt.contactors_engaged = false;
+      return;  // A fault scenario latches the contactor control. It is not possible to recover without a powercycle (and investigation why fault occured)
+    }
+
+    // After that, check if we are OK to start turning on the contactors
+    if (contactorStatus == DISCONNECTED) {
+      datalayer.shunt.contactors_engaged = false;
+      SBOX_100.data.u8[0]=0x55;  // All open
+
+      if (datalayer.system.status.battery_allows_contactor_closing &&
+          datalayer.system.status.inverter_allows_contactor_closing && !datalayer.system.settings.equipment_stop_active && ( datalayer.shunt.measured_voltage_mV > MINIMUM_INPUT_VOLTAGE*1000)) {
+        contactorStatus = PRECHARGE;
+      }
+    }
+
+    // In case the inverter requests contactors to open, set the state accordingly
+    if (contactorStatus == COMPLETED) {
+      //Incase inverter (or estop) requests contactors to open, make state machine jump to Disconnected state (recoverable)
+      if (!datalayer.system.status.inverter_allows_contactor_closing || datalayer.system.settings.equipment_stop_active) {
+        contactorStatus = DISCONNECTED;
+      }
+    }
+
+    // Handle actual state machine. This first turns on Precharge, then Negative, then Positive, and finally turns OFF precharge
+    switch (contactorStatus) {
+      case PRECHARGE:
+        SBOX_100.data.u8[0]=0x86;          // Precharge relay only
+        prechargeStartTime = currentTime;
+        contactorStatus = NEGATIVE;
+#ifdef DEBUG_VIA_USB
+        Serial.println("S-BOX Precharge relay engaged");
+#endif
+        break;
+
+      case NEGATIVE:
+        if (currentTime - prechargeStartTime >= CONTACTOR_CONTROL_T1) {
+          SBOX_100.data.u8[0]=0xA6;          // Precharge + Negative
+          negativeStartTime = currentTime;
+          contactorStatus = POSITIVE;
+          datalayer.shunt.precharging = true;
+#ifdef DEBUG_VIA_USB
+        Serial.println("S-BOX Negative relay engaged");
+#endif
+        }
+        break;
+
+      case POSITIVE:
+        if (currentTime - negativeStartTime >= CONTACTOR_CONTROL_T2 && (datalayer.shunt.measured_voltage_mV * MAX_PRECHARGE_RESISTOR_VOLTAGE_PERCENT < datalayer.shunt.measured_outvoltage_mV)) {
+          SBOX_100.data.u8[0]=0xAA;          // Precharge + Negative + Positive
+          positiveStartTime = currentTime;
+          contactorStatus = PRECHARGE_OFF;
+          datalayer.shunt.precharging = false;
+#ifdef DEBUG_VIA_USB
+        Serial.println("S-BOX Positive relay engaged");
+#endif
+        }
+        break;
+
+      case PRECHARGE_OFF:
+        if (currentTime - positiveStartTime >= CONTACTOR_CONTROL_T3) {
+          SBOX_100.data.u8[0]=0x6A;          // Negative + Positive
+          contactorStatus = COMPLETED;
+#ifdef DEBUG_VIA_USB
+        Serial.println("S-BOX Precharge relay released");
+#endif
+          datalayer.shunt.contactors_engaged = true;
+        }
+        break;
+      case COMPLETED:
+        SBOX_100.data.u8[0]=0x6A;          // Negative + Positive
+      default:
+        break;
+    }
+
     CAN100_cnt++;
     if (CAN100_cnt>0x0E) {
       CAN100_cnt=0;
@@ -172,6 +203,7 @@ void send_can_shunt() {
 }
 
 void setup_can_shunt() {
-  datalayer.system.info.shunt_protocol[63] = 'BMW SBOX\0';
+  strncpy(datalayer.system.info.shunt_protocol, "BMW SBOX", 63);
+  datalayer.system.info.shunt_protocol[63] = '\0';
 }
 #endif
