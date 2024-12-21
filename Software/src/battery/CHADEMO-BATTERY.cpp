@@ -396,6 +396,8 @@ void handle_incoming_can_frame_battery(CAN_frame rx_frame) {
 
   datalayer.battery.status.CAN_battery_still_alive =
       CAN_STILL_ALIVE;  //We are getting CAN messages from the vehicle, inform the watchdog
+  if (datalayer.battery.status.bms_status == INACTIVE)
+    datalayer.battery.status.bms_status = ACTIVE;
 
   switch (rx_frame.ID) {
     case 0x100:

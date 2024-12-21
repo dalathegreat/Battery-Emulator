@@ -229,6 +229,8 @@ void handle_incoming_can_frame_battery(CAN_frame rx_frame) {
       startedUp = true;
       datalayer.battery.status.CAN_battery_still_alive = CAN_STILL_ALIVE;
       SOC_Display = rx_frame.data.u8[0] * 5;  //100% = 200 ( 200 * 5 = 1000 )
+      if (datalayer.battery.status.bms_status == INACTIVE)
+        datalayer.battery.status.bms_status = ACTIVE;
       break;
     case 0x594:
       startedUp = true;

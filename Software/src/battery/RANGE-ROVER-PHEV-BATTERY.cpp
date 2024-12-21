@@ -244,6 +244,8 @@ void handle_incoming_can_frame_battery(CAN_frame rx_frame) {
       WakeUpThermalReq = ((rx_frame.data.u8[6] & 0x08) >> 3);
       WakeUpDchReq = ((rx_frame.data.u8[6] & 0x10) >> 4);
       StateofHealth = (((rx_frame.data.u8[6] & 0x03) << 8) | rx_frame.data.u8[7]);
+      if (datalayer.battery.status.bms_status == INACTIVE)
+        datalayer.battery.status.bms_status = ACTIVE;
       break;
     case 0x308:  // 190ms
       EstimatedLossChg = (((rx_frame.data.u8[0] & 0x03) << 8) | rx_frame.data.u8[1]);

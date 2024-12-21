@@ -117,6 +117,8 @@ void handle_incoming_can_frame_battery(CAN_frame rx_frame) {
             available_charge_power = ((rx_frame.data.u8[2] << 8) | rx_frame.data.u8[3]);
             available_discharge_power = ((rx_frame.data.u8[4] << 8) | rx_frame.data.u8[5]);
             battery_current_high_byte = rx_frame.data.u8[7];
+            if (datalayer.battery.status.bms_status == INACTIVE)
+              datalayer.battery.status.bms_status = ACTIVE;
           } else if (poll_data_pid == 2) {  //21 02
             cellvoltages_mv[0] = (rx_frame.data.u8[2] * 20);
             cellvoltages_mv[1] = (rx_frame.data.u8[3] * 20);

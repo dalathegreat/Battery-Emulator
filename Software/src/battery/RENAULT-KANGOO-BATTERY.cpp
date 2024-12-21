@@ -146,6 +146,8 @@ void handle_incoming_can_frame_battery(CAN_frame rx_frame) {
       LB_MaxChargeAllowed_W = (rx_frame.data.u8[0] * 300);
       LB_Current = word((rx_frame.data.u8[1] & 0xF), rx_frame.data.u8[2]) * 0.25 - 500;  //OK!
       LB_SOC = ((rx_frame.data.u8[4] << 8) | (rx_frame.data.u8[5])) * 0.0025;            //OK!
+      if (datalayer.battery.status.bms_status == INACTIVE)
+        datalayer.battery.status.bms_status = ACTIVE;
       break;
     case 0x424:  //BMS2
       datalayer.battery.status.CAN_battery_still_alive =

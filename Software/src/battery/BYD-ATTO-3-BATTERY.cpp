@@ -252,6 +252,8 @@ void handle_incoming_can_frame_battery(CAN_frame rx_frame) {
       battery_highprecision_SOC = ((rx_frame.data.u8[5] & 0x0F) << 8) | rx_frame.data.u8[4];  // 03 E0 = 992 = 99.2%
       battery_lowest_temperature = (rx_frame.data.u8[1] - 40);                                //Best guess for now
       battery_highest_temperature = (rx_frame.data.u8[3] - 40);                               //Best guess for now
+      if (datalayer.battery.status.bms_status == INACTIVE)
+        datalayer.battery.status.bms_status = ACTIVE;
       break;
     case 0x47B:  //01,FF,FF,FF,FF,FF,FF,FF - Static, values never changes between logs
       break;
@@ -564,6 +566,8 @@ void handle_incoming_can_frame_battery2(CAN_frame rx_frame) {
       battery2_highprecision_SOC = ((rx_frame.data.u8[5] & 0x0F) << 8) | rx_frame.data.u8[4];  // 03 E0 = 992 = 99.2%
       battery2_lowest_temperature = (rx_frame.data.u8[1] - 40);                                //Best guess for now
       battery2_highest_temperature = (rx_frame.data.u8[3] - 40);                               //Best guess for now
+      if (datalayer.battery2.status.bms_status == INACTIVE)
+        datalayer.battery2.status.bms_status = ACTIVE;
       break;
     case 0x47B:  //01,FF,FF,FF,FF,FF,FF,FF - Static, values never changes between logs
       break;

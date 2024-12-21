@@ -77,6 +77,8 @@ void handle_incoming_can_frame_battery(CAN_frame rx_frame) {
 
       // SOC is encoded as 16 bit integer with SOC% = value / 400
       SOC = (((uint16_t)rx_frame.data.u8[4] << 8) | (uint16_t)rx_frame.data.u8[5]) / 4;
+      if (datalayer.battery.status.bms_status == INACTIVE)
+        datalayer.battery.status.bms_status = ACTIVE;
       break;
     case 0x424:
       max_recup_power = rx_frame.data.u8[2] * 500;

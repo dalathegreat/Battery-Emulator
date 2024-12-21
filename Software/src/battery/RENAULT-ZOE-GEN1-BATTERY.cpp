@@ -180,6 +180,8 @@ void handle_incoming_can_frame_battery(CAN_frame rx_frame) {
     case 0x654:  //SOC
       datalayer.battery.status.CAN_battery_still_alive = CAN_STILL_ALIVE;
       LB_SOC = rx_frame.data.u8[3];
+      if (datalayer.battery.status.bms_status == INACTIVE)
+        datalayer.battery.status.bms_status = ACTIVE;
       break;
     case 0x658:  //SOH - NOTE: Not present on 41kWh battery! (Is this message on 21kWh?)
       datalayer.battery.status.CAN_battery_still_alive = CAN_STILL_ALIVE;

@@ -153,6 +153,8 @@ void handle_incoming_can_frame_battery(CAN_frame rx_frame) {
       BMU_Current = ((((((rx_frame.data.u8[2] * 256.0) + rx_frame.data.u8[3])) - 32768)) * 0.01);
       BMU_PackVoltage = ((rx_frame.data.u8[4] * 256.0 + rx_frame.data.u8[5]) * 0.1);
       BMU_Power = (BMU_Current * BMU_PackVoltage);
+      if (datalayer.battery.status.bms_status == INACTIVE)
+        datalayer.battery.status.bms_status = ACTIVE;
       break;
     case 0x6e1:  //BMU message, 25ms - Battery temperatures and voltages
     case 0x6e2:

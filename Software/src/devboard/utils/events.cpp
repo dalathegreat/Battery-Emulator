@@ -255,6 +255,9 @@ void reset_all_events() {
     events.entries[i].MQTTpublished = false;  // Not published by default
   }
   events.level = EVENT_LEVEL_INFO;
+  
+  datalayer.battery.status.CAN_battery_still_alive = CAN_STILL_ALIVE;
+  datalayer.battery.status.bms_status = INACTIVE;
   update_bms_status();
 }
 
@@ -495,7 +498,6 @@ static void update_bms_status(void) {
     case EVENT_LEVEL_INFO:
     case EVENT_LEVEL_WARNING:
     case EVENT_LEVEL_DEBUG:
-      datalayer.battery.status.bms_status = ACTIVE;
       break;
     case EVENT_LEVEL_UPDATE:
       datalayer.battery.status.bms_status = UPDATING;

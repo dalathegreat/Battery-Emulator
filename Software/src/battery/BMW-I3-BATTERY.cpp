@@ -522,6 +522,8 @@ void handle_incoming_can_frame_battery(CAN_frame rx_frame) {
       battery_request_open_contactors_fast = (rx_frame.data.u8[6] & 0x0C) >> 2;
       battery_charging_condition_delta = (rx_frame.data.u8[6] & 0xF0) >> 4;
       battery_DC_link_voltage = rx_frame.data.u8[7];
+      if (datalayer.battery.status.bms_status == INACTIVE)
+        datalayer.battery.status.bms_status = ACTIVE;
       break;
     case 0x1FA:  //BMS [1000ms] Status Of High-Voltage Battery - 1
       battery_status_error_isolation_external_Bordnetz = (rx_frame.data.u8[0] & 0x03);
@@ -702,6 +704,8 @@ void handle_incoming_can_frame_battery2(CAN_frame rx_frame) {
       battery2_request_open_contactors_fast = (rx_frame.data.u8[6] & 0x0C) >> 2;
       battery2_charging_condition_delta = (rx_frame.data.u8[6] & 0xF0) >> 4;
       battery2_DC_link_voltage = rx_frame.data.u8[7];
+      if (datalayer.battery2.status.bms_status == INACTIVE)
+        datalayer.battery2.status.bms_status = ACTIVE;
       break;
     case 0x1FA:  //BMS [1000ms] Status Of High-Voltage Battery - 1
       battery2_status_error_isolation_external_Bordnetz = (rx_frame.data.u8[0] & 0x03);
