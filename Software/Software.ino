@@ -111,6 +111,9 @@ void setup() {
 #ifdef EQUIPMENT_STOP_BUTTON
   init_equipment_stop_button();
 #endif
+#ifdef CAN_SHUNT_SELECTED
+  setup_can_shunt();
+#endif
   // BOOT button at runtime is used as an input for various things
   pinMode(0, INPUT_PULLUP);
 

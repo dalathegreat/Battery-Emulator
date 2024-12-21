@@ -177,6 +177,9 @@ void send_can() {
 #ifdef CHARGER_SELECTED
   send_can_charger();
 #endif  // CHARGER_SELECTED
+#ifdef CAN_SHUNT_SELECTED
+  send_can_shunt();
+#endif  // CAN_SHUNT_SELECTED
 }
 
 // Receive functions
@@ -203,6 +206,11 @@ void receive_can(CAN_frame* rx_frame, int interface) {
   if (interface == can_config.charger) {
 #ifdef CHARGER_SELECTED
     receive_can_charger(*rx_frame);
+#endif
+  }
+  if (interface == can_config.shunt) {
+#ifdef CAN_SHUNT_SELECTED
+    receive_can_shunt(*rx_frame);
 #endif
   }
 }
