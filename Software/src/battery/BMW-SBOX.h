@@ -7,8 +7,8 @@ void transmit_can(CAN_frame* tx_frame, int interface);
 /** Minimum input voltage required to enable relay control **/
 #define MINIMUM_INPUT_VOLTAGE 250
 
-/** Maximum allowable percentage of input voltage across the precharge resistor to engage the positive relay. **/
-/** SAFETY FEATURE: If precharge resistor is faulty, positive contactor will not be engaged **/
+/** Minimum required percentage of input voltage at the output port to engage the positive relay. **/
+/** Prevents engagement of the positive contactor if the precharge resistor is faulty. **/
 #define MAX_PRECHARGE_RESISTOR_VOLTAGE_PERCENT 0.99
 
 /* NOTE: modify the T2 time constant below to account for the resistance and capacitance of the target system.
