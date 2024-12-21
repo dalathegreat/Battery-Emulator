@@ -574,7 +574,7 @@ String advanced_battery_processor(const String& var) {
     content += "<h4>Energy to Charge Complete: " + String(energy_to_charge_complete_m1) + " KWh</h4>";
     content += "<h4>Energy Buffer: " + String(energy_buffer_m1) + " KWh</h4>";
     content += "<h4>Expected Energy Remaining: " + String(expected_energy_remaining_m1) + " KWh</h4>";
-    content += "<h4>Fully Charged: " + String(noYes[datalayer_extended.battery_fully_charged]) + "</h4>";
+    content += "<h4>Fully Charged: " + String(noYes[datalayer_extended.tesla.battery_fully_charged]) + "</h4>";
     //0x392 BMS_packConfig
     content += "<h4>packConfigMultiplexer: " + String(datalayer_extended.tesla.battery_packConfigMultiplexer) + "</h4>";
     content += "<h4>moduleType: " + String(datalayer_extended.tesla.battery_moduleType) + "</h4>";
@@ -684,9 +684,9 @@ String advanced_battery_processor(const String& var) {
     content += "<h4>HVP_shuntAuxCurrentDbg: " + String(HVP_shuntAuxCurrentDbg) + " A</h4>";
     content += "<h4>HVP_shuntBarTempDbg: " + String(HVP_shuntBarTempDbg) + " DegC</h4>";
     content += "<h4>HVP_shuntAsicTempDbg: " + String(HVP_shuntAsicTempDbg) + " DegC</h4>";
-    content += "<h4>HVP_shuntAuxCurrentStatus: " + String(HVP_status) + "</h4>";
-    content += "<h4>HVP_shuntBarTempStatus: " + String(HVP_status) + "</h4>";
-    content += "<h4>HVP_shuntAsicTempStatus: " + String(HVP_status) + "</h4>";
+    content += "<h4>HVP_shuntAuxCurrentStatus: " + String(HVP_status[datalayer_extended.tesla.HVP_shuntAuxCurrentStatus]) + "</h4>";
+    content += "<h4>HVP_shuntBarTempStatus: " + String(HVP_status[datalayer_extended.tesla.HVP_shuntBarTempStatus]) + "</h4>";
+    content += "<h4>HVP_shuntAsicTempStatus: " + String(HVP_status[datalayer_extended.tesla.HVP_shuntAsicTempStatus]) + "</h4>";
 
 #endif
 
