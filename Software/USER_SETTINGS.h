@@ -33,7 +33,7 @@
 //#define TESLA_MODEL_SX_BATTERY
 //#define TESLA_MODEL_3Y_BATTERY
 //#define VOLVO_SPA_BATTERY
-#define TEST_FAKE_BATTERY
+//#define TEST_FAKE_BATTERY
 //#define DOUBLE_BATTERY  //Enable this line if you use two identical batteries at the same time (requires DUAL_CAN setup)
 
 /* Select inverter communication protocol. See Wiki for which to use with your inverter: https://github.com/dalathegreat/BYD-Battery-Emulator-For-Gen24/wiki */
@@ -64,7 +64,7 @@
 //#define NC_CONTACTORS         //Enable this line to control normally closed contactors. CONTACTOR_CONTROL must be enabled for this option. Extremely rare setting!
 
 /* Shunt/Contactor settings */
-#define BMW_SBOX             // SBOX relay control & battery current/voltage measurement 
+//#define BMW_SBOX             // SBOX relay control & battery current/voltage measurement 
 
 /* Other options */
 //#define DEBUG_VIA_USB  //Enable this line to have the USB port output serial diagnostic data while program runs (WARNING, raises CPU load, do not use for production)

@@ -130,7 +130,6 @@ void send_can_shunt() {
         contactorStatus = PRECHARGE;
       }
     }
-
     // In case the inverter requests contactors to open, set the state accordingly
     if (contactorStatus == COMPLETED) {
       //Incase inverter (or estop) requests contactors to open, make state machine jump to Disconnected state (recoverable)
@@ -138,7 +137,6 @@ void send_can_shunt() {
         contactorStatus = DISCONNECTED;
       }
     }
-
     // Handle actual state machine. This first turns on Precharge, then Negative, then Positive, and finally turns OFF precharge
     switch (contactorStatus) {
       case PRECHARGE:
@@ -149,7 +147,6 @@ void send_can_shunt() {
         Serial.println("S-BOX Precharge relay engaged");
 #endif
         break;
-
       case NEGATIVE:
         if (currentTime - prechargeStartTime >= CONTACTOR_CONTROL_T1) {
           SBOX_100.data.u8[0]=0xA6;          // Precharge + Negative
@@ -161,7 +158,6 @@ void send_can_shunt() {
 #endif
         }
         break;
-
       case POSITIVE:
         if (currentTime - negativeStartTime >= CONTACTOR_CONTROL_T2 && (datalayer.shunt.measured_voltage_mV * MAX_PRECHARGE_RESISTOR_VOLTAGE_PERCENT < datalayer.shunt.measured_outvoltage_mV)) {
           SBOX_100.data.u8[0]=0xAA;          // Precharge + Negative + Positive
@@ -173,7 +169,6 @@ void send_can_shunt() {
 #endif
         }
         break;
-
       case PRECHARGE_OFF:
         if (currentTime - positiveStartTime >= CONTACTOR_CONTROL_T3) {
           SBOX_100.data.u8[0]=0x6A;          // Negative + Positive
@@ -189,7 +184,6 @@ void send_can_shunt() {
       default:
         break;
     }
-
     CAN100_cnt++;
     if (CAN100_cnt>0x0E) {
       CAN100_cnt=0;
