@@ -103,36 +103,36 @@ void update_values_battery() {  //This function maps all the values fetched via 
 
   datalayer.battery.status.cell_max_voltage_mV = LB_Cell_Max_Voltage;
 
-#ifdef DEBUG_VIA_USB
-  Serial.println("Values going to inverter:");
-  Serial.print("SOH%: ");
-  Serial.print(datalayer.battery.status.soh_pptt);
-  Serial.print(", SOC% scaled: ");
-  Serial.print(datalayer.battery.status.reported_soc);
-  Serial.print(", Voltage: ");
-  Serial.print(datalayer.battery.status.voltage_dV);
-  Serial.print(", Max discharge power: ");
-  Serial.print(datalayer.battery.status.max_discharge_power_W);
-  Serial.print(", Max charge power: ");
-  Serial.print(datalayer.battery.status.max_charge_power_W);
-  Serial.print(", Max temp: ");
-  Serial.print(datalayer.battery.status.temperature_max_dC);
-  Serial.print(", Min temp: ");
-  Serial.print(datalayer.battery.status.temperature_min_dC);
-  Serial.print(", BMS Status (3=OK): ");
-  Serial.print(datalayer.battery.status.bms_status);
+#ifdef DEBUG_LOG
+  logging.println("Values going to inverter:");
+  logging.print("SOH%: ");
+  logging.print(datalayer.battery.status.soh_pptt);
+  logging.print(", SOC% scaled: ");
+  logging.print(datalayer.battery.status.reported_soc);
+  logging.print(", Voltage: ");
+  logging.print(datalayer.battery.status.voltage_dV);
+  logging.print(", Max discharge power: ");
+  logging.print(datalayer.battery.status.max_discharge_power_W);
+  logging.print(", Max charge power: ");
+  logging.print(datalayer.battery.status.max_charge_power_W);
+  logging.print(", Max temp: ");
+  logging.print(datalayer.battery.status.temperature_max_dC);
+  logging.print(", Min temp: ");
+  logging.print(datalayer.battery.status.temperature_min_dC);
+  logging.print(", BMS Status (3=OK): ");
+  logging.print(datalayer.battery.status.bms_status);
 
-  Serial.println("Battery values: ");
-  Serial.print("Real SOC: ");
-  Serial.print(LB_SOC);
-  Serial.print(", Current: ");
-  Serial.print(LB_Current);
-  Serial.print(", kWh remain: ");
-  Serial.print(LB_kWh_Remaining);
-  Serial.print(", max mV: ");
-  Serial.print(LB_Cell_Max_Voltage);
-  Serial.print(", min mV: ");
-  Serial.print(LB_Cell_Min_Voltage);
+  logging.println("Battery values: ");
+  logging.print("Real SOC: ");
+  logging.print(LB_SOC);
+  logging.print(", Current: ");
+  logging.print(LB_Current);
+  logging.print(", kWh remain: ");
+  logging.print(LB_kWh_Remaining);
+  logging.print(", max mV: ");
+  logging.print(LB_Cell_Max_Voltage);
+  logging.print(", min mV: ");
+  logging.print(LB_Cell_Min_Voltage);
 
 #endif
 }

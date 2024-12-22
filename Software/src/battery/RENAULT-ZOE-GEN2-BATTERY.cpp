@@ -216,10 +216,6 @@ void update_values_battery() {  //This function maps all the values fetched via 
   datalayer_extended.zoePH2.battery_pack_time = battery_pack_time;
   datalayer_extended.zoePH2.battery_soc_min = battery_soc_min;
   datalayer_extended.zoePH2.battery_soc_max = battery_soc_max;
-
-#ifdef DEBUG_VIA_USB
-
-#endif
 }
 
 void receive_can_battery(CAN_frame rx_frame) {
