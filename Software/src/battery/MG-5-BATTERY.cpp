@@ -42,10 +42,6 @@ void update_values_battery() {  //This function maps all the values fetched via 
   datalayer.battery.status.temperature_min_dC;
 
   datalayer.battery.status.temperature_max_dC;
-
-#ifdef DEBUG_LOG
-
-#endif
 }
 
 void receive_can_battery(CAN_frame rx_frame) {
