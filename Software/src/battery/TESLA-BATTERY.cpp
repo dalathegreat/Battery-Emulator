@@ -48,7 +48,7 @@ static uint16_t battery_nominal_full_pack_energy_m0 = 600;  // Kwh
 //0x132 306 HVBattAmpVolt
 static uint16_t battery_volts = 0;                  // V
 static int16_t battery_amps = 0;                    // A
-static int16_t battery_raw_amps = 0;               // A
+static int16_t battery_raw_amps = 0;                // A
 static uint16_t battery_charge_time_remaining = 0;  // Minutes
 //0x252 594 BMS_powerAvailable
 static uint16_t BMS_maxRegenPower = 0;           //rename from battery_regenerative_limit
@@ -432,7 +432,7 @@ static uint16_t battery2_nominal_full_pack_energy_m0 = 600;  // Kwh
 //0x132 306 HVBattAmpVolt
 static uint16_t battery2_volts = 0;                  // V
 static int16_t battery2_amps = 0;                    // A
-static int16_t battery2_raw_amps = 0;               // A
+static int16_t battery2_raw_amps = 0;                // A
 static uint16_t battery2_charge_time_remaining = 0;  // Minutes
 //0x252 594 BMS_powerAvailable
 static uint16_t BMS2_regenerative_limit = 0;

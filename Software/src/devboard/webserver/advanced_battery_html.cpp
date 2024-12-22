@@ -571,8 +571,7 @@ String advanced_battery_processor(const String& var) {
     content +=
         "<h4>Full Charge Complete: " + String(noYes[datalayer_extended.tesla.battery_full_charge_complete]) + "</h4>";
     //0x352 850 BMS_energyStatus
-    content +=
-        "<h3>Late BMS 0x352 with Mux:</h3>";  //if using newer BMS >2021 and comment 0x352 with MUX
+    content += "<h3>Late BMS 0x352 with Mux:</h3>";  //if using newer BMS >2021 and comment 0x352 with MUX
     content += "<h4>Calculated SOH: " + String(nominal_full_pack_energy_m0 * 100 / beginning_of_life) + "</h4>";
     content += "<h4>Nominal Full Pack Energy: " + String(nominal_full_pack_energy_m0) + " KWh</h4>";
     content += "<h4>Nominal Energy Remaining: " + String(nominal_energy_remaining_m0) + " KWh</h4>";
