@@ -468,14 +468,16 @@ String advanced_battery_processor(const String& var) {
     content += "<h4>Pyrotest in Progress: " + String(falseTrue[datalayer_extended.tesla.pyroTestInProgress]) + "</h4>";
     content += "<h4>Contactors Open Now Requested: " +
                String(noYes[datalayer_extended.tesla.battery_packCtrsOpenNowRequested]) + "</h4>";
-    content += "<h4>Contactors Open Requested: " +
-               String(noYes[datalayer_extended.tesla.battery_packCtrsOpenRequested]) + "</h4>";
+    content +=
+        "<h4>Contactors Open Requested: " + String(noYes[datalayer_extended.tesla.battery_packCtrsOpenRequested]) +
+        "</h4>";
     content += "<h4>Contactors Request Status: " +
                String(HVP_contactor[datalayer_extended.tesla.battery_packCtrsRequestStatus]) + "</h4>";
     content += "<h4>Contactors Reset Request Required: " +
                String(noYes[datalayer_extended.tesla.battery_packCtrsResetRequestRequired]) + "</h4>";
-    content += "<h4>DC Link Allowed to Energize:" +
-               String(noYes[datalayer_extended.tesla.battery_dcLinkAllowedToEnergize]) + "</h4>";
+    content +=
+        "<h4>DC Link Allowed to Energize:" + String(noYes[datalayer_extended.tesla.battery_dcLinkAllowedToEnergize]) +
+        "</h4>";
     // Comment what data you would like to dislay, order can be changed.
     //0x292 658 BMS_socStates
     content += "<h4>Battery Beginning of Life: " + String(beginning_of_life) + " KWh</h4>";
@@ -559,7 +561,9 @@ String advanced_battery_processor(const String& var) {
     content +=
         "<h4>BMS PCS PWM Enabled: " + String(noYes[datalayer_extended.tesla.battery_BMS_pcsPwmEnabled]) + "</h4>";
     //0x352 850 BMS_energyStatus
-    content += "<h3>Early BMS 0x352:""</h3";  //if using older BMS <2021 and comment 0x352 without MUX
+    content +=
+        "<h3>Early BMS 0x352:"
+        "</h3";  //if using older BMS <2021 and comment 0x352 without MUX
     content += "<h4>Calculated SOH: " + String(nominal_full_pack_energy) * 100 / (beginning_of_life);
     content += "<h4>Nominal Full Pack Energy: " + String(nominal_full_pack_energy) + " KWh</h4>";
     content += "<h4>Nominal Energy Remaining: " + String(nominal_energy_remaining) + " KWh</h4>";
@@ -569,7 +573,9 @@ String advanced_battery_processor(const String& var) {
     content +=
         "<h4>Full Charge Complete: " + String(noYes[datalayer_extended.tesla.battery_full_charge_complete]) + "</h4>";
     //0x352 850 BMS_energyStatus
-    content += "<h3>Late BMS 0x352 with Mux:""</h3";  //if using newer BMS >2021 and comment 0x352 with MUX
+    content +=
+        "<h3>Late BMS 0x352 with Mux:"
+        "</h3";  //if using newer BMS >2021 and comment 0x352 with MUX
     content += "<h4>Calculated SOH: " + String(nominal_full_pack_energy_m0) * 100 / (beginning_of_life);
     content += "<h4>Nominal Full Pack Energy: " + String(nominal_full_pack_energy_m0) + " KWh</h4>";
     content += "<h4>Nominal Energy Remaining: " + String(nominal_energy_remaining_m0) + " KWh</h4>";
