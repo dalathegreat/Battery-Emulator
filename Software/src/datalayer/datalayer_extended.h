@@ -5,6 +5,42 @@
 
 typedef struct {
   /** uint16_t */
+  /** PID polling parameters */
+  uint16_t battery_5V_ref = 0;
+  int16_t battery_module_temp_1 = 0;
+  int16_t battery_module_temp_2 = 0;
+  int16_t battery_module_temp_3 = 0;
+  int16_t battery_module_temp_4 = 0;
+  int16_t battery_module_temp_5 = 0;
+  int16_t battery_module_temp_6 = 0;
+  uint16_t battery_cell_average_voltage = 0;
+  uint16_t battery_cell_average_voltage_2 = 0;
+  uint16_t battery_terminal_voltage = 0;
+  uint16_t battery_ignition_power_mode = 0;
+  int16_t battery_current_7E7 = 0;
+  uint16_t battery_capacity_my17_18 = 0;
+  uint16_t battery_capacity_my19plus = 0;
+  uint16_t battery_SOC_display = 0;
+  uint16_t battery_SOC_raw_highprec = 0;
+  uint16_t battery_max_temperature = 0;
+  uint16_t battery_min_temperature = 0;
+  uint16_t battery_max_cell_voltage = 0;
+  uint16_t battery_min_cell_voltage = 0;
+  uint16_t battery_lowest_cell = 0;
+  uint16_t battery_highest_cell = 0;
+  uint16_t battery_internal_resistance = 0;
+  uint16_t battery_voltage_polled = 0;
+  uint16_t battery_vehicle_isolation = 0;
+  uint16_t battery_isolation_kohm = 0;
+  uint16_t battery_HV_locked = 0;
+  uint16_t battery_crash_event = 0;
+  uint16_t battery_HVIL = 0;
+  uint16_t battery_HVIL_status = 0;
+  int16_t battery_current_7E4 = 0;
+} DATALAYER_INFO_BOLTAMPERA;
+
+typedef struct {
+  /** uint16_t */
   /** Terminal 30 - 12V SME Supply Voltage */
   uint16_t T30_Voltage = 0;
   /** Status HVIL, 1 HVIL OK, 0 HVIL disconnected*/
@@ -403,6 +439,7 @@ typedef struct {
 
 class DataLayerExtended {
  public:
+  DATALAYER_INFO_BOLTAMPERA boltampera;
   DATALAYER_INFO_BMWIX bmwix;
   DATALAYER_INFO_BMWI3 bmwi3;
   DATALAYER_INFO_BYDATTO3 bydAtto3;
