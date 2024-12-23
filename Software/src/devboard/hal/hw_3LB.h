@@ -26,14 +26,14 @@
 
 // CAN2 defines below
 
-// DUAL_CAN defines
+// CAN_ADDON defines
 #define MCP2515_SCK 12   // SCK input of MCP2515
 #define MCP2515_MOSI 5   // SDI input of MCP2515
 #define MCP2515_MISO 34  // SDO output of MCP2515 | Pin 34 is input only, without pullup/down resistors
 #define MCP2515_CS 18    // CS input of MCP2515
 #define MCP2515_INT 35   // INT output of MCP2515 |  | Pin 35 is input only, without pullup/down resistors
 
-// CAN_FD defines
+// CANFD_ADDON defines
 #define MCP2517_SCK 17  // SCK input of MCP2517
 #define MCP2517_SDI 23  // SDI input of MCP2517
 #define MCP2517_SDO 39  // SDO output of MCP2517
@@ -80,17 +80,17 @@
 #endif
 
 #ifdef CHADEMO_BATTERY
-#ifdef DUAL_CAN
-#error CHADEMO and DUAL_CAN cannot coexist due to overlapping GPIO pin usage
+#ifdef CAN_ADDON
+#error CHADEMO and CAN_ADDON cannot coexist due to overlapping GPIO pin usage
 #endif
 #endif
 
 #ifdef EQUIPMENT_STOP_BUTTON
-#ifdef DUAL_CAN
-#error EQUIPMENT_STOP_BUTTON and DUAL_CAN cannot coexist due to overlapping GPIO pin usage
+#ifdef CAN_ADDON
+#error EQUIPMENT_STOP_BUTTON and CAN_ADDON cannot coexist due to overlapping GPIO pin usage
 #endif
-#ifdef CAN_FD
-#error EQUIPMENT_STOP_BUTTON and CAN_FD cannot coexist due to overlapping GPIO pin usage
+#ifdef CANFD_ADDON
+#error EQUIPMENT_STOP_BUTTON and CANFD_ADDON cannot coexist due to overlapping GPIO pin usage
 #endif
 #ifdef CHADEMO_BATTERY
 #error EQUIPMENT_STOP_BUTTON and CHADEMO_BATTERY cannot coexist due to overlapping GPIO pin usage

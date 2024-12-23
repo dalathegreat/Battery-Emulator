@@ -785,7 +785,7 @@ void receive_can_battery2(CAN_frame rx_frame) {
         datalayer.battery2.status.cell_voltages_mV[3] = ((rx_frame.data.u8[4] * 10) + 1800);
         datalayer.battery2.status.cell_voltages_mV[4] = ((rx_frame.data.u8[5] * 10) + 1800);
         datalayer.battery2.status.cell_voltages_mV[5] = ((rx_frame.data.u8[6] * 10) + 1800);
-        datalayer.battery2.status.cell_voltages_mV[5] = ((rx_frame.data.u8[7] * 10) + 1800);
+        datalayer.battery2.status.cell_voltages_mV[6] = ((rx_frame.data.u8[7] * 10) + 1800);
       }
       break;
     case 0x430:  //BMS [1s] - Charging status of high-voltage battery - 2

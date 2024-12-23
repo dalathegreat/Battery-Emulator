@@ -252,6 +252,11 @@ typedef struct {
 
 typedef struct {
   /** uint8_t */
+  /** Battery info, stores raw HEX values for ASCII chars */
+  uint8_t BatterySerialNumber[15] = {0};
+  uint8_t BatteryPartNumber[7] = {0};
+  uint8_t BMSIDcode[8] = {0};
+  /** uint8_t */
   /** Enum, ZE0 = 0, AZE0 = 1, ZE1 = 2 */
   uint8_t LEAF_gen = 0;
   /** uint16_t */
@@ -315,6 +320,78 @@ typedef struct {
 } DATALAYER_INFO_NISSAN_LEAF;
 
 typedef struct {
+  /** uint8_t */
+  /** Service disconnect switch status */
+  bool SDSW = 0;
+  /** uint8_t */
+  /** Pilotline status */
+  bool pilotline = 0;
+  /** uint8_t */
+  /** Transportation mode status */
+  bool transportmode = 0;
+  /** uint8_t */
+  /** Componentprotection mode status */
+  bool componentprotection = 0;
+  /** uint8_t */
+  /** Shutdown status */
+  bool shutdown_active = 0;
+  /** uint8_t */
+  /** Battery heating status */
+  bool battery_heating = 0;
+  /** uint8_t */
+  /** All realtime_ warnings have same enumeration, 0 = no fault, 1 = error level 1, 2 error level 2, 3 error level 3 */
+  uint8_t rt_overcurrent = 0;
+  uint8_t rt_CAN_fault = 0;
+  uint8_t rt_overcharge = 0;
+  uint8_t rt_SOC_high = 0;
+  uint8_t rt_SOC_low = 0;
+  uint8_t rt_SOC_jumping = 0;
+  uint8_t rt_temp_difference = 0;
+  uint8_t rt_cell_overtemp = 0;
+  uint8_t rt_cell_undertemp = 0;
+  uint8_t rt_battery_overvolt = 0;
+  uint8_t rt_battery_undervol = 0;
+  uint8_t rt_cell_overvolt = 0;
+  uint8_t rt_cell_undervol = 0;
+  uint8_t rt_cell_imbalance = 0;
+  uint8_t rt_battery_unathorized = 0;
+  /** uint8_t */
+  /** HVIL status, 0 = Init, 1 = Closed, 2 = Open!, 3 = Fault */
+  uint8_t HVIL = 0;
+  /** uint8_t */
+  /** 0 = HV inactive, 1 = HV active, 2 = Balancing, 3 = Extern charging, 4 = AC charging, 5 = Battery error, 6 = DC charging, 7 = init */
+  uint8_t BMS_mode = 0;
+  /** uint8_t */
+  /** 1 = Battery display, 4 = Battery display OK, 4 = Display battery charging, 6 = Display battery check, 7 = Fault */
+  uint8_t battery_diagnostic = 0;
+  /** uint8_t */
+  /** 0 = init, 1 = no open HV line detected, 2 = open HV line , 3 = fault */
+  uint8_t status_HV_line = 0;
+  /** uint8_t */
+  /** 0 = OK, 1 = Not OK, 0x06 = init, 0x07 = fault */
+  uint8_t warning_support = 0;
+  /** uint32_t */
+  /** Isolation resistance in kOhm */
+  uint32_t isolation_resistance = 0;
+  /** uint8_t */
+  /** 0=Init, 1=BMS intermediate circuit voltage-free (U_Zwkr < 20V), 2=BMS intermediate circuit not voltage-free (U_Zwkr >/= 25V, hysteresis), 3=Error */
+  uint8_t BMS_status_voltage_free = 0;
+  /** uint8_t */
+  /** 0 Component_IO, 1 Restricted_CompFkt_Isoerror_I, 2 Restricted_CompFkt_Isoerror_II, 3 Restricted_CompFkt_Interlock, 4 Restricted_CompFkt_SD, 5 Restricted_CompFkt_Performance red, 6 = No component function, 7 = Init */
+  uint8_t BMS_error_status = 0;
+  /** uint8_t */
+  /** 0 init, 1 closed, 2 open, 3 fault */
+  uint8_t BMS_Kl30c_Status = 0;
+  /** bool */
+  /** true if BMS requests error/warning light */
+  bool BMS_OBD_MIL = 0;
+  bool BMS_error_lamp_req = 0;
+  bool BMS_warning_lamp_req = 0;
+  int32_t BMS_voltage_intermediate_dV = 0;
+  int32_t BMS_voltage_dV = 0;
+} DATALAYER_INFO_MEB;
+
+typedef struct {
   /** uint16_t */
   /** Values WIP*/
   uint16_t battery_soc = 0;
@@ -369,6 +446,7 @@ class DataLayerExtended {
   DATALAYER_INFO_CELLPOWER cellpower;
   DATALAYER_INFO_TESLA tesla;
   DATALAYER_INFO_NISSAN_LEAF nissanleaf;
+  DATALAYER_INFO_MEB meb;
   DATALAYER_INFO_ZOE_PH2 zoePH2;
 };
 

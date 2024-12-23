@@ -8,6 +8,8 @@ static unsigned long previousMillis2s = 0;   // will store last time a 2s CAN Me
 static unsigned long previousMillis10s = 0;  // will store last time a 10s CAN Message was send
 static unsigned long previousMillis60s = 0;  // will store last time a 60s CAN Message was send
 
+#define VOLTAGE_OFFSET_DV 20
+
 CAN_frame BYD_250 = {.FD = false,
                      .ext_ID = false,
                      .DLC = 8,
@@ -98,12 +100,22 @@ void update_values_can_inverter() {  //This function maps all the values fetched
   }
 
   //Map values to CAN messages
-  //Maxvoltage (eg 400.0V = 4000 , 16bits long)
-  BYD_110.data.u8[0] = (datalayer.battery.info.max_design_voltage_dV >> 8);
-  BYD_110.data.u8[1] = (datalayer.battery.info.max_design_voltage_dV & 0x00FF);
-  //Minvoltage (eg 300.0V = 3000 , 16bits long)
-  BYD_110.data.u8[2] = (datalayer.battery.info.min_design_voltage_dV >> 8);
-  BYD_110.data.u8[3] = (datalayer.battery.info.min_design_voltage_dV & 0x00FF);
+  if (datalayer.battery.settings.user_set_voltage_limits_active) {  //If user is requesting a specific voltage
+    //Target charge voltage (eg 400.0V = 4000 , 16bits long)
+    BYD_110.data.u8[0] = (datalayer.battery.settings.max_user_set_charge_voltage_dV >> 8);
+    BYD_110.data.u8[1] = (datalayer.battery.settings.max_user_set_charge_voltage_dV & 0x00FF);
+    //Target discharge voltage (eg 300.0V = 3000 , 16bits long)
+    BYD_110.data.u8[2] = (datalayer.battery.settings.max_user_set_discharge_voltage_dV >> 8);
+    BYD_110.data.u8[3] = (datalayer.battery.settings.max_user_set_discharge_voltage_dV & 0x00FF);
+  } else {  //Use the voltage based on battery reported design voltage +- offset to avoid triggering events
+    //Target charge voltage (eg 400.0V = 4000 , 16bits long)
+    BYD_110.data.u8[0] = ((datalayer.battery.info.max_design_voltage_dV - VOLTAGE_OFFSET_DV) >> 8);
+    BYD_110.data.u8[1] = ((datalayer.battery.info.max_design_voltage_dV - VOLTAGE_OFFSET_DV) & 0x00FF);
+    //Target discharge voltage (eg 300.0V = 3000 , 16bits long)
+    BYD_110.data.u8[2] = ((datalayer.battery.info.min_design_voltage_dV + VOLTAGE_OFFSET_DV) >> 8);
+    BYD_110.data.u8[3] = ((datalayer.battery.info.min_design_voltage_dV + VOLTAGE_OFFSET_DV) & 0x00FF);
+  }
+
   //Maximum discharge power allowed (Unit: A+1)
   BYD_110.data.u8[4] = (datalayer.battery.status.max_discharge_current_dA >> 8);
   BYD_110.data.u8[5] = (datalayer.battery.status.max_discharge_current_dA & 0x00FF);
@@ -141,13 +153,13 @@ void update_values_can_inverter() {  //This function maps all the values fetched
   BYD_210.data.u8[2] = (datalayer.battery.status.temperature_min_dC >> 8);
   BYD_210.data.u8[3] = (datalayer.battery.status.temperature_min_dC & 0x00FF);
 
-#ifdef DEBUG_VIA_USB
+#ifdef DEBUG_LOG
   if (inverter_name[0] != 0) {
-    Serial.print("Detected inverter: ");
+    logging.print("Detected inverter: ");
     for (uint8_t i = 0; i < 7; i++) {
-      Serial.print((char)inverter_name[i]);
+      logging.print((char)inverter_name[i]);
     }
-    Serial.println();
+    logging.println();
   }
 #endif
 }

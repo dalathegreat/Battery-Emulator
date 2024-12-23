@@ -39,11 +39,11 @@ String events_processor(const String& var) {
     for (const auto& event : order_events) {
       EVENTS_ENUM_TYPE event_handle = event.event_handle;
       event_pointer = event.event_pointer;
-#ifdef DEBUG_VIA_USB
-      Serial.println("Event: " + String(get_event_enum_string(event_handle)) +
-                     " count: " + String(event_pointer->occurences) + " seconds: " + String(event_pointer->timestamp) +
-                     " data: " + String(event_pointer->data) +
-                     " level: " + String(get_event_level_string(event_handle)));
+#ifdef DEBUG_LOG
+      logging.println("Showing Event: " + String(get_event_enum_string(event_handle)) +
+                      " count: " + String(event_pointer->occurences) + " seconds: " + String(event_pointer->timestamp) +
+                      " data: " + String(event_pointer->data) +
+                      " level: " + String(get_event_level_string(event_handle)));
 #endif
       content.concat("<div class='event'>");
       content.concat("<div>" + String(get_event_enum_string(event_handle)) + "</div>");
@@ -60,8 +60,8 @@ String events_processor(const String& var) {
     order_events.clear();
     content.concat(FPSTR(EVENTS_HTML_END));
     return content;
-    return String();
   }
+  return String();
 }
 
 /* Script for displaying event log before it gets minified

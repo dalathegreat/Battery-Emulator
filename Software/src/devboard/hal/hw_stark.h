@@ -38,7 +38,7 @@ GPIOs on extra header
 #define CAN_RX_PIN GPIO_NUM_26
 // #define CAN_SE_PIN 23 // (No function, GPIO 23 used instead as MCP_SCK)
 
-// CAN_FD defines
+// CANFD_ADDON defines
 #define MCP2517_SCK 17  // SCK input  of MCP2517
 #define MCP2517_SDI 5   // SDI input  of MCP2517
 #define MCP2517_SDO 34  // SDO output of MCP2517
