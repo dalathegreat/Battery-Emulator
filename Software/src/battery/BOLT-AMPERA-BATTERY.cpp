@@ -5,6 +5,20 @@
 #include "../devboard/utils/events.h"
 #include "BOLT-AMPERA-BATTERY.h"
 
+/*
+TODOs left for this implementation
+- The battery has 3 CAN ports. One of them is responsible for the 7E4 polls, the other for the 7E7 polls
+- Current implementation only seems to get the 7E7 polls working.
+- Could on of the CAN channels be GMLAN?
+
+- The values missing for a working implementation is:
+- SOC% missing! This is absolutely mandatory to fix before starting to use this!
+- Capacity (kWh) (can be estimated)
+- Charge max power (can be estimated)
+- Discharge max power (can be estimated)
+- SOH% (low prio))
+*/
+
 /* Do not change code below unless you are sure what you are doing */
 static unsigned long previousMillis20ms = 0;   // will store last time a 20ms CAN Message was send
 static unsigned long previousMillis100ms = 0;  // will store last time a 100ms CAN Message was send
