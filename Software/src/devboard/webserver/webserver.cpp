@@ -1,6 +1,7 @@
 #include "webserver.h"
 #include <Preferences.h>
 #include <ctime>
+#include "../../../USER_SECRETS.h"
 #include "../../datalayer/datalayer.h"
 #include "../../datalayer/datalayer_extended.h"
 #include "../../lib/bblanchon-ArduinoJson/ArduinoJson.h"

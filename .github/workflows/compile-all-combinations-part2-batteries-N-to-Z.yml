@@ -93,6 +93,10 @@ jobs:
       # First we clone the repo using the `checkout` action.
       - name: Checkout
         uses: actions/checkout@v4
+      
+      # Copy USER_SECRETS.TEMPLATE.h to USER_SECRETS.h
+      - name: Copy USER_SECRETS.TEMPLATE.h to USER_SECRETS.h
+        run: cp ./Software/USER_SECRETS.TEMPLATE.h ./Software/USER_SECRETS.h
 
       # We use the `arduino/setup-arduino-cli` action to install and
       # configure the Arduino CLI on the system.
