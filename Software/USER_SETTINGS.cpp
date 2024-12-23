@@ -20,28 +20,21 @@ volatile CAN_Configuration can_config = {
     .charger = CAN_NATIVE                 // (OPTIONAL) Which CAN is your charger connected to?
 };
 
-#ifdef WIFI
+std::string ssid = WIFI_SSID;             // Set in USER_SECRETS.h
+std::string password = WIFI_PASSWORD;     // Set in USER_SECRETS.h
+const char* ssidAP = "Battery Emulator";  // Maximum of 63 characters, also used for device name on web interface
+const char* passwordAP = AP_PASSWORD;     // Set in USER_SECRETS.h
+const uint8_t wifi_channel = 0;           // Set to 0 for automatic channel selection
 
-volatile uint8_t AccessPointEnabled = true;  //Set to either true/false to enable direct wifi access point
-std::string ssid = WIFI_SSID;                // Set in USER_SECRETS.h
-std::string password = WIFI_PASSWORD;        // Set in USER_SECRETS.h
-const char* ssidAP = "Battery Emulator";     // Maximum of 63 characters, also used for device name on web interface
-const char* passwordAP = AP_PASSWORD;        // Set in USER_SECRETS.h
-const uint8_t wifi_channel = 0;              // Set to 0 for automatic channel selection
-
-#ifdef WIFICONFIG
-// Set your Static IP address
-IPAddress local_IP(192, 168, 10, 150);
-// Set your Gateway IP address
-IPAddress gateway(192, 168, 10, 1);
-// Set your Subnet IP address
-IPAddress subnet(255, 255, 255, 0);
-#endif
 #ifdef WEBSERVER
 const char* http_username = HTTP_USERNAME;  // Set in USER_SECRETS.h
 const char* http_password = HTTP_PASSWORD;  // Set in USER_SECRETS.h
-
+// Set your Static IP address. Only used incase WIFICONFIG is set in USER_SETTINGS.h
+IPAddress local_IP(192, 168, 10, 150);
+IPAddress gateway(192, 168, 10, 1);
+IPAddress subnet(255, 255, 255, 0);
 #endif  // WEBSERVER
+
 // MQTT
 #ifdef MQTT
 const char* mqtt_user = MQTT_USER;          // Set in USER_SECRETS.h
@@ -55,7 +48,6 @@ const char* mqtt_device_name =
     "Battery Emulator";  // Custom device name in Home Assistant. Previously, the name was automatically set to "BatteryEmulator_esp32-XXXXXX"
 #endif  // MQTT_MANUAL_TOPIC_OBJECT_NAME
 #endif  // USE_MQTT
-#endif  // WIFI
 
 #ifdef EQUIPMENT_STOP_BUTTON
 // Equipment stop button behavior. Use NC button for safety reasons.

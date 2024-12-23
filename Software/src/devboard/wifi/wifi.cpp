@@ -29,12 +29,8 @@ static bool connected_once = false;
 void init_WiFi() {
 
 #ifdef WIFIAP
-  if (AccessPointEnabled) {
-    WiFi.mode(WIFI_AP_STA);  // Simultaneous WiFi AP and Router connection
-    init_WiFi_AP();
-  } else {
-    WiFi.mode(WIFI_STA);  // Only Router connection
-  }
+  WiFi.mode(WIFI_AP_STA);  // Simultaneous WiFi AP and Router connection
+  init_WiFi_AP();
 #else
   WiFi.mode(WIFI_STA);  // Only Router connection
 #endif  // WIFIAP
