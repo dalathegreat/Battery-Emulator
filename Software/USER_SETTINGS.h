@@ -3,7 +3,7 @@
 #include <WiFi.h>
 #include <stdint.h>
 
-/* This file contains all the battery/inverter protocol settings Battery-Emulator software */
+/* This file contains all sthe battery/inverter protocol settings Battery-Emulator software */
 /* To switch between batteries/inverters, uncomment a line to enable, comment out to disable. */
 /* There are also some options for battery limits and extra functionality */
 /* To edit battery specific limits, see also the USER_SETTINGS.cpp file*/
@@ -77,20 +77,17 @@
 //#define CAN_ADDON              //Enable this line to activate an isolated secondary CAN Bus using add-on MCP2515 chip (Needed for some inverters / double battery)
 #define CRYSTAL_FREQUENCY_MHZ 8  //CAN_ADDON option, what is your MCP2515 add-on boards crystal frequency?
 //#define CANFD_ADDON           //Enable this line to activate an isolated secondary CAN-FD bus using add-on MCP2518FD chip / Native CANFD on Stark board
-#ifdef CANFD_ADDON  // CANFD_ADDON additional options if enabled
 #define CANFD_ADDON_CRYSTAL_FREQUENCY_MHZ \
-  ACAN2517FDSettings::                    \
-      OSC_40MHz  //CANFD_ADDON option, what is your MCP2518 add-on boards crystal frequency? (Default OSC_40MHz)
-#endif           // CANFD_ADDON
+  ACAN2517FDSettings::OSC_40MHz  //CANFD_ADDON option, what is your MCP2518 add-on boards crystal frequency?
 //#define USE_CANFD_INTERFACE_AS_CLASSIC_CAN // Enable this line if you intend to use the CANFD as normal CAN
 //#define SERIAL_LINK_RECEIVER  //Enable this line to receive battery data over RS485 pins from another Lilygo (This LilyGo interfaces with inverter)
 //#define SERIAL_LINK_TRANSMITTER  //Enable this line to send battery data over RS485 pins to another Lilygo (This LilyGo interfaces with battery)
 #define WIFI
 //#define WIFICONFIG  //Enable this line to set a static IP address / gateway /subnet mask for the device. see USER_SETTINGS.cpp for the settings
 #define WEBSERVER  //Enable this line to enable WiFi, and to run the webserver. See USER_SETTINGS.cpp for the Wifi settings.
-#define WIFIAP  //Disable this line to permanently disable WIFI AP mode (make sure to hardcode ssid and password of you home wifi network). When enabled WIFI AP can still be disabled by a setting in the future.
+#define WIFIAP  //When enabled, the emulator will broadcast its own access point Wifi. Can be used at the same time as a normal Wifi connection to a router.
 #define MDNSRESPONDER  //Enable this line to enable MDNS, allows battery monitor te be found by .local address. Requires WEBSERVER to be enabled.
-#define LOAD_SAVED_SETTINGS_ON_BOOT  //Enable this line to read settings stored via the webserver on boot (overrides Wifi/battery settings set below)
+#define LOAD_SAVED_SETTINGS_ON_BOOT  // Enable this line to read settings stored via the webserver on boot (overrides Wifi credentials set here)
 //#define FUNCTION_TIME_MEASUREMENT  // Enable this to record execution times and present them in the web UI (WARNING, raises CPU load, do not use for production)
 //#define EQUIPMENT_STOP_BUTTON      // Enable this to allow an equipment stop button connected to the Battery-Emulator to disengage the battery
 
@@ -107,12 +104,9 @@
 /* Home Assistant options */
 #define HA_AUTODISCOVERY  // Enable this line to send Home Assistant autodiscovery messages. If not enabled manual configuration of Home Assitant is required
 
-/* Event options*/
-#define DUMMY_EVENT_ENABLED false  //Enable this line to have a dummy event that gets logged to test the interface
-
 /* Select charger used (Optional) */
 //#define CHEVYVOLT_CHARGER  //Enable this line to control a Chevrolet Volt charger connected to battery - for example, when generator charging or using an inverter without a charging function.
-//#define NISSANLEAF_CHARGER  //Enable this line to control a Nissan LEAF PDM connected to battery - for example, when generator charging
+#define NISSANLEAF_CHARGER  //Enable this line to control a Nissan LEAF PDM connected to battery - for example, when generator charging
 
 /* Battery settings */
 // Predefined total energy capacity of the battery in Watt-hours
@@ -138,8 +132,8 @@
 // 3000 = 300.0V, Target discharge voltage (Value can be tuned on the fly via webserver). Not used unless BATTERY_USE_VOLTAGE_LIMITS = true
 #define BATTERY_MAX_DISCHARGE_VOLTAGE 3000
 
-/* Do not change any code below this line unless you are sure what you are doing */
-/* Only change battery specific settings in "USER_SETTINGS.h" */
+/* Do not change any code below this line */
+/* Only change battery specific settings above and in "USER_SETTINGS.cpp" */
 typedef enum { CAN_NATIVE = 0, CANFD_NATIVE = 1, CAN_ADDON_MCP2515 = 2, CANFD_ADDON_MCP2518 = 3 } CAN_Interface;
 typedef struct {
   CAN_Interface battery;
@@ -169,9 +163,7 @@ extern volatile STOP_BUTTON_BEHAVIOR equipment_stop_behavior;
 
 #ifdef WIFICONFIG
 extern IPAddress local_IP;
-// Set your Gateway IP address
 extern IPAddress gateway;
-// Set your Subnet IP address
 extern IPAddress subnet;
 #endif
 
