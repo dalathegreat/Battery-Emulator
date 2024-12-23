@@ -3,7 +3,7 @@
 #include <WiFi.h>
 #include <stdint.h>
 
-/* This file contains all sthe battery/inverter protocol settings Battery-Emulator software */
+/* This file contains all the battery/inverter protocol settings Battery-Emulator software */
 /* To switch between batteries/inverters, uncomment a line to enable, comment out to disable. */
 /* There are also some options for battery limits and extra functionality */
 /* To edit battery specific limits, see also the USER_SETTINGS.cpp file*/
@@ -106,7 +106,7 @@
 
 /* Select charger used (Optional) */
 //#define CHEVYVOLT_CHARGER  //Enable this line to control a Chevrolet Volt charger connected to battery - for example, when generator charging or using an inverter without a charging function.
-#define NISSANLEAF_CHARGER  //Enable this line to control a Nissan LEAF PDM connected to battery - for example, when generator charging
+//#define NISSANLEAF_CHARGER  //Enable this line to control a Nissan LEAF PDM connected to battery - for example, when generator charging
 
 /* Battery settings */
 // Predefined total energy capacity of the battery in Watt-hours

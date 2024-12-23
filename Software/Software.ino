@@ -1,5 +1,6 @@
 /* Do not change any code below this line unless you are sure what you are doing */
 /* Only change battery specific settings in "USER_SETTINGS.h" */
+#include "src/include.h"
 #include "HardwareSerial.h"
 #include "USER_SECRETS.h"
 #include "USER_SETTINGS.h"
@@ -19,7 +20,6 @@
 #include "src/devboard/utils/led_handler.h"
 #include "src/devboard/utils/logging.h"
 #include "src/devboard/utils/value_mapping.h"
-#include "src/include.h"
 #include "src/lib/YiannisBourkelis-Uptime-Library/src/uptime.h"
 #include "src/lib/YiannisBourkelis-Uptime-Library/src/uptime_formatter.h"
 #include "src/lib/bblanchon-ArduinoJson/ArduinoJson.h"
