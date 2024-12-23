@@ -720,7 +720,8 @@ String advanced_battery_processor(const String& var) {
 
 #if !defined(BMW_IX_BATTERY) && !defined(BOLT_AMPERA_BATTERY) && !defined(TESLA_BATTERY) &&      \
     !defined(NISSAN_LEAF_BATTERY) && !defined(BMW_I3_BATTERY) && !defined(BYD_ATTO_3_BATTERY) && \
-    !defined(RENAULT_ZOE_GEN2_BATTERY) && !defined(CELLPOWER_BMS) && !defined(MEB_BATTERY)  // Only the listed types have extra info
+    !defined(RENAULT_ZOE_GEN2_BATTERY) && !defined(CELLPOWER_BMS) &&                             \
+    !defined(MEB_BATTERY)  // Only the listed types have extra info
     content += "No extra information available for this battery type";
 #endif
 
