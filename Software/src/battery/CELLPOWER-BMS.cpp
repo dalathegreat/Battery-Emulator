@@ -213,7 +213,7 @@ void update_values_battery() {
     //TODO, shall we react on this?
   }
 }
-void receive_can_battery(CAN_frame rx_frame) {
+void map_can_frame_to_variable_battery(CAN_frame rx_frame) {
 
   switch (rx_frame.ID) {
     case 0x1A4:  //PDO1_TX - 200ms
@@ -316,7 +316,7 @@ void receive_can_battery(CAN_frame rx_frame) {
   }
 }
 
-void send_can_battery() {
+void transmit_can_battery() {
   unsigned long currentMillis = millis();
   // Send 1s CAN Message
   if (currentMillis - previousMillis1s >= INTERVAL_1_S) {
@@ -324,10 +324,10 @@ void send_can_battery() {
     previousMillis1s = currentMillis;
 
     /*
-    transmit_can(&CELLPOWER_18FF50E9, can_config.battery);
-    transmit_can(&CELLPOWER_18FF50E8, can_config.battery);
-    transmit_can(&CELLPOWER_18FF50E7, can_config.battery);
-    transmit_can(&CELLPOWER_18FF50E5, can_config.battery);
+    transmit_can_frame(&CELLPOWER_18FF50E9, can_config.battery);
+    transmit_can_frame(&CELLPOWER_18FF50E8, can_config.battery);
+    transmit_can_frame(&CELLPOWER_18FF50E7, can_config.battery);
+    transmit_can_frame(&CELLPOWER_18FF50E5, can_config.battery);
     */
   }
 }

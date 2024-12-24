@@ -214,13 +214,7 @@ void core_loop(void* task_time_us) {
 #endif
 
     // Input, Runs as fast as possible
-    receive_can_native();  // Receive CAN messages from native CAN port
-#ifdef CANFD_ADDON
-    receive_canfd_addon();  // Receive CAN-FD messages.
-#endif                      // CANFD_ADDON
-#ifdef CAN_ADDON
-    receive_can_addon();  // Receive CAN messages on add-on MCP2515 chip
-#endif                    // CAN_ADDON
+    receive_can();  // Receive CAN messages
 #ifdef RS485_INVERTER_SELECTED
     receive_RS485();  // Process serial2 RS485 interface
 #endif                // RS485_INVERTER_SELECTED
@@ -261,7 +255,7 @@ void core_loop(void* task_time_us) {
 
     START_TIME_MEASUREMENT(cantx);
     // Output
-    send_can();  // Send CAN messages to all components
+    transmit_can();  // Send CAN messages to all components
 
     END_TIME_MEASUREMENT_MAX(cantx, datalayer.system.status.time_cantx_us);
     END_TIME_MEASUREMENT_MAX(all, datalayer.system.status.core_task_10s_max_us);
@@ -289,7 +283,7 @@ void core_loop(void* task_time_us) {
     }
 #endif  // FUNCTION_TIME_MEASUREMENT
     if (check_pause_2s.elapsed()) {
-      emulator_pause_state_send_CAN_battery();
+      emulator_pause_state_transmit_can_battery();
     }
 
     vTaskDelayUntil(&xLastWakeTime, xFrequency);

@@ -367,7 +367,7 @@ inline void process_vehicle_vendor_ID(CAN_frame rx_frame) {
       ((rx_frame.data.u8[2] << 8) | rx_frame.data.u8[1]);  //Actually more bytes, but not needed for our purpose
 }
 
-void receive_can_battery(CAN_frame rx_frame) {
+void map_can_frame_to_variable_battery(CAN_frame rx_frame) {
 #ifdef CH_CAN_DEBUG
   logging.print(millis());  // Example printout, time, ID, length, data: 7553  1DB  8  FF C0 B9 EA 0 0 2 5D
   logging.print("  ");
@@ -657,7 +657,7 @@ void update_evse_discharge_capabilities(CAN_frame& f) {
   CHADEMO_208.data.u8[7] = highByte(x208_evse_dischg_cap.lower_threshold_voltage);
 }
 
-void send_can_battery() {
+void transmit_can_battery() {
 
   unsigned long currentMillis = millis();
 
@@ -693,8 +693,8 @@ void send_can_battery() {
      * that is the limiting factor. Therefore, we
      * can generally send as is without tweaks here.
      */
-    transmit_can(&CHADEMO_108, can_config.battery);
-    transmit_can(&CHADEMO_109, can_config.battery);
+    transmit_can_frame(&CHADEMO_108, can_config.battery);
+    transmit_can_frame(&CHADEMO_109, can_config.battery);
 
     /* TODO for dynamic control: can send x118 with byte 6 bit 0 set to 0 for 1s (before flipping back to 1) as a way of giving vehicle a chance to update 101.1 and 101.2
      * 	within 6 seconds of x118 toggle.
@@ -703,9 +703,9 @@ void send_can_battery() {
      */
 
     if (EVSE_mode == CHADEMO_DISCHARGE || EVSE_mode == CHADEMO_BIDIRECTIONAL) {
-      transmit_can(&CHADEMO_208, can_config.battery);
+      transmit_can_frame(&CHADEMO_208, can_config.battery);
       if (x201_received) {
-        transmit_can(&CHADEMO_209, can_config.battery);
+        transmit_can_frame(&CHADEMO_209, can_config.battery);
         x209_sent = true;
       }
     }
@@ -717,7 +717,7 @@ void send_can_battery() {
       //FIXME REMOVE
       logging.println("REMOVE: proto 2.0");
 #endif
-      transmit_can(&CHADEMO_118, can_config.battery);
+      transmit_can_frame(&CHADEMO_118, can_config.battery);
     }
   }
 }
@@ -819,7 +819,7 @@ void handle_chademo_sequence() {
     case CHADEMO_INIT:
       /* Transient state while awaiting CAN from Vehicle.
        * Used for triggers/error handling elsewhere;
-       * State change to CHADEMO_NEGOTIATE occurs in receive_can_battery(..)
+       * State change to CHADEMO_NEGOTIATE occurs in map_can_frame_to_variable_battery(..)
        */
 #ifdef DEBUG_LOG
 //      logging.println("Awaiting initial vehicle CAN to trigger negotiation");

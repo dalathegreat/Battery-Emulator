@@ -158,7 +158,7 @@ void update_values_battery() {
   datalayer.battery.status.cell_min_voltage_mV = minimum_cell_voltage;
 }
 
-void receive_can_battery(CAN_frame rx_frame) {
+void map_can_frame_to_variable_battery(CAN_frame rx_frame) {
 
   /*
   // All CAN messages recieved will be logged via serial
@@ -550,7 +550,7 @@ void receive_can_battery(CAN_frame rx_frame) {
   }
 }
 
-void send_can_battery() {
+void transmit_can_battery() {
   unsigned long currentMillis = millis();
   // Send 10s CAN Message
   if (currentMillis - previousMillis10s >= INTERVAL_10_S) {
@@ -563,8 +563,8 @@ void send_can_battery() {
     }
 
     if (!setup_completed) {
-      transmit_can(&RJXZS_10, can_config.battery);  // Communication connected flag
-      transmit_can(&RJXZS_1C, can_config.battery);  // CAN OK
+      transmit_can_frame(&RJXZS_10, can_config.battery);  // Communication connected flag
+      transmit_can_frame(&RJXZS_1C, can_config.battery);  // CAN OK
     }
   }
 }

@@ -116,7 +116,7 @@ void update_values_battery() {  //This function maps all the values fetched via 
   }
 }
 
-void receive_can_battery(CAN_frame rx_frame) {
+void map_can_frame_to_variable_battery(CAN_frame rx_frame) {
   switch (rx_frame.ID) {
     case 0x1FF:
       datalayer.battery.status.CAN_battery_still_alive = CAN_STILL_ALIVE;
@@ -171,7 +171,8 @@ void receive_can_battery(CAN_frame rx_frame) {
       switch (rx_frame.data.u8[0]) {
         case 0x10:  //"PID Header"
           if (rx_frame.data.u8[4] == poll_data_pid) {
-            transmit_can(&SANTAFE_7E4_ack, can_config.battery);  //Send ack to BMS if the same frame is sent as polled
+            transmit_can_frame(&SANTAFE_7E4_ack,
+                               can_config.battery);  //Send ack to BMS if the same frame is sent as polled
           }
           break;
         case 0x21:  //First frame in PID group
@@ -332,7 +333,7 @@ void receive_can_battery(CAN_frame rx_frame) {
       break;
   }
 }
-void send_can_battery() {
+void transmit_can_battery() {
   unsigned long currentMillis = millis();
 
   //Send 10ms message
@@ -351,13 +352,13 @@ void send_can_battery() {
 
     SANTAFE_200.data.u8[7] = checksum_200;
 
-    transmit_can(&SANTAFE_200, can_config.battery);
-    transmit_can(&SANTAFE_2A1, can_config.battery);
-    transmit_can(&SANTAFE_2F0, can_config.battery);
+    transmit_can_frame(&SANTAFE_200, can_config.battery);
+    transmit_can_frame(&SANTAFE_2A1, can_config.battery);
+    transmit_can_frame(&SANTAFE_2F0, can_config.battery);
 #ifdef DOUBLE_BATTERY
-    transmit_can(&SANTAFE_200, can_config.battery_double);
-    transmit_can(&SANTAFE_2A1, can_config.battery_double);
-    transmit_can(&SANTAFE_2F0, can_config.battery_double);
+    transmit_can_frame(&SANTAFE_200, can_config.battery_double);
+    transmit_can_frame(&SANTAFE_2A1, can_config.battery_double);
+    transmit_can_frame(&SANTAFE_2F0, can_config.battery_double);
 #endif  //DOUBLE_BATTERY
 
     counter_200++;
@@ -370,9 +371,9 @@ void send_can_battery() {
   if (currentMillis - previousMillis100 >= INTERVAL_100_MS) {
     previousMillis100 = currentMillis;
 
-    transmit_can(&SANTAFE_523, can_config.battery);
+    transmit_can_frame(&SANTAFE_523, can_config.battery);
 #ifdef DOUBLE_BATTERY
-    transmit_can(&SANTAFE_523, can_config.battery_double);
+    transmit_can_frame(&SANTAFE_523, can_config.battery_double);
 #endif  //DOUBLE_BATTERY
   }
 
@@ -383,9 +384,9 @@ void send_can_battery() {
     // PID data is polled after last message sent from battery:
     poll_data_pid = (poll_data_pid % 5) + 1;
     SANTAFE_7E4_poll.data.u8[3] = (uint8_t)poll_data_pid;
-    transmit_can(&SANTAFE_7E4_poll, can_config.battery);
+    transmit_can_frame(&SANTAFE_7E4_poll, can_config.battery);
 #ifdef DOUBLE_BATTERY
-    transmit_can(&SANTAFE_7E4_poll, can_config.battery_double);
+    transmit_can_frame(&SANTAFE_7E4_poll, can_config.battery_double);
 #endif  //DOUBLE_BATTERY
   }
 }
@@ -425,7 +426,7 @@ void update_values_battery2() {  //This function maps all the values fetched via
   }
 }
 
-void receive_can_battery2(CAN_frame rx_frame) {
+void map_can_frame_to_variable_battery2(CAN_frame rx_frame) {
   switch (rx_frame.ID) {
     case 0x1FF:
       datalayer.battery2.status.CAN_battery_still_alive = CAN_STILL_ALIVE;
@@ -480,8 +481,8 @@ void receive_can_battery2(CAN_frame rx_frame) {
       switch (rx_frame.data.u8[0]) {
         case 0x10:  //"PID Header"
           if (rx_frame.data.u8[4] == poll_data_pid) {
-            transmit_can(&SANTAFE_7E4_ack,
-                         can_config.battery_double);  //Send ack to BMS if the same frame is sent as polled
+            transmit_can_frame(&SANTAFE_7E4_ack,
+                               can_config.battery_double);  //Send ack to BMS if the same frame is sent as polled
           }
           break;
         case 0x21:  //First frame in PID group

@@ -195,7 +195,7 @@ void update_values_can_inverter() {  //This function maps all the values fetched
 */
 }
 
-void receive_can_inverter(CAN_frame rx_frame) {
+void map_can_frame_to_variable_inverter(CAN_frame rx_frame) {
   switch (rx_frame.ID) {
     case 0x360:  //Message originating from SMA inverter - Voltage and current
       datalayer.system.status.CAN_inverter_still_alive = CAN_STILL_ALIVE;
@@ -209,12 +209,12 @@ void receive_can_inverter(CAN_frame rx_frame) {
       datalayer.system.status.CAN_inverter_still_alive = CAN_STILL_ALIVE;
       //Frame0-3 Timestamp
       /*
-      transmit_can(&SMA_158, can_config.inverter);
-      transmit_can(&SMA_358, can_config.inverter);
-      transmit_can(&SMA_3D8, can_config.inverter);
-      transmit_can(&SMA_458, can_config.inverter);
-      transmit_can(&SMA_518, can_config.inverter);
-      transmit_can(&SMA_4D8, can_config.inverter);
+      transmit_can_frame(&SMA_158, can_config.inverter);
+      transmit_can_frame(&SMA_358, can_config.inverter);
+      transmit_can_frame(&SMA_3D8, can_config.inverter);
+      transmit_can_frame(&SMA_458, can_config.inverter);
+      transmit_can_frame(&SMA_518, can_config.inverter);
+      transmit_can_frame(&SMA_4D8, can_config.inverter);
       */
       break;
     case 0x5E0:  //Message originating from SMA inverter - String
@@ -225,37 +225,37 @@ void receive_can_inverter(CAN_frame rx_frame) {
       break;
     case 0x5E7:  //Pairing request
       datalayer.system.status.CAN_inverter_still_alive = CAN_STILL_ALIVE;
-      transmit_can(&SMA_558, can_config.inverter);
-      transmit_can(&SMA_598, can_config.inverter);
-      transmit_can(&SMA_5D8, can_config.inverter);
-      transmit_can(&SMA_618_1, can_config.inverter);
-      transmit_can(&SMA_618_2, can_config.inverter);
-      transmit_can(&SMA_618_3, can_config.inverter);
-      transmit_can(&SMA_158, can_config.inverter);
-      transmit_can(&SMA_358, can_config.inverter);
-      transmit_can(&SMA_3D8, can_config.inverter);
-      transmit_can(&SMA_458, can_config.inverter);
-      transmit_can(&SMA_518, can_config.inverter);
-      transmit_can(&SMA_4D8, can_config.inverter);
+      transmit_can_frame(&SMA_558, can_config.inverter);
+      transmit_can_frame(&SMA_598, can_config.inverter);
+      transmit_can_frame(&SMA_5D8, can_config.inverter);
+      transmit_can_frame(&SMA_618_1, can_config.inverter);
+      transmit_can_frame(&SMA_618_2, can_config.inverter);
+      transmit_can_frame(&SMA_618_3, can_config.inverter);
+      transmit_can_frame(&SMA_158, can_config.inverter);
+      transmit_can_frame(&SMA_358, can_config.inverter);
+      transmit_can_frame(&SMA_3D8, can_config.inverter);
+      transmit_can_frame(&SMA_458, can_config.inverter);
+      transmit_can_frame(&SMA_518, can_config.inverter);
+      transmit_can_frame(&SMA_4D8, can_config.inverter);
       break;
     default:
       break;
   }
 }
 
-void send_can_inverter() {
+void transmit_can_inverter() {
   unsigned long currentMillis = millis();
 
   // Send CAN Message every 100ms if we're enabled
   if (datalayer.system.status.inverter_allows_contactor_closing) {
     if (currentMillis - previousMillis100ms >= 100) {
       previousMillis100ms = currentMillis;
-      transmit_can(&SMA_158, can_config.inverter);
-      transmit_can(&SMA_358, can_config.inverter);
-      transmit_can(&SMA_3D8, can_config.inverter);
-      transmit_can(&SMA_458, can_config.inverter);
-      transmit_can(&SMA_518, can_config.inverter);
-      transmit_can(&SMA_4D8, can_config.inverter);
+      transmit_can_frame(&SMA_158, can_config.inverter);
+      transmit_can_frame(&SMA_358, can_config.inverter);
+      transmit_can_frame(&SMA_3D8, can_config.inverter);
+      transmit_can_frame(&SMA_458, can_config.inverter);
+      transmit_can_frame(&SMA_518, can_config.inverter);
+      transmit_can_frame(&SMA_4D8, can_config.inverter);
     }
   }
 }

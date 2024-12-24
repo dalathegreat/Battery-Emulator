@@ -180,7 +180,7 @@ void update_values_battery() {
   datalayer.battery.info.min_design_voltage_dV = DischargeVoltageLimit * 10;
 }
 
-void receive_can_battery(CAN_frame rx_frame) {
+void map_can_frame_to_variable_battery(CAN_frame rx_frame) {
   datalayer.battery.status.CAN_battery_still_alive = CAN_STILL_ALIVE;
   switch (rx_frame.ID) {
     case 0x080:  // 15ms
@@ -301,14 +301,14 @@ void receive_can_battery(CAN_frame rx_frame) {
   }
 }
 
-void send_can_battery() {
+void transmit_can_battery() {
   unsigned long currentMillis = millis();
   // Send 50ms CAN Message
   if (currentMillis - previousMillis50ms >= INTERVAL_50_MS) {
 
     previousMillis50ms = currentMillis;
 
-    transmit_can(&RANGE_ROVER_18B, can_config.battery);
+    transmit_can_frame(&RANGE_ROVER_18B, can_config.battery);
   }
 }
 
