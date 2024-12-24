@@ -13,7 +13,7 @@
 uint16_t Temp_fromRAW_to_F(uint16_t temperature);
 bool is_message_corrupt(CAN_frame rx_frame);
 void setup_battery(void);
-void transmit_can(CAN_frame* tx_frame, int interface);
+void transmit_can_frame(CAN_frame* tx_frame, int interface);
 void clearSOH(void);
 //Cryptographic functions
 void decodeChallengeData(unsigned int SeedInput, unsigned char* Crypt_Output_Buffer);

@@ -65,7 +65,7 @@ void update_values_battery() {
       max_value(cell_temperatures_dC, sizeof(cell_temperatures_dC) / sizeof(*cell_temperatures_dC));
 }
 
-void receive_can_battery(CAN_frame rx_frame) {
+void map_can_frame_to_variable_battery(CAN_frame rx_frame) {
   datalayer.battery.status.CAN_battery_still_alive = CAN_STILL_ALIVE;
   switch (rx_frame.ID) {
     case 0x155:
@@ -127,7 +127,7 @@ void receive_can_battery(CAN_frame rx_frame) {
   }
 }
 
-void send_can_battery() {
+void transmit_can_battery() {
   // we do not need to send anything to the battery for now
 }
 

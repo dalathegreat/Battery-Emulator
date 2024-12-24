@@ -422,7 +422,7 @@ void update_values_can_inverter() {  //This function maps all the values fetched
   }
 }
 
-void receive_can_inverter(CAN_frame rx_frame) {
+void map_can_frame_to_variable_inverter(CAN_frame rx_frame) {
   switch (rx_frame.ID) {
     case 0x4200:  //Message originating from inverter. Depending on which data is required, act accordingly
       datalayer.system.status.CAN_inverter_still_alive = CAN_STILL_ALIVE;
@@ -438,43 +438,43 @@ void receive_can_inverter(CAN_frame rx_frame) {
   }
 }
 
-void send_can_inverter() {
+void transmit_can_inverter() {
   // No periodic sending, we only react on received can messages
 }
 
 void send_setup_info() {  //Ensemble information
 #ifdef SEND_0
-  transmit_can(&PYLON_7310, can_config.inverter);
-  transmit_can(&PYLON_7320, can_config.inverter);
+  transmit_can_frame(&PYLON_7310, can_config.inverter);
+  transmit_can_frame(&PYLON_7320, can_config.inverter);
 #endif
 #ifdef SEND_1
-  transmit_can(&PYLON_7311, can_config.inverter);
-  transmit_can(&PYLON_7321, can_config.inverter);
+  transmit_can_frame(&PYLON_7311, can_config.inverter);
+  transmit_can_frame(&PYLON_7321, can_config.inverter);
 #endif
 }
 
 void send_system_data() {  //System equipment information
 #ifdef SEND_0
-  transmit_can(&PYLON_4210, can_config.inverter);
-  transmit_can(&PYLON_4220, can_config.inverter);
-  transmit_can(&PYLON_4230, can_config.inverter);
-  transmit_can(&PYLON_4240, can_config.inverter);
-  transmit_can(&PYLON_4250, can_config.inverter);
-  transmit_can(&PYLON_4260, can_config.inverter);
-  transmit_can(&PYLON_4270, can_config.inverter);
-  transmit_can(&PYLON_4280, can_config.inverter);
-  transmit_can(&PYLON_4290, can_config.inverter);
+  transmit_can_frame(&PYLON_4210, can_config.inverter);
+  transmit_can_frame(&PYLON_4220, can_config.inverter);
+  transmit_can_frame(&PYLON_4230, can_config.inverter);
+  transmit_can_frame(&PYLON_4240, can_config.inverter);
+  transmit_can_frame(&PYLON_4250, can_config.inverter);
+  transmit_can_frame(&PYLON_4260, can_config.inverter);
+  transmit_can_frame(&PYLON_4270, can_config.inverter);
+  transmit_can_frame(&PYLON_4280, can_config.inverter);
+  transmit_can_frame(&PYLON_4290, can_config.inverter);
 #endif
 #ifdef SEND_1
-  transmit_can(&PYLON_4211, can_config.inverter);
-  transmit_can(&PYLON_4221, can_config.inverter);
-  transmit_can(&PYLON_4231, can_config.inverter);
-  transmit_can(&PYLON_4241, can_config.inverter);
-  transmit_can(&PYLON_4251, can_config.inverter);
-  transmit_can(&PYLON_4261, can_config.inverter);
-  transmit_can(&PYLON_4271, can_config.inverter);
-  transmit_can(&PYLON_4281, can_config.inverter);
-  transmit_can(&PYLON_4291, can_config.inverter);
+  transmit_can_frame(&PYLON_4211, can_config.inverter);
+  transmit_can_frame(&PYLON_4221, can_config.inverter);
+  transmit_can_frame(&PYLON_4231, can_config.inverter);
+  transmit_can_frame(&PYLON_4241, can_config.inverter);
+  transmit_can_frame(&PYLON_4251, can_config.inverter);
+  transmit_can_frame(&PYLON_4261, can_config.inverter);
+  transmit_can_frame(&PYLON_4271, can_config.inverter);
+  transmit_can_frame(&PYLON_4281, can_config.inverter);
+  transmit_can_frame(&PYLON_4291, can_config.inverter);
 #endif
 }
 void setup_inverter(void) {  // Performs one time setup at startup over CAN bus

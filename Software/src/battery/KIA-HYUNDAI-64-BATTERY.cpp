@@ -220,7 +220,7 @@ void update_number_of_cells() {
   }
 }
 
-void receive_can_battery(CAN_frame rx_frame) {
+void map_can_frame_to_variable_battery(CAN_frame rx_frame) {
   switch (rx_frame.ID) {
     case 0x4DE:
       startedUp = true;
@@ -268,17 +268,17 @@ void receive_can_battery(CAN_frame rx_frame) {
       }
       poll_data_pid++;
       if (poll_data_pid == 1) {
-        transmit_can(&KIA64_7E4_id1, can_config.battery);
+        transmit_can_frame(&KIA64_7E4_id1, can_config.battery);
       } else if (poll_data_pid == 2) {
-        transmit_can(&KIA64_7E4_id2, can_config.battery);
+        transmit_can_frame(&KIA64_7E4_id2, can_config.battery);
       } else if (poll_data_pid == 3) {
-        transmit_can(&KIA64_7E4_id3, can_config.battery);
+        transmit_can_frame(&KIA64_7E4_id3, can_config.battery);
       } else if (poll_data_pid == 4) {
-        transmit_can(&KIA64_7E4_id4, can_config.battery);
+        transmit_can_frame(&KIA64_7E4_id4, can_config.battery);
       } else if (poll_data_pid == 5) {
-        transmit_can(&KIA64_7E4_id5, can_config.battery);
+        transmit_can_frame(&KIA64_7E4_id5, can_config.battery);
       } else if (poll_data_pid == 6) {
-        transmit_can(&KIA64_7E4_id6, can_config.battery);
+        transmit_can_frame(&KIA64_7E4_id6, can_config.battery);
       } else if (poll_data_pid == 7) {
       } else if (poll_data_pid == 8) {
       } else if (poll_data_pid == 9) {
@@ -289,7 +289,8 @@ void receive_can_battery(CAN_frame rx_frame) {
       switch (rx_frame.data.u8[0]) {
         case 0x10:  //"PID Header"
           if (rx_frame.data.u8[4] == poll_data_pid) {
-            transmit_can(&KIA64_7E4_ack, can_config.battery);  //Send ack to BMS if the same frame is sent as polled
+            transmit_can_frame(&KIA64_7E4_ack,
+                               can_config.battery);  //Send ack to BMS if the same frame is sent as polled
           }
           break;
         case 0x21:  //First frame in PID group
@@ -460,7 +461,7 @@ void receive_can_battery(CAN_frame rx_frame) {
   }
 }
 
-void send_can_battery() {
+void transmit_can_battery() {
   unsigned long currentMillis = millis();
 
   if (!startedUp) {
@@ -471,9 +472,9 @@ void send_can_battery() {
   if (currentMillis - previousMillis100 >= INTERVAL_100_MS) {
     previousMillis100 = currentMillis;
 
-    transmit_can(&KIA64_553, can_config.battery);
-    transmit_can(&KIA64_57F, can_config.battery);
-    transmit_can(&KIA64_2A1, can_config.battery);
+    transmit_can_frame(&KIA64_553, can_config.battery);
+    transmit_can_frame(&KIA64_57F, can_config.battery);
+    transmit_can_frame(&KIA64_2A1, can_config.battery);
   }
   // Send 10ms CAN Message
   if (currentMillis - previousMillis10 >= INTERVAL_10_MS) {
@@ -525,11 +526,11 @@ void send_can_battery() {
         break;
     }
 
-    transmit_can(&KIA_HYUNDAI_200, can_config.battery);
+    transmit_can_frame(&KIA_HYUNDAI_200, can_config.battery);
 
-    transmit_can(&KIA_HYUNDAI_523, can_config.battery);
+    transmit_can_frame(&KIA_HYUNDAI_523, can_config.battery);
 
-    transmit_can(&KIA_HYUNDAI_524, can_config.battery);
+    transmit_can_frame(&KIA_HYUNDAI_524, can_config.battery);
   }
 }
 

@@ -137,7 +137,7 @@ void update_values_battery() {  //This function maps all the values fetched via 
 #endif
 }
 
-void receive_can_battery(CAN_frame rx_frame) {
+void map_can_frame_to_variable_battery(CAN_frame rx_frame) {
 
   switch (rx_frame.ID) {
     case 0x155:  //BMS1
@@ -210,12 +210,12 @@ void receive_can_battery(CAN_frame rx_frame) {
   }
 }
 
-void send_can_battery() {
+void transmit_can_battery() {
   unsigned long currentMillis = millis();
   // Send 100ms CAN Message (for 2.4s, then pause 10s)
   if ((currentMillis - previousMillis100) >= (INTERVAL_100_MS + GVL_pause)) {
     previousMillis100 = currentMillis;
-    transmit_can(&KANGOO_423, can_config.battery);
+    transmit_can_frame(&KANGOO_423, can_config.battery);
     GVI_Pollcounter++;
     GVL_pause = 0;
     if (GVI_Pollcounter >= 24) {
@@ -227,9 +227,9 @@ void send_can_battery() {
   if (currentMillis - previousMillis1000 >= INTERVAL_1_S) {
     previousMillis1000 = currentMillis;
     if (GVB_79B_Continue)
-      transmit_can(&KANGOO_79B_Continue, can_config.battery);
+      transmit_can_frame(&KANGOO_79B_Continue, can_config.battery);
   } else {
-    transmit_can(&KANGOO_79B, can_config.battery);
+    transmit_can_frame(&KANGOO_79B, can_config.battery);
   }
 }
 

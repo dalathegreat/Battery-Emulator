@@ -129,7 +129,7 @@ void update_values_battery() {  //This function maps all the values fetched via 
 #endif
 }
 
-void receive_can_battery(CAN_frame rx_frame) {
+void map_can_frame_to_variable_battery(CAN_frame rx_frame) {
   switch (rx_frame.ID) {
     case 0x374:  //BMU message, 10ms - SOC
       datalayer.battery.status.CAN_battery_still_alive = CAN_STILL_ALIVE;
@@ -207,7 +207,7 @@ void receive_can_battery(CAN_frame rx_frame) {
   }
 }
 
-void send_can_battery() {
+void transmit_can_battery() {
   unsigned long currentMillis = millis();
   // Send 100ms CAN Message
   if (currentMillis - previousMillis100 >= INTERVAL_100_MS) {

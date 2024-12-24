@@ -114,7 +114,7 @@ void update_values_can_inverter() {  //This function maps all the values fetched
   //TODO: Map error/warnings in 0x35A
 }
 
-void receive_can_inverter(CAN_frame rx_frame) {
+void map_can_frame_to_variable_inverter(CAN_frame rx_frame) {
   switch (rx_frame.ID) {
     case 0x305:
       datalayer.system.status.CAN_inverter_still_alive = CAN_STILL_ALIVE;
@@ -136,23 +136,23 @@ void receive_can_inverter(CAN_frame rx_frame) {
   }
 }
 
-void send_can_inverter() {
+void transmit_can_inverter() {
   unsigned long currentMillis = millis();
 
   if (currentMillis - previousMillis100ms >= INTERVAL_100_MS) {
     previousMillis100ms = currentMillis;
 
-    transmit_can(&SMA_351, can_config.inverter);
-    transmit_can(&SMA_355, can_config.inverter);
-    transmit_can(&SMA_356, can_config.inverter);
-    transmit_can(&SMA_35A, can_config.inverter);
-    transmit_can(&SMA_35B, can_config.inverter);
-    transmit_can(&SMA_35E, can_config.inverter);
-    transmit_can(&SMA_35F, can_config.inverter);
+    transmit_can_frame(&SMA_351, can_config.inverter);
+    transmit_can_frame(&SMA_355, can_config.inverter);
+    transmit_can_frame(&SMA_356, can_config.inverter);
+    transmit_can_frame(&SMA_35A, can_config.inverter);
+    transmit_can_frame(&SMA_35B, can_config.inverter);
+    transmit_can_frame(&SMA_35E, can_config.inverter);
+    transmit_can_frame(&SMA_35F, can_config.inverter);
 
     //Remote quick stop (optional)
     if (datalayer.battery.status.bms_status == FAULT) {
-      transmit_can(&SMA_00F, can_config.inverter);
+      transmit_can_frame(&SMA_00F, can_config.inverter);
       //After receiving this message, Sunny Island will immediately go into standby.
       //Please send start command, to start again. Manual start is also possible.
     }

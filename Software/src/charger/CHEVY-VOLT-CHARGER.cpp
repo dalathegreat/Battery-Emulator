@@ -56,7 +56,7 @@ static CAN_frame charger_set_targets = {
     .data = {0x40, 0x00, 0x00, 0x00}};  // data[0] is a static value, meaning unknown
 
 /* We are mostly sending out not receiving */
-void receive_can_charger(CAN_frame rx_frame) {
+void map_can_frame_to_variable_charger(CAN_frame rx_frame) {
   uint16_t charger_stat_HVcur_temp = 0;
   uint16_t charger_stat_HVvol_temp = 0;
   uint16_t charger_stat_LVcur_temp = 0;
@@ -108,7 +108,7 @@ void receive_can_charger(CAN_frame rx_frame) {
   }
 }
 
-void send_can_charger() {
+void transmit_can_charger() {
   unsigned long currentMillis = millis();
   uint16_t Vol_temp = 0;
 
@@ -137,7 +137,7 @@ void send_can_charger() {
 
     charger_keepalive_frame.data.u8[0] = charger_mode;
 
-    transmit_can(&charger_keepalive_frame, can_config.charger);
+    transmit_can_frame(&charger_keepalive_frame, can_config.charger);
   }
 
   /* Send current targets every 200ms */
@@ -174,7 +174,7 @@ void send_can_charger() {
     /* LSB of the voltage command. Then MSB LSB is divided by 2 */
     charger_set_targets.data.u8[3] = lowByte(Vol_temp);
 
-    transmit_can(&charger_set_targets, can_config.charger);
+    transmit_can_frame(&charger_set_targets, can_config.charger);
   }
 
 #ifdef DEBUG_LOG
