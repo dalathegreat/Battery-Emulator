@@ -200,7 +200,7 @@ void update_values_can_inverter() {  //This function maps all the values fetched
   */
 }
 
-void receive_can_inverter(CAN_frame rx_frame) {
+void map_can_frame_to_variable_inverter(CAN_frame rx_frame) {
   switch (rx_frame.ID) {
     case 0x305:  // Every 1s from inverter
       datalayer.system.status.CAN_inverter_still_alive = CAN_STILL_ALIVE;
@@ -217,19 +217,19 @@ void receive_can_inverter(CAN_frame rx_frame) {
   }
 }
 
-void send_can_inverter() {
+void transmit_can_inverter() {
   if (time_to_send_info) {  // Set every 1s if we get message from inverter
-    transmit_can(&AFORE_350, can_config.inverter);
-    transmit_can(&AFORE_351, can_config.inverter);
-    transmit_can(&AFORE_352, can_config.inverter);
-    transmit_can(&AFORE_353, can_config.inverter);
-    transmit_can(&AFORE_354, can_config.inverter);
-    transmit_can(&AFORE_355, can_config.inverter);
-    transmit_can(&AFORE_356, can_config.inverter);
-    transmit_can(&AFORE_357, can_config.inverter);
-    transmit_can(&AFORE_358, can_config.inverter);
-    transmit_can(&AFORE_359, can_config.inverter);
-    transmit_can(&AFORE_35A, can_config.inverter);
+    transmit_can_frame(&AFORE_350, can_config.inverter);
+    transmit_can_frame(&AFORE_351, can_config.inverter);
+    transmit_can_frame(&AFORE_352, can_config.inverter);
+    transmit_can_frame(&AFORE_353, can_config.inverter);
+    transmit_can_frame(&AFORE_354, can_config.inverter);
+    transmit_can_frame(&AFORE_355, can_config.inverter);
+    transmit_can_frame(&AFORE_356, can_config.inverter);
+    transmit_can_frame(&AFORE_357, can_config.inverter);
+    transmit_can_frame(&AFORE_358, can_config.inverter);
+    transmit_can_frame(&AFORE_359, can_config.inverter);
+    transmit_can_frame(&AFORE_35A, can_config.inverter);
     time_to_send_info = false;
   }
 }

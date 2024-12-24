@@ -18,6 +18,6 @@ extern ACAN2517FD canfd;
 #define RAMPDOWNPOWERALLOWED 10000  // What power we ramp down from towards top balancing
 
 void setup_battery(void);
-void transmit_can(CAN_frame* tx_frame, int interface);
+void transmit_can_frame(CAN_frame* tx_frame, int interface);
 
 #endif

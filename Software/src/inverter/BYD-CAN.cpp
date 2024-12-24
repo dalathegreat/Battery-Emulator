@@ -164,7 +164,7 @@ void update_values_can_inverter() {  //This function maps all the values fetched
 #endif
 }
 
-void receive_can_inverter(CAN_frame rx_frame) {
+void map_can_frame_to_variable_inverter(CAN_frame rx_frame) {
   switch (rx_frame.ID) {
     case 0x151:  //Message originating from BYD HVS compatible inverter. Reply with CAN identifier!
       datalayer.system.status.CAN_inverter_still_alive = CAN_STILL_ALIVE;
@@ -196,7 +196,7 @@ void receive_can_inverter(CAN_frame rx_frame) {
   }
 }
 
-void send_can_inverter() {
+void transmit_can_inverter() {
   unsigned long currentMillis = millis();
   // Send initial CAN data once on bootup
   if (!initialDataSent) {
@@ -208,32 +208,32 @@ void send_can_inverter() {
   if (currentMillis - previousMillis2s >= INTERVAL_2_S) {
     previousMillis2s = currentMillis;
 
-    transmit_can(&BYD_110, can_config.inverter);
+    transmit_can_frame(&BYD_110, can_config.inverter);
   }
   // Send 10s CAN Message
   if (currentMillis - previousMillis10s >= INTERVAL_10_S) {
     previousMillis10s = currentMillis;
 
-    transmit_can(&BYD_150, can_config.inverter);
-    transmit_can(&BYD_1D0, can_config.inverter);
-    transmit_can(&BYD_210, can_config.inverter);
+    transmit_can_frame(&BYD_150, can_config.inverter);
+    transmit_can_frame(&BYD_1D0, can_config.inverter);
+    transmit_can_frame(&BYD_210, can_config.inverter);
   }
   //Send 60s message
   if (currentMillis - previousMillis60s >= INTERVAL_60_S) {
     previousMillis60s = currentMillis;
 
-    transmit_can(&BYD_190, can_config.inverter);
+    transmit_can_frame(&BYD_190, can_config.inverter);
   }
 }
 
 void send_intial_data() {
-  transmit_can(&BYD_250, can_config.inverter);
-  transmit_can(&BYD_290, can_config.inverter);
-  transmit_can(&BYD_2D0, can_config.inverter);
-  transmit_can(&BYD_3D0_0, can_config.inverter);
-  transmit_can(&BYD_3D0_1, can_config.inverter);
-  transmit_can(&BYD_3D0_2, can_config.inverter);
-  transmit_can(&BYD_3D0_3, can_config.inverter);
+  transmit_can_frame(&BYD_250, can_config.inverter);
+  transmit_can_frame(&BYD_290, can_config.inverter);
+  transmit_can_frame(&BYD_2D0, can_config.inverter);
+  transmit_can_frame(&BYD_3D0_0, can_config.inverter);
+  transmit_can_frame(&BYD_3D0_1, can_config.inverter);
+  transmit_can_frame(&BYD_3D0_2, can_config.inverter);
+  transmit_can_frame(&BYD_3D0_3, can_config.inverter);
 }
 void setup_inverter(void) {  // Performs one time setup at startup over CAN bus
   strncpy(datalayer.system.info.inverter_protocol, "BYD Battery-Box Premium HVS over CAN Bus", 63);

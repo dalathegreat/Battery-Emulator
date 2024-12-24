@@ -265,7 +265,7 @@ void update_values_can_inverter() {  //This function maps all the values fetched
   //SMA_018.data.u8[7] = BatteryName;
 }
 
-void receive_can_inverter(CAN_frame rx_frame) {
+void map_can_frame_to_variable_inverter(CAN_frame rx_frame) {
   switch (rx_frame.ID) {
     case 0x00D:  //Inverter Measurements
       datalayer.system.status.CAN_inverter_still_alive = CAN_STILL_ALIVE;
@@ -289,36 +289,36 @@ void receive_can_inverter(CAN_frame rx_frame) {
   }
 }
 
-void send_can_inverter() {
+void transmit_can_inverter() {
   unsigned long currentMillis = millis();
 
   // Send CAN Message every 500ms
   if (currentMillis - previousMillis500ms >= INTERVAL_500_MS) {
     previousMillis500ms = currentMillis;
 
-    transmit_can(&SMA_00D, can_config.inverter);  //Battery limits
-    transmit_can(&SMA_00F, can_config.inverter);  // Battery state
-    transmit_can(&SMA_011, can_config.inverter);  // Battery Energy
-    transmit_can(&SMA_013, can_config.inverter);  // Battery Measurements
-    transmit_can(&SMA_014, can_config.inverter);  // Battery Temperatures and cellvoltages
+    transmit_can_frame(&SMA_00D, can_config.inverter);  //Battery limits
+    transmit_can_frame(&SMA_00F, can_config.inverter);  // Battery state
+    transmit_can_frame(&SMA_011, can_config.inverter);  // Battery Energy
+    transmit_can_frame(&SMA_013, can_config.inverter);  // Battery Measurements
+    transmit_can_frame(&SMA_014, can_config.inverter);  // Battery Temperatures and cellvoltages
   }
 
-  if (batteryAlarm) {                             //Non-cyclic
-    transmit_can(&SMA_005, can_config.inverter);  // Battery Alarms 1
-    transmit_can(&SMA_007, can_config.inverter);  // Battery Alarms 2
+  if (batteryAlarm) {                                   //Non-cyclic
+    transmit_can_frame(&SMA_005, can_config.inverter);  // Battery Alarms 1
+    transmit_can_frame(&SMA_007, can_config.inverter);  // Battery Alarms 2
   }
 
-  if (BMSevent) {                                 //Non-cyclic
-    transmit_can(&SMA_006, can_config.inverter);  // Battery Errorcode
-    transmit_can(&SMA_008, can_config.inverter);  // Battery Events
+  if (BMSevent) {                                       //Non-cyclic
+    transmit_can_frame(&SMA_006, can_config.inverter);  // Battery Errorcode
+    transmit_can_frame(&SMA_008, can_config.inverter);  // Battery Events
   }
 }
 
 void send_tripower_init() {
-  transmit_can(&SMA_015, can_config.inverter);  // Battery Data 1
-  transmit_can(&SMA_016, can_config.inverter);  // Battery Data 2
-  transmit_can(&SMA_017, can_config.inverter);  // Battery Manufacturer
-  transmit_can(&SMA_018, can_config.inverter);  // Battery Name
+  transmit_can_frame(&SMA_015, can_config.inverter);  // Battery Data 1
+  transmit_can_frame(&SMA_016, can_config.inverter);  // Battery Data 2
+  transmit_can_frame(&SMA_017, can_config.inverter);  // Battery Manufacturer
+  transmit_can_frame(&SMA_018, can_config.inverter);  // Battery Name
 }
 
 void setup_inverter(void) {  // Performs one time setup at startup over CAN bus

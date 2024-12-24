@@ -86,7 +86,7 @@ void update_values_battery() {  //This function maps all the values fetched via 
   }
 }
 
-void receive_can_battery(CAN_frame rx_frame) {
+void map_can_frame_to_variable_battery(CAN_frame rx_frame) {
   datalayer.battery.status.CAN_battery_still_alive = CAN_STILL_ALIVE;
   switch (rx_frame.ID) {
     case 0x5F1:
@@ -108,7 +108,7 @@ void receive_can_battery(CAN_frame rx_frame) {
       switch (rx_frame.data.u8[0]) {
         case 0x10:  //"PID Header"
           if (rx_frame.data.u8[3] == poll_data_pid) {
-            transmit_can(&KIA_7E4_ack, can_config.battery);  //Send ack to BMS if the same frame is sent as polled
+            transmit_can_frame(&KIA_7E4_ack, can_config.battery);  //Send ack to BMS if the same frame is sent as polled
           }
           break;
         case 0x21:                      //First frame in PID group
@@ -230,7 +230,7 @@ void receive_can_battery(CAN_frame rx_frame) {
       break;
   }
 }
-void send_can_battery() {
+void transmit_can_battery() {
   unsigned long currentMillis = millis();
 
   // Send 1000ms CAN Message
@@ -243,15 +243,15 @@ void send_can_battery() {
     }
     poll_data_pid++;
     if (poll_data_pid == 1) {
-      transmit_can(&KIA_7E4_id1, can_config.battery);
+      transmit_can_frame(&KIA_7E4_id1, can_config.battery);
     } else if (poll_data_pid == 2) {
-      transmit_can(&KIA_7E4_id2, can_config.battery);
+      transmit_can_frame(&KIA_7E4_id2, can_config.battery);
     } else if (poll_data_pid == 3) {
-      transmit_can(&KIA_7E4_id3, can_config.battery);
+      transmit_can_frame(&KIA_7E4_id3, can_config.battery);
     } else if (poll_data_pid == 4) {
 
     } else if (poll_data_pid == 5) {
-      transmit_can(&KIA_7E4_id5, can_config.battery);
+      transmit_can_frame(&KIA_7E4_id5, can_config.battery);
     }
   }
 }

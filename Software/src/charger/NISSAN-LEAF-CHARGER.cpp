@@ -129,7 +129,7 @@ static uint8_t calculate_checksum_nibble(CAN_frame* frame) {
   return sum;
 }
 
-void receive_can_charger(CAN_frame rx_frame) {
+void map_can_frame_to_variable_charger(CAN_frame rx_frame) {
 
   switch (rx_frame.ID) {
     case 0x679:  // This message fires once when charging cable is plugged in
@@ -166,7 +166,7 @@ void receive_can_charger(CAN_frame rx_frame) {
   }
 }
 
-void send_can_charger() {
+void transmit_can_charger() {
   unsigned long currentMillis = millis();
 
   /* Send keepalive with mode every 10ms */
@@ -182,13 +182,13 @@ void send_can_charger() {
 #ifndef NISSAN_LEAF_BATTERY
 
     // VCM message, containing info if battery should sleep or stay awake
-    transmit_can(&LEAF_50B, can_config.charger);  // HCM_WakeUpSleepCommand == 11b == WakeUp, and CANMASK = 1
+    transmit_can_frame(&LEAF_50B, can_config.charger);  // HCM_WakeUpSleepCommand == 11b == WakeUp, and CANMASK = 1
 
     LEAF_1DB.data.u8[7] = calculate_CRC_Nissan(&LEAF_1DB);
-    transmit_can(&LEAF_1DB, can_config.charger);
+    transmit_can_frame(&LEAF_1DB, can_config.charger);
 
     LEAF_1DC.data.u8[7] = calculate_CRC_Nissan(&LEAF_1DC);
-    transmit_can(&LEAF_1DC, can_config.charger);
+    transmit_can_frame(&LEAF_1DC, can_config.charger);
 #endif
 
     OBCpowerSetpoint = ((charger_setpoint_HV_IDC * 4) + 0x64);
@@ -233,8 +233,9 @@ void send_can_charger() {
     LEAF_1F2.data.u8[6] = mprun10;
     LEAF_1F2.data.u8[7] = calculate_checksum_nibble(&LEAF_1F2);
 
-    transmit_can(&LEAF_1F2,
-                 can_config.charger);  // Sending of 1F2 message is halted in LEAF-BATTERY function incase used here
+    transmit_can_frame(
+        &LEAF_1F2,
+        can_config.charger);  // Sending of 1F2 message is halted in LEAF-BATTERY function incase used here
   }
 
   /* Send messages every 100ms here */
@@ -252,11 +253,11 @@ void send_can_charger() {
     LEAF_55B.data.u8[6] = ((0x1 << 4) | (mprun100));
 
     LEAF_55B.data.u8[7] = calculate_CRC_Nissan(&LEAF_55B);
-    transmit_can(&LEAF_55B, can_config.charger);
+    transmit_can_frame(&LEAF_55B, can_config.charger);
 
-    transmit_can(&LEAF_59E, can_config.charger);
+    transmit_can_frame(&LEAF_59E, can_config.charger);
 
-    transmit_can(&LEAF_5BC, can_config.charger);
+    transmit_can_frame(&LEAF_5BC, can_config.charger);
 #endif
   }
 }

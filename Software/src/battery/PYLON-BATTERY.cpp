@@ -80,7 +80,7 @@ void update_values_battery() {
   datalayer.battery.info.min_design_voltage_dV = discharge_cutoff_voltage;
 }
 
-void receive_can_battery(CAN_frame rx_frame) {
+void map_can_frame_to_variable_battery(CAN_frame rx_frame) {
   datalayer.battery.status.CAN_battery_still_alive = CAN_STILL_ALIVE;
   switch (rx_frame.ID) {
     case 0x7310:
@@ -156,17 +156,17 @@ void receive_can_battery(CAN_frame rx_frame) {
   }
 }
 
-void send_can_battery() {
+void transmit_can_battery() {
   unsigned long currentMillis = millis();
   // Send 1s CAN Message
   if (currentMillis - previousMillis1000 >= INTERVAL_1_S) {
 
     previousMillis1000 = currentMillis;
 
-    transmit_can(&PYLON_3010, can_config.battery);  // Heartbeat
-    transmit_can(&PYLON_4200, can_config.battery);  // Ensemble OR System equipment info, depends on frame0
-    transmit_can(&PYLON_8200, can_config.battery);  // Control device quit sleep status
-    transmit_can(&PYLON_8210, can_config.battery);  // Charge command
+    transmit_can_frame(&PYLON_3010, can_config.battery);  // Heartbeat
+    transmit_can_frame(&PYLON_4200, can_config.battery);  // Ensemble OR System equipment info, depends on frame0
+    transmit_can_frame(&PYLON_8200, can_config.battery);  // Control device quit sleep status
+    transmit_can_frame(&PYLON_8210, can_config.battery);  // Charge command
 
     if (ensemble_info_ack) {
       PYLON_4200.data.u8[0] = 0x00;  //Request system equipment info
