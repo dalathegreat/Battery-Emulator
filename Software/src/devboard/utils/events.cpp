@@ -118,15 +118,15 @@ void init_events(void) {
 
     // Push changes to eeprom
     EEPROM.commit();
-#ifdef DEBUG_VIA_USB
-    Serial.println("EEPROM wasn't ready");
+#ifdef DEBUG_LOG
+    logging.println("EEPROM wasn't ready");
 #endif
   } else {
     events.event_log_head_index = EEPROM.readUShort(EE_EVENT_LOG_HEAD_INDEX_ADDRESS);
     events.event_log_tail_index = EEPROM.readUShort(EE_EVENT_LOG_TAIL_INDEX_ADDRESS);
-#ifdef DEBUG_VIA_USB
-    Serial.println("EEPROM was initialized for event logging");
-    Serial.println("head: " + String(events.event_log_head_index) + ", tail: " + String(events.event_log_tail_index));
+#ifdef DEBUG_LOG
+    logging.println("EEPROM was initialized for event logging");
+    logging.println("head: " + String(events.event_log_head_index) + ", tail: " + String(events.event_log_tail_index));
 #endif
     print_event_log();
   }
@@ -471,6 +471,10 @@ static void set_event(EVENTS_ENUM_TYPE event, uint8_t data, bool latched) {
     if (events.entries[event].log) {
       log_event(event, events.entries[event].millisrolloverCount, events.entries[event].timestamp, data);
     }
+#ifdef DEBUG_LOG
+    logging.print("Event: ");
+    logging.println(get_event_message_string(event));
+#endif
   }
 
   // We should set the event, update event info
@@ -484,10 +488,6 @@ static void set_event(EVENTS_ENUM_TYPE event, uint8_t data, bool latched) {
   events.level = max(events.level, events.entries[event].level);
 
   update_bms_status();
-
-#ifdef DEBUG_VIA_USB
-  Serial.println(get_event_message_string(event));
-#endif
 }
 
 static void update_bms_status(void) {
@@ -561,8 +561,8 @@ static void log_event(EVENTS_ENUM_TYPE event, uint8_t millisrolloverCount, uint3
   // Store the new indices
   EEPROM.writeUShort(EE_EVENT_LOG_HEAD_INDEX_ADDRESS, events.event_log_head_index);
   EEPROM.writeUShort(EE_EVENT_LOG_TAIL_INDEX_ADDRESS, events.event_log_tail_index);
-  //Serial.println("Wrote event " + String(event) + " to " + String(entry_address));
-  //Serial.println("head: " + String(events.event_log_head_index) + ", tail: " + String(events.event_log_tail_index));
+  //logging.println("Wrote event " + String(event) + " to " + String(entry_address));
+  //logging.println("head: " + String(events.event_log_head_index) + ", tail: " + String(events.event_log_tail_index));
 
   // We don't need the exact number, it's just for deciding to store or not
   events.nof_logged_events += (events.nof_logged_events < 255) ? 1 : 0;
@@ -571,8 +571,8 @@ static void log_event(EVENTS_ENUM_TYPE event, uint8_t millisrolloverCount, uint3
 static void print_event_log(void) {
   // If the head actually points to the tail, the log is probably blank
   if (events.event_log_head_index == events.event_log_tail_index) {
-#ifdef DEBUG_VIA_USB
-    Serial.println("No events in log");
+#ifdef DEBUG_LOG
+    logging.println("No events in log");
 #endif
     return;
   }
@@ -588,9 +588,9 @@ static void print_event_log(void) {
       // The entry is a blank that has been left behind somehow
       continue;
     }
-#ifdef DEBUG_VIA_USB
-    Serial.println("Event: " + String(get_event_enum_string(entry.event)) + ", data: " + String(entry.data) +
-                   ", time: " + String(entry.timestamp));
+#ifdef DEBUG_LOG
+    logging.println("Event: " + String(get_event_enum_string(entry.event)) + ", data: " + String(entry.data) +
+                    ", time: " + String(entry.timestamp));
 #endif
     if (index == events.event_log_head_index) {
       break;

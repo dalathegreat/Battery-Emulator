@@ -35,31 +35,31 @@ void init_CAN() {
   ESP32Can.CANInit();
 
 #ifdef CAN_ADDON
-#ifdef DEBUG_VIA_USB
-  Serial.println("Dual CAN Bus (ESP32+MCP2515) selected");
-#endif  // DEBUG_VIA_USB
+#ifdef DEBUG_LOG
+  logging.println("Dual CAN Bus (ESP32+MCP2515) selected");
+#endif  // DEBUG_LOG
   gBuffer.initWithSize(25);
   SPI.begin(MCP2515_SCK, MCP2515_MISO, MCP2515_MOSI);
   ACAN2515Settings settings(QUARTZ_FREQUENCY, 500UL * 1000UL);  // CAN bit rate 500 kb/s
   settings.mRequestedMode = ACAN2515Settings::NormalMode;
   const uint16_t errorCodeMCP = can.begin(settings, [] { can.isr(); });
   if (errorCodeMCP == 0) {
-#ifdef DEBUG_VIA_USB
-    Serial.println("Can ok");
-#endif  // DEBUG_VIA_USB
+#ifdef DEBUG_LOG
+    logging.println("Can ok");
+#endif  // DEBUG_LOG
   } else {
-#ifdef DEBUG_VIA_USB
-    Serial.print("Error Can: 0x");
-    Serial.println(errorCodeMCP, HEX);
-#endif  // DEBUG_VIA_USB
+#ifdef DEBUG_LOG
+    logging.print("Error Can: 0x");
+    logging.println(errorCodeMCP, HEX);
+#endif  // DEBUG_LOG
     set_event(EVENT_CANMCP_INIT_FAILURE, (uint8_t)errorCodeMCP);
   }
 #endif  // CAN_ADDON
 
 #ifdef CANFD_ADDON
-#ifdef DEBUG_VIA_USB
-  Serial.println("CAN FD add-on (ESP32+MCP2517) selected");
-#endif  // DEBUG_VIA_USB
+#ifdef DEBUG_LOG
+  logging.println("CAN FD add-on (ESP32+MCP2517) selected");
+#endif  // DEBUG_LOG
   SPI.begin(MCP2517_SCK, MCP2517_SDO, MCP2517_SDI);
   ACAN2517FDSettings settings(CANFD_ADDON_CRYSTAL_FREQUENCY_MHZ, 500 * 1000,
                               DataBitRateFactor::x4);  // Arbitration bit rate: 500 kbit/s, data bit rate: 2 Mbit/s
@@ -71,29 +71,29 @@ void init_CAN() {
   const uint32_t errorCode = canfd.begin(settings, [] { canfd.isr(); });
   canfd.poll();
   if (errorCode == 0) {
-#ifdef DEBUG_VIA_USB
-    Serial.print("Bit Rate prescaler: ");
-    Serial.println(settings.mBitRatePrescaler);
-    Serial.print("Arbitration Phase segment 1: ");
-    Serial.println(settings.mArbitrationPhaseSegment1);
-    Serial.print("Arbitration Phase segment 2: ");
-    Serial.println(settings.mArbitrationPhaseSegment2);
-    Serial.print("Arbitration SJW:");
-    Serial.println(settings.mArbitrationSJW);
-    Serial.print("Actual Arbitration Bit Rate: ");
-    Serial.print(settings.actualArbitrationBitRate());
-    Serial.println(" bit/s");
-    Serial.print("Exact Arbitration Bit Rate ? ");
-    Serial.println(settings.exactArbitrationBitRate() ? "yes" : "no");
-    Serial.print("Arbitration Sample point: ");
-    Serial.print(settings.arbitrationSamplePointFromBitStart());
-    Serial.println("%");
-#endif  // DEBUG_VIA_USB
+#ifdef DEBUG_LOG
+    logging.print("Bit Rate prescaler: ");
+    logging.println(settings.mBitRatePrescaler);
+    logging.print("Arbitration Phase segment 1: ");
+    logging.print(settings.mArbitrationPhaseSegment1);
+    logging.print(" segment 2: ");
+    logging.print(settings.mArbitrationPhaseSegment2);
+    logging.print(" SJW: ");
+    logging.println(settings.mArbitrationSJW);
+    logging.print("Actual Arbitration Bit Rate: ");
+    logging.print(settings.actualArbitrationBitRate());
+    logging.print(" bit/s");
+    logging.print(" (Exact:");
+    logging.println(settings.exactArbitrationBitRate() ? "yes)" : "no)");
+    logging.print("Arbitration Sample point: ");
+    logging.print(settings.arbitrationSamplePointFromBitStart());
+    logging.println("%");
+#endif  // DEBUG_LOG
   } else {
-#ifdef DEBUG_VIA_USB
-    Serial.print("CAN-FD Configuration error 0x");
-    Serial.println(errorCode, HEX);
-#endif  // DEBUG_VIA_USB
+#ifdef DEBUG_LOG
+    logging.print("CAN-FD Configuration error 0x");
+    logging.println(errorCode, HEX);
+#endif  // DEBUG_LOG
     set_event(EVENT_CANFD_INIT_FAILURE, (uint8_t)errorCode);
   }
 #endif  // CANFD_ADDON
@@ -153,6 +153,8 @@ void transmit_can(CAN_frame* tx_frame, int interface) {
       send_ok = canfd.tryToSend(MCP2518Frame);
       if (!send_ok) {
         set_event(EVENT_CANFD_BUFFER_FULL, interface);
+      } else {
+        clear_event(EVENT_CANFD_BUFFER_FULL);
       }
 #else   // Interface not compiled, and settings try to use it
       set_event(EVENT_INTERFACE_MISSING, interface);

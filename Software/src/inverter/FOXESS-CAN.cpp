@@ -595,8 +595,8 @@ void send_can_inverter() {  // This function loops as fast as possible
       // Send a subset of messages per iteration to avoid overloading the CAN bus / transmit buffer
       switch (can_message_cellvolt_index) {
         case 0:
-#ifdef DEBUG_VIA_USB
-          Serial.println("Sending large batch");
+#ifdef DEBUG_LOG
+          logging.println("Sending large batch");
 #endif
           transmit_can(&FOXESS_0C1D, can_config.inverter);
           transmit_can(&FOXESS_0C21, can_config.inverter);
@@ -655,8 +655,8 @@ void send_can_inverter() {  // This function loops as fast as possible
           transmit_can(&FOXESS_0D49, can_config.inverter);
           transmit_can(&FOXESS_0D51, can_config.inverter);
           transmit_can(&FOXESS_0D59, can_config.inverter);
-#ifdef DEBUG_VIA_USB
-          Serial.println("Sending completed");
+#ifdef DEBUG_LOG
+          logging.println("Sending completed");
 #endif
           send_cellvoltages = false;
           break;
@@ -679,14 +679,14 @@ void receive_can_inverter(CAN_frame rx_frame) {
     if (rx_frame.data.u8[0] == 0x03) {  //0x1871 [0x03, 0x06, 0x17, 0x05, 0x09, 0x09, 0x28, 0x22]
 //This message is sent by the inverter every '6' seconds (0.5s after the pack serial numbers)
 //and contains a timestamp in bytes 2-7 i.e. <YY>,<MM>,<DD>,<HH>,<mm>,<ss>
-#ifdef DEBUG_VIA_USB
-      Serial.println("Inverter sends current time and date");
+#ifdef DEBUG_LOG
+      logging.println("Inverter sends current time and date");
 #endif
     } else if (rx_frame.data.u8[0] == 0x01) {
       if (rx_frame.data.u8[4] == 0x00) {
 // Inverter wants to know bms info (every 1s)
-#ifdef DEBUG_VIA_USB
-        Serial.println("Inverter requests 1s BMS info, we reply");
+#ifdef DEBUG_LOG
+        logging.println("Inverter requests 1s BMS info, we reply");
 #endif
         transmit_can(&FOXESS_1872, can_config.inverter);
         transmit_can(&FOXESS_1873, can_config.inverter);
@@ -698,8 +698,8 @@ void receive_can_inverter(CAN_frame rx_frame) {
         transmit_can(&FOXESS_1879, can_config.inverter);
       } else if (rx_frame.data.u8[4] == 0x01) {  // b4 0x01 , 0x1871 [0x01, 0x00, 0x01, 0x00, 0x01, 0x00, 0x00, 0x00]
         //Inverter wants to know all individual cellvoltages (occurs 6 seconds after valid BMS reply)
-#ifdef DEBUG_VIA_USB
-        Serial.println("Inverter requests individual battery pack status, we reply");
+#ifdef DEBUG_LOG
+        logging.println("Inverter requests individual battery pack status, we reply");
 #endif
         transmit_can(&FOXESS_0C05, can_config.inverter);  //TODO, should we limit this incase NUMBER_OF_PACKS =! 8?
         transmit_can(&FOXESS_0C06, can_config.inverter);
@@ -711,19 +711,19 @@ void receive_can_inverter(CAN_frame rx_frame) {
         transmit_can(&FOXESS_0C0C, can_config.inverter);
       } else if (rx_frame.data.u8[4] == 0x04) {  // b4 0x01 , 0x1871 [0x01, 0x00, 0x01, 0x00, 0x01, 0x00, 0x00, 0x00]
         //Inverter wants to know all individual cellvoltages (occurs 6 seconds after valid BMS reply)
-#ifdef DEBUG_VIA_USB
-        Serial.println("Inverter requests cellvoltages and temps, we reply");
+#ifdef DEBUG_LOG
+        logging.println("Inverter requests cellvoltages and temps, we reply");
 #endif
         send_cellvoltages = true;
       }
     } else if (rx_frame.data.u8[0] == 0x02) {  //0x1871 [0x02, 0x00, 0x01, 0x00, 0x01, 0x00, 0x00, 0x00]
 // Ack message
-#ifdef DEBUG_VIA_USB
-      Serial.println("Inverter acks, no reply needed");
+#ifdef DEBUG_LOG
+      logging.println("Inverter acks, no reply needed");
 #endif
     } else if (rx_frame.data.u8[0] == 0x05) {  //0x1871 [0x05, 0x00, 0x01, 0x00, 0x00, 0x00, 0x00, 0x00]
-#ifdef DEBUG_VIA_USB
-      Serial.println("Inverter wants to know serial numbers, we reply");
+#ifdef DEBUG_LOG
+      logging.println("Inverter wants to know serial numbers, we reply");
 #endif
       for (uint8_t i = 0; i < (NUMBER_OF_PACKS + 1); i++) {
         FOXESS_1881.data.u8[0] = (uint8_t)i;
