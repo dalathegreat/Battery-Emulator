@@ -44,17 +44,19 @@ For more examples showing wiring, see each battery types own Wiki page. For inst
 3. Click `File` menu -> `Preferences` -> `Additional Development` -> `Additional Board Manager URLs` -> Enter the URL in the input box: `https://raw.githubusercontent.com/espressif/arduino-esp32/gh-pages/package_esp32_index.json` and click OK.
 4. Click `Tools` menu -> `Board: "...."` -> `Boards Manager...`, install the `esp32` package by `Espressif Systems` (not `Arduino ESP32 Boards`), then press `Close`.
 
-**NOTE: The version depends on which release of Battery-Emulator you are running!**
+**NOTE: The ESP32 version depends on which release of Battery-Emulator you are running!**
 
 - ⚠️ Make sure to use a 2.x.x version if you are on a release **older** than 6.0.0 (For instance ESP32 v2.0.11 when using Battery-Emulator v5.4.0)
-- ⚠️ Make sure to use a 3.x.x version if you are on a release **newer** than 6.0.0 (For instance ESP32 v3.0.0 when using Battery-Emulator v6.0.0)
-
+- ⚠️ Make sure to use a 3.0.x version if you are on a release **newer** than 6.0.0 (For instance ESP32 v3.0.0 when using Battery-Emulator v6.0.0)
+- ⚠️ Make sure to use a 3.1.x version if you are on a release **newer** than 8.0.0 (For instance ESP32 v3.1.0 when using Battery-Emulator v8.0.0)
+  
 ![bild](https://github.com/dalathegreat/Battery-Emulator/assets/26695010/6a2414b1-f2ca-4746-8e8d-9afd78bd9252)
 
 5. The Arduino board should be set to `ESP32 Dev Module` (under `Tools` -> `Board` -> `ESP32 Arduino`) with the following settings:
 ![alt text](https://github.com/Xinyuan-LilyGO/T-CAN485/blob/main/img/arduino_setting.png)
 6. Select which battery type you will use, along with other optional settings. This is done in the `USER_SETTINGS.h` file.
-7. Press `Verify` and `Upload` to send the sketch to the board.
+7. Copy the `USER_SECRETS.TEMPLATE.h` file to `USER_SECRETS.h` and update connectivity settings inside this file.
+8. Press `Verify` and `Upload` to send the sketch to the board.
 NOTE: In some cases, the LilyGo must be powered through the main power connector instead of USB-C
       when performing the initial firmware upload.
 NOTE: On Mac, the following USB driver may need to be installed: https://github.com/WCHSoftGroup/ch34xser_macos

@@ -90,7 +90,7 @@ void update_values_battery() {  //This function maps all the values fetched via 
 
   datalayer.battery.status.max_discharge_power_W = LB_Discharge_allowed_W;
 
-  datalayer.battery.status.max_charge_power_W = LB_Charging_Power_W;
+  datalayer.battery.status.max_charge_power_W = LB_Regen_allowed_W;
 
   int16_t temperatures[] = {cell_1_temperature_polled,  cell_2_temperature_polled,  cell_3_temperature_polled,
                             cell_4_temperature_polled,  cell_5_temperature_polled,  cell_6_temperature_polled,

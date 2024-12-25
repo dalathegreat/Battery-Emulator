@@ -1073,69 +1073,69 @@ void update_values_battery() {  //This function maps all the values fetched via 
   datalayer_extended.tesla.HVP_shuntBarTempStatus = HVP_shuntBarTempStatus;
   datalayer_extended.tesla.HVP_shuntAsicTempStatus = HVP_shuntAsicTempStatus;
 
-#ifdef DEBUG_VIA_USB
+#ifdef DEBUG_LOG
 
   printFaultCodesIfActive();
 
-  Serial.print("STATUS: Contactor: ");
-  Serial.print(contactorText[battery_contactor]);  //Display what state the contactor is in
-  Serial.print(", HVIL: ");
-  Serial.print(hvilStatusState[battery_hvil_status]);
-  Serial.print(", NegativeState: ");
-  Serial.print(contactorState[battery_packContNegativeState]);
-  Serial.print(", PositiveState: ");
-  Serial.print(contactorState[battery_packContPositiveState]);
-  Serial.print(", setState: ");
-  Serial.print(contactorState[battery_packContactorSetState]);
-  Serial.print(", close allowed: ");
-  Serial.print(battery_packCtrsClosingAllowed);
-  Serial.print(", Pyrotest: ");
-  Serial.println(battery_pyroTestInProgress);
+  logging.print("STATUS: Contactor: ");
+  logging.print(contactorText[battery_contactor]);  //Display what state the contactor is in
+  logging.print(", HVIL: ");
+  logging.print(hvilStatusState[battery_hvil_status]);
+  logging.print(", NegativeState: ");
+  logging.print(contactorState[battery_packContNegativeState]);
+  logging.print(", PositiveState: ");
+  logging.print(contactorState[battery_packContPositiveState]);
+  logging.print(", setState: ");
+  logging.print(contactorState[battery_packContactorSetState]);
+  logging.print(", close allowed: ");
+  logging.print(battery_packCtrsClosingAllowed);
+  logging.print(", Pyrotest: ");
+  logging.println(battery_pyroTestInProgress);
 
-  Serial.print("Battery values: ");
-  Serial.print("Real SOC: ");
-  Serial.print(battery_soc_ui / 10.0, 1);
+  logging.print("Battery values: ");
+  logging.print("Real SOC: ");
+  logging.print(battery_soc_ui / 10.0, 1);
   print_int_with_units(", Battery voltage: ", battery_volts, "V");
   print_int_with_units(", Battery HV current: ", (battery_amps * 0.1), "A");
-  Serial.print(", Fully charged?: ");
+  logging.print(", Fully charged?: ");
   if (battery_full_charge_complete)
-    Serial.print("YES, ");
+    logging.print("YES, ");
   else
-    Serial.print("NO, ");
+    logging.print("NO, ");
   if (datalayer.battery.info.chemistry == battery_chemistry_enum::LFP) {
-    Serial.print("LFP chemistry detected!");
+    logging.print("LFP chemistry detected!");
   }
-  Serial.println("");
-  Serial.print("Cellstats, Max: ");
-  Serial.print(battery_cell_max_v);
-  Serial.print("mV (cell ");
-  Serial.print(battery_max_vno);
-  Serial.print("), Min: ");
-  Serial.print(battery_cell_min_v);
-  Serial.print("mV (cell ");
-  Serial.print(battery_min_vno);
-  Serial.print("), Imbalance: ");
-  Serial.print(battery_cell_deviation_mV);
-  Serial.println("mV.");
+  logging.println("");
+  logging.print("Cellstats, Max: ");
+  logging.print(battery_cell_max_v);
+  logging.print("mV (cell ");
+  logging.print(battery_max_vno);
+  logging.print("), Min: ");
+  logging.print(battery_cell_min_v);
+  logging.print("mV (cell ");
+  logging.print(battery_min_vno);
+  logging.print("), Imbalance: ");
+  logging.print(battery_cell_deviation_mV);
+  logging.println("mV.");
 
   print_int_with_units("High Voltage Output Pins: ", battery_dcdcHvBusVolt, "V");
-  Serial.print(", ");
+  logging.print(", ");
   print_int_with_units("Low Voltage: ", battery_dcdcLvBusVolt, "V");
-  Serial.println("");
+  logging.println("");
   print_int_with_units("DC/DC 12V current: ", battery_dcdcLvOutputCurrent, "A");
-  Serial.println("");
+  logging.println("");
 
-  Serial.println("Values passed to the inverter: ");
+  logging.println("Values passed to the inverter: ");
   print_SOC(" SOC: ", datalayer.battery.status.reported_soc);
   print_int_with_units(" Max discharge power: ", datalayer.battery.status.max_discharge_power_W, "W");
-  Serial.print(", ");
+  logging.print(", ");
   print_int_with_units(" Max charge power: ", datalayer.battery.status.max_charge_power_W, "W");
-  Serial.println("");
+  logging.println("");
   print_int_with_units(" Max temperature: ", ((int16_t)datalayer.battery.status.temperature_min_dC * 0.1), "°C");
-  Serial.print(", ");
+  logging.print(", ");
   print_int_with_units(" Min temperature: ", ((int16_t)datalayer.battery.status.temperature_max_dC * 0.1), "°C");
-  Serial.println("");
-#endif  //DEBUG_VIA_USB
+  logging.println("");
+#endif  //DEBUG_LOG
 }
 
 void receive_can_battery(CAN_frame rx_frame) {
@@ -2507,69 +2507,69 @@ void update_values_battery2() {  //This function maps all the values fetched via
   }
 #endif  // TESLA_MODEL_3Y_BATTERY
 
-#ifdef DEBUG_VIA_USB
+#ifdef DEBUG_LOG
 
   printFaultCodesIfActive_battery2();
 
-  Serial.print("STATUS: Contactor: ");
-  Serial.print(contactorText[battery2_contactor]);  //Display what state the contactor is in
-  Serial.print(", HVIL: ");
-  Serial.print(hvilStatusState[battery2_hvil_status]);
-  Serial.print(", NegativeState: ");
-  Serial.print(contactorState[battery2_packContNegativeState]);
-  Serial.print(", PositiveState: ");
-  Serial.print(contactorState[battery2_packContPositiveState]);
-  Serial.print(", setState: ");
-  Serial.print(contactorState[battery2_packContactorSetState]);
-  Serial.print(", close allowed: ");
-  Serial.print(battery2_packCtrsClosingAllowed);
-  Serial.print(", Pyrotest: ");
-  Serial.println(battery2_pyroTestInProgress);
+  logging.print("STATUS: Contactor: ");
+  logging.print(contactorText[battery2_contactor]);  //Display what state the contactor is in
+  logging.print(", HVIL: ");
+  logging.print(hvilStatusState[battery2_hvil_status]);
+  logging.print(", NegativeState: ");
+  logging.print(contactorState[battery2_packContNegativeState]);
+  logging.print(", PositiveState: ");
+  logging.print(contactorState[battery2_packContPositiveState]);
+  logging.print(", setState: ");
+  logging.print(contactorState[battery2_packContactorSetState]);
+  logging.print(", close allowed: ");
+  logging.print(battery2_packCtrsClosingAllowed);
+  logging.print(", Pyrotest: ");
+  logging.println(battery2_pyroTestInProgress);
 
-  Serial.print("Battery2 values: ");
-  Serial.print("Real SOC: ");
-  Serial.print(battery2_soc_ui / 10.0, 1);
+  logging.print("Battery2 values: ");
+  logging.print("Real SOC: ");
+  logging.print(battery2_soc_ui / 10.0, 1);
   print_int_with_units(", Battery2 voltage: ", battery2_volts, "V");
   print_int_with_units(", Battery2 HV current: ", (battery2_amps * 0.1), "A");
-  Serial.print(", Fully charged?: ");
+  logging.print(", Fully charged?: ");
   if (battery2_full_charge_complete)
-    Serial.print("YES, ");
+    logging.print("YES, ");
   else
-    Serial.print("NO, ");
+    logging.print("NO, ");
   if (datalayer.battery2.info.chemistry == battery_chemistry_enum::LFP) {
-    Serial.print("LFP chemistry detected!");
+    logging.print("LFP chemistry detected!");
   }
-  Serial.println("");
-  Serial.print("Cellstats, Max: ");
-  Serial.print(battery2_cell_max_v);
-  Serial.print("mV (cell ");
-  Serial.print(battery2_max_vno);
-  Serial.print("), Min: ");
-  Serial.print(battery2_cell_min_v);
-  Serial.print("mV (cell ");
-  Serial.print(battery2_min_vno);
-  Serial.print("), Imbalance: ");
-  Serial.print(battery2_cell_deviation_mV);
-  Serial.println("mV.");
+  logging.println("");
+  logging.print("Cellstats, Max: ");
+  logging.print(battery2_cell_max_v);
+  logging.print("mV (cell ");
+  logging.print(battery2_max_vno);
+  logging.print("), Min: ");
+  logging.print(battery2_cell_min_v);
+  logging.print("mV (cell ");
+  logging.print(battery2_min_vno);
+  logging.print("), Imbalance: ");
+  logging.print(battery2_cell_deviation_mV);
+  logging.println("mV.");
 
   print_int_with_units("High Voltage Output Pins: ", battery2_dcdcHvBusVolt, "V");
-  Serial.print(", ");
+  logging.print(", ");
   print_int_with_units("Low Voltage: ", battery2_dcdcLvBusVolt, "V");
-  Serial.println("");
+  logging.println("");
   print_int_with_units("DC/DC 12V current: ", battery2_dcdcLvOutputCurrent, "A");
-  Serial.println("");
+  logging.println("");
 
-  Serial.println("Values passed to the inverter: ");
+  logging.println("Values passed to the inverter: ");
   print_SOC(" SOC: ", datalayer.battery2.status.reported_soc);
   print_int_with_units(" Max discharge power: ", datalayer.battery2.status.max_discharge_power_W, "W");
-  Serial.print(", ");
+  logging.print(", ");
   print_int_with_units(" Max charge power: ", datalayer.battery2.status.max_charge_power_W, "W");
-  Serial.println("");
+  logging.println("");
   print_int_with_units(" Max temperature: ", ((int16_t)datalayer.battery2.status.temperature_min_dC * 0.1), "°C");
-  Serial.print(", ");
+  logging.print(", ");
   print_int_with_units(" Min temperature: ", ((int16_t)datalayer.battery2.status.temperature_max_dC * 0.1), "°C");
-  Serial.println("");
-#endif  // DEBUG_VIA_USB
+  logging.println("");
+#endif  // DEBUG_LOG
 }
 
 #endif  //DOUBLE_BATTERY
@@ -2681,32 +2681,32 @@ the first, for a few cycles, then stop all  messages which causes the contactor 
 }
 
 void print_int_with_units(char* header, int value, char* units) {
-  Serial.print(header);
-  Serial.print(value);
-  Serial.print(units);
+  logging.print(header);
+  logging.print(value);
+  logging.print(units);
 }
 
 void print_SOC(char* header, int SOC) {
-  Serial.print(header);
-  Serial.print(SOC / 100);
-  Serial.print(".");
+  logging.print(header);
+  logging.print(SOC / 100);
+  logging.print(".");
   int hundredth = SOC % 100;
   if (hundredth < 10)
-    Serial.print(0);
-  Serial.print(hundredth);
-  Serial.println("%");
+    logging.print(0);
+  logging.print(hundredth);
+  logging.println("%");
 }
 
 void printFaultCodesIfActive() {
   if (battery_packCtrsClosingAllowed == 0) {
-    Serial.println(
+    logging.println(
         "ERROR: Check high voltage connectors and interlock circuit! Closing contactor not allowed! Values: ");
   }
   if (battery_pyroTestInProgress == 1) {
-    Serial.println("ERROR: Please wait for Pyro Connection check to finish, HV cables successfully seated!");
+    logging.println("ERROR: Please wait for Pyro Connection check to finish, HV cables successfully seated!");
   }
   if (datalayer.system.status.inverter_allows_contactor_closing == false) {
-    Serial.println(
+    logging.println(
         "ERROR: Solar inverter does not allow for contactor closing. Check communication connection to the inverter "
         "OR "
         "disable the inverter protocol to proceed with contactor closing");
@@ -2868,14 +2868,14 @@ void printFaultCodesIfActive() {
 #ifdef DOUBLE_BATTERY  //need to update battery2
 void printFaultCodesIfActive_battery2() {
   if (battery2_packCtrsClosingAllowed == 0) {
-    Serial.println(
+    logging.println(
         "ERROR: Check high voltage connectors and interlock circuit! Closing contactor not allowed! Values: ");
   }
   if (battery2_pyroTestInProgress == 1) {
-    Serial.println("ERROR: Please wait for Pyro Connection check to finish, HV cables successfully seated!");
+    logging.println("ERROR: Please wait for Pyro Connection check to finish, HV cables successfully seated!");
   }
   if (datalayer.system.status.inverter_allows_contactor_closing == false) {
-    Serial.println(
+    logging.println(
         "ERROR: Solar inverter does not allow for contactor closing. Check communication connection to the inverter "
         "OR "
         "disable the inverter protocol to proceed with contactor closing");
@@ -3038,7 +3038,7 @@ void printFaultCodesIfActive_battery2() {
 
 void printDebugIfActive(uint8_t symbol, const char* message) {
   if (symbol == 1) {
-    Serial.println(message);
+    logging.println(message);
   }
 }
 
