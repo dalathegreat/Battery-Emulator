@@ -8,7 +8,7 @@
 /* Do not change code below unless you are sure what you are doing */
 /* Credits: Most of the code comes from Per Carlen's bms_comms_tesla_model3.py (https://gitlab.com/pelle8/batt2gen24/) */
 
-static unsigned long previousMillis50 = 0;  // will store last time a 30ms CAN Message was send
+static unsigned long previousMillis30 = 0;  // will store last time a 30ms CAN Message was send
 
 CAN_frame TESLA_221_1 = {
     .FD = false,
@@ -2658,14 +2658,14 @@ the first, for a few cycles, then stop all  messages which causes the contactor 
 #endif  //defined(TESLA_MODEL_SX_BATTERY) || defined(EXP_TESLA_BMS_DIGITAL_HVIL)
 
   //Send 30ms message
-  if (currentMillis - previousMillis50 >= INTERVAL_50_MS) {
+  if (currentMillis - previousMillis30 >= INTERVAL_30_MS) {
     // Check if sending of CAN messages has been delayed too much.
-    if ((currentMillis - previousMillis50 >= INTERVAL_50_MS_DELAYED) && (currentMillis > BOOTUP_TIME)) {
-      set_event(EVENT_CAN_OVERRUN, (currentMillis - previousMillis50));
+    if ((currentMillis - previousMillis30 >= INTERVAL_30_MS_DELAYED) && (currentMillis > BOOTUP_TIME)) {
+      set_event(EVENT_CAN_OVERRUN, (currentMillis - previousMillis30));
     } else {
       clear_event(EVENT_CAN_OVERRUN);
     }
-    previousMillis50 = currentMillis;
+    previousMillis30 = currentMillis;
 
     if ((datalayer.system.status.inverter_allows_contactor_closing == true) &&
         (datalayer.battery.status.bms_status != FAULT)) {
