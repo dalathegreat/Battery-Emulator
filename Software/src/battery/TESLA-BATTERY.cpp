@@ -1226,6 +1226,8 @@ the first, for a few cycles, then stop all  messages which causes the contactor 
   }
 #endif  //defined(TESLA_MODEL_SX_BATTERY) || defined(EXP_TESLA_BMS_DIGITAL_HVIL)
 
+  delay(3000) // adding 3s delay to allow cell voltage min/max to be read before transmit_can to stop false under/over cell voltage events.
+
   //Send 30ms message
   if (currentMillis - previousMillis30 >= INTERVAL_30_MS) {
     // Check if sending of CAN messages has been delayed too much.
