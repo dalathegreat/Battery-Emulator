@@ -66,7 +66,8 @@ static uint16_t battery_bms_min_voltage = 0;
 //0x2b4: 692 PCS_dcdcRailStatus
 static uint16_t battery_dcdcHvBusVolt = 0;  // Change name from battery_high_voltage to battery_dcdcHvBusVolt
 static uint16_t battery_dcdcLvBusVolt = 0;  // Change name from battery_low_voltage to battery_dcdcLvBusVolt
-static uint16_t battery_dcdcLvOutputCurrent = 0;  // Change name from battery_output_current to battery_dcdcLvOutputCurrent
+static uint16_t battery_dcdcLvOutputCurrent =
+    0;  // Change name from battery_output_current to battery_dcdcLvOutputCurrent
 //0x292: 658 BMS_socStatus
 static uint16_t battery_beginning_of_life = 600;  // kWh
 static uint16_t battery_soc_min = 0;
@@ -663,9 +664,10 @@ static bool battery2_ShuntHwMiaFault = false;  //Warns if the shunt current read
 static bool battery2_PyroMiaFault = false;     //Warns if the pyro squib is not connected
 static bool battery2_hvsMiaFault = false;      //Warns if the pack contactor hw fault
 static bool battery2_hviMiaFault = false;      //Warns if the FC contactor hw fault
-static bool battery2_Supply12vFault = false;  //Warns if the low voltage (12V) battery is below minimum voltage threshold
+static bool battery2_Supply12vFault =
+    false;  //Warns if the low voltage (12V) battery is below minimum voltage threshold
 static bool battery2_VerSupplyFault =
-    false;                                  //Warns if the Energy reserve voltage supply is below minimum voltage threshold
+    false;                               //Warns if the Energy reserve voltage supply is below minimum voltage threshold
 static bool battery2_HvilFault = false;  //Warn if a High Voltage Inter Lock fault is detected
 static bool battery2_BmsHvsMiaFault = false;  //Warns if the BMS node is mia on HVS or HVI CAN
 static bool battery2_PackVoltMismatchFault =
