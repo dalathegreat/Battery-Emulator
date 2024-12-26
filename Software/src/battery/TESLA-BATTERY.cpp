@@ -1229,8 +1229,8 @@ the first, for a few cycles, then stop all  messages which causes the contactor 
   }
 #endif  //defined(TESLA_MODEL_SX_BATTERY) || defined(EXP_TESLA_BMS_DIGITAL_HVIL)
 
-      //Send 30ms message
-      if (currentMillis - previousMillis30 >= INTERVAL_30_MS) {
+  //Send 30ms message
+  if (currentMillis - previousMillis30 >= INTERVAL_30_MS) {
     // Check if sending of CAN messages has been delayed too much.
     if ((currentMillis - previousMillis30 >= INTERVAL_30_MS_DELAYED) && (currentMillis > BOOTUP_TIME)) {
       set_event(EVENT_CAN_OVERRUN, (currentMillis - previousMillis30));
