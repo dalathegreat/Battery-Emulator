@@ -1198,6 +1198,9 @@ the first, for a few cycles, then stop all  messages which causes the contactor 
 
   unsigned long currentMillis = millis();
 
+  delay(
+      3000);  // adding 3s delay to allow cell voltage min/max to be read before transmit_can to stop false under/over cell voltage events.
+
 #if defined(TESLA_MODEL_SX_BATTERY) || defined(EXP_TESLA_BMS_DIGITAL_HVIL)
   if ((datalayer.system.status.inverter_allows_contactor_closing) && (datalayer.battery.status.bms_status != FAULT)) {
     if (currentMillis - lastSend1CF >= 10) {
@@ -1225,9 +1228,6 @@ the first, for a few cycles, then stop all  messages which causes the contactor 
     index_118 = 0;
   }
 #endif  //defined(TESLA_MODEL_SX_BATTERY) || defined(EXP_TESLA_BMS_DIGITAL_HVIL)
-
-  delay(
-      3000)  // adding 3s delay to allow cell voltage min/max to be read before transmit_can to stop false under/over cell voltage events.
 
       //Send 30ms message
       if (currentMillis - previousMillis30 >= INTERVAL_30_MS) {
