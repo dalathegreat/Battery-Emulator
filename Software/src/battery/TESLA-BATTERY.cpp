@@ -8,8 +8,8 @@
 /* Do not change code below unless you are sure what you are doing */
 /* Credits: Most of the code comes from Per Carlen's bms_comms_tesla_model3.py (https://gitlab.com/pelle8/batt2gen24/) */
 
-static unsigned long previousMillis30 = 0;  // will store last time a 30ms CAN Message was send
-
+static unsigned long previousMillis50 = 0;  // will store last time a 50ms CAN Message was send
+//0x221 545 VCFRONT_LVPowerState: "GenMsgCycleTime" 50ms
 CAN_frame TESLA_221_1 = {
     .FD = false,
     .ext_ID = false,
@@ -42,9 +42,9 @@ static uint16_t battery_ideal_energy_remaining = 0;         // kWh
 static uint16_t battery_ideal_energy_remaining_m0 = 0;      // kWh
 static uint16_t battery_nominal_energy_remaining = 0;       // kWh
 static uint16_t battery_nominal_energy_remaining_m0 = 0;    // kWh
-static uint16_t battery_nominal_full_pack_energy = 600;     // Kwh
-static uint16_t battery_nominal_full_pack_energy_m0 = 600;  // Kwh
-static uint16_t battery_beginning_of_life = 600;            // kWh
+static uint16_t battery_nominal_full_pack_energy = 0;       // Kwh
+static uint16_t battery_nominal_full_pack_energy_m0 = 0;    // Kwh
+static uint16_t battery_beginning_of_life = 0;              // kWh
 static uint16_t battery_charge_time_remaining = 0;          // Minutes
 static uint16_t battery_regenerative_limit = 0;
 static uint16_t battery_discharge_limit = 0;
@@ -62,8 +62,8 @@ static uint16_t battery_soc_min = 0;
 static uint16_t battery_soc_max = 0;
 static uint16_t battery_soc_ui = 0;  //Change name from battery_soc_vi to reflect DBC battery_soc_ui
 static uint16_t battery_soc_ave = 0;
-static uint16_t battery_cell_max_v = 3700;
-static uint16_t battery_cell_min_v = 3700;
+static uint16_t battery_cell_max_v = 3300; //Voltage value used on boot before CAN values have been mapped
+static uint16_t battery_cell_min_v = 3300; //Changed from 3700
 static uint16_t battery_cell_deviation_mV = 0;  //contains the deviation between highest and lowest cell in mV
 static uint8_t battery_max_vno = 0;
 static uint8_t battery_min_vno = 0;
@@ -160,9 +160,9 @@ static uint16_t battery2_ideal_energy_remaining = 0;
 static uint16_t battery2_ideal_energy_remaining_m0 = 0;  // kWh
 static uint16_t battery2_nominal_energy_remaining = 0;
 static uint16_t battery2_nominal_energy_remaining_m0 = 0;  // kWh
-static uint16_t battery2_nominal_full_pack_energy = 600;
-static uint16_t battery2_nominal_full_pack_energy_m0 = 600;  // Kwh
-static uint16_t battery2_beginning_of_life = 600;
+static uint16_t battery2_nominal_full_pack_energy = 0;
+static uint16_t battery2_nominal_full_pack_energy_m0 = 0;  // Kwh
+static uint16_t battery2_beginning_of_life = 0;
 static uint16_t battery2_charge_time_remaining = 0;  // Minutes
 static uint16_t battery2_regenerative_limit = 0;
 static uint16_t battery2_discharge_limit = 0;
@@ -179,8 +179,8 @@ static uint16_t battery2_soc_min = 0;
 static uint16_t battery2_soc_max = 0;
 static uint16_t battery2_soc_ui = 0;
 static uint16_t battery2_soc_ave = 0;
-static uint16_t battery2_cell_max_v = 3700;
-static uint16_t battery2_cell_min_v = 3700;
+static uint16_t battery2_cell_max_v = 3300;
+static uint16_t battery2_cell_min_v = 3300;
 static uint16_t battery2_cell_deviation_mV = 0;  //contains the deviation between highest and lowest cell in mV
 static uint8_t battery2_max_vno = 0;
 static uint8_t battery2_min_vno = 0;
@@ -1198,9 +1198,6 @@ the first, for a few cycles, then stop all  messages which causes the contactor 
 
   unsigned long currentMillis = millis();
 
-  delay(
-      3000);  // adding 3s delay to allow cell voltage min/max to be read before transmit_can to stop false under/over cell voltage events.
-
 #if defined(TESLA_MODEL_SX_BATTERY) || defined(EXP_TESLA_BMS_DIGITAL_HVIL)
   if ((datalayer.system.status.inverter_allows_contactor_closing) && (datalayer.battery.status.bms_status != FAULT)) {
     if (currentMillis - lastSend1CF >= 10) {
@@ -1230,14 +1227,14 @@ the first, for a few cycles, then stop all  messages which causes the contactor 
 #endif  //defined(TESLA_MODEL_SX_BATTERY) || defined(EXP_TESLA_BMS_DIGITAL_HVIL)
 
   //Send 30ms message
-  if (currentMillis - previousMillis30 >= INTERVAL_30_MS) {
+  if (currentMillis - previousMillis50 >= INTERVAL_50_MS) {
     // Check if sending of CAN messages has been delayed too much.
-    if ((currentMillis - previousMillis30 >= INTERVAL_30_MS_DELAYED) && (currentMillis > BOOTUP_TIME)) {
-      set_event(EVENT_CAN_OVERRUN, (currentMillis - previousMillis30));
+    if ((currentMillis - previousMillis50 >= INTERVAL_50_MS_DELAYED) && (currentMillis > BOOTUP_TIME)) {
+      set_event(EVENT_CAN_OVERRUN, (currentMillis - previousMillis50));
     } else {
       clear_event(EVENT_CAN_OVERRUN);
     }
-    previousMillis30 = currentMillis;
+    previousMillis50 = currentMillis;
 
     if ((datalayer.system.status.inverter_allows_contactor_closing == true) &&
         (datalayer.battery.status.bms_status != FAULT)) {
