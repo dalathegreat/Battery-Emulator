@@ -27,7 +27,7 @@
 #include "CHADEMO-SHUNTS.h"
 #endif
 
-#ifdef ECMP_BATTERY
+#ifdef STELLANTIS_ECMP_BATTERY
 #include "ECMP-BATTERY.h"
 #endif
 

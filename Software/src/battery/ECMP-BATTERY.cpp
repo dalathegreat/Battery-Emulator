@@ -1,9 +1,20 @@
 #include "../include.h"
-#ifdef ECMP_BATTERY
+#ifdef STELLANTIS_ECMP_BATTERY
 #include <algorithm>  // For std::min and std::max
 #include "../datalayer/datalayer.h"
 #include "../devboard/utils/events.h"
 #include "ECMP-BATTERY.h"
+
+/* TODO:
+This integration is still ongoing. Here is what still needs to be done in order to use this battery type
+- Find SOC%
+- Find battery voltage
+- Find current value
+- Find/estimate charge/discharge limits
+- Find temperature
+- Figure out contactor closing
+   - Which CAN messages need to be sent towards the battery?
+*/
 
 /* Do not change code below unless you are sure what you are doing */
 static unsigned long previousMillis1000 = 0;  // will store last time a 1s CAN Message was sent

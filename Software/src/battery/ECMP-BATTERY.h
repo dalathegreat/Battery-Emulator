@@ -1,5 +1,5 @@
-#ifndef ECMP_BATTERY_H
-#define ECMP_BATTERY_H
+#ifndef STELLANTIS_ECMP_BATTERY_H
+#define STELLANTIS_ECMP_BATTERY_H
 #include <Arduino.h>
 #include "../include.h"
 
