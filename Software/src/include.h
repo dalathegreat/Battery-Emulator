@@ -9,6 +9,7 @@
 
 #include "devboard/hal/hal.h"
 #include "devboard/safety/safety.h"
+#include "devboard/utils/logging.h"
 #include "devboard/utils/time_meas.h"
 #include "devboard/utils/types.h"
 
@@ -22,15 +23,15 @@
 #error You must select a HW to run on!
 #endif
 
-#if defined(DUAL_CAN) && defined(CAN_FD)
+#if defined(CAN_ADDON) && defined(CANFD_ADDON)
 // Check that user did not try to use dual can and fd-can on same hardware pins
-#error CAN-FD AND DUAL-CAN CANNOT BE USED SIMULTANEOUSLY
+#error CAN_ADDON AND CANFD_ADDON CANNOT BE USED SIMULTANEOUSLY
 #endif
 
 #ifdef USE_CANFD_INTERFACE_AS_CLASSIC_CAN
-#if !defined(CAN_FD)
+#if !defined(CANFD_ADDON)
 // Check that user did not try to use classic CAN over FD, without FD component
-#error PLEASE ENABLE CAN_FD TO USE CLASSIC CAN OVER CANFD INTERFACE
+#error PLEASE ENABLE CANFD_ADDON TO USE CLASSIC CAN OVER CANFD INTERFACE
 #endif
 #endif
 

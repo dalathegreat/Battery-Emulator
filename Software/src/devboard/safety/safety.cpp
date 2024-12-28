@@ -97,7 +97,7 @@ void update_machineryprotection() {
     clear_event(EVENT_SOH_LOW);
   }
 
-#if !defined(PYLON_BATTERY) && !defined(RENAULT_TWIZY_BATTERY)
+#ifdef NISSAN_LEAF_BATTERY
   // Check if SOC% is plausible
   if (datalayer.battery.status.voltage_dV >
       (datalayer.battery.info.max_design_voltage_dV -
@@ -108,10 +108,11 @@ void update_machineryprotection() {
       clear_event(EVENT_SOC_PLAUSIBILITY_ERROR);
     }
   }
-#endif
+#endif  //NISSAN_LEAF_BATTERY
 
   // Check diff between highest and lowest cell
-  cell_deviation_mV = (datalayer.battery.status.cell_max_voltage_mV - datalayer.battery.status.cell_min_voltage_mV);
+  cell_deviation_mV =
+      std::abs(datalayer.battery.status.cell_max_voltage_mV - datalayer.battery.status.cell_min_voltage_mV);
   if (cell_deviation_mV > datalayer.battery.info.max_cell_voltage_deviation_mV) {
     set_event(EVENT_CELL_DEVIATION_HIGH, (cell_deviation_mV / 20));
   } else {

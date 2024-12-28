@@ -2,6 +2,7 @@
 #include <Arduino.h>
 #include <WiFi.h>
 #include <freertos/FreeRTOS.h>
+#include "../../../USER_SECRETS.h"
 #include "../../../USER_SETTINGS.h"
 #include "../../battery/BATTERIES.h"
 #include "../../datalayer/datalayer.h"
@@ -194,9 +195,9 @@ static void publish_common_info(void) {
 #endif  // DOUBLE_BATTERY
     serializeJson(doc, mqtt_msg);
     if (!mqtt_publish(state_topic.c_str(), mqtt_msg, false)) {
-#ifdef DEBUG_VIA_USB
-      Serial.println("Common info MQTT msg could not be sent");
-#endif  // DEBUG_VIA_USB
+#ifdef DEBUG_LOG
+      logging.println("Common info MQTT msg could not be sent");
+#endif  // DEBUG_LOG
     }
     doc.clear();
 #ifdef HA_AUTODISCOVERY
@@ -292,9 +293,9 @@ static void publish_cell_voltages(void) {
     serializeJson(doc, mqtt_msg, sizeof(mqtt_msg));
 
     if (!mqtt_publish(state_topic.c_str(), mqtt_msg, false)) {
-#ifdef DEBUG_VIA_USB
-      Serial.println("Cell voltage MQTT msg could not be sent");
-#endif  // DEBUG_VIA_USB
+#ifdef DEBUG_LOG
+      logging.println("Cell voltage MQTT msg could not be sent");
+#endif  // DEBUG_LOG
     }
     doc.clear();
   }
@@ -312,9 +313,9 @@ static void publish_cell_voltages(void) {
     serializeJson(doc, mqtt_msg, sizeof(mqtt_msg));
 
     if (!mqtt_publish(state_topic_2.c_str(), mqtt_msg, false)) {
-#ifdef DEBUG_VIA_USB
-      Serial.println("Cell voltage MQTT msg could not be sent");
-#endif  // DEBUG_VIA_USB
+#ifdef DEBUG_LOG
+      logging.println("Cell voltage MQTT msg could not be sent");
+#endif  // DEBUG_LOG
     }
     doc.clear();
   }
@@ -384,9 +385,9 @@ void publish_events() {
 
       serializeJson(doc, mqtt_msg);
       if (!mqtt_publish(state_topic.c_str(), mqtt_msg, false)) {
-#ifdef DEBUG_VIA_USB
-        Serial.println("Common info MQTT msg could not be sent");
-#endif  // DEBUG_VIA_USB
+#ifdef DEBUG_LOG
+        logging.println("Common info MQTT msg could not be sent");
+#endif  // DEBUG_LOG
       } else {
         set_event_MQTTpublished(event_handle);
       }
@@ -402,9 +403,9 @@ void publish_events() {
 /* If we lose the connection, get it back */
 static bool reconnect() {
 // attempt one reconnection
-#ifdef DEBUG_VIA_USB
-  Serial.print("Attempting MQTT connection... ");
-#endif                // DEBUG_VIA_USB
+#ifdef DEBUG_LOG
+  logging.print("Attempting MQTT connection... ");
+#endif                // DEBUG_LOG
   char clientId[64];  // Adjust the size as needed
   snprintf(clientId, sizeof(clientId), "BatteryEmulatorClient-%s", WiFi.getHostname());
   // Attempt to connect
@@ -413,19 +414,19 @@ static bool reconnect() {
     clear_event(EVENT_MQTT_DISCONNECT);
     set_event(EVENT_MQTT_CONNECT, 0);
     reconnectAttempts = 0;  // Reset attempts on successful connection
-#ifdef DEBUG_VIA_USB
-    Serial.println("connected");
-#endif  // DEBUG_VIA_USB
+#ifdef DEBUG_LOG
+    logging.println("connected");
+#endif  // DEBUG_LOG
     clear_event(EVENT_MQTT_CONNECT);
   } else {
     if (connected_once)
       set_event(EVENT_MQTT_DISCONNECT, 0);
     reconnectAttempts++;  // Count failed attempts
-#ifdef DEBUG_VIA_USB
-    Serial.print("failed, rc=");
-    Serial.print(client.state());
-    Serial.println(" try again in 5 seconds");
-#endif  // DEBUG_VIA_USB
+#ifdef DEBUG_LOG
+    logging.print("failed, rc=");
+    logging.print(client.state());
+    logging.println(" try again in 5 seconds");
+#endif  // DEBUG_LOG
     // Wait 5 seconds before retrying
   }
   return client.connected();
@@ -449,9 +450,9 @@ void init_mqtt(void) {
 #endif
 
   client.setServer(MQTT_SERVER, MQTT_PORT);
-#ifdef DEBUG_VIA_USB
-  Serial.println("MQTT initialized");
-#endif  // DEBUG_VIA_USB
+#ifdef DEBUG_LOG
+  logging.println("MQTT initialized");
+#endif  // DEBUG_LOG
 
   client.setKeepAlive(30);  // Increase keepalive to manage network latency better. default is 15
 
@@ -478,8 +479,8 @@ void mqtt_loop(void) {
         if (reconnect()) {
           lastReconnectAttempt = 0;
         } else if (reconnectAttempts >= maxReconnectAttempts) {
-#ifdef DEBUG_VIA_USB
-          Serial.println("Too many failed reconnect attempts, restarting client.");
+#ifdef DEBUG_LOG
+          logging.println("Too many failed reconnect attempts, restarting client.");
 #endif
           client.disconnect();    // Force close the MQTT client connection
           reconnectAttempts = 0;  // Reset attempts to avoid infinite loop

@@ -64,6 +64,31 @@ CAN_frame SOLAX_1879 = {.FD = false,
                         .DLC = 8,
                         .ID = 0x1879,
                         .data = {0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0}};
+CAN_frame SOLAX_187E = {.FD = false,  //Needed for Ultra
+                        .ext_ID = true,
+                        .DLC = 8,
+                        .ID = 0x187E,
+                        .data = {0x0, 0x2D, 0x0, 0x0, 0x0, 0x5F, 0x0, 0x0}};
+CAN_frame SOLAX_187D = {.FD = false,  //Needed for Ultra
+                        .ext_ID = true,
+                        .DLC = 8,
+                        .ID = 0x187D,
+                        .data = {0x8B, 0x01, 0x0, 0x0, 0x8B, 0x1, 0x0, 0x0}};
+CAN_frame SOLAX_187C = {.FD = false,  //Needed for Ultra
+                        .ext_ID = true,
+                        .DLC = 8,
+                        .ID = 0x187C,
+                        .data = {0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0}};
+CAN_frame SOLAX_187B = {.FD = false,  //Needed for Ultra
+                        .ext_ID = true,
+                        .DLC = 8,
+                        .ID = 0x187B,
+                        .data = {0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0}};
+CAN_frame SOLAX_187A = {.FD = false,  //Needed for Ultra
+                        .ext_ID = true,
+                        .DLC = 8,
+                        .ID = 0x187A,
+                        .data = {0x01, 0x40, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0}};
 CAN_frame SOLAX_1881 = {.FD = false,
                         .ext_ID = true,
                         .DLC = 8,
@@ -182,8 +207,8 @@ void receive_can_inverter(CAN_frame rx_frame) {
     LastFrameTime = millis();
     switch (STATE) {
       case (BATTERY_ANNOUNCE):
-#ifdef DEBUG_VIA_USB
-        Serial.println("Solax Battery State: Announce");
+#ifdef DEBUG_LOG
+        logging.println("Solax Battery State: Announce");
 #endif
         datalayer.system.status.inverter_allows_contactor_closing = false;
         SOLAX_1875.data.u8[4] = (0x00);  // Inform Inverter: Contactor 0=off, 1=on.
@@ -214,8 +239,8 @@ void receive_can_inverter(CAN_frame rx_frame) {
         transmit_can(&SOLAX_1878, can_config.inverter);
         transmit_can(&SOLAX_1801, can_config.inverter);  // Announce that the battery will be connected
         STATE = CONTACTOR_CLOSED;                        // Jump to Contactor Closed State
-#ifdef DEBUG_VIA_USB
-        Serial.println("Solax Battery State: Contactor Closed");
+#ifdef DEBUG_LOG
+        logging.println("Solax Battery State: Contactor Closed");
 #endif
         break;
 
@@ -242,13 +267,13 @@ void receive_can_inverter(CAN_frame rx_frame) {
   if (rx_frame.ID == 0x1871 && rx_frame.data.u64 == __builtin_bswap64(0x0500010000000000)) {
     transmit_can(&SOLAX_1881, can_config.inverter);
     transmit_can(&SOLAX_1882, can_config.inverter);
-#ifdef DEBUG_VIA_USB
-    Serial.println("1871 05-frame received from inverter");
+#ifdef DEBUG_LOG
+    logging.println("1871 05-frame received from inverter");
 #endif
   }
   if (rx_frame.ID == 0x1871 && rx_frame.data.u8[0] == (0x03)) {
-#ifdef DEBUG_VIA_USB
-    Serial.println("1871 03-frame received from inverter");
+#ifdef DEBUG_LOG
+    logging.println("1871 03-frame received from inverter");
 #endif
   }
 }
@@ -256,5 +281,12 @@ void setup_inverter(void) {  // Performs one time setup at startup
   strncpy(datalayer.system.info.inverter_protocol, "SolaX Triple Power LFP over CAN bus", 63);
   datalayer.system.info.inverter_protocol[63] = '\0';
   datalayer.system.status.inverter_allows_contactor_closing = false;  // The inverter needs to allow first
+
+  // Sending these messages once towards the inverter makes SOC% work on the Ultra variant
+  transmit_can(&SOLAX_187E, can_config.inverter);
+  transmit_can(&SOLAX_187D, can_config.inverter);
+  transmit_can(&SOLAX_187C, can_config.inverter);
+  transmit_can(&SOLAX_187B, can_config.inverter);
+  transmit_can(&SOLAX_187A, can_config.inverter);
 }
 #endif

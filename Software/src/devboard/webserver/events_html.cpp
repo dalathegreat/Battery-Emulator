@@ -5,6 +5,8 @@ const char EVENTS_HTML_START[] = R"=====(
 )=====";
 const char EVENTS_HTML_END[] = R"=====(
 </div></div>
+<style> button { background-color: #505E67; color: white; border: none; padding: 10px 20px; margin-bottom: 20px; cursor: pointer; border-radius: 10px; }
+button:hover { background-color: #3A4A52; }</style>
 <button onclick="askClear()">Clear all events</button>
 <button onclick="home()">Back to main page</button>
 <style>.event:nth-child(even){background-color:#455a64}.event:nth-child(odd){background-color:#394b52}</style><script>function showEvent(){document.querySelectorAll(".event").forEach(function(e){var n=e.querySelector(".sec-ago");n&&(n.innerText=new Date(Date.now()-(4294967296*+n.innerText.split(";")[0]+ +n.innerText.split(";")[1])).toLocaleString())})}function askClear(){window.confirm("Are you sure you want to clear all events?")&&(window.location.href="/clearevents")}function home(){window.location.href="/"}window.onload=function(){showEvent()}</script>
@@ -37,11 +39,11 @@ String events_processor(const String& var) {
     for (const auto& event : order_events) {
       EVENTS_ENUM_TYPE event_handle = event.event_handle;
       event_pointer = event.event_pointer;
-#ifdef DEBUG_VIA_USB
-      Serial.println("Event: " + String(get_event_enum_string(event_handle)) +
-                     " count: " + String(event_pointer->occurences) + " seconds: " + String(event_pointer->timestamp) +
-                     " data: " + String(event_pointer->data) +
-                     " level: " + String(get_event_level_string(event_handle)));
+#ifdef DEBUG_LOG
+      logging.println("Showing Event: " + String(get_event_enum_string(event_handle)) +
+                      " count: " + String(event_pointer->occurences) + " seconds: " + String(event_pointer->timestamp) +
+                      " data: " + String(event_pointer->data) +
+                      " level: " + String(get_event_level_string(event_handle)));
 #endif
       content.concat("<div class='event'>");
       content.concat("<div>" + String(get_event_enum_string(event_handle)) + "</div>");
@@ -58,8 +60,8 @@ String events_processor(const String& var) {
     order_events.clear();
     content.concat(FPSTR(EVENTS_HTML_END));
     return content;
-    return String();
   }
+  return String();
 }
 
 /* Script for displaying event log before it gets minified

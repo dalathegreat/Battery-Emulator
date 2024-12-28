@@ -12,12 +12,30 @@ on:
     types: [created, edited, prereleased, released, published]
 
 # This is the list of jobs that will be run concurrently.
-# Since we use a build matrix, the actual number of jobs
-# started depends on how many configurations the matrix
-# will produce.
 jobs:
+  # This pre-job is run to skip workflows in case a workflow is already run, i.e. because the workflow is triggered by both push and pull_request
+  skip-duplicate-actions:
+    runs-on: ubuntu-latest
+    # Map a step output to a job output
+    outputs:
+      should_skip: ${{ steps.skip_check.outputs.should_skip }}
+    steps:
+      - id: skip_check
+        uses: fkirc/skip-duplicate-actions@v5
+        with:
+          # All of these options are optional, so you can remove them if you are happy with the defaults
+          concurrent_skipping: 'never'
+          skip_after_successful_duplicate: 'true'
+          do_not_skip: '["pull_request", "workflow_dispatch", "schedule"]'
+
+  # Since we use a build matrix, the actual number of jobs
+  # started depends on how many configurations the matrix
+  # will produce.
+
   # This is the name of the job.
   build-matrix:
+    needs: skip-duplicate-actions
+    if: needs.skip-duplicate-actions.outputs.should_skip != 'true'
 
     # Here we tell GitHub that the jobs must be determined
     # dynamically depending on a matrix configuration.
@@ -36,30 +54,32 @@ jobs:
           #- esp32:esp32:esp32s3
         # These are the batteries for which the code will be compiled.
         battery:
-          - BMW_I3_BATTERY
-          - BYD_ATTO_3_BATTERY
-          - CHADEMO_BATTERY
-          - IMIEV_CZERO_ION_BATTERY
-          - KIA_HYUNDAI_64_BATTERY
-          - KIA_HYUNDAI_HYBRID_BATTERY
           - NISSAN_LEAF_BATTERY
           - PYLON_BATTERY
           - RJXZS_BMS
+          - RANGE_ROVER_PHEV_BATTERY
           - RENAULT_KANGOO_BATTERY
+          - RENAULT_TWIZY_BATTERY
           - RENAULT_ZOE_GEN1_BATTERY
           - RENAULT_ZOE_GEN2_BATTERY
+          - SANTA_FE_PHEV_BATTERY
           - TESLA_MODEL_3Y_BATTERY
+          - TESLA_MODEL_SX_BATTERY
           - VOLVO_SPA_BATTERY
           - TEST_FAKE_BATTERY
         # These are the emulated inverter communication protocols for which the code will be compiled.
         inverter:
+          - AFORE_CAN
           - BYD_CAN
           - BYD_KOSTAL_RS485
-          - BYD_SMA
           - BYD_MODBUS
+          - BYD_SMA
           - FOXESS_CAN
           - PYLON_CAN
+          - PYLON_LV_CAN
+          - SCHNEIDER_CAN
           - SMA_CAN
+          - SMA_LV_CAN
           - SMA_TRIPOWER_CAN
           - SOFAR_CAN
           - SOLAX_CAN
@@ -73,6 +93,10 @@ jobs:
       # First we clone the repo using the `checkout` action.
       - name: Checkout
         uses: actions/checkout@v4
+      
+      # Copy USER_SECRETS.TEMPLATE.h to USER_SECRETS.h
+      - name: Copy USER_SECRETS.TEMPLATE.h to USER_SECRETS.h
+        run: cp ./Software/USER_SECRETS.TEMPLATE.h ./Software/USER_SECRETS.h
 
       # We use the `arduino/setup-arduino-cli` action to install and
       # configure the Arduino CLI on the system.

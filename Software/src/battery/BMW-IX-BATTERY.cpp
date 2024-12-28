@@ -670,8 +670,8 @@ void receive_can_battery(CAN_frame rx_frame) {
 
         if ((rx_frame.data.u8[6] << 8 | rx_frame.data.u8[7]) == 10000 ||
             (rx_frame.data.u8[8] << 8 | rx_frame.data.u8[9]) == 10000) {  //Qualifier Invalid Mode - Request Reboot
-#ifdef DEBUG_VIA_USB
-          Serial.println("Cell MinMax Qualifier Invalid - Requesting BMS Reset");
+#ifdef DEBUG_LOG
+          logging.println("Cell MinMax Qualifier Invalid - Requesting BMS Reset");
 #endif
           //set_event(EVENT_BATTERY_VALUE_UNAVAILABLE, (millis())); //Eventually need new Info level event type
           transmit_can(&BMWiX_6F4_REQUEST_HARD_RESET, can_config.battery);

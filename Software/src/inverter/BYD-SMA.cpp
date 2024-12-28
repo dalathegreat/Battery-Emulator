@@ -130,10 +130,18 @@ void update_values_can_inverter() {  //This function maps all the values fetched
   }
 
   //Error bits
-  if (!datalayer.system.status.inverter_allows_contactor_closing) {
-    SMA_158.data.u8[2] = 0x6A;
-  } else {
+  if (datalayer.system.status.inverter_allows_contactor_closing) {
     SMA_158.data.u8[2] = 0xAA;
+#ifdef INVERTER_CONTACTOR_ENABLE_LED_PIN
+    digitalWrite(INVERTER_CONTACTOR_ENABLE_LED_PIN,
+                 HIGH);  // Turn on LED to indicate that SMA inverter allows contactor closing
+#endif                   // INVERTER_CONTACTOR_ENABLE_LED_PIN
+  } else {
+    SMA_158.data.u8[2] = 0x6A;
+#ifdef INVERTER_CONTACTOR_ENABLE_LED_PIN
+    digitalWrite(INVERTER_CONTACTOR_ENABLE_LED_PIN,
+                 LOW);  // Turn off LED to indicate that SMA inverter allows contactor closing
+#endif                  // INVERTER_CONTACTOR_ENABLE_LED_PIN
   }
 
   /*
@@ -251,10 +259,15 @@ void send_can_inverter() {
     }
   }
 }
+
 void setup_inverter(void) {  // Performs one time setup at startup over CAN bus
   strncpy(datalayer.system.info.inverter_protocol, "BYD Battery-Box HVS over SMA CAN", 63);
   datalayer.system.info.inverter_protocol[63] = '\0';
   datalayer.system.status.inverter_allows_contactor_closing = false;  // The inverter needs to allow first
   pinMode(INVERTER_CONTACTOR_ENABLE_PIN, INPUT);
+#ifdef INVERTER_CONTACTOR_ENABLE_LED_PIN
+  pinMode(INVERTER_CONTACTOR_ENABLE_LED_PIN, OUTPUT);
+  digitalWrite(INVERTER_CONTACTOR_ENABLE_LED_PIN, LOW);  // Turn LED off, until inverter allows contactor closing
+#endif                                                   // INVERTER_CONTACTOR_ENABLE_LED_PIN
 }
 #endif

@@ -9,12 +9,28 @@ on:
   - pull_request
 
 # This is the list of jobs that will be run concurrently.
-# Since we use a build matrix, the actual number of jobs
-# started depends on how many configurations the matrix
-# will produce.
 jobs:
-  # This is the name of the job
+  # This pre-job is run to skip workflows in case a workflow is already run, i.e. because the workflow is triggered by both push and pull_request
+  skip-duplicate-actions:
+    runs-on: ubuntu-latest
+    # Map a step output to a job output
+    outputs:
+      should_skip: ${{ steps.skip_check.outputs.should_skip }}
+    steps:
+      - id: skip_check
+        uses: fkirc/skip-duplicate-actions@v5
+        with:
+          # All of these options are optional, so you can remove them if you are happy with the defaults
+          concurrent_skipping: 'never'
+          skip_after_successful_duplicate: 'true'
+          do_not_skip: '["pull_request", "workflow_dispatch", "schedule"]'
+
+  # Since we use a build matrix, the actual number of jobs
+  # started depends on how many configurations the matrix
+  # will produce.
   build-batteries:
+    needs: skip-duplicate-actions
+    if: needs.skip-duplicate-actions.outputs.should_skip != 'true'
 
     # Here we tell GitHub that the jobs must be determined
     # dynamically depending on a matrix configuration.
@@ -40,9 +56,10 @@ jobs:
           - CHADEMO_BATTERY
           - IMIEV_CZERO_ION_BATTERY
           - JAGUAR_IPACE_BATTERY
-          - KIA_HYUNDAI_64_BATTERY
           - KIA_E_GMP_BATTERY
+          - KIA_HYUNDAI_64_BATTERY
           - KIA_HYUNDAI_HYBRID_BATTERY
+          - MEB_BATTERY
           - MG_5_BATTERY
           - NISSAN_LEAF_BATTERY
           - PYLON_BATTERY
@@ -54,6 +71,7 @@ jobs:
           - RENAULT_ZOE_GEN2_BATTERY
           - SANTA_FE_PHEV_BATTERY
           - TESLA_MODEL_3Y_BATTERY
+          - TESLA_MODEL_SX_BATTERY
           - VOLVO_SPA_BATTERY
           - TEST_FAKE_BATTERY
           - SERIAL_LINK_RECEIVER
@@ -68,6 +86,10 @@ jobs:
       # First we clone the repo using the `checkout` action.
       - name: Checkout
         uses: actions/checkout@v4
+      
+      # Copy USER_SECRETS.TEMPLATE.h to USER_SECRETS.h
+      - name: Copy USER_SECRETS.TEMPLATE.h to USER_SECRETS.h
+        run: cp ./Software/USER_SECRETS.TEMPLATE.h ./Software/USER_SECRETS.h
 
       # We use the `arduino/setup-arduino-cli` action to install and
       # configure the Arduino CLI on the system.

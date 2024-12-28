@@ -107,10 +107,20 @@ typedef struct {
    * you want the inverter to be able to use. At this real SOC, the inverter
    * will "see" 100% */
   uint16_t max_percentage = BATTERY_MAXPERCENTAGE;
+
   /** The user specified maximum allowed charge rate, in deciAmpere. 300 = 30.0 A */
   uint16_t max_user_set_charge_dA = BATTERY_MAX_CHARGE_AMP;
   /** The user specified maximum allowed discharge rate, in deciAmpere. 300 = 30.0 A */
   uint16_t max_user_set_discharge_dA = BATTERY_MAX_DISCHARGE_AMP;
+
+  /** User specified discharge/charge voltages in use. Set to true to use user specified values */
+  /** Some inverters like to see a specific target voltage for charge/discharge. Use these values to override automatic voltage limits*/
+  bool user_set_voltage_limits_active = BATTERY_USE_VOLTAGE_LIMITS;
+  /** The user specified maximum allowed charge voltage, in deciVolt. 4000 = 400.0 V */
+  uint16_t max_user_set_charge_voltage_dV = BATTERY_MAX_CHARGE_VOLTAGE;
+  /** The user specified maximum allowed discharge voltage, in deciVolt. 3000 = 300.0 V */
+  uint16_t max_user_set_discharge_voltage_dV = BATTERY_MAX_DISCHARGE_VOLTAGE;
+
 } DATALAYER_BATTERY_SETTINGS_TYPE;
 
 typedef struct {
@@ -131,6 +141,12 @@ typedef struct {
   char battery_protocol[64] = {0};
   /** array with type of inverter used, for displaying on webserver */
   char inverter_protocol[64] = {0};
+  /** array with incoming CAN messages, for displaying on webserver */
+  char logged_can_messages[15000] = {0};
+  size_t logged_can_messages_offset = 0;
+  /** bool, determines if CAN messages should be logged for webserver */
+  bool can_logging_active = false;
+
 } DATALAYER_SYSTEM_INFO_TYPE;
 
 typedef struct {

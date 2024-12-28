@@ -10,6 +10,10 @@
 #include "BMW-IX-BATTERY.h"
 #endif
 
+#ifdef BOLT_AMPERA_BATTERY
+#include "BOLT-AMPERA-BATTERY.h"
+#endif
+
 #ifdef BYD_ATTO_3_BATTERY
 #include "BYD-ATTO-3-BATTERY.h"
 #endif
@@ -41,6 +45,10 @@
 
 #ifdef KIA_HYUNDAI_HYBRID_BATTERY
 #include "KIA-HYUNDAI-HYBRID-BATTERY.h"
+#endif
+
+#ifdef MEB_BATTERY
+#include "MEB-BATTERY.h"
 #endif
 
 #ifdef MG_5_BATTERY
