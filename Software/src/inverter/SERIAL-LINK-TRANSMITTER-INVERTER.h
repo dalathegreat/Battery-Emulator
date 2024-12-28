@@ -6,5 +6,6 @@
 #include "../lib/mackelec-SerialDataLink/SerialDataLink.h"
 
 void manageSerialLinkTransmitter();
+void setup_inverter(void);
 
 #endif

@@ -16,7 +16,7 @@ This software enables EV battery packs to be used for stationary storage. It ach
 ## Hardware requirements 📜
 This code fits on the LilyGo ESP32 T-CAN485 devboard , see https://github.com/Xinyuan-LilyGO/T-CAN485
 
-You will also need a complete EV battery. [See the battery compability list on which are supported.](https://github.com/dalathegreat/BYD-Battery-Emulator-For-Gen24/wiki#supported-batteries-list)
+You will also need a complete EV battery. [See the battery compatibility list on which are supported.](https://github.com/dalathegreat/BYD-Battery-Emulator-For-Gen24/wiki#supported-batteries-list)
 
 Finally, you will need a [compatible hybrid solar inverter](https://github.com/dalathegreat/BYD-Battery-Emulator-For-Gen24/wiki#supported-inverters-list), for example the "Fronius Gen24" or "GoodWe ET"
 
@@ -36,7 +36,7 @@ Here's how to wire up the communication between the components.
 Here's how to connect the high voltage lines
 ![HighVoltageWiring](https://github.com/dalathegreat/Battery-Emulator/assets/26695010/f70e6262-d630-4148-9a39-dad32e79b3d6)
 
-For more examples showing wiring, see each battery types own Wiki page. For instance the [Nissan LEAF page](https://github.com/dalathegreat/BYD-Battery-Emulator-For-Gen24/wiki/Nissan-LEAF-battery#wiring-diagram)
+For more examples showing wiring, see each battery types own Wiki page. For instance the [Nissan LEAF page](https://github.com/dalathegreat/Battery-Emulator/wiki/Battery:-Nissan-LEAF---e%E2%80%90NV200)
 
 ## How to compile the software 💻
 1. Download the Arduino IDE: https://www.arduino.cc/en/software
@@ -44,23 +44,38 @@ For more examples showing wiring, see each battery types own Wiki page. For inst
 3. Click `File` menu -> `Preferences` -> `Additional Development` -> `Additional Board Manager URLs` -> Enter the URL in the input box: `https://raw.githubusercontent.com/espressif/arduino-esp32/gh-pages/package_esp32_index.json` and click OK.
 4. Click `Tools` menu -> `Board: "...."` -> `Boards Manager...`, install the `esp32` package by `Espressif Systems` (not `Arduino ESP32 Boards`), then press `Close`.
 
-**NOTE: The version depends on which release of Battery-Emulator you are running!**
+**NOTE: The ESP32 version depends on which release of Battery-Emulator you are running!**
 
 - ⚠️ Make sure to use a 2.x.x version if you are on a release **older** than 6.0.0 (For instance ESP32 v2.0.11 when using Battery-Emulator v5.4.0)
-- ⚠️ Make sure to use a 3.x.x version if you are on a release **newer** than 6.0.0 (For instance ESP32 v3.0.0 when using Battery-Emulator v6.0.0)
-
+- ⚠️ Make sure to use a 3.0.x version if you are on a release **newer** than 6.0.0 (For instance ESP32 v3.0.0 when using Battery-Emulator v6.0.0)
+- ⚠️ Make sure to use a 3.1.x version if you are on a release **newer** than 8.0.0 (For instance ESP32 v3.1.0 when using Battery-Emulator v8.0.0)
+  
 ![bild](https://github.com/dalathegreat/Battery-Emulator/assets/26695010/6a2414b1-f2ca-4746-8e8d-9afd78bd9252)
 
 5. The Arduino board should be set to `ESP32 Dev Module` (under `Tools` -> `Board` -> `ESP32 Arduino`) with the following settings:
 ![alt text](https://github.com/Xinyuan-LilyGO/T-CAN485/blob/main/img/arduino_setting.png)
 6. Select which battery type you will use, along with other optional settings. This is done in the `USER_SETTINGS.h` file.
-7. Press `Verify` and `Upload` to send the sketch to the board.
+7. Copy the `USER_SECRETS.TEMPLATE.h` file to `USER_SECRETS.h` and update connectivity settings inside this file.
+8. Press `Verify` and `Upload` to send the sketch to the board.
 NOTE: In some cases, the LilyGo must be powered through the main power connector instead of USB-C
-      when performing the initial firsmware upload.
+      when performing the initial firmware upload.
 NOTE: On Mac, the following USB driver may need to be installed: https://github.com/WCHSoftGroup/ch34xser_macos
 
+NOTE: If you see garbled messages on the serial console, change the serial console to match the baud rate to the code, currently 115200.
+
 This video explains all the above mentioned steps:
-https://youtu.be/_mH2AjnAjDk
+<https://youtu.be/_mH2AjnAjDk>
+
+
+### Linux Development Environment Setup
+In addition to the steps above, ESP32 requires a dependency for a Python module, pyserial install using the cli.\
+```python3 -m pip install pyserial```
+
+If you're using Ubuntu , use apt to manage the dependencies of arduino:\
+pyserial install: ```sudo apt install python3-serial```
+
+Arduino AppImage must be set as executable after downloading to run correctly\
+example: ```chmod 775 arduino-ide_2.3.3_Linux_64bit.AppImage```
 
 ## Dependencies 📖
 This code uses the following excellent libraries: 
@@ -86,6 +101,7 @@ It is also based on the information found in the following excellent repositorie
 - https://github.com/dalathegreat/leaf_can_bus_messages
 - https://github.com/rand12345/solax_can_bus
 - https://github.com/Tom-evnut/BMWI3BMS/ SMA-CAN
+- https://github.com/FozzieUK/FoxESS-Canbus-Protocol FoxESS-CAN
 - https://github.com/maciek16c/hyundai-santa-fe-phev-battery
 - https://github.com/ljames28/Renault-Zoe-PH2-ZE50-Canbus-LBC-Information
 - Renault Zoe CAN Matrix https://docs.google.com/spreadsheets/u/0/d/1Qnk-yzzcPiMArO-QDzO4a8ptAS2Sa4HhVu441zBzlpM/edit?pli=1#gid=0

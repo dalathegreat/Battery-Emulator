@@ -1,6 +1,7 @@
 #include "../include.h"
 #ifdef BMW_I3_BATTERY
 #include "../datalayer/datalayer.h"
+#include "../datalayer/datalayer_extended.h"
 #include "../devboard/utils/events.h"
 #include "BMW-I3-BATTERY.h"
 
@@ -238,7 +239,6 @@ static int16_t battery_temperature_max = 0;
 static int16_t battery_temperature_min = 0;
 static int16_t battery_max_charge_amperage = 0;
 static int16_t battery_max_discharge_amperage = 0;
-static int16_t battery_power = 0;
 static int16_t battery_current = 0;
 static uint8_t battery_status_error_isolation_external_Bordnetz = 0;
 static uint8_t battery_status_error_isolation_internal_Bordnetz = 0;
@@ -307,7 +307,6 @@ static int16_t battery2_temperature_max = 0;
 static int16_t battery2_temperature_min = 0;
 static int16_t battery2_max_charge_amperage = 0;
 static int16_t battery2_max_discharge_amperage = 0;
-static int16_t battery2_power = 0;
 static int16_t battery2_current = 0;
 static uint8_t battery2_status_error_isolation_external_Bordnetz = 0;
 static uint8_t battery2_status_error_isolation_internal_Bordnetz = 0;
@@ -387,19 +386,50 @@ void update_values_battery2() {  //This function maps all the values fetched via
     datalayer.battery2.status.max_charge_power_W = battery2_BEV_available_power_longterm_charge;
   }
 
-  battery2_power = (datalayer.battery2.status.current_dA * (datalayer.battery2.status.voltage_dV / 100));
-
-  datalayer.battery2.status.active_power_W = battery2_power;
-
   datalayer.battery2.status.temperature_min_dC = battery2_temperature_min * 10;  // Add a decimal
 
   datalayer.battery2.status.temperature_max_dC = battery2_temperature_max * 10;  // Add a decimal
 
-  datalayer.battery2.status.cell_min_voltage_mV = datalayer.battery2.status.cell_voltages_mV[0];
-  datalayer.battery2.status.cell_max_voltage_mV = datalayer.battery2.status.cell_voltages_mV[1];
+  if (battery2_info_available) {
+    // Start checking safeties. First up, cellvoltages!
+    if (detectedBattery == BATTERY_60AH) {
+      datalayer.battery2.info.max_design_voltage_dV = MAX_PACK_VOLTAGE_60AH;
+      datalayer.battery2.info.min_design_voltage_dV = MIN_PACK_VOLTAGE_60AH;
+      datalayer.battery2.info.max_cell_voltage_mV = MAX_CELL_VOLTAGE_60AH;
+      datalayer.battery2.info.min_cell_voltage_mV = MIN_CELL_VOLTAGE_60AH;
+    } else if (detectedBattery == BATTERY_94AH) {
+      datalayer.battery2.info.max_design_voltage_dV = MAX_PACK_VOLTAGE_94AH;
+      datalayer.battery2.info.min_design_voltage_dV = MIN_PACK_VOLTAGE_94AH;
+      datalayer.battery2.info.max_cell_voltage_mV = MAX_CELL_VOLTAGE_94AH;
+      datalayer.battery2.info.min_cell_voltage_mV = MIN_CELL_VOLTAGE_94AH;
+    } else {  // BATTERY_120AH
+      datalayer.battery2.info.max_design_voltage_dV = MAX_PACK_VOLTAGE_120AH;
+      datalayer.battery2.info.min_design_voltage_dV = MIN_PACK_VOLTAGE_120AH;
+      datalayer.battery2.info.max_cell_voltage_mV = MAX_CELL_VOLTAGE_120AH;
+      datalayer.battery2.info.min_cell_voltage_mV = MIN_CELL_VOLTAGE_120AH;
+    }
+  }
+
+  // Perform other safety checks
+  if (battery2_status_error_locking == 2) {  // HVIL seated?
+    set_event(EVENT_HVIL_FAILURE, 2);
+  } else {
+    clear_event(EVENT_HVIL_FAILURE);
+  }
+  if (battery2_status_error_disconnecting_switch > 0) {  // Check if contactors are sticking / welded
+    set_event(EVENT_CONTACTOR_WELDED, 0);
+  } else {
+    clear_event(EVENT_CONTACTOR_WELDED);
+  }
 }
 
 void update_values_battery() {  //This function maps all the values fetched via CAN to the battery datalayer
+  if (datalayer.system.settings.equipment_stop_active == true) {
+    digitalWrite(WUP_PIN, LOW);  // Turn off WUP_PIN
+  } else {
+    digitalWrite(WUP_PIN, HIGH);  // Wake up the battery
+  }
+
   if (!battery_awake) {
     return;
   }
@@ -420,10 +450,6 @@ void update_values_battery() {  //This function maps all the values fetched via 
 
   datalayer.battery.status.max_charge_power_W = battery_BEV_available_power_longterm_charge;
 
-  battery_power = (datalayer.battery.status.current_dA * (datalayer.battery.status.voltage_dV / 100));
-
-  datalayer.battery.status.active_power_W = battery_power;
-
   datalayer.battery.status.temperature_min_dC = battery_temperature_min * 10;  // Add a decimal
 
   datalayer.battery.status.temperature_max_dC = battery_temperature_max * 10;  // Add a decimal
@@ -433,30 +459,18 @@ void update_values_battery() {  //This function maps all the values fetched via 
     if (detectedBattery == BATTERY_60AH) {
       datalayer.battery.info.max_design_voltage_dV = MAX_PACK_VOLTAGE_60AH;
       datalayer.battery.info.min_design_voltage_dV = MIN_PACK_VOLTAGE_60AH;
-      if (datalayer.battery.status.cell_max_voltage_mV >= MAX_CELL_VOLTAGE_60AH) {
-        set_event(EVENT_CELL_OVER_VOLTAGE, 0);
-      }
-      if (datalayer.battery.status.cell_min_voltage_mV <= MIN_CELL_VOLTAGE_60AH) {
-        set_event(EVENT_CELL_UNDER_VOLTAGE, 0);
-      }
+      datalayer.battery.info.max_cell_voltage_mV = MAX_CELL_VOLTAGE_60AH;
+      datalayer.battery.info.min_cell_voltage_mV = MIN_CELL_VOLTAGE_60AH;
     } else if (detectedBattery == BATTERY_94AH) {
       datalayer.battery.info.max_design_voltage_dV = MAX_PACK_VOLTAGE_94AH;
       datalayer.battery.info.min_design_voltage_dV = MIN_PACK_VOLTAGE_94AH;
-      if (datalayer.battery.status.cell_max_voltage_mV >= MAX_CELL_VOLTAGE_94AH) {
-        set_event(EVENT_CELL_OVER_VOLTAGE, 0);
-      }
-      if (datalayer.battery.status.cell_min_voltage_mV <= MIN_CELL_VOLTAGE_94AH) {
-        set_event(EVENT_CELL_UNDER_VOLTAGE, 0);
-      }
+      datalayer.battery.info.max_cell_voltage_mV = MAX_CELL_VOLTAGE_94AH;
+      datalayer.battery.info.min_cell_voltage_mV = MIN_CELL_VOLTAGE_94AH;
     } else {  // BATTERY_120AH
       datalayer.battery.info.max_design_voltage_dV = MAX_PACK_VOLTAGE_120AH;
       datalayer.battery.info.min_design_voltage_dV = MIN_PACK_VOLTAGE_120AH;
-      if (datalayer.battery.status.cell_max_voltage_mV >= MAX_CELL_VOLTAGE_120AH) {
-        set_event(EVENT_CELL_OVER_VOLTAGE, 0);
-      }
-      if (datalayer.battery.status.cell_min_voltage_mV <= MIN_CELL_VOLTAGE_120AH) {
-        set_event(EVENT_CELL_UNDER_VOLTAGE, 0);
-      }
+      datalayer.battery.info.max_cell_voltage_mV = MAX_CELL_VOLTAGE_120AH;
+      datalayer.battery.info.min_cell_voltage_mV = MIN_CELL_VOLTAGE_120AH;
     }
   }
 
@@ -466,39 +480,26 @@ void update_values_battery() {  //This function maps all the values fetched via 
   } else {
     clear_event(EVENT_HVIL_FAILURE);
   }
-  if (battery_status_precharge_locked == 2) {  // Capacitor seated?
-    set_event(EVENT_PRECHARGE_FAILURE, 0);
+  if (battery_status_error_disconnecting_switch > 0) {  // Check if contactors are sticking / welded
+    set_event(EVENT_CONTACTOR_WELDED, 0);
   } else {
-    clear_event(EVENT_PRECHARGE_FAILURE);
+    clear_event(EVENT_CONTACTOR_WELDED);
   }
 
-#ifdef DEBUG_VIA_USB
-  Serial.println(" ");
-  Serial.print("Battery display SOC%: ");
-  Serial.print(battery_display_SOC * 50);
-  Serial.print("Battery display SOC%: ");
-  Serial.print(battery_HVBatt_SOC * 10);
-  Serial.print("Battery polled SOC%: ");
-  Serial.print(battery_soc);
-  Serial.print(" Battery voltage: ");
-  Serial.print(datalayer.battery.status.voltage_dV * 0.1);
-  Serial.print(" Battery current: ");
-  Serial.print(datalayer.battery.status.current_dA * 0.1);
-  Serial.print(" Wh when full: ");
-  Serial.print(datalayer.battery.info.total_capacity_Wh);
-  Serial.print(" Remaining Wh: ");
-  Serial.print(datalayer.battery.status.remaining_capacity_Wh);
-  Serial.print(" Max charge power: ");
-  Serial.print(datalayer.battery.status.max_charge_power_W);
-  Serial.print(" Max discharge power: ");
-  Serial.print(datalayer.battery.status.max_discharge_power_W);
-  Serial.print(" Active power: ");
-  Serial.print(datalayer.battery.status.active_power_W);
-  Serial.print(" Min temp: ");
-  Serial.print(datalayer.battery.status.temperature_min_dC * 0.1);
-  Serial.print(" Max temp: ");
-  Serial.print(datalayer.battery.status.temperature_max_dC * 0.1);
-#endif
+  // Update webserver datalayer
+  datalayer_extended.bmwi3.SOC_raw = (battery_HVBatt_SOC * 10);
+  datalayer_extended.bmwi3.SOC_dash = (battery_display_SOC * 50);
+  datalayer_extended.bmwi3.SOC_OBD2 = battery_soc;
+  datalayer_extended.bmwi3.ST_iso_ext = battery_status_error_isolation_external_Bordnetz;
+  datalayer_extended.bmwi3.ST_iso_int = battery_status_error_isolation_internal_Bordnetz;
+  datalayer_extended.bmwi3.ST_valve_cooling = battery_status_valve_cooling;
+  datalayer_extended.bmwi3.ST_interlock = battery_status_error_locking;
+  datalayer_extended.bmwi3.ST_precharge = battery_status_precharge_locked;
+  datalayer_extended.bmwi3.ST_DCSW = battery_status_disconnecting_switch;
+  datalayer_extended.bmwi3.ST_EMG = battery_status_emergency_mode;
+  datalayer_extended.bmwi3.ST_WELD = battery_status_error_disconnecting_switch;
+  datalayer_extended.bmwi3.ST_isolation = battery_status_warning_isolation;
+  datalayer_extended.bmwi3.ST_cold_shutoff_valve = battery_status_cold_shutoff_valve;
 }
 
 void receive_can_battery(CAN_frame rx_frame) {
@@ -784,7 +785,7 @@ void receive_can_battery2(CAN_frame rx_frame) {
         datalayer.battery2.status.cell_voltages_mV[3] = ((rx_frame.data.u8[4] * 10) + 1800);
         datalayer.battery2.status.cell_voltages_mV[4] = ((rx_frame.data.u8[5] * 10) + 1800);
         datalayer.battery2.status.cell_voltages_mV[5] = ((rx_frame.data.u8[6] * 10) + 1800);
-        datalayer.battery2.status.cell_voltages_mV[5] = ((rx_frame.data.u8[7] * 10) + 1800);
+        datalayer.battery2.status.cell_voltages_mV[6] = ((rx_frame.data.u8[7] * 10) + 1800);
       }
       break;
     case 0x430:  //BMS [1s] - Charging status of high-voltage battery - 2
@@ -1117,20 +1118,19 @@ void send_can_battery() {
 }
 
 void setup_battery(void) {  // Performs one time setup at startup
-#ifdef DEBUG_VIA_USB
-  Serial.println("BMW i3 battery selected");
-#endif
+  strncpy(datalayer.system.info.battery_protocol, "BMW i3", 63);
+  datalayer.system.info.battery_protocol[63] = '\0';
 
   //Before we have started up and detected which battery is in use, use 60AH values
   datalayer.battery.info.max_design_voltage_dV = MAX_PACK_VOLTAGE_60AH;
   datalayer.battery.info.min_design_voltage_dV = MIN_PACK_VOLTAGE_60AH;
-
+  datalayer.battery.info.max_cell_voltage_deviation_mV = MAX_CELL_DEVIATION_MV;
   datalayer.system.status.battery_allows_contactor_closing = true;
 
 #ifdef DOUBLE_BATTERY
-  Serial.println("Another BMW i3 battery also selected!");
   datalayer.battery2.info.max_design_voltage_dV = datalayer.battery.info.max_design_voltage_dV;
   datalayer.battery2.info.min_design_voltage_dV = datalayer.battery.info.min_design_voltage_dV;
+  datalayer.battery2.info.max_cell_voltage_deviation_mV = datalayer.battery.info.max_cell_voltage_deviation_mV;
   datalayer.battery2.status.voltage_dV =
       0;  //Init voltage to 0 to allow contactor check to operate without fear of default values colliding
 #endif

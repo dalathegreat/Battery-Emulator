@@ -6,16 +6,8 @@
 #include "KIA-E-GMP-BATTERY.h"
 
 /* Do not change code below unless you are sure what you are doing */
-static unsigned long previousMillis20ms = 0;   // will store last time a 20ms CAN Message was send
-static unsigned long previousMillis30ms = 0;   // will store last time a 30ms CAN Message was send
-static unsigned long previousMillis100ms = 0;  // will store last time a 100ms CAN Message was send
 static unsigned long previousMillis200ms = 0;  // will store last time a 200ms CAN Message was send
-static unsigned long previousMillis500ms = 0;  // will store last time a 500ms CAN Message was send
-static unsigned long previousMillis1s = 0;     // will store last time a 1s CAN Message was send
-static unsigned long previousMillis2s = 0;     // will store last time a 2s CAN Message was send
-
-#define MAX_CELL_VOLTAGE 4250  //Battery is put into emergency stop if one cell goes over this value
-#define MIN_CELL_VOLTAGE 2950  //Battery is put into emergency stop if one cell goes below this value
+static unsigned long previousMillis10s = 0;    // will store last time a 10s CAN Message was send
 
 const unsigned char crc8_table[256] =
     {  // CRC8_SAE_J1850_ZER0 formula,0x1D Poly,initial value 0x3F,Final XOR value varies
@@ -46,7 +38,6 @@ static uint16_t CellVoltMin_mV = 3700;
 static uint16_t batteryVoltage = 6700;
 static int16_t leadAcidBatteryVoltage = 120;
 static int16_t batteryAmps = 0;
-static int16_t powerWatt = 0;
 static int16_t temperatureMax = 0;
 static int16_t temperatureMin = 0;
 static int16_t allowedDischargePower = 0;
@@ -58,217 +49,533 @@ static uint8_t batteryManagementMode = 0;
 static uint8_t BMS_ign = 0;
 static uint8_t batteryRelay = 0;
 static uint8_t waterleakageSensor = 164;
-static uint8_t startedUp = false;
+static bool startedUp = false;
+static bool ok_start_polling_battery = false;
 static uint8_t counter_200 = 0;
 static uint8_t KIA_7E4_COUNTER = 0x01;
 static int8_t temperature_water_inlet = 0;
 static int8_t powerRelayTemperature = 0;
 static int8_t heatertemp = 0;
-
+static bool set_voltage_limits = false;
 static uint8_t ticks_200ms_counter = 0;
 static uint8_t EGMP_1CF_counter = 0;
 static uint8_t EGMP_3XF_counter = 0;
 
-CAN_frame EGMP_1CF = {.FD = true,
-                      .ext_ID = false,
-                      .DLC = 8,
-                      .ID = 0x1CF,
-                      .data = {0x56, 0x00, 0x00, 0x20, 0x00, 0x00, 0x00, 0x00}};
-CAN_frame EGMP_3AA = {.FD = true,
-                      .ext_ID = false,
-                      .DLC = 8,
-                      .ID = 0x3AA,
-                      .data = {0xFF, 0x00, 0x00, 0x00, 0x54, 0x00, 0x00, 0x00}};
-CAN_frame EGMP_3E0 = {.FD = true,
-                      .ext_ID = false,
-                      .DLC = 8,
-                      .ID = 0x3E0,
-                      .data = {0xC3, 0x10, 0x01, 0x00, 0x00, 0x00, 0x00, 0x00}};
-CAN_frame EGMP_3E1 = {.FD = true,
-                      .ext_ID = false,
-                      .DLC = 8,
-                      .ID = 0x3E1,
-                      .data = {0x59, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00}};
-CAN_frame EGMP_36F = {.FD = true,
-                      .ext_ID = false,
-                      .DLC = 8,
-                      .ID = 0x36F,
-                      .data = {0x28, 0x31, 0x01, 0x00, 0x00, 0x00, 0x00, 0x00}};
-CAN_frame EGMP_37F = {.FD = true,
-                      .ext_ID = false,
-                      .DLC = 8,
-                      .ID = 0x37F,
-                      .data = {0x9B, 0x30, 0x52, 0x24, 0x41, 0x02, 0x00, 0x00}};
-CAN_frame EGMP_4B4 = {.FD = true,
-                      .ext_ID = false,
-                      .DLC = 8,
-                      .ID = 0x4B4,
-                      .data = {0x00, 0x00, 0xC0, 0x3F, 0x00, 0x00, 0x00, 0x00}};
-CAN_frame EGMP_4B5 = {.FD = true,
-                      .ext_ID = false,
-                      .DLC = 8,
-                      .ID = 0x4B5,
-                      .data = {0x08, 0x00, 0xF0, 0x07, 0x00, 0x00, 0x00, 0x00}};
-CAN_frame EGMP_4B7 = {.FD = true,
-                      .ext_ID = false,
-                      .DLC = 8,
-                      .ID = 0x4B7,
-                      .data = {0x08, 0x00, 0xF0, 0x07, 0x00, 0x00, 0x00, 0x00}};
-CAN_frame EGMP_4CC = {.FD = true,
-                      .ext_ID = false,
-                      .DLC = 8,
-                      .ID = 0x4CC,
-                      .data = {0x08, 0x00, 0x00, 0x27, 0x00, 0x00, 0x00, 0x00}};
-CAN_frame EGMP_4CE = {.FD = true,
-                      .ext_ID = false,
-                      .DLC = 8,
-                      .ID = 0x4CE,
-                      .data = {0x16, 0xCF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF}};
-CAN_frame EGMP_4D8 = {.FD = true,
-                      .ext_ID = false,
-                      .DLC = 8,
-                      .ID = 0x4D8,
-                      .data = {0x40, 0x10, 0xF0, 0xF0, 0x40, 0xF2, 0x1E, 0xCC}};
-CAN_frame EGMP_4DD = {.FD = true,
-                      .ext_ID = false,
-                      .DLC = 8,
-                      .ID = 0x4DD,
-                      .data = {0x3F, 0xFC, 0xFF, 0x00, 0x38, 0x00, 0x00, 0x00}};
-CAN_frame EGMP_4E7 = {.FD = true,
-                      .ext_ID = false,
-                      .DLC = 8,
-                      .ID = 0x4E7,
-                      .data = {0x00, 0x30, 0x00, 0x00, 0x00, 0x00, 0x10, 0x00}};
-CAN_frame EGMP_4E9 = {.FD = true,
-                      .ext_ID = false,
-                      .DLC = 8,
-                      .ID = 0x4E9,
-                      .data = {0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00}};
-CAN_frame EGMP_4EA = {.FD = true,
-                      .ext_ID = false,
-                      .DLC = 8,
-                      .ID = 0x4EA,
-                      .data = {0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00}};
-CAN_frame EGMP_4EB = {.FD = true,
-                      .ext_ID = false,
-                      .DLC = 8,
-                      .ID = 0x4EB,
-                      .data = {0x01, 0x50, 0x0B, 0x26, 0x00, 0x00, 0x00, 0x00}};
-CAN_frame EGMP_4EC = {.FD = true,
-                      .ext_ID = false,
-                      .DLC = 8,
-                      .ID = 0x4EC,
-                      .data = {0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0x0F}};
-CAN_frame EGMP_4ED = {.FD = true,
-                      .ext_ID = false,
-                      .DLC = 8,
-                      .ID = 0x4ED,
-                      .data = {0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0x1F}};
-CAN_frame EGMP_4EE = {.FD = true,
-                      .ext_ID = false,
-                      .DLC = 8,
-                      .ID = 0x4EE,
-                      .data = {0xFF, 0xFF, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00}};
-CAN_frame EGMP_4EF = {.FD = true,
-                      .ext_ID = false,
-                      .DLC = 8,
-                      .ID = 0x4EF,
-                      .data = {0x2B, 0xFE, 0x00, 0x00, 0x10, 0x00, 0x00, 0x00}};
-CAN_frame EGMP_405 = {.FD = true,
-                      .ext_ID = false,
-                      .DLC = 8,
-                      .ID = 0x405,
-                      .data = {0xE4, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00}};
-CAN_frame EGMP_410 = {.FD = true,
-                      .ext_ID = false,
-                      .DLC = 8,
-                      .ID = 0x410,
-                      .data = {0xA6, 0x10, 0xFF, 0x3C, 0xFF, 0x7F, 0xFF, 0xFF}};
-CAN_frame EGMP_411 = {.FD = true,
-                      .ext_ID = false,
-                      .DLC = 8,
-                      .ID = 0x411,
-                      .data = {0xEA, 0x22, 0x50, 0x51, 0x00, 0x00, 0x00, 0x40}};
-CAN_frame EGMP_412 = {.FD = true,
-                      .ext_ID = false,
-                      .DLC = 8,
-                      .ID = 0x412,
-                      .data = {0xDC, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00}};
-CAN_frame EGMP_413 = {.FD = true,
-                      .ext_ID = false,
-                      .DLC = 8,
-                      .ID = 0x413,
-                      .data = {0xB9, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00}};
-CAN_frame EGMP_414 = {.FD = true,
-                      .ext_ID = false,
-                      .DLC = 8,
-                      .ID = 0x414,
-                      .data = {0xF0, 0x10, 0x00, 0x00, 0x28, 0x00, 0x00, 0x00}};
-CAN_frame EGMP_416 = {.FD = true,
-                      .ext_ID = false,
-                      .DLC = 8,
-                      .ID = 0x416,
-                      .data = {0x55, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00}};
-CAN_frame EGMP_417 = {.FD = true,
-                      .ext_ID = false,
-                      .DLC = 8,
-                      .ID = 0x417,
-                      .data = {0xC7, 0x10, 0x00, 0x00, 0x04, 0x00, 0x00, 0x00}};
-CAN_frame EGMP_418 = {.FD = true,
-                      .ext_ID = false,
-                      .DLC = 8,
-                      .ID = 0x418,
-                      .data = {0x17, 0x20, 0x00, 0x00, 0x14, 0x0C, 0x00, 0x00}};
-CAN_frame EGMP_3C1 = {.FD = true,
-                      .ext_ID = false,
-                      .DLC = 8,
-                      .ID = 0x3C1,
-                      .data = {0x59, 0x00, 0x30, 0x00, 0x00, 0x00, 0x00, 0x00}};
-CAN_frame EGMP_3C2 = {.FD = true,
-                      .ext_ID = false,
-                      .DLC = 8,
-                      .ID = 0x3C2,
-                      .data = {0x07, 0x00, 0x11, 0x40, 0x00, 0x00, 0x00, 0x00}};
-CAN_frame EGMP_4F0 = {.FD = true,
-                      .ext_ID = false,
-                      .DLC = 8,
-                      .ID = 0x4F0,
-                      .data = {0x8A, 0x0A, 0x0D, 0x34, 0x60, 0x18, 0x12, 0xFC}};
-CAN_frame EGMP_4F2 = {.FD = true,
-                      .ext_ID = false,
-                      .DLC = 8,
-                      .ID = 0x4F2,
-                      .data = {0x0A, 0xC3, 0xD5, 0xFF, 0x0F, 0x21, 0x80, 0x2B}};
-CAN_frame EGMP_4FE = {.FD = true,
-                      .ext_ID = false,
-                      .DLC = 8,
-                      .ID = 0x4FE,
-                      .data = {0x69, 0x3F, 0x00, 0x04, 0xDF, 0x01, 0x4C, 0xA8}};
-CAN_frame EGMP_48F = {.FD = true,
-                      .ext_ID = false,
-                      .DLC = 8,
-                      .ID = 0x48F,
-                      .data = {0xAD, 0x10, 0x41, 0x00, 0x05, 0x00, 0x00, 0x00}};
-CAN_frame EGMP_419 = {.FD = true,
-                      .ext_ID = false,
-                      .DLC = 8,
-                      .ID = 0x419,
-                      .data = {0xC7, 0x90, 0xB9, 0xD2, 0x0D, 0x62, 0x7A, 0x00}};
-CAN_frame EGMP_422 = {.FD = true,
-                      .ext_ID = false,
-                      .DLC = 8,
-                      .ID = 0x422,
-                      .data = {0x15, 0x10, 0x11, 0x00, 0x00, 0x00, 0x00, 0x00}};
-CAN_frame EGMP_444 = {.FD = true,
-                      .ext_ID = false,
-                      .DLC = 8,
-                      .ID = 0x444,
-                      .data = {0x96, 0x20, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00}};
-CAN_frame EGMP_641 = {.FD = true,
-                      .ext_ID = false,
-                      .DLC = 8,
-                      .ID = 0x641,
-                      .data = {0xFF, 0xFF, 0xFF, 0xFF, 0x0F, 0xFF, 0xFF, 0xFF}};
+/* These messages are needed for contactor closing */
+unsigned long startMillis;
+uint8_t messageIndex = 0;
+uint8_t messageDelays[63] = {0,   0,   5,   10,  10,  15,  19,  19,  20,  20,  25,  30,  30,  35,  40,  40,
+                             45,  49,  49,  50,  50,  52,  53,  53,  54,  55,  60,  60,  65,  67,  67,  70,
+                             70,  75,  77,  77,  80,  80,  85,  90,  90,  95,  100, 100, 105, 110, 110, 115,
+                             119, 119, 120, 120, 125, 130, 130, 135, 140, 140, 145, 149, 149, 150, 150};
+CAN_frame message_1 = {
+    .FD = true,
+    .ext_ID = false,
+    .DLC = 32,
+    .ID = 0x10A,
+    .data = {0x62, 0x36, 0x8c, 0x00, 0x00, 0x00, 0x00, 0x01, 0xff, 0x01, 0x00, 0x00, 0x36, 0x39, 0x35, 0x35,
+             0xc9, 0x02, 0x00, 0x00, 0x10, 0x00, 0x00, 0x35, 0x00, 0x00, 0x0a, 0x00, 0x00, 0x00, 0x00, 0x00}};
+
+CAN_frame message_2 = {
+    .FD = true,
+    .ext_ID = false,
+    .DLC = 32,
+    .ID = 0x120,
+    .data = {0xd4, 0x1b, 0x8c, 0x00, 0x00, 0x00, 0x00, 0x01, 0xff, 0x01, 0x00, 0x00, 0x37, 0x35, 0x37, 0x37,
+             0xc9, 0x02, 0x00, 0x00, 0x00, 0x00, 0x00, 0x35, 0x00, 0x00, 0x0a, 0x00, 0x00, 0x00, 0x00, 0x00}};
+
+CAN_frame message_3 = {
+    .FD = true,
+    .ext_ID = false,
+    .DLC = 32,
+    .ID = 0x19A,
+    .data = {0x24, 0x9b, 0x7b, 0x55, 0x44, 0x64, 0xd8, 0x1b, 0x40, 0x20, 0x00, 0x00, 0x00, 0x00, 0x11, 0x52,
+             0x00, 0x12, 0x02, 0x64, 0x00, 0x00, 0x00, 0x08, 0x13, 0x00, 0x00, 0x00, 0x00, 0x32, 0x00, 0x00}};
+
+CAN_frame message_4 = {
+    .FD = true,
+    .ext_ID = false,
+    .DLC = 32,
+    .ID = 0x10A,
+    .data = {0x24, 0x6f, 0x8d, 0x00, 0x00, 0x00, 0x00, 0x01, 0xff, 0x01, 0x00, 0x00, 0x36, 0x39, 0x35, 0x35,
+             0xc9, 0x02, 0x00, 0x00, 0x10, 0x00, 0x00, 0x35, 0x00, 0x00, 0x0a, 0x00, 0x00, 0x00, 0x00, 0x00}};
+
+CAN_frame message_5 = {
+    .FD = true,
+    .ext_ID = false,
+    .DLC = 32,
+    .ID = 0x120,
+    .data = {0x92, 0x42, 0x8d, 0x00, 0x00, 0x00, 0x00, 0x01, 0xff, 0x01, 0x00, 0x00, 0x37, 0x35, 0x37, 0x37,
+             0xc9, 0x02, 0x00, 0x00, 0x00, 0x00, 0x00, 0x35, 0x00, 0x00, 0x0a, 0x00, 0x00, 0x00, 0x00, 0x00}};
+
+CAN_frame message_6 = {
+    .FD = true,
+    .ext_ID = false,
+    .DLC = 32,
+    .ID = 0x19A,
+    .data = {0xd7, 0x05, 0x7c, 0x55, 0x44, 0x64, 0xd8, 0x1b, 0x40, 0x20, 0x00, 0x00, 0x00, 0x00, 0x11, 0x52,
+             0x00, 0x12, 0x02, 0x64, 0x00, 0x00, 0x00, 0x08, 0x13, 0x00, 0x00, 0x00, 0x00, 0x32, 0x00, 0x00}};
+
+CAN_frame message_7 = {
+    .FD = true,
+    .ext_ID = false,
+    .DLC = 32,
+    .ID = 0x30A,
+    .data = {0xb1, 0xe0, 0x26, 0x08, 0x54, 0x01, 0x04, 0x15, 0x00, 0x1a, 0x76, 0x00, 0x25, 0x01, 0x10, 0x27,
+             0x4f, 0x06, 0x18, 0x04, 0x33, 0x15, 0x34, 0x28, 0x00, 0x00, 0x10, 0x06, 0x21, 0x00, 0x4b, 0x06}};
+
+CAN_frame message_8 = {
+    .FD = true,
+    .ext_ID = false,
+    .DLC = 32,
+    .ID = 0x320,
+    .data = {0xc6, 0xab, 0x26, 0x41, 0x00, 0x00, 0x01, 0x3c, 0xac, 0x0d, 0x40, 0x20, 0x05, 0xc8, 0xa0, 0x03,
+             0x40, 0x20, 0x2b, 0x04, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00}};
+
+CAN_frame message_9 = {
+    .FD = true,
+    .ext_ID = false,
+    .DLC = 32,
+    .ID = 0x10A,
+    .data = {0xee, 0x84, 0x8e, 0x00, 0x00, 0x00, 0x00, 0x01, 0xff, 0x01, 0x00, 0x00, 0x36, 0x39, 0x35, 0x35,
+             0xc9, 0x02, 0x00, 0x00, 0x10, 0x00, 0x00, 0x35, 0x00, 0x00, 0x0a, 0x00, 0x00, 0x00, 0x00, 0x00}};
+
+CAN_frame message_10 = {
+    .FD = true,
+    .ext_ID = false,
+    .DLC = 32,
+    .ID = 0x120,
+    .data = {0x58, 0xa9, 0x8e, 0x00, 0x00, 0x00, 0x00, 0x01, 0xff, 0x01, 0x00, 0x00, 0x37, 0x35, 0x37, 0x37,
+             0xc9, 0x02, 0x00, 0x00, 0x00, 0x00, 0x00, 0x35, 0x00, 0x00, 0x0a, 0x00, 0x00, 0x00, 0x00, 0x00}};
+CAN_frame message_11 = {
+    .FD = true,
+    .ext_ID = false,
+    .DLC = 32,
+    .ID = 0x19A,
+    .data = {0x91, 0x5c, 0x7d, 0x55, 0x44, 0x64, 0xd8, 0x1b, 0x40, 0x20, 0x00, 0x00, 0x00, 0x00, 0x11, 0x52,
+             0x00, 0x12, 0x02, 0x64, 0x00, 0x00, 0x00, 0x08, 0x13, 0x00, 0x00, 0x00, 0x00, 0x32, 0x00, 0x00}};
+
+CAN_frame message_12 = {
+    .FD = true,
+    .ext_ID = false,
+    .DLC = 32,
+    .ID = 0x10A,
+    .data = {0xa8, 0xdd, 0x8f, 0x00, 0x00, 0x00, 0x00, 0x01, 0xff, 0x01, 0x00, 0x00, 0x36, 0x39, 0x35, 0x35,
+             0xc9, 0x02, 0x00, 0x00, 0x10, 0x00, 0x00, 0x35, 0x00, 0x00, 0x0a, 0x00, 0x00, 0x00, 0x00, 0x00}};
+
+CAN_frame message_13 = {
+    .FD = true,
+    .ext_ID = false,
+    .DLC = 32,
+    .ID = 0x120,
+    .data = {0x1e, 0xf0, 0x8f, 0x00, 0x00, 0x00, 0x00, 0x01, 0xff, 0x01, 0x00, 0x00, 0x37, 0x35, 0x37, 0x37,
+             0xc9, 0x02, 0x00, 0x00, 0x00, 0x00, 0x00, 0x35, 0x00, 0x00, 0x0a, 0x00, 0x00, 0x00, 0x00, 0x00}};
+
+CAN_frame message_14 = {
+    .FD = true,
+    .ext_ID = false,
+    .DLC = 32,
+    .ID = 0x19A,
+    .data = {0x5b, 0xb7, 0x7e, 0x55, 0x44, 0x64, 0xd8, 0x1b, 0x40, 0x20, 0x00, 0x00, 0x00, 0x00, 0x11, 0x52,
+             0x00, 0x12, 0x02, 0x64, 0x00, 0x00, 0x00, 0x08, 0x13, 0x00, 0x00, 0x00, 0x00, 0x32, 0x00, 0x00}};
+
+CAN_frame message_15 = {
+    .FD = true,
+    .ext_ID = false,
+    .DLC = 32,
+    .ID = 0x10A,
+    .data = {0xec, 0x6d, 0x90, 0x00, 0x00, 0x00, 0x00, 0x01, 0xff, 0x01, 0x00, 0x00, 0x36, 0x39, 0x35, 0x35,
+             0xc9, 0x02, 0x00, 0x00, 0x10, 0x00, 0x00, 0x35, 0x00, 0x00, 0x0a, 0x00, 0x00, 0x00, 0x00, 0x00}};
+
+CAN_frame message_16 = {
+    .FD = true,
+    .ext_ID = false,
+    .DLC = 32,
+    .ID = 0x120,
+    .data = {0x5a, 0x40, 0x90, 0x00, 0x00, 0x00, 0x00, 0x01, 0xff, 0x01, 0x00, 0x00, 0x37, 0x35, 0x37, 0x37,
+             0xc9, 0x02, 0x00, 0x00, 0x00, 0x00, 0x00, 0x35, 0x00, 0x00, 0x0a, 0x00, 0x00, 0x00, 0x00, 0x00}};
+
+CAN_frame message_17 = {
+    .FD = true,
+    .ext_ID = false,
+    .DLC = 32,
+    .ID = 0x19A,
+    .data = {0x1d, 0xee, 0x7f, 0x55, 0x44, 0x64, 0xd8, 0x1b, 0x40, 0x20, 0x00, 0x00, 0x00, 0x00, 0x11, 0x52,
+             0x00, 0x12, 0x02, 0x64, 0x00, 0x00, 0x00, 0x08, 0x13, 0x00, 0x00, 0x00, 0x00, 0x32, 0x00, 0x00}};
+
+CAN_frame message_18 = {
+    .FD = true,
+    .ext_ID = false,
+    .DLC = 32,
+    .ID = 0x2B5,
+    .data = {0xbd, 0xb2, 0x42, 0x00, 0x00, 0x00, 0x00, 0x80, 0x59, 0x00, 0x2b, 0x00, 0x00, 0x04, 0x00, 0x00,
+             0xfa, 0xd0, 0x07, 0x00, 0x00, 0x00, 0x00, 0x00, 0x8f, 0x06, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00}};
+
+CAN_frame message_19 = {
+    .FD = true,
+    .ext_ID = false,
+    .DLC = 32,
+    .ID = 0x2E0,
+    .data = {0xc1, 0xf2, 0x42, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x7e, 0x00, 0x00,
+             0x00, 0x00, 0x00, 0x02, 0x00, 0x00, 0x70, 0x01, 0x0f, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00}};
+
+CAN_frame message_20 = {
+    .FD = true,
+    .ext_ID = false,
+    .DLC = 32,
+    .ID = 0x10A,
+    .data = {0xaa, 0x34, 0x91, 0x00, 0x00, 0x00, 0x00, 0x01, 0xff, 0x01, 0x00, 0x00, 0x36, 0x39, 0x35, 0x35,
+             0xc9, 0x02, 0x00, 0x00, 0x10, 0x00, 0x00, 0x35, 0x00, 0x00, 0x0a, 0x00, 0x00, 0x00, 0x00, 0x00}};
+CAN_frame message_21 = {
+    .FD = true,
+    .ext_ID = false,
+    .DLC = 32,
+    .ID = 0x120,
+    .data = {0x1c, 0x19, 0x91, 0x00, 0x00, 0x00, 0x00, 0x01, 0xff, 0x01, 0x00, 0x00, 0x37, 0x35, 0x37, 0x37,
+             0xc9, 0x02, 0x00, 0x00, 0x00, 0x00, 0x00, 0x35, 0x00, 0x00, 0x0a, 0x00, 0x00, 0x00, 0x00, 0x00}};
+
+CAN_frame message_22 = {
+    .FD = true,
+    .ext_ID = false,
+    .DLC = 32,
+    .ID = 0x2D5,
+    .data = {0x79, 0xfb, 0xa0, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x0b, 0x00, 0x00, 0x03, 0x00, 0x00, 0x00,
+             0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x80, 0x34, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00}};
+
+CAN_frame message_23 = {
+    .FD = true,
+    .ext_ID = false,
+    .DLC = 32,
+    .ID = 0x2EA,
+    .data = {0x6e, 0xbb, 0xa0, 0x0d, 0x04, 0x01, 0x00, 0x00, 0x38, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+             0xc7, 0x02, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00}};
+
+CAN_frame message_24 = {
+    .FD = true,
+    .ext_ID = false,
+    .DLC = 32,
+    .ID = 0x306,
+    .data = {0x00, 0x00, 0x00, 0xd2, 0x06, 0x92, 0x05, 0x34, 0x07, 0x8e, 0x08, 0x73, 0x05, 0x80, 0x05, 0x83,
+             0x05, 0x73, 0x05, 0x80, 0x05, 0xed, 0x01, 0xdd, 0x04, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00}};
+
+CAN_frame message_25 = {
+    .FD = true,
+    .ext_ID = false,
+    .DLC = 32,
+    .ID = 0x308,
+    .data = {0xbe, 0x84, 0xa0, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0xff,
+             0x75, 0x6c, 0x86, 0x0d, 0xfb, 0xdf, 0x03, 0x36, 0xc3, 0x86, 0x11, 0x00, 0x00, 0x00, 0x00, 0x00}};
+
+CAN_frame message_26 = {
+    .FD = true,
+    .ext_ID = false,
+    .DLC = 32,
+    .ID = 0x19A,
+    .data = {0x6b, 0xa2, 0x80, 0x55, 0x44, 0x64, 0xd8, 0x1b, 0x40, 0x20, 0x00, 0x00, 0x00, 0x00, 0x11, 0x52,
+             0x00, 0x12, 0x02, 0x64, 0x00, 0x00, 0x00, 0x08, 0x13, 0x00, 0x00, 0x00, 0x00, 0x32, 0x00, 0x00}};
+
+CAN_frame message_27 = {
+    .FD = true,
+    .ext_ID = false,
+    .DLC = 32,
+    .ID = 0x10A,
+    .data = {0x60, 0xdf, 0x92, 0x00, 0x00, 0x00, 0x00, 0x01, 0xff, 0x01, 0x00, 0x00, 0x36, 0x39, 0x35, 0x35,
+             0xc9, 0x02, 0x00, 0x00, 0x10, 0x00, 0x00, 0x35, 0x00, 0x00, 0x0a, 0x00, 0x00, 0x00, 0x00, 0x00}};
+
+CAN_frame message_28 = {
+    .FD = true,
+    .ext_ID = false,
+    .DLC = 32,
+    .ID = 0x120,
+    .data = {0xd6, 0xf2, 0x92, 0x00, 0x00, 0x00, 0x00, 0x01, 0xff, 0x01, 0x00, 0x00, 0x37, 0x35, 0x37, 0x37,
+             0xc9, 0x02, 0x00, 0x00, 0x00, 0x00, 0x00, 0x35, 0x00, 0x00, 0x0a, 0x00, 0x00, 0x00, 0x00, 0x00}};
+
+CAN_frame message_29 = {
+    .FD = true,
+    .ext_ID = false,
+    .DLC = 32,
+    .ID = 0x19A,
+    .data = {0x2d, 0xfb, 0x81, 0x55, 0x44, 0x64, 0xd8, 0x1b, 0x40, 0x20, 0x00, 0x00, 0x00, 0x00, 0x11, 0x52,
+             0x00, 0x12, 0x02, 0x64, 0x00, 0x00, 0x00, 0x08, 0x13, 0x00, 0x00, 0x00, 0x00, 0x32, 0x00, 0x00}};
+
+CAN_frame message_30 = {
+    .FD = true,
+    .ext_ID = false,
+    .DLC = 32,
+    .ID = 0x33A,
+    .data = {0x1a, 0x23, 0x26, 0x10, 0x27, 0x4f, 0x06, 0x00, 0xf8, 0x1b, 0x19, 0x04, 0x30, 0x01, 0x00, 0x06,
+             0x00, 0x00, 0x00, 0x2e, 0x2d, 0x81, 0x25, 0x20, 0x00, 0x42, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00}};
+CAN_frame message_31 = {
+    .FD = true,
+    .ext_ID = false,
+    .DLC = 32,
+    .ID = 0x350,
+    .data = {0x26, 0x82, 0x26, 0xf4, 0x01, 0x00, 0x00, 0x50, 0x90, 0x15, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+             0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00}};
+
+CAN_frame message_32 = {
+    .FD = true,
+    .ext_ID = false,
+    .DLC = 32,
+    .ID = 0x10A,
+    .data = {0x26, 0x86, 0x93, 0x00, 0x00, 0x00, 0x00, 0x01, 0xff, 0x01, 0x00, 0x00, 0x36, 0x39, 0x35, 0x35,
+             0xc9, 0x02, 0x00, 0x00, 0x10, 0x00, 0x00, 0x35, 0x00, 0x00, 0x0a, 0x00, 0x00, 0x00, 0x00, 0x00}};
+
+CAN_frame message_33 = {
+    .FD = true,
+    .ext_ID = false,
+    .DLC = 32,
+    .ID = 0x120,
+    .data = {0x90, 0xab, 0x93, 0x00, 0x00, 0x00, 0x00, 0x01, 0xff, 0x01, 0x00, 0x00, 0x37, 0x35, 0x37, 0x37,
+             0xc9, 0x02, 0x00, 0x00, 0x00, 0x00, 0x00, 0x35, 0x00, 0x00, 0x0a, 0x00, 0x00, 0x00, 0x00, 0x00}};
+
+CAN_frame message_34 = {
+    .FD = true,
+    .ext_ID = false,
+    .DLC = 32,
+    .ID = 0x19A,
+    .data = {0xe7, 0x10, 0x82, 0x55, 0x44, 0x64, 0xd8, 0x1b, 0x40, 0x20, 0x00, 0x00, 0x00, 0x00, 0x11, 0x52,
+             0x00, 0x12, 0x02, 0x64, 0x00, 0x00, 0x00, 0x08, 0x13, 0x00, 0x00, 0x00, 0x00, 0x32, 0x00, 0x00}};
+
+CAN_frame message_35 = {
+    .FD = true,
+    .ext_ID = false,
+    .DLC = 32,
+    .ID = 0x2E5,
+    .data = {0x69, 0x8a, 0x3f, 0x01, 0x00, 0x00, 0x00, 0x15, 0x0a, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+             0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00}};
+
+CAN_frame message_36 = {
+    .FD = true,
+    .ext_ID = false,
+    .DLC = 32,
+    .ID = 0x3B5,
+    .data = {0xa3, 0xc8, 0x9f, 0x00, 0x00, 0x00, 0x00, 0x36, 0x37, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+             0xc7, 0x02, 0x00, 0x00, 0x00, 0x00, 0x6a, 0x09, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00}};
+
+CAN_frame message_37 = {
+    .FD = true,
+    .ext_ID = false,
+    .DLC = 32,
+    .ID = 0x10A,
+    .data = {0xd5, 0x18, 0x94, 0x00, 0x00, 0x00, 0x00, 0x01, 0xff, 0x01, 0x00, 0x00, 0x36, 0x39, 0x35, 0x35,
+             0xc9, 0x02, 0x00, 0x00, 0x10, 0x00, 0x00, 0x35, 0x00, 0x00, 0x0a, 0x00, 0x00, 0x00, 0x00, 0x00}};
+
+CAN_frame message_38 = {
+    .FD = true,
+    .ext_ID = false,
+    .DLC = 32,
+    .ID = 0x120,
+    .data = {0x63, 0x35, 0x94, 0x00, 0x00, 0x00, 0x00, 0x01, 0xff, 0x01, 0x00, 0x00, 0x37, 0x35, 0x37, 0x37,
+             0xc9, 0x02, 0x00, 0x00, 0x00, 0x00, 0x00, 0x35, 0x00, 0x00, 0x0a, 0x00, 0x00, 0x00, 0x00, 0x00}};
+
+CAN_frame message_39 = {
+    .FD = true,
+    .ext_ID = false,
+    .DLC = 32,
+    .ID = 0x19A,
+    .data = {0xa1, 0x49, 0x83, 0x55, 0x44, 0x64, 0xd8, 0x1b, 0x40, 0x20, 0x00, 0x00, 0x00, 0x00, 0x11, 0x52,
+             0x00, 0x12, 0x02, 0x64, 0x00, 0x00, 0x00, 0x08, 0x13, 0x00, 0x00, 0x00, 0x00, 0x32, 0x00, 0x00}};
+
+CAN_frame message_40 = {
+    .FD = true,
+    .ext_ID = false,
+    .DLC = 32,
+    .ID = 0x10A,
+    .data = {0x93, 0x41, 0x95, 0x00, 0x00, 0x00, 0x00, 0x01, 0xff, 0x01, 0x00, 0x00, 0x36, 0x39, 0x35, 0x35,
+             0xc9, 0x02, 0x00, 0x00, 0x10, 0x00, 0x00, 0x35, 0x00, 0x00, 0x0a, 0x00, 0x00, 0x00, 0x00, 0x00}};
+CAN_frame message_41 = {
+    .FD = true,
+    .ext_ID = false,
+    .DLC = 32,
+    .ID = 0x120,
+    .data = {0x25, 0x6c, 0x95, 0x00, 0x00, 0x00, 0x00, 0x01, 0xff, 0x01, 0x00, 0x00, 0x37, 0x35, 0x37, 0x37,
+             0xc9, 0x02, 0x00, 0x00, 0x00, 0x00, 0x00, 0x35, 0x00, 0x00, 0x0a, 0x00, 0x00, 0x00, 0x00, 0x00}};
+
+CAN_frame message_42 = {
+    .FD = true,
+    .ext_ID = false,
+    .DLC = 32,
+    .ID = 0x19A,
+    .data = {0x52, 0xd7, 0x84, 0x55, 0x44, 0x64, 0xd8, 0x1b, 0x40, 0x20, 0x00, 0x00, 0x00, 0x00, 0x11, 0x52,
+             0x00, 0x12, 0x02, 0x64, 0x00, 0x00, 0x00, 0x08, 0x13, 0x00, 0x00, 0x00, 0x00, 0x32, 0x00, 0x00}};
+
+CAN_frame message_43 = {
+    .FD = true,
+    .ext_ID = false,
+    .DLC = 32,
+    .ID = 0x10A,
+    .data = {0x59, 0xaa, 0x96, 0x00, 0x00, 0x00, 0x00, 0x01, 0xff, 0x01, 0x00, 0x00, 0x36, 0x39, 0x35, 0x35,
+             0xc9, 0x02, 0x00, 0x00, 0x10, 0x00, 0x00, 0x35, 0x00, 0x00, 0x0a, 0x00, 0x00, 0x00, 0x00, 0x00}};
+
+CAN_frame message_44 = {
+    .FD = true,
+    .ext_ID = false,
+    .DLC = 32,
+    .ID = 0x120,
+    .data = {0xef, 0x87, 0x96, 0x00, 0x00, 0x00, 0x00, 0x01, 0xff, 0x01, 0x00, 0x00, 0x37, 0x35, 0x37, 0x37,
+             0xc9, 0x02, 0x00, 0x00, 0x00, 0x00, 0x00, 0x35, 0x00, 0x00, 0x0a, 0x00, 0x00, 0x00, 0x00, 0x00}};
+
+CAN_frame message_45 = {
+    .FD = true,
+    .ext_ID = false,
+    .DLC = 32,
+    .ID = 0x19A,
+    .data = {0x14, 0x8e, 0x85, 0x55, 0x44, 0x64, 0xd8, 0x1b, 0x40, 0x20, 0x00, 0x00, 0x00, 0x00, 0x11, 0x52,
+             0x00, 0x12, 0x02, 0x64, 0x00, 0x00, 0x00, 0x08, 0x13, 0x00, 0x00, 0x00, 0x00, 0x32, 0x00, 0x00}};
+
+CAN_frame message_46 = {
+    .FD = true,
+    .ext_ID = false,
+    .DLC = 32,
+    .ID = 0x10A,
+    .data = {0x1f, 0xf3, 0x97, 0x00, 0x00, 0x00, 0x00, 0x01, 0xff, 0x01, 0x00, 0x00, 0x36, 0x39, 0x35, 0x35,
+             0xc9, 0x02, 0x00, 0x00, 0x10, 0x00, 0x00, 0x35, 0x00, 0x00, 0x0a, 0x00, 0x00, 0x00, 0x00, 0x00}};
+
+CAN_frame message_47 = {
+    .FD = true,
+    .ext_ID = false,
+    .DLC = 32,
+    .ID = 0x120,
+    .data = {0xa9, 0xde, 0x97, 0x00, 0x00, 0x00, 0x00, 0x01, 0xff, 0x01, 0x00, 0x00, 0x37, 0x35, 0x37, 0x37,
+             0xc9, 0x02, 0x00, 0x00, 0x00, 0x00, 0x00, 0x35, 0x00, 0x00, 0x0a, 0x00, 0x00, 0x00, 0x00, 0x00}};
+
+CAN_frame message_48 = {
+    .FD = true,
+    .ext_ID = false,
+    .DLC = 32,
+    .ID = 0x19A,
+    .data = {0xde, 0x65, 0x86, 0x55, 0x44, 0x64, 0xd8, 0x1b, 0x40, 0x20, 0x00, 0x00, 0x00, 0x00, 0x11, 0x52,
+             0x00, 0x12, 0x02, 0x64, 0x00, 0x00, 0x00, 0x08, 0x13, 0x00, 0x00, 0x00, 0x00, 0x32, 0x00, 0x00}};
+
+CAN_frame message_49 = {
+    .FD = true,
+    .ext_ID = false,
+    .DLC = 32,
+    .ID = 0x30A,
+    .data = {0xd3, 0x11, 0x27, 0x08, 0x54, 0x01, 0x04, 0x15, 0x00, 0x1a, 0x76, 0x00, 0x25, 0x01, 0x10, 0x27,
+             0x4f, 0x06, 0x19, 0x04, 0x33, 0x15, 0x34, 0x28, 0x00, 0x00, 0x10, 0x06, 0x21, 0x00, 0x4b, 0x06}};
+
+CAN_frame message_50 = {
+    .FD = true,
+    .ext_ID = false,
+    .DLC = 32,
+    .ID = 0x320,
+    .data = {0x80, 0xf2, 0x27, 0x41, 0x00, 0x00, 0x01, 0x3c, 0xac, 0x0d, 0x40, 0x20, 0x05, 0xc8, 0xa0, 0x03,
+             0x40, 0x20, 0x2b, 0x04, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00}};
+CAN_frame message_51 = {
+    .FD = true,
+    .ext_ID = false,
+    .DLC = 32,
+    .ID = 0x10A,
+    .data = {0x9e, 0x87, 0x98, 0x00, 0x00, 0x00, 0x00, 0x01, 0xff, 0x01, 0x00, 0x00, 0x36, 0x39, 0x35, 0x35,
+             0xc9, 0x02, 0x00, 0x00, 0x10, 0x00, 0x00, 0x35, 0x00, 0x00, 0x0a, 0x00, 0x00, 0x00, 0x00, 0x00}};
+
+CAN_frame message_52 = {
+    .FD = true,
+    .ext_ID = false,
+    .DLC = 32,
+    .ID = 0x120,
+    .data = {0x28, 0xaa, 0x98, 0x00, 0x00, 0x00, 0x00, 0x01, 0xff, 0x01, 0x00, 0x00, 0x37, 0x35, 0x37, 0x37,
+             0xc9, 0x02, 0x00, 0x00, 0x00, 0x00, 0x00, 0x35, 0x00, 0x00, 0x0a, 0x00, 0x00, 0x00, 0x00, 0x00}};
+
+CAN_frame message_53 = {
+    .FD = true,
+    .ext_ID = false,
+    .DLC = 32,
+    .ID = 0x19A,
+    .data = {0x98, 0x3c, 0x87, 0x55, 0x44, 0x64, 0xd8, 0x1b, 0x40, 0x20, 0x00, 0x00, 0x00, 0x00, 0x11, 0x52,
+             0x00, 0x12, 0x02, 0x64, 0x00, 0x00, 0x00, 0x08, 0x13, 0x00, 0x00, 0x00, 0x00, 0x32, 0x00, 0x00}};
+
+CAN_frame message_54 = {
+    .FD = true,
+    .ext_ID = false,
+    .DLC = 32,
+    .ID = 0x10A,
+    .data = {0xd8, 0xde, 0x99, 0x00, 0x00, 0x00, 0x00, 0x01, 0xff, 0x01, 0x00, 0x00, 0x36, 0x39, 0x35, 0x35,
+             0xc9, 0x02, 0x00, 0x00, 0x10, 0x00, 0x00, 0x35, 0x00, 0x00, 0x0a, 0x00, 0x00, 0x00, 0x00, 0x00}};
+
+CAN_frame message_55 = {
+    .FD = true,
+    .ext_ID = false,
+    .DLC = 32,
+    .ID = 0x120,
+    .data = {0x6e, 0xf3, 0x99, 0x00, 0x00, 0x00, 0x00, 0x01, 0xff, 0x01, 0x00, 0x00, 0x37, 0x35, 0x37, 0x37,
+             0xc9, 0x02, 0x00, 0x00, 0x00, 0x00, 0x00, 0x35, 0x00, 0x00, 0x0a, 0x00, 0x00, 0x00, 0x00, 0x00}};
+
+CAN_frame message_56 = {
+    .FD = true,
+    .ext_ID = false,
+    .DLC = 32,
+    .ID = 0x19A,
+    .data = {0x19, 0x48, 0x88, 0x55, 0x44, 0x64, 0xd8, 0x1b, 0x40, 0x20, 0x00, 0x00, 0x00, 0x00, 0x11, 0x52,
+             0x00, 0x12, 0x02, 0x64, 0x00, 0x00, 0x00, 0x08, 0x13, 0x00, 0x00, 0x00, 0x00, 0x32, 0x00, 0x00}};
+
+CAN_frame message_57 = {
+    .FD = true,
+    .ext_ID = false,
+    .DLC = 32,
+    .ID = 0x10A,
+    .data = {0x12, 0x35, 0x9a, 0x00, 0x00, 0x00, 0x00, 0x01, 0xff, 0x01, 0x00, 0x00, 0x36, 0x39, 0x35, 0x35,
+             0xc9, 0x02, 0x00, 0x00, 0x10, 0x00, 0x00, 0x35, 0x00, 0x00, 0x0a, 0x00, 0x00, 0x00, 0x00, 0x00}};
+
+CAN_frame message_58 = {
+    .FD = true,
+    .ext_ID = false,
+    .DLC = 32,
+    .ID = 0x120,
+    .data = {0xa4, 0x18, 0x9a, 0x00, 0x00, 0x00, 0x00, 0x01, 0xff, 0x01, 0x00, 0x00, 0x37, 0x35, 0x37, 0x37,
+             0xc9, 0x02, 0x00, 0x00, 0x00, 0x00, 0x00, 0x35, 0x00, 0x00, 0x0a, 0x00, 0x00, 0x00, 0x00, 0x00}};
+
+CAN_frame message_59 = {
+    .FD = true,
+    .ext_ID = false,
+    .DLC = 32,
+    .ID = 0x19A,
+    .data = {0x5f, 0x11, 0x89, 0x55, 0x44, 0x64, 0xd8, 0x1b, 0x40, 0x20, 0x00, 0x00, 0x00, 0x00, 0x11, 0x52,
+             0x00, 0x12, 0x02, 0x64, 0x00, 0x00, 0x00, 0x08, 0x13, 0x00, 0x00, 0x00, 0x00, 0x32, 0x00, 0x00}};
+
+CAN_frame message_60 = {
+    .FD = true,
+    .ext_ID = false,
+    .DLC = 32,
+    .ID = 0x2B5,
+    .data = {0xfb, 0xeb, 0x43, 0x00, 0x00, 0x00, 0x00, 0x80, 0x59, 0x00, 0x2b, 0x00, 0x00, 0x04, 0x00, 0x00,
+             0xfa, 0xd0, 0x07, 0x00, 0x00, 0x00, 0x00, 0x00, 0x8f, 0x06, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00}};
+
+CAN_frame message_61 = {
+    .FD = true,
+    .ext_ID = false,
+    .DLC = 32,
+    .ID = 0x2C0,
+    .data = {0xcc, 0xcd, 0xa2, 0x21, 0x00, 0xa1, 0x00, 0x00, 0x40, 0x00, 0x00, 0x00, 0x00, 0x00, 0x7d, 0x00,
+             0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00}};
+
+CAN_frame message_62 = {
+    .FD = true,
+    .ext_ID = false,
+    .DLC = 32,
+    .ID = 0x2E0,
+    .data = {0x87, 0xab, 0x43, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x7e, 0x00, 0x00,
+             0x00, 0x00, 0x00, 0x02, 0x00, 0x00, 0x70, 0x01, 0x0f, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00}};
+
+CAN_frame message_63 = {
+    .FD = true,
+    .ext_ID = false,
+    .DLC = 32,
+    .ID = 0x10A,
+    .data = {0x54, 0x6c, 0x9b, 0x00, 0x00, 0x00, 0x00, 0x01, 0xff, 0x01, 0x00, 0x00, 0x36, 0x39, 0x35, 0x35,
+             0xc9, 0x02, 0x00, 0x00, 0x10, 0x00, 0x00, 0x35, 0x00, 0x00, 0x0a, 0x00, 0x00, 0x00, 0x00, 0x00}};
+CAN_frame* messages[] = {&message_1,  &message_2,  &message_3,  &message_4,  &message_5,  &message_6,  &message_7,
+                         &message_8,  &message_9,  &message_10, &message_11, &message_12, &message_13, &message_14,
+                         &message_15, &message_16, &message_17, &message_18, &message_19, &message_20, &message_21,
+                         &message_22, &message_23, &message_24, &message_25, &message_26, &message_27, &message_28,
+                         &message_29, &message_30, &message_31, &message_32, &message_33, &message_34, &message_35,
+                         &message_36, &message_37, &message_38, &message_39, &message_40, &message_41, &message_42,
+                         &message_43, &message_44, &message_45, &message_46, &message_47, &message_48, &message_49,
+                         &message_50, &message_51, &message_52, &message_53, &message_54, &message_55, &message_56,
+                         &message_57, &message_58, &message_59, &message_60, &message_61, &message_62, &message_63};
+/* PID polling messages */
 CAN_frame EGMP_7E4 = {.FD = true,
                       .ext_ID = false,
                       .DLC = 8,
@@ -286,6 +593,32 @@ void set_cell_voltages(CAN_frame rx_frame, int start, int length, int startCell)
     if ((rx_frame.data.u8[start + i] * 20) > 1000) {
       datalayer.battery.status.cell_voltages_mV[startCell + i] = (rx_frame.data.u8[start + i] * 20);
     }
+  }
+}
+
+void set_voltage_minmax_limits() {
+
+  uint8_t valid_cell_count = 0;
+  for (int i = 0; i < MAX_AMOUNT_CELLS; ++i) {
+    if (datalayer.battery.status.cell_voltages_mV[i] > 0) {
+      ++valid_cell_count;
+    }
+  }
+  if (valid_cell_count == 144) {
+    datalayer.battery.info.number_of_cells = valid_cell_count;
+    datalayer.battery.info.max_design_voltage_dV = 6048;
+    datalayer.battery.info.min_design_voltage_dV = 4320;
+  } else if (valid_cell_count == 180) {
+    datalayer.battery.info.number_of_cells = valid_cell_count;
+    datalayer.battery.info.max_design_voltage_dV = 7560;
+    datalayer.battery.info.min_design_voltage_dV = 5400;
+  } else if (valid_cell_count == 192) {
+    datalayer.battery.info.number_of_cells = valid_cell_count;
+    datalayer.battery.info.max_design_voltage_dV = 8064;
+    datalayer.battery.info.min_design_voltage_dV = 5760;
+  } else {
+    // We are still starting up? Not all cells available.
+    set_voltage_limits = false;
   }
 }
 
@@ -311,16 +644,20 @@ void update_values_battery() {  //This function maps all the values fetched via 
       (static_cast<double>(datalayer.battery.status.real_soc) / 10000) * datalayer.battery.info.total_capacity_Wh);
 
   //datalayer.battery.status.max_charge_power_W = (uint16_t)allowedChargePower * 10;  //From kW*100 to Watts
-  //The allowed charge power is not available. We hardcode this value for now
-  datalayer.battery.status.max_charge_power_W = MAXCHARGEPOWERALLOWED;
+  //The allowed charge power is not available. We estimate this value for now
+  if (datalayer.battery.status.real_soc > 9900) {
+    datalayer.battery.status.max_charge_power_W = 0;
+  } else if (datalayer.battery.status.real_soc >
+             RAMPDOWN_SOC) {  // When real SOC is between 90-99%, ramp the value between Max<->0
+    datalayer.battery.status.max_charge_power_W =
+        RAMPDOWNPOWERALLOWED * (1 - (datalayer.battery.status.real_soc - RAMPDOWN_SOC) / (10000.0 - RAMPDOWN_SOC));
+  } else {  // No limits, max charging power allowed
+    datalayer.battery.status.max_charge_power_W = MAXCHARGEPOWERALLOWED;
+  }
 
   //datalayer.battery.status.max_discharge_power_W = (uint16_t)allowedDischargePower * 10;  //From kW*100 to Watts
   //The allowed discharge power is not available. We hardcode this value for now
   datalayer.battery.status.max_discharge_power_W = MAXDISCHARGEPOWERALLOWED;
-
-  powerWatt = ((batteryVoltage * batteryAmps) / 100);
-
-  datalayer.battery.status.active_power_W = powerWatt;  //Power in watts, Negative = charging batt
 
   datalayer.battery.status.temperature_min_dC = (int8_t)temperatureMin * 10;  //Increase decimals, 17C -> 17.0C
 
@@ -329,6 +666,11 @@ void update_values_battery() {  //This function maps all the values fetched via 
   datalayer.battery.status.cell_max_voltage_mV = CellVoltMax_mV;
 
   datalayer.battery.status.cell_min_voltage_mV = CellVoltMin_mV;
+
+  if ((millis() > INTERVAL_60_S) && !set_voltage_limits) {
+    set_voltage_limits = true;
+    set_voltage_minmax_limits();  // Count cells, and set voltage limits accordingly
+  }
 
   /* Check if the BMS is still sending CAN messages. If we go 60s without messages we raise an error*/
   if (!datalayer.battery.status.CAN_battery_still_alive) {
@@ -346,77 +688,70 @@ void update_values_battery() {  //This function maps all the values fetched via 
     set_event(EVENT_12V_LOW, leadAcidBatteryVoltage);
   }
 
-  // Check if cell voltages are within allowed range
-  if (CellVoltMax_mV >= MAX_CELL_VOLTAGE) {
-    set_event(EVENT_CELL_OVER_VOLTAGE, 0);
-  }
-  if (CellVoltMin_mV <= MIN_CELL_VOLTAGE) {
-    set_event(EVENT_CELL_UNDER_VOLTAGE, 0);
-  }
-
   /* Safeties verified. Perform USB serial printout if configured to do so */
 
-#ifdef DEBUG_VIA_USB
-  Serial.println();  //sepatator
-  Serial.println("Values from battery: ");
-  Serial.print("SOC BMS: ");
-  Serial.print((uint16_t)SOC_BMS / 10.0, 1);
-  Serial.print("%  |  SOC Display: ");
-  Serial.print((uint16_t)SOC_Display / 10.0, 1);
-  Serial.print("%  |  SOH ");
-  Serial.print((uint16_t)batterySOH / 10.0, 1);
-  Serial.println("%");
-  Serial.print((int16_t)batteryAmps / 10.0, 1);
-  Serial.print(" Amps  |  ");
-  Serial.print((uint16_t)batteryVoltage / 10.0, 1);
-  Serial.print(" Volts  |  ");
-  Serial.print((int16_t)datalayer.battery.status.active_power_W);
-  Serial.println(" Watts");
-  Serial.print("Allowed Charge ");
-  Serial.print((uint16_t)allowedChargePower * 10);
-  Serial.print(" W  |  Allowed Discharge ");
-  Serial.print((uint16_t)allowedDischargePower * 10);
-  Serial.println(" W");
-  Serial.print("MaxCellVolt ");
-  Serial.print(CellVoltMax_mV);
-  Serial.print(" mV  No  ");
-  Serial.print(CellVmaxNo);
-  Serial.print("  |  MinCellVolt ");
-  Serial.print(CellVoltMin_mV);
-  Serial.print(" mV  No  ");
-  Serial.println(CellVminNo);
-  Serial.print("TempHi ");
-  Serial.print((int16_t)temperatureMax);
-  Serial.print("°C  TempLo ");
-  Serial.print((int16_t)temperatureMin);
-  Serial.print("°C  WaterInlet ");
-  Serial.print((int8_t)temperature_water_inlet);
-  Serial.print("°C  PowerRelay ");
-  Serial.print((int8_t)powerRelayTemperature * 2);
-  Serial.println("°C");
-  Serial.print("Aux12volt: ");
-  Serial.print((int16_t)leadAcidBatteryVoltage / 10.0, 1);
-  Serial.println("V  |  ");
-  Serial.print("BmsManagementMode ");
-  Serial.print((uint8_t)batteryManagementMode, BIN);
+#ifdef DEBUG_LOG
+  logging.println();  //sepatator
+  logging.println("Values from battery: ");
+  logging.print("SOC BMS: ");
+  logging.print((uint16_t)SOC_BMS / 10.0, 1);
+  logging.print("%  |  SOC Display: ");
+  logging.print((uint16_t)SOC_Display / 10.0, 1);
+  logging.print("%  |  SOH ");
+  logging.print((uint16_t)batterySOH / 10.0, 1);
+  logging.println("%");
+  logging.print((int16_t)batteryAmps / 10.0, 1);
+  logging.print(" Amps  |  ");
+  logging.print((uint16_t)batteryVoltage / 10.0, 1);
+  logging.print(" Volts  |  ");
+  logging.print((int16_t)datalayer.battery.status.active_power_W);
+  logging.println(" Watts");
+  logging.print("Allowed Charge ");
+  logging.print((uint16_t)allowedChargePower * 10);
+  logging.print(" W  |  Allowed Discharge ");
+  logging.print((uint16_t)allowedDischargePower * 10);
+  logging.println(" W");
+  logging.print("MaxCellVolt ");
+  logging.print(CellVoltMax_mV);
+  logging.print(" mV  No  ");
+  logging.print(CellVmaxNo);
+  logging.print("  |  MinCellVolt ");
+  logging.print(CellVoltMin_mV);
+  logging.print(" mV  No  ");
+  logging.println(CellVminNo);
+  logging.print("TempHi ");
+  logging.print((int16_t)temperatureMax);
+  logging.print("°C  TempLo ");
+  logging.print((int16_t)temperatureMin);
+  logging.print("°C  WaterInlet ");
+  logging.print((int8_t)temperature_water_inlet);
+  logging.print("°C  PowerRelay ");
+  logging.print((int8_t)powerRelayTemperature * 2);
+  logging.println("°C");
+  logging.print("Aux12volt: ");
+  logging.print((int16_t)leadAcidBatteryVoltage / 10.0, 1);
+  logging.println("V  |  ");
+  logging.print("BmsManagementMode ");
+  logging.print((uint8_t)batteryManagementMode, BIN);
   if (bitRead((uint8_t)BMS_ign, 2) == 1) {
-    Serial.print("  |  BmsIgnition ON");
+    logging.print("  |  BmsIgnition ON");
   } else {
-    Serial.print("  |  BmsIgnition OFF");
+    logging.print("  |  BmsIgnition OFF");
   }
 
   if (bitRead((uint8_t)batteryRelay, 0) == 1) {
-    Serial.print("  |  PowerRelay ON");
+    logging.print("  |  PowerRelay ON");
   } else {
-    Serial.print("  |  PowerRelay OFF");
+    logging.print("  |  PowerRelay OFF");
   }
-  Serial.print("  |  Inverter ");
-  Serial.print(inverterVoltage);
-  Serial.println(" Volts");
+  logging.print("  |  Inverter ");
+  logging.print(inverterVoltage);
+  logging.println(" Volts");
 #endif
 }
 
 void receive_can_battery(CAN_frame rx_frame) {
+  startedUp = true;
   switch (rx_frame.ID) {
     case 0x055:
       datalayer.battery.status.CAN_battery_still_alive = CAN_STILL_ALIVE;
@@ -473,7 +808,7 @@ void receive_can_battery(CAN_frame rx_frame) {
       // print_canfd_frame(frame);
       switch (rx_frame.data.u8[0]) {
         case 0x10:  //"PID Header"
-          // Serial.println ("Send ack");
+          // logging.println ("Send ack");
           poll_data_pid = rx_frame.data.u8[4];
           // if (rx_frame.data.u8[4] == poll_data_pid) {
           transmit_can(&EGMP_7E4_ack, can_config.battery);  //Send ack to BMS if the same frame is sent as polled
@@ -648,223 +983,72 @@ void receive_can_battery(CAN_frame rx_frame) {
 }
 
 void send_can_battery() {
-
   unsigned long currentMillis = millis();
+  if (startedUp) {
+    //Send Contactor closing message loop
+    // Check if we still have messages to send
+    if (messageIndex < sizeof(messageDelays) / sizeof(messageDelays[0])) {
 
-  //Send 20ms CANFD message
-  if (currentMillis - previousMillis20ms >= INTERVAL_20_MS) {
-    previousMillis20ms = currentMillis;
+      // Check if it's time to send the next message
+      if (currentMillis - startMillis >= messageDelays[messageIndex]) {
 
-    EGMP_1CF.data.u8[1] = (EGMP_1CF_counter % 15) * 0x10;
-    EGMP_1CF_counter++;
-    if (EGMP_1CF_counter > 0xE) {
-      EGMP_1CF_counter = 0;
-    }
-    EGMP_1CF.data.u8[0] = calculateCRC(EGMP_1CF, EGMP_1CF.DLC, 0x0A);  // Set CRC bit, initial Value 0x0A
+        // Transmit the current message
+        transmit_can(messages[messageIndex], can_config.battery);
 
-    transmit_can(&EGMP_1CF, can_config.battery);
-  }
-
-  //Send 30ms CANFD message
-  if (currentMillis - previousMillis30ms >= INTERVAL_30_MS) {
-    previousMillis30ms = currentMillis;
-
-    transmit_can(&EGMP_419, can_config.battery);  // TODO: Handle variations better
-  }
-
-  //Send 100ms CANFD message
-  if (currentMillis - previousMillis100ms >= INTERVAL_100_MS) {
-    previousMillis100ms = currentMillis;
-
-    EGMP_36F.data.u8[1] = ((EGMP_3XF_counter % 15) << 4) + 0x01;
-    EGMP_37F.data.u8[1] = ((EGMP_3XF_counter % 15) << 4);
-    EGMP_3XF_counter++;
-    if (EGMP_3XF_counter > 0xE) {
-      EGMP_3XF_counter = 0;
-    }
-    EGMP_36F.data.u8[0] = calculateCRC(EGMP_36F, EGMP_36F.DLC, 0x8A);  // Set CRC bit, initial Value 0x8A
-    EGMP_37F.data.u8[0] = calculateCRC(EGMP_37F, EGMP_37F.DLC, 0x38);  // Set CRC bit, initial Value 0x38
-
-    transmit_can(&EGMP_36F, can_config.battery);
-    transmit_can(&EGMP_37F, can_config.battery);
-  }
-
-  //Send 200ms CANFD message
-  if (currentMillis - previousMillis200ms >= INTERVAL_200_MS) {
-    previousMillis200ms = currentMillis;
-
-    transmit_can(&EGMP_4B4, can_config.battery);
-    transmit_can(&EGMP_4B5, can_config.battery);
-    transmit_can(&EGMP_4B7, can_config.battery);
-    transmit_can(&EGMP_4CC, can_config.battery);
-    transmit_can(&EGMP_4CE, can_config.battery);
-    transmit_can(&EGMP_4D8, can_config.battery);
-    transmit_can(&EGMP_4DD, can_config.battery);
-    transmit_can(&EGMP_4E7, can_config.battery);
-    transmit_can(&EGMP_4E9, can_config.battery);
-    transmit_can(&EGMP_4EA, can_config.battery);
-    transmit_can(&EGMP_4EB, can_config.battery);
-    transmit_can(&EGMP_4EC, can_config.battery);
-    transmit_can(&EGMP_4ED, can_config.battery);
-    transmit_can(&EGMP_4EE, can_config.battery);
-    transmit_can(&EGMP_4EF, can_config.battery);
-    transmit_can(&EGMP_641, can_config.battery);
-    transmit_can(&EGMP_3AA, can_config.battery);
-    transmit_can(&EGMP_3E0, can_config.battery);
-    transmit_can(&EGMP_3E1, can_config.battery);
-    transmit_can(&EGMP_422, can_config.battery);
-    transmit_can(&EGMP_444, can_config.battery);
-    transmit_can(&EGMP_405, can_config.battery);
-    transmit_can(&EGMP_410, can_config.battery);
-    transmit_can(&EGMP_411, can_config.battery);
-    transmit_can(&EGMP_412, can_config.battery);
-    transmit_can(&EGMP_412, can_config.battery);
-    transmit_can(&EGMP_413, can_config.battery);
-    transmit_can(&EGMP_414, can_config.battery);
-    transmit_can(&EGMP_416, can_config.battery);
-    transmit_can(&EGMP_417, can_config.battery);
-    transmit_can(&EGMP_418, can_config.battery);
-    transmit_can(&EGMP_3C1, can_config.battery);
-    transmit_can(&EGMP_3C2, can_config.battery);
-    transmit_can(&EGMP_4F0, can_config.battery);  //TODO: could be handled better
-    transmit_can(&EGMP_4F2, can_config.battery);  //TODO: could be handled better
-
-    if (ticks_200ms_counter < 254) {
-      ticks_200ms_counter++;
-    }
-    if (ticks_200ms_counter > 11) {
-      EGMP_412.data.u8[0] = 0x48;
-      EGMP_412.data.u8[1] = 0x10;
-      EGMP_412.data.u8[6] = 0x04;
-
-      EGMP_418.data.u8[0] = 0xCE;
-      EGMP_418.data.u8[1] = 0x30;
-      EGMP_418.data.u8[4] = 0x14;
-      EGMP_418.data.u8[5] = 0x4C;
-      if (ticks_200ms_counter > 39) {
-        EGMP_412.data.u8[0] = 0xB3;
-        EGMP_412.data.u8[1] = 0x20;
-        EGMP_412.data.u8[6] = 0x00;
-
-        EGMP_418.data.u8[0] = 0xA6;
-        EGMP_418.data.u8[1] = 0x40;
-        EGMP_418.data.u8[5] = 0x0C;
+        // Move to the next message
+        messageIndex++;
       }
     }
-    if (ticks_200ms_counter > 20) {
-      EGMP_413.data.u8[0] = 0xF5;
-      EGMP_413.data.u8[1] = 0x10;
-      EGMP_413.data.u8[3] = 0x41;
-    }
-    if (ticks_200ms_counter > 28) {
-      EGMP_4B4.data.u8[2] = 0;
-      EGMP_4B4.data.u8[3] = 0;
-    }
-    if (ticks_200ms_counter > 26) {
-      EGMP_411.data.u8[0] = 0x9E;
-      EGMP_411.data.u8[1] = 0x32;
-      EGMP_411.data.u8[7] = 0x50;
 
-      EGMP_417.data.u8[0] = 0x9E;
-      EGMP_417.data.u8[1] = 0x20;
-      EGMP_417.data.u8[4] = 0x04;
-      EGMP_417.data.u8[5] = 0x01;
+    if (messageIndex >= 63) {
+      startMillis = millis();  // Start over!
+      messageIndex = 0;
     }
-    if (ticks_200ms_counter > 32) {
-      EGMP_4CE.data.u8[0] = 0x22;
-      EGMP_4CE.data.u8[1] = 0x41;
-      EGMP_4CE.data.u8[6] = 0x47;
-      EGMP_4CE.data.u8[7] = 0x1F;
-    }
-    if (ticks_200ms_counter > 43) {
-      EGMP_4EB.data.u8[2] = 0x0D;
-      EGMP_4EB.data.u8[3] = 0x3B;
-    }
-    if (ticks_200ms_counter > 46) {
-      EGMP_4EB.data.u8[2] = 0x0E;
-      EGMP_4EB.data.u8[3] = 0x00;
-    }
-    if (ticks_200ms_counter > 24) {
-      EGMP_4ED.data.u8[1] = 0x00;
-      EGMP_4ED.data.u8[2] = 0x00;
-      EGMP_4ED.data.u8[3] = 0x00;
-      EGMP_4ED.data.u8[4] = 0x00;
-    }
-    if (ticks_200ms_counter > 21) {
-      EGMP_3E1.data.u8[0] = 0x49;
-      EGMP_3E1.data.u8[1] = 0x10;
-      EGMP_3E1.data.u8[2] = 0x12;
-      EGMP_3E1.data.u8[3] = 0x15;
 
-      EGMP_422.data.u8[0] = 0xEE;
-      EGMP_422.data.u8[1] = 0x20;
-      EGMP_422.data.u8[2] = 0x11;
-      EGMP_422.data.u8[6] = 0x04;
+    //Send 200ms CANFD message
+    if (currentMillis - previousMillis200ms >= INTERVAL_200_MS) {
+      previousMillis200ms = currentMillis;
+      // Check if sending of CAN messages has been delayed too much.
+      if ((currentMillis - previousMillis200ms >= INTERVAL_200_MS_DELAYED) && (currentMillis > BOOTUP_TIME)) {
+        set_event(EVENT_CAN_OVERRUN, (currentMillis - previousMillis200ms));
+      } else {
+        clear_event(EVENT_CAN_OVERRUN);
+      }
+      previousMillis200ms = currentMillis;
 
-      EGMP_405.data.u8[0] = 0xD2;
-      EGMP_405.data.u8[1] = 0x10;
-      EGMP_405.data.u8[5] = 0x01;
-    }
-    if (ticks_200ms_counter > 12) {
-      EGMP_444.data.u8[0] = 0xEE;
-      EGMP_444.data.u8[1] = 0x30;
-      EGMP_444.data.u8[3] = 0x20;
-      if (ticks_200ms_counter > 23) {  // TODO: Could be handled better
-        EGMP_444.data.u8[0] = 0xE4;
-        EGMP_444.data.u8[1] = 0x60;
-        EGMP_444.data.u8[2] = 0x25;
-        EGMP_444.data.u8[3] = 0x4E;
-        EGMP_444.data.u8[4] = 0x04;
+      EGMP_7E4.data.u8[3] = KIA_7E4_COUNTER;
+
+      if (ok_start_polling_battery) {
+        transmit_can(&EGMP_7E4, can_config.battery);
+      }
+
+      KIA_7E4_COUNTER++;
+      if (KIA_7E4_COUNTER > 0x0D) {  // gets up to 0x010C before repeating
+        KIA_7E4_COUNTER = 0x01;
       }
     }
-  }
+    //Send 10s CANFD message
+    if (currentMillis - previousMillis10s >= INTERVAL_10_S) {
+      previousMillis10s = currentMillis;
 
-  //Send 500ms CANFD message
-  if (currentMillis - previousMillis500ms >= INTERVAL_500_MS) {
-
-    // Check if sending of CAN messages has been delayed too much.
-    if ((currentMillis - previousMillis500ms >= INTERVAL_500_MS_DELAYED) && (currentMillis > BOOTUP_TIME)) {
-      set_event(EVENT_CAN_OVERRUN, (currentMillis - previousMillis500ms));
-    } else {
-      clear_event(EVENT_CAN_OVERRUN);
+      ok_start_polling_battery = true;
     }
-    previousMillis500ms = currentMillis;
-
-    EGMP_7E4.data.u8[3] = KIA_7E4_COUNTER;
-    transmit_can(&EGMP_7E4, can_config.battery);
-
-    KIA_7E4_COUNTER++;
-    if (KIA_7E4_COUNTER > 0x0D) {  // gets up to 0x010C before repeating
-      KIA_7E4_COUNTER = 0x01;
-    }
-  }
-  //Send 1s CANFD message
-  if (currentMillis - previousMillis1s >= INTERVAL_1_S) {
-    previousMillis1s = currentMillis;
-
-    transmit_can(&EGMP_48F, can_config.battery);
-  }
-  //Send 2s CANFD message
-  if (currentMillis - previousMillis2s >= INTERVAL_2_S) {
-    previousMillis2s = currentMillis;
-
-    transmit_can(&EGMP_4FE, can_config.battery);
   }
 }
 
 void setup_battery(void) {  // Performs one time setup at startup
-#ifdef DEBUG_VIA_USB
-  Serial.println("Hyundai E-GMP (Electric Global Modular Platform) battery selected");
-#endif
+  strncpy(datalayer.system.info.battery_protocol, "Kia/Hyundai EGMP platform", 63);
+  datalayer.system.info.battery_protocol[63] = '\0';
+
+  startMillis = millis();  // Record the starting time
 
   datalayer.system.status.battery_allows_contactor_closing = true;
-
   datalayer.battery.info.number_of_cells = 192;  // TODO: will vary depending on battery
-
-  datalayer.battery.info.max_design_voltage_dV =
-      8064;  // TODO: define when battery is known, charging is not possible (goes into forced discharge)
-  datalayer.battery.info.min_design_voltage_dV =
-      4320;  // TODO: define when battery is known. discharging further is disabled
+  datalayer.battery.info.max_design_voltage_dV = MAX_PACK_VOLTAGE_DV;
+  datalayer.battery.info.min_design_voltage_dV = MIN_PACK_VOLTAGE_DV;
+  datalayer.battery.info.max_cell_voltage_mV = MAX_CELL_VOLTAGE_MV;
+  datalayer.battery.info.min_cell_voltage_mV = MIN_CELL_VOLTAGE_MV;
+  datalayer.battery.info.max_cell_voltage_deviation_mV = MAX_CELL_DEVIATION_MV;
 }
 
 #endif

@@ -8,9 +8,6 @@
 static unsigned long previousMillis100 = 0;  // will store last time a 100ms CAN Message was send
 static unsigned long previousMillis60s = 0;  // will store last time a 60s CAN Message was send
 
-#define MAX_CELL_VOLTAGE 4210  //Battery is put into emergency stop if one cell goes over this value
-#define MIN_CELL_VOLTAGE 2700  //Battery is put into emergency stop if one cell goes below this value
-
 static float BATT_U = 0;                 //0x3A
 static float MAX_U = 0;                  //0x3A
 static float MIN_U = 0;                  //0x3A
@@ -22,8 +19,8 @@ static float BATT_T_MIN = 0;             //0x413
 static float BATT_T_AVG = 0;             //0x413
 static uint16_t SOC_BMS = 0;             //0X37D
 static uint16_t SOC_CALC = 0;
-static uint16_t CELL_U_MAX = 0;             //0x37D
-static uint16_t CELL_U_MIN = 0;             //0x37D
+static uint16_t CELL_U_MAX = 3700;          //0x37D
+static uint16_t CELL_U_MIN = 3700;          //0x37D
 static uint8_t CELL_ID_U_MAX = 0;           //0x37D
 static uint16_t HvBattPwrLimDchaSoft = 0;   //0x369
 static uint8_t batteryModuleNumber = 0x10;  // First battery module
@@ -86,7 +83,6 @@ void update_values_battery() {  //This function maps all the values fetched via 
   //datalayer.battery.status.max_discharge_power_W = HvBattPwrLimDchaSoft * 1000;	// Use power limit reported from BMS, not trusted ATM
   datalayer.battery.status.max_discharge_power_W = 30000;
   datalayer.battery.status.max_charge_power_W = 30000;
-  datalayer.battery.status.active_power_W = (BATT_U)*BATT_I;
   datalayer.battery.status.temperature_min_dC = BATT_T_MIN;
   datalayer.battery.status.temperature_max_dC = BATT_T_MAX;
 
@@ -98,49 +94,49 @@ void update_values_battery() {  //This function maps all the values fetched via 
     datalayer.battery.status.cell_voltages_mV[i] = cell_voltages[i];
   }
 
-#ifdef DEBUG_VIA_USB
-  Serial.print("BMS reported SOC%: ");
-  Serial.println(SOC_BMS);
-  Serial.print("Calculated SOC%: ");
-  Serial.println(SOC_CALC);
-  Serial.print("Rescaled SOC%: ");
-  Serial.println(datalayer.battery.status.reported_soc / 100);
-  Serial.print("Battery current: ");
-  Serial.println(BATT_I);
-  Serial.print("Battery voltage: ");
-  Serial.println(BATT_U);
-  Serial.print("Battery maximum voltage limit: ");
-  Serial.println(MAX_U);
-  Serial.print("Battery minimum voltage limit: ");
-  Serial.println(MIN_U);
-  Serial.print("Remaining Energy: ");
-  Serial.println(remaining_capacity);
-  Serial.print("Discharge limit: ");
-  Serial.println(HvBattPwrLimDchaSoft);
-  Serial.print("Battery Error Indication: ");
-  Serial.println(BATT_ERR_INDICATION);
-  Serial.print("Maximum battery temperature: ");
-  Serial.println(BATT_T_MAX / 10);
-  Serial.print("Minimum battery temperature: ");
-  Serial.println(BATT_T_MIN / 10);
-  Serial.print("Average battery temperature: ");
-  Serial.println(BATT_T_AVG / 10);
-  Serial.print("BMS Highest cell voltage: ");
-  Serial.println(CELL_U_MAX * 10);
-  Serial.print("BMS Lowest cell voltage: ");
-  Serial.println(CELL_U_MIN * 10);
-  Serial.print("BMS Highest cell nr: ");
-  Serial.println(CELL_ID_U_MAX);
-  Serial.print("Highest cell voltage: ");
-  Serial.println(min_max_voltage[1]);
-  Serial.print("Lowest cell voltage: ");
-  Serial.println(min_max_voltage[0]);
-  Serial.print("Cell voltage,");
+#ifdef DEBUG_LOG
+  logging.print("BMS reported SOC%: ");
+  logging.println(SOC_BMS);
+  logging.print("Calculated SOC%: ");
+  logging.println(SOC_CALC);
+  logging.print("Rescaled SOC%: ");
+  logging.println(datalayer.battery.status.reported_soc / 100);
+  logging.print("Battery current: ");
+  logging.println(BATT_I);
+  logging.print("Battery voltage: ");
+  logging.println(BATT_U);
+  logging.print("Battery maximum voltage limit: ");
+  logging.println(MAX_U);
+  logging.print("Battery minimum voltage limit: ");
+  logging.println(MIN_U);
+  logging.print("Remaining Energy: ");
+  logging.println(remaining_capacity);
+  logging.print("Discharge limit: ");
+  logging.println(HvBattPwrLimDchaSoft);
+  logging.print("Battery Error Indication: ");
+  logging.println(BATT_ERR_INDICATION);
+  logging.print("Maximum battery temperature: ");
+  logging.println(BATT_T_MAX / 10);
+  logging.print("Minimum battery temperature: ");
+  logging.println(BATT_T_MIN / 10);
+  logging.print("Average battery temperature: ");
+  logging.println(BATT_T_AVG / 10);
+  logging.print("BMS Highest cell voltage: ");
+  logging.println(CELL_U_MAX * 10);
+  logging.print("BMS Lowest cell voltage: ");
+  logging.println(CELL_U_MIN * 10);
+  logging.print("BMS Highest cell nr: ");
+  logging.println(CELL_ID_U_MAX);
+  logging.print("Highest cell voltage: ");
+  logging.println(min_max_voltage[1]);
+  logging.print("Lowest cell voltage: ");
+  logging.println(min_max_voltage[0]);
+  logging.print("Cell voltage,");
   while (cnt < 108) {
-    Serial.print(cell_voltages[cnt++]);
-    Serial.print(",");
+    logging.print(cell_voltages[cnt++]);
+    logging.print(",");
   }
-  Serial.println(";");
+  logging.println(";");
 #endif
 }
 
@@ -152,8 +148,8 @@ void receive_can_battery(CAN_frame rx_frame) {
         BATT_I = (0 - ((((rx_frame.data.u8[6] & 0x7F) * 256.0 + rx_frame.data.u8[7]) * 0.1) - 1638));
       else {
         BATT_I = 0;
-#ifdef DEBUG_VIA_USB
-        Serial.println("BATT_I not valid");
+#ifdef DEBUG_LOG
+        logging.println("BATT_I not valid");
 #endif
       }
 
@@ -161,22 +157,22 @@ void receive_can_battery(CAN_frame rx_frame) {
         MAX_U = (((rx_frame.data.u8[2] & 0x07) * 256.0 + rx_frame.data.u8[3]) * 0.25);
       else {
         //MAX_U = 0;
-        //Serial.println("MAX_U not valid");	// Value toggles between true/false from BMS
+        //logging.println("MAX_U not valid");	// Value toggles between true/false from BMS
       }
 
       if ((rx_frame.data.u8[4] & 0x08) == 0x08)
         MIN_U = (((rx_frame.data.u8[4] & 0x07) * 256.0 + rx_frame.data.u8[5]) * 0.25);
       else {
         //MIN_U = 0;
-        //Serial.println("MIN_U not valid");	// Value toggles between true/false from BMS
+        //logging.println("MIN_U not valid");	// Value toggles between true/false from BMS
       }
 
       if ((rx_frame.data.u8[0] & 0x08) == 0x08)
         BATT_U = (((rx_frame.data.u8[0] & 0x07) * 256.0 + rx_frame.data.u8[1]) * 0.25);
       else {
         BATT_U = 0;
-#ifdef DEBUG_VIA_USB
-        Serial.println("BATT_U not valid");
+#ifdef DEBUG_LOG
+        logging.println("BATT_U not valid");
 #endif
       }
       break;
@@ -193,8 +189,8 @@ void receive_can_battery(CAN_frame rx_frame) {
         BATT_ERR_INDICATION = ((rx_frame.data.u8[0] & 0x40) >> 6);
       else {
         BATT_ERR_INDICATION = 0;
-#ifdef DEBUG_VIA_USB
-        Serial.println("BATT_ERR_INDICATION not valid");
+#ifdef DEBUG_LOG
+        logging.println("BATT_ERR_INDICATION not valid");
 #endif
       }
       if ((rx_frame.data.u8[0] & 0x20) == 0x20) {
@@ -205,8 +201,8 @@ void receive_can_battery(CAN_frame rx_frame) {
         BATT_T_MAX = 0;
         BATT_T_MIN = 0;
         BATT_T_AVG = 0;
-#ifdef DEBUG_VIA_USB
-        Serial.println("BATT_T not valid");
+#ifdef DEBUG_LOG
+        logging.println("BATT_T not valid");
 #endif
       }
       break;
@@ -215,8 +211,8 @@ void receive_can_battery(CAN_frame rx_frame) {
         HvBattPwrLimDchaSoft = (((rx_frame.data.u8[6] & 0x03) * 256 + rx_frame.data.u8[6]) >> 2);
       } else {
         HvBattPwrLimDchaSoft = 0;
-#ifdef DEBUG_VIA_USB
-        Serial.println("HvBattPwrLimDchaSoft not valid");
+#ifdef DEBUG_LOG
+        logging.println("HvBattPwrLimDchaSoft not valid");
 #endif
       }
       break;
@@ -225,8 +221,8 @@ void receive_can_battery(CAN_frame rx_frame) {
         SOC_BMS = ((rx_frame.data.u8[6] & 0x03) * 256 + rx_frame.data.u8[7]);
       } else {
         SOC_BMS = 0;
-#ifdef DEBUG_VIA_USB
-        Serial.println("SOC_BMS not valid");
+#ifdef DEBUG_LOG
+        logging.println("SOC_BMS not valid");
 #endif
       }
 
@@ -234,8 +230,8 @@ void receive_can_battery(CAN_frame rx_frame) {
         CELL_U_MAX = ((rx_frame.data.u8[2] & 0x01) * 256 + rx_frame.data.u8[3]);
       else {
         CELL_U_MAX = 0;
-#ifdef DEBUG_VIA_USB
-        Serial.println("CELL_U_MAX not valid");
+#ifdef DEBUG_LOG
+        logging.println("CELL_U_MAX not valid");
 #endif
       }
 
@@ -243,8 +239,8 @@ void receive_can_battery(CAN_frame rx_frame) {
         CELL_U_MIN = ((rx_frame.data.u8[0] & 0x01) * 256.0 + rx_frame.data.u8[1]);
       else {
         CELL_U_MIN = 0;
-#ifdef DEBUG_VIA_USB
-        Serial.println("CELL_U_MIN not valid");
+#ifdef DEBUG_LOG
+        logging.println("CELL_U_MIN not valid");
 #endif
       }
 
@@ -252,8 +248,8 @@ void receive_can_battery(CAN_frame rx_frame) {
         CELL_ID_U_MAX = ((rx_frame.data.u8[4] & 0x01) * 256.0 + rx_frame.data.u8[5]);
       else {
         CELL_ID_U_MAX = 0;
-#ifdef DEBUG_VIA_USB
-        Serial.println("CELL_ID_U_MAX not valid");
+#ifdef DEBUG_LOG
+        logging.println("CELL_ID_U_MAX not valid");
 #endif
       }
       break;
@@ -288,12 +284,6 @@ void receive_can_battery(CAN_frame rx_frame) {
               min_max_voltage[1] = cell_voltages[cellcounter];
           }
 
-          if (min_max_voltage[1] >= MAX_CELL_VOLTAGE) {
-            set_event(EVENT_CELL_OVER_VOLTAGE, 0);
-          }
-          if (min_max_voltage[0] <= MIN_CELL_VOLTAGE) {
-            set_event(EVENT_CELL_UNDER_VOLTAGE, 0);
-          }
           transmit_can(&VOLVO_SOH_Req, can_config.battery);  //Send SOH read request
         }
         rxConsecutiveFrames = 0;
@@ -342,13 +332,13 @@ void send_can_battery() {
 }
 
 void setup_battery(void) {  // Performs one time setup at startup
-#ifdef DEBUG_VIA_USB
-  Serial.println("Volvo SPA XC40 Recharge / Polestar2 78kWh battery selected");
-#endif
-
+  strncpy(datalayer.system.info.battery_protocol, "Volvo / Polestar 78kWh battery", 63);
+  datalayer.system.info.battery_protocol[63] = '\0';
   datalayer.battery.info.number_of_cells = 108;
-  datalayer.battery.info.max_design_voltage_dV =
-      4540;  // 454.0V, over this, charging is not possible (goes into forced discharge)
-  datalayer.battery.info.min_design_voltage_dV = 2938;  // 293.8V under this, discharging further is disabled
+  datalayer.battery.info.max_design_voltage_dV = MAX_PACK_VOLTAGE_DV;
+  datalayer.battery.info.min_design_voltage_dV = MIN_PACK_VOLTAGE_DV;
+  datalayer.battery.info.max_cell_voltage_mV = MAX_CELL_VOLTAGE_MV;
+  datalayer.battery.info.min_cell_voltage_mV = MIN_CELL_VOLTAGE_MV;
+  datalayer.battery.info.max_cell_voltage_deviation_mV = MAX_CELL_DEVIATION_MV;
 }
 #endif

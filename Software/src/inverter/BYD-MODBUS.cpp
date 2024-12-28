@@ -65,13 +65,13 @@ void handle_update_data_modbusp301_byd() {
   }
   // Convert max discharge Amp value to max Watt
   user_configured_max_discharge_W =
-      ((datalayer.battery.info.max_discharge_amp_dA * datalayer.battery.info.max_design_voltage_dV) / 100);
+      ((datalayer.battery.settings.max_user_set_discharge_dA * datalayer.battery.info.max_design_voltage_dV) / 100);
   // Use the smaller value, battery reported value OR user configured value
   max_discharge_W = std::min(datalayer.battery.status.max_discharge_power_W, user_configured_max_discharge_W);
 
   // Convert max charge Amp value to max Watt
   user_configured_max_charge_W =
-      ((datalayer.battery.info.max_charge_amp_dA * datalayer.battery.info.max_design_voltage_dV) / 100);
+      ((datalayer.battery.settings.max_user_set_charge_dA * datalayer.battery.info.max_design_voltage_dV) / 100);
   // Use the smaller value, battery reported value OR user configured value
   max_charge_W = std::min(datalayer.battery.status.max_charge_power_W, user_configured_max_charge_W);
 
@@ -83,8 +83,9 @@ void handle_update_data_modbusp301_byd() {
   mbPV[300] = datalayer.battery.status.bms_status;
   mbPV[302] = 128 + bms_char_dis_status;
   mbPV[303] = datalayer.battery.status.reported_soc;
-  mbPV[304] = std::min(datalayer.battery.info.total_capacity_Wh, static_cast<uint32_t>(60000u));        //Cap to 60kWh
-  mbPV[305] = std::min(datalayer.battery.status.remaining_capacity_Wh, static_cast<uint32_t>(60000u));  //Cap to 60kWh
+  mbPV[304] = std::min(datalayer.battery.info.total_capacity_Wh, static_cast<uint32_t>(60000u));  //Cap to 60kWh
+  mbPV[305] =
+      std::min(datalayer.battery.status.reported_remaining_capacity_Wh, static_cast<uint32_t>(60000u));  //Cap to 60kWh
   mbPV[306] = std::min(max_discharge_W, static_cast<uint32_t>(30000u));  //Cap to 30000 if exceeding
   mbPV[307] = std::min(max_charge_W, static_cast<uint32_t>(30000u));     //Cap to 30000 if exceeding
   mbPV[310] = datalayer.battery.status.voltage_dV;
@@ -141,5 +142,9 @@ void verify_inverter_modbus() {
     register_401_history[history_index] = mbPV[401];
     history_index = (history_index + 1) % HISTORY_LENGTH;
   }
+}
+void setup_inverter(void) {  // Performs one time setup at startup over CAN bus
+  strncpy(datalayer.system.info.inverter_protocol, "BYD 11kWh HVM battery over Modbus RTU", 63);
+  datalayer.system.info.inverter_protocol[63] = '\0';
 }
 #endif

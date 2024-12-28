@@ -57,9 +57,9 @@ CAN_frame ipace_keep_alive = {.FD = false,
                               .data = {0x9E, 0x00, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF}};*/
 
 void print_units(char* header, int value, char* units) {
-  Serial.print(header);
-  Serial.print(value);
-  Serial.print(units);
+  logging.print(header);
+  logging.print(value);
+  logging.print(units);
 }
 
 void update_values_battery() {
@@ -80,10 +80,6 @@ void update_values_battery() {
   datalayer.battery.status.cell_max_voltage_mV = HVBattCellVoltageMaxMv;
 
   datalayer.battery.status.cell_min_voltage_mV = HVBattCellVoltageMinMv;
-
-  //Power in watts, Negative = charging batt
-  datalayer.battery.status.active_power_W =
-      ((datalayer.battery.status.voltage_dV * datalayer.battery.status.current_dA) / 100);
 
   datalayer.battery.status.temperature_min_dC = HVBattCellTempColdest * 10;  // C to dC
 
@@ -108,8 +104,8 @@ void update_values_battery() {
   }
 
 /*Finally print out values to serial if configured to do so*/
-#ifdef DEBUG_VIA_USB
-  Serial.println("Values going to inverter");
+#ifdef DEBUG_LOG
+  logging.println("Values going to inverter");
   print_units("SOH%: ", (datalayer.battery.status.soh_pptt * 0.01), "% ");
   print_units(", SOC%: ", (datalayer.battery.status.reported_soc * 0.01), "% ");
   print_units(", Voltage: ", (datalayer.battery.status.voltage_dV * 0.1), "V ");
@@ -119,7 +115,7 @@ void update_values_battery() {
   print_units(", Min temp: ", (datalayer.battery.status.temperature_min_dC * 0.1), "°C ");
   print_units(", Max cell voltage: ", datalayer.battery.status.cell_max_voltage_mV, "mV ");
   print_units(", Min cell voltage: ", datalayer.battery.status.cell_min_voltage_mV, "mV ");
-  Serial.println("");
+  logging.println("");
 #endif
 }
 
@@ -233,17 +229,17 @@ void receive_can_battery(CAN_frame rx_frame) {
   }
 
   // All CAN messages recieved will be logged via serial
-  Serial.print(millis());  // Example printout, time, ID, length, data: 7553  1DB  8  FF C0 B9 EA 0 0 2 5D
-  Serial.print("  ");
-  Serial.print(rx_frame.ID, HEX);
-  Serial.print("  ");
-  Serial.print(rx_frame.DLC);
-  Serial.print("  ");
+  logging.print(millis());  // Example printout, time, ID, length, data: 7553  1DB  8  FF C0 B9 EA 0 0 2 5D
+  logging.print("  ");
+  logging.print(rx_frame.ID, HEX);
+  logging.print("  ");
+  logging.print(rx_frame.DLC);
+  logging.print("  ");
   for (int i = 0; i < rx_frame.DLC; ++i) {
-    Serial.print(rx_frame.data.u8[i], HEX);
-    Serial.print(" ");
+    logging.print(rx_frame.data.u8[i], HEX);
+    logging.print(" ");
   }
-  Serial.println("");
+  logging.println("");
 }
 
 void send_can_battery() {
@@ -258,13 +254,16 @@ void send_can_battery() {
 }
 
 void setup_battery(void) {  // Performs one time setup at startup
-#ifdef DEBUG_VIA_USB
-  Serial.println("Jaguar iPace 90kWh battery selected");
-#endif
-
+  strncpy(datalayer.system.info.battery_protocol, "Jaguar I-PACE", 63);
+  datalayer.system.info.battery_protocol[63] = '\0';
   datalayer.battery.info.number_of_cells = 108;
-  datalayer.battery.info.max_design_voltage_dV = 4546;
-  datalayer.battery.info.min_design_voltage_dV = 3370;
+  datalayer.battery.info.max_design_voltage_dV = MAX_PACK_VOLTAGE_DV;
+  datalayer.battery.info.min_design_voltage_dV = MIN_PACK_VOLTAGE_DV;
+  datalayer.battery.info.max_cell_voltage_mV = MAX_CELL_VOLTAGE_MV;
+  datalayer.battery.info.min_cell_voltage_mV = MIN_CELL_VOLTAGE_MV;
+  datalayer.battery.info.max_cell_voltage_deviation_mV = MAX_CELL_DEVIATION_MV;
+
+  datalayer.system.status.battery_allows_contactor_closing = true;
 }
 
 #endif

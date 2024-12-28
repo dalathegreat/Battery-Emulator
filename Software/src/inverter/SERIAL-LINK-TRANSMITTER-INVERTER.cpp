@@ -60,8 +60,8 @@ void manageSerialLinkTransmitter() {
     }
     bool sendError = dataLinkTransmit.checkTransmissionError(true);
     if (sendError) {
-      Serial.print(currentTime);
-      Serial.println(" - ERROR: Serial Data Link - SEND Error");
+      logging.print(currentTime);
+      logging.println(" - ERROR: Serial Data Link - SEND Error");
       lasterror = true;
       transmitGoodSince = currentTime;
     }
@@ -82,17 +82,17 @@ void manageSerialLinkTransmitter() {
 
     if (lasterror && (ackReceived > 0)) {
       lasterror = false;
-      Serial.print(currentTime);
-      Serial.println(" - RECOVERY: Serial Data Link - Send GOOD");
+      logging.print(currentTime);
+      logging.println(" - RECOVERY: Serial Data Link - Send GOOD");
     }
 
     //--- reporting every 60 seconds that transmission is good
     if (currentTime - transmitGoodSince > INTERVAL_60_S) {
       transmitGoodSince = currentTime;
-      Serial.print(currentTime);
-      Serial.println(" - Transmit Good");
+      logging.print(currentTime);
+      logging.println(" - Transmit Good");
 //  printUsefullData();
-#ifdef DEBUG_VIA_USB
+#ifdef DEBUG_LOG
       void printSendingValues();
 #endif
     }
@@ -100,13 +100,13 @@ void manageSerialLinkTransmitter() {
     //--- report that Errors been ocurring for > 60 seconds
     if (currentTime - lastGood > INTERVAL_60_S) {
       lastGood = currentTime;
-      Serial.print(currentTime);
-      Serial.println(" - Transmit Failed : 60 seconds");
+      logging.print(currentTime);
+      logging.println(" - Transmit Failed : 60 seconds");
       //  print the max_ data
-      Serial.println("SerialDataLink : bms_status=4");
-      Serial.println("SerialDataLink : LEDcolor = RED");
-      Serial.println("SerialDataLink : max_target_discharge_power = 0");
-      Serial.println("SerialDataLink : max_target_charge_power = 0");
+      logging.println("SerialDataLink : bms_status=4");
+      logging.println("SerialDataLink : LEDcolor = RED");
+      logging.println("SerialDataLink : max_target_discharge_power = 0");
+      logging.println("SerialDataLink : max_target_charge_power = 0");
 
       datalayer.battery.status.max_discharge_power_W = 0;
       datalayer.battery.status.max_charge_power_W = 0;
@@ -117,8 +117,8 @@ void manageSerialLinkTransmitter() {
 		//  lastMessageReceived from CAN bus (Battery)
 		if (currentTime - lastMessageReceived > (5 * 60000) )  // 5 minutes
 		{
-			Serial.print(millis());
-			Serial.println(" - Data Stale : 5 minutes");
+			logging.print(millis());
+			logging.println(" - Data Stale : 5 minutes");
 			// throw error
 			
 			// stop transmitting until fresh
@@ -128,6 +128,8 @@ void manageSerialLinkTransmitter() {
     static unsigned long updateDataTime = 0;
 
     if (currentTime - updateDataTime > INTERVAL_1_S) {
+      strncpy(datalayer.system.info.inverter_protocol, "Serial link to another LilyGo board", 63);
+      datalayer.system.info.inverter_protocol[63] = '\0';
       updateDataTime = currentTime;
       dataLinkTransmit.updateData(0, datalayer.battery.status.real_soc);
       dataLinkTransmit.updateData(1, datalayer.battery.status.soh_pptt);
@@ -152,42 +154,42 @@ void manageSerialLinkTransmitter() {
 }
 
 void printSendingValues() {
-  Serial.println("Values from battery: ");
-  Serial.print("SOC: ");
-  Serial.print(datalayer.battery.status.real_soc);
-  Serial.print(" SOH: ");
-  Serial.print(datalayer.battery.status.soh_pptt);
-  Serial.print(" Voltage: ");
-  Serial.print(datalayer.battery.status.voltage_dV);
-  Serial.print(" Current: ");
-  Serial.print(datalayer.battery.status.current_dA);
-  Serial.print(" Capacity: ");
-  Serial.print(datalayer.battery.info.total_capacity_Wh);
-  Serial.print(" Remain cap: ");
-  Serial.print(datalayer.battery.status.remaining_capacity_Wh);
-  Serial.print(" Max discharge W: ");
-  Serial.print(datalayer.battery.status.max_discharge_power_W);
-  Serial.print(" Max charge W: ");
-  Serial.print(datalayer.battery.status.max_charge_power_W);
-  Serial.print(" BMS status: ");
-  Serial.print(datalayer.battery.status.bms_status);
-  Serial.print(" Power: ");
-  Serial.print(datalayer.battery.status.active_power_W);
-  Serial.print(" Temp min: ");
-  Serial.print(datalayer.battery.status.temperature_min_dC);
-  Serial.print(" Temp max: ");
-  Serial.print(datalayer.battery.status.temperature_max_dC);
-  Serial.print(" Cell max: ");
-  Serial.print(datalayer.battery.status.cell_max_voltage_mV);
-  Serial.print(" Cell min: ");
-  Serial.print(datalayer.battery.status.cell_min_voltage_mV);
-  Serial.print(" LFP : ");
-  Serial.print(datalayer.battery.info.chemistry);
-  Serial.print(" Battery Allows Contactor Closing: ");
-  Serial.print(datalayer.system.status.battery_allows_contactor_closing);
-  Serial.print(" Inverter Allows Contactor Closing: ");
-  Serial.print(datalayer.system.status.inverter_allows_contactor_closing);
+  logging.println("Values from battery: ");
+  logging.print("SOC: ");
+  logging.print(datalayer.battery.status.real_soc);
+  logging.print(" SOH: ");
+  logging.print(datalayer.battery.status.soh_pptt);
+  logging.print(" Voltage: ");
+  logging.print(datalayer.battery.status.voltage_dV);
+  logging.print(" Current: ");
+  logging.print(datalayer.battery.status.current_dA);
+  logging.print(" Capacity: ");
+  logging.print(datalayer.battery.info.total_capacity_Wh);
+  logging.print(" Remain cap: ");
+  logging.print(datalayer.battery.status.remaining_capacity_Wh);
+  logging.print(" Max discharge W: ");
+  logging.print(datalayer.battery.status.max_discharge_power_W);
+  logging.print(" Max charge W: ");
+  logging.print(datalayer.battery.status.max_charge_power_W);
+  logging.print(" BMS status: ");
+  logging.print(datalayer.battery.status.bms_status);
+  logging.print(" Power: ");
+  logging.print(datalayer.battery.status.active_power_W);
+  logging.print(" Temp min: ");
+  logging.print(datalayer.battery.status.temperature_min_dC);
+  logging.print(" Temp max: ");
+  logging.print(datalayer.battery.status.temperature_max_dC);
+  logging.print(" Cell max: ");
+  logging.print(datalayer.battery.status.cell_max_voltage_mV);
+  logging.print(" Cell min: ");
+  logging.print(datalayer.battery.status.cell_min_voltage_mV);
+  logging.print(" LFP : ");
+  logging.print(datalayer.battery.info.chemistry);
+  logging.print(" Battery Allows Contactor Closing: ");
+  logging.print(datalayer.system.status.battery_allows_contactor_closing);
+  logging.print(" Inverter Allows Contactor Closing: ");
+  logging.print(datalayer.system.status.inverter_allows_contactor_closing);
 
-  Serial.println("");
+  logging.println("");
 }
 #endif

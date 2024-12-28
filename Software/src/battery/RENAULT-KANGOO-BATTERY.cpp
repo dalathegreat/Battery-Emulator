@@ -95,9 +95,6 @@ void update_values_battery() {  //This function maps all the values fetched via 
   //The above value is 0 on some packs. We instead hardcode this now.
   datalayer.battery.status.max_charge_power_W = MAX_CHARGE_POWER_W;
 
-  datalayer.battery.status.active_power_W =
-      ((datalayer.battery.status.voltage_dV * datalayer.battery.status.current_dA) / 100);
-
   datalayer.battery.status.temperature_min_dC = (LB_MIN_TEMPERATURE * 10);
 
   datalayer.battery.status.temperature_max_dC = (LB_MAX_TEMPERATURE * 10);
@@ -106,43 +103,36 @@ void update_values_battery() {  //This function maps all the values fetched via 
 
   datalayer.battery.status.cell_max_voltage_mV = LB_Cell_Max_Voltage;
 
-  if (LB_Cell_Max_Voltage >= ABSOLUTE_CELL_MAX_VOLTAGE) {
-    set_event(EVENT_CELL_OVER_VOLTAGE, (LB_Cell_Max_Voltage / 20));
-  }
-  if (LB_Cell_Min_Voltage <= ABSOLUTE_CELL_MIN_VOLTAGE) {
-    set_event(EVENT_CELL_UNDER_VOLTAGE, (LB_Cell_Min_Voltage / 20));
-  }
+#ifdef DEBUG_LOG
+  logging.println("Values going to inverter:");
+  logging.print("SOH%: ");
+  logging.print(datalayer.battery.status.soh_pptt);
+  logging.print(", SOC% scaled: ");
+  logging.print(datalayer.battery.status.reported_soc);
+  logging.print(", Voltage: ");
+  logging.print(datalayer.battery.status.voltage_dV);
+  logging.print(", Max discharge power: ");
+  logging.print(datalayer.battery.status.max_discharge_power_W);
+  logging.print(", Max charge power: ");
+  logging.print(datalayer.battery.status.max_charge_power_W);
+  logging.print(", Max temp: ");
+  logging.print(datalayer.battery.status.temperature_max_dC);
+  logging.print(", Min temp: ");
+  logging.print(datalayer.battery.status.temperature_min_dC);
+  logging.print(", BMS Status (3=OK): ");
+  logging.print(datalayer.battery.status.bms_status);
 
-#ifdef DEBUG_VIA_USB
-  Serial.println("Values going to inverter:");
-  Serial.print("SOH%: ");
-  Serial.print(datalayer.battery.status.soh_pptt);
-  Serial.print(", SOC% scaled: ");
-  Serial.print(datalayer.battery.status.reported_soc);
-  Serial.print(", Voltage: ");
-  Serial.print(datalayer.battery.status.voltage_dV);
-  Serial.print(", Max discharge power: ");
-  Serial.print(datalayer.battery.status.max_discharge_power_W);
-  Serial.print(", Max charge power: ");
-  Serial.print(datalayer.battery.status.max_charge_power_W);
-  Serial.print(", Max temp: ");
-  Serial.print(datalayer.battery.status.temperature_max_dC);
-  Serial.print(", Min temp: ");
-  Serial.print(datalayer.battery.status.temperature_min_dC);
-  Serial.print(", BMS Status (3=OK): ");
-  Serial.print(datalayer.battery.status.bms_status);
-
-  Serial.println("Battery values: ");
-  Serial.print("Real SOC: ");
-  Serial.print(LB_SOC);
-  Serial.print(", Current: ");
-  Serial.print(LB_Current);
-  Serial.print(", kWh remain: ");
-  Serial.print(LB_kWh_Remaining);
-  Serial.print(", max mV: ");
-  Serial.print(LB_Cell_Max_Voltage);
-  Serial.print(", min mV: ");
-  Serial.print(LB_Cell_Min_Voltage);
+  logging.println("Battery values: ");
+  logging.print("Real SOC: ");
+  logging.print(LB_SOC);
+  logging.print(", Current: ");
+  logging.print(LB_Current);
+  logging.print(", kWh remain: ");
+  logging.print(LB_kWh_Remaining);
+  logging.print(", max mV: ");
+  logging.print(LB_Cell_Max_Voltage);
+  logging.print(", min mV: ");
+  logging.print(LB_Cell_Min_Voltage);
 
 #endif
 }
@@ -244,13 +234,15 @@ void send_can_battery() {
 }
 
 void setup_battery(void) {  // Performs one time setup at startup
-#ifdef DEBUG_VIA_USB
-  Serial.println("Renault Kangoo battery selected");
-#endif
 
-  datalayer.battery.info.max_design_voltage_dV =
-      4040;  // 404.0V, over this, charging is not possible (goes into forced discharge)
-  datalayer.battery.info.min_design_voltage_dV = 3100;  // 310.0V under this, discharging further is disabled
+  strncpy(datalayer.system.info.battery_protocol, "Renault Kangoo", 63);
+  datalayer.system.info.battery_protocol[63] = '\0';
+
+  datalayer.battery.info.max_design_voltage_dV = MAX_PACK_VOLTAGE_DV;
+  datalayer.battery.info.min_design_voltage_dV = MIN_PACK_VOLTAGE_DV;
+  datalayer.battery.info.max_cell_voltage_mV = MAX_CELL_VOLTAGE_MV;
+  datalayer.battery.info.min_cell_voltage_mV = MIN_CELL_VOLTAGE_MV;
+  datalayer.battery.info.max_cell_voltage_deviation_mV = MAX_CELL_DEVIATION_MV;
 }
 
 #endif

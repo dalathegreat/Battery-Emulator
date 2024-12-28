@@ -8,7 +8,13 @@ String settings_processor(const String& var) {
     //Page format
     content += "<style>";
     content += "body { background-color: black; color: white; }";
+    content +=
+        "button { background-color: #505E67; color: white; border: none; padding: 10px 20px; margin-bottom: 20px; "
+        "cursor: pointer; border-radius: 10px; }";
+    content += "button:hover { background-color: #3A4A52; }";
     content += "</style>";
+
+    content += "<button onclick='goToMainPage()'>Back to main page</button>";
 
     // Start a new block with a specific background color
     content += "<div style='background-color: #303E47; padding: 10px; margin-bottom: 10px;border-radius: 50px'>";
@@ -55,12 +61,27 @@ String settings_processor(const String& var) {
     content += "<h4 style='color: " + String(datalayer.battery.settings.soc_scaling_active ? "white" : "darkgrey") +
                ";'>SOC min percentage: " + String(datalayer.battery.settings.min_percentage / 100.0, 1) +
                " </span> <button onclick='editSocMin()'>Edit</button></h4>";
-    content +=
-        "<h4 style='color: white;'>Max charge speed: " + String(datalayer.battery.info.max_charge_amp_dA / 10.0, 1) +
-        " A </span> <button onclick='editMaxChargeA()'>Edit</button></h4>";
+    content += "<h4 style='color: white;'>Max charge speed: " +
+               String(datalayer.battery.settings.max_user_set_charge_dA / 10.0, 1) +
+               " A </span> <button onclick='editMaxChargeA()'>Edit</button></h4>";
     content += "<h4 style='color: white;'>Max discharge speed: " +
-               String(datalayer.battery.info.max_discharge_amp_dA / 10.0, 1) +
+               String(datalayer.battery.settings.max_user_set_discharge_dA / 10.0, 1) +
                " A </span> <button onclick='editMaxDischargeA()'>Edit</button></h4>";
+    content += "<h4 style='color: white;'>Manual charge voltage limits: <span id='BATTERY_USE_VOLTAGE_LIMITS'>" +
+               String(datalayer.battery.settings.user_set_voltage_limits_active
+                          ? "<span>&#10003;</span>"
+                          : "<span style='color: red;'>&#10005;</span>") +
+               "</span> <button onclick='editUseVoltageLimit()'>Edit</button></h4>";
+    content +=
+        "<h4 style='color: " +
+        String(datalayer.battery.settings.user_set_voltage_limits_active ? "white" : "darkgrey") +
+        ";'>Target charge voltage: " + String(datalayer.battery.settings.max_user_set_charge_voltage_dV / 10.0, 1) +
+        " V </span> <button onclick='editMaxChargeVoltage()'>Edit</button></h4>";
+    content += "<h4 style='color: " +
+               String(datalayer.battery.settings.user_set_voltage_limits_active ? "white" : "darkgrey") +
+               ";'>Target discharge voltage: " +
+               String(datalayer.battery.settings.max_user_set_discharge_voltage_dV / 10.0, 1) +
+               " V </span> <button onclick='editMaxDischargeVoltage()'>Edit</button></h4>";
     // Close the block
     content += "</div>";
 
@@ -124,7 +145,9 @@ String settings_processor(const String& var) {
         "updateBatterySize?value='+value,true);xhr.send();}else{alert('Invalid value. Please enter a value between 1 "
         "and 120000.');}}}";
     content +=
-        "function editUseScaledSOC(){var value=prompt('Should SOC% be scaled? (0 = No, 1 = "
+        "function editUseScaledSOC(){var value=prompt('Extends battery life by rescaling the SOC within the configured "
+        "minimum "
+        "and maximum percentage. Should SOC scaling be applied? (0 = No, 1 = "
         "Yes):');if(value!==null){if(value==0||value==1){var xhr=new "
         "XMLHttpRequest();xhr.onload=editComplete;xhr.onerror=editError;xhr.open('GET','/"
         "updateUseScaledSOC?value='+value,true);xhr.send();}else{alert('Invalid value. Please enter a value between 0 "
@@ -154,6 +177,33 @@ String settings_processor(const String& var) {
         "maximum discharge current in A (0-1000.0):');if(value!==null){if(value>=0&&value<=1000){var xhr=new "
         "XMLHttpRequest();xhr.onload=editComplete;xhr.onerror=editError;xhr.open('GET','/"
         "updateMaxDischargeA?value='+value,true);xhr.send();}else{alert('Invalid value. Please enter a value between 0 "
+        "and 1000.0');}}}";
+    content +=
+        "function editUseVoltageLimit(){var value=prompt('Enable this option to manually restrict charge/discharge to "
+        "a specific voltage set below."
+        "If disabled the emulator automatically determines this based on battery limits. Restrict manually? (0 = No, 1 "
+        "= Yes)"
+        ":');if(value!==null){if(value==0||value==1){var xhr=new "
+        "XMLHttpRequest();xhr.onload=editComplete;xhr.onerror=editError;xhr.open('GET','/"
+        "updateUseVoltageLimit?value='+value,true);xhr.send();}else{alert('Invalid value. Please enter a value between "
+        "0 "
+        "and 1.');}}}";
+    content +=
+        "function editMaxChargeVoltage(){var value=prompt('Some inverters needs to be artificially limited. Enter new "
+        "voltage setpoint batttery should charge to (0-1000.0):');if(value!==null){if(value>=0&&value<=1000){var "
+        "xhr=new "
+        "XMLHttpRequest();xhr.onload=editComplete;xhr.onerror=editError;xhr.open('GET','/"
+        "updateMaxChargeVoltage?value='+value,true);xhr.send();}else{alert('Invalid value. Please enter a value "
+        "between 0 "
+        "and 1000.0');}}}";
+    content +=
+        "function editMaxDischargeVoltage(){var value=prompt('Some inverters needs to be artificially limited. Enter "
+        "new "
+        "voltage setpoint batttery should discharge to (0-1000.0):');if(value!==null){if(value>=0&&value<=1000){var "
+        "xhr=new "
+        "XMLHttpRequest();xhr.onload=editComplete;xhr.onerror=editError;xhr.open('GET','/"
+        "updateMaxDischargeVoltage?value='+value,true);xhr.send();}else{alert('Invalid value. Please enter a value "
+        "between 0 "
         "and 1000.0');}}}";
 
 #ifdef TEST_FAKE_BATTERY
@@ -201,7 +251,6 @@ String settings_processor(const String& var) {
 #endif
     content += "</script>";
 
-    content += "<button onclick='goToMainPage()'>Back to main page</button>";
     content += "<script>";
     content += "function goToMainPage() { window.location.href = '/'; }";
     content += "</script>";
@@ -222,7 +271,7 @@ const char* getCANInterfaceName(CAN_Interface interface) {
 #endif
     case CAN_ADDON_MCP2515:
       return "Add-on CAN via GPIO MCP2515";
-    case CAN_ADDON_FD_MCP2518:
+    case CANFD_ADDON_MCP2518:
 #ifdef USE_CANFD_INTERFACE_AS_CLASSIC_CAN
       return "Add-on CAN-FD via GPIO MCP2518 (Classic CAN)";
 #else

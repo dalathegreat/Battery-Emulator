@@ -5,29 +5,34 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Battery Emulator OTA Update</title>
 <script>
-   async function checkEmulatorStatusReboot() {
-            const data = await getData('/GetFirmwareInfo');
-            if (data) {
-				document.getElementById('firmwareVersion').textContent = data.firmware;
-				document.getElementById('hardwareID').textContent = data.hardware;
-				document.getElementById('rebooting-container').classList.add('hidden');
-				document.getElementById('content').classList.remove('rebootingOn');
-				resetView();				
-            } else {
-                // Emulator not online, keep waiting
-                setTimeout(checkEmulatorStatusReboot, 2000); // Check again in 2 seconds
-            }
-        };
-function startRebootEfect(){
+let loadingDivText = "Loading...";
+async function checkEmulatorStatusReboot() {
+	const data = await getData('/GetFirmwareInfo');
+	if (data) {
+		document.getElementById('firmwareVersion').textContent = data.firmware;
+		document.getElementById('hardwareID').textContent = data.hardware;
+		stopLoadingEfect();
+		resetView();				
+	} else {
+		// Emulator not online, keep waiting
+		setTimeout(checkEmulatorStatusReboot, 2000); // Check again in 2 seconds
+	}
+};
+function startLoadingEfect(){
+		document.getElementById("rebooting-message").textContent =loadingDivText;
 		document.getElementById('rebooting-container').classList.remove('hidden');
 		document.getElementById('content').classList.add('rebootingOn');
 }
-
+function stopLoadingEfect(){
+		document.getElementById('rebooting-container').classList.add('hidden');
+		document.getElementById('content').classList.remove('rebootingOn');
+}
 function startRebootWait(){
+	loadingDivText = "Rebooting...";
 	const div1 = document.getElementById('successColumn');
 	
 	if (!div1.classList.contains('hidden')) {
-		setTimeout(startRebootEfect, 1000);
+		setTimeout(startLoadingEfect, 1000);
 		setTimeout(checkEmulatorStatusReboot, 5000);
 	}
 };
@@ -61,15 +66,32 @@ async function getData(relativePath) {
   }
 };
 window.onload = () => {
-	let hardware ="";
-	let firmware="";
-	getData('/GetFirmwareInfo').then(data => {
-		if (data) {
-			document.getElementById('firmwareVersion').textContent = data.firmware;
-			document.getElementById('hardwareID').textContent = data.hardware;
-		}
-	});
+	let hardware ="?";
+	let firmware="?";
 	
+	// Set a timeout of 10 seconds (10000 milliseconds)
+    const timeout = new Promise((_, reject) => 
+        setTimeout(() => reject(new Error('Request timed out')), 10000)
+    );
+
+   // Race between getData and the timeout
+    Promise.race([getData('/GetFirmwareInfo'), timeout])
+        .then(data => {
+            if (data) {
+                document.getElementById('firmwareVersion').textContent = data.firmware;
+                document.getElementById('hardwareID').textContent = data.hardware;
+            }else
+			{
+			document.getElementById('firmwareVersion').textContent = "(error)";
+			document.getElementById('hardwareID').textContent = "(error)";
+			}
+        })
+        .catch(error => {
+			document.getElementById('firmwareVersion').textContent = "(timeout)";
+			document.getElementById('hardwareID').textContent = "(timeout)";
+        });
+		
+	stopLoadingEfect();
 	const div1 = document.getElementById('progressColumn');
 	observer.observe(div1, { attributes: true, attributeFilter: ['class'] });
 	const div2 = document.getElementById('successColumn');
@@ -101,8 +123,8 @@ h3 {font-size: 2rem; margin: 0.00em 0 0.00em 0; font-weight: bold; font-family: 
 </style>
   </head>
   <body class="dark:bg-[#18191a] bg-white dark:text-[#e4e6eb] px-6">
-  	    <div id="rebooting-container" class="hidden">
-        <div id="rebooting-message">Rebooting...</div>
+  	    <div id="rebooting-container" class="">
+        <div id="rebooting-message">Loading...</div>
         <div class="spinner"></div>
     </div>
 	<h2>Battery Emulator</h2>

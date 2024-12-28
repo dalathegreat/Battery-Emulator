@@ -8,8 +8,6 @@
 //Figure out if CAN messages need to be sent to keep the system happy?
 
 /* Do not change code below unless you are sure what you are doing */
-#define MAX_CELL_VOLTAGE 4150
-#define MIN_CELL_VOLTAGE 2750
 static uint8_t errorCode = 0;  //stores if we have an error code active from battery control logic
 static uint8_t BMU_Detected = 0;
 static uint8_t CMU_Detected = 0;
@@ -53,8 +51,6 @@ void update_values_battery() {  //This function maps all the values fetched via 
 
   datalayer.battery.status.max_discharge_power_W = 10000;  // 10kW   //TODO: Fix when CAN is decoded
 
-  datalayer.battery.status.active_power_W = BMU_Power;  //TODO: Scaling?
-
   static int n = sizeof(cell_voltages) / sizeof(cell_voltages[0]);
   max_volt_cel = cell_voltages[0];  // Initialize max with the first element of the array
   for (int i = 1; i < n; i++) {
@@ -89,12 +85,12 @@ void update_values_battery() {  //This function maps all the values fetched via 
   for (int i = 0; i < 88; ++i) {
     datalayer.battery.status.cell_voltages_mV[i] = (uint16_t)(cell_voltages[i] * 1000);
   }
-
-  if (max_volt_cel > 2200) {  // Only update cellvoltage when we have a value
+  datalayer.battery.info.number_of_cells = 88;
+  if (max_volt_cel > 2.2) {  // Only update cellvoltage when we have a value
     datalayer.battery.status.cell_max_voltage_mV = (uint16_t)(max_volt_cel * 1000);
   }
 
-  if (min_volt_cel > 2200) {  // Only update cellvoltage when we have a value
+  if (min_volt_cel > 2.2) {  // Only update cellvoltage when we have a value
     datalayer.battery.status.cell_min_voltage_mV = (uint16_t)(min_volt_cel * 1000);
   }
 
@@ -106,38 +102,30 @@ void update_values_battery() {  //This function maps all the values fetched via 
     datalayer.battery.status.temperature_max_dC = (int16_t)(max_temp_cel * 10);
   }
 
-  //Check safeties
-  if (datalayer.battery.status.cell_max_voltage_mV >= MAX_CELL_VOLTAGE) {
-    set_event(EVENT_CELL_OVER_VOLTAGE, datalayer.battery.status.cell_max_voltage_mV);
-  }
-  if (datalayer.battery.status.cell_min_voltage_mV <= MIN_CELL_VOLTAGE) {
-    set_event(EVENT_CELL_UNDER_VOLTAGE, datalayer.battery.status.cell_min_voltage_mV);
-  }
-
   if (!BMU_Detected) {
-#ifdef DEBUG_VIA_USB
-    Serial.println("BMU not detected, check wiring!");
+#ifdef DEBUG_LOG
+    logging.println("BMU not detected, check wiring!");
 #endif
   }
 
-#ifdef DEBUG_VIA_USB
-  Serial.println("Battery Values");
-  Serial.print("BMU SOC: ");
-  Serial.print(BMU_SOC);
-  Serial.print(" BMU Current: ");
-  Serial.print(BMU_Current);
-  Serial.print(" BMU Battery Voltage: ");
-  Serial.print(BMU_PackVoltage);
-  Serial.print(" BMU_Power: ");
-  Serial.print(BMU_Power);
-  Serial.print(" Cell max voltage: ");
-  Serial.print(max_volt_cel);
-  Serial.print(" Cell min voltage: ");
-  Serial.print(min_volt_cel);
-  Serial.print(" Cell max temp: ");
-  Serial.print(max_temp_cel);
-  Serial.print(" Cell min temp: ");
-  Serial.println(min_temp_cel);
+#ifdef DEBUG_LOG
+  logging.println("Battery Values");
+  logging.print("BMU SOC: ");
+  logging.print(BMU_SOC);
+  logging.print(" BMU Current: ");
+  logging.print(BMU_Current);
+  logging.print(" BMU Battery Voltage: ");
+  logging.print(BMU_PackVoltage);
+  logging.print(" BMU_Power: ");
+  logging.print(BMU_Power);
+  logging.print(" Cell max voltage: ");
+  logging.print(max_volt_cel);
+  logging.print(" Cell min voltage: ");
+  logging.print(min_volt_cel);
+  logging.print(" Cell max temp: ");
+  logging.print(max_temp_cel);
+  logging.print(" Cell min temp: ");
+  logging.println(min_temp_cel);
 #endif
 }
 
@@ -236,12 +224,13 @@ void send_can_battery() {
 }
 
 void setup_battery(void) {  // Performs one time setup at startup
-#ifdef DEBUG_VIA_USB
-  Serial.println("Mitsubishi i-MiEV / Citroen C-Zero / Peugeot Ion battery selected");
-#endif
-
-  datalayer.battery.info.max_design_voltage_dV = 3696;  // 369.6V
-  datalayer.battery.info.min_design_voltage_dV = 3160;  // 316.0V
+  strncpy(datalayer.system.info.battery_protocol, "I-Miev / C-Zero / Ion Triplet", 63);
+  datalayer.system.info.battery_protocol[63] = '\0';
+  datalayer.battery.info.max_design_voltage_dV = MAX_PACK_VOLTAGE_DV;
+  datalayer.battery.info.min_design_voltage_dV = MIN_PACK_VOLTAGE_DV;
+  datalayer.battery.info.max_cell_voltage_mV = MAX_CELL_VOLTAGE_MV;
+  datalayer.battery.info.min_cell_voltage_mV = MIN_CELL_VOLTAGE_MV;
+  datalayer.battery.info.max_cell_voltage_deviation_mV = MAX_CELL_DEVIATION_MV;
 }
 
 #endif
