@@ -88,7 +88,7 @@ CAN_frame SOLAX_187A = {.FD = false,  //Needed for Ultra
                         .ext_ID = true,
                         .DLC = 8,
                         .ID = 0x187A,
-                        .data = {0x01, (uint8_t)BATTERY_TYPE, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0}};
+                        .data = {0x01, 0x50, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0}};
 CAN_frame SOLAX_1881 = {.FD = false,
                         .ext_ID = true,
                         .DLC = 8,
