@@ -12,9 +12,19 @@
 */
 
 /* Do not change code below unless you are sure what you are doing */
-static unsigned long previousMillis500ms = 0;  // will store last time a 100ms CAN Message was send
+static unsigned long previousMillis250ms = 0;  // will store last time a 250ms CAN Message was send
+static unsigned long previousMillis500ms = 0;  // will store last time a 500ms CAN Message was send
 static unsigned long previousMillis2s = 0;     // will store last time a 2s CAN Message was send
 static unsigned long previousMillis10s = 0;    // will store last time a 10s CAN Message was send
+static unsigned long previousMillis60s = 0;    // will store last time a 60s CAN Message was send
+
+typedef struct {
+  CAN_frame* frame;
+  void (*callback)();
+} Frame;
+
+static unsigned short listLength = 0;
+static Frame framesToSend[20];
 
 static uint32_t inverter_time = 0;
 static uint16_t inverter_voltage = 0;
@@ -33,7 +43,7 @@ CAN_frame SMA_598 = {.FD = false,
                      .ext_ID = false,
                      .DLC = 8,
                      .ID = 0x598,
-                     .data = {0x12, 0x30, 0x8A, 0x5B, 0x00, 0x00, 0x00, 0x00}};  //B0-4 Serial?
+                     .data = {0x12, 0xD6, 0x43, 0xA4, 0x00, 0x00, 0x00, 0x00}};  //B0-4 Serial 301100932
 CAN_frame SMA_5D8 = {.FD = false,
                      .ext_ID = false,
                      .DLC = 8,
@@ -168,6 +178,17 @@ void receive_can_inverter(CAN_frame rx_frame) {
   }
 }
 
+void pushFrame(CAN_frame* frame, void (*callback)() = NULL) {
+  if (listLength >= 20) {
+    return;  //TODO: scream.
+  }
+  framesToSend[listLength] = {
+      .frame = frame,
+      .callback = callback,
+  };
+  listLength++;
+}
+
 void send_can_inverter() {
   unsigned long currentMillis = millis();
 
@@ -176,43 +197,63 @@ void send_can_inverter() {
     return;
   }
 
+  if (listLength > 0 && currentMillis - previousMillis250ms >= INTERVAL_250_MS) {
+    previousMillis250ms = currentMillis;
+    // Send next frame.
+    Frame frame = framesToSend[0];
+    transmit_can(frame.frame, can_config.inverter);
+    if (frame.callback != NULL) {
+      frame.callback();
+    }
+    for (int i = 0; i < listLength - 1; i++) {
+      framesToSend[i] = framesToSend[i + 1];
+    }
+    listLength--;
+  }
+
+  if (!pairing_completed) {
+    return;
+  }
+
   // Send CAN Message every 2s
   if (currentMillis - previousMillis2s >= INTERVAL_2_S) {
     previousMillis2s = currentMillis;
-    transmit_can(&SMA_358, can_config.inverter);
+    pushFrame(&SMA_358);
   }
   // Send CAN Message every 10s
   if (currentMillis - previousMillis10s >= INTERVAL_10_S) {
     previousMillis10s = currentMillis;
-    transmit_can(&SMA_518, can_config.inverter);
-    transmit_can(&SMA_4D8, can_config.inverter);
-    transmit_can(&SMA_3D8, can_config.inverter);
-    if (pairing_completed) {
-      transmit_can(
-          &SMA_458,
-          can_config
-              .inverter);  //TODO; not confirmed if battery sends. Transmission starts only after battery is paired
-    }
+    pushFrame(&SMA_518);
+    pushFrame(&SMA_4D8);
+    pushFrame(&SMA_3D8);
   }
 }
-void send_tripower_init() {
-  transmit_can(&SMA_558, can_config.inverter);    //Pairing start - Vendor
-  transmit_can(&SMA_598, can_config.inverter);    //Serial
-  transmit_can(&SMA_5D8, can_config.inverter);    //BYD
-  transmit_can(&SMA_618_0, can_config.inverter);  //BATTERY
-  transmit_can(&SMA_618_1, can_config.inverter);  //-Box Pr
-  transmit_can(&SMA_618_2, can_config.inverter);  //emium H
-  transmit_can(&SMA_618_3, can_config.inverter);  //VS
-  transmit_can(&SMA_358, can_config.inverter);
-  transmit_can(&SMA_3D8, can_config.inverter);
-  transmit_can(&SMA_458, can_config.inverter);
-  transmit_can(&SMA_4D8, can_config.inverter);
-  transmit_can(&SMA_518, can_config.inverter);
+
+void completePairing() {
   pairing_completed = true;
+}
+
+void send_tripower_init() {
+  listLength = 0;  // clear all frames
+
+  pushFrame(&SMA_558);    //Pairing start - Vendor
+  pushFrame(&SMA_598);    //Serial
+  pushFrame(&SMA_5D8);    //BYD
+  pushFrame(&SMA_618_0);  //BATTERY
+  pushFrame(&SMA_618_1);  //-Box Pr
+  pushFrame(&SMA_618_2);  //emium H
+  pushFrame(&SMA_618_3);  //VS
+  pushFrame(&SMA_358);
+  pushFrame(&SMA_3D8);
+  pushFrame(&SMA_458);
+  pushFrame(&SMA_4D8);
+  pushFrame(&SMA_518, completePairing);
 }
 
 void setup_inverter(void) {  // Performs one time setup at startup over CAN bus
   strncpy(datalayer.system.info.inverter_protocol, "SMA Tripower CAN", 63);
   datalayer.system.info.inverter_protocol[63] = '\0';
+  datalayer.system.status.inverter_allows_contactor_closing = false;  // The inverter needs to allow first
+  pinMode(INVERTER_CONTACTOR_ENABLE_PIN, INPUT);
 }
 #endif
