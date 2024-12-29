@@ -57,20 +57,20 @@ static uint16_t battery_discharge_limit = 0;
 static uint16_t battery_max_heat_park = 0;
 static uint16_t battery_hvac_max_power = 0;
 //0x352: 850 BMS_energyStatus
-static uint16_t battery_energy_buffer = 0;                  // kWh
-static uint16_t battery_energy_buffer_m1 = 0;               // kWh
-static uint16_t battery_energy_to_charge_complete = 0;      // kWh
-static uint16_t battery_energy_to_charge_complete_m1 = 0;   // kWh
-static uint16_t battery_expected_energy_remaining = 0;      // kWh
-static uint16_t battery_expected_energy_remaining_m1 = 0;   // kWh
-static bool battery_full_charge_complete = false;           // Changed to bool
-static bool battery_fully_charged = false;                  // Changed to bool
-static uint16_t battery_ideal_energy_remaining = 0;         // kWh
-static uint16_t battery_ideal_energy_remaining_m0 = 0;      // kWh
-static uint16_t battery_nominal_energy_remaining = 0;       // kWh
-static uint16_t battery_nominal_energy_remaining_m0 = 0;    // kWh
-static uint16_t battery_nominal_full_pack_energy = 0;     // Kwh
-static uint16_t battery_nominal_full_pack_energy_m0 = 0;  // Kwh
+static uint16_t battery_energy_buffer = 0;                 // kWh
+static uint16_t battery_energy_buffer_m1 = 0;              // kWh
+static uint16_t battery_energy_to_charge_complete = 0;     // kWh
+static uint16_t battery_energy_to_charge_complete_m1 = 0;  // kWh
+static uint16_t battery_expected_energy_remaining = 0;     // kWh
+static uint16_t battery_expected_energy_remaining_m1 = 0;  // kWh
+static bool battery_full_charge_complete = false;          // Changed to bool
+static bool battery_fully_charged = false;                 // Changed to bool
+static uint16_t battery_ideal_energy_remaining = 0;        // kWh
+static uint16_t battery_ideal_energy_remaining_m0 = 0;     // kWh
+static uint16_t battery_nominal_energy_remaining = 0;      // kWh
+static uint16_t battery_nominal_energy_remaining_m0 = 0;   // kWh
+static uint16_t battery_nominal_full_pack_energy = 0;      // Kwh
+static uint16_t battery_nominal_full_pack_energy_m0 = 0;   // Kwh
 //0x132 306 HVBattAmpVolt
 static uint16_t battery_volts = 0;                  // V
 static int16_t battery_amps = 0;                    // A
@@ -2684,9 +2684,9 @@ the first, for a few cycles, then stop all  messages which causes the contactor 
 
   unsigned long currentMillis = millis();
 
-if (!cellvoltagesRead ) {
- return; //All cellvoltages not read yet, do not proceed with contactor closing
-}  
+  if (!cellvoltagesRead) {
+    return;  //All cellvoltages not read yet, do not proceed with contactor closing
+  }
 
 #if defined(TESLA_MODEL_SX_BATTERY) || defined(EXP_TESLA_BMS_DIGITAL_HVIL)
   if ((datalayer.system.status.inverter_allows_contactor_closing) && (datalayer.battery.status.bms_status != FAULT)) {
