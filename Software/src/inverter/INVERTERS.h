@@ -15,10 +15,6 @@
 #include "BYD-MODBUS.h"
 #endif
 
-#ifdef BYD_SMA
-#include "BYD-SMA.h"
-#endif
-
 #ifdef BYD_KOSTAL_RS485
 #include "KOSTAL-RS485.h"
 #endif
@@ -39,8 +35,12 @@
 #include "SCHNEIDER-CAN.h"
 #endif
 
-#ifdef SMA_CAN
-#include "SMA-CAN.h"
+#ifdef SMA_BYD_H_CAN
+#include "SMA-BYD-H-CAN.h"
+#endif
+
+#ifdef SMA_BYD_HVS_CAN
+#include "SMA-BYD-HVS-CAN.h"
 #endif
 
 #ifdef SMA_LV_CAN

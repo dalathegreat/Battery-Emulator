@@ -1,7 +1,7 @@
 #include "../include.h"
-#ifdef SMA_CAN
+#ifdef SMA_BYD_HVS_CAN
 #include "../datalayer/datalayer.h"
-#include "SMA-CAN.h"
+#include "SMA-BYD-HVS-CAN.h"
 
 /* TODO: Map error bits in 0x158 */
 
@@ -16,43 +16,46 @@ static int16_t inverter_current = 0;
 CAN_frame SMA_158 = {.FD = false,
                      .ext_ID = false,
                      .DLC = 8,
-                     .ID = 0x158,
-                     .data = {0xAA, 0xAA, 0xAA, 0xAA, 0xAA, 0x6A, 0xAA, 0xAA}};
+                     .ID = 0x158,  // All 0xAA, no faults active
+                     .data = {0xAA, 0xAA, 0xAA, 0xAA, 0xAA, 0xAA, 0xAA, 0xAA}};
 CAN_frame SMA_358 = {.FD = false,
                      .ext_ID = false,
                      .DLC = 8,
                      .ID = 0x358,
-                     .data = {0x0F, 0x6C, 0x06, 0x20, 0x00, 0x00, 0x00, 0x00}};
+                     .data = {0x11, 0xA0, 0x07, 0x00, 0x01, 0x5E, 0x00, 0xC8}};
 CAN_frame SMA_3D8 = {.FD = false,
                      .ext_ID = false,
                      .DLC = 8,
                      .ID = 0x3D8,
-                     .data = {0x04, 0x10, 0x27, 0x10, 0x00, 0x18, 0xF9, 0x00}};
+                     .data = {0x13, 0x2E, 0x27, 0x10, 0x00, 0x45, 0xF9, 0x00}};
 CAN_frame SMA_458 = {.FD = false,
                      .ext_ID = false,
                      .DLC = 8,
                      .ID = 0x458,
-                     .data = {0x00, 0x00, 0x06, 0x75, 0x00, 0x00, 0x05, 0xD6}};
+                     .data = {0x00, 0x00, 0x11, 0xC8, 0x00, 0x00, 0x0E, 0xF4}};
 CAN_frame SMA_4D8 = {.FD = false,
                      .ext_ID = false,
                      .DLC = 8,
                      .ID = 0x4D8,
-                     .data = {0x09, 0xFD, 0x00, 0x00, 0x00, 0xA8, 0x02, 0x08}};
+                     .data = {0x10, 0x62, 0x00, 0x16, 0x01, 0x68, 0x03, 0x08}};
 CAN_frame SMA_518 = {.FD = false,
                      .ext_ID = false,
                      .DLC = 8,
                      .ID = 0x518,
-                     .data = {0x00, 0x00, 0x00, 0x00, 0xFF, 0xFF, 0xFF, 0xFF}};
+                     .data = {0x01, 0x4A, 0x01, 0x25, 0xFF, 0xFF, 0xFF, 0xFF}};
+
+// Pairing/Battery setup information
+
 CAN_frame SMA_558 = {.FD = false,
                      .ext_ID = false,
                      .DLC = 8,
                      .ID = 0x558,
-                     .data = {0x03, 0x12, 0x00, 0x04, 0x00, 0x59, 0x07, 0x07}};  //7x BYD modules, Vendor ID 7 BYD
+                     .data = {0x03, 0x13, 0x00, 0x03, 0x00, 0x66, 0x04, 0x07}};  //4x BYD modules, Vendor ID 7 BYD
 CAN_frame SMA_598 = {.FD = false,
                      .ext_ID = false,
                      .DLC = 8,
                      .ID = 0x598,
-                     .data = {0x00, 0x00, 0x12, 0x34, 0x5A, 0xDE, 0x07, 0x4F}};  //B0-4 Serial, rest unknown
+                     .data = {0x00, 0x01, 0x0F, 0x2C, 0x5C, 0x98, 0xB6, 0xEE}};
 CAN_frame SMA_5D8 = {.FD = false,
                      .ext_ID = false,
                      .DLC = 8,
@@ -67,13 +70,15 @@ CAN_frame SMA_618_2 = {.FD = false,
                        .ext_ID = false,
                        .DLC = 8,
                        .ID = 0x618,
-                       .data = {0x01, 0x2D, 0x42, 0x6F, 0x78, 0x20, 0x48, 0x39}};  //1 - B O X   H
+                       .data = {0x01, 0x2D, 0x42, 0x6F, 0x78, 0x20, 0x48, 0x31}};  //- B o x  H 1
 CAN_frame SMA_618_3 = {.FD = false,
                        .ext_ID = false,
                        .DLC = 8,
                        .ID = 0x618,
-                       .data = {0x02, 0x2E, 0x30, 0x00, 0x00, 0x00, 0x00, 0x00}};  //2 - 0
+                       .data = {0x02, 0x30, 0x2E, 0x32, 0x00, 0x00, 0x00, 0x00}};  // 0 . 2
 
+static int16_t discharge_current = 0;
+static int16_t charge_current = 0;
 static int16_t temperature_average = 0;
 static uint16_t ampere_hours_remaining = 0;
 
@@ -94,8 +99,7 @@ void update_values_can_inverter() {  //This function maps all the values fetched
   SMA_358.data.u8[0] = (datalayer.battery.info.max_design_voltage_dV >> 8);
   SMA_358.data.u8[1] = (datalayer.battery.info.max_design_voltage_dV & 0x00FF);
   //Minvoltage (eg 300.0V = 3000 , 16bits long)
-  SMA_358.data.u8[2] = (datalayer.battery.info.min_design_voltage_dV >>
-                        8);  //Minvoltage behaves strange on SMA, cuts out at 56% of the set value?
+  SMA_358.data.u8[2] = (datalayer.battery.info.min_design_voltage_dV >> 8);
   SMA_358.data.u8[3] = (datalayer.battery.info.min_design_voltage_dV & 0x00FF);
   //Discharge limited current, 500 = 50A, (0.1, A)
   SMA_358.data.u8[4] = (datalayer.battery.status.max_discharge_current_dA >> 8);
@@ -243,7 +247,6 @@ void transmit_can_inverter() {
   if (datalayer.system.status.inverter_allows_contactor_closing) {
     if (currentMillis - previousMillis100ms >= 100) {
       previousMillis100ms = currentMillis;
-
       transmit_can_frame(&SMA_158, can_config.inverter);
       transmit_can_frame(&SMA_358, can_config.inverter);
       transmit_can_frame(&SMA_3D8, can_config.inverter);
@@ -270,7 +273,7 @@ void transmit_can_init() {
 }
 
 void setup_inverter(void) {  // Performs one time setup at startup over CAN bus
-  strncpy(datalayer.system.info.inverter_protocol, "SMA CAN", 63);
+  strncpy(datalayer.system.info.inverter_protocol, "BYD Battery-Box HVS over SMA CAN", 63);
   datalayer.system.info.inverter_protocol[63] = '\0';
   datalayer.system.status.inverter_allows_contactor_closing = false;  // The inverter needs to allow first
   pinMode(INVERTER_CONTACTOR_ENABLE_PIN, INPUT);

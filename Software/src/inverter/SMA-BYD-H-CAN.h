@@ -1,5 +1,5 @@
-#ifndef SMA_CAN_H
-#define SMA_CAN_H
+#ifndef SMA_BYD_H_CAN_H
+#define SMA_BYD_H_CAN_H
 #include "../include.h"
 
 #define CAN_INVERTER_SELECTED
