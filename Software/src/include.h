@@ -53,4 +53,10 @@
 #error No battery selected! Choose one from the USER_SETTINGS.h file
 #endif
 
+#ifdef LOG_CAN_TO_SD
+#if !defined(HW_LILYGO)
+#error The SD card logging feature is only available on LilyGo hardware
+#endif
+#endif
+
 #endif
