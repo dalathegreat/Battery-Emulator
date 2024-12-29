@@ -73,6 +73,7 @@
 #endif
 
 //#define DEBUG_CAN_DATA         //Enable this line to print incoming/outgoing CAN & CAN-FD messages to USB serial (WARNING, raises CPU load, do not use for production)
+//#define LOG_CAN_TO_SD           //Enable this line to log incoming/outgoing CAN & CAN-FD messages to SD card
 //#define INTERLOCK_REQUIRED     //Nissan LEAF specific setting, if enabled requires both high voltage conenctors to be seated before starting
 //#define CAN_ADDON              //Enable this line to activate an isolated secondary CAN Bus using add-on MCP2515 chip (Needed for some inverters / double battery)
 #define CRYSTAL_FREQUENCY_MHZ 8  //CAN_ADDON option, what is your MCP2515 add-on boards crystal frequency?

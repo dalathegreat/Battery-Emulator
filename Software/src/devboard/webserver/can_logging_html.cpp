@@ -24,6 +24,9 @@ String can_logger_processor(const String& var) {
     content += "</style>";
     content += "<button onclick='refreshPage()'>Refresh data</button> ";
     content += "<button onclick='exportLog()'>Export to .txt</button> ";
+#ifdef LOG_CAN_TO_SD
+    content += "<button onclick='deleteLogFile()'>Delete log file</button> ";
+#endif
     content += "<button onclick='stopLoggingAndGoToMainPage()'>Back to main page</button>";
 
     // Start a new block for the CAN messages
@@ -52,6 +55,9 @@ String can_logger_processor(const String& var) {
     content += "<script>";
     content += "function refreshPage(){ location.reload(true); }";
     content += "function exportLog() { window.location.href = '/export_can_log'; }";
+#ifdef LOG_CAN_TO_SD
+    content += "function deleteLogFile() { window.location.href = '/delete_can_log'; }";
+#endif
     content += "function stopLoggingAndGoToMainPage() {";
     content += "  fetch('/stop_can_logging').then(() => window.location.href = '/');";
     content += "}";
