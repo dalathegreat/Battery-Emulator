@@ -502,7 +502,7 @@ void update_values_battery() {  //This function maps all the values fetched via 
   datalayer_extended.bmwi3.ST_cold_shutoff_valve = battery_status_cold_shutoff_valve;
 }
 
-void receive_can_battery(CAN_frame rx_frame) {
+void handle_incoming_can_frame_battery(CAN_frame rx_frame) {
   switch (rx_frame.ID) {
     case 0x112:  //BMS [10ms] Status Of High-Voltage Battery - 2
       battery_awake = true;
@@ -632,7 +632,7 @@ void receive_can_battery(CAN_frame rx_frame) {
     case 0x607:  //BMS - responses to message requests on 0x615
       if ((cmdState == CELL_VOLTAGE_CELLNO || cmdState == CELL_VOLTAGE_CELLNO_LAST) && (rx_frame.data.u8[0] == 0xF4)) {
         if (rx_frame.DLC == 6) {
-          transmit_can(&BMW_6F4_CELL_CONTINUE, can_config.battery);  // tell battery to send the cellvoltage
+          transmit_can_frame(&BMW_6F4_CELL_CONTINUE, can_config.battery);  // tell battery to send the cellvoltage
         }
         if (rx_frame.DLC == 8) {  // We have the full value, map it
           datalayer.battery.status.cell_voltages_mV[current_cell_polled - 1] =
@@ -645,7 +645,7 @@ void receive_can_battery(CAN_frame rx_frame) {
         while (count < rx_frame.DLC && next_data < 49) {
           message_data[next_data++] = rx_frame.data.u8[count++];
         }
-        transmit_can(&BMW_6F1_CONTINUE, can_config.battery);  // tell battery to send additional messages
+        transmit_can_frame(&BMW_6F1_CONTINUE, can_config.battery);  // tell battery to send additional messages
 
       } else if (rx_frame.DLC > 3 && next_data > 0 && rx_frame.data.u8[0] == 0xf1 &&
                  ((rx_frame.data.u8[1] & 0xF0) == 0x20)) {
@@ -681,7 +681,7 @@ void receive_can_battery(CAN_frame rx_frame) {
       break;
   }
 }
-void receive_can_battery2(CAN_frame rx_frame) {
+void map_can_frame_to_variable_battery2(CAN_frame rx_frame) {
   switch (rx_frame.ID) {
     case 0x112:  //BMS [10ms] Status Of High-Voltage Battery - 2
       battery2_awake = true;
@@ -820,7 +820,7 @@ void receive_can_battery2(CAN_frame rx_frame) {
         while (count2 < rx_frame.DLC && next_data < 49) {
           message_data[next_data++] = rx_frame.data.u8[count2++];
         }
-        transmit_can(&BMW_6F1_CONTINUE, can_config.battery_double);
+        transmit_can_frame(&BMW_6F1_CONTINUE, can_config.battery_double);
 
       } else if (rx_frame.DLC > 3 && next_data > 0 && rx_frame.data.u8[0] == 0xf1 &&
                  ((rx_frame.data.u8[1] & 0xF0) == 0x20)) {
@@ -856,7 +856,7 @@ void receive_can_battery2(CAN_frame rx_frame) {
       break;
   }
 }
-void send_can_battery() {
+void transmit_can_battery() {
   unsigned long currentMillis = millis();
 
   if (battery_awake) {
@@ -887,12 +887,12 @@ void send_can_battery() {
       if (datalayer.battery.status.bms_status == FAULT) {
       }  //If battery is not in Fault mode, allow contactor to close by sending 10B
       else {
-        transmit_can(&BMW_10B, can_config.battery);
+        transmit_can_frame(&BMW_10B, can_config.battery);
       }
 
 #ifdef DOUBLE_BATTERY  //If second battery is allowed to join in, also send 10B
       if (datalayer.system.status.battery2_allows_contactor_closing == true) {
-        transmit_can(&BMW_10B, can_config.battery_double);
+        transmit_can_frame(&BMW_10B, can_config.battery_double);
       }
 #endif
     }
@@ -905,9 +905,9 @@ void send_can_battery() {
 
       alive_counter_100ms = increment_alive_counter(alive_counter_100ms);
 
-      transmit_can(&BMW_12F, can_config.battery);
+      transmit_can_frame(&BMW_12F, can_config.battery);
 #ifdef DOUBLE_BATTERY
-      transmit_can(&BMW_12F, can_config.battery_double);
+      transmit_can_frame(&BMW_12F, can_config.battery_double);
 #endif
     }
     // Send 200ms CAN Message
@@ -919,9 +919,9 @@ void send_can_battery() {
 
       alive_counter_200ms = increment_alive_counter(alive_counter_200ms);
 
-      transmit_can(&BMW_19B, can_config.battery);
+      transmit_can_frame(&BMW_19B, can_config.battery);
 #ifdef DOUBLE_BATTERY
-      transmit_can(&BMW_19B, can_config.battery_double);
+      transmit_can_frame(&BMW_19B, can_config.battery_double);
 #endif
     }
     // Send 500ms CAN Message
@@ -933,20 +933,20 @@ void send_can_battery() {
 
       alive_counter_500ms = increment_alive_counter(alive_counter_500ms);
 
-      transmit_can(&BMW_30B, can_config.battery);
+      transmit_can_frame(&BMW_30B, can_config.battery);
 #ifdef DOUBLE_BATTERY
-      transmit_can(&BMW_30B, can_config.battery_double);
+      transmit_can_frame(&BMW_30B, can_config.battery_double);
 #endif
     }
     // Send 640ms CAN Message
     if (currentMillis - previousMillis640 >= INTERVAL_640_MS) {
       previousMillis640 = currentMillis;
 
-      transmit_can(&BMW_512, can_config.battery);  // Keep BMS alive
-      transmit_can(&BMW_5F8, can_config.battery);
+      transmit_can_frame(&BMW_512, can_config.battery);  // Keep BMS alive
+      transmit_can_frame(&BMW_5F8, can_config.battery);
 #ifdef DOUBLE_BATTERY
-      transmit_can(&BMW_512, can_config.battery_double);
-      transmit_can(&BMW_5F8, can_config.battery_double);
+      transmit_can_frame(&BMW_512, can_config.battery_double);
+      transmit_can_frame(&BMW_5F8, can_config.battery_double);
 #endif
     }
     // Send 1000ms CAN Message
@@ -973,39 +973,39 @@ void send_can_battery() {
 
       alive_counter_1000ms = increment_alive_counter(alive_counter_1000ms);
 
-      transmit_can(&BMW_3E8, can_config.battery);  //Order comes from CAN logs
-      transmit_can(&BMW_328, can_config.battery);
-      transmit_can(&BMW_3F9, can_config.battery);
-      transmit_can(&BMW_2E2, can_config.battery);
-      transmit_can(&BMW_41D, can_config.battery);
-      transmit_can(&BMW_3D0, can_config.battery);
-      transmit_can(&BMW_3CA, can_config.battery);
-      transmit_can(&BMW_3A7, can_config.battery);
-      transmit_can(&BMW_2CA, can_config.battery);
-      transmit_can(&BMW_3FB, can_config.battery);
-      transmit_can(&BMW_418, can_config.battery);
-      transmit_can(&BMW_1D0, can_config.battery);
-      transmit_can(&BMW_3EC, can_config.battery);
-      transmit_can(&BMW_192, can_config.battery);
-      transmit_can(&BMW_13E, can_config.battery);
-      transmit_can(&BMW_433, can_config.battery);
+      transmit_can_frame(&BMW_3E8, can_config.battery);  //Order comes from CAN logs
+      transmit_can_frame(&BMW_328, can_config.battery);
+      transmit_can_frame(&BMW_3F9, can_config.battery);
+      transmit_can_frame(&BMW_2E2, can_config.battery);
+      transmit_can_frame(&BMW_41D, can_config.battery);
+      transmit_can_frame(&BMW_3D0, can_config.battery);
+      transmit_can_frame(&BMW_3CA, can_config.battery);
+      transmit_can_frame(&BMW_3A7, can_config.battery);
+      transmit_can_frame(&BMW_2CA, can_config.battery);
+      transmit_can_frame(&BMW_3FB, can_config.battery);
+      transmit_can_frame(&BMW_418, can_config.battery);
+      transmit_can_frame(&BMW_1D0, can_config.battery);
+      transmit_can_frame(&BMW_3EC, can_config.battery);
+      transmit_can_frame(&BMW_192, can_config.battery);
+      transmit_can_frame(&BMW_13E, can_config.battery);
+      transmit_can_frame(&BMW_433, can_config.battery);
 #ifdef DOUBLE_BATTERY
-      transmit_can(&BMW_3E8, can_config.battery_double);
-      transmit_can(&BMW_328, can_config.battery_double);
-      transmit_can(&BMW_3F9, can_config.battery_double);
-      transmit_can(&BMW_2E2, can_config.battery_double);
-      transmit_can(&BMW_41D, can_config.battery_double);
-      transmit_can(&BMW_3D0, can_config.battery_double);
-      transmit_can(&BMW_3CA, can_config.battery_double);
-      transmit_can(&BMW_3A7, can_config.battery_double);
-      transmit_can(&BMW_2CA, can_config.battery_double);
-      transmit_can(&BMW_3FB, can_config.battery_double);
-      transmit_can(&BMW_418, can_config.battery_double);
-      transmit_can(&BMW_1D0, can_config.battery_double);
-      transmit_can(&BMW_3EC, can_config.battery_double);
-      transmit_can(&BMW_192, can_config.battery_double);
-      transmit_can(&BMW_13E, can_config.battery_double);
-      transmit_can(&BMW_433, can_config.battery_double);
+      transmit_can_frame(&BMW_3E8, can_config.battery_double);
+      transmit_can_frame(&BMW_328, can_config.battery_double);
+      transmit_can_frame(&BMW_3F9, can_config.battery_double);
+      transmit_can_frame(&BMW_2E2, can_config.battery_double);
+      transmit_can_frame(&BMW_41D, can_config.battery_double);
+      transmit_can_frame(&BMW_3D0, can_config.battery_double);
+      transmit_can_frame(&BMW_3CA, can_config.battery_double);
+      transmit_can_frame(&BMW_3A7, can_config.battery_double);
+      transmit_can_frame(&BMW_2CA, can_config.battery_double);
+      transmit_can_frame(&BMW_3FB, can_config.battery_double);
+      transmit_can_frame(&BMW_418, can_config.battery_double);
+      transmit_can_frame(&BMW_1D0, can_config.battery_double);
+      transmit_can_frame(&BMW_3EC, can_config.battery_double);
+      transmit_can_frame(&BMW_192, can_config.battery_double);
+      transmit_can_frame(&BMW_13E, can_config.battery_double);
+      transmit_can_frame(&BMW_433, can_config.battery_double);
 #endif
 
       BMW_433.data.u8[1] = 0x01;  // First 433 message byte1 we send is unique, once we sent initial value send this
@@ -1014,23 +1014,23 @@ void send_can_battery() {
       next_data = 0;
       switch (cmdState) {
         case SOC:
-          transmit_can(&BMW_6F1_CELL, can_config.battery);
+          transmit_can_frame(&BMW_6F1_CELL, can_config.battery);
 #ifdef DOUBLE_BATTERY
-          transmit_can(&BMW_6F1_CELL, can_config.battery_double);
+          transmit_can_frame(&BMW_6F1_CELL, can_config.battery_double);
 #endif
           cmdState = CELL_VOLTAGE_MINMAX;
           break;
         case CELL_VOLTAGE_MINMAX:
-          transmit_can(&BMW_6F1_SOH, can_config.battery);
+          transmit_can_frame(&BMW_6F1_SOH, can_config.battery);
 #ifdef DOUBLE_BATTERY
-          transmit_can(&BMW_6F1_SOH, can_config.battery_double);
+          transmit_can_frame(&BMW_6F1_SOH, can_config.battery_double);
 #endif
           cmdState = SOH;
           break;
         case SOH:
-          transmit_can(&BMW_6F1_CELL_VOLTAGE_AVG, can_config.battery);
+          transmit_can_frame(&BMW_6F1_CELL_VOLTAGE_AVG, can_config.battery);
 #ifdef DOUBLE_BATTERY
-          transmit_can(&BMW_6F1_CELL_VOLTAGE_AVG, can_config.battery_double);
+          transmit_can_frame(&BMW_6F1_CELL_VOLTAGE_AVG, can_config.battery_double);
 #endif
           cmdState = CELL_VOLTAGE_CELLNO;
           current_cell_polled = 0;
@@ -1045,16 +1045,16 @@ void send_can_battery() {
             cmdState = CELL_VOLTAGE_CELLNO;
 
             BMW_6F4_CELL_VOLTAGE_CELLNO.data.u8[6] = current_cell_polled;
-            transmit_can(&BMW_6F4_CELL_VOLTAGE_CELLNO, can_config.battery);
+            transmit_can_frame(&BMW_6F4_CELL_VOLTAGE_CELLNO, can_config.battery);
 #ifdef DOUBLE_BATTERY
-            transmit_can(&BMW_6F4_CELL_VOLTAGE_CELLNO, can_config.battery_double);
+            transmit_can_frame(&BMW_6F4_CELL_VOLTAGE_CELLNO, can_config.battery_double);
 #endif
           }
           break;
         case CELL_VOLTAGE_CELLNO_LAST:
-          transmit_can(&BMW_6F1_SOC, can_config.battery);
+          transmit_can_frame(&BMW_6F1_SOC, can_config.battery);
 #ifdef DOUBLE_BATTERY
-          transmit_can(&BMW_6F1_SOC, can_config.battery_double);
+          transmit_can_frame(&BMW_6F1_SOC, can_config.battery_double);
 #endif
           cmdState = SOC;
           break;
@@ -1067,25 +1067,25 @@ void send_can_battery() {
       BMW_3FC.data.u8[1] = ((BMW_3FC.data.u8[1] & 0xF0) + alive_counter_5000ms);
       BMW_3C5.data.u8[0] = ((BMW_3C5.data.u8[0] & 0xF0) + alive_counter_5000ms);
 
-      transmit_can(&BMW_3FC, can_config.battery);  //Order comes from CAN logs
-      transmit_can(&BMW_3C5, can_config.battery);
-      transmit_can(&BMW_3A0, can_config.battery);
-      transmit_can(&BMW_592_0, can_config.battery);
-      transmit_can(&BMW_592_1, can_config.battery);
+      transmit_can_frame(&BMW_3FC, can_config.battery);  //Order comes from CAN logs
+      transmit_can_frame(&BMW_3C5, can_config.battery);
+      transmit_can_frame(&BMW_3A0, can_config.battery);
+      transmit_can_frame(&BMW_592_0, can_config.battery);
+      transmit_can_frame(&BMW_592_1, can_config.battery);
 #ifdef DOUBLE_BATTERY
-      transmit_can(&BMW_3FC, can_config.battery_double);
-      transmit_can(&BMW_3C5, can_config.battery_double);
-      transmit_can(&BMW_3A0, can_config.battery_double);
-      transmit_can(&BMW_592_0, can_config.battery_double);
-      transmit_can(&BMW_592_1, can_config.battery_double);
+      transmit_can_frame(&BMW_3FC, can_config.battery_double);
+      transmit_can_frame(&BMW_3C5, can_config.battery_double);
+      transmit_can_frame(&BMW_3A0, can_config.battery_double);
+      transmit_can_frame(&BMW_592_0, can_config.battery_double);
+      transmit_can_frame(&BMW_592_1, can_config.battery_double);
 #endif
 
       alive_counter_5000ms = increment_alive_counter(alive_counter_5000ms);
 
       if (BMW_380_counter < 3) {
-        transmit_can(&BMW_380, can_config.battery);  // This message stops after 3 times on startup
+        transmit_can_frame(&BMW_380, can_config.battery);  // This message stops after 3 times on startup
 #ifdef DOUBLE_BATTERY
-        transmit_can(&BMW_380, can_config.battery_double);
+        transmit_can_frame(&BMW_380, can_config.battery_double);
 #endif
         BMW_380_counter++;
       }
@@ -1094,13 +1094,13 @@ void send_can_battery() {
     if (currentMillis - previousMillis10000 >= INTERVAL_10_S) {
       previousMillis10000 = currentMillis;
 
-      transmit_can(&BMW_3E5, can_config.battery);  //Order comes from CAN logs
-      transmit_can(&BMW_3E4, can_config.battery);
-      transmit_can(&BMW_37B, can_config.battery);
+      transmit_can_frame(&BMW_3E5, can_config.battery);  //Order comes from CAN logs
+      transmit_can_frame(&BMW_3E4, can_config.battery);
+      transmit_can_frame(&BMW_37B, can_config.battery);
 #ifdef DOUBLE_BATTERY
-      transmit_can(&BMW_3E5, can_config.battery_double);
-      transmit_can(&BMW_3E4, can_config.battery_double);
-      transmit_can(&BMW_37B, can_config.battery_double);
+      transmit_can_frame(&BMW_3E5, can_config.battery_double);
+      transmit_can_frame(&BMW_3E4, can_config.battery_double);
+      transmit_can_frame(&BMW_37B, can_config.battery_double);
 #endif
 
       BMW_3E5.data.u8[0] = 0xFD;  // First 3E5 message byte0 we send is unique, once we sent initial value send this

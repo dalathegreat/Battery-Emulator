@@ -4,10 +4,10 @@
 #include "SMA-TRIPOWER-CAN.h"
 
 /* TODO:
-- Figure out the manufacturer info needed in send_tripower_init() CAN messages
+- Figure out the manufacturer info needed in transmit_tripower_init() CAN messages
   - CAN logs from real system might be needed
 - Figure out how cellvoltages need to be displayed
-- Figure out if sending send_tripower_init() like we do now is OK
+- Figure out if sending transmit_tripower_init() like we do now is OK
 - Figure out how to send the non-cyclic messages when needed
 */
 
@@ -147,7 +147,7 @@ void update_values_can_inverter() {  //This function maps all the values fetched
   }
 }
 
-void receive_can_inverter(CAN_frame rx_frame) {
+void map_can_frame_to_variable_inverter(CAN_frame rx_frame) {
   switch (rx_frame.ID) {
     case 0x360:  //Message originating from SMA inverter - Voltage and current
       datalayer.system.status.CAN_inverter_still_alive = CAN_STILL_ALIVE;
@@ -171,7 +171,7 @@ void receive_can_inverter(CAN_frame rx_frame) {
       break;
     case 0x660:  //Message originating from SMA inverter - Pairing request
       datalayer.system.status.CAN_inverter_still_alive = CAN_STILL_ALIVE;
-      send_tripower_init();
+      transmit_tripower_init();
       break;
     default:
       break;
@@ -189,7 +189,7 @@ void pushFrame(CAN_frame* frame, void (*callback)() = NULL) {
   listLength++;
 }
 
-void send_can_inverter() {
+void transmit_can_inverter() {
   unsigned long currentMillis = millis();
 
   // Send CAN Message only if we're enabled by inverter
@@ -201,7 +201,7 @@ void send_can_inverter() {
     previousMillis250ms = currentMillis;
     // Send next frame.
     Frame frame = framesToSend[0];
-    transmit_can(frame.frame, can_config.inverter);
+    transmit_can_frame(frame.frame, can_config.inverter);
     if (frame.callback != NULL) {
       frame.callback();
     }
@@ -233,7 +233,7 @@ void completePairing() {
   pairing_completed = true;
 }
 
-void send_tripower_init() {
+void transmit_tripower_init() {
   listLength = 0;  // clear all frames
 
   pushFrame(&SMA_558);    //Pairing start - Vendor
@@ -256,4 +256,5 @@ void setup_inverter(void) {  // Performs one time setup at startup over CAN bus
   datalayer.system.status.inverter_allows_contactor_closing = false;  // The inverter needs to allow first
   pinMode(INVERTER_CONTACTOR_ENABLE_PIN, INPUT);
 }
+
 #endif

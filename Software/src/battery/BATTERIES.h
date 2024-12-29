@@ -112,14 +112,14 @@
 #include "SERIAL-LINK-RECEIVER-FROM-BATTERY.h"
 #endif
 
-void receive_can_battery(CAN_frame rx_frame);
+void handle_incoming_can_frame_battery(CAN_frame rx_frame);
 void update_values_battery();
-void send_can_battery();
+void transmit_can_battery();
 void setup_battery(void);
 
 #ifdef DOUBLE_BATTERY
 void update_values_battery2();
-void receive_can_battery2(CAN_frame rx_frame);
+void map_can_frame_to_variable_battery2(CAN_frame rx_frame);
 #endif
 
 #endif

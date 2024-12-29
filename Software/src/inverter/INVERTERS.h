@@ -65,8 +65,8 @@
 
 #ifdef CAN_INVERTER_SELECTED
 void update_values_can_inverter();
-void receive_can_inverter(CAN_frame rx_frame);
-void send_can_inverter();
+void map_can_frame_to_variable_inverter(CAN_frame rx_frame);
+void transmit_can_inverter();
 #endif
 
 #ifdef MODBUS_INVERTER_SELECTED
