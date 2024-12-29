@@ -66,7 +66,7 @@ void init_webserver() {
     request->send_P(200, "text/html", index_html, can_logger_processor);
   });
 
-#ifdef DEBUG_VIA_WEB
+#if defined(DEBUG_VIA_WEB) || defined(LOG_TO_SD)
   // Route for going to debug logging web page
   server.on("/log", HTTP_GET, [](AsyncWebServerRequest* request) {
     request->send_P(200, "text/html", index_html, debug_logger_processor);
@@ -123,6 +123,22 @@ void init_webserver() {
   });
 #endif
 
+#ifdef LOG_TO_SD
+  // Define the handler to delete log file
+  server.on("/delete_log", HTTP_GET, [](AsyncWebServerRequest* request) {
+    delete_log();
+    request->send_P(200, "text/plain", "Log file deleted");
+  });
+
+  // Define the handler to export debug log
+  server.on("/export_log", HTTP_GET, [](AsyncWebServerRequest* request) {
+    pause_log_writing();
+    request->send(SD, LOG_FILE, String(), true);
+    resume_log_writing();
+  });
+#endif
+
+#ifndef LOG_TO_SD
   // Define the handler to export debug log
   server.on("/export_log", HTTP_GET, [](AsyncWebServerRequest* request) {
     String logs = String(datalayer.system.info.logged_can_messages);
@@ -149,6 +165,7 @@ void init_webserver() {
     response->addHeader("Content-Disposition", String("attachment; filename=\"") + String(filename) + "\"");
     request->send(response);
   });
+#endif
 
   // Route for going to cellmonitor web page
   server.on("/cellmonitor", HTTP_GET, [](AsyncWebServerRequest* request) {
@@ -1055,7 +1072,7 @@ String processor(const String& var) {
     content += "<button onclick='Settings()'>Change Settings</button> ";
     content += "<button onclick='Advanced()'>More Battery Info</button> ";
     content += "<button onclick='CANlog()'>CAN logger</button> ";
-#ifdef DEBUG_VIA_WEB
+#if defined(DEBUG_VIA_WEB) || defined(LOG_TO_SD)
     content += "<button onclick='Log()'>Log</button> ";
 #endif  // DEBUG_VIA_WEB
     content += "<button onclick='Cellmon()'>Cellmonitor</button> ";

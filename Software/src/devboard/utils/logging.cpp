@@ -1,5 +1,8 @@
 #include "logging.h"
 #include "../../datalayer/datalayer.h"
+#include "../sdcard/sdcard.h"
+
+bool previous_message_was_newline = true;
 
 size_t Logging::write(const uint8_t* buffer, size_t size) {
 #ifdef DEBUG_LOG
@@ -7,6 +10,24 @@ size_t Logging::write(const uint8_t* buffer, size_t size) {
   int offset = datalayer.system.info.logged_can_messages_offset;  // Keeps track of the current position in the buffer
   size_t message_string_size = sizeof(datalayer.system.info.logged_can_messages);
   unsigned long currentTime = millis();
+  char timestr[14];
+  if (previous_message_was_newline) {
+    snprintf(timestr, sizeof(timestr), "%8lu.%03lu ", currentTime / 1000, currentTime % 1000);
+    for (int i = 0; i < 13; i++) {
+#ifdef LOG_TO_SD
+      add_log_to_buffer(timestr[i]);
+#endif
+#ifdef DEBUG_VIA_USB
+      Serial.write(timestr[i]);
+#endif
+    }
+  }
+  previous_message_was_newline = buffer[size - 1] == '\n';
+#ifdef LOG_TO_SD
+  for (size_t i = 0; i < size; i++) {
+    add_log_to_buffer(buffer[i]);
+  }
+#endif
 #ifdef DEBUG_VIA_USB
   size_t n = 0;
   while (size--) {
@@ -24,11 +45,11 @@ size_t Logging::write(const uint8_t* buffer, size_t size) {
   if (offset + size + 13 > sizeof(datalayer.system.info.logged_can_messages)) {
     offset = 0;
   }
-  if (buffer[0] != '\r' && buffer[0] != '\n' &&
-      (offset == 0 || message_string[offset - 1] == '\r' || message_string[offset - 1] == '\n')) {
-    offset += snprintf(message_string + offset, message_string_size - offset - 1, "%8lu.%03lu ", currentTime / 1000,
-                       currentTime % 1000);
+  if (previous_message_was_newline) {
+    memcpy(message_string + offset, timestr, 13);
+    offset += 13;
   }
+
   memcpy(message_string + offset, buffer, size);
   datalayer.system.info.logged_can_messages_offset = offset + size;  // Update offset in buffer
   return size;
@@ -42,12 +63,35 @@ void Logging::printf(const char* fmt, ...) {
   char* message_string = datalayer.system.info.logged_can_messages;
   int offset = datalayer.system.info.logged_can_messages_offset;  // Keeps track of the current position in the buffer
   size_t message_string_size = sizeof(datalayer.system.info.logged_can_messages);
-#ifdef DEBUG_VIA_USB
-  static char buf[128];
-  message_string = buf;
-  offset = 0;
-  message_string_size = sizeof(buf);
+
+  unsigned long currentTime = millis();
+  char timestr[14];
+  snprintf(timestr, sizeof(timestr), "%8lu.%03lu ", currentTime / 1000, currentTime % 1000);
+  for (int i = 0; i < 13; i++) {
+#ifdef LOG_TO_SD
+    add_log_to_buffer(timestr[i]);
 #endif
+#ifdef DEBUG_VIA_USB
+    Serial.write(timestr[i]);
+#endif
+  }
+
+  static char buffer[128];
+  va_list(args);
+  va_start(args, fmt);
+  int size = vsnprintf(buffer, sizeof(buffer), fmt, args);
+  va_end(args);
+
+  for (int i = 0; i < size; i++) {
+#ifdef LOG_TO_SD
+    add_log_to_buffer(buffer[i]);
+#endif
+#ifdef DEBUG_VIA_USB
+    Serial.write(buffer[i]);
+#endif
+  }
+#endif
+
 #ifdef DEBUG_VIA_WEB
   if (datalayer.system.info.can_logging_active) {
     return;
@@ -60,27 +104,13 @@ void Logging::printf(const char* fmt, ...) {
     // Not enough space, reset and start from the beginning
     offset = 0;
   }
-  unsigned long currentTime = millis();
+
   // Add timestamp
-  offset += snprintf(message_string + offset, message_string_size - offset - 1, "%8lu.%03lu ", currentTime / 1000,
-                     currentTime % 1000);
+  memcpy(message_string + offset, timestr, 13);
+  offset += 13;
 
-  va_list(args);
-  va_start(args, fmt);
-  offset += vsnprintf(message_string + offset, message_string_size - offset - 1, fmt, args);
-  va_end(args);
+  memcpy(message_string + offset, buffer, size);
+  datalayer.system.info.logged_can_messages_offset = offset + size;  // Update offset in buffer
 
-  if (datalayer.system.info.can_logging_active) {
-    size_t size = offset;
-    size_t n = 0;
-    while (size--) {
-      if (Serial.write(*message_string++))
-        n++;
-      else
-        break;
-    }
-  } else {
-    datalayer.system.info.logged_can_messages_offset = offset;  // Update offset in buffer
-  }
-#endif  // DEBUG_LOG
+  previous_message_was_newline = true;
 }

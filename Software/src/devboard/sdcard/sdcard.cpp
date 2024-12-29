@@ -5,11 +5,18 @@
     defined(SD_MISO_PIN)  // ensure code is only compiled if all SD card pins are defined
 
 File can_log_file;
+File log_file;
 RingbufHandle_t can_bufferHandle;
+RingbufHandle_t log_bufferHandle;
 
 bool can_logging_paused = false;
 bool can_file_open = false;
 bool delete_can_file = false;
+
+bool logging_paused = false;
+bool log_file_open = false;
+bool delete_log_file = false;
+
 bool sd_card_active = false;
 
 void delete_can_log() {
@@ -25,6 +32,26 @@ void resume_can_writing() {
 
 void pause_can_writing() {
   can_logging_paused = true;
+}
+
+void delete_log() {
+  logging_paused = true;
+  if (log_file_open) {
+    log_file.close();
+    log_file_open = false;
+  }
+  SD.remove(LOG_FILE);
+  logging_paused = false;
+}
+
+void resume_log_writing() {
+  logging_paused = false;
+  log_file = SD.open(LOG_FILE, FILE_APPEND);
+  log_file_open = true;
+}
+
+void pause_log_writing() {
+  logging_paused = true;
 }
 
 void add_can_frame_to_buffer(CAN_frame frame, frameDirection msgDir) {
@@ -84,15 +111,59 @@ void write_can_frame_to_sdcard() {
         can_log_file.print(" ");
     }
     can_log_file.println("");
+    can_log_file.flush();
 
     vRingbufferReturnItem(can_bufferHandle, (void*)log_frame);
   }
 }
 
-void init_logging_buffer() {
-  can_bufferHandle = xRingbufferCreate(64 * 1024, RINGBUF_TYPE_BYTEBUF);
+void add_log_to_buffer(uint8_t buffer) {
+
+  if (!sd_card_active)
+    return;
+
+  if (xRingbufferSend(log_bufferHandle, &buffer, sizeof(buffer), 0) != pdTRUE) {
+    Serial.println("Failed to send log to ring buffer!");
+    return;
+  }
+}
+
+void write_log_to_sdcard() {
+
+  if (!sd_card_active)
+    return;
+
+  size_t receivedMessageSize;
+  uint8_t* buffer = (uint8_t*)xRingbufferReceive(log_bufferHandle, &receivedMessageSize, pdMS_TO_TICKS(10));
+
+  if (buffer != NULL) {
+
+    if (logging_paused) {
+      vRingbufferReturnItem(log_bufferHandle, (void*)buffer);
+      return;
+    }
+
+    if (log_file_open == false) {
+      log_file = SD.open(LOG_FILE, FILE_APPEND);
+      log_file_open = true;
+    }
+
+    log_file.write(buffer, receivedMessageSize);
+    log_file.flush();
+    vRingbufferReturnItem(log_bufferHandle, (void*)buffer);
+  }
+}
+
+void init_logging_buffers() {
+  can_bufferHandle = xRingbufferCreate(32 * 1024, RINGBUF_TYPE_BYTEBUF);
   if (can_bufferHandle == NULL) {
     Serial.println("Failed to create CAN ring buffer!");
+    return;
+  }
+
+  log_bufferHandle = xRingbufferCreate(32 * 1024, RINGBUF_TYPE_BYTEBUF);
+  if (log_bufferHandle == NULL) {
+    Serial.println("Failed to create log ring buffer!");
     return;
   }
 }
