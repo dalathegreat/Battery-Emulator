@@ -6,6 +6,8 @@
 #include "../../communication/can/comm_can.h"
 #include "../hal/hal.h"
 
+#if defined(SD_CS_PIN) && defined(SD_SCLK_PIN) && defined(SD_MOSI_PIN) && \
+    defined(SD_MISO_PIN)  // ensure code is only compiled if all SD card pins are defined
 #define CAN_LOG_FILE "/canlog.txt"
 
 void init_logging_buffer();
@@ -19,5 +21,6 @@ void write_can_frame_to_sdcard();
 void pause_can_writing();
 void resume_can_writing();
 void delete_can_log();
+#endif  // defined(SD_CS_PIN) && defined(SD_SCLK_PIN) && defined(SD_MOSI_PIN) && defined(SD_MISO_PIN)
 
-#endif
+#endif  // SDCARD_H
