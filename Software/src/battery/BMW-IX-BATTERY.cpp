@@ -516,7 +516,7 @@ void update_values_battery() {  //This function maps all the values fetched via 
     datalayer.battery.info.min_cell_voltage_mV = MIN_CELL_VOLTAGE_MV;
   }
 }
-void map_can_frame_to_variable_battery(CAN_frame rx_frame) {
+void handle_incoming_can_frame_battery(CAN_frame rx_frame) {
   battery_awake = true;
   switch (rx_frame.ID) {
     case 0x112:

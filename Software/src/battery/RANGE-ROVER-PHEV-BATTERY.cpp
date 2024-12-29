@@ -180,7 +180,7 @@ void update_values_battery() {
   datalayer.battery.info.min_design_voltage_dV = DischargeVoltageLimit * 10;
 }
 
-void map_can_frame_to_variable_battery(CAN_frame rx_frame) {
+void handle_incoming_can_frame_battery(CAN_frame rx_frame) {
   datalayer.battery.status.CAN_battery_still_alive = CAN_STILL_ALIVE;
   switch (rx_frame.ID) {
     case 0x080:  // 15ms

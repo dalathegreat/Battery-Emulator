@@ -213,7 +213,7 @@ void update_values_battery() {
     //TODO, shall we react on this?
   }
 }
-void map_can_frame_to_variable_battery(CAN_frame rx_frame) {
+void handle_incoming_can_frame_battery(CAN_frame rx_frame) {
 
   switch (rx_frame.ID) {
     case 0x1A4:  //PDO1_TX - 200ms

@@ -119,7 +119,7 @@ void update_values_battery() {
 #endif
 }
 
-void map_can_frame_to_variable_battery(CAN_frame rx_frame) {
+void handle_incoming_can_frame_battery(CAN_frame rx_frame) {
 
   // Do not log noisy startup messages - there are many !
   if (rx_frame.ID == 0 && rx_frame.DLC == 8 && rx_frame.data.u8[0] == 0 && rx_frame.data.u8[1] == 0 &&

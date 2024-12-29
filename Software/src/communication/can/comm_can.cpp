@@ -321,7 +321,7 @@ void map_can_frame_to_variable(CAN_frame* rx_frame, int interface) {
 #endif
 
   if (interface == can_config.battery) {
-    map_can_frame_to_variable_battery(*rx_frame);
+    handle_incoming_can_frame_battery(*rx_frame);
 #ifdef CHADEMO_BATTERY
     ISA_handleFrame(rx_frame);
 #endif

@@ -618,7 +618,7 @@ void update_values_battery() {  //This function maps all the values fetched via 
   datalayer_extended.meb.rt_battery_unathorized = realtime_warning_battery_unathorized;
 }
 
-void map_can_frame_to_variable_battery(CAN_frame rx_frame) {
+void handle_incoming_can_frame_battery(CAN_frame rx_frame) {
   last_can_msg_timestamp = millis();
   if (first_can_msg == 0)
     first_can_msg = last_can_msg_timestamp;

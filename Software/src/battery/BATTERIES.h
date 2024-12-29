@@ -112,7 +112,7 @@
 #include "SERIAL-LINK-RECEIVER-FROM-BATTERY.h"
 #endif
 
-void map_can_frame_to_variable_battery(CAN_frame rx_frame);
+void handle_incoming_can_frame_battery(CAN_frame rx_frame);
 void update_values_battery();
 void transmit_can_battery();
 void setup_battery(void);

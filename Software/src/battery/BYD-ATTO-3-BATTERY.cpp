@@ -162,7 +162,7 @@ void update_values_battery() {  //This function maps all the values fetched via 
   datalayer_extended.bydAtto3.voltage_polled = BMS_voltage;
 }
 
-void map_can_frame_to_variable_battery(CAN_frame rx_frame) {
+void handle_incoming_can_frame_battery(CAN_frame rx_frame) {
   switch (rx_frame.ID) {  //Log values taken with 422V from battery
     case 0x244:           //00,00,00,04,41,0F,20,8B - Static, values never changes between logs
       break;

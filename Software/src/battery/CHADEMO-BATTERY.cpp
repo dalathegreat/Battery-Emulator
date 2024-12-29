@@ -367,7 +367,7 @@ inline void process_vehicle_vendor_ID(CAN_frame rx_frame) {
       ((rx_frame.data.u8[2] << 8) | rx_frame.data.u8[1]);  //Actually more bytes, but not needed for our purpose
 }
 
-void map_can_frame_to_variable_battery(CAN_frame rx_frame) {
+void handle_incoming_can_frame_battery(CAN_frame rx_frame) {
 #ifdef CH_CAN_DEBUG
   logging.print(millis());  // Example printout, time, ID, length, data: 7553  1DB  8  FF C0 B9 EA 0 0 2 5D
   logging.print("  ");
@@ -819,7 +819,7 @@ void handle_chademo_sequence() {
     case CHADEMO_INIT:
       /* Transient state while awaiting CAN from Vehicle.
        * Used for triggers/error handling elsewhere;
-       * State change to CHADEMO_NEGOTIATE occurs in map_can_frame_to_variable_battery(..)
+       * State change to CHADEMO_NEGOTIATE occurs in handle_incoming_can_frame_battery(..)
        */
 #ifdef DEBUG_LOG
 //      logging.println("Awaiting initial vehicle CAN to trigger negotiation");

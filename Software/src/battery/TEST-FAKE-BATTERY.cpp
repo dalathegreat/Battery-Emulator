@@ -127,7 +127,7 @@ void map_can_frame_to_variable_battery2(CAN_frame rx_frame) {
 }
 #endif  // DOUBLE_BATTERY
 
-void map_can_frame_to_variable_battery(CAN_frame rx_frame) {
+void handle_incoming_can_frame_battery(CAN_frame rx_frame) {
   datalayer.battery.status.CAN_battery_still_alive = CAN_STILL_ALIVE;
 }
 void transmit_can_battery() {
