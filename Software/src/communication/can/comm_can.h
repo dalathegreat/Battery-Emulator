@@ -15,8 +15,6 @@
 #include "../../lib/pierremolinaro-ACAN2517FD/ACAN2517FD.h"
 #endif  //CANFD_ADDON
 
-enum frameDirection { MSG_RX, MSG_TX };  //RX = 0, TX = 1
-
 /**
  * @brief Initialization function for CAN.
  *

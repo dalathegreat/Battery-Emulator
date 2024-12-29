@@ -1,5 +1,6 @@
 #include "comm_can.h"
 #include "../../include.h"
+#include "src/devboard/sdcard/sdcard.h"
 
 // Parameters
 
@@ -109,6 +110,10 @@ void transmit_can(CAN_frame* tx_frame, int interface) {
   }
   print_can_frame(*tx_frame, frameDirection(MSG_TX));
 
+#ifdef LOG_CAN_TO_SD
+  add_can_frame_to_buffer(*tx_frame, frameDirection(MSG_TX));
+#endif
+
   switch (interface) {
     case CAN_NATIVE:
       CAN_frame_t frame;
@@ -187,6 +192,10 @@ void send_can() {
 
 void receive_can(CAN_frame* rx_frame, int interface) {
   print_can_frame(*rx_frame, frameDirection(MSG_RX));
+
+#ifdef LOG_CAN_TO_SD
+  add_can_frame_to_buffer(*rx_frame, frameDirection(MSG_RX));
+#endif
 
   if (interface == can_config.battery) {
     receive_can_battery(*rx_frame);

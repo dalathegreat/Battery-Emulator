@@ -15,6 +15,7 @@
 #include "src/communication/rs485/comm_rs485.h"
 #include "src/communication/seriallink/comm_seriallink.h"
 #include "src/datalayer/datalayer.h"
+#include "src/devboard/sdcard/sdcard.h"
 #include "src/devboard/utils/events.h"
 #include "src/devboard/utils/led_handler.h"
 #include "src/devboard/utils/logging.h"
@@ -79,12 +80,16 @@ MyTimer core_task_timer_10s(INTERVAL_10_S);
 int64_t connectivity_task_time_us;
 MyTimer connectivity_task_timer_10s(INTERVAL_10_S);
 
+int64_t logging_task_time_us;
+MyTimer logging_task_timer_10s(INTERVAL_10_S);
+
 MyTimer loop_task_timer_10s(INTERVAL_10_S);
 
 MyTimer check_pause_2s(INTERVAL_2_S);
 
 TaskHandle_t main_loop_task;
 TaskHandle_t connectivity_loop_task;
+TaskHandle_t logging_loop_task;
 
 Logging logging;
 
@@ -97,6 +102,11 @@ void setup() {
 #ifdef WIFI
   xTaskCreatePinnedToCore((TaskFunction_t)&connectivity_loop, "connectivity_loop", 4096, &connectivity_task_time_us,
                           TASK_CONNECTIVITY_PRIO, &connectivity_loop_task, WIFI_CORE);
+#endif
+
+#ifdef LOG_CAN_TO_SD
+  xTaskCreatePinnedToCore((TaskFunction_t)&logging_loop, "logging_loop", 4096, &logging_task_time_us,
+                          TASK_CONNECTIVITY_PRIO, &logging_loop_task, WIFI_CORE);
 #endif
 
   init_events();
@@ -137,6 +147,18 @@ void loop() {
   }
 #endif
 }
+
+#ifdef LOG_CAN_TO_SD
+void logging_loop(void* task_time_us) {
+
+  init_logging_buffer();
+  init_sdcard();
+
+  while (true) {
+    write_can_frame_to_sdcard();
+  }
+}
+#endif
 
 #ifdef WIFI
 void connectivity_loop(void* task_time_us) {
