@@ -269,7 +269,6 @@ static uint8_t battery_status_diagnostics_HV = 0;  // 0 all OK, 1 HV protection 
 static uint8_t battery_status_diagnosis_powertrain_maximum_multiplexer = 0;
 static uint8_t battery_status_diagnosis_powertrain_immediate_multiplexer = 0;
 static uint8_t battery_ID2 = 0;
-static uint8_t battery_cellvoltage_mux = 0;
 static uint8_t battery_soh = 99;
 
 static uint32_t battery2_serial_number = 0;
@@ -337,7 +336,6 @@ static uint8_t battery2_status_diagnostics_HV = 0;  // 0 all OK, 1 HV protection
 static uint8_t battery2_status_diagnosis_powertrain_maximum_multiplexer = 0;
 static uint8_t battery2_status_diagnosis_powertrain_immediate_multiplexer = 0;
 static uint8_t battery2_ID2 = 0;
-static uint8_t battery2_cellvoltage_mux = 0;
 static uint8_t battery2_soh = 99;
 
 static uint8_t message_data[50];
@@ -776,18 +774,6 @@ void map_can_frame_to_variable_battery2(CAN_frame rx_frame) {
     case 0x41C:  //BMS [1s] Operating Mode Status Of Hybrid - 2
       battery2_status_cooling_HV = (rx_frame.data.u8[1] & 0x03);
       break;
-    case 0x426:  // TODO: Figure out how to trigger sending of this. Does the SME require some CAN command?
-      battery2_cellvoltage_mux = rx_frame.data.u8[0];
-      if (battery2_cellvoltage_mux == 0) {
-        datalayer.battery2.status.cell_voltages_mV[0] = ((rx_frame.data.u8[1] * 10) + 1800);
-        datalayer.battery2.status.cell_voltages_mV[1] = ((rx_frame.data.u8[2] * 10) + 1800);
-        datalayer.battery2.status.cell_voltages_mV[2] = ((rx_frame.data.u8[3] * 10) + 1800);
-        datalayer.battery2.status.cell_voltages_mV[3] = ((rx_frame.data.u8[4] * 10) + 1800);
-        datalayer.battery2.status.cell_voltages_mV[4] = ((rx_frame.data.u8[5] * 10) + 1800);
-        datalayer.battery2.status.cell_voltages_mV[5] = ((rx_frame.data.u8[6] * 10) + 1800);
-        datalayer.battery2.status.cell_voltages_mV[6] = ((rx_frame.data.u8[7] * 10) + 1800);
-      }
-      break;
     case 0x430:  //BMS [1s] - Charging status of high-voltage battery - 2
       battery2_prediction_voltage_shortterm_charge = (rx_frame.data.u8[1] << 8 | rx_frame.data.u8[0]);
       battery2_prediction_voltage_shortterm_discharge = (rx_frame.data.u8[3] << 8 | rx_frame.data.u8[2]);
@@ -815,6 +801,17 @@ void map_can_frame_to_variable_battery2(CAN_frame rx_frame) {
       battery2_ID2 = rx_frame.data.u8[0];
       break;
     case 0x607:  //BMS - responses to message requests on 0x615
+      if ((cmdState == CELL_VOLTAGE_CELLNO || cmdState == CELL_VOLTAGE_CELLNO_LAST) && (rx_frame.data.u8[0] == 0xF4)) {
+        if (rx_frame.DLC == 6) {
+          transmit_can_frame(&BMW_6F4_CELL_CONTINUE,
+                             can_config.battery_double);  // tell battery to send the cellvoltage
+        }
+        if (rx_frame.DLC == 8) {  // We have the full value, map it
+          datalayer.battery2.status.cell_voltages_mV[current_cell_polled - 1] =
+              (rx_frame.data.u8[6] << 8 | rx_frame.data.u8[7]);
+        }
+      }
+
       if (rx_frame.DLC > 6 && next_data == 0 && rx_frame.data.u8[0] == 0xf1) {
         uint8_t count2 = 6;
         while (count2 < rx_frame.DLC && next_data < 49) {
