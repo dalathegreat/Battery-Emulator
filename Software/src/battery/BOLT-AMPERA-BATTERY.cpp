@@ -254,7 +254,7 @@ void update_values_battery() {  //This function maps all the values fetched via 
   datalayer_extended.boltampera.battery_current_7E4 = battery_current_7E4;
 }
 
-void receive_can_battery(CAN_frame rx_frame) {
+void handle_incoming_can_frame_battery(CAN_frame rx_frame) {
   switch (rx_frame.ID) {
     case 0x200:
       datalayer.battery.status.CAN_battery_still_alive = CAN_STILL_ALIVE;
@@ -319,7 +319,7 @@ void receive_can_battery(CAN_frame rx_frame) {
     case 0x7EC:  //When polling 7E4 BMS replies with 7EC ??
 
       if (rx_frame.data.u8[0] == 0x10) {  //"PID Header"
-        transmit_can(&BOLT_ACK_7E4, can_config.battery);
+        transmit_can_frame(&BOLT_ACK_7E4, can_config.battery);
       }
 
       //Frame 2 & 3 contains reply
@@ -391,7 +391,7 @@ void receive_can_battery(CAN_frame rx_frame) {
     case 0x7EF:  //When polling 7E7 BMS replies with 7EF
 
       if (rx_frame.data.u8[0] == 0x10) {  //"PID Header"
-        transmit_can(&BOLT_ACK_7E7, can_config.battery);
+        transmit_can_frame(&BOLT_ACK_7E7, can_config.battery);
       }
 
       //Frame 2 & 3 contains reply
@@ -730,7 +730,7 @@ void receive_can_battery(CAN_frame rx_frame) {
   }
 }
 
-void send_can_battery() {
+void transmit_can_battery() {
   unsigned long currentMillis = millis();
 
   //Send 20ms message
@@ -742,7 +742,7 @@ void send_can_battery() {
       clear_event(EVENT_CAN_OVERRUN);
     }
     previousMillis20ms = currentMillis;
-    transmit_can(&BOLT_778, can_config.battery);
+    transmit_can_frame(&BOLT_778, can_config.battery);
   }
 
   //Send 100ms message
@@ -756,7 +756,7 @@ void send_can_battery() {
     BOLT_POLL_7E7.data.u8[2] = (uint8_t)((currentpoll_7E7 & 0xFF00) >> 8);
     BOLT_POLL_7E7.data.u8[3] = (uint8_t)(currentpoll_7E7 & 0x00FF);
 
-    transmit_can(&BOLT_POLL_7E7, can_config.battery);
+    transmit_can_frame(&BOLT_POLL_7E7, can_config.battery);
   }
 
   //Send 120ms message
@@ -770,7 +770,7 @@ void send_can_battery() {
     BOLT_POLL_7E4.data.u8[2] = (uint8_t)((currentpoll_7E4 & 0xFF00) >> 8);
     BOLT_POLL_7E4.data.u8[3] = (uint8_t)(currentpoll_7E4 & 0x00FF);
 
-    transmit_can(&BOLT_POLL_7E4, can_config.battery);
+    transmit_can_frame(&BOLT_POLL_7E4, can_config.battery);
   }
 }
 

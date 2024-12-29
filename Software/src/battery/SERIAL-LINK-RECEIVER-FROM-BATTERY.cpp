@@ -224,7 +224,7 @@ void setup_battery(void) {
 }
 // Needed to make the compiler happy
 void update_values_battery() {}
-void send_can_battery() {}
-void receive_can_battery(CAN_frame rx_frame) {}
+void transmit_can_battery() {}
+void handle_incoming_can_frame_battery(CAN_frame rx_frame) {}
 
 #endif

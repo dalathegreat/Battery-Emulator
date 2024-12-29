@@ -135,7 +135,7 @@ void update_values_battery() {  //This function maps all the values fetched via 
   datalayer.battery.status.voltage_dV = static_cast<uint32_t>((calculated_total_pack_voltage_mV / 100));  // mV to dV
 }
 
-void receive_can_battery(CAN_frame rx_frame) {
+void handle_incoming_can_frame_battery(CAN_frame rx_frame) {
   switch (rx_frame.ID) {
     case 0x155:  //10ms - Charging power, current and SOC
       datalayer.battery.status.CAN_battery_still_alive = CAN_STILL_ALIVE;
@@ -195,7 +195,7 @@ void receive_can_battery(CAN_frame rx_frame) {
       switch (frame0) {
         case 0x10:  //PID HEADER, datarow 0
           requested_poll = rx_frame.data.u8[3];
-          transmit_can(&ZOE_ACK_79B, can_config.battery);
+          transmit_can_frame(&ZOE_ACK_79B, can_config.battery);
 
           if (requested_poll == GROUP1_CELLVOLTAGES_1_POLL) {
             cellvoltages[0] = (rx_frame.data.u8[4] << 8) | rx_frame.data.u8[5];
@@ -486,7 +486,7 @@ void receive_can_battery(CAN_frame rx_frame) {
   }
 }
 
-void send_can_battery() {
+void transmit_can_battery() {
   unsigned long currentMillis = millis();
   // Send 100ms CAN Message
   if (currentMillis - previousMillis100 >= INTERVAL_100_MS) {
@@ -495,7 +495,7 @@ void send_can_battery() {
       set_event(EVENT_CAN_OVERRUN, (currentMillis - previousMillis100));
     }
     previousMillis100 = currentMillis;
-    transmit_can(&ZOE_423, can_config.battery);
+    transmit_can_frame(&ZOE_423, can_config.battery);
 
     if ((counter_423 / 5) % 2 == 0) {  // Alternate every 5 messages between these two
       ZOE_423.data.u8[4] = 0xB2;
@@ -534,7 +534,7 @@ void send_can_battery() {
 
     ZOE_POLL_79B.data.u8[2] = current_poll;
 
-    transmit_can(&ZOE_POLL_79B, can_config.battery);
+    transmit_can_frame(&ZOE_POLL_79B, can_config.battery);
   }
 }
 

@@ -1202,7 +1202,7 @@ void update_values_battery() {  //This function maps all the values fetched via 
 #endif  //DEBUG_LOG
 }
 
-void receive_can_battery(CAN_frame rx_frame) {
+void handle_incoming_can_frame_battery(CAN_frame rx_frame) {
   static uint8_t mux = 0;
   static uint16_t temp = 0;
 
@@ -1862,7 +1862,7 @@ void receive_can_battery(CAN_frame rx_frame) {
 
 #ifdef DOUBLE_BATTERY  //Need to update battery2
 
-void receive_can_battery2(CAN_frame rx_frame) {
+void map_can_frame_to_variable_battery2(CAN_frame rx_frame) {
   static uint8_t mux = 0;
   static uint16_t temp = 0;
 
@@ -2676,7 +2676,7 @@ int index_1CF = 0;
 int index_118 = 0;
 #endif  //defined(TESLA_MODEL_SX_BATTERY) || defined(EXP_TESLA_BMS_DIGITAL_HVIL)
 
-void send_can_battery() {
+void transmit_can_battery() {
   /*From bielec: My fist 221 message, to close the contactors is 0x41, 0x11, 0x01, 0x00, 0x00, 0x00, 0x20, 0x96 and then, 
 to cause "hv_up_for_drive" I send an additional 221 message 0x61, 0x15, 0x01, 0x00, 0x00, 0x00, 0x20, 0xBA  so 
 two 221 messages are being continuously transmitted.   When I want to shut down, I stop the second message and only send 
@@ -2691,10 +2691,10 @@ the first, for a few cycles, then stop all  messages which causes the contactor 
 #if defined(TESLA_MODEL_SX_BATTERY) || defined(EXP_TESLA_BMS_DIGITAL_HVIL)
   if ((datalayer.system.status.inverter_allows_contactor_closing) && (datalayer.battery.status.bms_status != FAULT)) {
     if (currentMillis - lastSend1CF >= 10) {
-      transmit_can(&can_msg_1CF[index_1CF], can_config.battery);
+      transmit_can_frame(&can_msg_1CF[index_1CF], can_config.battery);
 
 #ifdef DOUBLE_BATTERY
-      transmit_can(&can_msg_1CF[index_1CF], can_config.battery_double);
+      transmit_can_frame(&can_msg_1CF[index_1CF], can_config.battery_double);
 #endif  // DOUBLE_BATTERY
 
       index_1CF = (index_1CF + 1) % 8;
@@ -2702,9 +2702,9 @@ the first, for a few cycles, then stop all  messages which causes the contactor 
     }
 
     if (currentMillis - lastSend118 >= 10) {
-      transmit_can(&can_msg_118[index_118], can_config.battery);
+      transmit_can_frame(&can_msg_118[index_118], can_config.battery);
 #ifdef DOUBLE_BATTERY
-      transmit_can(&can_msg_1CF[index_1CF], can_config.battery_double);
+      transmit_can_frame(&can_msg_1CF[index_1CF], can_config.battery_double);
 #endif  //DOUBLE_BATTERY
 
       index_118 = (index_118 + 1) % 16;
@@ -2729,21 +2729,21 @@ the first, for a few cycles, then stop all  messages which causes the contactor 
     if ((datalayer.system.status.inverter_allows_contactor_closing == true) &&
         (datalayer.battery.status.bms_status != FAULT)) {
       sendContactorClosingMessagesStill = 300;
-      transmit_can(&TESLA_221_1, can_config.battery);
-      transmit_can(&TESLA_221_2, can_config.battery);
+      transmit_can_frame(&TESLA_221_1, can_config.battery);
+      transmit_can_frame(&TESLA_221_2, can_config.battery);
 #ifdef DOUBLE_BATTERY
       if (datalayer.system.status.battery2_allows_contactor_closing) {
-        transmit_can(&TESLA_221_1, can_config.battery_double);
-        transmit_can(&TESLA_221_2, can_config.battery_double);
+        transmit_can_frame(&TESLA_221_1, can_config.battery_double);
+        transmit_can_frame(&TESLA_221_2, can_config.battery_double);
       }
 #endif        //DOUBLE_BATTERY
     } else {  // Faulted state, or inverter blocks contactor closing
       if (sendContactorClosingMessagesStill > 0) {
-        transmit_can(&TESLA_221_1, can_config.battery);
+        transmit_can_frame(&TESLA_221_1, can_config.battery);
         sendContactorClosingMessagesStill--;
 
 #ifdef DOUBLE_BATTERY
-        transmit_can(&TESLA_221_1, can_config.battery_double);
+        transmit_can_frame(&TESLA_221_1, can_config.battery_double);
 #endif  //DOUBLE_BATTERY
       }
     }

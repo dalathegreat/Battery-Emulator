@@ -5,6 +5,7 @@
 #include "../../datalayer/datalayer.h"
 #include "../../datalayer/datalayer_extended.h"
 #include "../../lib/bblanchon-ArduinoJson/ArduinoJson.h"
+#include "../sdcard/sdcard.h"
 #include "../utils/events.h"
 #include "../utils/led_handler.h"
 #include "../utils/timer.h"
@@ -78,6 +79,7 @@ void init_webserver() {
     request->send_P(200, "text/plain", "Logging stopped");
   });
 
+#ifndef LOG_CAN_TO_SD
   // Define the handler to export can log
   server.on("/export_can_log", HTTP_GET, [](AsyncWebServerRequest* request) {
     String logs = String(datalayer.system.info.logged_can_messages);
@@ -104,6 +106,22 @@ void init_webserver() {
     response->addHeader("Content-Disposition", String("attachment; filename=\"") + String(filename) + "\"");
     request->send(response);
   });
+#endif
+
+#ifdef LOG_CAN_TO_SD
+  // Define the handler to export can log
+  server.on("/export_can_log", HTTP_GET, [](AsyncWebServerRequest* request) {
+    pause_can_writing();
+    request->send(SD, CAN_LOG_FILE, String(), true);
+    resume_can_writing();
+  });
+
+  // Define the handler to delete can log
+  server.on("/delete_can_log", HTTP_GET, [](AsyncWebServerRequest* request) {
+    delete_can_log();
+    request->send_P(200, "text/plain", "Log file deleted");
+  });
+#endif
 
   // Define the handler to export debug log
   server.on("/export_log", HTTP_GET, [](AsyncWebServerRequest* request) {

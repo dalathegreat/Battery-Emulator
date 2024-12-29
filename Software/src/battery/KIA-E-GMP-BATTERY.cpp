@@ -750,7 +750,7 @@ void update_values_battery() {  //This function maps all the values fetched via 
 #endif
 }
 
-void receive_can_battery(CAN_frame rx_frame) {
+void handle_incoming_can_frame_battery(CAN_frame rx_frame) {
   startedUp = true;
   switch (rx_frame.ID) {
     case 0x055:
@@ -811,7 +811,7 @@ void receive_can_battery(CAN_frame rx_frame) {
           // logging.println ("Send ack");
           poll_data_pid = rx_frame.data.u8[4];
           // if (rx_frame.data.u8[4] == poll_data_pid) {
-          transmit_can(&EGMP_7E4_ack, can_config.battery);  //Send ack to BMS if the same frame is sent as polled
+          transmit_can_frame(&EGMP_7E4_ack, can_config.battery);  //Send ack to BMS if the same frame is sent as polled
           // }
           break;
         case 0x21:  //First frame in PID group
@@ -982,7 +982,7 @@ void receive_can_battery(CAN_frame rx_frame) {
   }
 }
 
-void send_can_battery() {
+void transmit_can_battery() {
   unsigned long currentMillis = millis();
   if (startedUp) {
     //Send Contactor closing message loop
@@ -993,7 +993,7 @@ void send_can_battery() {
       if (currentMillis - startMillis >= messageDelays[messageIndex]) {
 
         // Transmit the current message
-        transmit_can(messages[messageIndex], can_config.battery);
+        transmit_can_frame(messages[messageIndex], can_config.battery);
 
         // Move to the next message
         messageIndex++;
@@ -1019,7 +1019,7 @@ void send_can_battery() {
       EGMP_7E4.data.u8[3] = KIA_7E4_COUNTER;
 
       if (ok_start_polling_battery) {
-        transmit_can(&EGMP_7E4, can_config.battery);
+        transmit_can_frame(&EGMP_7E4, can_config.battery);
       }
 
       KIA_7E4_COUNTER++;
