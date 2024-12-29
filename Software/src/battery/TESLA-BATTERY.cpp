@@ -27,6 +27,7 @@ static uint16_t sendContactorClosingMessagesStill = 300;
 static uint16_t battery_cell_max_v = 3300;
 static uint16_t battery_cell_min_v = 3300;
 static uint16_t battery_cell_deviation_mV = 0;  //contains the deviation between highest and lowest cell in mV
+static bool cellvoltageRead = false;
 //0x3d2: 978 BMS_kwhCounter
 static uint32_t battery_total_discharge = 0;
 static uint32_t battery_total_charge = 0;
@@ -411,6 +412,7 @@ static bool battery_BMS_a180_SW_ECU_reset_blocked = false;
 static uint16_t battery2_cell_max_v = 3300;
 static uint16_t battery2_cell_min_v = 3300;
 static uint16_t battery2_cell_deviation_mV = 0;  //contains the deviation between highest and lowest cell in mV
+static bool battery2_cellvoltageRead = false;
 //0x3d2: 978 BMS_kwhCounter
 static uint32_t battery2_total_discharge = 0;
 static uint32_t battery2_total_charge = 0;
