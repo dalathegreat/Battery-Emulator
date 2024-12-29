@@ -1,15 +1,12 @@
 # This is the name of the workflow, visible on GitHub UI.
-name: Compile All Combinations
+name: Compile All Hardware
 
 # Here we tell GitHub when to run the workflow.
 on:
-  # This allows you to run this workflow manually from the
-  # GitHub Actions tab.
-  workflow_dispatch:
-  # The workflow is run upon creating, editing,
-  # pre-releasing, releasing and publishing a release
-  release:
-    types: [created, edited, prereleased, released, published]
+  # The workflow is run when a commit is pushed or for a
+  # Pull Request.
+  - push
+  - pull_request
 
 # This is the list of jobs that will be run concurrently.
 jobs:
@@ -33,7 +30,7 @@ jobs:
   # will produce.
 
   # This is the name of the job.
-  build-matrix:
+  build-hardware:
     needs: skip-duplicate-actions
     if: needs.skip-duplicate-actions.outputs.should_skip != 'true'
 
@@ -55,39 +52,14 @@ jobs:
         # These are the batteries for which the code will be compiled.
         battery:
           - NISSAN_LEAF_BATTERY
-          - PYLON_BATTERY
-          - RJXZS_BMS
-          - RANGE_ROVER_PHEV_BATTERY
-          - RENAULT_KANGOO_BATTERY
-          - RENAULT_TWIZY_BATTERY
-          - RENAULT_ZOE_GEN1_BATTERY
-          - RENAULT_ZOE_GEN2_BATTERY
-          - SANTA_FE_PHEV_BATTERY
-          - STELLANTIS_ECMP_BATTERY
-          - TESLA_MODEL_3Y_BATTERY
-          - TESLA_MODEL_SX_BATTERY
-          - VOLVO_SPA_BATTERY
-          - TEST_FAKE_BATTERY
         # These are the emulated inverter communication protocols for which the code will be compiled.
         inverter:
-          - AFORE_CAN
           - BYD_CAN
-          - BYD_KOSTAL_RS485
-          - BYD_MODBUS
-          - BYD_SMA
-          - FOXESS_CAN
-          - PYLON_CAN
-          - PYLON_LV_CAN
-          - SCHNEIDER_CAN
-          - SMA_CAN
-          - SMA_LV_CAN
-          - SMA_TRIPOWER_CAN
-          - SOFAR_CAN
-          - SOLAX_CAN
-          - SERIAL_LINK_TRANSMITTER
         # These are the supported hardware platforms for which the code will be compiled.
         hardware:
           - HW_LILYGO
+          - HW_STARK
+          - HW_3LB
 
     # This is the platform GitHub will use to run our workflow.
     runs-on: ubuntu-latest
