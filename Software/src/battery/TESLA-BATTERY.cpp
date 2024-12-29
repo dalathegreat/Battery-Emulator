@@ -1152,7 +1152,7 @@ void update_values_battery() {  //This function maps all the values fetched via 
 void handle_incoming_can_frame_battery(CAN_frame rx_frame) {
   static uint8_t mux = 0;
   static uint16_t temp = 0;
-  static bool cellvoltageRead = false;
+  static bool cellvoltagesRead = false;
 
   switch (rx_frame.ID) {
     case 0x352:                            // 850 BMS_energyStatus newer BMS
@@ -1813,7 +1813,7 @@ void handle_incoming_can_frame_battery(CAN_frame rx_frame) {
 void map_can_frame_to_variable_battery2(CAN_frame rx_frame) {
   static uint8_t mux = 0;
   static uint16_t temp = 0;
-  static bool battery2_cellvoltageRead = false;
+  static bool battery2_cellvoltagesRead = false;
 
   switch (rx_frame.ID) {
     case 0x352:                            // BMS_energyStatus // newer BMS >2021
