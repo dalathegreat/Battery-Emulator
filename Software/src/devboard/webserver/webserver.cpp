@@ -563,7 +563,7 @@ String get_firmware_info_processor(const String& var) {
 #endif  // HW_STARK
 #ifdef HW_3LB
     doc["hardware"] = "3LB board";
-#endif  // HW_STARK
+#endif  // HW_3LB
 
     doc["firmware"] = String(version_number);
     serializeJson(doc, content);

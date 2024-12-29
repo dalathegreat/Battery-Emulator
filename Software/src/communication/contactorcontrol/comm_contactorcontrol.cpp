@@ -82,10 +82,10 @@ void init_contactors() {
   set(SECOND_NEGATIVE_CONTACTOR_PIN, OFF);
 #endif  // CONTACTOR_CONTROL_DOUBLE_BATTERY
 // Init BMS contactor
-#ifdef HW_STARK  // TODO: Rewrite this so LilyGo can also handle this BMS contactor
+#ifdef BMS_POWER
   pinMode(BMS_POWER, OUTPUT);
   digitalWrite(BMS_POWER, HIGH);
-#endif  // HW_STARK
+#endif  // BMS_POWER
 }
 
 // Main functions
