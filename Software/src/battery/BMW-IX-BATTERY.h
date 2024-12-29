@@ -5,7 +5,6 @@
 
 #define BATTERY_SELECTED
 
-//#define WUP_PIN 25 //Not used
 #define MAX_PACK_VOLTAGE_DV 4650  //4650 = 465.0V
 #define MIN_PACK_VOLTAGE_DV 3000
 #define MAX_CELL_DEVIATION_MV 250

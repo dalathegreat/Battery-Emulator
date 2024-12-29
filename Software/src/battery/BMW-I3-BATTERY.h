@@ -5,7 +5,6 @@
 
 #define BATTERY_SELECTED
 
-#define WUP_PIN 25
 #define MAX_CELL_VOLTAGE_60AH 4110   // Battery is put into emergency stop if one cell goes over this value
 #define MIN_CELL_VOLTAGE_60AH 2700   // Battery is put into emergency stop if one cell goes below this value
 #define MAX_CELL_VOLTAGE_94AH 4140   // Battery is put into emergency stop if one cell goes over this value
