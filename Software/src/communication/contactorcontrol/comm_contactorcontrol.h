@@ -7,6 +7,15 @@
 #include "../../devboard/utils/events.h"
 
 /**
+ * @brief Handle BMS power output
+ *
+ * @param[in] void
+ *
+ * @return void
+ */
+void handle_BMSpower();
+
+/**
  * @brief Contactor initialization
  *
  * @param[in] void

@@ -51,6 +51,7 @@
 #define POSITIVE_CONTACTOR_PIN 32
 #define NEGATIVE_CONTACTOR_PIN 33
 #define PRECHARGE_PIN 25
+#define BMS_POWER 18  // Note, this pin collides with CAN add-ons and Chademo
 
 // SMA CAN contactor pins
 #define INVERTER_CONTACTOR_ENABLE_PIN 5
