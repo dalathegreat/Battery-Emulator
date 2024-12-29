@@ -333,7 +333,7 @@ void map_can_frame_to_variable(CAN_frame* rx_frame, int interface) {
   }
   if (interface == can_config.battery_double) {
 #ifdef DOUBLE_BATTERY
-    map_can_frame_to_variable_battery2(*rx_frame);
+    handle_incoming_can_frame_battery2(*rx_frame);
 #endif
   }
   if (interface == can_config.charger) {

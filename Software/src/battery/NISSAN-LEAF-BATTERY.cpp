@@ -502,7 +502,7 @@ void update_values_battery2() {  // Handle the values coming in from battery #2
     }
   }
 }
-void map_can_frame_to_variable_battery2(CAN_frame rx_frame) {
+void handle_incoming_can_frame_battery2(CAN_frame rx_frame) {
   switch (rx_frame.ID) {
     case 0x1DB:
       if (is_message_corrupt(rx_frame)) {
