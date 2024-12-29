@@ -27,7 +27,6 @@ static uint16_t sendContactorClosingMessagesStill = 300;
 static uint16_t battery_cell_max_v = 3300;
 static uint16_t battery_cell_min_v = 3300;
 static uint16_t battery_cell_deviation_mV = 0;  //contains the deviation between highest and lowest cell in mV
-static bool cellvoltageRead = false;
 //0x3d2: 978 BMS_kwhCounter
 static uint32_t battery_total_discharge = 0;
 static uint32_t battery_total_charge = 0;
@@ -412,7 +411,6 @@ static bool battery_BMS_a180_SW_ECU_reset_blocked = false;
 static uint16_t battery2_cell_max_v = 3300;
 static uint16_t battery2_cell_min_v = 3300;
 static uint16_t battery2_cell_deviation_mV = 0;  //contains the deviation between highest and lowest cell in mV
-static bool battery2_cellvoltageRead = false;
 //0x3d2: 978 BMS_kwhCounter
 static uint32_t battery2_total_discharge = 0;
 static uint32_t battery2_total_charge = 0;
@@ -1154,6 +1152,7 @@ void update_values_battery() {  //This function maps all the values fetched via 
 void handle_incoming_can_frame_battery(CAN_frame rx_frame) {
   static uint8_t mux = 0;
   static uint16_t temp = 0;
+  static bool cellvoltageRead = false;
 
   switch (rx_frame.ID) {
     case 0x352:                            // 850 BMS_energyStatus newer BMS
@@ -1814,6 +1813,7 @@ void handle_incoming_can_frame_battery(CAN_frame rx_frame) {
 void map_can_frame_to_variable_battery2(CAN_frame rx_frame) {
   static uint8_t mux = 0;
   static uint16_t temp = 0;
+  static bool battery2_cellvoltageRead = false;
 
   switch (rx_frame.ID) {
     case 0x352:                            // BMS_energyStatus // newer BMS >2021
