@@ -99,7 +99,7 @@ void Logging::printf(const char* fmt, ...) {
   message_string = datalayer.system.info.logged_can_messages;
   offset = datalayer.system.info.logged_can_messages_offset;  // Keeps track of the current position in the buffer
   message_string_size = sizeof(datalayer.system.info.logged_can_messages);
-#endif
+
   if (offset + 128 > sizeof(datalayer.system.info.logged_can_messages)) {
     // Not enough space, reset and start from the beginning
     offset = 0;
@@ -113,4 +113,5 @@ void Logging::printf(const char* fmt, ...) {
   datalayer.system.info.logged_can_messages_offset = offset + size;  // Update offset in buffer
 
   previous_message_was_newline = true;
+#endif
 }
