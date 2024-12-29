@@ -9,11 +9,13 @@ volatile bool send_ok = 0;
 
 #ifdef CAN_ADDON
 static const uint32_t QUARTZ_FREQUENCY = CRYSTAL_FREQUENCY_MHZ * 1000000UL;  //MHZ configured in USER_SETTINGS.h
-ACAN2515 can(MCP2515_CS, SPI, MCP2515_INT);
+SPIClass SPI2515;
+ACAN2515 can(MCP2515_CS, SPI2515, MCP2515_INT);
 static ACAN2515_Buffer16 gBuffer;
 #endif  //CAN_ADDON
 #ifdef CANFD_ADDON
-ACAN2517FD canfd(MCP2517_CS, SPI, MCP2517_INT);
+SPIClass SPI2517;
+ACAN2517FD canfd(MCP2517_CS, SPI2517, MCP2517_INT);
 #endif  //CANFD_ADDON
 
 // Initialization functions
@@ -39,20 +41,20 @@ void init_CAN() {
   logging.println("Dual CAN Bus (ESP32+MCP2515) selected");
 #endif  // DEBUG_LOG
   gBuffer.initWithSize(25);
-  SPI.begin(MCP2515_SCK, MCP2515_MISO, MCP2515_MOSI);
-  ACAN2515Settings settings(QUARTZ_FREQUENCY, 500UL * 1000UL);  // CAN bit rate 500 kb/s
-  settings.mRequestedMode = ACAN2515Settings::NormalMode;
-  const uint16_t errorCodeMCP = can.begin(settings, [] { can.isr(); });
-  if (errorCodeMCP == 0) {
+  SPI2515.begin(MCP2515_SCK, MCP2515_MISO, MCP2515_MOSI);
+  ACAN2515Settings settings2515(QUARTZ_FREQUENCY, 500UL * 1000UL);  // CAN bit rate 500 kb/s
+  settings2515.mRequestedMode = ACAN2515Settings::NormalMode;
+  const uint16_t errorCode2515 = can.begin(settings2515, [] { can.isr(); });
+  if (errorCode2515 == 0) {
 #ifdef DEBUG_LOG
     logging.println("Can ok");
 #endif  // DEBUG_LOG
   } else {
 #ifdef DEBUG_LOG
     logging.print("Error Can: 0x");
-    logging.println(errorCodeMCP, HEX);
+    logging.println(errorCode2515, HEX);
 #endif  // DEBUG_LOG
-    set_event(EVENT_CANMCP_INIT_FAILURE, (uint8_t)errorCodeMCP);
+    set_event(EVENT_CANMCP2515_INIT_FAILURE, (uint8_t)errorCode2515);
   }
 #endif  // CAN_ADDON
 
@@ -60,41 +62,41 @@ void init_CAN() {
 #ifdef DEBUG_LOG
   logging.println("CAN FD add-on (ESP32+MCP2517) selected");
 #endif  // DEBUG_LOG
-  SPI.begin(MCP2517_SCK, MCP2517_SDO, MCP2517_SDI);
-  ACAN2517FDSettings settings(CANFD_ADDON_CRYSTAL_FREQUENCY_MHZ, 500 * 1000,
-                              DataBitRateFactor::x4);  // Arbitration bit rate: 500 kbit/s, data bit rate: 2 Mbit/s
+  SPI2517.begin(MCP2517_SCK, MCP2517_SDO, MCP2517_SDI);
+  ACAN2517FDSettings settings2517(CANFD_ADDON_CRYSTAL_FREQUENCY_MHZ, 500 * 1000,
+                                  DataBitRateFactor::x4);  // Arbitration bit rate: 500 kbit/s, data bit rate: 2 Mbit/s
 #ifdef USE_CANFD_INTERFACE_AS_CLASSIC_CAN
-  settings.mRequestedMode = ACAN2517FDSettings::Normal20B;  // ListenOnly / Normal20B / NormalFD
-#else                                                       // not USE_CANFD_INTERFACE_AS_CLASSIC_CAN
-  settings.mRequestedMode = ACAN2517FDSettings::NormalFD;  // ListenOnly / Normal20B / NormalFD
-#endif                                                      // USE_CANFD_INTERFACE_AS_CLASSIC_CAN
-  const uint32_t errorCode = canfd.begin(settings, [] { canfd.isr(); });
+  settings2517.mRequestedMode = ACAN2517FDSettings::Normal20B;  // ListenOnly / Normal20B / NormalFD
+#else                                                           // not USE_CANFD_INTERFACE_AS_CLASSIC_CAN
+  settings2517.mRequestedMode = ACAN2517FDSettings::NormalFD;  // ListenOnly / Normal20B / NormalFD
+#endif                                                          // USE_CANFD_INTERFACE_AS_CLASSIC_CAN
+  const uint32_t errorCode2517 = canfd.begin(settings2517, [] { canfd.isr(); });
   canfd.poll();
-  if (errorCode == 0) {
+  if (errorCode2517 == 0) {
 #ifdef DEBUG_LOG
     logging.print("Bit Rate prescaler: ");
-    logging.println(settings.mBitRatePrescaler);
+    logging.println(settings2517.mBitRatePrescaler);
     logging.print("Arbitration Phase segment 1: ");
-    logging.print(settings.mArbitrationPhaseSegment1);
+    logging.print(settings2517.mArbitrationPhaseSegment1);
     logging.print(" segment 2: ");
-    logging.print(settings.mArbitrationPhaseSegment2);
+    logging.print(settings2517.mArbitrationPhaseSegment2);
     logging.print(" SJW: ");
-    logging.println(settings.mArbitrationSJW);
+    logging.println(settings2517.mArbitrationSJW);
     logging.print("Actual Arbitration Bit Rate: ");
-    logging.print(settings.actualArbitrationBitRate());
+    logging.print(settings2517.actualArbitrationBitRate());
     logging.print(" bit/s");
     logging.print(" (Exact:");
-    logging.println(settings.exactArbitrationBitRate() ? "yes)" : "no)");
+    logging.println(settings2517.exactArbitrationBitRate() ? "yes)" : "no)");
     logging.print("Arbitration Sample point: ");
-    logging.print(settings.arbitrationSamplePointFromBitStart());
+    logging.print(settings2517.arbitrationSamplePointFromBitStart());
     logging.println("%");
 #endif  // DEBUG_LOG
   } else {
 #ifdef DEBUG_LOG
     logging.print("CAN-FD Configuration error 0x");
-    logging.println(errorCode, HEX);
+    logging.println(errorCode2517, HEX);
 #endif  // DEBUG_LOG
-    set_event(EVENT_CANFD_INIT_FAILURE, (uint8_t)errorCode);
+    set_event(EVENT_CANMCP2517FD_INIT_FAILURE, (uint8_t)errorCode2517);
   }
 #endif  // CANFD_ADDON
 }

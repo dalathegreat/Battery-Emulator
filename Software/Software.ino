@@ -1,16 +1,13 @@
 /* Do not change any code below this line unless you are sure what you are doing */
 /* Only change battery specific settings in "USER_SETTINGS.h" */
-
-#include "src/include.h"
-
 #include "HardwareSerial.h"
+#include "USER_SECRETS.h"
 #include "USER_SETTINGS.h"
 #include "esp_system.h"
 #include "esp_task_wdt.h"
 #include "esp_timer.h"
 #include "freertos/FreeRTOS.h"
 #include "freertos/task.h"
-#include "src/charger/CHARGERS.h"
 #include "src/communication/can/comm_can.h"
 #include "src/communication/contactorcontrol/comm_contactorcontrol.h"
 #include "src/communication/equipmentstopbutton/comm_equipmentstopbutton.h"
@@ -22,6 +19,7 @@
 #include "src/devboard/utils/led_handler.h"
 #include "src/devboard/utils/logging.h"
 #include "src/devboard/utils/value_mapping.h"
+#include "src/include.h"
 #include "src/lib/YiannisBourkelis-Uptime-Library/src/uptime.h"
 #include "src/lib/YiannisBourkelis-Uptime-Library/src/uptime_formatter.h"
 #include "src/lib/bblanchon-ArduinoJson/ArduinoJson.h"
@@ -30,7 +28,10 @@
 #include "src/lib/eModbus-eModbus/scripts/mbServerFCs.h"
 #include "src/lib/miwagner-ESP32-Arduino-CAN/CAN_config.h"
 #include "src/lib/miwagner-ESP32-Arduino-CAN/ESP32CAN.h"
-
+#ifndef AP_PASSWORD
+#error \
+    "Initial setup not completed, USER_SECRETS.h is missing. Please rename the file USER_SECRETS.TEMPLATE.h to USER_SECRETS.h and fill in the required credentials. This file is ignored by version control to keep sensitive information private."
+#endif
 #ifdef WIFI
 #include "src/devboard/wifi/wifi.h"
 #ifdef WEBSERVER
@@ -233,9 +234,6 @@ void core_loop(void* task_time_us) {
       update_machineryprotection();  // Check safeties (Not on serial link reciever board)
 #endif                               // SERIAL_LINK_RECEIVER
       update_values_inverter();      // Update values heading towards inverter
-      if (DUMMY_EVENT_ENABLED) {
-        set_event(EVENT_DUMMY_ERROR, (uint8_t)millis());
-      }
     }
     END_TIME_MEASUREMENT_MAX(time_values, datalayer.system.status.time_values_us);
 

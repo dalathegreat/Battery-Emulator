@@ -140,8 +140,8 @@ void init_events(void) {
     events.entries[i].MQTTpublished = false;  // Not published by default
   }
 
-  events.entries[EVENT_CANFD_INIT_FAILURE].level = EVENT_LEVEL_WARNING;
-  events.entries[EVENT_CANMCP_INIT_FAILURE].level = EVENT_LEVEL_WARNING;
+  events.entries[EVENT_CANMCP2517FD_INIT_FAILURE].level = EVENT_LEVEL_WARNING;
+  events.entries[EVENT_CANMCP2515_INIT_FAILURE].level = EVENT_LEVEL_WARNING;
   events.entries[EVENT_CANFD_BUFFER_FULL].level = EVENT_LEVEL_WARNING;
   events.entries[EVENT_CAN_OVERRUN].level = EVENT_LEVEL_INFO;
   events.entries[EVENT_CANFD_RX_OVERRUN].level = EVENT_LEVEL_WARNING;
@@ -264,9 +264,9 @@ void set_event_MQTTpublished(EVENTS_ENUM_TYPE event) {
 
 const char* get_event_message_string(EVENTS_ENUM_TYPE event) {
   switch (event) {
-    case EVENT_CANFD_INIT_FAILURE:
+    case EVENT_CANMCP2517FD_INIT_FAILURE:
       return "CAN-FD initialization failed. Check hardware or bitrate settings";
-    case EVENT_CANMCP_INIT_FAILURE:
+    case EVENT_CANMCP2515_INIT_FAILURE:
       return "CAN-MCP addon initialization failed. Check hardware";
     case EVENT_CANFD_BUFFER_FULL:
       return "CAN-FD buffer overflowed. Some CAN messages were not sent. Contact developers.";

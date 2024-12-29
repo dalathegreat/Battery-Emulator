@@ -68,7 +68,7 @@ CAN_frame SOLAX_187E = {.FD = false,  //Needed for Ultra
                         .ext_ID = true,
                         .DLC = 8,
                         .ID = 0x187E,
-                        .data = {0x0, 0x2D, 0x0, 0x0, 0x0, 0x5F, 0x0, 0x0}};
+                        .data = {0x60, 0xEA, 0x0, 0x0, 0x64, 0x0, 0x0, 0x0}};
 CAN_frame SOLAX_187D = {.FD = false,  //Needed for Ultra
                         .ext_ID = true,
                         .DLC = 8,
@@ -88,7 +88,7 @@ CAN_frame SOLAX_187A = {.FD = false,  //Needed for Ultra
                         .ext_ID = true,
                         .DLC = 8,
                         .ID = 0x187A,
-                        .data = {0x01, 0x40, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0}};
+                        .data = {0x01, 0x50, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0}};
 CAN_frame SOLAX_1881 = {.FD = false,
                         .ext_ID = true,
                         .DLC = 8,
@@ -190,6 +190,13 @@ void update_values_can_inverter() {  //This function maps all the values fetched
   SOLAX_1801.data.u8[0] = 2;
   SOLAX_1801.data.u8[2] = 1;
   SOLAX_1801.data.u8[4] = 1;
+
+  //Ultra messages
+  SOLAX_187E.data.u8[0] = (uint8_t)capped_remaining_capacity_Wh;
+  SOLAX_187E.data.u8[1] = (capped_remaining_capacity_Wh >> 8);
+  SOLAX_187E.data.u8[2] = 0;
+  SOLAX_187E.data.u8[3] = 0;
+  SOLAX_187E.data.u8[5] = (uint8_t)(datalayer.battery.status.reported_soc / 100);
 }
 
 void send_can_inverter() {
@@ -212,7 +219,9 @@ void receive_can_inverter(CAN_frame rx_frame) {
 #endif
         datalayer.system.status.inverter_allows_contactor_closing = false;
         SOLAX_1875.data.u8[4] = (0x00);  // Inform Inverter: Contactor 0=off, 1=on.
-        for (int i = 0; i <= number_of_batteries; i++) {
+        for (uint8_t i = 0; i <= number_of_batteries; i++) {
+          transmit_can(&SOLAX_187E, can_config.inverter);
+          transmit_can(&SOLAX_187A, can_config.inverter);
           transmit_can(&SOLAX_1872, can_config.inverter);
           transmit_can(&SOLAX_1873, can_config.inverter);
           transmit_can(&SOLAX_1874, can_config.inverter);
@@ -230,6 +239,8 @@ void receive_can_inverter(CAN_frame rx_frame) {
 
       case (WAITING_FOR_CONTACTOR):
         SOLAX_1875.data.u8[4] = (0x00);  // Inform Inverter: Contactor 0=off, 1=on.
+        transmit_can(&SOLAX_187E, can_config.inverter);
+        transmit_can(&SOLAX_187A, can_config.inverter);
         transmit_can(&SOLAX_1872, can_config.inverter);
         transmit_can(&SOLAX_1873, can_config.inverter);
         transmit_can(&SOLAX_1874, can_config.inverter);
@@ -247,6 +258,8 @@ void receive_can_inverter(CAN_frame rx_frame) {
       case (CONTACTOR_CLOSED):
         datalayer.system.status.inverter_allows_contactor_closing = true;
         SOLAX_1875.data.u8[4] = (0x01);  // Inform Inverter: Contactor 0=off, 1=on.
+        transmit_can(&SOLAX_187E, can_config.inverter);
+        transmit_can(&SOLAX_187A, can_config.inverter);
         transmit_can(&SOLAX_1872, can_config.inverter);
         transmit_can(&SOLAX_1873, can_config.inverter);
         transmit_can(&SOLAX_1874, can_config.inverter);
@@ -281,12 +294,5 @@ void setup_inverter(void) {  // Performs one time setup at startup
   strncpy(datalayer.system.info.inverter_protocol, "SolaX Triple Power LFP over CAN bus", 63);
   datalayer.system.info.inverter_protocol[63] = '\0';
   datalayer.system.status.inverter_allows_contactor_closing = false;  // The inverter needs to allow first
-
-  // Sending these messages once towards the inverter makes SOC% work on the Ultra variant
-  transmit_can(&SOLAX_187E, can_config.inverter);
-  transmit_can(&SOLAX_187D, can_config.inverter);
-  transmit_can(&SOLAX_187C, can_config.inverter);
-  transmit_can(&SOLAX_187B, can_config.inverter);
-  transmit_can(&SOLAX_187A, can_config.inverter);
 }
 #endif
