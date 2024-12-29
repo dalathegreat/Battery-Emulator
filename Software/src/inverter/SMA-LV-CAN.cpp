@@ -16,6 +16,11 @@ static unsigned long previousMillis100ms = 0;
 #define MIN_VOLTAGE_DV 41
 
 //Actual content messages
+CAN_frame SMA_00F = {.FD = false,  // Emergency stop message
+                     .ext_ID = false,
+                     .DLC = 8,  //Documentation unclear, should message even have any content?
+                     .ID = 0x00F,
+                     .data = {0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00}};
 CAN_frame SMA_351 = {.FD = false,  // Battery charge voltage, charge/discharge limit, min discharge voltage
                      .ext_ID = false,
                      .DLC = 8,
@@ -51,21 +56,16 @@ CAN_frame SMA_35F = {.FD = false,  // Battery Type, version, capacity, ID
                      .DLC = 8,
                      .ID = 0x35F,
                      .data = {0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00}};
-CAN_frame SMA_00F = {.FD = false,  // Emergency stop message
-                     .ext_ID = false,
-                     .DLC = 8,  //Documentation unclear, should message even have any content?
-                     .ID = 0x00F,
-                     .data = {0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00}};
 
 static int16_t temperature_average = 0;
 
 void update_values_can_inverter() {  //This function maps all the values fetched from battery CAN to the correct CAN messages
-  //Calculate values
-
+  // Update values
   temperature_average =
       ((datalayer.battery.status.temperature_max_dC + datalayer.battery.status.temperature_min_dC) / 2);
 
   //Map values to CAN messages
+
   //Battery charge voltage (eg 400.0V = 4000 , 16bits long) (MIN 41V, MAX 63V, default 54V)
   SMA_351.data.u8[0] = ((datalayer.battery.info.max_design_voltage_dV - VOLTAGE_OFFSET_DV) >> 8);
   SMA_351.data.u8[1] = ((datalayer.battery.info.max_design_voltage_dV - VOLTAGE_OFFSET_DV) & 0x00FF);
