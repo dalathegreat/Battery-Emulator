@@ -425,9 +425,15 @@ void update_values_battery2() {  //This function maps all the values fetched via
 
 void update_values_battery() {  //This function maps all the values fetched via CAN to the battery datalayer
   if (datalayer.system.settings.equipment_stop_active == true) {
-    digitalWrite(WUP_PIN, LOW);  // Turn off WUP_PIN
+    digitalWrite(WUP_PIN1, LOW);  // Turn off WUP_PIN1
+#if defined(WUP_PIN2) && defined(DOUBLE_BATTERY)
+    digitalWrite(WUP_PIN2, LOW);  // Turn off WUP_PIN2
+#endif                            // defined(WUP_PIN2) &&  defined (DOUBLE_BATTERY)
   } else {
-    digitalWrite(WUP_PIN, HIGH);  // Wake up the battery
+    digitalWrite(WUP_PIN1, HIGH);  // Wake up the battery
+#if defined(WUP_PIN2) && defined(DOUBLE_BATTERY)
+    digitalWrite(WUP_PIN2, HIGH);  // Wake up the battery2
+#endif                             // defined(WUP_PIN2) &&  defined (DOUBLE_BATTERY)
   }
 
   if (!battery_awake) {
@@ -1134,8 +1140,12 @@ void setup_battery(void) {  // Performs one time setup at startup
   datalayer.battery2.status.voltage_dV =
       0;  //Init voltage to 0 to allow contactor check to operate without fear of default values colliding
 #endif
-  pinMode(WUP_PIN, OUTPUT);
-  digitalWrite(WUP_PIN, HIGH);  // Wake up the battery
+  pinMode(WUP_PIN1, OUTPUT);
+  digitalWrite(WUP_PIN1, HIGH);  // Wake up the battery
+#if defined(DOUBLE_BATTERY) && defined(WUP_PIN2)
+  pinMode(WUP_PIN2, OUTPUT);
+  digitalWrite(WUP_PIN2, HIGH);  // Wake up the battery
+#endif                           // defined(WUP_PIN2) &&  defined (DOUBLE_BATTERY)
 }
 
 #endif
