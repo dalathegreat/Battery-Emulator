@@ -1,6 +1,9 @@
 #include "sdcard.h"
 #include "freertos/ringbuf.h"
 
+#if defined(SD_CS_PIN) && defined(SD_SCLK_PIN) && defined(SD_MOSI_PIN) && \
+    defined(SD_MISO_PIN)  // ensure code is only compiled if all SD card pins are defined
+
 File can_log_file;
 RingbufHandle_t can_bufferHandle;
 
@@ -149,3 +152,4 @@ void print_sdcard_details() {
     Serial.println(" MB");
   }
 }
+#endif  // defined(SD_CS_PIN) && defined(SD_SCLK_PIN) && defined(SD_MOSI_PIN) && defined(SD_MISO_PIN)
