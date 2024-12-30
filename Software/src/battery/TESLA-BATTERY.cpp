@@ -1132,11 +1132,11 @@ void update_values_battery() {  //This function maps all the values fetched via 
   logging.print("Cellstats, Max: ");
   logging.print(battery_cell_max_v);
   logging.print("mV (cell ");
-  logging.print(battery_max_vno);
+  logging.print(battery_BrickVoltageMaxNum);
   logging.print("), Min: ");
   logging.print(battery_cell_min_v);
   logging.print("mV (cell ");
-  logging.print(battery_min_vno);
+  logging.print(battery_BrickVoltageMinNum);
   logging.print("), Imbalance: ");
   logging.print(battery_cell_deviation_mV);
   logging.println("mV.");
