@@ -60,6 +60,7 @@ jobs:
           - HW_LILYGO
           - HW_STARK
           - HW_3LB
+          - HW_DEVKIT
 
     # This is the platform GitHub will use to run our workflow.
     runs-on: ubuntu-latest
