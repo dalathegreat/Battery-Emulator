@@ -238,6 +238,22 @@ void update_machineryprotection() {
   if (datalayer.battery.status.max_charge_power_W == 0) {
     datalayer.battery.status.max_charge_current_dA = 0;
   }
+
+  //Decrement the forced balancing timer incase user requested it
+  if (datalayer.battery.settings.user_requests_balancing) {
+    // If this is the start of the balancing period, capture the current time
+    if (datalayer.battery.settings.balancing_start_time_ms == 0) {
+      datalayer.battery.settings.balancing_start_time_ms = millis();
+      //TODO, raise info event? Forced balancing starting!
+    }
+
+    // Check if the elapsed time exceeds the balancing time
+    if (millis() - datalayer.battery.settings.balancing_start_time_ms >= datalayer.battery.settings.balancing_time_ms) {
+      datalayer.battery.settings.user_requests_balancing = false;
+      datalayer.battery.settings.balancing_start_time_ms = 0;  // Reset the start time
+      //TODO, raise info event? Balancing time elapsed. Turning off...
+    }
+  }
 }
 
 //battery pause status begin
