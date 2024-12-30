@@ -904,6 +904,7 @@ void update_values_battery() {  //This function maps all the values fetched via 
 
   // During forced balancing request via webserver, we allow the battery to exceed normal safety parameters
   if (datalayer.battery.settings.user_requests_balancing) {
+    datalayer.battery.status.real_soc = 9900;  //Force battery to show up as 99% when balancing
     datalayer.battery.info.max_design_voltage_dV = datalayer.battery.settings.balancing_max_pack_voltage_dV;
     datalayer.battery.info.max_cell_voltage_mV = datalayer.battery.settings.balancing_max_cell_voltage_mV;
     datalayer.battery.info.max_cell_voltage_deviation_mV =
