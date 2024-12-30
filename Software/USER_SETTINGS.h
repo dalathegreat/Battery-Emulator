@@ -43,12 +43,12 @@
 //#define BYD_CAN          //Enable this line to emulate a "BYD Battery-Box Premium HVS" over CAN Bus
 //#define BYD_KOSTAL_RS485 //Enable this line to emulate a "BYD 11kWh HVM battery" over Kostal RS485
 //#define BYD_MODBUS       //Enable this line to emulate a "BYD 11kWh HVM battery" over Modbus RTU
-//#define BYD_SMA          //Enable this line to emulate a SMA compatible "BYD Battery-Box HVS 10.2KW battery" over CAN bus
 //#define FOXESS_CAN       //Enable this line to emulate a "HV2600/ECS4100 battery" over CAN bus
 //#define PYLON_LV_CAN     //Enable this line to emulate a "48V Pylontech battery" over CAN bus
 //#define PYLON_CAN        //Enable this line to emulate a "High Voltage Pylontech battery" over CAN bus
 //#define SCHNEIDER_CAN    //Enable this line to emulate a "Schneider Version 2: SE BMS" over CAN bus
-//#define SMA_CAN          //Enable this line to emulate a "BYD Battery-Box H 8.9kWh, 7 mod" over CAN bus
+//#define SMA_BYD_H_CAN    //Enable this line to emulate a "BYD Battery-Box H 8.9kWh, 7 mod" (SMA compatible) over CAN bus
+//#define SMA_BYD_HVS_CAN  //Enable this line to emulate a "BYD Battery-Box HVS 10.2KW battery" (SMA compatible) over CAN bus
 //#define SMA_LV_CAN       //Enable this line to emulate a "SMA Sunny Island 48V battery" over CAN bus
 //#define SMA_TRIPOWER_CAN //Enable this line to emulate a "SMA Home Storage battery" over CAN bus
 //#define SOFAR_CAN        //Enable this line to emulate a "Sofar Energy Storage Inverter High Voltage BMS General Protocol (Extended Frame)" over CAN bus

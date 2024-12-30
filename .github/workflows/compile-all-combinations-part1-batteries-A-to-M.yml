@@ -72,12 +72,12 @@ jobs:
           - BYD_CAN
           - BYD_KOSTAL_RS485
           - BYD_MODBUS
-          - BYD_SMA
           - FOXESS_CAN
           - PYLON_CAN
           - PYLON_LV_CAN
           - SCHNEIDER_CAN
-          - SMA_CAN
+          - SMA_BYD_H_CAN
+          - SMA_BYD_HVS_CAN
           - SMA_LV_CAN
           - SMA_TRIPOWER_CAN
           - SOFAR_CAN

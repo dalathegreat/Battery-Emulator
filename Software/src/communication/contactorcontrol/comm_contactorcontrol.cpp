@@ -90,7 +90,7 @@ void init_contactors() {
 
 // Main functions
 void handle_contactors() {
-#if defined(BYD_SMA) || defined(SMA_TRIPOWER_CAN)
+#if defined(SMA_BYD_H_CAN) || defined(SMA_BYD_HVS_CAN) || defined(SMA_TRIPOWER_CAN)
   datalayer.system.status.inverter_allows_contactor_closing = digitalRead(INVERTER_CONTACTOR_ENABLE_PIN);
 #endif
 
