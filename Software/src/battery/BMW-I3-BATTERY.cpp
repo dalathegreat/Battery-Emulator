@@ -19,6 +19,7 @@ static unsigned long previousMillis10000 = 0;  // will store last time a 10000ms
 
 enum BatterySize { BATTERY_60AH, BATTERY_94AH, BATTERY_120AH };
 static BatterySize detectedBattery = BATTERY_60AH;
+static BatterySize detectedBattery2 = BATTERY_60AH;  // For double battery setups
 
 enum CmdState { SOH, CELL_VOLTAGE_MINMAX, SOC, CELL_VOLTAGE_CELLNO, CELL_VOLTAGE_CELLNO_LAST };
 
@@ -390,12 +391,12 @@ void update_values_battery2() {  //This function maps all the values fetched via
 
   if (battery2_info_available) {
     // Start checking safeties. First up, cellvoltages!
-    if (detectedBattery == BATTERY_60AH) {
+    if (detectedBattery2 == BATTERY_60AH) {
       datalayer.battery2.info.max_design_voltage_dV = MAX_PACK_VOLTAGE_60AH;
       datalayer.battery2.info.min_design_voltage_dV = MIN_PACK_VOLTAGE_60AH;
       datalayer.battery2.info.max_cell_voltage_mV = MAX_CELL_VOLTAGE_60AH;
       datalayer.battery2.info.min_cell_voltage_mV = MIN_CELL_VOLTAGE_60AH;
-    } else if (detectedBattery == BATTERY_94AH) {
+    } else if (detectedBattery2 == BATTERY_94AH) {
       datalayer.battery2.info.max_design_voltage_dV = MAX_PACK_VOLTAGE_94AH;
       datalayer.battery2.info.min_design_voltage_dV = MIN_PACK_VOLTAGE_94AH;
       datalayer.battery2.info.max_cell_voltage_mV = MAX_CELL_VOLTAGE_94AH;
@@ -787,6 +788,13 @@ void map_can_frame_to_variable_battery2(CAN_frame rx_frame) {
       battery2_prediction_duration_charging_minutes = (rx_frame.data.u8[3] << 8 | rx_frame.data.u8[2]);
       battery2_prediction_time_end_of_charging_minutes = rx_frame.data.u8[4];
       battery2_energy_content_maximum_kWh = (((rx_frame.data.u8[6] & 0x0F) << 8 | rx_frame.data.u8[5])) / 50;
+      if (battery2_energy_content_maximum_kWh > 33) {
+        detectedBattery2 = BATTERY_120AH;
+      } else if (battery2_energy_content_maximum_kWh > 20) {
+        detectedBattery2 = BATTERY_94AH;
+      } else {
+        detectedBattery2 = BATTERY_60AH;
+      }
       break;
     case 0x432:  //BMS [200ms] SOC% info
       battery2_request_operating_mode = (rx_frame.data.u8[0] & 0x03);
