@@ -1808,7 +1808,7 @@ void handle_incoming_can_frame_battery(CAN_frame rx_frame) {
 
 #ifdef DOUBLE_BATTERY  //Need to update battery2
 
-void map_can_frame_to_variable_battery2(CAN_frame rx_frame) {
+void handle_incoming_can_frame_battery2(CAN_frame rx_frame) {
   static uint8_t mux = 0;
   static uint16_t temp = 0;
 

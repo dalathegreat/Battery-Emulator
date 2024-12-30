@@ -122,7 +122,7 @@ void update_values_battery2() {  // Handle the values coming in from battery #2
 #endif
 }
 
-void map_can_frame_to_variable_battery2(CAN_frame rx_frame) {
+void handle_incoming_can_frame_battery2(CAN_frame rx_frame) {
   datalayer.battery2.status.CAN_battery_still_alive = CAN_STILL_ALIVE;
 }
 #endif  // DOUBLE_BATTERY

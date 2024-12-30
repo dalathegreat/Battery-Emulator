@@ -426,7 +426,7 @@ void update_values_battery2() {  //This function maps all the values fetched via
   }
 }
 
-void map_can_frame_to_variable_battery2(CAN_frame rx_frame) {
+void handle_incoming_can_frame_battery2(CAN_frame rx_frame) {
   switch (rx_frame.ID) {
     case 0x1FF:
       datalayer.battery2.status.CAN_battery_still_alive = CAN_STILL_ALIVE;

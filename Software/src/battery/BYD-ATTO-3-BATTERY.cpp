@@ -477,7 +477,7 @@ void update_values_battery2() {  //This function maps all the values fetched via
   datalayer.battery2.status.temperature_max_dC = battery2_calc_max_temperature * 10;
 }
 
-void map_can_frame_to_variable_battery2(CAN_frame rx_frame) {
+void handle_incoming_can_frame_battery2(CAN_frame rx_frame) {
   switch (rx_frame.ID) {  //Log values taken with 422V from battery2
     case 0x244:           //00,00,00,04,41,0F,20,8B - Static, values never changes between logs
       break;
