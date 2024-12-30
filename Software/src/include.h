@@ -20,7 +20,7 @@
 /* - ERROR CHECKS BELOW, DON'T TOUCH - */
 
 #if !defined(HW_CONFIGURED)
-#error You must select a HW to run on!
+#error You must select a target hardware in the USER_SERTTINGS.h file!
 #endif
 
 #if defined(CAN_ADDON) && defined(CANFD_ADDON)
