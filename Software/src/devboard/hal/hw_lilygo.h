@@ -83,6 +83,11 @@
 #error Multiple HW defined! Please select a single HW
 #endif
 
+#if defined(CAN_ADDON) && defined(CANFD_ADDON)
+// Check that user did not try to use dual can and fd-can on same hardware pins
+#error CAN_ADDON AND CANFD_ADDON CANNOT BE USED SIMULTANEOUSLY
+#endif
+
 #ifdef CHADEMO_BATTERY
 #ifdef CAN_ADDON
 #error CHADEMO and CAN_ADDON cannot coexist due to overlapping GPIO pin usage
