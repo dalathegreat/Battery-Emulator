@@ -95,11 +95,11 @@ void update_values_battery() {  //This function maps all the values fetched via 
   }
 
 #ifdef DEBUG_LOG
-  logging.print("BMS reported SOC%: ");
+  logging.print("BMS reported SOC: ");
   logging.println(SOC_BMS);
-  logging.print("Calculated SOC%: ");
+  logging.print("Calculated SOC: ");
   logging.println(SOC_CALC);
-  logging.print("Rescaled SOC%: ");
+  logging.print("Rescaled SOC: ");
   logging.println(datalayer.battery.status.reported_soc / 100);
   logging.print("Battery current: ");
   logging.println(BATT_I);
