@@ -58,6 +58,7 @@
 //#define HW_LILYGO
 //#define HW_STARK
 //#define HW_3LB
+//#define HW_DEVKIT
 
 /* Contactor settings. If you have a battery that does not activate contactors via CAN, configure this section */
 #define PRECHARGE_TIME_MS 500  //Precharge time in milliseconds. Modify to suit your inverter (See wiki for more info)

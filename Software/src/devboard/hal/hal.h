@@ -9,6 +9,8 @@
 #include "hw_stark.h"
 #elif defined(HW_3LB)
 #include "hw_3LB.h"
+#elif defined(HW_DEVKIT)
+#include "hw_devkit.h"
 #endif
 
 #endif

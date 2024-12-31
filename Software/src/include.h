@@ -23,11 +23,6 @@
 #error You must select a target hardware in the USER_SERTTINGS.h file!
 #endif
 
-#if defined(CAN_ADDON) && defined(CANFD_ADDON)
-// Check that user did not try to use dual can and fd-can on same hardware pins
-#error CAN_ADDON AND CANFD_ADDON CANNOT BE USED SIMULTANEOUSLY
-#endif
-
 #ifdef USE_CANFD_INTERFACE_AS_CLASSIC_CAN
 #if !defined(CANFD_ADDON)
 // Check that user did not try to use classic CAN over FD, without FD component
