@@ -11,49 +11,45 @@ size_t Logging::write(const uint8_t* buffer, size_t size) {
   size_t message_string_size = sizeof(datalayer.system.info.logged_can_messages);
   unsigned long currentTime = millis();
   char timestr[14];
+  size_t n = 0;
   if (previous_message_was_newline) {
     snprintf(timestr, sizeof(timestr), "%8lu.%03lu ", currentTime / 1000, currentTime % 1000);
-    for (int i = 0; i < 13; i++) {
+
 #ifdef LOG_TO_SD
-      add_log_to_buffer(timestr[i]);
+    add_log_to_buffer((uint8_t*)timestr, 13);
 #endif
 #ifdef DEBUG_VIA_USB
-      Serial.write(timestr[i]);
+    Serial.write(timestr);
 #endif
-    }
   }
-  previous_message_was_newline = buffer[size - 1] == '\n';
 #ifdef LOG_TO_SD
-  for (size_t i = 0; i < size; i++) {
-    add_log_to_buffer(buffer[i]);
-  }
+  add_log_to_buffer(buffer, size);
 #endif
 #ifdef DEBUG_VIA_USB
-  size_t n = 0;
-  while (size--) {
-    if (Serial.write(*buffer++))
-      n++;
-    else
-      break;
-  }
-  return n;
+  Serial.write(buffer, size);
 #endif
 #ifdef DEBUG_VIA_WEB
-  if (datalayer.system.info.can_logging_active) {
-    return 0;
-  }
-  if (offset + size + 13 > sizeof(datalayer.system.info.logged_can_messages)) {
-    offset = 0;
-  }
-  if (previous_message_was_newline) {
-    memcpy(message_string + offset, timestr, 13);
-    offset += 13;
-  }
+  if (!datalayer.system.info.can_logging_active) {
 
-  memcpy(message_string + offset, buffer, size);
-  datalayer.system.info.logged_can_messages_offset = offset + size;  // Update offset in buffer
-  return size;
+    if (offset + size + 13 > message_string_size) {
+      offset = 0;
+    }
+    if (previous_message_was_newline) {
+      memcpy(message_string + offset, timestr, 13);
+      offset += 13;
+    }
+
+    memcpy(message_string + offset, buffer, size);
+    datalayer.system.info.logged_can_messages_offset = offset + size;  // Update offset in buffer
+  }
 #endif  // DEBUG_VIA_WEB
+
+  previous_message_was_newline = buffer[size - 1] == '\n';
+
+  if (n == 0)
+    n = size;
+
+  return n;
 #endif  // DEBUG_LOG
   return 0;
 }
@@ -67,14 +63,13 @@ void Logging::printf(const char* fmt, ...) {
   unsigned long currentTime = millis();
   char timestr[14];
   snprintf(timestr, sizeof(timestr), "%8lu.%03lu ", currentTime / 1000, currentTime % 1000);
-  for (int i = 0; i < 13; i++) {
+
 #ifdef LOG_TO_SD
-    add_log_to_buffer(timestr[i]);
+  add_log_to_buffer((uint8_t*)timestr, 13);
 #endif
 #ifdef DEBUG_VIA_USB
-    Serial.write(timestr[i]);
+  Serial.write(timestr);
 #endif
-  }
 
   static char buffer[128];
   va_list(args);
@@ -82,36 +77,33 @@ void Logging::printf(const char* fmt, ...) {
   int size = vsnprintf(buffer, sizeof(buffer), fmt, args);
   va_end(args);
 
-  for (int i = 0; i < size; i++) {
 #ifdef LOG_TO_SD
-    add_log_to_buffer(buffer[i]);
+  add_log_to_buffer((uint8_t*)buffer, size);
 #endif
 #ifdef DEBUG_VIA_USB
-    Serial.write(buffer[i]);
+  Serial.write(buffer, size);
 #endif
-  }
 #endif
 
 #ifdef DEBUG_VIA_WEB
-  if (datalayer.system.info.can_logging_active) {
-    return;
+  if (!datalayer.system.info.can_logging_active) {
+
+    message_string = datalayer.system.info.logged_can_messages;
+    offset = datalayer.system.info.logged_can_messages_offset;  // Keeps track of the current position in the buffer
+
+    if (offset + 128 + 13 > message_string_size) {
+      // Not enough space, reset and start from the beginning
+      offset = 0;
+    }
+
+    // Add timestamp
+    memcpy(message_string + offset, timestr, 13);
+    offset += 13;
+
+    memcpy(message_string + offset, buffer, size);
+    datalayer.system.info.logged_can_messages_offset = offset + size;  // Update offset in buffer
   }
-  message_string = datalayer.system.info.logged_can_messages;
-  offset = datalayer.system.info.logged_can_messages_offset;  // Keeps track of the current position in the buffer
-  message_string_size = sizeof(datalayer.system.info.logged_can_messages);
 
-  if (offset + 128 > sizeof(datalayer.system.info.logged_can_messages)) {
-    // Not enough space, reset and start from the beginning
-    offset = 0;
-  }
-
-  // Add timestamp
-  memcpy(message_string + offset, timestr, 13);
-  offset += 13;
-
-  memcpy(message_string + offset, buffer, size);
-  datalayer.system.info.logged_can_messages_offset = offset + size;  // Update offset in buffer
-
-  previous_message_was_newline = true;
 #endif
+  previous_message_was_newline = true;
 }

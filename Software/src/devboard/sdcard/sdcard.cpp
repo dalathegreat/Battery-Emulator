@@ -117,12 +117,12 @@ void write_can_frame_to_sdcard() {
   }
 }
 
-void add_log_to_buffer(uint8_t buffer) {
+void add_log_to_buffer(const uint8_t* buffer, size_t size) {
 
   if (!sd_card_active)
     return;
 
-  if (xRingbufferSend(log_bufferHandle, &buffer, sizeof(buffer), 0) != pdTRUE) {
+  if (xRingbufferSend(log_bufferHandle, buffer, size, 0) != pdTRUE) {
     Serial.println("Failed to send log to ring buffer!");
     return;
   }
@@ -155,17 +155,21 @@ void write_log_to_sdcard() {
 }
 
 void init_logging_buffers() {
+#if defined(LOG_CAN_TO_SD)
   can_bufferHandle = xRingbufferCreate(32 * 1024, RINGBUF_TYPE_BYTEBUF);
   if (can_bufferHandle == NULL) {
     Serial.println("Failed to create CAN ring buffer!");
     return;
   }
+#endif  // defined(LOG_CAN_TO_SD)
 
-  log_bufferHandle = xRingbufferCreate(32 * 1024, RINGBUF_TYPE_BYTEBUF);
+#if defined(LOG_TO_SD)
+  log_bufferHandle = xRingbufferCreate(1024, RINGBUF_TYPE_BYTEBUF);
   if (log_bufferHandle == NULL) {
     Serial.println("Failed to create log ring buffer!");
     return;
   }
+#endif  // defined(LOG_TO_SD)
 }
 
 void init_sdcard() {

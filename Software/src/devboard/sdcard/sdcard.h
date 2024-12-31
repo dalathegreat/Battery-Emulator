@@ -26,7 +26,7 @@ void delete_log();
 void resume_log_writing();
 void pause_log_writing();
 
-void add_log_to_buffer(uint8_t buffer);
+void add_log_to_buffer(const uint8_t* buffer, size_t size);
 void write_log_to_sdcard();
 
 #endif  // defined(SD_CS_PIN) && defined(SD_SCLK_PIN) && defined(SD_MOSI_PIN) && defined(SD_MISO_PIN)
