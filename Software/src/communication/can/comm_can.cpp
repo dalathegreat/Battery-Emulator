@@ -347,7 +347,7 @@ void map_can_frame_to_variable(CAN_frame* rx_frame, int interface) {
   }
   if (interface == can_config.shunt) {
 #ifdef CAN_SHUNT_SELECTED
-    map_can_frame_to_variable_shunt(*rx_frame);
+    handle_incoming_can_frame_shunt(*rx_frame);
 #endif
   }
 }

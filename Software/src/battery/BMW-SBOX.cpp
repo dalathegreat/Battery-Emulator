@@ -64,7 +64,7 @@ uint8_t calculateCRC(CAN_frame CAN) {
   return crc;
 }
 
-void map_can_frame_to_variable_shunt(CAN_frame rx_frame) {
+void handle_incoming_can_frame_shunt(CAN_frame rx_frame) {
   unsigned long currentTime = millis();
   if (rx_frame.ID == 0x200) {
     ShuntLastSeen = currentTime;

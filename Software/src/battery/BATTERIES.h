@@ -4,7 +4,7 @@
 
 #ifdef BMW_SBOX
 #include "BMW-SBOX.h"
-void map_can_frame_to_variable_shunt(CAN_frame rx_frame);
+void handle_incoming_can_frame_shunt(CAN_frame rx_frame);
 void transmit_can_shunt();
 void setup_can_shunt();
 #endif
