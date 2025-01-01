@@ -14,6 +14,7 @@ unsigned long positiveStartTime = 0;
 unsigned long timeSpentInFaultedMode = 0;
 unsigned long LastMsgTime = 0;  // will store last time a 20ms CAN Message was send
 unsigned long LastAvgTime = 0;  // Last current storage time
+unsigned long ShuntLastSeen = 0;
 
 uint32_t avg_mA_array[10];
 uint32_t avg_sum;
@@ -68,6 +69,7 @@ void receive_can_shunt(CAN_frame rx_frame) {
   unsigned long currentTime = millis();
   if(rx_frame.ID ==0x200)
   { 
+    ShuntLastSeen=currentTime;
     datalayer.shunt.measured_amperage_mA=((rx_frame.data.u8[2]<<24)| (rx_frame.data.u8[1]<<16)| (rx_frame.data.u8[0]<<8))/256;
 
     /** Calculate 1S avg current **/
@@ -89,16 +91,29 @@ void receive_can_shunt(CAN_frame rx_frame) {
   }
   else if(rx_frame.ID ==0x210) //SBOX input (battery side) voltage
   { 
+    ShuntLastSeen=currentTime;
     datalayer.shunt.measured_voltage_mV=((rx_frame.data.u8[2]<<16)| (rx_frame.data.u8[1]<<8)| (rx_frame.data.u8[0]));
   }  
   else if(rx_frame.ID ==0x220) //SBOX output voltage
   { 
+    ShuntLastSeen=currentTime;
     datalayer.shunt.measured_outvoltage_mV=((rx_frame.data.u8[2]<<16)| (rx_frame.data.u8[1]<<8)| (rx_frame.data.u8[0]));
+    datalayer.shunt.available=true;
   }
 }
 
 void send_can_shunt() {
   unsigned long currentTime = millis();
+
+  /** Shunt can frames seen? **/
+  if(ShuntLastSeen+1000<currentTime)
+  {
+    datalayer.shunt.available=false;
+  }
+  else
+  {
+    datalayer.shunt.available=true;
+  }
   // Send 20ms CAN Message
   if (currentTime - LastMsgTime >= INTERVAL_20_MS) {
     LastMsgTime = currentTime;
