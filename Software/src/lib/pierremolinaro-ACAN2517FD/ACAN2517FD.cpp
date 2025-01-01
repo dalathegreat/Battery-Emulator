@@ -6,6 +6,7 @@
 //----------------------------------------------------------------------------------------------------------------------
 
 #include "ACAN2517FD.h"
+#include "../../system_settings.h" //Contains task priority
 
 //----------------------------------------------------------------------------------------------------------------------
 
@@ -506,7 +507,7 @@ uint32_t ACAN2517FD::begin (const ACAN2517FDSettings & inSettings,
       }
     }
     #ifdef ARDUINO_ARCH_ESP32
-      xTaskCreate (myESP32Task, "ACAN2517Handler", 1024, this, 256, &mESP32TaskHandle) ;
+      xTaskCreate (myESP32Task, "ACAN2517Handler", 1024, this, TASK_ACAN2517FD_PRIORITY, &mESP32TaskHandle) ;
     #endif
     if (mINT != 255) { // 255 means interrupt is not used
       #ifdef ARDUINO_ARCH_ESP32
