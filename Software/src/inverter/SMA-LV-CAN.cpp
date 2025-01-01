@@ -16,6 +16,11 @@ static unsigned long previousMillis100ms = 0;
 #define MIN_VOLTAGE_DV 41
 
 //Actual content messages
+CAN_frame SMA_00F = {.FD = false,  // Emergency stop message
+                     .ext_ID = false,
+                     .DLC = 8,  //Documentation unclear, should message even have any content?
+                     .ID = 0x00F,
+                     .data = {0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00}};
 CAN_frame SMA_351 = {.FD = false,  // Battery charge voltage, charge/discharge limit, min discharge voltage
                      .ext_ID = false,
                      .DLC = 8,
@@ -51,21 +56,16 @@ CAN_frame SMA_35F = {.FD = false,  // Battery Type, version, capacity, ID
                      .DLC = 8,
                      .ID = 0x35F,
                      .data = {0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00}};
-CAN_frame SMA_00F = {.FD = false,  // Emergency stop message
-                     .ext_ID = false,
-                     .DLC = 8,  //Documentation unclear, should message even have any content?
-                     .ID = 0x00F,
-                     .data = {0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00}};
 
 static int16_t temperature_average = 0;
 
 void update_values_can_inverter() {  //This function maps all the values fetched from battery CAN to the correct CAN messages
-  //Calculate values
-
+  // Update values
   temperature_average =
       ((datalayer.battery.status.temperature_max_dC + datalayer.battery.status.temperature_min_dC) / 2);
 
   //Map values to CAN messages
+
   //Battery charge voltage (eg 400.0V = 4000 , 16bits long) (MIN 41V, MAX 63V, default 54V)
   SMA_351.data.u8[0] = ((datalayer.battery.info.max_design_voltage_dV - VOLTAGE_OFFSET_DV) >> 8);
   SMA_351.data.u8[1] = ((datalayer.battery.info.max_design_voltage_dV - VOLTAGE_OFFSET_DV) & 0x00FF);
@@ -114,7 +114,7 @@ void update_values_can_inverter() {  //This function maps all the values fetched
   //TODO: Map error/warnings in 0x35A
 }
 
-void receive_can_inverter(CAN_frame rx_frame) {
+void map_can_frame_to_variable_inverter(CAN_frame rx_frame) {
   switch (rx_frame.ID) {
     case 0x305:
       datalayer.system.status.CAN_inverter_still_alive = CAN_STILL_ALIVE;
@@ -136,23 +136,23 @@ void receive_can_inverter(CAN_frame rx_frame) {
   }
 }
 
-void send_can_inverter() {
+void transmit_can_inverter() {
   unsigned long currentMillis = millis();
 
   if (currentMillis - previousMillis100ms >= INTERVAL_100_MS) {
     previousMillis100ms = currentMillis;
 
-    transmit_can(&SMA_351, can_config.inverter);
-    transmit_can(&SMA_355, can_config.inverter);
-    transmit_can(&SMA_356, can_config.inverter);
-    transmit_can(&SMA_35A, can_config.inverter);
-    transmit_can(&SMA_35B, can_config.inverter);
-    transmit_can(&SMA_35E, can_config.inverter);
-    transmit_can(&SMA_35F, can_config.inverter);
+    transmit_can_frame(&SMA_351, can_config.inverter);
+    transmit_can_frame(&SMA_355, can_config.inverter);
+    transmit_can_frame(&SMA_356, can_config.inverter);
+    transmit_can_frame(&SMA_35A, can_config.inverter);
+    transmit_can_frame(&SMA_35B, can_config.inverter);
+    transmit_can_frame(&SMA_35E, can_config.inverter);
+    transmit_can_frame(&SMA_35F, can_config.inverter);
 
     //Remote quick stop (optional)
     if (datalayer.battery.status.bms_status == FAULT) {
-      transmit_can(&SMA_00F, can_config.inverter);
+      transmit_can_frame(&SMA_00F, can_config.inverter);
       //After receiving this message, Sunny Island will immediately go into standby.
       //Please send start command, to start again. Manual start is also possible.
     }

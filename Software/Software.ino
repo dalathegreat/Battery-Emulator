@@ -1,16 +1,13 @@
 /* Do not change any code below this line unless you are sure what you are doing */
 /* Only change battery specific settings in "USER_SETTINGS.h" */
-
-#include "src/include.h"
-
 #include "HardwareSerial.h"
+#include "USER_SECRETS.h"
 #include "USER_SETTINGS.h"
 #include "esp_system.h"
 #include "esp_task_wdt.h"
 #include "esp_timer.h"
 #include "freertos/FreeRTOS.h"
 #include "freertos/task.h"
-#include "src/charger/CHARGERS.h"
 #include "src/communication/can/comm_can.h"
 #include "src/communication/contactorcontrol/comm_contactorcontrol.h"
 #include "src/communication/equipmentstopbutton/comm_equipmentstopbutton.h"
@@ -18,9 +15,12 @@
 #include "src/communication/rs485/comm_rs485.h"
 #include "src/communication/seriallink/comm_seriallink.h"
 #include "src/datalayer/datalayer.h"
+#include "src/devboard/sdcard/sdcard.h"
 #include "src/devboard/utils/events.h"
 #include "src/devboard/utils/led_handler.h"
+#include "src/devboard/utils/logging.h"
 #include "src/devboard/utils/value_mapping.h"
+#include "src/include.h"
 #include "src/lib/YiannisBourkelis-Uptime-Library/src/uptime.h"
 #include "src/lib/YiannisBourkelis-Uptime-Library/src/uptime_formatter.h"
 #include "src/lib/bblanchon-ArduinoJson/ArduinoJson.h"
@@ -29,7 +29,10 @@
 #include "src/lib/eModbus-eModbus/scripts/mbServerFCs.h"
 #include "src/lib/miwagner-ESP32-Arduino-CAN/CAN_config.h"
 #include "src/lib/miwagner-ESP32-Arduino-CAN/ESP32CAN.h"
-
+#ifndef AP_PASSWORD
+#error \
+    "Initial setup not completed, USER_SECRETS.h is missing. Please rename the file USER_SECRETS.TEMPLATE.h to USER_SECRETS.h and fill in the required credentials. This file is ignored by version control to keep sensitive information private."
+#endif
 #ifdef WIFI
 #include "src/devboard/wifi/wifi.h"
 #ifdef WEBSERVER
@@ -77,12 +80,18 @@ MyTimer core_task_timer_10s(INTERVAL_10_S);
 int64_t connectivity_task_time_us;
 MyTimer connectivity_task_timer_10s(INTERVAL_10_S);
 
+int64_t logging_task_time_us;
+MyTimer logging_task_timer_10s(INTERVAL_10_S);
+
 MyTimer loop_task_timer_10s(INTERVAL_10_S);
 
 MyTimer check_pause_2s(INTERVAL_2_S);
 
 TaskHandle_t main_loop_task;
 TaskHandle_t connectivity_loop_task;
+TaskHandle_t logging_loop_task;
+
+Logging logging;
 
 // Initialization
 void setup() {
@@ -93,6 +102,11 @@ void setup() {
 #ifdef WIFI
   xTaskCreatePinnedToCore((TaskFunction_t)&connectivity_loop, "connectivity_loop", 4096, &connectivity_task_time_us,
                           TASK_CONNECTIVITY_PRIO, &connectivity_loop_task, WIFI_CORE);
+#endif
+
+#ifdef LOG_CAN_TO_SD
+  xTaskCreatePinnedToCore((TaskFunction_t)&logging_loop, "logging_loop", 4096, &logging_task_time_us,
+                          TASK_CONNECTIVITY_PRIO, &logging_loop_task, WIFI_CORE);
 #endif
 
   init_events();
@@ -136,6 +150,18 @@ void loop() {
   }
 #endif
 }
+
+#ifdef LOG_CAN_TO_SD
+void logging_loop(void* task_time_us) {
+
+  init_logging_buffer();
+  init_sdcard();
+
+  while (true) {
+    write_can_frame_to_sdcard();
+  }
+}
+#endif
 
 #ifdef WIFI
 void connectivity_loop(void* task_time_us) {
@@ -191,13 +217,7 @@ void core_loop(void* task_time_us) {
 #endif
 
     // Input, Runs as fast as possible
-    receive_can_native();  // Receive CAN messages from native CAN port
-#ifdef CANFD_ADDON
-    receive_canfd_addon();  // Receive CAN-FD messages.
-#endif                      // CANFD_ADDON
-#ifdef CAN_ADDON
-    receive_can_addon();  // Receive CAN messages on add-on MCP2515 chip
-#endif                    // CAN_ADDON
+    receive_can();  // Receive CAN messages
 #ifdef RS485_INVERTER_SELECTED
     receive_RS485();  // Process serial2 RS485 interface
 #endif                // RS485_INVERTER_SELECTED
@@ -233,15 +253,12 @@ void core_loop(void* task_time_us) {
       update_machineryprotection();  // Check safeties (Not on serial link reciever board)
 #endif                               // SERIAL_LINK_RECEIVER
       update_values_inverter();      // Update values heading towards inverter
-      if (DUMMY_EVENT_ENABLED) {
-        set_event(EVENT_DUMMY_ERROR, (uint8_t)millis());
-      }
     }
     END_TIME_MEASUREMENT_MAX(time_values, datalayer.system.status.time_values_us);
 
     START_TIME_MEASUREMENT(cantx);
     // Output
-    send_can();  // Send CAN messages to all components
+    transmit_can();  // Send CAN messages to all components
 
     END_TIME_MEASUREMENT_MAX(cantx, datalayer.system.status.time_cantx_us);
     END_TIME_MEASUREMENT_MAX(all, datalayer.system.status.core_task_10s_max_us);
@@ -269,7 +286,7 @@ void core_loop(void* task_time_us) {
     }
 #endif  // FUNCTION_TIME_MEASUREMENT
     if (check_pause_2s.elapsed()) {
-      emulator_pause_state_send_CAN_battery();
+      emulator_pause_state_transmit_can_battery();
     }
 
     vTaskDelayUntil(&xLastWakeTime, xFrequency);

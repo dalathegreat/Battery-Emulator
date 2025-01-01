@@ -91,17 +91,17 @@ void ISA_handleFrame(CAN_frame* frame) {
 
     case 0x510:
     case 0x511:
-      Serial.print(millis());  // Example printout, time, ID, length, data: 7553  1DB  8  FF C0 B9 EA 0 0 2 5D
-      Serial.print("  ");
-      Serial.print(frame->ID, HEX);
-      Serial.print("  ");
-      Serial.print(frame->DLC);
-      Serial.print("  ");
+      logging.print(millis());  // Example printout, time, ID, length, data: 7553  1DB  8  FF C0 B9 EA 0 0 2 5D
+      logging.print("  ");
+      logging.print(frame->ID, HEX);
+      logging.print("  ");
+      logging.print(frame->DLC);
+      logging.print("  ");
       for (int i = 0; i < frame->DLC; ++i) {
-        Serial.print(frame->data.u8[i], HEX);
-        Serial.print(" ");
+        logging.print(frame->data.u8[i], HEX);
+        logging.print(" ");
       }
-      Serial.println("");
+      logging.println("");
       break;
 
     case 0x521:
@@ -245,8 +245,8 @@ void ISA_initialize() {
   ISA_STOP();
   delay(500);
   for (int i = 0; i < 8; i++) {
-    Serial.print("ISA Initialization ");
-    Serial.println(i);
+    logging.print("ISA Initialization ");
+    logging.println(i);
 
     outframe.data.u8[0] = (0x20 + i);
     outframe.data.u8[1] = 0x02;
@@ -257,7 +257,7 @@ void ISA_initialize() {
     outframe.data.u8[6] = 0x00;
     outframe.data.u8[7] = 0x00;
 
-    transmit_can(&outframe, can_config.battery);
+    transmit_can_frame(&outframe, can_config.battery);
     delay(500);
   }
 
@@ -271,7 +271,7 @@ void ISA_initialize() {
 }
 
 void ISA_STOP() {
-  Serial.println("ISA STOP");
+  logging.println("ISA STOP");
 
   outframe.data.u8[0] = 0x34;
   outframe.data.u8[1] = 0x00;
@@ -282,11 +282,11 @@ void ISA_STOP() {
   outframe.data.u8[6] = 0x00;
   outframe.data.u8[7] = 0x00;
 
-  transmit_can(&outframe, can_config.battery);
+  transmit_can_frame(&outframe, can_config.battery);
 }
 
 void ISA_sendSTORE() {
-  Serial.println("ISA send STORE");
+  logging.println("ISA send STORE");
 
   outframe.data.u8[0] = 0x32;
   outframe.data.u8[1] = 0x00;
@@ -297,11 +297,11 @@ void ISA_sendSTORE() {
   outframe.data.u8[6] = 0x00;
   outframe.data.u8[7] = 0x00;
 
-  transmit_can(&outframe, can_config.battery);
+  transmit_can_frame(&outframe, can_config.battery);
 }
 
 void ISA_START() {
-  Serial.println("ISA START");
+  logging.println("ISA START");
 
   outframe.data.u8[0] = 0x34;
   outframe.data.u8[1] = 0x01;
@@ -312,12 +312,12 @@ void ISA_START() {
   outframe.data.u8[6] = 0x00;
   outframe.data.u8[7] = 0x00;
 
-  transmit_can(&outframe, can_config.battery);
+  transmit_can_frame(&outframe, can_config.battery);
 }
 
 void ISA_RESTART() {
   //Has the effect of zeroing AH and KWH
-  Serial.println("ISA RESTART");
+  logging.println("ISA RESTART");
 
   outframe.data.u8[0] = 0x3F;
   outframe.data.u8[1] = 0x00;
@@ -328,7 +328,7 @@ void ISA_RESTART() {
   outframe.data.u8[6] = 0x00;
   outframe.data.u8[7] = 0x00;
 
-  transmit_can(&outframe, can_config.battery);
+  transmit_can_frame(&outframe, can_config.battery);
 }
 
 void ISA_deFAULT() {
@@ -336,7 +336,7 @@ void ISA_deFAULT() {
   ISA_STOP();
   delay(500);
 
-  Serial.println("ISA RESTART to default");
+  logging.println("ISA RESTART to default");
 
   outframe.data.u8[0] = 0x3D;
   outframe.data.u8[1] = 0x00;
@@ -347,7 +347,7 @@ void ISA_deFAULT() {
   outframe.data.u8[6] = 0x00;
   outframe.data.u8[7] = 0x00;
 
-  transmit_can(&outframe, can_config.battery);
+  transmit_can_frame(&outframe, can_config.battery);
   delay(500);
 
   ISA_START();
@@ -358,7 +358,7 @@ void ISA_initCurrent() {
   ISA_STOP();
   delay(500);
 
-  Serial.println("ISA Initialization Current");
+  logging.println("ISA Initialization Current");
 
   outframe.data.u8[0] = 0x21;
   outframe.data.u8[1] = 0x02;
@@ -369,7 +369,7 @@ void ISA_initCurrent() {
   outframe.data.u8[6] = 0x00;
   outframe.data.u8[7] = 0x00;
 
-  transmit_can(&outframe, can_config.battery);
+  transmit_can_frame(&outframe, can_config.battery);
   delay(500);
 
   ISA_sendSTORE();
@@ -382,8 +382,8 @@ void ISA_initCurrent() {
 }
 
 void ISA_getCONFIG(uint8_t i) {
-  Serial.print("ISA Get Config ");
-  Serial.println(i);
+  logging.print("ISA Get Config ");
+  logging.println(i);
 
   outframe.data.u8[0] = (0x60 + i);
   outframe.data.u8[1] = 0x00;
@@ -394,12 +394,12 @@ void ISA_getCONFIG(uint8_t i) {
   outframe.data.u8[6] = 0x00;
   outframe.data.u8[7] = 0x00;
 
-  transmit_can(&outframe, can_config.battery);
+  transmit_can_frame(&outframe, can_config.battery);
 }
 
 void ISA_getCAN_ID(uint8_t i) {
-  Serial.print("ISA Get CAN ID ");
-  Serial.println(i);
+  logging.print("ISA Get CAN ID ");
+  logging.println(i);
 
   outframe.data.u8[0] = (0x50 + i);
   if (i == 8)
@@ -414,12 +414,12 @@ void ISA_getCAN_ID(uint8_t i) {
   outframe.data.u8[6] = 0x00;
   outframe.data.u8[7] = 0x00;
 
-  transmit_can(&outframe, can_config.battery);
+  transmit_can_frame(&outframe, can_config.battery);
 }
 
 void ISA_getINFO(uint8_t i) {
-  Serial.print("ISA Get INFO ");
-  Serial.println(i, HEX);
+  logging.print("ISA Get INFO ");
+  logging.println(i, HEX);
 
   outframe.data.u8[0] = (0x70 + i);
   outframe.data.u8[1] = 0x00;
@@ -430,6 +430,6 @@ void ISA_getINFO(uint8_t i) {
   outframe.data.u8[6] = 0x00;
   outframe.data.u8[7] = 0x00;
 
-  transmit_can(&outframe, can_config.battery);
+  transmit_can_frame(&outframe, can_config.battery);
 }
 #endif

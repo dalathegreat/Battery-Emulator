@@ -4,8 +4,8 @@
 
 #ifdef BMW_SBOX
 #include "BMW-SBOX.h"
-void receive_can_shunt(CAN_frame rx_frame);
-void send_can_shunt();
+void map_can_frame_to_variable_shunt(CAN_frame rx_frame);
+void transmit_can_shunt();
 void setup_can_shunt();
 #endif
 
@@ -15,6 +15,10 @@ void setup_can_shunt();
 
 #ifdef BMW_IX_BATTERY
 #include "BMW-IX-BATTERY.h"
+#endif
+
+#ifdef BOLT_AMPERA_BATTERY
+#include "BOLT-AMPERA-BATTERY.h"
 #endif
 
 #ifdef BYD_ATTO_3_BATTERY
@@ -28,6 +32,10 @@ void setup_can_shunt();
 #ifdef CHADEMO_BATTERY
 #include "CHADEMO-BATTERY.h"
 #include "CHADEMO-SHUNTS.h"
+#endif
+
+#ifdef STELLANTIS_ECMP_BATTERY
+#include "ECMP-BATTERY.h"
 #endif
 
 #ifdef IMIEV_CZERO_ION_BATTERY
@@ -111,14 +119,14 @@ void setup_can_shunt();
 #include "SERIAL-LINK-RECEIVER-FROM-BATTERY.h"
 #endif
 
-void receive_can_battery(CAN_frame rx_frame);
+void handle_incoming_can_frame_battery(CAN_frame rx_frame);
 void update_values_battery();
-void send_can_battery();
+void transmit_can_battery();
 void setup_battery(void);
 
 #ifdef DOUBLE_BATTERY
 void update_values_battery2();
-void receive_can_battery2(CAN_frame rx_frame);
+void handle_incoming_can_frame_battery2(CAN_frame rx_frame);
 #endif
 
 #endif

@@ -10,7 +10,7 @@
 #define MIN_CELL_VOLTAGE_MV 2700  //Battery is put into emergency stop if one cell goes below this value
 
 void setup_battery(void);
-void transmit_can(CAN_frame* tx_frame, int interface);
+void transmit_can_frame(CAN_frame* tx_frame, int interface);
 
 #define POLL_SOC 0x9001
 #define POLL_USABLE_SOC 0x9002

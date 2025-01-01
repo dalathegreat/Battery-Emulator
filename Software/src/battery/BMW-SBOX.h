@@ -15,8 +15,8 @@ void transmit_can(CAN_frame* tx_frame, int interface);
  *      t=3RC at minimum, t=5RC ideally
  */
 
-#define CONTACTOR_CONTROL_T1 5000 // Time before negative contactor engages and precharging starts
-#define CONTACTOR_CONTROL_T2 5000 // Precharge time before precharge resistor is bypassed by positive contactor
-#define CONTACTOR_CONTROL_T3 2000 // Precharge relay lead time after positive contactor has been engaged
+#define CONTACTOR_CONTROL_T1 5000  // Time before negative contactor engages and precharging starts
+#define CONTACTOR_CONTROL_T2 5000  // Precharge time before precharge resistor is bypassed by positive contactor
+#define CONTACTOR_CONTROL_T3 2000  // Precharge relay lead time after positive contactor has been engaged
 
 #endif

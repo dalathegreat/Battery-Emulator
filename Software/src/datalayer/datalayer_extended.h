@@ -5,6 +5,42 @@
 
 typedef struct {
   /** uint16_t */
+  /** PID polling parameters */
+  uint16_t battery_5V_ref = 0;
+  int16_t battery_module_temp_1 = 0;
+  int16_t battery_module_temp_2 = 0;
+  int16_t battery_module_temp_3 = 0;
+  int16_t battery_module_temp_4 = 0;
+  int16_t battery_module_temp_5 = 0;
+  int16_t battery_module_temp_6 = 0;
+  uint16_t battery_cell_average_voltage = 0;
+  uint16_t battery_cell_average_voltage_2 = 0;
+  uint16_t battery_terminal_voltage = 0;
+  uint16_t battery_ignition_power_mode = 0;
+  int16_t battery_current_7E7 = 0;
+  uint16_t battery_capacity_my17_18 = 0;
+  uint16_t battery_capacity_my19plus = 0;
+  uint16_t battery_SOC_display = 0;
+  uint16_t battery_SOC_raw_highprec = 0;
+  uint16_t battery_max_temperature = 0;
+  uint16_t battery_min_temperature = 0;
+  uint16_t battery_max_cell_voltage = 0;
+  uint16_t battery_min_cell_voltage = 0;
+  uint16_t battery_lowest_cell = 0;
+  uint16_t battery_highest_cell = 0;
+  uint16_t battery_internal_resistance = 0;
+  uint16_t battery_voltage_polled = 0;
+  uint16_t battery_vehicle_isolation = 0;
+  uint16_t battery_isolation_kohm = 0;
+  uint16_t battery_HV_locked = 0;
+  uint16_t battery_crash_event = 0;
+  uint16_t battery_HVIL = 0;
+  uint16_t battery_HVIL_status = 0;
+  int16_t battery_current_7E4 = 0;
+} DATALAYER_INFO_BOLTAMPERA;
+
+typedef struct {
+  /** uint16_t */
   /** Terminal 30 - 12V SME Supply Voltage */
   uint16_t T30_Voltage = 0;
   /** Status HVIL, 1 HVIL OK, 0 HVIL disconnected*/
@@ -179,7 +215,12 @@ typedef struct {
   uint8_t packCtrsClosingAllowed = 0;
   /** uint8_t */
   /** Pyro test in progress */
-  uint8_t pyroTestInProgress = 0;
+  bool pyroTestInProgress = false;
+  bool battery_packCtrsOpenNowRequested = false;
+  bool battery_packCtrsOpenRequested = false;
+  uint8_t battery_packCtrsRequestStatus = 0;
+  bool battery_packCtrsResetRequestRequired = false;
+  bool battery_dcLinkAllowedToEnergize = false;
   uint8_t battery_beginning_of_life = 0;
   uint8_t battery_battTempPct = 0;
   uint16_t battery_dcdcLvBusVolt = 0;
@@ -195,10 +236,20 @@ typedef struct {
   uint16_t battery_energy_to_charge_complete_m1 = 0;
   uint16_t battery_energy_buffer = 0;
   uint16_t battery_energy_buffer_m1 = 0;
-  uint16_t battery_full_charge_complete = 0;
-  uint8_t battery_fully_charged = 0;
+  uint16_t battery_expected_energy_remaining = 0;
+  uint16_t battery_expected_energy_remaining_m1 = 0;
+  bool battery_full_charge_complete = false;
+  bool battery_fully_charged = false;
   uint16_t battery_total_discharge = 0;
   uint16_t battery_total_charge = 0;
+  uint16_t battery_BrickVoltageMax = 0;
+  uint16_t battery_BrickVoltageMin = 0;
+  uint8_t battery_BrickVoltageMaxNum = 0;
+  uint8_t battery_BrickVoltageMinNum = 0;
+  uint8_t battery_BrickTempMaxNum = 0;
+  uint8_t battery_BrickTempMinNum = 0;
+  uint8_t battery_BrickModelTMax = 0;
+  uint8_t battery_BrickModelTMin = 0;
   uint16_t battery_packConfigMultiplexer = 0;
   uint16_t battery_moduleType = 0;
   uint16_t battery_reservedConfig = 0;
@@ -212,6 +263,123 @@ typedef struct {
   uint32_t battery_soc_max = 0;
   uint32_t battery_soc_ave = 0;
   uint32_t battery_soc_ui = 0;
+  uint8_t battery_BMS_contactorState = 0;
+  uint8_t battery_BMS_state = 0;
+  uint8_t battery_BMS_hvState = 0;
+  uint16_t battery_BMS_isolationResistance = 0;
+  uint8_t battery_BMS_uiChargeStatus = 0;
+  bool battery_BMS_diLimpRequest = false;
+  uint16_t battery_BMS_chgPowerAvailable = 0;
+  bool battery_BMS_pcsPwmEnabled = false;
+  uint8_t battery_PCS_dcdcPrechargeStatus = 0;
+  uint8_t battery_PCS_dcdc12VSupportStatus = 0;
+  uint8_t battery_PCS_dcdcHvBusDischargeStatus = 0;
+  uint8_t battery_PCS_dcdcMainState = 0;
+  uint8_t battery_PCS_dcdcSubState = 0;
+  bool battery_PCS_dcdcFaulted = false;
+  bool battery_PCS_dcdcOutputIsLimited = false;
+  uint16_t battery_PCS_dcdcMaxOutputCurrentAllowed = 0;
+  uint8_t battery_PCS_dcdcPrechargeRtyCnt = 0;
+  uint8_t battery_PCS_dcdc12VSupportRtyCnt = 0;
+  uint8_t battery_PCS_dcdcDischargeRtyCnt = 0;
+  uint8_t battery_PCS_dcdcPwmEnableLine = 0;
+  uint8_t battery_PCS_dcdcSupportingFixedLvTarget = 0;
+  uint8_t battery_PCS_dcdcPrechargeRestartCnt = 0;
+  uint8_t battery_PCS_dcdcInitialPrechargeSubState = 0;
+  uint16_t BMS_maxRegenPower = 0;
+  uint16_t BMS_maxDischargePower = 0;
+  uint16_t BMS_maxStationaryHeatPower = 0;
+  uint16_t BMS_hvacPowerBudget = 0;
+  uint8_t BMS_notEnoughPowerForHeatPump = 0;
+  uint8_t BMS_powerLimitState = 0;
+  uint8_t BMS_inverterTQF = 0;
+  uint16_t BMS_powerDissipation = 0;
+  uint8_t BMS_flowRequest = 0;
+  uint16_t BMS_inletActiveCoolTargetT = 0;
+  uint16_t BMS_inletPassiveTargetT = 0;
+  uint16_t BMS_inletActiveHeatTargetT = 0;
+  uint16_t BMS_packTMin = 0;
+  uint16_t BMS_packTMax = 0;
+  bool BMS_pcsNoFlowRequest = false;
+  bool BMS_noFlowRequest = false;
+  uint16_t PCS_dcdcTemp = 0;
+  uint16_t PCS_ambientTemp = 0;
+  uint16_t PCS_dcdcMaxLvOutputCurrent = 0;
+  uint16_t PCS_dcdcCurrentLimit = 0;
+  uint16_t PCS_dcdcLvOutputCurrentTempLimit = 0;
+  uint16_t PCS_dcdcUnifiedCommand = 0;
+  uint16_t PCS_dcdcCLAControllerOutput = 0;
+  uint16_t PCS_dcdcTankVoltage = 0;
+  uint16_t PCS_dcdcTankVoltageTarget = 0;
+  uint16_t PCS_dcdcClaCurrentFreq = 0;
+  uint16_t PCS_dcdcTCommMeasured = 0;
+  uint16_t PCS_dcdcShortTimeUs = 0;
+  uint16_t PCS_dcdcHalfPeriodUs = 0;
+  uint16_t PCS_dcdcIntervalMaxFrequency = 0;
+  uint16_t PCS_dcdcIntervalMaxHvBusVolt = 0;
+  uint16_t PCS_dcdcIntervalMaxLvBusVolt = 0;
+  uint16_t PCS_dcdcIntervalMaxLvOutputCurr = 0;
+  uint16_t PCS_dcdcIntervalMinFrequency = 0;
+  uint16_t PCS_dcdcIntervalMinHvBusVolt = 0;
+  uint16_t PCS_dcdcIntervalMinLvBusVolt = 0;
+  uint16_t PCS_dcdcIntervalMinLvOutputCurr = 0;
+  uint32_t PCS_dcdc12vSupportLifetimekWh = 0;
+  bool HVP_gpioPassivePyroDepl = false;
+  bool HVP_gpioPyroIsoEn = false;
+  bool HVP_gpioCpFaultIn = false;
+  bool HVP_gpioPackContPowerEn = false;
+  bool HVP_gpioHvCablesOk = false;
+  bool HVP_gpioHvpSelfEnable = false;
+  bool HVP_gpioLed = false;
+  bool HVP_gpioCrashSignal = false;
+  bool HVP_gpioShuntDataReady = false;
+  bool HVP_gpioFcContPosAux = false;
+  bool HVP_gpioFcContNegAux = false;
+  bool HVP_gpioBmsEout = false;
+  bool HVP_gpioCpFaultOut = false;
+  bool HVP_gpioPyroPor = false;
+  bool HVP_gpioShuntEn = false;
+  bool HVP_gpioHvpVerEn = false;
+  bool HVP_gpioPackCoontPosFlywheel = false;
+  bool HVP_gpioCpLatchEnable = false;
+  bool HVP_gpioPcsEnable = false;
+  bool HVP_gpioPcsDcdcPwmEnable = false;
+  bool HVP_gpioPcsChargePwmEnable = false;
+  bool HVP_gpioFcContPowerEnable = false;
+  bool HVP_gpioHvilEnable = false;
+  bool HVP_gpioSecDrdy = false;
+  uint16_t HVP_hvp1v5Ref = 0;
+  uint16_t HVP_shuntCurrentDebug = 0;
+  bool HVP_packCurrentMia = false;
+  bool HVP_auxCurrentMia = false;
+  bool HVP_currentSenseMia = false;
+  bool HVP_shuntRefVoltageMismatch = false;
+  bool HVP_shuntThermistorMia = false;
+  uint8_t HVP_shuntHwMia = 0;
+  uint16_t HVP_dcLinkVoltage = 0;
+  uint16_t HVP_packVoltage = 0;
+  uint16_t HVP_fcLinkVoltage = 0;
+  uint16_t HVP_packContVoltage = 0;
+  uint16_t HVP_packNegativeV = 0;
+  uint16_t HVP_packPositiveV = 0;
+  uint16_t HVP_pyroAnalog = 0;
+  uint16_t HVP_dcLinkNegativeV = 0;
+  uint16_t HVP_dcLinkPositiveV = 0;
+  uint16_t HVP_fcLinkNegativeV = 0;
+  uint16_t HVP_fcContCoilCurrent = 0;
+  uint16_t HVP_fcContVoltage = 0;
+  uint16_t HVP_hvilInVoltage = 0;
+  uint16_t HVP_hvilOutVoltage = 0;
+  uint16_t HVP_fcLinkPositiveV = 0;
+  uint16_t HVP_packContCoilCurrent = 0;
+  uint16_t HVP_battery12V = 0;
+  uint16_t HVP_shuntRefVoltageDbg = 0;
+  uint16_t HVP_shuntAuxCurrentDbg = 0;
+  uint16_t HVP_shuntBarTempDbg = 0;
+  uint16_t HVP_shuntAsicTempDbg = 0;
+  uint8_t HVP_shuntAuxCurrentStatus = 0;
+  uint8_t HVP_shuntBarTempStatus = 0;
+  uint8_t HVP_shuntAsicTempStatus = 0;
 } DATALAYER_INFO_TESLA;
 
 typedef struct {
@@ -403,6 +571,7 @@ typedef struct {
 
 class DataLayerExtended {
  public:
+  DATALAYER_INFO_BOLTAMPERA boltampera;
   DATALAYER_INFO_BMWIX bmwix;
   DATALAYER_INFO_BMWI3 bmwi3;
   DATALAYER_INFO_BYDATTO3 bydAtto3;

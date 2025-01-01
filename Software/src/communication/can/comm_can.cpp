@@ -1,5 +1,6 @@
 #include "comm_can.h"
 #include "../../include.h"
+#include "src/devboard/sdcard/sdcard.h"
 
 // Parameters
 
@@ -9,11 +10,13 @@ volatile bool send_ok = 0;
 
 #ifdef CAN_ADDON
 static const uint32_t QUARTZ_FREQUENCY = CRYSTAL_FREQUENCY_MHZ * 1000000UL;  //MHZ configured in USER_SETTINGS.h
-ACAN2515 can(MCP2515_CS, SPI, MCP2515_INT);
+SPIClass SPI2515;
+ACAN2515 can(MCP2515_CS, SPI2515, MCP2515_INT);
 static ACAN2515_Buffer16 gBuffer;
 #endif  //CAN_ADDON
 #ifdef CANFD_ADDON
-ACAN2517FD canfd(MCP2517_CS, SPI, MCP2517_INT);
+SPIClass SPI2517;
+ACAN2517FD canfd(MCP2517_CS, SPI2517, MCP2517_INT);
 #endif  //CANFD_ADDON
 
 // Initialization functions
@@ -35,77 +38,99 @@ void init_CAN() {
   ESP32Can.CANInit();
 
 #ifdef CAN_ADDON
-#ifdef DEBUG_VIA_USB
-  Serial.println("Dual CAN Bus (ESP32+MCP2515) selected");
-#endif  // DEBUG_VIA_USB
+#ifdef DEBUG_LOG
+  logging.println("Dual CAN Bus (ESP32+MCP2515) selected");
+#endif  // DEBUG_LOG
   gBuffer.initWithSize(25);
-  SPI.begin(MCP2515_SCK, MCP2515_MISO, MCP2515_MOSI);
-  ACAN2515Settings settings(QUARTZ_FREQUENCY, 500UL * 1000UL);  // CAN bit rate 500 kb/s
-  settings.mRequestedMode = ACAN2515Settings::NormalMode;
-  const uint16_t errorCodeMCP = can.begin(settings, [] { can.isr(); });
-  if (errorCodeMCP == 0) {
-#ifdef DEBUG_VIA_USB
-    Serial.println("Can ok");
-#endif  // DEBUG_VIA_USB
+  SPI2515.begin(MCP2515_SCK, MCP2515_MISO, MCP2515_MOSI);
+  ACAN2515Settings settings2515(QUARTZ_FREQUENCY, 500UL * 1000UL);  // CAN bit rate 500 kb/s
+  settings2515.mRequestedMode = ACAN2515Settings::NormalMode;
+  const uint16_t errorCode2515 = can.begin(settings2515, [] { can.isr(); });
+  if (errorCode2515 == 0) {
+#ifdef DEBUG_LOG
+    logging.println("Can ok");
+#endif  // DEBUG_LOG
   } else {
-#ifdef DEBUG_VIA_USB
-    Serial.print("Error Can: 0x");
-    Serial.println(errorCodeMCP, HEX);
-#endif  // DEBUG_VIA_USB
-    set_event(EVENT_CANMCP_INIT_FAILURE, (uint8_t)errorCodeMCP);
+#ifdef DEBUG_LOG
+    logging.print("Error Can: 0x");
+    logging.println(errorCode2515, HEX);
+#endif  // DEBUG_LOG
+    set_event(EVENT_CANMCP2515_INIT_FAILURE, (uint8_t)errorCode2515);
   }
 #endif  // CAN_ADDON
 
 #ifdef CANFD_ADDON
-#ifdef DEBUG_VIA_USB
-  Serial.println("CAN FD add-on (ESP32+MCP2517) selected");
-#endif  // DEBUG_VIA_USB
-  SPI.begin(MCP2517_SCK, MCP2517_SDO, MCP2517_SDI);
-  ACAN2517FDSettings settings(CANFD_ADDON_CRYSTAL_FREQUENCY_MHZ, 500 * 1000,
-                              DataBitRateFactor::x4);  // Arbitration bit rate: 500 kbit/s, data bit rate: 2 Mbit/s
+#ifdef DEBUG_LOG
+  logging.println("CAN FD add-on (ESP32+MCP2517) selected");
+#endif  // DEBUG_LOG
+  SPI2517.begin(MCP2517_SCK, MCP2517_SDO, MCP2517_SDI);
+  ACAN2517FDSettings settings2517(CANFD_ADDON_CRYSTAL_FREQUENCY_MHZ, 500 * 1000,
+                                  DataBitRateFactor::x4);  // Arbitration bit rate: 500 kbit/s, data bit rate: 2 Mbit/s
 #ifdef USE_CANFD_INTERFACE_AS_CLASSIC_CAN
-  settings.mRequestedMode = ACAN2517FDSettings::Normal20B;  // ListenOnly / Normal20B / NormalFD
-#else                                                       // not USE_CANFD_INTERFACE_AS_CLASSIC_CAN
-  settings.mRequestedMode = ACAN2517FDSettings::NormalFD;  // ListenOnly / Normal20B / NormalFD
-#endif                                                      // USE_CANFD_INTERFACE_AS_CLASSIC_CAN
-  const uint32_t errorCode = canfd.begin(settings, [] { canfd.isr(); });
+  settings2517.mRequestedMode = ACAN2517FDSettings::Normal20B;  // ListenOnly / Normal20B / NormalFD
+#else                                                           // not USE_CANFD_INTERFACE_AS_CLASSIC_CAN
+  settings2517.mRequestedMode = ACAN2517FDSettings::NormalFD;  // ListenOnly / Normal20B / NormalFD
+#endif                                                          // USE_CANFD_INTERFACE_AS_CLASSIC_CAN
+  const uint32_t errorCode2517 = canfd.begin(settings2517, [] { canfd.isr(); });
   canfd.poll();
-  if (errorCode == 0) {
-#ifdef DEBUG_VIA_USB
-    Serial.print("Bit Rate prescaler: ");
-    Serial.println(settings.mBitRatePrescaler);
-    Serial.print("Arbitration Phase segment 1: ");
-    Serial.println(settings.mArbitrationPhaseSegment1);
-    Serial.print("Arbitration Phase segment 2: ");
-    Serial.println(settings.mArbitrationPhaseSegment2);
-    Serial.print("Arbitration SJW:");
-    Serial.println(settings.mArbitrationSJW);
-    Serial.print("Actual Arbitration Bit Rate: ");
-    Serial.print(settings.actualArbitrationBitRate());
-    Serial.println(" bit/s");
-    Serial.print("Exact Arbitration Bit Rate ? ");
-    Serial.println(settings.exactArbitrationBitRate() ? "yes" : "no");
-    Serial.print("Arbitration Sample point: ");
-    Serial.print(settings.arbitrationSamplePointFromBitStart());
-    Serial.println("%");
-#endif  // DEBUG_VIA_USB
+  if (errorCode2517 == 0) {
+#ifdef DEBUG_LOG
+    logging.print("Bit Rate prescaler: ");
+    logging.println(settings2517.mBitRatePrescaler);
+    logging.print("Arbitration Phase segment 1: ");
+    logging.print(settings2517.mArbitrationPhaseSegment1);
+    logging.print(" segment 2: ");
+    logging.print(settings2517.mArbitrationPhaseSegment2);
+    logging.print(" SJW: ");
+    logging.println(settings2517.mArbitrationSJW);
+    logging.print("Actual Arbitration Bit Rate: ");
+    logging.print(settings2517.actualArbitrationBitRate());
+    logging.print(" bit/s");
+    logging.print(" (Exact:");
+    logging.println(settings2517.exactArbitrationBitRate() ? "yes)" : "no)");
+    logging.print("Arbitration Sample point: ");
+    logging.print(settings2517.arbitrationSamplePointFromBitStart());
+    logging.println("pct");
+#endif  // DEBUG_LOG
   } else {
-#ifdef DEBUG_VIA_USB
-    Serial.print("CAN-FD Configuration error 0x");
-    Serial.println(errorCode, HEX);
-#endif  // DEBUG_VIA_USB
-    set_event(EVENT_CANFD_INIT_FAILURE, (uint8_t)errorCode);
+#ifdef DEBUG_LOG
+    logging.print("CAN-FD Configuration error 0x");
+    logging.println(errorCode2517, HEX);
+#endif  // DEBUG_LOG
+    set_event(EVENT_CANMCP2517FD_INIT_FAILURE, (uint8_t)errorCode2517);
   }
 #endif  // CANFD_ADDON
 }
 
 // Transmit functions
+void transmit_can() {
+  if (!allowed_to_send_CAN) {
+    return;
+  }
+  transmit_can_battery();
 
-void transmit_can(CAN_frame* tx_frame, int interface) {
+#ifdef CAN_INVERTER_SELECTED
+  transmit_can_inverter();
+#endif  // CAN_INVERTER_SELECTED
+
+#ifdef CHARGER_SELECTED
+  transmit_can_charger();
+#endif  // CHARGER_SELECTED
+
+#ifdef CAN_SHUNT_SELECTED
+  transmit_can_shunt();
+#endif  // CAN_SHUNT_SELECTED
+}
+
+void transmit_can_frame(CAN_frame* tx_frame, int interface) {
   if (!allowed_to_send_CAN) {
     return;
   }
   print_can_frame(*tx_frame, frameDirection(MSG_TX));
+
+#ifdef LOG_CAN_TO_SD
+  add_can_frame_to_buffer(*tx_frame, frameDirection(MSG_TX));
+#endif
 
   switch (interface) {
     case CAN_NATIVE:
@@ -153,6 +178,8 @@ void transmit_can(CAN_frame* tx_frame, int interface) {
       send_ok = canfd.tryToSend(MCP2518Frame);
       if (!send_ok) {
         set_event(EVENT_CANFD_BUFFER_FULL, interface);
+      } else {
+        clear_event(EVENT_CANFD_BUFFER_FULL);
       }
 #else   // Interface not compiled, and settings try to use it
       set_event(EVENT_INTERFACE_MISSING, interface);
@@ -164,58 +191,18 @@ void transmit_can(CAN_frame* tx_frame, int interface) {
   }
 }
 
-void send_can() {
-  if (!allowed_to_send_CAN) {
-    return;
-  }
-  send_can_battery();
-
-#ifdef CAN_INVERTER_SELECTED
-  send_can_inverter();
-#endif  // CAN_INVERTER_SELECTED
-
-#ifdef CHARGER_SELECTED
-  send_can_charger();
-#endif  // CHARGER_SELECTED
-#ifdef CAN_SHUNT_SELECTED
-  send_can_shunt();
-#endif  // CAN_SHUNT_SELECTED
-}
-
 // Receive functions
-
-void receive_can(CAN_frame* rx_frame, int interface) {
-  print_can_frame(*rx_frame, frameDirection(MSG_RX));
-
-  if (interface == can_config.battery) {
-    receive_can_battery(*rx_frame);
-#ifdef CHADEMO_BATTERY
-    ISA_handleFrame(rx_frame);
-#endif
-  }
-  if (interface == can_config.inverter) {
-#ifdef CAN_INVERTER_SELECTED
-    receive_can_inverter(*rx_frame);
-#endif
-  }
-  if (interface == can_config.battery_double) {
-#ifdef DOUBLE_BATTERY
-    receive_can_battery2(*rx_frame);
-#endif
-  }
-  if (interface == can_config.charger) {
-#ifdef CHARGER_SELECTED
-    receive_can_charger(*rx_frame);
-#endif
-  }
-  if (interface == can_config.shunt) {
-#ifdef CAN_SHUNT_SELECTED
-    receive_can_shunt(*rx_frame);
-#endif
-  }
+void receive_can() {
+  receive_frame_can_native();  // Receive CAN messages from native CAN port
+#ifdef CAN_ADDON
+  receive_frame_can_addon();  // Receive CAN messages on add-on MCP2515 chip
+#endif                        // CAN_ADDON
+#ifdef CANFD_ADDON
+  receive_frame_canfd_addon();  // Receive CAN-FD messages.
+#endif                          // CANFD_ADDON
 }
 
-void receive_can_native() {  // This section checks if we have a complete CAN message incoming on native CAN port
+void receive_frame_can_native() {  // This section checks if we have a complete CAN message incoming on native CAN port
   CAN_frame_t rx_frame_native;
   if (xQueueReceive(CAN_cfg.rx_queue, &rx_frame_native, 0) == pdTRUE) {
     CAN_frame rx_frame;
@@ -230,47 +217,46 @@ void receive_can_native() {  // This section checks if we have a complete CAN me
       rx_frame.data.u8[i] = rx_frame_native.data.u8[i];
     }
     //message incoming, pass it on to the handler
-    receive_can(&rx_frame, CAN_NATIVE);
+    map_can_frame_to_variable(&rx_frame, CAN_NATIVE);
   }
 }
 
 #ifdef CAN_ADDON
-void receive_can_addon() {  // This section checks if we have a complete CAN message incoming on add-on CAN port
-  CAN_frame rx_frame;       // Struct with our CAN format
-  CANMessage MCP2515Frame;  // Struct with ACAN2515 library format, needed to use the MCP2515 library
+void receive_frame_can_addon() {  // This section checks if we have a complete CAN message incoming on add-on CAN port
+  CAN_frame rx_frame;             // Struct with our CAN format
+  CANMessage MCP2515frame;        // Struct with ACAN2515 library format, needed to use the MCP2515 library
 
   if (can.available()) {
-    can.receive(MCP2515Frame);
+    can.receive(MCP2515frame);
 
-    rx_frame.ID = MCP2515Frame.id;
-    rx_frame.ext_ID = MCP2515Frame.ext ? CAN_frame_ext : CAN_frame_std;
-    rx_frame.DLC = MCP2515Frame.len;
-    for (uint8_t i = 0; i < MCP2515Frame.len && i < 8; i++) {
-      rx_frame.data.u8[i] = MCP2515Frame.data[i];
+    rx_frame.ID = MCP2515frame.id;
+    rx_frame.ext_ID = MCP2515frame.ext ? CAN_frame_ext : CAN_frame_std;
+    rx_frame.DLC = MCP2515frame.len;
+    for (uint8_t i = 0; i < MCP2515frame.len && i < 8; i++) {
+      rx_frame.data.u8[i] = MCP2515frame.data[i];
     }
 
     //message incoming, pass it on to the handler
-    receive_can(&rx_frame, CAN_ADDON_MCP2515);
+    map_can_frame_to_variable(&rx_frame, CAN_ADDON_MCP2515);
   }
 }
 #endif  // CAN_ADDON
 
 #ifdef CANFD_ADDON
-// Functions
-void receive_canfd_addon() {  // This section checks if we have a complete CAN-FD message incoming
-  CANFDMessage frame;
+void receive_frame_canfd_addon() {  // This section checks if we have a complete CAN-FD message incoming
+  CANFDMessage MCP2518frame;
   int count = 0;
   while (canfd.available() && count++ < 16) {
-    canfd.receive(frame);
+    canfd.receive(MCP2518frame);
 
     CAN_frame rx_frame;
-    rx_frame.ID = frame.id;
-    rx_frame.ext_ID = frame.ext;
-    rx_frame.DLC = frame.len;
-    memcpy(rx_frame.data.u8, frame.data, MIN(rx_frame.DLC, 64));
+    rx_frame.ID = MCP2518frame.id;
+    rx_frame.ext_ID = MCP2518frame.ext;
+    rx_frame.DLC = MCP2518frame.len;
+    memcpy(rx_frame.data.u8, MCP2518frame.data, MIN(rx_frame.DLC, 64));
     //message incoming, pass it on to the handler
-    receive_can(&rx_frame, CANFD_ADDON_MCP2518);
-    receive_can(&rx_frame, CANFD_NATIVE);
+    map_can_frame_to_variable(&rx_frame, CANFD_ADDON_MCP2518);
+    map_can_frame_to_variable(&rx_frame, CANFD_NATIVE);
   }
 }
 #endif  // CANFD_ADDON
@@ -328,5 +314,40 @@ void print_can_frame(CAN_frame frame, frameDirection msgDir) {
     offset += snprintf(message_string + offset, message_string_size - offset, "\n");
 
     datalayer.system.info.logged_can_messages_offset = offset;  // Update offset in buffer
+  }
+}
+
+void map_can_frame_to_variable(CAN_frame* rx_frame, int interface) {
+  print_can_frame(*rx_frame, frameDirection(MSG_RX));
+
+#ifdef LOG_CAN_TO_SD
+  add_can_frame_to_buffer(*rx_frame, frameDirection(MSG_RX));
+#endif
+
+  if (interface == can_config.battery) {
+    handle_incoming_can_frame_battery(*rx_frame);
+#ifdef CHADEMO_BATTERY
+    ISA_handleFrame(rx_frame);
+#endif
+  }
+  if (interface == can_config.inverter) {
+#ifdef CAN_INVERTER_SELECTED
+    map_can_frame_to_variable_inverter(*rx_frame);
+#endif
+  }
+  if (interface == can_config.battery_double) {
+#ifdef DOUBLE_BATTERY
+    handle_incoming_can_frame_battery2(*rx_frame);
+#endif
+  }
+  if (interface == can_config.charger) {
+#ifdef CHARGER_SELECTED
+    map_can_frame_to_variable_charger(*rx_frame);
+#endif
+  }
+  if (interface == can_config.shunt) {
+#ifdef CAN_SHUNT_SELECTED
+    map_can_frame_to_variable_shunt(*rx_frame);
+#endif
   }
 }

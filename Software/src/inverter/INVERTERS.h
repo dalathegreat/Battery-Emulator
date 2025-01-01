@@ -15,10 +15,6 @@
 #include "BYD-MODBUS.h"
 #endif
 
-#ifdef BYD_SMA
-#include "BYD-SMA.h"
-#endif
-
 #ifdef BYD_KOSTAL_RS485
 #include "KOSTAL-RS485.h"
 #endif
@@ -39,8 +35,12 @@
 #include "SCHNEIDER-CAN.h"
 #endif
 
-#ifdef SMA_CAN
-#include "SMA-CAN.h"
+#ifdef SMA_BYD_H_CAN
+#include "SMA-BYD-H-CAN.h"
+#endif
+
+#ifdef SMA_BYD_HVS_CAN
+#include "SMA-BYD-HVS-CAN.h"
 #endif
 
 #ifdef SMA_LV_CAN
@@ -65,8 +65,8 @@
 
 #ifdef CAN_INVERTER_SELECTED
 void update_values_can_inverter();
-void receive_can_inverter(CAN_frame rx_frame);
-void send_can_inverter();
+void map_can_frame_to_variable_inverter(CAN_frame rx_frame);
+void transmit_can_inverter();
 #endif
 
 #ifdef MODBUS_INVERTER_SELECTED

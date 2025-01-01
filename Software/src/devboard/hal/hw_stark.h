@@ -61,11 +61,28 @@ GPIOs on extra header
 // Equipment stop pin
 #define EQUIPMENT_STOP_PIN 2
 
+// BMW_I3_BATTERY wake up pin
+#ifdef BMW_I3_BATTERY
+#define WUP_PIN1 GPIO_NUM_25  // Wake up pin for battery 1
+#ifdef DOUBLE_BATTERY
+#define WUP_PIN2 GPIO_NUM_32  // Wake up pin for battery 2
+#endif                        // DOUBLE_BATTERY
+#endif                        // BMW_I3_BATTERY
+
 /* ----- Error checks below, don't change (can't be moved to separate file) ----- */
 #ifndef HW_CONFIGURED
 #define HW_CONFIGURED
 #else
 #error Multiple HW defined! Please select a single HW
-#endif
+#endif  // HW_CONFIGURED
 
+#ifdef BMW_I3_BATTERY
+#if defined(CONTACTOR_CONTROL) && defined(WUP_PIN1)
+#error GPIO PIN 25 cannot be used for both BMWi3 Wakeup and contactor control. Disable CONTACTOR_CONTROL
 #endif
+#if defined(CONTACTOR_CONTROL) && defined(WUP_PIN2)
+#error GPIO PIN 32 cannot be used for both BMWi3 Wakeup and contactor control. Disable CONTACTOR_CONTROL
+#endif
+#endif  // BMW_I3_BATTERY
+
+#endif  // __HW_STARK_H__

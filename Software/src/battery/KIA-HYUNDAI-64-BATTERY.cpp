@@ -142,63 +142,63 @@ void update_values_battery() {  //This function maps all the values fetched via 
 
   /* Safeties verified. Perform USB serial printout if configured to do so */
 
-#ifdef DEBUG_VIA_USB
-  Serial.println();  //sepatator
-  Serial.println("Values from battery: ");
-  Serial.print("SOC BMS: ");
-  Serial.print((uint16_t)SOC_BMS / 10.0, 1);
-  Serial.print("%  |  SOC Display: ");
-  Serial.print((uint16_t)SOC_Display / 10.0, 1);
-  Serial.print("%  |  SOH ");
-  Serial.print((uint16_t)batterySOH / 10.0, 1);
-  Serial.println("%");
-  Serial.print((int16_t)batteryAmps / 10.0, 1);
-  Serial.print(" Amps  |  ");
-  Serial.print((uint16_t)batteryVoltage / 10.0, 1);
-  Serial.print(" Volts  |  ");
-  Serial.print((int16_t)datalayer.battery.status.active_power_W);
-  Serial.println(" Watts");
-  Serial.print("Allowed Charge ");
-  Serial.print((uint16_t)allowedChargePower * 10);
-  Serial.print(" W  |  Allowed Discharge ");
-  Serial.print((uint16_t)allowedDischargePower * 10);
-  Serial.println(" W");
-  Serial.print("MaxCellVolt ");
-  Serial.print(CellVoltMax_mV);
-  Serial.print(" mV  No  ");
-  Serial.print(CellVmaxNo);
-  Serial.print("  |  MinCellVolt ");
-  Serial.print(CellVoltMin_mV);
-  Serial.print(" mV  No  ");
-  Serial.println(CellVminNo);
-  Serial.print("TempHi ");
-  Serial.print((int16_t)temperatureMax);
-  Serial.print("°C  TempLo ");
-  Serial.print((int16_t)temperatureMin);
-  Serial.print("°C  WaterInlet ");
-  Serial.print((int8_t)temperature_water_inlet);
-  Serial.print("°C  PowerRelay ");
-  Serial.print((int8_t)powerRelayTemperature * 2);
-  Serial.println("°C");
-  Serial.print("Aux12volt: ");
-  Serial.print((int16_t)leadAcidBatteryVoltage / 10.0, 1);
-  Serial.println("V  |  ");
-  Serial.print("BmsManagementMode ");
-  Serial.print((uint8_t)batteryManagementMode, BIN);
+#ifdef DEBUG_LOG
+  logging.println();  //sepatator
+  logging.println("Values from battery: ");
+  logging.print("SOC BMS: ");
+  logging.print((uint16_t)SOC_BMS / 10.0, 1);
+  logging.print("pct  |  SOC Display: ");
+  logging.print((uint16_t)SOC_Display / 10.0, 1);
+  logging.print("pct  |  SOH ");
+  logging.print((uint16_t)batterySOH / 10.0, 1);
+  logging.println("pct");
+  logging.print((int16_t)batteryAmps / 10.0, 1);
+  logging.print(" Amps  |  ");
+  logging.print((uint16_t)batteryVoltage / 10.0, 1);
+  logging.print(" Volts  |  ");
+  logging.print((int16_t)datalayer.battery.status.active_power_W);
+  logging.println(" Watts");
+  logging.print("Allowed Charge ");
+  logging.print((uint16_t)allowedChargePower * 10);
+  logging.print(" W  |  Allowed Discharge ");
+  logging.print((uint16_t)allowedDischargePower * 10);
+  logging.println(" W");
+  logging.print("MaxCellVolt ");
+  logging.print(CellVoltMax_mV);
+  logging.print(" mV  No  ");
+  logging.print(CellVmaxNo);
+  logging.print("  |  MinCellVolt ");
+  logging.print(CellVoltMin_mV);
+  logging.print(" mV  No  ");
+  logging.println(CellVminNo);
+  logging.print("TempHi ");
+  logging.print((int16_t)temperatureMax);
+  logging.print("°C  TempLo ");
+  logging.print((int16_t)temperatureMin);
+  logging.print("°C  WaterInlet ");
+  logging.print((int8_t)temperature_water_inlet);
+  logging.print("°C  PowerRelay ");
+  logging.print((int8_t)powerRelayTemperature * 2);
+  logging.println("°C");
+  logging.print("Aux12volt: ");
+  logging.print((int16_t)leadAcidBatteryVoltage / 10.0, 1);
+  logging.println("V  |  ");
+  logging.print("BmsManagementMode ");
+  logging.print((uint8_t)batteryManagementMode, BIN);
   if (bitRead((uint8_t)BMS_ign, 2) == 1) {
-    Serial.print("  |  BmsIgnition ON");
+    logging.print("  |  BmsIgnition ON");
   } else {
-    Serial.print("  |  BmsIgnition OFF");
+    logging.print("  |  BmsIgnition OFF");
   }
 
   if (bitRead((uint8_t)batteryRelay, 0) == 1) {
-    Serial.print("  |  PowerRelay ON");
+    logging.print("  |  PowerRelay ON");
   } else {
-    Serial.print("  |  PowerRelay OFF");
+    logging.print("  |  PowerRelay OFF");
   }
-  Serial.print("  |  Inverter ");
-  Serial.print(inverterVoltage);
-  Serial.println(" Volts");
+  logging.print("  |  Inverter ");
+  logging.print(inverterVoltage);
+  logging.println(" Volts");
 #endif
 }
 
@@ -220,7 +220,7 @@ void update_number_of_cells() {
   }
 }
 
-void receive_can_battery(CAN_frame rx_frame) {
+void handle_incoming_can_frame_battery(CAN_frame rx_frame) {
   switch (rx_frame.ID) {
     case 0x4DE:
       startedUp = true;
@@ -268,17 +268,17 @@ void receive_can_battery(CAN_frame rx_frame) {
       }
       poll_data_pid++;
       if (poll_data_pid == 1) {
-        transmit_can(&KIA64_7E4_id1, can_config.battery);
+        transmit_can_frame(&KIA64_7E4_id1, can_config.battery);
       } else if (poll_data_pid == 2) {
-        transmit_can(&KIA64_7E4_id2, can_config.battery);
+        transmit_can_frame(&KIA64_7E4_id2, can_config.battery);
       } else if (poll_data_pid == 3) {
-        transmit_can(&KIA64_7E4_id3, can_config.battery);
+        transmit_can_frame(&KIA64_7E4_id3, can_config.battery);
       } else if (poll_data_pid == 4) {
-        transmit_can(&KIA64_7E4_id4, can_config.battery);
+        transmit_can_frame(&KIA64_7E4_id4, can_config.battery);
       } else if (poll_data_pid == 5) {
-        transmit_can(&KIA64_7E4_id5, can_config.battery);
+        transmit_can_frame(&KIA64_7E4_id5, can_config.battery);
       } else if (poll_data_pid == 6) {
-        transmit_can(&KIA64_7E4_id6, can_config.battery);
+        transmit_can_frame(&KIA64_7E4_id6, can_config.battery);
       } else if (poll_data_pid == 7) {
       } else if (poll_data_pid == 8) {
       } else if (poll_data_pid == 9) {
@@ -289,7 +289,8 @@ void receive_can_battery(CAN_frame rx_frame) {
       switch (rx_frame.data.u8[0]) {
         case 0x10:  //"PID Header"
           if (rx_frame.data.u8[4] == poll_data_pid) {
-            transmit_can(&KIA64_7E4_ack, can_config.battery);  //Send ack to BMS if the same frame is sent as polled
+            transmit_can_frame(&KIA64_7E4_ack,
+                               can_config.battery);  //Send ack to BMS if the same frame is sent as polled
           }
           break;
         case 0x21:  //First frame in PID group
@@ -460,7 +461,7 @@ void receive_can_battery(CAN_frame rx_frame) {
   }
 }
 
-void send_can_battery() {
+void transmit_can_battery() {
   unsigned long currentMillis = millis();
 
   if (!startedUp) {
@@ -471,9 +472,9 @@ void send_can_battery() {
   if (currentMillis - previousMillis100 >= INTERVAL_100_MS) {
     previousMillis100 = currentMillis;
 
-    transmit_can(&KIA64_553, can_config.battery);
-    transmit_can(&KIA64_57F, can_config.battery);
-    transmit_can(&KIA64_2A1, can_config.battery);
+    transmit_can_frame(&KIA64_553, can_config.battery);
+    transmit_can_frame(&KIA64_57F, can_config.battery);
+    transmit_can_frame(&KIA64_2A1, can_config.battery);
   }
   // Send 10ms CAN Message
   if (currentMillis - previousMillis10 >= INTERVAL_10_MS) {
@@ -525,11 +526,11 @@ void send_can_battery() {
         break;
     }
 
-    transmit_can(&KIA_HYUNDAI_200, can_config.battery);
+    transmit_can_frame(&KIA_HYUNDAI_200, can_config.battery);
 
-    transmit_can(&KIA_HYUNDAI_523, can_config.battery);
+    transmit_can_frame(&KIA_HYUNDAI_523, can_config.battery);
 
-    transmit_can(&KIA_HYUNDAI_524, can_config.battery);
+    transmit_can_frame(&KIA_HYUNDAI_524, can_config.battery);
   }
 }
 

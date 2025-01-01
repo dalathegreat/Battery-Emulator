@@ -147,7 +147,7 @@ typedef struct {
   /** True if the contactor controlled by battery-emulator is closed */
   bool contactors_engaged = false;
   /** True if shunt communication ok **/
-  bool available=false;
+  bool available = false;
 } DATALAYER_SHUNT_TYPE;
 
 typedef struct {

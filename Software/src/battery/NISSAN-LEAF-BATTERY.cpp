@@ -502,7 +502,7 @@ void update_values_battery2() {  // Handle the values coming in from battery #2
     }
   }
 }
-void receive_can_battery2(CAN_frame rx_frame) {
+void handle_incoming_can_frame_battery2(CAN_frame rx_frame) {
   switch (rx_frame.ID) {
     case 0x1DB:
       if (is_message_corrupt(rx_frame)) {
@@ -612,7 +612,7 @@ void receive_can_battery2(CAN_frame rx_frame) {
       //First check which group data we are getting
       if (rx_frame.data.u8[0] == 0x10) {  //First message of a group
         battery2_group_7bb = rx_frame.data.u8[3];
-        transmit_can(&LEAF_NEXT_LINE_REQUEST, can_config.battery_double);
+        transmit_can_frame(&LEAF_NEXT_LINE_REQUEST, can_config.battery_double);
       }
 
       if (battery2_group_7bb == 1)  //High precision SOC, Current, voltages etc.
@@ -740,7 +740,7 @@ void receive_can_battery2(CAN_frame rx_frame) {
 }
 #endif  // DOUBLE_BATTERY
 
-void receive_can_battery(CAN_frame rx_frame) {
+void handle_incoming_can_frame_battery(CAN_frame rx_frame) {
   switch (rx_frame.ID) {
     case 0x1DB:
       if (is_message_corrupt(rx_frame)) {
@@ -870,7 +870,7 @@ void receive_can_battery(CAN_frame rx_frame) {
       if (rx_frame.data.u8[0] == 0x10) {  //First message of a group
         group_7bb = rx_frame.data.u8[3];
 
-        transmit_can(&LEAF_NEXT_LINE_REQUEST, can_config.battery);  //Request the next frame for the group
+        transmit_can_frame(&LEAF_NEXT_LINE_REQUEST, can_config.battery);  //Request the next frame for the group
       }
 
       if (group_7bb == 1)  //High precision SOC, Current, voltages etc.
@@ -1056,7 +1056,7 @@ void receive_can_battery(CAN_frame rx_frame) {
       break;
   }
 }
-void send_can_battery() {
+void transmit_can_battery() {
   if (battery_can_alive) {
 
     unsigned long currentMillis = millis();
@@ -1089,9 +1089,9 @@ void send_can_battery() {
           LEAF_1D4.data.u8[7] = 0xDE;
           break;
       }
-      transmit_can(&LEAF_1D4, can_config.battery);
+      transmit_can_frame(&LEAF_1D4, can_config.battery);
 #ifdef DOUBLE_BATTERY
-      transmit_can(&LEAF_1D4, can_config.battery_double);
+      transmit_can_frame(&LEAF_1D4, can_config.battery_double);
 #endif  // DOUBLE_BATTERY
 
       switch (mprun10r) {
@@ -1185,9 +1185,9 @@ void send_can_battery() {
 
 //Only send this message when NISSANLEAF_CHARGER is not defined (otherwise it will collide!)
 #ifndef NISSANLEAF_CHARGER
-      transmit_can(&LEAF_1F2, can_config.battery);
+      transmit_can_frame(&LEAF_1F2, can_config.battery);
 #ifdef DOUBLE_BATTERY
-      transmit_can(&LEAF_1F2, can_config.battery_double);
+      transmit_can_frame(&LEAF_1F2, can_config.battery_double);
 #endif  // DOUBLE_BATTERY
 #endif
 
@@ -1212,9 +1212,9 @@ void send_can_battery() {
       }
 
       // VCM message, containing info if battery should sleep or stay awake
-      transmit_can(&LEAF_50B, can_config.battery);  // HCM_WakeUpSleepCommand == 11b == WakeUp, and CANMASK = 1
+      transmit_can_frame(&LEAF_50B, can_config.battery);  // HCM_WakeUpSleepCommand == 11b == WakeUp, and CANMASK = 1
 #ifdef DOUBLE_BATTERY
-      transmit_can(&LEAF_50B, can_config.battery_double);
+      transmit_can_frame(&LEAF_50B, can_config.battery_double);
 #endif  // DOUBLE_BATTERY
 
       LEAF_50C.data.u8[3] = mprun100;
@@ -1236,9 +1236,9 @@ void send_can_battery() {
           LEAF_50C.data.u8[5] = 0x9A;
           break;
       }
-      transmit_can(&LEAF_50C, can_config.battery);
+      transmit_can_frame(&LEAF_50C, can_config.battery);
 #ifdef DOUBLE_BATTERY
-      transmit_can(&LEAF_50C, can_config.battery_double);
+      transmit_can_frame(&LEAF_50C, can_config.battery_double);
 #endif  // DOUBLE_BATTERY
 
       mprun100 = (mprun100 + 1) % 4;  // mprun100 cycles between 0-1-2-3-0-1...
@@ -1255,9 +1255,9 @@ void send_can_battery() {
         PIDindex = (PIDindex + 1) % 6;  // 6 = amount of elements in the PIDgroups[]
         LEAF_GROUP_REQUEST.data.u8[2] = PIDgroups[PIDindex];
 
-        transmit_can(&LEAF_GROUP_REQUEST, can_config.battery);
+        transmit_can_frame(&LEAF_GROUP_REQUEST, can_config.battery);
 #ifdef DOUBLE_BATTERY
-        transmit_can(&LEAF_GROUP_REQUEST, can_config.battery_double);
+        transmit_can_frame(&LEAF_GROUP_REQUEST, can_config.battery_double);
 #endif  // DOUBLE_BATTERY
       }
 
@@ -1320,19 +1320,19 @@ void clearSOH(void) {
       break;
     case 1:  // Set CAN_PROCESS_FLAG to 0xC0
       LEAF_CLEAR_SOH.data = {0x02, 0x10, 0xC0, 0x00, 0x00, 0x00, 0x00, 0x00};
-      transmit_can(&LEAF_CLEAR_SOH, can_config.battery);
+      transmit_can_frame(&LEAF_CLEAR_SOH, can_config.battery);
       // BMS should reply 02 50 C0 FF FF FF FF FF
       stateMachineClearSOH = 2;
       break;
     case 2:  // Set something ?
       LEAF_CLEAR_SOH.data = {0x02, 0x3E, 0x01, 0x00, 0x00, 0x00, 0x00, 0x00};
-      transmit_can(&LEAF_CLEAR_SOH, can_config.battery);
+      transmit_can_frame(&LEAF_CLEAR_SOH, can_config.battery);
       // BMS should reply 7E FF FF FF FF FF FF
       stateMachineClearSOH = 3;
       break;
     case 3:  // Request challenge to solve
       LEAF_CLEAR_SOH.data = {0x02, 0x27, 0x65, 0x00, 0x00, 0x00, 0x00, 0x00};
-      transmit_can(&LEAF_CLEAR_SOH, can_config.battery);
+      transmit_can_frame(&LEAF_CLEAR_SOH, can_config.battery);
       // BMS should reply with (challenge) 06 67 65 (02 DD 86 43) FF
       stateMachineClearSOH = 4;
       break;
@@ -1340,34 +1340,34 @@ void clearSOH(void) {
       decodeChallengeData(incomingChallenge, solvedChallenge);
       LEAF_CLEAR_SOH.data = {
           0x10, 0x0A, 0x27, 0x66, solvedChallenge[0], solvedChallenge[1], solvedChallenge[2], solvedChallenge[3]};
-      transmit_can(&LEAF_CLEAR_SOH, can_config.battery);
+      transmit_can_frame(&LEAF_CLEAR_SOH, can_config.battery);
       // BMS should reply 7BB 8 30 01 00 FF FF FF FF FF // Proceed with more data (PID ACK)
       stateMachineClearSOH = 5;
       break;
     case 5:  // Reply with even more decoded challenge data
       LEAF_CLEAR_SOH.data = {
           0x21, solvedChallenge[4], solvedChallenge[5], solvedChallenge[6], solvedChallenge[7], 0x00, 0x00, 0x00};
-      transmit_can(&LEAF_CLEAR_SOH, can_config.battery);
+      transmit_can_frame(&LEAF_CLEAR_SOH, can_config.battery);
       // BMS should reply 02 67 66 FF FF FF FF FF // Thank you for the data
       stateMachineClearSOH = 6;
       break;
     case 6:  // Check if solved data was OK
       LEAF_CLEAR_SOH.data = {0x03, 0x31, 0x03, 0x00, 0x00, 0x00, 0x00, 0x00};
-      transmit_can(&LEAF_CLEAR_SOH, can_config.battery);
+      transmit_can_frame(&LEAF_CLEAR_SOH, can_config.battery);
       //7BB 8 03 71 03 01 FF FF FF FF // If all is well, BMS replies with 03 71 03 01.
       //Incase you sent wrong challenge, you get 03 7f 31 12
       stateMachineClearSOH = 7;
       break;
     case 7:  // Reset SOH% request
       LEAF_CLEAR_SOH.data = {0x03, 0x31, 0x03, 0x01, 0x00, 0x00, 0x00, 0x00};
-      transmit_can(&LEAF_CLEAR_SOH, can_config.battery);
+      transmit_can_frame(&LEAF_CLEAR_SOH, can_config.battery);
       //7BB 8 03 71 03 02 FF FF FF FF // 03 71 03 02 means that BMS accepted command.
       //7BB 03 7f 31 12 means your challenge was wrong, so command ignored
       stateMachineClearSOH = 8;
       break;
     case 8:  // Please proceed with resetting SOH
       LEAF_CLEAR_SOH.data = {0x02, 0x10, 0x81, 0x00, 0x00, 0x00, 0x00, 0x00};
-      transmit_can(&LEAF_CLEAR_SOH, can_config.battery);
+      transmit_can_frame(&LEAF_CLEAR_SOH, can_config.battery);
       // 7BB 8 02 50 81 FF FF FF FF FF // SOH reset OK
       stateMachineClearSOH = 255;
       break;

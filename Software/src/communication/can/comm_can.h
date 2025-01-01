@@ -15,8 +15,6 @@
 #include "../../lib/pierremolinaro-ACAN2517FD/ACAN2517FD.h"
 #endif  //CANFD_ADDON
 
-enum frameDirection { MSG_RX, MSG_TX };  //RX = 0, TX = 1
-
 /**
  * @brief Initialization function for CAN.
  *
@@ -34,7 +32,7 @@ void init_CAN();
  *
  * @return void
  */
-void transmit_can();
+void transmit_can_frame();
 
 /**
  * @brief Send CAN messages to all components 
@@ -43,7 +41,7 @@ void transmit_can();
  *
  * @return void
  */
-void send_can();
+void transmit_can();
 
 /**
  * @brief Receive CAN messages from all interfaces 
@@ -61,7 +59,7 @@ void receive_can();
  *
  * @return void
  */
-void receive_can_native();
+void receive_frame_can_native();
 
 /**
  * @brief Receive CAN messages from CAN addon chip
@@ -70,7 +68,7 @@ void receive_can_native();
  *
  * @return void
  */
-void receive_can_addon();
+void receive_frame_can_addon();
 
 /**
  * @brief Receive CAN messages from CANFD addon chip
@@ -79,7 +77,7 @@ void receive_can_addon();
  *
  * @return void
  */
-void receive_canfd_addon();
+void receive_frame_canfd_addon();
 
 /**
  * @brief print CAN frames via USB
@@ -89,5 +87,15 @@ void receive_canfd_addon();
  * @return void
  */
 void print_can_frame(CAN_frame frame, frameDirection msgDir);
+
+/**
+ * @brief Map CAN frame from specified interface to variable
+ *
+ * @param[in] CAN_frame* rx_frame
+ * @param[in] int interface
+ *
+ * @return void
+ */
+void map_can_frame_to_variable(CAN_frame* rx_frame, int interface);
 
 #endif
