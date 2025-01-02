@@ -147,11 +147,11 @@ void update_values_battery() {  //This function maps all the values fetched via 
   logging.println("Values from battery: ");
   logging.print("SOC BMS: ");
   logging.print((uint16_t)SOC_BMS / 10.0, 1);
-  logging.print("pct  |  SOC Display: ");
+  logging.print("%  |  SOC Display: ");
   logging.print((uint16_t)SOC_Display / 10.0, 1);
-  logging.print("pct  |  SOH ");
+  logging.print("%  |  SOH ");
   logging.print((uint16_t)batterySOH / 10.0, 1);
-  logging.println("pct");
+  logging.println("%");
   logging.print((int16_t)batteryAmps / 10.0, 1);
   logging.print(" Amps  |  ");
   logging.print((uint16_t)batteryVoltage / 10.0, 1);

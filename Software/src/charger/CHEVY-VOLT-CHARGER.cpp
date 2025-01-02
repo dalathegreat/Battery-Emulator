@@ -101,6 +101,9 @@ void map_can_frame_to_variable_charger(CAN_frame rx_frame) {
     case 0x308:
       break;
     default:
+#ifdef DEBUG_LOG
+      logging.printf("CAN Rcv unknown frame MsgID=%x\n", rx_frame.MsgID);
+#endif
       break;
   }
 }

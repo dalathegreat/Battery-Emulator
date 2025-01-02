@@ -105,9 +105,9 @@ void update_values_battery() {  //This function maps all the values fetched via 
 
 #ifdef DEBUG_LOG
   logging.println("Values going to inverter:");
-  logging.print("SOH: ");
+  logging.print("SOH%: ");
   logging.print(datalayer.battery.status.soh_pptt);
-  logging.print(", SOC scaled: ");
+  logging.print(", SOC% scaled: ");
   logging.print(datalayer.battery.status.reported_soc);
   logging.print(", Voltage: ");
   logging.print(datalayer.battery.status.voltage_dV);
