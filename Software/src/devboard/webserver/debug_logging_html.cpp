@@ -5,7 +5,6 @@
 
 #ifdef DEBUG_VIA_WEB
 String debug_logger_processor(void) {
-//  String content = "";
   String content = String(index_html_header);
   // Page format
   content += "<style>";
