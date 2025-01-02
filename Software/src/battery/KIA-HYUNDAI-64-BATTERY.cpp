@@ -25,6 +25,7 @@ static int16_t batteryAmps = 0;
 static int16_t temperatureMax = 0;
 static int16_t temperatureMin = 0;
 static int16_t poll_data_pid = 0;
+static bool holdPidCounter = false;
 static uint8_t CellVmaxNo = 0;
 static uint8_t CellVminNo = 0;
 static uint8_t batteryManagementMode = 0;
@@ -262,27 +263,28 @@ void handle_incoming_can_frame_battery(CAN_frame rx_frame) {
     case 0x5D8:
       startedUp = true;
 
-      //PID data is polled after last message sent from battery:
-      if (poll_data_pid >= 10) {  //polling one of ten PIDs at 100ms, resolution = 1s
-        poll_data_pid = 0;
-      }
-      poll_data_pid++;
-      if (poll_data_pid == 1) {
-        transmit_can_frame(&KIA64_7E4_id1, can_config.battery);
-      } else if (poll_data_pid == 2) {
-        transmit_can_frame(&KIA64_7E4_id2, can_config.battery);
-      } else if (poll_data_pid == 3) {
-        transmit_can_frame(&KIA64_7E4_id3, can_config.battery);
-      } else if (poll_data_pid == 4) {
-        transmit_can_frame(&KIA64_7E4_id4, can_config.battery);
-      } else if (poll_data_pid == 5) {
-        transmit_can_frame(&KIA64_7E4_id5, can_config.battery);
-      } else if (poll_data_pid == 6) {
-        transmit_can_frame(&KIA64_7E4_id6, can_config.battery);
-      } else if (poll_data_pid == 7) {
-      } else if (poll_data_pid == 8) {
-      } else if (poll_data_pid == 9) {
-      } else if (poll_data_pid == 10) {
+      //PID data is polled after last message sent from battery every other time:
+      if (holdPidCounter == true) {
+        holdPidCounter = false;
+      } else {
+        holdPidCounter = true;
+        if (poll_data_pid >= 6) {  //polling one of six PIDs at 100ms*2, resolution = 1200ms
+          poll_data_pid = 0;
+        }
+        poll_data_pid++;
+        if (poll_data_pid == 1) {
+          transmit_can_frame(&KIA64_7E4_id1, can_config.battery);
+        } else if (poll_data_pid == 2) {
+          transmit_can_frame(&KIA64_7E4_id2, can_config.battery);
+        } else if (poll_data_pid == 3) {
+          transmit_can_frame(&KIA64_7E4_id3, can_config.battery);
+        } else if (poll_data_pid == 4) {
+          transmit_can_frame(&KIA64_7E4_id4, can_config.battery);
+        } else if (poll_data_pid == 5) {
+          transmit_can_frame(&KIA64_7E4_id5, can_config.battery);
+        } else if (poll_data_pid == 6) {
+          transmit_can_frame(&KIA64_7E4_id6, can_config.battery);
+        }
       }
       break;
     case 0x7EC:  //Data From polled PID group, BigEndian
