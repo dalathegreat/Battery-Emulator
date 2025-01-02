@@ -31,7 +31,8 @@ void Logging::add_timestamp(size_t size) {
   timestr = timestr_buffer;
 #endif  // DEBUG_VIA_WEB
 
-  offset += min(MAX_LENGTH_TIME_STR - 1, snprintf(timestr, MAX_LENGTH_TIME_STR, "%8lu.%03lu ", currentTime / 1000, currentTime % 1000));
+  offset += min(MAX_LENGTH_TIME_STR - 1, 
+                snprintf(timestr, MAX_LENGTH_TIME_STR, "%8lu.%03lu ", currentTime / 1000, currentTime % 1000));
 
 #ifdef DEBUG_VIA_WEB
   if (!datalayer.system.info.can_logging_active) {
@@ -112,7 +113,7 @@ void Logging::printf(const char* fmt, ...) {
 
   va_list(args);
   va_start(args, fmt);
-  int size = min(MAX_LINE_LENGTH_PRINTF-1, vsnprintf(message_buffer, MAX_LINE_LENGTH_PRINTF, fmt, args));
+  int size = min(MAX_LINE_LENGTH_PRINTF - 1, vsnprintf(message_buffer, MAX_LINE_LENGTH_PRINTF, fmt, args));
   va_end(args);
 
 #ifdef LOG_TO_SD
