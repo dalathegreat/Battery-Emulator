@@ -11,6 +11,6 @@
  *
  * @return String
  */
-String debug_logger_processor(const String& var);
+String debug_logger_processor(void);
 
 #endif
