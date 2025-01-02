@@ -267,28 +267,28 @@ void handle_incoming_can_frame_battery(CAN_frame rx_frame) {
       if (poll_data_pid >= 10) {  //polling one of ten PIDs at 100ms*2, resolution = 2s
         poll_data_pid = 0;
       }
-      if (holdPidCounter == false) {
-        poll_data_pid++;
-        holdPidCounter = true;
-      } else {
+      if (holdPidCounter == true) {
         holdPidCounter = false;
-      }
-      if (poll_data_pid == 1) {
-        transmit_can_frame(&KIA64_7E4_id1, can_config.battery);
-      } else if (poll_data_pid == 2) {
-        transmit_can_frame(&KIA64_7E4_id2, can_config.battery);
-      } else if (poll_data_pid == 3) {
-        transmit_can_frame(&KIA64_7E4_id3, can_config.battery);
-      } else if (poll_data_pid == 4) {
-        transmit_can_frame(&KIA64_7E4_id4, can_config.battery);
-      } else if (poll_data_pid == 5) {
-        transmit_can_frame(&KIA64_7E4_id5, can_config.battery);
-      } else if (poll_data_pid == 6) {
-        transmit_can_frame(&KIA64_7E4_id6, can_config.battery);
-      } else if (poll_data_pid == 7) {
-      } else if (poll_data_pid == 8) {
-      } else if (poll_data_pid == 9) {
-      } else if (poll_data_pid == 10) {
+      } else {
+        holdPidCounter = true;
+        poll_data_pid++;
+        if (poll_data_pid == 1) {
+          transmit_can_frame(&KIA64_7E4_id1, can_config.battery);
+        } else if (poll_data_pid == 2) {
+          transmit_can_frame(&KIA64_7E4_id2, can_config.battery);
+        } else if (poll_data_pid == 3) {
+          transmit_can_frame(&KIA64_7E4_id3, can_config.battery);
+        } else if (poll_data_pid == 4) {
+          transmit_can_frame(&KIA64_7E4_id4, can_config.battery);
+        } else if (poll_data_pid == 5) {
+          transmit_can_frame(&KIA64_7E4_id5, can_config.battery);
+        } else if (poll_data_pid == 6) {
+          transmit_can_frame(&KIA64_7E4_id6, can_config.battery);
+        } else if (poll_data_pid == 7) {
+        } else if (poll_data_pid == 8) {
+        } else if (poll_data_pid == 9) {
+        } else if (poll_data_pid == 10) {
+        }
       }
       break;
     case 0x7EC:  //Data From polled PID group, BigEndian
