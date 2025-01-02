@@ -44,7 +44,7 @@ CAN_frame LEAF_GROUP_REQUEST = {.FD = false,
                                 .ext_ID = false,
                                 .DLC = 8,
                                 .ID = 0x79B,
-                                .data = {0x02, 0x21, PIDgroups[0], 0, 0, 0, 0, 0}};
+                                .data = {2, 0x21, 1, 0, 0, 0, 0, 0}};
 CAN_frame LEAF_NEXT_LINE_REQUEST = {.FD = false,
                                     .ext_ID = false,
                                     .DLC = 8,
@@ -110,8 +110,8 @@ static bool battery_Batt_Heater_Mail_Send_Request = false;  //Stores info when a
 static uint8_t battery_request_idx = 0;
 static uint8_t group_7bb = 0;
 static bool stop_battery_query = true;
-static uint8_t hold_off_with_polling_10seconds = 10;
-static uint16_t battery_cell_voltages[97];  //array with all the cellvoltages
+static uint8_t hold_off_with_polling_10seconds = 2;  //Paused for 20 seconds on startup
+static uint16_t battery_cell_voltages[97];           //array with all the cellvoltages
 static uint8_t battery_cellcounter = 0;
 static uint16_t battery_min_max_voltage[2];  //contains cell min[0] and max[1] values in mV
 static uint16_t battery_HX = 0;              //Internal resistance
@@ -612,10 +612,11 @@ void handle_incoming_can_frame_battery2(CAN_frame rx_frame) {
       //First check which group data we are getting
       if (rx_frame.data.u8[0] == 0x10) {  //First message of a group
         battery2_group_7bb = rx_frame.data.u8[3];
-        transmit_can_frame(&LEAF_NEXT_LINE_REQUEST, can_config.battery_double);
       }
 
-      if (battery2_group_7bb == 1)  //High precision SOC, Current, voltages etc.
+      transmit_can_frame(&LEAF_NEXT_LINE_REQUEST, can_config.battery_double);
+
+      if (battery2_group_7bb == 0x01)  //High precision SOC, Current, voltages etc.
       {
         if (rx_frame.data.u8[0] == 0x10) {  //First frame
           //High precision battery2_current_1 resides here, but has been deemed unusable by 62kWh owners
@@ -633,7 +634,7 @@ void handle_incoming_can_frame_battery2(CAN_frame rx_frame) {
         }
       }
 
-      if (battery2_group_7bb == 2)  //Cell Voltages
+      if (battery2_group_7bb == 0x02)  //Cell Voltages
       {
         if (rx_frame.data.u8[0] == 0x10) {  //first frame is anomalous
           battery2_request_idx = 0;
@@ -676,7 +677,7 @@ void handle_incoming_can_frame_battery2(CAN_frame rx_frame) {
         }
       }
 
-      if (battery2_group_7bb == 4) {        //Temperatures
+      if (battery2_group_7bb == 0x04) {     //Temperatures
         if (rx_frame.data.u8[0] == 0x10) {  //First message
           battery2_temp_raw_1 = (rx_frame.data.u8[4] << 8) | rx_frame.data.u8[5];
           battery2_temp_raw_2_highnibble = rx_frame.data.u8[7];
@@ -869,11 +870,11 @@ void handle_incoming_can_frame_battery(CAN_frame rx_frame) {
       //First check which group data we are getting
       if (rx_frame.data.u8[0] == 0x10) {  //First message of a group
         group_7bb = rx_frame.data.u8[3];
-
-        transmit_can_frame(&LEAF_NEXT_LINE_REQUEST, can_config.battery);  //Request the next frame for the group
       }
 
-      if (group_7bb == 1)  //High precision SOC, Current, voltages etc.
+      transmit_can_frame(&LEAF_NEXT_LINE_REQUEST, can_config.battery);  //Request the next frame for the group
+
+      if (group_7bb == 0x01)  //High precision SOC, Current, voltages etc.
       {
         if (rx_frame.data.u8[0] == 0x10) {  //First frame
           //High precision Battery_current_1 resides here, but has been deemed unusable by 62kWh owners
@@ -891,7 +892,7 @@ void handle_incoming_can_frame_battery(CAN_frame rx_frame) {
         }
       }
 
-      if (group_7bb == 2)  //Cell Voltages
+      if (group_7bb == 0x02)  //Cell Voltages
       {
         if (rx_frame.data.u8[0] == 0x10) {  //first frame is anomalous
           battery_request_idx = 0;
@@ -934,7 +935,7 @@ void handle_incoming_can_frame_battery(CAN_frame rx_frame) {
         }
       }
 
-      if (group_7bb == 4) {                 //Temperatures
+      if (group_7bb == 0x04) {              //Temperatures
         if (rx_frame.data.u8[0] == 0x10) {  //First message
           battery_temp_raw_1 = (rx_frame.data.u8[4] << 8) | rx_frame.data.u8[5];
           battery_temp_raw_2_highnibble = rx_frame.data.u8[7];

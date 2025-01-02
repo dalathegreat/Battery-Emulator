@@ -1,10 +1,11 @@
 #include "debug_logging_html.h"
 #include <Arduino.h>
 #include "../../datalayer/datalayer.h"
+#include "index_html.h"
 
 #if defined(DEBUG_VIA_WEB) || defined(LOG_TO_SD)
-String debug_logger_processor(const String& var) {
-  String content = "";
+String debug_logger_processor(void) {
+  String content = String(index_html_header);
   // Page format
   content += "<style>";
   content += "body { background-color: black; color: white; font-family: Arial, sans-serif; }";
@@ -39,6 +40,7 @@ String debug_logger_processor(const String& var) {
 #endif
   content += "function goToMainPage() { window.location.href = '/'; }";
   content += "</script>";
+  content += index_html_footer;
   return content;
 }
 #endif

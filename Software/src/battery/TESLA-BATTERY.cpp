@@ -2732,7 +2732,7 @@ void printFaultCodesIfActive() {
   }
   // Check each symbol and print debug information if its value is 1
   // 0X3AA: 938 HVP_alertMatrix1
-  printDebugIfActive(battery_WatchdogReset, "ERROR: The processor has experienced a reset due to watchdog reset");
+  //printDebugIfActive(battery_WatchdogReset, "ERROR: The processor has experienced a reset due to watchdog reset"); //Uncommented due to not affecting usage
   printDebugIfActive(battery_PowerLossReset, "ERROR: The processor has experienced a reset due to power loss");
   printDebugIfActive(battery_SwAssertion, "ERROR: An internal software assertion has failed");
   printDebugIfActive(battery_CrashEvent, "ERROR: crash signal is detected by HVP");
@@ -2900,7 +2900,7 @@ void printFaultCodesIfActive_battery2() {
         "disable the inverter protocol to proceed with contactor closing");
   }
   // Check each symbol and print debug information if its value is 1
-  printDebugIfActive(battery2_WatchdogReset, "ERROR: The processor has experienced a reset due to watchdog reset");
+  //printDebugIfActive(battery2_WatchdogReset, "ERROR: The processor has experienced a reset due to watchdog reset"); //Uncommented due to not affecting usage
   printDebugIfActive(battery2_PowerLossReset, "ERROR: The processor has experienced a reset due to power loss");
   printDebugIfActive(battery2_SwAssertion, "ERROR: An internal software assertion has failed");
   printDebugIfActive(battery2_CrashEvent, "ERROR: crash signal is detected by HVP");

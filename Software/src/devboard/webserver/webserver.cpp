@@ -21,7 +21,7 @@ unsigned long ota_progress_millis = 0;
 #include "cellmonitor_html.h"
 #include "debug_logging_html.h"
 #include "events_html.h"
-#include "index_html.cpp"
+#include "index_html.h"
 #include "settings_html.h"
 
 MyTimer ota_timeout_timer = MyTimer(15000);
@@ -30,8 +30,6 @@ bool ota_active = false;
 const char get_firmware_info_html[] = R"rawliteral(%X%)rawliteral";
 
 void init_webserver() {
-
-  String content = index_html;
 
   server.on("/logout", HTTP_GET, [](AsyncWebServerRequest* request) { request->send(401); });
 
@@ -63,13 +61,15 @@ void init_webserver() {
 
   // Route for going to CAN logging web page
   server.on("/canlog", HTTP_GET, [](AsyncWebServerRequest* request) {
-    request->send_P(200, "text/html", index_html, can_logger_processor);
+    AsyncWebServerResponse* response = request->beginResponse(200, "text/html", can_logger_processor());
+    request->send(response);
   });
 
 #if defined(DEBUG_VIA_WEB) || defined(LOG_TO_SD)
   // Route for going to debug logging web page
   server.on("/log", HTTP_GET, [](AsyncWebServerRequest* request) {
-    request->send_P(200, "text/html", index_html, debug_logger_processor);
+    AsyncWebServerResponse* response = request->beginResponse(200, "text/html", debug_logger_processor());
+    request->send(response);
   });
 #endif  // DEBUG_VIA_WEB
 
@@ -671,6 +671,12 @@ String processor(const String& var) {
       content += " (LFP)";
     }
     content += "</h4>";
+
+#ifdef CAN_SHUNT_SELECTED
+    content += "<h4 style='color: white;'>Shunt protocol: ";
+    content += datalayer.system.info.shunt_protocol;
+    content += "</h4>";
+#endif
 
 #if defined CHEVYVOLT_CHARGER || defined NISSANLEAF_CHARGER
     content += "<h4 style='color: white;'>Charger protocol: ";
