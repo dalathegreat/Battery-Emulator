@@ -25,6 +25,7 @@ static int16_t batteryAmps = 0;
 static int16_t temperatureMax = 0;
 static int16_t temperatureMin = 0;
 static int16_t poll_data_pid = 0;
+static bool holdPidCounter = false;
 static uint8_t CellVmaxNo = 0;
 static uint8_t CellVminNo = 0;
 static uint8_t batteryManagementMode = 0;
@@ -262,11 +263,16 @@ void handle_incoming_can_frame_battery(CAN_frame rx_frame) {
     case 0x5D8:
       startedUp = true;
 
-      //PID data is polled after last message sent from battery:
-      if (poll_data_pid >= 10) {  //polling one of ten PIDs at 100ms, resolution = 1s
+      //PID data is polled after last message sent from battery every other time:
+      if (poll_data_pid >= 10) {  //polling one of ten PIDs at 100ms*2, resolution = 2s
         poll_data_pid = 0;
       }
-      poll_data_pid++;
+      if (holdPidCounter == false) {
+        poll_data_pid++;
+        holdPidCounter = true;
+      } else {
+        holdPidCounter = false;
+      }
       if (poll_data_pid == 1) {
         transmit_can_frame(&KIA64_7E4_id1, can_config.battery);
       } else if (poll_data_pid == 2) {
