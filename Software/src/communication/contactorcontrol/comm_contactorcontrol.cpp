@@ -39,6 +39,11 @@ unsigned long negativeStartTime = 0;
 unsigned long prechargeCompletedTime = 0;
 unsigned long timeSpentInFaultedMode = 0;
 #endif
+unsigned long currentTime = 0;
+unsigned long lastPowerRemovalTime = 0;
+const unsigned long powerRemovalInterval = 24 * 60 * 60 * 1000;  // 24 hours in milliseconds
+const unsigned long powerRemovalDuration = 30000;                // 30 seconds in milliseconds
+bool isBMSResetActive = false;
 
 void set(uint8_t pin, bool direction, uint32_t pwm_freq = 0xFFFF) {
 #ifdef PWM_CONTACTOR_CONTROL
@@ -82,17 +87,23 @@ void init_contactors() {
   set(SECOND_NEGATIVE_CONTACTOR_PIN, OFF);
 #endif  // CONTACTOR_CONTROL_DOUBLE_BATTERY
 // Init BMS contactor
-#ifdef HW_STARK  // TODO: Rewrite this so LilyGo can also handle this BMS contactor
+#ifdef HW_STARK  // This hardware has dedicated pin, always enable on start
   pinMode(BMS_POWER, OUTPUT);
   digitalWrite(BMS_POWER, HIGH);
-#endif  // HW_STARK
+#endif                     // HW_STARK
+#ifdef PERIODIC_BMS_RESET  // User has enabled BMS reset, turn on output on start
+  pinMode(BMS_POWER, OUTPUT);
+  digitalWrite(BMS_POWER, HIGH);
+#endif  //PERIODIC_BMS_RESET
 }
 
-// Main functions
+// Main functions of the handle_contactors include checking if inverter allows for closing, checking battery 2, checking BMS power output, and actual contactor closing/precharge via GPIO
 void handle_contactors() {
 #if defined(SMA_BYD_H_CAN) || defined(SMA_BYD_HVS_CAN) || defined(SMA_TRIPOWER_CAN)
   datalayer.system.status.inverter_allows_contactor_closing = digitalRead(INVERTER_CONTACTOR_ENABLE_PIN);
 #endif
+
+  handle_BMSpower();  // Some batteries need to be periodically power cycled
 
 #ifdef CONTACTOR_CONTROL_DOUBLE_BATTERY
   handle_contactors_battery2();
@@ -142,7 +153,7 @@ void handle_contactors() {
     return;
   }
 
-  unsigned long currentTime = millis();
+  currentTime = millis();
 
   if (currentTime < INTERVAL_10_S) {
     // Skip running the state machine before system has started up.
@@ -202,3 +213,39 @@ void handle_contactors_battery2() {
   }
 }
 #endif  // CONTACTOR_CONTROL_DOUBLE_BATTERY
+
+/* Once every 24 hours we remove power from the BMS_power pin for 30 seconds. This makes the BMS recalculate all SOC% and avoid memory leaks
+During that time we also set the emulator state to paused in order to not try and send CAN messages towards the battery
+Feature is only used if user has enabled PERIODIC_BMS_RESET in the USER_SETTINGS */
+
+void handle_BMSpower() {
+#ifdef PERIODIC_BMS_RESET
+  // Get current time
+  currentTime = millis();
+
+  // Check if 24 hours have passed since the last power removal
+  if (currentTime - lastPowerRemovalTime >= powerRemovalInterval && !isBMSResetActive) {
+    lastPowerRemovalTime = currentTime;  // Record the time when BMS reset was started
+
+    // Set emulator state to paused (Max Charge/Discharge = 0 & CAN = stop)
+    // TODO: We try to keep contactors engaged during this pause, and just ramp power down to 0.
+    // If this turns out to not work properly, set also the third option to true to open contactors
+    setBatteryPause(true, true, false, false);
+
+    digitalWrite(BMS_POWER, LOW);  // Remove power by setting the BMS power pin to LOW
+
+    isBMSResetActive = true;  // Set a flag to indicate power removal is active
+  }
+
+  // If power has been removed for 30 seconds, restore the power and resume the emulator
+  if (isBMSResetActive && currentTime - lastPowerRemovalTime >= powerRemovalDuration) {
+    // Reapply power to the BMS
+    digitalWrite(BMS_POWER, HIGH);
+
+    //Resume the battery pause and CAN communication
+    setBatteryPause(false, false, false, false);
+
+    isBMSResetActive = false;  // Reset the power removal flag
+  }
+#endif  //PERIODIC_BMS_RESET
+}
