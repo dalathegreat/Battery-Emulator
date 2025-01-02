@@ -116,6 +116,10 @@ void transmit_can() {
 #ifdef CHARGER_SELECTED
   transmit_can_charger();
 #endif  // CHARGER_SELECTED
+
+#ifdef CAN_SHUNT_SELECTED
+  transmit_can_shunt();
+#endif  // CAN_SHUNT_SELECTED
 }
 
 void transmit_can_frame(CAN_frame* tx_frame, int interface) {
@@ -339,6 +343,11 @@ void map_can_frame_to_variable(CAN_frame* rx_frame, int interface) {
   if (interface == can_config.charger) {
 #ifdef CHARGER_SELECTED
     map_can_frame_to_variable_charger(*rx_frame);
+#endif
+  }
+  if (interface == can_config.shunt) {
+#ifdef CAN_SHUNT_SELECTED
+    handle_incoming_can_frame_shunt(*rx_frame);
 #endif
   }
 }

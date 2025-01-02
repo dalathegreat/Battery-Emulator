@@ -655,6 +655,12 @@ String processor(const String& var) {
     }
     content += "</h4>";
 
+#ifdef CAN_SHUNT_SELECTED
+    content += "<h4 style='color: white;'>Shunt protocol: ";
+    content += datalayer.system.info.shunt_protocol;
+    content += "</h4>";
+#endif
+
 #if defined CHEVYVOLT_CHARGER || defined NISSANLEAF_CHARGER
     content += "<h4 style='color: white;'>Charger protocol: ";
 #ifdef CHEVYVOLT_CHARGER

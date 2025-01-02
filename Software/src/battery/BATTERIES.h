@@ -2,6 +2,13 @@
 #define BATTERIES_H
 #include "../../USER_SETTINGS.h"
 
+#ifdef BMW_SBOX
+#include "BMW-SBOX.h"
+void handle_incoming_can_frame_shunt(CAN_frame rx_frame);
+void transmit_can_shunt();
+void setup_can_shunt();
+#endif
+
 #ifdef BMW_I3_BATTERY
 #include "BMW-I3-BATTERY.h"
 #endif
