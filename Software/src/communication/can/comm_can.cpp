@@ -90,7 +90,7 @@ void init_CAN() {
     logging.println(settings2517.exactArbitrationBitRate() ? "yes)" : "no)");
     logging.print("Arbitration Sample point: ");
     logging.print(settings2517.arbitrationSamplePointFromBitStart());
-    logging.println("pct");
+    logging.println("%");
 #endif  // DEBUG_LOG
   } else {
 #ifdef DEBUG_LOG
