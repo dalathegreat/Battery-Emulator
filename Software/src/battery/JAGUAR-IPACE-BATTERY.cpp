@@ -119,7 +119,7 @@ void update_values_battery() {
 #endif
 }
 
-void receive_can_battery(CAN_frame rx_frame) {
+void handle_incoming_can_frame_battery(CAN_frame rx_frame) {
 
   // Do not log noisy startup messages - there are many !
   if (rx_frame.ID == 0 && rx_frame.DLC == 8 && rx_frame.data.u8[0] == 0 && rx_frame.data.u8[1] == 0 &&
@@ -242,13 +242,13 @@ void receive_can_battery(CAN_frame rx_frame) {
   logging.println("");
 }
 
-void send_can_battery() {
+void transmit_can_battery() {
   unsigned long currentMillis = millis();
 
   /* Send keep-alive every 200ms */
   if (currentMillis - previousMillisKeepAlive >= INTERVAL_200_MS) {
     previousMillisKeepAlive = currentMillis;
-    transmit_can(&ipace_keep_alive, can_config.battery);
+    transmit_can_frame(&ipace_keep_alive, can_config.battery);
     return;
   }
 }

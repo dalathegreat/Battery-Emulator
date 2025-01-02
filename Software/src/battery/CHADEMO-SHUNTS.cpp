@@ -257,7 +257,7 @@ void ISA_initialize() {
     outframe.data.u8[6] = 0x00;
     outframe.data.u8[7] = 0x00;
 
-    transmit_can(&outframe, can_config.battery);
+    transmit_can_frame(&outframe, can_config.battery);
     delay(500);
   }
 
@@ -282,7 +282,7 @@ void ISA_STOP() {
   outframe.data.u8[6] = 0x00;
   outframe.data.u8[7] = 0x00;
 
-  transmit_can(&outframe, can_config.battery);
+  transmit_can_frame(&outframe, can_config.battery);
 }
 
 void ISA_sendSTORE() {
@@ -297,7 +297,7 @@ void ISA_sendSTORE() {
   outframe.data.u8[6] = 0x00;
   outframe.data.u8[7] = 0x00;
 
-  transmit_can(&outframe, can_config.battery);
+  transmit_can_frame(&outframe, can_config.battery);
 }
 
 void ISA_START() {
@@ -312,7 +312,7 @@ void ISA_START() {
   outframe.data.u8[6] = 0x00;
   outframe.data.u8[7] = 0x00;
 
-  transmit_can(&outframe, can_config.battery);
+  transmit_can_frame(&outframe, can_config.battery);
 }
 
 void ISA_RESTART() {
@@ -328,7 +328,7 @@ void ISA_RESTART() {
   outframe.data.u8[6] = 0x00;
   outframe.data.u8[7] = 0x00;
 
-  transmit_can(&outframe, can_config.battery);
+  transmit_can_frame(&outframe, can_config.battery);
 }
 
 void ISA_deFAULT() {
@@ -347,7 +347,7 @@ void ISA_deFAULT() {
   outframe.data.u8[6] = 0x00;
   outframe.data.u8[7] = 0x00;
 
-  transmit_can(&outframe, can_config.battery);
+  transmit_can_frame(&outframe, can_config.battery);
   delay(500);
 
   ISA_START();
@@ -369,7 +369,7 @@ void ISA_initCurrent() {
   outframe.data.u8[6] = 0x00;
   outframe.data.u8[7] = 0x00;
 
-  transmit_can(&outframe, can_config.battery);
+  transmit_can_frame(&outframe, can_config.battery);
   delay(500);
 
   ISA_sendSTORE();
@@ -394,7 +394,7 @@ void ISA_getCONFIG(uint8_t i) {
   outframe.data.u8[6] = 0x00;
   outframe.data.u8[7] = 0x00;
 
-  transmit_can(&outframe, can_config.battery);
+  transmit_can_frame(&outframe, can_config.battery);
 }
 
 void ISA_getCAN_ID(uint8_t i) {
@@ -414,7 +414,7 @@ void ISA_getCAN_ID(uint8_t i) {
   outframe.data.u8[6] = 0x00;
   outframe.data.u8[7] = 0x00;
 
-  transmit_can(&outframe, can_config.battery);
+  transmit_can_frame(&outframe, can_config.battery);
 }
 
 void ISA_getINFO(uint8_t i) {
@@ -430,6 +430,6 @@ void ISA_getINFO(uint8_t i) {
   outframe.data.u8[6] = 0x00;
   outframe.data.u8[7] = 0x00;
 
-  transmit_can(&outframe, can_config.battery);
+  transmit_can_frame(&outframe, can_config.battery);
 }
 #endif

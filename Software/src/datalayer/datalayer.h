@@ -134,6 +134,20 @@ typedef struct {
   uint16_t measured_voltage_dV = 0;
   /** measured amperage in deciAmperes. 300 = 30.0 A */
   uint16_t measured_amperage_dA = 0;
+  /** measured battery voltage in mV (S-BOX) **/
+  uint32_t measured_voltage_mV = 0;
+  /** measured output voltage in mV (eg. S-BOX) **/
+  uint32_t measured_outvoltage_mV = 0;
+  /** measured amperage in mA (eg. S-BOX) **/
+  int32_t measured_amperage_mA = 0;
+  /** Average current from last 1s **/
+  int32_t measured_avg1S_amperage_mA = 0;
+  /** True if contactors are precharging state */
+  bool precharging = false;
+  /** True if the contactor controlled by battery-emulator is closed */
+  bool contactors_engaged = false;
+  /** True if shunt communication ok **/
+  bool available = false;
 } DATALAYER_SHUNT_TYPE;
 
 typedef struct {
@@ -141,6 +155,8 @@ typedef struct {
   char battery_protocol[64] = {0};
   /** array with type of inverter used, for displaying on webserver */
   char inverter_protocol[64] = {0};
+  /** array with type of battery used, for displaying on webserver */
+  char shunt_protocol[64] = {0};
   /** array with incoming CAN messages, for displaying on webserver */
   char logged_can_messages[15000] = {0};
   size_t logged_can_messages_offset = 0;

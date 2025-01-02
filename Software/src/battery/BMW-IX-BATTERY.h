@@ -5,7 +5,6 @@
 
 #define BATTERY_SELECTED
 
-//#define WUP_PIN 25 //Not used
 #define MAX_PACK_VOLTAGE_DV 4650  //4650 = 465.0V
 #define MIN_PACK_VOLTAGE_DV 3000
 #define MAX_CELL_DEVIATION_MV 250
@@ -18,6 +17,6 @@
 #define STALE_PERIOD_CONFIG \
   300000;  //Number of milliseconds before critical values are classed as stale/stuck 300000 = 300 seconds
 void setup_battery(void);
-void transmit_can(CAN_frame* tx_frame, int interface);
+void transmit_can_frame(CAN_frame* tx_frame, int interface);
 
 #endif

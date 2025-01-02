@@ -11,6 +11,6 @@
  *
  * @return String
  */
-String can_logger_processor(const String& var);
+String can_logger_processor(void);
 
 #endif

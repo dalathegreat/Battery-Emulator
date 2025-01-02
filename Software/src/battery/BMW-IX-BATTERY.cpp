@@ -516,7 +516,7 @@ void update_values_battery() {  //This function maps all the values fetched via 
     datalayer.battery.info.min_cell_voltage_mV = MIN_CELL_VOLTAGE_MV;
   }
 }
-void receive_can_battery(CAN_frame rx_frame) {
+void handle_incoming_can_frame_battery(CAN_frame rx_frame) {
   battery_awake = true;
   switch (rx_frame.ID) {
     case 0x112:
@@ -540,7 +540,7 @@ void receive_can_battery(CAN_frame rx_frame) {
         }
 
         //Frame has continued data  - so request it
-        transmit_can(&BMWiX_6F4_CONTINUE_DATA, can_config.battery);
+        transmit_can_frame(&BMWiX_6F4_CONTINUE_DATA, can_config.battery);
       }
 
       if (rx_frame.DLC = 64 && rx_frame.data.u8[0] == 0xF4 &&
@@ -674,7 +674,7 @@ void receive_can_battery(CAN_frame rx_frame) {
           logging.println("Cell MinMax Qualifier Invalid - Requesting BMS Reset");
 #endif
           //set_event(EVENT_BATTERY_VALUE_UNAVAILABLE, (millis())); //Eventually need new Info level event type
-          transmit_can(&BMWiX_6F4_REQUEST_HARD_RESET, can_config.battery);
+          transmit_can_frame(&BMWiX_6F4_REQUEST_HARD_RESET, can_config.battery);
         } else {  //Only ingest values if they are not the 10V Error state
           min_cell_voltage = (rx_frame.data.u8[6] << 8 | rx_frame.data.u8[7]);
           max_cell_voltage = (rx_frame.data.u8[8] << 8 | rx_frame.data.u8[9]);
@@ -724,7 +724,7 @@ void receive_can_battery(CAN_frame rx_frame) {
   }
 }
 
-void send_can_battery() {
+void transmit_can_battery() {
   unsigned long currentMillis = millis();
 
   //if (battery_awake) { //We can always send CAN as the iX BMS will wake up on vehicle comms
@@ -734,10 +734,10 @@ void send_can_battery() {
 
     //Loop through and send a different UDS request each cycle
     uds_req_id_counter = increment_uds_req_id_counter(uds_req_id_counter);
-    transmit_can(UDS_REQUESTS100MS[uds_req_id_counter], can_config.battery);
+    transmit_can_frame(UDS_REQUESTS100MS[uds_req_id_counter], can_config.battery);
 
     //Send SME Keep alive values 100ms
-    transmit_can(&BMWiX_510, can_config.battery);
+    transmit_can_frame(&BMWiX_510, can_config.battery);
   }
   // Send 200ms CAN Message
   if (currentMillis - previousMillis200 >= INTERVAL_200_MS) {
@@ -745,16 +745,16 @@ void send_can_battery() {
 
     //Send SME Keep alive values 200ms
     BMWiX_0C0.data.u8[0] = increment_0C0_counter(BMWiX_0C0.data.u8[0]);  //Keep Alive 1
-    transmit_can(&BMWiX_0C0, can_config.battery);
+    transmit_can_frame(&BMWiX_0C0, can_config.battery);
   }
   // Send 1000ms CAN Message
   if (currentMillis - previousMillis1000 >= INTERVAL_1_S) {
     previousMillis1000 = currentMillis;
 
     //Send SME Keep alive values 1000ms
-    //Don't believe this is needed: transmit_can(&BMWiX_06D, can_config.battery);
-    //Don't believe this is needed: transmit_can(&BMWiX_2F1, can_config.battery);
-    //Don't believe this is needed: transmit_can(&BMWiX_439, can_config.battery);
+    //Don't believe this is needed: transmit_can_frame(&BMWiX_06D, can_config.battery);
+    //Don't believe this is needed: transmit_can_frame(&BMWiX_2F1, can_config.battery);
+    //Don't believe this is needed: transmit_can_frame(&BMWiX_439, can_config.battery);
   }
   // Send 5000ms CAN Message
   if (currentMillis - previousMillis5000 >= INTERVAL_5_S) {

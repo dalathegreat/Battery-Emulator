@@ -1,15 +1,12 @@
 # This is the name of the workflow, visible on GitHub UI.
-name: Compile All Combinations
+name: Compile All Hardware
 
 # Here we tell GitHub when to run the workflow.
 on:
-  # This allows you to run this workflow manually from the
-  # GitHub Actions tab.
-  workflow_dispatch:
-  # The workflow is run upon creating, editing,
-  # pre-releasing, releasing and publishing a release
-  release:
-    types: [created, edited, prereleased, released, published]
+  # The workflow is run when a commit is pushed or for a
+  # Pull Request.
+  - push
+  - pull_request
 
 # This is the list of jobs that will be run concurrently.
 jobs:
@@ -33,7 +30,7 @@ jobs:
   # will produce.
 
   # This is the name of the job.
-  build-matrix:
+  build-hardware:
     needs: skip-duplicate-actions
     if: needs.skip-duplicate-actions.outputs.should_skip != 'true'
 
@@ -54,38 +51,16 @@ jobs:
           #- esp32:esp32:esp32s3
         # These are the batteries for which the code will be compiled.
         battery:
-          - BMW_I3_BATTERY
-          - BMW_IX_BATTERY
-          - BYD_ATTO_3_BATTERY
-          - CELLPOWER_BMS
-          - CHADEMO_BATTERY
-          - IMIEV_CZERO_ION_BATTERY
-          - JAGUAR_IPACE_BATTERY
-          - KIA_E_GMP_BATTERY
-          - KIA_HYUNDAI_64_BATTERY
-          - KIA_HYUNDAI_HYBRID_BATTERY
-          - MEB_BATTERY
-          - MG_5_BATTERY
+          - NISSAN_LEAF_BATTERY
         # These are the emulated inverter communication protocols for which the code will be compiled.
         inverter:
-          - AFORE_CAN
           - BYD_CAN
-          - BYD_KOSTAL_RS485
-          - BYD_MODBUS
-          - FOXESS_CAN
-          - PYLON_CAN
-          - PYLON_LV_CAN
-          - SCHNEIDER_CAN
-          - SMA_BYD_H_CAN
-          - SMA_BYD_HVS_CAN
-          - SMA_LV_CAN
-          - SMA_TRIPOWER_CAN
-          - SOFAR_CAN
-          - SOLAX_CAN
-          - SERIAL_LINK_TRANSMITTER
         # These are the supported hardware platforms for which the code will be compiled.
         hardware:
           - HW_LILYGO
+          - HW_STARK
+          - HW_3LB
+          - HW_DEVKIT
 
     # This is the platform GitHub will use to run our workflow.
     runs-on: ubuntu-latest

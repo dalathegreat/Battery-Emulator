@@ -122,21 +122,21 @@ void update_values_battery2() {  // Handle the values coming in from battery #2
 #endif
 }
 
-void receive_can_battery2(CAN_frame rx_frame) {
+void handle_incoming_can_frame_battery2(CAN_frame rx_frame) {
   datalayer.battery2.status.CAN_battery_still_alive = CAN_STILL_ALIVE;
 }
 #endif  // DOUBLE_BATTERY
 
-void receive_can_battery(CAN_frame rx_frame) {
+void handle_incoming_can_frame_battery(CAN_frame rx_frame) {
   datalayer.battery.status.CAN_battery_still_alive = CAN_STILL_ALIVE;
 }
-void send_can_battery() {
+void transmit_can_battery() {
   unsigned long currentMillis = millis();
   // Send 100ms CAN Message
   if (currentMillis - previousMillis100 >= INTERVAL_100_MS) {
     previousMillis100 = currentMillis;
     // Put fake messages here incase you want to test sending CAN
-    //transmit_can(&TEST, can_config.battery);
+    //transmit_can_frame(&TEST, can_config.battery);
   }
 }
 

@@ -51,6 +51,13 @@ typedef struct {
   } data;
 } CAN_frame;
 
+enum frameDirection { MSG_RX, MSG_TX };  //RX = 0, TX = 1
+
+typedef struct {
+  CAN_frame frame;
+  frameDirection direction;
+} CAN_log_frame;
+
 std::string getBMSStatus(bms_status_enum status);
 
 #endif

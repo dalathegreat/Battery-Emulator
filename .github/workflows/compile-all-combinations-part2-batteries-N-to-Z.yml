@@ -74,17 +74,20 @@ jobs:
           - BYD_CAN
           - BYD_KOSTAL_RS485
           - BYD_MODBUS
-          - BYD_SMA
           - FOXESS_CAN
           - PYLON_CAN
           - PYLON_LV_CAN
           - SCHNEIDER_CAN
-          - SMA_CAN
+          - SMA_BYD_H_CAN
+          - SMA_BYD_HVS_CAN
           - SMA_LV_CAN
           - SMA_TRIPOWER_CAN
           - SOFAR_CAN
           - SOLAX_CAN
           - SERIAL_LINK_TRANSMITTER
+        # These are the supported hardware platforms for which the code will be compiled.
+        hardware:
+          - HW_LILYGO
 
     # This is the platform GitHub will use to run our workflow.
     runs-on: ubuntu-latest
@@ -114,4 +117,4 @@ jobs:
       # in the build matrix, and using build flags to define the
       # battery and inverter set in the build matrix.
       - name: Compile Sketch
-        run: arduino-cli compile --fqbn ${{ matrix.fqbn }} --build-property "build.extra_flags=-Wall -DESP32 -D${{ matrix.battery}} -D${{ matrix.inverter}}" ./Software
+        run: arduino-cli compile --fqbn ${{ matrix.fqbn }} --build-property "build.extra_flags=-Wall -DESP32 -D${{ matrix.battery}} -D${{ matrix.inverter}} -D${{ matrix.hardware}}" ./Software

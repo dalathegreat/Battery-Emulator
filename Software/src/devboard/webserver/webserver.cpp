@@ -5,6 +5,7 @@
 #include "../../datalayer/datalayer.h"
 #include "../../datalayer/datalayer_extended.h"
 #include "../../lib/bblanchon-ArduinoJson/ArduinoJson.h"
+#include "../sdcard/sdcard.h"
 #include "../utils/events.h"
 #include "../utils/led_handler.h"
 #include "../utils/timer.h"
@@ -20,7 +21,7 @@ unsigned long ota_progress_millis = 0;
 #include "cellmonitor_html.h"
 #include "debug_logging_html.h"
 #include "events_html.h"
-#include "index_html.cpp"
+#include "index_html.h"
 #include "settings_html.h"
 
 MyTimer ota_timeout_timer = MyTimer(15000);
@@ -29,8 +30,6 @@ bool ota_active = false;
 const char get_firmware_info_html[] = R"rawliteral(%X%)rawliteral";
 
 void init_webserver() {
-
-  String content = index_html;
 
   server.on("/logout", HTTP_GET, [](AsyncWebServerRequest* request) { request->send(401); });
 
@@ -62,13 +61,15 @@ void init_webserver() {
 
   // Route for going to CAN logging web page
   server.on("/canlog", HTTP_GET, [](AsyncWebServerRequest* request) {
-    request->send_P(200, "text/html", index_html, can_logger_processor);
+    AsyncWebServerResponse* response = request->beginResponse(200, "text/html", can_logger_processor());
+    request->send(response);
   });
 
 #ifdef DEBUG_VIA_WEB
   // Route for going to debug logging web page
   server.on("/log", HTTP_GET, [](AsyncWebServerRequest* request) {
-    request->send_P(200, "text/html", index_html, debug_logger_processor);
+    AsyncWebServerResponse* response = request->beginResponse(200, "text/html", debug_logger_processor());
+    request->send(response);
   });
 #endif  // DEBUG_VIA_WEB
 
@@ -78,6 +79,7 @@ void init_webserver() {
     request->send_P(200, "text/plain", "Logging stopped");
   });
 
+#ifndef LOG_CAN_TO_SD
   // Define the handler to export can log
   server.on("/export_can_log", HTTP_GET, [](AsyncWebServerRequest* request) {
     String logs = String(datalayer.system.info.logged_can_messages);
@@ -104,6 +106,22 @@ void init_webserver() {
     response->addHeader("Content-Disposition", String("attachment; filename=\"") + String(filename) + "\"");
     request->send(response);
   });
+#endif
+
+#ifdef LOG_CAN_TO_SD
+  // Define the handler to export can log
+  server.on("/export_can_log", HTTP_GET, [](AsyncWebServerRequest* request) {
+    pause_can_writing();
+    request->send(SD, CAN_LOG_FILE, String(), true);
+    resume_can_writing();
+  });
+
+  // Define the handler to delete can log
+  server.on("/delete_can_log", HTTP_GET, [](AsyncWebServerRequest* request) {
+    delete_can_log();
+    request->send_P(200, "text/plain", "Log file deleted");
+  });
+#endif
 
   // Define the handler to export debug log
   server.on("/export_log", HTTP_GET, [](AsyncWebServerRequest* request) {
@@ -545,7 +563,10 @@ String get_firmware_info_processor(const String& var) {
 #endif  // HW_STARK
 #ifdef HW_3LB
     doc["hardware"] = "3LB board";
-#endif  // HW_STARK
+#endif  // HW_3LB
+#ifdef HW_DEVKIT
+    doc["hardware"] = "ESP32 DevKit V1";
+#endif  // HW_DEVKIT
 
     doc["firmware"] = String(version_number);
     serializeJson(doc, content);
@@ -633,6 +654,12 @@ String processor(const String& var) {
       content += " (LFP)";
     }
     content += "</h4>";
+
+#ifdef CAN_SHUNT_SELECTED
+    content += "<h4 style='color: white;'>Shunt protocol: ";
+    content += datalayer.system.info.shunt_protocol;
+    content += "</h4>";
+#endif
 
 #if defined CHEVYVOLT_CHARGER || defined NISSANLEAF_CHARGER
     content += "<h4 style='color: white;'>Charger protocol: ";

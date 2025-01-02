@@ -8,8 +8,8 @@
 /* Do not change code below unless you are sure what you are doing */
 /* Credits: Most of the code comes from Per Carlen's bms_comms_tesla_model3.py (https://gitlab.com/pelle8/batt2gen24/) */
 
-static unsigned long previousMillis30 = 0;  // will store last time a 30ms CAN Message was send
-
+static unsigned long previousMillis50 = 0;  // will store last time a 50ms CAN Message was send
+//0x221 545 VCFRONT_LVPowerState: "GenMsgCycleTime" 50ms
 CAN_frame TESLA_221_1 = {
     .FD = false,
     .ext_ID = false,
@@ -24,27 +24,28 @@ CAN_frame TESLA_221_2 = {
     .data = {0x61, 0x15, 0x01, 0x00, 0x00, 0x00, 0x20, 0xBA}};  //Contactor Frame 221 - hv_up_for_drive
 
 static uint16_t sendContactorClosingMessagesStill = 300;
-static uint16_t battery_cell_max_v = 3700;
-static uint16_t battery_cell_min_v = 3700;
+static uint16_t battery_cell_max_v = 3300;
+static uint16_t battery_cell_min_v = 3300;
 static uint16_t battery_cell_deviation_mV = 0;  //contains the deviation between highest and lowest cell in mV
+static bool cellvoltagesRead = false;
 //0x3d2: 978 BMS_kwhCounter
 static uint32_t battery_total_discharge = 0;
 static uint32_t battery_total_charge = 0;
 //0x352: 850 BMS_energyStatus
-static uint16_t battery_energy_buffer = 0;                  // kWh
-static uint16_t battery_energy_buffer_m1 = 0;               // kWh
-static uint16_t battery_energy_to_charge_complete = 0;      // kWh
-static uint16_t battery_energy_to_charge_complete_m1 = 0;   // kWh
-static uint16_t battery_expected_energy_remaining = 0;      // kWh
-static uint16_t battery_expected_energy_remaining_m1 = 0;   // kWh
-static bool battery_full_charge_complete = false;           // Changed to bool
-static bool battery_fully_charged = false;                  // Changed to bool
-static uint16_t battery_ideal_energy_remaining = 0;         // kWh
-static uint16_t battery_ideal_energy_remaining_m0 = 0;      // kWh
-static uint16_t battery_nominal_energy_remaining = 0;       // kWh
-static uint16_t battery_nominal_energy_remaining_m0 = 0;    // kWh
-static uint16_t battery_nominal_full_pack_energy = 600;     // Kwh
-static uint16_t battery_nominal_full_pack_energy_m0 = 600;  // Kwh
+static uint16_t battery_energy_buffer = 0;                 // kWh
+static uint16_t battery_energy_buffer_m1 = 0;              // kWh
+static uint16_t battery_energy_to_charge_complete = 0;     // kWh
+static uint16_t battery_energy_to_charge_complete_m1 = 0;  // kWh
+static uint16_t battery_expected_energy_remaining = 0;     // kWh
+static uint16_t battery_expected_energy_remaining_m1 = 0;  // kWh
+static bool battery_full_charge_complete = false;          // Changed to bool
+static bool battery_fully_charged = false;                 // Changed to bool
+static uint16_t battery_ideal_energy_remaining = 0;        // kWh
+static uint16_t battery_ideal_energy_remaining_m0 = 0;     // kWh
+static uint16_t battery_nominal_energy_remaining = 0;      // kWh
+static uint16_t battery_nominal_energy_remaining_m0 = 0;   // kWh
+static uint16_t battery_nominal_full_pack_energy = 0;      // Kwh
+static uint16_t battery_nominal_full_pack_energy_m0 = 0;   // Kwh
 //0x132 306 HVBattAmpVolt
 static uint16_t battery_volts = 0;                  // V
 static int16_t battery_amps = 0;                    // A
@@ -69,7 +70,7 @@ static uint16_t battery_dcdcLvBusVolt = 0;  // Change name from battery_low_volt
 static uint16_t battery_dcdcLvOutputCurrent =
     0;  // Change name from battery_output_current to battery_dcdcLvOutputCurrent
 //0x292: 658 BMS_socStatus
-static uint16_t battery_beginning_of_life = 600;  // kWh
+static uint16_t battery_beginning_of_life = 0;  // kWh
 static uint16_t battery_soc_min = 0;
 static uint16_t battery_soc_max = 0;
 static uint16_t battery_soc_ui = 0;  //Change name from battery_soc_vi to reflect DBC battery_soc_ui
@@ -408,9 +409,10 @@ static bool battery_BMS_a180_SW_ECU_reset_blocked = false;
 
 #ifdef DOUBLE_BATTERY  //need to update for battery2
 
-static uint16_t battery2_cell_max_v = 3700;
-static uint16_t battery2_cell_min_v = 3700;
+static uint16_t battery2_cell_max_v = 3300;
+static uint16_t battery2_cell_min_v = 3300;
 static uint16_t battery2_cell_deviation_mV = 0;  //contains the deviation between highest and lowest cell in mV
+static bool battery2_cellvoltagesRead = false;
 //0x3d2: 978 BMS_kwhCounter
 static uint32_t battery2_total_discharge = 0;
 static uint32_t battery2_total_charge = 0;
@@ -427,8 +429,8 @@ static uint16_t battery2_ideal_energy_remaining = 0;
 static uint16_t battery2_ideal_energy_remaining_m0 = 0;  // kWh
 static uint16_t battery2_nominal_energy_remaining = 0;
 static uint16_t battery2_nominal_energy_remaining_m0 = 0;  // kWh
-static uint16_t battery2_nominal_full_pack_energy = 600;
-static uint16_t battery2_nominal_full_pack_energy_m0 = 600;  // Kwh
+static uint16_t battery2_nominal_full_pack_energy = 0;
+static uint16_t battery2_nominal_full_pack_energy_m0 = 0;  // Kwh
 //0x132 306 HVBattAmpVolt
 static uint16_t battery2_volts = 0;                  // V
 static int16_t battery2_amps = 0;                    // A
@@ -452,7 +454,7 @@ static uint16_t battery2_dcdcHvBusVolt = 0;        //update name
 static uint16_t battery2_dcdcLvBusVolt = 0;        //update name
 static uint16_t battery2_dcdcLvOutputCurrent = 0;  //update name
 //0x292: 658 BMS_socStatus
-static uint16_t battery2_beginning_of_life = 600;
+static uint16_t battery2_beginning_of_life = 0;
 static uint16_t battery2_soc_min = 0;
 static uint16_t battery2_soc_max = 0;
 static uint16_t battery2_soc_ui = 0;
@@ -1120,11 +1122,11 @@ void update_values_battery() {  //This function maps all the values fetched via 
   logging.print("Cellstats, Max: ");
   logging.print(battery_cell_max_v);
   logging.print("mV (cell ");
-  logging.print(battery_max_vno);
+  logging.print(battery_BrickVoltageMaxNum);
   logging.print("), Min: ");
   logging.print(battery_cell_min_v);
   logging.print("mV (cell ");
-  logging.print(battery_min_vno);
+  logging.print(battery_BrickVoltageMinNum);
   logging.print("), Imbalance: ");
   logging.print(battery_cell_deviation_mV);
   logging.println("mV.");
@@ -1149,7 +1151,7 @@ void update_values_battery() {  //This function maps all the values fetched via 
 #endif  //DEBUG_LOG
 }
 
-void receive_can_battery(CAN_frame rx_frame) {
+void handle_incoming_can_frame_battery(CAN_frame rx_frame) {
   static uint8_t mux = 0;
   static uint16_t temp = 0;
 
@@ -1346,6 +1348,7 @@ void receive_can_battery(CAN_frame rx_frame) {
         temp = ((rx_frame.data.u8[3] << 8) | rx_frame.data.u8[2]);
         temp = (temp & 0xFFF);
         battery_cell_min_v = temp * 2;
+        cellvoltagesRead = true;
         //BattBrickVoltageMax m1 : 2|12@1+ (0.002,0) [0|0] "V"  Receiver ((_d[1] & (0x3FU)) << 6) | ((_d[0] >> 2) & (0x3FU));
         battery_BrickVoltageMax =
             ((rx_frame.data.u8[1] & (0x3F)) << 6) | ((rx_frame.data.u8[0] >> 2) & (0x3F));  //to datalayer_extended
@@ -1808,7 +1811,7 @@ void receive_can_battery(CAN_frame rx_frame) {
 
 #ifdef DOUBLE_BATTERY  //Need to update battery2
 
-void receive_can_battery2(CAN_frame rx_frame) {
+void handle_incoming_can_frame_battery2(CAN_frame rx_frame) {
   static uint8_t mux = 0;
   static uint16_t temp = 0;
 
@@ -1991,6 +1994,7 @@ void receive_can_battery2(CAN_frame rx_frame) {
         temp = ((rx_frame.data.u8[3] << 8) | rx_frame.data.u8[2]);
         temp = (temp & 0xFFF);
         battery2_cell_min_v = temp * 2;
+        battery2_cellvoltagesRead = true;
         //BattBrickVoltageMax m1 : 2|12@1+ (0.002,0) [0|0] "V"  Receiver ((_d[1] & (0x3FU)) << 6) | ((_d[0] >> 2) & (0x3FU));
         battery2_BrickVoltageMax =
             ((rx_frame.data.u8[1] & (0x3F)) << 6) | ((rx_frame.data.u8[0] >> 2) & (0x3F));  //to datalayer_extended
@@ -2621,7 +2625,7 @@ int index_1CF = 0;
 int index_118 = 0;
 #endif  //defined(TESLA_MODEL_SX_BATTERY) || defined(EXP_TESLA_BMS_DIGITAL_HVIL)
 
-void send_can_battery() {
+void transmit_can_battery() {
   /*From bielec: My fist 221 message, to close the contactors is 0x41, 0x11, 0x01, 0x00, 0x00, 0x00, 0x20, 0x96 and then, 
 to cause "hv_up_for_drive" I send an additional 221 message 0x61, 0x15, 0x01, 0x00, 0x00, 0x00, 0x20, 0xBA  so 
 two 221 messages are being continuously transmitted.   When I want to shut down, I stop the second message and only send 
@@ -2629,13 +2633,17 @@ the first, for a few cycles, then stop all  messages which causes the contactor 
 
   unsigned long currentMillis = millis();
 
+  if (!cellvoltagesRead) {
+    return;  //All cellvoltages not read yet, do not proceed with contactor closing
+  }
+
 #if defined(TESLA_MODEL_SX_BATTERY) || defined(EXP_TESLA_BMS_DIGITAL_HVIL)
   if ((datalayer.system.status.inverter_allows_contactor_closing) && (datalayer.battery.status.bms_status != FAULT)) {
     if (currentMillis - lastSend1CF >= 10) {
-      transmit_can(&can_msg_1CF[index_1CF], can_config.battery);
+      transmit_can_frame(&can_msg_1CF[index_1CF], can_config.battery);
 
 #ifdef DOUBLE_BATTERY
-      transmit_can(&can_msg_1CF[index_1CF], can_config.battery_double);
+      transmit_can_frame(&can_msg_1CF[index_1CF], can_config.battery_double);
 #endif  // DOUBLE_BATTERY
 
       index_1CF = (index_1CF + 1) % 8;
@@ -2643,9 +2651,9 @@ the first, for a few cycles, then stop all  messages which causes the contactor 
     }
 
     if (currentMillis - lastSend118 >= 10) {
-      transmit_can(&can_msg_118[index_118], can_config.battery);
+      transmit_can_frame(&can_msg_118[index_118], can_config.battery);
 #ifdef DOUBLE_BATTERY
-      transmit_can(&can_msg_1CF[index_1CF], can_config.battery_double);
+      transmit_can_frame(&can_msg_1CF[index_1CF], can_config.battery_double);
 #endif  //DOUBLE_BATTERY
 
       index_118 = (index_118 + 1) % 16;
@@ -2658,33 +2666,33 @@ the first, for a few cycles, then stop all  messages which causes the contactor 
 #endif  //defined(TESLA_MODEL_SX_BATTERY) || defined(EXP_TESLA_BMS_DIGITAL_HVIL)
 
   //Send 30ms message
-  if (currentMillis - previousMillis30 >= INTERVAL_30_MS) {
+  if (currentMillis - previousMillis50 >= INTERVAL_50_MS) {
     // Check if sending of CAN messages has been delayed too much.
-    if ((currentMillis - previousMillis30 >= INTERVAL_30_MS_DELAYED) && (currentMillis > BOOTUP_TIME)) {
-      set_event(EVENT_CAN_OVERRUN, (currentMillis - previousMillis30));
+    if ((currentMillis - previousMillis50 >= INTERVAL_50_MS_DELAYED) && (currentMillis > BOOTUP_TIME)) {
+      set_event(EVENT_CAN_OVERRUN, (currentMillis - previousMillis50));
     } else {
       clear_event(EVENT_CAN_OVERRUN);
     }
-    previousMillis30 = currentMillis;
+    previousMillis50 = currentMillis;
 
     if ((datalayer.system.status.inverter_allows_contactor_closing == true) &&
         (datalayer.battery.status.bms_status != FAULT)) {
       sendContactorClosingMessagesStill = 300;
-      transmit_can(&TESLA_221_1, can_config.battery);
-      transmit_can(&TESLA_221_2, can_config.battery);
+      transmit_can_frame(&TESLA_221_1, can_config.battery);
+      transmit_can_frame(&TESLA_221_2, can_config.battery);
 #ifdef DOUBLE_BATTERY
       if (datalayer.system.status.battery2_allows_contactor_closing) {
-        transmit_can(&TESLA_221_1, can_config.battery_double);
-        transmit_can(&TESLA_221_2, can_config.battery_double);
+        transmit_can_frame(&TESLA_221_1, can_config.battery_double);
+        transmit_can_frame(&TESLA_221_2, can_config.battery_double);
       }
 #endif        //DOUBLE_BATTERY
     } else {  // Faulted state, or inverter blocks contactor closing
       if (sendContactorClosingMessagesStill > 0) {
-        transmit_can(&TESLA_221_1, can_config.battery);
+        transmit_can_frame(&TESLA_221_1, can_config.battery);
         sendContactorClosingMessagesStill--;
 
 #ifdef DOUBLE_BATTERY
-        transmit_can(&TESLA_221_1, can_config.battery_double);
+        transmit_can_frame(&TESLA_221_1, can_config.battery_double);
 #endif  //DOUBLE_BATTERY
       }
     }
@@ -2724,7 +2732,7 @@ void printFaultCodesIfActive() {
   }
   // Check each symbol and print debug information if its value is 1
   // 0X3AA: 938 HVP_alertMatrix1
-  printDebugIfActive(battery_WatchdogReset, "ERROR: The processor has experienced a reset due to watchdog reset");
+  //printDebugIfActive(battery_WatchdogReset, "ERROR: The processor has experienced a reset due to watchdog reset"); //Uncommented due to not affecting usage
   printDebugIfActive(battery_PowerLossReset, "ERROR: The processor has experienced a reset due to power loss");
   printDebugIfActive(battery_SwAssertion, "ERROR: An internal software assertion has failed");
   printDebugIfActive(battery_CrashEvent, "ERROR: crash signal is detected by HVP");
@@ -2892,7 +2900,7 @@ void printFaultCodesIfActive_battery2() {
         "disable the inverter protocol to proceed with contactor closing");
   }
   // Check each symbol and print debug information if its value is 1
-  printDebugIfActive(battery2_WatchdogReset, "ERROR: The processor has experienced a reset due to watchdog reset");
+  //printDebugIfActive(battery2_WatchdogReset, "ERROR: The processor has experienced a reset due to watchdog reset"); //Uncommented due to not affecting usage
   printDebugIfActive(battery2_PowerLossReset, "ERROR: The processor has experienced a reset due to power loss");
   printDebugIfActive(battery2_SwAssertion, "ERROR: An internal software assertion has failed");
   printDebugIfActive(battery2_CrashEvent, "ERROR: crash signal is detected by HVP");

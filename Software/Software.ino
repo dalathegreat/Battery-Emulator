@@ -15,6 +15,7 @@
 #include "src/communication/rs485/comm_rs485.h"
 #include "src/communication/seriallink/comm_seriallink.h"
 #include "src/datalayer/datalayer.h"
+#include "src/devboard/sdcard/sdcard.h"
 #include "src/devboard/utils/events.h"
 #include "src/devboard/utils/led_handler.h"
 #include "src/devboard/utils/logging.h"
@@ -50,7 +51,7 @@
 #endif  // WIFI
 
 // The current software version, shown on webserver
-const char* version_number = "8.0.dev";
+const char* version_number = "8.1.dev";
 
 // Interval settings
 uint16_t intervalUpdateValues = INTERVAL_1_S;  // Interval at which to update inverter values / Modbus registers
@@ -79,12 +80,16 @@ MyTimer core_task_timer_10s(INTERVAL_10_S);
 int64_t connectivity_task_time_us;
 MyTimer connectivity_task_timer_10s(INTERVAL_10_S);
 
+int64_t logging_task_time_us;
+MyTimer logging_task_timer_10s(INTERVAL_10_S);
+
 MyTimer loop_task_timer_10s(INTERVAL_10_S);
 
 MyTimer check_pause_2s(INTERVAL_2_S);
 
 TaskHandle_t main_loop_task;
 TaskHandle_t connectivity_loop_task;
+TaskHandle_t logging_loop_task;
 
 Logging logging;
 
@@ -97,6 +102,11 @@ void setup() {
 #ifdef WIFI
   xTaskCreatePinnedToCore((TaskFunction_t)&connectivity_loop, "connectivity_loop", 4096, &connectivity_task_time_us,
                           TASK_CONNECTIVITY_PRIO, &connectivity_loop_task, WIFI_CORE);
+#endif
+
+#ifdef LOG_CAN_TO_SD
+  xTaskCreatePinnedToCore((TaskFunction_t)&logging_loop, "logging_loop", 4096, &logging_task_time_us,
+                          TASK_CONNECTIVITY_PRIO, &logging_loop_task, WIFI_CORE);
 #endif
 
   init_events();
@@ -114,6 +124,9 @@ void setup() {
   setup_battery();
 #ifdef EQUIPMENT_STOP_BUTTON
   init_equipment_stop_button();
+#endif
+#ifdef CAN_SHUNT_SELECTED
+  setup_can_shunt();
 #endif
   // BOOT button at runtime is used as an input for various things
   pinMode(0, INPUT_PULLUP);
@@ -137,6 +150,18 @@ void loop() {
   }
 #endif
 }
+
+#ifdef LOG_CAN_TO_SD
+void logging_loop(void* task_time_us) {
+
+  init_logging_buffer();
+  init_sdcard();
+
+  while (true) {
+    write_can_frame_to_sdcard();
+  }
+}
+#endif
 
 #ifdef WIFI
 void connectivity_loop(void* task_time_us) {
@@ -192,13 +217,7 @@ void core_loop(void* task_time_us) {
 #endif
 
     // Input, Runs as fast as possible
-    receive_can_native();  // Receive CAN messages from native CAN port
-#ifdef CANFD_ADDON
-    receive_canfd_addon();  // Receive CAN-FD messages.
-#endif                      // CANFD_ADDON
-#ifdef CAN_ADDON
-    receive_can_addon();  // Receive CAN messages on add-on MCP2515 chip
-#endif                    // CAN_ADDON
+    receive_can();  // Receive CAN messages
 #ifdef RS485_INVERTER_SELECTED
     receive_RS485();  // Process serial2 RS485 interface
 #endif                // RS485_INVERTER_SELECTED
@@ -239,7 +258,7 @@ void core_loop(void* task_time_us) {
 
     START_TIME_MEASUREMENT(cantx);
     // Output
-    send_can();  // Send CAN messages to all components
+    transmit_can();  // Send CAN messages to all components
 
     END_TIME_MEASUREMENT_MAX(cantx, datalayer.system.status.time_cantx_us);
     END_TIME_MEASUREMENT_MAX(all, datalayer.system.status.core_task_10s_max_us);
@@ -267,7 +286,7 @@ void core_loop(void* task_time_us) {
     }
 #endif  // FUNCTION_TIME_MEASUREMENT
     if (check_pause_2s.elapsed()) {
-      emulator_pause_state_send_CAN_battery();
+      emulator_pause_state_transmit_can_battery();
     }
 
     vTaskDelayUntil(&xLastWakeTime, xFrequency);

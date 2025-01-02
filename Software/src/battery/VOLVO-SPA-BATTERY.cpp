@@ -140,7 +140,7 @@ void update_values_battery() {  //This function maps all the values fetched via 
 #endif
 }
 
-void receive_can_battery(CAN_frame rx_frame) {
+void handle_incoming_can_frame_battery(CAN_frame rx_frame) {
   datalayer.battery.status.CAN_battery_still_alive = CAN_STILL_ALIVE;
   switch (rx_frame.ID) {
     case 0x3A:
@@ -263,7 +263,7 @@ void receive_can_battery(CAN_frame rx_frame) {
       {
         cell_voltages[battery_request_idx++] = ((rx_frame.data.u8[5] << 8) | rx_frame.data.u8[6]);
         cell_voltages[battery_request_idx] = (rx_frame.data.u8[7] << 8);
-        transmit_can(&VOLVO_FlowControl, can_config.battery);  // Send flow control
+        transmit_can_frame(&VOLVO_FlowControl, can_config.battery);  // Send flow control
         rxConsecutiveFrames = 1;
       } else if ((rx_frame.data.u8[0] == 0x21) && (rxConsecutiveFrames == 1)) {
         cell_voltages[battery_request_idx++] = cell_voltages[battery_request_idx] | rx_frame.data.u8[1];
@@ -273,7 +273,7 @@ void receive_can_battery(CAN_frame rx_frame) {
         if (batteryModuleNumber <= 0x2A)  // Run until last pack is read
         {
           VOLVO_CELL_U_Req.data.u8[3] = batteryModuleNumber++;
-          transmit_can(&VOLVO_CELL_U_Req, can_config.battery);  //Send cell voltage read request for next module
+          transmit_can_frame(&VOLVO_CELL_U_Req, can_config.battery);  //Send cell voltage read request for next module
         } else {
           min_max_voltage[0] = 9999;
           min_max_voltage[1] = 0;
@@ -284,7 +284,7 @@ void receive_can_battery(CAN_frame rx_frame) {
               min_max_voltage[1] = cell_voltages[cellcounter];
           }
 
-          transmit_can(&VOLVO_SOH_Req, can_config.battery);  //Send SOH read request
+          transmit_can_frame(&VOLVO_SOH_Req, can_config.battery);  //Send SOH read request
         }
         rxConsecutiveFrames = 0;
       }
@@ -299,10 +299,10 @@ void readCellVoltages() {
   batteryModuleNumber = 0x10;
   rxConsecutiveFrames = 0;
   VOLVO_CELL_U_Req.data.u8[3] = batteryModuleNumber++;
-  transmit_can(&VOLVO_CELL_U_Req, can_config.battery);  //Send cell voltage read request for first module
+  transmit_can_frame(&VOLVO_CELL_U_Req, can_config.battery);  //Send cell voltage read request for first module
 }
 
-void send_can_battery() {
+void transmit_can_battery() {
   unsigned long currentMillis = millis();
   // Send 100ms CAN Message
   if (currentMillis - previousMillis100 >= INTERVAL_100_MS) {
@@ -314,8 +314,8 @@ void send_can_battery() {
     }
     previousMillis100 = currentMillis;
 
-    transmit_can(&VOLVO_536, can_config.battery);  //Send 0x536 Network managing frame to keep BMS alive
-    transmit_can(&VOLVO_372, can_config.battery);  //Send 0x372 ECMAmbientTempCalculated
+    transmit_can_frame(&VOLVO_536, can_config.battery);  //Send 0x536 Network managing frame to keep BMS alive
+    transmit_can_frame(&VOLVO_372, can_config.battery);  //Send 0x372 ECMAmbientTempCalculated
 
     if (datalayer.battery.status.bms_status == ACTIVE) {
       datalayer.system.status.battery_allows_contactor_closing = true;

@@ -283,12 +283,12 @@ void setBatteryPause(bool pause_battery, bool pause_CAN, bool equipment_stop, bo
   }
 
   //immediate check if we can send CAN messages
-  emulator_pause_state_send_CAN_battery();
+  emulator_pause_state_transmit_can_battery();
 }
 
 /// @brief handle emulator pause status
 /// @return true if CAN messages should be sent to battery, false if not
-void emulator_pause_state_send_CAN_battery() {
+void emulator_pause_state_transmit_can_battery() {
   bool previous_allowed_to_send_CAN = allowed_to_send_CAN;
 
   if (emulator_pause_status == NORMAL) {

@@ -5,7 +5,6 @@
 
 #define BATTERY_SELECTED
 
-#define WUP_PIN 25
 #define MAX_CELL_VOLTAGE_60AH 4110   // Battery is put into emergency stop if one cell goes over this value
 #define MIN_CELL_VOLTAGE_60AH 2700   // Battery is put into emergency stop if one cell goes below this value
 #define MAX_CELL_VOLTAGE_94AH 4140   // Battery is put into emergency stop if one cell goes over this value
@@ -20,6 +19,6 @@
 #define MAX_PACK_VOLTAGE_120AH 4030  // Charge stops if pack voltage exceeds this value
 #define MIN_PACK_VOLTAGE_120AH 2680  // Discharge stops if pack voltage exceeds this value
 void setup_battery(void);
-void transmit_can(CAN_frame* tx_frame, int interface);
+void transmit_can_frame(CAN_frame* tx_frame, int interface);
 
 #endif
