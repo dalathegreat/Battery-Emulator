@@ -31,7 +31,7 @@ void Logging::add_timestamp(size_t size) {
   timestr = timestr_buffer;
 #endif  // DEBUG_VIA_WEB
 
-  offset += min(MAX_LENGTH_TIME_STR - 1, 
+  offset += min(MAX_LENGTH_TIME_STR - 1,
                 snprintf(timestr, MAX_LENGTH_TIME_STR, "%8lu.%03lu ", currentTime / 1000, currentTime % 1000));
 
 #ifdef DEBUG_VIA_WEB
