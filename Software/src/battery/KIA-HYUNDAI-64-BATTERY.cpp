@@ -264,13 +264,13 @@ void handle_incoming_can_frame_battery(CAN_frame rx_frame) {
       startedUp = true;
 
       //PID data is polled after last message sent from battery every other time:
-      if (poll_data_pid >= 10) {  //polling one of ten PIDs at 100ms*2, resolution = 2s
-        poll_data_pid = 0;
-      }
       if (holdPidCounter == true) {
         holdPidCounter = false;
       } else {
         holdPidCounter = true;
+        if (poll_data_pid >= 6) {  //polling one of six PIDs at 100ms*2, resolution = 1200ms
+          poll_data_pid = 0;
+        }
         poll_data_pid++;
         if (poll_data_pid == 1) {
           transmit_can_frame(&KIA64_7E4_id1, can_config.battery);
@@ -284,10 +284,6 @@ void handle_incoming_can_frame_battery(CAN_frame rx_frame) {
           transmit_can_frame(&KIA64_7E4_id5, can_config.battery);
         } else if (poll_data_pid == 6) {
           transmit_can_frame(&KIA64_7E4_id6, can_config.battery);
-        } else if (poll_data_pid == 7) {
-        } else if (poll_data_pid == 8) {
-        } else if (poll_data_pid == 9) {
-        } else if (poll_data_pid == 10) {
         }
       }
       break;
