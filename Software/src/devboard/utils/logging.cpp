@@ -3,6 +3,7 @@
 #include "../sdcard/sdcard.h"
 
 #define MAX_LINE_LENGTH_PRINTF 128
+#define MAX_LENGTH_TIME_STR 14
 
 bool previous_message_was_newline = true;
 
@@ -13,13 +14,13 @@ void Logging::add_timestamp(size_t size) {
   size_t message_string_size = sizeof(datalayer.system.info.logged_can_messages);
   unsigned long currentTime = millis();
   char* timestr;
-  static char timestr_buffer[14];
+  static char timestr_buffer[MAX_LENGTH_TIME_STR];
 
 #ifdef DEBUG_VIA_WEB
   if (!datalayer.system.info.can_logging_active) {
     /* If web debug is active and can logging is inactive, 
      * we use the debug logging memory directly for writing the timestring */
-    if (offset + size + 13 > message_string_size) {
+    if (offset + size + MAX_LENGTH_TIME_STR > message_string_size) {
       offset = 0;
     }
     timestr = datalayer.system.info.logged_can_messages + offset;
@@ -30,7 +31,7 @@ void Logging::add_timestamp(size_t size) {
   timestr = timestr_buffer;
 #endif  // DEBUG_VIA_WEB
 
-  offset += snprintf(timestr, sizeof(timestr), "%8lu.%03lu ", currentTime / 1000, currentTime % 1000);
+  offset += min(MAX_LENGTH_TIME_STR-1, snprintf(timestr, MAX_LENGTH_TIME_STR, "%8lu.%03lu ", currentTime / 1000, currentTime % 1000));
 
 #ifdef DEBUG_VIA_WEB
   if (!datalayer.system.info.can_logging_active) {
@@ -39,7 +40,7 @@ void Logging::add_timestamp(size_t size) {
 #endif  // DEBUG_VIA_WEB
 
 #ifdef LOG_TO_SD
-  add_log_to_buffer((uint8_t*)timestr, 13);
+  add_log_to_buffer((uint8_t*)timestr, MAX_LENGTH_TIME_STR);
 #endif  // LOG_TO_SD
 
 #ifdef DEBUG_VIA_USB
@@ -111,7 +112,7 @@ void Logging::printf(const char* fmt, ...) {
 
   va_list(args);
   va_start(args, fmt);
-  int size = vsnprintf(message_buffer, MAX_LINE_LENGTH_PRINTF - 1, fmt, args);
+  int size = min(MAX_LINE_LENGTH_PRINTF-1, vsnprintf(message_buffer, MAX_LINE_LENGTH_PRINTF, fmt, args));
   va_end(args);
 
 #ifdef LOG_TO_SD
