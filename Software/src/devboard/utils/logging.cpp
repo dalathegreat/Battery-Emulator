@@ -6,13 +6,13 @@
 
 bool previous_message_was_newline = true;
 
-void Logging::add_timestamp(size_t size){
+void Logging::add_timestamp(size_t size) {
 #ifdef DEBUG_LOG
   char* message_string = datalayer.system.info.logged_can_messages;
   int offset = datalayer.system.info.logged_can_messages_offset;  // Keeps track of the current position in the buffer
   size_t message_string_size = sizeof(datalayer.system.info.logged_can_messages);
   unsigned long currentTime = millis();
-  char *timestr;
+  char* timestr;
   static char timestr_buffer[14];
 
 #ifdef DEBUG_VIA_WEB
@@ -39,11 +39,11 @@ void Logging::add_timestamp(size_t size){
 #endif  // DEBUG_VIA_WEB
 
 #ifdef LOG_TO_SD
-    add_log_to_buffer((uint8_t*)timestr, 13);
+  add_log_to_buffer((uint8_t*)timestr, 13);
 #endif  // LOG_TO_SD
 
 #ifdef DEBUG_VIA_USB
-    Serial.write(timestr);
+  Serial.write(timestr);
 #endif  // DEBUG_VIA_USB
 
 #endif  // DEBUG_LOG
@@ -92,7 +92,7 @@ void Logging::printf(const char* fmt, ...) {
   }
 
   static char buffer[MAX_LINE_LENGTH_PRINTF];
-  char *message_buffer;
+  char* message_buffer;
 #ifdef DEBUG_VIA_WEB
   if (!datalayer.system.info.can_logging_active) {
     /* If web debug is active and can logging is inactive, 
@@ -125,10 +125,11 @@ void Logging::printf(const char* fmt, ...) {
 #ifdef DEBUG_VIA_WEB
   if (!datalayer.system.info.can_logging_active) {
     // Data was already added to buffer, just move offset
-    datalayer.system.info.logged_can_messages_offset = offset + size;  // Keeps track of the current position in the buffer
+    datalayer.system.info.logged_can_messages_offset =
+        offset + size;  // Keeps track of the current position in the buffer
   }
 #endif  // DEBUG_VIA_WEB
 
   previous_message_was_newline = buffer[size - 1] == '\n';
-#endif // DEBUG_LOG
+#endif  // DEBUG_LOG
 }
