@@ -2713,7 +2713,7 @@ void print_SOC(char* header, int SOC) {
   if (hundredth < 10)
     logging.print(0);
   logging.print(hundredth);
-  logging.println("pct");
+  logging.println("%");
 }
 
 void printFaultCodesIfActive() {
