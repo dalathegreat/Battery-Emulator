@@ -206,7 +206,7 @@ void init_WiFi_AP() {
 #ifdef DEBUG_LOG
   logging.println("Access Point created.");
   logging.print("IP address: ");
-  logging.println(IP);
+  logging.println(IP.toString());
 #endif
 }
 #endif  // WIFIAP
