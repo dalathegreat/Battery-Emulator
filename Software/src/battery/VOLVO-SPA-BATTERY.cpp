@@ -1,6 +1,7 @@
 #include "../include.h"
 #ifdef VOLVO_SPA_BATTERY
 #include "../datalayer/datalayer.h"
+#include "../datalayer/datalayer_extended.h"  //For "More battery info" webpage
 #include "../devboard/utils/events.h"
 #include "VOLVO-SPA-BATTERY.h"
 
@@ -19,11 +20,14 @@ static float BATT_T_MIN = 0;             //0x413
 static float BATT_T_AVG = 0;             //0x413
 static uint16_t SOC_BMS = 0;             //0X37D
 static uint16_t SOC_CALC = 0;
-static uint16_t CELL_U_MAX = 3700;          //0x37D
-static uint16_t CELL_U_MIN = 3700;          //0x37D
-static uint8_t CELL_ID_U_MAX = 0;           //0x37D
-static uint16_t HvBattPwrLimDchaSoft = 0;   //0x369
-static uint8_t batteryModuleNumber = 0x10;  // First battery module
+static uint16_t CELL_U_MAX = 3700;            //0x37D
+static uint16_t CELL_U_MIN = 3700;            //0x37D
+static uint8_t CELL_ID_U_MAX = 0;             //0x37D
+static uint16_t HvBattPwrLimDchaSoft = 0;     //0x369
+static uint16_t HvBattPwrLimDcha1 = 0;        //0x175
+static uint16_t HvBattPwrLimDchaSlowAgi = 0;  //0x177
+static uint16_t HvBattPwrLimChrgSlowAgi = 0;  //0x177
+static uint8_t batteryModuleNumber = 0x10;    // First battery module
 static uint8_t battery_request_idx = 0;
 static uint8_t rxConsecutiveFrames = 0;
 static uint16_t min_max_voltage[2];  //contains cell min[0] and max[1] values in mV
@@ -35,7 +39,21 @@ CAN_frame VOLVO_536 = {.FD = false,
                        .ext_ID = false,
                        .DLC = 8,
                        .ID = 0x536,
-                       .data = {0x00, 0x40, 0xFF, 0x00, 0x00, 0x00, 0x00, 0x00}};  //Network manage frame
+                       //.data = {0x00, 0x40, 0xFF, 0x00, 0x00, 0x00, 0x00, 0x00}};  //Network manage frame
+                       .data = {0x00, 0x40, 0x40, 0x01, 0x00, 0x00, 0x00, 0x00}};  //Network manage frame
+
+CAN_frame VOLVO_140_CLOSE = {.FD = false,
+                             .ext_ID = false,
+                             .DLC = 8,
+                             .ID = 0x140,
+                             .data = {0x00, 0x02, 0x00, 0xB7, 0xFF, 0x03, 0xFF, 0x83}};  //Close contactors message
+
+CAN_frame VOLVO_140_OPEN = {.FD = false,
+                            .ext_ID = false,
+                            .DLC = 8,
+                            .ID = 0x140,
+                            .data = {0x00, 0x02, 0x00, 0x9E, 0xFF, 0x03, 0xFF, 0x83}};  //Open contactor message
+
 CAN_frame VOLVO_372 = {
     .FD = false,
     .ext_ID = false,
@@ -57,9 +75,61 @@ CAN_frame VOLVO_SOH_Req = {.FD = false,
                            .DLC = 8,
                            .ID = 0x735,
                            .data = {0x03, 0x22, 0x49, 0x6D, 0x00, 0x00, 0x00, 0x00}};  //Battery SOH request frame
+CAN_frame VOLVO_BECMsupplyVoltage_Req = {
+    .FD = false,
+    .ext_ID = false,
+    .DLC = 8,
+    .ID = 0x735,
+    .data = {0x03, 0x22, 0xF4, 0x42, 0x00, 0x00, 0x00, 0x00}};  //BECM supply voltage request frame
+CAN_frame VOLVO_DTC_Erase = {.FD = false,
+                             .ext_ID = false,
+                             .DLC = 8,
+                             .ID = 0x7FF,
+                             .data = {0x04, 0x14, 0xFF, 0xFF, 0xFF, 0x00, 0x00, 0x00}};  //Global DTC erase
+CAN_frame VOLVO_BECM_ECUreset = {
+    .FD = false,
+    .ext_ID = false,
+    .DLC = 8,
+    .ID = 0x735,
+    .data = {0x02, 0x11, 0x81, 0x00, 0x00, 0x00, 0x00, 0x00}};  //BECM ECU reset command (reboot/powercycle BECM)
+CAN_frame VOLVO_DTCreadout = {.FD = false,
+                              .ext_ID = false,
+                              .DLC = 8,
+                              .ID = 0x7FF,
+                              .data = {0x02, 0x19, 0x03, 0x00, 0x00, 0x00, 0x00, 0x00}};  //Global DTC readout
 
 void update_values_battery() {  //This function maps all the values fetched via CAN to the correct parameters used for the inverter
   uint8_t cnt = 0;
+
+  // Update webserver datalayer
+  datalayer_extended.VolvoPolestar.soc_bms = SOC_BMS;
+  datalayer_extended.VolvoPolestar.soc_calc = SOC_CALC;
+  datalayer_extended.VolvoPolestar.soc_rescaled = datalayer.battery.status.reported_soc;
+  datalayer_extended.VolvoPolestar.soh_bms = datalayer.battery.status.soh_pptt;
+
+  datalayer_extended.VolvoPolestar.BECMBatteryVoltage = BATT_U;
+  datalayer_extended.VolvoPolestar.BECMBatteryCurrent = BATT_I;
+  datalayer_extended.VolvoPolestar.BECMUDynMaxLim = MAX_U;
+  datalayer_extended.VolvoPolestar.BECMUDynMinLim = MIN_U;
+
+  datalayer_extended.VolvoPolestar.HvBattPwrLimDcha1 = HvBattPwrLimDcha1;
+  datalayer_extended.VolvoPolestar.HvBattPwrLimDchaSoft = HvBattPwrLimDchaSoft;
+  datalayer_extended.VolvoPolestar.HvBattPwrLimDchaSlowAgi = HvBattPwrLimDchaSlowAgi;
+  datalayer_extended.VolvoPolestar.HvBattPwrLimChrgSlowAgi = HvBattPwrLimChrgSlowAgi;
+
+  // Update requests from webserver datalayer
+  if (datalayer_extended.VolvoPolestar.UserRequestDTCreset) {
+    transmit_can_frame(&VOLVO_DTC_Erase, can_config.battery);  //Send global DTC erase command
+    datalayer_extended.VolvoPolestar.UserRequestDTCreset = false;
+  }
+  if (datalayer_extended.VolvoPolestar.UserRequestBECMecuReset) {
+    transmit_can_frame(&VOLVO_BECM_ECUreset, can_config.battery);  //Send BECM ecu reset command
+    datalayer_extended.VolvoPolestar.UserRequestBECMecuReset = false;
+  }
+  if (datalayer_extended.VolvoPolestar.UserRequestDTCreadout) {
+    transmit_can_frame(&VOLVO_DTCreadout, can_config.battery);  //Send DTC readout command
+    datalayer_extended.VolvoPolestar.UserRequestDTCreadout = false;
+  }
 
   remaining_capacity = (78200 - CHARGE_ENERGY);
 
@@ -175,6 +245,25 @@ void handle_incoming_can_frame_battery(CAN_frame rx_frame) {
         logging.println("BATT_U not valid");
 #endif
       }
+
+      if ((rx_frame.data.u8[0] & 0x40) == 0x40)
+        datalayer_extended.VolvoPolestar.HVSysRlySts = ((rx_frame.data.u8[0] & 0x30) >> 4);
+      else
+        datalayer_extended.VolvoPolestar.HVSysRlySts = 0xFF;
+
+      if ((rx_frame.data.u8[2] & 0x40) == 0x40)
+        datalayer_extended.VolvoPolestar.HVSysDCRlySts1 = ((rx_frame.data.u8[2] & 0x30) >> 4);
+      else
+        datalayer_extended.VolvoPolestar.HVSysDCRlySts1 = 0xFF;
+      if ((rx_frame.data.u8[2] & 0x80) == 0x80)
+        datalayer_extended.VolvoPolestar.HVSysDCRlySts2 = ((rx_frame.data.u8[4] & 0x30) >> 4);
+      else
+        datalayer_extended.VolvoPolestar.HVSysDCRlySts2 = 0xFF;
+      if ((rx_frame.data.u8[0] & 0x80) == 0x80)
+        datalayer_extended.VolvoPolestar.HVSysIsoRMonrSts = ((rx_frame.data.u8[4] & 0xC0) >> 6);
+      else
+        datalayer_extended.VolvoPolestar.HVSysIsoRMonrSts = 0xFF;
+
       break;
     case 0x1A1:
       if ((rx_frame.data.u8[4] & 0x10) == 0x10)
@@ -214,6 +303,25 @@ void handle_incoming_can_frame_battery(CAN_frame rx_frame) {
 #ifdef DEBUG_LOG
         logging.println("HvBattPwrLimDchaSoft not valid");
 #endif
+      }
+      break;
+    case 0x175:
+      if ((rx_frame.data.u8[4] & 0x80) == 0x80) {
+        HvBattPwrLimDcha1 = (((rx_frame.data.u8[2] & 0x07) * 256 + rx_frame.data.u8[3]) >> 2);
+      } else {
+        HvBattPwrLimDcha1 = 0;
+      }
+      break;
+    case 0x177:
+      if ((rx_frame.data.u8[4] & 0x08) == 0x08) {
+        HvBattPwrLimDchaSlowAgi = (((rx_frame.data.u8[4] & 0x07) * 256 + rx_frame.data.u8[5]) >> 2);
+      } else {
+        HvBattPwrLimDchaSlowAgi = 0;
+      }
+      if ((rx_frame.data.u8[2] & 0x08) == 0x08) {
+        HvBattPwrLimChrgSlowAgi = (((rx_frame.data.u8[2] & 0x07) * 256 + rx_frame.data.u8[3]) >> 2);
+      } else {
+        HvBattPwrLimChrgSlowAgi = 0;
       }
       break;
     case 0x37D:
@@ -258,6 +366,11 @@ void handle_incoming_can_frame_battery(CAN_frame rx_frame) {
           (rx_frame.data.u8[3] == 0x6D))  // SOH response frame
       {
         datalayer.battery.status.soh_pptt = ((rx_frame.data.u8[6] << 8) | rx_frame.data.u8[7]);
+        transmit_can_frame(&VOLVO_BECMsupplyVoltage_Req, can_config.battery);  //Send BECM supply voltage req
+      } else if ((rx_frame.data.u8[0] == 0x05) && (rx_frame.data.u8[1] == 0x62) && (rx_frame.data.u8[2] == 0xF4) &&
+                 (rx_frame.data.u8[3] == 0x42))  // BECM module voltage supply
+      {
+        datalayer_extended.VolvoPolestar.BECMsupplyVoltage = ((rx_frame.data.u8[4] << 8) | rx_frame.data.u8[5]);
       } else if ((rx_frame.data.u8[0] == 0x10) && (rx_frame.data.u8[1] == 0x0B) && (rx_frame.data.u8[2] == 0x62) &&
                  (rx_frame.data.u8[3] == 0x4B))  // First response frame of cell voltages
       {
@@ -265,6 +378,10 @@ void handle_incoming_can_frame_battery(CAN_frame rx_frame) {
         cell_voltages[battery_request_idx] = (rx_frame.data.u8[7] << 8);
         transmit_can_frame(&VOLVO_FlowControl, can_config.battery);  // Send flow control
         rxConsecutiveFrames = 1;
+      } else if ((rx_frame.data.u8[0] == 0x10) && (rx_frame.data.u8[2] == 0x59) &&
+                 (rx_frame.data.u8[3] == 0x03))  // First response frame for DTC with more than one code
+      {
+        transmit_can_frame(&VOLVO_FlowControl, can_config.battery);  // Send flow control
       } else if ((rx_frame.data.u8[0] == 0x21) && (rxConsecutiveFrames == 1)) {
         cell_voltages[battery_request_idx++] = cell_voltages[battery_request_idx] | rx_frame.data.u8[1];
         cell_voltages[battery_request_idx++] = (rx_frame.data.u8[2] << 8) | rx_frame.data.u8[3];
@@ -283,7 +400,6 @@ void handle_incoming_can_frame_battery(CAN_frame rx_frame) {
             if (min_max_voltage[1] < cell_voltages[cellcounter])
               min_max_voltage[1] = cell_voltages[cellcounter];
           }
-
           transmit_can_frame(&VOLVO_SOH_Req, can_config.battery);  //Send SOH read request
         }
         rxConsecutiveFrames = 0;
@@ -319,8 +435,10 @@ void transmit_can_battery() {
 
     if (datalayer.battery.status.bms_status == ACTIVE) {
       datalayer.system.status.battery_allows_contactor_closing = true;
+      transmit_can_frame(&VOLVO_140_CLOSE, can_config.battery);  //Send 0x140 Close contactors message
     } else {  //datalayer.battery.status.bms_status == FAULT or inverter requested opening contactors
       datalayer.system.status.battery_allows_contactor_closing = false;
+      transmit_can_frame(&VOLVO_140_OPEN, can_config.battery);  //Send 0x140 Open contactors message
     }
   }
   if (currentMillis - previousMillis60s >= INTERVAL_60_S) {

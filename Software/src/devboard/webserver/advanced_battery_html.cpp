@@ -1030,10 +1030,107 @@ String advanced_battery_processor(const String& var) {
     content += "<h4>soc max: " + String(datalayer_extended.zoePH2.battery_soc_max) + "</h4>";
 #endif  //RENAULT_ZOE_GEN2_BATTERY
 
+#ifdef VOLVO_SPA_BATTERY
+    content += "<h4>BECM reported SOC: " + String(datalayer_extended.VolvoPolestar.soc_bms) + "</h4>";
+    content += "<h4>Calculated SOC: " + String(datalayer_extended.VolvoPolestar.soc_calc) + "</h4>";
+    content += "<h4>Rescaled SOC: " + String(datalayer_extended.VolvoPolestar.soc_rescaled / 10) + "</h4>";
+    content += "<h4>BECM reported SOH: " + String(datalayer_extended.VolvoPolestar.soh_bms) + "</h4>";
+    content += "<h4>BECM supply voltage: " + String(datalayer_extended.VolvoPolestar.BECMsupplyVoltage) + " mV</h4>";
+
+    content += "<h4>HV voltage: " + String(datalayer_extended.VolvoPolestar.BECMBatteryVoltage) + " V</h4>";
+    content += "<h4>HV current: " + String(datalayer_extended.VolvoPolestar.BECMBatteryCurrent) + " A</h4>";
+    content += "<h4>Dynamic max voltage: " + String(datalayer_extended.VolvoPolestar.BECMUDynMaxLim) + " V</h4>";
+    content += "<h4>Dynamic min voltage: " + String(datalayer_extended.VolvoPolestar.BECMUDynMinLim) + " V</h4>";
+
+    content +=
+        "<h4>Discharge power limit 1: " + String(datalayer_extended.VolvoPolestar.HvBattPwrLimDcha1) + " kW</h4>";
+    content +=
+        "<h4>Discharge soft power limit: " + String(datalayer_extended.VolvoPolestar.HvBattPwrLimDchaSoft) + " kW</h4>";
+    content +=
+        "<h4>Discharge power limit slow aging: " + String(datalayer_extended.VolvoPolestar.HvBattPwrLimDchaSlowAgi) +
+        " kW</h4>";
+    content +=
+        "<h4>Charge power limit slow aging: " + String(datalayer_extended.VolvoPolestar.HvBattPwrLimChrgSlowAgi) +
+        " kW</h4>";
+
+    content += "<h4>HV system relay status: ";
+    switch (datalayer_extended.VolvoPolestar.HVSysRlySts) {
+      case 0:
+        content += String("Open");
+        break;
+      case 1:
+        content += String("Closed");
+        break;
+      case 2:
+        content += String("KeepStatus");
+        break;
+      case 3:
+        content += String("OpenAndRequestActiveDischarge");
+        break;
+      default:
+        content += String("Not valid");
+    }
+    content += "</h4><h4>HV system relay status 1: ";
+    switch (datalayer_extended.VolvoPolestar.HVSysDCRlySts1) {
+      case 0:
+        content += String("Open");
+        break;
+      case 1:
+        content += String("Closed");
+        break;
+      case 2:
+        content += String("KeepStatus");
+        break;
+      case 3:
+        content += String("Fault");
+        break;
+      default:
+        content += String("Not valid");
+    }
+    content += "</h4><h4>HV system relay status 2: ";
+    switch (datalayer_extended.VolvoPolestar.HVSysDCRlySts2) {
+      case 0:
+        content += String("Open");
+        break;
+      case 1:
+        content += String("Closed");
+        break;
+      case 2:
+        content += String("KeepStatus");
+        break;
+      case 3:
+        content += String("Fault");
+        break;
+      default:
+        content += String("Not valid");
+    }
+    content += "</h4><h4>HV system isolation resistance monitoring status: ";
+    switch (datalayer_extended.VolvoPolestar.HVSysIsoRMonrSts) {
+      case 0:
+        content += String("Not valid 1");
+        break;
+      case 1:
+        content += String("False");
+        break;
+      case 2:
+        content += String("True");
+        break;
+      case 3:
+        content += String("Not valid 2");
+        break;
+      default:
+        content += String("Not valid");
+    }
+
+    content += "<br><br><button onclick='Volvo_askEraseDTC()'>Erase DTC</button><br>";
+    content += "<button onclick='Volvo_askReadDTC()'>Read DTC (result must be checked in CANlog)</button><br>";
+    content += "<button onclick='Volvo_BECMecuReset()'>Restart BECM module</button>";
+#endif  // VOLVO_SPA_BATTERY
+
 #if !defined(BMW_IX_BATTERY) && !defined(BOLT_AMPERA_BATTERY) && !defined(TESLA_BATTERY) &&      \
     !defined(NISSAN_LEAF_BATTERY) && !defined(BMW_I3_BATTERY) && !defined(BYD_ATTO_3_BATTERY) && \
-    !defined(RENAULT_ZOE_GEN2_BATTERY) && !defined(CELLPOWER_BMS) &&                             \
-    !defined(MEB_BATTERY)  // Only the listed types have extra info
+    !defined(RENAULT_ZOE_GEN2_BATTERY) && !defined(CELLPOWER_BMS) && !defined(MEB_BATTERY) &&    \
+    !defined(VOLVO_SPA_BATTERY)  //Only the listed types have extra info
     content += "No extra information available for this battery type";
 #endif
 
@@ -1051,7 +1148,40 @@ String advanced_battery_processor(const String& var) {
     content += "}";
     content += "function goToMainPage() { window.location.href = '/'; }";
     content += "</script>";
-    return content;
+
+    content += "<script>";
+    content +=
+        "function Volvo_askEraseDTC() { if (window.confirm('Are you sure you want to erase DTCs?')) { "
+        "volvoEraseDTC(); } }";
+    content += "function volvoEraseDTC() {";
+    content += "  var xhr = new XMLHttpRequest();";
+    content += "  xhr.open('GET', '/volvoEraseDTC', true);";
+    content += "  xhr.send();";
+    content += "}";
+    content += "function goToMainPage() { window.location.href = '/'; }";
+    content += "</script>";
+
+    content += "<script>";
+    content += "function Volvo_askReadDTC() { volvoReadDTC(); } ";
+    content += "function volvoReadDTC() {";
+    content += "  var xhr = new XMLHttpRequest();";
+    content += "  xhr.open('GET', '/volvoReadDTC', true);";
+    content += "  xhr.send();";
+    content += "}";
+    content += "function goToMainPage() { window.location.href = '/'; }";
+    content += "</script>";
+
+    content += "<script>";
+    content +=
+        "function Volvo_BECMecuReset() { if (window.confirm('Are you sure you want to restart BECM?')) { "
+        "volvoBECMecuReset(); } }";
+    content += "function volvoBECMecuReset() {";
+    content += "  var xhr = new XMLHttpRequest();";
+    content += "  xhr.open('GET', '/volvoBECMecuReset', true);";
+    content += "  xhr.send();";
+    content += "}";
+    content += "function goToMainPage() { window.location.href = '/'; }";
+    content += "</script>";
   }
   return String();
 }
