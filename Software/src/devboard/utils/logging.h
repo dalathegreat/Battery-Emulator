@@ -14,9 +14,10 @@ class Logging : public Print {
   virtual size_t write(uint8_t) { return 0; }
   void printf(const char* fmt, ...);
   Logging() {
-    printf("Battery emulator %s build "__DATE__
-      " " __TIME__ "\n",
-      version_number);
+    printf(
+        "Battery emulator %s build "__DATE__
+        " " __TIME__ "\n",
+        version_number);
   }
 };
 
