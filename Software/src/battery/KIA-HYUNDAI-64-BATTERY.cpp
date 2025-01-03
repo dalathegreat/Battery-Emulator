@@ -445,109 +445,110 @@ void handle_incoming_can_frame_battery(CAN_frame rx_frame) {
             if (cellvoltages_mv[i] < 300) {  // Zero the value if it's below 300
               cellvoltages_mv[i] = 0;        // Some packs incorrectly report the last unpopulated cells as 20-60mV
             }
-            //Map all cell voltages to the global array
-            memcpy(datalayer.battery.status.cell_voltages_mV, cellvoltages_mv, 98 * sizeof(uint16_t));
-            //Update number of cells
-            update_number_of_cells();
-            break;
-            case 0x27:  //Seventh datarow in PID group
-              if (poll_data_pid == 1) {
-                BMS_ign = rx_frame.data.u8[6];
-                inverterVoltageFrameHigh = rx_frame.data.u8[7];
-              }
-              break;
-            case 0x28:  //Eighth datarow in PID group
-              if (poll_data_pid == 1) {
-                inverterVoltage = (inverterVoltageFrameHigh << 8) + rx_frame.data.u8[1];
-              }
-              break;
+          }
+          //Map all cell voltages to the global array
+          memcpy(datalayer.battery.status.cell_voltages_mV, cellvoltages_mv, 98 * sizeof(uint16_t));
+          //Update number of cells
+          update_number_of_cells();
+          break;
+        case 0x27:  //Seventh datarow in PID group
+          if (poll_data_pid == 1) {
+            BMS_ign = rx_frame.data.u8[6];
+            inverterVoltageFrameHigh = rx_frame.data.u8[7];
           }
           break;
-        default:
+        case 0x28:  //Eighth datarow in PID group
+          if (poll_data_pid == 1) {
+            inverterVoltage = (inverterVoltageFrameHigh << 8) + rx_frame.data.u8[1];
+          }
           break;
       }
+      break;
+    default:
+      break;
+  }
+}
+
+void transmit_can_battery() {
+  unsigned long currentMillis = millis();
+
+  if (!startedUp) {
+    return;  // Don't send any CAN messages towards battery until it has started up
   }
 
-  void transmit_can_battery() {
-    unsigned long currentMillis = millis();
+  //Send 100ms message
+  if (currentMillis - previousMillis100 >= INTERVAL_100_MS) {
+    previousMillis100 = currentMillis;
 
-    if (!startedUp) {
-      return;  // Don't send any CAN messages towards battery until it has started up
-    }
-
-    //Send 100ms message
-    if (currentMillis - previousMillis100 >= INTERVAL_100_MS) {
-      previousMillis100 = currentMillis;
-
-      transmit_can_frame(&KIA64_553, can_config.battery);
-      transmit_can_frame(&KIA64_57F, can_config.battery);
-      transmit_can_frame(&KIA64_2A1, can_config.battery);
-    }
-    // Send 10ms CAN Message
-    if (currentMillis - previousMillis10 >= INTERVAL_10_MS) {
-      // Check if sending of CAN messages has been delayed too much.
-      if ((currentMillis - previousMillis10 >= INTERVAL_10_MS_DELAYED) && (currentMillis > BOOTUP_TIME)) {
-        set_event(EVENT_CAN_OVERRUN, (currentMillis - previousMillis10));
-      } else {
-        clear_event(EVENT_CAN_OVERRUN);
-      }
-      previousMillis10 = currentMillis;
-
-      switch (counter_200) {
-        case 0:
-          KIA_HYUNDAI_200.data.u8[5] = 0x17;
-          ++counter_200;
-          break;
-        case 1:
-          KIA_HYUNDAI_200.data.u8[5] = 0x57;
-          ++counter_200;
-          break;
-        case 2:
-          KIA_HYUNDAI_200.data.u8[5] = 0x97;
-          ++counter_200;
-          break;
-        case 3:
-          KIA_HYUNDAI_200.data.u8[5] = 0xD7;
-          ++counter_200;
-          break;
-        case 4:
-          KIA_HYUNDAI_200.data.u8[3] = 0x10;
-          KIA_HYUNDAI_200.data.u8[5] = 0xFF;
-          ++counter_200;
-          break;
-        case 5:
-          KIA_HYUNDAI_200.data.u8[5] = 0x3B;
-          ++counter_200;
-          break;
-        case 6:
-          KIA_HYUNDAI_200.data.u8[5] = 0x7B;
-          ++counter_200;
-          break;
-        case 7:
-          KIA_HYUNDAI_200.data.u8[5] = 0xBB;
-          ++counter_200;
-          break;
-        case 8:
-          KIA_HYUNDAI_200.data.u8[5] = 0xFB;
-          counter_200 = 5;
-          break;
-      }
-
-      transmit_can_frame(&KIA_HYUNDAI_200, can_config.battery);
-
-      transmit_can_frame(&KIA_HYUNDAI_523, can_config.battery);
-
-      transmit_can_frame(&KIA_HYUNDAI_524, can_config.battery);
-    }
+    transmit_can_frame(&KIA64_553, can_config.battery);
+    transmit_can_frame(&KIA64_57F, can_config.battery);
+    transmit_can_frame(&KIA64_2A1, can_config.battery);
   }
+  // Send 10ms CAN Message
+  if (currentMillis - previousMillis10 >= INTERVAL_10_MS) {
+    // Check if sending of CAN messages has been delayed too much.
+    if ((currentMillis - previousMillis10 >= INTERVAL_10_MS_DELAYED) && (currentMillis > BOOTUP_TIME)) {
+      set_event(EVENT_CAN_OVERRUN, (currentMillis - previousMillis10));
+    } else {
+      clear_event(EVENT_CAN_OVERRUN);
+    }
+    previousMillis10 = currentMillis;
 
-  void setup_battery(void) {  // Performs one time setup at startup
-    strncpy(datalayer.system.info.battery_protocol, "Kia/Hyundai 64/40kWh battery", 63);
-    datalayer.system.info.battery_protocol[63] = '\0';
-    datalayer.battery.info.max_design_voltage_dV = MAX_PACK_VOLTAGE_98S_DV;  //Start with 98S value. Precised later
-    datalayer.battery.info.min_design_voltage_dV = MIN_PACK_VOLTAGE_90S_DV;  //Start with 90S value. Precised later
-    datalayer.battery.info.max_cell_voltage_mV = MAX_CELL_VOLTAGE_MV;
-    datalayer.battery.info.min_cell_voltage_mV = MIN_CELL_VOLTAGE_MV;
+    switch (counter_200) {
+      case 0:
+        KIA_HYUNDAI_200.data.u8[5] = 0x17;
+        ++counter_200;
+        break;
+      case 1:
+        KIA_HYUNDAI_200.data.u8[5] = 0x57;
+        ++counter_200;
+        break;
+      case 2:
+        KIA_HYUNDAI_200.data.u8[5] = 0x97;
+        ++counter_200;
+        break;
+      case 3:
+        KIA_HYUNDAI_200.data.u8[5] = 0xD7;
+        ++counter_200;
+        break;
+      case 4:
+        KIA_HYUNDAI_200.data.u8[3] = 0x10;
+        KIA_HYUNDAI_200.data.u8[5] = 0xFF;
+        ++counter_200;
+        break;
+      case 5:
+        KIA_HYUNDAI_200.data.u8[5] = 0x3B;
+        ++counter_200;
+        break;
+      case 6:
+        KIA_HYUNDAI_200.data.u8[5] = 0x7B;
+        ++counter_200;
+        break;
+      case 7:
+        KIA_HYUNDAI_200.data.u8[5] = 0xBB;
+        ++counter_200;
+        break;
+      case 8:
+        KIA_HYUNDAI_200.data.u8[5] = 0xFB;
+        counter_200 = 5;
+        break;
+    }
+
+    transmit_can_frame(&KIA_HYUNDAI_200, can_config.battery);
+
+    transmit_can_frame(&KIA_HYUNDAI_523, can_config.battery);
+
+    transmit_can_frame(&KIA_HYUNDAI_524, can_config.battery);
   }
+}
+
+void setup_battery(void) {  // Performs one time setup at startup
+  strncpy(datalayer.system.info.battery_protocol, "Kia/Hyundai 64/40kWh battery", 63);
+  datalayer.system.info.battery_protocol[63] = '\0';
+  datalayer.battery.info.max_design_voltage_dV = MAX_PACK_VOLTAGE_98S_DV;  //Start with 98S value. Precised later
+  datalayer.battery.info.min_design_voltage_dV = MIN_PACK_VOLTAGE_90S_DV;  //Start with 90S value. Precised later
+  datalayer.battery.info.max_cell_voltage_mV = MAX_CELL_VOLTAGE_MV;
+  datalayer.battery.info.min_cell_voltage_mV = MIN_CELL_VOLTAGE_MV;
+}
 
 #endif
