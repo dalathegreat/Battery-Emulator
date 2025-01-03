@@ -101,7 +101,7 @@ void init_contactors() {
 #ifdef BMS_2_POWER  //Hardware supports 2x BMS
   pinMode(BMS_2_POWER, OUTPUT);
   digitalWrite(BMS_2_POWER, HIGH);
-#endif BMS_2_POWER
+#endif  //BMS_2_POWER
 #endif  //PERIODIC_BMS_RESET
 }
 
