@@ -94,14 +94,14 @@ void init_contactors() {
   pinMode(BMS_2_POWER, OUTPUT);
   digitalWrite(BMS_2_POWER, HIGH);
 #endif BMS_2_POWER
-#endif                     // HW with dedicated BMS pins
-#ifdef PERIODIC_BMS_RESET  // User has enabled BMS reset, turn on output on start
+#endif                                                        // HW with dedicated BMS pins
+#if defined(PERIODIC_BMS_RESET) || defined(REMOTE_BMS_RESET)  // User has enabled BMS reset, turn on output on start
   pinMode(BMS_POWER, OUTPUT);
   digitalWrite(BMS_POWER, HIGH);
 #ifdef BMS_2_POWER  //Hardware supports 2x BMS
   pinMode(BMS_2_POWER, OUTPUT);
   digitalWrite(BMS_2_POWER, HIGH);
-#endif BMS_2_POWER
+#endif  //BMS_2_POWER
 #endif  //PERIODIC_BMS_RESET
 }
 
@@ -222,17 +222,41 @@ void handle_contactors_battery2() {
 }
 #endif  // CONTACTOR_CONTROL_DOUBLE_BATTERY
 
-/* Once every 24 hours we remove power from the BMS_power pin for 30 seconds. This makes the BMS recalculate all SOC% and avoid memory leaks
+/* PERIODIC_BMS_RESET - Once every 24 hours we remove power from the BMS_power pin for 30 seconds.
+REMOTE_BMS_RESET - Allows the user to remotely powercycle the BMS by sending a command to the emulator via MQTT.
+
+This makes the BMS recalculate all SOC% and avoid memory leaks
 During that time we also set the emulator state to paused in order to not try and send CAN messages towards the battery
 Feature is only used if user has enabled PERIODIC_BMS_RESET in the USER_SETTINGS */
 
 void handle_BMSpower() {
-#ifdef PERIODIC_BMS_RESET
+#if defined(PERIODIC_BMS_RESET) || defined(REMOTE_BMS_RESET)
   // Get current time
   currentTime = millis();
 
+#ifdef PERIODIC_BMS_RESET
   // Check if 24 hours have passed since the last power removal
-  if (currentTime - lastPowerRemovalTime >= powerRemovalInterval && !isBMSResetActive) {
+  if (currentTime - lastPowerRemovalTime >= powerRemovalInterval) {
+    start_bms_reset();
+  }
+#endif  //PERIODIC_BMS_RESET
+
+  // If power has been removed for 30 seconds, restore the power and resume the emulator
+  if (isBMSResetActive && currentTime - lastPowerRemovalTime >= powerRemovalDuration) {
+    // Reapply power to the BMS
+    digitalWrite(BMS_POWER, HIGH);
+
+    //Resume the battery pause and CAN communication
+    setBatteryPause(false, false, false, false);
+
+    isBMSResetActive = false;  // Reset the power removal flag
+  }
+#endif  //defined(PERIODIC_BMS_RESET) || defined(REMOTE_BMS_RESET)
+}
+
+void start_bms_reset() {
+#if defined(PERIODIC_BMS_RESET) || defined(REMOTE_BMS_RESET)
+  if (!isBMSResetActive) {
     lastPowerRemovalTime = currentTime;  // Record the time when BMS reset was started
 
     // Set emulator state to paused (Max Charge/Discharge = 0 & CAN = stop)
