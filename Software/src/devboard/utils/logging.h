@@ -13,7 +13,11 @@ class Logging : public Print {
   virtual size_t write(const uint8_t* buffer, size_t size);
   virtual size_t write(uint8_t) { return 0; }
   void printf(const char* fmt, ...);
-  Logging() {printf("Battery emulator %s build "__DATE__ " " __TIME__ "\n", version_number);}
+  Logging() {
+    printf("Battery emulator %s build "__DATE__
+      " " __TIME__ "\n",
+      version_number);
+  }
 };
 
 extern Logging logging;
