@@ -1,6 +1,7 @@
 #include "../include.h"
 #ifdef VOLVO_SPA_BATTERY
 #include "../datalayer/datalayer.h"
+#include "../datalayer/datalayer_extended.h"  //For "More battery info" webpage
 #include "../devboard/utils/events.h"
 #include "VOLVO-SPA-BATTERY.h"
 
@@ -19,11 +20,14 @@ static float BATT_T_MIN = 0;             //0x413
 static float BATT_T_AVG = 0;             //0x413
 static uint16_t SOC_BMS = 0;             //0X37D
 static uint16_t SOC_CALC = 0;
-static uint16_t CELL_U_MAX = 3700;          //0x37D
-static uint16_t CELL_U_MIN = 3700;          //0x37D
-static uint8_t CELL_ID_U_MAX = 0;           //0x37D
-static uint16_t HvBattPwrLimDchaSoft = 0;   //0x369
-static uint8_t batteryModuleNumber = 0x10;  // First battery module
+static uint16_t CELL_U_MAX = 3700;            //0x37D
+static uint16_t CELL_U_MIN = 3700;            //0x37D
+static uint8_t CELL_ID_U_MAX = 0;             //0x37D
+static uint16_t HvBattPwrLimDchaSoft = 0;     //0x369
+static uint16_t HvBattPwrLimDcha1 = 0;        //0x175
+static uint16_t HvBattPwrLimDchaSlowAgi = 0;  //0x177
+static uint16_t HvBattPwrLimChrgSlowAgi = 0;  //0x177
+static uint8_t batteryModuleNumber = 0x10;    // First battery module
 static uint8_t battery_request_idx = 0;
 static uint8_t rxConsecutiveFrames = 0;
 static uint16_t min_max_voltage[2];  //contains cell min[0] and max[1] values in mV
@@ -35,7 +39,21 @@ CAN_frame VOLVO_536 = {.FD = false,
                        .ext_ID = false,
                        .DLC = 8,
                        .ID = 0x536,
-                       .data = {0x00, 0x40, 0xFF, 0x00, 0x00, 0x00, 0x00, 0x00}};  //Network manage frame
+                       //.data = {0x00, 0x40, 0xFF, 0x00, 0x00, 0x00, 0x00, 0x00}};  //Network manage frame
+                       .data = {0x00, 0x40, 0x40, 0x01, 0x00, 0x00, 0x00, 0x00}};  //Network manage frame
+
+CAN_frame VOLVO_140_CLOSE = {.FD = false,
+                             .ext_ID = false,
+                             .DLC = 8,
+                             .ID = 0x140,
+                             .data = {0x00, 0x02, 0x00, 0xB7, 0xFF, 0x03, 0xFF, 0x83}};  //Close contactors message
+
+CAN_frame VOLVO_140_OPEN = {.FD = false,
+                            .ext_ID = false,
+                            .DLC = 8,
+                            .ID = 0x140,
+                            .data = {0x00, 0x02, 0x00, 0x9E, 0xFF, 0x03, 0xFF, 0x83}};  //Open contactor message
+
 CAN_frame VOLVO_372 = {
     .FD = false,
     .ext_ID = false,
@@ -57,9 +75,61 @@ CAN_frame VOLVO_SOH_Req = {.FD = false,
                            .DLC = 8,
                            .ID = 0x735,
                            .data = {0x03, 0x22, 0x49, 0x6D, 0x00, 0x00, 0x00, 0x00}};  //Battery SOH request frame
+CAN_frame VOLVO_BECMsupplyVoltage_Req = {
+    .FD = false,
+    .ext_ID = false,
+    .DLC = 8,
+    .ID = 0x735,
+    .data = {0x03, 0x22, 0xF4, 0x42, 0x00, 0x00, 0x00, 0x00}};  //BECM supply voltage request frame
+CAN_frame VOLVO_DTC_Erase = {.FD = false,
+                             .ext_ID = false,
+                             .DLC = 8,
+                             .ID = 0x7FF,
+                             .data = {0x04, 0x14, 0xFF, 0xFF, 0xFF, 0x00, 0x00, 0x00}};  //Global DTC erase
+CAN_frame VOLVO_BECM_ECUreset = {
+    .FD = false,
+    .ext_ID = false,
+    .DLC = 8,
+    .ID = 0x735,
+    .data = {0x02, 0x11, 0x81, 0x00, 0x00, 0x00, 0x00, 0x00}};  //BECM ECU reset command (reboot/powercycle BECM)
+CAN_frame VOLVO_DTCreadout = {.FD = false,
+                              .ext_ID = false,
+                              .DLC = 8,
+                              .ID = 0x7FF,
+                              .data = {0x02, 0x19, 0x03, 0x00, 0x00, 0x00, 0x00, 0x00}};  //Global DTC readout
 
 void update_values_battery() {  //This function maps all the values fetched via CAN to the correct parameters used for the inverter
   uint8_t cnt = 0;
+
+  // Update webserver datalayer
+  datalayer_extended.VolvoPolestar.soc_bms = SOC_BMS;
+  datalayer_extended.VolvoPolestar.soc_calc = SOC_CALC;
+  datalayer_extended.VolvoPolestar.soc_rescaled = datalayer.battery.status.reported_soc;
+  datalayer_extended.VolvoPolestar.soh_bms = datalayer.battery.status.soh_pptt;
+
+  datalayer_extended.VolvoPolestar.BECMBatteryVoltage = BATT_U;
+  datalayer_extended.VolvoPolestar.BECMBatteryCurrent = BATT_I;
+  datalayer_extended.VolvoPolestar.BECMUDynMaxLim = MAX_U;
+  datalayer_extended.VolvoPolestar.BECMUDynMinLim = MIN_U;
+
+  datalayer_extended.VolvoPolestar.HvBattPwrLimDcha1 = HvBattPwrLimDcha1;
+  datalayer_extended.VolvoPolestar.HvBattPwrLimDchaSoft = HvBattPwrLimDchaSoft;
+  datalayer_extended.VolvoPolestar.HvBattPwrLimDchaSlowAgi = HvBattPwrLimDchaSlowAgi;
+  datalayer_extended.VolvoPolestar.HvBattPwrLimChrgSlowAgi = HvBattPwrLimChrgSlowAgi;
+
+  // Update requests from webserver datalayer
+  if (datalayer_extended.VolvoPolestar.UserRequestDTCreset) {
+    transmit_can_frame(&VOLVO_DTC_Erase, can_config.battery);  //Send global DTC erase command
+    datalayer_extended.VolvoPolestar.UserRequestDTCreset = false;
+  }
+  if (datalayer_extended.VolvoPolestar.UserRequestBECMecuReset) {
+    transmit_can_frame(&VOLVO_BECM_ECUreset, can_config.battery);  //Send BECM ecu reset command
+    datalayer_extended.VolvoPolestar.UserRequestBECMecuReset = false;
+  }
+  if (datalayer_extended.VolvoPolestar.UserRequestDTCreadout) {
+    transmit_can_frame(&VOLVO_DTCreadout, can_config.battery);  //Send DTC readout command
+    datalayer_extended.VolvoPolestar.UserRequestDTCreadout = false;
+  }
 
   remaining_capacity = (78200 - CHARGE_ENERGY);
 
@@ -94,49 +164,49 @@ void update_values_battery() {  //This function maps all the values fetched via 
     datalayer.battery.status.cell_voltages_mV[i] = cell_voltages[i];
   }
 
-#ifdef DEBUG_LOG
-  logging.print("BMS reported SOC%: ");
-  logging.println(SOC_BMS);
-  logging.print("Calculated SOC%: ");
-  logging.println(SOC_CALC);
-  logging.print("Rescaled SOC%: ");
-  logging.println(datalayer.battery.status.reported_soc / 100);
-  logging.print("Battery current: ");
-  logging.println(BATT_I);
-  logging.print("Battery voltage: ");
-  logging.println(BATT_U);
-  logging.print("Battery maximum voltage limit: ");
-  logging.println(MAX_U);
-  logging.print("Battery minimum voltage limit: ");
-  logging.println(MIN_U);
-  logging.print("Remaining Energy: ");
-  logging.println(remaining_capacity);
-  logging.print("Discharge limit: ");
-  logging.println(HvBattPwrLimDchaSoft);
-  logging.print("Battery Error Indication: ");
-  logging.println(BATT_ERR_INDICATION);
-  logging.print("Maximum battery temperature: ");
-  logging.println(BATT_T_MAX / 10);
-  logging.print("Minimum battery temperature: ");
-  logging.println(BATT_T_MIN / 10);
-  logging.print("Average battery temperature: ");
-  logging.println(BATT_T_AVG / 10);
-  logging.print("BMS Highest cell voltage: ");
-  logging.println(CELL_U_MAX * 10);
-  logging.print("BMS Lowest cell voltage: ");
-  logging.println(CELL_U_MIN * 10);
-  logging.print("BMS Highest cell nr: ");
-  logging.println(CELL_ID_U_MAX);
-  logging.print("Highest cell voltage: ");
-  logging.println(min_max_voltage[1]);
-  logging.print("Lowest cell voltage: ");
-  logging.println(min_max_voltage[0]);
-  logging.print("Cell voltage,");
+#ifdef DEBUG_VIA_USB
+  Serial.print("BMS reported SOC%: ");
+  Serial.println(SOC_BMS);
+  Serial.print("Calculated SOC%: ");
+  Serial.println(SOC_CALC);
+  Serial.print("Rescaled SOC%: ");
+  Serial.println(datalayer.battery.status.reported_soc / 100);
+  Serial.print("Battery current: ");
+  Serial.println(BATT_I);
+  Serial.print("Battery voltage: ");
+  Serial.println(BATT_U);
+  Serial.print("Battery maximum voltage limit: ");
+  Serial.println(MAX_U);
+  Serial.print("Battery minimum voltage limit: ");
+  Serial.println(MIN_U);
+  Serial.print("Remaining Energy: ");
+  Serial.println(remaining_capacity);
+  Serial.print("Discharge limit: ");
+  Serial.println(HvBattPwrLimDchaSoft);
+  Serial.print("Battery Error Indication: ");
+  Serial.println(BATT_ERR_INDICATION);
+  Serial.print("Maximum battery temperature: ");
+  Serial.println(BATT_T_MAX / 10);
+  Serial.print("Minimum battery temperature: ");
+  Serial.println(BATT_T_MIN / 10);
+  Serial.print("Average battery temperature: ");
+  Serial.println(BATT_T_AVG / 10);
+  Serial.print("BMS Highest cell voltage: ");
+  Serial.println(CELL_U_MAX * 10);
+  Serial.print("BMS Lowest cell voltage: ");
+  Serial.println(CELL_U_MIN * 10);
+  Serial.print("BMS Highest cell nr: ");
+  Serial.println(CELL_ID_U_MAX);
+  Serial.print("Highest cell voltage: ");
+  Serial.println(min_max_voltage[1]);
+  Serial.print("Lowest cell voltage: ");
+  Serial.println(min_max_voltage[0]);
+  Serial.print("Cell voltage,");
   while (cnt < 108) {
-    logging.print(cell_voltages[cnt++]);
-    logging.print(",");
+    Serial.print(cell_voltages[cnt++]);
+    Serial.print(",");
   }
-  logging.println(";");
+  Serial.println(";");
 #endif
 }
 
@@ -148,8 +218,8 @@ void handle_incoming_can_frame_battery(CAN_frame rx_frame) {
         BATT_I = (0 - ((((rx_frame.data.u8[6] & 0x7F) * 256.0 + rx_frame.data.u8[7]) * 0.1) - 1638));
       else {
         BATT_I = 0;
-#ifdef DEBUG_LOG
-        logging.println("BATT_I not valid");
+#ifdef DEBUG_VIA_USB
+        Serial.println("BATT_I not valid");
 #endif
       }
 
@@ -157,24 +227,43 @@ void handle_incoming_can_frame_battery(CAN_frame rx_frame) {
         MAX_U = (((rx_frame.data.u8[2] & 0x07) * 256.0 + rx_frame.data.u8[3]) * 0.25);
       else {
         //MAX_U = 0;
-        //logging.println("MAX_U not valid");	// Value toggles between true/false from BMS
+        //Serial.println("MAX_U not valid");	// Value toggles between true/false from BMS
       }
 
       if ((rx_frame.data.u8[4] & 0x08) == 0x08)
         MIN_U = (((rx_frame.data.u8[4] & 0x07) * 256.0 + rx_frame.data.u8[5]) * 0.25);
       else {
         //MIN_U = 0;
-        //logging.println("MIN_U not valid");	// Value toggles between true/false from BMS
+        //Serial.println("MIN_U not valid");	// Value toggles between true/false from BMS
       }
 
       if ((rx_frame.data.u8[0] & 0x08) == 0x08)
         BATT_U = (((rx_frame.data.u8[0] & 0x07) * 256.0 + rx_frame.data.u8[1]) * 0.25);
       else {
         BATT_U = 0;
-#ifdef DEBUG_LOG
-        logging.println("BATT_U not valid");
+#ifdef DEBUG_VIA_USB
+        Serial.println("BATT_U not valid");
 #endif
       }
+
+      if ((rx_frame.data.u8[0] & 0x40) == 0x40)
+        datalayer_extended.VolvoPolestar.HVSysRlySts = ((rx_frame.data.u8[0] & 0x30) >> 4);
+      else
+        datalayer_extended.VolvoPolestar.HVSysRlySts = 0xFF;
+
+      if ((rx_frame.data.u8[2] & 0x40) == 0x40)
+        datalayer_extended.VolvoPolestar.HVSysDCRlySts1 = ((rx_frame.data.u8[2] & 0x30) >> 4);
+      else
+        datalayer_extended.VolvoPolestar.HVSysDCRlySts1 = 0xFF;
+      if ((rx_frame.data.u8[2] & 0x80) == 0x80)
+        datalayer_extended.VolvoPolestar.HVSysDCRlySts2 = ((rx_frame.data.u8[4] & 0x30) >> 4);
+      else
+        datalayer_extended.VolvoPolestar.HVSysDCRlySts2 = 0xFF;
+      if ((rx_frame.data.u8[0] & 0x80) == 0x80)
+        datalayer_extended.VolvoPolestar.HVSysIsoRMonrSts = ((rx_frame.data.u8[4] & 0xC0) >> 6);
+      else
+        datalayer_extended.VolvoPolestar.HVSysIsoRMonrSts = 0xFF;
+
       break;
     case 0x1A1:
       if ((rx_frame.data.u8[4] & 0x10) == 0x10)
@@ -189,8 +278,8 @@ void handle_incoming_can_frame_battery(CAN_frame rx_frame) {
         BATT_ERR_INDICATION = ((rx_frame.data.u8[0] & 0x40) >> 6);
       else {
         BATT_ERR_INDICATION = 0;
-#ifdef DEBUG_LOG
-        logging.println("BATT_ERR_INDICATION not valid");
+#ifdef DEBUG_VIA_USB
+        Serial.println("BATT_ERR_INDICATION not valid");
 #endif
       }
       if ((rx_frame.data.u8[0] & 0x20) == 0x20) {
@@ -201,8 +290,8 @@ void handle_incoming_can_frame_battery(CAN_frame rx_frame) {
         BATT_T_MAX = 0;
         BATT_T_MIN = 0;
         BATT_T_AVG = 0;
-#ifdef DEBUG_LOG
-        logging.println("BATT_T not valid");
+#ifdef DEBUG_VIA_USB
+        Serial.println("BATT_T not valid");
 #endif
       }
       break;
@@ -211,9 +300,28 @@ void handle_incoming_can_frame_battery(CAN_frame rx_frame) {
         HvBattPwrLimDchaSoft = (((rx_frame.data.u8[6] & 0x03) * 256 + rx_frame.data.u8[6]) >> 2);
       } else {
         HvBattPwrLimDchaSoft = 0;
-#ifdef DEBUG_LOG
-        logging.println("HvBattPwrLimDchaSoft not valid");
+#ifdef DEBUG_VIA_USB
+        Serial.println("HvBattPwrLimDchaSoft not valid");
 #endif
+      }
+      break;
+    case 0x175:
+      if ((rx_frame.data.u8[4] & 0x80) == 0x80) {
+        HvBattPwrLimDcha1 = (((rx_frame.data.u8[2] & 0x07) * 256 + rx_frame.data.u8[3]) >> 2);
+      } else {
+        HvBattPwrLimDcha1 = 0;
+      }
+      break;
+    case 0x177:
+      if ((rx_frame.data.u8[4] & 0x08) == 0x08) {
+        HvBattPwrLimDchaSlowAgi = (((rx_frame.data.u8[4] & 0x07) * 256 + rx_frame.data.u8[5]) >> 2);
+      } else {
+        HvBattPwrLimDchaSlowAgi = 0;
+      }
+      if ((rx_frame.data.u8[2] & 0x08) == 0x08) {
+        HvBattPwrLimChrgSlowAgi = (((rx_frame.data.u8[2] & 0x07) * 256 + rx_frame.data.u8[3]) >> 2);
+      } else {
+        HvBattPwrLimChrgSlowAgi = 0;
       }
       break;
     case 0x37D:
@@ -221,8 +329,8 @@ void handle_incoming_can_frame_battery(CAN_frame rx_frame) {
         SOC_BMS = ((rx_frame.data.u8[6] & 0x03) * 256 + rx_frame.data.u8[7]);
       } else {
         SOC_BMS = 0;
-#ifdef DEBUG_LOG
-        logging.println("SOC_BMS not valid");
+#ifdef DEBUG_VIA_USB
+        Serial.println("SOC_BMS not valid");
 #endif
       }
 
@@ -230,8 +338,8 @@ void handle_incoming_can_frame_battery(CAN_frame rx_frame) {
         CELL_U_MAX = ((rx_frame.data.u8[2] & 0x01) * 256 + rx_frame.data.u8[3]);
       else {
         CELL_U_MAX = 0;
-#ifdef DEBUG_LOG
-        logging.println("CELL_U_MAX not valid");
+#ifdef DEBUG_VIA_USB
+        Serial.println("CELL_U_MAX not valid");
 #endif
       }
 
@@ -239,8 +347,8 @@ void handle_incoming_can_frame_battery(CAN_frame rx_frame) {
         CELL_U_MIN = ((rx_frame.data.u8[0] & 0x01) * 256.0 + rx_frame.data.u8[1]);
       else {
         CELL_U_MIN = 0;
-#ifdef DEBUG_LOG
-        logging.println("CELL_U_MIN not valid");
+#ifdef DEBUG_VIA_USB
+        Serial.println("CELL_U_MIN not valid");
 #endif
       }
 
@@ -248,8 +356,8 @@ void handle_incoming_can_frame_battery(CAN_frame rx_frame) {
         CELL_ID_U_MAX = ((rx_frame.data.u8[4] & 0x01) * 256.0 + rx_frame.data.u8[5]);
       else {
         CELL_ID_U_MAX = 0;
-#ifdef DEBUG_LOG
-        logging.println("CELL_ID_U_MAX not valid");
+#ifdef DEBUG_VIA_USB
+        Serial.println("CELL_ID_U_MAX not valid");
 #endif
       }
       break;
@@ -258,6 +366,11 @@ void handle_incoming_can_frame_battery(CAN_frame rx_frame) {
           (rx_frame.data.u8[3] == 0x6D))  // SOH response frame
       {
         datalayer.battery.status.soh_pptt = ((rx_frame.data.u8[6] << 8) | rx_frame.data.u8[7]);
+        transmit_can_frame(&VOLVO_BECMsupplyVoltage_Req, can_config.battery);  //Send BECM supply voltage req
+      } else if ((rx_frame.data.u8[0] == 0x05) && (rx_frame.data.u8[1] == 0x62) && (rx_frame.data.u8[2] == 0xF4) &&
+                 (rx_frame.data.u8[3] == 0x42))  // BECM module voltage supply
+      {
+        datalayer_extended.VolvoPolestar.BECMsupplyVoltage = ((rx_frame.data.u8[4] << 8) | rx_frame.data.u8[5]);
       } else if ((rx_frame.data.u8[0] == 0x10) && (rx_frame.data.u8[1] == 0x0B) && (rx_frame.data.u8[2] == 0x62) &&
                  (rx_frame.data.u8[3] == 0x4B))  // First response frame of cell voltages
       {
@@ -265,6 +378,10 @@ void handle_incoming_can_frame_battery(CAN_frame rx_frame) {
         cell_voltages[battery_request_idx] = (rx_frame.data.u8[7] << 8);
         transmit_can_frame(&VOLVO_FlowControl, can_config.battery);  // Send flow control
         rxConsecutiveFrames = 1;
+      } else if ((rx_frame.data.u8[0] == 0x10) && (rx_frame.data.u8[2] == 0x59) &&
+                 (rx_frame.data.u8[3] == 0x03))  // First response frame for DTC with more than one code
+      {
+        transmit_can_frame(&VOLVO_FlowControl, can_config.battery);  // Send flow control
       } else if ((rx_frame.data.u8[0] == 0x21) && (rxConsecutiveFrames == 1)) {
         cell_voltages[battery_request_idx++] = cell_voltages[battery_request_idx] | rx_frame.data.u8[1];
         cell_voltages[battery_request_idx++] = (rx_frame.data.u8[2] << 8) | rx_frame.data.u8[3];
@@ -283,7 +400,6 @@ void handle_incoming_can_frame_battery(CAN_frame rx_frame) {
             if (min_max_voltage[1] < cell_voltages[cellcounter])
               min_max_voltage[1] = cell_voltages[cellcounter];
           }
-
           transmit_can_frame(&VOLVO_SOH_Req, can_config.battery);  //Send SOH read request
         }
         rxConsecutiveFrames = 0;
@@ -319,8 +435,10 @@ void transmit_can_battery() {
 
     if (datalayer.battery.status.bms_status == ACTIVE) {
       datalayer.system.status.battery_allows_contactor_closing = true;
+      transmit_can_frame(&VOLVO_140_CLOSE, can_config.battery);  //Send 0x140 Close contactors message
     } else {  //datalayer.battery.status.bms_status == FAULT or inverter requested opening contactors
       datalayer.system.status.battery_allows_contactor_closing = false;
+      transmit_can_frame(&VOLVO_140_OPEN, can_config.battery);  //Send 0x140 Open contactors message
     }
   }
   if (currentMillis - previousMillis60s >= INTERVAL_60_S) {
