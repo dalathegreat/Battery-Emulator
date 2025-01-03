@@ -6,6 +6,7 @@
 #include "../../../USER_SETTINGS.h"
 #include "../../battery/BATTERIES.h"
 #include "../../communication/contactorcontrol/comm_contactorcontrol.h"
+#include "../../communication/contactorcontrol/comm_contactorcontrol.h"
 #include "../../datalayer/datalayer.h"
 #include "../../lib/bblanchon-ArduinoJson/ArduinoJson.h"
 #include "../../lib/knolleary-pubsubclient/PubSubClient.h"
