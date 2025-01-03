@@ -87,14 +87,22 @@ void init_contactors() {
   set(SECOND_NEGATIVE_CONTACTOR_PIN, OFF);
 #endif  // CONTACTOR_CONTROL_DOUBLE_BATTERY
 // Init BMS contactor
-#ifdef HW_STARK  // This hardware has dedicated pin, always enable on start
-  pinMode(BMS_POWER, OUTPUT);
+#if defined HW_STARK || defined HW_3LB  // This hardware has dedicated pin, always enable on start
+  pinMode(BMS_POWER, OUTPUT);           //LilyGo is omitted from this, only enabled if user selects PERIODIC_BMS_RESET
   digitalWrite(BMS_POWER, HIGH);
-#endif                                                        // HW_STARK
+#ifdef BMS_2_POWER  //Hardware supports 2x BMS
+  pinMode(BMS_2_POWER, OUTPUT);
+  digitalWrite(BMS_2_POWER, HIGH);
+#endif BMS_2_POWER
+#endif                                                        // HW with dedicated BMS pins
 #if defined(PERIODIC_BMS_RESET) || defined(REMOTE_BMS_RESET)  // User has enabled BMS reset, turn on output on start
   pinMode(BMS_POWER, OUTPUT);
   digitalWrite(BMS_POWER, HIGH);
-#endif  //defined(PERIODIC_BMS_RESET) || defined(REMOTE_BMS_RESET)
+#ifdef BMS_2_POWER  //Hardware supports 2x BMS
+  pinMode(BMS_2_POWER, OUTPUT);
+  digitalWrite(BMS_2_POWER, HIGH);
+#endif BMS_2_POWER
+#endif  //PERIODIC_BMS_RESET
 }
 
 // Main functions of the handle_contactors include checking if inverter allows for closing, checking battery 2, checking BMS power output, and actual contactor closing/precharge via GPIO
@@ -257,8 +265,25 @@ void start_bms_reset() {
     setBatteryPause(true, true, false, false);
 
     digitalWrite(BMS_POWER, LOW);  // Remove power by setting the BMS power pin to LOW
+#ifdef BMS_2_POWER
+    digitalWrite(BMS_2_POWER, LOW);  // Same for battery 2
+#endif
 
     isBMSResetActive = true;  // Set a flag to indicate power removal is active
   }
-#endif  //defined(PERIODIC_BMS_RESET) || defined(REMOTE_BMS_RESET)
+
+  // If power has been removed for 30 seconds, restore the power and resume the emulator
+  if (isBMSResetActive && currentTime - lastPowerRemovalTime >= powerRemovalDuration) {
+    // Reapply power to the BMS
+    digitalWrite(BMS_POWER, HIGH);
+#ifdef BMS_2_POWER
+    digitalWrite(BMS_2_POWER, HIGH);  // Same for battery 2
+#endif
+
+    //Resume the battery pause and CAN communication
+    setBatteryPause(false, false, false, false);
+
+    isBMSResetActive = false;  // Reset the power removal flag
+  }
+#endif  //PERIODIC_BMS_RESET
 }

@@ -440,6 +440,12 @@ void handle_incoming_can_frame_battery(CAN_frame rx_frame) {
           }
           break;
         case 0x26:  //Sixth datarow in PID group
+          //We have read all cells, check that content is valid:
+          for (uint8_t i = 85; i < 97; ++i) {
+            if (cellvoltages_mv[i] < 300) {  // Zero the value if it's below 300
+              cellvoltages_mv[i] = 0;        // Some packs incorrectly report the last unpopulated cells as 20-60mV
+            }
+          }
           //Map all cell voltages to the global array
           memcpy(datalayer.battery.status.cell_voltages_mV, cellvoltages_mv, 98 * sizeof(uint16_t));
           //Update number of cells
