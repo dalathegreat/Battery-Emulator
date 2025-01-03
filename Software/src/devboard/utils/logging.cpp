@@ -85,14 +85,13 @@ size_t Logging::write(const uint8_t* buffer, size_t size) {
 
 void Logging::printf(const char* fmt, ...) {
 #ifdef DEBUG_LOG
-  char* message_string = datalayer.system.info.logged_can_messages;
-  int offset = datalayer.system.info.logged_can_messages_offset;  // Keeps track of the current position in the buffer
-  size_t message_string_size = sizeof(datalayer.system.info.logged_can_messages);
-
   if (previous_message_was_newline) {
     add_timestamp(MAX_LINE_LENGTH_PRINTF);
   }
 
+  char* message_string = datalayer.system.info.logged_can_messages;
+  size_t message_string_size = sizeof(datalayer.system.info.logged_can_messages);
+  int offset = datalayer.system.info.logged_can_messages_offset;  // Keeps track of the current position in the buffer
   static char buffer[MAX_LINE_LENGTH_PRINTF];
   char* message_buffer;
 #ifdef DEBUG_VIA_WEB
@@ -132,6 +131,6 @@ void Logging::printf(const char* fmt, ...) {
   }
 #endif  // DEBUG_VIA_WEB
 
-  previous_message_was_newline = buffer[size - 1] == '\n';
+  previous_message_was_newline = message_buffer[size - 1] == '\n';
 #endif  // DEBUG_LOG
 }
