@@ -420,7 +420,9 @@ void handle_incoming_can_frame_battery(CAN_frame rx_frame) {
             cellvoltages_mv[87] = (rx_frame.data.u8[4] * 20);
             cellvoltages_mv[88] = (rx_frame.data.u8[5] * 20);
             cellvoltages_mv[89] = (rx_frame.data.u8[6] * 20);
-            cellvoltages_mv[90] = (rx_frame.data.u8[7] * 20);
+            if (rx_frame.data.u8[7] > 4) {                       // Data only valid on 98S
+              cellvoltages_mv[90] = (rx_frame.data.u8[7] * 20);  // Perform extra checks
+            }
           } else if (poll_data_pid == 5) {
             batterySOH = ((rx_frame.data.u8[2] << 8) + rx_frame.data.u8[3]);
           }
@@ -438,15 +440,29 @@ void handle_incoming_can_frame_battery(CAN_frame rx_frame) {
             cellvoltages_mv[61] = (rx_frame.data.u8[3] * 20);
             cellvoltages_mv[62] = (rx_frame.data.u8[4] * 20);
             cellvoltages_mv[63] = (rx_frame.data.u8[5] * 20);
-          } else if (poll_data_pid == 4) {
-            cellvoltages_mv[91] = (rx_frame.data.u8[1] * 20);
-            cellvoltages_mv[92] = (rx_frame.data.u8[2] * 20);
-            cellvoltages_mv[93] = (rx_frame.data.u8[3] * 20);
-            cellvoltages_mv[94] = (rx_frame.data.u8[4] * 20);
-            cellvoltages_mv[95] = (rx_frame.data.u8[5] * 20);
-          } else if (poll_data_pid == 5) {
-            cellvoltages_mv[96] = (rx_frame.data.u8[4] * 20);
-            cellvoltages_mv[97] = (rx_frame.data.u8[5] * 20);
+          } else if (poll_data_pid == 4) {  // Data only valid on 98S
+            if (rx_frame.data.u8[1] > 4) {  // Perform extra checks
+              cellvoltages_mv[91] = (rx_frame.data.u8[1] * 20);
+            }
+            if (rx_frame.data.u8[2] > 4) {  // Perform extra checks
+              cellvoltages_mv[92] = (rx_frame.data.u8[2] * 20);
+            }
+            if (rx_frame.data.u8[3] > 4) {  // Perform extra checks
+              cellvoltages_mv[93] = (rx_frame.data.u8[3] * 20);
+            }
+            if (rx_frame.data.u8[4] > 4) {  // Perform extra checks
+              cellvoltages_mv[94] = (rx_frame.data.u8[4] * 20);
+            }
+            if (rx_frame.data.u8[5] > 4) {  // Perform extra checks
+              cellvoltages_mv[95] = (rx_frame.data.u8[5] * 20);
+            }
+          } else if (poll_data_pid == 5) {  // Data only valid on 98S
+            if (rx_frame.data.u8[4] > 4) {  // Perform extra checks
+              cellvoltages_mv[96] = (rx_frame.data.u8[4] * 20);
+            }
+            if (rx_frame.data.u8[5] > 4) {  // Perform extra checks
+              cellvoltages_mv[97] = (rx_frame.data.u8[5] * 20);
+            }
           }
           break;
         case 0x26:  //Sixth datarow in PID group

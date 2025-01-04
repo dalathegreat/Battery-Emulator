@@ -317,16 +317,16 @@ String advanced_battery_processor(const String& var) {
 #endif  //CELLPOWER_BMS
 
 #ifdef KIA_HYUNDAI_64_BATTERY
-    /*
-   content += "<h4>Cells: " + String(datalayer_extended.KiaHyundai64.total_cell_count) + "S</h4>";
-   content += "<h4>12V voltage: " + String(datalayer_extended.KiaHyundai64.battery_12V) + "</h4>";
-   content += "<h4>Waterleakage: " + String(datalayer_extended.KiaHyundai64.waterleakageSensor) + "</h4>";
-   content += "<h4>Temperature, water inlet: " + String(datalayer_extended.KiaHyundai64.temperature_water_inlet) + "</h4>";
-   content += "<h4>Temperature, power relay: " + String(datalayer_extended.KiaHyundai64.powerRelayTemperature) + "</h4>";
-   content += "<h4>Batterymanagement mode: " + String(datalayer_extended.KiaHyundai64.batteryManagementMode) + "</h4>";
-   content += "<h4>BMS ignition: " + String(datalayer_extended.KiaHyundai64.BMS_ign) + "</h4>";
-   content += "<h4>Battery relay: " + String(datalayer_extended.KiaHyundai64.batteryRelay) + "</h4>";
-   */
+    content += "<h4>Cells: " + String(datalayer_extended.KiaHyundai64.total_cell_count) + "S</h4>";
+    content += "<h4>12V voltage: " + String(datalayer_extended.KiaHyundai64.battery_12V / 10.0, 1) + "</h4>";
+    content += "<h4>Waterleakage: " + String(datalayer_extended.KiaHyundai64.waterleakageSensor) + "</h4>";
+    content +=
+        "<h4>Temperature, water inlet: " + String(datalayer_extended.KiaHyundai64.temperature_water_inlet) + "</h4>";
+    content +=
+        "<h4>Temperature, power relay: " + String(datalayer_extended.KiaHyundai64.powerRelayTemperature) + "</h4>";
+    content += "<h4>Batterymanagement mode: " + String(datalayer_extended.KiaHyundai64.batteryManagementMode) + "</h4>";
+    content += "<h4>BMS ignition: " + String(datalayer_extended.KiaHyundai64.BMS_ign) + "</h4>";
+    content += "<h4>Battery relay: " + String(datalayer_extended.KiaHyundai64.batteryRelay) + "</h4>";
 #endif  //KIA_HYUNDAI_64_BATTERY
 
 #ifdef BYD_ATTO_3_BATTERY
@@ -1148,7 +1148,6 @@ String advanced_battery_processor(const String& var) {
 #endif
 
     content += "</div>";
-#ifdef NISSAN_LEAF_BATTERY
     content += "<script>";
     content +=
         "function askResetSOH() { if (window.confirm('Are you sure you want to reset degradation data? "
@@ -1161,8 +1160,6 @@ String advanced_battery_processor(const String& var) {
     content += "}";
     content += "function goToMainPage() { window.location.href = '/'; }";
     content += "</script>";
-#endif  //NISSAN_LEAF_BATTERY
-#ifdef VOLVO_SPA_BATTERY
     content += "<script>";
     content +=
         "function Volvo_askEraseDTC() { if (window.confirm('Are you sure you want to erase DTCs?')) { "
@@ -1196,7 +1193,8 @@ String advanced_battery_processor(const String& var) {
     content += "}";
     content += "function goToMainPage() { window.location.href = '/'; }";
     content += "</script>";
-#endif  //VOLVO_SPA_BATTERY
+
+    return content;
   }
   return String();
 }
