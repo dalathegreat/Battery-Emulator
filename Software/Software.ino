@@ -98,6 +98,10 @@ Logging logging;
 void setup() {
   init_serial();
 
+  // We print this after setting up serial, such that is also printed to serial with DEBUG_VIA_USB set.
+  logging.printf("Battery emulator %s build " __DATE__
+                 " " __TIME__ "\n", version_number);
+
   init_stored_settings();
 
 #ifdef WIFI
