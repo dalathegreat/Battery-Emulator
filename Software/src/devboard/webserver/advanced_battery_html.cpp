@@ -316,6 +316,19 @@ String advanced_battery_processor(const String& var) {
                String(falseTrue[datalayer_extended.cellpower.warning_Charger_not_responding]) + "</h4>";
 #endif  //CELLPOWER_BMS
 
+#ifdef KIA_HYUNDAI_64_BATTERY
+    content += "<h4>Cells: " + String(datalayer_extended.KiaHyundai64.total_cell_count) + "S</h4>";
+    content += "<h4>12V voltage: " + String(datalayer_extended.KiaHyundai64.battery_12V / 10.0, 1) + "</h4>";
+    content += "<h4>Waterleakage: " + String(datalayer_extended.KiaHyundai64.waterleakageSensor) + "</h4>";
+    content +=
+        "<h4>Temperature, water inlet: " + String(datalayer_extended.KiaHyundai64.temperature_water_inlet) + "</h4>";
+    content +=
+        "<h4>Temperature, power relay: " + String(datalayer_extended.KiaHyundai64.powerRelayTemperature) + "</h4>";
+    content += "<h4>Batterymanagement mode: " + String(datalayer_extended.KiaHyundai64.batteryManagementMode) + "</h4>";
+    content += "<h4>BMS ignition: " + String(datalayer_extended.KiaHyundai64.BMS_ign) + "</h4>";
+    content += "<h4>Battery relay: " + String(datalayer_extended.KiaHyundai64.batteryRelay) + "</h4>";
+#endif  //KIA_HYUNDAI_64_BATTERY
+
 #ifdef BYD_ATTO_3_BATTERY
     static const char* SOCmethod[2] = {"Estimated from voltage", "Measured by BMS"};
     content += "<h4>SOC method used: " + String(SOCmethod[datalayer_extended.bydAtto3.SOC_method]) + "</h4>";
@@ -1130,12 +1143,11 @@ String advanced_battery_processor(const String& var) {
 #if !defined(BMW_IX_BATTERY) && !defined(BOLT_AMPERA_BATTERY) && !defined(TESLA_BATTERY) &&      \
     !defined(NISSAN_LEAF_BATTERY) && !defined(BMW_I3_BATTERY) && !defined(BYD_ATTO_3_BATTERY) && \
     !defined(RENAULT_ZOE_GEN2_BATTERY) && !defined(CELLPOWER_BMS) && !defined(MEB_BATTERY) &&    \
-    !defined(VOLVO_SPA_BATTERY)  //Only the listed types have extra info
+    !defined(VOLVO_SPA_BATTERY) && !defined(KIA_HYUNDAI_64_BATTERY)  //Only the listed types have extra info
     content += "No extra information available for this battery type";
 #endif
 
     content += "</div>";
-
     content += "<script>";
     content +=
         "function askResetSOH() { if (window.confirm('Are you sure you want to reset degradation data? "
@@ -1148,7 +1160,6 @@ String advanced_battery_processor(const String& var) {
     content += "}";
     content += "function goToMainPage() { window.location.href = '/'; }";
     content += "</script>";
-
     content += "<script>";
     content +=
         "function Volvo_askEraseDTC() { if (window.confirm('Are you sure you want to erase DTCs?')) { "
@@ -1182,6 +1193,8 @@ String advanced_battery_processor(const String& var) {
     content += "}";
     content += "function goToMainPage() { window.location.href = '/'; }";
     content += "</script>";
+
+    return content;
   }
   return String();
 }
