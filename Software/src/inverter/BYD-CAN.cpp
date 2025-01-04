@@ -83,7 +83,7 @@ static int16_t inverter_temperature = 0;
 static uint16_t remaining_capacity_ah = 0;
 static uint16_t fully_charged_capacity_ah = 0;
 static long inverter_timestamp = 0;
-static bool initialDataSent = 0;
+static bool initialDataSent = false;
 
 void update_values_can_inverter() {  //This function maps all the values fetched from battery CAN to the correct CAN messages
 
@@ -198,11 +198,6 @@ void map_can_frame_to_variable_inverter(CAN_frame rx_frame) {
 
 void transmit_can_inverter() {
   unsigned long currentMillis = millis();
-  // Send initial CAN data once on bootup
-  if (!initialDataSent) {
-    send_intial_data();
-    initialDataSent = 1;
-  }
 
   // Send 2s CAN Message
   if (currentMillis - previousMillis2s >= INTERVAL_2_S) {
@@ -217,6 +212,12 @@ void transmit_can_inverter() {
     transmit_can_frame(&BYD_150, can_config.inverter);
     transmit_can_frame(&BYD_1D0, can_config.inverter);
     transmit_can_frame(&BYD_210, can_config.inverter);
+
+    // Send initial CAN data once on bootup
+    if (!initialDataSent) {
+      send_intial_data();
+      initialDataSent = true;
+    }
   }
   //Send 60s message
   if (currentMillis - previousMillis60s >= INTERVAL_60_S) {
