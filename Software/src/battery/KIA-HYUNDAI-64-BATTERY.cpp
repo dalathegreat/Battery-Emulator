@@ -1,6 +1,7 @@
 #include "../include.h"
 #ifdef KIA_HYUNDAI_64_BATTERY
 #include "../datalayer/datalayer.h"
+#include "../datalayer/datalayer_extended.h"
 #include "../devboard/utils/events.h"
 #include "KIA-HYUNDAI-64-BATTERY.h"
 
@@ -141,8 +142,17 @@ void update_values_battery() {  //This function maps all the values fetched via 
     set_event(EVENT_12V_LOW, leadAcidBatteryVoltage);
   }
 
-  /* Safeties verified. Perform USB serial printout if configured to do so */
+  // Update webserver datalayer
+  datalayer_extended.KiaHyundai64.total_cell_count = datalayer.battery.info.number_of_cells;
+  datalayer_extended.KiaHyundai64.battery_12V = leadAcidBatteryVoltage;
+  datalayer_extended.KiaHyundai64.waterleakageSensor = waterleakageSensor;
+  datalayer_extended.KiaHyundai64.temperature_water_inlet = temperature_water_inlet;
+  datalayer_extended.KiaHyundai64.powerRelayTemperature = powerRelayTemperature * 2;
+  datalayer_extended.KiaHyundai64.batteryManagementMode = batteryManagementMode;
+  datalayer_extended.KiaHyundai64.BMS_ign = BMS_ign;
+  datalayer_extended.KiaHyundai64.batteryRelay = batteryRelay;
 
+  //Perform logging if configured to do so
 #ifdef DEBUG_LOG
   logging.println();  //sepatator
   logging.println("Values from battery: ");
