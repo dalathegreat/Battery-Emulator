@@ -1809,7 +1809,7 @@ void handle_incoming_can_frame_battery(CAN_frame rx_frame) {
       }
       break;
     case 0x72A:  //1834 ID72ABMS_serialNumber
-//Work in progress to display BMS Serial Number in ASCII: 00 54 47 33 32 31 32 30 (mux 0) .TG32120 + 01 32 30 30 33 41 48 58 (mux 1) .2003AHX = TG321202003AHX
+      //Work in progress to display BMS Serial Number in ASCII: 00 54 47 33 32 31 32 30 (mux 0) .TG32120 + 01 32 30 30 33 41 48 58 (mux 1) .2003AHX = TG321202003AHX
       if (rx_frame.data.u8[0] == 0x00) {
         BMS_SerialNumber[1] = rx_frame.data.u8[1];
         BMS_SerialNumber[2] = rx_frame.data.u8[2];

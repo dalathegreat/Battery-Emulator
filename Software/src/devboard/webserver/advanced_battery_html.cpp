@@ -518,7 +518,7 @@ String advanced_battery_processor(const String& var) {
                String(noYes[datalayer_extended.tesla.battery_packCtrsResetRequestRequired]) + "</h4>";  //bool
     content +=
         "<h4>DC Link Allowed to Energize: " + String(noYes[datalayer_extended.tesla.battery_dcLinkAllowedToEnergize]) +
-        "</h4>";  //bool
+        "</h4>";                    //bool
     char readableSerialNumber[16];  // One extra space for null terminator
     memcpy(readableSerialNumber, datalayer_extended.tesla.BMS_SerialNumber,
            sizeof(datalayer_extended.tesla.BMS_SerialNumber));

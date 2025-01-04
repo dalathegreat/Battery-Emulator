@@ -221,7 +221,7 @@ typedef struct {
   uint8_t battery_packCtrsRequestStatus = 0;
   bool battery_packCtrsResetRequestRequired = false;
   bool battery_dcLinkAllowedToEnergize = false;
-  uint8_t BMS_SerialNumber[15] = {0}; //stores raw HEX values for ASCII chars
+  uint8_t BMS_SerialNumber[15] = {0};  //stores raw HEX values for ASCII chars
   uint8_t battery_beginning_of_life = 0;
   uint8_t battery_battTempPct = 0;
   uint16_t battery_dcdcLvBusVolt = 0;
