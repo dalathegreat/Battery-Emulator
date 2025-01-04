@@ -366,7 +366,7 @@ String advanced_battery_processor(const String& var) {
     float soc_ui = static_cast<float>(datalayer_extended.tesla.battery_soc_ui) * 0.1;
     float BrickVoltageMax = static_cast<float>(datalayer_extended.tesla.battery_BrickVoltageMax) * 0.002;
     float BrickVoltageMin = static_cast<float>(datalayer_extended.tesla.battery_BrickVoltageMin) * 0.002;
-    float BrickModelTMax = static_cast<float>(datalayer_extended.tesla.battery_BrickTempMinNum) * 0.5 - 40;
+    float BrickModelTMax = static_cast<float>(datalayer_extended.tesla.battery_BrickModelTMax) * 0.5 - 40;
     float BrickModelTMin = static_cast<float>(datalayer_extended.tesla.battery_BrickModelTMin) * 0.5 - 40;
     float isolationResistance = static_cast<float>(datalayer_extended.tesla.battery_BMS_isolationResistance) * 10;
     float PCS_dcdcMaxOutputCurrentAllowed =
@@ -519,6 +519,11 @@ String advanced_battery_processor(const String& var) {
     content +=
         "<h4>DC Link Allowed to Energize: " + String(noYes[datalayer_extended.tesla.battery_dcLinkAllowedToEnergize]) +
         "</h4>";  //bool
+    char readableSerialNumber[16];  // One extra space for null terminator
+    memcpy(readableSerialNumber, datalayer_extended.tesla.BMS_SerialNumber,
+           sizeof(datalayer_extended.tesla.BMS_SerialNumber));
+    readableSerialNumber[15] = '\0';  // Null terminate the string
+    content += "<h4>BMS Serial number: " + String(readableSerialNumber) + "</h4>";
     // Comment what data you would like to dislay, order can be changed.
     //0x292 658 BMS_socStates
     content += "<h4>Battery Beginning of Life: " + String(beginning_of_life) + " KWh</h4>";

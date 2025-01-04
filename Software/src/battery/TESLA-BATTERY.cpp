@@ -117,6 +117,8 @@ static bool battery_fcCtrsOpenRequested = false;     // Change to bool
 static uint8_t battery_fcCtrsRequestStatus = 0;
 static bool battery_fcCtrsResetRequestRequired = false;  // Change to bool
 static bool battery_fcLinkAllowedToEnergize = false;     // Change to bool
+//0x72A: BMS_serialNumber
+static uint8_t BMS_SerialNumber[14] = {0};  // Stores raw HEX values for ASCII chars
 //0x212: 530 BMS_status
 static bool battery_BMS_hvacPowerRequest = false;          //Change to bool
 static bool battery_BMS_notEnoughPowerForDrive = false;    //Change to bool
@@ -917,6 +919,8 @@ void update_values_battery() {  //This function maps all the values fetched via 
   datalayer_extended.tesla.battery_packCtrsRequestStatus = battery_packCtrsRequestStatus;
   datalayer_extended.tesla.battery_packCtrsResetRequestRequired = battery_packCtrsResetRequestRequired;
   datalayer_extended.tesla.battery_dcLinkAllowedToEnergize = battery_dcLinkAllowedToEnergize;
+  //0x72A
+  memcpy(datalayer_extended.tesla.BMS_SerialNumber, BMS_SerialNumber, sizeof(BMS_SerialNumber));
   //0x2B4
   datalayer_extended.tesla.battery_dcdcLvBusVolt = battery_dcdcLvBusVolt;
   datalayer_extended.tesla.battery_dcdcHvBusVolt = battery_dcdcHvBusVolt;
@@ -1802,6 +1806,27 @@ void handle_incoming_can_frame_battery(CAN_frame rx_frame) {
         battery_BMS_a176_SW_GracefulPowerOff = ((rx_frame.data.u8[7] >> 3) & (0x01U));      //59|1@1+ (1,0) [0|0] ""  X
         battery_BMS_a179_SW_Hvp_12V_Fault = ((rx_frame.data.u8[7] >> 6) & (0x01U));         //62|1@1+ (1,0) [0|0] ""  X
         battery_BMS_a180_SW_ECU_reset_blocked = ((rx_frame.data.u8[7] >> 7) & (0x01U));     //63|1@1+ (1,0) [0|0] ""  X
+      }
+      break;
+    case 0x72A:  //1834 ID72ABMS_serialNumber
+//Work in progress to display BMS Serial Number in ASCII: 00 54 47 33 32 31 32 30 (mux 0) .TG32120 + 01 32 30 30 33 41 48 58 (mux 1) .2003AHX = TG321202003AHX
+      if (rx_frame.data.u8[0] == 0x00) {
+        BMS_SerialNumber[1] = rx_frame.data.u8[1];
+        BMS_SerialNumber[2] = rx_frame.data.u8[2];
+        BMS_SerialNumber[3] = rx_frame.data.u8[3];
+        BMS_SerialNumber[4] = rx_frame.data.u8[4];
+        BMS_SerialNumber[5] = rx_frame.data.u8[5];
+        BMS_SerialNumber[6] = rx_frame.data.u8[6];
+        BMS_SerialNumber[7] = rx_frame.data.u8[7];
+      }
+      if (rx_frame.data.u8[0] == 0x01) {
+        BMS_SerialNumber[8] = rx_frame.data.u8[1];
+        BMS_SerialNumber[9] = rx_frame.data.u8[2];
+        BMS_SerialNumber[10] = rx_frame.data.u8[3];
+        BMS_SerialNumber[11] = rx_frame.data.u8[4];
+        BMS_SerialNumber[12] = rx_frame.data.u8[5];
+        BMS_SerialNumber[13] = rx_frame.data.u8[6];
+        BMS_SerialNumber[14] = rx_frame.data.u8[7];
       }
       break;
     default:
