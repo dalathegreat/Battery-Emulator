@@ -16,6 +16,16 @@
 #include <SPI.h>
 
 //----------------------------------------------------------------------------------------------------------------------
+//   Settings
+//----------------------------------------------------------------------------------------------------------------------
+//
+// Enable this if you want to disable the MCP2517FD compatability mode. This can slightly increase performance when
+// running on the MCP2518FD but you risk hitting issues mentioned in the MCP2517FD errata-sheet when using this option
+// on the MCP2517FD.
+//
+//#define DISABLEMCP2517FDCOMPAT 
+
+//----------------------------------------------------------------------------------------------------------------------
 //   ACAN2517FD class
 //----------------------------------------------------------------------------------------------------------------------
 
