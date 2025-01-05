@@ -21,6 +21,7 @@ MyTimer check_global_timer(800);     // check timmer - low-priority MQTT checks,
 static String topic_name = "";
 static String object_id_prefix = "";
 static String device_name = "";
+static String device_id = "";
 
 // Tracking reconnection attempts and failures
 static unsigned long lastReconnectAttempt = 0;
@@ -141,7 +142,7 @@ static void publish_common_info(void) {
       }
       doc["enabled_by_default"] = true;
       doc["expire_after"] = 240;
-      doc["device"]["identifiers"][0] = "battery-emulator";
+      doc["device"]["identifiers"][0] = ha_device_id;
       doc["device"]["manufacturer"] = "DalaTech";
       doc["device"]["model"] = "BatteryEmulator";
       doc["device"]["name"] = device_name;
@@ -246,7 +247,7 @@ static void publish_cell_voltages(void) {
         doc["enabled_by_default"] = true;
         doc["expire_after"] = 240;
         doc["value_template"] = "{{ value_json.cell_voltages[" + String(i) + "] }}";
-        doc["device"]["identifiers"][0] = "battery-emulator";
+        doc["device"]["identifiers"][0] = ha_device_id;
         doc["device"]["manufacturer"] = "DalaTech";
         doc["device"]["model"] = "BatteryEmulator";
         doc["device"]["name"] = device_name;
@@ -275,7 +276,7 @@ static void publish_cell_voltages(void) {
         doc["enabled_by_default"] = true;
         doc["expire_after"] = 240;
         doc["value_template"] = "{{ value_json.cell_voltages[" + String(i) + "] }}";
-        doc["device"]["identifiers"][0] = "battery-emulator";
+        doc["device"]["identifiers"][0] = ha_device_id;
         doc["device"]["manufacturer"] = "DalaTech";
         doc["device"]["model"] = "BatteryEmulator";
         doc["device"]["name"] = device_name;
@@ -354,7 +355,7 @@ void publish_events() {
     doc["json_attributes_topic"] = state_topic;
     doc["json_attributes_template"] = "{{ value_json | tojson }}";
     doc["enabled_by_default"] = true;
-    doc["device"]["identifiers"][0] = "battery-emulator";
+    doc["device"]["identifiers"][0] = ha_device_id;
     doc["device"]["manufacturer"] = "DalaTech";
     doc["device"]["model"] = "BatteryEmulator";
     doc["device"]["name"] = device_name;
@@ -429,7 +430,7 @@ static void publish_buttons_discovery(void) {
       doc["command_topic"] = generateButtonTopic(config.object_id);
       doc["enabled_by_default"] = true;
       doc["expire_after"] = 240;
-      doc["device"]["identifiers"][0] = "battery-emulator";
+      doc["device"]["identifiers"][0] = ha_device_id;
       doc["device"]["manufacturer"] = "DalaTech";
       doc["device"]["model"] = "BatteryEmulator";
       doc["device"]["name"] = device_name;
@@ -515,12 +516,13 @@ void init_mqtt(void) {
   topic_name = mqtt_topic_name;
   object_id_prefix = mqtt_object_id_prefix;
   device_name = mqtt_device_name;
+  device_id = ha_device_id;
 #else
   // Use default naming based on WiFi hostname for topic, object ID prefix, and device name
   topic_name = "battery-emulator_" + String(WiFi.getHostname());
   object_id_prefix = String(WiFi.getHostname()) + String("_");
   device_name = "BatteryEmulator_" + String(WiFi.getHostname());
-
+  device_id = "battery-emulator";
 #endif
 #endif
 
