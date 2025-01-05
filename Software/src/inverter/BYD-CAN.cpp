@@ -212,18 +212,18 @@ void transmit_can_inverter() {
     transmit_can_frame(&BYD_150, can_config.inverter);
     transmit_can_frame(&BYD_1D0, can_config.inverter);
     transmit_can_frame(&BYD_210, can_config.inverter);
-
-    // Send initial CAN data once on bootup
-    if (!initialDataSent) {
-      send_intial_data();
-      initialDataSent = true;
-    }
   }
   //Send 60s message
   if (currentMillis - previousMillis60s >= INTERVAL_60_S) {
     previousMillis60s = currentMillis;
 
     transmit_can_frame(&BYD_190, can_config.inverter);
+
+    // Send initial CAN data once on bootup
+    if (!initialDataSent) {
+      send_intial_data();
+      initialDataSent = true;
+    }
   }
 }
 
