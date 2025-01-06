@@ -17,6 +17,10 @@ void setup_can_shunt();
 #include "BMW-IX-BATTERY.h"
 #endif
 
+#ifdef BMW_PHEV_BATTERY
+#include "BMW-PHEV-BATTERY.h"
+#endif
+
 #ifdef BOLT_AMPERA_BATTERY
 #include "BOLT-AMPERA-BATTERY.h"
 #endif
