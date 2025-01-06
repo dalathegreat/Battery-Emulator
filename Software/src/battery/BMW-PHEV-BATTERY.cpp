@@ -107,6 +107,28 @@ CAN_frame BMWPHEV_6F1_REQUEST_CONTACTORS_OPEN = {
     .ID = 0x6F1,
     .data = {0x07, 0x04, 0x2E, 0xDD, 0x61, 0x00, 0x00, 0x00}};  // Request Contactors Open - Unconfirmed
 
+CAN_frame BMWPHEV_6F1_REQUEST_BALANCING_STATUS = {
+    .FD = false,
+    .ext_ID = false,
+    .DLC = 8,
+    .ID = 0x6F1,
+    .data = {0x07, 0x04, 0x31, 0x03, 0xAD, 0x6B, 0x00,
+             0x00}};  // Balancing status.  Response 7DLC F1 05 71 03 AD 6B 01   (01 = active)  (03 not active)
+
+CAN_frame BMWPHEV_6F1_REQUEST_BALANCING_START = {
+    .FD = false,
+    .ext_ID = false,
+    .DLC = 8,
+    .ID = 0x6F1,
+    .data = {0x07, 0x04, 0x31, 0x01, 0xAD, 0x6B, 0x00, 0x00}};  // Balancing start request
+
+CAN_frame BMWPHEV_6F1_REQUEST_BALANCING_STOP = {
+    .FD = false,
+    .ext_ID = false,
+    .DLC = 8,
+    .ID = 0x6F1,
+    .data = {0x07, 0x04, 0x31, 0x02, 0xAD, 0x6B, 0x00, 0x00}};  // Balancing stop request
+
 //UNTESTED/UNCHANGED FROM IX BEYOND HERE
 
 CAN_frame BMWPHEV_6F1 = {
@@ -185,11 +207,7 @@ CAN_frame BMWPHEV_6F1_REQUEST_HVIL = {.FD = false,
                                       .DLC = 5,
                                       .ID = 0x6F1,
                                       .data = {0x07, 0x03, 0x22, 0xE5, 0x69}};  // Request HVIL State
-CAN_frame BMWPHEV_6F1_REQUEST_BALANCINGSTATUS = {.FD = false,
-                                                 .ext_ID = false,
-                                                 .DLC = 5,
-                                                 .ID = 0x6F1,
-                                                 .data = {0x07, 0x03, 0x22, 0xE4, 0xCA}};  // Request Balancing Data
+
 CAN_frame BMWPHEV_6F1_REQUEST_MAX_CHARGE_DISCHARGE_AMPS = {
     .FD = false,
     .ext_ID = false,
@@ -203,12 +221,6 @@ CAN_frame BMWPHEV_6F1_REQUEST_VOLTAGE_QUALIFIER_CHECK = {
     .ID = 0x6F1,
     .data = {0x07, 0x03, 0x22, 0xE5, 0x4B}};  // Request HV Voltage Qualifier
 
-CAN_frame BMWPHEV_6F1_REQUEST_BALANCING_START = {
-    .FD = false,
-    .ext_ID = false,
-    .DLC = 6,
-    .ID = 0x6F1,
-    .data = {0xF4, 0x04, 0x71, 0x01, 0xAE, 0x77}};  // Request Balancing command?
 CAN_frame BMWPHEV_6F1_REQUEST_PACK_VOLTAGE_LIMITS = {
     .FD = false,
     .ext_ID = false,
@@ -245,7 +257,8 @@ static bool battery_awake = false;
 
 //Setup UDS values to poll for
 CAN_frame* UDS_REQUESTS100MS[] = {&BMWPHEV_6F1_REQUEST_SOC, &BMWPHEV_6F1_REQUEST_MAINVOLTAGE_PRECONTACTOR,
-                                  &BMWPHEV_6F1_REQUEST_MAINVOLTAGE_POSTCONTACTOR, &BMWPHEV_6F1_REQUEST_CELL_TEMP};
+                                  &BMWPHEV_6F1_REQUEST_MAINVOLTAGE_POSTCONTACTOR, &BMWPHEV_6F1_REQUEST_CELL_TEMP,
+                                  &BMWPHEV_6F1_REQUEST_BALANCING_STATUS};
 int numUDSreqs = sizeof(UDS_REQUESTS100MS) / sizeof(UDS_REQUESTS100MS[0]);  // Number of elements in the array
 
 //PHEV intermediate vars
@@ -470,6 +483,12 @@ void handle_incoming_can_frame_battery(CAN_frame rx_frame) {
       if (rx_frame.DLC = 7 && rx_frame.data.u8[3] == 0xDD &&
                          rx_frame.data.u8[4] == 0x66) {  //Main Battery Voltage (Post Contactor)
         battery_voltage_after_contactor = (rx_frame.data.u8[5] << 8 | rx_frame.data.u8[6]) / 10;
+      }
+
+      if (rx_frame.DLC =
+              7 && rx_frame.data.u8[1] == 0x05 && rx_frame.data.u8[2] == 0x71 && rx_frame.data.u8[3] == 0x03 &&
+              rx_frame.data.u8[4] == 0xAD) {  //Balancing Status  01 Active 03 Not Active    7DLC F1 05 71 03 AD 6B 01
+        balancing_status = (rx_frame.data.u8[6]);
       }
 
       if (rx_frame.DLC = 8 && rx_frame.data.u8[4] == 0xDD &&
