@@ -32,6 +32,7 @@ static bool cellvoltagesRead = false;
 static uint32_t battery_total_discharge = 0;
 static uint32_t battery_total_charge = 0;
 //0x352: 850 BMS_energyStatus
+static bool BMS352_mux = false; // variable to store when 0x352 mux is present
 static uint16_t battery_energy_buffer = 0;                 // kWh
 static uint16_t battery_energy_buffer_m1 = 0;              // kWh
 static uint16_t battery_energy_to_charge_complete = 0;     // kWh
@@ -928,6 +929,7 @@ void update_values_battery() {  //This function maps all the values fetched via 
   datalayer_extended.tesla.battery_dcdcHvBusVolt = battery_dcdcHvBusVolt;
   datalayer_extended.tesla.battery_dcdcLvOutputCurrent = battery_dcdcLvOutputCurrent;
   //0x352
+  datalayer_extended.tesla.BMS352_mux = BMS352_mux;
   datalayer_extended.tesla.battery_nominal_full_pack_energy = battery_nominal_full_pack_energy;
   datalayer_extended.tesla.battery_nominal_full_pack_energy_m0 = battery_nominal_full_pack_energy_m0;
   datalayer_extended.tesla.battery_nominal_energy_remaining = battery_nominal_energy_remaining;
@@ -1164,7 +1166,7 @@ void handle_incoming_can_frame_battery(CAN_frame rx_frame) {
   switch (rx_frame.ID) {
     case 0x352:                            // 850 BMS_energyStatus newer BMS
       mux = (rx_frame.data.u8[0] & 0x02);  //BMS_energyStatusIndex M : 0|2@1+ (1,0) [0|0] ""  X
-
+      if (mux <= 1) { BMS352_mux = true; } // autodetect when mux is used
       if (mux == 0) {
         battery_nominal_full_pack_energy_m0 =
             ((rx_frame.data.u8[3] << 8) | rx_frame.data.u8[2]);  //16|16@1+ (0.02,0) [0|0] "kWh"//to datalayer_extended
@@ -1182,7 +1184,7 @@ void handle_incoming_can_frame_battery(CAN_frame rx_frame) {
         battery_energy_to_charge_complete_m1 =
             (rx_frame.data.u8[7] | rx_frame.data.u8[6]);  //48|16@1+ (0.02,0) [0|0] "kWh"//to datalayer_extended
       }
-      if (mux == 2) {}
+      //if (mux == 2) {}
       // Additional information needed on this mux, example frame: 02 26 02 20 02 80 00 00 doesn't change
       // older BMS <2021 without mux
       battery_nominal_full_pack_energy =  //BMS_nominalFullPackEnergy : 0|11@1+ (0.1,0) [0|204.6] "KWh" //((_d[1] & (0x07U)) << 8) | (_d[0] & (0xFFU));
