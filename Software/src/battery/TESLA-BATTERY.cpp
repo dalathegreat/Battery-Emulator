@@ -2458,7 +2458,7 @@ void handle_incoming_can_frame_battery2(CAN_frame rx_frame) {
         battery2_BMS_a180_SW_ECU_reset_blocked = ((rx_frame.data.u8[7] >> 7) & (0x01U));     //63|1@1+ (1,0) [0|0] ""  X
       }
       break;
-      case 0x72A:  //1834 ID72ABMS_serialNumber
+    case 0x72A:  //1834 ID72ABMS_serialNumber
       //Work in progress to display BMS Serial Number in ASCII: 00 54 47 33 32 31 32 30 (mux 0) .TG32120 + 01 32 30 30 33 41 48 58 (mux 1) .2003AHX = TG321202003AHX
       if (rx_frame.data.u8[0] == 0x00) {
         BMS2_SerialNumber[0] = rx_frame.data.u8[1];
