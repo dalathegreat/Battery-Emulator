@@ -532,10 +532,10 @@ String advanced_battery_processor(const String& var) {
     content +=
         "<h4>DC Link Allowed to Energize: " + String(noYes[datalayer_extended.tesla.battery_dcLinkAllowedToEnergize]) +
         "</h4>";                    //bool
-    char readableSerialNumber[16];  // One extra space for null terminator
+    char readableSerialNumber[15];  // One extra space for null terminator
     memcpy(readableSerialNumber, datalayer_extended.tesla.BMS_SerialNumber,
            sizeof(datalayer_extended.tesla.BMS_SerialNumber));
-    readableSerialNumber[15] = '\0';  // Null terminate the string
+    readableSerialNumber[14] = '\0';  // Null terminate the string
     content += "<h4>BMS Serial number: " + String(readableSerialNumber) + "</h4>";
     // Comment what data you would like to dislay, order can be changed.
     //0x292 658 BMS_socStates
@@ -655,18 +655,18 @@ String advanced_battery_processor(const String& var) {
     content += "<h4>Brick Voltage Min: " + String(BrickVoltageMin) + " V</h4>";
     content += "<h4>Brick Temp Max Num: " + String(datalayer_extended.tesla.battery_BrickTempMaxNum) + " </h4>";
     content += "<h4>Brick Temp Min Num: " + String(datalayer_extended.tesla.battery_BrickTempMinNum) + " </h4>";
-    content += "<h4>Brick Model Temp Max: " + String(BrickModelTMax) + " C</h4>";
-    content += "<h4>Brick Model Temp Min: " + String(BrickModelTMin) + " C</h4>";
+    //content += "<h4>Brick Model Temp Max: " + String(BrickModelTMax) + " C</h4>";
+    //content += "<h4>Brick Model Temp Min: " + String(BrickModelTMin) + " C</h4>";
     //0x252 594 BMS_powerAvailable
     content += "<h4>Max Regen Power: " + String(BMS_maxRegenPower) + " KW</h4>";
     content += "<h4>Max Discharge Power: " + String(BMS_maxDischargePower) + " KW</h4>";
     content += "<h4>Max Stationary Heat Power: " + String(BMS_maxStationaryHeatPower) + " KWh</h4>";
-    content += "<h4>HVAC Power Budget: " + String(BMS_hvacPowerBudget) + " KW</h4>";
-    content += "<h4>Not Enough Power For Heat Pump: " +
+    //content += "<h4>HVAC Power Budget: " + String(BMS_hvacPowerBudget) + " KW</h4>";
+    //content += "<h4>Not Enough Power For Heat Pump: " +
                String(falseTrue[datalayer_extended.tesla.BMS_notEnoughPowerForHeatPump]) + "</h4>";  //bool
     content +=
         "<h4>Power Limit State: " + String(BMS_powerLimitState[datalayer_extended.tesla.BMS_powerLimitState]) + "</h4>";
-    content += "<h4>Inverter TQF: " + String(datalayer_extended.tesla.BMS_inverterTQF) + "</h4>";
+    //content += "<h4>Inverter TQF: " + String(datalayer_extended.tesla.BMS_inverterTQF) + "</h4>";
     //0x312 786 BMS_thermalStatus
     content += "<h4>Power Dissipation: " + String(BMS_powerDissipation) + " kW</h4>";
     content += "<h4>Flow Request: " + String(BMS_flowRequest) + " LPM</h4>";

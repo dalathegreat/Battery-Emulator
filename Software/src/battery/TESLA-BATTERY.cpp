@@ -503,6 +503,8 @@ static bool battery2_fcCtrsOpenRequested = false;
 static uint8_t battery2_fcCtrsRequestStatus = 0;
 static bool battery2_fcCtrsResetRequestRequired = false;
 static bool battery2_fcLinkAllowedToEnergize = false;
+//0x72A
+memcpy(datalayer_extended.tesla.BMS2_SerialNumber, BMS2_SerialNumber, sizeof(BMS2_SerialNumber));
 //0x212: 530 BMS_status
 static bool battery2_BMS_hvacPowerRequest = false;
 static bool battery2_BMS_notEnoughPowerForDrive = false;
@@ -1811,22 +1813,22 @@ void handle_incoming_can_frame_battery(CAN_frame rx_frame) {
     case 0x72A:  //1834 ID72ABMS_serialNumber
       //Work in progress to display BMS Serial Number in ASCII: 00 54 47 33 32 31 32 30 (mux 0) .TG32120 + 01 32 30 30 33 41 48 58 (mux 1) .2003AHX = TG321202003AHX
       if (rx_frame.data.u8[0] == 0x00) {
-        BMS_SerialNumber[1] = rx_frame.data.u8[1];
-        BMS_SerialNumber[2] = rx_frame.data.u8[2];
-        BMS_SerialNumber[3] = rx_frame.data.u8[3];
-        BMS_SerialNumber[4] = rx_frame.data.u8[4];
-        BMS_SerialNumber[5] = rx_frame.data.u8[5];
-        BMS_SerialNumber[6] = rx_frame.data.u8[6];
-        BMS_SerialNumber[7] = rx_frame.data.u8[7];
+        BMS_SerialNumber[0] = rx_frame.data.u8[1];
+        BMS_SerialNumber[1] = rx_frame.data.u8[2];
+        BMS_SerialNumber[2] = rx_frame.data.u8[3];
+        BMS_SerialNumber[3] = rx_frame.data.u8[4];
+        BMS_SerialNumber[4] = rx_frame.data.u8[5];
+        BMS_SerialNumber[5] = rx_frame.data.u8[6];
+        BMS_SerialNumber[6] = rx_frame.data.u8[7];
       }
       if (rx_frame.data.u8[0] == 0x01) {
-        BMS_SerialNumber[8] = rx_frame.data.u8[1];
-        BMS_SerialNumber[9] = rx_frame.data.u8[2];
-        BMS_SerialNumber[10] = rx_frame.data.u8[3];
-        BMS_SerialNumber[11] = rx_frame.data.u8[4];
-        BMS_SerialNumber[12] = rx_frame.data.u8[5];
-        BMS_SerialNumber[13] = rx_frame.data.u8[6];
-        BMS_SerialNumber[14] = rx_frame.data.u8[7];
+        BMS_SerialNumber[7] = rx_frame.data.u8[1];
+        BMS_SerialNumber[8] = rx_frame.data.u8[2];
+        BMS_SerialNumber[9] = rx_frame.data.u8[3];
+        BMS_SerialNumber[10] = rx_frame.data.u8[4];
+        BMS_SerialNumber[11] = rx_frame.data.u8[5];
+        BMS_SerialNumber[12] = rx_frame.data.u8[6];
+        BMS_SerialNumber[13] = rx_frame.data.u8[7];
       }
       break;
     default:
@@ -2456,6 +2458,27 @@ void handle_incoming_can_frame_battery2(CAN_frame rx_frame) {
         battery2_BMS_a180_SW_ECU_reset_blocked = ((rx_frame.data.u8[7] >> 7) & (0x01U));     //63|1@1+ (1,0) [0|0] ""  X
       }
       break;
+      case 0x72A:  //1834 ID72ABMS_serialNumber
+      //Work in progress to display BMS Serial Number in ASCII: 00 54 47 33 32 31 32 30 (mux 0) .TG32120 + 01 32 30 30 33 41 48 58 (mux 1) .2003AHX = TG321202003AHX
+      if (rx_frame.data.u8[0] == 0x00) {
+        BMS2_SerialNumber[0] = rx_frame.data.u8[1];
+        BMS2_SerialNumber[1] = rx_frame.data.u8[2];
+        BMS2_SerialNumber[2] = rx_frame.data.u8[3];
+        BMS2_SerialNumber[3] = rx_frame.data.u8[4];
+        BMS2_SerialNumber[4] = rx_frame.data.u8[5];
+        BMS2_SerialNumber[5] = rx_frame.data.u8[6];
+        BMS2_SerialNumber[6] = rx_frame.data.u8[7];
+      }
+      if (rx_frame.data.u8[0] == 0x01) {
+        BMS2_SerialNumber[7] = rx_frame.data.u8[1];
+        BMS2_SerialNumber[8] = rx_frame.data.u8[2];
+        BMS2_SerialNumber[9] = rx_frame.data.u8[3];
+        BMS2_SerialNumber[10] = rx_frame.data.u8[4];
+        BMS2_SerialNumber[11] = rx_frame.data.u8[5];
+        BMS2_SerialNumber[12] = rx_frame.data.u8[6];
+        BMS2_SerialNumber[13] = rx_frame.data.u8[7];
+      }
+      break;
     default:
       break;
   }
@@ -2820,7 +2843,7 @@ void printFaultCodesIfActive() {
   printDebugIfActive(battery_BMS_a018_SW_Brick_UV, "ERROR: BMS_a018_SW_Brick_UV");
   printDebugIfActive(battery_BMS_a019_SW_Module_OT, "ERROR: BMS_a019_SW_Module_OT");
   printDebugIfActive(battery_BMS_a021_SW_Dr_Limits_Regulation, "ERROR: BMS_a021_SW_Dr_Limits_Regulation");
-  printDebugIfActive(battery_BMS_a022_SW_Over_Current, "ERROR: BMS_a022_SW_Over_Current");
+  //printDebugIfActive(battery_BMS_a022_SW_Over_Current, "ERROR: BMS_a022_SW_Over_Current");
   printDebugIfActive(battery_BMS_a023_SW_Stack_OV, "ERROR: BMS_a023_SW_Stack_OV");
   printDebugIfActive(battery_BMS_a024_SW_Islanded_Brick, "ERROR: BMS_a024_SW_Islanded_Brick");
   printDebugIfActive(battery_BMS_a025_SW_PwrBalance_Anomaly, "ERROR: BMS_a025_SW_PwrBalance_Anomaly");
@@ -2838,7 +2861,7 @@ void printFaultCodesIfActive() {
   printDebugIfActive(battery_BMS_a046_SW_Task_Stack_Usage, "ERROR: BMS_a046_SW_Task_Stack_Usage");
   printDebugIfActive(battery_BMS_a047_SW_Task_Stack_Overflow, "ERROR: BMS_a047_SW_Task_Stack_Overflow");
   printDebugIfActive(battery_BMS_a048_SW_Log_Upload_Request, "ERROR: BMS_a048_SW_Log_Upload_Request");
-  printDebugIfActive(battery_BMS_a050_SW_Brick_Voltage_MIA, "ERROR: BMS_a050_SW_Brick_Voltage_MIA");
+  //printDebugIfActive(battery_BMS_a050_SW_Brick_Voltage_MIA, "ERROR: BMS_a050_SW_Brick_Voltage_MIA");
   printDebugIfActive(battery_BMS_a051_SW_HVC_Vref_Bad, "ERROR: BMS_a051_SW_HVC_Vref_Bad");
   printDebugIfActive(battery_BMS_a052_SW_PCS_MIA, "ERROR: BMS_a052_SW_PCS_MIA");
   printDebugIfActive(battery_BMS_a053_SW_ThermalModel_Sanity, "ERROR: BMS_a053_SW_ThermalModel_Sanity");
@@ -2861,10 +2884,10 @@ void printFaultCodesIfActive() {
   printDebugIfActive(battery_BMS_a087_SW_Feim_Test_Blocked, "ERROR: BMS_a087_SW_Feim_Test_Blocked");
   printDebugIfActive(battery_BMS_a088_SW_VcFront_MIA_InDrive, "ERROR: BMS_a088_SW_VcFront_MIA_InDrive");
   printDebugIfActive(battery_BMS_a089_SW_VcFront_MIA, "ERROR: BMS_a089_SW_VcFront_MIA");
-  printDebugIfActive(battery_BMS_a090_SW_Gateway_MIA, "ERROR: BMS_a090_SW_Gateway_MIA");
-  printDebugIfActive(battery_BMS_a091_SW_ChargePort_MIA, "ERROR: BMS_a091_SW_ChargePort_MIA");
-  printDebugIfActive(battery_BMS_a092_SW_ChargePort_Mia_On_Hv, "ERROR: BMS_a092_SW_ChargePort_Mia_On_Hv");
-  printDebugIfActive(battery_BMS_a094_SW_Drive_Inverter_MIA, "ERROR: BMS_a094_SW_Drive_Inverter_MIA");
+  //printDebugIfActive(battery_BMS_a090_SW_Gateway_MIA, "ERROR: BMS_a090_SW_Gateway_MIA");
+  //printDebugIfActive(battery_BMS_a091_SW_ChargePort_MIA, "ERROR: BMS_a091_SW_ChargePort_MIA");
+  //printDebugIfActive(battery_BMS_a092_SW_ChargePort_Mia_On_Hv, "ERROR: BMS_a092_SW_ChargePort_Mia_On_Hv");
+  //printDebugIfActive(battery_BMS_a094_SW_Drive_Inverter_MIA, "ERROR: BMS_a094_SW_Drive_Inverter_MIA");
   printDebugIfActive(battery_BMS_a099_SW_BMB_Communication, "ERROR: BMS_a099_SW_BMB_Communication");
   printDebugIfActive(battery_BMS_a105_SW_One_Module_Tsense, "ERROR: BMS_a105_SW_One_Module_Tsense");
   printDebugIfActive(battery_BMS_a106_SW_All_Module_Tsense, "ERROR: BMS_a106_SW_All_Module_Tsense");
@@ -2901,7 +2924,7 @@ void printFaultCodesIfActive() {
   printDebugIfActive(battery_BMS_a167_SW_FC_Partial_Weld, "ERROR: BMS_a167_SW_FC_Partial_Weld");
   printDebugIfActive(battery_BMS_a168_SW_FC_Full_Weld, "ERROR: BMS_a168_SW_FC_Full_Weld");
   printDebugIfActive(battery_BMS_a169_SW_FC_Pack_Weld, "ERROR: BMS_a169_SW_FC_Pack_Weld");
-  printDebugIfActive(battery_BMS_a170_SW_Limp_Mode, "ERROR: BMS_a170_SW_Limp_Mode");
+  //printDebugIfActive(battery_BMS_a170_SW_Limp_Mode, "ERROR: BMS_a170_SW_Limp_Mode");
   printDebugIfActive(battery_BMS_a171_SW_Stack_Voltage_Sense, "ERROR: BMS_a171_SW_Stack_Voltage_Sense");
   printDebugIfActive(battery_BMS_a174_SW_Charge_Failure, "ERROR: BMS_a174_SW_Charge_Failure");
   printDebugIfActive(battery_BMS_a176_SW_GracefulPowerOff, "ERROR: BMS_a176_SW_GracefulPowerOff");
@@ -2990,7 +3013,7 @@ void printFaultCodesIfActive_battery2() {
   printDebugIfActive(battery2_BMS_a018_SW_Brick_UV, "ERROR: BMS_a018_SW_Brick_UV");
   printDebugIfActive(battery2_BMS_a019_SW_Module_OT, "ERROR: BMS_a019_SW_Module_OT");
   printDebugIfActive(battery2_BMS_a021_SW_Dr_Limits_Regulation, "ERROR: BMS_a021_SW_Dr_Limits_Regulation");
-  printDebugIfActive(battery2_BMS_a022_SW_Over_Current, "ERROR: BMS_a022_SW_Over_Current");
+  //printDebugIfActive(battery2_BMS_a022_SW_Over_Current, "ERROR: BMS_a022_SW_Over_Current");
   printDebugIfActive(battery2_BMS_a023_SW_Stack_OV, "ERROR: BMS_a023_SW_Stack_OV");
   printDebugIfActive(battery2_BMS_a024_SW_Islanded_Brick, "ERROR: BMS_a024_SW_Islanded_Brick");
   printDebugIfActive(battery2_BMS_a025_SW_PwrBalance_Anomaly, "ERROR: BMS_a025_SW_PwrBalance_Anomaly");
@@ -3008,7 +3031,7 @@ void printFaultCodesIfActive_battery2() {
   printDebugIfActive(battery2_BMS_a046_SW_Task_Stack_Usage, "ERROR: BMS_a046_SW_Task_Stack_Usage");
   printDebugIfActive(battery2_BMS_a047_SW_Task_Stack_Overflow, "ERROR: BMS_a047_SW_Task_Stack_Overflow");
   printDebugIfActive(battery2_BMS_a048_SW_Log_Upload_Request, "ERROR: BMS_a048_SW_Log_Upload_Request");
-  printDebugIfActive(battery2_BMS_a050_SW_Brick_Voltage_MIA, "ERROR: BMS_a050_SW_Brick_Voltage_MIA");
+  //printDebugIfActive(battery2_BMS_a050_SW_Brick_Voltage_MIA, "ERROR: BMS_a050_SW_Brick_Voltage_MIA");
   printDebugIfActive(battery2_BMS_a051_SW_HVC_Vref_Bad, "ERROR: BMS_a051_SW_HVC_Vref_Bad");
   printDebugIfActive(battery2_BMS_a052_SW_PCS_MIA, "ERROR: BMS_a052_SW_PCS_MIA");
   printDebugIfActive(battery2_BMS_a053_SW_ThermalModel_Sanity, "ERROR: BMS_a053_SW_ThermalModel_Sanity");
@@ -3031,10 +3054,10 @@ void printFaultCodesIfActive_battery2() {
   printDebugIfActive(battery2_BMS_a087_SW_Feim_Test_Blocked, "ERROR: BMS_a087_SW_Feim_Test_Blocked");
   printDebugIfActive(battery2_BMS_a088_SW_VcFront_MIA_InDrive, "ERROR: BMS_a088_SW_VcFront_MIA_InDrive");
   printDebugIfActive(battery2_BMS_a089_SW_VcFront_MIA, "ERROR: BMS_a089_SW_VcFront_MIA");
-  printDebugIfActive(battery2_BMS_a090_SW_Gateway_MIA, "ERROR: BMS_a090_SW_Gateway_MIA");
-  printDebugIfActive(battery2_BMS_a091_SW_ChargePort_MIA, "ERROR: BMS_a091_SW_ChargePort_MIA");
-  printDebugIfActive(battery2_BMS_a092_SW_ChargePort_Mia_On_Hv, "ERROR: BMS_a092_SW_ChargePort_Mia_On_Hv");
-  printDebugIfActive(battery2_BMS_a094_SW_Drive_Inverter_MIA, "ERROR: BMS_a094_SW_Drive_Inverter_MIA");
+  //printDebugIfActive(battery2_BMS_a090_SW_Gateway_MIA, "ERROR: BMS_a090_SW_Gateway_MIA");
+  //printDebugIfActive(battery2_BMS_a091_SW_ChargePort_MIA, "ERROR: BMS_a091_SW_ChargePort_MIA");
+  //printDebugIfActive(battery2_BMS_a092_SW_ChargePort_Mia_On_Hv, "ERROR: BMS_a092_SW_ChargePort_Mia_On_Hv");
+  //printDebugIfActive(battery2_BMS_a094_SW_Drive_Inverter_MIA, "ERROR: BMS_a094_SW_Drive_Inverter_MIA");
   printDebugIfActive(battery2_BMS_a099_SW_BMB_Communication, "ERROR: BMS_a099_SW_BMB_Communication");
   printDebugIfActive(battery2_BMS_a105_SW_One_Module_Tsense, "ERROR: BMS_a105_SW_One_Module_Tsense");
   printDebugIfActive(battery2_BMS_a106_SW_All_Module_Tsense, "ERROR: BMS_a106_SW_All_Module_Tsense");
@@ -3071,7 +3094,7 @@ void printFaultCodesIfActive_battery2() {
   printDebugIfActive(battery2_BMS_a167_SW_FC_Partial_Weld, "ERROR: BMS_a167_SW_FC_Partial_Weld");
   printDebugIfActive(battery2_BMS_a168_SW_FC_Full_Weld, "ERROR: BMS_a168_SW_FC_Full_Weld");
   printDebugIfActive(battery2_BMS_a169_SW_FC_Pack_Weld, "ERROR: BMS_a169_SW_FC_Pack_Weld");
-  printDebugIfActive(battery2_BMS_a170_SW_Limp_Mode, "ERROR: BMS_a170_SW_Limp_Mode");
+  //printDebugIfActive(battery2_BMS_a170_SW_Limp_Mode, "ERROR: BMS_a170_SW_Limp_Mode");
   printDebugIfActive(battery2_BMS_a171_SW_Stack_Voltage_Sense, "ERROR: BMS_a171_SW_Stack_Voltage_Sense");
   printDebugIfActive(battery2_BMS_a174_SW_Charge_Failure, "ERROR: BMS_a174_SW_Charge_Failure");
   printDebugIfActive(battery2_BMS_a176_SW_GracefulPowerOff, "ERROR: BMS_a176_SW_GracefulPowerOff");
