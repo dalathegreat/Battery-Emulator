@@ -238,7 +238,7 @@ typedef struct {
   uint16_t battery_dcdcLvBusVolt = 0;
   uint16_t battery_dcdcHvBusVolt = 0;
   uint16_t battery_dcdcLvOutputCurrent = 0;
-  bool BMS352_mux = false; // variable to store when 0x352 mux is present
+  bool BMS352_mux = false;  // variable to store when 0x352 mux is present
   uint16_t battery_nominal_full_pack_energy = 0;
   uint16_t battery_nominal_full_pack_energy_m0 = 0;
   uint16_t battery_nominal_energy_remaining = 0;

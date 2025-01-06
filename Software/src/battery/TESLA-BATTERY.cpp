@@ -32,7 +32,7 @@ static bool cellvoltagesRead = false;
 static uint32_t battery_total_discharge = 0;
 static uint32_t battery_total_charge = 0;
 //0x352: 850 BMS_energyStatus
-static bool BMS352_mux = false; // variable to store when 0x352 mux is present
+static bool BMS352_mux = false;                            // variable to store when 0x352 mux is present
 static uint16_t battery_energy_buffer = 0;                 // kWh
 static uint16_t battery_energy_buffer_m1 = 0;              // kWh
 static uint16_t battery_energy_to_charge_complete = 0;     // kWh
@@ -1166,7 +1166,9 @@ void handle_incoming_can_frame_battery(CAN_frame rx_frame) {
   switch (rx_frame.ID) {
     case 0x352:                            // 850 BMS_energyStatus newer BMS
       mux = (rx_frame.data.u8[0] & 0x02);  //BMS_energyStatusIndex M : 0|2@1+ (1,0) [0|0] ""  X
-      if (mux <= 1) { BMS352_mux = true; } // autodetect when mux is used
+      if (mux <= 1) {
+        BMS352_mux = true;
+      }  // autodetect when mux is used
       if (mux == 0) {
         battery_nominal_full_pack_energy_m0 =
             ((rx_frame.data.u8[3] << 8) | rx_frame.data.u8[2]);  //16|16@1+ (0.02,0) [0|0] "kWh"//to datalayer_extended
