@@ -1509,6 +1509,7 @@ void handle_incoming_can_frame_battery(CAN_frame rx_frame) {
     case 0x18DAF105:
       logging.printf("DTC reply frame received:\n");
       dump_frame(rx_frame, MSG_RX);
+      break;
     default:
       logging.printf("Unknown CAN frame received:\n");
       dump_frame(rx_frame, MSG_RX);
