@@ -538,6 +538,8 @@ void transmit_can_battery() {
   // Send 10000ms CAN Message
   if (currentMillis - previousMillis10000 >= INTERVAL_10_S) {
     previousMillis10000 = currentMillis;
+    transmit_can_frame(&BMWPHEV_6F1_REQUEST_BALANCING_START,
+                       can_config.battery);  // Enable Balancing
   }
 }
 //We can always send CAN as the iX BMS will wake up on vehicle comms
