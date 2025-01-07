@@ -9,12 +9,12 @@
 #include "../../communication/contactorcontrol/comm_contactorcontrol.h"
 #include "../../datalayer/datalayer.h"
 #include "../../lib/bblanchon-ArduinoJson/ArduinoJson.h"
-#include "../../lib/knolleary-pubsubclient/PubSubClient.h"
 #include "../utils/events.h"
 #include "../utils/timer.h"
+#include "mqtt_client.h"
 
-WiFiClient espClient;
-PubSubClient client(espClient);
+esp_mqtt_client_config_t mqtt_cfg;
+esp_mqtt_client_handle_t client;
 char mqtt_msg[MQTT_MSG_BUFFER_SIZE];
 MyTimer publish_global_timer(5000);  //publish timer
 MyTimer check_global_timer(800);     // check timmer - low-priority MQTT checks, where responsiveness is not critical.
@@ -23,12 +23,6 @@ static String topic_name = "";
 static String object_id_prefix = "";
 static String device_name = "";
 static String device_id = "";
-
-// Tracking reconnection attempts and failures
-static unsigned long lastReconnectAttempt = 0;
-static uint8_t reconnectAttempts = 0;
-static const uint8_t maxReconnectAttempts = 5;
-static bool connected_once = false;
 
 static void publish_common_info(void);
 static void publish_cell_voltages(void);
@@ -453,18 +447,18 @@ static void subscribe() {
 #ifdef DEBUG_LOG
     logging.printf("Subscribing to topic: [%s]\n", topic);
 #endif  // DEBUG_LOG
-    client.subscribe(topic);
+    esp_mqtt_client_subscribe(client, topic, 0);
   }
 }
 
-void mqtt_message_received(char* topic, byte* payload, unsigned int length) {
+void mqtt_message_received(char* topic, int topic_len, char* data, int data_len) {
 #ifdef DEBUG_LOG
-  logging.printf("MQTT message arrived: [%s]\n", topic);
+  logging.printf("MQTT message arrived: [%.*s]\n", topic_len, topic);
 #endif  // DEBUG_LOG
 
 #ifdef REMOTE_BMS_RESET
   const char* bmsreset_topic = generateButtonTopic("BMSRESET").c_str();
-  if (strcmp(topic, bmsreset_topic) == 0) {
+  if (strncmp(topic, bmsreset_topic, topic_len) == 0) {
 #ifdef DEBUG_LOG
     logging.println("Triggering BMS reset");
 #endif  // DEBUG_LOG
@@ -473,40 +467,29 @@ void mqtt_message_received(char* topic, byte* payload, unsigned int length) {
 #endif  // REMOTE_BMS_RESET
 }
 
-/* If we lose the connection, get it back */
-static bool reconnect() {
-// attempt one reconnection
+static void mqtt_event_handler(void* handler_args, esp_event_base_t base, int32_t event_id, void* event_data) {
+  esp_mqtt_event_handle_t event = (esp_mqtt_event_handle_t)event_data;
+  switch ((esp_mqtt_event_id_t)event_id) {
+    case MQTT_EVENT_CONNECTED:
+      clear_event(EVENT_MQTT_DISCONNECT);
+      set_event(EVENT_MQTT_CONNECT, 0);
+
+      publish_buttons_discovery();
+      subscribe();
 #ifdef DEBUG_LOG
-  logging.print("Attempting MQTT connection... ");
-#endif                // DEBUG_LOG
-  char clientId[64];  // Adjust the size as needed
-  snprintf(clientId, sizeof(clientId), "BatteryEmulatorClient-%s", WiFi.getHostname());
-  // Attempt to connect
-  if (client.connect(clientId, mqtt_user, mqtt_password)) {
-    connected_once = true;
-    clear_event(EVENT_MQTT_DISCONNECT);
-    set_event(EVENT_MQTT_CONNECT, 0);
-    reconnectAttempts = 0;  // Reset attempts on successful connection
-#ifdef HA_AUTODISCOVERY
-    publish_buttons_discovery();
-#endif
-    subscribe();
-#ifdef DEBUG_LOG
-    logging.println("connected");
+      logging.println("MQTT connected");
 #endif  // DEBUG_LOG
-    clear_event(EVENT_MQTT_CONNECT);
-  } else {
-    if (connected_once)
+      break;
+    case MQTT_EVENT_DISCONNECTED:
       set_event(EVENT_MQTT_DISCONNECT, 0);
-    reconnectAttempts++;  // Count failed attempts
 #ifdef DEBUG_LOG
-    logging.print("failed, rc=");
-    logging.print(client.state());
-    logging.println(" try again in 5 seconds");
+      logging.println("MQTT disconnected!");
 #endif  // DEBUG_LOG
-    // Wait 5 seconds before retrying
+      break;
+    case MQTT_EVENT_DATA:
+      mqtt_message_received(event->topic, event->topic_len, event->data, event->data_len);
+      break;
   }
-  return client.connected();
 }
 
 void init_mqtt(void) {
@@ -527,54 +510,34 @@ void init_mqtt(void) {
 #endif
 #endif
 
-  client.setServer(MQTT_SERVER, MQTT_PORT);
-  client.setCallback(mqtt_message_received);
+  char clientId[64];  // Adjust the size as needed
+  snprintf(clientId, sizeof(clientId), "BatteryEmulatorClient-%s", WiFi.getHostname());
+  mqtt_cfg.broker.address.transport = MQTT_TRANSPORT_OVER_TCP;
+  mqtt_cfg.broker.address.hostname = MQTT_SERVER;
+  mqtt_cfg.broker.address.port = MQTT_PORT;
+  mqtt_cfg.credentials.client_id = clientId;
+  mqtt_cfg.credentials.username = MQTT_USER;
+  mqtt_cfg.credentials.authentication.password = MQTT_PASSWORD;
+  client = esp_mqtt_client_init(&mqtt_cfg);
+  esp_mqtt_client_register_event(client, MQTT_EVENT_ANY, mqtt_event_handler, client);
+  esp_mqtt_client_start(client);
+
 #ifdef DEBUG_LOG
   logging.println("MQTT initialized");
 #endif  // DEBUG_LOG
-
-  client.setKeepAlive(30);  // Increase keepalive to manage network latency better. default is 15
-
-  lastReconnectAttempt = millis();
-  reconnect();
 }
 
 void mqtt_loop(void) {
   // Only attempt to publish/reconnect MQTT if Wi-Fi is connectedand checkTimmer is elapsed
   if (check_global_timer.elapsed() && WiFi.status() == WL_CONNECTED) {
-    if (client.connected()) {
-      client.loop();
-      if (publish_global_timer.elapsed())  // Every 5s
-      {
-        publish_values();
-      }
-    } else {
-      if (connected_once)
-        set_event(EVENT_MQTT_DISCONNECT, 0);
-      unsigned long now = millis();
-      if (now - lastReconnectAttempt >= 5000)  // Every 5s
-      {
-        lastReconnectAttempt = now;
-        if (reconnect()) {
-          lastReconnectAttempt = 0;
-        } else if (reconnectAttempts >= maxReconnectAttempts) {
-#ifdef DEBUG_LOG
-          logging.println("Too many failed reconnect attempts, restarting client.");
-#endif
-          client.disconnect();    // Force close the MQTT client connection
-          reconnectAttempts = 0;  // Reset attempts to avoid infinite loop
-        }
-      }
+    if (publish_global_timer.elapsed())  // Every 5s
+    {
+      publish_values();
     }
   }
 }
 
 bool mqtt_publish(const char* topic, const char* mqtt_msg, bool retain) {
-  if (client.connected() == true) {
-    return client.publish(topic, mqtt_msg, retain);
-  }
-  if (connected_once)
-    set_event(EVENT_MQTT_DISCONNECT, 0);
-
-  return false;
+  int msg_id = esp_mqtt_client_publish(client, topic, mqtt_msg, strlen(mqtt_msg), 0, retain);
+  return msg_id > -1;
 }
