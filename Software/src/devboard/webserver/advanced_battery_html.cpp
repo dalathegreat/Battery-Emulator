@@ -113,8 +113,9 @@ String advanced_battery_processor(const String& var) {
     content += "<h4>Allowed Charge Power: " + String(datalayer.battery.status.max_charge_power_W) + " W</h4>";
     content += "<h4>T30 Terminal Voltage: " + String(datalayer_extended.bmwphev.T30_Voltage) + " mV</h4>";
     content += "<h4>Detected Cell Count: " + String(datalayer.battery.info.number_of_cells) + "</h4>";
-    static const char* balanceText[5] = {"0 Balancing Inactive - Balancing not needed", "1 Balancing Active", "2 Balancing Inactive - Cells not in rest break wait 10mins", "3 Balancing Inactive",
-                                         "4 Unknown"};
+    static const char* balanceText[5] = {"0 Balancing Inactive - Balancing not needed", "1 Balancing Active",
+                                         "2 Balancing Inactive - Cells not in rest break wait 10mins",
+                                         "3 Balancing Inactive", "4 Unknown"};
     content += "<h4>Balancing: " + String((balanceText[datalayer_extended.bmwphev.balancing_status])) + "</h4>";
     static const char* hvilText[2] = {"Error (Loop Open)", "OK (Loop Closed)"};
     content += "<h4>HVIL Status: " + String(hvilText[datalayer_extended.bmwphev.hvil_status]) + "</h4>";
