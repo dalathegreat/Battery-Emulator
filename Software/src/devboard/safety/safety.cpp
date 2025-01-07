@@ -244,14 +244,18 @@ void update_machineryprotection() {
     // If this is the start of the balancing period, capture the current time
     if (datalayer.battery.settings.balancing_start_time_ms == 0) {
       datalayer.battery.settings.balancing_start_time_ms = millis();
-      //TODO, raise info event? Forced balancing starting!
+      set_event(EVENT_BALANCING_START, 0);
+    } else {
+      clear_event(EVENT_BALANCING_START);
     }
 
     // Check if the elapsed time exceeds the balancing time
     if (millis() - datalayer.battery.settings.balancing_start_time_ms >= datalayer.battery.settings.balancing_time_ms) {
       datalayer.battery.settings.user_requests_balancing = false;
       datalayer.battery.settings.balancing_start_time_ms = 0;  // Reset the start time
-      //TODO, raise info event? Balancing time elapsed. Turning off...
+      set_event(EVENT_BALANCING_END, 0);
+    } else {
+      clear_event(EVENT_BALANCING_END);
     }
   }
 }
