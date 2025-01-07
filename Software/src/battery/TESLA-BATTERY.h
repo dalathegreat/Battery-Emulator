@@ -23,7 +23,7 @@
 #define MAX_PACK_VOLTAGE_3Y_LFP 3880    // V+1, if pack voltage goes over this, charge stops
 #define MIN_PACK_VOLTAGE_3Y_LFP 2968    // V+1, if pack voltage goes below this, discharge stops
 #define MAX_CELL_DEVIATION_NCA_NCM 500  //LED turns yellow on the board if mv delta exceeds this value
-#define MAX_CELL_DEVIATION_LFP 200      //LED turns yellow on the board if mv delta exceeds this value
+#define MAX_CELL_DEVIATION_LFP 400      //LED turns yellow on the board if mv delta exceeds this value
 #define MAX_CELL_VOLTAGE_NCA_NCM 4250   //Battery is put into emergency stop if one cell goes over this value
 #define MIN_CELL_VOLTAGE_NCA_NCM 2950   //Battery is put into emergency stop if one cell goes below this value
 #define MAX_CELL_VOLTAGE_LFP 3550       //Battery is put into emergency stop if one cell goes over this value
