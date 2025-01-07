@@ -21,6 +21,24 @@ enum CmdState { SOH, CELL_VOLTAGE_MINMAX, SOC, CELL_VOLTAGE_CELLNO, CELL_VOLTAGE
 
 static CmdState cmdState = SOC;
 
+const unsigned char crc8_table[256] =
+    {  // CRC8_SAE_J1850_ZER0 formula,0x1D Poly,initial value 0x3F,Final XOR value varies
+        0x00, 0x1D, 0x3A, 0x27, 0x74, 0x69, 0x4E, 0x53, 0xE8, 0xF5, 0xD2, 0xCF, 0x9C, 0x81, 0xA6, 0xBB, 0xCD, 0xD0,
+        0xF7, 0xEA, 0xB9, 0xA4, 0x83, 0x9E, 0x25, 0x38, 0x1F, 0x02, 0x51, 0x4C, 0x6B, 0x76, 0x87, 0x9A, 0xBD, 0xA0,
+        0xF3, 0xEE, 0xC9, 0xD4, 0x6F, 0x72, 0x55, 0x48, 0x1B, 0x06, 0x21, 0x3C, 0x4A, 0x57, 0x70, 0x6D, 0x3E, 0x23,
+        0x04, 0x19, 0xA2, 0xBF, 0x98, 0x85, 0xD6, 0xCB, 0xEC, 0xF1, 0x13, 0x0E, 0x29, 0x34, 0x67, 0x7A, 0x5D, 0x40,
+        0xFB, 0xE6, 0xC1, 0xDC, 0x8F, 0x92, 0xB5, 0xA8, 0xDE, 0xC3, 0xE4, 0xF9, 0xAA, 0xB7, 0x90, 0x8D, 0x36, 0x2B,
+        0x0C, 0x11, 0x42, 0x5F, 0x78, 0x65, 0x94, 0x89, 0xAE, 0xB3, 0xE0, 0xFD, 0xDA, 0xC7, 0x7C, 0x61, 0x46, 0x5B,
+        0x08, 0x15, 0x32, 0x2F, 0x59, 0x44, 0x63, 0x7E, 0x2D, 0x30, 0x17, 0x0A, 0xB1, 0xAC, 0x8B, 0x96, 0xC5, 0xD8,
+        0xFF, 0xE2, 0x26, 0x3B, 0x1C, 0x01, 0x52, 0x4F, 0x68, 0x75, 0xCE, 0xD3, 0xF4, 0xE9, 0xBA, 0xA7, 0x80, 0x9D,
+        0xEB, 0xF6, 0xD1, 0xCC, 0x9F, 0x82, 0xA5, 0xB8, 0x03, 0x1E, 0x39, 0x24, 0x77, 0x6A, 0x4D, 0x50, 0xA1, 0xBC,
+        0x9B, 0x86, 0xD5, 0xC8, 0xEF, 0xF2, 0x49, 0x54, 0x73, 0x6E, 0x3D, 0x20, 0x07, 0x1A, 0x6C, 0x71, 0x56, 0x4B,
+        0x18, 0x05, 0x22, 0x3F, 0x84, 0x99, 0xBE, 0xA3, 0xF0, 0xED, 0xCA, 0xD7, 0x35, 0x28, 0x0F, 0x12, 0x41, 0x5C,
+        0x7B, 0x66, 0xDD, 0xC0, 0xE7, 0xFA, 0xA9, 0xB4, 0x93, 0x8E, 0xF8, 0xE5, 0xC2, 0xDF, 0x8C, 0x91, 0xB6, 0xAB,
+        0x10, 0x0D, 0x2A, 0x37, 0x64, 0x79, 0x5E, 0x43, 0xB2, 0xAF, 0x88, 0x95, 0xC6, 0xDB, 0xFC, 0xE1, 0x5A, 0x47,
+        0x60, 0x7D, 0x2E, 0x33, 0x14, 0x09, 0x7F, 0x62, 0x45, 0x58, 0x0B, 0x16, 0x31, 0x2C, 0x97, 0x8A, 0xAD, 0xB0,
+        0xE3, 0xFE, 0xD9, 0xC4};
+
 /*
 INFO
 
@@ -33,6 +51,17 @@ Supported:
 UDS MAP
 22 D6 CF - CSC Temps
 22 DD C0 - Min Max temps
+22 DF A5 - All Cell voltages
+22 E5 EA - Alternate all cell voltages
+22 DE 7E - Voltage limits.   62 DD 73 9D 5A 69 26 = 269.18V - 402.82V
+22 DD 7D - Current limits 62 DD 7D 08 20 0B EA = 305A max discharge 208A max charge
+22 E5 E9 DD 7D - Individual cell SOC
+22 DD 69 - Current in Amps 62 DD 69 00 00 00 00 = 0 Amps
+22 DD 7B - SOH  62 DD 7B 62 = 98%
+22 DD 62 - HVIL Status 62 DD 64 01 = OK/Closed
+22 DD 6A - Isolation values  62 DD 6A 07 D0 07 D0 07 D0 01 01 01 = in operation plausible/2000kOhm, in follow up plausible/2000kohm, internal iso open contactors (measured on request) pluasible/2000kohm
+31 03 AD 61 - Isolation measurement status  71 03 AD 61 00 FF = Nmeasurement status - not successful / fault satate - not defined
+22 DF A0 - Cell voltage and temps summary including min/max/average, Ah, 
 */
 
 //Vehicle CAN START
@@ -45,6 +74,12 @@ CAN_frame BMWiX_0C0 = {
     .data = {
         0xF0,
         0x08}};  // Keep Alive 2 BDC>SME  200ms First byte cycles F0 > FE  second byte 08 static - MINIMUM ID TO KEEP SME AWAKE
+
+CAN_frame BMW_13E = {.FD = false,
+                     .ext_ID = false,
+                     .DLC = 8,
+                     .ID = 0x13E,
+                     .data = {0xFF, 0x31, 0xFA, 0xFA, 0xFA, 0xFA, 0x0C, 0x00}};
 
 //Vehicle CAN END
 
@@ -70,14 +105,14 @@ CAN_frame BMWPHEV_6F1_REQUEST_MAINVOLTAGE_POSTCONTACTOR = {
     .ID = 0x6F1,
     .data = {0x07, 0x03, 0x22, 0xDD, 0x66}};  //Main Battery Voltage (After Contactor)
 
-CAN_frame BMWPHEV_6F1_REQUEST_MINMAXCELLV = {
+CAN_frame BMWPHEV_6F1_REQUEST_CELLSUMMARY = {
     .FD = false,
     .ext_ID = false,
     .DLC = 5,
     .ID = 0x6F1,
     .data = {
         0x07, 0x03, 0x22, 0xDF,
-        0xA0}};  //Min and max cell voltage   6.55V = Qualifier Invalid?  Multi return frame - might be all cell voltages
+        0xA0}};  //Min and max cell voltage + temps   6.55V = Qualifier Invalid?  Multi return frame - might be all cell voltages
 
 CAN_frame BMWPHEV_6F1_REQUEST_CELL_TEMP = {
     .FD = false,
@@ -268,6 +303,28 @@ static int16_t battery_max_charge_amperage = 0;
 static uint16_t battery_min_discharge_voltage = 0;
 static int16_t battery_max_discharge_amperage = 0;
 
+static uint8_t startup_counter_contactor = 0;
+static uint8_t alive_counter_20ms = 0;
+static uint8_t BMW_13E_counter = 0;
+
+static uint8_t battery_status_error_isolation_external_Bordnetz = 0;
+static uint8_t battery_status_error_isolation_internal_Bordnetz = 0;
+static uint8_t battery_request_cooling = 0;
+static uint8_t battery_status_valve_cooling = 0;
+static uint8_t battery_status_error_locking = 0;
+static uint8_t battery_status_precharge_locked = 0;
+static uint8_t battery_status_disconnecting_switch = 0;
+static uint8_t battery_status_emergency_mode = 0;
+static uint8_t battery_request_service = 0;
+static uint8_t battery_error_emergency_mode = 0;
+static uint8_t battery_status_error_disconnecting_switch = 0;
+static uint8_t battery_status_warning_isolation = 0;
+static uint8_t battery_status_cold_shutoff_valve = 0;
+static int16_t battery_temperature_HV = 0;
+static int16_t battery_temperature_heat_exchanger = 0;
+static int16_t battery_temperature_max = 0;
+static int16_t battery_temperature_min = 0;
+
 //iX Intermediate vars
 static bool battery_info_available = false;
 static uint32_t battery_serial_number = 0;
@@ -285,9 +342,7 @@ static uint16_t max_design_voltage = 0;
 static uint16_t min_design_voltage = 0;
 static int32_t remaining_capacity = 0;
 static int32_t max_capacity = 0;
-static int16_t min_battery_temperature = 0;
-static int16_t avg_battery_temperature = 0;
-static int16_t max_battery_temperature = 0;
+
 static int16_t main_contactor_temperature = 0;
 static int16_t min_cell_voltage = 0;
 static int16_t max_cell_voltage = 0;
@@ -310,9 +365,6 @@ static uint8_t contactors_closed = 0;           //TODO  E5 BF  or E5 51
 static uint8_t contactor_status_precharge = 0;  //TODO E5 BF
 static uint8_t contactor_status_negative = 0;   //TODO E5 BF
 static uint8_t contactor_status_positive = 0;   //TODO E5 BF
-static uint8_t pyro_status_pss1 = 0;            //Using AC 93
-static uint8_t pyro_status_pss4 = 0;            //Using AC 93
-static uint8_t pyro_status_pss6 = 0;            //Using AC 93
 static uint8_t uds_req_id_counter = 0;
 static uint8_t detected_number_of_cells = 108;
 const unsigned long STALE_PERIOD =
@@ -338,6 +390,14 @@ bool isStale(int16_t currentValue, uint16_t& lastValue, unsigned long& lastChang
 
   // Check if the value has stayed the same for the specified staleness period
   return (currentTime - lastChangeTime >= STALE_PERIOD);
+}
+
+static uint8_t calculateCRC(CAN_frame rx_frame, uint8_t length, uint8_t initial_value) {
+  uint8_t crc = initial_value;
+  for (uint8_t j = 1; j < length; j++) {  //start at 1, since 0 is the CRC
+    crc = crc8_table[(crc ^ static_cast<uint8_t>(rx_frame.data.u8[j])) % 256];
+  }
+  return crc;
 }
 
 static uint8_t increment_uds_req_id_counter(uint8_t index) {
@@ -395,9 +455,9 @@ void update_values_battery() {  //This function maps all the values fetched via 
     datalayer.battery.status.max_charge_power_W = MAX_CHARGE_POWER_ALLOWED_W;
   }
 
-  datalayer.battery.status.temperature_min_dC = min_battery_temperature;
+  datalayer.battery.status.temperature_min_dC = battery_temperature_min * 10;  // Add a decimal
 
-  datalayer.battery.status.temperature_max_dC = max_battery_temperature;
+  datalayer.battery.status.temperature_max_dC = battery_temperature_max * 10;  // Add a decimal
 
   //Check stale values. As values dont change much during idle only consider stale if both parts of this message freeze.
   bool isMinCellVoltageStale =
@@ -430,12 +490,6 @@ void update_values_battery() {  //This function maps all the values fetched via 
 
   datalayer_extended.bmwphev.bms_uptime = sme_uptime;
 
-  datalayer_extended.bmwphev.pyro_status_pss1 = pyro_status_pss1;
-
-  datalayer_extended.bmwphev.pyro_status_pss4 = pyro_status_pss4;
-
-  datalayer_extended.bmwphev.pyro_status_pss6 = pyro_status_pss6;
-
   datalayer_extended.bmwphev.iso_safety_positive = iso_safety_positive;
 
   datalayer_extended.bmwphev.iso_safety_negative = iso_safety_negative;
@@ -449,6 +503,19 @@ void update_values_battery() {  //This function maps all the values fetched via 
   datalayer_extended.bmwphev.balancing_status = balancing_status;
 
   datalayer_extended.bmwphev.battery_voltage_after_contactor = battery_voltage_after_contactor;
+
+  // Update webserver datalayer
+
+  datalayer_extended.bmwphev.ST_iso_ext = battery_status_error_isolation_external_Bordnetz;
+  datalayer_extended.bmwphev.ST_iso_int = battery_status_error_isolation_internal_Bordnetz;
+  datalayer_extended.bmwphev.ST_valve_cooling = battery_status_valve_cooling;
+  datalayer_extended.bmwphev.ST_interlock = battery_status_error_locking;
+  datalayer_extended.bmwphev.ST_precharge = battery_status_precharge_locked;
+  datalayer_extended.bmwphev.ST_DCSW = battery_status_disconnecting_switch;
+  datalayer_extended.bmwphev.ST_EMG = battery_status_emergency_mode;
+  datalayer_extended.bmwphev.ST_WELD = battery_status_error_disconnecting_switch;
+  datalayer_extended.bmwphev.ST_isolation = battery_status_warning_isolation;
+  datalayer_extended.bmwphev.ST_cold_shutoff_valve = battery_status_cold_shutoff_valve;
 
   if (battery_info_available) {
     // If we have data from battery - override the defaults to suit
@@ -491,10 +558,11 @@ void handle_incoming_can_frame_battery(CAN_frame rx_frame) {
         balancing_status = (rx_frame.data.u8[6]);
       }
 
-      if (rx_frame.DLC = 8 && rx_frame.data.u8[4] == 0xDD &&
-                         rx_frame.data.u8[5] == 0xC0) {  //Cell Temp Min - continue frame follows
-        min_battery_temperature = (rx_frame.data.u8[6] << 8 | rx_frame.data.u8[7]) / 10;
-      }
+      //moved away from UDS - using SME default sent message
+      //if (rx_frame.DLC = 8 && rx_frame.data.u8[4] == 0xDD &&
+      //                   rx_frame.data.u8[5] == 0xC0) {  //Cell Temp Min - continue frame follows
+      //  min_battery_temperature = (rx_frame.data.u8[6] << 8 | rx_frame.data.u8[7]) / 10;
+      //}
 
       // if (rx_frame.DLC =
       //         7 &&
@@ -503,6 +571,25 @@ void handle_incoming_can_frame_battery(CAN_frame rx_frame) {
       //   max_battery_temperature = (rx_frame.data.u8[2] << 8 | rx_frame.data.u8[3]) / 10;
       //   avg_battery_temperature = (rx_frame.data.u8[4] << 8 | rx_frame.data.u8[5]) / 10;
       // }
+      break;
+    case 0x1FA:  //BMS [1000ms] Status Of High-Voltage Battery - 1
+      battery_status_error_isolation_external_Bordnetz = (rx_frame.data.u8[0] & 0x03);
+      battery_status_error_isolation_internal_Bordnetz = (rx_frame.data.u8[0] & 0x0C) >> 2;
+      battery_request_cooling = (rx_frame.data.u8[0] & 0x30) >> 4;
+      battery_status_valve_cooling = (rx_frame.data.u8[0] & 0xC0) >> 6;
+      battery_status_error_locking = (rx_frame.data.u8[1] & 0x03);
+      battery_status_precharge_locked = (rx_frame.data.u8[1] & 0x0C) >> 2;
+      battery_status_disconnecting_switch = (rx_frame.data.u8[1] & 0x30) >> 4;
+      battery_status_emergency_mode = (rx_frame.data.u8[1] & 0xC0) >> 6;
+      battery_request_service = (rx_frame.data.u8[2] & 0x03);
+      battery_error_emergency_mode = (rx_frame.data.u8[2] & 0x0C) >> 2;
+      battery_status_error_disconnecting_switch = (rx_frame.data.u8[2] & 0x30) >> 4;
+      battery_status_warning_isolation = (rx_frame.data.u8[2] & 0xC0) >> 6;
+      battery_status_cold_shutoff_valve = (rx_frame.data.u8[3] & 0x0F);
+      battery_temperature_HV = (rx_frame.data.u8[4] - 50);
+      battery_temperature_heat_exchanger = (rx_frame.data.u8[5] - 50);
+      battery_temperature_min = (rx_frame.data.u8[6] - 50);
+      battery_temperature_max = (rx_frame.data.u8[7] - 50);
       break;
     default:
       break;
@@ -513,6 +600,31 @@ void transmit_can_battery() {
   unsigned long currentMillis = millis();
 
   //if (battery_awake) { //We can always send CAN as the PHEV BMS will wake up on vehicle comms
+
+  if (currentMillis - previousMillis20 >= INTERVAL_20_MS) {
+    previousMillis20 = currentMillis;
+
+    if (startup_counter_contactor < 160) {
+      startup_counter_contactor++;
+    } else {                      //After 160 messages, turn on the request
+      BMW_10B.data.u8[1] = 0x10;  // Close contactors
+    }
+
+    BMW_10B.data.u8[1] = ((BMW_10B.data.u8[1] & 0xF0) + alive_counter_20ms);
+    BMW_10B.data.u8[0] = calculateCRC(BMW_10B, 3, 0x3F);
+
+    alive_counter_20ms = increment_alive_counter(alive_counter_20ms);
+
+    BMW_13E_counter++;
+    BMW_13E.data.u8[4] = BMW_13E_counter;
+
+    //if (datalayer.battery.status.bms_status == FAULT) {  //ALLOW ANY TIME - TEST ONLY
+    //}  //If battery is not in Fault mode, allow contactor to close by sending 10B
+    //else {
+    transmit_can_frame(&BMW_10B, can_config.battery);
+    //}
+  }
+
   // Send 100ms CAN Message
   if (currentMillis - previousMillis100 >= INTERVAL_100_MS) {
     previousMillis100 = currentMillis;
@@ -532,8 +644,8 @@ void transmit_can_battery() {
   // Send 5000ms CAN Message
   if (currentMillis - previousMillis5000 >= INTERVAL_5_S) {
     previousMillis5000 = currentMillis;
-    transmit_can_frame(&BMWPHEV_6F1_REQUEST_CONTACTORS_CLOSE,
-                       can_config.battery);  // Attempt contactor close - experimental
+    // transmit_can_frame(&BMWPHEV_6F1_REQUEST_CONTACTORS_CLOSE,
+    //                    can_config.battery);  // Attempt contactor close - experimental
   }
   // Send 10000ms CAN Message
   if (currentMillis - previousMillis10000 >= INTERVAL_10_S) {

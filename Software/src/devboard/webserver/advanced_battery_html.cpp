@@ -130,9 +130,83 @@ String advanced_battery_processor(const String& var) {
     content += "<h4>Isolation Parallel: " + String(datalayer_extended.bmwphev.iso_safety_parallel) + " kOhm</h4>";
     static const char* pyroText[5] = {"0 Value Invalid", "1 Successfully Blown", "2 Disconnected",
                                       "3 Not Activated - Pyro Intact", "4 Unknown"};
-    content += "<h4>Pyro Status PSS1: " + String((pyroText[datalayer_extended.bmwphev.pyro_status_pss1])) + "</h4>";
-    content += "<h4>Pyro Status PSS4: " + String((pyroText[datalayer_extended.bmwphev.pyro_status_pss4])) + "</h4>";
-    content += "<h4>Pyro Status PSS6: " + String((pyroText[datalayer_extended.bmwphev.pyro_status_pss6])) + "</h4>";
+    static const char* statusText[16] = {
+        "Not evaluated", "OK", "Error!", "Invalid signal", "", "", "", "", "", "", "", "", "", "", "", ""};
+    content += "<h4>Interlock: " + String(statusText[datalayer_extended.bmwi3.ST_interlock]) + "</h4>";
+    content += "<h4>Isolation external: " + String(statusText[datalayer_extended.bmwi3.ST_iso_ext]) + "</h4>";
+    content += "<h4>Isolation internal: " + String(statusText[datalayer_extended.bmwi3.ST_iso_int]) + "</h4>";
+    content += "<h4>Isolation: " + String(statusText[datalayer_extended.bmwi3.ST_isolation]) + "</h4>";
+    content += "<h4>Cooling valve: " + String(statusText[datalayer_extended.bmwi3.ST_valve_cooling]) + "</h4>";
+    content += "<h4>Emergency: " + String(statusText[datalayer_extended.bmwi3.ST_EMG]) + "</h4>";
+    static const char* prechargeText[16] = {"Not evaluated",
+                                            "Not active, closing not blocked",
+                                            "Error precharge blocked",
+                                            "Invalid signal",
+                                            "",
+                                            "",
+                                            "",
+                                            "",
+                                            "",
+                                            "",
+                                            "",
+                                            "",
+                                            "",
+                                            "",
+                                            "",
+                                            ""};
+    content += "<h4>Precharge: " + String(prechargeText[datalayer_extended.bmwi3.ST_precharge]) +
+               "</h4>";  //Still unclear of enum
+    static const char* DCSWText[16] = {"Contactors open",
+                                       "Precharge ongoing",
+                                       "Contactors engaged",
+                                       "Invalid signal",
+                                       "",
+                                       "",
+                                       "",
+                                       "",
+                                       "",
+                                       "",
+                                       "",
+                                       "",
+                                       "",
+                                       "",
+                                       "",
+                                       ""};
+    content += "<h4>Contactor status: " + String(DCSWText[datalayer_extended.bmwi3.ST_DCSW]) + "</h4>";
+    static const char* contText[16] = {"Contactors OK",
+                                       "One contactor welded!",
+                                       "Two contactors welded!",
+                                       "Invalid signal",
+                                       "",
+                                       "",
+                                       "",
+                                       "",
+                                       "",
+                                       "",
+                                       "",
+                                       "",
+                                       "",
+                                       "",
+                                       "",
+                                       ""};
+    content += "<h4>Contactor weld: " + String(contText[datalayer_extended.bmwi3.ST_WELD]) + "</h4>";
+    static const char* valveText[16] = {"OK",
+                                        "Short circuit to GND",
+                                        "Short circuit to 12V",
+                                        "Line break",
+                                        "",
+                                        "",
+                                        "Driver error",
+                                        "",
+                                        "",
+                                        "",
+                                        "",
+                                        "",
+                                        "Stuck",
+                                        "Stuck",
+                                        "",
+                                        "Invalid Signal"};
+    content += "<h4>Cold shutoff valve: " + String(contText[datalayer_extended.bmwi3.ST_cold_shutoff_valve]) + "</h4>";
 #endif  //BMW_PHEV_BATTERY
 
 #ifdef BMW_I3_BATTERY
