@@ -307,6 +307,14 @@ static uint8_t startup_counter_contactor = 0;
 static uint8_t alive_counter_20ms = 0;
 static uint8_t BMW_13E_counter = 0;
 
+static uint32_t battery_BEV_available_power_shortterm_charge = 0;
+static uint32_t battery_BEV_available_power_shortterm_discharge = 0;
+static uint32_t battery_BEV_available_power_longterm_charge = 0;
+static uint32_t battery_BEV_available_power_longterm_discharge = 0;
+
+static uint16_t battery_predicted_energy_charge_condition = 0;
+static uint16_t battery_predicted_energy_charging_target = 0;
+
 static uint8_t battery_status_error_isolation_external_Bordnetz = 0;
 static uint8_t battery_status_error_isolation_internal_Bordnetz = 0;
 static uint8_t battery_request_cooling = 0;
@@ -435,11 +443,11 @@ void update_values_battery() {  //This function maps all the values fetched via 
 
   datalayer.battery.info.total_capacity_Wh = max_capacity;
 
-  datalayer.battery.status.remaining_capacity_Wh = remaining_capacity;
+  datalayer.battery.status.remaining_capacity_Wh = battery_predicted_energy_charge_condition;
 
   datalayer.battery.status.soh_pptt = min_soh_state;
 
-  datalayer.battery.status.max_discharge_power_W = MAX_DISCHARGE_POWER_ALLOWED_W;
+  datalayer.battery.status.max_discharge_power_W = battery_BEV_available_power_longterm_discharge;
 
   //datalayer.battery.status.max_charge_power_W = 3200; //10000; //Aux HV Port has 100A Fuse  Moved to Ramping
 
@@ -449,10 +457,10 @@ void update_values_battery() {  //This function maps all the values fetched via 
   } else if (datalayer.battery.status.real_soc > RAMPDOWN_SOC) {
     // When real SOC is between RAMPDOWN_SOC-99%, ramp the value between Max<->0
     datalayer.battery.status.max_charge_power_W =
-        MAX_CHARGE_POWER_ALLOWED_W *
+        battery_BEV_available_power_longterm_charge *
         (1 - (datalayer.battery.status.real_soc - RAMPDOWN_SOC) / (10000.0 - RAMPDOWN_SOC));
   } else {  // No limits, max charging power allowed
-    datalayer.battery.status.max_charge_power_W = MAX_CHARGE_POWER_ALLOWED_W;
+    datalayer.battery.status.max_charge_power_W = battery_BEV_available_power_longterm_charge;
   }
 
   datalayer.battery.status.temperature_min_dC = battery_temperature_min * 10;  // Add a decimal
@@ -535,6 +543,16 @@ void handle_incoming_can_frame_battery(CAN_frame rx_frame) {
       battery_max_charge_amperage = (((rx_frame.data.u8[3] << 8) | rx_frame.data.u8[2]) - 819.2);
       battery_min_discharge_voltage = (rx_frame.data.u8[5] << 8 | rx_frame.data.u8[4]);
       battery_max_discharge_amperage = (((rx_frame.data.u8[7] << 8) | rx_frame.data.u8[6]) - 819.2);
+      break;
+    case 0x239:                                                                                      //BMS [200ms]
+      battery_predicted_energy_charge_condition = (rx_frame.data.u8[2] << 8 | rx_frame.data.u8[1]);  //Wh
+      battery_predicted_energy_charging_target = ((rx_frame.data.u8[4] << 8 | rx_frame.data.u8[3]) * 0.02);  //kWh
+      break;
+    case 0x40D:  //BMS [1s] Charging status of high-voltage storage - 1
+      battery_BEV_available_power_shortterm_charge = (rx_frame.data.u8[1] << 8 | rx_frame.data.u8[0]) * 3;
+      battery_BEV_available_power_shortterm_discharge = (rx_frame.data.u8[3] << 8 | rx_frame.data.u8[2]) * 3;
+      battery_BEV_available_power_longterm_charge = (rx_frame.data.u8[5] << 8 | rx_frame.data.u8[4]) * 3;
+      battery_BEV_available_power_longterm_discharge = (rx_frame.data.u8[7] << 8 | rx_frame.data.u8[6]) * 3;
       break;
     case 0x607:  //SME responds to UDS requests on 0x607
 

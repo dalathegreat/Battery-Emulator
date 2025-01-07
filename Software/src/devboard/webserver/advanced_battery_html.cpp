@@ -124,10 +124,7 @@ String advanced_battery_processor(const String& var) {
     content +=
         "<h4>BMS Allowed Disharge Amps: " + String(datalayer_extended.bmwix.allowable_discharge_amps) + " A</h4>";
     content += "<br>";
-    content += "<h3>HV Isolation (2147483647kOhm = maximum/invalid)</h3>";
-    content += "<h4>Isolation Positive: " + String(datalayer_extended.bmwphev.iso_safety_positive) + " kOhm</h4>";
-    content += "<h4>Isolation Negative: " + String(datalayer_extended.bmwphev.iso_safety_negative) + " kOhm</h4>";
-    content += "<h4>Isolation Parallel: " + String(datalayer_extended.bmwphev.iso_safety_parallel) + " kOhm</h4>";
+
     static const char* pyroText[5] = {"0 Value Invalid", "1 Successfully Blown", "2 Disconnected",
                                       "3 Not Activated - Pyro Intact", "4 Unknown"};
     static const char* statusText[16] = {
