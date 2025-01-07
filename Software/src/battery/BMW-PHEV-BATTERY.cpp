@@ -498,12 +498,6 @@ void update_values_battery() {  //This function maps all the values fetched via 
 
   datalayer_extended.bmwphev.bms_uptime = sme_uptime;
 
-  datalayer_extended.bmwphev.iso_safety_positive = iso_safety_positive;
-
-  datalayer_extended.bmwphev.iso_safety_negative = iso_safety_negative;
-
-  datalayer_extended.bmwphev.iso_safety_parallel = iso_safety_parallel;
-
   datalayer_extended.bmwphev.allowable_charge_amps = allowable_charge_amps;
 
   datalayer_extended.bmwphev.allowable_discharge_amps = allowable_discharge_amps;

@@ -104,9 +104,6 @@ typedef struct {
   uint16_t min_soh_state = 0;
   uint16_t max_soh_state = 0;
   uint32_t bms_uptime = 0;
-  int32_t iso_safety_positive = 0;
-  int32_t iso_safety_negative = 0;
-  int32_t iso_safety_parallel = 0;
   int32_t allowable_charge_amps = 0;
   int32_t allowable_discharge_amps = 0;
   int16_t balancing_status = 0;
