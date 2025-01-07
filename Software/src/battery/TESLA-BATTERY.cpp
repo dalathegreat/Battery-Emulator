@@ -906,6 +906,16 @@ void update_values_battery() {  //This function maps all the values fetched via 
     datalayer.battery.info.min_cell_voltage_mV = MIN_CELL_VOLTAGE_NCA_NCM;
     datalayer.battery.info.max_cell_voltage_deviation_mV = MAX_CELL_DEVIATION_NCA_NCM;
   }
+
+  // During forced balancing request via webserver, we allow the battery to exceed normal safety parameters
+  if (datalayer.battery.settings.user_requests_balancing) {
+    datalayer.battery.status.real_soc = 9900;  //Force battery to show up as 99% when balancing
+    datalayer.battery.info.max_design_voltage_dV = datalayer.battery.settings.balancing_max_pack_voltage_dV;
+    datalayer.battery.info.max_cell_voltage_mV = datalayer.battery.settings.balancing_max_cell_voltage_mV;
+    datalayer.battery.info.max_cell_voltage_deviation_mV =
+        datalayer.battery.settings.balancing_max_deviation_cell_voltage_mV;
+    datalayer.battery.status.max_charge_power_W = datalayer.battery.settings.balancing_float_power_W;
+  }
 #endif  // TESLA_MODEL_3Y_BATTERY
 
   // Update webserver datalayer

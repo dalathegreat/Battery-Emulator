@@ -159,6 +159,8 @@ void init_events(void) {
   events.entries[EVENT_SOC_PLAUSIBILITY_ERROR].level = EVENT_LEVEL_WARNING;
   events.entries[EVENT_SOC_UNAVAILABLE].level = EVENT_LEVEL_WARNING;
   events.entries[EVENT_KWH_PLAUSIBILITY_ERROR].level = EVENT_LEVEL_INFO;
+  events.entries[EVENT_BALANCING_START].level = EVENT_LEVEL_INFO;
+  events.entries[EVENT_BALANCING_END].level = EVENT_LEVEL_INFO;
   events.entries[EVENT_BATTERY_EMPTY].level = EVENT_LEVEL_INFO;
   events.entries[EVENT_BATTERY_FULL].level = EVENT_LEVEL_INFO;
   events.entries[EVENT_BATTERY_FROZEN].level = EVENT_LEVEL_INFO;
@@ -302,6 +304,10 @@ const char* get_event_message_string(EVENTS_ENUM_TYPE event) {
       return "Warning: SOC not sent by BMS. Calibrate BMS via app.";
     case EVENT_KWH_PLAUSIBILITY_ERROR:
       return "Info: kWh remaining reported by battery not plausible. Battery needs cycling.";
+    case EVENT_BALANCING_START:
+      return "Info: Balancing has started";
+    case EVENT_BALANCING_END:
+      return "Info: Balancing has ended";
     case EVENT_BATTERY_EMPTY:
       return "Info: Battery is completely discharged";
     case EVENT_BATTERY_FULL:
