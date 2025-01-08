@@ -315,6 +315,24 @@ static uint32_t battery_BEV_available_power_longterm_discharge = 0;
 static uint16_t battery_predicted_energy_charge_condition = 0;
 static uint16_t battery_predicted_energy_charging_target = 0;
 
+static uint16_t battery_prediction_voltage_shortterm_charge = 0;
+static uint16_t battery_prediction_voltage_shortterm_discharge = 0;
+static uint16_t battery_prediction_voltage_longterm_charge = 0;
+static uint16_t battery_prediction_voltage_longterm_discharge = 0;
+
+static uint8_t battery_status_service_disconnection_plug = 0;
+static uint8_t battery_status_measurement_isolation = 0;
+static uint8_t battery_request_abort_charging = 0;
+static uint16_t battery_prediction_duration_charging_minutes = 0;
+static uint8_t battery_prediction_time_end_of_charging_minutes = 0;
+static uint16_t battery_energy_content_maximum_kWh = 0;
+
+static uint8_t battery_request_operating_mode = 0;
+static uint16_t battery_target_voltage_in_CV_mode = 0;
+static uint8_t battery_request_charging_condition_minimum = 0;
+static uint8_t battery_request_charging_condition_maximum = 0;
+static uint16_t battery_display_SOC = 0;
+
 static uint8_t battery_status_error_isolation_external_Bordnetz = 0;
 static uint8_t battery_status_error_isolation_internal_Bordnetz = 0;
 static uint8_t battery_request_cooling = 0;
@@ -441,7 +459,7 @@ void update_values_battery() {  //This function maps all the values fetched via 
 
   datalayer.battery.status.current_dA = battery_current;
 
-  datalayer.battery.info.total_capacity_Wh = max_capacity;
+  datalayer.battery.info.total_capacity_Wh = (battery_energy_content_maximum_kWh * 1000);  // Convert kWh to Wh
 
   datalayer.battery.status.remaining_capacity_Wh = battery_predicted_energy_charge_condition;
 
@@ -547,6 +565,27 @@ void handle_incoming_can_frame_battery(CAN_frame rx_frame) {
       battery_BEV_available_power_shortterm_discharge = (rx_frame.data.u8[3] << 8 | rx_frame.data.u8[2]) * 3;
       battery_BEV_available_power_longterm_charge = (rx_frame.data.u8[5] << 8 | rx_frame.data.u8[4]) * 3;
       battery_BEV_available_power_longterm_discharge = (rx_frame.data.u8[7] << 8 | rx_frame.data.u8[6]) * 3;
+      break;
+    case 0x430:  //BMS [1s] - Charging status of high-voltage battery - 2
+      battery_prediction_voltage_shortterm_charge = (rx_frame.data.u8[1] << 8 | rx_frame.data.u8[0]);
+      battery_prediction_voltage_shortterm_discharge = (rx_frame.data.u8[3] << 8 | rx_frame.data.u8[2]);
+      battery_prediction_voltage_longterm_charge = (rx_frame.data.u8[5] << 8 | rx_frame.data.u8[4]);
+      battery_prediction_voltage_longterm_discharge = (rx_frame.data.u8[7] << 8 | rx_frame.data.u8[6]);
+      break;
+    case 0x431:  //BMS [200ms] Data High-Voltage Battery Unit
+      battery_status_service_disconnection_plug = (rx_frame.data.u8[0] & 0x0F);
+      battery_status_measurement_isolation = (rx_frame.data.u8[0] & 0x0C) >> 2;
+      battery_request_abort_charging = (rx_frame.data.u8[0] & 0x30) >> 4;
+      battery_prediction_duration_charging_minutes = (rx_frame.data.u8[3] << 8 | rx_frame.data.u8[2]);
+      battery_prediction_time_end_of_charging_minutes = rx_frame.data.u8[4];
+      battery_energy_content_maximum_kWh = (((rx_frame.data.u8[6] & 0x0F) << 8 | rx_frame.data.u8[5])) / 50;
+      break;
+    case 0x432:  //BMS [200ms] SOC% info
+      battery_request_operating_mode = (rx_frame.data.u8[0] & 0x03);
+      battery_target_voltage_in_CV_mode = ((rx_frame.data.u8[1] << 4 | rx_frame.data.u8[0] >> 4)) / 10;
+      battery_request_charging_condition_minimum = (rx_frame.data.u8[2] / 2);
+      battery_request_charging_condition_maximum = (rx_frame.data.u8[3] / 2);
+      battery_display_SOC = rx_frame.data.u8[4];
       break;
     case 0x607:  //SME responds to UDS requests on 0x607
 
