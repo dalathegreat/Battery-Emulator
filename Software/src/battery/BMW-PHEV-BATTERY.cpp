@@ -21,6 +21,20 @@ enum CmdState { SOH, CELL_VOLTAGE_MINMAX, SOC, CELL_VOLTAGE_CELLNO, CELL_VOLTAGE
 
 static CmdState cmdState = SOC;
 
+// A structure to keep track of the ongoing multi-frame UDS response
+typedef struct {
+  bool UDS_inProgress;                // Are we currently receiving a multi-frame message?
+  uint16_t UDS_expectedLength;        // Expected total payload length
+  uint16_t UDS_bytesReceived;         // How many bytes have been stored so far
+  uint8_t UDS_moduleID;               // The "module" indicated by the first frame
+  uint8_t receivedInBatch;            // Number of CFs received in the current batch
+  uint8_t UDS_buffer[256];            // Buffer for the reassembled data
+  unsigned long UDS_lastFrameMillis;  // Timestamp of last frame (for timeouts, if desired)
+} UDS_RxContext;
+
+// A single global UDS context, since only one module can respond at a time
+static UDS_RxContext gUDSContext;
+
 const unsigned char crc8_table[256] =
     {  // CRC8_SAE_J1850_ZER0 formula,0x1D Poly,initial value 0x3F,Final XOR value varies
         0x00, 0x1D, 0x3A, 0x27, 0x74, 0x69, 0x4E, 0x53, 0xE8, 0xF5, 0xD2, 0xCF, 0x9C, 0x81, 0xA6, 0xBB, 0xCD, 0xD0,
@@ -59,9 +73,10 @@ UDS MAP
 22 DD 69 - Current in Amps 62 DD 69 00 00 00 00 = 0 Amps
 22 DD 7B - SOH  62 DD 7B 62 = 98%
 22 DD 62 - HVIL Status 62 DD 64 01 = OK/Closed
+22 DD BF - Cell min max alt - f18 ZELLSPANNUNGEN_MIN_MAX < doesn't work
 22 DD 6A - Isolation values  62 DD 6A 07 D0 07 D0 07 D0 01 01 01 = in operation plausible/2000kOhm, in follow up plausible/2000kohm, internal iso open contactors (measured on request) pluasible/2000kohm
 31 03 AD 61 - Isolation measurement status  71 03 AD 61 00 FF = Nmeasurement status - not successful / fault satate - not defined
-22 DF A0 - Cell voltage and temps summary including min/max/average, Ah, 
+22 DF A0 - Cell voltage and temps summary including min/max/average, Ah,  (ZUSTAND_SPEICHER)
 */
 
 //Vehicle CAN START
@@ -91,6 +106,12 @@ CAN_frame BMWPHEV_6F1_REQUEST_SOC = {.FD = false,
                                      .ID = 0x6F1,
                                      .data = {0x07, 0x03, 0x22, 0xDD, 0xC4}};  //  SOC%
 
+CAN_frame BMWPHEV_6F1_REQUEST_SOH = {.FD = false,
+                                     .ext_ID = false,
+                                     .DLC = 5,
+                                     .ID = 0x6F1,
+                                     .data = {0x07, 0x03, 0x22, 0xDD, 0x7B}};  //  SOH%
+
 CAN_frame BMWPHEV_6F1_REQUEST_MAINVOLTAGE_PRECONTACTOR = {
     .FD = false,
     .ext_ID = false,
@@ -110,9 +131,14 @@ CAN_frame BMWPHEV_6F1_REQUEST_CELLSUMMARY = {
     .ext_ID = false,
     .DLC = 5,
     .ID = 0x6F1,
-    .data = {
-        0x07, 0x03, 0x22, 0xDF,
-        0xA0}};  //Min and max cell voltage + temps   6.55V = Qualifier Invalid?  Multi return frame - might be all cell voltages
+    .data = {0x07, 0x03, 0x22, 0xDF, 0xA0}};  //Min and max cell voltage + temps   6.55V = Qualifier Invalid?
+
+CAN_frame BMWPHEV_6F1_REQUEST_CELLS_INDIVIDUAL_VOLTS = {
+    .FD = false,
+    .ext_ID = false,
+    .DLC = 5,
+    .ID = 0x6F1,
+    .data = {0x07, 0x03, 0x22, 0xDF, 0xA5}};  //All individual cell voltages
 
 CAN_frame BMWPHEV_6F1_REQUEST_CELL_TEMP = {
     .FD = false,
@@ -123,11 +149,20 @@ CAN_frame BMWPHEV_6F1_REQUEST_CELL_TEMP = {
         0x07, 0x03, 0x22, 0xDD,
         0xC0}};  // UDS Request Cell Temperatures min max avg. Has continue frame min in first, then max + avg in second frame
 
-CAN_frame BMW_6F4_CELL_TEMP_CONTINUE = {.FD = false,
+CAN_frame BMW_6F1_REQUEST_CONTINUE_MULTIFRAME = {
+    .FD = false,
+    .ext_ID = false,
+    .DLC = 8,
+    .ID = 0x6F1,
+    .data = {
+        0x07, 0x30, 0x03, 0x00, 0x00, 0x00, 0x00,
+        0x00}};  //Request continued frames from UDS Multiframe request  byte[2] is the request messages to return per continue. default 0x03, all is 0x00
+
+CAN_frame BMW_6F1_REQUEST_HARD_RESET = {.FD = false,
                                         .ext_ID = false,
-                                        .DLC = 5,
+                                        .DLC = 4,
                                         .ID = 0x6F1,
-                                        .data = {0x07, 0x30, 0x03, 0x00, 0x00}};
+                                        .data = {0x07, 0x03, 0x11, 0x01}};  // Reset BMS - TBC
 
 CAN_frame BMWPHEV_6F1_REQUEST_CONTACTORS_CLOSE = {
     .FD = false,
@@ -164,111 +199,6 @@ CAN_frame BMWPHEV_6F1_REQUEST_BALANCING_STOP = {
     .ID = 0x6F1,
     .data = {0x07, 0x04, 0x31, 0x02, 0xAD, 0x6B, 0x00, 0x00}};  // Balancing stop request
 
-//UNTESTED/UNCHANGED FROM IX BEYOND HERE
-
-CAN_frame BMWPHEV_6F1 = {
-    .FD = false,
-    .ext_ID = false,
-    .DLC = 5,
-    .ID = 0x6F1,
-    .data = {0x07, 0x03, 0x22, 0xE5, 0xC7}};  // Generic UDS Request data from SME. byte 4 selects requested value
-CAN_frame BMWPHEV_6F1_REQUEST_SLEEPMODE = {
-    .FD = false,
-    .ext_ID = false,
-    .DLC = 4,
-    .ID = 0x6F1,
-    .data = {0x07, 0x02, 0x11, 0x04}};  // UDS Request  Request BMS/SME goes to Sleep Mode
-CAN_frame BMWPHEV_6F1_REQUEST_HARD_RESET = {.FD = false,
-                                            .ext_ID = false,
-                                            .DLC = 4,
-                                            .ID = 0x6F1,
-                                            .data = {0x07, 0x02, 0x11, 0x01}};  // UDS Request  Hard reset of BMS/SME
-
-CAN_frame BMWPHEV_6F1_REQUEST_CAPACITY = {
-    .FD = false,
-    .ext_ID = false,
-    .DLC = 5,
-    .ID = 0x6F1,
-    .data = {0x07, 0x03, 0x22, 0xE5, 0xC7}};  //Current and max capacity kWh. Stored in kWh as 0.01 scale with -50  bias
-
-CAN_frame BMWPHEV_6F1_REQUEST_BATTERYCURRENT = {
-    .FD = false,
-    .ext_ID = false,
-    .DLC = 5,
-    .ID = 0x6F1,
-    .data = {0x07, 0x03, 0x22, 0xE5, 0x61}};  //Current amps 32bit signed MSB. dA . negative is discharge
-CAN_frame BMWPHEV_6F1_REQUEST_CELL_VOLTAGE = {
-    .FD = false,
-    .ext_ID = false,
-    .DLC = 5,
-    .ID = 0x6F1,
-    .data = {0x07, 0x03, 0x22, 0xE5, 0x54}};  //MultiFrameIndividual Cell Voltages
-CAN_frame BMWPHEV_6F1_REQUEST_T30VOLTAGE = {
-    .FD = false,
-    .ext_ID = false,
-    .DLC = 5,
-    .ID = 0x6F1,
-    .data = {0x07, 0x03, 0x22, 0xE5, 0xA7}};  //Terminal 30 Voltage (12V SME supply)
-CAN_frame BMWPHEV_6F1_REQUEST_EOL_ISO = {.FD = false,
-                                         .ext_ID = false,
-                                         .DLC = 5,
-                                         .ID = 0x6F1,
-                                         .data = {0x07, 0x03, 0x22, 0xA8, 0x60}};  //Request EOL Reading including ISO
-CAN_frame BMWPHEV_6F1_REQUEST_SOH = {.FD = false,
-                                     .ext_ID = false,
-                                     .DLC = 5,
-                                     .ID = 0x6F1,
-                                     .data = {0x07, 0x03, 0x22, 0xE5, 0x45}};  //SOH Max Min Mean Request
-CAN_frame BMWPHEV_6F1_REQUEST_DATASUMMARY = {
-    .FD = false,
-    .ext_ID = false,
-    .DLC = 5,
-    .ID = 0x6F1,
-    .data = {
-        0x07, 0x03, 0x22, 0xE5,
-        0x45}};  //MultiFrame Summary Request, includes SOC/SOH/MinMax/MaxCapac/RemainCapac/max v and t at last charge. slow refreshrate
-CAN_frame BMWPHEV_6F1_REQUEST_PYRO = {.FD = false,
-                                      .ext_ID = false,
-                                      .DLC = 5,
-                                      .ID = 0x6F1,
-                                      .data = {0x07, 0x03, 0x22, 0xAC, 0x93}};  //Pyro Status
-CAN_frame BMWPHEV_6F1_REQUEST_UPTIME = {.FD = false,
-                                        .ext_ID = false,
-                                        .DLC = 5,
-                                        .ID = 0x6F1,
-                                        .data = {0x07, 0x03, 0x22, 0xE4, 0xC0}};  // Uptime and Vehicle Time Status
-CAN_frame BMWPHEV_6F1_REQUEST_HVIL = {.FD = false,
-                                      .ext_ID = false,
-                                      .DLC = 5,
-                                      .ID = 0x6F1,
-                                      .data = {0x07, 0x03, 0x22, 0xE5, 0x69}};  // Request HVIL State
-
-CAN_frame BMWPHEV_6F1_REQUEST_MAX_CHARGE_DISCHARGE_AMPS = {
-    .FD = false,
-    .ext_ID = false,
-    .DLC = 5,
-    .ID = 0x6F1,
-    .data = {0x07, 0x03, 0x22, 0xE5, 0x62}};  // Request allowable charge discharge amps
-CAN_frame BMWPHEV_6F1_REQUEST_VOLTAGE_QUALIFIER_CHECK = {
-    .FD = false,
-    .ext_ID = false,
-    .DLC = 5,
-    .ID = 0x6F1,
-    .data = {0x07, 0x03, 0x22, 0xE5, 0x4B}};  // Request HV Voltage Qualifier
-
-CAN_frame BMWPHEV_6F1_REQUEST_PACK_VOLTAGE_LIMITS = {
-    .FD = false,
-    .ext_ID = false,
-    .DLC = 5,
-    .ID = 0x6F1,
-    .data = {0x07, 0x03, 0x22, 0xE5, 0x4C}};  // Request pack voltage limits
-
-CAN_frame BMWPHEV_6F1_CONTINUE_DATA = {.FD = false,
-                                       .ext_ID = false,
-                                       .DLC = 4,
-                                       .ID = 0x6F1,
-                                       .data = {0x07, 0x30, 0x00, 0x02}};
-
 //Action Requests:
 CAN_frame BMW_10B = {.FD = false,
                      .ext_ID = false,
@@ -291,9 +221,15 @@ CAN_frame BMWPHEV_6F1_CELL_TEMP = {.FD = false,
 static bool battery_awake = false;
 
 //Setup UDS values to poll for
-CAN_frame* UDS_REQUESTS100MS[] = {&BMWPHEV_6F1_REQUEST_SOC, &BMWPHEV_6F1_REQUEST_MAINVOLTAGE_PRECONTACTOR,
-                                  &BMWPHEV_6F1_REQUEST_MAINVOLTAGE_POSTCONTACTOR, &BMWPHEV_6F1_REQUEST_CELL_TEMP,
-                                  &BMWPHEV_6F1_REQUEST_BALANCING_STATUS};
+CAN_frame* UDS_REQUESTS100MS[] = {&BMWPHEV_6F1_REQUEST_SOC,
+                                  &BMWPHEV_6F1_REQUEST_SOH,
+                                  &BMWPHEV_6F1_REQUEST_MAINVOLTAGE_PRECONTACTOR,
+                                  &BMWPHEV_6F1_REQUEST_MAINVOLTAGE_POSTCONTACTOR,
+                                  &BMWPHEV_6F1_REQUEST_BALANCING_STATUS,
+                                  &BMWPHEV_6F1_REQUEST_CELLSUMMARY,
+                                  &BMWPHEV_6F1_REQUEST_CELLS_INDIVIDUAL_VOLTS,
+                                  &BMWPHEV_6F1_REQUEST_CELL_TEMP,
+                                  &BMWPHEV_6F1_REQUEST_CELLSUMMARY};
 int numUDSreqs = sizeof(UDS_REQUESTS100MS) / sizeof(UDS_REQUESTS100MS[0]);  // Number of elements in the array
 
 //PHEV intermediate vars
@@ -355,7 +291,7 @@ static int16_t battery_temperature_min = 0;
 static bool battery_info_available = false;
 static uint32_t battery_serial_number = 0;
 static int32_t battery_current = 0;
-static int16_t battery_voltage = 370;
+static int16_t battery_voltage = 0;
 static int16_t terminal30_12v_voltage = 0;
 static int16_t battery_voltage_after_contactor = 0;
 static int16_t min_soc_state = 50;
@@ -434,6 +370,46 @@ static uint8_t increment_uds_req_id_counter(uint8_t index) {
   return index;
 }
 
+/* --------------------------------------------------------------------------
+   UDS Multi-Frame Helpers
+   -------------------------------------------------------------------------- */
+
+void startUDSMultiFrameReception(uint16_t totalLength, uint8_t moduleID) {
+  gUDSContext.UDS_inProgress = true;
+  gUDSContext.UDS_expectedLength = totalLength;
+  gUDSContext.UDS_bytesReceived = 0;
+  gUDSContext.UDS_moduleID = moduleID;
+  memset(gUDSContext.UDS_buffer, 0, sizeof(gUDSContext.UDS_buffer));
+  gUDSContext.UDS_lastFrameMillis = millis();  // if you want to track timeouts
+}
+
+bool storeUDSPayload(const uint8_t* payload, uint8_t length) {
+  if (gUDSContext.UDS_bytesReceived + length > sizeof(gUDSContext.UDS_buffer)) {
+    // Overflow => abort
+    gUDSContext.UDS_inProgress = false;
+#ifdef DEBUG_LOG
+    logging.println("UDS Payload Overflow");
+#endif  // DEBUG_LOG
+    return false;
+  }
+  memcpy(&gUDSContext.UDS_buffer[gUDSContext.UDS_bytesReceived], payload, length);
+  gUDSContext.UDS_bytesReceived += length;
+  gUDSContext.UDS_lastFrameMillis = millis();
+
+  // If we’ve reached or exceeded the expected length, mark complete
+  if (gUDSContext.UDS_bytesReceived >= gUDSContext.UDS_expectedLength) {
+    gUDSContext.UDS_inProgress = false;
+#ifdef DEBUG_LOG
+    logging.println("Recived all expected UDS bytes");
+#endif  // DEBUG_LOG
+  }
+  return true;
+}
+
+bool isUDSMessageComplete() {
+  return (!gUDSContext.UDS_inProgress && gUDSContext.UDS_bytesReceived > 0);
+}
+
 static uint8_t increment_alive_counter(uint8_t counter) {
   counter++;
   if (counter > ALIVE_MAX_VALUE) {
@@ -449,6 +425,27 @@ static byte increment_0C0_counter(byte counter) {
     counter = 0xF0;
   }
   return counter;
+}
+
+void processCellVoltages() {
+  const int startByte = 3;     // Start reading at byte 3
+  const int numVoltages = 96;  // Number of cell voltage values to process
+  int voltage_index = 0;       // Starting index for the destination array
+
+  // Loop through 96 voltage values
+  for (int i = 0; i < numVoltages; i++) {
+    // Calculate the index of the first and second bytes in the input array
+    int byteIndex = startByte + (i * 2);
+
+    // Combine two bytes to form a 16-bit value
+    uint16_t voltageRaw = (gUDSContext.UDS_buffer[byteIndex] << 8) | gUDSContext.UDS_buffer[byteIndex + 1];
+
+    // Store the result in the destination array
+    datalayer.battery.status.cell_voltages_mV[voltage_index] = voltageRaw;
+
+    // Increment the destination array index
+    voltage_index++;
+  }
 }
 
 void update_values_battery() {  //This function maps all the values fetched via CAN to the battery datalayer
@@ -546,6 +543,7 @@ void update_values_battery() {  //This function maps all the values fetched via 
   }
 }
 void handle_incoming_can_frame_battery(CAN_frame rx_frame) {
+
   battery_awake = true;
   switch (rx_frame.ID) {
     case 0x112:
@@ -588,25 +586,193 @@ void handle_incoming_can_frame_battery(CAN_frame rx_frame) {
       battery_display_SOC = rx_frame.data.u8[4];
       break;
     case 0x607:  //SME responds to UDS requests on 0x607
+    {
+      // UDS Multi Frame vars - Top nibble indicates Frame Type: SF (0), FF (1), CF (2), FC (3)
+      // Extended addressing => data[0] is ext address, data[1] is PCI
+      uint8_t extAddr = rx_frame.data.u8[0];  // e.g., 0xF1
+      uint8_t pciByte = rx_frame.data.u8[1];  // e.g., 0x10, 0x21, etc.
+      uint8_t pciType = pciByte >> 4;         // top nibble => 0=SF,1=FF,2=CF,3=FC
+      uint8_t pciLower = pciByte & 0x0F;      // bottom nibble => length nibble or sequence
 
-      if (rx_frame.DLC = 8 && rx_frame.data.u8[3] == 0xDD && rx_frame.data.u8[4] == 0xC4) {  // SOC%
-        avg_soc_state = (rx_frame.data.u8[5] << 8 | rx_frame.data.u8[6]);
+      switch (pciType) {
+        case 0x0: {
+          // Single Frame reponse
+          // SF payload length is in pciLower
+          uint8_t sfLength = pciLower;
+          uint8_t moduleID = rx_frame.data.u8[5];
+
+          if (rx_frame.DLC = 8 && rx_frame.data.u8[3] == 0xDD && rx_frame.data.u8[4] == 0xC4) {  // SOC%
+            avg_soc_state = (rx_frame.data.u8[5] << 8 | rx_frame.data.u8[6]);
+          }
+          if (rx_frame.DLC = 8 && rx_frame.data.u8[3] == 0xDD && rx_frame.data.u8[4] == 0x7B) {  // SOH%
+            min_soh_state = (rx_frame.data.u8[5]) * 100;
+          }
+          if (rx_frame.DLC = 8 && rx_frame.data.u8[3] == 0xDD &&
+                             rx_frame.data.u8[4] == 0xB4) {  //Main Battery Voltage (Pre Contactor)
+            battery_voltage = (rx_frame.data.u8[5] << 8 | rx_frame.data.u8[6]) / 10;
+          }
+
+          if (rx_frame.DLC = 7 && rx_frame.data.u8[3] == 0xDD &&
+                             rx_frame.data.u8[4] == 0x66) {  //Main Battery Voltage (Post Contactor)
+            battery_voltage_after_contactor = (rx_frame.data.u8[5] << 8 | rx_frame.data.u8[6]) / 10;
+          }
+
+          if (rx_frame.DLC = 7 && rx_frame.data.u8[1] == 0x05 && rx_frame.data.u8[2] == 0x71 &&
+                             rx_frame.data.u8[3] == 0x03 &&
+                             rx_frame.data.u8[4] ==
+                                 0xAD) {  //Balancing Status  01 Active 03 Not Active    7DLC F1 05 71 03 AD 6B 01
+            balancing_status = (rx_frame.data.u8[6]);
+#ifdef DEBUG_LOG
+
+            logging.println("Balancing Status received");
+
+#endif  // DEBUG_LOG
+          }
+
+          break;
+        }
+        case 0x1: {
+          // total length = (pciLower << 8) + data[2]
+          uint16_t totalLength = ((uint16_t)pciLower << 8) | rx_frame.data.u8[2];
+          uint8_t moduleID = rx_frame.data.u8[5];
+#ifdef DEBUG_LOG
+          logging.print("FF arrived! moduleID=0x");
+          logging.print(moduleID, HEX);
+          logging.print(", totalLength=");
+          logging.println(totalLength);
+#endif  // DEBUG_LOG
+
+          // Start the multi-frame
+          startUDSMultiFrameReception(totalLength, moduleID);
+          gUDSContext.receivedInBatch = 0;  // Reset batch count
+          // The FF payload is at data[3..7] (5 bytes) for an 8-byte CAN frame in extended addressing
+          const uint8_t* ffPayload = &rx_frame.data.u8[3];
+          uint8_t ffPayloadSize = 5;
+          storeUDSPayload(ffPayload, ffPayloadSize);
+
+#ifdef DEBUG_LOG
+          logging.print("After FF, UDS_bytesReceived=");
+          logging.println(gUDSContext.UDS_bytesReceived);
+#endif  // DEBUG_LOG
+#ifdef DEBUG_LOG
+          logging.println("Requesting continue frame...");
+#endif  // DEBUG_LOG
+          transmit_can_frame(&BMW_6F1_REQUEST_CONTINUE_MULTIFRAME, can_config.battery);
+          break;
+        }
+
+        case 0x2: {
+          // The sequence number is in (data[0] & 0x0F), but we often don’t need it if frames are in order.
+          // Make sure we *are* in progress
+          if (!gUDSContext.UDS_inProgress) {
+// Unexpected CF. Possibly ignore or reset.
+#ifdef DEBUG_LOG
+            uint8_t seq = pciByte & 0x0F;
+            logging.print("Unexpected CF --- seq=0x");
+            logging.print(seq, HEX);
+            logging.print(" for moduleID=0x");
+            logging.println(gUDSContext.UDS_moduleID, HEX);
+#endif  // DEBUG_LOG
+            return;
+          }
+#ifdef DEBUG_LOG
+          uint8_t seq = pciByte & 0x0F;
+          logging.print("CF seq=0x");
+          logging.print(seq, HEX);
+          logging.print("CF pcibyte=0x");
+          logging.print(pciByte, HEX);
+          logging.print(" for moduleID=0x");
+          logging.println(gUDSContext.UDS_moduleID, HEX);
+#endif  // DEBUG_LOG
+
+          storeUDSPayload(&rx_frame.data.u8[2], 6);
+          // Increment batch counter
+          gUDSContext.receivedInBatch++;
+#ifdef DEBUG_LOG
+          logging.print("After CF seq=0x");
+          logging.print(seq, HEX);
+          logging.print(", moduleID=0x");
+          logging.print(gUDSContext.UDS_moduleID, HEX);
+          logging.print(", UDS_bytesReceived=");
+          logging.println(gUDSContext.UDS_bytesReceived);
+#endif  // DEBUG_LOG
+
+          // Check if the batch is complete
+          if (gUDSContext.receivedInBatch >= 3) {  //BMW PHEV Using batch size of 3 in continue message
+                                                   // Send the next Flow Control
+#ifdef DEBUG_LOG
+            logging.println("Batch Complete - Requesting continue frame...");
+#endif  // DEBUG_LOG
+            transmit_can_frame(&BMW_6F1_REQUEST_CONTINUE_MULTIFRAME, can_config.battery);
+            gUDSContext.receivedInBatch = 0;  // Reset batch count
+            Serial.println("Sent FC for next batch of 3 frames.");
+          }
+
+          break;
+        }
+
+        case 0x3: {
+          // Flow Control Frame from ECU -> Tester (rare in a typical request/response flow)
+          // Typically we only *send* FC. If the ECU sends one, parse or ignore here.
+          break;
+        }
       }
 
-      if (rx_frame.DLC =
-              8 && rx_frame.data.u8[3] == 0xDD && rx_frame.data.u8[4] == 0xB4) {  //Main Battery Voltage (Pre Contactor)
-        battery_voltage = (rx_frame.data.u8[5] << 8 | rx_frame.data.u8[6]) / 10;
-      }
+      // Optionally, check if message is complete
+      if (isUDSMessageComplete()) {
+        // We have a complete UDS/ISO-TP response in gUDSContext.UDS_buffer
+        // Do something with the data (e.g., parse it). *****************
+        //
+        //set dummy values to see if we got a complete message
 
-      if (rx_frame.DLC = 7 && rx_frame.data.u8[3] == 0xDD &&
-                         rx_frame.data.u8[4] == 0x66) {  //Main Battery Voltage (Post Contactor)
-        battery_voltage_after_contactor = (rx_frame.data.u8[5] << 8 | rx_frame.data.u8[6]) / 10;
-      }
+#ifdef DEBUG_LOG
 
-      if (rx_frame.DLC =
-              7 && rx_frame.data.u8[1] == 0x05 && rx_frame.data.u8[2] == 0x71 && rx_frame.data.u8[3] == 0x03 &&
-              rx_frame.data.u8[4] == 0xAD) {  //Balancing Status  01 Active 03 Not Active    7DLC F1 05 71 03 AD 6B 01
-        balancing_status = (rx_frame.data.u8[6]);
+        logging.print("UDS message complete for module ID 0x");
+        logging.println(gUDSContext.UDS_moduleID, HEX);
+
+        logging.print("Total bytes: ");
+        logging.println(gUDSContext.UDS_bytesReceived);
+
+        logging.print("Received data: ");
+        for (uint16_t i = 0; i < gUDSContext.UDS_bytesReceived; i++) {
+          // Optional leading zero for single-digit hex
+          if (gUDSContext.UDS_buffer[i] < 0x10) {
+            logging.print("0");
+          }
+          logging.print(gUDSContext.UDS_buffer[i], HEX);
+          logging.print(" ");
+        }
+        logging.println();  // new line at the end
+
+#endif  // DEBUG_LOG
+
+        if (gUDSContext.UDS_moduleID == 0xA5) {  //We have a complete set of cell voltages - pass to data layer
+          processCellVoltages();
+#ifdef DEBUG_LOG
+          logging.println("Parsing Cell Voltages...");
+#endif  // DEBUG_LOG
+        }
+
+        if (gUDSContext.UDS_moduleID == 0xA0 && gUDSContext.UDS_buffer[9] != 0xFF &&
+            gUDSContext.UDS_buffer[9] != 0xFF && gUDSContext.UDS_buffer[11] != 0xFF &&
+            gUDSContext.UDS_buffer[12] != 0xFF && gUDSContext.UDS_buffer[9] != 0x00 &&
+            gUDSContext.UDS_buffer[9] != 0x00 && gUDSContext.UDS_buffer[11] != 0x00 &&
+            gUDSContext.UDS_buffer[12] !=
+                0x00) {  //We have a complete frame for cell min max - pass to data layer UNCONFIRMED IF THESE ARE CORRECT BYTES
+          min_cell_voltage = (gUDSContext.UDS_buffer[9] << 8 | gUDSContext.UDS_buffer[10]) / 10;
+          max_cell_voltage = (gUDSContext.UDS_buffer[11] << 8 | gUDSContext.UDS_buffer[12]) / 10;
+
+#ifdef DEBUG_LOG
+          logging.println("Parsing Cell Min Max...");
+#endif  // DEBUG_LOG
+        } else {
+#ifdef DEBUG_LOG
+          logging.println("Cell Min Max Invalid 65535 or 0...");
+#endif  // DEBUG_LOG
+        }
+
+        // Example:
+        // parseBatteryData(gUDSContext.UDS_buffer, gUDSContext.UDS_bytesReceived);
       }
 
       //moved away from UDS - using SME default sent message
@@ -623,6 +789,7 @@ void handle_incoming_can_frame_battery(CAN_frame rx_frame) {
       //   avg_battery_temperature = (rx_frame.data.u8[4] << 8 | rx_frame.data.u8[5]) / 10;
       // }
       break;
+    }
     case 0x1FA:  //BMS [1000ms] Status Of High-Voltage Battery - 1
       battery_status_error_isolation_external_Bordnetz = (rx_frame.data.u8[0] & 0x03);
       battery_status_error_isolation_internal_Bordnetz = (rx_frame.data.u8[0] & 0x0C) >> 2;
