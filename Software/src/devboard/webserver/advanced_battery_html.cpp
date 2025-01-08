@@ -111,12 +111,12 @@ String advanced_battery_processor(const String& var) {
                                       "3 Not Activated - Pyro Intact", "4 Unknown"};
     static const char* statusText[16] = {
         "Not evaluated", "OK", "Error!", "Invalid signal", "", "", "", "", "", "", "", "", "", "", "", ""};
-    content += "<h4>Interlock: " + String(statusText[datalayer_extended.bmwi3.ST_interlock]) + "</h4>";
-    content += "<h4>Isolation external: " + String(statusText[datalayer_extended.bmwi3.ST_iso_ext]) + "</h4>";
-    content += "<h4>Isolation internal: " + String(statusText[datalayer_extended.bmwi3.ST_iso_int]) + "</h4>";
-    content += "<h4>Isolation: " + String(statusText[datalayer_extended.bmwi3.ST_isolation]) + "</h4>";
-    content += "<h4>Cooling valve: " + String(statusText[datalayer_extended.bmwi3.ST_valve_cooling]) + "</h4>";
-    content += "<h4>Emergency: " + String(statusText[datalayer_extended.bmwi3.ST_EMG]) + "</h4>";
+    content += "<h4>Interlock: " + String(statusText[datalayer_extended.bmwphev.ST_interlock]) + "</h4>";
+    content += "<h4>Isolation external: " + String(statusText[datalayer_extended.bmwphev.ST_iso_ext]) + "</h4>";
+    content += "<h4>Isolation internal: " + String(statusText[datalayer_extended.bmwphev.ST_iso_int]) + "</h4>";
+    content += "<h4>Isolation: " + String(statusText[datalayer_extended.bmwphev.ST_isolation]) + "</h4>";
+    content += "<h4>Cooling valve: " + String(statusText[datalayer_extended.bmwphev.ST_valve_cooling]) + "</h4>";
+    content += "<h4>Emergency: " + String(statusText[datalayer_extended.bmwphev.ST_EMG]) + "</h4>";
     static const char* prechargeText[16] = {"Not evaluated",
                                             "Not active, closing not blocked",
                                             "Error precharge blocked",
@@ -133,7 +133,7 @@ String advanced_battery_processor(const String& var) {
                                             "",
                                             "",
                                             ""};
-    content += "<h4>Precharge: " + String(prechargeText[datalayer_extended.bmwi3.ST_precharge]) +
+    content += "<h4>Precharge: " + String(prechargeText[datalayer_extended.bmwphev.ST_precharge]) +
                "</h4>";  //Still unclear of enum
     static const char* DCSWText[16] = {"Contactors open",
                                        "Precharge ongoing",
@@ -151,7 +151,7 @@ String advanced_battery_processor(const String& var) {
                                        "",
                                        "",
                                        ""};
-    content += "<h4>Contactor status: " + String(DCSWText[datalayer_extended.bmwi3.ST_DCSW]) + "</h4>";
+    content += "<h4>Contactor status: " + String(DCSWText[datalayer_extended.bmwphev.ST_DCSW]) + "</h4>";
     static const char* contText[16] = {"Contactors OK",
                                        "One contactor welded!",
                                        "Two contactors welded!",
@@ -168,7 +168,7 @@ String advanced_battery_processor(const String& var) {
                                        "",
                                        "",
                                        ""};
-    content += "<h4>Contactor weld: " + String(contText[datalayer_extended.bmwi3.ST_WELD]) + "</h4>";
+    content += "<h4>Contactor weld: " + String(contText[datalayer_extended.bmwphev.ST_WELD]) + "</h4>";
     static const char* valveText[16] = {"OK",
                                         "Short circuit to GND",
                                         "Short circuit to 12V",
@@ -185,7 +185,8 @@ String advanced_battery_processor(const String& var) {
                                         "Stuck",
                                         "",
                                         "Invalid Signal"};
-    content += "<h4>Cold shutoff valve: " + String(contText[datalayer_extended.bmwi3.ST_cold_shutoff_valve]) + "</h4>";
+    content +=
+        "<h4>Cold shutoff valve: " + String(contText[datalayer_extended.bmwphev.ST_cold_shutoff_valve]) + "</h4>";
     content += "<br>";
     content += "<h4>Todo";
     content += "<br>";
