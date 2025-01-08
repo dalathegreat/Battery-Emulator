@@ -92,11 +92,10 @@ void LED::classic_run(void) {
 
 void LED::flow_run(void) {
   // Determine how bright the LED should be
-  int16_t power_W = datalayer.battery.status.active_power_W;
-  if (power_W < -50) {
+  if (datalayer.battery.status.active_power_W < -50) {
     // Discharging
     brightness = max_brightness - up_down(0.95);
-  } else if (power_W > 50) {
+  } else if (datalayer.battery.status.active_power_W > 50) {
     // Charging
     brightness = up_down(0.95);
   } else {
