@@ -14,7 +14,8 @@ String advanced_battery_processor(const String& var) {
         "cursor: pointer; border-radius: 10px; }";
     content += "button:hover { background-color: #3A4A52; }";
     content += "</style>";
-
+    content += "<button onclick='refreshPage()'>Refresh data</button> "; // Refresh before export
+    content += "<button onclick='exportLog()'>Export to .txt</button> "; // TO DO make this work
     content += "<button onclick='goToMainPage()'>Back to main page</button>";
 
     // Start a new block with a specific background color
@@ -1193,7 +1194,12 @@ String advanced_battery_processor(const String& var) {
     content += "}";
     content += "function goToMainPage() { window.location.href = '/'; }";
     content += "</script>";
-
+    // Additial functions added
+    content += "<script>";
+    content += "function refreshPage(){ location.reload(true); }";
+    content += "function exportLog() { window.location.href = '/export_log'; }";
+    content += "</script>";
+    
     return content;
   }
   return String();
