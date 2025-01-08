@@ -47,7 +47,6 @@ class uptime
 
     static void          calculateUptime();
 
-    static unsigned long getMilliseconds();
     static unsigned long getSeconds();
     static unsigned long getMinutes();
     static unsigned long getHours();
@@ -61,9 +60,9 @@ class uptime
     static unsigned long m_days;
 
     static unsigned long m_mod_milliseconds;
-    static unsigned long m_mod_seconds;
-    static unsigned long m_mod_minutes;
-    static unsigned long m_mod_hours;
+    static uint8_t m_mod_seconds;
+    static uint8_t m_mod_minutes;
+    static uint8_t m_mod_hours;
     
     static unsigned long m_last_milliseconds;  
     static unsigned long m_remaining_seconds;
