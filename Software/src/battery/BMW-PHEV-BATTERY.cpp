@@ -563,6 +563,9 @@ void handle_incoming_can_frame_battery(CAN_frame rx_frame) {
   battery_awake = true;
   switch (rx_frame.ID) {
     case 0x112:
+      battery_awake = true;
+      datalayer.battery.status.CAN_battery_still_alive =
+          CAN_STILL_ALIVE;  //This message is only sent if 30C (Wakeup pin on battery) is energized with 12V
       break;
     case 0x2F5:  //BMS [100ms] High-Voltage Battery Charge/Discharge Limitations
       battery_max_charge_voltage = (rx_frame.data.u8[1] << 8 | rx_frame.data.u8[0]);
