@@ -105,6 +105,15 @@ void init_contactors() {
 #endif  //PERIODIC_BMS_RESET
 }
 
+static void dbg_contactors(const char* state) {
+#ifdef DEBUG_LOG
+  logging.print("[");
+  logging.print(millis());
+  logging.print(" ms] contactors control: ");
+  logging.println(state);
+#endif
+}
+
 // Main functions of the handle_contactors include checking if inverter allows for closing, checking battery 2, checking BMS power output, and actual contactor closing/precharge via GPIO
 void handle_contactors() {
 #if defined(SMA_BYD_H_CAN) || defined(SMA_BYD_HVS_CAN) || defined(SMA_TRIPOWER_CAN)
@@ -173,6 +182,7 @@ void handle_contactors() {
   switch (contactorStatus) {
     case START_PRECHARGE:
       set(NEGATIVE_CONTACTOR_PIN, ON, PWM_ON_DUTY);
+      dbg_contactors("NEGATIVE");
       prechargeStartTime = currentTime;
       contactorStatus = PRECHARGE;
       break;
@@ -180,6 +190,7 @@ void handle_contactors() {
     case PRECHARGE:
       if (currentTime - prechargeStartTime >= NEGATIVE_CONTACTOR_TIME_MS) {
         set(PRECHARGE_PIN, ON);
+        dbg_contactors("PRECHARGE");
         negativeStartTime = currentTime;
         contactorStatus = POSITIVE;
       }
@@ -188,6 +199,7 @@ void handle_contactors() {
     case POSITIVE:
       if (currentTime - negativeStartTime >= PRECHARGE_TIME_MS) {
         set(POSITIVE_CONTACTOR_PIN, ON, PWM_ON_DUTY);
+        dbg_contactors("POSITIVE");
         prechargeCompletedTime = currentTime;
         contactorStatus = PRECHARGE_OFF;
       }
@@ -198,6 +210,7 @@ void handle_contactors() {
         set(PRECHARGE_PIN, OFF);
         set(NEGATIVE_CONTACTOR_PIN, ON, PWM_HOLD_DUTY);
         set(POSITIVE_CONTACTOR_PIN, ON, PWM_HOLD_DUTY);
+        dbg_contactors("PRECHARGE_OFF");
         contactorStatus = COMPLETED;
         datalayer.system.status.contactors_engaged = true;
       }
