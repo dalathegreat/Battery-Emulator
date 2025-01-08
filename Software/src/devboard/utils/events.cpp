@@ -73,7 +73,6 @@ static void update_bms_status(void);
 
 static void log_event(EVENTS_ENUM_TYPE event, uint8_t millisrolloverCount, uint32_t timestamp, uint8_t data);
 static void print_event_log(void);
-static void check_ee_write(void);
 
 uint8_t millisrolloverCount = 0;
 
@@ -87,7 +86,6 @@ void run_event_handling(void) {
   }
   lastMillis = currentMillis;
 
-  //check_ee_write();
   update_event_level();
 }
 
@@ -282,88 +280,88 @@ const char* get_event_message_string(EVENTS_ENUM_TYPE event) {
     case EVENT_CANFD_RX_FAILURE:
       return "No CANFD communication detected for 60s. Shutting down battery control.";
     case EVENT_CAN_RX_WARNING:
-      return "ERROR: High amount of corrupted CAN messages detected. Check CAN wire shielding!";
+      return "High amount of corrupted CAN messages detected. Check CAN wire shielding!";
     case EVENT_CAN_TX_FAILURE:
-      return "ERROR: CAN messages failed to transmit, or no one on the bus to ACK the message!";
+      return "CAN messages failed to transmit, or no one on the bus to ACK the message!";
     case EVENT_CAN_INVERTER_MISSING:
-      return "Warning: Inverter not sending messages on CAN bus. Check wiring!";
+      return "Inverter not sending messages on CAN bus. Check wiring!";
     case EVENT_CONTACTOR_WELDED:
-      return "Warning: Contactors sticking/welded. Inspect battery with caution!";
+      return "Contactors sticking/welded. Inspect battery with caution!";
     case EVENT_CHARGE_LIMIT_EXCEEDED:
-      return "Info: Inverter is charging faster than battery is allowing.";
+      return "Inverter is charging faster than battery is allowing.";
     case EVENT_DISCHARGE_LIMIT_EXCEEDED:
-      return "Info: Inverter is discharging faster than battery is allowing.";
+      return "Inverter is discharging faster than battery is allowing.";
     case EVENT_WATER_INGRESS:
       return "Water leakage inside battery detected. Operation halted. Inspect battery!";
     case EVENT_12V_LOW:
       return "12V battery source below required voltage to safely close contactors. Inspect the supply/battery!";
     case EVENT_SOC_PLAUSIBILITY_ERROR:
-      return "Warning: SOC reported by battery not plausible. Restart battery!";
+      return "SOC reported by battery not plausible. Restart battery!";
     case EVENT_SOC_UNAVAILABLE:
-      return "Warning: SOC not sent by BMS. Calibrate BMS via app.";
+      return "SOC not sent by BMS. Calibrate BMS via app.";
     case EVENT_KWH_PLAUSIBILITY_ERROR:
-      return "Info: kWh remaining reported by battery not plausible. Battery needs cycling.";
+      return "kWh remaining reported by battery not plausible. Battery needs cycling.";
     case EVENT_BALANCING_START:
-      return "Info: Balancing has started";
+      return "Balancing has started";
     case EVENT_BALANCING_END:
-      return "Info: Balancing has ended";
+      return "Balancing has ended";
     case EVENT_BATTERY_EMPTY:
-      return "Info: Battery is completely discharged";
+      return "Battery is completely discharged";
     case EVENT_BATTERY_FULL:
-      return "Info: Battery is fully charged";
+      return "Battery is fully charged";
     case EVENT_BATTERY_FROZEN:
-      return "Info: Battery is too cold to operate optimally. Consider warming it up!";
+      return "Battery is too cold to operate optimally. Consider warming it up!";
     case EVENT_BATTERY_CAUTION:
-      return "Info: Battery has raised a general caution flag. Might want to inspect it closely.";
+      return "Battery has raised a general caution flag. Might want to inspect it closely.";
     case EVENT_BATTERY_CHG_STOP_REQ:
-      return "ERROR: Battery raised caution indicator AND requested charge stop. Inspect battery status!";
+      return "Battery raised caution indicator AND requested charge stop. Inspect battery status!";
     case EVENT_BATTERY_DISCHG_STOP_REQ:
-      return "ERROR: Battery raised caution indicator AND requested discharge stop. Inspect battery status!";
+      return "Battery raised caution indicator AND requested discharge stop. Inspect battery status!";
     case EVENT_BATTERY_CHG_DISCHG_STOP_REQ:
-      return "ERROR: Battery raised caution indicator AND requested charge/discharge stop. Inspect battery status!";
+      return "Battery raised caution indicator AND requested charge/discharge stop. Inspect battery status!";
     case EVENT_BATTERY_REQUESTS_HEAT:
-      return "Info: COLD BATTERY! Battery requesting heating pads to activate!";
+      return "COLD BATTERY! Battery requesting heating pads to activate!";
     case EVENT_BATTERY_WARMED_UP:
-      return "Info: Battery requesting heating pads to stop. The battery is now warm enough.";
+      return "Battery requesting heating pads to stop. The battery is now warm enough.";
     case EVENT_BATTERY_OVERHEAT:
-      return "ERROR: Battery overheated. Shutting down to prevent thermal runaway!";
+      return "Battery overheated. Shutting down to prevent thermal runaway!";
     case EVENT_BATTERY_OVERVOLTAGE:
-      return "Warning: Battery exceeding maximum design voltage. Discharge battery to prevent damage!";
+      return "Battery exceeding maximum design voltage. Discharge battery to prevent damage!";
     case EVENT_BATTERY_UNDERVOLTAGE:
-      return "Warning: Battery under minimum design voltage. Charge battery to prevent damage!";
+      return "Battery under minimum design voltage. Charge battery to prevent damage!";
     case EVENT_BATTERY_VALUE_UNAVAILABLE:
-      return "Warning: Battery measurement unavailable. Check 12V power supply and battery wiring!";
+      return "Battery measurement unavailable. Check 12V power supply and battery wiring!";
     case EVENT_BATTERY_ISOLATION:
-      return "Warning: Battery reports isolation error. High voltage might be leaking to ground. Check battery!";
+      return "Battery reports isolation error. High voltage might be leaking to ground. Check battery!";
     case EVENT_VOLTAGE_DIFFERENCE:
-      return "Info: Too large voltage diff between the batteries. Second battery cannot join the DC-link";
+      return "Too large voltage diff between the batteries. Second battery cannot join the DC-link";
     case EVENT_SOH_DIFFERENCE:
-      return "Warning: Large deviation in State of health between packs. Inspect battery.";
+      return "Large deviation in State of health between packs. Inspect battery.";
     case EVENT_SOH_LOW:
-      return "ERROR: State of health critically low. Battery internal resistance too high to continue. Recycle "
+      return "State of health critically low. Battery internal resistance too high to continue. Recycle "
              "battery.";
     case EVENT_HVIL_FAILURE:
-      return "ERROR: Battery interlock loop broken. Check that high voltage / low voltage connectors are seated. "
+      return "Battery interlock loop broken. Check that high voltage / low voltage connectors are seated. "
              "Battery will be disabled!";
     case EVENT_PRECHARGE_FAILURE:
-      return "Info: Battery failed to precharge. Check that capacitor is seated on high voltage output.";
+      return "Battery failed to precharge. Check that capacitor is seated on high voltage output.";
     case EVENT_INTERNAL_OPEN_FAULT:
-      return "ERROR: High voltage cable removed while battery running. Opening contactors!";
+      return "High voltage cable removed while battery running. Opening contactors!";
     case EVENT_INVERTER_OPEN_CONTACTOR:
-      return "Info: Inverter side opened contactors. Normal operation.";
+      return "Inverter side opened contactors. Normal operation.";
     case EVENT_INTERFACE_MISSING:
-      return "Info: Configuration trying to use CAN interface not baked into the software. Recompile software!";
+      return "Configuration trying to use CAN interface not baked into the software. Recompile software!";
     case EVENT_ERROR_OPEN_CONTACTOR:
-      return "Info: Too much time spent in error state. Opening contactors, not safe to continue charging. "
+      return "Too much time spent in error state. Opening contactors, not safe to continue charging. "
              "Check other error code for reason!";
     case EVENT_MODBUS_INVERTER_MISSING:
-      return "Info: Modbus inverter has not sent any data. Inspect communication wiring!";
+      return "Modbus inverter has not sent any data. Inspect communication wiring!";
     case EVENT_CELL_UNDER_VOLTAGE:
-      return "ERROR: CELL UNDERVOLTAGE!!! Stopping battery charging and discharging. Inspect battery!";
+      return "CELL UNDERVOLTAGE!!! Stopping battery charging and discharging. Inspect battery!";
     case EVENT_CELL_OVER_VOLTAGE:
-      return "ERROR: CELL OVERVOLTAGE!!! Stopping battery charging and discharging. Inspect battery!";
+      return "CELL OVERVOLTAGE!!! Stopping battery charging and discharging. Inspect battery!";
     case EVENT_CELL_DEVIATION_HIGH:
-      return "ERROR: HIGH CELL DEVIATION!!! Inspect battery!";
+      return "HIGH CELL DEVIATION!!! Inspect battery!";
     case EVENT_UNKNOWN_EVENT_SET:
       return "An unknown event was set! Review your code!";
     case EVENT_DUMMY_INFO:
@@ -375,7 +373,7 @@ const char* get_event_message_string(EVENTS_ENUM_TYPE event) {
     case EVENT_DUMMY_ERROR:
       return "The dummy error event was set!";  // Don't change this event message!
     case EVENT_PERSISTENT_SAVE_INFO:
-      return "Info: Failed to save user settings. Namespace full?";
+      return "Failed to save user settings. Namespace full?";
     case EVENT_SERIAL_RX_WARNING:
       return "Error in serial function: No data received for some time, see data for minutes";
     case EVENT_SERIAL_RX_FAILURE:
@@ -389,54 +387,54 @@ const char* get_event_message_string(EVENTS_ENUM_TYPE event) {
     case EVENT_OTA_UPDATE_TIMEOUT:
       return "OTA update timed out!";
     case EVENT_EEPROM_WRITE:
-      return "Info: The EEPROM was written";
+      return "The EEPROM was written";
     case EVENT_RESET_UNKNOWN:
-      return "Info: The board was reset unexpectedly, and reason can't be determined";
+      return "The board was reset unexpectedly, and reason can't be determined";
     case EVENT_RESET_POWERON:
-      return "Info: The board was reset from a power-on event. Normal operation";
+      return "The board was reset from a power-on event. Normal operation";
     case EVENT_RESET_EXT:
-      return "Info: The board was reset from an external pin";
+      return "The board was reset from an external pin";
     case EVENT_RESET_SW:
-      return "Info: The board was reset via software, webserver or OTA. Normal operation";
+      return "The board was reset via software, webserver or OTA. Normal operation";
     case EVENT_RESET_PANIC:
-      return "Warning: The board was reset due to an exception or panic. Inform developers!";
+      return "The board was reset due to an exception or panic. Inform developers!";
     case EVENT_RESET_INT_WDT:
-      return "Warning: The board was reset due to an interrupt watchdog timeout. Inform developers!";
+      return "The board was reset due to an interrupt watchdog timeout. Inform developers!";
     case EVENT_RESET_TASK_WDT:
-      return "Warning: The board was reset due to a task watchdog timeout. Inform developers!";
+      return "The board was reset due to a task watchdog timeout. Inform developers!";
     case EVENT_RESET_WDT:
-      return "Warning: The board was reset due to other watchdog timeout. Inform developers!";
+      return "The board was reset due to other watchdog timeout. Inform developers!";
     case EVENT_RESET_DEEPSLEEP:
-      return "Info: The board was reset after exiting deep sleep mode";
+      return "The board was reset after exiting deep sleep mode";
     case EVENT_RESET_BROWNOUT:
-      return "Info: The board was reset due to a momentary low voltage condition. This is expected during certain "
+      return "The board was reset due to a momentary low voltage condition. This is expected during certain "
              "operations like flashing via USB";
     case EVENT_RESET_SDIO:
-      return "Info: The board was reset over SDIO";
+      return "The board was reset over SDIO";
     case EVENT_RESET_USB:
-      return "Info: The board was reset by the USB peripheral";
+      return "The board was reset by the USB peripheral";
     case EVENT_RESET_JTAG:
-      return "Info: The board was reset by JTAG";
+      return "The board was reset by JTAG";
     case EVENT_RESET_EFUSE:
-      return "Info: The board was reset due to an efuse error";
+      return "The board was reset due to an efuse error";
     case EVENT_RESET_PWR_GLITCH:
-      return "Info: The board was reset due to a detected power glitch";
+      return "The board was reset due to a detected power glitch";
     case EVENT_RESET_CPU_LOCKUP:
-      return "Warning: The board was reset due to CPU lockup. Inform developers!";
+      return "The board was reset due to CPU lockup. Inform developers!";
     case EVENT_PAUSE_BEGIN:
-      return "Warning: The emulator is trying to pause the battery.";
+      return "The emulator is trying to pause the battery.";
     case EVENT_PAUSE_END:
-      return "Info: The emulator is attempting to resume battery operation from pause.";
+      return "The emulator is attempting to resume battery operation from pause.";
     case EVENT_WIFI_CONNECT:
-      return "Info: Wifi connected.";
+      return "Wifi connected.";
     case EVENT_WIFI_DISCONNECT:
-      return "Info: Wifi disconnected.";
+      return "Wifi disconnected.";
     case EVENT_MQTT_CONNECT:
-      return "Info: MQTT connected.";
+      return "MQTT connected.";
     case EVENT_MQTT_DISCONNECT:
-      return "Info: MQTT disconnected.";
+      return "MQTT disconnected.";
     case EVENT_EQUIPMENT_STOP:
-      return "ERROR: EQUIPMENT STOP ACTIVATED!!!";
+      return "EQUIPMENT STOP ACTIVATED!!!";
     default:
       return "";
   }
@@ -600,21 +598,5 @@ static void print_event_log(void) {
     if (index == events.event_log_head_index) {
       break;
     }
-  }
-}
-
-static void check_ee_write(void) {
-  // Only actually write to flash emulated EEPROM every EE_WRITE_PERIOD_MINUTES minutes,
-  // and only if we've logged any events
-  if (events.ee_timer.elapsed() && (events.nof_logged_events > 0)) {
-    EEPROM.commit();
-    events.nof_eeprom_writes += (events.nof_eeprom_writes < 65535) ? 1 : 0;
-    events.nof_logged_events = 0;
-
-    // We want to know how many writes we have, and to increment the occurrence counter
-    // we need to clear it first. It's just the way life is. Using events is a smooth
-    // way to visualize it in the web UI
-    clear_event(EVENT_EEPROM_WRITE);
-    set_event(EVENT_EEPROM_WRITE, events.nof_eeprom_writes);
   }
 }
