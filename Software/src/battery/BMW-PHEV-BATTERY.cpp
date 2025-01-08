@@ -112,6 +112,20 @@ CAN_frame BMWPHEV_6F1_REQUEST_SOH = {.FD = false,
                                      .ID = 0x6F1,
                                      .data = {0x07, 0x03, 0x22, 0xDD, 0x7B}};  //  SOH%
 
+CAN_frame BMWPHEV_6F1_REQUEST_VOLTAGE_LIMITS = {
+    .FD = false,
+    .ext_ID = false,
+    .DLC = 5,
+    .ID = 0x6F1,
+    .data = {0x07, 0x03, 0x22, 0xDD, 0x7E}};  //  Pack Voltage Limits  Multi Frame
+
+CAN_frame BMWPHEV_6F1_REQUEST_CURRENT_LIMITS = {
+    .FD = false,
+    .ext_ID = false,
+    .DLC = 5,
+    .ID = 0x6F1,
+    .data = {0x07, 0x03, 0x22, 0xDD, 0x7D}};  //  Pack Current Limits  Multi Frame
+
 CAN_frame BMWPHEV_6F1_REQUEST_MAINVOLTAGE_PRECONTACTOR = {
     .FD = false,
     .ext_ID = false,
@@ -223,6 +237,8 @@ static bool battery_awake = false;
 //Setup UDS values to poll for
 CAN_frame* UDS_REQUESTS100MS[] = {&BMWPHEV_6F1_REQUEST_SOC,
                                   &BMWPHEV_6F1_REQUEST_SOH,
+                                  &BMWPHEV_6F1_REQUEST_VOLTAGE_LIMITS,
+                                  &BMWPHEV_6F1_REQUEST_CURRENT_LIMITS,
                                   &BMWPHEV_6F1_REQUEST_MAINVOLTAGE_PRECONTACTOR,
                                   &BMWPHEV_6F1_REQUEST_MAINVOLTAGE_POSTCONTACTOR,
                                   &BMWPHEV_6F1_REQUEST_BALANCING_STATUS,
@@ -607,6 +623,7 @@ void handle_incoming_can_frame_battery(CAN_frame rx_frame) {
           if (rx_frame.DLC = 8 && rx_frame.data.u8[3] == 0xDD && rx_frame.data.u8[4] == 0x7B) {  // SOH%
             min_soh_state = (rx_frame.data.u8[5]) * 100;
           }
+
           if (rx_frame.DLC = 8 && rx_frame.data.u8[3] == 0xDD &&
                              rx_frame.data.u8[4] == 0xB4) {  //Main Battery Voltage (Pre Contactor)
             battery_voltage = (rx_frame.data.u8[5] << 8 | rx_frame.data.u8[6]) / 10;
@@ -771,23 +788,16 @@ void handle_incoming_can_frame_battery(CAN_frame rx_frame) {
 #endif  // DEBUG_LOG
         }
 
-        // Example:
-        // parseBatteryData(gUDSContext.UDS_buffer, gUDSContext.UDS_bytesReceived);
+        if (gUDSContext.UDS_moduleID == 0x7E) {  // Voltage Limits
+          max_design_voltage = (gUDSContext.UDS_buffer[3] << 8 | gUDSContext.UDS_buffer[4]) / 10;
+          min_design_voltage = (gUDSContext.UDS_buffer[5] << 8 | gUDSContext.UDS_buffer[6]) / 10;
+        }
+        if (gUDSContext.UDS_moduleID == 0x7D) {  // Current Limits
+          allowable_charge_amps = (gUDSContext.UDS_buffer[3] << 8 | gUDSContext.UDS_buffer[4]) / 10;
+          allowable_discharge_amps = (gUDSContext.UDS_buffer[5] << 8 | gUDSContext.UDS_buffer[6]) / 10;
+        }
       }
 
-      //moved away from UDS - using SME default sent message
-      //if (rx_frame.DLC = 8 && rx_frame.data.u8[4] == 0xDD &&
-      //                   rx_frame.data.u8[5] == 0xC0) {  //Cell Temp Min - continue frame follows
-      //  min_battery_temperature = (rx_frame.data.u8[6] << 8 | rx_frame.data.u8[7]) / 10;
-      //}
-
-      // if (rx_frame.DLC =
-      //         7 &&
-      //         rx_frame.data.u8[1] ==
-      //             0x21) {  //Cell Temp Max/Avg - is continue frame - fingerprinting needs improving as 0xF1 0x21 is used by other continues
-      //   max_battery_temperature = (rx_frame.data.u8[2] << 8 | rx_frame.data.u8[3]) / 10;
-      //   avg_battery_temperature = (rx_frame.data.u8[4] << 8 | rx_frame.data.u8[5]) / 10;
-      // }
       break;
     }
     case 0x1FA:  //BMS [1000ms] Status Of High-Voltage Battery - 1

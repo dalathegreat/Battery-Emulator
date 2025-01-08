@@ -187,23 +187,26 @@ String advanced_battery_processor(const String& var) {
                                         "Invalid Signal"};
     content +=
         "<h4>Cold shutoff valve: " + String(contText[datalayer_extended.bmwphev.ST_cold_shutoff_valve]) + "</h4>";
-    content += "<br>";
-    content += "<h4>Todo";
-    content += "<br>";
-    content += "<h4>Max Design Voltage: " + String(datalayer.battery.info.max_design_voltage_dV) + " dV</h4>";
-    content += "<h4>Min Design Voltage: " + String(datalayer.battery.info.min_design_voltage_dV) + " dV</h4>";
-    content += "<h4>Max Cell Design Voltage: " + String(datalayer.battery.info.max_cell_voltage_mV) + " mV</h4>";
-    content += "<h4>Min Cell Design Voltage: " + String(datalayer.battery.info.min_cell_voltage_mV) + " mV</h4>";
     content +=
         "<h4>Min Cell Voltage Data Age: " + String(datalayer_extended.bmwphev.min_cell_voltage_data_age) + " ms</h4>";
     content +=
         "<h4>Max Cell Voltage Data Age: " + String(datalayer_extended.bmwphev.max_cell_voltage_data_age) + " ms</h4>";
+    content += "<h4>Max Design Voltage: " + String(datalayer.battery.info.max_design_voltage_dV) + " dV</h4>";
+    content += "<h4>Min Design Voltage: " + String(datalayer.battery.info.min_design_voltage_dV) + " dV</h4>";
+    content += "<h4>BMS Allowed Charge Amps: " + String(datalayer_extended.bmwphev.allowable_charge_amps) + " A</h4>";
+    content +=
+        "<h4>BMS Allowed Disharge Amps: " + String(datalayer_extended.bmwphev.allowable_discharge_amps) + " A</h4>";
+    content += "<br>";
+    content += "<h4>Todo";
+    content += "<br>";
+
+    content += "<h4>Max Cell Design Voltage: " + String(datalayer.battery.info.max_cell_voltage_mV) + " mV</h4>";
+    content += "<h4>Min Cell Design Voltage: " + String(datalayer.battery.info.min_cell_voltage_mV) + " mV</h4>";
+
     static const char* hvilText[2] = {"Error (Loop Open)", "OK (Loop Closed)"};
     content += "<h4>HVIL Status: " + String(hvilText[datalayer_extended.bmwphev.hvil_status]) + "</h4>";
     content += "<h4>BMS Uptime: " + String(datalayer_extended.bmwphev.bms_uptime) + " seconds</h4>";
-    content += "<h4>BMS Allowed Charge Amps: " + String(datalayer_extended.bmwphev.allowable_charge_amps) + " A</h4>";
-    content +=
-        "<h4>BMS Allowed Disharge Amps: " + String(datalayer_extended.bmwix.allowable_discharge_amps) + " A</h4>";
+
     content += "<h4>T30 Terminal Voltage: " + String(datalayer_extended.bmwphev.T30_Voltage) + " mV</h4>";
     content += "<h4>Detected Cell Count: " + String(datalayer.battery.info.number_of_cells) + "</h4>";
     content += "<br>";
