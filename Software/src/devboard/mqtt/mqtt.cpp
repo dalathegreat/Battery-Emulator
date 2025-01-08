@@ -5,6 +5,7 @@
 #include "../../../USER_SECRETS.h"
 #include "../../../USER_SETTINGS.h"
 #include "../../battery/BATTERIES.h"
+#include "../../communication/contactorcontrol/comm_contactorcontrol.h"
 #include "../../datalayer/datalayer.h"
 #include "../../lib/bblanchon-ArduinoJson/ArduinoJson.h"
 #include "../../lib/knolleary-pubsubclient/PubSubClient.h"
@@ -20,6 +21,7 @@ MyTimer check_global_timer(800);     // check timmer - low-priority MQTT checks,
 static String topic_name = "";
 static String object_id_prefix = "";
 static String device_name = "";
+static String device_id = "";
 
 // Tracking reconnection attempts and failures
 static unsigned long lastReconnectAttempt = 0;
@@ -90,6 +92,8 @@ SensorConfig sensorConfigs[] = {
 #endif  // DOUBLE_BATTERY
 };
 
+SensorConfig buttonConfigs[] = {{"BMSRESET", "Reset BMS", "", "", ""}};
+
 static String generateCommonInfoAutoConfigTopic(const char* object_id) {
   return "homeassistant/sensor/" + topic_name + "/" + String(object_id) + "/config";
 }
@@ -100,6 +104,14 @@ static String generateCellVoltageAutoConfigTopic(int cell_number, String battery
 
 static String generateEventsAutoConfigTopic(const char* object_id) {
   return "homeassistant/sensor/" + topic_name + "/" + String(object_id) + "/config";
+}
+
+static String generateButtonTopic(const char* subtype) {
+  return "homeassistant/button/" + topic_name + "/" + String(subtype);
+}
+
+static String generateButtonAutoConfigTopic(const char* subtype) {
+  return generateButtonTopic(subtype) + "/config";
 }
 
 #endif  // HA_AUTODISCOVERY
@@ -130,7 +142,7 @@ static void publish_common_info(void) {
       }
       doc["enabled_by_default"] = true;
       doc["expire_after"] = 240;
-      doc["device"]["identifiers"][0] = "battery-emulator";
+      doc["device"]["identifiers"][0] = ha_device_id;
       doc["device"]["manufacturer"] = "DalaTech";
       doc["device"]["model"] = "BatteryEmulator";
       doc["device"]["name"] = device_name;
@@ -235,7 +247,7 @@ static void publish_cell_voltages(void) {
         doc["enabled_by_default"] = true;
         doc["expire_after"] = 240;
         doc["value_template"] = "{{ value_json.cell_voltages[" + String(i) + "] }}";
-        doc["device"]["identifiers"][0] = "battery-emulator";
+        doc["device"]["identifiers"][0] = ha_device_id;
         doc["device"]["manufacturer"] = "DalaTech";
         doc["device"]["model"] = "BatteryEmulator";
         doc["device"]["name"] = device_name;
@@ -264,7 +276,7 @@ static void publish_cell_voltages(void) {
         doc["enabled_by_default"] = true;
         doc["expire_after"] = 240;
         doc["value_template"] = "{{ value_json.cell_voltages[" + String(i) + "] }}";
-        doc["device"]["identifiers"][0] = "battery-emulator";
+        doc["device"]["identifiers"][0] = ha_device_id;
         doc["device"]["manufacturer"] = "DalaTech";
         doc["device"]["model"] = "BatteryEmulator";
         doc["device"]["name"] = device_name;
@@ -343,7 +355,7 @@ void publish_events() {
     doc["json_attributes_topic"] = state_topic;
     doc["json_attributes_template"] = "{{ value_json | tojson }}";
     doc["enabled_by_default"] = true;
-    doc["device"]["identifiers"][0] = "battery-emulator";
+    doc["device"]["identifiers"][0] = ha_device_id;
     doc["device"]["manufacturer"] = "DalaTech";
     doc["device"]["model"] = "BatteryEmulator";
     doc["device"]["name"] = device_name;
@@ -400,6 +412,66 @@ void publish_events() {
 #endif  // HA_AUTODISCOVERY
 }
 
+static void publish_buttons_discovery(void) {
+#ifdef HA_AUTODISCOVERY
+  static bool mqtt_first_transmission = true;
+  if (mqtt_first_transmission == true) {
+    mqtt_first_transmission = false;
+
+#ifdef DEBUG_LOG
+    logging.println("Publishing buttons discovery");
+#endif  // DEBUG_LOG
+
+    static JsonDocument doc;
+    for (int i = 0; i < sizeof(buttonConfigs) / sizeof(buttonConfigs[0]); i++) {
+      SensorConfig& config = buttonConfigs[i];
+      doc["name"] = config.name;
+      doc["unique_id"] = config.object_id;
+      doc["command_topic"] = generateButtonTopic(config.object_id);
+      doc["enabled_by_default"] = true;
+      doc["expire_after"] = 240;
+      doc["device"]["identifiers"][0] = ha_device_id;
+      doc["device"]["manufacturer"] = "DalaTech";
+      doc["device"]["model"] = "BatteryEmulator";
+      doc["device"]["name"] = device_name;
+      doc["origin"]["name"] = "BatteryEmulator";
+      doc["origin"]["sw"] = String(version_number) + "-mqtt";
+      doc["origin"]["url"] = "https://github.com/dalathegreat/Battery-Emulator";
+      serializeJson(doc, mqtt_msg);
+      mqtt_publish(generateButtonAutoConfigTopic(config.object_id).c_str(), mqtt_msg, true);
+      doc.clear();
+    }
+  }
+#endif  // HA_AUTODISCOVERY
+}
+
+static void subscribe() {
+  for (int i = 0; i < sizeof(buttonConfigs) / sizeof(buttonConfigs[0]); i++) {
+    SensorConfig& config = buttonConfigs[i];
+    const char* topic = generateButtonTopic(config.object_id).c_str();
+#ifdef DEBUG_LOG
+    logging.printf("Subscribing to topic: [%s]\n", topic);
+#endif  // DEBUG_LOG
+    client.subscribe(topic);
+  }
+}
+
+void mqtt_message_received(char* topic, byte* payload, unsigned int length) {
+#ifdef DEBUG_LOG
+  logging.printf("MQTT message arrived: [%s]\n", topic);
+#endif  // DEBUG_LOG
+
+#ifdef REMOTE_BMS_RESET
+  const char* bmsreset_topic = generateButtonTopic("BMSRESET").c_str();
+  if (strcmp(topic, bmsreset_topic) == 0) {
+#ifdef DEBUG_LOG
+    logging.println("Triggering BMS reset");
+#endif  // DEBUG_LOG
+    start_bms_reset();
+  }
+#endif  // REMOTE_BMS_RESET
+}
+
 /* If we lose the connection, get it back */
 static bool reconnect() {
 // attempt one reconnection
@@ -414,6 +486,10 @@ static bool reconnect() {
     clear_event(EVENT_MQTT_DISCONNECT);
     set_event(EVENT_MQTT_CONNECT, 0);
     reconnectAttempts = 0;  // Reset attempts on successful connection
+#ifdef HA_AUTODISCOVERY
+    publish_buttons_discovery();
+#endif
+    subscribe();
 #ifdef DEBUG_LOG
     logging.println("connected");
 #endif  // DEBUG_LOG
@@ -440,16 +516,18 @@ void init_mqtt(void) {
   topic_name = mqtt_topic_name;
   object_id_prefix = mqtt_object_id_prefix;
   device_name = mqtt_device_name;
+  device_id = ha_device_id;
 #else
   // Use default naming based on WiFi hostname for topic, object ID prefix, and device name
   topic_name = "battery-emulator_" + String(WiFi.getHostname());
   object_id_prefix = String(WiFi.getHostname()) + String("_");
   device_name = "BatteryEmulator_" + String(WiFi.getHostname());
-
+  device_id = "battery-emulator";
 #endif
 #endif
 
   client.setServer(MQTT_SERVER, MQTT_PORT);
+  client.setCallback(mqtt_message_received);
 #ifdef DEBUG_LOG
   logging.println("MQTT initialized");
 #endif  // DEBUG_LOG
