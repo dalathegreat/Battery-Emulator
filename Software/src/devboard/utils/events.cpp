@@ -87,7 +87,6 @@ void run_event_handling(void) {
   }
   lastMillis = currentMillis;
 
-  run_sequence_on_target();
   //check_ee_write();
   update_event_level();
 }
