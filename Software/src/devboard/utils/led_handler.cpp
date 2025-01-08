@@ -2,7 +2,6 @@
 #include "../../datalayer/datalayer.h"
 #include "../../include.h"
 #include "events.h"
-#include "timer.h"
 #include "value_mapping.h"
 
 #define COLOR_GREEN(x) (((uint32_t)0 << 16) | ((uint32_t)x << 8) | 0)
@@ -30,58 +29,43 @@ led_color led_get_color() {
 }
 
 void LED::exe(void) {
-  // Don't run too often
-  if (!timer.elapsed()) {
-    return;
-  }
 
-  switch (state) {
+  // Update brightness
+  switch (mode) {
+    case led_mode::FLOW:
+      flow_run();
+      break;
+    case led_mode::HEARTBEAT:
+      heartbeat_run();
+      break;
+    case led_mode::CLASSIC:
     default:
-    case LED_NORMAL:
-      // Update brightness
-      switch (mode) {
-        case led_mode::FLOW:
-          flow_run();
-          break;
-        case led_mode::HEARTBEAT:
-          heartbeat_run();
-          break;
-        case led_mode::CLASSIC:
-        default:
-          classic_run();
-          break;
-      }
-
-      // Set color
-      switch (get_event_level()) {
-        case EVENT_LEVEL_INFO:
-          color = led_color::GREEN;
-          pixels.setPixelColor(0, COLOR_GREEN(brightness));  // Green pulsing LED
-          break;
-        case EVENT_LEVEL_WARNING:
-          color = led_color::YELLOW;
-          pixels.setPixelColor(0, COLOR_YELLOW(brightness));  // Yellow pulsing LED
-          break;
-        case EVENT_LEVEL_DEBUG:
-        case EVENT_LEVEL_UPDATE:
-          color = led_color::BLUE;
-          pixels.setPixelColor(0, COLOR_BLUE(brightness));  // Blue pulsing LED
-          break;
-        case EVENT_LEVEL_ERROR:
-          color = led_color::RED;
-          pixels.setPixelColor(0, COLOR_RED(LED_MAX_BRIGHTNESS));  // Red LED full brightness
-          break;
-        default:
-          break;
-      }
-      break;
-    case LED_COMMAND:
-      break;
-    case LED_RGB:
-      rainbow_run();
+      classic_run();
       break;
   }
 
+  // Set color
+  switch (get_event_level()) {
+    case EVENT_LEVEL_INFO:
+      color = led_color::GREEN;
+      pixels.setPixelColor(0, COLOR_GREEN(brightness));  // Green pulsing LED
+      break;
+    case EVENT_LEVEL_WARNING:
+      color = led_color::YELLOW;
+      pixels.setPixelColor(0, COLOR_YELLOW(brightness));  // Yellow pulsing LED
+      break;
+    case EVENT_LEVEL_DEBUG:
+    case EVENT_LEVEL_UPDATE:
+      color = led_color::BLUE;
+      pixels.setPixelColor(0, COLOR_BLUE(brightness));  // Blue pulsing LED
+      break;
+    case EVENT_LEVEL_ERROR:
+      color = led_color::RED;
+      pixels.setPixelColor(0, COLOR_RED(LED_MAX_BRIGHTNESS));  // Red LED full brightness
+      break;
+    default:
+      break;
+  }
   pixels.show();  // This sends the updated pixel color to the hardware.
 }
 
@@ -133,7 +117,7 @@ void LED::heartbeat_run(void) {
   } else if (period_pct < 0.25) {
     brightness_f = map_float(period_pct, 0.20f, 0.25f, heartbeat_base - heartbeat_deviation * 2, heartbeat_peak1);
   } else if (period_pct < 0.30) {
-    brightness_f = map_float(period_pct, 0.25f, 0.30f, heartbeat_peak1, heartbeat_base - heartbeat_deviation);
+    brightness_f = map_floaled_exet(period_pct, 0.25f, 0.30f, heartbeat_peak1, heartbeat_base - heartbeat_deviation);
   } else if (period_pct < 0.40) {
     brightness_f = map_float(period_pct, 0.30f, 0.40f, heartbeat_base - heartbeat_deviation, heartbeat_peak2);
   } else if (period_pct < 0.55) {
@@ -143,39 +127,6 @@ void LED::heartbeat_run(void) {
   }
 
   brightness = (uint8_t)(brightness_f * LED_MAX_BRIGHTNESS);
-}
-
-void LED::rainbow_run(void) {
-  brightness = LED_MAX_BRIGHTNESS / 2;
-
-  uint16_t ms = (uint16_t)(millis() % LED_PERIOD_MS);
-  float value = ((float)ms) / LED_PERIOD_MS;
-
-  // Clamp the input value to the range [0.0, 1.0]
-  value = value < 0.0f ? 0.0f : value;
-  value = value > 1.0f ? 1.0f : value;
-
-  uint8_t r = 0, g = 0, b = 0;
-
-  // Scale the value to the range [0, 3), which will be used to transition through the colors
-  float scaledValue = value * 3.0f;
-
-  if (scaledValue < 1.0f) {
-    // From red to green
-    r = static_cast<uint8_t>((1.0f - scaledValue) * brightness);
-    g = static_cast<uint8_t>((scaledValue - 0.0f) * brightness);
-  } else if (scaledValue < 2.0f) {
-    // From green to blue
-    g = static_cast<uint8_t>((2.0f - scaledValue) * brightness);
-    b = static_cast<uint8_t>((scaledValue - 1.0f) * brightness);
-  } else {
-    // From blue back to red
-    b = static_cast<uint8_t>((3.0f - scaledValue) * brightness);
-    r = static_cast<uint8_t>((scaledValue - 2.0f) * brightness);
-  }
-
-  // Assemble the color
-  pixels.setPixelColor(0, pixels.Color(r, g, b));  // RGB
 }
 
 uint8_t LED::up_down(float middle_point_f) {
