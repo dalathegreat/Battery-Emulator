@@ -59,6 +59,7 @@ SensorConfig sensorConfigs[] = {
     {"battery_current", "Battery Current", "{{ value_json.battery_current }}", "A", "current"},
     {"cell_max_voltage", "Cell Max Voltage", "{{ value_json.cell_max_voltage }}", "V", "voltage"},
     {"cell_min_voltage", "Cell Min Voltage", "{{ value_json.cell_min_voltage }}", "V", "voltage"},
+    {"cell_voltage_delta", "Cell Voltage Delta", "{{ value_json.cell_voltage_delta }}", "mV", "voltage"},
     {"battery_voltage", "Battery Voltage", "{{ value_json.battery_voltage }}", "V", "voltage"},
     {"total_capacity", "Battery Total Capacity", "{{ value_json.total_capacity }}", "Wh", "energy"},
     {"remaining_capacity", "Battery Remaining Capacity (scaled)", "{{ value_json.remaining_capacity }}", "Wh",
@@ -79,6 +80,7 @@ SensorConfig sensorConfigs[] = {
     {"battery_current_2", "Battery 2 Current", "{{ value_json.battery_current_2 }}", "A", "current"},
     {"cell_max_voltage_2", "Cell Max Voltage 2", "{{ value_json.cell_max_voltage_2 }}", "V", "voltage"},
     {"cell_min_voltage_2", "Cell Min Voltage 2", "{{ value_json.cell_min_voltage_2 }}", "V", "voltage"},
+    {"cell_voltage_delta_2", "Cell Voltage Delta 2", "{{ value_json.cell_voltage_delta_2 }}", "mV", "voltage"},
     {"battery_voltage_2", "Battery 2 Voltage", "{{ value_json.battery_voltage_2 }}", "V", "voltage"},
     {"total_capacity_2", "Battery 2 Total Capacity", "{{ value_json.total_capacity_2 }}", "Wh", "energy"},
     {"remaining_capacity_2", "Battery 2 Remaining Capacity (scaled)", "{{ value_json.remaining_capacity_2 }}", "Wh",
@@ -174,6 +176,8 @@ static void publish_common_info(void) {
           datalayer.battery.status.cell_voltages_mV[datalayer.battery.info.number_of_cells - 1] != 0u) {
         doc["cell_max_voltage"] = ((float)datalayer.battery.status.cell_max_voltage_mV) / 1000.0;
         doc["cell_min_voltage"] = ((float)datalayer.battery.status.cell_min_voltage_mV) / 1000.0;
+        doc["cell_voltage_delta"] = ((float)datalayer.battery.status.cell_max_voltage_mV) -
+                                    ((float)datalayer.battery.status.cell_min_voltage_mV);
       }
       doc["total_capacity"] = ((float)datalayer.battery.info.total_capacity_Wh);
       doc["remaining_capacity_real"] = ((float)datalayer.battery.status.remaining_capacity_Wh);
@@ -197,6 +201,8 @@ static void publish_common_info(void) {
           datalayer.battery2.status.cell_voltages_mV[datalayer.battery2.info.number_of_cells - 1] != 0u) {
         doc["cell_max_voltage_2"] = ((float)datalayer.battery2.status.cell_max_voltage_mV) / 1000.0;
         doc["cell_min_voltage_2"] = ((float)datalayer.battery2.status.cell_min_voltage_mV) / 1000.0;
+        doc["cell_voltage_delta_2"] = ((float)datalayer.battery2.status.cell_max_voltage_mV) -
+                                      ((float)datalayer.battery2.status.cell_min_voltage_mV);
       }
       doc["total_capacity_2"] = ((float)datalayer.battery2.info.total_capacity_Wh);
       doc["remaining_capacity_real_2"] = ((float)datalayer.battery2.status.remaining_capacity_Wh);
