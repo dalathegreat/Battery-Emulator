@@ -344,7 +344,7 @@ static uint8_t contactor_status_precharge = 0;  //TODO E5 BF
 static uint8_t contactor_status_negative = 0;   //TODO E5 BF
 static uint8_t contactor_status_positive = 0;   //TODO E5 BF
 static uint8_t uds_req_id_counter = 0;
-static uint8_t detected_number_of_cells = 108;
+static uint8_t detected_number_of_cells = 96;
 const unsigned long STALE_PERIOD =
     STALE_PERIOD_CONFIG;  // Time in milliseconds to check for staleness (e.g., 5000 ms = 5 seconds)
 
