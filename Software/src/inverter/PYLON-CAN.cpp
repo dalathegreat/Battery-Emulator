@@ -166,12 +166,12 @@ void update_values_can_inverter() {  //This function maps all the values fetched
   PYLON_4210.data.u8[5] = ((datalayer.battery.status.temperature_max_dC + 1000) >> 8);
   PYLON_4211.data.u8[4] = ((datalayer.battery.status.temperature_max_dC + 1000) & 0x00FF);
   PYLON_4211.data.u8[5] = ((datalayer.battery.status.temperature_max_dC + 1000) >> 8);
-#else
+#else   // Not INVERT_LOW_HIGH_BYTES
   PYLON_4210.data.u8[4] = ((datalayer.battery.status.temperature_max_dC + 1000) >> 8);
   PYLON_4210.data.u8[5] = ((datalayer.battery.status.temperature_max_dC + 1000) & 0x00FF);
   PYLON_4211.data.u8[4] = ((datalayer.battery.status.temperature_max_dC + 1000) >> 8);
   PYLON_4211.data.u8[5] = ((datalayer.battery.status.temperature_max_dC + 1000) & 0x00FF);
-#endif
+#endif  // INVERT_LOW_HIGH_BYTES
   //SOC (100.00%)
   PYLON_4210.data.u8[6] = (datalayer.battery.status.reported_soc / 100);  //Remove decimals
   PYLON_4211.data.u8[6] = (datalayer.battery.status.reported_soc / 100);  //Remove decimals
@@ -204,12 +204,12 @@ void update_values_can_inverter() {  //This function maps all the values fetched
   PYLON_4210.data.u8[3] = ((datalayer.battery.status.current_dA + 30000) >> 8);
   PYLON_4211.data.u8[2] = ((datalayer.battery.status.current_dA + 30000) & 0x00FF);
   PYLON_4211.data.u8[3] = ((datalayer.battery.status.current_dA + 30000) >> 8);
-#else
+#else   // Not SET_30K_OFFSET
   PYLON_4210.data.u8[2] = (datalayer.battery.status.current_dA & 0x00FF);
   PYLON_4210.data.u8[3] = (datalayer.battery.status.current_dA >> 8);
   PYLON_4211.data.u8[2] = (datalayer.battery.status.current_dA & 0x00FF);
   PYLON_4211.data.u8[3] = (datalayer.battery.status.current_dA >> 8);
-#endif
+#endif  //SET_30K_OFFSET
 
   // BMS Temperature (We dont have BMS temp, send max cell voltage instead)
   PYLON_4210.data.u8[4] = ((datalayer.battery.status.temperature_max_dC + 1000) & 0x00FF);
@@ -241,7 +241,7 @@ void update_values_can_inverter() {  //This function maps all the values fetched
   PYLON_4220.data.u8[7] = ((30000 - datalayer.battery.status.max_discharge_current_dA) >> 8);
   PYLON_4221.data.u8[6] = ((30000 - datalayer.battery.status.max_discharge_current_dA) & 0x00FF);
   PYLON_4221.data.u8[7] = ((30000 - datalayer.battery.status.max_discharge_current_dA) >> 8);
-#else
+#else   // Not SET_30K_OFFSET
   //Max ChargeCurrent
   PYLON_4220.data.u8[4] = (datalayer.battery.status.max_charge_current_dA & 0x00FF);
   PYLON_4220.data.u8[5] = (datalayer.battery.status.max_charge_current_dA >> 8);
@@ -253,7 +253,7 @@ void update_values_can_inverter() {  //This function maps all the values fetched
   PYLON_4220.data.u8[7] = (datalayer.battery.status.max_discharge_current_dA >> 8);
   PYLON_4221.data.u8[6] = (datalayer.battery.status.max_discharge_current_dA & 0x00FF);
   PYLON_4221.data.u8[7] = (datalayer.battery.status.max_discharge_current_dA >> 8);
-#endif
+#endif  // SET_30K_OFFSET
 
   //Max cell voltage
   PYLON_4230.data.u8[0] = (datalayer.battery.status.cell_max_voltage_mV & 0x00FF);
@@ -276,8 +276,8 @@ void update_values_can_inverter() {  //This function maps all the values fetched
   //Max/Min temperature per cell
   PYLON_4240.data.u8[2] = (datalayer.battery.status.temperature_min_dC & 0x00FF);
   PYLON_4240.data.u8[3] = (datalayer.battery.status.temperature_min_dC >> 8);
-  PYLON_4240.data.u8[2] = (datalayer.battery.status.temperature_min_dC & 0x00FF);
-  PYLON_4240.data.u8[3] = (datalayer.battery.status.temperature_min_dC >> 8);
+  PYLON_4241.data.u8[2] = (datalayer.battery.status.temperature_min_dC & 0x00FF);
+  PYLON_4241.data.u8[3] = (datalayer.battery.status.temperature_min_dC >> 8);
 
   //Max temperature per module
   PYLON_4270.data.u8[0] = (datalayer.battery.status.temperature_max_dC & 0x00FF);
@@ -290,7 +290,7 @@ void update_values_can_inverter() {  //This function maps all the values fetched
   PYLON_4270.data.u8[3] = (datalayer.battery.status.temperature_min_dC >> 8);
   PYLON_4271.data.u8[2] = (datalayer.battery.status.temperature_min_dC & 0x00FF);
   PYLON_4271.data.u8[3] = (datalayer.battery.status.temperature_min_dC >> 8);
-#else
+#else  // Not INVERT_LOW_HIGH_BYTES
   //Voltage (370.0)
   PYLON_4210.data.u8[0] = (datalayer.battery.status.voltage_dV >> 8;
   PYLON_4210.data.u8[1] = (datalayer.battery.status.voltage_dV & 0x00FF);
@@ -303,12 +303,12 @@ void update_values_can_inverter() {  //This function maps all the values fetched
   PYLON_4210.data.u8[3] = ((datalayer.battery.status.current_dA + 30000) & 0x00FF);
   PYLON_4211.data.u8[2] = ((datalayer.battery.status.current_dA + 30000) >> 8);
   PYLON_4211.data.u8[3] = ((datalayer.battery.status.current_dA + 30000) & 0x00FF);
-#else
+#else   // Not SET_30K_OFFSET
   PYLON_4210.data.u8[2] = (datalayer.battery.status.current_dA >> 8);
   PYLON_4210.data.u8[3] = (datalayer.battery.status.current_dA & 0x00FF);
   PYLON_4211.data.u8[2] = (datalayer.battery.status.current_dA >> 8);
   PYLON_4211.data.u8[3] = (datalayer.battery.status.current_dA & 0x00FF);
-#endif
+#endif  //SET_30K_OFFSET
 
   // BMS Temperature (We dont have BMS temp, send max cell voltage instead)
   PYLON_4210.data.u8[4] = ((datalayer.battery.status.temperature_max_dC + 1000) >> 8);
@@ -340,7 +340,7 @@ void update_values_can_inverter() {  //This function maps all the values fetched
   PYLON_4220.data.u8[7] = ((30000 - max_discharge_current) & 0x00FF);
   PYLON_4221.data.u8[6] = ((30000 - max_discharge_current) >> 8);
   PYLON_4221.data.u8[7] = ((30000 - max_discharge_current) & 0x00FF);
-#else
+#else   // Not SET_30K_OFFSET
   //Max ChargeCurrent
   PYLON_4220.data.u8[4] = (max_charge_current >> 8);
   PYLON_4220.data.u8[5] = (max_charge_current & 0x00FF);
@@ -352,7 +352,7 @@ void update_values_can_inverter() {  //This function maps all the values fetched
   PYLON_4220.data.u8[7] = (max_discharge_current & 0x00FF);
   PYLON_4221.data.u8[6] = (max_discharge_current >> 8);
   PYLON_4221.data.u8[7] = (max_discharge_current & 0x00FF);
-#endif
+#endif  //SET_30K_OFFSET
 
   //Max cell voltage
   PYLON_4230.data.u8[0] = (datalayer.battery.status.cell_max_voltage_mV >> 8);
@@ -375,8 +375,8 @@ void update_values_can_inverter() {  //This function maps all the values fetched
   //Max/Min temperature per cell
   PYLON_4240.data.u8[2] = (datalayer.battery.status.temperature_min_dC >> 8);
   PYLON_4240.data.u8[3] = (datalayer.battery.status.temperature_min_dC & 0x00FF);
-  PYLON_4240.data.u8[2] = (datalayer.battery.status.temperature_min_dC >> 8);
-  PYLON_4240.data.u8[3] = (datalayer.battery.status.temperature_min_dC & 0x00FF);
+  PYLON_4241.data.u8[2] = (datalayer.battery.status.temperature_min_dC >> 8);
+  PYLON_4241.data.u8[3] = (datalayer.battery.status.temperature_min_dC & 0x00FF);
 
   //Max temperature per module
   PYLON_4270.data.u8[0] = (datalayer.battery.status.temperature_max_dC >> 8);
@@ -390,24 +390,6 @@ void update_values_can_inverter() {  //This function maps all the values fetched
   PYLON_4271.data.u8[2] = (datalayer.battery.status.temperature_min_dC >> 8);
   PYLON_4271.data.u8[3] = (datalayer.battery.status.temperature_min_dC & 0x00FF);
 #endif
-
-  //Max/Min cell voltage
-  PYLON_4230.data.u8[0] = (datalayer.battery.status.cell_max_voltage_mV >> 8);
-  PYLON_4230.data.u8[1] = (datalayer.battery.status.cell_max_voltage_mV & 0x00FF);
-  PYLON_4230.data.u8[2] = (datalayer.battery.status.cell_min_voltage_mV >> 8);
-  PYLON_4230.data.u8[3] = (datalayer.battery.status.cell_min_voltage_mV & 0x00FF);
-
-  //Max/Min temperature per cell
-  PYLON_4240.data.u8[0] = (datalayer.battery.status.temperature_max_dC >> 8);
-  PYLON_4240.data.u8[1] = (datalayer.battery.status.temperature_max_dC & 0x00FF);
-  PYLON_4240.data.u8[2] = (datalayer.battery.status.temperature_min_dC >> 8);
-  PYLON_4240.data.u8[3] = (datalayer.battery.status.temperature_min_dC & 0x00FF);
-
-  //Max/Min temperature per module
-  PYLON_4270.data.u8[0] = (datalayer.battery.status.temperature_max_dC >> 8);
-  PYLON_4270.data.u8[1] = (datalayer.battery.status.temperature_max_dC & 0x00FF);
-  PYLON_4270.data.u8[2] = (datalayer.battery.status.temperature_min_dC >> 8);
-  PYLON_4270.data.u8[3] = (datalayer.battery.status.temperature_min_dC & 0x00FF);
 
   //In case we run into any errors/faults, we can set charge / discharge forbidden
   if (datalayer.battery.status.bms_status == FAULT) {
