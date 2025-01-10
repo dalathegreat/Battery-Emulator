@@ -2715,13 +2715,17 @@ the first, for a few cycles, then stop all  messages which causes the contactor 
         transmit_can_frame(&TESLA_221_1, can_config.battery_double);
         transmit_can_frame(&TESLA_221_2, can_config.battery_double);
       }
-#endif        //DOUBLE_BATTERY
-    } else {  // Faulted state, or inverter blocks contactor closing
+#endif                                                     //DOUBLE_BATTERY
+    } else {                                               // Faulted state, or inverter blocks contactor closing
+      datalayer.battery.status.max_charge_power_W = 0;     //Prepare for contactor opening
+      datalayer.battery.status.max_discharge_power_W = 0;  //Signal to inverter no power in/out
       if (sendContactorClosingMessagesStill > 0) {
         transmit_can_frame(&TESLA_221_1, can_config.battery);
         sendContactorClosingMessagesStill--;
 
 #ifdef DOUBLE_BATTERY
+        datalayer.battery2.status.max_charge_power_W = 0;     //Prepare for contactor opening
+        datalayer.battery2.status.max_discharge_power_W = 0;  //Signal to inverter no power in/out
         transmit_can_frame(&TESLA_221_1, can_config.battery_double);
 #endif  //DOUBLE_BATTERY
       }
