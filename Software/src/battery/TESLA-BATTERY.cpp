@@ -848,6 +848,10 @@ void update_values_battery() {  //This function maps all the values fetched via 
   if (datalayer.battery.status.max_discharge_power_W > MAXDISCHARGEPOWERALLOWED) {
     datalayer.battery.status.max_discharge_power_W = MAXDISCHARGEPOWERALLOWED;
   }
+  // Extra safety check to prevent battery from overdischarging. Zero if we are 50mV from the contactor opening limit
+  if (datalayer.battery.status.cell_min_voltage_mV < (datalayer.battery.info.min_cell_voltage_mV + 50)) {
+    datalayer.battery.status.max_discharge_power_W = 0;
+  }
 
   //The allowed charge power behaves strangely. We instead estimate this value
   if (battery_soc_ui > 990) {
