@@ -83,7 +83,8 @@ static int16_t inverter_temperature = 0;
 static uint16_t remaining_capacity_ah = 0;
 static uint16_t fully_charged_capacity_ah = 0;
 static long inverter_timestamp = 0;
-static bool initialDataSent = 0;
+static bool initialDataSent = false;
+static bool inverterStartedUp = false;
 
 void update_values_can_inverter() {  //This function maps all the values fetched from battery CAN to the correct CAN messages
 
@@ -167,6 +168,7 @@ void update_values_can_inverter() {  //This function maps all the values fetched
 void map_can_frame_to_variable_inverter(CAN_frame rx_frame) {
   switch (rx_frame.ID) {
     case 0x151:  //Message originating from BYD HVS compatible inverter. Reply with CAN identifier!
+      inverterStartedUp = true;
       datalayer.system.status.CAN_inverter_still_alive = CAN_STILL_ALIVE;
       if (rx_frame.data.u8[0] & 0x01) {  //Battery requests identification
         send_intial_data();
@@ -177,16 +179,19 @@ void map_can_frame_to_variable_inverter(CAN_frame rx_frame) {
       }
       break;
     case 0x091:
+      inverterStartedUp = true;
       datalayer.system.status.CAN_inverter_still_alive = CAN_STILL_ALIVE;
       inverter_voltage = ((rx_frame.data.u8[0] << 8) | rx_frame.data.u8[1]) * 0.1;
       inverter_current = ((rx_frame.data.u8[2] << 8) | rx_frame.data.u8[3]) * 0.1;
       inverter_temperature = ((rx_frame.data.u8[4] << 8) | rx_frame.data.u8[5]) * 0.1;
       break;
     case 0x0D1:
+      inverterStartedUp = true;
       datalayer.system.status.CAN_inverter_still_alive = CAN_STILL_ALIVE;
       inverter_SOC = ((rx_frame.data.u8[0] << 8) | rx_frame.data.u8[1]) * 0.1;
       break;
     case 0x111:
+      inverterStartedUp = true;
       datalayer.system.status.CAN_inverter_still_alive = CAN_STILL_ALIVE;
       inverter_timestamp = ((rx_frame.data.u8[0] << 24) | (rx_frame.data.u8[1] << 16) | (rx_frame.data.u8[2] << 8) |
                             rx_frame.data.u8[3]);
@@ -198,10 +203,16 @@ void map_can_frame_to_variable_inverter(CAN_frame rx_frame) {
 
 void transmit_can_inverter() {
   unsigned long currentMillis = millis();
+
+  if (!inverterStartedUp) {
+    //Avoid sending messages towards inverter, unless it has woken up and sent something to us first
+    return;
+  }
+
   // Send initial CAN data once on bootup
   if (!initialDataSent) {
     send_intial_data();
-    initialDataSent = 1;
+    initialDataSent = true;
   }
 
   // Send 2s CAN Message
