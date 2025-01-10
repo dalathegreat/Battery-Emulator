@@ -23,6 +23,10 @@
 #include "FOXESS-CAN.h"
 #endif
 
+#ifdef GROWATT_LV_CAN
+#include "GROWATT-LV-CAN.h"
+#endif
+
 #ifdef PYLON_CAN
 #include "PYLON-CAN.h"
 #endif
