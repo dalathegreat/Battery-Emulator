@@ -855,8 +855,21 @@ void handle_incoming_can_frame_battery(CAN_frame rx_frame) {
       battery_status_cold_shutoff_valve = (rx_frame.data.u8[3] & 0x0F);
       battery_temperature_HV = (rx_frame.data.u8[4] - 50);
       battery_temperature_heat_exchanger = (rx_frame.data.u8[5] - 50);
-      battery_temperature_min = (rx_frame.data.u8[6] - 50);
-      battery_temperature_max = (rx_frame.data.u8[7] - 50);
+      if (rx_frame.data.u8[6] > 0) {
+        battery_temperature_min = (rx_frame.data.u8[6] - 50);
+      } else {
+#ifdef DEBUG_LOG
+        logging.println("Pre parsed Cell Temp Min (0) is Invalid ");
+#endif
+      }
+      if (rx_frame.data.u8[7] > 0) {
+        battery_temperature_max = (rx_frame.data.u8[7] - 50);
+      } else {
+#ifdef DEBUG_LOG
+        logging.println("Pre parsed Cell Temp Max (0) is Invalid ");
+#endif
+      }
+
       break;
     default:
       break;
