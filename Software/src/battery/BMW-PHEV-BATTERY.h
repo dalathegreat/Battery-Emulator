@@ -15,7 +15,7 @@
 #define MAX_CHARGE_POWER_WHEN_TOPBALANCING_W 500
 #define RAMPDOWN_SOC 9000  // (90.00) SOC% to start ramping down from max charge power towards 0 at 100.00%
 #define STALE_PERIOD_CONFIG \
-  300000;  //Number of milliseconds before critical values are classed as stale/stuck 300000 = 300 seconds
+  1800000;  //Number of milliseconds before critical values are classed as stale/stuck 900000 = 1800 seconds / 30mins
 void setup_battery(void);
 void transmit_can_frame(CAN_frame* tx_frame, int interface);
 
