@@ -7,6 +7,7 @@
 
 /* Do not change code below unless you are sure what you are doing */
 static unsigned long previousMillis100 = 0;  // will store last time a 100ms CAN Message was send
+static unsigned long previousMillis1s = 0;   // will store last time a 1s CAN Message was send
 static unsigned long previousMillis60s = 0;  // will store last time a 60s CAN Message was send
 
 static float BATT_U = 0;                 //0x3A
@@ -34,6 +35,8 @@ static uint16_t min_max_voltage[2];  //contains cell min[0] and max[1] values in
 static uint8_t cellcounter = 0;
 static uint32_t remaining_capacity = 0;
 static uint16_t cell_voltages[108];  //array with all the cellvoltages
+static bool startedUp = false;
+static uint8_t DTC_reset_counter = 0;
 
 CAN_frame VOLVO_536 = {.FD = false,
                        .ext_ID = false,
@@ -432,12 +435,23 @@ void transmit_can_battery() {
     transmit_can_frame(&VOLVO_536, can_config.battery);  //Send 0x536 Network managing frame to keep BMS alive
     transmit_can_frame(&VOLVO_372, can_config.battery);  //Send 0x372 ECMAmbientTempCalculated
 
-    if (datalayer.battery.status.bms_status == ACTIVE) {
+    if ((datalayer.battery.status.bms_status == ACTIVE) && startedUp) {
       datalayer.system.status.battery_allows_contactor_closing = true;
       transmit_can_frame(&VOLVO_140_CLOSE, can_config.battery);  //Send 0x140 Close contactors message
-    } else {  //datalayer.battery.status.bms_status == FAULT or inverter requested opening contactors
+    } else {  //datalayer.battery.status.bms_status == FAULT , OR inverter requested opening contactors, OR system not started yet
       datalayer.system.status.battery_allows_contactor_closing = false;
       transmit_can_frame(&VOLVO_140_OPEN, can_config.battery);  //Send 0x140 Open contactors message
+    }
+  }
+  if (currentMillis - previousMillis1s >= INTERVAL_1_S) {
+    previousMillis1s = currentMillis;
+
+    if (!startedUp) {
+      transmit_can_frame(&VOLVO_DTC_Erase, can_config.battery);  //Erase any DTCs preventing startup
+      DTC_reset_counter++;
+      if (DTC_reset_counter > 1) {  // Performed twice before starting
+        startedUp = true;
+      }
     }
   }
   if (currentMillis - previousMillis60s >= INTERVAL_60_S) {
