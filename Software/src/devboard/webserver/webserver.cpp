@@ -823,7 +823,6 @@ String processor(const String& var) {
         content += "#F5CC00;";
         break;
       case led_color::BLUE:
-      case led_color::RGB:
         content += "#2B35AF;";  // Blue in test mode
         break;
       case led_color::RED:

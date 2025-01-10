@@ -36,11 +36,3 @@ String uptime_formatter::getUptime()
           (String)(uptime::getMinutes()) + " minutes, " +
           (String)(uptime::getSeconds()) + " seconds";
 }
-
-//returns the actual time passed since device boot
-//in the format: x days, y hours, z minutes, s seconds, n milliseconds
-String uptime_formatter::getUptimeWithMillis()
-{
- return  uptime_formatter::getUptime()        + ", " +
-          (String)(uptime::getMilliseconds()) + " milliseconds";
-}
