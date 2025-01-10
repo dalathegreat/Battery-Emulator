@@ -186,7 +186,7 @@ String advanced_battery_processor(const String& var) {
                                         "",
                                         "Invalid Signal"};
     content +=
-        "<h4>Cold shutoff valve: " + String(contText[datalayer_extended.bmwphev.ST_cold_shutoff_valve]) + "</h4>";
+        "<h4>Cold shutoff valve: " + String(valveText[datalayer_extended.bmwphev.ST_cold_shutoff_valve]) + "</h4>";
     content +=
         "<h4>Min Cell Voltage Data Age: " + String(datalayer_extended.bmwphev.min_cell_voltage_data_age) + " ms</h4>";
     content +=
