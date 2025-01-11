@@ -532,16 +532,15 @@ void wake_battery_via_canbus() {
   // Then a second dominant pulse of similar timing.
 
   CAN_cfg.speed = CAN_SPEED_100KBPS;  //Slow down canbus to achieve wakeup timings
-  ESP32Can.CANInit(); // ReInit CAN Module?
+  ESP32Can.CANInit();                 // ReInit CAN Module?
   transmit_can_frame(&BMW_PHEV_BUS_WAKEUP_REQUEST, can_config.battery);
   transmit_can_frame(&BMW_PHEV_BUS_WAKEUP_REQUEST, can_config.battery);
-  CAN_cfg.speed = CAN_SPEED_500KBPS;  //Resume fullspeed  
-  ESP32Can.CANInit(); // ReInit CAN Module?
- 
-#ifdef DEBUG_LOG
-            logging.println("Send magic wakeup packet to SME at 100kbps...");
-#endif  
+  CAN_cfg.speed = CAN_SPEED_500KBPS;  //Resume fullspeed
+  ESP32Can.CANInit();                 // ReInit CAN Module?
 
+#ifdef DEBUG_LOG
+  logging.println("Send magic wakeup packet to SME at 100kbps...");
+#endif
 }
 void update_values_battery() {  //This function maps all the values fetched via CAN to the battery datalayer
 
