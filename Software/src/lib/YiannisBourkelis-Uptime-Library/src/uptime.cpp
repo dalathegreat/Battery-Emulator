@@ -59,19 +59,15 @@ unsigned long uptime::m_remaining_days = 0;
 //private variables that in combination hold the actual time passed
 //Use the coresponding uptime::get_.... to read these private variables
 unsigned long uptime::m_mod_milliseconds;
-unsigned long uptime::m_mod_seconds;
-unsigned long uptime::m_mod_minutes;
-unsigned long uptime::m_mod_hours;
+uint8_t uptime::m_mod_seconds;
+uint8_t uptime::m_mod_minutes;
+uint8_t uptime::m_mod_hours;
     
 uptime::uptime()
 {
 }
 
 /**** get the actual time passed from device boot time ****/
-unsigned long uptime::getMilliseconds()
-{
-  return uptime::m_mod_milliseconds;
-}
 unsigned long uptime::getSeconds()
 {
   return uptime::m_mod_seconds;

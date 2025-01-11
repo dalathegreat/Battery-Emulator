@@ -122,8 +122,9 @@ typedef struct {
   uint16_t max_user_set_discharge_voltage_dV = BATTERY_MAX_DISCHARGE_VOLTAGE;
 
   /** Tesla specific settings that are edited on the fly when manually forcing a balance charge for LFP chemistry */
-  /* Bool for specifying if user has requested manual balancing */
+  /* Bool for specifying if user has requested manual function */
   bool user_requests_balancing = false;
+  bool user_requests_isolation_clear = false;
   /* Forced balancing max time & start timestamp */
   uint32_t balancing_time_ms = 3600000;  //1h default, (60min*60sec*1000ms)
   uint32_t balancing_start_time_ms = 0;  //For keeping track when balancing started

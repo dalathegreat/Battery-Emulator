@@ -510,6 +510,8 @@ String advanced_battery_processor(const String& var) {
     static const char* falseTrue[] = {"False", "True"};
     static const char* noYes[] = {"No", "Yes"};
     static const char* Fault[] = {"NOT_ACTIVE", "ACTIVE"};
+    //Buttons for user action
+    content += "<button onclick='askClearIsolation()'>Clear isolation fault</button>";
     //0x20A 522 HVP_contatorState
     content += "<h4>Contactor Status: " + String(contactorText[datalayer_extended.tesla.status_contactor]) + "</h4>";
     content += "<h4>HVIL: " + String(hvilStatusState[datalayer_extended.tesla.hvil_status]) + "</h4>";
@@ -1149,6 +1151,18 @@ String advanced_battery_processor(const String& var) {
 #endif
 
     content += "</div>";
+    content += "<script>";
+    content +=
+        "function askClearIsolation() { if (window.confirm('Are you sure you want to clear any active isolation "
+        "fault?')) { "
+        "clearIsolation(); } }";
+    content += "function clearIsolation() {";
+    content += "  var xhr = new XMLHttpRequest();";
+    content += "  xhr.open('GET', '/clearIsolation', true);";
+    content += "  xhr.send();";
+    content += "}";
+    content += "function goToMainPage() { window.location.href = '/'; }";
+    content += "</script>";
     content += "<script>";
     content +=
         "function askResetSOH() { if (window.confirm('Are you sure you want to reset degradation data? "

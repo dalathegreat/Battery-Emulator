@@ -50,14 +50,8 @@
  * Description:
  * The period of whatever LED mode is active. If CLASSIC, then a ramp up and ramp down will finish in
  * LED_PERIOD_MS milliseconds
- * 
- * Parameter: LED_EXECUTION_FREQUENCY
- * Description:
- * Defines how often the LED handling will run, basically the FPS. The animation will honor its overall
- * frequency but the animation will be choppier
 */
 #define LED_MODE_DEFAULT FLOW
 #define LED_PERIOD_MS 3000
-#define LED_EXECUTION_FREQUENCY 50
 
 #endif

@@ -385,6 +385,15 @@ void init_webserver() {
     }
   });
 
+  // Route for clearing isolation faults on Tesla
+  server.on("/clearIsolation", HTTP_GET, [](AsyncWebServerRequest* request) {
+    if (WEBSERVER_AUTH_REQUIRED && !request->authenticate(http_username, http_password)) {
+      return request->requestAuthentication();
+    }
+    datalayer.battery.settings.user_requests_isolation_clear = true;
+    request->send(200, "text/plain", "Updated successfully");
+  });
+
   // Route for resetting SOH on Nissan LEAF batteries
   server.on("/resetSOH", HTTP_GET, [](AsyncWebServerRequest* request) {
     if (WEBSERVER_AUTH_REQUIRED && !request->authenticate(http_username, http_password)) {
@@ -823,7 +832,6 @@ String processor(const String& var) {
         content += "#F5CC00;";
         break;
       case led_color::BLUE:
-      case led_color::RGB:
         content += "#2B35AF;";  // Blue in test mode
         break;
       case led_color::RED:
