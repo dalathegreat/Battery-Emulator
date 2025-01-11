@@ -86,7 +86,7 @@ This code uses the following excellent libraries:
 - [knolleary/pubsubclient](https://github.com/knolleary/pubsubclient) MIT-License
 - [mackelec/SerialDataLink](https://github.com/mackelec/SerialDataLink)
 - [me-no-dev/AsyncTCP](https://github.com/me-no-dev/AsyncTCP) LGPL-3.0 license
-- [me-no-dev/ESPAsyncWebServer](https://github.com/me-no-dev/ESPAsyncWebServer)
+- [mathieucarbou/ESPAsyncWebServer](https://github.com/mathieucarbou/ESPAsyncWebServer) LGPL-3.0 license
 - [miwagner/ESP32-Arduino-CAN](https://github.com/miwagner/ESP32-Arduino-CAN/) MIT-License
 - [pierremolinaro/acan2515](https://github.com/pierremolinaro/acan2515) MIT-License
 - [pierremolinaro/acan2517FD](https://github.com/pierremolinaro/acan2517FD) MIT-License
