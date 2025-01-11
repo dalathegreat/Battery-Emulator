@@ -393,7 +393,6 @@ typedef struct {
   uint8_t HVP_shuntAuxCurrentStatus = 0;
   uint8_t HVP_shuntBarTempStatus = 0;
   uint8_t HVP_shuntAsicTempStatus = 0;
-  bool BMS352_mux = false;
 } DATALAYER_INFO_TESLA;
 
 typedef struct {
