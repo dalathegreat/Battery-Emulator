@@ -1163,7 +1163,6 @@ String advanced_battery_processor(const String& var) {
     content += "function goToMainPage() { window.location.href = '/'; }";
     content += "</script>";
     content += "<script>";
-    content += "<script>";
     content +=
         "function askResetSOH() { if (window.confirm('Are you sure you want to reset degradation data? "
         "Note this should only be used on 2011-2017 24/30kWh batteries!')) { "
