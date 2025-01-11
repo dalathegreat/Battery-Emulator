@@ -1,0 +1,22 @@
+{
+  "name":"AsyncTCPSock",
+  "description":"Reimplementation of an Asynchronous TCP Library for ESP32, using BSD Sockets",
+  "keywords":"async,tcp",
+  "authors":
+  {
+    "name": "Alex Villacís Lasso",
+    "maintainer": true
+  },
+  "repository":
+  {
+    "type": "git",
+    "url": "https://github.com/yubox-node-org/AsyncTCPSock.git"
+  },
+  "version": "1.0.2-dev",
+  "license": "LGPL-3.0",
+  "frameworks": "arduino",
+  "platforms": "espressif32",
+  "build": {
+    "libCompatMode": 2
+  }  
+}
