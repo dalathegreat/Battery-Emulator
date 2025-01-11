@@ -15,7 +15,7 @@
 #include "../../lib/pierremolinaro-ACAN2517FD/ACAN2517FD.h"
 #endif  //CANFD_ADDON
 
-void dump_frame(CAN_frame &frame, frameDirection msgDir);
+void dump_can_frame(CAN_frame &frame, frameDirection msgDir);
 
 /**
  * @brief Initialization function for CAN.
