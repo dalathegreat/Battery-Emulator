@@ -5,6 +5,7 @@
 #include "../datalayer/datalayer_extended.h"  //For "More battery info" webpage
 #include "../devboard/utils/events.h"
 #include "../communication/can/comm_can.h"
+#include "../communication/can/obd.h"
 #include "MEB-BATTERY.h"
 
 #define PRECHARGE_CONTROL
@@ -264,11 +265,6 @@ CAN_frame MEB_1A5555A6 = {.FD = true,
                           .DLC = 8,
                           .ID = 0x1A5555A6,
                           .data = {0x00, 0x00, 0x7F, 0x00, 0x00, 0x00, 0x00, 0x00}};
-CAN_frame MEB_DTC = {.FD = true,
-                          .ext_ID = false,
-                          .DLC = 8,
-                          .ID = 0x700,
-                          .data = {0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00}};
 CAN_frame MEB_585 = {
     .FD = true,
     .ext_ID = false,
@@ -1507,12 +1503,11 @@ void handle_incoming_can_frame_battery(CAN_frame rx_frame) {
       }
       break;
     case 0x18DAF105:
-      logging.printf("DTC reply frame received:\n");
-      dump_frame(rx_frame, MSG_RX);
+      handle_obd_frame(rx_frame);
       break;
     default:
       logging.printf("Unknown CAN frame received:\n");
-      dump_frame(rx_frame, MSG_RX);
+      dump_can_frame(rx_frame, MSG_RX);
       break;
   }
   datalayer.battery.status.CAN_battery_still_alive = CAN_STILL_ALIVE;
@@ -2197,16 +2192,7 @@ void transmit_can_battery() {
     transmit_can_frame(&MEB_585, can_config.battery);       // Systeminfo
     transmit_can_frame(&MEB_1A5555A6, can_config.battery);  // Temperature QBit
 
-    MEB_DTC.data.u8[0]=0x01;
-    MEB_DTC.data.u8[1]=0x03;
-    MEB_DTC.data.u8[2]=0xAA;
-    MEB_DTC.data.u8[3]=0xAA;
-    MEB_DTC.data.u8[4]=0xAA;
-    MEB_DTC.data.u8[5]=0xAA;
-    MEB_DTC.data.u8[6]=0xAA;
-    MEB_DTC.data.u8[7]=0xAA;
-    MEB_DTC.ID = 0x18DA05F1; // OBDx_Hybrid_01_Req 8 bytes
-    transmit_can_frame(&MEB_DTC, can_config.battery);  // DTC TP-ISO
+    transmit_obd_can_frame(0x18DA05F1, can_config.battery);
   }
 }
 
