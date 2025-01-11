@@ -622,7 +622,7 @@ String advanced_battery_processor(const String& var) {
     content += "<h4>BMS PCS PWM Enabled: " + String(Fault[datalayer_extended.tesla.battery_BMS_pcsPwmEnabled]) +
                "</h4>";  //bool
     //0x352 850 BMS_energyStatus
-    if (datalayer_extended.tesla.BMS352_mux == false){
+    if (datalayer_extended.tesla.BMS352_mux == false) {
       content += "<h3>Early BMS 0x352:</h3>";  //if using older BMS <2021 and comment 0x352 without MUX
       content += "<h4>Calculated SOH: " + String(nominal_full_pack_energy * 100 / beginning_of_life) + "</h4>";
       content += "<h4>Nominal Full Pack Energy: " + String(nominal_full_pack_energy) + " KWh</h4>";
@@ -631,10 +631,10 @@ String advanced_battery_processor(const String& var) {
       content += "<h4>Energy to Charge Complete: " + String(energy_to_charge_complete) + " KWh</h4>";
       content += "<h4>Energy Buffer: " + String(energy_buffer) + " KWh</h4>";
       content += "<h4>Full Charge Complete: " + String(noYes[datalayer_extended.tesla.battery_full_charge_complete]) +
-               "</h4>";  //bool
+                 "</h4>";  //bool
     }
     //0x352 850 BMS_energyStatus
-    if (datalayer_extended.tesla.BMS352_mux == true){
+    if (datalayer_extended.tesla.BMS352_mux == true) {
       content += "<h3>Late BMS 0x352 with Mux:</h3>";  //if using newer BMS >2021 and comment 0x352 with MUX
       content += "<h4>Calculated SOH: " + String(nominal_full_pack_energy_m0 * 100 / beginning_of_life) + "</h4>";
       content += "<h4>Nominal Full Pack Energy: " + String(nominal_full_pack_energy_m0) + " KWh</h4>";
@@ -643,7 +643,8 @@ String advanced_battery_processor(const String& var) {
       content += "<h4>Energy to Charge Complete: " + String(energy_to_charge_complete_m1) + " KWh</h4>";
       content += "<h4>Energy Buffer: " + String(energy_buffer_m1) + " KWh</h4>";
       content += "<h4>Expected Energy Remaining: " + String(expected_energy_remaining_m1) + " KWh</h4>";
-      content += "<h4>Fully Charged: " + String(noYes[datalayer_extended.tesla.battery_fully_charged]) + "</h4>";  //bool
+      content +=
+          "<h4>Fully Charged: " + String(noYes[datalayer_extended.tesla.battery_fully_charged]) + "</h4>";  //bool
     }
     //0x392 BMS_packConfig
     //content += "<h4>packConfigMultiplexer: " + String(datalayer_extended.tesla.battery_packConfigMultiplexer) + "</h4>"; // Not giving useable data
