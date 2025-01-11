@@ -31,6 +31,7 @@
 //#define RENAULT_TWIZY_BATTERY
 //#define RENAULT_ZOE_GEN1_BATTERY
 //#define RENAULT_ZOE_GEN2_BATTERY
+//#define SONO_BATTERY
 //#define SANTA_FE_PHEV_BATTERY
 //#define STELLANTIS_ECMP_BATTERY
 //#define TESLA_MODEL_3Y_BATTERY
@@ -45,6 +46,7 @@
 //#define BYD_KOSTAL_RS485 //Enable this line to emulate a "BYD 11kWh HVM battery" over Kostal RS485
 //#define BYD_MODBUS       //Enable this line to emulate a "BYD 11kWh HVM battery" over Modbus RTU
 //#define FOXESS_CAN       //Enable this line to emulate a "HV2600/ECS4100 battery" over CAN bus
+//#define GROWATT_LV_CAN   //Enable this line to emulate a "48V Growatt Low Voltage battery" over CAN bus
 //#define PYLON_LV_CAN     //Enable this line to emulate a "48V Pylontech battery" over CAN bus
 //#define PYLON_CAN        //Enable this line to emulate a "High Voltage Pylontech battery" over CAN bus
 //#define SCHNEIDER_CAN    //Enable this line to emulate a "Schneider Version 2: SE BMS" over CAN bus

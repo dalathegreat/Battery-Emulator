@@ -23,7 +23,7 @@
 // running on the MCP2518FD but you risk hitting issues mentioned in the MCP2517FD errata-sheet when using this option
 // on the MCP2517FD.
 //
-//#define DISABLEMCP2517FDCOMPAT 
+#define DISABLEMCP2517FDCOMPAT 
 
 //----------------------------------------------------------------------------------------------------------------------
 //   ACAN2517FD class

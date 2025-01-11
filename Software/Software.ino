@@ -8,6 +8,7 @@
 #include "esp_timer.h"
 #include "freertos/FreeRTOS.h"
 #include "freertos/task.h"
+
 #include "src/communication/can/comm_can.h"
 #include "src/communication/contactorcontrol/comm_contactorcontrol.h"
 #include "src/communication/equipmentstopbutton/comm_equipmentstopbutton.h"
@@ -19,6 +20,7 @@
 #include "src/devboard/utils/events.h"
 #include "src/devboard/utils/led_handler.h"
 #include "src/devboard/utils/logging.h"
+#include "src/devboard/utils/timer.h"
 #include "src/devboard/utils/value_mapping.h"
 #include "src/include.h"
 #include "src/lib/YiannisBourkelis-Uptime-Library/src/uptime.h"
@@ -51,7 +53,7 @@
 #endif  // WIFI
 
 // The current software version, shown on webserver
-const char* version_number = "8.1.dev";
+const char* version_number = "8.2.dev";
 
 // Interval settings
 uint16_t intervalUpdateValues = INTERVAL_1_S;  // Interval at which to update inverter values / Modbus registers
