@@ -90,6 +90,13 @@ UDS MAP
 22 DD 6A - Isolation values  62 DD 6A 07 D0 07 D0 07 D0 01 01 01 = in operation plausible/2000kOhm, in follow up plausible/2000kohm, internal iso open contactors (measured on request) pluasible/2000kohm
 31 03 AD 61 - Isolation measurement status  71 03 AD 61 00 FF = Nmeasurement status - not successful / fault satate - not defined
 22 DF A0 - Cell voltage and temps summary including min/max/average, Ah,  (ZUSTAND_SPEICHER)
+
+
+TODO:
+ BMWPHEV_6F1_REQUEST_LAST_ISO_READING - add results to advanced
+ BMWPHEV_6F1_REQUEST_PACK_INFO - add cell count reading
+ Find current measurement reading
+
 */
 
 //Vehicle CAN START
@@ -112,6 +119,15 @@ CAN_frame BMW_13E = {.FD = false,
 //Vehicle CAN END
 
 //Request Data CAN START
+
+CAN_frame BMW_PHEV_BUS_WAKEUP_REQUEST = {
+    .FD = false,
+    .ext_ID = false,
+    .DLC = 4,
+    .ID = 0x554,
+    .data = {
+        0x5A, 0xA5, 0x5A,
+        0xA5}};  // Won't work at 500kbps! Ideally sent at 50kbps - but can also achieve wakeup at 100kbps (helps with library support but might not be as reliable). Might need to be sent twice + clear buffer
 
 CAN_frame BMWPHEV_6F1_REQUEST_SOC = {.FD = false,
                                      .ext_ID = false,
@@ -137,6 +153,29 @@ CAN_frame BMWPHEV_6F1_REQUEST_VOLTAGE_LIMITS = {
     .DLC = 5,
     .ID = 0x6F1,
     .data = {0x07, 0x03, 0x22, 0xDD, 0x7E}};  //  Pack Voltage Limits  Multi Frame
+
+CAN_frame BMWPHEV_6F1_REQUEST_ISO_MEASUREMENTS = {
+    .FD = false,
+    .ext_ID = false,
+    .DLC = 5,
+    .ID = 0x6F1,
+    .data = {
+        0x07, 0x03, 0x22, 0xDD,
+        0x6A}};  //  62 D6 D9 07 FF 13  reading during contactors closed, plausible,   reading during open contactors (only on request via steurn_isolation) ( request = 31 01 AD 61)
+
+CAN_frame BMWPHEV_6F1_REQUEST_LAST_ISO_READING = {
+    .FD = false,
+    .ext_ID = false,
+    .DLC = 5,
+    .ID = 0x6F1,
+    .data = {0x07, 0x03, 0x22, 0xD6, 0xD9}};  //  62 D6 D9 07 FF 13  (2047kohm) quality of reading 0-21 (19)
+
+CAN_frame BMWPHEV_6F1_REQUEST_PACK_INFO = {
+    .FD = false,
+    .ext_ID = false,
+    .DLC = 5,
+    .ID = 0x6F1,
+    .data = {0x07, 0x03, 0x22, 0xDF, 0x71}};  //   62 DF 71 00 60 1C 25 1C? Cell Count, Module Count
 
 CAN_frame BMWPHEV_6F1_REQUEST_CURRENT_LIMITS = {
     .FD = false,
@@ -486,6 +525,24 @@ void processCellVoltages() {
   }
 }
 
+void wake_battery_via_canbus() {
+  //TJA1055 transceiver remote wake requires pulses on the bus of
+  // Dominant for at least ~7 µs (min) and at most ~38 µs (max)
+  // Followed by a Recessive interval of at least ~3 µs (min) and at most ~10 µs (max)
+  // Then a second dominant pulse of similar timing.
+
+  CAN_cfg.speed = CAN_SPEED_100KBPS;  //Slow down canbus to achieve wakeup timings
+  ESP32Can.CANInit(); // ReInit CAN Module?
+  transmit_can_frame(&BMW_PHEV_BUS_WAKEUP_REQUEST, can_config.battery);
+  transmit_can_frame(&BMW_PHEV_BUS_WAKEUP_REQUEST, can_config.battery);
+  CAN_cfg.speed = CAN_SPEED_500KBPS;  //Resume fullspeed  
+  ESP32Can.CANInit(); // ReInit CAN Module?
+ 
+#ifdef DEBUG_LOG
+            logging.println("Send magic wakeup packet to SME at 100kbps...");
+#endif  
+
+}
 void update_values_battery() {  //This function maps all the values fetched via CAN to the battery datalayer
 
   datalayer.battery.status.real_soc = avg_soc_state;
@@ -658,19 +715,41 @@ void handle_incoming_can_frame_battery(CAN_frame rx_frame) {
           if (rx_frame.DLC = 8 && rx_frame.data.u8[3] == 0xDD &&
                              rx_frame.data.u8[4] == 0xB4) {  //Main Battery Voltage (Pre Contactor)
             battery_voltage = (rx_frame.data.u8[5] << 8 | rx_frame.data.u8[6]) / 10;
+#ifdef DEBUG_LOG
+            logging.print("Received pre contactor measurement data: ");
+            logging.print(battery_voltage);
+            logging.print(" - ");
+            for (uint16_t i = 0; i < 8; i++) {
+              // Optional leading zero for single-digit hex
+              if (rx_frame.data.u8[i] < 0x10) {
+                logging.print("0");
+              }
+              logging.print(rx_frame.data.u8[i], HEX);
+              logging.print(" ");
+            }
+            logging.println();  // new line at the end
+#endif                          // DEBUG_LOG
           }
 
           if (rx_frame.DLC = 7 && rx_frame.data.u8[3] == 0xDD &&
                              rx_frame.data.u8[4] == 0x66) {  //Main Battery Voltage (Post Contactor)
             battery_voltage_after_contactor = (rx_frame.data.u8[5] << 8 | rx_frame.data.u8[6]) / 10;
+#ifdef DEBUG_LOG
+            logging.print("Received post contactor measurement data: ");
+            logging.print(battery_voltage_after_contactor);
+            logging.print(" - ");
+            for (uint16_t i = 0; i < 8; i++) {
+              // Optional leading zero for single-digit hex
+              if (rx_frame.data.u8[i] < 0x10) {
+                logging.print("0");
+              }
+              logging.print(rx_frame.data.u8[i], HEX);
+              logging.print(" ");
+            }
+            logging.println();  // new line at the end
+#endif                          // DEBUG_LOG
           }
 
-          if (rx_frame.DLC = 8 && rx_frame.data.u8[3] == 0xDD &&
-                             rx_frame.data.u8[4] == 0x69) {  //Current (32bit mA?  negative = discharge)
-            battery_current = ((int32_t)((rx_frame.data.u8[6] << 24) | (rx_frame.data.u8[7] << 16) |
-                                         (rx_frame.data.u8[8] << 8) | rx_frame.data.u8[9])) *
-                              0.01;
-          }
           if (rx_frame.DLC = 7 && rx_frame.data.u8[1] == 0x05 && rx_frame.data.u8[2] == 0x71 &&
                              rx_frame.data.u8[3] == 0x03 &&
                              rx_frame.data.u8[4] ==
@@ -798,6 +877,27 @@ void handle_incoming_can_frame_battery(CAN_frame rx_frame) {
         if (gUDSContext.UDS_moduleID == 0xA5) {  //We have a complete set of cell voltages - pass to data layer
           processCellVoltages();
         }
+        //Current measurement
+        if (gUDSContext.UDS_moduleID == 0x69) {  //Current (32bit mA?  negative = discharge)
+          battery_current = ((int32_t)((gUDSContext.UDS_buffer[3] << 24) | (gUDSContext.UDS_buffer[4] << 16) |
+                                       (gUDSContext.UDS_buffer[5] << 8) | gUDSContext.UDS_buffer[6])) *
+                            0.1;
+#ifdef DEBUG_LOG
+          logging.print("Received current/amps measurement data: ");
+          logging.print(battery_current);
+          logging.print(" - ");
+          for (uint16_t i = 0; i < gUDSContext.UDS_bytesReceived; i++) {
+            // Optional leading zero for single-digit hex
+            if (gUDSContext.UDS_buffer[i] < 0x10) {
+              logging.print("0");
+            }
+            logging.print(gUDSContext.UDS_buffer[i], HEX);
+            logging.print(" ");
+          }
+          logging.println();  // new line at the end
+#endif                        // DEBUG_LOG
+        }
+
         //Cell Min/Max
         if (gUDSContext.UDS_moduleID ==
             0xA0) {  //We have a complete frame for cell min max - pass to data layer UNCONFIRMED IF THESE ARE CORRECT BYTES
@@ -949,7 +1049,8 @@ void transmit_can_battery() {
 void setup_battery(void) {  // Performs one time setup at startup
   strncpy(datalayer.system.info.battery_protocol, "BMW PHEV Battery", 63);
   datalayer.system.info.battery_protocol[63] = '\0';
-
+  //Wakeup the SME
+  wake_battery_via_canbus();
   //Before we have started up and detected which battery is in use, use 108S values
   datalayer.battery.info.max_design_voltage_dV = MAX_PACK_VOLTAGE_DV;
   datalayer.battery.info.min_design_voltage_dV = MIN_PACK_VOLTAGE_DV;
