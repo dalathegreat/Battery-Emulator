@@ -14,7 +14,6 @@ String advanced_battery_processor(const String& var) {
         "cursor: pointer; border-radius: 10px; }";
     content += "button:hover { background-color: #3A4A52; }";
     content += "</style>";
-    content += "<button onclick='refreshPage()'>Refresh data</button> ";  // Refresh before export
     content += "<button onclick='exportLog()'>Export to .txt</button> ";  // TO DO make this work
     content += "<button onclick='goToMainPage()'>Back to main page</button>";
 
@@ -623,25 +622,29 @@ String advanced_battery_processor(const String& var) {
     content += "<h4>BMS PCS PWM Enabled: " + String(Fault[datalayer_extended.tesla.battery_BMS_pcsPwmEnabled]) +
                "</h4>";  //bool
     //0x352 850 BMS_energyStatus
-    content += "<h3>Early BMS 0x352:</h3>";  //if using older BMS <2021 and comment 0x352 without MUX
-    content += "<h4>Calculated SOH: " + String(nominal_full_pack_energy * 100 / beginning_of_life) + "</h4>";
-    content += "<h4>Nominal Full Pack Energy: " + String(nominal_full_pack_energy) + " KWh</h4>";
-    content += "<h4>Nominal Energy Remaining: " + String(nominal_energy_remaining) + " KWh</h4>";
-    content += "<h4>Ideal Energy Remaining: " + String(ideal_energy_remaining) + " KWh</h4>";
-    content += "<h4>Energy to Charge Complete: " + String(energy_to_charge_complete) + " KWh</h4>";
-    content += "<h4>Energy Buffer: " + String(energy_buffer) + " KWh</h4>";
-    content += "<h4>Full Charge Complete: " + String(noYes[datalayer_extended.tesla.battery_full_charge_complete]) +
+    if (datalayer_extended.tesla.BMS352_mux == false){
+      content += "<h3>Early BMS 0x352:</h3>";  //if using older BMS <2021 and comment 0x352 without MUX
+      content += "<h4>Calculated SOH: " + String(nominal_full_pack_energy * 100 / beginning_of_life) + "</h4>";
+      content += "<h4>Nominal Full Pack Energy: " + String(nominal_full_pack_energy) + " KWh</h4>";
+      content += "<h4>Nominal Energy Remaining: " + String(nominal_energy_remaining) + " KWh</h4>";
+      content += "<h4>Ideal Energy Remaining: " + String(ideal_energy_remaining) + " KWh</h4>";
+      content += "<h4>Energy to Charge Complete: " + String(energy_to_charge_complete) + " KWh</h4>";
+      content += "<h4>Energy Buffer: " + String(energy_buffer) + " KWh</h4>";
+      content += "<h4>Full Charge Complete: " + String(noYes[datalayer_extended.tesla.battery_full_charge_complete]) +
                "</h4>";  //bool
+    }
     //0x352 850 BMS_energyStatus
-    content += "<h3>Late BMS 0x352 with Mux:</h3>";  //if using newer BMS >2021 and comment 0x352 with MUX
-    content += "<h4>Calculated SOH: " + String(nominal_full_pack_energy_m0 * 100 / beginning_of_life) + "</h4>";
-    content += "<h4>Nominal Full Pack Energy: " + String(nominal_full_pack_energy_m0) + " KWh</h4>";
-    content += "<h4>Nominal Energy Remaining: " + String(nominal_energy_remaining_m0) + " KWh</h4>";
-    content += "<h4>Ideal Energy Remaining: " + String(ideal_energy_remaining_m0) + " KWh</h4>";
-    content += "<h4>Energy to Charge Complete: " + String(energy_to_charge_complete_m1) + " KWh</h4>";
-    content += "<h4>Energy Buffer: " + String(energy_buffer_m1) + " KWh</h4>";
-    content += "<h4>Expected Energy Remaining: " + String(expected_energy_remaining_m1) + " KWh</h4>";
-    content += "<h4>Fully Charged: " + String(noYes[datalayer_extended.tesla.battery_fully_charged]) + "</h4>";  //bool
+    if (datalayer_extended.tesla.BMS352_mux == true){
+      content += "<h3>Late BMS 0x352 with Mux:</h3>";  //if using newer BMS >2021 and comment 0x352 with MUX
+      content += "<h4>Calculated SOH: " + String(nominal_full_pack_energy_m0 * 100 / beginning_of_life) + "</h4>";
+      content += "<h4>Nominal Full Pack Energy: " + String(nominal_full_pack_energy_m0) + " KWh</h4>";
+      content += "<h4>Nominal Energy Remaining: " + String(nominal_energy_remaining_m0) + " KWh</h4>";
+      content += "<h4>Ideal Energy Remaining: " + String(ideal_energy_remaining_m0) + " KWh</h4>";
+      content += "<h4>Energy to Charge Complete: " + String(energy_to_charge_complete_m1) + " KWh</h4>";
+      content += "<h4>Energy Buffer: " + String(energy_buffer_m1) + " KWh</h4>";
+      content += "<h4>Expected Energy Remaining: " + String(expected_energy_remaining_m1) + " KWh</h4>";
+      content += "<h4>Fully Charged: " + String(noYes[datalayer_extended.tesla.battery_fully_charged]) + "</h4>";  //bool
+    }
     //0x392 BMS_packConfig
     //content += "<h4>packConfigMultiplexer: " + String(datalayer_extended.tesla.battery_packConfigMultiplexer) + "</h4>"; // Not giving useable data
     //content += "<h4>moduleType: " + String(datalayer_extended.tesla.battery_moduleType) + "</h4>";  // Not giving useable data
@@ -1210,7 +1213,6 @@ String advanced_battery_processor(const String& var) {
     content += "</script>";
     // Additial functions added
     content += "<script>";
-    content += "function refreshPage(){ location.reload(true); }";
     content += "function exportLog() { window.location.href = '/export_log'; }";
     content += "</script>";
 
