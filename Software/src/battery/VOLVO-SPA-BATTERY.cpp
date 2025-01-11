@@ -49,13 +49,13 @@ CAN_frame VOLVO_140_CLOSE = {.FD = false,
                              .ext_ID = false,
                              .DLC = 8,
                              .ID = 0x140,
-                             .data = {0x00, 0x02, 0x00, 0xB7, 0xFF, 0x03, 0xFF, 0x83}};  //Close contactors message
+                             .data = {0x00, 0x02, 0x00, 0xB7, 0xFF, 0x03, 0xFF, 0x82}};  //Close contactors message
 
 CAN_frame VOLVO_140_OPEN = {.FD = false,
                             .ext_ID = false,
                             .DLC = 8,
                             .ID = 0x140,
-                            .data = {0x00, 0x02, 0x00, 0x9E, 0xFF, 0x03, 0xFF, 0x83}};  //Open contactor message
+                            .data = {0x00, 0x02, 0x00, 0x9E, 0xFF, 0x03, 0xFF, 0x82}};  //Open contactor message
 
 CAN_frame VOLVO_372 = {
     .FD = false,
