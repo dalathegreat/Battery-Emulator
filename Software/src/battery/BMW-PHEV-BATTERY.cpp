@@ -370,7 +370,7 @@ static bool cell_limit_info_available = false;
 
 static uint32_t battery_serial_number = 0;
 static int32_t battery_current = 0;
-static int16_t battery_voltage = 0;
+static int16_t battery_voltage = 3700;  //Initialize as valid - should be fixed in future
 static int16_t terminal30_12v_voltage = 0;
 static int16_t battery_voltage_after_contactor = 0;
 static int16_t min_soc_state = 5000;
@@ -385,8 +385,8 @@ static int32_t remaining_capacity = 0;
 static int32_t max_capacity = 0;
 
 static int16_t main_contactor_temperature = 0;
-static int16_t min_cell_voltage = 0;
-static int16_t max_cell_voltage = 0;
+static int16_t min_cell_voltage = 3700;  //Initialize as valid - should be fixed in future
+static int16_t max_cell_voltage = 3700;  //Initialize as valid - should be fixed in future
 static unsigned long min_cell_voltage_lastchanged = 0;
 static unsigned long max_cell_voltage_lastchanged = 0;
 static unsigned min_cell_voltage_lastreceived = 0;
@@ -592,6 +592,7 @@ void update_values_battery() {  //This function maps all the values fetched via 
     logging.println("Stale Min/Max voltage values detected sending - 9999mV...");
 #endif  // DEBUG_LOG
   } else {
+
     datalayer.battery.status.cell_min_voltage_mV = min_cell_voltage;  //Value is alive
     datalayer.battery.status.cell_max_voltage_mV = max_cell_voltage;  //Value is alive
   }
