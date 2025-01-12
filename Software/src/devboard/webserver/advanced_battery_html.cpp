@@ -14,7 +14,6 @@ String advanced_battery_processor(const String& var) {
         "cursor: pointer; border-radius: 10px; }";
     content += "button:hover { background-color: #3A4A52; }";
     content += "</style>";
-    content += "<button onclick='exportLog()'>Export to .txt</button> ";  // TO DO make this work
     content += "<button onclick='goToMainPage()'>Back to main page</button>";
 
     // Start a new block with a specific background color
