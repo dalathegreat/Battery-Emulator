@@ -134,7 +134,7 @@ void update_values_can_inverter() {  //This function maps all the values fetched
   GROWATT_313.data.u8[5] = (datalayer.battery.status.temperature_max_dC & 0x00FF);
   //SOC of single module or average value of system (%)
   GROWATT_313.data.u8[6] = (datalayer.battery.status.reported_soc / 100);
-  //SOH (%) (Bit 0~ Bit6 SOH Counters) Bit7 SOH flag (unsure what this is)
+  //SOH (%) (Bit 0~ Bit6 SOH Counters) Bit7 SOH flag (Indicates that battery is in unsafe use)
   GROWATT_313.data.u8[7] = (datalayer.battery.status.soh_pptt / 100);
 
   //Remaining capacity (10 mAh)

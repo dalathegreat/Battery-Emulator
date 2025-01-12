@@ -173,8 +173,10 @@ void init_events(void) {
   events.entries[EVENT_INTERFACE_MISSING].level = EVENT_LEVEL_INFO;
   events.entries[EVENT_MODBUS_INVERTER_MISSING].level = EVENT_LEVEL_INFO;
   events.entries[EVENT_ERROR_OPEN_CONTACTOR].level = EVENT_LEVEL_INFO;
-  events.entries[EVENT_CELL_UNDER_VOLTAGE].level = EVENT_LEVEL_ERROR;
-  events.entries[EVENT_CELL_OVER_VOLTAGE].level = EVENT_LEVEL_ERROR;
+  events.entries[EVENT_CELL_CRITICAL_UNDER_VOLTAGE].level = EVENT_LEVEL_ERROR;
+  events.entries[EVENT_CELL_CRITICAL_OVER_VOLTAGE].level = EVENT_LEVEL_ERROR;
+  events.entries[EVENT_CELL_UNDER_VOLTAGE].level = EVENT_LEVEL_WARNING;
+  events.entries[EVENT_CELL_OVER_VOLTAGE].level = EVENT_LEVEL_WARNING;
   events.entries[EVENT_CELL_DEVIATION_HIGH].level = EVENT_LEVEL_WARNING;
   events.entries[EVENT_UNKNOWN_EVENT_SET].level = EVENT_LEVEL_ERROR;
   events.entries[EVENT_OTA_UPDATE].level = EVENT_LEVEL_UPDATE;
@@ -349,12 +351,16 @@ const char* get_event_message_string(EVENTS_ENUM_TYPE event) {
              "Check other error code for reason!";
     case EVENT_MODBUS_INVERTER_MISSING:
       return "Modbus inverter has not sent any data. Inspect communication wiring!";
+    case EVENT_CELL_CRITICAL_UNDER_VOLTAGE:
+      return "CELL VOLTAGE CRITICALLY LOW! Not possible to continue. Inspect battery!";
     case EVENT_CELL_UNDER_VOLTAGE:
-      return "CELL UNDERVOLTAGE!!! Stopping battery charging and discharging. Inspect battery!";
+      return "Cell undervoltage. Further discharge not possible. Check balancing of cells";
     case EVENT_CELL_OVER_VOLTAGE:
-      return "CELL OVERVOLTAGE!!! Stopping battery charging and discharging. Inspect battery!";
+      return "Cell overvoltage. Further charging not possible. Check balancing of cells";
+    case EVENT_CELL_CRITICAL_OVER_VOLTAGE:
+      return "CELL VOLTAGE CRITICALLY HIGH! Not possible to continue. Inspect battery!";
     case EVENT_CELL_DEVIATION_HIGH:
-      return "HIGH CELL DEVIATION!!! Inspect battery!";
+      return "Large cell voltage deviation! Check balancing of cells";
     case EVENT_UNKNOWN_EVENT_SET:
       return "An unknown event was set! Review your code!";
     case EVENT_DUMMY_INFO:
