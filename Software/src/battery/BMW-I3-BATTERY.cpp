@@ -196,8 +196,7 @@ static uint8_t BMW_1D0_counter = 0;
 static uint8_t BMW_13E_counter = 0;
 static uint8_t BMW_380_counter = 0;
 static uint32_t BMW_328_counter = 0;
-static uint16_t cellvoltage_temp_mV = 0;
-static uint16_t cellvoltage2_temp_mV = 0;
+
 static bool battery_awake = false;
 static bool battery2_awake = false;
 static bool battery_info_available = false;
@@ -207,6 +206,7 @@ static bool CRCCheckPassedPreviously = false;
 static bool skipCRCCheck_battery2 = false;
 static bool CRCCheckPassedPreviously_battery2 = false;
 
+static uint16_t cellvoltage_temp_mV = 0;
 static uint32_t battery_serial_number = 0;
 static uint32_t battery_available_power_shortterm_charge = 0;
 static uint32_t battery_available_power_shortterm_discharge = 0;
@@ -274,6 +274,7 @@ static uint8_t battery_status_diagnosis_powertrain_immediate_multiplexer = 0;
 static uint8_t battery_ID2 = 0;
 static uint8_t battery_soh = 99;
 
+static uint16_t cellvoltage2_temp_mV = 0;
 static uint32_t battery2_serial_number = 0;
 static uint32_t battery2_available_power_shortterm_charge = 0;
 static uint32_t battery2_available_power_shortterm_discharge = 0;
@@ -855,7 +856,7 @@ void handle_incoming_can_frame_battery2(CAN_frame rx_frame) {
               if (cellvoltage2_temp_mV < 4500) {  // Prevents garbage data from being read on bootup
                 datalayer.battery2.status.cell_min_voltage_mV = cellvoltage2_temp_mV;
               }
-              cellvoltage_temp_mV = (message_data[2] << 8 | message_data[3]);
+              cellvoltage2_temp_mV = (message_data[2] << 8 | message_data[3]);
               if (cellvoltage_temp_mV < 4500) {  // Prevents garbage data from being read on bootup
                 datalayer.battery2.status.cell_max_voltage_mV = cellvoltage2_temp_mV;
               }
