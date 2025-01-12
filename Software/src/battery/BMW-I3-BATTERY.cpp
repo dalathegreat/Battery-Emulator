@@ -1051,6 +1051,9 @@ void transmit_can_battery() {
           current_cell_polled++;
           if (current_cell_polled > 96) {
             datalayer.battery.info.number_of_cells = 97;
+#ifdef DOUBLE_BATTERY
+            datalayer.battery2.info.number_of_cells = 97;
+#endif
             cmdState = CELL_VOLTAGE_CELLNO_LAST;
           } else {
             cmdState = CELL_VOLTAGE_CELLNO;
