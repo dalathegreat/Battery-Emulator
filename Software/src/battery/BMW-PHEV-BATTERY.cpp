@@ -62,6 +62,9 @@ Supported:
 -Min/ Cell Temp
 -SOC
 
+VEHICLE CANBUS
+i3 messages don't affect contact close block except 0x380 which gives an error on PHEV (Possibly VIN number) 0x56, 0x5A, 0x37, 0x39, 0x34, 0x34, 0x34
+
 BROADCAST MAP
 0x112 20ms Status Of High-Voltage Battery 2
 0x1F1 1000ms Status Of High-Voltage Battery 1
@@ -293,7 +296,8 @@ CAN_frame BMWPHEV_6F1_CELL_TEMP = {.FD = false,
 static bool battery_awake = false;
 
 //Setup UDS values to poll for
-CAN_frame* UDS_REQUESTS100MS[] = {&BMWPHEV_6F1_REQUEST_SOC,
+CAN_frame* UDS_REQUESTS100MS[] = {&BMWPHEV_6F1_REQUEST_CELLSUMMARY,
+                                  &BMWPHEV_6F1_REQUEST_SOC,
                                   &BMWPHEV_6F1_REQUEST_SOH,
                                   &BMWPHEV_6F1_REQUEST_CURRENT,
                                   &BMWPHEV_6F1_REQUEST_VOLTAGE_LIMITS,
@@ -301,10 +305,8 @@ CAN_frame* UDS_REQUESTS100MS[] = {&BMWPHEV_6F1_REQUEST_SOC,
                                   &BMWPHEV_6F1_REQUEST_MAINVOLTAGE_PRECONTACTOR,
                                   &BMWPHEV_6F1_REQUEST_MAINVOLTAGE_POSTCONTACTOR,
                                   &BMWPHEV_6F1_REQUEST_BALANCING_STATUS,
-                                  &BMWPHEV_6F1_REQUEST_CELLSUMMARY,
                                   &BMWPHEV_6F1_REQUEST_CELLS_INDIVIDUAL_VOLTS,
-                                  &BMWPHEV_6F1_REQUEST_CELL_TEMP,
-                                  &BMWPHEV_6F1_REQUEST_CELLSUMMARY};
+                                  &BMWPHEV_6F1_REQUEST_CELL_TEMP};
 int numUDSreqs = sizeof(UDS_REQUESTS100MS) / sizeof(UDS_REQUESTS100MS[0]);  // Number of elements in the array
 
 //PHEV intermediate vars
@@ -371,12 +373,12 @@ static int32_t battery_current = 0;
 static int16_t battery_voltage = 0;
 static int16_t terminal30_12v_voltage = 0;
 static int16_t battery_voltage_after_contactor = 0;
-static int16_t min_soc_state = 50;
-static int16_t avg_soc_state = 50;
-static int16_t max_soc_state = 50;
-static int16_t min_soh_state = 99;  // Uses E5 45, also available in 78 73
-static int16_t avg_soh_state = 99;  // Uses E5 45, also available in 78 73
-static int16_t max_soh_state = 99;  // Uses E5 45, also available in 78 73
+static int16_t min_soc_state = 5000;
+static int16_t avg_soc_state = 5000;
+static int16_t max_soc_state = 5000;
+static int16_t min_soh_state = 9999;  // Uses E5 45, also available in 78 73
+static int16_t avg_soh_state = 9999;  // Uses E5 45, also available in 78 73
+static int16_t max_soh_state = 9999;  // Uses E5 45, also available in 78 73
 static uint16_t max_design_voltage = 0;
 static uint16_t min_design_voltage = 0;
 static int32_t remaining_capacity = 0;
@@ -714,39 +716,11 @@ void handle_incoming_can_frame_battery(CAN_frame rx_frame) {
           if (rx_frame.DLC = 8 && rx_frame.data.u8[3] == 0xDD &&
                              rx_frame.data.u8[4] == 0xB4) {  //Main Battery Voltage (Pre Contactor)
             battery_voltage = (rx_frame.data.u8[5] << 8 | rx_frame.data.u8[6]) / 10;
-#ifdef DEBUG_LOG
-            logging.print("Received pre contactor measurement data: ");
-            logging.print(battery_voltage);
-            logging.print(" - ");
-            for (uint16_t i = 0; i < 8; i++) {
-              // Optional leading zero for single-digit hex
-              if (rx_frame.data.u8[i] < 0x10) {
-                logging.print("0");
-              }
-              logging.print(rx_frame.data.u8[i], HEX);
-              logging.print(" ");
-            }
-            logging.println();  // new line at the end
-#endif                          // DEBUG_LOG
           }
 
           if (rx_frame.DLC = 7 && rx_frame.data.u8[3] == 0xDD &&
                              rx_frame.data.u8[4] == 0x66) {  //Main Battery Voltage (Post Contactor)
             battery_voltage_after_contactor = (rx_frame.data.u8[5] << 8 | rx_frame.data.u8[6]) / 10;
-#ifdef DEBUG_LOG
-            logging.print("Received post contactor measurement data: ");
-            logging.print(battery_voltage_after_contactor);
-            logging.print(" - ");
-            for (uint16_t i = 0; i < 8; i++) {
-              // Optional leading zero for single-digit hex
-              if (rx_frame.data.u8[i] < 0x10) {
-                logging.print("0");
-              }
-              logging.print(rx_frame.data.u8[i], HEX);
-              logging.print(" ");
-            }
-            logging.println();  // new line at the end
-#endif                          // DEBUG_LOG
           }
 
           if (rx_frame.DLC = 7 && rx_frame.data.u8[1] == 0x05 && rx_frame.data.u8[2] == 0x71 &&
@@ -881,20 +855,20 @@ void handle_incoming_can_frame_battery(CAN_frame rx_frame) {
           battery_current = ((int32_t)((gUDSContext.UDS_buffer[3] << 24) | (gUDSContext.UDS_buffer[4] << 16) |
                                        (gUDSContext.UDS_buffer[5] << 8) | gUDSContext.UDS_buffer[6])) *
                             0.1;
-#ifdef DEBUG_LOG
-          logging.print("Received current/amps measurement data: ");
-          logging.print(battery_current);
-          logging.print(" - ");
-          for (uint16_t i = 0; i < gUDSContext.UDS_bytesReceived; i++) {
-            // Optional leading zero for single-digit hex
-            if (gUDSContext.UDS_buffer[i] < 0x10) {
-              logging.print("0");
-            }
-            logging.print(gUDSContext.UDS_buffer[i], HEX);
-            logging.print(" ");
-          }
-          logging.println();  // new line at the end
-#endif                        // DEBUG_LOG
+          // #ifdef DEBUG_LOG
+          //           logging.print("Received current/amps measurement data: ");
+          //           logging.print(battery_current);
+          //           logging.print(" - ");
+          //           for (uint16_t i = 0; i < gUDSContext.UDS_bytesReceived; i++) {
+          //             // Optional leading zero for single-digit hex
+          //             if (gUDSContext.UDS_buffer[i] < 0x10) {
+          //               logging.print("0");
+          //             }
+          //             logging.print(gUDSContext.UDS_buffer[i], HEX);
+          //             logging.print(" ");
+          //           }
+          //           logging.println();  // new line at the end
+          // #endif                        // DEBUG_LOG
         }
 
         //Cell Min/Max
@@ -1050,7 +1024,7 @@ void setup_battery(void) {  // Performs one time setup at startup
   datalayer.system.info.battery_protocol[63] = '\0';
   //Wakeup the SME
   wake_battery_via_canbus();
-  //Before we have started up and detected which battery is in use, use 108S values
+
   datalayer.battery.info.max_design_voltage_dV = MAX_PACK_VOLTAGE_DV;
   datalayer.battery.info.min_design_voltage_dV = MIN_PACK_VOLTAGE_DV;
   datalayer.battery.info.max_cell_voltage_mV = MAX_CELL_VOLTAGE_MV;
