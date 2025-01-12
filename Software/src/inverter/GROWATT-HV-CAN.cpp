@@ -3,6 +3,10 @@
 #include "../datalayer/datalayer.h"
 #include "GROWATT-HV-CAN.h"
 
+/* TODO:
+This protocol has not been tested with any inverter. Proceed with extreme caution.
+Search the file for "TODO" to see all the places that might require work /*
+
 /* Growatt BMS CAN-Bus-protocol High Voltage V1.10 2023-11-06
 29-bit identifier
 500kBit/sec
