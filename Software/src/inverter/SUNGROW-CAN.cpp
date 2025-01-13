@@ -3,6 +3,10 @@
 #include "../datalayer/datalayer.h"
 #include "SUNGROW-CAN.h"
 
+/* TODO: 
+This protocol is still under development. It can not be used yet for Sungrow inverters, 
+see the Wiki for more info on how to use your Sungrow inverter */
+
 /* Do not change code below unless you are sure what you are doing */
 static unsigned long previousMillis500ms = 0;
 static bool alternate = false;

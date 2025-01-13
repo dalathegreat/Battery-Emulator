@@ -50,6 +50,7 @@ jobs:
           - SMA_TRIPOWER_CAN
           - SOFAR_CAN
           - SOLAX_CAN
+          - SUNGROW_CAN
           - SERIAL_LINK_TRANSMITTER
           - NISSANLEAF_CHARGER # Last element is not an inverter, but good to also test if the charger compiles
     # This is the platform GitHub will use to run our workflow.
