@@ -546,7 +546,7 @@ void update_values_battery() {  //This function maps all the values fetched via 
 
   datalayer.battery.status.voltage_dV = BMS_voltage * 2.5;  // *0.25*10
 
-  datalayer.battery.status.current_dA = (BMS_current / 10) - 1630;
+  datalayer.battery.status.current_dA = (BMS_current - 16300); // 0.1 * 10
 
   datalayer.battery.info.total_capacity_Wh =
       ((float)datalayer.battery.info.number_of_cells) * 3.6458 * ((float)BMS_capacity_ah) * 0.2;
