@@ -729,10 +729,12 @@ void handle_incoming_can_frame_battery(CAN_frame rx_frame) {
       BMS_16A954A6_counter = (rx_frame.data.u8[1] & 0x0F);  // Can be used to check CAN signal integrity later on
       isolation_fault = (rx_frame.data.u8[2] & 0xE0) >> 5;
       isolation_status = (rx_frame.data.u8[2] & 0x1E) >> 1;
-      actual_temperature_highest_C = rx_frame.data.u8[3];  //*0,5 -40
-      actual_temperature_lowest_C = rx_frame.data.u8[4];   //*0,5 -40
-      actual_cellvoltage_highest_mV = (((rx_frame.data.u8[6] & 0x0F) << 8) | rx_frame.data.u8[5]);
-      actual_cellvoltage_lowest_mV = ((rx_frame.data.u8[7] << 4) | rx_frame.data.u8[6] >> 4);
+      if (isolation_fault != 0){
+        actual_temperature_highest_C = rx_frame.data.u8[3];  //*0,5 -40
+        actual_temperature_lowest_C = rx_frame.data.u8[4];   //*0,5 -40
+        actual_cellvoltage_highest_mV = (((rx_frame.data.u8[6] & 0x0F) << 8) | rx_frame.data.u8[5]);
+        actual_cellvoltage_lowest_mV = ((rx_frame.data.u8[7] << 4) | rx_frame.data.u8[6] >> 4);
+      }
       break;
     case 0x16A954F8:                                                                                // BMS
       predicted_power_dyn_standard_watt = ((rx_frame.data.u8[6] << 1) | rx_frame.data.u8[5] >> 7);  //*50
