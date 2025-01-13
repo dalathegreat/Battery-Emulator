@@ -1513,7 +1513,7 @@ void handle_incoming_can_frame_battery(CAN_frame rx_frame) {
       break;
   }
   datalayer.battery.status.CAN_battery_still_alive = CAN_STILL_ALIVE;
-  if (can_msg_received == 0xFFFF) {
+  if (can_msg_received == 0xFFFF && nof_cells_determined) {
     if (datalayer.battery.status.bms_status == INACTIVE)
       datalayer.battery.status.bms_status = STANDBY;
   }
