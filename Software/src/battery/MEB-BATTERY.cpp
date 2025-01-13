@@ -512,6 +512,7 @@ uint8_t vw_crc_calc(uint8_t* inputBytes, uint8_t length, uint16_t address) {
       magicByte = MB16A954A6[counter];
       break;
     default:  // this won't lead to correct CRC checksums
+      logging.println("Checksum request uknown");
       magicByte = 0x00;
       break;
   }
