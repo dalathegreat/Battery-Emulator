@@ -67,6 +67,10 @@
 #include "SOLAX-CAN.h"
 #endif
 
+#ifdef SUNGROW_CAN
+#include "SUNGROW-CAN.h"
+#endif
+
 #ifdef SERIAL_LINK_TRANSMITTER
 #include "SERIAL-LINK-TRANSMITTER-INVERTER.h"
 #endif
