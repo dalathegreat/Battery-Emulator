@@ -546,7 +546,7 @@ void update_values_battery() {  //This function maps all the values fetched via 
 
   datalayer.battery.status.voltage_dV = BMS_voltage * 2.5;  // *0.25*10
 
-  datalayer.battery.status.current_dA = (BMS_current - 16300); // 0.1 * 10
+  datalayer.battery.status.current_dA = (BMS_current - 16300);  // 0.1 * 10
 
   datalayer.battery.info.total_capacity_Wh =
       ((float)datalayer.battery.info.number_of_cells) * 3.6458 * ((float)BMS_capacity_ah) * 0.2;
@@ -1601,7 +1601,7 @@ void transmit_can_battery() {
         logging.printf("MEB Requesting HV\n");
       }
       MEB_503.data.u8[1] = 
-          0x30 | (datalayer.battery.status.bms_status == ACTIVE ? 0x00 : 0x80); // Disable precharing if ACTIVE
+          0x30 | (datalayer.battery.status.bms_status == ACTIVE ? 0x00 : 0x80);  // Disable precharing if ACTIVE
       MEB_503.data.u8[3] = BMS_TARGET_HV_ON;  //TODO, should we try AC_2 or DC charging?
       MEB_503.data.u8[5] = 0x82;              // Bordnetz Active
       MEB_503.data.u8[6] = 0xE0;              // Request emergency shutdown HV system == 0, false

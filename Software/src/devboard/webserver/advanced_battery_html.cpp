@@ -966,21 +966,23 @@ String advanced_battery_processor(const String& var) {
     content +=
         datalayer_extended.meb.battery_heating ? "<h4>Battery heating: Active!</h4>" : "<h4>Battery heating: Off</h4>";
     const char* rt_enum[] = {"No", "Error level 1", "Error level 2", "Error level 3"};
-    content += "<h4>Overcurrent: " + String(rt_enum[datalayer_extended.meb.rt_overcurrent&0x03]) + "</h4>";
-    content += "<h4>CAN fault: " + String(rt_enum[datalayer_extended.meb.rt_CAN_fault&0x03]) + "</h4>";
-    content += "<h4>Overcharged: " + String(rt_enum[datalayer_extended.meb.rt_overcharge&0x03]) + "</h4>";
-    content += "<h4>SOC too high: " + String(rt_enum[datalayer_extended.meb.rt_SOC_high&0x03]) + "</h4>";
-    content += "<h4>SOC too low: " + String(rt_enum[datalayer_extended.meb.rt_SOC_low&0x03]) + "</h4>";
-    content += "<h4>SOC jumping: " + String(rt_enum[datalayer_extended.meb.rt_SOC_jumping&0x03]) + "</h4>";
-    content += "<h4>Temp difference: " + String(rt_enum[datalayer_extended.meb.rt_temp_difference&0x03]) + "</h4>";
-    content += "<h4>Cell overtemp: " + String(rt_enum[datalayer_extended.meb.rt_cell_overtemp&0x03]) + "</h4>";
-    content += "<h4>Cell undertemp: " + String(rt_enum[datalayer_extended.meb.rt_cell_undertemp&0x03]) + "</h4>";
-    content += "<h4>Battery overvoltage: " + String(rt_enum[datalayer_extended.meb.rt_battery_overvolt&0x03]) + "</h4>";
-    content += "<h4>Battery undervoltage: " + String(rt_enum[datalayer_extended.meb.rt_battery_undervol&0x03]) + "</h4>";
-    content += "<h4>Cell overvoltage: " + String(rt_enum[datalayer_extended.meb.rt_cell_overvolt&0x03]) + "</h4>";
-    content += "<h4>Cell undervoltage: " + String(rt_enum[datalayer_extended.meb.rt_cell_undervol&0x03]) + "</h4>";
-    content += "<h4>Cell imbalance: " + String(rt_enum[datalayer_extended.meb.rt_cell_imbalance&0x03]) + "</h4>";
-    content += "<h4>Battery unathorized: " + String(rt_enum[datalayer_extended.meb.rt_battery_unathorized&0x03]) + "</h4>";
+    content += "<h4>Overcurrent: " + String(rt_enum[datalayer_extended.meb.rt_overcurrent & 0x03]) + "</h4>";
+    content += "<h4>CAN fault: " + String(rt_enum[datalayer_extended.meb.rt_CAN_fault & 0x03]) + "</h4>";
+    content += "<h4>Overcharged: " + String(rt_enum[datalayer_extended.meb.rt_overcharge & 0x03]) + "</h4>";
+    content += "<h4>SOC too high: " + String(rt_enum[datalayer_extended.meb.rt_SOC_high & 0x03]) + "</h4>";
+    content += "<h4>SOC too low: " + String(rt_enum[datalayer_extended.meb.rt_SOC_low & 0x03]) + "</h4>";
+    content += "<h4>SOC jumping: " + String(rt_enum[datalayer_extended.meb.rt_SOC_jumping & 0x03]) + "</h4>";
+    content += "<h4>Temp difference: " + String(rt_enum[datalayer_extended.meb.rt_temp_difference & 0x03]) + "</h4>";
+    content += "<h4>Cell overtemp: " + String(rt_enum[datalayer_extended.meb.rt_cell_overtemp & 0x03]) + "</h4>";
+    content += "<h4>Cell undertemp: " + String(rt_enum[datalayer_extended.meb.rt_cell_undertemp & 0x03]) + "</h4>";
+    content +=
+        "<h4>Battery overvoltage: " + String(rt_enum[datalayer_extended.meb.rt_battery_overvolt & 0x03]) + "</h4>";
+    content +=
+        "<h4>Battery undervoltage: " + String(rt_enum[datalayer_extended.meb.rt_battery_undervol & 0x03]) + "</h4>";
+    content += "<h4>Cell overvoltage: " + String(rt_enum[datalayer_extended.meb.rt_cell_overvolt & 0x03]) + "</h4>";
+    content += "<h4>Cell undervoltage: " + String(rt_enum[datalayer_extended.meb.rt_cell_undervol & 0x03]) + "</h4>";
+    content += "<h4>Cell imbalance: " + String(rt_enum[datalayer_extended.meb.rt_cell_imbalance & 0x03]) + "</h4>";
+    content += "<h4>Battery unathorized: " + String(rt_enum[datalayer_extended.meb.rt_battery_unathorized & 0x03]) + "</h4>";
 #endif  //MEB_BATTERY
 
 #ifdef RENAULT_ZOE_GEN2_BATTERY

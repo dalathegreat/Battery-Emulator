@@ -108,40 +108,36 @@ void handle_obd_frame(CAN_frame& rx_frame) {
   dump_can_frame(rx_frame, MSG_RX);
 }
 
-void transmit_obd_can_frame(unsigned int address, int interface){
-  static CAN_frame OBD_frame = {.FD = true,
-                        .ext_ID = false,
-                        .DLC = 8,
-                        .ID = 0x700,
-                        .data = {0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00}};
+void transmit_obd_can_frame(unsigned int address, int interface) {
+  static CAN_frame OBD_frame;
   OBD_frame.ID = address;
   OBD_frame.ext_ID = address > 0x7FF;
   OBD_frame.DLC = 8;
-  OBD_frame.data.u8[0]=0x01;
-  OBD_frame.data.u8[1]=0x03;
-  OBD_frame.data.u8[2]=0xAA;
-  OBD_frame.data.u8[3]=0xAA;
-  OBD_frame.data.u8[4]=0xAA;
-  OBD_frame.data.u8[5]=0xAA;
-  OBD_frame.data.u8[6]=0xAA;
-  OBD_frame.data.u8[7]=0xAA;
+  OBD_frame.data.u8[0] = 0x01;
+  OBD_frame.data.u8[1] = 0x03;
+  OBD_frame.data.u8[2] = 0xAA;
+  OBD_frame.data.u8[3] = 0xAA;
+  OBD_frame.data.u8[4] = 0xAA;
+  OBD_frame.data.u8[5] = 0xAA;
+  OBD_frame.data.u8[6] = 0xAA;
+  OBD_frame.data.u8[7] = 0xAA;
   static int cnt = 0;
   switch (cnt) {
     case 2:
       transmit_can_frame(&OBD_frame, interface);  // DTC TP-ISO
       break;
     case 3:
-      OBD_frame.data.u8[1]=0x07;
+      OBD_frame.data.u8[1] = 0x07;
       transmit_can_frame(&OBD_frame, interface);  // DTC TP-ISO
       break;
     case 4:
-      OBD_frame.data.u8[1]=0x0A;
+      OBD_frame.data.u8[1] = 0x0A;
       transmit_can_frame(&OBD_frame, interface);  // DTC TP-ISO
       break;
     case 5:
-      OBD_frame.data.u8[0]=0x02;
-      OBD_frame.data.u8[1]=0x01;
-      OBD_frame.data.u8[2]=0x1C;
+      OBD_frame.data.u8[0] = 0x02;
+      OBD_frame.data.u8[1] = 0x01;
+      OBD_frame.data.u8[2] = 0x1C;
       transmit_can_frame(&OBD_frame, interface);  // DTC TP-ISO
       break;
     }
