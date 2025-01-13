@@ -1600,8 +1600,8 @@ void transmit_can_battery() {
       if (MEB_503.data.u8[3] == BMS_TARGET_HV_OFF) {
         logging.printf("MEB Requesting HV\n");
       }
-      MEB_503.data.u8[1] = 0xB0;
-      MEB_503.data.u8[3] = BMS_TARGET_AC_CHARGING;  //TODO, should we try AC_2 or DC charging?
+      MEB_503.data.u8[1] = 0x30 | (datalayer.battery.status.bms_status == ACTIVE ? 0x00 : 0x80); // Disable precharing if ACTIVE
+      MEB_503.data.u8[3] = BMS_TARGET_HV_ON;  //TODO, should we try AC_2 or DC charging?
       MEB_503.data.u8[5] = 0x82;                    // Bordnetz Active
       MEB_503.data.u8[6] = 0xE0;                    // Request emergency shutdown HV system == 0, false
     } else if (first_can_msg > 0 && currentMillis > first_can_msg + 2000 && BMS_mode != 0 &&

@@ -9,11 +9,10 @@
 enum State { PRECHARGE_IDLE, START_PRECHARGE, PRECHARGE, PRECHARGE_OFF, COMPLETED };
 State prechargeStatus = PRECHARGE_IDLE;
 
-#define MAX_ALLOWED_FAULT_TICKS 1000
 #define MAX_PRECHARGE_TIME_MS 15000  // Maximum time precharge may be enabled
 
-#define Precharge_default_PWM_Freq 22000
-#define Precharge_min_PWM_Freq 18000
+#define Precharge_default_PWM_Freq 11000
+#define Precharge_min_PWM_Freq 5000
 #define Precharge_max_PWM_Freq 34000
 #define PWM_Res 8
 #define PWM_OFF_DUTY 0
@@ -58,6 +57,8 @@ void handle_precharge_control() {
       prechargeStartTime = currentTime;
       prechargeStatus = PRECHARGE;
       logging.printf("Precharge: Starting sequence\n");
+      digitalWrite(POSITIVE_CONTACTOR_PIN, HIGH);
+
       break;
 
     case PRECHARGE:
@@ -90,11 +91,13 @@ void handle_precharge_control() {
           datalayer.system.settings.equipment_stop_active) {
         pinMode(PRECHARGE_PIN, OUTPUT);
         digitalWrite(PRECHARGE_PIN, LOW);
+        digitalWrite(POSITIVE_CONTACTOR_PIN, LOW);
         prechargeStatus = PRECHARGE_IDLE;
         logging.printf("Precharge: Disabling Precharge bms not standby/active or equipment stop\n");
       } else if (currentTime - prechargeStartTime >= MAX_PRECHARGE_TIME_MS) {
         pinMode(PRECHARGE_PIN, OUTPUT);
         digitalWrite(PRECHARGE_PIN, LOW);
+        digitalWrite(POSITIVE_CONTACTOR_PIN, LOW);
         prechargeStatus = PRECHARGE_OFF;
         datalayer.battery.status.bms_status = FAULT;
         logging.printf("Precharge: Disabled (timeout reached) -> PRECHARGE_OFF\n");
@@ -102,6 +105,7 @@ void handle_precharge_control() {
       } else if (datalayer.system.status.battery_allows_contactor_closing) {
         pinMode(PRECHARGE_PIN, OUTPUT);
         digitalWrite(PRECHARGE_PIN, LOW);
+        digitalWrite(POSITIVE_CONTACTOR_PIN, LOW);
         prechargeStatus = COMPLETED;
         logging.printf("Precharge: Disabled (contacts closed) -> COMPLETED\n");
       }
