@@ -411,29 +411,29 @@ void update_values_can_inverter() {  //This function maps all the values fetched
 #endif
 }
 
-void receive_can_inverter(CAN_frame rx_frame) {
+void map_can_frame_to_variable_inverter(CAN_frame rx_frame) {
   switch (rx_frame.ID) {  //In here we need to respond to the inverter
     case 0x000:
       datalayer.system.status.CAN_inverter_still_alive = CAN_STILL_ALIVE;
       inverter_sends_000 = true;
-      transmit_can(&SUNGROW_001, can_config.inverter);
-      transmit_can(&SUNGROW_002, can_config.inverter);
-      transmit_can(&SUNGROW_003, can_config.inverter);
-      transmit_can(&SUNGROW_004, can_config.inverter);
-      transmit_can(&SUNGROW_005, can_config.inverter);
-      transmit_can(&SUNGROW_006, can_config.inverter);
-      transmit_can(&SUNGROW_013, can_config.inverter);
-      transmit_can(&SUNGROW_014, can_config.inverter);
-      transmit_can(&SUNGROW_015, can_config.inverter);
-      transmit_can(&SUNGROW_016, can_config.inverter);
-      transmit_can(&SUNGROW_017, can_config.inverter);
-      transmit_can(&SUNGROW_018, can_config.inverter);
-      transmit_can(&SUNGROW_019, can_config.inverter);
-      transmit_can(&SUNGROW_01A, can_config.inverter);
-      transmit_can(&SUNGROW_01B, can_config.inverter);
-      transmit_can(&SUNGROW_01C, can_config.inverter);
-      transmit_can(&SUNGROW_01D, can_config.inverter);
-      transmit_can(&SUNGROW_01E, can_config.inverter);
+      transmit_can_frame(&SUNGROW_001, can_config.inverter);
+      transmit_can_frame(&SUNGROW_002, can_config.inverter);
+      transmit_can_frame(&SUNGROW_003, can_config.inverter);
+      transmit_can_frame(&SUNGROW_004, can_config.inverter);
+      transmit_can_frame(&SUNGROW_005, can_config.inverter);
+      transmit_can_frame(&SUNGROW_006, can_config.inverter);
+      transmit_can_frame(&SUNGROW_013, can_config.inverter);
+      transmit_can_frame(&SUNGROW_014, can_config.inverter);
+      transmit_can_frame(&SUNGROW_015, can_config.inverter);
+      transmit_can_frame(&SUNGROW_016, can_config.inverter);
+      transmit_can_frame(&SUNGROW_017, can_config.inverter);
+      transmit_can_frame(&SUNGROW_018, can_config.inverter);
+      transmit_can_frame(&SUNGROW_019, can_config.inverter);
+      transmit_can_frame(&SUNGROW_01A, can_config.inverter);
+      transmit_can_frame(&SUNGROW_01B, can_config.inverter);
+      transmit_can_frame(&SUNGROW_01C, can_config.inverter);
+      transmit_can_frame(&SUNGROW_01D, can_config.inverter);
+      transmit_can_frame(&SUNGROW_01E, can_config.inverter);
       break;
     case 0x100:  // SH10RS RUN
       datalayer.system.status.CAN_inverter_still_alive = CAN_STILL_ALIVE;
@@ -557,7 +557,7 @@ void receive_can_inverter(CAN_frame rx_frame) {
   }
 }
 
-void send_can_inverter() {
+void transmit_can_inverter() {
   unsigned long currentMillis = millis();
 
   // Send 1s CAN Message
@@ -565,36 +565,36 @@ void send_can_inverter() {
     previousMillis500ms = currentMillis;
     //Flip flop between two sets, end result is 1s periodic rate
     if (alternate) {
-      transmit_can(&SUNGROW_512, can_config.inverter);
-      transmit_can(&SUNGROW_501, can_config.inverter);
-      transmit_can(&SUNGROW_502, can_config.inverter);
-      transmit_can(&SUNGROW_503, can_config.inverter);
-      transmit_can(&SUNGROW_504, can_config.inverter);
-      transmit_can(&SUNGROW_505, can_config.inverter);
-      transmit_can(&SUNGROW_506, can_config.inverter);
-      transmit_can(&SUNGROW_500, can_config.inverter);
-      transmit_can(&SUNGROW_400, can_config.inverter);
+      transmit_can_frame(&SUNGROW_512, can_config.inverter);
+      transmit_can_frame(&SUNGROW_501, can_config.inverter);
+      transmit_can_frame(&SUNGROW_502, can_config.inverter);
+      transmit_can_frame(&SUNGROW_503, can_config.inverter);
+      transmit_can_frame(&SUNGROW_504, can_config.inverter);
+      transmit_can_frame(&SUNGROW_505, can_config.inverter);
+      transmit_can_frame(&SUNGROW_506, can_config.inverter);
+      transmit_can_frame(&SUNGROW_500, can_config.inverter);
+      transmit_can_frame(&SUNGROW_400, can_config.inverter);
       alternate = false;
     } else {
-      transmit_can(&SUNGROW_700, can_config.inverter);
-      transmit_can(&SUNGROW_701, can_config.inverter);
-      transmit_can(&SUNGROW_702, can_config.inverter);
-      transmit_can(&SUNGROW_703, can_config.inverter);
-      transmit_can(&SUNGROW_704, can_config.inverter);
-      transmit_can(&SUNGROW_705, can_config.inverter);
-      transmit_can(&SUNGROW_706, can_config.inverter);
-      transmit_can(&SUNGROW_713, can_config.inverter);
-      transmit_can(&SUNGROW_714, can_config.inverter);
-      transmit_can(&SUNGROW_715, can_config.inverter);
-      transmit_can(&SUNGROW_716, can_config.inverter);
-      transmit_can(&SUNGROW_717, can_config.inverter);
-      transmit_can(&SUNGROW_718, can_config.inverter);
-      transmit_can(&SUNGROW_719, can_config.inverter);
-      transmit_can(&SUNGROW_71A, can_config.inverter);
-      transmit_can(&SUNGROW_71B, can_config.inverter);
-      transmit_can(&SUNGROW_71C, can_config.inverter);
-      transmit_can(&SUNGROW_71D, can_config.inverter);
-      transmit_can(&SUNGROW_71E, can_config.inverter);
+      transmit_can_frame(&SUNGROW_700, can_config.inverter);
+      transmit_can_frame(&SUNGROW_701, can_config.inverter);
+      transmit_can_frame(&SUNGROW_702, can_config.inverter);
+      transmit_can_frame(&SUNGROW_703, can_config.inverter);
+      transmit_can_frame(&SUNGROW_704, can_config.inverter);
+      transmit_can_frame(&SUNGROW_705, can_config.inverter);
+      transmit_can_frame(&SUNGROW_706, can_config.inverter);
+      transmit_can_frame(&SUNGROW_713, can_config.inverter);
+      transmit_can_frame(&SUNGROW_714, can_config.inverter);
+      transmit_can_frame(&SUNGROW_715, can_config.inverter);
+      transmit_can_frame(&SUNGROW_716, can_config.inverter);
+      transmit_can_frame(&SUNGROW_717, can_config.inverter);
+      transmit_can_frame(&SUNGROW_718, can_config.inverter);
+      transmit_can_frame(&SUNGROW_719, can_config.inverter);
+      transmit_can_frame(&SUNGROW_71A, can_config.inverter);
+      transmit_can_frame(&SUNGROW_71B, can_config.inverter);
+      transmit_can_frame(&SUNGROW_71C, can_config.inverter);
+      transmit_can_frame(&SUNGROW_71D, can_config.inverter);
+      transmit_can_frame(&SUNGROW_71E, can_config.inverter);
       alternate = true;
     }
   }
