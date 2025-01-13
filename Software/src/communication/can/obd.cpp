@@ -5,7 +5,7 @@ void show_dtc(uint8_t byte0, uint8_t byte1);
 
 void show_dtc(uint8_t byte0, uint8_t byte1) {
   char letter;
-  switch (byte0 >> 6){
+  switch (byte0 >> 6) {
     case 0:
       letter = 'P';
       break;
@@ -22,10 +22,10 @@ void show_dtc(uint8_t byte0, uint8_t byte1) {
   logging.printf("%c%d\n", letter, ((byte0 & 0x3F) << 8) | byte1);
 }
 
-void handle_obd_frame(CAN_frame &rx_frame) {
+void handle_obd_frame(CAN_frame& rx_frame) {
   if (rx_frame.data.u8[1] == 0x7F) {
-    const char *error_str = "?";
-    switch (rx_frame.data.u8[3]) { // See https://automotive.wiki/index.php/ISO_14229
+    const char* error_str = "?";
+    switch (rx_frame.data.u8[3]) {  // See https://automotive.wiki/index.php/ISO_14229
       case 0x10:
         error_str = "generalReject";
         break;
@@ -94,12 +94,12 @@ void handle_obd_frame(CAN_frame &rx_frame) {
       case 3:
         logging.printf("ODB reply service 03: Show stored DTCs, %d present:\n", rx_frame.data.u8[2]);
         for (int i = 0; i < rx_frame.data.u8[2]; i++)
-          show_dtc(rx_frame.data.u8[3+2*i], rx_frame.data.u8[4+2*i]);
+          show_dtc(rx_frame.data.u8[3 + 2 * i], rx_frame.data.u8[4 + 2 * i]);
         break;
       case 7:
         logging.printf("ODB reply service 07: Show pending DTCs, %d present:\n", rx_frame.data.u8[2]);
         for (int i = 0; i < rx_frame.data.u8[2]; i++)
-          show_dtc(rx_frame.data.u8[3+2*i], rx_frame.data.u8[4+2*i]);
+          show_dtc(rx_frame.data.u8[3 + 2 * i], rx_frame.data.u8[4 + 2 * i]);
         break;
       default:
         logging.printf("ODBx reply frame received:\n");
@@ -109,43 +109,43 @@ void handle_obd_frame(CAN_frame &rx_frame) {
 }
 
 void transmit_obd_can_frame(unsigned int address, int interface){
-    static CAN_frame OBD_frame = {.FD = true,
-                          .ext_ID = false,
-                          .DLC = 8,
-                          .ID = 0x700,
-                          .data = {0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00}};
-    OBD_frame.ID = address;
-    OBD_frame.ext_ID = address > 0x7FF;
-    OBD_frame.DLC = 8;
-    OBD_frame.data.u8[0]=0x01;
-    OBD_frame.data.u8[1]=0x03;
-    OBD_frame.data.u8[2]=0xAA;
-    OBD_frame.data.u8[3]=0xAA;
-    OBD_frame.data.u8[4]=0xAA;
-    OBD_frame.data.u8[5]=0xAA;
-    OBD_frame.data.u8[6]=0xAA;
-    OBD_frame.data.u8[7]=0xAA;
-    static int cnt = 0;
-    switch (cnt) {
-      case 2:
-        transmit_can_frame(&OBD_frame, interface);  // DTC TP-ISO
-        break;
-      case 3:
-        OBD_frame.data.u8[1]=0x07;
-        transmit_can_frame(&OBD_frame, interface);  // DTC TP-ISO
-        break;
-      case 4:
-        OBD_frame.data.u8[1]=0x0A;
-        transmit_can_frame(&OBD_frame, interface);  // DTC TP-ISO
-        break;
-      case 5:
-        OBD_frame.data.u8[0]=0x02;
-        OBD_frame.data.u8[1]=0x01;
-        OBD_frame.data.u8[2]=0x1C;
-        transmit_can_frame(&OBD_frame, interface);  // DTC TP-ISO
-        break;
-      }
-    cnt++;
-    if (cnt == 3600)
-      cnt = 0;
+  static CAN_frame OBD_frame = {.FD = true,
+                        .ext_ID = false,
+                        .DLC = 8,
+                        .ID = 0x700,
+                        .data = {0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00}};
+  OBD_frame.ID = address;
+  OBD_frame.ext_ID = address > 0x7FF;
+  OBD_frame.DLC = 8;
+  OBD_frame.data.u8[0]=0x01;
+  OBD_frame.data.u8[1]=0x03;
+  OBD_frame.data.u8[2]=0xAA;
+  OBD_frame.data.u8[3]=0xAA;
+  OBD_frame.data.u8[4]=0xAA;
+  OBD_frame.data.u8[5]=0xAA;
+  OBD_frame.data.u8[6]=0xAA;
+  OBD_frame.data.u8[7]=0xAA;
+  static int cnt = 0;
+  switch (cnt) {
+    case 2:
+      transmit_can_frame(&OBD_frame, interface);  // DTC TP-ISO
+      break;
+    case 3:
+      OBD_frame.data.u8[1]=0x07;
+      transmit_can_frame(&OBD_frame, interface);  // DTC TP-ISO
+      break;
+    case 4:
+      OBD_frame.data.u8[1]=0x0A;
+      transmit_can_frame(&OBD_frame, interface);  // DTC TP-ISO
+      break;
+    case 5:
+      OBD_frame.data.u8[0]=0x02;
+      OBD_frame.data.u8[1]=0x01;
+      OBD_frame.data.u8[2]=0x1C;
+      transmit_can_frame(&OBD_frame, interface);  // DTC TP-ISO
+      break;
+    }
+  cnt++;
+  if (cnt == 3600)
+    cnt = 0;
 }

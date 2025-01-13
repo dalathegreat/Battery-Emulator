@@ -1,11 +1,11 @@
 #include "../include.h"
 #ifdef MEB_BATTERY
 #include <algorithm>  // For std::min and std::max
+#include "../communication/can/comm_can.h"
+#include "../communication/can/obd.h"
 #include "../datalayer/datalayer.h"
 #include "../datalayer/datalayer_extended.h"  //For "More battery info" webpage
 #include "../devboard/utils/events.h"
-#include "../communication/can/comm_can.h"
-#include "../communication/can/obd.h"
 #include "MEB-BATTERY.h"
 
 #define PRECHARGE_CONTROL
@@ -1600,10 +1600,11 @@ void transmit_can_battery() {
       if (MEB_503.data.u8[3] == BMS_TARGET_HV_OFF) {
         logging.printf("MEB Requesting HV\n");
       }
-      MEB_503.data.u8[1] = 0x30 | (datalayer.battery.status.bms_status == ACTIVE ? 0x00 : 0x80); // Disable precharing if ACTIVE
+      MEB_503.data.u8[1] = 
+          0x30 | (datalayer.battery.status.bms_status == ACTIVE ? 0x00 : 0x80); // Disable precharing if ACTIVE
       MEB_503.data.u8[3] = BMS_TARGET_HV_ON;  //TODO, should we try AC_2 or DC charging?
-      MEB_503.data.u8[5] = 0x82;                    // Bordnetz Active
-      MEB_503.data.u8[6] = 0xE0;                    // Request emergency shutdown HV system == 0, false
+      MEB_503.data.u8[5] = 0x82;              // Bordnetz Active
+      MEB_503.data.u8[6] = 0xE0;              // Request emergency shutdown HV system == 0, false
     } else if (first_can_msg > 0 && currentMillis > first_can_msg + 2000 && BMS_mode != 0 &&
                BMS_mode != 7) {  //FAULT STATE, open contactors
       MEB_503.data.u8[1] = 0x90;

@@ -323,7 +323,7 @@ void map_can_frame_to_variable(CAN_frame* rx_frame, int interface) {
 #endif
   }
 }
-void dump_can_frame(CAN_frame &frame, frameDirection msgDir) {
+void dump_can_frame(CAN_frame& frame, frameDirection msgDir) {
   char* message_string = datalayer.system.info.logged_can_messages;
   int offset = datalayer.system.info.logged_can_messages_offset;  // Keeps track of the current position in the buffer
   size_t message_string_size = sizeof(datalayer.system.info.logged_can_messages);
@@ -335,11 +335,10 @@ void dump_can_frame(CAN_frame &frame, frameDirection msgDir) {
   unsigned long currentTime = millis();
   // Add timestamp
   offset += snprintf(message_string + offset, message_string_size - offset, "(%lu.%03lu) ", currentTime / 1000,
-                      currentTime % 1000);
+                     currentTime % 1000);
 
   // Add direction. The 0 and 1 after RX and TX ensures that SavvyCAN puts TX and RX in a different bus.
-  offset +=
-      snprintf(message_string + offset, message_string_size - offset, "%s ", (msgDir == MSG_RX) ? "RX0" : "TX1");
+  offset += snprintf(message_string + offset, message_string_size - offset, "%s ", (msgDir == MSG_RX) ? "RX0" : "TX1");
 
   // Add ID and DLC
   offset += snprintf(message_string + offset, message_string_size - offset, "%X [%u] ", frame.ID, frame.DLC);
