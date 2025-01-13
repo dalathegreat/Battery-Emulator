@@ -982,7 +982,8 @@ String advanced_battery_processor(const String& var) {
     content += "<h4>Cell overvoltage: " + String(rt_enum[datalayer_extended.meb.rt_cell_overvolt & 0x03]) + "</h4>";
     content += "<h4>Cell undervoltage: " + String(rt_enum[datalayer_extended.meb.rt_cell_undervol & 0x03]) + "</h4>";
     content += "<h4>Cell imbalance: " + String(rt_enum[datalayer_extended.meb.rt_cell_imbalance & 0x03]) + "</h4>";
-    content += "<h4>Battery unathorized: " + String(rt_enum[datalayer_extended.meb.rt_battery_unathorized & 0x03]) + "</h4>";
+    content +=
+        "<h4>Battery unathorized: " + String(rt_enum[datalayer_extended.meb.rt_battery_unathorized & 0x03]) + "</h4>";
 #endif  //MEB_BATTERY
 
 #ifdef RENAULT_ZOE_GEN2_BATTERY

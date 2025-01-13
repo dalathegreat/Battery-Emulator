@@ -140,7 +140,7 @@ void transmit_obd_can_frame(unsigned int address, int interface) {
       OBD_frame.data.u8[2] = 0x1C;
       transmit_can_frame(&OBD_frame, interface);  // DTC TP-ISO
       break;
-    }
+  }
   cnt++;
   if (cnt == 3600)
     cnt = 0;

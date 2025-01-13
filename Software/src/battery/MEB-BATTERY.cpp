@@ -730,7 +730,7 @@ void handle_incoming_can_frame_battery(CAN_frame rx_frame) {
       BMS_16A954A6_counter = (rx_frame.data.u8[1] & 0x0F);  // Can be used to check CAN signal integrity later on
       isolation_fault = (rx_frame.data.u8[2] & 0xE0) >> 5;
       isolation_status = (rx_frame.data.u8[2] & 0x1E) >> 1;
-      if (isolation_fault != 0){
+      if (isolation_fault != 0) {
         actual_temperature_highest_C = rx_frame.data.u8[3];  //*0,5 -40
         actual_temperature_lowest_C = rx_frame.data.u8[4];   //*0,5 -40
         actual_cellvoltage_highest_mV = (((rx_frame.data.u8[6] & 0x0F) << 8) | rx_frame.data.u8[5]);
@@ -1603,7 +1603,7 @@ void transmit_can_battery() {
       if (MEB_503.data.u8[3] == BMS_TARGET_HV_OFF) {
         logging.printf("MEB Requesting HV\n");
       }
-      MEB_503.data.u8[1] = 
+      MEB_503.data.u8[1] =
           0x30 | (datalayer.battery.status.bms_status == ACTIVE ? 0x00 : 0x80);  // Disable precharing if ACTIVE
       MEB_503.data.u8[3] = BMS_TARGET_HV_ON;  //TODO, should we try AC_2 or DC charging?
       MEB_503.data.u8[5] = 0x82;              // Bordnetz Active
