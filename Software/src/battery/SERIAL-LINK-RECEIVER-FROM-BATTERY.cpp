@@ -94,8 +94,8 @@ void manageSerialLinkReceiver() {
   bool readError = dataLinkReceive.checkReadError(true);  // check for error & clear error flag
 
   if (readError) {
-    Serial.print(currentTime);
-    Serial.println(" - ERROR: SerialDataLink - Read Error");
+    logging.print(currentTime);
+    logging.println(" - ERROR: SerialDataLink - Read Error");
     lasterror = true;
     errors++;
   }
@@ -112,8 +112,8 @@ void manageSerialLinkReceiver() {
     //bms_status = ACTIVE;  // just testing
     if (lasterror) {
       lasterror = false;
-      Serial.print(currentTime);
-      Serial.println(" - RECOVERY: SerialDataLink - Read GOOD");
+      logging.print(currentTime);
+      logging.println(" - RECOVERY: SerialDataLink - Read GOOD");
     }
   }
 
@@ -134,34 +134,34 @@ void manageSerialLinkReceiver() {
     // report Lost data & Max charge / Discharge reductions
     if (minutesLost != last_minutesLost) {
       last_minutesLost = minutesLost;
-      Serial.print(currentTime);
+      logging.print(currentTime);
       if (batteryFault) {
-        Serial.print("Battery Fault (minutes) : ");
+        logging.print("Battery Fault (minutes) : ");
       } else {
-        Serial.print(" - Minutes without data : ");
+        logging.print(" - Minutes without data : ");
       }
-      Serial.print(minutesLost);
-      Serial.print(", max Charge = ");
-      Serial.print(datalayer.battery.status.max_charge_power_W);
-      Serial.print(", max Discharge = ");
-      Serial.println(datalayer.battery.status.max_discharge_power_W);
+      logging.print(minutesLost);
+      logging.print(", max Charge = ");
+      logging.print(datalayer.battery.status.max_charge_power_W);
+      logging.print(", max Discharge = ");
+      logging.println(datalayer.battery.status.max_discharge_power_W);
     }
   }
 
   if (currentTime - reportTime > 59999) {
     reportTime = currentTime;
-    Serial.print(currentTime);
-    Serial.print(" SerialDataLink-Receiver - NewData :");
-    Serial.print(reads);
-    Serial.print("   Errors : ");
-    Serial.println(errors);
+    logging.print(currentTime);
+    logging.print(" SerialDataLink-Receiver - NewData :");
+    logging.print(reads);
+    logging.print("   Errors : ");
+    logging.println(errors);
     reads = 0;
     errors = 0;
 
 // --- printUsefullData();
-//Serial.print("SOC = ");
-//Serial.println(SOC);
-#ifdef DEBUG_VIA_USB
+//logging.print("SOC = ");
+//logging.println(SOC);
+#ifdef DEBUG_LOG
     update_values_serial_link();
 #endif
   }
@@ -179,43 +179,43 @@ void manageSerialLinkReceiver() {
 }
 
 void update_values_serial_link() {
-  Serial.println("Values from battery: ");
-  Serial.print("SOC: ");
-  Serial.print(datalayer.battery.status.real_soc);
-  Serial.print(" SOH: ");
-  Serial.print(datalayer.battery.status.soh_pptt);
-  Serial.print(" Voltage: ");
-  Serial.print(datalayer.battery.status.voltage_dV);
-  Serial.print(" Current: ");
-  Serial.print(datalayer.battery.status.current_dA);
-  Serial.print(" Capacity: ");
-  Serial.print(datalayer.battery.info.total_capacity_Wh);
-  Serial.print(" Remain cap: ");
-  Serial.print(datalayer.battery.status.remaining_capacity_Wh);
-  Serial.print(" Max discharge W: ");
-  Serial.print(datalayer.battery.status.max_discharge_power_W);
-  Serial.print(" Max charge W: ");
-  Serial.print(datalayer.battery.status.max_charge_power_W);
-  Serial.print(" BMS status: ");
-  Serial.print(datalayer.battery.status.bms_status);
-  Serial.print(" Power: ");
-  Serial.print(datalayer.battery.status.active_power_W);
-  Serial.print(" Temp min: ");
-  Serial.print(datalayer.battery.status.temperature_min_dC);
-  Serial.print(" Temp max: ");
-  Serial.print(datalayer.battery.status.temperature_max_dC);
-  Serial.print(" Cell max: ");
-  Serial.print(datalayer.battery.status.cell_max_voltage_mV);
-  Serial.print(" Cell min: ");
-  Serial.print(datalayer.battery.status.cell_min_voltage_mV);
-  Serial.print(" LFP : ");
-  Serial.print(datalayer.battery.info.chemistry);
-  Serial.print(" Battery Allows Contactor Closing: ");
-  Serial.print(datalayer.system.status.battery_allows_contactor_closing);
-  Serial.print(" Inverter Allows Contactor Closing: ");
-  Serial.print(datalayer.system.status.inverter_allows_contactor_closing);
+  logging.println("Values from battery: ");
+  logging.print("SOC: ");
+  logging.print(datalayer.battery.status.real_soc);
+  logging.print(" SOH: ");
+  logging.print(datalayer.battery.status.soh_pptt);
+  logging.print(" Voltage: ");
+  logging.print(datalayer.battery.status.voltage_dV);
+  logging.print(" Current: ");
+  logging.print(datalayer.battery.status.current_dA);
+  logging.print(" Capacity: ");
+  logging.print(datalayer.battery.info.total_capacity_Wh);
+  logging.print(" Remain cap: ");
+  logging.print(datalayer.battery.status.remaining_capacity_Wh);
+  logging.print(" Max discharge W: ");
+  logging.print(datalayer.battery.status.max_discharge_power_W);
+  logging.print(" Max charge W: ");
+  logging.print(datalayer.battery.status.max_charge_power_W);
+  logging.print(" BMS status: ");
+  logging.print(datalayer.battery.status.bms_status);
+  logging.print(" Power: ");
+  logging.print(datalayer.battery.status.active_power_W);
+  logging.print(" Temp min: ");
+  logging.print(datalayer.battery.status.temperature_min_dC);
+  logging.print(" Temp max: ");
+  logging.print(datalayer.battery.status.temperature_max_dC);
+  logging.print(" Cell max: ");
+  logging.print(datalayer.battery.status.cell_max_voltage_mV);
+  logging.print(" Cell min: ");
+  logging.print(datalayer.battery.status.cell_min_voltage_mV);
+  logging.print(" LFP : ");
+  logging.print(datalayer.battery.info.chemistry);
+  logging.print(" Battery Allows Contactor Closing: ");
+  logging.print(datalayer.system.status.battery_allows_contactor_closing);
+  logging.print(" Inverter Allows Contactor Closing: ");
+  logging.print(datalayer.system.status.inverter_allows_contactor_closing);
 
-  Serial.println("");
+  logging.println("");
 }
 
 void setup_battery(void) {
@@ -224,7 +224,7 @@ void setup_battery(void) {
 }
 // Needed to make the compiler happy
 void update_values_battery() {}
-void send_can_battery() {}
-void receive_can_battery(CAN_frame rx_frame) {}
+void transmit_can_battery() {}
+void handle_incoming_can_frame_battery(CAN_frame rx_frame) {}
 
 #endif

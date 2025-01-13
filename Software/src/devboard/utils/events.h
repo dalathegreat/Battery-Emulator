@@ -6,7 +6,7 @@
 
 // #define INCLUDE_EVENTS_TEST  // Enable to run an event test loop, see events_test_on_target.cpp
 
-#define EE_MAGIC_HEADER_VALUE 0x0017  // 0x0000 to 0xFFFF
+#define EE_MAGIC_HEADER_VALUE 0x0020  // 0x0000 to 0xFFFF
 
 #define GENERATE_ENUM(ENUM) ENUM,
 #define GENERATE_STRING(STRING) #STRING,
@@ -26,8 +26,8 @@
  */
 
 #define EVENTS_ENUM_TYPE(XX)            \
-  XX(EVENT_CANFD_INIT_FAILURE)          \
-  XX(EVENT_CANMCP_INIT_FAILURE)         \
+  XX(EVENT_CANMCP2517FD_INIT_FAILURE)   \
+  XX(EVENT_CANMCP2515_INIT_FAILURE)     \
   XX(EVENT_CANFD_BUFFER_FULL)           \
   XX(EVENT_CAN_OVERRUN)                 \
   XX(EVENT_CANFD_RX_OVERRUN)            \
@@ -45,6 +45,8 @@
   XX(EVENT_SOC_PLAUSIBILITY_ERROR)      \
   XX(EVENT_SOC_UNAVAILABLE)             \
   XX(EVENT_KWH_PLAUSIBILITY_ERROR)      \
+  XX(EVENT_BALANCING_START)             \
+  XX(EVENT_BALANCING_END)               \
   XX(EVENT_BATTERY_EMPTY)               \
   XX(EVENT_BATTERY_FULL)                \
   XX(EVENT_BATTERY_FROZEN)              \
@@ -69,6 +71,8 @@
   XX(EVENT_INTERFACE_MISSING)           \
   XX(EVENT_MODBUS_INVERTER_MISSING)     \
   XX(EVENT_ERROR_OPEN_CONTACTOR)        \
+  XX(EVENT_CELL_CRITICAL_UNDER_VOLTAGE) \
+  XX(EVENT_CELL_CRITICAL_OVER_VOLTAGE)  \
   XX(EVENT_CELL_UNDER_VOLTAGE)          \
   XX(EVENT_CELL_OVER_VOLTAGE)           \
   XX(EVENT_CELL_DEVIATION_HIGH)         \
@@ -79,6 +83,7 @@
   XX(EVENT_DUMMY_DEBUG)                 \
   XX(EVENT_DUMMY_WARNING)               \
   XX(EVENT_DUMMY_ERROR)                 \
+  XX(EVENT_PERSISTENT_SAVE_INFO)        \
   XX(EVENT_SERIAL_RX_WARNING)           \
   XX(EVENT_SERIAL_RX_FAILURE)           \
   XX(EVENT_SERIAL_TX_FAILURE)           \

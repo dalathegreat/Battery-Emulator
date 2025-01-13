@@ -117,19 +117,40 @@ void float2frameMSB(byte* arr, float value, byte framepointer) {
   arr[framepointer + 1] = g.b[3];
 }
 
-void send_kostal(byte* arr, int alen) {
+static void dbg_timestamp(void) {
 #ifdef DEBUG_KOSTAL_RS485_DATA
-  Serial.print("TX: ");
-  for (int i = 0; i < alen; i++) {
-    if (arr[i] < 0x10) {
-      Serial.print("0");
-    }
-    Serial.print(arr[i], HEX);
-    Serial.print(" ");
-  }
-  Serial.println("\n");
+  logging.print("[");
+  logging.print(millis());
+  logging.print(" ms] ");
 #endif
-  Serial2.write(arr, alen);
+}
+
+static void dbg_frame(byte* frame, int len, const char* prefix) {
+  dbg_timestamp();
+#ifdef DEBUG_KOSTAL_RS485_DATA
+  logging.print(prefix);
+  logging.print(": ");
+  for (uint8_t i = 0; i < len; i++) {
+    if (frame[i] < 0x10) {
+      logging.print("0");
+    }
+    logging.print(frame[i], HEX);
+    logging.print(" ");
+  }
+  logging.println("");
+#endif
+}
+
+static void dbg_message(const char* msg) {
+  dbg_timestamp();
+#ifdef DEBUG_KOSTAL_RS485_DATA
+  logging.println(msg);
+#endif
+}
+
+static void send_kostal(byte* frame, int len) {
+  dbg_frame(frame, len, "TX");
+  Serial2.write(frame, len);
 }
 
 byte calculate_longframe_crc(byte* lfc, int lastbyte) {
@@ -247,6 +268,7 @@ void receive_RS485()  // Runs as fast as possible to handle the serial stream
   }
   if (currentMillis - contactorMillis >= INTERVAL_2_S & !RX_allow) {
     RX_allow = true;
+    dbg_message("RX_allow -> true");
   }
 
   if (startupMillis) {
@@ -255,10 +277,12 @@ void receive_RS485()  // Runs as fast as possible to handle the serial stream
       // Disconnect allowed only, when curren zero
       if (datalayer.battery.status.current_dA == 0) {
         datalayer.system.status.inverter_allows_contactor_closing = false;
+        dbg_message("inverter_allows_contactor_closing -> false");
       }
     } else if (((currentMillis - startupMillis) >= 7000) &
                datalayer.system.status.inverter_allows_contactor_closing == false) {
       datalayer.system.status.inverter_allows_contactor_closing = true;
+      dbg_message("inverter_allows_contactor_closing -> true");
     }
   }
 
@@ -266,6 +290,7 @@ void receive_RS485()  // Runs as fast as possible to handle the serial stream
     if ((currentMillis - B1_last_millis) > INTERVAL_1_S) {
       send_kostal(frameB1b, 8);
       B1_delay = false;
+      dbg_message("B1_delay -> false");
     }
   } else if (Serial2.available()) {
     RS485_RXFRAME[rx_index] = Serial2.read();
@@ -273,14 +298,7 @@ void receive_RS485()  // Runs as fast as possible to handle the serial stream
       rx_index++;
       if (RS485_RXFRAME[rx_index - 1] == 0x00) {
         if ((rx_index == 10) && (RS485_RXFRAME[0] == 0x09) && register_content_ok) {
-#ifdef DEBUG_KOSTAL_RS485_DATA
-          Serial.print("RX: ");
-          for (uint8_t i = 0; i < 10; i++) {
-            Serial.print(RS485_RXFRAME[i], HEX);
-            Serial.print(" ");
-          }
-          Serial.println("");
-#endif
+          dbg_frame(RS485_RXFRAME, 10, "RX");
           rx_index = 0;
           if (check_kostal_frame_crc()) {
             incoming_message_counter = RS485_HEALTHY;
@@ -299,6 +317,7 @@ void receive_RS485()  // Runs as fast as possible to handle the serial stream
             if (headerB && (RS485_RXFRAME[6] == 0x5E) && (RS485_RXFRAME[7] == 0xFF)) {
               send_kostal(frameB1, 10);
               B1_delay = true;
+              dbg_message("B1_delay -> true");
               B1_last_millis = currentMillis;
             }
 
@@ -334,11 +353,14 @@ void receive_RS485()  // Runs as fast as possible to handle the serial stream
               send_kostal(frame3, 9);
             }
           }
+        } else {
+          dbg_frame(RS485_RXFRAME, 10, "RX (dropped)");
         }
         rx_index = 0;
       }
     }
     if (rx_index >= 10) {
+      dbg_frame(RS485_RXFRAME, 10, "RX (!RX_allow)");
       rx_index = 0;
     }
   }

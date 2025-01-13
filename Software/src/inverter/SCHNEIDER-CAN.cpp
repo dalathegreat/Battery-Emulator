@@ -255,7 +255,7 @@ void update_values_can_inverter() {  //This function maps all the values fetched
   SE_320.data.u8[1] = 0x02;
 }
 
-void receive_can_inverter(CAN_frame rx_frame) {
+void map_can_frame_to_variable_inverter(CAN_frame rx_frame) {
   switch (rx_frame.ID) {
     case 0x310:  // Still alive message from inverter, every 1s
       datalayer.system.status.CAN_inverter_still_alive = CAN_STILL_ALIVE;
@@ -265,35 +265,35 @@ void receive_can_inverter(CAN_frame rx_frame) {
   }
 }
 
-void send_can_inverter() {
+void transmit_can_inverter() {
   unsigned long currentMillis = millis();
 
   // Send 500ms CAN Message
   if (currentMillis - previousMillis500ms >= INTERVAL_500_MS) {
     previousMillis500ms = currentMillis;
 
-    transmit_can(&SE_321, can_config.inverter);
-    transmit_can(&SE_322, can_config.inverter);
-    transmit_can(&SE_323, can_config.inverter);
-    transmit_can(&SE_324, can_config.inverter);
-    transmit_can(&SE_325, can_config.inverter);
+    transmit_can_frame(&SE_321, can_config.inverter);
+    transmit_can_frame(&SE_322, can_config.inverter);
+    transmit_can_frame(&SE_323, can_config.inverter);
+    transmit_can_frame(&SE_324, can_config.inverter);
+    transmit_can_frame(&SE_325, can_config.inverter);
   }
   // Send 2s CAN Message
   if (currentMillis - previousMillis2s >= INTERVAL_2_S) {
     previousMillis2s = currentMillis;
 
-    transmit_can(&SE_320, can_config.inverter);
-    transmit_can(&SE_326, can_config.inverter);
-    transmit_can(&SE_327, can_config.inverter);
+    transmit_can_frame(&SE_320, can_config.inverter);
+    transmit_can_frame(&SE_326, can_config.inverter);
+    transmit_can_frame(&SE_327, can_config.inverter);
   }
   // Send 10s CAN Message
   if (currentMillis - previousMillis10s >= INTERVAL_10_S) {
     previousMillis10s = currentMillis;
-    transmit_can(&SE_328, can_config.inverter);
-    transmit_can(&SE_330, can_config.inverter);
-    transmit_can(&SE_331, can_config.inverter);
-    transmit_can(&SE_332, can_config.inverter);
-    transmit_can(&SE_333, can_config.inverter);
+    transmit_can_frame(&SE_328, can_config.inverter);
+    transmit_can_frame(&SE_330, can_config.inverter);
+    transmit_can_frame(&SE_331, can_config.inverter);
+    transmit_can_frame(&SE_332, can_config.inverter);
+    transmit_can_frame(&SE_333, can_config.inverter);
   }
 }
 

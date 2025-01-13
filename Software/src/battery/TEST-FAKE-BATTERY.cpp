@@ -15,9 +15,9 @@ CAN_frame TEST = {.FD = false,
                   .data = {0x10, 0x64, 0x00, 0xB0, 0x00, 0x1E, 0x00, 0x8F}};
 
 void print_units(char* header, int value, char* units) {
-  Serial.print(header);
-  Serial.print(value);
-  Serial.print(units);
+  logging.print(header);
+  logging.print(value);
+  logging.print(units);
 }
 
 void update_values_battery() { /* This function puts fake values onto the parameters sent towards the inverter */
@@ -54,8 +54,8 @@ void update_values_battery() { /* This function puts fake values onto the parame
   datalayer.battery.status.CAN_battery_still_alive = CAN_STILL_ALIVE;
 
 /*Finally print out values to serial if configured to do so*/
-#ifdef DEBUG_VIA_USB
-  Serial.println("FAKE Values going to inverter");
+#ifdef DEBUG_LOG
+  logging.println("FAKE Values going to inverter");
   print_units("SOH%: ", (datalayer.battery.status.soh_pptt * 0.01), "% ");
   print_units(", SOC%: ", (datalayer.battery.status.reported_soc * 0.01), "% ");
   print_units(", Voltage: ", (datalayer.battery.status.voltage_dV * 0.1), "V ");
@@ -65,7 +65,7 @@ void update_values_battery() { /* This function puts fake values onto the parame
   print_units(", Min temp: ", (datalayer.battery.status.temperature_min_dC * 0.1), "°C ");
   print_units(", Max cell voltage: ", datalayer.battery.status.cell_max_voltage_mV, "mV ");
   print_units(", Min cell voltage: ", datalayer.battery.status.cell_min_voltage_mV, "mV ");
-  Serial.println("");
+  logging.println("");
 #endif
 }
 
@@ -107,8 +107,8 @@ void update_values_battery2() {  // Handle the values coming in from battery #2
   datalayer.battery2.status.CAN_battery_still_alive = CAN_STILL_ALIVE;
 
 /*Finally print out values to serial if configured to do so*/
-#ifdef DEBUG_VIA_USB
-  Serial.println("FAKE Values  battery 2 going to inverter");
+#ifdef DEBUG_LOG
+  logging.println("FAKE Values  battery 2 going to inverter");
   print_units("SOH 2 %: ", (datalayer.battery2.status.soh_pptt * 0.01), "% ");
   print_units(", SOC 2 %: ", (datalayer.battery2.status.reported_soc * 0.01), "% ");
   print_units(", Voltage 2: ", (datalayer.battery2.status.voltage_dV * 0.1), "V ");
@@ -118,25 +118,25 @@ void update_values_battery2() {  // Handle the values coming in from battery #2
   print_units(", Min temp 2: ", (datalayer.battery2.status.temperature_min_dC * 0.1), "°C ");
   print_units(", Max cell voltage 2: ", datalayer.battery2.status.cell_max_voltage_mV, "mV ");
   print_units(", Min cell voltage 2: ", datalayer.battery2.status.cell_min_voltage_mV, "mV ");
-  Serial.println("");
+  logging.println("");
 #endif
 }
 
-void receive_can_battery2(CAN_frame rx_frame) {
+void handle_incoming_can_frame_battery2(CAN_frame rx_frame) {
   datalayer.battery2.status.CAN_battery_still_alive = CAN_STILL_ALIVE;
 }
 #endif  // DOUBLE_BATTERY
 
-void receive_can_battery(CAN_frame rx_frame) {
+void handle_incoming_can_frame_battery(CAN_frame rx_frame) {
   datalayer.battery.status.CAN_battery_still_alive = CAN_STILL_ALIVE;
 }
-void send_can_battery() {
+void transmit_can_battery() {
   unsigned long currentMillis = millis();
   // Send 100ms CAN Message
   if (currentMillis - previousMillis100 >= INTERVAL_100_MS) {
     previousMillis100 = currentMillis;
     // Put fake messages here incase you want to test sending CAN
-    //transmit_can(&TEST, can_config.battery);
+    //transmit_can_frame(&TEST, can_config.battery);
   }
 }
 

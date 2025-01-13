@@ -26,14 +26,14 @@
 
 // CAN2 defines below
 
-// DUAL_CAN defines
+// CAN_ADDON defines
 #define MCP2515_SCK 12   // SCK input of MCP2515
 #define MCP2515_MOSI 5   // SDI input of MCP2515
 #define MCP2515_MISO 34  // SDO output of MCP2515 | Pin 34 is input only, without pullup/down resistors
 #define MCP2515_CS 18    // CS input of MCP2515
 #define MCP2515_INT 35   // INT output of MCP2515 |  | Pin 35 is input only, without pullup/down resistors
 
-// CAN_FD defines
+// CANFD_ADDON defines
 #define MCP2517_SCK 17  // SCK input of MCP2517
 #define MCP2517_SDI 23  // SDI input of MCP2517
 #define MCP2517_SDO 39  // SDO output of MCP2517
@@ -51,10 +51,12 @@
 #define POSITIVE_CONTACTOR_PIN 32
 #define NEGATIVE_CONTACTOR_PIN 33
 #define PRECHARGE_PIN 25
+#define BMS_POWER 2
 
 #define SECOND_POSITIVE_CONTACTOR_PIN 13
 #define SECOND_NEGATIVE_CONTACTOR_PIN 16
 #define SECOND_PRECHARGE_PIN 18
+#define BMS_2_POWER 12
 
 // SMA CAN contactor pins
 #define INVERTER_CONTACTOR_ENABLE_PIN 36
@@ -72,6 +74,14 @@
 // Equipment stop pin
 #define EQUIPMENT_STOP_PIN 35
 
+// BMW_I3_BATTERY wake up pin
+#ifdef BMW_I3_BATTERY
+#define WUP_PIN1 GPIO_NUM_25  // Wake up pin for battery 1
+#ifdef DOUBLE_BATTERY
+#define WUP_PIN2 GPIO_NUM_32  // Wake up pin for battery 2
+#endif                        // DOUBLE_BATTERY
+#endif                        // BMW_I3_BATTERY
+
 /* ----- Error checks below, don't change (can't be moved to separate file) ----- */
 #ifndef HW_CONFIGURED
 #define HW_CONFIGURED
@@ -80,17 +90,17 @@
 #endif
 
 #ifdef CHADEMO_BATTERY
-#ifdef DUAL_CAN
-#error CHADEMO and DUAL_CAN cannot coexist due to overlapping GPIO pin usage
+#ifdef CAN_ADDON
+#error CHADEMO and CAN_ADDON cannot coexist due to overlapping GPIO pin usage
 #endif
 #endif
 
 #ifdef EQUIPMENT_STOP_BUTTON
-#ifdef DUAL_CAN
-#error EQUIPMENT_STOP_BUTTON and DUAL_CAN cannot coexist due to overlapping GPIO pin usage
+#ifdef CAN_ADDON
+#error EQUIPMENT_STOP_BUTTON and CAN_ADDON cannot coexist due to overlapping GPIO pin usage
 #endif
-#ifdef CAN_FD
-#error EQUIPMENT_STOP_BUTTON and CAN_FD cannot coexist due to overlapping GPIO pin usage
+#ifdef CANFD_ADDON
+#error EQUIPMENT_STOP_BUTTON and CANFD_ADDON cannot coexist due to overlapping GPIO pin usage
 #endif
 #ifdef CHADEMO_BATTERY
 #error EQUIPMENT_STOP_BUTTON and CHADEMO_BATTERY cannot coexist due to overlapping GPIO pin usage
@@ -98,8 +108,11 @@
 #endif
 
 #ifdef BMW_I3_BATTERY
-#ifdef CONTACTOR_CONTROL
+#if defined(CONTACTOR_CONTROL) && defined(WUP_PIN1)
 #error GPIO PIN 25 cannot be used for both BMWi3 Wakeup and contactor control. Disable CONTACTOR_CONTROL
+#endif
+#if defined(CONTACTOR_CONTROL) && defined(WUP_PIN2)
+#error GPIO PIN 32 cannot be used for both BMWi3 Wakeup and contactor control. Disable CONTACTOR_CONTROL
 #endif
 #endif
 

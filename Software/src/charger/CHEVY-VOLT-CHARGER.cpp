@@ -56,7 +56,7 @@ static CAN_frame charger_set_targets = {
     .data = {0x40, 0x00, 0x00, 0x00}};  // data[0] is a static value, meaning unknown
 
 /* We are mostly sending out not receiving */
-void receive_can_charger(CAN_frame rx_frame) {
+void map_can_frame_to_variable_charger(CAN_frame rx_frame) {
   uint16_t charger_stat_HVcur_temp = 0;
   uint16_t charger_stat_HVvol_temp = 0;
   uint16_t charger_stat_LVcur_temp = 0;
@@ -101,14 +101,14 @@ void receive_can_charger(CAN_frame rx_frame) {
     case 0x308:
       break;
     default:
-#ifdef DEBUG_VIA_USB
-      Serial.printf("CAN Rcv unknown frame MsgID=%x\n", rx_frame.MsgID);
+#ifdef DEBUG_LOG
+      logging.printf("CAN Rcv unknown frame MsgID=%x\n", rx_frame.MsgID);
 #endif
       break;
   }
 }
 
-void send_can_charger() {
+void transmit_can_charger() {
   unsigned long currentMillis = millis();
   uint16_t Vol_temp = 0;
 
@@ -137,7 +137,7 @@ void send_can_charger() {
 
     charger_keepalive_frame.data.u8[0] = charger_mode;
 
-    transmit_can(&charger_keepalive_frame, can_config.charger);
+    transmit_can_frame(&charger_keepalive_frame, can_config.charger);
   }
 
   /* Send current targets every 200ms */
@@ -174,18 +174,18 @@ void send_can_charger() {
     /* LSB of the voltage command. Then MSB LSB is divided by 2 */
     charger_set_targets.data.u8[3] = lowByte(Vol_temp);
 
-    transmit_can(&charger_set_targets, can_config.charger);
+    transmit_can_frame(&charger_set_targets, can_config.charger);
   }
 
-#ifdef DEBUG_VIA_USB
+#ifdef DEBUG_LOG
   /* Serial echo every 5s of charger stats */
   if (currentMillis - previousMillis5000ms >= INTERVAL_5_S) {
     previousMillis5000ms = currentMillis;
-    Serial.printf("Charger AC in IAC=%fA VAC=%fV\n", charger_stat_ACcur, charger_stat_ACvol);
-    Serial.printf("Charger HV out IDC=%fA VDC=%fV\n", charger_stat_HVcur, charger_stat_HVvol);
-    Serial.printf("Charger LV out IDC=%fA VDC=%fV\n", charger_stat_LVcur, charger_stat_LVvol);
-    Serial.printf("Charger mode=%s\n", (charger_mode > MODE_DISABLED) ? "Enabled" : "Disabled");
-    Serial.printf("Charger HVset=%uV,%uA finishCurrent=%uA\n", setpoint_HV_VDC, setpoint_HV_IDC, setpoint_HV_IDC_END);
+    logging.printf("Charger AC in IAC=%fA VAC=%fV\n", charger_stat_ACcur, charger_stat_ACvol);
+    logging.printf("Charger HV out IDC=%fA VDC=%fV\n", charger_stat_HVcur, charger_stat_HVvol);
+    logging.printf("Charger LV out IDC=%fA VDC=%fV\n", charger_stat_LVcur, charger_stat_LVvol);
+    logging.printf("Charger mode=%s\n", (charger_mode > MODE_DISABLED) ? "Enabled" : "Disabled");
+    logging.printf("Charger HVset=%uV,%uA finishCurrent=%uA\n", setpoint_HV_VDC, setpoint_HV_IDC, setpoint_HV_IDC_END);
   }
 #endif
 }

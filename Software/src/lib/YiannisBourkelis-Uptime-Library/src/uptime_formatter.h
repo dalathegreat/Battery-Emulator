@@ -31,6 +31,5 @@ class uptime_formatter
     uptime_formatter();
     
     static String getUptime();
-    static String getUptimeWithMillis();
 };
 #endif

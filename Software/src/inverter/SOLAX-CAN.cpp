@@ -64,6 +64,31 @@ CAN_frame SOLAX_1879 = {.FD = false,
                         .DLC = 8,
                         .ID = 0x1879,
                         .data = {0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0}};
+CAN_frame SOLAX_187E = {.FD = false,  //Needed for Ultra
+                        .ext_ID = true,
+                        .DLC = 8,
+                        .ID = 0x187E,
+                        .data = {0x60, 0xEA, 0x0, 0x0, 0x64, 0x0, 0x0, 0x0}};
+CAN_frame SOLAX_187D = {.FD = false,  //Needed for Ultra
+                        .ext_ID = true,
+                        .DLC = 8,
+                        .ID = 0x187D,
+                        .data = {0x8B, 0x01, 0x0, 0x0, 0x8B, 0x1, 0x0, 0x0}};
+CAN_frame SOLAX_187C = {.FD = false,  //Needed for Ultra
+                        .ext_ID = true,
+                        .DLC = 8,
+                        .ID = 0x187C,
+                        .data = {0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0}};
+CAN_frame SOLAX_187B = {.FD = false,  //Needed for Ultra
+                        .ext_ID = true,
+                        .DLC = 8,
+                        .ID = 0x187B,
+                        .data = {0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0}};
+CAN_frame SOLAX_187A = {.FD = false,  //Needed for Ultra
+                        .ext_ID = true,
+                        .DLC = 8,
+                        .ID = 0x187A,
+                        .data = {0x01, 0x50, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0}};
 CAN_frame SOLAX_1881 = {.FD = false,
                         .ext_ID = true,
                         .DLC = 8,
@@ -165,13 +190,20 @@ void update_values_can_inverter() {  //This function maps all the values fetched
   SOLAX_1801.data.u8[0] = 2;
   SOLAX_1801.data.u8[2] = 1;
   SOLAX_1801.data.u8[4] = 1;
+
+  //Ultra messages
+  SOLAX_187E.data.u8[0] = (uint8_t)capped_remaining_capacity_Wh;
+  SOLAX_187E.data.u8[1] = (capped_remaining_capacity_Wh >> 8);
+  SOLAX_187E.data.u8[2] = 0;
+  SOLAX_187E.data.u8[3] = 0;
+  SOLAX_187E.data.u8[5] = (uint8_t)(datalayer.battery.status.reported_soc / 100);
 }
 
-void send_can_inverter() {
+void transmit_can_inverter() {
   // No periodic sending used on this protocol, we react only on incoming CAN messages!
 }
 
-void receive_can_inverter(CAN_frame rx_frame) {
+void map_can_frame_to_variable_inverter(CAN_frame rx_frame) {
 
   if (rx_frame.ID == 0x1871) {
     datalayer.system.status.CAN_inverter_still_alive = CAN_STILL_ALIVE;
@@ -182,21 +214,23 @@ void receive_can_inverter(CAN_frame rx_frame) {
     LastFrameTime = millis();
     switch (STATE) {
       case (BATTERY_ANNOUNCE):
-#ifdef DEBUG_VIA_USB
-        Serial.println("Solax Battery State: Announce");
+#ifdef DEBUG_LOG
+        logging.println("Solax Battery State: Announce");
 #endif
         datalayer.system.status.inverter_allows_contactor_closing = false;
         SOLAX_1875.data.u8[4] = (0x00);  // Inform Inverter: Contactor 0=off, 1=on.
-        for (int i = 0; i <= number_of_batteries; i++) {
-          transmit_can(&SOLAX_1872, can_config.inverter);
-          transmit_can(&SOLAX_1873, can_config.inverter);
-          transmit_can(&SOLAX_1874, can_config.inverter);
-          transmit_can(&SOLAX_1875, can_config.inverter);
-          transmit_can(&SOLAX_1876, can_config.inverter);
-          transmit_can(&SOLAX_1877, can_config.inverter);
-          transmit_can(&SOLAX_1878, can_config.inverter);
+        for (uint8_t i = 0; i <= number_of_batteries; i++) {
+          transmit_can_frame(&SOLAX_187E, can_config.inverter);
+          transmit_can_frame(&SOLAX_187A, can_config.inverter);
+          transmit_can_frame(&SOLAX_1872, can_config.inverter);
+          transmit_can_frame(&SOLAX_1873, can_config.inverter);
+          transmit_can_frame(&SOLAX_1874, can_config.inverter);
+          transmit_can_frame(&SOLAX_1875, can_config.inverter);
+          transmit_can_frame(&SOLAX_1876, can_config.inverter);
+          transmit_can_frame(&SOLAX_1877, can_config.inverter);
+          transmit_can_frame(&SOLAX_1878, can_config.inverter);
         }
-        transmit_can(&SOLAX_100A001, can_config.inverter);  //BMS Announce
+        transmit_can_frame(&SOLAX_100A001, can_config.inverter);  //BMS Announce
         // Message from the inverter to proceed to contactor closing
         // Byte 4 changes from 0 to 1
         if (rx_frame.data.u64 == Contactor_Close_Payload)
@@ -205,30 +239,34 @@ void receive_can_inverter(CAN_frame rx_frame) {
 
       case (WAITING_FOR_CONTACTOR):
         SOLAX_1875.data.u8[4] = (0x00);  // Inform Inverter: Contactor 0=off, 1=on.
-        transmit_can(&SOLAX_1872, can_config.inverter);
-        transmit_can(&SOLAX_1873, can_config.inverter);
-        transmit_can(&SOLAX_1874, can_config.inverter);
-        transmit_can(&SOLAX_1875, can_config.inverter);
-        transmit_can(&SOLAX_1876, can_config.inverter);
-        transmit_can(&SOLAX_1877, can_config.inverter);
-        transmit_can(&SOLAX_1878, can_config.inverter);
-        transmit_can(&SOLAX_1801, can_config.inverter);  // Announce that the battery will be connected
-        STATE = CONTACTOR_CLOSED;                        // Jump to Contactor Closed State
-#ifdef DEBUG_VIA_USB
-        Serial.println("Solax Battery State: Contactor Closed");
+        transmit_can_frame(&SOLAX_187E, can_config.inverter);
+        transmit_can_frame(&SOLAX_187A, can_config.inverter);
+        transmit_can_frame(&SOLAX_1872, can_config.inverter);
+        transmit_can_frame(&SOLAX_1873, can_config.inverter);
+        transmit_can_frame(&SOLAX_1874, can_config.inverter);
+        transmit_can_frame(&SOLAX_1875, can_config.inverter);
+        transmit_can_frame(&SOLAX_1876, can_config.inverter);
+        transmit_can_frame(&SOLAX_1877, can_config.inverter);
+        transmit_can_frame(&SOLAX_1878, can_config.inverter);
+        transmit_can_frame(&SOLAX_1801, can_config.inverter);  // Announce that the battery will be connected
+        STATE = CONTACTOR_CLOSED;                              // Jump to Contactor Closed State
+#ifdef DEBUG_LOG
+        logging.println("Solax Battery State: Contactor Closed");
 #endif
         break;
 
       case (CONTACTOR_CLOSED):
         datalayer.system.status.inverter_allows_contactor_closing = true;
         SOLAX_1875.data.u8[4] = (0x01);  // Inform Inverter: Contactor 0=off, 1=on.
-        transmit_can(&SOLAX_1872, can_config.inverter);
-        transmit_can(&SOLAX_1873, can_config.inverter);
-        transmit_can(&SOLAX_1874, can_config.inverter);
-        transmit_can(&SOLAX_1875, can_config.inverter);
-        transmit_can(&SOLAX_1876, can_config.inverter);
-        transmit_can(&SOLAX_1877, can_config.inverter);
-        transmit_can(&SOLAX_1878, can_config.inverter);
+        transmit_can_frame(&SOLAX_187E, can_config.inverter);
+        transmit_can_frame(&SOLAX_187A, can_config.inverter);
+        transmit_can_frame(&SOLAX_1872, can_config.inverter);
+        transmit_can_frame(&SOLAX_1873, can_config.inverter);
+        transmit_can_frame(&SOLAX_1874, can_config.inverter);
+        transmit_can_frame(&SOLAX_1875, can_config.inverter);
+        transmit_can_frame(&SOLAX_1876, can_config.inverter);
+        transmit_can_frame(&SOLAX_1877, can_config.inverter);
+        transmit_can_frame(&SOLAX_1878, can_config.inverter);
         // Message from the inverter to open contactor
         // Byte 4 changes from 1 to 0
         if (rx_frame.data.u64 == Contactor_Open_Payload) {
@@ -240,15 +278,15 @@ void receive_can_inverter(CAN_frame rx_frame) {
   }
 
   if (rx_frame.ID == 0x1871 && rx_frame.data.u64 == __builtin_bswap64(0x0500010000000000)) {
-    transmit_can(&SOLAX_1881, can_config.inverter);
-    transmit_can(&SOLAX_1882, can_config.inverter);
-#ifdef DEBUG_VIA_USB
-    Serial.println("1871 05-frame received from inverter");
+    transmit_can_frame(&SOLAX_1881, can_config.inverter);
+    transmit_can_frame(&SOLAX_1882, can_config.inverter);
+#ifdef DEBUG_LOG
+    logging.println("1871 05-frame received from inverter");
 #endif
   }
   if (rx_frame.ID == 0x1871 && rx_frame.data.u8[0] == (0x03)) {
-#ifdef DEBUG_VIA_USB
-    Serial.println("1871 03-frame received from inverter");
+#ifdef DEBUG_LOG
+    logging.println("1871 03-frame received from inverter");
 #endif
   }
 }

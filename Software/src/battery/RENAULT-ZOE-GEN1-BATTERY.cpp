@@ -1,6 +1,5 @@
 #include "../include.h"
 #ifdef RENAULT_ZOE_GEN1_BATTERY
-#include <algorithm>  // For std::min and std::max
 #include "../datalayer/datalayer.h"
 #include "../devboard/utils/events.h"
 #include "RENAULT-ZOE-GEN1-BATTERY.h"
@@ -9,20 +8,23 @@
 https://github.com/openvehicles/Open-Vehicle-Monitoring-System-3/blob/master/vehicle/OVMS.V3/components/vehicle_renaultzoe/src/vehicle_renaultzoe.cpp
 The Zoe BMS apparently does not send total pack voltage, so we use the polled 96x cellvoltages summed up as total voltage
 Still TODO:
-- Find max discharge and max charge values (for now hardcoded to 5kW)
-- Fix the missing cell96 issue (Only cells 1-95 is shown)
-- Find current sensor value (OVMS code reads this from inverter, which we dont have)
-- Figure out why SOH% is not read (low prio)
+- Automatically detect if we are on 22 or 41kWh battery (Nice to have, requires log file from 22kWh battery)
 /*
 
 /* Do not change code below unless you are sure what you are doing */
 static uint16_t LB_SOC = 50;
+static uint16_t LB_Display_SOC = 50;
 static uint16_t LB_SOH = 99;
 static int16_t LB_Average_Temperature = 0;
-static uint32_t LB_Charge_Power_W = 0;
-static int32_t LB_Current = 0;
+static uint32_t LB_Charging_Power_W = 0;
+static uint32_t LB_Regen_allowed_W = 0;
+static uint32_t LB_Discharge_allowed_W = 0;
+static int16_t LB_Current = 0;
+static int16_t LB_Cell_minimum_temperature = 0;
+static int16_t LB_Cell_maximum_temperature = 0;
 static uint16_t LB_kWh_Remaining = 0;
 static uint16_t LB_Battery_Voltage = 3700;
+static uint8_t LB_Heartbeat = 0;
 static uint8_t frame0 = 0;
 static uint8_t current_poll = 0;
 static uint8_t requested_poll = 0;
@@ -77,32 +79,17 @@ void update_values_battery() {  //This function maps all the values fetched via 
   datalayer.battery.status.soh_pptt = (LB_SOH * 100);  // Increase range from 99% -> 99.00%
 
   datalayer.battery.status.real_soc = SOC_polled;
+  //datalayer.battery.status.real_soc = LB_Display_SOC; //Alternative would be to use Dash SOC%
 
-  datalayer.battery.status.current_dA = LB_Current;  //TODO: Take from CAN
+  datalayer.battery.status.current_dA = LB_Current * 10;  //Convert A to dA
 
   //Calculate the remaining Wh amount from SOC% and max Wh value.
   datalayer.battery.status.remaining_capacity_Wh = static_cast<uint32_t>(
       (static_cast<double>(datalayer.battery.status.real_soc) / 10000) * datalayer.battery.info.total_capacity_Wh);
 
-  datalayer.battery.status.max_discharge_power_W = 5000;  //TODO: Take from CAN
+  datalayer.battery.status.max_discharge_power_W = LB_Discharge_allowed_W;
 
-  datalayer.battery.status.max_charge_power_W = 5000;  //TODO: Take from CAN
-  // TODO: Remove this hacky wacky scaling down charge power when we find value from CAN
-  if (datalayer.battery.status.real_soc > 9500) {
-    datalayer.battery.status.max_charge_power_W = 3000;
-  }
-  if (datalayer.battery.status.real_soc > 9600) {
-    datalayer.battery.status.max_charge_power_W = 2000;
-  }
-  if (datalayer.battery.status.real_soc > 9700) {
-    datalayer.battery.status.max_charge_power_W = 1000;
-  }
-  if (datalayer.battery.status.real_soc > 9800) {
-    datalayer.battery.status.max_charge_power_W = 500;
-  }
-  if (datalayer.battery.status.real_soc > 9900) {
-    datalayer.battery.status.max_charge_power_W = 50;
-  }
+  datalayer.battery.status.max_charge_power_W = LB_Regen_allowed_W;
 
   int16_t temperatures[] = {cell_1_temperature_polled,  cell_2_temperature_polled,  cell_3_temperature_polled,
                             cell_4_temperature_polled,  cell_5_temperature_polled,  cell_6_temperature_polled,
@@ -145,28 +132,61 @@ void update_values_battery() {  //This function maps all the values fetched via 
   datalayer.battery.status.cell_min_voltage_mV = min_cell_mv_value;
   datalayer.battery.status.cell_max_voltage_mV = max_cell_mv_value;
   datalayer.battery.status.voltage_dV = static_cast<uint32_t>((calculated_total_pack_voltage_mV / 100));  // mV to dV
-
-#ifdef DEBUG_VIA_USB
-
-#endif
 }
 
-void receive_can_battery(CAN_frame rx_frame) {
-  datalayer.battery.status.CAN_battery_still_alive = CAN_STILL_ALIVE;
+void handle_incoming_can_frame_battery(CAN_frame rx_frame) {
   switch (rx_frame.ID) {
-    case 0x427:
-      LB_Charge_Power_W = rx_frame.data.u8[5] * 300;
+    case 0x155:  //10ms - Charging power, current and SOC
+      datalayer.battery.status.CAN_battery_still_alive = CAN_STILL_ALIVE;
+      LB_Charging_Power_W = rx_frame.data.u8[0] * 300;
+      LB_Current = (((((rx_frame.data.u8[1] & 0x0F) << 8) | rx_frame.data.u8[2]) * 0.25) - 500);
+      LB_Display_SOC = ((rx_frame.data.u8[4] << 8) | rx_frame.data.u8[5]);
+      break;
+    case 0x427:  // NOTE: Not present on 41kWh battery!
+      datalayer.battery.status.CAN_battery_still_alive = CAN_STILL_ALIVE;
       LB_kWh_Remaining = (((((rx_frame.data.u8[6] << 8) | (rx_frame.data.u8[7])) >> 6) & 0x3ff) * 0.1);
       break;
-    case 0x42E:  //HV SOC & Battery Temp & Charging Power
+    case 0x42E:  //NOTE: Not present on 41kWh battery!
+      datalayer.battery.status.CAN_battery_still_alive = CAN_STILL_ALIVE;
       LB_Battery_Voltage = (((((rx_frame.data.u8[3] << 8) | (rx_frame.data.u8[4])) >> 5) & 0x3ff) * 0.5);  //0.5V/bit
       LB_Average_Temperature = (((((rx_frame.data.u8[5] << 8) | (rx_frame.data.u8[6])) >> 5) & 0x7F) - 40);
       break;
+    case 0x424:  //100ms - Charge limits, Temperatures, SOH
+      datalayer.battery.status.CAN_battery_still_alive = CAN_STILL_ALIVE;
+      LB_Regen_allowed_W = rx_frame.data.u8[2] * 500;
+      LB_Discharge_allowed_W = rx_frame.data.u8[3] * 500;
+      LB_Cell_minimum_temperature = (rx_frame.data.u8[4] - 40);
+      LB_SOH = rx_frame.data.u8[5];
+      LB_Heartbeat = rx_frame.data.u8[6];  // Alternates between 0x55 and 0xAA every 500ms (Same as on Nissan LEAF)
+      LB_Cell_maximum_temperature = (rx_frame.data.u8[7] - 40);
+      break;
+    case 0x425:  //100ms Unknown content
+      datalayer.battery.status.CAN_battery_still_alive = CAN_STILL_ALIVE;
+      //Sent only? by 41kWh battery
+      break;
+    case 0x445:  //100ms
+      datalayer.battery.status.CAN_battery_still_alive = CAN_STILL_ALIVE;
+      //Sent only? by 41kWh battery (potential use for detecting which generation we are on)
+      break;
+    case 0x4AE:  //3000ms
+      datalayer.battery.status.CAN_battery_still_alive = CAN_STILL_ALIVE;
+      //Sent only? by 41kWh battery (potential use for detecting which generation we are on)
+      break;
+    case 0x4AF:  //100ms
+      datalayer.battery.status.CAN_battery_still_alive = CAN_STILL_ALIVE;
+      //Sent only? by 41kWh battery (potential use for detecting which generation we are on)
+      break;
     case 0x654:  //SOC
+      datalayer.battery.status.CAN_battery_still_alive = CAN_STILL_ALIVE;
       LB_SOC = rx_frame.data.u8[3];
       break;
-    case 0x658:  //SOH
-      LB_SOH = (rx_frame.data.u8[4] & 0x7F);
+    case 0x658:  //SOH - NOTE: Not present on 41kWh battery! (Is this message on 21kWh?)
+      datalayer.battery.status.CAN_battery_still_alive = CAN_STILL_ALIVE;
+      //LB_SOH = (rx_frame.data.u8[4] & 0x7F);
+      break;
+    case 0x659:  //3000ms
+      datalayer.battery.status.CAN_battery_still_alive = CAN_STILL_ALIVE;
+      //Sent only? by 41kWh battery (potential use for detecting which generation we are on)
       break;
     case 0x7BB:  //Reply from active polling
       frame0 = rx_frame.data.u8[0];
@@ -174,7 +194,7 @@ void receive_can_battery(CAN_frame rx_frame) {
       switch (frame0) {
         case 0x10:  //PID HEADER, datarow 0
           requested_poll = rx_frame.data.u8[3];
-          transmit_can(&ZOE_ACK_79B, can_config.battery);
+          transmit_can_frame(&ZOE_ACK_79B, can_config.battery);
 
           if (requested_poll == GROUP1_CELLVOLTAGES_1_POLL) {
             cellvoltages[0] = (rx_frame.data.u8[4] << 8) | rx_frame.data.u8[5];
@@ -376,7 +396,7 @@ void receive_can_battery(CAN_frame rx_frame) {
         case 0x29:
           if (requested_poll == GROUP1_CELLVOLTAGES_1_POLL) {
             cellvoltages[30] = (rx_frame.data.u8[1] << 8) | rx_frame.data.u8[2];
-            cellvoltages[21] = (rx_frame.data.u8[3] << 8) | rx_frame.data.u8[4];
+            cellvoltages[31] = (rx_frame.data.u8[3] << 8) | rx_frame.data.u8[4];
             cellvoltages[32] = (rx_frame.data.u8[5] << 8) | rx_frame.data.u8[6];
             highbyte_cell_next_frame = rx_frame.data.u8[7];
           }
@@ -465,7 +485,7 @@ void receive_can_battery(CAN_frame rx_frame) {
   }
 }
 
-void send_can_battery() {
+void transmit_can_battery() {
   unsigned long currentMillis = millis();
   // Send 100ms CAN Message
   if (currentMillis - previousMillis100 >= INTERVAL_100_MS) {
@@ -474,7 +494,7 @@ void send_can_battery() {
       set_event(EVENT_CAN_OVERRUN, (currentMillis - previousMillis100));
     }
     previousMillis100 = currentMillis;
-    transmit_can(&ZOE_423, can_config.battery);
+    transmit_can_frame(&ZOE_423, can_config.battery);
 
     if ((counter_423 / 5) % 2 == 0) {  // Alternate every 5 messages between these two
       ZOE_423.data.u8[4] = 0xB2;
@@ -513,7 +533,7 @@ void send_can_battery() {
 
     ZOE_POLL_79B.data.u8[2] = current_poll;
 
-    transmit_can(&ZOE_POLL_79B, can_config.battery);
+    transmit_can_frame(&ZOE_POLL_79B, can_config.battery);
   }
 }
 

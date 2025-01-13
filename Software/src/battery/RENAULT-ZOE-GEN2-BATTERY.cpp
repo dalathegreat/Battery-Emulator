@@ -216,13 +216,9 @@ void update_values_battery() {  //This function maps all the values fetched via 
   datalayer_extended.zoePH2.battery_pack_time = battery_pack_time;
   datalayer_extended.zoePH2.battery_soc_min = battery_soc_min;
   datalayer_extended.zoePH2.battery_soc_max = battery_soc_max;
-
-#ifdef DEBUG_VIA_USB
-
-#endif
 }
 
-void receive_can_battery(CAN_frame rx_frame) {
+void handle_incoming_can_frame_battery(CAN_frame rx_frame) {
   datalayer.battery.status.CAN_battery_still_alive = CAN_STILL_ALIVE;
   switch (rx_frame.ID) {
     case 0x18DAF1DB:  // LBC Reply from active polling
@@ -362,7 +358,7 @@ void receive_can_battery(CAN_frame rx_frame) {
   }
 }
 
-void send_can_battery() {
+void transmit_can_battery() {
   unsigned long currentMillis = millis();
   // Send 200ms CAN Message
   if (currentMillis - previousMillis200 >= INTERVAL_200_MS) {
@@ -379,8 +375,8 @@ void send_can_battery() {
     ZOE_POLL_18DADBF1.data.u8[2] = (uint8_t)((currentpoll & 0xFF00) >> 8);
     ZOE_POLL_18DADBF1.data.u8[3] = (uint8_t)(currentpoll & 0x00FF);
 
-    transmit_can(&ZOE_POLL_18DADBF1, can_config.battery);
-    transmit_can(&ZOE_373, can_config.battery);
+    transmit_can_frame(&ZOE_POLL_18DADBF1, can_config.battery);
+    transmit_can_frame(&ZOE_373, can_config.battery);
   }
 }
 

@@ -107,10 +107,36 @@ typedef struct {
    * you want the inverter to be able to use. At this real SOC, the inverter
    * will "see" 100% */
   uint16_t max_percentage = BATTERY_MAXPERCENTAGE;
+
   /** The user specified maximum allowed charge rate, in deciAmpere. 300 = 30.0 A */
   uint16_t max_user_set_charge_dA = BATTERY_MAX_CHARGE_AMP;
   /** The user specified maximum allowed discharge rate, in deciAmpere. 300 = 30.0 A */
   uint16_t max_user_set_discharge_dA = BATTERY_MAX_DISCHARGE_AMP;
+
+  /** User specified discharge/charge voltages in use. Set to true to use user specified values */
+  /** Some inverters like to see a specific target voltage for charge/discharge. Use these values to override automatic voltage limits*/
+  bool user_set_voltage_limits_active = BATTERY_USE_VOLTAGE_LIMITS;
+  /** The user specified maximum allowed charge voltage, in deciVolt. 4000 = 400.0 V */
+  uint16_t max_user_set_charge_voltage_dV = BATTERY_MAX_CHARGE_VOLTAGE;
+  /** The user specified maximum allowed discharge voltage, in deciVolt. 3000 = 300.0 V */
+  uint16_t max_user_set_discharge_voltage_dV = BATTERY_MAX_DISCHARGE_VOLTAGE;
+
+  /** Tesla specific settings that are edited on the fly when manually forcing a balance charge for LFP chemistry */
+  /* Bool for specifying if user has requested manual function */
+  bool user_requests_balancing = false;
+  bool user_requests_isolation_clear = false;
+  /* Forced balancing max time & start timestamp */
+  uint32_t balancing_time_ms = 3600000;  //1h default, (60min*60sec*1000ms)
+  uint32_t balancing_start_time_ms = 0;  //For keeping track when balancing started
+  /* Max cell voltage during forced balancing */
+  uint16_t balancing_max_cell_voltage_mV = 3650;
+  /* Max cell deviation allowed during forced balancing */
+  uint16_t balancing_max_deviation_cell_voltage_mV = 400;
+  /* Float max power during forced balancing */
+  uint16_t balancing_float_power_W = 1000;
+  /* Maximum voltage for entire battery pack during forced balancing */
+  uint16_t balancing_max_pack_voltage_dV = 3940;
+
 } DATALAYER_BATTERY_SETTINGS_TYPE;
 
 typedef struct {
@@ -124,6 +150,20 @@ typedef struct {
   uint16_t measured_voltage_dV = 0;
   /** measured amperage in deciAmperes. 300 = 30.0 A */
   uint16_t measured_amperage_dA = 0;
+  /** measured battery voltage in mV (S-BOX) **/
+  uint32_t measured_voltage_mV = 0;
+  /** measured output voltage in mV (eg. S-BOX) **/
+  uint32_t measured_outvoltage_mV = 0;
+  /** measured amperage in mA (eg. S-BOX) **/
+  int32_t measured_amperage_mA = 0;
+  /** Average current from last 1s **/
+  int32_t measured_avg1S_amperage_mA = 0;
+  /** True if contactors are precharging state */
+  bool precharging = false;
+  /** True if the contactor controlled by battery-emulator is closed */
+  bool contactors_engaged = false;
+  /** True if shunt communication ok **/
+  bool available = false;
 } DATALAYER_SHUNT_TYPE;
 
 typedef struct {
@@ -131,6 +171,8 @@ typedef struct {
   char battery_protocol[64] = {0};
   /** array with type of inverter used, for displaying on webserver */
   char inverter_protocol[64] = {0};
+  /** array with type of battery used, for displaying on webserver */
+  char shunt_protocol[64] = {0};
   /** array with incoming CAN messages, for displaying on webserver */
   char logged_can_messages[15000] = {0};
   size_t logged_can_messages_offset = 0;

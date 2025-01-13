@@ -162,7 +162,7 @@ void update_values_battery() {  //This function maps all the values fetched via 
   datalayer_extended.bydAtto3.voltage_polled = BMS_voltage;
 }
 
-void receive_can_battery(CAN_frame rx_frame) {
+void handle_incoming_can_frame_battery(CAN_frame rx_frame) {
   switch (rx_frame.ID) {  //Log values taken with 422V from battery
     case 0x244:           //00,00,00,04,41,0F,20,8B - Static, values never changes between logs
       break;
@@ -292,7 +292,7 @@ void receive_can_battery(CAN_frame rx_frame) {
       break;
   }
 }
-void send_can_battery() {
+void transmit_can_battery() {
   unsigned long currentMillis = millis();
   //Send 50ms message
   if (currentMillis - previousMillis50 >= INTERVAL_50_MS) {
@@ -334,9 +334,9 @@ void send_can_battery() {
     ATTO_3_12D.data.u8[6] = (0x0F | (frame6_counter << 4));
     ATTO_3_12D.data.u8[7] = (0x09 | (frame7_counter << 4));
 
-    transmit_can(&ATTO_3_12D, can_config.battery);
+    transmit_can_frame(&ATTO_3_12D, can_config.battery);
 #ifdef DOUBLE_BATTERY
-    transmit_can(&ATTO_3_12D, can_config.battery_double);
+    transmit_can_frame(&ATTO_3_12D, can_config.battery_double);
 #endif  //DOUBLE_BATTERY
   }
   // Send 100ms CAN Message
@@ -355,9 +355,9 @@ void send_can_battery() {
       ATTO_3_441.data.u8[7] = 0xF5;
     }
 
-    transmit_can(&ATTO_3_441, can_config.battery);
+    transmit_can_frame(&ATTO_3_441, can_config.battery);
 #ifdef DOUBLE_BATTERY
-    transmit_can(&ATTO_3_441, can_config.battery_double);
+    transmit_can_frame(&ATTO_3_441, can_config.battery_double);
 #endif  //DOUBLE_BATTERY
   }
   // Send 500ms CAN Message
@@ -402,9 +402,9 @@ void send_can_battery() {
         break;
     }
 
-    transmit_can(&ATTO_3_7E7_POLL, can_config.battery);
+    transmit_can_frame(&ATTO_3_7E7_POLL, can_config.battery);
 #ifdef DOUBLE_BATTERY
-    transmit_can(&ATTO_3_7E7_POLL, can_config.battery_double);
+    transmit_can_frame(&ATTO_3_7E7_POLL, can_config.battery_double);
 #endif  //DOUBLE_BATTERY
   }
 }
@@ -419,6 +419,9 @@ void setup_battery(void) {  // Performs one time setup at startup
   datalayer.battery.info.max_cell_voltage_mV = MAX_CELL_VOLTAGE_MV;
   datalayer.battery.info.min_cell_voltage_mV = MIN_CELL_VOLTAGE_MV;
   datalayer.battery.info.max_cell_voltage_deviation_mV = MAX_CELL_DEVIATION_MV;
+  //Due to the Datalayer having 370.0V as startup value, which is 10V lower than the Atto 3 min voltage 380.0V
+  //We now init the value to 380.1V to avoid false positive events.
+  datalayer.battery.status.voltage_dV = MIN_PACK_VOLTAGE_DV + 1;
 #ifdef DOUBLE_BATTERY
   datalayer.battery2.info.number_of_cells = 126;
   datalayer.battery2.info.chemistry = battery_chemistry_enum::LFP;
@@ -474,7 +477,7 @@ void update_values_battery2() {  //This function maps all the values fetched via
   datalayer.battery2.status.temperature_max_dC = battery2_calc_max_temperature * 10;
 }
 
-void receive_can_battery2(CAN_frame rx_frame) {
+void handle_incoming_can_frame_battery2(CAN_frame rx_frame) {
   switch (rx_frame.ID) {  //Log values taken with 422V from battery2
     case 0x244:           //00,00,00,04,41,0F,20,8B - Static, values never changes between logs
       break;

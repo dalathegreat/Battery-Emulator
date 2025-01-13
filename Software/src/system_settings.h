@@ -1,6 +1,7 @@
 #ifndef SYSTEM_SETTINGS_H_
 #define SYSTEM_SETTINGS_H_
 /** TASKS
+ * Higher number equals higher priority. Max 25 per core
  * 
  * Parameter: TASK_CORE_PRIO
  * Description:
@@ -13,10 +14,20 @@
  * Parameter: TASK_MODBUS_PRIO
  * Description:
  * Defines the priority of MODBUS handling
+ *
+ * Parameter: TASK_ACAN2515_PRIORITY
+ * Description:
+ * Defines the priority of ACAN2515 CAN handling
+ *  
+ * Parameter: TASK_ACAN2515_PRIORITY
+ * Description:
+ * Defines the priority of ACAN2517FD CAN-FD handling
 */
 #define TASK_CORE_PRIO 4
 #define TASK_CONNECTIVITY_PRIO 3
 #define TASK_MODBUS_PRIO 8
+#define TASK_ACAN2515_PRIORITY 10
+#define TASK_ACAN2517FD_PRIORITY 10
 
 /** MAX AMOUNT OF CELLS
  * 
@@ -39,14 +50,8 @@
  * Description:
  * The period of whatever LED mode is active. If CLASSIC, then a ramp up and ramp down will finish in
  * LED_PERIOD_MS milliseconds
- * 
- * Parameter: LED_EXECUTION_FREQUENCY
- * Description:
- * Defines how often the LED handling will run, basically the FPS. The animation will honor its overall
- * frequency but the animation will be choppier
 */
 #define LED_MODE_DEFAULT FLOW
 #define LED_PERIOD_MS 3000
-#define LED_EXECUTION_FREQUENCY 50
 
 #endif
