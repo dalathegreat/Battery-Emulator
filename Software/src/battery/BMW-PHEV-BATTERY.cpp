@@ -584,12 +584,13 @@ void update_values_battery() {  //This function maps all the values fetched via 
   bool isMaxCellVoltageStale =
       isStale(max_cell_voltage, datalayer.battery.status.cell_max_voltage_mV, max_cell_voltage_lastchanged);
 
-  if (isMinCellVoltageStale && isMaxCellVoltageStale) {
+  if (isMinCellVoltageStale && isMaxCellVoltageStale &&
+      battery_current != 0) {                             //Ignore stale values if there is no current flowing
     datalayer.battery.status.cell_min_voltage_mV = 9999;  //Stale values force stop
     datalayer.battery.status.cell_max_voltage_mV = 9999;  //Stale values force stop
     set_event(EVENT_CAN_RX_FAILURE, 0);
 #ifdef DEBUG_LOG
-    logging.println("Stale Min/Max voltage values detected sending - 9999mV...");
+    logging.println("Stale Min/Max voltage values detected during charge/discharge sending - 9999mV...");
 #endif  // DEBUG_LOG
   } else {
 
@@ -929,14 +930,14 @@ void handle_incoming_can_frame_battery(CAN_frame rx_frame) {
       battery_status_cold_shutoff_valve = (rx_frame.data.u8[3] & 0x0F);
       battery_temperature_HV = (rx_frame.data.u8[4] - 50);
       battery_temperature_heat_exchanger = (rx_frame.data.u8[5] - 50);
-      if (rx_frame.data.u8[6] > 0 || rx_frame.data.u8[6] < 255) {
+      if (rx_frame.data.u8[6] > 0 && rx_frame.data.u8[6] < 255) {
         battery_temperature_min = (rx_frame.data.u8[6] - 50);
       } else {
 #ifdef DEBUG_LOG
         logging.println("Pre parsed Cell Temp Min is Invalid ");
 #endif
       }
-      if (rx_frame.data.u8[7] > 0 || rx_frame.data.u8[7] < 255) {
+      if (rx_frame.data.u8[7] > 0 && rx_frame.data.u8[7] < 255) {
         battery_temperature_max = (rx_frame.data.u8[7] - 50);
       } else {
 #ifdef DEBUG_LOG
