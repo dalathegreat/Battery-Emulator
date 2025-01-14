@@ -86,7 +86,6 @@ void handle_obd_frame(CAN_frame& rx_frame) {
       case 0x7F:
         error_str = "serviceNotSupportedInActiveSession";
         break;
-        
     }
     logging.printf("ODB reply Request for service 0x%02X: %s\n", rx_frame.data.u8[2], error_str);
   } else {
