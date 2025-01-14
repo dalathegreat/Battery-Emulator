@@ -165,10 +165,7 @@ void transmit_can_frame(CAN_frame* tx_frame, int interface) {
 #ifdef CANFD_ADDON
       CANFDMessage MCP2518Frame;
       if (tx_frame->FD) {
-        if (tx_frame->BRS)
-          MCP2518Frame.type = CANFDMessage::CANFD_WITH_BIT_RATE_SWITCH;
-        else
-          MCP2518Frame.type = CANFDMessage::CANFD_NO_BIT_RATE_SWITCH;
+        MCP2518Frame.type = CANFDMessage::CANFD_WITH_BIT_RATE_SWITCH;
       } else {  //Classic CAN message
         MCP2518Frame.type = CANFDMessage::CAN_DATA;
       }
