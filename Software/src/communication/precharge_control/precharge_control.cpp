@@ -96,7 +96,7 @@ void handle_precharge_control() {
       }
 
       if ((datalayer.battery.status.real_bms_status != BMS_STANDBY &&
-          datalayer.battery.status.real_bms_status != BMS_ACTIVE) ||
+           datalayer.battery.status.real_bms_status != BMS_ACTIVE) ||
           datalayer.battery.status.bms_status != ACTIVE || datalayer.system.settings.equipment_stop_active) {
         pinMode(PRECHARGE_PIN, OUTPUT);
         digitalWrite(PRECHARGE_PIN, LOW);
