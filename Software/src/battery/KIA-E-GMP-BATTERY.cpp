@@ -820,8 +820,6 @@ void handle_incoming_can_frame_battery(CAN_frame rx_frame) {
             allowedDischargePower = ((rx_frame.data.u8[5] << 8) + rx_frame.data.u8[6]);
             SOC_BMS = rx_frame.data.u8[2] * 5;  //100% = 200 ( 200 * 5 = 1000 )
 
-            if (datalayer.battery.status.bms_status == INACTIVE)
-              datalayer.battery.status.bms_status = ACTIVE;
           } else if (poll_data_pid == 2) {
             // set cell voltages data, start bite, data length from start, start cell
             set_cell_voltages(rx_frame, 2, 6, 0);

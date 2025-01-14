@@ -196,8 +196,6 @@ void handle_incoming_can_frame_battery(CAN_frame rx_frame) {
         battery_usage_capacity = (rx_frame.data.u8[1] << 8) | rx_frame.data.u8[2];
         battery_capacity_percentage = (rx_frame.data.u8[3] << 8) | rx_frame.data.u8[4];
         charging_capacity = (rx_frame.data.u8[5] << 8) | rx_frame.data.u8[6];
-        if (datalayer.battery.status.bms_status == INACTIVE)
-          datalayer.battery.status.bms_status = ACTIVE;
       } else if (mux == 0x05) {  //Recovery / capacity
         charging_recovery_voltage = (rx_frame.data.u8[1] << 8) | rx_frame.data.u8[2];
         discharging_recovery_voltage = (rx_frame.data.u8[3] << 8) | rx_frame.data.u8[4];

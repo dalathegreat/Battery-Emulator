@@ -54,9 +54,6 @@ void __getData() {
   if (_system_bms_status == FAULT) {
     batteryFault = true;
     set_event(EVENT_SERIAL_TRANSMITTER_FAILURE, 0);
-  } else {
-    if (datalayer.battery.status.bms_status == INACTIVE)
-      datalayer.battery.status.bms_status = ACTIVE;
   }
 }
 

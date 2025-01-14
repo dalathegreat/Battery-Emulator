@@ -228,8 +228,6 @@ void handle_incoming_can_frame_battery(CAN_frame rx_frame) {
       switch (reply_poll) {
         case POLL_SOC:
           battery_soc = (rx_frame.data.u8[4] << 8) | rx_frame.data.u8[5];
-          if (datalayer.battery.status.bms_status == INACTIVE)
-            datalayer.battery.status.bms_status = ACTIVE;
           break;
         case POLL_USABLE_SOC:
           battery_usable_soc = (rx_frame.data.u8[4] << 8) | rx_frame.data.u8[5];

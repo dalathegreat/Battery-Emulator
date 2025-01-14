@@ -103,8 +103,6 @@ void handle_incoming_can_frame_battery(CAN_frame rx_frame) {
       current_dA = ((rx_frame.data.u8[3] << 8) | rx_frame.data.u8[2]) - 30000;
       SOC = rx_frame.data.u8[6];
       SOH = rx_frame.data.u8[7];
-      if (datalayer.battery.status.bms_status == INACTIVE)
-        datalayer.battery.status.bms_status = ACTIVE;
       break;
     case 0x4220:
     case 0x4221:

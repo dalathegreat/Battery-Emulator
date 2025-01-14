@@ -335,8 +335,6 @@ void handle_incoming_can_frame_battery(CAN_frame rx_frame) {
         logging.println("SOC_BMS not valid");
 #endif
       }
-      if (datalayer.battery.status.bms_status == INACTIVE)
-        datalayer.battery.status.bms_status = ACTIVE;
 
       if ((rx_frame.data.u8[0] & 0x04) == 0x04)
         CELL_U_MAX = ((rx_frame.data.u8[2] & 0x01) * 256 + rx_frame.data.u8[3]);

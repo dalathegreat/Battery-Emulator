@@ -134,8 +134,6 @@ void handle_incoming_can_frame_battery(CAN_frame rx_frame) {
     case 0x542:
       datalayer.battery.status.CAN_battery_still_alive = CAN_STILL_ALIVE;
       SOC_Display = ((rx_frame.data.u8[1] << 8) + rx_frame.data.u8[0]) / 2;
-      if (datalayer.battery.status.bms_status == INACTIVE)
-        datalayer.battery.status.bms_status = ACTIVE;
       break;
     case 0x588:
       datalayer.battery.status.CAN_battery_still_alive = CAN_STILL_ALIVE;
@@ -446,8 +444,6 @@ void handle_incoming_can_frame_battery2(CAN_frame rx_frame) {
     case 0x542:
       datalayer.battery2.status.CAN_battery_still_alive = CAN_STILL_ALIVE;
       battery2_SOC_Display = ((rx_frame.data.u8[1] << 8) + rx_frame.data.u8[0]) / 2;
-      if (datalayer.battery2.status.bms_status == INACTIVE)
-        datalayer.battery2.status.bms_status = ACTIVE;
       break;
     case 0x588:
       datalayer.battery2.status.CAN_battery_still_alive = CAN_STILL_ALIVE;

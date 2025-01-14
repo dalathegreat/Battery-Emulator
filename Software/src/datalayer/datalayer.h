@@ -93,7 +93,7 @@ typedef struct {
 
   /** Other */
   /** The current BMS status */
-  bms_status_enum bms_status = INACTIVE;
+  bms_status_enum bms_status = ACTIVE;
 } DATALAYER_BATTERY_STATUS_TYPE;
 
 typedef struct {

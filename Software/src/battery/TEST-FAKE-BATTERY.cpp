@@ -52,8 +52,6 @@ void update_values_battery() { /* This function puts fake values onto the parame
 
   //Fake that we get CAN messages
   datalayer.battery.status.CAN_battery_still_alive = CAN_STILL_ALIVE;
-  if (datalayer.battery.status.bms_status == INACTIVE)
-    datalayer.battery.status.bms_status = ACTIVE;
 
 /*Finally print out values to serial if configured to do so*/
 #ifdef DEBUG_LOG

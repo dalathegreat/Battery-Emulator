@@ -245,8 +245,6 @@ void handle_incoming_can_frame_battery(CAN_frame rx_frame) {
       battery_SOH_percentage = (uint8_t)rx_frame.data.u8[4];
       battery_SOC_percentage = (uint8_t)rx_frame.data.u8[5];
       battery_remaining_dAh = (uint16_t)((rx_frame.data.u8[7] << 8) | rx_frame.data.u8[6]);
-      if (datalayer.battery.status.bms_status == INACTIVE)
-        datalayer.battery.status.bms_status = ACTIVE;
       break;
     case 0x3A4:  //PDO3_TX - 200ms
       datalayer.battery.status.CAN_battery_still_alive = CAN_STILL_ALIVE;

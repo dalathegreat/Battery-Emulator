@@ -134,8 +134,6 @@ void handle_incoming_can_frame_battery(CAN_frame rx_frame) {
       HVBatteryContactorStatus = ((rx_frame.data.u8[0] & 0x80) >> 7);
       HVBattHVILError = ((rx_frame.data.u8[0] & 0x40) >> 6);
       HVILBattIsolationError = ((rx_frame.data.u8[0] & 0x20) >> 5);
-      if (datalayer.battery.status.bms_status == INACTIVE)
-        datalayer.battery.status.bms_status = ACTIVE;
       break;
     case 0x100:
       datalayer.battery.status.CAN_battery_still_alive = CAN_STILL_ALIVE;

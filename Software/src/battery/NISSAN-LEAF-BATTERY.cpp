@@ -567,8 +567,6 @@ void handle_incoming_can_frame_battery2(CAN_frame rx_frame) {
       if (battery2_TEMP != 0) {
         battery2_StateOfHealth = battery2_TEMP;  //Collect state of health from battery
       }
-      if (datalayer.battery2.status.bms_status == INACTIVE)
-        datalayer.battery2.status.bms_status = ACTIVE;
       break;
     case 0x5C0:
       //This temperature only works for 2013-2017 AZE0 LEAF packs, the mux is different on other generations
@@ -812,8 +810,6 @@ void handle_incoming_can_frame_battery(CAN_frame rx_frame) {
       if (battery_TEMP != 0) {
         battery_StateOfHealth = (uint8_t)battery_TEMP;  //Collect state of health from battery
       }
-      if (datalayer.battery.status.bms_status == INACTIVE)
-        datalayer.battery.status.bms_status = ACTIVE;
       break;
     case 0x5C0:
       //This temperature only works for 2013-2017 AZE0 LEAF packs, the mux is different on other generations

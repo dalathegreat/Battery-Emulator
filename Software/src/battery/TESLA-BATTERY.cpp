@@ -1558,8 +1558,6 @@ void handle_incoming_can_frame_battery(CAN_frame rx_frame) {
           ((rx_frame.data.u8[4] << 2) | ((rx_frame.data.u8[3] & 0xC0) >> 6));  //30|10@1+ (0.1,0) [0|102.3] "%"
       battery_battTempPct =
           (((rx_frame.data.u8[7] & 0x03) << 6) | (rx_frame.data.u8[6] & 0x3F) >> 2);  //50|8@1+ (0.4,0) [0|100] "%"
-      if (datalayer.battery.status.bms_status == INACTIVE)
-        datalayer.battery.status.bms_status = ACTIVE;
       break;
     case 0x392:  //BMS_packConfig
       mux = (rx_frame.data.u8[0] & (0xFF));
