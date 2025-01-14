@@ -250,10 +250,8 @@ void reset_all_events() {
   }
   events.level = EVENT_LEVEL_INFO;
 
-  datalayer.battery.status.CAN_battery_still_alive = CAN_STILL_ALIVE;
   datalayer.battery.status.bms_status = INACTIVE;
 #ifdef DOUBLE_BATTERY
-  datalayer.battery2.status.CAN_battery_still_alive = CAN_STILL_ALIVE;
   datalayer.battery2.status.bms_status = INACTIVE;
 #endif
   update_bms_status();
