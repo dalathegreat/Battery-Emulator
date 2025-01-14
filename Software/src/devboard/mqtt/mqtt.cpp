@@ -69,9 +69,9 @@ SensorConfig sensorConfigTemplate[] = {
     {"pause_status", "Pause Status", "", "", ""}};
 
 #ifdef DOUBLE_BATTERY
-SensorConfig sensorConfigs[(sizeof(sensorConfigTemplate) / sizeof(sensorConfigTemplate[0])) * 2];
+SensorConfig sensorConfigs[((sizeof(sensorConfigTemplate) / sizeof(sensorConfigTemplate[0])) * 2) - 2];
 #else
-SensorConfig sensorConfigs[sizeof(sensorConfigTemplate) / sizeof(sensorConfigTemplate[0]];
+SensorConfig sensorConfigs[sizeof(sensorConfigTemplate) / sizeof(sensorConfigTemplate[0])];
 #endif  // DOUBLE_BATTERY
 
 void create_sensor_configs() {
@@ -81,6 +81,9 @@ void create_sensor_configs() {
     config.value_template = strdup(("{{ value_json." + std::string(config.object_id) + " }}").c_str());
     sensorConfigs[i] = config;
 #ifdef DOUBLE_BATTERY
+    if (config.object_id == "pause_status" || config.object_id == "bms_status") {
+      continue;
+    }
     sensorConfigs[i + number_of_templates] = config;
     sensorConfigs[i + number_of_templates].name = strdup(String(config.name + String(" 2")).c_str());
     sensorConfigs[i + number_of_templates].object_id = strdup(String(config.object_id + String("_2")).c_str());
@@ -144,8 +147,8 @@ void set_battery_attributes(JsonDocument& doc, const DATALAYER_BATTERY_TYPE& bat
 }
 
 void set_battery_voltage_attributes(JsonDocument& doc, int i, int cellNumber, const String& state_topic,
-                                    const String& object_id_prefix) {
-  doc["name"] = "Battery Cell Voltage " + String(cellNumber);
+                                    const String& object_id_prefix, const String& battery_name_suffix) {
+  doc["name"] = "Battery" + battery_name_suffix + " Cell Voltage " + String(cellNumber);
   doc["object_id"] = object_id_prefix + "battery_voltage_cell" + String(cellNumber);
   doc["unique_id"] = topic_name + "_battery_voltage_cell" + String(cellNumber);
   doc["device_class"] = "voltage";
@@ -232,7 +235,7 @@ static void publish_cell_voltages(void) {
 
       for (int i = 0; i < datalayer.battery.info.number_of_cells; i++) {
         int cellNumber = i + 1;
-        set_battery_voltage_attributes(doc, i, cellNumber, state_topic, object_id_prefix);
+        set_battery_voltage_attributes(doc, i, cellNumber, state_topic, object_id_prefix, "");
         set_common_discovery_attributes(doc);
 
         serializeJson(doc, mqtt_msg, sizeof(mqtt_msg));
@@ -248,7 +251,7 @@ static void publish_cell_voltages(void) {
 
       for (int i = 0; i < datalayer.battery.info.number_of_cells; i++) {
         int cellNumber = i + 1;
-        set_battery_voltage_attributes(doc, i, cellNumber, state_topic_2, object_id_prefix + "2_");
+        set_battery_voltage_attributes(doc, i, cellNumber, state_topic_2, object_id_prefix + "2_", " 2");
         set_common_discovery_attributes(doc);
 
         serializeJson(doc, mqtt_msg, sizeof(mqtt_msg));
