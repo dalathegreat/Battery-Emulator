@@ -1136,6 +1136,7 @@ String advanced_battery_processor(const String& var) {
       default:
         content += String("Not valid");
     }
+	content += "</h4><h4>BECM reported number of DTCs: " + String(datalayer_extended.VolvoPolestar.DTCcount) + "</h4>";
 
     content += "<br><br><button onclick='Volvo_askEraseDTC()'>Erase DTC</button><br>";
     content += "<button onclick='Volvo_askReadDTC()'>Read DTC (result must be checked in CANlog)</button><br>";
@@ -1212,3 +1213,5 @@ String advanced_battery_processor(const String& var) {
   }
   return String();
 }
+
+
