@@ -48,7 +48,8 @@ void handle_precharge_control() {
     case PRECHARGE_IDLE:
 
       if (datalayer.battery.status.bms_status != FAULT && datalayer.battery.status.real_bms_status == BMS_STANDBY &&
-          datalayer.system.status.inverter_allows_contactor_closing && !datalayer.system.settings.equipment_stop_active) {
+          datalayer.system.status.inverter_allows_contactor_closing &&
+          !datalayer.system.settings.equipment_stop_active) {
         prechargeStatus = START_PRECHARGE;
       }
       break;
@@ -94,7 +95,8 @@ void handle_precharge_control() {
         ledcWriteTone(PRECHARGE_PIN, freq);
       }
 
-      if ((datalayer.battery.status.real_bms_status != BMS_STANDBY && datalayer.battery.status.real_bms_status != BMS_ACTIVE) ||
+      if ((datalayer.battery.status.real_bms_status != BMS_STANDBY &&
+          datalayer.battery.status.real_bms_status != BMS_ACTIVE) ||
           datalayer.battery.status.bms_status != ACTIVE || datalayer.system.settings.equipment_stop_active) {
         pinMode(PRECHARGE_PIN, OUTPUT);
         digitalWrite(PRECHARGE_PIN, LOW);

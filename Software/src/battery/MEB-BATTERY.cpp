@@ -1544,7 +1544,7 @@ void transmit_can_battery() {
 #endif
     can_msg_received = RX_DEFAULT;
     first_can_msg = 0;
-    if (datalayer.battery.status.real_bms_status != BMS_FAULT){
+    if (datalayer.battery.status.real_bms_status != BMS_FAULT) {
       datalayer.battery.status.real_bms_status = BMS_DISCONNECTED;
       datalayer.system.status.battery_allows_contactor_closing = false;
     }
@@ -1617,8 +1617,9 @@ void transmit_can_battery() {
 
     //HV request and DC/DC control lies in 0x503
 
-    if (datalayer.battery.status.real_bms_status != BMS_FAULT && /*first_can_msg > 0 && currentMillis > first_can_msg + 2000*/
-        (datalayer.battery.status.real_bms_status == BMS_STANDBY || datalayer.battery.status.real_bms_status == BMS_ACTIVE) &&
+    if (datalayer.battery.status.real_bms_status != BMS_FAULT &&
+        (datalayer.battery.status.real_bms_status == BMS_STANDBY ||
+         datalayer.battery.status.real_bms_status == BMS_ACTIVE) &&
         (labs(((int32_t)datalayer.battery.status.voltage_dV) -
               ((int32_t)datalayer_extended.meb.BMS_voltage_intermediate_dV)) < 200)) {
 #ifdef DEBUG_LOG
@@ -1627,7 +1628,8 @@ void transmit_can_battery() {
       }
 #endif
       MEB_503.data.u8[1] =
-          0x30 | (datalayer.battery.status.real_bms_status == BMS_ACTIVE ? 0x00 : 0x80);  // Disable precharing if ACTIVE
+          0x30 |
+          (datalayer.battery.status.real_bms_status == BMS_ACTIVE ? 0x00 : 0x80);  // Disable precharing if ACTIVE
       MEB_503.data.u8[3] = BMS_TARGET_HV_ON;  //TODO, should we try AC_2 or DC charging?
       MEB_503.data.u8[5] = 0x82;              // Bordnetz Active
       MEB_503.data.u8[6] = 0xE0;              // Request emergency shutdown HV system == 0, false
