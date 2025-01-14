@@ -8,8 +8,6 @@
 #include "../devboard/utils/events.h"
 #include "MEB-BATTERY.h"
 
-#define PRECHARGE_CONTROL
-
 /*
 TODO list
 - Check value mappings on the PID polls
@@ -1523,8 +1521,8 @@ void handle_incoming_can_frame_battery(CAN_frame rx_frame) {
     default:
 #ifdef DEBUG_LOG
       logging.printf("Unknown CAN frame received:\n");
-#endif
       dump_can_frame(rx_frame, MSG_RX);
+#endif
       break;
   }
   datalayer.battery.status.CAN_battery_still_alive = CAN_STILL_ALIVE;
