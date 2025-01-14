@@ -373,6 +373,7 @@ void handle_incoming_can_frame_battery(CAN_frame rx_frame) {
                  (rx_frame.data.u8[3] == 0x42))  // BECM module voltage supply
       {
         datalayer_extended.VolvoPolestar.BECMsupplyVoltage = ((rx_frame.data.u8[4] << 8) | rx_frame.data.u8[5]);
+		transmit_can_frame(&VOLVO_DTCreadout, can_config.battery);  //Send DTC readout command
       } else if ((rx_frame.data.u8[0] == 0x10) && (rx_frame.data.u8[1] == 0x0B) && (rx_frame.data.u8[2] == 0x62) &&
                  (rx_frame.data.u8[3] == 0x4B))  // First response frame of cell voltages
       {
@@ -383,7 +384,18 @@ void handle_incoming_can_frame_battery(CAN_frame rx_frame) {
       } else if ((rx_frame.data.u8[0] == 0x10) && (rx_frame.data.u8[2] == 0x59) &&
                  (rx_frame.data.u8[3] == 0x03))  // First response frame for DTC with more than one code
       {
-        transmit_can_frame(&VOLVO_FlowControl, can_config.battery);  // Send flow control
+        datalayer_extended.VolvoPolestar.DTCcount = ((rx_frame.data.u8[1] -2)/4);
+		transmit_can_frame(&VOLVO_FlowControl, can_config.battery);  // Send flow control
+      } else if ((rx_frame.data.u8[1] == 0x59) && (rx_frame.data.u8[2] == 0x03))  // Response frame for DTC with 0 or 1 code
+      {
+        if (rx_frame.data.u8[0] != 0x02)
+		{
+			datalayer_extended.VolvoPolestar.DTCcount = 1;
+		}
+		else
+		{
+			datalayer_extended.VolvoPolestar.DTCcount = 0;
+		}
       } else if ((rx_frame.data.u8[0] == 0x21) && (rxConsecutiveFrames == 1)) {
         cell_voltages[battery_request_idx++] = cell_voltages[battery_request_idx] | rx_frame.data.u8[1];
         cell_voltages[battery_request_idx++] = (rx_frame.data.u8[2] << 8) | rx_frame.data.u8[3];
@@ -411,6 +423,12 @@ void handle_incoming_can_frame_battery(CAN_frame rx_frame) {
       break;
   }
 }
+
+// Request order
+// Cell voltages
+// SOH
+// BECM Power supply
+// DTC request
 
 void readCellVoltages() {
   battery_request_idx = 0;
@@ -473,3 +491,4 @@ void setup_battery(void) {  // Performs one time setup at startup
   datalayer.battery.info.max_cell_voltage_deviation_mV = MAX_CELL_DEVIATION_MV;
 }
 #endif
+
