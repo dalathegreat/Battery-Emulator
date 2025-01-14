@@ -41,7 +41,6 @@ enum led_color { GREEN, YELLOW, RED, BLUE };
 /* CAN Frame structure */
 typedef struct {
   bool FD;
-  bool BRS;
   bool ext_ID;
   uint8_t DLC;
   uint32_t ID;
