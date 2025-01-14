@@ -1,6 +1,7 @@
 #include "../include.h"
 #ifdef KIA_HYUNDAI_64_BATTERY
 #include "../datalayer/datalayer.h"
+#include "../datalayer/datalayer_extended.h"
 #include "../devboard/utils/events.h"
 #include "KIA-HYUNDAI-64-BATTERY.h"
 
@@ -25,6 +26,7 @@ static int16_t batteryAmps = 0;
 static int16_t temperatureMax = 0;
 static int16_t temperatureMin = 0;
 static int16_t poll_data_pid = 0;
+static bool holdPidCounter = false;
 static uint8_t CellVmaxNo = 0;
 static uint8_t CellVminNo = 0;
 static uint8_t batteryManagementMode = 0;
@@ -140,8 +142,17 @@ void update_values_battery() {  //This function maps all the values fetched via 
     set_event(EVENT_12V_LOW, leadAcidBatteryVoltage);
   }
 
-  /* Safeties verified. Perform USB serial printout if configured to do so */
+  // Update webserver datalayer
+  datalayer_extended.KiaHyundai64.total_cell_count = datalayer.battery.info.number_of_cells;
+  datalayer_extended.KiaHyundai64.battery_12V = leadAcidBatteryVoltage;
+  datalayer_extended.KiaHyundai64.waterleakageSensor = waterleakageSensor;
+  datalayer_extended.KiaHyundai64.temperature_water_inlet = temperature_water_inlet;
+  datalayer_extended.KiaHyundai64.powerRelayTemperature = powerRelayTemperature * 2;
+  datalayer_extended.KiaHyundai64.batteryManagementMode = batteryManagementMode;
+  datalayer_extended.KiaHyundai64.BMS_ign = BMS_ign;
+  datalayer_extended.KiaHyundai64.batteryRelay = batteryRelay;
 
+  //Perform logging if configured to do so
 #ifdef DEBUG_LOG
   logging.println();  //sepatator
   logging.println("Values from battery: ");
@@ -264,27 +275,28 @@ void handle_incoming_can_frame_battery(CAN_frame rx_frame) {
     case 0x5D8:
       startedUp = true;
 
-      //PID data is polled after last message sent from battery:
-      if (poll_data_pid >= 10) {  //polling one of ten PIDs at 100ms, resolution = 1s
-        poll_data_pid = 0;
-      }
-      poll_data_pid++;
-      if (poll_data_pid == 1) {
-        transmit_can_frame(&KIA64_7E4_id1, can_config.battery);
-      } else if (poll_data_pid == 2) {
-        transmit_can_frame(&KIA64_7E4_id2, can_config.battery);
-      } else if (poll_data_pid == 3) {
-        transmit_can_frame(&KIA64_7E4_id3, can_config.battery);
-      } else if (poll_data_pid == 4) {
-        transmit_can_frame(&KIA64_7E4_id4, can_config.battery);
-      } else if (poll_data_pid == 5) {
-        transmit_can_frame(&KIA64_7E4_id5, can_config.battery);
-      } else if (poll_data_pid == 6) {
-        transmit_can_frame(&KIA64_7E4_id6, can_config.battery);
-      } else if (poll_data_pid == 7) {
-      } else if (poll_data_pid == 8) {
-      } else if (poll_data_pid == 9) {
-      } else if (poll_data_pid == 10) {
+      //PID data is polled after last message sent from battery every other time:
+      if (holdPidCounter == true) {
+        holdPidCounter = false;
+      } else {
+        holdPidCounter = true;
+        if (poll_data_pid >= 6) {  //polling one of six PIDs at 100ms*2, resolution = 1200ms
+          poll_data_pid = 0;
+        }
+        poll_data_pid++;
+        if (poll_data_pid == 1) {
+          transmit_can_frame(&KIA64_7E4_id1, can_config.battery);
+        } else if (poll_data_pid == 2) {
+          transmit_can_frame(&KIA64_7E4_id2, can_config.battery);
+        } else if (poll_data_pid == 3) {
+          transmit_can_frame(&KIA64_7E4_id3, can_config.battery);
+        } else if (poll_data_pid == 4) {
+          transmit_can_frame(&KIA64_7E4_id4, can_config.battery);
+        } else if (poll_data_pid == 5) {
+          transmit_can_frame(&KIA64_7E4_id5, can_config.battery);
+        } else if (poll_data_pid == 6) {
+          transmit_can_frame(&KIA64_7E4_id6, can_config.battery);
+        }
       }
       break;
     case 0x7EC:  //Data From polled PID group, BigEndian
@@ -410,7 +422,9 @@ void handle_incoming_can_frame_battery(CAN_frame rx_frame) {
             cellvoltages_mv[87] = (rx_frame.data.u8[4] * 20);
             cellvoltages_mv[88] = (rx_frame.data.u8[5] * 20);
             cellvoltages_mv[89] = (rx_frame.data.u8[6] * 20);
-            cellvoltages_mv[90] = (rx_frame.data.u8[7] * 20);
+            if (rx_frame.data.u8[7] > 4) {                       // Data only valid on 98S
+              cellvoltages_mv[90] = (rx_frame.data.u8[7] * 20);  // Perform extra checks
+            }
           } else if (poll_data_pid == 5) {
             batterySOH = ((rx_frame.data.u8[2] << 8) + rx_frame.data.u8[3]);
           }
@@ -428,18 +442,38 @@ void handle_incoming_can_frame_battery(CAN_frame rx_frame) {
             cellvoltages_mv[61] = (rx_frame.data.u8[3] * 20);
             cellvoltages_mv[62] = (rx_frame.data.u8[4] * 20);
             cellvoltages_mv[63] = (rx_frame.data.u8[5] * 20);
-          } else if (poll_data_pid == 4) {
-            cellvoltages_mv[91] = (rx_frame.data.u8[1] * 20);
-            cellvoltages_mv[92] = (rx_frame.data.u8[2] * 20);
-            cellvoltages_mv[93] = (rx_frame.data.u8[3] * 20);
-            cellvoltages_mv[94] = (rx_frame.data.u8[4] * 20);
-            cellvoltages_mv[95] = (rx_frame.data.u8[5] * 20);
-          } else if (poll_data_pid == 5) {
-            cellvoltages_mv[96] = (rx_frame.data.u8[4] * 20);
-            cellvoltages_mv[97] = (rx_frame.data.u8[5] * 20);
+          } else if (poll_data_pid == 4) {  // Data only valid on 98S
+            if (rx_frame.data.u8[1] > 4) {  // Perform extra checks
+              cellvoltages_mv[91] = (rx_frame.data.u8[1] * 20);
+            }
+            if (rx_frame.data.u8[2] > 4) {  // Perform extra checks
+              cellvoltages_mv[92] = (rx_frame.data.u8[2] * 20);
+            }
+            if (rx_frame.data.u8[3] > 4) {  // Perform extra checks
+              cellvoltages_mv[93] = (rx_frame.data.u8[3] * 20);
+            }
+            if (rx_frame.data.u8[4] > 4) {  // Perform extra checks
+              cellvoltages_mv[94] = (rx_frame.data.u8[4] * 20);
+            }
+            if (rx_frame.data.u8[5] > 4) {  // Perform extra checks
+              cellvoltages_mv[95] = (rx_frame.data.u8[5] * 20);
+            }
+          } else if (poll_data_pid == 5) {  // Data only valid on 98S
+            if (rx_frame.data.u8[4] > 4) {  // Perform extra checks
+              cellvoltages_mv[96] = (rx_frame.data.u8[4] * 20);
+            }
+            if (rx_frame.data.u8[5] > 4) {  // Perform extra checks
+              cellvoltages_mv[97] = (rx_frame.data.u8[5] * 20);
+            }
           }
           break;
         case 0x26:  //Sixth datarow in PID group
+          //We have read all cells, check that content is valid:
+          for (uint8_t i = 85; i < 97; ++i) {
+            if (cellvoltages_mv[i] < 300) {  // Zero the value if it's below 300
+              cellvoltages_mv[i] = 0;        // Some packs incorrectly report the last unpopulated cells as 20-60mV
+            }
+          }
           //Map all cell voltages to the global array
           memcpy(datalayer.battery.status.cell_voltages_mV, cellvoltages_mv, 98 * sizeof(uint16_t));
           //Update number of cells

@@ -73,6 +73,8 @@ jobs:
           - BYD_KOSTAL_RS485
           - BYD_MODBUS
           - FOXESS_CAN
+          - GROWATT_HV_CAN
+          - GROWATT_LV_CAN
           - PYLON_CAN
           - PYLON_LV_CAN
           - SCHNEIDER_CAN

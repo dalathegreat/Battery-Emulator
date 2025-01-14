@@ -8,7 +8,8 @@
 /* Do not change code below unless you are sure what you are doing */
 /* Credits: Most of the code comes from Per Carlen's bms_comms_tesla_model3.py (https://gitlab.com/pelle8/batt2gen24/) */
 
-static unsigned long previousMillis50 = 0;  // will store last time a 50ms CAN Message was send
+static unsigned long previousMillis50 = 0;   // will store last time a 50ms CAN Message was send
+static unsigned long previousMillis100 = 0;  // will store last time a 100ms CAN Message was send
 //0x221 545 VCFRONT_LVPowerState: "GenMsgCycleTime" 50ms
 CAN_frame TESLA_221_1 = {
     .FD = false,
@@ -22,7 +23,12 @@ CAN_frame TESLA_221_2 = {
     .DLC = 8,
     .ID = 0x221,
     .data = {0x61, 0x15, 0x01, 0x00, 0x00, 0x00, 0x20, 0xBA}};  //Contactor Frame 221 - hv_up_for_drive
-
+CAN_frame TESLA_602 = {.FD = false,
+                       .ext_ID = false,
+                       .DLC = 8,
+                       .ID = 0x602,
+                       .data = {0x02, 0x27, 0x05, 0x00, 0x00, 0x00, 0x00, 0x00}};  //Diagnostic request
+static uint8_t stateMachineClearIsolationFault = 0xFF;
 static uint16_t sendContactorClosingMessagesStill = 300;
 static uint16_t battery_cell_max_v = 3300;
 static uint16_t battery_cell_min_v = 3300;
@@ -817,6 +823,10 @@ static const char* hvilStatusState[] = {"NOT OK",
                                         "UNKNOWN(14)",
                                         "UNKNOWN(15)"};
 
+void clearIsolationFault() {
+  //CAN UDS messages to clear a latched isolation fault
+}
+
 void update_values_battery() {  //This function maps all the values fetched via CAN to the correct parameters used for modbus
   //After values are mapped, we perform some safety checks, and do some serial printouts
 
@@ -901,7 +911,23 @@ void update_values_battery() {  //This function maps all the values fetched via 
     datalayer.battery.info.min_cell_voltage_mV = MIN_CELL_VOLTAGE_NCA_NCM;
     datalayer.battery.info.max_cell_voltage_deviation_mV = MAX_CELL_DEVIATION_NCA_NCM;
   }
+
+  // During forced balancing request via webserver, we allow the battery to exceed normal safety parameters
+  if (datalayer.battery.settings.user_requests_balancing) {
+    datalayer.battery.status.real_soc = 9900;  //Force battery to show up as 99% when balancing
+    datalayer.battery.info.max_design_voltage_dV = datalayer.battery.settings.balancing_max_pack_voltage_dV;
+    datalayer.battery.info.max_cell_voltage_mV = datalayer.battery.settings.balancing_max_cell_voltage_mV;
+    datalayer.battery.info.max_cell_voltage_deviation_mV =
+        datalayer.battery.settings.balancing_max_deviation_cell_voltage_mV;
+    datalayer.battery.status.max_charge_power_W = datalayer.battery.settings.balancing_float_power_W;
+  }
 #endif  // TESLA_MODEL_3Y_BATTERY
+
+  // Check if user requests some action
+  if (datalayer.battery.settings.user_requests_isolation_clear) {
+    stateMachineClearIsolationFault = 0;  //Start the statemachine
+    datalayer.battery.settings.user_requests_isolation_clear = false;
+  }
 
   // Update webserver datalayer
   //0x20A
@@ -2667,7 +2693,7 @@ the first, for a few cycles, then stop all  messages which causes the contactor 
   }
 #endif  //defined(TESLA_MODEL_SX_BATTERY) || defined(EXP_TESLA_BMS_DIGITAL_HVIL)
 
-  //Send 30ms message
+  //Send 50ms message
   if (currentMillis - previousMillis50 >= INTERVAL_50_MS) {
     // Check if sending of CAN messages has been delayed too much.
     if ((currentMillis - previousMillis50 >= INTERVAL_50_MS_DELAYED) && (currentMillis > BOOTUP_TIME)) {
@@ -2696,6 +2722,54 @@ the first, for a few cycles, then stop all  messages which causes the contactor 
 #ifdef DOUBLE_BATTERY
         transmit_can_frame(&TESLA_221_1, can_config.battery_double);
 #endif  //DOUBLE_BATTERY
+      }
+    }
+  }
+
+  //Send 100ms message
+  if (currentMillis - previousMillis100 >= INTERVAL_100_MS) {
+    previousMillis100 = currentMillis;
+
+    if (stateMachineClearIsolationFault != 0xFF) {
+      //This implementation should be rewritten to actually replying to the UDS replied sent by the BMS
+      //While this may work, it is not the correct way to implement this clearing logic
+      switch (stateMachineClearIsolationFault) {
+        case 0:
+          TESLA_602.data = {0x02, 0x27, 0x05, 0x00, 0x00, 0x00, 0x00, 0x00};
+          transmit_can_frame(&TESLA_602, can_config.battery);
+          stateMachineClearIsolationFault = 1;
+          break;
+        case 1:
+          TESLA_602.data = {0x30, 0x00, 0x0A, 0x00, 0x00, 0x00, 0x00, 0x00};
+          transmit_can_frame(&TESLA_602, can_config.battery);
+          // BMS should reply 02 50 C0 FF FF FF FF FF
+          stateMachineClearIsolationFault = 2;
+          break;
+        case 2:
+          TESLA_602.data = {0x10, 0x12, 0x27, 0x06, 0x35, 0x34, 0x37, 0x36};
+          transmit_can_frame(&TESLA_602, can_config.battery);
+          // BMS should reply 7E FF FF FF FF FF FF
+          stateMachineClearIsolationFault = 3;
+          break;
+        case 3:
+          TESLA_602.data = {0x21, 0x31, 0x30, 0x33, 0x32, 0x3D, 0x3C, 0x3F};
+          transmit_can_frame(&TESLA_602, can_config.battery);
+          stateMachineClearIsolationFault = 4;
+          break;
+        case 4:
+          TESLA_602.data = {0x22, 0x3E, 0x39, 0x38, 0x3B, 0x3A, 0x00, 0x00};
+          transmit_can_frame(&TESLA_602, can_config.battery);
+          stateMachineClearIsolationFault = 5;
+          break;
+        case 5:
+          TESLA_602.data = {0x04, 0x31, 0x01, 0x04, 0x0A, 0x00, 0x00, 0x00};
+          transmit_can_frame(&TESLA_602, can_config.battery);
+          stateMachineClearIsolationFault = 0xFF;
+          break;
+        default:
+          //Something went wrong. Reset all and cancel
+          stateMachineClearIsolationFault = 0xFF;
+          break;
       }
     }
   }

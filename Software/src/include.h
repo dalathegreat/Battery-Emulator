@@ -44,6 +44,15 @@
 #endif
 #endif
 
+#ifdef HW_LILYGO
+#if defined(PERIODIC_BMS_RESET) || defined(REMOTE_BMS_RESET)
+#if defined(CAN_ADDON) || defined(CANFD_ADDON) || defined(CHADEMO_BATTERY)
+//Check that BMS reset is not used at the same time as Chademo and CAN addons
+#error BMS RESET CANNOT BE USED AT SAME TIME AS CAN-ADDONS / CHADMEO! NOT ENOUGH GPIO!
+#endif
+#endif
+#endif
+
 #ifndef BATTERY_SELECTED
 #error No battery selected! Choose one from the USER_SETTINGS.h file
 #endif

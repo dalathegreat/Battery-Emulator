@@ -5,7 +5,7 @@
 
 enum bms_status_enum { STANDBY = 0, INACTIVE = 1, DARKSTART = 2, ACTIVE = 3, FAULT = 4, UPDATING = 5 };
 enum battery_chemistry_enum { NCA, NMC, LFP };
-enum led_color { GREEN, YELLOW, RED, BLUE, RGB };
+enum led_color { GREEN, YELLOW, RED, BLUE };
 
 #define DISCHARGING 1
 #define CHARGING 2

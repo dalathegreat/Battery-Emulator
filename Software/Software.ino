@@ -8,6 +8,7 @@
 #include "esp_timer.h"
 #include "freertos/FreeRTOS.h"
 #include "freertos/task.h"
+
 #include "src/communication/can/comm_can.h"
 #include "src/communication/contactorcontrol/comm_contactorcontrol.h"
 #include "src/communication/equipmentstopbutton/comm_equipmentstopbutton.h"
@@ -20,6 +21,7 @@
 #include "src/devboard/utils/events.h"
 #include "src/devboard/utils/led_handler.h"
 #include "src/devboard/utils/logging.h"
+#include "src/devboard/utils/timer.h"
 #include "src/devboard/utils/value_mapping.h"
 #include "src/include.h"
 #include "src/lib/YiannisBourkelis-Uptime-Library/src/uptime.h"
@@ -52,7 +54,7 @@
 #endif  // WIFI
 
 // The current software version, shown on webserver
-const char* version_number = "8.1.dev";
+const char* version_number = "8.2.dev";
 
 // Interval settings
 uint16_t intervalUpdateValues = INTERVAL_1_S;  // Interval at which to update inverter values / Modbus registers
@@ -385,6 +387,12 @@ void update_calculated_values() {
   datalayer.battery.status.active_power_W =
       (datalayer.battery.status.current_dA * (datalayer.battery.status.voltage_dV / 100));
 
+#ifdef DOUBLE_BATTERY
+  /* Calculate active power based on voltage and current for battery 2*/
+  datalayer.battery2.status.active_power_W =
+      (datalayer.battery2.status.current_dA * (datalayer.battery2.status.voltage_dV / 100));
+#endif  // DOUBLE_BATTERY
+
   if (datalayer.battery.settings.soc_scaling_active) {
     /** SOC Scaling
      * 
@@ -434,10 +442,6 @@ void update_calculated_values() {
     }
 
 #ifdef DOUBLE_BATTERY
-    /* Calculate active power based on voltage and current*/
-    datalayer.battery2.status.active_power_W =
-        (datalayer.battery2.status.current_dA * (datalayer.battery2.status.voltage_dV / 100));
-
     // Calculate the scaled remaining capacity in Wh
     if (datalayer.battery2.info.total_capacity_Wh > 0 && datalayer.battery2.status.real_soc > 0) {
       calc_max_capacity =

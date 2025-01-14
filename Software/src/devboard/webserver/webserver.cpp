@@ -112,7 +112,7 @@ void init_webserver() {
   // Define the handler to export can log
   server.on("/export_can_log", HTTP_GET, [](AsyncWebServerRequest* request) {
     pause_can_writing();
-    request->send(SD, CAN_LOG_FILE, String(), true);
+    request->send(SD_MMC, CAN_LOG_FILE, String(), true);
     resume_can_writing();
   });
 
@@ -133,7 +133,7 @@ void init_webserver() {
   // Define the handler to export debug log
   server.on("/export_log", HTTP_GET, [](AsyncWebServerRequest* request) {
     pause_log_writing();
-    request->send(SD, LOG_FILE, String(), true);
+    request->send(SD_MMC, LOG_FILE, String(), true);
     resume_log_writing();
   });
 #endif
@@ -385,12 +385,48 @@ void init_webserver() {
     }
   });
 
+  // Route for clearing isolation faults on Tesla
+  server.on("/clearIsolation", HTTP_GET, [](AsyncWebServerRequest* request) {
+    if (WEBSERVER_AUTH_REQUIRED && !request->authenticate(http_username, http_password)) {
+      return request->requestAuthentication();
+    }
+    datalayer.battery.settings.user_requests_isolation_clear = true;
+    request->send(200, "text/plain", "Updated successfully");
+  });
+
   // Route for resetting SOH on Nissan LEAF batteries
   server.on("/resetSOH", HTTP_GET, [](AsyncWebServerRequest* request) {
     if (WEBSERVER_AUTH_REQUIRED && !request->authenticate(http_username, http_password)) {
       return request->requestAuthentication();
     }
     datalayer_extended.nissanleaf.UserRequestSOHreset = true;
+    request->send(200, "text/plain", "Updated successfully");
+  });
+
+  // Route for erasing DTC on Volvo/Polestar batteries
+  server.on("/volvoEraseDTC", HTTP_GET, [](AsyncWebServerRequest* request) {
+    if (WEBSERVER_AUTH_REQUIRED && !request->authenticate(http_username, http_password)) {
+      return request->requestAuthentication();
+    }
+    datalayer_extended.VolvoPolestar.UserRequestDTCreset = true;
+    request->send(200, "text/plain", "Updated successfully");
+  });
+
+  // Route for reading DTC on Volvo/Polestar batteries
+  server.on("/volvoReadDTC", HTTP_GET, [](AsyncWebServerRequest* request) {
+    if (WEBSERVER_AUTH_REQUIRED && !request->authenticate(http_username, http_password)) {
+      return request->requestAuthentication();
+    }
+    datalayer_extended.VolvoPolestar.UserRequestDTCreadout = true;
+    request->send(200, "text/plain", "Updated successfully");
+  });
+
+  // Route for performing ECU reset on Volvo/Polestar batteries
+  server.on("/volvoBECMecuReset", HTTP_GET, [](AsyncWebServerRequest* request) {
+    if (WEBSERVER_AUTH_REQUIRED && !request->authenticate(http_username, http_password)) {
+      return request->requestAuthentication();
+    }
+    datalayer_extended.VolvoPolestar.UserRequestBECMecuReset = true;
     request->send(200, "text/plain", "Updated successfully");
   });
 
@@ -411,6 +447,93 @@ void init_webserver() {
     request->send(200, "text/plain", "Updated successfully");
   });
 #endif  // TEST_FAKE_BATTERY
+
+#ifdef TESLA_MODEL_3Y_BATTERY
+
+  // Route for editing balancing enabled
+  server.on("/TeslaBalAct", HTTP_GET, [](AsyncWebServerRequest* request) {
+    if (WEBSERVER_AUTH_REQUIRED && !request->authenticate(http_username, http_password))
+      return request->requestAuthentication();
+    if (request->hasParam("value")) {
+      String value = request->getParam("value")->value();
+      datalayer.battery.settings.user_requests_balancing = value.toInt();
+      store_settings();
+      request->send(200, "text/plain", "Updated successfully");
+    } else {
+      request->send(400, "text/plain", "Bad Request");
+    }
+  });
+
+  // Route for editing balancing max time
+  server.on("/BalTime", HTTP_GET, [](AsyncWebServerRequest* request) {
+    if (WEBSERVER_AUTH_REQUIRED && !request->authenticate(http_username, http_password))
+      return request->requestAuthentication();
+    if (request->hasParam("value")) {
+      String value = request->getParam("value")->value();
+      datalayer.battery.settings.balancing_time_ms = static_cast<uint32_t>(value.toFloat() * 60000);
+      store_settings();
+      request->send(200, "text/plain", "Updated successfully");
+    } else {
+      request->send(400, "text/plain", "Bad Request");
+    }
+  });
+
+  // Route for editing balancing max power
+  server.on("/BalFloatPower", HTTP_GET, [](AsyncWebServerRequest* request) {
+    if (WEBSERVER_AUTH_REQUIRED && !request->authenticate(http_username, http_password))
+      return request->requestAuthentication();
+    if (request->hasParam("value")) {
+      String value = request->getParam("value")->value();
+      datalayer.battery.settings.balancing_float_power_W = static_cast<uint16_t>(value.toFloat());
+      store_settings();
+      request->send(200, "text/plain", "Updated successfully");
+    } else {
+      request->send(400, "text/plain", "Bad Request");
+    }
+  });
+
+  // Route for editing balancing max pack voltage
+  server.on("/BalMaxPackV", HTTP_GET, [](AsyncWebServerRequest* request) {
+    if (WEBSERVER_AUTH_REQUIRED && !request->authenticate(http_username, http_password))
+      return request->requestAuthentication();
+    if (request->hasParam("value")) {
+      String value = request->getParam("value")->value();
+      datalayer.battery.settings.balancing_max_pack_voltage_dV = static_cast<uint16_t>(value.toFloat() * 10);
+      store_settings();
+      request->send(200, "text/plain", "Updated successfully");
+    } else {
+      request->send(400, "text/plain", "Bad Request");
+    }
+  });
+
+  // Route for editing balancing max cell voltage
+  server.on("/BalMaxCellV", HTTP_GET, [](AsyncWebServerRequest* request) {
+    if (WEBSERVER_AUTH_REQUIRED && !request->authenticate(http_username, http_password))
+      return request->requestAuthentication();
+    if (request->hasParam("value")) {
+      String value = request->getParam("value")->value();
+      datalayer.battery.settings.balancing_max_cell_voltage_mV = static_cast<uint16_t>(value.toFloat());
+      store_settings();
+      request->send(200, "text/plain", "Updated successfully");
+    } else {
+      request->send(400, "text/plain", "Bad Request");
+    }
+  });
+
+  // Route for editing balancing max cell voltage deviation
+  server.on("/BalMaxDevCellV", HTTP_GET, [](AsyncWebServerRequest* request) {
+    if (WEBSERVER_AUTH_REQUIRED && !request->authenticate(http_username, http_password))
+      return request->requestAuthentication();
+    if (request->hasParam("value")) {
+      String value = request->getParam("value")->value();
+      datalayer.battery.settings.balancing_max_deviation_cell_voltage_mV = static_cast<uint16_t>(value.toFloat());
+      store_settings();
+      request->send(200, "text/plain", "Updated successfully");
+    } else {
+      request->send(400, "text/plain", "Bad Request");
+    }
+  });
+#endif
 
 #if defined CHEVYVOLT_CHARGER || defined NISSANLEAF_CHARGER
   // Route for editing ChargerTargetV
@@ -709,7 +832,6 @@ String processor(const String& var) {
         content += "#F5CC00;";
         break;
       case led_color::BLUE:
-      case led_color::RGB:
         content += "#2B35AF;";  // Blue in test mode
         break;
       case led_color::RED:

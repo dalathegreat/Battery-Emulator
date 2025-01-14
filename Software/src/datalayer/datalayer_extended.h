@@ -195,6 +195,17 @@ typedef struct {
 } DATALAYER_INFO_CELLPOWER;
 
 typedef struct {
+  uint8_t total_cell_count = 0;
+  int16_t battery_12V = 0;
+  uint8_t waterleakageSensor = 0;
+  int8_t temperature_water_inlet = 0;
+  int8_t powerRelayTemperature = 0;
+  uint8_t batteryManagementMode = 0;
+  uint8_t BMS_ign = 0;
+  uint8_t batteryRelay = 0;
+} DATALAYER_INFO_KIAHYUNDAI64;
+
+typedef struct {
   /** uint8_t */
   /** Contactor status */
   uint8_t status_contactor = 0;
@@ -524,6 +535,36 @@ typedef struct {
 } DATALAYER_INFO_MEB;
 
 typedef struct {
+  uint16_t soc_bms = 0;
+  uint16_t soc_calc = 0;
+  uint16_t soc_rescaled = 0;
+  uint16_t soh_bms = 0;
+  uint16_t BECMsupplyVoltage = 0;
+
+  uint16_t BECMBatteryVoltage = 0;
+  uint16_t BECMBatteryCurrent = 0;
+  uint16_t BECMUDynMaxLim = 0;
+  uint16_t BECMUDynMinLim = 0;
+
+  uint16_t HvBattPwrLimDcha1 = 0;
+  uint16_t HvBattPwrLimDchaSoft = 0;
+  uint16_t HvBattPwrLimDchaSlowAgi = 0;
+  uint16_t HvBattPwrLimChrgSlowAgi = 0;
+
+  uint8_t HVSysRlySts = 0;
+  uint8_t HVSysDCRlySts1 = 0;
+  uint8_t HVSysDCRlySts2 = 0;
+  uint8_t HVSysIsoRMonrSts = 0;
+  /** User requesting DTC reset via WebUI*/
+  bool UserRequestDTCreset = false;
+  /** User requesting DTC readout via WebUI*/
+  bool UserRequestDTCreadout = false;
+  /** User requesting BECM reset via WebUI*/
+  bool UserRequestBECMecuReset = false;
+
+} DATALAYER_INFO_VOLVO_POLESTAR;
+
+typedef struct {
   /** uint16_t */
   /** Values WIP*/
   uint16_t battery_soc = 0;
@@ -576,9 +617,11 @@ class DataLayerExtended {
   DATALAYER_INFO_BMWI3 bmwi3;
   DATALAYER_INFO_BYDATTO3 bydAtto3;
   DATALAYER_INFO_CELLPOWER cellpower;
+  DATALAYER_INFO_KIAHYUNDAI64 KiaHyundai64;
   DATALAYER_INFO_TESLA tesla;
   DATALAYER_INFO_NISSAN_LEAF nissanleaf;
   DATALAYER_INFO_MEB meb;
+  DATALAYER_INFO_VOLVO_POLESTAR VolvoPolestar;
   DATALAYER_INFO_ZOE_PH2 zoePH2;
 };
 

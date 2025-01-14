@@ -59,6 +59,8 @@ jobs:
           - BYD_KOSTAL_RS485
           - BYD_MODBUS
           - FOXESS_CAN
+          - GROWATT_HV_CAN
+          - GROWATT_LV_CAN
           - PYLON_CAN
           - PYLON_LV_CAN
           - SCHNEIDER_CAN
@@ -68,6 +70,7 @@ jobs:
           - SMA_TRIPOWER_CAN
           - SOFAR_CAN
           - SOLAX_CAN
+          - SUNGROW_CAN
           - SERIAL_LINK_TRANSMITTER
           - NISSANLEAF_CHARGER # Last element is not an inverter, but good to also test if the charger compiles
         # These are the supported hardware platforms for which the code will be compiled.

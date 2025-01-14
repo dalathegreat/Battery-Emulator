@@ -47,8 +47,10 @@ const char* mqtt_object_id_prefix =
     "be_";  // Custom prefix for MQTT object ID. Previously, the prefix was automatically set to "esp32-XXXXXX_"
 const char* mqtt_device_name =
     "Battery Emulator";  // Custom device name in Home Assistant. Previously, the name was automatically set to "BatteryEmulator_esp32-XXXXXX"
-#endif  // MQTT_MANUAL_TOPIC_OBJECT_NAME
-#endif  // USE_MQTT
+const char* ha_device_id =
+    "battery-emulator";  // Custom device ID in Home Assistant. Previously, the ID was always "battery-emulator"
+#endif                   // MQTT_MANUAL_TOPIC_OBJECT_NAME
+#endif                   // USE_MQTT
 
 #ifdef EQUIPMENT_STOP_BUTTON
 // Equipment stop button behavior. Use NC button for safety reasons.
