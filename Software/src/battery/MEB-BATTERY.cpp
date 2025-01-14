@@ -643,7 +643,9 @@ void update_values_battery() {  //This function maps all the values fetched via 
 void handle_incoming_can_frame_battery(CAN_frame rx_frame) {
   last_can_msg_timestamp = millis();
   if (first_can_msg == 0) {
+#ifdef DEBUG_LOG
     logging.printf("MEB: First CAN msg received\n");
+#endif
     first_can_msg = last_can_msg_timestamp;
   }
   switch (rx_frame.ID) {
@@ -1013,31 +1015,39 @@ void handle_incoming_can_frame_battery(CAN_frame rx_frame) {
         case 3:  // EXTERN CHARGING
         case 4:  // AC_CHARGING
         case 6:  // DC_CHARGING
+#ifdef DEBUG_LOG
           if (!datalayer.system.status.battery_allows_contactor_closing)
             logging.printf("MEB Contactors closed\n");
-          if (datalayer.battery.status.bms_status != FAULT)
-            datalayer.battery.status.bms_status = ACTIVE;
+#endif
+          if (datalayer.battery.status.real_bms_status != BMS_FAULT)
+            datalayer.battery.status.real_bms_status = BMS_ACTIVE;
           datalayer.system.status.battery_allows_contactor_closing = true;
           break;
         case 5:  // Error
+#ifdef DEBUG_LOG
           if (datalayer.system.status.battery_allows_contactor_closing)
             logging.printf("MEB Contactors opened\n");
-          datalayer.battery.status.bms_status = FAULT;
+#endif
+          datalayer.battery.status.real_bms_status = BMS_FAULT;
           datalayer.system.status.battery_allows_contactor_closing = false;
           break;
         case 7:  // Init
+#ifdef DEBUG_LOG
           if (datalayer.system.status.battery_allows_contactor_closing)
             logging.printf("MEB Contactors opened\n");
-          if (datalayer.battery.status.bms_status != FAULT)
-            datalayer.battery.status.bms_status = INACTIVE;
+#endif
+          if (datalayer.battery.status.real_bms_status != BMS_FAULT)
+            datalayer.battery.status.real_bms_status = BMS_STANDBY;
           datalayer.system.status.battery_allows_contactor_closing = false;
           break;
         case 2:  // BALANCING
         default:
+#ifdef DEBUG_LOG
           if (datalayer.system.status.battery_allows_contactor_closing)
             logging.printf("MEB Contactors opened\n");
-          if (datalayer.battery.status.bms_status != FAULT)
-            datalayer.battery.status.bms_status = STANDBY;
+#endif
+          if (datalayer.battery.status.real_bms_status != BMS_FAULT)
+            datalayer.battery.status.real_bms_status = BMS_STANDBY;
           datalayer.system.status.battery_allows_contactor_closing = false;
       }
       BMS_HVIL_status = (rx_frame.data.u8[2] & 0x18) >> 3;
@@ -1511,14 +1521,16 @@ void handle_incoming_can_frame_battery(CAN_frame rx_frame) {
       handle_obd_frame(rx_frame);
       break;
     default:
+#ifdef DEBUG_LOG
       logging.printf("Unknown CAN frame received:\n");
+#endif
       dump_can_frame(rx_frame, MSG_RX);
       break;
   }
   datalayer.battery.status.CAN_battery_still_alive = CAN_STILL_ALIVE;
   if (can_msg_received == 0xFFFF && nof_cells_determined) {
-    if (datalayer.battery.status.bms_status == INACTIVE)
-      datalayer.battery.status.bms_status = STANDBY;
+    if (datalayer.battery.status.real_bms_status == BMS_DISCONNECTED)
+      datalayer.battery.status.real_bms_status = BMS_STANDBY;
   }
 }
 
@@ -1526,12 +1538,16 @@ void transmit_can_battery() {
   unsigned long currentMillis = millis();
   // Send 10ms CAN Message
   if (datalayer.system.settings.equipment_stop_active || currentMillis > last_can_msg_timestamp + 500) {
+#ifdef DEBUG_LOG
     if (first_can_msg)
       logging.printf("MEB: No CAN msg received for 500ms\n");
+#endif
     can_msg_received = RX_DEFAULT;
     first_can_msg = 0;
-    if (datalayer.battery.status.bms_status != FAULT)
-      datalayer.battery.status.bms_status = INACTIVE;
+    if (datalayer.battery.status.real_bms_status != BMS_FAULT){
+      datalayer.battery.status.real_bms_status = BMS_DISCONNECTED;
+      datalayer.system.status.battery_allows_contactor_closing = false;
+    }
   }
 
   if (currentMillis - previousMillis10ms >= INTERVAL_10_MS) {
@@ -1601,15 +1617,17 @@ void transmit_can_battery() {
 
     //HV request and DC/DC control lies in 0x503
 
-    if (datalayer.battery.status.bms_status != FAULT && /*first_can_msg > 0 && currentMillis > first_can_msg + 2000*/
-        (datalayer.battery.status.bms_status == STANDBY || datalayer.battery.status.bms_status == ACTIVE) &&
+    if (datalayer.battery.status.real_bms_status != BMS_FAULT && /*first_can_msg > 0 && currentMillis > first_can_msg + 2000*/
+        (datalayer.battery.status.real_bms_status == BMS_STANDBY || datalayer.battery.status.real_bms_status == BMS_ACTIVE) &&
         (labs(((int32_t)datalayer.battery.status.voltage_dV) -
               ((int32_t)datalayer_extended.meb.BMS_voltage_intermediate_dV)) < 200)) {
+#ifdef DEBUG_LOG
       if (MEB_503.data.u8[3] == BMS_TARGET_HV_OFF) {
         logging.printf("MEB Requesting HV\n");
       }
+#endif
       MEB_503.data.u8[1] =
-          0x30 | (datalayer.battery.status.bms_status == ACTIVE ? 0x00 : 0x80);  // Disable precharing if ACTIVE
+          0x30 | (datalayer.battery.status.real_bms_status == BMS_ACTIVE ? 0x00 : 0x80);  // Disable precharing if ACTIVE
       MEB_503.data.u8[3] = BMS_TARGET_HV_ON;  //TODO, should we try AC_2 or DC charging?
       MEB_503.data.u8[5] = 0x82;              // Bordnetz Active
       MEB_503.data.u8[6] = 0xE0;              // Request emergency shutdown HV system == 0, false

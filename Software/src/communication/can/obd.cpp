@@ -23,6 +23,7 @@ void show_dtc(uint8_t byte0, uint8_t byte1) {
 }
 
 void handle_obd_frame(CAN_frame& rx_frame) {
+#ifdef DEBUG_LOG
   if (rx_frame.data.u8[1] == 0x7F) {
     const char* error_str = "?";
     switch (rx_frame.data.u8[3]) {  // See https://automotive.wiki/index.php/ISO_14229
@@ -105,6 +106,7 @@ void handle_obd_frame(CAN_frame& rx_frame) {
     }
   }
   dump_can_frame(rx_frame, MSG_RX);
+#endif
 }
 
 void transmit_obd_can_frame(unsigned int address, int interface) {

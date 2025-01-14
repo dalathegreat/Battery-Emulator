@@ -306,30 +306,9 @@ void core_loop(void* task_time_us) {
     if (check_pause_2s.elapsed()) {
       emulator_pause_state_transmit_can_battery();
     }
-    static bms_status_enum previous_state = FAULT;
-    if (previous_state != datalayer.battery.status.bms_status) {
-      switch (datalayer.battery.status.bms_status) {
-        case ACTIVE:
-          logging.printf("BMS state changed to: OK\n");
-          break;
-        case UPDATING:
-          logging.printf("BMS state changed to: UPDATING\n");
-          break;
-        case FAULT:
-          logging.printf("BMS state changed to: FAULT\n");
-          break;
-        case INACTIVE:
-          logging.printf("BMS state changed to: INACTIVE\n");
-          break;
-        case STANDBY:
-          logging.printf("BMS state changed to: STANDBY\n");
-          break;
-        default:
-          logging.printf("BMS state changed to: ??\n");
-          break;
-      }
-      previous_state = datalayer.battery.status.bms_status;
-    }
+#ifdef DEBUG_LOG
+    logging.log_bms_status(datalayer.battery.status.real_bms_status, 1);
+#endif
 
     vTaskDelayUntil(&xLastWakeTime, xFrequency);
   }
