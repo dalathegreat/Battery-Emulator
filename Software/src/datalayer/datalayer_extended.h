@@ -555,6 +555,8 @@ typedef struct {
   uint8_t HVSysDCRlySts1 = 0;
   uint8_t HVSysDCRlySts2 = 0;
   uint8_t HVSysIsoRMonrSts = 0;
+  
+  uint8_t DTCcount = 0;
   /** User requesting DTC reset via WebUI*/
   bool UserRequestDTCreset = false;
   /** User requesting DTC readout via WebUI*/
@@ -628,3 +630,4 @@ class DataLayerExtended {
 extern DataLayerExtended datalayer_extended;
 
 #endif
+
