@@ -642,8 +642,10 @@ void update_values_battery() {  //This function maps all the values fetched via 
 
 void handle_incoming_can_frame_battery(CAN_frame rx_frame) {
   last_can_msg_timestamp = millis();
-  if (first_can_msg == 0)
+  if (first_can_msg == 0) {
+    logging.printf("MEB: First CAN msg received\n");
     first_can_msg = last_can_msg_timestamp;
+  }
   switch (rx_frame.ID) {
     case 0x17F0007B:  // BMS 500ms
       can_msg_received |= RX_0x17F0007B;
@@ -1524,6 +1526,8 @@ void transmit_can_battery() {
   unsigned long currentMillis = millis();
   // Send 10ms CAN Message
   if (datalayer.system.settings.equipment_stop_active || currentMillis > last_can_msg_timestamp + 500) {
+    if (first_can_msg)
+      logging.printf("MEB: No CAN msg received for 500ms\n");
     can_msg_received = RX_DEFAULT;
     first_can_msg = 0;
     if (datalayer.battery.status.bms_status != FAULT)
@@ -1532,7 +1536,7 @@ void transmit_can_battery() {
 
   if (currentMillis - previousMillis10ms >= INTERVAL_10_MS) {
     // Check if sending of CAN messages has been delayed too much.
-    if ((currentMillis - previousMillis10ms >= INTERVAL_10_MS_DELAYED) && (currentMillis > BOOTUP_TIME)) {
+    if ((currentMillis - previousMillis10ms >= INTERVAL_10_MS_DELAYED) && (currentMillis > BOOTUP_TIME) && previousMillis10ms > 0) {
       set_event(EVENT_CAN_OVERRUN, (currentMillis - previousMillis10ms));
     } else {
       clear_event(EVENT_CAN_OVERRUN);
@@ -2155,7 +2159,7 @@ void transmit_can_battery() {
         poll_pid = PID_SOC;
         break;
     }
-    if (first_can_msg > 0 && currentMillis > first_can_msg + 2000) {
+    if (first_can_msg > 0 && currentMillis > first_can_msg + 1000) {
       transmit_can_frame(&MEB_POLLING_FRAME, can_config.battery);
     }
   }
