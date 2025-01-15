@@ -157,6 +157,12 @@ CAN_frame BMWPHEV_6F1_REQUEST_VOLTAGE_LIMITS = {
     .ID = 0x6F1,
     .data = {0x07, 0x03, 0x22, 0xDD, 0x7E}};  //  Pack Voltage Limits  Multi Frame
 
+CAN_frame BMWPHEV_6F1_REQUEST_PAIRED_VIN = {.FD = false,
+                                            .ext_ID = false,
+                                            .DLC = 5,
+                                            .ID = 0x6F1,
+                                            .data = {0x07, 0x03, 0x22, 0xF1, 0x90}};  //  SME Paired VIN
+
 CAN_frame BMWPHEV_6F1_REQUEST_ISO_READING1 = {
     .FD = false,
     .ext_ID = false,
@@ -303,21 +309,21 @@ CAN_frame BMWPHEV_6F1_CELL_TEMP = {.FD = false,
 
 static bool battery_awake = false;
 
-//Setup UDS values to poll for
-CAN_frame* UDS_REQUESTS100MS[] = {&BMWPHEV_6F1_REQUEST_CELLSUMMARY,
+//Setup Fast UDS values to poll for
+CAN_frame* UDS_REQUESTS_FAST[] = {&BMWPHEV_6F1_REQUEST_CELLSUMMARY,
                                   &BMWPHEV_6F1_REQUEST_SOC,
-                                  &BMWPHEV_6F1_REQUEST_SOH,
                                   &BMWPHEV_6F1_REQUEST_CURRENT,
                                   &BMWPHEV_6F1_REQUEST_VOLTAGE_LIMITS,
-                                  &BMWPHEV_6F1_REQUEST_CURRENT_LIMITS,
                                   &BMWPHEV_6F1_REQUEST_MAINVOLTAGE_PRECONTACTOR,
-                                  &BMWPHEV_6F1_REQUEST_MAINVOLTAGE_POSTCONTACTOR,
-                                  &BMWPHEV_6F1_REQUEST_BALANCING_STATUS,
-                                  &BMWPHEV_6F1_REQUEST_CELLS_INDIVIDUAL_VOLTS,
-                                  &BMWPHEV_6F1_REQUEST_CELL_TEMP,
-                                  &BMWPHEV_6F1_REQUEST_ISO_READING1,
-                                  &BMWPHEV_6F1_REQUEST_ISO_READING2};
-int numUDSreqs = sizeof(UDS_REQUESTS100MS) / sizeof(UDS_REQUESTS100MS[0]);  // Number of elements in the array
+                                  &BMWPHEV_6F1_REQUEST_MAINVOLTAGE_POSTCONTACTOR};
+int numFastUDSreqs = sizeof(UDS_REQUESTS_FAST) / sizeof(UDS_REQUESTS_FAST[0]);  //Store Number of elements in the array
+
+//Setup Slow UDS values to poll for
+CAN_frame* UDS_REQUESTS_SLOW[] = {&BMWPHEV_6F1_REQUEST_ISO_READING1,           &BMWPHEV_6F1_REQUEST_ISO_READING2,
+                                  &BMWPHEV_6F1_REQUEST_CURRENT_LIMITS,         &BMWPHEV_6F1_REQUEST_SOH,
+                                  &BMWPHEV_6F1_REQUEST_CELLS_INDIVIDUAL_VOLTS, &BMWPHEV_6F1_REQUEST_CELL_TEMP,
+                                  &BMWPHEV_6F1_REQUEST_BALANCING_STATUS,       &BMWPHEV_6F1_REQUEST_PAIRED_VIN};
+int numSlowUDSreqs = sizeof(UDS_REQUESTS_SLOW) / sizeof(UDS_REQUESTS_SLOW[0]);  // Store Number of elements in the array
 
 //PHEV intermediate vars
 //#define UDS_LOG //Useful for logging multiframe handling
@@ -413,6 +419,9 @@ static int32_t iso_safety_trg_plausible = 0;
 static int32_t iso_safety_kohm = 0;          //STAT_R_ISO_ROH_01_WERT
 static int32_t iso_safety_kohm_quality = 0;  //STAT_R_ISO_ROH_QAL_01_INFO Quality of measurement 0-21 (higher better)
 
+static uint8_t paired_vin[] = {0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+                               0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00};  //17 Byte array for paired VIN
+
 static int16_t count_full_charges = 0;  //TODO  42
 static int16_t count_charges = 0;       //TODO  42
 static int16_t hvil_status = 0;
@@ -422,7 +431,8 @@ static uint8_t contactors_closed = 0;           //TODO  E5 BF  or E5 51
 static uint8_t contactor_status_precharge = 0;  //TODO E5 BF
 static uint8_t contactor_status_negative = 0;   //TODO E5 BF
 static uint8_t contactor_status_positive = 0;   //TODO E5 BF
-static uint8_t uds_req_id_counter = 0;
+static uint8_t uds_fast_req_id_counter = 0;
+static uint8_t uds_slow_req_id_counter = 0;
 static uint8_t detected_number_of_cells = 96;
 const unsigned long STALE_PERIOD =
     STALE_PERIOD_CONFIG;  // Time in milliseconds to check for staleness (e.g., 5000 ms = 5 seconds)
@@ -457,9 +467,9 @@ static uint8_t calculateCRC(CAN_frame rx_frame, uint8_t length, uint8_t initial_
   return crc;
 }
 
-static uint8_t increment_uds_req_id_counter(uint8_t index) {
+static uint8_t increment_uds_req_id_counter(uint8_t index, int numReqs) {
   index++;
-  if (index >= numUDSreqs) {
+  if (index >= numReqs) {
     index = 0;
   }
   return index;
@@ -884,20 +894,20 @@ void handle_incoming_can_frame_battery(CAN_frame rx_frame) {
           battery_current = ((int32_t)((gUDSContext.UDS_buffer[3] << 24) | (gUDSContext.UDS_buffer[4] << 16) |
                                        (gUDSContext.UDS_buffer[5] << 8) | gUDSContext.UDS_buffer[6])) *
                             0.1;
-          // #ifdef DEBUG_LOG
-          //           logging.print("Received current/amps measurement data: ");
-          //           logging.print(battery_current);
-          //           logging.print(" - ");
-          //           for (uint16_t i = 0; i < gUDSContext.UDS_bytesReceived; i++) {
-          //             // Optional leading zero for single-digit hex
-          //             if (gUDSContext.UDS_buffer[i] < 0x10) {
-          //               logging.print("0");
-          //             }
-          //             logging.print(gUDSContext.UDS_buffer[i], HEX);
-          //             logging.print(" ");
-          //           }
-          //           logging.println();  // new line at the end
-          // #endif                        // DEBUG_LOG
+#ifdef DEBUG_LOG
+          logging.print("Received current/amps measurement data: ");
+          logging.print(battery_current);
+          logging.print(" - ");
+          for (uint16_t i = 0; i < gUDSContext.UDS_bytesReceived; i++) {
+            // Optional leading zero for single-digit hex
+            if (gUDSContext.UDS_buffer[i] < 0x10) {
+              logging.print("0");
+            }
+            logging.print(gUDSContext.UDS_buffer[i], HEX);
+            logging.print(" ");
+          }
+          logging.println();  // new line at the end
+#endif                        // DEBUG_LOG
         }
 
         //Cell Min/Max
@@ -939,6 +949,11 @@ void handle_incoming_can_frame_battery(CAN_frame rx_frame) {
           allowable_discharge_amps = (gUDSContext.UDS_buffer[5] << 8 | gUDSContext.UDS_buffer[6]) / 10;
         }
 
+        if (gUDSContext.UDS_moduleID == 0x90) {  // Paired VIN
+          for (int i = 0; i < 17; i++) {
+            paired_vin[i] = gUDSContext.UDS_buffer[4 + i];
+          }
+        }
         if (gUDSContext.UDS_moduleID == 0x6A) {  // Iso Reading 1
           iso_safety_int_kohm =
               (gUDSContext.UDS_buffer[7] << 8 | gUDSContext.UDS_buffer[8]);  //STAT_ISOWIDERSTAND_INT_WERT
@@ -1026,17 +1041,22 @@ void transmit_can_battery() {
   // Send 200ms CAN Message
   if (currentMillis - previousMillis200 >= INTERVAL_200_MS) {
     previousMillis200 = currentMillis;
-    //Loop through and send a different UDS request each cycle
-    uds_req_id_counter = increment_uds_req_id_counter(uds_req_id_counter);
-    transmit_can_frame(UDS_REQUESTS100MS[uds_req_id_counter], can_config.battery);
+    uds_fast_req_id_counter = increment_uds_req_id_counter(
+        uds_fast_req_id_counter, numFastUDSreqs);  //Loop through and send a different UDS request each cycle
+    transmit_can_frame(UDS_REQUESTS_FAST[uds_fast_req_id_counter], can_config.battery);
   }
   // Send 1000ms CAN Message
   if (currentMillis - previousMillis1000 >= INTERVAL_1_S) {
     previousMillis1000 = currentMillis;
+
+    uds_slow_req_id_counter = increment_uds_req_id_counter(
+        uds_slow_req_id_counter, numSlowUDSreqs);  //Loop through and send a different UDS request each cycle
+    transmit_can_frame(UDS_REQUESTS_SLOW[uds_slow_req_id_counter], can_config.battery);
   }
   // Send 5000ms CAN Message
   if (currentMillis - previousMillis5000 >= INTERVAL_5_S) {
     previousMillis5000 = currentMillis;
+
     // transmit_can_frame(&BMWPHEV_6F1_REQUEST_CONTACTORS_CLOSE,
     //                    can_config.battery);  // Attempt contactor close - experimental
   }
@@ -1047,18 +1067,6 @@ void transmit_can_battery() {
                        can_config.battery);  // Enable Balancing
   }
 }
-//We can always send CAN as the iX BMS will wake up on vehicle comms
-// else {
-//   previousMillis20 = currentMillis;
-//   previousMillis100 = currentMillis;
-//   previousMillis200 = currentMillis;
-//   previousMillis500 = currentMillis;
-//   previousMillis640 = currentMillis;
-//   previousMillis1000 = currentMillis;
-//   previousMillis5000 = currentMillis;
-//   previousMillis10000 = currentMillis;
-// }
-//} //We can always send CAN as the iX BMS will wake up on vehicle comms
 
 void setup_battery(void) {  // Performs one time setup at startup
   strncpy(datalayer.system.info.battery_protocol, "BMW PHEV Battery", 63);
