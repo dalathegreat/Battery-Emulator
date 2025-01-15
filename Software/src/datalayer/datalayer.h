@@ -92,8 +92,11 @@ typedef struct {
   uint8_t CAN_battery_still_alive = CAN_STILL_ALIVE;
 
   /** Other */
-  /** The current BMS status */
+  /** The current system status, which for now still has the name bms_status */
   bms_status_enum bms_status = ACTIVE;
+
+  /** The current battery status, which for now has the name real_bms_status */
+  real_bms_status_enum real_bms_status = BMS_DISCONNECTED;
 } DATALAYER_BATTERY_STATUS_TYPE;
 
 typedef struct {

@@ -13,6 +13,7 @@
 #include "src/communication/contactorcontrol/comm_contactorcontrol.h"
 #include "src/communication/equipmentstopbutton/comm_equipmentstopbutton.h"
 #include "src/communication/nvm/comm_nvm.h"
+#include "src/communication/precharge_control/precharge_control.h"
 #include "src/communication/rs485/comm_rs485.h"
 #include "src/communication/seriallink/comm_seriallink.h"
 #include "src/datalayer/datalayer.h"
@@ -119,6 +120,10 @@ void setup() {
   init_CAN();
 
   init_contactors();
+
+#ifdef PRECHARGE_CONTROL
+  init_precharge_control();
+#endif  // PRECHARGE_CONTROL
 
   init_rs485();
 
@@ -247,6 +252,9 @@ void core_loop(void* task_time_us) {
       previousMillis10ms = millis();
       led_exe();
       handle_contactors();  // Take care of startup precharge/contactor closing
+#ifdef PRECHARGE_CONTROL
+      handle_precharge_control();
+#endif  // PRECHARGE_CONTROL
     }
     END_TIME_MEASUREMENT_MAX(time_10ms, datalayer.system.status.time_10ms_us);
 
@@ -298,6 +306,9 @@ void core_loop(void* task_time_us) {
     if (check_pause_2s.elapsed()) {
       emulator_pause_state_transmit_can_battery();
     }
+#ifdef DEBUG_LOG
+    logging.log_bms_status(datalayer.battery.status.real_bms_status, 1);
+#endif
 
     vTaskDelayUntil(&xLastWakeTime, xFrequency);
   }
