@@ -373,20 +373,15 @@ void update_values_battery2() {  //This function maps all the values fetched via
 
   datalayer.battery2.status.current_dA = battery2_current;
 
-  datalayer.battery2.status.remaining_capacity_Wh = (battery2_energy_content_maximum_kWh * 1000);  // Convert kWh to Wh
+  datalayer.battery2.info.total_capacity_Wh = (battery2_energy_content_maximum_kWh * 1000);  // Convert kWh to Wh
+
+  datalayer.battery2.status.remaining_capacity_Wh = battery2_predicted_energy_charge_condition;
 
   datalayer.battery2.status.soh_pptt = battery2_soh * 100;
 
-  if (battery2_BEV_available_power_longterm_discharge > 65000) {
-    datalayer.battery2.status.max_discharge_power_W = 65000;
-  } else {
-    datalayer.battery2.status.max_discharge_power_W = battery2_BEV_available_power_longterm_discharge;
-  }
-  if (battery2_BEV_available_power_longterm_charge > 65000) {
-    datalayer.battery2.status.max_charge_power_W = 65000;
-  } else {
-    datalayer.battery2.status.max_charge_power_W = battery2_BEV_available_power_longterm_charge;
-  }
+  datalayer.battery2.status.max_discharge_power_W = battery2_BEV_available_power_longterm_discharge;
+
+  datalayer.battery2.status.max_charge_power_W = battery2_BEV_available_power_longterm_charge;
 
   datalayer.battery2.status.temperature_min_dC = battery2_temperature_min * 10;  // Add a decimal
 
