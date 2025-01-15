@@ -103,13 +103,20 @@ typedef struct {
   /** Min/Max Cell SOH*/
   uint16_t min_soh_state = 0;
   uint16_t max_soh_state = 0;
-  uint32_t bms_uptime = 0;
   int32_t allowable_charge_amps = 0;
   int32_t allowable_discharge_amps = 0;
   int16_t balancing_status = 0;
   int16_t battery_voltage_after_contactor = 0;
   unsigned long min_cell_voltage_data_age = 0;
   unsigned long max_cell_voltage_data_age = 0;
+  int32_t iso_safety_int_kohm = 0;  //STAT_ISOWIDERSTAND_INT_WERT
+  int32_t iso_safety_ext_kohm = 0;  //STAT_ISOWIDERSTAND_EXT_STD_WERT
+  int32_t iso_safety_trg_kohm = 0;
+  int32_t iso_safety_ext_plausible = 0;  //STAT_ISOWIDERSTAND_EXT_TRG_PLAUS
+  int32_t iso_safety_int_plausible = 0;
+  int32_t iso_safety_trg_plausible = 0;
+  int32_t iso_safety_kohm = 0;          //STAT_R_ISO_ROH_01_WERT
+  int32_t iso_safety_kohm_quality = 0;  //STAT_R_ISO_ROH_QAL_01_INFO Quality of measurement 0-21 (higher better)
 
 } DATALAYER_INFO_BMWPHEV;
 

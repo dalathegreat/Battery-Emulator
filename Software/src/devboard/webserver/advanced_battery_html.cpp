@@ -197,17 +197,20 @@ String advanced_battery_processor(const String& var) {
     content +=
         "<h4>BMS Allowed Disharge Amps: " + String(datalayer_extended.bmwphev.allowable_discharge_amps) + " A</h4>";
     content += "<h4>Detected Cell Count: " + String(datalayer.battery.info.number_of_cells) + "</h4>";
+    content += "<h4>iso_safety_int_kohm: " + String(datalayer_extended.bmwphev.iso_safety_int_kohm) + "</h4>";
+    content += "<h4>iso_safety_ext_kohm: " + String(datalayer_extended.bmwphev.iso_safety_ext_kohm) + "</h4>";
+    content += "<h4>iso_safety_trg_kohm: " + String(datalayer_extended.bmwphev.iso_safety_trg_kohm) + "</h4>";
+    content += "<h4>iso_safety_ext_plausible: " + String(datalayer_extended.bmwphev.iso_safety_ext_plausible) + "</h4>";
+    content += "<h4>iso_safety_int_plausible: " + String(datalayer_extended.bmwphev.iso_safety_int_plausible) + "</h4>";
+    content += "<h4>iso_safety_trg_plausible: " + String(datalayer_extended.bmwphev.iso_safety_trg_plausible) + "</h4>";
+    content += "<h4>iso_safety_kohm: " + String(datalayer_extended.bmwphev.iso_safety_kohm) + "</h4>";
+    content += "<h4>iso_safety_kohm_quality: " + String(datalayer_extended.bmwphev.iso_safety_kohm_quality) + "</h4>";
     content += "<br>";
     content += "<h4>Todo";
     content += "<br>";
-
     content += "<h4>Max Cell Design Voltage: " + String(datalayer.battery.info.max_cell_voltage_mV) + " mV</h4>";
     content += "<h4>Min Cell Design Voltage: " + String(datalayer.battery.info.min_cell_voltage_mV) + " mV</h4>";
-
-    content += "<h4>BMS Uptime: " + String(datalayer_extended.bmwphev.bms_uptime) + " seconds</h4>";
-
     content += "<h4>T30 Terminal Voltage: " + String(datalayer_extended.bmwphev.T30_Voltage) + " mV</h4>";
-
     content += "<br>";
 #endif  //BMW_PHEV_BATTERY
 

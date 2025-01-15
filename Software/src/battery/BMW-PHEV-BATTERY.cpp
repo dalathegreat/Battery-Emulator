@@ -157,21 +157,22 @@ CAN_frame BMWPHEV_6F1_REQUEST_VOLTAGE_LIMITS = {
     .ID = 0x6F1,
     .data = {0x07, 0x03, 0x22, 0xDD, 0x7E}};  //  Pack Voltage Limits  Multi Frame
 
-CAN_frame BMWPHEV_6F1_REQUEST_ISO_MEASUREMENTS = {
+CAN_frame BMWPHEV_6F1_REQUEST_ISO_READING1 = {
     .FD = false,
     .ext_ID = false,
     .DLC = 5,
     .ID = 0x6F1,
     .data = {
         0x07, 0x03, 0x22, 0xDD,
-        0x6A}};  //  62 D6 D9 07 FF 13  reading during contactors closed, plausible,   reading during open contactors (only on request via steurn_isolation) ( request = 31 01 AD 61)
+        0x6A}};  // MULTI FRAME ISOLATIONSWIDERSTAND 62 DD 6A [07 D0] [07 D0] [07 D0] [01] [01] [01] 00 00 00 00 00   [EXT Reading] [INT reading] [ EXT - 0 not plausible, 1 plausible]
 
-CAN_frame BMWPHEV_6F1_REQUEST_LAST_ISO_READING = {
+CAN_frame BMWPHEV_6F1_REQUEST_ISO_READING2 = {
     .FD = false,
     .ext_ID = false,
     .DLC = 5,
     .ID = 0x6F1,
-    .data = {0x07, 0x03, 0x22, 0xD6, 0xD9}};  //  62 D6 D9 07 FF 13  (2047kohm) quality of reading 0-21 (19)
+    .data = {0x07, 0x03, 0x22, 0xD6,
+             0xD9}};  //  R_ISO_ROH 62 D6 D9 [07 FF] [13] (2047kohm) quality of reading 0-21 (19)
 
 CAN_frame BMWPHEV_6F1_REQUEST_PACK_INFO = {
     .FD = false,
@@ -260,6 +261,13 @@ CAN_frame BMWPHEV_6F1_REQUEST_BALANCING_STATUS = {
     .data = {0x07, 0x04, 0x31, 0x03, 0xAD, 0x6B, 0x00,
              0x00}};  // Balancing status.  Response 7DLC F1 05 71 03 AD 6B 01   (01 = active)  (03 not active)
 
+CAN_frame BMWPHEV_6F1_REQUEST_ISOLATION_TEST = {
+    .FD = false,
+    .ext_ID = false,
+    .DLC = 8,
+    .ID = 0x6F1,
+    .data = {0x07, 0x04, 0x31, 0x01, 0xAD, 0x61, 0x00, 0x00}};  // Start Isolation Test
+
 CAN_frame BMWPHEV_6F1_REQUEST_BALANCING_START = {
     .FD = false,
     .ext_ID = false,
@@ -306,7 +314,9 @@ CAN_frame* UDS_REQUESTS100MS[] = {&BMWPHEV_6F1_REQUEST_CELLSUMMARY,
                                   &BMWPHEV_6F1_REQUEST_MAINVOLTAGE_POSTCONTACTOR,
                                   &BMWPHEV_6F1_REQUEST_BALANCING_STATUS,
                                   &BMWPHEV_6F1_REQUEST_CELLS_INDIVIDUAL_VOLTS,
-                                  &BMWPHEV_6F1_REQUEST_CELL_TEMP};
+                                  &BMWPHEV_6F1_REQUEST_CELL_TEMP,
+                                  &BMWPHEV_6F1_REQUEST_ISO_READING1,
+                                  &BMWPHEV_6F1_REQUEST_ISO_READING2};
 int numUDSreqs = sizeof(UDS_REQUESTS100MS) / sizeof(UDS_REQUESTS100MS[0]);  // Number of elements in the array
 
 //PHEV intermediate vars
@@ -391,14 +401,20 @@ static unsigned long min_cell_voltage_lastchanged = 0;
 static unsigned long max_cell_voltage_lastchanged = 0;
 static unsigned min_cell_voltage_lastreceived = 0;
 static unsigned max_cell_voltage_lastreceived = 0;
-static uint32_t sme_uptime = 0;               //Uses E4 C0
 static int16_t allowable_charge_amps = 0;     //E5 62
 static int16_t allowable_discharge_amps = 0;  //E5 62
-static int32_t iso_safety_positive = 0;       //Uses A8 60
-static int32_t iso_safety_negative = 0;       //Uses A8 60
-static int32_t iso_safety_parallel = 0;       //Uses A8 60
-static int16_t count_full_charges = 0;        //TODO  42
-static int16_t count_charges = 0;             //TODO  42
+
+static int32_t iso_safety_int_kohm = 0;  //STAT_ISOWIDERSTAND_INT_WERT
+static int32_t iso_safety_ext_kohm = 0;  //STAT_ISOWIDERSTAND_EXT_STD_WERT
+static int32_t iso_safety_trg_kohm = 0;
+static int32_t iso_safety_ext_plausible = 0;  //STAT_ISOWIDERSTAND_EXT_TRG_PLAUS
+static int32_t iso_safety_int_plausible = 0;  //STAT_ISOWIDERSTAND_EXT_TRG_WERT
+static int32_t iso_safety_trg_plausible = 0;
+static int32_t iso_safety_kohm = 0;          //STAT_R_ISO_ROH_01_WERT
+static int32_t iso_safety_kohm_quality = 0;  //STAT_R_ISO_ROH_QAL_01_INFO Quality of measurement 0-21 (higher better)
+
+static int16_t count_full_charges = 0;  //TODO  42
+static int16_t count_charges = 0;       //TODO  42
 static int16_t hvil_status = 0;
 static int16_t voltage_qualifier_status = 0;    //0 = Valid, 1 = Invalid
 static int16_t balancing_status = 0;            //4 = not active
@@ -612,8 +628,6 @@ void update_values_battery() {  //This function maps all the values fetched via 
 
   datalayer_extended.bmwphev.hvil_status = hvil_status;
 
-  datalayer_extended.bmwphev.bms_uptime = sme_uptime;
-
   datalayer_extended.bmwphev.allowable_charge_amps = allowable_charge_amps;
 
   datalayer_extended.bmwphev.allowable_discharge_amps = allowable_discharge_amps;
@@ -634,6 +648,13 @@ void update_values_battery() {  //This function maps all the values fetched via 
   datalayer_extended.bmwphev.ST_WELD = battery_status_error_disconnecting_switch;
   datalayer_extended.bmwphev.ST_isolation = battery_status_warning_isolation;
   datalayer_extended.bmwphev.ST_cold_shutoff_valve = battery_status_cold_shutoff_valve;
+  datalayer_extended.bmwphev.iso_safety_int_kohm = iso_safety_int_kohm;
+  datalayer_extended.bmwphev.iso_safety_ext_kohm = iso_safety_ext_kohm;
+  datalayer_extended.bmwphev.iso_safety_trg_kohm = iso_safety_trg_kohm;
+  datalayer_extended.bmwphev.iso_safety_ext_plausible = iso_safety_ext_plausible;
+  datalayer_extended.bmwphev.iso_safety_int_plausible = iso_safety_int_plausible;
+  datalayer_extended.bmwphev.iso_safety_kohm = iso_safety_kohm;
+  datalayer_extended.bmwphev.iso_safety_kohm_quality = iso_safety_kohm_quality;
 
   if (pack_limit_info_available) {
     // If we have pack limit data from battery - override the defaults to suit
@@ -713,6 +734,12 @@ void handle_incoming_can_frame_battery(CAN_frame rx_frame) {
           }
           if (rx_frame.DLC = 8 && rx_frame.data.u8[3] == 0xDD && rx_frame.data.u8[4] == 0x7B) {  // SOH%
             min_soh_state = (rx_frame.data.u8[5]) * 100;
+          }
+
+          if (rx_frame.DLC = 8 && rx_frame.data.u8[3] == 0xD6 && rx_frame.data.u8[4] == 0xD9) {  // Isolation Reading 2
+            iso_safety_kohm = (rx_frame.data.u8[5] << 8 | rx_frame.data.u8[6]);  //STAT_R_ISO_ROH_01_WERT
+            iso_safety_kohm_quality =
+                (rx_frame.data.u8[7]);  //STAT_R_ISO_ROH_QAL_01_INFO Quality of measurement 0-21 (higher better)
           }
 
           if (rx_frame.DLC = 8 && rx_frame.data.u8[3] == 0xDD &&
@@ -906,9 +933,21 @@ void handle_incoming_can_frame_battery(CAN_frame rx_frame) {
           min_design_voltage = (gUDSContext.UDS_buffer[5] << 8 | gUDSContext.UDS_buffer[6]) / 10;
           pack_limit_info_available = true;
         }
+
         if (gUDSContext.UDS_moduleID == 0x7D) {  // Current Limits
           allowable_charge_amps = (gUDSContext.UDS_buffer[3] << 8 | gUDSContext.UDS_buffer[4]) / 10;
           allowable_discharge_amps = (gUDSContext.UDS_buffer[5] << 8 | gUDSContext.UDS_buffer[6]) / 10;
+        }
+
+        if (gUDSContext.UDS_moduleID == 0x6A) {  // Iso Reading 1
+          iso_safety_int_kohm =
+              (gUDSContext.UDS_buffer[7] << 8 | gUDSContext.UDS_buffer[8]);  //STAT_ISOWIDERSTAND_INT_WERT
+          iso_safety_ext_kohm =
+              (gUDSContext.UDS_buffer[3] << 8 | gUDSContext.UDS_buffer[4]);  //STAT_ISOWIDERSTAND_EXT_STD_WERT
+          iso_safety_trg_kohm = (gUDSContext.UDS_buffer[5] << 8 | gUDSContext.UDS_buffer[6]);
+          iso_safety_ext_plausible = gUDSContext.UDS_buffer[9];   //STAT_ISOWIDERSTAND_EXT_TRG_PLAUS
+          iso_safety_trg_plausible = gUDSContext.UDS_buffer[10];  //STAT_ISOWIDERSTAND_EXT_TRG_WERT
+          iso_safety_int_plausible = gUDSContext.UDS_buffer[11];  //STAT_ISOWIDERSTAND_EXT_TRG_WERT
         }
       }
 
@@ -1026,6 +1065,9 @@ void setup_battery(void) {  // Performs one time setup at startup
   datalayer.system.info.battery_protocol[63] = '\0';
   //Wakeup the SME
   wake_battery_via_canbus();
+
+  transmit_can_frame(&BMWPHEV_6F1_REQUEST_ISOLATION_TEST,
+                     can_config.battery);  // Run Internal Isolation Test at startup
 
   datalayer.battery.info.max_design_voltage_dV = MAX_PACK_VOLTAGE_DV;
   datalayer.battery.info.min_design_voltage_dV = MIN_PACK_VOLTAGE_DV;
