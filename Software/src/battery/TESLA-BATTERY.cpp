@@ -2015,7 +2015,7 @@ void handle_incoming_can_frame_battery2(CAN_frame rx_frame) {
       break;
     case 0x252:  //Limit //594 BMS_powerAvailable:
       BMS2_maxRegenPower = ((rx_frame.data.u8[1] << 8) |
-                           rx_frame.data.u8[0]);  //0|16@1+ (0.01,0) [0|655.35] "kW"  //Example 4715 * 0.01 = 47.15kW
+                            rx_frame.data.u8[0]);  //0|16@1+ (0.01,0) [0|655.35] "kW"  //Example 4715 * 0.01 = 47.15kW
       BMS2_maxDischargePower =
           ((rx_frame.data.u8[3] << 8) |
            rx_frame.data.u8[2]);  //16|16@1+ (0.013,0) [0|655.35] "kW"  //Example 2009 * 0.013 = 26.117???
