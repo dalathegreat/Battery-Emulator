@@ -510,8 +510,8 @@ static bool battery2_fcCtrsOpenRequested = false;
 static uint8_t battery2_fcCtrsRequestStatus = 0;
 static bool battery2_fcCtrsResetRequestRequired = false;
 static bool battery2_fcLinkAllowedToEnergize = false;
-//0x72A
-memcpy(datalayer_extended.tesla.BMS2_SerialNumber, BMS2_SerialNumber, sizeof(BMS2_SerialNumber));
+//0x72A: BMS_serialNumber
+static uint8_t BMS2_SerialNumber[14] = {0};  // Stores raw HEX values for ASCII chars
 //0x212: 530 BMS_status
 static bool battery2_BMS_hvacPowerRequest = false;
 static bool battery2_BMS_notEnoughPowerForDrive = false;
@@ -597,7 +597,7 @@ static bool HVP2_gpioPyroIsoEn = false;
 static bool HVP2_gpioCpFaultIn = false;
 static bool HVP2_gpioPackContPowerEn = false;
 static bool HVP2_gpioHvCablesOk = false;
-static bool HVP2_gpioHVPSelfEnable = false;
+static bool HVP2_gpioHvpSelfEnable = false;
 static bool HVP2_gpioLed = false;
 static bool HVP2_gpioCrashSignal = false;
 static bool HVP2_gpioShuntDataReady = false;
@@ -607,7 +607,7 @@ static bool HVP2_gpioBmsEout = false;
 static bool HVP2_gpioCpFaultOut = false;
 static bool HVP2_gpioPyroPor = false;
 static bool HVP2_gpioShuntEn = false;
-static bool HVP2_gpioHVPVerEn = false;
+static bool HVP2_gpioHvpVerEn = false;
 static bool HVP2_gpioPackCoontPosFlywheel = false;
 static bool HVP2_gpioCpLatchEnable = false;
 static bool HVP2_gpioPcsEnable = false;
@@ -789,7 +789,7 @@ static bool battery2_BMS_a151_SW_external_isolation = false;
 static bool battery2_BMS_a156_SW_BMB_Vref_bad = false;
 static bool battery2_BMS_a157_SW_HVP_HVS_Comms = false;
 static bool battery2_BMS_a159_SW_HVP_ECU_Error = false;
-static bool battery2_BMS_a16false_SW_DI_Open_Request = false;
+static bool battery2_BMS_a161_SW_DI_Open_Request = false;
 static bool battery2_BMS_a162_SW_No_Power_For_Support = false;
 static bool battery2_BMS_a163_SW_Contactor_Mismatch = false;
 static bool battery2_BMS_a164_SW_Uncontrolled_Regen = false;
@@ -2013,16 +2013,24 @@ void handle_incoming_can_frame_battery2(CAN_frame rx_frame) {
           ((rx_frame.data.u8[7] >> 3) &
            (0x1FU));  //0 "PWR_UP_INIT" 1 "STANDBY" 2 "12V_SUPPORT_ACTIVE" 3 "DIS_HVBUS" 4 "PCHG_FAST_DIS_HVBUS" 5 "PCHG_SLOW_DIS_HVBUS" 6 "PCHG_DWELL_CHARGE" 7 "PCHG_DWELL_WAIT" 8 "PCHG_DI_RECOVERY_WAIT" 9 "PCHG_ACTIVE" 10 "PCHG_FLT_FAST_DIS_HVBUS" 11 "SHUTDOWN" 12 "12V_SUPPORT_FAULTED" 13 "DIS_HVBUS_FAULTED" 14 "PCHG_FAULTED" 15 "CLEAR_FAULTS" 16 "FAULTED" 17 "NUM" ;
       break;
-    case 0x252:
-      //Limits
-      battery2_regenerative_limit =
-          ((rx_frame.data.u8[1] << 8) | rx_frame.data.u8[0]) * 0.01;  //Example 4715 * 0.01 = 47.15kW
-      battery2_discharge_limit =
-          ((rx_frame.data.u8[3] << 8) | rx_frame.data.u8[2]) * 0.013;  //Example 2009 * 0.013 = 26.117???
-      battery2_max_heat_park =
-          (((rx_frame.data.u8[5] & 0x03) << 8) | rx_frame.data.u8[4]) * 0.01;  //Example 500 * 0.01 = 5kW
-      battery2_hvac_max_power =
-          (((rx_frame.data.u8[7] << 6) | ((rx_frame.data.u8[6] & 0xFC) >> 2))) * 0.02;  //Example 1000 * 0.02 = 20kW?
+    case 0x252:  //Limit //594 BMS_powerAvailable:
+      BMS2_maxRegenPower = ((rx_frame.data.u8[1] << 8) |
+                           rx_frame.data.u8[0]);  //0|16@1+ (0.01,0) [0|655.35] "kW"  //Example 4715 * 0.01 = 47.15kW
+      BMS2_maxDischargePower =
+          ((rx_frame.data.u8[3] << 8) |
+           rx_frame.data.u8[2]);  //16|16@1+ (0.013,0) [0|655.35] "kW"  //Example 2009 * 0.013 = 26.117???
+      BMS2_maxStationaryHeatPower =
+          (((rx_frame.data.u8[5] & 0x03) << 8) |
+           rx_frame.data.u8[4]);  //32|10@1+ (0.01,0) [0|10.23] "kW"  //Example 500 * 0.01 = 5kW
+      BMS2_hvacPowerBudget =
+          (((rx_frame.data.u8[7] << 6) |
+            ((rx_frame.data.u8[6] & 0xFC) >> 2)));  //50|10@1+ (0.02,0) [0|20.46] "kW"  //Example 1000 * 0.02 = 20kW?
+      BMS2_notEnoughPowerForHeatPump =
+          ((rx_frame.data.u8[5] >> 2) & (0x01U));  //BMS_notEnoughPowerForHeatPump : 42|1@1+ (1,0) [0|1] ""  Receiver
+      BMS2_powerLimitState =
+          (rx_frame.data.u8[6] &
+           (0x01U));  //BMS_powerLimitsState : 48|1@1+ (1,0) [0|1] 0 "NOT_CALCULATED_FOR_DRIVE" 1 "CALCULATED_FOR_DRIVE"
+      BMS2_inverterTQF = ((rx_frame.data.u8[7] >> 4) & (0x03U));
       break;
     case 0x132:
       //battery amps/volts
