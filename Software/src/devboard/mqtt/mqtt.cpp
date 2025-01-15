@@ -150,7 +150,7 @@ void set_battery_voltage_attributes(JsonDocument& doc, int i, int cellNumber, co
                                     const String& object_id_prefix, const String& battery_name_suffix) {
   doc["name"] = "Battery" + battery_name_suffix + " Cell Voltage " + String(cellNumber);
   doc["object_id"] = object_id_prefix + "battery_voltage_cell" + String(cellNumber);
-  doc["unique_id"] = topic_name + "_battery_voltage_cell" + String(cellNumber);
+  doc["unique_id"] = topic_name + object_id_prefix + "_battery_voltage_cell" + String(cellNumber);
   doc["device_class"] = "voltage";
   doc["state_class"] = "measurement";
   doc["state_topic"] = state_topic;
