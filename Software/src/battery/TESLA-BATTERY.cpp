@@ -1190,18 +1190,21 @@ void handle_incoming_can_frame_battery(CAN_frame rx_frame) {
   static uint16_t temp = 0;
 
   switch (rx_frame.ID) {
-    case 0x352:                            // 850 BMS_energyStatus newer BMS
+    case 0x352:                              // 850 BMS_energyStatus newer BMS
       mux = ((rx_frame.data.u8[0]) & 0x03);  //BMS_energyStatusIndex M : 0|2@1+ (1,0) [0|0] ""  X
       if (mux == 1 || mux == 2) {
         BMS352_mux = true;
       }  // autodetect when mux 1 or 2 is used, mux 0 is always present
       if (mux == 0) {
         battery_nominal_full_pack_energy_m0 =
-            (((rx_frame.data.u8[3]) << 8) | rx_frame.data.u8[2]);  //16|16@1+ (0.02,0) [0|0] "kWh"//to datalayer_extended
+            (((rx_frame.data.u8[3]) << 8) |
+             rx_frame.data.u8[2]);  //16|16@1+ (0.02,0) [0|0] "kWh"//to datalayer_extended
         battery_nominal_energy_remaining_m0 =
-            (((rx_frame.data.u8[5]) << 8) | rx_frame.data.u8[4]);  //32|16@1+ (0.02,0) [0|0] "kWh"//to datalayer_extended
+            (((rx_frame.data.u8[5]) << 8) |
+             rx_frame.data.u8[4]);  //32|16@1+ (0.02,0) [0|0] "kWh"//to datalayer_extended
         battery_ideal_energy_remaining_m0 =
-            (((rx_frame.data.u8[7]) << 8) | rx_frame.data.u8[6]);  //48|16@1+ (0.02,0) [0|0] "kWh"//to datalayer_extended
+            (((rx_frame.data.u8[7]) << 8) |
+             rx_frame.data.u8[6]);  //48|16@1+ (0.02,0) [0|0] "kWh"//to datalayer_extended
       }
       if (mux == 1) {
         battery_fully_charged = (rx_frame.data.u8[1] & 0x01);  //15|1@1+ (1,0) [0|1]//to datalayer_extended
