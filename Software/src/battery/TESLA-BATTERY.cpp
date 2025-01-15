@@ -1041,6 +1041,9 @@ void update_values_battery() {  //This function maps all the values fetched via 
   //0x2A4
   datalayer_extended.tesla.PCS_dcdcTemp = PCS_dcdcTemp;
   datalayer_extended.tesla.PCS_ambientTemp = PCS_ambientTemp;
+  datalayer_extended.tesla.PCS_chgPhATemp = PCS_chgPhATemp;
+  datalayer_extended.tesla.PCS_chgPhBTemp = PCS_chgPhBTemp;
+  datalayer_extended.tesla.PCS_chgPhCTemp = PCS_chgPhCTemp;
   //0x2C4
   datalayer_extended.tesla.PCS_dcdcMaxLvOutputCurrent = PCS_dcdcMaxLvOutputCurrent;
   datalayer_extended.tesla.PCS_dcdcCurrentLimit = PCS_dcdcCurrentLimit;
@@ -1437,15 +1440,15 @@ void handle_incoming_can_frame_battery(CAN_frame rx_frame) {
       break;
     case 0x2A4:  //676 PCS_thermalStatus
       PCS_chgPhATemp =
-          ((rx_frame.data.u8[1] & (0x07U)) << 8) | (rx_frame.data.u8[0] & (0xFFU));  //0|11@1- (0.1,40) [0|0] "C
+          ((rx_frame.data.u8[1] & (0x07U)) << 8) | (rx_frame.data.u8[0] & (0xFFU));  //0|11@1- (0.1,40) [0|0] "C  ((_d[1] & (0x07U)) << 8) | (_d[0] & (0xFFU))
       PCS_chgPhBTemp =
-          ((rx_frame.data.u8[2] & (0x3FU)) << 5) | ((rx_frame.data.u8[1] >> 3) & (0x1FU));  //11|11@1- (0.1,40) [0|0] "C
+          ((rx_frame.data.u8[2] & (0x3FU)) << 5) | ((rx_frame.data.u8[1] >> 3) & (0x1FU));  //11|11@1- (0.1,40) [0|0] "C ((_d[2] & (0x3FU)) << 5) | ((_d[1] >> 3) & (0x1FU))
       PCS_chgPhCTemp =
-          ((rx_frame.data.u8[4] & (0x07U)) << 8) | (rx_frame.data.u8[3] & (0xFFU));  //24|11@1- (0.1,40) [0|0] "C"
+          ((rx_frame.data.u8[4] & (0x07U)) << 8) | (rx_frame.data.u8[3] & (0xFFU));  //24|11@1- (0.1,40) [0|0] "C" ((_d[4] & (0x07U)) << 8) | (_d[3] & (0xFFU))
       PCS_dcdcTemp = ((rx_frame.data.u8[5] & (0x3FU)) << 5) |
-                     ((rx_frame.data.u8[4] >> 3) & (0x1FU));  //35|11@1- (0.1,40) [0|0] "C"
+                     ((rx_frame.data.u8[4] >> 3) & (0x1FU));  //35|11@1- (0.1,40) [0|0] "C" ((_d[5] & (0x3FU)) << 5) | ((_d[4] >> 3) & (0x1FU))
       PCS_ambientTemp =
-          ((rx_frame.data.u8[7] & (0x07U)) << 8) | (rx_frame.data.u8[6] & (0xFFU));  //48|11@1- (0.1,40) [0|0] "C"
+          ((rx_frame.data.u8[7] & (0x07U)) << 8) | (rx_frame.data.u8[6] & (0xFFU));  //48|11@1- (0.1,40) [0|0] "C" ((_d[7] & (0x07U)) << 8) | (_d[6] & (0xFFU))
       break;
     case 0x2C4:  // 708 PCS_logging: not all frames are listed, just ones relating to dcdc
       mux = (rx_frame.data.u8[0] & (0x1FU));

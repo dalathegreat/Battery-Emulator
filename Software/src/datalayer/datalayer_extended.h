@@ -317,6 +317,9 @@ typedef struct {
   bool BMS_noFlowRequest = false;
   uint16_t PCS_dcdcTemp = 0;
   uint16_t PCS_ambientTemp = 0;
+  uint16_t PCS_chgPhATemp = 0;
+  uint16_t PCS_chgPhBTemp = 0;
+  uint16_t PCS_chgPhCTemp = 0;
   uint16_t PCS_dcdcMaxLvOutputCurrent = 0;
   uint16_t PCS_dcdcCurrentLimit = 0;
   uint16_t PCS_dcdcLvOutputCurrentTempLimit = 0;

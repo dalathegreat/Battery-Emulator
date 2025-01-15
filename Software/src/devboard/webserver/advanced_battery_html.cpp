@@ -383,8 +383,11 @@ String advanced_battery_processor(const String& var) {
     float isolationResistance = static_cast<float>(datalayer_extended.tesla.battery_BMS_isolationResistance) * 10;
     float PCS_dcdcMaxOutputCurrentAllowed =
         static_cast<float>(datalayer_extended.tesla.battery_PCS_dcdcMaxOutputCurrentAllowed) * 0.1;
-    float PCS_dcdcTemp = static_cast<float>(datalayer_extended.tesla.PCS_dcdcTemp) * 0.1 - 40;
-    float PCS_ambientTemp = static_cast<float>(datalayer_extended.tesla.PCS_ambientTemp) * 0.1 - 40;
+    float PCS_dcdcTemp = static_cast<float>(datalayer_extended.tesla.PCS_dcdcTemp) * 0.1 + 40;
+    float PCS_ambientTemp = static_cast<float>(datalayer_extended.tesla.PCS_ambientTemp) * 0.1 + 40;
+    float PCS_chgPhATemp = static_cast<float>(datalayer_extended.tesla.PCS_chgPhATemp) * 0.1 + 40;
+    float PCS_chgPhBTemp = static_cast<float>(datalayer_extended.tesla.PCS_chgPhBTemp) * 0.1 + 40;  
+    float PCS_chgPhCTemp = static_cast<float>(datalayer_extended.tesla.PCS_chgPhCTemp) * 0.1 + 40;
     float BMS_maxRegenPower = static_cast<float>(datalayer_extended.tesla.BMS_maxRegenPower) * 0.01;
     float BMS_maxDischargePower = static_cast<float>(datalayer_extended.tesla.BMS_maxDischargePower) * 0.013;
     float BMS_maxStationaryHeatPower = static_cast<float>(datalayer_extended.tesla.BMS_maxStationaryHeatPower) * 0.01;
@@ -594,8 +597,11 @@ String advanced_battery_processor(const String& var) {
     //content += "<h4>Brick Model Temp Max: " + String(BrickModelTMax) + " C</h4>";// Not giving useable data
     //content += "<h4>Brick Model Temp Min: " + String(BrickModelTMin) + " C</h4>";// Not giving useable data
     //0x2A4 676 PCS_thermalStatus
-    //content += "<h4>PCS dcdc Temp: " + String(PCS_dcdcTemp) + " DegC</h4>"; // Not giving useable data
-    //content += "<h4>PCS Ambient Temp: " + String(PCS_ambientTemp) + " DegC</h4>"; // Not giving useable data
+    content += "<h4>PCS dcdc Temp: " + String(PCS_dcdcTemp) + " DegC</h4>";
+    content += "<h4>PCS Ambient Temp: " + String(PCS_ambientTemp) + " DegC</h4>";
+    content += "<h4>PCS Chg PhA Temp: " + String(PCS_chgPhATemp) + " DegC</h4>";
+    content += "<h4>PCS Chg PhB Temp: " + String(PCS_chgPhBTemp) + " DegC</h4>";
+    content += "<h4>PCS Chg PhC Temp: " + String(PCS_chgPhCTemp) + " DegC</h4>";
     //0x252 594 BMS_powerAvailable
     content += "<h4>Max Regen Power: " + String(BMS_maxRegenPower) + " KW</h4>";
     content += "<h4>Max Discharge Power: " + String(BMS_maxDischargePower) + " KW</h4>";
