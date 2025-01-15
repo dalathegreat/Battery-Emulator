@@ -63,7 +63,7 @@ NOTE: On Mac, the following USB driver may need to be installed: https://github.
 
 NOTE: If you see garbled messages on the serial console, change the serial console to match the baud rate to the code, currently 115200.
 
-NOTE: If you see an error XXXX then check you set the Partition Scheme above correctly
+NOTE: If you see the error `Sketch too big` then check you set the Partition Scheme above correctly.
 
 This video explains all the above mentioned steps:
 <https://youtu.be/_mH2AjnAjDk>
