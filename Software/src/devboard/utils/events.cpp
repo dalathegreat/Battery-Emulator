@@ -153,6 +153,7 @@ void init_events(void) {
   events.entries[EVENT_BALANCING_END].level = EVENT_LEVEL_INFO;
   events.entries[EVENT_BATTERY_EMPTY].level = EVENT_LEVEL_INFO;
   events.entries[EVENT_BATTERY_FULL].level = EVENT_LEVEL_INFO;
+  events.entries[EVENT_BATTERY_FUSE].level = EVENT_LEVEL_WARNING;
   events.entries[EVENT_BATTERY_FROZEN].level = EVENT_LEVEL_INFO;
   events.entries[EVENT_BATTERY_CAUTION].level = EVENT_LEVEL_INFO;
   events.entries[EVENT_BATTERY_CHG_STOP_REQ].level = EVENT_LEVEL_ERROR;
@@ -304,6 +305,8 @@ const char* get_event_message_string(EVENTS_ENUM_TYPE event) {
       return "Battery is completely discharged";
     case EVENT_BATTERY_FULL:
       return "Battery is fully charged";
+    case EVENT_BATTERY_FUSE:
+      return "Battery internal fuse blown. Inspect battery";
     case EVENT_BATTERY_FROZEN:
       return "Battery is too cold to operate optimally. Consider warming it up!";
     case EVENT_BATTERY_CAUTION:
