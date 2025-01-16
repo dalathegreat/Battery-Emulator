@@ -17,6 +17,9 @@ static ACAN2515_Buffer16 gBuffer;
 #ifdef CANFD_ADDON
 SPIClass SPI2517;
 ACAN2517FD canfd(MCP2517_CS, SPI2517, MCP2517_INT);
+#ifdef CANFD_ADDON_DOUBLE
+ACAN2517FD canfd2(SECOND_MCP2517_CS, SPI2517, SECOND_MCP2517_INT);
+#endif
 #endif  //CANFD_ADDON
 
 // Initialization functions
@@ -99,6 +102,37 @@ void init_CAN() {
 #endif  // DEBUG_LOG
     set_event(EVENT_CANMCP2517FD_INIT_FAILURE, (uint8_t)errorCode2517);
   }
+  //#ifdef CANFD_ADDON_DOUBLE
+  // Initialize CAN-FD2
+  const uint32_t errorCode2 = canfd2.begin(settings2517, [] { canfd2.isr(); });
+  canfd2.poll();
+  if (errorCode2 == 0) {
+#ifdef DEBUG_LOG
+    logging.print("CAN-FD2 initialized. Bit Rate prescaler: ");
+    logging.println(settings2517.mBitRatePrescaler);
+    logging.print("Arbitration Phase segment 1: ");
+    logging.print(settings2517.mArbitrationPhaseSegment1);
+    logging.print(" segment 2: ");
+    logging.print(settings2517.mArbitrationPhaseSegment2);
+    logging.print(" SJW: ");
+    logging.println(settings2517.mArbitrationSJW);
+    logging.print("Actual Arbitration Bit Rate: ");
+    logging.print(settings2517.actualArbitrationBitRate());
+    logging.print(" bit/s");
+    logging.print(" (Exact:");
+    logging.println(settings2517.exactArbitrationBitRate() ? "yes)" : "no)");
+    logging.print("Arbitration Sample point: ");
+    logging.print(settings2517.arbitrationSamplePointFromBitStart());
+    logging.println("%");
+#endif
+  } else {
+#ifdef DEBUG_LOG
+    logging.print("CAN-FD2 Configuration error 0x");
+    logging.println(errorCode2, HEX);
+#endif
+    set_event(EVENT_CANMCP2517FD_INIT_FAILURE, (uint8_t)errorCode2);
+  }
+  //#endif // CANFD_ADDON_DOUBLE
 #endif  // CANFD_ADDON
 }
 

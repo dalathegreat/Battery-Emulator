@@ -11,6 +11,7 @@ CAN_NATIVE = Native CAN port on the LilyGo & Stark hardware
 CANFD_NATIVE = Native CANFD port on the Stark CMR hardware
 CAN_ADDON_MCP2515 = Add-on CAN MCP2515 connected to GPIO pins
 CANFD_ADDON_MCP2518 = Add-on CAN-FD MCP2518 connected to GPIO pins
+CANFD_ADDON_MCP2518_DOUBLE = 2x add-on CAN-FD MCP2518 (3LB)
 */
 
 volatile CAN_Configuration can_config = {
