@@ -1191,13 +1191,13 @@ void update_values_battery() {  //This function maps all the values fetched via 
 void handle_incoming_can_frame_battery(CAN_frame rx_frame) {
   static uint8_t mux = 0;
   static uint16_t temp = 0;
+  static bool mux0_read = false;
+  static bool mux1_read = false;
+  static bool mux2_read = false;
 
   switch (rx_frame.ID) {
     case 0x352:                              // 850 BMS_energyStatus newer BMS
       mux = ((rx_frame.data.u8[0]) & 0x03);  //BMS_energyStatusIndex M : 0|2@1+ (1,0) [0|0] ""  X
-      if (mux == 1 || mux == 2) {
-        BMS352_mux = true;
-      }  // autodetect when mux 1 or 2 is used, mux 0 is always present
       if (mux == 0) {
         battery_nominal_full_pack_energy_m0 =
             (((rx_frame.data.u8[3]) << 8) |
@@ -1208,6 +1208,7 @@ void handle_incoming_can_frame_battery(CAN_frame rx_frame) {
         battery_ideal_energy_remaining_m0 =
             (((rx_frame.data.u8[7]) << 8) |
              rx_frame.data.u8[6]);  //48|16@1+ (0.02,0) [0|0] "kWh"//to datalayer_extended
+        mux0_read = true; //Set flag to true
       }
       if (mux == 1) {
         battery_fully_charged = (rx_frame.data.u8[1] & 0x01);  //15|1@1+ (1,0) [0|1]//to datalayer_extended
@@ -1217,9 +1218,17 @@ void handle_incoming_can_frame_battery(CAN_frame rx_frame) {
             ((rx_frame.data.u8[5] << 8) | rx_frame.data.u8[4]);  //32|16@1+ (0.02,0) [0|0] "kWh"//to datalayer_extended
         battery_energy_to_charge_complete_m1 =
             ((rx_frame.data.u8[7] << 8) | rx_frame.data.u8[6]);  //48|16@1+ (0.02,0) [0|0] "kWh"//to datalayer_extended
+        mux1_read = true; //Set flag to true
       }
-      if (mux == 2) {}
-      // Additional information needed on this mux, example frame: 02 26 02 20 02 80 00 00 doesn't change
+      if (mux == 2) {
+        mux2_read = true; //Set flag to true
+      }
+      if (mux0_read && mux1_read && mux2_read) {
+        mux0_read = false;
+        mux1_read = false;
+        mux2_read = false;
+      }
+      // Additional information needed on this mux 2, example frame: 02 26 02 20 02 80 00 00 doesn't change
       // older BMS <2021 without mux
       battery_nominal_full_pack_energy =  //BMS_nominalFullPackEnergy : 0|11@1+ (0.1,0) [0|204.6] "KWh" //((_d[1] & (0x07U)) << 8) | (_d[0] & (0xFFU));
           (((rx_frame.data.u8[1] & 0x07) << 8) | (rx_frame.data.u8[0]));  //Example 752 (75.2kWh)
