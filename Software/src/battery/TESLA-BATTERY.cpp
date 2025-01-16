@@ -1208,7 +1208,7 @@ void handle_incoming_can_frame_battery(CAN_frame rx_frame) {
         battery_ideal_energy_remaining_m0 =
             (((rx_frame.data.u8[7]) << 8) |
              rx_frame.data.u8[6]);  //48|16@1+ (0.02,0) [0|0] "kWh"//to datalayer_extended
-        mux0_read = true; //Set flag to true
+        mux0_read = true;           //Set flag to true
       }
       if (mux == 1) {
         battery_fully_charged = (rx_frame.data.u8[1] & 0x01);  //15|1@1+ (1,0) [0|1]//to datalayer_extended
@@ -1218,10 +1218,10 @@ void handle_incoming_can_frame_battery(CAN_frame rx_frame) {
             ((rx_frame.data.u8[5] << 8) | rx_frame.data.u8[4]);  //32|16@1+ (0.02,0) [0|0] "kWh"//to datalayer_extended
         battery_energy_to_charge_complete_m1 =
             ((rx_frame.data.u8[7] << 8) | rx_frame.data.u8[6]);  //48|16@1+ (0.02,0) [0|0] "kWh"//to datalayer_extended
-        mux1_read = true; //Set flag to true
+        mux1_read = true;                                        //Set flag to true
       }
       if (mux == 2) {
-        mux2_read = true; //Set flag to true
+        mux2_read = true;  //Set flag to true
       }
       if (mux0_read && mux1_read && mux2_read) {
         mux0_read = false;
