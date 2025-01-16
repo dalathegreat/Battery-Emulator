@@ -219,6 +219,30 @@ void transmit_can_frame(CAN_frame* tx_frame, int interface) {
       set_event(EVENT_INTERFACE_MISSING, interface);
 #endif  //CANFD_ADDON
     } break;
+    case CANFD_ADDON_MCP2518_DOUBLE: {
+#ifdef CANFD_ADDON_DOUBLE
+      CANFDMessage MCP2518Frame;
+      if (tx_frame->FD) {
+        MCP2518Frame.type = CANFDMessage::CANFD_WITH_BIT_RATE_SWITCH;
+      } else {  //Classic CAN message
+        MCP2518Frame.type = CANFDMessage::CAN_DATA;
+      }
+      MCP2518Frame.id = tx_frame->ID;
+      MCP2518Frame.ext = tx_frame->ext_ID ? CAN_frame_ext : CAN_frame_std;
+      MCP2518Frame.len = tx_frame->DLC;
+      for (uint8_t i = 0; i < MCP2518Frame.len; i++) {
+        MCP2518Frame.data[i] = tx_frame->data.u8[i];
+      }
+      send_ok = canfd2.tryToSend(MCP2518Frame);
+      if (!send_ok) {
+        set_event(EVENT_CANFD_BUFFER_FULL, interface);
+      } else {
+        clear_event(EVENT_CANFD_BUFFER_FULL);
+      }
+#else   // Interface not compiled, and settings try to use it
+      set_event(EVENT_INTERFACE_MISSING, interface);
+#endif  //CANFD_ADDON_DOUBLE
+    } break;
     default:
       // Invalid interface sent with function call. TODO: Raise event that coders messed up
       break;
@@ -234,6 +258,9 @@ void receive_can() {
 #ifdef CANFD_ADDON
   receive_frame_canfd_addon();  // Receive CAN-FD messages.
 #endif                          // CANFD_ADDON
+#ifdef CANFD_ADDON_DOUBLE
+  receive_frame_canfd_double_addon();  // Receive CAN-FD messages
+#endif                                 // CANFD_ADDON_DOUBLE
 }
 
 void receive_frame_can_native() {  // This section checks if we have a complete CAN message incoming on native CAN port
@@ -279,7 +306,7 @@ void receive_frame_can_addon() {  // This section checks if we have a complete C
 #ifdef CANFD_ADDON
 void receive_frame_canfd_addon() {  // This section checks if we have a complete CAN-FD message incoming
   CANFDMessage MCP2518frame;
-  int count = 0;
+  uint8_t count = 0;
   while (canfd.available() && count++ < 16) {
     canfd.receive(MCP2518frame);
 
@@ -294,6 +321,25 @@ void receive_frame_canfd_addon() {  // This section checks if we have a complete
   }
 }
 #endif  // CANFD_ADDON
+
+#ifdef CANFD_ADDON_DOUBLE
+void receive_frame_canfd_double_addon() {  // This section checks if we have a complete CAN-FD message incoming
+  CANFDMessage MCP2518frame;
+  uint8_t count = 0;
+  while (canfd2.available() && count++ < 16) {
+    canfd2.receive(MCP2518frame);
+
+    CAN_frame rx_frame;
+    rx_frame.ID = MCP2518frame.id;
+    rx_frame.ext_ID = MCP2518frame.ext;
+    rx_frame.DLC = MCP2518frame.len;
+    memcpy(rx_frame.data.u8, MCP2518frame.data, MIN(rx_frame.DLC, 64));
+    //message incoming, pass it on to the handler
+    map_can_frame_to_variable(&rx_frame, CANFD_ADDON_MCP2518);
+    map_can_frame_to_variable(&rx_frame, CANFD_NATIVE);
+  }
+}
+#endif  // CANFD_ADDON_DOUBLE
 
 // Support functions
 void print_can_frame(CAN_frame frame, frameDirection msgDir) {

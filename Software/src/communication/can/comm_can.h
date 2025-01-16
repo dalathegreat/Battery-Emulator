@@ -82,6 +82,15 @@ void receive_frame_can_addon();
 void receive_frame_canfd_addon();
 
 /**
+ * @brief Receive CAN messages from secondary CANFD addon chip
+ *
+ * @param[in] void
+ *
+ * @return void
+ */
+void receive_frame_canfd_double_addon();
+
+/**
  * @brief print CAN frames via USB
  *
  * @param[in] void
