@@ -922,6 +922,28 @@ String processor(const String& var) {
     }
     content += "</h4>";
 
+#ifdef MEB_BATTERY
+    content += "<h4>Battery BMS status: ";
+    switch (datalayer.battery.status.real_bms_status) {
+      case BMS_ACTIVE:
+        content += String("OK");
+        break;
+      case BMS_FAULT:
+        content += String("FAULT");
+        break;
+      case BMS_DISCONNECTED:
+        content += String("DISCONNECTED");
+        break;
+      case BMS_STANDBY:
+        content += String("STANDBY");
+        break;
+      default:
+        content += String("??");
+        break;
+    }
+    content += "</h4>";
+#endif
+
     if (datalayer.battery.status.current_dA == 0) {
       content += "<h4>Battery idle</h4>";
     } else if (datalayer.battery.status.current_dA < 0) {
