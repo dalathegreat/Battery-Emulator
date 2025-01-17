@@ -335,8 +335,7 @@ void receive_frame_canfd_double_addon() {  // This section checks if we have a c
     rx_frame.DLC = MCP2518frame.len;
     memcpy(rx_frame.data.u8, MCP2518frame.data, MIN(rx_frame.DLC, 64));
     //message incoming, pass it on to the handler
-    map_can_frame_to_variable(&rx_frame, CANFD_ADDON_MCP2518);
-    map_can_frame_to_variable(&rx_frame, CANFD_NATIVE);
+    map_can_frame_to_variable(&rx_frame, CANFD_ADDON_MCP2518_DOUBLE);
   }
 }
 #endif  // CANFD_ADDON_DOUBLE
