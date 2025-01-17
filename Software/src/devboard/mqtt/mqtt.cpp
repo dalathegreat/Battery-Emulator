@@ -18,6 +18,7 @@ char mqtt_msg[MQTT_MSG_BUFFER_SIZE];
 MyTimer publish_global_timer(5000);  //publish timer
 MyTimer check_global_timer(800);     // check timmer - low-priority MQTT checks, where responsiveness is not critical.
 bool client_started = false;
+static String lwt_topic = "";
 
 static String topic_name = "";
 static String object_id_prefix = "";
@@ -30,6 +31,7 @@ static void publish_events(void);
 
 /** Publish global values and call callbacks for specific modules */
 static void publish_values(void) {
+  mqtt_publish((topic_name + "/status").c_str(), "online", false);
   publish_events();
   publish_common_info();
   publish_cell_voltages();
@@ -112,11 +114,11 @@ static String generateEventsAutoConfigTopic(const char* object_id) {
 }
 
 static String generateButtonTopic(const char* subtype) {
-  return "homeassistant/button/" + topic_name + "/" + String(subtype);
+  return topic_name + "/command/" + String(subtype);
 }
 
 static String generateButtonAutoConfigTopic(const char* subtype) {
-  return generateButtonTopic(subtype) + "/config";
+  return "homeassistant/button/" + topic_name + "/" + String(subtype) + "/config";
 }
 
 void set_common_discovery_attributes(JsonDocument& doc) {
@@ -124,6 +126,10 @@ void set_common_discovery_attributes(JsonDocument& doc) {
   doc["device"]["manufacturer"] = "DalaTech";
   doc["device"]["model"] = "BatteryEmulator";
   doc["device"]["name"] = device_name;
+  doc["availability"][0]["topic"] = lwt_topic;
+  doc["payload_available"] = "online";
+  doc["payload_not_available"] = "offline";
+  doc["enabled_by_default"] = true;
 }
 
 void set_battery_attributes(JsonDocument& doc, const DATALAYER_BATTERY_TYPE& battery, const String& suffix) {
@@ -155,8 +161,6 @@ void set_battery_voltage_attributes(JsonDocument& doc, int i, int cellNumber, co
   doc["state_class"] = "measurement";
   doc["state_topic"] = state_topic;
   doc["unit_of_measurement"] = "V";
-  doc["enabled_by_default"] = true;
-  doc["expire_after"] = 240;
   doc["value_template"] = "{{ value_json.cell_voltages[" + String(i) + "] }}";
 }
 
@@ -182,8 +186,6 @@ static void publish_common_info(void) {
         doc["device_class"] = config.device_class;
         doc["state_class"] = "measurement";
       }
-      doc["enabled_by_default"] = true;
-      doc["expire_after"] = 240;
       set_common_discovery_attributes(doc);
       serializeJson(doc, mqtt_msg);
       if (mqtt_publish(generateCommonInfoAutoConfigTopic(config.object_id).c_str(), mqtt_msg, true)) {
@@ -324,7 +326,6 @@ void publish_events() {
         "}}";
     doc["json_attributes_topic"] = state_topic;
     doc["json_attributes_template"] = "{{ value_json | tojson }}";
-    doc["enabled_by_default"] = true;
     set_common_discovery_attributes(doc);
     serializeJson(doc, mqtt_msg);
     if (mqtt_publish(generateEventsAutoConfigTopic("event").c_str(), mqtt_msg, true)) {
@@ -389,10 +390,8 @@ static void publish_buttons_discovery(void) {
     for (int i = 0; i < sizeof(buttonConfigs) / sizeof(buttonConfigs[0]); i++) {
       SensorConfig& config = buttonConfigs[i];
       doc["name"] = config.name;
-      doc["unique_id"] = config.object_id;
+      doc["unique_id"] = object_id_prefix + config.object_id;
       doc["command_topic"] = generateButtonTopic(config.object_id);
-      doc["enabled_by_default"] = true;
-      doc["expire_after"] = 240;
       set_common_discovery_attributes(doc);
       serializeJson(doc, mqtt_msg);
       if (mqtt_publish(generateButtonAutoConfigTopic(config.object_id).c_str(), mqtt_msg, true)) {
@@ -405,14 +404,7 @@ static void publish_buttons_discovery(void) {
 }
 
 static void subscribe() {
-  for (int i = 0; i < sizeof(buttonConfigs) / sizeof(buttonConfigs[0]); i++) {
-    SensorConfig& config = buttonConfigs[i];
-    const char* topic = generateButtonTopic(config.object_id).c_str();
-#ifdef DEBUG_LOG
-    logging.printf("Subscribing to topic: [%s]\n", topic);
-#endif  // DEBUG_LOG
-    esp_mqtt_client_subscribe(client, topic, 0);
-  }
+  esp_mqtt_client_subscribe(client, (topic_name + "/command/+").c_str(), 1);
 }
 
 void mqtt_message_received(char* topic, int topic_len, char* data, int data_len) {
@@ -473,6 +465,7 @@ static void mqtt_event_handler(void* handler_args, esp_event_base_t base, int32_
       break;
     case MQTT_EVENT_ERROR:
 #ifdef DEBUG_LOG
+      logging.println("MQTT_ERROR");
       logging.print("reported from esp-tls");
       logging.println(event->error_handle->esp_tls_last_esp_err);
       logging.print("reported from tls stack");
@@ -511,6 +504,12 @@ void init_mqtt(void) {
   mqtt_cfg.credentials.client_id = clientId;
   mqtt_cfg.credentials.username = MQTT_USER;
   mqtt_cfg.credentials.authentication.password = MQTT_PASSWORD;
+  lwt_topic = topic_name + "/status";
+  mqtt_cfg.session.last_will.topic = lwt_topic.c_str();
+  mqtt_cfg.session.last_will.qos = 1;
+  mqtt_cfg.session.last_will.retain = true;
+  mqtt_cfg.session.last_will.msg = "offline";
+  mqtt_cfg.session.last_will.msg_len = strlen(mqtt_cfg.session.last_will.msg);
   client = esp_mqtt_client_init(&mqtt_cfg);
   esp_mqtt_client_register_event(client, MQTT_EVENT_ANY, mqtt_event_handler, client);
 }
@@ -536,6 +535,6 @@ void mqtt_loop(void) {
 }
 
 bool mqtt_publish(const char* topic, const char* mqtt_msg, bool retain) {
-  int msg_id = esp_mqtt_client_publish(client, topic, mqtt_msg, strlen(mqtt_msg), 0, retain);
+  int msg_id = esp_mqtt_client_publish(client, topic, mqtt_msg, strlen(mqtt_msg), 1, retain);
   return msg_id > -1;
 }
