@@ -1451,18 +1451,18 @@ void handle_incoming_can_frame_battery(CAN_frame rx_frame) {
       PCS_chgPhATemp =
           ((rx_frame.data.u8[1] & (0x07U)) << 8) |
           (rx_frame.data.u8[0] & (0xFFU));  //0|11@1- (0.1,40) [0|0] "C"  ((_d[1] & (0x07U)) << 8) | (_d[0] & (0xFFU))
-      PCS_chgPhBTemp = 
-          ((rx_frame.data.u8[2] & (0x3FU)) << 5) |
-          ((rx_frame.data.u8[1] >> 3) & (0x1FU));  //11|11@1- (0.1,40) [0|0] "C" ((_d[2] & (0x3FU)) << 5) | ((_d[1] >> 3) & (0x1FU))
-      PCS_chgPhCTemp = 
-          ((rx_frame.data.u8[2] & (0xC0U)) >> 6) | ((rx_frame.data.u8[3] & (0xFFU)) << 2) |
-          ((rx_frame.data.u8[4] & (0x03U)) << 10);  //22|11@1- (0.1,40) [0|0] "C" ((_d[4] & (0x07U)) << 8) | (_d[3] & (0xFFU))
-      PCS_dcdcTemp = 
-          ((rx_frame.data.u8[4] >> 1) & 0x1F) | 
-          ((rx_frame.data.u8[5] & 0x3F) << 5);  //33|11@1- (0.1,40) [0|0] "C" ((_d[5] & (0x3FU)) << 5) | ((_d[4] >> 3) & (0x1FU))
-      PCS_ambientTemp = 
-          ((rx_frame.data.u8[7] & (0x07U)) << 8) | 
-          (rx_frame.data.u8[6] & (0xFFU)); //44|11@1- (0.1,40) [0|0] "C" ((_d[7] & (0x07U)) << 8) | (_d[6] & (0xFFU))
+      PCS_chgPhBTemp = ((rx_frame.data.u8[2] & (0x3FU)) << 5) |
+                       ((rx_frame.data.u8[1] >> 3) &
+                        (0x1FU));  //11|11@1- (0.1,40) [0|0] "C" ((_d[2] & (0x3FU)) << 5) | ((_d[1] >> 3) & (0x1FU))
+      PCS_chgPhCTemp = ((rx_frame.data.u8[2] & (0xC0U)) >> 6) | ((rx_frame.data.u8[3] & (0xFFU)) << 2) |
+                       ((rx_frame.data.u8[4] & (0x03U))
+                        << 10);  //22|11@1- (0.1,40) [0|0] "C" ((_d[4] & (0x07U)) << 8) | (_d[3] & (0xFFU))
+      PCS_dcdcTemp = ((rx_frame.data.u8[4] >> 1) & 0x1F) |
+                     ((rx_frame.data.u8[5] & 0x3F)
+                      << 5);  //33|11@1- (0.1,40) [0|0] "C" ((_d[5] & (0x3FU)) << 5) | ((_d[4] >> 3) & (0x1FU))
+      PCS_ambientTemp =
+          ((rx_frame.data.u8[7] & (0x07U)) << 8) |
+          (rx_frame.data.u8[6] & (0xFFU));  //44|11@1- (0.1,40) [0|0] "C" ((_d[7] & (0x07U)) << 8) | (_d[6] & (0xFFU))
       break;
     case 0x2C4:  // 708 PCS_logging: not all frames are listed, just ones relating to dcdc
       mux = (rx_frame.data.u8[0] & (0x1FU));
