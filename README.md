@@ -57,16 +57,22 @@ Start by watching this [quickstart guide](https://www.youtube.com/watch?v=hcl2Gd
   
 ![bild](https://github.com/dalathegreat/Battery-Emulator/assets/26695010/6a2414b1-f2ca-4746-8e8d-9afd78bd9252)
 
-5. The Arduino board should be set to `ESP32 Dev Module` (under `Tools` -> `Board` -> `ESP32 Arduino`) with the following settings:
-![alt text](https://github.com/Xinyuan-LilyGO/T-CAN485/blob/main/img/arduino_setting.png)
-6. Select which battery type you will use, along with other optional settings. This is done in the `USER_SETTINGS.h` file.
-7. Copy the `USER_SECRETS.TEMPLATE.h` file to `USER_SECRETS.h` and update connectivity settings inside this file.
-8. Press `Verify` and `Upload` to send the sketch to the board.
+5. The Arduino board should be set to `ESP32 Dev Module` and `Partition Scheme` to `Minimal SPIFFS (1.9MB APP with OTA/190KB SPIFFS)` (under `Tools` -> `Board` -> `ESP32 Arduino`) with the following settings:
+![alt text](https://github.com/dalathegreat/Battery-Emulator/blob/img/ArduinoSettings.png)
+7. Select which battery type you will use, along with other optional settings. This is done in the `USER_SETTINGS.h` file.
+8. Copy the `USER_SECRETS.TEMPLATE.h` file to `USER_SECRETS.h` and update connectivity settings inside this file.
+9. Press `Verify` and `Upload` to send the sketch to the board.
 NOTE: In some cases, the LilyGo must be powered through the main power connector instead of USB-C
       when performing the initial firmware upload.
 NOTE: On Mac, the following USB driver may need to be installed: https://github.com/WCHSoftGroup/ch34xser_macos
 
 NOTE: If you see garbled messages on the serial console, change the serial console to match the baud rate to the code, currently 115200.
+
+NOTE: If you see the error `Sketch too big` then check you set the Partition Scheme above correctly.
+
+This video explains all the above mentioned steps:
+<https://youtu.be/_mH2AjnAjDk>
+
 
 ### Linux Development Environment Setup
 In addition to the steps above, ESP32 requires a dependency for a Python module, pyserial install using the cli.\
@@ -84,7 +90,6 @@ This code uses the following excellent libraries:
 - [ayushsharma82/ElegantOTA](https://github.com/ayushsharma82/ElegantOTA) AGPL-3.0 license 
 - [bblanchon/ArduinoJson](https://github.com/bblanchon/ArduinoJson) MIT-License
 - [eModbus/eModbus](https://github.com/eModbus/eModbus) MIT-License
-- [knolleary/pubsubclient](https://github.com/knolleary/pubsubclient) MIT-License
 - [mackelec/SerialDataLink](https://github.com/mackelec/SerialDataLink)
 - [mathieucarbou/AsyncTCPsock](https://github.com/mathieucarbou/AsyncTCPSock) LGPL-3.0 license
 - [mathieucarbou/ESPAsyncWebServer](https://github.com/mathieucarbou/ESPAsyncWebServer) LGPL-3.0 license
