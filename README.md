@@ -39,6 +39,11 @@ Here's how to connect the high voltage lines
 For more examples showing wiring, see each battery types own Wiki page. For instance the [Nissan LEAF page](https://github.com/dalathegreat/Battery-Emulator/wiki/Battery:-Nissan-LEAF---e%E2%80%90NV200)
 
 ## How to compile the software 💻
+
+Start by watching this [quickstart guide](https://www.youtube.com/watch?v=hcl2GdHc0Y0)
+
+[![IMAGE ALT TEXT HERE](https://img.youtube.com/vi/hcl2GdHc0Y0/0.jpg)](https://www.youtube.com/watch?v=hcl2GdHc0Y0)
+
 1. Download the Arduino IDE: https://www.arduino.cc/en/software
 2. Open the Arduino IDE.
 3. Click `File` menu -> `Preferences` -> `Additional Development` -> `Additional Board Manager URLs` -> Enter the URL in the input box: `https://raw.githubusercontent.com/espressif/arduino-esp32/gh-pages/package_esp32_index.json` and click OK.
@@ -62,10 +67,6 @@ NOTE: In some cases, the LilyGo must be powered through the main power connector
 NOTE: On Mac, the following USB driver may need to be installed: https://github.com/WCHSoftGroup/ch34xser_macos
 
 NOTE: If you see garbled messages on the serial console, change the serial console to match the baud rate to the code, currently 115200.
-
-This video explains all the above mentioned steps:
-<https://youtu.be/_mH2AjnAjDk>
-
 
 ### Linux Development Environment Setup
 In addition to the steps above, ESP32 requires a dependency for a Python module, pyserial install using the cli.\
