@@ -1193,7 +1193,6 @@ void handle_incoming_can_frame_battery(CAN_frame rx_frame) {
   static uint16_t temp = 0;
   static bool mux0_read = false;
   static bool mux1_read = false;
-  static bool mux2_read = false;
 
   switch (rx_frame.ID) {
     case 0x352:                              // 850 BMS_energyStatus newer BMS
@@ -1220,15 +1219,11 @@ void handle_incoming_can_frame_battery(CAN_frame rx_frame) {
             ((rx_frame.data.u8[7] << 8) | rx_frame.data.u8[6]);  //48|16@1+ (0.02,0) [0|0] "kWh"//to datalayer_extended
         mux1_read = true;                                        //Set flag to true
       }
-      if (mux == 2) {
-        mux2_read = true;  //Set flag to true
-      }
-      if (mux0_read && mux1_read && mux2_read) {
+      if (mux == 2) {} // Additional information needed on this mux 2, example frame: 02 26 02 20 02 80 00 00 doesn't change
+      if (mux0_read && mux1_read) {
         mux0_read = false;
         mux1_read = false;
-        mux2_read = false;
-      }
-      // Additional information needed on this mux 2, example frame: 02 26 02 20 02 80 00 00 doesn't change
+      }     
       // older BMS <2021 without mux
       battery_nominal_full_pack_energy =  //BMS_nominalFullPackEnergy : 0|11@1+ (0.1,0) [0|204.6] "KWh" //((_d[1] & (0x07U)) << 8) | (_d[0] & (0xFFU));
           (((rx_frame.data.u8[1] & 0x07) << 8) | (rx_frame.data.u8[0]));  //Example 752 (75.2kWh)
@@ -1448,21 +1443,11 @@ void handle_incoming_can_frame_battery(CAN_frame rx_frame) {
       BMS_noFlowRequest = ((rx_frame.data.u8[7] >> 7) & (0x01U));     //63|1@1+ (1,0) [0|0] ""
       break;
     case 0x2A4:  //676 PCS_thermalStatus
-      PCS_chgPhATemp =
-          ((rx_frame.data.u8[1] & (0x07U)) << 8) |
-          (rx_frame.data.u8[0] & (0xFFU));  //0|11@1- (0.1,40) [0|0] "C"  ((_d[1] & (0x07U)) << 8) | (_d[0] & (0xFFU))
-      PCS_chgPhBTemp = ((rx_frame.data.u8[2] & (0x3FU)) << 5) |
-                       ((rx_frame.data.u8[1] >> 3) &
-                        (0x1FU));  //11|11@1- (0.1,40) [0|0] "C" ((_d[2] & (0x3FU)) << 5) | ((_d[1] >> 3) & (0x1FU))
-      PCS_chgPhCTemp = ((rx_frame.data.u8[2] & (0xC0U)) >> 6) | ((rx_frame.data.u8[3] & (0xFFU)) << 2) |
-                       ((rx_frame.data.u8[4] & (0x03U))
-                        << 10);  //22|11@1- (0.1,40) [0|0] "C" ((_d[4] & (0x07U)) << 8) | (_d[3] & (0xFFU))
-      PCS_dcdcTemp = ((rx_frame.data.u8[4] >> 1) & 0x1F) |
-                     ((rx_frame.data.u8[5] & 0x3F)
-                      << 5);  //33|11@1- (0.1,40) [0|0] "C" ((_d[5] & (0x3FU)) << 5) | ((_d[4] >> 3) & (0x1FU))
-      PCS_ambientTemp =
-          ((rx_frame.data.u8[7] & (0x07U)) << 8) |
-          (rx_frame.data.u8[6] & (0xFFU));  //44|11@1- (0.1,40) [0|0] "C" ((_d[7] & (0x07U)) << 8) | (_d[6] & (0xFFU))
+      PCS_chgPhATemp = (((rx_frame.data.u8[1] & 0x07) << 8) | (rx_frame.data.u8[0] & 0xFF));  //0|11@1- (0.1,40) [0|0] "C"
+      PCS_chgPhBTemp = (((rx_frame.data.u8[2] & 0x3F) << 5) | ((rx_frame.data.u8[1] >> 3) & 0x1F));  //11|11@1- (0.1,40) [0|0] "C"
+      PCS_chgPhCTemp = (((rx_frame.data.u8[2] & 0xC0) >> 6) | ((rx_frame.data.u8[3] & 0xFF) << 2) | ((rx_frame.data.u8[4] & 0x03) << 10));  //22|11@1- (0.1,40) [0|0] "C"
+      PCS_dcdcTemp = (((rx_frame.data.u8[4] >> 1) & 0x1F) | ((rx_frame.data.u8[5] & 0x3F) << 5));  //33|11@1- (0.1,40) [0|0] "C"
+      PCS_ambientTemp = (((rx_frame.data.u8[7] & 0x07) << 8) | (rx_frame.data.u8[6] & 0xFF));  //44|11@1- (0.1,40) [0|0] "C"
       break;
     case 0x2C4:  // 708 PCS_logging: not all frames are listed, just ones relating to dcdc
       mux = (rx_frame.data.u8[0] & (0x1FU));
@@ -1758,9 +1743,7 @@ void handle_incoming_can_frame_battery(CAN_frame rx_frame) {
       break;
     case 0x320:  //800 BMS_alertMatrix                                                //BMS_alertMatrix 800 BMS_alertMatrix: 8 VEH
       mux = (rx_frame.data.u8[0] & (0x0F));
-      if (mux == 0)
-        ;
-      {                                                                                   //mux0
+      if (mux == 0) {                                                                                   //mux0
         battery_BMS_matrixIndex = (rx_frame.data.u8[0] & (0x0F));                         // 0|4@1+ (1,0) [0|0] ""  X
         battery_BMS_a017_SW_Brick_OV = ((rx_frame.data.u8[2] >> 4) & (0x01));             //20|1@1+ (1,0) [0|0] ""  X
         battery_BMS_a018_SW_Brick_UV = ((rx_frame.data.u8[2] >> 5) & (0x01));             //21|1@1+ (1,0) [0|0] ""  X
