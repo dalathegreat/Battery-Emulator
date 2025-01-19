@@ -16,5 +16,5 @@ It contains all the credentials that should never be made public */
 //MQTT credentials
 #define MQTT_SERVER "192.168.xxx.yyy"  // MQTT server address
 #define MQTT_PORT 1883                 // MQTT server port
-#define MQTT_USER NULL                 // MQTT username, leave blank for no authentication
-#define MQTT_PASSWORD NULL             // MQTT password, leave blank for no authentication
+#define MQTT_USER NULL      // MQTT username, NULL for no authentication, username within "", example "Emulator"
+#define MQTT_PASSWORD NULL  // MQTT password, NULL for no authentication, password within "", example "Password"
