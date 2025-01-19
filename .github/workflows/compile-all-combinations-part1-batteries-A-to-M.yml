@@ -56,6 +56,7 @@ jobs:
         battery:
           - BMW_I3_BATTERY
           - BMW_IX_BATTERY
+          - BMW_PHEV_BATTERY
           - BYD_ATTO_3_BATTERY
           - CELLPOWER_BMS
           - CHADEMO_BATTERY

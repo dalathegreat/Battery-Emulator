@@ -11,6 +11,7 @@
 /* Select battery used */
 //#define BMW_I3_BATTERY
 //#define BMW_IX_BATTERY
+//#define BMW_PHEV_BATTERY
 //#define BOLT_AMPERA_BATTERY
 //#define BYD_ATTO_3_BATTERY
 //#define CELLPOWER_BMS
