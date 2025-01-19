@@ -153,6 +153,7 @@ void init_events(void) {
   events.entries[EVENT_BALANCING_END].level = EVENT_LEVEL_INFO;
   events.entries[EVENT_BATTERY_EMPTY].level = EVENT_LEVEL_INFO;
   events.entries[EVENT_BATTERY_FULL].level = EVENT_LEVEL_INFO;
+  events.entries[EVENT_BATTERY_FUSE].level = EVENT_LEVEL_WARNING;
   events.entries[EVENT_BATTERY_FROZEN].level = EVENT_LEVEL_INFO;
   events.entries[EVENT_BATTERY_CAUTION].level = EVENT_LEVEL_INFO;
   events.entries[EVENT_BATTERY_CHG_STOP_REQ].level = EVENT_LEVEL_ERROR;
@@ -168,6 +169,7 @@ void init_events(void) {
   events.entries[EVENT_SOH_LOW].level = EVENT_LEVEL_ERROR;
   events.entries[EVENT_HVIL_FAILURE].level = EVENT_LEVEL_ERROR;
   events.entries[EVENT_PRECHARGE_FAILURE].level = EVENT_LEVEL_INFO;
+  events.entries[EVENT_AUTOMATIC_PRECHARGE_FAILURE].level = EVENT_LEVEL_ERROR;
   events.entries[EVENT_INTERNAL_OPEN_FAULT].level = EVENT_LEVEL_ERROR;
   events.entries[EVENT_INVERTER_OPEN_CONTACTOR].level = EVENT_LEVEL_INFO;
   events.entries[EVENT_INTERFACE_MISSING].level = EVENT_LEVEL_INFO;
@@ -304,6 +306,8 @@ const char* get_event_message_string(EVENTS_ENUM_TYPE event) {
       return "Battery is completely discharged";
     case EVENT_BATTERY_FULL:
       return "Battery is fully charged";
+    case EVENT_BATTERY_FUSE:
+      return "Battery internal fuse blown. Inspect battery";
     case EVENT_BATTERY_FROZEN:
       return "Battery is too cold to operate optimally. Consider warming it up!";
     case EVENT_BATTERY_CAUTION:
@@ -340,6 +344,8 @@ const char* get_event_message_string(EVENTS_ENUM_TYPE event) {
              "Battery will be disabled!";
     case EVENT_PRECHARGE_FAILURE:
       return "Battery failed to precharge. Check that capacitor is seated on high voltage output.";
+    case EVENT_AUTOMATIC_PRECHARGE_FAILURE:
+      return "Automatic precharge failed to reach target voltae.";
     case EVENT_INTERNAL_OPEN_FAULT:
       return "High voltage cable removed while battery running. Opening contactors!";
     case EVENT_INVERTER_OPEN_CONTACTOR:

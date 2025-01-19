@@ -515,7 +515,10 @@ void handle_incoming_can_frame_battery2(CAN_frame rx_frame) {
         battery2_Current2 |= 0xf800;
       }  //BatteryCurrentSignal , 2s comp, 1lSB = 0.5A/bit
 
-      battery2_Total_Voltage2 = ((rx_frame.data.u8[2] << 2) | (rx_frame.data.u8[3] & 0xc0) >> 6);  //0.5V/bit
+      battery2_TEMP = ((rx_frame.data.u8[2] << 2) | (rx_frame.data.u8[3] & 0xc0) >> 6);  //0.5V/bit
+      if (battery2_TEMP != 0x3ff) {  //3FF is unavailable value. Can happen directly on reboot.
+        battery2_Total_Voltage2 = battery2_TEMP;
+      }
 
       //Collect various data from the BMS
       battery2_Relay_Cut_Request = ((rx_frame.data.u8[1] & 0x18) >> 3);
@@ -754,7 +757,10 @@ void handle_incoming_can_frame_battery(CAN_frame rx_frame) {
         battery_Current2 |= 0xf800;
       }  //BatteryCurrentSignal , 2s comp, 1lSB = 0.5A/bit
 
-      battery_Total_Voltage2 = ((rx_frame.data.u8[2] << 2) | (rx_frame.data.u8[3] & 0xc0) >> 6);  //0.5V/bit
+      battery_TEMP = ((rx_frame.data.u8[2] << 2) | (rx_frame.data.u8[3] & 0xc0) >> 6);  //0.5V/bit
+      if (battery_TEMP != 0x3ff) {  //3FF is unavailable value. Can happen directly on reboot.
+        battery_Total_Voltage2 = battery_TEMP;
+      }
 
       //Collect various data from the BMS
       battery_Relay_Cut_Request = ((rx_frame.data.u8[1] & 0x18) >> 3);

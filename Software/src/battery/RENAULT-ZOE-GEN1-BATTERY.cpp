@@ -454,6 +454,11 @@ void handle_incoming_can_frame_battery(CAN_frame rx_frame) {
         case 0x2E:
           if (requested_poll == GROUP1_CELLVOLTAGES_1_POLL) {
             cellvoltages[47] = (highbyte_cell_next_frame << 8) | rx_frame.data.u8[1];
+            if (cellvoltages[47] < 100) {  //This cell measurement is inbetween pack halves. If low, fuse blown
+              set_event(EVENT_BATTERY_FUSE, cellvoltages[47]);
+            } else {
+              clear_event(EVENT_BATTERY_FUSE);
+            }
             cellvoltages[48] = (rx_frame.data.u8[2] << 8) | rx_frame.data.u8[3];
             cellvoltages[49] = (rx_frame.data.u8[4] << 8) | rx_frame.data.u8[5];
             cellvoltages[50] = (rx_frame.data.u8[6] << 8) | rx_frame.data.u8[7];
