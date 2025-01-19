@@ -54,7 +54,7 @@
 #endif  // WIFI
 
 // The current software version, shown on webserver
-const char* version_number = "8.2.dev";
+const char* version_number = "8.2.0";
 
 // Interval settings
 uint16_t intervalUpdateValues = INTERVAL_1_S;  // Interval at which to update inverter values / Modbus registers
