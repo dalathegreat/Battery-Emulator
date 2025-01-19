@@ -39,6 +39,7 @@
 //#define VOLVO_SPA_BATTERY
 //#define TEST_FAKE_BATTERY
 //#define DOUBLE_BATTERY  //Enable this line if you use two identical batteries at the same time (requires CAN_ADDON setup)
+//#define SERIAL_LINK_TRANSMITTER  //Enable this line to send battery data over RS485 pins to another Lilygo (This LilyGo interfaces with battery)
 
 /* Select inverter communication protocol. See Wiki for which to use with your inverter: https://github.com/dalathegreat/BYD-Battery-Emulator-For-Gen24/wiki */
 //#define AFORE_CAN        //Enable this line to emulate an "Afore battery" over CAN bus
@@ -58,6 +59,7 @@
 //#define SOFAR_CAN        //Enable this line to emulate a "Sofar Energy Storage Inverter High Voltage BMS General Protocol (Extended Frame)" over CAN bus
 //#define SOLAX_CAN        //Enable this line to emulate a "SolaX Triple Power LFP" over CAN bus
 //#define SUNGROW_CAN      //Enable this line to emulate a "Sungrow SBR064" over CAN bus
+//#define SERIAL_LINK_RECEIVER  //Enable this line to receive battery data over RS485 pins from another Lilygo (This LilyGo interfaces with inverter)
 
 /* Select hardware used for Battery-Emulator */
 //#define HW_LILYGO
@@ -74,31 +76,35 @@
 //#define PERIODIC_BMS_RESET    //Enable to have the emulator powercycle the connected battery every 24hours via GPIO. Useful for some batteries like Nissan LEAF
 //#define REMOTE_BMS_RESET      //Enable to allow the emulator to remotely trigger a powercycle of the battery via MQTT. Useful for some batteries like Nissan LEAF
 
-/* Shunt/Contactor settings */
+/* Shunt/Contactor settings (Optional) */
 //#define BMW_SBOX  // SBOX relay control & battery current/voltage measurement
 
-/* Automatic Precharge settings. If you have a battery that expects an external voltage applied before opening contactors (within the battery), configure this section */
+/* Select charger used (Optional) */
+//#define CHEVYVOLT_CHARGER  //Enable this line to control a Chevrolet Volt charger connected to battery - for example, when generator charging or using an inverter without a charging function.
+//#define NISSANLEAF_CHARGER  //Enable this line to control a Nissan LEAF PDM connected to battery - for example, when generator charging
+
+/* Automatic Precharge settings (Optional) If you have a battery that expects an external voltage applied before opening contactors (within the battery), configure this section */
 //#define PRECHARGE_CONTROL      //Enable this line to control a modified HIA4V1 (see wiki) by PWM on the PRECHARGE_PIN.
 
 /* Other options */
+//#define EQUIPMENT_STOP_BUTTON    // Enable this to allow an equipment stop button connected to the Battery-Emulator to disengage the battery
+//#define LFP_CHEMISTRY          //Tesla specific setting, enable this line to startup in LFP mode
+//#define INTERLOCK_REQUIRED     //Nissan LEAF specific setting, if enabled requires both high voltage conenctors to be seated before starting
 //#define LOG_TO_SD              //Enable this line to log diagnostic data to SD card
+//#define LOG_CAN_TO_SD          //Enable this line to log incoming/outgoing CAN & CAN-FD messages to SD card
 //#define DEBUG_VIA_USB          //Enable this line to have the USB port output serial diagnostic data while program runs (WARNING, raises CPU load, do not use for production)
 //#define DEBUG_VIA_WEB          //Enable this line to log diagnostic data while program runs, which can be viewed via webpage (WARNING, slightly raises CPU load, do not use for production)
-#if defined(DEBUG_VIA_USB) || defined(DEBUG_VIA_WEB) || defined(LOG_TO_SD)
-#define DEBUG_LOG
-#endif
-
 //#define DEBUG_CAN_DATA         //Enable this line to print incoming/outgoing CAN & CAN-FD messages to USB serial (WARNING, raises CPU load, do not use for production)
-//#define LOG_CAN_TO_SD           //Enable this line to log incoming/outgoing CAN & CAN-FD messages to SD card
-//#define INTERLOCK_REQUIRED     //Nissan LEAF specific setting, if enabled requires both high voltage conenctors to be seated before starting
+
+/* CAN options */
 //#define CAN_ADDON              //Enable this line to activate an isolated secondary CAN Bus using add-on MCP2515 chip (Needed for some inverters / double battery)
 #define CRYSTAL_FREQUENCY_MHZ 8  //CAN_ADDON option, what is your MCP2515 add-on boards crystal frequency?
 //#define CANFD_ADDON           //Enable this line to activate an isolated secondary CAN-FD bus using add-on MCP2518FD chip / Native CANFD on Stark board
 #define CANFD_ADDON_CRYSTAL_FREQUENCY_MHZ \
   ACAN2517FDSettings::OSC_40MHz  //CANFD_ADDON option, what is your MCP2518 add-on boards crystal frequency?
 //#define USE_CANFD_INTERFACE_AS_CLASSIC_CAN // Enable this line if you intend to use the CANFD as normal CAN
-//#define SERIAL_LINK_RECEIVER  //Enable this line to receive battery data over RS485 pins from another Lilygo (This LilyGo interfaces with inverter)
-//#define SERIAL_LINK_TRANSMITTER  //Enable this line to send battery data over RS485 pins to another Lilygo (This LilyGo interfaces with battery)
+
+/* Connectivity options */
 #define WIFI
 //#define WIFICONFIG  //Enable this line to set a static IP address / gateway /subnet mask for the device. see USER_SETTINGS.cpp for the settings
 #define WEBSERVER  //Enable this line to enable WiFi, and to run the webserver. See USER_SETTINGS.cpp for the Wifi settings.
@@ -106,24 +112,17 @@
 #define MDNSRESPONDER  //Enable this line to enable MDNS, allows battery monitor te be found by .local address. Requires WEBSERVER to be enabled.
 #define LOAD_SAVED_SETTINGS_ON_BOOT  // Enable this line to read settings stored via the webserver on boot (overrides Wifi credentials set here)
 //#define FUNCTION_TIME_MEASUREMENT  // Enable this to record execution times and present them in the web UI (WARNING, raises CPU load, do not use for production)
-//#define EQUIPMENT_STOP_BUTTON      // Enable this to allow an equipment stop button connected to the Battery-Emulator to disengage the battery
 
 /* MQTT options */
 // #define MQTT  // Enable this line to enable MQTT
-#define MQTT_MANUAL_TOPIC_OBJECT_NAME  // Enable this to use custom MQTT topic, object ID prefix, and device name.    \
-                                       // WARNING: If this is not defined, the previous default naming format         \
-                                       // 'battery-emulator_esp32-XXXXXX' (based on hardware ID) will be used.        \
-                                       // This naming convention was in place until version 7.5.0.                    \
-                                       // Users should check the version from which they are updating, as this change \
-                                       // may break compatibility with previous versions of MQTT naming.              \
-                                       // Please refer to USER_SETTINGS.cpp for configuration options.
+#define MQTT_MANUAL_TOPIC_OBJECT_NAME
+// Enable MQTT_MANUAL_TOPIC_OBJECT_NAME to use custom MQTT topic, object ID prefix, and device name.
+// WARNING: If this is not defined, the previous default naming format 'battery-emulator_esp32-XXXXXX' (based on hardware ID) will be used.
+// This naming convention was in place until version 7.5.0. Users should check the version from which they are updating, as this change
+// may break compatibility with previous versions of MQTT naming. Please refer to USER_SETTINGS.cpp for configuration options.
 
 /* Home Assistant options */
 #define HA_AUTODISCOVERY  // Enable this line to send Home Assistant autodiscovery messages. If not enabled manual configuration of Home Assitant is required
-
-/* Select charger used (Optional) */
-//#define CHEVYVOLT_CHARGER  //Enable this line to control a Chevrolet Volt charger connected to battery - for example, when generator charging or using an inverter without a charging function.
-//#define NISSANLEAF_CHARGER  //Enable this line to control a Nissan LEAF PDM connected to battery - for example, when generator charging
 
 /* Battery settings */
 // Predefined total energy capacity of the battery in Watt-hours
@@ -183,6 +182,10 @@ extern volatile STOP_BUTTON_BEHAVIOR equipment_stop_behavior;
 extern IPAddress local_IP;
 extern IPAddress gateway;
 extern IPAddress subnet;
+#endif
+
+#if defined(DEBUG_VIA_USB) || defined(DEBUG_VIA_WEB) || defined(LOG_TO_SD)
+#define DEBUG_LOG
 #endif
 
 #endif  // __USER_SETTINGS_H__
