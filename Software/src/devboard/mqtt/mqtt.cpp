@@ -61,6 +61,7 @@ SensorConfig sensorConfigTemplate[] = {
     {"battery_current", "Battery Current", "", "A", "current"},
     {"cell_max_voltage", "Cell Max Voltage", "", "V", "voltage"},
     {"cell_min_voltage", "Cell Min Voltage", "", "V", "voltage"},
+    {"cell_voltage_delta", "Cell Voltage Delta", "", "mV", "voltage"},
     {"battery_voltage", "Battery Voltage", "", "V", "voltage"},
     {"total_capacity", "Battery Total Capacity", "", "Wh", "energy"},
     {"remaining_capacity", "Battery Remaining Capacity (scaled)", "", "Wh", "energy"},
@@ -144,6 +145,8 @@ void set_battery_attributes(JsonDocument& doc, const DATALAYER_BATTERY_TYPE& bat
   if (battery.info.number_of_cells != 0u && battery.status.cell_voltages_mV[battery.info.number_of_cells - 1] != 0u) {
     doc["cell_max_voltage" + suffix] = ((float)battery.status.cell_max_voltage_mV) / 1000.0;
     doc["cell_min_voltage" + suffix] = ((float)battery.status.cell_min_voltage_mV) / 1000.0;
+    doc["cell_voltage_delta" + suffix] =
+        ((float)battery.status.cell_max_voltage_mV) - ((float)battery.status.cell_min_voltage_mV);
   }
   doc["total_capacity" + suffix] = ((float)battery.info.total_capacity_Wh);
   doc["remaining_capacity_real" + suffix] = ((float)battery.status.remaining_capacity_Wh);
