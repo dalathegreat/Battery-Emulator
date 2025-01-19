@@ -272,6 +272,12 @@ CAN_frame BMWiX_6F4_REQUEST_BALANCING_START = {
     .DLC = 6,
     .ID = 0x6F4,
     .data = {0xF4, 0x04, 0x71, 0x01, 0xAE, 0x77}};  // Request Balancing command?
+CAN_frame BMWiX_6F4_REQUEST_BALANCING_START2 = {
+    .FD = true,
+    .ext_ID = false,
+    .DLC = 6,
+    .ID = 0x6F4,
+    .data = {0xF4, 0x04, 0x31, 0x01, 0xAE, 0x77}};  // Request Balancing command?
 CAN_frame BMWiX_6F4_REQUEST_PACK_VOLTAGE_LIMITS = {
     .FD = true,
     .ext_ID = false,
@@ -330,15 +336,15 @@ int numUDSreqs = sizeof(UDS_REQUESTS100MS) / sizeof(UDS_REQUESTS100MS[0]);  // N
 static bool battery_info_available = false;
 static uint32_t battery_serial_number = 0;
 static int32_t battery_current = 0;
-static int16_t battery_voltage = 370;
+static int16_t battery_voltage = 370;  //Startup with valid values - needs fixing in future
 static int16_t terminal30_12v_voltage = 0;
 static int16_t battery_voltage_after_contactor = 0;
-static int16_t min_soc_state = 50;
-static int16_t avg_soc_state = 50;
-static int16_t max_soc_state = 50;
-static int16_t min_soh_state = 99;  // Uses E5 45, also available in 78 73
-static int16_t avg_soh_state = 99;  // Uses E5 45, also available in 78 73
-static int16_t max_soh_state = 99;  // Uses E5 45, also available in 78 73
+static int16_t min_soc_state = 5000;
+static int16_t avg_soc_state = 5000;
+static int16_t max_soc_state = 5000;
+static int16_t min_soh_state = 9900;  // Uses E5 45, also available in 78 73
+static int16_t avg_soh_state = 9900;  // Uses E5 45, also available in 78 73
+static int16_t max_soh_state = 9900;  // Uses E5 45, also available in 78 73
 static uint16_t max_design_voltage = 0;
 static uint16_t min_design_voltage = 0;
 static int32_t remaining_capacity = 0;
@@ -347,8 +353,8 @@ static int16_t min_battery_temperature = 0;
 static int16_t avg_battery_temperature = 0;
 static int16_t max_battery_temperature = 0;
 static int16_t main_contactor_temperature = 0;
-static int16_t min_cell_voltage = 0;
-static int16_t max_cell_voltage = 0;
+static int16_t min_cell_voltage = 3700;  //Startup with valid values - needs fixing in future
+static int16_t max_cell_voltage = 3700;  //Startup with valid values - needs fixing in future
 static unsigned long min_cell_voltage_lastchanged = 0;
 static unsigned long max_cell_voltage_lastchanged = 0;
 static unsigned min_cell_voltage_lastreceived = 0;
@@ -763,6 +769,8 @@ void transmit_can_battery() {
   // Send 10000ms CAN Message
   if (currentMillis - previousMillis10000 >= INTERVAL_10_S) {
     previousMillis10000 = currentMillis;
+    transmit_can_frame(&BMWiX_6F4_REQUEST_BALANCING_START2, can_config.battery);
+    transmit_can_frame(&BMWiX_6F4_REQUEST_BALANCING_START, can_config.battery);
   }
 }
 //We can always send CAN as the iX BMS will wake up on vehicle comms
