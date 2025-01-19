@@ -232,11 +232,13 @@ typedef struct {
   uint8_t battery_packCtrsRequestStatus = 0;
   bool battery_packCtrsResetRequestRequired = false;
   bool battery_dcLinkAllowedToEnergize = false;
+  uint8_t BMS_SerialNumber[15] = {0};  //stores raw HEX values for ASCII chars
   uint8_t battery_beginning_of_life = 0;
   uint8_t battery_battTempPct = 0;
   uint16_t battery_dcdcLvBusVolt = 0;
   uint16_t battery_dcdcHvBusVolt = 0;
   uint16_t battery_dcdcLvOutputCurrent = 0;
+  bool BMS352_mux = false;  // variable to store when 0x352 mux is present
   uint16_t battery_nominal_full_pack_energy = 0;
   uint16_t battery_nominal_full_pack_energy_m0 = 0;
   uint16_t battery_nominal_energy_remaining = 0;
@@ -315,6 +317,9 @@ typedef struct {
   bool BMS_noFlowRequest = false;
   uint16_t PCS_dcdcTemp = 0;
   uint16_t PCS_ambientTemp = 0;
+  uint16_t PCS_chgPhATemp = 0;
+  uint16_t PCS_chgPhBTemp = 0;
+  uint16_t PCS_chgPhCTemp = 0;
   uint16_t PCS_dcdcMaxLvOutputCurrent = 0;
   uint16_t PCS_dcdcCurrentLimit = 0;
   uint16_t PCS_dcdcLvOutputCurrentTempLimit = 0;
