@@ -887,11 +887,17 @@ void update_values_battery() {  //This function maps all the values fetched via 
 
   /* Value mapping is completed. Start to check all safeties */
 
-  if (battery_hvil_status ==
-      3) {  //INTERNAL_OPEN_FAULT - Someone disconnected a high voltage cable while battery was in use
+  //INTERNAL_OPEN_FAULT - Someone disconnected a high voltage cable while battery was in use
+  if (battery_hvil_status == 3) {
     set_event(EVENT_INTERNAL_OPEN_FAULT, 0);
   } else {
     clear_event(EVENT_INTERNAL_OPEN_FAULT);
+  }
+  //Voltage missing, pyrofuse most likely blown
+  if (datalayer.battery.status.voltage_dV == 10) {
+    set_event(EVENT_BATTERY_FUSE, 0);
+  } else {
+    clear_event(EVENT_BATTERY_FUSE);
   }
 
 #ifdef TESLA_MODEL_3Y_BATTERY
@@ -2585,12 +2591,17 @@ void update_values_battery2() {  //This function maps all the values fetched via
   battery2_cell_deviation_mV = (battery2_cell_max_v - battery2_cell_min_v);
 
   /* Value mapping is completed. Start to check all safeties */
-
-  if (battery2_hvil_status ==
-      3) {  //INTERNAL_OPEN_FAULT - Someone disconnected a high voltage cable while battery was in use
+  //INTERNAL_OPEN_FAULT - Someone disconnected a high voltage cable while battery was in use
+  if (battery2_hvil_status == 3) {
     set_event(EVENT_INTERNAL_OPEN_FAULT, 2);
   } else {
     clear_event(EVENT_INTERNAL_OPEN_FAULT);
+  }
+  //Voltage missing, pyrofuse most likely blown
+  if (datalayer.battery2.status.voltage_dV == 10) {
+    set_event(EVENT_BATTERY_FUSE, 0);
+  } else {
+    clear_event(EVENT_BATTERY_FUSE);
   }
 
 #ifdef TESLA_MODEL_3Y_BATTERY
