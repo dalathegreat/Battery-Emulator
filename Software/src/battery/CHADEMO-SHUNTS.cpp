@@ -22,8 +22,6 @@
 #ifdef CHADEMO_BATTERY
 #include "../datalayer/datalayer.h"
 #include "../devboard/utils/events.h"
-#include "../lib/miwagner-ESP32-Arduino-CAN/CAN_config.h"
-#include "../lib/miwagner-ESP32-Arduino-CAN/ESP32CAN.h"
 #include "CHADEMO-BATTERY-INTERNAL.h"
 #include "CHADEMO-BATTERY.h"
 #include "CHADEMO-SHUNTS.h"
