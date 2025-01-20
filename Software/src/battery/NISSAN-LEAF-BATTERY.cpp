@@ -766,11 +766,6 @@ void handle_incoming_can_frame_battery(CAN_frame rx_frame) {
       battery_Relay_Cut_Request = ((rx_frame.data.u8[1] & 0x18) >> 3);
       battery_Failsafe_Status = (rx_frame.data.u8[1] & 0x07);
       battery_MainRelayOn_flag = (bool)((rx_frame.data.u8[3] & 0x20) >> 5);
-      if (battery_MainRelayOn_flag) {
-        datalayer.system.status.battery_allows_contactor_closing = true;
-      } else {
-        datalayer.system.status.battery_allows_contactor_closing = false;
-      }
       battery_Full_CHARGE_flag = (bool)((rx_frame.data.u8[3] & 0x10) >> 4);
       battery_Interlock = (bool)((rx_frame.data.u8[3] & 0x08) >> 3);
       break;
@@ -1499,7 +1494,7 @@ void decodeChallengeData(unsigned int incomingChallenge, unsigned char* solvedCh
 void setup_battery(void) {  // Performs one time setup at startup
   strncpy(datalayer.system.info.battery_protocol, "Nissan LEAF battery", 63);
   datalayer.system.info.battery_protocol[63] = '\0';
-
+  datalayer.system.status.battery_allows_contactor_closing = true;
   datalayer.battery.info.number_of_cells = 96;
   datalayer.battery.info.max_design_voltage_dV = MAX_PACK_VOLTAGE_DV;
   datalayer.battery.info.min_design_voltage_dV = MIN_PACK_VOLTAGE_DV;
