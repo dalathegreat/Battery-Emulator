@@ -162,17 +162,12 @@ typedef struct {
 extern volatile CAN_Configuration can_config;
 extern volatile uint8_t AccessPointEnabled;
 extern const uint8_t wifi_channel;
-extern volatile float charger_setpoint_HV_VDC;
-extern volatile float charger_setpoint_HV_IDC;
-extern volatile float charger_setpoint_HV_IDC_END;
 extern volatile float CHARGER_SET_HV;
 extern volatile float CHARGER_MAX_HV;
 extern volatile float CHARGER_MIN_HV;
 extern volatile float CHARGER_MAX_POWER;
 extern volatile float CHARGER_MAX_A;
 extern volatile float CHARGER_END_A;
-extern bool charger_HV_enabled;
-extern bool charger_aux12V_enabled;
 
 #ifdef EQUIPMENT_STOP_BUTTON
 typedef enum { LATCHING_SWITCH = 0, MOMENTARY_SWITCH = 1 } STOP_BUTTON_BEHAVIOR;
