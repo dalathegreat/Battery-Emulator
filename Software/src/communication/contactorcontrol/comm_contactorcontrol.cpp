@@ -153,6 +153,7 @@ void handle_contactors() {
     set(PRECHARGE_PIN, OFF);
     set(NEGATIVE_CONTACTOR_PIN, OFF, PWM_OFF_DUTY);
     set(POSITIVE_CONTACTOR_PIN, OFF, PWM_OFF_DUTY);
+    datalayer.system.status.contactors_engaged = false;
 
     if (datalayer.system.status.battery_allows_contactor_closing &&
         datalayer.system.status.inverter_allows_contactor_closing && !datalayer.system.settings.equipment_stop_active) {
