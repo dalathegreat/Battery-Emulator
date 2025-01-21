@@ -149,6 +149,31 @@ typedef struct {
 } DATALAYER_BATTERY_TYPE;
 
 typedef struct {
+  /** Charger setpoint voltage */
+  float charger_setpoint_HV_VDC = 0;
+  /** Charger setpoint current */
+  float charger_setpoint_HV_IDC = 0;
+  /** Charger setpoint current at end of charge **/
+  float charger_setpoint_HV_IDC_END = 0;
+  /** Measured current from charger */
+  float charger_stat_HVcur = 0;
+  /** Measured HV from charger */
+  float charger_stat_HVvol = 0;
+  /** Measured AC current from charger **/
+  float charger_stat_ACcur = 0;
+  /** Measured AC voltage from charger **/
+  float charger_stat_ACvol = 0;
+  /** Measured LV current from charger **/
+  float charger_stat_LVcur = 0;
+  /** Measured LV voltage from charger **/
+  float charger_stat_LVvol = 0;
+  /** True if charger is enabled */
+  bool charger_HV_enabled = false;
+  /** True if the 12V DC/DC output is enabled */
+  bool charger_aux12V_enabled = false;
+} DATALAYER_CHARGER_TYPE;
+
+typedef struct {
   /** measured voltage in deciVolts. 4200 = 420.0 V */
   uint16_t measured_voltage_dV = 0;
   /** measured amperage in deciAmperes. 300 = 30.0 A */
@@ -264,6 +289,7 @@ class DataLayer {
   DATALAYER_BATTERY_TYPE battery;
   DATALAYER_BATTERY_TYPE battery2;
   DATALAYER_SHUNT_TYPE shunt;
+  DATALAYER_CHARGER_TYPE charger;
   DATALAYER_SYSTEM_TYPE system;
 };
 
