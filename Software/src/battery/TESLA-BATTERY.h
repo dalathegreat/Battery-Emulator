@@ -5,7 +5,6 @@
 #define BATTERY_SELECTED
 
 /* Modify these if needed */
-//#define LFP_CHEMISTRY // Enable this line to startup in LFP mode
 #define MAXCHARGEPOWERALLOWED 15000     // 15000W we use a define since the value supplied by Tesla is always 0
 #define MAXDISCHARGEPOWERALLOWED 60000  // 60000W we use a define since the value supplied by Tesla is always 0
 
