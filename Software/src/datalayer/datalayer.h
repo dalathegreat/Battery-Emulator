@@ -272,6 +272,8 @@ typedef struct {
   /** True if the contactor controlled by battery-emulator is closed. Determined by check_interconnect_available(); if voltage is OK */
   bool contactors_battery2_engaged = false;
 #endif
+  /** True if the BMS is being reset, by cutting power towards it */
+  bool BMS_reset_in_progress = false;
 } DATALAYER_SYSTEM_STATUS_TYPE;
 
 typedef struct {

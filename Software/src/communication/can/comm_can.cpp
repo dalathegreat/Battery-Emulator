@@ -105,9 +105,13 @@ void init_CAN() {
 // Transmit functions
 void transmit_can() {
   if (!allowed_to_send_CAN) {
-    return;
+    return;  //Global block of CAN messages
   }
-  transmit_can_battery();
+
+  if (!datalayer.system.status.BMS_reset_in_progress) {
+    //Transmitting towards battery is halted while BMS is being reset
+    transmit_can_battery();
+  }
 
 #ifdef CAN_INVERTER_SELECTED
   transmit_can_inverter();
