@@ -1064,9 +1064,19 @@ void handle_incoming_can_frame_battery(CAN_frame rx_frame) {
   }
 }
 void transmit_can_battery() {
-  if (battery_can_alive) {
 
-    unsigned long currentMillis = millis();
+  unsigned long currentMillis = millis();
+
+  if (datalayer.system.status.BMS_reset_in_progress) {
+    // Transmitting towards battery is halted while BMS is being reset
+    // Reset sending counters to avoid overrun messages when reset is over
+    previousMillis10 = currentMillis;
+    previousMillis100 = currentMillis;
+    previousMillis10s = currentMillis;
+    return;
+  }
+
+  if (battery_can_alive) {
 
     //Send 10ms message
     if (currentMillis - previousMillis10 >= INTERVAL_10_MS) {
