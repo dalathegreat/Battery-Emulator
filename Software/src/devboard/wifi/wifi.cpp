@@ -108,7 +108,7 @@ void wifi_monitor() {
 }
 
 // Function to force a full reconnect to Wi-Fi
-static void FullReconnectToWiFi() {
+void FullReconnectToWiFi() {
 
   // Increase the current reconnect interval if it's not at the maximum
   if (current_full_reconnect_interval + STEP_WIFI_FULL_RECONNECT_INTERVAL <= MAX_WIFI_FULL_RECONNECT_INTERVAL) {
@@ -120,7 +120,7 @@ static void FullReconnectToWiFi() {
 }
 
 // Function to handle Wi-Fi connection
-static void connectToWiFi() {
+void connectToWiFi() {
   if (WiFi.status() != WL_CONNECTED) {
     lastReconnectAttempt = millis();  // Reset the reconnect attempt timer
 #ifdef DEBUG_LOG
@@ -135,7 +135,7 @@ static void connectToWiFi() {
 }
 
 // Event handler for successful Wi-Fi connection
-static void onWifiConnect(WiFiEvent_t event, WiFiEventInfo_t info) {
+void onWifiConnect(WiFiEvent_t event, WiFiEventInfo_t info) {
   clear_event(EVENT_WIFI_DISCONNECT);
   set_event(EVENT_WIFI_CONNECT, 0);
   connected_once = true;
@@ -153,7 +153,7 @@ static void onWifiConnect(WiFiEvent_t event, WiFiEventInfo_t info) {
 }
 
 // Event handler for Wi-Fi Got IP
-static void onWifiGotIP(WiFiEvent_t event, WiFiEventInfo_t info) {
+void onWifiGotIP(WiFiEvent_t event, WiFiEventInfo_t info) {
   //clear disconnects events if we got a IP
   clear_event(EVENT_WIFI_DISCONNECT);
 #ifdef DEBUG_LOG
@@ -164,7 +164,7 @@ static void onWifiGotIP(WiFiEvent_t event, WiFiEventInfo_t info) {
 }
 
 // Event handler for Wi-Fi disconnection
-static void onWifiDisconnect(WiFiEvent_t event, WiFiEventInfo_t info) {
+void onWifiDisconnect(WiFiEvent_t event, WiFiEventInfo_t info) {
   if (connected_once)
     set_event(EVENT_WIFI_DISCONNECT, 0);
 #ifdef DEBUG_LOG

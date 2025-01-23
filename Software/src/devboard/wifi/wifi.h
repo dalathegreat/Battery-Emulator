@@ -17,11 +17,11 @@ extern const char* passwordAP;
 
 void init_WiFi();
 void wifi_monitor();
-static void connectToWiFi();
-static void FullReconnectToWiFi();
-static void onWifiConnect(WiFiEvent_t event, WiFiEventInfo_t info);
-static void onWifiDisconnect(WiFiEvent_t event, WiFiEventInfo_t info);
-static void onWifiGotIP(WiFiEvent_t event, WiFiEventInfo_t info);
+void connectToWiFi();
+void FullReconnectToWiFi();
+void onWifiConnect(WiFiEvent_t event, WiFiEventInfo_t info);
+void onWifiDisconnect(WiFiEvent_t event, WiFiEventInfo_t info);
+void onWifiGotIP(WiFiEvent_t event, WiFiEventInfo_t info);
 
 #ifdef WIFIAP
 void init_WiFi_AP();
