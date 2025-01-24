@@ -933,7 +933,7 @@ void transmit_can_battery() {
     transmit_can_frame(&KIA64_57F, can_config.battery);
     transmit_can_frame(&KIA64_2A1, can_config.battery);
 #ifdef DOUBLE_BATTERY
-    if (battery2_startedUp) {
+    if (battery2_startedUp && datalayer.system.status.battery2_allows_contactor_closing) {
       transmit_can_frame(&KIA64_553, can_config.battery_double);
       transmit_can_frame(&KIA64_57F, can_config.battery_double);
       transmit_can_frame(&KIA64_2A1, can_config.battery_double);
@@ -997,7 +997,7 @@ void transmit_can_battery() {
     transmit_can_frame(&KIA_HYUNDAI_524, can_config.battery);
 
 #ifdef DOUBLE_BATTERY
-    if (battery2_startedUp) {
+    if (battery2_startedUp && datalayer.system.status.battery2_allows_contactor_closing) {
       transmit_can_frame(&KIA_HYUNDAI_200, can_config.battery_double);
 
       transmit_can_frame(&KIA_HYUNDAI_523, can_config.battery_double);
