@@ -105,8 +105,9 @@ void init_CAN() {
 // Transmit functions
 void transmit_can() {
   if (!allowed_to_send_CAN) {
-    return;
+    return;  //Global block of CAN messages
   }
+
   transmit_can_battery();
 
 #ifdef CAN_INVERTER_SELECTED
