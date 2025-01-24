@@ -1183,8 +1183,8 @@ void update_values_battery() {  //This function maps all the values fetched via 
   logging.println(".");
 
   logging.printf("PCS_ambientTemp: %.2f°C, DCDC_Temp: %.2f°C, ChgPhA: %.2f°C, ChgPhB: %.2f°C, ChgPhC: %.2f°C",
-                 PCS_ambientTemp * 0.1 + 40, PCS_dcdcTemp * 0.1 + 40, PCS_chgPhATemp * 0.1 + 40, PCS_chgPhBTemp * 0.1 + 40,
-                 PCS_chgPhCTemp * 0.1 + 40);
+                 PCS_ambientTemp * 0.1 + 40, PCS_dcdcTemp * 0.1 + 40, PCS_chgPhATemp * 0.1 + 40,
+                 PCS_chgPhBTemp * 0.1 + 40, PCS_chgPhCTemp * 0.1 + 40);
   logging.println("");
 
   logging.println("Values passed to the inverter: ");
@@ -1456,11 +1456,14 @@ void handle_incoming_can_frame_battery(CAN_frame rx_frame) {
       BMS_pcsNoFlowRequest = ((rx_frame.data.u8[7] >> 6) & (0x01U));  // 62|1@1+ (1,0) [0|0] ""
       BMS_noFlowRequest = ((rx_frame.data.u8[7] >> 7) & (0x01U));     //63|1@1+ (1,0) [0|0] ""
       break;
-    case 0x2A4:  //676 PCS_thermalStatus
+    case 0x2A4:                                                                             //676 PCS_thermalStatus
       PCS_chgPhATemp = (rx_frame.data.u8[0] & 0xFF) | ((rx_frame.data.u8[1] & 0x07) << 8);  //0|11@1- (0.1,40) [0|0] "C"
-      PCS_chgPhBTemp = ((rx_frame.data.u8[1] & 0xF8) >> 3) | ((rx_frame.data.u8[2] & 0x3F) << 5);  //11|11@1- (0.1,40) [0|0] "C"
-      PCS_chgPhCTemp = ((rx_frame.data.u8[2] & 0xC0) >> 6) | (rx_frame.data.u8[3] << 2) | ((rx_frame.data.u8[4] & 0x01) << 10);  //22|11@1- (0.1,40) [0|0] "C"
-      PCS_dcdcTemp = ((rx_frame.data.u8[4] & 0xFE) >> 1) | ((rx_frame.data.u8[5] & 0x0F) << 7);  //33|11@1- (0.1,40) [0|0] "C"
+      PCS_chgPhBTemp =
+          ((rx_frame.data.u8[1] & 0xF8) >> 3) | ((rx_frame.data.u8[2] & 0x3F) << 5);  //11|11@1- (0.1,40) [0|0] "C"
+      PCS_chgPhCTemp = ((rx_frame.data.u8[2] & 0xC0) >> 6) | (rx_frame.data.u8[3] << 2) |
+                       ((rx_frame.data.u8[4] & 0x01) << 10);  //22|11@1- (0.1,40) [0|0] "C"
+      PCS_dcdcTemp =
+          ((rx_frame.data.u8[4] & 0xFE) >> 1) | ((rx_frame.data.u8[5] & 0x0F) << 7);       //33|11@1- (0.1,40) [0|0] "C"
       PCS_ambientTemp = ((rx_frame.data.u8[5] & 0xF0) >> 4) | (rx_frame.data.u8[6] << 4);  //44|11@1- (0.1,40) [0|0] "C"
       break;
     case 0x2C4:  // 708 PCS_logging: not all frames are listed, just ones relating to dcdc
