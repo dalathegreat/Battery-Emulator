@@ -827,6 +827,7 @@ static const char* hvilStatusState[] = {"NOT OK",
                                         "UNKNOWN(13)",
                                         "UNKNOWN(14)",
                                         "UNKNOWN(15)"};
+static const char* noYes[] = {"No", "Yes"};
 
 void clearIsolationFault() {
   //CAN UDS messages to clear a latched isolation fault
@@ -1144,9 +1145,9 @@ void update_values_battery() {  //This function maps all the values fetched via 
   logging.print(", setState: ");
   logging.print(contactorState[battery_packContactorSetState]);
   logging.print(", close allowed: ");
-  logging.print(battery_packCtrsClosingAllowed);
+  logging.print(noYes[battery_packCtrsClosingAllowed]);
   logging.print(", Pyrotest: ");
-  logging.println(battery_pyroTestInProgress);
+  logging.println(noYes[battery_pyroTestInProgress]);
 
   logging.print("Battery values: ");
   logging.print("Real SOC: ");
@@ -1174,11 +1175,16 @@ void update_values_battery() {  //This function maps all the values fetched via 
   logging.print(battery_cell_deviation_mV);
   logging.println("mV.");
 
-  print_int_with_units("High Voltage Output Pins: ", battery_dcdcHvBusVolt, "V");
+  logging.printf("High Voltage Output Pins: %.2f V", (battery_dcdcHvBusVolt * 0.146484));
   logging.print(", ");
-  print_int_with_units("Low Voltage: ", battery_dcdcLvBusVolt, "V");
-  logging.println("");
-  print_int_with_units("DC/DC 12V current: ", battery_dcdcLvOutputCurrent, "A");
+  logging.printf("Low Voltage: %.2f V", (battery_dcdcLvBusVolt * 0.0390625));
+  logging.print(", ");
+  logging.printf("DC/DC 12V current: %.2f A", (battery_dcdcLvOutputCurrent * 0.1));
+  logging.println(".");
+
+  logging.printf("PCS_ambientTemp: %.2f°C, DCDC_Temp: %.2f°C, ChgPhA: %.2f°C, ChgPhB: %.2f°C, ChgPhC: %.2f°C",
+                 PCS_ambientTemp * 0.1 + 40, PCS_dcdcTemp * 0.1 + 40, PCS_chgPhATemp * 0.1 + 40, PCS_chgPhBTemp * 0.1 + 40,
+                 PCS_chgPhCTemp * 0.1 + 40);
   logging.println("");
 
   logging.println("Values passed to the inverter: ");
@@ -1230,6 +1236,7 @@ void handle_incoming_can_frame_battery(CAN_frame rx_frame) {
       if (mux0_read && mux1_read) {
         mux0_read = false;
         mux1_read = false;
+        BMS352_mux = true;  //Set flag to true
       }
       // older BMS <2021 without mux
       battery_nominal_full_pack_energy =  //BMS_nominalFullPackEnergy : 0|11@1+ (0.1,0) [0|204.6] "KWh" //((_d[1] & (0x07U)) << 8) | (_d[0] & (0xFFU));
@@ -1450,16 +1457,11 @@ void handle_incoming_can_frame_battery(CAN_frame rx_frame) {
       BMS_noFlowRequest = ((rx_frame.data.u8[7] >> 7) & (0x01U));     //63|1@1+ (1,0) [0|0] ""
       break;
     case 0x2A4:  //676 PCS_thermalStatus
-      PCS_chgPhATemp =
-          (((rx_frame.data.u8[1] & 0x07) << 8) | (rx_frame.data.u8[0] & 0xFF));  //0|11@1- (0.1,40) [0|0] "C"
-      PCS_chgPhBTemp =
-          (((rx_frame.data.u8[2] & 0x3F) << 5) | ((rx_frame.data.u8[1] >> 3) & 0x1F));  //11|11@1- (0.1,40) [0|0] "C"
-      PCS_chgPhCTemp = (((rx_frame.data.u8[2] & 0xC0) >> 6) | ((rx_frame.data.u8[3] & 0xFF) << 2) |
-                        ((rx_frame.data.u8[4] & 0x03) << 10));  //22|11@1- (0.1,40) [0|0] "C"
-      PCS_dcdcTemp =
-          (((rx_frame.data.u8[4] >> 1) & 0x1F) | ((rx_frame.data.u8[5] & 0x3F) << 5));  //33|11@1- (0.1,40) [0|0] "C"
-      PCS_ambientTemp =
-          (((rx_frame.data.u8[7] & 0x07) << 8) | (rx_frame.data.u8[6] & 0xFF));  //44|11@1- (0.1,40) [0|0] "C"
+      PCS_chgPhATemp = (rx_frame.data.u8[0] & 0xFF) | ((rx_frame.data.u8[1] & 0x07) << 8);  //0|11@1- (0.1,40) [0|0] "C"
+      PCS_chgPhBTemp = ((rx_frame.data.u8[1] & 0xF8) >> 3) | ((rx_frame.data.u8[2] & 0x3F) << 5);  //11|11@1- (0.1,40) [0|0] "C"
+      PCS_chgPhCTemp = ((rx_frame.data.u8[2] & 0xC0) >> 6) | (rx_frame.data.u8[3] << 2) | ((rx_frame.data.u8[4] & 0x01) << 10);  //22|11@1- (0.1,40) [0|0] "C"
+      PCS_dcdcTemp = ((rx_frame.data.u8[4] & 0xFE) >> 1) | ((rx_frame.data.u8[5] & 0x0F) << 7);  //33|11@1- (0.1,40) [0|0] "C"
+      PCS_ambientTemp = ((rx_frame.data.u8[5] & 0xF0) >> 4) | (rx_frame.data.u8[6] << 4);  //44|11@1- (0.1,40) [0|0] "C"
       break;
     case 0x2C4:  // 708 PCS_logging: not all frames are listed, just ones relating to dcdc
       mux = (rx_frame.data.u8[0] & (0x1FU));

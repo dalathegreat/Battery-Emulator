@@ -714,11 +714,11 @@ String advanced_battery_processor(const String& var) {
     //content += "<h4>Brick Model Temp Max: " + String(BrickModelTMax) + " C</h4>";// Not giving useable data
     //content += "<h4>Brick Model Temp Min: " + String(BrickModelTMin) + " C</h4>";// Not giving useable data
     //0x2A4 676 PCS_thermalStatus
-    content += "<h4>PCS dcdc Temp: " + String(PCS_dcdcTemp, 2) + " DegC</h4>";
-    content += "<h4>PCS Ambient Temp: " + String(PCS_ambientTemp, 2) + " DegC</h4>";
-    content += "<h4>PCS Chg PhA Temp: " + String(PCS_chgPhATemp, 2) + " DegC</h4>";
-    content += "<h4>PCS Chg PhB Temp: " + String(PCS_chgPhBTemp, 2) + " DegC</h4>";
-    content += "<h4>PCS Chg PhC Temp: " + String(PCS_chgPhCTemp, 2) + " DegC</h4>";
+    content += "<h4>PCS dcdc Temp: " + String(PCS_dcdcTemp,) + " DegC</h4>";
+    content += "<h4>PCS Ambient Temp: " + String(PCS_ambientTemp,) + " DegC</h4>";
+    content += "<h4>PCS Chg PhA Temp: " + String(PCS_chgPhATemp,) + " DegC</h4>";
+    content += "<h4>PCS Chg PhB Temp: " + String(PCS_chgPhBTemp,) + " DegC</h4>";
+    content += "<h4>PCS Chg PhC Temp: " + String(PCS_chgPhCTemp,) + " DegC</h4>";
     //0x252 594 BMS_powerAvailable
     content += "<h4>Max Regen Power: " + String(BMS_maxRegenPower) + " KW</h4>";
     content += "<h4>Max Discharge Power: " + String(BMS_maxDischargePower) + " KW</h4>";
