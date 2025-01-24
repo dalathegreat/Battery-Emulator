@@ -237,7 +237,7 @@ void update_machineryprotection() {
     }
 
     if (soh_diff_pptt > MAX_SOH_DEVIATION_PPTT) {
-      set_event(EVENT_SOH_DIFFERENCE, MAX_SOH_DEVIATION_PPTT);
+      set_event(EVENT_SOH_DIFFERENCE, (uint8_t)(MAX_SOH_DEVIATION_PPTT / 100));
     } else {
       clear_event(EVENT_SOH_DIFFERENCE);
     }
