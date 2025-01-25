@@ -147,8 +147,8 @@ void update_values_can_inverter() {  //This function maps all the values fetched
   SOLAX_1873.data.u8[3] = (datalayer.battery.status.current_dA >> 8);
   SOLAX_1873.data.u8[4] = (uint8_t)(datalayer.battery.status.reported_soc / 100);  //SOC (100.00%)
   //SOLAX_1873.data.u8[5] = //Seems like this is not required? Or shall we put SOC decimals here?
-  SOLAX_1873.data.u8[6] = (uint8_t)(capped_capacity_Wh / 10);
-  SOLAX_1873.data.u8[7] = ((capped_capacity_Wh / 10) >> 8);
+  SOLAX_1873.data.u8[6] = (uint8_t)(capped_remaining_capacity_Wh / 10);
+  SOLAX_1873.data.u8[7] = ((capped_remaining_capacity_Wh / 10) >> 8);
 
   //BMS_CellData
   SOLAX_1874.data.u8[0] = (int8_t)datalayer.battery.status.temperature_max_dC;
@@ -198,10 +198,10 @@ void update_values_can_inverter() {  //This function maps all the values fetched
   SOLAX_1801.data.u8[4] = 1;
 
   //Ultra messages
-  SOLAX_187E.data.u8[0] = (uint8_t)datalayer.battery.info.total_capacity_Wh;
-  SOLAX_187E.data.u8[1] = (datalayer.battery.info.total_capacity_Wh >> 8);
-  SOLAX_187E.data.u8[2] = (datalayer.battery.info.total_capacity_Wh >> 16);
-  SOLAX_187E.data.u8[3] = (datalayer.battery.info.total_capacity_Wh >> 24);
+  SOLAX_187E.data.u8[0] = (uint8_t)datalayer.battery.info.reported_remaining_capacity_Wh;
+  SOLAX_187E.data.u8[1] = (datalayer.battery.info.reported_remaining_capacity_Wh >> 8);
+  SOLAX_187E.data.u8[2] = (datalayer.battery.info.reported_remaining_capacity_Wh >> 16);
+  SOLAX_187E.data.u8[3] = (datalayer.battery.info.reported_remaining_capacity_Wh >> 24);
   SOLAX_187E.data.u8[5] = (uint8_t)(datalayer.battery.status.reported_soc / 100);
 }
 
