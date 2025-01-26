@@ -587,348 +587,87 @@ String advanced_battery_processor(const String& var) {
     float HVP_shuntBarTempDbg = static_cast<float>(datalayer_extended.tesla.HVP_shuntBarTempDbg) * 0.01;
     float HVP_shuntAsicTempDbg = static_cast<float>(datalayer_extended.tesla.HVP_shuntAsicTempDbg) * 0.01;
 
-    // Function definitions
-    inline const char* getContactorText(int index) {
-      switch (index) {
-        case 0:
-          return "UNKNOWN(0)";
-        case 1:
-          return "OPEN";
-        case 2:
-          return "CLOSING";
-        case 3:
-          return "BLOCKED";
-        case 4:
-          return "OPENING";
-        case 5:
-          return "CLOSED";
-        case 6:
-          return "UNKNOWN(6)";
-        case 7:
-          return "WELDED";
-        case 8:
-          return "POS_CL";
-        case 9:
-          return "NEG_CL";
-        case 10:
-          return "UNKNOWN(10)";
-        case 11:
-          return "UNKNOWN(11)";
-        case 12:
-          return "UNKNOWN(12)";
-        default:
-          return "UNKNOWN";
-      }
-    }
-
-    inline const char* getContactorState(int index) {
-      switch (index) {
-        case 0:
-          return "SNA";
-        case 1:
-          return "OPEN";
-        case 2:
-          return "PRECHARGE";
-        case 3:
-          return "BLOCKED";
-        case 4:
-          return "PULLED_IN";
-        case 5:
-          return "OPENING";
-        case 6:
-          return "ECONOMIZED";
-        case 7:
-          return "WELDED";
-        case 8:
-          return "UNKNOWN(8)";
-        case 9:
-          return "UNKNOWN(9)";
-        case 10:
-          return "UNKNOWN(10)";
-        case 11:
-          return "UNKNOWN(11)";
-        default:
-          return "UNKNOWN";
-      }
-    }
-
-    inline const char* getHvilStatusState(int index) {
-      switch (index) {
-        case 0:
-          return "NOT OK";
-        case 1:
-          return "STATUS_OK";
-        case 2:
-          return "CURRENT_SOURCE_FAULT";
-        case 3:
-          return "INTERNAL_OPEN_FAULT";
-        case 4:
-          return "VEHICLE_OPEN_FAULT";
-        case 5:
-          return "PENTHOUSE_LID_OPEN_FAULT";
-        case 6:
-          return "UNKNOWN_LOCATION_OPEN_FAULT";
-        case 7:
-          return "VEHICLE_NODE_FAULT";
-        case 8:
-          return "NO_12V_SUPPLY";
-        case 9:
-          return "VEHICLE_OR_PENTHOUSE_LID_OPENFAULT";
-        case 10:
-          return "UNKNOWN(10)";
-        case 11:
-          return "UNKNOWN(11)";
-        case 12:
-          return "UNKNOWN(12)";
-        case 13:
-          return "UNKNOWN(13)";
-        case 14:
-          return "UNKNOWN(14)";
-        case 15:
-          return "UNKNOWN(15)";
-        default:
-          return "UNKNOWN";
-      }
-    }
-
-    inline const char* getBMSState(int index) {
-      switch (index) {
-        case 0:
-          return "STANDBY";
-        case 1:
-          return "DRIVE";
-        case 2:
-          return "SUPPORT";
-        case 3:
-          return "CHARGE";
-        case 4:
-          return "FEIM";
-        case 5:
-          return "CLEAR_FAULT";
-        case 6:
-          return "FAULT";
-        case 7:
-          return "WELD";
-        case 8:
-          return "TEST";
-        case 9:
-          return "SNA";
-        default:
-          return "UNKNOWN";
-      }
-    }
-
-    inline const char* getBMSContactorState(int index) {
-      switch (index) {
-        case 0:
-          return "SNA";
-        case 1:
-          return "OPEN";
-        case 2:
-          return "OPENING";
-        case 3:
-          return "CLOSING";
-        case 4:
-          return "CLOSED";
-        case 5:
-          return "WELDED";
-        case 6:
-          return "BLOCKED";
-        default:
-          return "UNKNOWN";
-      }
-    }
-
-    inline const char* getBMSHvState(int index) {
-      switch (index) {
-        case 0:
-          return "DOWN";
-        case 1:
-          return "COMING_UP";
-        case 2:
-          return "GOING_DOWN";
-        case 3:
-          return "UP_FOR_DRIVE";
-        case 4:
-          return "UP_FOR_CHARGE";
-        case 5:
-          return "UP_FOR_DC_CHARGE";
-        case 6:
-          return "UP";
-        default:
-          return "UNKNOWN";
-      }
-    }
-
-    inline const char* getBMSUiChargeStatus(int index) {
-      switch (index) {
-        case 0:
-          return "DISCONNECTED";
-        case 1:
-          return "NO_POWER";
-        case 2:
-          return "ABOUT_TO_CHARGE";
-        case 3:
-          return "CHARGING";
-        case 4:
-          return "CHARGE_COMPLETE";
-        case 5:
-          return "CHARGE_STOPPED";
-        default:
-          return "UNKNOWN";
-      }
-    }
-
-    inline const char* getPCS_DcdcStatus(int index) {
-      switch (index) {
-        case 0:
-          return "IDLE";
-        case 1:
-          return "ACTIVE";
-        case 2:
-          return "FAULTED";
-        default:
-          return "UNKNOWN";
-      }
-    }
-
-    inline const char* getPCS_DcdcMainState(int index) {
-      switch (index) {
-        case 0:
-          return "STANDBY";
-        case 1:
-          return "12V_SUPPORT_ACTIVE";
-        case 2:
-          return "PRECHARGE_STARTUP";
-        case 3:
-          return "PRECHARGE_ACTIVE";
-        case 4:
-          return "DIS_HVBUS_ACTIVE";
-        case 5:
-          return "SHUTDOWN";
-        case 6:
-          return "FAULTED";
-        default:
-          return "UNKNOWN";
-      }
-    }
-
-    inline const char* getPCS_DcdcSubState(int index) {
-      switch (index) {
-        case 0:
-          return "PWR_UP_INIT";
-        case 1:
-          return "STANDBY";
-        case 2:
-          return "12V_SUPPORT_ACTIVE";
-        case 3:
-          return "DIS_HVBUS";
-        case 4:
-          return "PCHG_FAST_DIS_HVBUS";
-        case 5:
-          return "PCHG_SLOW_DIS_HVBUS";
-        case 6:
-          return "PCHG_DWELL_CHARGE";
-        case 7:
-          return "PCHG_DWELL_WAIT";
-        case 8:
-          return "PCHG_DI_RECOVERY_WAIT";
-        case 9:
-          return "PCHG_ACTIVE";
-        case 10:
-          return "PCHG_FLT_FAST_DIS_HVBUS";
-        case 11:
-          return "SHUTDOWN";
-        case 12:
-          return "12V_SUPPORT_FAULTED";
-        case 13:
-          return "DIS_HVBUS_FAULTED";
-        case 14:
-          return "PCHG_FAULTED";
-        case 15:
-          return "CLEAR_FAULTS";
-        case 16:
-          return "FAULTED";
-        case 17:
-          return "NUM";
-        default:
-          return "UNKNOWN";
-      }
-    }
-
-    inline const char* getBMSPowerLimitState(int index) {
-      switch (index) {
-        case 0:
-          return "NOT_CALCULATED_FOR_DRIVE";
-        case 1:
-          return "CALCULATED_FOR_DRIVE";
-        default:
-          return "UNKNOWN";
-      }
-    }
-
-    inline const char* getHVPStatus(int index) {
-      switch (index) {
-        case 0:
-          return "INVALID";
-        case 1:
-          return "NOT_AVAILABLE";
-        case 2:
-          return "STALE";
-        case 3:
-          return "VALID";
-        default:
-          return "UNKNOWN";
-      }
-    }
-
-    inline const char* getHVPContactor(int index) {
-      switch (index) {
-        case 0:
-          return "NOT_ACTIVE";
-        case 1:
-          return "ACTIVE";
-        case 2:
-          return "COMPLETED";
-        default:
-          return "UNKNOWN";
-      }
-    }
-
-    inline const char* getFalseTrue(bool value) {
-      return value ? "True" : "False";
-    }
-
-    inline const char* getNoYes(bool value) {
-      return value ? "Yes" : "No";
-    }
-
-    inline const char* getFault(bool value) {
-      return value ? "ACTIVE" : "NOT_ACTIVE";
-    }
+    static const char* contactorText[] = {"UNKNOWN(0)",  "OPEN",        "CLOSING",    "BLOCKED", "OPENING",
+                                          "CLOSED",      "UNKNOWN(6)",  "WELDED",     "POS_CL",  "NEG_CL",
+                                          "UNKNOWN(10)", "UNKNOWN(11)", "UNKNOWN(12)"};
+    static const char* hvilStatusState[] = {"NOT Ok",
+                                            "STATUS_OK",
+                                            "CURRENT_SOURCE_FAULT",
+                                            "INTERNAL_OPEN_FAULT",
+                                            "VEHICLE_OPEN_FAULT",
+                                            "PENTHOUSE_LID_OPEN_FAULT",
+                                            "UNKNOWN_LOCATION_OPEN_FAULT",
+                                            "VEHICLE_NODE_FAULT",
+                                            "NO_12V_SUPPLY",
+                                            "VEHICLE_OR_PENTHOUSE_LID_OPENFAULT",
+                                            "UNKNOWN(10)",
+                                            "UNKNOWN(11)",
+                                            "UNKNOWN(12)",
+                                            "UNKNOWN(13)",
+                                            "UNKNOWN(14)",
+                                            "UNKNOWN(15)"};
+    static const char* contactorState[] = {"SNA",        "OPEN",       "PRECHARGE",   "BLOCKED",
+                                           "PULLED_IN",  "OPENING",    "ECONOMIZED",  "WELDED",
+                                           "UNKNOWN(8)", "UNKNOWN(9)", "UNKNOWN(10)", "UNKNOWN(11)"};
+    static const char* BMS_state[] = {"STANDBY",     "DRIVE", "SUPPORT", "CHARGE", "FEIM",
+                                      "CLEAR_FAULT", "FAULT", "WELD",    "TEST",   "SNA"};
+    static const char* BMS_contactorState[] = {"SNA", "OPEN", "OPENING", "CLOSING", "CLOSED", "WELDED", "BLOCKED"};
+    static const char* BMS_hvState[] = {"DOWN",          "COMING_UP",        "GOING_DOWN", "UP_FOR_DRIVE",
+                                        "UP_FOR_CHARGE", "UP_FOR_DC_CHARGE", "UP"};
+    static const char* BMS_uiChargeStatus[] = {"DISCONNECTED", "NO_POWER",        "ABOUT_TO_CHARGE",
+                                               "CHARGING",     "CHARGE_COMPLETE", "CHARGE_STOPPED"};
+    static const char* PCS_dcdcStatus[] = {"IDLE", "ACTIVE", "FAULTED"};
+    static const char* PCS_dcdcMainState[] = {"STANDBY",          "12V_SUPPORT_ACTIVE", "PRECHARGE_STARTUP",
+                                              "PRECHARGE_ACTIVE", "DIS_HVBUS_ACTIVE",   "SHUTDOWN",
+                                              "FAULTED"};
+    static const char* PCS_dcdcSubState[] = {"PWR_UP_INIT",
+                                             "STANDBY",
+                                             "12V_SUPPORT_ACTIVE",
+                                             "DIS_HVBUS",
+                                             "PCHG_FAST_DIS_HVBUS",
+                                             "PCHG_SLOW_DIS_HVBUS",
+                                             "PCHG_DWELL_CHARGE",
+                                             "PCHG_DWELL_WAIT",
+                                             "PCHG_DI_RECOVERY_WAIT",
+                                             "PCHG_ACTIVE",
+                                             "PCHG_FLT_FAST_DIS_HVBUS",
+                                             "SHUTDOWN",
+                                             "12V_SUPPORT_FAULTED",
+                                             "DIS_HVBUS_FAULTED",
+                                             "PCHG_FAULTED",
+                                             "CLEAR_FAULTS",
+                                             "FAULTED",
+                                             "NUM"};
+    static const char* BMS_powerLimitState[] = {"NOT_CALCULATED_FOR_DRIVE", "CALCULATED_FOR_DRIVE"};
+    static const char* HVP_status[] = {"INVALID", "NOT_AVAILABLE", "STALE", "VALID"};
+    static const char* HVP_contactor[] = {"NOT_ACTIVE", "ACTIVE", "COMPLETED"};
+    static const char* falseTrue[] = {"False", "True"};
+    static const char* noYes[] = {"No", "Yes"};
+    static const char* Fault[] = {"NOT_ACTIVE", "ACTIVE"};
 
     //Buttons for user action
     content += "<button onclick='askClearIsolation()'>Clear isolation fault</button>";
     //0x20A 522 HVP_contatorState
-    content += "<h4>Contactor Status: " + String(getContactorText(datalayer_extended.tesla.status_contactor)) + "</h4>";
-    content += "<h4>HVIL: " + String(getHvilStatusState(datalayer_extended.tesla.hvil_status)) + "</h4>";
-    content += "<h4>Negative contactor: " + String(getContactorState(datalayer_extended.tesla.packContNegativeState)) +
-               "</h4>";
-    content += "<h4>Positive contactor: " + String(getContactorState(datalayer_extended.tesla.packContPositiveState)) +
-               "</h4>";
-    content += "<h4>Closing allowed?: " + String(getNoYes(datalayer_extended.tesla.packCtrsClosingAllowed)) + "</h4>";
-    content += "<h4>Pyrotest in Progress: " + String(getNoYes(datalayer_extended.tesla.pyroTestInProgress)) + "</h4>";
-    content += "<h4>Contactors Open Now Requested: " +
-               String(getNoYes(datalayer_extended.tesla.battery_packCtrsOpenNowRequested)) + "</h4>";
+    content += "<h4>Contactor Status: " + String(contactorText[datalayer_extended.tesla.status_contactor]) + "</h4>";
+    content += "<h4>HVIL: " + String(hvilStatusState[datalayer_extended.tesla.hvil_status]) + "</h4>";
     content +=
-        "<h4>Contactors Open Requested: " + String(getNoYes(datalayer_extended.tesla.battery_packCtrsOpenRequested)) +
+        "<h4>Negative contactor: " + String(contactorState[datalayer_extended.tesla.packContNegativeState]) + "</h4>";
+    content +=
+        "<h4>Positive contactor: " + String(contactorState[datalayer_extended.tesla.packContPositiveState]) + "</h4>";
+    content += "<h4>Closing allowed?: " + String(noYes[datalayer_extended.tesla.packCtrsClosingAllowed]) + "</h4>";
+    content += "<h4>Pyrotest in Progress: " + String(noYes[datalayer_extended.tesla.pyroTestInProgress]) + "</h4>";
+    content += "<h4>Contactors Open Now Requested: " +
+               String(noYes[datalayer_extended.tesla.battery_packCtrsOpenNowRequested]) + "</h4>";
+    content +=
+        "<h4>Contactors Open Requested: " + String(noYes[datalayer_extended.tesla.battery_packCtrsOpenRequested]) +
         "</h4>";
     content += "<h4>Contactors Request Status: " +
-               String(getHVP_contactor(datalayer_extended.tesla.battery_packCtrsRequestStatus)) + "</h4>";
+               String(HVP_contactor[datalayer_extended.tesla.battery_packCtrsRequestStatus]) + "</h4>";
     content += "<h4>Contactors Reset Request Required: " +
-               String(getNoYes(datalayer_extended.tesla.battery_packCtrsResetRequestRequired)) + "</h4>";
-    content += "<h4>DC Link Allowed to Energize: " +
-               String(getNoYes(datalayer_extended.tesla.battery_dcLinkAllowedToEnergize)) + "</h4>";
+               String(noYes[datalayer_extended.tesla.battery_packCtrsResetRequestRequired]) + "</h4>";
+    content +=
+        "<h4>DC Link Allowed to Energize: " + String(noYes[datalayer_extended.tesla.battery_dcLinkAllowedToEnergize]) +
+        "</h4>";
     char readableSerialNumber[15];  // One extra space for null terminator
     memcpy(readableSerialNumber, datalayer_extended.tesla.BMS_SerialNumber,
            sizeof(datalayer_extended.tesla.BMS_SerialNumber));
@@ -944,9 +683,8 @@ String advanced_battery_processor(const String& var) {
       content += "<h4>Ideal Energy Remaining: " + String(ideal_energy_remaining) + " KWh</h4>";
       content += "<h4>Energy to Charge Complete: " + String(energy_to_charge_complete) + " KWh</h4>";
       content += "<h4>Energy Buffer: " + String(energy_buffer) + " KWh</h4>";
-      content +=
-          "<h4>Full Charge Complete: " + String(getNoYes(datalayer_extended.tesla.battery_full_charge_complete)) +
-          "</h4>";  //bool
+      content += "<h4>Full Charge Complete: " + String(noYes[datalayer_extended.tesla.battery_full_charge_complete]) +
+                 "</h4>";  //bool
     }
     //0x352 850 BMS_energyStatus
     if (datalayer_extended.tesla.BMS352_mux == true) {
@@ -958,7 +696,7 @@ String advanced_battery_processor(const String& var) {
       content += "<h4>Energy to Charge Complete: " + String(energy_to_charge_complete_m1) + " KWh</h4>";
       content += "<h4>Energy Buffer: " + String(energy_buffer_m1) + " KWh</h4>";
       content += "<h4>Expected Energy Remaining: " + String(expected_energy_remaining_m1) + " KWh</h4>";
-      content += "<h4>Fully Charged: " + String(getNoYes(datalayer_extended.tesla.battery_fully_charged)) + "</h4>";
+      content += "<h4>Fully Charged: " + String(noYes[datalayer_extended.tesla.battery_fully_charged]) + "</h4>";
     }
     //0x3D2 978 BMS_kwhCounter
     content += "<h4>Total Discharge: " + String(total_discharge) + " KWh</h4>";
@@ -1004,19 +742,20 @@ String advanced_battery_processor(const String& var) {
     //content += "<h4>Max Stationary Heat Power: " + String(BMS_maxStationaryHeatPower) + " KWh</h4>"; // Not giving useable data
     //content += "<h4>HVAC Power Budget: " + String(BMS_hvacPowerBudget) + " KW</h4>"; // Not giving useable data
     //content += "<h4>Not Enough Power For Heat Pump: " + String(getNoYes[datalayer_extended.tesla.BMS_notEnoughPowerForHeatPump]) + "</h4>"; // Not giving useable data
-    content += "<h4>Power Limit State: " + String(getBMSPowerLimitState(datalayer_extended.tesla.BMS_powerLimitState)) +
-               "</h4>";
+    content +=
+        "<h4>Power Limit State: " + String(BMS_powerLimitState[datalayer_extended.tesla.BMS_powerLimitState]) + "</h4>";
     //content += "<h4>Inverter TQF: " + String(datalayer_extended.tesla.BMS_inverterTQF) + "</h4>"; // Not giving useable data
     //0x212 530 BMS_status
     content += "<h4>Isolation Resistance: " + String(isolationResistance) + " kOhms</h4>";
-    content += "<h4>BMS Contactor State: " +
-               String(getBMSContactorState(datalayer_extended.tesla.battery_BMS_contactorState)) + "</h4>";
-    content += "<h4>BMS State: " + String(getBMSState(datalayer_extended.tesla.battery_BMS_state)) + "</h4>";
-    content += "<h4>BMS HV State: " + String(getBMSHvState(datalayer_extended.tesla.battery_BMS_hvState)) + "</h4>";
-    content += "<h4>BMS UI Charge Status: " +
-               String(getBMSUiChargeStatus(datalayer_extended.tesla.battery_BMS_uiChargeStatus)) + "</h4>";
     content +=
-        "<h4>BMS PCS PWM Enabled: " + String(getNoYes(datalayer_extended.tesla.battery_BMS_pcsPwmEnabled)) + "</h4>";
+        "<h4>BMS Contactor State: " + String(BMS_contactorState[datalayer_extended.tesla.battery_BMS_contactorState]) +
+        "</h4>";
+    content += "<h4>BMS State: " + String(BMS_state[datalayer_extended.tesla.battery_BMS_state]) + "</h4>";
+    content += "<h4>BMS HV State: " + String(BMS_hvState[datalayer_extended.tesla.battery_BMS_hvState]) + "</h4>";
+    content += "<h4>BMS UI Charge Status: " + String(BMS_uiChargeStatus[datalayer_extended.tesla.battery_BMS_hvState]) +
+               "</h4>";
+    content +=
+        "<h4>BMS PCS PWM Enabled: " + String(Fault[datalayer_extended.tesla.battery_BMS_pcsPwmEnabled]) + "</h4>";
     //0x312 786 BMS_thermalStatus
     content += "<h4>Power Dissipation: " + String(BMS_powerDissipation) + " kW</h4>";
     content += "<h4>Flow Request: " + String(BMS_flowRequest) + " LPM</h4>";
@@ -1025,36 +764,40 @@ String advanced_battery_processor(const String& var) {
     content += "<h4>Inlet Active Heat Target Temp: " + String(BMS_inletActiveHeatTargetT) + " DegC</h4>";
     content += "<h4>Pack Temp Min: " + String(BMS_packTMin) + " DegC</h4>";
     content += "<h4>Pack Temp Max: " + String(BMS_packTMax) + " DegC</h4>";
-    content += "<h4>PCS No Flow Request: " + String(getNoYes(datalayer_extended.tesla.BMS_pcsNoFlowRequest)) + "</h4>";
-    content += "<h4>BMS No Flow Request: " + String(getNoYes(datalayer_extended.tesla.BMS_noFlowRequest)) + "</h4>";
+    content += "<h4>PCS No Flow Request: " + String(Fault[datalayer_extended.tesla.BMS_pcsNoFlowRequest]) + "</h4>";
+    content += "<h4>BMS No Flow Request: " + String(Fault[datalayer_extended.tesla.BMS_noFlowRequest]) + "</h4>";
     //0x224 548 PCS_dcdcStatus
     content +=
-        "<h4>Precharge Status: " + String(getPCS_DcdcStatus(datalayer_extended.tesla.battery_PCS_dcdcPrechargeStatus)) +
+        "<h4>Precharge Status: " + String(PCS_dcdcStatus[datalayer_extended.tesla.battery_PCS_dcdcPrechargeStatus]) +
         "</h4>";
-    content += "<h4>12V Support Status: " +
-               String(getPCS_DcdcStatus(datalayer_extended.tesla.battery_PCS_dcdc12VSupportStatus)) + "</h4>";
+    content +=
+        "<h4>12V Support Status: " + String(PCS_dcdcStatus[datalayer_extended.tesla.battery_PCS_dcdc12VSupportStatus]) +
+        "</h4>";
     content += "<h4>HV Bus Discharge Status: " +
-               String(getPCS_DcdcStatus(datalayer_extended.tesla.battery_PCS_dcdcHvBusDischargeStatus)) + "</h4>";
+               String(PCS_dcdcStatus[datalayer_extended.tesla.battery_PCS_dcdcHvBusDischargeStatus]) + "</h4>";
     content +=
-        "<h4>Main State: " + String(getPCS_dcdcMainState(datalayer_extended.tesla.battery_PCS_dcdcMainState)) + "</h4>";
+        "<h4>Main State: " + String(PCS_dcdcMainState[datalayer_extended.tesla.battery_PCS_dcdcMainState]) + "</h4>";
     content +=
-        "<h4>Sub State: " + String(getPCS_dcdcSubState(datalayer_extended.tesla.battery_PCS_dcdcSubState)) + "</h4>";
-    content += "<h4>PCS Faulted: " + String(getFault(datalayer_extended.tesla.battery_PCS_dcdcFaulted)) + "</h4>";
-    content += "<h4>Output Is Limited: " + String(getFault(datalayer_extended.tesla.battery_PCS_dcdcOutputIsLimited)) +
-               "</h4>";
+        "<h4>Sub State: " + String(PCS_dcdcSubState[datalayer_extended.tesla.battery_PCS_dcdcSubState]) + "</h4>";
+    content += "<h4>PCS Faulted: " + String(Fault[datalayer_extended.tesla.battery_PCS_dcdcFaulted]) + "</h4>";
+    content +=
+        "<h4>Output Is Limited: " + String(Fault[datalayer_extended.tesla.battery_PCS_dcdcOutputIsLimited]) + "</h4>";
     content += "<h4>Max Output Current Allowed: " + String(PCS_dcdcMaxOutputCurrentAllowed) + " A</h4>";
-    content += "<h4>Precharge Retry Cnt: " + String(datalayer_extended.tesla.battery_PCS_dcdcPrechargeRtyCnt) + "</h4>";
+    content += "<h4>Precharge Rty Cnt: " + String(falseTrue[datalayer_extended.tesla.battery_PCS_dcdcPrechargeRtyCnt]) +
+               "</h4>";
     content +=
-        "<h4>12V Support Retry Cnt: " + String(datalayer_extended.tesla.battery_PCS_dcdc12VSupportRtyCnt) + "</h4>";
-    content += "<h4>Discharge Retry Cnt: " + String(datalayer_extended.tesla.battery_PCS_dcdcDischargeRtyCnt) + "</h4>";
+        "<h4>12V Support Rty Cnt: " + String(falseTrue[datalayer_extended.tesla.battery_PCS_dcdc12VSupportRtyCnt]) +
+        "</h4>";
+    content += "<h4>Discharge Rty Cnt: " + String(falseTrue[datalayer_extended.tesla.battery_PCS_dcdcDischargeRtyCnt]) +
+               "</h4>";
     content +=
-        "<h4>PWM Enable Line: " + String(getNoYes(datalayer_extended.tesla.battery_PCS_dcdcPwmEnableLine)) + "</h4>";
+        "<h4>PWM Enable Line: " + String(Fault[datalayer_extended.tesla.battery_PCS_dcdcPwmEnableLine]) + "</h4>";
     content += "<h4>Supporting Fixed LV Target: " +
-               String(getNoYes(datalayer_extended.tesla.battery_PCS_dcdcSupportingFixedLvTarget)) + "</h4>";
-    content +=
-        "<h4>Precharge Restart Cnt: " + String(datalayer_extended.tesla.battery_PCS_dcdcPrechargeRestartCnt) + "</h4>";
+               String(Fault[datalayer_extended.tesla.battery_PCS_dcdcSupportingFixedLvTarget]) + "</h4>";
+    content += "<h4>Precharge Restart Cnt: " +
+               String(falseTrue[datalayer_extended.tesla.battery_PCS_dcdcPrechargeRestartCnt]) + "</h4>";
     content += "<h4>Initial Precharge Substate: " +
-               String(getPCS_dcdcSubState(datalayer_extended.tesla.battery_PCS_dcdcInitialPrechargeSubState)) + "</h4>";
+               String(PCS_dcdcSubState[datalayer_extended.tesla.battery_PCS_dcdcInitialPrechargeSubState]) + "</h4>";
     //0x2C4 708 PCS_logging
     content += "<h4>PCS_dcdcMaxLvOutputCurrent: " + String(PCS_dcdcMaxLvOutputCurrent) + " A</h4>";
     content += "<h4>PCS_dcdcCurrentLimit: " + String(PCS_dcdcCurrentLimit) + " A</h4>";
@@ -1087,51 +830,47 @@ String advanced_battery_processor(const String& var) {
     content += "<h4>HVP_hvilInVoltage: " + String(HVP_hvilInVoltage) + " V</h4>";
     content += "<h4>HVP_hvilOutVoltage: " + String(HVP_hvilOutVoltage) + " V</h4>";
     content +=
-        "<h4>HVP_gpioPassivePyroDepl: " + String(getFault(datalayer_extended.tesla.HVP_gpioPassivePyroDepl)) + "</h4>";
-    content += "<h4>HVP_gpioPyroIsoEn: " + String(getFault(datalayer_extended.tesla.HVP_gpioPyroIsoEn)) + "</h4>";
-    content += "<h4>HVP_gpioCpFaultIn: " + String(getFault(datalayer_extended.tesla.HVP_gpioCpFaultIn)) + "</h4>";
+        "<h4>HVP_gpioPassivePyroDepl: " + String(Fault[datalayer_extended.tesla.HVP_gpioPassivePyroDepl]) + "</h4>";
+    content += "<h4>HVP_gpioPyroIsoEn: " + String(Fault[datalayer_extended.tesla.HVP_gpioPyroIsoEn]) + "</h4>";
+    content += "<h4>HVP_gpioCpFaultIn: " + String(Fault[datalayer_extended.tesla.HVP_gpioCpFaultIn]) + "</h4>";
     content +=
-        "<h4>HVP_gpioPackContPowerEn: " + String(getFault(datalayer_extended.tesla.HVP_gpioPackContPowerEn)) + "</h4>";
-    content += "<h4>HVP_gpioHvCablesOk: " + String(getFault(datalayer_extended.tesla.HVP_gpioHvCablesOk)) + "</h4>";
+        "<h4>HVP_gpioPackContPowerEn: " + String(Fault[datalayer_extended.tesla.HVP_gpioPackContPowerEn]) + "</h4>";
+    content += "<h4>HVP_gpioHvCablesOk: " + String(Fault[datalayer_extended.tesla.HVP_gpioHvCablesOk]) + "</h4>";
+    content += "<h4>HVP_gpioHvpSelfEnable: " + String(Fault[datalayer_extended.tesla.HVP_gpioHvpSelfEnable]) + "</h4>";
+    content += "<h4>HVP_gpioLed: " + String(Fault[datalayer_extended.tesla.HVP_gpioLed]) + "</h4>";
+    content += "<h4>HVP_gpioCrashSignal: " + String(Fault[datalayer_extended.tesla.HVP_gpioCrashSignal]) + "</h4>";
     content +=
-        "<h4>HVP_gpioHvpSelfEnable: " + String(getFault(datalayer_extended.tesla.HVP_gpioHvpSelfEnable)) + "</h4>";
-    content += "<h4>HVP_gpioLed: " + String(getFault(datalayer_extended.tesla.HVP_gpioLed)) + "</h4>";
-    content += "<h4>HVP_gpioCrashSignal: " + String(getFault(datalayer_extended.tesla.HVP_gpioCrashSignal)) + "</h4>";
+        "<h4>HVP_gpioShuntDataReady: " + String(Fault[datalayer_extended.tesla.HVP_gpioShuntDataReady]) + "</h4>";
+    content += "<h4>HVP_gpioFcContPosAux: " + String(Fault[datalayer_extended.tesla.HVP_gpioFcContPosAux]) + "</h4>";
+    content += "<h4>HVP_gpioFcContNegAux: " + String(Fault[datalayer_extended.tesla.HVP_gpioFcContNegAux]) + "</h4>";
+    content += "<h4>HVP_gpioBmsEout: " + String(Fault[datalayer_extended.tesla.HVP_gpioBmsEout]) + "</h4>";
+    content += "<h4>HVP_gpioCpFaultOut: " + String(Fault[datalayer_extended.tesla.HVP_gpioCpFaultOut]) + "</h4>";
+    content += "<h4>HVP_gpioPyroPor: " + String(Fault[datalayer_extended.tesla.HVP_gpioPyroPor]) + "</h4>";
+    content += "<h4>HVP_gpioShuntEn: " + String(Fault[datalayer_extended.tesla.HVP_gpioShuntEn]) + "</h4>";
+    content += "<h4>HVP_gpioHvpVerEn: " + String(Fault[datalayer_extended.tesla.HVP_gpioHvpVerEn]) + "</h4>";
     content +=
-        "<h4>HVP_gpioShuntDataReady: " + String(getFault(datalayer_extended.tesla.HVP_gpioShuntDataReady)) + "</h4>";
-    content += "<h4>HVP_gpioFcContPosAux: " + String(getFault(datalayer_extended.tesla.HVP_gpioFcContPosAux)) + "</h4>";
-    content += "<h4>HVP_gpioFcContNegAux: " + String(getFault(datalayer_extended.tesla.HVP_gpioFcContNegAux)) + "</h4>";
-    content += "<h4>HVP_gpioBmsEout: " + String(getFault(datalayer_extended.tesla.HVP_gpioBmsEout)) + "</h4>";
-    content += "<h4>HVP_gpioCpFaultOut: " + String(getFault(datalayer_extended.tesla.HVP_gpioCpFaultOut)) + "</h4>";
-    content += "<h4>HVP_gpioPyroPor: " + String(getFault(datalayer_extended.tesla.HVP_gpioPyroPor)) + "</h4>";
-    content += "<h4>HVP_gpioShuntEn: " + String(getFault(datalayer_extended.tesla.HVP_gpioShuntEn)) + "</h4>";
-    content += "<h4>HVP_gpioHvpVerEn: " + String(getFault(datalayer_extended.tesla.HVP_gpioHvpVerEn)) + "</h4>";
-    content +=
-        "<h4>HVP_gpioPackCoontPosFlywheel: " + String(getFault(datalayer_extended.tesla.HVP_gpioPackCoontPosFlywheel)) +
+        "<h4>HVP_gpioPackCoontPosFlywheel: " + String(Fault[datalayer_extended.tesla.HVP_gpioPackCoontPosFlywheel]) +
         "</h4>";
+    content += "<h4>HVP_gpioCpLatchEnable: " + String(Fault[datalayer_extended.tesla.HVP_gpioCpLatchEnable]) + "</h4>";
+    content += "<h4>HVP_gpioPcsEnable: " + String(Fault[datalayer_extended.tesla.HVP_gpioPcsEnable]) + "</h4>";
     content +=
-        "<h4>HVP_gpioCpLatchEnable: " + String(getFault(datalayer_extended.tesla.HVP_gpioCpLatchEnable)) + "</h4>";
-    content += "<h4>HVP_gpioPcsEnable: " + String(getFault(datalayer_extended.tesla.HVP_gpioPcsEnable)) + "</h4>";
-    content += "<h4>HVP_gpioPcsDcdcPwmEnable: " + String(getFault(datalayer_extended.tesla.HVP_gpioPcsDcdcPwmEnable)) +
+        "<h4>HVP_gpioPcsDcdcPwmEnable: " + String(Fault[datalayer_extended.tesla.HVP_gpioPcsDcdcPwmEnable]) + "</h4>";
+    content += "<h4>HVP_gpioPcsChargePwmEnable: " + String(Fault[datalayer_extended.tesla.HVP_gpioPcsChargePwmEnable]) +
                "</h4>";
     content +=
-        "<h4>HVP_gpioPcsChargePwmEnable: " + String(getFault(datalayer_extended.tesla.HVP_gpioPcsChargePwmEnable)) +
-        "</h4>";
-    content +=
-        "<h4>HVP_gpioFcContPowerEnable: " + String(getFault(datalayer_extended.tesla.HVP_gpioFcContPowerEnable)) +
-        "</h4>";
-    content += "<h4>HVP_gpioHvilEnable: " + String(getFault(datalayer_extended.tesla.HVP_gpioHvilEnable)) + "</h4>";
-    content += "<h4>HVP_gpioSecDrdy: " + String(getFault(datalayer_extended.tesla.HVP_gpioSecDrdy)) + "</h4>";
+        "<h4>HVP_gpioFcContPowerEnable: " + String(Fault[datalayer_extended.tesla.HVP_gpioFcContPowerEnable]) + "</h4>";
+    content += "<h4>HVP_gpioHvilEnable: " + String(Fault[datalayer_extended.tesla.HVP_gpioHvilEnable]) + "</h4>";
+    content += "<h4>HVP_gpioSecDrdy: " + String(Fault[datalayer_extended.tesla.HVP_gpioSecDrdy]) + "</h4>";
     content += "<h4>HVP_shuntCurrentDebug: " + String(HVP_shuntCurrentDebug) + " A</h4>";
-    content += "<h4>HVP_packCurrentMia: " + String(getNoYes(datalayer_extended.tesla.HVP_packCurrentMia)) + "</h4>";
-    content += "<h4>HVP_auxCurrentMia: " + String(getNoYes(datalayer_extended.tesla.HVP_auxCurrentMia)) + "</h4>";
-    content += "<h4>HVP_currentSenseMia: " + String(getNoYes(datalayer_extended.tesla.HVP_currentSenseMia)) + "</h4>";
+    content += "<h4>HVP_packCurrentMia: " + String(noYes[datalayer_extended.tesla.HVP_packCurrentMia]) + "</h4>";
+    content += "<h4>HVP_auxCurrentMia: " + String(noYes[datalayer_extended.tesla.HVP_auxCurrentMia]) + "</h4>";
+    content += "<h4>HVP_currentSenseMia: " + String(noYes[datalayer_extended.tesla.HVP_currentSenseMia]) + "</h4>";
     content +=
-        "<h4>HVP_shuntRefVoltageMismatch: " + String(getNoYes(datalayer_extended.tesla.HVP_shuntRefVoltageMismatch)) +
+        "<h4>HVP_shuntRefVoltageMismatch: " + String(noYes[datalayer_extended.tesla.HVP_shuntRefVoltageMismatch]) +
         "</h4>";
     content +=
-        "<h4>HVP_shuntThermistorMia: " + String(getNoYes(datalayer_extended.tesla.HVP_shuntThermistorMia)) + "</h4>";
-    content += "<h4>HVP_shuntHwMia: " + String(getNoYes(datalayer_extended.tesla.HVP_shuntHwMia)) + "</h4>";
+        "<h4>HVP_shuntThermistorMia: " + String(noYes[datalayer_extended.tesla.HVP_shuntThermistorMia]) + "</h4>";
+    content += "<h4>HVP_shuntHwMia: " + String(noYes[datalayer_extended.tesla.HVP_shuntHwMia]) + "</h4>";
     //content += "<h4>HVP_fcLinkVoltage: " + String(HVP_fcLinkVoltage) + " V</h4>"; // Not giving useable data
     //content += "<h4>HVP_packNegativeV: " + String(HVP_packNegativeV) + " V</h4>"; // Not giving useable data
     //content += "<h4>HVP_packPositiveV: " + String(HVP_packPositiveV) + " V</h4>"; // Not giving useable data
