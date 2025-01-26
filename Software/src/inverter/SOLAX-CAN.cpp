@@ -155,8 +155,8 @@ void update_values_can_inverter() {  //This function maps all the values fetched
   SOLAX_1874.data.u8[1] = (datalayer.battery.status.temperature_max_dC >> 8);
   SOLAX_1874.data.u8[2] = (int8_t)datalayer.battery.status.temperature_min_dC;
   SOLAX_1874.data.u8[3] = (datalayer.battery.status.temperature_min_dC >> 8);
-  SOLAX_1874.data.u8[4] = (uint8_t)(datalayer.battery.status.cell_max_voltage_mV);
-  SOLAX_1874.data.u8[5] = (datalayer.battery.status.cell_max_voltage_mV >> 8);
+  SOLAX_1874.data.u8[4] = (uint8_t)(datalayer.battery.info.max_cell_voltage_mV);
+  SOLAX_1874.data.u8[5] = (datalayer.battery.info.max_cell_voltage_mV >> 8);
   SOLAX_1874.data.u8[6] = (uint8_t)(datalayer.battery.status.cell_min_voltage_mV);
   SOLAX_1874.data.u8[7] = (datalayer.battery.status.cell_min_voltage_mV >> 8);
 
@@ -167,9 +167,13 @@ void update_values_can_inverter() {  //This function maps all the values fetched
   SOLAX_1875.data.u8[4] = (uint8_t)0;                  // Contactor Status 0=off, 1=on.
 
   //BMS_PackTemps (strange name, since it has voltages?)
+  SOLAX_1876.data.u8[0] = (int8_t)datalayer.battery.status.temperature_max_dC;
+  SOLAX_1876.data.u8[1] = (datalayer.battery.status.temperature_max_dC >> 8);
   SOLAX_1876.data.u8[2] = (uint8_t)datalayer.battery.status.cell_max_voltage_mV;
   SOLAX_1876.data.u8[3] = (datalayer.battery.status.cell_max_voltage_mV >> 8);
 
+  SOLAX_1876.data.u8[4] = (int8_t)datalayer.battery.status.temperature_min_dC;
+  SOLAX_1876.data.u8[5] = (datalayer.battery.status.temperature_min_dC >> 8);
   SOLAX_1876.data.u8[6] = (uint8_t)datalayer.battery.status.cell_min_voltage_mV;
   SOLAX_1876.data.u8[7] = (datalayer.battery.status.cell_min_voltage_mV >> 8);
 
@@ -183,8 +187,10 @@ void update_values_can_inverter() {  //This function maps all the values fetched
   SOLAX_1878.data.u8[0] = (uint8_t)(datalayer.battery.status.voltage_dV);
   SOLAX_1878.data.u8[1] = ((datalayer.battery.status.voltage_dV) >> 8);
 
-  SOLAX_1878.data.u8[4] = (uint8_t)capped_capacity_Wh;
-  SOLAX_1878.data.u8[5] = (capped_capacity_Wh >> 8);
+  SOLAX_1878.data.u8[4] = (uint8_t)datalayer.battery.info.total_capacity_Wh;
+  SOLAX_1878.data.u8[5] = (datalayer.battery.info.total_capacity_Wh >> 8);
+  SOLAX_1878.data.u8[6] = (datalayer.battery.info.total_capacity_Wh >> 16);
+  SOLAX_1878.data.u8[7] = (datalayer.battery.info.total_capacity_Wh >> 24);
 
   // BMS_Answer
   SOLAX_1801.data.u8[0] = 2;
@@ -192,10 +198,10 @@ void update_values_can_inverter() {  //This function maps all the values fetched
   SOLAX_1801.data.u8[4] = 1;
 
   //Ultra messages
-  SOLAX_187E.data.u8[0] = (uint8_t)capped_remaining_capacity_Wh;
-  SOLAX_187E.data.u8[1] = (capped_remaining_capacity_Wh >> 8);
-  SOLAX_187E.data.u8[2] = 0;
-  SOLAX_187E.data.u8[3] = 0;
+  SOLAX_187E.data.u8[0] = (uint8_t)datalayer.battery.status.reported_remaining_capacity_Wh;
+  SOLAX_187E.data.u8[1] = (datalayer.battery.status.reported_remaining_capacity_Wh >> 8);
+  SOLAX_187E.data.u8[2] = (datalayer.battery.status.reported_remaining_capacity_Wh >> 16);
+  SOLAX_187E.data.u8[3] = (datalayer.battery.status.reported_remaining_capacity_Wh >> 24);
   SOLAX_187E.data.u8[5] = (uint8_t)(datalayer.battery.status.reported_soc / 100);
 }
 
