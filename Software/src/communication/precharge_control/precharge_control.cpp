@@ -32,6 +32,7 @@ void init_precharge_control() {
 #endif
   pinMode(PRECHARGE_PIN, OUTPUT);
   digitalWrite(PRECHARGE_PIN, LOW);
+  pinMode(POSITIVE_CONTACTOR_PIN, OUTPUT);
   digitalWrite(POSITIVE_CONTACTOR_PIN, LOW);
 }
 
@@ -48,7 +49,7 @@ void handle_precharge_control() {
     case PRECHARGE_IDLE:
 
       if (datalayer.battery.status.bms_status != FAULT && datalayer.battery.status.real_bms_status == BMS_STANDBY &&
-          datalayer.system.status.inverter_allows_contactor_closing &&
+          /*datalayer.system.status.inverter_allows_contactor_closing &&*/
           !datalayer.system.settings.equipment_stop_active) {
         prechargeStatus = START_PRECHARGE;
       }
@@ -72,9 +73,9 @@ void handle_precharge_control() {
       if (prev_external_voltage != external_voltage) {
         prev_external_voltage = external_voltage;
 
-        if (labs(target_voltage - external_voltage) > 150) {
+        /*if (labs(target_voltage - external_voltage) > 150) {
           delta_freq = 2000;
-        } else if (labs(target_voltage - external_voltage) > 80) {
+        } else*/ if (labs(target_voltage - external_voltage) > 80) {
           delta_freq = labs(target_voltage - external_voltage) * 6;
         } else {
           delta_freq = labs(target_voltage - external_voltage) * 3;

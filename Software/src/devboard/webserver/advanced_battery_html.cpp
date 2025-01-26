@@ -870,6 +870,22 @@ String advanced_battery_processor(const String& var) {
       default:
         content += String("?");
     }
+    content += String("</h4><h4>Charging: ") + (datalayer_extended.meb.charging_active ? "active" : "not active");
+    content += String("</h4><h4>Balancing: ") + (datalayer_extended.meb.balancing_request ? "requested" : "not requested");
+    content += " - ";
+    switch (datalayer_extended.meb.balancing_active) {
+      case 0:
+        content += String("init");
+        break;
+      case 1:
+        content += String("active");
+        break;
+      case 2:
+        content += String("inactive");
+        break;
+      default:
+        content += String("?");
+    }
     content += "</h4><h4>Diagnostic: ";
     switch (datalayer_extended.meb.battery_diagnostic) {
       case 0:
