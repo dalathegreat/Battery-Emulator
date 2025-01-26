@@ -576,10 +576,10 @@ String advanced_battery_processor(const String& var) {
     //0x20A 522 HVP_contatorState
     content += "<h4>Contactor Status: " + String(getContactorText(datalayer_extended.tesla.status_contactor)) + "</h4>";
     content += "<h4>HVIL: " + String(getHvilStatusState(datalayer_extended.tesla.hvil_status)) + "</h4>";
-    content +=
-        "<h4>Negative contactor: " + String(getContactorState(datalayer_extended.tesla.packContNegativeState)) + "</h4>";
-    content +=
-        "<h4>Positive contactor: " + String(getContactorState(datalayer_extended.tesla.packContPositiveState)) + "</h4>";
+    content += "<h4>Negative contactor: " + String(getContactorState(datalayer_extended.tesla.packContNegativeState)) +
+               "</h4>";
+    content += "<h4>Positive contactor: " + String(getContactorState(datalayer_extended.tesla.packContPositiveState)) +
+               "</h4>";
     content += "<h4>Closing allowed?: " + String(getNoYes(datalayer_extended.tesla.packCtrsClosingAllowed)) + "</h4>";
     content += "<h4>Pyrotest in Progress: " + String(getNoYes(datalayer_extended.tesla.pyroTestInProgress)) + "</h4>";
     content += "<h4>Contactors Open Now Requested: " +
@@ -591,9 +591,8 @@ String advanced_battery_processor(const String& var) {
                String(getHVP_contactor(datalayer_extended.tesla.battery_packCtrsRequestStatus)) + "</h4>";
     content += "<h4>Contactors Reset Request Required: " +
                String(getNoYes(datalayer_extended.tesla.battery_packCtrsResetRequestRequired)) + "</h4>";
-    content +=
-        "<h4>DC Link Allowed to Energize: " + String(getNoYes(datalayer_extended.tesla.battery_dcLinkAllowedToEnergize)) +
-        "</h4>";
+    content += "<h4>DC Link Allowed to Energize: " +
+               String(getNoYes(datalayer_extended.tesla.battery_dcLinkAllowedToEnergize)) + "</h4>";
     char readableSerialNumber[15];  // One extra space for null terminator
     memcpy(readableSerialNumber, datalayer_extended.tesla.BMS_SerialNumber,
            sizeof(datalayer_extended.tesla.BMS_SerialNumber));
@@ -609,8 +608,9 @@ String advanced_battery_processor(const String& var) {
       content += "<h4>Ideal Energy Remaining: " + String(ideal_energy_remaining) + " KWh</h4>";
       content += "<h4>Energy to Charge Complete: " + String(energy_to_charge_complete) + " KWh</h4>";
       content += "<h4>Energy Buffer: " + String(energy_buffer) + " KWh</h4>";
-      content += "<h4>Full Charge Complete: " + String(getNoYes(datalayer_extended.tesla.battery_full_charge_complete)) +
-                 "</h4>";  //bool
+      content +=
+          "<h4>Full Charge Complete: " + String(getNoYes(datalayer_extended.tesla.battery_full_charge_complete)) +
+          "</h4>";  //bool
     }
     //0x352 850 BMS_energyStatus
     if (datalayer_extended.tesla.BMS352_mux == true) {
@@ -696,9 +696,8 @@ String advanced_battery_processor(const String& var) {
     content +=
         "<h4>Precharge Status: " + String(getPCS_dcdcStatus(datalayer_extended.tesla.battery_PCS_dcdcPrechargeStatus)) +
         "</h4>";
-    content +=
-        "<h4>12V Support Status: " + String(getPCS_dcdcStatus(datalayer_extended.tesla.battery_PCS_dcdc12VSupportStatus)) +
-        "</h4>";
+    content += "<h4>12V Support Status: " +
+               String(getPCS_dcdcStatus(datalayer_extended.tesla.battery_PCS_dcdc12VSupportStatus)) + "</h4>";
     content += "<h4>HV Bus Discharge Status: " +
                String(getPCS_dcdcStatus(datalayer_extended.tesla.battery_PCS_dcdcHvBusDischargeStatus)) + "</h4>";
     content +=
