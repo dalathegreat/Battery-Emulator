@@ -805,6 +805,7 @@ static bool battery2_BMS_a180_SW_ECU_reset_blocked = false;
 
 #endif  //DOUBLE_BATTERY
 
+// Function definitions
 inline const char* getContactorText(int index) {
   switch (index) {
     case 0:

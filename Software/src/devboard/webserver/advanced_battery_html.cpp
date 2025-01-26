@@ -456,6 +456,7 @@ String advanced_battery_processor(const String& var) {
 #endif  //BYD_ATTO_3_BATTERY
 
 #ifdef TESLA_BATTERY
+#include "TESLA-BATTERY.h"
     float beginning_of_life = static_cast<float>(datalayer_extended.tesla.battery_beginning_of_life);
     float battTempPct = static_cast<float>(datalayer_extended.tesla.battery_battTempPct) * 0.4;
     float dcdcLvBusVolt = static_cast<float>(datalayer_extended.tesla.battery_dcdcLvBusVolt) * 0.0390625;
