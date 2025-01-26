@@ -37,22 +37,6 @@ void print_SOC(char* header, int SOC);
 void setup_battery(void);
 void transmit_can_frame(CAN_frame* tx_frame, int interface);
 
-// Function declarations
-inline const char* getContactorText(int index);
-inline const char* getHvilStatusState(int index);
-inline const char* getContactorState(int index);
-inline const char* getNoYes(bool value);
-inline const char* getHVP_contactor(int index);
-inline const char* getBMSPowerLimitState(int index);
-inline const char* getBMSContactorState(int index);
-inline const char* getBMSState(int index);
-inline const char* getBMSHvState(int index);
-inline const char* getBMSUiChargeStatus(int index);
-inline const char* getPCS_DcdcStatus(int index);
-inline const char* getPCS_dcdcMainState(int index);
-inline const char* getPCS_dcdcSubState(int index);
-inline const char* getFault(bool value);
-
 #ifdef DOUBLE_BATTERY
 void printFaultCodesIfActive_battery2();
 #endif  //DOUBLE_BATTERY

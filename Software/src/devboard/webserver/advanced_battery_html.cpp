@@ -456,7 +456,6 @@ String advanced_battery_processor(const String& var) {
 #endif  //BYD_ATTO_3_BATTERY
 
 #ifdef TESLA_BATTERY
-#include "TESLA-BATTERY.h"
     float beginning_of_life = static_cast<float>(datalayer_extended.tesla.battery_beginning_of_life);
     float battTempPct = static_cast<float>(datalayer_extended.tesla.battery_battTempPct) * 0.4;
     float dcdcLvBusVolt = static_cast<float>(datalayer_extended.tesla.battery_dcdcLvBusVolt) * 0.0390625;
@@ -571,6 +570,326 @@ String advanced_battery_processor(const String& var) {
     float HVP_shuntAuxCurrentDbg = static_cast<float>(datalayer_extended.tesla.HVP_shuntAuxCurrentDbg) * 0.1;
     float HVP_shuntBarTempDbg = static_cast<float>(datalayer_extended.tesla.HVP_shuntBarTempDbg) * 0.01;
     float HVP_shuntAsicTempDbg = static_cast<float>(datalayer_extended.tesla.HVP_shuntAsicTempDbg) * 0.01;
+
+    // Function definitions
+inline const char* getContactorText(int index) {
+  switch (index) {
+    case 0:
+      return "UNKNOWN(0)";
+    case 1:
+      return "OPEN";
+    case 2:
+      return "CLOSING";
+    case 3:
+      return "BLOCKED";
+    case 4:
+      return "OPENING";
+    case 5:
+      return "CLOSED";
+    case 6:
+      return "UNKNOWN(6)";
+    case 7:
+      return "WELDED";
+    case 8:
+      return "POS_CL";
+    case 9:
+      return "NEG_CL";
+    case 10:
+      return "UNKNOWN(10)";
+    case 11:
+      return "UNKNOWN(11)";
+    case 12:
+      return "UNKNOWN(12)";
+    default:
+      return "UNKNOWN";
+  }
+}
+
+inline const char* getContactorState(int index) {
+  switch (index) {
+    case 0:
+      return "SNA";
+    case 1:
+      return "OPEN";
+    case 2:
+      return "PRECHARGE";
+    case 3:
+      return "BLOCKED";
+    case 4:
+      return "PULLED_IN";
+    case 5:
+      return "OPENING";
+    case 6:
+      return "ECONOMIZED";
+    case 7:
+      return "WELDED";
+    case 8:
+      return "UNKNOWN(8)";
+    case 9:
+      return "UNKNOWN(9)";
+    case 10:
+      return "UNKNOWN(10)";
+    case 11:
+      return "UNKNOWN(11)";
+    default:
+      return "UNKNOWN";
+  }
+}
+
+inline const char* getHvilStatusState(int index) {
+  switch (index) {
+    case 0:
+      return "NOT OK";
+    case 1:
+      return "STATUS_OK";
+    case 2:
+      return "CURRENT_SOURCE_FAULT";
+    case 3:
+      return "INTERNAL_OPEN_FAULT";
+    case 4:
+      return "VEHICLE_OPEN_FAULT";
+    case 5:
+      return "PENTHOUSE_LID_OPEN_FAULT";
+    case 6:
+      return "UNKNOWN_LOCATION_OPEN_FAULT";
+    case 7:
+      return "VEHICLE_NODE_FAULT";
+    case 8:
+      return "NO_12V_SUPPLY";
+    case 9:
+      return "VEHICLE_OR_PENTHOUSE_LID_OPENFAULT";
+    case 10:
+      return "UNKNOWN(10)";
+    case 11:
+      return "UNKNOWN(11)";
+    case 12:
+      return "UNKNOWN(12)";
+    case 13:
+      return "UNKNOWN(13)";
+    case 14:
+      return "UNKNOWN(14)";
+    case 15:
+      return "UNKNOWN(15)";
+    default:
+      return "UNKNOWN";
+  }
+}
+
+inline const char* getBMSState(int index) {
+  switch (index) {
+    case 0:
+      return "STANDBY";
+    case 1:
+      return "DRIVE";
+    case 2:
+      return "SUPPORT";
+    case 3:
+      return "CHARGE";
+    case 4:
+      return "FEIM";
+    case 5:
+      return "CLEAR_FAULT";
+    case 6:
+      return "FAULT";
+    case 7:
+      return "WELD";
+    case 8:
+      return "TEST";
+    case 9:
+      return "SNA";
+    default:
+      return "UNKNOWN";
+  }
+}
+
+inline const char* getBMSContactorState(int index) {
+  switch (index) {
+    case 0:
+      return "SNA";
+    case 1:
+      return "OPEN";
+    case 2:
+      return "OPENING";
+    case 3:
+      return "CLOSING";
+    case 4:
+      return "CLOSED";
+    case 5:
+      return "WELDED";
+    case 6:
+      return "BLOCKED";
+    default:
+      return "UNKNOWN";
+  }
+}
+
+inline const char* getBMSHvState(int index) {
+  switch (index) {
+    case 0:
+      return "DOWN";
+    case 1:
+      return "COMING_UP";
+    case 2:
+      return "GOING_DOWN";
+    case 3:
+      return "UP_FOR_DRIVE";
+    case 4:
+      return "UP_FOR_CHARGE";
+    case 5:
+      return "UP_FOR_DC_CHARGE";
+    case 6:
+      return "UP";
+    default:
+      return "UNKNOWN";
+  }
+}
+
+inline const char* getBMSUiChargeStatus(int index) {
+  switch (index) {
+    case 0:
+      return "DISCONNECTED";
+    case 1:
+      return "NO_POWER";
+    case 2:
+      return "ABOUT_TO_CHARGE";
+    case 3:
+      return "CHARGING";
+    case 4:
+      return "CHARGE_COMPLETE";
+    case 5:
+      return "CHARGE_STOPPED";
+    default:
+      return "UNKNOWN";
+  }
+}
+
+inline const char* getPCS_DcdcStatus(int index) {
+  switch (index) {
+    case 0:
+      return "IDLE";
+    case 1:
+      return "ACTIVE";
+    case 2:
+      return "FAULTED";
+    default:
+      return "UNKNOWN";
+  }
+}
+
+inline const char* getPCS_DcdcMainState(int index) {
+  switch (index) {
+    case 0:
+      return "STANDBY";
+    case 1:
+      return "12V_SUPPORT_ACTIVE";
+    case 2:
+      return "PRECHARGE_STARTUP";
+    case 3:
+      return "PRECHARGE_ACTIVE";
+    case 4:
+      return "DIS_HVBUS_ACTIVE";
+    case 5:
+      return "SHUTDOWN";
+    case 6:
+      return "FAULTED";
+    default:
+      return "UNKNOWN";
+  }
+}
+
+inline const char* getPCS_DcdcSubState(int index) {
+  switch (index) {
+    case 0:
+      return "PWR_UP_INIT";
+    case 1:
+      return "STANDBY";
+    case 2:
+      return "12V_SUPPORT_ACTIVE";
+    case 3:
+      return "DIS_HVBUS";
+    case 4:
+      return "PCHG_FAST_DIS_HVBUS";
+    case 5:
+      return "PCHG_SLOW_DIS_HVBUS";
+    case 6:
+      return "PCHG_DWELL_CHARGE";
+    case 7:
+      return "PCHG_DWELL_WAIT";
+    case 8:
+      return "PCHG_DI_RECOVERY_WAIT";
+    case 9:
+      return "PCHG_ACTIVE";
+    case 10:
+      return "PCHG_FLT_FAST_DIS_HVBUS";
+    case 11:
+      return "SHUTDOWN";
+    case 12:
+      return "12V_SUPPORT_FAULTED";
+    case 13:
+      return "DIS_HVBUS_FAULTED";
+    case 14:
+      return "PCHG_FAULTED";
+    case 15:
+      return "CLEAR_FAULTS";
+    case 16:
+      return "FAULTED";
+    case 17:
+      return "NUM";
+    default:
+      return "UNKNOWN";
+  }
+}
+
+inline const char* getBMSPowerLimitState(int index) {
+  switch (index) {
+    case 0:
+      return "NOT_CALCULATED_FOR_DRIVE";
+    case 1:
+      return "CALCULATED_FOR_DRIVE";
+    default:
+      return "UNKNOWN";
+  }
+}
+
+inline const char* getHVPStatus(int index) {
+  switch (index) {
+    case 0:
+      return "INVALID";
+    case 1:
+      return "NOT_AVAILABLE";
+    case 2:
+      return "STALE";
+    case 3:
+      return "VALID";
+    default:
+      return "UNKNOWN";
+  }
+}
+
+inline const char* getHVPContactor(int index) {
+  switch (index) {
+    case 0:
+      return "NOT_ACTIVE";
+    case 1:
+      return "ACTIVE";
+    case 2:
+      return "COMPLETED";
+    default:
+      return "UNKNOWN";
+  }
+}
+
+inline const char* getFalseTrue(bool value) {
+  return value ? "True" : "False";
+}
+
+inline const char* getNoYes(bool value) {
+  return value ? "Yes" : "No";
+}
+
+inline const char* getFault(bool value) {
+  return value ? "ACTIVE" : "NOT_ACTIVE";
+}
 
     //Buttons for user action
     content += "<button onclick='askClearIsolation()'>Clear isolation fault</button>";
