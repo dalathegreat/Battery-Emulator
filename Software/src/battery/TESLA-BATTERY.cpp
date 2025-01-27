@@ -443,28 +443,325 @@ static bool battery_BMS_a174_SW_Charge_Failure = false;
 static bool battery_BMS_a179_SW_Hvp_12V_Fault = false;
 static bool battery_BMS_a180_SW_ECU_reset_blocked = false;
 
-static const char* contactorText[] = {"UNKNOWN(0)",  "OPEN",        "CLOSING",    "BLOCKED", "OPENING",
-                                      "CLOSED",      "UNKNOWN(6)",  "WELDED",     "POS_CL",  "NEG_CL",
-                                      "UNKNOWN(10)", "UNKNOWN(11)", "UNKNOWN(12)"};
-static const char* contactorState[] = {"SNA",        "OPEN",       "PRECHARGE",   "BLOCKED",
-                                       "PULLED_IN",  "OPENING",    "ECONOMIZED",  "WELDED",
-                                       "UNKNOWN(8)", "UNKNOWN(9)", "UNKNOWN(10)", "UNKNOWN(11)"};
-static const char* hvilStatusState[] = {"NOT OK",
-                                        "STATUS_OK",
-                                        "CURRENT_SOURCE_FAULT",
-                                        "INTERNAL_OPEN_FAULT",
-                                        "VEHICLE_OPEN_FAULT",
-                                        "PENTHOUSE_LID_OPEN_FAULT",
-                                        "UNKNOWN_LOCATION_OPEN_FAULT",
-                                        "VEHICLE_NODE_FAULT",
-                                        "NO_12V_SUPPLY",
-                                        "VEHICLE_OR_PENTHOUSE_LID_OPENFAULT",
-                                        "UNKNOWN(10)",
-                                        "UNKNOWN(11)",
-                                        "UNKNOWN(12)",
-                                        "UNKNOWN(13)",
-                                        "UNKNOWN(14)",
-                                        "UNKNOWN(15)"};
+// Function definitions
+inline const char* getContactorText(int index) {
+  switch (index) {
+    case 0:
+      return "UNKNOWN(0)";
+    case 1:
+      return "OPEN";
+    case 2:
+      return "CLOSING";
+    case 3:
+      return "BLOCKED";
+    case 4:
+      return "OPENING";
+    case 5:
+      return "CLOSED";
+    case 6:
+      return "UNKNOWN(6)";
+    case 7:
+      return "WELDED";
+    case 8:
+      return "POS_CL";
+    case 9:
+      return "NEG_CL";
+    case 10:
+      return "UNKNOWN(10)";
+    case 11:
+      return "UNKNOWN(11)";
+    case 12:
+      return "UNKNOWN(12)";
+    default:
+      return "UNKNOWN";
+  }
+}
+
+inline const char* getContactorState(int index) {
+  switch (index) {
+    case 0:
+      return "SNA";
+    case 1:
+      return "OPEN";
+    case 2:
+      return "PRECHARGE";
+    case 3:
+      return "BLOCKED";
+    case 4:
+      return "PULLED_IN";
+    case 5:
+      return "OPENING";
+    case 6:
+      return "ECONOMIZED";
+    case 7:
+      return "WELDED";
+    case 8:
+      return "UNKNOWN(8)";
+    case 9:
+      return "UNKNOWN(9)";
+    case 10:
+      return "UNKNOWN(10)";
+    case 11:
+      return "UNKNOWN(11)";
+    default:
+      return "UNKNOWN";
+  }
+}
+
+inline const char* getHvilStatusState(int index) {
+  switch (index) {
+    case 0:
+      return "NOT OK";
+    case 1:
+      return "STATUS_OK";
+    case 2:
+      return "CURRENT_SOURCE_FAULT";
+    case 3:
+      return "INTERNAL_OPEN_FAULT";
+    case 4:
+      return "VEHICLE_OPEN_FAULT";
+    case 5:
+      return "PENTHOUSE_LID_OPEN_FAULT";
+    case 6:
+      return "UNKNOWN_LOCATION_OPEN_FAULT";
+    case 7:
+      return "VEHICLE_NODE_FAULT";
+    case 8:
+      return "NO_12V_SUPPLY";
+    case 9:
+      return "VEHICLE_OR_PENTHOUSE_LID_OPENFAULT";
+    case 10:
+      return "UNKNOWN(10)";
+    case 11:
+      return "UNKNOWN(11)";
+    case 12:
+      return "UNKNOWN(12)";
+    case 13:
+      return "UNKNOWN(13)";
+    case 14:
+      return "UNKNOWN(14)";
+    case 15:
+      return "UNKNOWN(15)";
+    default:
+      return "UNKNOWN";
+  }
+}
+
+inline const char* getBMSState(int index) {
+  switch (index) {
+    case 0:
+      return "STANDBY";
+    case 1:
+      return "DRIVE";
+    case 2:
+      return "SUPPORT";
+    case 3:
+      return "CHARGE";
+    case 4:
+      return "FEIM";
+    case 5:
+      return "CLEAR_FAULT";
+    case 6:
+      return "FAULT";
+    case 7:
+      return "WELD";
+    case 8:
+      return "TEST";
+    case 9:
+      return "SNA";
+    default:
+      return "UNKNOWN";
+  }
+}
+
+inline const char* getBMSContactorState(int index) {
+  switch (index) {
+    case 0:
+      return "SNA";
+    case 1:
+      return "OPEN";
+    case 2:
+      return "OPENING";
+    case 3:
+      return "CLOSING";
+    case 4:
+      return "CLOSED";
+    case 5:
+      return "WELDED";
+    case 6:
+      return "BLOCKED";
+    default:
+      return "UNKNOWN";
+  }
+}
+
+inline const char* getBMSHvState(int index) {
+  switch (index) {
+    case 0:
+      return "DOWN";
+    case 1:
+      return "COMING_UP";
+    case 2:
+      return "GOING_DOWN";
+    case 3:
+      return "UP_FOR_DRIVE";
+    case 4:
+      return "UP_FOR_CHARGE";
+    case 5:
+      return "UP_FOR_DC_CHARGE";
+    case 6:
+      return "UP";
+    default:
+      return "UNKNOWN";
+  }
+}
+
+inline const char* getBMSUiChargeStatus(int index) {
+  switch (index) {
+    case 0:
+      return "DISCONNECTED";
+    case 1:
+      return "NO_POWER";
+    case 2:
+      return "ABOUT_TO_CHARGE";
+    case 3:
+      return "CHARGING";
+    case 4:
+      return "CHARGE_COMPLETE";
+    case 5:
+      return "CHARGE_STOPPED";
+    default:
+      return "UNKNOWN";
+  }
+}
+
+inline const char* getPCS_DcdcStatus(int index) {
+  switch (index) {
+    case 0:
+      return "IDLE";
+    case 1:
+      return "ACTIVE";
+    case 2:
+      return "FAULTED";
+    default:
+      return "UNKNOWN";
+  }
+}
+
+inline const char* getPCS_DcdcMainState(int index) {
+  switch (index) {
+    case 0:
+      return "STANDBY";
+    case 1:
+      return "12V_SUPPORT_ACTIVE";
+    case 2:
+      return "PRECHARGE_STARTUP";
+    case 3:
+      return "PRECHARGE_ACTIVE";
+    case 4:
+      return "DIS_HVBUS_ACTIVE";
+    case 5:
+      return "SHUTDOWN";
+    case 6:
+      return "FAULTED";
+    default:
+      return "UNKNOWN";
+  }
+}
+
+inline const char* getPCS_DcdcSubState(int index) {
+  switch (index) {
+    case 0:
+      return "PWR_UP_INIT";
+    case 1:
+      return "STANDBY";
+    case 2:
+      return "12V_SUPPORT_ACTIVE";
+    case 3:
+      return "DIS_HVBUS";
+    case 4:
+      return "PCHG_FAST_DIS_HVBUS";
+    case 5:
+      return "PCHG_SLOW_DIS_HVBUS";
+    case 6:
+      return "PCHG_DWELL_CHARGE";
+    case 7:
+      return "PCHG_DWELL_WAIT";
+    case 8:
+      return "PCHG_DI_RECOVERY_WAIT";
+    case 9:
+      return "PCHG_ACTIVE";
+    case 10:
+      return "PCHG_FLT_FAST_DIS_HVBUS";
+    case 11:
+      return "SHUTDOWN";
+    case 12:
+      return "12V_SUPPORT_FAULTED";
+    case 13:
+      return "DIS_HVBUS_FAULTED";
+    case 14:
+      return "PCHG_FAULTED";
+    case 15:
+      return "CLEAR_FAULTS";
+    case 16:
+      return "FAULTED";
+    case 17:
+      return "NUM";
+    default:
+      return "UNKNOWN";
+  }
+}
+
+inline const char* getBMSPowerLimitState(int index) {
+  switch (index) {
+    case 0:
+      return "NOT_CALCULATED_FOR_DRIVE";
+    case 1:
+      return "CALCULATED_FOR_DRIVE";
+    default:
+      return "UNKNOWN";
+  }
+}
+
+inline const char* getHVPStatus(int index) {
+  switch (index) {
+    case 0:
+      return "INVALID";
+    case 1:
+      return "NOT_AVAILABLE";
+    case 2:
+      return "STALE";
+    case 3:
+      return "VALID";
+    default:
+      return "UNKNOWN";
+  }
+}
+
+inline const char* getHVPContactor(int index) {
+  switch (index) {
+    case 0:
+      return "NOT_ACTIVE";
+    case 1:
+      return "ACTIVE";
+    case 2:
+      return "COMPLETED";
+    default:
+      return "UNKNOWN";
+  }
+}
+
+inline const char* getFalseTrue(bool value) {
+  return value ? "True" : "False";
+}
+
+inline const char* getNoYes(bool value) {
+  return value ? "Yes" : "No";
+}
+
+inline const char* getFault(bool value) {
+  return value ? "ACTIVE" : "NOT_ACTIVE";
+}
 
 void update_values_battery() {  //This function maps all the values fetched via CAN to the correct parameters used for modbus
   //After values are mapped, we perform some safety checks, and do some serial printouts
@@ -767,20 +1064,19 @@ void update_values_battery() {  //This function maps all the values fetched via 
 
   printFaultCodesIfActive();
 
-  logging.print("STATUS: Contactor: ");
-  logging.print(contactorText[battery_contactor]);  //Display what state the contactor is in
+  logging.print(getContactorText(battery_contactor));  // Display what state the contactor is in
   logging.print(", HVIL: ");
-  logging.print(hvilStatusState[battery_hvil_status]);
+  logging.print(getHvilStatusState(battery_hvil_status));
   logging.print(", NegativeState: ");
-  logging.print(contactorState[battery_packContNegativeState]);
+  logging.print(getContactorState(battery_packContNegativeState));
   logging.print(", PositiveState: ");
-  logging.print(contactorState[battery_packContPositiveState]);
+  logging.print(getContactorState(battery_packContPositiveState));
   logging.print(", setState: ");
-  logging.print(contactorState[battery_packContactorSetState]);
+  logging.print(getContactorState(battery_packContactorSetState));
   logging.print(", close allowed: ");
-  logging.print(battery_packCtrsClosingAllowed);
+  logging.print(getNoYes(battery_packCtrsClosingAllowed));
   logging.print(", Pyrotest: ");
-  logging.println(battery_pyroTestInProgress);
+  logging.println(getNoYes(battery_pyroTestInProgress));
 
   logging.print("Battery values: ");
   logging.print("Real SOC: ");
@@ -808,12 +1104,13 @@ void update_values_battery() {  //This function maps all the values fetched via 
   logging.print(battery_cell_deviation_mV);
   logging.println("mV.");
 
-  print_int_with_units("High Voltage Output Pins: ", battery_dcdcHvBusVolt, "V");
-  logging.print(", ");
-  print_int_with_units("Low Voltage: ", battery_dcdcLvBusVolt, "V");
-  logging.println("");
-  print_int_with_units("DC/DC 12V current: ", battery_dcdcLvOutputCurrent, "A");
-  logging.println("");
+  logging.printf("High Voltage Output Pins: %.2f V, Low Voltage: %.2f V, DC/DC 12V current: %.2f A.\n",
+                 (battery_dcdcHvBusVolt * 0.146484), (battery_dcdcLvBusVolt * 0.0390625),
+                 (battery_dcdcLvOutputCurrent * 0.1));
+
+  logging.printf("PCS_ambientTemp: %.2f°C, DCDC_Temp: %.2f°C, ChgPhA: %.2f°C, ChgPhB: %.2f°C, ChgPhC: %.2f°C.\n",
+                 PCS_ambientTemp * 0.1 + 40, PCS_dcdcTemp * 0.1 + 40, PCS_chgPhATemp * 0.1 + 40,
+                 PCS_chgPhBTemp * 0.1 + 40, PCS_chgPhCTemp * 0.1 + 40);
 
   logging.println("Values passed to the inverter: ");
   print_SOC(" SOC: ", datalayer.battery.status.reported_soc);
@@ -850,7 +1147,7 @@ void handle_incoming_can_frame_battery(CAN_frame rx_frame) {
         mux0_read = true;           //Set flag to true
       }
       if (mux == 1) {
-        battery_fully_charged = (rx_frame.data.u8[1] & 0x01);  //15|1@1+ (1,0) [0|1]//to datalayer_extended
+        battery_fully_charged = (rx_frame.data.u8[1] & 0x01);  //15|1@1+ (1,0) [0|1]//noYes
         battery_energy_buffer_m1 =
             ((rx_frame.data.u8[3] << 8) | rx_frame.data.u8[2]);  //16|16@1+ (0.01,0) [0|0] "kWh"//to datalayer_extended
         battery_expected_energy_remaining_m1 =
@@ -864,6 +1161,7 @@ void handle_incoming_can_frame_battery(CAN_frame rx_frame) {
       if (mux0_read && mux1_read) {
         mux0_read = false;
         mux1_read = false;
+        BMS352_mux = true;  //Set flag to true
       }
       // older BMS <2021 without mux
       battery_nominal_full_pack_energy =  //BMS_nominalFullPackEnergy : 0|11@1+ (0.1,0) [0|204.6] "KWh" //((_d[1] & (0x07U)) << 8) | (_d[0] & (0xFFU));
@@ -880,41 +1178,36 @@ void handle_incoming_can_frame_battery(CAN_frame rx_frame) {
       battery_energy_buffer =  //BMS_energyBuffer : 55|8@1+ (0.1,0) [0|25.4] "KWh"// ((_d[7] & (0x7FU)) << 1) | ((_d[6] >> 7) & (0x01U));
           (((rx_frame.data.u8[7] & 0xFE) >> 1) | ((rx_frame.data.u8[6] & 0x80) >> 7));  //Example 1 * 0.1 = 0
       battery_full_charge_complete =  //BMS_fullChargeComplete : 63|1@1+ (1,0) [0|1] ""//((_d[7] >> 7) & (0x01U));
-          ((rx_frame.data.u8[7] >> 7) & 0x01);
+          ((rx_frame.data.u8[7] >> 7) & 0x01);  //noYes
       break;
     case 0x20A:  //522 HVP_contactorState:
       battery_packContNegativeState =
-          (rx_frame.data.u8[0] & 0x07);  //(_d[0] & (0x07U)); 0|3@1+ (1,0) [0|7] //to datalayer_extended
+          (rx_frame.data.u8[0] & 0x07);  //(_d[0] & (0x07U)); 0|3@1+ (1,0) [0|7] //contactorState
       battery_packContPositiveState =
-          (rx_frame.data.u8[0] & 0x38) >> 3;  //((_d[0] >> 3) & (0x07U)); 3|3@1+ (1,0) [0|7] //to datalayer_extended
-      battery_contactor = (rx_frame.data.u8[1] & 0x0F);  // 8|4@1+ (1,0) [0|9] //to datalayer_extended
+          (rx_frame.data.u8[0] & 0x38) >> 3;             //((_d[0] >> 3) & (0x07U)); 3|3@1+ (1,0) [0|7] //contactorState
+      battery_contactor = (rx_frame.data.u8[1] & 0x0F);  // 8|4@1+ (1,0) [0|9] //contactorText
       battery_packContactorSetState =
-          (rx_frame.data.u8[1] & 0x0F);  //(_d[1] & (0x0FU)); 8|4@1+ (1,0) [0|9] //to datalayer_extended
+          (rx_frame.data.u8[1] & 0x0F);  //(_d[1] & (0x0FU)); 8|4@1+ (1,0) [0|9] //contactorState
       battery_packCtrsClosingAllowed =
-          (rx_frame.data.u8[4] & 0x08) >> 3;  //((_d[4] >> 3) & (0x01U)); 35|1@1+ (1,0) [0|1] //to datalayer_extended
+          (rx_frame.data.u8[4] & 0x08) >> 3;  //((_d[4] >> 3) & (0x01U)); 35|1@1+ (1,0) [0|1] //noYes
       battery_pyroTestInProgress =
-          (rx_frame.data.u8[4] & 0x20) >> 5;  //((_d[4] >> 5) & (0x01U));//37|1@1+ (1,0) [0|1] //to datalayer_extended
+          (rx_frame.data.u8[4] & 0x20) >> 5;  //((_d[4] >> 5) & (0x01U));//37|1@1+ (1,0) [0|1] //noYes
       battery_hvil_status =
-          (rx_frame.data.u8[5] & 0x0F);  //(_d[5] & (0x0FU));   //40|4@1+ (1,0) [0|9] //to datalayer_extended
-      battery_packCtrsOpenNowRequested =
-          ((rx_frame.data.u8[4] >> 1) & (0x01U));  //33|1@1+ (1,0) [0|1] //to datalayer_extended
-      battery_packCtrsOpenRequested =
-          ((rx_frame.data.u8[4] >> 2) & (0x01U));  //34|1@1+ (1,0) [0|1] //to datalayer_extended
-      battery_packCtrsRequestStatus =
-          ((rx_frame.data.u8[3] >> 6) & (0x03U));  //30|2@1+ (1,0) [0|2] //to datalayer_extended
-      battery_packCtrsResetRequestRequired =
-          (rx_frame.data.u8[4] & (0x01U));  //32|1@1+ (1,0) [0|1] //to datalayer_extended
-      battery_dcLinkAllowedToEnergize =
-          ((rx_frame.data.u8[4] >> 4) & (0x01U));  //36|1@1+ (1,0) [0|1] //to datalayer_extended
-      battery_fcContNegativeAuxOpen = ((rx_frame.data.u8[0] >> 7) & (0x01U));       //7|1@1+ (1,0) [0|1] ""  Receiver
-      battery_fcContNegativeState = ((rx_frame.data.u8[1] >> 4) & (0x07U));         //12|3@1+ (1,0) [0|7] ""  Receiver
-      battery_fcContPositiveAuxOpen = ((rx_frame.data.u8[0] >> 6) & (0x01U));       //6|1@1+ (1,0) [0|1] ""  Receiver
-      battery_fcContPositiveState = (rx_frame.data.u8[2] & (0x07U));                //16|3@1+ (1,0) [0|7] ""  Receiver
-      battery_fcContactorSetState = ((rx_frame.data.u8[2] >> 3) & (0x0FU));         //19|4@1+ (1,0) [0|9] ""  Receiver
-      battery_fcCtrsClosingAllowed = ((rx_frame.data.u8[3] >> 5) & (0x01U));        //29|1@1+ (1,0) [0|1] ""  Receiver
-      battery_fcCtrsOpenNowRequested = ((rx_frame.data.u8[3] >> 3) & (0x01U));      //27|1@1+ (1,0) [0|1] ""  Receiver
-      battery_fcCtrsOpenRequested = ((rx_frame.data.u8[3] >> 4) & (0x01U));         //28|1@1+ (1,0) [0|1] ""  Receiver
-      battery_fcCtrsRequestStatus = (rx_frame.data.u8[3] & (0x03U));                //24|2@1+ (1,0) [0|2] ""  Receiver
+          (rx_frame.data.u8[5] & 0x0F);  //(_d[5] & (0x0FU));   //40|4@1+ (1,0) [0|9] //hvilStatusState
+      battery_packCtrsOpenNowRequested = ((rx_frame.data.u8[4] >> 1) & (0x01U));  //33|1@1+ (1,0) [0|1] //noYes
+      battery_packCtrsOpenRequested = ((rx_frame.data.u8[4] >> 2) & (0x01U));     //34|1@1+ (1,0) [0|1] //noYes
+      battery_packCtrsRequestStatus = ((rx_frame.data.u8[3] >> 6) & (0x03U));     //30|2@1+ (1,0) [0|2] //HVP_contactor
+      battery_packCtrsResetRequestRequired = (rx_frame.data.u8[4] & (0x01U));     //32|1@1+ (1,0) [0|1] //noYes
+      battery_dcLinkAllowedToEnergize = ((rx_frame.data.u8[4] >> 4) & (0x01U));   //36|1@1+ (1,0) [0|1] //noYes
+      battery_fcContNegativeAuxOpen = ((rx_frame.data.u8[0] >> 7) & (0x01U));     //7|1@1+ (1,0) [0|1] ""  Receiver
+      battery_fcContNegativeState = ((rx_frame.data.u8[1] >> 4) & (0x07U));       //12|3@1+ (1,0) [0|7] ""  Receiver
+      battery_fcContPositiveAuxOpen = ((rx_frame.data.u8[0] >> 6) & (0x01U));     //6|1@1+ (1,0) [0|1] ""  Receiver
+      battery_fcContPositiveState = (rx_frame.data.u8[2] & (0x07U));              //16|3@1+ (1,0) [0|7] ""  Receiver
+      battery_fcContactorSetState = ((rx_frame.data.u8[2] >> 3) & (0x0FU));       //19|4@1+ (1,0) [0|9] ""  Receiver
+      battery_fcCtrsClosingAllowed = ((rx_frame.data.u8[3] >> 5) & (0x01U));      //29|1@1+ (1,0) [0|1] ""  Receiver
+      battery_fcCtrsOpenNowRequested = ((rx_frame.data.u8[3] >> 3) & (0x01U));    //27|1@1+ (1,0) [0|1] ""  Receiver
+      battery_fcCtrsOpenRequested = ((rx_frame.data.u8[3] >> 4) & (0x01U));       //28|1@1+ (1,0) [0|1] ""  Receiver
+      battery_fcCtrsRequestStatus = (rx_frame.data.u8[3] & (0x03U));              //24|2@1+ (1,0) [0|2] ""  Receiver
       battery_fcCtrsResetRequestRequired = ((rx_frame.data.u8[3] >> 2) & (0x01U));  //26|1@1+ (1,0) [0|1] ""  Receiver
       battery_fcLinkAllowedToEnergize = ((rx_frame.data.u8[5] >> 4) & (0x03U));     //44|2@1+ (1,0) [0|2] ""  Receiver
       break;
@@ -969,9 +1262,9 @@ void handle_incoming_can_frame_battery(CAN_frame rx_frame) {
       battery_PCS_dcdcMaxOutputCurrentAllowed = ((rx_frame.data.u8[5] & (0x01U)) << 11) |
                                                 ((rx_frame.data.u8[4] & (0xFFU)) << 3) |
                                                 ((rx_frame.data.u8[3] >> 5) & (0x07U));  //29|12@1+ (0.1,0) [0|0] "A"
-      battery_PCS_dcdcPrechargeRtyCnt = ((rx_frame.data.u8[5] >> 1) & (0x07U));
-      battery_PCS_dcdc12VSupportRtyCnt = ((rx_frame.data.u8[5] >> 4) & (0x0FU));
-      battery_PCS_dcdcDischargeRtyCnt = (rx_frame.data.u8[6] & (0x0FU));
+      battery_PCS_dcdcPrechargeRtyCnt = ((rx_frame.data.u8[5] >> 1) & (0x07U));          //Retry Count
+      battery_PCS_dcdc12VSupportRtyCnt = ((rx_frame.data.u8[5] >> 4) & (0x0FU));         //Retry Count
+      battery_PCS_dcdcDischargeRtyCnt = (rx_frame.data.u8[6] & (0x0FU));                 //Retry Count
       battery_PCS_dcdcPwmEnableLine = ((rx_frame.data.u8[6] >> 4) & (0x01U));
       battery_PCS_dcdcSupportingFixedLvTarget = ((rx_frame.data.u8[6] >> 5) & (0x01U));
       battery_PCS_ecuLogUploadRequest = ((rx_frame.data.u8[6] >> 6) & (0x03U));
@@ -1083,17 +1376,15 @@ void handle_incoming_can_frame_battery(CAN_frame rx_frame) {
       BMS_pcsNoFlowRequest = ((rx_frame.data.u8[7] >> 6) & (0x01U));  // 62|1@1+ (1,0) [0|0] ""
       BMS_noFlowRequest = ((rx_frame.data.u8[7] >> 7) & (0x01U));     //63|1@1+ (1,0) [0|0] ""
       break;
-    case 0x2A4:  //676 PCS_thermalStatus
-      PCS_chgPhATemp =
-          (((rx_frame.data.u8[1] & 0x07) << 8) | (rx_frame.data.u8[0] & 0xFF));  //0|11@1- (0.1,40) [0|0] "C"
+    case 0x2A4:                                                                             //676 PCS_thermalStatus
+      PCS_chgPhATemp = (rx_frame.data.u8[0] & 0xFF) | ((rx_frame.data.u8[1] & 0x07) << 8);  //0|11@1- (0.1,40) [0|0] "C"
       PCS_chgPhBTemp =
-          (((rx_frame.data.u8[2] & 0x3F) << 5) | ((rx_frame.data.u8[1] >> 3) & 0x1F));  //11|11@1- (0.1,40) [0|0] "C"
-      PCS_chgPhCTemp = (((rx_frame.data.u8[2] & 0xC0) >> 6) | ((rx_frame.data.u8[3] & 0xFF) << 2) |
-                        ((rx_frame.data.u8[4] & 0x03) << 10));  //22|11@1- (0.1,40) [0|0] "C"
+          ((rx_frame.data.u8[1] & 0xF8) >> 3) | ((rx_frame.data.u8[2] & 0x3F) << 5);  //11|11@1- (0.1,40) [0|0] "C"
+      PCS_chgPhCTemp = ((rx_frame.data.u8[2] & 0xC0) >> 6) | (rx_frame.data.u8[3] << 2) |
+                       ((rx_frame.data.u8[4] & 0x01) << 10);  //22|11@1- (0.1,40) [0|0] "C"
       PCS_dcdcTemp =
-          (((rx_frame.data.u8[4] >> 1) & 0x1F) | ((rx_frame.data.u8[5] & 0x3F) << 5));  //33|11@1- (0.1,40) [0|0] "C"
-      PCS_ambientTemp =
-          (((rx_frame.data.u8[7] & 0x07) << 8) | (rx_frame.data.u8[6] & 0xFF));  //44|11@1- (0.1,40) [0|0] "C"
+          ((rx_frame.data.u8[4] & 0xFE) >> 1) | ((rx_frame.data.u8[5] & 0x0F) << 7);       //33|11@1- (0.1,40) [0|0] "C"
+      PCS_ambientTemp = ((rx_frame.data.u8[5] & 0xF0) >> 4) | (rx_frame.data.u8[6] << 4);  //44|11@1- (0.1,40) [0|0] "C"
       break;
     case 0x2C4:  // 708 PCS_logging: not all frames are listed, just ones relating to dcdc
       mux = (rx_frame.data.u8[0] & (0x1FU));

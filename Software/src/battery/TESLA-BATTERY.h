@@ -36,6 +36,7 @@ void print_int_with_units(char* header, int value, char* units);
 void print_SOC(char* header, int SOC);
 void setup_battery(void);
 void transmit_can_frame(CAN_frame* tx_frame, int interface);
+
 #ifdef DOUBLE_BATTERY
 void printFaultCodesIfActive_battery2();
 #endif  //DOUBLE_BATTERY
