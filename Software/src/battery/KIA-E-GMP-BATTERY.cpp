@@ -672,14 +672,6 @@ void update_values_battery() {  //This function maps all the values fetched via 
     set_voltage_minmax_limits();  // Count cells, and set voltage limits accordingly
   }
 
-  /* Check if the BMS is still sending CAN messages. If we go 60s without messages we raise an error*/
-  if (!datalayer.battery.status.CAN_battery_still_alive) {
-    set_event(EVENT_CANFD_RX_FAILURE, 0);
-  } else {
-    datalayer.battery.status.CAN_battery_still_alive--;
-    clear_event(EVENT_CANFD_RX_FAILURE);
-  }
-
   if (waterleakageSensor == 0) {
     set_event(EVENT_WATER_INGRESS, 0);
   }

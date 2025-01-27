@@ -15,10 +15,10 @@ int ESP32CAN::CANWriteFrame(const CAN_frame_t* p_frame) {
       #ifdef DEBUG_VIA_USB
       Serial.println("CAN failure! Check wires");
       #endif
-      set_event(EVENT_CAN_TX_FAILURE, 0);
+      set_event(EVENT_CAN_NATIVE_TX_FAILURE, 0);
       start_time = millis();
     } else {
-      clear_event(EVENT_CAN_TX_FAILURE);
+      clear_event(EVENT_CAN_NATIVE_TX_FAILURE);
     }
   } else {
     if ((millis() - start_time) >= 20) {

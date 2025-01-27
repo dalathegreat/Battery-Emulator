@@ -133,13 +133,13 @@ void init_events(void) {
   events.entries[EVENT_CANMCP2517FD_INIT_FAILURE].level = EVENT_LEVEL_WARNING;
   events.entries[EVENT_CANMCP2515_INIT_FAILURE].level = EVENT_LEVEL_WARNING;
   events.entries[EVENT_CANFD_BUFFER_FULL].level = EVENT_LEVEL_WARNING;
+  events.entries[EVENT_CAN_BUFFER_FULL].level = EVENT_LEVEL_WARNING;
   events.entries[EVENT_CAN_OVERRUN].level = EVENT_LEVEL_INFO;
-  events.entries[EVENT_CANFD_RX_OVERRUN].level = EVENT_LEVEL_WARNING;
-  events.entries[EVENT_CAN_RX_FAILURE].level = EVENT_LEVEL_ERROR;
-  events.entries[EVENT_CAN2_RX_FAILURE].level = EVENT_LEVEL_WARNING;
-  events.entries[EVENT_CANFD_RX_FAILURE].level = EVENT_LEVEL_ERROR;
-  events.entries[EVENT_CAN_RX_WARNING].level = EVENT_LEVEL_WARNING;
-  events.entries[EVENT_CAN_TX_FAILURE].level = EVENT_LEVEL_ERROR;
+  events.entries[EVENT_CAN_CORRUPTED_WARNING].level = EVENT_LEVEL_WARNING;
+  events.entries[EVENT_CAN_NATIVE_TX_FAILURE].level = EVENT_LEVEL_ERROR;
+  events.entries[EVENT_CAN_BATTERY_MISSING].level = EVENT_LEVEL_ERROR;
+  events.entries[EVENT_CAN_BATTERY2_MISSING].level = EVENT_LEVEL_WARNING;
+  events.entries[EVENT_CAN_CHARGER_MISSING].level = EVENT_LEVEL_INFO;
   events.entries[EVENT_CAN_INVERTER_MISSING].level = EVENT_LEVEL_WARNING;
   events.entries[EVENT_CONTACTOR_WELDED].level = EVENT_LEVEL_WARNING;
   events.entries[EVENT_WATER_INGRESS].level = EVENT_LEVEL_ERROR;
@@ -148,6 +148,7 @@ void init_events(void) {
   events.entries[EVENT_12V_LOW].level = EVENT_LEVEL_WARNING;
   events.entries[EVENT_SOC_PLAUSIBILITY_ERROR].level = EVENT_LEVEL_WARNING;
   events.entries[EVENT_SOC_UNAVAILABLE].level = EVENT_LEVEL_WARNING;
+  events.entries[EVENT_STALE_VALUE].level = EVENT_LEVEL_ERROR;
   events.entries[EVENT_KWH_PLAUSIBILITY_ERROR].level = EVENT_LEVEL_INFO;
   events.entries[EVENT_BALANCING_START].level = EVENT_LEVEL_INFO;
   events.entries[EVENT_BALANCING_END].level = EVENT_LEVEL_INFO;
@@ -265,23 +266,23 @@ const char* get_event_message_string(EVENTS_ENUM_TYPE event) {
     case EVENT_CANMCP2515_INIT_FAILURE:
       return "CAN-MCP addon initialization failed. Check hardware";
     case EVENT_CANFD_BUFFER_FULL:
-      return "CAN-FD buffer overflowed. Some CAN messages were not sent. Contact developers.";
+      return "MCP2518FD buffer overflowed. Some CAN messages were not sent. Contact developers.";
+    case EVENT_CAN_BUFFER_FULL:
+      return "MCP2515 buffer overflowed. Some CAN messages were not sent. Contact developers.";
     case EVENT_CAN_OVERRUN:
       return "CAN message failed to send within defined time. Contact developers, CPU load might be too high.";
-    case EVENT_CANFD_RX_OVERRUN:
-      return "CAN-FD failed to receive all messages from CAN bus. Contact developers, CPU load might be too high.";
-    case EVENT_CAN_RX_FAILURE:
-      return "No CAN communication detected for 60s. Shutting down battery control.";
-    case EVENT_CAN2_RX_FAILURE:
-      return "No CAN communication detected for 60s on CAN2. Shutting down the secondary battery control.";
-    case EVENT_CANFD_RX_FAILURE:
-      return "No CANFD communication detected for 60s. Shutting down battery control.";
-    case EVENT_CAN_RX_WARNING:
+    case EVENT_CAN_CORRUPTED_WARNING:
       return "High amount of corrupted CAN messages detected. Check CAN wire shielding!";
-    case EVENT_CAN_TX_FAILURE:
-      return "CAN messages failed to transmit, or no one on the bus to ACK the message!";
+    case EVENT_CAN_NATIVE_TX_FAILURE:
+      return "CAN_NATIVE failed to transmit, or no one on the bus to ACK the message!";
+    case EVENT_CAN_BATTERY_MISSING:
+      return "Battery not sending messages via CAN for the last 60 seconds. Check wiring!";
+    case EVENT_CAN_BATTERY2_MISSING:
+      return "Secondary battery not sending messages via CAN for the last 60 seconds. Check wiring!";
+    case EVENT_CAN_CHARGER_MISSING:
+      return "Charger not sending messages via CAN for the last 60 seconds. Check wiring!";
     case EVENT_CAN_INVERTER_MISSING:
-      return "Inverter not sending messages on CAN bus. Check wiring!";
+      return "Inverter not sending messages via CAN for the last 60 seconds. Check wiring!";
     case EVENT_CONTACTOR_WELDED:
       return "Contactors sticking/welded. Inspect battery with caution!";
     case EVENT_CHARGE_LIMIT_EXCEEDED:
@@ -296,6 +297,8 @@ const char* get_event_message_string(EVENTS_ENUM_TYPE event) {
       return "SOC reported by battery not plausible. Restart battery!";
     case EVENT_SOC_UNAVAILABLE:
       return "SOC not sent by BMS. Calibrate BMS via app.";
+    case EVENT_STALE_VALUE:
+      return "Important values detected as stale. System might have locked up!";
     case EVENT_KWH_PLAUSIBILITY_ERROR:
       return "kWh remaining reported by battery not plausible. Battery needs cycling.";
     case EVENT_BALANCING_START:

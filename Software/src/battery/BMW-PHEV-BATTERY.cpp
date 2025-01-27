@@ -614,7 +614,7 @@ void update_values_battery() {  //This function maps all the values fetched via 
       battery_current != 0) {                             //Ignore stale values if there is no current flowing
     datalayer.battery.status.cell_min_voltage_mV = 9999;  //Stale values force stop
     datalayer.battery.status.cell_max_voltage_mV = 9999;  //Stale values force stop
-    set_event(EVENT_CAN_RX_FAILURE, 0);
+    set_event(EVENT_STALE_VALUE, 0);
 #ifdef DEBUG_LOG
     logging.println("Stale Min/Max voltage values detected during charge/discharge sending - 9999mV...");
 #endif  // DEBUG_LOG
