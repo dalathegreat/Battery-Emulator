@@ -52,6 +52,7 @@ void map_can_frame_to_variable_charger(CAN_frame rx_frame) {
   switch (rx_frame.ID) {
     //ID 0x212 conveys instantaneous DC charger stats
     case 0x212:
+      datalayer.charger.CAN_charger_still_alive = CAN_STILL_ALIVE;  // Let system know charger is sending CAN
       charger_stat_HVcur_temp = (uint16_t)(rx_frame.data.u8[0] << 8 | rx_frame.data.u8[1]);
       datalayer.charger.charger_stat_HVcur = (float)(charger_stat_HVcur_temp >> 3) * 0.05;
 
@@ -68,6 +69,7 @@ void map_can_frame_to_variable_charger(CAN_frame rx_frame) {
 
     //ID 0x30A conveys instantaneous AC charger stats
     case 0x30A:
+      datalayer.charger.CAN_charger_still_alive = CAN_STILL_ALIVE;  // Let system know charger is sending CAN
       charger_stat_ACcur_temp = (uint16_t)((rx_frame.data.u8[0] << 8 | rx_frame.data.u8[1]) >> 4);
       datalayer.charger.charger_stat_ACcur = (float)(charger_stat_ACcur_temp) * 0.2;
 
@@ -80,10 +82,13 @@ void map_can_frame_to_variable_charger(CAN_frame rx_frame) {
     // 0x266 and 0x308 are len 5
     // 0x268 may be temperature data (len 8). Could resemble the Lear charger equivalent TODO
     case 0x266:
+      datalayer.charger.CAN_charger_still_alive = CAN_STILL_ALIVE;  // Let system know charger is sending CAN
       break;
     case 0x268:
+      datalayer.charger.CAN_charger_still_alive = CAN_STILL_ALIVE;  // Let system know charger is sending CAN
       break;
     case 0x308:
+      datalayer.charger.CAN_charger_still_alive = CAN_STILL_ALIVE;  // Let system know charger is sending CAN
       break;
     default:
 #ifdef DEBUG_LOG

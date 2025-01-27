@@ -86,7 +86,7 @@ typedef struct {
   uint16_t CAN_error_counter;
   /** uint8_t */
   /** A counter set each time a new message comes from battery.
-   * This value then gets decremented each 5 seconds. Incase we reach 0
+   * This value then gets decremented every second. Incase we reach 0
    * we report the battery as missing entirely on the CAN bus.
    */
   uint8_t CAN_battery_still_alive = CAN_STILL_ALIVE;
@@ -171,6 +171,12 @@ typedef struct {
   bool charger_HV_enabled = false;
   /** True if the 12V DC/DC output is enabled */
   bool charger_aux12V_enabled = false;
+  /** uint8_t */
+  /** A counter set each time a new message comes from charger.
+   * This value then gets decremented every second. Incase we reach 0
+   * we report the battery as missing entirely on the CAN bus.
+   */
+  uint8_t CAN_charger_still_alive = CAN_STILL_ALIVE;
 } DATALAYER_CHARGER_TYPE;
 
 typedef struct {
@@ -256,7 +262,7 @@ typedef struct {
 #endif
   /** uint8_t */
   /** A counter set each time a new message comes from inverter.
-   * This value then gets decremented each 5 seconds. Incase we reach 0
+   * This value then gets decremented every second. Incase we reach 0
    * we report the inverter as missing entirely on the CAN bus.
    */
   uint8_t CAN_inverter_still_alive = CAN_STILL_ALIVE;

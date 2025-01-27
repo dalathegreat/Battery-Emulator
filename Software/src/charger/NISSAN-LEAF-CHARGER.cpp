@@ -118,6 +118,7 @@ void map_can_frame_to_variable_charger(CAN_frame rx_frame) {
 
   switch (rx_frame.ID) {
     case 0x679:  // This message fires once when charging cable is plugged in
+      datalayer.charger.CAN_charger_still_alive = CAN_STILL_ALIVE;  // Let system know charger is sending CAN
       OBCwakeup = true;
       datalayer.charger.charger_aux12V_enabled = true;  //Not possible to turn off 12V charging on LEAF PDM
       // Startout with default values, so that charging can begin right when user plugs in cable
@@ -126,6 +127,7 @@ void map_can_frame_to_variable_charger(CAN_frame rx_frame) {
       datalayer.charger.charger_setpoint_HV_VDC = 400;  // Target voltage
       break;
     case 0x390:
+      datalayer.charger.CAN_charger_still_alive = CAN_STILL_ALIVE;  // Let system know charger is sending CAN
       OBC_Charge_Status = ((rx_frame.data.u8[5] & 0x7E) >> 1);
       if (OBC_Charge_Status == PLUGGED_IN_WAITING_ON_TIMER || CHARGING_OR_INTERRUPTED) {
         PPStatus = true;  //plug inserted
@@ -145,6 +147,9 @@ void map_can_frame_to_variable_charger(CAN_frame rx_frame) {
 
       OBC_Charge_Power = ((rx_frame.data.u8[0] & 0x01) << 8) | (rx_frame.data.u8[1]);
       datalayer.charger.charger_stat_HVcur = OBC_Charge_Power;
+      break;
+    case 0x393:
+      datalayer.charger.CAN_charger_still_alive = CAN_STILL_ALIVE;  // Let system know charger is sending CAN
       break;
     default:
       break;

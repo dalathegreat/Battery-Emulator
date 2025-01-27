@@ -472,7 +472,7 @@ void update_values_battery() {  //This function maps all the values fetched via 
   if (isMinCellVoltageStale && isMaxCellVoltageStale) {
     datalayer.battery.status.cell_min_voltage_mV = 9999;  //Stale values force stop
     datalayer.battery.status.cell_max_voltage_mV = 9999;  //Stale values force stop
-    set_event(EVENT_CAN_RX_FAILURE, 0);
+    set_event(EVENT_STALE_VALUE, 0);
   } else {
     datalayer.battery.status.cell_min_voltage_mV = min_cell_voltage;  //Value is alive
     datalayer.battery.status.cell_max_voltage_mV = max_cell_voltage;  //Value is alive
