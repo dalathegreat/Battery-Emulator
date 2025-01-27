@@ -8,8 +8,10 @@
 /* Do not change code below unless you are sure what you are doing */
 /* Credits: Most of the code comes from Per Carlen's bms_comms_tesla_model3.py (https://gitlab.com/pelle8/batt2gen24/) */
 
+static unsigned long previousMillis10 = 0;   // will store last time a 50ms CAN Message was send
 static unsigned long previousMillis50 = 0;   // will store last time a 50ms CAN Message was send
 static unsigned long previousMillis100 = 0;  // will store last time a 100ms CAN Message was send
+static bool alternate243 = false;
 //0x221 545 VCFRONT_LVPowerState: "GenMsgCycleTime" 50ms
 CAN_frame TESLA_221_1 = {
     .FD = false,
@@ -23,6 +25,31 @@ CAN_frame TESLA_221_2 = {
     .DLC = 8,
     .ID = 0x221,
     .data = {0x61, 0x15, 0x01, 0x00, 0x00, 0x00, 0x20, 0xBA}};  //Contactor Frame 221 - hv_up_for_drive
+//0x241 VCFRONT_coolant 100ms
+CAN_frame TESLA_241 = {.FD = false,
+                       .ext_ID = false,
+                       .DLC = 7,
+                       .ID = 0x241,
+                       .data = {0x3C, 0x78, 0x2C, 0x0F, 0x1E, 0x5B, 0x00}};
+//0x242 VCLEFT_LVPowerState 100ms
+CAN_frame TESLA_242 = {.FD = false, .ext_ID = false, .DLC = 2, .ID = 0x242, .data = {0x10, 0x95}};
+//0x243 VCRIGHT_hvacStatus 50ms
+CAN_frame TESLA_243_1 = {.FD = false,
+                         .ext_ID = false,
+                         .DLC = 8,
+                         .ID = 0x243,
+                         .data = {0xC9, 0x00, 0xEB, 0xD4, 0x31, 0x32, 0x02, 0x00}};
+CAN_frame TESLA_243_2 = {.FD = false,
+                         .ext_ID = false,
+                         .DLC = 8,
+                         .ID = 0x243,
+                         .data = {0x08, 0x81, 0x42, 0x60, 0x92, 0x2C, 0x0E, 0x09}};
+//0x129 SteeringAngle 10ms
+CAN_frame TESLA_129 = {.FD = false,
+                       .ext_ID = false,
+                       .DLC = 8,
+                       .ID = 0x129,
+                       .data = {0x21, 0x24, 0x36, 0x5F, 0x00, 0x20, 0xFF, 0x3F}};
 CAN_frame TESLA_602 = {.FD = false,
                        .ext_ID = false,
                        .DLC = 8,
@@ -2771,6 +2798,13 @@ the first, for a few cycles, then stop all  messages which causes the contactor 
   }
 #endif  //defined(TESLA_MODEL_SX_BATTERY) || defined(EXP_TESLA_BMS_DIGITAL_HVIL)
 
+  //Send 10ms message
+  if (currentMillis - previousMillis10 >= INTERVAL_10_MS) {
+    previousMillis10 = currentMillis;
+
+    transmit_can_frame(&TESLA_129, can_config.battery);
+  }
+
   //Send 50ms message
   if (currentMillis - previousMillis50 >= INTERVAL_50_MS) {
     // Check if sending of CAN messages has been delayed too much.
@@ -2807,6 +2841,17 @@ the first, for a few cycles, then stop all  messages which causes the contactor 
   //Send 100ms message
   if (currentMillis - previousMillis100 >= INTERVAL_100_MS) {
     previousMillis100 = currentMillis;
+
+    transmit_can_frame(&TESLA_129, can_config.battery);
+    transmit_can_frame(&TESLA_241, can_config.battery);
+    transmit_can_frame(&TESLA_242, can_config.battery);
+    if (alternate243) {
+      transmit_can_frame(&TESLA_243_1, can_config.battery);
+      alternate243 = false;
+    } else {
+      transmit_can_frame(&TESLA_243_2, can_config.battery);
+      alternate243 = true;
+    }
 
     if (stateMachineClearIsolationFault != 0xFF) {
       //This implementation should be rewritten to actually replying to the UDS replied sent by the BMS
