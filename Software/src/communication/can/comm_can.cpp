@@ -104,25 +104,33 @@ void init_CAN() {
   }
   //#ifdef CANFD_ADDON_DOUBLE
   // Initialize CAN-FD2
-  const uint32_t errorCode2 = canfd2.begin(settings2517, [] { canfd2.isr(); });
+  ACAN2517FDSettings settings2517double(
+      CANFD_ADDON_CRYSTAL_FREQUENCY_MHZ, 500 * 1000,
+      DataBitRateFactor::x4);  // Arbitration bit rate: 500 kbit/s, data bit rate: 2 Mbit/s
+#ifdef USE_CANFD_INTERFACE_AS_CLASSIC_CAN
+  settings2517double.mRequestedMode = ACAN2517FDSettings::Normal20B;  // ListenOnly / Normal20B / NormalFD
+#else                                                                 // not USE_CANFD_INTERFACE_AS_CLASSIC_CAN
+  settings2517double.mRequestedMode = ACAN2517FDSettings::NormalFD;  // ListenOnly / Normal20B / NormalFD
+#endif                                                                // USE_CANFD_INTERFACE_AS_CLASSIC_CAN
+  const uint32_t errorCode2 = canfd2.begin(settings2517double, [] { canfd2.isr(); });
   canfd2.poll();
   if (errorCode2 == 0) {
 #ifdef DEBUG_LOG
     logging.print("CAN-FD2 initialized. Bit Rate prescaler: ");
-    logging.println(settings2517.mBitRatePrescaler);
+    logging.println(settings2517double.mBitRatePrescaler);
     logging.print("Arbitration Phase segment 1: ");
-    logging.print(settings2517.mArbitrationPhaseSegment1);
+    logging.print(settings2517double.mArbitrationPhaseSegment1);
     logging.print(" segment 2: ");
-    logging.print(settings2517.mArbitrationPhaseSegment2);
+    logging.print(settings2517double.mArbitrationPhaseSegment2);
     logging.print(" SJW: ");
-    logging.println(settings2517.mArbitrationSJW);
+    logging.println(settings2517double.mArbitrationSJW);
     logging.print("Actual Arbitration Bit Rate: ");
-    logging.print(settings2517.actualArbitrationBitRate());
+    logging.print(settings2517double.actualArbitrationBitRate());
     logging.print(" bit/s");
     logging.print(" (Exact:");
-    logging.println(settings2517.exactArbitrationBitRate() ? "yes)" : "no)");
+    logging.println(settings2517double.exactArbitrationBitRate() ? "yes)" : "no)");
     logging.print("Arbitration Sample point: ");
-    logging.print(settings2517.arbitrationSamplePointFromBitStart());
+    logging.print(settings2517double.arbitrationSamplePointFromBitStart());
     logging.println("%");
 #endif
   } else {
