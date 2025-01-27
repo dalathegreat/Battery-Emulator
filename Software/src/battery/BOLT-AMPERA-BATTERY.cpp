@@ -7,7 +7,7 @@
 
 /*
 TODOs left for this implementation
-- The battery has 3 CAN ports. One of the internal modules is responsible for the 7E4 polls, the battery the 7E7 polls
+- The battery has 3 CAN ports. One of the internal modules is responsible for the 7E4 polls, the battery for the 7E7 polls
 - Current implementation only seems to get the 7E7 polls working.
 - We might need to poll on 7E6 also?
 
