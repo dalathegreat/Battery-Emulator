@@ -741,7 +741,7 @@ String advanced_battery_processor(const String& var) {
     content += "<h4>Max Discharge Power: " + String(BMS_maxDischargePower) + " KW</h4>";
     //content += "<h4>Max Stationary Heat Power: " + String(BMS_maxStationaryHeatPower) + " KWh</h4>"; // Not giving useable data
     //content += "<h4>HVAC Power Budget: " + String(BMS_hvacPowerBudget) + " KW</h4>"; // Not giving useable data
-    //content += "<h4>Not Enough Power For Heat Pump: " + String(getNoYes[datalayer_extended.tesla.BMS_notEnoughPowerForHeatPump]) + "</h4>"; // Not giving useable data
+    //content += "<h4>Not Enough Power For Heat Pump: " + String(noYes[datalayer_extended.tesla.BMS_notEnoughPowerForHeatPump]) + "</h4>"; // Not giving useable data
     content +=
         "<h4>Power Limit State: " + String(BMS_powerLimitState[datalayer_extended.tesla.BMS_powerLimitState]) + "</h4>";
     //content += "<h4>Inverter TQF: " + String(datalayer_extended.tesla.BMS_inverterTQF) + "</h4>"; // Not giving useable data
