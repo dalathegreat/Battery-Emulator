@@ -70,7 +70,7 @@ void handle_precharge_control() {
 
     case PRECHARGE:
       //  Check if external voltage measurement changed, for instance with the MEB batteries, the external voltage is only updated every 100ms.
-      if (prev_external_voltage != external_voltage) {
+      if (prev_external_voltage != external_voltage && external_voltage != 0) {
         prev_external_voltage = external_voltage;
 
         /*if (labs(target_voltage - external_voltage) > 150) {
