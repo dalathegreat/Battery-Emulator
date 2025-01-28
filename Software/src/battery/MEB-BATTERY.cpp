@@ -1626,13 +1626,22 @@ void transmit_can_battery() {
          datalayer.battery.status.real_bms_status != BMS_FAULT &&
         (datalayer.battery.status.real_bms_status == BMS_ACTIVE ||
          (datalayer.battery.status.real_bms_status == BMS_STANDBY &&
-        ( hv_requested ||
+        ( hv_requested || (
+          datalayer.battery.status.voltage_dV > 200 && 
+          datalayer_extended.meb.BMS_voltage_intermediate_dV > 0 &&
           labs(((int32_t)datalayer.battery.status.voltage_dV) -
-              ((int32_t)datalayer_extended.meb.BMS_voltage_intermediate_dV)) < 200)))) {
+              ((int32_t)datalayer_extended.meb.BMS_voltage_intermediate_dV)) < 200))))) {
           hv_requested = true;
 #ifdef DEBUG_LOG
       if (MEB_503.data.u8[3] == BMS_TARGET_HV_OFF) {
         logging.printf("MEB: Requesting HV\n");
+      }
+      if ((MEB_503.data.u8[1] & 0x80) != (datalayer.battery.status.real_bms_status == BMS_ACTIVE ? 0x00 : 0x80)){
+        if (datalayer.battery.status.real_bms_status == BMS_ACTIVE){
+          logging.printf("MEB: Precharge bit not set\n");
+        } else {
+          logging.printf("MEB: Precharge bit set\n");
+        }
       }
 #endif
       MEB_503.data.u8[1] =
@@ -1647,6 +1656,13 @@ void transmit_can_battery() {
 #ifdef DEBUG_LOG
       if (MEB_503.data.u8[3] != BMS_TARGET_HV_OFF) {
         logging.printf("MEB: Requesting HV_OFF\n");
+      }
+      if ((MEB_503.data.u8[1] & 0x80) != (datalayer.system.settings.equipment_stop_active ? 0x00 : 0x80)){
+        if (datalayer.system.settings.equipment_stop_active){
+          logging.printf("MEB: Precharge bit not set\n");
+        } else {
+          logging.printf("MEB: Precharge bit set\n");
+        }
       }
 #endif
       MEB_503.data.u8[1] = 0x10 |
