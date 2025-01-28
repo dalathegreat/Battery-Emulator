@@ -43,7 +43,6 @@ unsigned long currentTime = 0;
 unsigned long lastPowerRemovalTime = 0;
 const unsigned long powerRemovalInterval = 24 * 60 * 60 * 1000;  // 24 hours in milliseconds
 const unsigned long powerRemovalDuration = 30000;                // 30 seconds in milliseconds
-bool isBMSResetActive = false;
 
 void set(uint8_t pin, bool direction, uint32_t pwm_freq = 0xFFFF) {
 #ifdef PWM_CONTACTOR_CONTROL
@@ -153,6 +152,7 @@ void handle_contactors() {
     set(PRECHARGE_PIN, OFF);
     set(NEGATIVE_CONTACTOR_PIN, OFF, PWM_OFF_DUTY);
     set(POSITIVE_CONTACTOR_PIN, OFF, PWM_OFF_DUTY);
+    datalayer.system.status.contactors_engaged = false;
 
     if (datalayer.system.status.battery_allows_contactor_closing &&
         datalayer.system.status.inverter_allows_contactor_closing && !datalayer.system.settings.equipment_stop_active) {
@@ -255,48 +255,38 @@ void handle_BMSpower() {
 #endif  //PERIODIC_BMS_RESET
 
   // If power has been removed for 30 seconds, restore the power and resume the emulator
-  if (isBMSResetActive && currentTime - lastPowerRemovalTime >= powerRemovalDuration) {
-    // Reapply power to the BMS
-    digitalWrite(BMS_POWER, HIGH);
-
-    //Resume the battery pause and CAN communication
-    setBatteryPause(false, false, false, false);
-
-    isBMSResetActive = false;  // Reset the power removal flag
-  }
-#endif  //defined(PERIODIC_BMS_RESET) || defined(REMOTE_BMS_RESET)
-}
-
-void start_bms_reset() {
-#if defined(PERIODIC_BMS_RESET) || defined(REMOTE_BMS_RESET)
-  if (!isBMSResetActive) {
-    lastPowerRemovalTime = currentTime;  // Record the time when BMS reset was started
-
-    // Set emulator state to paused (Max Charge/Discharge = 0 & CAN = stop)
-    // TODO: We try to keep contactors engaged during this pause, and just ramp power down to 0.
-    // If this turns out to not work properly, set also the third option to true to open contactors
-    setBatteryPause(true, true, false, false);
-
-    digitalWrite(BMS_POWER, LOW);  // Remove power by setting the BMS power pin to LOW
-#ifdef BMS_2_POWER
-    digitalWrite(BMS_2_POWER, LOW);  // Same for battery 2
-#endif
-
-    isBMSResetActive = true;  // Set a flag to indicate power removal is active
-  }
-
-  // If power has been removed for 30 seconds, restore the power and resume the emulator
-  if (isBMSResetActive && currentTime - lastPowerRemovalTime >= powerRemovalDuration) {
+  if (datalayer.system.status.BMS_reset_in_progress && currentTime - lastPowerRemovalTime >= powerRemovalDuration) {
     // Reapply power to the BMS
     digitalWrite(BMS_POWER, HIGH);
 #ifdef BMS_2_POWER
     digitalWrite(BMS_2_POWER, HIGH);  // Same for battery 2
 #endif
 
-    //Resume the battery pause and CAN communication
+    //Resume from the power pause
     setBatteryPause(false, false, false, false);
 
-    isBMSResetActive = false;  // Reset the power removal flag
+    datalayer.system.status.BMS_reset_in_progress = false;  // Reset the power removal flag
   }
-#endif  //PERIODIC_BMS_RESET
+#endif  //defined(PERIODIC_BMS_RESET) || defined(REMOTE_BMS_RESET)
+}
+
+void start_bms_reset() {
+#if defined(PERIODIC_BMS_RESET) || defined(REMOTE_BMS_RESET)
+  if (!datalayer.system.status.BMS_reset_in_progress) {
+    lastPowerRemovalTime = currentTime;  // Record the time when BMS reset was started
+
+    // Set a flag to let the rest of the system know we are cutting power to the BMS.
+    // The battery CAN sending routine will then know not to try to send anything towards battery while active
+    datalayer.system.status.BMS_reset_in_progress = true;
+
+    // Set emulator state to paused (Max Charge/Discharge = 0 & CAN = stop)
+    // We try to keep contactors engaged during this pause, and just ramp power down to 0.
+    setBatteryPause(true, false, false, false);
+
+    digitalWrite(BMS_POWER, LOW);  // Remove power by setting the BMS power pin to LOW
+#ifdef BMS_2_POWER
+    digitalWrite(BMS_2_POWER, LOW);  // Same for battery 2
+#endif
+  }
+#endif  //defined(PERIODIC_BMS_RESET) || defined(REMOTE_BMS_RESET)
 }

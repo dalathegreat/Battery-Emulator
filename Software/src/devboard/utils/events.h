@@ -6,7 +6,7 @@
 
 // #define INCLUDE_EVENTS_TEST  // Enable to run an event test loop, see events_test_on_target.cpp
 
-#define EE_MAGIC_HEADER_VALUE 0x0020  // 0x0000 to 0xFFFF
+#define EE_MAGIC_HEADER_VALUE 0x0022  // 0x0000 to 0xFFFF
 
 #define GENERATE_ENUM(ENUM) ENUM,
 #define GENERATE_STRING(STRING) #STRING,
@@ -29,14 +29,14 @@
   XX(EVENT_CANMCP2517FD_INIT_FAILURE)   \
   XX(EVENT_CANMCP2515_INIT_FAILURE)     \
   XX(EVENT_CANFD_BUFFER_FULL)           \
+  XX(EVENT_CAN_BUFFER_FULL)             \
   XX(EVENT_CAN_OVERRUN)                 \
-  XX(EVENT_CANFD_RX_OVERRUN)            \
-  XX(EVENT_CAN_RX_FAILURE)              \
-  XX(EVENT_CAN2_RX_FAILURE)             \
-  XX(EVENT_CANFD_RX_FAILURE)            \
-  XX(EVENT_CAN_RX_WARNING)              \
-  XX(EVENT_CAN_TX_FAILURE)              \
+  XX(EVENT_CAN_CORRUPTED_WARNING)       \
+  XX(EVENT_CAN_BATTERY_MISSING)         \
+  XX(EVENT_CAN_BATTERY2_MISSING)        \
+  XX(EVENT_CAN_CHARGER_MISSING)         \
   XX(EVENT_CAN_INVERTER_MISSING)        \
+  XX(EVENT_CAN_NATIVE_TX_FAILURE)       \
   XX(EVENT_CHARGE_LIMIT_EXCEEDED)       \
   XX(EVENT_CONTACTOR_WELDED)            \
   XX(EVENT_DISCHARGE_LIMIT_EXCEEDED)    \
@@ -44,11 +44,13 @@
   XX(EVENT_12V_LOW)                     \
   XX(EVENT_SOC_PLAUSIBILITY_ERROR)      \
   XX(EVENT_SOC_UNAVAILABLE)             \
+  XX(EVENT_STALE_VALUE)                 \
   XX(EVENT_KWH_PLAUSIBILITY_ERROR)      \
   XX(EVENT_BALANCING_START)             \
   XX(EVENT_BALANCING_END)               \
   XX(EVENT_BATTERY_EMPTY)               \
   XX(EVENT_BATTERY_FULL)                \
+  XX(EVENT_BATTERY_FUSE)                \
   XX(EVENT_BATTERY_FROZEN)              \
   XX(EVENT_BATTERY_CAUTION)             \
   XX(EVENT_BATTERY_CHG_STOP_REQ)        \

@@ -90,4 +90,4 @@ jobs:
       # in the build matrix, and using build flags to define the
       # battery and inverter set in the build matrix.
       - name: Compile Sketch
-        run: arduino-cli compile --fqbn ${{ matrix.fqbn }} --build-property "build.extra_flags=-Wall -DESP32 -D${{ matrix.battery}} -D${{ matrix.inverter}} -D${{ matrix.hardware}}" ./Software
+        run: arduino-cli compile --fqbn ${{ matrix.fqbn }} --build-property "build.extra_flags=-Wall -Wextra -Wpedantic -Werror -DESP32 -D${{ matrix.battery}} -D${{ matrix.inverter}} -D${{ matrix.hardware}}" ./Software
