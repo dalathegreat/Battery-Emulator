@@ -1638,9 +1638,9 @@ void transmit_can_battery() {
       }
       if ((MEB_503.data.u8[1] & 0x80) != (datalayer.battery.status.real_bms_status == BMS_ACTIVE ? 0x00 : 0x80)){
         if (datalayer.battery.status.real_bms_status == BMS_ACTIVE){
-          logging.printf("MEB: Precharge bit not set\n");
+          logging.printf("MEB: Precharge bit set to inactive\n");
         } else {
-          logging.printf("MEB: Precharge bit set\n");
+          logging.printf("MEB: Precharge bit set to active\n");
         }
       }
 #endif
@@ -1659,9 +1659,9 @@ void transmit_can_battery() {
       }
       if ((MEB_503.data.u8[1] & 0x80) != (datalayer.system.settings.equipment_stop_active ? 0x00 : 0x80)){
         if (datalayer.system.settings.equipment_stop_active){
-          logging.printf("MEB: Precharge bit not set\n");
+          logging.printf("MEB: Precharge bit set to inactive\n");
         } else {
-          logging.printf("MEB: Precharge bit set\n");
+          logging.printf("MEB: Precharge bit set to active\n");
         }
       }
 #endif
