@@ -38,7 +38,6 @@ static void publish_values(void) {
 }
 
 #ifdef HA_AUTODISCOVERY
-
 static bool ha_common_info_published = false;
 static bool ha_cell_voltages_published = false;
 static bool ha_events_published = false;
@@ -132,6 +131,7 @@ void set_common_discovery_attributes(JsonDocument& doc) {
   doc["payload_not_available"] = "offline";
   doc["enabled_by_default"] = true;
 }
+#endif  // HA_AUTODISCOVERY
 
 void set_battery_attributes(JsonDocument& doc, const DATALAYER_BATTERY_TYPE& battery, const String& suffix) {
   doc["SOC" + suffix] = ((float)battery.status.reported_soc) / 100.0;
@@ -155,6 +155,7 @@ void set_battery_attributes(JsonDocument& doc, const DATALAYER_BATTERY_TYPE& bat
   doc["max_charge_power" + suffix] = ((float)battery.status.max_charge_power_W);
 }
 
+#ifdef HA_AUTODISCOVERY
 void set_battery_voltage_attributes(JsonDocument& doc, int i, int cellNumber, const String& state_topic,
                                     const String& object_id_prefix, const String& battery_name_suffix) {
   doc["name"] = "Battery" + battery_name_suffix + " Cell Voltage " + String(cellNumber);
@@ -166,7 +167,6 @@ void set_battery_voltage_attributes(JsonDocument& doc, int i, int cellNumber, co
   doc["unit_of_measurement"] = "V";
   doc["value_template"] = "{{ value_json.cell_voltages[" + String(i) + "] }}";
 }
-
 #endif  // HA_AUTODISCOVERY
 
 static std::vector<EventData> order_events;
@@ -425,6 +425,7 @@ void mqtt_message_received(char* topic, int topic_len, char* data, int data_len)
   }
 #endif  // REMOTE_BMS_RESET
 
+#ifdef HA_AUTODISCOVERY
   if (strncmp(topic, generateButtonTopic("PAUSE").c_str(), topic_len) == 0) {
     setBatteryPause(true, false);
   }
@@ -442,7 +443,10 @@ void mqtt_message_received(char* topic, int topic_len, char* data, int data_len)
   if (strncmp(topic, generateButtonTopic("STOP").c_str(), topic_len) == 0) {
     setBatteryPause(true, false, true);
   }
+#endif  // HA_AUTODISCOVERY
 }
+
+
 
 static void mqtt_event_handler(void* handler_args, esp_event_base_t base, int32_t event_id, void* event_data) {
   esp_mqtt_event_handle_t event = (esp_mqtt_event_handle_t)event_data;
