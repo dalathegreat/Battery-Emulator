@@ -538,6 +538,6 @@ void mqtt_loop(void) {
 }
 
 bool mqtt_publish(const char* topic, const char* mqtt_msg, bool retain) {
-  int msg_id = esp_mqtt_client_publish(client, topic, mqtt_msg, strlen(mqtt_msg), 1, retain);
+  int msg_id = esp_mqtt_client_publish(client, topic, mqtt_msg, strlen(mqtt_msg), MQTT_QOS, retain);
   return msg_id > -1;
 }
