@@ -33,8 +33,8 @@ static int16_t celltemperature_max_dC = 0;
 static int16_t celltemperature_min_dC = 0;
 static int16_t current_dA = 0;
 static uint16_t voltage_dV = 0;
-static uint16_t cellvoltage_max_mV = 0;
-static uint16_t cellvoltage_min_mV = 0;
+static uint16_t cellvoltage_max_mV = 3700;
+static uint16_t cellvoltage_min_mV = 3700;
 static uint16_t charge_cutoff_voltage = 0;
 static uint16_t discharge_cutoff_voltage = 0;
 static int16_t max_charge_current = 0;
@@ -68,8 +68,10 @@ void update_values_battery() {
       (static_cast<double>(datalayer.battery.status.real_soc) / 10000) * datalayer.battery.info.total_capacity_Wh);
 
   datalayer.battery.status.cell_max_voltage_mV = cellvoltage_max_mV;
+  datalayer.battery.status.cell_voltages_mV[0] = cellvoltage_max_mV;
 
   datalayer.battery.status.cell_min_voltage_mV = cellvoltage_min_mV;
+  datalayer.battery.status.cell_voltages_mV[1] = cellvoltage_min_mV;
 
   datalayer.battery.status.temperature_min_dC = celltemperature_min_dC;
 
@@ -177,6 +179,7 @@ void transmit_can_battery() {
 void setup_battery(void) {  // Performs one time setup at startup
   strncpy(datalayer.system.info.battery_protocol, "Pylon compatible battery", 63);
   datalayer.system.info.battery_protocol[63] = '\0';
+  datalayer.battery.info.number_of_cells = 2;
   datalayer.battery.info.max_design_voltage_dV = MAX_PACK_VOLTAGE_DV;
   datalayer.battery.info.min_design_voltage_dV = MIN_PACK_VOLTAGE_DV;
   datalayer.battery.info.max_cell_voltage_mV = MAX_CELL_VOLTAGE_MV;
