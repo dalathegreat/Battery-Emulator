@@ -1650,7 +1650,7 @@ void transmit_can_battery() {
       MEB_503.data.u8[3] = BMS_TARGET_AC_CHARGING;  //TODO, should we try AC_2 or DC charging?
       MEB_503.data.u8[5] = 0x82;              // Bordnetz Active
       MEB_503.data.u8[6] = 0xE0;              // Request emergency shutdown HV system == 0, false
-    } else if ((/*first_can_msg > 0 && currentMillis > first_can_msg + 2000 && BMS_mode != 0 &&*/
+    } else if ((first_can_msg > 0 && currentMillis > first_can_msg + 1000 &&
                BMS_mode != 7) || datalayer.system.settings.equipment_stop_active) {  //FAULT STATE, open contactors
 
 #ifdef DEBUG_LOG
