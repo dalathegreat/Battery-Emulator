@@ -446,6 +446,8 @@ void mqtt_message_received(char* topic, int topic_len, char* data, int data_len)
 #endif  // HA_AUTODISCOVERY
 }
 
+
+
 static void mqtt_event_handler(void* handler_args, esp_event_base_t base, int32_t event_id, void* event_data) {
   esp_mqtt_event_handle_t event = (esp_mqtt_event_handle_t)event_data;
   switch ((esp_mqtt_event_id_t)event_id) {
