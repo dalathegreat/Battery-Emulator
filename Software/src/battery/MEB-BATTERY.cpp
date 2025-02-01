@@ -10,15 +10,13 @@
 
 /*
 TODO list
-- Check value mappings on the PID polls
 - Check all TODO:s in the code
 - 0x1B000044 & 1B00008F seems to be missing from logs? (Classic CAN)
 - Scaled remaining capacity, should take already scaled total capacity into account, or we 
 should undo the scaling on the total capacity (which is calculated from the ah value now, 
 which is scaled already).
 - Investigate why opening and then closing contactors from webpage does not always work
-- Invertigate why contactors don't close when lilygo and battery are powered on simultaneously -> timeout on can msgs triggers to late, reset when open contactors is executed
-- Find out how to get the battery in balancing mode
+- remaining_capacity_Wh is based on a lower limit of 5% soc. This means that at 5% soc, remaining_capacity_Wh returns 0.
 */
 
 /* Do not change code below unless you are sure what you are doing */
@@ -144,7 +142,6 @@ static uint8_t target_flow_temperature_C = 0;  //*0,5 -40
 static uint8_t return_temperature_C = 0;       //*0,5 -40
 static uint8_t status_valve_1 = 0;             //0 not active, 1 active, 5 not installed, 6 init, 7 fault
 static uint8_t status_valve_2 = 0;             //0 not active, 1 active, 5 not installed, 6 init, 7 fault
-static uint8_t battery_temperature = 0;
 static uint8_t temperature_request =
     0;  //0 high cooling, 1 medium cooling, 2 low cooling, 3 no temp requirement init, 4 low heating , 5 medium heating, 6 high heating, 7 circulation
 static uint16_t performance_index_discharge_peak_temperature_percentage = 0;
@@ -164,7 +161,6 @@ static uint16_t actual_cellvoltage_lowest_mV = 0;   //bias 1000
 static uint16_t predicted_power_dyn_standard_watt = 0;
 static uint8_t predicted_time_dyn_standard_minutes = 0;
 static uint8_t mux = 0;
-static int8_t celltemperature[56] = {0};  //Temperatures 1-56. Value is 0xFD if sensor not present
 static uint16_t cellvoltages[160] = {0};
 static uint16_t duration_discharge_power_watt = 0;
 static uint16_t duration_charge_power_watt = 0;
@@ -539,9 +535,8 @@ uint8_t vw_crc_calc(uint8_t* inputBytes, uint8_t length, uint16_t address) {
 
 void update_values_battery() {  //This function maps all the values fetched via CAN to the correct parameters used for modbus
 
-  datalayer.battery.status.real_soc = battery_SOC * 5;  //*0.05*100   battery_soc_polled * 10;
-  //Alternatively use battery_SOC for more precision
-
+  datalayer.battery.status.real_soc = battery_SOC * 5;  //*0.05*100
+  
   datalayer.battery.status.soh_pptt;
 
   datalayer.battery.status.voltage_dV = BMS_voltage * 2.5;  // *0.25*10
@@ -549,10 +544,9 @@ void update_values_battery() {  //This function maps all the values fetched via 
   datalayer.battery.status.current_dA = (BMS_current - 16300);  // 0.1 * 10
 
   datalayer.battery.info.total_capacity_Wh =
-      ((float)datalayer.battery.info.number_of_cells) * 3.6458 * ((float)BMS_capacity_ah) * 0.2 * 1.127;
+      ((float)datalayer.battery.info.number_of_cells) * 3.6458 * ((float)BMS_capacity_ah) * 0.2 * 1.13;
 
   datalayer.battery.status.remaining_capacity_Wh = usable_energy_amount_Wh * 5;
-  //Alternatively use battery_Wh_left
 
   datalayer.battery.status.max_charge_power_W = (max_charge_power_watt * 100);
 
@@ -562,33 +556,18 @@ void update_values_battery() {  //This function maps all the values fetched via 
   datalayer.battery.status.active_power_W =
       ((datalayer.battery.status.voltage_dV * datalayer.battery.status.current_dA) / 100);
 
-  datalayer.battery.status.temperature_min_dC = (battery_min_temp - 350) / 2;
+//  datalayer.battery.status.temperature_min_dC = actual_temperature_lowest_C*5 -400;  // We use the value below, because it has better accuracy
+  datalayer.battery.status.temperature_min_dC = (battery_min_temp*10) / 64;
 
-  datalayer.battery.status.temperature_max_dC = (battery_max_temp - 350) / 2;
+//  datalayer.battery.status.temperature_max_dC = actual_temperature_highest_C*5 -400;  // We use the value below, because it has better accuracy
+  datalayer.battery.status.temperature_max_dC = (battery_max_temp*10) / 64;
+
 
   //Map all cell voltages to the global array
   memcpy(datalayer.battery.status.cell_voltages_mV, cellvoltages_polled, 108 * sizeof(uint16_t));
 
-  // Initialize min and max, lets find which cells are min and max!
-  uint16_t min_cell_mv_value = std::numeric_limits<uint16_t>::max();
-  uint16_t max_cell_mv_value = 0;
-  // Loop to find the min and max while ignoring zero values
-  for (uint8_t i = 0; i < 108; ++i) {
-    uint16_t voltage_mV = datalayer.battery.status.cell_voltages_mV[i];
-    if (voltage_mV != 0) {  // Skip unread values (0)
-      min_cell_mv_value = std::min(min_cell_mv_value, voltage_mV);
-      max_cell_mv_value = std::max(max_cell_mv_value, voltage_mV);
-    }
-  }
-  // If all array values are 0, reset min/max to 3700
-  if (min_cell_mv_value == std::numeric_limits<uint16_t>::max()) {
-    min_cell_mv_value = 3700;
-    max_cell_mv_value = 3700;
-  }
-
-  datalayer.battery.status.cell_min_voltage_mV = min_cell_mv_value;
-  datalayer.battery.status.cell_max_voltage_mV = max_cell_mv_value;
-  //TODO, use actual_cellvoltage_lowest_mV instead to save performance
+  datalayer.battery.status.cell_min_voltage_mV = actual_cellvoltage_lowest_mV + 1000;
+  datalayer.battery.status.cell_max_voltage_mV = actual_cellvoltage_highest_mV + 1000;
 
   if (service_disconnect_switch_missing) {
     set_event(EVENT_HVIL_FAILURE, 1);
@@ -717,7 +696,7 @@ void handle_incoming_can_frame_battery(CAN_frame rx_frame) {
       status_valve_1 = (rx_frame.data.u8[3] & 0x1C) >> 2;
       status_valve_2 = (rx_frame.data.u8[3] & 0xE0) >> 5;
       temperature_request = (((rx_frame.data.u8[2] & 0x03) << 1) | rx_frame.data.u8[1] >> 7);
-      battery_temperature = rx_frame.data.u8[5];        //*0,5 -40
+      datalayer_extended.meb.battery_temperature_dC = rx_frame.data.u8[5]*5 - 400;        //*0,5 -40
       target_flow_temperature_C = rx_frame.data.u8[6];  //*0,5 -40
       return_temperature_C = rx_frame.data.u8[7];       //*0,5 -40
       break;
@@ -752,7 +731,7 @@ void handle_incoming_can_frame_battery(CAN_frame rx_frame) {
       switch (mux) {
         case 0:  // Temperatures 1-56. Value is 0xFD if sensor not present
           for (uint8_t i = 0; i < 56; i++) {
-            celltemperature[i] = (rx_frame.data.u8[i + 1] / 2) - 40;
+            datalayer_extended.meb.celltemperature_dC[i] = (rx_frame.data.u8[i + 1] *5) - 400;
           }
           break;
         case 1:  // Cellvoltages 1-42
@@ -1090,6 +1069,60 @@ void handle_incoming_can_frame_battery(CAN_frame rx_frame) {
           break;
         case PID_MIN_TEMP:
           battery_min_temp = ((rx_frame.data.u8[4] << 8) | rx_frame.data.u8[5]);
+          break;
+        case PID_TEMP_POINT_1:
+          datalayer_extended.meb.temp_points[0] = (((rx_frame.data.u8[4] << 8) | rx_frame.data.u8[5]) / 8.f) - 40;
+          break;
+        case PID_TEMP_POINT_2:
+          datalayer_extended.meb.temp_points[1] = (((rx_frame.data.u8[4] << 8) | rx_frame.data.u8[5]) / 8.f) - 40;
+          break;
+        case PID_TEMP_POINT_3:
+          datalayer_extended.meb.temp_points[2] = (((rx_frame.data.u8[4] << 8) | rx_frame.data.u8[5]) / 8.f) - 40;
+          break;
+        case PID_TEMP_POINT_4:
+          datalayer_extended.meb.temp_points[3] = (((rx_frame.data.u8[4] << 8) | rx_frame.data.u8[5]) / 8.f) - 40;
+          break;
+        case PID_TEMP_POINT_5:
+          datalayer_extended.meb.temp_points[4] = (((rx_frame.data.u8[4] << 8) | rx_frame.data.u8[5]) / 8.f) - 40;
+          break;
+        case PID_TEMP_POINT_6:
+          datalayer_extended.meb.temp_points[5] = (((rx_frame.data.u8[4] << 8) | rx_frame.data.u8[5]) / 8.f) - 40;
+          break;
+        case PID_TEMP_POINT_7:
+          datalayer_extended.meb.temp_points[6] = (((rx_frame.data.u8[4] << 8) | rx_frame.data.u8[5]) / 8.f) - 40;
+          break;
+        case PID_TEMP_POINT_8:
+          datalayer_extended.meb.temp_points[7] = (((rx_frame.data.u8[4] << 8) | rx_frame.data.u8[5]) / 8.f) - 40;
+          break;
+        case PID_TEMP_POINT_9:
+          datalayer_extended.meb.temp_points[8] = (((rx_frame.data.u8[4] << 8) | rx_frame.data.u8[5]) / 8.f) - 40;
+          break;
+        case PID_TEMP_POINT_10:
+          datalayer_extended.meb.temp_points[9] = (((rx_frame.data.u8[4] << 8) | rx_frame.data.u8[5]) / 8.f) - 40;
+          break;
+        case PID_TEMP_POINT_11:
+          datalayer_extended.meb.temp_points[10] = (((rx_frame.data.u8[4] << 8) | rx_frame.data.u8[5]) / 8.f) - 40;
+          break;
+        case PID_TEMP_POINT_12:
+          datalayer_extended.meb.temp_points[11] = (((rx_frame.data.u8[4] << 8) | rx_frame.data.u8[5]) / 8.f) - 40;
+          break;
+        case PID_TEMP_POINT_13:
+          datalayer_extended.meb.temp_points[12] = (((rx_frame.data.u8[4] << 8) | rx_frame.data.u8[5]) / 8.f) - 40;
+          break;
+        case PID_TEMP_POINT_14:
+          datalayer_extended.meb.temp_points[13] = (((rx_frame.data.u8[4] << 8) | rx_frame.data.u8[5]) / 8.f) - 40;
+          break;
+        case PID_TEMP_POINT_15:
+          datalayer_extended.meb.temp_points[14] = (((rx_frame.data.u8[4] << 8) | rx_frame.data.u8[5]) / 8.f) - 40;
+          break;
+        case PID_TEMP_POINT_16:
+          datalayer_extended.meb.temp_points[15] = (((rx_frame.data.u8[4] << 8) | rx_frame.data.u8[5]) / 8.f) - 40;
+          break;
+        case PID_TEMP_POINT_17:
+          datalayer_extended.meb.temp_points[16] = (((rx_frame.data.u8[4] << 8) | rx_frame.data.u8[5]) / 8.f) - 40;
+          break;
+        case PID_TEMP_POINT_18:
+          datalayer_extended.meb.temp_points[17] = (((rx_frame.data.u8[4] << 8) | rx_frame.data.u8[5]) / 8.f) - 40;
           break;
         case PID_MAX_CHARGE_VOLTAGE:
           battery_max_charge_voltage = ((rx_frame.data.u8[4] << 8) | rx_frame.data.u8[5]);
@@ -1707,9 +1740,9 @@ void transmit_can_battery() {
   if (currentMillis - previousMillis200ms >= INTERVAL_200_MS) {
     previousMillis200ms = currentMillis;
 
-    //TODO: 153 does not seem to need CRC even though it has it? Empty in some logs and still works
+    // MEB_153 does not need CRC even though it has it. Empty in some logs as well.
 
-    //TODO: MEB_1B0000B9 & MEB_1B000010 & MEB_1B000046 has CAN sleep commands, static OK?
+    //TODO: MEB_1B0000B9 & MEB_1B000010 & MEB_1B000046 has CAN sleep commands. May be removed?
 
     transmit_can_frame(&MEB_5E1, can_config.battery);
     transmit_can_frame(&MEB_153, can_config.battery);
@@ -1741,6 +1774,32 @@ void transmit_can_battery() {
       case PID_MIN_TEMP:
         MEB_POLLING_FRAME.data.u8[2] = (uint8_t)(PID_MIN_TEMP >> 8);
         MEB_POLLING_FRAME.data.u8[3] = (uint8_t)PID_MIN_TEMP;
+        poll_pid = PID_TEMP_POINT_1;
+        break;
+      case PID_TEMP_POINT_1:
+      case PID_TEMP_POINT_2:
+      case PID_TEMP_POINT_3:
+      case PID_TEMP_POINT_4:
+      case PID_TEMP_POINT_5:
+      case PID_TEMP_POINT_6:
+      case PID_TEMP_POINT_7:
+      case PID_TEMP_POINT_8:
+      case PID_TEMP_POINT_9:
+      case PID_TEMP_POINT_10:
+      case PID_TEMP_POINT_11:
+      case PID_TEMP_POINT_12:
+      case PID_TEMP_POINT_13:
+      case PID_TEMP_POINT_14:
+      case PID_TEMP_POINT_15:
+      case PID_TEMP_POINT_16:
+      case PID_TEMP_POINT_17:
+        MEB_POLLING_FRAME.data.u8[2] = (uint8_t)(poll_pid >> 8);
+        MEB_POLLING_FRAME.data.u8[3] = (uint8_t)poll_pid;
+        poll_pid = poll_pid + 1;
+        break;
+      case PID_TEMP_POINT_18:
+        MEB_POLLING_FRAME.data.u8[2] = (uint8_t)(poll_pid >> 8);
+        MEB_POLLING_FRAME.data.u8[3] = (uint8_t)poll_pid;
         poll_pid = PID_MAX_CHARGE_VOLTAGE;
         break;
       case PID_MAX_CHARGE_VOLTAGE:

@@ -535,6 +535,9 @@ typedef struct {
   uint8_t balancing_active = 0;
   bool balancing_request = 0;
   bool charging_active = 0;
+  float temp_points[18] = {0};
+  uint16_t celltemperature_dC[56] = {0};
+  uint16_t battery_temperature_dC = 0;
 } DATALAYER_INFO_MEB;
 
 typedef struct {
