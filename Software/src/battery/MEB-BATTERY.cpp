@@ -562,6 +562,14 @@ void update_values_battery() {  //This function maps all the values fetched via 
 //  datalayer.battery.status.temperature_max_dC = actual_temperature_highest_C*5 -400;  // We use the value below, because it has better accuracy
   datalayer.battery.status.temperature_max_dC = (battery_max_temp*10) / 64;
 
+  if (datalayer.battery.status.temperature_max_dC > 400){
+      set_event_latched(EVENT_BATTERY_OVERHEAT, datalayer.battery.status.temperature_max_dC);
+  } else {
+    if (labs(datalayer.battery.status.temperature_max_dC - datalayer.battery.status.temperature_min_dC) > 100)
+      set_event_latched(EVENT_BATTERY_OVERHEAT, datalayer.battery.status.temperature_max_dC);
+    else
+      clear_event(EVENT_BATTERY_OVERHEAT);
+  }
 
   //Map all cell voltages to the global array
   memcpy(datalayer.battery.status.cell_voltages_mV, cellvoltages_polled, 108 * sizeof(uint16_t));
@@ -616,6 +624,10 @@ void update_values_battery() {  //This function maps all the values fetched via 
   datalayer_extended.meb.rt_cell_undervol = realtime_cell_undervoltage_warning;
   datalayer_extended.meb.rt_cell_imbalance = realtime_cell_imbalance_warning;
   datalayer_extended.meb.rt_battery_unathorized = realtime_warning_battery_unathorized;
+  if (balancing_active==1 && datalayer_extended.meb.balancing_active!=1)
+    set_event_latched(EVENT_BALANCING_START, 0);
+  if (balancing_active==2 && datalayer_extended.meb.balancing_active==1)
+    set_event(EVENT_BALANCING_END, 0);
   datalayer_extended.meb.balancing_active = balancing_active;
   datalayer_extended.meb.balancing_request = balancing_request;
   datalayer_extended.meb.charging_active = charging_active;
