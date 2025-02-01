@@ -14,6 +14,7 @@
 //#define BMW_PHEV_BATTERY
 //#define BOLT_AMPERA_BATTERY
 //#define BYD_ATTO_3_BATTERY
+//#define FOXESS_BATTERY
 //#define CELLPOWER_BMS
 //#define CHADEMO_BATTERY	//NOTE: inherently enables CONTACTOR_CONTROL below
 //#define IMIEV_CZERO_ION_BATTERY
