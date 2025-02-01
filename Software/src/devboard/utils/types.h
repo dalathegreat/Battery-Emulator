@@ -7,6 +7,7 @@ enum bms_status_enum { STANDBY = 0, INACTIVE = 1, DARKSTART = 2, ACTIVE = 3, FAU
 enum real_bms_status_enum { BMS_DISCONNECTED = 0, BMS_STANDBY = 1, BMS_ACTIVE = 2, BMS_FAULT = 3 };
 enum battery_chemistry_enum { NCA, NMC, LFP };
 enum led_color { GREEN, YELLOW, RED, BLUE };
+enum PrechargeState { PRECHARGE_IDLE, START_PRECHARGE, PRECHARGE, PRECHARGE_OFF, COMPLETED };
 
 #define DISCHARGING 1
 #define CHARGING 2

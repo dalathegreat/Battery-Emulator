@@ -1677,11 +1677,12 @@ void transmit_can_battery() {
           labs(((int32_t)datalayer.battery.status.voltage_dV) -
               ((int32_t)datalayer_extended.meb.BMS_voltage_intermediate_dV)) < 200))))) {
           hv_requested = true;
+          datalayer.system.settings.start_precharging = false;
 #ifdef DEBUG_LOG
       if (MEB_503.data.u8[3] == BMS_TARGET_HV_OFF) {
         logging.printf("MEB: Requesting HV\n");
       }
-      if ((MEB_503.data.u8[1] & 0x80) != (datalayer.battery.status.real_bms_status == BMS_ACTIVE ? 0x00 : 0x80)){
+      if ((MEB_503.data.u8[1] & 0x80) != (datalayer.system.status.precharge_status == PRECHARGE ? 0x80 : 0x00)){
         if (datalayer.battery.status.real_bms_status == BMS_ACTIVE){
           logging.printf("MEB: Precharge bit set to inactive\n");
         } else {
@@ -1691,18 +1692,24 @@ void transmit_can_battery() {
 #endif
       MEB_503.data.u8[1] =
           0x30 |
-          (datalayer.battery.status.real_bms_status == BMS_ACTIVE ? 0x00 : 0x80);  // Disable precharging if ACTIVE
+          (datalayer.system.status.precharge_status == PRECHARGE ? 0x80 : 0x00);
       MEB_503.data.u8[3] = BMS_TARGET_AC_CHARGING;  //TODO, should we try AC_2 or DC charging?
       MEB_503.data.u8[5] = 0x82;              // Bordnetz Active
       MEB_503.data.u8[6] = 0xE0;              // Request emergency shutdown HV system == 0, false
     } else if ((first_can_msg > 0 && currentMillis > first_can_msg + 1000 &&
                BMS_mode != 7) || datalayer.system.settings.equipment_stop_active) {  //FAULT STATE, open contactors
 
+      if (datalayer.battery.status.bms_status != FAULT && datalayer.battery.status.real_bms_status == BMS_STANDBY &&
+          !datalayer.system.settings.equipment_stop_active) {
+            datalayer.system.settings.start_precharging = true;
+      }
+
+
 #ifdef DEBUG_LOG
       if (MEB_503.data.u8[3] != BMS_TARGET_HV_OFF) {
         logging.printf("MEB: Requesting HV_OFF\n");
       }
-      if ((MEB_503.data.u8[1] & 0x80) != (datalayer.system.settings.equipment_stop_active ? 0x00 : 0x80)){
+      if ((MEB_503.data.u8[1] & 0x80) != (datalayer.system.status.precharge_status == PRECHARGE ? 0x80 : 0x00)){
         if (datalayer.system.settings.equipment_stop_active){
           logging.printf("MEB: Precharge bit set to inactive\n");
         } else {
@@ -1711,7 +1718,7 @@ void transmit_can_battery() {
       }
 #endif
       MEB_503.data.u8[1] = 0x10 |
-          (datalayer.system.settings.equipment_stop_active ? 0x00 : 0x80);  // Disable precharging if equipment stop
+          (datalayer.system.status.precharge_status == PRECHARGE ? 0x80 : 0x00);
       MEB_503.data.u8[3] = BMS_TARGET_HV_OFF;
       MEB_503.data.u8[5] = 0x80;  // Bordnetz Inactive
       MEB_503.data.u8[6] =

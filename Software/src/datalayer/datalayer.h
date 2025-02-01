@@ -247,10 +247,16 @@ typedef struct {
   /** True if the contactor controlled by battery-emulator is closed. Determined by check_interconnect_available(); if voltage is OK */
   bool contactors_battery2_engaged = false;
 #endif
+#ifdef PRECHARGE_CONTROL
+  PrechargeState precharge_status = PRECHARGE_IDLE;
+#endif
 } DATALAYER_SYSTEM_STATUS_TYPE;
 
 typedef struct {
   bool equipment_stop_active = false;
+#ifdef PRECHARGE_CONTROL
+  bool start_precharging = false;
+#endif
 } DATALAYER_SYSTEM_SETTINGS_TYPE;
 
 typedef struct {
