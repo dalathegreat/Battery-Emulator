@@ -185,4 +185,8 @@ extern IPAddress subnet;
 #define DEBUG_LOG
 #endif
 
+#if defined (MEB_BATTERY)
+#define PRECHARGE_CONTROL
+#endif
+
 #endif  // __USER_SETTINGS_H__
