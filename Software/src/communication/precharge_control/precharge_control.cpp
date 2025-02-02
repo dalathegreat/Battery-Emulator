@@ -44,27 +44,27 @@ void handle_precharge_control() {
 
   // Handle actual state machine. This first turns on Negative, then Precharge, then Positive, and finally turns OFF precharge
   switch (datalayer.system.status.precharge_status) {
-    case PRECHARGE_IDLE:
+    case AUTO_PRECHARGE_IDLE:
 
 #if 0
       if (datalayer.battery.status.bms_status != FAULT && datalayer.battery.status.real_bms_status == BMS_STANDBY &&
           /*datalayer.system.status.inverter_allows_contactor_closing &&*/
           !datalayer.system.settings.equipment_stop_active) {
-        datalayer.system.status.precharge_status = START_PRECHARGE;
+        datalayer.system.status.precharge_status = AUTO_PRECHARGE_START;
       }
 #else
       if (datalayer.system.settings.start_precharging) {
-        datalayer.system.status.precharge_status = START_PRECHARGE;
+        datalayer.system.status.precharge_status = AUTO_PRECHARGE_START;
       }
 #endif
       break;
 
-    case START_PRECHARGE:
+    case AUTO_PRECHARGE_START:
       freq = Precharge_default_PWM_Freq;
       ledcAttachChannel(PRECHARGE_PIN, freq, PWM_Res, PWM_Precharge_Channel);
       ledcWriteTone(PRECHARGE_PIN, freq);  // Set frequency and set dutycycle to 50%
       prechargeStartTime = currentTime;
-      datalayer.system.status.precharge_status = PRECHARGE_PRECHARGING;
+      datalayer.system.status.precharge_status = AUTO_PRECHARGE_PRECHARGING;
 #ifdef DEBUG_LOG
       logging.printf("Precharge: Starting sequence\n");
 #endif
@@ -72,7 +72,7 @@ void handle_precharge_control() {
 
       break;
 
-    case PRECHARGE_PRECHARGING:
+    case AUTO_PRECHARGE_PRECHARGING:
       //  Check if external voltage measurement changed, for instance with the MEB batteries, the external voltage is only updated every 100ms.
       if (prev_external_voltage != external_voltage && external_voltage != 0) {
         prev_external_voltage = external_voltage;
@@ -106,7 +106,7 @@ void handle_precharge_control() {
         pinMode(PRECHARGE_PIN, OUTPUT);
         digitalWrite(PRECHARGE_PIN, LOW);
         digitalWrite(POSITIVE_CONTACTOR_PIN, LOW);
-        datalayer.system.status.precharge_status = PRECHARGE_IDLE;
+        datalayer.system.status.precharge_status = AUTO_PRECHARGE_IDLE;
 #ifdef DEBUG_LOG
         logging.printf("Precharge: Disabling Precharge bms not standby/active or equipment stop\n");
 #endif
@@ -115,9 +115,9 @@ void handle_precharge_control() {
         pinMode(PRECHARGE_PIN, OUTPUT);
         digitalWrite(PRECHARGE_PIN, LOW);
         digitalWrite(POSITIVE_CONTACTOR_PIN, LOW);
-        datalayer.system.status.precharge_status = PRECHARGE_OFF;
+        datalayer.system.status.precharge_status = AUTO_PRECHARGE_OFF;
 #ifdef DEBUG_LOG
-        logging.printf("Precharge: Disabled (timeout reached / BMS fault) -> PRECHARGE_OFF\n");
+        logging.printf("Precharge: Disabled (timeout reached / BMS fault) -> AUTO_PRECHARGE_OFF\n");
 #endif
         set_event(EVENT_AUTOMATIC_PRECHARGE_FAILURE, 0);
 
@@ -126,27 +126,27 @@ void handle_precharge_control() {
         pinMode(PRECHARGE_PIN, OUTPUT);
         digitalWrite(PRECHARGE_PIN, LOW);
         digitalWrite(POSITIVE_CONTACTOR_PIN, LOW);
-        datalayer.system.status.precharge_status = PRECHARGE_COMPLETED;
+        datalayer.system.status.precharge_status = AUTO_PRECHARGE_COMPLETED;
 #ifdef DEBUG_LOG
         logging.printf("Precharge: Disabled (contacts closed) -> COMPLETED\n");
 #endif
       }
       break;
 
-    case PRECHARGE_COMPLETED:
+    case AUTO_PRECHARGE_COMPLETED:
       if (datalayer.system.settings.equipment_stop_active || datalayer.battery.status.bms_status != ACTIVE) {
-        datalayer.system.status.precharge_status = PRECHARGE_IDLE;
+        datalayer.system.status.precharge_status = AUTO_PRECHARGE_IDLE;
 #ifdef DEBUG_LOG
         logging.printf("Precharge: equipment stop activated -> IDLE\n");
 #endif
       }
       break;
 
-    case PRECHARGE_OFF:
+    case AUTO_PRECHARGE_OFF:
       if (!datalayer.system.status.battery_allows_contactor_closing ||
           !datalayer.system.status.inverter_allows_contactor_closing ||
           datalayer.system.settings.equipment_stop_active || datalayer.battery.status.bms_status != FAULT) {
-        datalayer.system.status.precharge_status = PRECHARGE_IDLE;
+        datalayer.system.status.precharge_status = AUTO_PRECHARGE_IDLE;
         pinMode(PRECHARGE_PIN, OUTPUT);
         digitalWrite(PRECHARGE_PIN, LOW);
 #ifdef DEBUG_LOG
@@ -159,4 +159,4 @@ void handle_precharge_control() {
       break;
   }
 }
-#endif  // PRECHARGE_CONTROL
+#endif  // AUTO_PRECHARGE_CONTROL

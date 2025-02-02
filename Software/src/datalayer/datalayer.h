@@ -282,7 +282,7 @@ typedef struct {
   bool BMS_reset_in_progress = false;
 #ifdef PRECHARGE_CONTROL
   /** State of automatic precharge sequence */
-  PrechargeState precharge_status = PRECHARGE_IDLE;
+  PrechargeState precharge_status = AUTO_PRECHARGE_IDLE;
 #endif
 } DATALAYER_SYSTEM_STATUS_TYPE;
 
