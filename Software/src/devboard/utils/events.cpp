@@ -217,6 +217,7 @@ void init_events(void) {
   events.entries[EVENT_MQTT_CONNECT].level = EVENT_LEVEL_INFO;
   events.entries[EVENT_MQTT_DISCONNECT].level = EVENT_LEVEL_INFO;
   events.entries[EVENT_EQUIPMENT_STOP].level = EVENT_LEVEL_ERROR;
+  events.entries[EVENT_SD_INIT_FAILED].level = EVENT_LEVEL_WARNING;
 
   events.entries[EVENT_EEPROM_WRITE].log = false;  // Don't log the logger...
 
@@ -443,6 +444,8 @@ const char* get_event_message_string(EVENTS_ENUM_TYPE event) {
       return "MQTT disconnected.";
     case EVENT_EQUIPMENT_STOP:
       return "EQUIPMENT STOP ACTIVATED!!!";
+    case EVENT_SD_INIT_FAILED:
+      return "SD card initialization failed, check hardware. Power must be removed to reset the SD card.";
     default:
       return "";
   }
