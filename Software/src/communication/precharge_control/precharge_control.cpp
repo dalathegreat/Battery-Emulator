@@ -77,9 +77,9 @@ void handle_precharge_control() {
       if (prev_external_voltage != external_voltage && external_voltage != 0) {
         prev_external_voltage = external_voltage;
 
-        /*if (labs(target_voltage - external_voltage) > 150) {
+        if (labs(target_voltage - external_voltage) > 150) {
           delta_freq = 2000;
-        } else*/ if (labs(target_voltage - external_voltage) > 80) {
+        } else if (labs(target_voltage - external_voltage) > 80) {
           delta_freq = labs(target_voltage - external_voltage) * 6;
         } else {
           delta_freq = labs(target_voltage - external_voltage) * 3;
@@ -110,7 +110,8 @@ void handle_precharge_control() {
 #ifdef DEBUG_LOG
         logging.printf("Precharge: Disabling Precharge bms not standby/active or equipment stop\n");
 #endif
-      } else if (currentTime - prechargeStartTime >= MAX_PRECHARGE_TIME_MS || datalayer.battery.status.real_bms_status == BMS_FAULT) {
+      } else if (currentTime - prechargeStartTime >= MAX_PRECHARGE_TIME_MS ||
+                 datalayer.battery.status.real_bms_status == BMS_FAULT) {
         pinMode(PRECHARGE_PIN, OUTPUT);
         digitalWrite(PRECHARGE_PIN, LOW);
         digitalWrite(POSITIVE_CONTACTOR_PIN, LOW);

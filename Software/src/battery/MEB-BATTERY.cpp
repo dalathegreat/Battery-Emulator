@@ -11,10 +11,6 @@
 /*
 TODO list
 - Check all TODO:s in the code
-- 0x1B000044 & 1B00008F seems to be missing from logs? (Classic CAN)
-- Scaled remaining capacity, should take already scaled total capacity into account, or we 
-should undo the scaling on the total capacity (which is calculated from the ah value now, 
-which is scaled already).
 - Investigate why opening and then closing contactors from webpage does not always work
 - remaining_capacity_Wh is based on a lower limit of 5% soc. This means that at 5% soc, remaining_capacity_Wh returns 0.
 */
@@ -556,11 +552,11 @@ void update_values_battery() {  //This function maps all the values fetched via 
   datalayer.battery.status.active_power_W =
       ((datalayer.battery.status.voltage_dV * datalayer.battery.status.current_dA) / 100);
 
-//  datalayer.battery.status.temperature_min_dC = actual_temperature_lowest_C*5 -400;  // We use the value below, because it has better accuracy
-  datalayer.battery.status.temperature_min_dC = (battery_min_temp*10) / 64;
+  // datalayer.battery.status.temperature_min_dC = actual_temperature_lowest_C*5 -400;  // We use the value below, because it has better accuracy
+  datalayer.battery.status.temperature_min_dC = (battery_min_temp * 10) / 64;
 
-//  datalayer.battery.status.temperature_max_dC = actual_temperature_highest_C*5 -400;  // We use the value below, because it has better accuracy
-  datalayer.battery.status.temperature_max_dC = (battery_max_temp*10) / 64;
+  // datalayer.battery.status.temperature_max_dC = actual_temperature_highest_C*5 -400;  // We use the value below, because it has better accuracy
+  datalayer.battery.status.temperature_max_dC = (battery_max_temp * 10) / 64;
 
   if (datalayer.battery.status.temperature_max_dC > 400){
       set_event_latched(EVENT_BATTERY_OVERHEAT, datalayer.battery.status.temperature_max_dC);
@@ -621,9 +617,9 @@ void update_values_battery() {  //This function maps all the values fetched via 
   datalayer_extended.meb.rt_cell_undervol = realtime_cell_undervoltage_warning;
   datalayer_extended.meb.rt_cell_imbalance = realtime_cell_imbalance_warning;
   datalayer_extended.meb.rt_battery_unathorized = realtime_warning_battery_unathorized;
-  if (balancing_active==1 && datalayer_extended.meb.balancing_active!=1)
+  if (balancing_active == 1 && datalayer_extended.meb.balancing_active != 1)
     set_event_latched(EVENT_BALANCING_START, 0);
-  if (balancing_active==2 && datalayer_extended.meb.balancing_active==1)
+  if (balancing_active == 2 && datalayer_extended.meb.balancing_active == 1)
     set_event(EVENT_BALANCING_END, 0);
   datalayer_extended.meb.balancing_active = balancing_active;
   datalayer_extended.meb.balancing_request = balancing_request;
@@ -705,9 +701,9 @@ void handle_incoming_can_frame_battery(CAN_frame rx_frame) {
       status_valve_1 = (rx_frame.data.u8[3] & 0x1C) >> 2;
       status_valve_2 = (rx_frame.data.u8[3] & 0xE0) >> 5;
       temperature_request = (((rx_frame.data.u8[2] & 0x03) << 1) | rx_frame.data.u8[1] >> 7);
-      datalayer_extended.meb.battery_temperature_dC = rx_frame.data.u8[5]*5 - 400;        //*0,5 -40
-      target_flow_temperature_C = rx_frame.data.u8[6];  //*0,5 -40
-      return_temperature_C = rx_frame.data.u8[7];       //*0,5 -40
+      datalayer_extended.meb.battery_temperature_dC = rx_frame.data.u8[5]*5 - 400;  //*0,5 -40
+      target_flow_temperature_C = rx_frame.data.u8[6];                              //*0,5 -40
+      return_temperature_C = rx_frame.data.u8[7];                                   //*0,5 -40
       break;
     case 0x1A5555B2:  // BMS
       can_msg_received |= RX_0x1A5555B2;
@@ -742,7 +738,7 @@ void handle_incoming_can_frame_battery(CAN_frame rx_frame) {
       switch (mux) {
         case 0:  // Temperatures 1-56. Value is 0xFD if sensor not present
           for (uint8_t i = 0; i < 56; i++) {
-            datalayer_extended.meb.celltemperature_dC[i] = (rx_frame.data.u8[i + 1] *5) - 400;
+            datalayer_extended.meb.celltemperature_dC[i] = (rx_frame.data.u8[i + 1] * 5) - 400;
           }
           break;
         case 1:  // Cellvoltages 1-42
@@ -982,9 +978,10 @@ void handle_incoming_can_frame_battery(CAN_frame rx_frame) {
       break;
     case 0x5CA:  // BMS 500ms
       can_msg_received |= RX_0x5CA;
-      BMS_5CA_CRC = rx_frame.data.u8[0];                      // Can be used to check CAN signal integrity later on
-      BMS_5CA_counter = (rx_frame.data.u8[1] & 0x0F);         // Can be used to check CAN signal integrity later on
-      balancing_request = (rx_frame.data.u8[5] & 0x08) >> 3;  // BMS requests a low current end charge to support balancing, maybe unused.
+      BMS_5CA_CRC = rx_frame.data.u8[0];               // Can be used to check CAN signal integrity later on
+      BMS_5CA_counter = (rx_frame.data.u8[1] & 0x0F);  // Can be used to check CAN signal integrity later on
+      balancing_request = (rx_frame.data.u8[5] & 0x08) >> 
+                          3;  // BMS requests a low current end charge to support balancing, maybe unused.
       battery_diagnostic = (rx_frame.data.u8[3] & 0x07);
       battery_Wh_left =
           (rx_frame.data.u8[2] << 4) | (rx_frame.data.u8[1] >> 4);  //*50  ! Not usable, seems to always contain 0x7F0
@@ -1666,22 +1663,21 @@ void transmit_can_battery() {
 
     //HV request and DC/DC control lies in 0x503
 
-    if ( (!datalayer.system.settings.equipment_stop_active) &&
-         datalayer.battery.status.real_bms_status != BMS_FAULT &&
+    if ( (!datalayer.system.settings.equipment_stop_active) && datalayer.battery.status.real_bms_status != BMS_FAULT &&
         (datalayer.battery.status.real_bms_status == BMS_ACTIVE ||
          (datalayer.battery.status.real_bms_status == BMS_STANDBY &&
-        ( hv_requested || (
-          datalayer.battery.status.voltage_dV > 200 && 
+        ( hv_requested || 
+         (datalayer.battery.status.voltage_dV > 200 && 
           datalayer_extended.meb.BMS_voltage_intermediate_dV > 0 &&
           labs(((int32_t)datalayer.battery.status.voltage_dV) -
               ((int32_t)datalayer_extended.meb.BMS_voltage_intermediate_dV)) < 200))))) {
-          hv_requested = true;
-          datalayer.system.settings.start_precharging = false;
+      hv_requested = true;
+      datalayer.system.settings.start_precharging = false;
 #ifdef DEBUG_LOG
       if (MEB_503.data.u8[3] == BMS_TARGET_HV_OFF) {
         logging.printf("MEB: Requesting HV\n");
       }
-      if ((MEB_503.data.u8[1] & 0x80) != (datalayer.system.status.precharge_status == PRECHARGE ? 0x80 : 0x00)){
+      if ((MEB_503.data.u8[1] & 0x80) != (datalayer.system.status.precharge_status == PRECHARGE ? 0x80 : 0x00)) {
         if (datalayer.battery.status.real_bms_status == BMS_ACTIVE){
           logging.printf("MEB: Precharge bit set to inactive\n");
         } else {
@@ -1689,18 +1685,16 @@ void transmit_can_battery() {
         }
       }
 #endif
-      MEB_503.data.u8[1] =
-          0x30 |
-          (datalayer.system.status.precharge_status == PRECHARGE ? 0x80 : 0x00);
-      MEB_503.data.u8[3] = BMS_TARGET_AC_CHARGING;  //TODO, should we try AC_2 or DC charging?
-      MEB_503.data.u8[5] = 0x82;              // Bordnetz Active
-      MEB_503.data.u8[6] = 0xE0;              // Request emergency shutdown HV system == 0, false
-    } else if ((first_can_msg > 0 && currentMillis > first_can_msg + 1000 &&
-               BMS_mode != 7) || datalayer.system.settings.equipment_stop_active) {  //FAULT STATE, open contactors
+      MEB_503.data.u8[1] = 0x30 | (datalayer.system.status.precharge_status == PRECHARGE ? 0x80 : 0x00);
+      MEB_503.data.u8[3] = BMS_TARGET_AC_CHARGING;
+      MEB_503.data.u8[5] = 0x82;  // Bordnetz Active
+      MEB_503.data.u8[6] = 0xE0;  // Request emergency shutdown HV system == 0, false
+    } else if ((first_can_msg > 0 && currentMillis > first_can_msg + 1000 && BMS_mode != 7) ||
+               datalayer.system.settings.equipment_stop_active) {  //FAULT STATE, open contactors
 
       if (datalayer.battery.status.bms_status != FAULT && datalayer.battery.status.real_bms_status == BMS_STANDBY &&
           !datalayer.system.settings.equipment_stop_active) {
-            datalayer.system.settings.start_precharging = true;
+        datalayer.system.settings.start_precharging = true;
       }
 
 
@@ -1708,16 +1702,15 @@ void transmit_can_battery() {
       if (MEB_503.data.u8[3] != BMS_TARGET_HV_OFF) {
         logging.printf("MEB: Requesting HV_OFF\n");
       }
-      if ((MEB_503.data.u8[1] & 0x80) != (datalayer.system.status.precharge_status == PRECHARGE ? 0x80 : 0x00)){
-        if (datalayer.system.settings.equipment_stop_active){
+      if ((MEB_503.data.u8[1] & 0x80) != (datalayer.system.status.precharge_status == PRECHARGE ? 0x80 : 0x00)) {
+        if (datalayer.system.settings.equipment_stop_active) {
           logging.printf("MEB: Precharge bit set to inactive\n");
         } else {
           logging.printf("MEB: Precharge bit set to active\n");
         }
       }
 #endif
-      MEB_503.data.u8[1] = 0x10 |
-          (datalayer.system.status.precharge_status == PRECHARGE ? 0x80 : 0x00);
+      MEB_503.data.u8[1] = 0x10 | (datalayer.system.status.precharge_status == PRECHARGE ? 0x80 : 0x00);
       MEB_503.data.u8[3] = BMS_TARGET_HV_OFF;
       MEB_503.data.u8[5] = 0x80;  // Bordnetz Inactive
       MEB_503.data.u8[6] =
