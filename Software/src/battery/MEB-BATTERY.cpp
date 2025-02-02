@@ -574,9 +574,6 @@ void update_values_battery() {  //This function maps all the values fetched via 
   //Map all cell voltages to the global array
   memcpy(datalayer.battery.status.cell_voltages_mV, cellvoltages_polled, 108 * sizeof(uint16_t));
 
-  datalayer.battery.status.cell_min_voltage_mV = actual_cellvoltage_lowest_mV + 1000;
-  datalayer.battery.status.cell_max_voltage_mV = actual_cellvoltage_highest_mV + 1000;
-
   if (service_disconnect_switch_missing) {
     set_event(EVENT_HVIL_FAILURE, 1);
   } else {
@@ -732,6 +729,8 @@ void handle_incoming_can_frame_battery(CAN_frame rx_frame) {
         actual_temperature_lowest_C = rx_frame.data.u8[4];   //*0,5 -40
         actual_cellvoltage_highest_mV = (((rx_frame.data.u8[6] & 0x0F) << 8) | rx_frame.data.u8[5]);
         actual_cellvoltage_lowest_mV = ((rx_frame.data.u8[7] << 4) | rx_frame.data.u8[6] >> 4);
+        datalayer.battery.status.cell_min_voltage_mV = actual_cellvoltage_lowest_mV + 1000;
+        datalayer.battery.status.cell_max_voltage_mV = actual_cellvoltage_highest_mV + 1000;
       }
       break;
     case 0x16A954F8:                                                                                // BMS
