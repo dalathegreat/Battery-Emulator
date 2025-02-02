@@ -1013,7 +1013,8 @@ String advanced_battery_processor(const String& var) {
       default:
         content += String("?");
     }
-    content += String("</h4><h4>Slow charging: ") + (datalayer_extended.meb.balancing_request ? "requested" : "not requested");
+    content += 
+        String("</h4><h4>Slow charging: ") + (datalayer_extended.meb.balancing_request ? "requested" : "not requested");
     content += "</h4><h4>Diagnostic: ";
     switch (datalayer_extended.meb.battery_diagnostic) {
       case 0:
@@ -1152,10 +1153,10 @@ String advanced_battery_processor(const String& var) {
       content += " &deg;C</h4>";
     }
     bool temps_done = false;
-    for (int i =0 ; i < 7 && !temps_done; i++) {
+    for (int i = 0 ; i < 7 && !temps_done; i++) {
       content += "<h4>Cell temperatures " + String(i * 8 + 1) + "-" + String(i * 8 + 8) + " :";
-      for (int j =0 ; j < 8; j++) {
-        if (datalayer_extended.meb.celltemperature_dC[i * 8 + j] == 865){
+      for (int j = 0 ; j < 8; j++) {
+        if (datalayer_extended.meb.celltemperature_dC[i * 8 + j] == 865) {
           temps_done = true;
           break;
         } else {

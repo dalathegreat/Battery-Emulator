@@ -532,7 +532,7 @@ uint8_t vw_crc_calc(uint8_t* inputBytes, uint8_t length, uint16_t address) {
 void update_values_battery() {  //This function maps all the values fetched via CAN to the correct parameters used for modbus
 
   datalayer.battery.status.real_soc = battery_SOC * 5;  //*0.05*100
-  
+
   datalayer.battery.status.soh_pptt;
 
   datalayer.battery.status.voltage_dV = BMS_voltage * 2.5;  // *0.25*10
@@ -558,8 +558,8 @@ void update_values_battery() {  //This function maps all the values fetched via 
   // datalayer.battery.status.temperature_max_dC = actual_temperature_highest_C*5 -400;  // We use the value below, because it has better accuracy
   datalayer.battery.status.temperature_max_dC = (battery_max_temp * 10) / 64;
 
-  if (datalayer.battery.status.temperature_max_dC > 400){
-      set_event_latched(EVENT_BATTERY_OVERHEAT, datalayer.battery.status.temperature_max_dC);
+  if (datalayer.battery.status.temperature_max_dC > 400) {
+    set_event_latched(EVENT_BATTERY_OVERHEAT, datalayer.battery.status.temperature_max_dC);
   } else {
     if (labs(datalayer.battery.status.temperature_max_dC - datalayer.battery.status.temperature_min_dC) > 100)
       set_event_latched(EVENT_BATTERY_OVERHEAT, datalayer.battery.status.temperature_max_dC);
@@ -701,9 +701,9 @@ void handle_incoming_can_frame_battery(CAN_frame rx_frame) {
       status_valve_1 = (rx_frame.data.u8[3] & 0x1C) >> 2;
       status_valve_2 = (rx_frame.data.u8[3] & 0xE0) >> 5;
       temperature_request = (((rx_frame.data.u8[2] & 0x03) << 1) | rx_frame.data.u8[1] >> 7);
-      datalayer_extended.meb.battery_temperature_dC = rx_frame.data.u8[5]*5 - 400;  //*0,5 -40
-      target_flow_temperature_C = rx_frame.data.u8[6];                              //*0,5 -40
-      return_temperature_C = rx_frame.data.u8[7];                                   //*0,5 -40
+      datalayer_extended.meb.battery_temperature_dC = rx_frame.data.u8[5] * 5 - 400;  //*0,5 -40
+      target_flow_temperature_C = rx_frame.data.u8[6];                                //*0,5 -40
+      return_temperature_C = rx_frame.data.u8[7];                                     //*0,5 -40
       break;
     case 0x1A5555B2:  // BMS
       can_msg_received |= RX_0x1A5555B2;
@@ -980,7 +980,7 @@ void handle_incoming_can_frame_battery(CAN_frame rx_frame) {
       can_msg_received |= RX_0x5CA;
       BMS_5CA_CRC = rx_frame.data.u8[0];               // Can be used to check CAN signal integrity later on
       BMS_5CA_counter = (rx_frame.data.u8[1] & 0x0F);  // Can be used to check CAN signal integrity later on
-      balancing_request = (rx_frame.data.u8[5] & 0x08) >> 
+      balancing_request = (rx_frame.data.u8[5] & 0x08) >>
                           3;  // BMS requests a low current end charge to support balancing, maybe unused.
       battery_diagnostic = (rx_frame.data.u8[3] & 0x07);
       battery_Wh_left =
@@ -1594,7 +1594,7 @@ void transmit_can_battery() {
       datalayer.battery.status.real_bms_status = BMS_DISCONNECTED;
       datalayer.system.status.battery_allows_contactor_closing = false;
     }
-  } 
+  }
 
   if (currentMillis - previousMillis10ms >= INTERVAL_10_MS) {
     // Check if sending of CAN messages has been delayed too much.
@@ -1663,14 +1663,14 @@ void transmit_can_battery() {
 
     //HV request and DC/DC control lies in 0x503
 
-    if ( (!datalayer.system.settings.equipment_stop_active) && datalayer.battery.status.real_bms_status != BMS_FAULT &&
+    if ((!datalayer.system.settings.equipment_stop_active) && datalayer.battery.status.real_bms_status != BMS_FAULT &&
         (datalayer.battery.status.real_bms_status == BMS_ACTIVE ||
          (datalayer.battery.status.real_bms_status == BMS_STANDBY &&
-        ( hv_requested || 
-         (datalayer.battery.status.voltage_dV > 200 && 
-          datalayer_extended.meb.BMS_voltage_intermediate_dV > 0 &&
-          labs(((int32_t)datalayer.battery.status.voltage_dV) -
-              ((int32_t)datalayer_extended.meb.BMS_voltage_intermediate_dV)) < 200))))) {
+          ( hv_requested || 
+           (datalayer.battery.status.voltage_dV > 200 && 
+            datalayer_extended.meb.BMS_voltage_intermediate_dV > 0 &&
+            labs(((int32_t)datalayer.battery.status.voltage_dV) -
+                ((int32_t)datalayer_extended.meb.BMS_voltage_intermediate_dV)) < 200))))) {
       hv_requested = true;
       datalayer.system.settings.start_precharging = false;
 #ifdef DEBUG_LOG
@@ -1678,7 +1678,7 @@ void transmit_can_battery() {
         logging.printf("MEB: Requesting HV\n");
       }
       if ((MEB_503.data.u8[1] & 0x80) != (datalayer.system.status.precharge_status == PRECHARGE ? 0x80 : 0x00)) {
-        if (datalayer.battery.status.real_bms_status == BMS_ACTIVE){
+        if (datalayer.battery.status.real_bms_status == BMS_ACTIVE) {
           logging.printf("MEB: Precharge bit set to inactive\n");
         } else {
           logging.printf("MEB: Precharge bit set to active\n");
