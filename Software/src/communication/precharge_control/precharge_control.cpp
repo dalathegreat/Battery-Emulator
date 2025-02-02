@@ -64,7 +64,7 @@ void handle_precharge_control() {
       ledcAttachChannel(PRECHARGE_PIN, freq, PWM_Res, PWM_Precharge_Channel);
       ledcWriteTone(PRECHARGE_PIN, freq);  // Set frequency and set dutycycle to 50%
       prechargeStartTime = currentTime;
-      datalayer.system.status.precharge_status = PRECHARGE;
+      datalayer.system.status.precharge_status = PRECHARGE_PRECHARGING;
 #ifdef DEBUG_LOG
       logging.printf("Precharge: Starting sequence\n");
 #endif
@@ -72,7 +72,7 @@ void handle_precharge_control() {
 
       break;
 
-    case PRECHARGE:
+    case PRECHARGE_PRECHARGING:
       //  Check if external voltage measurement changed, for instance with the MEB batteries, the external voltage is only updated every 100ms.
       if (prev_external_voltage != external_voltage && external_voltage != 0) {
         prev_external_voltage = external_voltage;
@@ -126,14 +126,14 @@ void handle_precharge_control() {
         pinMode(PRECHARGE_PIN, OUTPUT);
         digitalWrite(PRECHARGE_PIN, LOW);
         digitalWrite(POSITIVE_CONTACTOR_PIN, LOW);
-        datalayer.system.status.precharge_status = COMPLETED;
+        datalayer.system.status.precharge_status = PRECHARGE_COMPLETED;
 #ifdef DEBUG_LOG
         logging.printf("Precharge: Disabled (contacts closed) -> COMPLETED\n");
 #endif
       }
       break;
 
-    case COMPLETED:
+    case PRECHARGE_COMPLETED:
       if (datalayer.system.settings.equipment_stop_active || datalayer.battery.status.bms_status != ACTIVE) {
         datalayer.system.status.precharge_status = PRECHARGE_IDLE;
 #ifdef DEBUG_LOG

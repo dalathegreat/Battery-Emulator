@@ -185,7 +185,7 @@ extern IPAddress subnet;
 #define DEBUG_LOG
 #endif
 
-#if defined (MEB_BATTERY)
+#if defined(MEB_BATTERY)
 #define PRECHARGE_CONTROL
 #endif
 
