@@ -1013,7 +1013,7 @@ String advanced_battery_processor(const String& var) {
       default:
         content += String("?");
     }
-    content += 
+    content +=
         String("</h4><h4>Slow charging: ") + (datalayer_extended.meb.balancing_request ? "requested" : "not requested");
     content += "</h4><h4>Diagnostic: ";
     switch (datalayer_extended.meb.battery_diagnostic) {
