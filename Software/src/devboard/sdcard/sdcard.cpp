@@ -191,12 +191,14 @@ void init_sdcard() {
 
   SD_MMC.setPins(SD_SCLK_PIN, SD_MOSI_PIN, SD_MISO_PIN);
   if (!SD_MMC.begin("/root", true, true, SDMMC_FREQ_HIGHSPEED)) {
+    set_event_latched(EVENT_SD_INIT_FAILED, 0);
 #ifdef DEBUG_LOG
     logging.println("SD Card initialization failed!");
 #endif  // DEBUG_LOG
     return;
   }
 
+  clear_event(EVENT_SD_INIT_FAILED);
 #ifdef DEBUG_LOG
   logging.println("SD Card initialization successful.");
 #endif  // DEBUG_LOG

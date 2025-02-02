@@ -20,7 +20,7 @@
 /* - ERROR CHECKS BELOW, DON'T TOUCH - */
 
 #if !defined(HW_CONFIGURED)
-#error You must select a target hardware in the USER_SERTTINGS.h file!
+#error You must select a target hardware in the USER_SETTINGS.h file!
 #endif
 
 #ifdef USE_CANFD_INTERFACE_AS_CLASSIC_CAN

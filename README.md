@@ -39,6 +39,11 @@ Here's how to connect the high voltage lines
 For more examples showing wiring, see each battery types own Wiki page. For instance the [Nissan LEAF page](https://github.com/dalathegreat/Battery-Emulator/wiki/Battery:-Nissan-LEAF---e%E2%80%90NV200)
 
 ## How to compile the software 💻
+
+Start by watching this [quickstart guide](https://www.youtube.com/watch?v=hcl2GdHc0Y0)
+
+[![IMAGE ALT TEXT HERE](https://img.youtube.com/vi/hcl2GdHc0Y0/0.jpg)](https://www.youtube.com/watch?v=hcl2GdHc0Y0)
+
 1. Download the Arduino IDE: https://www.arduino.cc/en/software
 2. Open the Arduino IDE.
 3. Click `File` menu -> `Preferences` -> `Additional Development` -> `Additional Board Manager URLs` -> Enter the URL in the input box: `https://raw.githubusercontent.com/espressif/arduino-esp32/gh-pages/package_esp32_index.json` and click OK.
@@ -52,8 +57,10 @@ For more examples showing wiring, see each battery types own Wiki page. For inst
   
 ![bild](https://github.com/dalathegreat/Battery-Emulator/assets/26695010/6a2414b1-f2ca-4746-8e8d-9afd78bd9252)
 
-5. The Arduino board should be set to `ESP32 Dev Module` (under `Tools` -> `Board` -> `ESP32 Arduino`) with the following settings:
-![alt text](https://github.com/Xinyuan-LilyGO/T-CAN485/blob/main/img/arduino_setting.png)
+5. The Arduino board should be set to `ESP32 Dev Module` and `Partition Scheme` to `Minimal SPIFFS (1.9MB APP with OTA/190KB SPIFFS)` (under `Tools` -> `Board` -> `ESP32 Arduino`) with the following settings:
+
+![ArduinoSettings](https://github.com/user-attachments/assets/74d36b07-cca4-4bf1-9eaf-1e7fa4e1effe)
+
 6. Select which battery type you will use, along with other optional settings. This is done in the `USER_SETTINGS.h` file.
 7. Copy the `USER_SECRETS.TEMPLATE.h` file to `USER_SECRETS.h` and update connectivity settings inside this file.
 8. Press `Verify` and `Upload` to send the sketch to the board.
@@ -62,6 +69,8 @@ NOTE: In some cases, the LilyGo must be powered through the main power connector
 NOTE: On Mac, the following USB driver may need to be installed: https://github.com/WCHSoftGroup/ch34xser_macos
 
 NOTE: If you see garbled messages on the serial console, change the serial console to match the baud rate to the code, currently 115200.
+
+NOTE: If you see the error `Sketch too big` then check you set the Partition Scheme above correctly.
 
 This video explains all the above mentioned steps:
 <https://youtu.be/_mH2AjnAjDk>
@@ -83,7 +92,6 @@ This code uses the following excellent libraries:
 - [ayushsharma82/ElegantOTA](https://github.com/ayushsharma82/ElegantOTA) AGPL-3.0 license 
 - [bblanchon/ArduinoJson](https://github.com/bblanchon/ArduinoJson) MIT-License
 - [eModbus/eModbus](https://github.com/eModbus/eModbus) MIT-License
-- [knolleary/pubsubclient](https://github.com/knolleary/pubsubclient) MIT-License
 - [mackelec/SerialDataLink](https://github.com/mackelec/SerialDataLink)
 - [mathieucarbou/AsyncTCPsock](https://github.com/mathieucarbou/AsyncTCPSock) LGPL-3.0 license
 - [mathieucarbou/ESPAsyncWebServer](https://github.com/mathieucarbou/ESPAsyncWebServer) LGPL-3.0 license

@@ -6,7 +6,8 @@
 
 CAN_device_t CAN_cfg;          // CAN Config
 const int rx_queue_size = 10;  // Receive Queue size
-volatile bool send_ok = 0;
+volatile bool send_ok_2515 = 0;
+volatile bool send_ok_2518 = 0;
 
 #ifdef CAN_ADDON
 static const uint32_t QUARTZ_FREQUENCY = CRYSTAL_FREQUENCY_MHZ * 1000000UL;  //MHZ configured in USER_SETTINGS.h
@@ -105,8 +106,9 @@ void init_CAN() {
 // Transmit functions
 void transmit_can() {
   if (!allowed_to_send_CAN) {
-    return;
+    return;  //Global block of CAN messages
   }
+
   transmit_can_battery();
 
 #ifdef CAN_INVERTER_SELECTED
@@ -155,7 +157,13 @@ void transmit_can_frame(CAN_frame* tx_frame, int interface) {
       for (uint8_t i = 0; i < MCP2515Frame.len; i++) {
         MCP2515Frame.data[i] = tx_frame->data.u8[i];
       }
-      can.tryToSend(MCP2515Frame);
+
+      send_ok_2515 = can.tryToSend(MCP2515Frame);
+      if (!send_ok_2515) {
+        set_event(EVENT_CAN_BUFFER_FULL, interface);
+      } else {
+        clear_event(EVENT_CAN_BUFFER_FULL);
+      }
 #else   // Interface not compiled, and settings try to use it
       set_event(EVENT_INTERFACE_MISSING, interface);
 #endif  //CAN_ADDON
@@ -175,8 +183,8 @@ void transmit_can_frame(CAN_frame* tx_frame, int interface) {
       for (uint8_t i = 0; i < MCP2518Frame.len; i++) {
         MCP2518Frame.data[i] = tx_frame->data.u8[i];
       }
-      send_ok = canfd.tryToSend(MCP2518Frame);
-      if (!send_ok) {
+      send_ok_2518 = canfd.tryToSend(MCP2518Frame);
+      if (!send_ok_2518) {
         set_event(EVENT_CANFD_BUFFER_FULL, interface);
       } else {
         clear_event(EVENT_CANFD_BUFFER_FULL);

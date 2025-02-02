@@ -5,7 +5,6 @@
 #define BATTERY_SELECTED
 
 /* Modify these if needed */
-//#define LFP_CHEMISTRY // Enable this line to startup in LFP mode
 #define MAXCHARGEPOWERALLOWED 15000     // 15000W we use a define since the value supplied by Tesla is always 0
 #define MAXDISCHARGEPOWERALLOWED 60000  // 60000W we use a define since the value supplied by Tesla is always 0
 
@@ -37,6 +36,7 @@ void print_int_with_units(char* header, int value, char* units);
 void print_SOC(char* header, int SOC);
 void setup_battery(void);
 void transmit_can_frame(CAN_frame* tx_frame, int interface);
+
 #ifdef DOUBLE_BATTERY
 void printFaultCodesIfActive_battery2();
 #endif  //DOUBLE_BATTERY

@@ -4,6 +4,7 @@
 #include <SD_MMC.h>
 #include "../../communication/can/comm_can.h"
 #include "../hal/hal.h"
+#include "../utils/events.h"
 
 #if defined(SD_CS_PIN) && defined(SD_SCLK_PIN) && defined(SD_MOSI_PIN) && \
     defined(SD_MISO_PIN)  // ensure code is only compiled if all SD card pins are defined

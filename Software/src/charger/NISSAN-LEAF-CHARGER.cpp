@@ -1,7 +1,6 @@
 #include "../include.h"
 #ifdef NISSANLEAF_CHARGER
 #include "../datalayer/datalayer.h"
-#include "../devboard/utils/events.h"
 #include "NISSAN-LEAF-CHARGER.h"
 
 /* This implements Nissan LEAF PDM charger support. 2013-2024 Gen2/3 PDMs are supported
@@ -44,20 +43,6 @@ static uint8_t OBCpowerSetpoint = 0;
 static uint8_t OBCpower = 0;
 static bool PPStatus = false;
 static bool OBCwakeup = false;
-
-/* Voltage and current settings. Validation performed to set ceiling of 3300w vol*cur */
-extern volatile float charger_setpoint_HV_VDC;
-extern volatile float charger_setpoint_HV_IDC;
-extern volatile float charger_setpoint_HV_IDC_END;
-extern bool charger_HV_enabled;
-extern bool charger_aux12V_enabled;
-
-extern float charger_stat_HVcur;
-extern float charger_stat_HVvol;
-extern float charger_stat_ACcur;
-extern float charger_stat_ACvol;
-extern float charger_stat_LVcur;
-extern float charger_stat_LVvol;
 
 //Actual content messages
 static CAN_frame LEAF_1DB = {.FD = false,
@@ -133,14 +118,16 @@ void map_can_frame_to_variable_charger(CAN_frame rx_frame) {
 
   switch (rx_frame.ID) {
     case 0x679:  // This message fires once when charging cable is plugged in
+      datalayer.charger.CAN_charger_still_alive = CAN_STILL_ALIVE;  // Let system know charger is sending CAN
       OBCwakeup = true;
-      charger_aux12V_enabled = true;  //Not possible to turn off 12V charging
+      datalayer.charger.charger_aux12V_enabled = true;  //Not possible to turn off 12V charging on LEAF PDM
       // Startout with default values, so that charging can begin right when user plugs in cable
-      charger_HV_enabled = true;
-      charger_setpoint_HV_IDC = 16;   // Ampere
-      charger_setpoint_HV_VDC = 400;  // Target voltage
+      datalayer.charger.charger_HV_enabled = true;
+      datalayer.charger.charger_setpoint_HV_IDC = 16;   // Ampere
+      datalayer.charger.charger_setpoint_HV_VDC = 400;  // Target voltage
       break;
     case 0x390:
+      datalayer.charger.CAN_charger_still_alive = CAN_STILL_ALIVE;  // Let system know charger is sending CAN
       OBC_Charge_Status = ((rx_frame.data.u8[5] & 0x7E) >> 1);
       if (OBC_Charge_Status == PLUGGED_IN_WAITING_ON_TIMER || CHARGING_OR_INTERRUPTED) {
         PPStatus = true;  //plug inserted
@@ -149,17 +136,20 @@ void map_can_frame_to_variable_charger(CAN_frame rx_frame) {
       }
       OBC_Status_AC_Voltage = ((rx_frame.data.u8[3] & 0x18) >> 3);
       if (OBC_Status_AC_Voltage == AC110) {
-        charger_stat_ACvol = 110;
+        datalayer.charger.charger_stat_ACvol = 110;
       }
       if (OBC_Status_AC_Voltage == AC230) {
-        charger_stat_ACvol = 230;
+        datalayer.charger.charger_stat_ACvol = 230;
       }
       if (OBC_Status_AC_Voltage == ABNORMAL_WAVE) {
-        charger_stat_ACvol = 1;
+        datalayer.charger.charger_stat_ACvol = 1;
       }
 
       OBC_Charge_Power = ((rx_frame.data.u8[0] & 0x01) << 8) | (rx_frame.data.u8[1]);
-      charger_stat_HVcur = OBC_Charge_Power;
+      datalayer.charger.charger_stat_HVcur = OBC_Charge_Power;
+      break;
+    case 0x393:
+      datalayer.charger.CAN_charger_still_alive = CAN_STILL_ALIVE;  // Let system know charger is sending CAN
       break;
     default:
       break;
@@ -173,9 +163,7 @@ void transmit_can_charger() {
   if (currentMillis - previousMillis10ms >= INTERVAL_10_MS) {
     previousMillis10ms = currentMillis;
 
-    mprun10++;
-    if (mprun10 >= 4)
-      mprun10 = 0;
+    mprun10 = (mprun10 + 1) % 4;  // mprun10 cycles between 0-1-2-3-0-1...
 
 /* 1DB is the main control message. If LEAF battery is used, the battery controls almost everything */
 // Only send these messages if Nissan LEAF battery is not used
@@ -191,7 +179,7 @@ void transmit_can_charger() {
     transmit_can_frame(&LEAF_1DC, can_config.charger);
 #endif
 
-    OBCpowerSetpoint = ((charger_setpoint_HV_IDC * 4) + 0x64);
+    OBCpowerSetpoint = ((datalayer.charger.charger_setpoint_HV_IDC * 4) + 0x64);
 
     // convert power setpoint to PDM format:
     //    0xA0 = 15A (60x)
@@ -204,7 +192,8 @@ void transmit_can_charger() {
 
     // This line controls if power should flow or not
     if (PPStatus &&
-        charger_HV_enabled) {  //Charging starts when cable plugged in and User has requested charging to start via WebUI
+        datalayer.charger
+            .charger_HV_enabled) {  //Charging starts when cable plugged in and User has requested charging to start via WebUI
       // clamp min and max values
       if (OBCpowerSetpoint > 0xA0) {  //15A TODO, raise once cofirmed how to map bits into frame0 and frame1
         OBCpowerSetpoint = 0xA0;
@@ -242,10 +231,7 @@ void transmit_can_charger() {
   if (currentMillis - previousMillis100ms >= INTERVAL_100_MS) {
     previousMillis100ms = currentMillis;
 
-    mprun100++;
-    if (mprun100 > 3) {
-      mprun100 = 0;
-    }
+    mprun100 = (mprun100 + 1) % 4;  // mprun100 cycles between 0-1-2-3-0-1...
 
 // Only send these messages if Nissan LEAF battery is not used
 #ifndef NISSAN_LEAF_BATTERY

@@ -65,6 +65,62 @@ typedef struct {
 } DATALAYER_INFO_BMWIX;
 
 typedef struct {
+  /** uint8_t */
+  /** Status isolation external, 0 not evaluated, 1 OK, 2 error active, 3 Invalid signal*/
+  uint8_t ST_iso_ext = 0;
+  /** uint8_t */
+  /** Status isolation external, 0 not evaluated, 1 OK, 2 error active, 3 Invalid signal*/
+  uint8_t ST_iso_int = 0;
+  /** uint8_t */
+  /** Status cooling valve error, 0 not evaluated, 1 OK valve closed, 2 error active valve open, 3 Invalid signal*/
+  uint8_t ST_valve_cooling = 0;
+  /** uint8_t */
+  /** Status interlock error, 0 not evaluated, 1 OK, 2 error active, 3 Invalid signal*/
+  uint8_t ST_interlock = 0;
+  /** uint8_t */
+  /** Status precharge, 0 no statement, 1 Not active closing not blocked, 2 error precharge blocked, 3 Invalid signal*/
+  uint8_t ST_precharge = 0;
+  /** uint8_t */
+  /** Status DC switch, 0 contactors open, 1 precharge ongoing, 2 contactors engaged, 3 Invalid signal*/
+  uint8_t ST_DCSW = 0;
+  /** uint8_t */
+  /** Status emergency, 0 not evaluated, 1 OK, 2 error active, 3 Invalid signal*/
+  uint8_t ST_EMG = 0;
+  /** uint8_t */
+  /** Status welding detection, 0 Contactors OK, 1 One contactor welded, 2 Two contactors welded, 3 Invalid signal*/
+  uint8_t ST_WELD = 0;
+  /** uint8_t */
+  /** Status isolation, 0 not evaluated, 1 OK, 2 error active, 3 Invalid signal*/
+  uint8_t ST_isolation = 0;
+  /** uint8_t */
+  /** Status cold shutoff valve, 0 OK, 1 Short circuit to GND, 2 Short circuit to 12V, 3 Line break, 6 Driver error, 12 Stuck, 13 Stuck, 15 Invalid Signal*/
+  uint8_t ST_cold_shutoff_valve = 0;
+  /** uint16_t */
+  /** Terminal 30 - 12V SME Supply Voltage */
+  uint16_t T30_Voltage = 0;
+  /** Status HVIL, 1 HVIL OK, 0 HVIL disconnected*/
+  uint8_t hvil_status = 0;
+  /** Min/Max Cell SOH*/
+  uint16_t min_soh_state = 0;
+  uint16_t max_soh_state = 0;
+  int32_t allowable_charge_amps = 0;
+  int32_t allowable_discharge_amps = 0;
+  int16_t balancing_status = 0;
+  int16_t battery_voltage_after_contactor = 0;
+  unsigned long min_cell_voltage_data_age = 0;
+  unsigned long max_cell_voltage_data_age = 0;
+  int32_t iso_safety_int_kohm = 0;  //STAT_ISOWIDERSTAND_INT_WERT
+  int32_t iso_safety_ext_kohm = 0;  //STAT_ISOWIDERSTAND_EXT_STD_WERT
+  int32_t iso_safety_trg_kohm = 0;
+  int32_t iso_safety_ext_plausible = 0;  //STAT_ISOWIDERSTAND_EXT_TRG_PLAUS
+  int32_t iso_safety_int_plausible = 0;
+  int32_t iso_safety_trg_plausible = 0;
+  int32_t iso_safety_kohm = 0;          //STAT_R_ISO_ROH_01_WERT
+  int32_t iso_safety_kohm_quality = 0;  //STAT_R_ISO_ROH_QAL_01_INFO Quality of measurement 0-21 (higher better)
+
+} DATALAYER_INFO_BMWPHEV;
+
+typedef struct {
   /** uint16_t */
   /** SOC% raw battery value. Might not always reach 100% */
   uint16_t SOC_raw = 0;
@@ -203,6 +259,16 @@ typedef struct {
   uint8_t batteryManagementMode = 0;
   uint8_t BMS_ign = 0;
   uint8_t batteryRelay = 0;
+#ifdef DOUBLE_BATTERY
+  uint8_t battery2_total_cell_count = 0;
+  int16_t battery2_battery_12V = 0;
+  uint8_t battery2_waterleakageSensor = 0;
+  int8_t battery2_temperature_water_inlet = 0;
+  int8_t battery2_powerRelayTemperature = 0;
+  uint8_t battery2_batteryManagementMode = 0;
+  uint8_t battery2_BMS_ign = 0;
+  uint8_t battery2_batteryRelay = 0;
+#endif  //DOUBLE BATTERY
 } DATALAYER_INFO_KIAHYUNDAI64;
 
 typedef struct {
@@ -232,11 +298,13 @@ typedef struct {
   uint8_t battery_packCtrsRequestStatus = 0;
   bool battery_packCtrsResetRequestRequired = false;
   bool battery_dcLinkAllowedToEnergize = false;
+  uint8_t BMS_SerialNumber[15] = {0};  //stores raw HEX values for ASCII chars
   uint8_t battery_beginning_of_life = 0;
   uint8_t battery_battTempPct = 0;
   uint16_t battery_dcdcLvBusVolt = 0;
   uint16_t battery_dcdcHvBusVolt = 0;
   uint16_t battery_dcdcLvOutputCurrent = 0;
+  bool BMS352_mux = false;  // variable to store when 0x352 mux is present
   uint16_t battery_nominal_full_pack_energy = 0;
   uint16_t battery_nominal_full_pack_energy_m0 = 0;
   uint16_t battery_nominal_energy_remaining = 0;
@@ -315,6 +383,9 @@ typedef struct {
   bool BMS_noFlowRequest = false;
   uint16_t PCS_dcdcTemp = 0;
   uint16_t PCS_ambientTemp = 0;
+  uint16_t PCS_chgPhATemp = 0;
+  uint16_t PCS_chgPhBTemp = 0;
+  uint16_t PCS_chgPhCTemp = 0;
   uint16_t PCS_dcdcMaxLvOutputCurrent = 0;
   uint16_t PCS_dcdcCurrentLimit = 0;
   uint16_t PCS_dcdcLvOutputCurrentTempLimit = 0;
@@ -620,6 +691,7 @@ class DataLayerExtended {
  public:
   DATALAYER_INFO_BOLTAMPERA boltampera;
   DATALAYER_INFO_BMWIX bmwix;
+  DATALAYER_INFO_BMWPHEV bmwphev;
   DATALAYER_INFO_BMWI3 bmwi3;
   DATALAYER_INFO_BYDATTO3 bydAtto3;
   DATALAYER_INFO_CELLPOWER cellpower;

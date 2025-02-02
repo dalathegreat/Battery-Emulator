@@ -7,9 +7,9 @@
 
 /*
 TODOs left for this implementation
-- The battery has 3 CAN ports. One of them is responsible for the 7E4 polls, the other for the 7E7 polls
+- The battery has 3 CAN ports. One of the internal modules is responsible for the 7E4 polls, the battery for the 7E7 polls
 - Current implementation only seems to get the 7E7 polls working.
-- Could on of the CAN channels be GMLAN?
+- We might need to poll on 7E6 also?
 
 - The values missing for a working implementation is:
 - SOC% missing! This is absolutely mandatory to fix before starting to use this!
@@ -17,6 +17,26 @@ TODOs left for this implementation
 - Charge max power (can be estimated)
 - Discharge max power (can be estimated)
 - SOH% (low prio))
+*/
+
+/*TODO, messages we might need to send towards the battery to keep it happy and close contactors
+0x262 Battery Block Voltage Diag Status HV (Who sends this? Battery?)
+0x272 Battery Cell Voltage Diag Status HV (Who sends this? Battery?)
+0x274 Battery Temperature Sensor diagnostic status HV (Who sends this? Battery?)
+0x270 Battery VoltageSensor BalancingSwitches diagnostic status (Who sends this? Battery?)
+0x214 Charger coolant temp info HV
+0x20E Hybrid balancing request HV
+0x30E High Voltage Charger Command HV
+0x30C HVEM Provide Charging HV
+0x316 OBHV Charge Process PEV HV
+0x30F OBHV Charg Statn Current stat HV
+0x312 OBHV Charg Statns Energy allocation HV
+0x310 OBHV Charg Statn Vlt Energy Power HV
+0x306 Off board HVCS Limit HV
+0x309 Off board HVCS Min Limit HV
+0x305 Vehicle Charging limit stat HV
+0x314 Vehicle req energy transfer HV <<<<<<<<<< Sounds like contactor request resides here TODO
+0x460 Energy Storage System Temp HV (Who sends this? Battery?)
 */
 
 /* Do not change code below unless you are sure what you are doing */
@@ -29,29 +49,34 @@ CAN_frame BOLT_778 = {.FD = false,  // Unsure of what this message is, added onl
                       .DLC = 7,
                       .ID = 0x778,
                       .data = {0x00, 0x31, 0x00, 0x00, 0x00, 0x00, 0x00}};
-CAN_frame BOLT_POLL_7E4 = {.FD = false,
+CAN_frame BOLT_POLL_7E4 = {.FD = false,  // VICM_HV poll
                            .ext_ID = false,
                            .DLC = 8,
                            .ID = 0x7E4,
                            .data = {0x03, 0x22, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00}};
-CAN_frame BOLT_ACK_7E4 = {.FD = false,
+CAN_frame BOLT_ACK_7E4 = {.FD = false,  //VICM_HV ack
                           .ext_ID = false,
                           .DLC = 8,
                           .ID = 0x7E4,
                           .data = {0x30, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00}};
-CAN_frame BOLT_POLL_7E7 = {.FD = false,
+CAN_frame BOLT_POLL_7E7 = {.FD = false,  //VITM_HV poll
                            .ext_ID = false,
                            .DLC = 8,
                            .ID = 0x7E7,
                            .data = {0x03, 0x22, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00}};
-CAN_frame BOLT_ACK_7E7 = {.FD = false,
+CAN_frame BOLT_ACK_7E7 = {.FD = false,  //VITM_HV ack
                           .ext_ID = false,
                           .DLC = 8,
                           .ID = 0x7E7,
                           .data = {0x30, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00}};
 
-// 7E4 Battery , reply 000007EC
-// 7E7 Battery (Cell voltages), reply 000007EF
+// Other PID requests in the vehicle
+// All HV ECUs - 0x101
+// HPCC HV - 0x243 replies on 0x643
+// OBCM HV - 0x244 replies on 0x644
+// VICM_HV - 0x7E4 replies 0x7EC (This is battery)
+// VICM2_HV - 0x7E6 replies 0x7EF (Tis is battery also)
+// VITM_HV - 0x7E7 replies on 7EF (This is battery)
 
 static uint16_t battery_cell_voltages[96];  //array with all the cellvoltages
 static uint16_t battery_capacity_my17_18 = 0;
@@ -256,49 +281,55 @@ void update_values_battery() {  //This function maps all the values fetched via 
 
 void handle_incoming_can_frame_battery(CAN_frame rx_frame) {
   switch (rx_frame.ID) {
-    case 0x200:
+    case 0x200:  //High voltage Battery Cell Voltage Matrix 1
       datalayer.battery.status.CAN_battery_still_alive = CAN_STILL_ALIVE;
       mux = ((rx_frame.data.u8[6] & 0xE0) >> 5);  //goes from 0-7
       break;
-    case 0x202:
+    case 0x202:  //High voltage Battery Cell Voltage Matrix 2
       datalayer.battery.status.CAN_battery_still_alive = CAN_STILL_ALIVE;
       mux = ((rx_frame.data.u8[6] & 0xE0) >> 5);  //goes from 0-7
       break;
-    case 0x204:
+    case 0x204:  //High voltage Battery Cell Voltage Matrix 3
       datalayer.battery.status.CAN_battery_still_alive = CAN_STILL_ALIVE;
       mux = ((rx_frame.data.u8[6] & 0xE0) >> 5);  //goes from 0-7
       break;
-    case 0x206:
+    case 0x206:  //High voltage Battery Cell Voltage Matrix 4
       datalayer.battery.status.CAN_battery_still_alive = CAN_STILL_ALIVE;
       mux = ((rx_frame.data.u8[6] & 0xE0) >> 5);  //goes from 0-7
       break;
-    case 0x208:
+    case 0x208:  //High voltage Battery Cell Voltage Matrix 5
       datalayer.battery.status.CAN_battery_still_alive = CAN_STILL_ALIVE;
       mux = ((rx_frame.data.u8[6] & 0xE0) >> 5);  //goes from 0-7
       break;
-    case 0x20C:
+    case 0x20A:  //VICM Status HV
       datalayer.battery.status.CAN_battery_still_alive = CAN_STILL_ALIVE;
       break;
-    case 0x216:
+    case 0x20C:  //VITM Status HV
+      datalayer.battery.status.CAN_battery_still_alive = CAN_STILL_ALIVE;
+      break;
+    case 0x216:  // High voltage battery sensed Output HV
       datalayer.battery.status.CAN_battery_still_alive = CAN_STILL_ALIVE;
       break;
     case 0x2C7:
       datalayer.battery.status.CAN_battery_still_alive = CAN_STILL_ALIVE;
       battery_voltage_periodic = (rx_frame.data.u8[3] << 4) | (rx_frame.data.u8[4] >> 4);
       break;
-    case 0x260:
+    case 0x260:  //VITM Diagnostic Status 1 HV
       datalayer.battery.status.CAN_battery_still_alive = CAN_STILL_ALIVE;
       break;
-    case 0x270:
+    case 0x262:  //Battery block voltage diagnostic status
       datalayer.battery.status.CAN_battery_still_alive = CAN_STILL_ALIVE;
       break;
-    case 0x272:
+    case 0x270:  //Battery VoltageSensor BalancingSwitches diagnostic status
       datalayer.battery.status.CAN_battery_still_alive = CAN_STILL_ALIVE;
       break;
-    case 0x274:
+    case 0x272:  //Battery Cell Voltage Diagnostic Status HV
       datalayer.battery.status.CAN_battery_still_alive = CAN_STILL_ALIVE;
       break;
-    case 0x302:
+    case 0x274:  //Battery Temperature Sensor diagnostic status HV
+      datalayer.battery.status.CAN_battery_still_alive = CAN_STILL_ALIVE;
+      break;
+    case 0x302:  // High Voltage Battery Temperature Matrix
       datalayer.battery.status.CAN_battery_still_alive = CAN_STILL_ALIVE;
       temperature_1 = ((rx_frame.data.u8[1] / 2) - 40);  //Module 1 Temperature
       temperature_2 = ((rx_frame.data.u8[2] / 2) - 40);  //Module 2 Temperature
@@ -307,16 +338,24 @@ void handle_incoming_can_frame_battery(CAN_frame rx_frame) {
       temperature_5 = ((rx_frame.data.u8[5] / 2) - 40);  //Module 5 Temperature
       temperature_6 = ((rx_frame.data.u8[6] / 2) - 40);  //Module 6 Temperature
       break;
+    case 0x304:  //High Voltage Control Energy Management HV
+      break;
+    case 0x307:  //High Voltage Battery SOC HV
+      //TODO: Is this CAN message on all packs? If so, SOC is here
+      break;
     case 0x3E3:
       datalayer.battery.status.CAN_battery_still_alive = CAN_STILL_ALIVE;
       break;
-    case 0x460:
+    case 0x460:  //Energy Storage System Temp HV
       datalayer.battery.status.CAN_battery_still_alive = CAN_STILL_ALIVE;
       break;
-    case 0x5EF:
+    case 0x5EF:  //OBD7E7 Unsolicited tester responce (ECU to tester)
       datalayer.battery.status.CAN_battery_still_alive = CAN_STILL_ALIVE;
       break;
-    case 0x7EC:  //When polling 7E4 BMS replies with 7EC ??
+    case 0x5EC:  //OBD7E4 Unsolicited tester responce (ECU to tester)
+      datalayer.battery.status.CAN_battery_still_alive = CAN_STILL_ALIVE;
+      break;
+    case 0x7EC:  //When polling 7E4 BMS replies with 7EC
 
       if (rx_frame.data.u8[0] == 0x10) {  //"PID Header"
         transmit_can_frame(&BOLT_ACK_7E4, can_config.battery);

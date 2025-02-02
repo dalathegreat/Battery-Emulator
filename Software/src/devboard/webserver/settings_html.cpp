@@ -144,7 +144,7 @@ String settings_processor(const String& var) {
     content += "<div style='background-color: #FF6E00; padding: 10px; margin-bottom: 10px;border-radius: 50px'>";
 
     content += "<h4 style='color: white;'>Charger HVDC Enabled: ";
-    if (charger_HV_enabled) {
+    if (datalayer.charger.charger_HV_enabled) {
       content += "<span>&#10003;</span>";
     } else {
       content += "<span style='color: red;'>&#10005;</span>";
@@ -152,17 +152,19 @@ String settings_processor(const String& var) {
     content += " <button onclick='editChargerHVDCEnabled()'>Edit</button></h4>";
 
     content += "<h4 style='color: white;'>Charger Aux12VDC Enabled: ";
-    if (charger_aux12V_enabled) {
+    if (datalayer.charger.charger_aux12V_enabled) {
       content += "<span>&#10003;</span>";
     } else {
       content += "<span style='color: red;'>&#10005;</span>";
     }
     content += " <button onclick='editChargerAux12vEnabled()'>Edit</button></h4>";
 
-    content += "<h4 style='color: white;'>Charger Voltage Setpoint: " + String(charger_setpoint_HV_VDC, 1) +
-               " V </span> <button onclick='editChargerSetpointVDC()'>Edit</button></h4>";
-    content += "<h4 style='color: white;'>Charger Current Setpoint: " + String(charger_setpoint_HV_IDC, 1) +
-               " A </span> <button onclick='editChargerSetpointIDC()'>Edit</button></h4>";
+    content +=
+        "<h4 style='color: white;'>Charger Voltage Setpoint: " + String(datalayer.charger.charger_setpoint_HV_VDC, 1) +
+        " V </span> <button onclick='editChargerSetpointVDC()'>Edit</button></h4>";
+    content +=
+        "<h4 style='color: white;'>Charger Current Setpoint: " + String(datalayer.charger.charger_setpoint_HV_IDC, 1) +
+        " A </span> <button onclick='editChargerSetpointIDC()'>Edit</button></h4>";
 
     // Close the block
     content += "</div>";
