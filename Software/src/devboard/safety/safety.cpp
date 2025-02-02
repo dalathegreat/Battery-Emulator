@@ -344,14 +344,14 @@ void emulator_pause_state_transmit_can_battery() {
 
   if (previous_allowed_to_send_CAN && !allowed_to_send_CAN) {
 #ifdef DEBUG_LOG
-    logging.printf("Safety: Pausing CAN sending");
+    logging.printf("Safety: Pausing CAN sending\n");
 #endif
     //completely force stop the CAN communication
     ESP32Can.CANStop();
   } else if (!previous_allowed_to_send_CAN && allowed_to_send_CAN) {
     //resume CAN communication
 #ifdef DEBUG_LOG
-    logging.printf("Safety: Resuming CAN sending");
+    logging.printf("Safety: Resuming CAN sending\n");
 #endif
     ESP32Can.CANInit();
   }
