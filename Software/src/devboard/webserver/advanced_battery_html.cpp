@@ -1144,18 +1144,18 @@ String advanced_battery_processor(const String& var) {
     content += "<h4>Cell imbalance: " + String(rt_enum[datalayer_extended.meb.rt_cell_imbalance & 0x03]) + "</h4>";
     content +=
         "<h4>Battery unathorized: " + String(rt_enum[datalayer_extended.meb.rt_battery_unathorized & 0x03]) + "</h4>";
-    content += 
-        "<h4>Battery temperature: " + String(datalayer_extended.meb.battery_temperature_dC / 10.f,1) + " &deg;C</h4>";
-    for (int i =0 ; i < 3; i++) {
+    content +=
+        "<h4>Battery temperature: " + String(datalayer_extended.meb.battery_temperature_dC / 10.f, 1) + " &deg;C</h4>";
+    for (int i = 0; i < 3; i++) {
       content += "<h4>Temperature points " + String(i * 6 + 1) + "-" + String(i * 6 + 6) + " :";
-      for (int j = 0 ; j < 6; j++)
+      for (int j = 0; j < 6; j++)
         content += " &nbsp;" + String(datalayer_extended.meb.temp_points[i * 6 + j], 1);
       content += " &deg;C</h4>";
     }
     bool temps_done = false;
-    for (int i = 0 ; i < 7 && !temps_done; i++) {
+    for (int i = 0; i < 7 && !temps_done; i++) {
       content += "<h4>Cell temperatures " + String(i * 8 + 1) + "-" + String(i * 8 + 8) + " :";
-      for (int j = 0 ; j < 8; j++) {
+      for (int j = 0; j < 8; j++) {
         if (datalayer_extended.meb.celltemperature_dC[i * 8 + j] == 865) {
           temps_done = true;
           break;
@@ -1165,7 +1165,6 @@ String advanced_battery_processor(const String& var) {
       }
       content += " &deg;C</h4>";
     }
-    
 #endif  //MEB_BATTERY
 
 #ifdef RENAULT_ZOE_GEN2_BATTERY
