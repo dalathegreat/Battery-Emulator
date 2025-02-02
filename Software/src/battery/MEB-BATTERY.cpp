@@ -1685,7 +1685,8 @@ void transmit_can_battery() {
         }
       }
 #endif
-      MEB_503.data.u8[1] = 0x30 | (datalayer.system.status.precharge_status == AUTO_PRECHARGE_PRECHARGING ? 0x80 : 0x00);
+      MEB_503.data.u8[1] =
+          0x30 | (datalayer.system.status.precharge_status == AUTO_PRECHARGE_PRECHARGING ? 0x80 : 0x00);
       MEB_503.data.u8[3] = BMS_TARGET_AC_CHARGING;
       MEB_503.data.u8[5] = 0x82;  // Bordnetz Active
       MEB_503.data.u8[6] = 0xE0;  // Request emergency shutdown HV system == 0, false
@@ -1710,7 +1711,8 @@ void transmit_can_battery() {
         }
       }
 #endif
-      MEB_503.data.u8[1] = 0x10 | (datalayer.system.status.precharge_status == AUTO_PRECHARGE_PRECHARGING ? 0x80 : 0x00);
+      MEB_503.data.u8[1] = 
+          0x10 | (datalayer.system.status.precharge_status == AUTO_PRECHARGE_PRECHARGING ? 0x80 : 0x00);
       MEB_503.data.u8[3] = BMS_TARGET_HV_OFF;
       MEB_503.data.u8[5] = 0x80;  // Bordnetz Inactive
       MEB_503.data.u8[6] =
