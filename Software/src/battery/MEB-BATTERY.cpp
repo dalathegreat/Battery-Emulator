@@ -1666,11 +1666,10 @@ void transmit_can_battery() {
     if ((!datalayer.system.settings.equipment_stop_active) && datalayer.battery.status.real_bms_status != BMS_FAULT &&
         (datalayer.battery.status.real_bms_status == BMS_ACTIVE ||
          (datalayer.battery.status.real_bms_status == BMS_STANDBY &&
-          ( hv_requested || 
-           (datalayer.battery.status.voltage_dV > 200 && 
-            datalayer_extended.meb.BMS_voltage_intermediate_dV > 0 &&
+          (hv_requested || 
+           (datalayer.battery.status.voltage_dV > 200 && datalayer_extended.meb.BMS_voltage_intermediate_dV > 0 &&
             labs(((int32_t)datalayer.battery.status.voltage_dV) -
-                ((int32_t)datalayer_extended.meb.BMS_voltage_intermediate_dV)) < 200))))) {
+                 ((int32_t)datalayer_extended.meb.BMS_voltage_intermediate_dV)) < 200))))) {
       hv_requested = true;
       datalayer.system.settings.start_precharging = false;
 #ifdef DEBUG_LOG
