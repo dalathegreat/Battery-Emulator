@@ -147,6 +147,16 @@ void update_values_battery() {  //This function maps all the values fetched via 
   datalayer_extended.bydAtto3.SOC_polled = BMS_SOC;
   datalayer_extended.bydAtto3.voltage_periodic = battery_voltage;
   datalayer_extended.bydAtto3.voltage_polled = BMS_voltage;
+  datalayer_extended.bydAtto3.battery_temperatures[0] = battery_daughterboard_temperatures[0];
+  datalayer_extended.bydAtto3.battery_temperatures[1] = battery_daughterboard_temperatures[1];
+  datalayer_extended.bydAtto3.battery_temperatures[2] = battery_daughterboard_temperatures[2];
+  datalayer_extended.bydAtto3.battery_temperatures[3] = battery_daughterboard_temperatures[3];
+  datalayer_extended.bydAtto3.battery_temperatures[4] = battery_daughterboard_temperatures[4];
+  datalayer_extended.bydAtto3.battery_temperatures[5] = battery_daughterboard_temperatures[5];
+  datalayer_extended.bydAtto3.battery_temperatures[6] = battery_daughterboard_temperatures[6];
+  datalayer_extended.bydAtto3.battery_temperatures[7] = battery_daughterboard_temperatures[7];
+  datalayer_extended.bydAtto3.battery_temperatures[8] = battery_daughterboard_temperatures[8];
+  datalayer_extended.bydAtto3.battery_temperatures[9] = battery_daughterboard_temperatures[9];
 }
 
 void handle_incoming_can_frame_battery(CAN_frame rx_frame) {
