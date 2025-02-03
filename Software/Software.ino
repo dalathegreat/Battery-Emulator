@@ -129,8 +129,6 @@ void setup() {
                           &main_loop_task, CORE_FUNCTION_CORE);
 #ifdef PERIODIC_BMS_RESET_AT
   bmsResetTimeOffset = getTimeOffsetfromNowUntil(PERIODIC_BMS_RESET_AT);
-  logging.println("bmsResetTimeOffset");
-  logging.println(bmsResetTimeOffset);
 #endif
 }
 
