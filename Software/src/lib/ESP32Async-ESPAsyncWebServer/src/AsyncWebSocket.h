@@ -22,18 +22,41 @@
 #define ASYNCWEBSOCKET_H_
 
 #include <Arduino.h>
-#include "../../mathieucarbou-AsyncTCPSock/src/AsyncTCP.h"
+#ifdef ESP32
+  #include "../../mathieucarbou-AsyncTCPSock/src/AsyncTCP.h"
   #include <mutex>
   #ifndef WS_MAX_QUEUED_MESSAGES
     #define WS_MAX_QUEUED_MESSAGES 32
   #endif
+#elif defined(ESP8266)
+  #include <ESPAsyncTCP.h>
+  #ifndef WS_MAX_QUEUED_MESSAGES
+    #define WS_MAX_QUEUED_MESSAGES 8
+  #endif
+#elif defined(TARGET_RP2040)
+  #include <AsyncTCP_RP2040W.h>
+  #ifndef WS_MAX_QUEUED_MESSAGES
+    #define WS_MAX_QUEUED_MESSAGES 32
+  #endif
+#endif
 
 #include "ESPAsyncWebServer.h"
 
 #include <memory>
 
+#ifdef ESP8266
+  #include <Hash.h>
+  #ifdef CRYPTO_HASH_h // include Hash.h from espressif framework if the first include was from the crypto library
+    #include <../src/Hash.h>
+  #endif
+#endif
+
 #ifndef DEFAULT_MAX_WS_CLIENTS
+  #ifdef ESP32
     #define DEFAULT_MAX_WS_CLIENTS 8
+  #else
+    #define DEFAULT_MAX_WS_CLIENTS 4
+  #endif
 #endif
 
 using AsyncWebSocketSharedBuffer = std::shared_ptr<std::vector<uint8_t>>;
@@ -129,7 +152,9 @@ class AsyncWebSocketClient {
     AsyncWebSocket* _server;
     uint32_t _clientId;
     AwsClientStatus _status;
+#ifdef ESP32
     mutable std::mutex _lock;
+#endif
     std::deque<AsyncWebSocketControl> _controlQueue;
     std::deque<AsyncWebSocketMessage> _messageQueue;
     bool closeWhenFull = true;
@@ -229,6 +254,11 @@ class AsyncWebSocketClient {
     void _onDisconnect();
     void _onData(void* pbuf, size_t plen);
 
+#ifdef ESP8266
+    size_t printf_P(PGM_P formatP, ...) __attribute__((format(printf, 2, 3)));
+    bool text(const __FlashStringHelper* message);
+    bool binary(const __FlashStringHelper* message, size_t len);
+#endif
 };
 
 using AwsHandshakeHandler = std::function<bool(AsyncWebServerRequest* request)>;
@@ -243,8 +273,9 @@ class AsyncWebSocket : public AsyncWebHandler {
     AwsEventHandler _eventHandler{nullptr};
     AwsHandshakeHandler _handshakeHandler;
     bool _enabled;
+#ifdef ESP32
     mutable std::mutex _lock;
-
+#endif
 
   public:
     typedef enum {
@@ -303,6 +334,15 @@ class AsyncWebSocket : public AsyncWebHandler {
 
     size_t printf(uint32_t id, const char* format, ...) __attribute__((format(printf, 3, 4)));
     size_t printfAll(const char* format, ...) __attribute__((format(printf, 2, 3)));
+
+#ifdef ESP8266
+    bool text(uint32_t id, const __FlashStringHelper* message);
+    SendStatus textAll(const __FlashStringHelper* message);
+    bool binary(uint32_t id, const __FlashStringHelper* message, size_t len);
+    SendStatus binaryAll(const __FlashStringHelper* message, size_t len);
+    size_t printf_P(uint32_t id, PGM_P formatP, ...) __attribute__((format(printf, 3, 4)));
+    size_t printfAll_P(PGM_P formatP, ...) __attribute__((format(printf, 2, 3)));
+#endif
 
     void onEvent(AwsEventHandler handler) { _eventHandler = handler; }
     void handleHandshake(AwsHandshakeHandler handler) { _handshakeHandler = handler; }

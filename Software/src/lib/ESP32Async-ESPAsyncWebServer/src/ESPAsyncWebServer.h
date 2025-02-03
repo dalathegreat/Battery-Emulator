@@ -32,7 +32,7 @@
 #include <vector>
 
 #ifdef ESP32
-#include "../../mathieucarbou-AsyncTCPSock/src/AsyncTCP.h"
+  #include "../../mathieucarbou-AsyncTCPSock/src/AsyncTCP.h"
   #include <WiFi.h>
 #elif defined(ESP8266)
   #include <ESP8266WiFi.h>
@@ -48,16 +48,22 @@
 
 #include "literals.h"
 
-#define ASYNCWEBSERVER_VERSION          "3.6.0"
+#define ASYNCWEBSERVER_VERSION          "3.6.2"
 #define ASYNCWEBSERVER_VERSION_MAJOR    3
 #define ASYNCWEBSERVER_VERSION_MINOR    6
-#define ASYNCWEBSERVER_VERSION_REVISION 0
-#define ASYNCWEBSERVER_FORK_mathieucarbou
+#define ASYNCWEBSERVER_VERSION_REVISION 2
+#define ASYNCWEBSERVER_FORK_ESP32Async
 
 #ifdef ASYNCWEBSERVER_REGEX
   #define ASYNCWEBSERVER_REGEX_ATTRIBUTE
 #else
   #define ASYNCWEBSERVER_REGEX_ATTRIBUTE __attribute__((warning("ASYNCWEBSERVER_REGEX not defined")))
+#endif
+
+// See https://github.com/ESP32Async/ESPAsyncWebServer/commit/3d3456e9e81502a477f6498c44d0691499dda8f9#diff-646b25b11691c11dce25529e3abce843f0ba4bd07ab75ec9eee7e72b06dbf13fR388-R392
+// This setting slowdown chunk serving but avoids crashing or deadlocks in the case where slow chunk responses are created, like file serving form SD Card
+#ifndef ASYNCWEBSERVER_USE_CHUNK_INFLIGHT
+  #define ASYNCWEBSERVER_USE_CHUNK_INFLIGHT 1
 #endif
 
 class AsyncWebServer;
@@ -82,7 +88,6 @@ typedef enum {
   HTTP_OPTIONS = 0b01000000,
   HTTP_ANY = 0b01111111,
 } WebRequestMethod;
-
 
 #ifndef HAVE_FS_FILE_OPEN_MODE
 namespace fs {
@@ -398,6 +403,9 @@ class AsyncWebServerRequest {
     const AsyncWebParameter* getParam(const char* name, bool post = false, bool file = false) const;
 
     const AsyncWebParameter* getParam(const String& name, bool post = false, bool file = false) const { return getParam(name.c_str(), post, file); };
+#ifdef ESP8266
+    const AsyncWebParameter* getParam(const __FlashStringHelper* data, bool post, bool file) const;
+#endif
 
     /**
      * @brief Get request parameter by number
@@ -413,10 +421,16 @@ class AsyncWebServerRequest {
     const String& arg(const char* name) const;
     // get request argument value by name
     const String& arg(const String& name) const { return arg(name.c_str()); };
+#ifdef ESP8266
+    const String& arg(const __FlashStringHelper* data) const; // get request argument value by F(name)
+#endif
     const String& arg(size_t i) const;     // get request argument value by number
     const String& argName(size_t i) const; // get request argument name by number
     bool hasArg(const char* name) const;   // check if argument exists
     bool hasArg(const String& name) const { return hasArg(name.c_str()); };
+#ifdef ESP8266
+    bool hasArg(const __FlashStringHelper* data) const; // check if F(argument) exists
+#endif
 
     const String& ASYNCWEBSERVER_REGEX_ATTRIBUTE pathArg(size_t i) const;
 
@@ -424,6 +438,9 @@ class AsyncWebServerRequest {
     const String& header(const char* name) const;
     const String& header(const String& name) const { return header(name.c_str()); };
 
+#ifdef ESP8266
+    const String& header(const __FlashStringHelper* data) const; // get request header value by F(name)
+#endif
 
     const String& header(size_t i) const;     // get request header value by number
     const String& headerName(size_t i) const; // get request header name by number
@@ -433,9 +450,15 @@ class AsyncWebServerRequest {
     // check if header exists
     bool hasHeader(const char* name) const;
     bool hasHeader(const String& name) const { return hasHeader(name.c_str()); };
+#ifdef ESP8266
+    bool hasHeader(const __FlashStringHelper* data) const; // check if header exists
+#endif
 
     const AsyncWebHeader* getHeader(const char* name) const;
     const AsyncWebHeader* getHeader(const String& name) const { return getHeader(name.c_str()); };
+#ifdef ESP8266
+    const AsyncWebHeader* getHeader(const __FlashStringHelper* data) const;
+#endif
 
     const AsyncWebHeader* getHeader(size_t num) const;
 
@@ -452,6 +475,9 @@ class AsyncWebServerRequest {
     size_t params() const; // get arguments count
     bool hasParam(const char* name, bool post = false, bool file = false) const;
     bool hasParam(const String& name, bool post = false, bool file = false) const { return hasParam(name.c_str(), post, file); };
+#ifdef ESP8266
+    bool hasParam(const __FlashStringHelper* data, bool post = false, bool file = false) const { return hasParam(String(data).c_str(), post, file); };
+#endif
 
     // REQUEST ATTRIBUTES
 

@@ -205,7 +205,11 @@ void AsyncWebServerResponse::_assembleHead(String& buffer, uint8_t version) {
   buffer.reserve(len);
 
   // HTTP header
+#ifdef ESP8266
+  buffer.concat(PSTR("HTTP/1."));
+#else
   buffer.concat("HTTP/1.");
+#endif
   buffer.concat(version);
   buffer.concat(' ');
   buffer.concat(_code);
@@ -216,7 +220,11 @@ void AsyncWebServerResponse::_assembleHead(String& buffer, uint8_t version) {
   // Add headers
   for (const auto& header : _headers) {
     buffer.concat(header.name());
+#ifdef ESP8266
+    buffer.concat(PSTR(": "));
+#else
     buffer.concat(": ");
+#endif
     buffer.concat(header.value());
     buffer.concat(T_rn);
   }
@@ -344,19 +352,25 @@ size_t AsyncAbstractResponse::_ack(AsyncWebServerRequest* request, size_t len, u
     request->client()->close();
     return 0;
   }
+
+#if ASYNCWEBSERVER_USE_CHUNK_INFLIGHT
   // return a credit for each chunk of acked data (polls does not give any credits)
   if (len)
     ++_in_flight_credit;
 
   // for chunked responses ignore acks if there are no _in_flight_credits left
   if (_chunked && !_in_flight_credit) {
+  #ifdef ESP32
     log_d("(chunk) out of in-flight credits");
+  #endif
     return 0;
   }
 
-  _ackedLength += len;
   _in_flight -= (_in_flight > len) ? len : _in_flight;
   // get the size of available sock space
+#endif
+
+  _ackedLength += len;
   size_t space = request->client()->space();
 
   size_t headLen = _head.length();
@@ -368,13 +382,16 @@ size_t AsyncAbstractResponse::_ack(AsyncWebServerRequest* request, size_t len, u
       String out = _head.substring(0, space);
       _head = _head.substring(space);
       _writtenLength += request->client()->write(out.c_str(), out.length());
+#if ASYNCWEBSERVER_USE_CHUNK_INFLIGHT
       _in_flight += out.length();
       --_in_flight_credit; // take a credit
+#endif
       return out.length();
     }
   }
 
   if (_state == RESPONSE_CONTENT) {
+#if ASYNCWEBSERVER_USE_CHUNK_INFLIGHT
     // for response data we need to control the queue and in-flight fragmentation. Sending small chunks could give low latency,
     // but flood asynctcp's queue and fragment socket buffer space for large responses.
     // Let's ignore polled acks and acks in case when we have more in-flight data then the available socket buff space.
@@ -386,6 +403,7 @@ size_t AsyncAbstractResponse::_ack(AsyncWebServerRequest* request, size_t len, u
         --_in_flight_credit;
       return 0;
     }
+#endif
 
     size_t outLen;
     if (_chunked) {
@@ -441,8 +459,10 @@ size_t AsyncAbstractResponse::_ack(AsyncWebServerRequest* request, size_t len, u
 
     if (outLen) {
       _writtenLength += request->client()->write((const char*)buf, outLen);
+#if ASYNCWEBSERVER_USE_CHUNK_INFLIGHT
       _in_flight += outLen;
       --_in_flight_credit; // take a credit
+#endif
     }
 
     if (_chunked) {

@@ -70,7 +70,9 @@ void AsyncWebServerRequest::_onData(void* buf, size_t len) {
   // SSL/TLS handshake detection
 #ifndef ASYNC_TCP_SSL_ENABLED
   if (_parseState == PARSE_REQ_START && len && ((uint8_t*)buf)[0] == 0x16) { // 0x16 indicates a Handshake message (SSL/TLS).
+  #ifdef ESP32
     log_d("SSL/TLS handshake detected: resetting connection");
+  #endif
     _parseState = PARSE_REQ_FAIL;
     _client->abort();
     return;
@@ -139,6 +141,7 @@ void AsyncWebServerRequest::_onData(void* buf, size_t len) {
           }
         }
         if (!_isPlainPost) {
+          // ESP_LOGD("AsyncWebServer", "_isPlainPost: %d, _handler: %p", _isPlainPost, _handler);
           if (_handler)
             _handler->handleBody(this, (uint8_t*)buf, len, _parsedLength, _contentLength);
           _parsedLength += len;
@@ -641,11 +644,32 @@ bool AsyncWebServerRequest::hasHeader(const char* name) const {
   return false;
 }
 
+#ifdef ESP8266
+bool AsyncWebServerRequest::hasHeader(const __FlashStringHelper* data) const {
+  return hasHeader(String(data));
+}
+#endif
+
 const AsyncWebHeader* AsyncWebServerRequest::getHeader(const char* name) const {
   auto iter = std::find_if(std::begin(_headers), std::end(_headers), [&name](const AsyncWebHeader& header) { return header.name().equalsIgnoreCase(name); });
   return (iter == std::end(_headers)) ? nullptr : &(*iter);
 }
 
+#ifdef ESP8266
+const AsyncWebHeader* AsyncWebServerRequest::getHeader(const __FlashStringHelper* data) const {
+  PGM_P p = reinterpret_cast<PGM_P>(data);
+  size_t n = strlen_P(p);
+  char* name = (char*)malloc(n + 1);
+  if (name) {
+    strcpy_P(name, p);
+    const AsyncWebHeader* result = getHeader(String(name));
+    free(name);
+    return result;
+  } else {
+    return nullptr;
+  }
+}
+#endif
 
 const AsyncWebHeader* AsyncWebServerRequest::getHeader(size_t num) const {
   if (num >= _headers.size())
@@ -690,6 +714,11 @@ const AsyncWebParameter* AsyncWebServerRequest::getParam(const char* name, bool 
   return nullptr;
 }
 
+#ifdef ESP8266
+const AsyncWebParameter* AsyncWebServerRequest::getParam(const __FlashStringHelper* data, bool post, bool file) const {
+  return getParam(String(data), post, file);
+}
+#endif
 
 const AsyncWebParameter* AsyncWebServerRequest::getParam(size_t num) const {
   if (num >= _params.size())
@@ -858,6 +887,12 @@ bool AsyncWebServerRequest::hasArg(const char* name) const {
   return false;
 }
 
+#ifdef ESP8266
+bool AsyncWebServerRequest::hasArg(const __FlashStringHelper* data) const {
+  return hasArg(String(data).c_str());
+}
+#endif
+
 const String& AsyncWebServerRequest::arg(const char* name) const {
   for (const auto& arg : _params) {
     if (arg.name() == name) {
@@ -866,6 +901,12 @@ const String& AsyncWebServerRequest::arg(const char* name) const {
   }
   return emptyString;
 }
+
+#ifdef ESP8266
+const String& AsyncWebServerRequest::arg(const __FlashStringHelper* data) const {
+  return arg(String(data).c_str());
+}
+#endif
 
 const String& AsyncWebServerRequest::arg(size_t i) const {
   return getParam(i)->value();
@@ -883,6 +924,12 @@ const String& AsyncWebServerRequest::header(const char* name) const {
   const AsyncWebHeader* h = getHeader(name);
   return h ? h->value() : emptyString;
 }
+
+#ifdef ESP8266
+const String& AsyncWebServerRequest::header(const __FlashStringHelper* data) const {
+  return header(String(data).c_str());
+};
+#endif
 
 const String& AsyncWebServerRequest::header(size_t i) const {
   const AsyncWebHeader* h = getHeader(i);
