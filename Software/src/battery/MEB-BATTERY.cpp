@@ -402,6 +402,8 @@ uint8_t vw_crc_calc(uint8_t* inputBytes, uint8_t length, uint16_t address) {
                               0x40, 0x40, 0x40, 0x40, 0x40, 0x40, 0x40, 0x40};
   const uint8_t MB00C0[16] = {0x2f, 0x44, 0x72, 0xd3, 0x07, 0xf2, 0x39, 0x09,
                               0x8d, 0x6f, 0x57, 0x20, 0x37, 0xf9, 0x9b, 0xfa};
+  const uint8_t MB00CF[16] = {0xee, 0x80, 0x6e, 0x4e, 0x29, 0xc6, 0x92, 0xc0,
+                              0x65, 0xaa, 0x3a, 0xa1, 0x8f, 0xcd, 0xe6, 0x90};
   const uint8_t MB00FC[16] = {0x77, 0x5c, 0xa0, 0x89, 0x4b, 0x7c, 0xbb, 0xd6,
                               0x1f, 0x6c, 0x4f, 0xf6, 0x20, 0x2b, 0x43, 0xdd};
   const uint8_t MB00FD[16] = {0xb4, 0xef, 0xf8, 0x49, 0x1e, 0xe5, 0xc2, 0xc0,
@@ -430,6 +432,8 @@ uint8_t vw_crc_calc(uint8_t* inputBytes, uint8_t length, uint16_t address) {
                               0x1e, 0x0d, 0x24, 0xcd, 0x8c, 0xa6, 0x2f, 0x41};
   const uint8_t MB0578[16] = {0x48, 0x48, 0x48, 0x48, 0x48, 0x48, 0x48, 0x48,
                               0x48, 0x48, 0x48, 0x48, 0x48, 0x48, 0x48, 0x48};
+  const uint8_t MB05A2[16] = {0xeb, 0x4c, 0x44, 0xaf, 0x21, 0x8d, 0x01, 0x58,
+                              0xfa, 0x93, 0xdb, 0x89, 0x15, 0x10, 0x4a, 0x61};
   const uint8_t MB05CA[16] = {0x43, 0x43, 0x43, 0x43, 0x43, 0x43, 0x43, 0x43,
                               0x43, 0x43, 0x43, 0x43, 0x43, 0x43, 0x43, 0x43};
   const uint8_t MB0641[16] = {0x47, 0x47, 0x47, 0x47, 0x47, 0x47, 0x47, 0x47,
@@ -451,6 +455,9 @@ uint8_t vw_crc_calc(uint8_t* inputBytes, uint8_t length, uint16_t address) {
       break;
     case 0x00C0:  //
       magicByte = MB00C0[counter];
+      break;
+    case 0x00CF:  //BMS
+      magicByte = MB00CF[counter];
       break;
     case 0x00FC:
       magicByte = MB00FC[counter];
@@ -493,6 +500,9 @@ uint8_t vw_crc_calc(uint8_t* inputBytes, uint8_t length, uint16_t address) {
       break;
     case 0x0578:  // BMS DC
       magicByte = MB0578[counter];
+      break;
+    case 0x05A2:  // BMS
+      magicByte = MB05A2[counter];
       break;
     case 0x05CA:  // BMS
       magicByte = MB05CA[counter];
@@ -962,101 +972,118 @@ void handle_incoming_can_frame_battery(CAN_frame rx_frame) {
       regen_battery = ((rx_frame.data.u8[5] & 0x7F) << 8) | rx_frame.data.u8[4];
       energy_extracted_from_battery = ((rx_frame.data.u8[7] & 0x7F) << 8) | rx_frame.data.u8[6];
       break;
-    case 0x578:                                        // BMS 100ms
-      BMS_578_CRC = rx_frame.data.u8[0];               // Can be used to check CAN signal integrity later on
-      BMS_578_counter = (rx_frame.data.u8[1] & 0x0F);  // Can be used to check CAN signal integrity later on
-      BMS_Status_DCLS = ((rx_frame.data.u8[1] & 0x30) >> 4);
-      DC_voltage_DCLS = (rx_frame.data.u8[2] << 6) | (rx_frame.data.u8[1] >> 6);
-      max_fastcharging_current_amp = ((rx_frame.data.u8[4] & 0x01) << 8) | rx_frame.data.u8[3];
-      DC_voltage_chargeport = (rx_frame.data.u8[7] << 4) | (rx_frame.data.u8[6] >> 4);
+    case 0x578:  // BMS 100ms
+      BMS_578_CRC = rx_frame.data.u8[0];
+      BMS_578_counter = (rx_frame.data.u8[1] & 0x0F);
+      if (BMS_578_CRC == (vw_crc_calc(rx_frame.data.u8, rx_frame.DLC, rx_frame.ID))) {  //If CRC match calc
+        BMS_Status_DCLS = ((rx_frame.data.u8[1] & 0x30) >> 4);
+        DC_voltage_DCLS = (rx_frame.data.u8[2] << 6) | (rx_frame.data.u8[1] >> 6);
+        max_fastcharging_current_amp = ((rx_frame.data.u8[4] & 0x01) << 8) | rx_frame.data.u8[3];
+        DC_voltage_chargeport = (rx_frame.data.u8[7] << 4) | (rx_frame.data.u8[6] >> 4);
+      } else {  //Actual CRC does NOT match calculated CRC
+        datalayer.battery.status.CAN_error_counter++;
+      }
       break;
     case 0x5A2:  // BMS 500ms normal, 100ms fast
       can_msg_received |= RX_0x5A2;
-      BMS_5A2_CRC = rx_frame.data.u8[0];               // Can be used to check CAN signal integrity later on
-      BMS_5A2_counter = (rx_frame.data.u8[1] & 0x0F);  // Can be used to check CAN signal integrity later on
-      service_disconnect_switch_missing = (rx_frame.data.u8[1] & 0x20) >> 5;
-      pilotline_open = (rx_frame.data.u8[1] & 0x10) >> 4;
-      BMS_status_voltage_free = (rx_frame.data.u8[1] & 0xC0) >> 6;
-      BMS_OBD_MIL = (rx_frame.data.u8[2] & 0x01);
-      BMS_error_status = (rx_frame.data.u8[2] & 0x70) >> 4;
-      BMS_error_lamp_req = (rx_frame.data.u8[4] & 0x04) >> 2;
-      BMS_warning_lamp_req = (rx_frame.data.u8[4] & 0x08) >> 3;
-      BMS_Kl30c_Status = (rx_frame.data.u8[4] & 0x30) >> 4;
-      if (BMS_Kl30c_Status != 0) {  // init state
-        BMS_capacity_ah = ((rx_frame.data.u8[4] & 0x03) << 9) | (rx_frame.data.u8[3] << 1) | (rx_frame.data.u8[2] >> 7);
+      BMS_5A2_CRC = rx_frame.data.u8[0];
+      BMS_5A2_counter = (rx_frame.data.u8[1] & 0x0F);
+      if (BMS_5A2_CRC == (vw_crc_calc(rx_frame.data.u8, rx_frame.DLC, rx_frame.ID))) {  //If CRC match calc
+        service_disconnect_switch_missing = (rx_frame.data.u8[1] & 0x20) >> 5;
+        pilotline_open = (rx_frame.data.u8[1] & 0x10) >> 4;
+        BMS_status_voltage_free = (rx_frame.data.u8[1] & 0xC0) >> 6;
+        BMS_OBD_MIL = (rx_frame.data.u8[2] & 0x01);
+        BMS_error_status = (rx_frame.data.u8[2] & 0x70) >> 4;
+        BMS_error_lamp_req = (rx_frame.data.u8[4] & 0x04) >> 2;
+        BMS_warning_lamp_req = (rx_frame.data.u8[4] & 0x08) >> 3;
+        BMS_Kl30c_Status = (rx_frame.data.u8[4] & 0x30) >> 4;
+        if (BMS_Kl30c_Status != 0) {  // init state
+          BMS_capacity_ah =
+              ((rx_frame.data.u8[4] & 0x03) << 9) | (rx_frame.data.u8[3] << 1) | (rx_frame.data.u8[2] >> 7);
+        }
+      } else {  //Actual CRC does NOT match calculated CRC
+        datalayer.battery.status.CAN_error_counter++;
       }
       break;
     case 0x5CA:  // BMS 500ms
       can_msg_received |= RX_0x5CA;
-      BMS_5CA_CRC = rx_frame.data.u8[0];                      // Can be used to check CAN signal integrity later on
-      BMS_5CA_counter = (rx_frame.data.u8[1] & 0x0F);         // Can be used to check CAN signal integrity later on
-      balancing_request = (rx_frame.data.u8[5] & 0x08) >> 3;  //True/False
-      battery_diagnostic = (rx_frame.data.u8[3] & 0x07);
-      battery_Wh_left =
-          (rx_frame.data.u8[2] << 4) | (rx_frame.data.u8[1] >> 4);  //*50  ! Not usable, seems to always contain 0x7F0
-      battery_potential_status =
-          (rx_frame.data.u8[5] & 0x30) >> 4;  //0 = function not enabled, 1= no potential, 2 = potential on, 3 = fault
-      battery_temperature_warning =
-          (rx_frame.data.u8[7] & 0x0C) >> 2;  // 0 = no warning, 1 = temp level 1, 2=temp level 2
-      battery_Wh_max =
-          ((rx_frame.data.u8[5] & 0x07) << 8) | rx_frame.data.u8[4];  //*50  ! Not usable, seems to always contain 0x7F0
+      BMS_5CA_CRC = rx_frame.data.u8[0];
+      BMS_5CA_counter = (rx_frame.data.u8[1] & 0x0F);
+      if (BMS_5CA_CRC == (vw_crc_calc(rx_frame.data.u8, rx_frame.DLC, rx_frame.ID))) {  //If CRC match calc
+        balancing_request = (rx_frame.data.u8[5] & 0x08) >> 3;                          //True/False
+        battery_diagnostic = (rx_frame.data.u8[3] & 0x07);
+        battery_Wh_left =
+            (rx_frame.data.u8[2] << 4) | (rx_frame.data.u8[1] >> 4);  //*50  ! Not usable, seems to always contain 0x7F0
+        battery_potential_status =
+            (rx_frame.data.u8[5] & 0x30) >> 4;  //0 = function not enabled, 1= no potential, 2 = potential on, 3 = fault
+        battery_temperature_warning =
+            (rx_frame.data.u8[7] & 0x0C) >> 2;  // 0 = no warning, 1 = temp level 1, 2=temp level 2
+        battery_Wh_max = ((rx_frame.data.u8[5] & 0x07) << 8) |
+                         rx_frame.data.u8[4];  //*50  ! Not usable, seems to always contain 0x7F0
+      } else {                                 //Actual CRC does NOT match calculated CRC
+        datalayer.battery.status.CAN_error_counter++;
+      }
       break;
     case 0x0CF:  //BMS 10ms
       can_msg_received |= RX_0x0CF;
-      BMS_0CF_CRC = rx_frame.data.u8[0];               // Can be used to check CAN signal integrity later on
-      BMS_0CF_counter = (rx_frame.data.u8[1] & 0x0F);  // Can be used to check CAN signal integrity later on
-      BMS_welded_contactors_status = (rx_frame.data.u8[1] & 0x60) >> 5;
-      BMS_ext_limits_active = (rx_frame.data.u8[1] & 0x80) >> 7;
-      BMS_mode = (rx_frame.data.u8[2] & 0x07);
-      switch (BMS_mode) {
-        case 1:  // HV_ACTIVE
-        case 3:  // EXTERN CHARGING
-        case 4:  // AC_CHARGING
-        case 6:  // DC_CHARGING
+      BMS_0CF_CRC = rx_frame.data.u8[0];
+      BMS_0CF_counter = (rx_frame.data.u8[1] & 0x0F);
+      if (BMS_0CF_CRC == (vw_crc_calc(rx_frame.data.u8, rx_frame.DLC, rx_frame.ID))) {  //If CRC match calc
+        BMS_welded_contactors_status = (rx_frame.data.u8[1] & 0x60) >> 5;
+        BMS_ext_limits_active = (rx_frame.data.u8[1] & 0x80) >> 7;
+        BMS_mode = (rx_frame.data.u8[2] & 0x07);
+        switch (BMS_mode) {
+          case 1:  // HV_ACTIVE
+          case 3:  // EXTERN CHARGING
+          case 4:  // AC_CHARGING
+          case 6:  // DC_CHARGING
 #ifdef DEBUG_LOG
-          if (!datalayer.system.status.battery_allows_contactor_closing)
-            logging.printf("MEB Contactors closed\n");
+            if (!datalayer.system.status.battery_allows_contactor_closing)
+              logging.printf("MEB Contactors closed\n");
 #endif
-          if (datalayer.battery.status.real_bms_status != BMS_FAULT)
-            datalayer.battery.status.real_bms_status = BMS_ACTIVE;
-          datalayer.system.status.battery_allows_contactor_closing = true;
-          break;
-        case 5:  // Error
+            if (datalayer.battery.status.real_bms_status != BMS_FAULT)
+              datalayer.battery.status.real_bms_status = BMS_ACTIVE;
+            datalayer.system.status.battery_allows_contactor_closing = true;
+            break;
+          case 5:  // Error
 #ifdef DEBUG_LOG
-          if (datalayer.system.status.battery_allows_contactor_closing)
-            logging.printf("MEB Contactors opened\n");
+            if (datalayer.system.status.battery_allows_contactor_closing)
+              logging.printf("MEB Contactors opened\n");
 #endif
-          datalayer.battery.status.real_bms_status = BMS_FAULT;
-          datalayer.system.status.battery_allows_contactor_closing = false;
-          break;
-        case 7:  // Init
+            datalayer.battery.status.real_bms_status = BMS_FAULT;
+            datalayer.system.status.battery_allows_contactor_closing = false;
+            break;
+          case 7:  // Init
 #ifdef DEBUG_LOG
-          if (datalayer.system.status.battery_allows_contactor_closing)
-            logging.printf("MEB Contactors opened\n");
+            if (datalayer.system.status.battery_allows_contactor_closing)
+              logging.printf("MEB Contactors opened\n");
 #endif
-          if (datalayer.battery.status.real_bms_status != BMS_FAULT)
-            datalayer.battery.status.real_bms_status = BMS_STANDBY;
-          datalayer.system.status.battery_allows_contactor_closing = false;
-          break;
-        case 2:  // BALANCING
-        default:
+            if (datalayer.battery.status.real_bms_status != BMS_FAULT)
+              datalayer.battery.status.real_bms_status = BMS_STANDBY;
+            datalayer.system.status.battery_allows_contactor_closing = false;
+            break;
+          case 2:  // BALANCING
+          default:
 #ifdef DEBUG_LOG
-          if (datalayer.system.status.battery_allows_contactor_closing)
-            logging.printf("MEB Contactors opened\n");
+            if (datalayer.system.status.battery_allows_contactor_closing)
+              logging.printf("MEB Contactors opened\n");
 #endif
-          if (datalayer.battery.status.real_bms_status != BMS_FAULT)
-            datalayer.battery.status.real_bms_status = BMS_STANDBY;
-          datalayer.system.status.battery_allows_contactor_closing = false;
-      }
-      BMS_HVIL_status = (rx_frame.data.u8[2] & 0x18) >> 3;
-      BMS_error_shutdown = (rx_frame.data.u8[2] & 0x20) >> 5;
-      BMS_error_shutdown_request = (rx_frame.data.u8[2] & 0x40) >> 6;
-      BMS_fault_performance = (rx_frame.data.u8[2] & 0x80) >> 7;
-      BMS_fault_emergency_shutdown_crash = (rx_frame.data.u8[4] & 0x80) >> 7;
-      if (BMS_mode != 7) {  // Init state, values below are invalid
-        BMS_current = ((rx_frame.data.u8[4] & 0x7F) << 8) | rx_frame.data.u8[3];
-        BMS_voltage_intermediate = (((rx_frame.data.u8[6] & 0x0F) << 8) + (rx_frame.data.u8[5]));
-        BMS_voltage = ((rx_frame.data.u8[7] << 4) + ((rx_frame.data.u8[6] & 0xF0) >> 4));
+            if (datalayer.battery.status.real_bms_status != BMS_FAULT)
+              datalayer.battery.status.real_bms_status = BMS_STANDBY;
+            datalayer.system.status.battery_allows_contactor_closing = false;
+        }
+        BMS_HVIL_status = (rx_frame.data.u8[2] & 0x18) >> 3;
+        BMS_error_shutdown = (rx_frame.data.u8[2] & 0x20) >> 5;
+        BMS_error_shutdown_request = (rx_frame.data.u8[2] & 0x40) >> 6;
+        BMS_fault_performance = (rx_frame.data.u8[2] & 0x80) >> 7;
+        BMS_fault_emergency_shutdown_crash = (rx_frame.data.u8[4] & 0x80) >> 7;
+        if (BMS_mode != 7) {  // Init state, values below are invalid
+          BMS_current = ((rx_frame.data.u8[4] & 0x7F) << 8) | rx_frame.data.u8[3];
+          BMS_voltage_intermediate = (((rx_frame.data.u8[6] & 0x0F) << 8) + (rx_frame.data.u8[5]));
+          BMS_voltage = ((rx_frame.data.u8[7] << 4) + ((rx_frame.data.u8[6] & 0xF0) >> 4));
+        }
+      } else {  //Actual CRC does NOT match calculated CRC
+        datalayer.battery.status.CAN_error_counter++;
       }
       break;
     case 0x1C42007B:                      // Reply from battery
