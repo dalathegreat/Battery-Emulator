@@ -44,6 +44,7 @@
 #include "src/devboard/mqtt/mqtt.h"
 #endif  // MQTT
 #endif  // WIFI
+volatile unsigned long long bmsResetTimeOffset = 0;
 
 // The current software version, shown on webserver
 const char* version_number = "8.4.0";
@@ -52,7 +53,6 @@ const char* version_number = "8.4.0";
 uint16_t intervalUpdateValues = INTERVAL_1_S;  // Interval at which to update inverter values / Modbus registers
 unsigned long previousMillis10ms = 0;
 unsigned long previousMillisUpdateVal = 0;
-
 // Task time measurement for debugging and for setting CPU load events
 int64_t core_task_time_us;
 MyTimer core_task_timer_10s(INTERVAL_10_S);
@@ -124,6 +124,11 @@ void setup() {
 
   xTaskCreatePinnedToCore((TaskFunction_t)&core_loop, "core_loop", 4096, &core_task_time_us, TASK_CORE_PRIO,
                           &main_loop_task, CORE_FUNCTION_CORE);
+#ifdef PERIODIC_BMS_RESET_AT
+  bmsResetTimeOffset = getTimeOffsetfromNowUntil(PERIODIC_BMS_RESET_AT);
+  logging.println("bmsResetTimeOffset");
+  logging.println(bmsResetTimeOffset);
+#endif
 }
 
 // Perform main program functions
