@@ -44,6 +44,9 @@
 #include "src/devboard/mqtt/mqtt.h"
 #endif  // MQTT
 #endif  // WIFI
+#ifdef PERIODIC_BMS_RESET_AT
+#include "src/devboard/utils/ntp_time.h"
+#endif
 volatile unsigned long long bmsResetTimeOffset = 0;
 
 // The current software version, shown on webserver
