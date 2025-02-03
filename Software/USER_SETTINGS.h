@@ -74,8 +74,9 @@
 //#define CONTACTOR_CONTROL_DOUBLE_BATTERY //Enable this line to have the emulator hardware control secondary set of contactors for double battery setups (See wiki for pins)
 //#define PWM_CONTACTOR_CONTROL //Enable this line to use PWM for CONTACTOR_CONTROL, which lowers power consumption and heat generation. CONTACTOR_CONTROL must be enabled.
 //#define NC_CONTACTORS         //Enable this line to control normally closed contactors. CONTACTOR_CONTROL must be enabled for this option. Extremely rare setting!
-//#define PERIODIC_BMS_RESET    //Enable to have the emulator powercycle the connected battery every 24hours via GPIO. Useful for some batteries like Nissan LEAF
-//#define REMOTE_BMS_RESET      //Enable to allow the emulator to remotely trigger a powercycle of the battery via MQTT. Useful for some batteries like Nissan LEAF
+#define PERIODIC_BMS_RESET  //Enable to have the emulator powercycle the connected battery every 24hours via GPIO. Useful for some batteries like Nissan LEAF
+#define PERIODIC_BMS_RESET_AT 525
+// Enable PERIODIC_BMS_RESET_AT to have the emulator perform the BMS Reset at a particular time. Requires access to Internet / NTP Server. In 24 Hour format WITHOUT leading 0. e.g 0230 should be 230.
 
 /* Shunt/Contactor settings (Optional) */
 //#define BMW_SBOX  // SBOX relay control & battery current/voltage measurement
@@ -186,3 +187,5 @@ extern IPAddress subnet;
 #endif
 
 #endif  // __USER_SETTINGS_H__
+
+extern volatile unsigned long long bmsResetTimeOffset;
