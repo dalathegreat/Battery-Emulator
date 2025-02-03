@@ -249,7 +249,7 @@ void handle_BMSpower() {
 
 #ifdef PERIODIC_BMS_RESET
   // Check if 24 hours have passed since the last power removal
-  if (currentTime - lastPowerRemovalTime >= powerRemovalInterval) {
+  if ((currentTime + bmsResetTimeOffset) - lastPowerRemovalTime >= powerRemovalInterval) {
     start_bms_reset();
   }
 #endif  //PERIODIC_BMS_RESET
