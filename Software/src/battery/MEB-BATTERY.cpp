@@ -558,15 +558,6 @@ void update_values_battery() {  //This function maps all the values fetched via 
   // datalayer.battery.status.temperature_max_dC = actual_temperature_highest_C*5 -400;  // We use the value below, because it has better accuracy
   datalayer.battery.status.temperature_max_dC = (battery_max_temp * 10) / 64;
 
-  if (datalayer.battery.status.temperature_max_dC > 400) {
-    set_event_latched(EVENT_BATTERY_OVERHEAT, datalayer.battery.status.temperature_max_dC);
-  } else {
-    if (labs(datalayer.battery.status.temperature_max_dC - datalayer.battery.status.temperature_min_dC) > 100)
-      set_event_latched(EVENT_BATTERY_OVERHEAT, datalayer.battery.status.temperature_max_dC);
-    else
-      clear_event(EVENT_BATTERY_OVERHEAT);
-  }
-
   //Map all cell voltages to the global array
   memcpy(datalayer.battery.status.cell_voltages_mV, cellvoltages_polled, 108 * sizeof(uint16_t));
 
