@@ -153,7 +153,7 @@ void AsyncWebServer::_attachHandler(AsyncWebServerRequest* request) {
       return;
     }
   }
-
+  // ESP_LOGD("AsyncWebServer", "No handler found for %s, using _catchAllHandler pointer: %p", request->url().c_str(), _catchAllHandler);
   request->setHandler(_catchAllHandler);
 }
 

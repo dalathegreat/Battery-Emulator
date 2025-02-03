@@ -94,7 +94,7 @@ This code uses the following excellent libraries:
 - [eModbus/eModbus](https://github.com/eModbus/eModbus) MIT-License
 - [mackelec/SerialDataLink](https://github.com/mackelec/SerialDataLink)
 - [mathieucarbou/AsyncTCPsock](https://github.com/mathieucarbou/AsyncTCPSock) LGPL-3.0 license
-- [mathieucarbou/ESPAsyncWebServer](https://github.com/mathieucarbou/ESPAsyncWebServer) LGPL-3.0 license
+- [ESP32Async/ESPAsyncWebServer](https://github.com/ESP32Async/ESPAsyncWebServer) LGPL-3.0 license
 - [miwagner/ESP32-Arduino-CAN](https://github.com/miwagner/ESP32-Arduino-CAN/) MIT-License
 - [pierremolinaro/acan2515](https://github.com/pierremolinaro/acan2515) MIT-License
 - [pierremolinaro/acan2517FD](https://github.com/pierremolinaro/acan2517FD) MIT-License

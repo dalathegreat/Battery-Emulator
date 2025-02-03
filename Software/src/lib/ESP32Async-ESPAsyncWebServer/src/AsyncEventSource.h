@@ -22,16 +22,38 @@
 
 #include <Arduino.h>
 
-
-#include "../../mathieucarbou-AsyncTCPSock/src/AsyncTCP.h"
+#ifdef ESP32
+  #include "../../mathieucarbou-AsyncTCPSock/src/AsyncTCP.h"
   #include <mutex>
   #ifndef SSE_MAX_QUEUED_MESSAGES
     #define SSE_MAX_QUEUED_MESSAGES 32
   #endif
   #define SSE_MIN_INFLIGH 2 * 1460  // allow 2 MSS packets
   #define SSE_MAX_INFLIGH 16 * 1024 // but no more than 16k, no need to blow it, since same data is kept in local Q
+#elif defined(ESP8266)
+  #include <ESPAsyncTCP.h>
+  #ifndef SSE_MAX_QUEUED_MESSAGES
+    #define SSE_MAX_QUEUED_MESSAGES 8
+  #endif
+  #define SSE_MIN_INFLIGH 2 * 1460 // allow 2 MSS packets
+  #define SSE_MAX_INFLIGH 8 * 1024 // but no more than 8k, no need to blow it, since same data is kept in local Q
+#elif defined(TARGET_RP2040)
+  #include <AsyncTCP_RP2040W.h>
+  #ifndef SSE_MAX_QUEUED_MESSAGES
+    #define SSE_MAX_QUEUED_MESSAGES 32
+  #endif
+  #define SSE_MIN_INFLIGH 2 * 1460  // allow 2 MSS packets
+  #define SSE_MAX_INFLIGH 16 * 1024 // but no more than 16k, no need to blow it, since same data is kept in local Q
+#endif
 
 #include "ESPAsyncWebServer.h"
+
+#ifdef ESP8266
+  #include <Hash.h>
+  #ifdef CRYPTO_HASH_h // include Hash.h from espressif framework if the first include was from the crypto library
+    #include <../src/Hash.h>
+  #endif
+#endif
 
 class AsyncEventSource;
 class AsyncEventSourceResponse;
@@ -54,7 +76,12 @@ class AsyncEventSourceMessage {
 
   public:
     AsyncEventSourceMessage(AsyncEvent_SharedData_t data) : _data(data) {};
+#ifdef ESP32
     AsyncEventSourceMessage(const char* data, size_t len) : _data(std::make_shared<String>(data, len)) {};
+#else
+    // esp8266's String does not have constructor with data/length arguments. Use a concat method here
+    AsyncEventSourceMessage(const char* data, size_t len) { _data->concat(data, len); };
+#endif
 
     /**
      * @brief acknowledge sending len bytes of data
@@ -105,7 +132,9 @@ class AsyncEventSourceClient {
     size_t _inflight{0};                   // num of unacknowledged bytes that has been written to socket buffer
     size_t _max_inflight{SSE_MAX_INFLIGH}; // max num of unacknowledged bytes that could be written to socket buffer
     std::list<AsyncEventSourceMessage> _messageQueue;
+#ifdef ESP32
     mutable std::mutex _lockmq;
+#endif
     bool _queueMessage(const char* message, size_t len);
     bool _queueMessage(AsyncEvent_SharedData_t&& msg);
     void _runQueue();
@@ -184,9 +213,11 @@ class AsyncEventSource : public AsyncWebHandler {
   private:
     String _url;
     std::list<std::unique_ptr<AsyncEventSourceClient>> _clients;
+#ifdef ESP32
     // Same as for individual messages, protect mutations of _clients list
     // since simultaneous access from different tasks is possible
     mutable std::mutex _client_queue_lock;
+#endif
     ArEventHandlerFunction _connectcb = nullptr;
     ArEventHandlerFunction _disconnectcb = nullptr;
 

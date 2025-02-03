@@ -293,7 +293,9 @@ AsyncWebSocketClient::AsyncWebSocketClient(AsyncWebServerRequest* request, Async
 
 AsyncWebSocketClient::~AsyncWebSocketClient() {
   {
+#ifdef ESP32
     std::lock_guard<std::mutex> lock(_lock);
+#endif
     _messageQueue.clear();
     _controlQueue.clear();
   }
@@ -308,7 +310,9 @@ void AsyncWebSocketClient::_clearQueue() {
 void AsyncWebSocketClient::_onAck(size_t len, uint32_t time) {
   _lastMessageTime = millis();
 
+#ifdef ESP32
   std::lock_guard<std::mutex> lock(_lock);
+#endif
 
   if (!_controlQueue.empty()) {
     auto& head = _controlQueue.front();
@@ -338,11 +342,15 @@ void AsyncWebSocketClient::_onPoll() {
   if (!_client)
     return;
 
+#ifdef ESP32
   std::unique_lock<std::mutex> lock(_lock);
+#endif
   if (_client && _client->canSend() && (!_controlQueue.empty() || !_messageQueue.empty())) {
     _runQueue();
   } else if (_keepAlivePeriod > 0 && (millis() - _lastMessageTime) >= _keepAlivePeriod && (_controlQueue.empty() && _messageQueue.empty())) {
+#ifdef ESP32
     lock.unlock();
+#endif
     ping((uint8_t*)AWSC_PING_PAYLOAD, AWSC_PING_PAYLOAD_LEN);
   }
 }
@@ -362,17 +370,23 @@ void AsyncWebSocketClient::_runQueue() {
 }
 
 bool AsyncWebSocketClient::queueIsFull() const {
+#ifdef ESP32
   std::lock_guard<std::mutex> lock(_lock);
+#endif
   return (_messageQueue.size() >= WS_MAX_QUEUED_MESSAGES) || (_status != WS_CONNECTED);
 }
 
 size_t AsyncWebSocketClient::queueLen() const {
+#ifdef ESP32
   std::lock_guard<std::mutex> lock(_lock);
+#endif
   return _messageQueue.size();
 }
 
 bool AsyncWebSocketClient::canSend() const {
+#ifdef ESP32
   std::lock_guard<std::mutex> lock(_lock);
+#endif
   return _messageQueue.size() < WS_MAX_QUEUED_MESSAGES;
 }
 
@@ -380,7 +394,9 @@ bool AsyncWebSocketClient::_queueControl(uint8_t opcode, const uint8_t* data, si
   if (!_client)
     return false;
 
+#ifdef ESP32
   std::lock_guard<std::mutex> lock(_lock);
+#endif
 
   _controlQueue.emplace_back(opcode, data, len, mask);
 
@@ -394,7 +410,9 @@ bool AsyncWebSocketClient::_queueMessage(AsyncWebSocketSharedBuffer buffer, uint
   if (!_client || buffer->size() == 0 || _status != WS_CONNECTED)
     return false;
 
+#ifdef ESP32
   std::lock_guard<std::mutex> lock(_lock);
+#endif
 
   if (_messageQueue.size() >= WS_MAX_QUEUED_MESSAGES) {
     if (closeWhenFull) {
@@ -402,10 +420,19 @@ bool AsyncWebSocketClient::_queueMessage(AsyncWebSocketSharedBuffer buffer, uint
 
       if (_client)
         _client->close(true);
+
+#ifdef ESP8266
+      ets_printf("AsyncWebSocketClient::_queueMessage: Too many messages queued: closing connection\n");
+#elif defined(ESP32)
       log_e("Too many messages queued: closing connection");
+#endif
 
     } else {
+#ifdef ESP8266
+      ets_printf("AsyncWebSocketClient::_queueMessage: Too many messages queued: discarding new message\n");
+#elif defined(ESP32)
       log_e("Too many messages queued: discarding new message");
+#endif
     }
 
     return false;
@@ -599,6 +626,30 @@ size_t AsyncWebSocketClient::printf(const char* format, ...) {
   return enqueued ? len : 0;
 }
 
+#ifdef ESP8266
+size_t AsyncWebSocketClient::printf_P(PGM_P formatP, ...) {
+  va_list arg;
+  va_start(arg, formatP);
+  size_t len = vsnprintf_P(nullptr, 0, formatP, arg);
+  va_end(arg);
+
+  if (len == 0)
+    return 0;
+
+  char* buffer = new char[len + 1];
+
+  if (!buffer)
+    return 0;
+
+  va_start(arg, formatP);
+  len = vsnprintf_P(buffer, len + 1, formatP, arg);
+  va_end(arg);
+
+  bool enqueued = text(buffer, len);
+  delete[] buffer;
+  return enqueued ? len : 0;
+}
+#endif
 
 namespace {
   AsyncWebSocketSharedBuffer makeSharedBuffer(const uint8_t* message, size_t len) {
@@ -637,6 +688,28 @@ bool AsyncWebSocketClient::text(const String& message) {
   return text(message.c_str(), message.length());
 }
 
+#ifdef ESP8266
+bool AsyncWebSocketClient::text(const __FlashStringHelper* data) {
+  PGM_P p = reinterpret_cast<PGM_P>(data);
+
+  size_t n = 0;
+  while (1) {
+    if (pgm_read_byte(p + n) == 0)
+      break;
+    n += 1;
+  }
+
+  char* message = (char*)malloc(n + 1);
+  bool enqueued = false;
+  if (message) {
+    memcpy_P(message, p, n);
+    message[n] = 0;
+    enqueued = text(message, n);
+    free(message);
+  }
+  return enqueued;
+}
+#endif // ESP8266
 
 bool AsyncWebSocketClient::binary(AsyncWebSocketMessageBuffer* buffer) {
   bool enqueued = false;
@@ -667,6 +740,19 @@ bool AsyncWebSocketClient::binary(const String& message) {
   return binary(message.c_str(), message.length());
 }
 
+#ifdef ESP8266
+bool AsyncWebSocketClient::binary(const __FlashStringHelper* data, size_t len) {
+  PGM_P p = reinterpret_cast<PGM_P>(data);
+  char* message = (char*)malloc(len);
+  bool enqueued = false;
+  if (message) {
+    memcpy_P(message, p, len);
+    enqueued = binary(message, len);
+    free(message);
+  }
+  return enqueued;
+}
+#endif
 
 IPAddress AsyncWebSocketClient::remoteIP() const {
   if (!_client)
@@ -774,6 +860,29 @@ bool AsyncWebSocket::text(uint32_t id, const String& message) {
   return text(id, message.c_str(), message.length());
 }
 
+#ifdef ESP8266
+bool AsyncWebSocket::text(uint32_t id, const __FlashStringHelper* data) {
+  PGM_P p = reinterpret_cast<PGM_P>(data);
+
+  size_t n = 0;
+  while (true) {
+    if (pgm_read_byte(p + n) == 0)
+      break;
+    n += 1;
+  }
+
+  char* message = (char*)malloc(n + 1);
+  bool enqueued = false;
+  if (message) {
+    memcpy_P(message, p, n);
+    message[n] = 0;
+    enqueued = text(id, message, n);
+    free(message);
+  }
+  return enqueued;
+}
+#endif // ESP8266
+
 bool AsyncWebSocket::text(uint32_t id, AsyncWebSocketMessageBuffer* buffer) {
   bool enqueued = false;
   if (buffer) {
@@ -799,6 +908,28 @@ AsyncWebSocket::SendStatus AsyncWebSocket::textAll(const char* message) {
 AsyncWebSocket::SendStatus AsyncWebSocket::textAll(const String& message) {
   return textAll(message.c_str(), message.length());
 }
+#ifdef ESP8266
+AsyncWebSocket::SendStatus AsyncWebSocket::textAll(const __FlashStringHelper* data) {
+  PGM_P p = reinterpret_cast<PGM_P>(data);
+
+  size_t n = 0;
+  while (1) {
+    if (pgm_read_byte(p + n) == 0)
+      break;
+    n += 1;
+  }
+
+  char* message = (char*)malloc(n + 1);
+  AsyncWebSocket::SendStatus status = DISCARDED;
+  if (message) {
+    memcpy_P(message, p, n);
+    message[n] = 0;
+    status = textAll(message, n);
+    free(message);
+  }
+  return status;
+}
+#endif // ESP8266
 AsyncWebSocket::SendStatus AsyncWebSocket::textAll(AsyncWebSocketMessageBuffer* buffer) {
   AsyncWebSocket::SendStatus status = DISCARDED;
   if (buffer) {
@@ -833,6 +964,19 @@ bool AsyncWebSocket::binary(uint32_t id, const String& message) {
   return binary(id, message.c_str(), message.length());
 }
 
+#ifdef ESP8266
+bool AsyncWebSocket::binary(uint32_t id, const __FlashStringHelper* data, size_t len) {
+  PGM_P p = reinterpret_cast<PGM_P>(data);
+  char* message = (char*)malloc(len);
+  bool enqueued = false;
+  if (message) {
+    memcpy_P(message, p, len);
+    enqueued = binary(id, message, len);
+    free(message);
+  }
+  return enqueued;
+}
+#endif // ESP8266
 
 bool AsyncWebSocket::binary(uint32_t id, AsyncWebSocketMessageBuffer* buffer) {
   bool enqueued = false;
@@ -859,6 +1003,20 @@ AsyncWebSocket::SendStatus AsyncWebSocket::binaryAll(const char* message) {
 AsyncWebSocket::SendStatus AsyncWebSocket::binaryAll(const String& message) {
   return binaryAll(message.c_str(), message.length());
 }
+
+#ifdef ESP8266
+AsyncWebSocket::SendStatus AsyncWebSocket::binaryAll(const __FlashStringHelper* data, size_t len) {
+  PGM_P p = reinterpret_cast<PGM_P>(data);
+  char* message = (char*)malloc(len);
+  AsyncWebSocket::SendStatus status = DISCARDED;
+  if (message) {
+    memcpy_P(message, p, len);
+    status = binaryAll(message, len);
+    free(message);
+  }
+  return status;
+}
+#endif // ESP8266
 
 AsyncWebSocket::SendStatus AsyncWebSocket::binaryAll(AsyncWebSocketMessageBuffer* buffer) {
   AsyncWebSocket::SendStatus status = DISCARDED;
@@ -913,6 +1071,43 @@ size_t AsyncWebSocket::printfAll(const char* format, ...) {
   delete[] buffer;
   return status == DISCARDED ? 0 : len;
 }
+
+#ifdef ESP8266
+size_t AsyncWebSocket::printf_P(uint32_t id, PGM_P formatP, ...) {
+  AsyncWebSocketClient* c = client(id);
+  if (c != NULL) {
+    va_list arg;
+    va_start(arg, formatP);
+    size_t len = c->printf_P(formatP, arg);
+    va_end(arg);
+    return len;
+  }
+  return 0;
+}
+
+size_t AsyncWebSocket::printfAll_P(PGM_P formatP, ...) {
+  va_list arg;
+  va_start(arg, formatP);
+  size_t len = vsnprintf_P(nullptr, 0, formatP, arg);
+  va_end(arg);
+
+  if (len == 0)
+    return 0;
+
+  char* buffer = new char[len + 1];
+
+  if (!buffer)
+    return 0;
+
+  va_start(arg, formatP);
+  len = vsnprintf_P(buffer, len + 1, formatP, arg);
+  va_end(arg);
+
+  AsyncWebSocket::SendStatus status = textAll(buffer, len);
+  delete[] buffer;
+  return status == DISCARDED ? 0 : len;
+}
+#endif
 
 const char __WS_STR_CONNECTION[] PROGMEM = {"Connection"};
 const char __WS_STR_UPGRADE[] PROGMEM = {"Upgrade"};
