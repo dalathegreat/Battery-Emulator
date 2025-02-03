@@ -69,8 +69,8 @@ uint32_t decode_uint32be(uint8_t data[8], uint8_t offset) {
          ((uint32_t)data[offset + 3]);
 }
 
-void decode_packet(uint8_t data[8]) {
-  switch (buff[2]) {
+void decode_packet(uint8_t command, uint8_t data[8]) {
+  switch (command) {
     case 0x90:
       voltage_dV = decode_uint16be(data, 0);
       current_dA = decode_int16be(data, 4) - 30000;
@@ -139,7 +139,7 @@ void receive_RS485() {
     }
 
     if (recv_len > 12) {
-      decode_packet(&recv_buff[4]);
+      decode_packet(recv_buff[2], &recv_buff[4]);
       recv_len = 0;
     }
   }
