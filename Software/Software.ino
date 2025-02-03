@@ -210,7 +210,7 @@ void core_loop(void* task_time_us) {
 
     // Input, Runs as fast as possible
     receive_can();  // Receive CAN messages
-#ifdef RS485_INVERTER_SELECTED
+#if defined(RS485_INVERTER_SELECTED) || defined(RS485_BATTERY_SELECTED)
     receive_RS485();  // Process serial2 RS485 interface
 #endif                // RS485_INVERTER_SELECTED
 #if defined(SERIAL_LINK_RECEIVER) || defined(SERIAL_LINK_TRANSMITTER)
@@ -254,6 +254,10 @@ void core_loop(void* task_time_us) {
     START_TIME_MEASUREMENT(cantx);
     // Output
     transmit_can();  // Send CAN messages to all components
+
+#ifdef RS485_BATTERY_SELECTED
+    transmit_rs485();
+#endif  // RS485_BATTERY_SELECTED
 
     END_TIME_MEASUREMENT_MAX(cantx, datalayer.system.status.time_cantx_us);
     END_TIME_MEASUREMENT_MAX(all, datalayer.system.status.core_task_10s_max_us);

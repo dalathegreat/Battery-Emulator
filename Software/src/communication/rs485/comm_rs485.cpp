@@ -29,9 +29,9 @@ void init_rs485() {
   pinMode(PIN_5V_EN, OUTPUT);
   digitalWrite(PIN_5V_EN, HIGH);
 #endif  // PIN_5V_EN
-#ifdef RS485_INVERTER_SELECTED
+#if defined(RS485_INVERTER_SELECTED) || defined(RS485_BATTERY_SELECTED)
   Serial2.begin(57600, SERIAL_8N1, RS485_RX_PIN, RS485_TX_PIN);
-#endif  // RS485_INVERTER_SELECTED
+#endif  // RS485_INVERTER_SELECTED || RS485_BATTERY_SELECTED
 #ifdef MODBUS_INVERTER_SELECTED
 #ifdef BYD_MODBUS
   // Init Static data to the RTU Modbus
