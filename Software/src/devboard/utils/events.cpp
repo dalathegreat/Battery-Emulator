@@ -256,7 +256,7 @@ void reset_all_events() {
   events.level = EVENT_LEVEL_INFO;
   update_bms_status();
 #ifdef DEBUG_LOG
-    logging.println("All events have been cleared.");
+  logging.println("All events have been cleared.");
 #endif
 }
 

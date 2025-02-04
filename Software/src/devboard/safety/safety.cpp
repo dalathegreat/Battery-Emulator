@@ -41,7 +41,8 @@ void update_machineryprotection() {
     clear_event(EVENT_BATTERY_FROZEN);
   }
 
-  if (datalayer.battery.status.temperature_max_dC - datalayer.battery.status.temperature_min_dC > BATTERY_MAX_TEMPERATURE_DEVIATION){
+  if (datalayer.battery.status.temperature_max_dC - datalayer.battery.status.temperature_min_dC >
+      BATTERY_MAX_TEMPERATURE_DEVIATION) {
     set_event_latched(EVENT_BATTERY_TEMP_DEVIATION_HIGH,
                       datalayer.battery.status.temperature_max_dC - datalayer.battery.status.temperature_min_dC);
   } else {
