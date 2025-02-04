@@ -46,7 +46,7 @@
 //#define AFORE_CAN        //Enable this line to emulate an "Afore battery" over CAN bus
 //#define BYD_CAN          //Enable this line to emulate a "BYD Battery-Box Premium HVS" over CAN Bus
 //#define BYD_KOSTAL_RS485 //Enable this line to emulate a "BYD 11kWh HVM battery" over Kostal RS485
-//#define BYD_MODBUS  //Enable this line to emulate a "BYD 11kWh HVM battery" over Modbus RTU
+//#define BYD_MODBUS       //Enable this line to emulate a "BYD 11kWh HVM battery" over Modbus RTU
 //#define FOXESS_CAN       //Enable this line to emulate a "HV2600/ECS4100 battery" over CAN bus
 //#define GROWATT_HV_CAN   //Enable this line to emulate a "Growatt High Voltage v1.10 battery" over CAN bus
 //#define GROWATT_LV_CAN   //Enable this line to emulate a "48V Growatt Low Voltage battery" over CAN bus
@@ -63,21 +63,22 @@
 //#define SERIAL_LINK_RECEIVER  //Enable this line to receive battery data over RS485 pins from another Lilygo (This LilyGo interfaces with inverter)
 
 /* Select hardware used for Battery-Emulator */
-// #define HW_LILYGO
+//#define HW_LILYGO
 //#define HW_STARK
 //#define HW_3LB
 //#define HW_DEVKIT
 
 /* Contactor settings. If you have a battery that does not activate contactors via CAN, configure this section */
 #define PRECHARGE_TIME_MS 500  //Precharge time in milliseconds. Modify to suit your inverter (See wiki for more info)
-// #define CONTACTOR_CONTROL  //Enable this line to have the emulator handle automatic precharge/contactor+/contactor- closing sequence (See wiki for pins)
-// #define CONTACTOR_CONTROL_DOUBLE_BATTERY //Enable this line to have the emulator hardware control secondary set of contactors for double battery setups (See wiki for pins)
-// #define PWM_CONTACTOR_CONTROL  //Enable this line to use PWM for CONTACTOR_CONTROL, which lowers power consumption and heat generation. CONTACTOR_CONTROL must be enabled.
-// #define NC_CONTACTORS         //Enable this line to control normally closed contactors. CONTACTOR_CONTROL must be enabled for this option. Extremely rare setting!
-// #define PERIODIC_BMS_RESET  //Enable to have the emulator powercycle the connected battery every 24hours via GPIO. Useful for some batteries like Nissan LEAF
-// #define PERIODIC_BMS_RESET_AT 525
-// Enable PERIODIC_BMS_RESET_AT to have the emulator perform the BMS Reset at a particular time.
-// Requires access to Internet / NTP Server. In 24 Hour format WITHOUT leading 0. e.g 0230 should be 230. PERIODIC_BMS_RESET must be enabled.
+//#define CONTACTOR_CONTROL     //Enable this line to have the emulator handle automatic precharge/contactor+/contactor- closing sequence (See wiki for pins)
+//#define CONTACTOR_CONTROL_DOUBLE_BATTERY //Enable this line to have the emulator hardware control secondary set of contactors for double battery setups (See wiki for pins)
+//#define PWM_CONTACTOR_CONTROL //Enable this line to use PWM for CONTACTOR_CONTROL, which lowers power consumption and heat generation. CONTACTOR_CONTROL must be enabled.
+//#define NC_CONTACTORS         //Enable this line to control normally closed contactors. CONTACTOR_CONTROL must be enabled for this option. Extremely rare setting!
+//#define PERIODIC_BMS_RESET    //Enable to have the emulator powercycle the connected battery every 24hours via GPIO. Useful for some batteries like Nissan LEAF
+//#define REMOTE_BMS_RESET      //Enable to allow the emulator to remotely trigger a powercycle of the battery via MQTT. Useful for some batteries like Nissan LEAF
+//#define PERIODIC_BMS_RESET_AT 525
+//Enable PERIODIC_BMS_RESET_AT to have the emulator perform the BMS Reset at a particular time.
+//Requires access to Internet / NTP Server. In 24 Hour format WITHOUT leading 0. e.g 0230 should be 230. PERIODIC_BMS_RESET must be enabled.
 
 /* Shunt/Contactor settings (Optional) */
 //#define BMW_SBOX  // SBOX relay control & battery current/voltage measurement
@@ -96,7 +97,7 @@
 //#define LOG_TO_SD              //Enable this line to log diagnostic data to SD card
 //#define LOG_CAN_TO_SD          //Enable this line to log incoming/outgoing CAN & CAN-FD messages to SD card
 //#define DEBUG_VIA_USB          //Enable this line to have the USB port output serial diagnostic data while program runs (WARNING, raises CPU load, do not use for production)
-#define DEBUG_VIA_WEB  //Enable this line to log diagnostic data while program runs, which can be viewed via webpage (WARNING, slightly raises CPU load, do not use for production)
+//#define DEBUG_VIA_WEB          //Enable this line to log diagnostic data while program runs, which can be viewed via webpage (WARNING, slightly raises CPU load, do not use for production)
 //#define DEBUG_CAN_DATA         //Enable this line to print incoming/outgoing CAN & CAN-FD messages to USB serial (WARNING, raises CPU load, do not use for production)
 
 /* CAN options */
@@ -111,7 +112,7 @@
 #define WIFI
 //#define WIFICONFIG  //Enable this line to set a static IP address / gateway /subnet mask for the device. see USER_SETTINGS.cpp for the settings
 #define WEBSERVER  //Enable this line to enable WiFi, and to run the webserver. See USER_SETTINGS.cpp for the Wifi settings.
-// #define WIFIAP  //When enabled, the emulator will broadcast its own access point Wifi. Can be used at the same time as a normal Wifi connection to a router.
+#define WIFIAP  //When enabled, the emulator will broadcast its own access point Wifi. Can be used at the same time as a normal Wifi connection to a router.
 #define MDNSRESPONDER  //Enable this line to enable MDNS, allows battery monitor te be found by .local address. Requires WEBSERVER to be enabled.
 #define LOAD_SAVED_SETTINGS_ON_BOOT  // Enable this line to read settings stored via the webserver on boot (overrides Wifi credentials set here)
 //#define FUNCTION_TIME_MEASUREMENT  // Enable this to record execution times and present them in the web UI (WARNING, raises CPU load, do not use for production)
@@ -126,13 +127,13 @@
 // may break compatibility with previous versions of MQTT naming. Please refer to USER_SETTINGS.cpp for configuration options.
 
 /* Home Assistant options */
-// #define HA_AUTODISCOVERY  // Enable this line to send Home Assistant autodiscovery messages. If not enabled manual configuration of Home Assitant is required
+#define HA_AUTODISCOVERY  // Enable this line to send Home Assistant autodiscovery messages. If not enabled manual configuration of Home Assitant is required
 
 /* Battery settings */
 // Predefined total energy capacity of the battery in Watt-hours
-#define BATTERY_WH_MAX 24000
+#define BATTERY_WH_MAX 30000
 // Increases battery life. If true will rescale SOC between the configured min/max-percentage
-#define BATTERY_USE_SCALED_SOC false
+#define BATTERY_USE_SCALED_SOC true
 // 8000 = 80.0% , Max percentage the battery will charge to (Inverter gets 100% when reached)
 #define BATTERY_MAXPERCENTAGE 8000
 // 2000 = 20.0% , Min percentage the battery will discharge to (Inverter gets 0% when reached)
@@ -188,5 +189,3 @@ extern IPAddress subnet;
 #endif
 
 #endif  // __USER_SETTINGS_H__
-
-extern volatile unsigned long long bmsResetTimeOffset;
