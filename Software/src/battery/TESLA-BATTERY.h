@@ -10,8 +10,7 @@
 
 /* Do not change the defines below */
 #define RAMPDOWN_SOC 900  // 90.0 SOC% to start ramping down from max charge power towards 0 at 100.00%
-#define RAMPDOWNPOWERALLOWED \
-  15000  // What power we ramp down from towards top balancing (usually same as MAXCHARGEPOWERALLOWED)
+#define RAMPDOWNPOWERALLOWED 10000  // What power we ramp down from towards top balancing
 #define FLOAT_MAX_POWER_W 200  // W, what power to allow for top balancing battery
 #define FLOAT_START_MV 20      // mV, how many mV under overvoltage to start float charging
 
