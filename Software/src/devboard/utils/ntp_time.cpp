@@ -14,7 +14,6 @@ unsigned long long getNtpTimeInMillis() {
       logging.println("Time retrieved from NTP Server");
       break;
     }
-    delay(1000);
     logging.println("Waiting for NTP time...");
   }
 
