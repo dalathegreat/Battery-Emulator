@@ -237,6 +237,11 @@ void update_values_battery() { /* This function maps all the values fetched via 
 
   datalayer.battery.status.max_charge_power_W = (battery_Charge_Power_Limit * 1000);  //kW to W
 
+  //Allow contactors to close
+  if (battery_can_alive) {
+    datalayer.system.status.battery_allows_contactor_closing = true;
+  }
+
   /*Extra safety functions below*/
   if (battery_GIDS < 10)  //700Wh left in battery!
   {                       //Battery is running abnormally low, some discharge logic might have failed. Zero it all out.
@@ -515,7 +520,10 @@ void handle_incoming_can_frame_battery2(CAN_frame rx_frame) {
         battery2_Current2 |= 0xf800;
       }  //BatteryCurrentSignal , 2s comp, 1lSB = 0.5A/bit
 
-      battery2_Total_Voltage2 = ((rx_frame.data.u8[2] << 2) | (rx_frame.data.u8[3] & 0xc0) >> 6);  //0.5V/bit
+      battery2_TEMP = ((rx_frame.data.u8[2] << 2) | (rx_frame.data.u8[3] & 0xc0) >> 6);  //0.5V/bit
+      if (battery2_TEMP != 0x3ff) {  //3FF is unavailable value. Can happen directly on reboot.
+        battery2_Total_Voltage2 = battery2_TEMP;
+      }
 
       //Collect various data from the BMS
       battery2_Relay_Cut_Request = ((rx_frame.data.u8[1] & 0x18) >> 3);
@@ -754,17 +762,15 @@ void handle_incoming_can_frame_battery(CAN_frame rx_frame) {
         battery_Current2 |= 0xf800;
       }  //BatteryCurrentSignal , 2s comp, 1lSB = 0.5A/bit
 
-      battery_Total_Voltage2 = ((rx_frame.data.u8[2] << 2) | (rx_frame.data.u8[3] & 0xc0) >> 6);  //0.5V/bit
+      battery_TEMP = ((rx_frame.data.u8[2] << 2) | (rx_frame.data.u8[3] & 0xc0) >> 6);  //0.5V/bit
+      if (battery_TEMP != 0x3ff) {  //3FF is unavailable value. Can happen directly on reboot.
+        battery_Total_Voltage2 = battery_TEMP;
+      }
 
       //Collect various data from the BMS
       battery_Relay_Cut_Request = ((rx_frame.data.u8[1] & 0x18) >> 3);
       battery_Failsafe_Status = (rx_frame.data.u8[1] & 0x07);
       battery_MainRelayOn_flag = (bool)((rx_frame.data.u8[3] & 0x20) >> 5);
-      if (battery_MainRelayOn_flag) {
-        datalayer.system.status.battery_allows_contactor_closing = true;
-      } else {
-        datalayer.system.status.battery_allows_contactor_closing = false;
-      }
       battery_Full_CHARGE_flag = (bool)((rx_frame.data.u8[3] & 0x10) >> 4);
       battery_Interlock = (bool)((rx_frame.data.u8[3] & 0x08) >> 3);
       break;
@@ -1058,9 +1064,19 @@ void handle_incoming_can_frame_battery(CAN_frame rx_frame) {
   }
 }
 void transmit_can_battery() {
-  if (battery_can_alive) {
 
-    unsigned long currentMillis = millis();
+  unsigned long currentMillis = millis();
+
+  if (datalayer.system.status.BMS_reset_in_progress) {
+    // Transmitting towards battery is halted while BMS is being reset
+    // Reset sending counters to avoid overrun messages when reset is over
+    previousMillis10 = currentMillis;
+    previousMillis100 = currentMillis;
+    previousMillis10s = currentMillis;
+    return;
+  }
+
+  if (battery_can_alive) {
 
     //Send 10ms message
     if (currentMillis - previousMillis10 >= INTERVAL_10_MS) {
@@ -1493,7 +1509,6 @@ void decodeChallengeData(unsigned int incomingChallenge, unsigned char* solvedCh
 void setup_battery(void) {  // Performs one time setup at startup
   strncpy(datalayer.system.info.battery_protocol, "Nissan LEAF battery", 63);
   datalayer.system.info.battery_protocol[63] = '\0';
-
   datalayer.battery.info.number_of_cells = 96;
   datalayer.battery.info.max_design_voltage_dV = MAX_PACK_VOLTAGE_DV;
   datalayer.battery.info.min_design_voltage_dV = MIN_PACK_VOLTAGE_DV;

@@ -59,6 +59,7 @@ jobs:
           - BYD_KOSTAL_RS485
           - BYD_MODBUS
           - FOXESS_CAN
+          - GROWATT_HV_CAN
           - GROWATT_LV_CAN
           - PYLON_CAN
           - PYLON_LV_CAN
@@ -69,6 +70,7 @@ jobs:
           - SMA_TRIPOWER_CAN
           - SOFAR_CAN
           - SOLAX_CAN
+          - SUNGROW_CAN
           - SERIAL_LINK_TRANSMITTER
           - NISSANLEAF_CHARGER # Last element is not an inverter, but good to also test if the charger compiles
         # These are the supported hardware platforms for which the code will be compiled.
@@ -103,4 +105,4 @@ jobs:
       # in the build matrix, and using build flags to define the
       # battery and inverter set in the build matrix.
       - name: Compile Sketch
-        run: arduino-cli compile --fqbn ${{ matrix.fqbn }} --build-property "build.extra_flags=-Wall -DESP32 -D${{ matrix.battery}} -D${{ matrix.inverter}} -D${{ matrix.hardware}}" ./Software
+        run: arduino-cli compile --fqbn ${{ matrix.fqbn }} --build-property "build.extra_flags=-Wall -Wextra -Wpedantic -Werror -DESP32 -D${{ matrix.battery}} -D${{ matrix.inverter}} -D${{ matrix.hardware}}" ./Software

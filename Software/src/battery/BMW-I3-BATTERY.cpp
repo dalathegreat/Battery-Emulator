@@ -196,6 +196,7 @@ static uint8_t BMW_1D0_counter = 0;
 static uint8_t BMW_13E_counter = 0;
 static uint8_t BMW_380_counter = 0;
 static uint32_t BMW_328_counter = 0;
+
 static bool battery_awake = false;
 static bool battery2_awake = false;
 static bool battery_info_available = false;
@@ -205,6 +206,7 @@ static bool CRCCheckPassedPreviously = false;
 static bool skipCRCCheck_battery2 = false;
 static bool CRCCheckPassedPreviously_battery2 = false;
 
+static uint16_t cellvoltage_temp_mV = 0;
 static uint32_t battery_serial_number = 0;
 static uint32_t battery_available_power_shortterm_charge = 0;
 static uint32_t battery_available_power_shortterm_discharge = 0;
@@ -272,6 +274,7 @@ static uint8_t battery_status_diagnosis_powertrain_immediate_multiplexer = 0;
 static uint8_t battery_ID2 = 0;
 static uint8_t battery_soh = 99;
 
+static uint16_t cellvoltage2_temp_mV = 0;
 static uint32_t battery2_serial_number = 0;
 static uint32_t battery2_available_power_shortterm_charge = 0;
 static uint32_t battery2_available_power_shortterm_discharge = 0;
@@ -370,20 +373,15 @@ void update_values_battery2() {  //This function maps all the values fetched via
 
   datalayer.battery2.status.current_dA = battery2_current;
 
-  datalayer.battery2.status.remaining_capacity_Wh = (battery2_energy_content_maximum_kWh * 1000);  // Convert kWh to Wh
+  datalayer.battery2.info.total_capacity_Wh = (battery2_energy_content_maximum_kWh * 1000);  // Convert kWh to Wh
+
+  datalayer.battery2.status.remaining_capacity_Wh = battery2_predicted_energy_charge_condition;
 
   datalayer.battery2.status.soh_pptt = battery2_soh * 100;
 
-  if (battery2_BEV_available_power_longterm_discharge > 65000) {
-    datalayer.battery2.status.max_discharge_power_W = 65000;
-  } else {
-    datalayer.battery2.status.max_discharge_power_W = battery2_BEV_available_power_longterm_discharge;
-  }
-  if (battery2_BEV_available_power_longterm_charge > 65000) {
-    datalayer.battery2.status.max_charge_power_W = 65000;
-  } else {
-    datalayer.battery2.status.max_charge_power_W = battery2_BEV_available_power_longterm_charge;
-  }
+  datalayer.battery2.status.max_discharge_power_W = battery2_BEV_available_power_longterm_discharge;
+
+  datalayer.battery2.status.max_charge_power_W = battery2_BEV_available_power_longterm_charge;
 
   datalayer.battery2.status.temperature_min_dC = battery2_temperature_min * 10;  // Add a decimal
 
@@ -662,8 +660,14 @@ void handle_incoming_can_frame_battery(CAN_frame rx_frame) {
         switch (cmdState) {
           case CELL_VOLTAGE_MINMAX:
             if (next_data >= 4) {
-              datalayer.battery.status.cell_min_voltage_mV = (message_data[0] << 8 | message_data[1]);
-              datalayer.battery.status.cell_max_voltage_mV = (message_data[2] << 8 | message_data[3]);
+              cellvoltage_temp_mV = (message_data[0] << 8 | message_data[1]);
+              if (cellvoltage_temp_mV < 4500) {  // Prevents garbage data from being read on bootup
+                datalayer.battery.status.cell_min_voltage_mV = cellvoltage_temp_mV;
+              }
+              cellvoltage_temp_mV = (message_data[2] << 8 | message_data[3]);
+              if (cellvoltage_temp_mV < 4500) {  // Prevents garbage data from being read on bootup
+                datalayer.battery.status.cell_max_voltage_mV = cellvoltage_temp_mV;
+              }
             }
             break;
           case SOH:
@@ -843,8 +847,14 @@ void handle_incoming_can_frame_battery2(CAN_frame rx_frame) {
         switch (cmdState) {
           case CELL_VOLTAGE_MINMAX:
             if (next_data >= 4) {
-              datalayer.battery2.status.cell_min_voltage_mV = (message_data[0] << 8 | message_data[1]);
-              datalayer.battery2.status.cell_max_voltage_mV = (message_data[2] << 8 | message_data[3]);
+              cellvoltage2_temp_mV = (message_data[0] << 8 | message_data[1]);
+              if (cellvoltage2_temp_mV < 4500) {  // Prevents garbage data from being read on bootup
+                datalayer.battery2.status.cell_min_voltage_mV = cellvoltage2_temp_mV;
+              }
+              cellvoltage2_temp_mV = (message_data[2] << 8 | message_data[3]);
+              if (cellvoltage_temp_mV < 4500) {  // Prevents garbage data from being read on bootup
+                datalayer.battery2.status.cell_max_voltage_mV = cellvoltage2_temp_mV;
+              }
             }
             break;
           case SOH:

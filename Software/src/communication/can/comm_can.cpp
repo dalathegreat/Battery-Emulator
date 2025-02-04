@@ -6,7 +6,8 @@
 
 CAN_device_t CAN_cfg;          // CAN Config
 const int rx_queue_size = 10;  // Receive Queue size
-volatile bool send_ok = 0;
+volatile bool send_ok_2515 = 0;
+volatile bool send_ok_2518 = 0;
 
 #ifdef CAN_ADDON
 static const uint32_t QUARTZ_FREQUENCY = CRYSTAL_FREQUENCY_MHZ * 1000000UL;  //MHZ configured in USER_SETTINGS.h
@@ -105,8 +106,9 @@ void init_CAN() {
 // Transmit functions
 void transmit_can() {
   if (!allowed_to_send_CAN) {
-    return;
+    return;  //Global block of CAN messages
   }
+
   transmit_can_battery();
 
 #ifdef CAN_INVERTER_SELECTED
@@ -155,7 +157,13 @@ void transmit_can_frame(CAN_frame* tx_frame, int interface) {
       for (uint8_t i = 0; i < MCP2515Frame.len; i++) {
         MCP2515Frame.data[i] = tx_frame->data.u8[i];
       }
-      can.tryToSend(MCP2515Frame);
+
+      send_ok_2515 = can.tryToSend(MCP2515Frame);
+      if (!send_ok_2515) {
+        set_event(EVENT_CAN_BUFFER_FULL, interface);
+      } else {
+        clear_event(EVENT_CAN_BUFFER_FULL);
+      }
 #else   // Interface not compiled, and settings try to use it
       set_event(EVENT_INTERFACE_MISSING, interface);
 #endif  //CAN_ADDON
@@ -175,8 +183,8 @@ void transmit_can_frame(CAN_frame* tx_frame, int interface) {
       for (uint8_t i = 0; i < MCP2518Frame.len; i++) {
         MCP2518Frame.data[i] = tx_frame->data.u8[i];
       }
-      send_ok = canfd.tryToSend(MCP2518Frame);
-      if (!send_ok) {
+      send_ok_2518 = canfd.tryToSend(MCP2518Frame);
+      if (!send_ok_2518) {
         set_event(EVENT_CANFD_BUFFER_FULL, interface);
       } else {
         clear_event(EVENT_CANFD_BUFFER_FULL);
@@ -282,38 +290,7 @@ void print_can_frame(CAN_frame frame, frameDirection msgDir) {
 #endif  // DEBUG_CAN_DATA
 
   if (datalayer.system.info.can_logging_active) {  // If user clicked on CAN Logging page in webserver, start recording
-    char* message_string = datalayer.system.info.logged_can_messages;
-    int offset = datalayer.system.info.logged_can_messages_offset;  // Keeps track of the current position in the buffer
-    size_t message_string_size = sizeof(datalayer.system.info.logged_can_messages);
-
-    if (offset + 128 > sizeof(datalayer.system.info.logged_can_messages)) {
-      // Not enough space, reset and start from the beginning
-      offset = 0;
-    }
-    unsigned long currentTime = millis();
-    // Add timestamp
-    offset += snprintf(message_string + offset, message_string_size - offset, "(%lu.%03lu) ", currentTime / 1000,
-                       currentTime % 1000);
-
-    // Add direction. The 0 and 1 after RX and TX ensures that SavvyCAN puts TX and RX in a different bus.
-    offset +=
-        snprintf(message_string + offset, message_string_size - offset, "%s ", (msgDir == MSG_RX) ? "RX0" : "TX1");
-
-    // Add ID and DLC
-    offset += snprintf(message_string + offset, message_string_size - offset, "%X [%u] ", frame.ID, frame.DLC);
-
-    // Add data bytes
-    for (uint8_t i = 0; i < frame.DLC; i++) {
-      if (i < frame.DLC - 1) {
-        offset += snprintf(message_string + offset, message_string_size - offset, "%02X ", frame.data.u8[i]);
-      } else {
-        offset += snprintf(message_string + offset, message_string_size - offset, "%02X", frame.data.u8[i]);
-      }
-    }
-    // Add linebreak
-    offset += snprintf(message_string + offset, message_string_size - offset, "\n");
-
-    datalayer.system.info.logged_can_messages_offset = offset;  // Update offset in buffer
+    dump_can_frame(frame, msgDir);
   }
 }
 
@@ -350,4 +327,37 @@ void map_can_frame_to_variable(CAN_frame* rx_frame, int interface) {
     handle_incoming_can_frame_shunt(*rx_frame);
 #endif
   }
+}
+void dump_can_frame(CAN_frame& frame, frameDirection msgDir) {
+  char* message_string = datalayer.system.info.logged_can_messages;
+  int offset = datalayer.system.info.logged_can_messages_offset;  // Keeps track of the current position in the buffer
+  size_t message_string_size = sizeof(datalayer.system.info.logged_can_messages);
+
+  if (offset + 128 > sizeof(datalayer.system.info.logged_can_messages)) {
+    // Not enough space, reset and start from the beginning
+    offset = 0;
+  }
+  unsigned long currentTime = millis();
+  // Add timestamp
+  offset += snprintf(message_string + offset, message_string_size - offset, "(%lu.%03lu) ", currentTime / 1000,
+                     currentTime % 1000);
+
+  // Add direction. The 0 and 1 after RX and TX ensures that SavvyCAN puts TX and RX in a different bus.
+  offset += snprintf(message_string + offset, message_string_size - offset, "%s ", (msgDir == MSG_RX) ? "RX0" : "TX1");
+
+  // Add ID and DLC
+  offset += snprintf(message_string + offset, message_string_size - offset, "%X [%u] ", frame.ID, frame.DLC);
+
+  // Add data bytes
+  for (uint8_t i = 0; i < frame.DLC; i++) {
+    if (i < frame.DLC - 1) {
+      offset += snprintf(message_string + offset, message_string_size - offset, "%02X ", frame.data.u8[i]);
+    } else {
+      offset += snprintf(message_string + offset, message_string_size - offset, "%02X", frame.data.u8[i]);
+    }
+  }
+  // Add linebreak
+  offset += snprintf(message_string + offset, message_string_size - offset, "\n");
+
+  datalayer.system.info.logged_can_messages_offset = offset;  // Update offset in buffer
 }

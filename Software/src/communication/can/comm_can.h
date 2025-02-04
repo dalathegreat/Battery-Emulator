@@ -6,7 +6,7 @@
 #include "../../datalayer/datalayer.h"
 #include "../../devboard/utils/events.h"
 #include "../../devboard/utils/value_mapping.h"
-#include "../../lib/me-no-dev-ESPAsyncWebServer/src/ESPAsyncWebServer.h"
+#include "../../lib/ESP32Async-ESPAsyncWebServer/src/ESPAsyncWebServer.h"
 #include "../../lib/miwagner-ESP32-Arduino-CAN/ESP32CAN.h"
 #ifdef CAN_ADDON
 #include "../../lib/pierremolinaro-acan2515/ACAN2515.h"
@@ -14,6 +14,8 @@
 #ifdef CANFD_ADDON
 #include "../../lib/pierremolinaro-ACAN2517FD/ACAN2517FD.h"
 #endif  //CANFD_ADDON
+
+void dump_can_frame(CAN_frame& frame, frameDirection msgDir);
 
 /**
  * @brief Initialization function for CAN.

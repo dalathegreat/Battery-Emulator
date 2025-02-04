@@ -4,11 +4,10 @@
 #include <Preferences.h>
 #include <WiFi.h>
 #include "../../include.h"
+#include "../../lib/ESP32Async-ESPAsyncWebServer/src/ESPAsyncWebServer.h"
 #include "../../lib/YiannisBourkelis-Uptime-Library/src/uptime_formatter.h"
 #include "../../lib/ayushsharma82-ElegantOTA/src/ElegantOTA.h"
-#include "../../lib/me-no-dev-AsyncTCP/src/AsyncTCP.h"
-#include "../../lib/me-no-dev-ESPAsyncWebServer/src/ESPAsyncWebServer.h"
-#include "../../lib/miwagner-ESP32-Arduino-CAN/ESP32CAN.h"
+#include "../../lib/mathieucarbou-AsyncTCPSock/src/AsyncTCP.h"
 
 extern const char* version_number;  // The current software version, shown on webserver
 

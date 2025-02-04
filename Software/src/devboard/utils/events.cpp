@@ -133,13 +133,13 @@ void init_events(void) {
   events.entries[EVENT_CANMCP2517FD_INIT_FAILURE].level = EVENT_LEVEL_WARNING;
   events.entries[EVENT_CANMCP2515_INIT_FAILURE].level = EVENT_LEVEL_WARNING;
   events.entries[EVENT_CANFD_BUFFER_FULL].level = EVENT_LEVEL_WARNING;
+  events.entries[EVENT_CAN_BUFFER_FULL].level = EVENT_LEVEL_WARNING;
   events.entries[EVENT_CAN_OVERRUN].level = EVENT_LEVEL_INFO;
-  events.entries[EVENT_CANFD_RX_OVERRUN].level = EVENT_LEVEL_WARNING;
-  events.entries[EVENT_CAN_RX_FAILURE].level = EVENT_LEVEL_ERROR;
-  events.entries[EVENT_CAN2_RX_FAILURE].level = EVENT_LEVEL_WARNING;
-  events.entries[EVENT_CANFD_RX_FAILURE].level = EVENT_LEVEL_ERROR;
-  events.entries[EVENT_CAN_RX_WARNING].level = EVENT_LEVEL_WARNING;
-  events.entries[EVENT_CAN_TX_FAILURE].level = EVENT_LEVEL_ERROR;
+  events.entries[EVENT_CAN_CORRUPTED_WARNING].level = EVENT_LEVEL_WARNING;
+  events.entries[EVENT_CAN_NATIVE_TX_FAILURE].level = EVENT_LEVEL_ERROR;
+  events.entries[EVENT_CAN_BATTERY_MISSING].level = EVENT_LEVEL_ERROR;
+  events.entries[EVENT_CAN_BATTERY2_MISSING].level = EVENT_LEVEL_WARNING;
+  events.entries[EVENT_CAN_CHARGER_MISSING].level = EVENT_LEVEL_INFO;
   events.entries[EVENT_CAN_INVERTER_MISSING].level = EVENT_LEVEL_WARNING;
   events.entries[EVENT_CONTACTOR_WELDED].level = EVENT_LEVEL_WARNING;
   events.entries[EVENT_WATER_INGRESS].level = EVENT_LEVEL_ERROR;
@@ -148,11 +148,13 @@ void init_events(void) {
   events.entries[EVENT_12V_LOW].level = EVENT_LEVEL_WARNING;
   events.entries[EVENT_SOC_PLAUSIBILITY_ERROR].level = EVENT_LEVEL_WARNING;
   events.entries[EVENT_SOC_UNAVAILABLE].level = EVENT_LEVEL_WARNING;
+  events.entries[EVENT_STALE_VALUE].level = EVENT_LEVEL_ERROR;
   events.entries[EVENT_KWH_PLAUSIBILITY_ERROR].level = EVENT_LEVEL_INFO;
   events.entries[EVENT_BALANCING_START].level = EVENT_LEVEL_INFO;
   events.entries[EVENT_BALANCING_END].level = EVENT_LEVEL_INFO;
   events.entries[EVENT_BATTERY_EMPTY].level = EVENT_LEVEL_INFO;
   events.entries[EVENT_BATTERY_FULL].level = EVENT_LEVEL_INFO;
+  events.entries[EVENT_BATTERY_FUSE].level = EVENT_LEVEL_WARNING;
   events.entries[EVENT_BATTERY_FROZEN].level = EVENT_LEVEL_INFO;
   events.entries[EVENT_BATTERY_CAUTION].level = EVENT_LEVEL_INFO;
   events.entries[EVENT_BATTERY_CHG_STOP_REQ].level = EVENT_LEVEL_ERROR;
@@ -168,13 +170,16 @@ void init_events(void) {
   events.entries[EVENT_SOH_LOW].level = EVENT_LEVEL_ERROR;
   events.entries[EVENT_HVIL_FAILURE].level = EVENT_LEVEL_ERROR;
   events.entries[EVENT_PRECHARGE_FAILURE].level = EVENT_LEVEL_INFO;
+  events.entries[EVENT_AUTOMATIC_PRECHARGE_FAILURE].level = EVENT_LEVEL_ERROR;
   events.entries[EVENT_INTERNAL_OPEN_FAULT].level = EVENT_LEVEL_ERROR;
   events.entries[EVENT_INVERTER_OPEN_CONTACTOR].level = EVENT_LEVEL_INFO;
   events.entries[EVENT_INTERFACE_MISSING].level = EVENT_LEVEL_INFO;
   events.entries[EVENT_MODBUS_INVERTER_MISSING].level = EVENT_LEVEL_INFO;
   events.entries[EVENT_ERROR_OPEN_CONTACTOR].level = EVENT_LEVEL_INFO;
-  events.entries[EVENT_CELL_UNDER_VOLTAGE].level = EVENT_LEVEL_ERROR;
-  events.entries[EVENT_CELL_OVER_VOLTAGE].level = EVENT_LEVEL_ERROR;
+  events.entries[EVENT_CELL_CRITICAL_UNDER_VOLTAGE].level = EVENT_LEVEL_ERROR;
+  events.entries[EVENT_CELL_CRITICAL_OVER_VOLTAGE].level = EVENT_LEVEL_ERROR;
+  events.entries[EVENT_CELL_UNDER_VOLTAGE].level = EVENT_LEVEL_WARNING;
+  events.entries[EVENT_CELL_OVER_VOLTAGE].level = EVENT_LEVEL_WARNING;
   events.entries[EVENT_CELL_DEVIATION_HIGH].level = EVENT_LEVEL_WARNING;
   events.entries[EVENT_UNKNOWN_EVENT_SET].level = EVENT_LEVEL_ERROR;
   events.entries[EVENT_OTA_UPDATE].level = EVENT_LEVEL_UPDATE;
@@ -212,6 +217,7 @@ void init_events(void) {
   events.entries[EVENT_MQTT_CONNECT].level = EVENT_LEVEL_INFO;
   events.entries[EVENT_MQTT_DISCONNECT].level = EVENT_LEVEL_INFO;
   events.entries[EVENT_EQUIPMENT_STOP].level = EVENT_LEVEL_ERROR;
+  events.entries[EVENT_SD_INIT_FAILED].level = EVENT_LEVEL_WARNING;
 
   events.entries[EVENT_EEPROM_WRITE].log = false;  // Don't log the logger...
 
@@ -261,23 +267,23 @@ const char* get_event_message_string(EVENTS_ENUM_TYPE event) {
     case EVENT_CANMCP2515_INIT_FAILURE:
       return "CAN-MCP addon initialization failed. Check hardware";
     case EVENT_CANFD_BUFFER_FULL:
-      return "CAN-FD buffer overflowed. Some CAN messages were not sent. Contact developers.";
+      return "MCP2518FD buffer overflowed. Some CAN messages were not sent. Contact developers.";
+    case EVENT_CAN_BUFFER_FULL:
+      return "MCP2515 buffer overflowed. Some CAN messages were not sent. Contact developers.";
     case EVENT_CAN_OVERRUN:
       return "CAN message failed to send within defined time. Contact developers, CPU load might be too high.";
-    case EVENT_CANFD_RX_OVERRUN:
-      return "CAN-FD failed to receive all messages from CAN bus. Contact developers, CPU load might be too high.";
-    case EVENT_CAN_RX_FAILURE:
-      return "No CAN communication detected for 60s. Shutting down battery control.";
-    case EVENT_CAN2_RX_FAILURE:
-      return "No CAN communication detected for 60s on CAN2. Shutting down the secondary battery control.";
-    case EVENT_CANFD_RX_FAILURE:
-      return "No CANFD communication detected for 60s. Shutting down battery control.";
-    case EVENT_CAN_RX_WARNING:
+    case EVENT_CAN_CORRUPTED_WARNING:
       return "High amount of corrupted CAN messages detected. Check CAN wire shielding!";
-    case EVENT_CAN_TX_FAILURE:
-      return "CAN messages failed to transmit, or no one on the bus to ACK the message!";
+    case EVENT_CAN_NATIVE_TX_FAILURE:
+      return "CAN_NATIVE failed to transmit, or no one on the bus to ACK the message!";
+    case EVENT_CAN_BATTERY_MISSING:
+      return "Battery not sending messages via CAN for the last 60 seconds. Check wiring!";
+    case EVENT_CAN_BATTERY2_MISSING:
+      return "Secondary battery not sending messages via CAN for the last 60 seconds. Check wiring!";
+    case EVENT_CAN_CHARGER_MISSING:
+      return "Charger not sending messages via CAN for the last 60 seconds. Check wiring!";
     case EVENT_CAN_INVERTER_MISSING:
-      return "Inverter not sending messages on CAN bus. Check wiring!";
+      return "Inverter not sending messages via CAN for the last 60 seconds. Check wiring!";
     case EVENT_CONTACTOR_WELDED:
       return "Contactors sticking/welded. Inspect battery with caution!";
     case EVENT_CHARGE_LIMIT_EXCEEDED:
@@ -292,6 +298,8 @@ const char* get_event_message_string(EVENTS_ENUM_TYPE event) {
       return "SOC reported by battery not plausible. Restart battery!";
     case EVENT_SOC_UNAVAILABLE:
       return "SOC not sent by BMS. Calibrate BMS via app.";
+    case EVENT_STALE_VALUE:
+      return "Important values detected as stale. System might have locked up!";
     case EVENT_KWH_PLAUSIBILITY_ERROR:
       return "kWh remaining reported by battery not plausible. Battery needs cycling.";
     case EVENT_BALANCING_START:
@@ -302,6 +310,8 @@ const char* get_event_message_string(EVENTS_ENUM_TYPE event) {
       return "Battery is completely discharged";
     case EVENT_BATTERY_FULL:
       return "Battery is fully charged";
+    case EVENT_BATTERY_FUSE:
+      return "Battery internal fuse blown. Inspect battery";
     case EVENT_BATTERY_FROZEN:
       return "Battery is too cold to operate optimally. Consider warming it up!";
     case EVENT_BATTERY_CAUTION:
@@ -338,6 +348,8 @@ const char* get_event_message_string(EVENTS_ENUM_TYPE event) {
              "Battery will be disabled!";
     case EVENT_PRECHARGE_FAILURE:
       return "Battery failed to precharge. Check that capacitor is seated on high voltage output.";
+    case EVENT_AUTOMATIC_PRECHARGE_FAILURE:
+      return "Automatic precharge failed to reach target voltae.";
     case EVENT_INTERNAL_OPEN_FAULT:
       return "High voltage cable removed while battery running. Opening contactors!";
     case EVENT_INVERTER_OPEN_CONTACTOR:
@@ -349,12 +361,16 @@ const char* get_event_message_string(EVENTS_ENUM_TYPE event) {
              "Check other error code for reason!";
     case EVENT_MODBUS_INVERTER_MISSING:
       return "Modbus inverter has not sent any data. Inspect communication wiring!";
+    case EVENT_CELL_CRITICAL_UNDER_VOLTAGE:
+      return "CELL VOLTAGE CRITICALLY LOW! Not possible to continue. Inspect battery!";
     case EVENT_CELL_UNDER_VOLTAGE:
-      return "CELL UNDERVOLTAGE!!! Stopping battery charging and discharging. Inspect battery!";
+      return "Cell undervoltage. Further discharge not possible. Check balancing of cells";
     case EVENT_CELL_OVER_VOLTAGE:
-      return "CELL OVERVOLTAGE!!! Stopping battery charging and discharging. Inspect battery!";
+      return "Cell overvoltage. Further charging not possible. Check balancing of cells";
+    case EVENT_CELL_CRITICAL_OVER_VOLTAGE:
+      return "CELL VOLTAGE CRITICALLY HIGH! Not possible to continue. Inspect battery!";
     case EVENT_CELL_DEVIATION_HIGH:
-      return "HIGH CELL DEVIATION!!! Inspect battery!";
+      return "Large cell voltage deviation! Check balancing of cells";
     case EVENT_UNKNOWN_EVENT_SET:
       return "An unknown event was set! Review your code!";
     case EVENT_DUMMY_INFO:
@@ -428,6 +444,8 @@ const char* get_event_message_string(EVENTS_ENUM_TYPE event) {
       return "MQTT disconnected.";
     case EVENT_EQUIPMENT_STOP:
       return "EQUIPMENT STOP ACTIVATED!!!";
+    case EVENT_SD_INIT_FAILED:
+      return "SD card initialization failed, check hardware. Power must be removed to reset the SD card.";
     default:
       return "";
   }

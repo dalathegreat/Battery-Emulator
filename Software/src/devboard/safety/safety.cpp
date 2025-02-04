@@ -8,6 +8,7 @@ static bool battery_full_event_fired = false;
 static bool battery_empty_event_fired = false;
 
 #define MAX_SOH_DEVIATION_PPTT 2500
+#define CELL_CRITICAL_MV 100  // If cells go this much outside design voltage, shut battery down!
 
 //battery pause status begin
 bool emulator_pause_request_ON = false;
@@ -54,13 +55,24 @@ void update_machineryprotection() {
     clear_event(EVENT_BATTERY_UNDERVOLTAGE);
   }
 
-  // Cell overvoltage, critical latching error without automatic reset. Requires user action.
+  // Cell overvoltage, further charging not possible. Battery might be imbalanced.
   if (datalayer.battery.status.cell_max_voltage_mV >= datalayer.battery.info.max_cell_voltage_mV) {
     set_event(EVENT_CELL_OVER_VOLTAGE, 0);
+    datalayer.battery.status.max_charge_power_W = 0;
   }
-  // Cell undervoltage, critical latching error without automatic reset. Requires user action.
+  // Cell CRITICAL overvoltage, critical latching error without automatic reset. Requires user action to inspect battery.
+  if (datalayer.battery.status.cell_max_voltage_mV >= (datalayer.battery.info.max_cell_voltage_mV + CELL_CRITICAL_MV)) {
+    set_event(EVENT_CELL_CRITICAL_OVER_VOLTAGE, 0);
+  }
+
+  // Cell undervoltage. Further discharge not possible. Battery might be imbalanced.
   if (datalayer.battery.status.cell_min_voltage_mV <= datalayer.battery.info.min_cell_voltage_mV) {
     set_event(EVENT_CELL_UNDER_VOLTAGE, 0);
+    datalayer.battery.status.max_discharge_power_W = 0;
+  }
+  //Cell CRITICAL undervoltage. critical latching error without automatic reset. Requires user action to inspect battery.
+  if (datalayer.battery.status.cell_min_voltage_mV <= (datalayer.battery.info.min_cell_voltage_mV - CELL_CRITICAL_MV)) {
+    set_event(EVENT_CELL_CRITICAL_UNDER_VOLTAGE, 0);
   }
 
   // Battery is fully charged. Dont allow any more power into it
@@ -79,15 +91,17 @@ void update_machineryprotection() {
 
   // Battery is empty. Do not allow further discharge.
   // Normally the BMS will send 0W allowed, but this acts as an additional layer of safety
-  if (datalayer.battery.status.reported_soc == 0) {  //Scaled SOC% value is 0.00%
-    if (!battery_empty_event_fired) {
-      set_event(EVENT_BATTERY_EMPTY, 0);
-      battery_empty_event_fired = true;
+  if (datalayer.battery.status.bms_status == ACTIVE) {
+    if (datalayer.battery.status.reported_soc == 0) {  //Scaled SOC% value is 0.00%
+      if (!battery_empty_event_fired) {
+        set_event(EVENT_BATTERY_EMPTY, 0);
+        battery_empty_event_fired = true;
+      }
+      datalayer.battery.status.max_discharge_power_W = 0;
+    } else {
+      clear_event(EVENT_BATTERY_EMPTY);
+      battery_empty_event_fired = false;
     }
-    datalayer.battery.status.max_discharge_power_W = 0;
-  } else {
-    clear_event(EVENT_BATTERY_EMPTY);
-    battery_empty_event_fired = false;
   }
 
   // Battery is extremely degraded, not fit for secondlifestorage!
@@ -149,31 +163,41 @@ void update_machineryprotection() {
 
   // Check if the BMS is still sending CAN messages. If we go 60s without messages we raise an error
   if (!datalayer.battery.status.CAN_battery_still_alive) {
-    set_event(EVENT_CAN_RX_FAILURE, 0);
+    set_event(EVENT_CAN_BATTERY_MISSING, can_config.battery);
   } else {
     datalayer.battery.status.CAN_battery_still_alive--;
-    clear_event(EVENT_CAN_RX_FAILURE);
+    clear_event(EVENT_CAN_BATTERY_MISSING);
   }
 
   // Too many malformed CAN messages recieved!
   if (datalayer.battery.status.CAN_error_counter > MAX_CAN_FAILURES) {
-    set_event(EVENT_CAN_RX_WARNING, 1);
+    set_event(EVENT_CAN_CORRUPTED_WARNING, can_config.battery);
   } else {
-    clear_event(EVENT_CAN_RX_WARNING);
+    clear_event(EVENT_CAN_CORRUPTED_WARNING);
   }
 
 #ifdef CAN_INVERTER_SELECTED
-  // Check if the inverter is still sending CAN messages. If we go 60s without messages we raise an error
+  // Check if the inverter is still sending CAN messages. If we go 60s without messages we raise a warning
   if (!datalayer.system.status.CAN_inverter_still_alive) {
-    set_event(EVENT_CAN_INVERTER_MISSING, 0);
+    set_event(EVENT_CAN_INVERTER_MISSING, can_config.inverter);
   } else {
     datalayer.system.status.CAN_inverter_still_alive--;
     clear_event(EVENT_CAN_INVERTER_MISSING);
   }
 #endif  //CAN_INVERTER_SELECTED
 
+#ifdef CHARGER_SELECTED
+  // Check if the charger is still sending CAN messages. If we go 60s without messages we raise a warning
+  if (!datalayer.charger.CAN_charger_still_alive) {
+    set_event(EVENT_CAN_CHARGER_MISSING, can_config.charger);
+  } else {
+    datalayer.charger.CAN_charger_still_alive--;
+    clear_event(EVENT_CAN_CHARGER_MISSING);
+  }
+#endif  //CHARGER_SELECTED
+
 #ifdef DOUBLE_BATTERY  // Additional Double-Battery safeties are checked here
-  // Check if the Battery 2 BMS is still sending CAN messages. If we go 60s without messages we raise an error
+  // Check if the Battery 2 BMS is still sending CAN messages. If we go 60s without messages we raise a warning
 
   // Pause function is on
   if (emulator_pause_request_ON) {
@@ -182,17 +206,17 @@ void update_machineryprotection() {
   }
 
   if (!datalayer.battery2.status.CAN_battery_still_alive) {
-    set_event(EVENT_CAN2_RX_FAILURE, 0);
+    set_event(EVENT_CAN_BATTERY2_MISSING, can_config.battery_double);
   } else {
     datalayer.battery2.status.CAN_battery_still_alive--;
-    clear_event(EVENT_CAN2_RX_FAILURE);
+    clear_event(EVENT_CAN_BATTERY2_MISSING);
   }
 
   // Too many malformed CAN messages recieved!
   if (datalayer.battery2.status.CAN_error_counter > MAX_CAN_FAILURES) {
-    set_event(EVENT_CAN_RX_WARNING, 2);
+    set_event(EVENT_CAN_CORRUPTED_WARNING, can_config.battery_double);
   } else {
-    clear_event(EVENT_CAN_RX_WARNING);
+    clear_event(EVENT_CAN_CORRUPTED_WARNING);
   }
 
   // Cell overvoltage, critical latching error without automatic reset. Requires user action.
@@ -223,7 +247,7 @@ void update_machineryprotection() {
     }
 
     if (soh_diff_pptt > MAX_SOH_DEVIATION_PPTT) {
-      set_event(EVENT_SOH_DIFFERENCE, MAX_SOH_DEVIATION_PPTT);
+      set_event(EVENT_SOH_DIFFERENCE, (uint8_t)(MAX_SOH_DEVIATION_PPTT / 100));
     } else {
       clear_event(EVENT_SOH_DIFFERENCE);
     }
@@ -329,10 +353,16 @@ void emulator_pause_state_transmit_can_battery() {
   allowed_to_send_CAN = (!emulator_pause_CAN_send_ON || emulator_pause_status == NORMAL);
 
   if (previous_allowed_to_send_CAN && !allowed_to_send_CAN) {
+#ifdef DEBUG_LOG
+    logging.printf("Safety: Pausing CAN sending\n");
+#endif
     //completely force stop the CAN communication
     ESP32Can.CANStop();
   } else if (!previous_allowed_to_send_CAN && allowed_to_send_CAN) {
     //resume CAN communication
+#ifdef DEBUG_LOG
+    logging.printf("Safety: Resuming CAN sending\n");
+#endif
     ESP32Can.CANInit();
   }
 }

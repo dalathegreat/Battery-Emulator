@@ -23,6 +23,10 @@
 #include "FOXESS-CAN.h"
 #endif
 
+#ifdef GROWATT_HV_CAN
+#include "GROWATT-HV-CAN.h"
+#endif
+
 #ifdef GROWATT_LV_CAN
 #include "GROWATT-LV-CAN.h"
 #endif
@@ -61,6 +65,10 @@
 
 #ifdef SOLAX_CAN
 #include "SOLAX-CAN.h"
+#endif
+
+#ifdef SUNGROW_CAN
+#include "SUNGROW-CAN.h"
 #endif
 
 #ifdef SERIAL_LINK_TRANSMITTER

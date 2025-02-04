@@ -1,7 +1,6 @@
 #include "../include.h"
 #ifdef CHEVYVOLT_CHARGER
 #include "../datalayer/datalayer.h"
-#include "../devboard/utils/events.h"
 #include "CHEVY-VOLT-CHARGER.h"
 
 /* This implements Chevy Volt / Ampera charger support (2011-2015 model years).
@@ -24,20 +23,6 @@
 static unsigned long previousMillis30ms = 0;    // 30ms cycle for keepalive frames
 static unsigned long previousMillis200ms = 0;   // 200ms cycle for commanding I/V targets
 static unsigned long previousMillis5000ms = 0;  // 5s status printout to serial
-
-/* voltage and current settings. Validation performed to set ceiling of 3300w vol*cur */
-extern volatile float charger_setpoint_HV_VDC;
-extern volatile float charger_setpoint_HV_IDC;
-extern volatile float charger_setpoint_HV_IDC_END;
-extern bool charger_HV_enabled;
-extern bool charger_aux12V_enabled;
-
-extern float charger_stat_HVcur;
-extern float charger_stat_HVvol;
-extern float charger_stat_ACcur;
-extern float charger_stat_ACvol;
-extern float charger_stat_LVcur;
-extern float charger_stat_LVvol;
 
 enum CHARGER_MODES : uint8_t { MODE_DISABLED = 0, MODE_LV, MODE_HV, MODE_HVLV };
 
@@ -67,27 +52,29 @@ void map_can_frame_to_variable_charger(CAN_frame rx_frame) {
   switch (rx_frame.ID) {
     //ID 0x212 conveys instantaneous DC charger stats
     case 0x212:
+      datalayer.charger.CAN_charger_still_alive = CAN_STILL_ALIVE;  // Let system know charger is sending CAN
       charger_stat_HVcur_temp = (uint16_t)(rx_frame.data.u8[0] << 8 | rx_frame.data.u8[1]);
-      charger_stat_HVcur = (float)(charger_stat_HVcur_temp >> 3) * 0.05;
+      datalayer.charger.charger_stat_HVcur = (float)(charger_stat_HVcur_temp >> 3) * 0.05;
 
       charger_stat_HVvol_temp = (uint16_t)((((rx_frame.data.u8[1] << 8 | rx_frame.data.u8[2])) >> 1) & 0x3ff);
-      charger_stat_HVvol = (float)(charger_stat_HVvol_temp) * .5;
+      datalayer.charger.charger_stat_HVvol = (float)(charger_stat_HVvol_temp) * .5;
 
       charger_stat_LVcur_temp = (uint16_t)(((rx_frame.data.u8[2] << 8 | rx_frame.data.u8[3]) >> 1) & 0x00ff);
-      charger_stat_LVcur = (float)(charger_stat_LVcur_temp) * .2;
+      datalayer.charger.charger_stat_LVcur = (float)(charger_stat_LVcur_temp) * .2;
 
       charger_stat_LVvol_temp = (uint16_t)(((rx_frame.data.u8[3] << 8 | rx_frame.data.u8[4]) >> 1) & 0x00ff);
-      charger_stat_LVvol = (float)(charger_stat_LVvol_temp) * .1;
+      datalayer.charger.charger_stat_LVvol = (float)(charger_stat_LVvol_temp) * .1;
 
       break;
 
     //ID 0x30A conveys instantaneous AC charger stats
     case 0x30A:
+      datalayer.charger.CAN_charger_still_alive = CAN_STILL_ALIVE;  // Let system know charger is sending CAN
       charger_stat_ACcur_temp = (uint16_t)((rx_frame.data.u8[0] << 8 | rx_frame.data.u8[1]) >> 4);
-      charger_stat_ACcur = (float)(charger_stat_ACcur_temp) * 0.2;
+      datalayer.charger.charger_stat_ACcur = (float)(charger_stat_ACcur_temp) * 0.2;
 
       charger_stat_ACvol_temp = (uint16_t)(((rx_frame.data.u8[1] << 8 | rx_frame.data.u8[2]) >> 4) & 0x00ff);
-      charger_stat_ACvol = (float)(charger_stat_ACvol_temp) * 2;
+      datalayer.charger.charger_stat_ACvol = (float)(charger_stat_ACvol_temp) * 2;
 
       break;
 
@@ -95,10 +82,13 @@ void map_can_frame_to_variable_charger(CAN_frame rx_frame) {
     // 0x266 and 0x308 are len 5
     // 0x268 may be temperature data (len 8). Could resemble the Lear charger equivalent TODO
     case 0x266:
+      datalayer.charger.CAN_charger_still_alive = CAN_STILL_ALIVE;  // Let system know charger is sending CAN
       break;
     case 0x268:
+      datalayer.charger.CAN_charger_still_alive = CAN_STILL_ALIVE;  // Let system know charger is sending CAN
       break;
     case 0x308:
+      datalayer.charger.CAN_charger_still_alive = CAN_STILL_ALIVE;  // Let system know charger is sending CAN
       break;
     default:
 #ifdef DEBUG_LOG
@@ -112,16 +102,16 @@ void transmit_can_charger() {
   unsigned long currentMillis = millis();
   uint16_t Vol_temp = 0;
 
-  uint16_t setpoint_HV_VDC = floor(charger_setpoint_HV_VDC);
-  uint16_t setpoint_HV_IDC = floor(charger_setpoint_HV_IDC);
-  uint16_t setpoint_HV_IDC_END = floor(charger_setpoint_HV_IDC_END);
+  uint16_t setpoint_HV_VDC = floor(datalayer.charger.charger_setpoint_HV_VDC);
+  uint16_t setpoint_HV_IDC = floor(datalayer.charger.charger_setpoint_HV_IDC);
+  uint16_t setpoint_HV_IDC_END = floor(datalayer.charger.charger_setpoint_HV_IDC_END);
   uint8_t charger_mode = MODE_DISABLED;
 
   /* Send keepalive with mode every 30ms */
   if (currentMillis - previousMillis30ms >= INTERVAL_30_MS) {
     previousMillis30ms = currentMillis;
 
-    if (charger_HV_enabled) {
+    if (datalayer.charger.charger_HV_enabled) {
       charger_mode += MODE_HV;
 
       /* disable HV if end amperage reached
@@ -132,7 +122,7 @@ void transmit_can_charger() {
       */
     }
 
-    if (charger_aux12V_enabled)
+    if (datalayer.charger.charger_aux12V_enabled)
       charger_mode += MODE_LV;
 
     charger_keepalive_frame.data.u8[0] = charger_mode;

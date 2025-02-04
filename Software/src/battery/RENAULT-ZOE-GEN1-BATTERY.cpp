@@ -8,7 +8,6 @@
 https://github.com/openvehicles/Open-Vehicle-Monitoring-System-3/blob/master/vehicle/OVMS.V3/components/vehicle_renaultzoe/src/vehicle_renaultzoe.cpp
 The Zoe BMS apparently does not send total pack voltage, so we use the polled 96x cellvoltages summed up as total voltage
 Still TODO:
-- Fix the missing cell96 issue (Only cells 1-95 is shown on cellmonitor page)
 - Automatically detect if we are on 22 or 41kWh battery (Nice to have, requires log file from 22kWh battery)
 /*
 
@@ -397,7 +396,7 @@ void handle_incoming_can_frame_battery(CAN_frame rx_frame) {
         case 0x29:
           if (requested_poll == GROUP1_CELLVOLTAGES_1_POLL) {
             cellvoltages[30] = (rx_frame.data.u8[1] << 8) | rx_frame.data.u8[2];
-            cellvoltages[21] = (rx_frame.data.u8[3] << 8) | rx_frame.data.u8[4];
+            cellvoltages[31] = (rx_frame.data.u8[3] << 8) | rx_frame.data.u8[4];
             cellvoltages[32] = (rx_frame.data.u8[5] << 8) | rx_frame.data.u8[6];
             highbyte_cell_next_frame = rx_frame.data.u8[7];
           }
@@ -455,6 +454,11 @@ void handle_incoming_can_frame_battery(CAN_frame rx_frame) {
         case 0x2E:
           if (requested_poll == GROUP1_CELLVOLTAGES_1_POLL) {
             cellvoltages[47] = (highbyte_cell_next_frame << 8) | rx_frame.data.u8[1];
+            if (cellvoltages[47] < 100) {  //This cell measurement is inbetween pack halves. If low, fuse blown
+              set_event(EVENT_BATTERY_FUSE, cellvoltages[47]);
+            } else {
+              clear_event(EVENT_BATTERY_FUSE);
+            }
             cellvoltages[48] = (rx_frame.data.u8[2] << 8) | rx_frame.data.u8[3];
             cellvoltages[49] = (rx_frame.data.u8[4] << 8) | rx_frame.data.u8[5];
             cellvoltages[50] = (rx_frame.data.u8[6] << 8) | rx_frame.data.u8[7];

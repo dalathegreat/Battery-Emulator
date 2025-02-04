@@ -13,6 +13,7 @@
 #include "src/communication/contactorcontrol/comm_contactorcontrol.h"
 #include "src/communication/equipmentstopbutton/comm_equipmentstopbutton.h"
 #include "src/communication/nvm/comm_nvm.h"
+#include "src/communication/precharge_control/precharge_control.h"
 #include "src/communication/rs485/comm_rs485.h"
 #include "src/communication/seriallink/comm_seriallink.h"
 #include "src/datalayer/datalayer.h"
@@ -23,14 +24,6 @@
 #include "src/devboard/utils/timer.h"
 #include "src/devboard/utils/value_mapping.h"
 #include "src/include.h"
-#include "src/lib/YiannisBourkelis-Uptime-Library/src/uptime.h"
-#include "src/lib/YiannisBourkelis-Uptime-Library/src/uptime_formatter.h"
-#include "src/lib/bblanchon-ArduinoJson/ArduinoJson.h"
-#include "src/lib/eModbus-eModbus/Logging.h"
-#include "src/lib/eModbus-eModbus/ModbusServerRTU.h"
-#include "src/lib/eModbus-eModbus/scripts/mbServerFCs.h"
-#include "src/lib/miwagner-ESP32-Arduino-CAN/CAN_config.h"
-#include "src/lib/miwagner-ESP32-Arduino-CAN/ESP32CAN.h"
 #ifndef AP_PASSWORD
 #error \
     "Initial setup not completed, USER_SECRETS.h is missing. Please rename the file USER_SECRETS.TEMPLATE.h to USER_SECRETS.h and fill in the required credentials. This file is ignored by version control to keep sensitive information private."
@@ -53,27 +46,12 @@
 #endif  // WIFI
 
 // The current software version, shown on webserver
-const char* version_number = "8.2.dev";
+const char* version_number = "8.5.dev";
 
 // Interval settings
 uint16_t intervalUpdateValues = INTERVAL_1_S;  // Interval at which to update inverter values / Modbus registers
 unsigned long previousMillis10ms = 0;
 unsigned long previousMillisUpdateVal = 0;
-
-// Common charger parameters
-volatile float charger_setpoint_HV_VDC = 0.0f;
-volatile float charger_setpoint_HV_IDC = 0.0f;
-volatile float charger_setpoint_HV_IDC_END = 0.0f;
-bool charger_HV_enabled = false;
-bool charger_aux12V_enabled = false;
-
-// Common charger statistics, instantaneous values
-float charger_stat_HVcur = 0;
-float charger_stat_HVvol = 0;
-float charger_stat_ACcur = 0;
-float charger_stat_ACvol = 0;
-float charger_stat_LVcur = 0;
-float charger_stat_LVvol = 0;
 
 // Task time measurement for debugging and for setting CPU load events
 int64_t core_task_time_us;
@@ -119,6 +97,10 @@ void setup() {
   init_CAN();
 
   init_contactors();
+
+#ifdef PRECHARGE_CONTROL
+  init_precharge_control();
+#endif  // PRECHARGE_CONTROL
 
   init_rs485();
 
@@ -247,6 +229,9 @@ void core_loop(void* task_time_us) {
       previousMillis10ms = millis();
       led_exe();
       handle_contactors();  // Take care of startup precharge/contactor closing
+#ifdef PRECHARGE_CONTROL
+      handle_precharge_control();
+#endif  // PRECHARGE_CONTROL
     }
     END_TIME_MEASUREMENT_MAX(time_10ms, datalayer.system.status.time_10ms_us);
 
@@ -298,6 +283,9 @@ void core_loop(void* task_time_us) {
     if (check_pause_2s.elapsed()) {
       emulator_pause_state_transmit_can_battery();
     }
+#ifdef DEBUG_LOG
+    logging.log_bms_status(datalayer.battery.status.real_bms_status, 1);
+#endif
 
     vTaskDelayUntil(&xLastWakeTime, xFrequency);
   }

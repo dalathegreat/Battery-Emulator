@@ -17,6 +17,10 @@ void setup_can_shunt();
 #include "BMW-IX-BATTERY.h"
 #endif
 
+#ifdef BMW_PHEV_BATTERY
+#include "BMW-PHEV-BATTERY.h"
+#endif
+
 #ifdef BOLT_AMPERA_BATTERY
 #include "BOLT-AMPERA-BATTERY.h"
 #endif
@@ -32,6 +36,10 @@ void setup_can_shunt();
 #ifdef CHADEMO_BATTERY
 #include "CHADEMO-BATTERY.h"
 #include "CHADEMO-SHUNTS.h"
+#endif
+
+#ifdef FOXESS_BATTERY
+#include "FOXESS-BATTERY.h"
 #endif
 
 #ifdef SONO_BATTERY
