@@ -8,6 +8,8 @@
 #define MAXPOWER_CHARGE_W 10000
 #define MAXPOWER_DISCHARGE_W 10000
 
+#define SKIP_TEMPERATURE_SENSOR_NUMBER 0  // Enter incase one of your temperature sensors are broken (1-10)
+
 /* Do not modify the rows below */
 #define BATTERY_SELECTED
 #define MAX_PACK_VOLTAGE_DV 4410  //5000 = 500.0V
