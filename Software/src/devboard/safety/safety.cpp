@@ -41,6 +41,14 @@ void update_machineryprotection() {
     clear_event(EVENT_BATTERY_FROZEN);
   }
 
+  if (labs(datalayer.battery.status.temperature_max_dC - datalayer.battery.status.temperature_min_dC) >
+      BATTERY_MAX_TEMPERATURE_DEVIATION) {
+    set_event_latched(EVENT_BATTERY_TEMP_DEVIATION_HIGH,
+                      datalayer.battery.status.temperature_max_dC - datalayer.battery.status.temperature_min_dC);
+  } else {
+    clear_event(EVENT_BATTERY_TEMP_DEVIATION_HIGH);
+  }
+
   // Battery voltage is over designed max voltage!
   if (datalayer.battery.status.voltage_dV > datalayer.battery.info.max_design_voltage_dV) {
     set_event(EVENT_BATTERY_OVERVOLTAGE, datalayer.battery.status.voltage_dV);
