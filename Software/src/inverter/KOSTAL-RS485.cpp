@@ -126,7 +126,9 @@ static void dbg_message(const char* msg) {
 #endif
 }
 
-void scramble_null_bytes(byte* lfc, int len) {
+/* https://en.wikipedia.org/wiki/Consistent_Overhead_Byte_Stuffing#Encoding_examples */
+
+void null_stuffer(byte* lfc, int len) {
   int last_null_byte = 0;
   for (int i = 0; i < len; i++) {
     if (lfc[i] == '\0') {
@@ -144,7 +146,7 @@ static void send_kostal(byte* frame, int len) {
 byte calculate_kostal_crc(byte* lfc, int len) {
   unsigned int sum = 0;
   if (lfc[0] != 0) {
-    printf("WARNING: first byte should be 0, but is 0x%02x\n", lfc[0]);
+    logging.printf("WARNING: first byte should be 0, but is 0x%02x\n", lfc[0]);
   }
   for (int i = 1; i < len; i++) {
     sum += lfc[i];
@@ -226,8 +228,10 @@ void update_RS485_registers_inverter() {
     CyclicData[59] = 0x00;
   }
 
-  float2frame(CyclicData, (float)(datalayer.battery.info.total_capacity_Wh / nominal_voltage_dV * 10),
-              30);  // BAttery capacity Ah
+  if (nominal_voltage_dV > 0) {
+    float2frame(CyclicData, (float)(datalayer.battery.info.total_capacity_Wh / nominal_voltage_dV * 10),
+                30);  // BAttery capacity Ah
+  }
   float2frame(CyclicData, (float)datalayer.battery.status.temperature_max_dC / 10, 38);
   float2frame(CyclicData, (float)datalayer.battery.status.temperature_min_dC / 10, 42);
 
@@ -337,7 +341,7 @@ void receive_RS485()  // Runs as fast as possible to handle the serial stream
               memcpy(tmpframe, CyclicData, 64);
 
               tmpframe[62] = calculate_kostal_crc(tmpframe, 62);
-              scramble_null_bytes(tmpframe, 64);
+              null_stuffer(tmpframe, 64);
               send_kostal(tmpframe, 64);
             }
             if (headerA && (RS485_RXFRAME[6] == 0x53) && (RS485_RXFRAME[7] == 0x03)) {  // "frame 3"
