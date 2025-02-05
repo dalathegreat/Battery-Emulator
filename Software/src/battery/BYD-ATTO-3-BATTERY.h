@@ -8,7 +8,9 @@
 #define MAXPOWER_CHARGE_W 10000
 #define MAXPOWER_DISCHARGE_W 10000
 
-#define SKIP_TEMPERATURE_SENSOR_NUMBER 0  // Enter incase one of your temperature sensors are broken (1-10)
+//Uncomment and configure this line, if you want to filter out a broken temperature sensor (1-10)
+//Make sure you understand risks associated with disabling. Values can be read via "More Battery info"
+//#define SKIP_TEMPERATURE_SENSOR_NUMBER 1
 
 /* Do not modify the rows below */
 #define BATTERY_SELECTED

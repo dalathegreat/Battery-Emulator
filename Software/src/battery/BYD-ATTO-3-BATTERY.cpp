@@ -135,6 +135,7 @@ void update_values_battery() {  //This function maps all the values fetched via 
 
   datalayer.battery.status.cell_min_voltage_mV = BMS_lowest_cell_voltage_mV;
 
+#ifdef SKIP_TEMPERATURE_SENSOR_NUMBER
   // Initialize min and max variables for temperature calculation
   battery_calc_min_temperature = battery_daughterboard_temperatures[0];
   battery_calc_max_temperature = battery_daughterboard_temperatures[0];
@@ -146,7 +147,7 @@ void update_values_battery() {  //This function maps all the values fetched via 
     battery_calc_max_temperature = battery_daughterboard_temperatures[1];
   }
   for (int i = 1; i < 10; i++) {
-    if (i == SKIP_TEMPERATURE_SENSOR_NUMBER) {
+    if (i == (SKIP_TEMPERATURE_SENSOR_NUMBER - 1)) {
       i++;
     }
     if (battery_daughterboard_temperatures[i] < battery_calc_min_temperature) {
@@ -159,6 +160,10 @@ void update_values_battery() {  //This function maps all the values fetched via 
   //Write the result to datalayer
   datalayer.battery.status.temperature_min_dC = battery_calc_min_temperature * 10;
   datalayer.battery.status.temperature_max_dC = battery_calc_max_temperature * 10;
+#else   //User does not need filtering out a broken sensor, just use the min-max the BMS sends
+  datalayer.battery.status.temperature_min_dC = BMS_lowest_cell_temperature * 10;
+  datalayer.battery.status.temperature_max_dC = BMS_highest_cell_temperature * 10;
+#endif  //!SKIP_TEMPERATURE_SENSOR_NUMBER
 
   // Update webserver datalayer
   datalayer_extended.bydAtto3.SOC_method = SOC_method;
