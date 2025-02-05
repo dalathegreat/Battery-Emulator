@@ -1655,11 +1655,7 @@ void transmit_can_battery() {
       MEB_503.data.u8[6] =
           0xE3;  // Request emergency shutdown HV system == init (3) (not sure if we dare activate this, this is done with 0xE1)
     } else {
-//      MEB_503.data.u8[1] = 0x10;
       MEB_503.data.u8[3] = 0;
-      MEB_503.data.u8[5] = 0x80;  // Bordnetz Inactive
-//      MEB_503.data.u8[6] =
-//          0xE3;  // Request emergency shutdown HV system == init (3) (not sure if we dare activate this, this is done with 0xE1)
     }
     MEB_503.data.u8[1] = ((MEB_503.data.u8[1] & 0xF0) | counter_100ms);
     MEB_503.data.u8[0] = vw_crc_calc(MEB_503.data.u8, MEB_503.DLC, MEB_503.ID);
