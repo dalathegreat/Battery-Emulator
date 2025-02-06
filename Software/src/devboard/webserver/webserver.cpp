@@ -896,8 +896,8 @@ String processor(const String& var) {
     } else {
       content += "<h4>Cell delta: " + String(cell_delta_mv) + " mV</h4>";
     }
-    content += "<h4>Temperature max: " + String(tempMaxFloat, 1) + " C</h4>";
-    content += "<h4>Temperature min: " + String(tempMinFloat, 1) + " C</h4>";
+    content += "<h4>Temperature max: " + String(tempMaxFloat, 1) + " &deg;C</h4>";
+    content += "<h4>Temperature min: " + String(tempMinFloat, 1) + " &deg;C</h4>";
 
     content += "<h4>System status: ";
     switch (datalayer.battery.status.bms_status) {
@@ -1074,8 +1074,8 @@ String processor(const String& var) {
     } else {
       content += "<h4>Cell delta: " + String(cell_delta_mv) + " mV</h4>";
     }
-    content += "<h4>Temperature max: " + String(tempMaxFloat, 1) + " C</h4>";
-    content += "<h4>Temperature min: " + String(tempMinFloat, 1) + " C</h4>";
+    content += "<h4>Temperature max: " + String(tempMaxFloat, 1) + " &deg;C</h4>";
+    content += "<h4>Temperature min: " + String(tempMinFloat, 1) + " &deg;C</h4>";
     if (datalayer.battery.status.bms_status == ACTIVE) {
       content += "<h4>System status: OK </h4>";
     } else if (datalayer.battery.status.bms_status == UPDATING) {

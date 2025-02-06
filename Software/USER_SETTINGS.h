@@ -139,6 +139,8 @@
 #define BATTERY_MAXTEMPERATURE 500
 // -250 = -25.0 °C , Min temperature (Will produce a battery frozen event if below)
 #define BATTERY_MINTEMPERATURE -250
+// 150 = 15.0 °C , Max difference between min and max temperature (Will produce a battery temperature deviation event if greater)
+#define BATTERY_MAX_TEMPERATURE_DEVIATION 150
 // 300 = 30.0A , Max charge in Amp (Some inverters needs to be limited)
 #define BATTERY_MAX_CHARGE_AMP 300
 // 300 = 30.0A , Max discharge in Amp (Some inverters needs to be limited)
@@ -183,6 +185,10 @@ extern IPAddress subnet;
 
 #if defined(DEBUG_VIA_USB) || defined(DEBUG_VIA_WEB) || defined(LOG_TO_SD)
 #define DEBUG_LOG
+#endif
+
+#if defined(MEB_BATTERY)
+#define PRECHARGE_CONTROL
 #endif
 
 #endif  // __USER_SETTINGS_H__
