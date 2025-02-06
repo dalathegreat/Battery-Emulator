@@ -274,7 +274,8 @@ void start_bms_reset() {
 #if defined(PERIODIC_BMS_RESET) || defined(REMOTE_BMS_RESET)
   if (!datalayer.system.status.BMS_reset_in_progress) {
     lastPowerRemovalTime = currentTime;  // Record the time when BMS reset was started
-
+                                         // we are now resetting at the correct time. We don't need to offset anymore
+    bmsResetTimeOffset = 0;
     // Set a flag to let the rest of the system know we are cutting power to the BMS.
     // The battery CAN sending routine will then know not to try to send anything towards battery while active
     datalayer.system.status.BMS_reset_in_progress = true;
