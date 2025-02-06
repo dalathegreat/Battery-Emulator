@@ -659,14 +659,15 @@ void handle_incoming_can_frame_battery(CAN_frame rx_frame) {
     case 0x5A2:
     case 0x5CA:
     case 0x16A954A6:
-      if (rx_frame.data.u8[0] != (vw_crc_calc(rx_frame.data.u8, rx_frame.DLC, rx_frame.ID))) {  //If CRC does not match calc
+      if (rx_frame.data.u8[0] !=
+          (vw_crc_calc(rx_frame.data.u8, rx_frame.DLC, rx_frame.ID))) {  //If CRC does not match calc
         datalayer.battery.status.CAN_error_counter++;
         return;
       }
     default:
-    break;
+      break;
   }
-  
+
   switch (rx_frame.ID) {
     case 0x17F0007B:  // BMS 500ms
       can_msg_received |= RX_0x17F0007B;
@@ -1000,14 +1001,13 @@ void handle_incoming_can_frame_battery(CAN_frame rx_frame) {
       BMS_warning_lamp_req = (rx_frame.data.u8[4] & 0x08) >> 3;
       BMS_Kl30c_Status = (rx_frame.data.u8[4] & 0x30) >> 4;
       if (BMS_Kl30c_Status != 0) {  // init state
-        BMS_capacity_ah =
-            ((rx_frame.data.u8[4] & 0x03) << 9) | (rx_frame.data.u8[3] << 1) | (rx_frame.data.u8[2] >> 7);
+        BMS_capacity_ah = ((rx_frame.data.u8[4] & 0x03) << 9) | (rx_frame.data.u8[3] << 1) | (rx_frame.data.u8[2] >> 7);
       }
       break;
     case 0x5CA:  // BMS 500ms
       can_msg_received |= RX_0x5CA;
       BMS_5CA_counter = (rx_frame.data.u8[1] & 0x0F);
-      balancing_request = (rx_frame.data.u8[5] & 0x08) >> 3;                          //True/False
+      balancing_request = (rx_frame.data.u8[5] & 0x08) >> 3;  //True/False
       battery_diagnostic = (rx_frame.data.u8[3] & 0x07);
       battery_Wh_left =
           (rx_frame.data.u8[2] << 4) | (rx_frame.data.u8[1] >> 4);  //*50  ! Not usable, seems to always contain 0x7F0
@@ -1015,8 +1015,8 @@ void handle_incoming_can_frame_battery(CAN_frame rx_frame) {
           (rx_frame.data.u8[5] & 0x30) >> 4;  //0 = function not enabled, 1= no potential, 2 = potential on, 3 = fault
       battery_temperature_warning =
           (rx_frame.data.u8[7] & 0x0C) >> 2;  // 0 = no warning, 1 = temp level 1, 2=temp level 2
-      battery_Wh_max = ((rx_frame.data.u8[5] & 0x07) << 8) |
-                        rx_frame.data.u8[4];  //*50  ! Not usable, seems to always contain 0x7F0
+      battery_Wh_max =
+          ((rx_frame.data.u8[5] & 0x07) << 8) | rx_frame.data.u8[4];  //*50  ! Not usable, seems to always contain 0x7F0
       break;
     case 0x0CF:  //BMS 10ms
       can_msg_received |= RX_0x0CF;
