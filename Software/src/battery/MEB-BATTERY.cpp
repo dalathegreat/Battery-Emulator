@@ -983,8 +983,8 @@ void handle_incoming_can_frame_battery(CAN_frame rx_frame) {
       regen_battery = ((rx_frame.data.u8[5] & 0x7F) << 8) | rx_frame.data.u8[4];
       energy_extracted_from_battery = ((rx_frame.data.u8[7] & 0x7F) << 8) | rx_frame.data.u8[6];
       break;
-    case 0x578:  // BMS 100ms
-      BMS_578_counter = (rx_frame.data.u8[1] & 0x0F); // Can be used to check CAN signal integrity later on
+    case 0x578:                                        // BMS 100ms
+      BMS_578_counter = (rx_frame.data.u8[1] & 0x0F);  // Can be used to check CAN signal integrity later on
       BMS_Status_DCLS = ((rx_frame.data.u8[1] & 0x30) >> 4);
       DC_voltage_DCLS = (rx_frame.data.u8[2] << 6) | (rx_frame.data.u8[1] >> 6);
       max_fastcharging_current_amp = ((rx_frame.data.u8[4] & 0x01) << 8) | rx_frame.data.u8[3];
