@@ -42,9 +42,12 @@ CAN_frame PYLON_35E = {.FD = false,
 void update_values_can_inverter() {
   // This function maps all the values fetched from battery CAN to the correct CAN messages
 
-  // TODO: officially this value is "battery charge voltage". Do we need to add something here to the actual voltage?
-  PYLON_351.data.u8[0] = datalayer.battery.status.voltage_dV & 0xff;
-  PYLON_351.data.u8[1] = datalayer.battery.status.voltage_dV >> 8;
+  // XXX: this value is "battery charge voltage". We add 1V here to the current voltage to achieve charging
+  int16_t charge_voltage_dV = datalayer.battery.status.voltage_dV + 1;
+  if (charge_voltage_dV > datalayer.battery.info.max_design_voltage_dV)
+    charge_voltage_dV = datalayer.battery.info.max_design_voltage_dV;
+  PYLON_351.data.u8[0] = charge_voltage_dV & 0xff;
+  PYLON_351.data.u8[1] = charge_voltage_dV >> 8;
   PYLON_351.data.u8[2] = datalayer.battery.status.max_charge_current_dA & 0xff;
   PYLON_351.data.u8[3] = datalayer.battery.status.max_charge_current_dA >> 8;
   PYLON_351.data.u8[4] = datalayer.battery.status.max_discharge_current_dA & 0xff;
@@ -55,12 +58,16 @@ void update_values_can_inverter() {
   PYLON_355.data.u8[2] = (datalayer.battery.status.soh_pptt / 10) & 0xff;
   PYLON_355.data.u8[3] = (datalayer.battery.status.soh_pptt / 10) >> 8;
 
-  PYLON_356.data.u8[0] = datalayer.battery.status.voltage_dV & 0xff;
-  PYLON_356.data.u8[1] = datalayer.battery.status.voltage_dV >> 8;
+  int16_t voltage_cV = datalayer.battery.status.voltage_dV * 10;
+  int16_t temperature = datalayer.battery.status.temperature_min_dC;
+  if (datalayer.battery.status.temperature_max_dC > 20)
+    temperature = datalayer.battery.status.temperature_max_dC;
+  PYLON_356.data.u8[0] = voltage_cV & 0xff;
+  PYLON_356.data.u8[1] = voltage_cV >> 8;
   PYLON_356.data.u8[2] = datalayer.battery.status.current_dA & 0xff;
   PYLON_356.data.u8[3] = datalayer.battery.status.current_dA >> 8;
-  PYLON_356.data.u8[4] = datalayer.battery.status.temperature_max_dC & 0xff;
-  PYLON_356.data.u8[5] = datalayer.battery.status.temperature_max_dC >> 8;
+  PYLON_356.data.u8[4] = temperature & 0xff;
+  PYLON_356.data.u8[5] = temperature >> 8;
 
   // initialize all errors and warnings to 0
   PYLON_359.data.u8[0] = 0x00;
