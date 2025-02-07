@@ -70,28 +70,28 @@ static int8_t battery2_temperature_water_inlet = 0;
 static int8_t battery2_heatertemp = 0;
 static int8_t battery2_powerRelayTemperature = 0;
 static bool battery2_startedUp = false;
-#endif  //DOUBLE_BATTERY
+CAN_frame KIA_HYUNDAI_200_2 = {.FD = false,
+                               .ext_ID = false,
+                               .DLC = 8,
+                               .ID = 0x200,
+                               .data = {0x00, 0x80, 0xD8, 0x04, 0x00, 0x17, 0xD0, 0x00}};  //2nd battery
+#endif                                                                                     //DOUBLE_BATTERY
 
 CAN_frame KIA_HYUNDAI_200 = {.FD = false,
                              .ext_ID = false,
                              .DLC = 8,
                              .ID = 0x200,
-                             .data = {0x00, 0x80, 0xD8, 0x04, 0x00, 0x17, 0xD0, 0x00}};  //Mid log value
-CAN_frame KIA_HYUNDAI_200_2 = {.FD = false,
-                               .ext_ID = false,
-                               .DLC = 8,
-                               .ID = 0x200,
-                               .data = {0x00, 0x80, 0xD8, 0x04, 0x00, 0x17, 0xD0, 0x00}};  //Mid log value
+                             .data = {0x00, 0x80, 0xD8, 0x04, 0x00, 0x17, 0xD0, 0x00}};
 CAN_frame KIA_HYUNDAI_523 = {.FD = false,
                              .ext_ID = false,
                              .DLC = 8,
                              .ID = 0x523,
-                             .data = {0x08, 0x38, 0x36, 0x36, 0x33, 0x34, 0x00, 0x01}};  //Mid log value
+                             .data = {0x08, 0x38, 0x36, 0x36, 0x33, 0x34, 0x00, 0x01}};
 CAN_frame KIA_HYUNDAI_524 = {.FD = false,
                              .ext_ID = false,
                              .DLC = 8,
                              .ID = 0x524,
-                             .data = {0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00}};  //Initial value
+                             .data = {0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00}};
 //553 Needed frame 200ms
 CAN_frame KIA64_553 = {.FD = false,
                        .ext_ID = false,
@@ -730,7 +730,7 @@ void handle_incoming_can_frame_battery2(CAN_frame rx_frame) {
         case 0x10:  //"PID Header"
           if (rx_frame.data.u8[4] == battery2_poll_data_pid) {
             transmit_can_frame(&KIA64_7E4_ack,
-                               can_config.battery);  //Send ack to BMS if the same frame is sent as polled
+                               can_config.battery_double);  //Send ack to BMS if the same frame is sent as polled
           }
           break;
         case 0x21:  //First frame in PID group
