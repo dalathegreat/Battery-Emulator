@@ -40,6 +40,7 @@ static int8_t powerRelayTemperature = 0;
 static bool startedUp = false;
 
 #ifdef DOUBLE_BATTERY
+static uint8_t counter_200_2 = 0;
 static uint16_t battery2_soc_calculated = 0;
 static uint16_t battery2_SOC_BMS = 0;
 static uint16_t battery2_SOC_Display = 0;
@@ -69,23 +70,28 @@ static int8_t battery2_temperature_water_inlet = 0;
 static int8_t battery2_heatertemp = 0;
 static int8_t battery2_powerRelayTemperature = 0;
 static bool battery2_startedUp = false;
-#endif  //DOUBLE_BATTERY
+CAN_frame KIA_HYUNDAI_200_2 = {.FD = false,
+                               .ext_ID = false,
+                               .DLC = 8,
+                               .ID = 0x200,
+                               .data = {0x00, 0x80, 0xD8, 0x04, 0x00, 0x17, 0xD0, 0x00}};  //2nd battery
+#endif                                                                                     //DOUBLE_BATTERY
 
 CAN_frame KIA_HYUNDAI_200 = {.FD = false,
                              .ext_ID = false,
                              .DLC = 8,
                              .ID = 0x200,
-                             .data = {0x00, 0x80, 0xD8, 0x04, 0x00, 0x17, 0xD0, 0x00}};  //Mid log value
+                             .data = {0x00, 0x80, 0xD8, 0x04, 0x00, 0x17, 0xD0, 0x00}};
 CAN_frame KIA_HYUNDAI_523 = {.FD = false,
                              .ext_ID = false,
                              .DLC = 8,
                              .ID = 0x523,
-                             .data = {0x08, 0x38, 0x36, 0x36, 0x33, 0x34, 0x00, 0x01}};  //Mid log value
+                             .data = {0x08, 0x38, 0x36, 0x36, 0x33, 0x34, 0x00, 0x01}};
 CAN_frame KIA_HYUNDAI_524 = {.FD = false,
                              .ext_ID = false,
                              .DLC = 8,
                              .ID = 0x524,
-                             .data = {0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00}};  //Initial value
+                             .data = {0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00}};
 //553 Needed frame 200ms
 CAN_frame KIA64_553 = {.FD = false,
                        .ext_ID = false,
@@ -724,7 +730,7 @@ void handle_incoming_can_frame_battery2(CAN_frame rx_frame) {
         case 0x10:  //"PID Header"
           if (rx_frame.data.u8[4] == battery2_poll_data_pid) {
             transmit_can_frame(&KIA64_7E4_ack,
-                               can_config.battery);  //Send ack to BMS if the same frame is sent as polled
+                               can_config.battery_double);  //Send ack to BMS if the same frame is sent as polled
           }
           break;
         case 0x21:  //First frame in PID group
@@ -997,8 +1003,49 @@ void transmit_can_battery() {
     transmit_can_frame(&KIA_HYUNDAI_524, can_config.battery);
 
 #ifdef DOUBLE_BATTERY
+
     if (battery2_startedUp && datalayer.system.status.battery2_allows_contactor_closing) {
-      transmit_can_frame(&KIA_HYUNDAI_200, can_config.battery_double);
+      switch (counter_200_2) {
+        case 0:
+          KIA_HYUNDAI_200_2.data.u8[5] = 0x17;
+          ++counter_200_2;
+          break;
+        case 1:
+          KIA_HYUNDAI_200_2.data.u8[5] = 0x57;
+          ++counter_200_2;
+          break;
+        case 2:
+          KIA_HYUNDAI_200_2.data.u8[5] = 0x97;
+          ++counter_200_2;
+          break;
+        case 3:
+          KIA_HYUNDAI_200_2.data.u8[5] = 0xD7;
+          ++counter_200_2;
+          break;
+        case 4:
+          KIA_HYUNDAI_200_2.data.u8[3] = 0x10;
+          KIA_HYUNDAI_200_2.data.u8[5] = 0xFF;
+          ++counter_200_2;
+          break;
+        case 5:
+          KIA_HYUNDAI_200_2.data.u8[5] = 0x3B;
+          ++counter_200_2;
+          break;
+        case 6:
+          KIA_HYUNDAI_200_2.data.u8[5] = 0x7B;
+          ++counter_200_2;
+          break;
+        case 7:
+          KIA_HYUNDAI_200_2.data.u8[5] = 0xBB;
+          ++counter_200_2;
+          break;
+        case 8:
+          KIA_HYUNDAI_200_2.data.u8[5] = 0xFB;
+          counter_200_2 = 5;
+          break;
+      }
+
+      transmit_can_frame(&KIA_HYUNDAI_200_2, can_config.battery_double);
 
       transmit_can_frame(&KIA_HYUNDAI_523, can_config.battery_double);
 
