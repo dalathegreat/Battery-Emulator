@@ -218,6 +218,9 @@ void init_events(void) {
   events.entries[EVENT_MQTT_DISCONNECT].level = EVENT_LEVEL_INFO;
   events.entries[EVENT_EQUIPMENT_STOP].level = EVENT_LEVEL_ERROR;
   events.entries[EVENT_SD_INIT_FAILED].level = EVENT_LEVEL_WARNING;
+  events.entries[EVENT_BMS_RESET].level = EVENT_LEVEL_INFO;
+  events.entries[EVENT_BMS_RESET_AT_INIT_SUCCESS].level = EVENT_LEVEL_WARNING;
+  events.entries[EVENT_BMS_RESET_AT_INIT_FAILED].level = EVENT_LEVEL_WARNING;
 
   events.entries[EVENT_EEPROM_WRITE].log = false;  // Don't log the logger...
 
@@ -446,6 +449,13 @@ const char* get_event_message_string(EVENTS_ENUM_TYPE event) {
       return "EQUIPMENT STOP ACTIVATED!!!";
     case EVENT_SD_INIT_FAILED:
       return "SD card initialization failed, check hardware. Power must be removed to reset the SD card.";
+    case EVENT_BMS_RESET:
+      return "BMS Reset Event Completed.";
+    case EVENT_BMS_RESET_AT_INIT_SUCCESS:
+      return "Successfully Syncronised with the NTP Server BMS will reset every 24 hours at defined time";
+    case EVENT_BMS_RESET_AT_INIT_FAILED:
+      return "Failed to syncronise with the NTP Server BMS will reset every 24 hours from when the emulator was "
+             "powered on";
     default:
       return "";
   }
