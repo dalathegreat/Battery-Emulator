@@ -4,6 +4,7 @@
 #include "../include.h"
 
 #define RS485_INVERTER_SELECTED
+#define RS485_BAUDRATE 57600
 //#define DEBUG_KOSTAL_RS485_DATA  // Enable this line to get TX / RX printed out via logging
 
 #if defined(DEBUG_KOSTAL_RS485_DATA) && !defined(DEBUG_LOG)

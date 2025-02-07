@@ -9,31 +9,32 @@
 
 /* Do not change code below unless you are sure what you are doing */
 
-static int16_t temperature_min = 0;
-static int16_t temperature_max = 0;
+static uint32_t lastPacket = 0;
+static int16_t temperature_min_dC = 0;
+static int16_t temperature_max_dC = 0;
 static int16_t current_dA = 0;
 static uint16_t voltage_dV = 0;
-static uint16_t remaining_capacity_Ah = 0;
+static uint32_t remaining_capacity_mAh = 0;
 static uint16_t cellvoltages_mV[48] = {0};
-static uint16_t cellvoltage_min = 0;
-static uint16_t cellvoltage_max = 0;
+static uint16_t cellvoltage_min_mV = 0;
+static uint16_t cellvoltage_max_mV = 0;
 static uint16_t SOC = 0;
 
 void update_values_battery() {
   datalayer.battery.status.real_soc = SOC;
   datalayer.battery.status.voltage_dV = voltage_dV;  //value is *10 (3700 = 370.0)
   datalayer.battery.status.current_dA = current_dA;  //value is *10 (150 = 15.0)
-  datalayer.battery.status.remaining_capacity_Wh = (remaining_capacity_Ah * DESIGN_PACK_VOLTAGE_DB) / 10;
+  datalayer.battery.status.remaining_capacity_Wh = (remaining_capacity_mAh * (uint32_t)voltage_dV) / 10000;
 
-  datalayer.battery.status.max_charge_power_W = MAX_CHARGE_POWER_ALLOWED_W;
-  datalayer.battery.status.max_discharge_power_W = MAX_DISCHARGE_POWER_ALLOWED_W;
+  datalayer.battery.status.max_charge_power_W = (MAX_CHARGE_AMPS * voltage_dV) / 10;
+  datalayer.battery.status.max_discharge_power_W = (MAX_DISCHARGE_AMPS * voltage_dV) / 10;
 
   memcpy(datalayer.battery.status.cell_voltages_mV, cellvoltages_mV, sizeof(cellvoltages_mV));
-  datalayer.battery.status.cell_min_voltage_mV = cellvoltage_min;
-  datalayer.battery.status.cell_max_voltage_mV = cellvoltage_max;
+  datalayer.battery.status.cell_min_voltage_mV = cellvoltage_min_mV;
+  datalayer.battery.status.cell_max_voltage_mV = cellvoltage_max_mV;
 
-  datalayer.battery.status.temperature_min_dC = temperature_min;
-  datalayer.battery.status.temperature_max_dC = temperature_max;
+  datalayer.battery.status.temperature_min_dC = temperature_min_dC;
+  datalayer.battery.status.temperature_max_dC = temperature_max_dC;
 }
 
 void setup_battery(void) {  // Performs one time setup at startup
@@ -44,6 +45,7 @@ void setup_battery(void) {  // Performs one time setup at startup
   datalayer.battery.info.min_design_voltage_dV = MIN_PACK_VOLTAGE_DV;
   datalayer.battery.info.max_cell_voltage_mV = MAX_CELL_VOLTAGE_MV;
   datalayer.battery.info.min_cell_voltage_mV = MIN_CELL_VOLTAGE_MV;
+  datalayer.battery.info.total_capacity_Wh = PACK_CAPACITY_AH;
 }
 
 uint8_t calculate_checksum(uint8_t buff[12]) {
@@ -69,7 +71,22 @@ uint32_t decode_uint32be(uint8_t data[8], uint8_t offset) {
          ((uint32_t)data[offset + 3]);
 }
 
+#ifdef DEBUG_VIA_USB
+void dump_buff(const char* msg, uint8_t* buff, uint8_t len) {
+  Serial.print("[DALY-BMS] ");
+  Serial.print(msg);
+  for (int i = 0; i < len; i++) {
+    Serial.print(buff[i] >> 4, HEX);
+    Serial.print(buff[i] & 0xf, HEX);
+    Serial.print(" ");
+  }
+  Serial.println();
+}
+#endif
+
 void decode_packet(uint8_t command, uint8_t data[8]) {
+  datalayer.battery.status.CAN_battery_still_alive = CAN_STILL_ALIVE;
+
   switch (command) {
     case 0x90:
       voltage_dV = decode_uint16be(data, 0);
@@ -77,15 +94,15 @@ void decode_packet(uint8_t command, uint8_t data[8]) {
       SOC = decode_uint16be(data, 6) * 10;
       break;
     case 0x91:
-      cellvoltage_max = decode_uint16be(data, 0);
-      cellvoltage_min = decode_uint16be(data, 3);
+      cellvoltage_max_mV = decode_uint16be(data, 0);
+      cellvoltage_min_mV = decode_uint16be(data, 3);
       break;
     case 0x92:
-      temperature_max = decode_int16be(data, 0) - 40;
-      temperature_min = decode_int16be(data, 2) - 40;
+      temperature_max_dC = (data[0] - 40) * 10;
+      temperature_min_dC = (data[1] - 40) * 10;
       break;
     case 0x93:
-      remaining_capacity_Ah = decode_uint32be(data, 4);
+      remaining_capacity_mAh = decode_uint32be(data, 4);
       break;
     case 0x94:
       break;
@@ -110,16 +127,24 @@ void transmit_rs485() {
   static uint32_t lastSend = 0;
   static uint8_t nextCommand = 0x90;
 
-  if (millis() - lastSend > 10) {
+  if (millis() - lastSend > 500) {
     uint8_t tx_buff[13] = {0};
     tx_buff[0] = 0xA5;
-    tx_buff[1] = 0x80;
+    tx_buff[1] = 0x40;
     tx_buff[2] = nextCommand;
     tx_buff[3] = 8;
     tx_buff[12] = calculate_checksum(tx_buff);
 
+#ifdef DEBUG_VIA_USB
+    dump_buff("transmitting: ", tx_buff, 13);
+#endif
+
     Serial2.write(tx_buff, 13);
     lastSend = millis();
+
+    nextCommand++;
+    if (nextCommand > 0x95)
+      nextCommand = 0x90;
   }
 }
 
@@ -129,16 +154,23 @@ void receive_RS485() {
 
   while (Serial2.available()) {
     recv_buff[recv_len] = Serial2.read();
+
     recv_len++;
 
     if (recv_len > 0 && recv_buff[0] != 0xA5 || recv_len > 1 && recv_buff[1] != 0x01 ||
         recv_len > 2 && (recv_buff[2] < 0x90 || recv_buff[2] > 0x98) || recv_len > 3 && recv_buff[3] != 8 ||
         recv_len > 12 && recv_buff[12] != calculate_checksum(recv_buff)) {
 
+#ifdef DEBUG_VIA_USB
+      dump_buff("dropping partial rx: ", recv_buff, recv_len);
+#endif
       recv_len = 0;
     }
 
     if (recv_len > 12) {
+#ifdef DEBUG_VIA_USB
+      dump_buff("decoding successfull rx: ", recv_buff, recv_len);
+#endif
       decode_packet(recv_buff[2], &recv_buff[4]);
       recv_len = 0;
     }
