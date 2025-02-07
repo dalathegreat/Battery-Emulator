@@ -129,6 +129,11 @@ void setup() {
                           &main_loop_task, CORE_FUNCTION_CORE);
 #ifdef PERIODIC_BMS_RESET_AT
   bmsResetTimeOffset = getTimeOffsetfromNowUntil(PERIODIC_BMS_RESET_AT);
+  if (bmsResetTimeOffset == 0) {
+    set_event(EVENT_BMS_RESET_AT_INIT_FAILED, 0);
+  } else {
+    set_event(EVENT_BMS_RESET_AT_INIT_SUCCESS, 0);
+  }
 #endif
 }
 
