@@ -266,6 +266,7 @@ void handle_BMSpower() {
     setBatteryPause(false, false, false, false);
 
     datalayer.system.status.BMS_reset_in_progress = false;  // Reset the power removal flag
+    set_event(EVENT_BMS_RESET, 0);
   }
 #endif  //defined(PERIODIC_BMS_RESET) || defined(REMOTE_BMS_RESET)
 }
@@ -277,7 +278,7 @@ void start_bms_reset() {
                                          // we are now resetting at the correct time. We don't need to offset anymore
     bmsResetTimeOffset = 0;
     // Set a flag to let the rest of the system know we are cutting power to the BMS.
-    // The battery CAN sending routine will then know not to try to send anything towards battery while active
+    // The battery CAN sending routine will then know not to try guto send anything towards battery while active
     datalayer.system.status.BMS_reset_in_progress = true;
 
     // Set emulator state to paused (Max Charge/Discharge = 0 & CAN = stop)
