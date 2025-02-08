@@ -381,7 +381,7 @@ uint32_t can_msg_received = 0;
  * @see https://www.autosar.org/fileadmin/user_upload/standards/classic/4-3/AUTOSAR_SWS_CRCLibrary.pdf
  * @see https://web.archive.org/web/20221105210302/https://www.autosar.org/fileadmin/user_upload/standards/classic/4-3/AUTOSAR_SWS_CRCLibrary.pdf
  */
-uint8_t vw_crc_calc(uint8_t* inputBytes, uint8_t length, uint16_t address) {
+uint8_t vw_crc_calc(uint8_t* inputBytes, uint8_t length, uint32_t address) {
 
   const uint8_t poly = 0x2F;
   const uint8_t xor_output = 0xFF;
@@ -508,9 +508,10 @@ uint8_t vw_crc_calc(uint8_t* inputBytes, uint8_t length, uint16_t address) {
       magicByte = MB16A954A6[counter];
       break;
     default:  // this won't lead to correct CRC checksums
-      logging.println("Checksum request uknown");
+#ifdef DEBUG_LOG
+      logging.println("Checksum request unknown");
       magicByte = 0x00;
-      break;
+      break;  
   }
 
   for (uint8_t i = 1; i < length + 1; i++) {
@@ -639,8 +640,11 @@ void handle_incoming_can_frame_battery(CAN_frame rx_frame) {
     case 0x5CA:
     case 0x16A954A6:
       if (rx_frame.data.u8[0] !=
-          (vw_crc_calc(rx_frame.data.u8, rx_frame.DLC, rx_frame.ID))) {  //If CRC does not match calc
+          vw_crc_calc(rx_frame.data.u8, rx_frame.DLC, rx_frame.ID)) {  //If CRC does not match calc
         datalayer.battery.status.CAN_error_counter++;
+#ifdef DEBUG_LOG
+        logging.printf("MEB: Msg 0x%04X CRC error\n", rx_frame.ID);
+#endif
         return;
       }
     default:
