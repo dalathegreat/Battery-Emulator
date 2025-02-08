@@ -51,11 +51,6 @@ static uint16_t battery_allowed_charge_power = 0;
 static uint16_t battery_allowed_discharge_power = 0;
 static uint16_t cellvoltages_polled[108];
 static uint16_t tempval = 0;
-static uint8_t BMS_5A2_CRC = 0;
-static uint8_t BMS_5CA_CRC = 0;
-static uint8_t BMS_0CF_CRC = 0;
-static uint8_t BMS_578_CRC = 0;
-static uint8_t BMS_0C0_CRC = 0;
 static uint8_t BMS_16A954A6_CRC = 0;
 static uint8_t BMS_5A2_counter = 0;
 static uint8_t BMS_5CA_counter = 0;
@@ -386,7 +381,7 @@ uint32_t can_msg_received = 0;
  * @see https://www.autosar.org/fileadmin/user_upload/standards/classic/4-3/AUTOSAR_SWS_CRCLibrary.pdf
  * @see https://web.archive.org/web/20221105210302/https://www.autosar.org/fileadmin/user_upload/standards/classic/4-3/AUTOSAR_SWS_CRCLibrary.pdf
  */
-uint8_t vw_crc_calc(uint8_t* inputBytes, uint8_t length, uint16_t address) {
+uint8_t vw_crc_calc(uint8_t* inputBytes, uint8_t length, uint32_t address) {
 
   const uint8_t poly = 0x2F;
   const uint8_t xor_output = 0xFF;
@@ -395,6 +390,8 @@ uint8_t vw_crc_calc(uint8_t* inputBytes, uint8_t length, uint16_t address) {
                               0x40, 0x40, 0x40, 0x40, 0x40, 0x40, 0x40, 0x40};
   const uint8_t MB00C0[16] = {0x2f, 0x44, 0x72, 0xd3, 0x07, 0xf2, 0x39, 0x09,
                               0x8d, 0x6f, 0x57, 0x20, 0x37, 0xf9, 0x9b, 0xfa};
+  const uint8_t MB00CF[16] = {0xee, 0x80, 0x6e, 0x4e, 0x29, 0xc6, 0x92, 0xc0,
+                              0x65, 0xaa, 0x3a, 0xa1, 0x8f, 0xcd, 0xe6, 0x90};
   const uint8_t MB00FC[16] = {0x77, 0x5c, 0xa0, 0x89, 0x4b, 0x7c, 0xbb, 0xd6,
                               0x1f, 0x6c, 0x4f, 0xf6, 0x20, 0x2b, 0x43, 0xdd};
   const uint8_t MB00FD[16] = {0xb4, 0xef, 0xf8, 0x49, 0x1e, 0xe5, 0xc2, 0xc0,
@@ -423,6 +420,8 @@ uint8_t vw_crc_calc(uint8_t* inputBytes, uint8_t length, uint16_t address) {
                               0x1e, 0x0d, 0x24, 0xcd, 0x8c, 0xa6, 0x2f, 0x41};
   const uint8_t MB0578[16] = {0x48, 0x48, 0x48, 0x48, 0x48, 0x48, 0x48, 0x48,
                               0x48, 0x48, 0x48, 0x48, 0x48, 0x48, 0x48, 0x48};
+  const uint8_t MB05A2[16] = {0xeb, 0x4c, 0x44, 0xaf, 0x21, 0x8d, 0x01, 0x58,
+                              0xfa, 0x93, 0xdb, 0x89, 0x15, 0x10, 0x4a, 0x61};
   const uint8_t MB05CA[16] = {0x43, 0x43, 0x43, 0x43, 0x43, 0x43, 0x43, 0x43,
                               0x43, 0x43, 0x43, 0x43, 0x43, 0x43, 0x43, 0x43};
   const uint8_t MB0641[16] = {0x47, 0x47, 0x47, 0x47, 0x47, 0x47, 0x47, 0x47,
@@ -444,6 +443,9 @@ uint8_t vw_crc_calc(uint8_t* inputBytes, uint8_t length, uint16_t address) {
       break;
     case 0x00C0:  //
       magicByte = MB00C0[counter];
+      break;
+    case 0x00CF:  //BMS
+      magicByte = MB00CF[counter];
       break;
     case 0x00FC:
       magicByte = MB00FC[counter];
@@ -487,6 +489,9 @@ uint8_t vw_crc_calc(uint8_t* inputBytes, uint8_t length, uint16_t address) {
     case 0x0578:  // BMS DC
       magicByte = MB0578[counter];
       break;
+    case 0x05A2:  // BMS
+      magicByte = MB05A2[counter];
+      break;
     case 0x05CA:  // BMS
       magicByte = MB05CA[counter];
       break;
@@ -503,7 +508,9 @@ uint8_t vw_crc_calc(uint8_t* inputBytes, uint8_t length, uint16_t address) {
       magicByte = MB16A954A6[counter];
       break;
     default:  // this won't lead to correct CRC checksums
-      logging.println("Checksum request uknown");
+#ifdef DEBUG_LOG
+      logging.println("Checksum request unknown");
+#endif
       magicByte = 0x00;
       break;
   }
@@ -625,6 +632,26 @@ void handle_incoming_can_frame_battery(CAN_frame rx_frame) {
 #endif
     first_can_msg = last_can_msg_timestamp;
   }
+
+  /* CRC check on messages with CRC */
+  switch (rx_frame.ID) {
+    case 0x0CF:
+    case 0x578:
+    case 0x5A2:
+    case 0x5CA:
+    case 0x16A954A6:
+      if (rx_frame.data.u8[0] !=
+          vw_crc_calc(rx_frame.data.u8, rx_frame.DLC, rx_frame.ID)) {  //If CRC does not match calc
+        datalayer.battery.status.CAN_error_counter++;
+#ifdef DEBUG_LOG
+        logging.printf("MEB: Msg 0x%04X CRC error\n", rx_frame.ID);
+#endif
+        return;
+      }
+    default:
+      break;
+  }
+
   switch (rx_frame.ID) {
     case 0x17F0007B:  // BMS 500ms
       can_msg_received |= RX_0x17F0007B;
@@ -707,7 +734,6 @@ void handle_incoming_can_frame_battery(CAN_frame rx_frame) {
       break;
     case 0x16A954A6:  // BMS
       can_msg_received |= RX_0x16A954A6;
-      BMS_16A954A6_CRC = rx_frame.data.u8[0];               // Can be used to check CAN signal integrity later on
       BMS_16A954A6_counter = (rx_frame.data.u8[1] & 0x0F);  // Can be used to check CAN signal integrity later on
       isolation_fault = (rx_frame.data.u8[2] & 0xE0) >> 5;
       isolation_status = (rx_frame.data.u8[2] & 0x1E) >> 1;
@@ -944,7 +970,6 @@ void handle_incoming_can_frame_battery(CAN_frame rx_frame) {
       energy_extracted_from_battery = ((rx_frame.data.u8[7] & 0x7F) << 8) | rx_frame.data.u8[6];
       break;
     case 0x578:                                        // BMS 100ms
-      BMS_578_CRC = rx_frame.data.u8[0];               // Can be used to check CAN signal integrity later on
       BMS_578_counter = (rx_frame.data.u8[1] & 0x0F);  // Can be used to check CAN signal integrity later on
       BMS_Status_DCLS = ((rx_frame.data.u8[1] & 0x30) >> 4);
       DC_voltage_DCLS = (rx_frame.data.u8[2] << 6) | (rx_frame.data.u8[1] >> 6);
@@ -953,7 +978,6 @@ void handle_incoming_can_frame_battery(CAN_frame rx_frame) {
       break;
     case 0x5A2:  // BMS 500ms normal, 100ms fast
       can_msg_received |= RX_0x5A2;
-      BMS_5A2_CRC = rx_frame.data.u8[0];               // Can be used to check CAN signal integrity later on
       BMS_5A2_counter = (rx_frame.data.u8[1] & 0x0F);  // Can be used to check CAN signal integrity later on
       service_disconnect_switch_missing = (rx_frame.data.u8[1] & 0x20) >> 5;
       pilotline_open = (rx_frame.data.u8[1] & 0x10) >> 4;
@@ -969,10 +993,9 @@ void handle_incoming_can_frame_battery(CAN_frame rx_frame) {
       break;
     case 0x5CA:  // BMS 500ms
       can_msg_received |= RX_0x5CA;
-      BMS_5CA_CRC = rx_frame.data.u8[0];               // Can be used to check CAN signal integrity later on
-      BMS_5CA_counter = (rx_frame.data.u8[1] & 0x0F);  // Can be used to check CAN signal integrity later on
-      balancing_request = (rx_frame.data.u8[5] & 0x08) >>
-                          3;  // BMS requests a low current end charge to support balancing, maybe unused.
+      BMS_5CA_counter = (rx_frame.data.u8[1] & 0x0F);
+      balancing_request = (rx_frame.data.u8[5] & 0x08) >> 3;
+      // balancing_request: BMS requests a low current end charge to support balancing, maybe unused.
       battery_diagnostic = (rx_frame.data.u8[3] & 0x07);
       battery_Wh_left =
           (rx_frame.data.u8[2] << 4) | (rx_frame.data.u8[1] >> 4);  //*50  ! Not usable, seems to always contain 0x7F0
@@ -985,8 +1008,7 @@ void handle_incoming_can_frame_battery(CAN_frame rx_frame) {
       break;
     case 0x0CF:  //BMS 10ms
       can_msg_received |= RX_0x0CF;
-      BMS_0CF_CRC = rx_frame.data.u8[0];               // Can be used to check CAN signal integrity later on
-      BMS_0CF_counter = (rx_frame.data.u8[1] & 0x0F);  // Can be used to check CAN signal integrity later on
+      BMS_0CF_counter = (rx_frame.data.u8[1] & 0x0F);
       BMS_welded_contactors_status = (rx_frame.data.u8[1] & 0x60) >> 5;
       BMS_ext_limits_active = (rx_frame.data.u8[1] & 0x80) >> 7;
       BMS_mode = (rx_frame.data.u8[2] & 0x07);
