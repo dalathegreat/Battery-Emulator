@@ -994,7 +994,8 @@ void handle_incoming_can_frame_battery(CAN_frame rx_frame) {
     case 0x5CA:  // BMS 500ms
       can_msg_received |= RX_0x5CA;
       BMS_5CA_counter = (rx_frame.data.u8[1] & 0x0F);
-      balancing_request = (rx_frame.data.u8[5] & 0x08) >> 3;  //True/False
+      balancing_request = (rx_frame.data.u8[5] & 0x08) >>3;  
+      // balancing_request: BMS requests a low current end charge to support balancing, maybe unused.
       battery_diagnostic = (rx_frame.data.u8[3] & 0x07);
       battery_Wh_left =
           (rx_frame.data.u8[2] << 4) | (rx_frame.data.u8[1] >> 4);  //*50  ! Not usable, seems to always contain 0x7F0
