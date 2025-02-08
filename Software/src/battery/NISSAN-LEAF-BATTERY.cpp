@@ -202,7 +202,7 @@ void update_values_battery() { /* This function maps all the values fetched via 
   datalayer.battery.status.current_dA =
       (battery_Current2 * 5);  //0.5A/bit, multiply by 5 to get Amp+1decimal (5,5A = 11)
 
-  if (LEAF_battery_Type == ZE0_BATTERY) {  //battery_Max_GIDS is stuck at 273 on ZE0
+  if (battery_Max_GIDS == 273) {  //battery_Max_GIDS is stuck at 273 on ZE0
     datalayer.battery.info.total_capacity_Wh = ((battery_Max_GIDS * WH_PER_GID) * (battery_StateOfHealth / 100));
   } else {  //battery_Max_GIDS updates on newer generations, making for a total_capacity_Wh value that makes sense
     datalayer.battery.info.total_capacity_Wh = (battery_Max_GIDS * WH_PER_GID);
@@ -385,7 +385,7 @@ void update_values_battery2() {  // Handle the values coming in from battery #2
   datalayer.battery2.status.current_dA =
       (battery2_Current2 * 5);  //0.5A/bit, multiply by 5 to get Amp+1decimal (5,5A = 11)
 
-  if (LEAF_battery2_Type == ZE0_BATTERY) {  //battery_Max_GIDS is stuck at 273 on ZE0
+  if (battery2_Max_GIDS == 273) {  //battery_Max_GIDS is stuck at 273 on 24kWh packs
     datalayer.battery2.info.total_capacity_Wh = ((battery2_Max_GIDS * WH_PER_GID) * (battery2_StateOfHealth / 100));
   } else {  //battery_Max_GIDS updates on newer generations, making for a total_capacity_Wh value that makes sense
     datalayer.battery2.info.total_capacity_Wh = (battery2_Max_GIDS * WH_PER_GID);
