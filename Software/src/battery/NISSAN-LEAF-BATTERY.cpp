@@ -1067,7 +1067,7 @@ void transmit_can_battery() {
 
   unsigned long currentMillis = millis();
 
-  if (datalayer.system.status.BMS_reset_in_progress) {
+  if (datalayer.system.status.BMS_reset_in_progress || datalayer.system.status.BMS_startup_in_progress) {
     // Transmitting towards battery is halted while BMS is being reset
     // Reset sending counters to avoid overrun messages when reset is over
     previousMillis10 = currentMillis;
