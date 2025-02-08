@@ -266,7 +266,7 @@ void handle_BMSpower() {
     setBatteryPause(false, false, false, false);
 
     datalayer.system.status.BMS_reset_in_progress = false;  // Reset the power removal flag
-    set_event(EVENT_BMS_RESET, 0);
+    set_event(EVENT_PERIODIC_BMS_RESET, 0);
   }
 #endif  //defined(PERIODIC_BMS_RESET) || defined(REMOTE_BMS_RESET)
 }
