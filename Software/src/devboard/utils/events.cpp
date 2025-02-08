@@ -221,6 +221,7 @@ void init_events(void) {
   events.entries[EVENT_PERIODIC_BMS_RESET].level = EVENT_LEVEL_INFO;
   events.entries[EVENT_PERIODIC_BMS_RESET_AT_INIT_SUCCESS].level = EVENT_LEVEL_INFO;
   events.entries[EVENT_PERIODIC_BMS_RESET_AT_INIT_FAILED].level = EVENT_LEVEL_WARNING;
+  events.entries[EVENT_BATTERY_TEMP_DEVIATION_HIGH].level = EVENT_LEVEL_WARNING;
 
   events.entries[EVENT_EEPROM_WRITE].log = false;  // Don't log the logger...
 
@@ -257,6 +258,9 @@ void reset_all_events() {
   }
   events.level = EVENT_LEVEL_INFO;
   update_bms_status();
+#ifdef DEBUG_LOG
+  logging.println("All events have been cleared.");
+#endif
 }
 
 void set_event_MQTTpublished(EVENTS_ENUM_TYPE event) {

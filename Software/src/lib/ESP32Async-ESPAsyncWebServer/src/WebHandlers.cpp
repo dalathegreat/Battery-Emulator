@@ -86,7 +86,13 @@ AsyncStaticWebHandler& AsyncStaticWebHandler::setLastModified(const char* last_m
 
 AsyncStaticWebHandler& AsyncStaticWebHandler::setLastModified(struct tm* last_modified) {
   char result[30];
+#ifdef ESP8266
+  auto formatP = PSTR("%a, %d %b %Y %H:%M:%S GMT");
+  char format[strlen_P(formatP) + 1];
+  strcpy_P(format, formatP);
+#else
   static constexpr const char* format = "%a, %d %b %Y %H:%M:%S GMT";
+#endif
 
   strftime(result, sizeof(result), format, last_modified);
   _last_modified = result;
@@ -133,7 +139,11 @@ bool AsyncStaticWebHandler::_getFile(AsyncWebServerRequest* request) const {
   return const_cast<AsyncStaticWebHandler*>(this)->_searchFile(request, path);
 }
 
+#ifdef ESP32
   #define FILE_IS_REAL(f) (f == true && !f.isDirectory())
+#else
+  #define FILE_IS_REAL(f) (f == true)
+#endif
 
 bool AsyncStaticWebHandler::_searchFile(AsyncWebServerRequest* request, const String& path) {
   bool fileFound = false;
@@ -298,6 +308,7 @@ void AsyncCallbackWebHandler::handleUpload(AsyncWebServerRequest* request, const
     _onUpload(request, filename, index, data, len, final);
 }
 void AsyncCallbackWebHandler::handleBody(AsyncWebServerRequest* request, uint8_t* data, size_t len, size_t index, size_t total) {
+  // ESP_LOGD("AsyncWebServer", "AsyncCallbackWebHandler::handleBody");
   if (_onBody)
     _onBody(request, data, len, index, total);
 }

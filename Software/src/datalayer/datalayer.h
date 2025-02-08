@@ -282,10 +282,17 @@ typedef struct {
   bool BMS_reset_in_progress = false;
   /** True if the BMS is starting up */
   bool BMS_startup_in_progress = false;
+#ifdef PRECHARGE_CONTROL
+  /** State of automatic precharge sequence */
+  PrechargeState precharge_status = AUTO_PRECHARGE_IDLE;
+#endif
 } DATALAYER_SYSTEM_STATUS_TYPE;
 
 typedef struct {
   bool equipment_stop_active = false;
+#ifdef PRECHARGE_CONTROL
+  bool start_precharging = false;
+#endif
 } DATALAYER_SYSTEM_SETTINGS_TYPE;
 
 typedef struct {
