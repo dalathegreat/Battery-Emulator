@@ -41,8 +41,10 @@ unsigned long timeSpentInFaultedMode = 0;
 #endif
 unsigned long currentTime = 0;
 unsigned long lastPowerRemovalTime = 0;
+unsigned long bmsPowerOnTime = 0;
 const unsigned long powerRemovalInterval = 24 * 60 * 60 * 1000;  // 24 hours in milliseconds
 const unsigned long powerRemovalDuration = 30000;                // 30 seconds in milliseconds
+const unsigned long bmsWarmupDuration = 3000;
 
 void set(uint8_t pin, bool direction, uint32_t pwm_freq = 0xFFFF) {
 #ifdef PWM_CONTACTOR_CONTROL
@@ -254,18 +256,23 @@ void handle_BMSpower() {
   }
 #endif  //PERIODIC_BMS_RESET
 
-  // If power has been removed for 30 seconds, restore the power and resume the emulator
+  // If power has been removed for 30 seconds, restore the power
   if (datalayer.system.status.BMS_reset_in_progress && currentTime - lastPowerRemovalTime >= powerRemovalDuration) {
     // Reapply power to the BMS
     digitalWrite(BMS_POWER, HIGH);
 #ifdef BMS_2_POWER
     digitalWrite(BMS_2_POWER, HIGH);  // Same for battery 2
 #endif
+    bmsPowerOnTime = currentTime;
+    datalayer.system.status.BMS_reset_in_progress = false;   // Reset the power removal flag
+    datalayer.system.status.BMS_startup_in_progress = true;  // Set the BMS warmup flag
+  }
+  //if power has been restored we need to wait a couple of seconds to unpause the battery
+  if (datalayer.system.status.BMS_startup_in_progress && currentTime - bmsPowerOnTime >= bmsWarmupDuration) {
 
-    //Resume from the power pause
     setBatteryPause(false, false, false, false);
 
-    datalayer.system.status.BMS_reset_in_progress = false;  // Reset the power removal flag
+    datalayer.system.status.BMS_startup_in_progress = false;  // Reset the BMS warmup removal flag
     set_event(EVENT_PERIODIC_BMS_RESET, 0);
   }
 #endif  //defined(PERIODIC_BMS_RESET) || defined(REMOTE_BMS_RESET)

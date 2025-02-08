@@ -280,6 +280,8 @@ typedef struct {
 #endif
   /** True if the BMS is being reset, by cutting power towards it */
   bool BMS_reset_in_progress = false;
+  /** True if the BMS is starting up */
+  bool BMS_startup_in_progress = false;
 } DATALAYER_SYSTEM_STATUS_TYPE;
 
 typedef struct {
