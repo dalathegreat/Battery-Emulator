@@ -20,6 +20,7 @@ static unsigned long currentMillis;
 static unsigned long startupMillis = 0;
 static unsigned long contactorMillis = 0;
 
+static uint8_t rx_index = 0;
 static boolean RX_allow = false;
 
 union f32b {
@@ -28,14 +29,17 @@ union f32b {
 };
 
 uint8_t BATTERY_INFO[40] = {
-    0x06, 0xE2, 0xFF, 0x02, 0xFF, 0x29,  // Frame header
-    0x01, 0x08, 0x80, 0x43,              // 256.063 Nominal voltage / 5*51.2=256      first byte 0x01 or 0x04
-    0xE4, 0x70, 0x8A, 0x5C,              // These might be Umin & Unax, Uint16
-    0xB5, 0x02, 0xD3, 0x01,              // Battery Serial number? Modbus register 527
-    0x01, 0x05, 0xC8, 0x41,              // 25.0024  ?
-    0xC2, 0x18,                          // Battery Firmware, modbus register 586
-    0x01, 0x03, 0x59, 0x42,              // 0x00005942 = 54.25 ??
-    0x01, 0x01, 0x01, 0x02, 0x05, 0x02, 0xA0, 0x01, 0x01, 0x02,
+    0x00, 0xE2, 0xFF, 0x02, 0xFF, 0x29,  // Frame header
+    0x00, 0x00, 0x80, 0x43,              // 256.063 Nominal voltage / 5*51.2=256      first byte 0x01 or 0x04
+    0xE4, 0x70, 0x8A, 0x5C,              // Manufacture date (Epoch time) (BYD: GetBatteryInfo this[0x10ac])
+    0xB5, 0x00, 0xD3, 0x00,              // Battery Serial number? Modbus register 527 - 0x10b0
+    0x00, 0x00, 0xC8, 0x41,              // 0x10b4
+    0xC2, 0x18,                          // Battery Firmware, modbus register 586  (0x10b8)
+    0x00,                                // Static (BYD: GetBatteryInfo this[0x10ba])
+    0x00,                                // ?
+    0x59, 0x42,                          // Static (BYD: GetBatteryInfo this[0x10bc])
+    0x00, 0x00,                          // Static (BYD: GetBatteryInfo this[0x10be])
+    0x00, 0x00, 0x05, 0x00, 0xA0, 0x00, 0x00, 0x00,
     0x4D,   // CRC
     0x00};  //
 
@@ -59,11 +63,11 @@ uint8_t CyclicData[64] = {
 
     0xFE, 0x04,  // Cycle count,
     0x00,        // Byte 56
-    0x40,        // When SOC=100 Byte57=0x40, at startup 0x03 (about 7 times), otherwise 0x02
+    0x00,        // When SOC=100 Byte57 seen as 0x40,
     0x64,        // SOC , Bit 58
     0x00,        // Unknown,
     0x00,        // Unknown,
-    0x02,        // Unknown, Mostly 0x02. seen also 0x01
+    0x01,        // Unknown, Byte 61, 1 only at first frame
     0x00,        // CRC (inverted sum of bytes 1-62 + 0xC0), Bit 62
     0x00};
 
@@ -80,7 +84,6 @@ uint8_t frame3[9] = {
 uint8_t frame4[8] = {0x07, 0xE3, 0xFF, 0x02, 0xFF, 0x29, 0xF4, 0x00};
 
 uint8_t frameB1[10] = {0x07, 0x63, 0xFF, 0x02, 0xFF, 0x29, 0x5E, 0x02, 0x16, 0x00};
-uint8_t frameB1b[8] = {0x07, 0xE3, 0xFF, 0x02, 0xFF, 0x29, 0xF4, 0x00};
 
 uint8_t RS485_RXFRAME[300];
 
@@ -116,6 +119,18 @@ static void dbg_frame(byte* frame, int len, const char* prefix) {
     logging.print(" ");
   }
   logging.println("");
+#endif
+#ifdef DEBUG_KOSTAL_RS485_DATA_USB
+  Serial.print(prefix);
+  Serial.print(": ");
+  for (uint8_t i = 0; i < len; i++) {
+    if (frame[i] < 0x10) {
+      Serial.print("0");
+    }
+    Serial.print(frame[i], HEX);
+    Serial.print(" ");
+  }
+  Serial.println("");
 #endif
 }
 
@@ -154,20 +169,20 @@ byte calculate_kostal_crc(byte* lfc, int len) {
   return (byte)(-sum & 0xff);
 }
 
-byte calculate_frame1_crc(byte* lfc, int lastbyte) {
+bool check_kostal_frame_crc(int len) {
   unsigned int sum = 0;
-  for (int i = 0; i < lastbyte; ++i) {
-    sum += lfc[i];
-  }
-  return ((byte) ~(sum - 0x28) & 0xff);
-}
-
-bool check_kostal_frame_crc() {
-  unsigned int sum = 0;
-  for (int i = 1; i < 8; ++i) {
+  int zeropointer = RS485_RXFRAME[0];
+  int last_zero = 0;
+  for (int i = 1; i < len - 2; ++i) {
+    if (i == zeropointer + last_zero) {
+      zeropointer = RS485_RXFRAME[i];
+      last_zero = i;
+      RS485_RXFRAME[i] = 0x00;
+    }
     sum += RS485_RXFRAME[i];
   }
-  if (((~sum + 1) & 0xff) == (RS485_RXFRAME[8] & 0xff)) {
+
+  if ((-sum & 0xff) == (RS485_RXFRAME[len - 2] & 0xff)) {
     return (true);
   } else {
     return (false);
@@ -185,9 +200,7 @@ void update_RS485_registers_inverter() {
   if (datalayer.system.status.battery_allows_contactor_closing &
       datalayer.system.status.inverter_allows_contactor_closing) {
     float2frame(CyclicData, (float)datalayer.battery.status.voltage_dV / 10, 6);  // Confirmed OK mapping
-    CyclicData[0] = 0x0A;
   } else {
-    CyclicData[0] = 0x06;
     float2frame(CyclicData, 0.0, 6);
   }
   // Set nominal voltage to value between min and max voltage set by battery (Example 400 and 300 results in 350V)
@@ -196,13 +209,13 @@ void update_RS485_registers_inverter() {
        datalayer.battery.info.min_design_voltage_dV);
   float2frame(BATTERY_INFO, (float)nominal_voltage_dV / 10, 6);
 
+
   float2frame(CyclicData, (float)datalayer.battery.info.max_design_voltage_dV / 10, 10);
 
   float2frame(CyclicData, (float)average_temperature_dC / 10, 14);
 
-  //  Some current values causes communication error, must be resolved, why.
-  //  float2frame(CyclicData, (float)datalayer.battery.status.current_dA / 10, 18);  // Peak discharge? current (2 byte float)
-  //  float2frame(CyclicData, (float)datalayer.battery.status.current_dA / 10, 22);
+  float2frame(CyclicData, (float)datalayer.battery.status.current_dA / 10, 18);  // Last current
+  float2frame(CyclicData, (float)datalayer.battery.status.current_dA / 10, 22);  // Should be Avg current(1s)
 
   float2frame(CyclicData, (float)datalayer.battery.status.max_discharge_current_dA / 10, 26);
 
@@ -242,8 +255,6 @@ void update_RS485_registers_inverter() {
 
   register_content_ok = true;
 
-  BATTERY_INFO[38] = calculate_frame1_crc(BATTERY_INFO, 38);
-
   if (incoming_message_counter > 0) {
     incoming_message_counter--;
   }
@@ -255,8 +266,6 @@ void update_RS485_registers_inverter() {
   }
 }
 
-static uint8_t rx_index = 0;
-
 void receive_RS485()  // Runs as fast as possible to handle the serial stream
 {
   currentMillis = millis();
@@ -265,97 +274,84 @@ void receive_RS485()  // Runs as fast as possible to handle the serial stream
     contactorMillis = currentMillis;
   }
   if (currentMillis - contactorMillis >= INTERVAL_2_S & !RX_allow) {
-    RX_allow = true;
     dbg_message("RX_allow -> true");
+    RX_allow = true;
   }
 
-  if (startupMillis) {
-    if (((currentMillis - startupMillis) >= INTERVAL_2_S & currentMillis - startupMillis <= 7000) &
-        datalayer.system.status.inverter_allows_contactor_closing) {
-      // Disconnect allowed only, when curren zero
-      if (datalayer.battery.status.current_dA == 0) {
-        datalayer.system.status.inverter_allows_contactor_closing = false;
-        dbg_message("inverter_allows_contactor_closing -> false");
-      }
-    } else if (((currentMillis - startupMillis) >= 7000) &
-               datalayer.system.status.inverter_allows_contactor_closing == false) {
-      datalayer.system.status.inverter_allows_contactor_closing = true;
-      dbg_message("inverter_allows_contactor_closing -> true");
-    }
-  }
-
-  if (B1_delay) {
-    if ((currentMillis - B1_last_millis) > INTERVAL_1_S) {
-      send_kostal(frameB1b, 8);
-      B1_delay = false;
-      dbg_message("B1_delay -> false");
-    }
-  } else if (Serial2.available()) {
+  if (Serial2.available()) {
     RS485_RXFRAME[rx_index] = Serial2.read();
     if (RX_allow) {
       rx_index++;
       if (RS485_RXFRAME[rx_index - 1] == 0x00) {
-        if ((rx_index == 10) && (RS485_RXFRAME[0] == 0x09) && register_content_ok) {
+        if ((rx_index > 9) && register_content_ok) {
           dbg_frame(RS485_RXFRAME, 10, "RX");
-          rx_index = 0;
-          if (check_kostal_frame_crc()) {
+          if (check_kostal_frame_crc(rx_index)) {
             incoming_message_counter = RS485_HEALTHY;
-            bool headerA = true;
-            bool headerB = true;
-            for (uint8_t i = 0; i < 5; i++) {
-              if (RS485_RXFRAME[i + 1] != KOSTAL_FRAMEHEADER[i]) {
-                headerA = false;
-              }
-              if (RS485_RXFRAME[i + 1] != KOSTAL_FRAMEHEADER2[i]) {
-                headerB = false;
-              }
-            }
 
-            // "frame B1", maybe reset request, seen after battery power on/partial data
-            if (headerB && (RS485_RXFRAME[6] == 0x5E) && (RS485_RXFRAME[7] == 0xFF)) {
-              send_kostal(frameB1, 10);
-              B1_delay = true;
-              dbg_message("B1_delay -> true");
-              B1_last_millis = currentMillis;
-            }
-
-            // "frame B1", maybe reset request, seen after battery power on/partial data
-            if (headerB && (RS485_RXFRAME[6] == 0x5E) && (RS485_RXFRAME[7] == 0x04)) {
-              send_kostal(frame4, 8);
-              // This needs more reverse engineering, disabled...
-            }
-
-            if (headerA && (RS485_RXFRAME[6] == 0x4A) && (RS485_RXFRAME[7] == 0x08)) {  // "frame 1"
-              send_kostal(BATTERY_INFO, 40);
-              if (!startupMillis) {
-                startupMillis = currentMillis;
+            if (RS485_RXFRAME[1] == 'c') {
+              if (RS485_RXFRAME[6] == 0x47) {
+                // Set time function - Do nothing.
+                send_kostal(frame4, 8);  // ACK
               }
-            }
-            if (headerA && (RS485_RXFRAME[6] == 0x4A) && (RS485_RXFRAME[7] == 0x04)) {  // "frame 2"
-              update_values_battery();
-              update_RS485_registers_inverter();
-              if (f2_startup_count < 15) {
-                f2_startup_count++;
+              if (RS485_RXFRAME[6] == 0x5E) {
+                // Set State function
+                if (RS485_RXFRAME[7] == 0x00) {
+                  // Allow contactor closing
+                  datalayer.system.status.inverter_allows_contactor_closing = true;
+                  dbg_message("inverter_allows_contactor_closing -> true");
+                  send_kostal(frame4, 8);  // ACK
+                } else if (RS485_RXFRAME[7] == 0x04) {
+                  // INVALID STATE, no ACK sent
+                } else {
+                  // Battery deep sleep?
+                  send_kostal(frame4, 8);  // ACK
+                }
               }
-              byte tmpframe[64];  //copy values to prevent data manipulation during rewrite/crc calculation
-              memcpy(tmpframe, CyclicData, 64);
-
-              tmpframe[62] = calculate_kostal_crc(tmpframe, 62);
-              null_stuffer(tmpframe, 64);
-              send_kostal(tmpframe, 64);
-            }
-            if (headerA && (RS485_RXFRAME[6] == 0x53) && (RS485_RXFRAME[7] == 0x03)) {  // "frame 3"
-              send_kostal(frame3, 9);
+            } else if (RS485_RXFRAME[1] == 'b') {
+              if (RS485_RXFRAME[6] == 0x50) {
+                //Reverse polarity, do nothing
+              } else {
+                int code = RS485_RXFRAME[6] + RS485_RXFRAME[7] * 0x100;
+                if (code == 0x44a) {
+                  //Send cyclic data
+                  update_values_battery();
+                  update_RS485_registers_inverter();
+                  if (f2_startup_count < 15) {
+                    f2_startup_count++;
+                  }
+                  byte tmpframe[64];  //copy values to prevent data manipulation during rewrite/crc calculation
+                  memcpy(tmpframe, CyclicData, 64);
+                  tmpframe[62] = calculate_kostal_crc(tmpframe, 62);
+                  null_stuffer(tmpframe, 64);
+                  send_kostal(tmpframe, 64);
+                  CyclicData[61] = 0x00;
+                }
+                if (code == 0x84a) {
+                  //Send  battery info
+                  byte tmpframe[40];  //copy values to prevent data manipulation during rewrite/crc calculation
+                  memcpy(tmpframe, BATTERY_INFO, 40);
+                  tmpframe[38] = calculate_kostal_crc(tmpframe, 38);
+                  null_stuffer(tmpframe, 40);
+                  send_kostal(tmpframe, 40);
+                  datalayer.system.status.inverter_allows_contactor_closing = true;
+                  dbg_message("inverter_allows_contactor_closing -> true");
+                  if (!startupMillis) {
+                    startupMillis = currentMillis;
+                  }
+                }
+                if (code == 0x353) {
+                  //Send  battery error
+                  send_kostal(frame3, 9);
+                }
+              }
             }
           }
-        } else {
-          dbg_frame(RS485_RXFRAME, 10, "RX (dropped)");
+          rx_index = 0;
         }
         rx_index = 0;
       }
     }
-    if (rx_index >= 10) {
-      dbg_frame(RS485_RXFRAME, 10, "RX (!RX_allow)");
+    if (rx_index >= 299) {
       rx_index = 0;
     }
   }
@@ -364,6 +360,8 @@ void receive_RS485()  // Runs as fast as possible to handle the serial stream
 void setup_inverter(void) {  // Performs one time setup at startup
   strncpy(datalayer.system.info.inverter_protocol, "BYD battery via Kostal RS485", 63);
   datalayer.system.info.inverter_protocol[63] = '\0';
+  datalayer.system.status.inverter_allows_contactor_closing = false;
+  dbg_message("inverter_allows_contactor_closing -> false");
 }
 
 #endif
