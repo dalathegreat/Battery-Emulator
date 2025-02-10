@@ -8,6 +8,7 @@ CAN_device_t CAN_cfg;          // CAN Config
 const int rx_queue_size = 10;  // Receive Queue size
 volatile bool send_ok_2515 = 0;
 volatile bool send_ok_2518 = 0;
+volatile bool send_ok_2518_2 = 0;
 
 #ifdef CAN_ADDON
 static const uint32_t QUARTZ_FREQUENCY = CRYSTAL_FREQUENCY_MHZ * 1000000UL;  //MHZ configured in USER_SETTINGS.h
@@ -249,8 +250,8 @@ void transmit_can_frame(CAN_frame* tx_frame, int interface) {
       for (uint8_t i = 0; i < MCP2518Frame.len; i++) {
         MCP2518Frame.data[i] = tx_frame->data.u8[i];
       }
-      send_ok = canfd2.tryToSend(MCP2518Frame);
-      if (!send_ok) {
+      send_ok_2518_2 = canfd2.tryToSend(MCP2518Frame);
+      if (!send_ok_2518_2) {
         set_event(EVENT_CANFD_BUFFER_FULL, interface);
       } else {
         clear_event(EVENT_CANFD_BUFFER_FULL);
