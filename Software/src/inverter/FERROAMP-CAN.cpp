@@ -11,7 +11,7 @@
 
 /* Some inverters need to see a specific amount of cells/modules to emulate a specific Pylon battery.
 Change the following only if your inverter is generating fault codes about voltage range */
-#define TOTAL_CELL_AMOUNT 420
+#define TOTAL_CELL_AMOUNT 120  //Adjust this parameter in steps of 120 to add another 14,2kWh of capacity
 #define MODULES_IN_SERIES 4
 #define CELLS_PER_MODULE 30
 #define VOLTAGE_LEVEL 384
