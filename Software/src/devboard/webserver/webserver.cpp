@@ -885,8 +885,18 @@ String processor(const String& var) {
     } else {
       content += formatPowerValue("Max discharge power", datalayer.battery.status.max_discharge_power_W, "", 1);
       content += formatPowerValue("Max charge power", datalayer.battery.status.max_charge_power_W, "", 1);
-      content += "<h4 style='color: white;'>Max discharge current: " + String(maxCurrentDischargeFloat, 1) + " A</h4>";
-      content += "<h4 style='color: white;'>Max charge current: " + String(maxCurrentChargeFloat, 1) + " A</h4>";
+      content += "<h4 style='color: white;'>Max discharge current: " + String(maxCurrentDischargeFloat, 1) + " A";
+      if (datalayer.battery.settings.user_settings_limit_discharge) {
+        content += " (Manual)</h4>";
+      } else {
+        content += " (BMS)</h4>";
+      }
+      content += "<h4 style='color: white;'>Max charge current: " + String(maxCurrentChargeFloat, 1) + " A";
+      if (datalayer.battery.settings.user_settings_limit_charge) {
+        content += " (Manual)</h4>";
+      } else {
+        content += " (BMS)</h4>";
+      }
     }
 
     content += "<h4>Cell max: " + String(datalayer.battery.status.cell_max_voltage_mV) + " mV</h4>";
@@ -947,9 +957,22 @@ String processor(const String& var) {
     if (datalayer.battery.status.current_dA == 0) {
       content += "<h4>Battery idle</h4>";
     } else if (datalayer.battery.status.current_dA < 0) {
-      content += "<h4>Battery discharging!</h4>";
-    } else {  // > 0
-      content += "<h4>Battery charging!</h4>";
+      content += "<h4>Battery discharging!";
+      if (datalayer.battery.settings.inverter_limits_discharge) {
+        content += " (Inverter limiting)</h4>";
+      } else {
+        //Note, this can also be settings limiting
+        content += " (Battery limiting)</h4>";
+      }
+      content += "</h4>";
+    } else {  // > 0 , positive current
+      content += "<h4>Battery charging!";
+      if (datalayer.battery.settings.inverter_limits_charge) {
+        content += " (Inverter limiting)</h4>";
+      } else {
+        //Note, this can also be settings limiting
+        content += " (Battery limiting)</h4>";
+      }
     }
 
     content += "<h4>Automatic contactor closing allowed:</h4>";
