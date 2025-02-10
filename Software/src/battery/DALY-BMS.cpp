@@ -27,8 +27,8 @@ void update_values_battery() {
   datalayer.battery.status.current_dA = current_dA;  //value is *10 (150 = 15.0)
   datalayer.battery.status.remaining_capacity_Wh = (remaining_capacity_mAh * (uint32_t)voltage_dV) / 10000;
 
-  datalayer.battery.status.max_charge_power_W = (MAX_CHARGE_AMPS * voltage_dV) / 10;
-  datalayer.battery.status.max_discharge_power_W = (MAX_DISCHARGE_AMPS * voltage_dV) / 10;
+  datalayer.battery.status.max_charge_power_W = (BATTERY_MAX_CHARGE_AMP * voltage_dV) / 100;
+  datalayer.battery.status.max_discharge_power_W = (BATTERY_MAX_DISCHARGE_AMP * voltage_dV) / 100;
 
   uint32_t adaptive_power_limit = 999999;
   if (SOC < 2000)
@@ -59,7 +59,7 @@ void setup_battery(void) {  // Performs one time setup at startup
   datalayer.battery.info.min_design_voltage_dV = MIN_PACK_VOLTAGE_DV;
   datalayer.battery.info.max_cell_voltage_mV = MAX_CELL_VOLTAGE_MV;
   datalayer.battery.info.min_cell_voltage_mV = MIN_CELL_VOLTAGE_MV;
-  datalayer.battery.info.total_capacity_Wh = PACK_CAPACITY_AH;
+  datalayer.battery.info.total_capacity_Wh = BATTERY_WH_MAX;
 }
 
 uint8_t calculate_checksum(uint8_t buff[12]) {
