@@ -8,6 +8,7 @@ CAN_device_t CAN_cfg;          // CAN Config
 const int rx_queue_size = 10;  // Receive Queue size
 volatile bool send_ok_2515 = 0;
 volatile bool send_ok_2518 = 0;
+volatile bool send_ok_2518_2 = 0;
 
 #ifdef CAN_ADDON
 static const uint32_t QUARTZ_FREQUENCY = CRYSTAL_FREQUENCY_MHZ * 1000000UL;  //MHZ configured in USER_SETTINGS.h
@@ -18,6 +19,9 @@ static ACAN2515_Buffer16 gBuffer;
 #ifdef CANFD_ADDON
 SPIClass SPI2517;
 ACAN2517FD canfd(MCP2517_CS, SPI2517, MCP2517_INT);
+#ifdef CANFD_ADDON_DOUBLE
+ACAN2517FD canfd2(SECOND_MCP2517_CS, SPI2517, SECOND_MCP2517_INT);
+#endif
 #endif  //CANFD_ADDON
 
 // Initialization functions
@@ -100,6 +104,45 @@ void init_CAN() {
 #endif  // DEBUG_LOG
     set_event(EVENT_CANMCP2517FD_INIT_FAILURE, (uint8_t)errorCode2517);
   }
+  //#ifdef CANFD_ADDON_DOUBLE
+  // Initialize CAN-FD2
+  ACAN2517FDSettings settings2517double(
+      CANFD_ADDON_CRYSTAL_FREQUENCY_MHZ, 500 * 1000,
+      DataBitRateFactor::x4);  // Arbitration bit rate: 500 kbit/s, data bit rate: 2 Mbit/s
+#ifdef USE_CANFD_INTERFACE_AS_CLASSIC_CAN
+  settings2517double.mRequestedMode = ACAN2517FDSettings::Normal20B;  // ListenOnly / Normal20B / NormalFD
+#else                                                                 // not USE_CANFD_INTERFACE_AS_CLASSIC_CAN
+  settings2517double.mRequestedMode = ACAN2517FDSettings::NormalFD;  // ListenOnly / Normal20B / NormalFD
+#endif                                                                // USE_CANFD_INTERFACE_AS_CLASSIC_CAN
+  const uint32_t errorCode2 = canfd2.begin(settings2517double, [] { canfd2.isr(); });
+  canfd2.poll();
+  if (errorCode2 == 0) {
+#ifdef DEBUG_LOG
+    logging.print("CAN-FD2 initialized. Bit Rate prescaler: ");
+    logging.println(settings2517double.mBitRatePrescaler);
+    logging.print("Arbitration Phase segment 1: ");
+    logging.print(settings2517double.mArbitrationPhaseSegment1);
+    logging.print(" segment 2: ");
+    logging.print(settings2517double.mArbitrationPhaseSegment2);
+    logging.print(" SJW: ");
+    logging.println(settings2517double.mArbitrationSJW);
+    logging.print("Actual Arbitration Bit Rate: ");
+    logging.print(settings2517double.actualArbitrationBitRate());
+    logging.print(" bit/s");
+    logging.print(" (Exact:");
+    logging.println(settings2517double.exactArbitrationBitRate() ? "yes)" : "no)");
+    logging.print("Arbitration Sample point: ");
+    logging.print(settings2517double.arbitrationSamplePointFromBitStart());
+    logging.println("%");
+#endif
+  } else {
+#ifdef DEBUG_LOG
+    logging.print("CAN-FD2 Configuration error 0x");
+    logging.println(errorCode2, HEX);
+#endif
+    set_event(EVENT_CANMCP2517FD_INIT_FAILURE, (uint8_t)errorCode2);
+  }
+  //#endif // CANFD_ADDON_DOUBLE
 #endif  // CANFD_ADDON
 }
 
@@ -193,6 +236,30 @@ void transmit_can_frame(CAN_frame* tx_frame, int interface) {
       set_event(EVENT_INTERFACE_MISSING, interface);
 #endif  //CANFD_ADDON
     } break;
+    case CANFD_ADDON_MCP2518_DOUBLE: {
+#ifdef CANFD_ADDON_DOUBLE
+      CANFDMessage MCP2518Frame;
+      if (tx_frame->FD) {
+        MCP2518Frame.type = CANFDMessage::CANFD_WITH_BIT_RATE_SWITCH;
+      } else {  //Classic CAN message
+        MCP2518Frame.type = CANFDMessage::CAN_DATA;
+      }
+      MCP2518Frame.id = tx_frame->ID;
+      MCP2518Frame.ext = tx_frame->ext_ID ? CAN_frame_ext : CAN_frame_std;
+      MCP2518Frame.len = tx_frame->DLC;
+      for (uint8_t i = 0; i < MCP2518Frame.len; i++) {
+        MCP2518Frame.data[i] = tx_frame->data.u8[i];
+      }
+      send_ok_2518_2 = canfd2.tryToSend(MCP2518Frame);
+      if (!send_ok_2518_2) {
+        set_event(EVENT_CANFD_BUFFER_FULL, interface);
+      } else {
+        clear_event(EVENT_CANFD_BUFFER_FULL);
+      }
+#else   // Interface not compiled, and settings try to use it
+      set_event(EVENT_INTERFACE_MISSING, interface);
+#endif  //CANFD_ADDON_DOUBLE
+    } break;
     default:
       // Invalid interface sent with function call. TODO: Raise event that coders messed up
       break;
@@ -208,6 +275,9 @@ void receive_can() {
 #ifdef CANFD_ADDON
   receive_frame_canfd_addon();  // Receive CAN-FD messages.
 #endif                          // CANFD_ADDON
+#ifdef CANFD_ADDON_DOUBLE
+  receive_frame_canfd_double_addon();  // Receive CAN-FD messages
+#endif                                 // CANFD_ADDON_DOUBLE
 }
 
 void receive_frame_can_native() {  // This section checks if we have a complete CAN message incoming on native CAN port
@@ -253,7 +323,7 @@ void receive_frame_can_addon() {  // This section checks if we have a complete C
 #ifdef CANFD_ADDON
 void receive_frame_canfd_addon() {  // This section checks if we have a complete CAN-FD message incoming
   CANFDMessage MCP2518frame;
-  int count = 0;
+  uint8_t count = 0;
   while (canfd.available() && count++ < 16) {
     canfd.receive(MCP2518frame);
 
@@ -268,6 +338,24 @@ void receive_frame_canfd_addon() {  // This section checks if we have a complete
   }
 }
 #endif  // CANFD_ADDON
+
+#ifdef CANFD_ADDON_DOUBLE
+void receive_frame_canfd_double_addon() {  // This section checks if we have a complete CAN-FD message incoming
+  CANFDMessage MCP2518frame;
+  uint8_t count = 0;
+  while (canfd2.available() && count++ < 16) {
+    canfd2.receive(MCP2518frame);
+
+    CAN_frame rx_frame;
+    rx_frame.ID = MCP2518frame.id;
+    rx_frame.ext_ID = MCP2518frame.ext;
+    rx_frame.DLC = MCP2518frame.len;
+    memcpy(rx_frame.data.u8, MCP2518frame.data, MIN(rx_frame.DLC, 64));
+    //message incoming, pass it on to the handler
+    map_can_frame_to_variable(&rx_frame, CANFD_ADDON_MCP2518_DOUBLE);
+  }
+}
+#endif  // CANFD_ADDON_DOUBLE
 
 // Support functions
 void print_can_frame(CAN_frame frame, frameDirection msgDir) {
