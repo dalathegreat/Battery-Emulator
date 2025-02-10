@@ -87,7 +87,8 @@ void update_values_can_inverter() {
     PYLON_359.data.u8[0] |= 0x0C;
   if (datalayer.battery.status.voltage_dV * 100 <= datalayer.battery.info.min_cell_voltage_mV)
     PYLON_359.data.u8[0] |= 0x04;
-  // we never set PYLON_359.data.u8[1] |= 0x80 called "BMS internal"
+  if (datalayer.battery.status.bms_status == FAULT)
+    PYLON_359.data.u8[1] |= 0x80;
   if (datalayer.battery.status.current_dA <= -1 * datalayer.battery.status.max_charge_current_dA)
     PYLON_359.data.u8[1] |= 0x01;
 
