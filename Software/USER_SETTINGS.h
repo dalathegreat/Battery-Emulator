@@ -14,6 +14,7 @@
 //#define BMW_PHEV_BATTERY
 //#define BOLT_AMPERA_BATTERY
 //#define BYD_ATTO_3_BATTERY
+//#define FOXESS_BATTERY
 //#define CELLPOWER_BMS
 //#define CHADEMO_BATTERY	//NOTE: inherently enables CONTACTOR_CONTROL below
 //#define IMIEV_CZERO_ION_BATTERY
@@ -125,7 +126,8 @@
 //#define FUNCTION_TIME_MEASUREMENT  // Enable this to record execution times and present them in the web UI (WARNING, raises CPU load, do not use for production)
 
 /* MQTT options */
-// #define MQTT  // Enable this line to enable MQTT
+// #define MQTT     // Enable this line to enable MQTT
+#define MQTT_QOS 0  // MQTT Quality of Service (0, 1, or 2)
 #define MQTT_MANUAL_TOPIC_OBJECT_NAME
 // Enable MQTT_MANUAL_TOPIC_OBJECT_NAME to use custom MQTT topic, object ID prefix, and device name.
 // WARNING: If this is not defined, the previous default naming format 'battery-emulator_esp32-XXXXXX' (based on hardware ID) will be used.
@@ -148,6 +150,8 @@
 #define BATTERY_MAXTEMPERATURE 500
 // -250 = -25.0 °C , Min temperature (Will produce a battery frozen event if below)
 #define BATTERY_MINTEMPERATURE -250
+// 150 = 15.0 °C , Max difference between min and max temperature (Will produce a battery temperature deviation event if greater)
+#define BATTERY_MAX_TEMPERATURE_DEVIATION 150
 // 300 = 30.0A , Max charge in Amp (Some inverters needs to be limited)
 #define BATTERY_MAX_CHARGE_AMP 300
 // 300 = 30.0A , Max discharge in Amp (Some inverters needs to be limited)
@@ -201,6 +205,10 @@ extern IPAddress subnet;
 
 #if defined(DEBUG_VIA_USB) || defined(DEBUG_VIA_WEB) || defined(LOG_TO_SD)
 #define DEBUG_LOG
+#endif
+
+#if defined(MEB_BATTERY)
+#define PRECHARGE_CONTROL
 #endif
 
 #endif  // __USER_SETTINGS_H__

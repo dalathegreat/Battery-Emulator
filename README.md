@@ -58,10 +58,12 @@ Start by watching this [quickstart guide](https://www.youtube.com/watch?v=hcl2Gd
 ![bild](https://github.com/dalathegreat/Battery-Emulator/assets/26695010/6a2414b1-f2ca-4746-8e8d-9afd78bd9252)
 
 5. The Arduino board should be set to `ESP32 Dev Module` and `Partition Scheme` to `Minimal SPIFFS (1.9MB APP with OTA/190KB SPIFFS)` (under `Tools` -> `Board` -> `ESP32 Arduino`) with the following settings:
-![ArduinoSettings](https://github.com/user-attachments/assets/faf0bdad-fcc4-4b90-adc0-7cd989174390)
-7. Select which battery type you will use, along with other optional settings. This is done in the `USER_SETTINGS.h` file.
-8. Copy the `USER_SECRETS.TEMPLATE.h` file to `USER_SECRETS.h` and update connectivity settings inside this file.
-9. Press `Verify` and `Upload` to send the sketch to the board.
+
+![ArduinoSettings](https://github.com/user-attachments/assets/74d36b07-cca4-4bf1-9eaf-1e7fa4e1effe)
+
+6. Select which battery type you will use, along with other optional settings. This is done in the `USER_SETTINGS.h` file.
+7. Copy the `USER_SECRETS.TEMPLATE.h` file to `USER_SECRETS.h` and update connectivity settings inside this file.
+8. Press `Verify` and `Upload` to send the sketch to the board.
 NOTE: In some cases, the LilyGo must be powered through the main power connector instead of USB-C
       when performing the initial firmware upload.
 NOTE: On Mac, the following USB driver may need to be installed: https://github.com/WCHSoftGroup/ch34xser_macos
@@ -92,7 +94,7 @@ This code uses the following excellent libraries:
 - [eModbus/eModbus](https://github.com/eModbus/eModbus) MIT-License
 - [mackelec/SerialDataLink](https://github.com/mackelec/SerialDataLink)
 - [mathieucarbou/AsyncTCPsock](https://github.com/mathieucarbou/AsyncTCPSock) LGPL-3.0 license
-- [mathieucarbou/ESPAsyncWebServer](https://github.com/mathieucarbou/ESPAsyncWebServer) LGPL-3.0 license
+- [ESP32Async/ESPAsyncWebServer](https://github.com/ESP32Async/ESPAsyncWebServer) LGPL-3.0 license
 - [miwagner/ESP32-Arduino-CAN](https://github.com/miwagner/ESP32-Arduino-CAN/) MIT-License
 - [pierremolinaro/acan2515](https://github.com/pierremolinaro/acan2515) MIT-License
 - [pierremolinaro/acan2517FD](https://github.com/pierremolinaro/acan2517FD) MIT-License

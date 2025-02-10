@@ -38,7 +38,6 @@ static void publish_values(void) {
 }
 
 #ifdef HA_AUTODISCOVERY
-
 static bool ha_common_info_published = false;
 static bool ha_cell_voltages_published = false;
 static bool ha_events_published = false;
@@ -114,10 +113,6 @@ static String generateEventsAutoConfigTopic(const char* object_id) {
   return "homeassistant/sensor/" + topic_name + "/" + String(object_id) + "/config";
 }
 
-static String generateButtonTopic(const char* subtype) {
-  return topic_name + "/command/" + String(subtype);
-}
-
 static String generateButtonAutoConfigTopic(const char* subtype) {
   return "homeassistant/button/" + topic_name + "/" + String(subtype) + "/config";
 }
@@ -131,6 +126,23 @@ void set_common_discovery_attributes(JsonDocument& doc) {
   doc["payload_available"] = "online";
   doc["payload_not_available"] = "offline";
   doc["enabled_by_default"] = true;
+}
+
+void set_battery_voltage_attributes(JsonDocument& doc, int i, int cellNumber, const String& state_topic,
+                                    const String& object_id_prefix, const String& battery_name_suffix) {
+  doc["name"] = "Battery" + battery_name_suffix + " Cell Voltage " + String(cellNumber);
+  doc["object_id"] = object_id_prefix + "battery_voltage_cell" + String(cellNumber);
+  doc["unique_id"] = topic_name + object_id_prefix + "_battery_voltage_cell" + String(cellNumber);
+  doc["device_class"] = "voltage";
+  doc["state_class"] = "measurement";
+  doc["state_topic"] = state_topic;
+  doc["unit_of_measurement"] = "V";
+  doc["value_template"] = "{{ value_json.cell_voltages[" + String(i) + "] }}";
+}
+#endif  // HA_AUTODISCOVERY
+
+static String generateButtonTopic(const char* subtype) {
+  return topic_name + "/command/" + String(subtype);
 }
 
 void set_battery_attributes(JsonDocument& doc, const DATALAYER_BATTERY_TYPE& battery, const String& suffix) {
@@ -154,20 +166,6 @@ void set_battery_attributes(JsonDocument& doc, const DATALAYER_BATTERY_TYPE& bat
   doc["max_discharge_power" + suffix] = ((float)battery.status.max_discharge_power_W);
   doc["max_charge_power" + suffix] = ((float)battery.status.max_charge_power_W);
 }
-
-void set_battery_voltage_attributes(JsonDocument& doc, int i, int cellNumber, const String& state_topic,
-                                    const String& object_id_prefix, const String& battery_name_suffix) {
-  doc["name"] = "Battery" + battery_name_suffix + " Cell Voltage " + String(cellNumber);
-  doc["object_id"] = object_id_prefix + "battery_voltage_cell" + String(cellNumber);
-  doc["unique_id"] = topic_name + object_id_prefix + "_battery_voltage_cell" + String(cellNumber);
-  doc["device_class"] = "voltage";
-  doc["state_class"] = "measurement";
-  doc["state_topic"] = state_topic;
-  doc["unit_of_measurement"] = "V";
-  doc["value_template"] = "{{ value_json.cell_voltages[" + String(i) + "] }}";
-}
-
-#endif  // HA_AUTODISCOVERY
 
 static std::vector<EventData> order_events;
 
@@ -482,8 +480,9 @@ static void mqtt_event_handler(void* handler_args, esp_event_base_t base, int32_
 
 void init_mqtt(void) {
 
-#ifdef MQTT
+#ifdef HA_AUTODISCOVERY
   create_sensor_configs();
+#endif  // HA_AUTODISCOVERY
 #ifdef MQTT_MANUAL_TOPIC_OBJECT_NAME
   // Use custom topic name, object ID prefix, and device name from user settings
   topic_name = mqtt_topic_name;
@@ -496,7 +495,6 @@ void init_mqtt(void) {
   object_id_prefix = String(WiFi.getHostname()) + String("_");
   device_name = "BatteryEmulator_" + String(WiFi.getHostname());
   device_id = "battery-emulator";
-#endif
 #endif
 
   char clientId[64];  // Adjust the size as needed
@@ -538,6 +536,6 @@ void mqtt_loop(void) {
 }
 
 bool mqtt_publish(const char* topic, const char* mqtt_msg, bool retain) {
-  int msg_id = esp_mqtt_client_publish(client, topic, mqtt_msg, strlen(mqtt_msg), 1, retain);
+  int msg_id = esp_mqtt_client_publish(client, topic, mqtt_msg, strlen(mqtt_msg), MQTT_QOS, retain);
   return msg_id > -1;
 }

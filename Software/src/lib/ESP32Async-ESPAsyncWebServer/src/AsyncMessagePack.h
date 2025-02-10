@@ -1,5 +1,26 @@
 #pragma once
 
+/*
+   server.on("/msg_pack", HTTP_ANY, [](AsyncWebServerRequest * request) {
+    AsyncMessagePackResponse * response = new AsyncMessagePackResponse();
+    JsonObject& root = response->getRoot();
+    root["key1"] = "key number one";
+    JsonObject& nested = root.createNestedObject("nested");
+    nested["key1"] = "key number one";
+    response->setLength();
+    request->send(response);
+  });
+
+  --------------------
+
+  AsyncCallbackMessagePackWebHandler* handler = new AsyncCallbackMessagePackWebHandler("/msg_pack/endpoint");
+  handler->onRequest([](AsyncWebServerRequest *request, JsonVariant &json) {
+    JsonObject jsonObj = json.as<JsonObject>();
+    // ...
+  });
+  server.addHandler(handler);
+*/
+
 #if __has_include("ArduinoJson.h")
   #include <ArduinoJson.h>
   #if ARDUINOJSON_VERSION_MAJOR >= 6

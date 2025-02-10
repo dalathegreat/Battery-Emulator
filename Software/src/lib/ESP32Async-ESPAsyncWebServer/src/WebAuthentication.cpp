@@ -93,7 +93,11 @@ static bool getMD5(uint8_t* data, uint16_t len, char* output) { // 33 bytes or m
 }
 
 String genRandomMD5() {
+#ifdef ESP8266
+  uint32_t r = RANDOM_REG32;
+#else
   uint32_t r = rand();
+#endif
   char* out = (char*)malloc(33);
   if (out == NULL || !getMD5((uint8_t*)(&r), 4, out))
     return emptyString;

@@ -38,6 +38,10 @@ void setup_can_shunt();
 #include "CHADEMO-SHUNTS.h"
 #endif
 
+#ifdef FOXESS_BATTERY
+#include "FOXESS-BATTERY.h"
+#endif
+
 #ifdef SONO_BATTERY
 #include "SONO-BATTERY.h"
 #endif

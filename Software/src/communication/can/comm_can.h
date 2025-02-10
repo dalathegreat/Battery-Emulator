@@ -6,7 +6,7 @@
 #include "../../datalayer/datalayer.h"
 #include "../../devboard/utils/events.h"
 #include "../../devboard/utils/value_mapping.h"
-#include "../../lib/mathieucarbou-ESPAsyncWebServer/src/ESPAsyncWebServer.h"
+#include "../../lib/ESP32Async-ESPAsyncWebServer/src/ESPAsyncWebServer.h"
 #include "../../lib/miwagner-ESP32-Arduino-CAN/ESP32CAN.h"
 #ifdef CAN_ADDON
 #include "../../lib/pierremolinaro-acan2515/ACAN2515.h"

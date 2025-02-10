@@ -790,6 +790,9 @@ void setup_battery(void) {  // Performs one time setup at startup
   strncpy(datalayer.system.info.battery_protocol, "BMW iX and i4-7 platform", 63);
   datalayer.system.info.battery_protocol[63] = '\0';
 
+  //Reset Battery at bootup
+  transmit_can_frame(&BMWiX_6F4_REQUEST_HARD_RESET, can_config.battery);
+
   //Before we have started up and detected which battery is in use, use 108S values
   datalayer.battery.info.max_design_voltage_dV = MAX_PACK_VOLTAGE_DV;
   datalayer.battery.info.min_design_voltage_dV = MIN_PACK_VOLTAGE_DV;
