@@ -74,7 +74,6 @@ CAN_frame BYD_210 = {.FD = false,
                      .ID = 0x210,
                      .data = {0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00}};
 
-static uint8_t inverter_name[7] = {0};
 static int16_t temperature_average = 0;
 static uint16_t inverter_voltage = 0;
 static uint16_t inverter_SOC = 0;
@@ -153,16 +152,6 @@ void update_values_can_inverter() {  //This function maps all the values fetched
   //Temperature min
   BYD_210.data.u8[2] = (datalayer.battery.status.temperature_min_dC >> 8);
   BYD_210.data.u8[3] = (datalayer.battery.status.temperature_min_dC & 0x00FF);
-
-#ifdef DEBUG_LOG
-  if (inverter_name[0] != 0) {
-    logging.print("Detected inverter: ");
-    for (uint8_t i = 0; i < 7; i++) {
-      logging.print((char)inverter_name[i]);
-    }
-    logging.println();
-  }
-#endif
 }
 
 void map_can_frame_to_variable_inverter(CAN_frame rx_frame) {
@@ -174,8 +163,9 @@ void map_can_frame_to_variable_inverter(CAN_frame rx_frame) {
         send_intial_data();
       } else {  // We can identify what inverter type we are connected to
         for (uint8_t i = 0; i < 7; i++) {
-          inverter_name[i] = rx_frame.data.u8[i + 1];
+          datalayer.system.info.inverter_brand[i] = rx_frame.data.u8[i + 1];
         }
+        datalayer.system.info.inverter_brand[7] = '\0';
       }
       break;
     case 0x091:
