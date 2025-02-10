@@ -47,6 +47,7 @@
 //#define BYD_CAN          //Enable this line to emulate a "BYD Battery-Box Premium HVS" over CAN Bus
 //#define BYD_KOSTAL_RS485 //Enable this line to emulate a "BYD 11kWh HVM battery" over Kostal RS485
 //#define BYD_MODBUS       //Enable this line to emulate a "BYD 11kWh HVM battery" over Modbus RTU
+//#define FERROAMP_CAN     //Enable this line to emulate a "Pylon 4x96V Force H2" over CAN Bus
 //#define FOXESS_CAN       //Enable this line to emulate a "HV2600/ECS4100 battery" over CAN bus
 //#define GROWATT_HV_CAN   //Enable this line to emulate a "Growatt High Voltage v1.10 battery" over CAN bus
 //#define GROWATT_LV_CAN   //Enable this line to emulate a "48V Growatt Low Voltage battery" over CAN bus
