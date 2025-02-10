@@ -10,6 +10,7 @@
 #define MIN_CELL_VOLTAGE_MV 2700  //Battery is put into emergency stop if one cell goes below this value
 #define MAX_CHARGE_AMPS 32
 #define MAX_DISCHARGE_AMPS 32
+#define POWER_PER_PERCENT 50  // below 20% and above 80% limit power to 50W * SOC (i.e. 150W at 3%, 500W at 10%, ...)
 
 /* Do not modify any rows below*/
 #define BATTERY_SELECTED

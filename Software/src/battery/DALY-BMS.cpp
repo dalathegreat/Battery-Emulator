@@ -19,6 +19,7 @@ static uint16_t cellvoltages_mV[48] = {0};
 static uint16_t cellvoltage_min_mV = 0;
 static uint16_t cellvoltage_max_mV = 0;
 static uint16_t SOC = 0;
+static bool has_fault = false;
 
 void update_values_battery() {
   datalayer.battery.status.real_soc = SOC;
@@ -29,12 +30,25 @@ void update_values_battery() {
   datalayer.battery.status.max_charge_power_W = (MAX_CHARGE_AMPS * voltage_dV) / 10;
   datalayer.battery.status.max_discharge_power_W = (MAX_DISCHARGE_AMPS * voltage_dV) / 10;
 
+  uint32_t adaptive_power_limit = 999999;
+  if (SOC < 2000)
+    adaptive_power_limit = ((uint32_t)SOC * POWER_PER_PERCENT) / 100;
+  else if (SOC > 8000)
+    adaptive_power_limit = ((10000 - (uint32_t)SOC) * POWER_PER_PERCENT) / 100;
+
+  if (adaptive_power_limit < datalayer.battery.status.max_charge_power_W)
+    datalayer.battery.status.max_charge_power_W = adaptive_power_limit;
+  if (adaptive_power_limit < datalayer.battery.status.max_discharge_power_W)
+    datalayer.battery.status.max_discharge_power_W = adaptive_power_limit;
+
   memcpy(datalayer.battery.status.cell_voltages_mV, cellvoltages_mV, sizeof(cellvoltages_mV));
   datalayer.battery.status.cell_min_voltage_mV = cellvoltage_min_mV;
   datalayer.battery.status.cell_max_voltage_mV = cellvoltage_max_mV;
 
   datalayer.battery.status.temperature_min_dC = temperature_min_dC;
   datalayer.battery.status.temperature_max_dC = temperature_max_dC;
+
+  datalayer.battery.status.real_bms_status = has_fault ? BMS_FAULT : BMS_ACTIVE;
 }
 
 void setup_battery(void) {  // Performs one time setup at startup
@@ -119,6 +133,13 @@ void decode_packet(uint8_t command, uint8_t data[8]) {
     case 0x97:
       break;
     case 0x98:
+      // for now we do not handle individual faults. All of them are 0 when ok, and 1 when a fault occurs
+      has_fault = false;
+      for (int i = 0; i < 8; i++) {
+        if (data[i] != 0x00) {
+          has_fault = true;
+        }
+      }
       break;
   }
 }
@@ -127,7 +148,7 @@ void transmit_rs485() {
   static uint32_t lastSend = 0;
   static uint8_t nextCommand = 0x90;
 
-  if (millis() - lastSend > 500) {
+  if (millis() - lastSend > 100) {
     uint8_t tx_buff[13] = {0};
     tx_buff[0] = 0xA5;
     tx_buff[1] = 0x40;
@@ -143,7 +164,7 @@ void transmit_rs485() {
     lastSend = millis();
 
     nextCommand++;
-    if (nextCommand > 0x95)
+    if (nextCommand > 0x98)
       nextCommand = 0x90;
   }
 }
