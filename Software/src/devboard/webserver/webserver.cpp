@@ -784,6 +784,8 @@ String processor(const String& var) {
     // Display which components are used
     content += "<h4 style='color: white;'>Inverter protocol: ";
     content += datalayer.system.info.inverter_protocol;
+    content += " ";
+    content += datalayer.system.info.inverter_brand;
     content += "</h4>";
     content += "<h4 style='color: white;'>Battery protocol: ";
     content += datalayer.system.info.battery_protocol;
