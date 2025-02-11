@@ -80,6 +80,8 @@ void setup() {
   // We print this after setting up serial, such that is also printed to serial with DEBUG_VIA_USB set.
   logging.printf("Battery emulator %s build " __DATE__ " " __TIME__ "\n", version_number);
 
+  init_events();
+
   init_stored_settings();
 
 #ifdef WIFI
@@ -91,8 +93,6 @@ void setup() {
   xTaskCreatePinnedToCore((TaskFunction_t)&logging_loop, "logging_loop", 4096, &logging_task_time_us,
                           TASK_CONNECTIVITY_PRIO, &logging_loop_task, WIFI_CORE);
 #endif
-
-  init_events();
 
   init_CAN();
 
