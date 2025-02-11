@@ -70,6 +70,10 @@ void setup_can_shunt();
 #include "KIA-HYUNDAI-HYBRID-BATTERY.h"
 #endif
 
+#ifdef KIA_SOUL_27_BATTERY
+#include "KIA-SOUL-27-BATTERY.h"
+#endif
+
 #ifdef MEB_BATTERY
 #include "MEB-BATTERY.h"
 #endif
