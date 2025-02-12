@@ -25,6 +25,7 @@
 //#define MEB_BATTERY
 //#define MG_5_BATTERY
 //#define NISSAN_LEAF_BATTERY
+//#define ORION_BMS
 //#define PYLON_BATTERY
 //#define DALY_BMS
 //#define RJXZS_BMS
