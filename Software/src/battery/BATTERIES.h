@@ -9,6 +9,10 @@ void transmit_can_shunt();
 void setup_can_shunt();
 #endif
 
+#ifdef BATRIUM_BMS
+#include "BATRIUM-BMS.h"
+#endif
+
 #ifdef BMW_I3_BATTERY
 #include "BMW-I3-BATTERY.h"
 #endif

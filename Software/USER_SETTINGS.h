@@ -9,6 +9,7 @@
 /* To edit battery specific limits, see also the USER_SETTINGS.cpp file*/
 
 /* Select battery used */
+//#define BATRIUM_BMS
 //#define BMW_I3_BATTERY
 //#define BMW_IX_BATTERY
 //#define BMW_PHEV_BATTERY

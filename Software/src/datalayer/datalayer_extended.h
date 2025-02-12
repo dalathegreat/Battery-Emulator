@@ -4,6 +4,42 @@
 #include "../include.h"
 
 typedef struct {
+  uint16_t Hardware_Version = 0;
+  uint16_t Firmware_Version = 0;
+  uint32_t Device_Serial_NO = 0;
+  uint16_t min_cell_voltage = 0;
+  uint16_t max_cell_voltage = 0;
+  uint16_t avg_cell_voltage = 0;
+  uint8_t min_voltage_cell_no = 0;
+  uint8_t max_voltage_cell_no = 0;
+  int16_t min_cell_temperature = 0;
+  int16_t max_cell_temperature = 0;
+  int16_t avg_cell_temperature = 0;
+  uint8_t min_temp_cell_no = 0;
+  uint8_t max_temp_cell_no = 0;
+  uint8_t number_in_bypass = 0;
+  uint8_t number_in_initial_bypass = 0;
+  uint8_t number_in_final_bypass = 0;
+  int16_t shunt_voltage = 0;
+  int16_t shunt_amperes = 0;
+  int16_t shunt_power = 0;
+  int16_t state_of_charge = 0;
+  uint16_t state_of_health = 0;
+  uint16_t remaining_ah = 0;
+  uint16_t nominal_capacity_ah = 0;
+  uint16_t charge_target_voltage = 0;
+  uint16_t charge_target_amp = 0;
+  uint16_t discharge_target_voltage = 0;
+  uint16_t discharge_target_amp = 0;
+  uint8_t critical_control_flags = 0;
+  uint8_t charge_control_flags = 0;
+  uint8_t discharge_control_flags = 0;
+  uint8_t heat_control_flags = 0;
+  uint8_t cool_control_flags = 0;
+  uint8_t cell_balancing_flags = 0;
+} DATALAYER_INFO_BATRIUM_BMS;
+
+typedef struct {
   /** uint16_t */
   /** PID polling parameters */
   uint16_t battery_5V_ref = 0;
@@ -691,6 +727,7 @@ typedef struct {
 
 class DataLayerExtended {
  public:
+  DATALAYER_INFO_BATRIUM_BMS batriumBMS;
   DATALAYER_INFO_BOLTAMPERA boltampera;
   DATALAYER_INFO_BMWIX bmwix;
   DATALAYER_INFO_BMWPHEV bmwphev;
