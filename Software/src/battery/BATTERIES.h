@@ -42,6 +42,10 @@ void setup_can_shunt();
 #include "FOXESS-BATTERY.h"
 #endif
 
+#ifdef ORION_BMS
+#include "ORION-BMS.h"
+#endif
+
 #ifdef SONO_BATTERY
 #include "SONO-BATTERY.h"
 #endif
