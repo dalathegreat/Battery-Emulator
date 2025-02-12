@@ -144,11 +144,34 @@ void map_can_frame_to_variable_inverter(CAN_frame rx_frame) {
   }
 }
 
+#ifdef DEBUG_VIA_USB
+void dump_frame(CAN_frame* frame) {
+  Serial.print("[PYLON-LV] sending CAN frame ");
+  Serial.print(frame->ID, HEX);
+  Serial.print(": ");
+  for (int i = 0; i < 8; i++) {
+    Serial.print(frame->data.u8[i] >> 4, HEX);
+    Serial.print(frame->data.u8[i] & 0xf, HEX);
+    Serial.print(" ");
+  }
+  Serial.println();
+}
+#endif
+
 void transmit_can_inverter() {
   unsigned long currentMillis = millis();
 
   if (currentMillis - previousMillis1000ms >= 1000) {
     previousMillis1000ms = currentMillis;
+
+#ifdef DEBUG_VIA_USB
+    dump_frame(&PYLON_351);
+    dump_frame(&PYLON_355);
+    dump_frame(&PYLON_356);
+    dump_frame(&PYLON_359);
+    dump_frame(&PYLON_35C);
+    dump_frame(&PYLON_35E);
+#endif
 
     transmit_can_frame(&PYLON_351, can_config.inverter);
     transmit_can_frame(&PYLON_355, can_config.inverter);
