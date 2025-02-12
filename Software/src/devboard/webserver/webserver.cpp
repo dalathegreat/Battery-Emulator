@@ -961,8 +961,11 @@ String processor(const String& var) {
       if (datalayer.battery.settings.inverter_limits_discharge) {
         content += " (Inverter limiting)</h4>";
       } else {
-        //Note, this can also be settings limiting
-        content += " (Battery limiting)</h4>";
+        if (datalayer.battery.settings.user_settings_limit_discharge) {
+          content += " (Settings limiting)</h4>";
+        } else {
+          content += " (Battery limiting)</h4>";
+        }
       }
       content += "</h4>";
     } else {  // > 0 , positive current
@@ -970,8 +973,11 @@ String processor(const String& var) {
       if (datalayer.battery.settings.inverter_limits_charge) {
         content += " (Inverter limiting)</h4>";
       } else {
-        //Note, this can also be settings limiting
-        content += " (Battery limiting)</h4>";
+        if (datalayer.battery.settings.user_settings_limit_charge) {
+          content += " (Settings limiting)</h4>";
+        } else {
+          content += " (Battery limiting)</h4>";
+        }
       }
     }
 
