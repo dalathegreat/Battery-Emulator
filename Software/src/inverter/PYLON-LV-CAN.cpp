@@ -51,7 +51,7 @@ void update_values_can_inverter() {
   // This function maps all the values fetched from battery CAN to the correct CAN messages
 
   // Set "battery charge voltage" to volts + 1 or user supplied value
-  uint16_t charge_voltage_dV = datalayer.battery.status.voltage_dV + 1;
+  uint16_t charge_voltage_dV = datalayer.battery.info.max_design_voltage_dV;
   if (datalayer.battery.settings.user_set_voltage_limits_active)
     charge_voltage_dV = datalayer.battery.settings.max_user_set_charge_voltage_dV;
   if (charge_voltage_dV > datalayer.battery.info.max_design_voltage_dV)
@@ -63,10 +63,10 @@ void update_values_can_inverter() {
   PYLON_351.data.u8[4] = datalayer.battery.status.max_discharge_current_dA & 0xff;
   PYLON_351.data.u8[5] = datalayer.battery.status.max_discharge_current_dA >> 8;
 
-  PYLON_355.data.u8[0] = (datalayer.battery.status.reported_soc / 10) & 0xff;
-  PYLON_355.data.u8[1] = (datalayer.battery.status.reported_soc / 10) >> 8;
-  PYLON_355.data.u8[2] = (datalayer.battery.status.soh_pptt / 10) & 0xff;
-  PYLON_355.data.u8[3] = (datalayer.battery.status.soh_pptt / 10) >> 8;
+  PYLON_355.data.u8[0] = (datalayer.battery.status.reported_soc / 100) & 0xff;
+  PYLON_355.data.u8[1] = (datalayer.battery.status.reported_soc / 100) >> 8;
+  PYLON_355.data.u8[2] = (datalayer.battery.status.soh_pptt / 100) & 0xff;
+  PYLON_355.data.u8[3] = (datalayer.battery.status.soh_pptt / 100) >> 8;
 
   int16_t voltage_cV = datalayer.battery.status.voltage_dV * 10;
   int16_t temperature = (datalayer.battery.status.temperature_min_dC + datalayer.battery.status.temperature_max_dC) / 2;
@@ -118,13 +118,13 @@ void update_values_can_inverter() {
 
   PYLON_35C.data.u8[0] = 0xC0;  // enable charging and discharging
   if (datalayer.battery.status.bms_status == FAULT)
-    PYLON_35C.data.u8[1] = 0x00;  // disable all
+    PYLON_35C.data.u8[0] = 0x00;  // disable all
   else if (datalayer.battery.settings.user_set_voltage_limits_active &&
            datalayer.battery.status.voltage_dV > datalayer.battery.settings.max_user_set_charge_voltage_dV)
-    PYLON_35C.data.u8[1] = 0x40;  // only allow discharging
+    PYLON_35C.data.u8[0] = 0x40;  // only allow discharging
   else if (datalayer.battery.settings.user_set_voltage_limits_active &&
            datalayer.battery.status.voltage_dV < datalayer.battery.settings.max_user_set_discharge_voltage_dV)
-    PYLON_35C.data.u8[1] = 0xA0;  // enable charing, set charge immediately
+    PYLON_35C.data.u8[0] = 0xA0;  // enable charing, set charge immediately
   else if (datalayer.battery.status.real_soc <= datalayer.battery.settings.min_percentage)
     PYLON_35C.data.u8[0] = 0xA0;  // enable charing, set charge immediately
   else if (datalayer.battery.status.real_soc >= datalayer.battery.settings.max_percentage)
