@@ -113,7 +113,7 @@ void decode_packet(uint8_t command, uint8_t data[8]) {
       break;
     case 0x92:
       temperature_max_dC = (data[0] - 40) * 10;
-      temperature_min_dC = (data[1] - 40) * 10;
+      temperature_min_dC = (data[2] - 40) * 10;
       break;
     case 0x93:
       remaining_capacity_mAh = decode_uint32be(data, 4);
