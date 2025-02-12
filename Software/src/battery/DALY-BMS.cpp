@@ -145,10 +145,9 @@ void decode_packet(uint8_t command, uint8_t data[8]) {
 }
 
 void transmit_rs485() {
-  static uint32_t lastSend = 0;
   static uint8_t nextCommand = 0x90;
 
-  if (millis() - lastSend > 100) {
+  if (millis() - lastPacket > 60) {
     uint8_t tx_buff[13] = {0};
     tx_buff[0] = 0xA5;
     tx_buff[1] = 0x40;
@@ -161,7 +160,7 @@ void transmit_rs485() {
 #endif
 
     Serial2.write(tx_buff, 13);
-    lastSend = millis();
+    lastPacket = millis();
 
     nextCommand++;
     if (nextCommand > 0x98)
@@ -194,6 +193,7 @@ void receive_RS485() {
 #endif
       decode_packet(recv_buff[2], &recv_buff[4]);
       recv_len = 0;
+      lastPacket = millis();
     }
   }
 }
