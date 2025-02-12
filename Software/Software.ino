@@ -339,13 +339,48 @@ void update_calculated_values() {
   /* Restrict values from user settings if needed*/
   if (datalayer.battery.status.max_charge_current_dA > datalayer.battery.settings.max_user_set_charge_dA) {
     datalayer.battery.status.max_charge_current_dA = datalayer.battery.settings.max_user_set_charge_dA;
+    datalayer.battery.settings.user_settings_limit_charge = true;
+  } else {
+    datalayer.battery.settings.user_settings_limit_charge = false;
   }
   if (datalayer.battery.status.max_discharge_current_dA > datalayer.battery.settings.max_user_set_discharge_dA) {
     datalayer.battery.status.max_discharge_current_dA = datalayer.battery.settings.max_user_set_discharge_dA;
+    datalayer.battery.settings.user_settings_limit_discharge = true;
+  } else {
+    datalayer.battery.settings.user_settings_limit_discharge = false;
   }
   /* Calculate active power based on voltage and current*/
   datalayer.battery.status.active_power_W =
       (datalayer.battery.status.current_dA * (datalayer.battery.status.voltage_dV / 100));
+  /* Calculate if battery or inverter is limiting factor*/
+
+  if (datalayer.battery.status.current_dA == 0) {  //Battery idle
+    if (datalayer.battery.status.max_discharge_current_dA > 0) {
+      //We allow discharge, but inverter does nothing. Inverter is limiting
+      datalayer.battery.settings.inverter_limits_discharge = true;
+    } else {
+      datalayer.battery.settings.inverter_limits_discharge = false;
+    }
+    if (datalayer.battery.status.max_charge_current_dA > 0) {
+      //We allow charge, but inverter does nothing. Inverter is limiting
+      datalayer.battery.settings.inverter_limits_charge = true;
+    } else {
+      datalayer.battery.settings.inverter_limits_charge = false;
+    }
+  } else if (datalayer.battery.status.current_dA < 0) {  //Battery discharging
+    if (-datalayer.battery.status.current_dA < datalayer.battery.status.max_discharge_current_dA) {
+      datalayer.battery.settings.inverter_limits_discharge = true;
+    } else {
+      datalayer.battery.settings.inverter_limits_discharge = false;
+    }
+  } else {  // > 0 Battery charging
+    //If actual current is smaller than max we allow, inverter is limiting factor
+    if (datalayer.battery.status.current_dA < datalayer.battery.status.max_charge_current_dA) {
+      datalayer.battery.settings.inverter_limits_charge = true;
+    } else {
+      datalayer.battery.settings.inverter_limits_charge = false;
+    }
+  }
 
 #ifdef DOUBLE_BATTERY
   /* Calculate active power based on voltage and current for battery 2*/
