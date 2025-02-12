@@ -469,6 +469,16 @@ String advanced_battery_processor(const String& var) {
     content += "<h4>SOC OBD2: " + String(datalayer_extended.bydAtto3.SOC_polled) + "</h4>";
     content += "<h4>Voltage periodic: " + String(datalayer_extended.bydAtto3.voltage_periodic) + "</h4>";
     content += "<h4>Voltage OBD2: " + String(datalayer_extended.bydAtto3.voltage_polled) + "</h4>";
+    content += "<h4>Temperature sensor 1: " + String(datalayer_extended.bydAtto3.battery_temperatures[0]) + "</h4>";
+    content += "<h4>Temperature sensor 2: " + String(datalayer_extended.bydAtto3.battery_temperatures[1]) + "</h4>";
+    content += "<h4>Temperature sensor 3: " + String(datalayer_extended.bydAtto3.battery_temperatures[2]) + "</h4>";
+    content += "<h4>Temperature sensor 4: " + String(datalayer_extended.bydAtto3.battery_temperatures[3]) + "</h4>";
+    content += "<h4>Temperature sensor 5: " + String(datalayer_extended.bydAtto3.battery_temperatures[4]) + "</h4>";
+    content += "<h4>Temperature sensor 6: " + String(datalayer_extended.bydAtto3.battery_temperatures[5]) + "</h4>";
+    content += "<h4>Temperature sensor 7: " + String(datalayer_extended.bydAtto3.battery_temperatures[6]) + "</h4>";
+    content += "<h4>Temperature sensor 8: " + String(datalayer_extended.bydAtto3.battery_temperatures[7]) + "</h4>";
+    content += "<h4>Temperature sensor 9: " + String(datalayer_extended.bydAtto3.battery_temperatures[8]) + "</h4>";
+    content += "<h4>Temperature sensor 10: " + String(datalayer_extended.bydAtto3.battery_temperatures[9]) + "</h4>";
 #endif  //BYD_ATTO_3_BATTERY
 
 #ifdef TESLA_BATTERY
