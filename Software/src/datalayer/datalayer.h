@@ -124,6 +124,12 @@ typedef struct {
   /** The user specified maximum allowed discharge voltage, in deciVolt. 3000 = 300.0 V */
   uint16_t max_user_set_discharge_voltage_dV = BATTERY_MAX_DISCHARGE_VOLTAGE;
 
+  /** Parameters for keeping track of the limiting factor in the system */
+  bool user_settings_limit_discharge = false;
+  bool user_settings_limit_charge = false;
+  bool inverter_limits_discharge = false;
+  bool inverter_limits_charge = false;
+
   /** Tesla specific settings that are edited on the fly when manually forcing a balance charge for LFP chemistry */
   /* Bool for specifying if user has requested manual function */
   bool user_requests_balancing = false;
