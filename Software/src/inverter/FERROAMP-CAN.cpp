@@ -134,9 +134,24 @@ CAN_frame PYLON_4291 = {.FD = false,
                         .ID = 0x4291,
                         .data = {0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00}};
 
+static uint16_t cell_tweaked_max_voltage_mV = 3300;
+static uint16_t cell_tweaked_min_voltage_mV = 3300;
+
 void update_values_can_inverter() {  //This function maps all the values fetched from battery CAN to the correct CAN messages
   //There are more mappings that could be added, but this should be enough to use as a starting point
   // Note we map both 0 and 1 messages
+
+  //Ferroamp only supports LFP batteries. We need to fake an LFP voltage range if the battery used is not LFP
+  if (datalayer.battery.info.chemistry == battery_chemistry_enum::LFP) {
+    //Already LFP, pass thru value
+    cell_tweaked_max_voltage_mV = datalayer.battery.status.cell_max_voltage_mV;
+    cell_tweaked_min_voltage_mV = datalayer.battery.status.cell_min_voltage_mV;
+  } else {  //linear interpolation to remap the value from the range [2500-4200] to [2500-3400]
+    cell_tweaked_max_voltage_mV =
+        (2500 + ((datalayer.battery.status.cell_max_voltage_mV - 2500) * (3400 - 2500)) / (4200 - 2500));
+    cell_tweaked_min_voltage_mV =
+        (2500 + ((datalayer.battery.status.cell_min_voltage_mV - 2500) * (3400 - 2500)) / (4200 - 2500));
+  }
 
   //Charge / Discharge allowed
   PYLON_4280.data.u8[0] = 0;
@@ -256,16 +271,16 @@ void update_values_can_inverter() {  //This function maps all the values fetched
 #endif
 
   //Max cell voltage
-  PYLON_4230.data.u8[0] = (datalayer.battery.status.cell_max_voltage_mV & 0x00FF);
-  PYLON_4230.data.u8[1] = (datalayer.battery.status.cell_max_voltage_mV >> 8);
-  PYLON_4231.data.u8[0] = (datalayer.battery.status.cell_max_voltage_mV & 0x00FF);
-  PYLON_4231.data.u8[1] = (datalayer.battery.status.cell_max_voltage_mV >> 8);
+  PYLON_4230.data.u8[0] = (cell_tweaked_max_voltage_mV & 0x00FF);
+  PYLON_4230.data.u8[1] = (cell_tweaked_max_voltage_mV >> 8);
+  PYLON_4231.data.u8[0] = (cell_tweaked_max_voltage_mV & 0x00FF);
+  PYLON_4231.data.u8[1] = (cell_tweaked_max_voltage_mV >> 8);
 
   //Min cell voltage
-  PYLON_4230.data.u8[2] = (datalayer.battery.status.cell_min_voltage_mV & 0x00FF);
-  PYLON_4230.data.u8[3] = (datalayer.battery.status.cell_min_voltage_mV >> 8);
-  PYLON_4231.data.u8[2] = (datalayer.battery.status.cell_min_voltage_mV & 0x00FF);
-  PYLON_4231.data.u8[3] = (datalayer.battery.status.cell_min_voltage_mV >> 8);
+  PYLON_4230.data.u8[2] = (cell_tweaked_min_voltage_mV & 0x00FF);
+  PYLON_4230.data.u8[3] = (cell_tweaked_min_voltage_mV >> 8);
+  PYLON_4231.data.u8[2] = (cell_tweaked_min_voltage_mV & 0x00FF);
+  PYLON_4231.data.u8[3] = (cell_tweaked_min_voltage_mV >> 8);
 
   //Max temperature per cell
   PYLON_4240.data.u8[0] = (datalayer.battery.status.temperature_max_dC & 0x00FF);
@@ -355,16 +370,16 @@ void update_values_can_inverter() {  //This function maps all the values fetched
 #endif
 
   //Max cell voltage
-  PYLON_4230.data.u8[0] = (datalayer.battery.status.cell_max_voltage_mV >> 8);
-  PYLON_4230.data.u8[1] = (datalayer.battery.status.cell_max_voltage_mV & 0x00FF);
-  PYLON_4231.data.u8[0] = (datalayer.battery.status.cell_max_voltage_mV >> 8);
-  PYLON_4231.data.u8[1] = (datalayer.battery.status.cell_max_voltage_mV & 0x00FF);
+  PYLON_4230.data.u8[0] = (cell_tweaked_max_voltage_mV >> 8);
+  PYLON_4230.data.u8[1] = (cell_tweaked_max_voltage_mV & 0x00FF);
+  PYLON_4231.data.u8[0] = (cell_tweaked_max_voltage_mV >> 8);
+  PYLON_4231.data.u8[1] = (cell_tweaked_max_voltage_mV & 0x00FF);
 
   //Min cell voltage
-  PYLON_4230.data.u8[2] = (datalayer.battery.status.cell_min_voltage_mV >> 8);
-  PYLON_4230.data.u8[3] = (datalayer.battery.status.cell_min_voltage_mV & 0x00FF);
-  PYLON_4231.data.u8[2] = (datalayer.battery.status.cell_min_voltage_mV >> 8);
-  PYLON_4231.data.u8[3] = (datalayer.battery.status.cell_min_voltage_mV & 0x00FF);
+  PYLON_4230.data.u8[2] = (cell_tweaked_min_voltage_mV >> 8);
+  PYLON_4230.data.u8[3] = (cell_tweaked_min_voltage_mV & 0x00FF);
+  PYLON_4231.data.u8[2] = (cell_tweaked_min_voltage_mV >> 8);
+  PYLON_4231.data.u8[3] = (cell_tweaked_min_voltage_mV & 0x00FF);
 
   //Max temperature per cell
   PYLON_4240.data.u8[0] = (datalayer.battery.status.temperature_max_dC >> 8);
@@ -392,10 +407,10 @@ void update_values_can_inverter() {  //This function maps all the values fetched
 #endif
 
   //Max/Min cell voltage
-  PYLON_4230.data.u8[0] = (datalayer.battery.status.cell_max_voltage_mV >> 8);
-  PYLON_4230.data.u8[1] = (datalayer.battery.status.cell_max_voltage_mV & 0x00FF);
-  PYLON_4230.data.u8[2] = (datalayer.battery.status.cell_min_voltage_mV >> 8);
-  PYLON_4230.data.u8[3] = (datalayer.battery.status.cell_min_voltage_mV & 0x00FF);
+  PYLON_4230.data.u8[0] = (cell_tweaked_max_voltage_mV >> 8);
+  PYLON_4230.data.u8[1] = (cell_tweaked_max_voltage_mV & 0x00FF);
+  PYLON_4230.data.u8[2] = (cell_tweaked_min_voltage_mV >> 8);
+  PYLON_4230.data.u8[3] = (cell_tweaked_min_voltage_mV & 0x00FF);
 
   //Max/Min temperature per cell
   PYLON_4240.data.u8[0] = (datalayer.battery.status.temperature_max_dC >> 8);
