@@ -73,6 +73,8 @@ TaskHandle_t logging_loop_task;
 
 Logging logging;
 
+#define WDT_TIMEOUT_SECONDS 5  // If code hangs for longer than this, it will be rebooted by the watchdog
+
 // Initialization
 void setup() {
   init_serial();
@@ -118,10 +120,19 @@ void setup() {
   // BOOT button at runtime is used as an input for various things
   pinMode(0, INPUT_PULLUP);
 
-  esp_task_wdt_deinit();  // Disable watchdog
-
   check_reset_reason();
 
+  // Initialize Task Watchdog for subscribed tasks
+  esp_task_wdt_config_t wdt_config = {
+      .timeout_ms = WDT_TIMEOUT_SECONDS * 1000,                        // Convert seconds to milliseconds
+      .idle_core_mask = (1 << CORE_FUNCTION_CORE) | (1 << WIFI_CORE),  // Watch both cores
+      .trigger_panic = true                                            // Enable panic reset on timeout
+  };
+
+  // Initialize Task Watchdog
+  esp_task_wdt_init(&wdt_config);
+
+  // Start tasks
   xTaskCreatePinnedToCore((TaskFunction_t)&core_loop, "core_loop", 4096, &core_task_time_us, TASK_CORE_PRIO,
                           &main_loop_task, CORE_FUNCTION_CORE);
 }
@@ -157,7 +168,7 @@ void logging_loop(void* task_time_us) {
 
 #ifdef WIFI
 void connectivity_loop(void* task_time_us) {
-
+  esp_task_wdt_add(NULL);  // Register this task with WDT
   // Init wifi
   init_WiFi();
 
@@ -191,12 +202,14 @@ void connectivity_loop(void* task_time_us) {
       datalayer.system.status.wifi_task_10s_max_us = 0;
     }
 #endif
+    esp_task_wdt_reset();  // Reset watchdog
     delay(1);
   }
 }
 #endif
 
 void core_loop(void* task_time_us) {
+  esp_task_wdt_add(NULL);  // Register this task with WDT
   TickType_t xLastWakeTime = xTaskGetTickCount();
   const TickType_t xFrequency = pdMS_TO_TICKS(1);  // Convert 1ms to ticks
   led_init();
@@ -290,7 +303,7 @@ void core_loop(void* task_time_us) {
 #ifdef DEBUG_LOG
     logging.log_bms_status(datalayer.battery.status.real_bms_status, 1);
 #endif
-
+    esp_task_wdt_reset();  // Reset watchdog to prevent reset
     vTaskDelayUntil(&xLastWakeTime, xFrequency);
   }
 }
