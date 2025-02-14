@@ -86,6 +86,16 @@ void setup() {
 
   init_stored_settings();
 
+#ifdef WIFI
+  xTaskCreatePinnedToCore((TaskFunction_t)&connectivity_loop, "connectivity_loop", 4096, &connectivity_task_time_us,
+                          TASK_CONNECTIVITY_PRIO, &connectivity_loop_task, WIFI_CORE);
+#endif
+
+#if defined(LOG_CAN_TO_SD) || defined(LOG_TO_SD)
+  xTaskCreatePinnedToCore((TaskFunction_t)&logging_loop, "logging_loop", 4096, &logging_task_time_us,
+                          TASK_CONNECTIVITY_PRIO, &logging_loop_task, WIFI_CORE);
+#endif
+
   init_CAN();
 
   init_contactors();
@@ -125,16 +135,6 @@ void setup() {
   // Start tasks
   xTaskCreatePinnedToCore((TaskFunction_t)&core_loop, "core_loop", 4096, &core_task_time_us, TASK_CORE_PRIO,
                           &main_loop_task, CORE_FUNCTION_CORE);
-
-#ifdef WIFI
-  xTaskCreatePinnedToCore((TaskFunction_t)&connectivity_loop, "connectivity_loop", 4096, &connectivity_task_time_us,
-                          TASK_CONNECTIVITY_PRIO, &connectivity_loop_task, WIFI_CORE);
-#endif
-
-#if defined(LOG_CAN_TO_SD) || defined(LOG_TO_SD)
-  xTaskCreatePinnedToCore((TaskFunction_t)&logging_loop, "logging_loop", 4096, &logging_task_time_us,
-                          TASK_CONNECTIVITY_PRIO, &logging_loop_task, WIFI_CORE);
-#endif
 }
 
 // Perform main program functions
