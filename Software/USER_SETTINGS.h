@@ -78,7 +78,7 @@
 //#define NC_CONTACTORS         //Enable this line to control normally closed contactors. CONTACTOR_CONTROL must be enabled for this option. Extremely rare setting!
 //#define PERIODIC_BMS_RESET    //Enable to have the emulator powercycle the connected battery every 24hours via GPIO. Useful for some batteries like Nissan LEAF
 //#define REMOTE_BMS_RESET      //Enable to allow the emulator to remotely trigger a powercycle of the battery via MQTT. Useful for some batteries like Nissan LEAF
-// PERIODIC_BMS_RESET_AT In 24 Hour format WITHOUT leading 0. e.g 0230 should be 230. Time Zone is set in USER_SETTINGS.cpp
+// PERIODIC_BMS_RESET_AT Uses NTP server, internet required. In 24 Hour format WITHOUT leading 0. e.g 0230 should be 230. Time Zone is set in USER_SETTINGS.cpp
 #define PERIODIC_BMS_RESET_AT 525
 
 /* Shunt/Contactor settings (Optional) */
@@ -143,6 +143,8 @@
 #define BATTERY_MAXTEMPERATURE 500
 // -250 = -25.0 °C , Min temperature (Will produce a battery frozen event if below)
 #define BATTERY_MINTEMPERATURE -250
+// 150 = 15.0 °C , Max difference between min and max temperature (Will produce a battery temperature deviation event if greater)
+#define BATTERY_MAX_TEMPERATURE_DEVIATION 150
 // 300 = 30.0A , Max charge in Amp (Some inverters needs to be limited)
 #define BATTERY_MAX_CHARGE_AMP 300
 // 300 = 30.0A , Max discharge in Amp (Some inverters needs to be limited)
@@ -189,6 +191,10 @@ extern IPAddress subnet;
 
 #if defined(DEBUG_VIA_USB) || defined(DEBUG_VIA_WEB) || defined(LOG_TO_SD)
 #define DEBUG_LOG
+#endif
+
+#if defined(MEB_BATTERY)
+#define PRECHARGE_CONTROL
 #endif
 
 #endif  // __USER_SETTINGS_H__
