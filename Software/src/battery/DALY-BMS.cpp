@@ -30,6 +30,7 @@ void update_values_battery() {
   datalayer.battery.status.max_charge_power_W = (BATTERY_MAX_CHARGE_AMP * voltage_dV) / 100;
   datalayer.battery.status.max_discharge_power_W = (BATTERY_MAX_DISCHARGE_AMP * voltage_dV) / 100;
 
+  // limit power when SoC is low or high
   uint32_t adaptive_power_limit = 999999;
   if (SOC < 2000)
     adaptive_power_limit = ((uint32_t)SOC * POWER_PER_PERCENT) / 100;
@@ -38,8 +39,12 @@ void update_values_battery() {
 
   if (adaptive_power_limit < datalayer.battery.status.max_charge_power_W)
     datalayer.battery.status.max_charge_power_W = adaptive_power_limit;
-  if (adaptive_power_limit < datalayer.battery.status.max_discharge_power_W)
+  if (SOC < 2000 && adaptive_power_limit < datalayer.battery.status.max_discharge_power_W)
     datalayer.battery.status.max_discharge_power_W = adaptive_power_limit;
+
+  // always allow to charge at least a little bit
+  if (datalayer.battery.status.max_charge_power_W < POWER_PER_PERCENT)
+    datalayer.battery.status.max_charge_power_W = POWER_PER_PERCENT;
 
   memcpy(datalayer.battery.status.cell_voltages_mV, cellvoltages_mV, sizeof(cellvoltages_mV));
   datalayer.battery.status.cell_min_voltage_mV = cellvoltage_min_mV;
@@ -113,7 +118,7 @@ void decode_packet(uint8_t command, uint8_t data[8]) {
       break;
     case 0x92:
       temperature_max_dC = (data[0] - 40) * 10;
-      temperature_min_dC = (data[1] - 40) * 10;
+      temperature_min_dC = (data[2] - 40) * 10;
       break;
     case 0x93:
       remaining_capacity_mAh = decode_uint32be(data, 4);
@@ -145,10 +150,9 @@ void decode_packet(uint8_t command, uint8_t data[8]) {
 }
 
 void transmit_rs485() {
-  static uint32_t lastSend = 0;
   static uint8_t nextCommand = 0x90;
 
-  if (millis() - lastSend > 100) {
+  if (millis() - lastPacket > 60) {
     uint8_t tx_buff[13] = {0};
     tx_buff[0] = 0xA5;
     tx_buff[1] = 0x40;
@@ -161,7 +165,7 @@ void transmit_rs485() {
 #endif
 
     Serial2.write(tx_buff, 13);
-    lastSend = millis();
+    lastPacket = millis();
 
     nextCommand++;
     if (nextCommand > 0x98)
@@ -194,6 +198,7 @@ void receive_RS485() {
 #endif
       decode_packet(recv_buff[2], &recv_buff[4]);
       recv_len = 0;
+      lastPacket = millis();
     }
   }
 }
