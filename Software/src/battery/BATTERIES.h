@@ -86,6 +86,10 @@ void setup_can_shunt();
 #include "PYLON-BATTERY.h"
 #endif
 
+#ifdef DALY_BMS
+#include "DALY-BMS.h"
+#endif
+
 #ifdef RJXZS_BMS
 #include "RJXZS-BMS.h"
 #endif
@@ -131,10 +135,16 @@ void setup_can_shunt();
 #include "SERIAL-LINK-RECEIVER-FROM-BATTERY.h"
 #endif
 
-void handle_incoming_can_frame_battery(CAN_frame rx_frame);
-void update_values_battery();
-void transmit_can_battery();
 void setup_battery(void);
+void update_values_battery();
+
+#ifdef RS485_BATTERY_SELECTED
+void transmit_rs485();
+void receive_RS485();
+#else
+void handle_incoming_can_frame_battery(CAN_frame rx_frame);
+void transmit_can_battery();
+#endif
 
 #ifdef DOUBLE_BATTERY
 void update_values_battery2();

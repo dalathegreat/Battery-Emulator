@@ -58,6 +58,7 @@ jobs:
           - BYD_CAN
           - BYD_KOSTAL_RS485
           - BYD_MODBUS
+          - FERROAMP_CAN
           - FOXESS_CAN
           - GROWATT_HV_CAN
           - GROWATT_LV_CAN

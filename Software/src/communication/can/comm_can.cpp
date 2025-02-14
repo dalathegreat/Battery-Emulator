@@ -109,7 +109,9 @@ void transmit_can() {
     return;  //Global block of CAN messages
   }
 
+#ifndef RS485_BATTERY_SELECTED
   transmit_can_battery();
+#endif
 
 #ifdef CAN_INVERTER_SELECTED
   transmit_can_inverter();
@@ -302,7 +304,9 @@ void map_can_frame_to_variable(CAN_frame* rx_frame, int interface) {
 #endif
 
   if (interface == can_config.battery) {
+#ifndef RS485_BATTERY_SELECTED
     handle_incoming_can_frame_battery(*rx_frame);
+#endif
 #ifdef CHADEMO_BATTERY
     ISA_handleFrame(rx_frame);
 #endif

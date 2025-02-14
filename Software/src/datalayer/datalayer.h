@@ -124,6 +124,12 @@ typedef struct {
   /** The user specified maximum allowed discharge voltage, in deciVolt. 3000 = 300.0 V */
   uint16_t max_user_set_discharge_voltage_dV = BATTERY_MAX_DISCHARGE_VOLTAGE;
 
+  /** Parameters for keeping track of the limiting factor in the system */
+  bool user_settings_limit_discharge = false;
+  bool user_settings_limit_charge = false;
+  bool inverter_limits_discharge = false;
+  bool inverter_limits_charge = false;
+
   /** Tesla specific settings that are edited on the fly when manually forcing a balance charge for LFP chemistry */
   /* Bool for specifying if user has requested manual function */
   bool user_requests_balancing = false;
@@ -203,10 +209,12 @@ typedef struct {
 typedef struct {
   /** array with type of battery used, for displaying on webserver */
   char battery_protocol[64] = {0};
-  /** array with type of inverter used, for displaying on webserver */
+  /** array with type of inverter protocol used, for displaying on webserver */
   char inverter_protocol[64] = {0};
   /** array with type of battery used, for displaying on webserver */
   char shunt_protocol[64] = {0};
+  /** array with type of inverter brand used, for displaying on webserver */
+  char inverter_brand[8] = {0};
   /** array with incoming CAN messages, for displaying on webserver */
   char logged_can_messages[15000] = {0};
   size_t logged_can_messages_offset = 0;

@@ -181,7 +181,9 @@ typedef struct {
   /** uint16_t */
   /** Voltage polled OBD2*/
   uint16_t voltage_polled = 0;
-
+  /** int16_t */
+  /** All the temperature sensors inside the battery pack*/
+  int16_t battery_temperatures[10];
 } DATALAYER_INFO_BYDATTO3;
 
 typedef struct {

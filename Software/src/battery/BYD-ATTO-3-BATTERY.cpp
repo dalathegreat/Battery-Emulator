@@ -135,9 +135,35 @@ void update_values_battery() {  //This function maps all the values fetched via 
 
   datalayer.battery.status.cell_min_voltage_mV = BMS_lowest_cell_voltage_mV;
 
-  datalayer.battery.status.temperature_min_dC = BMS_lowest_cell_temperature * 10;  // Add decimals
+#ifdef SKIP_TEMPERATURE_SENSOR_NUMBER
+  // Initialize min and max variables for temperature calculation
+  battery_calc_min_temperature = battery_daughterboard_temperatures[0];
+  battery_calc_max_temperature = battery_daughterboard_temperatures[0];
 
+  // Loop through the array of 10x daughterboard temps to find the smallest and largest values
+  // Note, it is possible for user to skip using a faulty sensor in the .h file
+  if (SKIP_TEMPERATURE_SENSOR_NUMBER == 1) {  //If sensor 1 is skipped, init minmax to sensor 2
+    battery_calc_min_temperature = battery_daughterboard_temperatures[1];
+    battery_calc_max_temperature = battery_daughterboard_temperatures[1];
+  }
+  for (int i = 1; i < 10; i++) {
+    if (i == (SKIP_TEMPERATURE_SENSOR_NUMBER - 1)) {
+      i++;
+    }
+    if (battery_daughterboard_temperatures[i] < battery_calc_min_temperature) {
+      battery_calc_min_temperature = battery_daughterboard_temperatures[i];
+    }
+    if (battery_daughterboard_temperatures[i] > battery_calc_max_temperature) {
+      battery_calc_max_temperature = battery_daughterboard_temperatures[i];
+    }
+  }
+  //Write the result to datalayer
+  datalayer.battery.status.temperature_min_dC = battery_calc_min_temperature * 10;
+  datalayer.battery.status.temperature_max_dC = battery_calc_max_temperature * 10;
+#else   //User does not need filtering out a broken sensor, just use the min-max the BMS sends
+  datalayer.battery.status.temperature_min_dC = BMS_lowest_cell_temperature * 10;
   datalayer.battery.status.temperature_max_dC = BMS_highest_cell_temperature * 10;
+#endif  //!SKIP_TEMPERATURE_SENSOR_NUMBER
 
   // Update webserver datalayer
   datalayer_extended.bydAtto3.SOC_method = SOC_method;
@@ -147,6 +173,16 @@ void update_values_battery() {  //This function maps all the values fetched via 
   datalayer_extended.bydAtto3.SOC_polled = BMS_SOC;
   datalayer_extended.bydAtto3.voltage_periodic = battery_voltage;
   datalayer_extended.bydAtto3.voltage_polled = BMS_voltage;
+  datalayer_extended.bydAtto3.battery_temperatures[0] = battery_daughterboard_temperatures[0];
+  datalayer_extended.bydAtto3.battery_temperatures[1] = battery_daughterboard_temperatures[1];
+  datalayer_extended.bydAtto3.battery_temperatures[2] = battery_daughterboard_temperatures[2];
+  datalayer_extended.bydAtto3.battery_temperatures[3] = battery_daughterboard_temperatures[3];
+  datalayer_extended.bydAtto3.battery_temperatures[4] = battery_daughterboard_temperatures[4];
+  datalayer_extended.bydAtto3.battery_temperatures[5] = battery_daughterboard_temperatures[5];
+  datalayer_extended.bydAtto3.battery_temperatures[6] = battery_daughterboard_temperatures[6];
+  datalayer_extended.bydAtto3.battery_temperatures[7] = battery_daughterboard_temperatures[7];
+  datalayer_extended.bydAtto3.battery_temperatures[8] = battery_daughterboard_temperatures[8];
+  datalayer_extended.bydAtto3.battery_temperatures[9] = battery_daughterboard_temperatures[9];
 }
 
 void handle_incoming_can_frame_battery(CAN_frame rx_frame) {
