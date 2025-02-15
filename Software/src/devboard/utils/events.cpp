@@ -210,6 +210,7 @@ void init_events(void) {
   events.entries[EVENT_RESET_EFUSE].level = EVENT_LEVEL_INFO;
   events.entries[EVENT_RESET_PWR_GLITCH].level = EVENT_LEVEL_INFO;
   events.entries[EVENT_RESET_CPU_LOCKUP].level = EVENT_LEVEL_WARNING;
+  events.entries[EVENT_RJXZS_LOG].level = EVENT_LEVEL_INFO;
   events.entries[EVENT_PAUSE_BEGIN].level = EVENT_LEVEL_WARNING;
   events.entries[EVENT_PAUSE_END].level = EVENT_LEVEL_INFO;
   events.entries[EVENT_WIFI_CONNECT].level = EVENT_LEVEL_INFO;
@@ -434,6 +435,8 @@ const char* get_event_message_string(EVENTS_ENUM_TYPE event) {
       return "The board was reset due to a detected power glitch";
     case EVENT_RESET_CPU_LOCKUP:
       return "The board was reset due to CPU lockup. Inform developers!";
+    case EVENT_RJXZS_LOG:
+      return "Error code active in RJXZS BMS. Clear via their smartphone app!";
     case EVENT_PAUSE_BEGIN:
       return "The emulator is trying to pause the battery.";
     case EVENT_PAUSE_END:

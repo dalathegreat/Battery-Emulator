@@ -507,6 +507,12 @@ void handle_incoming_can_frame_battery(CAN_frame rx_frame) {
         low_temperature_protection_setting_value = (rx_frame.data.u8[5] << 8) | rx_frame.data.u8[6];
         protecting_historical_logs = rx_frame.data.u8[7];
 
+        if ((protecting_historical_logs & 0x0F) > 0) {
+          set_event(EVENT_RJXZS_LOG, 0);
+        } else {
+          clear_event(EVENT_RJXZS_LOG);
+        }
+
         if (protecting_historical_logs == 0x01) {
           // Overcurrent protection
           set_event(EVENT_DISCHARGE_LIMIT_EXCEEDED, 0);  // could also be EVENT_CHARGE_LIMIT_EXCEEDED
