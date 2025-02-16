@@ -12,6 +12,8 @@ CAN_frame RJXZS_1C = {.FD = false, .ext_ID = true, .DLC = 3, .ID = 0xF4, .data =
 CAN_frame RJXZS_10 = {.FD = false, .ext_ID = true, .DLC = 3, .ID = 0xF4, .data = {0x10, 0x00, 0x02}};
 
 #define FIVE_MINUTES 60
+#define DISCHARGE 0x01
+#define CHARGE 0x10
 
 static uint8_t mux = 0;
 static bool setup_completed = false;
@@ -74,6 +76,7 @@ static uint16_t fan_start_setting_value = 0;
 static uint16_t ptc_heating_start_setting_value = 0;
 static uint16_t default_channel_state = 0;
 static uint8_t timespent_without_soc = 0;
+static uint8_t charge_discharge_direction = 0;
 
 void update_values_battery() {
 
@@ -96,7 +99,13 @@ void update_values_battery() {
 
   datalayer.battery.status.voltage_dV = total_voltage;
 
-  datalayer.battery.status.current_dA = total_current;
+  if (charge_discharge_direction == DISCHARGE) {
+    datalayer.battery.status.current_dA = -total_current;
+  } else if (charge_discharge_direction == CHARGE) {
+    datalayer.battery.status.current_dA = total_current;
+  } else {  //No direction data. Should never occur, but send current as charging, better than nothing
+    datalayer.battery.status.current_dA = total_current;
+  }
 
   // Charge power is set in .h file
   if (datalayer.battery.status.real_soc > 9900) {
@@ -496,6 +505,7 @@ void handle_incoming_can_frame_battery(CAN_frame rx_frame) {
         balanced_reference_voltage = (rx_frame.data.u8[1] << 8) | rx_frame.data.u8[2];
         minimum_cell_voltage = (rx_frame.data.u8[3] << 8) | rx_frame.data.u8[4];
         maximum_cell_voltage = (rx_frame.data.u8[5] << 8) | rx_frame.data.u8[6];
+        charge_discharge_direction = rx_frame.data.u8[7];
       } else if (mux == 0x52) {
         accumulated_total_capacity_high = (rx_frame.data.u8[1] << 8) | rx_frame.data.u8[2];
         accumulated_total_capacity_low = (rx_frame.data.u8[3] << 8) | rx_frame.data.u8[4];
