@@ -6,7 +6,7 @@
 
 // #define INCLUDE_EVENTS_TEST  // Enable to run an event test loop, see events_test_on_target.cpp
 
-#define EE_MAGIC_HEADER_VALUE 0x0023  // 0x0000 to 0xFFFF
+#define EE_MAGIC_HEADER_VALUE 0x0024  // 0x0000 to 0xFFFF
 
 #define GENERATE_ENUM(ENUM) ENUM,
 #define GENERATE_STRING(STRING) #STRING,
@@ -24,6 +24,7 @@
  * - Assign the proper event level in events.cpp:init_events()
  * - Increment EE_MAGIC_HEADER_VALUE in case you've changed the order
  */
+
 
 #define EVENTS_ENUM_TYPE(XX)                   \
   XX(EVENT_CANMCP2517FD_INIT_FAILURE)          \
@@ -120,6 +121,7 @@
   XX(EVENT_PERIODIC_BMS_RESET_AT_INIT_SUCCESS) \
   XX(EVENT_PERIODIC_BMS_RESET_AT_INIT_FAILED)  \
   XX(EVENT_BATTERY_TEMP_DEVIATION_HIGH)        \
+
   XX(EVENT_NOF_EVENTS)
 
 typedef enum { EVENTS_ENUM_TYPE(GENERATE_ENUM) } EVENTS_ENUM_TYPE;
