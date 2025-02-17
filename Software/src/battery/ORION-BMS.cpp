@@ -8,15 +8,15 @@
 static uint16_t cellvoltages[MAX_AMOUNT_CELLS];  //array with all the cellvoltages
 static uint16_t Maximum_Cell_Voltage = 3700;
 static uint16_t Minimum_Cell_Voltage = 3700;
-static uint16_t Pack_Health = 0;
+static uint16_t Pack_Health = 99;
 static int16_t Pack_Current = 0;
 static int16_t Average_Temperature = 0;
 static uint16_t Pack_Summed_Voltage = 0;
 static int16_t Average_Current = 0;
 static uint16_t High_Temperature = 0;
 static uint16_t Pack_SOC_ppt = 0;
-static uint16_t Pack_CCL = 0;
-static uint16_t Pack_DCL = 0;
+static uint16_t Pack_CCL = 0;  //Charge current limit (A)
+static uint16_t Pack_DCL = 0;  //Discharge current limit (A)
 static uint16_t Maximum_Pack_Voltage = 0;
 static uint16_t Minimum_Pack_Voltage = 0;
 static uint16_t CellID = 0;
@@ -54,7 +54,7 @@ void update_values_battery() {
 
   datalayer.battery.status.real_soc = Pack_SOC_ppt * 10;
 
-  datalayer.battery.status.soh_pptt = Pack_Health;
+  datalayer.battery.status.soh_pptt = Pack_Health * 100;
 
   datalayer.battery.status.voltage_dV = (Pack_Summed_Voltage / 10);
 
