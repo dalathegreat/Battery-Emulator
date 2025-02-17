@@ -80,6 +80,11 @@ void update_values_battery() {
   datalayer.battery.status.cell_max_voltage_mV = Maximum_Cell_Voltage;
 
   datalayer.battery.status.cell_min_voltage_mV = Minimum_Cell_Voltage;
+
+  //If user did not configure amount of cells correctly in the header file, update the value
+  if ((amount_of_detected_cells > NUMBER_OF_CELLS) && (amount_of_detected_cells < MAX_AMOUNT_CELLS)) {
+    datalayer.battery.info.number_of_cells = amount_of_detected_cells;
+  }
 }
 
 void handle_incoming_can_frame_battery(CAN_frame rx_frame) {
