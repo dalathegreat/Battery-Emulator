@@ -27,6 +27,29 @@ static uint16_t Checksum = 0;
 static uint16_t CellBalancing = 0;
 static uint8_t amount_of_detected_cells = 0;
 
+void findMinMaxCellvoltages(const uint16_t arr[], size_t size, uint16_t& Minimum_Cell_Voltage,
+                            uint16_t& Maximum_Cell_Voltage) {
+  Minimum_Cell_Voltage = std::numeric_limits<uint16_t>::max();
+  Maximum_Cell_Voltage = 0;
+  bool foundValidValue = false;
+
+  for (size_t i = 0; i < size; ++i) {
+    if (arr[i] != 0) {  // Skip zero values
+      if (arr[i] < Minimum_Cell_Voltage)
+        Minimum_Cell_Voltage = arr[i];
+      if (arr[i] > Maximum_Cell_Voltage)
+        Maximum_Cell_Voltage = arr[i];
+      foundValidValue = true;
+    }
+  }
+
+  // If all values were zero, set min and max to 3700
+  if (!foundValidValue) {
+    Minimum_Cell_Voltage = 3700;
+    Maximum_Cell_Voltage = 3700;
+  }
+}
+
 void update_values_battery() {
 
   datalayer.battery.status.real_soc = Pack_SOC_ppt * 10;
@@ -44,20 +67,22 @@ void update_values_battery() {
   datalayer.battery.status.remaining_capacity_Wh = static_cast<uint32_t>(
       (static_cast<double>(datalayer.battery.status.real_soc) / 10000) * datalayer.battery.info.total_capacity_Wh);
 
-  datalayer.battery.status.cell_max_voltage_mV = Maximum_Cell_Voltage;
-
-  datalayer.battery.status.cell_min_voltage_mV = Minimum_Cell_Voltage;
-
   datalayer.battery.status.temperature_min_dC = (High_Temperature - 10);
 
   datalayer.battery.status.temperature_max_dC = High_Temperature;
 
   //Map all cell voltages to the global array
   memcpy(datalayer.battery.status.cell_voltages_mV, cellvoltages, MAX_AMOUNT_CELLS * sizeof(uint16_t));
+
+  //Find min and max cellvoltage from the array
+  findMinMaxCellvoltages(cellvoltages, MAX_AMOUNT_CELLS, Minimum_Cell_Voltage, Maximum_Cell_Voltage);
+
+  datalayer.battery.status.cell_max_voltage_mV = Maximum_Cell_Voltage;
+
+  datalayer.battery.status.cell_min_voltage_mV = Minimum_Cell_Voltage;
 }
 
 void handle_incoming_can_frame_battery(CAN_frame rx_frame) {
-  datalayer.battery.status.CAN_battery_still_alive = CAN_STILL_ALIVE;
   switch (rx_frame.ID) {
     case 0x356:
       datalayer.battery.status.CAN_battery_still_alive = CAN_STILL_ALIVE;
@@ -112,6 +137,7 @@ void setup_battery(void) {  // Performs one time setup at startup
   datalayer.battery.info.min_design_voltage_dV = MIN_PACK_VOLTAGE_DV;
   datalayer.battery.info.max_cell_voltage_mV = MAX_CELL_VOLTAGE_MV;
   datalayer.battery.info.min_cell_voltage_mV = MIN_CELL_VOLTAGE_MV;
+  datalayer.system.status.battery_allows_contactor_closing = true;
 }
 
 #endif
