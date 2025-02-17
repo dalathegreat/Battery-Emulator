@@ -212,6 +212,13 @@ void handle_incoming_can_frame_battery(CAN_frame rx_frame) {
         host_temperature = (rx_frame.data.u8[1] << 8) | rx_frame.data.u8[2];
         status_accounting = (rx_frame.data.u8[3] << 8) | rx_frame.data.u8[4];
         equalization_starting_voltage = (rx_frame.data.u8[5] << 8) | rx_frame.data.u8[6];
+        if ((rx_frame.data.u8[4] & 0x40) >> 6) {
+          charging_active = true;
+          discharging_active = false;
+        } else {
+          charging_active = false;
+          discharging_active = true;
+        }
       } else if (mux == 0x07) {  // Cellvoltages 1-3
         cellvoltages[0] = (rx_frame.data.u8[1] << 8) | rx_frame.data.u8[2];
         cellvoltages[1] = (rx_frame.data.u8[3] << 8) | rx_frame.data.u8[4];
@@ -504,8 +511,6 @@ void handle_incoming_can_frame_battery(CAN_frame rx_frame) {
         balanced_reference_voltage = (rx_frame.data.u8[1] << 8) | rx_frame.data.u8[2];
         minimum_cell_voltage = (rx_frame.data.u8[3] << 8) | rx_frame.data.u8[4];
         maximum_cell_voltage = (rx_frame.data.u8[5] << 8) | rx_frame.data.u8[6];
-        charging_active = (rx_frame.data.u8[7] & 0x10) >> 4;
-        discharging_active = (rx_frame.data.u8[7] & 0x01);
       } else if (mux == 0x52) {
         accumulated_total_capacity_high = (rx_frame.data.u8[1] << 8) | rx_frame.data.u8[2];
         accumulated_total_capacity_low = (rx_frame.data.u8[3] << 8) | rx_frame.data.u8[4];
