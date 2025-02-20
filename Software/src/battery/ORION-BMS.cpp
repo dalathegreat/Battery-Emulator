@@ -119,6 +119,9 @@ void handle_incoming_can_frame_battery(CAN_frame rx_frame) {
       CellOpenVoltage = (rx_frame.data.u8[5] << 8) | rx_frame.data.u8[6];
       Checksum = rx_frame.data.u8[7];  //Value = (0x36 + 8 + byte0 + byte1 + ... + byte6) & 0xFF
 
+      if (CellID >= MAX_AMOUNT_CELLS) {
+        CellID = MAX_AMOUNT_CELLS;
+      }
       cellvoltages[CellID] = (CellVoltage / 10);
       if (CellID > amount_of_detected_cells) {
         amount_of_detected_cells = CellID;
