@@ -20,6 +20,7 @@ A clear and concise description of what you expected to happen.
 If applicable, add screenshots to help explain your problem.
 
 **Version and settings (please complete the following information):**
+- Please attach your USER_SETTINGS files for easier debugging
 - Software version: X.Y.Z
 - Battery used: [NISSAN_LEAF]
 - Inverter communication protocol: [BYD_MODBUS]
