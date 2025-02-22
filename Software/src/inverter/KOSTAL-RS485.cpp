@@ -99,7 +99,7 @@ uint8_t RS485_RXFRAME[300];
 
 bool register_content_ok = false;
 
-void float2frame(byte* arr, float value, byte framepointer) {
+static void float2frame(byte* arr, float value, byte framepointer) {
   f32b g;
   g.f = value;
   arr[framepointer] = g.b[0];
@@ -153,7 +153,7 @@ static void dbg_message(const char* msg) {
 
 /* https://en.wikipedia.org/wiki/Consistent_Overhead_Byte_Stuffing#Encoding_examples */
 
-void null_stuffer(byte* lfc, int len) {
+static void null_stuffer(byte* lfc, int len) {
   int last_null_byte = 0;
   for (int i = 0; i < len; i++) {
     if (lfc[i] == '\0') {
@@ -168,7 +168,7 @@ static void send_kostal(byte* frame, int len) {
   Serial2.write(frame, len);
 }
 
-byte calculate_kostal_crc(byte* lfc, int len) {
+static byte calculate_kostal_crc(byte* lfc, int len) {
   unsigned int sum = 0;
   if (lfc[0] != 0) {
     logging.printf("WARNING: first byte should be 0, but is 0x%02x\n", lfc[0]);
@@ -179,7 +179,7 @@ byte calculate_kostal_crc(byte* lfc, int len) {
   return (byte)(-sum & 0xff);
 }
 
-bool check_kostal_frame_crc(int len) {
+static bool check_kostal_frame_crc(int len) {
   unsigned int sum = 0;
   int zeropointer = RS485_RXFRAME[0];
   int last_zero = 0;
