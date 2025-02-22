@@ -83,13 +83,6 @@ uint8_t CYCLIC_DATA[64] = {
 // FE 04 01 40 xx 01 01 02 yy (fully charged)
 // FE 02 01 02 xx 01 01 02 yy (charging or discharging)
 
-//uint8_t frame3[9] = {
-//    0x08, 0xE2, 0xFF, 0x02, 0xFF, 0x29,  //header
-//    0x06,                                //Unknown (battery status/error?)
-//    0xEF,                                //CRC
-//    0x00                                 //endbyte
-//};
-
 uint8_t STATUS_FRAME[9] = {
     0x00, 0xE2, 0xFF, 0x02, 0xFF, 0x29,  //header
     0x06,                                //Unknown (battery status/error?)
