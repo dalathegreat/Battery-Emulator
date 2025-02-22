@@ -267,8 +267,7 @@ void update_RS485_registers_inverter() {
 
   float2frame(CYCLIC_DATA, (float)datalayer.battery.status.max_discharge_current_dA / 10, 26);
 
-  // When SOC = 100%, drop down allowed charge current down.
-
+  // When SoC is 100%, drop down allowed charge current.
   if ((datalayer.battery.status.reported_soc / 100) < 100) {
     float2frame(CYCLIC_DATA, (float)datalayer.battery.status.max_charge_current_dA / 10, 34);
   } else {
@@ -277,7 +276,7 @@ void update_RS485_registers_inverter() {
 
   if (nominal_voltage_dV > 0) {
     float2frame(CYCLIC_DATA, (float)(datalayer.battery.info.total_capacity_Wh / nominal_voltage_dV * 10),
-                30);  // BAttery capacity Ah
+                30);  // Battery capacity Ah
   }
   float2frame(CYCLIC_DATA, (float)datalayer.battery.status.temperature_max_dC / 10, 38);
   float2frame(CYCLIC_DATA, (float)datalayer.battery.status.temperature_min_dC / 10, 42);
@@ -285,7 +284,7 @@ void update_RS485_registers_inverter() {
   float2frame(CYCLIC_DATA, (float)datalayer.battery.status.cell_max_voltage_mV / 1000, 46);
   float2frame(CYCLIC_DATA, (float)datalayer.battery.status.cell_min_voltage_mV / 1000, 50);
 
-  CYCLIC_DATA[58] = (byte)(datalayer.battery.status.reported_soc / 100);  // Confirmed OK mapping
+  CYCLIC_DATA[58] = (byte)(datalayer.battery.status.reported_soc / 100);
 
   register_content_ok = true;
 
