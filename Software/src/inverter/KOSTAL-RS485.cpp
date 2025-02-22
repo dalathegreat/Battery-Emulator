@@ -29,17 +29,22 @@ union f32b {
 };
 
 uint8_t BATTERY_INFO[40] = {
-    0x00, 0xE2, 0xFF, 0x02, 0xFF, 0x29,  // Frame header
-    0x00, 0x00, 0x80, 0x43,              // 256.063 Nominal voltage / 5*51.2=256      first byte 0x01 or 0x04
-    0xE4, 0x70, 0x8A, 0x5C,              // Manufacture date (Epoch time) (BYD: GetBatteryInfo this[0x10ac])
-    0xB5, 0x00, 0xD3, 0x00,              // Battery Serial number? Modbus register 527 - 0x10b0
-    0x00, 0x00, 0xC8, 0x41,              // Nominal Capacity (0x10b4)
-    0xC2, 0x18,                          // Battery Firmware, modbus register 586  (0x10b8)
-    0x00,                                // Static (BYD: GetBatteryInfo this[0x10ba])
-    0x00,                                // ?
-    0x59, 0x42,                          // Static (BYD: GetBatteryInfo this[0x10bc])
-    0x00, 0x00,                          // Static (BYD: GetBatteryInfo this[0x10be])
-    0x00, 0x00, 0x05, 0x00, 0xA0, 0x00, 0x00, 0x00,
+    0x00,                         // First zero byte pointer
+    0xE2, 0xFF, 0x02, 0xFF, 0x29, // Frame header
+    0x00, 0x00, 0x80, 0x43,       // 256.063 Nominal voltage / 5*51.2=256
+    0xE4, 0x70, 0x8A, 0x5C,       // Manufacture date (Epoch time) (BYD: GetBatteryInfo this[0x10ac])
+    0xB5, 0x00, 0xD3, 0x00,       // Battery Serial number? Modbus register 527 - 0x10b0
+    0x00, 0x00, 0xC8, 0x41,       // Nominal Capacity (0x10b4)
+    0xC2, 0x18,                   // Battery Firmware, modbus register 586  (0x10b8)
+    0x00,                         // Static (BYD: GetBatteryInfo this[0x10ba])
+    0x00,                         // ?
+    0x59, 0x42,                   // Vendor identifier
+                                  //       0x59 0x42 -> 'YB' -> BYD
+                                  //       0x59 0x44 -> 'YD' -> Dyness
+    0x00, 0x00,                   // Static (BYD: GetBatteryInfo this[0x10be])
+    0x00, 0x00,
+    0x05, 0x00,                   // Number of blocks in series (uint16)
+    0xA0, 0x00, 0x00, 0x00,
     0x4D,   // CRC
     0x00};  //
 
