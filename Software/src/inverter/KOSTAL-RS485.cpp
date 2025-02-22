@@ -73,7 +73,7 @@ uint8_t CYCLIC_DATA[64] = {
     0x00,        // Byte 59, Unknown
     0x00,        // Byte 60, Unknown
     0x01,        // Byte 61, Unknown, 1 only at first frame, 0 otherwise
-    0x00,        // CRC, Byte 62
+    0x00,        // Byte 62, CRC
     0x00};
 
 // FE 04 01 40 xx 01 01 02 yy (fully charged)
