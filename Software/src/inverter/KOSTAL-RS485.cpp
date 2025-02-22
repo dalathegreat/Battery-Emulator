@@ -93,7 +93,7 @@ uint8_t STATUS_FRAME[9] = {
     0x00                                 //endbyte
 };
 
-uint8_t ACKframe[8] = {0x07, 0xE3, 0xFF, 0x02, 0xFF, 0x29, 0xF4, 0x00};
+uint8_t ACK_FRAME[8] = {0x07, 0xE3, 0xFF, 0x02, 0xFF, 0x29, 0xF4, 0x00};
 
 uint8_t RS485_RXFRAME[300];
 
@@ -325,7 +325,7 @@ void receive_RS485()  // Runs as fast as possible to handle the serial stream
             if (RS485_RXFRAME[1] == 'c') {
               if (RS485_RXFRAME[6] == 0x47) {
                 // Set time function - Do nothing.
-                send_kostal(ACKframe, 8);  // ACK
+                send_kostal(ACK_FRAME, 8);  // ACK
               }
               if (RS485_RXFRAME[6] == 0x5E) {
                 // Set State function
@@ -333,12 +333,12 @@ void receive_RS485()  // Runs as fast as possible to handle the serial stream
                   // Allow contactor closing
                   datalayer.system.status.inverter_allows_contactor_closing = true;
                   dbg_message("inverter_allows_contactor_closing -> true");
-                  send_kostal(ACKframe, 8);  // ACK
+                  send_kostal(ACK_FRAME, 8);  // ACK
                 } else if (RS485_RXFRAME[7] == 0x04) {
                   // INVALID STATE, no ACK sent
                 } else {
                   // Battery deep sleep?
-                  send_kostal(ACKframe, 8);  // ACK
+                  send_kostal(ACK_FRAME, 8);  // ACK
                 }
               }
             } else if (RS485_RXFRAME[1] == 'b') {
