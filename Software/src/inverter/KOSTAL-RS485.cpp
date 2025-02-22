@@ -33,7 +33,7 @@ uint8_t BATTERY_INFO[40] = {
     0x00, 0x00, 0x80, 0x43,              // 256.063 Nominal voltage / 5*51.2=256      first byte 0x01 or 0x04
     0xE4, 0x70, 0x8A, 0x5C,              // Manufacture date (Epoch time) (BYD: GetBatteryInfo this[0x10ac])
     0xB5, 0x00, 0xD3, 0x00,              // Battery Serial number? Modbus register 527 - 0x10b0
-    0x00, 0x00, 0xC8, 0x41,              // 0x10b4
+    0x00, 0x00, 0xC8, 0x41,              // Nominal Capacity (0x10b4)
     0xC2, 0x18,                          // Battery Firmware, modbus register 586  (0x10b8)
     0x00,                                // Static (BYD: GetBatteryInfo this[0x10ba])
     0x00,                                // ?
