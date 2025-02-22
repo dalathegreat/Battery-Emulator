@@ -214,23 +214,35 @@ void update_RS485_registers_inverter() {
        datalayer.battery.info.min_design_voltage_dV);
   float2frame(BATTERY_INFO, (float)nominal_voltage_dV / 10, 6);
 
-
   float2frame(CyclicData, (float)datalayer.battery.info.max_design_voltage_dV / 10, 10);
 
   float2frame(CyclicData, (float)average_temperature_dC / 10, 14);
 
-  float2frame(CyclicData, (float)datalayer.battery.status.current_dA / 10, 18);  // Last current
-  float2frame(CyclicData, (float)datalayer.battery.status.current_dA / 10, 22);  // Should be Avg current(1s)
+#ifdef BMW_SBOX
+  float2frame(CyclicData, (float)(datalayer.shunt.measured_amperage_mA / 100) / 10, 18);
+  float2frame(CyclicData, (float)(datalayer.shunt.measured_avg1S_amperage_mA / 100) / 10, 22);
 
-  float2frame(CyclicData, (float)datalayer.battery.status.max_discharge_current_dA / 10, 26);
-
-  // When SOC = 100%, drop down allowed charge current down.
-
-  if ((datalayer.battery.status.reported_soc / 100) < 100) {
-    float2frame(CyclicData, (float)datalayer.battery.status.max_charge_current_dA / 10, 34);
+  if (datalayer.shunt.contactors_engaged) {
+    CyclicData[59] = 0;
   } else {
+    CyclicData[59] = 2;
+  }
+
+  if (datalayer.shunt.precharging || datalayer.shunt.contactors_engaged) {
+    CyclicData[56] = 1;
+    float2frame(CyclicData, (float)datalayer.battery.status.max_discharge_current_dA / 10,
+                26);  // Maximum discharge current
+    float2frame(CyclicData, (float)datalayer.battery.status.max_charge_current_dA / 10, 34);  // Maximum charge current
+  } else {
+    CyclicData[56] = 0;
+    float2frame(CyclicData, 0.0, 26);
     float2frame(CyclicData, 0.0, 34);
   }
+
+#else
+
+  float2frame(CyclicData, (float)datalayer.battery.status.current_dA / 10, 18);  // Last current
+  float2frame(CyclicData, (float)datalayer.battery.status.current_dA / 10, 22);  // Should be Avg current(1s)
 
   // On startup, byte 56 seems to be always 0x00 couple of frames,.
   if (f2_startup_count < 9) {
@@ -244,6 +256,18 @@ void update_RS485_registers_inverter() {
     CyclicData[59] = 0x02;
   } else {
     CyclicData[59] = 0x00;
+  }
+
+#endif
+
+  float2frame(CyclicData, (float)datalayer.battery.status.max_discharge_current_dA / 10, 26);
+
+  // When SOC = 100%, drop down allowed charge current down.
+
+  if ((datalayer.battery.status.reported_soc / 100) < 100) {
+    float2frame(CyclicData, (float)datalayer.battery.status.max_charge_current_dA / 10, 34);
+  } else {
+    float2frame(CyclicData, 0.0, 34);
   }
 
   if (nominal_voltage_dV > 0) {
@@ -346,6 +370,7 @@ void receive_RS485()  // Runs as fast as possible to handle the serial stream
                 }
                 if (code == 0x353) {
                   //Send  battery error/status
+                  byte tmpframe[9];  //copy values to prevent data manipulation during rewrite/crc calculation
                   memcpy(tmpframe, STATUS_FRAME, 9);
                   tmpframe[7] = calculate_kostal_crc(tmpframe, 7);
                   null_stuffer(tmpframe, 9);
@@ -366,10 +391,9 @@ void receive_RS485()  // Runs as fast as possible to handle the serial stream
 }
 
 void setup_inverter(void) {  // Performs one time setup at startup
-  strncpy(datalayer.system.info.inverter_protocol, "BYD battery via Kostal RS485", 63);
-  datalayer.system.info.inverter_protocol[63] = '\0';
   datalayer.system.status.inverter_allows_contactor_closing = false;
   dbg_message("inverter_allows_contactor_closing -> false");
+  strncpy(datalayer.system.info.inverter_protocol, "BYD battery via Kostal RS485", 63);
+  datalayer.system.info.inverter_protocol[63] = '\0';
 }
-
 #endif
