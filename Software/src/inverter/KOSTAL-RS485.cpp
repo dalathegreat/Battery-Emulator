@@ -48,9 +48,9 @@ uint8_t BATTERY_INFO[40] = {
     0x4D,   // CRC
     0x00};  //
 
-// values in CyclicData will be overwritten at update_modbus_registers_inverter()
+// values in CYCLIC_DATA will be overwritten at update_modbus_registers_inverter()
 
-uint8_t CyclicData[64] = {
+uint8_t CYCLIC_DATA[64] = {
     0x00,                          // First zero byte pointer
     0xE2, 0xFF, 0x02, 0xFF, 0x29,  // Frame header
     0x1D, 0x5A, 0x85, 0x43,        // Current Voltage            (float32)   Bytes  6- 9    Modbus register 216
@@ -209,9 +209,9 @@ void update_RS485_registers_inverter() {
 
   if (datalayer.system.status.battery_allows_contactor_closing &
       datalayer.system.status.inverter_allows_contactor_closing) {
-    float2frame(CyclicData, (float)datalayer.battery.status.voltage_dV / 10, 6);  // Confirmed OK mapping
+    float2frame(CYCLIC_DATA, (float)datalayer.battery.status.voltage_dV / 10, 6);  // Confirmed OK mapping
   } else {
-    float2frame(CyclicData, 0.0, 6);
+    float2frame(CYCLIC_DATA, 0.0, 6);
   }
   // Set nominal voltage to value between min and max voltage set by battery (Example 400 and 300 results in 350V)
   nominal_voltage_dV =
@@ -219,73 +219,73 @@ void update_RS485_registers_inverter() {
        datalayer.battery.info.min_design_voltage_dV);
   float2frame(BATTERY_INFO, (float)nominal_voltage_dV / 10, 6);
 
-  float2frame(CyclicData, (float)datalayer.battery.info.max_design_voltage_dV / 10, 10);
+  float2frame(CYCLIC_DATA, (float)datalayer.battery.info.max_design_voltage_dV / 10, 10);
 
-  float2frame(CyclicData, (float)average_temperature_dC / 10, 14);
+  float2frame(CYCLIC_DATA, (float)average_temperature_dC / 10, 14);
 
 #ifdef BMW_SBOX
-  float2frame(CyclicData, (float)(datalayer.shunt.measured_amperage_mA / 100) / 10, 18);
-  float2frame(CyclicData, (float)(datalayer.shunt.measured_avg1S_amperage_mA / 100) / 10, 22);
+  float2frame(CYCLIC_DATA, (float)(datalayer.shunt.measured_amperage_mA / 100) / 10, 18);
+  float2frame(CYCLIC_DATA, (float)(datalayer.shunt.measured_avg1S_amperage_mA / 100) / 10, 22);
 
   if (datalayer.shunt.contactors_engaged) {
-    CyclicData[59] = 0;
+    CYCLIC_DATA[59] = 0;
   } else {
-    CyclicData[59] = 2;
+    CYCLIC_DATA[59] = 2;
   }
 
   if (datalayer.shunt.precharging || datalayer.shunt.contactors_engaged) {
-    CyclicData[56] = 1;
-    float2frame(CyclicData, (float)datalayer.battery.status.max_discharge_current_dA / 10,
+    CYCLIC_DATA[56] = 1;
+    float2frame(CYCLIC_DATA, (float)datalayer.battery.status.max_discharge_current_dA / 10,
                 26);  // Maximum discharge current
-    float2frame(CyclicData, (float)datalayer.battery.status.max_charge_current_dA / 10, 34);  // Maximum charge current
+    float2frame(CYCLIC_DATA, (float)datalayer.battery.status.max_charge_current_dA / 10, 34);  // Maximum charge current
   } else {
-    CyclicData[56] = 0;
-    float2frame(CyclicData, 0.0, 26);
-    float2frame(CyclicData, 0.0, 34);
+    CYCLIC_DATA[56] = 0;
+    float2frame(CYCLIC_DATA, 0.0, 26);
+    float2frame(CYCLIC_DATA, 0.0, 34);
   }
 
 #else
 
-  float2frame(CyclicData, (float)datalayer.battery.status.current_dA / 10, 18);  // Last current
-  float2frame(CyclicData, (float)datalayer.battery.status.current_dA / 10, 22);  // Should be Avg current(1s)
+  float2frame(CYCLIC_DATA, (float)datalayer.battery.status.current_dA / 10, 18);  // Last current
+  float2frame(CYCLIC_DATA, (float)datalayer.battery.status.current_dA / 10, 22);  // Should be Avg current(1s)
 
   // On startup, byte 56 seems to be always 0x00 couple of frames,.
   if (f2_startup_count < 9) {
-    CyclicData[56] = 0x00;
+    CYCLIC_DATA[56] = 0x00;
   } else {
-    CyclicData[56] = 0x01;
+    CYCLIC_DATA[56] = 0x01;
   }
 
   // On startup, byte 59 seems to be always 0x02 couple of frames,.
   if (f2_startup_count < 14) {
-    CyclicData[59] = 0x02;
+    CYCLIC_DATA[59] = 0x02;
   } else {
-    CyclicData[59] = 0x00;
+    CYCLIC_DATA[59] = 0x00;
   }
 
 #endif
 
-  float2frame(CyclicData, (float)datalayer.battery.status.max_discharge_current_dA / 10, 26);
+  float2frame(CYCLIC_DATA, (float)datalayer.battery.status.max_discharge_current_dA / 10, 26);
 
   // When SOC = 100%, drop down allowed charge current down.
 
   if ((datalayer.battery.status.reported_soc / 100) < 100) {
-    float2frame(CyclicData, (float)datalayer.battery.status.max_charge_current_dA / 10, 34);
+    float2frame(CYCLIC_DATA, (float)datalayer.battery.status.max_charge_current_dA / 10, 34);
   } else {
-    float2frame(CyclicData, 0.0, 34);
+    float2frame(CYCLIC_DATA, 0.0, 34);
   }
 
   if (nominal_voltage_dV > 0) {
-    float2frame(CyclicData, (float)(datalayer.battery.info.total_capacity_Wh / nominal_voltage_dV * 10),
+    float2frame(CYCLIC_DATA, (float)(datalayer.battery.info.total_capacity_Wh / nominal_voltage_dV * 10),
                 30);  // BAttery capacity Ah
   }
-  float2frame(CyclicData, (float)datalayer.battery.status.temperature_max_dC / 10, 38);
-  float2frame(CyclicData, (float)datalayer.battery.status.temperature_min_dC / 10, 42);
+  float2frame(CYCLIC_DATA, (float)datalayer.battery.status.temperature_max_dC / 10, 38);
+  float2frame(CYCLIC_DATA, (float)datalayer.battery.status.temperature_min_dC / 10, 42);
 
-  float2frame(CyclicData, (float)datalayer.battery.status.cell_max_voltage_mV / 1000, 46);
-  float2frame(CyclicData, (float)datalayer.battery.status.cell_min_voltage_mV / 1000, 50);
+  float2frame(CYCLIC_DATA, (float)datalayer.battery.status.cell_max_voltage_mV / 1000, 46);
+  float2frame(CYCLIC_DATA, (float)datalayer.battery.status.cell_min_voltage_mV / 1000, 50);
 
-  CyclicData[58] = (byte)(datalayer.battery.status.reported_soc / 100);  // Confirmed OK mapping
+  CYCLIC_DATA[58] = (byte)(datalayer.battery.status.reported_soc / 100);  // Confirmed OK mapping
 
   register_content_ok = true;
 
@@ -354,11 +354,11 @@ void receive_RS485()  // Runs as fast as possible to handle the serial stream
                     f2_startup_count++;
                   }
                   byte tmpframe[64];  //copy values to prevent data manipulation during rewrite/crc calculation
-                  memcpy(tmpframe, CyclicData, 64);
+                  memcpy(tmpframe, CYCLIC_DATA, 64);
                   tmpframe[62] = calculate_kostal_crc(tmpframe, 62);
                   null_stuffer(tmpframe, 64);
                   send_kostal(tmpframe, 64);
-                  CyclicData[61] = 0x00;
+                  CYCLIC_DATA[61] = 0x00;
                 }
                 if (code == 0x84a) {
                   //Send  battery info
