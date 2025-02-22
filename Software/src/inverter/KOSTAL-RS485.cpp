@@ -62,7 +62,7 @@ uint8_t CyclicData[64] = {
     0x7D, 0x3F, 0x55, 0x40,        // MinCellVolt  (float), Bit 50-53
 
     0xFE, 0x04,  // Cycle count,
-    0x00,        // Byte 56
+    0x00,        // Byte 56, charge/discharge control, 0=disable, 1=enable
     0x00,        // When SOC=100 Byte57 seen as 0x40,
     0x64,        // SOC , Bit 58
     0x00,        // Unknown,
