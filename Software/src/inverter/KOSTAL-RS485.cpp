@@ -28,6 +28,7 @@ union f32b {
   byte b[4];
 };
 
+// clang-format off
 uint8_t BATTERY_INFO[40] = {
     0x00,                         // First zero byte pointer
     0xE2, 0xFF, 0x02, 0xFF, 0x29, // Frame header
@@ -45,11 +46,13 @@ uint8_t BATTERY_INFO[40] = {
     0x00, 0x00,
     0x05, 0x00,                   // Number of blocks in series (uint16)
     0xA0, 0x00, 0x00, 0x00,
-    0x4D,   // CRC
-    0x00};  //
+    0x4D, // CRC
+    0x00};
+// clang-format on
 
 // values in CYCLIC_DATA will be overwritten at update_modbus_registers_inverter()
 
+// clang-format off
 uint8_t CYCLIC_DATA[64] = {
     0x00,                          // First zero byte pointer
     0xE2, 0xFF, 0x02, 0xFF, 0x29,  // Frame header
@@ -75,6 +78,7 @@ uint8_t CYCLIC_DATA[64] = {
     0x01,        // Byte 61, Unknown, 1 only at first frame, 0 otherwise
     0x00,        // Byte 62, CRC
     0x00};
+// clang-format on
 
 // FE 04 01 40 xx 01 01 02 yy (fully charged)
 // FE 02 01 02 xx 01 01 02 yy (charging or discharging)
