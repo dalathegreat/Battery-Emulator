@@ -52,28 +52,28 @@ uint8_t BATTERY_INFO[40] = {
 
 uint8_t CyclicData[64] = {
     0x00,                          // First zero byte pointer
-    0xE2, 0xFF, 0x02, 0xFF, 0x29,  // frame Header
-    0x1D, 0x5A, 0x85, 0x43,        // Current Voltage  (float)                        Modbus register 216, Bytes 6-9
-    0x00, 0x00, 0x8D, 0x43,        // Max Voltage      (2 byte float),                                     Bytes 12-13
-    0x00, 0x00, 0xAC, 0x41,        // BAttery Temperature        (2 byte float)       Modbus register 214, Bytes 16-17
-    0x00, 0x00, 0x00, 0x00,        // Peak Current (1s period?),  Bytes 18-21
-    0x00, 0x00, 0x00, 0x00,        // Avg current  (1s period?),  Bytes 22-25
-    0x00, 0x00, 0x48, 0x42,        // Max discharge current (2 byte float), Bit 26-29,  // Sunspec: ADisChaMax
-    0x00, 0x00, 0xC8, 0x41,        // Battery gross capacity, Ah (2 byte float) , Bytes 30-33, Modbus 512
-    0x00, 0x00, 0xA0, 0x41,        // Max charge current (2 byte float) Bit 36-37, ZERO WHEN SOC=100 // Sunspec: AChaMax
-    0xCD, 0xCC, 0xB4, 0x41,        // MaxCellTemp (4 byte float) Bit 38-41
-    0x00, 0x00, 0xA4, 0x41,        // MinCellTemp (4 byte float) Bit 42-45
-    0xA4, 0x70, 0x55, 0x40,        // MaxCellVolt  (float), Bit 46-49
-    0x7D, 0x3F, 0x55, 0x40,        // MinCellVolt  (float), Bit 50-53
+    0xE2, 0xFF, 0x02, 0xFF, 0x29,  // Frame header
+    0x1D, 0x5A, 0x85, 0x43,        // Current Voltage            (float32)   Bytes  6- 9    Modbus register 216
+    0x00, 0x00, 0x8D, 0x43,        // Max Voltage                (float32)   Bytes 10-13
+    0x00, 0x00, 0xAC, 0x41,        // Battery Temperature        (float32)   Bytes 14-17    Modbus register 214
+    0x00, 0x00, 0x00, 0x00,        // Peak Current (1s period?)  (float32)   Bytes 18-21
+    0x00, 0x00, 0x00, 0x00,        // Avg current  (1s period?)  (float32)   Bytes 22-25
+    0x00, 0x00, 0x48, 0x42,        // Max discharge current      (float32)   Bytes 26-29    Sunspec: ADisChaMax
+    0x00, 0x00, 0xC8, 0x41,        // Battery gross capacity, Ah (float32)   Bytes 30-33    Modbus register 512
+    0x00, 0x00, 0xA0, 0x41,        // Max charge current         (float32)   Bytes 34-37    0.0f when SoC is 100%, Sunspec: AChaMax
+    0xCD, 0xCC, 0xB4, 0x41,        // MaxCellTemp                (float32)   Bytes 38-41
+    0x00, 0x00, 0xA4, 0x41,        // MinCellTemp                (float32)   Bytes 42-45
+    0xA4, 0x70, 0x55, 0x40,        // MaxCellVolt                (float32)   Bytes 46-49
+    0x7D, 0x3F, 0x55, 0x40,        // MinCellVolt                (float32)   Bytes 50-53
 
-    0xFE, 0x04,  // Cycle count,
+    0xFE, 0x04,  // Bytes 54-55, Cycle count (uint16)
     0x00,        // Byte 56, charge/discharge control, 0=disable, 1=enable
-    0x00,        // When SOC=100 Byte57 seen as 0x40,
-    0x64,        // SOC , Bit 58
-    0x00,        // Unknown,
-    0x00,        // Unknown,
-    0x01,        // Unknown, Byte 61, 1 only at first frame
-    0x00,        // CRC (inverted sum of bytes 1-62 + 0xC0), Bit 62
+    0x00,        // Byte 57, When SoC is 100%, seen as 0x40
+    0x64,        // Byte 58, SoC (uint8)
+    0x00,        // Byte 59, Unknown
+    0x00,        // Byte 60, Unknown
+    0x01,        // Byte 61, Unknown, 1 only at first frame, 0 otherwise
+    0x00,        // CRC, Byte 62
     0x00};
 
 // FE 04 01 40 xx 01 01 02 yy (fully charged)
