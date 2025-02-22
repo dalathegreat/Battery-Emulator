@@ -74,16 +74,21 @@ uint8_t CyclicData[64] = {
 // FE 04 01 40 xx 01 01 02 yy (fully charged)
 // FE 02 01 02 xx 01 01 02 yy (charging or discharging)
 
-uint8_t frame3[9] = {
-    0x08, 0xE2, 0xFF, 0x02, 0xFF, 0x29,  //header
-    0x06,                                //Unknown
+//uint8_t frame3[9] = {
+//    0x08, 0xE2, 0xFF, 0x02, 0xFF, 0x29,  //header
+//    0x06,                                //Unknown (battery status/error?)
+//    0xEF,                                //CRC
+//    0x00                                 //endbyte
+//};
+
+uint8_t STATUS_FRAME[9] = {
+    0x00, 0xE2, 0xFF, 0x02, 0xFF, 0x29,  //header
+    0x06,                                //Unknown (battery status/error?)
     0xEF,                                //CRC
     0x00                                 //endbyte
 };
 
-uint8_t frame4[8] = {0x07, 0xE3, 0xFF, 0x02, 0xFF, 0x29, 0xF4, 0x00};
-
-uint8_t frameB1[10] = {0x07, 0x63, 0xFF, 0x02, 0xFF, 0x29, 0x5E, 0x02, 0x16, 0x00};
+uint8_t ACKframe[8] = {0x07, 0xE3, 0xFF, 0x02, 0xFF, 0x29, 0xF4, 0x00};
 
 uint8_t RS485_RXFRAME[300];
 
@@ -291,7 +296,7 @@ void receive_RS485()  // Runs as fast as possible to handle the serial stream
             if (RS485_RXFRAME[1] == 'c') {
               if (RS485_RXFRAME[6] == 0x47) {
                 // Set time function - Do nothing.
-                send_kostal(frame4, 8);  // ACK
+                send_kostal(ACKframe, 8);  // ACK
               }
               if (RS485_RXFRAME[6] == 0x5E) {
                 // Set State function
@@ -299,12 +304,12 @@ void receive_RS485()  // Runs as fast as possible to handle the serial stream
                   // Allow contactor closing
                   datalayer.system.status.inverter_allows_contactor_closing = true;
                   dbg_message("inverter_allows_contactor_closing -> true");
-                  send_kostal(frame4, 8);  // ACK
+                  send_kostal(ACKframe, 8);  // ACK
                 } else if (RS485_RXFRAME[7] == 0x04) {
                   // INVALID STATE, no ACK sent
                 } else {
                   // Battery deep sleep?
-                  send_kostal(frame4, 8);  // ACK
+                  send_kostal(ACKframe, 8);  // ACK
                 }
               }
             } else if (RS485_RXFRAME[1] == 'b') {
@@ -340,8 +345,11 @@ void receive_RS485()  // Runs as fast as possible to handle the serial stream
                   }
                 }
                 if (code == 0x353) {
-                  //Send  battery error
-                  send_kostal(frame3, 9);
+                  //Send  battery error/status
+                  memcpy(tmpframe, STATUS_FRAME, 9);
+                  tmpframe[7] = calculate_kostal_crc(tmpframe, 7);
+                  null_stuffer(tmpframe, 9);
+                  send_kostal(tmpframe, 9);
                 }
               }
             }
