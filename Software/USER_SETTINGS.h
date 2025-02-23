@@ -25,6 +25,7 @@
 //#define MEB_BATTERY
 //#define MG_5_BATTERY
 //#define NISSAN_LEAF_BATTERY
+//#define ORION_BMS
 //#define PYLON_BATTERY
 //#define DALY_BMS
 //#define RJXZS_BMS
@@ -39,7 +40,7 @@
 //#define TESLA_MODEL_3Y_BATTERY
 //#define TESLA_MODEL_SX_BATTERY
 //#define VOLVO_SPA_BATTERY
-#define VOLVO_SPA_HYBRID_BATTERY
+//#define VOLVO_SPA_HYBRID_BATTERY
 //#define TEST_FAKE_BATTERY
 //#define DOUBLE_BATTERY  //Enable this line if you use two identical batteries at the same time (requires CAN_ADDON setup)
 //#define SERIAL_LINK_TRANSMITTER  //Enable this line to send battery data over RS485 pins to another Lilygo (This LilyGo interfaces with battery)
