@@ -44,6 +44,10 @@
 #include "src/devboard/mqtt/mqtt.h"
 #endif  // MQTT
 #endif  // WIFI
+#ifdef PERIODIC_BMS_RESET_AT
+#include "src/devboard/utils/ntp_time.h"
+#endif
+volatile unsigned long long bmsResetTimeOffset = 0;
 
 // The current software version, shown on webserver
 const char* version_number = "8.7.dev";
@@ -52,7 +56,6 @@ const char* version_number = "8.7.dev";
 uint16_t intervalUpdateValues = INTERVAL_1_S;  // Interval at which to update inverter values / Modbus registers
 unsigned long previousMillis10ms = 0;
 unsigned long previousMillisUpdateVal = 0;
-
 // Task time measurement for debugging and for setting CPU load events
 int64_t core_task_time_us;
 MyTimer core_task_timer_10s(INTERVAL_10_S);
@@ -135,6 +138,14 @@ void setup() {
   // Start tasks
   xTaskCreatePinnedToCore((TaskFunction_t)&core_loop, "core_loop", 4096, &core_task_time_us, TASK_CORE_PRIO,
                           &main_loop_task, CORE_FUNCTION_CORE);
+#ifdef PERIODIC_BMS_RESET_AT
+  bmsResetTimeOffset = getTimeOffsetfromNowUntil(PERIODIC_BMS_RESET_AT);
+  if (bmsResetTimeOffset == 0) {
+    set_event(EVENT_PERIODIC_BMS_RESET_AT_INIT_FAILED, 0);
+  } else {
+    set_event(EVENT_PERIODIC_BMS_RESET_AT_INIT_SUCCESS, 0);
+  }
+#endif
 }
 
 // Perform main program functions
