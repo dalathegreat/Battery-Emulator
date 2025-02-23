@@ -141,7 +141,7 @@ void update_values_battery() {  //This function maps all the values fetched via 
   datalayer.battery.status.cell_min_voltage_mV = BMS_lowest_cell_voltage_mV;
 
   //Map all cell voltages to the global array
-  memcpy(datalayer.battery.status.cell_voltages_mV, battery_cellvoltages, 126 * sizeof(uint16_t));
+  memcpy(datalayer.battery.status.cell_voltages_mV, battery_cellvoltages, NOF_CELLS * sizeof(uint16_t));
 
 #ifdef SKIP_TEMPERATURE_SENSOR_NUMBER
   // Initialize min and max variables for temperature calculation
@@ -498,7 +498,7 @@ void update_values_battery2() {  //This function maps all the values fetched via
   datalayer.battery2.status.temperature_max_dC = BMS2_highest_cell_temperature * 10;
 
   //Map all cell voltages to the global array
-  memcpy(datalayer.battery2.status.cell_voltages_mV, battery2_cellvoltages, 126 * sizeof(uint16_t));
+  memcpy(datalayer.battery2.status.cell_voltages_mV, battery2_cellvoltages, NOF_CELLS * sizeof(uint16_t));
 }
 
 void handle_incoming_can_frame_battery2(CAN_frame rx_frame) {
