@@ -653,7 +653,7 @@ void transmit_can_battery() {
 }
 
 void setup_battery(void) {  // Performs one time setup at startup
-  strncpy(datalayer.system.info.battery_protocol, "Volvo 18.83kWh battery", 63); //changed
+  strncpy(datalayer.system.info.battery_protocol, "Volvo PHEV battery", 63); //changed
   datalayer.system.info.battery_protocol[63] = '\0';
   datalayer.battery.info.number_of_cells = 102; //was 108, changed
   datalayer.battery.info.max_design_voltage_dV = MAX_PACK_VOLTAGE_DV;
