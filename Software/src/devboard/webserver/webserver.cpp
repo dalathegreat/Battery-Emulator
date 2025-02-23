@@ -740,6 +740,12 @@ String processor(const String& var) {
 #ifdef HW_STARK
     content += " Hardware: Stark CMR Module";
 #endif  // HW_STARK
+#ifdef HW_3LB
+    content += " Hardware: 3LB";
+#endif  // HW_3LB
+#ifdef HW_DEVKIT
+    content += " Hardware: ES32 Devkit";
+#endif  // HW_DEVKIT
     content += "</h4>";
     content += "<h4>Uptime: " + uptime_formatter::getUptime() + "</h4>";
 #ifdef FUNCTION_TIME_MEASUREMENT
