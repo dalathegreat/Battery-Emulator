@@ -20,7 +20,7 @@ static unsigned long currentMillis;
 static unsigned long startupMillis = 0;
 static unsigned long contactorMillis = 0;
 
-static uint8_t rx_index = 0;
+static uint16_t rx_index = 0;
 static boolean RX_allow = false;
 
 union f32b {
