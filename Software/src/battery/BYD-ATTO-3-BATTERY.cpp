@@ -37,7 +37,8 @@ static int16_t BMS_average_cell_temperature = 0;
 static uint16_t BMS_lowest_cell_voltage_mV = 3300;
 static uint16_t BMS_highest_cell_voltage_mV = 3300;
 static uint8_t battery_frame_index = 0;
-static uint16_t battery_cellvoltages[126] = {0};
+#define NOF_CELLS 126
+static uint16_t battery_cellvoltages[NOF_CELLS] = {0};
 #ifdef DOUBLE_BATTERY
 static int16_t battery2_temperature_ambient = 0;
 static int16_t battery2_daughterboard_temperatures[10];
@@ -55,7 +56,7 @@ static int16_t BMS2_average_cell_temperature = 0;
 static uint16_t BMS2_lowest_cell_voltage_mV = 3300;
 static uint16_t BMS2_highest_cell_voltage_mV = 3300;
 static uint8_t battery2_frame_index = 0;
-static uint16_t battery2_cellvoltages[126] = {0};
+static uint16_t battery2_cellvoltages[NOF_CELLS] = {0};
 #endif  //DOUBLE_BATTERY
 #define POLL_FOR_BATTERY_SOC 0x05
 #define POLL_FOR_BATTERY_VOLTAGE 0x08
@@ -262,7 +263,7 @@ void handle_incoming_can_frame_battery(CAN_frame rx_frame) {
       datalayer.battery.status.CAN_battery_still_alive = CAN_STILL_ALIVE;
       battery_frame_index = rx_frame.data.u8[0];
 
-      if (battery_frame_index <= 0x29) {
+      if (battery_frame_index < (NOF_CELLS / 3)) {
         uint8_t base_index = battery_frame_index * 3;
         for (uint8_t i = 0; i < 3; i++) {
           battery_cellvoltages[base_index + i] =
@@ -567,7 +568,7 @@ void handle_incoming_can_frame_battery2(CAN_frame rx_frame) {
     case 0x43D:
       datalayer.battery2.status.CAN_battery_still_alive = CAN_STILL_ALIVE;
       battery2_frame_index = rx_frame.data.u8[0];
-      if (battery2_frame_index <= 0x29) {
+      if (battery2_frame_index < (NOF_CELLS / 3)) {
         uint8_t base2_index = battery2_frame_index * 3;
         for (uint8_t i = 0; i < 3; i++) {
           battery2_cellvoltages[base2_index + i] =
