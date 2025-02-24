@@ -583,9 +583,10 @@ void handle_incoming_can_frame_battery(CAN_frame rx_frame) {
           for (cellcounter = 0; cellcounter < 102; cellcounter++) {
             if (min_max_voltage[0] > cell_voltages[cellcounter])
               min_max_voltage[0] = cell_voltages[cellcounter];
-            if (min_max_voltage[1] < cell_voltages[cellcounter])
+            if (min_max_voltage[1] < cell_voltages[cellcounter]) {
               min_max_voltage[1] = cell_voltages[cellcounter];
-            CELL_ID_U_MAX = cellcounter;
+              CELL_ID_U_MAX = cellcounter;
+            }
           }
           CELL_U_MAX = min_max_voltage[1];
           CELL_U_MIN = min_max_voltage[0];
