@@ -114,6 +114,10 @@ void setup_can_shunt();
 #include "SANTA-FE-PHEV-BATTERY.h"
 #endif
 
+#ifdef SIMPBMS_BATTERY
+#include "SIMPBMS-BATTERY.h"
+#endif
+
 #if defined(TESLA_MODEL_SX_BATTERY) || defined(TESLA_MODEL_3Y_BATTERY)
 #define TESLA_BATTERY
 #include "TESLA-BATTERY.h"
