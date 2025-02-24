@@ -155,6 +155,14 @@
 // 3000 = 300.0V, Target discharge voltage (Value can be tuned on the fly via webserver). Not used unless BATTERY_USE_VOLTAGE_LIMITS = true
 #define BATTERY_MAX_DISCHARGE_VOLTAGE 3000
 
+/* LED settings. Optional customization for how the blinking pattern on the LED should behave.
+* CLASSIC   - Slow up/down ramp. If CLASSIC, then a ramp up and ramp down will finish in LED_PERIOD_MS milliseconds
+* FLOW      - Ramp up/down depending on flow of energy
+* HEARTBEAT - Heartbeat-like LED pattern that reacts to the system state with color and BPM
+*/
+#define LED_MODE HEARTBEAT
+#define LED_PERIOD_MS 3000
+
 /* Do not change any code below this line */
 /* Only change battery specific settings above and in "USER_SETTINGS.cpp" */
 typedef enum { CAN_NATIVE = 0, CANFD_NATIVE = 1, CAN_ADDON_MCP2515 = 2, CANFD_ADDON_MCP2518 = 3 } CAN_Interface;
