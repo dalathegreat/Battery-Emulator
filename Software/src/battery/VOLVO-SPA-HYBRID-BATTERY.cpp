@@ -21,11 +21,11 @@ static float BATT_T_MIN = 0;             //0x413
 static float BATT_T_AVG = 0;             //0x413
 static uint16_t SOC_BMS = 0;             //0X37D
 static uint16_t SOC_CALC = 0;
-static uint16_t CELL_U_MAX = 3700;            //0x37D
-static uint16_t CELL_U_MIN = 3700;            //0x37D
-static uint8_t CELL_ID_U_MAX = 0;             //0x37D
-static uint16_t HvBattPwrLimDchaSoft = 0;     //0x369
-static uint16_t HvBattPwrLimDcha1 = 0;        //0x175
+static uint16_t CELL_U_MAX = 3700;         //0x37D
+static uint16_t CELL_U_MIN = 3700;         //0x37D
+static uint8_t CELL_ID_U_MAX = 0;          //0x37D
+static uint16_t HvBattPwrLimDchaSoft = 0;  //0x369
+static uint16_t HvBattPwrLimDcha1 = 0;     //0x175
 //static uint16_t HvBattPwrLimDchaSlowAgi = 0;  //0x177
 //static uint16_t HvBattPwrLimChrgSlowAgi = 0;  //0x177
 //static uint8_t batteryModuleNumber = 0x10;    // First battery module
@@ -63,11 +63,12 @@ CAN_frame VOLVO_372 = {
     .DLC = 8,
     .ID = 0x372,
     .data = {0x00, 0xA6, 0x07, 0x14, 0x04, 0x00, 0x80, 0x00}};  //Ambient Temp -->>VERIFY this data content!!!<<--
-CAN_frame VOLVO_CELL_U_Req = {.FD = false,
-                              .ext_ID = false,
-                              .DLC = 8,
-                              .ID = 0x735,
-                              .data = {0x03, 0x22, 0x48, 0x06, 0x00, 0x00, 0x00, 0x00}};  //Cell voltage request frame // changed
+CAN_frame VOLVO_CELL_U_Req = {
+    .FD = false,
+    .ext_ID = false,
+    .DLC = 8,
+    .ID = 0x735,
+    .data = {0x03, 0x22, 0x48, 0x06, 0x00, 0x00, 0x00, 0x00}};  //Cell voltage request frame // changed
 CAN_frame VOLVO_FlowControl = {.FD = false,
                                .ext_ID = false,
                                .DLC = 8,
@@ -383,8 +384,8 @@ void handle_incoming_can_frame_battery(CAN_frame rx_frame) {
                  (rx_frame.data.u8[3] == 0x42))  // BECM module voltage supply
       {
         datalayer_extended.VolvoHybrid.BECMsupplyVoltage = ((rx_frame.data.u8[4] << 8) | rx_frame.data.u8[5]);
-      } else if ((rx_frame.data.u8[0] == 0x10) && (rx_frame.data.u8[2] == 0x62) &&
-                 (rx_frame.data.u8[3] == 0x48) && (rx_frame.data.u8[4] == 0x06))  // First response frame of cell voltages //changed
+      } else if ((rx_frame.data.u8[0] == 0x10) && (rx_frame.data.u8[2] == 0x62) && (rx_frame.data.u8[3] == 0x48) &&
+                 (rx_frame.data.u8[4] == 0x06))  // First response frame of cell voltages //changed
       {
         cell_voltages[battery_request_idx++] = ((rx_frame.data.u8[5] << 8) | rx_frame.data.u8[6]);
         cell_voltages[battery_request_idx] = (rx_frame.data.u8[7] << 8);
@@ -398,7 +399,7 @@ void handle_incoming_can_frame_battery(CAN_frame rx_frame) {
         cell_voltages[battery_request_idx++] = cell_voltages[battery_request_idx] | rx_frame.data.u8[1];
         cell_voltages[battery_request_idx++] = (rx_frame.data.u8[2] << 8) | rx_frame.data.u8[3];
         cell_voltages[battery_request_idx++] = (rx_frame.data.u8[4] << 8) | rx_frame.data.u8[5];
-	cell_voltages[battery_request_idx++] = (rx_frame.data.u8[6] << 8) | rx_frame.data.u8[7];
+        cell_voltages[battery_request_idx++] = (rx_frame.data.u8[6] << 8) | rx_frame.data.u8[7];
         transmit_can_frame(&VOLVO_FlowControl, can_config.battery);  // Send flow control
       } else if ((rx_frame.data.u8[0] == 0x22) && (rxConsecutiveFrames == 1)) {
         cell_voltages[battery_request_idx++] = ((rx_frame.data.u8[1] << 8) | rx_frame.data.u8[2]);
@@ -410,7 +411,7 @@ void handle_incoming_can_frame_battery(CAN_frame rx_frame) {
         cell_voltages[battery_request_idx++] = cell_voltages[battery_request_idx] | rx_frame.data.u8[1];
         cell_voltages[battery_request_idx++] = (rx_frame.data.u8[2] << 8) | rx_frame.data.u8[3];
         cell_voltages[battery_request_idx++] = (rx_frame.data.u8[4] << 8) | rx_frame.data.u8[5];
-	cell_voltages[battery_request_idx++] = (rx_frame.data.u8[6] << 8) | rx_frame.data.u8[7];
+        cell_voltages[battery_request_idx++] = (rx_frame.data.u8[6] << 8) | rx_frame.data.u8[7];
         transmit_can_frame(&VOLVO_FlowControl, can_config.battery);  // Send flow control
       } else if ((rx_frame.data.u8[0] == 0x24) && (rxConsecutiveFrames == 1)) {
         cell_voltages[battery_request_idx++] = ((rx_frame.data.u8[1] << 8) | rx_frame.data.u8[2]);
@@ -422,7 +423,7 @@ void handle_incoming_can_frame_battery(CAN_frame rx_frame) {
         cell_voltages[battery_request_idx++] = cell_voltages[battery_request_idx] | rx_frame.data.u8[1];
         cell_voltages[battery_request_idx++] = (rx_frame.data.u8[2] << 8) | rx_frame.data.u8[3];
         cell_voltages[battery_request_idx++] = (rx_frame.data.u8[4] << 8) | rx_frame.data.u8[5];
-	cell_voltages[battery_request_idx++] = (rx_frame.data.u8[6] << 8) | rx_frame.data.u8[7];
+        cell_voltages[battery_request_idx++] = (rx_frame.data.u8[6] << 8) | rx_frame.data.u8[7];
         transmit_can_frame(&VOLVO_FlowControl, can_config.battery);  // Send flow control
       } else if ((rx_frame.data.u8[0] == 0x26) && (rxConsecutiveFrames == 1)) {
         cell_voltages[battery_request_idx++] = ((rx_frame.data.u8[1] << 8) | rx_frame.data.u8[2]);
@@ -434,7 +435,7 @@ void handle_incoming_can_frame_battery(CAN_frame rx_frame) {
         cell_voltages[battery_request_idx++] = cell_voltages[battery_request_idx] | rx_frame.data.u8[1];
         cell_voltages[battery_request_idx++] = (rx_frame.data.u8[2] << 8) | rx_frame.data.u8[3];
         cell_voltages[battery_request_idx++] = (rx_frame.data.u8[4] << 8) | rx_frame.data.u8[5];
-	cell_voltages[battery_request_idx++] = (rx_frame.data.u8[6] << 8) | rx_frame.data.u8[7];
+        cell_voltages[battery_request_idx++] = (rx_frame.data.u8[6] << 8) | rx_frame.data.u8[7];
         transmit_can_frame(&VOLVO_FlowControl, can_config.battery);  // Send flow control
       } else if ((rx_frame.data.u8[0] == 0x28) && (rxConsecutiveFrames == 1)) {
         cell_voltages[battery_request_idx++] = ((rx_frame.data.u8[1] << 8) | rx_frame.data.u8[2]);
@@ -446,7 +447,7 @@ void handle_incoming_can_frame_battery(CAN_frame rx_frame) {
         cell_voltages[battery_request_idx++] = cell_voltages[battery_request_idx] | rx_frame.data.u8[1];
         cell_voltages[battery_request_idx++] = (rx_frame.data.u8[2] << 8) | rx_frame.data.u8[3];
         cell_voltages[battery_request_idx++] = (rx_frame.data.u8[4] << 8) | rx_frame.data.u8[5];
-	cell_voltages[battery_request_idx++] = (rx_frame.data.u8[6] << 8) | rx_frame.data.u8[7];
+        cell_voltages[battery_request_idx++] = (rx_frame.data.u8[6] << 8) | rx_frame.data.u8[7];
         transmit_can_frame(&VOLVO_FlowControl, can_config.battery);  // Send flow control
       } else if ((rx_frame.data.u8[0] == 0x2A) && (rxConsecutiveFrames == 1)) {
         cell_voltages[battery_request_idx++] = ((rx_frame.data.u8[1] << 8) | rx_frame.data.u8[2]);
@@ -458,7 +459,7 @@ void handle_incoming_can_frame_battery(CAN_frame rx_frame) {
         cell_voltages[battery_request_idx++] = cell_voltages[battery_request_idx] | rx_frame.data.u8[1];
         cell_voltages[battery_request_idx++] = (rx_frame.data.u8[2] << 8) | rx_frame.data.u8[3];
         cell_voltages[battery_request_idx++] = (rx_frame.data.u8[4] << 8) | rx_frame.data.u8[5];
-	cell_voltages[battery_request_idx++] = (rx_frame.data.u8[6] << 8) | rx_frame.data.u8[7];
+        cell_voltages[battery_request_idx++] = (rx_frame.data.u8[6] << 8) | rx_frame.data.u8[7];
         transmit_can_frame(&VOLVO_FlowControl, can_config.battery);  // Send flow control
       } else if ((rx_frame.data.u8[0] == 0x2C) && (rxConsecutiveFrames == 1)) {
         cell_voltages[battery_request_idx++] = ((rx_frame.data.u8[1] << 8) | rx_frame.data.u8[2]);
@@ -470,7 +471,7 @@ void handle_incoming_can_frame_battery(CAN_frame rx_frame) {
         cell_voltages[battery_request_idx++] = cell_voltages[battery_request_idx] | rx_frame.data.u8[1];
         cell_voltages[battery_request_idx++] = (rx_frame.data.u8[2] << 8) | rx_frame.data.u8[3];
         cell_voltages[battery_request_idx++] = (rx_frame.data.u8[4] << 8) | rx_frame.data.u8[5];
-	cell_voltages[battery_request_idx++] = (rx_frame.data.u8[6] << 8) | rx_frame.data.u8[7];
+        cell_voltages[battery_request_idx++] = (rx_frame.data.u8[6] << 8) | rx_frame.data.u8[7];
         transmit_can_frame(&VOLVO_FlowControl, can_config.battery);  // Send flow control
       } else if ((rx_frame.data.u8[0] == 0x2E) && (rxConsecutiveFrames == 1)) {
         cell_voltages[battery_request_idx++] = ((rx_frame.data.u8[1] << 8) | rx_frame.data.u8[2]);
@@ -482,7 +483,7 @@ void handle_incoming_can_frame_battery(CAN_frame rx_frame) {
         cell_voltages[battery_request_idx++] = cell_voltages[battery_request_idx] | rx_frame.data.u8[1];
         cell_voltages[battery_request_idx++] = (rx_frame.data.u8[2] << 8) | rx_frame.data.u8[3];
         cell_voltages[battery_request_idx++] = (rx_frame.data.u8[4] << 8) | rx_frame.data.u8[5];
-	cell_voltages[battery_request_idx++] = (rx_frame.data.u8[6] << 8) | rx_frame.data.u8[7];
+        cell_voltages[battery_request_idx++] = (rx_frame.data.u8[6] << 8) | rx_frame.data.u8[7];
         transmit_can_frame(&VOLVO_FlowControl, can_config.battery);  // Send flow control
         rxConsecutiveFrames = 2;
       } else if ((rx_frame.data.u8[0] == 0x20) && (rxConsecutiveFrames == 2)) {
@@ -495,7 +496,7 @@ void handle_incoming_can_frame_battery(CAN_frame rx_frame) {
         cell_voltages[battery_request_idx++] = cell_voltages[battery_request_idx] | rx_frame.data.u8[1];
         cell_voltages[battery_request_idx++] = (rx_frame.data.u8[2] << 8) | rx_frame.data.u8[3];
         cell_voltages[battery_request_idx++] = (rx_frame.data.u8[4] << 8) | rx_frame.data.u8[5];
-	cell_voltages[battery_request_idx++] = (rx_frame.data.u8[6] << 8) | rx_frame.data.u8[7];
+        cell_voltages[battery_request_idx++] = (rx_frame.data.u8[6] << 8) | rx_frame.data.u8[7];
         transmit_can_frame(&VOLVO_FlowControl, can_config.battery);  // Send flow control
       } else if ((rx_frame.data.u8[0] == 0x22) && (rxConsecutiveFrames == 2)) {
         cell_voltages[battery_request_idx++] = ((rx_frame.data.u8[1] << 8) | rx_frame.data.u8[2]);
@@ -507,7 +508,7 @@ void handle_incoming_can_frame_battery(CAN_frame rx_frame) {
         cell_voltages[battery_request_idx++] = cell_voltages[battery_request_idx] | rx_frame.data.u8[1];
         cell_voltages[battery_request_idx++] = (rx_frame.data.u8[2] << 8) | rx_frame.data.u8[3];
         cell_voltages[battery_request_idx++] = (rx_frame.data.u8[4] << 8) | rx_frame.data.u8[5];
-	cell_voltages[battery_request_idx++] = (rx_frame.data.u8[6] << 8) | rx_frame.data.u8[7];
+        cell_voltages[battery_request_idx++] = (rx_frame.data.u8[6] << 8) | rx_frame.data.u8[7];
         transmit_can_frame(&VOLVO_FlowControl, can_config.battery);  // Send flow control
       } else if ((rx_frame.data.u8[0] == 0x24) && (rxConsecutiveFrames == 2)) {
         cell_voltages[battery_request_idx++] = ((rx_frame.data.u8[1] << 8) | rx_frame.data.u8[2]);
@@ -519,7 +520,7 @@ void handle_incoming_can_frame_battery(CAN_frame rx_frame) {
         cell_voltages[battery_request_idx++] = cell_voltages[battery_request_idx] | rx_frame.data.u8[1];
         cell_voltages[battery_request_idx++] = (rx_frame.data.u8[2] << 8) | rx_frame.data.u8[3];
         cell_voltages[battery_request_idx++] = (rx_frame.data.u8[4] << 8) | rx_frame.data.u8[5];
-	cell_voltages[battery_request_idx++] = (rx_frame.data.u8[6] << 8) | rx_frame.data.u8[7];
+        cell_voltages[battery_request_idx++] = (rx_frame.data.u8[6] << 8) | rx_frame.data.u8[7];
         transmit_can_frame(&VOLVO_FlowControl, can_config.battery);  // Send flow control
       } else if ((rx_frame.data.u8[0] == 0x26) && (rxConsecutiveFrames == 2)) {
         cell_voltages[battery_request_idx++] = ((rx_frame.data.u8[1] << 8) | rx_frame.data.u8[2]);
@@ -531,7 +532,7 @@ void handle_incoming_can_frame_battery(CAN_frame rx_frame) {
         cell_voltages[battery_request_idx++] = cell_voltages[battery_request_idx] | rx_frame.data.u8[1];
         cell_voltages[battery_request_idx++] = (rx_frame.data.u8[2] << 8) | rx_frame.data.u8[3];
         cell_voltages[battery_request_idx++] = (rx_frame.data.u8[4] << 8) | rx_frame.data.u8[5];
-	cell_voltages[battery_request_idx++] = (rx_frame.data.u8[6] << 8) | rx_frame.data.u8[7];
+        cell_voltages[battery_request_idx++] = (rx_frame.data.u8[6] << 8) | rx_frame.data.u8[7];
         transmit_can_frame(&VOLVO_FlowControl, can_config.battery);  // Send flow control
       } else if ((rx_frame.data.u8[0] == 0x28) && (rxConsecutiveFrames == 2)) {
         cell_voltages[battery_request_idx++] = ((rx_frame.data.u8[1] << 8) | rx_frame.data.u8[2]);
@@ -543,7 +544,7 @@ void handle_incoming_can_frame_battery(CAN_frame rx_frame) {
         cell_voltages[battery_request_idx++] = cell_voltages[battery_request_idx] | rx_frame.data.u8[1];
         cell_voltages[battery_request_idx++] = (rx_frame.data.u8[2] << 8) | rx_frame.data.u8[3];
         cell_voltages[battery_request_idx++] = (rx_frame.data.u8[4] << 8) | rx_frame.data.u8[5];
-	cell_voltages[battery_request_idx++] = (rx_frame.data.u8[6] << 8) | rx_frame.data.u8[7];
+        cell_voltages[battery_request_idx++] = (rx_frame.data.u8[6] << 8) | rx_frame.data.u8[7];
         transmit_can_frame(&VOLVO_FlowControl, can_config.battery);  // Send flow control
       } else if ((rx_frame.data.u8[0] == 0x2A) && (rxConsecutiveFrames == 2)) {
         cell_voltages[battery_request_idx++] = ((rx_frame.data.u8[1] << 8) | rx_frame.data.u8[2]);
@@ -555,7 +556,7 @@ void handle_incoming_can_frame_battery(CAN_frame rx_frame) {
         cell_voltages[battery_request_idx++] = cell_voltages[battery_request_idx] | rx_frame.data.u8[1];
         cell_voltages[battery_request_idx++] = (rx_frame.data.u8[2] << 8) | rx_frame.data.u8[3];
         cell_voltages[battery_request_idx++] = (rx_frame.data.u8[4] << 8) | rx_frame.data.u8[5];
-	cell_voltages[battery_request_idx++] = (rx_frame.data.u8[6] << 8) | rx_frame.data.u8[7];
+        cell_voltages[battery_request_idx++] = (rx_frame.data.u8[6] << 8) | rx_frame.data.u8[7];
         transmit_can_frame(&VOLVO_FlowControl, can_config.battery);  // Send flow control
       } else if ((rx_frame.data.u8[0] == 0x2C) && (rxConsecutiveFrames == 2)) {
         cell_voltages[battery_request_idx++] = ((rx_frame.data.u8[1] << 8) | rx_frame.data.u8[2]);
@@ -567,10 +568,10 @@ void handle_incoming_can_frame_battery(CAN_frame rx_frame) {
         cell_voltages[battery_request_idx++] = cell_voltages[battery_request_idx] | rx_frame.data.u8[1];
         cell_voltages[battery_request_idx++] = (rx_frame.data.u8[2] << 8) | rx_frame.data.u8[3];
         cell_voltages[battery_request_idx++] = (rx_frame.data.u8[4] << 8) | rx_frame.data.u8[5];
-	//cell_voltages[battery_request_idx++] = (rx_frame.data.u8[6] << 8) | rx_frame.data.u8[7];
+        //cell_voltages[battery_request_idx++] = (rx_frame.data.u8[6] << 8) | rx_frame.data.u8[7];
         //transmit_can_frame(&VOLVO_FlowControl, can_config.battery);  // Send flow control
         transmit_can_frame(&VOLVO_FlowControl, can_config.battery);  // Send flow control
-      
+
         if (false)  // Run until last pack is read
         {
           //VOLVO_CELL_U_Req.data.u8[3] = batteryModuleNumber++;
@@ -584,7 +585,7 @@ void handle_incoming_can_frame_battery(CAN_frame rx_frame) {
               min_max_voltage[0] = cell_voltages[cellcounter];
             if (min_max_voltage[1] < cell_voltages[cellcounter])
               min_max_voltage[1] = cell_voltages[cellcounter];
-              CELL_ID_U_MAX = cellcounter;
+            CELL_ID_U_MAX = cellcounter;
           }
           CELL_U_MAX = min_max_voltage[1];
           CELL_U_MIN = min_max_voltage[0];
@@ -652,10 +653,10 @@ void transmit_can_battery() {
   }
 }
 
-void setup_battery(void) {  // Performs one time setup at startup
-  strncpy(datalayer.system.info.battery_protocol, "Volvo PHEV battery", 63); //changed
+void setup_battery(void) {                                                    // Performs one time setup at startup
+  strncpy(datalayer.system.info.battery_protocol, "Volvo PHEV battery", 63);  //changed
   datalayer.system.info.battery_protocol[63] = '\0';
-  datalayer.battery.info.number_of_cells = 102; //was 108, changed
+  datalayer.battery.info.number_of_cells = 102;  //was 108, changed
   datalayer.battery.info.max_design_voltage_dV = MAX_PACK_VOLTAGE_DV;
   datalayer.battery.info.min_design_voltage_dV = MIN_PACK_VOLTAGE_DV;
   datalayer.battery.info.max_cell_voltage_mV = MAX_CELL_VOLTAGE_MV;
