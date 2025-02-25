@@ -21,8 +21,8 @@ battery_pause_status emulator_pause_status = NORMAL;
 void update_machineryprotection() {
   // Start checking that the battery is within reason. Incase we see any funny business, raise an event!
 
-  // Pause function is on
-  if (emulator_pause_request_ON) {
+  // Pause function is on OR we have a critical fault event active
+  if (emulator_pause_request_ON || (datalayer.battery.status.bms_status == FAULT)) {
     datalayer.battery.status.max_discharge_power_W = 0;
     datalayer.battery.status.max_charge_power_W = 0;
   }
@@ -39,6 +39,14 @@ void update_machineryprotection() {
     set_event(EVENT_BATTERY_FROZEN, datalayer.battery.status.temperature_min_dC);
   } else {
     clear_event(EVENT_BATTERY_FROZEN);
+  }
+
+  if (labs(datalayer.battery.status.temperature_max_dC - datalayer.battery.status.temperature_min_dC) >
+      BATTERY_MAX_TEMPERATURE_DEVIATION) {
+    set_event_latched(EVENT_BATTERY_TEMP_DEVIATION_HIGH,
+                      datalayer.battery.status.temperature_max_dC - datalayer.battery.status.temperature_min_dC);
+  } else {
+    clear_event(EVENT_BATTERY_TEMP_DEVIATION_HIGH);
   }
 
   // Battery voltage is over designed max voltage!

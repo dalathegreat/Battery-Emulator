@@ -181,7 +181,9 @@ typedef struct {
   /** uint16_t */
   /** Voltage polled OBD2*/
   uint16_t voltage_polled = 0;
-
+  /** int16_t */
+  /** All the temperature sensors inside the battery pack*/
+  int16_t battery_temperatures[10];
 } DATALAYER_INFO_BYDATTO3;
 
 typedef struct {
@@ -642,6 +644,36 @@ typedef struct {
 } DATALAYER_INFO_VOLVO_POLESTAR;
 
 typedef struct {
+  uint16_t soc_bms = 0;
+  uint16_t soc_calc = 0;
+  uint16_t soc_rescaled = 0;
+  uint16_t soh_bms = 0;
+  uint16_t BECMsupplyVoltage = 0;
+
+  uint16_t BECMBatteryVoltage = 0;
+  uint16_t BECMBatteryCurrent = 0;
+  uint16_t BECMUDynMaxLim = 0;
+  uint16_t BECMUDynMinLim = 0;
+
+  uint16_t HvBattPwrLimDcha1 = 0;
+  uint16_t HvBattPwrLimDchaSoft = 0;
+  //uint16_t HvBattPwrLimDchaSlowAgi = 0;
+  //uint16_t HvBattPwrLimChrgSlowAgi = 0;
+
+  uint8_t HVSysRlySts = 0;
+  uint8_t HVSysDCRlySts1 = 0;
+  uint8_t HVSysDCRlySts2 = 0;
+  uint8_t HVSysIsoRMonrSts = 0;
+  /** User requesting DTC reset via WebUI*/
+  bool UserRequestDTCreset = false;
+  /** User requesting DTC readout via WebUI*/
+  bool UserRequestDTCreadout = false;
+  /** User requesting BECM reset via WebUI*/
+  bool UserRequestBECMecuReset = false;
+
+} DATALAYER_INFO_VOLVO_HYBRID;
+
+typedef struct {
   /** uint16_t */
   /** Values WIP*/
   uint16_t battery_soc = 0;
@@ -700,6 +732,7 @@ class DataLayerExtended {
   DATALAYER_INFO_NISSAN_LEAF nissanleaf;
   DATALAYER_INFO_MEB meb;
   DATALAYER_INFO_VOLVO_POLESTAR VolvoPolestar;
+  DATALAYER_INFO_VOLVO_HYBRID VolvoHybrid;
   DATALAYER_INFO_ZOE_PH2 zoePH2;
 };
 

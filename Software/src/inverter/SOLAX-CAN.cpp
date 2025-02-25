@@ -198,10 +198,10 @@ void update_values_can_inverter() {  //This function maps all the values fetched
   SOLAX_1801.data.u8[4] = 1;
 
   //Ultra messages
-  SOLAX_187E.data.u8[0] = (uint8_t)datalayer.battery.status.reported_remaining_capacity_Wh;
-  SOLAX_187E.data.u8[1] = (datalayer.battery.status.reported_remaining_capacity_Wh >> 8);
-  SOLAX_187E.data.u8[2] = (datalayer.battery.status.reported_remaining_capacity_Wh >> 16);
-  SOLAX_187E.data.u8[3] = (datalayer.battery.status.reported_remaining_capacity_Wh >> 24);
+  SOLAX_187E.data.u8[0] = (uint8_t)datalayer.battery.info.total_capacity_Wh;
+  SOLAX_187E.data.u8[1] = (datalayer.battery.info.total_capacity_Wh >> 8);
+  SOLAX_187E.data.u8[2] = (datalayer.battery.info.total_capacity_Wh >> 16);
+  SOLAX_187E.data.u8[3] = (datalayer.battery.info.total_capacity_Wh >> 24);
   SOLAX_187E.data.u8[5] = (uint8_t)(datalayer.battery.status.reported_soc / 100);
 }
 

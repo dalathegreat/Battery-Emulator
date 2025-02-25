@@ -210,6 +210,7 @@ void init_events(void) {
   events.entries[EVENT_RESET_EFUSE].level = EVENT_LEVEL_INFO;
   events.entries[EVENT_RESET_PWR_GLITCH].level = EVENT_LEVEL_INFO;
   events.entries[EVENT_RESET_CPU_LOCKUP].level = EVENT_LEVEL_WARNING;
+  events.entries[EVENT_RJXZS_LOG].level = EVENT_LEVEL_INFO;
   events.entries[EVENT_PAUSE_BEGIN].level = EVENT_LEVEL_WARNING;
   events.entries[EVENT_PAUSE_END].level = EVENT_LEVEL_INFO;
   events.entries[EVENT_WIFI_CONNECT].level = EVENT_LEVEL_INFO;
@@ -218,6 +219,7 @@ void init_events(void) {
   events.entries[EVENT_MQTT_DISCONNECT].level = EVENT_LEVEL_INFO;
   events.entries[EVENT_EQUIPMENT_STOP].level = EVENT_LEVEL_ERROR;
   events.entries[EVENT_SD_INIT_FAILED].level = EVENT_LEVEL_WARNING;
+  events.entries[EVENT_BATTERY_TEMP_DEVIATION_HIGH].level = EVENT_LEVEL_WARNING;
 
   events.entries[EVENT_EEPROM_WRITE].log = false;  // Don't log the logger...
 
@@ -254,6 +256,9 @@ void reset_all_events() {
   }
   events.level = EVENT_LEVEL_INFO;
   update_bms_status();
+#ifdef DEBUG_LOG
+  logging.println("All events have been cleared.");
+#endif
 }
 
 void set_event_MQTTpublished(EVENTS_ENUM_TYPE event) {
@@ -430,6 +435,8 @@ const char* get_event_message_string(EVENTS_ENUM_TYPE event) {
       return "The board was reset due to a detected power glitch";
     case EVENT_RESET_CPU_LOCKUP:
       return "The board was reset due to CPU lockup. Inform developers!";
+    case EVENT_RJXZS_LOG:
+      return "Error code active in RJXZS BMS. Clear via their smartphone app!";
     case EVENT_PAUSE_BEGIN:
       return "The emulator is trying to pause the battery.";
     case EVENT_PAUSE_END:

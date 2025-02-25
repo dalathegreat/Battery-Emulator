@@ -74,6 +74,8 @@ static uint16_t fan_start_setting_value = 0;
 static uint16_t ptc_heating_start_setting_value = 0;
 static uint16_t default_channel_state = 0;
 static uint8_t timespent_without_soc = 0;
+static bool charging_active = false;
+static bool discharging_active = false;
 
 void update_values_battery() {
 
@@ -96,7 +98,13 @@ void update_values_battery() {
 
   datalayer.battery.status.voltage_dV = total_voltage;
 
-  datalayer.battery.status.current_dA = total_current;
+  if (charging_active) {
+    datalayer.battery.status.current_dA = total_current;
+  } else if (discharging_active) {
+    datalayer.battery.status.current_dA = -total_current;
+  } else {  //No direction data. Should never occur, but send current as charging, better than nothing
+    datalayer.battery.status.current_dA = total_current;
+  }
 
   // Charge power is set in .h file
   if (datalayer.battery.status.real_soc > 9900) {
@@ -204,6 +212,13 @@ void handle_incoming_can_frame_battery(CAN_frame rx_frame) {
         host_temperature = (rx_frame.data.u8[1] << 8) | rx_frame.data.u8[2];
         status_accounting = (rx_frame.data.u8[3] << 8) | rx_frame.data.u8[4];
         equalization_starting_voltage = (rx_frame.data.u8[5] << 8) | rx_frame.data.u8[6];
+        if ((rx_frame.data.u8[4] & 0x40) >> 6) {
+          charging_active = true;
+          discharging_active = false;
+        } else {
+          charging_active = false;
+          discharging_active = true;
+        }
       } else if (mux == 0x07) {  // Cellvoltages 1-3
         cellvoltages[0] = (rx_frame.data.u8[1] << 8) | rx_frame.data.u8[2];
         cellvoltages[1] = (rx_frame.data.u8[3] << 8) | rx_frame.data.u8[4];
@@ -506,6 +521,12 @@ void handle_incoming_can_frame_battery(CAN_frame rx_frame) {
         use_capacity_to_automatically_reset = (rx_frame.data.u8[3] << 8) | rx_frame.data.u8[4];
         low_temperature_protection_setting_value = (rx_frame.data.u8[5] << 8) | rx_frame.data.u8[6];
         protecting_historical_logs = rx_frame.data.u8[7];
+
+        if ((protecting_historical_logs & 0x0F) > 0) {
+          set_event(EVENT_RJXZS_LOG, 0);
+        } else {
+          clear_event(EVENT_RJXZS_LOG);
+        }
 
         if (protecting_historical_logs == 0x01) {
           // Overcurrent protection

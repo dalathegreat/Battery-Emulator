@@ -6,7 +6,7 @@
 
 // #define INCLUDE_EVENTS_TEST  // Enable to run an event test loop, see events_test_on_target.cpp
 
-#define EE_MAGIC_HEADER_VALUE 0x0023  // 0x0000 to 0xFFFF
+#define EE_MAGIC_HEADER_VALUE 0x0024  // 0x0000 to 0xFFFF
 
 #define GENERATE_ENUM(ENUM) ENUM,
 #define GENERATE_STRING(STRING) #STRING,
@@ -107,6 +107,7 @@
   XX(EVENT_RESET_EFUSE)                 \
   XX(EVENT_RESET_PWR_GLITCH)            \
   XX(EVENT_RESET_CPU_LOCKUP)            \
+  XX(EVENT_RJXZS_LOG)                   \
   XX(EVENT_PAUSE_BEGIN)                 \
   XX(EVENT_PAUSE_END)                   \
   XX(EVENT_WIFI_CONNECT)                \
@@ -116,6 +117,7 @@
   XX(EVENT_EQUIPMENT_STOP)              \
   XX(EVENT_AUTOMATIC_PRECHARGE_FAILURE) \
   XX(EVENT_SD_INIT_FAILED)              \
+  XX(EVENT_BATTERY_TEMP_DEVIATION_HIGH) \
   XX(EVENT_NOF_EVENTS)
 
 typedef enum { EVENTS_ENUM_TYPE(GENERATE_ENUM) } EVENTS_ENUM_TYPE;

@@ -25,7 +25,9 @@
 //#define MEB_BATTERY
 //#define MG_5_BATTERY
 //#define NISSAN_LEAF_BATTERY
+//#define ORION_BMS
 //#define PYLON_BATTERY
+//#define DALY_BMS
 //#define RJXZS_BMS
 //#define RANGE_ROVER_PHEV_BATTERY
 //#define RENAULT_KANGOO_BATTERY
@@ -39,15 +41,17 @@
 //#define TESLA_MODEL_3Y_BATTERY
 //#define TESLA_MODEL_SX_BATTERY
 //#define VOLVO_SPA_BATTERY
+//#define VOLVO_SPA_HYBRID_BATTERY
 //#define TEST_FAKE_BATTERY
 //#define DOUBLE_BATTERY  //Enable this line if you use two identical batteries at the same time (requires CAN_ADDON setup)
 //#define SERIAL_LINK_TRANSMITTER  //Enable this line to send battery data over RS485 pins to another Lilygo (This LilyGo interfaces with battery)
 
 /* Select inverter communication protocol. See Wiki for which to use with your inverter: https://github.com/dalathegreat/BYD-Battery-Emulator-For-Gen24/wiki */
 //#define AFORE_CAN        //Enable this line to emulate an "Afore battery" over CAN bus
-//#define BYD_CAN          //Enable this line to emulate a "BYD Battery-Box Premium HVS" over CAN Bus
+//#define BYD_CAN  //Enable this line to emulate a "BYD Battery-Box Premium HVS" over CAN Bus
 //#define BYD_KOSTAL_RS485 //Enable this line to emulate a "BYD 11kWh HVM battery" over Kostal RS485
 //#define BYD_MODBUS       //Enable this line to emulate a "BYD 11kWh HVM battery" over Modbus RTU
+//#define FERROAMP_CAN     //Enable this line to emulate a "Pylon 4x96V Force H2" over CAN Bus
 //#define FOXESS_CAN       //Enable this line to emulate a "HV2600/ECS4100 battery" over CAN bus
 //#define GROWATT_HV_CAN   //Enable this line to emulate a "Growatt High Voltage v1.10 battery" over CAN bus
 //#define GROWATT_LV_CAN   //Enable this line to emulate a "48V Growatt Low Voltage battery" over CAN bus
@@ -92,8 +96,8 @@
 //#define EQUIPMENT_STOP_BUTTON    // Enable this to allow an equipment stop button connected to the Battery-Emulator to disengage the battery
 //#define LFP_CHEMISTRY          //Tesla specific setting, enable this line to startup in LFP mode
 //#define INTERLOCK_REQUIRED     //Nissan LEAF specific setting, if enabled requires both high voltage conenctors to be seated before starting
-//#define LOG_TO_SD              //Enable this line to log diagnostic data to SD card
-//#define LOG_CAN_TO_SD          //Enable this line to log incoming/outgoing CAN & CAN-FD messages to SD card
+//#define LOG_TO_SD              //Enable this line to log diagnostic data to SD card (WARNING, raises CPU load, do not use for production)
+//#define LOG_CAN_TO_SD          //Enable this line to log incoming/outgoing CAN & CAN-FD messages to SD card (WARNING, raises CPU load, do not use for production)
 //#define DEBUG_VIA_USB          //Enable this line to have the USB port output serial diagnostic data while program runs (WARNING, raises CPU load, do not use for production)
 //#define DEBUG_VIA_WEB          //Enable this line to log diagnostic data while program runs, which can be viewed via webpage (WARNING, slightly raises CPU load, do not use for production)
 //#define DEBUG_CAN_DATA         //Enable this line to print incoming/outgoing CAN & CAN-FD messages to USB serial (WARNING, raises CPU load, do not use for production)
@@ -140,6 +144,8 @@
 #define BATTERY_MAXTEMPERATURE 500
 // -250 = -25.0 °C , Min temperature (Will produce a battery frozen event if below)
 #define BATTERY_MINTEMPERATURE -250
+// 150 = 15.0 °C , Max difference between min and max temperature (Will produce a battery temperature deviation event if greater)
+#define BATTERY_MAX_TEMPERATURE_DEVIATION 150
 // 300 = 30.0A , Max charge in Amp (Some inverters needs to be limited)
 #define BATTERY_MAX_CHARGE_AMP 300
 // 300 = 30.0A , Max discharge in Amp (Some inverters needs to be limited)
