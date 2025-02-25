@@ -42,6 +42,10 @@ void setup_can_shunt();
 #include "FOXESS-BATTERY.h"
 #endif
 
+#ifdef ORION_BMS
+#include "ORION-BMS.h"
+#endif
+
 #ifdef SONO_BATTERY
 #include "SONO-BATTERY.h"
 #endif
@@ -129,6 +133,10 @@ void setup_can_shunt();
 
 #ifdef VOLVO_SPA_BATTERY
 #include "VOLVO-SPA-BATTERY.h"
+#endif
+
+#ifdef VOLVO_SPA_HYBRID_BATTERY
+#include "VOLVO-SPA-HYBRID-BATTERY.h"
 #endif
 
 #ifdef SERIAL_LINK_RECEIVER

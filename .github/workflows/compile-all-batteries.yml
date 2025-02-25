@@ -64,6 +64,7 @@ jobs:
           - MEB_BATTERY
           - MG_5_BATTERY
           - NISSAN_LEAF_BATTERY
+          - ORION_BMS
           - PYLON_BATTERY
           - RJXZS_BMS
           - RANGE_ROVER_PHEV_BATTERY
