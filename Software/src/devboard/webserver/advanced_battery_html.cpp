@@ -481,15 +481,6 @@ String advanced_battery_processor(const String& var) {
     content += "<h4>Temperature sensor 10: " + String(datalayer_extended.bydAtto3.battery_temperatures[9]) + "</h4>";
 #endif  //BYD_ATTO_3_BATTERY
 
-#ifdef SIMPBMS_BATTERY
-    content += "<h4>Max Design Voltage: " + String(datalayer.battery.info.max_design_voltage_dV) + " dV</h4>";
-    content += "<h4>Min Design Voltage: " + String(datalayer.battery.info.min_design_voltage_dV) + " dV</h4>";
-    content += "<h4>Max Charge Current: " + String(datalayer.battery.status.max_charge_current_dA) + " dA</h4>";
-    content += "<h4>Max Discharge Current: " + String(datalayer.battery.status.max_discharge_current_dA) + " dA</h4>";
-    content += "<h4>Pack Voltage: " + String(  datalayer.battery.status.voltage_dV) + " dV</h4>";
-    content += "<h4>Reported Current: " + String(  datalayer.battery.status.current_dA) + " dA</h4>";
-    content += "<h4>Series Cells: " + String(datalayer.battery.info.number_of_cells) + " dV</h4>";
-#endif
 #ifdef TESLA_BATTERY
     float beginning_of_life = static_cast<float>(datalayer_extended.tesla.battery_beginning_of_life);
     float battTempPct = static_cast<float>(datalayer_extended.tesla.battery_battTempPct) * 0.4;
@@ -1424,7 +1415,7 @@ String advanced_battery_processor(const String& var) {
     !defined(TESLA_BATTERY) && !defined(NISSAN_LEAF_BATTERY) && !defined(BMW_I3_BATTERY) &&          \
     !defined(BYD_ATTO_3_BATTERY) && !defined(RENAULT_ZOE_GEN2_BATTERY) && !defined(CELLPOWER_BMS) && \
     !defined(MEB_BATTERY) && !defined(VOLVO_SPA_BATTERY) && !defined(VOLVO_SPA_HYBRID_BATTERY) &&    \
-    !defined(KIA_HYUNDAI_64_BATTERY) && !defined(SIMPBMS_BATTERY)  //Only the listed types have extra info
+    !defined(KIA_HYUNDAI_64_BATTERY) //Only the listed types have extra info
     content += "No extra information available for this battery type";
 #endif
 

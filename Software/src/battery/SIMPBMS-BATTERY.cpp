@@ -26,7 +26,7 @@ static uint8_t cells_in_series = 0;
 static uint8_t voltage_level = 0;
 static uint8_t ah_total = 0;
 static uint8_t SOC = 0;
-static uint8_t SOH = 0;
+static uint8_t SOH = 99;
 static uint8_t charge_forbidden = 0;
 static uint8_t discharge_forbidden = 0;
 static uint16_t cellvoltages_mV[SIMPBMS_MAX_CELLS] = {0};
@@ -118,11 +118,6 @@ void handle_incoming_can_frame_battery(CAN_frame rx_frame) {
 }
 
 void transmit_can_battery() {
-  unsigned long currentMillis = millis();
-  // Send 1s CAN Message
-  if (currentMillis - previousMillis1000 >= INTERVAL_1_S) {
-    previousMillis1000 = currentMillis;
-  }
 }
 
 void setup_battery(void) {  // Performs one time setup at startup
