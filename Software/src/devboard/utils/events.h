@@ -107,6 +107,7 @@
   XX(EVENT_RESET_EFUSE)                        \
   XX(EVENT_RESET_PWR_GLITCH)                   \
   XX(EVENT_RESET_CPU_LOCKUP)                   \
+  XX(EVENT_RJXZS_LOG)                          \
   XX(EVENT_PAUSE_BEGIN)                        \
   XX(EVENT_PAUSE_END)                          \
   XX(EVENT_WIFI_CONNECT)                       \
