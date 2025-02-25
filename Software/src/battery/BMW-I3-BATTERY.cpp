@@ -216,7 +216,7 @@ static uint32_t battery_BEV_available_power_shortterm_charge = 0;
 static uint32_t battery_BEV_available_power_shortterm_discharge = 0;
 static uint32_t battery_BEV_available_power_longterm_charge = 0;
 static uint32_t battery_BEV_available_power_longterm_discharge = 0;
-static uint16_t battery_energy_content_maximum_kWh = 0;
+static uint16_t battery_energy_content_maximum_Wh = 0;
 static uint16_t battery_display_SOC = 0;
 static uint16_t battery_volts = 0;
 static uint16_t battery_HVBatt_SOC = 0;
@@ -284,7 +284,7 @@ static uint32_t battery2_BEV_available_power_shortterm_charge = 0;
 static uint32_t battery2_BEV_available_power_shortterm_discharge = 0;
 static uint32_t battery2_BEV_available_power_longterm_charge = 0;
 static uint32_t battery2_BEV_available_power_longterm_discharge = 0;
-static uint16_t battery2_energy_content_maximum_kWh = 0;
+static uint16_t battery2_energy_content_maximum_Wh = 0;
 static uint16_t battery2_display_SOC = 0;
 static uint16_t battery2_volts = 0;
 static uint16_t battery2_HVBatt_SOC = 0;
@@ -373,7 +373,7 @@ void update_values_battery2() {  //This function maps all the values fetched via
 
   datalayer.battery2.status.current_dA = battery2_current;
 
-  datalayer.battery2.info.total_capacity_Wh = (battery2_energy_content_maximum_kWh * 1000);  // Convert kWh to Wh
+  datalayer.battery2.info.total_capacity_Wh = battery2_energy_content_maximum_Wh;
 
   datalayer.battery2.status.remaining_capacity_Wh = battery2_predicted_energy_charge_condition;
 
@@ -443,7 +443,7 @@ void update_values_battery() {  //This function maps all the values fetched via 
 
   datalayer.battery.status.current_dA = battery_current;
 
-  datalayer.battery.info.total_capacity_Wh = (battery_energy_content_maximum_kWh * 1000);  // Convert kWh to Wh
+  datalayer.battery.info.total_capacity_Wh = battery_energy_content_maximum_Wh;
 
   datalayer.battery.status.remaining_capacity_Wh = battery_predicted_energy_charge_condition;
 
@@ -611,10 +611,10 @@ void handle_incoming_can_frame_battery(CAN_frame rx_frame) {
       battery_request_abort_charging = (rx_frame.data.u8[0] & 0x30) >> 4;
       battery_prediction_duration_charging_minutes = (rx_frame.data.u8[3] << 8 | rx_frame.data.u8[2]);
       battery_prediction_time_end_of_charging_minutes = rx_frame.data.u8[4];
-      battery_energy_content_maximum_kWh = (((rx_frame.data.u8[6] & 0x0F) << 8 | rx_frame.data.u8[5])) / 50;
-      if (battery_energy_content_maximum_kWh > 33) {
+      battery_energy_content_maximum_Wh = (((rx_frame.data.u8[6] & 0x0F) << 8) | rx_frame.data.u8[5]) * 20;
+      if (battery_energy_content_maximum_Wh > 33000) {
         detectedBattery = BATTERY_120AH;
-      } else if (battery_energy_content_maximum_kWh > 20) {
+      } else if (battery_energy_content_maximum_Wh > 20000) {
         detectedBattery = BATTERY_94AH;
       } else {
         detectedBattery = BATTERY_60AH;
@@ -797,10 +797,10 @@ void handle_incoming_can_frame_battery2(CAN_frame rx_frame) {
       battery2_request_abort_charging = (rx_frame.data.u8[0] & 0x30) >> 4;
       battery2_prediction_duration_charging_minutes = (rx_frame.data.u8[3] << 8 | rx_frame.data.u8[2]);
       battery2_prediction_time_end_of_charging_minutes = rx_frame.data.u8[4];
-      battery2_energy_content_maximum_kWh = (((rx_frame.data.u8[6] & 0x0F) << 8 | rx_frame.data.u8[5])) / 50;
-      if (battery2_energy_content_maximum_kWh > 33) {
+      battery2_energy_content_maximum_Wh = (((rx_frame.data.u8[6] & 0x0F) << 8) | rx_frame.data.u8[5]) * 20;
+      if (battery2_energy_content_maximum_Wh > 33000) {
         detectedBattery2 = BATTERY_120AH;
-      } else if (battery2_energy_content_maximum_kWh > 20) {
+      } else if (battery2_energy_content_maximum_Wh > 20000) {
         detectedBattery2 = BATTERY_94AH;
       } else {
         detectedBattery2 = BATTERY_60AH;
