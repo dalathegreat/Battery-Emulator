@@ -108,50 +108,9 @@ void handle_incoming_can_frame_battery(CAN_frame rx_frame) {
       break;
     case 0x379:
       ah_total = ((rx_frame.data.u8[1] << 8) | rx_frame.data.u8[0]);
-    //     msg.buf[0] = lowByte(settings.CAP);
-    // msg.buf[1] = highByte(settings.CAP);
-    // msg.buf[2] = lowByte(uint16_t(amphours));
-    // msg.buf[3] = highByte(uint16_t(amphours));
 
       break;
-    // case 0x7310:
-    // case 0x7311:
-    //   ensemble_info_ack = true;
-    //   // This message contains software/hardware version info. No interest to us
-    //   break;
-    // case 0x7320:
-    // case 0x7321:
-    //   ensemble_info_ack = true;
-    //   battery_module_quantity = rx_frame.data.u8[0];
-    //   battery_modules_in_series = rx_frame.data.u8[2];
-    //   cell_quantity_in_module = rx_frame.data.u8[3];
-    //   voltage_level = rx_frame.data.u8[4];
-    //   ah_number = rx_frame.data.u8[6];
-    //   break;
-    // case 0x4210:
-    // case 0x4211:
-    //   voltage_dV = ((rx_frame.data.u8[1] << 8) | rx_frame.data.u8[0]);
-    //   current_dA = ((rx_frame.data.u8[3] << 8) | rx_frame.data.u8[2]) - 30000;
-    //   SOC = rx_frame.data.u8[6];
-    //   SOH = rx_frame.data.u8[7];
-    //   break;
-    // case 0x4220:
-    // case 0x4221:
-    //   charge_cutoff_voltage = ((rx_frame.data.u8[1] << 8) | rx_frame.data.u8[0]);
-    //   discharge_cutoff_voltage = ((rx_frame.data.u8[3] << 8) | rx_frame.data.u8[2]);
-    //   max_charge_current = (((rx_frame.data.u8[5] << 8) | rx_frame.data.u8[4]) * 0.1) - 3000;
-    //   max_discharge_current = (((rx_frame.data.u8[7] << 8) | rx_frame.data.u8[6]) * 0.1) - 3000;
-    //   break;
-    // case 0x4230:
-    // case 0x4231:
-    //   cellvoltage_max_mV = ((rx_frame.data.u8[1] << 8) | rx_frame.data.u8[0]);
-    //   cellvoltage_min_mV = ((rx_frame.data.u8[3] << 8) | rx_frame.data.u8[2]);
-    //   break;
-    // case 0x4240:
-    // case 0x4241:
-    //   celltemperature_max_dC = ((rx_frame.data.u8[1] << 8) | rx_frame.data.u8[0]) - 1000;
-    //   celltemperature_min_dC = ((rx_frame.data.u8[3] << 8) | rx_frame.data.u8[2]) - 1000;
-    //   break;
+   
 
     default:
       break;
@@ -162,17 +121,7 @@ void transmit_can_battery() {
   unsigned long currentMillis = millis();
   // Send 1s CAN Message
   if (currentMillis - previousMillis1000 >= INTERVAL_1_S) {
-
     previousMillis1000 = currentMillis;
-
-    // transmit_can_frame(&PYLON_3010, can_config.battery);  // Heartbeat
-    // transmit_can_frame(&PYLON_4200, can_config.battery);  // Ensemble OR System equipment info, depends on frame0
-    // transmit_can_frame(&PYLON_8200, can_config.battery);  // Control device quit sleep status
-    // transmit_can_frame(&PYLON_8210, can_config.battery);  // Charge command
-
-    // if (ensemble_info_ack) {
-    //   PYLON_4200.data.u8[0] = 0x00;  //Request system equipment info
-    // }
   }
 }
 
