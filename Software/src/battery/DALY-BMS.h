@@ -8,6 +8,8 @@
 #define MAX_CELL_VOLTAGE_MV 4250  //Battery is put into emergency stop if one cell goes over this value
 #define MIN_CELL_VOLTAGE_MV 2700  //Battery is put into emergency stop if one cell goes below this value
 #define POWER_PER_PERCENT 50  // below 20% and above 80% limit power to 50W * SOC (i.e. 150W at 3%, 500W at 10%, ...)
+#define LOW_TEMP_POWER_LIMIT 800       // max power when temperature below limit
+#define LOW_TEMP_POWER_LIMIT_START 50  // start limiting when below 50 = 5.0 °C
 
 /* Do not modify any rows below*/
 #define BATTERY_SELECTED
