@@ -18,6 +18,7 @@ unsigned long ota_progress_millis = 0;
 
 #include "advanced_battery_html.h"
 #include "can_logging_html.h"
+#include "can_replay_html.h"
 #include "cellmonitor_html.h"
 #include "debug_logging_html.h"
 #include "events_html.h"
@@ -28,6 +29,25 @@ MyTimer ota_timeout_timer = MyTimer(15000);
 bool ota_active = false;
 
 const char get_firmware_info_html[] = R"rawliteral(%X%)rawliteral";
+
+String importedLogs = "";  // Store the uploaded file contents in RAM /WARNING THIS MIGHT GO BOOM
+
+void handleFileUpload(AsyncWebServerRequest *request, String filename, size_t index, uint8_t *data, size_t len, bool final) {
+    if (!index) {
+        importedLogs = "";  // Clear previous logs
+        Serial.printf("Receiving file: %s\n", filename.c_str());
+    }
+
+    // Append received data to the string (RAM storage)
+    importedLogs += String((char*)data).substring(0, len);
+
+    if (final) {
+        Serial.println("Upload Complete!");
+        Serial.println("Imported Log Data:");
+        Serial.println(importedLogs);  // Display contents for debugging
+        request->send(200, "text/plain", "File uploaded successfully");
+    }
+}
 
 void init_webserver() {
 
@@ -65,6 +85,12 @@ void init_webserver() {
     request->send(response);
   });
 
+  // Route for going to CAN replay web page
+  server.on("/canreplay", HTTP_GET, [](AsyncWebServerRequest* request) {
+    AsyncWebServerResponse* response = request->beginResponse(200, "text/html", can_replay_processor());
+    request->send(response);
+  });
+
 #if defined(DEBUG_VIA_WEB) || defined(LOG_TO_SD)
   // Route for going to debug logging web page
   server.on("/log", HTTP_GET, [](AsyncWebServerRequest* request) {
@@ -78,6 +104,14 @@ void init_webserver() {
     datalayer.system.info.can_logging_active = false;
     request->send(200, "text/plain", "Logging stopped");
   });
+
+  // Define the handler to import can log
+    server.on("/import_can_log", HTTP_POST,[](AsyncWebServerRequest *request) {
+        request->send(200, "text/plain", "Ready to receive file.");  // Response when request is made
+      },
+        handleFileUpload
+    );
+
 
 #ifndef LOG_CAN_TO_SD
   // Define the handler to export can log
@@ -1280,6 +1314,7 @@ String processor(const String& var) {
     content += "<button onclick='Settings()'>Change Settings</button> ";
     content += "<button onclick='Advanced()'>More Battery Info</button> ";
     content += "<button onclick='CANlog()'>CAN logger</button> ";
+    content += "<button onclick='CANreplay()'>CAN replay</button> ";
 #if defined(DEBUG_VIA_WEB) || defined(LOG_TO_SD)
     content += "<button onclick='Log()'>Log</button> ";
 #endif  // DEBUG_VIA_WEB
@@ -1308,6 +1343,7 @@ String processor(const String& var) {
     content += "function Settings() { window.location.href = '/settings'; }";
     content += "function Advanced() { window.location.href = '/advanced'; }";
     content += "function CANlog() { window.location.href = '/canlog'; }";
+    content += "function CANreplay() { window.location.href = '/canreplay'; }";
     content += "function Log() { window.location.href = '/log'; }";
     content += "function Events() { window.location.href = '/events'; }";
     content +=

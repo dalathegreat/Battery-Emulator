@@ -41,7 +41,7 @@
 //#define TESLA_MODEL_SX_BATTERY
 //#define VOLVO_SPA_BATTERY
 //#define VOLVO_SPA_HYBRID_BATTERY
-//#define TEST_FAKE_BATTERY
+#define TEST_FAKE_BATTERY
 //#define DOUBLE_BATTERY  //Enable this line if you use two identical batteries at the same time (requires CAN_ADDON setup)
 //#define SERIAL_LINK_TRANSMITTER  //Enable this line to send battery data over RS485 pins to another Lilygo (This LilyGo interfaces with battery)
 
@@ -67,7 +67,7 @@
 //#define SERIAL_LINK_RECEIVER  //Enable this line to receive battery data over RS485 pins from another Lilygo (This LilyGo interfaces with inverter)
 
 /* Select hardware used for Battery-Emulator */
-//#define HW_LILYGO
+#define HW_LILYGO
 //#define HW_STARK
 //#define HW_3LB
 //#define HW_DEVKIT
