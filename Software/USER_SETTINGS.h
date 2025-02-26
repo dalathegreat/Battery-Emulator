@@ -80,6 +80,8 @@
 //#define NC_CONTACTORS         //Enable this line to control normally closed contactors. CONTACTOR_CONTROL must be enabled for this option. Extremely rare setting!
 //#define PERIODIC_BMS_RESET    //Enable to have the emulator powercycle the connected battery every 24hours via GPIO. Useful for some batteries like Nissan LEAF
 //#define REMOTE_BMS_RESET      //Enable to allow the emulator to remotely trigger a powercycle of the battery via MQTT. Useful for some batteries like Nissan LEAF
+// PERIODIC_BMS_RESET_AT Uses NTP server, internet required. In 24 Hour format WITHOUT leading 0. e.g 0230 should be 230. Time Zone is set in USER_SETTINGS.cpp
+#define PERIODIC_BMS_RESET_AT 525
 
 /* Shunt/Contactor settings (Optional) */
 //#define BMW_SBOX  // SBOX relay control & battery current/voltage measurement
@@ -175,6 +177,8 @@ extern volatile float CHARGER_MIN_HV;
 extern volatile float CHARGER_MAX_POWER;
 extern volatile float CHARGER_MAX_A;
 extern volatile float CHARGER_END_A;
+
+extern volatile unsigned long long bmsResetTimeOffset;
 
 #ifdef EQUIPMENT_STOP_BUTTON
 typedef enum { LATCHING_SWITCH = 0, MOMENTARY_SWITCH = 1 } STOP_BUTTON_BEHAVIOR;

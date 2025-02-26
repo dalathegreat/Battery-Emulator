@@ -41,8 +41,10 @@ unsigned long timeSpentInFaultedMode = 0;
 #endif
 unsigned long currentTime = 0;
 unsigned long lastPowerRemovalTime = 0;
+unsigned long bmsPowerOnTime = 0;
 const unsigned long powerRemovalInterval = 24 * 60 * 60 * 1000;  // 24 hours in milliseconds
 const unsigned long powerRemovalDuration = 30000;                // 30 seconds in milliseconds
+const unsigned long bmsWarmupDuration = 3000;
 
 void set(uint8_t pin, bool direction, uint32_t pwm_freq = 0xFFFF) {
 #ifdef PWM_CONTACTOR_CONTROL
@@ -249,23 +251,29 @@ void handle_BMSpower() {
 
 #ifdef PERIODIC_BMS_RESET
   // Check if 24 hours have passed since the last power removal
-  if (currentTime - lastPowerRemovalTime >= powerRemovalInterval) {
+  if ((currentTime + bmsResetTimeOffset) - lastPowerRemovalTime >= powerRemovalInterval) {
     start_bms_reset();
   }
 #endif  //PERIODIC_BMS_RESET
 
-  // If power has been removed for 30 seconds, restore the power and resume the emulator
+  // If power has been removed for 30 seconds, restore the power
   if (datalayer.system.status.BMS_reset_in_progress && currentTime - lastPowerRemovalTime >= powerRemovalDuration) {
     // Reapply power to the BMS
     digitalWrite(BMS_POWER, HIGH);
 #ifdef BMS_2_POWER
     digitalWrite(BMS_2_POWER, HIGH);  // Same for battery 2
 #endif
+    bmsPowerOnTime = currentTime;
+    datalayer.system.status.BMS_reset_in_progress = false;   // Reset the power removal flag
+    datalayer.system.status.BMS_startup_in_progress = true;  // Set the BMS warmup flag
+  }
+  //if power has been restored we need to wait a couple of seconds to unpause the battery
+  if (datalayer.system.status.BMS_startup_in_progress && currentTime - bmsPowerOnTime >= bmsWarmupDuration) {
 
-    //Resume from the power pause
     setBatteryPause(false, false, false, false);
 
-    datalayer.system.status.BMS_reset_in_progress = false;  // Reset the power removal flag
+    datalayer.system.status.BMS_startup_in_progress = false;  // Reset the BMS warmup removal flag
+    set_event(EVENT_PERIODIC_BMS_RESET, 0);
   }
 #endif  //defined(PERIODIC_BMS_RESET) || defined(REMOTE_BMS_RESET)
 }
@@ -274,9 +282,10 @@ void start_bms_reset() {
 #if defined(PERIODIC_BMS_RESET) || defined(REMOTE_BMS_RESET)
   if (!datalayer.system.status.BMS_reset_in_progress) {
     lastPowerRemovalTime = currentTime;  // Record the time when BMS reset was started
-
+                                         // we are now resetting at the correct time. We don't need to offset anymore
+    bmsResetTimeOffset = 0;
     // Set a flag to let the rest of the system know we are cutting power to the BMS.
-    // The battery CAN sending routine will then know not to try to send anything towards battery while active
+    // The battery CAN sending routine will then know not to try guto send anything towards battery while active
     datalayer.system.status.BMS_reset_in_progress = true;
 
     // Set emulator state to paused (Max Charge/Discharge = 0 & CAN = stop)
