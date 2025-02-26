@@ -64,7 +64,7 @@ static uint8_t EGMP_1CF_counter = 0;
 static uint8_t EGMP_3XF_counter = 0;
 
 // Define the data points for %SOC depending on cell voltage
-const uint8_t numPoints = 14;
+const uint8_t numPoints = 30;
 const uint16_t SOC[] = {10000, 9626, 9259, 8899, 8546, 8200, 7859, 7524, 7193, 6867, 6544, 6224, 5907, 5590, 5275,
                         4959,  4643, 4325, 4004, 3680, 3350, 3016, 2674, 2325, 1967, 1599, 1220, 827,  421,  0};
 const uint16_t voltage[] = {4250, 4200, 4150, 4100, 4050, 4000, 3950, 3900, 3850, 3800, 3750, 3700, 3650, 3600, 3550,
