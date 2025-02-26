@@ -37,6 +37,9 @@ void update_values_battery() {
   else if (SOC > 8000)
     adaptive_power_limit = ((10000 - (uint32_t)SOC) * POWER_PER_PERCENT) / 100;
 
+  if (temperature_min_dC < LOW_TEMP_POWER_LIMIT_START && adaptive_power_limit > LOW_TEMP_POWER_LIMIT)
+    adaptive_power_limit = LOW_TEMP_POWER_LIMIT;
+
   if (adaptive_power_limit < datalayer.battery.status.max_charge_power_W)
     datalayer.battery.status.max_charge_power_W = adaptive_power_limit;
   if (SOC < 2000 && adaptive_power_limit < datalayer.battery.status.max_discharge_power_W)
