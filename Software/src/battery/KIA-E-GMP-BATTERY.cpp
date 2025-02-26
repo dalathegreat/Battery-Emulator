@@ -32,6 +32,8 @@ static uint16_t inverterVoltage = 0;
 static uint16_t soc_calculated = 0;
 static uint16_t SOC_BMS = 0;
 static uint16_t SOC_Display = 0;
+static uint16_t SOC_estimated_lowest = 0;
+static uint16_t SOC_estimated_highest = 0;
 static uint16_t batterySOH = 1000;
 static uint16_t CellVoltMax_mV = 3700;
 static uint16_t CellVoltMin_mV = 3700;
@@ -60,6 +62,40 @@ static bool set_voltage_limits = false;
 static uint8_t ticks_200ms_counter = 0;
 static uint8_t EGMP_1CF_counter = 0;
 static uint8_t EGMP_3XF_counter = 0;
+
+// Define the data points for %SOC depending on cell voltage
+const uint8_t numPoints = 14;
+const uint16_t SOC[] = {10000, 9626, 9259, 8899, 8546, 8200, 7859, 7524, 7193, 6867, 6544, 6224, 5907, 5590, 5275,
+                        4959,  4643, 4325, 4004, 3680, 3350, 3016, 2674, 2325, 1967, 1599, 1220, 827,  421,  0};
+const uint16_t voltage[] = {4250, 4200, 4150, 4100, 4050, 4000, 3950, 3900, 3850, 3800, 3750, 3700, 3650, 3600, 3550,
+                            3500, 3450, 3400, 3350, 3300, 3250, 3200, 3150, 3100, 3050, 3000, 2950, 2900, 2850, 2800};
+
+uint16_t estimateSOC(uint16_t cellVoltage) {  // Linear interpolation function
+  if (cellVoltage >= voltage[0]) {
+    return SOC[0];
+  }
+  if (cellVoltage <= voltage[numPoints - 1]) {
+    return SOC[numPoints - 1];
+  }
+
+  for (int i = 1; i < numPoints; ++i) {
+    if (cellVoltage >= voltage[i]) {
+      double t = (cellVoltage - voltage[i]) / (voltage[i - 1] - voltage[i]);
+      return SOC[i] + t * (SOC[i - 1] - SOC[i]);
+    }
+  }
+  return 0;  // Default return for safety, should never reach here
+}
+
+uint8_t selectSOC(uint8_t SOC_low, uint8_t SOC_high) {
+  if (SOC_low == 0 || SOC_high == 0) {
+    return 0;  // If either value is 0, return 0
+  }
+  if (SOC_low == 10000 || SOC_high == 10000) {
+    return 10000;  // If either value is 100, return 100
+  }
+  return (SOC_low < SOC_high) ? SOC_low : SOC_high;  // Otherwise, return the lowest value
+}
 
 /* These messages are needed for contactor closing */
 unsigned long startMillis;
@@ -632,7 +668,13 @@ static uint8_t calculateCRC(CAN_frame rx_frame, uint8_t length, uint8_t initial_
 
 void update_values_battery() {  //This function maps all the values fetched via CAN to the correct parameters used for modbus
 
+#ifdef ESTIMATE_SOC_FROM_CELLVOLTAGE
+  SOC_estimated_lowest = estimateSOC(CellVoltMin_mV);
+  SOC_estimated_highest = estimateSOC(CellVoltMax_mV);
+  datalayer.battery.status.real_soc = selectSOC(SOC_estimated_lowest, SOC_estimated_highest);
+#else
   datalayer.battery.status.real_soc = (SOC_Display * 10);  //increase SOC range from 0-100.0 -> 100.00
+#endif
 
   datalayer.battery.status.soh_pptt = (batterySOH * 10);  //Increase decimals from 100.0% -> 100.00%
 
