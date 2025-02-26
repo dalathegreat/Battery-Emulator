@@ -25,8 +25,13 @@ String settings_processor(const String& var) {
         "<h4 style='color: white;'>Password: ######## <span id='Password'></span> <button "
         "onclick='editPassword()'>Edit</button></h4>";
 
+#ifndef RS485_BATTERY_SELECTED
     content += "<h4 style='color: white;'>Battery interface: <span id='Battery'>" +
                String(getCANInterfaceName(can_config.battery)) + "</span></h4>";
+#endif
+#ifdef RS485_BATTERY_SELECTED
+    content += "<h4 style='color: white;'>Battery interface: RS485<span id='Battery'></span></h4>";
+#endif
 
 #ifdef DOUBLE_BATTERY
     content += "<h4 style='color: white;'>Battery #2 interface: <span id='Battery'>" +
