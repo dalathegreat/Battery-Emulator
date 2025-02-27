@@ -91,6 +91,24 @@ void init_webserver() {
     request->send(response);
   });
 
+  // Route to handle setting the CAN interface for CAN replay
+  server.on("/setCANInterface", HTTP_GET, [](AsyncWebServerRequest* request) {
+    if (request->hasParam("interface")) {
+        String canInterface = request->getParam("interface")->value();
+        
+        // Convert the received value to an integer
+        int interfaceValue = canInterface.toInt();
+
+        // Update the datalayer with the selected interface
+        datalayer.system.info.can_replay_interface = interfaceValue;
+
+        // Respond with success message
+        request->send(200, "text/plain", "CAN Interface Updated to " + canInterface);
+    } else {
+        request->send(400, "text/plain", "Error: Missing parameter 'interface'");
+    }
+  });
+
 #if defined(DEBUG_VIA_WEB) || defined(LOG_TO_SD)
   // Route for going to debug logging web page
   server.on("/log", HTTP_GET, [](AsyncWebServerRequest* request) {
