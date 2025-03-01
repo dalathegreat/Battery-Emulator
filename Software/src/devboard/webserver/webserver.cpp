@@ -32,11 +32,7 @@ const char get_firmware_info_html[] = R"rawliteral(%X%)rawliteral";
 
 String importedLogs = "";  // Store the uploaded file contents in RAM /WARNING THIS MIGHT GO BOOM
 
-CAN_frame currentFrame = {.FD = false,
-                          .ext_ID = false,
-                          .DLC = 8,
-                          .ID = 0x12F,
-                          .data = {0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00}};
+CAN_frame currentFrame = {.FD = true, .ext_ID = false, .DLC = 64, .ID = 0x12F, .data = {0}};
 
 void handleFileUpload(AsyncWebServerRequest* request, String filename, size_t index, uint8_t* data, size_t len,
                       bool final) {
@@ -183,9 +179,17 @@ void init_webserver() {
       // Parse and store data bytes
       int byteIndex = 0;
       char* token = strtok((char*)dataBytes.c_str(), " ");
-      while (token != NULL && byteIndex < 8) {
+      while (token != NULL && byteIndex < currentFrame.DLC) {  // Use DLC instead of fixed 8
         currentFrame.data.u8[byteIndex++] = strtol(token, NULL, 16);
         token = strtok(NULL, " ");
+      }
+
+      // Apply FD incase interface is set to FD
+      if ((datalayer.system.info.can_replay_interface == CANFD_NATIVE) ||
+          (datalayer.system.info.can_replay_interface == CANFD_ADDON_MCP2518)) {
+        currentFrame.FD = true;
+      } else {
+        currentFrame.FD = false;
       }
 
       // Transmit the CAN frame
