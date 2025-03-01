@@ -33,27 +33,25 @@ const char get_firmware_info_html[] = R"rawliteral(%X%)rawliteral";
 String importedLogs = "";  // Store the uploaded file contents in RAM /WARNING THIS MIGHT GO BOOM
 
 CAN_frame currentFrame = {.FD = false,
-                     .ext_ID = false,
-                     .DLC = 8,
-                     .ID = 0x12F,
-                     .data = {0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00}};
+                          .ext_ID = false,
+                          .DLC = 8,
+                          .ID = 0x12F,
+                          .data = {0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00}};
 
-void handleFileUpload(AsyncWebServerRequest *request, String filename, size_t index, uint8_t *data, size_t len, bool final) {
-    if (!index) {
-        importedLogs = "";  // Clear previous logs
-        Serial.printf("Receiving file: %s\n", filename.c_str());
-    }
+void handleFileUpload(AsyncWebServerRequest* request, String filename, size_t index, uint8_t* data, size_t len,
+                      bool final) {
+  if (!index) {
+    importedLogs = "";  // Clear previous logs
+    logging.printf("Receiving file: %s\n", filename.c_str());
+  }
 
-    // Append received data to the string (RAM storage)
-    importedLogs += String((char*)data).substring(0, len);
+  // Append received data to the string (RAM storage)
+  importedLogs += String((char*)data).substring(0, len);
 
-    if (final) {
-        Serial.println("Upload Complete!");
-        Serial.println("Imported Log Data:"); 
-        Serial.println(importedLogs);  // Display contents for debugging (TODO: Remove these prints when feature works)
-        //datalayer.system.info.logged_can_messages = importedLogs;
-        request->send(200, "text/plain", "File uploaded successfully");
-    }
+  if (final) {
+    logging.println("Upload Complete!");
+    request->send(200, "text/plain", "File uploaded successfully");
+  }
 }
 
 void init_webserver() {
@@ -101,113 +99,117 @@ void init_webserver() {
     request->send(response);
   });
 
-// Route for starting the CAN replay
-server.on("/startReplay", HTTP_GET, [](AsyncWebServerRequest* request) {
+  // Route for starting the CAN replay
+  server.on("/startReplay", HTTP_GET, [](AsyncWebServerRequest* request) {
     if (WEBSERVER_AUTH_REQUIRED && !request->authenticate(http_username, http_password)) {
-        return request->requestAuthentication();
+      return request->requestAuthentication();
     }
 
     std::vector<String> messages;
     int lastIndex = 0;
     while (true) {
-        int nextIndex = importedLogs.indexOf("\n", lastIndex);
-        if (nextIndex == -1) {
-            messages.push_back(importedLogs.substring(lastIndex));  // Add last message
-            break;
-        }
-        messages.push_back(importedLogs.substring(lastIndex, nextIndex));
-        lastIndex = nextIndex + 1;
+      int nextIndex = importedLogs.indexOf("\n", lastIndex);
+      if (nextIndex == -1) {
+        messages.push_back(importedLogs.substring(lastIndex));  // Add last message
+        break;
+      }
+      messages.push_back(importedLogs.substring(lastIndex, nextIndex));
+      lastIndex = nextIndex + 1;
     }
 
     float firstTimestamp = -1.0;
     float lastTimestamp = 0.0;
 
     for (size_t i = 0; i < messages.size(); i++) {
-        String line = messages[i];
-        line.trim(); // Remove leading/trailing spaces
+      String line = messages[i];
+      line.trim();  // Remove leading/trailing spaces
 
-        if (line.length() == 0) continue;  // Skip empty lines
+      if (line.length() == 0)
+        continue;  // Skip empty lines
 
-        // Extract timestamp
-        int timeStart = line.indexOf("(") + 1;
-        int timeEnd = line.indexOf(")");
-        if (timeStart == 0 || timeEnd == -1) continue;
+      // Extract timestamp
+      int timeStart = line.indexOf("(") + 1;
+      int timeEnd = line.indexOf(")");
+      if (timeStart == 0 || timeEnd == -1)
+        continue;
 
-        float currentTimestamp = line.substring(timeStart, timeEnd).toFloat();
+      float currentTimestamp = line.substring(timeStart, timeEnd).toFloat();
 
-        if (firstTimestamp < 0) {
-            firstTimestamp = currentTimestamp;  // Store first message timestamp
-        }
+      if (firstTimestamp < 0) {
+        firstTimestamp = currentTimestamp;  // Store first message timestamp
+      }
 
-        // Calculate delay (skip for the first message)
-        if (i > 0) {
-            float deltaT = (currentTimestamp - lastTimestamp) * 1000; // Convert seconds to milliseconds
-            delay((int)deltaT);  // Delay before sending this message
-        }
+      // Calculate delay (skip for the first message, and incase the log is out of order)
+      if ((i > 0) && (currentTimestamp > lastTimestamp)) {
+        float deltaT = (currentTimestamp - lastTimestamp) * 1000;  // Convert seconds to milliseconds
 
-        lastTimestamp = currentTimestamp;
+        delay((int)deltaT);  // Delay before sending this message
+      }
 
-        // Find the first space after the timestamp to locate the interface (TX# or RX#)
-        int interfaceStart = timeEnd + 2; // Start after ") "
-        int interfaceEnd = line.indexOf(" ", interfaceStart);
-        if (interfaceEnd == -1) continue;
+      lastTimestamp = currentTimestamp;
 
-        String canInterface = line.substring(interfaceStart, interfaceEnd); // Extract TX# or RX#
+      // Find the first space after the timestamp to locate the interface (TX# or RX#)
+      int interfaceStart = timeEnd + 2;  // Start after ") "
+      int interfaceEnd = line.indexOf(" ", interfaceStart);
+      if (interfaceEnd == -1)
+        continue;
 
-        // Extract CAN ID
-        int idStart = interfaceEnd + 1;
-        int idEnd = line.indexOf(" [", idStart);
-        if (idStart == -1 || idEnd == -1) continue;
+      String canInterface = line.substring(interfaceStart, interfaceEnd);  // Extract TX# or RX#
 
-        String messageID = line.substring(idStart, idEnd);
+      // Extract CAN ID
+      int idStart = interfaceEnd + 1;
+      int idEnd = line.indexOf(" [", idStart);
+      if (idStart == -1 || idEnd == -1)
+        continue;
 
-        // Extract DLC
-        int dlcStart = idEnd + 2;
-        int dlcEnd = line.indexOf("]", dlcStart);
-        if (dlcEnd == -1) continue;
+      String messageID = line.substring(idStart, idEnd);
 
-        String dlc = line.substring(dlcStart, dlcEnd);
+      // Extract DLC
+      int dlcStart = idEnd + 2;
+      int dlcEnd = line.indexOf("]", dlcStart);
+      if (dlcEnd == -1)
+        continue;
 
-        // Extract data bytes
-        int dataStart = dlcEnd + 2;
-        String dataBytes = line.substring(dataStart);
+      String dlc = line.substring(dlcStart, dlcEnd);
 
-        // Assign values to the CAN frame
-        currentFrame.ID = strtol(messageID.c_str(), NULL, 16);
-        currentFrame.DLC = dlc.toInt();
+      // Extract data bytes
+      int dataStart = dlcEnd + 2;
+      String dataBytes = line.substring(dataStart);
 
-        // Parse and store data bytes
-        int byteIndex = 0;
-        char* token = strtok((char*)dataBytes.c_str(), " ");
-        while (token != NULL && byteIndex < 8) {
-            currentFrame.data.u8[byteIndex++] = strtol(token, NULL, 16);
-            token = strtok(NULL, " ");
-        }
+      // Assign values to the CAN frame
+      currentFrame.ID = strtol(messageID.c_str(), NULL, 16);
+      currentFrame.DLC = dlc.toInt();
 
-        // Transmit the CAN frame
-        transmit_can_frame(&currentFrame, datalayer.system.info.can_replay_interface);
+      // Parse and store data bytes
+      int byteIndex = 0;
+      char* token = strtok((char*)dataBytes.c_str(), " ");
+      while (token != NULL && byteIndex < 8) {
+        currentFrame.data.u8[byteIndex++] = strtol(token, NULL, 16);
+        token = strtok(NULL, " ");
+      }
+
+      // Transmit the CAN frame
+      transmit_can_frame(&currentFrame, datalayer.system.info.can_replay_interface);
     }
 
     request->send(200, "text/plain", "All CAN messages sent with correct interfaces!");
-});
-
-
+  });
 
   // Route to handle setting the CAN interface for CAN replay
   server.on("/setCANInterface", HTTP_GET, [](AsyncWebServerRequest* request) {
     if (request->hasParam("interface")) {
-        String canInterface = request->getParam("interface")->value();
-        
-        // Convert the received value to an integer
-        int interfaceValue = canInterface.toInt();
+      String canInterface = request->getParam("interface")->value();
 
-        // Update the datalayer with the selected interface
-        datalayer.system.info.can_replay_interface = interfaceValue;
+      // Convert the received value to an integer
+      int interfaceValue = canInterface.toInt();
 
-        // Respond with success message
-        request->send(200, "text/plain", "CAN Interface Updated to " + canInterface);
+      // Update the datalayer with the selected interface
+      datalayer.system.info.can_replay_interface = interfaceValue;
+
+      // Respond with success message
+      request->send(200, "text/plain", "CAN Interface Updated to " + canInterface);
     } else {
-        request->send(400, "text/plain", "Error: Missing parameter 'interface'");
+      request->send(400, "text/plain", "Error: Missing parameter 'interface'");
     }
   });
 
@@ -226,12 +228,12 @@ server.on("/startReplay", HTTP_GET, [](AsyncWebServerRequest* request) {
   });
 
   // Define the handler to import can log
-    server.on("/import_can_log", HTTP_POST,[](AsyncWebServerRequest *request) {
+  server.on(
+      "/import_can_log", HTTP_POST,
+      [](AsyncWebServerRequest* request) {
         request->send(200, "text/plain", "Ready to receive file.");  // Response when request is made
       },
-        handleFileUpload
-    );
-
+      handleFileUpload);
 
 #ifndef LOG_CAN_TO_SD
   // Define the handler to export can log
