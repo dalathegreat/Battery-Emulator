@@ -22,7 +22,7 @@ String can_replay_processor(void) {
       ".can-message { background-color: #404E57; margin-bottom: 5px; padding: 10px; border-radius: 5px; font-family: "
       "monospace; }";
   content += "</style>";
-  content += "<button onclick='stopPlaybackAndGoToMainPage()'>Stop &amp; Back to main page</button>";
+  content += "<button onclick='stopPlaybackAndGoToMainPage()'>Back to main page</button>";
 
   // Start a new block for the CAN messages
   content += "<div style='background-color: #303E47; padding: 20px; border-radius: 15px'>";
@@ -63,11 +63,14 @@ String can_replay_processor(void) {
 
   content += "<h3>Step 3: Playback control</h3>";
 
+  //Checkbox to see if the user wants the log to repeat once it reaches the end
+  content += "<input type=\"checkbox\" id=\"loopCheckbox\"> Loop ";
+
   // Add a button to start playing the log
   content += "<button onclick='startReplay()'>Start</button> ";
 
   // Add a button to stop playing the log
-  content += "<button onclick='startReplay()'>Stop</button> ";
+  content += "<button onclick='stopReplay()'>Stop</button> ";
 
   content += "<h3>Uploaded Log Preview:</h3>";
   content += "<pre id='file-content'></pre>";
@@ -113,9 +116,17 @@ String can_replay_processor(void) {
   // Add JavaScript for navigation
   content += "<script>";
   content += "function startReplay() {";
-  content += "  var xhr = new XMLHttpRequest();";
-  content += "  xhr.open('GET', '/startReplay', true);";
-  content += "  xhr.send();";
+  content += "  let loop = document.getElementById('loopCheckbox').checked ? 1 : 0;";
+  content += "  fetch('/startReplay?loop=' + loop, { method: 'GET' })";
+  content += "    .then(response => response.text())";
+  content += "    .then(data => console.log(data))";
+  content += "    .catch(error => console.error('Error:', error));";
+  content += "}";
+  content += "function stopReplay() {";
+  content += "  fetch(`/stopReplay`, { method: 'GET' })";
+  content += "  .then(response => response.text())";
+  content += "  .then(data => console.log(data))";
+  content += "  .catch(error => console.error('Error:', error));";
   content += "}";
   content += "function sendCANSelection() {";
   content += "  var selectedInterface = document.getElementById('canInterface').value;";

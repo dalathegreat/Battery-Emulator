@@ -9,6 +9,7 @@
 #include "../utils/events.h"
 #include "../utils/led_handler.h"
 #include "../utils/timer.h"
+#include "esp_task_wdt.h"
 
 // Create AsyncWebServer object on port 80
 AsyncWebServer server(80);
@@ -48,6 +49,96 @@ void handleFileUpload(AsyncWebServerRequest* request, String filename, size_t in
     logging.println("Upload Complete!");
     request->send(200, "text/plain", "File uploaded successfully");
   }
+}
+
+void canReplayTask(void* param) {
+
+  std::vector<String> messages;
+  int lastIndex = 0;
+
+  if (importedLogs.length() == 0) {
+    return;
+  }
+
+  // Split importedLogs into individual messages
+  while (true) {
+    int nextIndex = importedLogs.indexOf("\n", lastIndex);
+    if (nextIndex == -1) {
+      messages.push_back(importedLogs.substring(lastIndex));  // Add last message
+      break;
+    }
+    messages.push_back(importedLogs.substring(lastIndex, nextIndex));
+    lastIndex = nextIndex + 1;
+  }
+
+  do {
+    float firstTimestamp = -1.0;
+    float lastTimestamp = 0.0;
+
+    for (size_t i = 0; i < messages.size(); i++) {
+      esp_task_wdt_reset();  // Manually reset watchdog
+      vTaskDelay(1);         // Yield control to FreeRTOS
+
+      String line = messages[i];
+      line.trim();
+      if (line.length() == 0)
+        continue;
+
+      int timeStart = line.indexOf("(") + 1;
+      int timeEnd = line.indexOf(")");
+      if (timeStart == 0 || timeEnd == -1)
+        continue;
+
+      float currentTimestamp = line.substring(timeStart, timeEnd).toFloat();
+      if (firstTimestamp < 0)
+        firstTimestamp = currentTimestamp;
+
+      if ((i > 0) && (currentTimestamp > lastTimestamp)) {
+        float deltaT = (currentTimestamp - lastTimestamp) * 1000;
+        vTaskDelay((int)deltaT / portTICK_PERIOD_MS);
+      }
+
+      lastTimestamp = currentTimestamp;
+
+      int interfaceStart = timeEnd + 2;
+      int interfaceEnd = line.indexOf(" ", interfaceStart);
+      if (interfaceEnd == -1)
+        continue;
+
+      int idStart = interfaceEnd + 1;
+      int idEnd = line.indexOf(" [", idStart);
+      if (idStart == -1 || idEnd == -1)
+        continue;
+
+      String messageID = line.substring(idStart, idEnd);
+      int dlcStart = idEnd + 2;
+      int dlcEnd = line.indexOf("]", dlcStart);
+      if (dlcEnd == -1)
+        continue;
+
+      String dlc = line.substring(dlcStart, dlcEnd);
+      int dataStart = dlcEnd + 2;
+      String dataBytes = line.substring(dataStart);
+
+      currentFrame.ID = strtol(messageID.c_str(), NULL, 16);
+      currentFrame.DLC = dlc.toInt();
+
+      int byteIndex = 0;
+      char* token = strtok((char*)dataBytes.c_str(), " ");
+      while (token != NULL && byteIndex < currentFrame.DLC) {
+        currentFrame.data.u8[byteIndex++] = strtol(token, NULL, 16);
+        token = strtok(NULL, " ");
+      }
+
+      currentFrame.FD = (datalayer.system.info.can_replay_interface == CANFD_NATIVE) ||
+                        (datalayer.system.info.can_replay_interface == CANFD_ADDON_MCP2518);
+
+      transmit_can_frame(&currentFrame, datalayer.system.info.can_replay_interface);
+      vTaskDelay(1);  // Yield control after sending frame
+    }
+  } while (datalayer.system.info.loop_playback);
+
+  vTaskDelete(NULL);  // Delete task when done
 }
 
 void init_webserver() {
@@ -101,102 +192,25 @@ void init_webserver() {
       return request->requestAuthentication();
     }
 
-    std::vector<String> messages;
-    int lastIndex = 0;
-    while (true) {
-      int nextIndex = importedLogs.indexOf("\n", lastIndex);
-      if (nextIndex == -1) {
-        messages.push_back(importedLogs.substring(lastIndex));  // Add last message
-        break;
-      }
-      messages.push_back(importedLogs.substring(lastIndex, nextIndex));
-      lastIndex = nextIndex + 1;
+    if (request->hasParam("loop")) {
+      datalayer.system.info.loop_playback = request->getParam("loop")->value().toInt() == 1;
     }
 
-    float firstTimestamp = -1.0;
-    float lastTimestamp = 0.0;
+    // Start the replay task on Core 1
+    xTaskCreatePinnedToCore(canReplayTask, "CAN_Replay", 8192, NULL, 1, NULL, 1);
 
-    for (size_t i = 0; i < messages.size(); i++) {
-      String line = messages[i];
-      line.trim();  // Remove leading/trailing spaces
+    request->send(200, "text/plain", "CAN replay started!");
+  });
 
-      if (line.length() == 0)
-        continue;  // Skip empty lines
-
-      // Extract timestamp
-      int timeStart = line.indexOf("(") + 1;
-      int timeEnd = line.indexOf(")");
-      if (timeStart == 0 || timeEnd == -1)
-        continue;
-
-      float currentTimestamp = line.substring(timeStart, timeEnd).toFloat();
-
-      if (firstTimestamp < 0) {
-        firstTimestamp = currentTimestamp;  // Store first message timestamp
-      }
-
-      // Calculate delay (skip for the first message, and incase the log is out of order)
-      if ((i > 0) && (currentTimestamp > lastTimestamp)) {
-        float deltaT = (currentTimestamp - lastTimestamp) * 1000;  // Convert seconds to milliseconds
-
-        delay((int)deltaT);  // Delay before sending this message
-      }
-
-      lastTimestamp = currentTimestamp;
-
-      // Find the first space after the timestamp to locate the interface (TX# or RX#)
-      int interfaceStart = timeEnd + 2;  // Start after ") "
-      int interfaceEnd = line.indexOf(" ", interfaceStart);
-      if (interfaceEnd == -1)
-        continue;
-
-      String canInterface = line.substring(interfaceStart, interfaceEnd);  // Extract TX# or RX#
-
-      // Extract CAN ID
-      int idStart = interfaceEnd + 1;
-      int idEnd = line.indexOf(" [", idStart);
-      if (idStart == -1 || idEnd == -1)
-        continue;
-
-      String messageID = line.substring(idStart, idEnd);
-
-      // Extract DLC
-      int dlcStart = idEnd + 2;
-      int dlcEnd = line.indexOf("]", dlcStart);
-      if (dlcEnd == -1)
-        continue;
-
-      String dlc = line.substring(dlcStart, dlcEnd);
-
-      // Extract data bytes
-      int dataStart = dlcEnd + 2;
-      String dataBytes = line.substring(dataStart);
-
-      // Assign values to the CAN frame
-      currentFrame.ID = strtol(messageID.c_str(), NULL, 16);
-      currentFrame.DLC = dlc.toInt();
-
-      // Parse and store data bytes
-      int byteIndex = 0;
-      char* token = strtok((char*)dataBytes.c_str(), " ");
-      while (token != NULL && byteIndex < currentFrame.DLC) {  // Use DLC instead of fixed 8
-        currentFrame.data.u8[byteIndex++] = strtol(token, NULL, 16);
-        token = strtok(NULL, " ");
-      }
-
-      // Apply FD incase interface is set to FD
-      if ((datalayer.system.info.can_replay_interface == CANFD_NATIVE) ||
-          (datalayer.system.info.can_replay_interface == CANFD_ADDON_MCP2518)) {
-        currentFrame.FD = true;
-      } else {
-        currentFrame.FD = false;
-      }
-
-      // Transmit the CAN frame
-      transmit_can_frame(&currentFrame, datalayer.system.info.can_replay_interface);
+  // Route for stopping the CAN replay
+  server.on("/stopReplay", HTTP_GET, [](AsyncWebServerRequest* request) {
+    if (WEBSERVER_AUTH_REQUIRED && !request->authenticate(http_username, http_password)) {
+      return request->requestAuthentication();
     }
 
-    request->send(200, "text/plain", "All CAN messages sent with correct interfaces!");
+    datalayer.system.info.loop_playback = false;
+
+    request->send(200, "text/plain", "CAN replay stopped!");
   });
 
   // Route to handle setting the CAN interface for CAN replay

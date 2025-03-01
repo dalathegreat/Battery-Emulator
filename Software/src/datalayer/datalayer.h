@@ -222,6 +222,8 @@ typedef struct {
   bool can_logging_active = false;
   /** uint8_t, enumeration which CAN interface should be used for log playback */
   uint8_t can_replay_interface = CAN_NATIVE;
+  /** bool, determines if CAN replay should loop or not */
+  bool loop_playback = false;
 
 } DATALAYER_SYSTEM_INFO_TYPE;
 
