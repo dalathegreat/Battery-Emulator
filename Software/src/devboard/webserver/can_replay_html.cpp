@@ -105,6 +105,11 @@ content += "</script>";
 
   // Add JavaScript for navigation
   content += "<script>";
+    content += "function startReplay() {";
+  content += "  var xhr = new XMLHttpRequest();";
+  content += "  xhr.open('GET', '/startReplay', true);";
+  content += "  xhr.send();";
+  content += "}";
   content += "function sendCANSelection() {";
   content += "  var selectedInterface = document.getElementById('canInterface').value;";
   content += "  var xhr = new XMLHttpRequest();";

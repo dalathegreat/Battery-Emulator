@@ -32,6 +32,12 @@ const char get_firmware_info_html[] = R"rawliteral(%X%)rawliteral";
 
 String importedLogs = "";  // Store the uploaded file contents in RAM /WARNING THIS MIGHT GO BOOM
 
+CAN_frame currentFrame = {.FD = false,
+                     .ext_ID = false,
+                     .DLC = 8,
+                     .ID = 0x12F,
+                     .data = {0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00}};
+
 void handleFileUpload(AsyncWebServerRequest *request, String filename, size_t index, uint8_t *data, size_t len, bool final) {
     if (!index) {
         importedLogs = "";  // Clear previous logs
@@ -43,8 +49,9 @@ void handleFileUpload(AsyncWebServerRequest *request, String filename, size_t in
 
     if (final) {
         Serial.println("Upload Complete!");
-        Serial.println("Imported Log Data:");
-        Serial.println(importedLogs);  // Display contents for debugging
+        Serial.println("Imported Log Data:"); 
+        Serial.println(importedLogs);  // Display contents for debugging (TODO: Remove these prints when feature works)
+        //datalayer.system.info.logged_can_messages = importedLogs;
         request->send(200, "text/plain", "File uploaded successfully");
     }
 }
@@ -87,9 +94,104 @@ void init_webserver() {
 
   // Route for going to CAN replay web page
   server.on("/canreplay", HTTP_GET, [](AsyncWebServerRequest* request) {
+    if (WEBSERVER_AUTH_REQUIRED && !request->authenticate(http_username, http_password)) {
+      return request->requestAuthentication();
+    }
     AsyncWebServerResponse* response = request->beginResponse(200, "text/html", can_replay_processor());
     request->send(response);
   });
+
+// Route for starting the CAN replay
+server.on("/startReplay", HTTP_GET, [](AsyncWebServerRequest* request) {
+    if (WEBSERVER_AUTH_REQUIRED && !request->authenticate(http_username, http_password)) {
+        return request->requestAuthentication();
+    }
+
+    std::vector<String> messages;
+    int lastIndex = 0;
+    while (true) {
+        int nextIndex = importedLogs.indexOf("\n", lastIndex);
+        if (nextIndex == -1) {
+            messages.push_back(importedLogs.substring(lastIndex));  // Add last message
+            break;
+        }
+        messages.push_back(importedLogs.substring(lastIndex, nextIndex));
+        lastIndex = nextIndex + 1;
+    }
+
+    float firstTimestamp = -1.0;
+    float lastTimestamp = 0.0;
+
+    for (size_t i = 0; i < messages.size(); i++) {
+        String line = messages[i];
+        line.trim(); // Remove leading/trailing spaces
+
+        if (line.length() == 0) continue;  // Skip empty lines
+
+        // Extract timestamp
+        int timeStart = line.indexOf("(") + 1;
+        int timeEnd = line.indexOf(")");
+        if (timeStart == 0 || timeEnd == -1) continue;
+
+        float currentTimestamp = line.substring(timeStart, timeEnd).toFloat();
+
+        if (firstTimestamp < 0) {
+            firstTimestamp = currentTimestamp;  // Store first message timestamp
+        }
+
+        // Calculate delay (skip for the first message)
+        if (i > 0) {
+            float deltaT = (currentTimestamp - lastTimestamp) * 1000; // Convert seconds to milliseconds
+            delay((int)deltaT);  // Delay before sending this message
+        }
+
+        lastTimestamp = currentTimestamp;
+
+        // Find the first space after the timestamp to locate the interface (TX# or RX#)
+        int interfaceStart = timeEnd + 2; // Start after ") "
+        int interfaceEnd = line.indexOf(" ", interfaceStart);
+        if (interfaceEnd == -1) continue;
+
+        String canInterface = line.substring(interfaceStart, interfaceEnd); // Extract TX# or RX#
+
+        // Extract CAN ID
+        int idStart = interfaceEnd + 1;
+        int idEnd = line.indexOf(" [", idStart);
+        if (idStart == -1 || idEnd == -1) continue;
+
+        String messageID = line.substring(idStart, idEnd);
+
+        // Extract DLC
+        int dlcStart = idEnd + 2;
+        int dlcEnd = line.indexOf("]", dlcStart);
+        if (dlcEnd == -1) continue;
+
+        String dlc = line.substring(dlcStart, dlcEnd);
+
+        // Extract data bytes
+        int dataStart = dlcEnd + 2;
+        String dataBytes = line.substring(dataStart);
+
+        // Assign values to the CAN frame
+        currentFrame.ID = strtol(messageID.c_str(), NULL, 16);
+        currentFrame.DLC = dlc.toInt();
+
+        // Parse and store data bytes
+        int byteIndex = 0;
+        char* token = strtok((char*)dataBytes.c_str(), " ");
+        while (token != NULL && byteIndex < 8) {
+            currentFrame.data.u8[byteIndex++] = strtol(token, NULL, 16);
+            token = strtok(NULL, " ");
+        }
+
+        // Transmit the CAN frame
+        transmit_can_frame(&currentFrame, datalayer.system.info.can_replay_interface);
+    }
+
+    request->send(200, "text/plain", "All CAN messages sent with correct interfaces!");
+});
+
+
 
   // Route to handle setting the CAN interface for CAN replay
   server.on("/setCANInterface", HTTP_GET, [](AsyncWebServerRequest* request) {
