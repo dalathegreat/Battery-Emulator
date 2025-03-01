@@ -31,7 +31,7 @@ bool ota_active = false;
 
 const char get_firmware_info_html[] = R"rawliteral(%X%)rawliteral";
 
-String importedLogs = "";  // Store the uploaded file contents in RAM /WARNING THIS MIGHT GO BOOM
+String importedLogs = "";  // Store the uploaded file contents in RAM
 
 CAN_frame currentFrame = {.FD = true, .ext_ID = false, .DLC = 64, .ID = 0x12F, .data = {0}};
 
@@ -76,9 +76,6 @@ void canReplayTask(void* param) {
     float lastTimestamp = 0.0;
 
     for (size_t i = 0; i < messages.size(); i++) {
-      esp_task_wdt_reset();  // Manually reset watchdog
-      vTaskDelay(1);         // Yield control to FreeRTOS
-
       String line = messages[i];
       line.trim();
       if (line.length() == 0)
@@ -134,7 +131,6 @@ void canReplayTask(void* param) {
                         (datalayer.system.info.can_replay_interface == CANFD_ADDON_MCP2518);
 
       transmit_can_frame(&currentFrame, datalayer.system.info.can_replay_interface);
-      vTaskDelay(1);  // Yield control after sending frame
     }
   } while (datalayer.system.info.loop_playback);
 
