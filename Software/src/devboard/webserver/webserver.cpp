@@ -124,8 +124,12 @@ void canReplayTask(void* param) {
           token = strtok(NULL, " ");
         }
 
+        // Apply FD in case interface is set to FD
         currentFrame.FD = (datalayer.system.info.can_replay_interface == CANFD_NATIVE) ||
                           (datalayer.system.info.can_replay_interface == CANFD_ADDON_MCP2518);
+
+        // Apply extended ID in case ID is longer than 0x7F0
+        currentFrame.ext_ID = (currentFrame.ID > 0x7F0);
 
         transmit_can_frame(&currentFrame, datalayer.system.info.can_replay_interface);
       }
