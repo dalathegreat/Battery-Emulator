@@ -160,7 +160,7 @@
 * FLOW      - Ramp up/down depending on flow of energy
 * HEARTBEAT - Heartbeat-like LED pattern that reacts to the system state with color and BPM
 */
-#define LED_MODE HEARTBEAT
+#define LED_MODE CLASSIC
 #define LED_PERIOD_MS 3000
 
 /* Do not change any code below this line */
