@@ -56,83 +56,81 @@ void canReplayTask(void* param) {
   std::vector<String> messages;
   int lastIndex = 0;
 
-  if (importedLogs.length() == 0) {
-    return;
-  }
-
-  // Split importedLogs into individual messages
-  while (true) {
-    int nextIndex = importedLogs.indexOf("\n", lastIndex);
-    if (nextIndex == -1) {
-      messages.push_back(importedLogs.substring(lastIndex));  // Add last message
-      break;
-    }
-    messages.push_back(importedLogs.substring(lastIndex, nextIndex));
-    lastIndex = nextIndex + 1;
-  }
-
-  do {
-    float firstTimestamp = -1.0;
-    float lastTimestamp = 0.0;
-
-    for (size_t i = 0; i < messages.size(); i++) {
-      String line = messages[i];
-      line.trim();
-      if (line.length() == 0)
-        continue;
-
-      int timeStart = line.indexOf("(") + 1;
-      int timeEnd = line.indexOf(")");
-      if (timeStart == 0 || timeEnd == -1)
-        continue;
-
-      float currentTimestamp = line.substring(timeStart, timeEnd).toFloat();
-      if (firstTimestamp < 0)
-        firstTimestamp = currentTimestamp;
-
-      if ((i > 0) && (currentTimestamp > lastTimestamp)) {
-        float deltaT = (currentTimestamp - lastTimestamp) * 1000;
-        vTaskDelay((int)deltaT / portTICK_PERIOD_MS);
+  if (!(importedLogs.length() == 0)) {
+    // Split importedLogs into individual messages
+    while (true) {
+      int nextIndex = importedLogs.indexOf("\n", lastIndex);
+      if (nextIndex == -1) {
+        messages.push_back(importedLogs.substring(lastIndex));  // Add last message
+        break;
       }
-
-      lastTimestamp = currentTimestamp;
-
-      int interfaceStart = timeEnd + 2;
-      int interfaceEnd = line.indexOf(" ", interfaceStart);
-      if (interfaceEnd == -1)
-        continue;
-
-      int idStart = interfaceEnd + 1;
-      int idEnd = line.indexOf(" [", idStart);
-      if (idStart == -1 || idEnd == -1)
-        continue;
-
-      String messageID = line.substring(idStart, idEnd);
-      int dlcStart = idEnd + 2;
-      int dlcEnd = line.indexOf("]", dlcStart);
-      if (dlcEnd == -1)
-        continue;
-
-      String dlc = line.substring(dlcStart, dlcEnd);
-      int dataStart = dlcEnd + 2;
-      String dataBytes = line.substring(dataStart);
-
-      currentFrame.ID = strtol(messageID.c_str(), NULL, 16);
-      currentFrame.DLC = dlc.toInt();
-
-      int byteIndex = 0;
-      char* token = strtok((char*)dataBytes.c_str(), " ");
-      while (token != NULL && byteIndex < currentFrame.DLC) {
-        currentFrame.data.u8[byteIndex++] = strtol(token, NULL, 16);
-        token = strtok(NULL, " ");
-      }
-
-      currentFrame.FD = (datalayer.system.info.can_replay_interface == CANFD_NATIVE) ||
-                        (datalayer.system.info.can_replay_interface == CANFD_ADDON_MCP2518);
-
-      transmit_can_frame(&currentFrame, datalayer.system.info.can_replay_interface);
+      messages.push_back(importedLogs.substring(lastIndex, nextIndex));
+      lastIndex = nextIndex + 1;
     }
-  } while (datalayer.system.info.loop_playback);
+
+    do {
+      float firstTimestamp = -1.0;
+      float lastTimestamp = 0.0;
+
+      for (size_t i = 0; i < messages.size(); i++) {
+        String line = messages[i];
+        line.trim();
+        if (line.length() == 0)
+          continue;
+
+        int timeStart = line.indexOf("(") + 1;
+        int timeEnd = line.indexOf(")");
+        if (timeStart == 0 || timeEnd == -1)
+          continue;
+
+        float currentTimestamp = line.substring(timeStart, timeEnd).toFloat();
+        if (firstTimestamp < 0)
+          firstTimestamp = currentTimestamp;
+
+        if ((i > 0) && (currentTimestamp > lastTimestamp)) {
+          float deltaT = (currentTimestamp - lastTimestamp) * 1000;
+          vTaskDelay((int)deltaT / portTICK_PERIOD_MS);
+        }
+
+        lastTimestamp = currentTimestamp;
+
+        int interfaceStart = timeEnd + 2;
+        int interfaceEnd = line.indexOf(" ", interfaceStart);
+        if (interfaceEnd == -1)
+          continue;
+
+        int idStart = interfaceEnd + 1;
+        int idEnd = line.indexOf(" [", idStart);
+        if (idStart == -1 || idEnd == -1)
+          continue;
+
+        String messageID = line.substring(idStart, idEnd);
+        int dlcStart = idEnd + 2;
+        int dlcEnd = line.indexOf("]", dlcStart);
+        if (dlcEnd == -1)
+          continue;
+
+        String dlc = line.substring(dlcStart, dlcEnd);
+        int dataStart = dlcEnd + 2;
+        String dataBytes = line.substring(dataStart);
+
+        currentFrame.ID = strtol(messageID.c_str(), NULL, 16);
+        currentFrame.DLC = dlc.toInt();
+
+        int byteIndex = 0;
+        char* token = strtok((char*)dataBytes.c_str(), " ");
+        while (token != NULL && byteIndex < currentFrame.DLC) {
+          currentFrame.data.u8[byteIndex++] = strtol(token, NULL, 16);
+          token = strtok(NULL, " ");
+        }
+
+        currentFrame.FD = (datalayer.system.info.can_replay_interface == CANFD_NATIVE) ||
+                          (datalayer.system.info.can_replay_interface == CANFD_ADDON_MCP2518);
+
+        transmit_can_frame(&currentFrame, datalayer.system.info.can_replay_interface);
+      }
+    } while (datalayer.system.info.loop_playback);
+  }
 
   vTaskDelete(NULL);  // Delete task when done
 }
