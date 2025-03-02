@@ -72,6 +72,9 @@ String can_replay_processor(void) {
   // Add a button to stop playing the log
   content += "<button onclick='stopReplay()'>Stop</button> ";
 
+  // Status indicator
+  content += "<span id='statusIndicator' style='margin-left:10px; font-weight:bold;'>Stopped</span> ";
+
   content += "<h3>Uploaded Log Preview:</h3>";
   content += "<pre id='file-content'></pre>";
 
@@ -113,20 +116,34 @@ String can_replay_processor(void) {
 
   content += "</div>";
 
-  // Add JavaScript for navigation
+  // Add JavaScript for updating status
   content += "<script>";
   content += "function startReplay() {";
   content += "  let loop = document.getElementById('loopCheckbox').checked ? 1 : 0;";
   content += "  fetch('/startReplay?loop=' + loop, { method: 'GET' })";
   content += "    .then(response => response.text())";
-  content += "    .then(data => console.log(data))";
+  content += "    .then(data => {";
+  content += "      console.log(data);";
+  content += "      document.getElementById('statusIndicator').innerText = 'Running...';";
+  content += "      document.getElementById('statusIndicator').style.color = 'green';";
+  content += "      if (loop === 0) {";  // If loop is not checked
+  content += "        setTimeout(() => {";
+  content += "          document.getElementById('statusIndicator').innerText = 'Completed';";
+  content += "          document.getElementById('statusIndicator').style.color = 'white';";
+  content += "        }, 5000);";  // 5-second timeout before reverting the text
+  content += "      }";
+  content += "    })";
   content += "    .catch(error => console.error('Error:', error));";
   content += "}";
   content += "function stopReplay() {";
-  content += "  fetch(`/stopReplay`, { method: 'GET' })";
-  content += "  .then(response => response.text())";
-  content += "  .then(data => console.log(data))";
-  content += "  .catch(error => console.error('Error:', error));";
+  content += "  fetch('/stopReplay', { method: 'GET' })";
+  content += "    .then(response => response.text())";
+  content += "    .then(data => {";
+  content += "      console.log(data);";
+  content += "      document.getElementById('statusIndicator').innerText = 'Stopped';";
+  content += "      document.getElementById('statusIndicator').style.color = 'red';";
+  content += "    })";
+  content += "    .catch(error => console.error('Error:', error));";
   content += "}";
   content += "function sendCANSelection() {";
   content += "  var selectedInterface = document.getElementById('canInterface').value;";
