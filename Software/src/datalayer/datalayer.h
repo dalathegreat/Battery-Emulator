@@ -97,6 +97,10 @@ typedef struct {
 
   /** The current battery status, which for now has the name real_bms_status */
   real_bms_status_enum real_bms_status = BMS_DISCONNECTED;
+
+  /** LED mode, customizable by user */
+  led_mode_enum led_mode = LED_MODE;
+
 } DATALAYER_BATTERY_STATUS_TYPE;
 
 typedef struct {

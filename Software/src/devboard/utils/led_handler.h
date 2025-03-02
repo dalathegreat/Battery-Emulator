@@ -4,8 +4,6 @@
 #include "../../include.h"
 #include "../../lib/adafruit-Adafruit_NeoPixel/Adafruit_NeoPixel.h"
 
-enum led_mode { CLASSIC, FLOW, HEARTBEAT };
-
 class LED {
  public:
   led_color color = led_color::GREEN;
@@ -14,9 +12,9 @@ class LED {
       : pixels(1, LED_PIN, NEO_GRB + NEO_KHZ800),
         max_brightness(LED_MAX_BRIGHTNESS),
         brightness(LED_MAX_BRIGHTNESS),
-        mode(led_mode::CLASSIC) {}
+        mode(led_mode_enum::CLASSIC) {}
 
-  LED(led_mode mode)
+  LED(led_mode_enum mode)
       : pixels(1, LED_PIN, NEO_GRB + NEO_KHZ800),
         max_brightness(LED_MAX_BRIGHTNESS),
         brightness(LED_MAX_BRIGHTNESS),
@@ -29,7 +27,7 @@ class LED {
   Adafruit_NeoPixel pixels;
   uint8_t max_brightness;
   uint8_t brightness;
-  led_mode mode;
+  led_mode_enum mode;
 
   void classic_run(void);
   void flow_run(void);
