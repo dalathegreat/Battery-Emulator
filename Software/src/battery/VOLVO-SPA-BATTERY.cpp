@@ -136,7 +136,8 @@ void update_values_battery() {  //This function maps all the values fetched via 
   datalayer.battery.status.remaining_capacity_Wh = (datalayer.battery.info.total_capacity_Wh - CHARGE_ENERGY);
 
   //datalayer.battery.status.real_soc = SOC_BMS;			// Use BMS reported SOC, havent figured out how to get the BMS to calibrate empty/full yet
-  SOC_CALC = (remaining_capacity_Wh / (total_capacity_Wh / 1000));  // Use calculated SOC based on remaining_capacity
+  // Use calculated SOC based on remaining_capacity
+  SOC_CALC = (datalayer.battery.status.remaining_capacity_Wh / (datalayer.battery.info.total_capacity_Wh / 1000));
 
   datalayer.battery.status.real_soc = SOC_CALC * 10;  //Add one decimal to make it pptt
 
