@@ -16,7 +16,7 @@ static const float heartbeat_peak1 = 0.80;
 static const float heartbeat_peak2 = 0.55;
 static const float heartbeat_deviation = 0.05;
 
-static LED led(LED_MODE_DEFAULT);
+static LED led(datalayer.battery.status.led_mode);
 
 void led_init(void) {
   led.init();
@@ -31,14 +31,14 @@ led_color led_get_color() {
 void LED::exe(void) {
 
   // Update brightness
-  switch (mode) {
-    case led_mode::FLOW:
+  switch (datalayer.battery.status.led_mode) {
+    case led_mode_enum::FLOW:
       flow_run();
       break;
-    case led_mode::HEARTBEAT:
+    case led_mode_enum::HEARTBEAT:
       heartbeat_run();
       break;
-    case led_mode::CLASSIC:
+    case led_mode_enum::CLASSIC:
     default:
       classic_run();
       break;
