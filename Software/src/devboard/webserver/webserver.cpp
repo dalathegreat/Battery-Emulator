@@ -409,6 +409,7 @@ void init_webserver() {
       return request->requestAuthentication();
     }
     datalayer_extended.VolvoPolestar.UserRequestDTCreset = true;
+    datalayer_extended.VolvoHybrid.UserRequestDTCreset = true;
     request->send(200, "text/plain", "Updated successfully");
   });
 
@@ -418,6 +419,7 @@ void init_webserver() {
       return request->requestAuthentication();
     }
     datalayer_extended.VolvoPolestar.UserRequestDTCreadout = true;
+    datalayer_extended.VolvoHybrid.UserRequestDTCreadout = true;
     request->send(200, "text/plain", "Updated successfully");
   });
 
@@ -427,35 +429,36 @@ void init_webserver() {
       return request->requestAuthentication();
     }
     datalayer_extended.VolvoPolestar.UserRequestBECMecuReset = true;
-    request->send(200, "text/plain", "Updated successfully");
-  });
-
-  // Route for erasing DTC on Volvo hybrid batteries
-  server.on("/volvoEraseDTC", HTTP_GET, [](AsyncWebServerRequest* request) {
-    if (WEBSERVER_AUTH_REQUIRED && !request->authenticate(http_username, http_password)) {
-      return request->requestAuthentication();
-    }
-    datalayer_extended.VolvoHybrid.UserRequestDTCreset = true;
-    request->send(200, "text/plain", "Updated successfully");
-  });
-
-  // Route for reading DTC on Volvo hybrid batteries
-  server.on("/volvoReadDTC", HTTP_GET, [](AsyncWebServerRequest* request) {
-    if (WEBSERVER_AUTH_REQUIRED && !request->authenticate(http_username, http_password)) {
-      return request->requestAuthentication();
-    }
-    datalayer_extended.VolvoHybrid.UserRequestDTCreadout = true;
-    request->send(200, "text/plain", "Updated successfully");
-  });
-
-  // Route for performing ECU reset on Volvo hybrid batteries
-  server.on("/volvoBECMecuReset", HTTP_GET, [](AsyncWebServerRequest* request) {
-    if (WEBSERVER_AUTH_REQUIRED && !request->authenticate(http_username, http_password)) {
-      return request->requestAuthentication();
-    }
     datalayer_extended.VolvoHybrid.UserRequestBECMecuReset = true;
     request->send(200, "text/plain", "Updated successfully");
   });
+
+  // // Route for erasing DTC on Volvo hybrid batteries
+  // server.on("/volvoEraseDTC", HTTP_GET, [](AsyncWebServerRequest* request) {
+  //   if (WEBSERVER_AUTH_REQUIRED && !request->authenticate(http_username, http_password)) {
+  //     return request->requestAuthentication();
+  //   }
+  //   datalayer_extended.VolvoHybrid.UserRequestDTCreset = true;
+  //   request->send(200, "text/plain", "Updated successfully");
+  // });
+
+  // // Route for reading DTC on Volvo hybrid batteries
+  // server.on("/volvoReadDTC", HTTP_GET, [](AsyncWebServerRequest* request) {
+  //   if (WEBSERVER_AUTH_REQUIRED && !request->authenticate(http_username, http_password)) {
+  //     return request->requestAuthentication();
+  //   }
+  //   datalayer_extended.VolvoHybrid.UserRequestDTCreadout = true;
+  //   request->send(200, "text/plain", "Updated successfully");
+  // });
+
+  // // Route for performing ECU reset on Volvo hybrid batteries
+  // server.on("/volvoBECMecuReset", HTTP_GET, [](AsyncWebServerRequest* request) {
+  //   if (WEBSERVER_AUTH_REQUIRED && !request->authenticate(http_username, http_password)) {
+  //     return request->requestAuthentication();
+  //   }
+  //   datalayer_extended.VolvoHybrid.UserRequestBECMecuReset = true;
+  //   request->send(200, "text/plain", "Updated successfully");
+  // });
 
 #ifdef TEST_FAKE_BATTERY
   // Route for editing FakeBatteryVoltage
