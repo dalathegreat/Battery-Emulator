@@ -36,6 +36,9 @@ static int16_t BMS_highest_cell_temperature = 0;
 static int16_t BMS_average_cell_temperature = 0;
 static uint16_t BMS_lowest_cell_voltage_mV = 3300;
 static uint16_t BMS_highest_cell_voltage_mV = 3300;
+static uint8_t battery_frame_index = 0;
+#define NOF_CELLS 126
+static uint16_t battery_cellvoltages[NOF_CELLS] = {0};
 #ifdef DOUBLE_BATTERY
 static int16_t battery2_temperature_ambient = 0;
 static int16_t battery2_daughterboard_temperatures[10];
@@ -52,6 +55,8 @@ static int16_t BMS2_highest_cell_temperature = 0;
 static int16_t BMS2_average_cell_temperature = 0;
 static uint16_t BMS2_lowest_cell_voltage_mV = 3300;
 static uint16_t BMS2_highest_cell_voltage_mV = 3300;
+static uint8_t battery2_frame_index = 0;
+static uint16_t battery2_cellvoltages[NOF_CELLS] = {0};
 #endif  //DOUBLE_BATTERY
 #define POLL_FOR_BATTERY_SOC 0x05
 #define POLL_FOR_BATTERY_VOLTAGE 0x08
@@ -134,6 +139,9 @@ void update_values_battery() {  //This function maps all the values fetched via 
   datalayer.battery.status.cell_max_voltage_mV = BMS_highest_cell_voltage_mV;
 
   datalayer.battery.status.cell_min_voltage_mV = BMS_lowest_cell_voltage_mV;
+
+  //Map all cell voltages to the global array
+  memcpy(datalayer.battery.status.cell_voltages_mV, battery_cellvoltages, NOF_CELLS * sizeof(uint16_t));
 
 #ifdef SKIP_TEMPERATURE_SENSOR_NUMBER
   // Initialize min and max variables for temperature calculation
@@ -253,6 +261,15 @@ void handle_incoming_can_frame_battery(CAN_frame rx_frame) {
       break;
     case 0x43D:
       datalayer.battery.status.CAN_battery_still_alive = CAN_STILL_ALIVE;
+      battery_frame_index = rx_frame.data.u8[0];
+
+      if (battery_frame_index < (NOF_CELLS / 3)) {
+        uint8_t base_index = battery_frame_index * 3;
+        for (uint8_t i = 0; i < 3; i++) {
+          battery_cellvoltages[base_index + i] =
+              (((rx_frame.data.u8[2 * (i + 1)] & 0x0F) << 8) | rx_frame.data.u8[2 * i + 1]);
+        }
+      }
       break;
     case 0x444:
       datalayer.battery.status.CAN_battery_still_alive = CAN_STILL_ALIVE;
@@ -479,6 +496,9 @@ void update_values_battery2() {  //This function maps all the values fetched via
   datalayer.battery2.status.temperature_min_dC = BMS2_lowest_cell_temperature * 10;  // Add decimals
 
   datalayer.battery2.status.temperature_max_dC = BMS2_highest_cell_temperature * 10;
+
+  //Map all cell voltages to the global array
+  memcpy(datalayer.battery2.status.cell_voltages_mV, battery2_cellvoltages, NOF_CELLS * sizeof(uint16_t));
 }
 
 void handle_incoming_can_frame_battery2(CAN_frame rx_frame) {
@@ -547,6 +567,14 @@ void handle_incoming_can_frame_battery2(CAN_frame rx_frame) {
       break;
     case 0x43D:
       datalayer.battery2.status.CAN_battery_still_alive = CAN_STILL_ALIVE;
+      battery2_frame_index = rx_frame.data.u8[0];
+      if (battery2_frame_index < (NOF_CELLS / 3)) {
+        uint8_t base2_index = battery2_frame_index * 3;
+        for (uint8_t i = 0; i < 3; i++) {
+          battery2_cellvoltages[base2_index + i] =
+              (((rx_frame.data.u8[2 * (i + 1)] & 0x0F) << 8) | rx_frame.data.u8[2 * i + 1]);
+        }
+      }
       break;
     case 0x444:
       datalayer.battery2.status.CAN_battery_still_alive = CAN_STILL_ALIVE;

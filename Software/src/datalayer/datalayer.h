@@ -97,6 +97,10 @@ typedef struct {
 
   /** The current battery status, which for now has the name real_bms_status */
   real_bms_status_enum real_bms_status = BMS_DISCONNECTED;
+
+  /** LED mode, customizable by user */
+  led_mode_enum led_mode = LED_MODE;
+
 } DATALAYER_BATTERY_STATUS_TYPE;
 
 typedef struct {
@@ -288,6 +292,8 @@ typedef struct {
 #endif
   /** True if the BMS is being reset, by cutting power towards it */
   bool BMS_reset_in_progress = false;
+  /** True if the BMS is starting up */
+  bool BMS_startup_in_progress = false;
 #ifdef PRECHARGE_CONTROL
   /** State of automatic precharge sequence */
   PrechargeState precharge_status = AUTO_PRECHARGE_IDLE;

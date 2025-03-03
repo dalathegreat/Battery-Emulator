@@ -36,6 +36,7 @@
 //#define RENAULT_ZOE_GEN2_BATTERY
 //#define SONO_BATTERY
 //#define SANTA_FE_PHEV_BATTERY
+//#define SIMPBMS_BATTERY
 //#define STELLANTIS_ECMP_BATTERY
 //#define TESLA_MODEL_3Y_BATTERY
 //#define TESLA_MODEL_SX_BATTERY
@@ -80,6 +81,8 @@
 //#define NC_CONTACTORS         //Enable this line to control normally closed contactors. CONTACTOR_CONTROL must be enabled for this option. Extremely rare setting!
 //#define PERIODIC_BMS_RESET    //Enable to have the emulator powercycle the connected battery every 24hours via GPIO. Useful for some batteries like Nissan LEAF
 //#define REMOTE_BMS_RESET      //Enable to allow the emulator to remotely trigger a powercycle of the battery via MQTT. Useful for some batteries like Nissan LEAF
+// PERIODIC_BMS_RESET_AT Uses NTP server, internet required. In 24 Hour format WITHOUT leading 0. e.g 0230 should be 230. Time Zone is set in USER_SETTINGS.cpp
+#define PERIODIC_BMS_RESET_AT 525
 
 /* Shunt/Contactor settings (Optional) */
 //#define BMW_SBOX  // SBOX relay control & battery current/voltage measurement
@@ -156,6 +159,14 @@
 // 3000 = 300.0V, Target discharge voltage (Value can be tuned on the fly via webserver). Not used unless BATTERY_USE_VOLTAGE_LIMITS = true
 #define BATTERY_MAX_DISCHARGE_VOLTAGE 3000
 
+/* LED settings. Optional customization for how the blinking pattern on the LED should behave.
+* CLASSIC   - Slow up/down ramp. If CLASSIC, then a ramp up and ramp down will finish in LED_PERIOD_MS milliseconds
+* FLOW      - Ramp up/down depending on flow of energy
+* HEARTBEAT - Heartbeat-like LED pattern that reacts to the system state with color and BPM
+*/
+#define LED_MODE CLASSIC
+#define LED_PERIOD_MS 3000
+
 /* Do not change any code below this line */
 /* Only change battery specific settings above and in "USER_SETTINGS.cpp" */
 typedef enum { CAN_NATIVE = 0, CANFD_NATIVE = 1, CAN_ADDON_MCP2515 = 2, CANFD_ADDON_MCP2518 = 3 } CAN_Interface;
@@ -175,6 +186,8 @@ extern volatile float CHARGER_MIN_HV;
 extern volatile float CHARGER_MAX_POWER;
 extern volatile float CHARGER_MAX_A;
 extern volatile float CHARGER_END_A;
+
+extern volatile unsigned long long bmsResetTimeOffset;
 
 #ifdef EQUIPMENT_STOP_BUTTON
 typedef enum { LATCHING_SWITCH = 0, MOMENTARY_SWITCH = 1 } STOP_BUTTON_BEHAVIOR;
