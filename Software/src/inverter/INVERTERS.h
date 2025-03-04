@@ -75,10 +75,6 @@
 #include "SUNGROW-CAN.h"
 #endif
 
-#ifdef SERIAL_LINK_TRANSMITTER
-#include "SERIAL-LINK-TRANSMITTER-INVERTER.h"
-#endif
-
 #ifdef CAN_INVERTER_SELECTED
 void update_values_can_inverter();
 void map_can_frame_to_variable_inverter(CAN_frame rx_frame);
