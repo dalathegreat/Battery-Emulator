@@ -15,7 +15,6 @@
 #include "src/communication/nvm/comm_nvm.h"
 #include "src/communication/precharge_control/precharge_control.h"
 #include "src/communication/rs485/comm_rs485.h"
-#include "src/communication/seriallink/comm_seriallink.h"
 #include "src/datalayer/datalayer.h"
 #include "src/devboard/sdcard/sdcard.h"
 #include "src/devboard/utils/events.h"
@@ -109,7 +108,6 @@ void setup() {
 
   init_rs485();
 
-  init_serialDataLink();
 #if defined(CAN_INVERTER_SELECTED) || defined(MODBUS_INVERTER_SELECTED) || defined(RS485_INVERTER_SELECTED)
   setup_inverter();
 #endif
@@ -237,9 +235,6 @@ void core_loop(void* task_time_us) {
 #if defined(RS485_INVERTER_SELECTED) || defined(RS485_BATTERY_SELECTED)
     receive_RS485();  // Process serial2 RS485 interface
 #endif                // RS485_INVERTER_SELECTED
-#if defined(SERIAL_LINK_RECEIVER) || defined(SERIAL_LINK_TRANSMITTER)
-    run_serialDataLink();
-#endif  // SERIAL_LINK_RECEIVER || SERIAL_LINK_TRANSMITTER
     END_TIME_MEASUREMENT_MAX(comm, datalayer.system.status.time_comm_us);
 #ifdef WEBSERVER
     START_TIME_MEASUREMENT(ota);
@@ -268,9 +263,7 @@ void core_loop(void* task_time_us) {
       check_interconnect_available();
 #endif  // DOUBLE_BATTERY
       update_calculated_values();
-#ifndef SERIAL_LINK_RECEIVER
-      update_machineryprotection();  // Check safeties (Not on serial link reciever board)
-#endif                               // SERIAL_LINK_RECEIVER
+      update_machineryprotection();  // Check safeties
       update_values_inverter();      // Update values heading towards inverter
     }
     END_TIME_MEASUREMENT_MAX(time_values, datalayer.system.status.time_values_us);

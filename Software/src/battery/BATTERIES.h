@@ -143,10 +143,6 @@ void setup_can_shunt();
 #include "VOLVO-SPA-HYBRID-BATTERY.h"
 #endif
 
-#ifdef SERIAL_LINK_RECEIVER
-#include "SERIAL-LINK-RECEIVER-FROM-BATTERY.h"
-#endif
-
 void setup_battery(void);
 void update_values_battery();
 

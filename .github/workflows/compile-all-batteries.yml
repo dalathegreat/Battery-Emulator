@@ -78,7 +78,6 @@ jobs:
           - TESLA_MODEL_SX_BATTERY
           - VOLVO_SPA_BATTERY
           - TEST_FAKE_BATTERY
-          - SERIAL_LINK_RECEIVER
         # These are the emulated inverter communication protocols for which the code will be compiled.
         inverter:
           - BYD_CAN
