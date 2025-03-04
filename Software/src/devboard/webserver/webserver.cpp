@@ -31,7 +31,8 @@ bool ota_active = false;
 
 const char get_firmware_info_html[] = R"rawliteral(%X%)rawliteral";
 
-String importedLogs = "";  // Store the uploaded file contents in RAM
+String importedLogs = "";      // Store the uploaded logfile contents in RAM
+bool isReplayRunning = false;  // Global flag to track replay state
 
 CAN_frame currentFrame = {.FD = true, .ext_ID = false, .DLC = 64, .ID = 0x12F, .data = {0}};
 
@@ -52,16 +53,16 @@ void handleFileUpload(AsyncWebServerRequest* request, String filename, size_t in
 }
 
 void canReplayTask(void* param) {
-
   std::vector<String> messages;
-  int lastIndex = 0;
+  messages.reserve(1000);  // Pre-allocate memory to reduce fragmentation
 
-  if (!(importedLogs.length() == 0)) {
-    // Split importedLogs into individual messages
+  if (!importedLogs.isEmpty()) {
+    int lastIndex = 0;
+
     while (true) {
       int nextIndex = importedLogs.indexOf("\n", lastIndex);
       if (nextIndex == -1) {
-        messages.push_back(importedLogs.substring(lastIndex));  // Add last message
+        messages.push_back(importedLogs.substring(lastIndex));
         break;
       }
       messages.push_back(importedLogs.substring(lastIndex, nextIndex));
@@ -71,6 +72,7 @@ void canReplayTask(void* param) {
     do {
       float firstTimestamp = -1.0;
       float lastTimestamp = 0.0;
+      bool firstMessageSent = false;  // Track first message
 
       for (size_t i = 0; i < messages.size(); i++) {
         String line = messages[i];
@@ -84,10 +86,17 @@ void canReplayTask(void* param) {
           continue;
 
         float currentTimestamp = line.substring(timeStart, timeEnd).toFloat();
-        if (firstTimestamp < 0)
-          firstTimestamp = currentTimestamp;
 
-        if ((i > 0) && (currentTimestamp > lastTimestamp)) {
+        if (firstTimestamp < 0) {
+          firstTimestamp = currentTimestamp;
+        }
+
+        // Send first message immediately
+        if (!firstMessageSent) {
+          firstMessageSent = true;
+          firstTimestamp = currentTimestamp;  // Adjust reference time
+        } else {
+          // Delay only if this isn't the first message
           float deltaT = (currentTimestamp - lastTimestamp) * 1000;
           vTaskDelay((int)deltaT / portTICK_PERIOD_MS);
         }
@@ -124,19 +133,20 @@ void canReplayTask(void* param) {
           token = strtok(NULL, " ");
         }
 
-        // Apply FD in case interface is set to FD
         currentFrame.FD = (datalayer.system.info.can_replay_interface == CANFD_NATIVE) ||
                           (datalayer.system.info.can_replay_interface == CANFD_ADDON_MCP2518);
-
-        // Apply extended ID in case ID is longer than 0x7F0
         currentFrame.ext_ID = (currentFrame.ID > 0x7F0);
 
         transmit_can_frame(&currentFrame, datalayer.system.info.can_replay_interface);
       }
     } while (datalayer.system.info.loop_playback);
+
+    messages.clear();          // Free vector memory
+    messages.shrink_to_fit();  // Release excess memory
   }
 
-  vTaskDelete(NULL);  // Delete task when done
+  isReplayRunning = false;  // Mark replay as stopped
+  vTaskDelete(NULL);
 }
 
 void init_webserver() {
@@ -184,17 +194,20 @@ void init_webserver() {
     request->send(response);
   });
 
-  // Route for starting the CAN replay
   server.on("/startReplay", HTTP_GET, [](AsyncWebServerRequest* request) {
     if (WEBSERVER_AUTH_REQUIRED && !request->authenticate(http_username, http_password)) {
       return request->requestAuthentication();
     }
 
-    if (request->hasParam("loop")) {
-      datalayer.system.info.loop_playback = request->getParam("loop")->value().toInt() == 1;
+    // Prevent multiple replay tasks from being created
+    if (isReplayRunning) {
+      request->send(400, "text/plain", "Replay already running!");
+      return;
     }
 
-    // Start the replay task on Core 1
+    datalayer.system.info.loop_playback = request->hasParam("loop") && request->getParam("loop")->value().toInt() == 1;
+    isReplayRunning = true;  // Set flag before starting task
+
     xTaskCreatePinnedToCore(canReplayTask, "CAN_Replay", 8192, NULL, 1, NULL, 1);
 
     request->send(200, "text/plain", "CAN replay started!");
