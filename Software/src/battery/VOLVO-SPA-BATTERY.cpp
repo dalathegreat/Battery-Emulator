@@ -33,7 +33,6 @@ static uint8_t battery_request_idx = 0;
 static uint8_t rxConsecutiveFrames = 0;
 static uint16_t min_max_voltage[2];  //contains cell min[0] and max[1] values in mV
 static uint8_t cellcounter = 0;
-static uint32_t remaining_capacity = 0;
 static uint16_t cell_voltages[108];  //array with all the cellvoltages
 static bool startedUp = false;
 static uint8_t DTC_reset_counter = 0;
@@ -134,12 +133,13 @@ void update_values_battery() {  //This function maps all the values fetched via 
     datalayer_extended.VolvoPolestar.UserRequestDTCreadout = false;
   }
 
-  remaining_capacity = (78200 - CHARGE_ENERGY);
+  datalayer.battery.status.remaining_capacity_Wh = (datalayer.battery.info.total_capacity_Wh - CHARGE_ENERGY);
 
   //datalayer.battery.status.real_soc = SOC_BMS;			// Use BMS reported SOC, havent figured out how to get the BMS to calibrate empty/full yet
-  SOC_CALC = remaining_capacity / 78;  // Use calculated SOC based on remaining_capacity
+  // Use calculated SOC based on remaining_capacity
+  SOC_CALC = (datalayer.battery.status.remaining_capacity_Wh / (datalayer.battery.info.total_capacity_Wh / 1000));
 
-  datalayer.battery.status.real_soc = SOC_CALC * 10;
+  datalayer.battery.status.real_soc = SOC_CALC * 10;  //Add one decimal to make it pptt
 
   if (BATT_U > MAX_U)  // Protect if overcharged
   {
@@ -151,7 +151,6 @@ void update_values_battery() {  //This function maps all the values fetched via 
 
   datalayer.battery.status.voltage_dV = BATT_U * 10;
   datalayer.battery.status.current_dA = BATT_I * 10;
-  datalayer.battery.status.remaining_capacity_Wh = remaining_capacity;
 
   datalayer.battery.status.max_discharge_power_W = HvBattPwrLimDchaSlowAgi * 1000;  //kW to W
   datalayer.battery.status.max_charge_power_W = HvBattPwrLimChrgSlowAgi * 1000;     //kW to W
@@ -164,6 +163,22 @@ void update_values_battery() {  //This function maps all the values fetched via 
   //Map all cell voltages to the global array
   for (int i = 0; i < 108; ++i) {
     datalayer.battery.status.cell_voltages_mV[i] = cell_voltages[i];
+  }
+
+  //If we have enough cell values populated (atleast 96 read) AND number_of_cells not initialized yet
+  if (cell_voltages[95] > 0 && datalayer.battery.info.number_of_cells == 0) {
+    // We can determine whether we have 96S or 108S battery
+    if (datalayer.battery.status.cell_voltages_mV[107] > 0) {
+      datalayer.battery.info.number_of_cells = 108;
+      datalayer.battery.info.max_design_voltage_dV = MAX_PACK_VOLTAGE_108S_DV;
+      datalayer.battery.info.min_design_voltage_dV = MIN_PACK_VOLTAGE_108S_DV;
+      datalayer.battery.info.total_capacity_Wh = 78200;
+    } else {
+      datalayer.battery.info.number_of_cells = 96;
+      datalayer.battery.info.max_design_voltage_dV = MAX_PACK_VOLTAGE_96S_DV;
+      datalayer.battery.info.min_design_voltage_dV = MIN_PACK_VOLTAGE_96S_DV;
+      datalayer.battery.info.total_capacity_Wh = 69511;
+    }
   }
 
 #ifdef DEBUG_LOG
@@ -463,11 +478,12 @@ void transmit_can_battery() {
 }
 
 void setup_battery(void) {  // Performs one time setup at startup
-  strncpy(datalayer.system.info.battery_protocol, "Volvo / Polestar 78kWh battery", 63);
+  strncpy(datalayer.system.info.battery_protocol, "Volvo / Polestar 69/78kWh SPA battery", 63);
   datalayer.system.info.battery_protocol[63] = '\0';
-  datalayer.battery.info.number_of_cells = 108;
-  datalayer.battery.info.max_design_voltage_dV = MAX_PACK_VOLTAGE_DV;
-  datalayer.battery.info.min_design_voltage_dV = MIN_PACK_VOLTAGE_DV;
+  datalayer.battery.info.number_of_cells = 0;        // Initializes when all cells have been read
+  datalayer.battery.info.total_capacity_Wh = 78200;  //Startout in 78kWh mode (This value used for SOC calc)
+  datalayer.battery.info.max_design_voltage_dV = MAX_PACK_VOLTAGE_108S_DV;  //Startout with max allowed range
+  datalayer.battery.info.min_design_voltage_dV = MIN_PACK_VOLTAGE_96S_DV;   //Startout with min allowed range
   datalayer.battery.info.max_cell_voltage_mV = MAX_CELL_VOLTAGE_MV;
   datalayer.battery.info.min_cell_voltage_mV = MIN_CELL_VOLTAGE_MV;
   datalayer.battery.info.max_cell_voltage_deviation_mV = MAX_CELL_DEVIATION_MV;
