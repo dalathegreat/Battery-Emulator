@@ -1,11 +1,11 @@
 #include "DALY-BMS.h"
-#include <cstdint>
-#include "../include.h"
-#include "RJXZS-BMS.h"
 #ifdef DALY_BMS
+#include <cstdint>
 #include "../datalayer/datalayer.h"
 #include "../devboard/utils/events.h"
+#include "../include.h"
 #include "RENAULT-TWIZY.h"
+#include "RJXZS-BMS.h"
 
 /* Do not change code below unless you are sure what you are doing */
 
