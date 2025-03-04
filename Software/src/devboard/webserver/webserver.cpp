@@ -236,9 +236,9 @@ void init_webserver() {
       datalayer.system.info.can_replay_interface = interfaceValue;
 
       // Respond with success message
-      request->send(200, "text/plain", "CAN Interface Updated to " + canInterface);
+      request->send(200, "text/plain", "New interface selected");
     } else {
-      request->send(400, "text/plain", "Error: Missing parameter 'interface'");
+      request->send(400, "text/plain", "Error: updating interface failed");
     }
   });
 

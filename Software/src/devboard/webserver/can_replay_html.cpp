@@ -22,7 +22,7 @@ String can_replay_processor(void) {
       ".can-message { background-color: #404E57; margin-bottom: 5px; padding: 10px; border-radius: 5px; font-family: "
       "monospace; }";
   content += "</style>";
-  content += "<button onclick='stopPlaybackAndGoToMainPage()'>Back to main page</button>";
+  content += "<button onclick='home()'>Back to main page</button>";
 
   // Start a new block for the CAN messages
   content += "<div style='background-color: #303E47; padding: 20px; border-radius: 15px'>";
@@ -129,11 +129,18 @@ String can_replay_processor(void) {
   content += "  var selectedInterface = document.getElementById('canInterface').value;";
   content += "  var xhr = new XMLHttpRequest();";
   content += "  xhr.open('GET', '/setCANInterface?interface=' + selectedInterface, true);";
+  content += "  xhr.onreadystatechange = function() {";
+  content += "    if (xhr.readyState === 4) {";
+  content += "      if (xhr.status === 200) {";
+  content += "        alert('Success: ' + xhr.responseText);";
+  content += "      } else {";
+  content += "        alert('Error: ' + xhr.responseText);";
+  content += "      }";
+  content += "    }";
+  content += "  };";
   content += "  xhr.send();";
   content += "}";
-  content += "function stopPlaybackAndGoToMainPage() {";
-  content += "  fetch('/stop_can_logging').then(() => window.location.href = '/');";
-  content += "}";
+  content += "function home() { window.location.href = '/'; }";
   content += "</script>";
   content += index_html_footer;
   return content;
