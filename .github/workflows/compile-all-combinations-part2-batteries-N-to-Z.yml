@@ -86,7 +86,6 @@ jobs:
           - SMA_TRIPOWER_CAN
           - SOFAR_CAN
           - SOLAX_CAN
-          - SERIAL_LINK_TRANSMITTER
         # These are the supported hardware platforms for which the code will be compiled.
         hardware:
           - HW_LILYGO

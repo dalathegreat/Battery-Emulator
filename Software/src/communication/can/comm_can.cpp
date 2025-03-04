@@ -297,10 +297,18 @@ void print_can_frame(CAN_frame frame, frameDirection msgDir) {
 }
 
 void map_can_frame_to_variable(CAN_frame* rx_frame, int interface) {
-  print_can_frame(*rx_frame, frameDirection(MSG_RX));
+  if (interface !=
+      CANFD_NATIVE) {  //Avoid printing twice due to receive_frame_canfd_addon sending to both FD interfaces
+    //TODO: This check can be removed later when refactored to use inline functions for logging
+    print_can_frame(*rx_frame, frameDirection(MSG_RX));
+  }
 
 #ifdef LOG_CAN_TO_SD
-  add_can_frame_to_buffer(*rx_frame, frameDirection(MSG_RX));
+  if (interface !=
+      CANFD_NATIVE) {  //Avoid printing twice due to receive_frame_canfd_addon sending to both FD interfaces
+    //TODO: This check can be removed later when refactored to use inline functions for logging
+    add_can_frame_to_buffer(*rx_frame, frameDirection(MSG_RX));
+  }
 #endif
 
   if (interface == can_config.battery) {
