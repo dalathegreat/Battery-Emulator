@@ -9,6 +9,7 @@
 #include "../utils/events.h"
 #include "../utils/led_handler.h"
 #include "../utils/timer.h"
+#include "esp_task_wdt.h"
 
 // Create AsyncWebServer object on port 80
 AsyncWebServer server(80);
@@ -18,6 +19,7 @@ unsigned long ota_progress_millis = 0;
 
 #include "advanced_battery_html.h"
 #include "can_logging_html.h"
+#include "can_replay_html.h"
 #include "cellmonitor_html.h"
 #include "debug_logging_html.h"
 #include "events_html.h"
@@ -28,6 +30,124 @@ MyTimer ota_timeout_timer = MyTimer(15000);
 bool ota_active = false;
 
 const char get_firmware_info_html[] = R"rawliteral(%X%)rawliteral";
+
+String importedLogs = "";      // Store the uploaded logfile contents in RAM
+bool isReplayRunning = false;  // Global flag to track replay state
+
+CAN_frame currentFrame = {.FD = true, .ext_ID = false, .DLC = 64, .ID = 0x12F, .data = {0}};
+
+void handleFileUpload(AsyncWebServerRequest* request, String filename, size_t index, uint8_t* data, size_t len,
+                      bool final) {
+  if (!index) {
+    importedLogs = "";  // Clear previous logs
+    logging.printf("Receiving file: %s\n", filename.c_str());
+  }
+
+  // Append received data to the string (RAM storage)
+  importedLogs += String((char*)data).substring(0, len);
+
+  if (final) {
+    logging.println("Upload Complete!");
+    request->send(200, "text/plain", "File uploaded successfully");
+  }
+}
+
+void canReplayTask(void* param) {
+  std::vector<String> messages;
+  messages.reserve(1000);  // Pre-allocate memory to reduce fragmentation
+
+  if (!importedLogs.isEmpty()) {
+    int lastIndex = 0;
+
+    while (true) {
+      int nextIndex = importedLogs.indexOf("\n", lastIndex);
+      if (nextIndex == -1) {
+        messages.push_back(importedLogs.substring(lastIndex));
+        break;
+      }
+      messages.push_back(importedLogs.substring(lastIndex, nextIndex));
+      lastIndex = nextIndex + 1;
+    }
+
+    do {
+      float firstTimestamp = -1.0;
+      float lastTimestamp = 0.0;
+      bool firstMessageSent = false;  // Track first message
+
+      for (size_t i = 0; i < messages.size(); i++) {
+        String line = messages[i];
+        line.trim();
+        if (line.length() == 0)
+          continue;
+
+        int timeStart = line.indexOf("(") + 1;
+        int timeEnd = line.indexOf(")");
+        if (timeStart == 0 || timeEnd == -1)
+          continue;
+
+        float currentTimestamp = line.substring(timeStart, timeEnd).toFloat();
+
+        if (firstTimestamp < 0) {
+          firstTimestamp = currentTimestamp;
+        }
+
+        // Send first message immediately
+        if (!firstMessageSent) {
+          firstMessageSent = true;
+          firstTimestamp = currentTimestamp;  // Adjust reference time
+        } else {
+          // Delay only if this isn't the first message
+          float deltaT = (currentTimestamp - lastTimestamp) * 1000;
+          vTaskDelay((int)deltaT / portTICK_PERIOD_MS);
+        }
+
+        lastTimestamp = currentTimestamp;
+
+        int interfaceStart = timeEnd + 2;
+        int interfaceEnd = line.indexOf(" ", interfaceStart);
+        if (interfaceEnd == -1)
+          continue;
+
+        int idStart = interfaceEnd + 1;
+        int idEnd = line.indexOf(" [", idStart);
+        if (idStart == -1 || idEnd == -1)
+          continue;
+
+        String messageID = line.substring(idStart, idEnd);
+        int dlcStart = idEnd + 2;
+        int dlcEnd = line.indexOf("]", dlcStart);
+        if (dlcEnd == -1)
+          continue;
+
+        String dlc = line.substring(dlcStart, dlcEnd);
+        int dataStart = dlcEnd + 2;
+        String dataBytes = line.substring(dataStart);
+
+        currentFrame.ID = strtol(messageID.c_str(), NULL, 16);
+        currentFrame.DLC = dlc.toInt();
+
+        int byteIndex = 0;
+        char* token = strtok((char*)dataBytes.c_str(), " ");
+        while (token != NULL && byteIndex < currentFrame.DLC) {
+          currentFrame.data.u8[byteIndex++] = strtol(token, NULL, 16);
+          token = strtok(NULL, " ");
+        }
+
+        currentFrame.FD = (datalayer.system.info.can_replay_interface == CANFD_NATIVE) ||
+                          (datalayer.system.info.can_replay_interface == CANFD_ADDON_MCP2518);
+        currentFrame.ext_ID = (currentFrame.ID > 0x7F0);
+
+        transmit_can_frame(&currentFrame, datalayer.system.info.can_replay_interface);
+      }
+    } while (datalayer.system.info.loop_playback);
+
+    messages.clear();          // Free vector memory
+    messages.shrink_to_fit();  // Release excess memory
+  }
+
+  isReplayRunning = false;  // Mark replay as stopped
+  vTaskDelete(NULL);
+}
 
 void init_webserver() {
 
@@ -65,6 +185,63 @@ void init_webserver() {
     request->send(response);
   });
 
+  // Route for going to CAN replay web page
+  server.on("/canreplay", HTTP_GET, [](AsyncWebServerRequest* request) {
+    if (WEBSERVER_AUTH_REQUIRED && !request->authenticate(http_username, http_password)) {
+      return request->requestAuthentication();
+    }
+    AsyncWebServerResponse* response = request->beginResponse(200, "text/html", can_replay_processor());
+    request->send(response);
+  });
+
+  server.on("/startReplay", HTTP_GET, [](AsyncWebServerRequest* request) {
+    if (WEBSERVER_AUTH_REQUIRED && !request->authenticate(http_username, http_password)) {
+      return request->requestAuthentication();
+    }
+
+    // Prevent multiple replay tasks from being created
+    if (isReplayRunning) {
+      request->send(400, "text/plain", "Replay already running!");
+      return;
+    }
+
+    datalayer.system.info.loop_playback = request->hasParam("loop") && request->getParam("loop")->value().toInt() == 1;
+    isReplayRunning = true;  // Set flag before starting task
+
+    xTaskCreatePinnedToCore(canReplayTask, "CAN_Replay", 8192, NULL, 1, NULL, 1);
+
+    request->send(200, "text/plain", "CAN replay started!");
+  });
+
+  // Route for stopping the CAN replay
+  server.on("/stopReplay", HTTP_GET, [](AsyncWebServerRequest* request) {
+    if (WEBSERVER_AUTH_REQUIRED && !request->authenticate(http_username, http_password)) {
+      return request->requestAuthentication();
+    }
+
+    datalayer.system.info.loop_playback = false;
+
+    request->send(200, "text/plain", "CAN replay stopped!");
+  });
+
+  // Route to handle setting the CAN interface for CAN replay
+  server.on("/setCANInterface", HTTP_GET, [](AsyncWebServerRequest* request) {
+    if (request->hasParam("interface")) {
+      String canInterface = request->getParam("interface")->value();
+
+      // Convert the received value to an integer
+      int interfaceValue = canInterface.toInt();
+
+      // Update the datalayer with the selected interface
+      datalayer.system.info.can_replay_interface = interfaceValue;
+
+      // Respond with success message
+      request->send(200, "text/plain", "New interface selected");
+    } else {
+      request->send(400, "text/plain", "Error: updating interface failed");
+    }
+  });
+
 #if defined(DEBUG_VIA_WEB) || defined(LOG_TO_SD)
   // Route for going to debug logging web page
   server.on("/log", HTTP_GET, [](AsyncWebServerRequest* request) {
@@ -78,6 +255,14 @@ void init_webserver() {
     datalayer.system.info.can_logging_active = false;
     request->send(200, "text/plain", "Logging stopped");
   });
+
+  // Define the handler to import can log
+  server.on(
+      "/import_can_log", HTTP_POST,
+      [](AsyncWebServerRequest* request) {
+        request->send(200, "text/plain", "Ready to receive file.");  // Response when request is made
+      },
+      handleFileUpload);
 
 #ifndef LOG_CAN_TO_SD
   // Define the handler to export can log
@@ -1280,6 +1465,7 @@ String processor(const String& var) {
     content += "<button onclick='Settings()'>Change Settings</button> ";
     content += "<button onclick='Advanced()'>More Battery Info</button> ";
     content += "<button onclick='CANlog()'>CAN logger</button> ";
+    content += "<button onclick='CANreplay()'>CAN replay</button> ";
 #if defined(DEBUG_VIA_WEB) || defined(LOG_TO_SD)
     content += "<button onclick='Log()'>Log</button> ";
 #endif  // DEBUG_VIA_WEB
@@ -1308,6 +1494,7 @@ String processor(const String& var) {
     content += "function Settings() { window.location.href = '/settings'; }";
     content += "function Advanced() { window.location.href = '/advanced'; }";
     content += "function CANlog() { window.location.href = '/canlog'; }";
+    content += "function CANreplay() { window.location.href = '/canreplay'; }";
     content += "function Log() { window.location.href = '/log'; }";
     content += "function Events() { window.location.href = '/events'; }";
     content +=
