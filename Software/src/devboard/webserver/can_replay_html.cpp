@@ -51,14 +51,8 @@ String can_replay_processor(void) {
   content += "<button onclick='sendCANSelection()'>Apply</button>";
 
   content += "<h3>Step 2: Upload CAN Log File</h3>";
-
-  content += "<div id='drop-area' onclick=\"document.getElementById('file-input').click()\">";
-  content += "<p>Drag & drop a .txt file here, or click Browse to select one.</p>";
+  content += "<p>Click Browse to select a .txt CANdump log file to upload</p>";
   content += "<input type='file' id='file-input' accept='.txt'>";
-  content += "</div>";
-
-  content += "<div id='progress'><div id='progress-bar'></div></div>";
-
   content += "<button id='upload-btn'>Upload</button>";
 
   content += "<h3>Step 3: Playback control</h3>";
@@ -82,18 +76,7 @@ String can_replay_processor(void) {
   content += "const fileInput = document.getElementById('file-input');";
   content += "const uploadBtn = document.getElementById('upload-btn');";
   content += "const fileContent = document.getElementById('file-content');";
-  content += "const dropArea = document.getElementById('drop-area');";
-  content += "const progressBar = document.getElementById('progress-bar');";
-  content += "const progressContainer = document.getElementById('progress');";
   content += "let selectedFile = null;";
-
-  content +=
-      "dropArea.addEventListener('dragover', (e) => { e.preventDefault(); dropArea.style.background = '#f0f0f0'; });";
-  content += "dropArea.addEventListener('dragleave', () => { dropArea.style.background = 'white'; });";
-  content +=
-      "dropArea.addEventListener('drop', (e) => { e.preventDefault(); dropArea.style.background = 'white'; if "
-      "(e.dataTransfer.files.length > 0) { fileInput.files = e.dataTransfer.files; selectedFile = fileInput.files[0]; "
-      "}});";
 
   content += "fileInput.addEventListener('change', () => { selectedFile = fileInput.files[0]; });";
 
@@ -104,12 +87,9 @@ String can_replay_processor(void) {
   content += "const xhr = new XMLHttpRequest();";
   content += "xhr.open('POST', '/import_can_log', true);";
   content +=
-      "xhr.upload.onprogress = (event) => { if (event.lengthComputable) { const percent = (event.loaded / event.total) "
-      "* 100; progressContainer.style.display = 'block'; progressBar.style.width = percent + '%'; }};";
-  content +=
-      "xhr.onload = () => { if (xhr.status === 200) { alert('File uploaded successfully!'); progressBar.style.width = "
-      "'100%'; const reader = new FileReader(); reader.onload = function (e) { fileContent.textContent = "
-      "e.target.result; }; reader.readAsText(selectedFile); } else { alert('Upload failed! Server error.'); }};";
+      "xhr.onload = () => { if (xhr.status === 200) { alert('File uploaded successfully!'); const reader = new "
+      "FileReader(); reader.onload = function (e) { fileContent.textContent = e.target.result; }; "
+      "reader.readAsText(selectedFile); } else { alert('Upload failed! Server error.'); }};";
   content += "xhr.send(formData);";
   content += "});";
   content += "</script>";
