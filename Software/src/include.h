@@ -30,20 +30,6 @@
 #endif
 #endif
 
-#ifdef MODBUS_INVERTER_SELECTED
-#if defined(SERIAL_LINK_RECEIVER) || defined(SERIAL_LINK_TRANSMITTER)
-// Check that Dual LilyGo via RS485 option isn't enabled, this collides with Modbus!
-#error MODBUS CANNOT BE USED IN DOUBLE LILYGO SETUPS! CHECK USER SETTINGS!
-#endif
-#endif
-
-#ifdef RS485_INVERTER_SELECTED
-#if defined(SERIAL_LINK_RECEIVER) || defined(SERIAL_LINK_TRANSMITTER)
-// Check that Dual LilyGo via RS485 option isn't enabled, this collides with Modbus!
-#error RS485 CANNOT BE USED IN DOUBLE LILYGO SETUPS! CHECK USER SETTINGS!
-#endif
-#endif
-
 #ifdef HW_LILYGO
 #if defined(PERIODIC_BMS_RESET) || defined(REMOTE_BMS_RESET)
 #if defined(CAN_ADDON) || defined(CANFD_ADDON) || defined(CHADEMO_BATTERY)

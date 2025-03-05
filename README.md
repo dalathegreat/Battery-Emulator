@@ -92,8 +92,7 @@ This code uses the following excellent libraries:
 - [ayushsharma82/ElegantOTA](https://github.com/ayushsharma82/ElegantOTA) AGPL-3.0 license 
 - [bblanchon/ArduinoJson](https://github.com/bblanchon/ArduinoJson) MIT-License
 - [eModbus/eModbus](https://github.com/eModbus/eModbus) MIT-License
-- [mackelec/SerialDataLink](https://github.com/mackelec/SerialDataLink)
-- [mathieucarbou/AsyncTCPsock](https://github.com/mathieucarbou/AsyncTCPSock) LGPL-3.0 license
+- [ESP32Async/AsyncTCP](https://github.com/ESP32Async/AsyncTCP) LGPL-3.0 license
 - [ESP32Async/ESPAsyncWebServer](https://github.com/ESP32Async/ESPAsyncWebServer) LGPL-3.0 license
 - [miwagner/ESP32-Arduino-CAN](https://github.com/miwagner/ESP32-Arduino-CAN/) MIT-License
 - [pierremolinaro/acan2515](https://github.com/pierremolinaro/acan2515) MIT-License

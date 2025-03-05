@@ -36,6 +36,9 @@ static int16_t BMS_highest_cell_temperature = 0;
 static int16_t BMS_average_cell_temperature = 0;
 static uint16_t BMS_lowest_cell_voltage_mV = 3300;
 static uint16_t BMS_highest_cell_voltage_mV = 3300;
+static uint8_t battery_frame_index = 0;
+#define NOF_CELLS 126
+static uint16_t battery_cellvoltages[NOF_CELLS] = {0};
 #ifdef DOUBLE_BATTERY
 static int16_t battery2_temperature_ambient = 0;
 static int16_t battery2_daughterboard_temperatures[10];
@@ -52,6 +55,8 @@ static int16_t BMS2_highest_cell_temperature = 0;
 static int16_t BMS2_average_cell_temperature = 0;
 static uint16_t BMS2_lowest_cell_voltage_mV = 3300;
 static uint16_t BMS2_highest_cell_voltage_mV = 3300;
+static uint8_t battery2_frame_index = 0;
+static uint16_t battery2_cellvoltages[NOF_CELLS] = {0};
 #endif  //DOUBLE_BATTERY
 #define POLL_FOR_BATTERY_SOC 0x05
 #define POLL_FOR_BATTERY_VOLTAGE 0x08
@@ -135,9 +140,38 @@ void update_values_battery() {  //This function maps all the values fetched via 
 
   datalayer.battery.status.cell_min_voltage_mV = BMS_lowest_cell_voltage_mV;
 
-  datalayer.battery.status.temperature_min_dC = BMS_lowest_cell_temperature * 10;  // Add decimals
+  //Map all cell voltages to the global array
+  memcpy(datalayer.battery.status.cell_voltages_mV, battery_cellvoltages, NOF_CELLS * sizeof(uint16_t));
 
+#ifdef SKIP_TEMPERATURE_SENSOR_NUMBER
+  // Initialize min and max variables for temperature calculation
+  battery_calc_min_temperature = battery_daughterboard_temperatures[0];
+  battery_calc_max_temperature = battery_daughterboard_temperatures[0];
+
+  // Loop through the array of 10x daughterboard temps to find the smallest and largest values
+  // Note, it is possible for user to skip using a faulty sensor in the .h file
+  if (SKIP_TEMPERATURE_SENSOR_NUMBER == 1) {  //If sensor 1 is skipped, init minmax to sensor 2
+    battery_calc_min_temperature = battery_daughterboard_temperatures[1];
+    battery_calc_max_temperature = battery_daughterboard_temperatures[1];
+  }
+  for (int i = 1; i < 10; i++) {
+    if (i == (SKIP_TEMPERATURE_SENSOR_NUMBER - 1)) {
+      i++;
+    }
+    if (battery_daughterboard_temperatures[i] < battery_calc_min_temperature) {
+      battery_calc_min_temperature = battery_daughterboard_temperatures[i];
+    }
+    if (battery_daughterboard_temperatures[i] > battery_calc_max_temperature) {
+      battery_calc_max_temperature = battery_daughterboard_temperatures[i];
+    }
+  }
+  //Write the result to datalayer
+  datalayer.battery.status.temperature_min_dC = battery_calc_min_temperature * 10;
+  datalayer.battery.status.temperature_max_dC = battery_calc_max_temperature * 10;
+#else   //User does not need filtering out a broken sensor, just use the min-max the BMS sends
+  datalayer.battery.status.temperature_min_dC = BMS_lowest_cell_temperature * 10;
   datalayer.battery.status.temperature_max_dC = BMS_highest_cell_temperature * 10;
+#endif  //!SKIP_TEMPERATURE_SENSOR_NUMBER
 
   // Update webserver datalayer
   datalayer_extended.bydAtto3.SOC_method = SOC_method;
@@ -147,6 +181,16 @@ void update_values_battery() {  //This function maps all the values fetched via 
   datalayer_extended.bydAtto3.SOC_polled = BMS_SOC;
   datalayer_extended.bydAtto3.voltage_periodic = battery_voltage;
   datalayer_extended.bydAtto3.voltage_polled = BMS_voltage;
+  datalayer_extended.bydAtto3.battery_temperatures[0] = battery_daughterboard_temperatures[0];
+  datalayer_extended.bydAtto3.battery_temperatures[1] = battery_daughterboard_temperatures[1];
+  datalayer_extended.bydAtto3.battery_temperatures[2] = battery_daughterboard_temperatures[2];
+  datalayer_extended.bydAtto3.battery_temperatures[3] = battery_daughterboard_temperatures[3];
+  datalayer_extended.bydAtto3.battery_temperatures[4] = battery_daughterboard_temperatures[4];
+  datalayer_extended.bydAtto3.battery_temperatures[5] = battery_daughterboard_temperatures[5];
+  datalayer_extended.bydAtto3.battery_temperatures[6] = battery_daughterboard_temperatures[6];
+  datalayer_extended.bydAtto3.battery_temperatures[7] = battery_daughterboard_temperatures[7];
+  datalayer_extended.bydAtto3.battery_temperatures[8] = battery_daughterboard_temperatures[8];
+  datalayer_extended.bydAtto3.battery_temperatures[9] = battery_daughterboard_temperatures[9];
 }
 
 void handle_incoming_can_frame_battery(CAN_frame rx_frame) {
@@ -217,6 +261,15 @@ void handle_incoming_can_frame_battery(CAN_frame rx_frame) {
       break;
     case 0x43D:
       datalayer.battery.status.CAN_battery_still_alive = CAN_STILL_ALIVE;
+      battery_frame_index = rx_frame.data.u8[0];
+
+      if (battery_frame_index < (NOF_CELLS / 3)) {
+        uint8_t base_index = battery_frame_index * 3;
+        for (uint8_t i = 0; i < 3; i++) {
+          battery_cellvoltages[base_index + i] =
+              (((rx_frame.data.u8[2 * (i + 1)] & 0x0F) << 8) | rx_frame.data.u8[2 * i + 1]);
+        }
+      }
       break;
     case 0x444:
       datalayer.battery.status.CAN_battery_still_alive = CAN_STILL_ALIVE;
@@ -443,6 +496,9 @@ void update_values_battery2() {  //This function maps all the values fetched via
   datalayer.battery2.status.temperature_min_dC = BMS2_lowest_cell_temperature * 10;  // Add decimals
 
   datalayer.battery2.status.temperature_max_dC = BMS2_highest_cell_temperature * 10;
+
+  //Map all cell voltages to the global array
+  memcpy(datalayer.battery2.status.cell_voltages_mV, battery2_cellvoltages, NOF_CELLS * sizeof(uint16_t));
 }
 
 void handle_incoming_can_frame_battery2(CAN_frame rx_frame) {
@@ -511,6 +567,14 @@ void handle_incoming_can_frame_battery2(CAN_frame rx_frame) {
       break;
     case 0x43D:
       datalayer.battery2.status.CAN_battery_still_alive = CAN_STILL_ALIVE;
+      battery2_frame_index = rx_frame.data.u8[0];
+      if (battery2_frame_index < (NOF_CELLS / 3)) {
+        uint8_t base2_index = battery2_frame_index * 3;
+        for (uint8_t i = 0; i < 3; i++) {
+          battery2_cellvoltages[base2_index + i] =
+              (((rx_frame.data.u8[2 * (i + 1)] & 0x0F) << 8) | rx_frame.data.u8[2 * i + 1]);
+        }
+      }
       break;
     case 0x444:
       datalayer.battery2.status.CAN_battery_still_alive = CAN_STILL_ALIVE;

@@ -19,6 +19,10 @@
 #include "KOSTAL-RS485.h"
 #endif
 
+#ifdef FERROAMP_CAN
+#include "FERROAMP-CAN.h"
+#endif
+
 #ifdef FOXESS_CAN
 #include "FOXESS-CAN.h"
 #endif
@@ -69,10 +73,6 @@
 
 #ifdef SUNGROW_CAN
 #include "SUNGROW-CAN.h"
-#endif
-
-#ifdef SERIAL_LINK_TRANSMITTER
-#include "SERIAL-LINK-TRANSMITTER-INVERTER.h"
 #endif
 
 #ifdef CAN_INVERTER_SELECTED

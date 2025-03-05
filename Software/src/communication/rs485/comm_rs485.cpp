@@ -9,9 +9,6 @@ uint16_t mbPV[MB_RTU_NUM_VALUES];  // Process variable memory
 // Create a ModbusRTU server instance listening on Serial2 with 2000ms timeout
 ModbusServerRTU MBserver(Serial2, 2000);
 #endif
-#if defined(SERIAL_LINK_RECEIVER) || defined(SERIAL_LINK_TRANSMITTER)
-#define SERIAL_LINK_BAUDRATE 112500
-#endif
 
 // Initialization functions
 
@@ -29,9 +26,9 @@ void init_rs485() {
   pinMode(PIN_5V_EN, OUTPUT);
   digitalWrite(PIN_5V_EN, HIGH);
 #endif  // PIN_5V_EN
-#ifdef RS485_INVERTER_SELECTED
-  Serial2.begin(57600, SERIAL_8N1, RS485_RX_PIN, RS485_TX_PIN);
-#endif  // RS485_INVERTER_SELECTED
+#if defined(RS485_INVERTER_SELECTED) || defined(RS485_BATTERY_SELECTED)
+  Serial2.begin(RS485_BAUDRATE, SERIAL_8N1, RS485_RX_PIN, RS485_TX_PIN);
+#endif  // RS485_INVERTER_SELECTED || RS485_BATTERY_SELECTED
 #ifdef MODBUS_INVERTER_SELECTED
 #ifdef BYD_MODBUS
   // Init Static data to the RTU Modbus

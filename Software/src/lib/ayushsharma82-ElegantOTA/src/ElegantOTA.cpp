@@ -43,9 +43,6 @@ void ElegantOTAClass::begin(ELEGANTOTA_WEBSERVER *server, const char * username,
         return request->requestAuthentication();
       }
 
-      // Pre-OTA update callback
-      if (preUpdateCallback != NULL) preUpdateCallback();
-
       // Get header x-ota-mode value, if present
       OTA_Mode mode = OTA_MODE_FIRMWARE;
       // Get mode from arg
@@ -76,7 +73,7 @@ void ElegantOTAClass::begin(ELEGANTOTA_WEBSERVER *server, const char * username,
       #endif
 
       // Pre-OTA update callback
-      //if (preUpdateCallback != NULL) preUpdateCallback();
+      if (preUpdateCallback != NULL) preUpdateCallback();
 
       // Start update process
       #if defined(ESP8266)
@@ -179,9 +176,9 @@ void ElegantOTAClass::begin(ELEGANTOTA_WEBSERVER *server, const char * username,
           update_size = ((size_t)&_FS_end - (size_t)&_FS_start);
           LittleFS.end();
         } else {
-          FSInfo64 i;
+          FSInfo i;
           LittleFS.begin();
-          LittleFS.info64(i);
+          LittleFS.info(i);
           update_size = i.totalBytes - i.usedBytes;
         }
         // Start update process

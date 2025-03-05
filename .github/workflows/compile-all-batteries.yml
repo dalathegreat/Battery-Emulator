@@ -64,6 +64,7 @@ jobs:
           - MEB_BATTERY
           - MG_5_BATTERY
           - NISSAN_LEAF_BATTERY
+          - ORION_BMS
           - PYLON_BATTERY
           - RJXZS_BMS
           - RANGE_ROVER_PHEV_BATTERY
@@ -77,7 +78,6 @@ jobs:
           - TESLA_MODEL_SX_BATTERY
           - VOLVO_SPA_BATTERY
           - TEST_FAKE_BATTERY
-          - SERIAL_LINK_RECEIVER
         # These are the emulated inverter communication protocols for which the code will be compiled.
         inverter:
           - BYD_CAN

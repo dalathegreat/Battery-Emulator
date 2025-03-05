@@ -55,6 +55,7 @@ jobs:
         # These are the batteries for which the code will be compiled.
         battery:
           - NISSAN_LEAF_BATTERY
+          - ORION_BMS
           - PYLON_BATTERY
           - RJXZS_BMS
           - RANGE_ROVER_PHEV_BATTERY
@@ -85,7 +86,6 @@ jobs:
           - SMA_TRIPOWER_CAN
           - SOFAR_CAN
           - SOLAX_CAN
-          - SERIAL_LINK_TRANSMITTER
         # These are the supported hardware platforms for which the code will be compiled.
         hardware:
           - HW_LILYGO

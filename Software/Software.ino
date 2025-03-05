@@ -15,7 +15,6 @@
 #include "src/communication/nvm/comm_nvm.h"
 #include "src/communication/precharge_control/precharge_control.h"
 #include "src/communication/rs485/comm_rs485.h"
-#include "src/communication/seriallink/comm_seriallink.h"
 #include "src/datalayer/datalayer.h"
 #include "src/devboard/sdcard/sdcard.h"
 #include "src/devboard/utils/events.h"
@@ -44,15 +43,18 @@
 #include "src/devboard/mqtt/mqtt.h"
 #endif  // MQTT
 #endif  // WIFI
+#ifdef PERIODIC_BMS_RESET_AT
+#include "src/devboard/utils/ntp_time.h"
+#endif
+volatile unsigned long long bmsResetTimeOffset = 0;
 
 // The current software version, shown on webserver
-const char* version_number = "8.5.dev";
+const char* version_number = "8.8.dev";
 
 // Interval settings
 uint16_t intervalUpdateValues = INTERVAL_1_S;  // Interval at which to update inverter values / Modbus registers
 unsigned long previousMillis10ms = 0;
 unsigned long previousMillisUpdateVal = 0;
-
 // Task time measurement for debugging and for setting CPU load events
 int64_t core_task_time_us;
 MyTimer core_task_timer_10s(INTERVAL_10_S);
@@ -73,12 +75,16 @@ TaskHandle_t logging_loop_task;
 
 Logging logging;
 
+#define WDT_TIMEOUT_SECONDS 5  // If code hangs for longer than this, it will be rebooted by the watchdog
+
 // Initialization
 void setup() {
   init_serial();
 
   // We print this after setting up serial, such that is also printed to serial with DEBUG_VIA_USB set.
   logging.printf("Battery emulator %s build " __DATE__ " " __TIME__ "\n", version_number);
+
+  init_events();
 
   init_stored_settings();
 
@@ -92,8 +98,6 @@ void setup() {
                           TASK_CONNECTIVITY_PRIO, &logging_loop_task, WIFI_CORE);
 #endif
 
-  init_events();
-
   init_CAN();
 
   init_contactors();
@@ -104,7 +108,6 @@ void setup() {
 
   init_rs485();
 
-  init_serialDataLink();
 #if defined(CAN_INVERTER_SELECTED) || defined(MODBUS_INVERTER_SELECTED) || defined(RS485_INVERTER_SELECTED)
   setup_inverter();
 #endif
@@ -118,12 +121,29 @@ void setup() {
   // BOOT button at runtime is used as an input for various things
   pinMode(0, INPUT_PULLUP);
 
-  esp_task_wdt_deinit();  // Disable watchdog
-
   check_reset_reason();
 
+  // Initialize Task Watchdog for subscribed tasks
+  esp_task_wdt_config_t wdt_config = {
+      .timeout_ms = WDT_TIMEOUT_SECONDS * 1000,                        // Convert seconds to milliseconds
+      .idle_core_mask = (1 << CORE_FUNCTION_CORE) | (1 << WIFI_CORE),  // Watch both cores
+      .trigger_panic = true                                            // Enable panic reset on timeout
+  };
+
+  // Initialize Task Watchdog
+  esp_task_wdt_init(&wdt_config);
+
+  // Start tasks
   xTaskCreatePinnedToCore((TaskFunction_t)&core_loop, "core_loop", 4096, &core_task_time_us, TASK_CORE_PRIO,
                           &main_loop_task, CORE_FUNCTION_CORE);
+#ifdef PERIODIC_BMS_RESET_AT
+  bmsResetTimeOffset = getTimeOffsetfromNowUntil(PERIODIC_BMS_RESET_AT);
+  if (bmsResetTimeOffset == 0) {
+    set_event(EVENT_PERIODIC_BMS_RESET_AT_INIT_FAILED, 0);
+  } else {
+    set_event(EVENT_PERIODIC_BMS_RESET_AT_INIT_SUCCESS, 0);
+  }
+#endif
 }
 
 // Perform main program functions
@@ -157,7 +177,7 @@ void logging_loop(void* task_time_us) {
 
 #ifdef WIFI
 void connectivity_loop(void* task_time_us) {
-
+  esp_task_wdt_add(NULL);  // Register this task with WDT
   // Init wifi
   init_WiFi();
 
@@ -191,12 +211,14 @@ void connectivity_loop(void* task_time_us) {
       datalayer.system.status.wifi_task_10s_max_us = 0;
     }
 #endif
+    esp_task_wdt_reset();  // Reset watchdog
     delay(1);
   }
 }
 #endif
 
 void core_loop(void* task_time_us) {
+  esp_task_wdt_add(NULL);  // Register this task with WDT
   TickType_t xLastWakeTime = xTaskGetTickCount();
   const TickType_t xFrequency = pdMS_TO_TICKS(1);  // Convert 1ms to ticks
   led_init();
@@ -210,12 +232,9 @@ void core_loop(void* task_time_us) {
 
     // Input, Runs as fast as possible
     receive_can();  // Receive CAN messages
-#ifdef RS485_INVERTER_SELECTED
+#if defined(RS485_INVERTER_SELECTED) || defined(RS485_BATTERY_SELECTED)
     receive_RS485();  // Process serial2 RS485 interface
 #endif                // RS485_INVERTER_SELECTED
-#if defined(SERIAL_LINK_RECEIVER) || defined(SERIAL_LINK_TRANSMITTER)
-    run_serialDataLink();
-#endif  // SERIAL_LINK_RECEIVER || SERIAL_LINK_TRANSMITTER
     END_TIME_MEASUREMENT_MAX(comm, datalayer.system.status.time_comm_us);
 #ifdef WEBSERVER
     START_TIME_MEASUREMENT(ota);
@@ -244,9 +263,7 @@ void core_loop(void* task_time_us) {
       check_interconnect_available();
 #endif  // DOUBLE_BATTERY
       update_calculated_values();
-#ifndef SERIAL_LINK_RECEIVER
-      update_machineryprotection();  // Check safeties (Not on serial link reciever board)
-#endif                               // SERIAL_LINK_RECEIVER
+      update_machineryprotection();  // Check safeties
       update_values_inverter();      // Update values heading towards inverter
     }
     END_TIME_MEASUREMENT_MAX(time_values, datalayer.system.status.time_values_us);
@@ -254,6 +271,10 @@ void core_loop(void* task_time_us) {
     START_TIME_MEASUREMENT(cantx);
     // Output
     transmit_can();  // Send CAN messages to all components
+
+#ifdef RS485_BATTERY_SELECTED
+    transmit_rs485();
+#endif  // RS485_BATTERY_SELECTED
 
     END_TIME_MEASUREMENT_MAX(cantx, datalayer.system.status.time_cantx_us);
     END_TIME_MEASUREMENT_MAX(all, datalayer.system.status.core_task_10s_max_us);
@@ -286,7 +307,7 @@ void core_loop(void* task_time_us) {
 #ifdef DEBUG_LOG
     logging.log_bms_status(datalayer.battery.status.real_bms_status, 1);
 #endif
-
+    esp_task_wdt_reset();  // Reset watchdog to prevent reset
     vTaskDelayUntil(&xLastWakeTime, xFrequency);
   }
 }
@@ -335,13 +356,48 @@ void update_calculated_values() {
   /* Restrict values from user settings if needed*/
   if (datalayer.battery.status.max_charge_current_dA > datalayer.battery.settings.max_user_set_charge_dA) {
     datalayer.battery.status.max_charge_current_dA = datalayer.battery.settings.max_user_set_charge_dA;
+    datalayer.battery.settings.user_settings_limit_charge = true;
+  } else {
+    datalayer.battery.settings.user_settings_limit_charge = false;
   }
   if (datalayer.battery.status.max_discharge_current_dA > datalayer.battery.settings.max_user_set_discharge_dA) {
     datalayer.battery.status.max_discharge_current_dA = datalayer.battery.settings.max_user_set_discharge_dA;
+    datalayer.battery.settings.user_settings_limit_discharge = true;
+  } else {
+    datalayer.battery.settings.user_settings_limit_discharge = false;
   }
   /* Calculate active power based on voltage and current*/
   datalayer.battery.status.active_power_W =
       (datalayer.battery.status.current_dA * (datalayer.battery.status.voltage_dV / 100));
+  /* Calculate if battery or inverter is limiting factor*/
+
+  if (datalayer.battery.status.current_dA == 0) {  //Battery idle
+    if (datalayer.battery.status.max_discharge_current_dA > 0) {
+      //We allow discharge, but inverter does nothing. Inverter is limiting
+      datalayer.battery.settings.inverter_limits_discharge = true;
+    } else {
+      datalayer.battery.settings.inverter_limits_discharge = false;
+    }
+    if (datalayer.battery.status.max_charge_current_dA > 0) {
+      //We allow charge, but inverter does nothing. Inverter is limiting
+      datalayer.battery.settings.inverter_limits_charge = true;
+    } else {
+      datalayer.battery.settings.inverter_limits_charge = false;
+    }
+  } else if (datalayer.battery.status.current_dA < 0) {  //Battery discharging
+    if (-datalayer.battery.status.current_dA < datalayer.battery.status.max_discharge_current_dA) {
+      datalayer.battery.settings.inverter_limits_discharge = true;
+    } else {
+      datalayer.battery.settings.inverter_limits_discharge = false;
+    }
+  } else {  // > 0 Battery charging
+    //If actual current is smaller than max we allow, inverter is limiting factor
+    if (datalayer.battery.status.current_dA < datalayer.battery.status.max_charge_current_dA) {
+      datalayer.battery.settings.inverter_limits_charge = true;
+    } else {
+      datalayer.battery.settings.inverter_limits_charge = false;
+    }
+  }
 
 #ifdef DOUBLE_BATTERY
   /* Calculate active power based on voltage and current for battery 2*/

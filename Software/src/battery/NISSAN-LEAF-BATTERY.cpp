@@ -202,7 +202,11 @@ void update_values_battery() { /* This function maps all the values fetched via 
   datalayer.battery.status.current_dA =
       (battery_Current2 * 5);  //0.5A/bit, multiply by 5 to get Amp+1decimal (5,5A = 11)
 
-  datalayer.battery.info.total_capacity_Wh = (battery_Max_GIDS * WH_PER_GID);
+  if (battery_Max_GIDS == 273) {  //battery_Max_GIDS is stuck at 273 on ZE0
+    datalayer.battery.info.total_capacity_Wh = ((battery_Max_GIDS * WH_PER_GID * battery_StateOfHealth) / 100);
+  } else {  //battery_Max_GIDS updates on newer generations, making for a total_capacity_Wh value that makes sense
+    datalayer.battery.info.total_capacity_Wh = (battery_Max_GIDS * WH_PER_GID);
+  }
 
   datalayer.battery.status.remaining_capacity_Wh = battery_Wh_Remaining;
 
@@ -381,7 +385,11 @@ void update_values_battery2() {  // Handle the values coming in from battery #2
   datalayer.battery2.status.current_dA =
       (battery2_Current2 * 5);  //0.5A/bit, multiply by 5 to get Amp+1decimal (5,5A = 11)
 
-  datalayer.battery2.info.total_capacity_Wh = (battery2_Max_GIDS * WH_PER_GID);
+  if (battery2_Max_GIDS == 273) {  //battery2_Max_GIDS is stuck at 273 on 24kWh packs
+    datalayer.battery2.info.total_capacity_Wh = ((battery2_Max_GIDS * WH_PER_GID * battery2_StateOfHealth) / 100);
+  } else {  //battery_Max_GIDS updates on newer generations, making for a total_capacity_Wh value that makes sense
+    datalayer.battery2.info.total_capacity_Wh = (battery2_Max_GIDS * WH_PER_GID);
+  }
 
   datalayer.battery2.status.remaining_capacity_Wh = battery2_Wh_Remaining;
 
@@ -1067,7 +1075,7 @@ void transmit_can_battery() {
 
   unsigned long currentMillis = millis();
 
-  if (datalayer.system.status.BMS_reset_in_progress) {
+  if (datalayer.system.status.BMS_reset_in_progress || datalayer.system.status.BMS_startup_in_progress) {
     // Transmitting towards battery is halted while BMS is being reset
     // Reset sending counters to avoid overrun messages when reset is over
     previousMillis10 = currentMillis;
