@@ -37,21 +37,4 @@
 */
 #define MAX_AMOUNT_CELLS 192
 
-/** LED 
- * 
- * Parameter: LED_MODE_DEFAULT
- * Description:
- * The default LED mode. Available modes:
- * CLASSIC   - slow up/down ramp
- * FLOW      - slow ramp up or down depending on flow of energy
- * HEARTBEAT - Heartbeat-like LED pattern that reacts to the system state with color and BPM
- * 
- * Parameter: LED_PERIOD_MS
- * Description:
- * The period of whatever LED mode is active. If CLASSIC, then a ramp up and ramp down will finish in
- * LED_PERIOD_MS milliseconds
-*/
-#define LED_MODE_DEFAULT FLOW
-#define LED_PERIOD_MS 3000
-
 #endif

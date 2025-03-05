@@ -15,7 +15,6 @@
 #include "src/communication/nvm/comm_nvm.h"
 #include "src/communication/precharge_control/precharge_control.h"
 #include "src/communication/rs485/comm_rs485.h"
-#include "src/communication/seriallink/comm_seriallink.h"
 #include "src/datalayer/datalayer.h"
 #include "src/devboard/sdcard/sdcard.h"
 #include "src/devboard/utils/events.h"
@@ -44,15 +43,18 @@
 #include "src/devboard/mqtt/mqtt.h"
 #endif  // MQTT
 #endif  // WIFI
+#ifdef PERIODIC_BMS_RESET_AT
+#include "src/devboard/utils/ntp_time.h"
+#endif
+volatile unsigned long long bmsResetTimeOffset = 0;
 
 // The current software version, shown on webserver
-const char* version_number = "8.7.dev";
+const char* version_number = "8.8.dev";
 
 // Interval settings
 uint16_t intervalUpdateValues = INTERVAL_1_S;  // Interval at which to update inverter values / Modbus registers
 unsigned long previousMillis10ms = 0;
 unsigned long previousMillisUpdateVal = 0;
-
 // Task time measurement for debugging and for setting CPU load events
 int64_t core_task_time_us;
 MyTimer core_task_timer_10s(INTERVAL_10_S);
@@ -106,7 +108,6 @@ void setup() {
 
   init_rs485();
 
-  init_serialDataLink();
 #if defined(CAN_INVERTER_SELECTED) || defined(MODBUS_INVERTER_SELECTED) || defined(RS485_INVERTER_SELECTED)
   setup_inverter();
 #endif
@@ -135,6 +136,14 @@ void setup() {
   // Start tasks
   xTaskCreatePinnedToCore((TaskFunction_t)&core_loop, "core_loop", 4096, &core_task_time_us, TASK_CORE_PRIO,
                           &main_loop_task, CORE_FUNCTION_CORE);
+#ifdef PERIODIC_BMS_RESET_AT
+  bmsResetTimeOffset = getTimeOffsetfromNowUntil(PERIODIC_BMS_RESET_AT);
+  if (bmsResetTimeOffset == 0) {
+    set_event(EVENT_PERIODIC_BMS_RESET_AT_INIT_FAILED, 0);
+  } else {
+    set_event(EVENT_PERIODIC_BMS_RESET_AT_INIT_SUCCESS, 0);
+  }
+#endif
 }
 
 // Perform main program functions
@@ -226,9 +235,6 @@ void core_loop(void* task_time_us) {
 #if defined(RS485_INVERTER_SELECTED) || defined(RS485_BATTERY_SELECTED)
     receive_RS485();  // Process serial2 RS485 interface
 #endif                // RS485_INVERTER_SELECTED
-#if defined(SERIAL_LINK_RECEIVER) || defined(SERIAL_LINK_TRANSMITTER)
-    run_serialDataLink();
-#endif  // SERIAL_LINK_RECEIVER || SERIAL_LINK_TRANSMITTER
     END_TIME_MEASUREMENT_MAX(comm, datalayer.system.status.time_comm_us);
 #ifdef WEBSERVER
     START_TIME_MEASUREMENT(ota);
@@ -257,9 +263,7 @@ void core_loop(void* task_time_us) {
       check_interconnect_available();
 #endif  // DOUBLE_BATTERY
       update_calculated_values();
-#ifndef SERIAL_LINK_RECEIVER
-      update_machineryprotection();  // Check safeties (Not on serial link reciever board)
-#endif                               // SERIAL_LINK_RECEIVER
+      update_machineryprotection();  // Check safeties
       update_values_inverter();      // Update values heading towards inverter
     }
     END_TIME_MEASUREMENT_MAX(time_values, datalayer.system.status.time_values_us);

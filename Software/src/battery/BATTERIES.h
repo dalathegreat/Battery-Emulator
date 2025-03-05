@@ -122,6 +122,10 @@ void setup_can_shunt();
 #include "SANTA-FE-PHEV-BATTERY.h"
 #endif
 
+#ifdef SIMPBMS_BATTERY
+#include "SIMPBMS-BATTERY.h"
+#endif
+
 #if defined(TESLA_MODEL_SX_BATTERY) || defined(TESLA_MODEL_3Y_BATTERY)
 #define TESLA_BATTERY
 #include "TESLA-BATTERY.h"
@@ -137,10 +141,6 @@ void setup_can_shunt();
 
 #ifdef VOLVO_SPA_HYBRID_BATTERY
 #include "VOLVO-SPA-HYBRID-BATTERY.h"
-#endif
-
-#ifdef SERIAL_LINK_RECEIVER
-#include "SERIAL-LINK-RECEIVER-FROM-BATTERY.h"
 #endif
 
 void setup_battery(void);
