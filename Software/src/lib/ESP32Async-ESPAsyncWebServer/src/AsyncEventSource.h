@@ -7,7 +7,7 @@
 #include <Arduino.h>
 
 #ifdef ESP32
-#include <AsyncTCP.h>
+#include "../../ESP32Async-AsyncTCP/src/AsyncTCP.h"
 #include <mutex>
 #ifndef SSE_MAX_QUEUED_MESSAGES
 #define SSE_MAX_QUEUED_MESSAGES 32
@@ -30,7 +30,7 @@
 #define SSE_MAX_INFLIGH 16 * 1024  // but no more than 16k, no need to blow it, since same data is kept in local Q
 #endif
 
-#include <ESPAsyncWebServer.h>
+#include "ESPAsyncWebServer.h"
 
 #ifdef ESP8266
 #include <Hash.h>

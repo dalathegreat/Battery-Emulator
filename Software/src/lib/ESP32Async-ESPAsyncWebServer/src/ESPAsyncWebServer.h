@@ -15,7 +15,7 @@
 #include <vector>
 
 #ifdef ESP32
-#include <AsyncTCP.h>
+#include "../../ESP32Async-AsyncTCP/src/AsyncTCP.h"
 #include <WiFi.h>
 #elif defined(ESP8266)
 #include <ESP8266WiFi.h>
@@ -58,10 +58,6 @@ class AsyncCallbackWebHandler;
 class AsyncResponseStream;
 class AsyncMiddlewareChain;
 
-#if defined(TARGET_RP2040) || defined(TARGET_RP2350) || defined(PICO_RP2040) || defined(PICO_RP2350)
-typedef enum http_method WebRequestMethod;
-#else
-#ifndef WEBSERVER_H
 typedef enum {
   HTTP_GET = 0b00000001,
   HTTP_POST = 0b00000010,
@@ -72,8 +68,6 @@ typedef enum {
   HTTP_OPTIONS = 0b01000000,
   HTTP_ANY = 0b01111111,
 } WebRequestMethod;
-#endif
-#endif
 
 #ifndef HAVE_FS_FILE_OPEN_MODE
 namespace fs {
