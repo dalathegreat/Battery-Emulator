@@ -1,23 +1,6 @@
-/*
-  Asynchronous WebServer library for Espressif MCUs
+// SPDX-License-Identifier: LGPL-3.0-or-later
+// Copyright 2016-2025 Hristo Gochkov, Mathieu Carbou, Emil Muratov
 
-  Copyright (c) 2016 Hristo Gochkov. All rights reserved.
-  This file is part of the esp8266 core for Arduino environment.
-
-  This library is free software; you can redistribute it and/or
-  modify it under the terms of the GNU Lesser General Public
-  License as published by the Free Software Foundation; either
-  version 2.1 of the License, or (at your option) any later version.
-
-  This library is distributed in the hope that it will be useful,
-  but WITHOUT ANY WARRANTY; without even the implied warranty of
-  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
-  Lesser General Public License for more details.
-
-  You should have received a copy of the GNU Lesser General Public
-  License along with this library; if not, write to the Free Software
-  Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
-*/
 #include "ESPAsyncWebServer.h"
 #include "WebAuthentication.h"
 #include "WebResponseImpl.h"
@@ -26,30 +9,89 @@
 
 #define __is_param_char(c) ((c) && ((c) != '{') && ((c) != '[') && ((c) != '&') && ((c) != '='))
 
+static void doNotDelete(AsyncWebServerRequest *) {}
+
 using namespace asyncsrv;
 
-enum { PARSE_REQ_START = 0,
-       PARSE_REQ_HEADERS = 1,
-       PARSE_REQ_BODY = 2,
-       PARSE_REQ_END = 3,
-       PARSE_REQ_FAIL = 4 };
+enum {
+  PARSE_REQ_START = 0,
+  PARSE_REQ_HEADERS = 1,
+  PARSE_REQ_BODY = 2,
+  PARSE_REQ_END = 3,
+  PARSE_REQ_FAIL = 4
+};
 
-AsyncWebServerRequest::AsyncWebServerRequest(AsyncWebServer* s, AsyncClient* c)
-    : _client(c), _server(s), _handler(NULL), _response(NULL), _temp(), _parseState(PARSE_REQ_START), _version(0), _method(HTTP_ANY), _url(), _host(), _contentType(), _boundary(), _authorization(), _reqconntype(RCT_HTTP), _authMethod(AsyncAuthType::AUTH_NONE), _isMultipart(false), _isPlainPost(false), _expectingContinue(false), _contentLength(0), _parsedLength(0), _multiParseState(0), _boundaryPosition(0), _itemStartIndex(0), _itemSize(0), _itemName(), _itemFilename(), _itemType(), _itemValue(), _itemBuffer(0), _itemBufferIndex(0), _itemIsFile(false), _tempObject(NULL) {
-  c->onError([](void* r, AsyncClient* c, int8_t error) { (void)c; AsyncWebServerRequest *req = (AsyncWebServerRequest*)r; req->_onError(error); }, this);
-  c->onAck([](void* r, AsyncClient* c, size_t len, uint32_t time) { (void)c; AsyncWebServerRequest *req = (AsyncWebServerRequest*)r; req->_onAck(len, time); }, this);
-  c->onDisconnect([](void* r, AsyncClient* c) { AsyncWebServerRequest *req = (AsyncWebServerRequest*)r; req->_onDisconnect(); delete c; }, this);
-  c->onTimeout([](void* r, AsyncClient* c, uint32_t time) { (void)c; AsyncWebServerRequest *req = (AsyncWebServerRequest*)r; req->_onTimeout(time); }, this);
-  c->onData([](void* r, AsyncClient* c, void* buf, size_t len) { (void)c; AsyncWebServerRequest *req = (AsyncWebServerRequest*)r; req->_onData(buf, len); }, this);
-  c->onPoll([](void* r, AsyncClient* c) { (void)c; AsyncWebServerRequest *req = ( AsyncWebServerRequest*)r; req->_onPoll(); }, this);
+AsyncWebServerRequest::AsyncWebServerRequest(AsyncWebServer *s, AsyncClient *c)
+  : _client(c), _server(s), _handler(NULL), _response(NULL), _temp(), _parseState(PARSE_REQ_START), _version(0), _method(HTTP_ANY), _url(), _host(),
+    _contentType(), _boundary(), _authorization(), _reqconntype(RCT_HTTP), _authMethod(AsyncAuthType::AUTH_NONE), _isMultipart(false), _isPlainPost(false),
+    _expectingContinue(false), _contentLength(0), _parsedLength(0), _multiParseState(0), _boundaryPosition(0), _itemStartIndex(0), _itemSize(0), _itemName(),
+    _itemFilename(), _itemType(), _itemValue(), _itemBuffer(0), _itemBufferIndex(0), _itemIsFile(false), _tempObject(NULL) {
+  c->onError(
+    [](void *r, AsyncClient *c, int8_t error) {
+      (void)c;
+      // log_e("AsyncWebServerRequest::_onError");
+      AsyncWebServerRequest *req = (AsyncWebServerRequest *)r;
+      req->_onError(error);
+    },
+    this
+  );
+  c->onAck(
+    [](void *r, AsyncClient *c, size_t len, uint32_t time) {
+      (void)c;
+      // log_e("AsyncWebServerRequest::_onAck");
+      AsyncWebServerRequest *req = (AsyncWebServerRequest *)r;
+      req->_onAck(len, time);
+    },
+    this
+  );
+  c->onDisconnect(
+    [](void *r, AsyncClient *c) {
+      // log_e("AsyncWebServerRequest::_onDisconnect");
+      AsyncWebServerRequest *req = (AsyncWebServerRequest *)r;
+      req->_onDisconnect();
+      delete c;
+    },
+    this
+  );
+  c->onTimeout(
+    [](void *r, AsyncClient *c, uint32_t time) {
+      (void)c;
+      // log_e("AsyncWebServerRequest::_onTimeout");
+      AsyncWebServerRequest *req = (AsyncWebServerRequest *)r;
+      req->_onTimeout(time);
+    },
+    this
+  );
+  c->onData(
+    [](void *r, AsyncClient *c, void *buf, size_t len) {
+      (void)c;
+      // log_e("AsyncWebServerRequest::_onData");
+      AsyncWebServerRequest *req = (AsyncWebServerRequest *)r;
+      req->_onData(buf, len);
+    },
+    this
+  );
+  c->onPoll(
+    [](void *r, AsyncClient *c) {
+      (void)c;
+      // log_e("AsyncWebServerRequest::_onPoll");
+      AsyncWebServerRequest *req = (AsyncWebServerRequest *)r;
+      req->_onPoll();
+    },
+    this
+  );
 }
 
 AsyncWebServerRequest::~AsyncWebServerRequest() {
+  // log_e("AsyncWebServerRequest::~AsyncWebServerRequest");
+
+  _this.reset();
+
   _headers.clear();
 
   _pathParams.clear();
 
-  AsyncWebServerResponse* r = _response;
+  AsyncWebServerResponse *r = _response;
   _response = NULL;
   delete r;
 
@@ -66,15 +108,15 @@ AsyncWebServerRequest::~AsyncWebServerRequest() {
   }
 }
 
-void AsyncWebServerRequest::_onData(void* buf, size_t len) {
+void AsyncWebServerRequest::_onData(void *buf, size_t len) {
   // SSL/TLS handshake detection
 #ifndef ASYNC_TCP_SSL_ENABLED
-  if (_parseState == PARSE_REQ_START && len && ((uint8_t*)buf)[0] == 0x16) { // 0x16 indicates a Handshake message (SSL/TLS).
-  #ifdef ESP32
+  if (_parseState == PARSE_REQ_START && len && ((uint8_t *)buf)[0] == 0x16) {  // 0x16 indicates a Handshake message (SSL/TLS).
+#ifdef ESP32
     log_d("SSL/TLS handshake detected: resetting connection");
-  #endif
+#endif
     _parseState = PARSE_REQ_FAIL;
-    _client->abort();
+    abort();
     return;
   }
 #endif
@@ -84,26 +126,33 @@ void AsyncWebServerRequest::_onData(void* buf, size_t len) {
 
     if (_parseState < PARSE_REQ_BODY) {
       // Find new line in buf
-      char* str = (char*)buf;
+      char *str = (char *)buf;
       for (i = 0; i < len; i++) {
         // Check for null characters in header
         if (!str[i]) {
           _parseState = PARSE_REQ_FAIL;
-          _client->abort();
+          abort();
           return;
         }
         if (str[i] == '\n') {
           break;
         }
       }
-      if (i == len) { // No new line, just add the buffer in _temp
+      if (i == len) {  // No new line, just add the buffer in _temp
         char ch = str[len - 1];
         str[len - 1] = 0;
-        _temp.reserve(_temp.length() + len);
+        if (!_temp.reserve(_temp.length() + len)) {
+#ifdef ESP32
+          log_e("Failed to allocate");
+#endif
+          _parseState = PARSE_REQ_FAIL;
+          abort();
+          return;
+        }
         _temp.concat(str);
         _temp.concat(ch);
-      } else {      // Found new line - extract it and parse
-        str[i] = 0; // Terminate the string at the end of the line.
+      } else {       // Found new line - extract it and parse
+        str[i] = 0;  // Terminate the string at the end of the line.
         _temp.concat(str);
         _temp.trim();
         _parseLine();
@@ -118,38 +167,41 @@ void AsyncWebServerRequest::_onData(void* buf, size_t len) {
       // A handler should be already attached at this point in _parseLine function.
       // If handler does nothing (_onRequest is NULL), we don't need to really parse the body.
       const bool needParse = _handler && !_handler->isRequestHandlerTrivial();
+      // Discard any bytes after content length; handlers may overrun their buffers
+      len = std::min(len, _contentLength - _parsedLength);
       if (_isMultipart) {
         if (needParse) {
           size_t i;
           for (i = 0; i < len; i++) {
-            _parseMultipartPostByte(((uint8_t*)buf)[i], i == len - 1);
+            _parseMultipartPostByte(((uint8_t *)buf)[i], i == len - 1);
             _parsedLength++;
           }
-        } else
+        } else {
           _parsedLength += len;
+        }
       } else {
         if (_parsedLength == 0) {
           if (_contentType.startsWith(T_app_xform_urlencoded)) {
             _isPlainPost = true;
-          } else if (_contentType == T_text_plain && __is_param_char(((char*)buf)[0])) {
+          } else if (_contentType == T_text_plain && __is_param_char(((char *)buf)[0])) {
             size_t i = 0;
-            while (i < len && __is_param_char(((char*)buf)[i++]))
-              ;
-            if (i < len && ((char*)buf)[i - 1] == '=') {
+            while (i < len && __is_param_char(((char *)buf)[i++]));
+            if (i < len && ((char *)buf)[i - 1] == '=') {
               _isPlainPost = true;
             }
           }
         }
         if (!_isPlainPost) {
           // ESP_LOGD("AsyncWebServer", "_isPlainPost: %d, _handler: %p", _isPlainPost, _handler);
-          if (_handler)
-            _handler->handleBody(this, (uint8_t*)buf, len, _parsedLength, _contentLength);
+          if (_handler) {
+            _handler->handleBody(this, (uint8_t *)buf, len, _parsedLength, _contentLength);
+          }
           _parsedLength += len;
         } else if (needParse) {
           size_t i;
           for (i = 0; i < len; i++) {
             _parsedLength++;
-            _parsePlainPostChar(((uint8_t*)buf)[i]);
+            _parsePlainPostChar(((uint8_t *)buf)[i]);
           }
         } else {
           _parsedLength += len;
@@ -157,16 +209,8 @@ void AsyncWebServerRequest::_onData(void* buf, size_t len) {
       }
       if (_parsedLength == _contentLength) {
         _parseState = PARSE_REQ_END;
-        _server->_runChain(this, [this]() { return _handler ? _handler->_runChain(this, [this]() { _handler->handleRequest(this); }) : send(501); });
-        if (!_sent) {
-          if (!_response)
-            send(501, T_text_plain, "Handler did not handle the request");
-          else if (!_response->_sourceValid())
-            send(500, T_text_plain, "Invalid data in handler");
-          _client->setRxTimeout(0);
-          _response->_respond(this);
-          _sent = true;
-        }
+        _runMiddlewareChain();
+        _send();
       }
     }
     break;
@@ -179,7 +223,7 @@ void AsyncWebServerRequest::_onPoll() {
     if (!_response->_finished()) {
       _response->_ack(this, 0, 0);
     } else {
-      AsyncWebServerResponse* r = _response;
+      AsyncWebServerResponse *r = _response;
       _response = NULL;
       delete r;
 
@@ -194,7 +238,7 @@ void AsyncWebServerRequest::_onAck(size_t len, uint32_t time) {
     if (!_response->_finished()) {
       _response->_ack(this, len, time);
     } else if (_response->_finished()) {
-      AsyncWebServerResponse* r = _response;
+      AsyncWebServerResponse *r = _response;
       _response = NULL;
       delete r;
 
@@ -225,22 +269,26 @@ void AsyncWebServerRequest::_onDisconnect() {
   _server->_handleDisconnect(this);
 }
 
-void AsyncWebServerRequest::_addPathParam(const char* p) {
+void AsyncWebServerRequest::_addPathParam(const char *p) {
   _pathParams.emplace_back(p);
 }
 
-void AsyncWebServerRequest::_addGetParams(const String& params) {
+void AsyncWebServerRequest::_addGetParams(const String &params) {
   size_t start = 0;
   while (start < params.length()) {
     int end = params.indexOf('&', start);
-    if (end < 0)
+    if (end < 0) {
       end = params.length();
+    }
     int equal = params.indexOf('=', start);
-    if (equal < 0 || equal > end)
+    if (equal < 0 || equal > end) {
       equal = end;
-    String name(params.substring(start, equal));
-    String value(equal + 1 < end ? params.substring(equal + 1, end) : String());
-    _params.emplace_back(urlDecode(name), urlDecode(value));
+    }
+    String name = urlDecode(params.substring(start, equal));
+    String value = urlDecode(equal + 1 < end ? params.substring(equal + 1, end) : emptyString);
+    if (name.length()) {
+      _params.emplace_back(name, value);
+    }
     start = end + 1;
   }
 }
@@ -280,11 +328,13 @@ bool AsyncWebServerRequest::_parseReqHead() {
   _url = urlDecode(u);
   _addGetParams(g);
 
-  if (!_url.length())
+  if (!_url.length()) {
     return false;
+  }
 
-  if (!_temp.startsWith(T_HTTP_1_0))
+  if (!_temp.startsWith(T_HTTP_1_0)) {
     _version = 1;
+  }
 
   _temp = emptyString;
   return true;
@@ -333,9 +383,9 @@ bool AsyncWebServerRequest::_parseReqHeader() {
       String lowcase(value);
       lowcase.toLowerCase();
 #ifndef ESP8266
-      const char* substr = std::strstr(lowcase.c_str(), T_text_event_stream);
+      const char *substr = std::strstr(lowcase.c_str(), T_text_event_stream);
 #else
-      const char* substr = std::strstr(lowcase.c_str(), String(T_text_event_stream).c_str());
+      const char *substr = std::strstr(lowcase.c_str(), String(T_text_event_stream).c_str());
 #endif
       if (substr != NULL) {
         // WebEvent request can be uniquely identified by header:  [Accept: text/event-stream]
@@ -344,18 +394,19 @@ bool AsyncWebServerRequest::_parseReqHeader() {
     }
     _headers.emplace_back(name, value);
   }
-#ifndef TARGET_RP2040
-  _temp.clear();
-#else
+#if defined(TARGET_RP2040) || defined(TARGET_RP2350) || defined(PICO_RP2040) || defined(PICO_RP2350)
   // Ancient PRI core does not have String::clear() method 8-()
   _temp = emptyString;
+#else
+  _temp.clear();
 #endif
   return true;
 }
 
 void AsyncWebServerRequest::_parsePlainPostChar(uint8_t data) {
-  if (data && (char)data != '&')
+  if (data && (char)data != '&') {
     _temp += (char)data;
+  }
   if (!data || (char)data == '&' || _parsedLength == _contentLength) {
     String name(T_BODY);
     String value(_temp);
@@ -363,13 +414,16 @@ void AsyncWebServerRequest::_parsePlainPostChar(uint8_t data) {
       name = _temp.substring(0, _temp.indexOf('='));
       value = _temp.substring(_temp.indexOf('=') + 1);
     }
-    _params.emplace_back(urlDecode(name), urlDecode(value), true);
+    name = urlDecode(name);
+    if (name.length()) {
+      _params.emplace_back(name, urlDecode(value), true);
+    }
 
-#ifndef TARGET_RP2040
-    _temp.clear();
-#else
+#if defined(TARGET_RP2040) || defined(TARGET_RP2350) || defined(PICO_RP2040) || defined(PICO_RP2350)
     // Ancient PRI core does not have String::clear() method 8-()
     _temp = emptyString;
+#else
+    _temp.clear();
 #endif
   }
 }
@@ -379,8 +433,9 @@ void AsyncWebServerRequest::_handleUploadByte(uint8_t data, bool last) {
 
   if (last || _itemBufferIndex == RESPONSE_STREAM_BUFFER_SIZE) {
     // check if authenticated before calling the upload
-    if (_handler)
+    if (_handler) {
       _handler->handleUpload(this, _itemFilename, _itemSize - _itemBufferIndex, _itemBuffer, _itemBufferIndex, false);
+    }
     _itemBufferIndex = 0;
   }
 }
@@ -442,8 +497,9 @@ void AsyncWebServerRequest::_parseMultipartPostByte(uint8_t data, bool last) {
       _itemIsFile = false;
     }
   } else if (_multiParseState == PARSE_HEADERS) {
-    if ((char)data != '\r' && (char)data != '\n')
+    if ((char)data != '\r' && (char)data != '\n') {
       _temp += (char)data;
+    }
     if ((char)data == '\n') {
       if (_temp.length()) {
         if (_temp.length() > 12 && _temp.substring(0, 12).equalsIgnoreCase(T_Content_Type)) {
@@ -479,11 +535,16 @@ void AsyncWebServerRequest::_parseMultipartPostByte(uint8_t data, bool last) {
         _itemStartIndex = _parsedLength;
         _itemValue = emptyString;
         if (_itemIsFile) {
-          if (_itemBuffer)
+          if (_itemBuffer) {
             free(_itemBuffer);
-          _itemBuffer = (uint8_t*)malloc(RESPONSE_STREAM_BUFFER_SIZE);
+          }
+          _itemBuffer = (uint8_t *)malloc(RESPONSE_STREAM_BUFFER_SIZE);
           if (_itemBuffer == NULL) {
+#ifdef ESP32
+            log_e("Failed to allocate");
+#endif
             _multiParseState = PARSE_ERROR;
+            abort();
             return;
           }
           _itemBufferIndex = 0;
@@ -526,8 +587,9 @@ void AsyncWebServerRequest::_parseMultipartPostByte(uint8_t data, bool last) {
       itemWriteByte('-');
       itemWriteByte('-');
       uint8_t i;
-      for (i = 0; i < _boundaryPosition; i++)
+      for (i = 0; i < _boundaryPosition; i++) {
         itemWriteByte(_boundary.c_str()[i]);
+      }
       _parseMultipartPostByte(data, last);
     } else if (_boundaryPosition == _boundary.length() - 1) {
       _multiParseState = DASH3_OR_RETURN2;
@@ -535,8 +597,9 @@ void AsyncWebServerRequest::_parseMultipartPostByte(uint8_t data, bool last) {
         _params.emplace_back(_itemName, _itemValue, true);
       } else {
         if (_itemSize) {
-          if (_handler)
+          if (_handler) {
             _handler->handleUpload(this, _itemFilename, _itemSize - _itemBufferIndex, _itemBuffer, _itemBufferIndex, true);
+          }
           _itemBufferIndex = 0;
           _params.emplace_back(_itemName, _itemFilename, true, true, _itemSize);
         }
@@ -550,7 +613,7 @@ void AsyncWebServerRequest::_parseMultipartPostByte(uint8_t data, bool last) {
   } else if (_multiParseState == DASH3_OR_RETURN2) {
     if (data == '-' && (_contentLength - _parsedLength - 4) != 0) {
       // os_printf("ERROR: The parser got to the end of the POST but is expecting %u bytes more!\nDrop an issue so we can have more info on the matter!\n", _contentLength - _parsedLength - 4);
-      _contentLength = _parsedLength + 4; // lets close the request gracefully
+      _contentLength = _parsedLength + 4;  // lets close the request gracefully
     }
     if (data == '\r') {
       _multiParseState = EXPECT_FEED2;
@@ -563,8 +626,9 @@ void AsyncWebServerRequest::_parseMultipartPostByte(uint8_t data, bool last) {
       itemWriteByte('-');
       itemWriteByte('-');
       uint8_t i;
-      for (i = 0; i < _boundary.length(); i++)
+      for (i = 0; i < _boundary.length(); i++) {
         itemWriteByte(_boundary.c_str()[i]);
+      }
       _parseMultipartPostByte(data, last);
     }
   } else if (_multiParseState == EXPECT_FEED2) {
@@ -578,8 +642,9 @@ void AsyncWebServerRequest::_parseMultipartPostByte(uint8_t data, bool last) {
       itemWriteByte('-');
       itemWriteByte('-');
       uint8_t i;
-      for (i = 0; i < _boundary.length(); i++)
+      for (i = 0; i < _boundary.length(); i++) {
         itemWriteByte(_boundary.c_str()[i]);
+      }
       itemWriteByte('\r');
       _parseMultipartPostByte(data, last);
     }
@@ -590,13 +655,13 @@ void AsyncWebServerRequest::_parseLine() {
   if (_parseState == PARSE_REQ_START) {
     if (!_temp.length()) {
       _parseState = PARSE_REQ_FAIL;
-      _client->abort();
+      abort();
     } else {
       if (_parseReqHead()) {
         _parseState = PARSE_REQ_HEADERS;
       } else {
         _parseState = PARSE_REQ_FAIL;
-        _client->abort();
+        abort();
       }
     }
     return;
@@ -615,19 +680,71 @@ void AsyncWebServerRequest::_parseLine() {
         _parseState = PARSE_REQ_BODY;
       } else {
         _parseState = PARSE_REQ_END;
-        _server->_runChain(this, [this]() { return _handler ? _handler->_runChain(this, [this]() { _handler->handleRequest(this); }) : send(501); });
-        if (!_sent) {
-          if (!_response)
-            send(501, T_text_plain, "Handler did not handle the request");
-          else if (!_response->_sourceValid())
-            send(500, T_text_plain, "Invalid data in handler");
-          _client->setRxTimeout(0);
-          _response->_respond(this);
-          _sent = true;
-        }
+        _runMiddlewareChain();
+        _send();
       }
-    } else
+    } else {
       _parseReqHeader();
+    }
+  }
+}
+
+void AsyncWebServerRequest::_runMiddlewareChain() {
+  if (_handler && _handler->mustSkipServerMiddlewares()) {
+    _handler->_runChain(this, [this]() {
+      _handler->handleRequest(this);
+    });
+  } else {
+    _server->_runChain(this, [this]() {
+      if (_handler) {
+        _handler->_runChain(this, [this]() {
+          _handler->handleRequest(this);
+        });
+      }
+    });
+  }
+}
+
+void AsyncWebServerRequest::_send() {
+  if (!_sent && !_paused) {
+    // log_d("AsyncWebServerRequest::_send()");
+
+    // user did not create a response ?
+    if (!_response) {
+      send(501, T_text_plain, "Handler did not handle the request");
+    }
+
+    // response is not valid ?
+    if (!_response->_sourceValid()) {
+      send(500, T_text_plain, "Invalid data in handler");
+    }
+
+    // here, we either have a response give nfrom user or one of the two above
+    _client->setRxTimeout(0);
+    _response->_respond(this);
+    _sent = true;
+  }
+}
+
+AsyncWebServerRequestPtr AsyncWebServerRequest::pause() {
+  if (_paused) {
+    return _this;
+  }
+  client()->setRxTimeout(0);
+  // this shared ptr will hold the request pointer until it gets destroyed following a disconnect.
+  // this is just used as a holder providing weak observers, so the deleter is a no-op.
+  _this = std::shared_ptr<AsyncWebServerRequest>(this, doNotDelete);
+  _paused = true;
+  return _this;
+}
+
+void AsyncWebServerRequest::abort() {
+  if (!_sent) {
+    _sent = true;
+    _paused = false;
+    _this.reset();
+    // log_e("AsyncWebServerRequest::abort");
+    _client->abort();
   }
 }
 
@@ -635,8 +752,8 @@ size_t AsyncWebServerRequest::headers() const {
   return _headers.size();
 }
 
-bool AsyncWebServerRequest::hasHeader(const char* name) const {
-  for (const auto& h : _headers) {
+bool AsyncWebServerRequest::hasHeader(const char *name) const {
+  for (const auto &h : _headers) {
     if (h.name().equalsIgnoreCase(name)) {
       return true;
     }
@@ -645,24 +762,26 @@ bool AsyncWebServerRequest::hasHeader(const char* name) const {
 }
 
 #ifdef ESP8266
-bool AsyncWebServerRequest::hasHeader(const __FlashStringHelper* data) const {
+bool AsyncWebServerRequest::hasHeader(const __FlashStringHelper *data) const {
   return hasHeader(String(data));
 }
 #endif
 
-const AsyncWebHeader* AsyncWebServerRequest::getHeader(const char* name) const {
-  auto iter = std::find_if(std::begin(_headers), std::end(_headers), [&name](const AsyncWebHeader& header) { return header.name().equalsIgnoreCase(name); });
+const AsyncWebHeader *AsyncWebServerRequest::getHeader(const char *name) const {
+  auto iter = std::find_if(std::begin(_headers), std::end(_headers), [&name](const AsyncWebHeader &header) {
+    return header.name().equalsIgnoreCase(name);
+  });
   return (iter == std::end(_headers)) ? nullptr : &(*iter);
 }
 
 #ifdef ESP8266
-const AsyncWebHeader* AsyncWebServerRequest::getHeader(const __FlashStringHelper* data) const {
+const AsyncWebHeader *AsyncWebServerRequest::getHeader(const __FlashStringHelper *data) const {
   PGM_P p = reinterpret_cast<PGM_P>(data);
   size_t n = strlen_P(p);
-  char* name = (char*)malloc(n + 1);
+  char *name = (char *)malloc(n + 1);
   if (name) {
     strcpy_P(name, p);
-    const AsyncWebHeader* result = getHeader(String(name));
+    const AsyncWebHeader *result = getHeader(String(name));
     free(name);
     return result;
   } else {
@@ -671,24 +790,26 @@ const AsyncWebHeader* AsyncWebServerRequest::getHeader(const __FlashStringHelper
 }
 #endif
 
-const AsyncWebHeader* AsyncWebServerRequest::getHeader(size_t num) const {
-  if (num >= _headers.size())
+const AsyncWebHeader *AsyncWebServerRequest::getHeader(size_t num) const {
+  if (num >= _headers.size()) {
     return nullptr;
+  }
   return &(*std::next(_headers.cbegin(), num));
 }
 
-size_t AsyncWebServerRequest::getHeaderNames(std::vector<const char*>& names) const {
-  const size_t size = _headers.size();
-  names.reserve(size);
-  for (const auto& h : _headers) {
+size_t AsyncWebServerRequest::getHeaderNames(std::vector<const char *> &names) const {
+  const size_t size = names.size();
+  for (const auto &h : _headers) {
     names.push_back(h.name().c_str());
   }
-  return size;
+  return names.size() - size;
 }
 
-bool AsyncWebServerRequest::removeHeader(const char* name) {
+bool AsyncWebServerRequest::removeHeader(const char *name) {
   const size_t size = _headers.size();
-  _headers.remove_if([name](const AsyncWebHeader& header) { return header.name().equalsIgnoreCase(name); });
+  _headers.remove_if([name](const AsyncWebHeader &header) {
+    return header.name().equalsIgnoreCase(name);
+  });
   return size != _headers.size();
 }
 
@@ -696,8 +817,8 @@ size_t AsyncWebServerRequest::params() const {
   return _params.size();
 }
 
-bool AsyncWebServerRequest::hasParam(const char* name, bool post, bool file) const {
-  for (const auto& p : _params) {
+bool AsyncWebServerRequest::hasParam(const char *name, bool post, bool file) const {
+  for (const auto &p : _params) {
     if (p.name().equals(name) && p.isPost() == post && p.isFile() == file) {
       return true;
     }
@@ -705,8 +826,8 @@ bool AsyncWebServerRequest::hasParam(const char* name, bool post, bool file) con
   return false;
 }
 
-const AsyncWebParameter* AsyncWebServerRequest::getParam(const char* name, bool post, bool file) const {
-  for (const auto& p : _params) {
+const AsyncWebParameter *AsyncWebServerRequest::getParam(const char *name, bool post, bool file) const {
+  for (const auto &p : _params) {
     if (p.name() == name && p.isPost() == post && p.isFile() == file) {
       return &p;
     }
@@ -715,122 +836,147 @@ const AsyncWebParameter* AsyncWebServerRequest::getParam(const char* name, bool 
 }
 
 #ifdef ESP8266
-const AsyncWebParameter* AsyncWebServerRequest::getParam(const __FlashStringHelper* data, bool post, bool file) const {
+const AsyncWebParameter *AsyncWebServerRequest::getParam(const __FlashStringHelper *data, bool post, bool file) const {
   return getParam(String(data), post, file);
 }
 #endif
 
-const AsyncWebParameter* AsyncWebServerRequest::getParam(size_t num) const {
-  if (num >= _params.size())
+const AsyncWebParameter *AsyncWebServerRequest::getParam(size_t num) const {
+  if (num >= _params.size()) {
     return nullptr;
+  }
   return &(*std::next(_params.cbegin(), num));
 }
 
-const String& AsyncWebServerRequest::getAttribute(const char* name, const String& defaultValue) const {
+const String &AsyncWebServerRequest::getAttribute(const char *name, const String &defaultValue) const {
   auto it = _attributes.find(name);
   return it != _attributes.end() ? it->second : defaultValue;
 }
-bool AsyncWebServerRequest::getAttribute(const char* name, bool defaultValue) const {
+bool AsyncWebServerRequest::getAttribute(const char *name, bool defaultValue) const {
   auto it = _attributes.find(name);
   return it != _attributes.end() ? it->second == "1" : defaultValue;
 }
-long AsyncWebServerRequest::getAttribute(const char* name, long defaultValue) const {
+long AsyncWebServerRequest::getAttribute(const char *name, long defaultValue) const {
   auto it = _attributes.find(name);
   return it != _attributes.end() ? it->second.toInt() : defaultValue;
 }
-float AsyncWebServerRequest::getAttribute(const char* name, float defaultValue) const {
+float AsyncWebServerRequest::getAttribute(const char *name, float defaultValue) const {
   auto it = _attributes.find(name);
   return it != _attributes.end() ? it->second.toFloat() : defaultValue;
 }
-double AsyncWebServerRequest::getAttribute(const char* name, double defaultValue) const {
+double AsyncWebServerRequest::getAttribute(const char *name, double defaultValue) const {
   auto it = _attributes.find(name);
   return it != _attributes.end() ? it->second.toDouble() : defaultValue;
 }
 
-AsyncWebServerResponse* AsyncWebServerRequest::beginResponse(int code, const char* contentType, const char* content, AwsTemplateProcessor callback) {
-  if (callback)
-    return new AsyncProgmemResponse(code, contentType, (const uint8_t*)content, strlen(content), callback);
+AsyncWebServerResponse *AsyncWebServerRequest::beginResponse(int code, const char *contentType, const char *content, AwsTemplateProcessor callback) {
+  if (callback) {
+    return new AsyncProgmemResponse(code, contentType, (const uint8_t *)content, strlen(content), callback);
+  }
   return new AsyncBasicResponse(code, contentType, content);
 }
 
-AsyncWebServerResponse* AsyncWebServerRequest::beginResponse(int code, const char* contentType, const uint8_t* content, size_t len, AwsTemplateProcessor callback) {
+AsyncWebServerResponse *
+  AsyncWebServerRequest::beginResponse(int code, const char *contentType, const uint8_t *content, size_t len, AwsTemplateProcessor callback) {
   return new AsyncProgmemResponse(code, contentType, content, len, callback);
 }
 
-AsyncWebServerResponse* AsyncWebServerRequest::beginResponse(FS& fs, const String& path, const char* contentType, bool download, AwsTemplateProcessor callback) {
-  if (fs.exists(path) || (!download && fs.exists(path + T__gz)))
+AsyncWebServerResponse *
+  AsyncWebServerRequest::beginResponse(FS &fs, const String &path, const char *contentType, bool download, AwsTemplateProcessor callback) {
+  if (fs.exists(path) || (!download && fs.exists(path + T__gz))) {
     return new AsyncFileResponse(fs, path, contentType, download, callback);
+  }
   return NULL;
 }
 
-AsyncWebServerResponse* AsyncWebServerRequest::beginResponse(File content, const String& path, const char* contentType, bool download, AwsTemplateProcessor callback) {
-  if (content == true)
+AsyncWebServerResponse *
+  AsyncWebServerRequest::beginResponse(File content, const String &path, const char *contentType, bool download, AwsTemplateProcessor callback) {
+  if (content == true) {
     return new AsyncFileResponse(content, path, contentType, download, callback);
+  }
   return NULL;
 }
 
-AsyncWebServerResponse* AsyncWebServerRequest::beginResponse(Stream& stream, const char* contentType, size_t len, AwsTemplateProcessor callback) {
+AsyncWebServerResponse *AsyncWebServerRequest::beginResponse(Stream &stream, const char *contentType, size_t len, AwsTemplateProcessor callback) {
   return new AsyncStreamResponse(stream, contentType, len, callback);
 }
 
-AsyncWebServerResponse* AsyncWebServerRequest::beginResponse(const char* contentType, size_t len, AwsResponseFiller callback, AwsTemplateProcessor templateCallback) {
+AsyncWebServerResponse *
+  AsyncWebServerRequest::beginResponse(const char *contentType, size_t len, AwsResponseFiller callback, AwsTemplateProcessor templateCallback) {
   return new AsyncCallbackResponse(contentType, len, callback, templateCallback);
 }
 
-AsyncWebServerResponse* AsyncWebServerRequest::beginChunkedResponse(const char* contentType, AwsResponseFiller callback, AwsTemplateProcessor templateCallback) {
-  if (_version)
+AsyncWebServerResponse *
+  AsyncWebServerRequest::beginChunkedResponse(const char *contentType, AwsResponseFiller callback, AwsTemplateProcessor templateCallback) {
+  if (_version) {
     return new AsyncChunkedResponse(contentType, callback, templateCallback);
+  }
   return new AsyncCallbackResponse(contentType, 0, callback, templateCallback);
 }
 
-AsyncResponseStream* AsyncWebServerRequest::beginResponseStream(const char* contentType, size_t bufferSize) {
+AsyncResponseStream *AsyncWebServerRequest::beginResponseStream(const char *contentType, size_t bufferSize) {
   return new AsyncResponseStream(contentType, bufferSize);
 }
 
-AsyncWebServerResponse* AsyncWebServerRequest::beginResponse_P(int code, const String& contentType, PGM_P content, AwsTemplateProcessor callback) {
-  return new AsyncProgmemResponse(code, contentType, (const uint8_t*)content, strlen_P(content), callback);
+AsyncWebServerResponse *AsyncWebServerRequest::beginResponse_P(int code, const String &contentType, PGM_P content, AwsTemplateProcessor callback) {
+  return new AsyncProgmemResponse(code, contentType, (const uint8_t *)content, strlen_P(content), callback);
 }
 
-void AsyncWebServerRequest::send(AsyncWebServerResponse* response) {
-  if (_sent)
+void AsyncWebServerRequest::send(AsyncWebServerResponse *response) {
+  // request is already sent on the wire ?
+  if (_sent) {
     return;
-  if (_response)
+  }
+
+  // if we already had a response, delete it and replace it with the new one
+  if (_response) {
     delete _response;
+  }
   _response = response;
+
+  // if request was paused, we need to send the response now
+  if (_paused) {
+    _paused = false;
+    _send();
+  }
 }
 
-void AsyncWebServerRequest::redirect(const char* url, int code) {
-  AsyncWebServerResponse* response = beginResponse(code);
+void AsyncWebServerRequest::redirect(const char *url, int code) {
+  AsyncWebServerResponse *response = beginResponse(code);
   response->addHeader(T_LOCATION, url);
   send(response);
 }
 
-bool AsyncWebServerRequest::authenticate(const char* username, const char* password, const char* realm, bool passwordIsHash) const {
+bool AsyncWebServerRequest::authenticate(const char *username, const char *password, const char *realm, bool passwordIsHash) const {
   if (_authorization.length()) {
-    if (_authMethod == AsyncAuthType::AUTH_DIGEST)
+    if (_authMethod == AsyncAuthType::AUTH_DIGEST) {
       return checkDigestAuthentication(_authorization.c_str(), methodToString(), username, password, realm, passwordIsHash, NULL, NULL, NULL);
-    else if (!passwordIsHash)
+    } else if (!passwordIsHash) {
       return checkBasicAuthentication(_authorization.c_str(), username, password);
-    else
+    } else {
       return _authorization.equals(password);
+    }
   }
   return false;
 }
 
-bool AsyncWebServerRequest::authenticate(const char* hash) const {
-  if (!_authorization.length() || hash == NULL)
+bool AsyncWebServerRequest::authenticate(const char *hash) const {
+  if (!_authorization.length() || hash == NULL) {
     return false;
+  }
 
   if (_authMethod == AsyncAuthType::AUTH_DIGEST) {
     String hStr = String(hash);
     int separator = hStr.indexOf(':');
-    if (separator <= 0)
+    if (separator <= 0) {
       return false;
+    }
     String username = hStr.substring(0, separator);
     hStr = hStr.substring(separator + 1);
     separator = hStr.indexOf(':');
-    if (separator <= 0)
+    if (separator <= 0) {
       return false;
+    }
     String realm = hStr.substring(0, separator);
     hStr = hStr.substring(separator + 1);
     return checkDigestAuthentication(_authorization.c_str(), methodToString(), username.c_str(), hStr.c_str(), realm.c_str(), true, NULL, NULL, NULL);
@@ -840,46 +986,65 @@ bool AsyncWebServerRequest::authenticate(const char* hash) const {
   return (_authorization.equals(hash));
 }
 
-void AsyncWebServerRequest::requestAuthentication(AsyncAuthType method, const char* realm, const char* _authFailMsg) {
-  if (!realm)
+void AsyncWebServerRequest::requestAuthentication(AsyncAuthType method, const char *realm, const char *_authFailMsg) {
+  if (!realm) {
     realm = T_LOGIN_REQ;
+  }
 
-  AsyncWebServerResponse* r = _authFailMsg ? beginResponse(401, T_text_html, _authFailMsg) : beginResponse(401);
+  AsyncWebServerResponse *r = _authFailMsg ? beginResponse(401, T_text_html, _authFailMsg) : beginResponse(401);
 
   switch (method) {
-    case AsyncAuthType::AUTH_BASIC: {
+    case AsyncAuthType::AUTH_BASIC:
+    {
       String header;
-      header.reserve(strlen(T_BASIC_REALM) + strlen(realm) + 1);
-      header.concat(T_BASIC_REALM);
-      header.concat(realm);
-      header.concat('"');
-      r->addHeader(T_WWW_AUTH, header.c_str());
+      if (header.reserve(strlen(T_BASIC_REALM) + strlen(realm) + 1)) {
+        header.concat(T_BASIC_REALM);
+        header.concat(realm);
+        header.concat('"');
+        r->addHeader(T_WWW_AUTH, header.c_str());
+      } else {
+#ifdef ESP32
+        log_e("Failed to allocate");
+#endif
+        abort();
+      }
+
       break;
     }
-    case AsyncAuthType::AUTH_DIGEST: {
+    case AsyncAuthType::AUTH_DIGEST:
+    {
       size_t len = strlen(T_DIGEST_) + strlen(T_realm__) + strlen(T_auth_nonce) + 32 + strlen(T__opaque) + 32 + 1;
       String header;
-      header.reserve(len + strlen(realm));
-      header.concat(T_DIGEST_);
-      header.concat(T_realm__);
-      header.concat(realm);
-      header.concat(T_auth_nonce);
-      header.concat(genRandomMD5());
-      header.concat(T__opaque);
-      header.concat(genRandomMD5());
-      header.concat((char)0x22); // '"'
-      r->addHeader(T_WWW_AUTH, header.c_str());
+      if (header.reserve(len + strlen(realm))) {
+        const String nonce = genRandomMD5();
+        const String opaque = genRandomMD5();
+        if (nonce.length() && opaque.length()) {
+          header.concat(T_DIGEST_);
+          header.concat(T_realm__);
+          header.concat(realm);
+          header.concat(T_auth_nonce);
+          header.concat(nonce);
+          header.concat(T__opaque);
+          header.concat(opaque);
+          header.concat((char)0x22);  // '"'
+          r->addHeader(T_WWW_AUTH, header.c_str());
+        } else {
+#ifdef ESP32
+          log_e("Failed to allocate");
+#endif
+          abort();
+        }
+      }
       break;
     }
-    default:
-      break;
+    default: break;
   }
 
   send(r);
 }
 
-bool AsyncWebServerRequest::hasArg(const char* name) const {
-  for (const auto& arg : _params) {
+bool AsyncWebServerRequest::hasArg(const char *name) const {
+  for (const auto &arg : _params) {
     if (arg.name() == name) {
       return true;
     }
@@ -888,13 +1053,13 @@ bool AsyncWebServerRequest::hasArg(const char* name) const {
 }
 
 #ifdef ESP8266
-bool AsyncWebServerRequest::hasArg(const __FlashStringHelper* data) const {
+bool AsyncWebServerRequest::hasArg(const __FlashStringHelper *data) const {
   return hasArg(String(data).c_str());
 }
 #endif
 
-const String& AsyncWebServerRequest::arg(const char* name) const {
-  for (const auto& arg : _params) {
+const String &AsyncWebServerRequest::arg(const char *name) const {
+  for (const auto &arg : _params) {
     if (arg.name() == name) {
       return arg.value();
     }
@@ -903,50 +1068,61 @@ const String& AsyncWebServerRequest::arg(const char* name) const {
 }
 
 #ifdef ESP8266
-const String& AsyncWebServerRequest::arg(const __FlashStringHelper* data) const {
+const String &AsyncWebServerRequest::arg(const __FlashStringHelper *data) const {
   return arg(String(data).c_str());
 }
 #endif
 
-const String& AsyncWebServerRequest::arg(size_t i) const {
+const String &AsyncWebServerRequest::arg(size_t i) const {
   return getParam(i)->value();
 }
 
-const String& AsyncWebServerRequest::argName(size_t i) const {
+const String &AsyncWebServerRequest::argName(size_t i) const {
   return getParam(i)->name();
 }
 
-const String& AsyncWebServerRequest::pathArg(size_t i) const {
-  return i < _pathParams.size() ? _pathParams[i] : emptyString;
+const String &AsyncWebServerRequest::pathArg(size_t i) const {
+  if (i >= _pathParams.size()) {
+    return emptyString;
+  }
+  auto it = _pathParams.begin();
+  std::advance(it, i);
+  return *it;
 }
 
-const String& AsyncWebServerRequest::header(const char* name) const {
-  const AsyncWebHeader* h = getHeader(name);
+const String &AsyncWebServerRequest::header(const char *name) const {
+  const AsyncWebHeader *h = getHeader(name);
   return h ? h->value() : emptyString;
 }
 
 #ifdef ESP8266
-const String& AsyncWebServerRequest::header(const __FlashStringHelper* data) const {
+const String &AsyncWebServerRequest::header(const __FlashStringHelper *data) const {
   return header(String(data).c_str());
 };
 #endif
 
-const String& AsyncWebServerRequest::header(size_t i) const {
-  const AsyncWebHeader* h = getHeader(i);
+const String &AsyncWebServerRequest::header(size_t i) const {
+  const AsyncWebHeader *h = getHeader(i);
   return h ? h->value() : emptyString;
 }
 
-const String& AsyncWebServerRequest::headerName(size_t i) const {
-  const AsyncWebHeader* h = getHeader(i);
+const String &AsyncWebServerRequest::headerName(size_t i) const {
+  const AsyncWebHeader *h = getHeader(i);
   return h ? h->name() : emptyString;
 }
 
-String AsyncWebServerRequest::urlDecode(const String& text) const {
+String AsyncWebServerRequest::urlDecode(const String &text) const {
   char temp[] = "0x00";
   unsigned int len = text.length();
   unsigned int i = 0;
   String decoded;
-  decoded.reserve(len); // Allocate the string internal buffer - never longer from source text
+  // Allocate the string internal buffer - never longer from source text
+  if (!decoded.reserve(len)) {
+#ifdef ESP32
+    log_e("Failed to allocate");
+#endif
+    return emptyString;
+  }
   while (i < len) {
     char decodedChar;
     char encodedChar = text.charAt(i++);
@@ -957,52 +1133,53 @@ String AsyncWebServerRequest::urlDecode(const String& text) const {
     } else if (encodedChar == '+') {
       decodedChar = ' ';
     } else {
-      decodedChar = encodedChar; // normal ascii char
+      decodedChar = encodedChar;  // normal ascii char
     }
     decoded.concat(decodedChar);
   }
   return decoded;
 }
 
-const char* AsyncWebServerRequest::methodToString() const {
-  if (_method == HTTP_ANY)
+const char *AsyncWebServerRequest::methodToString() const {
+  if (_method == HTTP_ANY) {
     return T_ANY;
-  if (_method & HTTP_GET)
+  }
+  if (_method & HTTP_GET) {
     return T_GET;
-  if (_method & HTTP_POST)
+  }
+  if (_method & HTTP_POST) {
     return T_POST;
-  if (_method & HTTP_DELETE)
+  }
+  if (_method & HTTP_DELETE) {
     return T_DELETE;
-  if (_method & HTTP_PUT)
+  }
+  if (_method & HTTP_PUT) {
     return T_PUT;
-  if (_method & HTTP_PATCH)
+  }
+  if (_method & HTTP_PATCH) {
     return T_PATCH;
-  if (_method & HTTP_HEAD)
+  }
+  if (_method & HTTP_HEAD) {
     return T_HEAD;
-  if (_method & HTTP_OPTIONS)
+  }
+  if (_method & HTTP_OPTIONS) {
     return T_OPTIONS;
+  }
   return T_UNKNOWN;
 }
 
-const char* AsyncWebServerRequest::requestedConnTypeToString() const {
+const char *AsyncWebServerRequest::requestedConnTypeToString() const {
   switch (_reqconntype) {
-    case RCT_NOT_USED:
-      return T_RCT_NOT_USED;
-    case RCT_DEFAULT:
-      return T_RCT_DEFAULT;
-    case RCT_HTTP:
-      return T_RCT_HTTP;
-    case RCT_WS:
-      return T_RCT_WS;
-    case RCT_EVENT:
-      return T_RCT_EVENT;
-    default:
-      return T_ERROR;
+    case RCT_NOT_USED: return T_RCT_NOT_USED;
+    case RCT_DEFAULT:  return T_RCT_DEFAULT;
+    case RCT_HTTP:     return T_RCT_HTTP;
+    case RCT_WS:       return T_RCT_WS;
+    case RCT_EVENT:    return T_RCT_EVENT;
+    default:           return T_ERROR;
   }
 }
 
 bool AsyncWebServerRequest::isExpectedRequestedConnType(RequestedConnectionType erct1, RequestedConnectionType erct2, RequestedConnectionType erct3) const {
-  return ((erct1 != RCT_NOT_USED) && (erct1 == _reqconntype)) ||
-         ((erct2 != RCT_NOT_USED) && (erct2 == _reqconntype)) ||
-         ((erct3 != RCT_NOT_USED) && (erct3 == _reqconntype));
+  return ((erct1 != RCT_NOT_USED) && (erct1 == _reqconntype)) || ((erct2 != RCT_NOT_USED) && (erct2 == _reqconntype))
+         || ((erct3 != RCT_NOT_USED) && (erct3 == _reqconntype));
 }

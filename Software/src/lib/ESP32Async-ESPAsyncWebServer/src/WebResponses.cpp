@@ -1,34 +1,19 @@
-/*
-  Asynchronous WebServer library for Espressif MCUs
+// SPDX-License-Identifier: LGPL-3.0-or-later
+// Copyright 2016-2025 Hristo Gochkov, Mathieu Carbou, Emil Muratov
 
-  Copyright (c) 2016 Hristo Gochkov. All rights reserved.
-  This file is part of the esp8266 core for Arduino environment.
-
-  This library is free software; you can redistribute it and/or
-  modify it under the terms of the GNU Lesser General Public
-  License as published by the Free Software Foundation; either
-  version 2.1 of the License, or (at your option) any later version.
-
-  This library is distributed in the hope that it will be useful,
-  but WITHOUT ANY WARRANTY; without even the implied warranty of
-  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
-  Lesser General Public License for more details.
-
-  You should have received a copy of the GNU Lesser General Public
-  License along with this library; if not, write to the Free Software
-  Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
-*/
 #include "ESPAsyncWebServer.h"
 #include "WebResponseImpl.h"
 
 using namespace asyncsrv;
 
 // Since ESP8266 does not link memchr by default, here's its implementation.
-void* memchr(void* ptr, int ch, size_t count) {
-  unsigned char* p = static_cast<unsigned char*>(ptr);
-  while (count--)
-    if (*p++ == static_cast<unsigned char>(ch))
+void *memchr(void *ptr, int ch, size_t count) {
+  unsigned char *p = static_cast<unsigned char *>(ptr);
+  while (count--) {
+    if (*p++ == static_cast<unsigned char>(ch)) {
       return --p;
+    }
+  }
   return nullptr;
 }
 
@@ -37,120 +22,95 @@ void* memchr(void* ptr, int ch, size_t count) {
  *
  */
 
-const char* AsyncWebServerResponse::responseCodeToString(int code) {
+const char *AsyncWebServerResponse::responseCodeToString(int code) {
   switch (code) {
-    case 100:
-      return T_HTTP_CODE_100;
-    case 101:
-      return T_HTTP_CODE_101;
-    case 200:
-      return T_HTTP_CODE_200;
-    case 201:
-      return T_HTTP_CODE_201;
-    case 202:
-      return T_HTTP_CODE_202;
-    case 203:
-      return T_HTTP_CODE_203;
-    case 204:
-      return T_HTTP_CODE_204;
-    case 205:
-      return T_HTTP_CODE_205;
-    case 206:
-      return T_HTTP_CODE_206;
-    case 300:
-      return T_HTTP_CODE_300;
-    case 301:
-      return T_HTTP_CODE_301;
-    case 302:
-      return T_HTTP_CODE_302;
-    case 303:
-      return T_HTTP_CODE_303;
-    case 304:
-      return T_HTTP_CODE_304;
-    case 305:
-      return T_HTTP_CODE_305;
-    case 307:
-      return T_HTTP_CODE_307;
-    case 400:
-      return T_HTTP_CODE_400;
-    case 401:
-      return T_HTTP_CODE_401;
-    case 402:
-      return T_HTTP_CODE_402;
-    case 403:
-      return T_HTTP_CODE_403;
-    case 404:
-      return T_HTTP_CODE_404;
-    case 405:
-      return T_HTTP_CODE_405;
-    case 406:
-      return T_HTTP_CODE_406;
-    case 407:
-      return T_HTTP_CODE_407;
-    case 408:
-      return T_HTTP_CODE_408;
-    case 409:
-      return T_HTTP_CODE_409;
-    case 410:
-      return T_HTTP_CODE_410;
-    case 411:
-      return T_HTTP_CODE_411;
-    case 412:
-      return T_HTTP_CODE_412;
-    case 413:
-      return T_HTTP_CODE_413;
-    case 414:
-      return T_HTTP_CODE_414;
-    case 415:
-      return T_HTTP_CODE_415;
-    case 416:
-      return T_HTTP_CODE_416;
-    case 417:
-      return T_HTTP_CODE_417;
-    case 429:
-      return T_HTTP_CODE_429;
-    case 500:
-      return T_HTTP_CODE_500;
-    case 501:
-      return T_HTTP_CODE_501;
-    case 502:
-      return T_HTTP_CODE_502;
-    case 503:
-      return T_HTTP_CODE_503;
-    case 504:
-      return T_HTTP_CODE_504;
-    case 505:
-      return T_HTTP_CODE_505;
-    default:
-      return T_HTTP_CODE_ANY;
+    case 100: return T_HTTP_CODE_100;
+    case 101: return T_HTTP_CODE_101;
+    case 200: return T_HTTP_CODE_200;
+    case 201: return T_HTTP_CODE_201;
+    case 202: return T_HTTP_CODE_202;
+    case 203: return T_HTTP_CODE_203;
+    case 204: return T_HTTP_CODE_204;
+    case 205: return T_HTTP_CODE_205;
+    case 206: return T_HTTP_CODE_206;
+    case 300: return T_HTTP_CODE_300;
+    case 301: return T_HTTP_CODE_301;
+    case 302: return T_HTTP_CODE_302;
+    case 303: return T_HTTP_CODE_303;
+    case 304: return T_HTTP_CODE_304;
+    case 305: return T_HTTP_CODE_305;
+    case 307: return T_HTTP_CODE_307;
+    case 400: return T_HTTP_CODE_400;
+    case 401: return T_HTTP_CODE_401;
+    case 402: return T_HTTP_CODE_402;
+    case 403: return T_HTTP_CODE_403;
+    case 404: return T_HTTP_CODE_404;
+    case 405: return T_HTTP_CODE_405;
+    case 406: return T_HTTP_CODE_406;
+    case 407: return T_HTTP_CODE_407;
+    case 408: return T_HTTP_CODE_408;
+    case 409: return T_HTTP_CODE_409;
+    case 410: return T_HTTP_CODE_410;
+    case 411: return T_HTTP_CODE_411;
+    case 412: return T_HTTP_CODE_412;
+    case 413: return T_HTTP_CODE_413;
+    case 414: return T_HTTP_CODE_414;
+    case 415: return T_HTTP_CODE_415;
+    case 416: return T_HTTP_CODE_416;
+    case 417: return T_HTTP_CODE_417;
+    case 429: return T_HTTP_CODE_429;
+    case 500: return T_HTTP_CODE_500;
+    case 501: return T_HTTP_CODE_501;
+    case 502: return T_HTTP_CODE_502;
+    case 503: return T_HTTP_CODE_503;
+    case 504: return T_HTTP_CODE_504;
+    case 505: return T_HTTP_CODE_505;
+    default:  return T_HTTP_CODE_ANY;
   }
 }
 
 AsyncWebServerResponse::AsyncWebServerResponse()
-    : _code(0), _contentType(), _contentLength(0), _sendContentLength(true), _chunked(false), _headLength(0), _sentLength(0), _ackedLength(0), _writtenLength(0), _state(RESPONSE_SETUP) {
-  for (const auto& header : DefaultHeaders::Instance()) {
+  : _code(0), _contentType(), _contentLength(0), _sendContentLength(true), _chunked(false), _headLength(0), _sentLength(0), _ackedLength(0), _writtenLength(0),
+    _state(RESPONSE_SETUP) {
+  for (const auto &header : DefaultHeaders::Instance()) {
     _headers.emplace_back(header);
   }
 }
 
 void AsyncWebServerResponse::setCode(int code) {
-  if (_state == RESPONSE_SETUP)
+  if (_state == RESPONSE_SETUP) {
     _code = code;
+  }
 }
 
 void AsyncWebServerResponse::setContentLength(size_t len) {
-  if (_state == RESPONSE_SETUP && addHeader(T_Content_Length, len, true))
+  if (_state == RESPONSE_SETUP && addHeader(T_Content_Length, len, true)) {
     _contentLength = len;
+  }
 }
 
-void AsyncWebServerResponse::setContentType(const char* type) {
-  if (_state == RESPONSE_SETUP && addHeader(T_Content_Type, type, true))
+void AsyncWebServerResponse::setContentType(const char *type) {
+  if (_state == RESPONSE_SETUP && addHeader(T_Content_Type, type, true)) {
     _contentType = type;
+  }
 }
 
-bool AsyncWebServerResponse::removeHeader(const char* name) {
-  for (auto i = _headers.begin(); i != _headers.end(); ++i) {
+bool AsyncWebServerResponse::removeHeader(const char *name) {
+  bool h_erased = false;
+  for (auto i = _headers.begin(); i != _headers.end();) {
     if (i->name().equalsIgnoreCase(name)) {
+      _headers.erase(i);
+      h_erased = true;
+    } else {
+      ++i;
+    }
+  }
+  return h_erased;
+}
+
+bool AsyncWebServerResponse::removeHeader(const char *name, const char *value) {
+  for (auto i = _headers.begin(); i != _headers.end(); ++i) {
+    if (i->name().equalsIgnoreCase(name) && i->value().equalsIgnoreCase(value)) {
       _headers.erase(i);
       return true;
     }
@@ -158,12 +118,23 @@ bool AsyncWebServerResponse::removeHeader(const char* name) {
   return false;
 }
 
-const AsyncWebHeader* AsyncWebServerResponse::getHeader(const char* name) const {
-  auto iter = std::find_if(std::begin(_headers), std::end(_headers), [&name](const AsyncWebHeader& header) { return header.name().equalsIgnoreCase(name); });
+const AsyncWebHeader *AsyncWebServerResponse::getHeader(const char *name) const {
+  auto iter = std::find_if(std::begin(_headers), std::end(_headers), [&name](const AsyncWebHeader &header) {
+    return header.name().equalsIgnoreCase(name);
+  });
   return (iter == std::end(_headers)) ? nullptr : &(*iter);
 }
 
-bool AsyncWebServerResponse::addHeader(const char* name, const char* value, bool replaceExisting) {
+bool AsyncWebServerResponse::headerMustBePresentOnce(const String &name) {
+  for (uint8_t i = 0; i < T_only_once_headers_len; i++) {
+    if (name.equalsIgnoreCase(T_only_once_headers[i])) {
+      return true;
+    }
+  }
+  return false;
+}
+
+bool AsyncWebServerResponse::addHeader(const char *name, const char *value, bool replaceExisting) {
   for (auto i = _headers.begin(); i != _headers.end(); ++i) {
     if (i->name().equalsIgnoreCase(name)) {
       // header already set
@@ -171,9 +142,11 @@ bool AsyncWebServerResponse::addHeader(const char* name, const char* value, bool
         // remove, break and add the new one
         _headers.erase(i);
         break;
-      } else {
+      } else if (headerMustBePresentOnce(i->name())) {  // we can have only one header with that name
         // do not update
         return false;
+      } else {
+        break;  // accept multiple headers with the same name
       }
     }
   }
@@ -182,24 +155,28 @@ bool AsyncWebServerResponse::addHeader(const char* name, const char* value, bool
   return true;
 }
 
-void AsyncWebServerResponse::_assembleHead(String& buffer, uint8_t version) {
+void AsyncWebServerResponse::_assembleHead(String &buffer, uint8_t version) {
   if (version) {
     addHeader(T_Accept_Ranges, T_none, false);
-    if (_chunked)
+    if (_chunked) {
       addHeader(T_Transfer_Encoding, T_chunked, false);
+    }
   }
 
-  if (_sendContentLength)
+  if (_sendContentLength) {
     addHeader(T_Content_Length, String(_contentLength), false);
+  }
 
-  if (_contentType.length())
+  if (_contentType.length()) {
     addHeader(T_Content_Type, _contentType.c_str(), false);
+  }
 
   // precompute buffer size to avoid reallocations by String class
   size_t len = 0;
-  len += 50; // HTTP/1.1 200 <reason>\r\n
-  for (const auto& header : _headers)
+  len += 50;  // HTTP/1.1 200 <reason>\r\n
+  for (const auto &header : _headers) {
     len += header.name().length() + header.value().length() + 4;
+  }
 
   // prepare buffer
   buffer.reserve(len);
@@ -218,7 +195,7 @@ void AsyncWebServerResponse::_assembleHead(String& buffer, uint8_t version) {
   buffer.concat(T_rn);
 
   // Add headers
-  for (const auto& header : _headers) {
+  for (const auto &header : _headers) {
     buffer.concat(header.name());
 #ifdef ESP8266
     buffer.concat(PSTR(": "));
@@ -233,15 +210,23 @@ void AsyncWebServerResponse::_assembleHead(String& buffer, uint8_t version) {
   _headLength = buffer.length();
 }
 
-bool AsyncWebServerResponse::_started() const { return _state > RESPONSE_SETUP; }
-bool AsyncWebServerResponse::_finished() const { return _state > RESPONSE_WAIT_ACK; }
-bool AsyncWebServerResponse::_failed() const { return _state == RESPONSE_FAILED; }
-bool AsyncWebServerResponse::_sourceValid() const { return false; }
-void AsyncWebServerResponse::_respond(AsyncWebServerRequest* request) {
+bool AsyncWebServerResponse::_started() const {
+  return _state > RESPONSE_SETUP;
+}
+bool AsyncWebServerResponse::_finished() const {
+  return _state > RESPONSE_WAIT_ACK;
+}
+bool AsyncWebServerResponse::_failed() const {
+  return _state == RESPONSE_FAILED;
+}
+bool AsyncWebServerResponse::_sourceValid() const {
+  return false;
+}
+void AsyncWebServerResponse::_respond(AsyncWebServerRequest *request) {
   _state = RESPONSE_END;
   request->client()->close();
 }
-size_t AsyncWebServerResponse::_ack(AsyncWebServerRequest* request, size_t len, uint32_t time) {
+size_t AsyncWebServerResponse::_ack(AsyncWebServerRequest *request, size_t len, uint32_t time) {
   (void)request;
   (void)len;
   (void)time;
@@ -251,19 +236,20 @@ size_t AsyncWebServerResponse::_ack(AsyncWebServerRequest* request, size_t len, 
 /*
  * String/Code Response
  * */
-AsyncBasicResponse::AsyncBasicResponse(int code, const char* contentType, const char* content) {
+AsyncBasicResponse::AsyncBasicResponse(int code, const char *contentType, const char *content) {
   _code = code;
   _content = content;
   _contentType = contentType;
   if (_content.length()) {
     _contentLength = _content.length();
-    if (!_contentType.length())
+    if (!_contentType.length()) {
       _contentType = T_text_plain;
+    }
   }
   addHeader(T_Connection, T_close, false);
 }
 
-void AsyncBasicResponse::_respond(AsyncWebServerRequest* request) {
+void AsyncBasicResponse::_respond(AsyncWebServerRequest *request) {
   _state = RESPONSE_HEADERS;
   String out;
   _assembleHead(out, request->version());
@@ -298,7 +284,7 @@ void AsyncBasicResponse::_respond(AsyncWebServerRequest* request) {
   }
 }
 
-size_t AsyncBasicResponse::_ack(AsyncWebServerRequest* request, size_t len, uint32_t time) {
+size_t AsyncBasicResponse::_ack(AsyncWebServerRequest *request, size_t len, uint32_t time) {
   (void)time;
   _ackedLength += len;
   if (_state == RESPONSE_CONTENT) {
@@ -338,14 +324,14 @@ AsyncAbstractResponse::AsyncAbstractResponse(AwsTemplateProcessor callback) : _c
   }
 }
 
-void AsyncAbstractResponse::_respond(AsyncWebServerRequest* request) {
+void AsyncAbstractResponse::_respond(AsyncWebServerRequest *request) {
   addHeader(T_Connection, T_close, false);
   _assembleHead(_head, request->version());
   _state = RESPONSE_HEADERS;
   _ack(request, 0, 0);
 }
 
-size_t AsyncAbstractResponse::_ack(AsyncWebServerRequest* request, size_t len, uint32_t time) {
+size_t AsyncAbstractResponse::_ack(AsyncWebServerRequest *request, size_t len, uint32_t time) {
   (void)time;
   if (!_sourceValid()) {
     _state = RESPONSE_FAILED;
@@ -355,14 +341,15 @@ size_t AsyncAbstractResponse::_ack(AsyncWebServerRequest* request, size_t len, u
 
 #if ASYNCWEBSERVER_USE_CHUNK_INFLIGHT
   // return a credit for each chunk of acked data (polls does not give any credits)
-  if (len)
+  if (len) {
     ++_in_flight_credit;
+  }
 
   // for chunked responses ignore acks if there are no _in_flight_credits left
   if (_chunked && !_in_flight_credit) {
-  #ifdef ESP32
+#ifdef ESP32
     log_d("(chunk) out of in-flight credits");
-  #endif
+#endif
     return 0;
   }
 
@@ -384,7 +371,7 @@ size_t AsyncAbstractResponse::_ack(AsyncWebServerRequest* request, size_t len, u
       _writtenLength += request->client()->write(out.c_str(), out.length());
 #if ASYNCWEBSERVER_USE_CHUNK_INFLIGHT
       _in_flight += out.length();
-      --_in_flight_credit; // take a credit
+      --_in_flight_credit;  // take a credit
 #endif
       return out.length();
     }
@@ -399,8 +386,9 @@ size_t AsyncAbstractResponse::_ack(AsyncWebServerRequest* request, size_t len, u
     if (_in_flight > space) {
       // log_d("defer user call %u/%u", _in_flight, space);
       //  take the credit back since we are ignoring this ack and rely on other inflight data
-      if (len)
+      if (len) {
         --_in_flight_credit;
+      }
       return 0;
     }
 #endif
@@ -418,9 +406,12 @@ size_t AsyncAbstractResponse::_ack(AsyncWebServerRequest* request, size_t len, u
       outLen = ((_contentLength - _sentLength) > space) ? space : (_contentLength - _sentLength);
     }
 
-    uint8_t* buf = (uint8_t*)malloc(outLen + headLen);
+    uint8_t *buf = (uint8_t *)malloc(outLen + headLen);
     if (!buf) {
-      // os_printf("_ack malloc %d failed\n", outLen+headLen);
+#ifdef ESP32
+      log_e("Failed to allocate");
+#endif
+      request->abort();
       return 0;
     }
 
@@ -438,7 +429,7 @@ size_t AsyncAbstractResponse::_ack(AsyncWebServerRequest* request, size_t len, u
         free(buf);
         return 0;
       }
-      outLen = sprintf((char*)buf + headLen, "%04x", readLen) + headLen;
+      outLen = sprintf((char *)buf + headLen, "%04x", readLen) + headLen;
       buf[outLen++] = '\r';
       buf[outLen++] = '\n';
       outLen += readLen;
@@ -458,10 +449,10 @@ size_t AsyncAbstractResponse::_ack(AsyncWebServerRequest* request, size_t len, u
     }
 
     if (outLen) {
-      _writtenLength += request->client()->write((const char*)buf, outLen);
+      _writtenLength += request->client()->write((const char *)buf, outLen);
 #if ASYNCWEBSERVER_USE_CHUNK_INFLIGHT
       _in_flight += outLen;
-      --_in_flight_credit; // take a credit
+      --_in_flight_credit;  // take a credit
 #endif
     }
 
@@ -481,14 +472,15 @@ size_t AsyncAbstractResponse::_ack(AsyncWebServerRequest* request, size_t len, u
   } else if (_state == RESPONSE_WAIT_ACK) {
     if (!_sendContentLength || _ackedLength >= _writtenLength) {
       _state = RESPONSE_END;
-      if (!_chunked && !_sendContentLength)
+      if (!_chunked && !_sendContentLength) {
         request->client()->close(true);
+      }
     }
   }
   return 0;
 }
 
-size_t AsyncAbstractResponse::_readDataFromCacheOrContent(uint8_t* data, const size_t len) {
+size_t AsyncAbstractResponse::_readDataFromCacheOrContent(uint8_t *data, const size_t len) {
   // If we have something in cache, copy it to buffer
   const size_t readFromCache = std::min(len, _cache.size());
   if (readFromCache) {
@@ -501,17 +493,20 @@ size_t AsyncAbstractResponse::_readDataFromCacheOrContent(uint8_t* data, const s
   return readFromCache + readFromContent;
 }
 
-size_t AsyncAbstractResponse::_fillBufferAndProcessTemplates(uint8_t* data, size_t len) {
-  if (!_callback)
+size_t AsyncAbstractResponse::_fillBufferAndProcessTemplates(uint8_t *data, size_t len) {
+  if (!_callback) {
     return _fillBuffer(data, len);
+  }
 
   const size_t originalLen = len;
   len = _readDataFromCacheOrContent(data, len);
   // Now we've read 'len' bytes, either from cache or from file
   // Search for template placeholders
-  uint8_t* pTemplateStart = data;
-  while ((pTemplateStart < &data[len]) && (pTemplateStart = (uint8_t*)memchr(pTemplateStart, TEMPLATE_PLACEHOLDER, &data[len - 1] - pTemplateStart + 1))) { // data[0] ... data[len - 1]
-    uint8_t* pTemplateEnd = (pTemplateStart < &data[len - 1]) ? (uint8_t*)memchr(pTemplateStart + 1, TEMPLATE_PLACEHOLDER, &data[len - 1] - pTemplateStart) : nullptr;
+  uint8_t *pTemplateStart = data;
+  while ((pTemplateStart < &data[len]) && (pTemplateStart = (uint8_t *)memchr(pTemplateStart, TEMPLATE_PLACEHOLDER, &data[len - 1] - pTemplateStart + 1))
+  ) {  // data[0] ... data[len - 1]
+    uint8_t *pTemplateEnd =
+      (pTemplateStart < &data[len - 1]) ? (uint8_t *)memchr(pTemplateStart + 1, TEMPLATE_PLACEHOLDER, &data[len - 1] - pTemplateStart) : nullptr;
     // temporary buffer to hold parameter name
     uint8_t buf[TEMPLATE_PARAM_NAME_LENGTH + 1];
     String paramName;
@@ -522,35 +517,39 @@ size_t AsyncAbstractResponse::_fillBufferAndProcessTemplates(uint8_t* data, size
       if (paramNameLength) {
         memcpy(buf, pTemplateStart + 1, paramNameLength);
         buf[paramNameLength] = 0;
-        paramName = String(reinterpret_cast<char*>(buf));
-      } else { // double percent sign encountered, this is single percent sign escaped.
+        paramName = String(reinterpret_cast<char *>(buf));
+      } else {  // double percent sign encountered, this is single percent sign escaped.
         // remove the 2nd percent sign
         memmove(pTemplateEnd, pTemplateEnd + 1, &data[len] - pTemplateEnd - 1);
         len += _readDataFromCacheOrContent(&data[len - 1], 1) - 1;
         ++pTemplateStart;
       }
-    } else if (&data[len - 1] - pTemplateStart + 1 < TEMPLATE_PARAM_NAME_LENGTH + 2) { // closing placeholder not found, check if it's in the remaining file data
+    } else if (&data[len - 1] - pTemplateStart + 1
+               < TEMPLATE_PARAM_NAME_LENGTH + 2) {  // closing placeholder not found, check if it's in the remaining file data
       memcpy(buf, pTemplateStart + 1, &data[len - 1] - pTemplateStart);
-      const size_t readFromCacheOrContent = _readDataFromCacheOrContent(buf + (&data[len - 1] - pTemplateStart), TEMPLATE_PARAM_NAME_LENGTH + 2 - (&data[len - 1] - pTemplateStart + 1));
+      const size_t readFromCacheOrContent =
+        _readDataFromCacheOrContent(buf + (&data[len - 1] - pTemplateStart), TEMPLATE_PARAM_NAME_LENGTH + 2 - (&data[len - 1] - pTemplateStart + 1));
       if (readFromCacheOrContent) {
-        pTemplateEnd = (uint8_t*)memchr(buf + (&data[len - 1] - pTemplateStart), TEMPLATE_PLACEHOLDER, readFromCacheOrContent);
+        pTemplateEnd = (uint8_t *)memchr(buf + (&data[len - 1] - pTemplateStart), TEMPLATE_PLACEHOLDER, readFromCacheOrContent);
         if (pTemplateEnd) {
           // prepare argument to callback
           *pTemplateEnd = 0;
-          paramName = String(reinterpret_cast<char*>(buf));
+          paramName = String(reinterpret_cast<char *>(buf));
           // Copy remaining read-ahead data into cache
           _cache.insert(_cache.begin(), pTemplateEnd + 1, buf + (&data[len - 1] - pTemplateStart) + readFromCacheOrContent);
           pTemplateEnd = &data[len - 1];
-        } else // closing placeholder not found in file data, store found percent symbol as is and advance to the next position
+        } else  // closing placeholder not found in file data, store found percent symbol as is and advance to the next position
         {
           // but first, store read file data in cache
           _cache.insert(_cache.begin(), buf + (&data[len - 1] - pTemplateStart), buf + (&data[len - 1] - pTemplateStart) + readFromCacheOrContent);
           ++pTemplateStart;
         }
-      } else // closing placeholder not found in content data, store found percent symbol as is and advance to the next position
+      } else {  // closing placeholder not found in content data, store found percent symbol as is and advance to the next position
         ++pTemplateStart;
-    } else // closing placeholder not found in content data, store found percent symbol as is and advance to the next position
+      }
+    } else {  // closing placeholder not found in content data, store found percent symbol as is and advance to the next position
       ++pTemplateStart;
+    }
     if (paramName.length()) {
       // call callback and replace with result.
       // Everything in range [pTemplateStart, pTemplateEnd] can be safely replaced with parameter value.
@@ -558,7 +557,7 @@ size_t AsyncAbstractResponse::_fillBufferAndProcessTemplates(uint8_t* data, size
       // The first byte of data after placeholder is located at pTemplateEnd + 1.
       // It should be located at pTemplateStart + numBytesCopied (to begin right after inserted parameter value).
       const String paramValue(_callback(paramName));
-      const char* pvstr = paramValue.c_str();
+      const char *pvstr = paramValue.c_str();
       const unsigned int pvlen = paramValue.length();
       const size_t numBytesCopied = std::min(pvlen, static_cast<unsigned int>(&data[originalLen - 1] - pTemplateStart + 1));
       // make room for param value
@@ -567,27 +566,28 @@ size_t AsyncAbstractResponse::_fillBufferAndProcessTemplates(uint8_t* data, size
         _cache.insert(_cache.begin(), &data[originalLen - (pTemplateStart + numBytesCopied - pTemplateEnd - 1)], &data[len]);
         // 2. parameter value is longer than placeholder text, push the data after placeholder which not saved into cache further to the end
         memmove(pTemplateStart + numBytesCopied, pTemplateEnd + 1, &data[originalLen] - pTemplateStart - numBytesCopied);
-        len = originalLen; // fix issue with truncated data, not sure if it has any side effects
-      } else if (pTemplateEnd + 1 != pTemplateStart + numBytesCopied)
+        len = originalLen;  // fix issue with truncated data, not sure if it has any side effects
+      } else if (pTemplateEnd + 1 != pTemplateStart + numBytesCopied) {
         // 2. Either parameter value is shorter than placeholder text OR there is enough free space in buffer to fit.
         //    Move the entire data after the placeholder
         memmove(pTemplateStart + numBytesCopied, pTemplateEnd + 1, &data[len] - pTemplateEnd - 1);
+      }
       // 3. replace placeholder with actual value
       memcpy(pTemplateStart, pvstr, numBytesCopied);
       // If result is longer than buffer, copy the remainder into cache (this could happen only if placeholder text itself did not fit entirely in buffer)
       if (numBytesCopied < pvlen) {
         _cache.insert(_cache.begin(), pvstr + numBytesCopied, pvstr + pvlen);
-      } else if (pTemplateStart + numBytesCopied < pTemplateEnd + 1) { // result is copied fully; if result is shorter than placeholder text...
+      } else if (pTemplateStart + numBytesCopied < pTemplateEnd + 1) {  // result is copied fully; if result is shorter than placeholder text...
         // there is some free room, fill it from cache
         const size_t roomFreed = pTemplateEnd + 1 - pTemplateStart - numBytesCopied;
         const size_t totalFreeRoom = originalLen - len + roomFreed;
         len += _readDataFromCacheOrContent(&data[len - roomFreed], totalFreeRoom) - roomFreed;
-      } else { // result is copied fully; it is longer than placeholder text
+      } else {  // result is copied fully; it is longer than placeholder text
         const size_t roomTaken = pTemplateStart + numBytesCopied - pTemplateEnd - 1;
         len = std::min(len + roomTaken, originalLen);
       }
     }
-  } // while(pTemplateStart)
+  }  // while(pTemplateStart)
   return len;
 }
 
@@ -595,64 +595,66 @@ size_t AsyncAbstractResponse::_fillBufferAndProcessTemplates(uint8_t* data, size
  * File Response
  * */
 
-void AsyncFileResponse::_setContentTypeFromPath(const String& path) {
+void AsyncFileResponse::_setContentTypeFromPath(const String &path) {
 #if HAVE_EXTERN_GET_Content_Type_FUNCTION
-  #ifndef ESP8266
-  extern const char* getContentType(const String& path);
-  #else
-  extern const __FlashStringHelper* getContentType(const String& path);
-  #endif
+#ifndef ESP8266
+  extern const char *getContentType(const String &path);
+#else
+  extern const __FlashStringHelper *getContentType(const String &path);
+#endif
   _contentType = getContentType(path);
 #else
-  if (path.endsWith(T__html))
+  if (path.endsWith(T__html)) {
     _contentType = T_text_html;
-  else if (path.endsWith(T__htm))
+  } else if (path.endsWith(T__htm)) {
     _contentType = T_text_html;
-  else if (path.endsWith(T__css))
+  } else if (path.endsWith(T__css)) {
     _contentType = T_text_css;
-  else if (path.endsWith(T__json))
+  } else if (path.endsWith(T__json)) {
     _contentType = T_application_json;
-  else if (path.endsWith(T__js))
+  } else if (path.endsWith(T__js)) {
     _contentType = T_application_javascript;
-  else if (path.endsWith(T__png))
+  } else if (path.endsWith(T__png)) {
     _contentType = T_image_png;
-  else if (path.endsWith(T__gif))
+  } else if (path.endsWith(T__gif)) {
     _contentType = T_image_gif;
-  else if (path.endsWith(T__jpg))
+  } else if (path.endsWith(T__jpg)) {
     _contentType = T_image_jpeg;
-  else if (path.endsWith(T__ico))
+  } else if (path.endsWith(T__ico)) {
     _contentType = T_image_x_icon;
-  else if (path.endsWith(T__svg))
+  } else if (path.endsWith(T__svg)) {
     _contentType = T_image_svg_xml;
-  else if (path.endsWith(T__eot))
+  } else if (path.endsWith(T__eot)) {
     _contentType = T_font_eot;
-  else if (path.endsWith(T__woff))
+  } else if (path.endsWith(T__woff)) {
     _contentType = T_font_woff;
-  else if (path.endsWith(T__woff2))
+  } else if (path.endsWith(T__woff2)) {
     _contentType = T_font_woff2;
-  else if (path.endsWith(T__ttf))
+  } else if (path.endsWith(T__ttf)) {
     _contentType = T_font_ttf;
-  else if (path.endsWith(T__xml))
+  } else if (path.endsWith(T__xml)) {
     _contentType = T_text_xml;
-  else if (path.endsWith(T__pdf))
+  } else if (path.endsWith(T__pdf)) {
     _contentType = T_application_pdf;
-  else if (path.endsWith(T__zip))
+  } else if (path.endsWith(T__zip)) {
     _contentType = T_application_zip;
-  else if (path.endsWith(T__gz))
+  } else if (path.endsWith(T__gz)) {
     _contentType = T_application_x_gzip;
-  else
+  } else {
     _contentType = T_text_plain;
+  }
 #endif
 }
 
-AsyncFileResponse::AsyncFileResponse(FS& fs, const String& path, const char* contentType, bool download, AwsTemplateProcessor callback) : AsyncAbstractResponse(callback) {
+AsyncFileResponse::AsyncFileResponse(FS &fs, const String &path, const char *contentType, bool download, AwsTemplateProcessor callback)
+  : AsyncAbstractResponse(callback) {
   _code = 200;
   _path = path;
 
   if (!download && !fs.exists(_path) && fs.exists(_path + T__gz)) {
     _path = _path + T__gz;
     addHeader(T_Content_Encoding, T_gzip, false);
-    _callback = nullptr; // Unable to process zipped templates
+    _callback = nullptr;  // Unable to process zipped templates
     _sendContentLength = true;
     _chunked = false;
   }
@@ -660,14 +662,15 @@ AsyncFileResponse::AsyncFileResponse(FS& fs, const String& path, const char* con
   _content = fs.open(_path, fs::FileOpenMode::read);
   _contentLength = _content.size();
 
-  if (strlen(contentType) == 0)
+  if (strlen(contentType) == 0) {
     _setContentTypeFromPath(path);
-  else
+  } else {
     _contentType = contentType;
+  }
 
   int filenameStart = path.lastIndexOf('/') + 1;
   char buf[26 + path.length() - filenameStart];
-  char* filename = (char*)path.c_str() + filenameStart;
+  char *filename = (char *)path.c_str() + filenameStart;
 
   if (download) {
     // set filename and force download
@@ -679,13 +682,14 @@ AsyncFileResponse::AsyncFileResponse(FS& fs, const String& path, const char* con
   addHeader(T_Content_Disposition, buf, false);
 }
 
-AsyncFileResponse::AsyncFileResponse(File content, const String& path, const char* contentType, bool download, AwsTemplateProcessor callback) : AsyncAbstractResponse(callback) {
+AsyncFileResponse::AsyncFileResponse(File content, const String &path, const char *contentType, bool download, AwsTemplateProcessor callback)
+  : AsyncAbstractResponse(callback) {
   _code = 200;
   _path = path;
 
   if (!download && String(content.name()).endsWith(T__gz) && !path.endsWith(T__gz)) {
     addHeader(T_Content_Encoding, T_gzip, false);
-    _callback = nullptr; // Unable to process gzipped templates
+    _callback = nullptr;  // Unable to process gzipped templates
     _sendContentLength = true;
     _chunked = false;
   }
@@ -693,14 +697,15 @@ AsyncFileResponse::AsyncFileResponse(File content, const String& path, const cha
   _content = content;
   _contentLength = _content.size();
 
-  if (strlen(contentType) == 0)
+  if (strlen(contentType) == 0) {
     _setContentTypeFromPath(path);
-  else
+  } else {
     _contentType = contentType;
+  }
 
   int filenameStart = path.lastIndexOf('/') + 1;
   char buf[26 + path.length() - filenameStart];
-  char* filename = (char*)path.c_str() + filenameStart;
+  char *filename = (char *)path.c_str() + filenameStart;
 
   if (download) {
     snprintf_P(buf, sizeof(buf), PSTR("attachment; filename=\"%s\""), filename);
@@ -710,7 +715,7 @@ AsyncFileResponse::AsyncFileResponse(File content, const String& path, const cha
   addHeader(T_Content_Disposition, buf, false);
 }
 
-size_t AsyncFileResponse::_fillBuffer(uint8_t* data, size_t len) {
+size_t AsyncFileResponse::_fillBuffer(uint8_t *data, size_t len) {
   return _content.read(data, len);
 }
 
@@ -718,19 +723,20 @@ size_t AsyncFileResponse::_fillBuffer(uint8_t* data, size_t len) {
  * Stream Response
  * */
 
-AsyncStreamResponse::AsyncStreamResponse(Stream& stream, const char* contentType, size_t len, AwsTemplateProcessor callback) : AsyncAbstractResponse(callback) {
+AsyncStreamResponse::AsyncStreamResponse(Stream &stream, const char *contentType, size_t len, AwsTemplateProcessor callback) : AsyncAbstractResponse(callback) {
   _code = 200;
   _content = &stream;
   _contentLength = len;
   _contentType = contentType;
 }
 
-size_t AsyncStreamResponse::_fillBuffer(uint8_t* data, size_t len) {
+size_t AsyncStreamResponse::_fillBuffer(uint8_t *data, size_t len) {
   size_t available = _content->available();
   size_t outLen = (available > len) ? len : available;
   size_t i;
-  for (i = 0; i < outLen; i++)
+  for (i = 0; i < outLen; i++) {
     data[i] = _content->read();
+  }
   return outLen;
 }
 
@@ -738,17 +744,19 @@ size_t AsyncStreamResponse::_fillBuffer(uint8_t* data, size_t len) {
  * Callback Response
  * */
 
-AsyncCallbackResponse::AsyncCallbackResponse(const char* contentType, size_t len, AwsResponseFiller callback, AwsTemplateProcessor templateCallback) : AsyncAbstractResponse(templateCallback) {
+AsyncCallbackResponse::AsyncCallbackResponse(const char *contentType, size_t len, AwsResponseFiller callback, AwsTemplateProcessor templateCallback)
+  : AsyncAbstractResponse(templateCallback) {
   _code = 200;
   _content = callback;
   _contentLength = len;
-  if (!len)
+  if (!len) {
     _sendContentLength = false;
+  }
   _contentType = contentType;
   _filledLength = 0;
 }
 
-size_t AsyncCallbackResponse::_fillBuffer(uint8_t* data, size_t len) {
+size_t AsyncCallbackResponse::_fillBuffer(uint8_t *data, size_t len) {
   size_t ret = _content(data, len, _filledLength);
   if (ret != RESPONSE_TRY_AGAIN) {
     _filledLength += ret;
@@ -760,7 +768,8 @@ size_t AsyncCallbackResponse::_fillBuffer(uint8_t* data, size_t len) {
  * Chunked Response
  * */
 
-AsyncChunkedResponse::AsyncChunkedResponse(const char* contentType, AwsResponseFiller callback, AwsTemplateProcessor processorCallback) : AsyncAbstractResponse(processorCallback) {
+AsyncChunkedResponse::AsyncChunkedResponse(const char *contentType, AwsResponseFiller callback, AwsTemplateProcessor processorCallback)
+  : AsyncAbstractResponse(processorCallback) {
   _code = 200;
   _content = callback;
   _contentLength = 0;
@@ -770,7 +779,7 @@ AsyncChunkedResponse::AsyncChunkedResponse(const char* contentType, AwsResponseF
   _filledLength = 0;
 }
 
-size_t AsyncChunkedResponse::_fillBuffer(uint8_t* data, size_t len) {
+size_t AsyncChunkedResponse::_fillBuffer(uint8_t *data, size_t len) {
   size_t ret = _content(data, len, _filledLength);
   if (ret != RESPONSE_TRY_AGAIN) {
     _filledLength += ret;
@@ -782,7 +791,8 @@ size_t AsyncChunkedResponse::_fillBuffer(uint8_t* data, size_t len) {
  * Progmem Response
  * */
 
-AsyncProgmemResponse::AsyncProgmemResponse(int code, const char* contentType, const uint8_t* content, size_t len, AwsTemplateProcessor callback) : AsyncAbstractResponse(callback) {
+AsyncProgmemResponse::AsyncProgmemResponse(int code, const char *contentType, const uint8_t *content, size_t len, AwsTemplateProcessor callback)
+  : AsyncAbstractResponse(callback) {
   _code = code;
   _content = content;
   _contentType = contentType;
@@ -790,7 +800,7 @@ AsyncProgmemResponse::AsyncProgmemResponse(int code, const char* contentType, co
   _readLength = 0;
 }
 
-size_t AsyncProgmemResponse::_fillBuffer(uint8_t* data, size_t len) {
+size_t AsyncProgmemResponse::_fillBuffer(uint8_t *data, size_t len) {
   size_t left = _contentLength - _readLength;
   if (left > len) {
     memcpy_P(data, _content + _readLength, len);
@@ -806,20 +816,25 @@ size_t AsyncProgmemResponse::_fillBuffer(uint8_t* data, size_t len) {
  * Response Stream (You can print/write/printf to it, up to the contentLen bytes)
  * */
 
-AsyncResponseStream::AsyncResponseStream(const char* contentType, size_t bufferSize) {
+AsyncResponseStream::AsyncResponseStream(const char *contentType, size_t bufferSize) {
   _code = 200;
   _contentLength = 0;
   _contentType = contentType;
-  _content.reserve(bufferSize);
+  if (!_content.reserve(bufferSize)) {
+#ifdef ESP32
+    log_e("Failed to allocate");
+#endif
+  }
 }
 
-size_t AsyncResponseStream::_fillBuffer(uint8_t* buf, size_t maxLen) {
-  return _content.readBytes((char*)buf, maxLen);
+size_t AsyncResponseStream::_fillBuffer(uint8_t *buf, size_t maxLen) {
+  return _content.readBytes((char *)buf, maxLen);
 }
 
-size_t AsyncResponseStream::write(const uint8_t* data, size_t len) {
-  if (_started())
+size_t AsyncResponseStream::write(const uint8_t *data, size_t len) {
+  if (_started()) {
     return 0;
+  }
   size_t written = _content.write(data, len);
   _contentLength += written;
   return written;
