@@ -264,7 +264,7 @@ int CAN_init() {
 	return 0;
 }
 
-int CAN_write_frame(const CAN_frame_t *p_frame) {
+bool CAN_write_frame(const CAN_frame_t *p_frame) {
 	if (sem_tx_complete == NULL) {
 		return 0;
 	}
