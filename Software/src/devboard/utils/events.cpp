@@ -68,8 +68,6 @@ static void update_bms_status(void);
 static void log_event(EVENTS_ENUM_TYPE event, uint8_t millisrolloverCount, uint32_t timestamp, uint8_t data);
 static void print_event_log(void);
 
-uint8_t millisrolloverCount = 0;
-
 /* Initialization function */
 void init_events(void) {
 
@@ -227,13 +225,6 @@ void set_event_latched(EVENTS_ENUM_TYPE event, uint8_t data) {
 }
 
 void clear_event(EVENTS_ENUM_TYPE event) {
-  //Not related to clearing, but good time to check if we have rollover on millis
-  currentMillis = millis();
-  if (currentMillis < lastMillis) {  // Overflow detected
-    millisrolloverCount++;
-  }
-  lastMillis = currentMillis;
-
   if (events.entries[event].state == EVENT_STATE_ACTIVE) {
     events.entries[event].state = EVENT_STATE_INACTIVE;
     update_event_level();
@@ -505,7 +496,7 @@ static void set_event(EVENTS_ENUM_TYPE event, uint8_t data, bool latched) {
 
   // We should set the event, update event info
   events.entries[event].timestamp = millis();
-  events.entries[event].millisrolloverCount = millisrolloverCount;
+  events.entries[event].millisrolloverCount = datalayer.system.status.millisrolloverCount;
   events.entries[event].data = data;
   // Check if the event is latching
   events.entries[event].state = latched ? EVENT_STATE_ACTIVE_LATCHED : EVENT_STATE_ACTIVE;
@@ -578,8 +569,10 @@ static void log_event(EVENTS_ENUM_TYPE event, uint8_t millisrolloverCount, uint3
   int entry_address = EE_EVENT_ENTRY_START_ADDRESS + EE_EVENT_ENTRY_SIZE * events.event_log_head_index;
 
   // Prepare an event block to write
-  EVENT_LOG_ENTRY_TYPE entry = {
-      .event = event, .millisrolloverCount = millisrolloverCount, .timestamp = timestamp, .data = data};
+  EVENT_LOG_ENTRY_TYPE entry = {.event = event,
+                                .millisrolloverCount = datalayer.system.status.millisrolloverCount,
+                                .timestamp = timestamp,
+                                .data = data};
 
   // Put the event in (what I guess is) the RAM EEPROM mirror, or write buffer
   EEPROM.put(entry_address, entry);

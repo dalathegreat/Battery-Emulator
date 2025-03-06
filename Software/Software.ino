@@ -55,6 +55,7 @@ const char* version_number = "8.8.dev";
 uint16_t intervalUpdateValues = INTERVAL_1_S;  // Interval at which to update inverter values / Modbus registers
 unsigned long previousMillis10ms = 0;
 unsigned long previousMillisUpdateVal = 0;
+unsigned long lastMillisOverflowCheck = 0;
 // Task time measurement for debugging and for setting CPU load events
 int64_t core_task_time_us;
 MyTimer core_task_timer_10s(INTERVAL_10_S);
@@ -490,6 +491,11 @@ void update_calculated_values() {
     datalayer.battery.status.reported_remaining_capacity_Wh = datalayer.battery2.status.remaining_capacity_Wh;
   }
 #endif  // DOUBLE_BATTERY
+  // Check if millis() has overflowed. Used in events to keep better track of time
+  if (millis() < lastMillisOverflowCheck) {  // Overflow detected
+    datalayer.system.status.millisrolloverCount++;
+  }
+  lastMillisOverflowCheck = millis();
 }
 
 void update_values_inverter() {

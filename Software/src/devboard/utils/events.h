@@ -159,8 +159,6 @@ struct EventData {
   const EVENTS_STRUCT_TYPE* event_pointer;
 };
 
-extern uint8_t millisrolloverCount;  // number of times millis rollovers
-
 const char* get_event_enum_string(EVENTS_ENUM_TYPE event);
 const char* get_event_message_string(EVENTS_ENUM_TYPE event);
 const char* get_event_level_string(EVENTS_ENUM_TYPE event);
