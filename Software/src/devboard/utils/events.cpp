@@ -58,9 +58,6 @@ static EVENT_TYPE events;
 static const char* EVENTS_ENUM_TYPE_STRING[] = {EVENTS_ENUM_TYPE(GENERATE_STRING)};
 static const char* EVENTS_LEVEL_TYPE_STRING[] = {EVENTS_LEVEL_TYPE(GENERATE_STRING)};
 
-static uint32_t lastMillis = millis();
-static uint32_t currentMillis = 0;
-
 /* Local function prototypes */
 static void set_event(EVENTS_ENUM_TYPE event, uint8_t data, bool latched);
 static void update_event_level(void);
