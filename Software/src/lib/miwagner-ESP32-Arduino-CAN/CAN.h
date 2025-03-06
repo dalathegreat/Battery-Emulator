@@ -93,6 +93,10 @@ typedef struct {
 	uint8_t 			AMR3;				/**< \brief Acceptance Mask Register AMR3 */
 } CAN_filter_t;
 
+extern void gpio_matrix_in(uint32_t gpio, uint32_t signal_idx, bool inv);
+extern void gpio_matrix_out(uint32_t gpio, uint32_t signal_idx, bool out_inv, bool oen_inv);
+extern void gpio_pad_select_gpio(uint8_t gpio_num);
+
 /**
  * \brief Initialize the CAN Module
  *
