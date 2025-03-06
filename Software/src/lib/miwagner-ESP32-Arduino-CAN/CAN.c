@@ -266,13 +266,13 @@ int CAN_init() {
 
 bool CAN_write_frame(const CAN_frame_t *p_frame) {
 	if (sem_tx_complete == NULL) {
-		return 0;
+		return false;
 	}
 
 	// Write the frame to the controller
 	CAN_write_frame_phy(p_frame);
 
-	return xSemaphoreTake(sem_tx_complete, 20) == pdTRUE ? 1 : 0;
+	return xSemaphoreTake(sem_tx_complete, 20) == pdTRUE ? true : false;
 }
 
 int CAN_stop() {
