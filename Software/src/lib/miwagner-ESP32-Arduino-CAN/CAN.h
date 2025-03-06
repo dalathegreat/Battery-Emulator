@@ -104,9 +104,9 @@ int CAN_init(void);
  * \brief Send a can frame
  *
  * \param	p_frame	Pointer to the frame to be send, see #CAN_frame_t
- * \return  0 Frame has been written to the module
+ * \return  1 Frame has been written to the module
  */
-int CAN_write_frame(const CAN_frame_t *p_frame);
+bool CAN_write_frame(const CAN_frame_t *p_frame);
 
 /**
  * \brief Stops the CAN Module

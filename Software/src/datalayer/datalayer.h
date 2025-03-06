@@ -228,6 +228,12 @@ typedef struct {
   uint8_t can_replay_interface = CAN_NATIVE;
   /** bool, determines if CAN replay should loop or not */
   bool loop_playback = false;
+  /** bool, Native CAN failed to send flag */
+  bool can_native_send_fail = false;
+  /** bool, MCP2515 CAN failed to send flag */
+  bool can_2515_send_fail = false;
+  /** uint16_t, MCP2518 CANFD failed to send flag */
+  bool can_2518_send_fail = false;
 
 } DATALAYER_SYSTEM_INFO_TYPE;
 
