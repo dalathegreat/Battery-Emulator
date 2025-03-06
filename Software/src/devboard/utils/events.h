@@ -177,8 +177,6 @@ void set_event_MQTTpublished(EVENTS_ENUM_TYPE event);
 
 const EVENTS_STRUCT_TYPE* get_event_pointer(EVENTS_ENUM_TYPE event);
 
-void run_event_handling(void);
-
 void run_sequence_on_target(void);
 
 bool compareEventsByTimestampAsc(const EventData& a, const EventData& b);

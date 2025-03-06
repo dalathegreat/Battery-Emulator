@@ -146,17 +146,8 @@ void setup() {
 #endif
 }
 
-// Perform main program functions
-void loop() {
-  START_TIME_MEASUREMENT(loop_func);
-  run_event_handling();
-  END_TIME_MEASUREMENT_MAX(loop_func, datalayer.system.status.loop_task_10s_max_us);
-#ifdef FUNCTION_TIME_MEASUREMENT
-  if (loop_task_timer_10s.elapsed()) {
-    datalayer.system.status.loop_task_10s_max_us = 0;
-  }
-#endif
-}
+// Loop empty, all functionality runs in tasks
+void loop() {}
 
 #if defined(LOG_CAN_TO_SD) || defined(LOG_TO_SD)
 void logging_loop(void* task_time_us) {

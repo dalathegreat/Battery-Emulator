@@ -59,6 +59,7 @@ static const char* EVENTS_ENUM_TYPE_STRING[] = {EVENTS_ENUM_TYPE(GENERATE_STRING
 static const char* EVENTS_LEVEL_TYPE_STRING[] = {EVENTS_LEVEL_TYPE(GENERATE_STRING)};
 
 static uint32_t lastMillis = millis();
+static uint32_t currentMillis = 0;
 
 /* Local function prototypes */
 static void set_event(EVENTS_ENUM_TYPE event, uint8_t data, bool latched);
@@ -68,19 +69,6 @@ static void log_event(EVENTS_ENUM_TYPE event, uint8_t millisrolloverCount, uint3
 static void print_event_log(void);
 
 uint8_t millisrolloverCount = 0;
-
-/* Exported functions */
-
-/* Main execution function, should handle various continuous functionality */
-void run_event_handling(void) {
-  uint32_t currentMillis = millis();
-  if (currentMillis < lastMillis) {  // Overflow detected
-    millisrolloverCount++;
-  }
-  lastMillis = currentMillis;
-
-  update_event_level();
-}
 
 /* Initialization function */
 void init_events(void) {
@@ -239,6 +227,13 @@ void set_event_latched(EVENTS_ENUM_TYPE event, uint8_t data) {
 }
 
 void clear_event(EVENTS_ENUM_TYPE event) {
+  //Not related to clearing, but good time to check if we have rollover on millis
+  currentMillis = millis();
+  if (currentMillis < lastMillis) {  // Overflow detected
+    millisrolloverCount++;
+  }
+  lastMillis = currentMillis;
+
   if (events.entries[event].state == EVENT_STATE_ACTIVE) {
     events.entries[event].state = EVENT_STATE_INACTIVE;
     update_event_level();
