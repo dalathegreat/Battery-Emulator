@@ -18,6 +18,7 @@
 #define MIN_PACK_VOLTAGE_94AH 2590   // Discharge stops if pack voltage exceeds this value
 #define MAX_PACK_VOLTAGE_120AH 4030  // Charge stops if pack voltage exceeds this value
 #define MIN_PACK_VOLTAGE_120AH 2680  // Discharge stops if pack voltage exceeds this value
+#define NUMBER_OF_CELLS 96
 void setup_battery(void);
 void transmit_can_frame(CAN_frame* tx_frame, int interface);
 
