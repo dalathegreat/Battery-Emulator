@@ -23,8 +23,6 @@ extern "C" {
 #include <NetworkInterface.h>
 #endif
 
-#define TAG "AsyncTCP"
-
 // https://github.com/espressif/arduino-esp32/issues/10526
 #ifdef CONFIG_LWIP_TCPIP_CORE_LOCKING
 #define TCP_MUTEX_LOCK()                                \
@@ -450,8 +448,22 @@ static int8_t _tcp_sent(void *arg, struct tcp_pcb *pcb, uint16_t len) {
   return ERR_OK;
 }
 
-static void _tcp_error(void *arg, int8_t err) {
+void AsyncClient::_tcp_error(void *arg, int8_t err) {
   // ets_printf("+E: 0x%08x\n", arg);
+  AsyncClient *client = reinterpret_cast<AsyncClient *>(arg);
+  if (client && client->_pcb) {
+    tcp_arg(client->_pcb, NULL);
+    if (client->_pcb->state == LISTEN) {
+      tcp_sent(client->_pcb, NULL);
+      tcp_recv(client->_pcb, NULL);
+      tcp_err(client->_pcb, NULL);
+      tcp_poll(client->_pcb, NULL, 0);
+    }
+    client->_pcb = nullptr;
+    client->_free_closed_slot();
+  }
+
+  // enqueue event to be processed in the async task for the user callback
   lwip_tcp_event_packet_t *e = (lwip_tcp_event_packet_t *)malloc(sizeof(lwip_tcp_event_packet_t));
   if (!e) {
     log_e("Failed to allocate event packet");
@@ -461,7 +473,7 @@ static void _tcp_error(void *arg, int8_t err) {
   e->arg = arg;
   e->error.err = err;
   if (!_send_async_event(&e)) {
-    free((void *)(e));
+    ::free((void *)(e));
   }
 }
 
@@ -1048,19 +1060,6 @@ int8_t AsyncClient::_connected(tcp_pcb *pcb, int8_t err) {
 }
 
 void AsyncClient::_error(int8_t err) {
-  if (_pcb) {
-    TCP_MUTEX_LOCK();
-    tcp_arg(_pcb, NULL);
-    if (_pcb->state == LISTEN) {
-      tcp_sent(_pcb, NULL);
-      tcp_recv(_pcb, NULL);
-      tcp_err(_pcb, NULL);
-      tcp_poll(_pcb, NULL, 0);
-    }
-    TCP_MUTEX_UNLOCK();
-    _free_closed_slot();
-    _pcb = NULL;
-  }
   if (_error_cb) {
     _error_cb(_error_cb_arg, this, err);
   }
@@ -1616,21 +1615,37 @@ void AsyncServer::end() {
 
 // runs on LwIP thread
 int8_t AsyncServer::_accept(tcp_pcb *pcb, int8_t err) {
-  // ets_printf("+A: 0x%08x\n", pcb);
+  if (!pcb) {
+    log_e("_accept failed: pcb is NULL");
+    return ERR_ABRT;
+  }
   if (_connect_cb) {
     AsyncClient *c = new (std::nothrow) AsyncClient(pcb);
-    if (c) {
+    if (c && c->pcb()) {
       c->setNoDelay(_noDelay);
-      const int8_t err = _tcp_accept(this, c);
-      if (err != ERR_OK) {
-        tcp_abort(pcb);
-        delete c;
+      if (_tcp_accept(this, c) == ERR_OK) {
+        return ERR_OK;  // success
       }
-      return err;
+      // Couldn't allocate accept event
+      // We can't let the client object call in to close, as we're on the LWIP thread; it could deadlock trying to RPC to itself
+      c->_pcb = nullptr;
+      tcp_abort(pcb);
+      log_e("_accept failed: couldn't accept client");
+      return ERR_ABRT;
     }
+    if (c) {
+      // Couldn't complete setup
+      // pcb has already been aborted
+      delete c;
+      pcb = nullptr;
+      log_e("_accept failed: couldn't complete setup");
+      return ERR_ABRT;
+    }
+    log_e("_accept failed: couldn't allocate client");
+  } else {
+    log_e("_accept failed: no onConnect callback");
   }
   tcp_abort(pcb);
-  log_d("_accept failed");
   return ERR_OK;
 }
 

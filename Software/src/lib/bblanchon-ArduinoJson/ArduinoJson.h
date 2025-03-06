@@ -1,5 +1,5 @@
 // ArduinoJson - https://arduinojson.org
-// Copyright © 2014-2024, Benoit BLANCHON
+// Copyright © 2014-2025, Benoit BLANCHON
 // MIT License
 
 #pragma once
@@ -239,11 +239,11 @@
 #define ARDUINOJSON_BIN2ALPHA_1111() P
 #define ARDUINOJSON_BIN2ALPHA_(A, B, C, D) ARDUINOJSON_BIN2ALPHA_##A##B##C##D()
 #define ARDUINOJSON_BIN2ALPHA(A, B, C, D) ARDUINOJSON_BIN2ALPHA_(A, B, C, D)
-#define ARDUINOJSON_VERSION "7.3.0"
+#define ARDUINOJSON_VERSION "7.3.1"
 #define ARDUINOJSON_VERSION_MAJOR 7
 #define ARDUINOJSON_VERSION_MINOR 3
-#define ARDUINOJSON_VERSION_REVISION 0
-#define ARDUINOJSON_VERSION_MACRO V730
+#define ARDUINOJSON_VERSION_REVISION 1
+#define ARDUINOJSON_VERSION_MACRO V731
 #ifndef ARDUINOJSON_VERSION_NAMESPACE
 #  define ARDUINOJSON_VERSION_NAMESPACE                               \
     ARDUINOJSON_CONCAT5(                                              \
@@ -1029,8 +1029,9 @@ template <typename TChar, size_t N>
 struct StringAdapter<TChar[N], enable_if_t<IsChar<TChar>::value>> {
   using AdaptedString = RamString;
   static AdaptedString adapt(const TChar* p) {
+    ARDUINOJSON_ASSERT(p);
     auto str = reinterpret_cast<const char*>(p);
-    return AdaptedString(str, str ? ::strlen(str) : 0);
+    return AdaptedString(str, ::strlen(str));
   }
 };
 template <typename TChar>
@@ -2243,6 +2244,7 @@ class VariantData {
 #else
     (void)resources;  // silence warning
 #endif
+    const char* str = nullptr;
     switch (type_) {
       case VariantType::Boolean:
         return static_cast<T>(content_.asBoolean);
@@ -2257,8 +2259,11 @@ class VariantData {
         return static_cast<T>(extension->asInt64);
 #endif
       case VariantType::LinkedString:
+        str = content_.asLinkedString;
+        break;
       case VariantType::OwnedString:
-        return parseNumber<T>(content_.asOwnedString->data);
+        str = content_.asOwnedString->data;
+        break;
       case VariantType::Float:
         return static_cast<T>(content_.asFloat);
 #if ARDUINOJSON_USE_DOUBLE
@@ -2266,8 +2271,10 @@ class VariantData {
         return static_cast<T>(extension->asDouble);
 #endif
       default:
-        return 0;
+        return 0.0;
     }
+    ARDUINOJSON_ASSERT(str != nullptr);
+    return parseNumber<T>(str);
   }
   template <typename T>
   T asIntegral(const ResourceManager* resources) const {
@@ -2277,6 +2284,7 @@ class VariantData {
 #else
     (void)resources;  // silence warning
 #endif
+    const char* str = nullptr;
     switch (type_) {
       case VariantType::Boolean:
         return content_.asBoolean;
@@ -2291,9 +2299,11 @@ class VariantData {
         return convertNumber<T>(extension->asInt64);
 #endif
       case VariantType::LinkedString:
-        return parseNumber<T>(content_.asLinkedString);
+        str = content_.asLinkedString;
+        break;
       case VariantType::OwnedString:
-        return parseNumber<T>(content_.asOwnedString->data);
+        str = content_.asOwnedString->data;
+        break;
       case VariantType::Float:
         return convertNumber<T>(content_.asFloat);
 #if ARDUINOJSON_USE_DOUBLE
@@ -2303,6 +2313,8 @@ class VariantData {
       default:
         return 0;
     }
+    ARDUINOJSON_ASSERT(str != nullptr);
+    return parseNumber<T>(str);
   }
   ObjectData* asObject() {
     return isObject() ? &content_.asObject : 0;

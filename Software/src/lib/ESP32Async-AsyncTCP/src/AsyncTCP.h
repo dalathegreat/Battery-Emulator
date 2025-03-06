@@ -239,6 +239,7 @@ public:
   static int8_t _s_sent(void *arg, struct tcp_pcb *tpcb, uint16_t len);
   static int8_t _s_connected(void *arg, struct tcp_pcb *tpcb, int8_t err);
   static void _s_dns_found(const char *name, struct ip_addr *ipaddr, void *arg);
+  static void _tcp_error(void *arg, int8_t err);
 
   int8_t _recv(tcp_pcb *pcb, pbuf *pb, int8_t err);
   tcp_pcb *pcb() {
@@ -246,6 +247,8 @@ public:
   }
 
 protected:
+  friend class AsyncServer;
+
   bool _connect(ip_addr_t addr, uint16_t port);
 
   tcp_pcb *_pcb;
