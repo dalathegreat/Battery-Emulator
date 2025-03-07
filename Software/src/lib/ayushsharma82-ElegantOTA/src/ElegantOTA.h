@@ -64,7 +64,7 @@ _____ _                        _    ___ _____  _
   #include "Update.h"
   #include "StreamString.h"
   #if ELEGANTOTA_USE_ASYNC_WEBSERVER == 1
-    #include "../../ESP32Async-AsyncTCP/src/AsyncTCP.h"
+    #include "../../mathieucarbou-AsyncTCPSock/src/AsyncTCP.h"
     #include "../../ESP32Async-ESPAsyncWebServer/src/ESPAsyncWebServer.h"
     #define ELEGANTOTA_WEBSERVER AsyncWebServer
   #else
