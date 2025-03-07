@@ -183,22 +183,14 @@
      *translated_size = size;
      *item_num = num;
  }
- 
+
+ static bool rmt_initialized = false;
+ static bool rmt_adapter_initialized = false;
+
  void espShow(uint8_t pin, uint8_t *pixels, uint32_t numBytes, boolean is800KHz) {
+    if (rmt_initialized == false) {
      // Reserve channel
-     rmt_channel_t channel = ADAFRUIT_RMT_CHANNEL_MAX;
-     for (size_t i = 0; i < ADAFRUIT_RMT_CHANNEL_MAX; i++) {
-         if (!rmt_reserved_channels[i]) {
-             rmt_reserved_channels[i] = true;
-             channel = i;
-             break;
-         }
-     }
-     if (channel == ADAFRUIT_RMT_CHANNEL_MAX) {
-         // Ran out of channels!
-         return;
-     }
- 
+     rmt_channel_t channel = 0;
  #if defined(HAS_ESP_IDF_4)
      rmt_config_t config = RMT_DEFAULT_CONFIG_TX(pin, channel);
      config.clk_div = 2;
@@ -258,17 +250,19 @@
      }
  
      // Initialize automatic timing translator
-     rmt_translator_init(config.channel, ws2812_rmt_adapter);
- 
+     rmt_translator_init(0, ws2812_rmt_adapter);
+     rmt_initialized = true;
+   }
+
      // Write and wait to finish
-     rmt_write_sample(config.channel, pixels, (size_t)numBytes, true);
-     rmt_wait_tx_done(config.channel, pdMS_TO_TICKS(100));
+     rmt_write_sample(0, pixels, (size_t)numBytes, false);
+     //rmt_wait_tx_done(config.channel, pdMS_TO_TICKS(100));
  
      // Free channel again
-     rmt_driver_uninstall(config.channel);
-     rmt_reserved_channels[channel] = false;
+     //rmt_driver_uninstall(config.channel);
+     //rmt_reserved_channels[channel] = false;
  
-     gpio_set_direction(pin, GPIO_MODE_OUTPUT);
+     //gpio_set_direction(pin, GPIO_MODE_OUTPUT);
  }
  
  #endif // ifndef IDF5
