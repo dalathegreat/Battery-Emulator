@@ -7,7 +7,7 @@
 #include <Arduino.h>
 
 #ifdef ESP32
-#include "../../ESP32Async-AsyncTCP/src/AsyncTCP.h"
+#include "../../mathieucarbou-AsyncTCPSock/src/AsyncTCP.h"
 #include <mutex>
 #ifndef SSE_MAX_QUEUED_MESSAGES
 #define SSE_MAX_QUEUED_MESSAGES 32
