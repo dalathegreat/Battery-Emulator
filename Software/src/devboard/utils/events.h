@@ -159,8 +159,6 @@ struct EventData {
   const EVENTS_STRUCT_TYPE* event_pointer;
 };
 
-extern uint8_t millisrolloverCount;  // number of times millis rollovers
-
 const char* get_event_enum_string(EVENTS_ENUM_TYPE event);
 const char* get_event_message_string(EVENTS_ENUM_TYPE event);
 const char* get_event_level_string(EVENTS_ENUM_TYPE event);
@@ -176,8 +174,6 @@ void reset_all_events();
 void set_event_MQTTpublished(EVENTS_ENUM_TYPE event);
 
 const EVENTS_STRUCT_TYPE* get_event_pointer(EVENTS_ENUM_TYPE event);
-
-void run_event_handling(void);
 
 void run_sequence_on_target(void);
 

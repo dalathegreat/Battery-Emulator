@@ -238,6 +238,8 @@ typedef struct {
 } DATALAYER_SYSTEM_INFO_TYPE;
 
 typedef struct {
+  /** Millis rollover count. Increments every 49.7 days. Used for keeping track on events */
+  uint8_t millisrolloverCount = 0;
 #ifdef FUNCTION_TIME_MEASUREMENT
   /** Core task measurement variable */
   int64_t core_task_max_us = 0;
@@ -247,8 +249,6 @@ typedef struct {
   int64_t mqtt_task_10s_max_us = 0;
   /** Wifi sub-task measurement variable, reset each 10 seconds */
   int64_t wifi_task_10s_max_us = 0;
-  /** loop() task measurement variable, reset each 10 seconds */
-  int64_t loop_task_10s_max_us = 0;
 
   /** OTA handling function measurement variable */
   int64_t time_ota_us = 0;
