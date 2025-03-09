@@ -29,9 +29,21 @@ static uint8_t temperature_max_per_pack = 0;
 static uint8_t temperature_min_per_pack = 0;
 static uint8_t current_pack_info = 0;
 
+// Batch send of CAN message variables
+const uint8_t delay_between_batches_ms = 10;  //TODO, tweak to as low as possible before performance issues appear
+static bool send_bms_info = false;
+static bool send_individual_pack_status = false;
+static bool send_serial_numbers = false;
 static bool send_cellvoltages = false;
-static unsigned long previousMillisCellvoltage = 0;  // Store the last time a cellvoltage CAN messages were sent
+static unsigned long currentMillis = 0;
+static unsigned long previousMillisCellvoltage = 0;
+static unsigned long previousMillisSerialNumber = 0;
+static unsigned long previousMillisBMSinfo = 0;
+static unsigned long previousMillisIndividualPacks = 0;
 static uint8_t can_message_cellvolt_index = 0;
+static uint8_t can_message_serial_index = 0;
+static uint8_t can_message_individualpack_index = 0;
+static uint8_t can_message_bms_index = 0;
 
 //CAN message translations from this amazing repository: https://github.com/rand12345/FOXESS_can_bus
 
@@ -585,19 +597,199 @@ void update_values_can_inverter() {  //This function maps all the CAN values fet
 
 void transmit_can_inverter() {  // This function loops as fast as possible
 
-  if (send_cellvoltages) {
-    unsigned long currentMillis = millis();  // Get the current time
+  if (send_bms_info) {
+    currentMillis = millis();  // Get the current time
 
     // Check if enough time has passed since the last batch
-    if (currentMillis - previousMillisCellvoltage >= INTERVAL_10_MS) {
+    if (currentMillis - previousMillisBMSinfo >= delay_between_batches_ms) {
+      previousMillisBMSinfo = currentMillis;  // Update the time of the last message batch
+
+      // Send a subset of messages per iteration to avoid overloading the CAN bus / transmit buffer
+      switch (can_message_bms_index) {
+        case 0:
+          //TODO, should we limit this incase NUMBER_OF_PACKS =! 8?
+          transmit_can_frame(&FOXESS_1872, can_config.inverter);
+          transmit_can_frame(&FOXESS_1873, can_config.inverter);
+          transmit_can_frame(&FOXESS_1874, can_config.inverter);
+          transmit_can_frame(&FOXESS_1875, can_config.inverter);
+          break;
+        case 1:
+          transmit_can_frame(&FOXESS_1876, can_config.inverter);
+          transmit_can_frame(&FOXESS_1877, can_config.inverter);
+          transmit_can_frame(&FOXESS_1878, can_config.inverter);
+          transmit_can_frame(&FOXESS_1879, can_config.inverter);
+          send_bms_info = false;
+          break;
+        default:
+          break;
+      }
+
+      // Increment message index and wrap around if needed
+      can_message_bms_index++;
+
+      if (send_bms_info == false) {
+        can_message_bms_index = 0;
+      }
+    }
+  }
+
+  if (send_individual_pack_status) {
+    currentMillis = millis();  // Get the current time
+
+    // Check if enough time has passed since the last batch
+    if (currentMillis - previousMillisIndividualPacks >= delay_between_batches_ms) {
+      previousMillisIndividualPacks = currentMillis;  // Update the time of the last message batch
+
+      // Send a subset of messages per iteration to avoid overloading the CAN bus / transmit buffer
+      switch (can_message_individualpack_index) {
+        case 0:
+          //TODO, should we limit this incase NUMBER_OF_PACKS =! 8?
+          transmit_can_frame(&FOXESS_0C05, can_config.inverter);
+          transmit_can_frame(&FOXESS_0C06, can_config.inverter);
+          transmit_can_frame(&FOXESS_0C07, can_config.inverter);
+          transmit_can_frame(&FOXESS_0C08, can_config.inverter);
+          break;
+        case 1:
+          transmit_can_frame(&FOXESS_0C09, can_config.inverter);
+          transmit_can_frame(&FOXESS_0C0A, can_config.inverter);
+          transmit_can_frame(&FOXESS_0C0B, can_config.inverter);
+          transmit_can_frame(&FOXESS_0C0C, can_config.inverter);
+          send_individual_pack_status = false;
+          break;
+        default:
+          break;
+      }
+
+      // Increment message index and wrap around if needed
+      can_message_individualpack_index++;
+
+      if (send_individual_pack_status == false) {
+        can_message_individualpack_index = 0;
+      }
+    }
+  }
+
+  if (send_serial_numbers) {
+    currentMillis = millis();  // Get the current time
+
+    // Check if enough time has passed since the last batch
+    if (currentMillis - previousMillisSerialNumber >= delay_between_batches_ms) {
+      previousMillisSerialNumber = currentMillis;  // Update the time of the last message batch
+
+      // Send a subset of messages per iteration to avoid overloading the CAN bus / transmit buffer
+      switch (can_message_serial_index) {
+        case 0:
+          FOXESS_1881.data.u8[0] = 0;
+          FOXESS_1882.data.u8[0] = 0;
+          FOXESS_1883.data.u8[0] = 0;
+          transmit_can_frame(&FOXESS_1881, can_config.inverter);
+          transmit_can_frame(&FOXESS_1882, can_config.inverter);
+          transmit_can_frame(&FOXESS_1883, can_config.inverter);
+          break;
+        case 1:
+          if (NUMBER_OF_PACKS > 0) {
+            FOXESS_1881.data.u8[0] = 1;
+            FOXESS_1882.data.u8[0] = 1;
+            FOXESS_1883.data.u8[0] = 1;
+            transmit_can_frame(&FOXESS_1881, can_config.inverter);
+            transmit_can_frame(&FOXESS_1882, can_config.inverter);
+            transmit_can_frame(&FOXESS_1883, can_config.inverter);
+          }
+          break;
+        case 2:
+          if (NUMBER_OF_PACKS > 1) {
+            FOXESS_1881.data.u8[0] = 2;
+            FOXESS_1882.data.u8[0] = 2;
+            FOXESS_1883.data.u8[0] = 2;
+            transmit_can_frame(&FOXESS_1881, can_config.inverter);
+            transmit_can_frame(&FOXESS_1882, can_config.inverter);
+            transmit_can_frame(&FOXESS_1883, can_config.inverter);
+          }
+          break;
+        case 3:
+          if (NUMBER_OF_PACKS > 2) {
+            FOXESS_1881.data.u8[0] = 3;
+            FOXESS_1882.data.u8[0] = 3;
+            FOXESS_1883.data.u8[0] = 3;
+            transmit_can_frame(&FOXESS_1881, can_config.inverter);
+            transmit_can_frame(&FOXESS_1882, can_config.inverter);
+            transmit_can_frame(&FOXESS_1883, can_config.inverter);
+          }
+          break;
+        case 4:
+          if (NUMBER_OF_PACKS > 3) {
+            FOXESS_1881.data.u8[0] = 4;
+            FOXESS_1882.data.u8[0] = 4;
+            FOXESS_1883.data.u8[0] = 4;
+            transmit_can_frame(&FOXESS_1881, can_config.inverter);
+            transmit_can_frame(&FOXESS_1882, can_config.inverter);
+            transmit_can_frame(&FOXESS_1883, can_config.inverter);
+          }
+          break;
+        case 5:
+          if (NUMBER_OF_PACKS > 4) {
+            FOXESS_1881.data.u8[0] = 5;
+            FOXESS_1882.data.u8[0] = 5;
+            FOXESS_1883.data.u8[0] = 5;
+            transmit_can_frame(&FOXESS_1881, can_config.inverter);
+            transmit_can_frame(&FOXESS_1882, can_config.inverter);
+            transmit_can_frame(&FOXESS_1883, can_config.inverter);
+          }
+          break;
+        case 6:
+          if (NUMBER_OF_PACKS > 5) {
+            FOXESS_1881.data.u8[0] = 6;
+            FOXESS_1882.data.u8[0] = 6;
+            FOXESS_1883.data.u8[0] = 6;
+            transmit_can_frame(&FOXESS_1881, can_config.inverter);
+            transmit_can_frame(&FOXESS_1882, can_config.inverter);
+            transmit_can_frame(&FOXESS_1883, can_config.inverter);
+          }
+          break;
+        case 7:
+          if (NUMBER_OF_PACKS > 6) {
+            FOXESS_1881.data.u8[0] = 7;
+            FOXESS_1882.data.u8[0] = 7;
+            FOXESS_1883.data.u8[0] = 7;
+            transmit_can_frame(&FOXESS_1881, can_config.inverter);
+            transmit_can_frame(&FOXESS_1882, can_config.inverter);
+            transmit_can_frame(&FOXESS_1883, can_config.inverter);
+          }
+          break;
+        case 8:
+          if (NUMBER_OF_PACKS > 7) {
+            FOXESS_1881.data.u8[0] = 8;
+            FOXESS_1882.data.u8[0] = 8;
+            FOXESS_1883.data.u8[0] = 8;
+            transmit_can_frame(&FOXESS_1881, can_config.inverter);
+            transmit_can_frame(&FOXESS_1882, can_config.inverter);
+            transmit_can_frame(&FOXESS_1883, can_config.inverter);
+          }
+          send_serial_numbers = false;
+          break;
+        default:
+          break;
+      }
+
+      // Increment message index and wrap around if needed
+      can_message_serial_index++;
+
+      if (send_serial_numbers == false) {
+        can_message_serial_index = 0;
+      }
+    }
+  }
+
+  if (send_cellvoltages) {
+    currentMillis = millis();  // Get the current time
+
+    // Check if enough time has passed since the last batch
+    if (currentMillis - previousMillisCellvoltage >= delay_between_batches_ms) {
       previousMillisCellvoltage = currentMillis;  // Update the time of the last message batch
 
       // Send a subset of messages per iteration to avoid overloading the CAN bus / transmit buffer
       switch (can_message_cellvolt_index) {
         case 0:
-#ifdef DEBUG_LOG
-          logging.println("Sending large batch");
-#endif
           transmit_can_frame(&FOXESS_0C1D, can_config.inverter);
           transmit_can_frame(&FOXESS_0C21, can_config.inverter);
           transmit_can_frame(&FOXESS_0C29, can_config.inverter);
@@ -651,14 +843,15 @@ void transmit_can_inverter() {  // This function loops as fast as possible
           transmit_can_frame(&FOXESS_0D29, can_config.inverter);
           transmit_can_frame(&FOXESS_0D31, can_config.inverter);
           transmit_can_frame(&FOXESS_0D39, can_config.inverter);
+          break;
+        case 8:  //Celltemperatures
           transmit_can_frame(&FOXESS_0D41, can_config.inverter);
           transmit_can_frame(&FOXESS_0D49, can_config.inverter);
           transmit_can_frame(&FOXESS_0D51, can_config.inverter);
           transmit_can_frame(&FOXESS_0D59, can_config.inverter);
-#ifdef DEBUG_LOG
-          logging.println("Sending completed");
-#endif
           send_cellvoltages = false;
+          break;
+        default:
           break;
       }
 
@@ -688,28 +881,13 @@ void map_can_frame_to_variable_inverter(CAN_frame rx_frame) {
 #ifdef DEBUG_LOG
         logging.println("Inverter requests 1s BMS info, we reply");
 #endif
-        transmit_can_frame(&FOXESS_1872, can_config.inverter);
-        transmit_can_frame(&FOXESS_1873, can_config.inverter);
-        transmit_can_frame(&FOXESS_1874, can_config.inverter);
-        transmit_can_frame(&FOXESS_1875, can_config.inverter);
-        transmit_can_frame(&FOXESS_1876, can_config.inverter);
-        transmit_can_frame(&FOXESS_1877, can_config.inverter);
-        transmit_can_frame(&FOXESS_1878, can_config.inverter);
-        transmit_can_frame(&FOXESS_1879, can_config.inverter);
+        send_bms_info = true;
       } else if (rx_frame.data.u8[4] == 0x01) {  // b4 0x01 , 0x1871 [0x01, 0x00, 0x01, 0x00, 0x01, 0x00, 0x00, 0x00]
         //Inverter wants to know all individual cellvoltages (occurs 6 seconds after valid BMS reply)
 #ifdef DEBUG_LOG
         logging.println("Inverter requests individual battery pack status, we reply");
 #endif
-        transmit_can_frame(&FOXESS_0C05,
-                           can_config.inverter);  //TODO, should we limit this incase NUMBER_OF_PACKS =! 8?
-        transmit_can_frame(&FOXESS_0C06, can_config.inverter);
-        transmit_can_frame(&FOXESS_0C07, can_config.inverter);
-        transmit_can_frame(&FOXESS_0C08, can_config.inverter);
-        transmit_can_frame(&FOXESS_0C09, can_config.inverter);
-        transmit_can_frame(&FOXESS_0C0A, can_config.inverter);
-        transmit_can_frame(&FOXESS_0C0B, can_config.inverter);
-        transmit_can_frame(&FOXESS_0C0C, can_config.inverter);
+        send_individual_pack_status = true;
       } else if (rx_frame.data.u8[4] == 0x04) {  // b4 0x01 , 0x1871 [0x01, 0x00, 0x01, 0x00, 0x01, 0x00, 0x00, 0x00]
         //Inverter wants to know all individual cellvoltages (occurs 6 seconds after valid BMS reply)
 #ifdef DEBUG_LOG
@@ -726,15 +904,7 @@ void map_can_frame_to_variable_inverter(CAN_frame rx_frame) {
 #ifdef DEBUG_LOG
       logging.println("Inverter wants to know serial numbers, we reply");
 #endif
-      for (uint8_t i = 0; i < (NUMBER_OF_PACKS + 1); i++) {
-        FOXESS_1881.data.u8[0] = (uint8_t)i;
-        FOXESS_1882.data.u8[0] = (uint8_t)i;
-        FOXESS_1883.data.u8[0] = (uint8_t)i;
-        //TODO, should we add something to serial number field?
-        transmit_can_frame(&FOXESS_1881, can_config.inverter);
-        transmit_can_frame(&FOXESS_1882, can_config.inverter);
-        transmit_can_frame(&FOXESS_1883, can_config.inverter);
-      }
+      send_serial_numbers = true;
     }
   }
 }
