@@ -70,9 +70,13 @@ MyTimer loop_task_timer_10s(INTERVAL_10_S);
 
 MyTimer check_pause_2s(INTERVAL_2_S);
 
+int64_t mqtt_task_time_us;
+MyTimer mqtt_task_timer_10s(INTERVAL_10_S);
+
 TaskHandle_t main_loop_task;
 TaskHandle_t connectivity_loop_task;
 TaskHandle_t logging_loop_task;
+TaskHandle_t mqtt_loop_task;
 
 Logging logging;
 
@@ -97,6 +101,11 @@ void setup() {
 #if defined(LOG_CAN_TO_SD) || defined(LOG_TO_SD)
   xTaskCreatePinnedToCore((TaskFunction_t)&logging_loop, "logging_loop", 4096, &logging_task_time_us,
                           TASK_CONNECTIVITY_PRIO, &logging_loop_task, WIFI_CORE);
+#endif
+
+#ifdef MQTT
+  xTaskCreatePinnedToCore((TaskFunction_t)&mqtt_loop, "mqtt_loop", 4096, &mqtt_task_time_us, TASK_MQTT_PRIO,
+                          &mqtt_loop_task, WIFI_CORE);
 #endif
 
   init_CAN();
@@ -180,9 +189,6 @@ void connectivity_loop(void* task_time_us) {
 #ifdef MDNSRESPONDER
   init_mDNS();
 #endif
-#ifdef MQTT
-  init_mqtt();
-#endif
 
   while (true) {
     START_TIME_MEASUREMENT(wifi);
@@ -191,16 +197,32 @@ void connectivity_loop(void* task_time_us) {
     ota_monitor();
 #endif
     END_TIME_MEASUREMENT_MAX(wifi, datalayer.system.status.wifi_task_10s_max_us);
-#ifdef MQTT
-    START_TIME_MEASUREMENT(mqtt);
-    mqtt_loop();
-    END_TIME_MEASUREMENT_MAX(mqtt, datalayer.system.status.mqtt_task_10s_max_us);
-#endif
 
 #ifdef FUNCTION_TIME_MEASUREMENT
     if (connectivity_task_timer_10s.elapsed()) {
-      datalayer.system.status.mqtt_task_10s_max_us = 0;
       datalayer.system.status.wifi_task_10s_max_us = 0;
+    }
+#endif
+    esp_task_wdt_reset();  // Reset watchdog
+    delay(1);
+  }
+}
+#endif
+
+#ifdef MQTT
+void mqtt_loop(void* task_time_us) {
+  esp_task_wdt_add(NULL);  // Register this task with WDT
+
+  init_mqtt();
+
+  while (true) {
+    START_TIME_MEASUREMENT(mqtt);
+    mqtt_loop();
+    END_TIME_MEASUREMENT_MAX(mqtt, datalayer.system.status.mqtt_task_10s_max_us);
+
+#ifdef FUNCTION_TIME_MEASUREMENT
+    if (mqtt_task_timer_10s.elapsed()) {
+      datalayer.system.status.mqtt_task_10s_max_us = 0;
     }
 #endif
     esp_task_wdt_reset();  // Reset watchdog
