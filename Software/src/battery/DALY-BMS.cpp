@@ -1,11 +1,9 @@
-#include "DALY-BMS.h"
+#include "../include.h"
 #ifdef DALY_BMS
 #include <cstdint>
 #include "../datalayer/datalayer.h"
 #include "../devboard/utils/events.h"
-#include "../include.h"
-#include "RENAULT-TWIZY.h"
-#include "RJXZS-BMS.h"
+#include "DALY-BMS.h"
 
 /* Do not change code below unless you are sure what you are doing */
 
@@ -42,7 +40,7 @@ void update_values_battery() {
   if (SOC < 2000 && adaptive_power_limit < datalayer.battery.status.max_discharge_power_W)
     datalayer.battery.status.max_discharge_power_W = adaptive_power_limit;
 
-  int32_t temperature_limit = (POWER_PER_DEGREE_C * (int32_t)temperature_min_dC + POWER_AT_0_DEGREE_C) / 10;
+  int32_t temperature_limit = POWER_PER_DEGREE_C * (int32_t)temperature_min_dC / 10 + POWER_AT_0_DEGREE_C;
   if (temperature_limit <= 0 || temperature_min_dC < BATTERY_MINTEMPERATURE ||
       temperature_max_dC > BATTERY_MAXTEMPERATURE)
     temperature_limit = 0;
