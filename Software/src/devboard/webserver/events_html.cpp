@@ -1,4 +1,5 @@
 #include "events_html.h"
+#include "../../datalayer/datalayer.h"
 
 const char EVENTS_HTML_START[] = R"=====(
 <style>body{background-color:#000;color:#fff}.event-log{display:flex;flex-direction:column}.event{display:flex;flex-wrap:wrap;border:1px solid #fff;padding:10px}.event>div{flex:1;min-width:100px;max-width:90%;word-break:break-word}</style><div style="background-color:#303e47;padding:10px;margin-bottom:10px;border-radius:25px"><div class="event-log"><div class="event" style="background-color:#1e2c33;font-weight:700"><div>Event Type</div><div>Severity</div><div>Last Event</div><div>Count</div><div>Data</div><div>Message</div></div>
@@ -48,7 +49,7 @@ String events_processor(const String& var) {
       content.concat("<div class='event'>");
       content.concat("<div>" + String(get_event_enum_string(event_handle)) + "</div>");
       content.concat("<div>" + String(get_event_level_string(event_handle)) + "</div>");
-      content.concat("<div class='sec-ago'>" + String(millisrolloverCount) + ";" +
+      content.concat("<div class='sec-ago'>" + String(datalayer.system.status.millisrolloverCount) + ";" +
                      String(timestamp_now - event_pointer->timestamp) + "</div>");
       content.concat("<div>" + String(event_pointer->occurences) + "</div>");
       content.concat("<div>" + String(event_pointer->data) + "</div>");

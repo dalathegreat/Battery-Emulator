@@ -19,6 +19,26 @@ battery_pause_status emulator_pause_status = NORMAL;
 //battery pause status end
 
 void update_machineryprotection() {
+  // Check health status of CAN interfaces
+  if (datalayer.system.info.can_native_send_fail) {
+    set_event(EVENT_CAN_NATIVE_TX_FAILURE, 0);
+    datalayer.system.info.can_native_send_fail = false;
+  } else {
+    clear_event(EVENT_CAN_NATIVE_TX_FAILURE);
+  }
+  if (datalayer.system.info.can_2515_send_fail) {
+    set_event(EVENT_CAN_BUFFER_FULL, 0);
+    datalayer.system.info.can_2515_send_fail = false;
+  } else {
+    clear_event(EVENT_CAN_BUFFER_FULL);
+  }
+  if (datalayer.system.info.can_2518_send_fail) {
+    set_event(EVENT_CANFD_BUFFER_FULL, 0);
+    datalayer.system.info.can_2518_send_fail = false;
+  } else {
+    clear_event(EVENT_CANFD_BUFFER_FULL);
+  }
+
   // Start checking that the battery is within reason. Incase we see any funny business, raise an event!
 
   // Pause function is on OR we have a critical fault event active

@@ -93,6 +93,10 @@ typedef struct {
 	uint8_t 			AMR3;				/**< \brief Acceptance Mask Register AMR3 */
 } CAN_filter_t;
 
+extern void gpio_matrix_in(uint32_t gpio, uint32_t signal_idx, bool inv);
+extern void gpio_matrix_out(uint32_t gpio, uint32_t signal_idx, bool out_inv, bool oen_inv);
+extern void gpio_pad_select_gpio(uint8_t gpio_num);
+
 /**
  * \brief Initialize the CAN Module
  *
@@ -104,9 +108,9 @@ int CAN_init(void);
  * \brief Send a can frame
  *
  * \param	p_frame	Pointer to the frame to be send, see #CAN_frame_t
- * \return  0 Frame has been written to the module
+ * \return  1 Frame has been written to the module
  */
-int CAN_write_frame(const CAN_frame_t *p_frame);
+bool CAN_write_frame(const CAN_frame_t *p_frame);
 
 /**
  * \brief Stops the CAN Module

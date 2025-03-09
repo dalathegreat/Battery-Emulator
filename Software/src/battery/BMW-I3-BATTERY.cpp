@@ -1060,10 +1060,6 @@ void transmit_can_battery() {
         case CELL_VOLTAGE_CELLNO:
           current_cell_polled++;
           if (current_cell_polled > 96) {
-            datalayer.battery.info.number_of_cells = 97;
-#ifdef DOUBLE_BATTERY
-            datalayer.battery2.info.number_of_cells = 97;
-#endif
             cmdState = CELL_VOLTAGE_CELLNO_LAST;
           } else {
             cmdState = CELL_VOLTAGE_CELLNO;
@@ -1150,13 +1146,14 @@ void setup_battery(void) {  // Performs one time setup at startup
   datalayer.battery.info.min_design_voltage_dV = MIN_PACK_VOLTAGE_60AH;
   datalayer.battery.info.max_cell_voltage_deviation_mV = MAX_CELL_DEVIATION_MV;
   datalayer.system.status.battery_allows_contactor_closing = true;
-
+  datalayer.battery.info.number_of_cells = NUMBER_OF_CELLS;
 #ifdef DOUBLE_BATTERY
   datalayer.battery2.info.max_design_voltage_dV = datalayer.battery.info.max_design_voltage_dV;
   datalayer.battery2.info.min_design_voltage_dV = datalayer.battery.info.min_design_voltage_dV;
   datalayer.battery2.info.max_cell_voltage_deviation_mV = datalayer.battery.info.max_cell_voltage_deviation_mV;
   datalayer.battery2.status.voltage_dV =
       0;  //Init voltage to 0 to allow contactor check to operate without fear of default values colliding
+  datalayer.battery2.info.number_of_cells = NUMBER_OF_CELLS;
 #endif
   pinMode(WUP_PIN1, OUTPUT);
   digitalWrite(WUP_PIN1, HIGH);  // Wake up the battery

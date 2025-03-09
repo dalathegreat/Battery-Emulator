@@ -49,12 +49,13 @@
 volatile unsigned long long bmsResetTimeOffset = 0;
 
 // The current software version, shown on webserver
-const char* version_number = "8.8.dev";
+const char* version_number = "8.9.dev";
 
 // Interval settings
 uint16_t intervalUpdateValues = INTERVAL_1_S;  // Interval at which to update inverter values / Modbus registers
 unsigned long previousMillis10ms = 0;
 unsigned long previousMillisUpdateVal = 0;
+unsigned long lastMillisOverflowCheck = 0;
 // Task time measurement for debugging and for setting CPU load events
 int64_t core_task_time_us;
 MyTimer core_task_timer_10s(INTERVAL_10_S);
@@ -146,17 +147,8 @@ void setup() {
 #endif
 }
 
-// Perform main program functions
-void loop() {
-  START_TIME_MEASUREMENT(loop_func);
-  run_event_handling();
-  END_TIME_MEASUREMENT_MAX(loop_func, datalayer.system.status.loop_task_10s_max_us);
-#ifdef FUNCTION_TIME_MEASUREMENT
-  if (loop_task_timer_10s.elapsed()) {
-    datalayer.system.status.loop_task_10s_max_us = 0;
-  }
-#endif
-}
+// Loop empty, all functionality runs in tasks
+void loop() {}
 
 #if defined(LOG_CAN_TO_SD) || defined(LOG_TO_SD)
 void logging_loop(void* task_time_us) {
@@ -499,6 +491,11 @@ void update_calculated_values() {
     datalayer.battery.status.reported_remaining_capacity_Wh = datalayer.battery2.status.remaining_capacity_Wh;
   }
 #endif  // DOUBLE_BATTERY
+  // Check if millis() has overflowed. Used in events to keep better track of time
+  if (millis() < lastMillisOverflowCheck) {  // Overflow detected
+    datalayer.system.status.millisrolloverCount++;
+  }
+  lastMillisOverflowCheck = millis();
 }
 
 void update_values_inverter() {

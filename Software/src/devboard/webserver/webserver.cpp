@@ -940,8 +940,6 @@ String processor(const String& var) {
     content +=
         "<h4>WIFI function (MQTT task) max load last 10 s: " + String(datalayer.system.status.wifi_task_10s_max_us) +
         " us</h4>";
-    content +=
-        "<h4>loop() task max load last 10 s: " + String(datalayer.system.status.loop_task_10s_max_us) + " us</h4>";
     content += "<h4>Max load @ worst case execution of core task:</h4>";
     content += "<h4>10ms function timing: " + String(datalayer.system.status.time_snap_10ms_us) + " us</h4>";
     content += "<h4>Values function timing: " + String(datalayer.system.status.time_snap_values_us) + " us</h4>";
