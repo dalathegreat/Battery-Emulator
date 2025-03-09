@@ -25,16 +25,30 @@ static String object_id_prefix = "";
 static String device_name = "";
 static String device_id = "";
 
-static void publish_common_info(void);
-static void publish_cell_voltages(void);
-static void publish_events(void);
+static bool publish_common_info(void);
+static bool publish_cell_voltages(void);
+static bool publish_events(void);
 
 /** Publish global values and call callbacks for specific modules */
 static void publish_values(void) {
-  mqtt_publish((topic_name + "/status").c_str(), "online", false);
-  publish_events();
-  publish_common_info();
-  publish_cell_voltages();
+
+  if (mqtt_publish((topic_name + "/status").c_str(), "online", false) == false) {
+    return;
+  }
+
+  if (publish_events() == false) {
+    return;
+  }
+
+  if (publish_common_info() == false) {
+    return;
+  }
+
+#ifdef MQTT_PUBLISH_CELL_VOLTAGES
+  if (publish_cell_voltages() == false) {
+    return;
+  }
+#endif
 }
 
 #ifdef HA_AUTODISCOVERY
@@ -169,7 +183,7 @@ void set_battery_attributes(JsonDocument& doc, const DATALAYER_BATTERY_TYPE& bat
 
 static std::vector<EventData> order_events;
 
-static void publish_common_info(void) {
+static bool publish_common_info(void) {
   static JsonDocument doc;
   static String state_topic = topic_name + "/info";
 #ifdef HA_AUTODISCOVERY
@@ -191,6 +205,8 @@ static void publish_common_info(void) {
       serializeJson(doc, mqtt_msg);
       if (mqtt_publish(generateCommonInfoAutoConfigTopic(config.object_id).c_str(), mqtt_msg, true)) {
         ha_common_info_published = true;
+      } else {
+        return false;
       }
       doc.clear();
     }
@@ -211,18 +227,20 @@ static void publish_common_info(void) {
     }
 #endif  // DOUBLE_BATTERY
     serializeJson(doc, mqtt_msg);
-    if (!mqtt_publish(state_topic.c_str(), mqtt_msg, false)) {
+    if (mqtt_publish(state_topic.c_str(), mqtt_msg, false) == false) {
 #ifdef DEBUG_LOG
       logging.println("Common info MQTT msg could not be sent");
 #endif  // DEBUG_LOG
+      return false;
     }
     doc.clear();
 #ifdef HA_AUTODISCOVERY
   }
 #endif  // HA_AUTODISCOVERY
+  return true;
 }
 
-static void publish_cell_voltages(void) {
+static bool publish_cell_voltages(void) {
   static JsonDocument doc;
   static String state_topic = topic_name + "/spec_data";
 #ifdef DOUBLE_BATTERY
@@ -244,6 +262,7 @@ static void publish_cell_voltages(void) {
         serializeJson(doc, mqtt_msg, sizeof(mqtt_msg));
         if (mqtt_publish(generateCellVoltageAutoConfigTopic(cellNumber, "").c_str(), mqtt_msg, true) == false) {
           failed_to_publish = true;
+          return false;
         }
       }
       doc.clear();  // clear after sending autoconfig
@@ -260,6 +279,7 @@ static void publish_cell_voltages(void) {
         serializeJson(doc, mqtt_msg, sizeof(mqtt_msg));
         if (mqtt_publish(generateCellVoltageAutoConfigTopic(cellNumber, "_2_").c_str(), mqtt_msg, true) == false) {
           failed_to_publish = true;
+          return false;
         }
       }
       doc.clear();  // clear after sending autoconfig
@@ -286,6 +306,7 @@ static void publish_cell_voltages(void) {
 #ifdef DEBUG_LOG
       logging.println("Cell voltage MQTT msg could not be sent");
 #endif  // DEBUG_LOG
+      return false;
     }
     doc.clear();
   }
@@ -306,13 +327,15 @@ static void publish_cell_voltages(void) {
 #ifdef DEBUG_LOG
       logging.println("Cell voltage MQTT msg could not be sent");
 #endif  // DEBUG_LOG
+      return false;
     }
     doc.clear();
   }
 #endif  // DOUBLE_BATTERY
+  return true;
 }
 
-void publish_events() {
+bool publish_events() {
   static JsonDocument doc;
   static String state_topic = topic_name + "/events";
 #ifdef HA_AUTODISCOVERY
@@ -331,6 +354,8 @@ void publish_events() {
     serializeJson(doc, mqtt_msg);
     if (mqtt_publish(generateEventsAutoConfigTopic("event").c_str(), mqtt_msg, true)) {
       ha_events_published = true;
+    } else {
+      return false;
     }
 
     doc.clear();
@@ -368,6 +393,7 @@ void publish_events() {
 #ifdef DEBUG_LOG
         logging.println("Common info MQTT msg could not be sent");
 #endif  // DEBUG_LOG
+        return false;
       } else {
         set_event_MQTTpublished(event_handle);
       }
@@ -378,9 +404,10 @@ void publish_events() {
 #ifdef HA_AUTODISCOVERY
   }
 #endif  // HA_AUTODISCOVERY
+  return true;
 }
 
-static void publish_buttons_discovery(void) {
+static bool publish_buttons_discovery(void) {
 #ifdef HA_AUTODISCOVERY
   if (ha_buttons_published == false) {
 #ifdef DEBUG_LOG
@@ -397,11 +424,14 @@ static void publish_buttons_discovery(void) {
       serializeJson(doc, mqtt_msg);
       if (mqtt_publish(generateButtonAutoConfigTopic(config.object_id).c_str(), mqtt_msg, true)) {
         ha_buttons_published = true;
+      } else {
+        return false;
       }
       doc.clear();
     }
   }
 #endif  // HA_AUTODISCOVERY
+  return true;
 }
 
 static void subscribe() {
@@ -511,6 +541,7 @@ void init_mqtt(void) {
   mqtt_cfg.session.last_will.retain = true;
   mqtt_cfg.session.last_will.msg = "offline";
   mqtt_cfg.session.last_will.msg_len = strlen(mqtt_cfg.session.last_will.msg);
+  mqtt_cfg.network.timeout_ms = MQTT_TIMEOUT;
   client = esp_mqtt_client_init(&mqtt_cfg);
   esp_mqtt_client_register_event(client, MQTT_EVENT_ANY, mqtt_event_handler, client);
 }
