@@ -1,11 +1,9 @@
-#include "DALY-BMS.h"
+#include "../include.h"
 #ifdef DALY_BMS
 #include <cstdint>
 #include "../datalayer/datalayer.h"
 #include "../devboard/utils/events.h"
-#include "../include.h"
-#include "RENAULT-TWIZY.h"
-#include "RJXZS-BMS.h"
+#include "DALY-BMS.h"
 
 /* Do not change code below unless you are sure what you are doing */
 
@@ -33,7 +31,7 @@ void update_values_battery() {
   // limit power when SoC is low or high
   uint32_t adaptive_power_limit = 999999;
   if (SOC < 2000)
-    adaptive_power_limit = ((uint32_t)SOC * POWER_PER_PERCENT) / 100;
+    adaptive_power_limit = ((uint32_t)(SOC + 100) * POWER_PER_PERCENT) / 100;
   else if (SOC > 8000)
     adaptive_power_limit = ((10000 - (uint32_t)SOC) * POWER_PER_PERCENT) / 100;
 
@@ -42,9 +40,15 @@ void update_values_battery() {
   if (SOC < 2000 && adaptive_power_limit < datalayer.battery.status.max_discharge_power_W)
     datalayer.battery.status.max_discharge_power_W = adaptive_power_limit;
 
-  // always allow to charge at least a little bit
-  if (datalayer.battery.status.max_charge_power_W < POWER_PER_PERCENT)
-    datalayer.battery.status.max_charge_power_W = POWER_PER_PERCENT;
+  int32_t temperature_limit = POWER_PER_DEGREE_C * (int32_t)temperature_min_dC / 10 + POWER_AT_0_DEGREE_C;
+  if (temperature_limit <= 0 || temperature_min_dC < BATTERY_MINTEMPERATURE ||
+      temperature_max_dC > BATTERY_MAXTEMPERATURE)
+    temperature_limit = 0;
+
+  if (temperature_limit < datalayer.battery.status.max_discharge_power_W)
+    datalayer.battery.status.max_discharge_power_W = temperature_limit;
+  if (temperature_limit < datalayer.battery.status.max_charge_power_W)
+    datalayer.battery.status.max_charge_power_W = temperature_limit;
 
   memcpy(datalayer.battery.status.cell_voltages_mV, cellvoltages_mV, sizeof(cellvoltages_mV));
   datalayer.battery.status.cell_min_voltage_mV = cellvoltage_min_mV;
