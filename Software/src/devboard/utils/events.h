@@ -6,24 +6,8 @@
 
 // #define INCLUDE_EVENTS_TEST  // Enable to run an event test loop, see events_test_on_target.cpp
 
-#define EE_MAGIC_HEADER_VALUE 0x0024  // 0x0000 to 0xFFFF
-
 #define GENERATE_ENUM(ENUM) ENUM,
 #define GENERATE_STRING(STRING) #STRING,
-
-/** EVENT ENUMERATION
- *
- * Try not to change the order!
- * When adding events, add them RIGHT BEFORE the EVENT_NOF_EVENTS enum.
- * In addition, the event name must start with "EVENT_".
- * If you don't follow this instruction, the EEPROM log will become corrupt.
- * To handle this, follow the instruction for EE_MAGIC_HEADER_VALUE as
- * described below.
- * 
- * After adding an event:
- * - Assign the proper event level in events.cpp:init_events()
- * - Increment EE_MAGIC_HEADER_VALUE in case you've changed the order
- */
 
 #define EVENTS_ENUM_TYPE(XX)                   \
   XX(EVENT_CANMCP2517FD_INIT_FAILURE)          \
@@ -90,7 +74,6 @@
   XX(EVENT_SERIAL_RX_FAILURE)                  \
   XX(EVENT_SERIAL_TX_FAILURE)                  \
   XX(EVENT_SERIAL_TRANSMITTER_FAILURE)         \
-  XX(EVENT_EEPROM_WRITE)                       \
   XX(EVENT_RESET_UNKNOWN)                      \
   XX(EVENT_RESET_POWERON)                      \
   XX(EVENT_RESET_EXT)                          \
@@ -149,7 +132,6 @@ typedef struct {
   uint8_t occurences;           // Number of occurrences since startup
   EVENTS_LEVEL_TYPE level;      // Event level, i.e. ERROR/WARNING...
   EVENTS_STATE_TYPE state;      // Event state, i.e. ACTIVE/INACTIVE...
-  bool log;
   bool MQTTpublished;
 } EVENTS_STRUCT_TYPE;
 
