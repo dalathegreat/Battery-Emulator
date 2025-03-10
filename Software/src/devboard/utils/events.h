@@ -4,8 +4,6 @@
 #include "../../include.h"
 #endif
 
-// #define INCLUDE_EVENTS_TEST  // Enable to run an event test loop, see events_test_on_target.cpp
-
 #define GENERATE_ENUM(ENUM) ENUM,
 #define GENERATE_STRING(STRING) #STRING,
 
@@ -144,7 +142,6 @@ struct EventData {
 const char* get_event_enum_string(EVENTS_ENUM_TYPE event);
 const char* get_event_message_string(EVENTS_ENUM_TYPE event);
 const char* get_event_level_string(EVENTS_ENUM_TYPE event);
-const char* get_event_type(EVENTS_ENUM_TYPE event);
 
 EVENTS_LEVEL_TYPE get_event_level(void);
 
@@ -156,8 +153,6 @@ void reset_all_events();
 void set_event_MQTTpublished(EVENTS_ENUM_TYPE event);
 
 const EVENTS_STRUCT_TYPE* get_event_pointer(EVENTS_ENUM_TYPE event);
-
-void run_sequence_on_target(void);
 
 bool compareEventsByTimestampAsc(const EventData& a, const EventData& b);
 bool compareEventsByTimestampDesc(const EventData& a, const EventData& b);
