@@ -87,7 +87,7 @@ uint16_t estimateSOC(uint16_t cellVoltage) {  // Linear interpolation function
   return 0;  // Default return for safety, should never reach here
 }
 
-uint8_t selectSOC(uint8_t SOC_low, uint8_t SOC_high) {
+uint16_t selectSOC(uint16_t SOC_low, uint16_t SOC_high) {
   if (SOC_low == 0 || SOC_high == 0) {
     return 0;  // If either value is 0, return 0
   }
