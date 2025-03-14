@@ -2338,7 +2338,7 @@ void transmit_can_battery() {
     transmit_can_frame(&MEB_585, can_config.battery);       // Systeminfo
     transmit_can_frame(&MEB_1A5555A6, can_config.battery);  // Temperature QBit
 
-    transmit_obd_can_frame(0x18DA05F1, can_config.battery);
+    transmit_obd_can_frame(0x18DA05F1, can_config.battery, true);
   }
 }
 

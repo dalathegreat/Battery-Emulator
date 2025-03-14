@@ -109,8 +109,9 @@ void handle_obd_frame(CAN_frame& rx_frame) {
 #endif
 }
 
-void transmit_obd_can_frame(unsigned int address, int interface) {
+void transmit_obd_can_frame(unsigned int address, int interface, bool canFD) {
   static CAN_frame OBD_frame;
+  OBD_frame.FD = canFD;
   OBD_frame.ID = address;
   OBD_frame.ext_ID = address > 0x7FF;
   OBD_frame.DLC = 8;
