@@ -17,6 +17,7 @@
 //#define FOXESS_BATTERY
 //#define CELLPOWER_BMS
 //#define CHADEMO_BATTERY	//NOTE: inherently enables CONTACTOR_CONTROL below
+#define CMFA_EV_BATTERY
 //#define IMIEV_CZERO_ION_BATTERY
 //#define JAGUAR_IPACE_BATTERY
 //#define KIA_E_GMP_BATTERY
@@ -66,7 +67,7 @@
 //#define SUNGROW_CAN      //Enable this line to emulate a "Sungrow SBR064" over CAN bus
 
 /* Select hardware used for Battery-Emulator */
-//#define HW_LILYGO
+#define HW_LILYGO
 //#define HW_STARK
 //#define HW_3LB
 //#define HW_DEVKIT
