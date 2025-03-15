@@ -53,13 +53,18 @@ static unsigned long previousMillis10ms = 0;
 
 static uint8_t heartbeat = 0;   //Alternates between 0x55 and 0xAA every 5th frame
 static uint8_t heartbeat2 = 0;  //Alternates between 0x55 and 0xAA every 5th frame
-static uint8_t SOC = 0;
+static uint16_t SOC = 0;
+static uint16_t SOH = 99;
 static uint16_t pack_voltage = 2700;
+static int16_t highest_cell_temperature = 0;
+static uint16_t lowest_cell_temperature = 0;
+static uint32_t discharge_power_w = 0;
+static uint32_t charge_power_w = 0;
 
 void update_values_battery() {  //This function maps all the values fetched via CAN to the correct parameters used for modbus
-  datalayer.battery.status.soh_pptt;
+  datalayer.battery.status.soh_pptt = SOH * 100;
 
-  datalayer.battery.status.real_soc = SOC * 100;  // Add two decimals
+  datalayer.battery.status.real_soc = SOC * 100;
 
   datalayer.battery.status.current_dA;
 
@@ -69,13 +74,13 @@ void update_values_battery() {  //This function maps all the values fetched via 
   datalayer.battery.status.remaining_capacity_Wh = static_cast<uint32_t>(
       (static_cast<double>(datalayer.battery.status.real_soc) / 10000) * datalayer.battery.info.total_capacity_Wh);
 
-  datalayer.battery.status.max_discharge_power_W;
+  datalayer.battery.status.max_discharge_power_W = discharge_power_w;
 
-  datalayer.battery.status.max_charge_power_W;
+  datalayer.battery.status.max_charge_power_W = charge_power_w;
 
-  datalayer.battery.status.temperature_min_dC;
+  datalayer.battery.status.temperature_min_dC = (lowest_cell_temperature * 10);
 
-  datalayer.battery.status.temperature_max_dC;
+  datalayer.battery.status.temperature_max_dC = (highest_cell_temperature * 10);
 
   datalayer.battery.status.cell_min_voltage_mV;
 
@@ -90,9 +95,14 @@ void handle_incoming_can_frame_battery(CAN_frame rx_frame) {
       //value2 = ((rx_frame.data.u8[0] << 2 | (rx_frame.data.u8[1] & 0xC0) >> 6));
       SOC = rx_frame.data.u8[7];
       break;
-    case 0x3D6:
+    case 0x3D6:  // Same structure as old Zoe 0x424 message!
       datalayer.battery.status.CAN_battery_still_alive = CAN_STILL_ALIVE;
-      heartbeat = rx_frame.data.u8[6];  //Alternates between 0x55 and 0xAA every 5th frame
+      charge_power_w = rx_frame.data.u8[2] * 500;
+      discharge_power_w = rx_frame.data.u8[3] * 500;
+      lowest_cell_temperature = (rx_frame.data.u8[4] - 40);
+      SOH = rx_frame.data.u8[5];
+      heartbeat = rx_frame.data.u8[6];
+      highest_cell_temperature = (rx_frame.data.u8[6] - 40);
       break;
     case 0x3D7:
       datalayer.battery.status.CAN_battery_still_alive = CAN_STILL_ALIVE;
