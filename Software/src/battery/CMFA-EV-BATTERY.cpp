@@ -81,6 +81,8 @@ void handle_incoming_can_frame_battery(CAN_frame rx_frame) {
   switch (rx_frame.ID) {  //These frames are transmitted by the battery
     case 0x127:
       datalayer.battery.status.CAN_battery_still_alive = CAN_STILL_ALIVE;
+      //value1 = ((rx_frame.data.u8[0] << 2 | (rx_frame.data.u8[1] & 0xC0) >> 6));
+      //value2 = ((rx_frame.data.u8[0] << 2 | (rx_frame.data.u8[1] & 0xC0) >> 6));
       break;
     case 0x3D6:
       datalayer.battery.status.CAN_battery_still_alive = CAN_STILL_ALIVE;
@@ -145,7 +147,7 @@ void setup_battery(void) {  // Performs one time setup at startup
   strncpy(datalayer.system.info.battery_protocol, "CMFA platform 26.8/27.4kWh", 63);
   datalayer.system.info.battery_protocol[63] = '\0';
   datalayer.system.status.battery_allows_contactor_closing = true;
-  datalayer.battery.info.number_of_cells = 96;
+  datalayer.battery.info.number_of_cells = 72;
   datalayer.battery.info.max_design_voltage_dV = MAX_PACK_VOLTAGE_DV;
   datalayer.battery.info.min_design_voltage_dV = MIN_PACK_VOLTAGE_DV;
   datalayer.battery.info.max_cell_voltage_mV = MAX_CELL_VOLTAGE_MV;
