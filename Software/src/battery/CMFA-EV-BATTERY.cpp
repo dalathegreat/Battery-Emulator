@@ -49,7 +49,7 @@ static uint16_t SOH = 99;
 static int16_t current = 0;
 static uint16_t pack_voltage = 2700;
 static int16_t highest_cell_temperature = 0;
-static uint16_t lowest_cell_temperature = 0;
+static int16_t lowest_cell_temperature = 0;
 static uint32_t discharge_power_w = 0;
 static uint32_t charge_power_w = 0;
 
