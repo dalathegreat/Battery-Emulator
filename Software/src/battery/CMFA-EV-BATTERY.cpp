@@ -54,6 +54,7 @@ static unsigned long previousMillis10ms = 0;
 static uint8_t heartbeat = 0;   //Alternates between 0x55 and 0xAA every 5th frame
 static uint8_t heartbeat2 = 0;  //Alternates between 0x55 and 0xAA every 5th frame
 static uint8_t SOC = 0;
+static uint16_t pack_voltage = 2700;
 
 void update_values_battery() {  //This function maps all the values fetched via CAN to the correct parameters used for modbus
   datalayer.battery.status.soh_pptt;
@@ -62,7 +63,7 @@ void update_values_battery() {  //This function maps all the values fetched via 
 
   datalayer.battery.status.current_dA;
 
-  datalayer.battery.status.voltage_dV;
+  datalayer.battery.status.voltage_dV = pack_voltage;
 
   //Calculate the remaining Wh amount from SOC% and max Wh value.
   datalayer.battery.status.remaining_capacity_Wh = static_cast<uint32_t>(
@@ -95,6 +96,7 @@ void handle_incoming_can_frame_battery(CAN_frame rx_frame) {
       break;
     case 0x3D7:
       datalayer.battery.status.CAN_battery_still_alive = CAN_STILL_ALIVE;
+      pack_voltage = ((rx_frame.data.u8[6] << 4 | (rx_frame.data.u8[5] & 0x0F)));
       break;
     case 0x3D8:
       datalayer.battery.status.CAN_battery_still_alive = CAN_STILL_ALIVE;
