@@ -4,26 +4,17 @@
 #include "../devboard/utils/events.h"
 #include "CMFA-EV-BATTERY.h"
 
-/*
-TODO:
+/* TODO:
+Before this integration can be considered stable, we need to:
 - Find the following data points in the transmitted CAN data:
-   - SOC%
-   - SOH% (optional)
-   - Current
-   - Pack voltage
-   - Max discharge power
-   - Max charge power
-   - Temperature min
-   - Temperature max
+   - Pack voltage (Current implementation might be wrong)
    - Cellvoltage min
    - Cellvoltage max
     - Alternatively all these values can be taken from OBD2 PID polling
-- Figure out which messages need to be sent towards the battery to keep it satisfied and staying alive
-  - TODO: Test that the current amount of messages sent is enough to keep it alive
 /*
 
-/* Do not change code below unless you are sure what you are doing */
 
+/* Do not change code below unless you are sure what you are doing */
 CAN_frame CMFA_1EA = {.FD = false, .ext_ID = false, .DLC = 1, .ID = 0x1EA, .data = {0x00}};
 CAN_frame CMFA_125 = {.FD = false,
                       .ext_ID = false,
@@ -53,8 +44,9 @@ static unsigned long previousMillis10ms = 0;
 
 static uint8_t heartbeat = 0;   //Alternates between 0x55 and 0xAA every 5th frame
 static uint8_t heartbeat2 = 0;  //Alternates between 0x55 and 0xAA every 5th frame
-static uint16_t SOC = 0;
+static uint32_t SOC = 0;
 static uint16_t SOH = 99;
+static int16_t current = 0;
 static uint16_t pack_voltage = 2700;
 static int16_t highest_cell_temperature = 0;
 static uint16_t lowest_cell_temperature = 0;
@@ -62,13 +54,15 @@ static uint32_t discharge_power_w = 0;
 static uint32_t charge_power_w = 0;
 
 void update_values_battery() {  //This function maps all the values fetched via CAN to the correct parameters used for modbus
-  datalayer.battery.status.soh_pptt = SOH * 100;
+  datalayer.battery.status.soh_pptt = (SOH * 100);
 
-  datalayer.battery.status.real_soc = SOC * 100;
+  datalayer.battery.status.real_soc = (SOC * 0.25);
 
-  datalayer.battery.status.current_dA;
+  datalayer.battery.status.current_dA = current * 10;
 
   datalayer.battery.status.voltage_dV = pack_voltage;
+
+  datalayer.battery.info.total_capacity_Wh = 27000;
 
   //Calculate the remaining Wh amount from SOC% and max Wh value.
   datalayer.battery.status.remaining_capacity_Wh = static_cast<uint32_t>(
@@ -89,13 +83,12 @@ void update_values_battery() {  //This function maps all the values fetched via 
 
 void handle_incoming_can_frame_battery(CAN_frame rx_frame) {
   switch (rx_frame.ID) {  //These frames are transmitted by the battery
-    case 0x127:           //10ms
+    case 0x127:           //10ms , Same structure as old Zoe 0x155 message!
       datalayer.battery.status.CAN_battery_still_alive = CAN_STILL_ALIVE;
-      //value1 = ((rx_frame.data.u8[0] << 2 | (rx_frame.data.u8[1] & 0xC0) >> 6));
-      //value2 = ((rx_frame.data.u8[0] << 2 | (rx_frame.data.u8[1] & 0xC0) >> 6));
-      SOC = rx_frame.data.u8[7];
+      current = (((((rx_frame.data.u8[1] & 0x0F) << 8) | rx_frame.data.u8[2]) * 0.25) - 500);
+      SOC = ((rx_frame.data.u8[4] << 8) | rx_frame.data.u8[5]);
       break;
-    case 0x3D6:  // Same structure as old Zoe 0x424 message!
+    case 0x3D6:  //100ms, Same structure as old Zoe 0x424 message!
       datalayer.battery.status.CAN_battery_still_alive = CAN_STILL_ALIVE;
       charge_power_w = rx_frame.data.u8[2] * 500;
       discharge_power_w = rx_frame.data.u8[3] * 500;
@@ -104,20 +97,20 @@ void handle_incoming_can_frame_battery(CAN_frame rx_frame) {
       heartbeat = rx_frame.data.u8[6];
       highest_cell_temperature = (rx_frame.data.u8[6] - 40);
       break;
-    case 0x3D7:
+    case 0x3D7:  //100ms
       datalayer.battery.status.CAN_battery_still_alive = CAN_STILL_ALIVE;
       pack_voltage = ((rx_frame.data.u8[6] << 4 | (rx_frame.data.u8[5] & 0x0F)));
       break;
-    case 0x3D8:
+    case 0x3D8:  //100ms
       datalayer.battery.status.CAN_battery_still_alive = CAN_STILL_ALIVE;
       //counter_3D8 = rx_frame.data.u8[3]; //?
       //CRC_3D8 = rx_frame.data.u8[4]; //?
       break;
-    case 0x43C:
+    case 0x43C:  //100ms
       datalayer.battery.status.CAN_battery_still_alive = CAN_STILL_ALIVE;
       heartbeat2 = rx_frame.data.u8[2];  //Alternates between 0x55 and 0xAA every 5th frame
       break;
-    case 0x431:
+    case 0x431:  //100ms
       datalayer.battery.status.CAN_battery_still_alive = CAN_STILL_ALIVE;
       //byte0 9C always
       //byte1 40 always
@@ -167,7 +160,7 @@ void transmit_can_battery() {
 }
 
 void setup_battery(void) {  // Performs one time setup at startup
-  strncpy(datalayer.system.info.battery_protocol, "CMFA platform 26.8/27.4kWh", 63);
+  strncpy(datalayer.system.info.battery_protocol, "CMFA platform, 27 kWh battery", 63);
   datalayer.system.info.battery_protocol[63] = '\0';
   datalayer.system.status.battery_allows_contactor_closing = true;
   datalayer.battery.info.number_of_cells = 72;
