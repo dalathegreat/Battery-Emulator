@@ -51,10 +51,14 @@ static uint8_t content_135[16] = {0x85, 0xD5, 0x25, 0x75, 0xC5, 0x15, 0x65, 0xB5
 static unsigned long previousMillis100ms = 0;
 static unsigned long previousMillis10ms = 0;
 
+static uint8_t heartbeat = 0;   //Alternates between 0x55 and 0xAA every 5th frame
+static uint8_t heartbeat2 = 0;  //Alternates between 0x55 and 0xAA every 5th frame
+static uint8_t SOC = 0;
+
 void update_values_battery() {  //This function maps all the values fetched via CAN to the correct parameters used for modbus
   datalayer.battery.status.soh_pptt;
 
-  datalayer.battery.status.real_soc;
+  datalayer.battery.status.real_soc = SOC * 100;  // Add two decimals
 
   datalayer.battery.status.current_dA;
 
@@ -79,25 +83,32 @@ void update_values_battery() {  //This function maps all the values fetched via 
 
 void handle_incoming_can_frame_battery(CAN_frame rx_frame) {
   switch (rx_frame.ID) {  //These frames are transmitted by the battery
-    case 0x127:
+    case 0x127:           //10ms
       datalayer.battery.status.CAN_battery_still_alive = CAN_STILL_ALIVE;
       //value1 = ((rx_frame.data.u8[0] << 2 | (rx_frame.data.u8[1] & 0xC0) >> 6));
       //value2 = ((rx_frame.data.u8[0] << 2 | (rx_frame.data.u8[1] & 0xC0) >> 6));
+      SOC = rx_frame.data.u8[7];
       break;
     case 0x3D6:
       datalayer.battery.status.CAN_battery_still_alive = CAN_STILL_ALIVE;
+      heartbeat = rx_frame.data.u8[6];  //Alternates between 0x55 and 0xAA every 5th frame
       break;
     case 0x3D7:
       datalayer.battery.status.CAN_battery_still_alive = CAN_STILL_ALIVE;
       break;
     case 0x3D8:
       datalayer.battery.status.CAN_battery_still_alive = CAN_STILL_ALIVE;
+      //counter_3D8 = rx_frame.data.u8[3]; //?
+      //CRC_3D8 = rx_frame.data.u8[4]; //?
       break;
     case 0x43C:
       datalayer.battery.status.CAN_battery_still_alive = CAN_STILL_ALIVE;
+      heartbeat2 = rx_frame.data.u8[2];  //Alternates between 0x55 and 0xAA every 5th frame
       break;
     case 0x431:
       datalayer.battery.status.CAN_battery_still_alive = CAN_STILL_ALIVE;
+      //byte0 9C always
+      //byte1 40 always
       break;
     case 0x5A9:
       datalayer.battery.status.CAN_battery_still_alive = CAN_STILL_ALIVE;
