@@ -95,7 +95,7 @@ void handle_incoming_can_frame_battery(CAN_frame rx_frame) {
       lowest_cell_temperature = (rx_frame.data.u8[4] - 40);
       SOH = rx_frame.data.u8[5];
       heartbeat = rx_frame.data.u8[6];
-      highest_cell_temperature = (rx_frame.data.u8[6] - 40);
+      highest_cell_temperature = (rx_frame.data.u8[7] - 40);
       break;
     case 0x3D7:  //100ms
       datalayer.battery.status.CAN_battery_still_alive = CAN_STILL_ALIVE;
