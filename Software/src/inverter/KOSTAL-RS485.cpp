@@ -363,6 +363,7 @@ void receive_RS485()  // Runs as fast as possible to handle the serial stream
                   tmpframe[38] = calculate_kostal_crc(tmpframe, 38);
                   null_stuffer(tmpframe, 40);
                   send_kostal(tmpframe, 40);
+                  datalayer.system.status.inverter_allows_contactor_closing = true;
                   if (!startupMillis) {
                     startupMillis = currentMillis;
                   }
