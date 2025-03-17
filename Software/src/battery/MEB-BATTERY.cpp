@@ -540,14 +540,20 @@ void update_values_battery() {  //This function maps all the values fetched via 
 
   datalayer.battery.status.real_soc = battery_SOC * 5;  //*0.05*100
 
-  datalayer.battery.status.soh_pptt;
-
   datalayer.battery.status.voltage_dV = BMS_voltage * 2.5;  // *0.25*10
 
   datalayer.battery.status.current_dA = (BMS_current - 16300);  // 0.1 * 10
 
   datalayer.battery.info.total_capacity_Wh =
-      ((float)datalayer.battery.info.number_of_cells) * 3.6458 * ((float)BMS_capacity_ah) * 0.2 * 1.13;
+      ((float)datalayer.battery.info.number_of_cells) * 3.67 * ((float)BMS_capacity_ah) * 0.2 * 1.02564;
+
+  int Wh_max = 61832*0.935/1.02564; // 108 cells
+  if (datalayer.battery.info.number_of_cells <= 84)
+    Wh_max = 48091*0.9025/1.02564;
+  else if (datalayer.battery.info.number_of_cells <= 96)
+    Wh_max = 82442*0.9025/1.02564;
+  if (BMS_capacity_ah > 0)
+    datalayer.battery.status.soh_pptt = 10000 * datalayer.battery.info.total_capacity_Wh / Wh_max;
 
   datalayer.battery.status.remaining_capacity_Wh = usable_energy_amount_Wh * 5;
 
@@ -589,6 +595,11 @@ void update_values_battery() {  //This function maps all the values fetched via 
   datalayer_extended.meb.BMS_mode = BMS_mode;
   datalayer_extended.meb.battery_diagnostic = battery_diagnostic;
   datalayer_extended.meb.status_HV_line = status_HV_line;
+  datalayer_extended.meb.BMS_fault_performance = BMS_fault_performance;
+  datalayer_extended.meb.BMS_fault_emergency_shutdown_crash = BMS_fault_emergency_shutdown_crash;
+  datalayer_extended.meb.BMS_error_shutdown_request = BMS_error_shutdown_request;
+  datalayer_extended.meb.BMS_error_shutdown = BMS_error_shutdown;
+
   datalayer_extended.meb.warning_support = warning_support;
   datalayer_extended.meb.BMS_status_voltage_free = BMS_status_voltage_free;
   datalayer_extended.meb.BMS_OBD_MIL = BMS_OBD_MIL;
