@@ -11,6 +11,11 @@
 #include "BYD-CAN.h"
 #endif
 
+#ifdef BYD_CAN_DEYE
+#define BYD_CAN
+#include "BYD-CAN.h"
+#endif
+
 #ifdef BYD_MODBUS
 #include "BYD-MODBUS.h"
 #endif
