@@ -181,6 +181,7 @@ void update_values_can_inverter() {  //This function maps all the values fetched
   GROWATT_3110.data.u8[4] = (datalayer.battery.status.max_discharge_current_dA >> 8);
   GROWATT_3110.data.u8[5] = (datalayer.battery.status.max_discharge_current_dA & 0x00FF);
   //Status bits (see documentation for all bits, most important are mapped
+  GROWATT_3110.data.u8[7] = 0x00;                      // Clear all bits
   if (datalayer.battery.status.active_power_W < -1) {  // Discharging
     GROWATT_3110.data.u8[7] = (GROWATT_3110.data.u8[7] | 0b00000011);
   } else if (datalayer.battery.status.active_power_W > 1) {  // Charging
