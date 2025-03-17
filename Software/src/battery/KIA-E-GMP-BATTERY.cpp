@@ -64,11 +64,23 @@ static uint8_t EGMP_1CF_counter = 0;
 static uint8_t EGMP_3XF_counter = 0;
 
 // Define the data points for %SOC depending on cell voltage
-const uint8_t numPoints = 30;
-const uint16_t SOC[] = {10000, 9626, 9259, 8899, 8546, 8200, 7859, 7524, 7193, 6867, 6544, 6224, 5907, 5590, 5275,
-                        4959,  4643, 4325, 4004, 3680, 3350, 3016, 2674, 2325, 1967, 1599, 1220, 827,  421,  0};
-const uint16_t voltage[] = {4200, 4170, 4140, 4110, 4080, 4050, 4020, 3990, 3960, 3930, 3900, 3870, 3840, 3810, 3780,
-                            3750, 3720, 3690, 3660, 3630, 3600, 3570, 3540, 3510, 3480, 3450, 3420, 3390, 3360, 3330};
+const uint8_t numPoints = 100;
+
+const uint16_t SOC[] = {10000, 9900, 9800, 9700, 9600, 9500, 9400, 9300, 9200, 9100, 9000, 8900, 8800, 8700, 8600,
+                        8500,  8400, 8300, 8200, 8100, 8000, 7900, 7800, 7700, 7600, 7500, 7400, 7300, 7200, 7100,
+                        7000,  6900, 6800, 6700, 6600, 6500, 6400, 6300, 6200, 6100, 6000, 5900, 5800, 5700, 5600,
+                        5500,  5400, 5300, 5200, 5100, 5000, 4900, 4800, 4700, 4600, 4500, 4400, 4300, 4200, 4100,
+                        4000,  3900, 3800, 3700, 3600, 3500, 3400, 3300, 3200, 3100, 3000, 2900, 2800, 2700, 2600,
+                        2500,  2400, 2300, 2200, 2100, 2000, 1900, 1800, 1700, 1600, 1500, 1400, 1300, 1200, 1100,
+                        1000,  900,  800,  700,  600,  500,  400,  300,  200,  100,  0};
+
+const uint16_t voltage[] = {4200, 4171, 4143, 4117, 4093, 4070, 4050, 4031, 4013, 3998, 3985, 3973, 3964, 3957, 3952,
+                            3950, 3941, 3933, 3924, 3916, 3907, 3899, 3890, 3881, 3873, 3864, 3856, 3847, 3839, 3830,
+                            3821, 3813, 3804, 3796, 3787, 3779, 3770, 3761, 3753, 3744, 3736, 3727, 3719, 3710, 3701,
+                            3693, 3684, 3676, 3667, 3659, 3650, 3641, 3633, 3624, 3616, 3607, 3599, 3590, 3581, 3573,
+                            3564, 3556, 3547, 3539, 3530, 3521, 3513, 3504, 3496, 3487, 3479, 3470, 3461, 3453, 3444,
+                            3436, 3427, 3419, 3410, 3401, 3393, 3384, 3376, 3367, 3359, 3350, 3333, 3315, 3297, 3278,
+                            3258, 3237, 3215, 3192, 3166, 3139, 3108, 3074, 3033, 2979, 2850};
 
 uint16_t estimateSOC(uint16_t cellVoltage) {  // Linear interpolation function
   if (cellVoltage >= voltage[0]) {
@@ -80,8 +92,14 @@ uint16_t estimateSOC(uint16_t cellVoltage) {  // Linear interpolation function
 
   for (int i = 1; i < numPoints; ++i) {
     if (cellVoltage >= voltage[i]) {
-      double t = (cellVoltage - voltage[i]) / (voltage[i - 1] - voltage[i]);
-      return SOC[i] + t * (SOC[i - 1] - SOC[i]);
+      // Fix: Cast to float or double to ensure proper floating-point division
+      float t = (float)(cellVoltage - voltage[i]) / (float)(voltage[i - 1] - voltage[i]);
+
+      // Calculate interpolated SOC value
+      uint16_t socDiff = SOC[i - 1] - SOC[i];
+      uint16_t interpolatedValue = SOC[i] + (uint16_t)(t * socDiff);
+
+      return interpolatedValue;
     }
   }
   return 0;  // Default return for safety, should never reach here
