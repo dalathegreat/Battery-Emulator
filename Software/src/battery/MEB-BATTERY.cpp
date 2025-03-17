@@ -547,11 +547,11 @@ void update_values_battery() {  //This function maps all the values fetched via 
   datalayer.battery.info.total_capacity_Wh =
       ((float)datalayer.battery.info.number_of_cells) * 3.67 * ((float)BMS_capacity_ah) * 0.2 * 1.02564;
 
-  int Wh_max = 61832*0.935/1.02564; // 108 cells
+  int Wh_max = 61832 * 0.935 / 1.02564;  // 108 cells
   if (datalayer.battery.info.number_of_cells <= 84)
-    Wh_max = 48091*0.9025/1.02564;
+    Wh_max = 48091 * 0.9025 / 1.02564;
   else if (datalayer.battery.info.number_of_cells <= 96)
-    Wh_max = 82442*0.9025/1.02564;
+    Wh_max = 82442 * 0.9025 / 1.02564;
   if (BMS_capacity_ah > 0)
     datalayer.battery.status.soh_pptt = 10000 * datalayer.battery.info.total_capacity_Wh / Wh_max;
 
