@@ -38,6 +38,10 @@ void setup_can_shunt();
 #include "CHADEMO-SHUNTS.h"
 #endif
 
+#ifdef CMFA_EV_BATTERY
+#include "CMFA-EV-BATTERY.h"
+#endif
+
 #ifdef FOXESS_BATTERY
 #include "FOXESS-BATTERY.h"
 #endif
