@@ -544,20 +544,20 @@ void update_values_battery() {  //This function maps all the values fetched via 
 
   datalayer.battery.status.current_dA = (BMS_current - 16300);  // 0.1 * 10
 
-  if (nof_cells_determined){
+  if (nof_cells_determined) {
     datalayer.battery.info.total_capacity_Wh =
         ((float)datalayer.battery.info.number_of_cells) * 3.67 * ((float)BMS_capacity_ah) * 0.2 * 1.02564;
     // The factor 1.02564 = 1/0.975 is to correct for bottom 2.5% which is reported by the remaining_capacity_Wh,
     // but which is not actually usable, but if we do not include it, the remaining_capacity_Wh can be larger than
     // the total_capacity_Wh.
-    // 0.935 and 0.9025 are the different conversions for different battery sizes to go from design capacity to 
+    // 0.935 and 0.9025 are the different conversions for different battery sizes to go from design capacity to
     // total_capacity_Wh calculated above.
 
-    int Wh_max = 61832*0.935; // 108 cells
+    int Wh_max = 61832 * 0.935;  // 108 cells
     if (datalayer.battery.info.number_of_cells <= 84)
-      Wh_max = 48091*0.9025;
+      Wh_max = 48091 * 0.9025;
     else if (datalayer.battery.info.number_of_cells <= 96)
-      Wh_max = 82442*0.9025;
+      Wh_max = 82442 * 0.9025;
     if (BMS_capacity_ah > 0)
       datalayer.battery.status.soh_pptt = 10000 * datalayer.battery.info.total_capacity_Wh / Wh_max;
   }
