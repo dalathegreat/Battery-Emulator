@@ -7,6 +7,10 @@
 #include "AFORE-CAN.h"
 #endif
 
+#ifdef BYD_CAN_DEYE
+#define BYD_CAN
+#endif
+
 #ifdef BYD_CAN
 #include "BYD-CAN.h"
 #endif
