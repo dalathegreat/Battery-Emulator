@@ -1062,7 +1062,18 @@ String advanced_battery_processor(const String& var) {
       default:
         content += String("? ") + String(datalayer_extended.meb.status_HV_line);
     }
-    content += "</h4><h4>Warning support: ";
+    content += "</h4>";
+    content += datalayer_extended.meb.BMS_fault_performance ? "<h4>BMS fault performance: Active!</h4>"
+                                                            : "<h4>BMS fault performance: Off</h4>";
+    content += datalayer_extended.meb.BMS_fault_emergency_shutdown_crash
+                   ? "<h4>BMS fault emergency shutdown crash: Active!</h4>"
+                   : "<h4>BMS fault emergency shutdown crash: Off</h4>";
+    content += datalayer_extended.meb.BMS_error_shutdown_request ? "<h4>BMS error shutdown request: Active!</h4>"
+                                                                 : "<h4>BMS error shutdown request: Inactive</h4>";
+    content += datalayer_extended.meb.BMS_error_shutdown ? "<h4>BMS error shutdown: Active!</h4>"
+                                                         : "<h4>BMS error shutdown: Off</h4>";
+
+    content += "<h4>Warning support: ";
     switch (datalayer_extended.meb.warning_support) {
       case 0:
         content += String("OK");
