@@ -438,14 +438,17 @@ static void subscribe() {
   esp_mqtt_client_subscribe(client, (topic_name + "/command/+").c_str(), 1);
 }
 
-void mqtt_message_received(char* topic, int topic_len, char* data, int data_len) {
+void mqtt_message_received(char* topic_raw, int topic_len, char* data, int data_len) {
+
+  char* topic = strndup(topic_raw, topic_len);
+
 #ifdef DEBUG_LOG
   logging.printf("MQTT message arrived: [%.*s]\n", topic_len, topic);
 #endif  // DEBUG_LOG
 
 #ifdef REMOTE_BMS_RESET
   const char* bmsreset_topic = generateButtonTopic("BMSRESET").c_str();
-  if (strncmp(topic, bmsreset_topic, topic_len) == 0) {
+  if (strcmp(topic, bmsreset_topic) == 0) {
 #ifdef DEBUG_LOG
     logging.println("Triggering BMS reset");
 #endif  // DEBUG_LOG
@@ -453,21 +456,21 @@ void mqtt_message_received(char* topic, int topic_len, char* data, int data_len)
   }
 #endif  // REMOTE_BMS_RESET
 
-  if (strncmp(topic, generateButtonTopic("PAUSE").c_str(), topic_len) == 0) {
+  if (strcmp(topic, generateButtonTopic("PAUSE").c_str()) == 0) {
     setBatteryPause(true, false);
   }
 
-  if (strncmp(topic, generateButtonTopic("RESUME").c_str(), topic_len) == 0) {
+  if (strcmp(topic, generateButtonTopic("RESUME").c_str()) == 0) {
     setBatteryPause(false, false, false);
   }
 
-  if (strncmp(topic, generateButtonTopic("RESTART").c_str(), topic_len) == 0) {
+  if (strcmp(topic, generateButtonTopic("RESTART").c_str()) == 0) {
     setBatteryPause(true, true, true, false);
     delay(1000);
     ESP.restart();
   }
 
-  if (strncmp(topic, generateButtonTopic("STOP").c_str(), topic_len) == 0) {
+  if (strcmp(topic, generateButtonTopic("STOP").c_str()) == 0) {
     setBatteryPause(true, false, true);
   }
 }
