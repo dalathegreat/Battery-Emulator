@@ -321,8 +321,6 @@ typedef struct {
   uint16_t battery_expected_energy_remaining_m1 = 0;
   bool battery_full_charge_complete = false;
   bool battery_fully_charged = false;
-  uint16_t battery_total_discharge = 0;
-  uint16_t battery_total_charge = 0;
   uint16_t battery_BrickVoltageMax = 0;
   uint16_t battery_BrickVoltageMin = 0;
   uint8_t battery_BrickVoltageMaxNum = 0;

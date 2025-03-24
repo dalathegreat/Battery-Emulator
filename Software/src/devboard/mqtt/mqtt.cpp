@@ -81,6 +81,10 @@ SensorConfig sensorConfigTemplate[] = {
     {"remaining_capacity_real", "Battery Remaining Capacity (real)", "", "Wh", "energy"},
     {"max_discharge_power", "Battery Max Discharge Power", "", "W", "power"},
     {"max_charge_power", "Battery Max Charge Power", "", "W", "power"},
+#if defined(MEB_BATTERY) || defined(TESLA_BATTERY)
+    {"charged_energy", "Battery Charged Energy", "", "Wh", "energy"},
+    {"discharged_energy", "Battery Discharged Energy", "", "Wh", "energy"},
+#endif
     {"bms_status", "BMS Status", "", "", ""},
     {"pause_status", "Pause Status", "", "", ""}};
 
@@ -179,6 +183,12 @@ void set_battery_attributes(JsonDocument& doc, const DATALAYER_BATTERY_TYPE& bat
   doc["remaining_capacity" + suffix] = ((float)battery.status.reported_remaining_capacity_Wh);
   doc["max_discharge_power" + suffix] = ((float)battery.status.max_discharge_power_W);
   doc["max_charge_power" + suffix] = ((float)battery.status.max_charge_power_W);
+#if defined(MEB_BATTERY) || defined(TESLA_BATTERY)
+  if (datalayer.battery.status.total_charged_battery_Wh!=0 && datalayer.battery.status.total_discharged_battery_Wh){
+    doc["charged_energy" + suffix] = ((float)datalayer.battery.status.total_charged_battery_Wh);
+    doc["discharged_energy" + suffix] = ((float)datalayer.battery.status.total_discharged_battery_Wh);
+  }
+#endif
 }
 
 static std::vector<EventData> order_events;

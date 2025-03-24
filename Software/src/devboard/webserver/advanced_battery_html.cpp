@@ -506,8 +506,8 @@ String advanced_battery_processor(const String& var) {
     float energy_buffer_m1 = static_cast<float>(datalayer_extended.tesla.battery_energy_buffer_m1) * 0.01;
     float expected_energy_remaining_m1 =
         static_cast<float>(datalayer_extended.tesla.battery_expected_energy_remaining_m1) * 0.02;
-    float total_discharge = static_cast<float>(datalayer_extended.tesla.battery_total_discharge);
-    float total_charge = static_cast<float>(datalayer_extended.tesla.battery_total_charge);
+    float total_discharge = static_cast<float>(datalayer.battery.status.total_discharged_battery_Wh)*0.001;
+    float total_charge = static_cast<float>(datalayer.battery.status.total_charged_battery_Wh)*0.001;
     float packMass = static_cast<float>(datalayer_extended.tesla.battery_packMass);
     float platformMaxBusVoltage =
         static_cast<float>(datalayer_extended.tesla.battery_platformMaxBusVoltage) * 0.1 + 375;
@@ -1186,6 +1186,10 @@ String advanced_battery_processor(const String& var) {
       }
       content += " &deg;C</h4>";
     }
+    content += "<h4>Total charged: " + String(datalayer.battery.status.total_charged_battery_Wh / 1000.0, 1) +
+               " kWh</h4>";
+    content += "<h4>Total discharged: " + String(datalayer.battery.status.total_discharged_battery_Wh / 1000.0, 1) +
+               " kWh</h4>";
 #endif  //MEB_BATTERY
 
 #ifdef RENAULT_ZOE_GEN2_BATTERY

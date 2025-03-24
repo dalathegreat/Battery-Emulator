@@ -185,6 +185,8 @@ static uint8_t seconds = 0;
 static uint32_t first_can_msg = 0;
 static uint32_t last_can_msg_timestamp = 0;
 static bool hv_requested = false;
+static int32_t kwh_charge = 0;
+static int32_t kwh_discharge = 0;
 
 #define TIME_YEAR 2024
 #define TIME_MONTH 8
@@ -559,7 +561,7 @@ void update_values_battery() {  //This function maps all the values fetched via 
     else if (datalayer.battery.info.number_of_cells <= 96)
       Wh_max = 82442 * 0.9025;
     if (BMS_capacity_ah > 0)
-      datalayer.battery.status.soh_pptt = 10000 * datalayer.battery.info.total_capacity_Wh / Wh_max;
+      datalayer.battery.status.soh_pptt = 10000 * datalayer.battery.info.total_capacity_Wh / (Wh_max* 1.02564);
   }
 
   datalayer.battery.status.remaining_capacity_Wh = usable_energy_amount_Wh * 5;
@@ -1168,6 +1170,16 @@ void handle_incoming_can_frame_battery(CAN_frame rx_frame) {
           break;
         case PID_MIN_DISCHARGE_VOLTAGE:
           battery_min_discharge_voltage = ((rx_frame.data.u8[4] << 8) | rx_frame.data.u8[5]);
+          break;
+        case PID_ENERGY_COUNTERS:
+          // int32_t ah_discharge = ((rx_frame.data.u8[5] << 24) | (rx_frame.data.u8[6] << 16) | (rx_frame.data.u8[7] << 8) |rx_frame.data.u8[8]);
+          // int32_t ah_charge = ((rx_frame.data.u8[9] << 24) | (rx_frame.data.u8[10] << 16) | (rx_frame.data.u8[11] << 8) |rx_frame.data.u8[12]);
+          kwh_charge = ((rx_frame.data.u8[13] << 24) | (rx_frame.data.u8[14] << 16) | (rx_frame.data.u8[15] << 8) |rx_frame.data.u8[16]);
+          kwh_discharge = ((rx_frame.data.u8[17] << 24) | (rx_frame.data.u8[18] << 16) | (rx_frame.data.u8[19] << 8) |rx_frame.data.u8[20]);
+          // logging.printf("ah_dis:%.3f ah_ch:%.3f kwh_dis:%.3f kwh_ch:%.3f\n", ah_discharge*0.00182044545, ah_charge*0.00182044545,
+          // kwh_discharge*0.00011650853, kwh_charge*0.00011650853);
+          datalayer.battery.status.total_discharged_battery_Wh = kwh_discharge*0.11650853;
+          datalayer.battery.status.total_charged_battery_Wh = kwh_charge*0.11650853;
           break;
         case PID_ALLOWED_CHARGE_POWER:
           battery_allowed_charge_power = ((rx_frame.data.u8[4] << 8) | rx_frame.data.u8[5]);
@@ -1854,6 +1866,11 @@ void transmit_can_battery() {
       case PID_MIN_DISCHARGE_VOLTAGE:
         MEB_POLLING_FRAME.data.u8[2] = (uint8_t)(PID_MIN_DISCHARGE_VOLTAGE >> 8);
         MEB_POLLING_FRAME.data.u8[3] = (uint8_t)PID_MIN_DISCHARGE_VOLTAGE;
+        poll_pid = PID_ENERGY_COUNTERS;
+        break;
+      case PID_ENERGY_COUNTERS:
+        MEB_POLLING_FRAME.data.u8[2] = (uint8_t)(PID_ENERGY_COUNTERS >> 8);
+        MEB_POLLING_FRAME.data.u8[3] = (uint8_t)PID_ENERGY_COUNTERS;
         poll_pid = PID_ALLOWED_CHARGE_POWER;
         break;
       case PID_ALLOWED_CHARGE_POWER:
