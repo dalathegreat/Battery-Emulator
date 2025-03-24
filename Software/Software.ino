@@ -462,7 +462,10 @@ void update_calculated_values() {
       } else {
         datalayer.battery.status.reported_remaining_capacity_Wh = 0;
       }
-      datalayer.battery.info.reported_total_capacity_Wh = (datalayer.battery.info.total_capacity_Wh * (datalayer.battery.settings.max_percentage - datalayer.battery.settings.min_percentage))/10000;
+      datalayer.battery.info.reported_total_capacity_Wh =
+          (datalayer.battery.info.total_capacity_Wh *
+           (datalayer.battery.settings.max_percentage - datalayer.battery.settings.min_percentage)) /
+          10000;
 
     } else {
       datalayer.battery.status.reported_remaining_capacity_Wh = datalayer.battery.status.remaining_capacity_Wh;

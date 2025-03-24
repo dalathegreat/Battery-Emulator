@@ -1062,7 +1062,7 @@ String processor(const String& var) {
     content += formatPowerValue("Power", powerFloat, "", 1);
     content += formatPowerValue("Total capacity", datalayer.battery.info.total_capacity_Wh, "h", 1);
     content += formatPowerValue("Scaled total capacity", datalayer.battery.info.reported_total_capacity_Wh, "h", 1);
-    
+
     content += formatPowerValue("Real Remaining capacity", datalayer.battery.status.remaining_capacity_Wh, "h", 1);
     content +=
         formatPowerValue("Scaled Remaining capacity", datalayer.battery.status.reported_remaining_capacity_Wh, "h", 1);
