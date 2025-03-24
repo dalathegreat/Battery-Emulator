@@ -1312,10 +1312,10 @@ void handle_incoming_can_frame_battery(CAN_frame rx_frame) {
     case 0x3D2:  //TotalChargeDischarge:
       battery_total_discharge = ((rx_frame.data.u8[3] << 24) | (rx_frame.data.u8[2] << 16) |
                                  (rx_frame.data.u8[1] << 8) | rx_frame.data.u8[0]);
-                                //0|32@1+ (0.001,0) [0|4294970] "kWh"
+      //0|32@1+ (0.001,0) [0|4294970] "kWh"
       battery_total_charge = ((rx_frame.data.u8[7] << 24) | (rx_frame.data.u8[6] << 16) | (rx_frame.data.u8[5] << 8) |
                               rx_frame.data.u8[4]);
-                              //32|32@1+ (0.001,0) [0|4294970] "kWh"
+      //32|32@1+ (0.001,0) [0|4294970] "kWh"
       break;
     case 0x332:                            //min/max hist values //BattBrickMinMax:
       mux = (rx_frame.data.u8[0] & 0x03);  //BattBrickMultiplexer M : 0|2@1+ (1,0) [0|0] ""
