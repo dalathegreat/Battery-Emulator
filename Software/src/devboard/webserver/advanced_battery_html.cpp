@@ -1186,7 +1186,7 @@ String advanced_battery_processor(const String& var) {
       }
       content += " &deg;C</h4>";
     }
-    content += 
+    content +=
         "<h4>Total charged: " + String(datalayer.battery.status.total_charged_battery_Wh / 1000.0, 1) + " kWh</h4>";
     content += "<h4>Total discharged: " + String(datalayer.battery.status.total_discharged_battery_Wh / 1000.0, 1) +
                " kWh</h4>";
