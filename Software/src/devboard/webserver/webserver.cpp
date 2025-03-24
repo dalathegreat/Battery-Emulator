@@ -1061,6 +1061,8 @@ String processor(const String& var) {
     content += "<h4 style='color: white;'>Current: " + String(currentFloat, 1) + " A</h4>";
     content += formatPowerValue("Power", powerFloat, "", 1);
     content += formatPowerValue("Total capacity", datalayer.battery.info.total_capacity_Wh, "h", 1);
+    content += formatPowerValue("Scaled total capacity", datalayer.battery.info.reported_total_capacity_Wh, "h", 1);
+    
     content += formatPowerValue("Real Remaining capacity", datalayer.battery.status.remaining_capacity_Wh, "h", 1);
     content +=
         formatPowerValue("Scaled Remaining capacity", datalayer.battery.status.reported_remaining_capacity_Wh, "h", 1);

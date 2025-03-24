@@ -7,6 +7,7 @@ typedef struct {
   /** uint32_t */
   /** Total energy capacity in Watt-hours */
   uint32_t total_capacity_Wh = BATTERY_WH_MAX;
+  uint32_t reported_total_capacity_Wh = BATTERY_WH_MAX;
 
   /** uint16_t */
   /** The maximum intended packvoltage, in deciVolt. 4900 = 490.0 V */
