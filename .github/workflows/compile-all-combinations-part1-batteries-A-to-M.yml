@@ -60,6 +60,7 @@ jobs:
           - BYD_ATTO_3_BATTERY
           - CELLPOWER_BMS
           - CHADEMO_BATTERY
+          - CMFA_EV_BATTERY
           - FOXESS_BATTERY
           - IMIEV_CZERO_ION_BATTERY
           - JAGUAR_IPACE_BATTERY
