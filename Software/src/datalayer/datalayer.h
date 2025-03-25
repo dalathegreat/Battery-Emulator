@@ -45,6 +45,9 @@ typedef struct {
    */
   uint32_t reported_remaining_capacity_Wh;
 
+  int32_t total_charged_battery_Wh = 0;
+  int32_t total_discharged_battery_Wh = 0;
+
   /** Maximum allowed battery discharge power in Watts. Set by battery */
   uint32_t max_discharge_power_W = 0;
   /** Maximum allowed battery charge power in Watts. Set by battery */

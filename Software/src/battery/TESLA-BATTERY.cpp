@@ -907,8 +907,8 @@ void update_values_battery() {  //This function maps all the values fetched via 
   datalayer_extended.tesla.battery_full_charge_complete = battery_full_charge_complete;
   datalayer_extended.tesla.battery_fully_charged = battery_fully_charged;
   //0x3D2
-  datalayer_extended.tesla.battery_total_discharge = battery_total_discharge;
-  datalayer_extended.tesla.battery_total_charge = battery_total_charge;
+  datalayer.battery.status.total_discharged_battery_Wh = battery_total_discharge;
+  datalayer.battery.status.total_charged_battery_Wh = battery_total_charge;
   //0x392
   datalayer_extended.tesla.battery_moduleType = battery_moduleType;
   datalayer_extended.tesla.battery_packMass = battery_packMass;
@@ -1311,11 +1311,11 @@ void handle_incoming_can_frame_battery(CAN_frame rx_frame) {
       break;
     case 0x3D2:  //TotalChargeDischarge:
       battery_total_discharge = ((rx_frame.data.u8[3] << 24) | (rx_frame.data.u8[2] << 16) |
-                                 (rx_frame.data.u8[1] << 8) | rx_frame.data.u8[0]) *
-                                0.001;  //0|32@1+ (0.001,0) [0|4294970] "kWh"
+                                 (rx_frame.data.u8[1] << 8) | rx_frame.data.u8[0]);
+      //0|32@1+ (0.001,0) [0|4294970] "kWh"
       battery_total_charge = ((rx_frame.data.u8[7] << 24) | (rx_frame.data.u8[6] << 16) | (rx_frame.data.u8[5] << 8) |
-                              rx_frame.data.u8[4]) *
-                             0.001;  //32|32@1+ (0.001,0) [0|4294970] "kWh"
+                              rx_frame.data.u8[4]);
+      //32|32@1+ (0.001,0) [0|4294970] "kWh"
       break;
     case 0x332:                            //min/max hist values //BattBrickMinMax:
       mux = (rx_frame.data.u8[0] & 0x03);  //BattBrickMultiplexer M : 0|2@1+ (1,0) [0|0] ""
