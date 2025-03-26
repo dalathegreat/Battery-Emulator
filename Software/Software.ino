@@ -56,17 +56,11 @@ unsigned long previousMillis10ms = 0;
 unsigned long previousMillisUpdateVal = 0;
 unsigned long lastMillisOverflowCheck = 0;
 // Task time measurement for debugging and for setting CPU load events
-int64_t core_task_time_us;
 MyTimer core_task_timer_10s(INTERVAL_10_S);
-
+int64_t core_task_time_us;
 int64_t connectivity_task_time_us;
-MyTimer connectivity_task_timer_10s(INTERVAL_10_S);
-
 int64_t logging_task_time_us;
-MyTimer logging_task_timer_10s(INTERVAL_10_S);
-
 int64_t mqtt_task_time_us;
-MyTimer mqtt_task_timer_10s(INTERVAL_10_S);
 
 TaskHandle_t main_loop_task;
 TaskHandle_t connectivity_loop_task;
@@ -188,11 +182,6 @@ void connectivity_loop(void* task_time_us) {
 #endif
     END_TIME_MEASUREMENT_MAX(wifi, datalayer.system.status.wifi_task_10s_max_us);
 
-#ifdef FUNCTION_TIME_MEASUREMENT
-    if (connectivity_task_timer_10s.elapsed()) {
-      datalayer.system.status.wifi_task_10s_max_us = 0;
-    }
-#endif
     esp_task_wdt_reset();  // Reset watchdog
     delay(1);
   }
@@ -209,12 +198,6 @@ void mqtt_loop(void* task_time_us) {
     START_TIME_MEASUREMENT(mqtt);
     mqtt_loop();
     END_TIME_MEASUREMENT_MAX(mqtt, datalayer.system.status.mqtt_task_10s_max_us);
-
-#ifdef FUNCTION_TIME_MEASUREMENT
-    if (mqtt_task_timer_10s.elapsed()) {
-      datalayer.system.status.mqtt_task_10s_max_us = 0;
-    }
-#endif
     esp_task_wdt_reset();  // Reset watchdog
     delay(1);
   }
@@ -304,6 +287,8 @@ void core_loop(void* task_time_us) {
       datalayer.system.status.time_values_us = 0;
       datalayer.system.status.time_cantx_us = 0;
       datalayer.system.status.core_task_10s_max_us = 0;
+      datalayer.system.status.wifi_task_10s_max_us = 0;
+      datalayer.system.status.mqtt_task_10s_max_us = 0;
     }
 #endif  // FUNCTION_TIME_MEASUREMENT
 #ifdef DEBUG_LOG
