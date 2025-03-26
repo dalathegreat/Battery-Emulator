@@ -526,76 +526,55 @@ void update_values_inverter() {
 #endif  // CAN_INVERTER_SELECTED
 }
 
-/** Reset reason numbering and description
- * 
- typedef enum {
-  ESP_RST_UNKNOWN,    //!< 0  Reset reason can not be determined
-  ESP_RST_POWERON,    //!< 1  OK Reset due to power-on event
-  ESP_RST_EXT,        //!< 2  Reset by external pin (not applicable for ESP32)
-  ESP_RST_SW,         //!< 3  OK Software reset via esp_restart
-  ESP_RST_PANIC,      //!< 4  Software reset due to exception/panic
-  ESP_RST_INT_WDT,    //!< 5  Reset (software or hardware) due to interrupt watchdog
-  ESP_RST_TASK_WDT,   //!< 6  Reset due to task watchdog
-  ESP_RST_WDT,        //!< 7  Reset due to other watchdogs
-  ESP_RST_DEEPSLEEP,  //!< 8  Reset after exiting deep sleep mode
-  ESP_RST_BROWNOUT,   //!< 9  Brownout reset (software or hardware)
-  ESP_RST_SDIO,       //!< 10 Reset over SDIO
-  ESP_RST_USB,        //!< 11 Reset by USB peripheral
-  ESP_RST_JTAG,       //!< 12 Reset by JTAG
-  ESP_RST_EFUSE,      //!< 13 Reset due to efuse error
-  ESP_RST_PWR_GLITCH, //!< 14 Reset due to power glitch detected
-  ESP_RST_CPU_LOCKUP, //!< 15 Reset due to CPU lock up
-} esp_reset_reason_t;
-*/
 void check_reset_reason() {
   esp_reset_reason_t reason = esp_reset_reason();
   switch (reason) {
-    case ESP_RST_UNKNOWN:
+    case ESP_RST_UNKNOWN:  //Reset reason can not be determined
       set_event(EVENT_RESET_UNKNOWN, reason);
       break;
-    case ESP_RST_POWERON:
+    case ESP_RST_POWERON:  //OK Reset due to power-on event
       set_event(EVENT_RESET_POWERON, reason);
       break;
-    case ESP_RST_EXT:
+    case ESP_RST_EXT:  //Reset by external pin (not applicable for ESP32)
       set_event(EVENT_RESET_EXT, reason);
       break;
-    case ESP_RST_SW:
+    case ESP_RST_SW:  //OK Software reset via esp_restart
       set_event(EVENT_RESET_SW, reason);
       break;
-    case ESP_RST_PANIC:
+    case ESP_RST_PANIC:  //Software reset due to exception/panic
       set_event(EVENT_RESET_PANIC, reason);
       break;
-    case ESP_RST_INT_WDT:
+    case ESP_RST_INT_WDT:  //Reset (software or hardware) due to interrupt watchdog
       set_event(EVENT_RESET_INT_WDT, reason);
       break;
-    case ESP_RST_TASK_WDT:
+    case ESP_RST_TASK_WDT:  //Reset due to task watchdog
       set_event(EVENT_RESET_TASK_WDT, reason);
       break;
-    case ESP_RST_WDT:
+    case ESP_RST_WDT:  //Reset due to other watchdogs
       set_event(EVENT_RESET_WDT, reason);
       break;
-    case ESP_RST_DEEPSLEEP:
+    case ESP_RST_DEEPSLEEP:  //Reset after exiting deep sleep mode
       set_event(EVENT_RESET_DEEPSLEEP, reason);
       break;
-    case ESP_RST_BROWNOUT:
+    case ESP_RST_BROWNOUT:  //Brownout reset (software or hardware)
       set_event(EVENT_RESET_BROWNOUT, reason);
       break;
-    case ESP_RST_SDIO:
+    case ESP_RST_SDIO:  //Reset over SDIO
       set_event(EVENT_RESET_SDIO, reason);
       break;
-    case ESP_RST_USB:
+    case ESP_RST_USB:  //Reset by USB peripheral
       set_event(EVENT_RESET_USB, reason);
       break;
-    case ESP_RST_JTAG:
+    case ESP_RST_JTAG:  //Reset by JTAG
       set_event(EVENT_RESET_JTAG, reason);
       break;
-    case ESP_RST_EFUSE:
+    case ESP_RST_EFUSE:  //Reset due to efuse error
       set_event(EVENT_RESET_EFUSE, reason);
       break;
-    case ESP_RST_PWR_GLITCH:
+    case ESP_RST_PWR_GLITCH:  //Reset due to power glitch detected
       set_event(EVENT_RESET_PWR_GLITCH, reason);
       break;
-    case ESP_RST_CPU_LOCKUP:
+    case ESP_RST_CPU_LOCKUP:  //Reset due to CPU lock up
       set_event(EVENT_RESET_CPU_LOCKUP, reason);
       break;
     default:
