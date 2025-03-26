@@ -65,8 +65,6 @@ MyTimer connectivity_task_timer_10s(INTERVAL_10_S);
 int64_t logging_task_time_us;
 MyTimer logging_task_timer_10s(INTERVAL_10_S);
 
-MyTimer loop_task_timer_10s(INTERVAL_10_S);
-
 MyTimer check_pause_2s(INTERVAL_2_S);
 
 int64_t mqtt_task_time_us;
@@ -252,22 +250,22 @@ void core_loop(void* task_time_us) {
     END_TIME_MEASUREMENT_MAX(ota, datalayer.system.status.time_ota_us);
 #endif  // WEBSERVER
 
-    START_TIME_MEASUREMENT(time_10ms);
     // Process
     if (millis() - previousMillis10ms >= INTERVAL_10_MS) {
       previousMillis10ms = millis();
+      START_TIME_MEASUREMENT(time_10ms);
       led_exe();
       handle_contactors();  // Take care of startup precharge/contactor closing
 #ifdef PRECHARGE_CONTROL
       handle_precharge_control();
 #endif  // PRECHARGE_CONTROL
+      END_TIME_MEASUREMENT_MAX(time_10ms, datalayer.system.status.time_10ms_us);
     }
-    END_TIME_MEASUREMENT_MAX(time_10ms, datalayer.system.status.time_10ms_us);
 
-    START_TIME_MEASUREMENT(time_values);
     if (millis() - previousMillisUpdateVal >= INTERVAL_1_S) {
       previousMillisUpdateVal = millis();  // Order matters on the update_loop!
-      update_values_battery();             // Fetch battery values
+      START_TIME_MEASUREMENT(time_values);
+      update_values_battery();  // Fetch battery values
 #ifdef DOUBLE_BATTERY
       update_values_battery2();
       check_interconnect_available();
@@ -275,8 +273,8 @@ void core_loop(void* task_time_us) {
       update_calculated_values();
       update_machineryprotection();  // Check safeties
       update_values_inverter();      // Update values heading towards inverter
+      END_TIME_MEASUREMENT_MAX(time_values, datalayer.system.status.time_values_us);
     }
-    END_TIME_MEASUREMENT_MAX(time_values, datalayer.system.status.time_values_us);
 
     START_TIME_MEASUREMENT(cantx);
     // Output
