@@ -17,7 +17,7 @@ CAN_frame TESLA_221_1 = {
     .FD = false,
     .ext_ID = false,
     .DLC = 8,
-    .ID = 0x221,
+    .ID = 0x221,battery_OverTemperatureFault = ((rx_frame.data.u8[1] & 0x80) >> 7);
     .data = {0x41, 0x11, 0x01, 0x00, 0x00, 0x00, 0x20, 0x96}};  //Contactor frame 221 - close contactors
 CAN_frame TESLA_221_2 = {
     .FD = false,
@@ -1633,7 +1633,7 @@ void handle_incoming_can_frame_battery(CAN_frame rx_frame) {
       battery_OverDchgCurrentFault = ((rx_frame.data.u8[0] & 0x10) >> 4);
       battery_OverChargeCurrentFault = ((rx_frame.data.u8[0] & 0x20) >> 5);
       battery_OverCurrentFault = ((rx_frame.data.u8[0] & 0x40) >> 6);
-      battery_OverTemperatureFault = ((rx_frame.data.u8[1] & 0x80) >> 7);
+      battery_OverTemperatureFault = ((rx_frame.data.u8[0] & 0x80) >> 7);
       battery_OverVoltageFault = (rx_frame.data.u8[1] & 0x01);
       battery_UnderVoltageFault = ((rx_frame.data.u8[1] & 0x02) >> 1);
       battery_PrimaryBmbMiaFault = ((rx_frame.data.u8[1] & 0x04) >> 2);
