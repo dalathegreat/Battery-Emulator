@@ -51,8 +51,7 @@ volatile unsigned long long bmsResetTimeOffset = 0;
 // The current software version, shown on webserver
 const char* version_number = "8.9.dev";
 
-// Interval settings
-uint16_t intervalUpdateValues = INTERVAL_1_S;  // Interval at which to update inverter values / Modbus registers
+// Interval timers
 unsigned long previousMillis10ms = 0;
 unsigned long previousMillisUpdateVal = 0;
 unsigned long lastMillisOverflowCheck = 0;
@@ -266,7 +265,7 @@ void core_loop(void* task_time_us) {
     END_TIME_MEASUREMENT_MAX(time_10ms, datalayer.system.status.time_10ms_us);
 
     START_TIME_MEASUREMENT(time_values);
-    if (millis() - previousMillisUpdateVal >= intervalUpdateValues) {
+    if (millis() - previousMillisUpdateVal >= INTERVAL_1_S) {
       previousMillisUpdateVal = millis();  // Order matters on the update_loop!
       update_values_battery();             // Fetch battery values
 #ifdef DOUBLE_BATTERY
