@@ -140,9 +140,6 @@ void setup() {
       .trigger_panic = true                                            // Enable panic reset on timeout
   };
 
-  // Initialize Task Watchdog
-  esp_task_wdt_init(&wdt_config);
-
   // Start tasks
   xTaskCreatePinnedToCore((TaskFunction_t)&core_loop, "core_loop", 4096, &core_task_time_us, TASK_CORE_PRIO,
                           &main_loop_task, CORE_FUNCTION_CORE);
