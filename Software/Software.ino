@@ -313,7 +313,7 @@ void core_loop(void* task_time_us) {
       emulator_pause_state_transmit_can_battery();
     }
 #ifdef DEBUG_LOG
-    logging.log_bms_status(datalayer.battery.status.real_bms_status, 1);
+    logging.log_bms_status(datalayer.battery.status.real_bms_status);
 #endif
     esp_task_wdt_reset();  // Reset watchdog to prevent reset
     vTaskDelayUntil(&xLastWakeTime, xFrequency);
