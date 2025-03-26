@@ -13,12 +13,14 @@ static unsigned long previousMillis50 = 0;   // will store last time a 50ms CAN 
 static unsigned long previousMillis100 = 0;  // will store last time a 100ms CAN Message was send
 static bool alternate243 = false;
 //0x221 545 VCFRONT_LVPowerState: "GenMsgCycleTime" 50ms
-CAN_frame TESLA_221_1 = {
-    .FD = false,
-    .ext_ID = false,
-    .DLC = 8,
-    .ID = 0x221,battery_OverTemperatureFault = ((rx_frame.data.u8[1] & 0x80) >> 7);
-    .data = {0x41, 0x11, 0x01, 0x00, 0x00, 0x00, 0x20, 0x96}};  //Contactor frame 221 - close contactors
+CAN_frame TESLA_221_1 = {.FD = false,
+                         .ext_ID = false,
+                         .DLC = 8,
+                         .ID = 0x221,
+                         battery_OverTemperatureFault = ((rx_frame.data.u8[1] & 0x80) >> 7);
+.data = {0x41, 0x11, 0x01, 0x00, 0x00, 0x00, 0x20, 0x96}
+}
+;  //Contactor frame 221 - close contactors
 CAN_frame TESLA_221_2 = {
     .FD = false,
     .ext_ID = false,
