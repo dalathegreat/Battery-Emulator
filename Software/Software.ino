@@ -65,8 +65,6 @@ MyTimer connectivity_task_timer_10s(INTERVAL_10_S);
 int64_t logging_task_time_us;
 MyTimer logging_task_timer_10s(INTERVAL_10_S);
 
-MyTimer check_pause_2s(INTERVAL_2_S);
-
 int64_t mqtt_task_time_us;
 MyTimer mqtt_task_timer_10s(INTERVAL_10_S);
 
@@ -265,6 +263,7 @@ void core_loop(void* task_time_us) {
     if (millis() - previousMillisUpdateVal >= INTERVAL_1_S) {
       previousMillisUpdateVal = millis();  // Order matters on the update_loop!
       START_TIME_MEASUREMENT(time_values);
+      update_pause_state();     // Check if we are OK to send CAN or need to pause
       update_values_battery();  // Fetch battery values
 #ifdef DOUBLE_BATTERY
       update_values_battery2();
@@ -309,9 +308,6 @@ void core_loop(void* task_time_us) {
       datalayer.system.status.core_task_10s_max_us = 0;
     }
 #endif  // FUNCTION_TIME_MEASUREMENT
-    if (check_pause_2s.elapsed()) {
-      emulator_pause_state_transmit_can_battery();
-    }
 #ifdef DEBUG_LOG
     logging.log_bms_status(datalayer.battery.status.real_bms_status);
 #endif
