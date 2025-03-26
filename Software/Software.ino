@@ -75,8 +75,6 @@ TaskHandle_t mqtt_loop_task;
 
 Logging logging;
 
-#define WDT_TIMEOUT_SECONDS 5  // If code hangs for longer than this, it will be rebooted by the watchdog
-
 // Initialization
 void setup() {
   init_serial();
@@ -130,7 +128,7 @@ void setup() {
 
   // Initialize Task Watchdog for subscribed tasks
   esp_task_wdt_config_t wdt_config = {
-      .timeout_ms = WDT_TIMEOUT_SECONDS * 1000,                        // Convert seconds to milliseconds
+      .timeout_ms = INTERVAL_5_S,                                      // If task hangs for longer than this, reboot
       .idle_core_mask = (1 << CORE_FUNCTION_CORE) | (1 << WIFI_CORE),  // Watch both cores
       .trigger_panic = true                                            // Enable panic reset on timeout
   };
