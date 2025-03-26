@@ -1054,18 +1054,27 @@ String processor(const String& var) {
     uint16_t cell_delta_mv =
         datalayer.battery.status.cell_max_voltage_mV - datalayer.battery.status.cell_min_voltage_mV;
 
-    content += "<h4 style='color: white;'>Real SOC: " + String(socRealFloat, 2) + "&percnt;</h4>";
-    content += "<h4 style='color: white;'>Scaled SOC: " + String(socScaledFloat, 2) + "&percnt;</h4>";
+    if (datalayer.battery.settings.soc_scaling_active)
+      content += "<h4 style='color: white;'>Scaled SOC: " + String(socScaledFloat, 2) + "&percnt; (real: " + String(socRealFloat, 2) + "&percnt;)</h4>";
+    else
+      content += "<h4 style='color: white;'>SOC: " + String(socRealFloat, 2) + "&percnt;</h4>";
+      
     content += "<h4 style='color: white;'>SOH: " + String(sohFloat, 2) + "&percnt;</h4>";
-    content += "<h4 style='color: white;'>Voltage: " + String(voltageFloat, 1) + " V</h4>";
-    content += "<h4 style='color: white;'>Current: " + String(currentFloat, 1) + " A</h4>";
+    content += "<h4 style='color: white;'>Voltage: " + String(voltageFloat, 1) + " V &nbsp; Current: " + String(currentFloat, 1) + " A</h4>";
     content += formatPowerValue("Power", powerFloat, "", 1);
-    content += formatPowerValue("Total capacity", datalayer.battery.info.total_capacity_Wh, "h", 1);
-    content += formatPowerValue("Scaled total capacity", datalayer.battery.info.reported_total_capacity_Wh, "h", 1);
 
-    content += formatPowerValue("Real Remaining capacity", datalayer.battery.status.remaining_capacity_Wh, "h", 1);
-    content +=
-        formatPowerValue("Scaled Remaining capacity", datalayer.battery.status.reported_remaining_capacity_Wh, "h", 1);
+    if (datalayer.battery.settings.soc_scaling_active)
+      content += "<h4 style='color: white;'>Scaled total capacity: " + formatPowerValue(datalayer.battery.info.reported_total_capacity_Wh, "h", 1) +
+      " (real: " + formatPowerValue(datalayer.battery.info.total_capacity_Wh, "h", 1) + ")</h4>";
+    else
+      content += formatPowerValue("Total capacity", datalayer.battery.info.total_capacity_Wh, "h", 1);
+
+    if (datalayer.battery.settings.soc_scaling_active)
+      content += "<h4 style='color: white;'>Scaled remaining capacity: " +
+          formatPowerValue(datalayer.battery.status.reported_remaining_capacity_Wh, "h", 1) +
+          " (real: " + formatPowerValue(datalayer.battery.status.remaining_capacity_Wh, "h", 1) + ")</h4>";
+    else
+      content += formatPowerValue("Remaining capacity", datalayer.battery.status.remaining_capacity_Wh, "h", 1);
 
     if (datalayer.system.settings.equipment_stop_active) {
       content += formatPowerValue("Max discharge power", datalayer.battery.status.max_discharge_power_W, "", 1, "red");
@@ -1089,15 +1098,13 @@ String processor(const String& var) {
       }
     }
 
-    content += "<h4>Cell max: " + String(datalayer.battery.status.cell_max_voltage_mV) + " mV</h4>";
-    content += "<h4>Cell min: " + String(datalayer.battery.status.cell_min_voltage_mV) + " mV</h4>";
+    content += "<h4>Cell min/max: " + String(datalayer.battery.status.cell_min_voltage_mV) + " mV / " + String(datalayer.battery.status.cell_max_voltage_mV) + " mV</h4>";
     if (cell_delta_mv > datalayer.battery.info.max_cell_voltage_deviation_mV) {
       content += "<h4 style='color: red;'>Cell delta: " + String(cell_delta_mv) + " mV</h4>";
     } else {
       content += "<h4>Cell delta: " + String(cell_delta_mv) + " mV</h4>";
     }
-    content += "<h4>Temperature max: " + String(tempMaxFloat, 1) + " &deg;C</h4>";
-    content += "<h4>Temperature min: " + String(tempMinFloat, 1) + " &deg;C</h4>";
+    content += "<h4>Temperature min/max: " + String(tempMinFloat, 1) + " &deg;C / " + String(tempMaxFloat, 1) + " &deg;C</h4>";
 
     content += "<h4>System status: ";
     switch (datalayer.battery.status.bms_status) {
@@ -1263,16 +1270,27 @@ String processor(const String& var) {
     tempMinFloat = static_cast<float>(datalayer.battery2.status.temperature_min_dC) / 10.0;  // Convert to float
     cell_delta_mv = datalayer.battery2.status.cell_max_voltage_mV - datalayer.battery2.status.cell_min_voltage_mV;
 
-    content += "<h4 style='color: white;'>Real SOC: " + String(socRealFloat, 2) + "&percnt;</h4>";
-    content += "<h4 style='color: white;'>Scaled SOC: " + String(socScaledFloat, 2) + "&percnt;</h4>";
+    if (datalayer.battery.settings.soc_scaling_active)
+      content += "<h4 style='color: white;'>Scaled SOC: " + String(socScaledFloat, 2) + "&percnt; (real: " + String(socRealFloat, 2) + "&percnt;)</h4>";
+    else
+      content += "<h4 style='color: white;'>SOC: " + String(socRealFloat, 2) + "&percnt;</h4>";
+
     content += "<h4 style='color: white;'>SOH: " + String(sohFloat, 2) + "&percnt;</h4>";
-    content += "<h4 style='color: white;'>Voltage: " + String(voltageFloat, 1) + " V</h4>";
-    content += "<h4 style='color: white;'>Current: " + String(currentFloat, 1) + " A</h4>";
+    content += "<h4 style='color: white;'>Voltage: " + String(voltageFloat, 1) + " V &nbsp; Current: " + String(currentFloat, 1) + " A</h4>";
     content += formatPowerValue("Power", powerFloat, "", 1);
-    content += formatPowerValue("Total capacity", datalayer.battery2.info.total_capacity_Wh, "h", 1);
-    content += formatPowerValue("Real Remaining capacity", datalayer.battery2.status.remaining_capacity_Wh, "h", 1);
-    content +=
-        formatPowerValue("Scaled Remaining capacity", datalayer.battery2.status.reported_remaining_capacity_Wh, "h", 1);
+
+    if (datalayer.battery.settings.soc_scaling_active)
+      content += "<h4 style='color: white;'>Scaled total capacity: " + formatPowerValue(datalayer.battery2.info.reported_total_capacity_Wh, "h", 1) +
+      " (real: " + formatPowerValue(datalayer.battery2.info.total_capacity_Wh, "h", 1) + ")</h4>";
+    else
+      content += formatPowerValue("Total capacity", datalayer.battery2.info.total_capacity_Wh, "h", 1);
+
+    if (datalayer.battery.settings.soc_scaling_active)
+      content += "<h4 style='color: white;'>Scaled remaining capacity: " +
+          formatPowerValue(datalayer.battery2.status.reported_remaining_capacity_Wh, "h", 1) +
+          " (real: " + formatPowerValue(datalayer.battery2.status.remaining_capacity_Wh, "h", 1) + ")</h4>";
+    else
+      content += formatPowerValue("Remaining capacity", datalayer.battery2.status.remaining_capacity_Wh, "h", 1);
 
     if (datalayer.system.settings.equipment_stop_active) {
       content += formatPowerValue("Max discharge power", datalayer.battery2.status.max_discharge_power_W, "", 1, "red");
@@ -1286,15 +1304,13 @@ String processor(const String& var) {
       content += "<h4 style='color: white;'>Max charge current: " + String(maxCurrentChargeFloat, 1) + " A</h4>";
     }
 
-    content += "<h4>Cell max: " + String(datalayer.battery2.status.cell_max_voltage_mV) + " mV</h4>";
-    content += "<h4>Cell min: " + String(datalayer.battery2.status.cell_min_voltage_mV) + " mV</h4>";
+    content += "<h4>Cell min/max: " + String(datalayer.battery2.status.cell_min_voltage_mV) + " mV / " + String(datalayer.battery2.status.cell_max_voltage_mV) + " mV</h4>";
     if (cell_delta_mv > datalayer.battery2.info.max_cell_voltage_deviation_mV) {
       content += "<h4 style='color: red;'>Cell delta: " + String(cell_delta_mv) + " mV</h4>";
     } else {
       content += "<h4>Cell delta: " + String(cell_delta_mv) + " mV</h4>";
     }
-    content += "<h4>Temperature max: " + String(tempMaxFloat, 1) + " &deg;C</h4>";
-    content += "<h4>Temperature min: " + String(tempMinFloat, 1) + " &deg;C</h4>";
+    content += "<h4>Temperature min/max: " + String(tempMinFloat, 1) + " &deg;C / " + String(tempMaxFloat, 1) + " &deg;C</h4>";
     if (datalayer.battery.status.bms_status == ACTIVE) {
       content += "<h4>System status: OK </h4>";
     } else if (datalayer.battery.status.bms_status == UPDATING) {
@@ -1578,5 +1594,22 @@ String formatPowerValue(String label, T value, String unit, int precision, Strin
   }
 
   result += unit + "</h4>";
+  return result;
+}
+template <typename T>  // This function makes power values appear as W when under 1000, and kW when over
+String formatPowerValue(T value, String unit, int precision) {
+  String result = "";
+
+  if (std::is_same<T, float>::value || std::is_same<T, uint16_t>::value || std::is_same<T, uint32_t>::value) {
+    float convertedValue = static_cast<float>(value);
+
+    if (convertedValue >= 1000.0 || convertedValue <= -1000.0) {
+      result += String(convertedValue / 1000.0, precision) + " kW";
+    } else {
+      result += String(convertedValue, 0) + " W";
+    }
+  }
+
+  result += unit;
   return result;
 }
