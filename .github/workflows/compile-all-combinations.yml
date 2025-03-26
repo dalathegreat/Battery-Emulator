@@ -9,7 +9,7 @@ on:
   # The workflow is run upon creating, editing,
   # pre-releasing, releasing and publishing a release
   release:
-    types: [created, edited, prereleased, released, published]
+    types: [published]
 
 # This is the list of jobs that will be run concurrently.
 jobs:
