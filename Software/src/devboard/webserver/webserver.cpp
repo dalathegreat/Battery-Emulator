@@ -1582,18 +1582,8 @@ void onOTAEnd(bool success) {
 template <typename T>  // This function makes power values appear as W when under 1000, and kW when over
 String formatPowerValue(String label, T value, String unit, int precision, String color) {
   String result = "<h4 style='color: " + color + ";'>" + label + ": ";
-
-  if (std::is_same<T, float>::value || std::is_same<T, uint16_t>::value || std::is_same<T, uint32_t>::value) {
-    float convertedValue = static_cast<float>(value);
-
-    if (convertedValue >= 1000.0 || convertedValue <= -1000.0) {
-      result += String(convertedValue / 1000.0, precision) + " kW";
-    } else {
-      result += String(convertedValue, 0) + " W";
-    }
-  }
-
-  result += unit + "</h4>";
+  result += formatPowerValue(value, unit, precision);
+  result += "</h4>";
   return result;
 }
 template <typename T>  // This function makes power values appear as W when under 1000, and kW when over
