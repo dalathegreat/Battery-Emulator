@@ -23,6 +23,7 @@ https://github.com/fesch/CanZE/tree/master/app/src/main/assets/ZOE_Ph2
 /*
 
 /* Do not change code below unless you are sure what you are doing */
+static bool nvrol_reset_flag = false;
 static uint16_t battery_soc = 0;
 static uint16_t battery_usable_soc = 5000;
 static uint16_t battery_soh = 10000;
@@ -413,6 +414,40 @@ void setup_battery(void) {  // Performs one time setup at startup
   datalayer.battery.info.max_cell_voltage_mV = MAX_CELL_VOLTAGE_MV;
   datalayer.battery.info.min_cell_voltage_mV = MIN_CELL_VOLTAGE_MV;
   datalayer.battery.info.max_cell_voltage_deviation_mV = MAX_CELL_DEVIATION_MV;
+}
+
+void transmit_reset_nvrol_frames(void) {
+  // NVROL reset, part 1: send 0x021003AAAAAAAAAA
+  ZOE_POLL_18DADBF1.data = {0x02, 0x10, 0x03, 0xAA, 0xAA, 0xAA, 0xAA, 0xAA};
+  transmit_can_frame(&ZOE_POLL_18DADBF1, can_config.battery);
+  // wait 100 ms
+  wait_ms(100);
+  // NVROL reset, part 2: send 0x043101B00900AAAA
+  ZOE_POLL_18DADBF1.data = {0x04, 0x31, 0x01, 0xB0, 0x09, 0x00, 0xAA, 0xAA};
+  transmit_can_frame(&ZOE_POLL_18DADBF1, can_config.battery);
+
+  // wait 1 s
+  wait_ms(1000);
+
+  // Enable temporisation before sleep, part 1: send 0x021003AAAAAAAAAA
+  ZOE_POLL_18DADBF1.data = {0x02, 0x10, 0x03, 0xAA, 0xAA, 0xAA, 0xAA, 0xAA};
+  transmit_can_frame(&ZOE_POLL_18DADBF1, can_config.battery);
+  // wait 100 ms
+  wait_ms(100);
+  // Enable temporisation before sleep, part 2: send 0x042E928101AAAAAA
+  ZOE_POLL_18DADBF1.data = {0x04, 0x2E, 0x92, 0x81, 0x01, 0xAA, 0xAA, 0xAA};
+  transmit_can_frame(&ZOE_POLL_18DADBF1, can_config.battery);
+
+  // Set data back to init values
+  ZOE_POLL_18DADBF1.data = {0x03, 0x22, 0x90, 0x00, 0x00, 0x00, 0x00, 0x00};
+  poll_index = 0;
+}
+
+void wait_ms(int duration_ms) {
+  unsigned long freezeMillis = millis();
+  while (millis() - freezeMillis < duration_ms) {
+    // Do nothing - just wait
+  }
 }
 
 #endif
