@@ -103,6 +103,9 @@ void onOTAEnd(bool success);
 template <typename T>
 String formatPowerValue(String label, T value, String unit, int precision, String color = "white");
 
+template <typename T>  // This function makes power values appear as W when under 1000, and kW when over
+String formatPowerValue(T value, String unit, int precision);
+
 extern void store_settings();
 
 void ota_monitor();
