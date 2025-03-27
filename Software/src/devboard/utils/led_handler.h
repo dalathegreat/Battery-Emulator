@@ -9,16 +9,13 @@ class LED {
   led_color color = led_color::GREEN;
 
   LED()
-      : pixels(1, LED_PIN, NEO_GRB + NEO_KHZ800),
+      : pixels(1, LED_PIN, NEO_GRB),
         max_brightness(LED_MAX_BRIGHTNESS),
         brightness(LED_MAX_BRIGHTNESS),
         mode(led_mode_enum::CLASSIC) {}
 
   LED(led_mode_enum mode)
-      : pixels(1, LED_PIN, NEO_GRB + NEO_KHZ800),
-        max_brightness(LED_MAX_BRIGHTNESS),
-        brightness(LED_MAX_BRIGHTNESS),
-        mode(mode) {}
+      : pixels(1, LED_PIN, NEO_GRB), max_brightness(LED_MAX_BRIGHTNESS), brightness(LED_MAX_BRIGHTNESS), mode(mode) {}
 
   void exe(void);
   void init(void) { pixels.begin(); }
