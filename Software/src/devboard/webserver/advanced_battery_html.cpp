@@ -506,8 +506,8 @@ String advanced_battery_processor(const String& var) {
     float energy_buffer_m1 = static_cast<float>(datalayer_extended.tesla.battery_energy_buffer_m1) * 0.01;
     float expected_energy_remaining_m1 =
         static_cast<float>(datalayer_extended.tesla.battery_expected_energy_remaining_m1) * 0.02;
-    float total_discharge = static_cast<float>(datalayer_extended.tesla.battery_total_discharge);
-    float total_charge = static_cast<float>(datalayer_extended.tesla.battery_total_charge);
+    float total_discharge = static_cast<float>(datalayer.battery.status.total_discharged_battery_Wh) * 0.001;
+    float total_charge = static_cast<float>(datalayer.battery.status.total_charged_battery_Wh) * 0.001;
     float packMass = static_cast<float>(datalayer_extended.tesla.battery_packMass);
     float platformMaxBusVoltage =
         static_cast<float>(datalayer_extended.tesla.battery_platformMaxBusVoltage) * 0.1 + 375;
@@ -1062,7 +1062,18 @@ String advanced_battery_processor(const String& var) {
       default:
         content += String("? ") + String(datalayer_extended.meb.status_HV_line);
     }
-    content += "</h4><h4>Warning support: ";
+    content += "</h4>";
+    content += datalayer_extended.meb.BMS_fault_performance ? "<h4>BMS fault performance: Active!</h4>"
+                                                            : "<h4>BMS fault performance: Off</h4>";
+    content += datalayer_extended.meb.BMS_fault_emergency_shutdown_crash
+                   ? "<h4>BMS fault emergency shutdown crash: Active!</h4>"
+                   : "<h4>BMS fault emergency shutdown crash: Off</h4>";
+    content += datalayer_extended.meb.BMS_error_shutdown_request ? "<h4>BMS error shutdown request: Active!</h4>"
+                                                                 : "<h4>BMS error shutdown request: Inactive</h4>";
+    content += datalayer_extended.meb.BMS_error_shutdown ? "<h4>BMS error shutdown: Active!</h4>"
+                                                         : "<h4>BMS error shutdown: Off</h4>";
+
+    content += "<h4>Warning support: ";
     switch (datalayer_extended.meb.warning_support) {
       case 0:
         content += String("OK");
@@ -1175,6 +1186,10 @@ String advanced_battery_processor(const String& var) {
       }
       content += " &deg;C</h4>";
     }
+    content +=
+        "<h4>Total charged: " + String(datalayer.battery.status.total_charged_battery_Wh / 1000.0, 1) + " kWh</h4>";
+    content += "<h4>Total discharged: " + String(datalayer.battery.status.total_discharged_battery_Wh / 1000.0, 1) +
+               " kWh</h4>";
 #endif  //MEB_BATTERY
 
 #ifdef RENAULT_ZOE_GEN2_BATTERY

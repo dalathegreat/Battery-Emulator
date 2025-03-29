@@ -137,6 +137,7 @@ CAN_frame GROWATT_3F00 = {.FD = false,
                           .data = {0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00}};
 
 static unsigned long previousMillis1s = 0;  // will store last time a 1s CAN Message was send
+static unsigned long previousMillisBatchSend = 0;
 static uint32_t unix_time = 0;
 static uint16_t ampere_hours_remaining = 0;
 static uint16_t ampere_hours_full = 0;
@@ -151,7 +152,10 @@ static uint8_t ISO_detection_command = 0;
 static uint8_t sleep_wakeup_control = 0;
 static uint8_t PCS_working_status = 0;     //00 standby, 01 operating
 static uint8_t serial_number_counter = 0;  //0-1-2-0-1-2...
+static uint8_t can_message_batch_index = 0;
+static const uint8_t delay_between_batches_ms = 10;
 static bool inverter_alive = false;
+static bool time_to_send_1s_data = false;
 
 void update_values_can_inverter() {  //This function maps all the values fetched from battery CAN to the correct CAN messages
 
@@ -181,6 +185,7 @@ void update_values_can_inverter() {  //This function maps all the values fetched
   GROWATT_3110.data.u8[4] = (datalayer.battery.status.max_discharge_current_dA >> 8);
   GROWATT_3110.data.u8[5] = (datalayer.battery.status.max_discharge_current_dA & 0x00FF);
   //Status bits (see documentation for all bits, most important are mapped
+  GROWATT_3110.data.u8[7] = 0x00;                      // Clear all bits
   if (datalayer.battery.status.active_power_W < -1) {  // Discharging
     GROWATT_3110.data.u8[7] = (GROWATT_3110.data.u8[7] | 0b00000011);
   } else if (datalayer.battery.status.active_power_W > 1) {  // Charging
@@ -526,29 +531,59 @@ void transmit_can_inverter() {
 
   unsigned long currentMillis = millis();
 
-  //Send 1s periodic CAN messages
+  //Check if 1 second has passed, then we start sending!
   if (currentMillis - previousMillis1s >= INTERVAL_1_S) {
     previousMillis1s = currentMillis;
-    transmit_can_frame(&GROWATT_3110, can_config.inverter);
-    transmit_can_frame(&GROWATT_3120, can_config.inverter);
-    transmit_can_frame(&GROWATT_3130, can_config.inverter);
-    transmit_can_frame(&GROWATT_3140, can_config.inverter);
-    transmit_can_frame(&GROWATT_3150, can_config.inverter);
-    transmit_can_frame(&GROWATT_3160, can_config.inverter);
-    transmit_can_frame(&GROWATT_3170, can_config.inverter);
-    transmit_can_frame(&GROWATT_3180, can_config.inverter);
-    transmit_can_frame(&GROWATT_3190, can_config.inverter);
-    transmit_can_frame(&GROWATT_3200, can_config.inverter);
-    transmit_can_frame(&GROWATT_3210, can_config.inverter);
-    transmit_can_frame(&GROWATT_3220, can_config.inverter);
-    transmit_can_frame(&GROWATT_3230, can_config.inverter);
-    transmit_can_frame(&GROWATT_3240, can_config.inverter);
-    transmit_can_frame(&GROWATT_3250, can_config.inverter);
-    transmit_can_frame(&GROWATT_3260, can_config.inverter);
-    transmit_can_frame(&GROWATT_3270, can_config.inverter);
-    transmit_can_frame(&GROWATT_3280, can_config.inverter);
-    transmit_can_frame(&GROWATT_3290, can_config.inverter);
-    transmit_can_frame(&GROWATT_3F00, can_config.inverter);
+    time_to_send_1s_data = true;
+  }
+
+  // Check if enough time has passed since the last batch
+  if (currentMillis - previousMillisBatchSend >= delay_between_batches_ms) {
+    previousMillisBatchSend = currentMillis;  // Update the time of the last message batch
+
+    // Send a subset of messages per iteration to avoid overloading the CAN bus / transmit buffer
+    switch (can_message_batch_index) {
+      case 0:
+        transmit_can_frame(&GROWATT_3110, can_config.inverter);
+        transmit_can_frame(&GROWATT_3120, can_config.inverter);
+        transmit_can_frame(&GROWATT_3130, can_config.inverter);
+        transmit_can_frame(&GROWATT_3140, can_config.inverter);
+        break;
+      case 1:
+        transmit_can_frame(&GROWATT_3150, can_config.inverter);
+        transmit_can_frame(&GROWATT_3160, can_config.inverter);
+        transmit_can_frame(&GROWATT_3170, can_config.inverter);
+        transmit_can_frame(&GROWATT_3180, can_config.inverter);
+        break;
+      case 2:
+        transmit_can_frame(&GROWATT_3190, can_config.inverter);
+        transmit_can_frame(&GROWATT_3200, can_config.inverter);
+        transmit_can_frame(&GROWATT_3210, can_config.inverter);
+        transmit_can_frame(&GROWATT_3220, can_config.inverter);
+        break;
+      case 3:
+        transmit_can_frame(&GROWATT_3230, can_config.inverter);
+        transmit_can_frame(&GROWATT_3240, can_config.inverter);
+        transmit_can_frame(&GROWATT_3250, can_config.inverter);
+        transmit_can_frame(&GROWATT_3260, can_config.inverter);
+        break;
+      case 4:
+        transmit_can_frame(&GROWATT_3270, can_config.inverter);
+        transmit_can_frame(&GROWATT_3280, can_config.inverter);
+        transmit_can_frame(&GROWATT_3290, can_config.inverter);
+        transmit_can_frame(&GROWATT_3F00, can_config.inverter);
+        time_to_send_1s_data = false;
+        break;
+      default:
+        break;
+    }
+
+    // Increment message index and wrap around if needed
+    can_message_batch_index++;
+
+    if (time_to_send_1s_data == false) {
+      can_message_batch_index = 0;
+    }
   }
 }
 

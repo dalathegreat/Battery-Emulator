@@ -355,12 +355,11 @@ void setBatteryPause(bool pause_battery, bool pause_CAN, bool equipment_stop, bo
   }
 
   //immediate check if we can send CAN messages
-  emulator_pause_state_transmit_can_battery();
+  update_pause_state();
 }
 
-/// @brief handle emulator pause status
-/// @return true if CAN messages should be sent to battery, false if not
-void emulator_pause_state_transmit_can_battery() {
+/// @brief handle emulator pause status and CAN sending allowed
+void update_pause_state() {
   bool previous_allowed_to_send_CAN = allowed_to_send_CAN;
 
   if (emulator_pause_status == NORMAL) {
@@ -385,13 +384,13 @@ void emulator_pause_state_transmit_can_battery() {
     logging.printf("Safety: Pausing CAN sending\n");
 #endif
     //completely force stop the CAN communication
-    ESP32Can.CANStop();
+    ESP32Can.CANStop();  //Note: This only stops the NATIVE_CAN port, it will no longer ACK messages
   } else if (!previous_allowed_to_send_CAN && allowed_to_send_CAN) {
     //resume CAN communication
 #ifdef DEBUG_LOG
     logging.printf("Safety: Resuming CAN sending\n");
 #endif
-    ESP32Can.CANInit();
+    ESP32Can.CANInit();  //Note: This only resumes the NATIVE_CAN port
   }
 }
 

@@ -321,8 +321,6 @@ typedef struct {
   uint16_t battery_expected_energy_remaining_m1 = 0;
   bool battery_full_charge_complete = false;
   bool battery_fully_charged = false;
-  uint16_t battery_total_discharge = 0;
-  uint16_t battery_total_charge = 0;
   uint16_t battery_BrickVoltageMax = 0;
   uint16_t battery_BrickVoltageMin = 0;
   uint8_t battery_BrickVoltageMaxNum = 0;
@@ -585,6 +583,14 @@ typedef struct {
   uint8_t status_HV_line = 0;
   /** uint8_t */
   /** 0 = OK, 1 = Not OK, 0x06 = init, 0x07 = fault */
+  bool BMS_fault_performance = false;  //Error: Battery performance is limited (e.g. due to sensor or fan failure)
+  bool BMS_fault_emergency_shutdown_crash =
+      false;  //Error: Safety-critical error (crash detection) Battery contactors are already opened / will be opened immediately Signal is read directly by the EMS and initiates an AKS of the PWR and an active discharge of the DC link
+
+  bool BMS_error_shutdown_request =
+      false;  // Fault: Fault condition, requires battery contactors to be opened internal battery error; Advance notification of an impending opening of the battery contactors by the BMS
+  bool BMS_error_shutdown =
+      false;  // Fault: Fault condition, requires battery contactors to be opened Internal battery error, battery contactors opened without notice by the BMS
   uint8_t warning_support = 0;
   /** uint32_t */
   /** Isolation resistance in kOhm */

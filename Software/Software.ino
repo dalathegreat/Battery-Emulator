@@ -49,29 +49,18 @@
 volatile unsigned long long bmsResetTimeOffset = 0;
 
 // The current software version, shown on webserver
-const char* version_number = "8.9.dev";
+const char* version_number = "8.10.dev";
 
-// Interval settings
-uint16_t intervalUpdateValues = INTERVAL_1_S;  // Interval at which to update inverter values / Modbus registers
+// Interval timers
 unsigned long previousMillis10ms = 0;
 unsigned long previousMillisUpdateVal = 0;
 unsigned long lastMillisOverflowCheck = 0;
 // Task time measurement for debugging and for setting CPU load events
-int64_t core_task_time_us;
 MyTimer core_task_timer_10s(INTERVAL_10_S);
-
+int64_t core_task_time_us;
 int64_t connectivity_task_time_us;
-MyTimer connectivity_task_timer_10s(INTERVAL_10_S);
-
 int64_t logging_task_time_us;
-MyTimer logging_task_timer_10s(INTERVAL_10_S);
-
-MyTimer loop_task_timer_10s(INTERVAL_10_S);
-
-MyTimer check_pause_2s(INTERVAL_2_S);
-
 int64_t mqtt_task_time_us;
-MyTimer mqtt_task_timer_10s(INTERVAL_10_S);
 
 TaskHandle_t main_loop_task;
 TaskHandle_t connectivity_loop_task;
@@ -79,8 +68,6 @@ TaskHandle_t logging_loop_task;
 TaskHandle_t mqtt_loop_task;
 
 Logging logging;
-
-#define WDT_TIMEOUT_SECONDS 5  // If code hangs for longer than this, it will be rebooted by the watchdog
 
 // Initialization
 void setup() {
@@ -135,13 +122,10 @@ void setup() {
 
   // Initialize Task Watchdog for subscribed tasks
   esp_task_wdt_config_t wdt_config = {
-      .timeout_ms = WDT_TIMEOUT_SECONDS * 1000,                        // Convert seconds to milliseconds
+      .timeout_ms = INTERVAL_5_S,                                      // If task hangs for longer than this, reboot
       .idle_core_mask = (1 << CORE_FUNCTION_CORE) | (1 << WIFI_CORE),  // Watch both cores
       .trigger_panic = true                                            // Enable panic reset on timeout
   };
-
-  // Initialize Task Watchdog
-  esp_task_wdt_init(&wdt_config);
 
   // Start tasks
   xTaskCreatePinnedToCore((TaskFunction_t)&core_loop, "core_loop", 4096, &core_task_time_us, TASK_CORE_PRIO,
@@ -198,11 +182,6 @@ void connectivity_loop(void* task_time_us) {
 #endif
     END_TIME_MEASUREMENT_MAX(wifi, datalayer.system.status.wifi_task_10s_max_us);
 
-#ifdef FUNCTION_TIME_MEASUREMENT
-    if (connectivity_task_timer_10s.elapsed()) {
-      datalayer.system.status.wifi_task_10s_max_us = 0;
-    }
-#endif
     esp_task_wdt_reset();  // Reset watchdog
     delay(1);
   }
@@ -219,12 +198,6 @@ void mqtt_loop(void* task_time_us) {
     START_TIME_MEASUREMENT(mqtt);
     mqtt_loop();
     END_TIME_MEASUREMENT_MAX(mqtt, datalayer.system.status.mqtt_task_10s_max_us);
-
-#ifdef FUNCTION_TIME_MEASUREMENT
-    if (mqtt_task_timer_10s.elapsed()) {
-      datalayer.system.status.mqtt_task_10s_max_us = 0;
-    }
-#endif
     esp_task_wdt_reset();  // Reset watchdog
     delay(1);
   }
@@ -256,22 +229,23 @@ void core_loop(void* task_time_us) {
     END_TIME_MEASUREMENT_MAX(ota, datalayer.system.status.time_ota_us);
 #endif  // WEBSERVER
 
-    START_TIME_MEASUREMENT(time_10ms);
     // Process
     if (millis() - previousMillis10ms >= INTERVAL_10_MS) {
       previousMillis10ms = millis();
+      START_TIME_MEASUREMENT(time_10ms);
       led_exe();
       handle_contactors();  // Take care of startup precharge/contactor closing
 #ifdef PRECHARGE_CONTROL
       handle_precharge_control();
 #endif  // PRECHARGE_CONTROL
+      END_TIME_MEASUREMENT_MAX(time_10ms, datalayer.system.status.time_10ms_us);
     }
-    END_TIME_MEASUREMENT_MAX(time_10ms, datalayer.system.status.time_10ms_us);
 
-    START_TIME_MEASUREMENT(time_values);
-    if (millis() - previousMillisUpdateVal >= intervalUpdateValues) {
+    if (millis() - previousMillisUpdateVal >= INTERVAL_1_S) {
       previousMillisUpdateVal = millis();  // Order matters on the update_loop!
-      update_values_battery();             // Fetch battery values
+      START_TIME_MEASUREMENT(time_values);
+      update_pause_state();     // Check if we are OK to send CAN or need to pause
+      update_values_battery();  // Fetch battery values
 #ifdef DOUBLE_BATTERY
       update_values_battery2();
       check_interconnect_available();
@@ -279,8 +253,8 @@ void core_loop(void* task_time_us) {
       update_calculated_values();
       update_machineryprotection();  // Check safeties
       update_values_inverter();      // Update values heading towards inverter
+      END_TIME_MEASUREMENT_MAX(time_values, datalayer.system.status.time_values_us);
     }
-    END_TIME_MEASUREMENT_MAX(time_values, datalayer.system.status.time_values_us);
 
     START_TIME_MEASUREMENT(cantx);
     // Output
@@ -313,13 +287,12 @@ void core_loop(void* task_time_us) {
       datalayer.system.status.time_values_us = 0;
       datalayer.system.status.time_cantx_us = 0;
       datalayer.system.status.core_task_10s_max_us = 0;
+      datalayer.system.status.wifi_task_10s_max_us = 0;
+      datalayer.system.status.mqtt_task_10s_max_us = 0;
     }
 #endif  // FUNCTION_TIME_MEASUREMENT
-    if (check_pause_2s.elapsed()) {
-      emulator_pause_state_transmit_can_battery();
-    }
 #ifdef DEBUG_LOG
-    logging.log_bms_status(datalayer.battery.status.real_bms_status, 1);
+    logging.log_bms_status(datalayer.battery.status.real_bms_status);
 #endif
     esp_task_wdt_reset();  // Reset watchdog to prevent reset
     vTaskDelayUntil(&xLastWakeTime, xFrequency);
@@ -462,6 +435,10 @@ void update_calculated_values() {
       } else {
         datalayer.battery.status.reported_remaining_capacity_Wh = 0;
       }
+      datalayer.battery.info.reported_total_capacity_Wh =
+          (datalayer.battery.info.total_capacity_Wh *
+           (datalayer.battery.settings.max_percentage - datalayer.battery.settings.min_percentage)) /
+          10000;
 
     } else {
       datalayer.battery.status.reported_remaining_capacity_Wh = datalayer.battery.status.remaining_capacity_Wh;
@@ -532,76 +509,55 @@ void update_values_inverter() {
 #endif  // CAN_INVERTER_SELECTED
 }
 
-/** Reset reason numbering and description
- * 
- typedef enum {
-  ESP_RST_UNKNOWN,    //!< 0  Reset reason can not be determined
-  ESP_RST_POWERON,    //!< 1  OK Reset due to power-on event
-  ESP_RST_EXT,        //!< 2  Reset by external pin (not applicable for ESP32)
-  ESP_RST_SW,         //!< 3  OK Software reset via esp_restart
-  ESP_RST_PANIC,      //!< 4  Software reset due to exception/panic
-  ESP_RST_INT_WDT,    //!< 5  Reset (software or hardware) due to interrupt watchdog
-  ESP_RST_TASK_WDT,   //!< 6  Reset due to task watchdog
-  ESP_RST_WDT,        //!< 7  Reset due to other watchdogs
-  ESP_RST_DEEPSLEEP,  //!< 8  Reset after exiting deep sleep mode
-  ESP_RST_BROWNOUT,   //!< 9  Brownout reset (software or hardware)
-  ESP_RST_SDIO,       //!< 10 Reset over SDIO
-  ESP_RST_USB,        //!< 11 Reset by USB peripheral
-  ESP_RST_JTAG,       //!< 12 Reset by JTAG
-  ESP_RST_EFUSE,      //!< 13 Reset due to efuse error
-  ESP_RST_PWR_GLITCH, //!< 14 Reset due to power glitch detected
-  ESP_RST_CPU_LOCKUP, //!< 15 Reset due to CPU lock up
-} esp_reset_reason_t;
-*/
 void check_reset_reason() {
   esp_reset_reason_t reason = esp_reset_reason();
   switch (reason) {
-    case ESP_RST_UNKNOWN:
+    case ESP_RST_UNKNOWN:  //Reset reason can not be determined
       set_event(EVENT_RESET_UNKNOWN, reason);
       break;
-    case ESP_RST_POWERON:
+    case ESP_RST_POWERON:  //OK Reset due to power-on event
       set_event(EVENT_RESET_POWERON, reason);
       break;
-    case ESP_RST_EXT:
+    case ESP_RST_EXT:  //Reset by external pin (not applicable for ESP32)
       set_event(EVENT_RESET_EXT, reason);
       break;
-    case ESP_RST_SW:
+    case ESP_RST_SW:  //OK Software reset via esp_restart
       set_event(EVENT_RESET_SW, reason);
       break;
-    case ESP_RST_PANIC:
+    case ESP_RST_PANIC:  //Software reset due to exception/panic
       set_event(EVENT_RESET_PANIC, reason);
       break;
-    case ESP_RST_INT_WDT:
+    case ESP_RST_INT_WDT:  //Reset (software or hardware) due to interrupt watchdog
       set_event(EVENT_RESET_INT_WDT, reason);
       break;
-    case ESP_RST_TASK_WDT:
+    case ESP_RST_TASK_WDT:  //Reset due to task watchdog
       set_event(EVENT_RESET_TASK_WDT, reason);
       break;
-    case ESP_RST_WDT:
+    case ESP_RST_WDT:  //Reset due to other watchdogs
       set_event(EVENT_RESET_WDT, reason);
       break;
-    case ESP_RST_DEEPSLEEP:
+    case ESP_RST_DEEPSLEEP:  //Reset after exiting deep sleep mode
       set_event(EVENT_RESET_DEEPSLEEP, reason);
       break;
-    case ESP_RST_BROWNOUT:
+    case ESP_RST_BROWNOUT:  //Brownout reset (software or hardware)
       set_event(EVENT_RESET_BROWNOUT, reason);
       break;
-    case ESP_RST_SDIO:
+    case ESP_RST_SDIO:  //Reset over SDIO
       set_event(EVENT_RESET_SDIO, reason);
       break;
-    case ESP_RST_USB:
+    case ESP_RST_USB:  //Reset by USB peripheral
       set_event(EVENT_RESET_USB, reason);
       break;
-    case ESP_RST_JTAG:
+    case ESP_RST_JTAG:  //Reset by JTAG
       set_event(EVENT_RESET_JTAG, reason);
       break;
-    case ESP_RST_EFUSE:
+    case ESP_RST_EFUSE:  //Reset due to efuse error
       set_event(EVENT_RESET_EFUSE, reason);
       break;
-    case ESP_RST_PWR_GLITCH:
+    case ESP_RST_PWR_GLITCH:  //Reset due to power glitch detected
       set_event(EVENT_RESET_PWR_GLITCH, reason);
       break;
-    case ESP_RST_CPU_LOCKUP:
+    case ESP_RST_CPU_LOCKUP:  //Reset due to CPU lock up
       set_event(EVENT_RESET_CPU_LOCKUP, reason);
       break;
     default:

@@ -135,16 +135,12 @@ void Logging::printf(const char* fmt, ...) {
 #endif  // DEBUG_LOG
 }
 
-void Logging::log_bms_status(real_bms_status_enum bms_status, int battery_id) {
+void Logging::log_bms_status(real_bms_status_enum bms_status) {
   static real_bms_status_enum previous_state = BMS_FAULT;
-  const char* id = "";
-  if (battery_id == 2) {
-    id = "2";
-  }
   if (previous_state != bms_status) {
     switch (bms_status) {
       case BMS_ACTIVE:
-        logging.printf("Battery%s BMS state changed to: OK\n", id);
+        logging.printf("Battery%s BMS state changed to: OK\n");
         break;
       case BMS_DISCONNECTED:
         logging.printf("Battery%s BMS state changed to: DISCONNECTED\n");
