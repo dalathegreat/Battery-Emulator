@@ -5,14 +5,10 @@
 #include "CMFA-EV-BATTERY.h"
 
 /* TODO:
-Before this integration can be considered stable, we need to:
-- Find the following data points in the transmitted CAN data:
-   - Pack voltage (Current implementation might be wrong)
-   - Cellvoltage min
-   - Cellvoltage max
-    - Alternatively all these values can be taken from OBD2 PID polling
+Integration considered stable! Following points can still be improved:
+- Cellvoltage Min missing. Value now mapped to same as Cellvoltage Max
+- All individual cellvoltages can not yet be viewed in the cellmonitor
 /*
-
 
 /* Do not change code below unless you are sure what you are doing */
 CAN_frame CMFA_1EA = {.FD = false, .ext_ID = false, .DLC = 1, .ID = 0x1EA, .data = {0x00}};
@@ -33,7 +29,6 @@ CAN_frame CMFA_3D3 = {.FD = false,
                       .ID = 0x3D3,
                       .data = {0x47, 0x30, 0x00, 0x02, 0x5D, 0x80, 0x5D, 0xE7}};
 CAN_frame CMFA_59B = {.FD = false, .ext_ID = false, .DLC = 3, .ID = 0x59B, .data = {0x00, 0x02, 0x00}};
-
 CAN_frame CMFA_ACK = {.FD = false,
                       .ext_ID = false,
                       .DLC = 8,
