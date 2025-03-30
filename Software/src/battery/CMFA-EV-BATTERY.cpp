@@ -43,7 +43,7 @@ CAN_frame CMFA_POLLING_FRAME = {.FD = false,
                                 .ext_ID = false,
                                 .DLC = 8,
                                 .ID = 0x79B,
-                                .data = {0x30, 0x22, 0x90, 0x01, 0x00, 0x00, 0x00, 0x00}};
+                                .data = {0x03, 0x22, 0x90, 0x01, 0x00, 0x00, 0x00, 0x00}};
 
 static uint32_t average_voltage_of_cells = 270000;
 static uint16_t highest_cell_voltage_mv = 3700;
