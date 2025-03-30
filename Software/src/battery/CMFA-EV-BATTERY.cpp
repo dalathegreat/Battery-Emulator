@@ -166,7 +166,7 @@ void handle_incoming_can_frame_battery(CAN_frame rx_frame) {
           break;
         case PID_POLL_AVERAGE_VOLTAGE_OF_CELLS:
           average_voltage_of_cells =
-              (uint16_t)((rx_frame.data.u8[5] << 16) | (rx_frame.data.u8[6] << 8) | (rx_frame.data.u8[7]));
+              (uint32_t)((rx_frame.data.u8[5] << 16) | (rx_frame.data.u8[6] << 8) | (rx_frame.data.u8[7]));
           break;
         case PID_POLL_HIGHEST_CELL_VOLTAGE:
           highest_cell_voltage_mv = (uint16_t)((rx_frame.data.u8[4] << 8) | rx_frame.data.u8[5]);
