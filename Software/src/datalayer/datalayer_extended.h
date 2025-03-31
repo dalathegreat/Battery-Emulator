@@ -253,13 +253,23 @@ typedef struct {
 } DATALAYER_INFO_CELLPOWER;
 
 typedef struct {
+  uint16_t soc_z = 0;
+  uint16_t soc_u = 0;
+  uint16_t soh_average = 0;
+  uint16_t max_regen_power = 0;
+  uint16_t max_discharge_power = 0;
+  int16_t average_temperature = 0;
+  int16_t minimum_temperature = 0;
+  int16_t maximum_temperature = 0;
+  uint16_t maximum_charge_power = 0;
+  uint16_t SOH_available_power = 0;
+  uint16_t SOH_generated_power = 0;
   uint16_t lead_acid_voltage = 0;
   uint8_t highest_cell_voltage_number = 0;
   uint8_t lowest_cell_voltage_number = 0;
   uint64_t cumulative_energy_when_discharging = 0;
   uint64_t cumulative_energy_when_charging = 0;
   uint64_t cumulative_energy_in_regen = 0;
-  uint16_t soh_average = 0;
 } DATALAYER_INFO_CMFAEV;
 
 typedef struct {

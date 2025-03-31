@@ -46,9 +46,9 @@ static uint16_t soc_z = 0;
 static uint16_t soc_u = 0;
 static uint16_t max_regen_power = 0;
 static uint16_t max_discharge_power = 0;
-static uint16_t average_temperature = 0;
-static uint16_t minimum_temperature = 0;
-static uint16_t maximum_temperature = 0;
+static int16_t average_temperature = 0;
+static int16_t minimum_temperature = 0;
+static int16_t maximum_temperature = 0;
 static uint16_t maximum_charge_power = 0;
 static uint16_t SOH_available_power = 0;
 static uint16_t SOH_generated_power = 0;
@@ -121,9 +121,19 @@ void update_values_battery() {  //This function maps all the values fetched via 
   }
 
   // Update webserver datalayer
+  datalayer_extended.CMFAEV.soc_u = soc_u;
+  datalayer_extended.CMFAEV.soc_z = soc_z;
   datalayer_extended.CMFAEV.lead_acid_voltage = lead_acid_voltage;
   datalayer_extended.CMFAEV.highest_cell_voltage_number = highest_cell_voltage_number;
   datalayer_extended.CMFAEV.lowest_cell_voltage_number = lowest_cell_voltage_number;
+  datalayer_extended.CMFAEV.max_regen_power = max_regen_power;
+  datalayer_extended.CMFAEV.max_discharge_power = max_discharge_power;
+  datalayer_extended.CMFAEV.average_temperature = average_temperature;
+  datalayer_extended.CMFAEV.minimum_temperature = minimum_temperature;
+  datalayer_extended.CMFAEV.maximum_temperature = maximum_temperature;
+  datalayer_extended.CMFAEV.maximum_charge_power = maximum_charge_power;
+  datalayer_extended.CMFAEV.SOH_available_power = SOH_available_power;
+  datalayer_extended.CMFAEV.SOH_generated_power = SOH_generated_power;
   datalayer_extended.CMFAEV.cumulative_energy_when_discharging = cumulative_energy_when_discharging;
   datalayer_extended.CMFAEV.cumulative_energy_when_charging = cumulative_energy_when_charging;
   datalayer_extended.CMFAEV.cumulative_energy_in_regen = cumulative_energy_in_regen;
@@ -225,13 +235,13 @@ void handle_incoming_can_frame_battery(CAN_frame rx_frame) {
           lead_acid_voltage = (uint16_t)((rx_frame.data.u8[4] << 8) | rx_frame.data.u8[5]);
           break;
         case PID_POLL_AVERAGE_TEMPERATURE:
-          average_temperature = (uint16_t)((rx_frame.data.u8[4] << 8) | rx_frame.data.u8[5]);
+          average_temperature = ((((rx_frame.data.u8[4] << 8) | rx_frame.data.u8[5]) - 400) / 2);
           break;
         case PID_POLL_MIN_TEMPERATURE:
-          minimum_temperature = (uint16_t)((rx_frame.data.u8[4] << 8) | rx_frame.data.u8[5]);
+          minimum_temperature = ((((rx_frame.data.u8[4] << 8) | rx_frame.data.u8[5]) - 400) / 2);
           break;
         case PID_POLL_MAX_TEMPERATURE:
-          maximum_temperature = (uint16_t)((rx_frame.data.u8[4] << 8) | rx_frame.data.u8[5]);
+          maximum_temperature = ((((rx_frame.data.u8[4] << 8) | rx_frame.data.u8[5]) - 400) / 2);
           break;
         case PID_POLL_MAX_CHARGE_POWER:
           maximum_charge_power = (uint16_t)((rx_frame.data.u8[4] << 8) | rx_frame.data.u8[5]);
