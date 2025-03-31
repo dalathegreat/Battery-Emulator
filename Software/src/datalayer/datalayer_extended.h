@@ -253,6 +253,16 @@ typedef struct {
 } DATALAYER_INFO_CELLPOWER;
 
 typedef struct {
+  uint16_t lead_acid_voltage = 0;
+  uint8_t highest_cell_voltage_number = 0;
+  uint8_t lowest_cell_voltage_number = 0;
+  uint64_t cumulative_energy_when_discharging = 0;
+  uint64_t cumulative_energy_when_charging = 0;
+  uint64_t cumulative_energy_in_regen = 0;
+  uint16_t soh_average = 0;
+} DATALAYER_INFO_CMFAEV;
+
+typedef struct {
   uint8_t total_cell_count = 0;
   int16_t battery_12V = 0;
   uint8_t waterleakageSensor = 0;
@@ -733,6 +743,7 @@ class DataLayerExtended {
   DATALAYER_INFO_BMWI3 bmwi3;
   DATALAYER_INFO_BYDATTO3 bydAtto3;
   DATALAYER_INFO_CELLPOWER cellpower;
+  DATALAYER_INFO_CMFAEV CMFAEV;
   DATALAYER_INFO_KIAHYUNDAI64 KiaHyundai64;
   DATALAYER_INFO_TESLA tesla;
   DATALAYER_INFO_NISSAN_LEAF nissanleaf;

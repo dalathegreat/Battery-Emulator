@@ -1,6 +1,7 @@
 #include "../include.h"
 #ifdef CMFA_EV_BATTERY
 #include "../datalayer/datalayer.h"
+#include "../datalayer/datalayer_extended.h"
 #include "../devboard/utils/events.h"
 #include "CMFA-EV-BATTERY.h"
 
@@ -42,12 +43,14 @@ CAN_frame CMFA_POLLING_FRAME = {.FD = false,
 
 static uint32_t average_voltage_of_cells = 270000;
 static uint16_t highest_cell_voltage_mv = 3700;
-static uint16_t leadAcidBatteryVoltage = 12000;
-static uint16_t highest_cell_voltage_number = 0;
-static uint16_t lowest_cell_voltage_number = 0;
-static uint64_t cumulative_energy_when_discharging = 0;  // Wh
-static uint16_t pack_voltage_polled = 2700;
-static uint32_t poll_pid = PID_POLL_PACKVOLTAGE;
+static uint16_t lead_acid_voltage = 12000;
+static uint8_t highest_cell_voltage_number = 0;
+static uint8_t lowest_cell_voltage_number = 0;
+static uint64_t cumulative_energy_when_discharging = 0;
+static uint64_t cumulative_energy_when_charging = 0;
+static uint64_t cumulative_energy_in_regen = 0;
+static uint16_t soh_average = 10000;
+static uint32_t poll_pid = PID_POLL_SOH_AVERAGE;
 static uint16_t pid_reply = 0;
 static uint8_t counter_10ms = 0;
 static uint8_t content_125[16] = {0x07, 0x0C, 0x01, 0x06, 0x0B, 0x00, 0x05, 0x0A,
@@ -96,9 +99,18 @@ void update_values_battery() {  //This function maps all the values fetched via 
 
   datalayer.battery.status.cell_max_voltage_mV = highest_cell_voltage_mv;
 
-  if (leadAcidBatteryVoltage < 11000) {  //11.000V
-    set_event(EVENT_12V_LOW, leadAcidBatteryVoltage);
+  if (lead_acid_voltage < 11000) {  //11.000V
+    set_event(EVENT_12V_LOW, lead_acid_voltage);
   }
+
+  // Update webserver datalayer
+  datalayer_extended.CMFAEV.lead_acid_voltage = lead_acid_voltage;
+  datalayer_extended.CMFAEV.highest_cell_voltage_number = highest_cell_voltage_number;
+  datalayer_extended.CMFAEV.lowest_cell_voltage_number = lowest_cell_voltage_number;
+  datalayer_extended.CMFAEV.cumulative_energy_when_discharging = cumulative_energy_when_discharging;
+  datalayer_extended.CMFAEV.cumulative_energy_when_charging = cumulative_energy_when_charging;
+  datalayer_extended.CMFAEV.cumulative_energy_in_regen = cumulative_energy_in_regen;
+  datalayer_extended.CMFAEV.soh_average = soh_average;
 }
 
 void handle_incoming_can_frame_battery(CAN_frame rx_frame) {
@@ -155,9 +167,8 @@ void handle_incoming_can_frame_battery(CAN_frame rx_frame) {
       pid_reply = (rx_frame.data.u8[2] << 8) + rx_frame.data.u8[3];
 
       switch (pid_reply) {
-        case PID_POLL_PACKVOLTAGE:
-          pack_voltage_polled =
-              (uint16_t)((rx_frame.data.u8[5] << 8) | rx_frame.data.u8[4]);  //Hmm, not same LSB as others
+        case PID_POLL_SOH_AVERAGE:
+          soh_average = (uint16_t)((rx_frame.data.u8[4] << 8) | rx_frame.data.u8[5]);
           break;
         case PID_POLL_AVERAGE_VOLTAGE_OF_CELLS:
           average_voltage_of_cells =
@@ -173,11 +184,19 @@ void handle_incoming_can_frame_battery(CAN_frame rx_frame) {
           lowest_cell_voltage_number = rx_frame.data.u8[4];
           break;
         case PID_POLL_12V_BATTERY:
-          leadAcidBatteryVoltage = (uint16_t)((rx_frame.data.u8[4] << 8) | rx_frame.data.u8[5]);
+          lead_acid_voltage = (uint16_t)((rx_frame.data.u8[4] << 8) | rx_frame.data.u8[5]);
           break;
         case PID_POLL_CUMULATIVE_ENERGY_WHEN_DISCHARGING:
           cumulative_energy_when_discharging = (uint64_t)((rx_frame.data.u8[4] << 24) | (rx_frame.data.u8[5] << 16) |
                                                           (rx_frame.data.u8[6] << 8) | (rx_frame.data.u8[7]));
+          break;
+        case PID_POLL_CUMULATIVE_ENERGY_WHEN_CHARGING:
+          cumulative_energy_when_charging = (uint64_t)((rx_frame.data.u8[4] << 24) | (rx_frame.data.u8[5] << 16) |
+                                                       (rx_frame.data.u8[6] << 8) | (rx_frame.data.u8[7]));
+          break;
+        case PID_POLL_CUMULATIVE_ENERGY_IN_REGEN:
+          cumulative_energy_in_regen = (uint64_t)((rx_frame.data.u8[4] << 24) | (rx_frame.data.u8[5] << 16) |
+                                                  (rx_frame.data.u8[6] << 8) | (rx_frame.data.u8[7]));
           break;
         default:
           break;
@@ -219,9 +238,9 @@ void transmit_can_battery() {
     previousMillis200ms = currentMillis;
 
     switch (poll_pid) {
-      case PID_POLL_PACKVOLTAGE:
-        CMFA_POLLING_FRAME.data.u8[2] = (uint8_t)(PID_POLL_PACKVOLTAGE >> 8);
-        CMFA_POLLING_FRAME.data.u8[3] = (uint8_t)PID_POLL_PACKVOLTAGE;
+      case PID_POLL_SOH_AVERAGE:
+        CMFA_POLLING_FRAME.data.u8[2] = (uint8_t)(PID_POLL_SOH_AVERAGE >> 8);
+        CMFA_POLLING_FRAME.data.u8[3] = (uint8_t)PID_POLL_SOH_AVERAGE;
         poll_pid = PID_POLL_AVERAGE_VOLTAGE_OF_CELLS;
         break;
       case PID_POLL_AVERAGE_VOLTAGE_OF_CELLS:
@@ -247,15 +266,25 @@ void transmit_can_battery() {
       case PID_POLL_12V_BATTERY:
         CMFA_POLLING_FRAME.data.u8[2] = (uint8_t)(PID_POLL_12V_BATTERY >> 8);
         CMFA_POLLING_FRAME.data.u8[3] = (uint8_t)PID_POLL_12V_BATTERY;
+        poll_pid = PID_POLL_CUMULATIVE_ENERGY_WHEN_CHARGING;
+        break;
+      case PID_POLL_CUMULATIVE_ENERGY_WHEN_CHARGING:
+        CMFA_POLLING_FRAME.data.u8[2] = (uint8_t)(PID_POLL_CUMULATIVE_ENERGY_WHEN_CHARGING >> 8);
+        CMFA_POLLING_FRAME.data.u8[3] = (uint8_t)PID_POLL_CUMULATIVE_ENERGY_WHEN_CHARGING;
         poll_pid = PID_POLL_CUMULATIVE_ENERGY_WHEN_DISCHARGING;
         break;
       case PID_POLL_CUMULATIVE_ENERGY_WHEN_DISCHARGING:
         CMFA_POLLING_FRAME.data.u8[2] = (uint8_t)(PID_POLL_CUMULATIVE_ENERGY_WHEN_DISCHARGING >> 8);
         CMFA_POLLING_FRAME.data.u8[3] = (uint8_t)PID_POLL_CUMULATIVE_ENERGY_WHEN_DISCHARGING;
-        poll_pid = PID_POLL_PACKVOLTAGE;
+        poll_pid = PID_POLL_CUMULATIVE_ENERGY_IN_REGEN;
+        break;
+      case PID_POLL_CUMULATIVE_ENERGY_IN_REGEN:
+        CMFA_POLLING_FRAME.data.u8[2] = (uint8_t)(PID_POLL_CUMULATIVE_ENERGY_IN_REGEN >> 8);
+        CMFA_POLLING_FRAME.data.u8[3] = (uint8_t)PID_POLL_CUMULATIVE_ENERGY_IN_REGEN;
+        poll_pid = PID_POLL_SOH_AVERAGE;
         break;
       default:
-        poll_pid = PID_POLL_PACKVOLTAGE;
+        poll_pid = PID_POLL_SOH_AVERAGE;
         break;
     }
 
