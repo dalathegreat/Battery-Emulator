@@ -86,6 +86,9 @@ pyserial install: ```sudo apt install python3-serial```
 Arduino AppImage must be set as executable after downloading to run correctly\
 example: ```chmod 775 arduino-ide_2.3.3_Linux_64bit.AppImage```
 
+Also you might need to install FUSE to run appimages
+```sudo apt install libfuse2```
+
 ## Dependencies 📖
 This code uses the following excellent libraries: 
 - [adafruit/Adafruit_NeoPixel](https://github.com/adafruit/Adafruit_NeoPixel) LGPL-3.0 license
