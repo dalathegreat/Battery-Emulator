@@ -12,6 +12,10 @@
 */
 
 /* Do not change code below unless you are sure what you are doing */
+#define NOT_DETERMINED_YET 0
+#define STANDARD_RANGE 1
+#define EXTENDED_RANGE 2
+static uint8_t battery_type = NOT_DETERMINED_YET;
 static unsigned long previousMillis50 = 0;   // will store last time a 50ms CAN Message was send
 static unsigned long previousMillis100 = 0;  // will store last time a 100ms CAN Message was send
 static unsigned long previousMillis500 = 0;  // will store last time a 500ms CAN Message was send
@@ -37,8 +41,7 @@ static int16_t BMS_average_cell_temperature = 0;
 static uint16_t BMS_lowest_cell_voltage_mV = 3300;
 static uint16_t BMS_highest_cell_voltage_mV = 3300;
 static uint8_t battery_frame_index = 0;
-#define NOF_CELLS 126
-static uint16_t battery_cellvoltages[NOF_CELLS] = {0};
+static uint16_t battery_cellvoltages[CELLCOUNT_EXTENDED] = {0};
 #ifdef DOUBLE_BATTERY
 static int16_t battery2_temperature_ambient = 0;
 static int16_t battery2_daughterboard_temperatures[10];
@@ -56,7 +59,7 @@ static int16_t BMS2_average_cell_temperature = 0;
 static uint16_t BMS2_lowest_cell_voltage_mV = 3300;
 static uint16_t BMS2_highest_cell_voltage_mV = 3300;
 static uint8_t battery2_frame_index = 0;
-static uint16_t battery2_cellvoltages[NOF_CELLS] = {0};
+static uint16_t battery2_cellvoltages[CELLCOUNT_EXTENDED] = {0};
 #endif  //DOUBLE_BATTERY
 #define POLL_FOR_BATTERY_SOC 0x05
 #define POLL_FOR_BATTERY_VOLTAGE 0x08
@@ -90,20 +93,39 @@ CAN_frame ATTO_3_7E7_POLL = {.FD = false,
 // Define the data points for %SOC depending on pack voltage
 const uint8_t numPoints = 14;
 const uint16_t SOC[numPoints] = {10000, 9970, 9490, 8470, 7750, 6790, 5500, 4900, 3910, 3000, 2280, 1600, 480, 0};
-const uint16_t voltage[numPoints] = {4400, 4230, 4180, 4171, 4169, 4160, 4130,
-                                     4121, 4119, 4100, 4070, 4030, 3950, 3800};
+const uint16_t voltage_extended[numPoints] = {4400, 4230, 4180, 4171, 4169, 4160, 4130,
+                                              4121, 4119, 4100, 4070, 4030, 3950, 3800};
+const uint16_t voltage_standard[numPoints] = {3620, 3485, 3443, 3435, 3433, 3425, 3400,
+                                              3392, 3390, 3375, 3350, 3315, 3250, 3140};
 
-uint16_t estimateSOC(uint16_t packVoltage) {  // Linear interpolation function
-  if (packVoltage >= voltage[0]) {
+uint16_t estimateSOCextended(uint16_t packVoltage) {  // Linear interpolation function
+  if (packVoltage >= voltage_extended[0]) {
     return SOC[0];
   }
-  if (packVoltage <= voltage[numPoints - 1]) {
+  if (packVoltage <= voltage_extended[numPoints - 1]) {
     return SOC[numPoints - 1];
   }
 
   for (int i = 1; i < numPoints; ++i) {
-    if (packVoltage >= voltage[i]) {
-      double t = (packVoltage - voltage[i]) / (voltage[i - 1] - voltage[i]);
+    if (packVoltage >= voltage_extended[i]) {
+      double t = (packVoltage - voltage_extended[i]) / (voltage_extended[i - 1] - voltage_extended[i]);
+      return SOC[i] + t * (SOC[i - 1] - SOC[i]);
+    }
+  }
+  return 0;  // Default return for safety, should never reach here
+}
+
+uint16_t estimateSOCstandard(uint16_t packVoltage) {  // Linear interpolation function
+  if (packVoltage >= voltage_standard[0]) {
+    return SOC[0];
+  }
+  if (packVoltage <= voltage_standard[numPoints - 1]) {
+    return SOC[numPoints - 1];
+  }
+
+  for (int i = 1; i < numPoints; ++i) {
+    if (packVoltage >= voltage_standard[i]) {
+      double t = (packVoltage - voltage_standard[i]) / (voltage_standard[i - 1] - voltage_standard[i]);
       return SOC[i] + t * (SOC[i - 1] - SOC[i]);
     }
   }
@@ -120,7 +142,12 @@ void update_values_battery() {  //This function maps all the values fetched via 
   // When the battery is crashed hard, it locks itself and SOC becomes unavailable.
   // We instead estimate the SOC% based on the battery voltage.
   // This is a bad solution, you wont be able to use 100% of the battery
-  datalayer.battery.status.real_soc = estimateSOC(datalayer.battery.status.voltage_dV);
+  if (battery_type == EXTENDED_RANGE) {
+    datalayer.battery.status.real_soc = estimateSOCextended(datalayer.battery.status.voltage_dV);
+  }
+  if (battery_type == STANDARD_RANGE) {
+    datalayer.battery.status.real_soc = estimateSOCstandard(datalayer.battery.status.voltage_dV);
+  }
   SOC_method = ESTIMATED;
 #else  // Pack is not crashed, we can use periodically transmitted SOC
   datalayer.battery.status.real_soc = battery_highprecision_SOC * 10;
@@ -141,7 +168,41 @@ void update_values_battery() {  //This function maps all the values fetched via 
   datalayer.battery.status.cell_min_voltage_mV = BMS_lowest_cell_voltage_mV;
 
   //Map all cell voltages to the global array
-  memcpy(datalayer.battery.status.cell_voltages_mV, battery_cellvoltages, NOF_CELLS * sizeof(uint16_t));
+  memcpy(datalayer.battery.status.cell_voltages_mV, battery_cellvoltages, CELLCOUNT_EXTENDED * sizeof(uint16_t));
+
+  // Check if we are on Standard range or Extended range battery.
+  // We use a variety of checks to ensure we catch a potential Standard range battery
+  if ((battery_cellvoltages[125] > 0) && (battery_type == NOT_DETERMINED_YET)) {
+    battery_type = EXTENDED_RANGE;
+  }
+  if ((battery_cellvoltages[104] == 4095) && (battery_type == NOT_DETERMINED_YET)) {
+    battery_type = STANDARD_RANGE;  //This cell reading is always 4095 on Standard range
+  }
+  if ((battery_daughterboard_temperatures[9] == 215) && (battery_type == NOT_DETERMINED_YET)) {
+    battery_type = STANDARD_RANGE;  //Sensor 10 is missing on Standard range
+  }
+  if ((battery_daughterboard_temperatures[8] == 215) && (battery_type == NOT_DETERMINED_YET)) {
+    battery_type = STANDARD_RANGE;  //Sensor 9 is missing on Standard range
+  }
+
+  switch (battery_type) {
+    case STANDARD_RANGE:
+      datalayer.battery.info.total_capacity_Wh = 50000;
+      datalayer.battery.info.number_of_cells = CELLCOUNT_STANDARD;
+      datalayer.battery.info.max_design_voltage_dV = MAX_PACK_VOLTAGE_STANDARD_DV;
+      datalayer.battery.info.min_design_voltage_dV = MIN_PACK_VOLTAGE_STANDARD_DV;
+      break;
+    case EXTENDED_RANGE:
+      datalayer.battery.info.total_capacity_Wh = 60000;
+      datalayer.battery.info.number_of_cells = CELLCOUNT_EXTENDED;
+      datalayer.battery.info.max_design_voltage_dV = MAX_PACK_VOLTAGE_EXTENDED_DV;
+      datalayer.battery.info.min_design_voltage_dV = MIN_PACK_VOLTAGE_EXTENDED_DV;
+      break;
+    case NOT_DETERMINED_YET:
+    default:
+      //Do nothing
+      break;
+  }
 
 #ifdef SKIP_TEMPERATURE_SENSOR_NUMBER
   // Initialize min and max variables for temperature calculation
@@ -263,7 +324,7 @@ void handle_incoming_can_frame_battery(CAN_frame rx_frame) {
       datalayer.battery.status.CAN_battery_still_alive = CAN_STILL_ALIVE;
       battery_frame_index = rx_frame.data.u8[0];
 
-      if (battery_frame_index < (NOF_CELLS / 3)) {
+      if (battery_frame_index < (CELLCOUNT_EXTENDED / 3)) {
         uint8_t base_index = battery_frame_index * 3;
         for (uint8_t i = 0; i < 3; i++) {
           battery_cellvoltages[base_index + i] =
@@ -447,23 +508,19 @@ void transmit_can_battery() {
 void setup_battery(void) {  // Performs one time setup at startup
   strncpy(datalayer.system.info.battery_protocol, "BYD Atto 3", 63);
   datalayer.system.info.battery_protocol[63] = '\0';
-  datalayer.battery.info.number_of_cells = 126;
   datalayer.battery.info.chemistry = battery_chemistry_enum::LFP;
-  datalayer.battery.info.max_design_voltage_dV = MAX_PACK_VOLTAGE_DV;
-  datalayer.battery.info.min_design_voltage_dV = MIN_PACK_VOLTAGE_DV;
+  datalayer.battery.info.max_design_voltage_dV = MAX_PACK_VOLTAGE_EXTENDED_DV;  //Startup in extremes
+  datalayer.battery.info.min_design_voltage_dV = MIN_PACK_VOLTAGE_STANDARD_DV;  //We later determine range
   datalayer.battery.info.max_cell_voltage_mV = MAX_CELL_VOLTAGE_MV;
   datalayer.battery.info.min_cell_voltage_mV = MIN_CELL_VOLTAGE_MV;
   datalayer.battery.info.max_cell_voltage_deviation_mV = MAX_CELL_DEVIATION_MV;
-  //Due to the Datalayer having 370.0V as startup value, which is 10V lower than the Atto 3 min voltage 380.0V
-  //We now init the value to 380.1V to avoid false positive events.
-  datalayer.battery.status.voltage_dV = MIN_PACK_VOLTAGE_DV + 1;
 #ifdef DOUBLE_BATTERY
-  datalayer.battery2.info.number_of_cells = 126;
+  datalayer.battery2.info.number_of_cells = CELLCOUNT_STANDARD;
   datalayer.battery2.info.chemistry = battery_chemistry_enum::LFP;
-  datalayer.battery2.info.max_design_voltage_dV = MAX_PACK_VOLTAGE_DV;
-  datalayer.battery2.info.min_design_voltage_dV = MIN_PACK_VOLTAGE_DV;
-  datalayer.battery2.info.max_cell_voltage_mV = MAX_CELL_VOLTAGE_MV;
-  datalayer.battery2.info.min_cell_voltage_mV = MIN_CELL_VOLTAGE_MV;
+  datalayer.battery2.info.max_design_voltage_dV = datalayer.battery.info.max_design_voltage_dV;
+  datalayer.battery2.info.min_design_voltage_dV = datalayer.battery.info.min_design_voltage_dV;
+  datalayer.battery2.info.max_cell_voltage_mV = datalayer.battery.info.max_cell_voltage_mV;
+  datalayer.battery2.info.min_cell_voltage_mV = datalayer.battery.info.min_cell_voltage_mV;
   datalayer.battery2.info.max_cell_voltage_deviation_mV = MAX_CELL_DEVIATION_MV;
 #endif  //DOUBLE_BATTERY
 }
@@ -478,7 +535,12 @@ void update_values_battery2() {  //This function maps all the values fetched via
 
   // We instead estimate the SOC% based on the battery2 voltage
   // This is a very bad solution, and as soon as an usable SOC% value has been found on CAN, we should switch to that!
-  datalayer.battery2.status.real_soc = estimateSOC(datalayer.battery2.status.voltage_dV);
+  if (battery_type == EXTENDED_RANGE) {
+    datalayer.battery2.status.real_soc = estimateSOCextended(datalayer.battery2.status.voltage_dV);
+  }
+  if (battery_type == STANDARD_RANGE) {
+    datalayer.battery2.status.real_soc = estimateSOCstandard(datalayer.battery2.status.voltage_dV);
+  }
 
   datalayer.battery2.status.current_dA = -BMS2_current;
 
@@ -498,7 +560,12 @@ void update_values_battery2() {  //This function maps all the values fetched via
   datalayer.battery2.status.temperature_max_dC = BMS2_highest_cell_temperature * 10;
 
   //Map all cell voltages to the global array
-  memcpy(datalayer.battery2.status.cell_voltages_mV, battery2_cellvoltages, NOF_CELLS * sizeof(uint16_t));
+  memcpy(datalayer.battery2.status.cell_voltages_mV, battery2_cellvoltages, CELLCOUNT_EXTENDED * sizeof(uint16_t));
+
+  datalayer.battery2.info.total_capacity_Wh = datalayer.battery.info.total_capacity_Wh;
+  datalayer.battery2.info.number_of_cells = datalayer.battery.info.number_of_cells;
+  datalayer.battery2.info.max_design_voltage_dV = datalayer.battery.info.max_design_voltage_dV;
+  datalayer.battery2.info.min_design_voltage_dV = datalayer.battery.info.min_design_voltage_dV;
 }
 
 void handle_incoming_can_frame_battery2(CAN_frame rx_frame) {
@@ -515,7 +582,10 @@ void handle_incoming_can_frame_battery2(CAN_frame rx_frame) {
     case 0x286:
       datalayer.battery2.status.CAN_battery_still_alive = CAN_STILL_ALIVE;
       break;
-    case 0x334 datalayer.battery2.status.CAN_battery_still_alive = CAN_STILL_ALIVE; break; case 0x338:
+    case 0x334:
+      datalayer.battery2.status.CAN_battery_still_alive = CAN_STILL_ALIVE;
+      break;
+    case 0x338:
       datalayer.battery2.status.CAN_battery_still_alive = CAN_STILL_ALIVE;
       break;
     case 0x344:
@@ -568,7 +638,7 @@ void handle_incoming_can_frame_battery2(CAN_frame rx_frame) {
     case 0x43D:
       datalayer.battery2.status.CAN_battery_still_alive = CAN_STILL_ALIVE;
       battery2_frame_index = rx_frame.data.u8[0];
-      if (battery2_frame_index < (NOF_CELLS / 3)) {
+      if (battery2_frame_index < (CELLCOUNT_EXTENDED / 3)) {
         uint8_t base2_index = battery2_frame_index * 3;
         for (uint8_t i = 0; i < 3; i++) {
           battery2_cellvoltages[base2_index + i] =

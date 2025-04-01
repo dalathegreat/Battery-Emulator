@@ -14,8 +14,12 @@
 
 /* Do not modify the rows below */
 #define BATTERY_SELECTED
-#define MAX_PACK_VOLTAGE_DV 4410  //5000 = 500.0V
-#define MIN_PACK_VOLTAGE_DV 3800
+#define CELLCOUNT_EXTENDED 126
+#define CELLCOUNT_STANDARD 104
+#define MAX_PACK_VOLTAGE_EXTENDED_DV 4410  //Extended range
+#define MIN_PACK_VOLTAGE_EXTENDED_DV 3800  //Extended range
+#define MAX_PACK_VOLTAGE_STANDARD_DV 3640  //Standard range
+#define MIN_PACK_VOLTAGE_STANDARD_DV 3136  //Standard range
 #define MAX_CELL_DEVIATION_MV 150
 #define MAX_CELL_VOLTAGE_MV 3800  //Battery is put into emergency stop if one cell goes over this value
 #define MIN_CELL_VOLTAGE_MV 2800  //Battery is put into emergency stop if one cell goes below this value
