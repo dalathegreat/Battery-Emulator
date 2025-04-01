@@ -1099,6 +1099,7 @@ void handle_incoming_can_frame_battery(CAN_frame rx_frame) {
       switch (pid_reply) {
         case PID_SOC:
           battery_soc_polled = rx_frame.data.u8[4] * 4;  // 135*4 = 54.0%
+          break;
         case PID_VOLTAGE:
           battery_voltage_polled = ((rx_frame.data.u8[4] << 8) | rx_frame.data.u8[5]);
           break;
