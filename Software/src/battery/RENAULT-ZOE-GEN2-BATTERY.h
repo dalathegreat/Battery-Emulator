@@ -12,6 +12,24 @@
 void setup_battery(void);
 void transmit_can_frame(CAN_frame* tx_frame, int interface);
 
+/**
+ * @brief Reset NVROL, by sending specific frames
+ *
+ * @param[in] void
+ *
+ * @return void
+ */
+void transmit_reset_nvrol_frames(void);
+
+/**
+ * @brief Wait function
+ *
+ * @param[in] duration_ms wait duration in ms
+ *
+ * @return void
+ */
+void wait_ms(int duration_ms);
+
 #define POLL_SOC 0x9001
 #define POLL_USABLE_SOC 0x9002
 #define POLL_SOH 0x9003
