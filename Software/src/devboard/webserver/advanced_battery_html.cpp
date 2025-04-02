@@ -1072,8 +1072,22 @@ String advanced_battery_processor(const String& var) {
                                                                  : "<h4>BMS error shutdown request: Inactive</h4>";
     content += datalayer_extended.meb.BMS_error_shutdown ? "<h4>BMS error shutdown: Active!</h4>"
                                                          : "<h4>BMS error shutdown: Off</h4>";
-
-    content += "<h4>Warning support: ";
+    content += "<h4>Welded contactors: ";
+    switch (datalayer_extended.meb.BMS_welded_contactors_status) {
+      case 0:
+        content += String("Init");
+        break;
+      case 1:
+        content += String("No contactor welded");
+        break;
+      case 2:
+        content += String("At least 1 contactor welded");
+        break;
+      case 3:
+        content += String("Protection status detection error");
+        break;
+    }
+    content += "</h4><h4>Warning support: ";
     switch (datalayer_extended.meb.warning_support) {
       case 0:
         content += String("OK");
