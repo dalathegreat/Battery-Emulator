@@ -16,29 +16,41 @@
 #define RS485_RX_PIN 3  // 22
 //#define RS485_SE_PIN 19  // 22 /SHDN
 
-// CAN settings. CAN_2 is not defined as it can be either MCP2515 or MCP2517, defined by the user settings
+// CAN settings. CAN1 is always normal CAN. CAN_2/3 can be either CANFD or MCP2515
 #define CAN_1_TYPE ESP32CAN
+#define CAN_2_TYPE CANFD
+#define CAN_3_TYPE CANFD
 
 // CAN1 PIN mappings, do not change these unless you are adding on extra hardware to the PCB
 #define CAN_TX_PIN GPIO_NUM_27
 #define CAN_RX_PIN GPIO_NUM_26
 //#define CAN_SE_PIN 23
 
-// CAN2 defines below
-
-// CAN_ADDON defines
-#define MCP2515_SCK 12   // SCK input of MCP2515
-#define MCP2515_MOSI 5   // SDI input of MCP2515
-#define MCP2515_MISO 34  // SDO output of MCP2515 | Pin 34 is input only, without pullup/down resistors
-#define MCP2515_CS 18    // CS input of MCP2515
-#define MCP2515_INT 35   // INT output of MCP2515 |  | Pin 35 is input only, without pullup/down resistors
-
-// CANFD_ADDON defines
+//#if CAN_2_TYPE == MCP2515
+#define MCP2515_SCK 17   // SCK input of MCP2515
+#define MCP2515_MOSI 23  // SDI input of MCP2515
+#define MCP2515_MISO 39  // SDO output of MCP2515 | Pin 34 is input only, without pullup/down resistors
+#define MCP2515_CS 21    // CS input of MCP2515
+#define MCP2515_INT 34   // INT output of MCP2515 |  | Pin 35 is input only, without pullup/down resistors
+//#elif CAN_2_TYPE == CANFD
 #define MCP2517_SCK 17  // SCK input of MCP2517
 #define MCP2517_SDI 23  // SDI input of MCP2517
 #define MCP2517_SDO 39  // SDO output of MCP2517
 #define MCP2517_CS 21   // CS input of MCP2517 //21 or 22
 #define MCP2517_INT 34  // INT output of MCP2517 //34 or 35
+
+//#if CAN_3_TYPE == MCP2515
+//#define MCP2515_SCK 17   // SCK input of MCP2515 (Same as first SCK define)
+//#define MCP2515_MOSI 23  // SDI input of MCP2515 (Same as first SDI define)
+//#define MCP2515_MISO 39  // SDO output of MCP2515 (Same as first SDO define)
+#define SECOND_MCP2515_CS 22   // CS input of MCP2517 //21 or 22
+#define SECOND_MCP2515_INT 35  // INT output of MCP2517 //34 or 35
+//#elif CAN_3_TYPE == CANFD
+//#define MCP2517_SCK 17  // SCK input of MCP2517 (Same as first SCK define)
+//#define MCP2517_SDI 23  // SDI input of MCP2517 (Same as first SDI define)
+//#define MCP2517_SDO 39  // SDO output of MCP2517 (Same as first SDO define)
+#define SECOND_MCP2517_CS 22   // CS input of MCP2517 //21 or 22
+#define SECOND_MCP2517_INT 35  // INT output of MCP2517 //34 or 35
 
 // CHAdeMO support pin dependencies
 #define CHADEMO_PIN_2 12
