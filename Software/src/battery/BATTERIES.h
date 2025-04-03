@@ -78,6 +78,10 @@ void setup_can_shunt();
 #include "MEB-BATTERY.h"
 #endif
 
+#ifdef MEB_GATEWAY_MODE
+#include "MEB-GATEWAY.h"
+#endif
+
 #ifdef MG_5_BATTERY
 #include "MG-5-BATTERY.h"
 #endif

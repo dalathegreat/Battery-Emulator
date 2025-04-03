@@ -1,5 +1,6 @@
 #include "comm_can.h"
 #include "../../include.h"
+#include "../../../USER_SETTINGS.h"
 #include "src/devboard/sdcard/sdcard.h"
 
 // Parameters
@@ -228,6 +229,13 @@ void receive_frame_can_native() {  // This section checks if we have a complete 
     }
     //message incoming, pass it on to the handler
     map_can_frame_to_variable(&rx_frame, CAN_NATIVE);
+
+    #ifdef MEB_GATEWAY_MODE
+    //Incoming Native CAN message. Pass it as-is to the CANFD interface
+
+    transmit_can_frame(&rx_frame, CANFD_ADDON_MCP2518);
+    
+    #endif
   }
 }
 
@@ -267,6 +275,16 @@ void receive_frame_canfd_addon() {  // This section checks if we have a complete
     //message incoming, pass it on to the handler
     map_can_frame_to_variable(&rx_frame, CANFD_ADDON_MCP2518);
     map_can_frame_to_variable(&rx_frame, CANFD_NATIVE);
+
+    #ifdef MEB_GATEWAY_MODE
+    //Incoming CAN-FD message. Format it as normal CAN, and send to Native CAN
+    if(rx_frame.DLC > 8){
+      rx_frame.DLC == 8;
+    }
+    rx_frame.FD = false;
+    transmit_can_frame(&rx_frame, CAN_NATIVE);
+    #endif
+
   }
 }
 #endif  // CANFD_ADDON
