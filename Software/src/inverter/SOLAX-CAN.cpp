@@ -117,10 +117,10 @@ void update_values_can_inverter() {  //This function maps all the values fetched
       ((datalayer.battery.status.temperature_max_dC + datalayer.battery.status.temperature_min_dC) / 2);
 
   // Batteries might be larger than uint16_t value can take
-  if (datalayer.battery.info.total_capacity_Wh > 65000) {
+  if (datalayer.battery.info.reported_total_capacity_Wh > 65000) {
     capped_capacity_Wh = 65000;
   } else {
-    capped_capacity_Wh = datalayer.battery.info.total_capacity_Wh;
+    capped_capacity_Wh = datalayer.battery.info.reported_total_capacity_Wh;
   }
   // Batteries might be larger than uint16_t value can take
   if (datalayer.battery.status.reported_remaining_capacity_Wh > 65000) {
@@ -187,10 +187,10 @@ void update_values_can_inverter() {  //This function maps all the values fetched
   SOLAX_1878.data.u8[0] = (uint8_t)(datalayer.battery.status.voltage_dV);
   SOLAX_1878.data.u8[1] = ((datalayer.battery.status.voltage_dV) >> 8);
 
-  SOLAX_1878.data.u8[4] = (uint8_t)datalayer.battery.info.total_capacity_Wh;
-  SOLAX_1878.data.u8[5] = (datalayer.battery.info.total_capacity_Wh >> 8);
-  SOLAX_1878.data.u8[6] = (datalayer.battery.info.total_capacity_Wh >> 16);
-  SOLAX_1878.data.u8[7] = (datalayer.battery.info.total_capacity_Wh >> 24);
+  SOLAX_1878.data.u8[4] = (uint8_t)datalayer.battery.info.reported_total_capacity_Wh;
+  SOLAX_1878.data.u8[5] = (datalayer.battery.info.reported_total_capacity_Wh >> 8);
+  SOLAX_1878.data.u8[6] = (datalayer.battery.info.reported_total_capacity_Wh >> 16);
+  SOLAX_1878.data.u8[7] = (datalayer.battery.info.reported_total_capacity_Wh >> 24);
 
   // BMS_Answer
   SOLAX_1801.data.u8[0] = 2;
@@ -198,10 +198,11 @@ void update_values_can_inverter() {  //This function maps all the values fetched
   SOLAX_1801.data.u8[4] = 1;
 
   //Ultra messages
-  SOLAX_187E.data.u8[0] = (uint8_t)datalayer.battery.info.total_capacity_Wh;
-  SOLAX_187E.data.u8[1] = (datalayer.battery.info.total_capacity_Wh >> 8);
-  SOLAX_187E.data.u8[2] = (datalayer.battery.info.total_capacity_Wh >> 16);
-  SOLAX_187E.data.u8[3] = (datalayer.battery.info.total_capacity_Wh >> 24);
+  SOLAX_187E.data.u8[0] = (uint8_t)datalayer.battery.info.reported_total_capacity_Wh;
+  SOLAX_187E.data.u8[1] = (datalayer.battery.info.reported_total_capacity_Wh >> 8);
+  SOLAX_187E.data.u8[2] = (datalayer.battery.info.reported_total_capacity_Wh >> 16);
+  SOLAX_187E.data.u8[3] = (datalayer.battery.info.reported_total_capacity_Wh >> 24);
+  SOLAX_187E.data.u8[4] = (uint8_t)(datalayer.battery.status.soh_pptt / 100);
   SOLAX_187E.data.u8[5] = (uint8_t)(datalayer.battery.status.reported_soc / 100);
 }
 

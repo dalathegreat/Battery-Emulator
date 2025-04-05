@@ -43,11 +43,12 @@
 //#define VOLVO_SPA_BATTERY
 //#define VOLVO_SPA_HYBRID_BATTERY
 //#define TEST_FAKE_BATTERY
-//#define DOUBLE_BATTERY  //Enable this line if you use two identical batteries at the same time (requires CAN_ADDON setup)
+//#define DOUBLE_BATTERY  //Enable this line if you use two identical batteries at the same time (requires separate CAN setup)
 
-/* Select inverter communication protocol. See Wiki for which to use with your inverter: https://github.com/dalathegreat/BYD-Battery-Emulator-For-Gen24/wiki */
+/* Select inverter communication protocol. See Wiki for which to use with your inverter: https://github.com/dalathegreat/Battery-Emulator/wiki */
 //#define AFORE_CAN        //Enable this line to emulate an "Afore battery" over CAN bus
-//#define BYD_CAN  //Enable this line to emulate a "BYD Battery-Box Premium HVS" over CAN Bus
+//#define BYD_CAN          //Enable this line to emulate a "BYD Battery-Box Premium HVS" over CAN Bus
+//#define BYD_CAN_DEYE     //Enable this line to emulate a "BYD Battery-Box Premium HVS" over CAN Bus, with Deye specific fixes
 //#define BYD_KOSTAL_RS485 //Enable this line to emulate a "BYD 11kWh HVM battery" over Kostal RS485
 //#define BYD_MODBUS       //Enable this line to emulate a "BYD 11kWh HVM battery" over Modbus RTU
 //#define FERROAMP_CAN     //Enable this line to emulate a "Pylon 4x96V Force H2" over CAN Bus

@@ -22,7 +22,7 @@ void update_machineryprotection();
 
 //battery pause status begin
 void setBatteryPause(bool pause_battery, bool pause_CAN, bool equipment_stop = false, bool store_settings = true);
-void emulator_pause_state_transmit_can_battery();
+void update_pause_state();
 std::string get_emulator_pause_status();
 //battery pause status end
 

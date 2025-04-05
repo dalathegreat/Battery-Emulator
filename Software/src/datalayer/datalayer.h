@@ -7,6 +7,7 @@ typedef struct {
   /** uint32_t */
   /** Total energy capacity in Watt-hours */
   uint32_t total_capacity_Wh = BATTERY_WH_MAX;
+  uint32_t reported_total_capacity_Wh = BATTERY_WH_MAX;
 
   /** uint16_t */
   /** The maximum intended packvoltage, in deciVolt. 4900 = 490.0 V */
@@ -44,6 +45,9 @@ typedef struct {
    * battery.settings.soc_scaling_active
    */
   uint32_t reported_remaining_capacity_Wh;
+
+  int32_t total_charged_battery_Wh = 0;
+  int32_t total_discharged_battery_Wh = 0;
 
   /** Maximum allowed battery discharge power in Watts. Set by battery */
   uint32_t max_discharge_power_W = 0;

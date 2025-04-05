@@ -126,6 +126,8 @@ void update_values_can_inverter() {  //This function maps all the values fetched
   //SOC (100.00%)
   BYD_150.data.u8[0] = (datalayer.battery.status.reported_soc >> 8);
   BYD_150.data.u8[1] = (datalayer.battery.status.reported_soc & 0x00FF);
+#ifdef BYD_CAN_DEYE
+  // Fix for avoiding offgrid Deye inverters to underdischarge batteries
   if (datalayer.battery.status.max_charge_current_dA == 0) {
     //Force to 100.00% incase battery no longer wants to charge
     BYD_150.data.u8[0] = (10000 >> 8);
@@ -136,6 +138,7 @@ void update_values_can_inverter() {  //This function maps all the values fetched
     BYD_150.data.u8[0] = 0;
     BYD_150.data.u8[1] = 0;
   }
+#endif  //BYD_CAN_DEYE
   //StateOfHealth (100.00%)
   BYD_150.data.u8[2] = (datalayer.battery.status.soh_pptt >> 8);
   BYD_150.data.u8[3] = (datalayer.battery.status.soh_pptt & 0x00FF);
