@@ -1086,6 +1086,8 @@ String advanced_battery_processor(const String& var) {
       case 3:
         content += String("Protection status detection error");
         break;
+      default:
+        content += String("?");
     }
     content += "</h4><h4>Warning support: ";
     switch (datalayer_extended.meb.warning_support) {
