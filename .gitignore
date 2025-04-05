@@ -25,3 +25,5 @@ compile.bat
 
 # Ignore secret file
 USER_SECRETS.h
+USER_SETTINGS.cpp
+Software/USER_SETTINGS.cpp
