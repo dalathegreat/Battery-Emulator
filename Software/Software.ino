@@ -55,13 +55,10 @@ const char* version_number = "8.10.dev";
 unsigned long previousMillis10ms = 0;
 unsigned long previousMillisUpdateVal = 0;
 unsigned long lastMillisOverflowCheck = 0;
-// Task time measurement for debugging and for setting CPU load events
+#ifdef FUNCTION_TIME_MEASUREMENT
+// Task time measurement for debugging
 MyTimer core_task_timer_10s(INTERVAL_10_S);
-int64_t core_task_time_us;
-int64_t connectivity_task_time_us;
-int64_t logging_task_time_us;
-int64_t mqtt_task_time_us;
-
+#endif
 TaskHandle_t main_loop_task;
 TaskHandle_t connectivity_loop_task;
 TaskHandle_t logging_loop_task;
@@ -81,17 +78,17 @@ void setup() {
   init_stored_settings();
 
 #ifdef WIFI
-  xTaskCreatePinnedToCore((TaskFunction_t)&connectivity_loop, "connectivity_loop", 4096, &connectivity_task_time_us,
+  xTaskCreatePinnedToCore((TaskFunction_t)&connectivity_loop, "connectivity_loop", 4096, NULL,
                           TASK_CONNECTIVITY_PRIO, &connectivity_loop_task, WIFI_CORE);
 #endif
 
 #if defined(LOG_CAN_TO_SD) || defined(LOG_TO_SD)
-  xTaskCreatePinnedToCore((TaskFunction_t)&logging_loop, "logging_loop", 4096, &logging_task_time_us,
+  xTaskCreatePinnedToCore((TaskFunction_t)&logging_loop, "logging_loop", 4096, NULL,
                           TASK_CONNECTIVITY_PRIO, &logging_loop_task, WIFI_CORE);
 #endif
 
 #ifdef MQTT
-  xTaskCreatePinnedToCore((TaskFunction_t)&mqtt_loop, "mqtt_loop", 4096, &mqtt_task_time_us, TASK_MQTT_PRIO,
+  xTaskCreatePinnedToCore((TaskFunction_t)&mqtt_loop, "mqtt_loop", 4096, NULL, TASK_MQTT_PRIO,
                           &mqtt_loop_task, WIFI_CORE);
 #endif
 
@@ -128,7 +125,7 @@ void setup() {
   };
 
   // Start tasks
-  xTaskCreatePinnedToCore((TaskFunction_t)&core_loop, "core_loop", 4096, &core_task_time_us, TASK_CORE_PRIO,
+  xTaskCreatePinnedToCore((TaskFunction_t)&core_loop, "core_loop", 4096, NULL, TASK_CORE_PRIO,
                           &main_loop_task, CORE_FUNCTION_CORE);
 #ifdef PERIODIC_BMS_RESET_AT
   bmsResetTimeOffset = getTimeOffsetfromNowUntil(PERIODIC_BMS_RESET_AT);
@@ -232,18 +229,24 @@ void core_loop(void* task_time_us) {
     // Process
     if (millis() - previousMillis10ms >= INTERVAL_10_MS) {
       previousMillis10ms = millis();
+      #ifdef FUNCTION_TIME_MEASUREMENT
       START_TIME_MEASUREMENT(time_10ms);
+      #endif
       led_exe();
       handle_contactors();  // Take care of startup precharge/contactor closing
 #ifdef PRECHARGE_CONTROL
       handle_precharge_control();
 #endif  // PRECHARGE_CONTROL
+      #ifdef FUNCTION_TIME_MEASUREMENT
       END_TIME_MEASUREMENT_MAX(time_10ms, datalayer.system.status.time_10ms_us);
+      #endif
     }
 
     if (millis() - previousMillisUpdateVal >= INTERVAL_1_S) {
       previousMillisUpdateVal = millis();  // Order matters on the update_loop!
+      #ifdef FUNCTION_TIME_MEASUREMENT
       START_TIME_MEASUREMENT(time_values);
+      #endif
       update_pause_state();     // Check if we are OK to send CAN or need to pause
       update_values_battery();  // Fetch battery values
 #ifdef DOUBLE_BATTERY
@@ -253,19 +256,23 @@ void core_loop(void* task_time_us) {
       update_calculated_values();
       update_machineryprotection();  // Check safeties
       update_values_inverter();      // Update values heading towards inverter
+      #ifdef FUNCTION_TIME_MEASUREMENT
       END_TIME_MEASUREMENT_MAX(time_values, datalayer.system.status.time_values_us);
+      #endif
     }
-
+    #ifdef FUNCTION_TIME_MEASUREMENT
     START_TIME_MEASUREMENT(cantx);
+    #endif
     // Output
     transmit_can();  // Send CAN messages to all components
 
 #ifdef RS485_BATTERY_SELECTED
     transmit_rs485();
 #endif  // RS485_BATTERY_SELECTED
-
+#ifdef FUNCTION_TIME_MEASUREMENT
     END_TIME_MEASUREMENT_MAX(cantx, datalayer.system.status.time_cantx_us);
     END_TIME_MEASUREMENT_MAX(all, datalayer.system.status.core_task_10s_max_us);
+#endif
 #ifdef FUNCTION_TIME_MEASUREMENT
     if (datalayer.system.status.core_task_10s_max_us > datalayer.system.status.core_task_max_us) {
       // Update worst case total time
