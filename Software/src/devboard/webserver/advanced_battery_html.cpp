@@ -506,8 +506,8 @@ String advanced_battery_processor(const String& var) {
     float energy_buffer_m1 = static_cast<float>(datalayer_extended.tesla.battery_energy_buffer_m1) * 0.01;
     float expected_energy_remaining_m1 =
         static_cast<float>(datalayer_extended.tesla.battery_expected_energy_remaining_m1) * 0.02;
-    float total_discharge = static_cast<float>(datalayer.battery.status.total_discharged_battery_Wh) * 0.001;
-    float total_charge = static_cast<float>(datalayer.battery.status.total_charged_battery_Wh) * 0.001;
+    float total_discharge = static_cast<float>(datalayer_extended.tesla.battery_total_discharge);
+    float total_charge = static_cast<float>(datalayer_extended.tesla.battery_total_charge);
     float packMass = static_cast<float>(datalayer_extended.tesla.battery_packMass);
     float platformMaxBusVoltage =
         static_cast<float>(datalayer_extended.tesla.battery_platformMaxBusVoltage) * 0.1 + 375;
@@ -657,7 +657,8 @@ String advanced_battery_processor(const String& var) {
 
     //Buttons for user action
     content += "<button onclick='askClearIsolation()'>Clear isolation fault</button>";
-    //0x20A 522 HVP_contatorState
+    content += "<button onclick='askBMSReset()'>BMS reset</button>";
+    //0x20A 522 HVP_contactorState
     content += "<h4>Contactor Status: " + String(contactorText[datalayer_extended.tesla.status_contactor]) + "</h4>";
     content += "<h4>HVIL: " + String(hvilStatusState[datalayer_extended.tesla.hvil_status]) + "</h4>";
     content +=
@@ -683,7 +684,7 @@ String advanced_battery_processor(const String& var) {
            sizeof(datalayer_extended.tesla.BMS_SerialNumber));
     readableSerialNumber[14] = '\0';  // Null terminate the string
     content += "<h4>BMS Serial number: " + String(readableSerialNumber) + "</h4>";
-    // Comment what data you would like to dislay, order can be changed.
+    // Comment what data you would like to display, order can be changed.
     //0x352 850 BMS_energyStatus
     if (datalayer_extended.tesla.BMS352_mux == false) {
       content += "<h3>BMS 0x352 w/o mux</h3>";  //if using older BMS <2021 and comment 0x352 without MUX
@@ -1186,10 +1187,6 @@ String advanced_battery_processor(const String& var) {
       }
       content += " &deg;C</h4>";
     }
-    content +=
-        "<h4>Total charged: " + String(datalayer.battery.status.total_charged_battery_Wh / 1000.0, 1) + " kWh</h4>";
-    content += "<h4>Total discharged: " + String(datalayer.battery.status.total_discharged_battery_Wh / 1000.0, 1) +
-               " kWh</h4>";
 #endif  //MEB_BATTERY
 
 #ifdef RENAULT_ZOE_GEN2_BATTERY
@@ -1443,6 +1440,18 @@ String advanced_battery_processor(const String& var) {
     content += "function clearIsolation() {";
     content += "  var xhr = new XMLHttpRequest();";
     content += "  xhr.open('GET', '/clearIsolation', true);";
+    content += "  xhr.send();";
+    content += "}";
+    content += "function goToMainPage() { window.location.href = '/'; }";
+    content += "</script>";
+    content += "<script>";
+    content +=
+        "function askBMSReset() { if (window.confirm('Are you sure you want to reset the BMS "
+        "ECU?')) { "
+        "bmsECUReset(); } }";
+    content += "function bmsECUReset() {";
+    content += "  var xhr = new XMLHttpRequest();";
+    content += "  xhr.open('GET', '/bmsECUReset', true);";
     content += "  xhr.send();";
     content += "}";
     content += "function goToMainPage() { window.location.href = '/'; }";
