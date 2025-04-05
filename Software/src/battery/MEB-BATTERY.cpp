@@ -608,6 +608,7 @@ void update_values_battery() {  //This function maps all the values fetched via 
   datalayer_extended.meb.BMS_fault_emergency_shutdown_crash = BMS_fault_emergency_shutdown_crash;
   datalayer_extended.meb.BMS_error_shutdown_request = BMS_error_shutdown_request;
   datalayer_extended.meb.BMS_error_shutdown = BMS_error_shutdown;
+  datalayer_extended.meb.BMS_welded_contactors_status = BMS_welded_contactors_status;
 
   datalayer_extended.meb.warning_support = warning_support;
   datalayer_extended.meb.BMS_status_voltage_free = BMS_status_voltage_free;
