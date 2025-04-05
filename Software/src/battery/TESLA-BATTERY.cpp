@@ -8,10 +8,10 @@
 /* Do not change code below unless you are sure what you are doing */
 /* Credits: Most of the code comes from Per Carlen's bms_comms_tesla_model3.py (https://gitlab.com/pelle8/batt2gen24/) */
 
-static unsigned long previousMillis10 = 0;   // will store last time a 10ms CAN Message was sent
-static unsigned long previousMillis50 = 0;   // will store last time a 50ms CAN Message was sent
-static unsigned long previousMillis100 = 0;  // will store last time a 100ms CAN Message was sent
-static unsigned long previousMillis500 = 0;  // will store last time a 500ms CAN Message was sent
+static unsigned long previousMillis10 = 0;    // will store last time a 10ms CAN Message was sent
+static unsigned long previousMillis50 = 0;    // will store last time a 50ms CAN Message was sent
+static unsigned long previousMillis100 = 0;   // will store last time a 100ms CAN Message was sent
+static unsigned long previousMillis500 = 0;   // will store last time a 500ms CAN Message was sent
 static unsigned long previousMillis1000 = 0;  // will store last time a 1000ms CAN Message was sent
 static bool alternate243 = false;
 //0x221 545 VCFRONT_LVPowerState: "GenMsgCycleTime" 50ms
@@ -57,7 +57,7 @@ CAN_frame TESLA_602 = {.FD = false,
                        .ext_ID = false,
                        .DLC = 8,
                        .ID = 0x602,
-                       .data = {0x02, 0x27, 0x05, 0x00, 0x00, 0x00, 0x00, 0x00}};  
+                       .data = {0x02, 0x27, 0x05, 0x00, 0x00, 0x00, 0x00, 0x00}};
 static uint8_t stateMachineClearIsolationFault = 0xFF;
 static uint8_t stateMachineBMSReset = 0xFF;
 static uint16_t sendContactorClosingMessagesStill = 300;
@@ -874,13 +874,13 @@ void update_values_battery() {  //This function maps all the values fetched via 
     stateMachineClearIsolationFault = 0;  //Start the isolation fault clear statemachine
     datalayer.battery.settings.user_requests_isolation_clear = false;
   }
-  if (datalayer.battery.settings.user_requests_bms_ecu_reset)  {
+  if (datalayer.battery.settings.user_requests_bms_ecu_reset) {
     if (battery_contactor == 1 && battery_BMS_a180_SW_ECU_reset_blocked == false) {
-      stateMachineBMSReset = 0;  //Start the BMS ECU reset statemachine, only if contactors are OPEN and BMS ECU allows it
+      stateMachineBMSReset =
+          0;  //Start the BMS ECU reset statemachine, only if contactors are OPEN and BMS ECU allows it
       datalayer.battery.settings.user_requests_bms_ecu_reset = false;
     } else {
-      logging.println(
-        "ERROR: BMS ECU reset failed due to contactors not being open, or BMS ECU not allowing it");
+      logging.println("ERROR: BMS ECU reset failed due to contactors not being open, or BMS ECU not allowing it");
     }
   }
 
@@ -1814,20 +1814,15 @@ void handle_incoming_can_frame_battery(CAN_frame rx_frame) {
         BMS_SerialNumber[13] = rx_frame.data.u8[7];
       }
       break;
-    case 0x612: // CAN UDS responses for BMS ECU reset
+    case 0x612:  // CAN UDS responses for BMS ECU reset
       if (memcmp(rx_frame.data.u8, "\x02\x67\x06\xAA\xAA\xAA\xAA\xAA", 8) == 0) {
-        logging.println(
-          "CAN UDS response: ECU unlocked");
+        logging.println("CAN UDS response: ECU unlocked");
+      } else if (memcmp(rx_frame.data.u8, "\x03\x7F\x11\x78\xAA\xAA\xAA\xAA", 8) == 0) {
+        logging.println("CAN UDS response: ECU reset request successful but ECU busy, response pending");
+      } else if (memcmp(rx_frame.data.u8, "\x02\x51\x01\xAA\xAA\xAA\xAA\xAA", 8) == 0) {
+        logging.println("CAN UDS response: ECU reset positive response, 1 second downtime");
       }
-      else if (memcmp(rx_frame.data.u8, "\x03\x7F\x11\x78\xAA\xAA\xAA\xAA", 8) == 0) {
-        logging.println(
-          "CAN UDS response: ECU reset request successful but ECU busy, response pending");
-      }
-      else if (memcmp(rx_frame.data.u8, "\x02\x51\x01\xAA\xAA\xAA\xAA\xAA", 8) == 0) {
-        logging.println(
-          "CAN UDS response: ECU reset positive response, 1 second downtime");
-      }
-      break;    
+      break;
     default:
       break;
   }
