@@ -34,14 +34,14 @@ CAN_frame PYLON_7320 = {
     .ext_ID = true,
     .DLC = 8,
     .ID = 0x7320,
-    .data = {TOTAL_CELL_AMOUNT, (uint8_t)(TOTAL_CELL_AMOUNT >> 8), MODULES_IN_SERIES, CELLS_PER_MODULE, VOLTAGE_LEVEL,
+    .data = {TOTAL_CELL_AMOUNT, (uint8_t)(TOTAL_CELL_AMOUNT >> 8), MODULES_IN_SERIES, CELLS_PER_MODULE, (uint8_t)(VOLTAGE_LEVEL & 0x00FF),
              (uint8_t)(VOLTAGE_LEVEL >> 8), AH_CAPACITY, (uint8_t)(AH_CAPACITY >> 8)}};
 CAN_frame PYLON_7321 = {
     .FD = false,
     .ext_ID = true,
     .DLC = 8,
     .ID = 0x7321,
-    .data = {TOTAL_CELL_AMOUNT, (uint8_t)(TOTAL_CELL_AMOUNT >> 8), MODULES_IN_SERIES, CELLS_PER_MODULE, VOLTAGE_LEVEL,
+    .data = {TOTAL_CELL_AMOUNT, (uint8_t)(TOTAL_CELL_AMOUNT >> 8), MODULES_IN_SERIES, CELLS_PER_MODULE, (uint8_t)(VOLTAGE_LEVEL & 0x00FF),
              (uint8_t)(VOLTAGE_LEVEL >> 8), AH_CAPACITY, (uint8_t)(AH_CAPACITY >> 8)}};
 CAN_frame PYLON_4210 = {.FD = false,
                         .ext_ID = true,
