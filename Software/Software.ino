@@ -297,10 +297,7 @@ void core_loop(void*) {
       datalayer.system.status.wifi_task_10s_max_us = 0;
       datalayer.system.status.mqtt_task_10s_max_us = 0;
     }
-#endif  // FUNCTION_TIME_MEASUREMENT
-#ifdef DEBUG_LOG
-    logging.log_bms_status(datalayer.battery.status.real_bms_status);
-#endif
+#endif                     // FUNCTION_TIME_MEASUREMENT
     esp_task_wdt_reset();  // Reset watchdog to prevent reset
     vTaskDelayUntil(&xLastWakeTime, xFrequency);
   }
