@@ -113,7 +113,7 @@ typedef struct {
   /** Minimum percentage setting. Set this value to the lowest real SOC
    * you want the inverter to be able to use. At this real SOC, the inverter
    * will "see" 0% */
-  uint16_t min_percentage = BATTERY_MINPERCENTAGE;
+  int16_t min_percentage = BATTERY_MINPERCENTAGE;
   /** Maximum percentage setting. Set this value to the highest real SOC
    * you want the inverter to be able to use. At this real SOC, the inverter
    * will "see" 100% */
