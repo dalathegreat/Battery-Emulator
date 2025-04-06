@@ -98,45 +98,52 @@ CAN_frame ZOE_SLEEP_2_18DADBF1 = {.FD = false,
                                   .ID = 0x18DADBF1,
                                   .data = {0x04, 0x2E, 0x92, 0x81, 0x01, 0xAA, 0xAA, 0xAA}};
 
-const uint16_t poll_commands[41] = {POLL_SOC,
+const uint16_t poll_commands[48] = {POLL_SOC,
                                     POLL_USABLE_SOC,
                                     POLL_SOH,
                                     POLL_PACK_VOLTAGE,
+                                    POLL_CURRENT,  //Repeated to speed up update rate on this critical measurement
                                     POLL_MAX_CELL_VOLTAGE,
                                     POLL_MIN_CELL_VOLTAGE,
                                     POLL_12V,
                                     POLL_AVG_TEMP,
                                     POLL_MIN_TEMP,
+                                    POLL_CURRENT,  //Repeated to speed up update rate on this critical measurement
                                     POLL_MAX_TEMP,
                                     POLL_MAX_POWER,
                                     POLL_INTERLOCK,
                                     POLL_KWH,
-                                    POLL_CURRENT,
+                                    POLL_CURRENT,  //Repeated to speed up update rate on this critical measurement
                                     POLL_CURRENT_OFFSET,
                                     POLL_MAX_GENERATED,
                                     POLL_MAX_AVAILABLE,
                                     POLL_CURRENT_VOLTAGE,
                                     POLL_CHARGING_STATUS,
+                                    POLL_CURRENT,  //Repeated to speed up update rate on this critical measurement
                                     POLL_REMAINING_CHARGE,
                                     POLL_BALANCE_CAPACITY_TOTAL,
                                     POLL_BALANCE_TIME_TOTAL,
                                     POLL_BALANCE_CAPACITY_SLEEP,
                                     POLL_BALANCE_TIME_SLEEP,
+                                    POLL_CURRENT,  //Repeated to speed up update rate on this critical measurement
                                     POLL_BALANCE_CAPACITY_WAKE,
                                     POLL_BALANCE_TIME_WAKE,
                                     POLL_BMS_STATE,
                                     POLL_BALANCE_SWITCHES,
                                     POLL_ENERGY_COMPLETE,
+                                    POLL_CURRENT,  //Repeated to speed up update rate on this critical measurement
                                     POLL_ENERGY_PARTIAL,
                                     POLL_SLAVE_FAILURES,
                                     POLL_MILEAGE,
                                     POLL_FAN_SPEED,
                                     POLL_FAN_PERIOD,
+                                    POLL_CURRENT,  //Repeated to speed up update rate on this critical measurement
                                     POLL_FAN_CONTROL,
                                     POLL_FAN_DUTY,
                                     POLL_TEMPORISATION,
                                     POLL_TIME,
                                     POLL_PACK_TIME,
+                                    POLL_CURRENT,  //Repeated to speed up update rate on this critical measurement
                                     POLL_SOC_MIN,
                                     POLL_SOC_MAX};
 static uint8_t poll_index = 0;
@@ -374,7 +381,7 @@ void transmit_can_battery() {
 
     // Update current poll from the array
     currentpoll = poll_commands[poll_index];
-    poll_index = (poll_index + 1) % 41;
+    poll_index = (poll_index + 1) % 48;
 
     ZOE_POLL_18DADBF1.data.u8[2] = (uint8_t)((currentpoll & 0xFF00) >> 8);
     ZOE_POLL_18DADBF1.data.u8[3] = (uint8_t)(currentpoll & 0x00FF);
