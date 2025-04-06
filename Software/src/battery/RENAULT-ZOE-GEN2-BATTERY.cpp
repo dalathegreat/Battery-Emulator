@@ -29,7 +29,7 @@ static uint16_t battery_soh = 10000;
 static uint16_t battery_pack_voltage = 370;
 static uint16_t battery_max_cell_voltage = 3700;
 static uint16_t battery_min_cell_voltage = 3700;
-static uint16_t battery_12v = 0;
+static uint16_t battery_12v = 12000;
 static uint16_t battery_avg_temp = 920;
 static uint16_t battery_min_temp = 920;
 static uint16_t battery_max_temp = 920;
@@ -173,6 +173,10 @@ void update_values_battery() {  //This function maps all the values fetched via 
   datalayer.battery.status.cell_min_voltage_mV = (battery_min_cell_voltage * 0.976563);
 
   datalayer.battery.status.cell_max_voltage_mV = (battery_max_cell_voltage * 0.976563);
+
+  if (battery_12v < 11000) {  //11.000V
+    set_event(EVENT_12V_LOW, battery_12v);
+  }
 
   // Update webserver datalayer
   datalayer_extended.zoePH2.battery_soc = battery_soc;
