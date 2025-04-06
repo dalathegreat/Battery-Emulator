@@ -141,7 +141,7 @@ void setup() {
 void loop() {}
 
 #if defined(LOG_CAN_TO_SD) || defined(LOG_TO_SD)
-void logging_loop(void* task_time_us) {
+void logging_loop(void*) {
 
   init_logging_buffers();
   init_sdcard();
@@ -158,7 +158,7 @@ void logging_loop(void* task_time_us) {
 #endif
 
 #ifdef WIFI
-void connectivity_loop(void* task_time_us) {
+void connectivity_loop(void*) {
   esp_task_wdt_add(NULL);  // Register this task with WDT
   // Init wifi
   init_WiFi();
@@ -186,7 +186,7 @@ void connectivity_loop(void* task_time_us) {
 #endif
 
 #ifdef MQTT
-void mqtt_loop(void* task_time_us) {
+void mqtt_loop(void*) {
   esp_task_wdt_add(NULL);  // Register this task with WDT
 
   init_mqtt();
@@ -201,7 +201,7 @@ void mqtt_loop(void* task_time_us) {
 }
 #endif
 
-void core_loop(void* task_time_us) {
+void core_loop(void*) {
   esp_task_wdt_add(NULL);  // Register this task with WDT
   TickType_t xLastWakeTime = xTaskGetTickCount();
   const TickType_t xFrequency = pdMS_TO_TICKS(1);  // Convert 1ms to ticks
