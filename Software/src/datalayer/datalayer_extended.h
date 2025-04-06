@@ -617,6 +617,7 @@ typedef struct {
   float temp_points[18] = {0};
   uint16_t celltemperature_dC[56] = {0};
   uint16_t battery_temperature_dC = 0;
+  uint8_t BMS_welded_contactors_status = 0;
 } DATALAYER_INFO_MEB;
 
 typedef struct {
