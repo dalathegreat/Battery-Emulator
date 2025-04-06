@@ -146,11 +146,13 @@ const uint16_t poll_commands[48] = {POLL_SOC,
                                     POLL_CURRENT,  //Repeated to speed up update rate on this critical measurement
                                     POLL_SOC_MIN,
                                     POLL_SOC_MAX};
+static uint8_t counter_373 = 0;
 static uint8_t poll_index = 0;
 static uint16_t currentpoll = POLL_SOC;
 static uint16_t reply_poll = 0;
 
 static unsigned long previousMillis200 = 0;  // will store last time a 200ms CAN Message was sent
+static unsigned long previousMillis100 = 0;  // will store last time a 100ms CAN Message was sent
 
 void update_values_battery() {  //This function maps all the values fetched via CAN to the correct parameters used for modbus
   datalayer.battery.status.soh_pptt = battery_soh;
@@ -371,6 +373,22 @@ void handle_incoming_can_frame_battery(CAN_frame rx_frame) {
 
 void transmit_can_battery() {
   unsigned long currentMillis = millis();
+  // Send 100ms CAN Message
+  if (currentMillis - previousMillis100 >= INTERVAL_100_MS) {
+    previousMillis100 = currentMillis;
+
+    if ((counter_373 / 5) % 2 == 0) {  // Alternate every 5 messages between these two
+      ZOE_373.data.u8[2] = 0xB2;
+      ZOE_373.data.u8[3] = 0xB2;
+    } else {
+      ZOE_373.data.u8[2] = 0x5D;
+      ZOE_373.data.u8[3] = 0x5D;
+    }
+    counter_373 = (counter_373 + 1) % 10;
+
+    transmit_can_frame(&ZOE_373, can_config.battery);
+  }
+
   // Send 200ms CAN Message
   if (currentMillis - previousMillis200 >= INTERVAL_200_MS) {
     // Check if sending of CAN messages has been delayed too much.
@@ -387,7 +405,6 @@ void transmit_can_battery() {
     ZOE_POLL_18DADBF1.data.u8[3] = (uint8_t)(currentpoll & 0x00FF);
 
     transmit_can_frame(&ZOE_POLL_18DADBF1, can_config.battery);
-    transmit_can_frame(&ZOE_373, can_config.battery);
   }
 }
 
