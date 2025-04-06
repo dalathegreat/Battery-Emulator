@@ -134,27 +134,3 @@ void Logging::printf(const char* fmt, ...) {
   previous_message_was_newline = message_buffer[size - 1] == '\n';
 #endif  // DEBUG_LOG
 }
-
-void Logging::log_bms_status(real_bms_status_enum bms_status) {
-  static real_bms_status_enum previous_state = BMS_FAULT;
-  if (previous_state != bms_status) {
-    switch (bms_status) {
-      case BMS_ACTIVE:
-        logging.printf("Battery%s BMS state changed to: OK\n");
-        break;
-      case BMS_DISCONNECTED:
-        logging.printf("Battery%s BMS state changed to: DISCONNECTED\n");
-        break;
-      case BMS_FAULT:
-        logging.printf("Battery%s BMS state changed to: FAULT\n");
-        break;
-      case BMS_STANDBY:
-        logging.printf("Battery%s BMS state changed to: STANDBY\n");
-        break;
-      default:
-        logging.printf("Battery%s BMS state changed to: ??\n");
-        break;
-    }
-    previous_state = bms_status;
-  }
-}
