@@ -78,13 +78,13 @@ CAN_frame BMWiX_0C0 = {
     .ID = 0x0C0,
     .data = {
         0xF0,
-        0x08}};  // Keep Alive 2 BDC>SME  200ms First byte cycles F0 > FE  second byte 08 static - MINIMUM ID TO KEEP SME AWAKE
+        0x00}};  // Keep Alive 2 BDC>SME  200ms First byte cycles F0 > FE  second byte 00 static - MINIMUM ID TO KEEP SME AWAKE
 
 CAN_frame BMWiX_276 = {.FD = true,
                        .ext_ID = false,
                        .DLC = 8,
                        .ID = 0x476,
-                       .data = {0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF,
+                       .data = {0xFF, 0xFF, 0xF0, 0xFF, 0xFF, 0xFF, 0xFF,
                                 0xFC}};  // 5000ms BDC Output - Suspected keep alive Static CONFIRM NEEDED
 
 CAN_frame BMWiX_2F1 = {
@@ -92,13 +92,13 @@ CAN_frame BMWiX_2F1 = {
     .ext_ID = false,
     .DLC = 8,
     .ID = 0x2F1,
-    .data = {0xFF, 0xFF, 0xFF, 0xFF, 0x9B, 0x00, 0xF3, 0xFF}};  // 1000ms BDC Output - Static values - varies at startup
+    .data = {0xFF, 0xFF, 0xD0, 0x39, 0x94, 0x00, 0xF3, 0xFF}};  // 1000ms BDC Output - Static values - varies at startup
 
 CAN_frame BMWiX_439 = {.FD = true,
                        .ext_ID = false,
                        .DLC = 4,
                        .ID = 0x439,
-                       .data = {0xFF, 0xBF, 0xFF, 0xFF}};  // 1000ms BDC Output - Static values
+                       .data = {0xFF, 0x3F, 0xFF, 0xF3}};  // 1000ms BDC Output
 
 CAN_frame
     BMWiX_486 =
@@ -121,11 +121,13 @@ CAN_frame BMWiX_49C = {.FD = true,
                        .data = {0xD2, 0xF2, 0xC0, 0xFF, 0xFF, 0xFF, 0xFF,
                                 0xFF}};  // 1000ms BDC Output - Suspected keep alive Static CONFIRM NEEDED
 
-CAN_frame BMWiX_510 = {.FD = true,
-                       .ext_ID = false,
-                       .DLC = 8,
-                       .ID = 0x510,
-                       .data = {0x40, 0x10, 0x40, 0x00, 0x6F, 0xDF, 0x19, 0x00}};  // 100ms BDC Output - Static values
+CAN_frame BMWiX_510 = {
+    .FD = true,
+    .ext_ID = false,
+    .DLC = 8,
+    .ID = 0x510,
+    .data = {0x40, 0x10, 0x00, 0x00, 0x00, 0x80, 0x00,
+             0x00}};  // 100ms BDC Output - Values change in car logs, these bytes are the most common
 
 CAN_frame BMWiX_12B8D087 = {.FD = true,
                             .ext_ID = true,
