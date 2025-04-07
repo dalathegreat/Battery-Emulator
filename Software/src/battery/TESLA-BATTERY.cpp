@@ -870,17 +870,17 @@ void update_values_battery() {  //This function maps all the values fetched via 
 #endif  // TESLA_MODEL_3Y_BATTERY
 
   // Check if user requests some action
-  if (datalayer.battery.settings.user_requests_isolation_clear) {
+  if (datalayer.battery.settings.user_requests_tesla_isolation_clear) {
     stateMachineClearIsolationFault = 0;  //Start the isolation fault statemachine
-    datalayer.battery.settings.user_requests_isolation_clear = false;
+    datalayer.battery.settings.user_requests_tesla_isolation_clear = false;
   }
-  if (datalayer.battery.settings.user_requests_bms_ecu_reset) {
+  if (datalayer.battery.settings.user_requests_tesla_bms_reset) {
     if (battery_contactor == 1 && battery_BMS_a180_SW_ECU_reset_blocked == false) {
-      stateMachineBMSReset =
-          0;  //Start the BMS ECU reset statemachine, only if contactors are OPEN and BMS ECU allows it
-      datalayer.battery.settings.user_requests_bms_ecu_reset = false;
+      //Start the BMS ECU reset statemachine, only if contactors are OPEN and BMS ECU allows it
+      stateMachineBMSReset = 0;
+      datalayer.battery.settings.user_requests_tesla_bms_reset = false;
     } else {
-      logging.println("ERROR: BMS ECU reset failed due to contactors not being open, or BMS ECU not allowing it");
+      logging.println("ERROR: BMS reset failed due to contactors not being open, or BMS ECU not allowing it");
     }
   }
 

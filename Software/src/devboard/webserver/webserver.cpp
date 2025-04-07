@@ -571,20 +571,20 @@ void init_webserver() {
   });
 
   // Route for clearing isolation faults on Tesla
-  server.on("/clearIsolation", HTTP_GET, [](AsyncWebServerRequest* request) {
+  server.on("/teslaClearIsolation", HTTP_GET, [](AsyncWebServerRequest* request) {
     if (WEBSERVER_AUTH_REQUIRED && !request->authenticate(http_username, http_password)) {
       return request->requestAuthentication();
     }
-    datalayer.battery.settings.user_requests_isolation_clear = true;
+    datalayer.battery.settings.user_requests_tesla_isolation_clear = true;
     request->send(200, "text/plain", "Updated successfully");
   });
 
-  // Route for resetting BMS ECU on Tesla
-  server.on("/bmsECUReset", HTTP_GET, [](AsyncWebServerRequest* request) {
+  // Route for resetting BMS on Tesla
+  server.on("/teslaResetBMS", HTTP_GET, [](AsyncWebServerRequest* request) {
     if (WEBSERVER_AUTH_REQUIRED && !request->authenticate(http_username, http_password)) {
       return request->requestAuthentication();
     }
-    datalayer.battery.settings.user_requests_bms_ecu_reset = true;
+    datalayer.battery.settings.user_requests_tesla_bms_reset = true;
     request->send(200, "text/plain", "Updated successfully");
   });
 
