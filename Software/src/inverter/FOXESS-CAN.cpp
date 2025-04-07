@@ -469,7 +469,7 @@ void update_values_can_inverter() {  //This function maps all the CAN values fet
   FOXESS_1879.data.u8[0] = (uint8_t)0;  // Error codes go here, still unsure of bitmasking
   if (datalayer.battery.status.current_dA > 0) {
     FOXESS_1879.data.u8[1] = 0x35;  //Charging
-  }                                 // Mappings taken from https://github.com/FozzieUK/FoxESS-Canbus-Protocol
+  }  // Mappings taken from https://github.com/FozzieUK/FoxESS-Canbus-Protocol
   else {
     FOXESS_1879.data.u8[1] = 0x2B;  //Discharging
   }
