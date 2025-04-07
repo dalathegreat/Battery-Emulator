@@ -112,7 +112,7 @@ inline void printFailed(const char* message, FILE* file = stdout) {
 class AssertFailedException : public std::exception {
  public:
   AssertFailedException(std::string description, std::string filepath, int line)
-      : std::exception(), description_(description), filepath_(filepath), line_(line){};
+      : std::exception(), description_(description), filepath_(filepath), line_(line) {};
 
   virtual const char* what() const throw() { return description_.c_str(); }
 

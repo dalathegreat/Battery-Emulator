@@ -101,8 +101,8 @@ struct x108_EVSE_Capabilities {                                 // Frame byte
   uint16_t available_output_voltage = MAX_EVSE_OUTPUT_VOLTAGE;  //  1,2
   uint8_t available_output_current = MAX_EVSE_OUTPUT_CURRENT;   //  3
   uint16_t threshold_voltage = 297;                             //  4,5	 		voltage that EVSE will stop if car fails to
-      //  			perhaps vehicle minus 3%, hardcoded initially to 96*2.95
-      //  6,7 = unused
+  //  			perhaps vehicle minus 3%, hardcoded initially to 96*2.95
+  //  6,7 = unused
 };
 
 /* Does double duty for charging and discharging */

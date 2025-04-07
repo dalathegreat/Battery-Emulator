@@ -177,9 +177,9 @@ void handle_incoming_can_frame_battery(CAN_frame rx_frame) {
       cycle_count = (uint16_t)(rx_frame.data.u8[7] << 8 | rx_frame.data.u8[6]);
       break;
     case 0x1876:  //BMS_PackTemps
-        // 0x1876 b0 bit 0 appears to be 1 when at maxsoc and BMS says charge is not allowed -
-        // when at 0 indicates charge is possible - additional note there is something more to it than this,
-        // it's not as straight forward - needs more testing to find what sets/unsets bit0 of byte0
+      // 0x1876 b0 bit 0 appears to be 1 when at maxsoc and BMS says charge is not allowed -
+      // when at 0 indicates charge is possible - additional note there is something more to it than this,
+      // it's not as straight forward - needs more testing to find what sets/unsets bit0 of byte0
       if ((rx_frame.data.u8[0] & 0x01) > 0) {
         max_charge_power_dA = 0;
         charging_disabled = true;
