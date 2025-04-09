@@ -29,7 +29,7 @@ static uint16_t battery_soh = 10000;
 static uint16_t battery_pack_voltage = 370;
 static uint16_t battery_max_cell_voltage = 3700;
 static uint16_t battery_min_cell_voltage = 3700;
-static uint16_t battery_12v = 0;
+static uint16_t battery_12v = 12000;
 static uint16_t battery_avg_temp = 920;
 static uint16_t battery_min_temp = 920;
 static uint16_t battery_max_temp = 920;
@@ -98,52 +98,61 @@ CAN_frame ZOE_SLEEP_2_18DADBF1 = {.FD = false,
                                   .ID = 0x18DADBF1,
                                   .data = {0x04, 0x2E, 0x92, 0x81, 0x01, 0xAA, 0xAA, 0xAA}};
 
-const uint16_t poll_commands[41] = {POLL_SOC,
+const uint16_t poll_commands[48] = {POLL_SOC,
                                     POLL_USABLE_SOC,
                                     POLL_SOH,
                                     POLL_PACK_VOLTAGE,
+                                    POLL_CURRENT,  //Repeated to speed up update rate on this critical measurement
                                     POLL_MAX_CELL_VOLTAGE,
                                     POLL_MIN_CELL_VOLTAGE,
                                     POLL_12V,
                                     POLL_AVG_TEMP,
                                     POLL_MIN_TEMP,
+                                    POLL_CURRENT,  //Repeated to speed up update rate on this critical measurement
                                     POLL_MAX_TEMP,
                                     POLL_MAX_POWER,
                                     POLL_INTERLOCK,
                                     POLL_KWH,
-                                    POLL_CURRENT,
+                                    POLL_CURRENT,  //Repeated to speed up update rate on this critical measurement
                                     POLL_CURRENT_OFFSET,
                                     POLL_MAX_GENERATED,
                                     POLL_MAX_AVAILABLE,
                                     POLL_CURRENT_VOLTAGE,
                                     POLL_CHARGING_STATUS,
+                                    POLL_CURRENT,  //Repeated to speed up update rate on this critical measurement
                                     POLL_REMAINING_CHARGE,
                                     POLL_BALANCE_CAPACITY_TOTAL,
                                     POLL_BALANCE_TIME_TOTAL,
                                     POLL_BALANCE_CAPACITY_SLEEP,
                                     POLL_BALANCE_TIME_SLEEP,
+                                    POLL_CURRENT,  //Repeated to speed up update rate on this critical measurement
                                     POLL_BALANCE_CAPACITY_WAKE,
                                     POLL_BALANCE_TIME_WAKE,
                                     POLL_BMS_STATE,
                                     POLL_BALANCE_SWITCHES,
                                     POLL_ENERGY_COMPLETE,
+                                    POLL_CURRENT,  //Repeated to speed up update rate on this critical measurement
                                     POLL_ENERGY_PARTIAL,
                                     POLL_SLAVE_FAILURES,
                                     POLL_MILEAGE,
                                     POLL_FAN_SPEED,
                                     POLL_FAN_PERIOD,
+                                    POLL_CURRENT,  //Repeated to speed up update rate on this critical measurement
                                     POLL_FAN_CONTROL,
                                     POLL_FAN_DUTY,
                                     POLL_TEMPORISATION,
                                     POLL_TIME,
                                     POLL_PACK_TIME,
+                                    POLL_CURRENT,  //Repeated to speed up update rate on this critical measurement
                                     POLL_SOC_MIN,
                                     POLL_SOC_MAX};
+static uint8_t counter_373 = 0;
 static uint8_t poll_index = 0;
 static uint16_t currentpoll = POLL_SOC;
 static uint16_t reply_poll = 0;
 
 static unsigned long previousMillis200 = 0;  // will store last time a 200ms CAN Message was sent
+static unsigned long previousMillis100 = 0;  // will store last time a 100ms CAN Message was sent
 
 void update_values_battery() {  //This function maps all the values fetched via CAN to the correct parameters used for modbus
   datalayer.battery.status.soh_pptt = battery_soh;
@@ -173,6 +182,10 @@ void update_values_battery() {  //This function maps all the values fetched via 
   datalayer.battery.status.cell_min_voltage_mV = (battery_min_cell_voltage * 0.976563);
 
   datalayer.battery.status.cell_max_voltage_mV = (battery_max_cell_voltage * 0.976563);
+
+  if (battery_12v < 11000) {  //11.000V
+    set_event(EVENT_12V_LOW, battery_12v);
+  }
 
   // Update webserver datalayer
   datalayer_extended.zoePH2.battery_soc = battery_soc;
@@ -360,6 +373,22 @@ void handle_incoming_can_frame_battery(CAN_frame rx_frame) {
 
 void transmit_can_battery() {
   unsigned long currentMillis = millis();
+  // Send 100ms CAN Message
+  if (currentMillis - previousMillis100 >= INTERVAL_100_MS) {
+    previousMillis100 = currentMillis;
+
+    if ((counter_373 / 5) % 2 == 0) {  // Alternate every 5 messages between these two
+      ZOE_373.data.u8[2] = 0xB2;
+      ZOE_373.data.u8[3] = 0xB2;
+    } else {
+      ZOE_373.data.u8[2] = 0x5D;
+      ZOE_373.data.u8[3] = 0x5D;
+    }
+    counter_373 = (counter_373 + 1) % 10;
+
+    transmit_can_frame(&ZOE_373, can_config.battery);
+  }
+
   // Send 200ms CAN Message
   if (currentMillis - previousMillis200 >= INTERVAL_200_MS) {
     // Check if sending of CAN messages has been delayed too much.
@@ -370,13 +399,12 @@ void transmit_can_battery() {
 
     // Update current poll from the array
     currentpoll = poll_commands[poll_index];
-    poll_index = (poll_index + 1) % 41;
+    poll_index = (poll_index + 1) % 48;
 
     ZOE_POLL_18DADBF1.data.u8[2] = (uint8_t)((currentpoll & 0xFF00) >> 8);
     ZOE_POLL_18DADBF1.data.u8[3] = (uint8_t)(currentpoll & 0x00FF);
 
     transmit_can_frame(&ZOE_POLL_18DADBF1, can_config.battery);
-    transmit_can_frame(&ZOE_373, can_config.battery);
   }
 }
 
