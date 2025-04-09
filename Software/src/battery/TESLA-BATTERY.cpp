@@ -8,9 +8,11 @@
 /* Do not change code below unless you are sure what you are doing */
 /* Credits: Most of the code comes from Per Carlen's bms_comms_tesla_model3.py (https://gitlab.com/pelle8/batt2gen24/) */
 
-static unsigned long previousMillis10 = 0;   // will store last time a 50ms CAN Message was send
-static unsigned long previousMillis50 = 0;   // will store last time a 50ms CAN Message was send
-static unsigned long previousMillis100 = 0;  // will store last time a 100ms CAN Message was send
+static unsigned long previousMillis10 = 0;    // will store last time a 50ms CAN Message was sent
+static unsigned long previousMillis50 = 0;    // will store last time a 50ms CAN Message was sent
+static unsigned long previousMillis100 = 0;   // will store last time a 100ms CAN Message was sent
+static unsigned long previousMillis500 = 0;   // will store last time a 500ms CAN Message was sent
+static unsigned long previousMillis1000 = 0;  // will store last time a 1000ms CAN Message was sent
 static bool alternate243 = false;
 //0x221 545 VCFRONT_LVPowerState: "GenMsgCycleTime" 50ms
 CAN_frame TESLA_221_1 = {
@@ -50,12 +52,14 @@ CAN_frame TESLA_129 = {.FD = false,
                        .DLC = 8,
                        .ID = 0x129,
                        .data = {0x21, 0x24, 0x36, 0x5F, 0x00, 0x20, 0xFF, 0x3F}};
+//0x612 UDS diagnostic requests - on demand
 CAN_frame TESLA_602 = {.FD = false,
                        .ext_ID = false,
                        .DLC = 8,
                        .ID = 0x602,
-                       .data = {0x02, 0x27, 0x05, 0x00, 0x00, 0x00, 0x00, 0x00}};  //Diagnostic request
+                       .data = {0x02, 0x27, 0x05, 0x00, 0x00, 0x00, 0x00, 0x00}};
 static uint8_t stateMachineClearIsolationFault = 0xFF;
+static uint8_t stateMachineBMSReset = 0xFF;
 static uint16_t sendContactorClosingMessagesStill = 300;
 static uint16_t battery_cell_max_v = 3300;
 static uint16_t battery_cell_min_v = 3300;
@@ -866,9 +870,18 @@ void update_values_battery() {  //This function maps all the values fetched via 
 #endif  // TESLA_MODEL_3Y_BATTERY
 
   // Check if user requests some action
-  if (datalayer.battery.settings.user_requests_isolation_clear) {
-    stateMachineClearIsolationFault = 0;  //Start the statemachine
-    datalayer.battery.settings.user_requests_isolation_clear = false;
+  if (datalayer.battery.settings.user_requests_tesla_isolation_clear) {
+    stateMachineClearIsolationFault = 0;  //Start the isolation fault statemachine
+    datalayer.battery.settings.user_requests_tesla_isolation_clear = false;
+  }
+  if (datalayer.battery.settings.user_requests_tesla_bms_reset) {
+    if (battery_contactor == 1 && battery_BMS_a180_SW_ECU_reset_blocked == false) {
+      //Start the BMS ECU reset statemachine, only if contactors are OPEN and BMS ECU allows it
+      stateMachineBMSReset = 0;
+      datalayer.battery.settings.user_requests_tesla_bms_reset = false;
+    } else {
+      logging.println("ERROR: BMS reset failed due to contactors not being open, or BMS ECU not allowing it");
+    }
   }
 
   // Update webserver datalayer
@@ -1801,6 +1814,15 @@ void handle_incoming_can_frame_battery(CAN_frame rx_frame) {
         BMS_SerialNumber[13] = rx_frame.data.u8[7];
       }
       break;
+    case 0x612:  // CAN UDS responses for BMS ECU reset
+      if (memcmp(rx_frame.data.u8, "\x02\x67\x06\xAA\xAA\xAA\xAA\xAA", 8) == 0) {
+        logging.println("CAN UDS response: ECU unlocked");
+      } else if (memcmp(rx_frame.data.u8, "\x03\x7F\x11\x78\xAA\xAA\xAA\xAA", 8) == 0) {
+        logging.println("CAN UDS response: ECU reset request successful but ECU busy, response pending");
+      } else if (memcmp(rx_frame.data.u8, "\x02\x51\x01\xAA\xAA\xAA\xAA\xAA", 8) == 0) {
+        logging.println("CAN UDS response: ECU reset positive response, 1 second downtime");
+      }
+      break;
     default:
       break;
   }
@@ -1949,6 +1971,7 @@ the first, for a few cycles, then stop all  messages which causes the contactor 
         case 4:
           TESLA_602.data = {0x22, 0x3E, 0x39, 0x38, 0x3B, 0x3A, 0x00, 0x00};
           transmit_can_frame(&TESLA_602, can_config.battery);
+          //Should generate a CAN UDS log message indicating ECU unlocked
           stateMachineClearIsolationFault = 5;
           break;
         case 5:
@@ -1960,6 +1983,58 @@ the first, for a few cycles, then stop all  messages which causes the contactor 
           //Something went wrong. Reset all and cancel
           stateMachineClearIsolationFault = 0xFF;
           break;
+      }
+      if (stateMachineBMSReset != 0xFF) {
+        //This implementation should be rewritten to actually replying to the UDS replied sent by the BMS
+        //While this may work, it is not the correct way to implement this clearing logic
+        switch (stateMachineBMSReset) {
+          case 0:
+            TESLA_602.data = {0x02, 0x27, 0x05, 0x00, 0x00, 0x00, 0x00, 0x00};
+            transmit_can_frame(&TESLA_602, can_config.battery);
+            stateMachineBMSReset = 1;
+            break;
+          case 1:
+            TESLA_602.data = {0x30, 0x00, 0x0A, 0x00, 0x00, 0x00, 0x00, 0x00};
+            transmit_can_frame(&TESLA_602, can_config.battery);
+            stateMachineBMSReset = 2;
+            break;
+          case 2:
+            TESLA_602.data = {0x10, 0x12, 0x27, 0x06, 0x35, 0x34, 0x37, 0x36};
+            transmit_can_frame(&TESLA_602, can_config.battery);
+            stateMachineBMSReset = 3;
+            break;
+          case 3:
+            TESLA_602.data = {0x21, 0x31, 0x30, 0x33, 0x32, 0x3D, 0x3C, 0x3F};
+            transmit_can_frame(&TESLA_602, can_config.battery);
+            stateMachineBMSReset = 4;
+            break;
+          case 4:
+            TESLA_602.data = {0x22, 0x3E, 0x39, 0x38, 0x3B, 0x3A, 0x00, 0x00};
+            transmit_can_frame(&TESLA_602, can_config.battery);
+            //Should generate a CAN UDS log message indicating ECU unlocked
+            stateMachineBMSReset = 5;
+            break;
+          case 5:
+            TESLA_602.data = {0x02, 0x10, 0x03, 0x00, 0x00, 0x00, 0x00, 0x00};
+            transmit_can_frame(&TESLA_602, can_config.battery);
+            stateMachineBMSReset = 6;
+            break;
+          case 6:
+            TESLA_602.data = {0x02, 0x10, 0x01, 0x00, 0x00, 0x00, 0x00, 0x00};
+            transmit_can_frame(&TESLA_602, can_config.battery);
+            stateMachineBMSReset = 7;
+            break;
+          case 7:
+            TESLA_602.data = {0x02, 0x11, 0x01, 0x00, 0x00, 0x00, 0x00, 0x00};
+            transmit_can_frame(&TESLA_602, can_config.battery);
+            //Should generate a CAN UDS log message(s) indicating ECU has reset
+            stateMachineBMSReset = 0xFF;
+            break;
+          default:
+            //Something went wrong. Reset all and cancel
+            stateMachineBMSReset = 0xFF;
+            break;
+        }
       }
     }
   }
