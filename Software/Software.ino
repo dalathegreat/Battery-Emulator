@@ -427,6 +427,12 @@ void update_calculated_values() {
     calc_soc = 10000 * (calc_soc - datalayer.battery.settings.min_percentage);
     calc_soc = calc_soc / (datalayer.battery.settings.max_percentage - datalayer.battery.settings.min_percentage);
     datalayer.battery.status.reported_soc = calc_soc;
+    //Extra safety since we allow scaling negatively, if real% is < 1.00%, zero it out
+    if (datalayer.battery.status.real_soc < 100) {
+      datalayer.battery.status.reported_soc = 0;
+    } else {
+      datalayer.battery.status.reported_soc = calc_soc;
+    }
 
     // Calculate the scaled remaining capacity in Wh
     if (datalayer.battery.info.total_capacity_Wh > 0 && datalayer.battery.status.real_soc > 0) {

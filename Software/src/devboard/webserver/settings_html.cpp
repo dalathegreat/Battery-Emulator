@@ -209,10 +209,11 @@ String settings_processor(const String& var) {
         "100.0');}}}";
     content +=
         "function editSocMin(){var value=prompt('Inverter will see completely discharged (0pct)SOC when this value is "
-        "reached. Enter new minimum SOC value that battery will discharge to "
-        "(0-50.0):');if(value!==null){if(value>=0&&value<=50){var xhr=new "
+        "reached. Advanced users can set to negative values. Enter new minimum SOC value that battery will discharge "
+        "to "
+        "(-10.0to50.0):');if(value!==null){if(value>=-10&&value<=50){var xhr=new "
         "XMLHttpRequest();xhr.onload=editComplete;xhr.onerror=editError;xhr.open('GET','/"
-        "updateSocMin?value='+value,true);xhr.send();}else{alert('Invalid value. Please enter a value between 0 and "
+        "updateSocMin?value='+value,true);xhr.send();}else{alert('Invalid value. Please enter a value between -10 and "
         "50.0');}}}";
     content +=
         "function editMaxChargeA(){var value=prompt('Some inverters needs to be artificially limited. Enter new "
