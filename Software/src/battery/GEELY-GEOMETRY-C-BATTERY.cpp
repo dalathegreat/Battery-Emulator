@@ -27,13 +27,83 @@ const unsigned char crctable[256] = {  // CRC8_SAE_J1850_ZER0 formula,0x2F Poly,
     0xCA, 0xE5, 0x94, 0xBB, 0x21, 0x0E, 0x7F, 0x50, 0x9D, 0xB2, 0xC3, 0xEC, 0xD8, 0xF7, 0x86, 0xA9, 0x64, 0x4B, 0x3A,
     0x15, 0x8F, 0xA0, 0xD1, 0xFE, 0x33, 0x1C, 0x6D, 0x42};
 
-CAN_frame GEELY_191 = {.FD = false,  //PAS_APA_Status
+/*
+DSCU (Drivers Seat Control Unit)
+OBC (On Board Charger)
+FRS (Front Radar System)
+IPU (Integrated Power Unit Control)
+EGSM (Electronic Gear Shifter)
+*/
+
+CAN_frame GEELY_191 = {.FD = false,  //PAS_APA_Status , 10ms
                        .ext_ID = false,
                        .DLC = 8,
                        .ID = 0x191,
                        .data = {0x00, 0x00, 0x81, 0x20, 0x00, 0x00, 0x00, 0x01}};
+CAN_frame GEELY_2D2 = {.FD = false,  //DSCU 100ms
+                       .ext_ID = false,
+                       .DLC = 8,
+                       .ID = 0x2D2,
+                       .data = {0x60, 0x8E, 0x20, 0x00, 0x00, 0x00, 0x00, 0x00}};
+CAN_frame GEELY_0A6 = {.FD = false,  //VCU 10ms
+                       .ext_ID = false,
+                       .DLC = 8,
+                       .ID = 0x0A6,
+                       .data = {0xFA, 0x0F, 0xA0, 0x00, 0x00, 0xFA, 0x00, 0xE4}};
+CAN_frame GEELY_160 = {.FD = false,  //VCU 10ms
+                       .ext_ID = false,
+                       .DLC = 8,
+                       .ID = 0x160,
+                       .data = {0x00, 0x01, 0x67, 0xF7, 0xC0, 0x19, 0x00, 0x20}};
+CAN_frame GEELY_165 = {.FD = false,  //VCU_ModeControl 10ms
+                       .ext_ID = false,
+                       .DLC = 8,
+                       .ID = 0x165,
+                       .data = {0x00, 0x81, 0xA1, 0x00, 0x00, 0x1E, 0x00, 0xD6}};
+CAN_frame GEELY_1A4 = {.FD = false,  //VCU 10ms
+                       .ext_ID = false,
+                       .DLC = 8,
+                       .ID = 0x1A4,
+                       .data = {0x17, 0x73, 0x17, 0x70, 0x02, 0x1C, 0x00, 0x56}};
+CAN_frame GEELY_162 = {.FD = false,  //VCU 10ms
+                       .ext_ID = false,
+                       .DLC = 8,
+                       .ID = 0x162,
+                       .data = {0x00, 0x05, 0x06, 0x81, 0x00, 0x09, 0x00, 0xC6}};
+CAN_frame GEELY_1A5 = {.FD = false,  //VCU 10ms
+                       .ext_ID = false,
+                       .DLC = 8,
+                       .ID = 0x1A5,
+                       .data = {0x17, 0x70, 0x24, 0x0B, 0x00, 0x00, 0x00, 0xF9}};
+CAN_frame GEELY_1B2 = {.FD = false,  //??? 50ms
+                       .ext_ID = false,
+                       .DLC = 8,
+                       .ID = 0x1B2,
+                       .data = {0x17, 0x70, 0x24, 0x0B, 0x00, 0x00, 0x00, 0xF9}};
+CAN_frame GEELY_221 = {.FD = false,  //OBC 50ms
+                       .ext_ID = false,
+                       .DLC = 8,
+                       .ID = 0x221,
+                       .data = {0x38, 0x00, 0x00, 0x00, 0x00, 0x00, 0x0A, 0x00}};
+CAN_frame GEELY_220 = {.FD = false,  //OBC 100ms
+                       .ext_ID = false,
+                       .DLC = 8,
+                       .ID = 0x220,
+                       .data = {0x0B, 0x43, 0x69, 0xF3, 0x3A, 0x10, 0x00, 0x31}};
+CAN_frame GEELY_1A3 = {.FD = false,  //FRS 50ms
+                       .ext_ID = false,
+                       .DLC = 8,
+                       .ID = 0x1A3,
+                       .data = {0xFF, 0x18, 0x20, 0x00, 0x00, 0x00, 0x00, 0x4F}};
+CAN_frame GEELY_1A7 = {.FD = false,  //??? 50ms
+                       .ext_ID = false,
+                       .DLC = 8,
+                       .ID = 0x1A7,
+                       .data = {0x00, 0x7F, 0x00, 0x00, 0x7F, 0x00, 0x00, 0x00}};
 static uint8_t counter_10ms = 0;
+static uint8_t counter_50ms = 0;
 static unsigned long previousMillis10 = 0;   // will store last time a 10ms CAN Message was sent
+static unsigned long previousMillis50 = 0;   // will store last time a 50ms CAN Message was sent
 static unsigned long previousMillis100 = 0;  // will store last time a 100ms CAN Message was sent
 
 void update_values_battery() {  //This function maps all the values fetched via CAN to the correct parameters used for modbus
@@ -75,6 +145,8 @@ void handle_incoming_can_frame_battery(CAN_frame rx_frame) {
       break;
     case 0x178:  //10ms
       datalayer.battery.status.CAN_battery_still_alive = CAN_STILL_ALIVE;
+      //frame7, CRC
+      //frame6, low byte counter 0-F
       break;
     case 0x179:  //20ms
       datalayer.battery.status.CAN_battery_still_alive = CAN_STILL_ALIVE;
@@ -150,21 +222,52 @@ void transmit_can_battery() {
 
     GEELY_191.data.u8[6] = counter_10ms;
     GEELY_191.data.u8[7] = calc_crc8_geely(&GEELY_191);
+    GEELY_0A6.data.u8[6] = counter_10ms;
+    GEELY_0A6.data.u8[7] = calc_crc8_geely(&GEELY_0A6);
+    GEELY_165.data.u8[6] = counter_10ms;
+    GEELY_165.data.u8[7] = calc_crc8_geely(&GEELY_165);
+    GEELY_1A4.data.u8[6] = counter_10ms;
+    GEELY_1A4.data.u8[7] = calc_crc8_geely(&GEELY_1A4);
+    GEELY_162.data.u8[6] = counter_10ms;
+    GEELY_162.data.u8[7] = calc_crc8_geely(&GEELY_162);
+    GEELY_1A5.data.u8[6] = counter_10ms;
+    GEELY_1A5.data.u8[7] = calc_crc8_geely(&GEELY_1A5);
+    GEELY_220.data.u8[6] = counter_10ms;
+    GEELY_220.data.u8[7] = calc_crc8_geely(&GEELY_220);
 
     counter_10ms = (counter_10ms + 1) % 17;  // 0-1-...F-0-1 etc.
 
     transmit_can_frame(&GEELY_191, can_config.battery);
+    transmit_can_frame(&GEELY_0A6, can_config.battery);
+    transmit_can_frame(&GEELY_160, can_config.battery);
+    transmit_can_frame(&GEELY_165, can_config.battery);
+    transmit_can_frame(&GEELY_1A4, can_config.battery);
+    transmit_can_frame(&GEELY_162, can_config.battery);
+    transmit_can_frame(&GEELY_1A5, can_config.battery);
+    transmit_can_frame(&GEELY_220, can_config.battery);
+  }
+  if (currentMillis - previousMillis50 >= INTERVAL_50_MS) {
+    previousMillis50 = currentMillis;
+
+    GEELY_1A3.data.u8[6] = counter_10ms;
+    GEELY_1A3.data.u8[7] = calc_crc8_geely(&GEELY_1A3);
+
+    counter_50ms = (counter_50ms + 1) % 17;  // 0-1-...F-0-1 etc.
+
+    transmit_can_frame(&GEELY_1B2, can_config.battery);
+    transmit_can_frame(&GEELY_221, can_config.battery);
+    transmit_can_frame(&GEELY_1A3, can_config.battery);  //Might be unnecessary, radar info
   }
   // Send 100ms CAN Message
   if (currentMillis - previousMillis100 >= INTERVAL_100_MS) {
     previousMillis100 = currentMillis;
 
-    //transmit_can_frame(&GEELY_CAN_XXX, can_config.battery);
+    transmit_can_frame(&GEELY_2D2, can_config.battery);  //Might be unnecessary, seat info
   }
 }
 
 void setup_battery(void) {  // Performs one time setup at startup
-  strncpy(datalayer.system.info.battery_protocol, "Renault Zoe Gen2 50kWh", 63);
+  strncpy(datalayer.system.info.battery_protocol, "Geely Geometry C", 63);
   datalayer.system.info.battery_protocol[63] = '\0';
   datalayer.system.status.battery_allows_contactor_closing = true;
   datalayer.battery.info.number_of_cells = 96;
