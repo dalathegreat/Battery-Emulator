@@ -54,11 +54,13 @@ IB
 RSRS
 RML
 
-There are 4 CAN buses in the Geometry C, we are interested in the Hybrid CAN HB-CAN
-- HB CAN
-- IF CAN
-- CF CAN
-- CS CAN
+There are 4 CAN buses in the Geometry C, we are interested in the Hybrid CAN (HB-CAN)
+- Hybrid, HB CAN: gateway, electronic shifter, VCU, T-BOX, BMS, high and low voltage charging system, integrated power controller
+- Infotainent, IF CAN: gateway, diagnostic interface, combined instrument, controller, head-up display, audio host, T-BOX
+- Comfort, CF CAN: gateway, diagnostic interface, low-speed alarm controller, thermal management control module, electronic 
+steering column lock, BCM, seat module
+- Chassis, CS CAN: gateway, steering wheel angle sensor, front monocular camera, VCU, millimeter wave radar probe, EPS,
+smart booster, ESC, airbag control module, automatic parking module
 */
 
 CAN_frame GEELY_191 = {.FD = false,  //PAS_APA_Status , 10ms
@@ -328,9 +330,9 @@ void transmit_can_battery() {
     transmit_can_frame(&GEELY_160, can_config.battery);
     transmit_can_frame(&GEELY_165, can_config.battery);
     transmit_can_frame(&GEELY_1A4, can_config.battery);
-    transmit_can_frame(&GEELY_162, can_config.battery);
+    transmit_can_frame(&GEELY_162, can_config.battery);  //CONFIRMED MANDATORY! VCU message
     transmit_can_frame(&GEELY_1A5, can_config.battery);
-    transmit_can_frame(&GEELY_220, can_config.battery);
+    transmit_can_frame(&GEELY_220, can_config.battery);  //CONFIRMED MANDATORY! OBC message
     transmit_can_frame(&GEELY_0E0, can_config.battery);
   }
   if (currentMillis - previousMillis20 >= INTERVAL_20_MS) {
@@ -360,12 +362,12 @@ void transmit_can_battery() {
     counter_50ms = (counter_50ms + 1) % 17;  // 0-1-...F-0-1 etc.
 
     transmit_can_frame(&GEELY_1B2, can_config.battery);
-    transmit_can_frame(&GEELY_221, can_config.battery);
-    transmit_can_frame(&GEELY_1A3, can_config.battery);  //Might be unnecessary, radar info
-    transmit_can_frame(&GEELY_1A7, can_config.battery);  //Might be unnecessary
-    transmit_can_frame(&GEELY_0A8, can_config.battery);
-    transmit_can_frame(&GEELY_1F2, can_config.battery);  //Might be unnecessary
-    transmit_can_frame(&GEELY_1A6, can_config.battery);  //Might be unnecessary
+    transmit_can_frame(&GEELY_221, can_config.battery);  //CONFIRMED MANDATORY! OBC message
+    //transmit_can_frame(&GEELY_1A3, can_config.battery);  //Might be unnecessary, radar info
+    //transmit_can_frame(&GEELY_1A7, can_config.battery);  //Might be unnecessary
+    transmit_can_frame(&GEELY_0A8, can_config.battery);  //CONFIRMED MANDATORY! IPU message
+    //transmit_can_frame(&GEELY_1F2, can_config.battery);  //Might be unnecessary
+    //transmit_can_frame(&GEELY_1A6, can_config.battery);  //Might be unnecessary
   }
   // Send 100ms CAN Message
   if (currentMillis - previousMillis100 >= INTERVAL_100_MS) {
@@ -376,9 +378,9 @@ void transmit_can_battery() {
 
     counter_100ms = (counter_100ms + 1) % 17;  // 0-1-...F-0-1 etc.
 
+    transmit_can_frame(&GEELY_222, can_config.battery);  //CONFIRMED MANDATORY! OBC message
     //transmit_can_frame(&GEELY_2D2, can_config.battery);  //Might be unnecessary, seat info
-    transmit_can_frame(&GEELY_222, can_config.battery);
-    transmit_can_frame(&GEELY_292, can_config.battery);  //Might be unnecessary
+    //transmit_can_frame(&GEELY_292, can_config.battery);  //Might be unnecessary. T-BOX
   }
 }
 
@@ -387,8 +389,8 @@ void setup_battery(void) {  // Performs one time setup at startup
   datalayer.system.info.battery_protocol[63] = '\0';
   datalayer.system.status.battery_allows_contactor_closing = true;
   datalayer.battery.info.number_of_cells = 96;
-  datalayer.battery.info.max_design_voltage_dV = MAX_PACK_VOLTAGE_DV;
-  datalayer.battery.info.min_design_voltage_dV = MIN_PACK_VOLTAGE_DV;
+  datalayer.battery.info.max_design_voltage_dV = MAX_PACK_VOLTAGE_70_DV;  //Startup in extreme ends
+  datalayer.battery.info.min_design_voltage_dV = MIN_PACK_VOLTAGE_53_DV;  //Before pack size determined
   datalayer.battery.info.max_cell_voltage_mV = MAX_CELL_VOLTAGE_MV;
   datalayer.battery.info.min_cell_voltage_mV = MIN_CELL_VOLTAGE_MV;
   datalayer.battery.info.max_cell_voltage_deviation_mV = MAX_CELL_DEVIATION_MV;
