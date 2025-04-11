@@ -42,6 +42,10 @@ void setup_can_shunt();
 #include "FOXESS-BATTERY.h"
 #endif
 
+#ifdef GEELY_GEOMETRY_C_BATTERY
+#include "GEELY-GEOMETRY-C-BATTERY.h"
+#endif
+
 #ifdef ORION_BMS
 #include "ORION-BMS.h"
 #endif
