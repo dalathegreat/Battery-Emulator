@@ -27,12 +27,38 @@ const unsigned char crctable[256] = {  // CRC8_SAE_J1850_ZER0 formula,0x2F Poly,
     0xCA, 0xE5, 0x94, 0xBB, 0x21, 0x0E, 0x7F, 0x50, 0x9D, 0xB2, 0xC3, 0xEC, 0xD8, 0xF7, 0x86, 0xA9, 0x64, 0x4B, 0x3A,
     0x15, 0x8F, 0xA0, 0xD1, 0xFE, 0x33, 0x1C, 0x6D, 0x42};
 
-/*
+/* Node descriptions, these can send CAN messages in the Geely Geometry C
 DSCU (Drivers Seat Control Unit)
 OBC (On Board Charger)
 FRS (Front Radar System)
 IPU (Integrated Power Unit Control)
 EGSM (Electronic Gear Shifter)
+MMI
+T-BOX
+IPK
+FCS
+FRS
+TCM(SAS)
+RPS
+ESC
+ACU(YRS)
+DSCU
+PEPS
+ESCL
+BCM (Body Control Module)
+AC
+BMSH (Battery Management System)
+VCU (Vehicle Control Unit)
+AVAS
+IB
+RSRS
+RML
+
+There are 4 CAN buses in the Geometry C, we are interested in the Hybrid CAN HB-CAN
+- HB CAN
+- IF CAN
+- CF CAN
+- CS CAN
 */
 
 CAN_frame GEELY_191 = {.FD = false,  //PAS_APA_Status , 10ms
@@ -100,9 +126,67 @@ CAN_frame GEELY_1A7 = {.FD = false,  //??? 50ms
                        .DLC = 8,
                        .ID = 0x1A7,
                        .data = {0x00, 0x7F, 0x00, 0x00, 0x7F, 0x00, 0x00, 0x00}};
+CAN_frame GEELY_0A8 = {.FD = false,  //IPU 100ms
+                       .ext_ID = false,
+                       .DLC = 8,
+                       .ID = 0x0A8,
+                       .data = {0x00, 0x2E, 0xDC, 0x4E, 0x20, 0x00, 0x20, 0xA2}};
+CAN_frame GEELY_1F2 = {.FD = false,  //??? 50ms
+                       .ext_ID = false,
+                       .DLC = 8,
+                       .ID = 0x1F2,
+                       .data = {0x9B, 0xA3, 0x99, 0xA2, 0x41, 0x42, 0x41, 0x42}};
+CAN_frame GEELY_222 = {.FD = false,  //OBC 100ms
+                       .ext_ID = false,
+                       .DLC = 8,
+                       .ID = 0x222,
+                       .data = {0x00, 0x00, 0x00, 0xFF, 0xF8, 0x00, 0x00, 0x00}};
+CAN_frame GEELY_1A6 = {.FD = false,  //OBC 100ms
+                       .ext_ID = false,
+                       .DLC = 8,
+                       .ID = 0x1A6,
+                       .data = {0x00, 0x7F, 0x00, 0x00, 0x7F, 0x00, 0x00, 0x00}};
+CAN_frame GEELY_145 = {.FD = false,  //EGSM 20ms
+                       .ext_ID = false,
+                       .DLC = 8,
+                       .ID = 0x145,
+                       .data = {0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x6A}};
+CAN_frame GEELY_0E0 = {.FD = false,  //IPU 10ms
+                       .ext_ID = false,
+                       .DLC = 8,
+                       .ID = 0x0E0,
+                       .data = {0xFF, 0x09, 0x00, 0xE0, 0x00, 0x8F, 0x00, 0x00}};
+CAN_frame GEELY_0F9 = {.FD = false,  //??? 20ms
+                       .ext_ID = false,
+                       .DLC = 8,
+                       .ID = 0x0F9,
+                       .data = {0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00}};
+CAN_frame GEELY_292 = {.FD = false,  //T-BOX 100ms
+                       .ext_ID = false,
+                       .DLC = 8,
+                       .ID = 0x292,
+                       .data = {0x00, 0x00, 0x00, 0x1F, 0xE7, 0xE7, 0x00, 0xBC}};
+CAN_frame GEELY_0FA = {.FD = false,  //??? 20ms
+                       .ext_ID = false,
+                       .DLC = 8,
+                       .ID = 0x0FA,
+                       .data = {0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00}};
+CAN_frame GEELY_197 = {.FD = false,  //??? 20ms
+                       .ext_ID = false,
+                       .DLC = 8,
+                       .ID = 0x197,
+                       .data = {0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x6A}};
+CAN_frame GEELY_150 = {.FD = false,  //EPS 20ms
+                       .ext_ID = false,
+                       .DLC = 8,
+                       .ID = 0x150,
+                       .data = {0x7E, 0x00, 0x24, 0x00, 0x01, 0x01, 0x00, 0xA9}};
 static uint8_t counter_10ms = 0;
+static uint8_t counter_20ms = 0;
 static uint8_t counter_50ms = 0;
+static uint8_t counter_100ms = 0;
 static unsigned long previousMillis10 = 0;   // will store last time a 10ms CAN Message was sent
+static unsigned long previousMillis20 = 0;   // will store last time a 20ms CAN Message was sent
 static unsigned long previousMillis50 = 0;   // will store last time a 50ms CAN Message was sent
 static unsigned long previousMillis100 = 0;  // will store last time a 100ms CAN Message was sent
 
@@ -220,20 +304,22 @@ void transmit_can_battery() {
   if (currentMillis - previousMillis10 >= INTERVAL_10_MS) {
     previousMillis10 = currentMillis;
 
-    GEELY_191.data.u8[6] = counter_10ms;
+    GEELY_191.data.u8[6] = ((GEELY_191.data.u8[6] & 0xF0) | counter_10ms);
     GEELY_191.data.u8[7] = calc_crc8_geely(&GEELY_191);
-    GEELY_0A6.data.u8[6] = counter_10ms;
+    GEELY_0A6.data.u8[6] = ((GEELY_0A6.data.u8[6] & 0xF0) | counter_10ms);
     GEELY_0A6.data.u8[7] = calc_crc8_geely(&GEELY_0A6);
-    GEELY_165.data.u8[6] = counter_10ms;
+    GEELY_165.data.u8[6] = ((GEELY_165.data.u8[6] & 0xF0) | counter_10ms);
     GEELY_165.data.u8[7] = calc_crc8_geely(&GEELY_165);
-    GEELY_1A4.data.u8[6] = counter_10ms;
+    GEELY_1A4.data.u8[6] = ((GEELY_1A4.data.u8[6] & 0xF0) | counter_10ms);
     GEELY_1A4.data.u8[7] = calc_crc8_geely(&GEELY_1A4);
-    GEELY_162.data.u8[6] = counter_10ms;
+    GEELY_162.data.u8[6] = ((GEELY_162.data.u8[6] & 0xF0) | counter_10ms);
     GEELY_162.data.u8[7] = calc_crc8_geely(&GEELY_162);
-    GEELY_1A5.data.u8[6] = counter_10ms;
+    GEELY_1A5.data.u8[6] = ((GEELY_1A5.data.u8[6] & 0xF0) | counter_10ms);
     GEELY_1A5.data.u8[7] = calc_crc8_geely(&GEELY_1A5);
-    GEELY_220.data.u8[6] = counter_10ms;
+    GEELY_220.data.u8[6] = ((GEELY_220.data.u8[6] & 0xF0) | counter_10ms);
     GEELY_220.data.u8[7] = calc_crc8_geely(&GEELY_220);
+    GEELY_0E0.data.u8[4] = ((GEELY_0E0.data.u8[4] & 0xF0) | counter_10ms);  //unique
+    GEELY_0E0.data.u8[5] = calc_crc8_geely(&GEELY_0E0);                     //unique
 
     counter_10ms = (counter_10ms + 1) % 17;  // 0-1-...F-0-1 etc.
 
@@ -245,24 +331,54 @@ void transmit_can_battery() {
     transmit_can_frame(&GEELY_162, can_config.battery);
     transmit_can_frame(&GEELY_1A5, can_config.battery);
     transmit_can_frame(&GEELY_220, can_config.battery);
+    transmit_can_frame(&GEELY_0E0, can_config.battery);
+  }
+  if (currentMillis - previousMillis20 >= INTERVAL_20_MS) {
+    previousMillis20 = currentMillis;
+
+    GEELY_145.data.u8[6] = ((GEELY_145.data.u8[6] & 0xF0) | counter_10ms);
+    GEELY_145.data.u8[7] = calc_crc8_geely(&GEELY_145);
+    GEELY_150.data.u8[6] = ((GEELY_150.data.u8[6] & 0xF0) | counter_10ms);
+    GEELY_150.data.u8[7] = calc_crc8_geely(&GEELY_150);
+
+    counter_20ms = (counter_20ms + 1) % 17;  // 0-1-...F-0-1 etc.
+
+    transmit_can_frame(&GEELY_145, can_config.battery);  //Might be unnecessary, shifter
+    transmit_can_frame(&GEELY_0F9, can_config.battery);  //Might be unnecessary, shifter
+    transmit_can_frame(&GEELY_0FA, can_config.battery);  //Might be unnecessary, not in workshop manual
+    transmit_can_frame(&GEELY_197, can_config.battery);  //Might be unnecessary, not in workshop manual
+    transmit_can_frame(&GEELY_150, can_config.battery);
   }
   if (currentMillis - previousMillis50 >= INTERVAL_50_MS) {
     previousMillis50 = currentMillis;
 
-    GEELY_1A3.data.u8[6] = counter_10ms;
+    GEELY_1A3.data.u8[6] = ((GEELY_1A3.data.u8[6] & 0xF0) | counter_10ms);
     GEELY_1A3.data.u8[7] = calc_crc8_geely(&GEELY_1A3);
+    GEELY_0A8.data.u8[6] = ((GEELY_0A8.data.u8[6] & 0xF0) | counter_10ms);
+    GEELY_0A8.data.u8[7] = calc_crc8_geely(&GEELY_0A8);
 
     counter_50ms = (counter_50ms + 1) % 17;  // 0-1-...F-0-1 etc.
 
     transmit_can_frame(&GEELY_1B2, can_config.battery);
     transmit_can_frame(&GEELY_221, can_config.battery);
     transmit_can_frame(&GEELY_1A3, can_config.battery);  //Might be unnecessary, radar info
+    transmit_can_frame(&GEELY_1A7, can_config.battery);  //Might be unnecessary
+    transmit_can_frame(&GEELY_0A8, can_config.battery);
+    transmit_can_frame(&GEELY_1F2, can_config.battery);  //Might be unnecessary
+    transmit_can_frame(&GEELY_1A6, can_config.battery);  //Might be unnecessary
   }
   // Send 100ms CAN Message
   if (currentMillis - previousMillis100 >= INTERVAL_100_MS) {
     previousMillis100 = currentMillis;
 
-    transmit_can_frame(&GEELY_2D2, can_config.battery);  //Might be unnecessary, seat info
+    GEELY_0A8.data.u8[6] = ((GEELY_0A8.data.u8[6] & 0x0F) | (counter_10ms << 4));  //unique bitshift
+    GEELY_0A8.data.u8[7] = calc_crc8_geely(&GEELY_0A8);
+
+    counter_100ms = (counter_100ms + 1) % 17;  // 0-1-...F-0-1 etc.
+
+    //transmit_can_frame(&GEELY_2D2, can_config.battery);  //Might be unnecessary, seat info
+    transmit_can_frame(&GEELY_222, can_config.battery);
+    transmit_can_frame(&GEELY_292, can_config.battery);  //Might be unnecessary
   }
 }
 
