@@ -656,7 +656,8 @@ String advanced_battery_processor(const String& var) {
     static const char* Fault[] = {"NOT_ACTIVE", "ACTIVE"};
 
     //Buttons for user action
-    content += "<button onclick='askClearIsolation()'>Clear isolation fault</button>";
+    content += "<button onclick='askTeslaClearIsolation()'>Clear isolation fault</button>";
+    content += "<button onclick='askTeslaResetBMS()'>BMS reset</button>";
     //0x20A 522 HVP_contatorState
     content += "<h4>Contactor Status: " + String(contactorText[datalayer_extended.tesla.status_contactor]) + "</h4>";
     content += "<h4>HVIL: " + String(hvilStatusState[datalayer_extended.tesla.hvil_status]) + "</h4>";
@@ -683,7 +684,7 @@ String advanced_battery_processor(const String& var) {
            sizeof(datalayer_extended.tesla.BMS_SerialNumber));
     readableSerialNumber[14] = '\0';  // Null terminate the string
     content += "<h4>BMS Serial number: " + String(readableSerialNumber) + "</h4>";
-    // Comment what data you would like to dislay, order can be changed.
+    // Comment what data you would like to display, order can be changed.
     //0x352 850 BMS_energyStatus
     if (datalayer_extended.tesla.BMS352_mux == false) {
       content += "<h3>BMS 0x352 w/o mux</h3>";  //if using older BMS <2021 and comment 0x352 without MUX
@@ -1453,12 +1454,24 @@ String advanced_battery_processor(const String& var) {
     content += "</div>";
     content += "<script>";
     content +=
-        "function askClearIsolation() { if (window.confirm('Are you sure you want to clear any active isolation "
+        "function askTeslaClearIsolation() { if (window.confirm('Are you sure you want to clear any active isolation "
         "fault?')) { "
-        "clearIsolation(); } }";
-    content += "function clearIsolation() {";
+        "teslaClearIsolation(); } }";
+    content += "function teslaClearIsolation() {";
     content += "  var xhr = new XMLHttpRequest();";
-    content += "  xhr.open('GET', '/clearIsolation', true);";
+    content += "  xhr.open('GET', '/teslaClearIsolation', true);";
+    content += "  xhr.send();";
+    content += "}";
+    content += "function goToMainPage() { window.location.href = '/'; }";
+    content += "</script>";
+    content += "<script>";
+    content +=
+        "function askTeslaResetBMS() { if (window.confirm('Are you sure you want to reset the "
+        "BMS?')) { "
+        "teslaResetBMS(); } }";
+    content += "function teslaResetBMS() {";
+    content += "  var xhr = new XMLHttpRequest();";
+    content += "  xhr.open('GET', '/teslaResetBMS', true);";
     content += "  xhr.send();";
     content += "}";
     content += "function goToMainPage() { window.location.href = '/'; }";
