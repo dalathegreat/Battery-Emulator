@@ -215,6 +215,8 @@ typedef struct {
 } DATALAYER_SHUNT_TYPE;
 
 typedef struct {
+  /** ESP32 main CPU temperature, for displaying on webserver and for safeties */
+  float CPU_temperature = 0;
   /** array with type of battery used, for displaying on webserver */
   char battery_protocol[64] = {0};
   /** array with type of inverter protocol used, for displaying on webserver */

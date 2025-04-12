@@ -336,6 +336,9 @@ void check_interconnect_available() {
 #endif  // DOUBLE_BATTERY
 
 void update_calculated_values() {
+  /* Update CPU temperature*/
+  datalayer.system.info.CPU_temperature = temperatureRead();
+
   /* Calculate allowed charge/discharge currents*/
   if (datalayer.battery.status.voltage_dV > 10) {
     // Only update value when we have voltage available to avoid div0. TODO: This should be based on nominal voltage
