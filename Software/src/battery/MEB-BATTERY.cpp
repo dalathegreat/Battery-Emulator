@@ -618,6 +618,7 @@ void update_values_battery() {  //This function maps all the values fetched via 
   datalayer_extended.meb.BMS_warning_lamp_req = BMS_warning_lamp_req;
   datalayer_extended.meb.BMS_Kl30c_Status = BMS_Kl30c_Status;
   datalayer_extended.meb.BMS_voltage_intermediate_dV = (BMS_voltage_intermediate - 2000) * 10 / 2;
+  datalayer_extended.meb.BMS_voltage_HV_charge_port_dV = (DC_voltage_chargeport - 2000) * 10 / 2;
   datalayer_extended.meb.BMS_voltage_dV = BMS_voltage * 10 / 4;
   datalayer_extended.meb.isolation_resistance = isolation_resistance_kOhm * 5;
   datalayer_extended.meb.battery_heating = battery_heating_active;

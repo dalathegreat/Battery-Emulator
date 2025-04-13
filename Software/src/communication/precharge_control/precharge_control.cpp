@@ -39,7 +39,11 @@ void handle_precharge_control() {
   unsigned long currentTime = millis();
 #ifdef MEB_BATTERY
   int32_t target_voltage = datalayer.battery.status.voltage_dV;
+#ifdef MEB_BATTERY_DC_CHARGEPORT  
+  int32_t external_voltage = datalayer_extended.meb.BMS_voltage_HV_charge_port_dV;
+#else
   int32_t external_voltage = datalayer_extended.meb.BMS_voltage_intermediate_dV;
+#endif
 #endif
 
   // Handle actual state machine. This first turns on Negative, then Precharge, then Positive, and finally turns OFF precharge

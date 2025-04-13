@@ -630,6 +630,7 @@ typedef struct {
   bool BMS_error_lamp_req = 0;
   bool BMS_warning_lamp_req = 0;
   int32_t BMS_voltage_intermediate_dV = 0;
+  int32_t BMS_voltage_HV_charge_port_dV = 0;
   int32_t BMS_voltage_dV = 0;
   uint8_t balancing_active = 0;
   bool balancing_request = 0;

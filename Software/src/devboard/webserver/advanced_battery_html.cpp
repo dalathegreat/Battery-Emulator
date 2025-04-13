@@ -1149,6 +1149,7 @@ String advanced_battery_processor(const String& var) {
       default:
         content += String("?");
     }
+    content += "</h4><h4>DC chargeport Voltage: " + String(datalayer_extended.meb.BMS_voltage_HV_charge_port_dV / 10.0, 1);
     content += "</h4><h4>BMS error status: ";
     switch (datalayer_extended.meb.BMS_error_status) {
       case 0:
