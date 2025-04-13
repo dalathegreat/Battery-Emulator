@@ -192,12 +192,14 @@ static unsigned long previousMillis20 = 0;   // will store last time a 20ms CAN 
 static unsigned long previousMillis50 = 0;   // will store last time a 50ms CAN Message was sent
 static unsigned long previousMillis100 = 0;  // will store last time a 100ms CAN Message was sent
 
+static uint16_t battery_voltage = 3700;
+
 void update_values_battery() {  //This function maps all the values fetched via CAN to the correct parameters used for modbus
   datalayer.battery.status.soh_pptt;
 
   datalayer.battery.status.real_soc;
 
-  datalayer.battery.status.voltage_dV;
+  datalayer.battery.status.voltage_dV = battery_voltage;
 
   datalayer.battery.status.current_dA;
 
@@ -241,6 +243,7 @@ void handle_incoming_can_frame_battery(CAN_frame rx_frame) {
       datalayer.battery.status.CAN_battery_still_alive = CAN_STILL_ALIVE;
       break;
     case 0x17B:  //20ms
+      battery_voltage = ((rx_frame.data.u8[4] & 0x0F) << 8) | rx_frame.data.u8[5]; //TODO: NOT CONFIRMED
       datalayer.battery.status.CAN_battery_still_alive = CAN_STILL_ALIVE;
       break;
     case 0x210:  //100ms
