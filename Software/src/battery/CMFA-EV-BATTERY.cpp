@@ -5,12 +5,6 @@
 #include "../devboard/utils/events.h"
 #include "CMFA-EV-BATTERY.h"
 
-/* TODO:
-Integration considered stable! Following points can still be improved:
-- Cellvoltage Min missing. Value now mapped to same as Cellvoltage Max
-- All individual cellvoltages can not yet be viewed in the cellmonitor
-/*
-
 /* Do not change code below unless you are sure what you are doing */
 CAN_frame CMFA_1EA = {.FD = false, .ext_ID = false, .DLC = 1, .ID = 0x1EA, .data = {0x00}};
 CAN_frame CMFA_125 = {.FD = false,
@@ -75,9 +69,12 @@ static unsigned long previousMillis200ms = 0;
 static unsigned long previousMillis100ms = 0;
 static unsigned long previousMillis10ms = 0;
 
+#define MAXSOC 9000  //90.00 Raw SOC displays this value when battery is at 100%
+#define MINSOC 1000  //10.00 Raw SOC displays this value when battery is at 0%
+
 static uint8_t heartbeat = 0;   //Alternates between 0x55 and 0xAA every 5th frame
 static uint8_t heartbeat2 = 0;  //Alternates between 0x55 and 0xAA every 5th frame
-static uint32_t SOC = 0;
+static uint32_t SOC_raw = 0;
 static uint16_t SOH = 99;
 static int16_t current = 0;
 static uint16_t pack_voltage = 2700;
@@ -86,10 +83,30 @@ static int16_t lowest_cell_temperature = 0;
 static uint32_t discharge_power_w = 0;
 static uint32_t charge_power_w = 0;
 
+/* The raw SOC value sits at 90% when the battery is full, so we should report back 100% once this value is reached
+Same goes for low point, when 10% is reached we report 0% */
+
+uint16_t rescale_raw_SOC(uint32_t raw_SOC) {
+
+  uint32_t calc_soc;
+  calc_soc = (raw_SOC * 0.25);
+  if (calc_soc > MAXSOC) {  //Constrain if needed
+    calc_soc = MAXSOC;
+  }
+  if (calc_soc < MINSOC) {  //Constrain if needed
+    calc_soc = MINSOC;
+  }
+  // Perform scaling between the two points
+  calc_soc = 10000 * (calc_soc - MINSOC);
+  calc_soc = calc_soc / (MAXSOC - MINSOC);
+
+  return (uint16_t)calc_soc;
+}
+
 void update_values_battery() {  //This function maps all the values fetched via CAN to the correct parameters used for modbus
   datalayer.battery.status.soh_pptt = (SOH * 100);
 
-  datalayer.battery.status.real_soc = (SOC * 0.25);
+  datalayer.battery.status.real_soc = rescale_raw_SOC(SOC_raw);
 
   datalayer.battery.status.current_dA = current * 10;
 
@@ -145,7 +162,7 @@ void handle_incoming_can_frame_battery(CAN_frame rx_frame) {
     case 0x127:           //10ms , Same structure as old Zoe 0x155 message!
       datalayer.battery.status.CAN_battery_still_alive = CAN_STILL_ALIVE;
       current = (((((rx_frame.data.u8[1] & 0x0F) << 8) | rx_frame.data.u8[2]) * 0.25) - 500);
-      SOC = ((rx_frame.data.u8[4] << 8) | rx_frame.data.u8[5]);
+      SOC_raw = ((rx_frame.data.u8[4] << 8) | rx_frame.data.u8[5]);
       break;
     case 0x3D6:  //100ms, Same structure as old Zoe 0x424 message!
       datalayer.battery.status.CAN_battery_still_alive = CAN_STILL_ALIVE;
