@@ -432,6 +432,30 @@ String advanced_battery_processor(const String& var) {
                String(falseTrue[datalayer_extended.cellpower.warning_Charger_not_responding]) + "</h4>";
 #endif  //CELLPOWER_BMS
 
+#ifdef CMFA_EV_BATTERY
+    content += "<h4>SOC U: " + String(datalayer_extended.CMFAEV.soc_u) + "percent</h4>";
+    content += "<h4>SOC Z: " + String(datalayer_extended.CMFAEV.soc_z) + "percent</h4>";
+    content += "<h4>SOH Average: " + String(datalayer_extended.CMFAEV.soh_average) + "pptt</h4>";
+    content += "<h4>12V voltage: " + String(datalayer_extended.CMFAEV.lead_acid_voltage) + "mV</h4>";
+    content += "<h4>Highest cell number: " + String(datalayer_extended.CMFAEV.highest_cell_voltage_number) + "</h4>";
+    content += "<h4>Lowest cell number: " + String(datalayer_extended.CMFAEV.lowest_cell_voltage_number) + "</h4>";
+    content += "<h4>Max regen power: " + String(datalayer_extended.CMFAEV.max_regen_power) + "</h4>";
+    content += "<h4>Max discharge power: " + String(datalayer_extended.CMFAEV.max_discharge_power) + "</h4>";
+    content += "<h4>Max charge power: " + String(datalayer_extended.CMFAEV.maximum_charge_power) + "</h4>";
+    content += "<h4>SOH available power: " + String(datalayer_extended.CMFAEV.SOH_available_power) + "</h4>";
+    content += "<h4>SOH generated power: " + String(datalayer_extended.CMFAEV.SOH_generated_power) + "</h4>";
+    content += "<h4>Average temperature: " + String(datalayer_extended.CMFAEV.average_temperature) + "dC</h4>";
+    content += "<h4>Maximum temperature: " + String(datalayer_extended.CMFAEV.maximum_temperature) + "dC</h4>";
+    content += "<h4>Minimum temperature: " + String(datalayer_extended.CMFAEV.minimum_temperature) + "dC</h4>";
+    content +=
+        "<h4>Cumulative energy discharged: " + String(datalayer_extended.CMFAEV.cumulative_energy_when_discharging) +
+        "Wh</h4>";
+    content += "<h4>Cumulative energy charged: " + String(datalayer_extended.CMFAEV.cumulative_energy_when_charging) +
+               "Wh</h4>";
+    content +=
+        "<h4>Cumulative energy regen: " + String(datalayer_extended.CMFAEV.cumulative_energy_in_regen) + "Wh</h4>";
+#endif  //CMFA_EV_BATTERY
+
 #ifdef KIA_HYUNDAI_64_BATTERY
     content += "<h4>Cells: " + String(datalayer_extended.KiaHyundai64.total_cell_count) + "S</h4>";
     content += "<h4>12V voltage: " + String(datalayer_extended.KiaHyundai64.battery_12V / 10.0, 1) + "</h4>";
@@ -1447,7 +1471,7 @@ String advanced_battery_processor(const String& var) {
     !defined(TESLA_BATTERY) && !defined(NISSAN_LEAF_BATTERY) && !defined(BMW_I3_BATTERY) &&          \
     !defined(BYD_ATTO_3_BATTERY) && !defined(RENAULT_ZOE_GEN2_BATTERY) && !defined(CELLPOWER_BMS) && \
     !defined(MEB_BATTERY) && !defined(VOLVO_SPA_BATTERY) && !defined(VOLVO_SPA_HYBRID_BATTERY) &&    \
-    !defined(KIA_HYUNDAI_64_BATTERY)  //Only the listed types have extra info
+    !defined(KIA_HYUNDAI_64_BATTERY) && !defined(CMFA_EV_BATTERY)  //Only the listed types have extra info
     content += "No extra information available for this battery type";
 #endif
 

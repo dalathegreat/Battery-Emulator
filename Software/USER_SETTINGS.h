@@ -17,6 +17,7 @@
 //#define FOXESS_BATTERY
 //#define CELLPOWER_BMS
 //#define CHADEMO_BATTERY	//NOTE: inherently enables CONTACTOR_CONTROL below
+//#define CMFA_EV_BATTERY
 //#define IMIEV_CZERO_ION_BATTERY
 //#define JAGUAR_IPACE_BATTERY
 //#define KIA_E_GMP_BATTERY
