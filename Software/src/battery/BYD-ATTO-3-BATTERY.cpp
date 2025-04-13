@@ -7,15 +7,17 @@
 
 /* Notes
   - SOC% by default is now ESTIMATED.
-  - If you have a non-crashed pack, enable using real SOC. See Wiki for info.
-  - TODO: In the future, we might be able to unlock crashed batteries and get SOC going always
+  - If you have a crash-locked pack, run the "Unlock crashed BMS" from the "More Battery Info" page
+  - After battery is unlocked, you can remove the "USE_ESTIMATED_SOC" from the BYD-ATTO-3-BATTERY.h file
 */
 
 /* Do not change code below unless you are sure what you are doing */
 #define NOT_DETERMINED_YET 0
 #define STANDARD_RANGE 1
 #define EXTENDED_RANGE 2
+#define NOT_RUNNING 0xFF
 static uint8_t battery_type = NOT_DETERMINED_YET;
+static uint8_t stateMachineClearCrash = NOT_RUNNING;
 static unsigned long previousMillis50 = 0;   // will store last time a 50ms CAN Message was send
 static unsigned long previousMillis100 = 0;  // will store last time a 100ms CAN Message was send
 static unsigned long previousMillis500 = 0;  // will store last time a 500ms CAN Message was send
@@ -89,6 +91,16 @@ CAN_frame ATTO_3_7E7_POLL = {.FD = false,
                              .DLC = 8,
                              .ID = 0x7E7,  //Poll PID 03 22 00 05 (POLL_FOR_BATTERY_SOC)
                              .data = {0x03, 0x22, 0x00, 0x05, 0x00, 0x00, 0x00, 0x00}};
+CAN_frame ATTO_3_7E7_ACK = {.FD = false,
+                            .ext_ID = false,
+                            .DLC = 8,
+                            .ID = 0x7E7,  //ACK frame for long PIDs
+                            .data = {0x30, 0x08, 0x05, 0x00, 0x00, 0x00, 0x00, 0x00}};
+CAN_frame ATTO_3_7E7_CLEAR_CRASH = {.FD = false,
+                                    .ext_ID = false,
+                                    .DLC = 8,
+                                    .ID = 0x7E7,
+                                    .data = {0x02, 0x10, 0x01, 0x00, 0x00, 0x00, 0x00, 0x00}};
 
 // Define the data points for %SOC depending on pack voltage
 const uint8_t numPoints = 14;
@@ -252,6 +264,12 @@ void update_values_battery() {  //This function maps all the values fetched via 
   datalayer_extended.bydAtto3.battery_temperatures[7] = battery_daughterboard_temperatures[7];
   datalayer_extended.bydAtto3.battery_temperatures[8] = battery_daughterboard_temperatures[8];
   datalayer_extended.bydAtto3.battery_temperatures[9] = battery_daughterboard_temperatures[9];
+
+  // Update requests from webserver datalayer
+  if (datalayer_extended.bydAtto3.UserRequestCrashReset) {
+    stateMachineClearCrash = 0;  //Start the statemachine
+    datalayer_extended.bydAtto3.UserRequestCrashReset = false;
+  }
 }
 
 void handle_incoming_can_frame_battery(CAN_frame rx_frame) {
@@ -356,6 +374,10 @@ void handle_incoming_can_frame_battery(CAN_frame rx_frame) {
       datalayer.battery.status.CAN_battery_still_alive = CAN_STILL_ALIVE;
       break;
     case 0x7EF:  //OBD2 PID reply from battery
+      if (rx_frame.data.u8[0] == 0x10) {
+        transmit_can_frame(&ATTO_3_7E7_ACK, can_config.battery);  //Send next line request
+      }
+
       switch (rx_frame.data.u8[3]) {
         case POLL_FOR_BATTERY_SOC:
           BMS_SOC = rx_frame.data.u8[4];
@@ -444,7 +466,6 @@ void transmit_can_battery() {
     }
 
     if (counter_100ms > 3) {
-
       ATTO_3_441.data.u8[4] = 0x9D;
       ATTO_3_441.data.u8[5] = 0x01;
       ATTO_3_441.data.u8[6] = 0xFF;
@@ -455,6 +476,27 @@ void transmit_can_battery() {
 #ifdef DOUBLE_BATTERY
     transmit_can_frame(&ATTO_3_441, can_config.battery_double);
 #endif  //DOUBLE_BATTERY
+    switch (stateMachineClearCrash) {
+      case 0:
+        ATTO_3_7E7_CLEAR_CRASH.data = {0x02, 0x10, 0x01, 0x00, 0x00, 0x00, 0x00, 0x00};
+        transmit_can_frame(&ATTO_3_7E7_CLEAR_CRASH, can_config.battery);
+        stateMachineClearCrash = 1;
+        break;
+      case 1:
+        ATTO_3_7E7_CLEAR_CRASH.data = {0x04, 0x14, 0xFF, 0xFF, 0xFF, 0x00, 0x00, 0x00};
+        transmit_can_frame(&ATTO_3_7E7_CLEAR_CRASH, can_config.battery);
+        stateMachineClearCrash = 2;
+        break;
+      case 2:
+        ATTO_3_7E7_CLEAR_CRASH.data = {0x03, 0x19, 0x02, 0x09, 0x00, 0x00, 0x00, 0x00};
+        transmit_can_frame(&ATTO_3_7E7_CLEAR_CRASH, can_config.battery);
+        stateMachineClearCrash = NOT_RUNNING;
+        break;
+      case NOT_RUNNING:
+        break;
+      default:
+        break;
+    }
   }
   // Send 500ms CAN Message
   if (currentMillis - previousMillis500 >= INTERVAL_500_MS) {
@@ -498,10 +540,12 @@ void transmit_can_battery() {
         break;
     }
 
-    transmit_can_frame(&ATTO_3_7E7_POLL, can_config.battery);
+    if (stateMachineClearCrash == NOT_RUNNING) {  //Don't poll battery for data if clear crash running
+      transmit_can_frame(&ATTO_3_7E7_POLL, can_config.battery);
 #ifdef DOUBLE_BATTERY
-    transmit_can_frame(&ATTO_3_7E7_POLL, can_config.battery_double);
+      transmit_can_frame(&ATTO_3_7E7_POLL, can_config.battery_double);
 #endif  //DOUBLE_BATTERY
+    }
   }
 }
 

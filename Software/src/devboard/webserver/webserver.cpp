@@ -597,6 +597,15 @@ void init_webserver() {
     request->send(200, "text/plain", "Updated successfully");
   });
 
+  // Route for resetting Crash data on BYD Atto3 batteries
+  server.on("/resetCrash", HTTP_GET, [](AsyncWebServerRequest* request) {
+    if (WEBSERVER_AUTH_REQUIRED && !request->authenticate(http_username, http_password)) {
+      return request->requestAuthentication();
+    }
+    datalayer_extended.bydAtto3.UserRequestCrashReset = true;
+    request->send(200, "text/plain", "Updated successfully");
+  });
+
   // Route for erasing DTC on Volvo/Polestar batteries
   server.on("/volvoEraseDTC", HTTP_GET, [](AsyncWebServerRequest* request) {
     if (WEBSERVER_AUTH_REQUIRED && !request->authenticate(http_username, http_password)) {
