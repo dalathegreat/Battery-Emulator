@@ -193,6 +193,7 @@ static unsigned long previousMillis50 = 0;   // will store last time a 50ms CAN 
 static unsigned long previousMillis100 = 0;  // will store last time a 100ms CAN Message was sent
 
 static uint16_t battery_voltage = 3700;
+static uint8_t HVIL_signal = 0;
 
 void update_values_battery() {  //This function maps all the values fetched via CAN to the correct parameters used for modbus
   datalayer.battery.status.soh_pptt;
@@ -218,6 +219,12 @@ void update_values_battery() {  //This function maps all the values fetched via 
   datalayer.battery.status.cell_min_voltage_mV;
 
   datalayer.battery.status.cell_max_voltage_mV;
+
+  if (HVIL_signal > 0) {
+    set_event(EVENT_HVIL_FAILURE, HVIL_signal);
+  } else {
+    clear_event(EVENT_HVIL_FAILURE);
+  }
 }
 
 void handle_incoming_can_frame_battery(CAN_frame rx_frame) {
@@ -226,6 +233,10 @@ void handle_incoming_can_frame_battery(CAN_frame rx_frame) {
       datalayer.battery.status.CAN_battery_still_alive = CAN_STILL_ALIVE;
       //Contains:
       //HVIL Signal
+      // - HVIL not connected: 000000B0 00 8 10 06 00 00 00 00 8E 31
+      // - HVIL connected: 000000B0 00 8 10 00 00 00 00 00 82 0D
+      // Based on this, the two HVIL is most likely frame1
+      HVIL_signal = (rx_frame.data.u8[1] & 0x0F);
       //BatteryDchgSysFaultLevel
       //ChgFaultLevel
       //frame7, CRC
@@ -242,8 +253,8 @@ void handle_incoming_can_frame_battery(CAN_frame rx_frame) {
     case 0x17A:  //100ms
       datalayer.battery.status.CAN_battery_still_alive = CAN_STILL_ALIVE;
       break;
-    case 0x17B:  //20ms
-      battery_voltage = ((rx_frame.data.u8[4] & 0x0F) << 8) | rx_frame.data.u8[5]; //TODO: NOT CONFIRMED
+    case 0x17B:                                                                     //20ms
+      battery_voltage = ((rx_frame.data.u8[4] & 0x0F) << 8) | rx_frame.data.u8[5];  //TODO: NOT CONFIRMED
       datalayer.battery.status.CAN_battery_still_alive = CAN_STILL_ALIVE;
       break;
     case 0x210:  //100ms
