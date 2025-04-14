@@ -191,9 +191,12 @@ static unsigned long previousMillis10 = 0;   // will store last time a 10ms CAN 
 static unsigned long previousMillis20 = 0;   // will store last time a 20ms CAN Message was sent
 static unsigned long previousMillis50 = 0;   // will store last time a 50ms CAN Message was sent
 static unsigned long previousMillis100 = 0;  // will store last time a 100ms CAN Message was sent
-
+static uint8_t mux = 0;
 static uint16_t battery_voltage = 3700;
 static uint8_t HVIL_signal = 0;
+static uint8_t serialnumbers[28] = {0};
+static uint16_t maximum_cell_voltage = 3700;
+static uint16_t discharge_power_allowed = 0;
 
 void update_values_battery() {  //This function maps all the values fetched via CAN to the correct parameters used for modbus
   datalayer.battery.status.soh_pptt;
@@ -208,7 +211,7 @@ void update_values_battery() {  //This function maps all the values fetched via 
   datalayer.battery.status.remaining_capacity_Wh = static_cast<uint32_t>(
       (static_cast<double>(datalayer.battery.status.real_soc) / 10000) * datalayer.battery.info.total_capacity_Wh);
 
-  datalayer.battery.status.max_discharge_power_W;
+  datalayer.battery.status.max_discharge_power_W = discharge_power_allowed * 100;
 
   datalayer.battery.status.max_charge_power_W;
 
@@ -216,15 +219,18 @@ void update_values_battery() {  //This function maps all the values fetched via 
 
   datalayer.battery.status.temperature_max_dC;
 
-  datalayer.battery.status.cell_min_voltage_mV;
+  datalayer.battery.status.cell_min_voltage_mV = maximum_cell_voltage -10; //TODO: Fix once we have min value
 
-  datalayer.battery.status.cell_max_voltage_mV;
+  datalayer.battery.status.cell_max_voltage_mV = maximum_cell_voltage;
 
   if (HVIL_signal > 0) {
     set_event(EVENT_HVIL_FAILURE, HVIL_signal);
   } else {
     clear_event(EVENT_HVIL_FAILURE);
   }
+
+  //Update webserver more battery info page
+  memcpy(datalayer_extended.geometryC.BatterySerialNumber, serialnumbers, sizeof(serialnumbers));
 }
 
 void handle_incoming_can_frame_battery(CAN_frame rx_frame) {
@@ -242,61 +248,120 @@ void handle_incoming_can_frame_battery(CAN_frame rx_frame) {
       //frame7, CRC
       //frame6, low byte counter 0-F
       break;
-    case 0x178:  //10ms
+    case 0x178:  //10ms (64 13 88 00 0E 30 0A 85)
+      datalayer.battery.status.CAN_battery_still_alive = CAN_STILL_ALIVE;
+      battery_voltage = ((rx_frame.data.u8[4] & 0x0F) << 8) | rx_frame.data.u8[5]; //TODO, test?
+      //frame7, CRC
+      //frame6, low byte counter 0-F
+      break;
+    case 0x179:  //20ms (3E 52 BA 5D A4 3F 0C D9)
+      datalayer.battery.status.CAN_battery_still_alive = CAN_STILL_ALIVE;
+      //2BA = 69.8 //Potentially charge power allowed
+      //frame7, CRC
+      //frame6, low byte counter 0-F
+      break;
+    case 0x17A:  //100ms (01 B4 52 28 4A 46 6E AE)
       datalayer.battery.status.CAN_battery_still_alive = CAN_STILL_ALIVE;
       //frame7, CRC
       //frame6, low byte counter 0-F
       break;
-    case 0x179:  //20ms
+    case 0x17B: //20ms (00 00 10 00 0F FE 03 C9)
+      //frame7, CRC
+      //frame6, low byte counter 0-F
       datalayer.battery.status.CAN_battery_still_alive = CAN_STILL_ALIVE;
       break;
-    case 0x17A:  //100ms
+    case 0x210:  //100ms (38 04 3A 01 38 22 22 39)
+      datalayer.battery.status.CAN_battery_still_alive = CAN_STILL_ALIVE;
+      discharge_power_allowed = ((rx_frame.data.u8[1] & 0x0F) << 8) | rx_frame.data.u8[2]; //TODO, not confirmed
+      //43A = 108.2kW potentially discharge power allowed
+      //frame7, CRC
+      //frame6, counter 0 - 0x22
+      break;
+    case 0x211:  //100ms (00 D8 C6 00 00 00 0F 3A)
+      datalayer.battery.status.CAN_battery_still_alive = CAN_STILL_ALIVE;
+      //frame7, CRC
+      //frame6, low byte counter 0-F
+      break;
+    case 0x212:  //500ms (Completely empty)
       datalayer.battery.status.CAN_battery_still_alive = CAN_STILL_ALIVE;
       break;
-    case 0x17B:                                                                     //20ms
-      battery_voltage = ((rx_frame.data.u8[4] & 0x0F) << 8) | rx_frame.data.u8[5];  //TODO: NOT CONFIRMED
+    case 0x351:  //100ms (4A 31 71 B8 6E F8 84 00)
       datalayer.battery.status.CAN_battery_still_alive = CAN_STILL_ALIVE;
       break;
-    case 0x210:  //100ms
+    case 0x352:  //500ms (76 78 00 00 82 FF FF 00)
+      datalayer.battery.status.CAN_battery_still_alive = CAN_STILL_ALIVE;
+      //82 = 13.1 potentially 12V voltage?
+      break;
+    case 0x353:  //500ms (00 00 00 00 62 00 EA 5D)
+      datalayer.battery.status.CAN_battery_still_alive = CAN_STILL_ALIVE;
+      //EA5D = 59997 Wh, potentially capacity remaining
+      break;
+    case 0x354:  //500ms (Completely empty)
       datalayer.battery.status.CAN_battery_still_alive = CAN_STILL_ALIVE;
       break;
-    case 0x211:  //100ms
+    case 0x355:  //500ms (89 4A 03 5C 39 06 04 00)
       datalayer.battery.status.CAN_battery_still_alive = CAN_STILL_ALIVE;
       break;
-    case 0x212:  //500ms
+    case 0x356:  //1s (6B 09 0C 69 0A F1 D3 86)
       datalayer.battery.status.CAN_battery_still_alive = CAN_STILL_ALIVE;
       break;
-    case 0x351:  //100ms
+    case 0x357:  //20ms (18 17 6F 20 00 00 00 00)
+      datalayer.battery.status.CAN_battery_still_alive = CAN_STILL_ALIVE;
+      //Frame 0 and 1 seems to count something large
+      break;
+    case 0x358:  //1s (03 DF 10 3C DA 0E 20 DE)
       datalayer.battery.status.CAN_battery_still_alive = CAN_STILL_ALIVE;
       break;
-    case 0x352:  //500ms
+    case 0x359:  //1s (1F 40 00 00 00 00 00 36)
       datalayer.battery.status.CAN_battery_still_alive = CAN_STILL_ALIVE;
+      //Frame7 loops 01-21-22-36-01-21...
       break;
-    case 0x353:  //500ms
+    case 0x35B:  //200ms (Serialnumbers)
       datalayer.battery.status.CAN_battery_still_alive = CAN_STILL_ALIVE;
+      mux = rx_frame.data.u8[0];
+      switch (mux)
+      {
+      case 0x01:
+        serialnumbers[0] = rx_frame.data.u8[1];
+        serialnumbers[1] = rx_frame.data.u8[2];
+        serialnumbers[2] = rx_frame.data.u8[3];
+        serialnumbers[3] = rx_frame.data.u8[4];
+        serialnumbers[4] = rx_frame.data.u8[5];
+        serialnumbers[5] = rx_frame.data.u8[6];
+        serialnumbers[6] = rx_frame.data.u8[7];
+        break;
+      case 0x02:
+        serialnumbers[7] = rx_frame.data.u8[1];
+        serialnumbers[8] = rx_frame.data.u8[2];
+        serialnumbers[9] = rx_frame.data.u8[3];
+        serialnumbers[10] = rx_frame.data.u8[4];
+        serialnumbers[11] = rx_frame.data.u8[5];
+        serialnumbers[12] = rx_frame.data.u8[6];
+        serialnumbers[13] = rx_frame.data.u8[7];
+        break;
+      case 0x03:
+        serialnumbers[14] = rx_frame.data.u8[1];
+        serialnumbers[15] = rx_frame.data.u8[2];
+        serialnumbers[16] = rx_frame.data.u8[3];
+        serialnumbers[17] = rx_frame.data.u8[4];
+        serialnumbers[18] = rx_frame.data.u8[5];
+        serialnumbers[19] = rx_frame.data.u8[6];
+        serialnumbers[20] = rx_frame.data.u8[7];
+        break;
+      case 0x04:
+        serialnumbers[21] = rx_frame.data.u8[1];
+        serialnumbers[22] = rx_frame.data.u8[2];
+        serialnumbers[23] = rx_frame.data.u8[3];
+        serialnumbers[24] = rx_frame.data.u8[4];
+        serialnumbers[25] = rx_frame.data.u8[5];
+        serialnumbers[26] = rx_frame.data.u8[6];
+        serialnumbers[27] = rx_frame.data.u8[7];
+        break;
+      default:
+        break;
+      }
       break;
-    case 0x354:  //500ms
-      datalayer.battery.status.CAN_battery_still_alive = CAN_STILL_ALIVE;
-      break;
-    case 0x355:  //500ms
-      datalayer.battery.status.CAN_battery_still_alive = CAN_STILL_ALIVE;
-      break;
-    case 0x356:  //1s
-      datalayer.battery.status.CAN_battery_still_alive = CAN_STILL_ALIVE;
-      break;
-    case 0x357:  //20ms
-      datalayer.battery.status.CAN_battery_still_alive = CAN_STILL_ALIVE;
-      break;
-    case 0x358:  //1s
-      datalayer.battery.status.CAN_battery_still_alive = CAN_STILL_ALIVE;
-      break;
-    case 0x359:  //1s
-      datalayer.battery.status.CAN_battery_still_alive = CAN_STILL_ALIVE;
-      break;
-    case 0x35B:  //200ms
-      datalayer.battery.status.CAN_battery_still_alive = CAN_STILL_ALIVE;
-      break;
-    case 0x424:  //500ms
+    case 0x424:  //500ms (24 10 01 01 02 00 00 00)
       datalayer.battery.status.CAN_battery_still_alive = CAN_STILL_ALIVE;
       break;
     default:
@@ -402,7 +467,7 @@ void setup_battery(void) {  // Performs one time setup at startup
   strncpy(datalayer.system.info.battery_protocol, "Geely Geometry C", 63);
   datalayer.system.info.battery_protocol[63] = '\0';
   datalayer.system.status.battery_allows_contactor_closing = true;
-  datalayer.battery.info.number_of_cells = 96;
+  datalayer.battery.info.number_of_cells = 102; //70kWh pack has 102S
   datalayer.battery.info.max_design_voltage_dV = MAX_PACK_VOLTAGE_70_DV;  //Startup in extreme ends
   datalayer.battery.info.min_design_voltage_dV = MIN_PACK_VOLTAGE_53_DV;  //Before pack size determined
   datalayer.battery.info.max_cell_voltage_mV = MAX_CELL_VOLTAGE_MV;

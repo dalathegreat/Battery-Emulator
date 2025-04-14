@@ -253,6 +253,12 @@ typedef struct {
 } DATALAYER_INFO_CELLPOWER;
 
 typedef struct {
+  /** uint8_t */
+  /** Battery serial numbers, stores raw HEX values for ASCII chars */
+  uint8_t BatterySerialNumber[28] = {0};
+} DATALAYER_INFO_GEELY_GEOMETRY_C;
+
+typedef struct {
   uint8_t total_cell_count = 0;
   int16_t battery_12V = 0;
   uint8_t waterleakageSensor = 0;
@@ -734,6 +740,7 @@ class DataLayerExtended {
   DATALAYER_INFO_BMWI3 bmwi3;
   DATALAYER_INFO_BYDATTO3 bydAtto3;
   DATALAYER_INFO_CELLPOWER cellpower;
+  DATALAYER_INFO_GEELY_GEOMETRY_C geometryC;
   DATALAYER_INFO_KIAHYUNDAI64 KiaHyundai64;
   DATALAYER_INFO_TESLA tesla;
   DATALAYER_INFO_NISSAN_LEAF nissanleaf;

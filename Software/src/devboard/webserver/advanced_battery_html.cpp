@@ -432,6 +432,14 @@ String advanced_battery_processor(const String& var) {
                String(falseTrue[datalayer_extended.cellpower.warning_Charger_not_responding]) + "</h4>";
 #endif  //CELLPOWER_BMS
 
+#ifdef GEELY_GEOMETRY_C_BATTERY
+char readableSerialNumber[29];  // One extra space for null terminator
+memcpy(readableSerialNumber, datalayer_extended.geometryC.BatterySerialNumber,
+       sizeof(datalayer_extended.geometryC.BatterySerialNumber));
+readableSerialNumber[15] = '\0';  // Null terminate the string
+content += "<h4>Serial number: " + String(readableSerialNumber) + "</h4>";
+#endif  //GEELY_GEOMETRY_C_BATTERY
+
 #ifdef KIA_HYUNDAI_64_BATTERY
     content += "<h4>Cells: " + String(datalayer_extended.KiaHyundai64.total_cell_count) + "S</h4>";
     content += "<h4>12V voltage: " + String(datalayer_extended.KiaHyundai64.battery_12V / 10.0, 1) + "</h4>";
@@ -1446,7 +1454,7 @@ String advanced_battery_processor(const String& var) {
     !defined(TESLA_BATTERY) && !defined(NISSAN_LEAF_BATTERY) && !defined(BMW_I3_BATTERY) &&          \
     !defined(BYD_ATTO_3_BATTERY) && !defined(RENAULT_ZOE_GEN2_BATTERY) && !defined(CELLPOWER_BMS) && \
     !defined(MEB_BATTERY) && !defined(VOLVO_SPA_BATTERY) && !defined(VOLVO_SPA_HYBRID_BATTERY) &&    \
-    !defined(KIA_HYUNDAI_64_BATTERY)  //Only the listed types have extra info
+    !defined(KIA_HYUNDAI_64_BATTERY) && !defined(GEELY_GEOMETRY_C_BATTERY)  //Only the listed types have extra info
     content += "No extra information available for this battery type";
 #endif
 
