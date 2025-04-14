@@ -70,7 +70,7 @@ static unsigned long previousMillis100ms = 0;
 static unsigned long previousMillis10ms = 0;
 
 #define MAXSOC 9000  //90.00 Raw SOC displays this value when battery is at 100%
-#define MINSOC 1000  //10.00 Raw SOC displays this value when battery is at 0%
+#define MINSOC 500   //5.00 Raw SOC displays this value when battery is at 0%
 
 static uint8_t heartbeat = 0;   //Alternates between 0x55 and 0xAA every 5th frame
 static uint8_t heartbeat2 = 0;  //Alternates between 0x55 and 0xAA every 5th frame
