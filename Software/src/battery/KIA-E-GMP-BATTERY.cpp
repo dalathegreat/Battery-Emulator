@@ -66,23 +66,24 @@ static uint8_t EGMP_3XF_counter = 0;
 // Define the data points for %SOC depending on cell voltage
 const uint8_t numPoints = 100;
 
-const uint16_t SOC[] = {10000, 9900, 9800, 9700, 9600, 9500, 9400, 9300, 9200, 9100, 9000, 8900, 8800, 8700, 8600,
-                        8500,  8400, 8300, 8200, 8100, 8000, 7900, 7800, 7700, 7600, 7500, 7400, 7300, 7200, 7100,
-                        7000,  6900, 6800, 6700, 6600, 6500, 6400, 6300, 6200, 6100, 6000, 5900, 5800, 5700, 5600,
-                        5500,  5400, 5300, 5200, 5100, 5000, 4900, 4800, 4700, 4600, 4500, 4400, 4300, 4200, 4100,
-                        4000,  3900, 3800, 3700, 3600, 3500, 3400, 3300, 3200, 3100, 3000, 2900, 2800, 2700, 2600,
-                        2500,  2400, 2300, 2200, 2100, 2000, 1900, 1800, 1700, 1600, 1500, 1400, 1300, 1200, 1100,
-                        1000,  900,  800,  700,  600,  500,  400,  300,  200,  100,  0};
+const uint16_t SOC[] = {
+    0, 100, 200, 300, 400, 500, 600, 700, 800, 900, 1000, 1100, 1200, 1300, 1400, 1500, 1600, 1700, 1800, 1900, 2000, 2100, 2200, 2300, 2400,
+    2500, 2600, 2700, 2800, 2900, 3000, 3100, 3200, 3300, 3400, 3500, 3600, 3700, 3800, 3900, 4000, 4100, 4200, 4300, 4400, 4500, 4600, 4700, 4800, 4900,
+    5000, 5100, 5200, 5300, 5400, 5500, 5600, 5700, 5800, 5900, 6000, 6100, 6200, 6300, 6400, 6500, 6600, 6700, 6800, 6900, 7000, 7100, 7200, 7300, 7400,
+    7500, 7600, 7700, 7800, 7900, 8000, 8100, 8200, 8300, 8400, 8500, 8600, 8700, 8800, 8900, 9000, 9100, 9200, 9300, 9400, 9500, 9600, 9700, 9800, 9900,
+    10000
+};
 
-const uint16_t voltage[] = {4200, 4171, 4143, 4117, 4093, 4070, 4050, 4031, 4013, 3998, 3985, 3973, 3964, 3957, 3952,
-                            3950, 3941, 3933, 3924, 3916, 3907, 3899, 3890, 3881, 3873, 3864, 3856, 3847, 3839, 3830,
-                            3821, 3813, 3804, 3796, 3787, 3779, 3770, 3761, 3753, 3744, 3736, 3727, 3719, 3710, 3701,
-                            3693, 3684, 3676, 3667, 3659, 3650, 3641, 3633, 3624, 3616, 3607, 3599, 3590, 3581, 3573,
-                            3564, 3556, 3547, 3539, 3530, 3521, 3513, 3504, 3496, 3487, 3479, 3470, 3461, 3453, 3444,
-                            3436, 3427, 3419, 3410, 3401, 3393, 3384, 3376, 3367, 3359, 3350, 3333, 3315, 3297, 3278,
-                            3258, 3237, 3215, 3192, 3166, 3139, 3108, 3074, 3033, 2979, 2850};
+const uint16_t voltage[] = {
+    3000, 3090, 3127, 3156, 3180, 3202, 3221, 3239, 3255, 3271, 3285, 3299, 3313, 3325, 3338, 3350, 3358, 3367, 3375, 3384, 3392, 3401, 3410, 3418, 3427,
+    3435, 3444, 3452, 3461, 3470, 3478, 3487, 3495, 3504, 3512, 3521, 3530, 3538, 3547, 3555, 3564, 3572, 3581, 3590, 3598, 3607, 3615, 3624, 3632, 3641,
+    3650, 3658, 3667, 3675, 3684, 3692, 3701, 3710, 3718, 3727, 3735, 3744, 3752, 3761, 3770, 3778, 3787, 3795, 3804, 3812, 3821, 3830, 3838, 3847, 3855,
+    3864, 3872, 3881, 3890, 3898, 3907, 3915, 3924, 3932, 3941, 3950, 3953, 3959, 3969, 3980, 3993, 4007, 4023, 4041, 4060, 4080, 4102, 4124, 4148, 4173,
+    4200
+};
 
-uint16_t estimateSOC(uint16_t cellVoltage) {  // Linear interpolation function
+// Function to estimate SOC based on cell voltage
+uint16_t estimateSOCFromCell(uint16_t cellVoltage) {
   if (cellVoltage >= voltage[0]) {
     return SOC[0];
   }
@@ -92,25 +93,62 @@ uint16_t estimateSOC(uint16_t cellVoltage) {  // Linear interpolation function
 
   for (int i = 1; i < numPoints; ++i) {
     if (cellVoltage >= voltage[i]) {
-      // Fix: Cast to float or double to ensure proper floating-point division
+      // Cast to float for proper division
       float t = (float)(cellVoltage - voltage[i]) / (float)(voltage[i - 1] - voltage[i]);
-
+      
       // Calculate interpolated SOC value
       uint16_t socDiff = SOC[i - 1] - SOC[i];
       uint16_t interpolatedValue = SOC[i] + (uint16_t)(t * socDiff);
-
+      
       return interpolatedValue;
     }
   }
   return 0;  // Default return for safety, should never reach here
 }
 
+// Simplified version of the pack-based SOC estimation with compensation
+uint16_t estimateSOC(uint16_t packVoltage, uint16_t cellCount, int16_t currentAmps) {
+  if (cellCount == 0) return 0;
+  
+  // Convert pack voltage (decivolts) to millivolts
+  uint32_t packVoltageMv = packVoltage * 100;
+  
+  // Apply internal resistance compensation
+  // Current is in deciamps (-150 = -15.0A, 150 = 15.0A)
+  // Resistance is in milliohms
+  int32_t voltageDrop = (currentAmps * PACK_INTERNAL_RESISTANCE_MOHM) / 10;
+  
+  // Compensate the pack voltage (add the voltage drop)
+  uint32_t compensatedPackVoltageMv = packVoltageMv + voltageDrop;
+  
+  // Calculate average cell voltage in millivolts
+  uint16_t avgCellVoltage = compensatedPackVoltageMv / cellCount;
+  
+#ifdef DEBUG_LOG
+  logging.print("Pack: ");
+  logging.print(packVoltage / 10.0);
+  logging.print("V, Current: ");
+  logging.print(currentAmps / 10.0);
+  logging.print("A, Drop: ");
+  logging.print(voltageDrop / 1000.0);
+  logging.print("V, Comp Pack: ");
+  logging.print(compensatedPackVoltageMv / 1000.0);
+  logging.print("V, Avg Cell: ");
+  logging.print(avgCellVoltage);
+  logging.println("mV");
+#endif
+
+  // Use the cell voltage lookup table to estimate SOC
+  return estimateSOCFromCell(avgCellVoltage);
+}
+
+// Fix: Change parameter types to uint16_t to match SOC values
 uint16_t selectSOC(uint16_t SOC_low, uint16_t SOC_high) {
   if (SOC_low == 0 || SOC_high == 0) {
     return 0;  // If either value is 0, return 0
   }
   if (SOC_low == 10000 || SOC_high == 10000) {
-    return 10000;  // If either value is 100, return 100
+    return 10000;  // If either value is 100%, return 100%
   }
   return (SOC_low < SOC_high) ? SOC_low : SOC_high;  // Otherwise, return the lowest value
 }
@@ -687,9 +725,12 @@ static uint8_t calculateCRC(CAN_frame rx_frame, uint8_t length, uint8_t initial_
 void update_values_battery() {  //This function maps all the values fetched via CAN to the correct parameters used for modbus
 
 #ifdef ESTIMATE_SOC_FROM_CELLVOLTAGE
-  SOC_estimated_lowest = estimateSOC(CellVoltMin_mV);
-  SOC_estimated_highest = estimateSOC(CellVoltMax_mV);
-  datalayer.battery.status.real_soc = selectSOC(SOC_estimated_lowest, SOC_estimated_highest);
+  // Use the simplified pack-based SOC estimation with proper compensation
+  datalayer.battery.status.real_soc = estimateSOC(batteryVoltage, datalayer.battery.info.number_of_cells, batteryAmps);
+  
+  // For comparison or fallback, we can still calculate from min/max cell voltages
+  SOC_estimated_lowest = estimateSOCFromCell(CellVoltMin_mV);
+  SOC_estimated_highest = estimateSOCFromCell(CellVoltMax_mV);
 #else
   datalayer.battery.status.real_soc = (SOC_Display * 10);  //increase SOC range from 0-100.0 -> 100.00
 #endif
