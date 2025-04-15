@@ -34,7 +34,7 @@ FRS (Front Radar System)
 IPU (Integrated Power Unit Control)
 EGSM (Electronic Gear Shifter)
 MMI
-T-BOX
+T-BOX (Electrocar Communication Control Module)
 IPK
 FCS
 FRS
@@ -193,6 +193,8 @@ static unsigned long previousMillis50 = 0;   // will store last time a 50ms CAN 
 static unsigned long previousMillis100 = 0;  // will store last time a 100ms CAN Message was sent
 static uint8_t mux = 0;
 static uint16_t battery_voltage = 3700;
+static int16_t maximum_temperature = 0;
+static int16_t minimum_temperature = 0;
 static uint8_t HVIL_signal = 0;
 static uint8_t serialnumbers[28] = {0};
 static uint16_t maximum_cell_voltage = 3700;
@@ -215,9 +217,9 @@ void update_values_battery() {  //This function maps all the values fetched via 
 
   datalayer.battery.status.max_charge_power_W;
 
-  datalayer.battery.status.temperature_min_dC;
+  datalayer.battery.status.temperature_min_dC = minimum_temperature * 10;
 
-  datalayer.battery.status.temperature_max_dC;
+  datalayer.battery.status.temperature_max_dC = maximum_temperature * 10;
 
   datalayer.battery.status.cell_min_voltage_mV = maximum_cell_voltage - 10;  //TODO: Fix once we have min value
 
@@ -281,7 +283,8 @@ void handle_incoming_can_frame_battery(CAN_frame rx_frame) {
       //frame7, CRC
       //frame6, low byte counter 0-F
       break;
-    case 0x17A:  //100ms (01 B4 52 28 4A 46 6E AE)
+    case 0x17A:  //100ms (Battery 01 B4 52 28 4A 46 6E AE)
+                 //(Car log 0A 3D EE F1 BD C6 67 F7)
       datalayer.battery.status.CAN_battery_still_alive = CAN_STILL_ALIVE;
       if (is_message_corrupt(&rx_frame)) {
         datalayer.battery2.status.CAN_error_counter++;
@@ -290,7 +293,7 @@ void handle_incoming_can_frame_battery(CAN_frame rx_frame) {
       //frame7, CRC
       //frame6, low byte counter 0-F
       break;
-    case 0x17B:  //20ms (00 00 10 00 0F FE 03 C9)
+    case 0x17B:  //20ms (00 00 10 00 0F FE 03 C9) (car is the same, static)
       if (is_message_corrupt(&rx_frame)) {
         datalayer.battery2.status.CAN_error_counter++;
         break;  //Message content malformed, abort reading data from it
@@ -324,14 +327,14 @@ void handle_incoming_can_frame_battery(CAN_frame rx_frame) {
       break;
     case 0x351:  //100ms (4A 31 71 B8 6E F8 84 00)
       datalayer.battery.status.CAN_battery_still_alive = CAN_STILL_ALIVE;
+      maximum_temperature = ((rx_frame.data.u8[6] / 2) - 40);  //TODO, not confirmed
       break;
     case 0x352:  //500ms (76 78 00 00 82 FF FF 00)
       datalayer.battery.status.CAN_battery_still_alive = CAN_STILL_ALIVE;
-      //82 = 13.1 potentially 12V voltage?
+      minimum_temperature = ((rx_frame.data.u8[4] / 2) - 40);  //TODO, not confirmed
       break;
-    case 0x353:  //500ms (00 00 00 00 62 00 EA 5D)
+    case 0x353:  //500ms (00 00 00 00 62 00 EA 5D) (car 00 00 00 00 00 00 E6 04)
       datalayer.battery.status.CAN_battery_still_alive = CAN_STILL_ALIVE;
-      //EA5D = 59997 Wh, potentially capacity remaining
       break;
     case 0x354:  //500ms (Completely empty)
       datalayer.battery.status.CAN_battery_still_alive = CAN_STILL_ALIVE;
@@ -460,8 +463,8 @@ void transmit_can_battery() {
 
     counter_20ms = (counter_20ms + 1) % 17;  // 0-1-...F-0-1 etc.
 
-    transmit_can_frame(&GEELY_145, can_config.battery);  //Might be unnecessary, shifter
-    transmit_can_frame(&GEELY_0F9, can_config.battery);  //Might be unnecessary, shifter
+    transmit_can_frame(&GEELY_145, can_config.battery);  //CONFIRMED MANDATORY! shifter
+    transmit_can_frame(&GEELY_0F9, can_config.battery);  //CONFIRMED MANDATORY! shifter
     transmit_can_frame(&GEELY_0FA, can_config.battery);  //Might be unnecessary, not in workshop manual
     transmit_can_frame(&GEELY_197, can_config.battery);  //Might be unnecessary, not in workshop manual
     transmit_can_frame(&GEELY_150, can_config.battery);
@@ -495,7 +498,7 @@ void transmit_can_battery() {
 
     transmit_can_frame(&GEELY_222, can_config.battery);  //CONFIRMED MANDATORY! OBC message
     //transmit_can_frame(&GEELY_2D2, can_config.battery);  //Might be unnecessary, seat info
-    //transmit_can_frame(&GEELY_292, can_config.battery);  //Might be unnecessary. T-BOX
+    transmit_can_frame(&GEELY_292, can_config.battery);  //CONFIRMED MANDATORY! T-BOX
   }
 }
 
