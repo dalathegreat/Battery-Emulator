@@ -51,6 +51,11 @@ The pin layout below supports the following:
 #define NEGATIVE_CONTACTOR_PIN GPIO_NUM_16
 #define PRECHARGE_PIN GPIO_NUM_17
 
+// Automatic precharging
+#define HIA4V1_PIN GPIO_NUM_17
+#define INVERTER_DISCONNECT_CONTACTOR_PIN GPIO_NUM_5
+
+
 // SMA CAN contactor pins
 #define INVERTER_CONTACTOR_ENABLE_PIN GPIO_NUM_14
 
