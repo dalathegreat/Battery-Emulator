@@ -94,6 +94,7 @@
 /* Automatic Precharge settings (Optional) If you have a battery that expects an external voltage applied before opening contactors (within the battery), configure this section */
 //#define PRECHARGE_CONTROL      //Enable this line to control a modified HIA4V1 (see wiki) by PWM on the PRECHARGE_PIN.
 //#define MEB_BATTERY_DC_CHARGEPORT //Enable this line if using DC Chargeport of MEB battery to precharge
+//#define INVERTER_DISCONNECT_CONTACTOR_IS_NO      //Enable this line if the contactor to disconnect the inverter during automatic precharge is NO type
 
 /* Other options */
 //#define EQUIPMENT_STOP_BUTTON    // Enable this to allow an equipment stop button connected to the Battery-Emulator to disengage the battery
