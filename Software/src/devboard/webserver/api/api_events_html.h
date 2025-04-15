@@ -15,6 +15,7 @@
 String api_events_processor();
 
 // Helper function to add an event entry to the JSON
-void addEventEntry(String& json, int id, const String& description, unsigned long timestamp, bool active, bool addComma);
+void addEventEntry(String& json, int id, const String& description, unsigned long timestamp, bool active,
+                   bool addComma);
 
 #endif

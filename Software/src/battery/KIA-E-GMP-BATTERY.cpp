@@ -113,7 +113,7 @@ uint16_t estimateSOC(uint16_t packVoltage, uint16_t cellCount, int16_t currentAm
     // Fall back to BMS-reported SOC while cell count is uncertain
     return (SOC_Display * 10);
   }
-  
+
   if (cellCount == 0)
     return 0;
 
