@@ -108,6 +108,12 @@ uint16_t estimateSOCFromCell(uint16_t cellVoltage) {
 
 // Simplified version of the pack-based SOC estimation with compensation
 uint16_t estimateSOC(uint16_t packVoltage, uint16_t cellCount, int16_t currentAmps) {
+  // If cell count is still the default 192 but we haven't confirmed it yet
+  if (!set_voltage_limits && cellCount == 192) {
+    // Fall back to BMS-reported SOC while cell count is uncertain
+    return (SOC_Display * 10);
+  }
+  
   if (cellCount == 0)
     return 0;
 
