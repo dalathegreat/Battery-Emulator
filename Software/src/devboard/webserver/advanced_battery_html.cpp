@@ -1232,7 +1232,7 @@ String advanced_battery_processor(const String& var) {
         "<h4>Total charged: " + String(datalayer.battery.status.total_charged_battery_Wh / 1000.0, 1) + " kWh</h4>";
     content += "<h4>Total discharged: " + String(datalayer.battery.status.total_discharged_battery_Wh / 1000.0, 1) +
                " kWh</h4>";
-    content += "<h4>Battery efficiency: " + String(100 * (datalayer.battery.status.total_discharged_battery_Wh + datalayer.battery.status.remaining_capacity_Wh) / datalayer.battery.status.total_charged_battery_Wh, 2) +
+    content += "<h4>Battery efficiency: " + String(((float)( -1 * datalayer.battery.status.total_discharged_battery_Wh + datalayer.battery.status.remaining_capacity_Wh)) / datalayer.battery.status.total_charged_battery_Wh * 100, 2) +
                " &percnt;</h4>";
 #endif  //MEB_BATTERY
 
