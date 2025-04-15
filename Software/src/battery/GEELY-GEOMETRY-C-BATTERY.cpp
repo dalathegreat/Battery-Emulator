@@ -219,7 +219,7 @@ void update_values_battery() {  //This function maps all the values fetched via 
 
   datalayer.battery.status.temperature_max_dC;
 
-  datalayer.battery.status.cell_min_voltage_mV = maximum_cell_voltage -10; //TODO: Fix once we have min value
+  datalayer.battery.status.cell_min_voltage_mV = maximum_cell_voltage - 10;  //TODO: Fix once we have min value
 
   datalayer.battery.status.cell_max_voltage_mV = maximum_cell_voltage;
 
@@ -233,10 +233,23 @@ void update_values_battery() {  //This function maps all the values fetched via 
   memcpy(datalayer_extended.geometryC.BatterySerialNumber, serialnumbers, sizeof(serialnumbers));
 }
 
+bool is_message_corrupt(CAN_frame* rx_frame) {
+  uint8_t crc = 0xFF;  // Initial value
+  for (uint8_t j = 0; j < 7; j++) {
+    crc = crctable[crc ^ rx_frame->data.u8[j]];
+  }
+  crc = (crc ^ 0xFF);  // Final XOR
+  return crc != rx_frame->data.u8[7];
+}
+
 void handle_incoming_can_frame_battery(CAN_frame rx_frame) {
   switch (rx_frame.ID) {
     case 0x0B0:  //10ms
       datalayer.battery.status.CAN_battery_still_alive = CAN_STILL_ALIVE;
+      if (is_message_corrupt(&rx_frame)) {
+        datalayer.battery2.status.CAN_error_counter++;
+        break;  //Message content malformed, abort reading data from it
+      }
       //Contains:
       //HVIL Signal
       // - HVIL not connected: 000000B0 00 8 10 06 00 00 00 00 8E 31
@@ -250,35 +263,59 @@ void handle_incoming_can_frame_battery(CAN_frame rx_frame) {
       break;
     case 0x178:  //10ms (64 13 88 00 0E 30 0A 85)
       datalayer.battery.status.CAN_battery_still_alive = CAN_STILL_ALIVE;
-      battery_voltage = ((rx_frame.data.u8[4] & 0x0F) << 8) | rx_frame.data.u8[5]; //TODO, test?
+      if (is_message_corrupt(&rx_frame)) {
+        datalayer.battery2.status.CAN_error_counter++;
+        break;  //Message content malformed, abort reading data from it
+      }
+      battery_voltage = ((rx_frame.data.u8[4] & 0x0F) << 8) | rx_frame.data.u8[5];
       //frame7, CRC
       //frame6, low byte counter 0-F
       break;
     case 0x179:  //20ms (3E 52 BA 5D A4 3F 0C D9)
       datalayer.battery.status.CAN_battery_still_alive = CAN_STILL_ALIVE;
+      if (is_message_corrupt(&rx_frame)) {
+        datalayer.battery2.status.CAN_error_counter++;
+        break;  //Message content malformed, abort reading data from it
+      }
       //2BA = 69.8 //Potentially charge power allowed
       //frame7, CRC
       //frame6, low byte counter 0-F
       break;
     case 0x17A:  //100ms (01 B4 52 28 4A 46 6E AE)
       datalayer.battery.status.CAN_battery_still_alive = CAN_STILL_ALIVE;
+      if (is_message_corrupt(&rx_frame)) {
+        datalayer.battery2.status.CAN_error_counter++;
+        break;  //Message content malformed, abort reading data from it
+      }
       //frame7, CRC
       //frame6, low byte counter 0-F
       break;
-    case 0x17B: //20ms (00 00 10 00 0F FE 03 C9)
+    case 0x17B:  //20ms (00 00 10 00 0F FE 03 C9)
+      if (is_message_corrupt(&rx_frame)) {
+        datalayer.battery2.status.CAN_error_counter++;
+        break;  //Message content malformed, abort reading data from it
+      }
       //frame7, CRC
       //frame6, low byte counter 0-F
       datalayer.battery.status.CAN_battery_still_alive = CAN_STILL_ALIVE;
       break;
     case 0x210:  //100ms (38 04 3A 01 38 22 22 39)
       datalayer.battery.status.CAN_battery_still_alive = CAN_STILL_ALIVE;
-      discharge_power_allowed = ((rx_frame.data.u8[1] & 0x0F) << 8) | rx_frame.data.u8[2]; //TODO, not confirmed
+      if (is_message_corrupt(&rx_frame)) {
+        datalayer.battery2.status.CAN_error_counter++;
+        break;  //Message content malformed, abort reading data from it
+      }
+      discharge_power_allowed = ((rx_frame.data.u8[1] & 0x0F) << 8) | rx_frame.data.u8[2];  //TODO, not confirmed
       //43A = 108.2kW potentially discharge power allowed
       //frame7, CRC
       //frame6, counter 0 - 0x22
       break;
     case 0x211:  //100ms (00 D8 C6 00 00 00 0F 3A)
       datalayer.battery.status.CAN_battery_still_alive = CAN_STILL_ALIVE;
+      if (is_message_corrupt(&rx_frame)) {
+        datalayer.battery2.status.CAN_error_counter++;
+        break;  //Message content malformed, abort reading data from it
+      }
       //frame7, CRC
       //frame6, low byte counter 0-F
       break;
@@ -319,46 +356,45 @@ void handle_incoming_can_frame_battery(CAN_frame rx_frame) {
     case 0x35B:  //200ms (Serialnumbers)
       datalayer.battery.status.CAN_battery_still_alive = CAN_STILL_ALIVE;
       mux = rx_frame.data.u8[0];
-      switch (mux)
-      {
-      case 0x01:
-        serialnumbers[0] = rx_frame.data.u8[1];
-        serialnumbers[1] = rx_frame.data.u8[2];
-        serialnumbers[2] = rx_frame.data.u8[3];
-        serialnumbers[3] = rx_frame.data.u8[4];
-        serialnumbers[4] = rx_frame.data.u8[5];
-        serialnumbers[5] = rx_frame.data.u8[6];
-        serialnumbers[6] = rx_frame.data.u8[7];
-        break;
-      case 0x02:
-        serialnumbers[7] = rx_frame.data.u8[1];
-        serialnumbers[8] = rx_frame.data.u8[2];
-        serialnumbers[9] = rx_frame.data.u8[3];
-        serialnumbers[10] = rx_frame.data.u8[4];
-        serialnumbers[11] = rx_frame.data.u8[5];
-        serialnumbers[12] = rx_frame.data.u8[6];
-        serialnumbers[13] = rx_frame.data.u8[7];
-        break;
-      case 0x03:
-        serialnumbers[14] = rx_frame.data.u8[1];
-        serialnumbers[15] = rx_frame.data.u8[2];
-        serialnumbers[16] = rx_frame.data.u8[3];
-        serialnumbers[17] = rx_frame.data.u8[4];
-        serialnumbers[18] = rx_frame.data.u8[5];
-        serialnumbers[19] = rx_frame.data.u8[6];
-        serialnumbers[20] = rx_frame.data.u8[7];
-        break;
-      case 0x04:
-        serialnumbers[21] = rx_frame.data.u8[1];
-        serialnumbers[22] = rx_frame.data.u8[2];
-        serialnumbers[23] = rx_frame.data.u8[3];
-        serialnumbers[24] = rx_frame.data.u8[4];
-        serialnumbers[25] = rx_frame.data.u8[5];
-        serialnumbers[26] = rx_frame.data.u8[6];
-        serialnumbers[27] = rx_frame.data.u8[7];
-        break;
-      default:
-        break;
+      switch (mux) {
+        case 0x01:
+          serialnumbers[0] = rx_frame.data.u8[1];
+          serialnumbers[1] = rx_frame.data.u8[2];
+          serialnumbers[2] = rx_frame.data.u8[3];
+          serialnumbers[3] = rx_frame.data.u8[4];
+          serialnumbers[4] = rx_frame.data.u8[5];
+          serialnumbers[5] = rx_frame.data.u8[6];
+          serialnumbers[6] = rx_frame.data.u8[7];
+          break;
+        case 0x02:
+          serialnumbers[7] = rx_frame.data.u8[1];
+          serialnumbers[8] = rx_frame.data.u8[2];
+          serialnumbers[9] = rx_frame.data.u8[3];
+          serialnumbers[10] = rx_frame.data.u8[4];
+          serialnumbers[11] = rx_frame.data.u8[5];
+          serialnumbers[12] = rx_frame.data.u8[6];
+          serialnumbers[13] = rx_frame.data.u8[7];
+          break;
+        case 0x03:
+          serialnumbers[14] = rx_frame.data.u8[1];
+          serialnumbers[15] = rx_frame.data.u8[2];
+          serialnumbers[16] = rx_frame.data.u8[3];
+          serialnumbers[17] = rx_frame.data.u8[4];
+          serialnumbers[18] = rx_frame.data.u8[5];
+          serialnumbers[19] = rx_frame.data.u8[6];
+          serialnumbers[20] = rx_frame.data.u8[7];
+          break;
+        case 0x04:
+          serialnumbers[21] = rx_frame.data.u8[1];
+          serialnumbers[22] = rx_frame.data.u8[2];
+          serialnumbers[23] = rx_frame.data.u8[3];
+          serialnumbers[24] = rx_frame.data.u8[4];
+          serialnumbers[25] = rx_frame.data.u8[5];
+          serialnumbers[26] = rx_frame.data.u8[6];
+          serialnumbers[27] = rx_frame.data.u8[7];
+          break;
+        default:
+          break;
       }
       break;
     case 0x424:  //500ms (24 10 01 01 02 00 00 00)
@@ -467,7 +503,7 @@ void setup_battery(void) {  // Performs one time setup at startup
   strncpy(datalayer.system.info.battery_protocol, "Geely Geometry C", 63);
   datalayer.system.info.battery_protocol[63] = '\0';
   datalayer.system.status.battery_allows_contactor_closing = true;
-  datalayer.battery.info.number_of_cells = 102; //70kWh pack has 102S
+  datalayer.battery.info.number_of_cells = 102;                           //70kWh pack has 102S
   datalayer.battery.info.max_design_voltage_dV = MAX_PACK_VOLTAGE_70_DV;  //Startup in extreme ends
   datalayer.battery.info.min_design_voltage_dV = MIN_PACK_VOLTAGE_53_DV;  //Before pack size determined
   datalayer.battery.info.max_cell_voltage_mV = MAX_CELL_VOLTAGE_MV;
