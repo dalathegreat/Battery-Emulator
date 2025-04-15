@@ -26,6 +26,13 @@ unsigned long ota_progress_millis = 0;
 #include "index_html.h"
 #include "settings_html.h"
 
+#ifdef API_ENDPOINTS
+  #include "api/api_status_html.h"
+  #include "api/api_cells_html.h"
+  #include "api/api_events_html.h"
+  #include "api/api_full_html.h"
+#endif
+
 MyTimer ota_timeout_timer = MyTimer(15000);
 bool ota_active = false;
 
@@ -173,6 +180,34 @@ void init_webserver() {
       return request->requestAuthentication();
     request->send(200, "text/html", index_html, settings_processor);
   });
+
+#ifdef API_ENDPOINTS
+  // API routes
+  server.on("/api/status", HTTP_GET, [](AsyncWebServerRequest* request) {
+    if (WEBSERVER_AUTH_REQUIRED && !request->authenticate(http_username, http_password))
+      return request->requestAuthentication();
+    request->send(200, "application/json", api_status_processor());
+  });
+  
+  server.on("/api/cells", HTTP_GET, [](AsyncWebServerRequest* request) {
+    if (WEBSERVER_AUTH_REQUIRED && !request->authenticate(http_username, http_password))
+      return request->requestAuthentication();
+    request->send(200, "application/json", api_cells_processor());
+  });
+  
+  server.on("/api/events", HTTP_GET, [](AsyncWebServerRequest* request) {
+    if (WEBSERVER_AUTH_REQUIRED && !request->authenticate(http_username, http_password))
+      return request->requestAuthentication();
+    request->send(200, "application/json", api_events_processor());
+  });
+  
+  // New combined API endpoint
+  server.on("/api/full", HTTP_GET, [](AsyncWebServerRequest* request) {
+    if (WEBSERVER_AUTH_REQUIRED && !request->authenticate(http_username, http_password))
+      return request->requestAuthentication();
+    request->send(200, "application/json", api_full_processor());
+  });
+#endif
 
   // Route for going to advanced battery info web page
   server.on("/advanced", HTTP_GET, [](AsyncWebServerRequest* request) {
