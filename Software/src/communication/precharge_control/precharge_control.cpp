@@ -77,15 +77,17 @@ void handle_precharge_control() {
       break;
 
     case AUTO_PRECHARGE_PRECHARGING:
+    case AUTO_PRECHARGE_PRECHARGING_FINAL:
       //  Check if external voltage measurement changed, for instance with the MEB batteries, the external voltage is only updated every 100ms.
       if (prev_external_voltage != external_voltage && external_voltage != 0) {
         prev_external_voltage = external_voltage;
 
-        if (labs(target_voltage - external_voltage) > 150) {
+        /*if (labs(target_voltage - external_voltage) > 150) {
           delta_freq = 2000;
-        } else if (labs(target_voltage - external_voltage) > 80) {
+        } else*/ if (labs(target_voltage - external_voltage) > 80) {
           delta_freq = labs(target_voltage - external_voltage) * 6;
         } else {
+          datalayer.system.status.precharge_status = AUTO_PRECHARGE_PRECHARGING_FINAL;
           delta_freq = labs(target_voltage - external_voltage) * 3;
         }
         if (target_voltage > external_voltage) {
@@ -98,7 +100,7 @@ void handle_precharge_control() {
         if (freq < Precharge_min_PWM_Freq)
           freq = Precharge_min_PWM_Freq;
 #ifdef DEBUG_LOG
-        logging.printf("Precharge: Target: %d V  Extern: %d V  Frequency: %u\n", target_voltage / 10,
+        logging.printf("Precharge: Target: %d V  Extern: %d V  New frequency: %u Hz\n", target_voltage / 10,
                        external_voltage / 10, freq);
 #endif
         ledcWriteTone(PRECHARGE_PIN, freq);

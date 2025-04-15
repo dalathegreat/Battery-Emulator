@@ -1725,8 +1725,8 @@ void transmit_can_battery() {
         logging.printf("MEB: Requesting HV\n");
       }
       if ((MEB_503.data.u8[1] & 0x80) !=
-          (datalayer.system.status.precharge_status == AUTO_PRECHARGE_PRECHARGING ? 0x80 : 0x00)) {
-        if (datalayer.system.status.precharge_status == AUTO_PRECHARGE_PRECHARGING) {
+          (datalayer.system.status.precharge_status == AUTO_PRECHARGE_PRECHARGING_FINAL ? 0x80 : 0x00)) {
+        if (datalayer.system.status.precharge_status == AUTO_PRECHARGE_PRECHARGING_FINAL) {
           logging.printf("MEB: Precharge bit set to active\n");
         } else {
           logging.printf("MEB: Precharge bit set to inactive\n");
@@ -1734,7 +1734,7 @@ void transmit_can_battery() {
       }
 #endif
       MEB_503.data.u8[1] =
-          0x30 | (datalayer.system.status.precharge_status == AUTO_PRECHARGE_PRECHARGING ? 0x80 : 0x00);
+          0x30 | (datalayer.system.status.precharge_status == AUTO_PRECHARGE_PRECHARGING_FINAL ? 0x80 : 0x00);
       MEB_503.data.u8[3] = BMS_TARGET_AC_CHARGING;
       MEB_503.data.u8[5] = 0x82;  // Bordnetz Active
       MEB_503.data.u8[6] = 0xE0;  // Request emergency shutdown HV system == 0, false
@@ -1751,8 +1751,8 @@ void transmit_can_battery() {
         logging.printf("MEB: Requesting HV_OFF\n");
       }
       if ((MEB_503.data.u8[1] & 0x80) !=
-          (datalayer.system.status.precharge_status == AUTO_PRECHARGE_PRECHARGING ? 0x80 : 0x00)) {
-        if (datalayer.system.status.precharge_status == AUTO_PRECHARGE_PRECHARGING) {
+          (datalayer.system.status.precharge_status == AUTO_PRECHARGE_PRECHARGING_FINAL ? 0x80 : 0x00)) {
+        if (datalayer.system.status.precharge_status == AUTO_PRECHARGE_PRECHARGING_FINAL) {
           logging.printf("MEB: Precharge bit set to active\n");
         } else {
           logging.printf("MEB: Precharge bit set to inactive\n");
@@ -1760,7 +1760,7 @@ void transmit_can_battery() {
       }
 #endif
       MEB_503.data.u8[1] =
-          0x10 | (datalayer.system.status.precharge_status == AUTO_PRECHARGE_PRECHARGING ? 0x80 : 0x00);
+          0x10 | (datalayer.system.status.precharge_status == AUTO_PRECHARGE_PRECHARGING_FINAL ? 0x80 : 0x00);
       MEB_503.data.u8[3] = BMS_TARGET_HV_OFF;
       MEB_503.data.u8[5] = 0x80;  // Bordnetz Inactive
       MEB_503.data.u8[6] =
