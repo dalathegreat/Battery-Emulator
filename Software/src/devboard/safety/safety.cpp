@@ -19,6 +19,13 @@ battery_pause_status emulator_pause_status = NORMAL;
 //battery pause status end
 
 void update_machineryprotection() {
+  // Check if the CPU is too hot
+  if (datalayer.system.info.CPU_temperature > 80.0f) {
+    set_event(EVENT_CPU_OVERHEAT, 0);
+  } else {
+    clear_event(EVENT_CPU_OVERHEAT);
+  }
+
   // Check health status of CAN interfaces
   if (datalayer.system.info.can_native_send_fail) {
     set_event(EVENT_CAN_NATIVE_TX_FAILURE, 0);
