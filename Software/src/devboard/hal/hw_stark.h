@@ -51,6 +51,10 @@ GPIOs on extra header
 #define PRECHARGE_PIN 25
 #define BMS_POWER 23
 
+// Automatic precharging
+#define HIA4V1_PIN 19
+#define INVERTER_DISCONNECT_CONTACTOR_PIN 25
+
 // SMA CAN contactor pins
 #define INVERTER_CONTACTOR_ENABLE_PIN 19
 
