@@ -27,14 +27,14 @@ unsigned long ota_progress_millis = 0;
 #include "settings_html.h"
 
 #ifdef API_ENDPOINTS
-  #include "api/api_status_html.h"
-  #include "api/api_cells_html.h"
-  #include "api/api_events_html.h"
-  #include "api/api_full_html.h"
+#include "api/api_cells_html.h"
+#include "api/api_events_html.h"
+#include "api/api_full_html.h"
+#include "api/api_status_html.h"
 #endif
 
 #ifdef PROMETHEUS_METRICS
-  #include "metrics_html.h"
+#include "metrics_html.h"
 #endif
 
 MyTimer ota_timeout_timer = MyTimer(15000);
@@ -192,19 +192,19 @@ void init_webserver() {
       return request->requestAuthentication();
     request->send(200, "application/json", api_status_processor());
   });
-  
+
   server.on("/api/cells", HTTP_GET, [](AsyncWebServerRequest* request) {
     if (WEBSERVER_AUTH_REQUIRED && !request->authenticate(http_username, http_password))
       return request->requestAuthentication();
     request->send(200, "application/json", api_cells_processor());
   });
-  
+
   server.on("/api/events", HTTP_GET, [](AsyncWebServerRequest* request) {
     if (WEBSERVER_AUTH_REQUIRED && !request->authenticate(http_username, http_password))
       return request->requestAuthentication();
     request->send(200, "application/json", api_events_processor());
   });
-  
+
   // New combined API endpoint
   server.on("/api/full", HTTP_GET, [](AsyncWebServerRequest* request) {
     if (WEBSERVER_AUTH_REQUIRED && !request->authenticate(http_username, http_password))
@@ -217,7 +217,7 @@ void init_webserver() {
   server.on("/metrics", HTTP_GET, [](AsyncWebServerRequest* request) {
     if (WEBSERVER_AUTH_REQUIRED && !request->authenticate(http_username, http_password))
       return request->requestAuthentication();
-    
+
     request->send(200, "text/plain", metrics_html_processor());
   });
 #endif
