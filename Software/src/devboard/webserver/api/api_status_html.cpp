@@ -123,7 +123,8 @@ String api_status_processor() {
 #ifdef CONTACTOR_CONTROL
   addJsonBool(json, "contactor_status", datalayer.system.settings.relays_engaged);
   addJsonBool(json, "battery_allows_contactor_closing", datalayer.system.status.battery_allows_contactor_closing);
-  addJsonBool(json, "inverter_allows_contactor_closing", datalayer.system.status.inverter_allows_contactor_closing, false);
+  addJsonBool(json, "inverter_allows_contactor_closing", datalayer.system.status.inverter_allows_contactor_closing,
+              false);
 #else
   // If there's no contactor control, we'll assume default values or look elsewhere
   addJsonBool(json, "contactor_status", true);  // Default to true if not controllable
@@ -155,11 +156,12 @@ String api_status_processor() {
                 datalayer.battery2.status.cell_max_voltage_mV - datalayer.battery2.status.cell_min_voltage_mV);
   addJsonNumber(json, "temp_min", static_cast<float>(datalayer.battery2.status.temperature_min_dC) / 10.0);
   addJsonNumber(json, "temp_max", static_cast<float>(datalayer.battery2.status.temperature_max_dC) / 10.0);
-  
+
   // Contactor information for second battery - adjust as needed
 #ifdef CONTACTOR_CONTROL_DOUBLE_BATTERY
   addJsonBool(json, "contactor_status", datalayer.system.settings.relays_battery2_engaged);
-  addJsonBool(json, "battery_allows_contactor_closing", datalayer.system.status.battery2_allows_contactor_closing, false);
+  addJsonBool(json, "battery_allows_contactor_closing", datalayer.system.status.battery2_allows_contactor_closing,
+              false);
 #else
   addJsonBool(json, "contactor_status", true);  // Default value
   addJsonBool(json, "battery_allows_contactor_closing", datalayer.system.status.battery2_allows_contactor_closing,

@@ -146,7 +146,7 @@ String metrics_html_processor() {
   // If there's no contactor control, we'll assume default true value
   output += "be_battery_contactor_status{" + deviceLabel + "} 1\n";
 #endif
-  
+
   output += "be_battery_allows_contactor_closing{" + deviceLabel + "} " +
             String(datalayer.system.status.battery_allows_contactor_closing ? 1 : 0) + "\n";
   output += "be_battery_inverter_allows_contactor_closing{" + deviceLabel + "} " +
@@ -189,8 +189,9 @@ String metrics_html_processor() {
             String(datalayer.battery2.status.cell_min_voltage_mV) + "\n";
   output += "be_battery2_cell_max_voltage{" + deviceLabel + "} " +
             String(datalayer.battery2.status.cell_max_voltage_mV) + "\n";
-  output += "be_battery2_cell_delta{" + deviceLabel + "} " + 
-            String(datalayer.battery2.status.cell_max_voltage_mV - datalayer.battery2.status.cell_min_voltage_mV) + "\n";
+  output += "be_battery2_cell_delta{" + deviceLabel + "} " +
+            String(datalayer.battery2.status.cell_max_voltage_mV - datalayer.battery2.status.cell_min_voltage_mV) +
+            "\n";
 
   // Fix for second battery contactors_battery2_engaged
 #ifdef CONTACTOR_CONTROL_DOUBLE_BATTERY
@@ -216,13 +217,14 @@ String metrics_html_processor() {
 #if defined CHEVYVOLT_CHARGER || defined NISSANLEAF_CHARGER
   // Charger metrics
   output += "be_charger_enabled_hv{" + deviceLabel + "} " + String(datalayer.charger.charger_HV_enabled ? 1 : 0) + "\n";
-  output += "be_charger_enabled_aux12v{" + deviceLabel + "} " + String(datalayer.charger.charger_aux12V_enabled ? 1 : 0) + "\n";
+  output += "be_charger_enabled_aux12v{" + deviceLabel + "} " +
+            String(datalayer.charger.charger_aux12V_enabled ? 1 : 0) + "\n";
 
 #ifdef CHEVYVOLT_CHARGER
   float chgPwrDC = static_cast<float>(datalayer.charger.charger_stat_HVcur * datalayer.charger.charger_stat_HVvol);
   float chgPwrAC = static_cast<float>(datalayer.charger.charger_stat_ACcur * datalayer.charger.charger_stat_ACvol);
   float chgEff = (chgPwrAC > 0) ? (chgPwrDC / chgPwrAC * 100) : 0;
-  
+
   output += "be_charger_output_power{" + deviceLabel + "} " + String(chgPwrDC) + "\n";
   output += "be_charger_efficiency{" + deviceLabel + "} " + String(chgEff) + "\n";
   output += "be_charger_hvdc_voltage{" + deviceLabel + "} " + String(datalayer.charger.charger_stat_HVvol) + "\n";
@@ -237,7 +239,7 @@ String metrics_html_processor() {
   float chgPwrDC = static_cast<float>(datalayer.charger.charger_stat_HVcur * 100);
   float hvdc_voltage = static_cast<float>(datalayer.battery.status.voltage_dV) / 10.0;
   float hvdc_current = (hvdc_voltage > 0) ? (chgPwrDC / hvdc_voltage) : 0;
-  
+
   output += "be_charger_output_power{" + deviceLabel + "} " + String(chgPwrDC) + "\n";
   output += "be_charger_hvdc_voltage{" + deviceLabel + "} " + String(hvdc_voltage) + "\n";
   output += "be_charger_hvdc_current{" + deviceLabel + "} " + String(hvdc_current) + "\n";
