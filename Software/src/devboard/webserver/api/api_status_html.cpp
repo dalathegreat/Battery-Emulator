@@ -117,11 +117,11 @@ String api_status_processor() {
       break;
   }
   addJsonField(json, "bms_status_text", bms_status_text);
-  
-  #ifdef CONTACTOR_CONTROL
+
+#ifdef CONTACTOR_CONTROL
   // Contactor information
   addJsonBool(json, "contactor_status", datalayer.system.status.contactors_engaged);
-  #endif
+#endif
 
   addJsonBool(json, "battery_allows_contactor_closing", datalayer.system.status.battery_allows_contactor_closing);
   addJsonBool(json, "inverter_allows_contactor_closing", datalayer.system.status.inverter_allows_contactor_closing,

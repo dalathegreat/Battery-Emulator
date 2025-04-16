@@ -137,15 +137,17 @@ String metrics_html_processor() {
       break;
   }
   output += "be_battery_bms_status_info{status=\"" + bms_status_text + "\"," + deviceLabel + "} 1\n";
-  
-  #ifdef CONTACTOR_CONTROL
+
+#ifdef CONTACTOR_CONTROL
   // Contactor information
-  output += "be_battery_contactor_status{" + deviceLabel + "} " + String(datalayer.system.status.contactors_engaged ? 1 : 0) + "\n";
-  #endif
+  output += "be_battery_contactor_status{" + deviceLabel + "} " +
+            String(datalayer.system.status.contactors_engaged ? 1 : 0) + "\n";
+#endif
 
-  output += "be_battery_allows_contactor_closing{" + deviceLabel + "} " + String(datalayer.system.status.battery_allows_contactor_closing ? 1 : 0) + "\n";
-  output += "be_battery_inverter_allows_contactor_closing{" + deviceLabel + "} " + String(datalayer.system.status.inverter_allows_contactor_closing ? 1 : 0) + "\n";
-
+  output += "be_battery_allows_contactor_closing{" + deviceLabel + "} " +
+            String(datalayer.system.status.battery_allows_contactor_closing ? 1 : 0) + "\n";
+  output += "be_battery_inverter_allows_contactor_closing{" + deviceLabel + "} " +
+            String(datalayer.system.status.inverter_allows_contactor_closing ? 1 : 0) + "\n";
 
   // Add cell voltage metrics
   int cellCount = datalayer.battery.info.number_of_cells;
