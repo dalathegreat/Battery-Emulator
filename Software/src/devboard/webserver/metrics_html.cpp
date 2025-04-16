@@ -137,20 +137,15 @@ String metrics_html_processor() {
       break;
   }
   output += "be_battery_bms_status_info{status=\"" + bms_status_text + "\"," + deviceLabel + "} 1\n";
+  
+  #ifdef CONTACTOR_CONTROL
+  // Contactor information
+  output += "be_battery_contactor_status{" + deviceLabel + "} " + String(datalayer.system.status.contactors_engaged ? 1 : 0) + "\n";
+  #endif
 
-  // Contactor information - fix for the contactors_engaged issue
-#ifdef CONTACTOR_CONTROL
-  output += "be_battery_contactor_status{" + deviceLabel + "} " +
-            String(datalayer.system.settings.relays_engaged ? 1 : 0) + "\n";
-#else
-  // If there's no contactor control, we'll assume default true value
-  output += "be_battery_contactor_status{" + deviceLabel + "} 1\n";
-#endif
+  output += "be_battery_allows_contactor_closing{" + deviceLabel + "} " + String(datalayer.system.status.battery_allows_contactor_closing ? 1 : 0) + "\n";
+  output += "be_battery_inverter_allows_contactor_closing{" + deviceLabel + "} " + String(datalayer.system.status.inverter_allows_contactor_closing ? 1 : 0) + "\n";
 
-  output += "be_battery_allows_contactor_closing{" + deviceLabel + "} " +
-            String(datalayer.system.status.battery_allows_contactor_closing ? 1 : 0) + "\n";
-  output += "be_battery_inverter_allows_contactor_closing{" + deviceLabel + "} " +
-            String(datalayer.system.status.inverter_allows_contactor_closing ? 1 : 0) + "\n";
 
   // Add cell voltage metrics
   int cellCount = datalayer.battery.info.number_of_cells;

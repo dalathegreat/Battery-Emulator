@@ -117,11 +117,12 @@ String api_status_processor() {
       break;
   }
   addJsonField(json, "bms_status_text", bms_status_text);
+  
+  #ifdef CONTACTOR_CONTROL
+  // Contactor information
+  addJsonBool(json, "contactor_status", datalayer.system.status.contactors_engaged);
+  #endif
 
-  // Contactor information - changed to handle the missing 'contactors_engaged' member
-  // Check if we can find this information somewhere else in the data layer
-#ifdef CONTACTOR_CONTROL
-  addJsonBool(json, "contactor_status", datalayer.system.settings.relays_engaged);
   addJsonBool(json, "battery_allows_contactor_closing", datalayer.system.status.battery_allows_contactor_closing);
   addJsonBool(json, "inverter_allows_contactor_closing", datalayer.system.status.inverter_allows_contactor_closing,
               false);
