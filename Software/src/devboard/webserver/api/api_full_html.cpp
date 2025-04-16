@@ -1,5 +1,6 @@
 #include "api_full_html.h"
 #include "../../../datalayer/datalayer.h"
+#include "../../../datalayer/datalayer_extended.h"
 #include "api_cells_html.h"
 #include "api_events_html.h"
 #include "api_helpers.h"

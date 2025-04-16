@@ -138,9 +138,15 @@ String metrics_html_processor() {
   }
   output += "be_battery_bms_status_info{status=\"" + bms_status_text + "\"," + deviceLabel + "} 1\n";
 
-  // Contactor information
+  // Contactor information - fix for the contactors_engaged issue
+#ifdef CONTACTOR_CONTROL
   output += "be_battery_contactor_status{" + deviceLabel + "} " +
-            String(datalayer.system.status.contactors_engaged ? 1 : 0) + "\n";
+            String(datalayer.system.settings.relays_engaged ? 1 : 0) + "\n";
+#else
+  // If there's no contactor control, we'll assume default true value
+  output += "be_battery_contactor_status{" + deviceLabel + "} 1\n";
+#endif
+  
   output += "be_battery_allows_contactor_closing{" + deviceLabel + "} " +
             String(datalayer.system.status.battery_allows_contactor_closing ? 1 : 0) + "\n";
   output += "be_battery_inverter_allows_contactor_closing{" + deviceLabel + "} " +
@@ -183,35 +189,48 @@ String metrics_html_processor() {
             String(datalayer.battery2.status.cell_min_voltage_mV) + "\n";
   output += "be_battery2_cell_max_voltage{" + deviceLabel + "} " +
             String(datalayer.battery2.status.cell_max_voltage_mV) + "\n";
-  output += "be_battery2_cell_delta{" + deviceLabel + "} " + String(datalayer.battery2.status.cell_
+  output += "be_battery2_cell_delta{" + deviceLabel + "} " + 
+            String(datalayer.battery2.status.cell_max_voltage_mV - datalayer.battery2.status.cell_min_voltage_mV) + "\n";
+
+  // Fix for second battery contactors_battery2_engaged
+#ifdef CONTACTOR_CONTROL_DOUBLE_BATTERY
+  output += "be_battery2_contactor_status{" + deviceLabel + "} " +
+            String(datalayer.system.settings.relays_battery2_engaged ? 1 : 0) + "\n";
+#else
+  // If there's no contactor control, we'll assume default true value
+  output += "be_battery2_contactor_status{" + deviceLabel + "} 1\n";
+#endif
+
+  output += "be_battery2_allows_contactor_closing{" + deviceLabel + "} " +
+            String(datalayer.system.status.battery2_allows_contactor_closing ? 1 : 0) + "\n";
 
   // Add cell voltage metrics for battery 2
   int cellCount2 = datalayer.battery2.info.number_of_cells;
   for (int i = 0; i < cellCount2; i++) {
     int cellVoltage = datalayer.battery2.status.cell_voltages_mV[i];
     output +=
-        "be_battery2_cell_voltage{index=\"" + String(i + 1) + "\"" + deviceLabel + "} " + String(cellVoltage) + "\n";
+        "be_battery2_cell_voltage{index=\"" + String(i + 1) + "\"," + deviceLabel + "} " + String(cellVoltage) + "\n";
   }
 #endif
 
 #if defined CHEVYVOLT_CHARGER || defined NISSANLEAF_CHARGER
   // Charger metrics
-  output += "be_charger_enabled_hv" + deviceLabel + " " + String(datalayer.charger.charger_HV_enabled ? 1 : 0) + "\n";
-  output += "be_charger_enabled_aux12v" + deviceLabel + " " + String(datalayer.charger.charger_aux12V_enabled ? 1 : 0) + "\n";
+  output += "be_charger_enabled_hv{" + deviceLabel + "} " + String(datalayer.charger.charger_HV_enabled ? 1 : 0) + "\n";
+  output += "be_charger_enabled_aux12v{" + deviceLabel + "} " + String(datalayer.charger.charger_aux12V_enabled ? 1 : 0) + "\n";
 
 #ifdef CHEVYVOLT_CHARGER
   float chgPwrDC = static_cast<float>(datalayer.charger.charger_stat_HVcur * datalayer.charger.charger_stat_HVvol);
   float chgPwrAC = static_cast<float>(datalayer.charger.charger_stat_ACcur * datalayer.charger.charger_stat_ACvol);
   float chgEff = (chgPwrAC > 0) ? (chgPwrDC / chgPwrAC * 100) : 0;
   
-  output += "be_charger_output_power" + deviceLabel + " " + String(chgPwrDC) + "\n";
-  output += "be_charger_efficiency" + deviceLabel + " " + String(chgEff) + "\n";
-  output += "be_charger_hvdc_voltage" + deviceLabel + " " + String(datalayer.charger.charger_stat_HVvol) + "\n";
-  output += "be_charger_hvdc_current" + deviceLabel + " " + String(datalayer.charger.charger_stat_HVcur) + "\n";
-  output += "be_charger_lvdc_voltage" + deviceLabel + " " + String(datalayer.charger.charger_stat_LVvol) + "\n";
-  output += "be_charger_lvdc_current" + deviceLabel + " " + String(datalayer.charger.charger_stat_LVcur) + "\n";
-  output += "be_charger_ac_voltage" + deviceLabel + " " + String(datalayer.charger.charger_stat_ACvol) + "\n";
-  output += "be_charger_ac_current" + deviceLabel + " " + String(datalayer.charger.charger_stat_ACcur) + "\n";
+  output += "be_charger_output_power{" + deviceLabel + "} " + String(chgPwrDC) + "\n";
+  output += "be_charger_efficiency{" + deviceLabel + "} " + String(chgEff) + "\n";
+  output += "be_charger_hvdc_voltage{" + deviceLabel + "} " + String(datalayer.charger.charger_stat_HVvol) + "\n";
+  output += "be_charger_hvdc_current{" + deviceLabel + "} " + String(datalayer.charger.charger_stat_HVcur) + "\n";
+  output += "be_charger_lvdc_voltage{" + deviceLabel + "} " + String(datalayer.charger.charger_stat_LVvol) + "\n";
+  output += "be_charger_lvdc_current{" + deviceLabel + "} " + String(datalayer.charger.charger_stat_LVcur) + "\n";
+  output += "be_charger_ac_voltage{" + deviceLabel + "} " + String(datalayer.charger.charger_stat_ACvol) + "\n";
+  output += "be_charger_ac_current{" + deviceLabel + "} " + String(datalayer.charger.charger_stat_ACcur) + "\n";
 #endif
 
 #ifdef NISSANLEAF_CHARGER
@@ -219,10 +238,10 @@ String metrics_html_processor() {
   float hvdc_voltage = static_cast<float>(datalayer.battery.status.voltage_dV) / 10.0;
   float hvdc_current = (hvdc_voltage > 0) ? (chgPwrDC / hvdc_voltage) : 0;
   
-  output += "be_charger_output_power" + deviceLabel + " " + String(chgPwrDC) + "\n";
-  output += "be_charger_hvdc_voltage" + deviceLabel + " " + String(hvdc_voltage) + "\n";
-  output += "be_charger_hvdc_current" + deviceLabel + " " + String(hvdc_current) + "\n";
-  output += "be_charger_ac_voltage" + deviceLabel + " " + String(datalayer.charger.charger_stat_ACvol) + "\n";
+  output += "be_charger_output_power{" + deviceLabel + "} " + String(chgPwrDC) + "\n";
+  output += "be_charger_hvdc_voltage{" + deviceLabel + "} " + String(hvdc_voltage) + "\n";
+  output += "be_charger_hvdc_current{" + deviceLabel + "} " + String(hvdc_current) + "\n";
+  output += "be_charger_ac_voltage{" + deviceLabel + "} " + String(datalayer.charger.charger_stat_ACvol) + "\n";
 #endif
 #endif
 

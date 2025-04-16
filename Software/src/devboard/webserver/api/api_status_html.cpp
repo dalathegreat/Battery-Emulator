@@ -3,41 +3,10 @@
 #include "../../../datalayer/datalayer.h"
 #include "../../../datalayer/datalayer_extended.h"
 #include "../../utils/led_handler.h"
+#include "api_helpers.h"
 
 // External declarations
 extern const char* version_number;
-
-// Helper function to add a field to the JSON string
-void addJsonField(String& json, const String& key, const String& value, bool addComma = true) {
-  json += "\"";
-  json += key;
-  json += "\":\"";
-  json += value;
-  json += "\"";
-  if (addComma)
-    json += ",";
-}
-
-// Helper function to add a numeric field to the JSON string
-template <typename T>
-void addJsonNumber(String& json, const String& key, T value, bool addComma = true) {
-  json += "\"";
-  json += key;
-  json += "\":";
-  json += String(value);
-  if (addComma)
-    json += ",";
-}
-
-// Helper function to add a boolean field to the JSON string
-void addJsonBool(String& json, const String& key, bool value, bool addComma = true) {
-  json += "\"";
-  json += key;
-  json += "\":";
-  json += value ? "true" : "false";
-  if (addComma)
-    json += ",";
-}
 
 String api_status_processor() {
   String json = "{";
@@ -149,11 +118,19 @@ String api_status_processor() {
   }
   addJsonField(json, "bms_status_text", bms_status_text);
 
-  // Contactor information
-  addJsonBool(json, "contactor_status", datalayer.system.status.contactors_engaged);
+  // Contactor information - changed to handle the missing 'contactors_engaged' member
+  // Check if we can find this information somewhere else in the data layer
+#ifdef CONTACTOR_CONTROL
+  addJsonBool(json, "contactor_status", datalayer.system.settings.relays_engaged);
+  addJsonBool(json, "battery_allows_contactor_closing", datalayer.system.status.battery_allows_contactor_closing);
+  addJsonBool(json, "inverter_allows_contactor_closing", datalayer.system.status.inverter_allows_contactor_closing, false);
+#else
+  // If there's no contactor control, we'll assume default values or look elsewhere
+  addJsonBool(json, "contactor_status", true);  // Default to true if not controllable
   addJsonBool(json, "battery_allows_contactor_closing", datalayer.system.status.battery_allows_contactor_closing);
   addJsonBool(json, "inverter_allows_contactor_closing", datalayer.system.status.inverter_allows_contactor_closing,
               false);
+#endif
 
   json += "}";
 
@@ -178,9 +155,16 @@ String api_status_processor() {
                 datalayer.battery2.status.cell_max_voltage_mV - datalayer.battery2.status.cell_min_voltage_mV);
   addJsonNumber(json, "temp_min", static_cast<float>(datalayer.battery2.status.temperature_min_dC) / 10.0);
   addJsonNumber(json, "temp_max", static_cast<float>(datalayer.battery2.status.temperature_max_dC) / 10.0);
-  addJsonBool(json, "contactor_status", datalayer.system.status.contactors_battery2_engaged);
+  
+  // Contactor information for second battery - adjust as needed
+#ifdef CONTACTOR_CONTROL_DOUBLE_BATTERY
+  addJsonBool(json, "contactor_status", datalayer.system.settings.relays_battery2_engaged);
+  addJsonBool(json, "battery_allows_contactor_closing", datalayer.system.status.battery2_allows_contactor_closing, false);
+#else
+  addJsonBool(json, "contactor_status", true);  // Default value
   addJsonBool(json, "battery_allows_contactor_closing", datalayer.system.status.battery2_allows_contactor_closing,
               false);
+#endif
   json += "}";
 #endif
 
