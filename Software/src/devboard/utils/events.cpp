@@ -351,7 +351,7 @@ const char* get_event_message_string(EVENTS_ENUM_TYPE event) {
     case EVENT_MQTT_DISCONNECT:
       return "MQTT disconnected.";
     case EVENT_EQUIPMENT_STOP:
-      return "EQUIPMENT STOP ACTIVATED!!!";
+      return "User requested stop, either via equipment stop circuit or webserver Open Contactor button";
     case EVENT_SD_INIT_FAILED:
       return "SD card initialization failed, check hardware. Power must be removed to reset the SD card.";
     case EVENT_PERIODIC_BMS_RESET:
