@@ -11,4 +11,4 @@ extern String PROMETHEUS_DEVICE_NAME;
 // Function to generate Prometheus metrics
 String metrics_html_processor();
 
-#endif // METRICS_HTML_H
+#endif  // METRICS_HTML_H

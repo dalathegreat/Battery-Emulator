@@ -1,6 +1,6 @@
 #include "api_cells_html.h"
-#include "api_helpers.h"
 #include "../../../datalayer/datalayer.h"
+#include "api_helpers.h"
 
 // Helper function to add a cell entry to the JSON
 void addCellEntry(String& json, int index, int voltage, bool addComma) {
@@ -8,12 +8,13 @@ void addCellEntry(String& json, int index, int voltage, bool addComma) {
   addJsonNumber(json, "index", index, true);
   addJsonNumber(json, "voltage", voltage, false);
   json += "}";
-  if (addComma) json += ",";
+  if (addComma)
+    json += ",";
 }
 
 String api_cells_processor() {
   String json = "{\"cells\":[";
-  
+
   // Add all cell data
   int cellCount = datalayer.battery.info.number_of_cells;
   for (int i = 0; i < cellCount; i++) {
@@ -21,7 +22,7 @@ String api_cells_processor() {
     int cellVoltage = datalayer.battery.status.cell_voltages_mV[i];
     addCellEntry(json, i + 1, cellVoltage, i < cellCount - 1);
   }
-  
+
   json += "]}";
   return json;
 }

@@ -10,4 +10,4 @@
  */
 String api_full_processor();
 
-#endif // API_FULL_HTML_H
+#endif  // API_FULL_HTML_H

@@ -10,7 +10,8 @@ inline void addJsonField(String& json, const String& key, const String& value, b
   json += "\":\"";
   json += value;
   json += "\"";
-  if (addComma) json += ",";
+  if (addComma)
+    json += ",";
 }
 
 // Helper function to add a numeric field to the JSON string
@@ -20,7 +21,8 @@ inline void addJsonNumber(String& json, const String& key, T value, bool addComm
   json += key;
   json += "\":";
   json += String(value);
-  if (addComma) json += ",";
+  if (addComma)
+    json += ",";
 }
 
 // Helper function to add a boolean field to the JSON string
@@ -29,7 +31,8 @@ inline void addJsonBool(String& json, const String& key, bool value, bool addCom
   json += key;
   json += "\":";
   json += value ? "true" : "false";
-  if (addComma) json += ",";
+  if (addComma)
+    json += ",";
 }
 
-#endif // API_HELPERS_H
+#endif  // API_HELPERS_H
