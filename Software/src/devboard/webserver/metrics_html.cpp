@@ -142,7 +142,7 @@ String metrics_html_processor() {
   // Contactor information
   output += "be_battery_contactor_status{" + deviceLabel + "} " +
             String(datalayer.system.status.contactors_engaged ? 1 : 0) + "\n";
-#else 
+#else
   output += "be_battery_contactor_status{" + deviceLabel + "} " + "1" + "\n";
 #endif
 
