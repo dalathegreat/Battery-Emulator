@@ -121,18 +121,13 @@ String api_status_processor() {
 #ifdef CONTACTOR_CONTROL
   // Contactor information
   addJsonBool(json, "contactor_status", datalayer.system.status.contactors_engaged);
-#endif
-
-  addJsonBool(json, "battery_allows_contactor_closing", datalayer.system.status.battery_allows_contactor_closing);
-  addJsonBool(json, "inverter_allows_contactor_closing", datalayer.system.status.inverter_allows_contactor_closing,
-              false);
 #else
   // If there's no contactor control, we'll assume default values or look elsewhere
   addJsonBool(json, "contactor_status", true);  // Default to true if not controllable
-  addJsonBool(json, "battery_allows_contactor_closing", datalayer.system.status.battery_allows_contactor_closing);
-  addJsonBool(json, "inverter_allows_contactor_closing", datalayer.system.status.inverter_allows_contactor_closing,
-              false);
 #endif
+
+  addJsonBool(json, "battery_allows_contactor_closing", datalayer.system.status.battery_allows_contactor_closing);
+  addJsonBool(json, "inverter_allows_contactor_closing", datalayer.system.status.inverter_allows_contactor_closing);
 
   json += "}";
 
