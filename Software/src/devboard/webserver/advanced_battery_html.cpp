@@ -432,12 +432,36 @@ String advanced_battery_processor(const String& var) {
                String(falseTrue[datalayer_extended.cellpower.warning_Charger_not_responding]) + "</h4>";
 #endif  //CELLPOWER_BMS
 
+#ifdef CMFA_EV_BATTERY
+    content += "<h4>SOC U: " + String(datalayer_extended.CMFAEV.soc_u) + "percent</h4>";
+    content += "<h4>SOC Z: " + String(datalayer_extended.CMFAEV.soc_z) + "percent</h4>";
+    content += "<h4>SOH Average: " + String(datalayer_extended.CMFAEV.soh_average) + "pptt</h4>";
+    content += "<h4>12V voltage: " + String(datalayer_extended.CMFAEV.lead_acid_voltage) + "mV</h4>";
+    content += "<h4>Highest cell number: " + String(datalayer_extended.CMFAEV.highest_cell_voltage_number) + "</h4>";
+    content += "<h4>Lowest cell number: " + String(datalayer_extended.CMFAEV.lowest_cell_voltage_number) + "</h4>";
+    content += "<h4>Max regen power: " + String(datalayer_extended.CMFAEV.max_regen_power) + "</h4>";
+    content += "<h4>Max discharge power: " + String(datalayer_extended.CMFAEV.max_discharge_power) + "</h4>";
+    content += "<h4>Max charge power: " + String(datalayer_extended.CMFAEV.maximum_charge_power) + "</h4>";
+    content += "<h4>SOH available power: " + String(datalayer_extended.CMFAEV.SOH_available_power) + "</h4>";
+    content += "<h4>SOH generated power: " + String(datalayer_extended.CMFAEV.SOH_generated_power) + "</h4>";
+    content += "<h4>Average temperature: " + String(datalayer_extended.CMFAEV.average_temperature) + "dC</h4>";
+    content += "<h4>Maximum temperature: " + String(datalayer_extended.CMFAEV.maximum_temperature) + "dC</h4>";
+    content += "<h4>Minimum temperature: " + String(datalayer_extended.CMFAEV.minimum_temperature) + "dC</h4>";
+    content +=
+        "<h4>Cumulative energy discharged: " + String(datalayer_extended.CMFAEV.cumulative_energy_when_discharging) +
+        "Wh</h4>";
+    content += "<h4>Cumulative energy charged: " + String(datalayer_extended.CMFAEV.cumulative_energy_when_charging) +
+               "Wh</h4>";
+    content +=
+        "<h4>Cumulative energy regen: " + String(datalayer_extended.CMFAEV.cumulative_energy_in_regen) + "Wh</h4>";
+#endif  //CMFA_EV_BATTERY
+
 #ifdef GEELY_GEOMETRY_C_BATTERY
-char readableSerialNumber[29];  // One extra space for null terminator
-memcpy(readableSerialNumber, datalayer_extended.geometryC.BatterySerialNumber,
-       sizeof(datalayer_extended.geometryC.BatterySerialNumber));
-readableSerialNumber[15] = '\0';  // Null terminate the string
-content += "<h4>Serial number: " + String(readableSerialNumber) + "</h4>";
+    char readableSerialNumber[29];  // One extra space for null terminator
+    memcpy(readableSerialNumber, datalayer_extended.geometryC.BatterySerialNumber,
+           sizeof(datalayer_extended.geometryC.BatterySerialNumber));
+    readableSerialNumber[15] = '\0';  // Null terminate the string
+    content += "<h4>Serial number: " + String(readableSerialNumber) + "</h4>";
 #endif  //GEELY_GEOMETRY_C_BATTERY
 
 #ifdef KIA_HYUNDAI_64_BATTERY
@@ -664,7 +688,8 @@ content += "<h4>Serial number: " + String(readableSerialNumber) + "</h4>";
     static const char* Fault[] = {"NOT_ACTIVE", "ACTIVE"};
 
     //Buttons for user action
-    content += "<button onclick='askClearIsolation()'>Clear isolation fault</button>";
+    content += "<button onclick='askTeslaClearIsolation()'>Clear isolation fault</button>";
+    content += "<button onclick='askTeslaResetBMS()'>BMS reset</button>";
     //0x20A 522 HVP_contatorState
     content += "<h4>Contactor Status: " + String(contactorText[datalayer_extended.tesla.status_contactor]) + "</h4>";
     content += "<h4>HVIL: " + String(hvilStatusState[datalayer_extended.tesla.hvil_status]) + "</h4>";
@@ -691,7 +716,7 @@ content += "<h4>Serial number: " + String(readableSerialNumber) + "</h4>";
            sizeof(datalayer_extended.tesla.BMS_SerialNumber));
     readableSerialNumber[14] = '\0';  // Null terminate the string
     content += "<h4>BMS Serial number: " + String(readableSerialNumber) + "</h4>";
-    // Comment what data you would like to dislay, order can be changed.
+    // Comment what data you would like to display, order can be changed.
     //0x352 850 BMS_energyStatus
     if (datalayer_extended.tesla.BMS352_mux == false) {
       content += "<h3>BMS 0x352 w/o mux</h3>";  //if using older BMS <2021 and comment 0x352 without MUX
@@ -1454,19 +1479,32 @@ content += "<h4>Serial number: " + String(readableSerialNumber) + "</h4>";
     !defined(TESLA_BATTERY) && !defined(NISSAN_LEAF_BATTERY) && !defined(BMW_I3_BATTERY) &&          \
     !defined(BYD_ATTO_3_BATTERY) && !defined(RENAULT_ZOE_GEN2_BATTERY) && !defined(CELLPOWER_BMS) && \
     !defined(MEB_BATTERY) && !defined(VOLVO_SPA_BATTERY) && !defined(VOLVO_SPA_HYBRID_BATTERY) &&    \
-    !defined(KIA_HYUNDAI_64_BATTERY) && !defined(GEELY_GEOMETRY_C_BATTERY)  //Only the listed types have extra info
+    !defined(KIA_HYUNDAI_64_BATTERY) && !defined(GEELY_GEOMETRY_C_BATTERY) &&                        \
+    !defined(CMFA_EV_BATTERY)  //Only the listed types have extra info
     content += "No extra information available for this battery type";
 #endif
 
     content += "</div>";
     content += "<script>";
     content +=
-        "function askClearIsolation() { if (window.confirm('Are you sure you want to clear any active isolation "
+        "function askTeslaClearIsolation() { if (window.confirm('Are you sure you want to clear any active isolation "
         "fault?')) { "
-        "clearIsolation(); } }";
-    content += "function clearIsolation() {";
+        "teslaClearIsolation(); } }";
+    content += "function teslaClearIsolation() {";
     content += "  var xhr = new XMLHttpRequest();";
-    content += "  xhr.open('GET', '/clearIsolation', true);";
+    content += "  xhr.open('GET', '/teslaClearIsolation', true);";
+    content += "  xhr.send();";
+    content += "}";
+    content += "function goToMainPage() { window.location.href = '/'; }";
+    content += "</script>";
+    content += "<script>";
+    content +=
+        "function askTeslaResetBMS() { if (window.confirm('Are you sure you want to reset the "
+        "BMS?')) { "
+        "teslaResetBMS(); } }";
+    content += "function teslaResetBMS() {";
+    content += "  var xhr = new XMLHttpRequest();";
+    content += "  xhr.open('GET', '/teslaResetBMS', true);";
     content += "  xhr.send();";
     content += "}";
     content += "function goToMainPage() { window.location.href = '/'; }";

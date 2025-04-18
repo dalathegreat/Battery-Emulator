@@ -113,7 +113,7 @@ typedef struct {
   /** Minimum percentage setting. Set this value to the lowest real SOC
    * you want the inverter to be able to use. At this real SOC, the inverter
    * will "see" 0% */
-  uint16_t min_percentage = BATTERY_MINPERCENTAGE;
+  int16_t min_percentage = BATTERY_MINPERCENTAGE;
   /** Maximum percentage setting. Set this value to the highest real SOC
    * you want the inverter to be able to use. At this real SOC, the inverter
    * will "see" 100% */
@@ -141,7 +141,8 @@ typedef struct {
   /** Tesla specific settings that are edited on the fly when manually forcing a balance charge for LFP chemistry */
   /* Bool for specifying if user has requested manual function */
   bool user_requests_balancing = false;
-  bool user_requests_isolation_clear = false;
+  bool user_requests_tesla_isolation_clear = false;
+  bool user_requests_tesla_bms_reset = false;
   /* Forced balancing max time & start timestamp */
   uint32_t balancing_time_ms = 3600000;  //1h default, (60min*60sec*1000ms)
   uint32_t balancing_start_time_ms = 0;  //For keeping track when balancing started
@@ -215,6 +216,8 @@ typedef struct {
 } DATALAYER_SHUNT_TYPE;
 
 typedef struct {
+  /** ESP32 main CPU temperature, for displaying on webserver and for safeties */
+  float CPU_temperature = 0;
   /** array with type of battery used, for displaying on webserver */
   char battery_protocol[64] = {0};
   /** array with type of inverter protocol used, for displaying on webserver */

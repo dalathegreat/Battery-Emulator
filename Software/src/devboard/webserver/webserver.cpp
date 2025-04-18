@@ -571,11 +571,20 @@ void init_webserver() {
   });
 
   // Route for clearing isolation faults on Tesla
-  server.on("/clearIsolation", HTTP_GET, [](AsyncWebServerRequest* request) {
+  server.on("/teslaClearIsolation", HTTP_GET, [](AsyncWebServerRequest* request) {
     if (WEBSERVER_AUTH_REQUIRED && !request->authenticate(http_username, http_password)) {
       return request->requestAuthentication();
     }
-    datalayer.battery.settings.user_requests_isolation_clear = true;
+    datalayer.battery.settings.user_requests_tesla_isolation_clear = true;
+    request->send(200, "text/plain", "Updated successfully");
+  });
+
+  // Route for resetting BMS on Tesla
+  server.on("/teslaResetBMS", HTTP_GET, [](AsyncWebServerRequest* request) {
+    if (WEBSERVER_AUTH_REQUIRED && !request->authenticate(http_username, http_password)) {
+      return request->requestAuthentication();
+    }
+    datalayer.battery.settings.user_requests_tesla_bms_reset = true;
     request->send(200, "text/plain", "Updated successfully");
   });
 
@@ -928,7 +937,7 @@ String processor(const String& var) {
 #ifdef HW_STARK
     content += " Hardware: Stark CMR Module";
 #endif  // HW_STARK
-    content += "</h4>";
+    content += " @ " + String(datalayer.system.info.CPU_temperature, 1) + " &deg;C</h4>";
     content += "<h4>Uptime: " + uptime_formatter::getUptime() + "</h4>";
 #ifdef FUNCTION_TIME_MEASUREMENT
     // Load information

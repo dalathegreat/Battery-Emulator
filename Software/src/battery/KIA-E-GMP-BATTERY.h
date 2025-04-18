@@ -19,6 +19,10 @@ extern ACAN2517FD canfd;
 #define RAMPDOWN_SOC 9000           // 90.00 SOC% to start ramping down from max charge power towards 0 at 100.00%
 #define RAMPDOWNPOWERALLOWED 10000  // What power we ramp down from towards top balancing
 
+// Used for SoC compensation - Define internal resistance value in milliohms for the entire pack
+// How to calculate: voltage_drop_under_known_load [Volts] / load [Amps] = Resistance
+#define PACK_INTERNAL_RESISTANCE_MOHM 200  // 200 milliohms for the whole pack
+
 void setup_battery(void);
 void transmit_can_frame(CAN_frame* tx_frame, int interface);
 

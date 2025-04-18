@@ -49,7 +49,7 @@
 volatile unsigned long long bmsResetTimeOffset = 0;
 
 // The current software version, shown on webserver
-const char* version_number = "8.10.dev";
+const char* version_number = "8.11.dev";
 
 // Interval timers
 unsigned long previousMillis10ms = 0;
@@ -336,6 +336,9 @@ void check_interconnect_available() {
 #endif  // DOUBLE_BATTERY
 
 void update_calculated_values() {
+  /* Update CPU temperature*/
+  datalayer.system.info.CPU_temperature = temperatureRead();
+
   /* Calculate allowed charge/discharge currents*/
   if (datalayer.battery.status.voltage_dV > 10) {
     // Only update value when we have voltage available to avoid div0. TODO: This should be based on nominal voltage
@@ -427,6 +430,12 @@ void update_calculated_values() {
     calc_soc = 10000 * (calc_soc - datalayer.battery.settings.min_percentage);
     calc_soc = calc_soc / (datalayer.battery.settings.max_percentage - datalayer.battery.settings.min_percentage);
     datalayer.battery.status.reported_soc = calc_soc;
+    //Extra safety since we allow scaling negatively, if real% is < 1.00%, zero it out
+    if (datalayer.battery.status.real_soc < 100) {
+      datalayer.battery.status.reported_soc = 0;
+    } else {
+      datalayer.battery.status.reported_soc = calc_soc;
+    }
 
     // Calculate the scaled remaining capacity in Wh
     if (datalayer.battery.info.total_capacity_Wh > 0 && datalayer.battery.status.real_soc > 0) {
