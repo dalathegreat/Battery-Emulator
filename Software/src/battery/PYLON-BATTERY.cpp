@@ -1,5 +1,6 @@
 #include "../include.h"
 #ifdef PYLON_BATTERY
+#include "../communication/can/comm_can.h"
 #include "../datalayer/datalayer.h"
 #include "../devboard/utils/events.h"
 #include "PYLON-BATTERY.h"
@@ -29,28 +30,7 @@ CAN_frame PYLON_4200 = {.FD = false,
                         .ID = 0x4200,
                         .data = {0x02, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00}};
 
-static int16_t celltemperature_max_dC = 0;
-static int16_t celltemperature_min_dC = 0;
-static int16_t current_dA = 0;
-static uint16_t voltage_dV = 0;
-static uint16_t cellvoltage_max_mV = 3700;
-static uint16_t cellvoltage_min_mV = 3700;
-static uint16_t charge_cutoff_voltage = 0;
-static uint16_t discharge_cutoff_voltage = 0;
-static int16_t max_charge_current = 0;
-static int16_t max_discharge_current = 0;
-static uint8_t ensemble_info_ack = 0;
-static uint8_t battery_module_quantity = 0;
-static uint8_t battery_modules_in_series = 0;
-static uint8_t cell_quantity_in_module = 0;
-static uint8_t voltage_level = 0;
-static uint8_t ah_number = 0;
-static uint8_t SOC = 0;
-static uint8_t SOH = 0;
-static uint8_t charge_forbidden = 0;
-static uint8_t discharge_forbidden = 0;
-
-void update_values_battery() {
+void PylonBattery::update_values() {
 
   datalayer.battery.status.real_soc = (SOC * 100);  //increase SOC range from 0-100 -> 100.00
 
@@ -82,7 +62,7 @@ void update_values_battery() {
   datalayer.battery.info.min_design_voltage_dV = discharge_cutoff_voltage;
 }
 
-void handle_incoming_can_frame_battery(CAN_frame rx_frame) {
+void PylonBattery::handle_incoming_can_frame(CAN_frame rx_frame) {
   datalayer.battery.status.CAN_battery_still_alive = CAN_STILL_ALIVE;
   switch (rx_frame.ID) {
     case 0x7310:
@@ -158,7 +138,7 @@ void handle_incoming_can_frame_battery(CAN_frame rx_frame) {
   }
 }
 
-void transmit_can_battery() {
+void PylonBattery::transmit_can() {
   unsigned long currentMillis = millis();
   // Send 1s CAN Message
   if (currentMillis - previousMillis1000 >= INTERVAL_1_S) {
@@ -317,9 +297,7 @@ void handle_incoming_can_frame_battery2(CAN_frame rx_frame) {
 }
 #endif  //DOUBLE_BATTERY
 
-void setup_battery(void) {  // Performs one time setup at startup
-  strncpy(datalayer.system.info.battery_protocol, "Pylon compatible battery", 63);
-  datalayer.system.info.battery_protocol[63] = '\0';
+void PylonBattery::setup(void) {  // Performs one time setup at startup
   datalayer.battery.info.number_of_cells = 2;
   datalayer.battery.info.max_design_voltage_dV = MAX_PACK_VOLTAGE_DV;
   datalayer.battery.info.min_design_voltage_dV = MIN_PACK_VOLTAGE_DV;

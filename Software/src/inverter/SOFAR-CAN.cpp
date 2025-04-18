@@ -3,6 +3,8 @@
 #include "../datalayer/datalayer.h"
 #include "SOFAR-CAN.h"
 
+#include "../communication/can/comm_can.h"
+
 /* This implementation of the SOFAR can protocol is halfway done. What's missing is implementing the inverter replies, all the CAN messages are listed, but the can sending is missing. */
 
 /* Do not change code below unless you are sure what you are doing */
@@ -202,7 +204,8 @@ CAN_frame SOFAR_7C0 = {.FD = false,
                        .ID = 0x7C0,
                        .data = {0x00, 0x00, 0x00, 0x04, 0x00, 0x04, 0x80, 0x00}};
 
-void update_values_can_inverter() {  //This function maps all the values fetched from battery CAN to the correct CAN messages
+void SofarCanInverter::
+    update_values_can_inverter() {  //This function maps all the values fetched from battery CAN to the correct CAN messages
 
   //Maxvoltage (eg 400.0V = 4000 , 16bits long) Charge Cutoff Voltage
   SOFAR_351.data.u8[0] = (datalayer.battery.info.max_design_voltage_dV >> 8);
@@ -230,7 +233,7 @@ void update_values_can_inverter() {  //This function maps all the values fetched
   SOFAR_356.data.u8[3] = (datalayer.battery.status.temperature_max_dC & 0x00FF);
 }
 
-void map_can_frame_to_variable_inverter(CAN_frame rx_frame) {
+static void map_can_frame_to_variable_inverter(CAN_frame rx_frame) {
   switch (rx_frame.ID) {  //In here we need to respond to the inverter. TODO: make logic
     case 0x605:
       datalayer.system.status.CAN_inverter_still_alive = CAN_STILL_ALIVE;
@@ -247,7 +250,7 @@ void map_can_frame_to_variable_inverter(CAN_frame rx_frame) {
   }
 }
 
-void transmit_can_inverter() {
+static void transmit_can_inverter() {
   unsigned long currentMillis = millis();
   // Send 100ms CAN Message
   if (currentMillis - previousMillis100 >= INTERVAL_100_MS) {
@@ -264,8 +267,8 @@ void transmit_can_inverter() {
   }
 }
 
-void setup_inverter(void) {  // Performs one time setup at startup over CAN bus
-  strncpy(datalayer.system.info.inverter_protocol, "Sofar BMS (Extended Frame) over CAN bus", 63);
-  datalayer.system.info.inverter_protocol[63] = '\0';
+void SofarCanInverter::transmit_can() {
+  transmit_can_inverter();
 }
+
 #endif

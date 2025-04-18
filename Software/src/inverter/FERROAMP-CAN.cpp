@@ -3,6 +3,8 @@
 #include "../datalayer/datalayer.h"
 #include "FERROAMP-CAN.h"
 
+#include "../communication/can/comm_can.h"
+
 //#define SEND_0  //If defined, the messages will have ID ending with 0 (useful for some inverters)
 #define SEND_1                 //If defined, the messages will have ID ending with 1 (useful for some inverters)
 #define INVERT_LOW_HIGH_BYTES  //If defined, certain frames will have inverted low/high bytes \
@@ -137,7 +139,8 @@ CAN_frame PYLON_4291 = {.FD = false,
 static uint16_t cell_tweaked_max_voltage_mV = 3300;
 static uint16_t cell_tweaked_min_voltage_mV = 3300;
 
-void update_values_can_inverter() {  //This function maps all the values fetched from battery CAN to the correct CAN messages
+void FerroampCanInverter::
+    update_values_can_inverter() {  //This function maps all the values fetched from battery CAN to the correct CAN messages
   //There are more mappings that could be added, but this should be enough to use as a starting point
   // Note we map both 0 and 1 messages
 
@@ -437,27 +440,7 @@ void update_values_can_inverter() {  //This function maps all the values fetched
   }
 }
 
-void map_can_frame_to_variable_inverter(CAN_frame rx_frame) {
-  switch (rx_frame.ID) {
-    case 0x4200:  //Message originating from inverter. Depending on which data is required, act accordingly
-      datalayer.system.status.CAN_inverter_still_alive = CAN_STILL_ALIVE;
-      if (rx_frame.data.u8[0] == 0x02) {
-        send_setup_info();
-      }
-      if (rx_frame.data.u8[0] == 0x00) {
-        send_system_data();
-      }
-      break;
-    default:
-      break;
-  }
-}
-
-void transmit_can_inverter() {
-  // No periodic sending, we only react on received can messages
-}
-
-void send_setup_info() {  //Ensemble information
+static void send_setup_info() {  //Ensemble information
 #ifdef SEND_0
   transmit_can_frame(&PYLON_7310, can_config.inverter);
   transmit_can_frame(&PYLON_7320, can_config.inverter);
@@ -468,7 +451,7 @@ void send_setup_info() {  //Ensemble information
 #endif
 }
 
-void send_system_data() {  //System equipment information
+static void send_system_data() {  //System equipment information
 #ifdef SEND_0
   transmit_can_frame(&PYLON_4210, can_config.inverter);
   transmit_can_frame(&PYLON_4220, can_config.inverter);
@@ -492,8 +475,29 @@ void send_system_data() {  //System equipment information
   transmit_can_frame(&PYLON_4291, can_config.inverter);
 #endif
 }
-void setup_inverter(void) {  // Performs one time setup at startup over CAN bus
-  strncpy(datalayer.system.info.inverter_protocol, "Ferroamp Pylon battery over CAN bus", 63);
-  datalayer.system.info.inverter_protocol[63] = '\0';
+
+static void map_can_frame_to_variable_inverter(CAN_frame rx_frame) {
+  switch (rx_frame.ID) {
+    case 0x4200:  //Message originating from inverter. Depending on which data is required, act accordingly
+      datalayer.system.status.CAN_inverter_still_alive = CAN_STILL_ALIVE;
+      if (rx_frame.data.u8[0] == 0x02) {
+        send_setup_info();
+      }
+      if (rx_frame.data.u8[0] == 0x00) {
+        send_system_data();
+      }
+      break;
+    default:
+      break;
+  }
 }
+
+static void transmit_can_inverter() {
+  // No periodic sending, we only react on received can messages
+}
+
+void FerroampCanInverter::transmit_can() {
+  transmit_can_inverter();
+}
+
 #endif

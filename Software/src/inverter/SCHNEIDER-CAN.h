@@ -27,7 +27,13 @@
 #define COMMAND_CHARGE_AND_DISCHARGE_ALLOWED 0x06
 #define COMMAND_STOP 0x08
 
-void transmit_can_frame(CAN_frame* tx_frame, int interface);
-void setup_inverter(void);
+class SchneiderCanInverter : public InverterProtocol {
+ public:
+  virtual void transmit_can();
+  virtual void update_values_can_inverter();
+
+  virtual const char* name() { return Name; };
+  static constexpr char* Name = "Schneider V2 SE BMS CAN";
+};
 
 #endif

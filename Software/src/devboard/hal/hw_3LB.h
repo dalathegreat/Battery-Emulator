@@ -107,6 +107,8 @@
 #endif
 #endif
 
+// TODO: Implement the following GPIO checks at runtime
+
 #ifdef BMW_I3_BATTERY
 #if defined(CONTACTOR_CONTROL) && defined(WUP_PIN1)
 #error GPIO PIN 25 cannot be used for both BMWi3 Wakeup and contactor control. Disable CONTACTOR_CONTROL

@@ -1,5 +1,6 @@
 #include "../include.h"
 #ifdef BYD_ATTO_3_BATTERY
+#include "../communication/can/comm_can.h"
 #include "../datalayer/datalayer.h"
 #include "../datalayer/datalayer_extended.h"
 #include "../devboard/utils/events.h"
@@ -12,83 +13,6 @@
 */
 
 /* Do not change code below unless you are sure what you are doing */
-#define NOT_DETERMINED_YET 0
-#define STANDARD_RANGE 1
-#define EXTENDED_RANGE 2
-static uint8_t battery_type = NOT_DETERMINED_YET;
-static unsigned long previousMillis50 = 0;   // will store last time a 50ms CAN Message was send
-static unsigned long previousMillis100 = 0;  // will store last time a 100ms CAN Message was send
-static unsigned long previousMillis500 = 0;  // will store last time a 500ms CAN Message was send
-static bool SOC_method = false;
-static uint8_t counter_50ms = 0;
-static uint8_t counter_100ms = 0;
-static uint8_t frame6_counter = 0xB;
-static uint8_t frame7_counter = 0x5;
-static uint16_t battery_voltage = 0;
-static int16_t battery_temperature_ambient = 0;
-static int16_t battery_daughterboard_temperatures[10];
-static int16_t battery_lowest_temperature = 0;
-static int16_t battery_highest_temperature = 0;
-static int16_t battery_calc_min_temperature = 0;
-static int16_t battery_calc_max_temperature = 0;
-static uint16_t battery_highprecision_SOC = 0;
-static uint16_t BMS_SOC = 0;
-static uint16_t BMS_voltage = 0;
-static int16_t BMS_current = 0;
-static int16_t BMS_lowest_cell_temperature = 0;
-static int16_t BMS_highest_cell_temperature = 0;
-static int16_t BMS_average_cell_temperature = 0;
-static uint16_t BMS_lowest_cell_voltage_mV = 3300;
-static uint16_t BMS_highest_cell_voltage_mV = 3300;
-static uint8_t battery_frame_index = 0;
-static uint16_t battery_cellvoltages[CELLCOUNT_EXTENDED] = {0};
-#ifdef DOUBLE_BATTERY
-static int16_t battery2_temperature_ambient = 0;
-static int16_t battery2_daughterboard_temperatures[10];
-static int16_t battery2_lowest_temperature = 0;
-static int16_t battery2_highest_temperature = 0;
-static int16_t battery2_calc_min_temperature = 0;
-static int16_t battery2_calc_max_temperature = 0;
-static uint16_t battery2_highprecision_SOC = 0;
-static uint16_t BMS2_SOC = 0;
-static uint16_t BMS2_voltage = 0;
-static int16_t BMS2_current = 0;
-static int16_t BMS2_lowest_cell_temperature = 0;
-static int16_t BMS2_highest_cell_temperature = 0;
-static int16_t BMS2_average_cell_temperature = 0;
-static uint16_t BMS2_lowest_cell_voltage_mV = 3300;
-static uint16_t BMS2_highest_cell_voltage_mV = 3300;
-static uint8_t battery2_frame_index = 0;
-static uint16_t battery2_cellvoltages[CELLCOUNT_EXTENDED] = {0};
-#endif  //DOUBLE_BATTERY
-#define POLL_FOR_BATTERY_SOC 0x05
-#define POLL_FOR_BATTERY_VOLTAGE 0x08
-#define POLL_FOR_BATTERY_CURRENT 0x09
-#define POLL_FOR_LOWEST_TEMP_CELL 0x2f
-#define POLL_FOR_HIGHEST_TEMP_CELL 0x31
-#define POLL_FOR_BATTERY_PACK_AVG_TEMP 0x32
-#define POLL_FOR_BATTERY_CELL_MV_MAX 0x2D
-#define POLL_FOR_BATTERY_CELL_MV_MIN 0x2B
-#define UNKNOWN_POLL_1 0xFC
-#define ESTIMATED 0
-#define MEASURED 1
-static uint16_t poll_state = POLL_FOR_BATTERY_SOC;
-
-CAN_frame ATTO_3_12D = {.FD = false,
-                        .ext_ID = false,
-                        .DLC = 8,
-                        .ID = 0x12D,
-                        .data = {0xA0, 0x28, 0x02, 0xA0, 0x0C, 0x71, 0xCF, 0x49}};
-CAN_frame ATTO_3_441 = {.FD = false,
-                        .ext_ID = false,
-                        .DLC = 8,
-                        .ID = 0x441,
-                        .data = {0x98, 0x3A, 0x88, 0x13, 0x07, 0x00, 0xFF, 0x8C}};
-CAN_frame ATTO_3_7E7_POLL = {.FD = false,
-                             .ext_ID = false,
-                             .DLC = 8,
-                             .ID = 0x7E7,  //Poll PID 03 22 00 05 (POLL_FOR_BATTERY_SOC)
-                             .data = {0x03, 0x22, 0x00, 0x05, 0x00, 0x00, 0x00, 0x00}};
 
 // Define the data points for %SOC depending on pack voltage
 const uint8_t numPoints = 14;
@@ -132,7 +56,8 @@ uint16_t estimateSOCstandard(uint16_t packVoltage) {  // Linear interpolation fu
   return 0;  // Default return for safety, should never reach here
 }
 
-void update_values_battery() {  //This function maps all the values fetched via CAN to the correct parameters used for modbus
+void BydAtto3Battery::
+    update_values() {  //This function maps all the values fetched via CAN to the correct parameters used for modbus
 
   if (BMS_voltage > 0) {
     datalayer.battery.status.voltage_dV = BMS_voltage * 10;
@@ -254,7 +179,7 @@ void update_values_battery() {  //This function maps all the values fetched via 
   datalayer_extended.bydAtto3.battery_temperatures[9] = battery_daughterboard_temperatures[9];
 }
 
-void handle_incoming_can_frame_battery(CAN_frame rx_frame) {
+void BydAtto3Battery::handle_incoming_can_frame(CAN_frame rx_frame) {
   switch (rx_frame.ID) {
     case 0x244:
       datalayer.battery.status.CAN_battery_still_alive = CAN_STILL_ALIVE;
@@ -389,7 +314,8 @@ void handle_incoming_can_frame_battery(CAN_frame rx_frame) {
       break;
   }
 }
-void transmit_can_battery() {
+
+void BydAtto3Battery::transmit_can() {
   unsigned long currentMillis = millis();
   //Send 50ms message
   if (currentMillis - previousMillis50 >= INTERVAL_50_MS) {
@@ -505,9 +431,7 @@ void transmit_can_battery() {
   }
 }
 
-void setup_battery(void) {  // Performs one time setup at startup
-  strncpy(datalayer.system.info.battery_protocol, "BYD Atto 3", 63);
-  datalayer.system.info.battery_protocol[63] = '\0';
+static void setup_battery(void) {  // Performs one time setup at startup
   datalayer.battery.info.chemistry = battery_chemistry_enum::LFP;
   datalayer.battery.info.max_design_voltage_dV = MAX_PACK_VOLTAGE_EXTENDED_DV;  //Startup in extremes
   datalayer.battery.info.min_design_voltage_dV = MIN_PACK_VOLTAGE_STANDARD_DV;  //We later determine range
@@ -702,5 +626,9 @@ void handle_incoming_can_frame_battery2(CAN_frame rx_frame) {
   }
 }
 #endif  //DOUBLE_BATTERY
+
+void BydAtto3Battery::setup() {
+  setup_battery();
+}
 
 #endif

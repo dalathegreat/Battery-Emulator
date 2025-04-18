@@ -3,6 +3,8 @@
 #include "../datalayer/datalayer.h"
 #include "PYLON-LV-CAN.h"
 
+#include "../communication/can/comm_can.h"
+
 /* Do not change code below unless you are sure what you are doing */
 
 static unsigned long previousMillis1000ms = 0;
@@ -47,7 +49,7 @@ int16_t warning_threshold_of_min(int16_t min_val, int16_t max_val) {
   return min_val + (diff * (100 - WARNINGS_PERCENT)) / 100;
 }
 
-void update_values_can_inverter() {
+void PylonLvCanInverter::update_values_can_inverter() {
   // This function maps all the values fetched from battery CAN to the correct CAN messages
 
   // Set "battery charge voltage" to volts + 1 or user supplied value
@@ -133,7 +135,7 @@ void update_values_can_inverter() {
   // PYLON_35E is pre-filled with the manufacturer name
 }
 
-void map_can_frame_to_variable_inverter(CAN_frame rx_frame) {
+static void map_can_frame_to_variable_inverter(CAN_frame rx_frame) {
   switch (rx_frame.ID) {
     case 0x305:  //Message originating from inverter.
       // according to the spec, this message includes only 0-bytes
@@ -158,7 +160,7 @@ void dump_frame(CAN_frame* frame) {
 }
 #endif
 
-void transmit_can_inverter() {
+static void transmit_can_inverter() {
   unsigned long currentMillis = millis();
 
   if (currentMillis - previousMillis1000ms >= 1000) {
@@ -181,8 +183,9 @@ void transmit_can_inverter() {
     transmit_can_frame(&PYLON_35E, can_config.inverter);
   }
 }
-void setup_inverter(void) {  // Performs one time setup at startup over CAN bus
-  strncpy(datalayer.system.info.inverter_protocol, "Pylontech LV battery over CAN bus", 63);
-  datalayer.system.info.inverter_protocol[63] = '\0';
+
+void PylonLvCanInverter::transmit_can() {
+  transmit_can_inverter();
 }
+
 #endif

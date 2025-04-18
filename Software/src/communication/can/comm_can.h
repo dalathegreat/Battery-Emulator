@@ -15,6 +15,8 @@
 #include "../../lib/pierremolinaro-ACAN2517FD/ACAN2517FD.h"
 #endif  //CANFD_ADDON
 
+void transmit_can_frame(CAN_frame* tx_frame, int interface);
+
 void dump_can_frame(CAN_frame& frame, frameDirection msgDir);
 
 /**

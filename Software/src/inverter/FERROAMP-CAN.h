@@ -4,9 +4,13 @@
 
 #define CAN_INVERTER_SELECTED
 
-void send_system_data();
-void send_setup_info();
-void transmit_can_frame(CAN_frame* tx_frame, int interface);
-void setup_inverter(void);
+class FerroampCanInverter : public InverterProtocol {
+ public:
+  virtual void transmit_can();
+  virtual void update_values_can_inverter();
+
+  virtual const char* name() { return Name; };
+  static constexpr char* Name = "Ferroamp Pylon battery over CAN bus";
+};
 
 #endif

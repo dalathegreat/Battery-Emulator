@@ -5,6 +5,8 @@
 #include "../devboard/utils/events.h"
 #include "CMFA-EV-BATTERY.h"
 
+#include "../communication/can/comm_can.h"
+
 /* Do not change code below unless you are sure what you are doing */
 CAN_frame CMFA_1EA = {.FD = false, .ext_ID = false, .DLC = 1, .ID = 0x1EA, .data = {0x00}};
 CAN_frame CMFA_125 = {.FD = false,
@@ -103,7 +105,8 @@ uint16_t rescale_raw_SOC(uint32_t raw_SOC) {
   return (uint16_t)calc_soc;
 }
 
-void update_values_battery() {  //This function maps all the values fetched via CAN to the correct parameters used for modbus
+void CmfaEvBattery::
+    update_values() {  //This function maps all the values fetched via CAN to the correct parameters used for modbus
   datalayer.battery.status.soh_pptt = (SOH * 100);
 
   datalayer.battery.status.real_soc = rescale_raw_SOC(SOC_raw);
@@ -157,7 +160,7 @@ void update_values_battery() {  //This function maps all the values fetched via 
   datalayer_extended.CMFAEV.soh_average = soh_average;
 }
 
-void handle_incoming_can_frame_battery(CAN_frame rx_frame) {
+void CmfaEvBattery::handle_incoming_can_frame(CAN_frame rx_frame) {
   switch (rx_frame.ID) {  //These frames are transmitted by the battery
     case 0x127:           //10ms , Same structure as old Zoe 0x155 message!
       datalayer.battery.status.CAN_battery_still_alive = CAN_STILL_ALIVE;
@@ -513,7 +516,7 @@ void handle_incoming_can_frame_battery(CAN_frame rx_frame) {
   }
 }
 
-void transmit_can_battery() {
+void CmfaEvBattery::transmit_can() {
   unsigned long currentMillis = millis();
   // Send 10ms CAN Message
   if (currentMillis - previousMillis10ms >= INTERVAL_10_MS) {
@@ -1021,9 +1024,7 @@ void transmit_can_battery() {
   }
 }
 
-void setup_battery(void) {  // Performs one time setup at startup
-  strncpy(datalayer.system.info.battery_protocol, "CMFA platform, 27 kWh battery", 63);
-  datalayer.system.info.battery_protocol[63] = '\0';
+void CmfaEvBattery::setup(void) {  // Performs one time setup at startup
   datalayer.system.status.battery_allows_contactor_closing = true;
   datalayer.battery.info.number_of_cells = 72;
   datalayer.battery.info.max_design_voltage_dV = MAX_PACK_VOLTAGE_DV;

@@ -1,5 +1,6 @@
 #include "../include.h"
 #ifdef TEST_FAKE_BATTERY
+#include "../communication/can/comm_can.h"
 #include "../datalayer/datalayer.h"
 #include "TEST-FAKE-BATTERY.h"
 
@@ -14,13 +15,14 @@ CAN_frame TEST = {.FD = false,
                   .ID = 0x123,
                   .data = {0x10, 0x64, 0x00, 0xB0, 0x00, 0x1E, 0x00, 0x8F}};
 
-void print_units(char* header, int value, char* units) {
+static void print_units(char* header, int value, char* units) {
   logging.print(header);
   logging.print(value);
   logging.print(units);
 }
 
-void update_values_battery() { /* This function puts fake values onto the parameters sent towards the inverter */
+void TestFakeBattery::
+    update_values() { /* This function puts fake values onto the parameters sent towards the inverter */
 
   datalayer.battery.status.real_soc = 5000;  // 50.00%
 
@@ -127,10 +129,11 @@ void handle_incoming_can_frame_battery2(CAN_frame rx_frame) {
 }
 #endif  // DOUBLE_BATTERY
 
-void handle_incoming_can_frame_battery(CAN_frame rx_frame) {
+void TestFakeBattery::handle_incoming_can_frame(CAN_frame rx_frame) {
   datalayer.battery.status.CAN_battery_still_alive = CAN_STILL_ALIVE;
 }
-void transmit_can_battery() {
+
+void TestFakeBattery::transmit_can() {
   unsigned long currentMillis = millis();
   // Send 100ms CAN Message
   if (currentMillis - previousMillis100 >= INTERVAL_100_MS) {
@@ -140,11 +143,8 @@ void transmit_can_battery() {
   }
 }
 
-void setup_battery(void) {  // Performs one time setup at startup
+void TestFakeBattery::setup(void) {  // Performs one time setup at startup
   randomSeed(analogRead(0));
-
-  strncpy(datalayer.system.info.battery_protocol, "Fake battery for testing purposes", 63);
-  datalayer.system.info.battery_protocol[63] = '\0';
 
   datalayer.battery.info.max_design_voltage_dV =
       4040;  // 404.4V, over this, charging is not possible (goes into forced discharge)

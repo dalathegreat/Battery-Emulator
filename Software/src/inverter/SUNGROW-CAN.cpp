@@ -3,6 +3,8 @@
 #include "../datalayer/datalayer.h"
 #include "SUNGROW-CAN.h"
 
+#include "../communication/can/comm_can.h"
+
 /* TODO: 
 This protocol is still under development. It can not be used yet for Sungrow inverters, 
 see the Wiki for more info on how to use your Sungrow inverter */
@@ -253,7 +255,8 @@ CAN_frame SUNGROW_71E = {.FD = false,
                          .ID = 0x71E,
                          .data = {0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00}};
 
-void update_values_can_inverter() {  //This function maps all the values fetched from battery CAN to the inverter CAN messages
+void SungrowCanInverter::
+    update_values_can_inverter() {  //This function maps all the values fetched from battery CAN to the inverter CAN messages
 
   //Maxvoltage (eg 400.0V = 4000 , 16bits long)
   SUNGROW_701.data.u8[0] = (datalayer.battery.info.max_design_voltage_dV & 0x00FF);
@@ -411,7 +414,7 @@ void update_values_can_inverter() {  //This function maps all the values fetched
 #endif
 }
 
-void map_can_frame_to_variable_inverter(CAN_frame rx_frame) {
+static void map_can_frame_to_variable_inverter(CAN_frame rx_frame) {
   switch (rx_frame.ID) {  //In here we need to respond to the inverter
     case 0x000:
       datalayer.system.status.CAN_inverter_still_alive = CAN_STILL_ALIVE;
@@ -557,7 +560,7 @@ void map_can_frame_to_variable_inverter(CAN_frame rx_frame) {
   }
 }
 
-void transmit_can_inverter() {
+static void transmit_can_inverter() {
   unsigned long currentMillis = millis();
 
   // Send 1s CAN Message
@@ -599,8 +602,9 @@ void transmit_can_inverter() {
     }
   }
 }
-void setup_inverter(void) {  // Performs one time setup at startup over CAN bus
-  strncpy(datalayer.system.info.inverter_protocol, "Sungrow SBR064 battery over CAN bus", 63);
-  datalayer.system.info.inverter_protocol[63] = '\0';
+
+void SungrowCanInverter::transmit_can() {
+  transmit_can_inverter();
 }
+
 #endif

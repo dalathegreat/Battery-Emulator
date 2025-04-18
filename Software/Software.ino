@@ -9,6 +9,8 @@
 #include "freertos/FreeRTOS.h"
 #include "freertos/task.h"
 
+#include "src/battery/Battery.h"
+
 #include "src/communication/can/comm_can.h"
 #include "src/communication/contactorcontrol/comm_contactorcontrol.h"
 #include "src/communication/equipmentstopbutton/comm_equipmentstopbutton.h"
@@ -66,6 +68,9 @@ TaskHandle_t mqtt_loop_task;
 
 Logging logging;
 
+InverterProtocol* inverter;
+BatteryBase* battery;
+
 // Initialization
 void setup() {
   init_serial();
@@ -92,20 +97,43 @@ void setup() {
                           WIFI_CORE);
 #endif
 
-  init_CAN();
+// When a single battery/inverter is configured, we don't care what user may have selected earlier,
+// we must use the one and only type.
+#ifndef BUILD_EM_ALL
+  userSelectedBatteryType = *(supported_battery_types().begin());
+  userSelectedInverter = *(supported_inverter_protocols().begin());
+#endif
+
+  inverter = init_inverter_protocol(userSelectedInverter);
+  if (inverter == nullptr) {
+    // TODO: Handle error, this could be out-of-memory
+  }
+
+  battery = init_battery(userSelectedBatteryType);
+  if (battery == nullptr) {
+    // TODO: Handle error, this could be out-of-memory
+  }
+
+  if (inverter->usesCAN() || battery->usesCAN()) {
+    init_CAN();
+  }
 
   init_contactors();
 
 #ifdef PRECHARGE_CONTROL
-  init_precharge_control();
+
+  if (battery->requiresPrechargeControl()) {
+    init_precharge_control();
+  }
 #endif  // PRECHARGE_CONTROL
 
-  init_rs485();
+  if (inverter->usesRS485() || battery->usesRS485()) {
+    init_rs485();
+  }
 
-#if defined(CAN_INVERTER_SELECTED) || defined(MODBUS_INVERTER_SELECTED) || defined(RS485_INVERTER_SELECTED)
-  setup_inverter();
-#endif
-  setup_battery();
+  inverter->setup();
+  battery->setup();
+
 #ifdef EQUIPMENT_STOP_BUTTON
   init_equipment_stop_button();
 #endif
@@ -185,6 +213,28 @@ void connectivity_loop(void*) {
 }
 #endif
 
+void transmit_can() {
+  if (!allowed_to_send_CAN) {
+    return;  //Global block of CAN messages
+  }
+
+  if (battery->usesCAN()) {
+    battery->transmit_can();
+  }
+
+  if (inverter->usesCAN()) {
+    inverter->transmit_can();
+  }
+
+#ifdef CHARGER_SELECTED
+  transmit_can_charger();
+#endif  // CHARGER_SELECTED
+
+#ifdef CAN_SHUNT_SELECTED
+  transmit_can_shunt();
+#endif  // CAN_SHUNT_SELECTED
+}
+
 #ifdef MQTT
 void mqtt_loop(void*) {
   esp_task_wdt_add(NULL);  // Register this task with WDT
@@ -216,9 +266,15 @@ void core_loop(void*) {
 
     // Input, Runs as fast as possible
     receive_can();  // Receive CAN messages
-#if defined(RS485_INVERTER_SELECTED) || defined(RS485_BATTERY_SELECTED)
-    receive_RS485();  // Process serial2 RS485 interface
-#endif                // RS485_INVERTER_SELECTED
+
+    if (inverter->usesRS485()) {
+      inverter->receive_RS485();
+    }
+
+    if (battery->usesRS485()) {
+      battery->receive_RS485();
+    }
+
     END_TIME_MEASUREMENT_MAX(comm, datalayer.system.status.time_comm_us);
 #ifdef WEBSERVER
     START_TIME_MEASUREMENT(ota);
@@ -235,7 +291,9 @@ void core_loop(void*) {
       led_exe();
       handle_contactors();  // Take care of startup precharge/contactor closing
 #ifdef PRECHARGE_CONTROL
-      handle_precharge_control();
+      if (battery->requiresPrechargeControl()) {
+        handle_precharge_control();
+      }
 #endif  // PRECHARGE_CONTROL
 #ifdef FUNCTION_TIME_MEASUREMENT
       END_TIME_MEASUREMENT_MAX(time_10ms, datalayer.system.status.time_10ms_us);
@@ -247,8 +305,10 @@ void core_loop(void*) {
 #ifdef FUNCTION_TIME_MEASUREMENT
       START_TIME_MEASUREMENT(time_values);
 #endif
-      update_pause_state();     // Check if we are OK to send CAN or need to pause
-      update_values_battery();  // Fetch battery values
+      update_pause_state();  // Check if we are OK to send CAN or need to pause
+
+      battery->update_values();
+
 #ifdef DOUBLE_BATTERY
       update_values_battery2();
       check_interconnect_available();
@@ -266,9 +326,9 @@ void core_loop(void*) {
     // Output
     transmit_can();  // Send CAN messages to all components
 
-#ifdef RS485_BATTERY_SELECTED
-    transmit_rs485();
-#endif  // RS485_BATTERY_SELECTED
+    if (battery->usesRS485()) {
+      battery->transmit_RS485();
+    }
 #ifdef FUNCTION_TIME_MEASUREMENT
     END_TIME_MEASUREMENT_MAX(cantx, datalayer.system.status.time_cantx_us);
     END_TIME_MEASUREMENT_MAX(all, datalayer.system.status.core_task_10s_max_us);
@@ -511,15 +571,17 @@ void update_calculated_values() {
 }
 
 void update_values_inverter() {
-#ifdef CAN_INVERTER_SELECTED
-  update_values_can_inverter();
-#endif  // CAN_INVERTER_SELECTED
-#ifdef MODBUS_INVERTER_SELECTED
-  update_modbus_registers_inverter();
-#endif  // CAN_INVERTER_SELECTED
-#ifdef RS485_INVERTER_SELECTED
-  update_RS485_registers_inverter();
-#endif  // CAN_INVERTER_SELECTED
+  if (inverter->usesCAN()) {
+    inverter->update_values_can_inverter();
+  }
+
+  if (inverter->usesRS485()) {
+    inverter->update_RS485_registers_inverter();
+  }
+
+  if (inverter->usesMODBUS()) {
+    inverter->update_modbus_registers_inverter();
+  }
 }
 
 void check_reset_reason() {

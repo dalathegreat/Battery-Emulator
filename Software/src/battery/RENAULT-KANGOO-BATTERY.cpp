@@ -1,5 +1,6 @@
 #include "../include.h"
 #ifdef RENAULT_KANGOO_BATTERY
+#include "../communication/can/comm_can.h"
 #include "../datalayer/datalayer.h"
 #include "../devboard/utils/events.h"
 #include "RENAULT-KANGOO-BATTERY.h"
@@ -71,7 +72,8 @@ static unsigned long previousMillis100 = 0;   // will store last time a 100ms CA
 static unsigned long previousMillis1000 = 0;  // will store last time a 1000ms CAN Message was sent
 static unsigned long GVL_pause = 0;
 
-void update_values_battery() {  //This function maps all the values fetched via CAN to the correct parameters
+void RenaultKangooBattery::
+    update_values() {  //This function maps all the values fetched via CAN to the correct parameters
 
   datalayer.battery.status.real_soc = (LB_SOC * 100);  //increase LB_SOC range from 0-100 -> 100.00
 
@@ -137,7 +139,7 @@ void update_values_battery() {  //This function maps all the values fetched via 
 #endif
 }
 
-void handle_incoming_can_frame_battery(CAN_frame rx_frame) {
+void RenaultKangooBattery::handle_incoming_can_frame(CAN_frame rx_frame) {
 
   switch (rx_frame.ID) {
     case 0x155:  //BMS1
@@ -210,7 +212,7 @@ void handle_incoming_can_frame_battery(CAN_frame rx_frame) {
   }
 }
 
-void transmit_can_battery() {
+void RenaultKangooBattery::transmit_can() {
   unsigned long currentMillis = millis();
   // Send 100ms CAN Message (for 2.4s, then pause 10s)
   if ((currentMillis - previousMillis100) >= (INTERVAL_100_MS + GVL_pause)) {
@@ -233,11 +235,7 @@ void transmit_can_battery() {
   }
 }
 
-void setup_battery(void) {  // Performs one time setup at startup
-
-  strncpy(datalayer.system.info.battery_protocol, "Renault Kangoo", 63);
-  datalayer.system.info.battery_protocol[63] = '\0';
-
+void RenaultKangooBattery::setup(void) {  // Performs one time setup at startup
   datalayer.battery.info.max_design_voltage_dV = MAX_PACK_VOLTAGE_DV;
   datalayer.battery.info.min_design_voltage_dV = MIN_PACK_VOLTAGE_DV;
   datalayer.battery.info.max_cell_voltage_mV = MAX_CELL_VOLTAGE_MV;

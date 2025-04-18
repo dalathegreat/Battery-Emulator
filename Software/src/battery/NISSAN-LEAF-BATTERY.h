@@ -2,6 +2,7 @@
 #define NISSAN_LEAF_BATTERY_H
 
 #include "../include.h"
+#include "Battery.h"
 
 #define BATTERY_SELECTED
 #define MAX_PACK_VOLTAGE_DV 4040  //5000 = 500.0V
@@ -12,8 +13,7 @@
 
 uint16_t Temp_fromRAW_to_F(uint16_t temperature);
 bool is_message_corrupt(CAN_frame rx_frame);
-void setup_battery(void);
-void transmit_can_frame(CAN_frame* tx_frame, int interface);
+
 void clearSOH(void);
 //Cryptographic functions
 void decodeChallengeData(unsigned int SeedInput, unsigned char* Crypt_Output_Buffer);
@@ -22,5 +22,17 @@ unsigned int ComputeMaskedXorProduct(unsigned int param_1, unsigned int param_2,
 short ShortMaskedSumAndProduct(short param_1, short param_2);
 unsigned int MaskedBitwiseRotateMultiply(unsigned int param_1, unsigned int param_2);
 unsigned int CryptAlgo(unsigned int param_1, unsigned int param_2, unsigned int param_3);
+
+class NissanLeafBattery : public CanBattery {
+ public:
+  NissanLeafBattery() : CanBattery(NissanLeaf) {}
+  virtual const char* name() { return Name; };
+  static constexpr char* Name = "Nissan LEAF battery";
+
+  virtual void setup();
+  virtual void update_values();
+  virtual void handle_incoming_can_frame(CAN_frame rx_frame);
+  virtual void transmit_can();
+};
 
 #endif

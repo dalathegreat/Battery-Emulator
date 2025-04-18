@@ -19,7 +19,15 @@ extern ACAN2517FD canfd;
 #define RAMPDOWN_SOC 9000           // 90.00 SOC% to start ramping down from max charge power towards 0 at 100.00%
 #define RAMPDOWNPOWERALLOWED 10000  // What power we ramp down from towards top balancing
 
-void setup_battery(void);
-void transmit_can_frame(CAN_frame* tx_frame, int interface);
+class KiaEGmpBattery : public CanBattery {
+ public:
+  KiaEGmpBattery() : CanBattery(KiaEGmp) {}
+  virtual const char* name() { return Name; };
+  static constexpr char* Name = "Kia/Hyundai EGMP platform";
+  virtual void setup();
+  virtual void update_values();
+  virtual void handle_incoming_can_frame(CAN_frame rx_frame);
+  virtual void transmit_can();
+};
 
 #endif

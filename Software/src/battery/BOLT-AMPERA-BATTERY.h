@@ -176,7 +176,125 @@
 #define POLL_7E7_CELL_119 0x4257
 #define POLL_7E7_CELL_120 0x4258
 
-void setup_battery(void);
-void transmit_can_frame(CAN_frame* tx_frame, int interface);
+class BoltAmperaBattery : public CanBattery {
+ public:
+  BoltAmperaBattery() : CanBattery(BoltAmpera) {}
+  virtual const char* name() { return Name; };
+  static constexpr char* Name = "Chevrolet Bolt EV/Opel Ampera-e";
+
+  virtual void setup();
+  virtual void update_values();
+  virtual void handle_incoming_can_frame(CAN_frame rx_frame);
+  virtual void transmit_can();
+
+ private:
+  /*TODO, messages we might need to send towards the battery to keep it happy and close contactors
+0x262 Battery Block Voltage Diag Status HV (Who sends this? Battery?)
+0x272 Battery Cell Voltage Diag Status HV (Who sends this? Battery?)
+0x274 Battery Temperature Sensor diagnostic status HV (Who sends this? Battery?)
+0x270 Battery VoltageSensor BalancingSwitches diagnostic status (Who sends this? Battery?)
+0x214 Charger coolant temp info HV
+0x20E Hybrid balancing request HV
+0x30E High Voltage Charger Command HV
+0x30C HVEM Provide Charging HV
+0x316 OBHV Charge Process PEV HV
+0x30F OBHV Charg Statn Current stat HV
+0x312 OBHV Charg Statns Energy allocation HV
+0x310 OBHV Charg Statn Vlt Energy Power HV
+0x306 Off board HVCS Limit HV
+0x309 Off board HVCS Min Limit HV
+0x305 Vehicle Charging limit stat HV
+0x314 Vehicle req energy transfer HV <<<<<<<<<< Sounds like contactor request resides here TODO
+0x460 Energy Storage System Temp HV (Who sends this? Battery?)
+*/
+
+  /* Do not change code below unless you are sure what you are doing */
+  unsigned long previousMillis20ms = 0;   // will store last time a 20ms CAN Message was send
+  unsigned long previousMillis100ms = 0;  // will store last time a 100ms CAN Message was send
+  unsigned long previousMillis120ms = 0;  // will store last time a 120ms CAN Message was send
+
+  CAN_frame BOLT_778 = {.FD = false,  // Unsure of what this message is, added only as example
+                        .ext_ID = false,
+                        .DLC = 7,
+                        .ID = 0x778,
+                        .data = {0x00, 0x31, 0x00, 0x00, 0x00, 0x00, 0x00}};
+  CAN_frame BOLT_POLL_7E4 = {.FD = false,  // VICM_HV poll
+                             .ext_ID = false,
+                             .DLC = 8,
+                             .ID = 0x7E4,
+                             .data = {0x03, 0x22, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00}};
+  CAN_frame BOLT_ACK_7E4 = {.FD = false,  //VICM_HV ack
+                            .ext_ID = false,
+                            .DLC = 8,
+                            .ID = 0x7E4,
+                            .data = {0x30, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00}};
+  CAN_frame BOLT_POLL_7E7 = {.FD = false,  //VITM_HV poll
+                             .ext_ID = false,
+                             .DLC = 8,
+                             .ID = 0x7E7,
+                             .data = {0x03, 0x22, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00}};
+  CAN_frame BOLT_ACK_7E7 = {.FD = false,  //VITM_HV ack
+                            .ext_ID = false,
+                            .DLC = 8,
+                            .ID = 0x7E7,
+                            .data = {0x30, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00}};
+
+  // Other PID requests in the vehicle
+  // All HV ECUs - 0x101
+  // HPCC HV - 0x243 replies on 0x643
+  // OBCM HV - 0x244 replies on 0x644
+  // VICM_HV - 0x7E4 replies 0x7EC (This is battery)
+  // VICM2_HV - 0x7E6 replies 0x7EF (Tis is battery also)
+  // VITM_HV - 0x7E7 replies on 7EF (This is battery)
+
+  uint16_t battery_cell_voltages[96];  //array with all the cellvoltages
+  uint16_t battery_capacity_my17_18 = 0;
+  uint16_t battery_capacity_my19plus = 0;
+  uint16_t battery_SOC_display = 0;
+  uint16_t battery_SOC_raw_highprec = 0;
+  uint16_t battery_max_temperature = 0;
+  uint16_t battery_min_temperature = 0;
+  uint16_t battery_min_cell_voltage = 0;
+  uint16_t battery_max_cell_voltage = 0;
+  uint16_t battery_internal_resistance = 0;
+  uint16_t battery_lowest_cell = 0;
+  uint16_t battery_highest_cell = 0;
+  uint16_t battery_voltage_polled = 0;
+  uint16_t battery_voltage_periodic = 0;
+  uint16_t battery_vehicle_isolation = 0;
+  uint16_t battery_isolation_kohm = 0;
+  uint16_t battery_HV_locked = 0;
+  uint16_t battery_crash_event = 0;
+  uint16_t battery_HVIL = 0;
+  uint16_t battery_HVIL_status = 0;
+  uint16_t battery_5V_ref = 0;
+  int16_t battery_current_7E4 = 0;
+  int16_t battery_module_temp_1 = 0;
+  int16_t battery_module_temp_2 = 0;
+  int16_t battery_module_temp_3 = 0;
+  int16_t battery_module_temp_4 = 0;
+  int16_t battery_module_temp_5 = 0;
+  int16_t battery_module_temp_6 = 0;
+  uint16_t battery_cell_average_voltage = 0;
+  uint16_t battery_cell_average_voltage_2 = 0;
+  uint16_t battery_terminal_voltage = 0;
+  uint16_t battery_ignition_power_mode = 0;
+  int16_t battery_current_7E7 = 0;
+  int16_t temperature_1 = 0;
+  int16_t temperature_2 = 0;
+  int16_t temperature_3 = 0;
+  int16_t temperature_4 = 0;
+  int16_t temperature_5 = 0;
+  int16_t temperature_6 = 0;
+  int16_t temperature_highest = 0;
+  int16_t temperature_lowest = 0;
+  uint8_t mux = 0;
+  uint8_t poll_index_7E4 = 0;
+  uint16_t currentpoll_7E4 = POLL_7E4_CAPACITY_EST_GEN1;
+  uint16_t reply_poll_7E4 = 0;
+  uint8_t poll_index_7E7 = 0;
+  uint16_t currentpoll_7E7 = POLL_7E7_CURRENT;
+  uint16_t reply_poll_7E7 = 0;
+};
 
 #endif

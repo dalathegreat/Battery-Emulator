@@ -3,6 +3,8 @@
 #include "../datalayer/datalayer.h"
 #include "GROWATT-HV-CAN.h"
 
+#include "../communication/can/comm_can.h"
+
 /* TODO:
 This protocol has not been tested with any inverter. Proceed with extreme caution.
 Search the file for "TODO" to see all the places that might require work /*
@@ -157,7 +159,8 @@ static const uint8_t delay_between_batches_ms = 10;
 static bool inverter_alive = false;
 static bool time_to_send_1s_data = false;
 
-void update_values_can_inverter() {  //This function maps all the values fetched from battery CAN to the correct CAN messages
+void GrowattHvInverter::
+    update_values_can_inverter() {  //This function maps all the values fetched from battery CAN to the correct CAN messages
 
   if (datalayer.battery.status.voltage_dV > 10) {  // Only update value when we have voltage available to avoid div0
     ampere_hours_remaining =
@@ -493,7 +496,7 @@ void update_values_can_inverter() {  //This function maps all the values fetched
   GROWATT_3F00.data.u8[7] = 0;  // RESERVED
 }
 
-void map_can_frame_to_variable_inverter(CAN_frame rx_frame) {
+static void map_can_frame_to_variable_inverter(CAN_frame rx_frame) {
   switch (rx_frame.ID) {
     case 0x3010:  // Heartbeat command, 1000ms
       datalayer.system.status.CAN_inverter_still_alive = CAN_STILL_ALIVE;
@@ -523,7 +526,7 @@ void map_can_frame_to_variable_inverter(CAN_frame rx_frame) {
   }
 }
 
-void transmit_can_inverter() {
+static void transmit_can_inverter() {
 
   if (!inverter_alive) {
     return;  //Dont send messages towards inverter until it has started
@@ -587,8 +590,8 @@ void transmit_can_inverter() {
   }
 }
 
-void setup_inverter(void) {  // Performs one time setup at startup over CAN bus
-  strncpy(datalayer.system.info.inverter_protocol, "Growatt High Voltage protocol via CAN", 63);
-  datalayer.system.info.inverter_protocol[63] = '\0';
+void GrowattHvInverter::transmit_can() {
+  transmit_can_inverter();
 }
+
 #endif

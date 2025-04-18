@@ -196,7 +196,7 @@ static bool check_kostal_frame_crc(int len) {
   }
 }
 
-void update_RS485_registers_inverter() {
+void KostalRs485Inverter::update_RS485_registers_inverter() {
 
   average_temperature_dC =
       ((datalayer.battery.status.temperature_max_dC + datalayer.battery.status.temperature_min_dC) / 2);
@@ -296,7 +296,7 @@ void update_RS485_registers_inverter() {
   }
 }
 
-void receive_RS485()  // Runs as fast as possible to handle the serial stream
+void KostalRs485Inverter::receive_RS485()  // Runs as fast as possible to handle the serial stream
 {
   currentMillis = millis();
 
@@ -344,7 +344,8 @@ void receive_RS485()  // Runs as fast as possible to handle the serial stream
                 int code = RS485_RXFRAME[6] + RS485_RXFRAME[7] * 0x100;
                 if (code == 0x44a) {
                   //Send cyclic data
-                  update_values_battery();
+                  // TODO: This call is weird: why do it here?
+                  battery->update_values();
                   update_RS485_registers_inverter();
                   if (f2_startup_count < 15) {
                     f2_startup_count++;
@@ -391,10 +392,9 @@ void receive_RS485()  // Runs as fast as possible to handle the serial stream
   }
 }
 
-void setup_inverter(void) {  // Performs one time setup at startup
+void KostalRs485Inverter::setup() {  // Performs one time setup at startup
   datalayer.system.status.inverter_allows_contactor_closing = false;
   dbg_message("inverter_allows_contactor_closing -> false");
-  strncpy(datalayer.system.info.inverter_protocol, "BYD battery via Kostal RS485", 63);
-  datalayer.system.info.inverter_protocol[63] = '\0';
 }
+
 #endif

@@ -26,23 +26,24 @@ void init_rs485() {
   pinMode(PIN_5V_EN, OUTPUT);
   digitalWrite(PIN_5V_EN, HIGH);
 #endif  // PIN_5V_EN
-#if defined(RS485_INVERTER_SELECTED) || defined(RS485_BATTERY_SELECTED)
-  Serial2.begin(RS485_BAUDRATE, SERIAL_8N1, RS485_RX_PIN, RS485_TX_PIN);
-#endif  // RS485_INVERTER_SELECTED || RS485_BATTERY_SELECTED
-#ifdef MODBUS_INVERTER_SELECTED
-#ifdef BYD_MODBUS
-  // Init Static data to the RTU Modbus
-  handle_static_data_modbus_byd();
-#endif  // BYD_MODBUS
-  // Init Serial2 connected to the RTU Modbus
-  RTUutils::prepareHardwareSerial(Serial2);
-  Serial2.begin(9600, SERIAL_8N1, RS485_RX_PIN, RS485_TX_PIN);
-  // Register served function code worker for server
-  MBserver.registerWorker(MBTCP_ID, READ_HOLD_REGISTER, &FC03);
-  MBserver.registerWorker(MBTCP_ID, WRITE_HOLD_REGISTER, &FC06);
-  MBserver.registerWorker(MBTCP_ID, WRITE_MULT_REGISTERS, &FC16);
-  MBserver.registerWorker(MBTCP_ID, R_W_MULT_REGISTERS, &FC23);
-  // Start ModbusRTU background task
-  MBserver.begin(Serial2, MODBUS_CORE);
-#endif  // MODBUS_INVERTER_SELECTED
+
+  if (battery->usesRS485() || inverter->usesRS485()) {
+    auto baudrate = battery->usesRS485() ? battery->rs485_baudrate() : inverter->rs485_baudrate();
+    Serial2.begin(baudrate, SERIAL_8N1, RS485_RX_PIN, RS485_TX_PIN);
+  }
+
+  if (inverter->usesMODBUS()) {
+    inverter->handle_static_data_modbus();
+
+    // Init Serial2 connected to the RTU Modbus
+    RTUutils::prepareHardwareSerial(Serial2);
+    Serial2.begin(9600, SERIAL_8N1, RS485_RX_PIN, RS485_TX_PIN);
+    // Register served function code worker for server
+    MBserver.registerWorker(MBTCP_ID, READ_HOLD_REGISTER, &FC03);
+    MBserver.registerWorker(MBTCP_ID, WRITE_HOLD_REGISTER, &FC06);
+    MBserver.registerWorker(MBTCP_ID, WRITE_MULT_REGISTERS, &FC16);
+    MBserver.registerWorker(MBTCP_ID, R_W_MULT_REGISTERS, &FC23);
+    // Start ModbusRTU background task
+    MBserver.begin(Serial2, MODBUS_CORE);
+  }
 }

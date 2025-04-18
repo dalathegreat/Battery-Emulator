@@ -1,6 +1,7 @@
 #ifndef BYD_MODBUS_H
 #define BYD_MODBUS_H
 #include "../include.h"
+#include "Inverter.h"
 
 #define MODBUS_INVERTER_SELECTED
 
@@ -14,5 +15,13 @@ void verify_temperature_modbus();
 void verify_inverter_modbus();
 void handle_update_data_modbusp201_byd();
 void handle_update_data_modbusp301_byd();
-void setup_inverter(void);
+
+class BydModbusInverter : public InverterProtocol {
+ public:
+  virtual void handle_static_data_modbus();
+
+  virtual const char* name() { return Name; }
+  static constexpr char* Name = "BYD 11kWh HVM battery over Modbus RTU";
+};
+
 #endif
