@@ -21,6 +21,7 @@
   XX(EVENT_CAN_NATIVE_TX_FAILURE)              \
   XX(EVENT_CHARGE_LIMIT_EXCEEDED)              \
   XX(EVENT_CONTACTOR_WELDED)                   \
+  XX(EVENT_CPU_OVERHEAT)                       \
   XX(EVENT_DISCHARGE_LIMIT_EXCEEDED)           \
   XX(EVENT_WATER_INGRESS)                      \
   XX(EVENT_12V_LOW)                            \
