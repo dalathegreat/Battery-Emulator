@@ -1446,39 +1446,41 @@ String processor(const String& var) {
       content += "<span style='color: red;'>&#10005;</span>";
     }
     content += "</h4>";
-#ifdef CHEVYVOLT_CHARGER
-    float chgPwrDC = static_cast<float>(datalayer.charger.charger_stat_HVcur * datalayer.charger.charger_stat_HVvol);
-    float chgPwrAC = static_cast<float>(datalayer.charger.charger_stat_ACcur * datalayer.charger.charger_stat_ACvol);
-    float chgEff = chgPwrDC / chgPwrAC * 100;
-    float ACcur = datalayer.charger.charger_stat_ACcur;
-    float ACvol = datalayer.charger.charger_stat_ACvol;
-    float HVvol = datalayer.charger.charger_stat_HVvol;
-    float HVcur = datalayer.charger.charger_stat_HVcur;
-    float LVvol = datalayer.charger.charger_stat_LVvol;
-    float LVcur = datalayer.charger.charger_stat_LVcur;
 
-    content += formatPowerValue("Charger Output Power", chgPwrDC, "", 1);
-    content += "<h4 style='color: white;'>Charger Efficiency: " + String(chgEff) + "%</h4>";
-    content += "<h4 style='color: white;'>Charger HVDC Output V: " + String(HVvol, 2) + " V</h4>";
-    content += "<h4 style='color: white;'>Charger HVDC Output I: " + String(HVcur, 2) + " A</h4>";
-    content += "<h4 style='color: white;'>Charger LVDC Output I: " + String(LVcur, 2) + "</h4>";
-    content += "<h4 style='color: white;'>Charger LVDC Output V: " + String(LVvol, 2) + "</h4>";
-    content += "<h4 style='color: white;'>Charger AC Input V: " + String(ACvol, 2) + " VAC</h4>";
-    content += "<h4 style='color: white;'>Charger AC Input I: " + String(ACcur, 2) + " A</h4>";
-#endif  // CHEVYVOLT_CHARGER
-#ifdef NISSANLEAF_CHARGER
-    float chgPwrDC = static_cast<float>(datalayer.charger.charger_stat_HVcur * 100);
-    datalayer.charger.charger_stat_HVcur = chgPwrDC / (datalayer.battery.status.voltage_dV / 10);  // P/U=I
-    datalayer.charger.charger_stat_HVvol = static_cast<float>(datalayer.battery.status.voltage_dV / 10);
-    float ACvol = datalayer.charger.charger_stat_ACvol;
-    float HVvol = datalayer.charger.charger_stat_HVvol;
-    float HVcur = datalayer.charger.charger_stat_HVcur;
+    if (charger && charger->type() == ChargerType::ChevyVolt) {
+      float chgPwrDC = static_cast<float>(datalayer.charger.charger_stat_HVcur * datalayer.charger.charger_stat_HVvol);
+      float chgPwrAC = static_cast<float>(datalayer.charger.charger_stat_ACcur * datalayer.charger.charger_stat_ACvol);
+      float chgEff = chgPwrDC / chgPwrAC * 100;
+      float ACcur = datalayer.charger.charger_stat_ACcur;
+      float ACvol = datalayer.charger.charger_stat_ACvol;
+      float HVvol = datalayer.charger.charger_stat_HVvol;
+      float HVcur = datalayer.charger.charger_stat_HVcur;
+      float LVvol = datalayer.charger.charger_stat_LVvol;
+      float LVcur = datalayer.charger.charger_stat_LVcur;
 
-    content += formatPowerValue("Charger Output Power", chgPwrDC, "", 1);
-    content += "<h4 style='color: white;'>Charger HVDC Output V: " + String(HVvol, 2) + " V</h4>";
-    content += "<h4 style='color: white;'>Charger HVDC Output I: " + String(HVcur, 2) + " A</h4>";
-    content += "<h4 style='color: white;'>Charger AC Input V: " + String(ACvol, 2) + " VAC</h4>";
-#endif  // NISSANLEAF_CHARGER
+      content += formatPowerValue("Charger Output Power", chgPwrDC, "", 1);
+      content += "<h4 style='color: white;'>Charger Efficiency: " + String(chgEff) + "%</h4>";
+      content += "<h4 style='color: white;'>Charger HVDC Output V: " + String(HVvol, 2) + " V</h4>";
+      content += "<h4 style='color: white;'>Charger HVDC Output I: " + String(HVcur, 2) + " A</h4>";
+      content += "<h4 style='color: white;'>Charger LVDC Output I: " + String(LVcur, 2) + "</h4>";
+      content += "<h4 style='color: white;'>Charger LVDC Output V: " + String(LVvol, 2) + "</h4>";
+      content += "<h4 style='color: white;'>Charger AC Input V: " + String(ACvol, 2) + " VAC</h4>";
+      content += "<h4 style='color: white;'>Charger AC Input I: " + String(ACcur, 2) + " A</h4>";
+    }
+
+    if (charger && charger->type() == ChargerType::NissanLeaf) {
+      float chgPwrDC = static_cast<float>(datalayer.charger.charger_stat_HVcur * 100);
+      datalayer.charger.charger_stat_HVcur = chgPwrDC / (datalayer.battery.status.voltage_dV / 10);  // P/U=I
+      datalayer.charger.charger_stat_HVvol = static_cast<float>(datalayer.battery.status.voltage_dV / 10);
+      float ACvol = datalayer.charger.charger_stat_ACvol;
+      float HVvol = datalayer.charger.charger_stat_HVvol;
+      float HVcur = datalayer.charger.charger_stat_HVcur;
+
+      content += formatPowerValue("Charger Output Power", chgPwrDC, "", 1);
+      content += "<h4 style='color: white;'>Charger HVDC Output V: " + String(HVvol, 2) + " V</h4>";
+      content += "<h4 style='color: white;'>Charger HVDC Output I: " + String(HVcur, 2) + " A</h4>";
+      content += "<h4 style='color: white;'>Charger AC Input V: " + String(ACvol, 2) + " VAC</h4>";
+    }
     // Close the block
     content += "</div>";
 #endif  // defined CHEVYVOLT_CHARGER || defined NISSANLEAF_CHARGER

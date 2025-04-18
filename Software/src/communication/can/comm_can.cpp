@@ -291,13 +291,13 @@ void map_can_frame_to_variable(CAN_frame* rx_frame, int interface) {
   }
 #endif
 
-  if (interface == can_config.battery) {
+  if (interface == can_config.battery && battery) {
     battery->handle_incoming_can_frame(*rx_frame);
 #ifdef CHADEMO_BATTERY
     ISA_handleFrame(rx_frame);
 #endif
   }
-  if (interface == can_config.inverter) {
+  if (interface == can_config.inverter && inverter) {
     inverter->map_can_frame_to_variable_inverter(*rx_frame);
   }
   if (interface == can_config.battery_double) {
@@ -305,10 +305,8 @@ void map_can_frame_to_variable(CAN_frame* rx_frame, int interface) {
     handle_incoming_can_frame_battery2(*rx_frame);
 #endif
   }
-  if (interface == can_config.charger) {
-#ifdef CHARGER_SELECTED
-    map_can_frame_to_variable_charger(*rx_frame);
-#endif
+  if (interface == can_config.charger && charger) {
+    charger->map_can_frame_to_variable_charger(*rx_frame);
   }
   if (interface == can_config.shunt) {
 #ifdef CAN_SHUNT_SELECTED

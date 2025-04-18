@@ -71,6 +71,9 @@ Logging logging;
 InverterProtocol* inverter;
 BatteryBase* battery;
 
+// TODO: Proper charger selection
+Charger* charger = nullptr;
+
 // Initialization
 void setup() {
   init_serial();
@@ -114,7 +117,7 @@ void setup() {
     // TODO: Handle error, this could be out-of-memory
   }
 
-  if (inverter->usesCAN() || battery->usesCAN()) {
+  if (inverter->usesCAN() || battery->usesCAN() || charger) {
     init_CAN();
   }
 
@@ -226,9 +229,9 @@ void transmit_can() {
     inverter->transmit_can();
   }
 
-#ifdef CHARGER_SELECTED
-  transmit_can_charger();
-#endif  // CHARGER_SELECTED
+  if (charger) {
+    charger->transmit_can();
+  }
 
 #ifdef CAN_SHUNT_SELECTED
   transmit_can_shunt();
