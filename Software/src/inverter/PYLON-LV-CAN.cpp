@@ -135,7 +135,7 @@ void PylonLvCanInverter::update_values_can_inverter() {
   // PYLON_35E is pre-filled with the manufacturer name
 }
 
-static void map_can_frame_to_variable_inverter(CAN_frame rx_frame) {
+void PylonLvCanInverter::map_can_frame_to_variable_inverter(CAN_frame rx_frame) {
   switch (rx_frame.ID) {
     case 0x305:  //Message originating from inverter.
       // according to the spec, this message includes only 0-bytes

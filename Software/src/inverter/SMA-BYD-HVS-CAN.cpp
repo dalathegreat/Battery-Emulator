@@ -219,7 +219,7 @@ static void transmit_can_init() {
   transmit_can_frame(&SMA_4D8, can_config.inverter);
 }
 
-static void map_can_frame_to_variable_inverter(CAN_frame rx_frame) {
+void SmaBydHvsCanInverter::map_can_frame_to_variable_inverter(CAN_frame rx_frame) {
   switch (rx_frame.ID) {
     case 0x360:  //Message originating from SMA inverter - Voltage and current
       datalayer.system.status.CAN_inverter_still_alive = CAN_STILL_ALIVE;

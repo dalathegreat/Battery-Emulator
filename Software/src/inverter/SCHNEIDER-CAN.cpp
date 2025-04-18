@@ -257,7 +257,7 @@ void SchneiderCanInverter::
   SE_320.data.u8[1] = 0x02;
 }
 
-static void map_can_frame_to_variable_inverter(CAN_frame rx_frame) {
+void SchneiderCanInverter::map_can_frame_to_variable_inverter(CAN_frame rx_frame) {
   switch (rx_frame.ID) {
     case 0x310:  // Still alive message from inverter, every 1s
       datalayer.system.status.CAN_inverter_still_alive = CAN_STILL_ALIVE;
@@ -267,7 +267,7 @@ static void map_can_frame_to_variable_inverter(CAN_frame rx_frame) {
   }
 }
 
-static void transmit_can_inverter() {
+void SchneiderCanInverter::transmit_can() {
   unsigned long currentMillis = millis();
 
   // Send 500ms CAN Message
@@ -297,10 +297,6 @@ static void transmit_can_inverter() {
     transmit_can_frame(&SE_332, can_config.inverter);
     transmit_can_frame(&SE_333, can_config.inverter);
   }
-}
-
-void SchneiderCanInverter::transmit_can() {
-  transmit_can_inverter();
 }
 
 #endif

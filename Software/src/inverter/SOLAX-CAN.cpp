@@ -213,7 +213,7 @@ static void transmit_can_inverter() {
   // No periodic sending used on this protocol, we react only on incoming CAN messages!
 }
 
-static void map_can_frame_to_variable_inverter(CAN_frame rx_frame) {
+void SolaxCanInverter::map_can_frame_to_variable_inverter(CAN_frame rx_frame) {
 
   if (rx_frame.ID == 0x1871) {
     datalayer.system.status.CAN_inverter_still_alive = CAN_STILL_ALIVE;

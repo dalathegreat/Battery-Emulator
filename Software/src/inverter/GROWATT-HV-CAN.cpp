@@ -496,7 +496,7 @@ void GrowattHvInverter::
   GROWATT_3F00.data.u8[7] = 0;  // RESERVED
 }
 
-static void map_can_frame_to_variable_inverter(CAN_frame rx_frame) {
+void GrowattHvInverter::map_can_frame_to_variable_inverter(CAN_frame rx_frame) {
   switch (rx_frame.ID) {
     case 0x3010:  // Heartbeat command, 1000ms
       datalayer.system.status.CAN_inverter_still_alive = CAN_STILL_ALIVE;

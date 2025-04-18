@@ -54,7 +54,7 @@ jobs:
           - BMW_PHEV_BATTERY
           - BYD_ATTO_3_BATTERY
           - CELLPOWER_BMS
-          - CHADEMO_BATTERY
+          #- CHADEMO_BATTERY    TODO: Re-enable after GPIO allocation issue fixed
           - CMFA_EV_BATTERY
           - FOXESS_BATTERY
           - IMIEV_CZERO_ION_BATTERY

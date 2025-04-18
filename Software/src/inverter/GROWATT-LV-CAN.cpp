@@ -249,7 +249,7 @@ void GrowattLvCanInverter::
   GROWATT_318.data.u8[7] = (datalayer.battery.status.cell_voltages_mV[15] & 0x00FF);
 }
 
-static void map_can_frame_to_variable_inverter(CAN_frame rx_frame) {
+void GrowattLvCanInverter::map_can_frame_to_variable_inverter(CAN_frame rx_frame) {
   switch (rx_frame.ID) {
     case 0x301:
       datalayer.system.status.CAN_inverter_still_alive = CAN_STILL_ALIVE;

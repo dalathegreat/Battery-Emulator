@@ -203,7 +203,7 @@ void AforeCanInverter::
   */
 }
 
-static void map_can_frame_to_variable_inverter(CAN_frame rx_frame) {
+void AforeCanInverter::map_can_frame_to_variable_inverter(CAN_frame rx_frame) {
   switch (rx_frame.ID) {
     case 0x305:  // Every 1s from inverter
       datalayer.system.status.CAN_inverter_still_alive = CAN_STILL_ALIVE;
@@ -220,7 +220,7 @@ static void map_can_frame_to_variable_inverter(CAN_frame rx_frame) {
   }
 }
 
-static void transmit_can_inverter() {
+void AforeCanInverter::transmit_can() {
   if (time_to_send_info) {  // Set every 1s if we get message from inverter
     transmit_can_frame(&AFORE_350, can_config.inverter);
     transmit_can_frame(&AFORE_351, can_config.inverter);
@@ -235,10 +235,6 @@ static void transmit_can_inverter() {
     transmit_can_frame(&AFORE_35A, can_config.inverter);
     time_to_send_info = false;
   }
-}
-
-void AforeCanInverter::transmit_can() {
-  transmit_can_inverter();
 }
 
 #endif

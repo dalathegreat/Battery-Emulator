@@ -11,6 +11,7 @@ class AforeCanInverter : public InverterProtocol {
   virtual void update_values_can_inverter();
   virtual const char* name() { return Name; };
   static constexpr char* Name = "Afore battery over CAN";
+  virtual void map_can_frame_to_variable_inverter(CAN_frame rx_frame);
 };
 
 #endif

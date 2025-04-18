@@ -233,7 +233,7 @@ void SofarCanInverter::
   SOFAR_356.data.u8[3] = (datalayer.battery.status.temperature_max_dC & 0x00FF);
 }
 
-static void map_can_frame_to_variable_inverter(CAN_frame rx_frame) {
+void SofarCanInverter::map_can_frame_to_variable_inverter(CAN_frame rx_frame) {
   switch (rx_frame.ID) {  //In here we need to respond to the inverter. TODO: make logic
     case 0x605:
       datalayer.system.status.CAN_inverter_still_alive = CAN_STILL_ALIVE;

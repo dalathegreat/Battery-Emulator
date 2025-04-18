@@ -140,8 +140,8 @@ static uint16_t discharge_cutoff_voltage_dV = 0;
 static uint16_t charge_cutoff_voltage_dV = 0;
 #define VOLTAGE_OFFSET_DV 20  // Small offset voltage to avoid generating voltage events
 
-static void
-update_values_can_inverter() {  //This function maps all the values fetched from battery CAN to the correct CAN messages
+void PylonCanInverter::
+    update_values_can_inverter() {  //This function maps all the values fetched from battery CAN to the correct CAN messages
 
   //Check what discharge and charge cutoff voltages to send
   if (datalayer.battery.settings.user_set_voltage_limits_active) {  //If user is requesting a specific voltage
@@ -461,7 +461,7 @@ static void send_system_data() {  //System equipment information
 #endif
 }
 
-static void map_can_frame_to_variable_inverter(CAN_frame rx_frame) {
+void PylonCanInverter::map_can_frame_to_variable_inverter(CAN_frame rx_frame) {
   switch (rx_frame.ID) {
     case 0x4200:  //Message originating from inverter. Depending on which data is required, act accordingly
       datalayer.system.status.CAN_inverter_still_alive = CAN_STILL_ALIVE;
@@ -475,14 +475,5 @@ static void map_can_frame_to_variable_inverter(CAN_frame rx_frame) {
     default:
       break;
   }
-}
-
-static void transmit_can_inverter() {
-  // No periodic sending, we only react on received can messages
-}
-
-static void setup_inverter(void) {  // Performs one time setup at startup over CAN bus
-  strncpy(datalayer.system.info.inverter_protocol, "Pylontech battery over CAN bus", 63);
-  datalayer.system.info.inverter_protocol[63] = '\0';
 }
 #endif

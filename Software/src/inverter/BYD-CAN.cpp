@@ -170,7 +170,7 @@ void BydCanInverter::
   BYD_210.data.u8[3] = (datalayer.battery.status.temperature_min_dC & 0x00FF);
 }
 
-static void map_can_frame_to_variable_inverter(CAN_frame rx_frame) {
+void BydCanInverter::map_can_frame_to_variable_inverter(CAN_frame rx_frame) {
   switch (rx_frame.ID) {
     case 0x151:  //Message originating from BYD HVS compatible inverter. Reply with CAN identifier!
       inverterStartedUp = true;
@@ -207,7 +207,7 @@ static void map_can_frame_to_variable_inverter(CAN_frame rx_frame) {
   }
 }
 
-static void transmit_can_inverter() {
+void BydCanInverter::transmit_can() {
   unsigned long currentMillis = millis();
 
   if (!inverterStartedUp) {
@@ -251,10 +251,6 @@ void send_intial_data() {
   transmit_can_frame(&BYD_3D0_1, can_config.inverter);
   transmit_can_frame(&BYD_3D0_2, can_config.inverter);
   transmit_can_frame(&BYD_3D0_3, can_config.inverter);
-}
-
-void BydCanInverter::transmit_can() {
-  transmit_can_inverter();
 }
 
 #endif

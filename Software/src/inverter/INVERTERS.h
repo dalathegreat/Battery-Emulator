@@ -14,8 +14,7 @@
 #define FOXESS_CAN
 #define GROWATT_HV_CAN
 #define GROWATT_LV_CAN
-// TODO: Combine with ferroamp
-//#define PYLON_CAN
+#define PYLON_CAN
 #define PYLON_LV_CAN
 #define SCHNEIDER_CAN
 #define SMA_BYD_H_CAN
