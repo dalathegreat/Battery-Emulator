@@ -462,6 +462,20 @@ String advanced_battery_processor(const String& var) {
            sizeof(datalayer_extended.geometryC.BatterySerialNumber));
     readableSerialNumber[15] = '\0';  // Null terminate the string
     content += "<h4>Serial number: " + String(readableSerialNumber) + "</h4>";
+    content += "<h4>SOC: " + String(datalayer_extended.geometryC.soc) + "dC</h4>";
+    content += "<h4>CC2 voltage: " + String(datalayer_extended.geometryC.CC2voltage) + "dC</h4>";
+    content += "<h4>Cell max voltage number: " + String(datalayer_extended.geometryC.cellMaxVoltageNumber) + "dC</h4>";
+    content += "<h4>Cell min voltage number: " + String(datalayer_extended.geometryC.cellMinVoltageNumber) + "dC</h4>";
+    content += "<h4>Cell total amount: " + String(datalayer_extended.geometryC.cellTotalAmount) + "dC</h4>";
+    content += "<h4>Specificial Voltage: " + String(datalayer_extended.geometryC.specificialVoltage) + "dC</h4>";
+    content += "<h4>Unknown1: " + String(datalayer_extended.geometryC.unknown1) + "dC</h4>";
+    content += "<h4>Unknown2: " + String(datalayer_extended.geometryC.unknown2) + "dC</h4>";
+    content += "<h4>Unknown3: " + String(datalayer_extended.geometryC.unknown3) + "dC</h4>";
+    content += "<h4>Unknown4: " + String(datalayer_extended.geometryC.unknown4) + "dC</h4>";
+    content += "<h4>Unknown5: " + String(datalayer_extended.geometryC.unknown5) + "dC</h4>";
+    content += "<h4>Unknown6: " + String(datalayer_extended.geometryC.unknown6) + "dC</h4>";
+    content += "<h4>Unknown7: " + String(datalayer_extended.geometryC.unknown7) + "dC</h4>";
+    content += "<h4>Unknown8: " + String(datalayer_extended.geometryC.unknown8) + "dC</h4>";
 #endif  //GEELY_GEOMETRY_C_BATTERY
 
 #ifdef KIA_HYUNDAI_64_BATTERY

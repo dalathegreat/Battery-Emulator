@@ -183,6 +183,18 @@ CAN_frame GEELY_150 = {.FD = false,  //EPS 20ms
                        .DLC = 8,
                        .ID = 0x150,
                        .data = {0x7E, 0x00, 0x24, 0x00, 0x01, 0x01, 0x00, 0xA9}};
+CAN_frame GEELY_POLL = {.FD = false,  //Polling frame
+                        .ext_ID = false,
+                        .DLC = 8,
+                        .ID = 0x7E2,
+                        .data = {0x03, 0x22, 0x4B, 0xDA, 0x00, 0x00, 0x00, 0x00}};
+CAN_frame GEELY_ACK = {.FD = false,  //Ack frame
+                          .ext_ID = false,
+                          .DLC = 8,
+                          .ID = 0x7E2,
+                          .data = {0x30, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00}};
+static uint16_t poll_pid = POLL_SOC;
+static uint16_t incoming_poll = 0;
 static uint8_t counter_10ms = 0;
 static uint8_t counter_20ms = 0;
 static uint8_t counter_50ms = 0;
@@ -191,6 +203,7 @@ static unsigned long previousMillis10 = 0;   // will store last time a 10ms CAN 
 static unsigned long previousMillis20 = 0;   // will store last time a 20ms CAN Message was sent
 static unsigned long previousMillis50 = 0;   // will store last time a 50ms CAN Message was sent
 static unsigned long previousMillis100 = 0;  // will store last time a 100ms CAN Message was sent
+static unsigned long previousMillis200 = 0;  // will store last time a 200ms CAN Message was sent
 static uint8_t mux = 0;
 static uint16_t battery_voltage = 3700;
 static int16_t maximum_temperature = 0;
@@ -199,6 +212,20 @@ static uint8_t HVIL_signal = 0;
 static uint8_t serialnumbers[28] = {0};
 static uint16_t maximum_cell_voltage = 3700;
 static uint16_t discharge_power_allowed = 0;
+static uint16_t poll_soc = 0;
+static uint16_t poll_cc2_voltage = 0;
+static uint16_t poll_cell_max_voltage_number = 0;
+static uint16_t poll_cell_min_voltage_number = 0;
+static uint16_t poll_amount_cells = 0;
+static uint16_t poll_specificial_voltage = 0;
+static uint16_t poll_unknown1 = 0;
+static uint16_t poll_unknown2 = 0;
+static uint16_t poll_unknown3 = 0;
+static uint16_t poll_unknown4 = 0;
+static uint16_t poll_unknown5 = 0;
+static uint16_t poll_unknown6 = 0;
+static uint16_t poll_unknown7 = 0;
+static uint16_t poll_unknown8 = 0;
 
 void update_values_battery() {  //This function maps all the values fetched via CAN to the correct parameters used for modbus
   datalayer.battery.status.soh_pptt;
@@ -233,6 +260,20 @@ void update_values_battery() {  //This function maps all the values fetched via 
 
   //Update webserver more battery info page
   memcpy(datalayer_extended.geometryC.BatterySerialNumber, serialnumbers, sizeof(serialnumbers));
+  datalayer_extended.geometryC.soc = poll_soc;
+  datalayer_extended.geometryC.CC2voltage = poll_cc2_voltage;
+  datalayer_extended.geometryC.cellMaxVoltageNumber = poll_cell_max_voltage_number;
+  datalayer_extended.geometryC.cellMinVoltageNumber = poll_cell_min_voltage_number;
+  datalayer_extended.geometryC.cellTotalAmount = poll_amount_cells;
+  datalayer_extended.geometryC.specificialVoltage = poll_specificial_voltage;
+  datalayer_extended.geometryC.unknown1 = poll_unknown1;
+  datalayer_extended.geometryC.unknown2 = poll_unknown2;
+  datalayer_extended.geometryC.unknown3 = poll_unknown3;
+  datalayer_extended.geometryC.unknown4 = poll_unknown4;
+  datalayer_extended.geometryC.unknown5 = poll_unknown5;
+  datalayer_extended.geometryC.unknown6 = poll_unknown6;
+  datalayer_extended.geometryC.unknown7 = poll_unknown7;
+  datalayer_extended.geometryC.unknown8 = poll_unknown8;
 }
 
 bool is_message_corrupt(CAN_frame* rx_frame) {
@@ -403,6 +444,61 @@ void handle_incoming_can_frame_battery(CAN_frame rx_frame) {
     case 0x424:  //500ms (24 10 01 01 02 00 00 00)
       datalayer.battery.status.CAN_battery_still_alive = CAN_STILL_ALIVE;
       break;
+    case 0x7EA:
+      if(rx_frame.data.u8[0] == 0x10){ //Multiframe response, send ACK
+        transmit_can_frame(&GEELY_ACK, can_config.battery);
+      }
+      incoming_poll = (rx_frame.data.u8[2] << 8) | rx_frame.data.u8[3];
+
+      switch (incoming_poll)
+      {
+      case POLL_SOC:
+        poll_soc = (rx_frame.data.u8[4] << 8) | rx_frame.data.u8[5];
+        break;
+      case POLL_CC2_VOLTAGE:
+        poll_cc2_voltage = (rx_frame.data.u8[4] << 8) | rx_frame.data.u8[5]; 
+        break;
+        case POLL_CELL_MAX_VOLTAGE_NUMBER:
+        poll_cell_max_voltage_number = rx_frame.data.u8[4];
+        break;
+        case POLL_CELL_MIN_VOLTAGE_NUMBER:
+        poll_cell_min_voltage_number = rx_frame.data.u8[4];
+        break;
+        case POLL_AMOUNT_CELLS:
+        poll_amount_cells = rx_frame.data.u8[4];
+        datalayer.battery.info.number_of_cells = poll_amount_cells;
+        break;
+        case POLL_SPECIFICIAL_VOLTAGE:
+        poll_specificial_voltage = (rx_frame.data.u8[4] << 8) | rx_frame.data.u8[5]; 
+        break;
+        case POLL_UNKNOWN_1:
+        poll_unknown1 = rx_frame.data.u8[4];
+        break;
+        case POLL_UNKNOWN_2:
+        poll_unknown2 = (rx_frame.data.u8[4] << 8) | rx_frame.data.u8[5]; 
+        break;
+        case POLL_UNKNOWN_3:
+        poll_unknown3 = (rx_frame.data.u8[4] << 8) | rx_frame.data.u8[5]; 
+        break;
+        case POLL_UNKNOWN_4:
+        poll_unknown4 = rx_frame.data.u8[4];
+        break;
+        case POLL_UNKNOWN_5:
+        poll_unknown5 = (rx_frame.data.u8[4] << 8) | rx_frame.data.u8[5]; 
+        break;
+        case POLL_UNKNOWN_6:
+        poll_unknown6 = (rx_frame.data.u8[4] << 8) | rx_frame.data.u8[5]; 
+        break;
+        case POLL_UNKNOWN_7:
+        poll_unknown7 = rx_frame.data.u8[4];
+        break;
+        case POLL_UNKNOWN_8:
+        poll_unknown8 = rx_frame.data.u8[4];
+        break;
+      default:
+        break;
+      }
+      break;
     default:
       break;
   }
@@ -500,13 +596,95 @@ void transmit_can_battery() {
     //transmit_can_frame(&GEELY_2D2, can_config.battery);  //Might be unnecessary, seat info
     transmit_can_frame(&GEELY_292, can_config.battery);  //CONFIRMED MANDATORY! T-BOX
   }
-}
+  // Send 200ms CAN Message
+  if (currentMillis - previousMillis200 >= INTERVAL_200_MS) {
+    previousMillis200 = currentMillis;
+
+    switch (poll_pid) {
+      case POLL_SOC:
+        GEELY_POLL.data.u8[2] = (uint8_t)(POLL_SOC >> 8);
+        GEELY_POLL.data.u8[3] = (uint8_t)POLL_SOC;
+        poll_pid = POLL_CC2_VOLTAGE;
+        break;
+        case POLL_CC2_VOLTAGE:
+        GEELY_POLL.data.u8[2] = (uint8_t)(POLL_CC2_VOLTAGE >> 8);
+        GEELY_POLL.data.u8[3] = (uint8_t)POLL_CC2_VOLTAGE;
+        poll_pid = POLL_CELL_MAX_VOLTAGE_NUMBER;
+        break;
+        case POLL_CELL_MAX_VOLTAGE_NUMBER:
+        GEELY_POLL.data.u8[2] = (uint8_t)(POLL_CELL_MAX_VOLTAGE_NUMBER >> 8);
+        GEELY_POLL.data.u8[3] = (uint8_t)POLL_CELL_MAX_VOLTAGE_NUMBER;
+        poll_pid = POLL_CELL_MIN_VOLTAGE_NUMBER;
+        break;
+        case POLL_CELL_MIN_VOLTAGE_NUMBER:
+        GEELY_POLL.data.u8[2] = (uint8_t)(POLL_CELL_MIN_VOLTAGE_NUMBER >> 8);
+        GEELY_POLL.data.u8[3] = (uint8_t)POLL_CELL_MIN_VOLTAGE_NUMBER;
+        poll_pid = POLL_AMOUNT_CELLS;
+        break;
+        case POLL_AMOUNT_CELLS:
+        GEELY_POLL.data.u8[2] = (uint8_t)(POLL_AMOUNT_CELLS >> 8);
+        GEELY_POLL.data.u8[3] = (uint8_t)POLL_AMOUNT_CELLS;
+        poll_pid = POLL_SPECIFICIAL_VOLTAGE;
+        break;
+        case POLL_SPECIFICIAL_VOLTAGE:
+        GEELY_POLL.data.u8[2] = (uint8_t)(POLL_SPECIFICIAL_VOLTAGE >> 8);
+        GEELY_POLL.data.u8[3] = (uint8_t)POLL_SPECIFICIAL_VOLTAGE;
+        poll_pid = POLL_UNKNOWN_1;
+        break;
+        case POLL_UNKNOWN_1:
+        GEELY_POLL.data.u8[2] = (uint8_t)(POLL_UNKNOWN_1 >> 8);
+        GEELY_POLL.data.u8[3] = (uint8_t)POLL_UNKNOWN_1;
+        poll_pid = POLL_UNKNOWN_2;
+        break;
+        case POLL_UNKNOWN_2:
+        GEELY_POLL.data.u8[2] = (uint8_t)(POLL_UNKNOWN_2 >> 8);
+        GEELY_POLL.data.u8[3] = (uint8_t)POLL_UNKNOWN_2;
+        poll_pid = POLL_UNKNOWN_3;
+        break;
+        case POLL_UNKNOWN_3:
+        GEELY_POLL.data.u8[2] = (uint8_t)(POLL_UNKNOWN_3 >> 8);
+        GEELY_POLL.data.u8[3] = (uint8_t)POLL_UNKNOWN_3;
+        poll_pid = POLL_UNKNOWN_4;
+        break;
+        case POLL_UNKNOWN_4:
+        GEELY_POLL.data.u8[2] = (uint8_t)(POLL_UNKNOWN_4 >> 8);
+        GEELY_POLL.data.u8[3] = (uint8_t)POLL_UNKNOWN_4;
+        poll_pid = POLL_UNKNOWN_5;
+        break;
+        case POLL_UNKNOWN_5:
+        GEELY_POLL.data.u8[2] = (uint8_t)(POLL_UNKNOWN_5 >> 8);
+        GEELY_POLL.data.u8[3] = (uint8_t)POLL_UNKNOWN_5;
+        poll_pid = POLL_UNKNOWN_6;
+        break;
+        case POLL_UNKNOWN_6:
+        GEELY_POLL.data.u8[2] = (uint8_t)(POLL_UNKNOWN_6 >> 8);
+        GEELY_POLL.data.u8[3] = (uint8_t)POLL_UNKNOWN_6;
+        poll_pid = POLL_UNKNOWN_7;
+        break;
+        case POLL_UNKNOWN_7:
+        GEELY_POLL.data.u8[2] = (uint8_t)(POLL_UNKNOWN_7 >> 8);
+        GEELY_POLL.data.u8[3] = (uint8_t)POLL_UNKNOWN_7;
+        poll_pid = POLL_UNKNOWN_8;
+        break;
+        case POLL_UNKNOWN_8:
+        GEELY_POLL.data.u8[2] = (uint8_t)(POLL_UNKNOWN_8 >> 8);
+        GEELY_POLL.data.u8[3] = (uint8_t)POLL_UNKNOWN_8;
+        poll_pid = POLL_SOC;
+        break;
+      default:
+      poll_pid = POLL_SOC;
+      break;
+    }
+
+    transmit_can_frame(&GEELY_POLL, can_config.battery);
+  }
+  }
 
 void setup_battery(void) {  // Performs one time setup at startup
   strncpy(datalayer.system.info.battery_protocol, "Geely Geometry C", 63);
   datalayer.system.info.battery_protocol[63] = '\0';
   datalayer.system.status.battery_allows_contactor_closing = true;
-  datalayer.battery.info.number_of_cells = 102;                           //70kWh pack has 102S
+  datalayer.battery.info.number_of_cells = 102;                           //70kWh pack has 102S, startup in this mode
   datalayer.battery.info.max_design_voltage_dV = MAX_PACK_VOLTAGE_70_DV;  //Startup in extreme ends
   datalayer.battery.info.min_design_voltage_dV = MIN_PACK_VOLTAGE_53_DV;  //Before pack size determined
   datalayer.battery.info.max_cell_voltage_mV = MAX_CELL_VOLTAGE_MV;
