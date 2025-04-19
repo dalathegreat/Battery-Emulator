@@ -285,8 +285,8 @@ typedef struct {
   uint16_t cellTotalAmount = 0;
   uint16_t specificialVoltage = 0;
   uint16_t unknown1 = 0;
-  uint16_t unknown2 = 0;
-  uint16_t unknown3 = 0;
+  uint16_t rawSOCmax = 0;
+  uint16_t rawSOCmin = 0;
   uint16_t unknown4 = 0;
   uint16_t unknown5 = 0;
   uint16_t unknown6 = 0;

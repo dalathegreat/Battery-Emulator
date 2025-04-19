@@ -219,8 +219,8 @@ static uint16_t poll_cell_min_voltage_number = 0;
 static uint16_t poll_amount_cells = 0;
 static uint16_t poll_specificial_voltage = 0;
 static uint16_t poll_unknown1 = 0;
-static uint16_t poll_unknown2 = 0;
-static uint16_t poll_unknown3 = 0;
+static uint16_t poll_raw_soc_max = 0;
+static uint16_t poll_raw_soc_min = 0;
 static uint16_t poll_unknown4 = 0;
 static uint16_t poll_unknown5 = 0;
 static uint16_t poll_unknown6 = 0;
@@ -267,8 +267,8 @@ void update_values_battery() {  //This function maps all the values fetched via 
   datalayer_extended.geometryC.cellTotalAmount = poll_amount_cells;
   datalayer_extended.geometryC.specificialVoltage = poll_specificial_voltage;
   datalayer_extended.geometryC.unknown1 = poll_unknown1;
-  datalayer_extended.geometryC.unknown2 = poll_unknown2;
-  datalayer_extended.geometryC.unknown3 = poll_unknown3;
+  datalayer_extended.geometryC.rawSOCmax = poll_raw_soc_max;
+  datalayer_extended.geometryC.rawSOCmin = poll_raw_soc_min;
   datalayer_extended.geometryC.unknown4 = poll_unknown4;
   datalayer_extended.geometryC.unknown5 = poll_unknown5;
   datalayer_extended.geometryC.unknown6 = poll_unknown6;
@@ -473,11 +473,11 @@ void handle_incoming_can_frame_battery(CAN_frame rx_frame) {
         case POLL_UNKNOWN_1:
           poll_unknown1 = rx_frame.data.u8[4];
           break;
-        case POLL_UNKNOWN_2:
-          poll_unknown2 = (rx_frame.data.u8[4] << 8) | rx_frame.data.u8[5];
+        case POLL_RAW_SOC_MAX:
+          poll_raw_soc_max = (rx_frame.data.u8[4] << 8) | rx_frame.data.u8[5];
           break;
-        case POLL_UNKNOWN_3:
-          poll_unknown3 = (rx_frame.data.u8[4] << 8) | rx_frame.data.u8[5];
+        case POLL_RAW_SOC_MIN:
+          poll_raw_soc_min = (rx_frame.data.u8[4] << 8) | rx_frame.data.u8[5];
           break;
         case POLL_UNKNOWN_4:
           poll_unknown4 = rx_frame.data.u8[4];
@@ -633,16 +633,16 @@ void transmit_can_battery() {
       case POLL_UNKNOWN_1:
         GEELY_POLL.data.u8[2] = (uint8_t)(POLL_UNKNOWN_1 >> 8);
         GEELY_POLL.data.u8[3] = (uint8_t)POLL_UNKNOWN_1;
-        poll_pid = POLL_UNKNOWN_2;
+        poll_pid = POLL_RAW_SOC_MAX;
         break;
-      case POLL_UNKNOWN_2:
-        GEELY_POLL.data.u8[2] = (uint8_t)(POLL_UNKNOWN_2 >> 8);
-        GEELY_POLL.data.u8[3] = (uint8_t)POLL_UNKNOWN_2;
-        poll_pid = POLL_UNKNOWN_3;
+      case POLL_RAW_SOC_MAX:
+        GEELY_POLL.data.u8[2] = (uint8_t)(POLL_RAW_SOC_MAX >> 8);
+        GEELY_POLL.data.u8[3] = (uint8_t)POLL_RAW_SOC_MAX;
+        poll_pid = POLL_RAW_SOC_MIN;
         break;
-      case POLL_UNKNOWN_3:
-        GEELY_POLL.data.u8[2] = (uint8_t)(POLL_UNKNOWN_3 >> 8);
-        GEELY_POLL.data.u8[3] = (uint8_t)POLL_UNKNOWN_3;
+      case POLL_RAW_SOC_MIN:
+        GEELY_POLL.data.u8[2] = (uint8_t)(POLL_RAW_SOC_MIN >> 8);
+        GEELY_POLL.data.u8[3] = (uint8_t)POLL_RAW_SOC_MIN;
         poll_pid = POLL_UNKNOWN_4;
         break;
       case POLL_UNKNOWN_4:
