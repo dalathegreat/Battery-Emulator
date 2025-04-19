@@ -456,6 +456,28 @@ String advanced_battery_processor(const String& var) {
         "<h4>Cumulative energy regen: " + String(datalayer_extended.CMFAEV.cumulative_energy_in_regen) + "Wh</h4>";
 #endif  //CMFA_EV_BATTERY
 
+#ifdef GEELY_GEOMETRY_C_BATTERY
+    char readableSerialNumber[29];  // One extra space for null terminator
+    memcpy(readableSerialNumber, datalayer_extended.geometryC.BatterySerialNumber,
+           sizeof(datalayer_extended.geometryC.BatterySerialNumber));
+    readableSerialNumber[15] = '\0';  // Null terminate the string
+    content += "<h4>Serial number: " + String(readableSerialNumber) + "</h4>";
+    content += "<h4>SOC display: " + String(datalayer_extended.geometryC.soc) + "ppt</h4>";
+    content += "<h4>CC2 voltage: " + String(datalayer_extended.geometryC.CC2voltage) + "mV</h4>";
+    content += "<h4>Cell max voltage number: " + String(datalayer_extended.geometryC.cellMaxVoltageNumber) + "</h4>";
+    content += "<h4>Cell min voltage number: " + String(datalayer_extended.geometryC.cellMinVoltageNumber) + "</h4>";
+    content += "<h4>Cell total amount: " + String(datalayer_extended.geometryC.cellTotalAmount) + "S</h4>";
+    content += "<h4>Specificial Voltage: " + String(datalayer_extended.geometryC.specificialVoltage) + "dV</h4>";
+    content += "<h4>Unknown1: " + String(datalayer_extended.geometryC.unknown1) + "</h4>";
+    content += "<h4>Raw SOC max: " + String(datalayer_extended.geometryC.rawSOCmax) + "</h4>";
+    content += "<h4>Raw SOC min: " + String(datalayer_extended.geometryC.rawSOCmin) + "</h4>";
+    content += "<h4>Unknown4: " + String(datalayer_extended.geometryC.unknown4) + "</h4>";
+    content += "<h4>Capacity module max: " + String((datalayer_extended.geometryC.capModMax / 10)) + "Ah</h4>";
+    content += "<h4>Capacity module min: " + String((datalayer_extended.geometryC.capModMin / 10)) + "Ah</h4>";
+    content += "<h4>Unknown7: " + String(datalayer_extended.geometryC.unknown7) + "</h4>";
+    content += "<h4>Unknown8: " + String(datalayer_extended.geometryC.unknown8) + "</h4>";
+#endif  //GEELY_GEOMETRY_C_BATTERY
+
 #ifdef KIA_HYUNDAI_64_BATTERY
     content += "<h4>Cells: " + String(datalayer_extended.KiaHyundai64.total_cell_count) + "S</h4>";
     content += "<h4>12V voltage: " + String(datalayer_extended.KiaHyundai64.battery_12V / 10.0, 1) + "</h4>";
@@ -1471,7 +1493,8 @@ String advanced_battery_processor(const String& var) {
     !defined(TESLA_BATTERY) && !defined(NISSAN_LEAF_BATTERY) && !defined(BMW_I3_BATTERY) &&          \
     !defined(BYD_ATTO_3_BATTERY) && !defined(RENAULT_ZOE_GEN2_BATTERY) && !defined(CELLPOWER_BMS) && \
     !defined(MEB_BATTERY) && !defined(VOLVO_SPA_BATTERY) && !defined(VOLVO_SPA_HYBRID_BATTERY) &&    \
-    !defined(KIA_HYUNDAI_64_BATTERY) && !defined(CMFA_EV_BATTERY)  //Only the listed types have extra info
+    !defined(KIA_HYUNDAI_64_BATTERY) && !defined(GEELY_GEOMETRY_C_BATTERY) &&                        \
+    !defined(CMFA_EV_BATTERY)  //Only the listed types have extra info
     content += "No extra information available for this battery type";
 #endif
 
