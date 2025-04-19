@@ -1,5 +1,6 @@
 #include "../include.h"
 #ifdef SANTA_FE_PHEV_BATTERY
+#include "../communication/can/comm_can.h"
 #include "../datalayer/datalayer.h"
 #include "../devboard/utils/events.h"
 #include "SANTA-FE-PHEV-BATTERY.h"
@@ -86,7 +87,8 @@ CAN_frame SANTAFE_7E4_ack = {.FD = false,
                              .ID = 0x7E4,  //Ack frame, correct PID is returned. Flow control message
                              .data = {0x30, 0x00, 0x03, 0x00, 0x00, 0x00, 0x00, 0x00}};
 
-void update_values_battery() {  //This function maps all the values fetched via CAN to the correct parameters used for modbus
+static void
+update_values_battery() {  //This function maps all the values fetched via CAN to the correct parameters used for modbus
 
   datalayer.battery.status.real_soc = (SOC_Display * 10);  //increase SOC range from 0-100.0 -> 100.00
 
@@ -116,7 +118,7 @@ void update_values_battery() {  //This function maps all the values fetched via 
   }
 }
 
-void handle_incoming_can_frame_battery(CAN_frame rx_frame) {
+static void handle_incoming_can_frame_battery(CAN_frame rx_frame) {
   switch (rx_frame.ID) {
     case 0x1FF:
       datalayer.battery.status.CAN_battery_still_alive = CAN_STILL_ALIVE;
@@ -333,7 +335,7 @@ void handle_incoming_can_frame_battery(CAN_frame rx_frame) {
       break;
   }
 }
-void transmit_can_battery() {
+static void transmit_can_battery() {
   unsigned long currentMillis = millis();
 
   //Send 10ms message
@@ -662,9 +664,7 @@ uint8_t CalculateCRC8(CAN_frame rx_frame) {
   return (uint8_t)crc;
 }
 
-void setup_battery(void) {  // Performs one time setup at startup
-  strncpy(datalayer.system.info.battery_protocol, "Santa Fe PHEV", 63);
-  datalayer.system.info.battery_protocol[63] = '\0';
+static void setup_battery(void) {  // Performs one time setup at startup
   datalayer.battery.info.number_of_cells = 96;
   datalayer.battery.info.max_design_voltage_dV = MAX_PACK_VOLTAGE_DV;
   datalayer.battery.info.min_design_voltage_dV = MIN_PACK_VOLTAGE_DV;

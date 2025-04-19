@@ -12,7 +12,15 @@
 // other measurement sources may be added in the future
 #define ISA_SHUNT
 
-void setup_battery(void);
-void transmit_can_frame(CAN_frame* tx_frame, int interface);
+class ChademoBattery : public CanBattery {
+ public:
+  ChademoBattery() : CanBattery(Chademo) {}
+  virtual const char* name() { return Name; };
+  static constexpr char* Name = "Chademo V2X mode";
+  virtual void setup();
+  virtual void update_values();
+  virtual void handle_incoming_can_frame(CAN_frame rx_frame);
+  virtual void transmit_can();
+}
 
 #endif

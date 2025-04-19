@@ -378,6 +378,25 @@ void init_webserver() {
     request->send(200, "text/html", response);
   });
 
+#ifdef BUILD_EM_ALL
+  server.on("/saveSettings", HTTP_POST, [](AsyncWebServerRequest* request) {
+    int params = request->params();
+    for (int i = 0; i < params; i++) {
+      auto p = request->getParam(i);
+      if (p->name() == "inverter") {
+        auto type = static_cast<InverterProtocolType>(atoi(p->value().c_str()));
+        userSelectedInverter = type;
+      }
+      if (p->name() == "battery") {
+        auto type = static_cast<BatteryType>(atoi(p->value().c_str()));
+        userSelectedBatteryType = type;
+      }
+    }
+    store_settings();
+    request->redirect("/settings");
+  });
+#endif
+
   // Route for editing SSID
   server.on("/updateSSID", HTTP_GET, [](AsyncWebServerRequest* request) {
     if (WEBSERVER_AUTH_REQUIRED && !request->authenticate(http_username, http_password))
@@ -978,12 +997,12 @@ String processor(const String& var) {
 
     // Display which components are used
     content += "<h4 style='color: white;'>Inverter protocol: ";
-    content += datalayer.system.info.inverter_protocol;
+    content += inverter->name();
     content += " ";
     content += datalayer.system.info.inverter_brand;
     content += "</h4>";
     content += "<h4 style='color: white;'>Battery protocol: ";
-    content += datalayer.system.info.battery_protocol;
+    content += battery->name();
 #ifdef DOUBLE_BATTERY
     content += " (Double battery)";
 #endif  // DOUBLE_BATTERY
@@ -1143,27 +1162,27 @@ String processor(const String& var) {
     }
     content += "</h4>";
 
-#ifdef MEB_BATTERY
-    content += "<h4>Battery BMS status: ";
-    switch (datalayer.battery.status.real_bms_status) {
-      case BMS_ACTIVE:
-        content += String("OK");
-        break;
-      case BMS_FAULT:
-        content += String("FAULT");
-        break;
-      case BMS_DISCONNECTED:
-        content += String("DISCONNECTED");
-        break;
-      case BMS_STANDBY:
-        content += String("STANDBY");
-        break;
-      default:
-        content += String("??");
-        break;
+    if (battery->type() == Meb) {
+      content += "<h4>Battery BMS status: ";
+      switch (datalayer.battery.status.real_bms_status) {
+        case BMS_ACTIVE:
+          content += String("OK");
+          break;
+        case BMS_FAULT:
+          content += String("FAULT");
+          break;
+        case BMS_DISCONNECTED:
+          content += String("DISCONNECTED");
+          break;
+        case BMS_STANDBY:
+          content += String("STANDBY");
+          break;
+        default:
+          content += String("??");
+          break;
+      }
+      content += "</h4>";
     }
-    content += "</h4>";
-#endif
 
     if (datalayer.battery.status.current_dA == 0) {
       content += "<h4>Battery idle</h4>";
@@ -1427,39 +1446,41 @@ String processor(const String& var) {
       content += "<span style='color: red;'>&#10005;</span>";
     }
     content += "</h4>";
-#ifdef CHEVYVOLT_CHARGER
-    float chgPwrDC = static_cast<float>(datalayer.charger.charger_stat_HVcur * datalayer.charger.charger_stat_HVvol);
-    float chgPwrAC = static_cast<float>(datalayer.charger.charger_stat_ACcur * datalayer.charger.charger_stat_ACvol);
-    float chgEff = chgPwrDC / chgPwrAC * 100;
-    float ACcur = datalayer.charger.charger_stat_ACcur;
-    float ACvol = datalayer.charger.charger_stat_ACvol;
-    float HVvol = datalayer.charger.charger_stat_HVvol;
-    float HVcur = datalayer.charger.charger_stat_HVcur;
-    float LVvol = datalayer.charger.charger_stat_LVvol;
-    float LVcur = datalayer.charger.charger_stat_LVcur;
 
-    content += formatPowerValue("Charger Output Power", chgPwrDC, "", 1);
-    content += "<h4 style='color: white;'>Charger Efficiency: " + String(chgEff) + "%</h4>";
-    content += "<h4 style='color: white;'>Charger HVDC Output V: " + String(HVvol, 2) + " V</h4>";
-    content += "<h4 style='color: white;'>Charger HVDC Output I: " + String(HVcur, 2) + " A</h4>";
-    content += "<h4 style='color: white;'>Charger LVDC Output I: " + String(LVcur, 2) + "</h4>";
-    content += "<h4 style='color: white;'>Charger LVDC Output V: " + String(LVvol, 2) + "</h4>";
-    content += "<h4 style='color: white;'>Charger AC Input V: " + String(ACvol, 2) + " VAC</h4>";
-    content += "<h4 style='color: white;'>Charger AC Input I: " + String(ACcur, 2) + " A</h4>";
-#endif  // CHEVYVOLT_CHARGER
-#ifdef NISSANLEAF_CHARGER
-    float chgPwrDC = static_cast<float>(datalayer.charger.charger_stat_HVcur * 100);
-    datalayer.charger.charger_stat_HVcur = chgPwrDC / (datalayer.battery.status.voltage_dV / 10);  // P/U=I
-    datalayer.charger.charger_stat_HVvol = static_cast<float>(datalayer.battery.status.voltage_dV / 10);
-    float ACvol = datalayer.charger.charger_stat_ACvol;
-    float HVvol = datalayer.charger.charger_stat_HVvol;
-    float HVcur = datalayer.charger.charger_stat_HVcur;
+    if (charger && charger->type() == ChargerType::ChevyVolt) {
+      float chgPwrDC = static_cast<float>(datalayer.charger.charger_stat_HVcur * datalayer.charger.charger_stat_HVvol);
+      float chgPwrAC = static_cast<float>(datalayer.charger.charger_stat_ACcur * datalayer.charger.charger_stat_ACvol);
+      float chgEff = chgPwrDC / chgPwrAC * 100;
+      float ACcur = datalayer.charger.charger_stat_ACcur;
+      float ACvol = datalayer.charger.charger_stat_ACvol;
+      float HVvol = datalayer.charger.charger_stat_HVvol;
+      float HVcur = datalayer.charger.charger_stat_HVcur;
+      float LVvol = datalayer.charger.charger_stat_LVvol;
+      float LVcur = datalayer.charger.charger_stat_LVcur;
 
-    content += formatPowerValue("Charger Output Power", chgPwrDC, "", 1);
-    content += "<h4 style='color: white;'>Charger HVDC Output V: " + String(HVvol, 2) + " V</h4>";
-    content += "<h4 style='color: white;'>Charger HVDC Output I: " + String(HVcur, 2) + " A</h4>";
-    content += "<h4 style='color: white;'>Charger AC Input V: " + String(ACvol, 2) + " VAC</h4>";
-#endif  // NISSANLEAF_CHARGER
+      content += formatPowerValue("Charger Output Power", chgPwrDC, "", 1);
+      content += "<h4 style='color: white;'>Charger Efficiency: " + String(chgEff) + "%</h4>";
+      content += "<h4 style='color: white;'>Charger HVDC Output V: " + String(HVvol, 2) + " V</h4>";
+      content += "<h4 style='color: white;'>Charger HVDC Output I: " + String(HVcur, 2) + " A</h4>";
+      content += "<h4 style='color: white;'>Charger LVDC Output I: " + String(LVcur, 2) + "</h4>";
+      content += "<h4 style='color: white;'>Charger LVDC Output V: " + String(LVvol, 2) + "</h4>";
+      content += "<h4 style='color: white;'>Charger AC Input V: " + String(ACvol, 2) + " VAC</h4>";
+      content += "<h4 style='color: white;'>Charger AC Input I: " + String(ACcur, 2) + " A</h4>";
+    }
+
+    if (charger && charger->type() == ChargerType::NissanLeaf) {
+      float chgPwrDC = static_cast<float>(datalayer.charger.charger_stat_HVcur * 100);
+      datalayer.charger.charger_stat_HVcur = chgPwrDC / (datalayer.battery.status.voltage_dV / 10);  // P/U=I
+      datalayer.charger.charger_stat_HVvol = static_cast<float>(datalayer.battery.status.voltage_dV / 10);
+      float ACvol = datalayer.charger.charger_stat_ACvol;
+      float HVvol = datalayer.charger.charger_stat_HVvol;
+      float HVcur = datalayer.charger.charger_stat_HVcur;
+
+      content += formatPowerValue("Charger Output Power", chgPwrDC, "", 1);
+      content += "<h4 style='color: white;'>Charger HVDC Output V: " + String(HVvol, 2) + " V</h4>";
+      content += "<h4 style='color: white;'>Charger HVDC Output I: " + String(HVcur, 2) + " A</h4>";
+      content += "<h4 style='color: white;'>Charger AC Input V: " + String(ACvol, 2) + " VAC</h4>";
+    }
     // Close the block
     content += "</div>";
 #endif  // defined CHEVYVOLT_CHARGER || defined NISSANLEAF_CHARGER

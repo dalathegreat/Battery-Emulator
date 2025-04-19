@@ -9,9 +9,14 @@
 // 80 means after reaching 80% of a nominal value a warning is produced (e.g. 80% of max current)
 #define WARNINGS_PERCENT 80
 
-void send_system_data();
-void send_setup_info();
-void transmit_can_frame(CAN_frame* tx_frame, int interface);
-void setup_inverter(void);
+class PylonLvCanInverter : public InverterProtocol {
+ public:
+  virtual void transmit_can();
+  virtual void update_values_can_inverter();
+  virtual void map_can_frame_to_variable_inverter(CAN_frame rx_frame);
+
+  virtual const char* name() { return Name; };
+  static constexpr char* Name = "Pylontech LV battery over CAN bus";
+};
 
 #endif

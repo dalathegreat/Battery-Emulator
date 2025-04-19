@@ -1,5 +1,6 @@
 #include "../include.h"
 #ifdef MG_5_BATTERY_H
+#include "../communication/can/comm_can.h"
 #include "../datalayer/datalayer.h"
 #include "../devboard/utils/events.h"
 #include "MG-5-BATTERY.h"
@@ -23,7 +24,8 @@ CAN_frame MG_5_100 = {.FD = false,
                       .ID = 0x100,
                       .data = {0x00, 0x00, 0x00, 0x00, 0x80, 0x10, 0x00, 0x00}};
 
-void update_values_battery() {  //This function maps all the values fetched via CAN to the correct parameters used for modbus
+static void
+update_values_battery() {  //This function maps all the values fetched via CAN to the correct parameters used for modbus
 
   datalayer.battery.status.real_soc;
 
@@ -44,7 +46,7 @@ void update_values_battery() {  //This function maps all the values fetched via 
   datalayer.battery.status.temperature_max_dC;
 }
 
-void handle_incoming_can_frame_battery(CAN_frame rx_frame) {
+static void handle_incoming_can_frame_battery(CAN_frame rx_frame) {
   datalayer.battery.status.CAN_battery_still_alive = CAN_STILL_ALIVE;
   switch (rx_frame.ID) {
     case 0x171:  //Following messages were detected on a MG5 battery BMS
@@ -108,7 +110,7 @@ void handle_incoming_can_frame_battery(CAN_frame rx_frame) {
       break;
   }
 }
-void transmit_can_battery() {
+static void transmit_can_battery() {
   unsigned long currentMillis = millis();
   //Send 10ms message
   if (currentMillis - previousMillis10 >= INTERVAL_10_MS) {
@@ -130,14 +132,27 @@ void transmit_can_battery() {
   }
 }
 
-void setup_battery(void) {  // Performs one time setup at startup
-  strncpy(datalayer.system.info.battery_protocol, "MG 5 battery", 63);
-  datalayer.system.info.battery_protocol[63] = '\0';
-
+static void setup_battery(void) {  // Performs one time setup at startup
   datalayer.battery.info.max_design_voltage_dV = MAX_PACK_VOLTAGE_DV;
   datalayer.battery.info.min_design_voltage_dV = MIN_PACK_VOLTAGE_DV;
   datalayer.battery.info.max_cell_voltage_mV = MAX_CELL_VOLTAGE_MV;
   datalayer.battery.info.min_cell_voltage_mV = MIN_CELL_VOLTAGE_MV;
+}
+
+void MG5Battery::setup() {
+  setup_battery();
+}
+
+void MG5Battery::update_values() {
+  update_values_battery();
+}
+
+void MG5Battery::handle_incoming_can_frame(CAN_frame rx_frame) {
+  ::handle_incoming_can_frame_battery(rx_frame);
+}
+
+void MG5Battery::transmit_can() {
+  transmit_can_battery();
 }
 
 #endif

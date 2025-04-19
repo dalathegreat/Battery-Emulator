@@ -3,6 +3,8 @@
 #include "../datalayer/datalayer.h"
 #include "NISSAN-LEAF-CHARGER.h"
 
+#include "../communication/can/comm_can.h"
+
 /* This implements Nissan LEAF PDM charger support. 2013-2024 Gen2/3 PDMs are supported
  *
  * This code is intended to facilitate standalone battery charging, 
@@ -114,7 +116,7 @@ static uint8_t calculate_checksum_nibble(CAN_frame* frame) {
   return sum;
 }
 
-void map_can_frame_to_variable_charger(CAN_frame rx_frame) {
+void NissanLeafCharger::map_can_frame_to_variable_charger(CAN_frame rx_frame) {
 
   switch (rx_frame.ID) {
     case 0x679:  // This message fires once when charging cable is plugged in
@@ -156,7 +158,7 @@ void map_can_frame_to_variable_charger(CAN_frame rx_frame) {
   }
 }
 
-void transmit_can_charger() {
+void NissanLeafCharger::transmit_can() {
   unsigned long currentMillis = millis();
 
   /* Send keepalive with mode every 10ms */
@@ -165,19 +167,19 @@ void transmit_can_charger() {
 
     mprun10 = (mprun10 + 1) % 4;  // mprun10 cycles between 0-1-2-3-0-1...
 
-/* 1DB is the main control message. If LEAF battery is used, the battery controls almost everything */
-// Only send these messages if Nissan LEAF battery is not used
-#ifndef NISSAN_LEAF_BATTERY
+    /* 1DB is the main control message. If LEAF battery is used, the battery controls almost everything */
+    // Only send these messages if Nissan LEAF battery is not used
 
-    // VCM message, containing info if battery should sleep or stay awake
-    transmit_can_frame(&LEAF_50B, can_config.charger);  // HCM_WakeUpSleepCommand == 11b == WakeUp, and CANMASK = 1
+    if (battery->type() != NissanLeaf) {
+      // VCM message, containing info if battery should sleep or stay awake
+      transmit_can_frame(&LEAF_50B, can_config.charger);  // HCM_WakeUpSleepCommand == 11b == WakeUp, and CANMASK = 1
 
-    LEAF_1DB.data.u8[7] = calculate_CRC_Nissan(&LEAF_1DB);
-    transmit_can_frame(&LEAF_1DB, can_config.charger);
+      LEAF_1DB.data.u8[7] = calculate_CRC_Nissan(&LEAF_1DB);
+      transmit_can_frame(&LEAF_1DB, can_config.charger);
 
-    LEAF_1DC.data.u8[7] = calculate_CRC_Nissan(&LEAF_1DC);
-    transmit_can_frame(&LEAF_1DC, can_config.charger);
-#endif
+      LEAF_1DC.data.u8[7] = calculate_CRC_Nissan(&LEAF_1DC);
+      transmit_can_frame(&LEAF_1DC, can_config.charger);
+    }
 
     OBCpowerSetpoint = ((datalayer.charger.charger_setpoint_HV_IDC * 4) + 0x64);
 

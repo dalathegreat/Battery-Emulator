@@ -3,6 +3,8 @@
 #include "../datalayer/datalayer.h"
 #include "SCHNEIDER-CAN.h"
 
+#include "../communication/can/comm_can.h"
+
 /* Version 2: SE BMS Communication Protocol 
 Protocol: CAN 2.0 Specification
 Frame: Extended CAN Bus Frame (29 bit identifier)
@@ -87,8 +89,8 @@ static uint16_t warnings = 0;
 static uint16_t faults = 0;
 static uint16_t state = 0;
 
-void update_values_can_inverter() {  //This function maps all the values fetched from battery CAN to the correct CAN messages
-
+void SchneiderCanInverter::
+    update_values_can_inverter() {  //This function maps all the values fetched from battery CAN to the correct CAN messages
   /* Calculate temperature */
   temperature_average =
       ((datalayer.battery.status.temperature_max_dC + datalayer.battery.status.temperature_min_dC) / 2);
@@ -255,7 +257,7 @@ void update_values_can_inverter() {  //This function maps all the values fetched
   SE_320.data.u8[1] = 0x02;
 }
 
-void map_can_frame_to_variable_inverter(CAN_frame rx_frame) {
+void SchneiderCanInverter::map_can_frame_to_variable_inverter(CAN_frame rx_frame) {
   switch (rx_frame.ID) {
     case 0x310:  // Still alive message from inverter, every 1s
       datalayer.system.status.CAN_inverter_still_alive = CAN_STILL_ALIVE;
@@ -265,7 +267,7 @@ void map_can_frame_to_variable_inverter(CAN_frame rx_frame) {
   }
 }
 
-void transmit_can_inverter() {
+void SchneiderCanInverter::transmit_can() {
   unsigned long currentMillis = millis();
 
   // Send 500ms CAN Message
@@ -295,11 +297,6 @@ void transmit_can_inverter() {
     transmit_can_frame(&SE_332, can_config.inverter);
     transmit_can_frame(&SE_333, can_config.inverter);
   }
-}
-
-void setup_inverter(void) {  // Performs one time setup
-  strncpy(datalayer.system.info.inverter_protocol, "Schneider V2 SE BMS CAN", 63);
-  datalayer.system.info.inverter_protocol[63] = '\0';
 }
 
 #endif

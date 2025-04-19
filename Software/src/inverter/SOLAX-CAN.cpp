@@ -4,6 +4,8 @@
 #include "../devboard/utils/events.h"
 #include "SOLAX-CAN.h"
 
+#include "../communication/can/comm_can.h"
+
 #define NUMBER_OF_MODULES 0
 #define BATTERY_TYPE 0x50
 // If you are having BattVoltFault issues, configure the above values according to wiki page
@@ -106,7 +108,8 @@ CAN_frame SOLAX_100A001 = {.FD = false, .ext_ID = true, .DLC = 0, .ID = 0x100A00
 #define Contactor_Open_Payload __builtin_bswap64(0x0200010000000000)
 #define Contactor_Close_Payload __builtin_bswap64(0x0200010001000000)
 
-void update_values_can_inverter() {  //This function maps all the values fetched from battery CAN to the correct CAN messages
+void SolaxCanInverter::
+    update_values_can_inverter() {  //This function maps all the values fetched from battery CAN to the correct CAN messages
   // If not receiveing any communication from the inverter, open contactors and return to battery announce state
   if (millis() - LastFrameTime >= SolaxTimeout) {
     datalayer.system.status.inverter_allows_contactor_closing = false;
@@ -206,11 +209,11 @@ void update_values_can_inverter() {  //This function maps all the values fetched
   SOLAX_187E.data.u8[5] = (uint8_t)(datalayer.battery.status.reported_soc / 100);
 }
 
-void transmit_can_inverter() {
+static void transmit_can_inverter() {
   // No periodic sending used on this protocol, we react only on incoming CAN messages!
 }
 
-void map_can_frame_to_variable_inverter(CAN_frame rx_frame) {
+void SolaxCanInverter::map_can_frame_to_variable_inverter(CAN_frame rx_frame) {
 
   if (rx_frame.ID == 0x1871) {
     datalayer.system.status.CAN_inverter_still_alive = CAN_STILL_ALIVE;
@@ -297,9 +300,16 @@ void map_can_frame_to_variable_inverter(CAN_frame rx_frame) {
 #endif
   }
 }
-void setup_inverter(void) {  // Performs one time setup at startup
-  strncpy(datalayer.system.info.inverter_protocol, "SolaX Triple Power LFP over CAN bus", 63);
-  datalayer.system.info.inverter_protocol[63] = '\0';
+static void setup_inverter(void) {                                    // Performs one time setup at startup
   datalayer.system.status.inverter_allows_contactor_closing = false;  // The inverter needs to allow first
 }
+
+void SolaxCanInverter::setup() {
+  setup_inverter();
+}
+
+void SolaxCanInverter::transmit_can() {
+  transmit_can_inverter();
+}
+
 #endif

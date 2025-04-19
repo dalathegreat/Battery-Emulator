@@ -1,6 +1,7 @@
 #include "../include.h"
 #ifdef STELLANTIS_ECMP_BATTERY
 #include <algorithm>  // For std::min and std::max
+#include "../communication/can/comm_can.h"
 #include "../datalayer/datalayer.h"
 #include "../devboard/utils/events.h"
 #include "ECMP-BATTERY.h"
@@ -30,7 +31,7 @@ static uint16_t battery_voltage = 37000;
 static uint16_t battery_soc = 0;
 static uint16_t cellvoltages[108];
 
-void update_values_battery() {
+static void update_values_battery() {
 
   datalayer.battery.status.real_soc = battery_soc * 100;
 
@@ -72,7 +73,7 @@ void update_values_battery() {
   datalayer.battery.status.cell_max_voltage_mV = max_cell_mv_value;
 }
 
-void handle_incoming_can_frame_battery(CAN_frame rx_frame) {
+static void handle_incoming_can_frame_battery(CAN_frame rx_frame) {
   datalayer.battery.status.CAN_battery_still_alive = CAN_STILL_ALIVE;
   switch (rx_frame.ID) {
     case 0x125:
@@ -288,7 +289,7 @@ void handle_incoming_can_frame_battery(CAN_frame rx_frame) {
   }
 }
 
-void transmit_can_battery() {
+static void transmit_can_battery() {
   unsigned long currentMillis = millis();
   // Send 1s CAN Message
   if (currentMillis - previousMillis1000 >= INTERVAL_1_S) {
@@ -296,13 +297,29 @@ void transmit_can_battery() {
   }
 }
 
-void setup_battery(void) {  // Performs one time setup at startup
+static void setup_battery(void) {  // Performs one time setup at startup
 #ifdef DEBUG_VIA_USB
   Serial.println("ECMP battery selected");
 #endif
   datalayer.battery.info.number_of_cells = 108;
   datalayer.battery.info.max_design_voltage_dV = 4546;  // 454.6V, charging over this is not possible
   datalayer.battery.info.min_design_voltage_dV = 3210;  // 321.0V, under this, discharging further is disabled
+}
+
+void StellantisEcmpBattery::setup() {
+  setup_battery();
+}
+
+void StellantisEcmpBattery::update_values() {
+  update_values_battery();
+}
+
+void StellantisEcmpBattery::handle_incoming_can_frame(CAN_frame rx_frame) {
+  ::handle_incoming_can_frame_battery(rx_frame);
+}
+
+void StellantisEcmpBattery::transmit_can() {
+  transmit_can_battery();
 }
 
 #endif

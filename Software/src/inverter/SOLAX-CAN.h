@@ -14,7 +14,15 @@
 #define FAULT_SOLAX 3
 #define UPDATING_FW 4
 
-void transmit_can_frame(CAN_frame* tx_frame, int interface);
-void setup_inverter(void);
+class SolaxCanInverter : public InverterProtocol {
+ public:
+  virtual void setup();
+  virtual void transmit_can();
+  virtual void update_values_can_inverter();
+  virtual void map_can_frame_to_variable_inverter(CAN_frame rx_frame);
+
+  virtual const char* name() { return Name; };
+  static constexpr char* Name = "SolaX Triple Power LFP over CAN bus";
+};
 
 #endif

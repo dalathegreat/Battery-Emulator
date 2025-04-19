@@ -13,7 +13,19 @@
 
 /* Do not modify any rows below*/
 #define BATTERY_SELECTED
-#define RS485_BATTERY_SELECTED
-#define RS485_BAUDRATE 9600
+
+class DalyBms : public RS485Battery {
+ public:
+  DalyBms() : RS485Battery(Daly) {}
+  virtual const char* name() { return Name; };
+  static constexpr char* Name = "DALY RS485";
+
+  virtual void setup();
+  virtual void update_values();
+
+  virtual int rs485_baudrate() { return 9600; }
+  virtual void transmit_RS485();
+  virtual void receive_RS485();
+};
 
 #endif

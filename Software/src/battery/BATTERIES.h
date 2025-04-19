@@ -2,6 +2,46 @@
 #define BATTERIES_H
 #include "../../USER_SETTINGS.h"
 
+// Selection of batteries to the common image.
+#ifdef BUILD_EM_ALL
+#define BMW_I3_BATTERY
+#define BMW_IX_BATTERY
+#define BMW_PHEV_BATTERY
+#define BOLT_AMPERA_BATTERY
+#define BYD_ATTO_3_BATTERY
+#define CELLPOWER_BMS
+#define CMFA_EV_BATTERY
+// TODO: Chademo has conflict usage of GPIO: Need to implement run-time allocation of GPIO resources.
+//#define CHADEMO_BATTERY
+#define FOXESS_BATTERY
+//#define ORION_BMS
+#define SONO_BATTERY
+#define STELLANTIS_ECMP_BATTERY
+#define IMIEV_CZERO_ION_BATTERY
+#define JAGUAR_IPACE_BATTERY
+#define KIA_E_GMP_BATTERY
+#define KIA_HYUNDAI_64_BATTERY
+#define KIA_HYUNDAI_HYBRID_BATTERY
+#define MEB_BATTERY
+#define MG_5_BATTERY
+#define NISSAN_LEAF_BATTERY
+#define PYLON_BATTERY
+#define DALY_BMS
+//#define RJXZS_BMS
+#define RANGE_ROVER_PHEV_BATTERY
+#define RENAULT_KANGOO_BATTERY
+#define RENAULT_TWIZY_BATTERY
+#define RENAULT_ZOE_GEN1_BATTERY
+#define RENAULT_ZOE_GEN2_BATTERY
+#define SANTA_FE_PHEV_BATTERY
+//#define SIMPBMS_BATTERY
+#define TESLA_MODEL_SX_BATTERY
+#define TESLA_MODEL_3Y_BATTERY
+#define TEST_FAKE_BATTERY
+#define VOLVO_SPA_BATTERY
+#define VOLVO_SPA_HYBRID_BATTERY
+#endif
+
 #ifdef BMW_SBOX
 #include "BMW-SBOX.h"
 void handle_incoming_can_frame_shunt(CAN_frame rx_frame);
@@ -80,6 +120,7 @@ void setup_can_shunt();
 
 #ifdef MEB_BATTERY
 #include "MEB-BATTERY.h"
+#define PRECHARGE_CONTROL
 #endif
 
 #ifdef MG_5_BATTERY
@@ -145,17 +186,6 @@ void setup_can_shunt();
 
 #ifdef VOLVO_SPA_HYBRID_BATTERY
 #include "VOLVO-SPA-HYBRID-BATTERY.h"
-#endif
-
-void setup_battery(void);
-void update_values_battery();
-
-#ifdef RS485_BATTERY_SELECTED
-void transmit_rs485();
-void receive_RS485();
-#else
-void handle_incoming_can_frame_battery(CAN_frame rx_frame);
-void transmit_can_battery();
 #endif
 
 #ifdef DOUBLE_BATTERY

@@ -16,7 +16,7 @@
 #define PWM_OFF_DUTY 0
 
 #define PWM_Precharge_Channel 0
-unsigned long prechargeStartTime = 0;
+static unsigned long prechargeStartTime = 0;
 static uint32_t freq = Precharge_default_PWM_Freq;
 uint16_t delta_freq = 1;
 static int32_t prev_external_voltage = 20000;

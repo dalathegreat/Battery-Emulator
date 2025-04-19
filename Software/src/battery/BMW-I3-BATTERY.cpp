@@ -5,26 +5,11 @@
 #include "../devboard/utils/events.h"
 #include "BMW-I3-BATTERY.h"
 
+#include "../communication/can/comm_can.h"
+
 /* Do not change code below unless you are sure what you are doing */
-static unsigned long previousMillis20 = 0;     // will store last time a 20ms CAN Message was send
-static unsigned long previousMillis100 = 0;    // will store last time a 100ms CAN Message was send
-static unsigned long previousMillis200 = 0;    // will store last time a 200ms CAN Message was send
-static unsigned long previousMillis500 = 0;    // will store last time a 500ms CAN Message was send
-static unsigned long previousMillis640 = 0;    // will store last time a 600ms CAN Message was send
-static unsigned long previousMillis1000 = 0;   // will store last time a 1000ms CAN Message was send
-static unsigned long previousMillis5000 = 0;   // will store last time a 5000ms CAN Message was send
-static unsigned long previousMillis10000 = 0;  // will store last time a 10000ms CAN Message was send
 
-#define ALIVE_MAX_VALUE 14  // BMW CAN messages contain alive counter, goes from 0...14
-
-enum BatterySize { BATTERY_60AH, BATTERY_94AH, BATTERY_120AH };
-static BatterySize detectedBattery = BATTERY_60AH;
-static BatterySize detectedBattery2 = BATTERY_60AH;  // For double battery setups
-
-enum CmdState { SOH, CELL_VOLTAGE_MINMAX, SOC, CELL_VOLTAGE_CELLNO, CELL_VOLTAGE_CELLNO_LAST };
-
-static CmdState cmdState = SOC;
-
+// TODO: This is a duplicate of another identical table. Remove the duplication.
 const unsigned char crc8_table[256] =
     {  // CRC8_SAE_J1850_ZER0 formula,0x1D Poly,initial value 0x3F,Final XOR value varies
         0x00, 0x1D, 0x3A, 0x27, 0x74, 0x69, 0x4E, 0x53, 0xE8, 0xF5, 0xD2, 0xCF, 0x9C, 0x81, 0xA6, 0xBB, 0xCD, 0xD0,
@@ -43,309 +28,6 @@ const unsigned char crc8_table[256] =
         0x60, 0x7D, 0x2E, 0x33, 0x14, 0x09, 0x7F, 0x62, 0x45, 0x58, 0x0B, 0x16, 0x31, 0x2C, 0x97, 0x8A, 0xAD, 0xB0,
         0xE3, 0xFE, 0xD9, 0xC4};
 
-/* CAN messages from PT-CAN2 not needed to operate the battery
-0AA 105 13D 0BB 0AD 0A5 150 100 1A1 10E 153 197 429 1AA 12F 59A 2E3 2BE 211 2b3 3FD 2E8 2B7 108 29D 29C 29B 2C0 330
-3E9 32F 19E 326 55E 515 509 50A 51A 2F5 3A4 432 3C9 
-*/
-
-CAN_frame BMW_10B = {.FD = false,
-                     .ext_ID = false,
-                     .DLC = 3,
-                     .ID = 0x10B,
-                     .data = {0xCD, 0x00, 0xFC}};  // Contactor closing command
-CAN_frame BMW_12F = {.FD = false,
-                     .ext_ID = false,
-                     .DLC = 8,
-                     .ID = 0x12F,
-                     .data = {0xE6, 0x24, 0x86, 0x1A, 0xF1, 0x31, 0x30, 0x00}};  //0x12F Wakeup VCU
-CAN_frame BMW_13E = {.FD = false,
-                     .ext_ID = false,
-                     .DLC = 8,
-                     .ID = 0x13E,
-                     .data = {0xFF, 0x31, 0xFA, 0xFA, 0xFA, 0xFA, 0x0C, 0x00}};
-CAN_frame BMW_192 = {.FD = false,
-                     .ext_ID = false,
-                     .DLC = 8,
-                     .ID = 0x192,
-                     .data = {0xFF, 0xFF, 0xA3, 0x8F, 0x93, 0xFF, 0xFF, 0xFF}};
-CAN_frame BMW_19B = {.FD = false,
-                     .ext_ID = false,
-                     .DLC = 8,
-                     .ID = 0x19B,
-                     .data = {0x20, 0x40, 0x40, 0x55, 0xFD, 0xFF, 0xFF, 0xFF}};
-CAN_frame BMW_1D0 = {.FD = false,
-                     .ext_ID = false,
-                     .DLC = 8,
-                     .ID = 0x1D0,
-                     .data = {0x4D, 0xF0, 0xAE, 0xF8, 0xFF, 0xFF, 0xFF, 0xFF}};
-CAN_frame BMW_2CA = {.FD = false, .ext_ID = false, .DLC = 2, .ID = 0x2CA, .data = {0x57, 0x57}};
-CAN_frame BMW_2E2 = {.FD = false,
-                     .ext_ID = false,
-                     .DLC = 8,
-                     .ID = 0x2E2,
-                     .data = {0x4F, 0xDB, 0x7F, 0xB9, 0x07, 0x51, 0xff, 0x00}};
-CAN_frame BMW_30B = {.FD = false,
-                     .ext_ID = false,
-                     .DLC = 8,
-                     .ID = 0x30B,
-                     .data = {0xe1, 0xf0, 0xff, 0xff, 0xf1, 0xff, 0xff, 0xff}};
-CAN_frame BMW_328 = {.FD = false, .ext_ID = false, .DLC = 6, .ID = 0x328, .data = {0xB0, 0xE4, 0x87, 0x0E, 0x30, 0x22}};
-CAN_frame BMW_37B = {.FD = false, .ext_ID = false, .DLC = 6, .ID = 0x37B, .data = {0x40, 0x00, 0x00, 0xFF, 0xFF, 0x00}};
-CAN_frame BMW_380 = {.FD = false,
-                     .ext_ID = false,
-                     .DLC = 7,
-                     .ID = 0x380,
-                     .data = {0x56, 0x5A, 0x37, 0x39, 0x34, 0x34, 0x34}};
-CAN_frame BMW_3A0 = {.FD = false,
-                     .ext_ID = false,
-                     .DLC = 8,
-                     .ID = 0x3A0,
-                     .data = {0xFF, 0xFF, 0xF0, 0xFF, 0xFF, 0xFF, 0xFF, 0xFC}};
-CAN_frame BMW_3A7 = {.FD = false,
-                     .ext_ID = false,
-                     .DLC = 7,
-                     .ID = 0x3A7,
-                     .data = {0x05, 0xF5, 0x0A, 0x00, 0x4F, 0x11, 0xF0}};
-CAN_frame BMW_3C5 = {.FD = false,
-                     .ext_ID = false,
-                     .DLC = 8,
-                     .ID = 0x3C5,
-                     .data = {0x30, 0x05, 0x47, 0x70, 0x2c, 0xce, 0xc3, 0x34}};
-CAN_frame BMW_3CA = {.FD = false,
-                     .ext_ID = false,
-                     .DLC = 8,
-                     .ID = 0x3CA,
-                     .data = {0x87, 0x80, 0x30, 0x0C, 0x0C, 0x81, 0xFF, 0xFF}};
-CAN_frame BMW_3D0 = {.FD = false, .ext_ID = false, .DLC = 2, .ID = 0x3D0, .data = {0xFD, 0xFF}};
-CAN_frame BMW_3E4 = {.FD = false, .ext_ID = false, .DLC = 6, .ID = 0x3E4, .data = {0x00, 0x00, 0x00, 0x00, 0xFF, 0xFF}};
-CAN_frame BMW_3E5 = {.FD = false, .ext_ID = false, .DLC = 3, .ID = 0x3E5, .data = {0xFC, 0xFF, 0xFF}};
-CAN_frame BMW_3E8 = {.FD = false, .ext_ID = false, .DLC = 2, .ID = 0x3E8, .data = {0xF0, 0xFF}};  //1000ms OBD reset
-CAN_frame BMW_3EC = {.FD = false,
-                     .ext_ID = false,
-                     .DLC = 8,
-                     .ID = 0x3EC,
-                     .data = {0xF5, 0x10, 0x00, 0x00, 0x80, 0x25, 0x0F, 0xFC}};
-CAN_frame BMW_3F9 = {.FD = false,
-                     .ext_ID = false,
-                     .DLC = 8,
-                     .ID = 0x3F9,
-                     .data = {0xA7, 0x2A, 0x00, 0xE2, 0xA6, 0x30, 0xC3, 0xFF}};
-CAN_frame BMW_3FB = {.FD = false, .ext_ID = false, .DLC = 6, .ID = 0x3FB, .data = {0xFF, 0xFF, 0xFF, 0xFF, 0x5F, 0x00}};
-CAN_frame BMW_3FC = {.FD = false, .ext_ID = false, .DLC = 3, .ID = 0x3FC, .data = {0xC0, 0xF9, 0x0F}};
-CAN_frame BMW_418 = {.FD = false,
-                     .ext_ID = false,
-                     .DLC = 8,
-                     .ID = 0x418,
-                     .data = {0xFF, 0x7C, 0xFF, 0x00, 0xC0, 0x3F, 0xFF, 0xFF}};
-CAN_frame BMW_41D = {.FD = false, .ext_ID = false, .DLC = 4, .ID = 0x41D, .data = {0xFF, 0xF7, 0x7F, 0xFF}};
-CAN_frame BMW_433 = {.FD = false,
-                     .ext_ID = false,
-                     .DLC = 4,
-                     .ID = 0x433,
-                     .data = {0xFF, 0x00, 0x0F, 0xFF}};  // HV specification
-CAN_frame BMW_512 = {.FD = false,
-                     .ext_ID = false,
-                     .DLC = 8,
-                     .ID = 0x512,
-                     .data = {0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x12}};  // 0x512 Network management
-CAN_frame BMW_592_0 = {.FD = false,
-                       .ext_ID = false,
-                       .DLC = 8,
-                       .ID = 0x592,
-                       .data = {0x86, 0x10, 0x07, 0x21, 0x6e, 0x35, 0x5e, 0x86}};
-CAN_frame BMW_592_1 = {.FD = false,
-                       .ext_ID = false,
-                       .DLC = 8,
-                       .ID = 0x592,
-                       .data = {0x86, 0x21, 0xb4, 0xdd, 0x00, 0x00, 0x00, 0x00}};
-CAN_frame BMW_5F8 = {.FD = false,
-                     .ext_ID = false,
-                     .DLC = 8,
-                     .ID = 0x5F8,
-                     .data = {0x64, 0x01, 0x00, 0x0B, 0x92, 0x03, 0x00, 0x05}};
-CAN_frame BMW_6F1_CELL = {.FD = false, .ext_ID = false, .DLC = 5, .ID = 0x6F1, .data = {0x07, 0x03, 0x22, 0xDD, 0xBF}};
-CAN_frame BMW_6F1_SOH = {.FD = false, .ext_ID = false, .DLC = 5, .ID = 0x6F1, .data = {0x07, 0x03, 0x22, 0x63, 0x35}};
-CAN_frame BMW_6F1_SOC = {.FD = false, .ext_ID = false, .DLC = 5, .ID = 0x6F1, .data = {0x07, 0x03, 0x22, 0xDD, 0xBC}};
-CAN_frame BMW_6F1_CELL_VOLTAGE_AVG = {.FD = false,
-                                      .ext_ID = false,
-                                      .DLC = 5,
-                                      .ID = 0x6F1,
-                                      .data = {0x07, 0x03, 0x22, 0xDF, 0xA0}};
-CAN_frame BMW_6F1_CONTINUE = {.FD = false, .ext_ID = false, .DLC = 4, .ID = 0x6F1, .data = {0x07, 0x30, 0x00, 0x02}};
-CAN_frame BMW_6F4_CELL_VOLTAGE_CELLNO = {.FD = false,
-                                         .ext_ID = false,
-                                         .DLC = 7,
-                                         .ID = 0x6F4,
-                                         .data = {0x07, 0x05, 0x31, 0x01, 0xAD, 0x6E, 0x01}};
-CAN_frame BMW_6F4_CELL_CONTINUE = {.FD = false,
-                                   .ext_ID = false,
-                                   .DLC = 6,
-                                   .ID = 0x6F4,
-                                   .data = {0x07, 0x04, 0x31, 0x03, 0xAD, 0x6E}};
-
-//The above CAN messages need to be sent towards the battery to keep it alive
-
-static uint8_t startup_counter_contactor = 0;
-static uint8_t alive_counter_20ms = 0;
-static uint8_t alive_counter_100ms = 0;
-static uint8_t alive_counter_200ms = 0;
-static uint8_t alive_counter_500ms = 0;
-static uint8_t alive_counter_1000ms = 0;
-static uint8_t alive_counter_5000ms = 0;
-static uint8_t BMW_1D0_counter = 0;
-static uint8_t BMW_13E_counter = 0;
-static uint8_t BMW_380_counter = 0;
-static uint32_t BMW_328_counter = 0;
-
-static bool battery_awake = false;
-static bool battery2_awake = false;
-static bool battery_info_available = false;
-static bool battery2_info_available = false;
-static bool skipCRCCheck = false;
-static bool CRCCheckPassedPreviously = false;
-static bool skipCRCCheck_battery2 = false;
-static bool CRCCheckPassedPreviously_battery2 = false;
-
-static uint16_t cellvoltage_temp_mV = 0;
-static uint32_t battery_serial_number = 0;
-static uint32_t battery_available_power_shortterm_charge = 0;
-static uint32_t battery_available_power_shortterm_discharge = 0;
-static uint32_t battery_available_power_longterm_charge = 0;
-static uint32_t battery_available_power_longterm_discharge = 0;
-static uint32_t battery_BEV_available_power_shortterm_charge = 0;
-static uint32_t battery_BEV_available_power_shortterm_discharge = 0;
-static uint32_t battery_BEV_available_power_longterm_charge = 0;
-static uint32_t battery_BEV_available_power_longterm_discharge = 0;
-static uint16_t battery_energy_content_maximum_Wh = 0;
-static uint16_t battery_display_SOC = 0;
-static uint16_t battery_volts = 0;
-static uint16_t battery_HVBatt_SOC = 0;
-static uint16_t battery_DC_link_voltage = 0;
-static uint16_t battery_max_charge_voltage = 0;
-static uint16_t battery_min_discharge_voltage = 0;
-static uint16_t battery_predicted_energy_charge_condition = 0;
-static uint16_t battery_predicted_energy_charging_target = 0;
-static uint16_t battery_actual_value_power_heating = 0;  //0 - 4094 W
-static uint16_t battery_prediction_voltage_shortterm_charge = 0;
-static uint16_t battery_prediction_voltage_shortterm_discharge = 0;
-static uint16_t battery_prediction_voltage_longterm_charge = 0;
-static uint16_t battery_prediction_voltage_longterm_discharge = 0;
-static uint16_t battery_prediction_duration_charging_minutes = 0;
-static uint16_t battery_target_voltage_in_CV_mode = 0;
-static uint16_t battery_soc = 0;
-static uint16_t battery_soc_hvmax = 0;
-static uint16_t battery_soc_hvmin = 0;
-static uint16_t battery_capacity_cah = 0;
-static int16_t battery_temperature_HV = 0;
-static int16_t battery_temperature_heat_exchanger = 0;
-static int16_t battery_temperature_max = 0;
-static int16_t battery_temperature_min = 0;
-static int16_t battery_max_charge_amperage = 0;
-static int16_t battery_max_discharge_amperage = 0;
-static int16_t battery_current = 0;
-static uint8_t battery_status_error_isolation_external_Bordnetz = 0;
-static uint8_t battery_status_error_isolation_internal_Bordnetz = 0;
-static uint8_t battery_request_cooling = 0;
-static uint8_t battery_status_valve_cooling = 0;
-static uint8_t battery_status_error_locking = 0;
-static uint8_t battery_status_precharge_locked = 0;
-static uint8_t battery_status_disconnecting_switch = 0;
-static uint8_t battery_status_emergency_mode = 0;
-static uint8_t battery_request_service = 0;
-static uint8_t battery_error_emergency_mode = 0;
-static uint8_t battery_status_error_disconnecting_switch = 0;
-static uint8_t battery_status_warning_isolation = 0;
-static uint8_t battery_status_cold_shutoff_valve = 0;
-static uint8_t battery_request_open_contactors = 0;
-static uint8_t battery_request_open_contactors_instantly = 0;
-static uint8_t battery_request_open_contactors_fast = 0;
-static uint8_t battery_charging_condition_delta = 0;
-static uint8_t battery_status_service_disconnection_plug = 0;
-static uint8_t battery_status_measurement_isolation = 0;
-static uint8_t battery_request_abort_charging = 0;
-static uint8_t battery_prediction_time_end_of_charging_minutes = 0;
-static uint8_t battery_request_operating_mode = 0;
-static uint8_t battery_request_charging_condition_minimum = 0;
-static uint8_t battery_request_charging_condition_maximum = 0;
-static uint8_t battery_status_cooling_HV = 0;      //1 works, 2 does not start
-static uint8_t battery_status_diagnostics_HV = 0;  // 0 all OK, 1 HV protection function error, 2 diag not yet expired
-static uint8_t battery_status_diagnosis_powertrain_maximum_multiplexer = 0;
-static uint8_t battery_status_diagnosis_powertrain_immediate_multiplexer = 0;
-static uint8_t battery_ID2 = 0;
-static uint8_t battery_soh = 99;
-
-static uint16_t cellvoltage2_temp_mV = 0;
-static uint32_t battery2_serial_number = 0;
-static uint32_t battery2_available_power_shortterm_charge = 0;
-static uint32_t battery2_available_power_shortterm_discharge = 0;
-static uint32_t battery2_available_power_longterm_charge = 0;
-static uint32_t battery2_available_power_longterm_discharge = 0;
-static uint32_t battery2_BEV_available_power_shortterm_charge = 0;
-static uint32_t battery2_BEV_available_power_shortterm_discharge = 0;
-static uint32_t battery2_BEV_available_power_longterm_charge = 0;
-static uint32_t battery2_BEV_available_power_longterm_discharge = 0;
-static uint16_t battery2_energy_content_maximum_Wh = 0;
-static uint16_t battery2_display_SOC = 0;
-static uint16_t battery2_volts = 0;
-static uint16_t battery2_HVBatt_SOC = 0;
-static uint16_t battery2_DC_link_voltage = 0;
-static uint16_t battery2_max_charge_voltage = 0;
-static uint16_t battery2_min_discharge_voltage = 0;
-static uint16_t battery2_predicted_energy_charge_condition = 0;
-static uint16_t battery2_predicted_energy_charging_target = 0;
-static uint16_t battery2_actual_value_power_heating = 0;  //0 - 4094 W
-static uint16_t battery2_prediction_voltage_shortterm_charge = 0;
-static uint16_t battery2_prediction_voltage_shortterm_discharge = 0;
-static uint16_t battery2_prediction_voltage_longterm_charge = 0;
-static uint16_t battery2_prediction_voltage_longterm_discharge = 0;
-static uint16_t battery2_prediction_duration_charging_minutes = 0;
-static uint16_t battery2_target_voltage_in_CV_mode = 0;
-static uint16_t battery2_soc = 0;
-static uint16_t battery2_soc_hvmax = 0;
-static uint16_t battery2_soc_hvmin = 0;
-static uint16_t battery2_capacity_cah = 0;
-static int16_t battery2_temperature_HV = 0;
-static int16_t battery2_temperature_heat_exchanger = 0;
-static int16_t battery2_temperature_max = 0;
-static int16_t battery2_temperature_min = 0;
-static int16_t battery2_max_charge_amperage = 0;
-static int16_t battery2_max_discharge_amperage = 0;
-static int16_t battery2_current = 0;
-static uint8_t battery2_status_error_isolation_external_Bordnetz = 0;
-static uint8_t battery2_status_error_isolation_internal_Bordnetz = 0;
-static uint8_t battery2_request_cooling = 0;
-static uint8_t battery2_status_valve_cooling = 0;
-static uint8_t battery2_status_error_locking = 0;
-static uint8_t battery2_status_precharge_locked = 0;
-static uint8_t battery2_status_disconnecting_switch = 0;
-static uint8_t battery2_status_emergency_mode = 0;
-static uint8_t battery2_request_service = 0;
-static uint8_t battery2_error_emergency_mode = 0;
-static uint8_t battery2_status_error_disconnecting_switch = 0;
-static uint8_t battery2_status_warning_isolation = 0;
-static uint8_t battery2_status_cold_shutoff_valve = 0;
-static uint8_t battery2_request_open_contactors = 0;
-static uint8_t battery2_request_open_contactors_instantly = 0;
-static uint8_t battery2_request_open_contactors_fast = 0;
-static uint8_t battery2_charging_condition_delta = 0;
-static uint8_t battery2_status_service_disconnection_plug = 0;
-static uint8_t battery2_status_measurement_isolation = 0;
-static uint8_t battery2_request_abort_charging = 0;
-static uint8_t battery2_prediction_time_end_of_charging_minutes = 0;
-static uint8_t battery2_request_operating_mode = 0;
-static uint8_t battery2_request_charging_condition_minimum = 0;
-static uint8_t battery2_request_charging_condition_maximum = 0;
-static uint8_t battery2_status_cooling_HV = 0;      //1 works, 2 does not start
-static uint8_t battery2_status_diagnostics_HV = 0;  // 0 all OK, 1 HV protection function error, 2 diag not yet expired
-static uint8_t battery2_status_diagnosis_powertrain_maximum_multiplexer = 0;
-static uint8_t battery2_status_diagnosis_powertrain_immediate_multiplexer = 0;
-static uint8_t battery2_ID2 = 0;
-static uint8_t battery2_soh = 99;
-
-static uint8_t message_data[50];
-static uint8_t next_data = 0;
-static uint8_t current_cell_polled = 0;
-
 static uint8_t calculateCRC(CAN_frame rx_frame, uint8_t length, uint8_t initial_value) {
   uint8_t crc = initial_value;
   for (uint8_t j = 1; j < length; j++) {  //start at 1, since 0 is the CRC
@@ -362,7 +44,7 @@ static uint8_t increment_alive_counter(uint8_t counter) {
   return counter;
 }
 
-void update_values_battery2() {  //This function maps all the values fetched via CAN2 to the battery2 datalayer
+void BMWi3Battery::update_values2() {  //This function maps all the values fetched via CAN2 to the battery2 datalayer
   if (!battery2_awake) {
     return;
   }
@@ -420,7 +102,7 @@ void update_values_battery2() {  //This function maps all the values fetched via
   }
 }
 
-void update_values_battery() {  //This function maps all the values fetched via CAN to the battery datalayer
+void BMWi3Battery::update_values() {  //This function maps all the values fetched via CAN to the battery datalayer
   if (datalayer.system.settings.equipment_stop_active == true) {
     digitalWrite(WUP_PIN1, LOW);  // Turn off WUP_PIN1
 #if defined(WUP_PIN2) && defined(DOUBLE_BATTERY)
@@ -505,7 +187,7 @@ void update_values_battery() {  //This function maps all the values fetched via 
   datalayer_extended.bmwi3.ST_cold_shutoff_valve = battery_status_cold_shutoff_valve;
 }
 
-void handle_incoming_can_frame_battery(CAN_frame rx_frame) {
+void BMWi3Battery::handle_incoming_can_frame(CAN_frame rx_frame) {
   switch (rx_frame.ID) {
     case 0x112:  //BMS [10ms] Status Of High-Voltage Battery - 2
       battery_awake = true;
@@ -690,6 +372,10 @@ void handle_incoming_can_frame_battery(CAN_frame rx_frame) {
       break;
   }
 }
+
+// TODO
+#ifndef BUILD_EM_ALL
+
 void handle_incoming_can_frame_battery2(CAN_frame rx_frame) {
   switch (rx_frame.ID) {
     case 0x112:  //BMS [10ms] Status Of High-Voltage Battery - 2
@@ -877,7 +563,9 @@ void handle_incoming_can_frame_battery2(CAN_frame rx_frame) {
       break;
   }
 }
-void transmit_can_battery() {
+#endif
+
+void BMWi3Battery::transmit_can() {
   unsigned long currentMillis = millis();
 
   if (battery_awake) {
@@ -1137,10 +825,7 @@ void transmit_can_battery() {
   }
 }
 
-void setup_battery(void) {  // Performs one time setup at startup
-  strncpy(datalayer.system.info.battery_protocol, "BMW i3", 63);
-  datalayer.system.info.battery_protocol[63] = '\0';
-
+void BMWi3Battery::setup(void) {  // Performs one time setup at startup
   //Before we have started up and detected which battery is in use, use 60AH values
   datalayer.battery.info.max_design_voltage_dV = MAX_PACK_VOLTAGE_60AH;
   datalayer.battery.info.min_design_voltage_dV = MIN_PACK_VOLTAGE_60AH;

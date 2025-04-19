@@ -68,6 +68,15 @@ void init_stored_settings() {
   if (temp != 0) {
     datalayer.battery.settings.max_user_set_discharge_voltage_dV = temp;
   }
+  temp = settings.getInt("Inverter", 0);
+  if (temp > 0) {
+    userSelectedInverter = (InverterProtocolType)temp;
+  }
+  temp = settings.getInt("Battery", 0);
+  if (temp > 0) {
+    userSelectedBatteryType = (BatteryType)temp;
+  }
+
   datalayer.battery.settings.user_set_voltage_limits_active = settings.getBool("USEVOLTLIMITS", false);
   settings.end();
 }
@@ -121,5 +130,9 @@ void store_settings() {
   if (!settings.putUInt("TARGETDISCHVOLT", datalayer.battery.settings.max_user_set_discharge_voltage_dV)) {
     set_event(EVENT_PERSISTENT_SAVE_INFO, 11);
   }
+
+  settings.putInt("Inverter", (int)userSelectedInverter);
+  settings.putInt("Battery", (int)userSelectedBatteryType);
+
   settings.end();  // Close preferences handle
 }

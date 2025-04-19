@@ -9,9 +9,6 @@
 #define MAX_CELL_VOLTAGE_MV 4250  //Battery is put into emergency stop if one cell goes over this value
 #define MIN_CELL_VOLTAGE_MV 2700  //Battery is put into emergency stop if one cell goes below this value
 
-void setup_battery(void);
-void transmit_can_frame(CAN_frame* tx_frame, int interface);
-
 #define POLL_SOC 0x9001
 #define POLL_USABLE_SOC 0x9002
 #define POLL_SOH 0x9003
@@ -53,5 +50,16 @@ void transmit_can_frame(CAN_frame* tx_frame, int interface);
 #define POLL_PACK_TIME 0x91C1
 #define POLL_SOC_MIN 0x91B9
 #define POLL_SOC_MAX 0x91BA
+
+class RenaultZoeGen2Battery : public CanBattery {
+ public:
+  RenaultZoeGen2Battery() : CanBattery(RenaultZoeGen2) {}
+  virtual const char* name() { return Name; };
+  static constexpr char* Name = "Renault Zoe Gen2 50kWh";
+  virtual void setup();
+  virtual void update_values();
+  virtual void handle_incoming_can_frame(CAN_frame rx_frame);
+  virtual void transmit_can();
+};
 
 #endif

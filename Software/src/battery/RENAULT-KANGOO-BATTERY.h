@@ -11,7 +11,17 @@
 #define MIN_CELL_VOLTAGE_MV 2700  //Battery is put into emergency stop if one cell goes below this value
 #define MAX_CHARGE_POWER_W 5000   // Battery can be charged with this amount of power
 
-void setup_battery(void);
-void transmit_can_frame(CAN_frame* tx_frame, int interface);
+class RenaultKangooBattery : public CanBattery {
+ public:
+  RenaultKangooBattery() : CanBattery(RenaultKangoo) {}
+
+  virtual const char* name() { return Name; };
+  static constexpr char* Name = "Renault Kangoo";
+
+  virtual void setup();
+  virtual void update_values();
+  virtual void handle_incoming_can_frame(CAN_frame rx_frame);
+  virtual void transmit_can();
+};
 
 #endif

@@ -23,7 +23,15 @@ extern ACAN2517FD canfd;
 // How to calculate: voltage_drop_under_known_load [Volts] / load [Amps] = Resistance
 #define PACK_INTERNAL_RESISTANCE_MOHM 200  // 200 milliohms for the whole pack
 
-void setup_battery(void);
-void transmit_can_frame(CAN_frame* tx_frame, int interface);
+class KiaEGmpBattery : public CanBattery {
+ public:
+  KiaEGmpBattery() : CanBattery(KiaEGmp) {}
+  virtual const char* name() { return Name; };
+  static constexpr char* Name = "Kia/Hyundai EGMP platform";
+  virtual void setup();
+  virtual void update_values();
+  virtual void handle_incoming_can_frame(CAN_frame rx_frame);
+  virtual void transmit_can();
+};
 
 #endif

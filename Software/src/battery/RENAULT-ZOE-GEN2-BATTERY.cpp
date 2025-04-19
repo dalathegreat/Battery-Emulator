@@ -1,5 +1,6 @@
 #include "../include.h"
 #ifdef RENAULT_ZOE_GEN2_BATTERY
+#include "../communication/can/comm_can.h"
 #include "../datalayer/datalayer.h"
 #include "../datalayer/datalayer_extended.h"  //For "More battery info" webpage
 #include "../devboard/utils/events.h"
@@ -154,7 +155,8 @@ static uint16_t reply_poll = 0;
 static unsigned long previousMillis200 = 0;  // will store last time a 200ms CAN Message was sent
 static unsigned long previousMillis100 = 0;  // will store last time a 100ms CAN Message was sent
 
-void update_values_battery() {  //This function maps all the values fetched via CAN to the correct parameters used for modbus
+static void
+update_values_battery() {  //This function maps all the values fetched via CAN to the correct parameters used for modbus
   datalayer.battery.status.soh_pptt = battery_soh;
 
   if (battery_soc >= 300) {
@@ -231,7 +233,7 @@ void update_values_battery() {  //This function maps all the values fetched via 
   datalayer_extended.zoePH2.battery_soc_max = battery_soc_max;
 }
 
-void handle_incoming_can_frame_battery(CAN_frame rx_frame) {
+static void handle_incoming_can_frame_battery(CAN_frame rx_frame) {
   datalayer.battery.status.CAN_battery_still_alive = CAN_STILL_ALIVE;
   switch (rx_frame.ID) {
     case 0x18DAF1DB:  // LBC Reply from active polling
@@ -371,7 +373,7 @@ void handle_incoming_can_frame_battery(CAN_frame rx_frame) {
   }
 }
 
-void transmit_can_battery() {
+static void transmit_can_battery() {
   unsigned long currentMillis = millis();
   // Send 100ms CAN Message
   if (currentMillis - previousMillis100 >= INTERVAL_100_MS) {
@@ -408,9 +410,7 @@ void transmit_can_battery() {
   }
 }
 
-void setup_battery(void) {  // Performs one time setup at startup
-  strncpy(datalayer.system.info.battery_protocol, "Renault Zoe Gen2 50kWh", 63);
-  datalayer.system.info.battery_protocol[63] = '\0';
+static void setup_battery(void) {  // Performs one time setup at startup
   datalayer.system.status.battery_allows_contactor_closing = true;
   datalayer.battery.info.number_of_cells = 96;
   datalayer.battery.info.max_design_voltage_dV = MAX_PACK_VOLTAGE_DV;
