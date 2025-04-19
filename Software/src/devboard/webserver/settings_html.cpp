@@ -193,37 +193,36 @@ String settings_processor(const String& var) {
       content += "</div>";
     }
 
-#if defined CHEVYVOLT_CHARGER || defined NISSANLEAF_CHARGER
+    if (charger) {
+      // Start a new block with orange background color
+      content += "<div style='background-color: #FF6E00; padding: 10px; margin-bottom: 10px;border-radius: 50px'>";
 
-    // Start a new block with orange background color
-    content += "<div style='background-color: #FF6E00; padding: 10px; margin-bottom: 10px;border-radius: 50px'>";
+      content += "<h4 style='color: white;'>Charger HVDC Enabled: ";
+      if (datalayer.charger.charger_HV_enabled) {
+        content += "<span>&#10003;</span>";
+      } else {
+        content += "<span style='color: red;'>&#10005;</span>";
+      }
+      content += " <button onclick='editChargerHVDCEnabled()'>Edit</button></h4>";
 
-    content += "<h4 style='color: white;'>Charger HVDC Enabled: ";
-    if (datalayer.charger.charger_HV_enabled) {
-      content += "<span>&#10003;</span>";
-    } else {
-      content += "<span style='color: red;'>&#10005;</span>";
+      content += "<h4 style='color: white;'>Charger Aux12VDC Enabled: ";
+      if (datalayer.charger.charger_aux12V_enabled) {
+        content += "<span>&#10003;</span>";
+      } else {
+        content += "<span style='color: red;'>&#10005;</span>";
+      }
+      content += " <button onclick='editChargerAux12vEnabled()'>Edit</button></h4>";
+
+      content += "<h4 style='color: white;'>Charger Voltage Setpoint: " +
+                 String(datalayer.charger.charger_setpoint_HV_VDC, 1) +
+                 " V </span> <button onclick='editChargerSetpointVDC()'>Edit</button></h4>";
+      content += "<h4 style='color: white;'>Charger Current Setpoint: " +
+                 String(datalayer.charger.charger_setpoint_HV_IDC, 1) +
+                 " A </span> <button onclick='editChargerSetpointIDC()'>Edit</button></h4>";
+
+      // Close the block
+      content += "</div>";
     }
-    content += " <button onclick='editChargerHVDCEnabled()'>Edit</button></h4>";
-
-    content += "<h4 style='color: white;'>Charger Aux12VDC Enabled: ";
-    if (datalayer.charger.charger_aux12V_enabled) {
-      content += "<span>&#10003;</span>";
-    } else {
-      content += "<span style='color: red;'>&#10005;</span>";
-    }
-    content += " <button onclick='editChargerAux12vEnabled()'>Edit</button></h4>";
-
-    content +=
-        "<h4 style='color: white;'>Charger Voltage Setpoint: " + String(datalayer.charger.charger_setpoint_HV_VDC, 1) +
-        " V </span> <button onclick='editChargerSetpointVDC()'>Edit</button></h4>";
-    content +=
-        "<h4 style='color: white;'>Charger Current Setpoint: " + String(datalayer.charger.charger_setpoint_HV_IDC, 1) +
-        " A </span> <button onclick='editChargerSetpointIDC()'>Edit</button></h4>";
-
-    // Close the block
-    content += "</div>";
-#endif
 
     content += "<script>";  // Note, this section is minified to improve performance
     content += "function editComplete(){if(this.status==200){window.location.reload();}}";
@@ -358,40 +357,44 @@ String settings_processor(const String& var) {
           "between 0 and 1000');}}}";
     }
 
-#if defined CHEVYVOLT_CHARGER || defined NISSANLEAF_CHARGER
-    content +=
-        "function editChargerHVDCEnabled(){var value=prompt('Enable or disable HV DC output. Enter 1 for enabled, 0 "
-        "for disabled');if(value!==null){if(value==0||value==1){var xhr=new "
-        "XMLHttpRequest();xhr.onload=editComplete;xhr.onerror=editError;xhr.open('GET','/"
-        "updateChargerHvEnabled?value='+value,true);xhr.send();}}else{alert('Invalid value. Please enter 1 or 0');}}";
-    content +=
-        "function editChargerAux12vEnabled(){var value=prompt('Enable or disable low voltage 12v auxiliary DC output. "
-        "Enter 1 for enabled, 0 for disabled');if(value!==null){if(value==0||value==1){var xhr=new "
-        "XMLHttpRequest();xhr.onload=editComplete;xhr.onerror=editError;xhr.open('GET','/"
-        "updateChargerAux12vEnabled?value='+value,true);xhr.send();}else{alert('Invalid value. Please enter 1 or "
-        "0');}}}";
-    content +=
-        "function editChargerSetpointVDC(){var value=prompt('Set charging voltage. Input will be validated against "
-        "inverter and/or charger configuration parameters, but use sensible values like 200 to "
-        "420.');if(value!==null){if(value>=0&&value<=1000){var xhr=new "
-        "XMLHttpRequest();xhr.onload=editComplete;xhr.onerror=editError;xhr.open('GET','/"
-        "updateChargeSetpointV?value='+value,true);xhr.send();}else{alert('Invalid value. Please enter a value between "
-        "0 and 1000');}}}";
-    content +=
-        "function editChargerSetpointIDC(){var value=prompt('Set charging amperage. Input will be validated against "
-        "inverter and/or charger configuration parameters, but use sensible values like 6 to "
-        "48.');if(value!==null){if(value>=0&&value<=1000){var xhr=new "
-        "XMLHttpRequest();xhr.onload=editComplete;xhr.onerror=editError;xhr.open('GET','/"
-        "updateChargeSetpointA?value='+value,true);xhr.send();}else{alert('Invalid value. Please enter a value between "
-        "0 and 100');}}}";
-    content +=
-        "function editChargerSetpointEndI(){var value=prompt('Set amperage that terminates charge as being "
-        "sufficiently complete. Input will be validated against inverter and/or charger configuration parameters, but "
-        "use sensible values like 1-5.');if(value!==null){if(value>=0&&value<=1000){var xhr=new "
-        "XMLHttpRequest();xhr.onload=editComplete;xhr.onerror=editError;xhr.open('GET','/"
-        "updateChargeEndA?value='+value,true);xhr.send();}else{alert('Invalid value. Please enter a value between 0 "
-        "and 100');}}}";
-#endif
+    if (charger) {
+      content +=
+          "function editChargerHVDCEnabled(){var value=prompt('Enable or disable HV DC output. Enter 1 for enabled, 0 "
+          "for disabled');if(value!==null){if(value==0||value==1){var xhr=new "
+          "XMLHttpRequest();xhr.onload=editComplete;xhr.onerror=editError;xhr.open('GET','/"
+          "updateChargerHvEnabled?value='+value,true);xhr.send();}}else{alert('Invalid value. Please enter 1 or 0');}}";
+      content +=
+          "function editChargerAux12vEnabled(){var value=prompt('Enable or disable low voltage 12v auxiliary DC "
+          "output. "
+          "Enter 1 for enabled, 0 for disabled');if(value!==null){if(value==0||value==1){var xhr=new "
+          "XMLHttpRequest();xhr.onload=editComplete;xhr.onerror=editError;xhr.open('GET','/"
+          "updateChargerAux12vEnabled?value='+value,true);xhr.send();}else{alert('Invalid value. Please enter 1 or "
+          "0');}}}";
+      content +=
+          "function editChargerSetpointVDC(){var value=prompt('Set charging voltage. Input will be validated against "
+          "inverter and/or charger configuration parameters, but use sensible values like 200 to "
+          "420.');if(value!==null){if(value>=0&&value<=1000){var xhr=new "
+          "XMLHttpRequest();xhr.onload=editComplete;xhr.onerror=editError;xhr.open('GET','/"
+          "updateChargeSetpointV?value='+value,true);xhr.send();}else{alert('Invalid value. Please enter a value "
+          "between "
+          "0 and 1000');}}}";
+      content +=
+          "function editChargerSetpointIDC(){var value=prompt('Set charging amperage. Input will be validated against "
+          "inverter and/or charger configuration parameters, but use sensible values like 6 to "
+          "48.');if(value!==null){if(value>=0&&value<=1000){var xhr=new "
+          "XMLHttpRequest();xhr.onload=editComplete;xhr.onerror=editError;xhr.open('GET','/"
+          "updateChargeSetpointA?value='+value,true);xhr.send();}else{alert('Invalid value. Please enter a value "
+          "between "
+          "0 and 100');}}}";
+      content +=
+          "function editChargerSetpointEndI(){var value=prompt('Set amperage that terminates charge as being "
+          "sufficiently complete. Input will be validated against inverter and/or charger configuration parameters, "
+          "but "
+          "use sensible values like 1-5.');if(value!==null){if(value>=0&&value<=1000){var xhr=new "
+          "XMLHttpRequest();xhr.onload=editComplete;xhr.onerror=editError;xhr.open('GET','/"
+          "updateChargeEndA?value='+value,true);xhr.send();}else{alert('Invalid value. Please enter a value between 0 "
+          "and 100');}}}";
+    }
     content += "</script>";
 
     content += "<script>";
