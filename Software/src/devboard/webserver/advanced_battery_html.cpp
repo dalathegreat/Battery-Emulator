@@ -472,8 +472,8 @@ String advanced_battery_processor(const String& var) {
     content += "<h4>Raw SOC max: " + String(datalayer_extended.geometryC.rawSOCmax) + "</h4>";
     content += "<h4>Raw SOC min: " + String(datalayer_extended.geometryC.rawSOCmin) + "</h4>";
     content += "<h4>Unknown4: " + String(datalayer_extended.geometryC.unknown4) + "</h4>";
-    content += "<h4>Unknown5: " + String(datalayer_extended.geometryC.unknown5) + "</h4>";
-    content += "<h4>Unknown6: " + String(datalayer_extended.geometryC.unknown6) + "</h4>";
+    content += "<h4>Capacity module max: " + String((datalayer_extended.geometryC.capModMax / 10)) + "Ah</h4>";
+    content += "<h4>Capacity module min: " + String((datalayer_extended.geometryC.capModMin / 10)) + "Ah</h4>";
     content += "<h4>Unknown7: " + String(datalayer_extended.geometryC.unknown7) + "</h4>";
     content += "<h4>Unknown8: " + String(datalayer_extended.geometryC.unknown8) + "</h4>";
 #endif  //GEELY_GEOMETRY_C_BATTERY

@@ -288,8 +288,8 @@ typedef struct {
   uint16_t rawSOCmax = 0;
   uint16_t rawSOCmin = 0;
   uint16_t unknown4 = 0;
-  uint16_t unknown5 = 0;
-  uint16_t unknown6 = 0;
+  uint16_t capModMax = 0;
+  uint16_t capModMin = 0;
   uint16_t unknown7 = 0;
   uint16_t unknown8 = 0;
 } DATALAYER_INFO_GEELY_GEOMETRY_C;

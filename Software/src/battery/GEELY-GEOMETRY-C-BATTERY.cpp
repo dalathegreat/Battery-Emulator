@@ -222,8 +222,8 @@ static uint16_t poll_unknown1 = 0;
 static uint16_t poll_raw_soc_max = 0;
 static uint16_t poll_raw_soc_min = 0;
 static uint16_t poll_unknown4 = 0;
-static uint16_t poll_unknown5 = 0;
-static uint16_t poll_unknown6 = 0;
+static uint16_t poll_cap_module_max = 0;
+static uint16_t poll_cap_module_min = 0;
 static uint16_t poll_unknown7 = 0;
 static uint16_t poll_unknown8 = 0;
 
@@ -270,8 +270,8 @@ void update_values_battery() {  //This function maps all the values fetched via 
   datalayer_extended.geometryC.rawSOCmax = poll_raw_soc_max;
   datalayer_extended.geometryC.rawSOCmin = poll_raw_soc_min;
   datalayer_extended.geometryC.unknown4 = poll_unknown4;
-  datalayer_extended.geometryC.unknown5 = poll_unknown5;
-  datalayer_extended.geometryC.unknown6 = poll_unknown6;
+  datalayer_extended.geometryC.capModMax = poll_cap_module_max;
+  datalayer_extended.geometryC.capModMin = poll_cap_module_min;
   datalayer_extended.geometryC.unknown7 = poll_unknown7;
   datalayer_extended.geometryC.unknown8 = poll_unknown8;
 }
@@ -482,11 +482,11 @@ void handle_incoming_can_frame_battery(CAN_frame rx_frame) {
         case POLL_UNKNOWN_4:
           poll_unknown4 = rx_frame.data.u8[4];
           break;
-        case POLL_UNKNOWN_5:
-          poll_unknown5 = (rx_frame.data.u8[4] << 8) | rx_frame.data.u8[5];
+        case POLL_CAPACITY_MODULE_MAX:
+          poll_cap_module_max = (rx_frame.data.u8[4] << 8) | rx_frame.data.u8[5];
           break;
-        case POLL_UNKNOWN_6:
-          poll_unknown6 = (rx_frame.data.u8[4] << 8) | rx_frame.data.u8[5];
+        case POLL_CAPACITY_MODULE_MIN:
+          poll_cap_module_min = (rx_frame.data.u8[4] << 8) | rx_frame.data.u8[5];
           break;
         case POLL_UNKNOWN_7:
           poll_unknown7 = rx_frame.data.u8[4];
@@ -648,16 +648,16 @@ void transmit_can_battery() {
       case POLL_UNKNOWN_4:
         GEELY_POLL.data.u8[2] = (uint8_t)(POLL_UNKNOWN_4 >> 8);
         GEELY_POLL.data.u8[3] = (uint8_t)POLL_UNKNOWN_4;
-        poll_pid = POLL_UNKNOWN_5;
+        poll_pid = POLL_CAPACITY_MODULE_MAX;
         break;
-      case POLL_UNKNOWN_5:
-        GEELY_POLL.data.u8[2] = (uint8_t)(POLL_UNKNOWN_5 >> 8);
-        GEELY_POLL.data.u8[3] = (uint8_t)POLL_UNKNOWN_5;
-        poll_pid = POLL_UNKNOWN_6;
+      case POLL_CAPACITY_MODULE_MAX:
+        GEELY_POLL.data.u8[2] = (uint8_t)(POLL_CAPACITY_MODULE_MAX >> 8);
+        GEELY_POLL.data.u8[3] = (uint8_t)POLL_CAPACITY_MODULE_MAX;
+        poll_pid = POLL_CAPACITY_MODULE_MIN;
         break;
-      case POLL_UNKNOWN_6:
-        GEELY_POLL.data.u8[2] = (uint8_t)(POLL_UNKNOWN_6 >> 8);
-        GEELY_POLL.data.u8[3] = (uint8_t)POLL_UNKNOWN_6;
+      case POLL_CAPACITY_MODULE_MIN:
+        GEELY_POLL.data.u8[2] = (uint8_t)(POLL_CAPACITY_MODULE_MIN >> 8);
+        GEELY_POLL.data.u8[3] = (uint8_t)POLL_CAPACITY_MODULE_MIN;
         poll_pid = POLL_UNKNOWN_7;
         break;
       case POLL_UNKNOWN_7:
