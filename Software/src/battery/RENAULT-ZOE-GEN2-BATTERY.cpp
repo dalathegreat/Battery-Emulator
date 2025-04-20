@@ -373,34 +373,39 @@ void handle_incoming_can_frame_battery(CAN_frame rx_frame) {
 }
 
 void transmit_can_battery(unsigned long currentMillis) {
-  // Send 100ms CAN Message
-  if (currentMillis - previousMillis100 >= INTERVAL_100_MS) {
-    previousMillis100 = currentMillis;
+  if (nvrol_reset_flag) {
+    // Send NVROL reset frames
+    transmit_reset_nvrol_frames();
+  } else {
+    // Send 100ms CAN Message
+    if (currentMillis - previousMillis100 >= INTERVAL_100_MS) {
+      previousMillis100 = currentMillis;
 
-    if ((counter_373 / 5) % 2 == 0) {  // Alternate every 5 messages between these two
-      ZOE_373.data.u8[2] = 0xB2;
-      ZOE_373.data.u8[3] = 0xB2;
-    } else {
-      ZOE_373.data.u8[2] = 0x5D;
-      ZOE_373.data.u8[3] = 0x5D;
+      if ((counter_373 / 5) % 2 == 0) {  // Alternate every 5 messages between these two
+        ZOE_373.data.u8[2] = 0xB2;
+        ZOE_373.data.u8[3] = 0xB2;
+      } else {
+        ZOE_373.data.u8[2] = 0x5D;
+        ZOE_373.data.u8[3] = 0x5D;
+      }
+      counter_373 = (counter_373 + 1) % 10;
+
+      transmit_can_frame(&ZOE_373, can_config.battery);
     }
-    counter_373 = (counter_373 + 1) % 10;
 
-    transmit_can_frame(&ZOE_373, can_config.battery);
-  }
+    // Send 200ms CAN Message
+    if (currentMillis - previousMillis200 >= INTERVAL_200_MS) {
+      previousMillis200 = currentMillis;
 
-  // Send 200ms CAN Message
-  if (currentMillis - previousMillis200 >= INTERVAL_200_MS) {
-    previousMillis200 = currentMillis;
+      // Update current poll from the array
+      currentpoll = poll_commands[poll_index];
+      poll_index = (poll_index + 1) % 48;
 
-    // Update current poll from the array
-    currentpoll = poll_commands[poll_index];
-    poll_index = (poll_index + 1) % 48;
+      ZOE_POLL_18DADBF1.data.u8[2] = (uint8_t)((currentpoll & 0xFF00) >> 8);
+      ZOE_POLL_18DADBF1.data.u8[3] = (uint8_t)(currentpoll & 0x00FF);
 
-    ZOE_POLL_18DADBF1.data.u8[2] = (uint8_t)((currentpoll & 0xFF00) >> 8);
-    ZOE_POLL_18DADBF1.data.u8[3] = (uint8_t)(currentpoll & 0x00FF);
-
-    transmit_can_frame(&ZOE_POLL_18DADBF1, can_config.battery);
+      transmit_can_frame(&ZOE_POLL_18DADBF1, can_config.battery);
+    }
   }
 }
 
@@ -441,6 +446,12 @@ void transmit_reset_nvrol_frames(void) {
   // Set data back to init values
   ZOE_POLL_18DADBF1.data = {0x03, 0x22, 0x90, 0x00, 0x00, 0x00, 0x00, 0x00};
   poll_index = 0;
+
+  // after transmitting these frames, wait 30 s
+  wait_ms(30000);
+
+  // after waiting, set the nvrol reset flag to false, to continue normal operation
+  nvrol_reset_flag = false;
 }
 
 void wait_ms(int duration_ms) {
