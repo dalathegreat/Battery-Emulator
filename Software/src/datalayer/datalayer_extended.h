@@ -274,10 +274,9 @@ typedef struct {
 
 typedef struct {
   /** uint8_t */
-  /** Battery software version, stores raw HEX values for ASCII chars */
+  /** Battery software/hardware/serial versions, stores raw HEX values for ASCII chars */
   uint8_t BatterySoftwareVersion[16] = {0};
-  /** uint8_t */
-  /** Battery serial numbers, stores raw HEX values for ASCII chars */
+  uint8_t BatteryHardwareVersion[16] = {0};
   uint8_t BatterySerialNumber[28] = {0};
   /** int16_t */
   /** Module temperatures 1-6 */

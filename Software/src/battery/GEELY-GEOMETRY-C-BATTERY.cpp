@@ -6,7 +6,15 @@
 #include "GEELY-GEOMETRY-C-BATTERY.h"
 
 /* TODO
-- CAN log needed from complete H-CAN of Geely Geometry C vehicle. We are not sure what needs to be sent towards the battery yet to get contactor closing working
+- Contactor closing: CAN log needed from complete H-CAN of Geely Geometry C vehicle. We are not sure what needs to be sent towards the battery yet to get contactor closing working. DTC readout complains that a "Power CAN BUS Data Missing" message is still missing
+- Unsure if the current CAN sending routine is enough to keep BMS alive 24/7. Testing needed
+- There are a few UNKNOWN PID polls, these need to be decoded
+- Some critical values are still missing:
+   - Current sensor (Mandatory!)
+   - Max charge power (can be estimated)
+   - Max discharge power (can be estimated)
+   - Cell voltage min/max (not mandatory, but very nice to have)
+   - All cell voltages (not mandatory, but very nice to have)
 /*
 
 /* Do not change code below unless you are sure what you are doing */
@@ -229,6 +237,7 @@ static uint16_t poll_unknown8 = 0;
 static int16_t poll_temperature[6] = {0};
 #define TEMP_OFFSET 30  //TODO, not calibrated yet, best guess
 static uint8_t poll_software_version[16] = {0};
+static uint8_t poll_hardware_version[16] = {0};
 
 void update_values_battery() {  //This function maps all the values fetched via CAN to the correct parameters used for modbus
   datalayer.battery.status.soh_pptt;
@@ -284,6 +293,7 @@ void update_values_battery() {  //This function maps all the values fetched via 
   memcpy(datalayer_extended.geometryC.BatterySerialNumber, serialnumbers, sizeof(serialnumbers));
   memcpy(datalayer_extended.geometryC.ModuleTemperatures, poll_temperature, sizeof(poll_temperature));
   memcpy(datalayer_extended.geometryC.BatterySoftwareVersion, poll_software_version, sizeof(poll_software_version));
+  memcpy(datalayer_extended.geometryC.BatteryHardwareVersion, poll_hardware_version, sizeof(poll_hardware_version));
   datalayer_extended.geometryC.soc = poll_soc;
   datalayer_extended.geometryC.CC2voltage = poll_cc2_voltage;
   datalayer_extended.geometryC.cellMaxVoltageNumber = poll_cell_max_voltage_number;
@@ -572,6 +582,36 @@ void handle_incoming_can_frame_battery(CAN_frame rx_frame) {
               break;
           }
           break;
+        case POLL_MULTI_HARDWARE_VERSION:
+          switch (rx_frame.data.u8[0]) {
+            case 0x10:
+              poll_hardware_version[0] = rx_frame.data.u8[5];
+              poll_hardware_version[1] = rx_frame.data.u8[6];
+              poll_hardware_version[2] = rx_frame.data.u8[7];
+              break;
+            case 0x21:
+              poll_hardware_version[3] = rx_frame.data.u8[1];
+              poll_hardware_version[4] = rx_frame.data.u8[2];
+              poll_hardware_version[5] = rx_frame.data.u8[3];
+              poll_hardware_version[6] = rx_frame.data.u8[4];
+              poll_hardware_version[7] = rx_frame.data.u8[5];
+              poll_hardware_version[8] = rx_frame.data.u8[6];
+              poll_hardware_version[9] = rx_frame.data.u8[7];
+              break;
+            case 0x22:
+              poll_hardware_version[10] = rx_frame.data.u8[1];
+              poll_hardware_version[11] = rx_frame.data.u8[2];
+              poll_hardware_version[12] = rx_frame.data.u8[3];
+              poll_hardware_version[13] = rx_frame.data.u8[4];
+              poll_hardware_version[14] = rx_frame.data.u8[5];
+              poll_hardware_version[15] = rx_frame.data.u8[6];
+              break;
+            case 0x23:
+              break;
+            default:
+              break;
+          }
+          break;
         default:
           //Not a multiframe response, do nothing
           break;
@@ -657,10 +697,10 @@ void transmit_can_battery() {
     transmit_can_frame(&GEELY_1B2, can_config.battery);
     transmit_can_frame(&GEELY_221, can_config.battery);  //CONFIRMED MANDATORY! OBC message
     //transmit_can_frame(&GEELY_1A3, can_config.battery);  //Might be unnecessary, radar info
-    //transmit_can_frame(&GEELY_1A7, can_config.battery);  //Might be unnecessary
+    transmit_can_frame(&GEELY_1A7, can_config.battery);  //Might be unnecessary
     transmit_can_frame(&GEELY_0A8, can_config.battery);  //CONFIRMED MANDATORY! IPU message
-    //transmit_can_frame(&GEELY_1F2, can_config.battery);  //Might be unnecessary
-    //transmit_can_frame(&GEELY_1A6, can_config.battery);  //Might be unnecessary
+    transmit_can_frame(&GEELY_1F2, can_config.battery);  //Might be unnecessary, not in manual
+    transmit_can_frame(&GEELY_1A6, can_config.battery);  //Might be unnecessary, not in manual
   }
   // Send 100ms CAN Message
   if (currentMillis - previousMillis100 >= INTERVAL_100_MS) {
@@ -768,11 +808,11 @@ void transmit_can_battery() {
       case POLL_MULTI_UNKNOWN_4:
         GEELY_POLL.data.u8[2] = (uint8_t)(POLL_MULTI_UNKNOWN_4 >> 8);
         GEELY_POLL.data.u8[3] = (uint8_t)POLL_MULTI_UNKNOWN_4;
-        poll_pid = POLL_MULTI_UNKNOWN_5;
+        poll_pid = POLL_MULTI_HARDWARE_VERSION;
         break;
-      case POLL_MULTI_UNKNOWN_5:
-        GEELY_POLL.data.u8[2] = (uint8_t)(POLL_MULTI_UNKNOWN_5 >> 8);
-        GEELY_POLL.data.u8[3] = (uint8_t)POLL_MULTI_UNKNOWN_5;
+      case POLL_MULTI_HARDWARE_VERSION:
+        GEELY_POLL.data.u8[2] = (uint8_t)(POLL_MULTI_HARDWARE_VERSION >> 8);
+        GEELY_POLL.data.u8[3] = (uint8_t)POLL_MULTI_HARDWARE_VERSION;
         poll_pid = POLL_MULTI_SOFTWARE_VERSION;
         break;
       case POLL_MULTI_SOFTWARE_VERSION:
