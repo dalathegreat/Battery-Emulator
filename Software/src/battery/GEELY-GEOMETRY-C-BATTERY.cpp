@@ -228,6 +228,7 @@ static uint16_t poll_unknown7 = 0;
 static uint16_t poll_unknown8 = 0;
 static int16_t poll_temperature[6] = {0};
 #define TEMP_OFFSET 30  //TODO, not calibrated yet, best guess
+static uint8_t poll_software_version[16] = {0};
 
 void update_values_battery() {  //This function maps all the values fetched via CAN to the correct parameters used for modbus
   datalayer.battery.status.soh_pptt;
@@ -282,6 +283,7 @@ void update_values_battery() {  //This function maps all the values fetched via 
   //Update webserver more battery info page
   memcpy(datalayer_extended.geometryC.BatterySerialNumber, serialnumbers, sizeof(serialnumbers));
   memcpy(datalayer_extended.geometryC.ModuleTemperatures, poll_temperature, sizeof(poll_temperature));
+  memcpy(datalayer_extended.geometryC.BatterySoftwareVersion, poll_software_version, sizeof(poll_software_version));
   datalayer_extended.geometryC.soc = poll_soc;
   datalayer_extended.geometryC.CC2voltage = poll_cc2_voltage;
   datalayer_extended.geometryC.cellMaxVoltageNumber = poll_cell_max_voltage_number;
@@ -540,6 +542,36 @@ void handle_incoming_can_frame_battery(CAN_frame rx_frame) {
               break;
           }
           break;
+        case POLL_MULTI_SOFTWARE_VERSION:
+          switch (rx_frame.data.u8[0]) {
+            case 0x10:
+              poll_software_version[0] = rx_frame.data.u8[5];
+              poll_software_version[1] = rx_frame.data.u8[6];
+              poll_software_version[2] = rx_frame.data.u8[7];
+              break;
+            case 0x21:
+              poll_software_version[3] = rx_frame.data.u8[1];
+              poll_software_version[4] = rx_frame.data.u8[2];
+              poll_software_version[5] = rx_frame.data.u8[3];
+              poll_software_version[6] = rx_frame.data.u8[4];
+              poll_software_version[7] = rx_frame.data.u8[5];
+              poll_software_version[8] = rx_frame.data.u8[6];
+              poll_software_version[9] = rx_frame.data.u8[7];
+              break;
+            case 0x22:
+              poll_software_version[10] = rx_frame.data.u8[1];
+              poll_software_version[11] = rx_frame.data.u8[2];
+              poll_software_version[12] = rx_frame.data.u8[3];
+              poll_software_version[13] = rx_frame.data.u8[4];
+              poll_software_version[14] = rx_frame.data.u8[5];
+              poll_software_version[15] = rx_frame.data.u8[6];
+              break;
+            case 0x23:
+              break;
+            default:
+              break;
+          }
+          break;
         default:
           //Not a multiframe response, do nothing
           break;
@@ -741,11 +773,11 @@ void transmit_can_battery() {
       case POLL_MULTI_UNKNOWN_5:
         GEELY_POLL.data.u8[2] = (uint8_t)(POLL_MULTI_UNKNOWN_5 >> 8);
         GEELY_POLL.data.u8[3] = (uint8_t)POLL_MULTI_UNKNOWN_5;
-        poll_pid = POLL_MULTI_UNKNOWN_6;
+        poll_pid = POLL_MULTI_SOFTWARE_VERSION;
         break;
-      case POLL_MULTI_UNKNOWN_6:
-        GEELY_POLL.data.u8[2] = (uint8_t)(POLL_MULTI_UNKNOWN_6 >> 8);
-        GEELY_POLL.data.u8[3] = (uint8_t)POLL_MULTI_UNKNOWN_6;
+      case POLL_MULTI_SOFTWARE_VERSION:
+        GEELY_POLL.data.u8[2] = (uint8_t)(POLL_MULTI_SOFTWARE_VERSION >> 8);
+        GEELY_POLL.data.u8[3] = (uint8_t)POLL_MULTI_SOFTWARE_VERSION;
         poll_pid = POLL_SOC;
         break;
       default:

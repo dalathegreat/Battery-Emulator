@@ -30,7 +30,7 @@
 #define POLL_MULTI_UNKNOWN_3 0x4B53
 #define POLL_MULTI_UNKNOWN_4 0x4B54
 #define POLL_MULTI_UNKNOWN_5 0x4B6B
-#define POLL_MULTI_UNKNOWN_6 0x4B6C
+#define POLL_MULTI_SOFTWARE_VERSION 0x4B6C
 
 void setup_battery(void);
 void transmit_can_frame(CAN_frame* tx_frame, int interface);

@@ -460,8 +460,13 @@ String advanced_battery_processor(const String& var) {
     char readableSerialNumber[29];  // One extra space for null terminator
     memcpy(readableSerialNumber, datalayer_extended.geometryC.BatterySerialNumber,
            sizeof(datalayer_extended.geometryC.BatterySerialNumber));
-    readableSerialNumber[15] = '\0';  // Null terminate the string
-    content += "<h4>Serial number: " + String(readableSerialNumber) + "</h4>";
+    readableSerialNumber[28] = '\0';   // Null terminate the string
+    char readableSoftwareVersion[17];  // One extra space for null terminator
+    memcpy(readableSoftwareVersion, datalayer_extended.geometryC.BatterySoftwareVersion,
+           sizeof(datalayer_extended.geometryC.BatterySoftwareVersion));
+    readableSoftwareVersion[16] = '\0';  // Null terminate the string
+    content += "<h4>Serial number: " + String(readableSoftwareVersion) + "</h4>";
+    content += "<h4>Software version: " + String(readableSerialNumber) + "</h4>";
     content += "<h4>SOC display: " + String(datalayer_extended.geometryC.soc) + "ppt</h4>";
     content += "<h4>CC2 voltage: " + String(datalayer_extended.geometryC.CC2voltage) + "mV</h4>";
     content += "<h4>Cell max voltage number: " + String(datalayer_extended.geometryC.cellMaxVoltageNumber) + "</h4>";
