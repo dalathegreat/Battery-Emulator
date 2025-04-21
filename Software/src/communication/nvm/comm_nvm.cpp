@@ -76,6 +76,10 @@ void init_stored_settings() {
   if (temp > 0) {
     userSelectedBatteryType = (BatteryType)temp;
   }
+  temp = settings.getInt("Charger", 0);
+  if (temp > 0) {
+    userSelectedChargerType = (ChargerType)temp;
+  }
   temp = settings.getBool("DoubleBattery", false);
   secondBatteryInUse = temp;
 
@@ -135,6 +139,7 @@ void store_settings() {
 
   settings.putInt("Inverter", (int)userSelectedInverter);
   settings.putInt("Battery", (int)userSelectedBatteryType);
+  settings.putInt("Charger", (int)userSelectedChargerType);
   settings.putBool("DoubleBattery", secondBatteryInUse);
 
   settings.end();  // Close preferences handle
