@@ -78,7 +78,7 @@ static uint8_t timespent_without_soc = 0;
 static bool charging_active = false;
 static bool discharging_active = false;
 
-static void update_values_battery() {
+void RjxzsBms::update_values() {
 
   datalayer.battery.status.real_soc = battery_capacity_percentage * 100;
   if (battery_capacity_percentage == 0) {
@@ -167,7 +167,7 @@ static void update_values_battery() {
   datalayer.battery.status.cell_min_voltage_mV = minimum_cell_voltage;
 }
 
-static void handle_incoming_can_frame_battery(CAN_frame rx_frame) {
+void RjxzsBms::handle_incoming_can_frame(CAN_frame rx_frame) {
 
   /*
   // All CAN messages recieved will be logged via serial
@@ -572,7 +572,7 @@ static void handle_incoming_can_frame_battery(CAN_frame rx_frame) {
   }
 }
 
-static void transmit_can_battery() {
+void RjxzsBms::transmit_can() {
   unsigned long currentMillis = millis();
   // Send 10s CAN Message
   if (currentMillis - previousMillis10s >= INTERVAL_10_S) {
@@ -591,9 +591,7 @@ static void transmit_can_battery() {
   }
 }
 
-static void setup_battery(void) {  // Performs one time setup at startup
-  strncpy(datalayer.system.info.battery_protocol, "RJXZS BMS, DIY battery", 63);
-  datalayer.system.info.battery_protocol[63] = '\0';
+void RjxzsBms::setup(void) {  // Performs one time setup at startup
   datalayer.battery.info.max_design_voltage_dV = MAX_PACK_VOLTAGE_DV;
   datalayer.battery.info.min_design_voltage_dV = MIN_PACK_VOLTAGE_DV;
   datalayer.battery.info.max_cell_voltage_mV = MAX_CELL_VOLTAGE_MV;

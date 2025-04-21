@@ -26,12 +26,14 @@ enum BatteryType {
   Meb = 16,
   Mg5 = 17,
   NissanLeaf = 18,
+  OrionBMS = 34,
   Pylon = 19,
   RangeRoverPhev = 20,
   RenaultKangoo = 21,
   RenaultTwizy = 22,
   RenaultZoeGen1 = 23,
   RenaultZoeGen2 = 24,
+  RjxzsBMS = 35,
   SantaFePhev = 25,
   Sono = 26,
   Tesla3Y = 27,
@@ -39,7 +41,7 @@ enum BatteryType {
   TestFake = 29,
   VolvoSpa = 30,
   VolvoSpaHybrid = 31,
-  HighestBatteryType = 34
+  HighestBatteryType = 36
 };
 
 class BatteryBase {

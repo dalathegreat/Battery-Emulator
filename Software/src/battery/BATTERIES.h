@@ -14,7 +14,7 @@
 // TODO: Chademo has conflict usage of GPIO: Need to implement run-time allocation of GPIO resources.
 //#define CHADEMO_BATTERY
 #define FOXESS_BATTERY
-//#define ORION_BMS
+#define ORION_BMS
 #define SONO_BATTERY
 #define STELLANTIS_ECMP_BATTERY
 #define IMIEV_CZERO_ION_BATTERY
@@ -27,7 +27,7 @@
 #define NISSAN_LEAF_BATTERY
 #define PYLON_BATTERY
 #define DALY_BMS
-//#define RJXZS_BMS
+#define RJXZS_BMS
 #define RANGE_ROVER_PHEV_BATTERY
 #define RENAULT_KANGOO_BATTERY
 #define RENAULT_TWIZY_BATTERY

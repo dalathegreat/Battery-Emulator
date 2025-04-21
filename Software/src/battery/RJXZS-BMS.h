@@ -1,6 +1,7 @@
 #ifndef RJXZS_BMS_H
 #define RJXZS_BMS_H
 #include <Arduino.h>
+#include "../datalayer/datalayer.h"
 #include "../include.h"
 
 /* Tweak these according to your battery build */
@@ -17,5 +18,17 @@
 /* Do not modify any rows below*/
 #define BATTERY_SELECTED
 #define NATIVECAN_250KBPS
+
+class RjxzsBms : public CanBattery {
+ public:
+  RjxzsBms() : CanBattery(RjxzsBMS) {}
+  virtual const char* name() { return Name; };
+  static constexpr char* Name = "RJXZS BMS, DIY battery";
+
+  virtual void setup();
+  virtual void update_values();
+  virtual void handle_incoming_can_frame(CAN_frame rx_frame);
+  virtual void transmit_can();
+};
 
 #endif
