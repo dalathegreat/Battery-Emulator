@@ -3,6 +3,8 @@
 #include "../datalayer/datalayer.h"
 #include "CHEVY-VOLT-CHARGER.h"
 
+#include "../communication/can/comm_can.h"
+
 /* This implements Chevy Volt / Ampera charger support (2011-2015 model years).
  *
  * This code is intended to facilitate battery charging while repurposing inverters
@@ -41,7 +43,7 @@ static CAN_frame charger_set_targets = {
     .data = {0x40, 0x00, 0x00, 0x00}};  // data[0] is a static value, meaning unknown
 
 /* We are mostly sending out not receiving */
-void map_can_frame_to_variable_charger(CAN_frame rx_frame) {
+void ChevyVoltCharger::map_can_frame_to_variable_charger(CAN_frame rx_frame) {
   uint16_t charger_stat_HVcur_temp = 0;
   uint16_t charger_stat_HVvol_temp = 0;
   uint16_t charger_stat_LVcur_temp = 0;
@@ -98,7 +100,7 @@ void map_can_frame_to_variable_charger(CAN_frame rx_frame) {
   }
 }
 
-void transmit_can_charger() {
+void ChevyVoltCharger::transmit_can() {
   unsigned long currentMillis = millis();
   uint16_t Vol_temp = 0;
 

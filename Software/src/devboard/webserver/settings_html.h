@@ -17,13 +17,5 @@ extern std::string password;
  * @return String
  */
 String settings_processor(const String& var);
-/**
- * @brief Maps the value to a string of characters
- *
- * @param[in] char
- *
- * @return String
- */
-const char* getCANInterfaceName(CAN_Interface interface);
 
 #endif

@@ -1,5 +1,6 @@
 #include "../include.h"
 #ifdef SIMPBMS_BATTERY
+#include "../communication/can/comm_can.h"
 #include "../datalayer/datalayer.h"
 #include "../devboard/utils/events.h"
 #include "SIMPBMS-BATTERY.h"
@@ -31,7 +32,7 @@ static uint8_t charge_forbidden = 0;
 static uint8_t discharge_forbidden = 0;
 static uint16_t cellvoltages_mV[SIMPBMS_MAX_CELLS] = {0};
 
-void update_values_battery() {
+static void update_values_battery() {
 
   datalayer.battery.status.real_soc = (SOC * 100);  //increase SOC range from 0-100 -> 100.00
 
@@ -67,7 +68,7 @@ void update_values_battery() {
   datalayer.battery.info.number_of_cells = cells_in_series;
 }
 
-void handle_incoming_can_frame_battery(CAN_frame rx_frame) {
+static void handle_incoming_can_frame_battery(CAN_frame rx_frame) {
   datalayer.battery.status.CAN_battery_still_alive = CAN_STILL_ALIVE;
   switch (rx_frame.ID) {
     case 0x355:
@@ -115,9 +116,9 @@ void handle_incoming_can_frame_battery(CAN_frame rx_frame) {
   }
 }
 
-void transmit_can_battery() {}
+static void transmit_can_battery() {}
 
-void setup_battery(void) {  // Performs one time setup at startup
+static void setup_battery(void) {  // Performs one time setup at startup
   strncpy(datalayer.system.info.battery_protocol, "SIMPBMS battery", 63);
   datalayer.system.info.battery_protocol[63] = '\0';
   datalayer.battery.info.number_of_cells = CELL_COUNT;
@@ -125,7 +126,7 @@ void setup_battery(void) {  // Performs one time setup at startup
   datalayer.battery.info.min_design_voltage_dV = MIN_PACK_VOLTAGE_DV;
   datalayer.battery.info.max_cell_voltage_mV = MAX_CELL_VOLTAGE_MV;
   datalayer.battery.info.min_cell_voltage_mV = MIN_CELL_VOLTAGE_MV;
-  datalayer.system.status.battery_allows_contactor_closing = true;
+  allow_contactor_closing();
 }
 
 #endif

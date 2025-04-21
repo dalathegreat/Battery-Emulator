@@ -231,64 +231,63 @@ void update_machineryprotection() {
   }
 #endif  //CHARGER_SELECTED
 
-#ifdef DOUBLE_BATTERY  // Additional Double-Battery safeties are checked here
-  // Check if the Battery 2 BMS is still sending CAN messages. If we go 60s without messages we raise a warning
+  if (double_battery()) {  // Additional Double-Battery safeties are checked here
+    // Check if the Battery 2 BMS is still sending CAN messages. If we go 60s without messages we raise a warning
 
-  // Pause function is on
-  if (emulator_pause_request_ON) {
-    datalayer.battery2.status.max_discharge_power_W = 0;
-    datalayer.battery2.status.max_charge_power_W = 0;
-  }
-
-  if (!datalayer.battery2.status.CAN_battery_still_alive) {
-    set_event(EVENT_CAN_BATTERY2_MISSING, can_config.battery_double);
-  } else {
-    datalayer.battery2.status.CAN_battery_still_alive--;
-    clear_event(EVENT_CAN_BATTERY2_MISSING);
-  }
-
-  // Too many malformed CAN messages recieved!
-  if (datalayer.battery2.status.CAN_error_counter > MAX_CAN_FAILURES) {
-    set_event(EVENT_CAN_CORRUPTED_WARNING, can_config.battery_double);
-  } else {
-    clear_event(EVENT_CAN_CORRUPTED_WARNING);
-  }
-
-  // Cell overvoltage, critical latching error without automatic reset. Requires user action.
-  if (datalayer.battery2.status.cell_max_voltage_mV >= datalayer.battery2.info.max_cell_voltage_mV) {
-    set_event(EVENT_CELL_OVER_VOLTAGE, 0);
-  }
-  // Cell undervoltage, critical latching error without automatic reset. Requires user action.
-  if (datalayer.battery2.status.cell_min_voltage_mV <= datalayer.battery2.info.min_cell_voltage_mV) {
-    set_event(EVENT_CELL_UNDER_VOLTAGE, 0);
-  }
-
-  // Check diff between highest and lowest cell
-  cell_deviation_mV = (datalayer.battery2.status.cell_max_voltage_mV - datalayer.battery2.status.cell_min_voltage_mV);
-  if (cell_deviation_mV > datalayer.battery2.info.max_cell_voltage_deviation_mV) {
-    set_event(EVENT_CELL_DEVIATION_HIGH, (cell_deviation_mV / 20));
-  } else {
-    clear_event(EVENT_CELL_DEVIATION_HIGH);
-  }
-
-  // Check if SOH% between the packs is too large
-  if ((datalayer.battery.status.soh_pptt != 9900) && (datalayer.battery2.status.soh_pptt != 9900)) {
-    // Both values available, check diff
-    uint16_t soh_diff_pptt;
-    if (datalayer.battery.status.soh_pptt > datalayer.battery2.status.soh_pptt) {
-      soh_diff_pptt = datalayer.battery.status.soh_pptt - datalayer.battery2.status.soh_pptt;
-    } else {
-      soh_diff_pptt = datalayer.battery2.status.soh_pptt - datalayer.battery.status.soh_pptt;
+    // Pause function is on
+    if (emulator_pause_request_ON) {
+      datalayer.battery2.status.max_discharge_power_W = 0;
+      datalayer.battery2.status.max_charge_power_W = 0;
     }
 
-    if (soh_diff_pptt > MAX_SOH_DEVIATION_PPTT) {
-      set_event(EVENT_SOH_DIFFERENCE, (uint8_t)(MAX_SOH_DEVIATION_PPTT / 100));
+    if (!datalayer.battery2.status.CAN_battery_still_alive) {
+      set_event(EVENT_CAN_BATTERY2_MISSING, can_config.battery_double);
     } else {
-      clear_event(EVENT_SOH_DIFFERENCE);
+      datalayer.battery2.status.CAN_battery_still_alive--;
+      clear_event(EVENT_CAN_BATTERY2_MISSING);
+    }
+
+    // Too many malformed CAN messages recieved!
+    if (datalayer.battery2.status.CAN_error_counter > MAX_CAN_FAILURES) {
+      set_event(EVENT_CAN_CORRUPTED_WARNING, can_config.battery_double);
+    } else {
+      clear_event(EVENT_CAN_CORRUPTED_WARNING);
+    }
+
+    // Cell overvoltage, critical latching error without automatic reset. Requires user action.
+    if (datalayer.battery2.status.cell_max_voltage_mV >= datalayer.battery2.info.max_cell_voltage_mV) {
+      set_event(EVENT_CELL_OVER_VOLTAGE, 0);
+    }
+    // Cell undervoltage, critical latching error without automatic reset. Requires user action.
+    if (datalayer.battery2.status.cell_min_voltage_mV <= datalayer.battery2.info.min_cell_voltage_mV) {
+      set_event(EVENT_CELL_UNDER_VOLTAGE, 0);
+    }
+
+    // Check diff between highest and lowest cell
+    cell_deviation_mV = (datalayer.battery2.status.cell_max_voltage_mV - datalayer.battery2.status.cell_min_voltage_mV);
+    if (cell_deviation_mV > datalayer.battery2.info.max_cell_voltage_deviation_mV) {
+      set_event(EVENT_CELL_DEVIATION_HIGH, (cell_deviation_mV / 20));
+    } else {
+      clear_event(EVENT_CELL_DEVIATION_HIGH);
+    }
+
+    // Check if SOH% between the packs is too large
+    if ((datalayer.battery.status.soh_pptt != 9900) && (datalayer.battery2.status.soh_pptt != 9900)) {
+      // Both values available, check diff
+      uint16_t soh_diff_pptt;
+      if (datalayer.battery.status.soh_pptt > datalayer.battery2.status.soh_pptt) {
+        soh_diff_pptt = datalayer.battery.status.soh_pptt - datalayer.battery2.status.soh_pptt;
+      } else {
+        soh_diff_pptt = datalayer.battery2.status.soh_pptt - datalayer.battery.status.soh_pptt;
+      }
+
+      if (soh_diff_pptt > MAX_SOH_DEVIATION_PPTT) {
+        set_event(EVENT_SOH_DIFFERENCE, (uint8_t)(MAX_SOH_DEVIATION_PPTT / 100));
+      } else {
+        clear_event(EVENT_SOH_DIFFERENCE);
+      }
     }
   }
-
-#endif  // DOUBLE_BATTERY
 
   //Safeties verified, Zero charge/discharge ampere values incase any safety wrote the W to 0
   if (datalayer.battery.status.max_discharge_power_W == 0) {
@@ -347,10 +346,10 @@ void setBatteryPause(bool pause_battery, bool pause_CAN, bool equipment_stop, bo
     emulator_pause_status = PAUSING;
     datalayer.battery.status.max_discharge_power_W = 0;
     datalayer.battery.status.max_charge_power_W = 0;
-#ifdef DOUBLE_BATTERY
-    datalayer.battery2.status.max_discharge_power_W = 0;
-    datalayer.battery2.status.max_charge_power_W = 0;
-#endif
+    if (double_battery()) {
+      datalayer.battery2.status.max_discharge_power_W = 0;
+      datalayer.battery2.status.max_charge_power_W = 0;
+    }
 
   } else {
     clear_event(EVENT_PAUSE_BEGIN);

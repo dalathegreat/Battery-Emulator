@@ -3,6 +3,8 @@
 #include "../datalayer/datalayer.h"
 #include "AFORE-CAN.h"
 
+#include "../communication/can/comm_can.h"
+
 #define SOCMAX 100
 #define SOCMIN 1
 
@@ -73,7 +75,8 @@ CAN_frame AFORE_35A = {.FD = false,                                             
                        .ID = 0x35A,
                        .data = {0x65, 0x6D, 0x75, 0x6C, 0x61, 0x74, 0x6F, 0x72}};  // Emulator
 
-void update_values_can_inverter() {  //This function maps all the values fetched from battery CAN to the correct CAN messages
+void AforeCanInverter::
+    update_values_can_inverter() {  //This function maps all the values fetched from battery CAN to the correct CAN messages
   //There are more mappings that could be added, but this should be enough to use as a starting point
 
   /*0x350 Operation Information*/
@@ -200,7 +203,7 @@ void update_values_can_inverter() {  //This function maps all the values fetched
   */
 }
 
-void map_can_frame_to_variable_inverter(CAN_frame rx_frame) {
+void AforeCanInverter::map_can_frame_to_variable_inverter(CAN_frame rx_frame) {
   switch (rx_frame.ID) {
     case 0x305:  // Every 1s from inverter
       datalayer.system.status.CAN_inverter_still_alive = CAN_STILL_ALIVE;
@@ -217,7 +220,7 @@ void map_can_frame_to_variable_inverter(CAN_frame rx_frame) {
   }
 }
 
-void transmit_can_inverter() {
+void AforeCanInverter::transmit_can() {
   if (time_to_send_info) {  // Set every 1s if we get message from inverter
     transmit_can_frame(&AFORE_350, can_config.inverter);
     transmit_can_frame(&AFORE_351, can_config.inverter);
@@ -233,8 +236,5 @@ void transmit_can_inverter() {
     time_to_send_info = false;
   }
 }
-void setup_inverter(void) {  // Performs one time setup at startup over CAN bus
-  strncpy(datalayer.system.info.inverter_protocol, "Afore battery over CAN", 63);
-  datalayer.system.info.inverter_protocol[63] = '\0';
-}
+
 #endif

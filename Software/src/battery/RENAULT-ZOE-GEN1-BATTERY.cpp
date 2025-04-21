@@ -1,5 +1,6 @@
 #include "../include.h"
 #ifdef RENAULT_ZOE_GEN1_BATTERY
+#include "../communication/can/comm_can.h"
 #include "../datalayer/datalayer.h"
 #include "../devboard/utils/events.h"
 #include "RENAULT-ZOE-GEN1-BATTERY.h"
@@ -12,70 +13,9 @@ Still TODO:
 /*
 
 /* Do not change code below unless you are sure what you are doing */
-static uint16_t LB_SOC = 50;
-static uint16_t LB_Display_SOC = 50;
-static uint16_t LB_SOH = 99;
-static int16_t LB_Average_Temperature = 0;
-static uint32_t LB_Charging_Power_W = 0;
-static uint32_t LB_Regen_allowed_W = 0;
-static uint32_t LB_Discharge_allowed_W = 0;
-static int16_t LB_Current = 0;
-static int16_t LB_Cell_minimum_temperature = 0;
-static int16_t LB_Cell_maximum_temperature = 0;
-static uint16_t LB_kWh_Remaining = 0;
-static uint16_t LB_Battery_Voltage = 3700;
-static uint8_t LB_Heartbeat = 0;
-static uint8_t frame0 = 0;
-static uint8_t current_poll = 0;
-static uint8_t requested_poll = 0;
-static uint8_t group = 0;
-static uint16_t cellvoltages[96];
-static uint32_t calculated_total_pack_voltage_mV = 370000;
-static uint8_t highbyte_cell_next_frame = 0;
-static uint16_t SOC_polled = 50;
-static int16_t cell_1_temperature_polled = 0;
-static int16_t cell_2_temperature_polled = 0;
-static int16_t cell_3_temperature_polled = 0;
-static int16_t cell_4_temperature_polled = 0;
-static int16_t cell_5_temperature_polled = 0;
-static int16_t cell_6_temperature_polled = 0;
-static int16_t cell_7_temperature_polled = 0;
-static int16_t cell_8_temperature_polled = 0;
-static int16_t cell_9_temperature_polled = 0;
-static int16_t cell_10_temperature_polled = 0;
-static int16_t cell_11_temperature_polled = 0;
-static int16_t cell_12_temperature_polled = 0;
-static uint16_t battery_mileage_in_km = 0;
-static uint16_t kWh_from_beginning_of_battery_life = 0;
-static bool looping_over_20 = false;
 
-CAN_frame ZOE_423 = {.FD = false,
-                     .ext_ID = false,
-                     .DLC = 8,
-                     .ID = 0x423,
-                     .data = {0x07, 0x1d, 0x00, 0x02, 0x5d, 0x80, 0x5d, 0xc8}};
-CAN_frame ZOE_POLL_79B = {.FD = false,
-                          .ext_ID = false,
-                          .DLC = 8,
-                          .ID = 0x79B,
-                          .data = {0x02, 0x21, 0x41, 0x00, 0x00, 0x00, 0x00, 0x00}};
-CAN_frame ZOE_ACK_79B = {.FD = false,
-                         .ext_ID = false,
-                         .DLC = 8,
-                         .ID = 0x79B,
-                         .data = {0x30, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00}};
-
-#define GROUP1_CELLVOLTAGES_1_POLL 0x41
-#define GROUP2_CELLVOLTAGES_2_POLL 0x42
-#define GROUP3_METRICS 0x61
-#define GROUP4_SOC 0x03
-#define GROUP5_TEMPERATURE_POLL 0x04
-
-static unsigned long previousMillis100 = 0;  // will store last time a 100ms CAN Message was sent
-static unsigned long previousMillis250 = 0;  // will store last time a 250ms CAN Message was sent
-static uint8_t counter_423 = 0;
-
-void update_values_battery() {  //This function maps all the values fetched via CAN to the correct parameters used for modbus
+void RenaultZoeBattery::
+    update_values() {  //This function maps all the values fetched via CAN to the correct parameters used for modbus
   datalayer.battery.status.soh_pptt = (LB_SOH * 100);  // Increase range from 99% -> 99.00%
 
   datalayer.battery.status.real_soc = SOC_polled;
@@ -134,7 +74,7 @@ void update_values_battery() {  //This function maps all the values fetched via 
   datalayer.battery.status.voltage_dV = static_cast<uint32_t>((calculated_total_pack_voltage_mV / 100));  // mV to dV
 }
 
-void handle_incoming_can_frame_battery(CAN_frame rx_frame) {
+void RenaultZoeBattery::handle_incoming_can_frame(CAN_frame rx_frame) {
   switch (rx_frame.ID) {
     case 0x155:  //10ms - Charging power, current and SOC
       datalayer.battery.status.CAN_battery_still_alive = CAN_STILL_ALIVE;
@@ -490,7 +430,7 @@ void handle_incoming_can_frame_battery(CAN_frame rx_frame) {
   }
 }
 
-void transmit_can_battery() {
+void RenaultZoeBattery::transmit_can() {
   unsigned long currentMillis = millis();
   // Send 100ms CAN Message
   if (currentMillis - previousMillis100 >= INTERVAL_100_MS) {
@@ -542,10 +482,8 @@ void transmit_can_battery() {
   }
 }
 
-void setup_battery(void) {  // Performs one time setup at startup
-  strncpy(datalayer.system.info.battery_protocol, "Renault Zoe Gen1 22/40kWh", 63);
-  datalayer.system.info.battery_protocol[63] = '\0';
-  datalayer.system.status.battery_allows_contactor_closing = true;
+void RenaultZoeBattery::setup() {  // Performs one time setup at startup
+  allow_contactor_closing();
   datalayer.battery.info.number_of_cells = 96;
   datalayer.battery.info.max_design_voltage_dV = MAX_PACK_VOLTAGE_DV;
   datalayer.battery.info.min_design_voltage_dV = MIN_PACK_VOLTAGE_DV;

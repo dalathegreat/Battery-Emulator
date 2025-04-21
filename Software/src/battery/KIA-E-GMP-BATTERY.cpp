@@ -1,5 +1,6 @@
 #include "../include.h"
 #ifdef KIA_E_GMP_BATTERY
+#include "../communication/can/comm_can.h"
 #include "../datalayer/datalayer.h"
 #include "../devboard/utils/events.h"
 #include "../lib/pierremolinaro-ACAN2517FD/ACAN2517FD.h"
@@ -83,7 +84,7 @@ const uint16_t voltage[] = {4200, 4173, 4148, 4124, 4102, 4080, 4060, 4041, 4023
                             3285, 3271, 3255, 3239, 3221, 3202, 3180, 3156, 3127, 3090, 3000};
 
 // Function to estimate SOC based on cell voltage
-uint16_t estimateSOCFromCell(uint16_t cellVoltage) {
+static uint16_t estimateSOCFromCell(uint16_t cellVoltage) {
   if (cellVoltage >= voltage[0]) {
     return SOC[0];
   }
@@ -729,7 +730,8 @@ static uint8_t calculateCRC(CAN_frame rx_frame, uint8_t length, uint8_t initial_
   return crc;
 }
 
-void update_values_battery() {  //This function maps all the values fetched via CAN to the correct parameters used for modbus
+static void
+update_values_battery() {  //This function maps all the values fetched via CAN to the correct parameters used for modbus
 
 #ifdef ESTIMATE_SOC_FROM_CELLVOLTAGE
   // Use the simplified pack-based SOC estimation with proper compensation
@@ -850,7 +852,7 @@ void update_values_battery() {  //This function maps all the values fetched via 
 #endif
 }
 
-void handle_incoming_can_frame_battery(CAN_frame rx_frame) {
+static void handle_incoming_can_frame_battery(CAN_frame rx_frame) {
   startedUp = true;
   switch (rx_frame.ID) {
     case 0x055:
@@ -1082,7 +1084,7 @@ void handle_incoming_can_frame_battery(CAN_frame rx_frame) {
   }
 }
 
-void transmit_can_battery() {
+static void transmit_can_battery() {
   unsigned long currentMillis = millis();
   if (startedUp) {
     //Send Contactor closing message loop
@@ -1136,19 +1138,28 @@ void transmit_can_battery() {
   }
 }
 
-void setup_battery(void) {  // Performs one time setup at startup
-  strncpy(datalayer.system.info.battery_protocol, "Kia/Hyundai EGMP platform", 63);
-  datalayer.system.info.battery_protocol[63] = '\0';
+void KiaEGmpBattery::setup(void) {  // Performs one time setup at startup
+  startMillis = millis();           // Record the starting time
 
-  startMillis = millis();  // Record the starting time
-
-  datalayer.system.status.battery_allows_contactor_closing = true;
+  allow_contactor_closing();
   datalayer.battery.info.number_of_cells = 192;  // TODO: will vary depending on battery
   datalayer.battery.info.max_design_voltage_dV = MAX_PACK_VOLTAGE_DV;
   datalayer.battery.info.min_design_voltage_dV = MIN_PACK_VOLTAGE_DV;
   datalayer.battery.info.max_cell_voltage_mV = MAX_CELL_VOLTAGE_MV;
   datalayer.battery.info.min_cell_voltage_mV = MIN_CELL_VOLTAGE_MV;
   datalayer.battery.info.max_cell_voltage_deviation_mV = MAX_CELL_DEVIATION_MV;
+}
+
+void KiaEGmpBattery::update_values() {
+  update_values_battery();
+}
+
+void KiaEGmpBattery::handle_incoming_can_frame(CAN_frame rx_frame) {
+  ::handle_incoming_can_frame_battery(rx_frame);
+}
+
+void KiaEGmpBattery::transmit_can() {
+  transmit_can_battery();
 }
 
 #endif

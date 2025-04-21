@@ -108,7 +108,7 @@ CAN_frame CHADEMO_209 = {.FD = false,
                          .data = {0x02, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00}};
 
 //This function maps all the values fetched via CAN to the correct parameters used for the inverter
-void update_values_battery() {
+void ChademoBattery::update_values() {
 
   datalayer.battery.status.real_soc = x102_chg_session.StateOfCharge;
 
@@ -365,7 +365,7 @@ inline void process_vehicle_vendor_ID(CAN_frame rx_frame) {
       ((rx_frame.data.u8[2] << 8) | rx_frame.data.u8[1]);  //Actually more bytes, but not needed for our purpose
 }
 
-void handle_incoming_can_frame_battery(CAN_frame rx_frame) {
+void ChademoBattery::handle_incoming_can_frame(CAN_frame rx_frame) {
 #ifdef CH_CAN_DEBUG
   logging.print(millis());  // Example printout, time, ID, length, data: 7553  1DB  8  FF C0 B9 EA 0 0 2 5D
   logging.print("  ");
@@ -655,7 +655,7 @@ void update_evse_discharge_capabilities(CAN_frame& f) {
   CHADEMO_208.data.u8[7] = highByte(x208_evse_dischg_cap.lower_threshold_voltage);
 }
 
-void transmit_can_battery() {
+void ChademoBattery::transmit_can() {
 
   unsigned long currentMillis = millis();
 
@@ -893,7 +893,7 @@ void handle_chademo_sequence() {
       //        Commented unless needed for debug
       logging.println("CHADEMO_EVSE_START State");
 #endif
-      datalayer.system.status.battery_allows_contactor_closing = true;
+      allow_contactor_closing();
       x109_evse_state.s.status.ChgDischStopControl = 1;
       x109_evse_state.s.status.EVSE_status = 0;
 
@@ -1028,7 +1028,7 @@ void handle_chademo_sequence() {
   return;
 }
 
-void setup_battery(void) {  // Performs one time setup at startup
+void ChademoBattery::setup(void) {  // Performs one time setup at startup
 
   pinMode(CHADEMO_PIN_2, OUTPUT);
   digitalWrite(CHADEMO_PIN_2, LOW);
@@ -1039,13 +1039,10 @@ void setup_battery(void) {  // Performs one time setup at startup
   pinMode(CHADEMO_PIN_4, INPUT);
   pinMode(CHADEMO_PIN_7, INPUT);
 
-  strncpy(datalayer.system.info.battery_protocol, "Chademo V2X mode", 63);
-  datalayer.system.info.battery_protocol[63] = '\0';
-
   CHADEMO_Status = CHADEMO_IDLE;
 
   /* disallow contactors until permissions is granted by vehicle */
-  datalayer.system.status.battery_allows_contactor_closing = false;
+  disallow_contactor_closing();
 
   /* Pretend that we know the SOH, assert that it is 99% */
   datalayer.battery.status.soh_pptt = 9900;

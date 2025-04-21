@@ -24,28 +24,29 @@ void update_modbus_registers_inverter() {
   handle_update_data_modbusp301_byd();
 }
 
-void handle_static_data_modbus_byd() {
+const uint16_t si_data[] = {21321, 1};
+const uint16_t byd_data[] = {16985, 17408, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0};
+const uint16_t battery_data[] = {16985, 17440, 16993, 29812, 25970, 31021, 17007, 30752,
+                                 20594, 25965, 26997, 27936, 18518, 0,     0,     0};
+const uint16_t volt_data[] = {13614, 12288, 0, 0, 0, 0, 0, 0, 13102, 12598, 0, 0, 0, 0, 0, 0};
+const uint16_t serial_data[] = {0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0};
+const uint16_t static_data[] = {1, 0};
+const uint16_t* data_array_pointers[] = {si_data, byd_data, battery_data, volt_data, serial_data, static_data};
+const uint16_t data_sizes[] = {sizeof(si_data),   sizeof(byd_data),    sizeof(battery_data),
+                               sizeof(volt_data), sizeof(serial_data), sizeof(static_data)};
+const uint16_t init_p201[13] = {0, 0, 0, MAX_POWER, MAX_POWER, 0, 0, 53248, 10, 53248, 10, 0, 0};
+const uint16_t init_p301[24] = {0,  0,  128, 0, 0,  0,     0, 0, 0,  2000,  0,   2000,
+                                75, 95, 0,   0, 16, 22741, 0, 0, 13, 52064, 230, 9900};
+
+void BydModbusInverter::handle_static_data_modbus() {
   // Store the data into the array
-  static uint16_t si_data[] = {21321, 1};
-  static uint16_t byd_data[] = {16985, 17408, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0};
-  static uint16_t battery_data[] = {16985, 17440, 16993, 29812, 25970, 31021, 17007, 30752,
-                                    20594, 25965, 26997, 27936, 18518, 0,     0,     0};
-  static uint16_t volt_data[] = {13614, 12288, 0, 0, 0, 0, 0, 0, 13102, 12598, 0, 0, 0, 0, 0, 0};
-  static uint16_t serial_data[] = {0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0};
-  static uint16_t static_data[] = {1, 0};
-  static uint16_t* data_array_pointers[] = {si_data, byd_data, battery_data, volt_data, serial_data, static_data};
-  static uint16_t data_sizes[] = {sizeof(si_data),   sizeof(byd_data),    sizeof(battery_data),
-                                  sizeof(volt_data), sizeof(serial_data), sizeof(static_data)};
-  static uint16_t i = 100;
+  uint16_t i = 100;
   for (uint8_t arr_idx = 0; arr_idx < sizeof(data_array_pointers) / sizeof(uint16_t*); arr_idx++) {
     uint16_t data_size = data_sizes[arr_idx];
     memcpy(&mbPV[i], data_array_pointers[arr_idx], data_size);
     i += data_size / sizeof(uint16_t);
   }
-  static uint16_t init_p201[13] = {0, 0, 0, MAX_POWER, MAX_POWER, 0, 0, 53248, 10, 53248, 10, 0, 0};
   memcpy(&mbPV[200], init_p201, sizeof(init_p201));
-  static uint16_t init_p301[24] = {0,  0,  128, 0, 0,  0,     0, 0, 0,  2000,  0,   2000,
-                                   75, 95, 0,   0, 16, 22741, 0, 0, 13, 52064, 230, 9900};
   memcpy(&mbPV[300], init_p301, sizeof(init_p301));
 }
 
@@ -143,8 +144,5 @@ void verify_inverter_modbus() {
     history_index = (history_index + 1) % HISTORY_LENGTH;
   }
 }
-void setup_inverter(void) {  // Performs one time setup at startup over CAN bus
-  strncpy(datalayer.system.info.inverter_protocol, "BYD 11kWh HVM battery over Modbus RTU", 63);
-  datalayer.system.info.inverter_protocol[63] = '\0';
-}
+
 #endif

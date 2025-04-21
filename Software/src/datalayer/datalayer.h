@@ -1,7 +1,11 @@
 #ifndef _DATALAYER_H_
 #define _DATALAYER_H_
 
-#include "../include.h"
+//#include "../include.h"
+
+#include "../devboard/utils/types.h"
+#include "../system_settings.h"
+#include "USER_SETTINGS.h"
 
 typedef struct {
   /** uint32_t */
@@ -219,10 +223,6 @@ typedef struct {
   /** ESP32 main CPU temperature, for displaying on webserver and for safeties */
   float CPU_temperature = 0;
   /** array with type of battery used, for displaying on webserver */
-  char battery_protocol[64] = {0};
-  /** array with type of inverter protocol used, for displaying on webserver */
-  char inverter_protocol[64] = {0};
-  /** array with type of battery used, for displaying on webserver */
   char shunt_protocol[64] = {0};
   /** array with type of inverter brand used, for displaying on webserver */
   char inverter_brand[8] = {0};
@@ -295,10 +295,6 @@ typedef struct {
    * we report the inverter as missing entirely on the CAN bus.
    */
   uint8_t CAN_inverter_still_alive = CAN_STILL_ALIVE;
-  /** True if the battery allows for the contactors to close */
-  bool battery_allows_contactor_closing = false;
-  /** True if the second battery allows for the contactors to close */
-  bool battery2_allows_contactor_closing = false;
   /** True if the inverter allows for the contactors to close */
   bool inverter_allows_contactor_closing = true;
 #ifdef CONTACTOR_CONTROL

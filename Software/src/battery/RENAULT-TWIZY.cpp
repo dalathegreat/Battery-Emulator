@@ -1,6 +1,7 @@
 #include <cstdint>
 #include "../include.h"
 #ifdef RENAULT_TWIZY_BATTERY
+#include "../communication/can/comm_can.h"
 #include "../datalayer/datalayer.h"
 #include "../devboard/utils/events.h"
 #include "RENAULT-TWIZY.h"
@@ -38,7 +39,7 @@ int16_t min_value(int16_t* entries, size_t len) {
   return result;
 }
 
-void update_values_battery() {
+static void update_values_battery() {
 
   datalayer.battery.status.real_soc = SOC;
   datalayer.battery.status.soh_pptt = SOH;
@@ -65,7 +66,7 @@ void update_values_battery() {
       max_value(cell_temperatures_dC, sizeof(cell_temperatures_dC) / sizeof(*cell_temperatures_dC));
 }
 
-void handle_incoming_can_frame_battery(CAN_frame rx_frame) {
+static void handle_incoming_can_frame_battery(CAN_frame rx_frame) {
   datalayer.battery.status.CAN_battery_still_alive = CAN_STILL_ALIVE;
   switch (rx_frame.ID) {
     case 0x155:
@@ -127,13 +128,11 @@ void handle_incoming_can_frame_battery(CAN_frame rx_frame) {
   }
 }
 
-void transmit_can_battery() {
+static void transmit_can_battery() {
   // we do not need to send anything to the battery for now
 }
 
-void setup_battery(void) {  // Performs one time setup at startup
-  strncpy(datalayer.system.info.battery_protocol, "Renault Twizy", 63);
-  datalayer.system.info.battery_protocol[63] = '\0';
+static void setup_battery(void) {  // Performs one time setup at startup
   datalayer.battery.info.number_of_cells = 14;
   datalayer.battery.info.max_design_voltage_dV = MAX_PACK_VOLTAGE_DV;
   datalayer.battery.info.min_design_voltage_dV = MIN_PACK_VOLTAGE_DV;

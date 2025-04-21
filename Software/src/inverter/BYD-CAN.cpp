@@ -3,6 +3,8 @@
 #include "../datalayer/datalayer.h"
 #include "BYD-CAN.h"
 
+#include "../communication/can/comm_can.h"
+
 /* Do not change code below unless you are sure what you are doing */
 static unsigned long previousMillis2s = 0;   // will store last time a 2s CAN Message was send
 static unsigned long previousMillis10s = 0;  // will store last time a 10s CAN Message was send
@@ -85,7 +87,8 @@ static long inverter_timestamp = 0;
 static bool initialDataSent = false;
 static bool inverterStartedUp = false;
 
-void update_values_can_inverter() {  //This function maps all the values fetched from battery CAN to the correct CAN messages
+void BydCanInverter::
+    update_values_can_inverter() {  //This function maps all the values fetched from battery CAN to the correct CAN messages
 
   /* Calculate temperature */
   temperature_average =
@@ -167,7 +170,7 @@ void update_values_can_inverter() {  //This function maps all the values fetched
   BYD_210.data.u8[3] = (datalayer.battery.status.temperature_min_dC & 0x00FF);
 }
 
-void map_can_frame_to_variable_inverter(CAN_frame rx_frame) {
+void BydCanInverter::map_can_frame_to_variable_inverter(CAN_frame rx_frame) {
   switch (rx_frame.ID) {
     case 0x151:  //Message originating from BYD HVS compatible inverter. Reply with CAN identifier!
       inverterStartedUp = true;
@@ -204,7 +207,7 @@ void map_can_frame_to_variable_inverter(CAN_frame rx_frame) {
   }
 }
 
-void transmit_can_inverter() {
+void BydCanInverter::transmit_can() {
   unsigned long currentMillis = millis();
 
   if (!inverterStartedUp) {
@@ -249,8 +252,5 @@ void send_intial_data() {
   transmit_can_frame(&BYD_3D0_2, can_config.inverter);
   transmit_can_frame(&BYD_3D0_3, can_config.inverter);
 }
-void setup_inverter(void) {  // Performs one time setup at startup over CAN bus
-  strncpy(datalayer.system.info.inverter_protocol, "BYD Battery-Box Premium HVS over CAN Bus", 63);
-  datalayer.system.info.inverter_protocol[63] = '\0';
-}
+
 #endif

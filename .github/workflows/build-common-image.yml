@@ -1,5 +1,5 @@
 # This is the name of the workflow, visible on GitHub UI.
-name: Compile All Hardware
+name: Compile Common Image
 
 # Here we tell GitHub when to run the workflow.
 on:
@@ -25,42 +25,9 @@ jobs:
           skip_after_successful_duplicate: 'true'
           do_not_skip: '["pull_request", "workflow_dispatch", "schedule"]'
 
-  # Since we use a build matrix, the actual number of jobs
-  # started depends on how many configurations the matrix
-  # will produce.
-
-  # This is the name of the job.
-  build-hardware:
+  build-common-image:
     needs: skip-duplicate-actions
     if: needs.skip-duplicate-actions.outputs.should_skip != 'true'
-
-    # Here we tell GitHub that the jobs must be determined
-    # dynamically depending on a matrix configuration.
-    strategy:
-      # The matrix will produce one job for each combination of parameters.
-      matrix:
-        # This is the development board hardware for which the code will be compiled.
-        # FBQN stands for "fully qualified board name", and is used by Arduino to define the hardware to compile for.
-        fqbn:
-          - esp32:esp32:esp32
-          # further ESP32 chips
-          #- esp32:esp32:esp32c3
-          #- esp32:esp32:esp32c2
-          #- esp32:esp32:esp32c6
-          #- esp32:esp32:esp32h2
-          #- esp32:esp32:esp32s3
-        # These are the batteries for which the code will be compiled.
-        battery:
-          - NISSAN_LEAF_BATTERY
-        # These are the emulated inverter communication protocols for which the code will be compiled.
-        inverter:
-          - BYD_CAN
-        # These are the supported hardware platforms for which the code will be compiled.
-        hardware:
-          - HW_LILYGO
-          - HW_STARK
-          - HW_3LB
-          - HW_DEVKIT
 
     # This is the platform GitHub will use to run our workflow.
     runs-on: ubuntu-latest
@@ -90,4 +57,4 @@ jobs:
       # in the build matrix, and using build flags to define the
       # battery and inverter set in the build matrix.
       - name: Compile Sketch
-        run: arduino-cli compile --fqbn ${{ matrix.fqbn }} --build-property build.partitions=min_spiffs --build-property upload.maximum_size=1966080 --build-property "build.extra_flags=-Wall -Wextra -Wpedantic -Werror -DESP32 -D${{ matrix.battery}} -D${{ matrix.inverter}} -D${{ matrix.hardware}}" ./Software
+        run: arduino-cli compile --fqbn esp32:esp32:esp32 --build-property build.partitions=min_spiffs --build-property upload.maximum_size=1966080 --build-property "build.extra_flags=-Wall -Wextra -Wpedantic -Werror -DESP32 -DBUILD_EM_ALL -DHW_LILYGO" ./Software

@@ -1,6 +1,8 @@
 #include "comm_can.h"
 #include "../../include.h"
+#include "src/battery/Battery.h"
 #include "src/devboard/sdcard/sdcard.h"
+#include "src/inverter/Inverter.h"
 
 // Parameters
 
@@ -105,28 +107,6 @@ void init_CAN() {
 }
 
 // Transmit functions
-void transmit_can() {
-  if (!allowed_to_send_CAN) {
-    return;  //Global block of CAN messages
-  }
-
-#ifndef RS485_BATTERY_SELECTED
-  transmit_can_battery();
-#endif
-
-#ifdef CAN_INVERTER_SELECTED
-  transmit_can_inverter();
-#endif  // CAN_INVERTER_SELECTED
-
-#ifdef CHARGER_SELECTED
-  transmit_can_charger();
-#endif  // CHARGER_SELECTED
-
-#ifdef CAN_SHUNT_SELECTED
-  transmit_can_shunt();
-#endif  // CAN_SHUNT_SELECTED
-}
-
 void transmit_can_frame(CAN_frame* tx_frame, int interface) {
   if (!allowed_to_send_CAN) {
     return;
@@ -311,28 +291,20 @@ void map_can_frame_to_variable(CAN_frame* rx_frame, int interface) {
   }
 #endif
 
-  if (interface == can_config.battery) {
-#ifndef RS485_BATTERY_SELECTED
-    handle_incoming_can_frame_battery(*rx_frame);
-#endif
+  if (interface == can_config.battery && battery) {
+    battery->handle_incoming_can_frame(*rx_frame);
 #ifdef CHADEMO_BATTERY
     ISA_handleFrame(rx_frame);
 #endif
   }
-  if (interface == can_config.inverter) {
-#ifdef CAN_INVERTER_SELECTED
-    map_can_frame_to_variable_inverter(*rx_frame);
-#endif
+  if (interface == can_config.battery_double && battery2) {
+    battery2->handle_incoming_can_frame(*rx_frame);
   }
-  if (interface == can_config.battery_double) {
-#ifdef DOUBLE_BATTERY
-    handle_incoming_can_frame_battery2(*rx_frame);
-#endif
+  if (interface == can_config.inverter && inverter) {
+    inverter->map_can_frame_to_variable_inverter(*rx_frame);
   }
-  if (interface == can_config.charger) {
-#ifdef CHARGER_SELECTED
-    map_can_frame_to_variable_charger(*rx_frame);
-#endif
+  if (interface == can_config.charger && charger) {
+    charger->map_can_frame_to_variable_charger(*rx_frame);
   }
   if (interface == can_config.shunt) {
 #ifdef CAN_SHUNT_SELECTED

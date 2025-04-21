@@ -9,6 +9,8 @@
 #include "freertos/FreeRTOS.h"
 #include "freertos/task.h"
 
+#include "src/battery/Battery.h"
+
 #include "src/communication/can/comm_can.h"
 #include "src/communication/contactorcontrol/comm_contactorcontrol.h"
 #include "src/communication/equipmentstopbutton/comm_equipmentstopbutton.h"
@@ -66,6 +68,11 @@ TaskHandle_t mqtt_loop_task;
 
 Logging logging;
 
+InverterProtocol* inverter;
+BatteryBase* battery;
+BatteryBase* battery2;
+Charger* charger = nullptr;
+
 // Initialization
 void setup() {
   init_serial();
@@ -92,20 +99,52 @@ void setup() {
                           WIFI_CORE);
 #endif
 
-  init_CAN();
+// When a single battery/inverter is configured, we don't care what user may have selected earlier,
+// we must use the one and only type.
+#ifndef BUILD_EM_ALL
+  userSelectedBatteryType = *(supported_battery_types().begin());
+  userSelectedInverter = *(supported_inverter_protocols().begin());
+#endif
+
+  inverter = init_inverter_protocol(userSelectedInverter);
+  if (inverter == nullptr) {
+    // TODO: Handle error, this could be out-of-memory
+  }
+
+  battery = init_battery(userSelectedBatteryType);
+  if (battery == nullptr) {
+    // TODO: Handle error, this could be out-of-memory
+  }
+
+  if (userSelectedChargerType != ChargerType::None) {
+    charger = init_charger(userSelectedChargerType);
+    // TODO: Handle error, this could be out-of-memory
+  }
+
+  if (secondBatteryInUse && battery->supportsDoubleBattery()) {
+    battery2 = init_battery(userSelectedBatteryType, battery);
+  }
+
+  if (inverter->usesCAN() || battery->usesCAN() || charger) {
+    init_CAN();
+  }
 
   init_contactors();
 
 #ifdef PRECHARGE_CONTROL
-  init_precharge_control();
+
+  if (battery->requiresPrechargeControl()) {
+    init_precharge_control();
+  }
 #endif  // PRECHARGE_CONTROL
 
-  init_rs485();
+  if (inverter->usesRS485() || battery->usesRS485()) {
+    init_rs485();
+  }
 
-#if defined(CAN_INVERTER_SELECTED) || defined(MODBUS_INVERTER_SELECTED) || defined(RS485_INVERTER_SELECTED)
-  setup_inverter();
-#endif
-  setup_battery();
+  inverter->setup();
+  battery->setup();
+
 #ifdef EQUIPMENT_STOP_BUTTON
   init_equipment_stop_button();
 #endif
@@ -117,6 +156,7 @@ void setup() {
 
   check_reset_reason();
 
+  // TODO: This config is not applied. Remove or apply it properly.
   // Initialize Task Watchdog for subscribed tasks
   esp_task_wdt_config_t wdt_config = {
       .timeout_ms = INTERVAL_5_S,                                      // If task hangs for longer than this, reboot
@@ -185,6 +225,28 @@ void connectivity_loop(void*) {
 }
 #endif
 
+void transmit_can() {
+  if (!allowed_to_send_CAN) {
+    return;  //Global block of CAN messages
+  }
+
+  if (battery->usesCAN()) {
+    battery->transmit_can();
+  }
+
+  if (inverter->usesCAN()) {
+    inverter->transmit_can();
+  }
+
+  if (charger) {
+    charger->transmit_can();
+  }
+
+#ifdef CAN_SHUNT_SELECTED
+  transmit_can_shunt();
+#endif  // CAN_SHUNT_SELECTED
+}
+
 #ifdef MQTT
 void mqtt_loop(void*) {
   esp_task_wdt_add(NULL);  // Register this task with WDT
@@ -215,10 +277,18 @@ void core_loop(void*) {
 #endif
 
     // Input, Runs as fast as possible
-    receive_can();  // Receive CAN messages
-#if defined(RS485_INVERTER_SELECTED) || defined(RS485_BATTERY_SELECTED)
-    receive_RS485();  // Process serial2 RS485 interface
-#endif                // RS485_INVERTER_SELECTED
+    if (battery->usesCAN() || inverter->usesCAN()) {
+      receive_can();  // Receive CAN messages
+    }
+
+    if (inverter->usesRS485()) {
+      inverter->receive_RS485();
+    }
+
+    if (battery->usesRS485()) {
+      battery->receive_RS485();
+    }
+
     END_TIME_MEASUREMENT_MAX(comm, datalayer.system.status.time_comm_us);
 #ifdef WEBSERVER
     START_TIME_MEASUREMENT(ota);
@@ -235,7 +305,9 @@ void core_loop(void*) {
       led_exe();
       handle_contactors();  // Take care of startup precharge/contactor closing
 #ifdef PRECHARGE_CONTROL
-      handle_precharge_control();
+      if (battery->requiresPrechargeControl()) {
+        handle_precharge_control();
+      }
 #endif  // PRECHARGE_CONTROL
 #ifdef FUNCTION_TIME_MEASUREMENT
       END_TIME_MEASUREMENT_MAX(time_10ms, datalayer.system.status.time_10ms_us);
@@ -247,12 +319,14 @@ void core_loop(void*) {
 #ifdef FUNCTION_TIME_MEASUREMENT
       START_TIME_MEASUREMENT(time_values);
 #endif
-      update_pause_state();     // Check if we are OK to send CAN or need to pause
-      update_values_battery();  // Fetch battery values
-#ifdef DOUBLE_BATTERY
-      update_values_battery2();
-      check_interconnect_available();
-#endif  // DOUBLE_BATTERY
+      update_pause_state();  // Check if we are OK to send CAN or need to pause
+
+      battery->update_values();
+
+      if (double_battery()) {
+        battery2->update_values();
+        check_interconnect_available();
+      }
       update_calculated_values();
       update_machineryprotection();  // Check safeties
       update_values_inverter();      // Update values heading towards inverter
@@ -266,9 +340,9 @@ void core_loop(void*) {
     // Output
     transmit_can();  // Send CAN messages to all components
 
-#ifdef RS485_BATTERY_SELECTED
-    transmit_rs485();
-#endif  // RS485_BATTERY_SELECTED
+    if (battery->usesRS485()) {
+      battery->transmit_RS485();
+    }
 #ifdef FUNCTION_TIME_MEASUREMENT
     END_TIME_MEASUREMENT_MAX(cantx, datalayer.system.status.time_cantx_us);
     END_TIME_MEASUREMENT_MAX(all, datalayer.system.status.core_task_10s_max_us);
@@ -313,7 +387,6 @@ void init_serial() {
 #endif  // DEBUG_VIA_USB
 }
 
-#ifdef DOUBLE_BATTERY
 void check_interconnect_available() {
   if (datalayer.battery.status.voltage_dV == 0 || datalayer.battery2.status.voltage_dV == 0) {
     return;  // Both voltage values need to be available to start check
@@ -325,15 +398,19 @@ void check_interconnect_available() {
     clear_event(EVENT_VOLTAGE_DIFFERENCE);
     if (datalayer.battery.status.bms_status == FAULT) {
       // If main battery is in fault state, disengage the second battery
-      datalayer.system.status.battery2_allows_contactor_closing = false;
+      if (battery2) {
+        battery2->disallow_contactor_closing();
+      }
+
     } else {  // If main battery is OK, allow second battery to join
-      datalayer.system.status.battery2_allows_contactor_closing = true;
+      if (battery2) {
+        battery2->allow_contactor_closing();
+      }
     }
   } else {  //Voltage between the two packs is too large
     set_event(EVENT_VOLTAGE_DIFFERENCE, (uint8_t)(voltage_diff / 10));
   }
 }
-#endif  // DOUBLE_BATTERY
 
 void update_calculated_values() {
   /* Update CPU temperature*/
@@ -393,11 +470,11 @@ void update_calculated_values() {
     }
   }
 
-#ifdef DOUBLE_BATTERY
-  /* Calculate active power based on voltage and current for battery 2*/
-  datalayer.battery2.status.active_power_W =
-      (datalayer.battery2.status.current_dA * (datalayer.battery2.status.voltage_dV / 100));
-#endif  // DOUBLE_BATTERY
+  if (double_battery()) {
+    /* Calculate active power based on voltage and current for battery 2*/
+    datalayer.battery2.status.active_power_W =
+        (datalayer.battery2.status.current_dA * (datalayer.battery2.status.voltage_dV / 100));
+  }
 
   if (datalayer.battery.settings.soc_scaling_active) {
     /** SOC Scaling
@@ -457,52 +534,56 @@ void update_calculated_values() {
       datalayer.battery.status.reported_remaining_capacity_Wh = datalayer.battery.status.remaining_capacity_Wh;
     }
 
-#ifdef DOUBLE_BATTERY
-    // Calculate the scaled remaining capacity in Wh
-    if (datalayer.battery2.info.total_capacity_Wh > 0 && datalayer.battery2.status.real_soc > 0) {
-      calc_max_capacity =
-          (datalayer.battery2.status.remaining_capacity_Wh * 10000 / datalayer.battery2.status.real_soc);
-      calc_reserved_capacity = calc_max_capacity * datalayer.battery2.settings.min_percentage / 10000;
-      // remove % capacity reserved in min_percentage to total_capacity_Wh
-      if (datalayer.battery2.status.remaining_capacity_Wh > calc_reserved_capacity) {
-        datalayer.battery2.status.reported_remaining_capacity_Wh =
-            datalayer.battery2.status.remaining_capacity_Wh - calc_reserved_capacity;
+    if (double_battery()) {
+      // Calculate the scaled remaining capacity in Wh
+      if (datalayer.battery2.info.total_capacity_Wh > 0 && datalayer.battery2.status.real_soc > 0) {
+        calc_max_capacity =
+            (datalayer.battery2.status.remaining_capacity_Wh * 10000 / datalayer.battery2.status.real_soc);
+        calc_reserved_capacity = calc_max_capacity * datalayer.battery2.settings.min_percentage / 10000;
+        // remove % capacity reserved in min_percentage to total_capacity_Wh
+        if (datalayer.battery2.status.remaining_capacity_Wh > calc_reserved_capacity) {
+          datalayer.battery2.status.reported_remaining_capacity_Wh =
+              datalayer.battery2.status.remaining_capacity_Wh - calc_reserved_capacity;
+        } else {
+          datalayer.battery2.status.reported_remaining_capacity_Wh = 0;
+        }
       } else {
-        datalayer.battery2.status.reported_remaining_capacity_Wh = 0;
+        datalayer.battery2.status.reported_remaining_capacity_Wh = datalayer.battery2.status.remaining_capacity_Wh;
       }
-    } else {
-      datalayer.battery2.status.reported_remaining_capacity_Wh = datalayer.battery2.status.remaining_capacity_Wh;
     }
-#endif  // DOUBLE_BATTERY
 
   } else {  // soc_scaling_active == false. No SOC window wanted. Set scaled to same as real.
     datalayer.battery.status.reported_soc = datalayer.battery.status.real_soc;
     datalayer.battery.status.reported_remaining_capacity_Wh = datalayer.battery.status.remaining_capacity_Wh;
-#ifdef DOUBLE_BATTERY
-    datalayer.battery2.status.reported_soc = datalayer.battery2.status.real_soc;
-    datalayer.battery2.status.reported_remaining_capacity_Wh = datalayer.battery2.status.remaining_capacity_Wh;
-#endif
-  }
-#ifdef DOUBLE_BATTERY
-  // Perform extra SOC sanity checks on double battery setups
-  if (datalayer.battery.status.real_soc < 100) {  //If this battery is under 1.00%, use this as SOC instead of average
-    datalayer.battery.status.reported_soc = datalayer.battery.status.real_soc;
-    datalayer.battery.status.reported_remaining_capacity_Wh = datalayer.battery.status.remaining_capacity_Wh;
-  }
-  if (datalayer.battery2.status.real_soc < 100) {  //If this battery is under 1.00%, use this as SOC instead of average
-    datalayer.battery.status.reported_soc = datalayer.battery2.status.real_soc;
-    datalayer.battery.status.reported_remaining_capacity_Wh = datalayer.battery2.status.remaining_capacity_Wh;
+    if (double_battery()) {
+      datalayer.battery2.status.reported_soc = datalayer.battery2.status.real_soc;
+      datalayer.battery2.status.reported_remaining_capacity_Wh = datalayer.battery2.status.remaining_capacity_Wh;
+    }
   }
 
-  if (datalayer.battery.status.real_soc > 9900) {  //If this battery is over 99.00%, use this as SOC instead of average
-    datalayer.battery.status.reported_soc = datalayer.battery.status.real_soc;
-    datalayer.battery.status.reported_remaining_capacity_Wh = datalayer.battery.status.remaining_capacity_Wh;
+  if (double_battery()) {
+    // Perform extra SOC sanity checks on double battery setups
+    if (datalayer.battery.status.real_soc < 100) {  //If this battery is under 1.00%, use this as SOC instead of average
+      datalayer.battery.status.reported_soc = datalayer.battery.status.real_soc;
+      datalayer.battery.status.reported_remaining_capacity_Wh = datalayer.battery.status.remaining_capacity_Wh;
+    }
+    if (datalayer.battery2.status.real_soc <
+        100) {  //If this battery is under 1.00%, use this as SOC instead of average
+      datalayer.battery.status.reported_soc = datalayer.battery2.status.real_soc;
+      datalayer.battery.status.reported_remaining_capacity_Wh = datalayer.battery2.status.remaining_capacity_Wh;
+    }
+
+    if (datalayer.battery.status.real_soc >
+        9900) {  //If this battery is over 99.00%, use this as SOC instead of average
+      datalayer.battery.status.reported_soc = datalayer.battery.status.real_soc;
+      datalayer.battery.status.reported_remaining_capacity_Wh = datalayer.battery.status.remaining_capacity_Wh;
+    }
+    if (datalayer.battery2.status.real_soc >
+        9900) {  //If this battery is over 99.00%, use this as SOC instead of average
+      datalayer.battery.status.reported_soc = datalayer.battery2.status.real_soc;
+      datalayer.battery.status.reported_remaining_capacity_Wh = datalayer.battery2.status.remaining_capacity_Wh;
+    }
   }
-  if (datalayer.battery2.status.real_soc > 9900) {  //If this battery is over 99.00%, use this as SOC instead of average
-    datalayer.battery.status.reported_soc = datalayer.battery2.status.real_soc;
-    datalayer.battery.status.reported_remaining_capacity_Wh = datalayer.battery2.status.remaining_capacity_Wh;
-  }
-#endif  // DOUBLE_BATTERY
   // Check if millis() has overflowed. Used in events to keep better track of time
   if (millis() < lastMillisOverflowCheck) {  // Overflow detected
     datalayer.system.status.millisrolloverCount++;
@@ -511,15 +592,17 @@ void update_calculated_values() {
 }
 
 void update_values_inverter() {
-#ifdef CAN_INVERTER_SELECTED
-  update_values_can_inverter();
-#endif  // CAN_INVERTER_SELECTED
-#ifdef MODBUS_INVERTER_SELECTED
-  update_modbus_registers_inverter();
-#endif  // CAN_INVERTER_SELECTED
-#ifdef RS485_INVERTER_SELECTED
-  update_RS485_registers_inverter();
-#endif  // CAN_INVERTER_SELECTED
+  if (inverter->usesCAN()) {
+    inverter->update_values_can_inverter();
+  }
+
+  if (inverter->usesRS485()) {
+    inverter->update_RS485_registers_inverter();
+  }
+
+  if (inverter->usesMODBUS()) {
+    inverter->update_modbus_registers_inverter();
+  }
 }
 
 void check_reset_reason() {

@@ -3,6 +3,8 @@
 #include "../datalayer/datalayer.h"
 #include "GROWATT-LV-CAN.h"
 
+#include "../communication/can/comm_can.h"
+
 /* Growatt BMS CAN-Bus-protocol Low Voltage Rev_04
 CAN 2.0A
 500kBit/sec
@@ -79,7 +81,8 @@ static uint16_t cell_delta_mV = 0;
 static uint16_t ampere_hours_remaining = 0;
 static uint16_t ampere_hours_full = 0;
 
-void update_values_can_inverter() {  //This function maps all the values fetched from battery CAN to the correct CAN messages
+void GrowattLvCanInverter::
+    update_values_can_inverter() {  //This function maps all the values fetched from battery CAN to the correct CAN messages
 
   cell_delta_mV = datalayer.battery.status.cell_max_voltage_mV - datalayer.battery.status.cell_min_voltage_mV;
 
@@ -246,7 +249,7 @@ void update_values_can_inverter() {  //This function maps all the values fetched
   GROWATT_318.data.u8[7] = (datalayer.battery.status.cell_voltages_mV[15] & 0x00FF);
 }
 
-void map_can_frame_to_variable_inverter(CAN_frame rx_frame) {
+void GrowattLvCanInverter::map_can_frame_to_variable_inverter(CAN_frame rx_frame) {
   switch (rx_frame.ID) {
     case 0x301:
       datalayer.system.status.CAN_inverter_still_alive = CAN_STILL_ALIVE;
@@ -267,12 +270,12 @@ void map_can_frame_to_variable_inverter(CAN_frame rx_frame) {
   }
 }
 
-void transmit_can_inverter() {
+static void transmit_can_inverter() {
   // No periodic sending for this battery type. Data is sent when inverter requests it
 }
 
-void setup_inverter(void) {  // Performs one time setup at startup over CAN bus
-  strncpy(datalayer.system.info.inverter_protocol, "Growatt Low Voltage (48V) protocol via CAN", 63);
-  datalayer.system.info.inverter_protocol[63] = '\0';
+void GrowattLvCanInverter::transmit_can() {
+  transmit_can_inverter();
 }
+
 #endif

@@ -4,9 +4,12 @@
 
 #define CAN_INVERTER_SELECTED
 
-void send_system_data();
-void send_setup_info();
-void transmit_can_frame(CAN_frame* tx_frame, int interface);
-void setup_inverter(void);
+class PylonCanInverter : public InverterProtocol {
+ public:
+  virtual const char* name() { return Name; };
+  static constexpr char* Name = "Pylontech battery over CAN bus";
+  virtual void map_can_frame_to_variable_inverter(CAN_frame rx_frame);
+  virtual void update_values_can_inverter();
+};
 
 #endif

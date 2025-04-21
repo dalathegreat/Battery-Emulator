@@ -6,110 +6,8 @@
 #include "CELLPOWER-BMS.h"
 
 /* Do not change code below unless you are sure what you are doing */
-static unsigned long previousMillis1s = 0;  // will store last time a 1s CAN Message was sent
 
-//Actual content messages
-// Optional add-on charger module. Might not be needed to send these towards the BMS to keep it happy.
-CAN_frame CELLPOWER_18FF50E9 = {.FD = false,
-                                .ext_ID = true,
-                                .DLC = 5,
-                                .ID = 0x18FF50E9,
-                                .data = {0x00, 0x00, 0x00, 0x00, 0x00}};
-CAN_frame CELLPOWER_18FF50E8 = {.FD = false,
-                                .ext_ID = true,
-                                .DLC = 5,
-                                .ID = 0x18FF50E8,
-                                .data = {0x00, 0x00, 0x00, 0x00, 0x00}};
-CAN_frame CELLPOWER_18FF50E7 = {.FD = false,
-                                .ext_ID = true,
-                                .DLC = 5,
-                                .ID = 0x18FF50E7,
-                                .data = {0x00, 0x00, 0x00, 0x00, 0x00}};
-CAN_frame CELLPOWER_18FF50E5 = {.FD = false,
-                                .ext_ID = true,
-                                .DLC = 5,
-                                .ID = 0x18FF50E5,
-                                .data = {0x00, 0x00, 0x00, 0x00, 0x00}};
-
-static bool system_state_discharge = false;
-static bool system_state_charge = false;
-static bool system_state_cellbalancing = false;
-static bool system_state_tricklecharge = false;
-static bool system_state_idle = false;
-static bool system_state_chargecompleted = false;
-static bool system_state_maintenancecharge = false;
-static bool IO_state_main_positive_relay = false;
-static bool IO_state_main_negative_relay = false;
-static bool IO_state_charge_enable = false;
-static bool IO_state_precharge_relay = false;
-static bool IO_state_discharge_enable = false;
-static bool IO_state_IO_6 = false;
-static bool IO_state_IO_7 = false;
-static bool IO_state_IO_8 = false;
-static bool error_Cell_overvoltage = false;
-static bool error_Cell_undervoltage = false;
-static bool error_Cell_end_of_life_voltage = false;
-static bool error_Cell_voltage_misread = false;
-static bool error_Cell_over_temperature = false;
-static bool error_Cell_under_temperature = false;
-static bool error_Cell_unmanaged = false;
-static bool error_LMU_over_temperature = false;
-static bool error_LMU_under_temperature = false;
-static bool error_Temp_sensor_open_circuit = false;
-static bool error_Temp_sensor_short_circuit = false;
-static bool error_SUB_communication = false;
-static bool error_LMU_communication = false;
-static bool error_Over_current_IN = false;
-static bool error_Over_current_OUT = false;
-static bool error_Short_circuit = false;
-static bool error_Leak_detected = false;
-static bool error_Leak_detection_failed = false;
-static bool error_Voltage_difference = false;
-static bool error_BMCU_supply_over_voltage = false;
-static bool error_BMCU_supply_under_voltage = false;
-static bool error_Main_positive_contactor = false;
-static bool error_Main_negative_contactor = false;
-static bool error_Precharge_contactor = false;
-static bool error_Midpack_contactor = false;
-static bool error_Precharge_timeout = false;
-static bool error_Emergency_connector_override = false;
-static bool warning_High_cell_voltage = false;
-static bool warning_Low_cell_voltage = false;
-static bool warning_High_cell_temperature = false;
-static bool warning_Low_cell_temperature = false;
-static bool warning_High_LMU_temperature = false;
-static bool warning_Low_LMU_temperature = false;
-static bool warning_SUB_communication_interfered = false;
-static bool warning_LMU_communication_interfered = false;
-static bool warning_High_current_IN = false;
-static bool warning_High_current_OUT = false;
-static bool warning_Pack_resistance_difference = false;
-static bool warning_High_pack_resistance = false;
-static bool warning_Cell_resistance_difference = false;
-static bool warning_High_cell_resistance = false;
-static bool warning_High_BMCU_supply_voltage = false;
-static bool warning_Low_BMCU_supply_voltage = false;
-static bool warning_Low_SOC = false;
-static bool warning_Balancing_required_OCV_model = false;
-static bool warning_Charger_not_responding = false;
-static uint16_t cell_voltage_max_mV = 3700;
-static uint16_t cell_voltage_min_mV = 3700;
-static int8_t pack_temperature_high_C = 0;
-static int8_t pack_temperature_low_C = 0;
-static uint16_t battery_pack_voltage_dV = 3700;
-static int16_t battery_pack_current_dA = 0;
-static uint8_t battery_SOH_percentage = 99;
-static uint8_t battery_SOC_percentage = 50;
-static uint16_t battery_remaining_dAh = 0;
-static uint8_t cell_with_highest_voltage = 0;
-static uint8_t cell_with_lowest_voltage = 0;
-static uint16_t requested_charge_current_dA = 0;
-static uint16_t average_charge_current_dA = 0;
-static uint16_t actual_charge_current_dA = 0;
-static bool requested_exceeding_average_current = 0;
-static bool error_state = false;
-
-void update_values_battery() {
+void CellPowerBms::update_values() {
 
   /* Update values from CAN */
 
@@ -213,7 +111,8 @@ void update_values_battery() {
     //TODO, shall we react on this?
   }
 }
-void handle_incoming_can_frame_battery(CAN_frame rx_frame) {
+
+void CellPowerBms::handle_incoming_can_frame(CAN_frame rx_frame) {
 
   switch (rx_frame.ID) {
     case 0x1A4:  //PDO1_TX - 200ms
@@ -316,7 +215,7 @@ void handle_incoming_can_frame_battery(CAN_frame rx_frame) {
   }
 }
 
-void transmit_can_battery() {
+void CellPowerBms::transmit_can() {
   unsigned long currentMillis = millis();
   // Send 1s CAN Message
   if (currentMillis - previousMillis1s >= INTERVAL_1_S) {
@@ -332,10 +231,8 @@ void transmit_can_battery() {
   }
 }
 
-void setup_battery(void) {  // Performs one time setup at startup
-  strncpy(datalayer.system.info.battery_protocol, "Cellpower BMS", 63);
-  datalayer.system.info.battery_protocol[63] = '\0';
-  datalayer.system.status.battery_allows_contactor_closing = true;
+void CellPowerBms::setup(void) {  // Performs one time setup at startup
+  allow_contactor_closing();
   datalayer.battery.info.max_design_voltage_dV = MAX_PACK_VOLTAGE_DV;
   datalayer.battery.info.min_design_voltage_dV = MIN_PACK_VOLTAGE_DV;
   datalayer.battery.info.max_cell_voltage_mV = MAX_CELL_VOLTAGE_MV;

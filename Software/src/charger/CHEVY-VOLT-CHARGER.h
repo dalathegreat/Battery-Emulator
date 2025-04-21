@@ -15,4 +15,13 @@
 #define CHEVYVOLT_MAX_AMP 11.5
 #define CHEVYVOLT_MAX_POWER 3300
 
+class ChevyVoltCharger : public Charger {
+ public:
+  ChevyVoltCharger() : Charger(ChargerType::ChevyVolt) {}
+  virtual void map_can_frame_to_variable_charger(CAN_frame rx_frame);
+  virtual void transmit_can();
+  virtual const char* name() { return Name; };
+  static constexpr char* Name = "Chevy Volt Gen1 Charger";
+};
+
 #endif

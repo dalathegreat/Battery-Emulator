@@ -3,6 +3,29 @@
 
 #include "../../USER_SETTINGS.h"
 
+// Selection of inverters to the common image.
+#ifdef BUILD_EM_ALL
+#define AFORE_CAN
+#define BYD_CAN_DEYE
+#define BYD_CAN
+#define BYD_MODBUS
+#define BYD_KOSTAL_RS485
+#define FERROAMP_CAN
+#define FOXESS_CAN
+#define GROWATT_HV_CAN
+#define GROWATT_LV_CAN
+#define PYLON_CAN
+#define PYLON_LV_CAN
+#define SCHNEIDER_CAN
+#define SMA_BYD_H_CAN
+#define SMA_BYD_HVS_CAN
+#define SMA_LV_CAN
+#define SMA_TRIPOWER_CAN
+#define SOFAR_CAN
+#define SOLAX_CAN
+#define SUNGROW_CAN
+#endif
+
 #ifdef AFORE_CAN
 #include "AFORE-CAN.h"
 #endif
@@ -80,19 +103,19 @@
 #endif
 
 #ifdef CAN_INVERTER_SELECTED
-void update_values_can_inverter();
-void map_can_frame_to_variable_inverter(CAN_frame rx_frame);
-void transmit_can_inverter();
+//void update_values_can_inverter();
+//void map_can_frame_to_variable_inverter(CAN_frame rx_frame);
+//void transmit_can_inverter();
 #endif
 
 #ifdef MODBUS_INVERTER_SELECTED
-void update_modbus_registers_inverter();
+//void update_modbus_registers_inverter();
 #endif
 
 #ifdef RS485_INVERTER_SELECTED
-void receive_RS485();
-void update_RS485_registers_inverter();
-void setup_inverter();
+//void receive_RS485();
+//void update_RS485_registers_inverter();
+//void setup_inverter();
 #endif
 
 #endif
