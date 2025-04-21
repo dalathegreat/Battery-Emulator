@@ -71,8 +71,6 @@ Logging logging;
 InverterProtocol* inverter;
 BatteryBase* battery;
 BatteryBase* battery2;
-
-// TODO: Proper charger selection
 Charger* charger = nullptr;
 
 // Initialization
@@ -115,6 +113,11 @@ void setup() {
 
   battery = init_battery(userSelectedBatteryType);
   if (battery == nullptr) {
+    // TODO: Handle error, this could be out-of-memory
+  }
+
+  if (userSelectedChargerType != ChargerType::None) {
+    charger = init_charger(userSelectedChargerType);
     // TODO: Handle error, this could be out-of-memory
   }
 

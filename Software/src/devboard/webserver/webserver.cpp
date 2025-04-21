@@ -392,6 +392,9 @@ void init_webserver() {
       } else if (p->name() == "battery") {
         auto type = static_cast<BatteryType>(atoi(p->value().c_str()));
         userSelectedBatteryType = type;
+      } else if (p->name() == "charger") {
+        auto type = static_cast<ChargerType>(atoi(p->value().c_str()));
+        userSelectedChargerType = type;
       } else if (p->name() == "dblbtr") {
         secondBattery = p->value() == "on";
       }

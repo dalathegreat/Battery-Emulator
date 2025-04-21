@@ -2,7 +2,9 @@
 #define CHARGERS_H
 #include "../../USER_SETTINGS.h"
 
-enum class ChargerType { ChevyVolt, NissanLeaf };
+#include "../devboard/utils/types.h"
+
+enum class ChargerType { None = 0, ChevyVolt = 1, NissanLeaf = 2, HighestCharger = 3 };
 
 class Charger {
  public:
@@ -11,12 +13,19 @@ class Charger {
   ChargerType type() { return m_type; }
   virtual const char* name() = 0;
 
+  static const char* name_for_type(ChargerType type);
+
  protected:
   Charger(ChargerType type) : m_type(type) {}
   ChargerType m_type;
 };
 
 extern Charger* charger;
+
+Charger* init_charger(ChargerType type);
+
+std::vector<ChargerType> supported_charger_types();
+extern ChargerType userSelectedChargerType;
 
 #ifdef BUILD_EM_ALL
 #define CHEVYVOLT_CHARGER

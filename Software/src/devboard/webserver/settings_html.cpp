@@ -49,6 +49,25 @@ String inverter_options(InverterProtocolType selected) {
 
   return options;
 }
+
+String charger_options(ChargerType selected) {
+  String options;
+
+  auto chargers = supported_charger_types();
+
+  for (ChargerType type : chargers) {
+    auto name = Charger::name_for_type(type);
+    if (name != nullptr) {
+      options +=
+          ("<option value=\"" + String(static_cast<int>(type)) + "\"" + (selected == type ? "selected" : "") + ">");
+      options += name;
+      options += "</option>";
+    }
+  }
+
+  return options;
+}
+
 #endif
 
 String settings_processor(const String& var) {
@@ -79,6 +98,9 @@ String settings_processor(const String& var) {
     content += "</select>";
     content += "<label>Inverter protocol: </label><select style='max-width: 250px;' name='inverter'>";
     content += inverter_options(userSelectedInverter);
+    content += "</select>";
+    content += "<label>Charger: </label><select style='max-width: 250px;' name='charger'>";
+    content += charger_options(userSelectedChargerType);
     content += "</select>";
     content += "<label>Double battery:</label>";
     content +=
