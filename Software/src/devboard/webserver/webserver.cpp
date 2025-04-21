@@ -997,6 +997,7 @@ String processor(const String& var) {
     } else {
       content += "<h4>Wifi state: " + getConnectResultString(status) + "</h4>";
     }
+    content += "<h4>Free heap: " + String(esp_get_free_heap_size()) + "</h4>";
     // Close the block
     content += "</div>";
 

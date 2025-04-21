@@ -255,9 +255,9 @@ static bool publish_cell_voltages(void) {
 
 #ifdef HA_AUTODISCOVERY
   bool failed_to_publish = false;
-  for (int b = 0; b < secondBatteryInUse && battery2 ? 2 : 1; b++) {
-    DATALAYER_BATTERY_TYPE& batt = b == 0 ? datalayer.battery : datalayer.battery2;
-    auto topic = b == 0 ? state_topic : state_topic_2;
+  for (int b = 0; b < (secondBatteryInUse && battery2 ? 2 : 1); b++) {
+    DATALAYER_BATTERY_TYPE& batt = (b == 0 ? datalayer.battery : datalayer.battery2);
+    auto topic = (b == 0 ? state_topic : state_topic_2);
 
     if (ha_cell_voltages_published == false) {
 
