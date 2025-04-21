@@ -25,6 +25,12 @@
 #define POLL_CAPACITY_MODULE_MIN 0x4B3E
 #define POLL_UNKNOWN_7 0x4B24  //1 (the other battery 23)
 #define POLL_UNKNOWN_8 0x4B26  //16 (the other battery 33)
+#define POLL_MULTI_TEMPS 0x4B0F
+#define POLL_MULTI_UNKNOWN_2 0x4B10
+#define POLL_MULTI_UNKNOWN_3 0x4B53
+#define POLL_MULTI_UNKNOWN_4 0x4B54
+#define POLL_MULTI_UNKNOWN_5 0x4B6B
+#define POLL_MULTI_UNKNOWN_6 0x4B6C
 
 void setup_battery(void);
 void transmit_can_frame(CAN_frame* tx_frame, int interface);

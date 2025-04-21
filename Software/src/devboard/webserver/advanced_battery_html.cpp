@@ -476,6 +476,18 @@ String advanced_battery_processor(const String& var) {
     content += "<h4>Capacity module min: " + String((datalayer_extended.geometryC.capModMin / 10)) + "Ah</h4>";
     content += "<h4>Unknown7: " + String(datalayer_extended.geometryC.unknown7) + "</h4>";
     content += "<h4>Unknown8: " + String(datalayer_extended.geometryC.unknown8) + "</h4>";
+    content +=
+        "<h4>Module 1 temperature: " + String(datalayer_extended.geometryC.ModuleTemperatures[0]) + " &deg;C</h4>";
+    content +=
+        "<h4>Module 2 temperature: " + String(datalayer_extended.geometryC.ModuleTemperatures[1]) + " &deg;C</h4>";
+    content +=
+        "<h4>Module 3 temperature: " + String(datalayer_extended.geometryC.ModuleTemperatures[2]) + " &deg;C</h4>";
+    content +=
+        "<h4>Module 4 temperature: " + String(datalayer_extended.geometryC.ModuleTemperatures[3]) + " &deg;C</h4>";
+    content +=
+        "<h4>Module 5 temperature: " + String(datalayer_extended.geometryC.ModuleTemperatures[4]) + " &deg;C</h4>";
+    content +=
+        "<h4>Module 6 temperature: " + String(datalayer_extended.geometryC.ModuleTemperatures[5]) + " &deg;C</h4>";
 #endif  //GEELY_GEOMETRY_C_BATTERY
 
 #ifdef KIA_HYUNDAI_64_BATTERY

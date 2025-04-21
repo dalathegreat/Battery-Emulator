@@ -276,6 +276,9 @@ typedef struct {
   /** uint8_t */
   /** Battery serial numbers, stores raw HEX values for ASCII chars */
   uint8_t BatterySerialNumber[28] = {0};
+  /** int16_t */
+  /** Module temperatures 1-6 */
+  int16_t ModuleTemperatures[6] = {0};
   /** uint16_t */
   /** Various values polled via OBD2 PIDs */
   uint16_t soc = 0;

@@ -226,6 +226,8 @@ static uint16_t poll_cap_module_max = 0;
 static uint16_t poll_cap_module_min = 0;
 static uint16_t poll_unknown7 = 0;
 static uint16_t poll_unknown8 = 0;
+static int16_t poll_temperature[6] = {0};
+#define TEMP_OFFSET 30  //TODO, not calibrated yet, best guess
 
 void update_values_battery() {  //This function maps all the values fetched via CAN to the correct parameters used for modbus
   datalayer.battery.status.soh_pptt;
@@ -250,13 +252,26 @@ void update_values_battery() {  //This function maps all the values fetched via 
 
   datalayer.battery.status.max_charge_power_W;
 
-  datalayer.battery.status.temperature_min_dC = minimum_temperature * 10;
-
-  datalayer.battery.status.temperature_max_dC = maximum_temperature * 10;
-
   datalayer.battery.status.cell_min_voltage_mV = maximum_cell_voltage - 10;  //TODO: Fix once we have min value
 
   datalayer.battery.status.cell_max_voltage_mV = maximum_cell_voltage;
+
+  // Initialize highest and lowest to the first element
+  maximum_temperature = poll_temperature[0];
+  minimum_temperature = poll_temperature[0];
+
+  // Iterate through the array to find the highest and lowest values
+  for (uint8_t i = 1; i < 6; ++i) {
+    if (poll_temperature[i] > maximum_temperature) {
+      maximum_temperature = poll_temperature[i];
+    }
+    if (poll_temperature[i] < minimum_temperature) {
+      minimum_temperature = poll_temperature[i];
+    }
+  }
+  datalayer.battery.status.temperature_min_dC = minimum_temperature * 10;
+
+  datalayer.battery.status.temperature_max_dC = maximum_temperature * 10;
 
   if (HVIL_signal > 0) {
     set_event(EVENT_HVIL_FAILURE, HVIL_signal);
@@ -266,6 +281,7 @@ void update_values_battery() {  //This function maps all the values fetched via 
 
   //Update webserver more battery info page
   memcpy(datalayer_extended.geometryC.BatterySerialNumber, serialnumbers, sizeof(serialnumbers));
+  memcpy(datalayer_extended.geometryC.ModuleTemperatures, poll_temperature, sizeof(poll_temperature));
   datalayer_extended.geometryC.soc = poll_soc;
   datalayer_extended.geometryC.CC2voltage = poll_cc2_voltage;
   datalayer_extended.geometryC.cellMaxVoltageNumber = poll_cell_max_voltage_number;
@@ -374,11 +390,9 @@ void handle_incoming_can_frame_battery(CAN_frame rx_frame) {
       break;
     case 0x351:  //100ms (4A 31 71 B8 6E F8 84 00)
       datalayer.battery.status.CAN_battery_still_alive = CAN_STILL_ALIVE;
-      maximum_temperature = ((rx_frame.data.u8[6] / 2) - 40);  //TODO, not confirmed
       break;
     case 0x352:  //500ms (76 78 00 00 82 FF FF 00)
       datalayer.battery.status.CAN_battery_still_alive = CAN_STILL_ALIVE;
-      minimum_temperature = ((rx_frame.data.u8[4] / 2) - 40);  //TODO, not confirmed
       break;
     case 0x353:  //500ms (00 00 00 00 62 00 EA 5D) (car 00 00 00 00 00 00 E6 04)
       datalayer.battery.status.CAN_battery_still_alive = CAN_STILL_ALIVE;
@@ -453,56 +467,84 @@ void handle_incoming_can_frame_battery(CAN_frame rx_frame) {
     case 0x7EA:
       if (rx_frame.data.u8[0] == 0x10) {  //Multiframe response, send ACK
         transmit_can_frame(&GEELY_ACK, can_config.battery);
+        //Multiframe has the poll reply slightly different location
+        incoming_poll = (rx_frame.data.u8[3] << 8) | rx_frame.data.u8[4];
       }
-      incoming_poll = (rx_frame.data.u8[2] << 8) | rx_frame.data.u8[3];
+      if (rx_frame.data.u8[0] < 0x10) {  //One line response
+        incoming_poll = (rx_frame.data.u8[2] << 8) | rx_frame.data.u8[3];
 
-      switch (incoming_poll) {
-        case POLL_SOC:
-          poll_soc = (rx_frame.data.u8[4] << 8) | rx_frame.data.u8[5];
-          break;
-        case POLL_CC2_VOLTAGE:
-          poll_cc2_voltage = (rx_frame.data.u8[4] << 8) | rx_frame.data.u8[5];
-          break;
-        case POLL_CELL_MAX_VOLTAGE_NUMBER:
-          poll_cell_max_voltage_number = rx_frame.data.u8[4];
-          break;
-        case POLL_CELL_MIN_VOLTAGE_NUMBER:
-          poll_cell_min_voltage_number = rx_frame.data.u8[4];
-          break;
-        case POLL_AMOUNT_CELLS:
-          poll_amount_cells = rx_frame.data.u8[4];
-          datalayer.battery.info.number_of_cells = poll_amount_cells;
-          break;
-        case POLL_SPECIFICIAL_VOLTAGE:
-          poll_specificial_voltage = (rx_frame.data.u8[4] << 8) | rx_frame.data.u8[5];
-          break;
-        case POLL_UNKNOWN_1:
-          poll_unknown1 = rx_frame.data.u8[4];
-          break;
-        case POLL_RAW_SOC_MAX:
-          poll_raw_soc_max = (rx_frame.data.u8[4] << 8) | rx_frame.data.u8[5];
-          break;
-        case POLL_RAW_SOC_MIN:
-          poll_raw_soc_min = (rx_frame.data.u8[4] << 8) | rx_frame.data.u8[5];
-          break;
-        case POLL_UNKNOWN_4:
-          poll_unknown4 = rx_frame.data.u8[4];
-          break;
-        case POLL_CAPACITY_MODULE_MAX:
-          poll_cap_module_max = (rx_frame.data.u8[4] << 8) | rx_frame.data.u8[5];
-          break;
-        case POLL_CAPACITY_MODULE_MIN:
-          poll_cap_module_min = (rx_frame.data.u8[4] << 8) | rx_frame.data.u8[5];
-          break;
-        case POLL_UNKNOWN_7:
-          poll_unknown7 = rx_frame.data.u8[4];
-          break;
-        case POLL_UNKNOWN_8:
-          poll_unknown8 = rx_frame.data.u8[4];
+        switch (incoming_poll) {
+          case POLL_SOC:
+            poll_soc = (rx_frame.data.u8[4] << 8) | rx_frame.data.u8[5];
+            break;
+          case POLL_CC2_VOLTAGE:
+            poll_cc2_voltage = (rx_frame.data.u8[4] << 8) | rx_frame.data.u8[5];
+            break;
+          case POLL_CELL_MAX_VOLTAGE_NUMBER:
+            poll_cell_max_voltage_number = rx_frame.data.u8[4];
+            break;
+          case POLL_CELL_MIN_VOLTAGE_NUMBER:
+            poll_cell_min_voltage_number = rx_frame.data.u8[4];
+            break;
+          case POLL_AMOUNT_CELLS:
+            poll_amount_cells = rx_frame.data.u8[4];
+            datalayer.battery.info.number_of_cells = poll_amount_cells;
+            break;
+          case POLL_SPECIFICIAL_VOLTAGE:
+            poll_specificial_voltage = (rx_frame.data.u8[4] << 8) | rx_frame.data.u8[5];
+            break;
+          case POLL_UNKNOWN_1:
+            poll_unknown1 = rx_frame.data.u8[4];
+            break;
+          case POLL_RAW_SOC_MAX:
+            poll_raw_soc_max = (rx_frame.data.u8[4] << 8) | rx_frame.data.u8[5];
+            break;
+          case POLL_RAW_SOC_MIN:
+            poll_raw_soc_min = (rx_frame.data.u8[4] << 8) | rx_frame.data.u8[5];
+            break;
+          case POLL_UNKNOWN_4:
+            poll_unknown4 = rx_frame.data.u8[4];
+            break;
+          case POLL_CAPACITY_MODULE_MAX:
+            poll_cap_module_max = (rx_frame.data.u8[4] << 8) | rx_frame.data.u8[5];
+            break;
+          case POLL_CAPACITY_MODULE_MIN:
+            poll_cap_module_min = (rx_frame.data.u8[4] << 8) | rx_frame.data.u8[5];
+            break;
+          case POLL_UNKNOWN_7:
+            poll_unknown7 = rx_frame.data.u8[4];
+            break;
+          case POLL_UNKNOWN_8:
+            poll_unknown8 = rx_frame.data.u8[4];
+            break;
+          default:
+            break;
+        }
+      }
+
+      switch (incoming_poll)  //Multiframe response
+      {
+        case POLL_MULTI_TEMPS:
+          switch (rx_frame.data.u8[0]) {
+            case 0x10:
+              poll_temperature[0] = (rx_frame.data.u8[5] - TEMP_OFFSET);
+              poll_temperature[1] = (rx_frame.data.u8[6] - TEMP_OFFSET);
+              poll_temperature[2] = (rx_frame.data.u8[7] - TEMP_OFFSET);
+              break;
+            case 0x21:
+              poll_temperature[3] = (rx_frame.data.u8[1] - TEMP_OFFSET);
+              poll_temperature[4] = (rx_frame.data.u8[2] - TEMP_OFFSET);
+              poll_temperature[5] = (rx_frame.data.u8[3] - TEMP_OFFSET);
+              break;
+            default:
+              break;
+          }
           break;
         default:
+          //Not a multiframe response, do nothing
           break;
       }
+
       break;
     default:
       break;
@@ -674,6 +716,36 @@ void transmit_can_battery() {
       case POLL_UNKNOWN_8:
         GEELY_POLL.data.u8[2] = (uint8_t)(POLL_UNKNOWN_8 >> 8);
         GEELY_POLL.data.u8[3] = (uint8_t)POLL_UNKNOWN_8;
+        poll_pid = POLL_MULTI_TEMPS;
+        break;
+      case POLL_MULTI_TEMPS:
+        GEELY_POLL.data.u8[2] = (uint8_t)(POLL_MULTI_TEMPS >> 8);
+        GEELY_POLL.data.u8[3] = (uint8_t)POLL_MULTI_TEMPS;
+        poll_pid = POLL_MULTI_UNKNOWN_2;
+        break;
+      case POLL_MULTI_UNKNOWN_2:
+        GEELY_POLL.data.u8[2] = (uint8_t)(POLL_MULTI_UNKNOWN_2 >> 8);
+        GEELY_POLL.data.u8[3] = (uint8_t)POLL_MULTI_UNKNOWN_2;
+        poll_pid = POLL_MULTI_UNKNOWN_3;
+        break;
+      case POLL_MULTI_UNKNOWN_3:
+        GEELY_POLL.data.u8[2] = (uint8_t)(POLL_MULTI_UNKNOWN_3 >> 8);
+        GEELY_POLL.data.u8[3] = (uint8_t)POLL_MULTI_UNKNOWN_3;
+        poll_pid = POLL_MULTI_UNKNOWN_4;
+        break;
+      case POLL_MULTI_UNKNOWN_4:
+        GEELY_POLL.data.u8[2] = (uint8_t)(POLL_MULTI_UNKNOWN_4 >> 8);
+        GEELY_POLL.data.u8[3] = (uint8_t)POLL_MULTI_UNKNOWN_4;
+        poll_pid = POLL_MULTI_UNKNOWN_5;
+        break;
+      case POLL_MULTI_UNKNOWN_5:
+        GEELY_POLL.data.u8[2] = (uint8_t)(POLL_MULTI_UNKNOWN_5 >> 8);
+        GEELY_POLL.data.u8[3] = (uint8_t)POLL_MULTI_UNKNOWN_5;
+        poll_pid = POLL_MULTI_UNKNOWN_6;
+        break;
+      case POLL_MULTI_UNKNOWN_6:
+        GEELY_POLL.data.u8[2] = (uint8_t)(POLL_MULTI_UNKNOWN_6 >> 8);
+        GEELY_POLL.data.u8[3] = (uint8_t)POLL_MULTI_UNKNOWN_6;
         poll_pid = POLL_SOC;
         break;
       default:
