@@ -35,10 +35,6 @@ void printDebugIfActive(uint8_t symbol, const char* message);
 void print_int_with_units(char* header, int value, char* units);
 void print_SOC(char* header, int SOC);
 
-#ifdef DOUBLE_BATTERY
-void printFaultCodesIfActive_battery2();
-#endif  //DOUBLE_BATTERY
-
 // Base class for Tesla batteries
 class TeslaBattery : public CanBattery {
  public:
@@ -49,6 +45,11 @@ class TeslaBattery : public CanBattery {
  protected:
   TeslaBattery(BatteryType type) : CanBattery(type) {}
   virtual void detect_chemistry() {}
+
+  virtual void model_specific_transmit_can() {}
+
+  DATALAYER_BATTERY_TYPE* m_target;
+  CAN_Interface m_can_interface;
 
  private:
   void printFaultCodesIfActive();
@@ -507,6 +508,9 @@ class TeslaSXBattery : public TeslaBattery {
 
   virtual const char* name() { return Name; };
   static constexpr char* Name = "Tesla Model S/X";
+
+ protected:
+  virtual void model_specific_transmit_can();
 };
 
 #endif

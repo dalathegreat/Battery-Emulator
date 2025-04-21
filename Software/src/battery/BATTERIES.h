@@ -42,6 +42,11 @@
 #define VOLVO_SPA_HYBRID_BATTERY
 #endif
 
+#ifdef MEB_BATTERY
+#define PRECHARGE_CONTROL
+#include "MEB-BATTERY.h"
+#endif
+
 #ifdef BMW_SBOX
 #include "BMW-SBOX.h"
 void handle_incoming_can_frame_shunt(CAN_frame rx_frame);
@@ -118,11 +123,6 @@ void setup_can_shunt();
 #include "KIA-HYUNDAI-HYBRID-BATTERY.h"
 #endif
 
-#ifdef MEB_BATTERY
-#include "MEB-BATTERY.h"
-#define PRECHARGE_CONTROL
-#endif
-
 #ifdef MG_5_BATTERY
 #include "MG-5-BATTERY.h"
 #endif
@@ -186,11 +186,6 @@ void setup_can_shunt();
 
 #ifdef VOLVO_SPA_HYBRID_BATTERY
 #include "VOLVO-SPA-HYBRID-BATTERY.h"
-#endif
-
-#ifdef DOUBLE_BATTERY
-void update_values_battery2();
-void handle_incoming_can_frame_battery2(CAN_frame rx_frame);
 #endif
 
 #endif

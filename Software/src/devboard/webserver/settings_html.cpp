@@ -1,6 +1,18 @@
 #include "settings_html.h"
 #include <Arduino.h>
+#include "../../battery/Battery.h"
+#include "../../charger/CHARGERS.h"
 #include "../../datalayer/datalayer.h"
+#include "../../inverter/Inverter.h"
+
+/**
+ * @brief Maps the value to a string of characters
+ *
+ * @param[in] char
+ *
+ * @return String
+ */
+const char* getCANInterfaceName(CAN_Interface interface);
 
 #ifdef BUILD_EM_ALL
 String battery_options(BatteryType selected) {
@@ -47,7 +59,10 @@ String settings_processor(const String& var) {
     content += "body { background-color: black; color: white; }";
     content +=
         "button { background-color: #505E67; color: white; border: none; padding: 10px 20px; margin-bottom: 20px; "
-        "cursor: pointer; border-radius: 10px; }";
+        "cursor: pointer; border-radius: 10px; }"
+        "form { display: grid; grid-template-columns: 1fr 1.5fr; gap: 15px; align-items: center; justify-content: "
+        "center; margin-top: 20px; }"
+        "label { text-align: right; }";
     content += "button:hover { background-color: #3A4A52; }";
     content += "</style>";
 
@@ -55,16 +70,24 @@ String settings_processor(const String& var) {
 
 #ifdef BUILD_EM_ALL
     // Battery and inverter settings form
-    content += "<div style='background-color: #404E47; padding: 10px; margin-bottom: 10px;border-radius: 50px'>";
+    content +=
+        "<div style='background-color: #404E47; padding: 10px; margin-bottom: 10px;border-radius: 50px;'><div "
+        "style'max-width: 500px;'>";
     content += "<form action='saveSettings' method='post'>";
-    content += "<label style='display: block;'>Battery: </label><select name='battery'>";
+    content += "<label>Battery: </label><select style='max-width: 250px;' name='battery'>";
     content += battery_options(userSelectedBatteryType);
     content += "</select>";
-    content += "<label style='display: block;'>Inverter protocol: </label><select name='inverter'>";
+    content += "<label>Inverter protocol: </label><select style='max-width: 250px;' name='inverter'>";
     content += inverter_options(userSelectedInverter);
     content += "</select>";
-    content += "<button type='submit'>Save</button>";
-    content += "</form></div>";
+    content += "<label>Double battery:</label>";
+    content +=
+        "<div style=\"display: flex; justify-content: flex-start;\"><input id='dblbtr' name='dblbtr' type='checkbox' "
+        "style=\"margin-left: 0;\"";
+    content += (secondBatteryInUse ? " checked" : "");
+    content += " value='on'/></div>";
+    content += "<div style=\"grid-column: span 2; text-align: center;\"><button type='submit'>Save</button></div>";
+    content += "</form></div></div>";
 #endif
 
     // Start a new block with a specific background color
@@ -84,10 +107,10 @@ String settings_processor(const String& var) {
       content += "<h4 style='color: white;'>Battery interface: RS485<span id='Battery'></span></h4>";
     }
 
-#ifdef DOUBLE_BATTERY
-    content += "<h4 style='color: white;'>Battery #2 interface: <span id='Battery'>" +
-               String(getCANInterfaceName(can_config.battery_double)) + "</span></h4>";
-#endif  // DOUBLE_BATTERY
+    if (battery2) {
+      content += "<h4 style='color: white;'>Battery #2 interface: <span id='Battery'>" +
+                 String(getCANInterfaceName(can_config.battery_double)) + "</span></h4>";
+    }
 
     if (inverter->usesCAN()) {
       content += "<h4 style='color: white;'>Inverter interface: <span id='Inverter'>" +

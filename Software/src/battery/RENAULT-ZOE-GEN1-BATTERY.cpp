@@ -482,18 +482,14 @@ void RenaultZoeBattery::transmit_can() {
   }
 }
 
-static void setup_battery_zoe1(void) {  // Performs one time setup at startup
-  datalayer.system.status.battery_allows_contactor_closing = true;
+void RenaultZoeBattery::setup() {  // Performs one time setup at startup
+  allow_contactor_closing();
   datalayer.battery.info.number_of_cells = 96;
   datalayer.battery.info.max_design_voltage_dV = MAX_PACK_VOLTAGE_DV;
   datalayer.battery.info.min_design_voltage_dV = MIN_PACK_VOLTAGE_DV;
   datalayer.battery.info.max_cell_voltage_mV = MAX_CELL_VOLTAGE_MV;
   datalayer.battery.info.min_cell_voltage_mV = MIN_CELL_VOLTAGE_MV;
   datalayer.battery.info.max_cell_voltage_deviation_mV = MAX_CELL_DEVIATION_MV;
-}
-
-void RenaultZoeBattery::setup() {
-  setup_battery_zoe1();
 }
 
 #endif

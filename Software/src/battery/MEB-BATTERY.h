@@ -1,7 +1,7 @@
 #ifndef MEB_BATTERY_H
 #define MEB_BATTERY_H
 #include <Arduino.h>
-#include "../include.h"
+#include "Battery.h"
 
 #define BATTERY_SELECTED
 #define MAX_PACK_VOLTAGE_84S_DV 3528  //5000 = 500.0V

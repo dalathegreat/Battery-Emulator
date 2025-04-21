@@ -1,6 +1,7 @@
 #ifndef BMW_IX_BATTERY_H
 #define BMW_IX_BATTERY_H
 #include <Arduino.h>
+#include "../datalayer/datalayer.h"
 #include "../include.h"
 
 #define BATTERY_SELECTED

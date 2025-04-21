@@ -1,6 +1,7 @@
 #ifndef BMW_I3_BATTERY_H
 #define BMW_I3_BATTERY_H
 #include <Arduino.h>
+#include "../datalayer/datalayer.h"
 #include "../include.h"
 #include "Battery.h"
 
@@ -23,18 +24,26 @@
 
 class BMWi3Battery : public CanBattery {
  public:
-  BMWi3Battery() : CanBattery(BMWi3) {}
+  BMWi3Battery(DATALAYER_BATTERY_TYPE* target, CAN_Interface can_interface, int wakeup_pin) : CanBattery(BMWi3) {
+    m_target = target;
+    m_can_interface = can_interface;
+    m_wakeup_pin = wakeup_pin;
+  }
 
   virtual const char* name() { return Name; };
   static constexpr char* Name = "BMW i3";
 
+  virtual bool supportsDoubleBattery() { return true; };
   virtual void setup();
   virtual void update_values();
-  virtual void update_values2();
   virtual void handle_incoming_can_frame(CAN_frame rx_frame);
   virtual void transmit_can();
 
  private:
+  DATALAYER_BATTERY_TYPE* m_target;
+  CAN_Interface m_can_interface;
+  int m_wakeup_pin;
+
   unsigned long previousMillis20 = 0;     // will store last time a 20ms CAN Message was send
   unsigned long previousMillis100 = 0;    // will store last time a 100ms CAN Message was send
   unsigned long previousMillis200 = 0;    // will store last time a 200ms CAN Message was send

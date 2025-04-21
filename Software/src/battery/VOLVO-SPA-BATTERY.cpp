@@ -7,105 +7,9 @@
 #include "VOLVO-SPA-BATTERY.h"
 
 /* Do not change code below unless you are sure what you are doing */
-static unsigned long previousMillis100 = 0;  // will store last time a 100ms CAN Message was send
-static unsigned long previousMillis1s = 0;   // will store last time a 1s CAN Message was send
-static unsigned long previousMillis60s = 0;  // will store last time a 60s CAN Message was send
 
-static float BATT_U = 0;                 //0x3A
-static float MAX_U = 0;                  //0x3A
-static float MIN_U = 0;                  //0x3A
-static float BATT_I = 0;                 //0x3A
-static int32_t CHARGE_ENERGY = 0;        //0x1A1
-static uint8_t BATT_ERR_INDICATION = 0;  //0x413
-static float BATT_T_MAX = 0;             //0x413
-static float BATT_T_MIN = 0;             //0x413
-static float BATT_T_AVG = 0;             //0x413
-static uint16_t SOC_BMS = 0;             //0X37D
-static uint16_t SOC_CALC = 0;
-static uint16_t CELL_U_MAX = 3700;            //0x37D
-static uint16_t CELL_U_MIN = 3700;            //0x37D
-static uint8_t CELL_ID_U_MAX = 0;             //0x37D
-static uint16_t HvBattPwrLimDchaSoft = 0;     //0x369
-static uint16_t HvBattPwrLimDcha1 = 0;        //0x175
-static uint16_t HvBattPwrLimDchaSlowAgi = 0;  //0x177
-static uint16_t HvBattPwrLimChrgSlowAgi = 0;  //0x177
-static uint8_t batteryModuleNumber = 0x10;    // First battery module
-static uint8_t battery_request_idx = 0;
-static uint8_t rxConsecutiveFrames = 0;
-static uint16_t min_max_voltage[2];  //contains cell min[0] and max[1] values in mV
-static uint8_t cellcounter = 0;
-static uint16_t cell_voltages[108];  //array with all the cellvoltages
-static bool startedUp = false;
-static uint8_t DTC_reset_counter = 0;
-
-static CAN_frame VOLVO_536 = {.FD = false,
-                              .ext_ID = false,
-                              .DLC = 8,
-                              .ID = 0x536,
-                              //.data = {0x00, 0x40, 0xFF, 0x00, 0x00, 0x00, 0x00, 0x00}};  //Network manage frame
-                              .data = {0x00, 0x40, 0x40, 0x01, 0x00, 0x00, 0x00, 0x00}};  //Network manage frame
-
-static CAN_frame VOLVO_140_CLOSE = {
-    .FD = false,
-    .ext_ID = false,
-    .DLC = 8,
-    .ID = 0x140,
-    .data = {0x00, 0x02, 0x00, 0xB7, 0xFF, 0x03, 0xFF, 0x82}};  //Close contactors message
-
-static CAN_frame VOLVO_140_OPEN = {.FD = false,
-                                   .ext_ID = false,
-                                   .DLC = 8,
-                                   .ID = 0x140,
-                                   .data = {0x00, 0x02, 0x00, 0x9E, 0xFF, 0x03, 0xFF, 0x82}};  //Open contactor message
-
-static CAN_frame VOLVO_372 = {
-    .FD = false,
-    .ext_ID = false,
-    .DLC = 8,
-    .ID = 0x372,
-    .data = {0x00, 0xA6, 0x07, 0x14, 0x04, 0x00, 0x80, 0x00}};  //Ambient Temp -->>VERIFY this data content!!!<<--
-static CAN_frame VOLVO_CELL_U_Req = {
-    .FD = false,
-    .ext_ID = false,
-    .DLC = 8,
-    .ID = 0x735,
-    .data = {0x03, 0x22, 0x4B, 0x00, 0x00, 0x00, 0x00, 0x00}};  //Cell voltage request frame
-static CAN_frame VOLVO_FlowControl = {.FD = false,
-                                      .ext_ID = false,
-                                      .DLC = 8,
-                                      .ID = 0x735,
-                                      .data = {0x30, 0x00, 0x05, 0x00, 0x00, 0x00, 0x00, 0x00}};  //Flowcontrol
-static CAN_frame VOLVO_SOH_Req = {
-    .FD = false,
-    .ext_ID = false,
-    .DLC = 8,
-    .ID = 0x735,
-    .data = {0x03, 0x22, 0x49, 0x6D, 0x00, 0x00, 0x00, 0x00}};  //Battery SOH request frame
-static CAN_frame VOLVO_BECMsupplyVoltage_Req = {
-    .FD = false,
-    .ext_ID = false,
-    .DLC = 8,
-    .ID = 0x735,
-    .data = {0x03, 0x22, 0xF4, 0x42, 0x00, 0x00, 0x00, 0x00}};  //BECM supply voltage request frame
-static CAN_frame VOLVO_DTC_Erase = {.FD = false,
-                                    .ext_ID = false,
-                                    .DLC = 8,
-                                    .ID = 0x7FF,
-                                    .data = {0x04, 0x14, 0xFF, 0xFF, 0xFF, 0x00, 0x00, 0x00}};  //Global DTC erase
-static CAN_frame VOLVO_BECM_ECUreset = {
-    .FD = false,
-    .ext_ID = false,
-    .DLC = 8,
-    .ID = 0x735,
-    .data = {0x02, 0x11, 0x81, 0x00, 0x00, 0x00, 0x00, 0x00}};  //BECM ECU reset command (reboot/powercycle BECM)
-static CAN_frame VOLVO_DTCreadout = {.FD = false,
-                                     .ext_ID = false,
-                                     .DLC = 8,
-                                     .ID = 0x7FF,
-                                     .data = {0x02, 0x19, 0x03, 0x00, 0x00, 0x00, 0x00, 0x00}};  //Global DTC readout
-
-static void
-update_values_battery() {  //This function maps all the values fetched via CAN to the correct parameters used for the inverter
+void VolvoSpaBattery::
+    update_values() {  //This function maps all the values fetched via CAN to the correct parameters used for the inverter
   uint8_t cnt = 0;
 
   // Update webserver datalayer
@@ -232,7 +136,7 @@ update_values_battery() {  //This function maps all the values fetched via CAN t
 #endif
 }
 
-static void handle_incoming_can_frame_battery(CAN_frame rx_frame) {
+void VolvoSpaBattery::handle_incoming_can_frame(CAN_frame rx_frame) {
   datalayer.battery.status.CAN_battery_still_alive = CAN_STILL_ALIVE;
   switch (rx_frame.ID) {
     case 0x3A:
@@ -432,7 +336,7 @@ static void handle_incoming_can_frame_battery(CAN_frame rx_frame) {
   }
 }
 
-static void readCellVoltages() {
+void VolvoSpaBattery::readCellVoltages() {
   battery_request_idx = 0;
   batteryModuleNumber = 0x10;
   rxConsecutiveFrames = 0;
@@ -440,7 +344,7 @@ static void readCellVoltages() {
   transmit_can_frame(&VOLVO_CELL_U_Req, can_config.battery);  //Send cell voltage read request for first module
 }
 
-static void transmit_can_battery() {
+void VolvoSpaBattery::transmit_can() {
   unsigned long currentMillis = millis();
   // Send 100ms CAN Message
   if (currentMillis - previousMillis100 >= INTERVAL_100_MS) {
@@ -456,10 +360,10 @@ static void transmit_can_battery() {
     transmit_can_frame(&VOLVO_372, can_config.battery);  //Send 0x372 ECMAmbientTempCalculated
 
     if ((datalayer.battery.status.bms_status == ACTIVE) && startedUp) {
-      datalayer.system.status.battery_allows_contactor_closing = true;
+      allow_contactor_closing();
       transmit_can_frame(&VOLVO_140_CLOSE, can_config.battery);  //Send 0x140 Close contactors message
     } else {  //datalayer.battery.status.bms_status == FAULT , OR inverter requested opening contactors, OR system not started yet
-      datalayer.system.status.battery_allows_contactor_closing = false;
+      disallow_contactor_closing();
       transmit_can_frame(&VOLVO_140_OPEN, can_config.battery);  //Send 0x140 Open contactors message
     }
   }
@@ -482,7 +386,7 @@ static void transmit_can_battery() {
   }
 }
 
-static void setup_battery(void) {                    // Performs one time setup at startup
+void VolvoSpaBattery::setup(void) {                  // Performs one time setup at startup
   datalayer.battery.info.number_of_cells = 0;        // Initializes when all cells have been read
   datalayer.battery.info.total_capacity_Wh = 78200;  //Startout in 78kWh mode (This value used for SOC calc)
   datalayer.battery.info.max_design_voltage_dV = MAX_PACK_VOLTAGE_108S_DV;  //Startout with max allowed range

@@ -9,12 +9,8 @@
 /* To edit battery specific limits, see also the USER_SETTINGS.cpp file*/
 
 // Defining BUILD_EM_ALL builds in support for all batteries and inverter protocols
-// and allows selecting them at run-time.
+// and allows selecting them at run-time. This should be enabled at build time.
 #define BUILD_EM_ALL
-
-#ifdef BUILD_EM_ALL
-#define HW_LILYGO
-#endif
 
 /* Select battery used */
 //#define BMW_I3_BATTERY
@@ -52,7 +48,6 @@
 //#define VOLVO_SPA_BATTERY
 //#define VOLVO_SPA_HYBRID_BATTERY
 //#define TEST_FAKE_BATTERY
-//#define DOUBLE_BATTERY  //Enable this line if you use two identical batteries at the same time (requires separate CAN setup)
 
 /* Select inverter communication protocol. See Wiki for which to use with your inverter: https://github.com/dalathegreat/Battery-Emulator/wiki */
 //#define AFORE_CAN        //Enable this line to emulate an "Afore battery" over CAN bus
@@ -76,14 +71,14 @@
 //#define SUNGROW_CAN      //Enable this line to emulate a "Sungrow SBR064" over CAN bus
 
 /* Select hardware used for Battery-Emulator */
-//#define HW_LILYGO
+#define HW_LILYGO
 //#define HW_STARK
 //#define HW_3LB
 //#define HW_DEVKIT
 
 /* Contactor settings. If you have a battery that does not activate contactors via CAN, configure this section */
 #define PRECHARGE_TIME_MS 500  //Precharge time in milliseconds. Modify to suit your inverter (See wiki for more info)
-//#define CONTACTOR_CONTROL  //Enable this line to have the emulator handle automatic precharge/contactor+/contactor- closing sequence (See wiki for pins)
+#define CONTACTOR_CONTROL  //Enable this line to have the emulator handle automatic precharge/contactor+/contactor- closing sequence (See wiki for pins)
 //#define CONTACTOR_CONTROL_DOUBLE_BATTERY //Enable this line to have the emulator hardware control secondary set of contactors for double battery setups (See wiki for pins)
 //#define PWM_CONTACTOR_CONTROL //Enable this line to use PWM for CONTACTOR_CONTROL, which lowers power consumption and heat generation. CONTACTOR_CONTROL must be enabled.
 //#define NC_CONTACTORS         //Enable this line to control normally closed contactors. CONTACTOR_CONTROL must be enabled for this option. Extremely rare setting!
@@ -130,7 +125,7 @@
 //#define FUNCTION_TIME_MEASUREMENT  // Enable this to record execution times and present them in the web UI (WARNING, raises CPU load, do not use for production)
 
 /* MQTT options */
-//#define MQTT                        // Enable this line to enable MQTT
+#define MQTT                        // Enable this line to enable MQTT
 #define MQTT_QOS 0                  // MQTT Quality of Service (0, 1, or 2)
 #define MQTT_PUBLISH_CELL_VOLTAGES  // Enable this line to publish cell voltages to MQTT
 #define MQTT_TIMEOUT 2000           // MQTT timeout in milliseconds

@@ -1138,20 +1138,16 @@ static void transmit_can_battery() {
   }
 }
 
-static void setup_battery(void) {  // Performs one time setup at startup
-  startMillis = millis();          // Record the starting time
+void KiaEGmpBattery::setup(void) {  // Performs one time setup at startup
+  startMillis = millis();           // Record the starting time
 
-  datalayer.system.status.battery_allows_contactor_closing = true;
+  allow_contactor_closing();
   datalayer.battery.info.number_of_cells = 192;  // TODO: will vary depending on battery
   datalayer.battery.info.max_design_voltage_dV = MAX_PACK_VOLTAGE_DV;
   datalayer.battery.info.min_design_voltage_dV = MIN_PACK_VOLTAGE_DV;
   datalayer.battery.info.max_cell_voltage_mV = MAX_CELL_VOLTAGE_MV;
   datalayer.battery.info.min_cell_voltage_mV = MIN_CELL_VOLTAGE_MV;
   datalayer.battery.info.max_cell_voltage_deviation_mV = MAX_CELL_DEVIATION_MV;
-}
-
-void KiaEGmpBattery::setup() {
-  setup_battery();
 }
 
 void KiaEGmpBattery::update_values() {

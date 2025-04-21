@@ -47,6 +47,8 @@ class BatteryBase {
   BatteryType type() { return m_type; }
   virtual const char* name() = 0;
 
+  /// @brief Whether the battery supports double instances.
+  virtual bool supportsDoubleBattery() { return false; };
   virtual void setup() = 0;
   virtual void update_values() = 0;
 
@@ -62,12 +64,16 @@ class BatteryBase {
 
   virtual bool requiresPrechargeControl() { return false; }
 
+  bool contactor_closing_allowed() { return m_contactor_closing_allowed; }
+  void allow_contactor_closing() { m_contactor_closing_allowed = true; }
+  void disallow_contactor_closing() { m_contactor_closing_allowed = false; }
+
   static const char* name_for_type(BatteryType type);
 
  protected:
-  BatteryBase(BatteryType type) : m_type(type) {}
-
+  BatteryBase(BatteryType type) : m_type(type), m_contactor_closing_allowed(false) {}
   BatteryType m_type;
+  bool m_contactor_closing_allowed;
 };
 
 // Abstract base class for all batteries using CAN bus
@@ -98,9 +104,15 @@ class RS485Battery : public BatteryBase {
 
 std::vector<BatteryType> supported_battery_types();
 
-BatteryBase* init_battery(BatteryType type);
+BatteryBase* init_battery(BatteryType type, BatteryBase* pair = nullptr);
 
 extern BatteryBase* battery;
+extern BatteryBase* battery2;
 extern BatteryType userSelectedBatteryType;
+extern bool secondBatteryInUse;
+
+inline bool double_battery() {
+  return secondBatteryInUse && battery2 != nullptr;
+}
 
 #endif

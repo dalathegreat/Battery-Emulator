@@ -204,8 +204,7 @@ void KostalRs485Inverter::update_RS485_registers_inverter() {
     average_temperature_dC = 0;
   }
 
-  if (datalayer.system.status.battery_allows_contactor_closing &
-      datalayer.system.status.inverter_allows_contactor_closing) {
+  if (battery->contactor_closing_allowed() & datalayer.system.status.inverter_allows_contactor_closing) {
     float2frame(CYCLIC_DATA, (float)datalayer.battery.status.voltage_dV / 10, 6);  // Confirmed OK mapping
   } else {
     float2frame(CYCLIC_DATA, 0.0, 6);
@@ -300,7 +299,7 @@ void KostalRs485Inverter::receive_RS485()  // Runs as fast as possible to handle
 {
   currentMillis = millis();
 
-  if (datalayer.system.status.battery_allows_contactor_closing & !contactorMillis) {
+  if (battery->contactor_closing_allowed() & !contactorMillis) {
     contactorMillis = currentMillis;
   }
   if (currentMillis - contactorMillis >= INTERVAL_2_S & !RX_allow) {

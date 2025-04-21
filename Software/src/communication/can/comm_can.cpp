@@ -297,13 +297,11 @@ void map_can_frame_to_variable(CAN_frame* rx_frame, int interface) {
     ISA_handleFrame(rx_frame);
 #endif
   }
+  if (interface == can_config.battery_double && battery2) {
+    battery2->handle_incoming_can_frame(*rx_frame);
+  }
   if (interface == can_config.inverter && inverter) {
     inverter->map_can_frame_to_variable_inverter(*rx_frame);
-  }
-  if (interface == can_config.battery_double) {
-#ifdef DOUBLE_BATTERY
-    handle_incoming_can_frame_battery2(*rx_frame);
-#endif
   }
   if (interface == can_config.charger && charger) {
     charger->map_can_frame_to_variable_charger(*rx_frame);

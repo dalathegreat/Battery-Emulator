@@ -1,6 +1,7 @@
 #ifndef ATTO_3_BATTERY_H
 #define ATTO_3_BATTERY_H
 
+#include "../datalayer/datalayer.h"
 #include "../include.h"
 
 #define USE_ESTIMATED_SOC  // If enabled, SOC is estimated from pack voltage. Useful for locked packs. \
@@ -26,7 +27,10 @@
 
 class BydAtto3Battery : public CanBattery {
  public:
-  BydAtto3Battery() : CanBattery(BydAtto3) {}
+  BydAtto3Battery(DATALAYER_BATTERY_TYPE* target, CAN_Interface can_interface) : CanBattery(BydAtto3) {
+    m_target = target;
+    m_can_interface = can_interface;
+  }
   virtual const char* name() { return Name; };
   static constexpr char* Name = "BYD Atto 3";
 
@@ -36,6 +40,9 @@ class BydAtto3Battery : public CanBattery {
   virtual void transmit_can();
 
  private:
+  DATALAYER_BATTERY_TYPE* m_target;
+  CAN_Interface m_can_interface;
+
 #define NOT_DETERMINED_YET 0
 #define STANDARD_RANGE 1
 #define EXTENDED_RANGE 2
@@ -67,25 +74,6 @@ class BydAtto3Battery : public CanBattery {
   uint8_t battery_frame_index = 0;
 #define NOF_CELLS 126
   uint16_t battery_cellvoltages[NOF_CELLS] = {0};
-#ifdef DOUBLE_BATTERY
-  int16_t battery2_temperature_ambient = 0;
-  int16_t battery2_daughterboard_temperatures[10];
-  int16_t battery2_lowest_temperature = 0;
-  int16_t battery2_highest_temperature = 0;
-  int16_t battery2_calc_min_temperature = 0;
-  int16_t battery2_calc_max_temperature = 0;
-  uint16_t battery2_highprecision_SOC = 0;
-  uint16_t BMS2_SOC = 0;
-  uint16_t BMS2_voltage = 0;
-  int16_t BMS2_current = 0;
-  int16_t BMS2_lowest_cell_temperature = 0;
-  int16_t BMS2_highest_cell_temperature = 0;
-  int16_t BMS2_average_cell_temperature = 0;
-  uint16_t BMS2_lowest_cell_voltage_mV = 3300;
-  uint16_t BMS2_highest_cell_voltage_mV = 3300;
-  uint8_t battery2_frame_index = 0;
-  uint16_t battery2_cellvoltages[NOF_CELLS] = {0};
-#endif  //DOUBLE_BATTERY
 #define POLL_FOR_BATTERY_SOC 0x05
 #define POLL_FOR_BATTERY_VOLTAGE 0x08
 #define POLL_FOR_BATTERY_CURRENT 0x09

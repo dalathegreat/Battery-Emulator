@@ -122,7 +122,7 @@ void handle_precharge_control() {
         set_event(EVENT_AUTOMATIC_PRECHARGE_FAILURE, 0);
 
         // Add event
-      } else if (datalayer.system.status.battery_allows_contactor_closing) {
+      } else if (battery->contactor_closing_allowed()) {
         pinMode(PRECHARGE_PIN, OUTPUT);
         digitalWrite(PRECHARGE_PIN, LOW);
         digitalWrite(POSITIVE_CONTACTOR_PIN, LOW);
@@ -143,8 +143,7 @@ void handle_precharge_control() {
       break;
 
     case AUTO_PRECHARGE_OFF:
-      if (!datalayer.system.status.battery_allows_contactor_closing ||
-          !datalayer.system.status.inverter_allows_contactor_closing ||
+      if (!battery->contactor_closing_allowed() || !datalayer.system.status.inverter_allows_contactor_closing ||
           datalayer.system.settings.equipment_stop_active || datalayer.battery.status.bms_status != FAULT) {
         datalayer.system.status.precharge_status = AUTO_PRECHARGE_IDLE;
         pinMode(PRECHARGE_PIN, OUTPUT);

@@ -9,6 +9,7 @@ class Charger {
   virtual void map_can_frame_to_variable_charger(CAN_frame rx_frame) = 0;
   virtual void transmit_can() = 0;
   ChargerType type() { return m_type; }
+  virtual const char* name() = 0;
 
  protected:
   Charger(ChargerType type) : m_type(type) {}

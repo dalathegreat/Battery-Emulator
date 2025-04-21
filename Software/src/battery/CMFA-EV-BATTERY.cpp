@@ -1025,7 +1025,7 @@ void CmfaEvBattery::transmit_can() {
 }
 
 void CmfaEvBattery::setup(void) {  // Performs one time setup at startup
-  datalayer.system.status.battery_allows_contactor_closing = true;
+  allow_contactor_closing();
   datalayer.battery.info.number_of_cells = 72;
   datalayer.battery.info.max_design_voltage_dV = MAX_PACK_VOLTAGE_DV;
   datalayer.battery.info.min_design_voltage_dV = MIN_PACK_VOLTAGE_DV;

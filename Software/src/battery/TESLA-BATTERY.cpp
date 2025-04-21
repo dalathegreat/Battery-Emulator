@@ -1395,19 +1395,11 @@ int index_1CF = 0;
 int index_118 = 0;
 #endif  //defined(TESLA_MODEL_SX_BATTERY) || defined(EXP_TESLA_BMS_DIGITAL_HVIL)
 
-void TeslaBattery::transmit_can() {
-  /*From bielec: My fist 221 message, to close the contactors is 0x41, 0x11, 0x01, 0x00, 0x00, 0x00, 0x20, 0x96 and then, 
-to cause "hv_up_for_drive" I send an additional 221 message 0x61, 0x15, 0x01, 0x00, 0x00, 0x00, 0x20, 0xBA  so 
-two 221 messages are being continuously transmitted.   When I want to shut down, I stop the second message and only send 
-the first, for a few cycles, then stop all  messages which causes the contactor to open. */
-
+void TeslaSXBattery::model_specific_transmit_can() {
   unsigned long currentMillis = millis();
 
-  if (!cellvoltagesRead) {
-    return;  //All cellvoltages not read yet, do not proceed with contactor closing
-  }
+  // TODO: EXP_TESLA_BMS_DIGITAL_HVIL
 
-#if defined(TESLA_MODEL_SX_BATTERY) || defined(EXP_TESLA_BMS_DIGITAL_HVIL)
   if ((datalayer.system.status.inverter_allows_contactor_closing) && (datalayer.battery.status.bms_status != FAULT)) {
     if (currentMillis - lastSend1CF >= 10) {
       transmit_can_frame(&can_msg_1CF[index_1CF], can_config.battery);
@@ -1426,7 +1418,21 @@ the first, for a few cycles, then stop all  messages which causes the contactor 
     index_1CF = 0;
     index_118 = 0;
   }
-#endif  //defined(TESLA_MODEL_SX_BATTERY) || defined(EXP_TESLA_BMS_DIGITAL_HVIL)
+}
+
+void TeslaBattery::transmit_can() {
+  /*From bielec: My fist 221 message, to close the contactors is 0x41, 0x11, 0x01, 0x00, 0x00, 0x00, 0x20, 0x96 and then, 
+to cause "hv_up_for_drive" I send an additional 221 message 0x61, 0x15, 0x01, 0x00, 0x00, 0x00, 0x20, 0xBA  so 
+two 221 messages are being continuously transmitted.   When I want to shut down, I stop the second message and only send 
+the first, for a few cycles, then stop all  messages which causes the contactor to open. */
+
+  unsigned long currentMillis = millis();
+
+  if (!cellvoltagesRead) {
+    return;  //All cellvoltages not read yet, do not proceed with contactor closing
+  }
+
+  model_specific_transmit_can();
 
   //Send 10ms message
   if (currentMillis - previousMillis10 >= INTERVAL_10_MS) {
@@ -1763,7 +1769,7 @@ void printDebugIfActive(uint8_t symbol, const char* message) {
 }
 
 void TeslaSXBattery::setup(void) {  // Performs one time setup at startup
-  datalayer.system.status.battery_allows_contactor_closing = true;
+  allow_contactor_closing();
 
   datalayer.battery.info.max_design_voltage_dV = MAX_PACK_VOLTAGE_SX_NCMA;
   datalayer.battery.info.min_design_voltage_dV = MIN_PACK_VOLTAGE_SX_NCMA;
@@ -1773,7 +1779,7 @@ void TeslaSXBattery::setup(void) {  // Performs one time setup at startup
 }
 
 void Tesla3YBattery::setup(void) {  // Performs one time setup at startup
-  datalayer.system.status.battery_allows_contactor_closing = true;
+  allow_contactor_closing();
 
 #ifdef LFP_CHEMISTRY
   datalayer.battery.info.chemistry = battery_chemistry_enum::LFP;

@@ -88,28 +88,26 @@ SensorConfig sensorConfigTemplate[] = {
     {"bms_status", "BMS Status", "", "", ""},
     {"pause_status", "Pause Status", "", "", ""}};
 
-#ifdef DOUBLE_BATTERY
 SensorConfig sensorConfigs[((sizeof(sensorConfigTemplate) / sizeof(sensorConfigTemplate[0])) * 2) - 2];
-#else
-SensorConfig sensorConfigs[sizeof(sensorConfigTemplate) / sizeof(sensorConfigTemplate[0])];
-#endif  // DOUBLE_BATTERY
 
 void create_sensor_configs() {
   int number_of_templates = sizeof(sensorConfigTemplate) / sizeof(sensorConfigTemplate[0]);
   for (int i = 0; i < number_of_templates; i++) {
     SensorConfig config = sensorConfigTemplate[i];
+    // TODO: This leaks memory which is not too bad since this function is only called once, but should be fixed!
     config.value_template = strdup(("{{ value_json." + std::string(config.object_id) + " }}").c_str());
     sensorConfigs[i] = config;
-#ifdef DOUBLE_BATTERY
-    if (config.object_id == "pause_status" || config.object_id == "bms_status") {
-      continue;
+
+    if (secondBatteryInUse && battery2) {
+      if (config.object_id == "pause_status" || config.object_id == "bms_status") {
+        continue;
+      }
+      sensorConfigs[i + number_of_templates] = config;
+      sensorConfigs[i + number_of_templates].name = strdup(String(config.name + String(" 2")).c_str());
+      sensorConfigs[i + number_of_templates].object_id = strdup(String(config.object_id + String("_2")).c_str());
+      sensorConfigs[i + number_of_templates].value_template =
+          strdup(("{{ value_json." + std::string(config.object_id) + "_2 }}").c_str());
     }
-    sensorConfigs[i + number_of_templates] = config;
-    sensorConfigs[i + number_of_templates].name = strdup(String(config.name + String(" 2")).c_str());
-    sensorConfigs[i + number_of_templates].object_id = strdup(String(config.object_id + String("_2")).c_str());
-    sensorConfigs[i + number_of_templates].value_template =
-        strdup(("{{ value_json." + std::string(config.object_id) + "_2 }}").c_str());
-#endif  // DOUBLE_BATTERY
   }
 }
 
@@ -231,12 +229,11 @@ static bool publish_common_info(void) {
     if (datalayer.battery.status.CAN_battery_still_alive && allowed_to_send_CAN && millis() > BOOTUP_TIME) {
       set_battery_attributes(doc, datalayer.battery, "");
     }
-#ifdef DOUBLE_BATTERY
     //only publish these values if BMS is active and we are comunication  with the battery (can send CAN messages to the battery)
-    if (datalayer.battery2.status.CAN_battery_still_alive && allowed_to_send_CAN && millis() > BOOTUP_TIME) {
+    if (secondBatteryInUse && battery2 && datalayer.battery2.status.CAN_battery_still_alive && allowed_to_send_CAN &&
+        millis() > BOOTUP_TIME) {
       set_battery_attributes(doc, datalayer.battery2, "_2");
     }
-#endif  // DOUBLE_BATTERY
     serializeJson(doc, mqtt_msg);
     if (mqtt_publish(state_topic.c_str(), mqtt_msg, false) == false) {
 #ifdef DEBUG_LOG
@@ -254,95 +251,60 @@ static bool publish_common_info(void) {
 static bool publish_cell_voltages(void) {
   static JsonDocument doc;
   static String state_topic = topic_name + "/spec_data";
-#ifdef DOUBLE_BATTERY
   static String state_topic_2 = topic_name + "/spec_data_2";
-#endif  // DOUBLE_BATTERY
 
 #ifdef HA_AUTODISCOVERY
   bool failed_to_publish = false;
-  if (ha_cell_voltages_published == false) {
+  for (int b = 0; b < secondBatteryInUse && battery2 ? 2 : 1; b++) {
+    DATALAYER_BATTERY_TYPE& batt = b == 0 ? datalayer.battery : datalayer.battery2;
+    auto topic = b == 0 ? state_topic : state_topic_2;
 
-    // If the cell voltage number isn't initialized...
-    if (datalayer.battery.info.number_of_cells != 0u) {
+    if (ha_cell_voltages_published == false) {
 
-      for (int i = 0; i < datalayer.battery.info.number_of_cells; i++) {
-        int cellNumber = i + 1;
-        set_battery_voltage_attributes(doc, i, cellNumber, state_topic, object_id_prefix, "");
-        set_common_discovery_attributes(doc);
+      // If the cell voltage number isn't initialized...
+      if (batt.info.number_of_cells != 0u) {
 
-        serializeJson(doc, mqtt_msg, sizeof(mqtt_msg));
-        if (mqtt_publish(generateCellVoltageAutoConfigTopic(cellNumber, "").c_str(), mqtt_msg, true) == false) {
-          failed_to_publish = true;
-          return false;
+        for (int i = 0; i < batt.info.number_of_cells; i++) {
+          int cellNumber = i + 1;
+          set_battery_voltage_attributes(doc, i, cellNumber, topic, object_id_prefix + (b == 0 ? "" : "2_"),
+                                         (b == 0 ? "" : " 2"));
+          set_common_discovery_attributes(doc);
+
+          serializeJson(doc, mqtt_msg, sizeof(mqtt_msg));
+          if (mqtt_publish(generateCellVoltageAutoConfigTopic(cellNumber, (b == 0 ? "" : "_2_")).c_str(), mqtt_msg,
+                           true) == false) {
+            failed_to_publish = true;
+            return false;
+          }
         }
+        doc.clear();  // clear after sending autoconfig
       }
-      doc.clear();  // clear after sending autoconfig
     }
-#ifdef DOUBLE_BATTERY
-    // If the cell voltage number isn't initialized...
-    if (datalayer.battery2.info.number_of_cells != 0u) {
-
-      for (int i = 0; i < datalayer.battery.info.number_of_cells; i++) {
-        int cellNumber = i + 1;
-        set_battery_voltage_attributes(doc, i, cellNumber, state_topic_2, object_id_prefix + "2_", " 2");
-        set_common_discovery_attributes(doc);
-
-        serializeJson(doc, mqtt_msg, sizeof(mqtt_msg));
-        if (mqtt_publish(generateCellVoltageAutoConfigTopic(cellNumber, "_2_").c_str(), mqtt_msg, true) == false) {
-          failed_to_publish = true;
-          return false;
-        }
-      }
-      doc.clear();  // clear after sending autoconfig
+    if (failed_to_publish == false) {
+      ha_cell_voltages_published = true;
     }
-#endif  // DOUBLE_BATTERY
-  }
-  if (failed_to_publish == false) {
-    ha_cell_voltages_published = true;
-  }
 #endif  // HA_AUTODISCOVERY
 
-  // If cell voltages have been populated...
-  if (datalayer.battery.info.number_of_cells != 0u &&
-      datalayer.battery.status.cell_voltages_mV[datalayer.battery.info.number_of_cells - 1] != 0u) {
+    // If cell voltages have been populated...
 
-    JsonArray cell_voltages = doc["cell_voltages"].to<JsonArray>();
-    for (size_t i = 0; i < datalayer.battery.info.number_of_cells; ++i) {
-      cell_voltages.add(((float)datalayer.battery.status.cell_voltages_mV[i]) / 1000.0);
-    }
+    if (batt.info.number_of_cells != 0u && batt.status.cell_voltages_mV[batt.info.number_of_cells - 1] != 0u) {
+      JsonArray cell_voltages = doc["cell_voltages"].to<JsonArray>();
+      for (size_t i = 0; i < batt.info.number_of_cells; ++i) {
+        cell_voltages.add(((float)batt.status.cell_voltages_mV[i]) / 1000.0);
+      }
 
-    serializeJson(doc, mqtt_msg, sizeof(mqtt_msg));
+      serializeJson(doc, mqtt_msg, sizeof(mqtt_msg));
 
-    if (!mqtt_publish(state_topic.c_str(), mqtt_msg, false)) {
+      if (!mqtt_publish(topic.c_str(), mqtt_msg, false)) {
 #ifdef DEBUG_LOG
-      logging.println("Cell voltage MQTT msg could not be sent");
+        logging.println("Cell voltage MQTT msg could not be sent");
 #endif  // DEBUG_LOG
-      return false;
+        return false;
+      }
+      doc.clear();
     }
-    doc.clear();
   }
 
-#ifdef DOUBLE_BATTERY
-  // If cell voltages have been populated...
-  if (datalayer.battery2.info.number_of_cells != 0u &&
-      datalayer.battery2.status.cell_voltages_mV[datalayer.battery2.info.number_of_cells - 1] != 0u) {
-
-    JsonArray cell_voltages = doc["cell_voltages"].to<JsonArray>();
-    for (size_t i = 0; i < datalayer.battery2.info.number_of_cells; ++i) {
-      cell_voltages.add(((float)datalayer.battery2.status.cell_voltages_mV[i]) / 1000.0);
-    }
-
-    serializeJson(doc, mqtt_msg, sizeof(mqtt_msg));
-
-    if (!mqtt_publish(state_topic_2.c_str(), mqtt_msg, false)) {
-#ifdef DEBUG_LOG
-      logging.println("Cell voltage MQTT msg could not be sent");
-#endif  // DEBUG_LOG
-      return false;
-    }
-    doc.clear();
-  }
-#endif  // DOUBLE_BATTERY
   return true;
 }
 

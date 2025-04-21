@@ -135,8 +135,7 @@ void transmit_can_shunt() {
       datalayer.shunt.contactors_engaged = false;
       SBOX_100.data.u8[0] = 0x55;  // All open
 
-      if (datalayer.system.status.battery_allows_contactor_closing &&
-          datalayer.system.status.inverter_allows_contactor_closing &&
+      if (battery->contactor_closing_allowed() && datalayer.system.status.inverter_allows_contactor_closing &&
           !datalayer.system.settings.equipment_stop_active &&
           (datalayer.shunt.measured_voltage_mV > MINIMUM_INPUT_VOLTAGE * 1000)) {
         contactorStatus = PRECHARGE;

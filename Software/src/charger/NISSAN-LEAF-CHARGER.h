@@ -9,6 +9,8 @@ class NissanLeafCharger : Charger {
  public:
   virtual void map_can_frame_to_variable_charger(CAN_frame rx_frame);
   virtual void transmit_can();
+  virtual const char* name() { return Name; };
+  static constexpr char* Name = "Nissan LEAF 2013-2024 PDM charger";
 };
 
 #endif

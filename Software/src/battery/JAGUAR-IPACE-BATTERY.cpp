@@ -254,7 +254,7 @@ static void transmit_can_battery() {
   }
 }
 
-static void setup_battery(void) {  // Performs one time setup at startup
+void JaguarIpaceBattery::setup(void) {  // Performs one time setup at startup
   datalayer.battery.info.number_of_cells = 108;
   datalayer.battery.info.max_design_voltage_dV = MAX_PACK_VOLTAGE_DV;
   datalayer.battery.info.min_design_voltage_dV = MIN_PACK_VOLTAGE_DV;
@@ -262,11 +262,7 @@ static void setup_battery(void) {  // Performs one time setup at startup
   datalayer.battery.info.min_cell_voltage_mV = MIN_CELL_VOLTAGE_MV;
   datalayer.battery.info.max_cell_voltage_deviation_mV = MAX_CELL_DEVIATION_MV;
 
-  datalayer.system.status.battery_allows_contactor_closing = true;
-}
-
-void JaguarIpaceBattery::setup() {
-  setup_battery();
+  allow_contactor_closing();
 }
 
 void JaguarIpaceBattery::update_values() {

@@ -32,38 +32,38 @@ CAN_frame PYLON_4200 = {.FD = false,
 
 void PylonBattery::update_values() {
 
-  datalayer.battery.status.real_soc = (SOC * 100);  //increase SOC range from 0-100 -> 100.00
+  m_target->status.real_soc = (SOC * 100);  //increase SOC range from 0-100 -> 100.00
 
-  datalayer.battery.status.soh_pptt = (SOH * 100);  //Increase decimals from 100% -> 100.00%
+  m_target->status.soh_pptt = (SOH * 100);  //Increase decimals from 100% -> 100.00%
 
-  datalayer.battery.status.voltage_dV = voltage_dV;  //value is *10 (3700 = 370.0)
+  m_target->status.voltage_dV = voltage_dV;  //value is *10 (3700 = 370.0)
 
-  datalayer.battery.status.current_dA = current_dA;  //value is *10 (150 = 15.0) , invert the sign
+  m_target->status.current_dA = current_dA;  //value is *10 (150 = 15.0) , invert the sign
 
-  datalayer.battery.status.max_charge_power_W = (max_charge_current * (voltage_dV / 10));
+  m_target->status.max_charge_power_W = (max_charge_current * (voltage_dV / 10));
 
-  datalayer.battery.status.max_discharge_power_W = (-max_discharge_current * (voltage_dV / 10));
+  m_target->status.max_discharge_power_W = (-max_discharge_current * (voltage_dV / 10));
 
-  datalayer.battery.status.remaining_capacity_Wh = static_cast<uint32_t>(
-      (static_cast<double>(datalayer.battery.status.real_soc) / 10000) * datalayer.battery.info.total_capacity_Wh);
+  m_target->status.remaining_capacity_Wh = static_cast<uint32_t>(
+      (static_cast<double>(m_target->status.real_soc) / 10000) * m_target->info.total_capacity_Wh);
 
-  datalayer.battery.status.cell_max_voltage_mV = cellvoltage_max_mV;
-  datalayer.battery.status.cell_voltages_mV[0] = cellvoltage_max_mV;
+  m_target->status.cell_max_voltage_mV = cellvoltage_max_mV;
+  m_target->status.cell_voltages_mV[0] = cellvoltage_max_mV;
 
-  datalayer.battery.status.cell_min_voltage_mV = cellvoltage_min_mV;
-  datalayer.battery.status.cell_voltages_mV[1] = cellvoltage_min_mV;
+  m_target->status.cell_min_voltage_mV = cellvoltage_min_mV;
+  m_target->status.cell_voltages_mV[1] = cellvoltage_min_mV;
 
-  datalayer.battery.status.temperature_min_dC = celltemperature_min_dC;
+  m_target->status.temperature_min_dC = celltemperature_min_dC;
 
-  datalayer.battery.status.temperature_max_dC = celltemperature_max_dC;
+  m_target->status.temperature_max_dC = celltemperature_max_dC;
 
-  datalayer.battery.info.max_design_voltage_dV = charge_cutoff_voltage;
+  m_target->info.max_design_voltage_dV = charge_cutoff_voltage;
 
-  datalayer.battery.info.min_design_voltage_dV = discharge_cutoff_voltage;
+  m_target->info.min_design_voltage_dV = discharge_cutoff_voltage;
 }
 
 void PylonBattery::handle_incoming_can_frame(CAN_frame rx_frame) {
-  datalayer.battery.status.CAN_battery_still_alive = CAN_STILL_ALIVE;
+  m_target->status.CAN_battery_still_alive = CAN_STILL_ALIVE;
   switch (rx_frame.ID) {
     case 0x7310:
     case 0x7311:
@@ -145,17 +145,10 @@ void PylonBattery::transmit_can() {
 
     previousMillis1000 = currentMillis;
 
-    transmit_can_frame(&PYLON_3010, can_config.battery);  // Heartbeat
-    transmit_can_frame(&PYLON_4200, can_config.battery);  // Ensemble OR System equipment info, depends on frame0
-    transmit_can_frame(&PYLON_8200, can_config.battery);  // Control device quit sleep status
-    transmit_can_frame(&PYLON_8210, can_config.battery);  // Charge command
-
-#ifdef DOUBLE_BATTERY
-    transmit_can_frame(&PYLON_3010, can_config.battery_double);  // Heartbeat
-    transmit_can_frame(&PYLON_4200, can_config.battery_double);  // Ensemble OR System equipment info, depends on frame0
-    transmit_can_frame(&PYLON_8200, can_config.battery_double);  // Control device quit sleep status
-    transmit_can_frame(&PYLON_8210, can_config.battery_double);  // Charge command
-#endif                                                           //DOUBLE_BATTERY
+    transmit_can_frame(&PYLON_3010, m_can_interface);  // Heartbeat
+    transmit_can_frame(&PYLON_4200, m_can_interface);  // Ensemble OR System equipment info, depends on frame0
+    transmit_can_frame(&PYLON_8200, m_can_interface);  // Control device quit sleep status
+    transmit_can_frame(&PYLON_8210, m_can_interface);  // Charge command
 
     if (ensemble_info_ack) {
       PYLON_4200.data.u8[0] = 0x00;  //Request system equipment info
@@ -163,155 +156,13 @@ void PylonBattery::transmit_can() {
   }
 }
 
-#ifdef DOUBLE_BATTERY
-
-static int16_t battery2_celltemperature_max_dC = 0;
-static int16_t battery2_celltemperature_min_dC = 0;
-static int16_t battery2_current_dA = 0;
-static uint16_t battery2_voltage_dV = 0;
-static uint16_t battery2_cellvoltage_max_mV = 3700;
-static uint16_t battery2_cellvoltage_min_mV = 3700;
-static uint16_t battery2_charge_cutoff_voltage = 0;
-static uint16_t battery2_discharge_cutoff_voltage = 0;
-static int16_t battery2_max_charge_current = 0;
-static int16_t battery2_max_discharge_current = 0;
-static uint8_t battery2_ensemble_info_ack = 0;
-static uint8_t battery2_module_quantity = 0;
-static uint8_t battery2_modules_in_series = 0;
-static uint8_t battery2_cell_quantity_in_module = 0;
-static uint8_t battery2_voltage_level = 0;
-static uint8_t battery2_ah_number = 0;
-static uint8_t battery2_SOC = 0;
-static uint8_t battery2_SOH = 0;
-static uint8_t battery2_charge_forbidden = 0;
-static uint8_t battery2_discharge_forbidden = 0;
-
-void update_values_battery2() {
-
-  datalayer.battery2.status.real_soc = (battery2_SOC * 100);  //increase SOC range from 0-100 -> 100.00
-
-  datalayer.battery2.status.soh_pptt = (battery2_SOH * 100);  //Increase decimals from 100% -> 100.00%
-
-  datalayer.battery2.status.voltage_dV = battery2_voltage_dV;  //value is *10 (3700 = 370.0)
-
-  datalayer.battery2.status.current_dA = battery2_current_dA;  //value is *10 (150 = 15.0) , invert the sign
-
-  datalayer.battery2.status.max_charge_power_W = (battery2_max_charge_current * (battery2_voltage_dV / 10));
-
-  datalayer.battery2.status.max_discharge_power_W = (-battery2_max_discharge_current * (battery2_voltage_dV / 10));
-
-  datalayer.battery2.status.remaining_capacity_Wh = static_cast<uint32_t>(
-      (static_cast<double>(datalayer.battery2.status.real_soc) / 10000) * datalayer.battery2.info.total_capacity_Wh);
-
-  datalayer.battery2.status.cell_max_voltage_mV = battery2_cellvoltage_max_mV;
-  datalayer.battery2.status.cell_voltages_mV[0] = battery2_cellvoltage_max_mV;
-
-  datalayer.battery2.status.cell_min_voltage_mV = battery2_cellvoltage_min_mV;
-  datalayer.battery2.status.cell_voltages_mV[1] = battery2_cellvoltage_min_mV;
-
-  datalayer.battery2.status.temperature_min_dC = battery2_celltemperature_min_dC;
-
-  datalayer.battery2.status.temperature_max_dC = battery2_celltemperature_max_dC;
-
-  datalayer.battery2.info.max_design_voltage_dV = battery2_charge_cutoff_voltage;
-
-  datalayer.battery2.info.min_design_voltage_dV = battery2_discharge_cutoff_voltage;
-
-  datalayer.battery2.info.number_of_cells = datalayer.battery.info.number_of_cells;
-}
-
-void handle_incoming_can_frame_battery2(CAN_frame rx_frame) {
-  datalayer.battery2.status.CAN_battery_still_alive = CAN_STILL_ALIVE;
-  switch (rx_frame.ID) {
-    case 0x7310:
-    case 0x7311:
-      battery2_ensemble_info_ack = true;
-      // This message contains software/hardware version info. No interest to us
-      break;
-    case 0x7320:
-    case 0x7321:
-      battery2_ensemble_info_ack = true;
-      battery2_module_quantity = rx_frame.data.u8[0];
-      battery2_modules_in_series = rx_frame.data.u8[2];
-      battery2_cell_quantity_in_module = rx_frame.data.u8[3];
-      battery2_voltage_level = rx_frame.data.u8[4];
-      battery2_ah_number = rx_frame.data.u8[6];
-      break;
-    case 0x4210:
-    case 0x4211:
-      battery2_voltage_dV = ((rx_frame.data.u8[1] << 8) | rx_frame.data.u8[0]);
-      battery2_current_dA = ((rx_frame.data.u8[3] << 8) | rx_frame.data.u8[2]) - 30000;
-      battery2_SOC = rx_frame.data.u8[6];
-      battery2_SOH = rx_frame.data.u8[7];
-      break;
-    case 0x4220:
-    case 0x4221:
-      battery2_charge_cutoff_voltage = ((rx_frame.data.u8[1] << 8) | rx_frame.data.u8[0]);
-      battery2_discharge_cutoff_voltage = ((rx_frame.data.u8[3] << 8) | rx_frame.data.u8[2]);
-      battery2_max_charge_current = (((rx_frame.data.u8[5] << 8) | rx_frame.data.u8[4]) * 0.1) - 3000;
-      battery2_max_discharge_current = (((rx_frame.data.u8[7] << 8) | rx_frame.data.u8[6]) * 0.1) - 3000;
-      break;
-    case 0x4230:
-    case 0x4231:
-      battery2_cellvoltage_max_mV = ((rx_frame.data.u8[1] << 8) | rx_frame.data.u8[0]);
-      battery2_cellvoltage_min_mV = ((rx_frame.data.u8[3] << 8) | rx_frame.data.u8[2]);
-      break;
-    case 0x4240:
-    case 0x4241:
-      battery2_celltemperature_max_dC = ((rx_frame.data.u8[1] << 8) | rx_frame.data.u8[0]) - 1000;
-      battery2_celltemperature_min_dC = ((rx_frame.data.u8[3] << 8) | rx_frame.data.u8[2]) - 1000;
-      break;
-    case 0x4250:
-    case 0x4251:
-      //Byte0 Basic Status
-      //Byte1-2 Cycle Period
-      //Byte3 Error
-      //Byte4-5 Alarm
-      //Byte6-7 Protection
-      break;
-    case 0x4260:
-    case 0x4261:
-      //Byte0-1 Module Max Voltage
-      //Byte2-3 Module Min Voltage
-      //Byte4-5 Module Max. Voltage Number
-      //Byte6-7 Module Min. Voltage Number
-      break;
-    case 0x4270:
-    case 0x4271:
-      //Byte0-1 Module Max. Temperature
-      //Byte2-3 Module Min. Temperature
-      //Byte4-5 Module Max. Temperature Number
-      //Byte6-7 Module Min. Temperature Number
-      break;
-    case 0x4280:
-    case 0x4281:
-      battery2_charge_forbidden = rx_frame.data.u8[0];
-      battery2_discharge_forbidden = rx_frame.data.u8[1];
-      break;
-    case 0x4290:
-    case 0x4291:
-      break;
-    default:
-      break;
-  }
-}
-#endif  //DOUBLE_BATTERY
-
 void PylonBattery::setup(void) {  // Performs one time setup at startup
-  datalayer.battery.info.number_of_cells = 2;
-  datalayer.battery.info.max_design_voltage_dV = MAX_PACK_VOLTAGE_DV;
-  datalayer.battery.info.min_design_voltage_dV = MIN_PACK_VOLTAGE_DV;
-  datalayer.battery.info.max_cell_voltage_mV = MAX_CELL_VOLTAGE_MV;
-  datalayer.battery.info.min_cell_voltage_mV = MIN_CELL_VOLTAGE_MV;
-
-#ifdef DOUBLE_BATTERY
-  datalayer.battery2.info.number_of_cells = datalayer.battery.info.number_of_cells;
-  datalayer.battery2.info.max_design_voltage_dV = datalayer.battery.info.max_design_voltage_dV;
-  datalayer.battery2.info.min_design_voltage_dV = datalayer.battery.info.min_design_voltage_dV;
-  datalayer.battery2.info.max_cell_voltage_mV = datalayer.battery.info.max_cell_voltage_mV;
-  datalayer.battery2.info.min_cell_voltage_mV = datalayer.battery.info.min_cell_voltage_mV;
-  datalayer.battery2.info.max_cell_voltage_deviation_mV = datalayer.battery.info.max_cell_voltage_deviation_mV;
-#endif  //DOUBLE_BATTERY
+  m_target->info.number_of_cells = 2;
+  m_target->info.max_design_voltage_dV = MAX_PACK_VOLTAGE_DV;
+  m_target->info.min_design_voltage_dV = MIN_PACK_VOLTAGE_DV;
+  m_target->info.max_cell_voltage_mV = MAX_CELL_VOLTAGE_MV;
+  m_target->info.min_cell_voltage_mV = MIN_CELL_VOLTAGE_MV;
+  // TODO: max_cell_voltage_deviation_mV missing?
 }
 
 #endif

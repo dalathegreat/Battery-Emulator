@@ -156,8 +156,8 @@ void handle_contactors() {
     set(POSITIVE_CONTACTOR_PIN, OFF, PWM_OFF_DUTY);
     datalayer.system.status.contactors_engaged = false;
 
-    if (datalayer.system.status.battery_allows_contactor_closing &&
-        datalayer.system.status.inverter_allows_contactor_closing && !datalayer.system.settings.equipment_stop_active) {
+    if (battery->contactor_closing_allowed() && datalayer.system.status.inverter_allows_contactor_closing &&
+        !datalayer.system.settings.equipment_stop_active) {
       contactorStatus = START_PRECHARGE;
     }
   }
@@ -225,14 +225,16 @@ void handle_contactors() {
 
 #ifdef CONTACTOR_CONTROL_DOUBLE_BATTERY
 void handle_contactors_battery2() {
-  if ((contactorStatus == COMPLETED) && datalayer.system.status.battery2_allows_contactor_closing) {
-    set(SECOND_NEGATIVE_CONTACTOR_PIN, ON);
-    set(SECOND_POSITIVE_CONTACTOR_PIN, ON);
-    datalayer.system.status.contactors_battery2_engaged = true;
-  } else {  // Closing contactors on secondary battery not allowed
-    set(SECOND_NEGATIVE_CONTACTOR_PIN, OFF);
-    set(SECOND_POSITIVE_CONTACTOR_PIN, OFF);
-    datalayer.system.status.contactors_battery2_engaged = false;
+  if (battery2) {
+    if ((contactorStatus == COMPLETED) && battery2->contactor_closing_allowed()) {
+      set(SECOND_NEGATIVE_CONTACTOR_PIN, ON);
+      set(SECOND_POSITIVE_CONTACTOR_PIN, ON);
+      datalayer.system.status.contactors_battery2_engaged = true;
+    } else {  // Closing contactors on secondary battery not allowed
+      set(SECOND_NEGATIVE_CONTACTOR_PIN, OFF);
+      set(SECOND_POSITIVE_CONTACTOR_PIN, OFF);
+      datalayer.system.status.contactors_battery2_engaged = false;
+    }
   }
 }
 #endif  // CONTACTOR_CONTROL_DOUBLE_BATTERY

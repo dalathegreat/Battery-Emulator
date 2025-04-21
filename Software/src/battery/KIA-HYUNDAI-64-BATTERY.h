@@ -1,6 +1,7 @@
 #ifndef KIA_HYUNDAI_64_BATTERY_H
 #define KIA_HYUNDAI_64_BATTERY_H
 #include <Arduino.h>
+#include "../datalayer/datalayer.h"
 #include "../include.h"
 
 #define BATTERY_SELECTED
@@ -16,9 +17,13 @@ void update_number_of_cells();
 
 class KiaHyundai64Battery : public CanBattery {
  public:
-  KiaHyundai64Battery() : CanBattery(KiaHyundai64) {}
+  KiaHyundai64Battery(DATALAYER_BATTERY_TYPE* target, CAN_Interface can_interface) : CanBattery(KiaHyundai64) {
+    m_target = target;
+    m_can_interface = can_interface;
+  }
   virtual const char* name() { return Name; };
   static constexpr char* Name = "Kia/Hyundai 64/40kWh battery";
+  virtual bool supportsDoubleBattery() { return true; };
 
   virtual void setup();
   virtual void update_values();
@@ -26,6 +31,8 @@ class KiaHyundai64Battery : public CanBattery {
   virtual void transmit_can();
 
  private:
+  DATALAYER_BATTERY_TYPE* m_target;
+  CAN_Interface m_can_interface;
   void update_number_of_cells();
 
   unsigned long previousMillis100 = 0;  // will store last time a 100ms CAN Message was send
@@ -60,44 +67,6 @@ class KiaHyundai64Battery : public CanBattery {
   int8_t heatertemp = 0;
   int8_t powerRelayTemperature = 0;
   bool startedUp = false;
-
-#ifdef DOUBLE_BATTERY
-  uint8_t counter_200_2 = 0;
-  uint16_t battery2_soc_calculated = 0;
-  uint16_t battery2_SOC_BMS = 0;
-  uint16_t battery2_SOC_Display = 0;
-  uint16_t battery2_batterySOH = 1000;
-  uint16_t battery2_CellVoltMax_mV = 3700;
-  uint16_t battery2_CellVoltMin_mV = 3700;
-  uint16_t battery2_allowedDischargePower = 0;
-  uint16_t battery2_allowedChargePower = 0;
-  uint16_t battery2_batteryVoltage = 0;
-  uint16_t battery2_inverterVoltageFrameHigh = 0;
-  uint16_t battery2_inverterVoltage = 0;
-  uint16_t battery2_cellvoltages_mv[98];
-  int16_t battery2_leadAcidBatteryVoltage = 120;
-  int16_t battery2_batteryAmps = 0;
-  int16_t battery2_temperatureMax = 0;
-  int16_t battery2_temperatureMin = 0;
-  int16_t battery2_poll_data_pid = 0;
-  bool battery2_holdPidCounter = false;
-  uint8_t battery2_CellVmaxNo = 0;
-  uint8_t battery2_CellVminNo = 0;
-  uint8_t battery2_batteryManagementMode = 0;
-  uint8_t battery2_BMS_ign = 0;
-  uint8_t battery2_batteryRelay = 0;
-  uint8_t battery2_waterleakageSensor = 164;
-  uint8_t battery2_counter_200 = 0;
-  int8_t battery2_temperature_water_inlet = 0;
-  int8_t battery2_heatertemp = 0;
-  int8_t battery2_powerRelayTemperature = 0;
-  bool battery2_startedUp = false;
-  CAN_frame KIA_HYUNDAI_200_2 = {.FD = false,
-                                 .ext_ID = false,
-                                 .DLC = 8,
-                                 .ID = 0x200,
-                                 .data = {0x00, 0x80, 0xD8, 0x04, 0x00, 0x17, 0xD0, 0x00}};  //2nd battery
-#endif                                                                                       //DOUBLE_BATTERY
 
   CAN_frame KIA_HYUNDAI_200 = {.FD = false,
                                .ext_ID = false,

@@ -2,8 +2,9 @@
 #include "Battery.h"
 
 BatteryType userSelectedBatteryType = BatteryType::TestFake;
+extern bool secondBatteryInUse = false;
 
-BatteryBase* init_battery(BatteryType type) {
+BatteryBase* init_battery(BatteryType type, BatteryBase* pair) {
 
   // To support selecting a battery at compile time, we need to use the
   // #ifdefs here. If this support is not needed, the #ifdefs can be removed.
@@ -11,7 +12,8 @@ BatteryBase* init_battery(BatteryType type) {
   switch (type) {
 #ifdef BMW_I3_BATTERY
     case BMWi3:
-      battery = new BMWi3Battery();
+      battery = new BMWi3Battery(pair ? &datalayer.battery2 : &datalayer.battery,
+                                 pair ? can_config.battery_double : can_config.battery, pair ? WUP_PIN2 : WUP_PIN1);
       break;
 #endif
 
@@ -35,7 +37,8 @@ BatteryBase* init_battery(BatteryType type) {
 
 #ifdef BYD_ATTO_3_BATTERY
     case BydAtto3:
-      battery = new BydAtto3Battery();
+      battery = new BydAtto3Battery(pair ? &datalayer.battery2 : &datalayer.battery,
+                                    pair ? can_config.battery_double : can_config.battery);
       break;
 #endif
 
@@ -83,7 +86,8 @@ BatteryBase* init_battery(BatteryType type) {
 
 #ifdef KIA_HYUNDAI_64_BATTERY
     case KiaHyundai64:
-      battery = new KiaHyundai64Battery();
+      battery = new KiaHyundai64Battery(pair ? &datalayer.battery2 : &datalayer.battery,
+                                        pair ? can_config.battery_double : can_config.battery);
       break;
 #endif
 
@@ -107,13 +111,15 @@ BatteryBase* init_battery(BatteryType type) {
 
 #ifdef NISSAN_LEAF_BATTERY
     case NissanLeaf:
-      battery = new NissanLeafBattery();
+      battery = new NissanLeafBattery(pair ? &datalayer.battery2 : &datalayer.battery,
+                                      pair ? can_config.battery_double : can_config.battery);
       break;
 #endif
 
 #ifdef PYLON_BATTERY
     case Pylon:
-      battery = new PylonBattery();
+      battery = new PylonBattery(pair ? &datalayer.battery2 : &datalayer.battery,
+                                 pair ? can_config.battery_double : can_config.battery);
       break;
 #endif
 
@@ -131,13 +137,20 @@ BatteryBase* init_battery(BatteryType type) {
 
 #ifdef TEST_FAKE_BATTERY
     case TestFake:
-      battery = new TestFakeBattery();
+      battery = new TestFakeBattery(pair ? &datalayer.battery2 : &datalayer.battery,
+                                    pair ? can_config.battery_double : can_config.battery);
       break;
 #endif
 
 #ifdef RENAULT_ZOE_GEN1_BATTERY
     case RenaultZoeGen1:
       battery = new RenaultZoeBattery();
+      break;
+#endif
+
+#ifdef RENAULT_ZOE_GEN2_BATTERY
+    case RenaultZoeGen2:
+      battery = new RenaultZoeGen2Battery();
       break;
 #endif
 
@@ -152,9 +165,23 @@ BatteryBase* init_battery(BatteryType type) {
       battery = new RangeRoverPhevBattery();
       break;
 #endif
-      /*case RenaultZoeGen2:
-            battery = new RenaultZoeGen2Battery();
-            break;*/
+
+#ifdef SANTA_FE_PHEV_BATTERY_H
+    case SantaFePhev:
+      battery = new SantaFePhevBattery(pair ? &datalayer.battery2 : &datalayer.battery,
+                                       pair ? can_config.battery_double : can_config.battery);
+      break;
+#endif
+#ifdef VOLVO_SPA_BATTERY_H
+    case VolvoSpa:
+      battery = new VolvoSpaBattery();
+      break;
+#endif
+#ifdef VOLVO_SPA_HYBRID_BATTERY_H
+    case VolvoSpaHybrid:
+      battery = new VolvoSpaHybridBattery();
+      break;
+#endif
     default:
       return nullptr;
   }
@@ -277,6 +304,22 @@ const char* BatteryBase::name_for_type(BatteryType type) {
 #ifdef RENAULT_ZOE_GEN1_BATTERY
     case RenaultZoeGen1:
       return RenaultZoeBattery::Name;
+#endif
+
+#ifdef RENAULT_ZOE_GEN2_BATTERY
+    case RenaultZoeGen2:
+      return RenaultZoeGen2Battery::Name;
+#endif
+
+#ifdef VOLVO_SPA_BATTERY_H
+    case VolvoSpa:
+      return VolvoSpaBattery::Name;
+#endif
+
+#ifdef VOLVO_SPA_HYBRID_BATTERY_H
+    case VolvoSpaHybrid:
+      return VolvoSpaHybridBattery::Name;
+      break;
 #endif
 
     default:

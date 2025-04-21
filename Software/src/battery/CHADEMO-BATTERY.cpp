@@ -893,7 +893,7 @@ void handle_chademo_sequence() {
       //        Commented unless needed for debug
       logging.println("CHADEMO_EVSE_START State");
 #endif
-      datalayer.system.status.battery_allows_contactor_closing = true;
+      allow_contactor_closing();
       x109_evse_state.s.status.ChgDischStopControl = 1;
       x109_evse_state.s.status.EVSE_status = 0;
 
@@ -1042,7 +1042,7 @@ void ChademoBattery::setup(void) {  // Performs one time setup at startup
   CHADEMO_Status = CHADEMO_IDLE;
 
   /* disallow contactors until permissions is granted by vehicle */
-  datalayer.system.status.battery_allows_contactor_closing = false;
+  disallow_contactor_closing();
 
   /* Pretend that we know the SOH, assert that it is 99% */
   datalayer.battery.status.soh_pptt = 9900;

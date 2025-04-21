@@ -1,4 +1,5 @@
 #include "../include.h"
+
 #ifdef MEB_BATTERY
 #include <algorithm>  // For std::min and std::max
 #include "../communication/can/comm_can.h"
@@ -688,42 +689,49 @@ void MebBattery::handle_incoming_can_frame(CAN_frame rx_frame) {
         case 4:  // AC_CHARGING
         case 6:  // DC_CHARGING
 #ifdef DEBUG_LOG
-          if (!datalayer.system.status.battery_allows_contactor_closing)
+          if (!contactor_closing_allowed()) {
             logging.printf("MEB: Contactors closed\n");
+          }
 #endif
-          if (datalayer.battery.status.real_bms_status != BMS_FAULT)
+          if (datalayer.battery.status.real_bms_status != BMS_FAULT) {
             datalayer.battery.status.real_bms_status = BMS_ACTIVE;
-          datalayer.system.status.battery_allows_contactor_closing = true;
+          }
+          allow_contactor_closing();
           hv_requested = false;
           break;
         case 5:  // Error
 #ifdef DEBUG_LOG
-          if (datalayer.system.status.battery_allows_contactor_closing)
+          if (contactor_closing_allowed()) {
             logging.printf("MEB: Contactors opened\n");
+          }
 #endif
           datalayer.battery.status.real_bms_status = BMS_FAULT;
-          datalayer.system.status.battery_allows_contactor_closing = false;
+          disallow_contactor_closing();
           hv_requested = false;
           break;
         case 7:  // Init
 #ifdef DEBUG_LOG
-          if (datalayer.system.status.battery_allows_contactor_closing)
+          if (contactor_closing_allowed()) {
             logging.printf("MEB: Contactors opened\n");
+          }
 #endif
-          if (datalayer.battery.status.real_bms_status != BMS_FAULT)
+          if (datalayer.battery.status.real_bms_status != BMS_FAULT) {
             datalayer.battery.status.real_bms_status = BMS_STANDBY;
-          datalayer.system.status.battery_allows_contactor_closing = false;
+          }
+          disallow_contactor_closing();
           hv_requested = false;
           break;
         case 2:  // BALANCING
         default:
 #ifdef DEBUG_LOG
-          if (datalayer.system.status.battery_allows_contactor_closing)
+          if (contactor_closing_allowed()) {
             logging.printf("MEB: Contactors opened\n");
+          }
 #endif
-          if (datalayer.battery.status.real_bms_status != BMS_FAULT)
+          if (datalayer.battery.status.real_bms_status != BMS_FAULT) {
             datalayer.battery.status.real_bms_status = BMS_STANDBY;
-          datalayer.system.status.battery_allows_contactor_closing = false;
+          }
+          disallow_contactor_closing();
       }
       BMS_HVIL_status = (rx_frame.data.u8[2] & 0x18) >> 3;
       BMS_error_shutdown = (rx_frame.data.u8[2] & 0x20) >> 5;
@@ -1288,7 +1296,7 @@ void MebBattery::transmit_can() {
     first_can_msg = 0;
     if (datalayer.battery.status.real_bms_status != BMS_FAULT) {
       datalayer.battery.status.real_bms_status = BMS_DISCONNECTED;
-      datalayer.system.status.battery_allows_contactor_closing = false;
+      disallow_contactor_closing();
     }
   }
 

@@ -44,118 +44,54 @@ static uint8_t increment_alive_counter(uint8_t counter) {
   return counter;
 }
 
-void BMWi3Battery::update_values2() {  //This function maps all the values fetched via CAN2 to the battery2 datalayer
-  if (!battery2_awake) {
-    return;
-  }
-
-  datalayer.battery2.status.real_soc = (battery2_display_SOC * 50);
-
-  datalayer.battery2.status.voltage_dV = battery2_volts;  //Unit V+1 (5000 = 500.0V)
-
-  datalayer.battery2.status.current_dA = battery2_current;
-
-  datalayer.battery2.info.total_capacity_Wh = battery2_energy_content_maximum_Wh;
-
-  datalayer.battery2.status.remaining_capacity_Wh = battery2_predicted_energy_charge_condition;
-
-  datalayer.battery2.status.soh_pptt = battery2_soh * 100;
-
-  datalayer.battery2.status.max_discharge_power_W = battery2_BEV_available_power_longterm_discharge;
-
-  datalayer.battery2.status.max_charge_power_W = battery2_BEV_available_power_longterm_charge;
-
-  datalayer.battery2.status.temperature_min_dC = battery2_temperature_min * 10;  // Add a decimal
-
-  datalayer.battery2.status.temperature_max_dC = battery2_temperature_max * 10;  // Add a decimal
-
-  if (battery2_info_available) {
-    // Start checking safeties. First up, cellvoltages!
-    if (detectedBattery2 == BATTERY_60AH) {
-      datalayer.battery2.info.max_design_voltage_dV = MAX_PACK_VOLTAGE_60AH;
-      datalayer.battery2.info.min_design_voltage_dV = MIN_PACK_VOLTAGE_60AH;
-      datalayer.battery2.info.max_cell_voltage_mV = MAX_CELL_VOLTAGE_60AH;
-      datalayer.battery2.info.min_cell_voltage_mV = MIN_CELL_VOLTAGE_60AH;
-    } else if (detectedBattery2 == BATTERY_94AH) {
-      datalayer.battery2.info.max_design_voltage_dV = MAX_PACK_VOLTAGE_94AH;
-      datalayer.battery2.info.min_design_voltage_dV = MIN_PACK_VOLTAGE_94AH;
-      datalayer.battery2.info.max_cell_voltage_mV = MAX_CELL_VOLTAGE_94AH;
-      datalayer.battery2.info.min_cell_voltage_mV = MIN_CELL_VOLTAGE_94AH;
-    } else {  // BATTERY_120AH
-      datalayer.battery2.info.max_design_voltage_dV = MAX_PACK_VOLTAGE_120AH;
-      datalayer.battery2.info.min_design_voltage_dV = MIN_PACK_VOLTAGE_120AH;
-      datalayer.battery2.info.max_cell_voltage_mV = MAX_CELL_VOLTAGE_120AH;
-      datalayer.battery2.info.min_cell_voltage_mV = MIN_CELL_VOLTAGE_120AH;
-    }
-  }
-
-  // Perform other safety checks
-  if (battery2_status_error_locking == 2) {  // HVIL seated?
-    set_event(EVENT_HVIL_FAILURE, 2);
-  } else {
-    clear_event(EVENT_HVIL_FAILURE);
-  }
-  if (battery2_status_error_disconnecting_switch > 0) {  // Check if contactors are sticking / welded
-    set_event(EVENT_CONTACTOR_WELDED, 0);
-  } else {
-    clear_event(EVENT_CONTACTOR_WELDED);
-  }
-}
-
 void BMWi3Battery::update_values() {  //This function maps all the values fetched via CAN to the battery datalayer
   if (datalayer.system.settings.equipment_stop_active == true) {
-    digitalWrite(WUP_PIN1, LOW);  // Turn off WUP_PIN1
-#if defined(WUP_PIN2) && defined(DOUBLE_BATTERY)
-    digitalWrite(WUP_PIN2, LOW);  // Turn off WUP_PIN2
-#endif                            // defined(WUP_PIN2) &&  defined (DOUBLE_BATTERY)
+    digitalWrite(m_wakeup_pin, LOW);  // Turn off WUP_PIN1
   } else {
-    digitalWrite(WUP_PIN1, HIGH);  // Wake up the battery
-#if defined(WUP_PIN2) && defined(DOUBLE_BATTERY)
-    digitalWrite(WUP_PIN2, HIGH);  // Wake up the battery2
-#endif                             // defined(WUP_PIN2) &&  defined (DOUBLE_BATTERY)
+    digitalWrite(m_wakeup_pin, HIGH);  // Wake up the battery
   }
 
   if (!battery_awake) {
     return;
   }
 
-  datalayer.battery.status.real_soc = (battery_display_SOC * 50);
+  m_target->status.real_soc = (battery_display_SOC * 50);
 
-  datalayer.battery.status.voltage_dV = battery_volts;  //Unit V+1 (5000 = 500.0V)
+  m_target->status.voltage_dV = battery_volts;  //Unit V+1 (5000 = 500.0V)
 
-  datalayer.battery.status.current_dA = battery_current;
+  m_target->status.current_dA = battery_current;
 
-  datalayer.battery.info.total_capacity_Wh = battery_energy_content_maximum_Wh;
+  m_target->info.total_capacity_Wh = battery_energy_content_maximum_Wh;
 
-  datalayer.battery.status.remaining_capacity_Wh = battery_predicted_energy_charge_condition;
+  m_target->status.remaining_capacity_Wh = battery_predicted_energy_charge_condition;
 
-  datalayer.battery.status.soh_pptt = battery_soh * 100;
+  m_target->status.soh_pptt = battery_soh * 100;
 
-  datalayer.battery.status.max_discharge_power_W = battery_BEV_available_power_longterm_discharge;
+  m_target->status.max_discharge_power_W = battery_BEV_available_power_longterm_discharge;
 
-  datalayer.battery.status.max_charge_power_W = battery_BEV_available_power_longterm_charge;
+  m_target->status.max_charge_power_W = battery_BEV_available_power_longterm_charge;
 
-  datalayer.battery.status.temperature_min_dC = battery_temperature_min * 10;  // Add a decimal
+  m_target->status.temperature_min_dC = battery_temperature_min * 10;  // Add a decimal
 
-  datalayer.battery.status.temperature_max_dC = battery_temperature_max * 10;  // Add a decimal
+  m_target->status.temperature_max_dC = battery_temperature_max * 10;  // Add a decimal
 
   if (battery_info_available) {
     // Start checking safeties. First up, cellvoltages!
     if (detectedBattery == BATTERY_60AH) {
-      datalayer.battery.info.max_design_voltage_dV = MAX_PACK_VOLTAGE_60AH;
-      datalayer.battery.info.min_design_voltage_dV = MIN_PACK_VOLTAGE_60AH;
-      datalayer.battery.info.max_cell_voltage_mV = MAX_CELL_VOLTAGE_60AH;
-      datalayer.battery.info.min_cell_voltage_mV = MIN_CELL_VOLTAGE_60AH;
+      m_target->info.max_design_voltage_dV = MAX_PACK_VOLTAGE_60AH;
+      m_target->info.min_design_voltage_dV = MIN_PACK_VOLTAGE_60AH;
+      m_target->info.max_cell_voltage_mV = MAX_CELL_VOLTAGE_60AH;
+      m_target->info.min_cell_voltage_mV = MIN_CELL_VOLTAGE_60AH;
     } else if (detectedBattery == BATTERY_94AH) {
-      datalayer.battery.info.max_design_voltage_dV = MAX_PACK_VOLTAGE_94AH;
-      datalayer.battery.info.min_design_voltage_dV = MIN_PACK_VOLTAGE_94AH;
-      datalayer.battery.info.max_cell_voltage_mV = MAX_CELL_VOLTAGE_94AH;
-      datalayer.battery.info.min_cell_voltage_mV = MIN_CELL_VOLTAGE_94AH;
+      m_target->info.max_design_voltage_dV = MAX_PACK_VOLTAGE_94AH;
+      m_target->info.min_design_voltage_dV = MIN_PACK_VOLTAGE_94AH;
+      m_target->info.max_cell_voltage_mV = MAX_CELL_VOLTAGE_94AH;
+      m_target->info.min_cell_voltage_mV = MIN_CELL_VOLTAGE_94AH;
     } else {  // BATTERY_120AH
-      datalayer.battery.info.max_design_voltage_dV = MAX_PACK_VOLTAGE_120AH;
-      datalayer.battery.info.min_design_voltage_dV = MIN_PACK_VOLTAGE_120AH;
-      datalayer.battery.info.max_cell_voltage_mV = MAX_CELL_VOLTAGE_120AH;
-      datalayer.battery.info.min_cell_voltage_mV = MIN_CELL_VOLTAGE_120AH;
+      m_target->info.max_design_voltage_dV = MAX_PACK_VOLTAGE_120AH;
+      m_target->info.min_design_voltage_dV = MIN_PACK_VOLTAGE_120AH;
+      m_target->info.max_cell_voltage_mV = MAX_CELL_VOLTAGE_120AH;
+      m_target->info.min_cell_voltage_mV = MIN_CELL_VOLTAGE_120AH;
     }
   }
 
@@ -191,11 +127,11 @@ void BMWi3Battery::handle_incoming_can_frame(CAN_frame rx_frame) {
   switch (rx_frame.ID) {
     case 0x112:  //BMS [10ms] Status Of High-Voltage Battery - 2
       battery_awake = true;
-      datalayer.battery.status.CAN_battery_still_alive =
+      m_target->status.CAN_battery_still_alive =
           CAN_STILL_ALIVE;  //This message is only sent if 30C (Wakeup pin on battery) is energized with 12V
       battery_current = (rx_frame.data.u8[1] << 8 | rx_frame.data.u8[0]) - 8192;  //deciAmps (-819.2 to 819.0A)
       battery_volts = (rx_frame.data.u8[3] << 8 | rx_frame.data.u8[2]);           //500.0 V
-      datalayer.battery.status.voltage_dV = battery_volts;  // Update the datalayer as soon as possible with this info
+      m_target->status.voltage_dV = battery_volts;  // Update the datalayer as soon as possible with this info
       battery_HVBatt_SOC = ((rx_frame.data.u8[5] & 0x0F) << 8 | rx_frame.data.u8[4]);
       battery_request_open_contactors = (rx_frame.data.u8[5] & 0xC0) >> 6;
       battery_request_open_contactors_instantly = (rx_frame.data.u8[6] & 0x03);
@@ -231,7 +167,7 @@ void BMWi3Battery::handle_incoming_can_frame(CAN_frame rx_frame) {
       if (!skipCRCCheck) {
         if (calculateCRC(rx_frame, rx_frame.DLC, 0x15) != rx_frame.data.u8[0]) {
           // If calculated CRC does not match transmitted CRC, increase CANerror counter
-          datalayer.battery.status.CAN_error_counter++;
+          m_target->status.CAN_error_counter++;
 
           // If the CRC check has never passed before, set the flag to skip future checks. Some SMEs have differing CRC checks.
           if (!CRCCheckPassedPreviously) {
@@ -317,11 +253,10 @@ void BMWi3Battery::handle_incoming_can_frame(CAN_frame rx_frame) {
     case 0x607:  //BMS - responses to message requests on 0x615
       if ((cmdState == CELL_VOLTAGE_CELLNO || cmdState == CELL_VOLTAGE_CELLNO_LAST) && (rx_frame.data.u8[0] == 0xF4)) {
         if (rx_frame.DLC == 6) {
-          transmit_can_frame(&BMW_6F4_CELL_CONTINUE, can_config.battery);  // tell battery to send the cellvoltage
+          transmit_can_frame(&BMW_6F4_CELL_CONTINUE, m_can_interface);  // tell battery to send the cellvoltage
         }
         if (rx_frame.DLC == 8) {  // We have the full value, map it
-          datalayer.battery.status.cell_voltages_mV[current_cell_polled - 1] =
-              (rx_frame.data.u8[6] << 8 | rx_frame.data.u8[7]);
+          m_target->status.cell_voltages_mV[current_cell_polled - 1] = (rx_frame.data.u8[6] << 8 | rx_frame.data.u8[7]);
         }
       }
 
@@ -330,7 +265,7 @@ void BMWi3Battery::handle_incoming_can_frame(CAN_frame rx_frame) {
         while (count < rx_frame.DLC && next_data < 49) {
           message_data[next_data++] = rx_frame.data.u8[count++];
         }
-        transmit_can_frame(&BMW_6F1_CONTINUE, can_config.battery);  // tell battery to send additional messages
+        transmit_can_frame(&BMW_6F1_CONTINUE, m_can_interface);  // tell battery to send additional messages
 
       } else if (rx_frame.DLC > 3 && next_data > 0 && rx_frame.data.u8[0] == 0xf1 &&
                  ((rx_frame.data.u8[1] & 0xF0) == 0x20)) {
@@ -344,11 +279,11 @@ void BMWi3Battery::handle_incoming_can_frame(CAN_frame rx_frame) {
             if (next_data >= 4) {
               cellvoltage_temp_mV = (message_data[0] << 8 | message_data[1]);
               if (cellvoltage_temp_mV < 4500) {  // Prevents garbage data from being read on bootup
-                datalayer.battery.status.cell_min_voltage_mV = cellvoltage_temp_mV;
+                m_target->status.cell_min_voltage_mV = cellvoltage_temp_mV;
               }
               cellvoltage_temp_mV = (message_data[2] << 8 | message_data[3]);
               if (cellvoltage_temp_mV < 4500) {  // Prevents garbage data from being read on bootup
-                datalayer.battery.status.cell_max_voltage_mV = cellvoltage_temp_mV;
+                m_target->status.cell_max_voltage_mV = cellvoltage_temp_mV;
               }
             }
             break;
@@ -372,198 +307,6 @@ void BMWi3Battery::handle_incoming_can_frame(CAN_frame rx_frame) {
       break;
   }
 }
-
-// TODO
-#ifndef BUILD_EM_ALL
-
-void handle_incoming_can_frame_battery2(CAN_frame rx_frame) {
-  switch (rx_frame.ID) {
-    case 0x112:  //BMS [10ms] Status Of High-Voltage Battery - 2
-      battery2_awake = true;
-      datalayer.battery2.status.CAN_battery_still_alive =
-          CAN_STILL_ALIVE;  //This message is only sent if 30C (Wakeup pin on battery) is energized with 12V
-      battery2_current = (rx_frame.data.u8[1] << 8 | rx_frame.data.u8[0]) - 8192;  //deciAmps (-819.2 to 819.0A)
-      battery2_volts = (rx_frame.data.u8[3] << 8 | rx_frame.data.u8[2]);           //500.0 V
-      datalayer.battery2.status.voltage_dV =
-          battery2_volts;  // Update the datalayer as soon as possible with this info, needed for contactor control
-      battery2_HVBatt_SOC = ((rx_frame.data.u8[5] & 0x0F) << 8 | rx_frame.data.u8[4]);
-      battery2_request_open_contactors = (rx_frame.data.u8[5] & 0xC0) >> 6;
-      battery2_request_open_contactors_instantly = (rx_frame.data.u8[6] & 0x03);
-      battery2_request_open_contactors_fast = (rx_frame.data.u8[6] & 0x0C) >> 2;
-      battery2_charging_condition_delta = (rx_frame.data.u8[6] & 0xF0) >> 4;
-      battery2_DC_link_voltage = rx_frame.data.u8[7];
-      break;
-    case 0x1FA:  //BMS [1000ms] Status Of High-Voltage Battery - 1
-      battery2_status_error_isolation_external_Bordnetz = (rx_frame.data.u8[0] & 0x03);
-      battery2_status_error_isolation_internal_Bordnetz = (rx_frame.data.u8[0] & 0x0C) >> 2;
-      battery2_request_cooling = (rx_frame.data.u8[0] & 0x30) >> 4;
-      battery2_status_valve_cooling = (rx_frame.data.u8[0] & 0xC0) >> 6;
-      battery2_status_error_locking = (rx_frame.data.u8[1] & 0x03);
-      battery2_status_precharge_locked = (rx_frame.data.u8[1] & 0x0C) >> 2;
-      battery2_status_disconnecting_switch = (rx_frame.data.u8[1] & 0x30) >> 4;
-      battery2_status_emergency_mode = (rx_frame.data.u8[1] & 0xC0) >> 6;
-      battery2_request_service = (rx_frame.data.u8[2] & 0x03);
-      battery2_error_emergency_mode = (rx_frame.data.u8[2] & 0x0C) >> 2;
-      battery2_status_error_disconnecting_switch = (rx_frame.data.u8[2] & 0x30) >> 4;
-      battery2_status_warning_isolation = (rx_frame.data.u8[2] & 0xC0) >> 6;
-      battery2_status_cold_shutoff_valve = (rx_frame.data.u8[3] & 0x0F);
-      battery2_temperature_HV = (rx_frame.data.u8[4] - 50);
-      battery2_temperature_heat_exchanger = (rx_frame.data.u8[5] - 50);
-      battery2_temperature_min = (rx_frame.data.u8[6] - 50);
-      battery2_temperature_max = (rx_frame.data.u8[7] - 50);
-      break;
-    case 0x239:                                                                                       //BMS [200ms]
-      battery2_predicted_energy_charge_condition = (rx_frame.data.u8[2] << 8 | rx_frame.data.u8[1]);  //Wh
-      battery2_predicted_energy_charging_target = ((rx_frame.data.u8[4] << 8 | rx_frame.data.u8[3]) * 0.02);  //kWh
-      break;
-    case 0x2BD:  //BMS [100ms] Status diagnosis high voltage - 1
-      battery2_awake = true;
-      if (!skipCRCCheck_battery2) {
-        if (calculateCRC(rx_frame, rx_frame.DLC, 0x15) != rx_frame.data.u8[0]) {
-          // If calculated CRC does not match transmitted CRC, increase CANerror counter
-          datalayer.battery2.status.CAN_error_counter++;
-
-          // If the CRC check has never passed before, set the flag to skip future checks. Some SMEs have differing CRC checks.
-          if (!CRCCheckPassedPreviously_battery2) {
-            skipCRCCheck_battery2 = true;
-          }
-          break;
-        } else {
-          // If CRC check passes, update the flag
-          CRCCheckPassedPreviously_battery2 = true;
-        }
-      }
-
-      // Process the data since CRC check is either passed or skipped
-      battery2_status_diagnostics_HV = (rx_frame.data.u8[2] & 0x0F);
-      break;
-    case 0x2F5:  //BMS [100ms] High-Voltage Battery Charge/Discharge Limitations
-      battery2_max_charge_voltage = (rx_frame.data.u8[1] << 8 | rx_frame.data.u8[0]);
-      battery2_max_charge_amperage = (((rx_frame.data.u8[3] << 8) | rx_frame.data.u8[2]) - 819.2);
-      battery2_min_discharge_voltage = (rx_frame.data.u8[5] << 8 | rx_frame.data.u8[4]);
-      battery2_max_discharge_amperage = (((rx_frame.data.u8[7] << 8) | rx_frame.data.u8[6]) - 819.2);
-      break;
-    case 0x2FF:  //BMS [100ms] Status Heating High-Voltage Battery
-      battery2_awake = true;
-      battery2_actual_value_power_heating = (rx_frame.data.u8[1] << 4 | rx_frame.data.u8[0] >> 4);
-      break;
-    case 0x363:  //BMS [1s] Identification High-Voltage Battery
-      battery2_serial_number =
-          (rx_frame.data.u8[3] << 24 | rx_frame.data.u8[2] << 16 | rx_frame.data.u8[1] << 8 | rx_frame.data.u8[0]);
-      break;
-    case 0x3C2:  //BMS (94AH exclusive) - Status diagnostics OBD 2 powertrain
-      battery2_status_diagnosis_powertrain_maximum_multiplexer =
-          ((rx_frame.data.u8[1] & 0x03) << 4 | rx_frame.data.u8[0] >> 4);
-      battery2_status_diagnosis_powertrain_immediate_multiplexer = (rx_frame.data.u8[0] & 0xFC) >> 2;
-      break;
-    case 0x3EB:  //BMS [1s] Status of charging high-voltage storage - 3
-      battery2_available_power_shortterm_charge = (rx_frame.data.u8[1] << 8 | rx_frame.data.u8[0]) * 3;
-      battery2_available_power_shortterm_discharge = (rx_frame.data.u8[3] << 8 | rx_frame.data.u8[2]) * 3;
-      battery2_available_power_longterm_charge = (rx_frame.data.u8[5] << 8 | rx_frame.data.u8[4]) * 3;
-      battery2_available_power_longterm_discharge = (rx_frame.data.u8[7] << 8 | rx_frame.data.u8[6]) * 3;
-      break;
-    case 0x40D:  //BMS [1s] Charging status of high-voltage storage - 1
-      battery2_BEV_available_power_shortterm_charge = (rx_frame.data.u8[1] << 8 | rx_frame.data.u8[0]) * 3;
-      battery2_BEV_available_power_shortterm_discharge = (rx_frame.data.u8[3] << 8 | rx_frame.data.u8[2]) * 3;
-      battery2_BEV_available_power_longterm_charge = (rx_frame.data.u8[5] << 8 | rx_frame.data.u8[4]) * 3;
-      battery2_BEV_available_power_longterm_discharge = (rx_frame.data.u8[7] << 8 | rx_frame.data.u8[6]) * 3;
-      break;
-    case 0x41C:  //BMS [1s] Operating Mode Status Of Hybrid - 2
-      battery2_status_cooling_HV = (rx_frame.data.u8[1] & 0x03);
-      break;
-    case 0x430:  //BMS [1s] - Charging status of high-voltage battery - 2
-      battery2_prediction_voltage_shortterm_charge = (rx_frame.data.u8[1] << 8 | rx_frame.data.u8[0]);
-      battery2_prediction_voltage_shortterm_discharge = (rx_frame.data.u8[3] << 8 | rx_frame.data.u8[2]);
-      battery2_prediction_voltage_longterm_charge = (rx_frame.data.u8[5] << 8 | rx_frame.data.u8[4]);
-      battery2_prediction_voltage_longterm_discharge = (rx_frame.data.u8[7] << 8 | rx_frame.data.u8[6]);
-      break;
-    case 0x431:  //BMS [200ms] Data High-Voltage Battery Unit
-      battery2_status_service_disconnection_plug = (rx_frame.data.u8[0] & 0x0F);
-      battery2_status_measurement_isolation = (rx_frame.data.u8[0] & 0x0C) >> 2;
-      battery2_request_abort_charging = (rx_frame.data.u8[0] & 0x30) >> 4;
-      battery2_prediction_duration_charging_minutes = (rx_frame.data.u8[3] << 8 | rx_frame.data.u8[2]);
-      battery2_prediction_time_end_of_charging_minutes = rx_frame.data.u8[4];
-      battery2_energy_content_maximum_Wh = (((rx_frame.data.u8[6] & 0x0F) << 8) | rx_frame.data.u8[5]) * 20;
-      if (battery2_energy_content_maximum_Wh > 33000) {
-        detectedBattery2 = BATTERY_120AH;
-      } else if (battery2_energy_content_maximum_Wh > 20000) {
-        detectedBattery2 = BATTERY_94AH;
-      } else {
-        detectedBattery2 = BATTERY_60AH;
-      }
-      break;
-    case 0x432:  //BMS [200ms] SOC% info
-      battery2_request_operating_mode = (rx_frame.data.u8[0] & 0x03);
-      battery2_target_voltage_in_CV_mode = ((rx_frame.data.u8[1] << 4 | rx_frame.data.u8[0] >> 4)) / 10;
-      battery2_request_charging_condition_minimum = (rx_frame.data.u8[2] / 2);
-      battery2_request_charging_condition_maximum = (rx_frame.data.u8[3] / 2);
-      battery2_display_SOC = rx_frame.data.u8[4];
-      break;
-    case 0x507:  //BMS [640ms] Network Management - 2 - This message is sent on the bus for sleep coordination purposes
-      break;
-    case 0x587:  //BMS [5s] Services
-      battery2_ID2 = rx_frame.data.u8[0];
-      break;
-    case 0x607:  //BMS - responses to message requests on 0x615
-      if ((cmdState == CELL_VOLTAGE_CELLNO || cmdState == CELL_VOLTAGE_CELLNO_LAST) && (rx_frame.data.u8[0] == 0xF4)) {
-        if (rx_frame.DLC == 6) {
-          transmit_can_frame(&BMW_6F4_CELL_CONTINUE,
-                             can_config.battery_double);  // tell battery to send the cellvoltage
-        }
-        if (rx_frame.DLC == 8) {  // We have the full value, map it
-          datalayer.battery2.status.cell_voltages_mV[current_cell_polled - 1] =
-              (rx_frame.data.u8[6] << 8 | rx_frame.data.u8[7]);
-        }
-      }
-
-      if (rx_frame.DLC > 6 && next_data == 0 && rx_frame.data.u8[0] == 0xf1) {
-        uint8_t count2 = 6;
-        while (count2 < rx_frame.DLC && next_data < 49) {
-          message_data[next_data++] = rx_frame.data.u8[count2++];
-        }
-        transmit_can_frame(&BMW_6F1_CONTINUE, can_config.battery_double);
-
-      } else if (rx_frame.DLC > 3 && next_data > 0 && rx_frame.data.u8[0] == 0xf1 &&
-                 ((rx_frame.data.u8[1] & 0xF0) == 0x20)) {
-        uint8_t count2 = 2;
-        while (count2 < rx_frame.DLC && next_data < 49) {
-          message_data[next_data++] = rx_frame.data.u8[count2++];
-        }
-
-        switch (cmdState) {
-          case CELL_VOLTAGE_MINMAX:
-            if (next_data >= 4) {
-              cellvoltage2_temp_mV = (message_data[0] << 8 | message_data[1]);
-              if (cellvoltage2_temp_mV < 4500) {  // Prevents garbage data from being read on bootup
-                datalayer.battery2.status.cell_min_voltage_mV = cellvoltage2_temp_mV;
-              }
-              cellvoltage2_temp_mV = (message_data[2] << 8 | message_data[3]);
-              if (cellvoltage_temp_mV < 4500) {  // Prevents garbage data from being read on bootup
-                datalayer.battery2.status.cell_max_voltage_mV = cellvoltage2_temp_mV;
-              }
-            }
-            break;
-          case SOH:
-            if (next_data >= 4) {
-              battery2_soh = message_data[3];
-              battery2_info_available = true;
-            }
-            break;
-          case SOC:
-            if (next_data >= 6) {
-              battery2_soc = (message_data[0] << 8 | message_data[1]);
-              battery2_soc_hvmax = (message_data[2] << 8 | message_data[3]);
-              battery2_soc_hvmin = (message_data[4] << 8 | message_data[5]);
-            }
-            break;
-        }
-      }
-      break;
-    default:
-      break;
-  }
-}
-#endif
 
 void BMWi3Battery::transmit_can() {
   unsigned long currentMillis = millis();
@@ -593,17 +336,13 @@ void BMWi3Battery::transmit_can() {
       BMW_13E_counter++;
       BMW_13E.data.u8[4] = BMW_13E_counter;
 
-      if (datalayer.battery.status.bms_status == FAULT) {
+      if (m_target->status.bms_status == FAULT) {
       }  //If battery is not in Fault mode, allow contactor to close by sending 10B
       else {
-        transmit_can_frame(&BMW_10B, can_config.battery);
+        if (contactor_closing_allowed()) {
+          transmit_can_frame(&BMW_10B, m_can_interface);
+        }
       }
-
-#ifdef DOUBLE_BATTERY  //If second battery is allowed to join in, also send 10B
-      if (datalayer.system.status.battery2_allows_contactor_closing == true) {
-        transmit_can_frame(&BMW_10B, can_config.battery_double);
-      }
-#endif
     }
     // Send 100ms CAN Message
     if (currentMillis - previousMillis100 >= INTERVAL_100_MS) {
@@ -614,10 +353,7 @@ void BMWi3Battery::transmit_can() {
 
       alive_counter_100ms = increment_alive_counter(alive_counter_100ms);
 
-      transmit_can_frame(&BMW_12F, can_config.battery);
-#ifdef DOUBLE_BATTERY
-      transmit_can_frame(&BMW_12F, can_config.battery_double);
-#endif
+      transmit_can_frame(&BMW_12F, m_can_interface);
     }
     // Send 200ms CAN Message
     if (currentMillis - previousMillis200 >= INTERVAL_200_MS) {
@@ -628,10 +364,7 @@ void BMWi3Battery::transmit_can() {
 
       alive_counter_200ms = increment_alive_counter(alive_counter_200ms);
 
-      transmit_can_frame(&BMW_19B, can_config.battery);
-#ifdef DOUBLE_BATTERY
-      transmit_can_frame(&BMW_19B, can_config.battery_double);
-#endif
+      transmit_can_frame(&BMW_19B, m_can_interface);
     }
     // Send 500ms CAN Message
     if (currentMillis - previousMillis500 >= INTERVAL_500_MS) {
@@ -642,21 +375,14 @@ void BMWi3Battery::transmit_can() {
 
       alive_counter_500ms = increment_alive_counter(alive_counter_500ms);
 
-      transmit_can_frame(&BMW_30B, can_config.battery);
-#ifdef DOUBLE_BATTERY
-      transmit_can_frame(&BMW_30B, can_config.battery_double);
-#endif
+      transmit_can_frame(&BMW_30B, m_can_interface);
     }
     // Send 640ms CAN Message
     if (currentMillis - previousMillis640 >= INTERVAL_640_MS) {
       previousMillis640 = currentMillis;
 
-      transmit_can_frame(&BMW_512, can_config.battery);  // Keep BMS alive
-      transmit_can_frame(&BMW_5F8, can_config.battery);
-#ifdef DOUBLE_BATTERY
-      transmit_can_frame(&BMW_512, can_config.battery_double);
-      transmit_can_frame(&BMW_5F8, can_config.battery_double);
-#endif
+      transmit_can_frame(&BMW_512, m_can_interface);  // Keep BMS alive
+      transmit_can_frame(&BMW_5F8, m_can_interface);
     }
     // Send 1000ms CAN Message
     if (currentMillis - previousMillis1000 >= INTERVAL_1_S) {
@@ -682,40 +408,22 @@ void BMWi3Battery::transmit_can() {
 
       alive_counter_1000ms = increment_alive_counter(alive_counter_1000ms);
 
-      transmit_can_frame(&BMW_3E8, can_config.battery);  //Order comes from CAN logs
-      transmit_can_frame(&BMW_328, can_config.battery);
-      transmit_can_frame(&BMW_3F9, can_config.battery);
-      transmit_can_frame(&BMW_2E2, can_config.battery);
-      transmit_can_frame(&BMW_41D, can_config.battery);
-      transmit_can_frame(&BMW_3D0, can_config.battery);
-      transmit_can_frame(&BMW_3CA, can_config.battery);
-      transmit_can_frame(&BMW_3A7, can_config.battery);
-      transmit_can_frame(&BMW_2CA, can_config.battery);
-      transmit_can_frame(&BMW_3FB, can_config.battery);
-      transmit_can_frame(&BMW_418, can_config.battery);
-      transmit_can_frame(&BMW_1D0, can_config.battery);
-      transmit_can_frame(&BMW_3EC, can_config.battery);
-      transmit_can_frame(&BMW_192, can_config.battery);
-      transmit_can_frame(&BMW_13E, can_config.battery);
-      transmit_can_frame(&BMW_433, can_config.battery);
-#ifdef DOUBLE_BATTERY
-      transmit_can_frame(&BMW_3E8, can_config.battery_double);
-      transmit_can_frame(&BMW_328, can_config.battery_double);
-      transmit_can_frame(&BMW_3F9, can_config.battery_double);
-      transmit_can_frame(&BMW_2E2, can_config.battery_double);
-      transmit_can_frame(&BMW_41D, can_config.battery_double);
-      transmit_can_frame(&BMW_3D0, can_config.battery_double);
-      transmit_can_frame(&BMW_3CA, can_config.battery_double);
-      transmit_can_frame(&BMW_3A7, can_config.battery_double);
-      transmit_can_frame(&BMW_2CA, can_config.battery_double);
-      transmit_can_frame(&BMW_3FB, can_config.battery_double);
-      transmit_can_frame(&BMW_418, can_config.battery_double);
-      transmit_can_frame(&BMW_1D0, can_config.battery_double);
-      transmit_can_frame(&BMW_3EC, can_config.battery_double);
-      transmit_can_frame(&BMW_192, can_config.battery_double);
-      transmit_can_frame(&BMW_13E, can_config.battery_double);
-      transmit_can_frame(&BMW_433, can_config.battery_double);
-#endif
+      transmit_can_frame(&BMW_3E8, m_can_interface);  //Order comes from CAN logs
+      transmit_can_frame(&BMW_328, m_can_interface);
+      transmit_can_frame(&BMW_3F9, m_can_interface);
+      transmit_can_frame(&BMW_2E2, m_can_interface);
+      transmit_can_frame(&BMW_41D, m_can_interface);
+      transmit_can_frame(&BMW_3D0, m_can_interface);
+      transmit_can_frame(&BMW_3CA, m_can_interface);
+      transmit_can_frame(&BMW_3A7, m_can_interface);
+      transmit_can_frame(&BMW_2CA, m_can_interface);
+      transmit_can_frame(&BMW_3FB, m_can_interface);
+      transmit_can_frame(&BMW_418, m_can_interface);
+      transmit_can_frame(&BMW_1D0, m_can_interface);
+      transmit_can_frame(&BMW_3EC, m_can_interface);
+      transmit_can_frame(&BMW_192, m_can_interface);
+      transmit_can_frame(&BMW_13E, m_can_interface);
+      transmit_can_frame(&BMW_433, m_can_interface);
 
       BMW_433.data.u8[1] = 0x01;  // First 433 message byte1 we send is unique, once we sent initial value send this
       BMW_3E8.data.u8[0] = 0xF1;  // First 3E8 message byte0 we send is unique, once we sent initial value send this
@@ -723,24 +431,15 @@ void BMWi3Battery::transmit_can() {
       next_data = 0;
       switch (cmdState) {
         case SOC:
-          transmit_can_frame(&BMW_6F1_CELL, can_config.battery);
-#ifdef DOUBLE_BATTERY
-          transmit_can_frame(&BMW_6F1_CELL, can_config.battery_double);
-#endif
+          transmit_can_frame(&BMW_6F1_CELL, m_can_interface);
           cmdState = CELL_VOLTAGE_MINMAX;
           break;
         case CELL_VOLTAGE_MINMAX:
-          transmit_can_frame(&BMW_6F1_SOH, can_config.battery);
-#ifdef DOUBLE_BATTERY
-          transmit_can_frame(&BMW_6F1_SOH, can_config.battery_double);
-#endif
+          transmit_can_frame(&BMW_6F1_SOH, m_can_interface);
           cmdState = SOH;
           break;
         case SOH:
-          transmit_can_frame(&BMW_6F1_CELL_VOLTAGE_AVG, can_config.battery);
-#ifdef DOUBLE_BATTERY
-          transmit_can_frame(&BMW_6F1_CELL_VOLTAGE_AVG, can_config.battery_double);
-#endif
+          transmit_can_frame(&BMW_6F1_CELL_VOLTAGE_AVG, m_can_interface);
           cmdState = CELL_VOLTAGE_CELLNO;
           current_cell_polled = 0;
 
@@ -753,17 +452,11 @@ void BMWi3Battery::transmit_can() {
             cmdState = CELL_VOLTAGE_CELLNO;
 
             BMW_6F4_CELL_VOLTAGE_CELLNO.data.u8[6] = current_cell_polled;
-            transmit_can_frame(&BMW_6F4_CELL_VOLTAGE_CELLNO, can_config.battery);
-#ifdef DOUBLE_BATTERY
-            transmit_can_frame(&BMW_6F4_CELL_VOLTAGE_CELLNO, can_config.battery_double);
-#endif
+            transmit_can_frame(&BMW_6F4_CELL_VOLTAGE_CELLNO, m_can_interface);
           }
           break;
         case CELL_VOLTAGE_CELLNO_LAST:
-          transmit_can_frame(&BMW_6F1_SOC, can_config.battery);
-#ifdef DOUBLE_BATTERY
-          transmit_can_frame(&BMW_6F1_SOC, can_config.battery_double);
-#endif
+          transmit_can_frame(&BMW_6F1_SOC, m_can_interface);
           cmdState = SOC;
           break;
       }
@@ -775,26 +468,16 @@ void BMWi3Battery::transmit_can() {
       BMW_3FC.data.u8[1] = ((BMW_3FC.data.u8[1] & 0xF0) + alive_counter_5000ms);
       BMW_3C5.data.u8[0] = ((BMW_3C5.data.u8[0] & 0xF0) + alive_counter_5000ms);
 
-      transmit_can_frame(&BMW_3FC, can_config.battery);  //Order comes from CAN logs
-      transmit_can_frame(&BMW_3C5, can_config.battery);
-      transmit_can_frame(&BMW_3A0, can_config.battery);
-      transmit_can_frame(&BMW_592_0, can_config.battery);
-      transmit_can_frame(&BMW_592_1, can_config.battery);
-#ifdef DOUBLE_BATTERY
-      transmit_can_frame(&BMW_3FC, can_config.battery_double);
-      transmit_can_frame(&BMW_3C5, can_config.battery_double);
-      transmit_can_frame(&BMW_3A0, can_config.battery_double);
-      transmit_can_frame(&BMW_592_0, can_config.battery_double);
-      transmit_can_frame(&BMW_592_1, can_config.battery_double);
-#endif
+      transmit_can_frame(&BMW_3FC, m_can_interface);  //Order comes from CAN logs
+      transmit_can_frame(&BMW_3C5, m_can_interface);
+      transmit_can_frame(&BMW_3A0, m_can_interface);
+      transmit_can_frame(&BMW_592_0, m_can_interface);
+      transmit_can_frame(&BMW_592_1, m_can_interface);
 
       alive_counter_5000ms = increment_alive_counter(alive_counter_5000ms);
 
       if (BMW_380_counter < 3) {
-        transmit_can_frame(&BMW_380, can_config.battery);  // This message stops after 3 times on startup
-#ifdef DOUBLE_BATTERY
-        transmit_can_frame(&BMW_380, can_config.battery_double);
-#endif
+        transmit_can_frame(&BMW_380, m_can_interface);  // This message stops after 3 times on startup
         BMW_380_counter++;
       }
     }
@@ -802,14 +485,9 @@ void BMWi3Battery::transmit_can() {
     if (currentMillis - previousMillis10000 >= INTERVAL_10_S) {
       previousMillis10000 = currentMillis;
 
-      transmit_can_frame(&BMW_3E5, can_config.battery);  //Order comes from CAN logs
-      transmit_can_frame(&BMW_3E4, can_config.battery);
-      transmit_can_frame(&BMW_37B, can_config.battery);
-#ifdef DOUBLE_BATTERY
-      transmit_can_frame(&BMW_3E5, can_config.battery_double);
-      transmit_can_frame(&BMW_3E4, can_config.battery_double);
-      transmit_can_frame(&BMW_37B, can_config.battery_double);
-#endif
+      transmit_can_frame(&BMW_3E5, m_can_interface);  //Order comes from CAN logs
+      transmit_can_frame(&BMW_3E4, m_can_interface);
+      transmit_can_frame(&BMW_37B, m_can_interface);
 
       BMW_3E5.data.u8[0] = 0xFD;  // First 3E5 message byte0 we send is unique, once we sent initial value send this
     }
@@ -827,25 +505,14 @@ void BMWi3Battery::transmit_can() {
 
 void BMWi3Battery::setup(void) {  // Performs one time setup at startup
   //Before we have started up and detected which battery is in use, use 60AH values
-  datalayer.battery.info.max_design_voltage_dV = MAX_PACK_VOLTAGE_60AH;
-  datalayer.battery.info.min_design_voltage_dV = MIN_PACK_VOLTAGE_60AH;
-  datalayer.battery.info.max_cell_voltage_deviation_mV = MAX_CELL_DEVIATION_MV;
-  datalayer.system.status.battery_allows_contactor_closing = true;
-  datalayer.battery.info.number_of_cells = NUMBER_OF_CELLS;
-#ifdef DOUBLE_BATTERY
-  datalayer.battery2.info.max_design_voltage_dV = datalayer.battery.info.max_design_voltage_dV;
-  datalayer.battery2.info.min_design_voltage_dV = datalayer.battery.info.min_design_voltage_dV;
-  datalayer.battery2.info.max_cell_voltage_deviation_mV = datalayer.battery.info.max_cell_voltage_deviation_mV;
-  datalayer.battery2.status.voltage_dV =
-      0;  //Init voltage to 0 to allow contactor check to operate without fear of default values colliding
-  datalayer.battery2.info.number_of_cells = NUMBER_OF_CELLS;
-#endif
-  pinMode(WUP_PIN1, OUTPUT);
-  digitalWrite(WUP_PIN1, HIGH);  // Wake up the battery
-#if defined(DOUBLE_BATTERY) && defined(WUP_PIN2)
-  pinMode(WUP_PIN2, OUTPUT);
-  digitalWrite(WUP_PIN2, HIGH);  // Wake up the battery
-#endif                           // defined(WUP_PIN2) &&  defined (DOUBLE_BATTERY)
+  m_target->info.max_design_voltage_dV = MAX_PACK_VOLTAGE_60AH;
+  m_target->info.min_design_voltage_dV = MIN_PACK_VOLTAGE_60AH;
+  m_target->info.max_cell_voltage_deviation_mV = MAX_CELL_DEVIATION_MV;
+  m_target->info.number_of_cells = NUMBER_OF_CELLS;
+  allow_contactor_closing();
+
+  pinMode(m_wakeup_pin, OUTPUT);
+  digitalWrite(m_wakeup_pin, HIGH);  // Wake up the battery
 }
 
 #endif

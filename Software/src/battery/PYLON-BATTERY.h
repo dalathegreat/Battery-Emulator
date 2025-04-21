@@ -1,6 +1,7 @@
 #ifndef PYLON_BATTERY_H
 #define PYLON_BATTERY_H
 #include <Arduino.h>
+#include "../datalayer/datalayer.h"
 #include "../include.h"
 
 #define BATTERY_SELECTED
@@ -14,9 +15,13 @@
 
 class PylonBattery : public CanBattery {
  public:
-  PylonBattery() : CanBattery(Pylon) {}
+  PylonBattery(DATALAYER_BATTERY_TYPE* target, CAN_Interface can_interface) : CanBattery(Pylon) {
+    m_target = target;
+    m_can_interface = can_interface;
+  }
   virtual const char* name() { return Name; };
   static constexpr char* Name = "Pylon compatible battery";
+  virtual bool supportsDoubleBattery() { return true; };
 
   virtual void setup();
   virtual void update_values();
@@ -24,6 +29,9 @@ class PylonBattery : public CanBattery {
   virtual void transmit_can();
 
  private:
+  DATALAYER_BATTERY_TYPE* m_target;
+  CAN_Interface m_can_interface;
+
   int16_t celltemperature_max_dC = 0;
   int16_t celltemperature_min_dC = 0;
   int16_t current_dA = 0;
