@@ -23,7 +23,6 @@ https://github.com/fesch/CanZE/tree/master/app/src/main/assets/ZOE_Ph2
 /*
 
 /* Do not change code below unless you are sure what you are doing */
-static bool nvrol_reset_flag = false;
 static uint16_t battery_soc = 0;
 static uint16_t battery_usable_soc = 5000;
 static uint16_t battery_soh = 10000;
@@ -373,9 +372,11 @@ void handle_incoming_can_frame_battery(CAN_frame rx_frame) {
 }
 
 void transmit_can_battery(unsigned long currentMillis) {
-  if (nvrol_reset_flag) {
+  if (datalayer_extended.zoePH2.UserRequestNVROLReset) {
     // Send NVROL reset frames
     transmit_reset_nvrol_frames();
+    // after transmitting the NVROL reset frames, set the nvrol reset flag to false, to continue normal operation
+    datalayer_extended.zoePH2.UserRequestNVROLReset = false;
   } else {
     // Send 100ms CAN Message
     if (currentMillis - previousMillis100 >= INTERVAL_100_MS) {
@@ -449,9 +450,6 @@ void transmit_reset_nvrol_frames(void) {
 
   // after transmitting these frames, wait 30 s
   wait_ms(30000);
-
-  // after waiting, set the nvrol reset flag to false, to continue normal operation
-  nvrol_reset_flag = false;
 }
 
 void wait_ms(int duration_ms) {
