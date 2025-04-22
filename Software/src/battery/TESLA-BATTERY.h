@@ -495,7 +495,7 @@ class Tesla3YBattery : public TeslaBattery {
   virtual void setup();
 
   virtual const char* name() { return Name; };
-  static constexpr char* Name = "Tesla Model 3/Y";
+  static constexpr const char* Name = "Tesla Model 3/Y";
 
  protected:
   virtual void detect_chemistry();
@@ -507,7 +507,7 @@ class TeslaSXBattery : public TeslaBattery {
   virtual void setup();
 
   virtual const char* name() { return Name; };
-  static constexpr char* Name = "Tesla Model S/X";
+  static constexpr const char* Name = "Tesla Model S/X";
 
  protected:
   virtual void model_specific_transmit_can();

@@ -3,11 +3,6 @@
 #include "../include.h"
 
 #define BATTERY_SELECTED
-#define MAX_PACK_VOLTAGE_DV 4100  //5000 = 500.0V
-#define MIN_PACK_VOLTAGE_DV 3000
-#define MAX_CELL_DEVIATION_MV 150
-#define MAX_CELL_VOLTAGE_MV 4250  //Battery is put into emergency stop if one cell goes over this value
-#define MIN_CELL_VOLTAGE_MV 2700  //Battery is put into emergency stop if one cell goes below this value
 
 #define POLL_SOC 0x9001
 #define POLL_USABLE_SOC 0x9002
@@ -55,11 +50,17 @@ class RenaultZoeGen2Battery : public CanBattery {
  public:
   RenaultZoeGen2Battery() : CanBattery(RenaultZoeGen2) {}
   virtual const char* name() { return Name; };
-  static constexpr char* Name = "Renault Zoe Gen2 50kWh";
+  static constexpr const char* Name = "Renault Zoe Gen2 50kWh";
   virtual void setup();
   virtual void update_values();
   virtual void handle_incoming_can_frame(CAN_frame rx_frame);
   virtual void transmit_can();
+
+  virtual uint16_t max_pack_voltage_dv() { return 4100; }
+  virtual uint16_t min_pack_voltage_dv() { return 3000; }
+  virtual uint16_t max_cell_deviation_mv() { return 150; }
+  virtual uint16_t max_cell_voltage_mv() { return 4250; }
+  virtual uint16_t min_cell_voltage_mv() { return 2700; }
 
  private:
   uint16_t battery_soc = 0;

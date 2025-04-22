@@ -15,15 +15,9 @@
 
 /* Do not modify the rows below */
 #define BATTERY_SELECTED
-#define CELLCOUNT_EXTENDED 126
-#define CELLCOUNT_STANDARD 104
-#define MAX_PACK_VOLTAGE_EXTENDED_DV 4410  //Extended range
-#define MIN_PACK_VOLTAGE_EXTENDED_DV 3800  //Extended range
-#define MAX_PACK_VOLTAGE_STANDARD_DV 3640  //Standard range
-#define MIN_PACK_VOLTAGE_STANDARD_DV 3136  //Standard range
-#define MAX_CELL_DEVIATION_MV 150
-#define MAX_CELL_VOLTAGE_MV 3800  //Battery is put into emergency stop if one cell goes over this value
-#define MIN_CELL_VOLTAGE_MV 2800  //Battery is put into emergency stop if one cell goes below this value
+#define NOT_DETERMINED_YET 0
+#define STANDARD_RANGE 1
+#define EXTENDED_RANGE 2
 
 class BydAtto3Battery : public CanBattery {
  public:
@@ -32,20 +26,48 @@ class BydAtto3Battery : public CanBattery {
     m_can_interface = can_interface;
   }
   virtual const char* name() { return Name; };
-  static constexpr char* Name = "BYD Atto 3";
+  static constexpr const char* Name = "BYD Atto 3";
 
   virtual void setup();
   virtual void update_values();
   virtual void handle_incoming_can_frame(CAN_frame rx_frame);
   virtual void transmit_can();
 
+  virtual uint16_t max_pack_voltage_dv() { 
+    if (battery_type == STANDARD_RANGE) {
+      return 3640;
+    } else if (battery_type == EXTENDED_RANGE) {
+      return 4410;
+    } else {
+      return 0;
+    }
+  };
+  virtual uint16_t min_pack_voltage_dv() { 
+    if (battery_type == STANDARD_RANGE) {
+      return 3136;
+    } else if (battery_type == EXTENDED_RANGE) {
+      return 3800;
+    } else {
+      return 0;
+    }
+  };
+  virtual uint16_t max_cell_deviation_mv() { return 150; }
+  virtual uint16_t max_cell_voltage_mv() { return 3800; }
+  virtual uint16_t min_cell_voltage_mv() { return 2800; }
+  virtual uint8_t number_of_cells() { 
+    if (battery_type == STANDARD_RANGE) {
+      return 104;
+    } else if (battery_type == EXTENDED_RANGE) {
+      return 126;
+    } else {
+      return 0;
+    }
+  }
+
  private:
   DATALAYER_BATTERY_TYPE* m_target;
   CAN_Interface m_can_interface;
 
-#define NOT_DETERMINED_YET 0
-#define STANDARD_RANGE 1
-#define EXTENDED_RANGE 2
   uint8_t battery_type = NOT_DETERMINED_YET;
   unsigned long previousMillis50 = 0;   // will store last time a 50ms CAN Message was send
   unsigned long previousMillis100 = 0;  // will store last time a 100ms CAN Message was send

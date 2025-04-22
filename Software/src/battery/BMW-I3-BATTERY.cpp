@@ -77,22 +77,10 @@ void BMWi3Battery::update_values() {  //This function maps all the values fetche
 
   if (battery_info_available) {
     // Start checking safeties. First up, cellvoltages!
-    if (detectedBattery == BATTERY_60AH) {
-      m_target->info.max_design_voltage_dV = MAX_PACK_VOLTAGE_60AH;
-      m_target->info.min_design_voltage_dV = MIN_PACK_VOLTAGE_60AH;
-      m_target->info.max_cell_voltage_mV = MAX_CELL_VOLTAGE_60AH;
-      m_target->info.min_cell_voltage_mV = MIN_CELL_VOLTAGE_60AH;
-    } else if (detectedBattery == BATTERY_94AH) {
-      m_target->info.max_design_voltage_dV = MAX_PACK_VOLTAGE_94AH;
-      m_target->info.min_design_voltage_dV = MIN_PACK_VOLTAGE_94AH;
-      m_target->info.max_cell_voltage_mV = MAX_CELL_VOLTAGE_94AH;
-      m_target->info.min_cell_voltage_mV = MIN_CELL_VOLTAGE_94AH;
-    } else {  // BATTERY_120AH
-      m_target->info.max_design_voltage_dV = MAX_PACK_VOLTAGE_120AH;
-      m_target->info.min_design_voltage_dV = MIN_PACK_VOLTAGE_120AH;
-      m_target->info.max_cell_voltage_mV = MAX_CELL_VOLTAGE_120AH;
-      m_target->info.min_cell_voltage_mV = MIN_CELL_VOLTAGE_120AH;
-    }
+    m_target->info.max_design_voltage_dV = max_pack_voltage_dv();
+    m_target->info.min_design_voltage_dV = min_pack_voltage_dv();
+    m_target->info.max_cell_voltage_mV = max_cell_deviation_mv();
+    m_target->info.min_cell_voltage_mV = min_cell_voltage_mv();;
   }
 
   // Perform other safety checks
@@ -505,10 +493,10 @@ void BMWi3Battery::transmit_can() {
 
 void BMWi3Battery::setup(void) {  // Performs one time setup at startup
   //Before we have started up and detected which battery is in use, use 60AH values
-  m_target->info.max_design_voltage_dV = MAX_PACK_VOLTAGE_60AH;
-  m_target->info.min_design_voltage_dV = MIN_PACK_VOLTAGE_60AH;
-  m_target->info.max_cell_voltage_deviation_mV = MAX_CELL_DEVIATION_MV;
-  m_target->info.number_of_cells = NUMBER_OF_CELLS;
+  m_target->info.max_design_voltage_dV = max_pack_voltage_dv();
+  m_target->info.min_design_voltage_dV = min_pack_voltage_dv();
+  m_target->info.max_cell_voltage_deviation_mV = max_cell_deviation_mv();
+  m_target->info.number_of_cells = number_of_cells();
   allow_contactor_closing();
 
   pinMode(m_wakeup_pin, OUTPUT);

@@ -93,7 +93,7 @@ void BydAtto3Battery::
   m_target->status.cell_min_voltage_mV = BMS_lowest_cell_voltage_mV;
 
   //Map all cell voltages to the global array
-  memcpy(m_target->status.cell_voltages_mV, battery_cellvoltages, CELLCOUNT_EXTENDED * sizeof(uint16_t));
+  memcpy(m_target->status.cell_voltages_mV, battery_cellvoltages, number_of_cells() * sizeof(uint16_t));
 
   // Check if we are on Standard range or Extended range battery.
   // We use a variety of checks to ensure we catch a potential Standard range battery
@@ -110,18 +110,15 @@ void BydAtto3Battery::
     battery_type = STANDARD_RANGE;  //Sensor 9 is missing on Standard range
   }
 
+  m_target->info.number_of_cells = number_of_cells();
+  m_target->info.max_design_voltage_dV = max_pack_voltage_dv();
+  m_target->info.min_design_voltage_dV = min_pack_voltage_dv();
   switch (battery_type) {
     case STANDARD_RANGE:
       m_target->info.total_capacity_Wh = 50000;
-      m_target->info.number_of_cells = CELLCOUNT_STANDARD;
-      m_target->info.max_design_voltage_dV = MAX_PACK_VOLTAGE_STANDARD_DV;
-      m_target->info.min_design_voltage_dV = MIN_PACK_VOLTAGE_STANDARD_DV;
       break;
     case EXTENDED_RANGE:
       m_target->info.total_capacity_Wh = 60000;
-      m_target->info.number_of_cells = CELLCOUNT_EXTENDED;
-      m_target->info.max_design_voltage_dV = MAX_PACK_VOLTAGE_EXTENDED_DV;
-      m_target->info.min_design_voltage_dV = MIN_PACK_VOLTAGE_EXTENDED_DV;
       break;
     case NOT_DETERMINED_YET:
     default:
@@ -251,7 +248,7 @@ void BydAtto3Battery::handle_incoming_can_frame(CAN_frame rx_frame) {
       m_target->status.CAN_battery_still_alive = CAN_STILL_ALIVE;
       battery_frame_index = rx_frame.data.u8[0];
 
-      if (battery_frame_index < (CELLCOUNT_EXTENDED / 3)) {
+      if (battery_frame_index < (number_of_cells() / 3)) {
         uint8_t base_index = battery_frame_index * 3;
         for (uint8_t i = 0; i < 3; i++) {
           battery_cellvoltages[base_index + i] =
@@ -426,11 +423,11 @@ void BydAtto3Battery::transmit_can() {
 
 void BydAtto3Battery::setup(void) {  // Performs one time setup at startup
   m_target->info.chemistry = battery_chemistry_enum::LFP;
-  m_target->info.max_design_voltage_dV = MAX_PACK_VOLTAGE_EXTENDED_DV;  //Startup in extremes
-  m_target->info.min_design_voltage_dV = MIN_PACK_VOLTAGE_STANDARD_DV;  //We later determine range
-  m_target->info.max_cell_voltage_mV = MAX_CELL_VOLTAGE_MV;
-  m_target->info.min_cell_voltage_mV = MIN_CELL_VOLTAGE_MV;
-  m_target->info.max_cell_voltage_deviation_mV = MAX_CELL_DEVIATION_MV;
+  m_target->info.max_design_voltage_dV = max_pack_voltage_dv();  //Startup in extremes
+  m_target->info.min_design_voltage_dV = min_pack_voltage_dv();  //We later determine range
+  m_target->info.max_cell_voltage_mV = max_cell_deviation_mv();
+  m_target->info.min_cell_voltage_mV = min_cell_voltage_mv();
+  m_target->info.max_cell_voltage_deviation_mV = max_cell_deviation_mv();
 }
 
 #endif

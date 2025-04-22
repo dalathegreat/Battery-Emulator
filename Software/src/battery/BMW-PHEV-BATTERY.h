@@ -5,11 +5,6 @@
 
 #define BATTERY_SELECTED
 
-#define MAX_PACK_VOLTAGE_DV 4650  //4650 = 465.0V
-#define MIN_PACK_VOLTAGE_DV 3000
-#define MAX_CELL_DEVIATION_MV 250
-#define MAX_CELL_VOLTAGE_MV 4300  //Battery is put into emergency stop if one cell goes over this value
-#define MIN_CELL_VOLTAGE_MV 2800  //Battery is put into emergency stop if one cell goes below this value
 #define MAX_DISCHARGE_POWER_ALLOWED_W 10000
 #define MAX_CHARGE_POWER_ALLOWED_W 10000
 #define MAX_CHARGE_POWER_WHEN_TOPBALANCING_W 500
@@ -22,12 +17,18 @@ class BMWPhevBattery : public CanBattery {
   BMWPhevBattery() : CanBattery(BMWPhev) {}
 
   virtual const char* name() { return Name; };
-  static constexpr char* Name = "BMW PHEV Battery";
+  static constexpr const char* Name = "BMW PHEV Battery";
 
   virtual void setup();
   virtual void update_values();
   virtual void handle_incoming_can_frame(CAN_frame rx_frame);
   virtual void transmit_can();
+
+  virtual u16_t min_cell_voltage_mv() { return 2800; }
+  virtual u16_t max_cell_voltage_mv() { return 4300; }
+  virtual u16_t min_pack_voltage_dv() { return 3000; }
+  virtual u16_t max_pack_voltage_dv() { return 4650; }
+  virtual u16_t max_cell_deviation_mv() { return 250; }
 
  private:
   void startUDSMultiFrameReception(uint16_t totalLength, uint8_t moduleID);

@@ -4,21 +4,22 @@
 #include "../include.h"
 
 #define BATTERY_SELECTED
-#define MAX_PACK_VOLTAGE_DV 3696  //5000 = 500.0V
-#define MIN_PACK_VOLTAGE_DV 3160
-#define MAX_CELL_DEVIATION_MV 250
-#define MAX_CELL_VOLTAGE_MV 4150  //Battery is put into emergency stop if one cell goes over this value
-#define MIN_CELL_VOLTAGE_MV 2750  //Battery is put into emergency stop if one cell goes below this value
 
 class ImievCzeroIonBattery : public CanBattery {
  public:
   ImievCzeroIonBattery() : CanBattery(ImievCzeroIon) {}
   virtual const char* name() { return Name; };
-  static constexpr char* Name = "I-Miev / C-Zero / Ion Triplet";
+  static constexpr const char* Name = "I-Miev / C-Zero / Ion Triplet";
   virtual void setup();
   virtual void update_values();
   virtual void handle_incoming_can_frame(CAN_frame rx_frame);
   virtual void transmit_can();
+
+  virtual uint16_t max_pack_voltage_dv() { return 3696; }
+  virtual uint16_t min_pack_voltage_dv() { return 3160; }
+  virtual uint16_t max_cell_deviation_mv() { return 250; }
+  virtual uint16_t max_cell_voltage_mv() { return 4150; }
+  virtual uint16_t min_cell_voltage_mv() { return 2750; }
 
  private:
   uint8_t errorCode = 0;  //stores if we have an error code active from battery control logic

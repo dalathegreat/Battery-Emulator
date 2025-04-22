@@ -11,7 +11,7 @@ class FoxessCanInverter : public InverterProtocol {
   virtual void map_can_frame_to_variable_inverter(CAN_frame rx_frame);
 
   virtual const char* name() { return Name; };
-  static constexpr char* Name = "FoxESS compatible HV2600/ECS4100 battery";
+  static constexpr const char* Name = "FoxESS compatible HV2600/ECS4100 battery";
 
  private:
   int16_t temperature_average = 0;

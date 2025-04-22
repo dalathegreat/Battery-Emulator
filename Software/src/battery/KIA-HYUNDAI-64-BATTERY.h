@@ -22,7 +22,7 @@ class KiaHyundai64Battery : public CanBattery {
     m_can_interface = can_interface;
   }
   virtual const char* name() { return Name; };
-  static constexpr char* Name = "Kia/Hyundai 64/40kWh battery";
+  static constexpr const char* Name = "Kia/Hyundai 64/40kWh battery";
   virtual bool supportsDoubleBattery() { return true; };
 
   virtual void setup();

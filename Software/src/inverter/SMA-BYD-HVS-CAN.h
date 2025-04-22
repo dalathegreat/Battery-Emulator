@@ -15,7 +15,7 @@ class SmaBydHvsCanInverter : public InverterProtocol {
   virtual void map_can_frame_to_variable_inverter(CAN_frame rx_frame);
 
   virtual const char* name() { return Name; };
-  static constexpr char* Name = "BYD Battery-Box HVS over SMA CAN";
+  static constexpr const char* Name = "BYD Battery-Box HVS over SMA CAN";
 };
 
 #endif

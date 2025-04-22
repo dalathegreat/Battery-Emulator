@@ -7,21 +7,6 @@
 
 #define BATTERY_SELECTED
 
-#define MAX_CELL_VOLTAGE_60AH 4110   // Battery is put into emergency stop if one cell goes over this value
-#define MIN_CELL_VOLTAGE_60AH 2700   // Battery is put into emergency stop if one cell goes below this value
-#define MAX_CELL_VOLTAGE_94AH 4140   // Battery is put into emergency stop if one cell goes over this value
-#define MIN_CELL_VOLTAGE_94AH 2700   // Battery is put into emergency stop if one cell goes below this value
-#define MAX_CELL_VOLTAGE_120AH 4190  // Battery is put into emergency stop if one cell goes over this value
-#define MIN_CELL_VOLTAGE_120AH 2790  // Battery is put into emergency stop if one cell goes below this value
-#define MAX_CELL_DEVIATION_MV 250    // LED turns yellow on the board if mv delta exceeds this value
-#define MAX_PACK_VOLTAGE_60AH 3950   // Charge stops if pack voltage exceeds this value
-#define MIN_PACK_VOLTAGE_60AH 2590   // Discharge stops if pack voltage exceeds this value
-#define MAX_PACK_VOLTAGE_94AH 3980   // Charge stops if pack voltage exceeds this value
-#define MIN_PACK_VOLTAGE_94AH 2590   // Discharge stops if pack voltage exceeds this value
-#define MAX_PACK_VOLTAGE_120AH 4030  // Charge stops if pack voltage exceeds this value
-#define MIN_PACK_VOLTAGE_120AH 2680  // Discharge stops if pack voltage exceeds this value
-#define NUMBER_OF_CELLS 96
-
 class BMWi3Battery : public CanBattery {
  public:
   BMWi3Battery(DATALAYER_BATTERY_TYPE* target, CAN_Interface can_interface, int wakeup_pin) : CanBattery(BMWi3) {
@@ -31,13 +16,56 @@ class BMWi3Battery : public CanBattery {
   }
 
   virtual const char* name() { return Name; };
-  static constexpr char* Name = "BMW i3";
+  static constexpr const char* Name = "BMW i3";
 
   virtual bool supportsDoubleBattery() { return true; };
   virtual void setup();
   virtual void update_values();
   virtual void handle_incoming_can_frame(CAN_frame rx_frame);
   virtual void transmit_can();
+
+  virtual uint16_t max_cell_voltage_mv() { 
+    if (detectedBattery == BATTERY_60AH) {
+      return 4110;
+    } else if (detectedBattery == BATTERY_94AH) {
+      return 4140;
+    } else if (detectedBattery == BATTERY_120AH) {
+      return 4190;
+    }
+    return 0;
+  };
+  virtual uint16_t min_cell_voltage_mv() { 
+    if (detectedBattery == BATTERY_60AH) {
+      return 2700;
+    } else if (detectedBattery == BATTERY_94AH) {
+      return 2700;
+    } else if (detectedBattery == BATTERY_120AH) {
+      return 2790;
+    }
+    return 0;
+  };
+  virtual uint16_t max_pack_voltage_dv() { 
+    if (detectedBattery == BATTERY_60AH) {
+      return 3950;
+    } else if (detectedBattery == BATTERY_94AH) {
+      return 3980;
+    } else if (detectedBattery == BATTERY_120AH) {
+      return 4030;
+    }
+    return 0;
+  };
+  virtual uint16_t min_pack_voltage_dv() { 
+    if (detectedBattery == BATTERY_60AH) {
+      return 2590;
+    } else if (detectedBattery == BATTERY_94AH) {
+      return 2590;
+    } else if (detectedBattery == BATTERY_120AH) {
+      return 2680;
+    }
+    return 0;
+  };
+  virtual uint16_t max_cell_deviation_mv() { return 250; };
+  virtual uint8_t number_of_cells() { return 96; };
 
  private:
   DATALAYER_BATTERY_TYPE* m_target;

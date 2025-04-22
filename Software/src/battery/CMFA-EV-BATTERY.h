@@ -3,11 +3,6 @@
 #include "../include.h"
 
 #define BATTERY_SELECTED
-#define MAX_PACK_VOLTAGE_DV 3040  //5000 = 500.0V
-#define MIN_PACK_VOLTAGE_DV 2185
-#define MAX_CELL_DEVIATION_MV 100
-#define MAX_CELL_VOLTAGE_MV 4250  //Battery is put into emergency stop if one cell goes over this value
-#define MIN_CELL_VOLTAGE_MV 2700  //Battery is put into emergency stop if one cell goes below this value
 
 // OBD2 PID polls. Some of these have been reverse engineered, but there are many unknown values still
 #define PID_POLL_SOCZ 0x9001  //122 in log
@@ -156,11 +151,17 @@ class CmfaEvBattery : public CanBattery {
  public:
   CmfaEvBattery() : CanBattery(CmfaEv) {}
   virtual const char* name() { return Name; };
-  static constexpr char* Name = "CMFA platform, 27 kWh battery";
+  static constexpr const char* Name = "CMFA platform, 27 kWh battery";
   virtual void setup();
   virtual void update_values();
   virtual void handle_incoming_can_frame(CAN_frame rx_frame);
   virtual void transmit_can();
+
+  virtual uint16_t max_pack_voltage_dv() { return 3040; }
+  virtual uint16_t min_pack_voltage_dv() { return 2185; }
+  virtual uint16_t max_cell_deviation_mv() { return 100; }
+  virtual uint16_t max_cell_voltage_mv() { return 4250; }
+  virtual uint16_t min_cell_voltage_mv() { return 2700; }
 };
 
 #endif

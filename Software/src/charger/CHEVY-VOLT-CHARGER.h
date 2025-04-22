@@ -21,7 +21,7 @@ class ChevyVoltCharger : public Charger {
   virtual void map_can_frame_to_variable_charger(CAN_frame rx_frame);
   virtual void transmit_can();
   virtual const char* name() { return Name; };
-  static constexpr char* Name = "Chevy Volt Gen1 Charger";
+  static constexpr const char* Name = "Chevy Volt Gen1 Charger";
 };
 
 #endif

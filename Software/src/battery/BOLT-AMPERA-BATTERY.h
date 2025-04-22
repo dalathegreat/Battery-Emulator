@@ -5,12 +5,6 @@
 
 #define BATTERY_SELECTED
 
-#define MAX_PACK_VOLTAGE_DV 4150  //5000 = 500.0V
-#define MIN_PACK_VOLTAGE_DV 2500
-#define MAX_CELL_DEVIATION_MV 150
-#define MAX_CELL_VOLTAGE_MV 4250  //Battery is put into emergency stop if one cell goes over this value
-#define MIN_CELL_VOLTAGE_MV 2700  //Battery is put into emergency stop if one cell goes below this value
-
 #define POLL_7E4_CAPACITY_EST_GEN1 0x41A3
 #define POLL_7E4_CAPACITY_EST_GEN2 0x45F9
 #define POLL_7E4_SOC_DISPLAY 0x8334
@@ -180,12 +174,18 @@ class BoltAmperaBattery : public CanBattery {
  public:
   BoltAmperaBattery() : CanBattery(BoltAmpera) {}
   virtual const char* name() { return Name; };
-  static constexpr char* Name = "Chevrolet Bolt EV/Opel Ampera-e";
+  static constexpr const char* Name = "Chevrolet Bolt EV/Opel Ampera-e";
 
   virtual void setup();
   virtual void update_values();
   virtual void handle_incoming_can_frame(CAN_frame rx_frame);
   virtual void transmit_can();
+
+  virtual uint16_t max_pack_voltage_dv() { return 4150; }
+  virtual uint16_t min_pack_voltage_dv() { return 2500; }
+  virtual uint16_t max_cell_deviation_mv() { return 150; }
+  virtual uint16_t max_cell_voltage_mv() { return 4250; }
+  virtual uint16_t min_cell_voltage_mv() { return 2700; }
 
  private:
   /*TODO, messages we might need to send towards the battery to keep it happy and close contactors

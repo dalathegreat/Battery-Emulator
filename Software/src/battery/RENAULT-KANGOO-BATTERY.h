@@ -4,11 +4,6 @@
 #include "../include.h"
 
 #define BATTERY_SELECTED
-#define MAX_PACK_VOLTAGE_DV 4150  //5000 = 500.0V
-#define MIN_PACK_VOLTAGE_DV 2500
-#define MAX_CELL_DEVIATION_MV 150
-#define MAX_CELL_VOLTAGE_MV 4250  //Battery is put into emergency stop if one cell goes over this value
-#define MIN_CELL_VOLTAGE_MV 2700  //Battery is put into emergency stop if one cell goes below this value
 #define MAX_CHARGE_POWER_W 5000   // Battery can be charged with this amount of power
 
 class RenaultKangooBattery : public CanBattery {
@@ -16,12 +11,18 @@ class RenaultKangooBattery : public CanBattery {
   RenaultKangooBattery() : CanBattery(RenaultKangoo) {}
 
   virtual const char* name() { return Name; };
-  static constexpr char* Name = "Renault Kangoo";
+  static constexpr const char* Name = "Renault Kangoo";
 
   virtual void setup();
   virtual void update_values();
   virtual void handle_incoming_can_frame(CAN_frame rx_frame);
   virtual void transmit_can();
+
+  virtual uint16_t max_pack_voltage_dv() { return 4150; }
+  virtual uint16_t min_pack_voltage_dv() { return 2500; }
+  virtual uint16_t max_cell_deviation_mv() { return 150; }
+  virtual uint16_t max_cell_voltage_mv() { return 4250; }
+  virtual uint16_t min_cell_voltage_mv() { return 2700; }
 
  private:
   uint32_t LB_Battery_Voltage = 3700;

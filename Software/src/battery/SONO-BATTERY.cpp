@@ -33,8 +33,7 @@ CAN_frame SONO_401 = {.FD = false,  //Message of Vehicle Date, 1000ms
                       .ID = 0x400,
                       .data = {0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00}};
 
-static void
-update_values_battery() {  //This function maps all the values fetched via CAN to the correct parameters used for modbus
+void SonoBattery::update_values() {  //This function maps all the values fetched via CAN to the correct parameters used for modbus
 
   datalayer.battery.status.real_soc = (realSOC * 100);  //increase SOC range from 0-100 -> 100.00
 
@@ -62,7 +61,7 @@ update_values_battery() {  //This function maps all the values fetched via CAN t
   datalayer.battery.status.temperature_max_dC = temperatureMax;
 }
 
-static void handle_incoming_can_frame_battery(CAN_frame rx_frame) {
+void SonoBattery::handle_incoming_can_frame(CAN_frame rx_frame) {
   switch (rx_frame.ID) {
     case 0x100:
       datalayer.battery.status.CAN_battery_still_alive = CAN_STILL_ALIVE;
@@ -139,7 +138,7 @@ static void handle_incoming_can_frame_battery(CAN_frame rx_frame) {
       break;
   }
 }
-static void transmit_can_battery() {
+void SonoBattery::transmit_can() {
   unsigned long currentMillis = millis();
 
   // Send 100ms CAN Message
@@ -170,13 +169,13 @@ static void transmit_can_battery() {
   }
 }
 
-static void setup_battery(void) {  // Performs one time setup at startup
+void SonoBattery::setup(void) {  // Performs one time setup at startup
   datalayer.battery.info.number_of_cells = 96;
-  datalayer.battery.info.max_design_voltage_dV = MAX_PACK_VOLTAGE_DV;
-  datalayer.battery.info.min_design_voltage_dV = MIN_PACK_VOLTAGE_DV;
-  datalayer.battery.info.max_cell_voltage_mV = MAX_CELL_VOLTAGE_MV;
-  datalayer.battery.info.min_cell_voltage_mV = MIN_CELL_VOLTAGE_MV;
-  datalayer.battery.info.max_cell_voltage_deviation_mV = MAX_CELL_DEVIATION_MV;
+  datalayer.battery.info.max_design_voltage_dV = max_pack_voltage_dv();
+  datalayer.battery.info.min_design_voltage_dV = min_pack_voltage_dv();
+  datalayer.battery.info.max_cell_voltage_mV = max_cell_voltage_mv();
+  datalayer.battery.info.min_cell_voltage_mV = min_cell_voltage_mv();
+  datalayer.battery.info.max_cell_voltage_deviation_mV = max_cell_deviation_mv();
   datalayer.battery.info.chemistry = battery_chemistry_enum::LFP;
 }
 

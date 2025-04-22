@@ -15,7 +15,7 @@ class KostalRs485Inverter : public InverterProtocol {
  public:
   virtual void setup();
   virtual const char* name() { return Name; };
-  static constexpr char* Name = "BYD battery via Kostal RS485";
+  static constexpr const char* Name = "BYD battery via Kostal RS485";
 
   virtual void receive_RS485();
   virtual void update_RS485_registers_inverter();

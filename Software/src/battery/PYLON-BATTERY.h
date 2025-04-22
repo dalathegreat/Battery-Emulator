@@ -7,11 +7,6 @@
 #define BATTERY_SELECTED
 
 /* Change the following to suit your battery */
-#define MAX_PACK_VOLTAGE_DV 5000  //5000 = 500.0V
-#define MIN_PACK_VOLTAGE_DV 1500
-#define MAX_CELL_VOLTAGE_MV 4250  //Battery is put into emergency stop if one cell goes over this value
-#define MIN_CELL_VOLTAGE_MV 2700  //Battery is put into emergency stop if one cell goes below this value
-#define MAX_CELL_DEVIATION_MV 150
 
 class PylonBattery : public CanBattery {
  public:
@@ -20,13 +15,19 @@ class PylonBattery : public CanBattery {
     m_can_interface = can_interface;
   }
   virtual const char* name() { return Name; };
-  static constexpr char* Name = "Pylon compatible battery";
+  static constexpr const char* Name = "Pylon compatible battery";
   virtual bool supportsDoubleBattery() { return true; };
 
   virtual void setup();
   virtual void update_values();
   virtual void handle_incoming_can_frame(CAN_frame rx_frame);
   virtual void transmit_can();
+
+  virtual uint16_t max_pack_voltage_dv() { return 5000; }
+  virtual uint16_t min_pack_voltage_dv() { return 1500; }
+  virtual uint16_t max_cell_deviation_mv() { return 150; }
+  virtual uint16_t max_cell_voltage_mv() { return 4250; }
+  virtual uint16_t min_cell_voltage_mv() { return 2700; }
 
  private:
   DATALAYER_BATTERY_TYPE* m_target;

@@ -4,7 +4,6 @@
 #include "../include.h"
 
 #define BATTERY_SELECTED
-#define MAX_CELL_DEVIATION_MV 9999
 
 class TestFakeBattery : public CanBattery {
  public:
@@ -13,13 +12,15 @@ class TestFakeBattery : public CanBattery {
     m_can_interface = can_interface;
   }
   virtual const char* name() { return Name; };
-  static constexpr char* Name = "Fake battery for testing purposes";
+  static constexpr const char* Name = "Fake battery for testing purposes";
 
   virtual bool supportsDoubleBattery() { return true; };
   virtual void setup();
   virtual void update_values();
   virtual void handle_incoming_can_frame(CAN_frame rx_frame);
   virtual void transmit_can();
+
+  virtual uint16_t max_cell_deviation_mv() { return 9999; }
 
  private:
   DATALAYER_BATTERY_TYPE* m_target;

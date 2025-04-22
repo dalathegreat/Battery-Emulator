@@ -11,7 +11,7 @@ class GrowattLvCanInverter : public InverterProtocol {
   virtual void map_can_frame_to_variable_inverter(CAN_frame rx_frame);
 
   virtual const char* name() { return Name; };
-  static constexpr char* Name = "Growatt Low Voltage (48V) protocol via CAN";
+  static constexpr const char* Name = "Growatt Low Voltage (48V) protocol via CAN";
 };
 
 #endif

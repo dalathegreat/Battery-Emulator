@@ -61,7 +61,7 @@ void OrionBms::update_values() {
   datalayer.battery.status.cell_min_voltage_mV = Minimum_Cell_Voltage;
 
   //If user did not configure amount of cells correctly in the header file, update the value
-  if ((amount_of_detected_cells > NUMBER_OF_CELLS) && (amount_of_detected_cells < MAX_AMOUNT_CELLS)) {
+  if ((amount_of_detected_cells > number_of_cells()) && (amount_of_detected_cells < MAX_AMOUNT_CELLS)) {
     datalayer.battery.info.number_of_cells = amount_of_detected_cells;
   }
 }
@@ -112,11 +112,11 @@ void OrionBms::handle_incoming_can_frame(CAN_frame rx_frame) {
 }
 
 void OrionBms::setup(void) {  // Performs one time setup at startup
-  datalayer.battery.info.number_of_cells = NUMBER_OF_CELLS;
-  datalayer.battery.info.max_design_voltage_dV = MAX_PACK_VOLTAGE_DV;
-  datalayer.battery.info.min_design_voltage_dV = MIN_PACK_VOLTAGE_DV;
-  datalayer.battery.info.max_cell_voltage_mV = MAX_CELL_VOLTAGE_MV;
-  datalayer.battery.info.min_cell_voltage_mV = MIN_CELL_VOLTAGE_MV;
+  datalayer.battery.info.number_of_cells = number_of_cells();
+  datalayer.battery.info.max_design_voltage_dV = max_pack_voltage_dv();
+  datalayer.battery.info.min_design_voltage_dV = min_pack_voltage_dv();
+  datalayer.battery.info.max_cell_voltage_mV = max_cell_deviation_mv();
+  datalayer.battery.info.min_cell_voltage_mV = min_cell_voltage_mv();
   allow_contactor_closing();
 }
 

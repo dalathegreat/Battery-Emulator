@@ -416,11 +416,11 @@ void BMWIXBattery::setup(void) {  // Performs one time setup at startup
   transmit_can_frame(&BMWiX_6F4_REQUEST_HARD_RESET, can_config.battery);
 
   //Before we have started up and detected which battery is in use, use 108S values
-  datalayer.battery.info.max_design_voltage_dV = MAX_PACK_VOLTAGE_DV;
-  datalayer.battery.info.min_design_voltage_dV = MIN_PACK_VOLTAGE_DV;
-  datalayer.battery.info.max_cell_voltage_mV = MAX_CELL_VOLTAGE_MV;
-  datalayer.battery.info.min_cell_voltage_mV = MIN_CELL_VOLTAGE_MV;
-  datalayer.battery.info.max_cell_voltage_deviation_mV = MAX_CELL_DEVIATION_MV;
+  datalayer.battery.info.max_design_voltage_dV = max_pack_voltage_dv();
+  datalayer.battery.info.min_design_voltage_dV = min_pack_voltage_dv();
+  datalayer.battery.info.max_cell_voltage_mV = max_cell_voltage_mv();
+  datalayer.battery.info.min_cell_voltage_mV = min_cell_voltage_mv();
+  datalayer.battery.info.max_cell_voltage_deviation_mV = max_cell_deviation_mv();
   allow_contactor_closing();
 }
 

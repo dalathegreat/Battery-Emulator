@@ -936,11 +936,11 @@ void decodeChallengeData(unsigned int incomingChallenge, unsigned char* solvedCh
 
 void NissanLeafBattery::setup(void) {  // Performs one time setup at startup
   m_target->info.number_of_cells = 96;
-  m_target->info.max_design_voltage_dV = MAX_PACK_VOLTAGE_DV;
-  m_target->info.min_design_voltage_dV = MIN_PACK_VOLTAGE_DV;
-  m_target->info.max_cell_voltage_mV = MAX_CELL_VOLTAGE_MV;
-  m_target->info.min_cell_voltage_mV = MIN_CELL_VOLTAGE_MV;
-  m_target->info.max_cell_voltage_deviation_mV = MAX_CELL_DEVIATION_MV;
+  m_target->info.max_design_voltage_dV = max_pack_voltage_dv();
+  m_target->info.min_design_voltage_dV = min_pack_voltage_dv();
+  m_target->info.max_cell_voltage_mV = max_cell_voltage_mv();
+  m_target->info.min_cell_voltage_mV = min_cell_voltage_mv();
+  m_target->info.max_cell_voltage_deviation_mV = max_cell_voltage_mv();
 }
 
 #endif  //NISSAN_LEAF_BATTERY

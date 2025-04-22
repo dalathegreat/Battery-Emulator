@@ -1027,11 +1027,11 @@ void CmfaEvBattery::transmit_can() {
 void CmfaEvBattery::setup(void) {  // Performs one time setup at startup
   allow_contactor_closing();
   datalayer.battery.info.number_of_cells = 72;
-  datalayer.battery.info.max_design_voltage_dV = MAX_PACK_VOLTAGE_DV;
-  datalayer.battery.info.min_design_voltage_dV = MIN_PACK_VOLTAGE_DV;
-  datalayer.battery.info.max_cell_voltage_mV = MAX_CELL_VOLTAGE_MV;
-  datalayer.battery.info.min_cell_voltage_mV = MIN_CELL_VOLTAGE_MV;
-  datalayer.battery.info.max_cell_voltage_deviation_mV = MAX_CELL_DEVIATION_MV;
+  datalayer.battery.info.max_design_voltage_dV = max_pack_voltage_dv();
+  datalayer.battery.info.min_design_voltage_dV = min_pack_voltage_dv();
+  datalayer.battery.info.max_cell_voltage_mV = max_cell_voltage_mv();
+  datalayer.battery.info.min_cell_voltage_mV = min_cell_voltage_mv();
+  datalayer.battery.info.max_cell_voltage_deviation_mV = max_cell_deviation_mv();
 }
 
 #endif  //CMFA_EV_BATTERY

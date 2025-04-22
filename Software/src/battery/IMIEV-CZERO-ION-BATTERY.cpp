@@ -198,16 +198,12 @@ void ImievCzeroIonBattery::transmit_can() {
   }
 }
 
-static void setup_battery(void) {  // Performs one time setup at startup
-  datalayer.battery.info.max_design_voltage_dV = MAX_PACK_VOLTAGE_DV;
-  datalayer.battery.info.min_design_voltage_dV = MIN_PACK_VOLTAGE_DV;
-  datalayer.battery.info.max_cell_voltage_mV = MAX_CELL_VOLTAGE_MV;
-  datalayer.battery.info.min_cell_voltage_mV = MIN_CELL_VOLTAGE_MV;
-  datalayer.battery.info.max_cell_voltage_deviation_mV = MAX_CELL_DEVIATION_MV;
-}
-
-void ImievCzeroIonBattery::setup() {
-  setup_battery();
+void ImievCzeroIonBattery::setup() { // Performs one time setup at startup
+  datalayer.battery.info.max_design_voltage_dV = max_pack_voltage_dv();
+  datalayer.battery.info.min_design_voltage_dV = min_pack_voltage_dv();
+  datalayer.battery.info.max_cell_voltage_mV = max_cell_voltage_mv();
+  datalayer.battery.info.min_cell_voltage_mV = min_cell_voltage_mv();
+  datalayer.battery.info.max_cell_voltage_deviation_mV = max_cell_deviation_mv();
 }
 
 #endif

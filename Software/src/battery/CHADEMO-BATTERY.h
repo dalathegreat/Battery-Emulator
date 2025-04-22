@@ -16,7 +16,7 @@ class ChademoBattery : public CanBattery {
  public:
   ChademoBattery() : CanBattery(Chademo) {}
   virtual const char* name() { return Name; };
-  static constexpr char* Name = "Chademo V2X mode";
+  static constexpr const char* Name = "Chademo V2X mode";
   virtual void setup();
   virtual void update_values();
   virtual void handle_incoming_can_frame(CAN_frame rx_frame);

@@ -23,7 +23,7 @@ class BMWSboxBattery : public CanBattery {
  public:
   BMWSboxBattery() : CanBattery(BMWSBox) {}
   virtual const char* name() { return Name; };
-  static constexpr char* Name = "BMW SBOX";
+  static constexpr const char* Name = "BMW SBOX";
   virtual void setup();
   virtual void update_values();
   virtual void handle_incoming_can_frame(CAN_frame rx_frame);

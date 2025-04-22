@@ -5,19 +5,11 @@
 
 #define BATTERY_SELECTED
 
-/* Change the following to suit your battery */
-#define NUMBER_OF_CELLS 96
-#define MAX_PACK_VOLTAGE_DV 5000  //5000 = 500.0V
-#define MIN_PACK_VOLTAGE_DV 1500
-#define MAX_CELL_VOLTAGE_MV 4250  //Battery is put into emergency stop if one cell goes over this value
-#define MIN_CELL_VOLTAGE_MV 2700  //Battery is put into emergency stop if one cell goes below this value
-#define MAX_CELL_DEVIATION_MV 150
-
 class OrionBms : public CanBattery {
  public:
   OrionBms() : CanBattery(OrionBMS) {}
   virtual const char* name() { return Name; };
-  static constexpr char* Name = "DIY battery with Orion BMS (Victron setting)";
+  static constexpr const char* Name = "DIY battery with Orion BMS (Victron setting)";
 
   virtual void setup();
   virtual void update_values();
@@ -25,6 +17,13 @@ class OrionBms : public CanBattery {
 
   // No transmit needed for this type
   virtual void transmit_can() {}
+
+  virtual uint16_t max_pack_voltage_dv() { return 5000; }
+  virtual uint16_t min_pack_voltage_dv() { return 1500; }
+  virtual uint16_t max_cell_deviation_mv() { return 150; }
+  virtual uint16_t max_cell_voltage_mv() { return 4250; }
+  virtual uint16_t min_cell_voltage_mv() { return 2700; }
+  virtual uint8_t number_of_cells() { return 96; }
 
  private:
   uint16_t cellvoltages[MAX_AMOUNT_CELLS];  //array with all the cellvoltages

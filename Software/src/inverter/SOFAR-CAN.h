@@ -11,7 +11,7 @@ class SofarCanInverter : public InverterProtocol {
   virtual void map_can_frame_to_variable_inverter(CAN_frame rx_frame);
 
   virtual const char* name() { return Name; };
-  static constexpr char* Name = "Sofar BMS (Extended Frame) over CAN bus";
+  static constexpr const char* Name = "Sofar BMS (Extended Frame) over CAN bus";
 };
 
 #endif

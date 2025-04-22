@@ -17,7 +17,7 @@ class CellPowerBms : public CanBattery {
  public:
   CellPowerBms() : CanBattery(CellPower) {}
   virtual const char* name() { return Name; };
-  static constexpr char* Name = "Cellpower BMS";
+  static constexpr const char* Name = "Cellpower BMS";
   virtual void setup();
   virtual void update_values();
   virtual void handle_incoming_can_frame(CAN_frame rx_frame);

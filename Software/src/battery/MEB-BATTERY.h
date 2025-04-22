@@ -155,7 +155,7 @@ class MebBattery : public CanBattery {
  public:
   MebBattery() : CanBattery(Meb) {}
   virtual const char* name() { return Name; };
-  static constexpr char* Name = "Volkswagen Group MEB platform via CAN-FD";
+  static constexpr const char* Name = "Volkswagen Group MEB platform via CAN-FD";
 
   virtual void setup();
   virtual void update_values();
