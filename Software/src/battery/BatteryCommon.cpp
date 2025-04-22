@@ -135,6 +135,12 @@ BatteryBase* init_battery(BatteryType type, BatteryBase* pair) {
       break;
 #endif
 
+#ifdef SIMPBMS_BATTERY_H
+    case SimpBms:
+      battery = new SimpBmsBattery();
+      break;
+#endif
+
 #ifdef TESLA_MODEL_3Y_BATTERY
     case Tesla3Y:
       battery = new Tesla3YBattery();
@@ -312,6 +318,12 @@ const char* BatteryBase::name_for_type(BatteryType type) {
 #ifdef RJXZS_BMS
     case RjxzsBMS:
       return RjxzsBms::Name;
+      break;
+#endif
+
+#ifdef SIMPBMS_BATTERY_H
+    case SimpBms:
+      return SimpBmsBattery::Name;
       break;
 #endif
 

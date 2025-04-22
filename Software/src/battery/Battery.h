@@ -35,13 +35,14 @@ enum BatteryType {
   RenaultZoeGen2 = 24,
   RjxzsBMS = 35,
   SantaFePhev = 25,
+  SimpBms = 36,
   Sono = 26,
   Tesla3Y = 27,
   TeslaSX = 28,
   TestFake = 29,
   VolvoSpa = 30,
   VolvoSpaHybrid = 31,
-  HighestBatteryType = 36
+  HighestBatteryType = 37
 };
 
 class BatteryBase {
