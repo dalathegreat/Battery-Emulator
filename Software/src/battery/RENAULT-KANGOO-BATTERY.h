@@ -4,7 +4,7 @@
 #include "../include.h"
 
 #define BATTERY_SELECTED
-#define MAX_CHARGE_POWER_W 5000   // Battery can be charged with this amount of power
+#define MAX_CHARGE_POWER_W 5000  // Battery can be charged with this amount of power
 
 class RenaultKangooBattery : public CanBattery {
  public:

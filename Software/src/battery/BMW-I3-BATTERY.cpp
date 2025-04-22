@@ -80,7 +80,8 @@ void BMWi3Battery::update_values() {  //This function maps all the values fetche
     m_target->info.max_design_voltage_dV = max_pack_voltage_dv();
     m_target->info.min_design_voltage_dV = min_pack_voltage_dv();
     m_target->info.max_cell_voltage_mV = max_cell_deviation_mv();
-    m_target->info.min_cell_voltage_mV = min_cell_voltage_mv();;
+    m_target->info.min_cell_voltage_mV = min_cell_voltage_mv();
+    ;
   }
 
   // Perform other safety checks

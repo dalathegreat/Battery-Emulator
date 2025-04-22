@@ -198,7 +198,7 @@ void ImievCzeroIonBattery::transmit_can() {
   }
 }
 
-void ImievCzeroIonBattery::setup() { // Performs one time setup at startup
+void ImievCzeroIonBattery::setup() {  // Performs one time setup at startup
   datalayer.battery.info.max_design_voltage_dV = max_pack_voltage_dv();
   datalayer.battery.info.min_design_voltage_dV = min_pack_voltage_dv();
   datalayer.battery.info.max_cell_voltage_mV = max_cell_voltage_mv();

@@ -33,7 +33,8 @@ CAN_frame SONO_401 = {.FD = false,  //Message of Vehicle Date, 1000ms
                       .ID = 0x400,
                       .data = {0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00}};
 
-void SonoBattery::update_values() {  //This function maps all the values fetched via CAN to the correct parameters used for modbus
+void SonoBattery::
+    update_values() {  //This function maps all the values fetched via CAN to the correct parameters used for modbus
 
   datalayer.battery.status.real_soc = (realSOC * 100);  //increase SOC range from 0-100 -> 100.00
 

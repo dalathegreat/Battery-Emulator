@@ -66,8 +66,12 @@ class BatteryBase {
   virtual void receive_RS485() = 0;
 
   //5000 = 500.0V
-  virtual uint16_t max_cell_voltage_mv() { return 0; } //Battery is put into emergency stop if one cell goes over this value
-  virtual uint16_t min_cell_voltage_mv() { return 0; } //Battery is put into emergency stop if one cell goes below this value
+  virtual uint16_t max_cell_voltage_mv() {
+    return 0;
+  }  //Battery is put into emergency stop if one cell goes over this value
+  virtual uint16_t min_cell_voltage_mv() {
+    return 0;
+  }  //Battery is put into emergency stop if one cell goes below this value
   virtual uint16_t max_pack_voltage_dv() { return 0; }
   virtual uint16_t min_pack_voltage_dv() { return 0; }
   virtual uint16_t max_cell_deviation_mv() { return 0; }

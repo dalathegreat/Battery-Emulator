@@ -24,7 +24,7 @@ class BMWi3Battery : public CanBattery {
   virtual void handle_incoming_can_frame(CAN_frame rx_frame);
   virtual void transmit_can();
 
-  virtual uint16_t max_cell_voltage_mv() { 
+  virtual uint16_t max_cell_voltage_mv() {
     if (detectedBattery == BATTERY_60AH) {
       return 4110;
     } else if (detectedBattery == BATTERY_94AH) {
@@ -34,7 +34,7 @@ class BMWi3Battery : public CanBattery {
     }
     return 0;
   };
-  virtual uint16_t min_cell_voltage_mv() { 
+  virtual uint16_t min_cell_voltage_mv() {
     if (detectedBattery == BATTERY_60AH) {
       return 2700;
     } else if (detectedBattery == BATTERY_94AH) {
@@ -44,7 +44,7 @@ class BMWi3Battery : public CanBattery {
     }
     return 0;
   };
-  virtual uint16_t max_pack_voltage_dv() { 
+  virtual uint16_t max_pack_voltage_dv() {
     if (detectedBattery == BATTERY_60AH) {
       return 3950;
     } else if (detectedBattery == BATTERY_94AH) {
@@ -54,7 +54,7 @@ class BMWi3Battery : public CanBattery {
     }
     return 0;
   };
-  virtual uint16_t min_pack_voltage_dv() { 
+  virtual uint16_t min_pack_voltage_dv() {
     if (detectedBattery == BATTERY_60AH) {
       return 2590;
     } else if (detectedBattery == BATTERY_94AH) {

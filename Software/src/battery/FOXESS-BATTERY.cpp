@@ -576,7 +576,7 @@ void FoxessBattery::transmit_can() {
   }
 }
 
-void FoxessBattery::setup() { // Performs one time setup at startup
+void FoxessBattery::setup() {                  // Performs one time setup at startup
   datalayer.battery.info.number_of_cells = 0;  //Startup with no cells, populates later when we know packsize
   datalayer.battery.info.max_design_voltage_dV = max_pack_voltage_dv();
   datalayer.battery.info.min_design_voltage_dV = min_pack_voltage_dv();

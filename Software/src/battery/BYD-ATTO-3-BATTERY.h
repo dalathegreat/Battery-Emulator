@@ -33,7 +33,7 @@ class BydAtto3Battery : public CanBattery {
   virtual void handle_incoming_can_frame(CAN_frame rx_frame);
   virtual void transmit_can();
 
-  virtual uint16_t max_pack_voltage_dv() { 
+  virtual uint16_t max_pack_voltage_dv() {
     if (battery_type == STANDARD_RANGE) {
       return 3640;
     } else if (battery_type == EXTENDED_RANGE) {
@@ -42,7 +42,7 @@ class BydAtto3Battery : public CanBattery {
       return 0;
     }
   };
-  virtual uint16_t min_pack_voltage_dv() { 
+  virtual uint16_t min_pack_voltage_dv() {
     if (battery_type == STANDARD_RANGE) {
       return 3136;
     } else if (battery_type == EXTENDED_RANGE) {
@@ -54,7 +54,7 @@ class BydAtto3Battery : public CanBattery {
   virtual uint16_t max_cell_deviation_mv() { return 150; }
   virtual uint16_t max_cell_voltage_mv() { return 3800; }
   virtual uint16_t min_cell_voltage_mv() { return 2800; }
-  virtual uint8_t number_of_cells() { 
+  virtual uint8_t number_of_cells() {
     if (battery_type == STANDARD_RANGE) {
       return 104;
     } else if (battery_type == EXTENDED_RANGE) {

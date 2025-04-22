@@ -15,8 +15,8 @@ class RenaultTwizyBattery : public CanBattery {
   virtual void handle_incoming_can_frame(CAN_frame rx_frame);
   virtual void transmit_can();
 
-  virtual uint16_t max_pack_voltage_dv() { return 579; } // 57.9V at 100% SOC (with 70% SOH, new one might be higher)
-  virtual uint16_t min_pack_voltage_dv() { return 480; } // 48.4V at 13.76% SOC
+  virtual uint16_t max_pack_voltage_dv() { return 579; }  // 57.9V at 100% SOC (with 70% SOH, new one might be higher)
+  virtual uint16_t min_pack_voltage_dv() { return 480; }  // 48.4V at 13.76% SOC
   virtual uint16_t max_cell_deviation_mv() { return 150; }
   virtual uint16_t max_cell_voltage_mv() { return 4200; }
   virtual uint16_t min_cell_voltage_mv() { return 3400; }
