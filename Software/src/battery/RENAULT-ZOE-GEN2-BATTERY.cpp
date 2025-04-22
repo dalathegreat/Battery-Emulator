@@ -65,11 +65,13 @@ static uint16_t battery_pack_time = 0;
 static uint16_t battery_soc_min = 0;
 static uint16_t battery_soc_max = 0;
 
-CAN_frame ZOE_373 = {.FD = false,
-                     .ext_ID = false,
-                     .DLC = 8,
-                     .ID = 0x373,
-                     .data = {0xC1, 0x80, 0x5D, 0x5D, 0x00, 0x00, 0xff, 0xcb}};
+CAN_frame ZOE_373 = {
+    .FD = false,
+    .ext_ID = false,
+    .DLC = 8,
+    .ID = 0x373,
+    .data = {0xC1, 0x40, 0x5D, 0xB2, 0x00, 0x01, 0xff,
+             0xe3}};  // FIXME: remove if not needed: {0xC1, 0x80, 0x5D, 0x5D, 0x00, 0x00, 0xff, 0xcb}};
 CAN_frame ZOE_POLL_18DADBF1 = {.FD = false,
                                .ext_ID = true,
                                .DLC = 8,
@@ -382,6 +384,7 @@ void transmit_can_battery(unsigned long currentMillis) {
     if (currentMillis - previousMillis100 >= INTERVAL_100_MS) {
       previousMillis100 = currentMillis;
 
+      /* FIXME: remove if not needed
       if ((counter_373 / 5) % 2 == 0) {  // Alternate every 5 messages between these two
         ZOE_373.data.u8[2] = 0xB2;
         ZOE_373.data.u8[3] = 0xB2;
@@ -390,6 +393,7 @@ void transmit_can_battery(unsigned long currentMillis) {
         ZOE_373.data.u8[3] = 0x5D;
       }
       counter_373 = (counter_373 + 1) % 10;
+      */
 
       transmit_can_frame(&ZOE_373, can_config.battery);
     }
