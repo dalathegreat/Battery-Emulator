@@ -1234,6 +1234,7 @@ String advanced_battery_processor(const String& var) {
 #endif  //MEB_BATTERY
 
 #ifdef RENAULT_ZOE_GEN2_BATTERY
+    content += "<button onclick='askTriggerNVROL()'>Perform NVROL reset</button>";
     content += "<h4>soc: " + String(datalayer_extended.zoePH2.battery_soc) + "</h4>";
     content += "<h4>usable soc: " + String(datalayer_extended.zoePH2.battery_usable_soc) + "</h4>";
     content += "<h4>soh: " + String(datalayer_extended.zoePH2.battery_soh) + "</h4>";
@@ -1496,6 +1497,18 @@ String advanced_battery_processor(const String& var) {
     content += "function teslaResetBMS() {";
     content += "  var xhr = new XMLHttpRequest();";
     content += "  xhr.open('GET', '/teslaResetBMS', true);";
+    content += "  xhr.send();";
+    content += "}";
+    content += "function goToMainPage() { window.location.href = '/'; }";
+    content += "</script>";
+    content += "<script>";
+    content +=
+        "function askTriggerNVROL() { if (window.confirm('Are you sure you want to trigger "
+        "an NVROL reset? Battery will be unavailable for 30 seconds while this is active!')) { "
+        "TriggerNVROL(); } }";
+    content += "function TriggerNVROL() {";
+    content += "  var xhr = new XMLHttpRequest();";
+    content += "  xhr.open('GET', '/triggerNVROL', true);";
     content += "  xhr.send();";
     content += "}";
     content += "function goToMainPage() { window.location.href = '/'; }";

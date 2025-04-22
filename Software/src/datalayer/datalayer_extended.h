@@ -701,6 +701,8 @@ typedef struct {
 } DATALAYER_INFO_VOLVO_HYBRID;
 
 typedef struct {
+  /** User requesting NVROL reset via WebUI*/
+  bool UserRequestNVROLReset = false;
   /** uint16_t */
   /** Values WIP*/
   uint16_t battery_soc = 0;
