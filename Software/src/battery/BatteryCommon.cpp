@@ -116,10 +116,28 @@ BatteryBase* init_battery(BatteryType type, BatteryBase* pair) {
       break;
 #endif
 
+#ifdef ORION_BMS_H
+    case OrionBMS:
+      battery = new OrionBms();
+      break;
+#endif
+
 #ifdef PYLON_BATTERY
     case Pylon:
       battery = new PylonBattery(pair ? &datalayer.battery2 : &datalayer.battery,
                                  pair ? can_config.battery_double : can_config.battery);
+      break;
+#endif
+
+#ifdef RJXZS_BMS
+    case RjxzsBMS:
+      battery = new RjxzsBms();
+      break;
+#endif
+
+#ifdef SIMPBMS_BATTERY_H
+    case SimpBms:
+      battery = new SimpBmsBattery();
       break;
 #endif
 
@@ -286,9 +304,27 @@ const char* BatteryBase::name_for_type(BatteryType type) {
       return NissanLeafBattery::Name;
 #endif
 
+#ifdef ORION_BMS_H
+    case OrionBMS:
+      return OrionBms::Name;
+      break;
+#endif
+
 #ifdef PYLON_BATTERY
     case Pylon:
       return PylonBattery::Name;
+#endif
+
+#ifdef RJXZS_BMS
+    case RjxzsBMS:
+      return RjxzsBms::Name;
+      break;
+#endif
+
+#ifdef SIMPBMS_BATTERY_H
+    case SimpBms:
+      return SimpBmsBattery::Name;
+      break;
 #endif
 
 #ifdef TESLA_MODEL_3Y_BATTERY

@@ -5,34 +5,7 @@
 #include "../devboard/utils/events.h"
 #include "SIMPBMS-BATTERY.h"
 
-#define SIMPBMS_MAX_CELLS 128
-
-/* Do not change code below unless you are sure what you are doing */
-static unsigned long previousMillis1000 = 0;  // will store last time a 1s CAN Message was sent
-
-//Actual content messages
-
-static int16_t celltemperature_max_dC = 0;
-static int16_t celltemperature_min_dC = 0;
-static int16_t current_dA = 0;
-static uint16_t voltage_dV = 0;
-static uint16_t cellvoltage_max_mV = 3700;
-static uint16_t cellvoltage_min_mV = 3700;
-static uint16_t charge_cutoff_voltage = 0;
-static uint16_t discharge_cutoff_voltage = 0;
-static int16_t max_charge_current = 0;
-static int16_t max_discharge_current = 0;
-static uint8_t ensemble_info_ack = 0;
-static uint8_t cells_in_series = 0;
-static uint8_t voltage_level = 0;
-static uint8_t ah_total = 0;
-static uint8_t SOC = 0;
-static uint8_t SOH = 99;
-static uint8_t charge_forbidden = 0;
-static uint8_t discharge_forbidden = 0;
-static uint16_t cellvoltages_mV[SIMPBMS_MAX_CELLS] = {0};
-
-static void update_values_battery() {
+void SimpBmsBattery::update_values() {
 
   datalayer.battery.status.real_soc = (SOC * 100);  //increase SOC range from 0-100 -> 100.00
 
@@ -68,7 +41,7 @@ static void update_values_battery() {
   datalayer.battery.info.number_of_cells = cells_in_series;
 }
 
-static void handle_incoming_can_frame_battery(CAN_frame rx_frame) {
+void SimpBmsBattery::handle_incoming_can_frame(CAN_frame rx_frame) {
   datalayer.battery.status.CAN_battery_still_alive = CAN_STILL_ALIVE;
   switch (rx_frame.ID) {
     case 0x355:
@@ -116,11 +89,7 @@ static void handle_incoming_can_frame_battery(CAN_frame rx_frame) {
   }
 }
 
-static void transmit_can_battery() {}
-
-static void setup_battery(void) {  // Performs one time setup at startup
-  strncpy(datalayer.system.info.battery_protocol, "SIMPBMS battery", 63);
-  datalayer.system.info.battery_protocol[63] = '\0';
+void SimpBmsBattery::setup(void) {  // Performs one time setup at startup
   datalayer.battery.info.number_of_cells = CELL_COUNT;
   datalayer.battery.info.max_design_voltage_dV = MAX_PACK_VOLTAGE_DV;
   datalayer.battery.info.min_design_voltage_dV = MIN_PACK_VOLTAGE_DV;

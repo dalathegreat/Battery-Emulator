@@ -6,79 +6,8 @@
 #include "RJXZS-BMS.h"
 
 /* Do not change code below unless you are sure what you are doing */
-static unsigned long previousMillis10s = 0;  // will store last time a 10s CAN Message was sent
 
-//Actual content messages
-CAN_frame RJXZS_1C = {.FD = false, .ext_ID = true, .DLC = 3, .ID = 0xF4, .data = {0x1C, 0x00, 0x02}};
-CAN_frame RJXZS_10 = {.FD = false, .ext_ID = true, .DLC = 3, .ID = 0xF4, .data = {0x10, 0x00, 0x02}};
-
-#define FIVE_MINUTES 60
-
-static uint8_t mux = 0;
-static bool setup_completed = false;
-static uint16_t total_voltage = 0;
-static int16_t total_current = 0;
-static uint16_t total_power = 0;
-static uint16_t battery_usage_capacity = 0;
-static uint16_t battery_capacity_percentage = 0;
-static uint16_t charging_capacity = 0;
-static uint16_t charging_recovery_voltage = 0;
-static uint16_t discharging_recovery_voltage = 0;
-static uint16_t remaining_capacity = 0;
-static int16_t host_temperature = 0;
-static uint16_t status_accounting = 0;
-static uint16_t equalization_starting_voltage = 0;
-static uint16_t discharge_protection_voltage = 0;
-static uint16_t protective_current = 0;
-static uint16_t battery_pack_capacity = 0;
-static uint16_t number_of_battery_strings = 0;
-static uint16_t charging_protection_voltage = 0;
-static int16_t protection_temperature = 0;
-static bool temperature_below_zero_mod1_4 = false;
-static bool temperature_below_zero_mod5_8 = false;
-static bool temperature_below_zero_mod9_12 = false;
-static bool temperature_below_zero_mod13_16 = false;
-static uint16_t module_1_temperature = 0;
-static uint16_t module_2_temperature = 0;
-static uint16_t module_3_temperature = 0;
-static uint16_t module_4_temperature = 0;
-static uint16_t module_5_temperature = 0;
-static uint16_t module_6_temperature = 0;
-static uint16_t module_7_temperature = 0;
-static uint16_t module_8_temperature = 0;
-static uint16_t module_9_temperature = 0;
-static uint16_t module_10_temperature = 0;
-static uint16_t module_11_temperature = 0;
-static uint16_t module_12_temperature = 0;
-static uint16_t module_13_temperature = 0;
-static uint16_t module_14_temperature = 0;
-static uint16_t module_15_temperature = 0;
-static uint16_t module_16_temperature = 0;
-static uint16_t low_voltage_power_outage_protection = 0;
-static uint16_t low_voltage_power_outage_delayed = 0;
-static uint16_t num_of_triggering_protection_cells = 0;
-static uint16_t balanced_reference_voltage = 0;
-static uint16_t minimum_cell_voltage = 0;
-static uint16_t maximum_cell_voltage = 0;
-static uint16_t cellvoltages[MAX_AMOUNT_CELLS];
-static uint8_t populated_cellvoltages = 0;
-static uint16_t accumulated_total_capacity_high = 0;
-static uint16_t accumulated_total_capacity_low = 0;
-static uint16_t pre_charge_delay_time = 0;
-static uint16_t LCD_status = 0;
-static uint16_t differential_pressure_setting_value = 0;
-static uint16_t use_capacity_to_automatically_reset = 0;
-static uint16_t low_temperature_protection_setting_value = 0;
-static uint16_t protecting_historical_logs = 0;
-static uint16_t hall_sensor_type = 0;
-static uint16_t fan_start_setting_value = 0;
-static uint16_t ptc_heating_start_setting_value = 0;
-static uint16_t default_channel_state = 0;
-static uint8_t timespent_without_soc = 0;
-static bool charging_active = false;
-static bool discharging_active = false;
-
-static void update_values_battery() {
+void RjxzsBms::update_values() {
 
   datalayer.battery.status.real_soc = battery_capacity_percentage * 100;
   if (battery_capacity_percentage == 0) {
@@ -167,7 +96,7 @@ static void update_values_battery() {
   datalayer.battery.status.cell_min_voltage_mV = minimum_cell_voltage;
 }
 
-static void handle_incoming_can_frame_battery(CAN_frame rx_frame) {
+void RjxzsBms::handle_incoming_can_frame(CAN_frame rx_frame) {
 
   /*
   // All CAN messages recieved will be logged via serial
@@ -572,7 +501,7 @@ static void handle_incoming_can_frame_battery(CAN_frame rx_frame) {
   }
 }
 
-static void transmit_can_battery() {
+void RjxzsBms::transmit_can() {
   unsigned long currentMillis = millis();
   // Send 10s CAN Message
   if (currentMillis - previousMillis10s >= INTERVAL_10_S) {
@@ -591,9 +520,7 @@ static void transmit_can_battery() {
   }
 }
 
-static void setup_battery(void) {  // Performs one time setup at startup
-  strncpy(datalayer.system.info.battery_protocol, "RJXZS BMS, DIY battery", 63);
-  datalayer.system.info.battery_protocol[63] = '\0';
+void RjxzsBms::setup(void) {  // Performs one time setup at startup
   datalayer.battery.info.max_design_voltage_dV = MAX_PACK_VOLTAGE_DV;
   datalayer.battery.info.min_design_voltage_dV = MIN_PACK_VOLTAGE_DV;
   datalayer.battery.info.max_cell_voltage_mV = MAX_CELL_VOLTAGE_MV;
