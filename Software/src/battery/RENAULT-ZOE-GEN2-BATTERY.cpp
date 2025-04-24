@@ -64,6 +64,9 @@ static uint16_t battery_time = 0;
 static uint16_t battery_pack_time = 0;
 static uint16_t battery_soc_min = 0;
 static uint16_t battery_soc_max = 0;
+static uint32_t ZOE_376_time_now_s = 1745452800;  // Initialized to make the battery think it is April 24, 2025
+unsigned long kProductionTimestamp_s =
+    1614454107;  // Production timestamp in seconds since January 1, 1970. Production timestamp used: February 25, 2021 at 8:08:27 AM GMT
 
 CAN_frame ZOE_373 = {
     .FD = false,
@@ -72,6 +75,13 @@ CAN_frame ZOE_373 = {
     .ID = 0x373,
     .data = {0xC1, 0x40, 0x5D, 0xB2, 0x00, 0x01, 0xff,
              0xe3}};  // FIXME: remove if not needed: {0xC1, 0x80, 0x5D, 0x5D, 0x00, 0x00, 0xff, 0xcb}};
+CAN_frame ZOE_376 = {
+    .FD = false,
+    .ext_ID = false,
+    .DLC = 8,
+    .ID = 0x373,
+    .data = {0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x0A,
+             0x00}};  // fill first 6 bytes with 0's. The first 6 bytes are calculated based on the current time.
 CAN_frame ZOE_POLL_18DADBF1 = {.FD = false,
                                .ext_ID = true,
                                .DLC = 8,
@@ -153,8 +163,9 @@ static uint8_t poll_index = 0;
 static uint16_t currentpoll = POLL_SOC;
 static uint16_t reply_poll = 0;
 
-static unsigned long previousMillis200 = 0;  // will store last time a 200ms CAN Message was sent
-static unsigned long previousMillis100 = 0;  // will store last time a 100ms CAN Message was sent
+static unsigned long previousMillis100 = 0;   // will store last time a 100ms CAN Message was sent
+static unsigned long previousMillis200 = 0;   // will store last time a 200ms CAN Message was sent
+static unsigned long previousMillis1000 = 0;  // will store last time a 1000ms CAN Message was sent
 
 void update_values_battery() {  //This function maps all the values fetched via CAN to the correct parameters used for modbus
   datalayer.battery.status.soh_pptt = battery_soh;
@@ -396,6 +407,7 @@ void transmit_can_battery(unsigned long currentMillis) {
       */
 
       transmit_can_frame(&ZOE_373, can_config.battery);
+      transmit_can_frame_376();
     }
 
     // Send 200ms CAN Message
@@ -411,6 +423,14 @@ void transmit_can_battery(unsigned long currentMillis) {
 
       transmit_can_frame(&ZOE_POLL_18DADBF1, can_config.battery);
     }
+
+    // 1000mss
+    if (currentMillis - previousMillis1000 >= INTERVAL_1_S) {
+      previousMillis1000 = currentMillis;
+
+      // Time in seconds emulated
+      ZOE_376_time_now_s++;  // Increment by 1 second
+    }
   }
 }
 
@@ -424,6 +444,27 @@ void setup_battery(void) {  // Performs one time setup at startup
   datalayer.battery.info.max_cell_voltage_mV = MAX_CELL_VOLTAGE_MV;
   datalayer.battery.info.min_cell_voltage_mV = MIN_CELL_VOLTAGE_MV;
   datalayer.battery.info.max_cell_voltage_deviation_mV = MAX_CELL_DEVIATION_MV;
+}
+
+void transmit_can_frame_376(void) {
+  unsigned int secondsSinceProduction = ZOE_376_time_now_s - kProductionTimestamp_s;
+  float minutesSinceProduction = (float)secondsSinceProduction / 60.0;
+  float yearUnfloored = minutesSinceProduction / 255.0 / 255.0;
+  int yearSeg = floor(yearUnfloored);
+  float remainderYears = yearUnfloored - yearSeg;
+  float remainderHoursUnfloored = (remainderYears * 255.0);
+  int hourSeg = floor(remainderHoursUnfloored);
+  float remainderHours = remainderHoursUnfloored - hourSeg;
+  int minuteSeg = floor(remainderHours * 255.0);
+
+  ZOE_376.data.u8[0] = yearSeg;
+  ZOE_376.data.u8[1] = hourSeg;
+  ZOE_376.data.u8[2] = minuteSeg;
+  ZOE_376.data.u8[3] = yearSeg;
+  ZOE_376.data.u8[4] = hourSeg;
+  ZOE_376.data.u8[5] = minuteSeg;
+
+  transmit_can_frame(&ZOE_376, can_config.battery);
 }
 
 void transmit_reset_nvrol_frames(void) {

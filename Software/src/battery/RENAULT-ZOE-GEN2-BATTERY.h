@@ -13,6 +13,16 @@ void setup_battery(void);
 void transmit_can_frame(CAN_frame* tx_frame, int interface);
 
 /**
+ * @brief Transmit CAN frame 0x376
+ * 
+ * @param[in] void
+ * 
+ * @return void
+ * 
+ */
+void transmit_can_frame_376(void);
+
+/**
  * @brief Reset NVROL, by sending specific frames
  *
  * @param[in] void
