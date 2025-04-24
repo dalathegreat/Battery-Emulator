@@ -344,7 +344,7 @@ void handle_incoming_can_frame_battery(CAN_frame rx_frame) {
         datalayer.battery2.status.CAN_error_counter++;
         break;  //Message content malformed, abort reading data from it
       }
-      battery_voltage = (rx_frame.data.u8[4] << 8) | rx_frame.data.u8[5];
+      battery_voltage = ((rx_frame.data.u8[4] & 0x1F) << 8) | rx_frame.data.u8[5];
       //frame7, CRC
       //frame6, low byte counter 0-F
       break;
