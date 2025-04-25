@@ -198,7 +198,7 @@ static uint8_t BMW_380_counter = 0;
 static uint32_t BMW_328_seconds = 243785948;  // Initialized to make the battery think vehicle was made 7.7years ago
 static uint16_t BMW_328_days =
     9244;  //Time since 1.1.2000. Hacky implementation to make it think current date is 23rd April 2025
-static uint16_t BMS_328_seconds_to_day = 0;  //Counter to keep track of days uptime
+static uint32_t BMS_328_seconds_to_day = 0;  //Counter to keep track of days uptime
 
 static bool battery_awake = false;
 static bool battery2_awake = false;
