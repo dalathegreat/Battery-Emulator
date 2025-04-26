@@ -39,7 +39,7 @@ void init_events(void) {
   events.entries[EVENT_CANMCP2515_INIT_FAILURE].level = EVENT_LEVEL_WARNING;
   events.entries[EVENT_CANFD_BUFFER_FULL].level = EVENT_LEVEL_WARNING;
   events.entries[EVENT_CAN_BUFFER_FULL].level = EVENT_LEVEL_WARNING;
-  events.entries[EVENT_CAN_OVERRUN].level = EVENT_LEVEL_INFO;
+  events.entries[EVENT_TASK_OVERRUN].level = EVENT_LEVEL_INFO;
   events.entries[EVENT_CAN_CORRUPTED_WARNING].level = EVENT_LEVEL_WARNING;
   events.entries[EVENT_CAN_NATIVE_TX_FAILURE].level = EVENT_LEVEL_WARNING;
   events.entries[EVENT_CAN_BATTERY_MISSING].level = EVENT_LEVEL_ERROR;
@@ -176,8 +176,8 @@ const char* get_event_message_string(EVENTS_ENUM_TYPE event) {
       return "MCP2518FD message failed to send. Buffer full or no one on the bus to ACK the message!";
     case EVENT_CAN_BUFFER_FULL:
       return "MCP2515 message failed to send. Buffer full or no one on the bus to ACK the message!";
-    case EVENT_CAN_OVERRUN:
-      return "CAN message failed to send within defined time. Contact developers, CPU load might be too high.";
+    case EVENT_TASK_OVERRUN:
+      return "Task took too long to complete. CPU load might be too high. Info message, no action required.";
     case EVENT_CAN_CORRUPTED_WARNING:
       return "High amount of corrupted CAN messages detected. Check CAN wire shielding!";
     case EVENT_CAN_NATIVE_TX_FAILURE:

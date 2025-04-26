@@ -924,8 +924,7 @@ void handle_incoming_can_frame_battery2(CAN_frame rx_frame) {
 }
 #endif  //DOUBLE_BATTERY
 
-void transmit_can_battery() {
-  unsigned long currentMillis = millis();
+void transmit_can_battery(unsigned long currentMillis) {
 
   if (!startedUp) {
     return;  // Don't send any CAN messages towards battery until it has started up
@@ -948,12 +947,6 @@ void transmit_can_battery() {
   }
   // Send 10ms CAN Message
   if (currentMillis - previousMillis10 >= INTERVAL_10_MS) {
-    // Check if sending of CAN messages has been delayed too much.
-    if ((currentMillis - previousMillis10 >= INTERVAL_10_MS_DELAYED) && (currentMillis > BOOTUP_TIME)) {
-      set_event(EVENT_CAN_OVERRUN, (currentMillis - previousMillis10));
-    } else {
-      clear_event(EVENT_CAN_OVERRUN);
-    }
     previousMillis10 = currentMillis;
 
     switch (counter_200) {

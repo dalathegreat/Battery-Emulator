@@ -389,16 +389,9 @@ void handle_incoming_can_frame_battery(CAN_frame rx_frame) {
       break;
   }
 }
-void transmit_can_battery() {
-  unsigned long currentMillis = millis();
+void transmit_can_battery(unsigned long currentMillis) {
   //Send 50ms message
   if (currentMillis - previousMillis50 >= INTERVAL_50_MS) {
-    // Check if sending of CAN messages has been delayed too much.
-    if ((currentMillis - previousMillis50 >= INTERVAL_50_MS_DELAYED) && (currentMillis > BOOTUP_TIME)) {
-      set_event(EVENT_CAN_OVERRUN, (currentMillis - previousMillis50));
-    } else {
-      clear_event(EVENT_CAN_OVERRUN);
-    }
     previousMillis50 = currentMillis;
 
     // Set close contactors to allowed (Useful for crashed packs, started via contactor control thru GPIO)

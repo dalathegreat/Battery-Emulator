@@ -877,18 +877,11 @@ void handle_incoming_can_frame_battery2(CAN_frame rx_frame) {
       break;
   }
 }
-void transmit_can_battery() {
-  unsigned long currentMillis = millis();
+void transmit_can_battery(unsigned long currentMillis) {
 
   if (battery_awake) {
     //Send 20ms message
     if (currentMillis - previousMillis20 >= INTERVAL_20_MS) {
-      // Check if sending of CAN messages has been delayed too much.
-      if ((currentMillis - previousMillis20 >= INTERVAL_20_MS_DELAYED) && (currentMillis > BOOTUP_TIME)) {
-        set_event(EVENT_CAN_OVERRUN, (currentMillis - previousMillis20));
-      } else {
-        clear_event(EVENT_CAN_OVERRUN);
-      }
       previousMillis20 = currentMillis;
 
       if (startup_counter_contactor < 160) {

@@ -130,8 +130,7 @@ void handle_incoming_can_frame_battery2(CAN_frame rx_frame) {
 void handle_incoming_can_frame_battery(CAN_frame rx_frame) {
   datalayer.battery.status.CAN_battery_still_alive = CAN_STILL_ALIVE;
 }
-void transmit_can_battery() {
-  unsigned long currentMillis = millis();
+void transmit_can_battery(unsigned long currentMillis) {
   // Send 100ms CAN Message
   if (currentMillis - previousMillis100 >= INTERVAL_100_MS) {
     previousMillis100 = currentMillis;

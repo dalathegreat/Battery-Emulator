@@ -158,11 +158,9 @@ void handle_incoming_can_frame_battery(CAN_frame rx_frame) {
   }
 }
 
-void transmit_can_battery() {
-  unsigned long currentMillis = millis();
+void transmit_can_battery(unsigned long currentMillis) {
   // Send 1s CAN Message
   if (currentMillis - previousMillis1000 >= INTERVAL_1_S) {
-
     previousMillis1000 = currentMillis;
 
     transmit_can_frame(&PYLON_3010, can_config.battery);  // Heartbeat

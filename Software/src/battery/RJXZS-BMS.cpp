@@ -571,11 +571,9 @@ void handle_incoming_can_frame_battery(CAN_frame rx_frame) {
   }
 }
 
-void transmit_can_battery() {
-  unsigned long currentMillis = millis();
+void transmit_can_battery(unsigned long currentMillis) {
   // Send 10s CAN Message
   if (currentMillis - previousMillis10s >= INTERVAL_10_S) {
-
     previousMillis10s = currentMillis;
 
     if (datalayer.battery.status.bms_status == FAULT) {

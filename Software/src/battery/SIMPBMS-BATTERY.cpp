@@ -115,7 +115,9 @@ void handle_incoming_can_frame_battery(CAN_frame rx_frame) {
   }
 }
 
-void transmit_can_battery() {}
+void transmit_can_battery(unsigned long currentMillis) {
+  // No periodic transmitting for this battery type
+}
 
 void setup_battery(void) {  // Performs one time setup at startup
   strncpy(datalayer.system.info.battery_protocol, "SIMPBMS battery", 63);

@@ -523,13 +523,11 @@ void map_can_frame_to_variable_inverter(CAN_frame rx_frame) {
   }
 }
 
-void transmit_can_inverter() {
+void transmit_can_inverter(unsigned long currentMillis) {
 
   if (!inverter_alive) {
     return;  //Dont send messages towards inverter until it has started
   }
-
-  unsigned long currentMillis = millis();
 
   //Check if 1 second has passed, then we start sending!
   if (currentMillis - previousMillis1s >= INTERVAL_1_S) {

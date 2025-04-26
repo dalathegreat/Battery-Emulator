@@ -158,8 +158,7 @@ void dump_frame(CAN_frame* frame) {
 }
 #endif
 
-void transmit_can_inverter() {
-  unsigned long currentMillis = millis();
+void transmit_can_inverter(unsigned long currentMillis) {
 
   if (currentMillis - previousMillis1000ms >= 1000) {
     previousMillis1000ms = currentMillis;

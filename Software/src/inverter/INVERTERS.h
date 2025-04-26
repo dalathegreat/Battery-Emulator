@@ -82,7 +82,7 @@
 #ifdef CAN_INVERTER_SELECTED
 void update_values_can_inverter();
 void map_can_frame_to_variable_inverter(CAN_frame rx_frame);
-void transmit_can_inverter();
+void transmit_can_inverter(unsigned long currentMillis);
 #endif
 
 #ifdef MODBUS_INVERTER_SELECTED

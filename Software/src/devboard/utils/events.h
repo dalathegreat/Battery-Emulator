@@ -12,7 +12,6 @@
   XX(EVENT_CANMCP2515_INIT_FAILURE)            \
   XX(EVENT_CANFD_BUFFER_FULL)                  \
   XX(EVENT_CAN_BUFFER_FULL)                    \
-  XX(EVENT_CAN_OVERRUN)                        \
   XX(EVENT_CAN_CORRUPTED_WARNING)              \
   XX(EVENT_CAN_BATTERY_MISSING)                \
   XX(EVENT_CAN_BATTERY2_MISSING)               \
@@ -73,6 +72,7 @@
   XX(EVENT_SERIAL_RX_FAILURE)                  \
   XX(EVENT_SERIAL_TX_FAILURE)                  \
   XX(EVENT_SERIAL_TRANSMITTER_FAILURE)         \
+  XX(EVENT_TASK_OVERRUN)                       \
   XX(EVENT_RESET_UNKNOWN)                      \
   XX(EVENT_RESET_POWERON)                      \
   XX(EVENT_RESET_EXT)                          \
