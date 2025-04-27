@@ -16,6 +16,9 @@
 #define STANDARD_RANGE 1
 #define EXTENDED_RANGE 2
 #define NOT_RUNNING 0xFF
+#define STARTED 0
+#define RUNNING_STEP_1 1
+#define RUNNING_STEP_2 2
 static uint8_t battery_type = NOT_DETERMINED_YET;
 static uint8_t stateMachineClearCrash = NOT_RUNNING;
 static unsigned long previousMillis50 = 0;   // will store last time a 50ms CAN Message was send
@@ -267,7 +270,7 @@ void update_values_battery() {  //This function maps all the values fetched via 
 
   // Update requests from webserver datalayer
   if (datalayer_extended.bydAtto3.UserRequestCrashReset) {
-    stateMachineClearCrash = 0;  //Start the statemachine
+    stateMachineClearCrash = STARTED;
     datalayer_extended.bydAtto3.UserRequestCrashReset = false;
   }
 }
@@ -477,17 +480,17 @@ void transmit_can_battery() {
     transmit_can_frame(&ATTO_3_441, can_config.battery_double);
 #endif  //DOUBLE_BATTERY
     switch (stateMachineClearCrash) {
-      case 0:
+      case STARTED:
         ATTO_3_7E7_CLEAR_CRASH.data = {0x02, 0x10, 0x01, 0x00, 0x00, 0x00, 0x00, 0x00};
         transmit_can_frame(&ATTO_3_7E7_CLEAR_CRASH, can_config.battery);
-        stateMachineClearCrash = 1;
+        stateMachineClearCrash = RUNNING_STEP_1;
         break;
-      case 1:
+      case RUNNING_STEP_1:
         ATTO_3_7E7_CLEAR_CRASH.data = {0x04, 0x14, 0xFF, 0xFF, 0xFF, 0x00, 0x00, 0x00};
         transmit_can_frame(&ATTO_3_7E7_CLEAR_CRASH, can_config.battery);
-        stateMachineClearCrash = 2;
+        stateMachineClearCrash = RUNNING_STEP_2;
         break;
-      case 2:
+      case RUNNING_STEP_2:
         ATTO_3_7E7_CLEAR_CRASH.data = {0x03, 0x19, 0x02, 0x09, 0x00, 0x00, 0x00, 0x00};
         transmit_can_frame(&ATTO_3_7E7_CLEAR_CRASH, can_config.battery);
         stateMachineClearCrash = NOT_RUNNING;
