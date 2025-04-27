@@ -47,101 +47,209 @@ class BMWIXBattery : public CanBattery {
   CmdState cmdState = SOC;
 
   /*
-  Suspected Vehicle comms required:
-    0x06D DLC? 1000ms - counters?
-    0x2F1 DLC? 1000ms  during run : 0xFF, 0xFF, 0xFF, 0xFF, 0x9B, 0x00, 0xF3, 0xFF - at startup  0xFF, 0xFF, 0xFF, 0xFF, 0x00, 0x00, 0xF3, 0xFF.   Suspect byte [4] is a counter
-    0x439 DLC4 1000ms  
-    0x0C0 DLC2 200ms needs counter
-    0x587 DLC8 appears at startup   0x78 0x07 0x00 0x00 0xFF 0xFF 0xFF 0xFF , 0x01 0x03 0x80 0xFF 0xFF 0xFF 0xFF 0xFF,  0x78 0x07 0x00 0x00 0xFF 0xFF 0xFF 0xFF,   0x06 0x00 0x00 0xFF 0xFF 0xFF 0xFF 0xFF, 0x01 0x03 0x82 0xFF 0xFF 0xFF 0xFF 0xFF, 0x01 0x03 0x80 0xFF 0xFF 0xFF 0xFF 0xFF
+  SME output:
+    0x12B8D087         5000ms - Extended ID
+    0x1D2       DLC8   1000ms
+    0x20B       DLC8   1000ms
+    0x2E2       DLC16  1000ms
+    0x31F       DLC16  100ms  - 2 downward counters?
+    0x3EA       DLC8
+    0x453       DLC20  200ms
+    0x486       DLC48  1000ms
+    0x49C       DLC8   1000ms
+    0x4A1       DLC8   1000ms
+    0x4BB       DLC64  200ms  - seems multplexed on [0]
+    0x4D0       DLC64  1000ms - some slow/flickering values - possible change during fault
+    0x507       DLC8
+    0x587       DLC8          - appears at startup   0x78 0x07 0x00 0x00 0xFF 0xFF 0xFF 0xFF , 0x01 0x03 0x80 0xFF 0xFF 0xFF 0xFF 0xFF,  0x78 0x07 0x00 0x00 0xFF 0xFF 0xFF 0xFF,   0x06 0x00 0x00 0xFF 0xFF 0xFF 0xFF 0xFF, 0x01 0x03 0x82 0xFF 0xFF 0xFF 0xFF 0xFF, 0x01 0x03 0x80 0xFF 0xFF 0xFF 0xFF 0xFF
+    0x607                     - UDS response
+    0x7AB       DLC64         - seen at startup
+    0x8F        DLC48  10ms   - appears to have analog readings like volt/temp/current
+    0xD0D087    DLC4
   
-  SME Output:
-    0x08F DLC48  10ms    - Appears to have analog readings like volt/temp/current
-    0x12B8D087 5000ms  - Extended ID
-    0x1D2 DLC8  1000ms
-    0x20B DLC8  1000ms
-    0x2E2 DLC16 1000ms
-    0x2F1 DLC8  1000ms
-    0x31F DLC16 100ms - 2 downward counters?
-    0x453 DLC20 200ms
-    0x486 DLC48  1000ms
-    0x49C DLC8 1000ms
-    0x4A1 DLC8 1000ms
-    0x4BB DLC64  200ms - seems multplexed on [0]
-    0x4D0 DLC64 1000ms - some slow/flickering values - possible change during fault
-    0x510 DLC8 100ms  40 10 40 00 6F DF 19 00  during run -  Startup sends this once: 0x40 0x10 0x02 0x00 0x00 0x00 0x00 0x00
-    0x607 UDS Response
+  BDC output:
+    0x276       DLC8          - vehicle condition
+    0x2F1       DLC8   1000ms - during run: 0xFF, 0xFF, 0xFF, 0xFF, 0x9B, 0x00, 0xF3, 0xFF - at startup  0xFF, 0xFF, 0xFF, 0xFF, 0x00, 0x00, 0xF3, 0xFF.   Suspect byte [4] is a counter
+    0x439       DLC4   1000ms - STATIC: byte0, byte1. byte3 changes, byte4 = 0xF2 OR 0xF3
+    0x4EB       DLC8          - RSU condition
+    0x510       DLC8   100ms  - FIXME:(update as this content is not seen in car logs:) 40 10 40 00 6F DF 19 00  during run -  Startup sends this once: 0x40 0x10 0x02 0x00 0x00 0x00 0x00 0x00
+    0x6D        DLC8   1000ms - counters? counter on byte3
+    0xC0        DLC2   200ms  - needs counter
   
-  No vehicle  log available, SME asks for:
+  SME asks for:
     0x125 (CCU)
     0x16E (CCU)
-    0x340 (CCU)
-    0x4F8 (CCU)
     0x188 (CCU)
+    0x1A1 (DSC) - vehicle speed (not seen in car logs)
+    0x1EA (KOMBI)
+    0x1FC (FIXME:(add transmitter node.))
+    0x21D (FIXME:(add transmitter node.))
+    0x276 (BDC)
+    0x2ED (FIXME:(add transmitter node.))
+    0x340 (CCU)
+    0x380 (FIXME:(add transmitter node.))
+    0x442 (FIXME:(add transmitter node.))
+    0x4EB (BDC)
+    0x4F8 (CCU)
     0x91 (EME1)
-    0xAA (EME2)
+    0xAA (EME2) - all wheel drive only
     0x?? Suspect there is a drive mode flag somewhere - balancing might only be active in some modes
   
-  TODO
+  TODO:
   - Request batt serial number on F1 8C (already parsing RX)
-  
   */
 
   //Vehicle CAN START
-  CAN_frame BMWiX_06D = {
+  CAN_frame BMWiX_125 = {
+      .FD = true,
+      .ext_ID = false,
+      .DLC = 20,
+      .ID = 0x125,
+      //.data = {TODO:, TODO:, TODO:, TODO:, 0xFE, 0x7F, 0xFE, 0x7F, TODO:, TODO:, TODO:, TODO:, TODO:, 0xFF, 0xFF, 0xFF, 0xFF, 0xF0, 0xFF, 0xFF}
+  };  // CCU output
+
+  /* SME output
+  CAN_frame BMWiX_12B8D087 = {.FD = true,
+                              .ext_ID = true,
+                              .DLC = 2,
+                              .ID = 0x12B8D087,
+                              .data = {0xFC, 0xFF}};  // 5000ms SME output - values
+  */
+
+  CAN_frame BMWiX_16E = {
       .FD = true,
       .ext_ID = false,
       .DLC = 8,
-      .ID = 0x06D,
-      .data = {
-          0x00, 0x00, 0x00, 0x00, 0x00, 0x01, 0x00,
-          0xFF}};  // 1000ms BDC Output - [0] [1,2][3,4] counter x2. 3,4 is 9 higher than 1,2 is needed? [5-7] static
+      .ID = 0x16E,
+      //  .data = {TODO:, TODO:, TODO: 0xC8 or 0xC9, 0xFF, TODO:, 0xC9, TODO:, TODO:, }
+  };  // CCU output
 
-  CAN_frame BMWiX_0C0 = {
+  CAN_frame BMWiX_188 = {
       .FD = true,
       .ext_ID = false,
-      .DLC = 2,
-      .ID = 0x0C0,
+      .DLC = 8,
+      .ID = 0x188,
+      .data = {0x00, 0x00, 0x00, 0x00, 0x3C, 0xFF, 0xFF, 0xFF}};  // CCU output - values while driving
+
+  CAN_frame BMWiX_1EA = {
+      .FD = true,
+      .ext_ID = false,
+      .DLC = 8,
+      .ID = 0x1EA,
+      //.data = {TODO:km_least_significant, TODO:, TODO:, TODO:, TODO:km_most_significant, 0xFF, TODO:, TODO:}
+  };  // KOMBI output - kilometerstand
+
+  CAN_frame BMWiX_1FC = {
+      .FD = true,
+      .ext_ID = false,
+      .DLC = 8,
+      .ID = 0x1FC,
+      .data = {0xFF, 0xFF, 0xFF, 0xFC, 0x00, 0x00, 0xC0,
+               0x00}};  // FIXME:(add transmitter node) output - heat management engine control - values
+
+  CAN_frame BMWiX_21D = {
+      .FD = true,
+      .ext_ID = false,
+      .DLC = 8,
+      .ID = 0x21D,
+      //    .data = {TODO:, TODO:, TODO:, 0xFF, 0xFF, 0xFF, 0xFF, TODO:}
+  };  // FIXME:(add transmitter node) output - request heating and air conditioning system 1
+
+  CAN_frame BMWiX_276 = {
+      .FD = true,
+      .ext_ID = false,
+      .DLC = 8,
+      .ID = 0x276,
+      .data = {0xFF, 0xFF, 0xF0, 0xFF, 0xFF, 0xFF, 0xFF, 0xFC}};  // 5000ms BDC output - vehicle condition
+
+  CAN_frame BMWiX_2ED = {
+      .FD = true,
+      .ext_ID = false,
+      .DLC = 8,
+      .ID = 0x2ED,
       .data = {
-          0xF0,
-          0x00}};  // Keep Alive 2 BDC>SME  200ms First byte cycles F0 > FE  second byte 00 - MINIMUM ID TO KEEP SME AWAKE
+          0x75,
+          0x75}};  // FIXME:(add transmitter node) output - ambient temperature (values seen in logs vary between 0x72 and 0x79)
 
-  CAN_frame BMWiX_276 = {.FD = true,
-                         .ext_ID = false,
-                         .DLC = 8,
-                         .ID = 0x476,
-                         .data = {0xFF, 0xFF, 0xF0, 0xFF, 0xFF, 0xFF, 0xFF,
-                                  0xFC}};  // 5000ms BDC Output - Suspected keep alive Static CONFIRM NEEDED
+  CAN_frame BMWiX_2F1 = {
+      .FD = true,
+      .ext_ID = false,
+      .DLC = 8,
+      .ID = 0x2F1,
+      .data = {0xFF, 0xFF, 0xD0, 0x39, 0x94, 0x00, 0xF3, 0xFF}};  // 1000ms BDC output - values - varies at startup
 
-  CAN_frame BMWiX_2F1 = {.FD = true,
-                         .ext_ID = false,
-                         .DLC = 8,
-                         .ID = 0x2F1,
-                         .data = {0xFF, 0xFF, 0xD0, 0x39, 0x94, 0x00, 0xF3,
-                                  0xFF}};  // 1000ms BDC Output - Static values - varies at startup
+  CAN_frame BMWiX_340 = {
+      .FD = true,
+      .ext_ID = false,
+      .DLC = 12,
+      .ID = 0x340,
+      //      .data = {TODO:, TODO:, TODO:, 0xFF, TODO:, TODO:, 0x00, 0x00, TODO:, TODO:, TODO:, 0xFF, 0xFF, }
+  };  // CCU output
 
+  CAN_frame BMWiX_380 = {
+      .FD = true,
+      .ext_ID = false,
+      .DLC = 7,
+      .ID = 0x380,
+      //      .data = {FIXME:(VIN_char1), FIXME:(VIN_char2), FIXME:(VIN_char3), FIXME:(VIN_char4), FIXME:(VIN_char5), FIXME:(VIN_char6), FIXME:(VIN_char7)}
+  };  // FIXME:(add transmitter node) output -  VIN: ASCII2HEX
+
+  /* Not requested by SME
   CAN_frame BMWiX_439 = {.FD = true,
                          .ext_ID = false,
                          .DLC = 4,
                          .ID = 0x439,
-                         .data = {0xFF, 0x3F, 0xFF, 0xF3}};  // 1000ms BDC Output
+                         .data = {0xFF, 0x3F, 0xFF, 0xF3}};  // 1000ms BDC output
+  */
 
+  CAN_frame BMWiX_442 = {
+      .FD = true,
+      .ext_ID = false,
+      .DLC = 6,
+      .ID = 0x442,
+      //                        .data = {TODO: relative time byte 0, TODO: relative time byte1, 0xA9, 0x00, 0xE0, 0x23}
+  };  // FIXME:(add transmitter node) output - relative time BN2020
+
+  /* SME output
   CAN_frame
       BMWiX_486 =
-          {.FD = true,
-           .ext_ID = false,
-           .DLC = 48,
-           .ID = 0x486,
-           .data = {0xFE, 0xFF, 0xFE, 0xFF, 0xFE, 0xFF, 0xFE, 0xFF, 0xFE, 0xFF, 0xFE, 0xFF, 0xFE,
-                    0xFF, 0xFE, 0xFF, 0xFE, 0xFF, 0xFE, 0xFF, 0xFE, 0xFF, 0xFE, 0xFF, 0xFE, 0xFF,
-                    0xFE, 0xFF, 0xFF, 0x7F, 0x33, 0xFD, 0xFD, 0xFD, 0xFD, 0xC0, 0x41, 0xFF, 0xFF,
-                    0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF}};  // 1000ms BDC Output - Suspected keep alive CONFIRM NEEDED
+          {
+              .FD = true,
+              .ext_ID = false,
+              .DLC = 48,
+              .ID = 0x486,
+              .data =
+                  {
+                      0xFE, 0xFF, 0xFE, 0xFF, 0xFE, 0xFF, 0xFE, 0xFF, 0xFE, 0xFF, 0xFE, 0xFF, 0xFE,
+                      0xFF, 0xFE, 0xFF, 0xFE, 0xFF, 0xFE, 0xFF, 0xFE, 0xFF, 0xFE, 0xFF, 0xFE, 0xFF,
+                      0xFE, 0xFF, 0xFF, 0x7F, 0x33, 0xFD, 0xFD, 0xFD, 0xFD, 0xC0, 0x41, 0xFF, 0xFF,
+                      0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF}};  // 1000ms SME output - Suspected keep alive CONFIRM NEEDED
+  */
 
+  /* SME output
   CAN_frame BMWiX_49C = {.FD = true,
                          .ext_ID = false,
                          .DLC = 4,
                          .ID = 0x49C,
                          .data = {0xD2, 0xF2, 0xC0, 0xFF, 0xFF, 0xFF, 0xFF,
-                                  0xFF}};  // 1000ms BDC Output - Suspected keep alive CONFIRM NEEDED
+                                  0xFF}};  // 1000ms SME output - Suspected keep alive CONFIRM NEEDED
+  */
+
+  CAN_frame BMWiX_4EB = {
+      .FD = true,
+      .ext_ID = false,
+      .DLC = 8,
+      .ID = 0x4EB,
+      //  .data = {TODO:, TODO:, TODO: 0xE0 or 0xE5 (while driving), 0xFF, 0xFF, 0xFF, 0xFF, 0xFF}
+  };  // BDC output - RSU condition
+
+  CAN_frame BMWiX_4F8 = {
+      .FD = true,
+      .ext_ID = false,
+      .DLC = 8,
+      .ID = 0x4F8,
+      //  .data = {0xFF, 0xFD, 0xFF, 0xFF, 0xFF, TODO:, TODO:, 0xC8, 0x00, 0x00, 0xF0, 0x40, 0xFE, 0xFF, 0xFD, 0xFF, TODO:, TODO:, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF}
+  };  // CCU output
 
   CAN_frame BMWiX_510 = {
       .FD = true,
@@ -149,13 +257,25 @@ class BMWIXBattery : public CanBattery {
       .DLC = 8,
       .ID = 0x510,
       .data = {0x40, 0x10, 0x00, 0x00, 0x00, 0x80, 0x00,
-               0x00}};  // 100ms BDC Output - Values change in car logs, these bytes are the most common
+               0x00}};  // 100ms BDC output - Values change in car logs, these bytes are the most common
 
-  CAN_frame BMWiX_12B8D087 = {.FD = true,
-                              .ext_ID = true,
-                              .DLC = 2,
-                              .ID = 0x12B8D087,
-                              .data = {0xFC, 0xFF}};  // 5000ms SME Output - Static values
+  CAN_frame BMWiX_6D = {
+      .FD = true,
+      .ext_ID = false,
+      .DLC = 8,
+      .ID = 0x6D,
+      .data = {
+          0x00, 0x00, 0x00, 0x00, 0x00, 0x01, 0x00,
+          0xFF}};  // 1000ms BDC output - [0] [1,2][3,4] counter x2. 3,4 is 9 higher than 1,2 is needed? [5-7] static
+
+  CAN_frame BMWiX_C0 = {
+      .FD = true,
+      .ext_ID = false,
+      .DLC = 2,
+      .ID = 0xC0,
+      .data = {
+          0xF0,
+          0x00}};  // BDC output - Keep Alive 2 BDC>SME  200ms First byte cycles F0 > FE  second byte 00 - MINIMUM ID TO KEEP SME AWAKE
   //Vehicle CAN END
 
   //Request Data CAN START
@@ -317,12 +437,6 @@ class BMWIXBattery : public CanBattery {
                                        .data = {0x07, 0x30, 0x00, 0x02}};
 
   //Action Requests:
-  CAN_frame BMW_10B = {.FD = true,
-                       .ext_ID = false,
-                       .DLC = 3,
-                       .ID = 0x10B,
-                       .data = {0xCD, 0x00, 0xFC}};  // Contactor closing command?
-
   CAN_frame BMWiX_6F4_CELL_SOC = {.FD = true,
                                   .ext_ID = false,
                                   .DLC = 5,
@@ -404,9 +518,8 @@ class BMWIXBattery : public CanBattery {
   uint8_t pyro_status_pss6 = 0;            //Using AC 93
   uint8_t uds_req_id_counter = 0;
   uint8_t detected_number_of_cells = 108;
-
-  byte iX_0C0_counter = 0xF0;  // Initialize to 0xF0
-
+  const unsigned long STALE_PERIOD =
+      STALE_PERIOD_CONFIG;  // Time in milliseconds to check for staleness (e.g., 5000 ms = 5 seconds)
   //End iX Intermediate vars
 
   uint8_t current_cell_polled = 0;

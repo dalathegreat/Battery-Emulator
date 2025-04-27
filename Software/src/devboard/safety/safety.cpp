@@ -79,6 +79,7 @@ void update_machineryprotection() {
   // Battery voltage is over designed max voltage!
   if (datalayer.battery.status.voltage_dV > datalayer.battery.info.max_design_voltage_dV) {
     set_event(EVENT_BATTERY_OVERVOLTAGE, datalayer.battery.status.voltage_dV);
+    datalayer.battery.status.max_charge_power_W = 0;
   } else {
     clear_event(EVENT_BATTERY_OVERVOLTAGE);
   }
@@ -86,6 +87,7 @@ void update_machineryprotection() {
   // Battery voltage is under designed min voltage!
   if (datalayer.battery.status.voltage_dV < datalayer.battery.info.min_design_voltage_dV) {
     set_event(EVENT_BATTERY_UNDERVOLTAGE, datalayer.battery.status.voltage_dV);
+    datalayer.battery.status.max_discharge_power_W = 0;
   } else {
     clear_event(EVENT_BATTERY_UNDERVOLTAGE);
   }

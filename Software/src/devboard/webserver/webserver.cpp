@@ -615,6 +615,15 @@ void init_webserver() {
     request->send(200, "text/plain", "Updated successfully");
   });
 
+  // Route for triggering NVROL reset on Zoe Gen2 batteries
+  server.on("/triggerNVROL", HTTP_GET, [](AsyncWebServerRequest* request) {
+    if (WEBSERVER_AUTH_REQUIRED && !request->authenticate(http_username, http_password)) {
+      return request->requestAuthentication();
+    }
+    datalayer_extended.zoePH2.UserRequestNVROLReset = true;
+    request->send(200, "text/plain", "Updated successfully");
+  });
+
   // Route for resetting SOH on Nissan LEAF batteries
   server.on("/resetSOH", HTTP_GET, [](AsyncWebServerRequest* request) {
     if (WEBSERVER_AUTH_REQUIRED && !request->authenticate(http_username, http_password)) {

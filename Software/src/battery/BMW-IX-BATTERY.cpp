@@ -44,7 +44,7 @@ static uint8_t increment_alive_counter(uint8_t counter) {
   return counter;
 }
 
-static byte increment_0C0_counter(byte counter) {
+static byte increment_C0_counter(byte counter) {
   counter++;
   // Reset to 0xF0 if it exceeds 0xFE
   if (counter > 0xFE) {
@@ -375,17 +375,12 @@ void BMWIXBattery::transmit_can() {
     previousMillis200 = currentMillis;
 
     //Send SME Keep alive values 200ms
-    BMWiX_0C0.data.u8[0] = increment_0C0_counter(BMWiX_0C0.data.u8[0]);  //Keep Alive 1
-    transmit_can_frame(&BMWiX_0C0, can_config.battery);
+    BMWiX_C0.data.u8[0] = increment_C0_counter(BMWiX_C0.data.u8[0]);  //Keep Alive 1
+    transmit_can_frame(&BMWiX_C0, can_config.battery);
   }
   // Send 1000ms CAN Message
   if (currentMillis - previousMillis1000 >= INTERVAL_1_S) {
     previousMillis1000 = currentMillis;
-
-    //Send SME Keep alive values 1000ms
-    //Don't believe this is needed: transmit_can_frame(&BMWiX_06D, can_config.battery);
-    //Don't believe this is needed: transmit_can_frame(&BMWiX_2F1, can_config.battery);
-    //Don't believe this is needed: transmit_can_frame(&BMWiX_439, can_config.battery);
   }
   // Send 5000ms CAN Message
   if (currentMillis - previousMillis5000 >= INTERVAL_5_S) {

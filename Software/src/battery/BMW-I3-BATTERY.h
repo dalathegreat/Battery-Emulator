@@ -29,11 +29,9 @@ class BMWi3Battery : public CanBattery {
     m_can_interface = can_interface;
     m_wakeup_pin = wakeup_pin;
   }
-
   virtual const char* name() { return Name; };
   static constexpr char* Name = "BMW i3";
 
-  virtual bool supportsDoubleBattery() { return true; };
   virtual void setup();
   virtual void update_values();
   virtual void handle_incoming_can_frame(CAN_frame rx_frame);
