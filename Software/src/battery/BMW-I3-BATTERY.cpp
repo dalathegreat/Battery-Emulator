@@ -195,7 +195,10 @@ static uint8_t alive_counter_5000ms = 0;
 static uint8_t BMW_1D0_counter = 0;
 static uint8_t BMW_13E_counter = 0;
 static uint8_t BMW_380_counter = 0;
-static uint32_t BMW_328_counter = 0;
+static uint32_t BMW_328_seconds = 243785948;  // Initialized to make the battery think vehicle was made 7.7years ago
+static uint16_t BMW_328_days =
+    9244;  //Time since 1.1.2000. Hacky implementation to make it think current date is 23rd April 2025
+static uint32_t BMS_328_seconds_to_day = 0;  //Counter to keep track of days uptime
 
 static bool battery_awake = false;
 static bool battery2_awake = false;
@@ -973,12 +976,23 @@ void transmit_can_battery() {
     // Send 1000ms CAN Message
     if (currentMillis - previousMillis1000 >= INTERVAL_1_S) {
       previousMillis1000 = currentMillis;
-
-      BMW_328_counter++;  // Used to increment seconds
-      BMW_328.data.u8[0] = BMW_328_counter;
-      BMW_328.data.u8[1] = BMW_328_counter << 8;
-      BMW_328.data.u8[2] = BMW_328_counter << 16;
-      BMW_328.data.u8[3] = BMW_328_counter << 24;
+      //BMW_328 byte0-3 = Second Counter (T_SEC_COU_REL) time_second_counter_relative
+      // This signal shows the time in seconds since the system time was started (typically in the factory)
+      BMW_328_seconds++;  // Used to increment seconds
+      BMW_328.data.u8[0] = (uint8_t)(BMW_328_seconds & 0xFF);
+      BMW_328.data.u8[1] = (uint8_t)((BMW_328_seconds >> 8) & 0xFF);
+      BMW_328.data.u8[2] = (uint8_t)((BMW_328_seconds >> 16) & 0xFF);
+      BMW_328.data.u8[3] = (uint8_t)((BMW_328_seconds >> 24) & 0xFF);
+      //BMW_328 byte 4-5 = Day Counter (T_DAY_COU_ABSL) time_day_counter_absolute
+      //This value goes from 1 ... 65543
+      // Day 1 = 1.1.2000 ... Day 65543 = year 2179
+      BMS_328_seconds_to_day++;
+      if (BMS_328_seconds_to_day > 86400) {
+        BMW_328_days++;
+        BMS_328_seconds_to_day = 0;
+      }
+      BMW_328.data.u8[4] = (uint8_t)(BMW_328_days & 0xFF);
+      BMW_328.data.u8[5] = (uint8_t)((BMW_328_days >> 8) & 0xFF);
 
       BMW_1D0.data.u8[1] = ((BMW_1D0.data.u8[1] & 0xF0) + alive_counter_1000ms);
       BMW_1D0.data.u8[0] = calculateCRC(BMW_1D0, 8, 0xF9);

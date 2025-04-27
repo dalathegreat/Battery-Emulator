@@ -19,6 +19,13 @@ battery_pause_status emulator_pause_status = NORMAL;
 //battery pause status end
 
 void update_machineryprotection() {
+  // Check if the CPU is too hot
+  if (datalayer.system.info.CPU_temperature > 80.0f) {
+    set_event(EVENT_CPU_OVERHEAT, 0);
+  } else {
+    clear_event(EVENT_CPU_OVERHEAT);
+  }
+
   // Check health status of CAN interfaces
   if (datalayer.system.info.can_native_send_fail) {
     set_event(EVENT_CAN_NATIVE_TX_FAILURE, 0);
@@ -72,6 +79,7 @@ void update_machineryprotection() {
   // Battery voltage is over designed max voltage!
   if (datalayer.battery.status.voltage_dV > datalayer.battery.info.max_design_voltage_dV) {
     set_event(EVENT_BATTERY_OVERVOLTAGE, datalayer.battery.status.voltage_dV);
+    datalayer.battery.status.max_charge_power_W = 0;
   } else {
     clear_event(EVENT_BATTERY_OVERVOLTAGE);
   }
@@ -79,6 +87,7 @@ void update_machineryprotection() {
   // Battery voltage is under designed min voltage!
   if (datalayer.battery.status.voltage_dV < datalayer.battery.info.min_design_voltage_dV) {
     set_event(EVENT_BATTERY_UNDERVOLTAGE, datalayer.battery.status.voltage_dV);
+    datalayer.battery.status.max_discharge_power_W = 0;
   } else {
     clear_event(EVENT_BATTERY_UNDERVOLTAGE);
   }
