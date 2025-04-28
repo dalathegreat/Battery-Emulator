@@ -1,4 +1,3 @@
-#include "BATTERIES.h"
 #include "../include.h"
 
 // These functions adapt the old C-style global functions battery-API to the
