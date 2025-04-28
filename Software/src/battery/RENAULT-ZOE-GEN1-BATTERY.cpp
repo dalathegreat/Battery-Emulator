@@ -4,6 +4,8 @@
 #include "../devboard/utils/events.h"
 #include "RENAULT-ZOE-GEN1-BATTERY.h"
 
+void transmit_can_frame(CAN_frame* tx_frame, int interface);
+
 /* Information in this file is based of the OVMS V3 vehicle_renaultzoe.cpp component 
 https://github.com/openvehicles/Open-Vehicle-Monitoring-System-3/blob/master/vehicle/OVMS.V3/components/vehicle_renaultzoe/src/vehicle_renaultzoe.cpp
 The Zoe BMS apparently does not send total pack voltage, so we use the polled 96x cellvoltages summed up as total voltage
@@ -75,7 +77,8 @@ static unsigned long previousMillis100 = 0;  // will store last time a 100ms CAN
 static unsigned long previousMillis250 = 0;  // will store last time a 250ms CAN Message was sent
 static uint8_t counter_423 = 0;
 
-void update_values_battery() {  //This function maps all the values fetched via CAN to the correct parameters used for modbus
+void RenaultZoeGen1Battery::
+    update_values() {  //This function maps all the values fetched via CAN to the correct parameters used for modbus
   datalayer.battery.status.soh_pptt = (LB_SOH * 100);  // Increase range from 99% -> 99.00%
 
   datalayer.battery.status.real_soc = SOC_polled;
@@ -134,7 +137,7 @@ void update_values_battery() {  //This function maps all the values fetched via 
   datalayer.battery.status.voltage_dV = static_cast<uint32_t>((calculated_total_pack_voltage_mV / 100));  // mV to dV
 }
 
-void handle_incoming_can_frame_battery(CAN_frame rx_frame) {
+void RenaultZoeGen1Battery::handle_incoming_can_frame(CAN_frame rx_frame) {
   switch (rx_frame.ID) {
     case 0x155:  //10ms - Charging power, current and SOC
       datalayer.battery.status.CAN_battery_still_alive = CAN_STILL_ALIVE;
@@ -490,7 +493,7 @@ void handle_incoming_can_frame_battery(CAN_frame rx_frame) {
   }
 }
 
-void transmit_can_battery() {
+void RenaultZoeGen1Battery::transmit_can() {
   unsigned long currentMillis = millis();
   // Send 100ms CAN Message
   if (currentMillis - previousMillis100 >= INTERVAL_100_MS) {
@@ -542,7 +545,7 @@ void transmit_can_battery() {
   }
 }
 
-void setup_battery(void) {  // Performs one time setup at startup
+void RenaultZoeGen1Battery::setup(void) {  // Performs one time setup at startup
   strncpy(datalayer.system.info.battery_protocol, "Renault Zoe Gen1 22/40kWh", 63);
   datalayer.system.info.battery_protocol[63] = '\0';
   datalayer.system.status.battery_allows_contactor_closing = true;

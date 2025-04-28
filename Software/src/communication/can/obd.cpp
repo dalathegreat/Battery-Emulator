@@ -1,6 +1,8 @@
 #include "obd.h"
 #include "comm_can.h"
 
+void transmit_can_frame(CAN_frame* tx_frame, int interface);
+
 void show_dtc(uint8_t byte0, uint8_t byte1);
 
 void show_dtc(uint8_t byte0, uint8_t byte1) {
