@@ -52,7 +52,7 @@ GPIOs on extra header
 #define BMS_POWER 23
 
 // SMA CAN contactor pins
-#define INVERTER_CONTACTOR_ENABLE_PIN 19
+#define INVERTER_CONTACTOR_ENABLE_PIN 2
 
 // LED
 #define LED_PIN 4
