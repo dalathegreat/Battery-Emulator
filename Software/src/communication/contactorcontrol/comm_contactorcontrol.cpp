@@ -39,6 +39,7 @@ unsigned long negativeStartTime = 0;
 unsigned long prechargeCompletedTime = 0;
 unsigned long timeSpentInFaultedMode = 0;
 #endif
+static uint timeSpentWithoutEnableTurnedOn = 0;
 unsigned long currentTime = 0;
 unsigned long lastPowerRemovalTime = 0;
 unsigned long bmsPowerOnTime = 0;
@@ -119,6 +120,17 @@ static void dbg_contactors(const char* state) {
 void handle_contactors() {
 #if defined(SMA_BYD_H_CAN) || defined(SMA_BYD_HVS_CAN) || defined(SMA_TRIPOWER_CAN)
   datalayer.system.status.inverter_allows_contactor_closing = digitalRead(INVERTER_CONTACTOR_ENABLE_PIN);
+
+  if (!datalayer.system.status.inverter_allows_contactor_closing) {
+    timeSpentWithoutEnableTurnedOn++;
+
+    if (timeSpentWithoutEnableTurnedOn >
+        180000) {  //Increments once every 10ms. 100/second*60seconds*30minutes = 180000
+      set_event(EVENT_NO_ENABLE_DETECTED, 0);
+    }
+  } else {
+    timeSpentWithoutEnableTurnedOn = 0;
+  }
 #endif
 
   handle_BMSpower();  // Some batteries need to be periodically power cycled
