@@ -17,14 +17,20 @@ static uint8_t history_index = 0;
 static uint8_t bms_char_dis_status = STANDBY;
 static bool all_401_values_equal = false;
 
-void update_modbus_registers_inverter() {
+void verify_inverter_modbus();
+void verify_temperature_modbus();
+void handle_update_data_modbusp201_byd();
+void handle_update_data_modbusp301_byd();
+void handle_static_data_modbus_byd();
+
+void BydModbusInverter::update_modbus_registers() {
   verify_temperature_modbus();
   verify_inverter_modbus();
   handle_update_data_modbusp201_byd();
   handle_update_data_modbusp301_byd();
 }
 
-void handle_static_data_modbus_byd() {
+void BydModbusInverter::handle_static_data() {
   // Store the data into the array
   static uint16_t si_data[] = {21321, 1};
   static uint16_t byd_data[] = {16985, 17408, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0};
@@ -144,8 +150,10 @@ void verify_inverter_modbus() {
     history_index = (history_index + 1) % HISTORY_LENGTH;
   }
 }
-void setup_inverter(void) {  // Performs one time setup at startup over CAN bus
+
+void BydModbusInverter::setup(void) {  // Performs one time setup at startup over CAN bus
   strncpy(datalayer.system.info.inverter_protocol, "BYD 11kWh HVM battery over Modbus RTU", 63);
   datalayer.system.info.inverter_protocol[63] = '\0';
 }
+
 #endif
