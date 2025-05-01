@@ -18,7 +18,7 @@
 static uint8_t battery_type = NOT_DETERMINED_YET;
 static unsigned long previousMillis50 = 0;   // will store last time a 50ms CAN Message was send
 static unsigned long previousMillis100 = 0;  // will store last time a 100ms CAN Message was send
-static unsigned long previousMillis500 = 0;  // will store last time a 500ms CAN Message was send
+static unsigned long previousMillis200 = 0;  // will store last time a 200ms CAN Message was send
 static bool SOC_method = false;
 static uint8_t counter_50ms = 0;
 static uint8_t counter_100ms = 0;
@@ -40,6 +40,20 @@ static int16_t BMS_highest_cell_temperature = 0;
 static int16_t BMS_average_cell_temperature = 0;
 static uint16_t BMS_lowest_cell_voltage_mV = 3300;
 static uint16_t BMS_highest_cell_voltage_mV = 3300;
+static uint32_t BMS_unknown0 = 0;
+static uint32_t BMS_unknown1 = 0;
+static uint16_t BMS_unknown2 = 0;
+static uint16_t BMS_unknown3 = 0;
+static uint16_t BMS_unknown4 = 0;
+static uint16_t BMS_unknown5 = 0;
+static uint16_t BMS_unknown6 = 0;
+static uint16_t BMS_unknown7 = 0;
+static uint16_t BMS_unknown8 = 0;
+static uint16_t BMS_unknown9 = 0;
+static uint8_t BMS_unknown10 = 0;
+static uint8_t BMS_unknown11 = 0;
+static uint8_t BMS_unknown12 = 0;
+static uint8_t BMS_unknown13 = 0;
 static uint8_t battery_frame_index = 0;
 static uint16_t battery_cellvoltages[CELLCOUNT_EXTENDED] = {0};
 #ifdef DOUBLE_BATTERY
@@ -61,18 +75,93 @@ static uint16_t BMS2_highest_cell_voltage_mV = 3300;
 static uint8_t battery2_frame_index = 0;
 static uint16_t battery2_cellvoltages[CELLCOUNT_EXTENDED] = {0};
 #endif  //DOUBLE_BATTERY
-#define POLL_FOR_BATTERY_SOC 0x05
-#define POLL_FOR_BATTERY_VOLTAGE 0x08
-#define POLL_FOR_BATTERY_CURRENT 0x09
-#define POLL_FOR_LOWEST_TEMP_CELL 0x2f
-#define POLL_FOR_HIGHEST_TEMP_CELL 0x31
-#define POLL_FOR_BATTERY_PACK_AVG_TEMP 0x32
-#define POLL_FOR_BATTERY_CELL_MV_MAX 0x2D
-#define POLL_FOR_BATTERY_CELL_MV_MIN 0x2B
-#define UNKNOWN_POLL_1 0xFC
+#define POLL_FOR_BATTERY_SOC 0x0005
+#define POLL_FOR_BATTERY_VOLTAGE 0x0008
+#define POLL_FOR_BATTERY_CURRENT 0x0009
+#define POLL_FOR_LOWEST_TEMP_CELL 0x002f
+#define POLL_FOR_HIGHEST_TEMP_CELL 0x0031
+#define POLL_FOR_BATTERY_PACK_AVG_TEMP 0x0032
+#define POLL_FOR_BATTERY_CELL_MV_MAX 0x002D
+#define POLL_FOR_BATTERY_CELL_MV_MIN 0x002B
+#define UNKNOWN_POLL_0 0x1FFE   //0x64 19 C4 3B
+#define UNKNOWN_POLL_1 0x1FFC   //0x72 1F C4 3B
+#define UNKNOWN_POLL_2 0x000A   //0x04CF (1231 interesting!)
+#define UNKNOWN_POLL_3 0x000B   //0x00B1 (177 interesting!)
+#define UNKNOWN_POLL_4 0x000E   //0x0B27 (2855 interesting!)
+#define UNKNOWN_POLL_5 0x000F   //0x00237B (9083 interesting!)
+#define UNKNOWN_POLL_6 0x0010   //0x00231B (8987 interesting!)
+#define UNKNOWN_POLL_7 0x0011   //0x0E4E (3662 interesting!)
+#define UNKNOWN_POLL_8 0x0012   //0x0E27 (3623 interesting)
+#define UNKNOWN_POLL_9 0x0004   //0x0034 (52 interesting!)
+#define UNKNOWN_POLL_10 0x002A  //0x5B
+#define UNKNOWN_POLL_11 0x002E  //0x08 (probably module number, or cell number?)
+#define UNKNOWN_POLL_12 0x002C  //0x43
+#define UNKNOWN_POLL_13 0x0030  //0x01 (probably module number, or cell number?)
+#define POLL_MODULE_1_LOWEST_MV_NUMBER 0x016C
+#define POLL_MODULE_1_LOWEST_CELL_MV 0x016D
+#define POLL_MODULE_1_HIGHEST_MV_NUMBER 0x016E
+#define POLL_MODULE_1_HIGH_CELL_MV 0x016F
+#define POLL_MODULE_1_HIGH_TEMP 0x0171
+#define POLL_MODULE_1_LOW_TEMP 0x0173
+#define POLL_MODULE_2_LOWEST_MV_NUMBER 0x0174
+#define POLL_MODULE_2_LOWEST_CELL_MV 0x0175
+#define POLL_MODULE_2_HIGHEST_MV_NUMBER 0x0176
+#define POLL_MODULE_2_HIGH_CELL_MV 0x0177
+#define POLL_MODULE_2_HIGH_TEMP 0x0179
+#define POLL_MODULE_2_LOW_TEMP 0x017B
+#define POLL_MODULE_3_LOWEST_MV_NUMBER 0x017C
+#define POLL_MODULE_3_LOWEST_CELL_MV 0x017D
+#define POLL_MODULE_3_HIGHEST_MV_NUMBER 0x017E
+#define POLL_MODULE_3_HIGH_CELL_MV 0x017F
+#define POLL_MODULE_3_HIGH_TEMP 0x0181
+#define POLL_MODULE_3_LOW_TEMP 0x0183
+#define POLL_MODULE_4_LOWEST_MV_NUMBER 0x0184
+#define POLL_MODULE_4_LOWEST_CELL_MV 0x0185
+#define POLL_MODULE_4_HIGHEST_MV_NUMBER 0x0186
+#define POLL_MODULE_4_HIGH_CELL_MV 0x0187
+#define POLL_MODULE_4_HIGH_TEMP 0x0189
+#define POLL_MODULE_4_LOW_TEMP 0x018B
+#define POLL_MODULE_5_LOWEST_MV_NUMBER 0x018C
+#define POLL_MODULE_5_LOWEST_CELL_MV 0x018D
+#define POLL_MODULE_5_HIGHEST_MV_NUMBER 0x018E
+#define POLL_MODULE_5_HIGH_CELL_MV 0x018F
+#define POLL_MODULE_5_HIGH_TEMP 0x0191
+#define POLL_MODULE_5_LOW_TEMP 0x0193
+#define POLL_MODULE_6_LOWEST_MV_NUMBER 0x0194
+#define POLL_MODULE_6_LOWEST_CELL_MV 0x0195
+#define POLL_MODULE_6_HIGHEST_MV_NUMBER 0x0196
+#define POLL_MODULE_6_HIGH_CELL_MV 0x0197
+#define POLL_MODULE_6_HIGH_TEMP 0x0199
+#define POLL_MODULE_6_LOW_TEMP 0x019B
+#define POLL_MODULE_7_LOWEST_MV_NUMBER 0x019C
+#define POLL_MODULE_7_LOWEST_CELL_MV 0x019D
+#define POLL_MODULE_7_HIGHEST_MV_NUMBER 0x019E
+#define POLL_MODULE_7_HIGH_CELL_MV 0x019F
+#define POLL_MODULE_7_HIGH_TEMP 0x01A1
+#define POLL_MODULE_7_LOW_TEMP 0x01A3
+#define POLL_MODULE_8_LOWEST_MV_NUMBER 0x01A4
+#define POLL_MODULE_8_LOWEST_CELL_MV 0x01A5
+#define POLL_MODULE_8_HIGHEST_MV_NUMBER 0x01A6
+#define POLL_MODULE_8_HIGH_CELL_MV 0x01A7
+#define POLL_MODULE_8_HIGH_TEMP 0x01A9
+#define POLL_MODULE_8_LOW_TEMP 0x01AB
+#define POLL_MODULE_9_LOWEST_MV_NUMBER 0x01AC
+#define POLL_MODULE_9_LOWEST_CELL_MV 0x01AD
+#define POLL_MODULE_9_HIGHEST_MV_NUMBER 0x01AE
+#define POLL_MODULE_9_HIGH_CELL_MV 0x01AF
+#define POLL_MODULE_9_HIGH_TEMP 0x01B1
+#define POLL_MODULE_9_LOW_TEMP 0x01B3
+#define POLL_MODULE_10_LOWEST_MV_NUMBER 0x01B4
+#define POLL_MODULE_10_LOWEST_CELL_MV 0x01B5
+#define POLL_MODULE_10_HIGHEST_MV_NUMBER 0x01B6
+#define POLL_MODULE_10_HIGH_CELL_MV 0x01B7
+#define POLL_MODULE_10_HIGH_TEMP 0x01B9
+#define POLL_MODULE_10_LOW_TEMP 0x01BB
+
 #define ESTIMATED 0
 #define MEASURED 1
 static uint16_t poll_state = POLL_FOR_BATTERY_SOC;
+static uint16_t pid_reply = 0;
 
 CAN_frame ATTO_3_12D = {.FD = false,
                         .ext_ID = false,
@@ -257,6 +346,20 @@ void update_values_battery() {  //This function maps all the values fetched via 
   datalayer_extended.bydAtto3.battery_temperatures[7] = battery_daughterboard_temperatures[7];
   datalayer_extended.bydAtto3.battery_temperatures[8] = battery_daughterboard_temperatures[8];
   datalayer_extended.bydAtto3.battery_temperatures[9] = battery_daughterboard_temperatures[9];
+  datalayer_extended.bydAtto3.unknown0 = BMS_unknown0;
+  datalayer_extended.bydAtto3.unknown1 = BMS_unknown1;
+  datalayer_extended.bydAtto3.unknown2 = BMS_unknown2;
+  datalayer_extended.bydAtto3.unknown3 = BMS_unknown3;
+  datalayer_extended.bydAtto3.unknown4 = BMS_unknown4;
+  datalayer_extended.bydAtto3.unknown5 = BMS_unknown5;
+  datalayer_extended.bydAtto3.unknown6 = BMS_unknown6;
+  datalayer_extended.bydAtto3.unknown7 = BMS_unknown7;
+  datalayer_extended.bydAtto3.unknown8 = BMS_unknown8;
+  datalayer_extended.bydAtto3.unknown9 = BMS_unknown9;
+  datalayer_extended.bydAtto3.unknown10 = BMS_unknown10;
+  datalayer_extended.bydAtto3.unknown11 = BMS_unknown11;
+  datalayer_extended.bydAtto3.unknown12 = BMS_unknown12;
+  datalayer_extended.bydAtto3.unknown13 = BMS_unknown13;
 }
 
 void handle_incoming_can_frame_battery(CAN_frame rx_frame) {
@@ -361,7 +464,8 @@ void handle_incoming_can_frame_battery(CAN_frame rx_frame) {
       datalayer.battery.status.CAN_battery_still_alive = CAN_STILL_ALIVE;
       break;
     case 0x7EF:  //OBD2 PID reply from battery
-      switch (rx_frame.data.u8[3]) {
+      pid_reply = ((rx_frame.data.u8[2] << 8) | rx_frame.data.u8[3]);
+      switch (pid_reply) {
         case POLL_FOR_BATTERY_SOC:
           BMS_SOC = rx_frame.data.u8[4];
           break;
@@ -385,6 +489,50 @@ void handle_incoming_can_frame_battery(CAN_frame rx_frame) {
           break;
         case POLL_FOR_BATTERY_CELL_MV_MIN:
           BMS_lowest_cell_voltage_mV = (rx_frame.data.u8[5] << 8) | rx_frame.data.u8[4];
+          break;
+        case UNKNOWN_POLL_0:
+          BMS_unknown0 = ((rx_frame.data.u8[7] << 24) | (rx_frame.data.u8[6] << 16) | (rx_frame.data.u8[5] << 8) |
+                          rx_frame.data.u8[4]);
+          break;
+        case UNKNOWN_POLL_1:
+          BMS_unknown1 = ((rx_frame.data.u8[7] << 24) | (rx_frame.data.u8[6] << 16) | (rx_frame.data.u8[5] << 8) |
+                          rx_frame.data.u8[4]);
+          break;
+        case UNKNOWN_POLL_2:
+          BMS_unknown2 = (rx_frame.data.u8[5] << 8) | rx_frame.data.u8[4];
+          break;
+        case UNKNOWN_POLL_3:
+          BMS_unknown3 = (rx_frame.data.u8[5] << 8) | rx_frame.data.u8[4];
+          break;
+        case UNKNOWN_POLL_4:
+          BMS_unknown4 = (rx_frame.data.u8[5] << 8) | rx_frame.data.u8[4];
+          break;
+        case UNKNOWN_POLL_5:
+          BMS_unknown5 = (rx_frame.data.u8[5] << 8) | rx_frame.data.u8[4];
+          break;
+        case UNKNOWN_POLL_6:
+          BMS_unknown6 = (rx_frame.data.u8[5] << 8) | rx_frame.data.u8[4];
+          break;
+        case UNKNOWN_POLL_7:
+          BMS_unknown7 = (rx_frame.data.u8[5] << 8) | rx_frame.data.u8[4];
+          break;
+        case UNKNOWN_POLL_8:
+          BMS_unknown8 = (rx_frame.data.u8[5] << 8) | rx_frame.data.u8[4];
+          break;
+        case UNKNOWN_POLL_9:
+          BMS_unknown9 = (rx_frame.data.u8[5] << 8) | rx_frame.data.u8[4];
+          break;
+        case UNKNOWN_POLL_10:
+          BMS_unknown10 = rx_frame.data.u8[4];
+          break;
+        case UNKNOWN_POLL_11:
+          BMS_unknown11 = rx_frame.data.u8[4];
+          break;
+        case UNKNOWN_POLL_12:
+          BMS_unknown12 = rx_frame.data.u8[4];
+          break;
+        case UNKNOWN_POLL_13:
+          BMS_unknown13 = rx_frame.data.u8[4];
           break;
         default:  //Unrecognized reply
           break;
@@ -461,41 +609,119 @@ void transmit_can_battery() {
     transmit_can_frame(&ATTO_3_441, can_config.battery_double);
 #endif  //DOUBLE_BATTERY
   }
-  // Send 500ms CAN Message
-  if (currentMillis - previousMillis500 >= INTERVAL_500_MS) {
-    previousMillis500 = currentMillis;
+  // Send 200ms CAN Message
+  if (currentMillis - previousMillis200 >= INTERVAL_200_MS) {
+    previousMillis200 = currentMillis;
 
     switch (poll_state) {
       case POLL_FOR_BATTERY_SOC:
-        ATTO_3_7E7_POLL.data.u8[3] = POLL_FOR_BATTERY_SOC;
+        ATTO_3_7E7_POLL.data.u8[2] = (uint8_t)((POLL_FOR_BATTERY_SOC & 0xFF00) >> 8);
+        ATTO_3_7E7_POLL.data.u8[3] = (uint8_t)(POLL_FOR_BATTERY_SOC & 0x00FF);
         poll_state = POLL_FOR_BATTERY_VOLTAGE;
         break;
       case POLL_FOR_BATTERY_VOLTAGE:
-        ATTO_3_7E7_POLL.data.u8[3] = POLL_FOR_BATTERY_VOLTAGE;
+        ATTO_3_7E7_POLL.data.u8[2] = (uint8_t)((POLL_FOR_BATTERY_VOLTAGE & 0xFF00) >> 8);
+        ATTO_3_7E7_POLL.data.u8[3] = (uint8_t)(POLL_FOR_BATTERY_VOLTAGE & 0x00FF);
         poll_state = POLL_FOR_BATTERY_CURRENT;
         break;
       case POLL_FOR_BATTERY_CURRENT:
-        ATTO_3_7E7_POLL.data.u8[3] = POLL_FOR_BATTERY_CURRENT;
+        ATTO_3_7E7_POLL.data.u8[2] = (uint8_t)((POLL_FOR_BATTERY_CURRENT & 0xFF00) >> 8);
+        ATTO_3_7E7_POLL.data.u8[3] = (uint8_t)(POLL_FOR_BATTERY_CURRENT & 0x00FF);
         poll_state = POLL_FOR_LOWEST_TEMP_CELL;
         break;
       case POLL_FOR_LOWEST_TEMP_CELL:
-        ATTO_3_7E7_POLL.data.u8[3] = POLL_FOR_LOWEST_TEMP_CELL;
+        ATTO_3_7E7_POLL.data.u8[2] = (uint8_t)((POLL_FOR_LOWEST_TEMP_CELL & 0xFF00) >> 8);
+        ATTO_3_7E7_POLL.data.u8[3] = (uint8_t)(POLL_FOR_LOWEST_TEMP_CELL & 0x00FF);
         poll_state = POLL_FOR_HIGHEST_TEMP_CELL;
         break;
       case POLL_FOR_HIGHEST_TEMP_CELL:
-        ATTO_3_7E7_POLL.data.u8[3] = POLL_FOR_HIGHEST_TEMP_CELL;
+        ATTO_3_7E7_POLL.data.u8[2] = (uint8_t)((POLL_FOR_HIGHEST_TEMP_CELL & 0xFF00) >> 8);
+        ATTO_3_7E7_POLL.data.u8[3] = (uint8_t)(POLL_FOR_HIGHEST_TEMP_CELL & 0x00FF);
         poll_state = POLL_FOR_BATTERY_PACK_AVG_TEMP;
         break;
       case POLL_FOR_BATTERY_PACK_AVG_TEMP:
-        ATTO_3_7E7_POLL.data.u8[3] = POLL_FOR_BATTERY_PACK_AVG_TEMP;
+        ATTO_3_7E7_POLL.data.u8[2] = (uint8_t)((POLL_FOR_BATTERY_PACK_AVG_TEMP & 0xFF00) >> 8);
+        ATTO_3_7E7_POLL.data.u8[3] = (uint8_t)(POLL_FOR_BATTERY_PACK_AVG_TEMP & 0x00FF);
         poll_state = POLL_FOR_BATTERY_CELL_MV_MAX;
         break;
       case POLL_FOR_BATTERY_CELL_MV_MAX:
-        ATTO_3_7E7_POLL.data.u8[3] = POLL_FOR_BATTERY_CELL_MV_MAX;
+        ATTO_3_7E7_POLL.data.u8[2] = (uint8_t)((POLL_FOR_BATTERY_CELL_MV_MAX & 0xFF00) >> 8);
+        ATTO_3_7E7_POLL.data.u8[3] = (uint8_t)(POLL_FOR_BATTERY_CELL_MV_MAX & 0x00FF);
         poll_state = POLL_FOR_BATTERY_CELL_MV_MIN;
         break;
       case POLL_FOR_BATTERY_CELL_MV_MIN:
-        ATTO_3_7E7_POLL.data.u8[3] = POLL_FOR_BATTERY_CELL_MV_MIN;
+        ATTO_3_7E7_POLL.data.u8[2] = (uint8_t)((POLL_FOR_BATTERY_CELL_MV_MIN & 0xFF00) >> 8);
+        ATTO_3_7E7_POLL.data.u8[3] = (uint8_t)(POLL_FOR_BATTERY_CELL_MV_MIN & 0x00FF);
+        poll_state = UNKNOWN_POLL_0;
+        break;
+      case UNKNOWN_POLL_0:
+        ATTO_3_7E7_POLL.data.u8[2] = (uint8_t)((UNKNOWN_POLL_0 & 0xFF00) >> 8);
+        ATTO_3_7E7_POLL.data.u8[3] = (uint8_t)(UNKNOWN_POLL_0 & 0x00FF);
+        poll_state = UNKNOWN_POLL_1;
+        break;
+      case UNKNOWN_POLL_1:
+        ATTO_3_7E7_POLL.data.u8[2] = (uint8_t)((UNKNOWN_POLL_1 & 0xFF00) >> 8);
+        ATTO_3_7E7_POLL.data.u8[3] = (uint8_t)(UNKNOWN_POLL_1 & 0x00FF);
+        poll_state = UNKNOWN_POLL_2;
+        break;
+      case UNKNOWN_POLL_2:
+        ATTO_3_7E7_POLL.data.u8[2] = (uint8_t)((UNKNOWN_POLL_2 & 0xFF00) >> 8);
+        ATTO_3_7E7_POLL.data.u8[3] = (uint8_t)(UNKNOWN_POLL_2 & 0x00FF);
+        poll_state = UNKNOWN_POLL_3;
+        break;
+      case UNKNOWN_POLL_3:
+        ATTO_3_7E7_POLL.data.u8[2] = (uint8_t)((UNKNOWN_POLL_3 & 0xFF00) >> 8);
+        ATTO_3_7E7_POLL.data.u8[3] = (uint8_t)(UNKNOWN_POLL_3 & 0x00FF);
+        poll_state = UNKNOWN_POLL_4;
+        break;
+      case UNKNOWN_POLL_4:
+        ATTO_3_7E7_POLL.data.u8[2] = (uint8_t)((UNKNOWN_POLL_4 & 0xFF00) >> 8);
+        ATTO_3_7E7_POLL.data.u8[3] = (uint8_t)(UNKNOWN_POLL_4 & 0x00FF);
+        poll_state = UNKNOWN_POLL_5;
+        break;
+      case UNKNOWN_POLL_5:
+        ATTO_3_7E7_POLL.data.u8[2] = (uint8_t)((UNKNOWN_POLL_5 & 0xFF00) >> 8);
+        ATTO_3_7E7_POLL.data.u8[3] = (uint8_t)(UNKNOWN_POLL_5 & 0x00FF);
+        poll_state = UNKNOWN_POLL_6;
+        break;
+      case UNKNOWN_POLL_6:
+        ATTO_3_7E7_POLL.data.u8[2] = (uint8_t)((UNKNOWN_POLL_6 & 0xFF00) >> 8);
+        ATTO_3_7E7_POLL.data.u8[3] = (uint8_t)(UNKNOWN_POLL_6 & 0x00FF);
+        poll_state = UNKNOWN_POLL_7;
+        break;
+      case UNKNOWN_POLL_7:
+        ATTO_3_7E7_POLL.data.u8[2] = (uint8_t)((UNKNOWN_POLL_7 & 0xFF00) >> 8);
+        ATTO_3_7E7_POLL.data.u8[3] = (uint8_t)(UNKNOWN_POLL_7 & 0x00FF);
+        poll_state = UNKNOWN_POLL_8;
+        break;
+      case UNKNOWN_POLL_8:
+        ATTO_3_7E7_POLL.data.u8[2] = (uint8_t)((UNKNOWN_POLL_8 & 0xFF00) >> 8);
+        ATTO_3_7E7_POLL.data.u8[3] = (uint8_t)(UNKNOWN_POLL_8 & 0x00FF);
+        poll_state = UNKNOWN_POLL_9;
+        break;
+      case UNKNOWN_POLL_9:
+        ATTO_3_7E7_POLL.data.u8[2] = (uint8_t)((UNKNOWN_POLL_9 & 0xFF00) >> 8);
+        ATTO_3_7E7_POLL.data.u8[3] = (uint8_t)(UNKNOWN_POLL_9 & 0x00FF);
+        poll_state = UNKNOWN_POLL_10;
+        break;
+      case UNKNOWN_POLL_10:
+        ATTO_3_7E7_POLL.data.u8[2] = (uint8_t)((UNKNOWN_POLL_10 & 0xFF00) >> 8);
+        ATTO_3_7E7_POLL.data.u8[3] = (uint8_t)(UNKNOWN_POLL_10 & 0x00FF);
+        poll_state = UNKNOWN_POLL_11;
+        break;
+      case UNKNOWN_POLL_11:
+        ATTO_3_7E7_POLL.data.u8[2] = (uint8_t)((UNKNOWN_POLL_11 & 0xFF00) >> 8);
+        ATTO_3_7E7_POLL.data.u8[3] = (uint8_t)(UNKNOWN_POLL_11 & 0x00FF);
+        poll_state = UNKNOWN_POLL_12;
+        break;
+      case UNKNOWN_POLL_12:
+        ATTO_3_7E7_POLL.data.u8[2] = (uint8_t)((UNKNOWN_POLL_12 & 0xFF00) >> 8);
+        ATTO_3_7E7_POLL.data.u8[3] = (uint8_t)(UNKNOWN_POLL_12 & 0x00FF);
+        poll_state = UNKNOWN_POLL_13;
+        break;
+      case UNKNOWN_POLL_13:
+        ATTO_3_7E7_POLL.data.u8[2] = (uint8_t)((UNKNOWN_POLL_13 & 0xFF00) >> 8);
+        ATTO_3_7E7_POLL.data.u8[3] = (uint8_t)(UNKNOWN_POLL_13 & 0x00FF);
         poll_state = POLL_FOR_BATTERY_SOC;
         break;
       default:
