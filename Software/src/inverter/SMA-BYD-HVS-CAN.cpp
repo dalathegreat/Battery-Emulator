@@ -1,6 +1,7 @@
 #include "../include.h"
 #ifdef SMA_BYD_HVS_CAN
 #include "../datalayer/datalayer.h"
+#include "../devboard/utils/events.h"
 #include "SMA-BYD-HVS-CAN.h"
 
 /* TODO: Map error bits in 0x158 */
@@ -11,6 +12,8 @@ static unsigned long previousMillis100ms = 0;
 static uint32_t inverter_time = 0;
 static uint16_t inverter_voltage = 0;
 static int16_t inverter_current = 0;
+static uint16_t secondsWithoutEnableSignal = 0;
+#define THIRTY_MINUTES 1200
 
 //Actual content messages
 CAN_frame SMA_158 = {.FD = false,
@@ -147,6 +150,17 @@ void update_values_can_inverter() {  //This function maps all the values fetched
     digitalWrite(INVERTER_CONTACTOR_ENABLE_LED_PIN,
                  LOW);  // Turn off LED to indicate that SMA inverter allows contactor closing
 #endif                  // INVERTER_CONTACTOR_ENABLE_LED_PIN
+  }
+
+  // Check if Enable line is working. If we go too long without any input, raise an event
+  if (!datalayer.system.status.inverter_allows_contactor_closing) {
+    secondsWithoutEnableSignal++;
+
+    if (secondsWithoutEnableSignal > THIRTY_MINUTES) {
+      set_event(EVENT_NO_ENABLE_DETECTED, 0);
+    }
+  } else {
+    secondsWithoutEnableSignal = 0;
   }
 
   /*
