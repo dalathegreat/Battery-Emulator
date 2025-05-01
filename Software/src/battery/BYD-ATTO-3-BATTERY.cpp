@@ -91,12 +91,17 @@ CAN_frame ATTO_3_7E7_POLL = {.FD = false,
                              .data = {0x03, 0x22, 0x00, 0x05, 0x00, 0x00, 0x00, 0x00}};
 
 // Define the data points for %SOC depending on pack voltage
-const uint8_t numPoints = 14;
-const uint16_t SOC[numPoints] = {10000, 9970, 9490, 8470, 7750, 6790, 5500, 4900, 3910, 3000, 2280, 1600, 480, 0};
-const uint16_t voltage_extended[numPoints] = {4400, 4230, 4180, 4171, 4169, 4160, 4130,
-                                              4121, 4119, 4100, 4070, 4030, 3950, 3800};
-const uint16_t voltage_standard[numPoints] = {3620, 3485, 3443, 3435, 3433, 3425, 3400,
-                                              3392, 3390, 3375, 3350, 3315, 3250, 3140};
+const uint8_t numPoints = 28;
+const uint16_t SOC[numPoints] = {10000, 9985, 9970, 9730, 9490, 8980, 8470, 8110, 7750, 7270, 6790, 6145, 5500, 5200,
+                                 4900,  4405, 3910, 3455, 3000, 2640, 2280, 1940, 1600, 1040, 480,  240,  120,  0};
+
+const uint16_t voltage_extended[numPoints] = {4300, 4250, 4230, 4205, 4180, 4175, 4171, 4170, 4169, 4164,
+                                              4160, 4145, 4130, 4125, 4121, 4120, 4119, 4109, 4100, 4085,
+                                              4070, 4050, 4030, 3990, 3950, 3875, 3840, 3800};
+
+const uint16_t voltage_standard[numPoints] = {3570, 3552, 3485, 3464, 3443, 3439, 3435, 3434, 3433, 3429,
+                                              3425, 3412, 3400, 3396, 3392, 3391, 3390, 3382, 3375, 3362,
+                                              3350, 3332, 3315, 3282, 3250, 3195, 3170, 3140};
 
 uint16_t estimateSOCextended(uint16_t packVoltage) {  // Linear interpolation function
   if (packVoltage >= voltage_extended[0]) {
