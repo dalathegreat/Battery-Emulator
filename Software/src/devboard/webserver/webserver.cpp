@@ -11,6 +11,8 @@
 #include "../utils/timer.h"
 #include "esp_task_wdt.h"
 
+void transmit_can_frame(CAN_frame* tx_frame, int interface);
+
 // Create AsyncWebServer object on port 80
 AsyncWebServer server(80);
 

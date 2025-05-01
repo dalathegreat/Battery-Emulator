@@ -1,6 +1,19 @@
 #ifndef INVERTERS_H
 #define INVERTERS_H
 
+// The abstract base class for all inverter protocols
+class InverterProtocol {
+ public:
+  virtual void setup() = 0;
+};
+
+// The abstract base class for all Modbus inverter protocols
+class ModbusInverterProtocol : public InverterProtocol {
+ public:
+  virtual void update_modbus_registers() = 0;
+  virtual void handle_static_data();
+};
+
 #include "../../USER_SETTINGS.h"
 
 #ifdef AFORE_CAN
@@ -87,6 +100,8 @@ void transmit_can_inverter(unsigned long currentMillis);
 
 #ifdef MODBUS_INVERTER_SELECTED
 void update_modbus_registers_inverter();
+void setup_inverter();
+void handle_static_data_modbus();
 #endif
 
 #ifdef RS485_INVERTER_SELECTED

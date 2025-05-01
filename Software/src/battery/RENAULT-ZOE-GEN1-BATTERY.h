@@ -3,13 +3,22 @@
 #include "../include.h"
 
 #define BATTERY_SELECTED
+
+// Indicates that the object-oriented battery interface is to be activated.
+#define OO_BATTERY_SELECTED
+
 #define MAX_PACK_VOLTAGE_DV 4200  //5000 = 500.0V
 #define MIN_PACK_VOLTAGE_DV 3000
 #define MAX_CELL_DEVIATION_MV 150
 #define MAX_CELL_VOLTAGE_MV 4250  //Battery is put into emergency stop if one cell goes over this value
 #define MIN_CELL_VOLTAGE_MV 2700  //Battery is put into emergency stop if one cell goes below this value
 
-void setup_battery(void);
-void transmit_can_frame(CAN_frame* tx_frame, int interface);
+class RenaultZoeGen1Battery : public CanBattery {
+ public:
+  virtual void setup(void);
+  virtual void handle_incoming_can_frame(CAN_frame rx_frame);
+  virtual void update_values();
+  virtual void transmit_can(unsigned long currentMillis);
+};
 
 #endif
