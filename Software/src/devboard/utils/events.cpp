@@ -271,7 +271,7 @@ const char* get_event_message_string(EVENTS_ENUM_TYPE event) {
     case EVENT_MODBUS_INVERTER_MISSING:
       return "Modbus inverter has not sent any data. Inspect communication wiring!";
     case EVENT_NO_ENABLE_DETECTED:
-      return "Inverter has not toggled Enable signal for a long time. Check Wiring!";
+      return "Inverter Enable line has not been active for a long time. Check Wiring!";
     case EVENT_CELL_CRITICAL_UNDER_VOLTAGE:
       return "CELL VOLTAGE CRITICALLY LOW! Not possible to continue. Inspect battery!";
     case EVENT_CELL_UNDER_VOLTAGE:
