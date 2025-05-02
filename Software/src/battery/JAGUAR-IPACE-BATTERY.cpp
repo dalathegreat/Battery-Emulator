@@ -1,5 +1,6 @@
 #include "../include.h"
 #ifdef JAGUAR_IPACE_BATTERY
+#include "../communication/can/comm_can.h"
 #include "../datalayer/datalayer.h"
 #include "../devboard/utils/events.h"
 #include "JAGUAR-IPACE-BATTERY.h"
@@ -62,7 +63,7 @@ void print_units(char* header, int value, char* units) {
   logging.print(units);
 }
 
-void update_values_battery() {
+void JaguarIpaceBattery::update_values() {
 
   datalayer.battery.status.real_soc = HVBattAvgSOC * 100;  //Add two decimals
 
@@ -119,7 +120,7 @@ void update_values_battery() {
 #endif
 }
 
-void handle_incoming_can_frame_battery(CAN_frame rx_frame) {
+void JaguarIpaceBattery::handle_incoming_can_frame(CAN_frame rx_frame) {
 
   // Do not log noisy startup messages - there are many !
   if (rx_frame.ID == 0 && rx_frame.DLC == 8 && rx_frame.data.u8[0] == 0 && rx_frame.data.u8[1] == 0 &&
@@ -242,7 +243,7 @@ void handle_incoming_can_frame_battery(CAN_frame rx_frame) {
   logging.println("");
 }
 
-void transmit_can_battery() {
+void JaguarIpaceBattery::transmit_can() {
   unsigned long currentMillis = millis();
 
   /* Send keep-alive every 200ms */
@@ -253,7 +254,7 @@ void transmit_can_battery() {
   }
 }
 
-void setup_battery(void) {  // Performs one time setup at startup
+void JaguarIpaceBattery::setup(void) {  // Performs one time setup at startup
   strncpy(datalayer.system.info.battery_protocol, "Jaguar I-PACE", 63);
   datalayer.system.info.battery_protocol[63] = '\0';
   datalayer.battery.info.number_of_cells = 108;

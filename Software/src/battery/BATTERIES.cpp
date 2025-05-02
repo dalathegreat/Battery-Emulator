@@ -3,14 +3,17 @@
 // These functions adapt the old C-style global functions battery-API to the
 // object-oriented battery API.
 
-#ifdef OO_BATTERY_SELECTED
+// The instantiated class is defined by the pre-compiler define
+// to support battery class selection at compile-time
+#ifdef SELECTED_BATTERY_CLASS
 
-static CanBattery* battery;
+static CanBattery* battery = nullptr;
 
 void setup_battery() {
-  // Currently only one battery is implemented as a class.
-  // TODO: Extend based on build-time or run-time selected battery.
-  battery = new RenaultZoeGen1Battery();
+  // Instantiate the battery only once just in case this function gets called multiple times.
+  if (battery == nullptr) {
+    battery = new SELECTED_BATTERY_CLASS();
+  }
   battery->setup();
 }
 
