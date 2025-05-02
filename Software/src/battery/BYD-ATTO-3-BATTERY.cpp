@@ -42,7 +42,7 @@ static uint16_t BMS_lowest_cell_voltage_mV = 3300;
 static uint16_t BMS_highest_cell_voltage_mV = 3300;
 static uint32_t BMS_unknown0 = 0;
 static uint32_t BMS_unknown1 = 0;
-static uint16_t BMS_unknown2 = 0;
+static uint16_t BMS_allowed_charge_power = 0;
 static uint16_t BMS_unknown3 = 0;
 static uint16_t BMS_unknown4 = 0;
 static uint16_t BMS_unknown5 = 0;
@@ -83,9 +83,9 @@ static uint16_t battery2_cellvoltages[CELLCOUNT_EXTENDED] = {0};
 #define POLL_FOR_BATTERY_PACK_AVG_TEMP 0x0032
 #define POLL_FOR_BATTERY_CELL_MV_MAX 0x002D
 #define POLL_FOR_BATTERY_CELL_MV_MIN 0x002B
-#define UNKNOWN_POLL_0 0x1FFE   //0x64 19 C4 3B
-#define UNKNOWN_POLL_1 0x1FFC   //0x72 1F C4 3B
-#define UNKNOWN_POLL_2 0x000A   //0x04CF (1231 interesting!)
+#define UNKNOWN_POLL_0 0x1FFE  //0x64 19 C4 3B
+#define UNKNOWN_POLL_1 0x1FFC  //0x72 1F C4 3B
+#define POLL_MAX_CHARGE_POWER 0x000A
 #define UNKNOWN_POLL_3 0x000B   //0x00B1 (177 interesting!)
 #define UNKNOWN_POLL_4 0x000E   //0x0B27 (2855 interesting!)
 #define UNKNOWN_POLL_5 0x000F   //0x00237B (9083 interesting!)
@@ -255,7 +255,7 @@ void update_values_battery() {  //This function maps all the values fetched via 
 
   datalayer.battery.status.max_discharge_power_W = MAXPOWER_DISCHARGE_W;  //TODO: Map from CAN later on
 
-  datalayer.battery.status.max_charge_power_W = MAXPOWER_CHARGE_W;  //TODO: Map from CAN later on
+  datalayer.battery.status.max_charge_power_W = BMS_allowed_charge_power * 10;  //Scaling unknown, *10 best guess
 
   datalayer.battery.status.cell_max_voltage_mV = BMS_highest_cell_voltage_mV;
 
@@ -348,7 +348,7 @@ void update_values_battery() {  //This function maps all the values fetched via 
   datalayer_extended.bydAtto3.battery_temperatures[9] = battery_daughterboard_temperatures[9];
   datalayer_extended.bydAtto3.unknown0 = BMS_unknown0;
   datalayer_extended.bydAtto3.unknown1 = BMS_unknown1;
-  datalayer_extended.bydAtto3.unknown2 = BMS_unknown2;
+  datalayer_extended.bydAtto3.chargePower = BMS_allowed_charge_power;
   datalayer_extended.bydAtto3.unknown3 = BMS_unknown3;
   datalayer_extended.bydAtto3.unknown4 = BMS_unknown4;
   datalayer_extended.bydAtto3.unknown5 = BMS_unknown5;
@@ -498,8 +498,8 @@ void handle_incoming_can_frame_battery(CAN_frame rx_frame) {
           BMS_unknown1 = ((rx_frame.data.u8[7] << 24) | (rx_frame.data.u8[6] << 16) | (rx_frame.data.u8[5] << 8) |
                           rx_frame.data.u8[4]);
           break;
-        case UNKNOWN_POLL_2:
-          BMS_unknown2 = (rx_frame.data.u8[5] << 8) | rx_frame.data.u8[4];
+        case POLL_MAX_CHARGE_POWER:
+          BMS_allowed_charge_power = (rx_frame.data.u8[5] << 8) | rx_frame.data.u8[4];
           break;
         case UNKNOWN_POLL_3:
           BMS_unknown3 = (rx_frame.data.u8[5] << 8) | rx_frame.data.u8[4];
@@ -662,11 +662,11 @@ void transmit_can_battery() {
       case UNKNOWN_POLL_1:
         ATTO_3_7E7_POLL.data.u8[2] = (uint8_t)((UNKNOWN_POLL_1 & 0xFF00) >> 8);
         ATTO_3_7E7_POLL.data.u8[3] = (uint8_t)(UNKNOWN_POLL_1 & 0x00FF);
-        poll_state = UNKNOWN_POLL_2;
+        poll_state = POLL_MAX_CHARGE_POWER;
         break;
-      case UNKNOWN_POLL_2:
-        ATTO_3_7E7_POLL.data.u8[2] = (uint8_t)((UNKNOWN_POLL_2 & 0xFF00) >> 8);
-        ATTO_3_7E7_POLL.data.u8[3] = (uint8_t)(UNKNOWN_POLL_2 & 0x00FF);
+      case POLL_MAX_CHARGE_POWER:
+        ATTO_3_7E7_POLL.data.u8[2] = (uint8_t)((POLL_MAX_CHARGE_POWER & 0xFF00) >> 8);
+        ATTO_3_7E7_POLL.data.u8[3] = (uint8_t)(POLL_MAX_CHARGE_POWER & 0x00FF);
         poll_state = UNKNOWN_POLL_3;
         break;
       case UNKNOWN_POLL_3:

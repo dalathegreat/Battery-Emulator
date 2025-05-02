@@ -187,7 +187,7 @@ typedef struct {
   /** unknown values polled */
   uint32_t unknown0 = 0;
   uint32_t unknown1 = 0;
-  uint16_t unknown2 = 0;
+  uint16_t chargePower = 0;
   uint16_t unknown3 = 0;
   uint16_t unknown4 = 0;
   uint16_t unknown5 = 0;
