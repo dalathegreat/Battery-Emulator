@@ -33,7 +33,7 @@ static int16_t inverter_current = 0;
 static bool pairing_completed = false;
 static int16_t temperature_average = 0;
 static uint16_t ampere_hours_remaining = 0;
-static uint16_t secondsWithoutEnableSignal = 0;
+static uint16_t timeWithoutInverterAllowsContactorClosing = 0;
 #define THIRTY_MINUTES 1200
 
 //Actual content messages
@@ -152,13 +152,13 @@ void update_values_can_inverter() {  //This function maps all the values fetched
 
   // Check if Enable line is working. If we go too long without any input, raise an event
   if (!datalayer.system.status.inverter_allows_contactor_closing) {
-    secondsWithoutEnableSignal++;
+    timeWithoutInverterAllowsContactorClosing++;
 
-    if (secondsWithoutEnableSignal > THIRTY_MINUTES) {
+    if (timeWithoutInverterAllowsContactorClosing > THIRTY_MINUTES) {
       set_event(EVENT_NO_ENABLE_DETECTED, 0);
     }
   } else {
-    secondsWithoutEnableSignal = 0;
+    timeWithoutInverterAllowsContactorClosing = 0;
   }
 }
 

@@ -39,7 +39,6 @@ unsigned long negativeStartTime = 0;
 unsigned long prechargeCompletedTime = 0;
 unsigned long timeSpentInFaultedMode = 0;
 #endif
-static uint32_t timeSpentWithoutEnableTurnedOn = 0;
 unsigned long currentTime = 0;
 unsigned long lastPowerRemovalTime = 0;
 unsigned long bmsPowerOnTime = 0;
