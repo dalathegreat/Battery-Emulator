@@ -20,7 +20,7 @@ battery_pause_status emulator_pause_status = NORMAL;
 
 void update_machineryprotection() {
   /* Check if the ESP32 CPU running the Battery-Emulator is too hot. 
-  We start with a warning, you can start to see Wifi issues if ut becomes too hot 
+  We start with a warning, you can start to see Wifi issues if it becomes too hot 
   If the chip starts to approach the design limit, we perform a graceful shutdown */
   if (datalayer.system.info.CPU_temperature > 80.0f) {
     set_event(EVENT_CPU_OVERHEATING, 0);
