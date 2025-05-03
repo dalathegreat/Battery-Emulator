@@ -16,6 +16,7 @@
 #endif  //CANFD_ADDON
 
 void dump_can_frame(CAN_frame& frame, frameDirection msgDir);
+void transmit_can_frame(CAN_frame* tx_frame, int interface);
 
 /**
  * @brief Initialization function for CAN.

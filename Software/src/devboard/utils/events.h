@@ -20,7 +20,8 @@
   XX(EVENT_CAN_NATIVE_TX_FAILURE)              \
   XX(EVENT_CHARGE_LIMIT_EXCEEDED)              \
   XX(EVENT_CONTACTOR_WELDED)                   \
-  XX(EVENT_CPU_OVERHEAT)                       \
+  XX(EVENT_CPU_OVERHEATING)                    \
+  XX(EVENT_CPU_OVERHEATED)                     \
   XX(EVENT_DISCHARGE_LIMIT_EXCEEDED)           \
   XX(EVENT_WATER_INGRESS)                      \
   XX(EVENT_12V_LOW)                            \
@@ -54,6 +55,7 @@
   XX(EVENT_INVERTER_OPEN_CONTACTOR)            \
   XX(EVENT_INTERFACE_MISSING)                  \
   XX(EVENT_MODBUS_INVERTER_MISSING)            \
+  XX(EVENT_NO_ENABLE_DETECTED)                 \
   XX(EVENT_ERROR_OPEN_CONTACTOR)               \
   XX(EVENT_CELL_CRITICAL_UNDER_VOLTAGE)        \
   XX(EVENT_CELL_CRITICAL_OVER_VOLTAGE)         \

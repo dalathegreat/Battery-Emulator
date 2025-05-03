@@ -47,7 +47,8 @@ void init_events(void) {
   events.entries[EVENT_CAN_CHARGER_MISSING].level = EVENT_LEVEL_INFO;
   events.entries[EVENT_CAN_INVERTER_MISSING].level = EVENT_LEVEL_WARNING;
   events.entries[EVENT_CONTACTOR_WELDED].level = EVENT_LEVEL_WARNING;
-  events.entries[EVENT_CPU_OVERHEAT].level = EVENT_LEVEL_WARNING;
+  events.entries[EVENT_CPU_OVERHEATING].level = EVENT_LEVEL_WARNING;
+  events.entries[EVENT_CPU_OVERHEATED].level = EVENT_LEVEL_ERROR;
   events.entries[EVENT_WATER_INGRESS].level = EVENT_LEVEL_ERROR;
   events.entries[EVENT_CHARGE_LIMIT_EXCEEDED].level = EVENT_LEVEL_INFO;
   events.entries[EVENT_DISCHARGE_LIMIT_EXCEEDED].level = EVENT_LEVEL_INFO;
@@ -81,6 +82,7 @@ void init_events(void) {
   events.entries[EVENT_INVERTER_OPEN_CONTACTOR].level = EVENT_LEVEL_INFO;
   events.entries[EVENT_INTERFACE_MISSING].level = EVENT_LEVEL_INFO;
   events.entries[EVENT_MODBUS_INVERTER_MISSING].level = EVENT_LEVEL_INFO;
+  events.entries[EVENT_NO_ENABLE_DETECTED].level = EVENT_LEVEL_INFO;
   events.entries[EVENT_ERROR_OPEN_CONTACTOR].level = EVENT_LEVEL_INFO;
   events.entries[EVENT_CELL_CRITICAL_UNDER_VOLTAGE].level = EVENT_LEVEL_ERROR;
   events.entries[EVENT_CELL_CRITICAL_OVER_VOLTAGE].level = EVENT_LEVEL_ERROR;
@@ -192,8 +194,10 @@ const char* get_event_message_string(EVENTS_ENUM_TYPE event) {
       return "Inverter not sending messages via CAN for the last 60 seconds. Check wiring!";
     case EVENT_CONTACTOR_WELDED:
       return "Contactors sticking/welded. Inspect battery with caution!";
-    case EVENT_CPU_OVERHEAT:
+    case EVENT_CPU_OVERHEATING:
       return "Battery-Emulator CPU overheating! Increase airflow/cooling to increase hardware lifespan!";
+    case EVENT_CPU_OVERHEATED:
+      return "Battery-Emulator CPU melting! Performing controlled shutdown until temperature drops!";
     case EVENT_CHARGE_LIMIT_EXCEEDED:
       return "Inverter is charging faster than battery is allowing.";
     case EVENT_DISCHARGE_LIMIT_EXCEEDED:
@@ -269,6 +273,8 @@ const char* get_event_message_string(EVENTS_ENUM_TYPE event) {
              "Check other error code for reason!";
     case EVENT_MODBUS_INVERTER_MISSING:
       return "Modbus inverter has not sent any data. Inspect communication wiring!";
+    case EVENT_NO_ENABLE_DETECTED:
+      return "Inverter Enable line has not been active for a long time. Check Wiring!";
     case EVENT_CELL_CRITICAL_UNDER_VOLTAGE:
       return "CELL VOLTAGE CRITICALLY LOW! Not possible to continue. Inspect battery!";
     case EVENT_CELL_UNDER_VOLTAGE:
