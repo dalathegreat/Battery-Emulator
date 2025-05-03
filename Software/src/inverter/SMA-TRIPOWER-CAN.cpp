@@ -1,6 +1,7 @@
 #include "../include.h"
 #ifdef SMA_TRIPOWER_CAN
 #include "../datalayer/datalayer.h"
+#include "../devboard/utils/events.h"
 #include "SMA-TRIPOWER-CAN.h"
 
 /* TODO:
@@ -32,6 +33,8 @@ static int16_t inverter_current = 0;
 static bool pairing_completed = false;
 static int16_t temperature_average = 0;
 static uint16_t ampere_hours_remaining = 0;
+static uint16_t timeWithoutInverterAllowsContactorClosing = 0;
+#define THIRTY_MINUTES 1200
 
 //Actual content messages
 CAN_frame SMA_358 = {.FD = false,
@@ -145,6 +148,17 @@ void update_values_can_inverter() {  //This function maps all the values fetched
     SMA_4D8.data.u8[6] = STOP_STATE;
   } else {
     SMA_4D8.data.u8[6] = READY_STATE;
+  }
+
+  // Check if Enable line is working. If we go too long without any input, raise an event
+  if (!datalayer.system.status.inverter_allows_contactor_closing) {
+    timeWithoutInverterAllowsContactorClosing++;
+
+    if (timeWithoutInverterAllowsContactorClosing > THIRTY_MINUTES) {
+      set_event(EVENT_NO_ENABLE_DETECTED, 0);
+    }
+  } else {
+    timeWithoutInverterAllowsContactorClosing = 0;
   }
 }
 
