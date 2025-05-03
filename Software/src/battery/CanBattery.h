@@ -11,7 +11,7 @@ class CanBattery {
   virtual void setup(void) = 0;
   virtual void handle_incoming_can_frame(CAN_frame rx_frame) = 0;
   virtual void update_values() = 0;
-  virtual void transmit_can() = 0;
+  virtual void transmit_can(unsigned long currentMillis) = 0;
 };
 
 #endif
