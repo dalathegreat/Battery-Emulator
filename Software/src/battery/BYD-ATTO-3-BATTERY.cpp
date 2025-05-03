@@ -321,11 +321,17 @@ void update_values_battery() {  //This function maps all the values fetched via 
     }
   }
   //Write the result to datalayer
-  datalayer.battery.status.temperature_min_dC = battery_calc_min_temperature * 10;
-  datalayer.battery.status.temperature_max_dC = battery_calc_max_temperature * 10;
+  if ((battery_calc_min_temperature != 0) && (battery_calc_max_temperature != 0)) {
+    //Avoid triggering high delta if only one of the values is available
+    datalayer.battery.status.temperature_min_dC = battery_calc_min_temperature * 10;
+    datalayer.battery.status.temperature_max_dC = battery_calc_max_temperature * 10;
+  }
 #else   //User does not need filtering out a broken sensor, just use the min-max the BMS sends
-  datalayer.battery.status.temperature_min_dC = BMS_lowest_cell_temperature * 10;
-  datalayer.battery.status.temperature_max_dC = BMS_highest_cell_temperature * 10;
+  if ((BMS_lowest_cell_temperature != 0) && (BMS_highest_cell_temperature != 0)) {
+    //Avoid triggering high delta if only one of the values is available
+    datalayer.battery.status.temperature_min_dC = BMS_lowest_cell_temperature * 10;
+    datalayer.battery.status.temperature_max_dC = BMS_highest_cell_temperature * 10;
+  }
 #endif  //!SKIP_TEMPERATURE_SENSOR_NUMBER
 
   // Update webserver datalayer
