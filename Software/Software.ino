@@ -101,12 +101,13 @@ void setup() {
   init_precharge_control();
 #endif  // PRECHARGE_CONTROL
 
-  init_rs485();
-
 #if defined(CAN_INVERTER_SELECTED) || defined(MODBUS_INVERTER_SELECTED) || defined(RS485_INVERTER_SELECTED)
   setup_inverter();
 #endif
   setup_battery();
+
+  init_rs485();
+
 #ifdef EQUIPMENT_STOP_BUTTON
   init_equipment_stop_button();
 #endif
