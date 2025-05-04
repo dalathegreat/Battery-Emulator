@@ -21,8 +21,8 @@ void update_values_battery() {
   battery->update_values();
 }
 
-void transmit_can_battery() {
-  battery->transmit_can();
+void transmit_can_battery(unsigned long currentMillis) {
+  battery->transmit_can(currentMillis);
 }
 
 void handle_incoming_can_frame_battery(CAN_frame rx_frame) {

@@ -1082,8 +1082,7 @@ void handle_incoming_can_frame_battery(CAN_frame rx_frame) {
   }
 }
 
-void transmit_can_battery() {
-  unsigned long currentMillis = millis();
+void transmit_can_battery(unsigned long currentMillis) {
   if (startedUp) {
     //Send Contactor closing message loop
     // Check if we still have messages to send
@@ -1107,13 +1106,6 @@ void transmit_can_battery() {
 
     //Send 200ms CANFD message
     if (currentMillis - previousMillis200ms >= INTERVAL_200_MS) {
-      previousMillis200ms = currentMillis;
-      // Check if sending of CAN messages has been delayed too much.
-      if ((currentMillis - previousMillis200ms >= INTERVAL_200_MS_DELAYED) && (currentMillis > BOOTUP_TIME)) {
-        set_event(EVENT_CAN_OVERRUN, (currentMillis - previousMillis200ms));
-      } else {
-        clear_event(EVENT_CAN_OVERRUN);
-      }
       previousMillis200ms = currentMillis;
 
       EGMP_7E4.data.u8[3] = KIA_7E4_COUNTER;

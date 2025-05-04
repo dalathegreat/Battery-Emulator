@@ -204,8 +204,7 @@ void pushFrame(CAN_frame* frame, void (*callback)() = NULL) {
   listLength++;
 }
 
-void transmit_can_inverter() {
-  unsigned long currentMillis = millis();
+void transmit_can_inverter(unsigned long currentMillis) {
 
   // Send CAN Message only if we're enabled by inverter
   if (!datalayer.system.status.inverter_allows_contactor_closing) {

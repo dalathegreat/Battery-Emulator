@@ -122,13 +122,6 @@ void JaguarIpaceBattery::update_values() {
 
 void JaguarIpaceBattery::handle_incoming_can_frame(CAN_frame rx_frame) {
 
-  // Do not log noisy startup messages - there are many !
-  if (rx_frame.ID == 0 && rx_frame.DLC == 8 && rx_frame.data.u8[0] == 0 && rx_frame.data.u8[1] == 0 &&
-      rx_frame.data.u8[2] == 0 && rx_frame.data.u8[3] == 0 && rx_frame.data.u8[4] == 0 && rx_frame.data.u8[5] == 0 &&
-      rx_frame.data.u8[6] == 0x80 && rx_frame.data.u8[7] == 0) {
-    return;
-  }
-
   switch (rx_frame.ID) {  // These messages are periodically transmitted by the battery
     case 0x080:
       datalayer.battery.status.CAN_battery_still_alive = CAN_STILL_ALIVE;
@@ -223,34 +216,13 @@ void JaguarIpaceBattery::handle_incoming_can_frame(CAN_frame rx_frame) {
     default:
       break;
   }
-
-  // Discard non-interesting can messages so they do not get logged via serial
-  if (rx_frame.ID < 0x500) {
-    return;
-  }
-
-  // All CAN messages recieved will be logged via serial
-  logging.print(millis());  // Example printout, time, ID, length, data: 7553  1DB  8  FF C0 B9 EA 0 0 2 5D
-  logging.print("  ");
-  logging.print(rx_frame.ID, HEX);
-  logging.print("  ");
-  logging.print(rx_frame.DLC);
-  logging.print("  ");
-  for (int i = 0; i < rx_frame.DLC; ++i) {
-    logging.print(rx_frame.data.u8[i], HEX);
-    logging.print(" ");
-  }
-  logging.println("");
 }
 
-void JaguarIpaceBattery::transmit_can() {
-  unsigned long currentMillis = millis();
-
+void JaguarIpaceBattery::transmit_can(unsigned long currentMillis) {
   /* Send keep-alive every 200ms */
   if (currentMillis - previousMillisKeepAlive >= INTERVAL_200_MS) {
     previousMillisKeepAlive = currentMillis;
     transmit_can_frame(&ipace_keep_alive, can_config.battery);
-    return;
   }
 }
 

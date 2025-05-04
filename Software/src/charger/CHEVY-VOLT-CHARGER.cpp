@@ -98,8 +98,7 @@ void map_can_frame_to_variable_charger(CAN_frame rx_frame) {
   }
 }
 
-void transmit_can_charger() {
-  unsigned long currentMillis = millis();
+void transmit_can_charger(unsigned long currentMillis) {
   uint16_t Vol_temp = 0;
 
   uint16_t setpoint_HV_VDC = floor(datalayer.charger.charger_setpoint_HV_VDC);

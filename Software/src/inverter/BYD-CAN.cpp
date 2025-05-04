@@ -204,8 +204,7 @@ void map_can_frame_to_variable_inverter(CAN_frame rx_frame) {
   }
 }
 
-void transmit_can_inverter() {
-  unsigned long currentMillis = millis();
+void transmit_can_inverter(unsigned long currentMillis) {
 
   if (!inverterStartedUp) {
     //Avoid sending messages towards inverter, unless it has woken up and sent something to us first

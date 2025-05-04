@@ -493,14 +493,10 @@ void RenaultZoeGen1Battery::handle_incoming_can_frame(CAN_frame rx_frame) {
   }
 }
 
-void RenaultZoeGen1Battery::transmit_can() {
-  unsigned long currentMillis = millis();
+void RenaultZoeGen1Battery::transmit_can(unsigned long currentMillis) {
+
   // Send 100ms CAN Message
   if (currentMillis - previousMillis100 >= INTERVAL_100_MS) {
-    // Check if sending of CAN messages has been delayed too much.
-    if ((currentMillis - previousMillis100 >= INTERVAL_100_MS_DELAYED) && (currentMillis > BOOTUP_TIME)) {
-      set_event(EVENT_CAN_OVERRUN, (currentMillis - previousMillis100));
-    }
     previousMillis100 = currentMillis;
     transmit_can_frame(&ZOE_423, can_config.battery);
 

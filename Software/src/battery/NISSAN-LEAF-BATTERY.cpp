@@ -1071,13 +1071,10 @@ void handle_incoming_can_frame_battery(CAN_frame rx_frame) {
       break;
   }
 }
-void transmit_can_battery() {
-
-  unsigned long currentMillis = millis();
+void transmit_can_battery(unsigned long currentMillis) {
 
   if (datalayer.system.status.BMS_reset_in_progress || datalayer.system.status.BMS_startup_in_progress) {
     // Transmitting towards battery is halted while BMS is being reset
-    // Reset sending counters to avoid overrun messages when reset is over
     previousMillis10 = currentMillis;
     previousMillis100 = currentMillis;
     previousMillis10s = currentMillis;
@@ -1088,12 +1085,6 @@ void transmit_can_battery() {
 
     //Send 10ms message
     if (currentMillis - previousMillis10 >= INTERVAL_10_MS) {
-      // Check if sending of CAN messages has been delayed too much.
-      if ((currentMillis - previousMillis10 >= INTERVAL_10_MS_DELAYED) && (currentMillis > BOOTUP_TIME)) {
-        set_event(EVENT_CAN_OVERRUN, (currentMillis - previousMillis10));
-      } else {
-        clear_event(EVENT_CAN_OVERRUN);
-      }
       previousMillis10 = currentMillis;
 
       switch (mprun10) {

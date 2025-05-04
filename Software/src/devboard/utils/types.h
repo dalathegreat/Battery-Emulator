@@ -37,12 +37,6 @@ enum PrechargeState {
 #define INTERVAL_60_S 60000
 
 #define INTERVAL_10_MS_DELAYED 15
-#define INTERVAL_20_MS_DELAYED 30
-#define INTERVAL_30_MS_DELAYED 40
-#define INTERVAL_50_MS_DELAYED 65
-#define INTERVAL_100_MS_DELAYED 120
-#define INTERVAL_200_MS_DELAYED 240
-#define INTERVAL_500_MS_DELAYED 550
 
 #define CAN_STILL_ALIVE 60
 // Set by battery each time we get a CAN message. Decrements every second. When reaching 0, sets event

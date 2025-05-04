@@ -301,11 +301,9 @@ void handle_incoming_can_frame_battery(CAN_frame rx_frame) {
   }
 }
 
-void transmit_can_battery() {
-  unsigned long currentMillis = millis();
+void transmit_can_battery(unsigned long currentMillis) {
   // Send 50ms CAN Message
   if (currentMillis - previousMillis50ms >= INTERVAL_50_MS) {
-
     previousMillis50ms = currentMillis;
 
     transmit_can_frame(&RANGE_ROVER_18B, can_config.battery);

@@ -595,10 +595,9 @@ void update_values_can_inverter() {  //This function maps all the CAN values fet
   // So do we really need to map the same two values over and over to 32 places?
 }
 
-void transmit_can_inverter() {  // This function loops as fast as possible
+void transmit_can_inverter(unsigned long currentMillis) {
 
   if (send_bms_info) {
-    currentMillis = millis();  // Get the current time
 
     // Check if enough time has passed since the last batch
     if (currentMillis - previousMillisBMSinfo >= delay_between_batches_ms) {
@@ -634,7 +633,6 @@ void transmit_can_inverter() {  // This function loops as fast as possible
   }
 
   if (send_individual_pack_status) {
-    currentMillis = millis();  // Get the current time
 
     // Check if enough time has passed since the last batch
     if (currentMillis - previousMillisIndividualPacks >= delay_between_batches_ms) {
@@ -670,7 +668,6 @@ void transmit_can_inverter() {  // This function loops as fast as possible
   }
 
   if (send_serial_numbers) {
-    currentMillis = millis();  // Get the current time
 
     // Check if enough time has passed since the last batch
     if (currentMillis - previousMillisSerialNumber >= delay_between_batches_ms) {
@@ -781,7 +778,6 @@ void transmit_can_inverter() {  // This function loops as fast as possible
   }
 
   if (send_cellvoltages) {
-    currentMillis = millis();  // Get the current time
 
     // Check if enough time has passed since the last batch
     if (currentMillis - previousMillisCellvoltage >= delay_between_batches_ms) {

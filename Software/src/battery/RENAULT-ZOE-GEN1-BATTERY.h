@@ -17,7 +17,7 @@ class RenaultZoeGen1Battery : public CanBattery {
   virtual void setup(void);
   virtual void handle_incoming_can_frame(CAN_frame rx_frame);
   virtual void update_values();
-  virtual void transmit_can();
+  virtual void transmit_can(unsigned long currentMillis);
 };
 
 #endif

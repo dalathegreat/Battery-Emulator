@@ -156,8 +156,7 @@ void map_can_frame_to_variable_charger(CAN_frame rx_frame) {
   }
 }
 
-void transmit_can_charger() {
-  unsigned long currentMillis = millis();
+void transmit_can_charger(unsigned long currentMillis) {
 
   /* Send keepalive with mode every 10ms */
   if (currentMillis - previousMillis10ms >= INTERVAL_10_MS) {

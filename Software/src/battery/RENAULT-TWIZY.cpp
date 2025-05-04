@@ -127,7 +127,7 @@ void handle_incoming_can_frame_battery(CAN_frame rx_frame) {
   }
 }
 
-void transmit_can_battery() {
+void transmit_can_battery(unsigned long currentMillis) {
   // we do not need to send anything to the battery for now
 }
 
