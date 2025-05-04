@@ -269,7 +269,7 @@ void update_values_battery() {  //This function maps all the values fetched via 
   datalayer_extended.bydAtto3.battery_temperatures[9] = battery_daughterboard_temperatures[9];
 
   // Update requests from webserver datalayer
-  if (datalayer_extended.bydAtto3.UserRequestCrashReset) {
+  if (datalayer_extended.bydAtto3.UserRequestCrashReset && stateMachineClearCrash == NOT_RUNNING) {
     stateMachineClearCrash = STARTED;
     datalayer_extended.bydAtto3.UserRequestCrashReset = false;
   }
