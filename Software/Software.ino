@@ -496,11 +496,11 @@ void update_calculated_values() {
     datalayer.battery.status.reported_remaining_capacity_Wh = datalayer.battery2.status.remaining_capacity_Wh;
   }
 #endif  // DOUBLE_BATTERY
-  // Check if millis() has overflowed. Used in events to keep better track of time
-  if (millis() < lastMillisOverflowCheck) {  // Overflow detected
+  // Check if millis has overflowed. Used in events to keep better track of time
+  if (currentMillis < lastMillisOverflowCheck) {  // Overflow detected
     datalayer.system.status.millisrolloverCount++;
   }
-  lastMillisOverflowCheck = millis();
+  lastMillisOverflowCheck = currentMillis;
 }
 
 void update_values_inverter() {
