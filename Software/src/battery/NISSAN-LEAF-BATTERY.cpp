@@ -4,6 +4,7 @@
 #ifdef MQTT
 #include "../devboard/mqtt/mqtt.h"
 #endif
+#include "../communication/can/comm_can.h"
 #include "../datalayer/datalayer.h"
 #include "../datalayer/datalayer_extended.h"  //For "More battery info" webpage
 #include "../devboard/utils/events.h"
@@ -189,7 +190,8 @@ CAN_frame LEAF_CLEAR_SOH = {.FD = false,
                             .ID = 0x79B,
                             .data = {0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF}};
 
-void update_values_battery() { /* This function maps all the values fetched via CAN to the correct parameters used for modbus */
+void NissanLeafBattery::
+    update_values() { /* This function maps all the values fetched via CAN to the correct parameters used for modbus */
   /* Start with mapping all values */
 
   datalayer.battery.status.soh_pptt = (battery_StateOfHealth * 100);  //Increase range from 99% -> 99.00%
@@ -757,7 +759,7 @@ void handle_incoming_can_frame_battery2(CAN_frame rx_frame) {
 }
 #endif  // DOUBLE_BATTERY
 
-void handle_incoming_can_frame_battery(CAN_frame rx_frame) {
+void NissanLeafBattery::handle_incoming_can_frame(CAN_frame rx_frame) {
   switch (rx_frame.ID) {
     case 0x1DB:
       if (is_message_corrupt(rx_frame)) {
@@ -1071,7 +1073,8 @@ void handle_incoming_can_frame_battery(CAN_frame rx_frame) {
       break;
   }
 }
-void transmit_can_battery(unsigned long currentMillis) {
+
+void NissanLeafBattery::transmit_can(unsigned long currentMillis) {
 
   if (datalayer.system.status.BMS_reset_in_progress || datalayer.system.status.BMS_startup_in_progress) {
     // Transmitting towards battery is halted while BMS is being reset
@@ -1505,7 +1508,7 @@ void decodeChallengeData(unsigned int incomingChallenge, unsigned char* solvedCh
   return;
 }
 
-void setup_battery(void) {  // Performs one time setup at startup
+void NissanLeafBattery::setup(void) {  // Performs one time setup at startup
   strncpy(datalayer.system.info.battery_protocol, "Nissan LEAF battery", 63);
   datalayer.system.info.battery_protocol[63] = '\0';
   datalayer.battery.info.number_of_cells = 96;
@@ -1514,15 +1517,6 @@ void setup_battery(void) {  // Performs one time setup at startup
   datalayer.battery.info.max_cell_voltage_mV = MAX_CELL_VOLTAGE_MV;
   datalayer.battery.info.min_cell_voltage_mV = MIN_CELL_VOLTAGE_MV;
   datalayer.battery.info.max_cell_voltage_deviation_mV = MAX_CELL_DEVIATION_MV;
-
-#ifdef DOUBLE_BATTERY
-  datalayer.battery2.info.number_of_cells = datalayer.battery.info.number_of_cells;
-  datalayer.battery2.info.max_design_voltage_dV = datalayer.battery.info.max_design_voltage_dV;
-  datalayer.battery2.info.min_design_voltage_dV = datalayer.battery.info.min_design_voltage_dV;
-  datalayer.battery2.info.max_cell_voltage_mV = datalayer.battery.info.max_cell_voltage_mV;
-  datalayer.battery2.info.min_cell_voltage_mV = datalayer.battery.info.min_cell_voltage_mV;
-  datalayer.battery2.info.max_cell_voltage_deviation_mV = datalayer.battery.info.max_cell_voltage_deviation_mV;
-#endif  //DOUBLE_BATTERY
 }
 
 #endif  //NISSAN_LEAF_BATTERY
