@@ -270,7 +270,7 @@ void update_values_battery() {  //This function maps all the values fetched via 
 
   datalayer.battery.status.max_discharge_power_W = MAXPOWER_DISCHARGE_W;  //TODO: Map from CAN later on
 
-  datalayer.battery.status.max_charge_power_W = BMS_allowed_charge_power * 10;  //Scaling unknown, *10 best guess
+  datalayer.battery.status.max_charge_power_W = BMS_allowed_charge_power * 10;  //TODO: Scaling unknown, *10 best guess
 
   datalayer.battery.status.cell_max_voltage_mV = BMS_highest_cell_voltage_mV;
 
