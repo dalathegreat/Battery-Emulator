@@ -424,6 +424,7 @@ void update_calculated_values() {
     int32_t clamped_soc = CONSTRAIN(datalayer.battery.status.real_soc, datalayer.battery.settings.min_percentage,
                                     datalayer.battery.settings.max_percentage);
     int32_t scaled_soc = 0;
+    int32_t scaled_total_capacity = 0;
     if (delta_pct != 0) {  //Safeguard against division by 0
       scaled_soc = 10000 * (clamped_soc - datalayer.battery.settings.min_percentage) / delta_pct;
     }
@@ -438,7 +439,7 @@ void update_calculated_values() {
     // If battery info is valid
     if (datalayer.battery.info.total_capacity_Wh > 0 && datalayer.battery.status.real_soc > 0) {
       // Scale total usable capacity
-      int32_t scaled_total_capacity = (datalayer.battery.info.total_capacity_Wh * delta_pct) / 10000;
+      scaled_total_capacity = (datalayer.battery.info.total_capacity_Wh * delta_pct) / 10000;
       datalayer.battery.info.reported_total_capacity_Wh = scaled_total_capacity;
 
       // Scale remaining capacity based on scaled SOC
@@ -451,29 +452,34 @@ void update_calculated_values() {
     }
 
 #ifdef DOUBLE_BATTERY
-    // Calculate the scaled remaining capacity in Wh
-    if (datalayer.battery2.info.total_capacity_Wh > 0 && datalayer.battery2.status.real_soc > 0) {
-      calc_max_capacity =
-          (datalayer.battery2.status.remaining_capacity_Wh * 10000 / datalayer.battery2.status.real_soc);
-      calc_reserved_capacity = calc_max_capacity * datalayer.battery2.settings.min_percentage / 10000;
-      // remove % capacity reserved in min_percentage to total_capacity_Wh
-      if (datalayer.battery2.status.remaining_capacity_Wh > calc_reserved_capacity) {
-        datalayer.battery2.status.reported_remaining_capacity_Wh =
-            datalayer.battery2.status.remaining_capacity_Wh - calc_reserved_capacity;
-      } else {
-        datalayer.battery2.status.reported_remaining_capacity_Wh = 0;
-      }
+    // If battery info is valid
+    if (datalayer.battery2.info.total_capacity_Wh > 0 && datalayer.battery.status.real_soc > 0) {
+
+      datalayer.battery2.info.reported_total_capacity_Wh = scaled_total_capacity;
+      // Scale remaining capacity based on scaled SOC
+      datalayer.battery2.status.reported_remaining_capacity_Wh = (scaled_total_capacity * scaled_soc) / 10000;
+
     } else {
+      // Fallback if scaling cannot be performed
+      datalayer.battery2.info.reported_total_capacity_Wh = datalayer.battery2.info.total_capacity_Wh;
       datalayer.battery2.status.reported_remaining_capacity_Wh = datalayer.battery2.status.remaining_capacity_Wh;
     }
+
+    //Since we are running double battery, the scaled value of battery1 becomes the sum of battery1+battery2
+    //This way the inverter connected to the system sees both batteries as one large battery
+    datalayer.battery.info.reported_total_capacity_Wh += datalayer.battery2.info.reported_total_capacity_Wh;
+    datalayer.battery.status.reported_remaining_capacity_Wh += datalayer.battery2.status.reported_remaining_capacity_Wh;
+
 #endif  // DOUBLE_BATTERY
 
   } else {  // soc_scaling_active == false. No SOC window wanted. Set scaled to same as real.
     datalayer.battery.status.reported_soc = datalayer.battery.status.real_soc;
     datalayer.battery.status.reported_remaining_capacity_Wh = datalayer.battery.status.remaining_capacity_Wh;
+    datalayer.battery.info.reported_total_capacity_Wh = datalayer.battery.info.total_capacity_Wh;
 #ifdef DOUBLE_BATTERY
     datalayer.battery2.status.reported_soc = datalayer.battery2.status.real_soc;
     datalayer.battery2.status.reported_remaining_capacity_Wh = datalayer.battery2.status.remaining_capacity_Wh;
+    datalayer.battery2.info.reported_total_capacity_Wh = datalayer.battery2.info.total_capacity_Wh;
 #endif
   }
 #ifdef DOUBLE_BATTERY
