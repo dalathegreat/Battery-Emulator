@@ -408,59 +408,45 @@ void update_calculated_values() {
 
   if (datalayer.battery.settings.soc_scaling_active) {
     /** SOC Scaling
-     * 
-     * This is essentially a more static version of a stochastic oscillator (https://en.wikipedia.org/wiki/Stochastic_oscillator)
-     * 
-     * The idea is this:
-     * 
-     *    real_soc - min_percent                   3000 - 1000
-     * ------------------------- = scaled_soc, or  ----------- = 0.25
-     * max_percent - min-percent                   8000 - 1000
-     * 
-     * Because we use integers, we want to account for the scaling:
-     * 
-     * 10000 * (real_soc - min_percent)                   10000 * (3000 - 1000)
-     * -------------------------------- = scaled_soc, or  --------------------- = 2500
-     *     max_percent - min_percent                           8000 - 1000
-     * 
-     * Or as a one-liner: (10000 * (real_soc - min_percentage)) / (max_percentage - min_percentage)
-     * 
-     * Before we use real_soc, we must make sure that it's within the range of min_percentage and max_percentage.
-    */
-    uint32_t calc_soc;
-    uint32_t calc_max_capacity;
-    uint32_t calc_reserved_capacity;
-    // Make sure that the SOC starts out between min and max percentages
-    calc_soc = CONSTRAIN(datalayer.battery.status.real_soc, datalayer.battery.settings.min_percentage,
-                         datalayer.battery.settings.max_percentage);
-    // Perform scaling
-    calc_soc = 10000 * (calc_soc - datalayer.battery.settings.min_percentage);
-    calc_soc = calc_soc / (datalayer.battery.settings.max_percentage - datalayer.battery.settings.min_percentage);
-    datalayer.battery.status.reported_soc = calc_soc;
-    //Extra safety since we allow scaling negatively, if real% is < 1.00%, zero it out
-    if (datalayer.battery.status.real_soc < 100) {
-      datalayer.battery.status.reported_soc = 0;
-    } else {
-      datalayer.battery.status.reported_soc = calc_soc;
+   * A static version of a stochastic oscillator. The scaled SoC is calculated as:
+   * 
+   *     10000 * (real_soc - min_percentage)
+   * ---------------------------------------
+   *     (max_percentage - min_percentage)
+   * 
+   * And scaled capacity is:
+   * 
+   *     reported_total_capacity_Wh = total_capacity_Wh * (max - min) / 10000
+   *     reported_remaining_capacity_Wh = reported_total_capacity_Wh * scaled_soc / 10000
+   */
+    // Compute delta_pct and clamped_soc
+    int32_t delta_pct = datalayer.battery.settings.max_percentage - datalayer.battery.settings.min_percentage;
+    int32_t clamped_soc = CONSTRAIN(datalayer.battery.status.real_soc, datalayer.battery.settings.min_percentage,
+                                    datalayer.battery.settings.max_percentage);
+    int32_t scaled_soc = 0;
+    if (delta_pct != 0) {  //Safeguard against division by 0
+      scaled_soc = 10000 * (clamped_soc - datalayer.battery.settings.min_percentage) / delta_pct;
     }
 
-    // Calculate the scaled remaining capacity in Wh
+    // Clamp low SOCs to zero for extra safety
+    if (datalayer.battery.status.real_soc < 100) {
+      scaled_soc = 0;
+    }
+
+    datalayer.battery.status.reported_soc = scaled_soc;
+
+    // If battery info is valid
     if (datalayer.battery.info.total_capacity_Wh > 0 && datalayer.battery.status.real_soc > 0) {
-      calc_max_capacity = (datalayer.battery.status.remaining_capacity_Wh * 10000 / datalayer.battery.status.real_soc);
-      calc_reserved_capacity = calc_max_capacity * datalayer.battery.settings.min_percentage / 10000;
-      // remove % capacity reserved in min_percentage to total_capacity_Wh
-      if (datalayer.battery.status.remaining_capacity_Wh > calc_reserved_capacity) {
-        datalayer.battery.status.reported_remaining_capacity_Wh =
-            datalayer.battery.status.remaining_capacity_Wh - calc_reserved_capacity;
-      } else {
-        datalayer.battery.status.reported_remaining_capacity_Wh = 0;
-      }
-      datalayer.battery.info.reported_total_capacity_Wh =
-          (datalayer.battery.info.total_capacity_Wh *
-           (datalayer.battery.settings.max_percentage - datalayer.battery.settings.min_percentage)) /
-          10000;
+      // Scale total usable capacity
+      int32_t scaled_total_capacity = (datalayer.battery.info.total_capacity_Wh * delta_pct) / 10000;
+      datalayer.battery.info.reported_total_capacity_Wh = scaled_total_capacity;
+
+      // Scale remaining capacity based on scaled SOC
+      datalayer.battery.status.reported_remaining_capacity_Wh = (scaled_total_capacity * scaled_soc) / 10000;
 
     } else {
+      // Fallback if scaling cannot be performed
+      datalayer.battery.info.reported_total_capacity_Wh = datalayer.battery.info.total_capacity_Wh;
       datalayer.battery.status.reported_remaining_capacity_Wh = datalayer.battery.status.remaining_capacity_Wh;
     }
 
