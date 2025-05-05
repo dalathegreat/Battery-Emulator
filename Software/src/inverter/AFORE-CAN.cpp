@@ -217,7 +217,7 @@ void map_can_frame_to_variable_inverter(CAN_frame rx_frame) {
   }
 }
 
-void transmit_can_inverter() {
+void transmit_can_inverter(unsigned long currentMillis) {
   if (time_to_send_info) {  // Set every 1s if we get message from inverter
     transmit_can_frame(&AFORE_350, can_config.inverter);
     transmit_can_frame(&AFORE_351, can_config.inverter);

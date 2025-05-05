@@ -487,6 +487,7 @@ String advanced_battery_processor(const String& var) {
 
 #ifdef BYD_ATTO_3_BATTERY
     static const char* SOCmethod[2] = {"Estimated from voltage", "Measured by BMS"};
+    content += "<button onclick='askResetCrash()'>Unlock crashed BMS</button>";
     content += "<h4>SOC method used: " + String(SOCmethod[datalayer_extended.bydAtto3.SOC_method]) + "</h4>";
     content += "<h4>SOC estimated: " + String(datalayer_extended.bydAtto3.SOC_estimated) + "</h4>";
     content += "<h4>SOC highprec: " + String(datalayer_extended.bydAtto3.SOC_highprec) + "</h4>";
@@ -1511,6 +1512,18 @@ String advanced_battery_processor(const String& var) {
     content += "function teslaResetBMS() {";
     content += "  var xhr = new XMLHttpRequest();";
     content += "  xhr.open('GET', '/teslaResetBMS', true);";
+    content += "  xhr.send();";
+    content += "}";
+    content += "function goToMainPage() { window.location.href = '/'; }";
+    content += "</script>";
+    content += "<script>";
+    content +=
+        "function askResetCrash() { if (window.confirm('Are you sure you want to reset crash data? "
+        "Note this will unlock your BMS and enable contactor closing and SOC calculation.')) { "
+        "resetCrash(); } }";
+    content += "function resetCrash() {";
+    content += "  var xhr = new XMLHttpRequest();";
+    content += "  xhr.open('GET', '/resetCrash', true);";
     content += "  xhr.send();";
     content += "}";
     content += "function goToMainPage() { window.location.href = '/'; }";

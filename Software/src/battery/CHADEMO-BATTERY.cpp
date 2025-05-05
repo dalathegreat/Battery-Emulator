@@ -655,9 +655,7 @@ void update_evse_discharge_capabilities(CAN_frame& f) {
   CHADEMO_208.data.u8[7] = highByte(x208_evse_dischg_cap.lower_threshold_voltage);
 }
 
-void transmit_can_battery() {
-
-  unsigned long currentMillis = millis();
+void transmit_can_battery(unsigned long currentMillis) {
 
   handlerBeforeMillis = currentMillis;
   handle_chademo_sequence();
@@ -665,12 +663,6 @@ void transmit_can_battery() {
 
   // Send 100ms CAN Message
   if (currentMillis - previousMillis100 >= INTERVAL_100_MS) {
-    // Check if sending of CAN messages has been delayed too much.
-    if ((currentMillis - previousMillis100 >= INTERVAL_100_MS_DELAYED) && (currentMillis > BOOTUP_TIME)) {
-      set_event(EVENT_CAN_OVERRUN, (currentMillis - previousMillis100));
-    } else {
-      clear_event(EVENT_CAN_OVERRUN);
-    }
     previousMillis100 = currentMillis;
 
     /* no EVSE messages should be sent until the vehicle has

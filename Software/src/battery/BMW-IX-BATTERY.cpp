@@ -11,8 +11,6 @@ static unsigned long previousMillis100 = 0;    // will store last time a 100ms C
 static unsigned long previousMillis200 = 0;    // will store last time a 200ms CAN Message was send
 static unsigned long previousMillis500 = 0;    // will store last time a 500ms CAN Message was send
 static unsigned long previousMillis640 = 0;    // will store last time a 600ms CAN Message was send
-static unsigned long previousMillis1000 = 0;   // will store last time a 1000ms CAN Message was send
-static unsigned long previousMillis5000 = 0;   // will store last time a 5000ms CAN Message was send
 static unsigned long previousMillis10000 = 0;  // will store last time a 10000ms CAN Message was send
 
 #define ALIVE_MAX_VALUE 14  // BMW CAN messages contain alive counter, goes from 0...14
@@ -839,8 +837,7 @@ void handle_incoming_can_frame_battery(CAN_frame rx_frame) {
   }
 }
 
-void transmit_can_battery() {
-  unsigned long currentMillis = millis();
+void transmit_can_battery(unsigned long currentMillis) {
 
   //if (battery_awake) { //We can always send CAN as the iX BMS will wake up on vehicle comms
   // Send 100ms CAN Message
@@ -862,14 +859,6 @@ void transmit_can_battery() {
     BMWiX_C0.data.u8[0] = increment_C0_counter(BMWiX_C0.data.u8[0]);  //Keep Alive 1
     transmit_can_frame(&BMWiX_C0, can_config.battery);
   }
-  // Send 1000ms CAN Message
-  if (currentMillis - previousMillis1000 >= INTERVAL_1_S) {
-    previousMillis1000 = currentMillis;
-  }
-  // Send 5000ms CAN Message
-  if (currentMillis - previousMillis5000 >= INTERVAL_5_S) {
-    previousMillis5000 = currentMillis;
-  }
   // Send 10000ms CAN Message
   if (currentMillis - previousMillis10000 >= INTERVAL_10_S) {
     previousMillis10000 = currentMillis;
@@ -877,18 +866,6 @@ void transmit_can_battery() {
     transmit_can_frame(&BMWiX_6F4_REQUEST_BALANCING_START, can_config.battery);
   }
 }
-//We can always send CAN as the iX BMS will wake up on vehicle comms
-// else {
-//   previousMillis20 = currentMillis;
-//   previousMillis100 = currentMillis;
-//   previousMillis200 = currentMillis;
-//   previousMillis500 = currentMillis;
-//   previousMillis640 = currentMillis;
-//   previousMillis1000 = currentMillis;
-//   previousMillis5000 = currentMillis;
-//   previousMillis10000 = currentMillis;
-// }
-//} //We can always send CAN as the iX BMS will wake up on vehicle comms
 
 void setup_battery(void) {  // Performs one time setup at startup
   strncpy(datalayer.system.info.battery_protocol, "BMW iX and i4-7 platform", 63);

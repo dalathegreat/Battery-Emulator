@@ -265,8 +265,7 @@ void map_can_frame_to_variable_inverter(CAN_frame rx_frame) {
   }
 }
 
-void transmit_can_inverter() {
-  unsigned long currentMillis = millis();
+void transmit_can_inverter(unsigned long currentMillis) {
 
   // Send 500ms CAN Message
   if (currentMillis - previousMillis500ms >= INTERVAL_500_MS) {

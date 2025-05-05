@@ -1005,8 +1005,7 @@ void handle_incoming_can_frame_battery(CAN_frame rx_frame) {
   }
 }
 
-void transmit_can_battery() {
-  unsigned long currentMillis = millis();
+void transmit_can_battery(unsigned long currentMillis) {
 
   //if (battery_awake) { //We can always send CAN as the PHEV BMS will wake up on vehicle comms
 

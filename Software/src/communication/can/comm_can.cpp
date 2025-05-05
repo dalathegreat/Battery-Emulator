@@ -3,12 +3,12 @@
 #include "src/devboard/sdcard/sdcard.h"
 
 // Parameters
-
-CAN_device_t CAN_cfg;          // CAN Config
-const int rx_queue_size = 10;  // Receive Queue size
+CAN_device_t CAN_cfg;              // CAN Config
+const uint8_t rx_queue_size = 10;  // Receive Queue size
 volatile bool send_ok_native = 0;
 volatile bool send_ok_2515 = 0;
 volatile bool send_ok_2518 = 0;
+static unsigned long previousMillis10 = 0;
 
 #ifdef CAN_ADDON
 static const uint32_t QUARTZ_FREQUENCY = CRYSTAL_FREQUENCY_MHZ * 1000000UL;  //MHZ configured in USER_SETTINGS.h
@@ -105,25 +105,26 @@ void init_CAN() {
 }
 
 // Transmit functions
-void transmit_can() {
+void transmit_can(unsigned long currentMillis) {
+
   if (!allowed_to_send_CAN) {
     return;  //Global block of CAN messages
   }
 
 #ifndef RS485_BATTERY_SELECTED
-  transmit_can_battery();
+  transmit_can_battery(currentMillis);
 #endif
 
 #ifdef CAN_INVERTER_SELECTED
-  transmit_can_inverter();
+  transmit_can_inverter(currentMillis);
 #endif  // CAN_INVERTER_SELECTED
 
 #ifdef CHARGER_SELECTED
-  transmit_can_charger();
+  transmit_can_charger(currentMillis);
 #endif  // CHARGER_SELECTED
 
 #ifdef CAN_SHUNT_SELECTED
-  transmit_can_shunt();
+  transmit_can_shunt(currentMillis);
 #endif  // CAN_SHUNT_SELECTED
 }
 

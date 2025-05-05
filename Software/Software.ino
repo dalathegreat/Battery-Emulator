@@ -52,6 +52,7 @@ volatile unsigned long long bmsResetTimeOffset = 0;
 const char* version_number = "8.12.dev";
 
 // Interval timers
+volatile unsigned long currentMillis = 0;
 unsigned long previousMillis10ms = 0;
 unsigned long previousMillisUpdateVal = 0;
 unsigned long lastMillisOverflowCheck = 0;
@@ -100,12 +101,13 @@ void setup() {
   init_precharge_control();
 #endif  // PRECHARGE_CONTROL
 
-  init_rs485();
-
 #if defined(CAN_INVERTER_SELECTED) || defined(MODBUS_INVERTER_SELECTED) || defined(RS485_INVERTER_SELECTED)
   setup_inverter();
 #endif
   setup_battery();
+
+  init_rs485();
+
 #ifdef EQUIPMENT_STOP_BUTTON
   init_equipment_stop_button();
 #endif
@@ -208,6 +210,7 @@ void core_loop(void*) {
   led_init();
 
   while (true) {
+
     START_TIME_MEASUREMENT(all);
     START_TIME_MEASUREMENT(comm);
 #ifdef EQUIPMENT_STOP_BUTTON
@@ -227,8 +230,12 @@ void core_loop(void*) {
 #endif  // WEBSERVER
 
     // Process
-    if (millis() - previousMillis10ms >= INTERVAL_10_MS) {
-      previousMillis10ms = millis();
+    currentMillis = millis();
+    if (currentMillis - previousMillis10ms >= INTERVAL_10_MS) {
+      if ((currentMillis - previousMillis10ms >= INTERVAL_10_MS_DELAYED) && (currentMillis > BOOTUP_TIME)) {
+        set_event(EVENT_TASK_OVERRUN, (currentMillis - previousMillis10ms));
+      }
+      previousMillis10ms = currentMillis;
 #ifdef FUNCTION_TIME_MEASUREMENT
       START_TIME_MEASUREMENT(time_10ms);
 #endif
@@ -242,8 +249,8 @@ void core_loop(void*) {
 #endif
     }
 
-    if (millis() - previousMillisUpdateVal >= INTERVAL_1_S) {
-      previousMillisUpdateVal = millis();  // Order matters on the update_loop!
+    if (currentMillis - previousMillisUpdateVal >= INTERVAL_1_S) {
+      previousMillisUpdateVal = currentMillis;  // Order matters on the update_loop!
 #ifdef FUNCTION_TIME_MEASUREMENT
       START_TIME_MEASUREMENT(time_values);
 #endif
@@ -264,7 +271,7 @@ void core_loop(void*) {
     START_TIME_MEASUREMENT(cantx);
 #endif
     // Output
-    transmit_can();  // Send CAN messages to all components
+    transmit_can(currentMillis);  // Send CAN messages to all components
 
 #ifdef RS485_BATTERY_SELECTED
     transmit_rs485();

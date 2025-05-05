@@ -267,7 +267,7 @@ void map_can_frame_to_variable_inverter(CAN_frame rx_frame) {
   }
 }
 
-void transmit_can_inverter() {
+void transmit_can_inverter(unsigned long currentMillis) {
   // No periodic sending for this battery type. Data is sent when inverter requests it
 }
 

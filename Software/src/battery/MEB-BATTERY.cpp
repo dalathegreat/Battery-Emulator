@@ -1627,9 +1627,8 @@ void handle_incoming_can_frame_battery(CAN_frame rx_frame) {
   }
 }
 
-void transmit_can_battery() {
-  unsigned long currentMillis = millis();
-  // Send 10ms CAN Message
+void transmit_can_battery(unsigned long currentMillis) {
+
   if (currentMillis > last_can_msg_timestamp + 500) {
 #ifdef DEBUG_LOG
     if (first_can_msg)
@@ -1642,15 +1641,8 @@ void transmit_can_battery() {
       datalayer.system.status.battery_allows_contactor_closing = false;
     }
   }
-
+  // Send 10ms CAN Message
   if (currentMillis - previousMillis10ms >= INTERVAL_10_MS) {
-    // Check if sending of CAN messages has been delayed too much.
-    if ((currentMillis - previousMillis10ms >= INTERVAL_10_MS_DELAYED) && (currentMillis > BOOTUP_TIME) &&
-        previousMillis10ms > 0) {
-      set_event(EVENT_CAN_OVERRUN, (currentMillis - previousMillis10ms));
-    } else {
-      clear_event(EVENT_CAN_OVERRUN);
-    }
     previousMillis10ms = currentMillis;
 
     MEB_0FC.data.u8[1] = ((MEB_0FC.data.u8[1] & 0xF0) | counter_10ms);

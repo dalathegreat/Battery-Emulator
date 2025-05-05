@@ -206,7 +206,7 @@ void update_values_can_inverter() {  //This function maps all the values fetched
   SOLAX_187E.data.u8[5] = (uint8_t)(datalayer.battery.status.reported_soc / 100);
 }
 
-void transmit_can_inverter() {
+void transmit_can_inverter(unsigned long currentMillis) {
   // No periodic sending used on this protocol, we react only on incoming CAN messages!
 }
 

@@ -316,11 +316,10 @@ void handle_incoming_can_frame_battery(CAN_frame rx_frame) {
   }
 }
 
-void transmit_can_battery() {
-  unsigned long currentMillis = millis();
+void transmit_can_battery(unsigned long currentMillis) {
+
   // Send 1s CAN Message
   if (currentMillis - previousMillis1s >= INTERVAL_1_S) {
-
     previousMillis1s = currentMillis;
 
     /*

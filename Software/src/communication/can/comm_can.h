@@ -16,6 +16,7 @@
 #endif  //CANFD_ADDON
 
 void dump_can_frame(CAN_frame& frame, frameDirection msgDir);
+void transmit_can_frame(CAN_frame* tx_frame, int interface);
 
 /**
  * @brief Initialization function for CAN.
@@ -40,10 +41,11 @@ void transmit_can_frame();
  * @brief Send CAN messages to all components 
  *
  * @param[in] void
+ * @param[in] unsigned long currentMillis
  *
  * @return void
  */
-void transmit_can();
+void transmit_can(unsigned long currentMillis);
 
 /**
  * @brief Receive CAN messages from all interfaces 
