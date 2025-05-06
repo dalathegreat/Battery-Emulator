@@ -9,12 +9,30 @@
 
 static CanBattery* battery = nullptr;
 
+#ifdef DOUBLE_BATTERY
+static CanBattery* battery2 = nullptr;
+#endif
+
 void setup_battery() {
   // Instantiate the battery only once just in case this function gets called multiple times.
   if (battery == nullptr) {
+#ifdef DOUBLE_BATTERY
+    battery = new SELECTED_BATTERY_CLASS(&datalayer.battery, &datalayer.system.status.battery_allows_contactor_closing,
+                                         EXTENDED_DATA_PTR, can_config.battery);
+#else
     battery = new SELECTED_BATTERY_CLASS();
+#endif
   }
   battery->setup();
+
+#ifdef DOUBLE_BATTERY
+  if (battery2 == nullptr) {
+    battery2 =
+        new SELECTED_BATTERY_CLASS(&datalayer.battery2, &datalayer.system.status.battery2_allows_contactor_closing,
+                                   nullptr, can_config.battery_double);
+  }
+  battery2->setup();
+#endif
 }
 
 void update_values_battery() {
@@ -28,5 +46,15 @@ void transmit_can_battery(unsigned long currentMillis) {
 void handle_incoming_can_frame_battery(CAN_frame rx_frame) {
   battery->handle_incoming_can_frame(rx_frame);
 }
+
+#ifdef DOUBLE_BATTERY
+void update_values_battery2() {
+  battery2->update_values();
+}
+
+void handle_incoming_can_frame_battery2(CAN_frame rx_frame) {
+  battery2->handle_incoming_can_frame(rx_frame);
+}
+#endif
 
 #endif

@@ -1,7 +1,8 @@
 #ifndef _DATALAYER_EXTENDED_H_
 #define _DATALAYER_EXTENDED_H_
 
-#include "../include.h"
+#include <stdint.h>
+#include "../../USER_SETTINGS.h"
 
 typedef struct {
   /** uint16_t */
