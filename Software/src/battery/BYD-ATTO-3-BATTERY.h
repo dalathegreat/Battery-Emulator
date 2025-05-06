@@ -20,7 +20,7 @@
 #define MIN_PACK_VOLTAGE_EXTENDED_DV 3800  //Extended range
 #define MAX_PACK_VOLTAGE_STANDARD_DV 3640  //Standard range
 #define MIN_PACK_VOLTAGE_STANDARD_DV 3136  //Standard range
-#define MAX_CELL_DEVIATION_MV 150
+#define MAX_CELL_DEVIATION_MV 230
 #define MAX_CELL_VOLTAGE_MV 3650  //Charging stops if one cell exceeds this value
 #define MIN_CELL_VOLTAGE_MV 2800  //Discharging stops if one cell goes below this value
 
