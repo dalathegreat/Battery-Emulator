@@ -1,5 +1,6 @@
 #include "../include.h"
 #ifdef NISSANLEAF_CHARGER
+#include "../communication/can/comm_can.h"
 #include "../datalayer/datalayer.h"
 #include "NISSAN-LEAF-CHARGER.h"
 
