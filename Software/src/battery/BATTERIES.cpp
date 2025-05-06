@@ -39,8 +39,16 @@ void update_values_battery() {
   battery->update_values();
 }
 
+// transmit_can_battery is called once and we need to
+// call both batteries.
 void transmit_can_battery(unsigned long currentMillis) {
   battery->transmit_can(currentMillis);
+
+#ifdef DOUBLE_BATTERY
+  if (battery2) {
+    battery2->transmit_can(currentMillis);
+  }
+#endif
 }
 
 void handle_incoming_can_frame_battery(CAN_frame rx_frame) {
