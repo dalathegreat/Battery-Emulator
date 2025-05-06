@@ -258,7 +258,7 @@ void transmit_can_battery(unsigned long currentMillis) {
 void setup_battery(void) {  // Performs one time setup at startup
   strncpy(datalayer.system.info.battery_protocol, "Kia/Hyundai Hybrid", 63);
   datalayer.system.info.battery_protocol[63] = '\0';
-
+  datalayer.system.status.battery_allows_contactor_closing = true;
   datalayer.battery.info.number_of_cells = 56;  // HEV , TODO: Make dynamic according to HEV/PHEV
   datalayer.battery.info.max_design_voltage_dV = MAX_PACK_VOLTAGE_DV;
   datalayer.battery.info.min_design_voltage_dV = MIN_PACK_VOLTAGE_DV;
