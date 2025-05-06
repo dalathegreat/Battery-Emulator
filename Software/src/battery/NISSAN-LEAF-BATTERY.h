@@ -18,14 +18,18 @@
 
 class NissanLeafBattery : public CanBattery {
  public:
+  // Use this constructor for the second battery.
   NissanLeafBattery(DATALAYER_BATTERY_TYPE* datalayer_ptr, bool* allows_contactor_closing_ptr,
                     DATALAYER_INFO_NISSAN_LEAF* extended, int targetCan) {
     datalayer_battery = datalayer_ptr;
     allows_contactor_closing = allows_contactor_closing_ptr;
     datalayer_nissan = extended;
     can_interface = targetCan;
+
+    battery_Total_Voltage2 = 0;
   }
 
+  // Use the default constructor to create the first or single battery.
   NissanLeafBattery() {
     datalayer_battery = &datalayer.battery;
     allows_contactor_closing = &datalayer.system.status.battery_allows_contactor_closing;
