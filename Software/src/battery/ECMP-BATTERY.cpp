@@ -302,6 +302,7 @@ void setup_battery(void) {  // Performs one time setup at startup
   datalayer.battery.info.number_of_cells = 108;
   datalayer.battery.info.max_design_voltage_dV = 4546;  // 454.6V, charging over this is not possible
   datalayer.battery.info.min_design_voltage_dV = 3210;  // 321.0V, under this, discharging further is disabled
+  datalayer.system.status.battery_allows_contactor_closing = true;
 }
 
 #endif
