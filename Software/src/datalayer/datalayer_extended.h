@@ -187,6 +187,21 @@ typedef struct {
   /** int16_t */
   /** All the temperature sensors inside the battery pack*/
   int16_t battery_temperatures[10];
+  /** unknown values polled */
+  uint32_t unknown0 = 0;
+  uint32_t unknown1 = 0;
+  uint16_t chargePower = 0;
+  uint16_t unknown3 = 0;
+  uint16_t unknown4 = 0;
+  uint16_t unknown5 = 0;
+  uint16_t unknown6 = 0;
+  uint16_t unknown7 = 0;
+  uint16_t unknown8 = 0;
+  uint16_t unknown9 = 0;
+  uint8_t unknown10 = 0;
+  uint8_t unknown11 = 0;
+  uint8_t unknown12 = 0;
+  uint8_t unknown13 = 0;
 } DATALAYER_INFO_BYDATTO3;
 
 typedef struct {

@@ -504,6 +504,20 @@ String advanced_battery_processor(const String& var) {
     content += "<h4>Temperature sensor 8: " + String(datalayer_extended.bydAtto3.battery_temperatures[7]) + "</h4>";
     content += "<h4>Temperature sensor 9: " + String(datalayer_extended.bydAtto3.battery_temperatures[8]) + "</h4>";
     content += "<h4>Temperature sensor 10: " + String(datalayer_extended.bydAtto3.battery_temperatures[9]) + "</h4>";
+    content += "<h4>Unknown0: " + String(datalayer_extended.bydAtto3.unknown0) + "</h4>";
+    content += "<h4>Unknown1: " + String(datalayer_extended.bydAtto3.unknown1) + "</h4>";
+    content += "<h4>Charge power raw: " + String(datalayer_extended.bydAtto3.chargePower) + "</h4>";
+    content += "<h4>Unknown3: " + String(datalayer_extended.bydAtto3.unknown3) + "</h4>";
+    content += "<h4>Unknown4: " + String(datalayer_extended.bydAtto3.unknown4) + "</h4>";
+    content += "<h4>Unknown5: " + String(datalayer_extended.bydAtto3.unknown5) + "</h4>";
+    content += "<h4>Unknown6: " + String(datalayer_extended.bydAtto3.unknown6) + "</h4>";
+    content += "<h4>Unknown7: " + String(datalayer_extended.bydAtto3.unknown7) + "</h4>";
+    content += "<h4>Unknown8: " + String(datalayer_extended.bydAtto3.unknown8) + "</h4>";
+    content += "<h4>Unknown9: " + String(datalayer_extended.bydAtto3.unknown9) + "</h4>";
+    content += "<h4>Unknown10: " + String(datalayer_extended.bydAtto3.unknown10) + "</h4>";
+    content += "<h4>Unknown11: " + String(datalayer_extended.bydAtto3.unknown11) + "</h4>";
+    content += "<h4>Unknown12: " + String(datalayer_extended.bydAtto3.unknown12) + "</h4>";
+    content += "<h4>Unknown13: " + String(datalayer_extended.bydAtto3.unknown12) + "</h4>";
 #endif  //BYD_ATTO_3_BATTERY
 
 #ifdef TESLA_BATTERY
