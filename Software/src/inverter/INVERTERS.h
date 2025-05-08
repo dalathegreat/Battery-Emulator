@@ -14,6 +14,18 @@ class ModbusInverterProtocol : public InverterProtocol {
   virtual void handle_static_data();
 };
 
+class CanInverterProtocol : public InverterProtocol {
+ public:
+  virtual void send_intial_data() = 0;
+
+  //This function maps all the values fetched from battery CAN to the correct CAN messages
+  virtual void update_values() = 0;
+
+  virtual void transmit_can(unsigned long currentMillis) = 0;
+
+  virtual void map_can_frame_to_variable(CAN_frame rx_frame) = 0;
+};
+
 #include "../../USER_SETTINGS.h"
 
 #ifdef AFORE_CAN
@@ -96,6 +108,7 @@ class ModbusInverterProtocol : public InverterProtocol {
 void update_values_can_inverter();
 void map_can_frame_to_variable_inverter(CAN_frame rx_frame);
 void transmit_can_inverter(unsigned long currentMillis);
+void setup_inverter();
 #endif
 
 #ifdef MODBUS_INVERTER_SELECTED
