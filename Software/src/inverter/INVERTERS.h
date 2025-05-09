@@ -16,8 +16,6 @@ class ModbusInverterProtocol : public InverterProtocol {
 
 class CanInverterProtocol : public InverterProtocol {
  public:
-  virtual void send_intial_data() = 0;
-
   //This function maps all the values fetched from battery CAN to the correct CAN messages
   virtual void update_values() = 0;
 

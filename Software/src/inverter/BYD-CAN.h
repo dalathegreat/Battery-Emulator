@@ -11,13 +11,12 @@
 class BydCanInverter : public CanInverterProtocol {
  public:
   void setup();
-  void send_intial_data();
   void transmit_can(unsigned long currentMillis);
   void map_can_frame_to_variable(CAN_frame rx_frame);
-
- private:
   void update_values();
 
+ private:
+  void send_initial_data();
   unsigned long previousMillis2s = 0;   // will store last time a 2s CAN Message was send
   unsigned long previousMillis10s = 0;  // will store last time a 10s CAN Message was send
   unsigned long previousMillis60s = 0;  // will store last time a 60s CAN Message was send
