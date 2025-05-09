@@ -22,8 +22,8 @@ class CanBattery {
   virtual void update_values() = 0;
   virtual void transmit_can(unsigned long currentMillis) = 0;
 
-protected:
-  DATALAYER_BATTERY_TYPE* datalayer_battery;  
+ protected:
+  DATALAYER_BATTERY_TYPE* datalayer_battery;
   int can_interface;
 };
 

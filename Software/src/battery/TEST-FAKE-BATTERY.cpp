@@ -1,7 +1,7 @@
 #include "../include.h"
 #ifdef TEST_FAKE_BATTERY
-#include "../datalayer/datalayer.h"
 #include "../communication/can/comm_can.h"
+#include "../datalayer/datalayer.h"
 #include "TEST-FAKE-BATTERY.h"
 
 /* Do not change code below unless you are sure what you are doing */
@@ -21,8 +21,9 @@ void print_units(char* header, int value, char* units) {
   logging.print(units);
 }
 
-void TestFakeBattery::update_values() { /* This function puts fake values onto the parameters sent towards the inverter */
-  
+void TestFakeBattery::
+    update_values() { /* This function puts fake values onto the parameters sent towards the inverter */
+
   datalayer_battery->status.real_soc = 5000;  // 50.00%
 
   datalayer_battery->status.soh_pptt = 9900;  // 99.00%

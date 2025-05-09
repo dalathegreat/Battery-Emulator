@@ -20,11 +20,10 @@ void setup_battery() {
   battery->setup();
 
 #ifdef DOUBLE_BATTERY
-if (battery2 == nullptr) {
-  battery2 =
-      new SELECTED_BATTERY_CLASS(&datalayer.battery2, can_config.battery_double);
-}
-battery2->setup();
+  if (battery2 == nullptr) {
+    battery2 = new SELECTED_BATTERY_CLASS(&datalayer.battery2, can_config.battery_double);
+  }
+  battery2->setup();
 #endif
 }
 
