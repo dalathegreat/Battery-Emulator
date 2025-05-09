@@ -7,9 +7,7 @@
 
 /* TODO:
 This integration is still ongoing. Here is what still needs to be done in order to use this battery type
-- Find SOC%
 - Find battery voltage
-- Find current value
 - Find/estimate charge/discharge limits
 - Find temperature
 - Figure out contactor closing
@@ -28,17 +26,18 @@ CAN_frame ECMP_XXX = {.FD = false,
 
 static uint16_t battery_voltage = 37000;
 static uint16_t battery_soc = 0;
+static int16_t battery_current = 0;
 static uint16_t cellvoltages[108];
 
 void update_values_battery() {
 
-  datalayer.battery.status.real_soc = battery_soc * 100;
+  datalayer.battery.status.real_soc = battery_soc * 10;
 
   datalayer.battery.status.soh_pptt;
 
   datalayer.battery.status.voltage_dV = (battery_voltage / 10);
 
-  datalayer.battery.status.current_dA;
+  datalayer.battery.status.current_dA = battery_current * 10;
 
   datalayer.battery.status.active_power_W =  //Power in watts, Negative = charging batt
       ((datalayer.battery.status.voltage_dV * datalayer.battery.status.current_dA) / 100);
@@ -76,6 +75,10 @@ void handle_incoming_can_frame_battery(CAN_frame rx_frame) {
   datalayer.battery.status.CAN_battery_still_alive = CAN_STILL_ALIVE;
   switch (rx_frame.ID) {
     case 0x125:
+      battery_soc = (rx_frame.data.u8[0] << 2) |
+                    (rx_frame.data.u8[1] >> 6);  // Byte1, bit 7 length 10 (0x3FE when abnormal) (0-1000 ppt)
+      battery_current = (((rx_frame.data.u8[4] & 0x7F) << 5) | (rx_frame.data.u8[5] >> 3)) -
+                        600;  // Byte5, Bit 3 length 12 (0xFFE when abnormal) (-600 to 600 , offset -600)
       break;
     case 0x127:
       break;
@@ -88,7 +91,7 @@ void handle_incoming_can_frame_battery(CAN_frame rx_frame) {
     case 0x359:
       break;
     case 0x361:
-      battery_voltage = (rx_frame.data.u8[4] << 8) | rx_frame.data.u8[5];
+      battery_voltage = (rx_frame.data.u8[4] << 8) | rx_frame.data.u8[5];  //TODO, not confirmed
       break;
     case 0x362:
       break;
@@ -99,7 +102,6 @@ void handle_incoming_can_frame_battery(CAN_frame rx_frame) {
     case 0x594:
       break;
     case 0x6D0:
-      battery_soc = (100 - rx_frame.data.u8[0]);
       break;
     case 0x6D1:
       break;
