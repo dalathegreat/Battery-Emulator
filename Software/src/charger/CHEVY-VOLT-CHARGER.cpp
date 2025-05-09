@@ -19,29 +19,8 @@
  * 2024 smaresca
  */
 
-/* CAN cycles and timers */
-static unsigned long previousMillis30ms = 0;    // 30ms cycle for keepalive frames
-static unsigned long previousMillis200ms = 0;   // 200ms cycle for commanding I/V targets
-static unsigned long previousMillis5000ms = 0;  // 5s status printout to serial
-
-enum CHARGER_MODES : uint8_t { MODE_DISABLED = 0, MODE_LV, MODE_HV, MODE_HVLV };
-
-//Actual content messages
-static CAN_frame charger_keepalive_frame = {.FD = false,
-                                            .ext_ID = false,
-                                            .DLC = 1,
-                                            .ID = 0x30E,  //one byte only, indicating enabled or disabled
-                                            .data = {MODE_DISABLED}};
-
-static CAN_frame charger_set_targets = {
-    .FD = false,
-    .ext_ID = false,
-    .DLC = 4,
-    .ID = 0x304,
-    .data = {0x40, 0x00, 0x00, 0x00}};  // data[0] is a static value, meaning unknown
-
 /* We are mostly sending out not receiving */
-void map_can_frame_to_variable_charger(CAN_frame rx_frame) {
+void ChevyVoltCharger::map_can_frame_to_variable(CAN_frame rx_frame) {
   uint16_t charger_stat_HVcur_temp = 0;
   uint16_t charger_stat_HVvol_temp = 0;
   uint16_t charger_stat_LVcur_temp = 0;
@@ -98,7 +77,7 @@ void map_can_frame_to_variable_charger(CAN_frame rx_frame) {
   }
 }
 
-void transmit_can_charger(unsigned long currentMillis) {
+void ChevyVoltCharger::transmit_can(unsigned long currentMillis) {
   uint16_t Vol_temp = 0;
 
   uint16_t setpoint_HV_VDC = floor(datalayer.charger.charger_setpoint_HV_VDC);
