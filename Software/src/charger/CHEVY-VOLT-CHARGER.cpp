@@ -149,9 +149,12 @@ void ChevyVoltCharger::transmit_can(unsigned long currentMillis) {
   /* Serial echo every 5s of charger stats */
   if (currentMillis - previousMillis5000ms >= INTERVAL_5_S) {
     previousMillis5000ms = currentMillis;
-    logging.printf("Charger AC in IAC=%fA VAC=%fV\n", datalayer.charger.charger_stat_ACcur, datalayer.charger.charger_stat_ACvol);
-    logging.printf("Charger HV out IDC=%fA VDC=%fV\n", datalayer.charger.charger_stat_HVcur, datalayer.charger.charger_stat_HVvol);
-    logging.printf("Charger LV out IDC=%fA VDC=%fV\n", datalayer.charger.charger_stat_LVcur, datalayer.charger.charger_stat_LVvol);
+    logging.printf("Charger AC in IAC=%fA VAC=%fV\n", datalayer.charger.charger_stat_ACcur,
+                   datalayer.charger.charger_stat_ACvol);
+    logging.printf("Charger HV out IDC=%fA VDC=%fV\n", datalayer.charger.charger_stat_HVcur,
+                   datalayer.charger.charger_stat_HVvol);
+    logging.printf("Charger LV out IDC=%fA VDC=%fV\n", datalayer.charger.charger_stat_LVcur,
+                   datalayer.charger.charger_stat_LVvol);
     logging.printf("Charger mode=%s\n", (charger_mode > MODE_DISABLED) ? "Enabled" : "Disabled");
     logging.printf("Charger HVset=%uV,%uA finishCurrent=%uA\n", setpoint_HV_VDC, setpoint_HV_IDC, setpoint_HV_IDC_END);
   }

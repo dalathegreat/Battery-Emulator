@@ -10,7 +10,9 @@
 
 class TestFakeBattery : public CanBattery {
  public:
-  TestFakeBattery(DATALAYER_BATTERY_TYPE* datalayer_ptr, int targetCan) : CanBattery(datalayer_ptr, targetCan) {}
+  TestFakeBattery(DATALAYER_BATTERY_TYPE* datalayer_ptr, bool* allows_contactor_closing_ptr,
+                  DATALAYER_INFO_NISSAN_LEAF* extended, int targetCan)
+      : CanBattery(datalayer_ptr, allows_contactor_closing_ptr, extended, targetCan) {}
   TestFakeBattery() : CanBattery() {}
 
   virtual void setup(void);
