@@ -14,14 +14,15 @@ This integration is still ongoing. Here is what still needs to be done in order 
 */
 
 /* Do not change code below unless you are sure what you are doing */
-static unsigned long previousMillis1000 = 0;  // will store last time a 1s CAN Message was sent
+static unsigned long previousMillis100 = 0;  // will store last time a 100ms CAN Message was sent
 
 //Actual content messages
-CAN_frame ECMP_XXX = {.FD = false,
-                      .ext_ID = false,
-                      .DLC = 8,
-                      .ID = 0x301,
-                      .data = {0x01, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00}};
+CAN_frame ECMP_382 = {
+    .FD = false,  //BSI_Info (VCU) PSA specific
+    .ext_ID = false,
+    .DLC = 8,
+    .ID = 0x382,
+    .data = {0x09, 0x20, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00}};  //09 20 on AC charge. 0A 20 on DC charge
 
 static uint16_t battery_voltage = 370;
 static uint16_t battery_soc = 0;
@@ -316,9 +317,11 @@ void handle_incoming_can_frame_battery(CAN_frame rx_frame) {
 }
 
 void transmit_can_battery(unsigned long currentMillis) {
-  // Send 1s CAN Message
-  if (currentMillis - previousMillis1000 >= INTERVAL_1_S) {
-    previousMillis1000 = currentMillis;
+  // Send 100ms CAN Message
+  if (currentMillis - previousMillis100 >= INTERVAL_100_MS) {
+    previousMillis100 = currentMillis;
+
+    transmit_can_frame(&ECMP_382, can_config.battery);  //PSA Specific!
   }
 }
 
