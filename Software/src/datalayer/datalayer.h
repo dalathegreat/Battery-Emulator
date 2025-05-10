@@ -1,7 +1,9 @@
 #ifndef _DATALAYER_H_
 #define _DATALAYER_H_
 
-#include "../include.h"
+#include "../../USER_SETTINGS.h"
+#include "../devboard/utils/types.h"
+#include "../system_settings.h"
 
 typedef struct {
   /** uint32_t */
