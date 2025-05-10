@@ -231,15 +231,15 @@ void update_machineryprotection() {
   }
 #endif  //CAN_INVERTER_SELECTED
 
-#ifdef CHARGER_SELECTED
-  // Check if the charger is still sending CAN messages. If we go 60s without messages we raise a warning
-  if (!datalayer.charger.CAN_charger_still_alive) {
-    set_event(EVENT_CAN_CHARGER_MISSING, can_config.charger);
-  } else {
-    datalayer.charger.CAN_charger_still_alive--;
-    clear_event(EVENT_CAN_CHARGER_MISSING);
+  if (charger) {
+    // Check if the charger is still sending CAN messages. If we go 60s without messages we raise a warning
+    if (!datalayer.charger.CAN_charger_still_alive) {
+      set_event(EVENT_CAN_CHARGER_MISSING, can_config.charger);
+    } else {
+      datalayer.charger.CAN_charger_still_alive--;
+      clear_event(EVENT_CAN_CHARGER_MISSING);
+    }
   }
-#endif  //CHARGER_SELECTED
 
 #ifdef DOUBLE_BATTERY  // Additional Double-Battery safeties are checked here
   // Check if the Battery 2 BMS is still sending CAN messages. If we go 60s without messages we raise a warning

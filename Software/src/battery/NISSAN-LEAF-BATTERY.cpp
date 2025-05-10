@@ -8,6 +8,8 @@
 #include "../datalayer/datalayer_extended.h"  //For "More battery info" webpage
 #include "../devboard/utils/events.h"
 
+#include "../charger/CanCharger.h"
+
 /* Do not change code below unless you are sure what you are doing */
 static unsigned long previousMillis10 = 0;   // will store last time a 10ms CAN Message was send
 static unsigned long previousMillis100 = 0;  // will store last time a 100ms CAN Message was send
@@ -1199,13 +1201,14 @@ void transmit_can_battery(unsigned long currentMillis) {
           break;
       }
 
-//Only send this message when NISSANLEAF_CHARGER is not defined (otherwise it will collide!)
-#ifndef NISSANLEAF_CHARGER
-      transmit_can_frame(&LEAF_1F2, can_config.battery);
+      //Only send this message when NISSANLEAF_CHARGER is not defined (otherwise it will collide!)
+
+      if (!charger || charger->type() != ChargerType::NissanLeaf) {
+        transmit_can_frame(&LEAF_1F2, can_config.battery);
 #ifdef DOUBLE_BATTERY
-      transmit_can_frame(&LEAF_1F2, can_config.battery_double);
+        transmit_can_frame(&LEAF_1F2, can_config.battery_double);
 #endif  // DOUBLE_BATTERY
-#endif
+      }
 
       mprun10r = (mprun10r + 1) % 20;  // 0x1F2 patter repeats after 20 messages. 0-1..19-0
 
