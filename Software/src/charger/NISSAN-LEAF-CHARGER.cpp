@@ -1,8 +1,7 @@
-#include "../include.h"
-#ifdef NISSANLEAF_CHARGER
+#include "NISSAN-LEAF-CHARGER.h"
 #include "../communication/can/comm_can.h"
 #include "../datalayer/datalayer.h"
-#include "NISSAN-LEAF-CHARGER.h"
+#include "../include.h"
 
 /* This implements Nissan LEAF PDM charger support. 2013-2024 Gen2/3 PDMs are supported
  *
@@ -185,4 +184,3 @@ void NissanLeafCharger::transmit_can(unsigned long currentMillis) {
 #endif
   }
 }
-#endif

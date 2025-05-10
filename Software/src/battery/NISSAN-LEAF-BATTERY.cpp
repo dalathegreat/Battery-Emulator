@@ -9,6 +9,8 @@
 #include "../datalayer/datalayer_extended.h"  //For "More battery info" webpage
 #include "../devboard/utils/events.h"
 
+#include "../charger/CanCharger.h"
+
 uint16_t Temp_fromRAW_to_F(uint16_t temperature);
 //Cryptographic functions
 void decodeChallengeData(unsigned int SeedInput, unsigned char* Crypt_Output_Buffer);
@@ -642,10 +644,10 @@ void NissanLeafBattery::transmit_can(unsigned long currentMillis) {
           break;
       }
 
-//Only send this message when NISSANLEAF_CHARGER is not defined (otherwise it will collide!)
-#ifndef NISSANLEAF_CHARGER
-      transmit_can_frame(&LEAF_1F2, can_interface);
-#endif
+      //Only send this message when NISSANLEAF_CHARGER is not defined (otherwise it will collide!)
+      if (!charger || charger->type() != ChargerType::NissanLeaf) {
+        transmit_can_frame(&LEAF_1F2, can_interface);
+      }
 
       mprun10r = (mprun10r + 1) % 20;  // 0x1F2 patter repeats after 20 messages. 0-1..19-0
 

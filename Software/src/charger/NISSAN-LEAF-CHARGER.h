@@ -4,13 +4,30 @@
 #include "../include.h"
 
 #include "CanCharger.h"
-#define CHARGER_SELECTED
+
+#ifdef NISSANLEAF_CHARGER
 #define SELECTED_CHARGER_CLASS NissanLeafCharger
+#endif
 
 class NissanLeafCharger : public CanCharger {
  public:
+  NissanLeafCharger() : CanCharger(ChargerType::NissanLeaf) {}
+
+  const char* name() { return "Nissan LEAF 2013-2024 PDM charger"; }
   void map_can_frame_to_variable(CAN_frame rx_frame);
   void transmit_can(unsigned long currentMillis);
+
+  float outputPowerDC() { return static_cast<float>(datalayer.charger.charger_stat_HVcur * 100); }
+
+  float HVDC_output_current() {
+    // P/U=I
+    if (datalayer.battery.status.voltage_dV > 0) {
+      return outputPowerDC() / (datalayer.battery.status.voltage_dV / 10);
+    }
+    return 0;
+  }
+
+  float HVDC_output_voltage() { return static_cast<float>(datalayer.battery.status.voltage_dV / 10); }
 
  private:
   /* CAN cycles and timers */
