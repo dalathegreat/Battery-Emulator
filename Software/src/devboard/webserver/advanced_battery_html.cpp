@@ -456,6 +456,19 @@ String advanced_battery_processor(const String& var) {
         "<h4>Cumulative energy regen: " + String(datalayer_extended.CMFAEV.cumulative_energy_in_regen) + "Wh</h4>";
 #endif  //CMFA_EV_BATTERY
 
+#ifdef STELLANTIS_ECMP_BATTERY
+    content += "<h4>Main Connector State: ";
+    if (datalayer_extended.stellantisECMP.MainConnectorState == 0) {
+      content += "Contactors open</h4>";
+    } else if (datalayer_extended.stellantisECMP.MainConnectorState == 0x01) {
+      content += "Precharged</h4>";
+    } else {
+      content += "Invalid</h4>";
+    }
+    content +=
+        "<h4>Insulation Resistance: " + String(datalayer_extended.stellantisECMP.InsulationResistance) + "kOhm</h4>";
+#endif  //STELLANTIS_ECMP_BATTERY
+
 #ifdef KIA_HYUNDAI_64_BATTERY
     content += "<h4>Cells: " + String(datalayer_extended.KiaHyundai64.total_cell_count) + "S</h4>";
     content += "<h4>12V voltage: " + String(datalayer_extended.KiaHyundai64.battery_12V / 10.0, 1) + "</h4>";
@@ -1487,7 +1500,8 @@ String advanced_battery_processor(const String& var) {
     !defined(TESLA_BATTERY) && !defined(NISSAN_LEAF_BATTERY) && !defined(BMW_I3_BATTERY) &&          \
     !defined(BYD_ATTO_3_BATTERY) && !defined(RENAULT_ZOE_GEN2_BATTERY) && !defined(CELLPOWER_BMS) && \
     !defined(MEB_BATTERY) && !defined(VOLVO_SPA_BATTERY) && !defined(VOLVO_SPA_HYBRID_BATTERY) &&    \
-    !defined(KIA_HYUNDAI_64_BATTERY) && !defined(CMFA_EV_BATTERY)  //Only the listed types have extra info
+    !defined(KIA_HYUNDAI_64_BATTERY) && !defined(CMFA_EV_BATTERY) &&                                 \
+    !defined(STELLANTIS_ECMP_BATTERY)  //Only the listed types have extra info
     content += "No extra information available for this battery type";
 #endif
 
