@@ -646,7 +646,7 @@ void NissanLeafBattery::transmit_can(unsigned long currentMillis) {
 
       //Only send this message when NISSANLEAF_CHARGER is not defined (otherwise it will collide!)
       if (!charger || charger->type() != ChargerType::NissanLeaf) {
-        transmit_can_frame(&LEAF_1F2, can_config.battery);
+        transmit_can_frame(&LEAF_1F2, can_interface);
       }
 
       mprun10r = (mprun10r + 1) % 20;  // 0x1F2 patter repeats after 20 messages. 0-1..19-0
