@@ -23,7 +23,7 @@ CAN_frame ECMP_XXX = {.FD = false,
                       .ID = 0x301,
                       .data = {0x01, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00}};
 
-static uint16_t battery_voltage = 37000;
+static uint16_t battery_voltage = 370;
 static uint16_t battery_soc = 0;
 static int16_t battery_current = 0;
 static uint8_t battery_MainConnectorState = 0;
