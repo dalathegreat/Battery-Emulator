@@ -101,9 +101,7 @@ void setup() {
   init_precharge_control();
 #endif  // PRECHARGE_CONTROL
 
-#if defined(CHARGER_SELECTED)
   setup_charger();
-#endif
 
 #if defined(CAN_INVERTER_SELECTED) || defined(MODBUS_INVERTER_SELECTED) || defined(RS485_INVERTER_SELECTED)
   setup_inverter();
