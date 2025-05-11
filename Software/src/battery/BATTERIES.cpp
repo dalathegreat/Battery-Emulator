@@ -16,15 +16,13 @@ static CanBattery* battery2 = nullptr;
 void setup_battery() {
   // Instantiate the battery only once just in case this function gets called multiple times.
   if (battery == nullptr) {
-    battery = new SELECTED_BATTERY_CLASS();
+    battery = new SELECTED_BATTERY_CLASS(1, can_config.battery);
   }
   battery->setup();
 
 #ifdef DOUBLE_BATTERY
   if (battery2 == nullptr) {
-    battery2 =
-        new SELECTED_BATTERY_CLASS(&datalayer.battery2, &datalayer.system.status.battery2_allows_contactor_closing,
-                                   nullptr, can_config.battery_double);
+    battery2 = new SELECTED_BATTERY_CLASS(2, can_config.battery_double);
   }
   battery2->setup();
 #endif

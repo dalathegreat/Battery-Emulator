@@ -65,31 +65,31 @@ void print_units(char* header, int value, char* units) {
 
 void JaguarIpaceBattery::update_values() {
 
-  datalayer.battery.status.real_soc = HVBattAvgSOC * 100;  //Add two decimals
+  datalayer_battery->status.real_soc = HVBattAvgSOC * 100;  //Add two decimals
 
-  datalayer.battery.status.soh_pptt = 9900;  //TODO: Map
+  datalayer_battery->status.soh_pptt = 9900;  //TODO: Map
 
-  datalayer.battery.status.voltage_dV = HVBattVoltageExt * 10;  //TODO: This value OK?
+  datalayer_battery->status.voltage_dV = HVBattVoltageExt * 10;  //TODO: This value OK?
 
-  datalayer.battery.status.current_dA = HVBattCurrentTR * 10;  //TODO: This value OK?
+  datalayer_battery->status.current_dA = HVBattCurrentTR * 10;  //TODO: This value OK?
 
-  datalayer.battery.info.total_capacity_Wh = HVBattEnergyUsableMax * 100;  // kWh+1 to Wh
+  datalayer_battery->info.total_capacity_Wh = HVBattEnergyUsableMax * 100;  // kWh+1 to Wh
 
-  datalayer.battery.status.remaining_capacity_Wh = static_cast<uint32_t>(
-      (static_cast<double>(datalayer.battery.status.real_soc) / 10000) * datalayer.battery.info.total_capacity_Wh);
+  datalayer_battery->status.remaining_capacity_Wh = static_cast<uint32_t>(
+      (static_cast<double>(datalayer_battery->status.real_soc) / 10000) * datalayer_battery->info.total_capacity_Wh);
 
-  datalayer.battery.status.cell_max_voltage_mV = HVBattCellVoltageMaxMv;
+  datalayer_battery->status.cell_max_voltage_mV = HVBattCellVoltageMaxMv;
 
-  datalayer.battery.status.cell_min_voltage_mV = HVBattCellVoltageMinMv;
+  datalayer_battery->status.cell_min_voltage_mV = HVBattCellVoltageMinMv;
 
-  datalayer.battery.status.temperature_min_dC = HVBattCellTempColdest * 10;  // C to dC
+  datalayer_battery->status.temperature_min_dC = HVBattCellTempColdest * 10;  // C to dC
 
-  datalayer.battery.status.temperature_max_dC = HVBattCellTempHottest * 10;  // C to dC
+  datalayer_battery->status.temperature_max_dC = HVBattCellTempHottest * 10;  // C to dC
 
-  datalayer.battery.status.max_discharge_power_W =
+  datalayer_battery->status.max_discharge_power_W =
       HVBattDischargeContiniousPowerLimit * 10;  // kWh+2 to W (TODO: Check that scaling is right way)
 
-  datalayer.battery.status.max_charge_power_W =
+  datalayer_battery->status.max_charge_power_W =
       HVBattChargeContiniousPowerLimit * 10;  // kWh+2 to W (TODO: Check that scaling is right way)
 
   if (HVBattHVILError) {  // Alert user incase the high voltage interlock is not OK
@@ -107,15 +107,15 @@ void JaguarIpaceBattery::update_values() {
 /*Finally print out values to serial if configured to do so*/
 #ifdef DEBUG_LOG
   logging.println("Values going to inverter");
-  print_units("SOH%: ", (datalayer.battery.status.soh_pptt * 0.01), "% ");
-  print_units(", SOC%: ", (datalayer.battery.status.reported_soc * 0.01), "% ");
-  print_units(", Voltage: ", (datalayer.battery.status.voltage_dV * 0.1), "V ");
-  print_units(", Max discharge power: ", datalayer.battery.status.max_discharge_power_W, "W ");
-  print_units(", Max charge power: ", datalayer.battery.status.max_charge_power_W, "W ");
-  print_units(", Max temp: ", (datalayer.battery.status.temperature_max_dC * 0.1), "°C ");
-  print_units(", Min temp: ", (datalayer.battery.status.temperature_min_dC * 0.1), "°C ");
-  print_units(", Max cell voltage: ", datalayer.battery.status.cell_max_voltage_mV, "mV ");
-  print_units(", Min cell voltage: ", datalayer.battery.status.cell_min_voltage_mV, "mV ");
+  print_units("SOH%: ", (datalayer_battery->status.soh_pptt * 0.01), "% ");
+  print_units(", SOC%: ", (datalayer_battery->status.reported_soc * 0.01), "% ");
+  print_units(", Voltage: ", (datalayer_battery->status.voltage_dV * 0.1), "V ");
+  print_units(", Max discharge power: ", datalayer_battery->status.max_discharge_power_W, "W ");
+  print_units(", Max charge power: ", datalayer_battery->status.max_charge_power_W, "W ");
+  print_units(", Max temp: ", (datalayer_battery->status.temperature_max_dC * 0.1), "°C ");
+  print_units(", Min temp: ", (datalayer_battery->status.temperature_min_dC * 0.1), "°C ");
+  print_units(", Max cell voltage: ", datalayer_battery->status.cell_max_voltage_mV, "mV ");
+  print_units(", Min cell voltage: ", datalayer_battery->status.cell_min_voltage_mV, "mV ");
   logging.println("");
 #endif
 }
@@ -124,13 +124,13 @@ void JaguarIpaceBattery::handle_incoming_can_frame(CAN_frame rx_frame) {
 
   switch (rx_frame.ID) {  // These messages are periodically transmitted by the battery
     case 0x080:
-      datalayer.battery.status.CAN_battery_still_alive = CAN_STILL_ALIVE;
+      datalayer_battery->status.CAN_battery_still_alive = CAN_STILL_ALIVE;
       HVBatteryContactorStatus = ((rx_frame.data.u8[0] & 0x80) >> 7);
       HVBattHVILError = ((rx_frame.data.u8[0] & 0x40) >> 6);
       HVILBattIsolationError = ((rx_frame.data.u8[0] & 0x20) >> 5);
       break;
     case 0x100:
-      datalayer.battery.status.CAN_battery_still_alive = CAN_STILL_ALIVE;
+      datalayer_battery->status.CAN_battery_still_alive = CAN_STILL_ALIVE;
       HVBattDischargeContiniousPowerLimit =
           ((rx_frame.data.u8[6] << 8) | rx_frame.data.u8[7]);                             // 0x3269 = 12905 = 129.05kW
       HVBattDischargePowerLimitExt = ((rx_frame.data.u8[4] << 8) | rx_frame.data.u8[5]);  // 0x7BD5 = 31701 = 317.01kW
@@ -138,7 +138,7 @@ void JaguarIpaceBattery::handle_incoming_can_frame(CAN_frame rx_frame) {
           ((rx_frame.data.u8[2] << 8) | rx_frame.data.u8[3]);  // Lowest voltage the pack can go to
       break;
     case 0x102:
-      datalayer.battery.status.CAN_battery_still_alive = CAN_STILL_ALIVE;
+      datalayer_battery->status.CAN_battery_still_alive = CAN_STILL_ALIVE;
       HVBattPwrGpCounter = ((rx_frame.data.u8[1] & 0x3C) >> 2);  // Loops 0-F-0
       HVBattPwerGPCS = rx_frame.data.u8[0];                      // SAE J1850 CRC8 Checksum.
       //TODO: Add function that checks if CRC is correct. We can use this to detect corrupted CAN messages
@@ -146,14 +146,14 @@ void JaguarIpaceBattery::handle_incoming_can_frame(CAN_frame rx_frame) {
       HVBattVoltageExt = (((rx_frame.data.u8[1] & 0x03) << 8) | rx_frame.data.u8[2]);
       break;
     case 0x104:
-      datalayer.battery.status.CAN_battery_still_alive = CAN_STILL_ALIVE;
+      datalayer_battery->status.CAN_battery_still_alive = CAN_STILL_ALIVE;
       HVBatteryContactorStatusT = ((rx_frame.data.u8[2] & 0x80) >> 7);
       HVIsolationTestStatus = ((rx_frame.data.u8[2] & 0x10) >> 4);
       HVBatteryVoltageOC = (((rx_frame.data.u8[2] & 0x03) << 8) | rx_frame.data.u8[3]);
       HVBatteryChgCurrentLimit = (((rx_frame.data.u8[6] & 0x03) << 8) | rx_frame.data.u8[7]);
       break;
     case 0x10A:
-      datalayer.battery.status.CAN_battery_still_alive = CAN_STILL_ALIVE;
+      datalayer_battery->status.CAN_battery_still_alive = CAN_STILL_ALIVE;
       HVBattChargeContiniousPowerLimit = ((rx_frame.data.u8[0] << 8) | rx_frame.data.u8[1]);
       break;
     case 0x198:
@@ -222,19 +222,19 @@ void JaguarIpaceBattery::transmit_can(unsigned long currentMillis) {
   /* Send keep-alive every 200ms */
   if (currentMillis - previousMillisKeepAlive >= INTERVAL_200_MS) {
     previousMillisKeepAlive = currentMillis;
-    transmit_can_frame(&ipace_keep_alive, can_config.battery);
+    transmit_can_frame(&ipace_keep_alive, can_interface);
   }
 }
 
 void JaguarIpaceBattery::setup(void) {  // Performs one time setup at startup
   strncpy(datalayer.system.info.battery_protocol, "Jaguar I-PACE", 63);
   datalayer.system.info.battery_protocol[63] = '\0';
-  datalayer.battery.info.number_of_cells = 108;
-  datalayer.battery.info.max_design_voltage_dV = MAX_PACK_VOLTAGE_DV;
-  datalayer.battery.info.min_design_voltage_dV = MIN_PACK_VOLTAGE_DV;
-  datalayer.battery.info.max_cell_voltage_mV = MAX_CELL_VOLTAGE_MV;
-  datalayer.battery.info.min_cell_voltage_mV = MIN_CELL_VOLTAGE_MV;
-  datalayer.battery.info.max_cell_voltage_deviation_mV = MAX_CELL_DEVIATION_MV;
+  datalayer_battery->info.number_of_cells = 108;
+  datalayer_battery->info.max_design_voltage_dV = MAX_PACK_VOLTAGE_DV;
+  datalayer_battery->info.min_design_voltage_dV = MIN_PACK_VOLTAGE_DV;
+  datalayer_battery->info.max_cell_voltage_mV = MAX_CELL_VOLTAGE_MV;
+  datalayer_battery->info.min_cell_voltage_mV = MIN_CELL_VOLTAGE_MV;
+  datalayer_battery->info.max_cell_voltage_deviation_mV = MAX_CELL_DEVIATION_MV;
   datalayer.system.status.battery_allows_contactor_closing = true;
 }
 

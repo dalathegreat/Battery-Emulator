@@ -14,6 +14,7 @@
 
 class JaguarIpaceBattery : public CanBattery {
  public:
+  JaguarIpaceBattery(int batteryNumber, int targetCan) : CanBattery(batteryNumber, targetCan) {}
   virtual void setup(void);
   virtual void handle_incoming_can_frame(CAN_frame rx_frame);
   virtual void update_values();

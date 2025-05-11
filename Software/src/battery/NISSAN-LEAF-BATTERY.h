@@ -1,7 +1,6 @@
 #ifndef NISSAN_LEAF_BATTERY_H
 #define NISSAN_LEAF_BATTERY_H
 
-#include "../datalayer/datalayer.h"
 #include "../datalayer/datalayer_extended.h"
 #include "../include.h"
 #include "CanBattery.h"
@@ -18,23 +17,16 @@
 
 class NissanLeafBattery : public CanBattery {
  public:
-  // Use this constructor for the second battery.
-  NissanLeafBattery(DATALAYER_BATTERY_TYPE* datalayer_ptr, bool* allows_contactor_closing_ptr,
-                    DATALAYER_INFO_NISSAN_LEAF* extended, int targetCan) {
-    datalayer_battery = datalayer_ptr;
-    allows_contactor_closing = allows_contactor_closing_ptr;
-    datalayer_nissan = extended;
-    can_interface = targetCan;
-
-    battery_Total_Voltage2 = 0;
-  }
-
-  // Use the default constructor to create the first or single battery.
-  NissanLeafBattery() {
-    datalayer_battery = &datalayer.battery;
-    allows_contactor_closing = &datalayer.system.status.battery_allows_contactor_closing;
-    datalayer_nissan = &datalayer_extended.nissanleaf;
-    can_interface = can_config.battery;
+  NissanLeafBattery(int batteryNumber, int targetCan) : CanBattery(batteryNumber, targetCan) {
+    switch (batteryNumber) {
+      case 1:
+        datalayer_nissan = &datalayer_extended.nissanleaf;
+        break;
+      case 2:
+        battery_Total_Voltage2 = 0;
+        datalayer_nissan = nullptr;
+        break;
+    }
   }
 
   virtual void setup(void);
@@ -46,7 +38,6 @@ class NissanLeafBattery : public CanBattery {
   bool is_message_corrupt(CAN_frame rx_frame);
   void clearSOH(void);
 
-  DATALAYER_BATTERY_TYPE* datalayer_battery;
   DATALAYER_INFO_NISSAN_LEAF* datalayer_nissan;
   bool* allows_contactor_closing;
 
