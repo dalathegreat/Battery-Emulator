@@ -1,28 +1,8 @@
 #ifndef INVERTERS_H
 #define INVERTERS_H
 
-// The abstract base class for all inverter protocols
-class InverterProtocol {
- public:
-  virtual void setup() = 0;
-};
-
-// The abstract base class for all Modbus inverter protocols
-class ModbusInverterProtocol : public InverterProtocol {
- public:
-  virtual void update_modbus_registers() = 0;
-  virtual void handle_static_data();
-};
-
-class CanInverterProtocol : public InverterProtocol {
- public:
-  //This function maps all the values fetched from battery CAN to the correct CAN messages
-  virtual void update_values() = 0;
-
-  virtual void transmit_can(unsigned long currentMillis) = 0;
-
-  virtual void map_can_frame_to_variable(CAN_frame rx_frame) = 0;
-};
+#include "InverterProtocol.h"
+extern InverterProtocol* inverter;
 
 #include "../../USER_SETTINGS.h"
 
@@ -102,23 +82,12 @@ class CanInverterProtocol : public InverterProtocol {
 #include "SUNGROW-CAN.h"
 #endif
 
+void setup_inverter();
+
 #ifdef CAN_INVERTER_SELECTED
 void update_values_can_inverter();
 void map_can_frame_to_variable_inverter(CAN_frame rx_frame);
 void transmit_can_inverter(unsigned long currentMillis);
-void setup_inverter();
-#endif
-
-#ifdef MODBUS_INVERTER_SELECTED
-void update_modbus_registers_inverter();
-void setup_inverter();
-void handle_static_data_modbus();
-#endif
-
-#ifdef RS485_INVERTER_SELECTED
-void receive_RS485();
-void update_RS485_registers_inverter();
-void setup_inverter();
 #endif
 
 #endif

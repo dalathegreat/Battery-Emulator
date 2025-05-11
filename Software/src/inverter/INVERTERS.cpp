@@ -26,18 +26,12 @@ void setup_inverter() {
   inverter = can_inverter;
 #endif
 
+#ifdef RS485_INVERTER_SELECTED
+  inverter = new SELECTED_INVERTER_CLASS();
+#endif
+
   inverter->setup();
 }
-
-#ifdef MODBUS_INVERTER_SELECTED
-void update_modbus_registers_inverter() {
-  modbus_inverter->update_modbus_registers();
-}
-
-void handle_static_data_modbus() {
-  modbus_inverter->handle_static_data();
-}
-#endif
 
 #ifdef CAN_INVERTER_SELECTED
 void update_values_can_inverter() {

@@ -1,16 +1,14 @@
 #ifndef CAN_BATTERY_H
 #define CAN_BATTERY_H
 
+#include "Battery.h"
+
 #include "src/devboard/utils/types.h"
 
-// Abstract base class for next-generation battery implementations.
-// Defines the interface to call battery specific functionality.
-// No support for double battery yet.
-class CanBattery {
+// Abstract base class for batteries using the CAN bus
+class CanBattery : public Battery {
  public:
-  virtual void setup(void) = 0;
   virtual void handle_incoming_can_frame(CAN_frame rx_frame) = 0;
-  virtual void update_values() = 0;
   virtual void transmit_can(unsigned long currentMillis) = 0;
 };
 

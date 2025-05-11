@@ -512,15 +512,15 @@ void update_calculated_values() {
 }
 
 void update_values_inverter() {
+#ifdef SELECTED_INVERTER_CLASS
+  if (inverter) {
+    inverter->update_values();
+  }
+#else
 #ifdef CAN_INVERTER_SELECTED
   update_values_can_inverter();
 #endif  // CAN_INVERTER_SELECTED
-#ifdef MODBUS_INVERTER_SELECTED
-  update_modbus_registers_inverter();
-#endif  // CAN_INVERTER_SELECTED
-#ifdef RS485_INVERTER_SELECTED
-  update_RS485_registers_inverter();
-#endif  // CAN_INVERTER_SELECTED
+#endif
 }
 
 void check_reset_reason() {

@@ -1,6 +1,8 @@
 #ifndef DALY_BMS_H
 #define DALY_BMS_H
 
+#include "RS485Battery.h"
+
 /* Tweak these according to your battery build */
 #define CELL_COUNT 14
 #define MAX_PACK_VOLTAGE_DV 580   //580 = 58.0V
@@ -14,6 +16,17 @@
 /* Do not modify any rows below*/
 #define BATTERY_SELECTED
 #define RS485_BATTERY_SELECTED
-#define RS485_BAUDRATE 9600
+#define SELECTED_BATTERY_CLASS DalyBms
+
+class DalyBms : public RS485Battery {
+ public:
+  void setup();
+  void update_values();
+  void transmit_rs485();
+  void receive_RS485();
+
+ private:
+  int baud_rate() { return 9600; }
+};
 
 #endif

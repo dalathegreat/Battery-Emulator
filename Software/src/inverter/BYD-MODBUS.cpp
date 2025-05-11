@@ -2,6 +2,7 @@
 #ifdef BYD_MODBUS
 #include "../datalayer/datalayer.h"
 #include "../devboard/utils/events.h"
+#include "../lib/eModbus-eModbus/scripts/mbServerFCs.h"
 #include "BYD-MODBUS.h"
 
 // For modbus register definitions, see https://gitlab.com/pelle8/inverter_resources/-/blob/main/byd_registers_modbus_rtu.md
@@ -17,14 +18,8 @@ static uint8_t history_index = 0;
 static uint8_t bms_char_dis_status = STANDBY;
 static bool all_401_values_equal = false;
 
-void verify_inverter_modbus();
-void verify_temperature_modbus();
-void handle_update_data_modbusp201_byd();
-void handle_update_data_modbusp301_byd();
-void handle_static_data_modbus_byd();
-
-void BydModbusInverter::update_modbus_registers() {
-  verify_temperature_modbus();
+void BydModbusInverter::update_values() {
+  verify_temperature();
   verify_inverter_modbus();
   handle_update_data_modbusp201_byd();
   handle_update_data_modbusp301_byd();
@@ -56,13 +51,13 @@ void BydModbusInverter::handle_static_data() {
   memcpy(&mbPV[300], init_p301, sizeof(init_p301));
 }
 
-void handle_update_data_modbusp201_byd() {
+void BydModbusInverter::handle_update_data_modbusp201_byd() {
   mbPV[202] = std::min(datalayer.battery.info.total_capacity_Wh, static_cast<uint32_t>(60000u));  //Cap to 60kWh
   mbPV[205] = (datalayer.battery.info.max_design_voltage_dV);  // Max Voltage, if higher Gen24 forces discharge
   mbPV[206] = (datalayer.battery.info.min_design_voltage_dV);  // Min Voltage, if lower Gen24 disables battery
 }
 
-void handle_update_data_modbusp301_byd() {
+void BydModbusInverter::handle_update_data_modbusp301_byd() {
   if (datalayer.battery.status.current_dA == 0) {
     bms_char_dis_status = STANDBY;
   } else if (datalayer.battery.status.current_dA < 0) {  //Negative value = Discharging
@@ -101,7 +96,7 @@ void handle_update_data_modbusp301_byd() {
   mbPV[323] = datalayer.battery.status.soh_pptt;
 }
 
-void verify_temperature_modbus() {
+void BydModbusInverter::verify_temperature() {
   if (datalayer.battery.info.chemistry == battery_chemistry_enum::LFP) {
     return;  // Skip the following section
   }
@@ -123,7 +118,7 @@ void verify_temperature_modbus() {
   }
 }
 
-void verify_inverter_modbus() {
+void BydModbusInverter::verify_inverter_modbus() {
   // Every 60 seconds, the Gen24 writes to this 401 register, alternating between 00FF and FF00.
   // We sample the register every 60 seconds. Incase the value has not changed for 3 minutes, we raise an event
   unsigned long currentMillis = millis();
@@ -154,6 +149,22 @@ void verify_inverter_modbus() {
 void BydModbusInverter::setup(void) {  // Performs one time setup at startup over CAN bus
   strncpy(datalayer.system.info.inverter_protocol, "BYD 11kWh HVM battery over Modbus RTU", 63);
   datalayer.system.info.inverter_protocol[63] = '\0';
+
+  // Init Static data to the RTU Modbus
+  handle_static_data();
+
+  // Init Serial2 connected to the RTU Modbus
+  RTUutils::prepareHardwareSerial(Serial2);
+
+  Serial2.begin(9600, SERIAL_8N1, RS485_RX_PIN, RS485_TX_PIN);
+  // Register served function code worker for server
+  MBserver.registerWorker(MBTCP_ID, READ_HOLD_REGISTER, &FC03);
+  MBserver.registerWorker(MBTCP_ID, WRITE_HOLD_REGISTER, &FC06);
+  MBserver.registerWorker(MBTCP_ID, WRITE_MULT_REGISTERS, &FC16);
+  MBserver.registerWorker(MBTCP_ID, R_W_MULT_REGISTERS, &FC23);
+
+  // Start ModbusRTU background task
+  MBserver.begin(Serial2, MODBUS_CORE);
 }
 
 #endif

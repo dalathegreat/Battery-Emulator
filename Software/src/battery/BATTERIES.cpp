@@ -1,5 +1,8 @@
 #include "../include.h"
 
+#include "CanBattery.h"
+#include "RS485Battery.h"
+
 // These functions adapt the old C-style global functions battery-API to the
 // object-oriented battery API.
 
@@ -7,10 +10,10 @@
 // to support battery class selection at compile-time
 #ifdef SELECTED_BATTERY_CLASS
 
-static CanBattery* battery = nullptr;
+static Battery* battery = nullptr;
 
 #ifdef DOUBLE_BATTERY
-static CanBattery* battery2 = nullptr;
+static Battery* battery2 = nullptr;
 #endif
 
 void setup_battery() {
@@ -37,17 +40,15 @@ void update_values_battery() {
 // transmit_can_battery is called once and we need to
 // call both batteries.
 void transmit_can_battery(unsigned long currentMillis) {
-  battery->transmit_can(currentMillis);
+  ((CanBattery*)battery)->transmit_can(currentMillis);
 
 #ifdef DOUBLE_BATTERY
-  if (battery2) {
-    battery2->transmit_can(currentMillis);
-  }
+  ((CanBattery*)battery2)->transmit_can(currentMillis);
 #endif
 }
 
 void handle_incoming_can_frame_battery(CAN_frame rx_frame) {
-  battery->handle_incoming_can_frame(rx_frame);
+  ((CanBattery*)battery)->handle_incoming_can_frame(rx_frame);
 }
 
 #ifdef DOUBLE_BATTERY
@@ -56,8 +57,19 @@ void update_values_battery2() {
 }
 
 void handle_incoming_can_frame_battery2(CAN_frame rx_frame) {
-  battery2->handle_incoming_can_frame(rx_frame);
+  ((CanBattery*)battery2)->handle_incoming_can_frame(rx_frame);
 }
+#endif
+
+#ifdef RS485_BATTERY_SELECTED
+void transmit_rs485() {
+  ((RS485Battery*)battery)->transmit_rs485();
+}
+
+void receive_RS485() {
+  ((RS485Battery*)battery)->receive_RS485();
+}
+
 #endif
 
 #endif

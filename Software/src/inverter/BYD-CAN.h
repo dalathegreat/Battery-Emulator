@@ -8,6 +8,8 @@
 #define FW_MAJOR_VERSION 0x03
 #define FW_MINOR_VERSION 0x29
 
+#include "CanInverterProtocol.h"
+
 class BydCanInverter : public CanInverterProtocol {
  public:
   void setup();
