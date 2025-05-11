@@ -90,4 +90,8 @@ void map_can_frame_to_variable_inverter(CAN_frame rx_frame);
 void transmit_can_inverter(unsigned long currentMillis);
 #endif
 
+#ifdef RS485_INVERTER_SELECTED
+void receive_RS485();
+#endif
+
 #endif

@@ -47,4 +47,10 @@ void transmit_can_inverter(unsigned long currentMillis) {
 }
 #endif
 
+#ifdef RS485_INVERTER_SELECTED
+void receive_RS485() {
+  ((Rs485InverterProtocol*)inverter)->receive_RS485();
+}
+#endif
+
 #endif
