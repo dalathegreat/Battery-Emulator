@@ -154,24 +154,21 @@ void decode_packet(uint8_t command, uint8_t data[8]) {
   }
 }
 
-void transmit_rs485() {
+void transmit_rs485(unsigned long currentMillis) {
   static uint8_t nextCommand = 0x90;
 
-  if (millis() - lastPacket > 60) {
+  if (currentMillis - lastPacket > 60) {
+    lastPacket = currentMillis;
     uint8_t tx_buff[13] = {0};
     tx_buff[0] = 0xA5;
     tx_buff[1] = 0x40;
     tx_buff[2] = nextCommand;
     tx_buff[3] = 8;
     tx_buff[12] = calculate_checksum(tx_buff);
-
 #ifdef DEBUG_VIA_USB
     dump_buff("transmitting: ", tx_buff, 13);
 #endif
-
     Serial2.write(tx_buff, 13);
-    lastPacket = millis();
-
     nextCommand++;
     if (nextCommand > 0x98)
       nextCommand = 0x90;
