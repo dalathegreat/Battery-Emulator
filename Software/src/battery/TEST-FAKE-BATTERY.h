@@ -10,10 +10,7 @@
 
 class TestFakeBattery : public CanBattery {
  public:
-  TestFakeBattery(DATALAYER_BATTERY_TYPE* datalayer_ptr, bool* allows_contactor_closing_ptr,
-                  DATALAYER_INFO_NISSAN_LEAF* extended, int targetCan)
-      : CanBattery(datalayer_ptr, allows_contactor_closing_ptr, extended, targetCan) {}
-  TestFakeBattery() : CanBattery() {}
+  TestFakeBattery(int batteryNumber, int targetCan) : CanBattery(batteryNumber, targetCan) {}
 
   virtual void setup(void);
   virtual void handle_incoming_can_frame(CAN_frame rx_frame);
