@@ -12,11 +12,9 @@
 class BmwI3Battery : public CanBattery {
  public:
   // Use this constructor for the second battery.
-  BmwI3Battery(DATALAYER_BATTERY_TYPE* datalayer_ptr, bool* allows_contactor_closing_ptr,
-               DATALAYER_INFO_NISSAN_LEAF* extended, int targetCan, int wakeup) {
+  BmwI3Battery(DATALAYER_BATTERY_TYPE* datalayer_ptr, bool* allows_contactor_closing_ptr, int targetCan, int wakeup) {
     datalayer_battery = datalayer_ptr;
     allows_contactor_closing = allows_contactor_closing_ptr;
-    datalayer_nissan = extended;
     can_interface = targetCan;
     wakeup_pin = wakeup;
     *allows_contactor_closing = true;
@@ -29,7 +27,6 @@ class BmwI3Battery : public CanBattery {
   BmwI3Battery() {
     datalayer_battery = &datalayer.battery;
     allows_contactor_closing = &datalayer.system.status.battery_allows_contactor_closing;
-    datalayer_nissan = &datalayer_extended.nissanleaf;
     can_interface = can_config.battery;
     wakeup_pin = WUP_PIN1;
   }
@@ -56,7 +53,6 @@ class BmwI3Battery : public CanBattery {
   const int NUMBER_OF_CELLS = 96;
 
   DATALAYER_BATTERY_TYPE* datalayer_battery;
-  DATALAYER_INFO_NISSAN_LEAF* datalayer_nissan;
   bool* allows_contactor_closing;
   int wakeup_pin;
 
