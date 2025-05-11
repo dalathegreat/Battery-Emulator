@@ -1,5 +1,6 @@
 #include "../include.h"
 #ifdef FERROAMP_CAN
+#include "../communication/can/comm_can.h"
 #include "../datalayer/datalayer.h"
 #include "FERROAMP-CAN.h"
 
