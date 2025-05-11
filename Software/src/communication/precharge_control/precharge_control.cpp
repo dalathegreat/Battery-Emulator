@@ -35,8 +35,7 @@ void init_precharge_control() {
 }
 
 // Main functions
-void handle_precharge_control() {
-  unsigned long currentTime = millis();
+void handle_precharge_control(unsigned long currentMillis) {
 #ifdef MEB_BATTERY
   int32_t target_voltage = datalayer.battery.status.voltage_dV;
   int32_t external_voltage = datalayer_extended.meb.BMS_voltage_intermediate_dV;
@@ -63,7 +62,7 @@ void handle_precharge_control() {
       freq = Precharge_default_PWM_Freq;
       ledcAttachChannel(PRECHARGE_PIN, freq, PWM_Res, PWM_Precharge_Channel);
       ledcWriteTone(PRECHARGE_PIN, freq);  // Set frequency and set dutycycle to 50%
-      prechargeStartTime = currentTime;
+      prechargeStartTime = currentMillis;
       datalayer.system.status.precharge_status = AUTO_PRECHARGE_PRECHARGING;
 #ifdef DEBUG_LOG
       logging.printf("Precharge: Starting sequence\n");
@@ -110,7 +109,7 @@ void handle_precharge_control() {
 #ifdef DEBUG_LOG
         logging.printf("Precharge: Disabling Precharge bms not standby/active or equipment stop\n");
 #endif
-      } else if (currentTime - prechargeStartTime >= MAX_PRECHARGE_TIME_MS ||
+      } else if (currentMillis - prechargeStartTime >= MAX_PRECHARGE_TIME_MS ||
                  datalayer.battery.status.real_bms_status == BMS_FAULT) {
         pinMode(PRECHARGE_PIN, OUTPUT);
         digitalWrite(PRECHARGE_PIN, LOW);
