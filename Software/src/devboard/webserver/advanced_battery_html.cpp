@@ -58,6 +58,8 @@ String advanced_battery_processor(const String& var) {
 #endif  //BOLT_AMPERA_BATTERY
 
 #ifdef BMW_IX_BATTERY
+    content += "<button onclick='askContactorClose()'>Close Contactors</button>";
+    content += "<button onclick='askContactorOpen()'>Open Contactors</button>";
     content +=
         "<h4>Battery Voltage after Contactor: " + String(datalayer_extended.bmwix.battery_voltage_after_contactor) +
         " dV</h4>";
@@ -1492,6 +1494,7 @@ String advanced_battery_processor(const String& var) {
 #endif
 
     content += "</div>";
+
     content += "<script>";
     content +=
         "function askTeslaClearIsolation() { if (window.confirm('Are you sure you want to clear any active isolation "
@@ -1504,6 +1507,7 @@ String advanced_battery_processor(const String& var) {
     content += "}";
     content += "function goToMainPage() { window.location.href = '/'; }";
     content += "</script>";
+
     content += "<script>";
     content +=
         "function askTeslaResetBMS() { if (window.confirm('Are you sure you want to reset the "
@@ -1516,6 +1520,7 @@ String advanced_battery_processor(const String& var) {
     content += "}";
     content += "function goToMainPage() { window.location.href = '/'; }";
     content += "</script>";
+
     content += "<script>";
     content +=
         "function askResetCrash() { if (window.confirm('Are you sure you want to reset crash data? "
@@ -1540,6 +1545,33 @@ String advanced_battery_processor(const String& var) {
     content += "}";
     content += "function goToMainPage() { window.location.href = '/'; }";
     content += "</script>";
+
+    content += "<script>";
+    content +=
+        "function askContactorClose() { if (window.confirm('Are you sure you want to tirgger "
+        "a contactor close request?')) { "
+        "bmwIxCloseContactorRequest(); } }";
+    content += "function bmwIxCloseContactorRequest() {";
+    content += "  var xhr = new XMLHttpRequest();";
+    content += "  xhr.open('GET', '/bmwIxCloseContactorRequest', true);";
+    content += "  xhr.send();";
+    content += "}";
+    content += "function goToMainPage() { window.location.href = '/'; }";
+    content += "</script>";
+
+    content += "<script>";
+    content +=
+        "function askContactorOpen() { if (window.confirm('Are you sure you want to tirgger "
+        "a contactor open request?')) { "
+        "bmwIxOpenContactorRequest(); } }";
+    content += "function bmwIxOpenContactorRequest() {";
+    content += "  var xhr = new XMLHttpRequest();";
+    content += "  xhr.open('GET', '/bmwIxOpenContactorRequest', true);";
+    content += "  xhr.send();";
+    content += "}";
+    content += "function goToMainPage() { window.location.href = '/'; }";
+    content += "</script>";
+
     content += "<script>";
     content +=
         "function askResetSOH() { if (window.confirm('Are you sure you want to reset degradation data? "
@@ -1552,6 +1584,7 @@ String advanced_battery_processor(const String& var) {
     content += "}";
     content += "function goToMainPage() { window.location.href = '/'; }";
     content += "</script>";
+
     content += "<script>";
     content +=
         "function Volvo_askEraseDTC() { if (window.confirm('Are you sure you want to erase DTCs?')) { "
@@ -1585,6 +1618,7 @@ String advanced_battery_processor(const String& var) {
     content += "}";
     content += "function goToMainPage() { window.location.href = '/'; }";
     content += "</script>";
+
     // Additial functions added
     content += "<script>";
     content += "function exportLog() { window.location.href = '/export_log'; }";

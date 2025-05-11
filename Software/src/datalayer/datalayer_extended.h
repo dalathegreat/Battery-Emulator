@@ -41,6 +41,9 @@ typedef struct {
 } DATALAYER_INFO_BOLTAMPERA;
 
 typedef struct {
+  /** User requesting contactor open or close via WebUI*/
+  bool UserRequestContactorClose = false;
+  bool UserRequestContactorOpen = false;
   /** uint16_t */
   /** Terminal 30 - 12V SME Supply Voltage */
   uint16_t T30_Voltage = 0;
