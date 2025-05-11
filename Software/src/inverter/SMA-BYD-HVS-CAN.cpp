@@ -144,18 +144,16 @@ void update_values_can_inverter() {  //This function maps all the values fetched
     SMA_158.data.u8[2] = 0x6A;
   }
 
+#ifdef INVERTER_CONTACTOR_ENABLE_LED_PIN
   // Inverter allows contactor closing
   if (datalayer.system.status.inverter_allows_contactor_closing) {
-#ifdef INVERTER_CONTACTOR_ENABLE_LED_PIN
     digitalWrite(INVERTER_CONTACTOR_ENABLE_LED_PIN,
                  HIGH);  // Turn on LED to indicate that SMA inverter allows contactor closing
-#endif                   // INVERTER_CONTACTOR_ENABLE_LED_PIN
   } else {
-#ifdef INVERTER_CONTACTOR_ENABLE_LED_PIN
     digitalWrite(INVERTER_CONTACTOR_ENABLE_LED_PIN,
                  LOW);  // Turn off LED to indicate that SMA inverter does not allow contactor closing
-#endif                  // INVERTER_CONTACTOR_ENABLE_LED_PIN
   }
+#endif  // INVERTER_CONTACTOR_ENABLE_LED_PIN
 
   // Check if Enable line is working. If we go too long without any input, raise an event
   if (!datalayer.system.status.inverter_allows_contactor_closing) {
