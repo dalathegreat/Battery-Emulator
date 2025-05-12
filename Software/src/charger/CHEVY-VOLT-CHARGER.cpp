@@ -71,7 +71,7 @@ void ChevyVoltCharger::map_can_frame_to_variable(CAN_frame rx_frame) {
       break;
     default:
 #ifdef DEBUG_LOG
-      logging.printf("CAN Rcv unknown frame MsgID=%x\n", rx_frame.MsgID);
+      logging.printf("CAN Rcv unknown frame MsgID=%x\n", rx_frame.ID);
 #endif
       break;
   }
@@ -149,9 +149,9 @@ void ChevyVoltCharger::transmit_can(unsigned long currentMillis) {
   /* Serial echo every 5s of charger stats */
   if (currentMillis - previousMillis5000ms >= INTERVAL_5_S) {
     previousMillis5000ms = currentMillis;
-    logging.printf("Charger AC in IAC=%fA VAC=%fV\n", charger_stat_ACcur, charger_stat_ACvol);
-    logging.printf("Charger HV out IDC=%fA VDC=%fV\n", charger_stat_HVcur, charger_stat_HVvol);
-    logging.printf("Charger LV out IDC=%fA VDC=%fV\n", charger_stat_LVcur, charger_stat_LVvol);
+    logging.printf("Charger AC in IAC=%fA VAC=%fV\n", AC_input_current(), AC_input_voltage());
+    logging.printf("Charger HV out IDC=%fA VDC=%fV\n", HVDC_output_current(), HVDC_output_voltage());
+    logging.printf("Charger LV out IDC=%fA VDC=%fV\n", LVDC_output_current(), LVDC_output_voltage());
     logging.printf("Charger mode=%s\n", (charger_mode > MODE_DISABLED) ? "Enabled" : "Disabled");
     logging.printf("Charger HVset=%uV,%uA finishCurrent=%uA\n", setpoint_HV_VDC, setpoint_HV_IDC, setpoint_HV_IDC_END);
   }
