@@ -14,6 +14,7 @@ This integration is still ongoing. Here is what still needs to be done in order 
 */
 
 /* Do not change code below unless you are sure what you are doing */
+static unsigned long previousMillis20 = 0;   // will store last time a 20ms CAN Message was sent
 static unsigned long previousMillis100 = 0;  // will store last time a 100ms CAN Message was sent
 
 //Actual content messages
@@ -23,7 +24,16 @@ CAN_frame ECMP_382 = {
     .DLC = 8,
     .ID = 0x382,
     .data = {0x09, 0x20, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00}};  //09 20 on AC charge. 0A 20 on DC charge
-
+CAN_frame ECMP_0F0 = {.FD = false,                              //VCU (Common)
+                      .ext_ID = false,
+                      .DLC = 8,
+                      .ID = 0x0F0,
+                      .data = {0x00, 0x20, 0x00, 0x00, 0x00, 0x00, 0x00, 0xFF}};
+static uint8_t data_0F0_20[16] = {0xFF, 0x0E, 0x1D, 0x2C, 0x3B, 0x4A, 0x59, 0x68,
+                                  0x77, 0x86, 0x95, 0xA4, 0xB3, 0xC2, 0xD1, 0xE0};
+static uint8_t data_0F0_00[16] = {0xF1, 0x00, 0x1F, 0x2E, 0x3D, 0x4C, 0x5B, 0x6A,
+                                  0x79, 0x88, 0x97, 0xA6, 0xB5, 0xC4, 0xD3, 0xE2};
+static uint8_t counter_20ms = 0;
 static uint16_t battery_voltage = 370;
 static uint16_t battery_soc = 0;
 static int16_t battery_current = 0;
@@ -317,6 +327,23 @@ void handle_incoming_can_frame_battery(CAN_frame rx_frame) {
 }
 
 void transmit_can_battery(unsigned long currentMillis) {
+  // Send 20ms CAN Message
+  if (currentMillis - previousMillis20 >= INTERVAL_20_MS) {
+    previousMillis20 = currentMillis;
+
+    counter_20ms = (counter_20ms + 1) % 16;
+
+    if (datalayer.battery.status.bms_status == FAULT) {
+      //Open contactors!
+      ECMP_0F0.data.u8[1] = 0x00;
+      ECMP_0F0.data.u8[7] = data_0F0_00[counter_20ms];
+    } else {  // Not in faulted mode, Close contactors!
+      ECMP_0F0.data.u8[1] = 0x20;
+      ECMP_0F0.data.u8[7] = data_0F0_20[counter_20ms];
+    }
+
+    transmit_can_frame(&ECMP_0F0, can_config.battery);  //Common!
+  }
   // Send 100ms CAN Message
   if (currentMillis - previousMillis100 >= INTERVAL_100_MS) {
     previousMillis100 = currentMillis;
