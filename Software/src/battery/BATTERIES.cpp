@@ -25,9 +25,15 @@ void setup_battery() {
 
 #ifdef DOUBLE_BATTERY
   if (battery2 == nullptr) {
+#ifdef BMW_I3_BATTERY
+    battery2 =
+        new SELECTED_BATTERY_CLASS(&datalayer.battery2, &datalayer.system.status.battery2_allows_contactor_closing,
+                                   can_config.battery_double, WUP_PIN2);
+#else
     battery2 =
         new SELECTED_BATTERY_CLASS(&datalayer.battery2, &datalayer.system.status.battery2_allows_contactor_closing,
                                    nullptr, can_config.battery_double);
+#endif
   }
   battery2->setup();
 #endif
