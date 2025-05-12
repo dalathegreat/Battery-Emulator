@@ -15,7 +15,9 @@ class ModbusInverterProtocol : public InverterProtocol {
   ModbusInverterProtocol() : MBserver(2000) { mbPV = ::mbPV; }
 
   static const int MB_RTU_NUM_VALUES = 13100;
-  uint16_t* mbPV;  // Process variable memory
+
+  // Modbus register file
+  uint16_t* mbPV;
 
   ModbusServerRTU MBserver;
 };
