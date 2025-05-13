@@ -2,15 +2,14 @@
 #define CHARGERS_H
 #include "../../USER_SETTINGS.h"
 
-#ifdef CHEVYVOLT_CHARGER
 #include "CHEVY-VOLT-CHARGER.h"
-#endif
-
-#ifdef NISSANLEAF_CHARGER
 #include "NISSAN-LEAF-CHARGER.h"
-#endif
 
-void map_can_frame_to_variable_charger(CAN_frame rx_frame);
-void transmit_can_charger();
+// Constructs the global charger object based on build-time selection of charger type.
+// Safe to call even though no charger is selected.
+void setup_charger();
+
+// The selected charger or null if no charger in use.
+extern CanCharger* charger;
 
 #endif

@@ -19,11 +19,19 @@ battery_pause_status emulator_pause_status = NORMAL;
 //battery pause status end
 
 void update_machineryprotection() {
-  // Check if the CPU is too hot
+  /* Check if the ESP32 CPU running the Battery-Emulator is too hot. 
+  We start with a warning, you can start to see Wifi issues if it becomes too hot 
+  If the chip starts to approach the design limit, we perform a graceful shutdown */
   if (datalayer.system.info.CPU_temperature > 80.0f) {
-    set_event(EVENT_CPU_OVERHEAT, 0);
+    set_event(EVENT_CPU_OVERHEATING, 0);
   } else {
-    clear_event(EVENT_CPU_OVERHEAT);
+    clear_event(EVENT_CPU_OVERHEATING);
+  }
+  if (datalayer.system.info.CPU_temperature > 110.0f) {
+    set_event(EVENT_CPU_OVERHEATED, 0);
+  }
+  if (datalayer.system.info.CPU_temperature < 105.0f) {
+    clear_event(EVENT_CPU_OVERHEATED);  //Hysteresis on the clearing
   }
 
   // Check health status of CAN interfaces
@@ -79,6 +87,7 @@ void update_machineryprotection() {
   // Battery voltage is over designed max voltage!
   if (datalayer.battery.status.voltage_dV > datalayer.battery.info.max_design_voltage_dV) {
     set_event(EVENT_BATTERY_OVERVOLTAGE, datalayer.battery.status.voltage_dV);
+    datalayer.battery.status.max_charge_power_W = 0;
   } else {
     clear_event(EVENT_BATTERY_OVERVOLTAGE);
   }
@@ -86,6 +95,7 @@ void update_machineryprotection() {
   // Battery voltage is under designed min voltage!
   if (datalayer.battery.status.voltage_dV < datalayer.battery.info.min_design_voltage_dV) {
     set_event(EVENT_BATTERY_UNDERVOLTAGE, datalayer.battery.status.voltage_dV);
+    datalayer.battery.status.max_discharge_power_W = 0;
   } else {
     clear_event(EVENT_BATTERY_UNDERVOLTAGE);
   }
@@ -221,15 +231,15 @@ void update_machineryprotection() {
   }
 #endif  //CAN_INVERTER_SELECTED
 
-#ifdef CHARGER_SELECTED
-  // Check if the charger is still sending CAN messages. If we go 60s without messages we raise a warning
-  if (!datalayer.charger.CAN_charger_still_alive) {
-    set_event(EVENT_CAN_CHARGER_MISSING, can_config.charger);
-  } else {
-    datalayer.charger.CAN_charger_still_alive--;
-    clear_event(EVENT_CAN_CHARGER_MISSING);
+  if (charger) {
+    // Check if the charger is still sending CAN messages. If we go 60s without messages we raise a warning
+    if (!datalayer.charger.CAN_charger_still_alive) {
+      set_event(EVENT_CAN_CHARGER_MISSING, can_config.charger);
+    } else {
+      datalayer.charger.CAN_charger_still_alive--;
+      clear_event(EVENT_CAN_CHARGER_MISSING);
+    }
   }
-#endif  //CHARGER_SELECTED
 
 #ifdef DOUBLE_BATTERY  // Additional Double-Battery safeties are checked here
   // Check if the Battery 2 BMS is still sending CAN messages. If we go 60s without messages we raise a warning

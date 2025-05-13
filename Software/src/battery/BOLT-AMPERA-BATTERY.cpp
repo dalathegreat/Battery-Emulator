@@ -769,17 +769,10 @@ void handle_incoming_can_frame_battery(CAN_frame rx_frame) {
   }
 }
 
-void transmit_can_battery() {
-  unsigned long currentMillis = millis();
+void transmit_can_battery(unsigned long currentMillis) {
 
   //Send 20ms message
   if (currentMillis - previousMillis20ms >= INTERVAL_20_MS) {
-    // Check if sending of CAN messages has been delayed too much.
-    if ((currentMillis - previousMillis20ms >= INTERVAL_20_MS_DELAYED) && (currentMillis > BOOTUP_TIME)) {
-      set_event(EVENT_CAN_OVERRUN, (currentMillis - previousMillis20ms));
-    } else {
-      clear_event(EVENT_CAN_OVERRUN);
-    }
     previousMillis20ms = currentMillis;
     transmit_can_frame(&BOLT_778, can_config.battery);
   }

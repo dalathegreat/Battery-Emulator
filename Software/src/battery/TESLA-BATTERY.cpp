@@ -1864,13 +1864,11 @@ int index_1CF = 0;
 int index_118 = 0;
 #endif  //defined(TESLA_MODEL_SX_BATTERY) || defined(EXP_TESLA_BMS_DIGITAL_HVIL)
 
-void transmit_can_battery() {
+void transmit_can_battery(unsigned long currentMillis) {
   /*From bielec: My fist 221 message, to close the contactors is 0x41, 0x11, 0x01, 0x00, 0x00, 0x00, 0x20, 0x96 and then, 
 to cause "hv_up_for_drive" I send an additional 221 message 0x61, 0x15, 0x01, 0x00, 0x00, 0x00, 0x20, 0xBA  so 
 two 221 messages are being continuously transmitted.   When I want to shut down, I stop the second message and only send 
 the first, for a few cycles, then stop all  messages which causes the contactor to open. */
-
-  unsigned long currentMillis = millis();
 
   if (!cellvoltagesRead) {
     return;  //All cellvoltages not read yet, do not proceed with contactor closing
@@ -1906,12 +1904,6 @@ the first, for a few cycles, then stop all  messages which causes the contactor 
 
   //Send 50ms message
   if (currentMillis - previousMillis50 >= INTERVAL_50_MS) {
-    // Check if sending of CAN messages has been delayed too much.
-    if ((currentMillis - previousMillis50 >= INTERVAL_50_MS_DELAYED) && (currentMillis > BOOTUP_TIME)) {
-      set_event(EVENT_CAN_OVERRUN, (currentMillis - previousMillis50));
-    } else {
-      clear_event(EVENT_CAN_OVERRUN);
-    }
     previousMillis50 = currentMillis;
 
     if ((datalayer.system.status.inverter_allows_contactor_closing == true) &&

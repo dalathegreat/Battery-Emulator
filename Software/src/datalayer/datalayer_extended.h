@@ -1,7 +1,8 @@
 #ifndef _DATALAYER_EXTENDED_H_
 #define _DATALAYER_EXTENDED_H_
 
-#include "../include.h"
+#include <stdint.h>
+#include "../../USER_SETTINGS.h"
 
 typedef struct {
   /** uint16_t */
@@ -40,6 +41,9 @@ typedef struct {
 } DATALAYER_INFO_BOLTAMPERA;
 
 typedef struct {
+  /** User requesting contactor open or close via WebUI*/
+  bool UserRequestContactorClose = false;
+  bool UserRequestContactorOpen = false;
   /** uint16_t */
   /** Terminal 30 - 12V SME Supply Voltage */
   uint16_t T30_Voltage = 0;
@@ -164,6 +168,9 @@ typedef struct {
 
 typedef struct {
   /** bool */
+  /** User requesting crash reset via WebUI*/
+  bool UserRequestCrashReset = false;
+  /** bool */
   /** Which SOC method currently used. 0 = Estimated, 1 = Measured */
   bool SOC_method = 0;
   /** uint16_t */
@@ -184,6 +191,21 @@ typedef struct {
   /** int16_t */
   /** All the temperature sensors inside the battery pack*/
   int16_t battery_temperatures[10];
+  /** unknown values polled */
+  uint32_t unknown0 = 0;
+  uint32_t unknown1 = 0;
+  uint16_t chargePower = 0;
+  uint16_t unknown3 = 0;
+  uint16_t unknown4 = 0;
+  uint16_t unknown5 = 0;
+  uint16_t unknown6 = 0;
+  uint16_t unknown7 = 0;
+  uint16_t unknown8 = 0;
+  uint16_t unknown9 = 0;
+  uint8_t unknown10 = 0;
+  uint8_t unknown11 = 0;
+  uint8_t unknown12 = 0;
+  uint8_t unknown13 = 0;
 } DATALAYER_INFO_BYDATTO3;
 
 typedef struct {
@@ -728,6 +750,8 @@ typedef struct {
 } DATALAYER_INFO_VOLVO_HYBRID;
 
 typedef struct {
+  /** User requesting NVROL reset via WebUI*/
+  bool UserRequestNVROLReset = false;
   /** uint16_t */
   /** Values WIP*/
   uint16_t battery_soc = 0;

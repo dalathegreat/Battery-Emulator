@@ -49,9 +49,10 @@
 volatile unsigned long long bmsResetTimeOffset = 0;
 
 // The current software version, shown on webserver
-const char* version_number = "8.11.dev";
+const char* version_number = "8.13.dev";
 
 // Interval timers
+volatile unsigned long currentMillis = 0;
 unsigned long previousMillis10ms = 0;
 unsigned long previousMillisUpdateVal = 0;
 unsigned long lastMillisOverflowCheck = 0;
@@ -100,12 +101,15 @@ void setup() {
   init_precharge_control();
 #endif  // PRECHARGE_CONTROL
 
-  init_rs485();
+  setup_charger();
 
 #if defined(CAN_INVERTER_SELECTED) || defined(MODBUS_INVERTER_SELECTED) || defined(RS485_INVERTER_SELECTED)
   setup_inverter();
 #endif
   setup_battery();
+
+  init_rs485();
+
 #ifdef EQUIPMENT_STOP_BUTTON
   init_equipment_stop_button();
 #endif
@@ -208,6 +212,7 @@ void core_loop(void*) {
   led_init();
 
   while (true) {
+
     START_TIME_MEASUREMENT(all);
     START_TIME_MEASUREMENT(comm);
 #ifdef EQUIPMENT_STOP_BUTTON
@@ -227,8 +232,12 @@ void core_loop(void*) {
 #endif  // WEBSERVER
 
     // Process
-    if (millis() - previousMillis10ms >= INTERVAL_10_MS) {
-      previousMillis10ms = millis();
+    currentMillis = millis();
+    if (currentMillis - previousMillis10ms >= INTERVAL_10_MS) {
+      if ((currentMillis - previousMillis10ms >= INTERVAL_10_MS_DELAYED) && (currentMillis > BOOTUP_TIME)) {
+        set_event(EVENT_TASK_OVERRUN, (currentMillis - previousMillis10ms));
+      }
+      previousMillis10ms = currentMillis;
 #ifdef FUNCTION_TIME_MEASUREMENT
       START_TIME_MEASUREMENT(time_10ms);
 #endif
@@ -242,8 +251,8 @@ void core_loop(void*) {
 #endif
     }
 
-    if (millis() - previousMillisUpdateVal >= INTERVAL_1_S) {
-      previousMillisUpdateVal = millis();  // Order matters on the update_loop!
+    if (currentMillis - previousMillisUpdateVal >= INTERVAL_1_S) {
+      previousMillisUpdateVal = currentMillis;  // Order matters on the update_loop!
 #ifdef FUNCTION_TIME_MEASUREMENT
       START_TIME_MEASUREMENT(time_values);
 #endif
@@ -264,7 +273,7 @@ void core_loop(void*) {
     START_TIME_MEASUREMENT(cantx);
 #endif
     // Output
-    transmit_can();  // Send CAN messages to all components
+    transmit_can(currentMillis);  // Send CAN messages to all components
 
 #ifdef RS485_BATTERY_SELECTED
     transmit_rs485();
@@ -401,86 +410,78 @@ void update_calculated_values() {
 
   if (datalayer.battery.settings.soc_scaling_active) {
     /** SOC Scaling
-     * 
-     * This is essentially a more static version of a stochastic oscillator (https://en.wikipedia.org/wiki/Stochastic_oscillator)
-     * 
-     * The idea is this:
-     * 
-     *    real_soc - min_percent                   3000 - 1000
-     * ------------------------- = scaled_soc, or  ----------- = 0.25
-     * max_percent - min-percent                   8000 - 1000
-     * 
-     * Because we use integers, we want to account for the scaling:
-     * 
-     * 10000 * (real_soc - min_percent)                   10000 * (3000 - 1000)
-     * -------------------------------- = scaled_soc, or  --------------------- = 2500
-     *     max_percent - min_percent                           8000 - 1000
-     * 
-     * Or as a one-liner: (10000 * (real_soc - min_percentage)) / (max_percentage - min_percentage)
-     * 
-     * Before we use real_soc, we must make sure that it's within the range of min_percentage and max_percentage.
-    */
-    uint32_t calc_soc;
-    uint32_t calc_max_capacity;
-    uint32_t calc_reserved_capacity;
-    // Make sure that the SOC starts out between min and max percentages
-    calc_soc = CONSTRAIN(datalayer.battery.status.real_soc, datalayer.battery.settings.min_percentage,
-                         datalayer.battery.settings.max_percentage);
-    // Perform scaling
-    calc_soc = 10000 * (calc_soc - datalayer.battery.settings.min_percentage);
-    calc_soc = calc_soc / (datalayer.battery.settings.max_percentage - datalayer.battery.settings.min_percentage);
-    datalayer.battery.status.reported_soc = calc_soc;
-    //Extra safety since we allow scaling negatively, if real% is < 1.00%, zero it out
-    if (datalayer.battery.status.real_soc < 100) {
-      datalayer.battery.status.reported_soc = 0;
-    } else {
-      datalayer.battery.status.reported_soc = calc_soc;
+   * A static version of a stochastic oscillator. The scaled SoC is calculated as:
+   * 
+   *     10000 * (real_soc - min_percentage)
+   * ---------------------------------------
+   *     (max_percentage - min_percentage)
+   * 
+   * And scaled capacity is:
+   * 
+   *     reported_total_capacity_Wh = total_capacity_Wh * (max - min) / 10000
+   *     reported_remaining_capacity_Wh = reported_total_capacity_Wh * scaled_soc / 10000
+   */
+    // Compute delta_pct and clamped_soc
+    int32_t delta_pct = datalayer.battery.settings.max_percentage - datalayer.battery.settings.min_percentage;
+    int32_t clamped_soc = CONSTRAIN(datalayer.battery.status.real_soc, datalayer.battery.settings.min_percentage,
+                                    datalayer.battery.settings.max_percentage);
+    int32_t scaled_soc = 0;
+    int32_t scaled_total_capacity = 0;
+    if (delta_pct != 0) {  //Safeguard against division by 0
+      scaled_soc = 10000 * (clamped_soc - datalayer.battery.settings.min_percentage) / delta_pct;
     }
 
-    // Calculate the scaled remaining capacity in Wh
+    // Clamp low SOCs to zero for extra safety
+    if (datalayer.battery.status.real_soc < 100) {
+      scaled_soc = 0;
+    }
+
+    datalayer.battery.status.reported_soc = scaled_soc;
+
+    // If battery info is valid
     if (datalayer.battery.info.total_capacity_Wh > 0 && datalayer.battery.status.real_soc > 0) {
-      calc_max_capacity = (datalayer.battery.status.remaining_capacity_Wh * 10000 / datalayer.battery.status.real_soc);
-      calc_reserved_capacity = calc_max_capacity * datalayer.battery.settings.min_percentage / 10000;
-      // remove % capacity reserved in min_percentage to total_capacity_Wh
-      if (datalayer.battery.status.remaining_capacity_Wh > calc_reserved_capacity) {
-        datalayer.battery.status.reported_remaining_capacity_Wh =
-            datalayer.battery.status.remaining_capacity_Wh - calc_reserved_capacity;
-      } else {
-        datalayer.battery.status.reported_remaining_capacity_Wh = 0;
-      }
-      datalayer.battery.info.reported_total_capacity_Wh =
-          (datalayer.battery.info.total_capacity_Wh *
-           (datalayer.battery.settings.max_percentage - datalayer.battery.settings.min_percentage)) /
-          10000;
+      // Scale total usable capacity
+      scaled_total_capacity = (datalayer.battery.info.total_capacity_Wh * delta_pct) / 10000;
+      datalayer.battery.info.reported_total_capacity_Wh = scaled_total_capacity;
+
+      // Scale remaining capacity based on scaled SOC
+      datalayer.battery.status.reported_remaining_capacity_Wh = (scaled_total_capacity * scaled_soc) / 10000;
 
     } else {
+      // Fallback if scaling cannot be performed
+      datalayer.battery.info.reported_total_capacity_Wh = datalayer.battery.info.total_capacity_Wh;
       datalayer.battery.status.reported_remaining_capacity_Wh = datalayer.battery.status.remaining_capacity_Wh;
     }
 
 #ifdef DOUBLE_BATTERY
-    // Calculate the scaled remaining capacity in Wh
-    if (datalayer.battery2.info.total_capacity_Wh > 0 && datalayer.battery2.status.real_soc > 0) {
-      calc_max_capacity =
-          (datalayer.battery2.status.remaining_capacity_Wh * 10000 / datalayer.battery2.status.real_soc);
-      calc_reserved_capacity = calc_max_capacity * datalayer.battery2.settings.min_percentage / 10000;
-      // remove % capacity reserved in min_percentage to total_capacity_Wh
-      if (datalayer.battery2.status.remaining_capacity_Wh > calc_reserved_capacity) {
-        datalayer.battery2.status.reported_remaining_capacity_Wh =
-            datalayer.battery2.status.remaining_capacity_Wh - calc_reserved_capacity;
-      } else {
-        datalayer.battery2.status.reported_remaining_capacity_Wh = 0;
-      }
+    // If battery info is valid
+    if (datalayer.battery2.info.total_capacity_Wh > 0 && datalayer.battery.status.real_soc > 0) {
+
+      datalayer.battery2.info.reported_total_capacity_Wh = scaled_total_capacity;
+      // Scale remaining capacity based on scaled SOC
+      datalayer.battery2.status.reported_remaining_capacity_Wh = (scaled_total_capacity * scaled_soc) / 10000;
+
     } else {
+      // Fallback if scaling cannot be performed
+      datalayer.battery2.info.reported_total_capacity_Wh = datalayer.battery2.info.total_capacity_Wh;
       datalayer.battery2.status.reported_remaining_capacity_Wh = datalayer.battery2.status.remaining_capacity_Wh;
     }
+
+    //Since we are running double battery, the scaled value of battery1 becomes the sum of battery1+battery2
+    //This way the inverter connected to the system sees both batteries as one large battery
+    datalayer.battery.info.reported_total_capacity_Wh += datalayer.battery2.info.reported_total_capacity_Wh;
+    datalayer.battery.status.reported_remaining_capacity_Wh += datalayer.battery2.status.reported_remaining_capacity_Wh;
+
 #endif  // DOUBLE_BATTERY
 
   } else {  // soc_scaling_active == false. No SOC window wanted. Set scaled to same as real.
     datalayer.battery.status.reported_soc = datalayer.battery.status.real_soc;
     datalayer.battery.status.reported_remaining_capacity_Wh = datalayer.battery.status.remaining_capacity_Wh;
+    datalayer.battery.info.reported_total_capacity_Wh = datalayer.battery.info.total_capacity_Wh;
 #ifdef DOUBLE_BATTERY
     datalayer.battery2.status.reported_soc = datalayer.battery2.status.real_soc;
     datalayer.battery2.status.reported_remaining_capacity_Wh = datalayer.battery2.status.remaining_capacity_Wh;
+    datalayer.battery2.info.reported_total_capacity_Wh = datalayer.battery2.info.total_capacity_Wh;
 #endif
   }
 #ifdef DOUBLE_BATTERY
@@ -503,11 +504,11 @@ void update_calculated_values() {
     datalayer.battery.status.reported_remaining_capacity_Wh = datalayer.battery2.status.remaining_capacity_Wh;
   }
 #endif  // DOUBLE_BATTERY
-  // Check if millis() has overflowed. Used in events to keep better track of time
-  if (millis() < lastMillisOverflowCheck) {  // Overflow detected
+  // Check if millis has overflowed. Used in events to keep better track of time
+  if (currentMillis < lastMillisOverflowCheck) {  // Overflow detected
     datalayer.system.status.millisrolloverCount++;
   }
-  lastMillisOverflowCheck = millis();
+  lastMillisOverflowCheck = currentMillis;
 }
 
 void update_values_inverter() {

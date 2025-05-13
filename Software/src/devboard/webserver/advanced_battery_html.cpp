@@ -58,6 +58,8 @@ String advanced_battery_processor(const String& var) {
 #endif  //BOLT_AMPERA_BATTERY
 
 #ifdef BMW_IX_BATTERY
+    content += "<button onclick='askContactorClose()'>Close Contactors</button>";
+    content += "<button onclick='askContactorOpen()'>Open Contactors</button>";
     content +=
         "<h4>Battery Voltage after Contactor: " + String(datalayer_extended.bmwix.battery_voltage_after_contactor) +
         " dV</h4>";
@@ -531,6 +533,7 @@ String advanced_battery_processor(const String& var) {
 
 #ifdef BYD_ATTO_3_BATTERY
     static const char* SOCmethod[2] = {"Estimated from voltage", "Measured by BMS"};
+    content += "<button onclick='askResetCrash()'>Unlock crashed BMS</button>";
     content += "<h4>SOC method used: " + String(SOCmethod[datalayer_extended.bydAtto3.SOC_method]) + "</h4>";
     content += "<h4>SOC estimated: " + String(datalayer_extended.bydAtto3.SOC_estimated) + "</h4>";
     content += "<h4>SOC highprec: " + String(datalayer_extended.bydAtto3.SOC_highprec) + "</h4>";
@@ -547,6 +550,20 @@ String advanced_battery_processor(const String& var) {
     content += "<h4>Temperature sensor 8: " + String(datalayer_extended.bydAtto3.battery_temperatures[7]) + "</h4>";
     content += "<h4>Temperature sensor 9: " + String(datalayer_extended.bydAtto3.battery_temperatures[8]) + "</h4>";
     content += "<h4>Temperature sensor 10: " + String(datalayer_extended.bydAtto3.battery_temperatures[9]) + "</h4>";
+    content += "<h4>Unknown0: " + String(datalayer_extended.bydAtto3.unknown0) + "</h4>";
+    content += "<h4>Unknown1: " + String(datalayer_extended.bydAtto3.unknown1) + "</h4>";
+    content += "<h4>Charge power raw: " + String(datalayer_extended.bydAtto3.chargePower) + "</h4>";
+    content += "<h4>Unknown3: " + String(datalayer_extended.bydAtto3.unknown3) + "</h4>";
+    content += "<h4>Unknown4: " + String(datalayer_extended.bydAtto3.unknown4) + "</h4>";
+    content += "<h4>Unknown5: " + String(datalayer_extended.bydAtto3.unknown5) + "</h4>";
+    content += "<h4>Unknown6: " + String(datalayer_extended.bydAtto3.unknown6) + "</h4>";
+    content += "<h4>Unknown7: " + String(datalayer_extended.bydAtto3.unknown7) + "</h4>";
+    content += "<h4>Unknown8: " + String(datalayer_extended.bydAtto3.unknown8) + "</h4>";
+    content += "<h4>Unknown9: " + String(datalayer_extended.bydAtto3.unknown9) + "</h4>";
+    content += "<h4>Unknown10: " + String(datalayer_extended.bydAtto3.unknown10) + "</h4>";
+    content += "<h4>Unknown11: " + String(datalayer_extended.bydAtto3.unknown11) + "</h4>";
+    content += "<h4>Unknown12: " + String(datalayer_extended.bydAtto3.unknown12) + "</h4>";
+    content += "<h4>Unknown13: " + String(datalayer_extended.bydAtto3.unknown12) + "</h4>";
 #endif  //BYD_ATTO_3_BATTERY
 
 #ifdef TESLA_BATTERY
@@ -1278,6 +1295,7 @@ String advanced_battery_processor(const String& var) {
 #endif  //MEB_BATTERY
 
 #ifdef RENAULT_ZOE_GEN2_BATTERY
+    content += "<button onclick='askTriggerNVROL()'>Perform NVROL reset</button>";
     content += "<h4>soc: " + String(datalayer_extended.zoePH2.battery_soc) + "</h4>";
     content += "<h4>usable soc: " + String(datalayer_extended.zoePH2.battery_usable_soc) + "</h4>";
     content += "<h4>soh: " + String(datalayer_extended.zoePH2.battery_soh) + "</h4>";
@@ -1521,6 +1539,7 @@ String advanced_battery_processor(const String& var) {
 #endif
 
     content += "</div>";
+
     content += "<script>";
     content +=
         "function askTeslaClearIsolation() { if (window.confirm('Are you sure you want to clear any active isolation "
@@ -1533,6 +1552,7 @@ String advanced_battery_processor(const String& var) {
     content += "}";
     content += "function goToMainPage() { window.location.href = '/'; }";
     content += "</script>";
+
     content += "<script>";
     content +=
         "function askTeslaResetBMS() { if (window.confirm('Are you sure you want to reset the "
@@ -1545,6 +1565,58 @@ String advanced_battery_processor(const String& var) {
     content += "}";
     content += "function goToMainPage() { window.location.href = '/'; }";
     content += "</script>";
+
+    content += "<script>";
+    content +=
+        "function askResetCrash() { if (window.confirm('Are you sure you want to reset crash data? "
+        "Note this will unlock your BMS and enable contactor closing and SOC calculation.')) { "
+        "resetCrash(); } }";
+    content += "function resetCrash() {";
+    content += "  var xhr = new XMLHttpRequest();";
+    content += "  xhr.open('GET', '/resetCrash', true);";
+    content += "  xhr.send();";
+    content += "}";
+    content += "function goToMainPage() { window.location.href = '/'; }";
+    content += "</script>";
+    content += "<script>";
+    content +=
+        "function askTriggerNVROL() { if (window.confirm('Are you sure you want to trigger "
+        "an NVROL reset? Battery will be unavailable for 30 seconds while this is active!')) { "
+        "TriggerNVROL(); } }";
+    content += "function TriggerNVROL() {";
+    content += "  var xhr = new XMLHttpRequest();";
+    content += "  xhr.open('GET', '/triggerNVROL', true);";
+    content += "  xhr.send();";
+    content += "}";
+    content += "function goToMainPage() { window.location.href = '/'; }";
+    content += "</script>";
+
+    content += "<script>";
+    content +=
+        "function askContactorClose() { if (window.confirm('Are you sure you want to tirgger "
+        "a contactor close request?')) { "
+        "bmwIxCloseContactorRequest(); } }";
+    content += "function bmwIxCloseContactorRequest() {";
+    content += "  var xhr = new XMLHttpRequest();";
+    content += "  xhr.open('GET', '/bmwIxCloseContactorRequest', true);";
+    content += "  xhr.send();";
+    content += "}";
+    content += "function goToMainPage() { window.location.href = '/'; }";
+    content += "</script>";
+
+    content += "<script>";
+    content +=
+        "function askContactorOpen() { if (window.confirm('Are you sure you want to tirgger "
+        "a contactor open request?')) { "
+        "bmwIxOpenContactorRequest(); } }";
+    content += "function bmwIxOpenContactorRequest() {";
+    content += "  var xhr = new XMLHttpRequest();";
+    content += "  xhr.open('GET', '/bmwIxOpenContactorRequest', true);";
+    content += "  xhr.send();";
+    content += "}";
+    content += "function goToMainPage() { window.location.href = '/'; }";
+    content += "</script>";
+
     content += "<script>";
     content +=
         "function askResetSOH() { if (window.confirm('Are you sure you want to reset degradation data? "
@@ -1557,6 +1629,7 @@ String advanced_battery_processor(const String& var) {
     content += "}";
     content += "function goToMainPage() { window.location.href = '/'; }";
     content += "</script>";
+
     content += "<script>";
     content +=
         "function Volvo_askEraseDTC() { if (window.confirm('Are you sure you want to erase DTCs?')) { "
@@ -1590,6 +1663,7 @@ String advanced_battery_processor(const String& var) {
     content += "}";
     content += "function goToMainPage() { window.location.href = '/'; }";
     content += "</script>";
+
     // Additial functions added
     content += "<script>";
     content += "function exportLog() { window.location.href = '/export_log'; }";

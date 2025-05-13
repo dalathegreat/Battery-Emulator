@@ -30,10 +30,8 @@ void init_rs485() {
   Serial2.begin(RS485_BAUDRATE, SERIAL_8N1, RS485_RX_PIN, RS485_TX_PIN);
 #endif  // RS485_INVERTER_SELECTED || RS485_BATTERY_SELECTED
 #ifdef MODBUS_INVERTER_SELECTED
-#ifdef BYD_MODBUS
   // Init Static data to the RTU Modbus
-  handle_static_data_modbus_byd();
-#endif  // BYD_MODBUS
+  handle_static_data_modbus();
   // Init Serial2 connected to the RTU Modbus
   RTUutils::prepareHardwareSerial(Serial2);
   Serial2.begin(9600, SERIAL_8N1, RS485_RX_PIN, RS485_TX_PIN);

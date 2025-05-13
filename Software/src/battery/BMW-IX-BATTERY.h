@@ -19,4 +19,69 @@
 void setup_battery(void);
 void transmit_can_frame(CAN_frame* tx_frame, int interface);
 
+/**
+ * @brief Handle incoming user request to close or open contactors
+ *
+ * @param[in] void
+ *
+ * @return void
+ */
+void HandleIncomingUserRequest(void);
+
+/**
+ * @brief Handle incoming inverter request to close or open contactors.alignas
+ * 
+ * This function uses the "inverter_allows_contactor_closing" flag from the datalayer, to determine if CAN messages shall be sent to the battery to close or open the contactors.
+ *
+ * @param[in] void
+ *
+ * @return void
+ */
+void HandleIncomingInverterRequest(void);
+
+/**
+ * @brief Close contactors of the BMW iX battery
+ *
+ * @param[in] void
+ *
+ * @return void
+ */
+void BmwIxCloseContactors(void);
+
+/**
+ * @brief Handle close contactors requests for the BMW iX battery
+ *
+ * @param[in] counter_10ms Counter that increments by 1, every 10ms
+ *
+ * @return void
+ */
+void HandleBmwIxCloseContactorsRequest(uint16_t counter_10ms);
+
+/**
+ * @brief Keep contactors of the BMW iX battery closed
+ *
+ * @param[in] counter_100ms Counter that increments by 1, every 100 ms
+ *
+ * @return void
+ */
+void BmwIxKeepContactorsClosed(uint8_t counter_100ms);
+
+/**
+ * @brief Open contactors of the BMW iX battery
+ *
+ * @param[in] void
+ *
+ * @return void
+ */
+void BmwIxOpenContactors(void);
+
+/**
+ * @brief Handle open contactors requests for the BMW iX battery
+ *
+ * @param[in] counter_10ms Counter that increments by 1, every 10ms
+ *
+ * @return void
+ */
+void HandleBmwIxOpenContactorsRequest(uint16_t counter_10ms);
+
 #endif

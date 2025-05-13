@@ -1,6 +1,7 @@
 #include "../include.h"
 #ifdef SMA_BYD_H_CAN
 #include "../datalayer/datalayer.h"
+#include "../devboard/utils/events.h"
 #include "SMA-BYD-H-CAN.h"
 
 /* TODO: Map error bits in 0x158 */
@@ -11,6 +12,8 @@ static unsigned long previousMillis100ms = 0;
 static uint32_t inverter_time = 0;
 static uint16_t inverter_voltage = 0;
 static int16_t inverter_current = 0;
+static uint16_t timeWithoutInverterAllowsContactorClosing = 0;
+#define THIRTY_MINUTES 1200
 
 //Actual content messages
 CAN_frame SMA_158 = {.FD = false,
@@ -145,6 +148,17 @@ void update_values_can_inverter() {  //This function maps all the values fetched
 #endif                  // INVERTER_CONTACTOR_ENABLE_LED_PIN
   }
 
+  // Check if Enable line is working. If we go too long without any input, raise an event
+  if (!datalayer.system.status.inverter_allows_contactor_closing) {
+    timeWithoutInverterAllowsContactorClosing++;
+
+    if (timeWithoutInverterAllowsContactorClosing > THIRTY_MINUTES) {
+      set_event(EVENT_NO_ENABLE_DETECTED, 0);
+    }
+  } else {
+    timeWithoutInverterAllowsContactorClosing = 0;
+  }
+
   /*
   //SMA_158.data.u8[0] = //bit12 Fault high temperature, bit34Battery cellundervoltage, bit56 Battery cell overvoltage, bit78 batterysystemdefect
   //TODO: add all error bits. Sending message with all 0xAA until that.
@@ -236,8 +250,7 @@ void map_can_frame_to_variable_inverter(CAN_frame rx_frame) {
   }
 }
 
-void transmit_can_inverter() {
-  unsigned long currentMillis = millis();
+void transmit_can_inverter(unsigned long currentMillis) {
 
   // Send CAN Message every 100ms if inverter allows contactor closing
   if (datalayer.system.status.inverter_allows_contactor_closing) {

@@ -3,12 +3,12 @@
 #include "src/devboard/sdcard/sdcard.h"
 
 // Parameters
-
-CAN_device_t CAN_cfg;          // CAN Config
-const int rx_queue_size = 10;  // Receive Queue size
+CAN_device_t CAN_cfg;              // CAN Config
+const uint8_t rx_queue_size = 10;  // Receive Queue size
 volatile bool send_ok_native = 0;
 volatile bool send_ok_2515 = 0;
 volatile bool send_ok_2518 = 0;
+static unsigned long previousMillis10 = 0;
 
 #ifdef CAN_ADDON
 static const uint32_t QUARTZ_FREQUENCY = CRYSTAL_FREQUENCY_MHZ * 1000000UL;  //MHZ configured in USER_SETTINGS.h
@@ -105,25 +105,26 @@ void init_CAN() {
 }
 
 // Transmit functions
-void transmit_can() {
+void transmit_can(unsigned long currentMillis) {
+
   if (!allowed_to_send_CAN) {
     return;  //Global block of CAN messages
   }
 
 #ifndef RS485_BATTERY_SELECTED
-  transmit_can_battery();
+  transmit_can_battery(currentMillis);
 #endif
 
 #ifdef CAN_INVERTER_SELECTED
-  transmit_can_inverter();
+  transmit_can_inverter(currentMillis);
 #endif  // CAN_INVERTER_SELECTED
 
-#ifdef CHARGER_SELECTED
-  transmit_can_charger();
-#endif  // CHARGER_SELECTED
+  if (charger) {
+    charger->transmit_can(currentMillis);
+  }
 
 #ifdef CAN_SHUNT_SELECTED
-  transmit_can_shunt();
+  transmit_can_shunt(currentMillis);
 #endif  // CAN_SHUNT_SELECTED
 }
 
@@ -329,10 +330,8 @@ void map_can_frame_to_variable(CAN_frame* rx_frame, int interface) {
     handle_incoming_can_frame_battery2(*rx_frame);
 #endif
   }
-  if (interface == can_config.charger) {
-#ifdef CHARGER_SELECTED
-    map_can_frame_to_variable_charger(*rx_frame);
-#endif
+  if (interface == can_config.charger && charger) {
+    charger->map_can_frame_to_variable(*rx_frame);
   }
   if (interface == can_config.shunt) {
 #ifdef CAN_SHUNT_SELECTED

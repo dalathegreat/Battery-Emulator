@@ -11,6 +11,8 @@
 #include "../utils/timer.h"
 #include "esp_task_wdt.h"
 
+void transmit_can_frame(CAN_frame* tx_frame, int interface);
+
 // Create AsyncWebServer object on port 80
 AsyncWebServer server(80);
 
@@ -588,12 +590,48 @@ void init_webserver() {
     request->send(200, "text/plain", "Updated successfully");
   });
 
+  // Route for triggering NVROL reset on Zoe Gen2 batteries
+  server.on("/triggerNVROL", HTTP_GET, [](AsyncWebServerRequest* request) {
+    if (WEBSERVER_AUTH_REQUIRED && !request->authenticate(http_username, http_password)) {
+      return request->requestAuthentication();
+    }
+    datalayer_extended.zoePH2.UserRequestNVROLReset = true;
+    request->send(200, "text/plain", "Updated successfully");
+  });
+
+  // Route for closing BMW iX Contactors
+  server.on("/bmwIxCloseContactorRequest", HTTP_GET, [](AsyncWebServerRequest* request) {
+    if (WEBSERVER_AUTH_REQUIRED && !request->authenticate(http_username, http_password)) {
+      return request->requestAuthentication();
+    }
+    datalayer_extended.bmwix.UserRequestContactorClose = true;
+    request->send(200, "text/plain", "Updated successfully");
+  });
+
+  // Route for opening BMW iX Contactors
+  server.on("/bmwIxOpenContactorRequest", HTTP_GET, [](AsyncWebServerRequest* request) {
+    if (WEBSERVER_AUTH_REQUIRED && !request->authenticate(http_username, http_password)) {
+      return request->requestAuthentication();
+    }
+    datalayer_extended.bmwix.UserRequestContactorOpen = true;
+    request->send(200, "text/plain", "Updated successfully");
+  });
+
   // Route for resetting SOH on Nissan LEAF batteries
   server.on("/resetSOH", HTTP_GET, [](AsyncWebServerRequest* request) {
     if (WEBSERVER_AUTH_REQUIRED && !request->authenticate(http_username, http_password)) {
       return request->requestAuthentication();
     }
     datalayer_extended.nissanleaf.UserRequestSOHreset = true;
+    request->send(200, "text/plain", "Updated successfully");
+  });
+
+  // Route for resetting Crash data on BYD Atto3 batteries
+  server.on("/resetCrash", HTTP_GET, [](AsyncWebServerRequest* request) {
+    if (WEBSERVER_AUTH_REQUIRED && !request->authenticate(http_username, http_password)) {
+      return request->requestAuthentication();
+    }
+    datalayer_extended.bydAtto3.UserRequestCrashReset = true;
     request->send(200, "text/plain", "Updated successfully");
   });
 
@@ -732,94 +770,94 @@ void init_webserver() {
   });
 #endif
 
-#if defined CHEVYVOLT_CHARGER || defined NISSANLEAF_CHARGER
-  // Route for editing ChargerTargetV
-  server.on("/updateChargeSetpointV", HTTP_GET, [](AsyncWebServerRequest* request) {
-    if (WEBSERVER_AUTH_REQUIRED && !request->authenticate(http_username, http_password))
-      return request->requestAuthentication();
-    if (!request->hasParam("value")) {
-      request->send(400, "text/plain", "Bad Request");
-    }
+  if (charger) {
+    // Route for editing ChargerTargetV
+    server.on("/updateChargeSetpointV", HTTP_GET, [](AsyncWebServerRequest* request) {
+      if (WEBSERVER_AUTH_REQUIRED && !request->authenticate(http_username, http_password))
+        return request->requestAuthentication();
+      if (!request->hasParam("value")) {
+        request->send(400, "text/plain", "Bad Request");
+      }
 
-    String value = request->getParam("value")->value();
-    float val = value.toFloat();
-
-    if (!(val <= CHARGER_MAX_HV && val >= CHARGER_MIN_HV)) {
-      request->send(400, "text/plain", "Bad Request");
-    }
-
-    if (!(val * datalayer.charger.charger_setpoint_HV_IDC <= CHARGER_MAX_POWER)) {
-      request->send(400, "text/plain", "Bad Request");
-    }
-
-    datalayer.charger.charger_setpoint_HV_VDC = val;
-
-    request->send(200, "text/plain", "Updated successfully");
-  });
-
-  // Route for editing ChargerTargetA
-  server.on("/updateChargeSetpointA", HTTP_GET, [](AsyncWebServerRequest* request) {
-    if (WEBSERVER_AUTH_REQUIRED && !request->authenticate(http_username, http_password))
-      return request->requestAuthentication();
-    if (!request->hasParam("value")) {
-      request->send(400, "text/plain", "Bad Request");
-    }
-
-    String value = request->getParam("value")->value();
-    float val = value.toFloat();
-
-    if (!(val <= datalayer.battery.settings.max_user_set_charge_dA && val <= CHARGER_MAX_A)) {
-      request->send(400, "text/plain", "Bad Request");
-    }
-
-    if (!(val * datalayer.charger.charger_setpoint_HV_VDC <= CHARGER_MAX_POWER)) {
-      request->send(400, "text/plain", "Bad Request");
-    }
-
-    datalayer.charger.charger_setpoint_HV_IDC = value.toFloat();
-
-    request->send(200, "text/plain", "Updated successfully");
-  });
-
-  // Route for editing ChargerEndA
-  server.on("/updateChargeEndA", HTTP_GET, [](AsyncWebServerRequest* request) {
-    if (WEBSERVER_AUTH_REQUIRED && !request->authenticate(http_username, http_password))
-      return request->requestAuthentication();
-    if (request->hasParam("value")) {
       String value = request->getParam("value")->value();
-      datalayer.charger.charger_setpoint_HV_IDC_END = value.toFloat();
-      request->send(200, "text/plain", "Updated successfully");
-    } else {
-      request->send(400, "text/plain", "Bad Request");
-    }
-  });
+      float val = value.toFloat();
 
-  // Route for enabling/disabling HV charger
-  server.on("/updateChargerHvEnabled", HTTP_GET, [](AsyncWebServerRequest* request) {
-    if (WEBSERVER_AUTH_REQUIRED && !request->authenticate(http_username, http_password))
-      return request->requestAuthentication();
-    if (request->hasParam("value")) {
-      String value = request->getParam("value")->value();
-      datalayer.charger.charger_HV_enabled = (bool)value.toInt();
-      request->send(200, "text/plain", "Updated successfully");
-    } else {
-      request->send(400, "text/plain", "Bad Request");
-    }
-  });
+      if (!(val <= CHARGER_MAX_HV && val >= CHARGER_MIN_HV)) {
+        request->send(400, "text/plain", "Bad Request");
+      }
 
-  // Route for enabling/disabling aux12v charger
-  server.on("/updateChargerAux12vEnabled", HTTP_GET, [](AsyncWebServerRequest* request) {
-    if (WEBSERVER_AUTH_REQUIRED && !request->authenticate(http_username, http_password))
-      return request->requestAuthentication();
-    if (request->hasParam("value")) {
-      String value = request->getParam("value")->value();
-      datalayer.charger.charger_aux12V_enabled = (bool)value.toInt();
+      if (!(val * datalayer.charger.charger_setpoint_HV_IDC <= CHARGER_MAX_POWER)) {
+        request->send(400, "text/plain", "Bad Request");
+      }
+
+      datalayer.charger.charger_setpoint_HV_VDC = val;
+
       request->send(200, "text/plain", "Updated successfully");
-    } else {
-      request->send(400, "text/plain", "Bad Request");
-    }
-  });
-#endif  // defined CHEVYVOLT_CHARGER || defined NISSANLEAF_CHARGER
+    });
+
+    // Route for editing ChargerTargetA
+    server.on("/updateChargeSetpointA", HTTP_GET, [](AsyncWebServerRequest* request) {
+      if (WEBSERVER_AUTH_REQUIRED && !request->authenticate(http_username, http_password))
+        return request->requestAuthentication();
+      if (!request->hasParam("value")) {
+        request->send(400, "text/plain", "Bad Request");
+      }
+
+      String value = request->getParam("value")->value();
+      float val = value.toFloat();
+
+      if (!(val <= datalayer.battery.settings.max_user_set_charge_dA && val <= CHARGER_MAX_A)) {
+        request->send(400, "text/plain", "Bad Request");
+      }
+
+      if (!(val * datalayer.charger.charger_setpoint_HV_VDC <= CHARGER_MAX_POWER)) {
+        request->send(400, "text/plain", "Bad Request");
+      }
+
+      datalayer.charger.charger_setpoint_HV_IDC = value.toFloat();
+
+      request->send(200, "text/plain", "Updated successfully");
+    });
+
+    // Route for editing ChargerEndA
+    server.on("/updateChargeEndA", HTTP_GET, [](AsyncWebServerRequest* request) {
+      if (WEBSERVER_AUTH_REQUIRED && !request->authenticate(http_username, http_password))
+        return request->requestAuthentication();
+      if (request->hasParam("value")) {
+        String value = request->getParam("value")->value();
+        datalayer.charger.charger_setpoint_HV_IDC_END = value.toFloat();
+        request->send(200, "text/plain", "Updated successfully");
+      } else {
+        request->send(400, "text/plain", "Bad Request");
+      }
+    });
+
+    // Route for enabling/disabling HV charger
+    server.on("/updateChargerHvEnabled", HTTP_GET, [](AsyncWebServerRequest* request) {
+      if (WEBSERVER_AUTH_REQUIRED && !request->authenticate(http_username, http_password))
+        return request->requestAuthentication();
+      if (request->hasParam("value")) {
+        String value = request->getParam("value")->value();
+        datalayer.charger.charger_HV_enabled = (bool)value.toInt();
+        request->send(200, "text/plain", "Updated successfully");
+      } else {
+        request->send(400, "text/plain", "Bad Request");
+      }
+    });
+
+    // Route for enabling/disabling aux12v charger
+    server.on("/updateChargerAux12vEnabled", HTTP_GET, [](AsyncWebServerRequest* request) {
+      if (WEBSERVER_AUTH_REQUIRED && !request->authenticate(http_username, http_password))
+        return request->requestAuthentication();
+      if (request->hasParam("value")) {
+        String value = request->getParam("value")->value();
+        datalayer.charger.charger_aux12V_enabled = (bool)value.toInt();
+        request->send(200, "text/plain", "Updated successfully");
+      } else {
+        request->send(400, "text/plain", "Bad Request");
+      }
+    });
+  }
 
   // Send a GET request to <ESP_IP>/update
   server.on("/debug", HTTP_GET, [](AsyncWebServerRequest* request) {
@@ -998,16 +1036,11 @@ String processor(const String& var) {
     content += "</h4>";
 #endif
 
-#if defined CHEVYVOLT_CHARGER || defined NISSANLEAF_CHARGER
-    content += "<h4 style='color: white;'>Charger protocol: ";
-#ifdef CHEVYVOLT_CHARGER
-    content += "Chevy Volt Gen1 Charger";
-#endif  // CHEVYVOLT_CHARGER
-#ifdef NISSANLEAF_CHARGER
-    content += "Nissan LEAF 2013-2024 PDM charger";
-#endif  // NISSANLEAF_CHARGER
-    content += "</h4>";
-#endif  // defined CHEVYVOLT_CHARGER || defined NISSANLEAF_CHARGER
+    if (charger) {
+      content += "<h4 style='color: white;'>Charger protocol: ";
+      content += charger->name();
+      content += "</h4>";
+    }
 
     // Close the block
     content += "</div>";
@@ -1192,15 +1225,14 @@ String processor(const String& var) {
       }
     }
 
-    content += "<h4>Automatic contactor closing allowed:</h4>";
-    content += "<h4>Battery: ";
+    content += "<h4>Battery allows contactor closing: ";
     if (datalayer.system.status.battery_allows_contactor_closing == true) {
       content += "<span>&#10003;</span>";
     } else {
       content += "<span style='color: red;'>&#10005;</span>";
     }
 
-    content += " Inverter: ";
+    content += " Inverter allows contactor closing: ";
     if (datalayer.system.status.inverter_allows_contactor_closing == true) {
       content += "<span>&#10003;</span></h4>";
     } else {
@@ -1408,61 +1440,52 @@ String processor(const String& var) {
     content += "</div>";
 #endif  // DOUBLE_BATTERY
 
-#if defined CHEVYVOLT_CHARGER || defined NISSANLEAF_CHARGER
-    // Start a new block with orange background color
-    content += "<div style='background-color: #FF6E00; padding: 10px; margin-bottom: 10px;border-radius: 50px'>";
+    if (charger) {
+      // Start a new block with orange background color
+      content += "<div style='background-color: #FF6E00; padding: 10px; margin-bottom: 10px;border-radius: 50px'>";
 
-    content += "<h4>Charger HV Enabled: ";
-    if (datalayer.charger.charger_HV_enabled) {
-      content += "<span>&#10003;</span>";
-    } else {
-      content += "<span style='color: red;'>&#10005;</span>";
+      content += "<h4>Charger HV Enabled: ";
+      if (datalayer.charger.charger_HV_enabled) {
+        content += "<span>&#10003;</span>";
+      } else {
+        content += "<span style='color: red;'>&#10005;</span>";
+      }
+      content += "</h4>";
+
+      content += "<h4>Charger Aux12v Enabled: ";
+      if (datalayer.charger.charger_aux12V_enabled) {
+        content += "<span>&#10003;</span>";
+      } else {
+        content += "<span style='color: red;'>&#10005;</span>";
+      }
+      content += "</h4>";
+
+      auto chgPwrDC = charger->outputPowerDC();
+      auto chgEff = charger->efficiency();
+
+      content += formatPowerValue("Charger Output Power", chgPwrDC, "", 1);
+      if (charger->efficiencySupported()) {
+        content += "<h4 style='color: white;'>Charger Efficiency: " + String(chgEff) + "%</h4>";
+      }
+
+      float HVvol = charger->HVDC_output_voltage();
+      float HVcur = charger->HVDC_output_current();
+      float LVvol = charger->LVDC_output_voltage();
+      float LVcur = charger->LVDC_output_current();
+
+      content += "<h4 style='color: white;'>Charger HVDC Output V: " + String(HVvol, 2) + " V</h4>";
+      content += "<h4 style='color: white;'>Charger HVDC Output I: " + String(HVcur, 2) + " A</h4>";
+      content += "<h4 style='color: white;'>Charger LVDC Output I: " + String(LVcur, 2) + "</h4>";
+      content += "<h4 style='color: white;'>Charger LVDC Output V: " + String(LVvol, 2) + "</h4>";
+
+      float ACcur = charger->AC_input_current();
+      float ACvol = charger->AC_input_voltage();
+
+      content += "<h4 style='color: white;'>Charger AC Input V: " + String(ACvol, 2) + " VAC</h4>";
+      content += "<h4 style='color: white;'>Charger AC Input I: " + String(ACcur, 2) + " A</h4>";
+
+      content += "</div>";
     }
-    content += "</h4>";
-
-    content += "<h4>Charger Aux12v Enabled: ";
-    if (datalayer.charger.charger_aux12V_enabled) {
-      content += "<span>&#10003;</span>";
-    } else {
-      content += "<span style='color: red;'>&#10005;</span>";
-    }
-    content += "</h4>";
-#ifdef CHEVYVOLT_CHARGER
-    float chgPwrDC = static_cast<float>(datalayer.charger.charger_stat_HVcur * datalayer.charger.charger_stat_HVvol);
-    float chgPwrAC = static_cast<float>(datalayer.charger.charger_stat_ACcur * datalayer.charger.charger_stat_ACvol);
-    float chgEff = chgPwrDC / chgPwrAC * 100;
-    float ACcur = datalayer.charger.charger_stat_ACcur;
-    float ACvol = datalayer.charger.charger_stat_ACvol;
-    float HVvol = datalayer.charger.charger_stat_HVvol;
-    float HVcur = datalayer.charger.charger_stat_HVcur;
-    float LVvol = datalayer.charger.charger_stat_LVvol;
-    float LVcur = datalayer.charger.charger_stat_LVcur;
-
-    content += formatPowerValue("Charger Output Power", chgPwrDC, "", 1);
-    content += "<h4 style='color: white;'>Charger Efficiency: " + String(chgEff) + "%</h4>";
-    content += "<h4 style='color: white;'>Charger HVDC Output V: " + String(HVvol, 2) + " V</h4>";
-    content += "<h4 style='color: white;'>Charger HVDC Output I: " + String(HVcur, 2) + " A</h4>";
-    content += "<h4 style='color: white;'>Charger LVDC Output I: " + String(LVcur, 2) + "</h4>";
-    content += "<h4 style='color: white;'>Charger LVDC Output V: " + String(LVvol, 2) + "</h4>";
-    content += "<h4 style='color: white;'>Charger AC Input V: " + String(ACvol, 2) + " VAC</h4>";
-    content += "<h4 style='color: white;'>Charger AC Input I: " + String(ACcur, 2) + " A</h4>";
-#endif  // CHEVYVOLT_CHARGER
-#ifdef NISSANLEAF_CHARGER
-    float chgPwrDC = static_cast<float>(datalayer.charger.charger_stat_HVcur * 100);
-    datalayer.charger.charger_stat_HVcur = chgPwrDC / (datalayer.battery.status.voltage_dV / 10);  // P/U=I
-    datalayer.charger.charger_stat_HVvol = static_cast<float>(datalayer.battery.status.voltage_dV / 10);
-    float ACvol = datalayer.charger.charger_stat_ACvol;
-    float HVvol = datalayer.charger.charger_stat_HVvol;
-    float HVcur = datalayer.charger.charger_stat_HVcur;
-
-    content += formatPowerValue("Charger Output Power", chgPwrDC, "", 1);
-    content += "<h4 style='color: white;'>Charger HVDC Output V: " + String(HVvol, 2) + " V</h4>";
-    content += "<h4 style='color: white;'>Charger HVDC Output I: " + String(HVcur, 2) + " A</h4>";
-    content += "<h4 style='color: white;'>Charger AC Input V: " + String(ACvol, 2) + " VAC</h4>";
-#endif  // NISSANLEAF_CHARGER
-    // Close the block
-    content += "</div>";
-#endif  // defined CHEVYVOLT_CHARGER || defined NISSANLEAF_CHARGER
 
     if (emulator_pause_request_ON)
       content += "<button onclick='PauseBattery(false)'>Resume charge/discharge</button> ";

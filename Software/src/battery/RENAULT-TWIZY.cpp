@@ -127,7 +127,7 @@ void handle_incoming_can_frame_battery(CAN_frame rx_frame) {
   }
 }
 
-void transmit_can_battery() {
+void transmit_can_battery(unsigned long currentMillis) {
   // we do not need to send anything to the battery for now
 }
 
@@ -140,6 +140,7 @@ void setup_battery(void) {  // Performs one time setup at startup
   datalayer.battery.info.max_cell_voltage_mV = MAX_CELL_VOLTAGE_MV;
   datalayer.battery.info.min_cell_voltage_mV = MIN_CELL_VOLTAGE_MV;
   datalayer.battery.info.total_capacity_Wh = 6600;
+  datalayer.system.status.battery_allows_contactor_closing = true;
 }
 
 #endif

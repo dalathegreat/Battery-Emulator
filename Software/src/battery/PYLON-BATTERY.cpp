@@ -158,11 +158,9 @@ void handle_incoming_can_frame_battery(CAN_frame rx_frame) {
   }
 }
 
-void transmit_can_battery() {
-  unsigned long currentMillis = millis();
+void transmit_can_battery(unsigned long currentMillis) {
   // Send 1s CAN Message
   if (currentMillis - previousMillis1000 >= INTERVAL_1_S) {
-
     previousMillis1000 = currentMillis;
 
     transmit_can_frame(&PYLON_3010, can_config.battery);  // Heartbeat
@@ -325,7 +323,7 @@ void setup_battery(void) {  // Performs one time setup at startup
   datalayer.battery.info.min_design_voltage_dV = MIN_PACK_VOLTAGE_DV;
   datalayer.battery.info.max_cell_voltage_mV = MAX_CELL_VOLTAGE_MV;
   datalayer.battery.info.min_cell_voltage_mV = MIN_CELL_VOLTAGE_MV;
-
+  datalayer.system.status.battery_allows_contactor_closing = true;
 #ifdef DOUBLE_BATTERY
   datalayer.battery2.info.number_of_cells = datalayer.battery.info.number_of_cells;
   datalayer.battery2.info.max_design_voltage_dV = datalayer.battery.info.max_design_voltage_dV;

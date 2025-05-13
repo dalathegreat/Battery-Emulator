@@ -1,5 +1,6 @@
 #include "../include.h"
 #ifdef JAGUAR_IPACE_BATTERY
+#include "../communication/can/comm_can.h"
 #include "../datalayer/datalayer.h"
 #include "../devboard/utils/events.h"
 #include "JAGUAR-IPACE-BATTERY.h"
@@ -62,7 +63,7 @@ void print_units(char* header, int value, char* units) {
   logging.print(units);
 }
 
-void update_values_battery() {
+void JaguarIpaceBattery::update_values() {
 
   datalayer.battery.status.real_soc = HVBattAvgSOC * 100;  //Add two decimals
 
@@ -119,14 +120,7 @@ void update_values_battery() {
 #endif
 }
 
-void handle_incoming_can_frame_battery(CAN_frame rx_frame) {
-
-  // Do not log noisy startup messages - there are many !
-  if (rx_frame.ID == 0 && rx_frame.DLC == 8 && rx_frame.data.u8[0] == 0 && rx_frame.data.u8[1] == 0 &&
-      rx_frame.data.u8[2] == 0 && rx_frame.data.u8[3] == 0 && rx_frame.data.u8[4] == 0 && rx_frame.data.u8[5] == 0 &&
-      rx_frame.data.u8[6] == 0x80 && rx_frame.data.u8[7] == 0) {
-    return;
-  }
+void JaguarIpaceBattery::handle_incoming_can_frame(CAN_frame rx_frame) {
 
   switch (rx_frame.ID) {  // These messages are periodically transmitted by the battery
     case 0x080:
@@ -222,38 +216,17 @@ void handle_incoming_can_frame_battery(CAN_frame rx_frame) {
     default:
       break;
   }
-
-  // Discard non-interesting can messages so they do not get logged via serial
-  if (rx_frame.ID < 0x500) {
-    return;
-  }
-
-  // All CAN messages recieved will be logged via serial
-  logging.print(millis());  // Example printout, time, ID, length, data: 7553  1DB  8  FF C0 B9 EA 0 0 2 5D
-  logging.print("  ");
-  logging.print(rx_frame.ID, HEX);
-  logging.print("  ");
-  logging.print(rx_frame.DLC);
-  logging.print("  ");
-  for (int i = 0; i < rx_frame.DLC; ++i) {
-    logging.print(rx_frame.data.u8[i], HEX);
-    logging.print(" ");
-  }
-  logging.println("");
 }
 
-void transmit_can_battery() {
-  unsigned long currentMillis = millis();
-
+void JaguarIpaceBattery::transmit_can(unsigned long currentMillis) {
   /* Send keep-alive every 200ms */
   if (currentMillis - previousMillisKeepAlive >= INTERVAL_200_MS) {
     previousMillisKeepAlive = currentMillis;
     transmit_can_frame(&ipace_keep_alive, can_config.battery);
-    return;
   }
 }
 
-void setup_battery(void) {  // Performs one time setup at startup
+void JaguarIpaceBattery::setup(void) {  // Performs one time setup at startup
   strncpy(datalayer.system.info.battery_protocol, "Jaguar I-PACE", 63);
   datalayer.system.info.battery_protocol[63] = '\0';
   datalayer.battery.info.number_of_cells = 108;
@@ -262,7 +235,6 @@ void setup_battery(void) {  // Performs one time setup at startup
   datalayer.battery.info.max_cell_voltage_mV = MAX_CELL_VOLTAGE_MV;
   datalayer.battery.info.min_cell_voltage_mV = MIN_CELL_VOLTAGE_MV;
   datalayer.battery.info.max_cell_voltage_deviation_mV = MAX_CELL_DEVIATION_MV;
-
   datalayer.system.status.battery_allows_contactor_closing = true;
 }
 

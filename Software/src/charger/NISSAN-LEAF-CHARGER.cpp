@@ -1,7 +1,7 @@
-#include "../include.h"
-#ifdef NISSANLEAF_CHARGER
-#include "../datalayer/datalayer.h"
 #include "NISSAN-LEAF-CHARGER.h"
+#include "../communication/can/comm_can.h"
+#include "../datalayer/datalayer.h"
+#include "../include.h"
 
 /* This implements Nissan LEAF PDM charger support. 2013-2024 Gen2/3 PDMs are supported
  *
@@ -19,68 +19,6 @@
  * Incase another battery type is used, the code ofcourse emulates a complete Nissan LEAF
  * battery onto the CAN bus. 
 */
-
-/* CAN cycles and timers */
-static unsigned long previousMillis10ms = 0;
-static unsigned long previousMillis100ms = 0;
-
-/* LEAF charger/battery parameters */
-enum OBC_MODES : uint8_t {
-  IDLE_OR_QC = 1,
-  FINISHED = 2,
-  CHARGING_OR_INTERRUPTED = 4,
-  IDLE1 = 8,
-  IDLE2 = 9,
-  PLUGGED_IN_WAITING_ON_TIMER
-};
-enum OBC_VOLTAGES : uint8_t { NO_SIGNAL = 0, AC110 = 1, AC230 = 2, ABNORMAL_WAVE = 3 };
-static uint16_t OBC_Charge_Power = 0;  // Actual charger output
-static uint8_t mprun100 = 0;           // Counter 0-3
-static uint8_t mprun10 = 0;            // Counter 0-3
-static uint8_t OBC_Charge_Status = IDLE_OR_QC;
-static uint8_t OBC_Status_AC_Voltage = 0;  //1=110V, 2=230V
-static uint8_t OBCpowerSetpoint = 0;
-static uint8_t OBCpower = 0;
-static bool PPStatus = false;
-static bool OBCwakeup = false;
-
-//Actual content messages
-static CAN_frame LEAF_1DB = {.FD = false,
-                             .ext_ID = false,
-                             .DLC = 8,
-                             .ID = 0x1DB,
-                             .data = {0x00, 0x00, 0x00, 0x00, 0x40, 0x00, 0x00, 0x00}};
-static CAN_frame LEAF_1DC = {.FD = false,
-                             .ext_ID = false,
-                             .DLC = 8,
-                             .ID = 0x1DC,
-                             .data = {0x6E, 0x0A, 0x05, 0xD5, 0x00, 0x00, 0x00, 0x00}};
-static CAN_frame LEAF_1F2 = {.FD = false,
-                             .ext_ID = false,
-                             .DLC = 8,
-                             .ID = 0x1F2,
-                             .data = {0x30, 0x00, 0x20, 0xAC, 0x00, 0x3C, 0x00, 0x8F}};
-static CAN_frame LEAF_50B = {.FD = false,
-                             .ext_ID = false,
-                             .DLC = 7,
-                             .ID = 0x50B,
-                             .data = {0x00, 0x00, 0x06, 0xC0, 0x00, 0x00, 0x00}};
-static CAN_frame LEAF_55B = {.FD = false,
-                             .ext_ID = false,
-                             .DLC = 8,
-                             .ID = 0x55B,
-                             .data = {0xA4, 0x40, 0xAA, 0x00, 0xDF, 0xC0, 0x10, 0x00}};
-static CAN_frame LEAF_5BC = {.FD = false,
-                             .ext_ID = false,
-                             .DLC = 8,
-                             .ID = 0x5BC,
-                             .data = {0x3D, 0x80, 0xF0, 0x64, 0xB0, 0x01, 0x00, 0x32}};
-
-static CAN_frame LEAF_59E = {.FD = false,
-                             .ext_ID = false,
-                             .DLC = 8,
-                             .ID = 0x59E,
-                             .data = {0x00, 0x00, 0x0C, 0x76, 0x18, 0x00, 0x00, 0x00}};
 
 static uint8_t crctable[256] = {
     0,   133, 143, 10,  155, 30,  20,  145, 179, 54,  60,  185, 40,  173, 167, 34,  227, 102, 108, 233, 120, 253,
@@ -114,7 +52,7 @@ static uint8_t calculate_checksum_nibble(CAN_frame* frame) {
   return sum;
 }
 
-void map_can_frame_to_variable_charger(CAN_frame rx_frame) {
+void NissanLeafCharger::map_can_frame_to_variable(CAN_frame rx_frame) {
 
   switch (rx_frame.ID) {
     case 0x679:  // This message fires once when charging cable is plugged in
@@ -156,8 +94,7 @@ void map_can_frame_to_variable_charger(CAN_frame rx_frame) {
   }
 }
 
-void transmit_can_charger() {
-  unsigned long currentMillis = millis();
+void NissanLeafCharger::transmit_can(unsigned long currentMillis) {
 
   /* Send keepalive with mode every 10ms */
   if (currentMillis - previousMillis10ms >= INTERVAL_10_MS) {
@@ -247,4 +184,3 @@ void transmit_can_charger() {
 #endif
   }
 }
-#endif

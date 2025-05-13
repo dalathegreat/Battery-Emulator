@@ -100,18 +100,17 @@ void handle_incoming_can_frame_shunt(CAN_frame rx_frame) {
   }
 }
 
-void transmit_can_shunt() {
-  unsigned long currentTime = millis();
+void transmit_can_shunt(unsigned long currentMillis) {
 
   /** Shunt can frames seen? **/
-  if (ShuntLastSeen + 1000 < currentTime) {
+  if (ShuntLastSeen + 1000 < currentMillis) {
     datalayer.shunt.available = false;
   } else {
     datalayer.shunt.available = true;
   }
   // Send 20ms CAN Message
-  if (currentTime - LastMsgTime >= INTERVAL_20_MS) {
-    LastMsgTime = currentTime;
+  if (currentMillis - LastMsgTime >= INTERVAL_20_MS) {
+    LastMsgTime = currentMillis;
     // First check if we have any active errors, incase we do, turn off the battery
     if (datalayer.battery.status.bms_status == FAULT) {
       timeSpentInFaultedMode++;
@@ -154,16 +153,16 @@ void transmit_can_shunt() {
     switch (contactorStatus) {
       case PRECHARGE:
         SBOX_100.data.u8[0] = 0x86;  // Precharge relay only
-        prechargeStartTime = currentTime;
+        prechargeStartTime = currentMillis;
         contactorStatus = NEGATIVE;
 #ifdef DEBUG_VIA_USB
         Serial.println("S-BOX Precharge relay engaged");
 #endif
         break;
       case NEGATIVE:
-        if (currentTime - prechargeStartTime >= CONTACTOR_CONTROL_T1) {
+        if (currentMillis - prechargeStartTime >= CONTACTOR_CONTROL_T1) {
           SBOX_100.data.u8[0] = 0xA6;  // Precharge + Negative
-          negativeStartTime = currentTime;
+          negativeStartTime = currentMillis;
           contactorStatus = POSITIVE;
           datalayer.shunt.precharging = true;
 #ifdef DEBUG_VIA_USB
@@ -172,11 +171,11 @@ void transmit_can_shunt() {
         }
         break;
       case POSITIVE:
-        if (currentTime - negativeStartTime >= CONTACTOR_CONTROL_T2 &&
+        if (currentMillis - negativeStartTime >= CONTACTOR_CONTROL_T2 &&
             (datalayer.shunt.measured_voltage_mV * MAX_PRECHARGE_RESISTOR_VOLTAGE_PERCENT <
              datalayer.shunt.measured_outvoltage_mV)) {
           SBOX_100.data.u8[0] = 0xAA;  // Precharge + Negative + Positive
-          positiveStartTime = currentTime;
+          positiveStartTime = currentMillis;
           contactorStatus = PRECHARGE_OFF;
           datalayer.shunt.precharging = false;
 #ifdef DEBUG_VIA_USB
@@ -185,7 +184,7 @@ void transmit_can_shunt() {
         }
         break;
       case PRECHARGE_OFF:
-        if (currentTime - positiveStartTime >= CONTACTOR_CONTROL_T3) {
+        if (currentMillis - positiveStartTime >= CONTACTOR_CONTROL_T3) {
           SBOX_100.data.u8[0] = 0x6A;  // Negative + Positive
           contactorStatus = COMPLETED;
 #ifdef DEBUG_VIA_USB
