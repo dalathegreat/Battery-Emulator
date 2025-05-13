@@ -26,18 +26,12 @@ void setup_inverter() {
   inverter = can_inverter;
 #endif
 
+#ifdef RS485_INVERTER_SELECTED
+  inverter = new SELECTED_INVERTER_CLASS();
+#endif
+
   inverter->setup();
 }
-
-#ifdef MODBUS_INVERTER_SELECTED
-void update_modbus_registers_inverter() {
-  modbus_inverter->update_modbus_registers();
-}
-
-void handle_static_data_modbus() {
-  modbus_inverter->handle_static_data();
-}
-#endif
 
 #ifdef CAN_INVERTER_SELECTED
 void update_values_can_inverter() {
@@ -50,6 +44,12 @@ void map_can_frame_to_variable_inverter(CAN_frame rx_frame) {
 
 void transmit_can_inverter(unsigned long currentMillis) {
   can_inverter->transmit_can(currentMillis);
+}
+#endif
+
+#ifdef RS485_INVERTER_SELECTED
+void receive_RS485() {
+  ((Rs485InverterProtocol*)inverter)->receive_RS485();
 }
 #endif
 

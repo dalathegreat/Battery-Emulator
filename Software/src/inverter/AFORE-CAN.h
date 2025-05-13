@@ -5,6 +5,8 @@
 #define CAN_INVERTER_SELECTED
 #define SELECTED_INVERTER_CLASS AforeCanInverter
 
+#include "CanInverterProtocol.h"
+
 class AforeCanInverter : public CanInverterProtocol {
  public:
   void setup();

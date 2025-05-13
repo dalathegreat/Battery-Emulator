@@ -2,6 +2,8 @@
 #define FERROAMP_CAN_H
 #include "../include.h"
 
+#include "CanInverterProtocol.h"
+
 #define CAN_INVERTER_SELECTED
 #define SELECTED_INVERTER_CLASS FerroampCanInverter
 
