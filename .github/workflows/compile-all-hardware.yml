@@ -1,5 +1,5 @@
 # This is the name of the workflow, visible on GitHub UI.
-name: Compile All Hardware
+name: 🤖 Compile All Hardware
 
 # Here we tell GitHub when to run the workflow.
 on:

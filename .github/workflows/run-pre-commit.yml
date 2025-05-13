@@ -1,6 +1,6 @@
 # This GithHub Action runs the pre-commit defined in the .pre-commit-config.yaml file
 
-name: Run pre-commit
+name: 📝 Run pre-commit
 
 on:
   - push
