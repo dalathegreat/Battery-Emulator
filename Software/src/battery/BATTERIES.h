@@ -151,7 +151,7 @@ void setup_battery(void);
 void update_values_battery();
 
 #ifdef RS485_BATTERY_SELECTED
-void transmit_rs485();
+void transmit_rs485(unsigned long currentMillis);
 void receive_RS485();
 #else
 void handle_incoming_can_frame_battery(CAN_frame rx_frame);

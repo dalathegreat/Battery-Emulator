@@ -73,7 +73,7 @@ void wifi_monitor() {
 #endif
       // Try WiFi.reconnect() if it was successfully connected at least once
       if (hasConnectedBefore) {
-        lastReconnectAttempt = millis();  // Reset reconnection attempt timer
+        lastReconnectAttempt = currentMillis;  // Reset reconnection attempt timer
 #ifdef DEBUG_LOG
         logging.println("Wi-Fi reconnect attempt...");
 #endif
