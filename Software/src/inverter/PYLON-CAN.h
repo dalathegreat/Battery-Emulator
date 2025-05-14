@@ -24,15 +24,15 @@ class PylonInverter : public CanInverterProtocol {
 //#define SEND_1 //If defined, the messages will have ID ending with 1 (useful for some inverters)
 #define INVERT_LOW_HIGH_BYTES  //If defined, certain frames will have inverted low/high bytes \
                                     //useful for some inverters like Sofar that report the voltages incorrect otherwise
-//#define SET_30K_OFFSET  //If defined, current values are sent with a 30k offest (useful for ferroamp)
+  //#define SET_30K_OFFSET  //If defined, current values are sent with a 30k offest (useful for ferroamp)
 
-/* Some inverters need to see a specific amount of cells/modules to emulate a specific Pylon battery.
+  /* Some inverters need to see a specific amount of cells/modules to emulate a specific Pylon battery.
      Change the following only if your inverter is generating fault codes about voltage range */
-#define TOTAL_CELL_AMOUNT 120
-#define MODULES_IN_SERIES 4
-#define CELLS_PER_MODULE 30
-#define VOLTAGE_LEVEL 384
-#define AH_CAPACITY 37
+  static const int TOTAL_CELL_AMOUNT = 120;
+  static const int MODULES_IN_SERIES = 4;
+  static const int CELLS_PER_MODULE = 30;
+  static const int VOLTAGE_LEVEL = 384;
+  static const int AH_CAPACITY = 37;
 
   /* Do not change code below unless you are sure what you are doing */
   //Actual content messages
@@ -153,7 +153,8 @@ class PylonInverter : public CanInverterProtocol {
 
   uint16_t discharge_cutoff_voltage_dV = 0;
   uint16_t charge_cutoff_voltage_dV = 0;
-#define VOLTAGE_OFFSET_DV 20  // Small offset voltage to avoid generating voltage events
+
+  static const int VOLTAGE_OFFSET_DV = 20;  // Small offset voltage to avoid generating voltage events
 };
 
 #endif

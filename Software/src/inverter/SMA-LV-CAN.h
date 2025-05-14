@@ -22,9 +22,9 @@ class SmaLvInverter : public CanInverterProtocol {
 
   unsigned long previousMillis100ms = 0;
 
-#define VOLTAGE_OFFSET_DV 40  //Offset in deciVolt from max charge voltage and min discharge voltage
-#define MAX_VOLTAGE_DV 630
-#define MIN_VOLTAGE_DV 41
+  static const int VOLTAGE_OFFSET_DV = 40;  //Offset in deciVolt from max charge voltage and min discharge voltage
+  static const int MAX_VOLTAGE_DV = 630;
+  static const int MIN_VOLTAGE_DV = 41;
 
   //Actual content messages
   CAN_frame SMA_00F = {.FD = false,  // Emergency stop message

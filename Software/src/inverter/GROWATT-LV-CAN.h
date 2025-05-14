@@ -76,9 +76,9 @@ class GrowattLvInverter : public CanInverterProtocol {
                            .ID = 0x318,
                            .data = {0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00}};
 
-#define VOLTAGE_OFFSET_DV 40  //Offset in deciVolt from max charge voltage and min discharge voltage
-#define MAX_VOLTAGE_DV 630
-#define MIN_VOLTAGE_DV 410
+  static const int VOLTAGE_OFFSET_DV = 40;  //Offset in deciVolt from max charge voltage and min discharge voltage
+  static const int MAX_VOLTAGE_DV = 630;
+  static const int MIN_VOLTAGE_DV = 410;
 
   uint16_t cell_delta_mV = 0;
   uint16_t ampere_hours_remaining = 0;

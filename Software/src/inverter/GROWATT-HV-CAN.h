@@ -17,16 +17,16 @@ class GrowattHvInverter : public CanInverterProtocol {
   void map_can_frame_to_variable(CAN_frame rx_frame);
 
  private:
-//Total number of Cells (1-512)
-//(Total number of Cells = number of Packs in parallel * number of Modules in series * number of Cells in the module)
-#define TOTAL_NUMBER_OF_CELLS 300
-// Number of Modules in series (1-32)
-#define NUMBER_OF_MODULES_IN_SERIES 20
-// Number of packs in parallel (1-65536)
-#define NUMBER_OF_PACKS_IN_PARALLEL 1
-//Manufacturer abbreviation, part 1
-#define MANUFACTURER_ASCII_0 0x47  //G
-#define MANUFACTURER_ASCII_1 0x54  //T
+  //Total number of Cells (1-512)
+  //(Total number of Cells = number of Packs in parallel * number of Modules in series * number of Cells in the module)
+  static const int TOTAL_NUMBER_OF_CELLS = 300;
+  // Number of Modules in series (1-32)
+  static const int NUMBER_OF_MODULES_IN_SERIES = 20;
+  // Number of packs in parallel (1-65536)
+  static const int NUMBER_OF_PACKS_IN_PARALLEL = 1;
+  //Manufacturer abbreviation, part 1
+  static const int MANUFACTURER_ASCII_0 = 0x47;  //G
+  static const int MANUFACTURER_ASCII_1 = 0x54;  //T
 
   /* Do not change code below unless you are sure what you are doing */
 
