@@ -63,19 +63,22 @@ void SmaBydHvsInverter::
   }
 
   //Error bits
-  if (datalayer.system.status.inverter_allows_contactor_closing) {
+  if (datalayer.system.status.battery_allows_contactor_closing) {
     SMA_158.data.u8[2] = 0xAA;
-#ifdef INVERTER_CONTACTOR_ENABLE_LED_PIN
-    digitalWrite(INVERTER_CONTACTOR_ENABLE_LED_PIN,
-                 HIGH);  // Turn on LED to indicate that SMA inverter allows contactor closing
-#endif                   // INVERTER_CONTACTOR_ENABLE_LED_PIN
   } else {
     SMA_158.data.u8[2] = 0x6A;
-#ifdef INVERTER_CONTACTOR_ENABLE_LED_PIN
-    digitalWrite(INVERTER_CONTACTOR_ENABLE_LED_PIN,
-                 LOW);  // Turn off LED to indicate that SMA inverter allows contactor closing
-#endif                  // INVERTER_CONTACTOR_ENABLE_LED_PIN
   }
+
+#ifdef INVERTER_CONTACTOR_ENABLE_LED_PIN
+  // Inverter allows contactor closing
+  if (datalayer.system.status.inverter_allows_contactor_closing) {
+    digitalWrite(INVERTER_CONTACTOR_ENABLE_LED_PIN,
+                 HIGH);  // Turn on LED to indicate that SMA inverter allows contactor closing
+  } else {
+    digitalWrite(INVERTER_CONTACTOR_ENABLE_LED_PIN,
+                 LOW);  // Turn off LED to indicate that SMA inverter does not allow contactor closing
+  }
+#endif  // INVERTER_CONTACTOR_ENABLE_LED_PIN
 
   // Check if Enable line is working. If we go too long without any input, raise an event
   if (!datalayer.system.status.inverter_allows_contactor_closing) {
@@ -166,13 +169,58 @@ void SmaBydHvsInverter::map_can_frame_to_variable(CAN_frame rx_frame) {
     case 0x560:  //Message originating from SMA inverter - Init
       datalayer.system.status.CAN_inverter_still_alive = CAN_STILL_ALIVE;
       break;
+    case 0x561:
+      datalayer.system.status.CAN_inverter_still_alive = CAN_STILL_ALIVE;
+      break;
+    case 0x562:
+      datalayer.system.status.CAN_inverter_still_alive = CAN_STILL_ALIVE;
+      break;
+    case 0x563:
+      datalayer.system.status.CAN_inverter_still_alive = CAN_STILL_ALIVE;
+      break;
+    case 0x564:
+      datalayer.system.status.CAN_inverter_still_alive = CAN_STILL_ALIVE;
+      break;
+    case 0x565:
+      datalayer.system.status.CAN_inverter_still_alive = CAN_STILL_ALIVE;
+      break;
+    case 0x566:
+      datalayer.system.status.CAN_inverter_still_alive = CAN_STILL_ALIVE;
+      break;
+    case 0x567:
+      datalayer.system.status.CAN_inverter_still_alive = CAN_STILL_ALIVE;
+      break;
     case 0x5E0:  //Message originating from SMA inverter - String
       datalayer.system.status.CAN_inverter_still_alive = CAN_STILL_ALIVE;
       //Inverter brand (frame1-3 = 0x53 0x4D 0x41) = SMA
       break;
+    case 0x5E1:
+      datalayer.system.status.CAN_inverter_still_alive = CAN_STILL_ALIVE;
+      break;
+    case 0x5E2:
+      datalayer.system.status.CAN_inverter_still_alive = CAN_STILL_ALIVE;
+      break;
+    case 0x5E3:
+      datalayer.system.status.CAN_inverter_still_alive = CAN_STILL_ALIVE;
+      break;
+    case 0x5E4:
+      datalayer.system.status.CAN_inverter_still_alive = CAN_STILL_ALIVE;
+      break;
+    case 0x5E5:
+      datalayer.system.status.CAN_inverter_still_alive = CAN_STILL_ALIVE;
+      break;
+    case 0x5E6:
+      datalayer.system.status.CAN_inverter_still_alive = CAN_STILL_ALIVE;
+      break;
     case 0x5E7:  //Pairing request
+#ifdef DEBUG_LOG
+      logging.println("Received 0x5E7: SMA pairing request");
+#endif  // DEBUG_LOG
       datalayer.system.status.CAN_inverter_still_alive = CAN_STILL_ALIVE;
       transmit_can_init();
+      break;
+    case 0x62C:
+      datalayer.system.status.CAN_inverter_still_alive = CAN_STILL_ALIVE;
       break;
     default:
       break;
@@ -180,7 +228,6 @@ void SmaBydHvsInverter::map_can_frame_to_variable(CAN_frame rx_frame) {
 }
 
 void SmaBydHvsInverter::transmit_can(unsigned long currentMillis) {
-
   // Send CAN Message every 100ms if inverter allows contactor closing
   if (datalayer.system.status.inverter_allows_contactor_closing) {
     if (currentMillis - previousMillis100ms >= 100) {
