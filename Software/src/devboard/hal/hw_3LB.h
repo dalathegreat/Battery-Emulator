@@ -61,6 +61,10 @@
 // SMA CAN contactor pins
 #define INVERTER_CONTACTOR_ENABLE_PIN 36
 
+// Automatic precharging
+#define HIA4V1_PIN 25
+#define INVERTER_DISCONNECT_CONTACTOR_PIN 32
+
 // SD card
 //#define SD_MISO_PIN 2
 //#define SD_MOSI_PIN 15
