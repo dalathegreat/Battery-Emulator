@@ -1,5 +1,6 @@
 #include "../include.h"
 #ifdef GROWATT_LV_CAN
+#include "../communication/can/comm_can.h"
 #include "../datalayer/datalayer.h"
 #include "GROWATT-LV-CAN.h"
 
@@ -10,76 +11,8 @@ Big-endian
 
 The inverter replies data every second (standard frame/decimal)0x301:*/
 
-/* Do not change code below unless you are sure what you are doing */
-
-//Actual content messages
-CAN_frame GROWATT_311 = {.FD = false,  //Voltage and charge limits and status
-                         .ext_ID = false,
-                         .DLC = 8,
-                         .ID = 0x311,
-                         .data = {0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00}};
-CAN_frame GROWATT_312 = {.FD = false,  //status bits , pack number, total cell number
-                         .ext_ID = false,
-                         .DLC = 8,
-                         .ID = 0x312,
-                         .data = {0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00}};
-CAN_frame GROWATT_313 = {.FD = false,  //voltage, current, temp, soc, soh
-                         .ext_ID = false,
-                         .DLC = 8,
-                         .ID = 0x313,
-                         .data = {0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00}};
-CAN_frame GROWATT_314 = {.FD = false,  //capacity, delta V, cycle count
-                         .ext_ID = false,
-                         .DLC = 8,
-                         .ID = 0x314,
-                         .data = {0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00}};
-CAN_frame GROWATT_319 = {.FD = false,  //max/min cell voltage, num of cell max/min, protect pack ID
-                         .ext_ID = false,
-                         .DLC = 8,
-                         .ID = 0x319,
-                         .data = {0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00}};
-CAN_frame GROWATT_320 = {.FD = false,  //manufacturer name, hw ver, sw  ver, date and time
-                         .ext_ID = false,
-                         .DLC = 8,
-                         .ID = 0x320,
-                         .data = {0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00}};
-CAN_frame GROWATT_321 = {.FD = false,  //Update status, ID
-                         .ext_ID = false,
-                         .DLC = 8,
-                         .ID = 0x321,
-                         .data = {0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00}};
-
-//Cellvoltages
-CAN_frame GROWATT_315 = {.FD = false,  //Cells 1-4
-                         .ext_ID = false,
-                         .DLC = 8,
-                         .ID = 0x315,
-                         .data = {0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00}};
-CAN_frame GROWATT_316 = {.FD = false,  //Cells 5-8
-                         .ext_ID = false,
-                         .DLC = 8,
-                         .ID = 0x316,
-                         .data = {0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00}};
-CAN_frame GROWATT_317 = {.FD = false,  //Cells 9-12
-                         .ext_ID = false,
-                         .DLC = 8,
-                         .ID = 0x317,
-                         .data = {0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00}};
-CAN_frame GROWATT_318 = {.FD = false,  //Cells 13-16
-                         .ext_ID = false,
-                         .DLC = 8,
-                         .ID = 0x318,
-                         .data = {0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00}};
-
-#define VOLTAGE_OFFSET_DV 40  //Offset in deciVolt from max charge voltage and min discharge voltage
-#define MAX_VOLTAGE_DV 630
-#define MIN_VOLTAGE_DV 410
-
-static uint16_t cell_delta_mV = 0;
-static uint16_t ampere_hours_remaining = 0;
-static uint16_t ampere_hours_full = 0;
-
-void update_values_can_inverter() {  //This function maps all the values fetched from battery CAN to the correct CAN messages
+void GrowattLvInverter::
+    update_values() {  //This function maps all the values fetched from battery CAN to the correct CAN messages
 
   cell_delta_mV = datalayer.battery.status.cell_max_voltage_mV - datalayer.battery.status.cell_min_voltage_mV;
 
@@ -246,7 +179,7 @@ void update_values_can_inverter() {  //This function maps all the values fetched
   GROWATT_318.data.u8[7] = (datalayer.battery.status.cell_voltages_mV[15] & 0x00FF);
 }
 
-void map_can_frame_to_variable_inverter(CAN_frame rx_frame) {
+void GrowattLvInverter::map_can_frame_to_variable(CAN_frame rx_frame) {
   switch (rx_frame.ID) {
     case 0x301:
       datalayer.system.status.CAN_inverter_still_alive = CAN_STILL_ALIVE;
@@ -267,11 +200,11 @@ void map_can_frame_to_variable_inverter(CAN_frame rx_frame) {
   }
 }
 
-void transmit_can_inverter(unsigned long currentMillis) {
+void GrowattLvInverter::transmit_can(unsigned long currentMillis) {
   // No periodic sending for this battery type. Data is sent when inverter requests it
 }
 
-void setup_inverter(void) {  // Performs one time setup at startup over CAN bus
+void GrowattLvInverter::setup(void) {  // Performs one time setup at startup over CAN bus
   strncpy(datalayer.system.info.inverter_protocol, "Growatt Low Voltage (48V) protocol via CAN", 63);
   datalayer.system.info.inverter_protocol[63] = '\0';
 }
