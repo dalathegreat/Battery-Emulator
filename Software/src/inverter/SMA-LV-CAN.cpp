@@ -1,8 +1,7 @@
-#include "../include.h"
-#ifdef SMA_LV_CAN
+#include "SMA-LV-CAN.h"
 #include "../communication/can/comm_can.h"
 #include "../datalayer/datalayer.h"
-#include "SMA-LV-CAN.h"
+#include "../include.h"
 
 /* SMA Sunny Island Low Voltage (48V) CAN protocol:
 CAN 2.0A
@@ -113,4 +112,3 @@ void SmaLvInverter::setup(void) {  // Performs one time setup at startup over CA
   strncpy(datalayer.system.info.inverter_protocol, "SMA Low Voltage (48V) protocol via CAN", 63);
   datalayer.system.info.inverter_protocol[63] = '\0';
 }
-#endif

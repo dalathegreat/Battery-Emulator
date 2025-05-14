@@ -4,31 +4,10 @@
 
 #include "CanInverterProtocol.h"
 
+#ifdef SCHNEIDER_CAN
 #define CAN_INVERTER_SELECTED
 #define SELECTED_INVERTER_CLASS SchneiderInverter
-
-#define STATE_OFFLINE 0
-#define STATE_STANDBY 1
-#define STATE_STARTING 2
-#define STATE_ONLINE 3
-#define STATE_FAULTED 4
-
-// Same enumerations used for Fault and Warning
-#define FAULTS_CHARGE_OVERCURRENT 0
-#define FAULTS_DISCHARGE_OVERCURRENT 1
-#define FAULTS_OVER_TEMPERATURE 2
-#define FAULTS_UNDER_TEMPERATURE 3
-#define FAULTS_OVER_VOLTAGE 4
-#define FAULTS_UNDER_VOLTAGE 5
-#define FAULTS_CELL_IMBALANCE 6
-#define FAULTS_INTERNAL_COM_ERROR 7
-#define FAULTS_SYSTEM_ERROR 8
-
-// Commands. Bit0 forced charge request. Bit1 charge permitted. Bit2 discharge permitted. Bit3 Stop
-#define COMMAND_ONLY_CHARGE_ALLOWED 0x02
-#define COMMAND_ONLY_DISCHARGE_ALLOWED 0x04
-#define COMMAND_CHARGE_AND_DISCHARGE_ALLOWED 0x06
-#define COMMAND_STOP 0x08
+#endif
 
 class SchneiderInverter : public CanInverterProtocol {
  public:
@@ -38,7 +17,29 @@ class SchneiderInverter : public CanInverterProtocol {
   void map_can_frame_to_variable(CAN_frame rx_frame);
 
  private:
-  /* Do not change code below unless you are sure what you are doing */
+  static const int STATE_OFFLINE = 0;
+  static const int STATE_STANDBY = 1;
+  static const int STATE_STARTING = 2;
+  static const int STATE_ONLINE = 3;
+  static const int STATE_FAULTED = 4;
+
+  // Same enumerations used for Fault and Warning
+  static const int FAULTS_CHARGE_OVERCURRENT = 0;
+  static const int FAULTS_DISCHARGE_OVERCURRENT = 1;
+  static const int FAULTS_OVER_TEMPERATURE = 2;
+  static const int FAULTS_UNDER_TEMPERATURE = 3;
+  static const int FAULTS_OVER_VOLTAGE = 4;
+  static const int FAULTS_UNDER_VOLTAGE = 5;
+  static const int FAULTS_CELL_IMBALANCE = 6;
+  static const int FAULTS_INTERNAL_COM_ERROR = 7;
+  static const int FAULTS_SYSTEM_ERROR = 8;
+
+  // Commands. Bit0 forced charge request. Bit1 charge permitted. Bit2 discharge permitted. Bit3 Stop
+  static const int COMMAND_ONLY_CHARGE_ALLOWED = 0x02;
+  static const int COMMAND_ONLY_DISCHARGE_ALLOWED = 0x04;
+  static const int COMMAND_CHARGE_AND_DISCHARGE_ALLOWED = 0x06;
+  static const int COMMAND_STOP = 0x08;
+
   unsigned long previousMillis10s = 0;    // will store last time a 10s CAN Message was send
   unsigned long previousMillis2s = 0;     // will store last time a 2s CAN Message was send
   unsigned long previousMillis500ms = 0;  // will store last time a 500ms CAN Message was send

@@ -4,8 +4,10 @@
 
 #include "CanInverterProtocol.h"
 
+#ifdef PYLON_LV_CAN
 #define CAN_INVERTER_SELECTED
 #define SELECTED_INVERTER_CLASS PylonLvInverter
+#endif
 
 class PylonLvInverter : public CanInverterProtocol {
  public:

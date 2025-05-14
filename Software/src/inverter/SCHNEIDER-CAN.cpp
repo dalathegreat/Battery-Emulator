@@ -1,8 +1,7 @@
-#include "../include.h"
-#ifdef SCHNEIDER_CAN
+#include "SCHNEIDER-CAN.h"
 #include "../communication/can/comm_can.h"
 #include "../datalayer/datalayer.h"
-#include "SCHNEIDER-CAN.h"
+#include "../include.h"
 
 /* Version 2: SE BMS Communication Protocol 
 Protocol: CAN 2.0 Specification
@@ -231,5 +230,3 @@ void SchneiderInverter::setup(void) {  // Performs one time setup
   strncpy(datalayer.system.info.inverter_protocol, "Schneider V2 SE BMS CAN", 63);
   datalayer.system.info.inverter_protocol[63] = '\0';
 }
-
-#endif

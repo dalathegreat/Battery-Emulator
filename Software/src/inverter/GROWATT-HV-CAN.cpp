@@ -1,8 +1,7 @@
-#include "../include.h"
-#ifdef GROWATT_HV_CAN
+#include "GROWATT-HV-CAN.h"
 #include "../communication/can/comm_can.h"
 #include "../datalayer/datalayer.h"
-#include "GROWATT-HV-CAN.h"
+#include "../include.h"
 
 /* TODO:
 This protocol has not been tested with any inverter. Proceed with extreme caution.
@@ -455,4 +454,3 @@ void GrowattHvInverter::setup(void) {  // Performs one time setup at startup ove
   strncpy(datalayer.system.info.inverter_protocol, "Growatt High Voltage protocol via CAN", 63);
   datalayer.system.info.inverter_protocol[63] = '\0';
 }
-#endif

@@ -1,9 +1,8 @@
-#include "../include.h"
-#ifdef FOXESS_CAN
+#include "FOXESS-CAN.h"
 #include "../communication/can/comm_can.h"
 #include "../datalayer/datalayer.h"
 #include "../devboard/utils/events.h"
-#include "FOXESS-CAN.h"
+#include "../include.h"
 
 /* Based on info from this excellent repo: https://github.com/FozzieUK/FoxESS-Canbus-Protocol */
 /* The FoxESS protocol emulates the stackable (1-8) 48V towers found in the HV2600 / ECS4100 batteries
@@ -566,4 +565,3 @@ void FoxessCanInverter::setup(void) {  // Performs one time setup at startup ove
   strncpy(datalayer.system.info.inverter_protocol, "FoxESS compatible HV2600/ECS4100 battery", 63);
   datalayer.system.info.inverter_protocol[63] = '\0';
 }
-#endif

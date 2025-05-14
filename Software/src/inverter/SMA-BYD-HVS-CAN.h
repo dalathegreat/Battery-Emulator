@@ -4,11 +4,10 @@
 
 #include "CanInverterProtocol.h"
 
+#ifdef SMA_BYD_HVS_CAN
 #define CAN_INVERTER_SELECTED
 #define SELECTED_INVERTER_CLASS SmaBydHvsInverter
-
-#define READY_STATE 0x03
-#define STOP_STATE 0x02
+#endif
 
 class SmaBydHvsInverter : public CanInverterProtocol {
  public:
@@ -18,6 +17,10 @@ class SmaBydHvsInverter : public CanInverterProtocol {
   void map_can_frame_to_variable(CAN_frame rx_frame);
 
  private:
+  static const int READY_STATE = 0x03;
+  static const int STOP_STATE = 0x02;
+  static const int THIRTY_MINUTES = 1200;
+
   void transmit_can_init();
   unsigned long previousMillis100ms = 0;
 
@@ -25,7 +28,6 @@ class SmaBydHvsInverter : public CanInverterProtocol {
   uint16_t inverter_voltage = 0;
   int16_t inverter_current = 0;
   uint16_t timeWithoutInverterAllowsContactorClosing = 0;
-#define THIRTY_MINUTES 1200
 
   //Actual content messages
   CAN_frame SMA_158 = {.FD = false,

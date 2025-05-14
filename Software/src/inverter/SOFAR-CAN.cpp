@@ -1,8 +1,7 @@
-#include "../include.h"
-#ifdef SOFAR_CAN
+#include "SOFAR-CAN.h"
 #include "../communication/can/comm_can.h"
 #include "../datalayer/datalayer.h"
-#include "SOFAR-CAN.h"
+#include "../include.h"
 
 /* This implementation of the SOFAR can protocol is halfway done. What's missing is implementing the inverter replies, all the CAN messages are listed, but the can sending is missing. */
 
@@ -72,4 +71,3 @@ void SofarInverter::setup(void) {  // Performs one time setup at startup over CA
   strncpy(datalayer.system.info.inverter_protocol, "Sofar BMS (Extended Frame) over CAN bus", 63);
   datalayer.system.info.inverter_protocol[63] = '\0';
 }
-#endif

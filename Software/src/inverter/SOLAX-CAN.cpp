@@ -1,9 +1,8 @@
-#include "../include.h"
-#ifdef SOLAX_CAN
+#include "SOLAX-CAN.h"
 #include "../communication/can/comm_can.h"
 #include "../datalayer/datalayer.h"
 #include "../devboard/utils/events.h"
-#include "SOLAX-CAN.h"
+#include "../include.h"
 
 #define NUMBER_OF_MODULES 0
 #define BATTERY_TYPE 0x50
@@ -213,4 +212,3 @@ void SolaxInverter::setup(void) {  // Performs one time setup at startup
   datalayer.system.info.inverter_protocol[63] = '\0';
   datalayer.system.status.inverter_allows_contactor_closing = false;  // The inverter needs to allow first
 }
-#endif

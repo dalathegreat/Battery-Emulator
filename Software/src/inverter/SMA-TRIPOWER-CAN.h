@@ -4,8 +4,10 @@
 
 #include "CanInverterProtocol.h"
 
+#ifdef SMA_TRIPOWER_CAN
 #define CAN_INVERTER_SELECTED
 #define SELECTED_INVERTER_CLASS SmaTripowerInverter
+#endif
 
 class SmaTripowerInverter : public CanInverterProtocol {
  public:
@@ -17,6 +19,7 @@ class SmaTripowerInverter : public CanInverterProtocol {
  private:
   const int READY_STATE = 0x03;
   const int STOP_STATE = 0x02;
+  const int THIRTY_MINUTES = 1200;
 
   void transmit_can_init();
   void pushFrame(CAN_frame* frame, std::function<void(void)> callback = []() {});
@@ -43,7 +46,6 @@ class SmaTripowerInverter : public CanInverterProtocol {
   int16_t temperature_average = 0;
   uint16_t ampere_hours_remaining = 0;
   uint16_t timeWithoutInverterAllowsContactorClosing = 0;
-#define THIRTY_MINUTES 1200
 
   //Actual content messages
   CAN_frame SMA_358 = {.FD = false,

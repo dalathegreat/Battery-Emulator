@@ -1,9 +1,8 @@
-#include "../include.h"
-#ifdef SMA_BYD_H_CAN
+#include "SMA-BYD-H-CAN.h"
 #include "../communication/can/comm_can.h"
 #include "../datalayer/datalayer.h"
 #include "../devboard/utils/events.h"
-#include "SMA-BYD-H-CAN.h"
+#include "../include.h"
 
 /* TODO: Map error bits in 0x158 */
 
@@ -222,4 +221,3 @@ void SmaBydHInverter::setup(void) {  // Performs one time setup at startup over 
   digitalWrite(INVERTER_CONTACTOR_ENABLE_LED_PIN, LOW);  // Turn LED off, until inverter allows contactor closing
 #endif                                                   // INVERTER_CONTACTOR_ENABLE_LED_PIN
 }
-#endif

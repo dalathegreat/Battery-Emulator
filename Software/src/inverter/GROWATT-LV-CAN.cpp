@@ -1,8 +1,7 @@
-#include "../include.h"
-#ifdef GROWATT_LV_CAN
+#include "GROWATT-LV-CAN.h"
 #include "../communication/can/comm_can.h"
 #include "../datalayer/datalayer.h"
-#include "GROWATT-LV-CAN.h"
+#include "../include.h"
 
 /* Growatt BMS CAN-Bus-protocol Low Voltage Rev_04
 CAN 2.0A
@@ -208,4 +207,3 @@ void GrowattLvInverter::setup(void) {  // Performs one time setup at startup ove
   strncpy(datalayer.system.info.inverter_protocol, "Growatt Low Voltage (48V) protocol via CAN", 63);
   datalayer.system.info.inverter_protocol[63] = '\0';
 }
-#endif

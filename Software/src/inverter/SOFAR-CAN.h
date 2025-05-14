@@ -4,8 +4,10 @@
 
 #include "CanInverterProtocol.h"
 
+#ifdef SOFAR_CAN
 #define CAN_INVERTER_SELECTED
 #define SELECTED_INVERTER_CLASS SofarInverter
+#endif
 
 class SofarInverter : public CanInverterProtocol {
  public:

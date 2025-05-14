@@ -1,8 +1,7 @@
-#include "../include.h"
-#ifdef PYLON_CAN
+#include "PYLON-CAN.h"
 #include "../communication/can/comm_can.h"
 #include "../datalayer/datalayer.h"
-#include "PYLON-CAN.h"
+#include "../include.h"
 
 void PylonInverter::
     update_values() {  //This function maps all the values fetched from battery CAN to the correct CAN messages
@@ -349,4 +348,3 @@ void PylonInverter::setup(void) {  // Performs one time setup at startup over CA
   strncpy(datalayer.system.info.inverter_protocol, "Pylontech battery over CAN bus", 63);
   datalayer.system.info.inverter_protocol[63] = '\0';
 }
-#endif

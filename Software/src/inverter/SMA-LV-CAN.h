@@ -4,8 +4,10 @@
 
 #include "CanInverterProtocol.h"
 
+#ifdef SMA_LV_CAN
 #define CAN_INVERTER_SELECTED
 #define SELECTED_INVERTER_CLASS SmaLvInverter
+#endif
 
 class SmaLvInverter : public CanInverterProtocol {
  public:

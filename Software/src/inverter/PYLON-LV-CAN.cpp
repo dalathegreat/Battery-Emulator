@@ -1,8 +1,7 @@
-#include "../include.h"
-#ifdef PYLON_LV_CAN
+#include "PYLON-LV-CAN.h"
 #include "../communication/can/comm_can.h"
 #include "../datalayer/datalayer.h"
-#include "PYLON-LV-CAN.h"
+#include "../include.h"
 
 // when e.g. the min temperature is 0, max is 100 and the warning percent is 80%
 // a warning should be generated at 20 (i.e. at 20% of the value range)
@@ -150,4 +149,3 @@ void PylonLvInverter::setup(void) {  // Performs one time setup at startup over 
   strncpy(datalayer.system.info.inverter_protocol, "Pylontech LV battery over CAN bus", 63);
   datalayer.system.info.inverter_protocol[63] = '\0';
 }
-#endif

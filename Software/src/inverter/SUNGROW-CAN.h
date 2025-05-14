@@ -4,8 +4,10 @@
 
 #include "CanInverterProtocol.h"
 
+#ifdef SUNGROW_CAN
 #define CAN_INVERTER_SELECTED
 #define SELECTED_INVERTER_CLASS SungrowInverter
+#endif
 
 class SungrowInverter : public CanInverterProtocol {
  public:

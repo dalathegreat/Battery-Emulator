@@ -1,8 +1,7 @@
-#include "../include.h"
-#ifdef SUNGROW_CAN
+#include "SUNGROW-CAN.h"
 #include "../communication/can/comm_can.h"
 #include "../datalayer/datalayer.h"
-#include "SUNGROW-CAN.h"
+#include "../include.h"
 
 /* TODO: 
 This protocol is still under development. It can not be used yet for Sungrow inverters, 
@@ -358,4 +357,3 @@ void SungrowInverter::setup(void) {  // Performs one time setup at startup over 
   strncpy(datalayer.system.info.inverter_protocol, "Sungrow SBR064 battery over CAN bus", 63);
   datalayer.system.info.inverter_protocol[63] = '\0';
 }
-#endif
