@@ -4,8 +4,10 @@
 
 #include "CanInverterProtocol.h"
 
+#ifdef FOXESS_CAN
 #define CAN_INVERTER_SELECTED
 #define SELECTED_INVERTER_CLASS FoxessCanInverter
+#endif
 
 class FoxessCanInverter : public CanInverterProtocol {
  public:

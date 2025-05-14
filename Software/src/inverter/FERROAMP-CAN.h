@@ -4,8 +4,10 @@
 
 #include "CanInverterProtocol.h"
 
+#ifdef FERROAMP_CAN
 #define CAN_INVERTER_SELECTED
 #define SELECTED_INVERTER_CLASS FerroampCanInverter
+#endif
 
 class FerroampCanInverter : public CanInverterProtocol {
  public:

@@ -4,8 +4,10 @@
 
 #include "CanInverterProtocol.h"
 
+#ifdef GROWATT_HV_CAN
 #define CAN_INVERTER_SELECTED
 #define SELECTED_INVERTER_CLASS GrowattHvInverter
+#endif
 
 class GrowattHvInverter : public CanInverterProtocol {
  public:
