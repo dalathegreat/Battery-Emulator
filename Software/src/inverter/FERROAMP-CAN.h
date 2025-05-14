@@ -10,11 +10,8 @@
 class FerroampCanInverter : public CanInverterProtocol {
  public:
   void setup();
-
   void update_values();
-
   void transmit_can(unsigned long currentMillis);
-
   void map_can_frame_to_variable(CAN_frame rx_frame);
 
  private:
