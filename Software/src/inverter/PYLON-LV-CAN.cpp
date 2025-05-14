@@ -1,53 +1,18 @@
 #include "../include.h"
 #ifdef PYLON_LV_CAN
+#include "../communication/can/comm_can.h"
 #include "../datalayer/datalayer.h"
 #include "PYLON-LV-CAN.h"
-
-/* Do not change code below unless you are sure what you are doing */
-
-static unsigned long previousMillis1000ms = 0;
-
-CAN_frame PYLON_351 = {.FD = false,
-                       .ext_ID = false,
-                       .DLC = 6,
-                       .ID = 0x351,
-                       .data = {0x00, 0x00, 0x00, 0x00, 0x00, 0x00}};
-CAN_frame PYLON_355 = {.FD = false, .ext_ID = false, .DLC = 4, .ID = 0x355, .data = {0x00, 0x00, 0x00, 0x00}};
-CAN_frame PYLON_356 = {.FD = false,
-                       .ext_ID = false,
-                       .DLC = 6,
-                       .ID = 0x356,
-                       .data = {0x00, 0x00, 0x00, 0x00, 0x00, 0x00}};
-CAN_frame PYLON_359 = {.FD = false,
-                       .ext_ID = false,
-                       .DLC = 7,
-                       .ID = 0x359,
-                       .data = {0x00, 0x00, 0x00, 0x00, PACK_NUMBER, 'P', 'N'}};
-CAN_frame PYLON_35C = {.FD = false, .ext_ID = false, .DLC = 2, .ID = 0x35C, .data = {0x00, 0x00}};
-CAN_frame PYLON_35E = {.FD = false,
-                       .ext_ID = false,
-                       .DLC = 8,
-                       .ID = 0x35E,
-                       .data = {
-                           MANUFACTURER_NAME[0],
-                           MANUFACTURER_NAME[1],
-                           MANUFACTURER_NAME[2],
-                           MANUFACTURER_NAME[3],
-                           MANUFACTURER_NAME[4],
-                           MANUFACTURER_NAME[5],
-                           MANUFACTURER_NAME[6],
-                           MANUFACTURER_NAME[7],
-                       }};
 
 // when e.g. the min temperature is 0, max is 100 and the warning percent is 80%
 // a warning should be generated at 20 (i.e. at 20% of the value range)
 // this function calculates this 20% point for a given min/max
-int16_t warning_threshold_of_min(int16_t min_val, int16_t max_val) {
+int16_t PylonLvInverter::warning_threshold_of_min(int16_t min_val, int16_t max_val) {
   int16_t diff = max_val - min_val;
   return min_val + (diff * (100 - WARNINGS_PERCENT)) / 100;
 }
 
-void update_values_can_inverter() {
+void PylonLvInverter::update_values() {
   // This function maps all the values fetched from battery CAN to the correct CAN messages
 
   // Set "battery charge voltage" to volts + 1 or user supplied value
@@ -133,7 +98,7 @@ void update_values_can_inverter() {
   // PYLON_35E is pre-filled with the manufacturer name
 }
 
-void map_can_frame_to_variable_inverter(CAN_frame rx_frame) {
+void PylonLvInverter::map_can_frame_to_variable(CAN_frame rx_frame) {
   switch (rx_frame.ID) {
     case 0x305:  //Message originating from inverter.
       // according to the spec, this message includes only 0-bytes
@@ -158,7 +123,7 @@ void dump_frame(CAN_frame* frame) {
 }
 #endif
 
-void transmit_can_inverter(unsigned long currentMillis) {
+void PylonLvInverter::transmit_can(unsigned long currentMillis) {
 
   if (currentMillis - previousMillis1000ms >= 1000) {
     previousMillis1000ms = currentMillis;
@@ -180,7 +145,8 @@ void transmit_can_inverter(unsigned long currentMillis) {
     transmit_can_frame(&PYLON_35E, can_config.inverter);
   }
 }
-void setup_inverter(void) {  // Performs one time setup at startup over CAN bus
+
+void PylonLvInverter::setup(void) {  // Performs one time setup at startup over CAN bus
   strncpy(datalayer.system.info.inverter_protocol, "Pylontech LV battery over CAN bus", 63);
   datalayer.system.info.inverter_protocol[63] = '\0';
 }
