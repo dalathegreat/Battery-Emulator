@@ -239,11 +239,11 @@
 #define ARDUINOJSON_BIN2ALPHA_1111() P
 #define ARDUINOJSON_BIN2ALPHA_(A, B, C, D) ARDUINOJSON_BIN2ALPHA_##A##B##C##D()
 #define ARDUINOJSON_BIN2ALPHA(A, B, C, D) ARDUINOJSON_BIN2ALPHA_(A, B, C, D)
-#define ARDUINOJSON_VERSION "7.3.1"
+#define ARDUINOJSON_VERSION "7.4.1"
 #define ARDUINOJSON_VERSION_MAJOR 7
-#define ARDUINOJSON_VERSION_MINOR 3
+#define ARDUINOJSON_VERSION_MINOR 4
 #define ARDUINOJSON_VERSION_REVISION 1
-#define ARDUINOJSON_VERSION_MACRO V731
+#define ARDUINOJSON_VERSION_MACRO V741
 #ifndef ARDUINOJSON_VERSION_NAMESPACE
 #  define ARDUINOJSON_VERSION_NAMESPACE                               \
     ARDUINOJSON_CONCAT5(                                              \
@@ -1012,6 +1012,14 @@ class RamString {
 };
 template <typename TChar>
 struct StringAdapter<TChar*, enable_if_t<IsChar<TChar>::value>> {
+  using AdaptedString = RamString;
+  static AdaptedString adapt(const TChar* p) {
+    auto str = reinterpret_cast<const char*>(p);
+    return AdaptedString(str, str ? ::strlen(str) : 0);
+  }
+};
+template <typename TChar>
+struct StringAdapter<TChar[], enable_if_t<IsChar<TChar>::value>> {
   using AdaptedString = RamString;
   static AdaptedString adapt(const TChar* p) {
     auto str = reinterpret_cast<const char*>(p);
@@ -2004,8 +2012,9 @@ ARDUINOJSON_END_PUBLIC_NAMESPACE
 ARDUINOJSON_BEGIN_PRIVATE_NAMESPACE
 class ObjectData : public CollectionData {
  public:
-  template <typename TAdaptedString>  // also works with StringNode*
+  template <typename TAdaptedString>
   VariantData* addMember(TAdaptedString key, ResourceManager* resources);
+  VariantData* addPair(VariantData** value, ResourceManager* resources);
   template <typename TAdaptedString>
   VariantData* getOrAddMember(TAdaptedString key, ResourceManager* resources);
   template <typename TAdaptedString>
@@ -2058,6 +2067,7 @@ enum class VariantTypeBits : uint8_t {
 };
 enum class VariantType : uint8_t {
   Null = 0,             // 0000 0000
+  TinyString = 0x02,    // 0000 0010
   RawString = 0x03,     // 0000 0011
   LinkedString = 0x04,  // 0000 0100
   OwnedString = 0x05,   // 0000 0101
@@ -2078,6 +2088,7 @@ enum class VariantType : uint8_t {
 inline bool operator&(VariantType type, VariantTypeBits bit) {
   return (uint8_t(type) & uint8_t(bit)) != 0;
 }
+const size_t tinyStringMaxLength = 3;
 union VariantContent {
   VariantContent() {}
   float asFloat;
@@ -2092,6 +2103,7 @@ union VariantContent {
   CollectionData asCollection;
   const char* asLinkedString;
   struct StringNode* asOwnedString;
+  char asTinyString[tinyStringMaxLength + 1];
 };
 #if ARDUINOJSON_USE_EXTENSIONS
 union VariantExtension {
@@ -2106,6 +2118,15 @@ union VariantExtension {
 #endif
 template <typename T>
 T parseNumber(const char* s);
+template <typename T>
+static bool isTinyString(const T& s, size_t n) {
+  if (n > tinyStringMaxLength)
+    return false;
+  bool containsNul = false;
+  for (uint8_t i = 0; i < uint8_t(n); i++)
+    containsNul |= !s[i];
+  return !containsNul;
+}
 class VariantData {
   VariantContent content_;  // must be first to allow cast from array to variant
   VariantType type_;
@@ -2141,6 +2162,8 @@ class VariantData {
         return visit.visit(content_.asArray);
       case VariantType::Object:
         return visit.visit(content_.asObject);
+      case VariantType::TinyString:
+        return visit.visit(JsonString(content_.asTinyString));
       case VariantType::LinkedString:
         return visit.visit(JsonString(content_.asLinkedString, true));
       case VariantType::OwnedString:
@@ -2258,6 +2281,9 @@ class VariantData {
       case VariantType::Int64:
         return static_cast<T>(extension->asInt64);
 #endif
+      case VariantType::TinyString:
+        str = content_.asTinyString;
+        break;
       case VariantType::LinkedString:
         str = content_.asLinkedString;
         break;
@@ -2298,6 +2324,9 @@ class VariantData {
       case VariantType::Int64:
         return convertNumber<T>(extension->asInt64);
 #endif
+      case VariantType::TinyString:
+        str = content_.asTinyString;
+        break;
       case VariantType::LinkedString:
         str = content_.asLinkedString;
         break;
@@ -2333,6 +2362,8 @@ class VariantData {
   }
   JsonString asString() const {
     switch (type_) {
+      case VariantType::TinyString:
+        return JsonString(content_.asTinyString);
       case VariantType::LinkedString:
         return JsonString(content_.asLinkedString, true);
       case VariantType::OwnedString:
@@ -2427,7 +2458,8 @@ class VariantData {
   }
   bool isString() const {
     return type_ == VariantType::LinkedString ||
-           type_ == VariantType::OwnedString;
+           type_ == VariantType::OwnedString ||
+           type_ == VariantType::TinyString;
   }
   size_t nesting(const ResourceManager* resources) const {
     auto collection = asCollection();
@@ -2503,10 +2535,6 @@ class VariantData {
   }
   template <typename TAdaptedString>
   bool setString(TAdaptedString value, ResourceManager* resources);
-  bool setString(StringNode* s, ResourceManager*) {
-    setOwnedString(s);
-    return true;
-  }
   template <typename TAdaptedString>
   static void setString(VariantData* var, TAdaptedString value,
                         ResourceManager* resources) {
@@ -2520,6 +2548,19 @@ class VariantData {
     ARDUINOJSON_ASSERT(s);
     type_ = VariantType::LinkedString;
     content_.asLinkedString = s;
+  }
+  template <typename TAdaptedString>
+  void setTinyString(const TAdaptedString& s) {
+    ARDUINOJSON_ASSERT(type_ == VariantType::Null);  // must call clear() first
+    ARDUINOJSON_ASSERT(s.size() <= tinyStringMaxLength);
+    type_ = VariantType::TinyString;
+    auto n = uint8_t(s.size());
+    for (uint8_t i = 0; i < n; i++) {
+      char c = s[i];
+      ARDUINOJSON_ASSERT(c != 0);  // no NUL in tiny string
+      content_.asTinyString[i] = c;
+    }
+    content_.asTinyString[n] = 0;
   }
   void setOwnedString(StringNode* s) {
     ARDUINOJSON_ASSERT(type_ == VariantType::Null);  // must call clear() first
@@ -4824,6 +4865,18 @@ inline VariantData* ObjectData::addMember(TAdaptedString key,
   CollectionData::appendPair(keySlot, valueSlot, resources);
   return valueSlot.ptr();
 }
+inline VariantData* ObjectData::addPair(VariantData** value,
+                                        ResourceManager* resources) {
+  auto keySlot = resources->allocVariant();
+  if (!keySlot)
+    return nullptr;
+  auto valueSlot = resources->allocVariant();
+  if (!valueSlot)
+    return nullptr;
+  *value = valueSlot.ptr();
+  CollectionData::appendPair(keySlot, valueSlot, resources);
+  return keySlot.ptr();
+}
 constexpr size_t sizeofObject(size_t n) {
   return 2 * n * ResourceManager::slotSize;
 }
@@ -5370,10 +5423,16 @@ class StringBuilder {
     if (!node_)
       node_ = resources_->createString(initialCapacity);
   }
-  StringNode* save() {
+  void save(VariantData* variant) {
+    ARDUINOJSON_ASSERT(variant != nullptr);
     ARDUINOJSON_ASSERT(node_ != nullptr);
-    node_->data[size_] = 0;
-    StringNode* node = resources_->getString(adaptString(node_->data, size_));
+    char* p = node_->data;
+    if (isTinyString(p, size_)) {
+      variant->setTinyString(adaptString(p, size_));
+      return;
+    }
+    p[size_] = 0;
+    StringNode* node = resources_->getString(adaptString(p, size_));
     if (!node) {
       node = resources_->resizeString(node_, size_);
       ARDUINOJSON_ASSERT(node != nullptr);  // realloc to smaller can't fail
@@ -5382,7 +5441,7 @@ class StringBuilder {
     } else {
       node->references++;
     }
-    return node;
+    variant->setOwnedString(node);
   }
   void append(const char* s) {
     while (*s)
@@ -5595,9 +5654,9 @@ class StringBuilderPrint : public Print {
   StringBuilderPrint(ResourceManager* resources) : copier_(resources) {
     copier_.startString();
   }
-  StringNode* save() {
+  void save(VariantData* data) {
     ARDUINOJSON_ASSERT(!overflowed());
-    return copier_.save();
+    copier_.save(data);
   }
   size_t write(uint8_t c) {
     copier_.append(char(c));
@@ -5628,7 +5687,7 @@ inline void convertToJson(const ::Printable& src, JsonVariant dst) {
   src.printTo(print);
   if (print.overflowed())
     return;
-  data->setOwnedString(print.save());
+  print.save(data);
 }
 #endif
 #if ARDUINOJSON_ENABLE_ARDUINO_STRING
@@ -5772,6 +5831,10 @@ inline bool VariantData::setString(TAdaptedString value,
     return false;
   if (value.isStatic()) {
     setLinkedString(value.data());
+    return true;
+  }
+  if (isTinyString(value, value.size())) {
+    setTinyString(value);
     return true;
   }
   auto dup = resources->saveString(value);
@@ -6895,10 +6958,10 @@ class JsonDeserializer {
       if (memberFilter.allow()) {
         auto member = object.getMember(adaptString(key), resources_);
         if (!member) {
-          auto savedKey = stringBuilder_.save();
-          member = object.addMember(savedKey, resources_);
-          if (!member)
+          auto keyVariant = object.addPair(&member, resources_);
+          if (!keyVariant)
             return DeserializationError::NoMemory;
+          stringBuilder_.save(keyVariant);
         } else {
           member->clear(resources_);
         }
@@ -6972,7 +7035,7 @@ class JsonDeserializer {
     err = parseQuotedString();
     if (err)
       return err;
-    variant.setOwnedString(stringBuilder_.save());
+    stringBuilder_.save(&variant);
     return DeserializationError::Ok;
   }
   DeserializationError::Code parseQuotedString() {
@@ -7424,7 +7487,23 @@ class StringBuffer {
     node_->data[capacity] = 0;  // null-terminate the string
     return node_->data;
   }
-  StringNode* save() {
+  JsonString str() const {
+    ARDUINOJSON_ASSERT(node_ != nullptr);
+    return JsonString(node_->data, node_->length);
+  }
+  void save(VariantData* data) {
+    ARDUINOJSON_ASSERT(node_ != nullptr);
+    const char* s = node_->data;
+    if (isTinyString(s, size_))
+      data->setTinyString(adaptString(s, size_));
+    else
+      data->setOwnedString(commitStringNode());
+  }
+  void saveRaw(VariantData* data) {
+    data->setRawString(commitStringNode());
+  }
+ private:
+  StringNode* commitStringNode() {
     ARDUINOJSON_ASSERT(node_ != nullptr);
     node_->data[size_] = 0;
     auto node = resources_->getString(adaptString(node_->data, size_));
@@ -7442,11 +7521,6 @@ class StringBuffer {
     resources_->saveString(node);
     return node;
   }
-  JsonString str() const {
-    ARDUINOJSON_ASSERT(node_ != nullptr);
-    return JsonString(node_->data, node_->length);
-  }
- private:
   ResourceManager* resources_;
   StringNode* node_ = nullptr;
   size_t size_ = 0;
@@ -7716,7 +7790,7 @@ class MsgPackDeserializer {
     err = readString(n);
     if (err)
       return err;
-    variant->setOwnedString(stringBuffer_.save());
+    stringBuffer_.save(variant);
     return DeserializationError::Ok;
   }
   DeserializationError::Code readString(size_t n) {
@@ -7738,7 +7812,7 @@ class MsgPackDeserializer {
     auto err = readBytes(p + headerSize, n);
     if (err)
       return err;
-    variant->setRawString(stringBuffer_.save());
+    stringBuffer_.saveRaw(variant);
     return DeserializationError::Ok;
   }
   template <typename TFilter>
@@ -7793,15 +7867,13 @@ class MsgPackDeserializer {
         return err;
       JsonString key = stringBuffer_.str();
       TFilter memberFilter = filter[key.c_str()];
-      VariantData* member;
+      VariantData* member = 0;
       if (memberFilter.allow()) {
         ARDUINOJSON_ASSERT(object != 0);
-        auto savedKey = stringBuffer_.save();
-        member = object->addMember(savedKey, resources_);
-        if (!member)
+        auto keyVariant = object->addPair(&member, resources_);
+        if (!keyVariant)
           return DeserializationError::NoMemory;
-      } else {
-        member = 0;
+        stringBuffer_.save(keyVariant);
       }
       err = parseVariant(member, memberFilter, nestingLimit.decrement());
       if (err)
