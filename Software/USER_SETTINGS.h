@@ -179,6 +179,7 @@ typedef struct {
   CAN_Interface charger;
   CAN_Interface shunt;
 } CAN_Configuration;
+extern const char* getCANInterfaceName(CAN_Interface interface);
 extern volatile CAN_Configuration can_config;
 extern volatile uint8_t AccessPointEnabled;
 extern const uint8_t wifi_channel;
