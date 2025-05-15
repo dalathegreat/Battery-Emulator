@@ -30,6 +30,7 @@ extern InverterProtocol* inverter;
 #include "SOLAX-CAN.h"
 #include "SUNGROW-CAN.h"
 
+// Call to initialize the build-time selected inverter. Safe to call even though inverter was not selected.
 void setup_inverter();
 
 #ifdef CAN_INVERTER_SELECTED
