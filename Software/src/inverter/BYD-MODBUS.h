@@ -2,8 +2,10 @@
 #define BYD_MODBUS_H
 #include "../include.h"
 
+#ifdef BYD_MODBUS
 #define MODBUS_INVERTER_SELECTED
 #define SELECTED_INVERTER_CLASS BydModbusInverter
+#endif
 
 #include "ModbusInverterProtocol.h"
 

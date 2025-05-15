@@ -1,9 +1,8 @@
-#include "../include.h"
-#ifdef BYD_MODBUS
+#include "BYD-MODBUS.h"
 #include "../datalayer/datalayer.h"
 #include "../devboard/utils/events.h"
+#include "../include.h"
 #include "../lib/eModbus-eModbus/scripts/mbServerFCs.h"
-#include "BYD-MODBUS.h"
 
 // For modbus register definitions, see https://gitlab.com/pelle8/inverter_resources/-/blob/main/byd_registers_modbus_rtu.md
 
@@ -166,5 +165,3 @@ void BydModbusInverter::setup(void) {  // Performs one time setup at startup ove
   // Start ModbusRTU background task
   MBserver.begin(Serial2, MODBUS_CORE);
 }
-
-#endif

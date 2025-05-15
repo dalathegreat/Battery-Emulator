@@ -5,8 +5,10 @@
 
 #include "Rs485InverterProtocol.h"
 
+#ifdef BYD_KOSTAL_RS485
 #define RS485_INVERTER_SELECTED
 #define SELECTED_INVERTER_CLASS KostalInverterProtocol
+#endif
 
 //#define DEBUG_KOSTAL_RS485_DATA  // Enable this line to get TX / RX printed out via logging
 //#define DEBUG_KOSTAL_RS485_DATA_USB  // Enable this line to get TX / RX printed out via USB

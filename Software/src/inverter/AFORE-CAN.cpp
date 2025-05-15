@@ -1,8 +1,7 @@
-#include "../include.h"
-#ifdef AFORE_CAN
+#include "AFORE-CAN.h"
 #include "../communication/can/comm_can.h"
 #include "../datalayer/datalayer.h"
-#include "AFORE-CAN.h"
+#include "../include.h"
 
 #define SOCMAX 100
 #define SOCMIN 1
@@ -175,4 +174,3 @@ void AforeCanInverter::setup(void) {  // Performs one time setup at startup over
   strncpy(datalayer.system.info.inverter_protocol, "Afore battery over CAN", 63);
   datalayer.system.info.inverter_protocol[63] = '\0';
 }
-#endif

@@ -1,8 +1,7 @@
-#include "../include.h"
-#ifdef BYD_CAN
+#include "BYD-CAN.h"
 #include "../communication/can/comm_can.h"
 #include "../datalayer/datalayer.h"
-#include "BYD-CAN.h"
+#include "../include.h"
 
 /* Do not change code below unless you are sure what you are doing */
 
@@ -175,4 +174,3 @@ void BydCanInverter::setup(void) {  // Performs one time setup at startup over C
   strncpy(datalayer.system.info.inverter_protocol, "BYD Battery-Box Premium HVS over CAN Bus", 63);
   datalayer.system.info.inverter_protocol[63] = '\0';
 }
-#endif

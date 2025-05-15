@@ -4,17 +4,16 @@
 
 #include "CanInverterProtocol.h"
 
+#ifdef FERROAMP_CAN
 #define CAN_INVERTER_SELECTED
 #define SELECTED_INVERTER_CLASS FerroampCanInverter
+#endif
 
 class FerroampCanInverter : public CanInverterProtocol {
  public:
   void setup();
-
   void update_values();
-
   void transmit_can(unsigned long currentMillis);
-
   void map_can_frame_to_variable(CAN_frame rx_frame);
 
  private:
@@ -27,13 +26,13 @@ class FerroampCanInverter : public CanInverterProtocol {
                                //useful for some inverters like Sofar that report the voltages incorrect otherwise
 #define SET_30K_OFFSET         //If defined, current values are sent with a 30k offest (useful for ferroamp)
 
-/* Some inverters need to see a specific amount of cells/modules to emulate a specific Pylon battery.
+  /* Some inverters need to see a specific amount of cells/modules to emulate a specific Pylon battery.
 Change the following only if your inverter is generating fault codes about voltage range */
-#define TOTAL_CELL_AMOUNT 120  //Adjust this parameter in steps of 120 to add another 14,2kWh of capacity
-#define MODULES_IN_SERIES 4
-#define CELLS_PER_MODULE 30
-#define VOLTAGE_LEVEL 384
-#define AH_CAPACITY 37
+  static const int TOTAL_CELL_AMOUNT = 120;  //Adjust this parameter in steps of 120 to add another 14,2kWh of capacity
+  static const int MODULES_IN_SERIES = 4;
+  static const int CELLS_PER_MODULE = 30;
+  static const int VOLTAGE_LEVEL = 384;
+  static const int AH_CAPACITY = 37;
 
   //Actual content messages
   CAN_frame PYLON_7310 = {.FD = false,

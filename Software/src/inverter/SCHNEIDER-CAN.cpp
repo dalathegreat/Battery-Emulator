@@ -1,7 +1,7 @@
-#include "../include.h"
-#ifdef SCHNEIDER_CAN
-#include "../datalayer/datalayer.h"
 #include "SCHNEIDER-CAN.h"
+#include "../communication/can/comm_can.h"
+#include "../datalayer/datalayer.h"
+#include "../include.h"
 
 /* Version 2: SE BMS Communication Protocol 
 Protocol: CAN 2.0 Specification
@@ -16,78 +16,8 @@ Endian: Big Endian (MSB, most significant byte of a value received first)*/
   - We will need CAN logs from existing battery OR contact Schneider for one free number
 */
 
-/* Do not change code below unless you are sure what you are doing */
-static unsigned long previousMillis10s = 0;    // will store last time a 10s CAN Message was send
-static unsigned long previousMillis2s = 0;     // will store last time a 2s CAN Message was send
-static unsigned long previousMillis500ms = 0;  // will store last time a 500ms CAN Message was send
-
-CAN_frame SE_320 = {.FD = false,  //SE BMS Protocol Version
-                    .ext_ID = true,
-                    .DLC = 2,
-                    .ID = 0x320,
-                    .data = {0x00, 0x02}};  //TODO: How do we reply with Protocol Version: 0x0002 ?
-CAN_frame SE_321 = {.FD = false,
-                    .ext_ID = true,
-                    .DLC = 8,
-                    .ID = 0x321,
-                    .data = {0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00}};
-CAN_frame SE_322 = {.FD = false,
-                    .ext_ID = true,
-                    .DLC = 8,
-                    .ID = 0x322,
-                    .data = {0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00}};
-CAN_frame SE_323 = {.FD = false,
-                    .ext_ID = true,
-                    .DLC = 8,
-                    .ID = 0x323,
-                    .data = {0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00}};
-CAN_frame SE_324 = {.FD = false, .ext_ID = true, .DLC = 4, .ID = 0x324, .data = {0x00, 0x00, 0x00, 0x00}};
-CAN_frame SE_325 = {.FD = false, .ext_ID = true, .DLC = 6, .ID = 0x325, .data = {0x00, 0x00, 0x00, 0x00, 0x00, 0x00}};
-CAN_frame SE_326 = {.FD = false,
-                    .ext_ID = true,
-                    .DLC = 8,
-                    .ID = 0x326,
-                    .data = {0x00, STATE_STARTING, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00}};
-CAN_frame SE_327 = {.FD = false,
-                    .ext_ID = true,
-                    .DLC = 8,
-                    .ID = 0x327,
-                    .data = {0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00}};
-CAN_frame SE_328 = {.FD = false,
-                    .ext_ID = true,
-                    .DLC = 8,
-                    .ID = 0x328,
-                    .data = {0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00}};
-CAN_frame SE_330 = {.FD = false,
-                    .ext_ID = true,
-                    .DLC = 8,
-                    .ID = 0x330,
-                    .data = {0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00}};
-CAN_frame SE_331 = {.FD = false,
-                    .ext_ID = true,
-                    .DLC = 8,
-                    .ID = 0x331,
-                    .data = {0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00}};
-CAN_frame SE_332 = {.FD = false,
-                    .ext_ID = true,
-                    .DLC = 8,
-                    .ID = 0x332,
-                    .data = {0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00}};
-CAN_frame SE_333 = {.FD = false,
-                    .ext_ID = true,
-                    .DLC = 8,
-                    .ID = 0x333,
-                    .data = {0x53, 0x45, 0x42, 0x4D, 0x53, 0x00, 0x00, 0x00}};  //SEBMS
-
-static int16_t temperature_average = 0;
-static uint16_t remaining_capacity_ah = 0;
-static uint16_t fully_charged_capacity_ah = 0;
-static uint16_t commands = 0;
-static uint16_t warnings = 0;
-static uint16_t faults = 0;
-static uint16_t state = 0;
-
-void update_values_can_inverter() {  //This function maps all the values fetched from battery CAN to the correct CAN messages
+void SchneiderInverter::
+    update_values() {  //This function maps all the values fetched from battery CAN to the correct CAN messages
 
   /* Calculate temperature */
   temperature_average =
@@ -255,7 +185,7 @@ void update_values_can_inverter() {  //This function maps all the values fetched
   SE_320.data.u8[1] = 0x02;
 }
 
-void map_can_frame_to_variable_inverter(CAN_frame rx_frame) {
+void SchneiderInverter::map_can_frame_to_variable(CAN_frame rx_frame) {
   switch (rx_frame.ID) {
     case 0x310:  // Still alive message from inverter, every 1s
       datalayer.system.status.CAN_inverter_still_alive = CAN_STILL_ALIVE;
@@ -265,7 +195,7 @@ void map_can_frame_to_variable_inverter(CAN_frame rx_frame) {
   }
 }
 
-void transmit_can_inverter(unsigned long currentMillis) {
+void SchneiderInverter::transmit_can(unsigned long currentMillis) {
 
   // Send 500ms CAN Message
   if (currentMillis - previousMillis500ms >= INTERVAL_500_MS) {
@@ -296,9 +226,7 @@ void transmit_can_inverter(unsigned long currentMillis) {
   }
 }
 
-void setup_inverter(void) {  // Performs one time setup
+void SchneiderInverter::setup(void) {  // Performs one time setup
   strncpy(datalayer.system.info.inverter_protocol, "Schneider V2 SE BMS CAN", 63);
   datalayer.system.info.inverter_protocol[63] = '\0';
 }
-
-#endif

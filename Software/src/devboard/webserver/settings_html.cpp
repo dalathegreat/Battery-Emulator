@@ -39,13 +39,10 @@ String settings_processor(const String& var) {
                String(getCANInterfaceName(can_config.battery_double)) + "</span></h4>";
 #endif  // DOUBLE_BATTERY
 
-#ifdef CAN_INVERTER_SELECTED
-    content += "<h4 style='color: white;'>Inverter interface: <span id='Inverter'>" +
-               String(getCANInterfaceName(can_config.inverter)) + "</span></h4>";
-#endif  //CAN_INVERTER_SELECTED
-#ifdef MODBUS_INVERTER_SELECTED
-    content += "<h4 style='color: white;'>Inverter interface: RS485<span id='Inverter'></span></h4>";
-#endif
+    if (inverter) {
+      content += "<h4 style='color: white;'>Inverter interface: <span id='Inverter'>" +
+                 String(inverter->interface_name()) + "</span></h4>";
+    }
 
 #ifdef CAN_SHUNT_SELECTED
     content += "<h4 style='color: white;'>Shunt Interface: <span id='Shunt'>" +
