@@ -30,9 +30,7 @@ void setup_battery() {
         new SELECTED_BATTERY_CLASS(&datalayer.battery2, &datalayer.system.status.battery2_allows_contactor_closing,
                                    can_config.battery_double, WUP_PIN2);
 #else
-    battery2 =
-        new SELECTED_BATTERY_CLASS(&datalayer.battery2, &datalayer.system.status.battery2_allows_contactor_closing,
-                                   nullptr, can_config.battery_double);
+    battery2 = new SELECTED_BATTERY_CLASS(&datalayer.battery2, nullptr, can_config.battery_double);
 #endif
   }
   battery2->setup();
