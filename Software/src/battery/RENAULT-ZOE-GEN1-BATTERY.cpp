@@ -1,6 +1,7 @@
 #include "../include.h"
 #ifdef RENAULT_ZOE_GEN1_BATTERY
 #include "../datalayer/datalayer.h"
+#include "../datalayer/datalayer_extended.h"
 #include "../devboard/utils/events.h"
 #include "RENAULT-ZOE-GEN1-BATTERY.h"
 
@@ -29,6 +30,14 @@ static uint16_t LB_Cell_maximum_voltage = 3700;
 static uint16_t LB_kWh_Remaining = 0;
 static uint16_t LB_Battery_Voltage = 3700;
 static uint8_t LB_Heartbeat = 0;
+static uint8_t LB_CUV = 0;
+static uint8_t LB_HVBIR = 0;
+static uint8_t LB_HVBUV = 0;
+static uint8_t LB_EOCR = 0;
+static uint8_t LB_HVBOC = 0;
+static uint8_t LB_HVBOT = 0;
+static uint8_t LB_HVBOV = 0;
+static uint8_t LB_COV = 0;
 static uint8_t frame0 = 0;
 static uint8_t current_poll = 0;
 static uint8_t requested_poll = 0;
@@ -123,6 +132,16 @@ void RenaultZoeGen1Battery::
   datalayer.battery.status.cell_min_voltage_mV = LB_Cell_minimum_voltage;
   datalayer.battery.status.cell_max_voltage_mV = LB_Cell_maximum_voltage;
   datalayer.battery.status.voltage_dV = static_cast<uint32_t>((calculated_total_pack_voltage_mV / 100));  // mV to dV
+
+  //Update extended datalayer
+  datalayer_extended.zoe.CUV = LB_CUV;
+  datalayer_extended.zoe.HVBIR = LB_HVBIR;
+  datalayer_extended.zoe.HVBUV = LB_HVBUV;
+  datalayer_extended.zoe.EOCR = LB_EOCR;
+  datalayer_extended.zoe.HVBOC = LB_HVBOC;
+  datalayer_extended.zoe.HVBOT = LB_HVBOT;
+  datalayer_extended.zoe.HVBOV = LB_HVBOV;
+  datalayer_extended.zoe.COV = LB_COV;
 }
 
 void RenaultZoeGen1Battery::handle_incoming_can_frame(CAN_frame rx_frame) {
@@ -141,6 +160,14 @@ void RenaultZoeGen1Battery::handle_incoming_can_frame(CAN_frame rx_frame) {
       break;
     case 0x424:  //100ms - Charge limits, Temperatures, SOH - Confirmed sent by: Fluence ZE40, Zoe 22/41kWh, Kangoo 33kWh
       datalayer.battery.status.CAN_battery_still_alive = CAN_STILL_ALIVE;
+      LB_CUV = (rx_frame.data.u8[0] & 0x03);
+      LB_HVBIR = (rx_frame.data.u8[0] & 0x0C) >> 2;
+      LB_HVBUV = (rx_frame.data.u8[0] & 0x30) >> 4;
+      LB_EOCR = (rx_frame.data.u8[0] & 0xC0) >> 6;
+      LB_HVBOC = (rx_frame.data.u8[1] & 0x03);
+      LB_HVBOT = (rx_frame.data.u8[1] & 0x0C) >> 2;
+      LB_HVBOV = (rx_frame.data.u8[1] & 0x30) >> 4;
+      LB_COV = (rx_frame.data.u8[1] & 0xC0) >> 6;
       LB_Regen_allowed_W = rx_frame.data.u8[2] * 500;
       LB_Discharge_allowed_W = rx_frame.data.u8[3] * 500;
       LB_Cell_minimum_temperature = (rx_frame.data.u8[4] - 40);
