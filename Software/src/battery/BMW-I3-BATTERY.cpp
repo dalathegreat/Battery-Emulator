@@ -1,10 +1,10 @@
+#include "../include.h"
 #ifdef BMW_I3_BATTERY
-#include "BMW-I3-BATTERY.h"
 #include "../communication/can/comm_can.h"
 #include "../datalayer/datalayer.h"
 #include "../datalayer/datalayer_extended.h"
 #include "../devboard/utils/events.h"
-#include "../include.h"
+#include "BMW-I3-BATTERY.h"
 
 /* Do not change code below unless you are sure what you are doing */
 
