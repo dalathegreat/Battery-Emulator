@@ -10,7 +10,7 @@ void transmit_can_frame(CAN_frame* tx_frame, int interface);
 https://github.com/openvehicles/Open-Vehicle-Monitoring-System-3/blob/master/vehicle/OVMS.V3/components/vehicle_renaultzoe/src/vehicle_renaultzoe.cpp
 The Zoe BMS apparently does not send total pack voltage, so we use the polled 96x cellvoltages summed up as total voltage
 Still TODO:
-- Automatically detect if we are on 22 or 41kWh battery (Nice to have, requires log file from 22kWh battery)
+- Automatically detect what vehicle and battery size we are on (Zoe 22/41 , Kangoo 33, Fluence ZE 22/36)
 /*
 
 /* Do not change code below unless you are sure what you are doing */
@@ -127,22 +127,19 @@ void RenaultZoeGen1Battery::
 
 void RenaultZoeGen1Battery::handle_incoming_can_frame(CAN_frame rx_frame) {
   switch (rx_frame.ID) {
-    case 0x155:  //10ms - Charging power, current and SOC
+    case 0x155:  //10ms - Charging power, current and SOC - Confirmed sent by: Fluence ZE40, Zoe 22/41kWh, Kangoo 33kWh
       datalayer.battery.status.CAN_battery_still_alive = CAN_STILL_ALIVE;
       LB_Charging_Power_W = rx_frame.data.u8[0] * 300;
       LB_Current = (((((rx_frame.data.u8[1] & 0x0F) << 8) | rx_frame.data.u8[2]) * 0.25) - 500);
       LB_Display_SOC = ((rx_frame.data.u8[4] << 8) | rx_frame.data.u8[5]);
       break;
-    case 0x427:  // NOTE: Not present on 41kWh battery!
-      datalayer.battery.status.CAN_battery_still_alive = CAN_STILL_ALIVE;
-      LB_kWh_Remaining = (((((rx_frame.data.u8[6] << 8) | (rx_frame.data.u8[7])) >> 6) & 0x3ff) * 0.1);
-      break;
+
     case 0x42E:  //NOTE: Not present on 41kWh battery!
       datalayer.battery.status.CAN_battery_still_alive = CAN_STILL_ALIVE;
       LB_Battery_Voltage = (((((rx_frame.data.u8[3] << 8) | (rx_frame.data.u8[4])) >> 5) & 0x3ff) * 0.5);  //0.5V/bit
       LB_Average_Temperature = (((((rx_frame.data.u8[5] << 8) | (rx_frame.data.u8[6])) >> 5) & 0x7F) - 40);
       break;
-    case 0x424:  //100ms - Charge limits, Temperatures, SOH
+    case 0x424:  //100ms - Charge limits, Temperatures, SOH - Confirmed sent by: Fluence ZE40, Zoe 22/41kWh, Kangoo 33kWh
       datalayer.battery.status.CAN_battery_still_alive = CAN_STILL_ALIVE;
       LB_Regen_allowed_W = rx_frame.data.u8[2] * 500;
       LB_Discharge_allowed_W = rx_frame.data.u8[3] * 500;
@@ -151,14 +148,17 @@ void RenaultZoeGen1Battery::handle_incoming_can_frame(CAN_frame rx_frame) {
       LB_Heartbeat = rx_frame.data.u8[6];  // Alternates between 0x55 and 0xAA every 500ms (Same as on Nissan LEAF)
       LB_Cell_maximum_temperature = (rx_frame.data.u8[7] - 40);
       break;
-    case 0x425:  //100ms Cellvoltages and kWh remaining
+    case 0x425:  //100ms Cellvoltages and kWh remaining - Confirmed sent by: Fluence ZE40
       datalayer.battery.status.CAN_battery_still_alive = CAN_STILL_ALIVE;
       LB_Cell_maximum_voltage = (((((rx_frame.data.u8[4] & 0x03) << 7) | (rx_frame.data.u8[5] >> 1)) * 10) + 1000);
       LB_Cell_minimum_voltage = (((((rx_frame.data.u8[6] & 0x01) << 8) | rx_frame.data.u8[7]) * 10) + 1000);
       break;
-    case 0x445:  //100ms
+    case 0x427:  // NOTE: Not present on 41kWh battery!
       datalayer.battery.status.CAN_battery_still_alive = CAN_STILL_ALIVE;
-      //Sent only? by 41kWh battery (potential use for detecting which generation we are on)
+      LB_kWh_Remaining = (((((rx_frame.data.u8[6] << 8) | (rx_frame.data.u8[7])) >> 6) & 0x3ff) * 0.1);
+      break;
+    case 0x445:  //100ms - Confirmed sent by: Fluence ZE40
+      datalayer.battery.status.CAN_battery_still_alive = CAN_STILL_ALIVE;
       break;
     case 0x4AE:  //3000ms
       datalayer.battery.status.CAN_battery_still_alive = CAN_STILL_ALIVE;
@@ -176,9 +176,8 @@ void RenaultZoeGen1Battery::handle_incoming_can_frame(CAN_frame rx_frame) {
       datalayer.battery.status.CAN_battery_still_alive = CAN_STILL_ALIVE;
       //LB_SOH = (rx_frame.data.u8[4] & 0x7F);
       break;
-    case 0x659:  //3000ms
+    case 0x659:  //3000ms - Confirmed sent by: Fluence ZE40
       datalayer.battery.status.CAN_battery_still_alive = CAN_STILL_ALIVE;
-      //Sent only? by 41kWh battery (potential use for detecting which generation we are on)
       break;
     case 0x7BB:  //Reply from active polling
       frame0 = rx_frame.data.u8[0];
