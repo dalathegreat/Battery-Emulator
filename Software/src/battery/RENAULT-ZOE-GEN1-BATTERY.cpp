@@ -24,6 +24,8 @@ static uint32_t LB_Discharge_allowed_W = 0;
 static int16_t LB_Current = 0;
 static int16_t LB_Cell_minimum_temperature = 0;
 static int16_t LB_Cell_maximum_temperature = 0;
+static uint16_t LB_Cell_minimum_voltage = 3700;
+static uint16_t LB_Cell_maximum_voltage = 3700;
 static uint16_t LB_kWh_Remaining = 0;
 static uint16_t LB_Battery_Voltage = 3700;
 static uint8_t LB_Heartbeat = 0;
@@ -110,30 +112,16 @@ void RenaultZoeGen1Battery::
   //Map all cell voltages to the global array
   memcpy(datalayer.battery.status.cell_voltages_mV, cellvoltages, 96 * sizeof(uint16_t));
 
-  // Initialize min and max, lets find which cells are min and max!
-  uint16_t min_cell_mv_value = std::numeric_limits<uint16_t>::max();
-  uint16_t max_cell_mv_value = 0;
-  calculated_total_pack_voltage_mV =
-      datalayer.battery.status.cell_voltages_mV
-          [0];  // cell96 issue, this value should be initialized to 0, but for now it is initialized to cell0
-  // Loop to find the min and max while ignoring zero values
-  for (uint8_t i = 0; i < datalayer.battery.info.number_of_cells; ++i) {
-    uint16_t voltage_mV = datalayer.battery.status.cell_voltages_mV[i];
-    calculated_total_pack_voltage_mV += voltage_mV;
-    if (voltage_mV != 0) {  // Skip unread values (0)
-      min_cell_mv_value = std::min(min_cell_mv_value, voltage_mV);
-      max_cell_mv_value = std::max(max_cell_mv_value, voltage_mV);
+  // Calculate total pack voltage on packs that require this. Only calculate once all cellvotages have been read
+  if (datalayer.battery.status.cell_voltages_mV[95] > 0) {
+    calculated_total_pack_voltage_mV = datalayer.battery.status.cell_voltages_mV[0];
+    for (uint8_t i = 0; i < datalayer.battery.info.number_of_cells; ++i) {
+      calculated_total_pack_voltage_mV += datalayer.battery.status.cell_voltages_mV[i];
     }
   }
-  // If all array values are 0, reset min/max to 3700
-  if (min_cell_mv_value == std::numeric_limits<uint16_t>::max()) {
-    min_cell_mv_value = 3700;
-    max_cell_mv_value = 3700;
-    calculated_total_pack_voltage_mV = 370000;
-  }
 
-  datalayer.battery.status.cell_min_voltage_mV = min_cell_mv_value;
-  datalayer.battery.status.cell_max_voltage_mV = max_cell_mv_value;
+  datalayer.battery.status.cell_min_voltage_mV = LB_Cell_minimum_voltage;
+  datalayer.battery.status.cell_max_voltage_mV = LB_Cell_maximum_voltage;
   datalayer.battery.status.voltage_dV = static_cast<uint32_t>((calculated_total_pack_voltage_mV / 100));  // mV to dV
 }
 
@@ -163,9 +151,10 @@ void RenaultZoeGen1Battery::handle_incoming_can_frame(CAN_frame rx_frame) {
       LB_Heartbeat = rx_frame.data.u8[6];  // Alternates between 0x55 and 0xAA every 500ms (Same as on Nissan LEAF)
       LB_Cell_maximum_temperature = (rx_frame.data.u8[7] - 40);
       break;
-    case 0x425:  //100ms Unknown content
+    case 0x425:  //100ms Cellvoltages and kWh remaining
       datalayer.battery.status.CAN_battery_still_alive = CAN_STILL_ALIVE;
-      //Sent only? by 41kWh battery
+      LB_Cell_maximum_voltage = (((((rx_frame.data.u8[4] & 0x03) << 7) | (rx_frame.data.u8[5] >> 1)) * 10) + 1000);
+      LB_Cell_minimum_voltage = (((((rx_frame.data.u8[6] & 0x01) << 8) | rx_frame.data.u8[7]) * 10) + 1000);
       break;
     case 0x445:  //100ms
       datalayer.battery.status.CAN_battery_still_alive = CAN_STILL_ALIVE;
