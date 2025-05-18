@@ -34,7 +34,7 @@ void setup_battery() {
     battery2 = new SELECTED_BATTERY_CLASS(&datalayer.battery2, &datalayer_extended.KiaHyundai64_2,
                                           &datalayer.system.status.battery2_allowed_contactor_closing,
                                           can_config.battery_double);
-#elif defined(SANTA_FE_PHEV_BATTERY)
+#elif defined(SANTA_FE_PHEV_BATTERY) || defined(TEST_FAKE_BATTERY)
     battery2 = new SELECTED_BATTERY_CLASS(&datalayer.battery2, can_config.battery_double);
 #else
     battery2 = new SELECTED_BATTERY_CLASS(&datalayer.battery2, nullptr, can_config.battery_double);
