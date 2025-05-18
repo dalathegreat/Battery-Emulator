@@ -1,5 +1,6 @@
 #include "../include.h"
 
+#include "../datalayer/datalayer_extended.h"
 #include "CanBattery.h"
 #include "RS485Battery.h"
 
@@ -25,10 +26,14 @@ void setup_battery() {
 
 #ifdef DOUBLE_BATTERY
   if (battery2 == nullptr) {
-#ifdef BMW_I3_BATTERY
+#if defined(BMW_I3_BATTERY)
     battery2 =
-        new SELECTED_BATTERY_CLASS(&datalayer.battery2, &datalayer.system.status.battery2_allows_contactor_closing,
+        new SELECTED_BATTERY_CLASS(&datalayer.battery2, &datalayer.system.status.battery2_allowed_contactor_closing,
                                    can_config.battery_double, WUP_PIN2);
+#elif defined(KIA_HYUNDAI_64_BATTERY)
+    battery2 = new SELECTED_BATTERY_CLASS(&datalayer.battery2, &datalayer_extended.KiaHyundai64_2,
+                                          &datalayer.system.status.battery2_allowed_contactor_closing,
+                                          can_config.battery_double);
 #else
     battery2 = new SELECTED_BATTERY_CLASS(&datalayer.battery2, nullptr, can_config.battery_double);
 #endif
