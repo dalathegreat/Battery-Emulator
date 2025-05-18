@@ -49,7 +49,7 @@ Start by watching this [quickstart guide](https://www.youtube.com/watch?v=hcl2Gd
 3. Click `File` menu -> `Preferences` -> `Additional Development` -> `Additional Board Manager URLs` -> Enter the URL in the input box: `https://raw.githubusercontent.com/espressif/arduino-esp32/gh-pages/package_esp32_index.json` and click OK.
 4. Click `Tools` menu -> `Board: "...."` -> `Boards Manager...`, install the `esp32` package by `Espressif Systems` (not `Arduino ESP32 Boards`), then press `Close`.
 
-**NOTE: The ESP32 version depends on which release of Battery-Emulator you are running! See the Release Notes for more info on which version to use**
+**NOTE: The ESP32 version depends on which release of Battery-Emulator you are running! See the [Release Notes](https://github.com/dalathegreat/Battery-Emulator/releases) for more info on which version to use with the current version (Suggested ESP32 version X.Y.Z)**
   
 ![bild](https://github.com/dalathegreat/Battery-Emulator/assets/26695010/6a2414b1-f2ca-4746-8e8d-9afd78bd9252)
 
