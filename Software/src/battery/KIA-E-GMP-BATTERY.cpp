@@ -1,13 +1,10 @@
 #include "../include.h"
 #ifdef KIA_E_GMP_BATTERY
+#include "../communication/can/comm_can.h"
 #include "../datalayer/datalayer.h"
 #include "../devboard/utils/events.h"
 #include "../lib/pierremolinaro-ACAN2517FD/ACAN2517FD.h"
 #include "KIA-E-GMP-BATTERY.h"
-
-/* Do not change code below unless you are sure what you are doing */
-static unsigned long previousMillis200ms = 0;  // will store last time a 200ms CAN Message was send
-static unsigned long previousMillis10s = 0;    // will store last time a 10s CAN Message was send
 
 const unsigned char crc8_table[256] =
     {  // CRC8_SAE_J1850_ZER0 formula,0x1D Poly,initial value 0x3F,Final XOR value varies
@@ -26,42 +23,6 @@ const unsigned char crc8_table[256] =
         0x10, 0x0D, 0x2A, 0x37, 0x64, 0x79, 0x5E, 0x43, 0xB2, 0xAF, 0x88, 0x95, 0xC6, 0xDB, 0xFC, 0xE1, 0x5A, 0x47,
         0x60, 0x7D, 0x2E, 0x33, 0x14, 0x09, 0x7F, 0x62, 0x45, 0x58, 0x0B, 0x16, 0x31, 0x2C, 0x97, 0x8A, 0xAD, 0xB0,
         0xE3, 0xFE, 0xD9, 0xC4};
-
-static uint16_t inverterVoltageFrameHigh = 0;
-static uint16_t inverterVoltage = 0;
-static uint16_t soc_calculated = 0;
-static uint16_t SOC_BMS = 0;
-static uint16_t SOC_Display = 0;
-static uint16_t SOC_estimated_lowest = 0;
-static uint16_t SOC_estimated_highest = 0;
-static uint16_t batterySOH = 1000;
-static uint16_t CellVoltMax_mV = 3700;
-static uint16_t CellVoltMin_mV = 3700;
-static uint16_t batteryVoltage = 6700;
-static int16_t leadAcidBatteryVoltage = 120;
-static int16_t batteryAmps = 0;
-static int16_t temperatureMax = 0;
-static int16_t temperatureMin = 0;
-static int16_t allowedDischargePower = 0;
-static int16_t allowedChargePower = 0;
-static int16_t poll_data_pid = 0;
-static uint8_t CellVmaxNo = 0;
-static uint8_t CellVminNo = 0;
-static uint8_t batteryManagementMode = 0;
-static uint8_t BMS_ign = 0;
-static uint8_t batteryRelay = 0;
-static uint8_t waterleakageSensor = 164;
-static bool startedUp = false;
-static bool ok_start_polling_battery = false;
-static uint8_t counter_200 = 0;
-static uint8_t KIA_7E4_COUNTER = 0x01;
-static int8_t temperature_water_inlet = 0;
-static int8_t powerRelayTemperature = 0;
-static int8_t heatertemp = 0;
-static bool set_voltage_limits = false;
-static uint8_t ticks_200ms_counter = 0;
-static uint8_t EGMP_1CF_counter = 0;
-static uint8_t EGMP_3XF_counter = 0;
 
 // Define the data points for %SOC depending on cell voltage
 const uint8_t numPoints = 100;
@@ -107,7 +68,7 @@ uint16_t estimateSOCFromCell(uint16_t cellVoltage) {
 }
 
 // Simplified version of the pack-based SOC estimation with compensation
-uint16_t estimateSOC(uint16_t packVoltage, uint16_t cellCount, int16_t currentAmps) {
+uint16_t KiaEGmpBattery::estimateSOC(uint16_t packVoltage, uint16_t cellCount, int16_t currentAmps) {
   // If cell count is still the default 192 but we haven't confirmed it yet
   if (!set_voltage_limits && cellCount == 192) {
     // Fall back to BMS-reported SOC while cell count is uncertain
@@ -695,7 +656,7 @@ void set_cell_voltages(CAN_frame rx_frame, int start, int length, int startCell)
   }
 }
 
-void set_voltage_minmax_limits() {
+void KiaEGmpBattery::set_voltage_minmax_limits() {
 
   uint8_t valid_cell_count = 0;
   for (int i = 0; i < MAX_AMOUNT_CELLS; ++i) {
@@ -729,7 +690,8 @@ static uint8_t calculateCRC(CAN_frame rx_frame, uint8_t length, uint8_t initial_
   return crc;
 }
 
-void update_values_battery() {  //This function maps all the values fetched via CAN to the correct parameters used for modbus
+void KiaEGmpBattery::
+    update_values() {  //This function maps all the values fetched via CAN to the correct parameters used for modbus
 
 #ifdef ESTIMATE_SOC_FROM_CELLVOLTAGE
   // Use the simplified pack-based SOC estimation with proper compensation
@@ -850,7 +812,7 @@ void update_values_battery() {  //This function maps all the values fetched via 
 #endif
 }
 
-void handle_incoming_can_frame_battery(CAN_frame rx_frame) {
+void KiaEGmpBattery::handle_incoming_can_frame(CAN_frame rx_frame) {
   startedUp = true;
   switch (rx_frame.ID) {
     case 0x055:
@@ -1082,7 +1044,7 @@ void handle_incoming_can_frame_battery(CAN_frame rx_frame) {
   }
 }
 
-void transmit_can_battery(unsigned long currentMillis) {
+void KiaEGmpBattery::transmit_can(unsigned long currentMillis) {
   if (startedUp) {
     //Send Contactor closing message loop
     // Check if we still have messages to send
@@ -1128,7 +1090,7 @@ void transmit_can_battery(unsigned long currentMillis) {
   }
 }
 
-void setup_battery(void) {  // Performs one time setup at startup
+void KiaEGmpBattery::setup(void) {  // Performs one time setup at startup
   strncpy(datalayer.system.info.battery_protocol, "Kia/Hyundai EGMP platform", 63);
   datalayer.system.info.battery_protocol[63] = '\0';
 
