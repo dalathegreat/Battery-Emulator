@@ -6,11 +6,13 @@
 #include "BMW-IX-BATTERY.h"
 
 /* Do not change code below unless you are sure what you are doing */
+static unsigned long previousMillis10 = 0;     // will store last time a 20ms CAN Message was send
 static unsigned long previousMillis20 = 0;     // will store last time a 20ms CAN Message was send
 static unsigned long previousMillis100 = 0;    // will store last time a 100ms CAN Message was send
 static unsigned long previousMillis200 = 0;    // will store last time a 200ms CAN Message was send
 static unsigned long previousMillis500 = 0;    // will store last time a 500ms CAN Message was send
 static unsigned long previousMillis640 = 0;    // will store last time a 600ms CAN Message was send
+static unsigned long previousMillis1000 = 0;   // will store last time a 600ms CAN Message was send
 static unsigned long previousMillis10000 = 0;  // will store last time a 10000ms CAN Message was send
 
 #define ALIVE_MAX_VALUE 14  // BMW CAN messages contain alive counter, goes from 0...14
@@ -18,6 +20,27 @@ static unsigned long previousMillis10000 = 0;  // will store last time a 10000ms
 enum CmdState { SOH, CELL_VOLTAGE_MINMAX, SOC, CELL_VOLTAGE_CELLNO, CELL_VOLTAGE_CELLNO_LAST };
 
 static CmdState cmdState = SOC;
+
+static bool battery_awake = false;
+
+bool contactorCloseReq = false;
+
+struct ContactorCloseRequestStruct {
+  bool previous;
+  bool present;
+} ContactorCloseRequest = {false, false};
+
+struct ContactorStateStruct {
+  bool closed;
+  bool open;
+};
+ContactorStateStruct ContactorState = {false, true};
+
+struct InverterContactorCloseRequestStruct {
+  bool previous;
+  bool present;
+};
+InverterContactorCloseRequestStruct InverterContactorCloseRequest = {false, false};
 
 /*
 SME output:
@@ -89,13 +112,17 @@ CAN_frame BMWiX_12B8D087 = {.FD = true,
                             .data = {0xFC, 0xFF}};  // 5000ms SME output - Static values
 */
 
-CAN_frame BMWiX_16E = {
-    .FD = true,
-    .ext_ID = false,
-    .DLC = 8,
-    .ID = 0x16E,
-    //  .data = {TODO:, TODO:, TODO: 0xC8 or 0xC9, 0xFF, TODO:, 0xC9, TODO:, TODO:, }
-};  // CCU output
+CAN_frame BMWiX_16E = {.FD = true,
+                       .ext_ID = false,
+                       .DLC = 8,
+                       .ID = 0x16E,
+                       .data = {0x00,  // Almost any possible number in 0x00 and 0xFF
+                                0xA0,  // Almost any possible number in 0xA0 and 0xAF
+                                0xC9, 0xFF,
+                                0x60,  // FIXME: find out what this value represents
+                                0xC9,
+                                0x3A,    // 0x3A to close contactors, 0x33 to open contactors
+                                0xF7}};  // 0xF7 to close contactors, 0xF0 to open contactors // CCU output.
 
 CAN_frame BMWiX_188 = {.FD = true,
                        .ext_ID = false,
@@ -127,12 +154,12 @@ CAN_frame BMWiX_21D = {
     //    .data = {TODO:, TODO:, TODO:, 0xFF, 0xFF, 0xFF, 0xFF, TODO:}
 };  // FIXME:(add transmitter node) output - request heating and air conditioning system 1
 
-CAN_frame BMWiX_276 = {
-    .FD = true,
-    .ext_ID = false,
-    .DLC = 8,
-    .ID = 0x276,
-    .data = {0xFF, 0xFF, 0xF0, 0xFF, 0xFF, 0xFF, 0xFF, 0xFC}};  // 5000ms BDC output - vehicle condition
+CAN_frame BMWiX_276 = {.FD = true,
+                       .ext_ID = false,
+                       .DLC = 8,
+                       .ID = 0x276,
+                       .data = {0xFF, 0xFF, 0xF0, 0xFF, 0xFF, 0xFF, 0xFF,
+                                0xFD}};  // BDC output - vehicle condition. Used for contactor closing
 
 CAN_frame BMWiX_2ED = {
     .FD = true,
@@ -228,8 +255,13 @@ CAN_frame BMWiX_510 = {
     .ext_ID = false,
     .DLC = 8,
     .ID = 0x510,
-    .data = {0x40, 0x10, 0x00, 0x00, 0x00, 0x80, 0x00,
-             0x00}};  // 100ms BDC output - Values change in car logs, these bytes are the most common
+    .data = {
+        0x40, 0x10,
+        0x04,  // 0x02 at contactor closing, afterwards 0x04 and 0x10, 0x00 to open contactors
+        0x00, 0x00,
+        0x80,  // 0x00 at start of contactor closing, changing to 0x80, afterwards 0x80
+        0x01,
+        0x00}};  // 100ms BDC output - Values change in car logs, these bytes are the most common. Used for contactor closing
 
 CAN_frame BMWiX_6D = {
     .FD = true,
@@ -420,8 +452,6 @@ CAN_frame BMWiX_6F4_CELL_TEMP = {.FD = true,
                                  .data = {0x07, 0x03, 0x22, 0xE5, 0xCA}};
 //Request Data CAN End
 
-static bool battery_awake = false;
-
 //Setup UDS values to poll for
 CAN_frame* UDS_REQUESTS100MS[] = {&BMWiX_6F4_REQUEST_CELL_TEMP,
                                   &BMWiX_6F4_REQUEST_SOC,
@@ -494,6 +524,9 @@ const unsigned long STALE_PERIOD =
 //End iX Intermediate vars
 
 static uint8_t current_cell_polled = 0;
+
+static uint16_t counter_10ms = 0;  // max 65535 --> 655.35 seconds
+static uint8_t counter_100ms = 0;  // max 255 --> 25.5 seconds
 
 // Function to check if a value has gone stale over a specified time period
 bool isStale(int16_t currentValue, uint16_t& lastValue, unsigned long& lastChangeTime) {
@@ -629,13 +662,53 @@ void update_values_battery() {  //This function maps all the values fetched via 
     datalayer.battery.info.min_cell_voltage_mV = MIN_CELL_VOLTAGE_MV;
   }
 }
+
 void handle_incoming_can_frame_battery(CAN_frame rx_frame) {
   battery_awake = true;
   switch (rx_frame.ID) {
-    case 0x112:
+    case 0x12B8D087:
+      datalayer.battery.status.CAN_battery_still_alive = CAN_STILL_ALIVE;
+      break;
+    case 0x1D2:
+      datalayer.battery.status.CAN_battery_still_alive = CAN_STILL_ALIVE;
+      break;
+    case 0x20B:
+      datalayer.battery.status.CAN_battery_still_alive = CAN_STILL_ALIVE;
+      break;
+    case 0x2E2:
+      datalayer.battery.status.CAN_battery_still_alive = CAN_STILL_ALIVE;
+      break;
+    case 0x31F:
+      datalayer.battery.status.CAN_battery_still_alive = CAN_STILL_ALIVE;
+      break;
+    case 0x3EA:
+      datalayer.battery.status.CAN_battery_still_alive = CAN_STILL_ALIVE;
+      break;
+    case 0x453:
+      datalayer.battery.status.CAN_battery_still_alive = CAN_STILL_ALIVE;
+      break;
+    case 0x486:
+      datalayer.battery.status.CAN_battery_still_alive = CAN_STILL_ALIVE;
+      break;
+    case 0x49C:
+      datalayer.battery.status.CAN_battery_still_alive = CAN_STILL_ALIVE;
+      break;
+    case 0x4A1:
+      datalayer.battery.status.CAN_battery_still_alive = CAN_STILL_ALIVE;
+      break;
+    case 0x4BB:
+      datalayer.battery.status.CAN_battery_still_alive = CAN_STILL_ALIVE;
+      break;
+    case 0x4D0:
+      datalayer.battery.status.CAN_battery_still_alive = CAN_STILL_ALIVE;
+      break;
+    case 0x507:
+      datalayer.battery.status.CAN_battery_still_alive = CAN_STILL_ALIVE;
+      break;
+    case 0x587:
+      datalayer.battery.status.CAN_battery_still_alive = CAN_STILL_ALIVE;
       break;
     case 0x607:  //SME responds to UDS requests on 0x607
-
       if (rx_frame.DLC > 6 && rx_frame.data.u8[0] == 0xF4 && rx_frame.data.u8[1] == 0x10 &&
           rx_frame.data.u8[2] == 0xE3 && rx_frame.data.u8[3] == 0x62 && rx_frame.data.u8[4] == 0xE5) {
         //First of multi frame data - Parse the first frame
@@ -785,7 +858,7 @@ void handle_incoming_can_frame_battery(CAN_frame rx_frame) {
             (rx_frame.data.u8[8] << 8 | rx_frame.data.u8[9]) == 10000) {  //Qualifier Invalid Mode - Request Reboot
 #ifdef DEBUG_LOG
           logging.println("Cell MinMax Qualifier Invalid - Requesting BMS Reset");
-#endif
+#endif  // DEBUG_LOG
           //set_event(EVENT_BATTERY_VALUE_UNAVAILABLE, (millis())); //Eventually need new Info level event type
           transmit_can_frame(&BMWiX_6F4_REQUEST_HARD_RESET, can_config.battery);
         } else {  //Only ingest values if they are not the 10V Error state
@@ -832,38 +905,94 @@ void handle_incoming_can_frame_battery(CAN_frame rx_frame) {
         battery_serial_number = strtoul(numberString, NULL, 10);
       }
       break;
+    case 0x7AB:
+      datalayer.battery.status.CAN_battery_still_alive = CAN_STILL_ALIVE;
+      break;
+    case 0x8F:
+      datalayer.battery.status.CAN_battery_still_alive = CAN_STILL_ALIVE;
+      break;
+    case 0xD0D087:
+      datalayer.battery.status.CAN_battery_still_alive = CAN_STILL_ALIVE;
+      break;
     default:
       break;
   }
 }
 
 void transmit_can_battery(unsigned long currentMillis) {
+  // We can always send CAN as the iX BMS will wake up on vehicle comms
+  if (currentMillis - previousMillis10 >= INTERVAL_10_MS) {
+    previousMillis10 = currentMillis;
+    ContactorCloseRequest.present = contactorCloseReq;
+    // Detect edge
+    if (ContactorCloseRequest.previous == false && ContactorCloseRequest.present == true) {
+      // Rising edge detected
+#ifdef DEBUG_LOG
+      logging.println("Rising edge detected. Resetting 10ms counter.");
+#endif                   // DEBUG_LOG
+      counter_10ms = 0;  // reset counter
+    } else if (ContactorCloseRequest.previous == true && ContactorCloseRequest.present == false) {
+      // Dropping edge detected
+#ifdef DEBUG_LOG
+      logging.println("Dropping edge detected. Resetting 10ms counter.");
+#endif                   // DEBUG_LOG
+      counter_10ms = 0;  // reset counter
+    }
+    ContactorCloseRequest.previous = ContactorCloseRequest.present;
+    HandleBmwIxCloseContactorsRequest(counter_10ms);
+    HandleBmwIxOpenContactorsRequest(counter_10ms);
+    counter_10ms++;
 
-  //if (battery_awake) { //We can always send CAN as the iX BMS will wake up on vehicle comms
+    // prevent counter overflow: 2^16-1 = 65535
+    if (counter_10ms == 65535) {
+      counter_10ms = 1;  // set to 1, to differentiate the counter being set to 0 by the functions above
+    }
+  }
   // Send 100ms CAN Message
   if (currentMillis - previousMillis100 >= INTERVAL_100_MS) {
     previousMillis100 = currentMillis;
+    HandleIncomingInverterRequest();
 
-    //Loop through and send a different UDS request each cycle
-    uds_req_id_counter = increment_uds_req_id_counter(uds_req_id_counter);
-    transmit_can_frame(UDS_REQUESTS100MS[uds_req_id_counter], can_config.battery);
+    //Loop through and send a different UDS request once the contactors are closed
+    if (contactorCloseReq == true &&
+        ContactorState.closed ==
+            true) {  // Do not send unless the contactors are requested to be closed and are closed, as sending these does not allow the contactors to close
+      uds_req_id_counter = increment_uds_req_id_counter(uds_req_id_counter);
+      transmit_can_frame(UDS_REQUESTS100MS[uds_req_id_counter],
+                         can_config.battery);  // FIXME: sending these does not allow the contactors to close
+    } else {  // FIXME: hotfix: If contactors are not requested to be closed, ensure the battery is reported as alive, even if no CAN messages are received
+      datalayer.battery.status.CAN_battery_still_alive = CAN_STILL_ALIVE;
+    }
+
+    // Keep contactors closed if needed
+    BmwIxKeepContactorsClosed(counter_100ms);
+    counter_100ms++;
+    if (counter_100ms == 140) {
+      counter_100ms = 0;  // reset counter every 14 seconds
+    }
 
     //Send SME Keep alive values 100ms
-    transmit_can_frame(&BMWiX_510, can_config.battery);
+    //transmit_can_frame(&BMWiX_510, can_config.battery);
   }
   // Send 200ms CAN Message
   if (currentMillis - previousMillis200 >= INTERVAL_200_MS) {
     previousMillis200 = currentMillis;
 
     //Send SME Keep alive values 200ms
-    BMWiX_C0.data.u8[0] = increment_C0_counter(BMWiX_C0.data.u8[0]);  //Keep Alive 1
-    transmit_can_frame(&BMWiX_C0, can_config.battery);
+    //BMWiX_C0.data.u8[0] = increment_C0_counter(BMWiX_C0.data.u8[0]);  //Keep Alive 1
+    //transmit_can_frame(&BMWiX_C0, can_config.battery);
+  }
+  // Send 1000ms CAN Message
+  if (currentMillis - previousMillis1000 >= INTERVAL_1_S) {
+    previousMillis1000 = currentMillis;
+
+    HandleIncomingUserRequest();
   }
   // Send 10000ms CAN Message
   if (currentMillis - previousMillis10000 >= INTERVAL_10_S) {
     previousMillis10000 = currentMillis;
-    transmit_can_frame(&BMWiX_6F4_REQUEST_BALANCING_START2, can_config.battery);
-    transmit_can_frame(&BMWiX_6F4_REQUEST_BALANCING_START, can_config.battery);
+    //transmit_can_frame(&BMWiX_6F4_REQUEST_BALANCING_START2, can_config.battery);
+    //transmit_can_frame(&BMWiX_6F4_REQUEST_BALANCING_START, can_config.battery);
   }
 }
 
@@ -872,7 +1001,7 @@ void setup_battery(void) {  // Performs one time setup at startup
   datalayer.system.info.battery_protocol[63] = '\0';
 
   //Reset Battery at bootup
-  transmit_can_frame(&BMWiX_6F4_REQUEST_HARD_RESET, can_config.battery);
+  //transmit_can_frame(&BMWiX_6F4_REQUEST_HARD_RESET, can_config.battery);
 
   //Before we have started up and detected which battery is in use, use 108S values
   datalayer.battery.info.max_design_voltage_dV = MAX_PACK_VOLTAGE_DV;
@@ -883,4 +1012,211 @@ void setup_battery(void) {  // Performs one time setup at startup
   datalayer.system.status.battery_allows_contactor_closing = true;
 }
 
-#endif
+void HandleIncomingUserRequest(void) {
+  // Debug user request to open or close the contactors
+#ifdef DEBUG_LOG
+  logging.print("User request: contactor close: ");
+  logging.print(datalayer_extended.bmwix.UserRequestContactorClose);
+  logging.print("  User request: contactor open: ");
+  logging.println(datalayer_extended.bmwix.UserRequestContactorOpen);
+#endif  // DEBUG_LOG
+  if ((datalayer_extended.bmwix.UserRequestContactorClose == false) &&
+      (datalayer_extended.bmwix.UserRequestContactorOpen == false)) {
+    // do nothing
+  } else if ((datalayer_extended.bmwix.UserRequestContactorClose == true) &&
+             (datalayer_extended.bmwix.UserRequestContactorOpen == false)) {
+    BmwIxCloseContactors();
+    // set user request to false
+    datalayer_extended.bmwix.UserRequestContactorClose = false;
+  } else if ((datalayer_extended.bmwix.UserRequestContactorClose == false) &&
+             (datalayer_extended.bmwix.UserRequestContactorOpen == true)) {
+    BmwIxOpenContactors();
+    // set user request to false
+    datalayer_extended.bmwix.UserRequestContactorOpen = false;
+  } else if ((datalayer_extended.bmwix.UserRequestContactorClose == true) &&
+             (datalayer_extended.bmwix.UserRequestContactorOpen == true)) {
+    // these flasgs should not be true at the same time, therefore open contactors, as that is the safest state
+    BmwIxOpenContactors();
+    // set user request to false
+    datalayer_extended.bmwix.UserRequestContactorClose = false;
+    datalayer_extended.bmwix.UserRequestContactorOpen = false;
+// print error, as both these flags shall not be true at the same time
+#ifdef DEBUG_LOG
+    logging.println(
+        "Error: user requested contactors to close and open at the same time. Contactors have been opened.");
+#endif  // DEBUG_LOG
+  }
+}
+
+void HandleIncomingInverterRequest(void) {
+  InverterContactorCloseRequest.present = datalayer.system.status.inverter_allows_contactor_closing;
+  // Detect edge
+  if (InverterContactorCloseRequest.previous == false && InverterContactorCloseRequest.present == true) {
+// Rising edge detected
+#ifdef DEBUG_LOG
+    logging.println("Inverter requests to close contactors");
+#endif  // DEBUG_LOG
+    BmwIxCloseContactors();
+  } else if (InverterContactorCloseRequest.previous == true && InverterContactorCloseRequest.present == false) {
+// Falling edge detected
+#ifdef DEBUG_LOG
+    logging.println("Inverter requests to open contactors");
+#endif  // DEBUG_LOG
+    BmwIxOpenContactors();
+  }  // else: do nothing
+
+  // Update state
+  InverterContactorCloseRequest.previous = InverterContactorCloseRequest.present;
+}
+
+void BmwIxCloseContactors(void) {
+#ifdef DEBUG_LOG
+  logging.println("Closing contactors");
+#endif  // DEBUG_LOG
+  contactorCloseReq = true;
+}
+
+void BmwIxOpenContactors(void) {
+#ifdef DEBUG_LOG
+  logging.println("Opening contactors");
+#endif  // DEBUG_LOG
+  contactorCloseReq = false;
+  counter_100ms = 0;  // reset counter, such that keep contactors closed message sequence starts from the beginning
+}
+
+void HandleBmwIxCloseContactorsRequest(uint16_t counter_10ms) {
+  if (contactorCloseReq == true) {  // Only when contactor close request is set to true
+    if (ContactorState.closed == false &&
+        ContactorState.open ==
+            true) {  // Only when the following commands have not been completed yet, because it shall not be run when commands have already been run, AND only when contactor open commands have finished
+      // Initially 0x510[2] needs to be 0x02, and 0x510[5] needs to be 0x00
+      BMWiX_510.data = {0x40, 0x10,
+                        0x02,  // 0x02 at contactor closing, afterwards 0x04 and 0x10, 0x00 to open contactors
+                        0x00, 0x00,
+                        0x00,   // 0x00 at start of contactor closing, changing to 0x80, afterwards 0x80
+                        0x01,   // 0x01 at contactor closing
+                        0x00};  // Explicit declaration, to prevent modification by other functions
+      BMWiX_16E.data = {
+          0x00,  // Almost any possible number in 0x00 and 0xFF
+          0xA0,  // Almost any possible number in 0xA0 and 0xAF
+          0xC9, 0xFF, 0x60,
+          0xC9, 0x3A, 0xF7};  // Explicit declaration of default values, to prevent modification by other functions
+
+      if (counter_10ms == 0) {
+        // @0 ms
+        transmit_can_frame(&BMWiX_510, can_config.battery);
+#ifdef DEBUG_LOG
+        logging.println("Transmitted 0x510 - 1/6");
+#endif  // DEBUG_LOG
+      } else if (counter_10ms == 5) {
+        // @50 ms
+        transmit_can_frame(&BMWiX_276, can_config.battery);
+#ifdef DEBUG_LOG
+        logging.println("Transmitted 0x276 - 2/6");
+#endif  // DEBUG_LOG
+      } else if (counter_10ms == 10) {
+        // @100 ms
+        BMWiX_510.data.u8[2] = 0x04;  // TODO: check if needed
+        transmit_can_frame(&BMWiX_510, can_config.battery);
+#ifdef DEBUG_LOG
+        logging.println("Transmitted 0x510 - 3/6");
+#endif  // DEBUG_LOG
+      } else if (counter_10ms == 20) {
+        // @200 ms
+        BMWiX_510.data.u8[2] = 0x10;  // TODO: check if needed
+        BMWiX_510.data.u8[5] = 0x80;  // needed to close contactors
+        transmit_can_frame(&BMWiX_510, can_config.battery);
+#ifdef DEBUG_LOG
+        logging.println("Transmitted 0x510 - 4/6");
+#endif  // DEBUG_LOG
+      } else if (counter_10ms == 30) {
+        // @300 ms
+        BMWiX_16E.data.u8[0] = 0x6A;
+        BMWiX_16E.data.u8[1] = 0xAD;
+        transmit_can_frame(&BMWiX_16E, can_config.battery);
+#ifdef DEBUG_LOG
+        logging.println("Transmitted 0x16E - 5/6");
+#endif  // DEBUG_LOG
+      } else if (counter_10ms == 50) {
+        // @500 ms
+        BMWiX_16E.data.u8[0] = 0x03;
+        BMWiX_16E.data.u8[1] = 0xA9;
+        transmit_can_frame(&BMWiX_16E, can_config.battery);
+#ifdef DEBUG_LOG
+        logging.println("Transmitted 0x16E - 6/6");
+#endif  // DEBUG_LOG
+        ContactorState.closed = true;
+        ContactorState.open = false;
+      }
+    }
+  }
+}
+
+void BmwIxKeepContactorsClosed(uint8_t counter_100ms) {
+  if ((ContactorState.closed == true) && (ContactorState.open == false)) {
+    BMWiX_510.data = {0x40, 0x10,
+                      0x04,  // 0x02 at contactor closing, afterwards 0x04 and 0x10, 0x00 to open contactors
+                      0x00, 0x00,
+                      0x80,   // 0x00 at start of contactor closing, changing to 0x80, afterwards 0x80
+                      0x01,   // 0x01 at contactor closing
+                      0x00};  // Explicit declaration, to prevent modification by other functions
+    BMWiX_16E.data = {0x00,   // Almost any possible number in 0x00 and 0xFF
+                      0xA0,   // Almost any possible number in 0xA0 and 0xAF
+                      0xC9, 0xFF, 0x60,
+                      0xC9, 0x3A, 0xF7};  // Explicit declaration, to prevent modification by other functions
+
+    if (counter_100ms == 0) {
+#ifdef DEBUG_LOG
+      logging.println("Sending keep contactors closed messages started");
+#endif  // DEBUG_LOG
+      // @0 ms
+      transmit_can_frame(&BMWiX_510, can_config.battery);
+    } else if (counter_100ms == 7) {
+      // @ 730 ms
+      BMWiX_16E.data.u8[0] = 0x8C;
+      BMWiX_16E.data.u8[1] = 0xA0;
+      transmit_can_frame(&BMWiX_16E, can_config.battery);
+    } else if (counter_100ms == 24) {
+      // @2380 ms
+      transmit_can_frame(&BMWiX_510, can_config.battery);
+    } else if (counter_100ms == 29) {
+      // @ 2900 ms
+      BMWiX_16E.data.u8[0] = 0x02;
+      BMWiX_16E.data.u8[1] = 0xA7;
+      transmit_can_frame(&BMWiX_16E, can_config.battery);
+#ifdef DEBUG_LOG
+      logging.println("Sending keep contactors closed messages finished");
+#endif  // DEBUG_LOG
+    } else if (counter_100ms == 140) {
+      // @14000 ms
+      // reset counter (outside of this function)
+    }
+  }
+}
+
+void HandleBmwIxOpenContactorsRequest(uint16_t counter_10ms) {
+  if (contactorCloseReq == false) {  // if contactors are not requested to be closed, they are requested to be opened
+    if (ContactorState.open == false) {  // only if contactors are not open yet
+      // message content to quickly open contactors
+      if (counter_10ms == 0) {
+        // @0 ms (0.00) RX0 510 [8] 40 10 00 00 00 80 00 00
+        BMWiX_510.data = {0x40, 0x10, 0x00, 0x00,
+                          0x00, 0x80, 0x00, 0x00};  // Explicit declaration, to prevent modification by other functions
+        transmit_can_frame(&BMWiX_510, can_config.battery);
+        // set back to default values
+        BMWiX_510.data = {0x40, 0x10, 0x04, 0x00, 0x00, 0x80, 0x01, 0x00};  // default values
+      } else if (counter_10ms == 6) {
+        // @60 ms  (0.06) RX0 16E [8] E6 A4 C8 FF 60 C9 33 F0
+        BMWiX_16E.data = {0xE6, 0xA4, 0xC8, 0xFF,
+                          0x60, 0xC9, 0x33, 0xF0};  // Explicit declaration, to prevent modification by other functions
+        transmit_can_frame(&BMWiX_16E, can_config.battery);
+        // set back to default values
+        BMWiX_16E.data = {0x00, 0xA0, 0xC9, 0xFF, 0x60, 0xC9, 0x3A, 0xF7};  // default values
+        ContactorState.closed = false;
+        ContactorState.open = true;
+      }
+    }
+  }
+}
+
+#endif  // BMW_IX_BATTERY

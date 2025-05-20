@@ -23,13 +23,4 @@ void init_precharge_control();
  */
 void handle_precharge_control(unsigned long currentMillis);
 
-/**
- * @brief Handle contactors of battery 2
- *
- * @param[in] void
- *
- * @return void
- */
-void handle_contactors_battery2();
-
 #endif  // _PRECHARGE_CONTROL_H_

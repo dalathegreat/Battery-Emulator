@@ -102,10 +102,7 @@ void setup() {
 #endif  // PRECHARGE_CONTROL
 
   setup_charger();
-
-#if defined(CAN_INVERTER_SELECTED) || defined(MODBUS_INVERTER_SELECTED) || defined(RS485_INVERTER_SELECTED)
   setup_inverter();
-#endif
   setup_battery();
 
   init_rs485();
@@ -512,15 +509,9 @@ void update_calculated_values() {
 }
 
 void update_values_inverter() {
-#ifdef CAN_INVERTER_SELECTED
-  update_values_can_inverter();
-#endif  // CAN_INVERTER_SELECTED
-#ifdef MODBUS_INVERTER_SELECTED
-  update_modbus_registers_inverter();
-#endif  // CAN_INVERTER_SELECTED
-#ifdef RS485_INVERTER_SELECTED
-  update_RS485_registers_inverter();
-#endif  // CAN_INVERTER_SELECTED
+  if (inverter) {
+    inverter->update_values();
+  }
 }
 
 void check_reset_reason() {

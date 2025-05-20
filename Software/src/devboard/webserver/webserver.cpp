@@ -599,6 +599,24 @@ void init_webserver() {
     request->send(200, "text/plain", "Updated successfully");
   });
 
+  // Route for closing BMW iX Contactors
+  server.on("/bmwIxCloseContactorRequest", HTTP_GET, [](AsyncWebServerRequest* request) {
+    if (WEBSERVER_AUTH_REQUIRED && !request->authenticate(http_username, http_password)) {
+      return request->requestAuthentication();
+    }
+    datalayer_extended.bmwix.UserRequestContactorClose = true;
+    request->send(200, "text/plain", "Updated successfully");
+  });
+
+  // Route for opening BMW iX Contactors
+  server.on("/bmwIxOpenContactorRequest", HTTP_GET, [](AsyncWebServerRequest* request) {
+    if (WEBSERVER_AUTH_REQUIRED && !request->authenticate(http_username, http_password)) {
+      return request->requestAuthentication();
+    }
+    datalayer_extended.bmwix.UserRequestContactorOpen = true;
+    request->send(200, "text/plain", "Updated successfully");
+  });
+
   // Route for resetting SOH on Nissan LEAF batteries
   server.on("/resetSOH", HTTP_GET, [](AsyncWebServerRequest* request) {
     if (WEBSERVER_AUTH_REQUIRED && !request->authenticate(http_username, http_password)) {
@@ -1207,15 +1225,14 @@ String processor(const String& var) {
       }
     }
 
-    content += "<h4>Automatic contactor closing allowed:</h4>";
-    content += "<h4>Battery: ";
+    content += "<h4>Battery allows contactor closing: ";
     if (datalayer.system.status.battery_allows_contactor_closing == true) {
       content += "<span>&#10003;</span>";
     } else {
       content += "<span style='color: red;'>&#10005;</span>";
     }
 
-    content += " Inverter: ";
+    content += " Inverter allows contactor closing: ";
     if (datalayer.system.status.inverter_allows_contactor_closing == true) {
       content += "<span>&#10003;</span></h4>";
     } else {

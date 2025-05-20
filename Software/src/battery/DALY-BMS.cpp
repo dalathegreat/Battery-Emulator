@@ -19,7 +19,7 @@ static uint16_t cellvoltage_max_mV = 0;
 static uint16_t SOC = 0;
 static bool has_fault = false;
 
-void update_values_battery() {
+void DalyBms::update_values() {
   datalayer.battery.status.real_soc = SOC;
   datalayer.battery.status.voltage_dV = voltage_dV;  //value is *10 (3700 = 370.0)
   datalayer.battery.status.current_dA = current_dA;  //value is *10 (150 = 15.0)
@@ -60,7 +60,7 @@ void update_values_battery() {
   datalayer.battery.status.real_bms_status = has_fault ? BMS_FAULT : BMS_ACTIVE;
 }
 
-void setup_battery(void) {  // Performs one time setup at startup
+void DalyBms::setup(void) {  // Performs one time setup at startup
   strncpy(datalayer.system.info.battery_protocol, "DALY RS485", 63);
   datalayer.system.info.battery_protocol[63] = '\0';
   datalayer.battery.info.number_of_cells = CELL_COUNT;
@@ -70,6 +70,8 @@ void setup_battery(void) {  // Performs one time setup at startup
   datalayer.battery.info.min_cell_voltage_mV = MIN_CELL_VOLTAGE_MV;
   datalayer.battery.info.total_capacity_Wh = BATTERY_WH_MAX;
   datalayer.system.status.battery_allows_contactor_closing = true;
+
+  Serial2.begin(baud_rate(), SERIAL_8N1, RS485_RX_PIN, RS485_TX_PIN);
 }
 
 uint8_t calculate_checksum(uint8_t buff[12]) {
@@ -154,7 +156,8 @@ void decode_packet(uint8_t command, uint8_t data[8]) {
   }
 }
 
-void transmit_rs485(unsigned long currentMillis) {
+void DalyBms::transmit_rs485(unsigned long currentMillis) {
+
   static uint8_t nextCommand = 0x90;
 
   if (currentMillis - lastPacket > 60) {
@@ -175,7 +178,7 @@ void transmit_rs485(unsigned long currentMillis) {
   }
 }
 
-void receive_RS485() {
+void DalyBms::receive_RS485() {
   static uint8_t recv_buff[13] = {0};
   static uint8_t recv_len = 0;
 

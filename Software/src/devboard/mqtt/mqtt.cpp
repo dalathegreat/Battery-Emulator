@@ -70,6 +70,7 @@ SensorConfig sensorConfigTemplate[] = {
     {"state_of_health", "State Of Health", "", "%", "battery"},
     {"temperature_min", "Temperature Min", "", "°C", "temperature"},
     {"temperature_max", "Temperature Max", "", "°C", "temperature"},
+    {"cpu_temp", "CPU Temperature", "", "°C", "temperature"},
     {"stat_batt_power", "Stat Batt Power", "", "W", "power"},
     {"battery_current", "Battery Current", "", "A", "current"},
     {"cell_max_voltage", "Cell Max Voltage", "", "V", "voltage"},
@@ -169,6 +170,7 @@ void set_battery_attributes(JsonDocument& doc, const DATALAYER_BATTERY_TYPE& bat
   doc["state_of_health" + suffix] = ((float)battery.status.soh_pptt) / 100.0;
   doc["temperature_min" + suffix] = ((float)((int16_t)battery.status.temperature_min_dC)) / 10.0;
   doc["temperature_max" + suffix] = ((float)((int16_t)battery.status.temperature_max_dC)) / 10.0;
+  doc["cpu_temp" + suffix] = datalayer.system.info.CPU_temperature;
   doc["stat_batt_power" + suffix] = ((float)((int32_t)battery.status.active_power_W));
   doc["battery_current" + suffix] = ((float)((int16_t)battery.status.current_dA)) / 10.0;
   doc["battery_voltage" + suffix] = ((float)battery.status.voltage_dV) / 10.0;
@@ -484,6 +486,7 @@ void mqtt_message_received(char* topic_raw, int topic_len, char* data, int data_
   if (strcmp(topic, generateButtonTopic("STOP").c_str()) == 0) {
     setBatteryPause(true, false, true);
   }
+  free(topic);
 }
 
 static void mqtt_event_handler(void* handler_args, esp_event_base_t base, int32_t event_id, void* event_data) {
