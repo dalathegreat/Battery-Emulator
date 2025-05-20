@@ -1,92 +1,15 @@
 #include "../include.h"
 #ifdef CMFA_EV_BATTERY
+#include "../communication/can/comm_can.h"
 #include "../datalayer/datalayer.h"
 #include "../datalayer/datalayer_extended.h"
 #include "../devboard/utils/events.h"
 #include "CMFA-EV-BATTERY.h"
 
-/* Do not change code below unless you are sure what you are doing */
-CAN_frame CMFA_1EA = {.FD = false, .ext_ID = false, .DLC = 1, .ID = 0x1EA, .data = {0x00}};
-CAN_frame CMFA_125 = {.FD = false,
-                      .ext_ID = false,
-                      .DLC = 7,
-                      .ID = 0x125,
-                      .data = {0x7D, 0x7D, 0x7D, 0x07, 0x82, 0x6A, 0x8A}};
-CAN_frame CMFA_134 = {.FD = false,
-                      .ext_ID = false,
-                      .DLC = 8,
-                      .ID = 0x134,
-                      .data = {0x90, 0x8A, 0x7E, 0x3E, 0xB2, 0x4C, 0x80, 0x00}};
-CAN_frame CMFA_135 = {.FD = false, .ext_ID = false, .DLC = 5, .ID = 0x135, .data = {0xD5, 0x85, 0x38, 0x80, 0x01}};
-CAN_frame CMFA_3D3 = {.FD = false,
-                      .ext_ID = false,
-                      .DLC = 8,
-                      .ID = 0x3D3,
-                      .data = {0x47, 0x30, 0x00, 0x02, 0x5D, 0x80, 0x5D, 0xE7}};
-CAN_frame CMFA_59B = {.FD = false, .ext_ID = false, .DLC = 3, .ID = 0x59B, .data = {0x00, 0x02, 0x00}};
-CAN_frame CMFA_ACK = {.FD = false,
-                      .ext_ID = false,
-                      .DLC = 8,
-                      .ID = 0x79B,
-                      .data = {0x30, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00}};
-CAN_frame CMFA_POLLING_FRAME = {.FD = false,
-                                .ext_ID = false,
-                                .DLC = 8,
-                                .ID = 0x79B,
-                                .data = {0x03, 0x22, 0x90, 0x01, 0x00, 0x00, 0x00, 0x00}};
-static bool end_of_charge = false;
-static bool interlock_flag = false;
-static uint16_t soc_z = 0;
-static uint16_t soc_u = 0;
-static uint16_t max_regen_power = 0;
-static uint16_t max_discharge_power = 0;
-static int16_t average_temperature = 0;
-static int16_t minimum_temperature = 0;
-static int16_t maximum_temperature = 0;
-static uint16_t maximum_charge_power = 0;
-static uint16_t SOH_available_power = 0;
-static uint16_t SOH_generated_power = 0;
-static uint32_t average_voltage_of_cells = 270000;
-static uint16_t highest_cell_voltage_mv = 3700;
-static uint16_t lowest_cell_voltage_mv = 3700;
-static uint16_t lead_acid_voltage = 12000;
-static uint8_t highest_cell_voltage_number = 0;
-static uint8_t lowest_cell_voltage_number = 0;
-static uint64_t cumulative_energy_when_discharging = 0;
-static uint64_t cumulative_energy_when_charging = 0;
-static uint64_t cumulative_energy_in_regen = 0;
-static uint16_t soh_average = 10000;
-static uint16_t cellvoltages_mv[72];
-static uint32_t poll_pid = PID_POLL_SOH_AVERAGE;
-static uint16_t pid_reply = 0;
-
-static uint8_t counter_10ms = 0;
-static uint8_t content_125[16] = {0x07, 0x0C, 0x01, 0x06, 0x0B, 0x00, 0x05, 0x0A,
-                                  0x0F, 0x04, 0x09, 0x0E, 0x03, 0x08, 0x0D, 0x02};
-static uint8_t content_135[16] = {0x85, 0xD5, 0x25, 0x75, 0xC5, 0x15, 0x65, 0xB5,
-                                  0x05, 0x55, 0xA5, 0xF5, 0x45, 0x95, 0xE5, 0x35};
-static unsigned long previousMillis200ms = 0;
-static unsigned long previousMillis100ms = 0;
-static unsigned long previousMillis10ms = 0;
-
-#define MAXSOC 9000  //90.00 Raw SOC displays this value when battery is at 100%
-#define MINSOC 500   //5.00 Raw SOC displays this value when battery is at 0%
-
-static uint8_t heartbeat = 0;   //Alternates between 0x55 and 0xAA every 5th frame
-static uint8_t heartbeat2 = 0;  //Alternates between 0x55 and 0xAA every 5th frame
-static uint32_t SOC_raw = 0;
-static uint16_t SOH = 99;
-static int16_t current = 0;
-static uint16_t pack_voltage = 2700;
-static int16_t highest_cell_temperature = 0;
-static int16_t lowest_cell_temperature = 0;
-static uint32_t discharge_power_w = 0;
-static uint32_t charge_power_w = 0;
-
 /* The raw SOC value sits at 90% when the battery is full, so we should report back 100% once this value is reached
 Same goes for low point, when 10% is reached we report 0% */
 
-uint16_t rescale_raw_SOC(uint32_t raw_SOC) {
+uint16_t CmfaEvBattery::rescale_raw_SOC(uint32_t raw_SOC) {
 
   uint32_t calc_soc;
   calc_soc = (raw_SOC * 0.25);
@@ -103,7 +26,8 @@ uint16_t rescale_raw_SOC(uint32_t raw_SOC) {
   return (uint16_t)calc_soc;
 }
 
-void update_values_battery() {  //This function maps all the values fetched via CAN to the correct parameters used for modbus
+void CmfaEvBattery::
+    update_values() {  //This function maps all the values fetched via CAN to the correct parameters used for modbus
   datalayer.battery.status.soh_pptt = (SOH * 100);
 
   datalayer.battery.status.real_soc = rescale_raw_SOC(SOC_raw);
@@ -157,7 +81,7 @@ void update_values_battery() {  //This function maps all the values fetched via 
   datalayer_extended.CMFAEV.soh_average = soh_average;
 }
 
-void handle_incoming_can_frame_battery(CAN_frame rx_frame) {
+void CmfaEvBattery::handle_incoming_can_frame(CAN_frame rx_frame) {
   switch (rx_frame.ID) {  //These frames are transmitted by the battery
     case 0x127:           //10ms , Same structure as old Zoe 0x155 message!
       datalayer.battery.status.CAN_battery_still_alive = CAN_STILL_ALIVE;
@@ -513,7 +437,7 @@ void handle_incoming_can_frame_battery(CAN_frame rx_frame) {
   }
 }
 
-void transmit_can_battery(unsigned long currentMillis) {
+void CmfaEvBattery::transmit_can(unsigned long currentMillis) {
   // Send 10ms CAN Message
   if (currentMillis - previousMillis10ms >= INTERVAL_10_MS) {
     previousMillis10ms = currentMillis;
@@ -1016,7 +940,7 @@ void transmit_can_battery(unsigned long currentMillis) {
   }
 }
 
-void setup_battery(void) {  // Performs one time setup at startup
+void CmfaEvBattery::setup(void) {  // Performs one time setup at startup
   strncpy(datalayer.system.info.battery_protocol, "CMFA platform, 27 kWh battery", 63);
   datalayer.system.info.battery_protocol[63] = '\0';
   datalayer.system.status.battery_allows_contactor_closing = true;
