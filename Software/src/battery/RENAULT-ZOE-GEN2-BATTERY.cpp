@@ -189,13 +189,16 @@ void update_values_battery() {  //This function maps all the values fetched via 
 
   datalayer.battery.status.max_charge_power_W = battery_max_generated * 10;
 
-  datalayer.battery.status.temperature_min_dC = ((battery_min_temp - 640) * 0.625);
+  //Temperatures and voltages update at slow rate. Only publish new values once both have been sampled to avoid events
+  if ((battery_min_temp != 920) && (battery_max_temp != 920)) {
+    datalayer.battery.status.temperature_min_dC = ((battery_min_temp - 640) * 0.625);
+    datalayer.battery.status.temperature_max_dC = ((battery_max_temp - 640) * 0.625);
+  }
 
-  datalayer.battery.status.temperature_max_dC = ((battery_max_temp - 640) * 0.625);
-
-  datalayer.battery.status.cell_min_voltage_mV = (battery_min_cell_voltage * 0.976563);
-
-  datalayer.battery.status.cell_max_voltage_mV = (battery_max_cell_voltage * 0.976563);
+  if ((battery_min_cell_voltage != 3700) && (battery_max_cell_voltage != 3700)) {
+    datalayer.battery.status.cell_min_voltage_mV = (battery_min_cell_voltage * 0.976563);
+    datalayer.battery.status.cell_max_voltage_mV = (battery_max_cell_voltage * 0.976563);
+  }
 
   if (battery_12v < 11000) {  //11.000V
     set_event(EVENT_12V_LOW, battery_12v);
