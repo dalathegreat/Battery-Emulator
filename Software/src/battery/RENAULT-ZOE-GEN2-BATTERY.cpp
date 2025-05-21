@@ -64,6 +64,7 @@ static uint16_t battery_time = 0;
 static uint16_t battery_pack_time = 0;
 static uint16_t battery_soc_min = 0;
 static uint16_t battery_soc_max = 0;
+static uint16_t temporary_variable = 0;
 static uint32_t ZOE_376_time_now_s = 1745452800;  // Initialized to make the battery think it is April 24, 2025
 unsigned long kProductionTimestamp_s =
     1614454107;  // Production timestamp in seconds since January 1, 1970. Production timestamp used: February 25, 2021 at 8:08:27 AM GMT
@@ -265,10 +266,16 @@ void handle_incoming_can_frame_battery(CAN_frame rx_frame) {
           battery_pack_voltage = (rx_frame.data.u8[4] << 8) | rx_frame.data.u8[5];
           break;
         case POLL_MAX_CELL_VOLTAGE:
-          battery_max_cell_voltage = (rx_frame.data.u8[4] << 8) | rx_frame.data.u8[5];
+          temporary_variable = (rx_frame.data.u8[4] << 8) | rx_frame.data.u8[5];
+          if (temporary_variable > 500) {  //Disregard messages with value unavailable
+            battery_max_cell_voltage = (rx_frame.data.u8[4] << 8) | rx_frame.data.u8[5];
+          }
           break;
         case POLL_MIN_CELL_VOLTAGE:
-          battery_min_cell_voltage = (rx_frame.data.u8[4] << 8) | rx_frame.data.u8[5];
+          temporary_variable = (rx_frame.data.u8[4] << 8) | rx_frame.data.u8[5];
+          if (temporary_variable > 500) {  //Disregard messages with value unavailable
+            battery_min_cell_voltage = (rx_frame.data.u8[4] << 8) | rx_frame.data.u8[5];
+          }
           break;
         case POLL_12V:
           battery_12v = (rx_frame.data.u8[4] << 8) | rx_frame.data.u8[5];
