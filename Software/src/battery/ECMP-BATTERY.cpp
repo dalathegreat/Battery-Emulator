@@ -16,21 +16,7 @@ This integration is still ongoing. Here is what still needs to be done in order 
    - Which CAN messages need to be sent towards the battery?
 */
 
-/* Do not change code below unless you are sure what you are doing */
-static unsigned long previousMillis1000 = 0;  // will store last time a 1s CAN Message was sent
-
-//Actual content messages
-CAN_frame ECMP_XXX = {.FD = false,
-                      .ext_ID = false,
-                      .DLC = 8,
-                      .ID = 0x301,
-                      .data = {0x01, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00}};
-
-static uint16_t battery_voltage = 37000;
-static uint16_t battery_soc = 0;
-static uint16_t cellvoltages[108];
-
-void update_values_battery() {
+void EcmpBattery::update_values() {
 
   datalayer.battery.status.real_soc = battery_soc * 100;
 
@@ -72,7 +58,7 @@ void update_values_battery() {
   datalayer.battery.status.cell_max_voltage_mV = max_cell_mv_value;
 }
 
-void handle_incoming_can_frame_battery(CAN_frame rx_frame) {
+void EcmpBattery::handle_incoming_can_frame(CAN_frame rx_frame) {
   datalayer.battery.status.CAN_battery_still_alive = CAN_STILL_ALIVE;
   switch (rx_frame.ID) {
     case 0x125:
@@ -288,14 +274,14 @@ void handle_incoming_can_frame_battery(CAN_frame rx_frame) {
   }
 }
 
-void transmit_can_battery(unsigned long currentMillis) {
+void EcmpBattery::transmit_can(unsigned long currentMillis) {
   // Send 1s CAN Message
   if (currentMillis - previousMillis1000 >= INTERVAL_1_S) {
     previousMillis1000 = currentMillis;
   }
 }
 
-void setup_battery(void) {  // Performs one time setup at startup
+void EcmpBattery::setup(void) {  // Performs one time setup at startup
 #ifdef DEBUG_VIA_USB
   Serial.println("ECMP battery selected");
 #endif
