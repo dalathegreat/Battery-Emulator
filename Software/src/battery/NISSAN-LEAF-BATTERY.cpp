@@ -74,7 +74,7 @@ void NissanLeafBattery::
   datalayer_battery->status.max_charge_power_W = (battery_Charge_Power_Limit * 1000);  //kW to W
 
   //Allow contactors to close
-  if (battery_can_alive) {
+  if (battery_can_alive && allows_contactor_closing) {
     *allows_contactor_closing = true;
   }
 

@@ -329,11 +329,15 @@ void BmwI3Battery::transmit_can(unsigned long currentMillis) {
       BMW_13E.data.u8[4] = BMW_13E_counter;
 
       if (datalayer_battery->status.bms_status == FAULT) {
-      }  //If battery is not in Fault mode, allow contactor to close by sending 10B
-      else if (*allows_contactor_closing == true) {
+      } else if (allows_contactor_closing) {
+        //If battery is not in Fault mode, and we are allowed to control contactors, we allow contactor to close by sending 10B
+        *allows_contactor_closing = true;
+        transmit_can_frame(&BMW_10B, can_interface);
+      } else if (contactor_closing_allowed && *contactor_closing_allowed) {
         transmit_can_frame(&BMW_10B, can_interface);
       }
     }
+
     // Send 100ms CAN Message
     if (currentMillis - previousMillis100 >= INTERVAL_100_MS) {
       previousMillis100 = currentMillis;
@@ -512,7 +516,10 @@ void BmwI3Battery::setup(void) {  // Performs one time setup at startup
   datalayer_battery->info.max_design_voltage_dV = MAX_PACK_VOLTAGE_60AH;
   datalayer_battery->info.min_design_voltage_dV = MIN_PACK_VOLTAGE_60AH;
   datalayer_battery->info.max_cell_voltage_deviation_mV = MAX_CELL_DEVIATION_MV;
-  datalayer.system.status.battery_allows_contactor_closing = true;
+
+  if (allows_contactor_closing) {
+    *allows_contactor_closing = true;
+  }
   datalayer_battery->info.number_of_cells = NUMBER_OF_CELLS;
 
   pinMode(wakeup_pin, OUTPUT);

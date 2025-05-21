@@ -503,31 +503,22 @@ String advanced_battery_processor(const String& var) {
 #endif  //GEELY_GEOMETRY_C_BATTERY
 
 #ifdef KIA_HYUNDAI_64_BATTERY
-    content += "<h4>Cells: " + String(datalayer_extended.KiaHyundai64.total_cell_count) + "S</h4>";
-    content += "<h4>12V voltage: " + String(datalayer_extended.KiaHyundai64.battery_12V / 10.0, 1) + "</h4>";
-    content += "<h4>Waterleakage: " + String(datalayer_extended.KiaHyundai64.waterleakageSensor) + "</h4>";
-    content +=
-        "<h4>Temperature, water inlet: " + String(datalayer_extended.KiaHyundai64.temperature_water_inlet) + "</h4>";
-    content +=
-        "<h4>Temperature, power relay: " + String(datalayer_extended.KiaHyundai64.powerRelayTemperature) + "</h4>";
-    content += "<h4>Batterymanagement mode: " + String(datalayer_extended.KiaHyundai64.batteryManagementMode) + "</h4>";
-    content += "<h4>BMS ignition: " + String(datalayer_extended.KiaHyundai64.BMS_ign) + "</h4>";
-    content += "<h4>Battery relay: " + String(datalayer_extended.KiaHyundai64.batteryRelay) + "</h4>";
+    auto print_hyundai = [&content](DATALAYER_INFO_KIAHYUNDAI64& data) {
+      content += "<h4>Cells: " + String(data.total_cell_count) + "S</h4>";
+      content += "<h4>12V voltage: " + String(data.battery_12V / 10.0, 1) + "</h4>";
+      content += "<h4>Waterleakage: " + String(data.waterleakageSensor) + "</h4>";
+      content += "<h4>Temperature, water inlet: " + String(data.temperature_water_inlet) + "</h4>";
+      content += "<h4>Temperature, power relay: " + String(data.powerRelayTemperature) + "</h4>";
+      content += "<h4>Batterymanagement mode: " + String(data.batteryManagementMode) + "</h4>";
+      content += "<h4>BMS ignition: " + String(data.BMS_ign) + "</h4>";
+      content += "<h4>Battery relay: " + String(data.batteryRelay) + "</h4>";
+    };
+
+    print_hyundai(datalayer_extended.KiaHyundai64);
+
 #ifdef DOUBLE_BATTERY
     content += "<h4>Values from battery 2</h4>";
-    content += "<h4>Cells: " + String(datalayer_extended.KiaHyundai64.battery2_total_cell_count) + "S</h4>";
-    content += "<h4>12V voltage: " + String(datalayer_extended.KiaHyundai64.battery2_battery_12V / 10.0, 1) + "</h4>";
-    content += "<h4>Waterleakage: " + String(datalayer_extended.KiaHyundai64.battery2_waterleakageSensor) + "</h4>";
-    content +=
-        "<h4>Temperature, water inlet: " + String(datalayer_extended.KiaHyundai64.battery2_temperature_water_inlet) +
-        "</h4>";
-    content +=
-        "<h4>Temperature, power relay: " + String(datalayer_extended.KiaHyundai64.battery2_powerRelayTemperature) +
-        "</h4>";
-    content += "<h4>Batterymanagement mode: " + String(datalayer_extended.KiaHyundai64.battery2_batteryManagementMode) +
-               "</h4>";
-    content += "<h4>BMS ignition: " + String(datalayer_extended.KiaHyundai64.battery2_BMS_ign) + "</h4>";
-    content += "<h4>Battery relay: " + String(datalayer_extended.KiaHyundai64.battery2_batteryRelay) + "</h4>";
+    print_hyundai(datalayer_extended.KiaHyundai64_2);
 #endif  //DOUBLE_BATTERY
 #endif  //KIA_HYUNDAI_64_BATTERY
 

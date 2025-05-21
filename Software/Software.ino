@@ -331,9 +331,9 @@ void check_interconnect_available() {
     clear_event(EVENT_VOLTAGE_DIFFERENCE);
     if (datalayer.battery.status.bms_status == FAULT) {
       // If main battery is in fault state, disengage the second battery
-      datalayer.system.status.battery2_allows_contactor_closing = false;
+      datalayer.system.status.battery2_allowed_contactor_closing = false;
     } else {  // If main battery is OK, allow second battery to join
-      datalayer.system.status.battery2_allows_contactor_closing = true;
+      datalayer.system.status.battery2_allowed_contactor_closing = true;
     }
   } else {  //Voltage between the two packs is too large
     set_event(EVENT_VOLTAGE_DIFFERENCE, (uint8_t)(voltage_diff / 10));

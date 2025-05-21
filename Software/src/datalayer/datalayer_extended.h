@@ -330,16 +330,6 @@ typedef struct {
   uint8_t batteryManagementMode = 0;
   uint8_t BMS_ign = 0;
   uint8_t batteryRelay = 0;
-#ifdef DOUBLE_BATTERY
-  uint8_t battery2_total_cell_count = 0;
-  int16_t battery2_battery_12V = 0;
-  uint8_t battery2_waterleakageSensor = 0;
-  int8_t battery2_temperature_water_inlet = 0;
-  int8_t battery2_powerRelayTemperature = 0;
-  uint8_t battery2_batteryManagementMode = 0;
-  uint8_t battery2_BMS_ign = 0;
-  uint8_t battery2_batteryRelay = 0;
-#endif  //DOUBLE BATTERY
 } DATALAYER_INFO_KIAHYUNDAI64;
 
 typedef struct {
@@ -808,6 +798,7 @@ class DataLayerExtended {
   DATALAYER_INFO_CMFAEV CMFAEV;
   DATALAYER_INFO_GEELY_GEOMETRY_C geometryC;
   DATALAYER_INFO_KIAHYUNDAI64 KiaHyundai64;
+  DATALAYER_INFO_KIAHYUNDAI64 KiaHyundai64_2;
   DATALAYER_INFO_TESLA tesla;
   DATALAYER_INFO_NISSAN_LEAF nissanleaf;
   DATALAYER_INFO_MEB meb;
