@@ -273,7 +273,7 @@ void core_loop(void*) {
     transmit_can(currentMillis);  // Send CAN messages to all components
 
 #ifdef RS485_BATTERY_SELECTED
-    transmit_rs485();
+    transmit_rs485(currentMillis);
 #endif  // RS485_BATTERY_SELECTED
 #ifdef FUNCTION_TIME_MEASUREMENT
     END_TIME_MEASUREMENT_MAX(cantx, datalayer.system.status.time_cantx_us);
