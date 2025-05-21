@@ -90,8 +90,8 @@ class PylonBattery : public CanBattery {
   uint8_t cell_quantity_in_module = 0;
   uint8_t voltage_level = 0;
   uint8_t ah_number = 0;
-  uint8_t SOC = 0;
-  uint8_t SOH = 0;
+  uint8_t SOC = 50;
+  uint8_t SOH = 100;
   uint8_t charge_forbidden = 0;
   uint8_t discharge_forbidden = 0;
 };

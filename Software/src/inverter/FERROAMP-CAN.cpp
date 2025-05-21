@@ -1,8 +1,7 @@
-#include "../include.h"
-#ifdef FERROAMP_CAN
+#include "FERROAMP-CAN.h"
 #include "../communication/can/comm_can.h"
 #include "../datalayer/datalayer.h"
-#include "FERROAMP-CAN.h"
+#include "../include.h"
 
 void FerroampCanInverter::
     update_values() {  //This function maps all the values fetched from battery CAN to the correct CAN messages
@@ -365,4 +364,3 @@ void FerroampCanInverter::setup(void) {  // Performs one time setup at startup o
   strncpy(datalayer.system.info.inverter_protocol, "Ferroamp Pylon battery over CAN bus", 63);
   datalayer.system.info.inverter_protocol[63] = '\0';
 }
-#endif
