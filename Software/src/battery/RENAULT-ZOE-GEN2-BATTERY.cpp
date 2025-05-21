@@ -79,7 +79,7 @@ CAN_frame ZOE_376 = {
     .FD = false,
     .ext_ID = false,
     .DLC = 8,
-    .ID = 0x373,
+    .ID = 0x376,
     .data = {0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x0A,
              0x00}};  // fill first 6 bytes with 0's. The first 6 bytes are calculated based on the current time.
 CAN_frame ZOE_POLL_18DADBF1 = {.FD = false,
