@@ -161,7 +161,7 @@ uint16_t selectSOC(uint16_t SOC_low, uint16_t SOC_high) {
 }
 
 /* These messages are needed for contactor closing */
-unsigned long startMillis;
+unsigned long startMillis = 0;
 uint8_t messageIndex = 0;
 uint8_t messageDelays[63] = {0,   0,   5,   10,  10,  15,  19,  19,  20,  20,  25,  30,  30,  35,  40,  40,
                              45,  49,  49,  50,  50,  52,  53,  53,  54,  55,  60,  60,  65,  67,  67,  70,
@@ -1100,7 +1100,7 @@ void transmit_can_battery(unsigned long currentMillis) {
     }
 
     if (messageIndex >= 63) {
-      startMillis = millis();  // Start over!
+      startMillis = currentMillis;  // Start over!
       messageIndex = 0;
     }
 
@@ -1131,9 +1131,6 @@ void transmit_can_battery(unsigned long currentMillis) {
 void setup_battery(void) {  // Performs one time setup at startup
   strncpy(datalayer.system.info.battery_protocol, "Kia/Hyundai EGMP platform", 63);
   datalayer.system.info.battery_protocol[63] = '\0';
-
-  startMillis = millis();  // Record the starting time
-
   datalayer.system.status.battery_allows_contactor_closing = true;
   datalayer.battery.info.number_of_cells = 192;  // TODO: will vary depending on battery
   datalayer.battery.info.max_design_voltage_dV = MAX_PACK_VOLTAGE_DV;
