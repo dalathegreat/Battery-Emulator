@@ -1,5 +1,6 @@
 #include "../include.h"
 #ifdef RENAULT_ZOE_GEN2_BATTERY
+#include "../communication/can/comm_can.h"
 #include "../datalayer/datalayer.h"
 #include "../datalayer/datalayer_extended.h"  //For "More battery info" webpage
 #include "../devboard/utils/events.h"
@@ -20,154 +21,10 @@ every time the power is reset which can be dangerous. In this state, the voltage
 https://github.com/openvehicles/Open-Vehicle-Monitoring-System-3/blob/master/vehicle/OVMS.V3/components/vehicle_renaultzoe_ph2_obd/src/vehicle_renaultzoe_ph2_obd.cpp
 https://github.com/ljames28/Renault-Zoe-PH2-ZE50-Canbus-LBC-Information?tab=readme-ov-file
 https://github.com/fesch/CanZE/tree/master/app/src/main/assets/ZOE_Ph2
-/*
+*/
 
-/* Do not change code below unless you are sure what you are doing */
-static uint16_t battery_soc = 0;
-static uint16_t battery_usable_soc = 5000;
-static uint16_t battery_soh = 10000;
-static uint16_t battery_pack_voltage = 370;
-static uint16_t battery_max_cell_voltage = 3700;
-static uint16_t battery_min_cell_voltage = 3700;
-static uint16_t battery_12v = 12000;
-static uint16_t battery_avg_temp = 920;
-static uint16_t battery_min_temp = 920;
-static uint16_t battery_max_temp = 920;
-static uint16_t battery_max_power = 0;
-static uint16_t battery_interlock = 0;
-static uint16_t battery_kwh = 0;
-static int32_t battery_current = 32640;
-static uint16_t battery_current_offset = 0;
-static uint16_t battery_max_generated = 0;
-static uint16_t battery_max_available = 0;
-static uint16_t battery_current_voltage = 0;
-static uint16_t battery_charging_status = 0;
-static uint16_t battery_remaining_charge = 0;
-static uint16_t battery_balance_capacity_total = 0;
-static uint16_t battery_balance_time_total = 0;
-static uint16_t battery_balance_capacity_sleep = 0;
-static uint16_t battery_balance_time_sleep = 0;
-static uint16_t battery_balance_capacity_wake = 0;
-static uint16_t battery_balance_time_wake = 0;
-static uint16_t battery_bms_state = 0;
-static uint16_t battery_balance_switches = 0;
-static uint16_t battery_energy_complete = 0;
-static uint16_t battery_energy_partial = 0;
-static uint16_t battery_slave_failures = 0;
-static uint16_t battery_mileage = 0;
-static uint16_t battery_fan_speed = 0;
-static uint16_t battery_fan_period = 0;
-static uint16_t battery_fan_control = 0;
-static uint16_t battery_fan_duty = 0;
-static uint16_t battery_temporisation = 0;
-static uint16_t battery_time = 0;
-static uint16_t battery_pack_time = 0;
-static uint16_t battery_soc_min = 0;
-static uint16_t battery_soc_max = 0;
-static uint32_t ZOE_376_time_now_s = 1745452800;  // Initialized to make the battery think it is April 24, 2025
-unsigned long kProductionTimestamp_s =
-    1614454107;  // Production timestamp in seconds since January 1, 1970. Production timestamp used: February 25, 2021 at 8:08:27 AM GMT
-
-CAN_frame ZOE_373 = {
-    .FD = false,
-    .ext_ID = false,
-    .DLC = 8,
-    .ID = 0x373,
-    .data = {0xC1, 0x40, 0x5D, 0xB2, 0x00, 0x01, 0xff,
-             0xe3}};  // FIXME: remove if not needed: {0xC1, 0x80, 0x5D, 0x5D, 0x00, 0x00, 0xff, 0xcb}};
-CAN_frame ZOE_376 = {
-    .FD = false,
-    .ext_ID = false,
-    .DLC = 8,
-    .ID = 0x373,
-    .data = {0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x0A,
-             0x00}};  // fill first 6 bytes with 0's. The first 6 bytes are calculated based on the current time.
-CAN_frame ZOE_POLL_18DADBF1 = {.FD = false,
-                               .ext_ID = true,
-                               .DLC = 8,
-                               .ID = 0x18DADBF1,
-                               .data = {0x03, 0x22, 0x90, 0x00, 0x00, 0x00, 0x00, 0x00}};
-//NVROL Reset
-CAN_frame ZOE_NVROL_1_18DADBF1 = {.FD = false,
-                                  .ext_ID = true,
-                                  .DLC = 8,
-                                  .ID = 0x18DADBF1,
-                                  .data = {0x02, 0x10, 0x03, 0xAA, 0xAA, 0xAA, 0xAA, 0xAA}};
-CAN_frame ZOE_NVROL_2_18DADBF1 = {.FD = false,
-                                  .ext_ID = true,
-                                  .DLC = 8,
-                                  .ID = 0x18DADBF1,
-                                  .data = {0x04, 0x31, 0x01, 0xB0, 0x09, 0x00, 0xAA, 0xAA}};
-//Enable temporisation before sleep
-CAN_frame ZOE_SLEEP_1_18DADBF1 = {.FD = false,
-                                  .ext_ID = true,
-                                  .DLC = 8,
-                                  .ID = 0x18DADBF1,
-                                  .data = {0x02, 0x10, 0x03, 0xAA, 0xAA, 0xAA, 0xAA, 0xAA}};
-CAN_frame ZOE_SLEEP_2_18DADBF1 = {.FD = false,
-                                  .ext_ID = true,
-                                  .DLC = 8,
-                                  .ID = 0x18DADBF1,
-                                  .data = {0x04, 0x2E, 0x92, 0x81, 0x01, 0xAA, 0xAA, 0xAA}};
-
-const uint16_t poll_commands[48] = {POLL_SOC,
-                                    POLL_USABLE_SOC,
-                                    POLL_SOH,
-                                    POLL_PACK_VOLTAGE,
-                                    POLL_CURRENT,  //Repeated to speed up update rate on this critical measurement
-                                    POLL_MAX_CELL_VOLTAGE,
-                                    POLL_MIN_CELL_VOLTAGE,
-                                    POLL_12V,
-                                    POLL_AVG_TEMP,
-                                    POLL_MIN_TEMP,
-                                    POLL_CURRENT,  //Repeated to speed up update rate on this critical measurement
-                                    POLL_MAX_TEMP,
-                                    POLL_MAX_POWER,
-                                    POLL_INTERLOCK,
-                                    POLL_KWH,
-                                    POLL_CURRENT,  //Repeated to speed up update rate on this critical measurement
-                                    POLL_CURRENT_OFFSET,
-                                    POLL_MAX_GENERATED,
-                                    POLL_MAX_AVAILABLE,
-                                    POLL_CURRENT_VOLTAGE,
-                                    POLL_CHARGING_STATUS,
-                                    POLL_CURRENT,  //Repeated to speed up update rate on this critical measurement
-                                    POLL_REMAINING_CHARGE,
-                                    POLL_BALANCE_CAPACITY_TOTAL,
-                                    POLL_BALANCE_TIME_TOTAL,
-                                    POLL_BALANCE_CAPACITY_SLEEP,
-                                    POLL_BALANCE_TIME_SLEEP,
-                                    POLL_CURRENT,  //Repeated to speed up update rate on this critical measurement
-                                    POLL_BALANCE_CAPACITY_WAKE,
-                                    POLL_BALANCE_TIME_WAKE,
-                                    POLL_BMS_STATE,
-                                    POLL_BALANCE_SWITCHES,
-                                    POLL_ENERGY_COMPLETE,
-                                    POLL_CURRENT,  //Repeated to speed up update rate on this critical measurement
-                                    POLL_ENERGY_PARTIAL,
-                                    POLL_SLAVE_FAILURES,
-                                    POLL_MILEAGE,
-                                    POLL_FAN_SPEED,
-                                    POLL_FAN_PERIOD,
-                                    POLL_CURRENT,  //Repeated to speed up update rate on this critical measurement
-                                    POLL_FAN_CONTROL,
-                                    POLL_FAN_DUTY,
-                                    POLL_TEMPORISATION,
-                                    POLL_TIME,
-                                    POLL_PACK_TIME,
-                                    POLL_CURRENT,  //Repeated to speed up update rate on this critical measurement
-                                    POLL_SOC_MIN,
-                                    POLL_SOC_MAX};
-static uint8_t counter_373 = 0;
-static uint8_t poll_index = 0;
-static uint16_t currentpoll = POLL_SOC;
-static uint16_t reply_poll = 0;
-
-static unsigned long previousMillis100 = 0;   // will store last time a 100ms CAN Message was sent
-static unsigned long previousMillis200 = 0;   // will store last time a 200ms CAN Message was sent
-static unsigned long previousMillis1000 = 0;  // will store last time a 1000ms CAN Message was sent
-
-void update_values_battery() {  //This function maps all the values fetched via CAN to the correct parameters used for modbus
+void RenaultZoeGen2Battery::
+    update_values() {  //This function maps all the values fetched via CAN to the correct parameters used for modbus
   datalayer.battery.status.soh_pptt = battery_soh;
 
   if (battery_soc >= 300) {
@@ -244,7 +101,7 @@ void update_values_battery() {  //This function maps all the values fetched via 
   datalayer_extended.zoePH2.battery_soc_max = battery_soc_max;
 }
 
-void handle_incoming_can_frame_battery(CAN_frame rx_frame) {
+void RenaultZoeGen2Battery::handle_incoming_can_frame(CAN_frame rx_frame) {
   datalayer.battery.status.CAN_battery_still_alive = CAN_STILL_ALIVE;
   switch (rx_frame.ID) {
     case 0x18DAF1DB:  // LBC Reply from active polling
@@ -384,7 +241,7 @@ void handle_incoming_can_frame_battery(CAN_frame rx_frame) {
   }
 }
 
-void transmit_can_battery(unsigned long currentMillis) {
+void RenaultZoeGen2Battery::transmit_can(unsigned long currentMillis) {
   if (datalayer_extended.zoePH2.UserRequestNVROLReset) {
     // Send NVROL reset frames
     transmit_reset_nvrol_frames();
@@ -434,7 +291,7 @@ void transmit_can_battery(unsigned long currentMillis) {
   }
 }
 
-void setup_battery(void) {  // Performs one time setup at startup
+void RenaultZoeGen2Battery::setup(void) {  // Performs one time setup at startup
   strncpy(datalayer.system.info.battery_protocol, "Renault Zoe Gen2 50kWh", 63);
   datalayer.system.info.battery_protocol[63] = '\0';
   datalayer.system.status.battery_allows_contactor_closing = true;
@@ -446,7 +303,7 @@ void setup_battery(void) {  // Performs one time setup at startup
   datalayer.battery.info.max_cell_voltage_deviation_mV = MAX_CELL_DEVIATION_MV;
 }
 
-void transmit_can_frame_376(void) {
+void RenaultZoeGen2Battery::transmit_can_frame_376(void) {
   unsigned int secondsSinceProduction = ZOE_376_time_now_s - kProductionTimestamp_s;
   float minutesSinceProduction = (float)secondsSinceProduction / 60.0;
   float yearUnfloored = minutesSinceProduction / 255.0 / 255.0;
@@ -467,7 +324,7 @@ void transmit_can_frame_376(void) {
   transmit_can_frame(&ZOE_376, can_config.battery);
 }
 
-void transmit_reset_nvrol_frames(void) {
+void RenaultZoeGen2Battery::transmit_reset_nvrol_frames(void) {
   // NVROL reset, part 1: send 0x021003AAAAAAAAAA
   ZOE_POLL_18DADBF1.data = {0x02, 0x10, 0x03, 0xAA, 0xAA, 0xAA, 0xAA, 0xAA};
   transmit_can_frame(&ZOE_POLL_18DADBF1, can_config.battery);
@@ -497,7 +354,7 @@ void transmit_reset_nvrol_frames(void) {
   wait_ms(30000);
 }
 
-void wait_ms(int duration_ms) {
+void RenaultZoeGen2Battery::wait_ms(int duration_ms) {
   unsigned long freezeMillis = millis();
   while (millis() - freezeMillis < duration_ms) {
     // Do nothing - just wait

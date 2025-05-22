@@ -1,31 +1,9 @@
 #include "../include.h"
 #ifdef ORION_BMS
+#include "../communication/can/comm_can.h"
 #include "../datalayer/datalayer.h"
 #include "../devboard/utils/events.h"
 #include "ORION-BMS.h"
-
-/* Do not change code below unless you are sure what you are doing */
-static uint16_t cellvoltages[MAX_AMOUNT_CELLS];  //array with all the cellvoltages
-static uint16_t Maximum_Cell_Voltage = 3700;
-static uint16_t Minimum_Cell_Voltage = 3700;
-static uint16_t Pack_Health = 99;
-static int16_t Pack_Current = 0;
-static int16_t Average_Temperature = 0;
-static uint16_t Pack_Summed_Voltage = 0;
-static int16_t Average_Current = 0;
-static uint16_t High_Temperature = 0;
-static uint16_t Pack_SOC_ppt = 0;
-static uint16_t Pack_CCL = 0;  //Charge current limit (A)
-static uint16_t Pack_DCL = 0;  //Discharge current limit (A)
-static uint16_t Maximum_Pack_Voltage = 0;
-static uint16_t Minimum_Pack_Voltage = 0;
-static uint16_t CellID = 0;
-static uint16_t CellVoltage = 0;
-static uint16_t CellResistance = 0;
-static uint16_t CellOpenVoltage = 0;
-static uint16_t Checksum = 0;
-static uint16_t CellBalancing = 0;
-static uint8_t amount_of_detected_cells = 0;
 
 void findMinMaxCellvoltages(const uint16_t arr[], size_t size, uint16_t& Minimum_Cell_Voltage,
                             uint16_t& Maximum_Cell_Voltage) {
@@ -50,7 +28,7 @@ void findMinMaxCellvoltages(const uint16_t arr[], size_t size, uint16_t& Minimum
   }
 }
 
-void update_values_battery() {
+void OrionBms::update_values() {
 
   datalayer.battery.status.real_soc = Pack_SOC_ppt * 10;
 
@@ -87,7 +65,7 @@ void update_values_battery() {
   }
 }
 
-void handle_incoming_can_frame_battery(CAN_frame rx_frame) {
+void OrionBms::handle_incoming_can_frame(CAN_frame rx_frame) {
   switch (rx_frame.ID) {
     case 0x356:
       datalayer.battery.status.CAN_battery_still_alive = CAN_STILL_ALIVE;
@@ -132,11 +110,11 @@ void handle_incoming_can_frame_battery(CAN_frame rx_frame) {
   }
 }
 
-void transmit_can_battery(unsigned long currentMillis) {
+void OrionBms::transmit_can(unsigned long currentMillis) {
   // No transmission needed for this integration
 }
 
-void setup_battery(void) {  // Performs one time setup at startup
+void OrionBms::setup(void) {  // Performs one time setup at startup
   strncpy(datalayer.system.info.battery_protocol, "DIY battery with Orion BMS (Victron setting)", 63);
   datalayer.system.info.battery_protocol[63] = '\0';
   datalayer.battery.info.number_of_cells = NUMBER_OF_CELLS;

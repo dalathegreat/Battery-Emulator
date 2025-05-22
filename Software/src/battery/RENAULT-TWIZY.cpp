@@ -5,19 +5,6 @@
 #include "../devboard/utils/events.h"
 #include "RENAULT-TWIZY.h"
 
-/* Do not change code below unless you are sure what you are doing */
-
-static int16_t cell_temperatures_dC[7] = {0};
-static int16_t current_dA = 0;
-static uint16_t voltage_dV = 0;
-static int16_t cellvoltages_mV[14] = {0};
-static int16_t max_discharge_power = 0;
-static int16_t max_recup_power = 0;
-static int16_t max_charge_power = 0;
-static uint16_t SOC = 0;
-static uint16_t SOH = 0;
-static uint16_t remaining_capacity_Wh = 0;
-
 int16_t max_value(int16_t* entries, size_t len) {
   int result = INT16_MIN;
   for (int i = 0; i < len; i++) {
@@ -38,7 +25,7 @@ int16_t min_value(int16_t* entries, size_t len) {
   return result;
 }
 
-void update_values_battery() {
+void RenaultTwizyBattery::update_values() {
 
   datalayer.battery.status.real_soc = SOC;
   datalayer.battery.status.soh_pptt = SOH;
@@ -65,7 +52,7 @@ void update_values_battery() {
       max_value(cell_temperatures_dC, sizeof(cell_temperatures_dC) / sizeof(*cell_temperatures_dC));
 }
 
-void handle_incoming_can_frame_battery(CAN_frame rx_frame) {
+void RenaultTwizyBattery::handle_incoming_can_frame(CAN_frame rx_frame) {
   datalayer.battery.status.CAN_battery_still_alive = CAN_STILL_ALIVE;
   switch (rx_frame.ID) {
     case 0x155:
@@ -127,11 +114,11 @@ void handle_incoming_can_frame_battery(CAN_frame rx_frame) {
   }
 }
 
-void transmit_can_battery(unsigned long currentMillis) {
+void RenaultTwizyBattery::transmit_can(unsigned long currentMillis) {
   // we do not need to send anything to the battery for now
 }
 
-void setup_battery(void) {  // Performs one time setup at startup
+void RenaultTwizyBattery::setup(void) {  // Performs one time setup at startup
   strncpy(datalayer.system.info.battery_protocol, "Renault Twizy", 63);
   datalayer.system.info.battery_protocol[63] = '\0';
   datalayer.battery.info.number_of_cells = 14;

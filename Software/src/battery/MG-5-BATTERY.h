@@ -3,14 +3,35 @@
 #include <Arduino.h>
 #include "../include.h"
 
-#define BATTERY_SELECTED
-#define MAX_PACK_VOLTAGE_DV 4040  //5000 = 500.0V
-#define MIN_PACK_VOLTAGE_DV 3100
-#define MAX_CELL_DEVIATION_MV 150
-#define MAX_CELL_VOLTAGE_MV 4250  //Battery is put into emergency stop if one cell goes over this value
-#define MIN_CELL_VOLTAGE_MV 2700  //Battery is put into emergency stop if one cell goes below this value
+#include "CanBattery.h"
 
-void setup_battery(void);
-void transmit_can_frame(CAN_frame* tx_frame, int interface);
+#define BATTERY_SELECTED
+#define SELECTED_BATTERY_CLASS Mg5Battery
+
+class Mg5Battery : public CanBattery {
+ public:
+  virtual void setup(void);
+  virtual void handle_incoming_can_frame(CAN_frame rx_frame);
+  virtual void update_values();
+  virtual void transmit_can(unsigned long currentMillis);
+
+ private:
+  static const int MAX_PACK_VOLTAGE_DV = 4040;  //5000 = 500.0V
+  static const int MIN_PACK_VOLTAGE_DV = 3100;
+  static const int MAX_CELL_DEVIATION_MV = 150;
+  static const int MAX_CELL_VOLTAGE_MV = 4250;  //Battery is put into emergency stop if one cell goes over this value
+  static const int MIN_CELL_VOLTAGE_MV = 2700;  //Battery is put into emergency stop if one cell goes below this value
+
+  unsigned long previousMillis10 = 0;   // will store last time a 10ms CAN Message was send
+  unsigned long previousMillis100 = 0;  // will store last time a 100ms CAN Message was send
+
+  int BMS_SOC = 0;
+
+  CAN_frame MG_5_100 = {.FD = false,
+                        .ext_ID = false,
+                        .DLC = 8,
+                        .ID = 0x100,
+                        .data = {0x00, 0x00, 0x00, 0x00, 0x80, 0x10, 0x00, 0x00}};
+};
 
 #endif
