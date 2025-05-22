@@ -22,7 +22,7 @@ class BydModbusInverter : public ModbusInverterProtocol {
   void handle_update_data_modbusp301_byd();
 
   //BYD Modbus specific value
-  const int MAX_POWER = 40960;
+  const uint16_t MAX_POWER = 40960;
 };
 
 #endif
