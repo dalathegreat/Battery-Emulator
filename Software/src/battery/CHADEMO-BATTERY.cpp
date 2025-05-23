@@ -326,6 +326,7 @@ void ChademoBattery::handle_incoming_can_frame(CAN_frame rx_frame) {
       break;
     case 0x110:  //Only present on Chademo v2.0
       process_vehicle_dynamic_control(rx_frame);
+      break;
     case 0x700:
       process_vehicle_vendor_ID(rx_frame);
       break;
