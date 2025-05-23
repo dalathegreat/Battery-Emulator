@@ -295,6 +295,11 @@ typedef struct {
 } DATALAYER_INFO_CMFAEV;
 
 typedef struct {
+  uint8_t MainConnectorState = 0;
+  uint16_t InsulationResistance = 0;
+} DATALAYER_INFO_ECMP;
+
+typedef struct {
   /** uint8_t */
   /** Battery software/hardware/serial versions, stores raw HEX values for ASCII chars */
   uint8_t BatterySoftwareVersion[16] = {0};
@@ -796,6 +801,7 @@ class DataLayerExtended {
   DATALAYER_INFO_BYDATTO3 bydAtto3;
   DATALAYER_INFO_CELLPOWER cellpower;
   DATALAYER_INFO_CMFAEV CMFAEV;
+  DATALAYER_INFO_ECMP stellantisECMP;
   DATALAYER_INFO_GEELY_GEOMETRY_C geometryC;
   DATALAYER_INFO_KIAHYUNDAI64 KiaHyundai64;
   DATALAYER_INFO_KIAHYUNDAI64 KiaHyundai64_2;

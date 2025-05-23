@@ -458,6 +458,19 @@ String advanced_battery_processor(const String& var) {
         "<h4>Cumulative energy regen: " + String(datalayer_extended.CMFAEV.cumulative_energy_in_regen) + "Wh</h4>";
 #endif  //CMFA_EV_BATTERY
 
+#ifdef STELLANTIS_ECMP_BATTERY
+    content += "<h4>Main Connector State: ";
+    if (datalayer_extended.stellantisECMP.MainConnectorState == 0) {
+      content += "Contactors open</h4>";
+    } else if (datalayer_extended.stellantisECMP.MainConnectorState == 0x01) {
+      content += "Precharged</h4>";
+    } else {
+      content += "Invalid</h4>";
+    }
+    content +=
+        "<h4>Insulation Resistance: " + String(datalayer_extended.stellantisECMP.InsulationResistance) + "kOhm</h4>";
+#endif  //STELLANTIS_ECMP_BATTERY
+
 #ifdef GEELY_GEOMETRY_C_BATTERY
     char readableSerialNumber[29];  // One extra space for null terminator
     memcpy(readableSerialNumber, datalayer_extended.geometryC.BatterySerialNumber,
@@ -1520,11 +1533,12 @@ String advanced_battery_processor(const String& var) {
     content += "<button onclick='Volvo_BECMecuReset()'>Restart BECM module</button>";
 #endif  // VOLVO_SPA_HYBRID_BATTERY
 
-#if !defined(BMW_PHEV_BATTERY) && !defined(BMW_IX_BATTERY) && !defined(BOLT_AMPERA_BATTERY) &&       \
-    !defined(TESLA_BATTERY) && !defined(NISSAN_LEAF_BATTERY) && !defined(BMW_I3_BATTERY) &&          \
-    !defined(BYD_ATTO_3_BATTERY) && !defined(RENAULT_ZOE_GEN2_BATTERY) && !defined(CELLPOWER_BMS) && \
-    !defined(MEB_BATTERY) && !defined(VOLVO_SPA_BATTERY) && !defined(VOLVO_SPA_HYBRID_BATTERY) &&    \
-    !defined(KIA_HYUNDAI_64_BATTERY) && !defined(GEELY_GEOMETRY_C_BATTERY) &&                        \
+#if !defined(BMW_PHEV_BATTERY) && !defined(BMW_IX_BATTERY) && !defined(BOLT_AMPERA_BATTERY) &&            \
+    !defined(TESLA_BATTERY) && !defined(NISSAN_LEAF_BATTERY) && !defined(BMW_I3_BATTERY) &&               \
+    !defined(BYD_ATTO_3_BATTERY) && !defined(RENAULT_ZOE_GEN2_BATTERY) && !defined(CELLPOWER_BMS) &&      \
+    !defined(MEB_BATTERY) && !defined(VOLVO_SPA_BATTERY) && !defined(VOLVO_SPA_HYBRID_BATTERY) &&         \
+    !defined(KIA_HYUNDAI_64_BATTERY) && !defined(CMFA_EV_BATTERY) && !defined(STELLANTIS_ECMP_BATTERY) && \
+    !defined(KIA_HYUNDAI_64_BATTERY) && !defined(GEELY_GEOMETRY_C_BATTERY) &&                             \
     !defined(CMFA_EV_BATTERY)  //Only the listed types have extra info
     content += "No extra information available for this battery type";
 #endif

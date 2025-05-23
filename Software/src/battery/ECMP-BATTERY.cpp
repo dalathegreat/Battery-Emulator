@@ -1,41 +1,39 @@
 #include "../include.h"
 #ifdef STELLANTIS_ECMP_BATTERY
-#include <algorithm>  // For std::min and std::max
+#include "../communication/can/comm_can.h"
 #include "../datalayer/datalayer.h"
+#include "../datalayer/datalayer_extended.h"  //For More Battery Info page
 #include "../devboard/utils/events.h"
 #include "ECMP-BATTERY.h"
 
 /* TODO:
 This integration is still ongoing. Here is what still needs to be done in order to use this battery type
-- Find SOC%
-- Find battery voltage
-- Find current value
-- Find/estimate charge/discharge limits
-- Find temperature
 - Figure out contactor closing
    - Which CAN messages need to be sent towards the battery?
+- Handle 54/70kWh cellcounting properly
 */
 
+/* Do not change code below unless you are sure what you are doing */
 void EcmpBattery::update_values() {
 
-  datalayer.battery.status.real_soc = battery_soc * 100;
+  datalayer.battery.status.real_soc = battery_soc * 10;
 
   datalayer.battery.status.soh_pptt;
 
-  datalayer.battery.status.voltage_dV = (battery_voltage / 10);
+  datalayer.battery.status.voltage_dV = battery_voltage * 10;
 
-  datalayer.battery.status.current_dA;
+  datalayer.battery.status.current_dA = battery_current * 10;
 
   datalayer.battery.status.active_power_W =  //Power in watts, Negative = charging batt
       ((datalayer.battery.status.voltage_dV * datalayer.battery.status.current_dA) / 100);
 
-  datalayer.battery.status.max_charge_power_W;
+  datalayer.battery.status.max_charge_power_W = battery_AllowedMaxChargeCurrent * battery_voltage;
 
-  datalayer.battery.status.max_discharge_power_W;
+  datalayer.battery.status.max_discharge_power_W = battery_AllowedMaxDischargeCurrent * battery_voltage;
 
-  datalayer.battery.status.temperature_min_dC;
+  datalayer.battery.status.temperature_min_dC = battery_lowestTemperature * 10;
 
-  datalayer.battery.status.temperature_max_dC;
+  datalayer.battery.status.temperature_max_dC = battery_highestTemperature * 10;
 
   // Initialize min and max, lets find which cells are min and max!
   uint16_t min_cell_mv_value = std::numeric_limits<uint16_t>::max();
@@ -56,25 +54,46 @@ void EcmpBattery::update_values() {
 
   datalayer.battery.status.cell_min_voltage_mV = min_cell_mv_value;
   datalayer.battery.status.cell_max_voltage_mV = max_cell_mv_value;
+
+  // Update extended datalayer (More Battery Info page)
+  datalayer_extended.stellantisECMP.MainConnectorState = battery_MainConnectorState;
+  datalayer_extended.stellantisECMP.InsulationResistance = battery_insulationResistanceKOhm;
 }
 
 void EcmpBattery::handle_incoming_can_frame(CAN_frame rx_frame) {
   datalayer.battery.status.CAN_battery_still_alive = CAN_STILL_ALIVE;
   switch (rx_frame.ID) {
-    case 0x125:
+    case 0x125:  //Common
+      battery_soc = (rx_frame.data.u8[0] << 2) |
+                    (rx_frame.data.u8[1] >> 6);  // Byte1, bit 7 length 10 (0x3FE when abnormal) (0-1000 ppt)
+      battery_MainConnectorState = ((rx_frame.data.u8[2] & 0x30) >>
+                                    4);  //Byte2 , bit 4, length 2 ((00 contactors open, 01 precharged, 11 invalid))
+      battery_voltage =
+          (rx_frame.data.u8[3] << 1) | (rx_frame.data.u8[4] >> 7);  //Byte 4, bit 7, length 9 (0x1FE if invalid)
+      battery_current = (((rx_frame.data.u8[4] & 0x7F) << 5) | (rx_frame.data.u8[5] >> 3)) -
+                        600;  // Byte5, Bit 3 length 12 (0xFFE when abnormal) (-600 to 600 , offset -600)
+      //battery_RelayOpenRequest = // Byte 5, bit 6, length 1 (0 no request, 1 battery requests contactor opening)
+      //Stellantis doc seems wrong, could Byte5 be misspelled as Byte2? Bit will otherwise collide with battery_current
       break;
-    case 0x127:
+    case 0x127:  //DFM specific
+      battery_AllowedMaxChargeCurrent =
+          (rx_frame.data.u8[0] << 2) |
+          ((rx_frame.data.u8[1] & 0xC0) >> 6);  //Byte 1, bit 7, length 10 (0-600A) [0x3FF if invalid]
+      battery_AllowedMaxDischargeCurrent =
+          ((rx_frame.data.u8[2] & 0x3F) << 4) |
+          (rx_frame.data.u8[3] >> 4);  //Byte 2, bit 5, length 10 (0-600A) [0x3FF if invalid]
       break;
-    case 0x129:
+    case 0x129:  //PSA specific
       break;
     case 0x31B:
       break;
-    case 0x358:
+    case 0x358:  //Common
+      battery_highestTemperature = rx_frame.data.u8[6] - 40;
+      battery_lowestTemperature = rx_frame.data.u8[7] - 40;
       break;
     case 0x359:
       break;
     case 0x361:
-      battery_voltage = (rx_frame.data.u8[4] << 8) | rx_frame.data.u8[5];
       break;
     case 0x362:
       break;
@@ -84,8 +103,9 @@ void EcmpBattery::handle_incoming_can_frame(CAN_frame rx_frame) {
       break;
     case 0x594:
       break;
-    case 0x6D0:
-      battery_soc = (100 - rx_frame.data.u8[0]);
+    case 0x6D0:  //Common
+      battery_insulationResistanceKOhm =
+          (rx_frame.data.u8[2] << 8) | rx_frame.data.u8[3];  //Byte 2, bit 7, length 16 (0-60000 kOhm)
       break;
     case 0x6D1:
       break;
@@ -275,19 +295,40 @@ void EcmpBattery::handle_incoming_can_frame(CAN_frame rx_frame) {
 }
 
 void EcmpBattery::transmit_can(unsigned long currentMillis) {
-  // Send 1s CAN Message
-  if (currentMillis - previousMillis1000 >= INTERVAL_1_S) {
-    previousMillis1000 = currentMillis;
+  // Send 20ms CAN Message
+  if (currentMillis - previousMillis20 >= INTERVAL_20_MS) {
+    previousMillis20 = currentMillis;
+
+    counter_20ms = (counter_20ms + 1) % 16;
+
+    if (datalayer.battery.status.bms_status == FAULT) {
+      //Open contactors!
+      ECMP_0F0.data.u8[1] = 0x00;
+      ECMP_0F0.data.u8[7] = data_0F0_00[counter_20ms];
+    } else {  // Not in faulted mode, Close contactors!
+      ECMP_0F0.data.u8[1] = 0x20;
+      ECMP_0F0.data.u8[7] = data_0F0_20[counter_20ms];
+    }
+
+    transmit_can_frame(&ECMP_0F0, can_config.battery);  //Common!
+  }
+  // Send 100ms CAN Message
+  if (currentMillis - previousMillis100 >= INTERVAL_100_MS) {
+    previousMillis100 = currentMillis;
+
+    transmit_can_frame(&ECMP_382, can_config.battery);  //PSA Specific!
   }
 }
 
 void EcmpBattery::setup(void) {  // Performs one time setup at startup
-#ifdef DEBUG_VIA_USB
-  Serial.println("ECMP battery selected");
-#endif
+  strncpy(datalayer.system.info.battery_protocol, "Stellantis ECMP battery", 63);
+  datalayer.system.info.battery_protocol[63] = '\0';
   datalayer.battery.info.number_of_cells = 108;
-  datalayer.battery.info.max_design_voltage_dV = 4546;  // 454.6V, charging over this is not possible
-  datalayer.battery.info.min_design_voltage_dV = 3210;  // 321.0V, under this, discharging further is disabled
+  datalayer.battery.info.max_cell_voltage_mV = MAX_CELL_VOLTAGE_MV;
+  datalayer.battery.info.min_cell_voltage_mV = MIN_CELL_VOLTAGE_MV;
+  datalayer.battery.info.max_cell_voltage_deviation_mV = MAX_CELL_DEVIATION_MV;
+  datalayer.battery.info.max_design_voltage_dV = MAX_PACK_VOLTAGE_DV;
+  datalayer.battery.info.min_design_voltage_dV = MIN_PACK_VOLTAGE_DV;
   datalayer.system.status.battery_allows_contactor_closing = true;
 }
 
