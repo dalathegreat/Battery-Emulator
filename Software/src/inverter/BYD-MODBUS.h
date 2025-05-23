@@ -2,8 +2,10 @@
 #define BYD_MODBUS_H
 #include "../include.h"
 
+#ifdef BYD_MODBUS
 #define MODBUS_INVERTER_SELECTED
 #define SELECTED_INVERTER_CLASS BydModbusInverter
+#endif
 
 #include "ModbusInverterProtocol.h"
 
@@ -20,7 +22,7 @@ class BydModbusInverter : public ModbusInverterProtocol {
   void handle_update_data_modbusp301_byd();
 
   //BYD Modbus specific value
-  const int MAX_POWER = 40960;
+  const uint16_t MAX_POWER = 40960;
 };
 
 #endif

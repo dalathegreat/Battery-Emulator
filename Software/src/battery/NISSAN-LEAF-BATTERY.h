@@ -19,10 +19,9 @@
 class NissanLeafBattery : public CanBattery {
  public:
   // Use this constructor for the second battery.
-  NissanLeafBattery(DATALAYER_BATTERY_TYPE* datalayer_ptr, bool* allows_contactor_closing_ptr,
-                    DATALAYER_INFO_NISSAN_LEAF* extended, int targetCan) {
+  NissanLeafBattery(DATALAYER_BATTERY_TYPE* datalayer_ptr, DATALAYER_INFO_NISSAN_LEAF* extended, int targetCan) {
     datalayer_battery = datalayer_ptr;
-    allows_contactor_closing = allows_contactor_closing_ptr;
+    allows_contactor_closing = nullptr;
     datalayer_nissan = extended;
     can_interface = targetCan;
 
@@ -48,6 +47,8 @@ class NissanLeafBattery : public CanBattery {
 
   DATALAYER_BATTERY_TYPE* datalayer_battery;
   DATALAYER_INFO_NISSAN_LEAF* datalayer_nissan;
+
+  // If not null, this battery decides when the contactor can be closed and writes the value here.
   bool* allows_contactor_closing;
 
   int can_interface;

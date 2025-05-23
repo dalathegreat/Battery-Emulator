@@ -1379,7 +1379,7 @@ String processor(const String& var) {
 
     content += "<h4>Automatic contactor closing allowed:</h4>";
     content += "<h4>Battery: ";
-    if (datalayer.system.status.battery2_allows_contactor_closing == true) {
+    if (datalayer.system.status.battery2_allowed_contactor_closing == true) {
       content += "<span>&#10003;</span>";
     } else {
       content += "<span style='color: red;'>&#10005;</span>";

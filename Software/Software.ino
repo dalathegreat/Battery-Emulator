@@ -49,7 +49,7 @@
 volatile unsigned long long bmsResetTimeOffset = 0;
 
 // The current software version, shown on webserver
-const char* version_number = "8.13.dev";
+const char* version_number = "8.14.dev";
 
 // Interval timers
 volatile unsigned long currentMillis = 0;
@@ -102,10 +102,7 @@ void setup() {
 #endif  // PRECHARGE_CONTROL
 
   setup_charger();
-
-#if defined(CAN_INVERTER_SELECTED) || defined(MODBUS_INVERTER_SELECTED) || defined(RS485_INVERTER_SELECTED)
   setup_inverter();
-#endif
   setup_battery();
 
   init_rs485();
@@ -244,7 +241,7 @@ void core_loop(void*) {
       led_exe();
       handle_contactors();  // Take care of startup precharge/contactor closing
 #ifdef PRECHARGE_CONTROL
-      handle_precharge_control();
+      handle_precharge_control(currentMillis);
 #endif  // PRECHARGE_CONTROL
 #ifdef FUNCTION_TIME_MEASUREMENT
       END_TIME_MEASUREMENT_MAX(time_10ms, datalayer.system.status.time_10ms_us);
@@ -276,7 +273,7 @@ void core_loop(void*) {
     transmit_can(currentMillis);  // Send CAN messages to all components
 
 #ifdef RS485_BATTERY_SELECTED
-    transmit_rs485();
+    transmit_rs485(currentMillis);
 #endif  // RS485_BATTERY_SELECTED
 #ifdef FUNCTION_TIME_MEASUREMENT
     END_TIME_MEASUREMENT_MAX(cantx, datalayer.system.status.time_cantx_us);
@@ -334,9 +331,9 @@ void check_interconnect_available() {
     clear_event(EVENT_VOLTAGE_DIFFERENCE);
     if (datalayer.battery.status.bms_status == FAULT) {
       // If main battery is in fault state, disengage the second battery
-      datalayer.system.status.battery2_allows_contactor_closing = false;
+      datalayer.system.status.battery2_allowed_contactor_closing = false;
     } else {  // If main battery is OK, allow second battery to join
-      datalayer.system.status.battery2_allows_contactor_closing = true;
+      datalayer.system.status.battery2_allowed_contactor_closing = true;
     }
   } else {  //Voltage between the two packs is too large
     set_event(EVENT_VOLTAGE_DIFFERENCE, (uint8_t)(voltage_diff / 10));
@@ -512,15 +509,9 @@ void update_calculated_values() {
 }
 
 void update_values_inverter() {
-#ifdef SELECTED_INVERTER_CLASS
   if (inverter) {
     inverter->update_values();
   }
-#else
-#ifdef CAN_INVERTER_SELECTED
-  update_values_can_inverter();
-#endif  // CAN_INVERTER_SELECTED
-#endif
 }
 
 void check_reset_reason() {

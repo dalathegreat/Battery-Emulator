@@ -485,10 +485,12 @@ void BydAttoBattery::transmit_can(unsigned long currentMillis) {
     previousMillis50 = currentMillis;
 
     // Set close contactors to allowed (Useful for crashed packs, started via contactor control thru GPIO)
-    if (datalayer_battery->status.bms_status == ACTIVE) {
-      datalayer.system.status.battery_allows_contactor_closing = true;
-    } else {  // Fault state, open contactors!
-      datalayer.system.status.battery_allows_contactor_closing = false;
+    if (allows_contactor_closing) {
+      if (datalayer_battery->status.bms_status == ACTIVE) {
+        *allows_contactor_closing = true;
+      } else {  // Fault state, open contactors!
+        *allows_contactor_closing = false;
+      }
     }
 
     counter_50ms++;

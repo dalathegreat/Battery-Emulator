@@ -1,8 +1,7 @@
-#include "../include.h"
-#ifdef BYD_KOSTAL_RS485
+#include "KOSTAL-RS485.h"
 #include "../datalayer/datalayer.h"
 #include "../devboard/utils/events.h"
-#include "KOSTAL-RS485.h"
+#include "../include.h"
 
 void KostalInverterProtocol::float2frame(byte* arr, float value, byte framepointer) {
   f32b g;
@@ -307,4 +306,3 @@ void KostalInverterProtocol::setup(void) {  // Performs one time setup at startu
 
   Serial2.begin(baud_rate(), SERIAL_8N1, RS485_RX_PIN, RS485_TX_PIN);
 }
-#endif

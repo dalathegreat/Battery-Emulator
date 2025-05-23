@@ -22,7 +22,7 @@ class DalyBms : public RS485Battery {
  public:
   void setup();
   void update_values();
-  void transmit_rs485();
+  void transmit_rs485(unsigned long currentMillis);
   void receive_RS485();
 
  private:

@@ -33,11 +33,10 @@
 class BydAttoBattery : public CanBattery {
  public:
   // Use this constructor for the second battery.
-  BydAttoBattery(DATALAYER_BATTERY_TYPE* datalayer_ptr, bool* allows_contactor_closing_ptr,
-                 DATALAYER_INFO_BYDATTO3* extended, int targetCan) {
+  BydAttoBattery(DATALAYER_BATTERY_TYPE* datalayer_ptr, DATALAYER_INFO_BYDATTO3* extended, int targetCan) {
     datalayer_battery = datalayer_ptr;
     datalayer_bydatto = extended;
-    allows_contactor_closing = allows_contactor_closing_ptr;
+    allows_contactor_closing = nullptr;
     can_interface = targetCan;
   }
 
