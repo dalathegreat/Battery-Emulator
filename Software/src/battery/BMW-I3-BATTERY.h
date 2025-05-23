@@ -12,9 +12,10 @@
 class BmwI3Battery : public CanBattery {
  public:
   // Use this constructor for the second battery.
-  BmwI3Battery(DATALAYER_BATTERY_TYPE* datalayer_ptr, bool* allows_contactor_closing_ptr, int targetCan, int wakeup) {
+  BmwI3Battery(DATALAYER_BATTERY_TYPE* datalayer_ptr, bool* contactor_closing_allowed_ptr, int targetCan, int wakeup) {
     datalayer_battery = datalayer_ptr;
-    allows_contactor_closing = allows_contactor_closing_ptr;
+    contactor_closing_allowed = contactor_closing_allowed_ptr;
+    allows_contactor_closing = nullptr;
     can_interface = targetCan;
     wakeup_pin = wakeup;
     *allows_contactor_closing = true;
@@ -27,6 +28,7 @@ class BmwI3Battery : public CanBattery {
   BmwI3Battery() {
     datalayer_battery = &datalayer.battery;
     allows_contactor_closing = &datalayer.system.status.battery_allows_contactor_closing;
+    contactor_closing_allowed = nullptr;
     can_interface = can_config.battery;
     wakeup_pin = WUP_PIN1;
   }
@@ -53,9 +55,14 @@ class BmwI3Battery : public CanBattery {
   const int NUMBER_OF_CELLS = 96;
 
   DATALAYER_BATTERY_TYPE* datalayer_battery;
-  bool* allows_contactor_closing;
-  int wakeup_pin;
 
+  // If not null, this battery decides when the contactor can be closed and writes the value here.
+  bool* allows_contactor_closing;
+
+  // If not null, this battery listens to this boolean to determine whether contactor closing is allowed
+  bool* contactor_closing_allowed;
+
+  int wakeup_pin;
   int can_interface;
 
   unsigned long previousMillis20 = 0;     // will store last time a 20ms CAN Message was send

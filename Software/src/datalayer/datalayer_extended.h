@@ -295,6 +295,38 @@ typedef struct {
 } DATALAYER_INFO_CMFAEV;
 
 typedef struct {
+  uint8_t MainConnectorState = 0;
+  uint16_t InsulationResistance = 0;
+} DATALAYER_INFO_ECMP;
+
+typedef struct {
+  /** uint8_t */
+  /** Battery software/hardware/serial versions, stores raw HEX values for ASCII chars */
+  uint8_t BatterySoftwareVersion[16] = {0};
+  uint8_t BatteryHardwareVersion[16] = {0};
+  uint8_t BatterySerialNumber[28] = {0};
+  /** int16_t */
+  /** Module temperatures 1-6 */
+  int16_t ModuleTemperatures[6] = {0};
+  /** uint16_t */
+  /** Various values polled via OBD2 PIDs */
+  uint16_t soc = 0;
+  uint16_t CC2voltage = 0;
+  uint16_t cellMaxVoltageNumber = 0;
+  uint16_t cellMinVoltageNumber = 0;
+  uint16_t cellTotalAmount = 0;
+  uint16_t specificialVoltage = 0;
+  uint16_t unknown1 = 0;
+  uint16_t rawSOCmax = 0;
+  uint16_t rawSOCmin = 0;
+  uint16_t unknown4 = 0;
+  uint16_t capModMax = 0;
+  uint16_t capModMin = 0;
+  uint16_t unknown7 = 0;
+  uint16_t unknown8 = 0;
+} DATALAYER_INFO_GEELY_GEOMETRY_C;
+
+typedef struct {
   uint8_t total_cell_count = 0;
   int16_t battery_12V = 0;
   uint8_t waterleakageSensor = 0;
@@ -303,16 +335,6 @@ typedef struct {
   uint8_t batteryManagementMode = 0;
   uint8_t BMS_ign = 0;
   uint8_t batteryRelay = 0;
-#ifdef DOUBLE_BATTERY
-  uint8_t battery2_total_cell_count = 0;
-  int16_t battery2_battery_12V = 0;
-  uint8_t battery2_waterleakageSensor = 0;
-  int8_t battery2_temperature_water_inlet = 0;
-  int8_t battery2_powerRelayTemperature = 0;
-  uint8_t battery2_batteryManagementMode = 0;
-  uint8_t battery2_BMS_ign = 0;
-  uint8_t battery2_batteryRelay = 0;
-#endif  //DOUBLE BATTERY
 } DATALAYER_INFO_KIAHYUNDAI64;
 
 typedef struct {
@@ -779,7 +801,10 @@ class DataLayerExtended {
   DATALAYER_INFO_BYDATTO3 bydAtto3;
   DATALAYER_INFO_CELLPOWER cellpower;
   DATALAYER_INFO_CMFAEV CMFAEV;
+  DATALAYER_INFO_ECMP stellantisECMP;
+  DATALAYER_INFO_GEELY_GEOMETRY_C geometryC;
   DATALAYER_INFO_KIAHYUNDAI64 KiaHyundai64;
+  DATALAYER_INFO_KIAHYUNDAI64 KiaHyundai64_2;
   DATALAYER_INFO_TESLA tesla;
   DATALAYER_INFO_NISSAN_LEAF nissanleaf;
   DATALAYER_INFO_MEB meb;

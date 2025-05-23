@@ -49,7 +49,7 @@
 volatile unsigned long long bmsResetTimeOffset = 0;
 
 // The current software version, shown on webserver
-const char* version_number = "8.13.dev";
+const char* version_number = "8.13.0";
 
 // Interval timers
 volatile unsigned long currentMillis = 0;
@@ -273,7 +273,7 @@ void core_loop(void*) {
     transmit_can(currentMillis);  // Send CAN messages to all components
 
 #ifdef RS485_BATTERY_SELECTED
-    transmit_rs485();
+    transmit_rs485(currentMillis);
 #endif  // RS485_BATTERY_SELECTED
 #ifdef FUNCTION_TIME_MEASUREMENT
     END_TIME_MEASUREMENT_MAX(cantx, datalayer.system.status.time_cantx_us);
@@ -331,9 +331,9 @@ void check_interconnect_available() {
     clear_event(EVENT_VOLTAGE_DIFFERENCE);
     if (datalayer.battery.status.bms_status == FAULT) {
       // If main battery is in fault state, disengage the second battery
-      datalayer.system.status.battery2_allows_contactor_closing = false;
+      datalayer.system.status.battery2_allowed_contactor_closing = false;
     } else {  // If main battery is OK, allow second battery to join
-      datalayer.system.status.battery2_allows_contactor_closing = true;
+      datalayer.system.status.battery2_allowed_contactor_closing = true;
     }
   } else {  //Voltage between the two packs is too large
     set_event(EVENT_VOLTAGE_DIFFERENCE, (uint8_t)(voltage_diff / 10));

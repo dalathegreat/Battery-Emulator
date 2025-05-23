@@ -1,38 +1,12 @@
 #include "../include.h"
 #ifdef SONO_BATTERY
+#include "../communication/can/comm_can.h"
 #include "../datalayer/datalayer.h"
 #include "../devboard/utils/events.h"
 #include "SONO-BATTERY.h"
 
-/* Do not change code below unless you are sure what you are doing */
-static unsigned long previousMillis100 = 0;   // will store last time a 100ms CAN Message was send
-static unsigned long previousMillis1000 = 0;  // will store last time a 1000ms CAN Message was send
-
-static uint8_t seconds = 0;
-static uint8_t functionalsafetybitmask = 0;
-static uint16_t batteryVoltage = 3700;
-static uint16_t allowedDischargePower = 0;
-static uint16_t allowedChargePower = 0;
-static uint16_t CellVoltMax_mV = 0;
-static uint16_t CellVoltMin_mV = 0;
-static int16_t batteryAmps = 0;
-static int16_t temperatureMin = 0;
-static int16_t temperatureMax = 0;
-static uint8_t batterySOH = 99;
-static uint8_t realSOC = 99;
-
-CAN_frame SONO_400 = {.FD = false,  //Message of Vehicle Command, 100ms
-                      .ext_ID = false,
-                      .DLC = 8,
-                      .ID = 0x400,
-                      .data = {0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00}};
-CAN_frame SONO_401 = {.FD = false,  //Message of Vehicle Date, 1000ms
-                      .ext_ID = false,
-                      .DLC = 8,
-                      .ID = 0x400,
-                      .data = {0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00}};
-
-void update_values_battery() {  //This function maps all the values fetched via CAN to the correct parameters used for modbus
+void SonoBattery::
+    update_values() {  //This function maps all the values fetched via CAN to the correct parameters used for modbus
 
   datalayer.battery.status.real_soc = (realSOC * 100);  //increase SOC range from 0-100 -> 100.00
 
@@ -60,7 +34,7 @@ void update_values_battery() {  //This function maps all the values fetched via 
   datalayer.battery.status.temperature_max_dC = temperatureMax;
 }
 
-void handle_incoming_can_frame_battery(CAN_frame rx_frame) {
+void SonoBattery::handle_incoming_can_frame(CAN_frame rx_frame) {
   switch (rx_frame.ID) {
     case 0x100:
       datalayer.battery.status.CAN_battery_still_alive = CAN_STILL_ALIVE;
@@ -137,7 +111,7 @@ void handle_incoming_can_frame_battery(CAN_frame rx_frame) {
       break;
   }
 }
-void transmit_can_battery(unsigned long currentMillis) {
+void SonoBattery::transmit_can(unsigned long currentMillis) {
   // Send 100ms CAN Message
   if (currentMillis - previousMillis100 >= INTERVAL_100_MS) {
     previousMillis100 = currentMillis;
@@ -166,7 +140,7 @@ void transmit_can_battery(unsigned long currentMillis) {
   }
 }
 
-void setup_battery(void) {  // Performs one time setup at startup
+void SonoBattery::setup(void) {  // Performs one time setup at startup
   strncpy(datalayer.system.info.battery_protocol, "Sono Motors Sion 64kWh LFP ", 63);
   datalayer.system.info.battery_protocol[63] = '\0';
   datalayer.battery.info.number_of_cells = 96;
