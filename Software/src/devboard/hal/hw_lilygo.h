@@ -93,6 +93,12 @@
 #error CAN_ADDON AND CANFD_ADDON CANNOT BE USED SIMULTANEOUSLY
 #endif
 
+#if defined(SMA_BYD_H_CAN) || defined(SMA_BYD_HVS_CAN) || defined(SMA_TRIPOWER_CAN)
+#if defined(CAN_ADDON) || defined(CANFD_ADDON)
+#error Pin 5 used by both Enable line and for CAN-ADDON. Please reconfigure this, and remove this line to proceed
+#endif
+#endif
+
 #ifdef CHADEMO_BATTERY
 #ifdef CAN_ADDON
 #error CHADEMO and CAN_ADDON cannot coexist due to overlapping GPIO pin usage
