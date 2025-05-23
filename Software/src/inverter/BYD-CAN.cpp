@@ -1,8 +1,7 @@
-#include "../include.h"
-#ifdef BYD_CAN
+#include "BYD-CAN.h"
 #include "../communication/can/comm_can.h"
 #include "../datalayer/datalayer.h"
-#include "BYD-CAN.h"
+#include "../include.h"
 
 /* Do not change code below unless you are sure what you are doing */
 
@@ -95,7 +94,7 @@ void BydCanInverter::map_can_frame_to_variable(CAN_frame rx_frame) {
       inverterStartedUp = true;
       datalayer.system.status.CAN_inverter_still_alive = CAN_STILL_ALIVE;
       if (rx_frame.data.u8[0] & 0x01) {  //Battery requests identification
-        send_intial_data();
+        send_initial_data();
       } else {  // We can identify what inverter type we are connected to
         for (uint8_t i = 0; i < 7; i++) {
           datalayer.system.info.inverter_brand[i] = rx_frame.data.u8[i + 1];
@@ -135,7 +134,7 @@ void BydCanInverter::transmit_can(unsigned long currentMillis) {
 
   // Send initial CAN data once on bootup
   if (!initialDataSent) {
-    send_intial_data();
+    send_initial_data();
     initialDataSent = true;
   }
 
@@ -161,7 +160,7 @@ void BydCanInverter::transmit_can(unsigned long currentMillis) {
   }
 }
 
-void BydCanInverter::send_intial_data() {
+void BydCanInverter::send_initial_data() {
   transmit_can_frame(&BYD_250, can_config.inverter);
   transmit_can_frame(&BYD_290, can_config.inverter);
   transmit_can_frame(&BYD_2D0, can_config.inverter);
@@ -175,4 +174,3 @@ void BydCanInverter::setup(void) {  // Performs one time setup at startup over C
   strncpy(datalayer.system.info.inverter_protocol, "BYD Battery-Box Premium HVS over CAN Bus", 63);
   datalayer.system.info.inverter_protocol[63] = '\0';
 }
-#endif

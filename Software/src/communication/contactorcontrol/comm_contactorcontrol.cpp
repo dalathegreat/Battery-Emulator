@@ -225,7 +225,7 @@ void handle_contactors() {
 
 #ifdef CONTACTOR_CONTROL_DOUBLE_BATTERY
 void handle_contactors_battery2() {
-  if ((contactorStatus == COMPLETED) && datalayer.system.status.battery2_allows_contactor_closing) {
+  if ((contactorStatus == COMPLETED) && datalayer.system.status.battery2_allowed_contactor_closing) {
     set(SECOND_NEGATIVE_CONTACTOR_PIN, ON);
     set(SECOND_POSITIVE_CONTACTOR_PIN, ON);
     datalayer.system.status.contactors_battery2_engaged = true;

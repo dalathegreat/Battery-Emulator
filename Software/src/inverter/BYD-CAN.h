@@ -2,27 +2,29 @@
 #define BYD_CAN_H
 #include "../include.h"
 
+#ifdef BYD_CAN
 #define CAN_INVERTER_SELECTED
 #define SELECTED_INVERTER_CLASS BydCanInverter
+#endif
 
-#define FW_MAJOR_VERSION 0x03
-#define FW_MINOR_VERSION 0x29
+#include "CanInverterProtocol.h"
 
 class BydCanInverter : public CanInverterProtocol {
  public:
   void setup();
-  void send_intial_data();
   void transmit_can(unsigned long currentMillis);
   void map_can_frame_to_variable(CAN_frame rx_frame);
-
- private:
   void update_values();
 
+ private:
+  void send_initial_data();
   unsigned long previousMillis2s = 0;   // will store last time a 2s CAN Message was send
   unsigned long previousMillis10s = 0;  // will store last time a 10s CAN Message was send
   unsigned long previousMillis60s = 0;  // will store last time a 60s CAN Message was send
 
-#define VOLTAGE_OFFSET_DV 20
+  static const int FW_MAJOR_VERSION = 0x03;
+  static const int FW_MINOR_VERSION = 0x29;
+  static const int VOLTAGE_OFFSET_DV = 20;
 
   CAN_frame BYD_250 = {.FD = false,
                        .ext_ID = false,

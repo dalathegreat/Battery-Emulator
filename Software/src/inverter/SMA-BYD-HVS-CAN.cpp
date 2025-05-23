@@ -1,91 +1,15 @@
-#include "../include.h"
-#ifdef SMA_BYD_HVS_CAN
+#include "SMA-BYD-HVS-CAN.h"
+#include "../communication/can/comm_can.h"
 #include "../datalayer/datalayer.h"
 #include "../devboard/utils/events.h"
-#include "SMA-BYD-HVS-CAN.h"
+#include "../include.h"
 
 /* TODO: Map error bits in 0x158 */
 
 /* Do not change code below unless you are sure what you are doing */
-static unsigned long previousMillis100ms = 0;
 
-static uint32_t inverter_time = 0;
-static uint16_t inverter_voltage = 0;
-static int16_t inverter_current = 0;
-static uint16_t timeWithoutInverterAllowsContactorClosing = 0;
-#define THIRTY_MINUTES 1200
-
-//Actual content messages
-CAN_frame SMA_158 = {.FD = false,
-                     .ext_ID = false,
-                     .DLC = 8,
-                     .ID = 0x158,  // All 0xAA, no faults active
-                     .data = {0xAA, 0xAA, 0xAA, 0xAA, 0xAA, 0xAA, 0xAA, 0xAA}};
-CAN_frame SMA_358 = {.FD = false,
-                     .ext_ID = false,
-                     .DLC = 8,
-                     .ID = 0x358,
-                     .data = {0x11, 0xA0, 0x07, 0x00, 0x01, 0x5E, 0x00, 0xC8}};
-CAN_frame SMA_3D8 = {.FD = false,
-                     .ext_ID = false,
-                     .DLC = 8,
-                     .ID = 0x3D8,
-                     .data = {0x13, 0x2E, 0x27, 0x10, 0x00, 0x45, 0xF9, 0x00}};
-CAN_frame SMA_458 = {.FD = false,
-                     .ext_ID = false,
-                     .DLC = 8,
-                     .ID = 0x458,
-                     .data = {0x00, 0x00, 0x11, 0xC8, 0x00, 0x00, 0x0E, 0xF4}};
-CAN_frame SMA_4D8 = {.FD = false,
-                     .ext_ID = false,
-                     .DLC = 8,
-                     .ID = 0x4D8,
-                     .data = {0x10, 0x62, 0x00, 0x16, 0x01, 0x68, 0x03, 0x08}};
-CAN_frame SMA_518 = {.FD = false,
-                     .ext_ID = false,
-                     .DLC = 8,
-                     .ID = 0x518,
-                     .data = {0x01, 0x4A, 0x01, 0x25, 0xFF, 0xFF, 0xFF, 0xFF}};
-
-// Pairing/Battery setup information
-
-CAN_frame SMA_558 = {.FD = false,
-                     .ext_ID = false,
-                     .DLC = 8,
-                     .ID = 0x558,
-                     .data = {0x03, 0x13, 0x00, 0x03, 0x00, 0x66, 0x04, 0x07}};  //4x BYD modules, Vendor ID 7 BYD
-CAN_frame SMA_598 = {.FD = false,
-                     .ext_ID = false,
-                     .DLC = 8,
-                     .ID = 0x598,
-                     .data = {0x00, 0x01, 0x0F, 0x2C, 0x5C, 0x98, 0xB6, 0xEE}};
-CAN_frame SMA_5D8 = {.FD = false,
-                     .ext_ID = false,
-                     .DLC = 8,
-                     .ID = 0x5D8,
-                     .data = {0x00, 0x42, 0x59, 0x44, 0x00, 0x00, 0x00, 0x00}};  //B Y D
-CAN_frame SMA_618_1 = {.FD = false,
-                       .ext_ID = false,
-                       .DLC = 8,
-                       .ID = 0x618,
-                       .data = {0x00, 0x42, 0x61, 0x74, 0x74, 0x65, 0x72, 0x79}};  //0 B A T T E R Y
-CAN_frame SMA_618_2 = {.FD = false,
-                       .ext_ID = false,
-                       .DLC = 8,
-                       .ID = 0x618,
-                       .data = {0x01, 0x2D, 0x42, 0x6F, 0x78, 0x20, 0x48, 0x31}};  //- B o x  H 1
-CAN_frame SMA_618_3 = {.FD = false,
-                       .ext_ID = false,
-                       .DLC = 8,
-                       .ID = 0x618,
-                       .data = {0x02, 0x30, 0x2E, 0x32, 0x00, 0x00, 0x00, 0x00}};  // 0 . 2
-
-static int16_t discharge_current = 0;
-static int16_t charge_current = 0;
-static int16_t temperature_average = 0;
-static uint16_t ampere_hours_remaining = 0;
-
-void update_values_can_inverter() {  //This function maps all the values fetched from battery CAN to the inverter CAN
+void SmaBydHvsInverter::
+    update_values() {  //This function maps all the values fetched from battery CAN to the inverter CAN
   // Update values
   temperature_average =
       ((datalayer.battery.status.temperature_max_dC + datalayer.battery.status.temperature_min_dC) / 2);
@@ -138,19 +62,22 @@ void update_values_can_inverter() {  //This function maps all the values fetched
   }
 
   //Error bits
-  if (datalayer.system.status.inverter_allows_contactor_closing) {
+  if (datalayer.system.status.battery_allows_contactor_closing) {
     SMA_158.data.u8[2] = 0xAA;
-#ifdef INVERTER_CONTACTOR_ENABLE_LED_PIN
-    digitalWrite(INVERTER_CONTACTOR_ENABLE_LED_PIN,
-                 HIGH);  // Turn on LED to indicate that SMA inverter allows contactor closing
-#endif                   // INVERTER_CONTACTOR_ENABLE_LED_PIN
   } else {
     SMA_158.data.u8[2] = 0x6A;
-#ifdef INVERTER_CONTACTOR_ENABLE_LED_PIN
-    digitalWrite(INVERTER_CONTACTOR_ENABLE_LED_PIN,
-                 LOW);  // Turn off LED to indicate that SMA inverter allows contactor closing
-#endif                  // INVERTER_CONTACTOR_ENABLE_LED_PIN
   }
+
+#ifdef INVERTER_CONTACTOR_ENABLE_LED_PIN
+  // Inverter allows contactor closing
+  if (datalayer.system.status.inverter_allows_contactor_closing) {
+    digitalWrite(INVERTER_CONTACTOR_ENABLE_LED_PIN,
+                 HIGH);  // Turn on LED to indicate that SMA inverter allows contactor closing
+  } else {
+    digitalWrite(INVERTER_CONTACTOR_ENABLE_LED_PIN,
+                 LOW);  // Turn off LED to indicate that SMA inverter does not allow contactor closing
+  }
+#endif  // INVERTER_CONTACTOR_ENABLE_LED_PIN
 
   // Check if Enable line is working. If we go too long without any input, raise an event
   if (!datalayer.system.status.inverter_allows_contactor_closing) {
@@ -214,7 +141,7 @@ void update_values_can_inverter() {  //This function maps all the values fetched
 */
 }
 
-void map_can_frame_to_variable_inverter(CAN_frame rx_frame) {
+void SmaBydHvsInverter::map_can_frame_to_variable(CAN_frame rx_frame) {
   switch (rx_frame.ID) {
     case 0x360:  //Message originating from SMA inverter - Voltage and current
       datalayer.system.status.CAN_inverter_still_alive = CAN_STILL_ALIVE;
@@ -241,21 +168,65 @@ void map_can_frame_to_variable_inverter(CAN_frame rx_frame) {
     case 0x560:  //Message originating from SMA inverter - Init
       datalayer.system.status.CAN_inverter_still_alive = CAN_STILL_ALIVE;
       break;
+    case 0x561:
+      datalayer.system.status.CAN_inverter_still_alive = CAN_STILL_ALIVE;
+      break;
+    case 0x562:
+      datalayer.system.status.CAN_inverter_still_alive = CAN_STILL_ALIVE;
+      break;
+    case 0x563:
+      datalayer.system.status.CAN_inverter_still_alive = CAN_STILL_ALIVE;
+      break;
+    case 0x564:
+      datalayer.system.status.CAN_inverter_still_alive = CAN_STILL_ALIVE;
+      break;
+    case 0x565:
+      datalayer.system.status.CAN_inverter_still_alive = CAN_STILL_ALIVE;
+      break;
+    case 0x566:
+      datalayer.system.status.CAN_inverter_still_alive = CAN_STILL_ALIVE;
+      break;
+    case 0x567:
+      datalayer.system.status.CAN_inverter_still_alive = CAN_STILL_ALIVE;
+      break;
     case 0x5E0:  //Message originating from SMA inverter - String
       datalayer.system.status.CAN_inverter_still_alive = CAN_STILL_ALIVE;
       //Inverter brand (frame1-3 = 0x53 0x4D 0x41) = SMA
       break;
+    case 0x5E1:
+      datalayer.system.status.CAN_inverter_still_alive = CAN_STILL_ALIVE;
+      break;
+    case 0x5E2:
+      datalayer.system.status.CAN_inverter_still_alive = CAN_STILL_ALIVE;
+      break;
+    case 0x5E3:
+      datalayer.system.status.CAN_inverter_still_alive = CAN_STILL_ALIVE;
+      break;
+    case 0x5E4:
+      datalayer.system.status.CAN_inverter_still_alive = CAN_STILL_ALIVE;
+      break;
+    case 0x5E5:
+      datalayer.system.status.CAN_inverter_still_alive = CAN_STILL_ALIVE;
+      break;
+    case 0x5E6:
+      datalayer.system.status.CAN_inverter_still_alive = CAN_STILL_ALIVE;
+      break;
     case 0x5E7:  //Pairing request
+#ifdef DEBUG_LOG
+      logging.println("Received 0x5E7: SMA pairing request");
+#endif  // DEBUG_LOG
       datalayer.system.status.CAN_inverter_still_alive = CAN_STILL_ALIVE;
       transmit_can_init();
+      break;
+    case 0x62C:
+      datalayer.system.status.CAN_inverter_still_alive = CAN_STILL_ALIVE;
       break;
     default:
       break;
   }
 }
 
-void transmit_can_inverter(unsigned long currentMillis) {
-
+void SmaBydHvsInverter::transmit_can(unsigned long currentMillis) {
   // Send CAN Message every 100ms if inverter allows contactor closing
   if (datalayer.system.status.inverter_allows_contactor_closing) {
     if (currentMillis - previousMillis100ms >= 100) {
@@ -270,7 +241,7 @@ void transmit_can_inverter(unsigned long currentMillis) {
   }
 }
 
-void transmit_can_init() {
+void SmaBydHvsInverter::transmit_can_init() {
   transmit_can_frame(&SMA_558, can_config.inverter);
   transmit_can_frame(&SMA_598, can_config.inverter);
   transmit_can_frame(&SMA_5D8, can_config.inverter);
@@ -285,7 +256,7 @@ void transmit_can_init() {
   transmit_can_frame(&SMA_4D8, can_config.inverter);
 }
 
-void setup_inverter(void) {  // Performs one time setup at startup over CAN bus
+void SmaBydHvsInverter::setup(void) {  // Performs one time setup at startup over CAN bus
   strncpy(datalayer.system.info.inverter_protocol, "BYD Battery-Box HVS over SMA CAN", 63);
   datalayer.system.info.inverter_protocol[63] = '\0';
   datalayer.system.status.inverter_allows_contactor_closing = false;  // The inverter needs to allow first
@@ -295,4 +266,3 @@ void setup_inverter(void) {  // Performs one time setup at startup over CAN bus
   digitalWrite(INVERTER_CONTACTOR_ENABLE_LED_PIN, LOW);  // Turn LED off, until inverter allows contactor closing
 #endif                                                   // INVERTER_CONTACTOR_ENABLE_LED_PIN
 }
-#endif

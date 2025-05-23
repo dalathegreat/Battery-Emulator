@@ -3,9 +3,7 @@
 // These functions adapt the old C-style global functions inverter-API to the
 // object-oriented inverter protocol API.
 
-#ifdef SELECTED_INVERTER_CLASS
-
-InverterProtocol* inverter;
+InverterProtocol* inverter = nullptr;
 
 #ifdef CAN_INVERTER_SELECTED
 CanInverterProtocol* can_inverter;
@@ -26,18 +24,14 @@ void setup_inverter() {
   inverter = can_inverter;
 #endif
 
-  inverter->setup();
-}
-
-#ifdef MODBUS_INVERTER_SELECTED
-void update_modbus_registers_inverter() {
-  modbus_inverter->update_modbus_registers();
-}
-
-void handle_static_data_modbus() {
-  modbus_inverter->handle_static_data();
-}
+#ifdef RS485_INVERTER_SELECTED
+  inverter = new SELECTED_INVERTER_CLASS();
 #endif
+
+  if (inverter) {
+    inverter->setup();
+  }
+}
 
 #ifdef CAN_INVERTER_SELECTED
 void update_values_can_inverter() {
@@ -53,4 +47,8 @@ void transmit_can_inverter(unsigned long currentMillis) {
 }
 #endif
 
+#ifdef RS485_INVERTER_SELECTED
+void receive_RS485() {
+  ((Rs485InverterProtocol*)inverter)->receive_RS485();
+}
 #endif

@@ -1,6 +1,6 @@
 #include "../include.h"
 #ifdef STELLANTIS_ECMP_BATTERY
-#include <algorithm>  // For std::min and std::max
+#include "../communication/can/comm_can.h"
 #include "../datalayer/datalayer.h"
 #include "../datalayer/datalayer_extended.h"  //For More Battery Info page
 #include "../devboard/utils/events.h"
@@ -14,39 +14,7 @@ This integration is still ongoing. Here is what still needs to be done in order 
 */
 
 /* Do not change code below unless you are sure what you are doing */
-static unsigned long previousMillis20 = 0;   // will store last time a 20ms CAN Message was sent
-static unsigned long previousMillis100 = 0;  // will store last time a 100ms CAN Message was sent
-
-//Actual content messages
-CAN_frame ECMP_382 = {
-    .FD = false,  //BSI_Info (VCU) PSA specific
-    .ext_ID = false,
-    .DLC = 8,
-    .ID = 0x382,
-    .data = {0x09, 0x20, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00}};  //09 20 on AC charge. 0A 20 on DC charge
-CAN_frame ECMP_0F0 = {.FD = false,                              //VCU (Common)
-                      .ext_ID = false,
-                      .DLC = 8,
-                      .ID = 0x0F0,
-                      .data = {0x00, 0x20, 0x00, 0x00, 0x00, 0x00, 0x00, 0xFF}};
-static uint8_t data_0F0_20[16] = {0xFF, 0x0E, 0x1D, 0x2C, 0x3B, 0x4A, 0x59, 0x68,
-                                  0x77, 0x86, 0x95, 0xA4, 0xB3, 0xC2, 0xD1, 0xE0};
-static uint8_t data_0F0_00[16] = {0xF1, 0x00, 0x1F, 0x2E, 0x3D, 0x4C, 0x5B, 0x6A,
-                                  0x79, 0x88, 0x97, 0xA6, 0xB5, 0xC4, 0xD3, 0xE2};
-static uint8_t counter_20ms = 0;
-static uint16_t battery_voltage = 370;
-static uint16_t battery_soc = 0;
-static int16_t battery_current = 0;
-static uint8_t battery_MainConnectorState = 0;
-static bool battery_RelayOpenRequest = false;
-static uint16_t battery_AllowedMaxChargeCurrent = 0;
-static uint16_t battery_AllowedMaxDischargeCurrent = 0;
-static uint16_t battery_insulationResistanceKOhm = 0;
-static int16_t battery_highestTemperature = 0;
-static int16_t battery_lowestTemperature = 0;
-static uint16_t cellvoltages[108];
-
-void update_values_battery() {
+void EcmpBattery::update_values() {
 
   datalayer.battery.status.real_soc = battery_soc * 10;
 
@@ -92,7 +60,7 @@ void update_values_battery() {
   datalayer_extended.stellantisECMP.InsulationResistance = battery_insulationResistanceKOhm;
 }
 
-void handle_incoming_can_frame_battery(CAN_frame rx_frame) {
+void EcmpBattery::handle_incoming_can_frame(CAN_frame rx_frame) {
   datalayer.battery.status.CAN_battery_still_alive = CAN_STILL_ALIVE;
   switch (rx_frame.ID) {
     case 0x125:  //Common
@@ -326,7 +294,7 @@ void handle_incoming_can_frame_battery(CAN_frame rx_frame) {
   }
 }
 
-void transmit_can_battery(unsigned long currentMillis) {
+void EcmpBattery::transmit_can(unsigned long currentMillis) {
   // Send 20ms CAN Message
   if (currentMillis - previousMillis20 >= INTERVAL_20_MS) {
     previousMillis20 = currentMillis;
@@ -352,12 +320,15 @@ void transmit_can_battery(unsigned long currentMillis) {
   }
 }
 
-void setup_battery(void) {  // Performs one time setup at startup
+void EcmpBattery::setup(void) {  // Performs one time setup at startup
   strncpy(datalayer.system.info.battery_protocol, "Stellantis ECMP battery", 63);
   datalayer.system.info.battery_protocol[63] = '\0';
   datalayer.battery.info.number_of_cells = 108;
-  datalayer.battery.info.max_design_voltage_dV = 4546;  // 454.6V, charging over this is not possible
-  datalayer.battery.info.min_design_voltage_dV = 3210;  // 321.0V, under this, discharging further is disabled
+  datalayer.battery.info.max_cell_voltage_mV = MAX_CELL_VOLTAGE_MV;
+  datalayer.battery.info.min_cell_voltage_mV = MIN_CELL_VOLTAGE_MV;
+  datalayer.battery.info.max_cell_voltage_deviation_mV = MAX_CELL_DEVIATION_MV;
+  datalayer.battery.info.max_design_voltage_dV = MAX_PACK_VOLTAGE_DV;
+  datalayer.battery.info.min_design_voltage_dV = MIN_PACK_VOLTAGE_DV;
   datalayer.system.status.battery_allows_contactor_closing = true;
 }
 

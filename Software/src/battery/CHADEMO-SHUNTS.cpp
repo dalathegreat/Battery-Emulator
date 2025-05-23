@@ -22,7 +22,6 @@
 #ifdef CHADEMO_BATTERY
 #include "../datalayer/datalayer.h"
 #include "../devboard/utils/events.h"
-#include "CHADEMO-BATTERY-INTERNAL.h"
 #include "CHADEMO-BATTERY.h"
 #include "CHADEMO-SHUNTS.h"
 

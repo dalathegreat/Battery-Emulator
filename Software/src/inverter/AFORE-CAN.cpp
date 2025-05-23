@@ -1,79 +1,15 @@
-#include "../include.h"
-#ifdef AFORE_CAN
-#include "../datalayer/datalayer.h"
 #include "AFORE-CAN.h"
+#include "../communication/can/comm_can.h"
+#include "../datalayer/datalayer.h"
+#include "../include.h"
 
 #define SOCMAX 100
 #define SOCMIN 1
 
 /* Do not change code below unless you are sure what you are doing */
-/* The code is following the Afore 2.3 CAN standard, little-endian, 500kbps, from 2023.08.07 */
-static uint8_t inverter_status =
-    0;  //0 = init, 1 = standby, 2 = starting, 3 = grid connected, 4 off-grid, 5 diesel generator, 6 grid connected, but disconnected, 7off grid and disconnected, 8 = power failure processing, 9 = power off, 10 = Failure
-static bool time_to_send_info = false;
-static uint8_t char0 = 0;
-static uint8_t char1 = 0;
-static uint8_t char2 = 0;
-static uint8_t char3 = 0;
-static uint8_t char4 = 0;
-//Actual content messages
-CAN_frame AFORE_350 = {.FD = false,  // Operation information
-                       .ext_ID = false,
-                       .DLC = 8,
-                       .ID = 0x350,
-                       .data = {0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00}};
-CAN_frame AFORE_351 = {.FD = false,
-                       .ext_ID = false,
-                       .DLC = 8,
-                       .ID = 0x351,
-                       .data = {0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00}};
-CAN_frame AFORE_352 = {.FD = false,
-                       .ext_ID = false,
-                       .DLC = 8,
-                       .ID = 0x352,
-                       .data = {0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00}};
-CAN_frame AFORE_353 = {.FD = false,
-                       .ext_ID = false,
-                       .DLC = 8,
-                       .ID = 0x353,
-                       .data = {0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00}};
-CAN_frame AFORE_354 = {.FD = false,
-                       .ext_ID = false,
-                       .DLC = 8,
-                       .ID = 0x354,
-                       .data = {0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00}};
-CAN_frame AFORE_355 = {.FD = false,
-                       .ext_ID = false,
-                       .DLC = 8,
-                       .ID = 0x355,
-                       .data = {0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00}};
-CAN_frame AFORE_356 = {.FD = false,
-                       .ext_ID = false,
-                       .DLC = 8,
-                       .ID = 0x356,
-                       .data = {0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00}};
-CAN_frame AFORE_357 = {.FD = false,
-                       .ext_ID = false,
-                       .DLC = 8,
-                       .ID = 0x357,
-                       .data = {0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00}};
-CAN_frame AFORE_358 = {.FD = false,
-                       .ext_ID = false,
-                       .DLC = 8,
-                       .ID = 0x358,
-                       .data = {0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00}};
-CAN_frame AFORE_359 = {.FD = false,  // Serial number 0-7
-                       .ext_ID = false,
-                       .DLC = 8,
-                       .ID = 0x359,
-                       .data = {0x62, 0x61, 0x74, 0x74, 0x65, 0x72, 0x79, 0x2D}};  // Battery-
-CAN_frame AFORE_35A = {.FD = false,                                                // Serial number 8-15
-                       .ext_ID = false,
-                       .DLC = 8,
-                       .ID = 0x35A,
-                       .data = {0x65, 0x6D, 0x75, 0x6C, 0x61, 0x74, 0x6F, 0x72}};  // Emulator
 
-void update_values_can_inverter() {  //This function maps all the values fetched from battery CAN to the correct CAN messages
+void AforeCanInverter::
+    update_values() {  //This function maps all the values fetched from battery CAN to the correct CAN messages
   //There are more mappings that could be added, but this should be enough to use as a starting point
 
   /*0x350 Operation Information*/
@@ -200,7 +136,7 @@ void update_values_can_inverter() {  //This function maps all the values fetched
   */
 }
 
-void map_can_frame_to_variable_inverter(CAN_frame rx_frame) {
+void AforeCanInverter::map_can_frame_to_variable(CAN_frame rx_frame) {
   switch (rx_frame.ID) {
     case 0x305:  // Every 1s from inverter
       datalayer.system.status.CAN_inverter_still_alive = CAN_STILL_ALIVE;
@@ -217,7 +153,7 @@ void map_can_frame_to_variable_inverter(CAN_frame rx_frame) {
   }
 }
 
-void transmit_can_inverter(unsigned long currentMillis) {
+void AforeCanInverter::transmit_can(unsigned long currentMillis) {
   if (time_to_send_info) {  // Set every 1s if we get message from inverter
     transmit_can_frame(&AFORE_350, can_config.inverter);
     transmit_can_frame(&AFORE_351, can_config.inverter);
@@ -233,8 +169,8 @@ void transmit_can_inverter(unsigned long currentMillis) {
     time_to_send_info = false;
   }
 }
-void setup_inverter(void) {  // Performs one time setup at startup over CAN bus
+
+void AforeCanInverter::setup(void) {  // Performs one time setup at startup over CAN bus
   strncpy(datalayer.system.info.inverter_protocol, "Afore battery over CAN", 63);
   datalayer.system.info.inverter_protocol[63] = '\0';
 }
-#endif

@@ -119,9 +119,9 @@ void transmit_can(unsigned long currentMillis) {
   transmit_can_inverter(currentMillis);
 #endif  // CAN_INVERTER_SELECTED
 
-#ifdef CHARGER_SELECTED
-  transmit_can_charger(currentMillis);
-#endif  // CHARGER_SELECTED
+  if (charger) {
+    charger->transmit_can(currentMillis);
+  }
 
 #ifdef CAN_SHUNT_SELECTED
   transmit_can_shunt(currentMillis);
@@ -330,10 +330,8 @@ void map_can_frame_to_variable(CAN_frame* rx_frame, int interface) {
     handle_incoming_can_frame_battery2(*rx_frame);
 #endif
   }
-  if (interface == can_config.charger) {
-#ifdef CHARGER_SELECTED
-    map_can_frame_to_variable_charger(*rx_frame);
-#endif
+  if (interface == can_config.charger && charger) {
+    charger->map_can_frame_to_variable(*rx_frame);
   }
   if (interface == can_config.shunt) {
 #ifdef CAN_SHUNT_SELECTED
