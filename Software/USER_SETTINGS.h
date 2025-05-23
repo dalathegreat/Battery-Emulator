@@ -25,6 +25,7 @@
 //#define KIA_HYUNDAI_64_BATTERY
 //#define KIA_HYUNDAI_HYBRID_BATTERY
 //#define MEB_BATTERY
+#define MSB_J1_BATTERY
 //#define MG_5_BATTERY
 //#define NISSAN_LEAF_BATTERY
 //#define ORION_BMS
@@ -69,7 +70,7 @@
 //#define SUNGROW_CAN      //Enable this line to emulate a "Sungrow SBR064" over CAN bus
 
 /* Select hardware used for Battery-Emulator */
-//#define HW_LILYGO
+#define HW_LILYGO
 //#define HW_STARK
 //#define HW_3LB
 //#define HW_DEVKIT

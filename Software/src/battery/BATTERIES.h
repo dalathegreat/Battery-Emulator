@@ -86,6 +86,10 @@ void setup_can_shunt();
 #include "MEB-BATTERY.h"
 #endif
 
+#ifdef MSB_J1_BATTERY
+#include "MSB-J1-BATTERY.h"
+#endif
+
 #ifdef MG_5_BATTERY
 #include "MG-5-BATTERY.h"
 #endif
