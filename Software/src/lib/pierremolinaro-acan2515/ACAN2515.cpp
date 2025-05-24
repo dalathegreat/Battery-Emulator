@@ -226,7 +226,7 @@ uint16_t ACAN2515::beginWithoutFilterCheck (const ACAN2515Settings & inSettings,
       #endif
     }
     #ifdef ARDUINO_ARCH_ESP32
-      xTaskCreate (myESP32Task, "ACAN2515Handler", 1024, this, TASK_ACAN2515_PRIORITY, NULL) ;
+      xTaskCreate (myESP32Task, "ACAN2515Handler", 1200, this, TASK_ACAN2515_PRIORITY, NULL) ;
     #endif
   }
 //----------------------------------- Return
