@@ -1298,6 +1298,17 @@ String advanced_battery_processor(const String& var) {
                " kWh</h4>";
 #endif  //MEB_BATTERY
 
+#ifdef RENAULT_ZOE_GEN1_BATTERY
+    content += "<h4>CUV " + String(datalayer_extended.zoe.CUV) + "</h4>";
+    content += "<h4>HVBIR " + String(datalayer_extended.zoe.HVBIR) + "</h4>";
+    content += "<h4>HVBUV " + String(datalayer_extended.zoe.HVBUV) + "</h4>";
+    content += "<h4>EOCR " + String(datalayer_extended.zoe.EOCR) + "</h4>";
+    content += "<h4>HVBOC " + String(datalayer_extended.zoe.HVBOC) + "</h4>";
+    content += "<h4>HVBOT " + String(datalayer_extended.zoe.HVBOT) + "</h4>";
+    content += "<h4>HVBOV " + String(datalayer_extended.zoe.HVBOV) + "</h4>";
+    content += "<h4>COV " + String(datalayer_extended.zoe.COV) + "</h4>";
+#endif  //RENAULT_ZOE_GEN1_BATTERY
+
 #ifdef RENAULT_ZOE_GEN2_BATTERY
     content += "<button onclick='askTriggerNVROL()'>Perform NVROL reset</button>";
     content += "<h4>soc: " + String(datalayer_extended.zoePH2.battery_soc) + "</h4>";
@@ -1533,13 +1544,13 @@ String advanced_battery_processor(const String& var) {
     content += "<button onclick='Volvo_BECMecuReset()'>Restart BECM module</button>";
 #endif  // VOLVO_SPA_HYBRID_BATTERY
 
-#if !defined(BMW_PHEV_BATTERY) && !defined(BMW_IX_BATTERY) && !defined(BOLT_AMPERA_BATTERY) &&            \
-    !defined(TESLA_BATTERY) && !defined(NISSAN_LEAF_BATTERY) && !defined(BMW_I3_BATTERY) &&               \
-    !defined(BYD_ATTO_3_BATTERY) && !defined(RENAULT_ZOE_GEN2_BATTERY) && !defined(CELLPOWER_BMS) &&      \
-    !defined(MEB_BATTERY) && !defined(VOLVO_SPA_BATTERY) && !defined(VOLVO_SPA_HYBRID_BATTERY) &&         \
-    !defined(KIA_HYUNDAI_64_BATTERY) && !defined(CMFA_EV_BATTERY) && !defined(STELLANTIS_ECMP_BATTERY) && \
-    !defined(KIA_HYUNDAI_64_BATTERY) && !defined(GEELY_GEOMETRY_C_BATTERY) &&                             \
-    !defined(CMFA_EV_BATTERY)  //Only the listed types have extra info
+#if !defined(BMW_PHEV_BATTERY) && !defined(BMW_IX_BATTERY) && !defined(BOLT_AMPERA_BATTERY) &&             \
+    !defined(TESLA_BATTERY) && !defined(NISSAN_LEAF_BATTERY) && !defined(BMW_I3_BATTERY) &&                \
+    !defined(BYD_ATTO_3_BATTERY) && !defined(RENAULT_ZOE_GEN2_BATTERY) && !defined(CELLPOWER_BMS) &&       \
+    !defined(MEB_BATTERY) && !defined(VOLVO_SPA_BATTERY) && !defined(VOLVO_SPA_HYBRID_BATTERY) &&          \
+    !defined(KIA_HYUNDAI_64_BATTERY) && !defined(CMFA_EV_BATTERY) && !defined(STELLANTIS_ECMP_BATTERY) &&  \
+    !defined(KIA_HYUNDAI_64_BATTERY) && !defined(GEELY_GEOMETRY_C_BATTERY) && !defined(CMFA_EV_BATTERY) && \
+    !defined(RENAULT_ZOE_GEN1_BATTERY)  //Only the listed types have extra info
     content += "No extra information available for this battery type";
 #endif
 

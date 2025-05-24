@@ -745,6 +745,18 @@ typedef struct {
 } DATALAYER_INFO_VOLVO_HYBRID;
 
 typedef struct {
+  /** uint8_t */
+  uint8_t CUV = 0;
+  uint8_t HVBIR = 0;
+  uint8_t HVBUV = 0;
+  uint8_t EOCR = 0;
+  uint8_t HVBOC = 0;
+  uint8_t HVBOT = 0;
+  uint8_t HVBOV = 0;
+  uint8_t COV = 0;
+} DATALAYER_INFO_ZOE;
+
+typedef struct {
   /** User requesting NVROL reset via WebUI*/
   bool UserRequestNVROLReset = false;
   /** uint16_t */
@@ -810,6 +822,7 @@ class DataLayerExtended {
   DATALAYER_INFO_MEB meb;
   DATALAYER_INFO_VOLVO_POLESTAR VolvoPolestar;
   DATALAYER_INFO_VOLVO_HYBRID VolvoHybrid;
+  DATALAYER_INFO_ZOE zoe;
   DATALAYER_INFO_ZOE_PH2 zoePH2;
 };
 
