@@ -153,15 +153,6 @@ void SmaBydHvsInverter::map_can_frame_to_variable(CAN_frame rx_frame) {
       break;
     case 0x420:  //Message originating from SMA inverter - Timestamp
       datalayer.system.status.CAN_inverter_still_alive = CAN_STILL_ALIVE;
-      //Frame0-3 Timestamp
-      /*
-      transmit_can_frame(&SMA_158, can_config.inverter);
-      transmit_can_frame(&SMA_358, can_config.inverter);
-      transmit_can_frame(&SMA_3D8, can_config.inverter);
-      transmit_can_frame(&SMA_458, can_config.inverter);
-      transmit_can_frame(&SMA_518, can_config.inverter);
-      transmit_can_frame(&SMA_4D8, can_config.inverter);
-      */
       inverter_time =
           (rx_frame.data.u8[0] << 24) | (rx_frame.data.u8[1] << 16) | (rx_frame.data.u8[2] << 8) | rx_frame.data.u8[3];
       break;
@@ -216,7 +207,7 @@ void SmaBydHvsInverter::map_can_frame_to_variable(CAN_frame rx_frame) {
       logging.println("Received 0x5E7: SMA pairing request");
 #endif  // DEBUG_LOG
       datalayer.system.status.CAN_inverter_still_alive = CAN_STILL_ALIVE;
-      transmit_can_init();
+      transmit_can_init = true;
       break;
     case 0x62C:
       datalayer.system.status.CAN_inverter_still_alive = CAN_STILL_ALIVE;
@@ -227,6 +218,49 @@ void SmaBydHvsInverter::map_can_frame_to_variable(CAN_frame rx_frame) {
 }
 
 void SmaBydHvsInverter::transmit_can(unsigned long currentMillis) {
+
+  if (transmit_can_init) {
+
+    // Check if enough time has passed since the last batch
+    if (currentMillis - previousMillisBatch >= delay_between_batches_ms) {
+      previousMillisBatch = currentMillis;  // Update the time of the last message batch
+
+      // Send a subset of messages per iteration to avoid overloading the CAN bus / transmit buffer
+      switch (batch_send_index) {
+        case 0:
+          transmit_can_frame(&SMA_558, can_config.inverter);
+          transmit_can_frame(&SMA_598, can_config.inverter);
+          transmit_can_frame(&SMA_5D8, can_config.inverter);
+          break;
+        case 1:
+          transmit_can_frame(&SMA_618_1, can_config.inverter);
+          transmit_can_frame(&SMA_618_2, can_config.inverter);
+          transmit_can_frame(&SMA_618_3, can_config.inverter);
+          break;
+        case 2:
+          transmit_can_frame(&SMA_158, can_config.inverter);
+          transmit_can_frame(&SMA_358, can_config.inverter);
+          transmit_can_frame(&SMA_3D8, can_config.inverter);
+          break;
+        case 3:
+          transmit_can_frame(&SMA_458, can_config.inverter);
+          transmit_can_frame(&SMA_518, can_config.inverter);
+          transmit_can_frame(&SMA_4D8, can_config.inverter);
+          transmit_can_init = false;
+          break;
+        default:
+          break;
+      }
+
+      // Increment message index and wrap around if needed
+      batch_send_index++;
+
+      if (transmit_can_init == false) {
+        batch_send_index = 0;
+      }
+    }
+  }
+
   // Send CAN Message every 100ms if inverter allows contactor closing
   if (datalayer.system.status.inverter_allows_contactor_closing) {
     if (currentMillis - previousMillis100ms >= 100) {
@@ -239,21 +273,6 @@ void SmaBydHvsInverter::transmit_can(unsigned long currentMillis) {
       transmit_can_frame(&SMA_4D8, can_config.inverter);
     }
   }
-}
-
-void SmaBydHvsInverter::transmit_can_init() {
-  transmit_can_frame(&SMA_558, can_config.inverter);
-  transmit_can_frame(&SMA_598, can_config.inverter);
-  transmit_can_frame(&SMA_5D8, can_config.inverter);
-  transmit_can_frame(&SMA_618_1, can_config.inverter);
-  transmit_can_frame(&SMA_618_2, can_config.inverter);
-  transmit_can_frame(&SMA_618_3, can_config.inverter);
-  transmit_can_frame(&SMA_158, can_config.inverter);
-  transmit_can_frame(&SMA_358, can_config.inverter);
-  transmit_can_frame(&SMA_3D8, can_config.inverter);
-  transmit_can_frame(&SMA_458, can_config.inverter);
-  transmit_can_frame(&SMA_518, can_config.inverter);
-  transmit_can_frame(&SMA_4D8, can_config.inverter);
 }
 
 void SmaBydHvsInverter::setup(void) {  // Performs one time setup at startup over CAN bus
