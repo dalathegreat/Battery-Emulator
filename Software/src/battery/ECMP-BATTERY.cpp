@@ -77,10 +77,7 @@ void EcmpBattery::handle_incoming_can_frame(CAN_frame rx_frame) {
                                     4);  //Byte2 , bit 4, length 2 ((00 contactors open, 01 precharged, 11 invalid))
       battery_voltage =
           (rx_frame.data.u8[3] << 1) | (rx_frame.data.u8[4] >> 7);  //Byte 4, bit 7, length 9 (0x1FE if invalid)
-      battery_current = (((rx_frame.data.u8[4] & 0x7F) << 5) | (rx_frame.data.u8[5] >> 3)) -
-                        600;  // Byte5, Bit 3 length 12 (0xFFE when abnormal) (-600 to 600 , offset -600)
-      //battery_RelayOpenRequest = // Byte 5, bit 6, length 1 (0 no request, 1 battery requests contactor opening)
-      //Stellantis doc seems wrong, could Byte5 be misspelled as Byte2? Bit will otherwise collide with battery_current
+      battery_current = (((rx_frame.data.u8[4] & 0x0F) << 8) | rx_frame.data.u8[5]) - 600;  // TODO: Test
       break;
     case 0x127:  //DFM specific
       battery_AllowedMaxChargeCurrent =
