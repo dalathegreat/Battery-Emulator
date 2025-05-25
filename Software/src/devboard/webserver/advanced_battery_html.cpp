@@ -469,6 +469,12 @@ String advanced_battery_processor(const String& var) {
     }
     content +=
         "<h4>Insulation Resistance: " + String(datalayer_extended.stellantisECMP.InsulationResistance) + "kOhm</h4>";
+    content += "<h4>Interlock:  ";
+    if (datalayer_extended.stellantisECMP.InterlockOpen == true) {
+      content += "BROKEN!</h4>";
+    } else {
+      content += "Seated OK</h4>";
+    }
 #endif  //STELLANTIS_ECMP_BATTERY
 
 #ifdef GEELY_GEOMETRY_C_BATTERY

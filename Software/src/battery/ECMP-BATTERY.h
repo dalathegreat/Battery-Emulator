@@ -23,6 +23,7 @@ class EcmpBattery : public CanBattery {
   static const int MIN_CELL_VOLTAGE_MV = 2700;
 
   bool battery_RelayOpenRequest = false;
+  bool battery_InterlockOpen = false;
   uint8_t counter_20ms = 0;
   uint8_t battery_MainConnectorState = 0;
   int16_t battery_current = 0;

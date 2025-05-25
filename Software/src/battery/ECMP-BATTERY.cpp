@@ -58,6 +58,13 @@ void EcmpBattery::update_values() {
   // Update extended datalayer (More Battery Info page)
   datalayer_extended.stellantisECMP.MainConnectorState = battery_MainConnectorState;
   datalayer_extended.stellantisECMP.InsulationResistance = battery_insulationResistanceKOhm;
+  datalayer_extended.stellantisECMP.InterlockOpen = battery_InterlockOpen;
+
+  if (battery_InterlockOpen) {
+    set_event(EVENT_HVIL_FAILURE, 0);
+  } else {
+    clear_event(EVENT_HVIL_FAILURE);
+  }
 }
 
 void EcmpBattery::handle_incoming_can_frame(CAN_frame rx_frame) {
@@ -86,6 +93,7 @@ void EcmpBattery::handle_incoming_can_frame(CAN_frame rx_frame) {
     case 0x129:  //PSA specific
       break;
     case 0x31B:
+      battery_InterlockOpen = ((rx_frame.data.u8[1] & 0x10) >> 4);  //Best guess, seems to work?
       break;
     case 0x358:  //Common
       battery_highestTemperature = rx_frame.data.u8[6] - 40;
