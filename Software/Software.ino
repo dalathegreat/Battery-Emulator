@@ -428,11 +428,6 @@ void update_calculated_values() {
       scaled_soc = 10000 * (clamped_soc - datalayer.battery.settings.min_percentage) / delta_pct;
     }
 
-    // Clamp low SOCs to zero for extra safety
-    if (datalayer.battery.status.real_soc < 100) {
-      scaled_soc = 0;
-    }
-
     datalayer.battery.status.reported_soc = scaled_soc;
 
     // If battery info is valid
