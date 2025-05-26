@@ -292,7 +292,8 @@ void EcmpBattery::handle_incoming_can_frame(CAN_frame rx_frame) {
       cellvoltages[107] = (rx_frame.data.u8[6] << 8) | rx_frame.data.u8[7];
       memcpy(datalayer.battery.status.cell_voltages_mV, cellvoltages, 108 * sizeof(uint16_t));
       break;
-    case 0x794:
+    case 0x694:  // Poll reply
+
       break;
     default:
       break;
@@ -357,6 +358,74 @@ void EcmpBattery::transmit_can(unsigned long currentMillis) {
     //transmit_can_frame(&ECMP_010, can_config.battery);
     //transmit_can_frame(&ECMP_0A6, can_config.battery);
     //transmit_can_frame(&ECMP_37F, can_config.battery);
+  }
+  // Send 200ms CAN Message
+  if (currentMillis - previousMillis200 >= INTERVAL_200_MS) {
+    previousMillis200 = currentMillis;
+
+    if (datalayer_extended.stellantisECMP.UserRequestContactorReset) {
+
+      switch (ContactorResetStatemachine) {
+        case 0:
+          transmit_can_frame(&ECMP_CONTACTOR_RESET_0, can_config.battery);
+          ContactorResetStatemachine++;
+          break;
+        case 1:
+          transmit_can_frame(&ECMP_CONTACTOR_RESET_1, can_config.battery);
+          ContactorResetStatemachine++;
+          break;
+        case 2:
+          transmit_can_frame(&ECMP_CONTACTOR_RESET_2, can_config.battery);
+          ContactorResetStatemachine++;
+          break;
+        case 3:
+          transmit_can_frame(&ECMP_CONTACTOR_RESET_3, can_config.battery);
+          ContactorResetStatemachine = 0;
+          datalayer_extended.stellantisECMP.UserRequestContactorReset = false;
+          break;
+        default:
+          datalayer_extended.stellantisECMP.UserRequestContactorReset = false;
+          ContactorResetStatemachine = 0;
+          break;
+      }
+
+    } else if (datalayer_extended.stellantisECMP.UserRequestCollisionReset) {
+
+      switch (CollisionResetStatemachine) {
+        case 0:
+          transmit_can_frame(&ECMP_COLLISION_RESET_0, can_config.battery);
+          CollisionResetStatemachine++;
+          break;
+        case 1:
+          transmit_can_frame(&ECMP_COLLISION_RESET_1, can_config.battery);
+          CollisionResetStatemachine++;
+          break;
+        case 2:
+        case 3:
+        case 4:
+        case 5:
+        case 6:
+        case 7:
+        case 8:
+        case 9:
+        case 10:
+          transmit_can_frame(&ECMP_CONTACTOR_RESET_2, can_config.battery);
+          CollisionResetStatemachine++;
+          break;
+        case 11:
+          transmit_can_frame(&ECMP_CONTACTOR_RESET_3, can_config.battery);
+          CollisionResetStatemachine = 0;
+          datalayer_extended.stellantisECMP.UserRequestCollisionReset = false;
+          break;
+        default:
+          datalayer_extended.stellantisECMP.UserRequestCollisionReset = false;
+          CollisionResetStatemachine = 0;
+          break;
+      }
+
+    } else {
+      //Normal PID polling here
+    }
   }
   // Send 1s CAN Message
   if (currentMillis - previousMillis1000 >= INTERVAL_1_S) {

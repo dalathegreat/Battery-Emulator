@@ -459,6 +459,8 @@ String advanced_battery_processor(const String& var) {
 #endif  //CMFA_EV_BATTERY
 
 #ifdef STELLANTIS_ECMP_BATTERY
+    content += "<button onclick='askContactorResetStellantis()'>Contactor reset</button>";
+    content += "<button onclick='askCollisionResetStellantis()'>Collision reset</button>";
     content += "<h4>Main Connector State: ";
     if (datalayer_extended.stellantisECMP.MainConnectorState == 0) {
       content += "Contactors open</h4>";
@@ -1615,12 +1617,38 @@ String advanced_battery_processor(const String& var) {
 
     content += "<script>";
     content +=
-        "function askContactorClose() { if (window.confirm('Are you sure you want to tirgger "
+        "function askContactorClose() { if (window.confirm('Are you sure you want to trigger "
         "a contactor close request?')) { "
         "bmwIxCloseContactorRequest(); } }";
     content += "function bmwIxCloseContactorRequest() {";
     content += "  var xhr = new XMLHttpRequest();";
     content += "  xhr.open('GET', '/bmwIxCloseContactorRequest', true);";
+    content += "  xhr.send();";
+    content += "}";
+    content += "function goToMainPage() { window.location.href = '/'; }";
+    content += "</script>";
+
+    content += "<script>";
+    content +=
+        "function askContactorResetStellantis() { if (window.confirm('Are you sure you want to trigger "
+        "contactor reset procedure?')) { "
+        "ContactorResetStellantis(); } }";
+    content += "function ContactorResetStellantis() {";
+    content += "  var xhr = new XMLHttpRequest();";
+    content += "  xhr.open('GET', '/ContactorResetStellantis', true);";
+    content += "  xhr.send();";
+    content += "}";
+    content += "function goToMainPage() { window.location.href = '/'; }";
+    content += "</script>";
+
+    content += "<script>";
+    content +=
+        "function askCollisionResetStellantis() { if (window.confirm('Are you sure you want to trigger "
+        "collision reset procedure?')) { "
+        "CollisionResetStellantis(); } }";
+    content += "function CollisionResetStellantis() {";
+    content += "  var xhr = new XMLHttpRequest();";
+    content += "  xhr.open('GET', '/CollisionResetStellantis', true);";
     content += "  xhr.send();";
     content += "}";
     content += "function goToMainPage() { window.location.href = '/'; }";

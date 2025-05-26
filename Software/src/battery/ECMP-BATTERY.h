@@ -24,6 +24,8 @@ class EcmpBattery : public CanBattery {
 
   bool battery_RelayOpenRequest = false;
   bool battery_InterlockOpen = false;
+  uint8_t ContactorResetStatemachine = 0;
+  uint8_t CollisionResetStatemachine = 0;
   uint8_t counter_10ms = 0;
   uint8_t counter_20ms = 0;
   uint8_t counter_50ms = 0;
@@ -38,10 +40,12 @@ class EcmpBattery : public CanBattery {
   uint16_t battery_insulationResistanceKOhm = 0;
   int16_t battery_highestTemperature = 0;
   int16_t battery_lowestTemperature = 0;
+
   unsigned long previousMillis10 = 0;    // will store last time a 10ms CAN Message was sent
   unsigned long previousMillis20 = 0;    // will store last time a 20ms CAN Message was sent
   unsigned long previousMillis50 = 0;    // will store last time a 50ms CAN Message was sent
   unsigned long previousMillis100 = 0;   // will store last time a 100ms CAN Message was sent
+  unsigned long previousMillis200 = 0;   // will store last time a 200ms CAN Message was sent
   unsigned long previousMillis1000 = 0;  // will store last time a 1000ms CAN Message was sent
 
   CAN_frame ECMP_010 = {.FD = false, .ext_ID = false, .DLC = 1, .ID = 0x010, .data = {0xB4}};
@@ -116,6 +120,51 @@ class EcmpBattery : public CanBattery {
                         .DLC = 8,
                         .ID = 0x439,
                         .data = {0x20, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00}};
+  CAN_frame ECMP_POLL = {.FD = false,
+                         .ext_ID = false,
+                         .DLC = 8,
+                         .ID = 0x6B4,
+                         .data = {0x03, 0x22, 0xD8, 0x66, 0x00, 0x00, 0x00, 0x00}};
+  CAN_frame ECMP_CONTACTOR_RESET_0 = {.FD = false,
+                                      .ext_ID = false,
+                                      .DLC = 8,
+                                      .ID = 0x6B4,
+                                      .data = {0x02, 0x10, 0x03, 0x00, 0x00, 0x00, 0x00, 0x00}};
+  CAN_frame ECMP_CONTACTOR_RESET_1 = {.FD = false,
+                                      .ext_ID = false,
+                                      .DLC = 8,
+                                      .ID = 0x6B4,
+                                      .data = {0x04, 0x31, 0x01, 0xDD, 0x35, 0x00, 0x00, 0x00}};
+  CAN_frame ECMP_CONTACTOR_RESET_2 = {.FD = false,
+                                      .ext_ID = false,
+                                      .DLC = 8,
+                                      .ID = 0x6B4,
+                                      .data = {0x04, 0x31, 0x03, 0xDD, 0x35, 0x00, 0x00, 0x00}};
+  CAN_frame ECMP_CONTACTOR_RESET_3 = {.FD = false,
+                                      .ext_ID = false,
+                                      .DLC = 8,
+                                      .ID = 0x6B4,
+                                      .data = {0x02, 0x10, 0x01, 0x00, 0x00, 0x00, 0x00, 0x00}};
+  CAN_frame ECMP_COLLISION_RESET_0 = {.FD = false,
+                                      .ext_ID = false,
+                                      .DLC = 8,
+                                      .ID = 0x6B4,
+                                      .data = {0x02, 0x10, 0x03, 0x00, 0x00, 0x00, 0x00, 0x00}};
+  CAN_frame ECMP_COLLISION_RESET_1 = {.FD = false,
+                                      .ext_ID = false,
+                                      .DLC = 8,
+                                      .ID = 0x6B4,
+                                      .data = {0x04, 0x31, 0x01, 0xDF, 0x60, 0x00, 0x00, 0x00}};
+  CAN_frame ECMP_COLLISION_RESET_2 = {.FD = false,
+                                      .ext_ID = false,
+                                      .DLC = 8,
+                                      .ID = 0x6B4,
+                                      .data = {0x04, 0x31, 0x03, 0xDF, 0x60, 0x00, 0x00, 0x00}};
+  CAN_frame ECMP_COLLISION_RESET_3 = {.FD = false,
+                                      .ext_ID = false,
+                                      .DLC = 8,
+                                      .ID = 0x6B4,
+                                      .data = {0x02, 0x10, 0x01, 0x00, 0x00, 0x00, 0x00, 0x00}};
   uint8_t data_0F0_20[16] = {0xFF, 0x0E, 0x1D, 0x2C, 0x3B, 0x4A, 0x59, 0x68,
                              0x77, 0x86, 0x95, 0xA4, 0xB3, 0xC2, 0xD1, 0xE0};
   uint8_t data_0F0_00[16] = {0xF1, 0x00, 0x1F, 0x2E, 0x3D, 0x4C, 0x5B, 0x6A,

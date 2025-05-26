@@ -298,6 +298,8 @@ typedef struct {
   uint8_t MainConnectorState = 0;
   uint16_t InsulationResistance = 0;
   bool InterlockOpen = false;
+  bool UserRequestContactorReset = false;
+  bool UserRequestCollisionReset = false;
 } DATALAYER_INFO_ECMP;
 
 typedef struct {
