@@ -24,7 +24,10 @@ class EcmpBattery : public CanBattery {
 
   bool battery_RelayOpenRequest = false;
   bool battery_InterlockOpen = false;
+  uint8_t counter_10ms = 0;
   uint8_t counter_20ms = 0;
+  uint8_t counter_50ms = 0;
+  uint8_t counter_100ms = 0;
   uint8_t battery_MainConnectorState = 0;
   int16_t battery_current = 0;
   uint16_t battery_voltage = 370;
@@ -35,8 +38,9 @@ class EcmpBattery : public CanBattery {
   uint16_t battery_insulationResistanceKOhm = 0;
   int16_t battery_highestTemperature = 0;
   int16_t battery_lowestTemperature = 0;
-
+  unsigned long previousMillis10 = 0;   // will store last time a 10ms CAN Message was sent
   unsigned long previousMillis20 = 0;   // will store last time a 20ms CAN Message was sent
+  unsigned long previousMillis50 = 0;   // will store last time a 50ms CAN Message was sent
   unsigned long previousMillis100 = 0;  // will store last time a 100ms CAN Message was sent
 
   CAN_frame ECMP_382 = {
@@ -45,15 +49,57 @@ class EcmpBattery : public CanBattery {
       .DLC = 8,
       .ID = 0x382,
       .data = {0x09, 0x20, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00}};  //09 20 on AC charge. 0A 20 on DC charge
-  CAN_frame ECMP_0F0 = {.FD = false,                              //VCU (Common)
+  CAN_frame ECMP_010 = {.FD = false, .ext_ID = false, .DLC = 1, .ID = 0x010, .data = {0xB4}};
+  CAN_frame ECMP_0A6 = {.FD = false, .ext_ID = false, .DLC = 2, .ID = 0x0A6, .data = {0x02, 0x01}};
+  CAN_frame ECMP_0F0 = {.FD = false,  //VCU (Common)
                         .ext_ID = false,
                         .DLC = 8,
                         .ID = 0x0F0,
                         .data = {0x00, 0x20, 0x00, 0x00, 0x00, 0x00, 0x00, 0xFF}};
+  CAN_frame ECMP_0F2 = {.FD = false,
+                        .ext_ID = false,
+                        .DLC = 8,
+                        .ID = 0x0F2,
+                        .data = {0x7D, 0x00, 0x4E, 0x20, 0x00, 0x00, 0x50, 0x01}};
+  CAN_frame ECMP_111 = {.FD = false,
+                        .ext_ID = false,
+                        .DLC = 8,
+                        .ID = 0x111,
+                        .data = {0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0}};
+  CAN_frame ECMP_0C5 = {.FD = false,
+                        .ext_ID = false,
+                        .DLC = 8,
+                        .ID = 0x0C5,
+                        .data = {0x08, 0x00, 0x00, 0x0A, 0x02, 0x04, 0xC0, 0x00}};
+  CAN_frame ECMP_17B = {.FD = false,
+                        .ext_ID = false,
+                        .DLC = 8,
+                        .ID = 0x17B,
+                        .data = {0x00, 0x00, 0x00, 0x0C, 0x98, 0x00, 0x00, 0x0F}};
+  CAN_frame ECMP_230 = {.FD = false,
+                        .ext_ID = false,
+                        .DLC = 8,
+                        .ID = 0x230,
+                        .data = {0x01, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00}};
+  CAN_frame ECMP_27A = {.FD = false,
+                        .ext_ID = false,
+                        .DLC = 8,
+                        .ID = 0x27A,
+                        .data = {0x0C, 0x0E, 0x00, 0x00, 0x60, 0x00, 0x00, 0x00}};
+  CAN_frame ECMP_37F = {.FD = false,
+                        .ext_ID = false,
+                        .DLC = 8,
+                        .ID = 0x37F,
+                        .data = {0x47, 0x49, 0x4E, 0x47, 0x47, 0x00, 0x46, 0x47}};
   uint8_t data_0F0_20[16] = {0xFF, 0x0E, 0x1D, 0x2C, 0x3B, 0x4A, 0x59, 0x68,
                              0x77, 0x86, 0x95, 0xA4, 0xB3, 0xC2, 0xD1, 0xE0};
   uint8_t data_0F0_00[16] = {0xF1, 0x00, 0x1F, 0x2E, 0x3D, 0x4C, 0x5B, 0x6A,
                              0x79, 0x88, 0x97, 0xA6, 0xB5, 0xC4, 0xD3, 0xE2};
+  uint8_t data_0F2_CRC[16] = {0x01, 0x10, 0x2F, 0x3E, 0x4D, 0x5C, 0x6B, 0x7A,
+                              0x89, 0x98, 0xA7, 0xB6, 0xC5, 0xD4, 0xE3, 0xF2};
+  uint8_t data_17B_CRC[16] = {0x0F, 0x1E, 0x2D, 0x3C, 0x4B, 0x5A, 0x69, 0x78,
+                              0x87, 0x96, 0xA5, 0xB4, 0xC3, 0xD2, 0xE1, 0xF0};
+  uint8_t data_010_CRC[8] = {0xB4, 0x96, 0x78, 0x5A, 0x3C, 0x1E, 0xF0, 0xD2};
 };
 
 #endif
