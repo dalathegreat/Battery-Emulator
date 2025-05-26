@@ -310,8 +310,8 @@ void EcmpBattery::transmit_can(unsigned long currentMillis) {
     ECMP_17B.data.u8[7] = data_17B_CRC[counter_10ms];
 
     transmit_can_frame(&ECMP_111, can_config.battery);
-    transmit_can_frame(&ECMP_0F2, can_config.battery);
-    transmit_can_frame(&ECMP_0C5, can_config.battery);
+    //transmit_can_frame(&ECMP_0F2, can_config.battery);
+    //transmit_can_frame(&ECMP_0C5, can_config.battery);
     transmit_can_frame(&ECMP_17B, can_config.battery);
   }
 
@@ -336,22 +336,32 @@ void EcmpBattery::transmit_can(unsigned long currentMillis) {
   if (currentMillis - previousMillis50 >= INTERVAL_50_MS) {
     previousMillis50 = currentMillis;
 
-    transmit_can_frame(&ECMP_27A, can_config.battery);
+    //transmit_can_frame(&ECMP_27A, can_config.battery);
     transmit_can_frame(&ECMP_230, can_config.battery);
   }
   // Send 100ms CAN Message
   if (currentMillis - previousMillis100 >= INTERVAL_100_MS) {
     previousMillis100 = currentMillis;
 
-    counter_100ms = (counter_100ms + 1) % 8;
+    counter_100ms = (counter_100ms + 1) % 16;
 
-    ECMP_010.data.u8[0] = data_010_CRC[counter_100ms];
-    ;
+    ECMP_31E.data.u8[7] = data_31E_CRC[counter_100ms];
+    ECMP_3A2.data.u8[6] = data_3A2_CRC[counter_100ms];
+    ECMP_3A3.data.u8[7] = data_3A3_CRC[counter_100ms];
 
     transmit_can_frame(&ECMP_382, can_config.battery);  //PSA Specific!
-    transmit_can_frame(&ECMP_010, can_config.battery);
-    transmit_can_frame(&ECMP_0A6, can_config.battery);
-    transmit_can_frame(&ECMP_37F, can_config.battery);
+    transmit_can_frame(&ECMP_31E, can_config.battery);
+    transmit_can_frame(&ECMP_383, can_config.battery);
+    transmit_can_frame(&ECMP_3A2, can_config.battery);
+    transmit_can_frame(&ECMP_3A3, can_config.battery);
+    //transmit_can_frame(&ECMP_010, can_config.battery);
+    //transmit_can_frame(&ECMP_0A6, can_config.battery);
+    //transmit_can_frame(&ECMP_37F, can_config.battery);
+  }
+  // Send 1s CAN Message
+  if (currentMillis - previousMillis1000 >= INTERVAL_1_S) {
+    previousMillis1000 = currentMillis;
+    transmit_can_frame(&ECMP_439, can_config.battery);  //PSA Specific? Not in all logs
   }
 }
 
