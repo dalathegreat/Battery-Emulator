@@ -300,6 +300,7 @@ typedef struct {
   bool InterlockOpen = false;
   bool UserRequestContactorReset = false;
   bool UserRequestCollisionReset = false;
+  bool UserRequestIsolationReset = false;
 } DATALAYER_INFO_ECMP;
 
 typedef struct {

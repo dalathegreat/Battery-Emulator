@@ -21,11 +21,12 @@ class EcmpBattery : public CanBattery {
   static const int MAX_CELL_DEVIATION_MV = 100;
   static const int MAX_CELL_VOLTAGE_MV = 4250;
   static const int MIN_CELL_VOLTAGE_MV = 2700;
-
+#define STOPPED 0
   bool battery_RelayOpenRequest = false;
   bool battery_InterlockOpen = false;
   uint8_t ContactorResetStatemachine = 0;
   uint8_t CollisionResetStatemachine = 0;
+  uint8_t IsolationResetStatemachine = 0;
   uint8_t counter_10ms = 0;
   uint8_t counter_20ms = 0;
   uint8_t counter_50ms = 0;
@@ -125,46 +126,46 @@ class EcmpBattery : public CanBattery {
                          .DLC = 8,
                          .ID = 0x6B4,
                          .data = {0x03, 0x22, 0xD8, 0x66, 0x00, 0x00, 0x00, 0x00}};
-  CAN_frame ECMP_CONTACTOR_RESET_0 = {.FD = false,
-                                      .ext_ID = false,
-                                      .DLC = 8,
-                                      .ID = 0x6B4,
-                                      .data = {0x02, 0x10, 0x03, 0x00, 0x00, 0x00, 0x00, 0x00}};
-  CAN_frame ECMP_CONTACTOR_RESET_1 = {.FD = false,
-                                      .ext_ID = false,
-                                      .DLC = 8,
-                                      .ID = 0x6B4,
-                                      .data = {0x04, 0x31, 0x01, 0xDD, 0x35, 0x00, 0x00, 0x00}};
-  CAN_frame ECMP_CONTACTOR_RESET_2 = {.FD = false,
-                                      .ext_ID = false,
-                                      .DLC = 8,
-                                      .ID = 0x6B4,
-                                      .data = {0x04, 0x31, 0x03, 0xDD, 0x35, 0x00, 0x00, 0x00}};
-  CAN_frame ECMP_CONTACTOR_RESET_3 = {.FD = false,
-                                      .ext_ID = false,
-                                      .DLC = 8,
-                                      .ID = 0x6B4,
-                                      .data = {0x02, 0x10, 0x01, 0x00, 0x00, 0x00, 0x00, 0x00}};
-  CAN_frame ECMP_COLLISION_RESET_0 = {.FD = false,
-                                      .ext_ID = false,
-                                      .DLC = 8,
-                                      .ID = 0x6B4,
-                                      .data = {0x02, 0x10, 0x03, 0x00, 0x00, 0x00, 0x00, 0x00}};
-  CAN_frame ECMP_COLLISION_RESET_1 = {.FD = false,
-                                      .ext_ID = false,
-                                      .DLC = 8,
-                                      .ID = 0x6B4,
-                                      .data = {0x04, 0x31, 0x01, 0xDF, 0x60, 0x00, 0x00, 0x00}};
-  CAN_frame ECMP_COLLISION_RESET_2 = {.FD = false,
-                                      .ext_ID = false,
-                                      .DLC = 8,
-                                      .ID = 0x6B4,
-                                      .data = {0x04, 0x31, 0x03, 0xDF, 0x60, 0x00, 0x00, 0x00}};
-  CAN_frame ECMP_COLLISION_RESET_3 = {.FD = false,
-                                      .ext_ID = false,
-                                      .DLC = 8,
-                                      .ID = 0x6B4,
-                                      .data = {0x02, 0x10, 0x01, 0x00, 0x00, 0x00, 0x00, 0x00}};
+  CAN_frame ECMP_DIAG_START = {.FD = false,
+                               .ext_ID = false,
+                               .DLC = 8,
+                               .ID = 0x6B4,
+                               .data = {0x02, 0x10, 0x03, 0x00, 0x00, 0x00, 0x00, 0x00}};
+  CAN_frame ECMP_CONTACTOR_RESET_START = {.FD = false,
+                                          .ext_ID = false,
+                                          .DLC = 8,
+                                          .ID = 0x6B4,
+                                          .data = {0x04, 0x31, 0x01, 0xDD, 0x35, 0x00, 0x00, 0x00}};
+  CAN_frame ECMP_CONTACTOR_RESET_PROGRESS = {.FD = false,
+                                             .ext_ID = false,
+                                             .DLC = 8,
+                                             .ID = 0x6B4,
+                                             .data = {0x04, 0x31, 0x03, 0xDD, 0x35, 0x00, 0x00, 0x00}};
+  CAN_frame ECMP_COLLISION_RESET_START = {.FD = false,
+                                          .ext_ID = false,
+                                          .DLC = 8,
+                                          .ID = 0x6B4,
+                                          .data = {0x04, 0x31, 0x01, 0xDF, 0x60, 0x00, 0x00, 0x00}};
+  CAN_frame ECMP_COLLISION_RESET_PROGRESS = {.FD = false,
+                                             .ext_ID = false,
+                                             .DLC = 8,
+                                             .ID = 0x6B4,
+                                             .data = {0x04, 0x31, 0x03, 0xDF, 0x60, 0x00, 0x00, 0x00}};
+  CAN_frame ECMP_ISOLATION_RESET_START = {.FD = false,
+                                          .ext_ID = false,
+                                          .DLC = 8,
+                                          .ID = 0x6B4,
+                                          .data = {0x04, 0x31, 0x01, 0xDF, 0x46, 0x00, 0x00, 0x00}};
+  CAN_frame ECMP_ISOLATION_RESET_PROGRESS = {.FD = false,
+                                             .ext_ID = false,
+                                             .DLC = 8,
+                                             .ID = 0x6B4,
+                                             .data = {0x04, 0x31, 0x03, 0xDF, 0x46, 0x00, 0x00, 0x00}};
+  CAN_frame ECMP_RESET_DONE = {.FD = false,
+                               .ext_ID = false,
+                               .DLC = 8,
+                               .ID = 0x6B4,
+                               .data = {0x02, 0x3E, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00}};
   uint8_t data_0F0_20[16] = {0xFF, 0x0E, 0x1D, 0x2C, 0x3B, 0x4A, 0x59, 0x68,
                              0x77, 0x86, 0x95, 0xA4, 0xB3, 0xC2, 0xD1, 0xE0};
   uint8_t data_0F0_00[16] = {0xF1, 0x00, 0x1F, 0x2E, 0x3D, 0x4C, 0x5B, 0x6A,

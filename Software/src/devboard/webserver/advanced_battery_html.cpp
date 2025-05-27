@@ -461,6 +461,7 @@ String advanced_battery_processor(const String& var) {
 #ifdef STELLANTIS_ECMP_BATTERY
     content += "<button onclick='askContactorResetStellantis()'>Contactor reset</button>";
     content += "<button onclick='askCollisionResetStellantis()'>Collision reset</button>";
+    content += "<button onclick='askInsulationResetStellantis()'>Insulation reset</button>";
     content += "<h4>Main Connector State: ";
     if (datalayer_extended.stellantisECMP.MainConnectorState == 0) {
       content += "Contactors open</h4>";
@@ -1649,6 +1650,19 @@ String advanced_battery_processor(const String& var) {
     content += "function CollisionResetStellantis() {";
     content += "  var xhr = new XMLHttpRequest();";
     content += "  xhr.open('GET', '/CollisionResetStellantis', true);";
+    content += "  xhr.send();";
+    content += "}";
+    content += "function goToMainPage() { window.location.href = '/'; }";
+    content += "</script>";
+
+    content += "<script>";
+    content +=
+        "function askInsulationResetStellantis() { if (window.confirm('Are you sure you want to trigger "
+        "insulation reset procedure?')) { "
+        "InsulationResetStellantis(); } }";
+    content += "function InsulationResetStellantis() {";
+    content += "  var xhr = new XMLHttpRequest();";
+    content += "  xhr.open('GET', '/InsulationResetStellantis', true);";
     content += "  xhr.send();";
     content += "}";
     content += "function goToMainPage() { window.location.href = '/'; }";

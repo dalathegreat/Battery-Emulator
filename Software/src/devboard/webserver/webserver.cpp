@@ -617,6 +617,15 @@ void init_webserver() {
     request->send(200, "text/plain", "Updated successfully");
   });
 
+  // Route for resetting insulation data on Stellantis eCMP
+  server.on("/InsulationResetStellantis", HTTP_GET, [](AsyncWebServerRequest* request) {
+    if (WEBSERVER_AUTH_REQUIRED && !request->authenticate(http_username, http_password)) {
+      return request->requestAuthentication();
+    }
+    datalayer_extended.stellantisECMP.UserRequestIsolationReset = true;
+    request->send(200, "text/plain", "Updated successfully");
+  });
+
   // Route for closing BMW iX Contactors
   server.on("/bmwIxCloseContactorRequest", HTTP_GET, [](AsyncWebServerRequest* request) {
     if (WEBSERVER_AUTH_REQUIRED && !request->authenticate(http_username, http_password)) {
