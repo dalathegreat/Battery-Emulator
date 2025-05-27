@@ -89,7 +89,7 @@ class EcmpBattery : public CanBattery {
                         .ext_ID = false,
                         .DLC = 8,
                         .ID = 0x31E,
-                        .data = {0x48, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x01}};
+                        .data = {0x28, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x01}};
   CAN_frame ECMP_37F = {.FD = false,
                         .ext_ID = false,
                         .DLC = 8,

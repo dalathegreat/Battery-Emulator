@@ -9,8 +9,6 @@
 /* TODO:
 This integration is still ongoing. Here is what still needs to be done in order to use this battery type
 - Figure out contactor closing
-   - Which CAN messages need to be sent towards the battery?
-- Handle 54/70kWh cellcounting properly
 */
 
 /* Do not change code below unless you are sure what you are doing */
