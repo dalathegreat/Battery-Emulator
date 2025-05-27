@@ -335,7 +335,7 @@ void TeslaBattery::
 
   datalayer.battery.status.real_soc = (battery_soc_ui * 10);  //increase SOC range from 0-100.0 -> 100.00
 
-  datalayer.battery.status.voltage_dV = (battery_volts * 10);  //One more decimal needed (370 -> 3700)
+  datalayer.battery.status.voltage_dV = battery_volts;
 
   datalayer.battery.status.current_dA = battery_amps;  //13.0A
 
@@ -344,7 +344,7 @@ void TeslaBattery::
       (static_cast<double>(datalayer.battery.status.real_soc) / 10000) * datalayer.battery.info.total_capacity_Wh);
 
   // Define the allowed discharge power
-  datalayer.battery.status.max_discharge_power_W = (battery_max_discharge_current * battery_volts);
+  datalayer.battery.status.max_discharge_power_W = (battery_max_discharge_current * (battery_volts / 10));
   // Cap the allowed discharge power if higher than the maximum discharge power allowed
   if (datalayer.battery.status.max_discharge_power_W > MAXDISCHARGEPOWERALLOWED) {
     datalayer.battery.status.max_discharge_power_W = MAXDISCHARGEPOWERALLOWED;
@@ -655,8 +655,12 @@ void TeslaBattery::
   logging.print("Battery values: ");
   logging.print("Real SOC: ");
   logging.print(battery_soc_ui / 10.0, 1);
-  print_int_with_units(", Battery voltage: ", battery_volts, "V");
-  print_int_with_units(", Battery HV current: ", (battery_amps * 0.1), "A");
+  logging.print(", Battery voltage: ");
+  logging.print(battery_volts / 10.0, 1);
+  logging.print("V");
+  logging.print(", Battery HV current: ");
+  logging.print(battery_amps / 10.0, 1);
+  logging.print("A");
   logging.print(", Fully charged?: ");
   if (battery_full_charge_complete)
     logging.print("YES, ");
@@ -685,17 +689,6 @@ void TeslaBattery::
   logging.printf("PCS_ambientTemp: %.2f°C, DCDC_Temp: %.2f°C, ChgPhA: %.2f°C, ChgPhB: %.2f°C, ChgPhC: %.2f°C.\n",
                  PCS_ambientTemp * 0.1 + 40, PCS_dcdcTemp * 0.1 + 40, PCS_chgPhATemp * 0.1 + 40,
                  PCS_chgPhBTemp * 0.1 + 40, PCS_chgPhCTemp * 0.1 + 40);
-
-  logging.println("Values passed to the inverter: ");
-  print_SOC(" SOC: ", datalayer.battery.status.reported_soc);
-  print_int_with_units(" Max discharge power: ", datalayer.battery.status.max_discharge_power_W, "W");
-  logging.print(", ");
-  print_int_with_units(" Max charge power: ", datalayer.battery.status.max_charge_power_W, "W");
-  logging.println("");
-  print_int_with_units(" Max temperature: ", ((int16_t)datalayer.battery.status.temperature_min_dC * 0.1), "°C");
-  logging.print(", ");
-  print_int_with_units(" Min temperature: ", ((int16_t)datalayer.battery.status.temperature_max_dC * 0.1), "°C");
-  logging.println("");
 #endif  //DEBUG_LOG
 }
 
@@ -868,7 +861,7 @@ void TeslaBattery::handle_incoming_can_frame(CAN_frame rx_frame) {
       break;
     case 0x132:  //battery amps/volts //HVBattAmpVolt
       battery_volts = ((rx_frame.data.u8[1] << 8) | rx_frame.data.u8[0]) *
-                      0.01;  //0|16@1+ (0.01,0) [0|655.35] "V"  //Example 37030mv * 0.01 = 370V
+                      0.1;  //0|16@1+ (0.01,0) [0|655.35] "V"  //Example 37030mv * 0.01 = 3703dV
       battery_amps =
           ((rx_frame.data.u8[3] << 8) |
            rx_frame.data.u8
@@ -1595,23 +1588,6 @@ void printDebugIfActive(uint8_t symbol, const char* message) {
   if (symbol == 1) {
     logging.println(message);
   }
-}
-
-void print_int_with_units(char* header, int value, char* units) {
-  logging.print(header);
-  logging.print(value);
-  logging.print(units);
-}
-
-void print_SOC(char* header, int SOC) {
-  logging.print(header);
-  logging.print(SOC / 100);
-  logging.print(".");
-  int hundredth = SOC % 100;
-  if (hundredth < 10)
-    logging.print(0);
-  logging.print(hundredth);
-  logging.println("%");
 }
 
 void TeslaBattery::printFaultCodesIfActive() {
