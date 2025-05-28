@@ -2,6 +2,7 @@
 #include <Arduino.h>
 #include "../../datalayer/datalayer.h"
 #include "../../datalayer/datalayer_extended.h"
+#include "../../include.h"
 
 String advanced_battery_processor(const String& var) {
   if (var == "X") {
