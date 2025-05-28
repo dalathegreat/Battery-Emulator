@@ -337,8 +337,8 @@ void EcmpBattery::transmit_can(unsigned long currentMillis) {
     ECMP_17B.data.u8[7] = data_17B_CRC[counter_10ms];
 
     transmit_can_frame(&ECMP_111, can_config.battery);
-    //transmit_can_frame(&ECMP_0F2, can_config.battery);
-    //transmit_can_frame(&ECMP_0C5, can_config.battery);
+    transmit_can_frame(&ECMP_0F2, can_config.battery);
+    transmit_can_frame(&ECMP_0C5, can_config.battery);
     transmit_can_frame(&ECMP_17B, can_config.battery);
   }
 
@@ -371,19 +371,22 @@ void EcmpBattery::transmit_can(unsigned long currentMillis) {
     previousMillis100 = currentMillis;
 
     counter_100ms = (counter_100ms + 1) % 16;
+    counter_010 = (counter_010 + 1) % 8;
 
     ECMP_31E.data.u8[7] = data_31E_CRC[counter_100ms];
     ECMP_3A2.data.u8[6] = data_3A2_CRC[counter_100ms];
     ECMP_3A3.data.u8[7] = data_3A3_CRC[counter_100ms];
+
+    ECMP_010.data.u8[0] = data_010_CRC[counter_010];
 
     transmit_can_frame(&ECMP_382, can_config.battery);  //PSA Specific!
     transmit_can_frame(&ECMP_31E, can_config.battery);
     transmit_can_frame(&ECMP_383, can_config.battery);
     transmit_can_frame(&ECMP_3A2, can_config.battery);
     transmit_can_frame(&ECMP_3A3, can_config.battery);
-    //transmit_can_frame(&ECMP_010, can_config.battery);
-    //transmit_can_frame(&ECMP_0A6, can_config.battery);
-    //transmit_can_frame(&ECMP_37F, can_config.battery);
+    transmit_can_frame(&ECMP_010, can_config.battery);
+    transmit_can_frame(&ECMP_0A6, can_config.battery);
+    transmit_can_frame(&ECMP_37F, can_config.battery);
   }
   // Send 200ms CAN Message
   if (currentMillis - previousMillis200 >= INTERVAL_200_MS) {

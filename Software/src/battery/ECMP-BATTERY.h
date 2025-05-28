@@ -31,6 +31,7 @@ class EcmpBattery : public CanBattery {
   uint8_t counter_20ms = 0;
   uint8_t counter_50ms = 0;
   uint8_t counter_100ms = 0;
+  uint8_t counter_010 = 0;
   uint8_t battery_MainConnectorState = 0;
   int16_t battery_current = 0;
   uint16_t battery_voltage = 370;
@@ -50,7 +51,7 @@ class EcmpBattery : public CanBattery {
   unsigned long previousMillis1000 = 0;  // will store last time a 1000ms CAN Message was sent
 
   CAN_frame ECMP_010 = {.FD = false, .ext_ID = false, .DLC = 1, .ID = 0x010, .data = {0xB4}};
-  CAN_frame ECMP_0A6 = {.FD = false, .ext_ID = false, .DLC = 2, .ID = 0x0A6, .data = {0x02, 0x01}};
+  CAN_frame ECMP_0A6 = {.FD = false, .ext_ID = false, .DLC = 2, .ID = 0x0A6, .data = {0x02, 0x00}};
   CAN_frame ECMP_0F0 = {.FD = false,  //VCU (Common)
                         .ext_ID = false,
                         .DLC = 8,
@@ -70,7 +71,7 @@ class EcmpBattery : public CanBattery {
                         .ext_ID = false,
                         .DLC = 8,
                         .ID = 0x0C5,
-                        .data = {0x08, 0x00, 0x00, 0x0A, 0x02, 0x04, 0xC0, 0x00}};
+                        .data = {0x2A, 0x00, 0x00, 0x0A, 0x0B, 0x14, 0x70, 0x00}};
   CAN_frame ECMP_17B = {.FD = false,
                         .ext_ID = false,
                         .DLC = 8,
@@ -95,7 +96,7 @@ class EcmpBattery : public CanBattery {
                         .ext_ID = false,
                         .DLC = 8,
                         .ID = 0x37F,
-                        .data = {0x47, 0x49, 0x4E, 0x47, 0x47, 0x00, 0x46, 0x47}};
+                        .data = {0x41, 0x4F, 0x5E, 0x43, 0x41, 0x00, 0x41, 0x41}};
   CAN_frame ECMP_382 = {.FD = false,  //BSI_Info (VCU) PSA specific
                         .ext_ID = false,
                         .DLC = 8,
