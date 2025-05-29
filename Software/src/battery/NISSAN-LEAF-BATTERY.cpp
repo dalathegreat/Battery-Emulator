@@ -456,23 +456,23 @@ void NissanLeafBattery::handle_incoming_can_frame(CAN_frame rx_frame) {
       if (group_7bb == 0x06)  //Balancing resistor status
       {
         if (rx_frame.data.u8[0] == 0x10) {  //First frame (10 1A 61 06 [14 55 55 51])
-          for (int i = 0; i < 8; i++){
+          for (int i = 0; i < 8; i++) {
             // Byte 4 - 7 (bits 0-31)
-            for (int byte_i = 0; byte_i < 4; byte_i++){
+            for (int byte_i = 0; byte_i < 4; byte_i++) {
               battery_balancing_shunts[byte_i * 8 + i] = (rx_frame.data.u8[4 + byte_i] & (1 << i)) >> i;
             }
           }
         }
         if (rx_frame.data.u8[0] == 0x21) {  // Second frame (21 [50 55 41 2B 56 54 15])
-          for (int i = 0; i < 8; i++){
+          for (int i = 0; i < 8; i++) {
             // Byte 1 to 7 (bits 32-87)
-            for (int byte_i = 0; byte_i < 7; byte_i++){
+            for (int byte_i = 0; byte_i < 7; byte_i++) {
               battery_balancing_shunts[32 + byte_i * 8 + i] = (rx_frame.data.u8[1 + byte_i] & (1 << i)) >> i;
             }
           }
         }
         if (rx_frame.data.u8[0] == 0x22) {  //Third frame (22 51 FF FF FF FF FF FF)
-          for (int i = 0; i < 8; i++){
+          for (int i = 0; i < 8; i++) {
             // Byte 1 (bits 88-95)
             battery_balancing_shunts[88 + i] = (rx_frame.data.u8[1] & (1 << i)) >> i;
           }
