@@ -155,8 +155,8 @@ class NissanLeafBattery : public CanBattery {
   uint8_t group_7bb = 0;
   bool stop_battery_query = true;
   uint8_t hold_off_with_polling_10seconds = 2;  //Paused for 20 seconds on startup
-  uint16_t battery_cell_voltages[97];           //array with all the cellvoltages
-  bool battery_balancing_shunts[97];            //array with all the balancing resistors
+  uint16_t battery_cell_voltages[96];           //array with all the cellvoltages
+  bool battery_balancing_shunts[96];            //array with all the balancing resistors
   uint8_t battery_cellcounter = 0;
   uint16_t battery_min_max_voltage[2];  //contains cell min[0] and max[1] values in mV
   uint16_t battery_HX = 0;              //Internal resistance
