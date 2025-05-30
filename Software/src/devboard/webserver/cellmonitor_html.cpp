@@ -46,6 +46,16 @@ String cellmonitor_processor(const String& var) {
     content += "<div id='graph'></div>";
     // Display single hovered value
     content += "<div id='valueDisplay'>Value: ...</div>";
+    //Legend for graph
+    content +=
+        "<span style='color: white; background-color: blue; font-weight: bold; padding: 2px 8px; border-radius: 4px; "
+        "margin-right: 15px;'>Idle</span>";
+    content +=
+        "<span style='color: black; background-color: #00FFFF; font-weight: bold; padding: 2px 8px; border-radius: "
+        "4px; margin-right: 15px;'>Balancing</span>";
+    content +=
+        "<span style='color: white; background-color: red; font-weight: bold; padding: 2px 8px; border-radius: "
+        "4px;'>Min/Max</span>";
 
     // Close the block
     content += "</div>";
@@ -62,6 +72,16 @@ String cellmonitor_processor(const String& var) {
     content += "<div id='graph2'></div>";
     // Display single hovered value
     content += "<div id='valueDisplay2'>Value: ...</div>";
+    //Legend for graph
+    content +=
+        "<span style='color: white; background-color: blue; font-weight: bold; padding: 2px 8px; border-radius: 4px; "
+        "margin-right: 15px;'>Idle</span>";
+    content +=
+        "<span style='color: black; background-color: #00FFFF; font-weight: bold; padding: 2px 8px; border-radius: "
+        "4px; margin-right: 15px;'>Balancing</span>";
+    content +=
+        "<span style='color: white; background-color: red; font-weight: bold; padding: 2px 8px; border-radius: "
+        "4px;'>Min/Max</span>";
 
     // Close the block
     content += "</div>";
@@ -77,6 +97,15 @@ String cellmonitor_processor(const String& var) {
         continue;
       }
       content += String(datalayer.battery.status.cell_voltages_mV[i]) + ",";
+    }
+    content += "];";
+
+    content += "const balancing = [";
+    for (uint8_t i = 0u; i < datalayer.battery.info.number_of_cells; i++) {
+      if (datalayer.battery.status.cell_voltages_mV[i] == 0) {
+        continue;
+      }
+      content += datalayer.battery.status.cell_balancing_status[i] ? "true," : "false,";
     }
     content += "];";
 
@@ -110,15 +139,22 @@ String cellmonitor_processor(const String& var) {
         "bar.id = `barIndex${index}`;"
         "bar.style.height = `${mV_limited}px`;"
         "bar.style.width = `${750/data.length}px`;"
+        "if (balancing[index]) {"
+        "  bar.style.backgroundColor = '#00FFFF';"  // Cyan color for balancing
+        "  bar.style.borderColor = '#00FFFF';"
+        "} else {"
+        "  bar.style.backgroundColor = 'blue';"  // Normal blue for non-balancing
+        "  bar.style.borderColor = 'white';"
+        "}"
 
         "const cell = document.getElementById(`cellIndex${index}`);"
 
         "checkMinMax(cell, bar, index);"
 
         "bar.addEventListener('mouseenter', () => {"
-        "valueDisplay.textContent = `Value: ${mV}`;"
-        "bar.style.backgroundColor = `lightblue`;"
-        "cell.style.backgroundColor = `blue`;"
+        "    valueDisplay.textContent = `Value: ${mV}` + (balancing[index] ? ' (balancing)' : '');"
+        "    bar.style.backgroundColor = balancing[index] ? '#80FFFF' : 'lightblue';"
+        "    cell.style.backgroundColor = balancing[index] ? '#006666' : 'blue';"
         "});"
 
         "bar.addEventListener('mouseleave', () => {"
@@ -140,7 +176,7 @@ String cellmonitor_processor(const String& var) {
         "cell.id = `cellIndex${index}`;"
         "let cellContent = `Cell ${index + 1}<br>${mV} mV`;"
         "if (mV < 3000) {"
-        "cellContent = `<span class='low-voltage'>${cellContent}</span>`;"
+        "  cellContent = `<span class='low-voltage'>${cellContent}</span>`;"
         "}"
         "cell.innerHTML = cellContent;"
 
@@ -153,7 +189,7 @@ String cellmonitor_processor(const String& var) {
 
         "cell.addEventListener('mouseleave', () => {"
         "let bar = document.getElementById(`barIndex${index}`);"
-        "bar.style.backgroundColor = `blue`;"
+        "bar.style.backgroundColor = balancing[index] ? '#00FFFF' : 'blue';"
         "cell.style.removeProperty('background-color');"
         "});"
 
@@ -195,6 +231,15 @@ String cellmonitor_processor(const String& var) {
     }
     content += "];";
 
+    content += "const balancing2 = [";
+    for (uint8_t i = 0u; i < datalayer.battery2.info.number_of_cells; i++) {
+      if (datalayer.battery2.status.cell_voltages_mV[i] == 0) {
+        continue;
+      }
+      content += datalayer.battery2.status.cell_balancing_status[i] ? "true," : "false,";
+    }
+    content += "];";
+
     content += "const min_mv2 = Math.min(...data2) - 20;";
     content += "const max_mv2 = Math.max(...data2) + 20;";
     content += "const min_index2 = data2.indexOf(Math.min(...data2));";
@@ -223,20 +268,26 @@ String cellmonitor_processor(const String& var) {
         "bar2.id = `barIndex2${index2}`;"
         "bar2.style.height = `${mV_limited2}px`;"
         "bar2.style.width = `${750/data2.length}px`;"
-
+        "if (balancing2[index2]) {"
+        "  bar2.style.backgroundColor = '#00FFFF';"  // Cyan color for balancing
+        "  bar2.style.borderColor = '#00FFFF';"
+        "} else {"
+        "  bar2.style.backgroundColor = 'blue';"  // Normal blue for non-balancing
+        "  bar2.style.borderColor = 'white';"
+        "}"
         "const cell2 = document.getElementById(`cellIndex2${index2}`);"
 
         "checkMinMax2(cell2, bar2, index2);"
 
         "bar2.addEventListener('mouseenter', () => {"
-        "valueDisplay2.textContent = `Value: ${mV}`;"
-        "bar2.style.backgroundColor = `lightblue`;"
-        "cell2.style.backgroundColor = `blue`;"
+        "    valueDisplay2.textContent = `Value: ${mV}` + (balancing[index2] ? ' (balancing)' : '');"
+        "    bar2.style.backgroundColor = balancing2[index2] ? '#80FFFF' : 'lightblue';"
+        "    cell2.style.backgroundColor = balancing2[index2] ? '#006666' : 'blue';"
         "});"
 
         "bar2.addEventListener('mouseleave', () => {"
         "valueDisplay2.textContent = 'Value: ...';"
-        "bar2.style.backgroundColor = `blue`;"
+        "bar2.style.backgroundColor = balancing2[index2] ? '#00FFFF' : 'blue';"
         "cell2.style.removeProperty('background-color');"
         "});"
 
@@ -281,7 +332,8 @@ String cellmonitor_processor(const String& var) {
         "const max_mv2 = Math.max(...data2);"
         "const cell_dev2 = max_mv2 - min_mv2;"
         "const voltVal2 = document.getElementById('voltageValues2');"
-        "voltVal2.innerHTML = `Max Voltage : ${max_mv2} mV<br>Min Voltage: ${min_mv2} mV<br>Voltage Deviation: "
+        "voltVal2.innerHTML = `Battery #2<br>Max Voltage : ${max_mv2} mV<br>Min Voltage: ${min_mv2} mV<br>Voltage "
+        "Deviation: "
         "${cell_dev2} mV`"
         "}";
 
