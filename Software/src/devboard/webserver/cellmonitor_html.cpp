@@ -159,7 +159,7 @@ String cellmonitor_processor(const String& var) {
 
         "bar.addEventListener('mouseleave', () => {"
         "valueDisplay.textContent = 'Value: ...';"
-        "bar.style.backgroundColor = `blue`;"
+        "bar.style.backgroundColor = balancing[index] ? '#00FFFF' : 'blue';"  // Restore cyan if balancing, else blue
         "cell.style.removeProperty('background-color');"
         "});"
 
@@ -183,13 +183,13 @@ String cellmonitor_processor(const String& var) {
         "cell.addEventListener('mouseenter', () => {"
         "let bar = document.getElementById(`barIndex${index}`);"
         "valueDisplay.textContent = `Value: ${mV}`;"
-        "bar.style.backgroundColor = `lightblue`;"
-        "cell.style.backgroundColor = `blue`;"
+        "bar.style.backgroundColor = balancing[index] ? '#80FFFF' : 'lightblue';"  // Lighter cyan if balancing
+        "cell.style.backgroundColor = balancing[index] ? '#006666' : 'blue';"      // Darker cyan if balancing
         "});"
 
         "cell.addEventListener('mouseleave', () => {"
         "let bar = document.getElementById(`barIndex${index}`);"
-        "bar.style.backgroundColor = balancing[index] ? '#00FFFF' : 'blue';"
+        "bar.style.backgroundColor = balancing[index] ? '#00FFFF' : 'blue';"  // Restore original color
         "cell.style.removeProperty('background-color');"
         "});"
 
@@ -287,7 +287,7 @@ String cellmonitor_processor(const String& var) {
 
         "bar2.addEventListener('mouseleave', () => {"
         "valueDisplay2.textContent = 'Value: ...';"
-        "bar2.style.backgroundColor = balancing2[index2] ? '#00FFFF' : 'blue';"
+        "bar2.style.backgroundColor = balancing2[index2] ? '#00FFFF' : 'blue';"  // Restore cyan if balancing, else blue
         "cell2.style.removeProperty('background-color');"
         "});"
 
@@ -311,13 +311,13 @@ String cellmonitor_processor(const String& var) {
         "cell2.addEventListener('mouseenter', () => {"
         "let bar2 = document.getElementById(`barIndex2${index2}`);"
         "valueDisplay2.textContent = `Value: ${mV}`;"
-        "bar2.style.backgroundColor = `lightblue`;"
-        "cell2.style.backgroundColor = `blue`;"
+        "bar2.style.backgroundColor = balancing2[index2] ? '#80FFFF' : 'lightblue';"  // Lighter cyan if balancing
+        "cell2.style.backgroundColor = balancing2[index2] ? '#006666' : 'blue';"      // Darker cyan if balancing
         "});"
 
         "cell2.addEventListener('mouseleave', () => {"
         "let bar2 = document.getElementById(`barIndex2${index2}`);"
-        "bar2.style.backgroundColor = `blue`;"
+        "bar2.style.backgroundColor = balancing2[index2] ? '#00FFFF' : 'blue';"  // Restore original color
         "cell2.style.removeProperty('background-color');"
         "});"
 
