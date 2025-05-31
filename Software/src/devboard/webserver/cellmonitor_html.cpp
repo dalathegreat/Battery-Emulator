@@ -84,7 +84,7 @@ String cellmonitor_processor(const String& var) {
     content +=
         "<span style='color: white; background-color: blue; font-weight: bold; padding: 2px 8px; border-radius: 4px; "
         "margin-right: 15px;'>Idle</span>";
-    
+
     bool battery2_balancing = false;
     for (uint8_t i = 0u; i < datalayer.battery2.info.number_of_cells; i++) {
       battery2_balancing = datalayer.battery2.status.cell_balancing_status[i];
