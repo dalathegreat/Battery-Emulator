@@ -50,9 +50,17 @@ String cellmonitor_processor(const String& var) {
     content +=
         "<span style='color: white; background-color: blue; font-weight: bold; padding: 2px 8px; border-radius: 4px; "
         "margin-right: 15px;'>Idle</span>";
-    content +=
-        "<span style='color: black; background-color: #00FFFF; font-weight: bold; padding: 2px 8px; border-radius: "
-        "4px; margin-right: 15px;'>Balancing</span>";
+    bool battery_balancing = false;
+    for (uint8_t i = 0u; i < datalayer.battery.info.number_of_cells; i++) {
+      battery_balancing = datalayer.battery.status.cell_balancing_status[i];
+      if (battery_balancing)
+        break;
+    }
+    if (battery_balancing) {
+      content +=
+          "<span style='color: black; background-color: #00FFFF; font-weight: bold; padding: 2px 8px; border-radius: "
+          "4px; margin-right: 15px;'>Balancing</span>";
+    }
     content +=
         "<span style='color: white; background-color: red; font-weight: bold; padding: 2px 8px; border-radius: "
         "4px;'>Min/Max</span>";
@@ -76,9 +84,18 @@ String cellmonitor_processor(const String& var) {
     content +=
         "<span style='color: white; background-color: blue; font-weight: bold; padding: 2px 8px; border-radius: 4px; "
         "margin-right: 15px;'>Idle</span>";
-    content +=
-        "<span style='color: black; background-color: #00FFFF; font-weight: bold; padding: 2px 8px; border-radius: "
-        "4px; margin-right: 15px;'>Balancing</span>";
+    
+    bool battery2_balancing = false;
+    for (uint8_t i = 0u; i < datalayer.battery2.info.number_of_cells; i++) {
+      battery2_balancing = datalayer.battery2.status.cell_balancing_status[i];
+      if (battery2_balancing)
+        break;
+    }
+    if (battery2_balancing) {
+      content +=
+          "<span style='color: black; background-color: #00FFFF; font-weight: bold; padding: 2px 8px; border-radius: "
+          "4px; margin-right: 15px;'>Balancing</span>";
+    }
     content +=
         "<span style='color: white; background-color: red; font-weight: bold; padding: 2px 8px; border-radius: "
         "4px;'>Min/Max</span>";
