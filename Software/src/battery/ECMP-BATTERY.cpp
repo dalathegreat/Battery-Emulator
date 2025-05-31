@@ -328,7 +328,7 @@ void EcmpBattery::handle_incoming_can_frame(CAN_frame rx_frame) {
 }
 
 uint8_t checksum_calc(uint8_t counter, CAN_frame rx_frame) {
-  // Confirmed working on IDs 0F0,0F2,17B,31B,31D,31E,3A2,3A3, 112
+  // Confirmed working on IDs 0F0,0F2,17B,31B,31D,31E,3A2(special),3A3,112,351
   // Sum of frame ID nibbles + Sum all nibbles of data bytes (frames 0–6 and high nibble of frame7)
   int sum = ((rx_frame.ID >> 8) & 0xF) + ((rx_frame.ID >> 4) & 0xF) + (rx_frame.ID & 0xF);
   sum += (rx_frame.data.u8[0] >> 4) + (rx_frame.data.u8[0] & 0xF);
@@ -401,8 +401,11 @@ void EcmpBattery::transmit_can(unsigned long currentMillis) {
     ECMP_31E.data.u8[7] = counter_100ms << 4 | checksum_calc(counter_100ms, ECMP_31E);
     ECMP_3A2.data.u8[6] = data_3A2_CRC[counter_100ms];
     ECMP_3A3.data.u8[7] = counter_100ms << 4 | checksum_calc(counter_100ms, ECMP_3A3);
-
     ECMP_010.data.u8[0] = data_010_CRC[counter_010];
+    ECMP_345.data.u8[3] = (uint8_t)((data_345_content[counter_100ms] & 0XF0) | 0x4);
+    ECMP_345.data.u8[7] = (uint8_t)(0x3 << 4 | (data_345_content[counter_100ms] & 0X0F));
+    ECMP_351.data.u8[7] = counter_100ms << 4 | checksum_calc(counter_100ms, ECMP_351);
+    ECMP_31D.data.u8[7] = counter_100ms << 4 | checksum_calc(counter_100ms, ECMP_31D);
 
     transmit_can_frame(&ECMP_382, can_config.battery);  //PSA Specific!
     transmit_can_frame(&ECMP_31E, can_config.battery);
@@ -413,6 +416,9 @@ void EcmpBattery::transmit_can(unsigned long currentMillis) {
     transmit_can_frame(&ECMP_0A6, can_config.battery);  //Not in all logs
     transmit_can_frame(&ECMP_37F, can_config.battery);
     transmit_can_frame(&ECMP_372, can_config.battery);
+    transmit_can_frame(&ECMP_345, can_config.battery);
+    transmit_can_frame(&ECMP_351, can_config.battery);
+    transmit_can_frame(&ECMP_31D, can_config.battery);
   }
   // Send 200ms CAN Message
   if (currentMillis - previousMillis200 >= INTERVAL_200_MS) {
@@ -473,9 +479,20 @@ void EcmpBattery::transmit_can(unsigned long currentMillis) {
   // Send 1s CAN Message
   if (currentMillis - previousMillis1000 >= INTERVAL_1_S) {
     previousMillis1000 = currentMillis;
+
+    //552 seems to be tracking time in byte 2 & 3 (also byte 1? not long enough logs studied)
+
+    ticks_552 = (ticks_552 + 10);
+    ECMP_552.data.u8[2] = ((ticks_552 & 0xFF00) >> 8);
+    ECMP_552.data.u8[3] = (ticks_552 & 0x00FF);
+
     transmit_can_frame(&ECMP_439, can_config.battery);  //PSA Specific? Not in all logs
     transmit_can_frame(&ECMP_486, can_config.battery);  //Not in all logs
     transmit_can_frame(&ECMP_041, can_config.battery);  //Not in all logs
+    transmit_can_frame(&ECMP_786, can_config.battery);  //Not in all logs
+    transmit_can_frame(&ECMP_591, can_config.battery);  //Not in all logs
+    transmit_can_frame(&ECMP_552, can_config.battery);  //Not in all logs
+    transmit_can_frame(&ECMP_794, can_config.battery);  //Not in all logs
   }
 }
 

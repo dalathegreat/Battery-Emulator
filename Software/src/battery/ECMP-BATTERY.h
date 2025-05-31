@@ -32,6 +32,7 @@ class EcmpBattery : public CanBattery {
   uint8_t counter_50ms = 0;
   uint8_t counter_100ms = 0;
   uint8_t counter_010 = 0;
+  uint16_t ticks_552 = 60513;  //Hmm, will overflow a while after start
   uint8_t battery_MainConnectorState = 0;
   int16_t battery_current = 0;
   uint16_t battery_voltage = 370;
@@ -123,11 +124,21 @@ class EcmpBattery : public CanBattery {
                         .DLC = 8,
                         .ID = 0x31E,
                         .data = {0x50, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x08}};
+  CAN_frame ECMP_31D = {.FD = false,
+                        .ext_ID = false,
+                        .DLC = 8,
+                        .ID = 0x31D,
+                        .data = {0x00, 0x80, 0x00, 0x00, 0x00, 0x00, 0x00, 0x42}};
   CAN_frame ECMP_345 = {.FD = false,
                         .ext_ID = false,
                         .DLC = 8,
                         .ID = 0x345,
                         .data = {0x45, 0x51, 0x00, 0x04, 0xDD, 0x00, 0x02, 0x31}};
+  CAN_frame ECMP_351 = {.FD = false,
+                        .ext_ID = false,
+                        .DLC = 8,
+                        .ID = 0x351,
+                        .data = {0x00, 0x00, 0x00, 0x00, 0x0E, 0xA0, 0x00, 0x0E}};
   CAN_frame ECMP_372 = {.FD = false,
                         .ext_ID = false,
                         .DLC = 8,
@@ -137,7 +148,7 @@ class EcmpBattery : public CanBattery {
                         .ext_ID = false,
                         .DLC = 8,
                         .ID = 0x37F,
-                        .data = {0x41, 0x4F, 0x5E, 0x43, 0x41, 0x00, 0x41, 0x41}};
+                        .data = {0x42, 0x45, 0x4E, 0x43, 0x42, 0x00, 0x43, 0x42}};
   CAN_frame ECMP_382 = {.FD = false,  //BSI_Info (VCU) PSA specific
                         .ext_ID = false,
                         .DLC = 8,
@@ -162,12 +173,32 @@ class EcmpBattery : public CanBattery {
                         .ext_ID = false,
                         .DLC = 8,
                         .ID = 0x439,
-                        .data = {0x20, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00}};
+                        .data = {0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00}};
   CAN_frame ECMP_486 = {.FD = false,
                         .ext_ID = false,
                         .DLC = 8,
                         .ID = 0x486,
                         .data = {0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0}};
+  CAN_frame ECMP_552 = {.FD = false,
+                        .ext_ID = false,
+                        .DLC = 8,
+                        .ID = 0x552,
+                        .data = {0x0B, 0xC8, 0xEC, 0x4D, 0x00, 0xD4, 0x2C, 0xFE}};
+  CAN_frame ECMP_591 = {.FD = false,
+                        .ext_ID = false,
+                        .DLC = 8,
+                        .ID = 0x591,
+                        .data = {0x38, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0}};
+  CAN_frame ECMP_786 = {.FD = false,
+                        .ext_ID = false,
+                        .DLC = 8,
+                        .ID = 0x786,
+                        .data = {0x38, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0}};
+  CAN_frame ECMP_794 = {.FD = false,
+                        .ext_ID = false,
+                        .DLC = 8,
+                        .ID = 0x794,
+                        .data = {0x38, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0}};
   CAN_frame ECMP_POLL = {.FD = false,
                          .ext_ID = false,
                          .DLC = 8,
@@ -216,5 +247,7 @@ class EcmpBattery : public CanBattery {
   uint8_t data_010_CRC[8] = {0xB4, 0x96, 0x78, 0x5A, 0x3C, 0x1E, 0xF0, 0xD2};
   uint8_t data_3A2_CRC[16] = {0x08, 0x17, 0x26, 0x35, 0x44, 0x53, 0x62, 0x71,
                               0x80, 0x9F, 0xAE, 0xBD, 0xCC, 0xDB, 0xEA, 0xF9};
+  uint8_t data_345_content[16] = {0x01, 0xF2, 0xE3, 0xD4, 0xC5, 0xB6, 0xA7, 0x98,
+                                  0x89, 0x7A, 0x6B, 0x5C, 0x4D, 0x3E, 0x2F, 0x10};
 };
 #endif
