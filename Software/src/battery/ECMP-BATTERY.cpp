@@ -9,8 +9,6 @@
 /* TODO:
 This integration is still ongoing. Here is what still needs to be done in order to use this battery type
 - Figure out contactor closing
-   - Which CAN messages need to be sent towards the battery?
-- Handle 54/70kWh cellcounting properly
 */
 
 /* Do not change code below unless you are sure what you are doing */
@@ -58,6 +56,13 @@ void EcmpBattery::update_values() {
   // Update extended datalayer (More Battery Info page)
   datalayer_extended.stellantisECMP.MainConnectorState = battery_MainConnectorState;
   datalayer_extended.stellantisECMP.InsulationResistance = battery_insulationResistanceKOhm;
+  datalayer_extended.stellantisECMP.InterlockOpen = battery_InterlockOpen;
+
+  if (battery_InterlockOpen) {
+    set_event(EVENT_HVIL_FAILURE, 0);
+  } else {
+    clear_event(EVENT_HVIL_FAILURE);
+  }
 }
 
 void EcmpBattery::handle_incoming_can_frame(CAN_frame rx_frame) {
@@ -70,10 +75,7 @@ void EcmpBattery::handle_incoming_can_frame(CAN_frame rx_frame) {
                                     4);  //Byte2 , bit 4, length 2 ((00 contactors open, 01 precharged, 11 invalid))
       battery_voltage =
           (rx_frame.data.u8[3] << 1) | (rx_frame.data.u8[4] >> 7);  //Byte 4, bit 7, length 9 (0x1FE if invalid)
-      battery_current = (((rx_frame.data.u8[4] & 0x7F) << 5) | (rx_frame.data.u8[5] >> 3)) -
-                        600;  // Byte5, Bit 3 length 12 (0xFFE when abnormal) (-600 to 600 , offset -600)
-      //battery_RelayOpenRequest = // Byte 5, bit 6, length 1 (0 no request, 1 battery requests contactor opening)
-      //Stellantis doc seems wrong, could Byte5 be misspelled as Byte2? Bit will otherwise collide with battery_current
+      battery_current = (((rx_frame.data.u8[4] & 0x0F) << 8) | rx_frame.data.u8[5]) - 600;  // TODO: Test
       break;
     case 0x127:  //DFM specific
       battery_AllowedMaxChargeCurrent =
@@ -86,6 +88,8 @@ void EcmpBattery::handle_incoming_can_frame(CAN_frame rx_frame) {
     case 0x129:  //PSA specific
       break;
     case 0x31B:
+      battery_InterlockOpen = ((rx_frame.data.u8[1] & 0x10) >> 4);  //Best guess, seems to work?
+      //TODO: frame7 contains checksum, we can use this to check for CAN message corruption
       break;
     case 0x358:  //Common
       battery_highestTemperature = rx_frame.data.u8[6] - 40;
@@ -287,36 +291,208 @@ void EcmpBattery::handle_incoming_can_frame(CAN_frame rx_frame) {
       cellvoltages[107] = (rx_frame.data.u8[6] << 8) | rx_frame.data.u8[7];
       memcpy(datalayer.battery.status.cell_voltages_mV, cellvoltages, 108 * sizeof(uint16_t));
       break;
-    case 0x794:
+    case 0x694:  // Poll reply
+      if (datalayer_extended.stellantisECMP.UserRequestContactorReset) {
+        if (rx_frame.data.u8[5] == 0x01) {  //Reset in progress
+          transmit_can_frame(&ECMP_CONTACTOR_RESET_PROGRESS, can_config.battery);
+        }
+        if (rx_frame.data.u8[5] == 0x02) {  //Completed
+          transmit_can_frame(&ECMP_RESET_DONE, can_config.battery);
+          datalayer_extended.stellantisECMP.UserRequestContactorReset = false;
+          ContactorResetStatemachine = STOPPED;
+        }
+      } else if (datalayer_extended.stellantisECMP.UserRequestCollisionReset) {
+        if (rx_frame.data.u8[5] == 0x01) {  //Reset in progress
+          transmit_can_frame(&ECMP_COLLISION_RESET_PROGRESS, can_config.battery);
+        }
+        if (rx_frame.data.u8[5] == 0x02) {  //Completed
+          transmit_can_frame(&ECMP_RESET_DONE, can_config.battery);
+          datalayer_extended.stellantisECMP.UserRequestCollisionReset = false;
+          CollisionResetStatemachine = STOPPED;
+        }
+      } else if (datalayer_extended.stellantisECMP.UserRequestIsolationReset) {
+        if (rx_frame.data.u8[5] == 0x01) {  //Reset in progress
+          transmit_can_frame(&ECMP_ISOLATION_RESET_PROGRESS, can_config.battery);
+        }
+        if (rx_frame.data.u8[5] == 0x02) {  //Completed
+          transmit_can_frame(&ECMP_RESET_DONE, can_config.battery);
+          datalayer_extended.stellantisECMP.UserRequestIsolationReset = false;
+          IsolationResetStatemachine = STOPPED;
+        }
+      }
+
       break;
     default:
       break;
   }
 }
 
+uint8_t checksum_calc(uint8_t counter, CAN_frame rx_frame) {
+  // Confirmed working on IDs 0F0,0F2,17B,31B,31D,31E,3A2(special),3A3,112,351
+  // Sum of frame ID nibbles + Sum all nibbles of data bytes (frames 0–6 and high nibble of frame7)
+  int sum = ((rx_frame.ID >> 8) & 0xF) + ((rx_frame.ID >> 4) & 0xF) + (rx_frame.ID & 0xF);
+  sum += (rx_frame.data.u8[0] >> 4) + (rx_frame.data.u8[0] & 0xF);
+  sum += (rx_frame.data.u8[1] >> 4) + (rx_frame.data.u8[1] & 0xF);
+  sum += (rx_frame.data.u8[2] >> 4) + (rx_frame.data.u8[2] & 0xF);
+  sum += (rx_frame.data.u8[3] >> 4) + (rx_frame.data.u8[3] & 0xF);
+  sum += (rx_frame.data.u8[4] >> 4) + (rx_frame.data.u8[4] & 0xF);
+  sum += (rx_frame.data.u8[5] >> 4) + (rx_frame.data.u8[5] & 0xF);
+  sum += (rx_frame.data.u8[6] >> 4) + (rx_frame.data.u8[6] & 0xF);
+  sum += (counter);  //high nibble of frame7
+
+  // Compute: (0xF - sum) % 16
+  return (0xF - sum) & 0xF;  // Masking with & 0xF ensures modulo 16
+}
+
 void EcmpBattery::transmit_can(unsigned long currentMillis) {
+  // Send 10ms CAN Message
+  if (currentMillis - previousMillis10 >= INTERVAL_10_MS) {
+    previousMillis10 = currentMillis;
+
+    counter_10ms = (counter_10ms + 1) % 16;
+
+    ECMP_0F2.data.u8[7] = counter_10ms << 4 | checksum_calc(counter_10ms, ECMP_0F2);
+    ECMP_17B.data.u8[7] = counter_10ms << 4 | checksum_calc(counter_10ms, ECMP_17B);
+    ECMP_112.data.u8[7] = counter_10ms << 4 | checksum_calc(counter_10ms, ECMP_112);
+
+    transmit_can_frame(&ECMP_111, can_config.battery);
+    transmit_can_frame(&ECMP_112, can_config.battery);
+    transmit_can_frame(&ECMP_110, can_config.battery);
+    transmit_can_frame(&ECMP_114, can_config.battery);
+    transmit_can_frame(&ECMP_0F2, can_config.battery);
+    transmit_can_frame(&ECMP_0C5, can_config.battery);
+    transmit_can_frame(&ECMP_17B, can_config.battery);
+  }
+
   // Send 20ms CAN Message
   if (currentMillis - previousMillis20 >= INTERVAL_20_MS) {
     previousMillis20 = currentMillis;
 
-    counter_20ms = (counter_20ms + 1) % 16;
-
     if (datalayer.battery.status.bms_status == FAULT) {
       //Open contactors!
       ECMP_0F0.data.u8[1] = 0x00;
-      ECMP_0F0.data.u8[7] = data_0F0_00[counter_20ms];
     } else {  // Not in faulted mode, Close contactors!
       ECMP_0F0.data.u8[1] = 0x20;
-      ECMP_0F0.data.u8[7] = data_0F0_20[counter_20ms];
     }
 
+    counter_20ms = (counter_20ms + 1) % 16;
+
+    ECMP_0F0.data.u8[7] = counter_20ms << 4 | checksum_calc(counter_20ms, ECMP_0F0);
+
     transmit_can_frame(&ECMP_0F0, can_config.battery);  //Common!
+    transmit_can_frame(&ECMP_125, can_config.battery);  //Not in all CAN logs, might be unnecessary
+    transmit_can_frame(&ECMP_127, can_config.battery);  //Not in all CAN logs, might be unnecessary
+    transmit_can_frame(&ECMP_129, can_config.battery);  //Not in all CAN logs, might be unnecessary
+  }
+  // Send 50ms CAN Message
+  if (currentMillis - previousMillis50 >= INTERVAL_50_MS) {
+    previousMillis50 = currentMillis;
+
+    transmit_can_frame(&ECMP_27A, can_config.battery);  //Not in all CAN logs, might be unnecessary
+    transmit_can_frame(&ECMP_230, can_config.battery);
   }
   // Send 100ms CAN Message
   if (currentMillis - previousMillis100 >= INTERVAL_100_MS) {
     previousMillis100 = currentMillis;
 
+    counter_100ms = (counter_100ms + 1) % 16;
+    counter_010 = (counter_010 + 1) % 8;
+
+    ECMP_31E.data.u8[7] = counter_100ms << 4 | checksum_calc(counter_100ms, ECMP_31E);
+    ECMP_3A2.data.u8[6] = data_3A2_CRC[counter_100ms];
+    ECMP_3A3.data.u8[7] = counter_100ms << 4 | checksum_calc(counter_100ms, ECMP_3A3);
+    ECMP_010.data.u8[0] = data_010_CRC[counter_010];
+    ECMP_345.data.u8[3] = (uint8_t)((data_345_content[counter_100ms] & 0XF0) | 0x4);
+    ECMP_345.data.u8[7] = (uint8_t)(0x3 << 4 | (data_345_content[counter_100ms] & 0X0F));
+    ECMP_351.data.u8[7] = counter_100ms << 4 | checksum_calc(counter_100ms, ECMP_351);
+    ECMP_31D.data.u8[7] = counter_100ms << 4 | checksum_calc(counter_100ms, ECMP_31D);
+
     transmit_can_frame(&ECMP_382, can_config.battery);  //PSA Specific!
+    transmit_can_frame(&ECMP_31E, can_config.battery);
+    transmit_can_frame(&ECMP_383, can_config.battery);
+    transmit_can_frame(&ECMP_3A2, can_config.battery);
+    transmit_can_frame(&ECMP_3A3, can_config.battery);
+    transmit_can_frame(&ECMP_010, can_config.battery);
+    transmit_can_frame(&ECMP_0A6, can_config.battery);  //Not in all logs
+    transmit_can_frame(&ECMP_37F, can_config.battery);
+    transmit_can_frame(&ECMP_372, can_config.battery);
+    transmit_can_frame(&ECMP_345, can_config.battery);
+    transmit_can_frame(&ECMP_351, can_config.battery);
+    transmit_can_frame(&ECMP_31D, can_config.battery);
+  }
+  // Send 200ms CAN Message
+  if (currentMillis - previousMillis200 >= INTERVAL_200_MS) {
+    previousMillis200 = currentMillis;
+
+    if (datalayer_extended.stellantisECMP.UserRequestContactorReset) {
+
+      if (ContactorResetStatemachine == 0) {
+        transmit_can_frame(&ECMP_DIAG_START, can_config.battery);
+      }
+      if (ContactorResetStatemachine == 1) {
+        transmit_can_frame(&ECMP_CONTACTOR_RESET_START, can_config.battery);
+      }
+
+      ContactorResetStatemachine++;
+
+      if (ContactorResetStatemachine > 200) {  //Timeout, should never trigger
+        datalayer_extended.stellantisECMP.UserRequestContactorReset = false;
+        ContactorResetStatemachine = STOPPED;
+      }
+
+    } else if (datalayer_extended.stellantisECMP.UserRequestCollisionReset) {
+
+      if (CollisionResetStatemachine == 0) {
+        transmit_can_frame(&ECMP_DIAG_START, can_config.battery);
+      }
+      if (CollisionResetStatemachine == 1) {
+        transmit_can_frame(&ECMP_COLLISION_RESET_START, can_config.battery);
+      }
+
+      CollisionResetStatemachine++;
+
+      if (CollisionResetStatemachine > 200) {  //Timeout, should never trigger
+        datalayer_extended.stellantisECMP.UserRequestCollisionReset = false;
+        CollisionResetStatemachine = STOPPED;
+      }
+
+    } else if (datalayer_extended.stellantisECMP.UserRequestIsolationReset) {
+
+      if (IsolationResetStatemachine == 0) {
+        transmit_can_frame(&ECMP_DIAG_START, can_config.battery);
+      }
+      if (IsolationResetStatemachine == 1) {
+        transmit_can_frame(&ECMP_ISOLATION_RESET_START, can_config.battery);
+      }
+
+      IsolationResetStatemachine++;
+
+      if (IsolationResetStatemachine > 200) {  //Timeout, should never trigger
+        datalayer_extended.stellantisECMP.UserRequestIsolationReset = false;
+        IsolationResetStatemachine = STOPPED;
+      }
+
+    } else {
+      //Normal PID polling goes here
+    }
+  }
+  // Send 1s CAN Message
+  if (currentMillis - previousMillis1000 >= INTERVAL_1_S) {
+    previousMillis1000 = currentMillis;
+
+    //552 seems to be tracking time in byte 2 & 3 (also byte 1? not long enough logs studied)
+
+    ticks_552 = (ticks_552 + 10);
+    ECMP_552.data.u8[2] = ((ticks_552 & 0xFF00) >> 8);
+    ECMP_552.data.u8[3] = (ticks_552 & 0x00FF);
+
+    transmit_can_frame(&ECMP_439, can_config.battery);  //PSA Specific? Not in all logs
+    transmit_can_frame(&ECMP_486, can_config.battery);  //Not in all logs
+    transmit_can_frame(&ECMP_041, can_config.battery);  //Not in all logs
+    transmit_can_frame(&ECMP_786, can_config.battery);  //Not in all logs
+    transmit_can_frame(&ECMP_591, can_config.battery);  //Not in all logs
+    transmit_can_frame(&ECMP_552, can_config.battery);  //Not in all logs
+    transmit_can_frame(&ECMP_794, can_config.battery);  //Not in all logs
   }
 }
 
