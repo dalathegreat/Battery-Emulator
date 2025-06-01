@@ -50,16 +50,15 @@ void update_values_battery() {
 void transmit_can_battery(unsigned long currentMillis) {
   ((CanBattery*)battery)->transmit_can(currentMillis);
 
-#ifdef DOUBLE_BATTERY
-  ((CanBattery*)battery2)->transmit_can(currentMillis);
-#endif
+  if (battery2) {
+    ((CanBattery*)battery2)->transmit_can(currentMillis);
+  }
 }
 
 void handle_incoming_can_frame_battery(CAN_frame rx_frame) {
   ((CanBattery*)battery)->handle_incoming_can_frame(rx_frame);
 }
 
-#ifdef DOUBLE_BATTERY
 void update_values_battery2() {
   battery2->update_values();
 }
@@ -67,7 +66,6 @@ void update_values_battery2() {
 void handle_incoming_can_frame_battery2(CAN_frame rx_frame) {
   ((CanBattery*)battery2)->handle_incoming_can_frame(rx_frame);
 }
-#endif
 
 #ifdef RS485_BATTERY_SELECTED
 void transmit_rs485() {

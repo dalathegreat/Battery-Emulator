@@ -255,10 +255,11 @@ void core_loop(void*) {
 #endif
       update_pause_state();     // Check if we are OK to send CAN or need to pause
       update_values_battery();  // Fetch battery values
-#ifdef DOUBLE_BATTERY
-      update_values_battery2();
-      check_interconnect_available();
-#endif  // DOUBLE_BATTERY
+
+      if (battery2) {
+        update_values_battery2();
+        check_interconnect_available();
+      }
       update_calculated_values();
       update_machineryprotection();  // Check safeties
       update_values_inverter();      // Update values heading towards inverter
