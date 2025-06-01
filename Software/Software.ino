@@ -88,11 +88,6 @@ void setup() {
                           &logging_loop_task, WIFI_CORE);
 #endif
 
-#ifdef MQTT
-  xTaskCreatePinnedToCore((TaskFunction_t)&mqtt_loop, "mqtt_loop", 4096, NULL, TASK_MQTT_PRIO, &mqtt_loop_task,
-                          WIFI_CORE);
-#endif
-
   init_CAN();
 
   init_contactors();
@@ -126,6 +121,12 @@ void setup() {
   };
 
   // Start tasks
+
+#ifdef MQTT
+  xTaskCreatePinnedToCore((TaskFunction_t)&mqtt_loop, "mqtt_loop", 4096, NULL, TASK_MQTT_PRIO, &mqtt_loop_task,
+                          WIFI_CORE);
+#endif
+
   xTaskCreatePinnedToCore((TaskFunction_t)&core_loop, "core_loop", 4096, NULL, TASK_CORE_PRIO, &main_loop_task,
                           CORE_FUNCTION_CORE);
 #ifdef PERIODIC_BMS_RESET_AT
