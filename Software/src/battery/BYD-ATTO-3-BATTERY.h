@@ -35,7 +35,7 @@ class BydAttoBattery : public CanBattery {
  public:
   // Use this constructor for the second battery.
   BydAttoBattery(DATALAYER_BATTERY_TYPE* datalayer_ptr, DATALAYER_INFO_BYDATTO3* extended, CAN_Interface targetCan)
-      : CanBattery(targetCan) {
+      : CanBattery(targetCan), renderer(extended) {
     datalayer_battery = datalayer_ptr;
     datalayer_bydatto = extended;
     allows_contactor_closing = nullptr;
