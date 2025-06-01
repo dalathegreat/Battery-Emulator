@@ -23,7 +23,7 @@ class KiaHyundai64Battery : public CanBattery {
   }
 
   // Use the default constructor to create the first or single battery.
-  KiaHyundai64Battery() {
+  KiaHyundai64Battery() : renderer(&datalayer_extended.KiaHyundai64) {
     datalayer_battery = &datalayer.battery;
     allows_contactor_closing = &datalayer.system.status.battery_allows_contactor_closing;
     contactor_closing_allowed = nullptr;

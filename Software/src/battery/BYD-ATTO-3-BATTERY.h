@@ -42,7 +42,7 @@ class BydAttoBattery : public CanBattery {
   }
 
   // Use the default constructor to create the first or single battery.
-  BydAttoBattery() {
+  BydAttoBattery() : renderer(&datalayer_extended.bydAtto3) {
     datalayer_battery = &datalayer.battery;
     allows_contactor_closing = &datalayer.system.status.battery_allows_contactor_closing;
     datalayer_bydatto = &datalayer_extended.bydAtto3;
