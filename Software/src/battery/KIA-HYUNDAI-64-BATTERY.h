@@ -15,7 +15,7 @@ class KiaHyundai64Battery : public CanBattery {
   // Use this constructor for the second battery.
   KiaHyundai64Battery(DATALAYER_BATTERY_TYPE* datalayer_ptr, DATALAYER_INFO_KIAHYUNDAI64* extended_ptr,
                       bool* contactor_closing_allowed_ptr, CAN_Interface targetCan)
-      : CanBattery(targetCan) {
+      : CanBattery(targetCan), renderer(extended_ptr) {
     datalayer_battery = datalayer_ptr;
     contactor_closing_allowed = contactor_closing_allowed_ptr;
     allows_contactor_closing = nullptr;
