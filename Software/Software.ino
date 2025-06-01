@@ -319,7 +319,6 @@ void init_serial() {
 #endif  // DEBUG_VIA_USB
 }
 
-#ifdef DOUBLE_BATTERY
 void check_interconnect_available() {
   if (datalayer.battery.status.voltage_dV == 0 || datalayer.battery2.status.voltage_dV == 0) {
     return;  // Both voltage values need to be available to start check
@@ -339,7 +338,6 @@ void check_interconnect_available() {
     set_event(EVENT_VOLTAGE_DIFFERENCE, (uint8_t)(voltage_diff / 10));
   }
 }
-#endif  // DOUBLE_BATTERY
 
 void update_calculated_values() {
   /* Update CPU temperature*/
@@ -399,11 +397,11 @@ void update_calculated_values() {
     }
   }
 
-#ifdef DOUBLE_BATTERY
-  /* Calculate active power based on voltage and current for battery 2*/
-  datalayer.battery2.status.active_power_W =
-      (datalayer.battery2.status.current_dA * (datalayer.battery2.status.voltage_dV / 100));
-#endif  // DOUBLE_BATTERY
+  if (battery2) {
+    /* Calculate active power based on voltage and current for battery 2*/
+    datalayer.battery2.status.active_power_W =
+        (datalayer.battery2.status.current_dA * (datalayer.battery2.status.voltage_dV / 100));
+  }
 
   if (datalayer.battery.settings.soc_scaling_active) {
     /** SOC Scaling
@@ -445,57 +443,62 @@ void update_calculated_values() {
       datalayer.battery.status.reported_remaining_capacity_Wh = datalayer.battery.status.remaining_capacity_Wh;
     }
 
-#ifdef DOUBLE_BATTERY
-    // If battery info is valid
-    if (datalayer.battery2.info.total_capacity_Wh > 0 && datalayer.battery.status.real_soc > 0) {
+    if (battery2) {
+      // If battery info is valid
+      if (datalayer.battery2.info.total_capacity_Wh > 0 && datalayer.battery.status.real_soc > 0) {
 
-      datalayer.battery2.info.reported_total_capacity_Wh = scaled_total_capacity;
-      // Scale remaining capacity based on scaled SOC
-      datalayer.battery2.status.reported_remaining_capacity_Wh = (scaled_total_capacity * scaled_soc) / 10000;
+        datalayer.battery2.info.reported_total_capacity_Wh = scaled_total_capacity;
+        // Scale remaining capacity based on scaled SOC
+        datalayer.battery2.status.reported_remaining_capacity_Wh = (scaled_total_capacity * scaled_soc) / 10000;
 
-    } else {
-      // Fallback if scaling cannot be performed
-      datalayer.battery2.info.reported_total_capacity_Wh = datalayer.battery2.info.total_capacity_Wh;
-      datalayer.battery2.status.reported_remaining_capacity_Wh = datalayer.battery2.status.remaining_capacity_Wh;
+      } else {
+        // Fallback if scaling cannot be performed
+        datalayer.battery2.info.reported_total_capacity_Wh = datalayer.battery2.info.total_capacity_Wh;
+        datalayer.battery2.status.reported_remaining_capacity_Wh = datalayer.battery2.status.remaining_capacity_Wh;
+      }
+
+      //Since we are running double battery, the scaled value of battery1 becomes the sum of battery1+battery2
+      //This way the inverter connected to the system sees both batteries as one large battery
+      datalayer.battery.info.reported_total_capacity_Wh += datalayer.battery2.info.reported_total_capacity_Wh;
+      datalayer.battery.status.reported_remaining_capacity_Wh +=
+          datalayer.battery2.status.reported_remaining_capacity_Wh;
     }
-
-    //Since we are running double battery, the scaled value of battery1 becomes the sum of battery1+battery2
-    //This way the inverter connected to the system sees both batteries as one large battery
-    datalayer.battery.info.reported_total_capacity_Wh += datalayer.battery2.info.reported_total_capacity_Wh;
-    datalayer.battery.status.reported_remaining_capacity_Wh += datalayer.battery2.status.reported_remaining_capacity_Wh;
-
-#endif  // DOUBLE_BATTERY
 
   } else {  // soc_scaling_active == false. No SOC window wanted. Set scaled to same as real.
     datalayer.battery.status.reported_soc = datalayer.battery.status.real_soc;
     datalayer.battery.status.reported_remaining_capacity_Wh = datalayer.battery.status.remaining_capacity_Wh;
     datalayer.battery.info.reported_total_capacity_Wh = datalayer.battery.info.total_capacity_Wh;
-#ifdef DOUBLE_BATTERY
-    datalayer.battery2.status.reported_soc = datalayer.battery2.status.real_soc;
-    datalayer.battery2.status.reported_remaining_capacity_Wh = datalayer.battery2.status.remaining_capacity_Wh;
-    datalayer.battery2.info.reported_total_capacity_Wh = datalayer.battery2.info.total_capacity_Wh;
-#endif
-  }
-#ifdef DOUBLE_BATTERY
-  // Perform extra SOC sanity checks on double battery setups
-  if (datalayer.battery.status.real_soc < 100) {  //If this battery is under 1.00%, use this as SOC instead of average
-    datalayer.battery.status.reported_soc = datalayer.battery.status.real_soc;
-    datalayer.battery.status.reported_remaining_capacity_Wh = datalayer.battery.status.remaining_capacity_Wh;
-  }
-  if (datalayer.battery2.status.real_soc < 100) {  //If this battery is under 1.00%, use this as SOC instead of average
-    datalayer.battery.status.reported_soc = datalayer.battery2.status.real_soc;
-    datalayer.battery.status.reported_remaining_capacity_Wh = datalayer.battery2.status.remaining_capacity_Wh;
+
+    if (battery2) {
+      datalayer.battery2.status.reported_soc = datalayer.battery2.status.real_soc;
+      datalayer.battery2.status.reported_remaining_capacity_Wh = datalayer.battery2.status.remaining_capacity_Wh;
+      datalayer.battery2.info.reported_total_capacity_Wh = datalayer.battery2.info.total_capacity_Wh;
+    }
   }
 
-  if (datalayer.battery.status.real_soc > 9900) {  //If this battery is over 99.00%, use this as SOC instead of average
-    datalayer.battery.status.reported_soc = datalayer.battery.status.real_soc;
-    datalayer.battery.status.reported_remaining_capacity_Wh = datalayer.battery.status.remaining_capacity_Wh;
+  if (battery2) {
+    // Perform extra SOC sanity checks on double battery setups
+    if (datalayer.battery.status.real_soc < 100) {  //If this battery is under 1.00%, use this as SOC instead of average
+      datalayer.battery.status.reported_soc = datalayer.battery.status.real_soc;
+      datalayer.battery.status.reported_remaining_capacity_Wh = datalayer.battery.status.remaining_capacity_Wh;
+    }
+    if (datalayer.battery2.status.real_soc <
+        100) {  //If this battery is under 1.00%, use this as SOC instead of average
+      datalayer.battery.status.reported_soc = datalayer.battery2.status.real_soc;
+      datalayer.battery.status.reported_remaining_capacity_Wh = datalayer.battery2.status.remaining_capacity_Wh;
+    }
+
+    if (datalayer.battery.status.real_soc >
+        9900) {  //If this battery is over 99.00%, use this as SOC instead of average
+      datalayer.battery.status.reported_soc = datalayer.battery.status.real_soc;
+      datalayer.battery.status.reported_remaining_capacity_Wh = datalayer.battery.status.remaining_capacity_Wh;
+    }
+    if (datalayer.battery2.status.real_soc >
+        9900) {  //If this battery is over 99.00%, use this as SOC instead of average
+      datalayer.battery.status.reported_soc = datalayer.battery2.status.real_soc;
+      datalayer.battery.status.reported_remaining_capacity_Wh = datalayer.battery2.status.remaining_capacity_Wh;
+    }
   }
-  if (datalayer.battery2.status.real_soc > 9900) {  //If this battery is over 99.00%, use this as SOC instead of average
-    datalayer.battery.status.reported_soc = datalayer.battery2.status.real_soc;
-    datalayer.battery.status.reported_remaining_capacity_Wh = datalayer.battery2.status.remaining_capacity_Wh;
-  }
-#endif  // DOUBLE_BATTERY
   // Check if millis has overflowed. Used in events to keep better track of time
   if (currentMillis < lastMillisOverflowCheck) {  // Overflow detected
     datalayer.system.status.millisrolloverCount++;

@@ -169,9 +169,7 @@ void handle_incoming_can_frame_battery(CAN_frame rx_frame);
 void transmit_can_battery(unsigned long currentMillis);
 #endif
 
-#ifdef DOUBLE_BATTERY
 void update_values_battery2();
 void handle_incoming_can_frame_battery2(CAN_frame rx_frame);
-#endif
 
 #endif
