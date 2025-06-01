@@ -26,7 +26,7 @@ class Battery {
   virtual bool supports_reset_SOH() { return false; }
   virtual bool supports_reset_BECM() { return false; }
   virtual bool supports_contactor_close() { return false; }
-  virtual bool supports_set_voltage() { return false; }
+  virtual bool supports_set_fake_voltage() { return false; }
   virtual bool supports_manual_balancing() { return false; }
   virtual bool supports_real_BMS_status() { return false; }
 
@@ -41,7 +41,7 @@ class Battery {
   virtual void request_open_contactors() {}
   virtual void request_close_contactors() {}
 
-  virtual void set_voltage(float v) {}
+  virtual void set_fake_voltage(float v) {}
   virtual float get_voltage() { static_cast<float>(datalayer.battery.status.voltage_dV) / 10.0; }
 
   // This allows for battery specific SOC plausibility calculations to be performed.

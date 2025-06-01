@@ -26,8 +26,8 @@ class TestFakeBattery : public CanBattery {
   virtual void update_values();
   virtual void transmit_can(unsigned long currentMillis);
 
-  bool supports_set_voltage() { return true; }
-  void set_voltage(float val) { datalayer.battery.status.voltage_dV = val * 10; }
+  bool supports_set_fake_voltage() { return true; }
+  void set_fake_voltage(float val) { datalayer.battery.status.voltage_dV = val * 10; }
 
  private:
   DATALAYER_BATTERY_TYPE* datalayer_battery;

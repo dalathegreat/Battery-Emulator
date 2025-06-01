@@ -89,7 +89,7 @@ String settings_processor(const String& var) {
     // Close the block
     content += "</div>";
 
-    if (battery->supports_set_voltage()) {
+    if (battery->supports_set_fake_voltage()) {
       content += "<div style='background-color: #2E37AD; padding: 10px; margin-bottom: 10px;border-radius: 50px'>";
       content += "<h4 style='color: white;'>Fake battery voltage: " + String(battery->get_voltage(), 1) +
                  " V </span> <button onclick='editFakeBatteryVoltage()'>Edit</button></h4>";
@@ -281,7 +281,7 @@ String settings_processor(const String& var) {
         "BalMaxDevCellV?value='+value,true);xhr.send();}else{alert('Invalid value. Please enter a value "
         "between 300 and 600');}}}";
 
-    if (battery->supports_set_voltage()) {
+    if (battery->supports_set_fake_voltage()) {
       content +=
           "function editFakeBatteryVoltage(){var value=prompt('Enter new fake battery "
           "voltage');if(value!==null){if(value>=0&&value<=5000){var xhr=new "

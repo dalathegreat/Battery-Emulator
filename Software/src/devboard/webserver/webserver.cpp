@@ -601,7 +601,7 @@ void init_webserver() {
   });
 
   // Route for editing FakeBatteryVoltage
-  server.on("/updateBatteryVoltage", HTTP_GET, [](AsyncWebServerRequest* request) {
+  server.on("/updateFakeBatteryVoltage", HTTP_GET, [](AsyncWebServerRequest* request) {
     if (WEBSERVER_AUTH_REQUIRED && !request->authenticate(http_username, http_password))
       return request->requestAuthentication();
     if (!request->hasParam("value")) {
@@ -611,7 +611,7 @@ void init_webserver() {
     String value = request->getParam("value")->value();
     float val = value.toFloat();
 
-    battery->set_voltage(val);
+    battery->set_fake_voltage(val);
 
     request->send(200, "text/plain", "Updated successfully");
   });
