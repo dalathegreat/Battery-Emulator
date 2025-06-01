@@ -1,9 +1,8 @@
 #include "settings_html.h"
 #include <Arduino.h>
-#include "../../battery/BATTERIES.h"
-#include "../../battery/Battery.h"
 #include "../../charger/CHARGERS.h"
 #include "../../datalayer/datalayer.h"
+#include "../../include.h"
 
 String settings_processor(const String& var) {
   if (var == "X") {
