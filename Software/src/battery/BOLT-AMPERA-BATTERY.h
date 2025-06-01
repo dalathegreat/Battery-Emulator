@@ -3,6 +3,7 @@
 #include <Arduino.h>
 #include "../include.h"
 
+#include "BOLT-AMPERA-HTML.h"
 #include "CanBattery.h"
 
 #define BATTERY_SELECTED
@@ -15,7 +16,10 @@ class BoltAmperaBattery : public CanBattery {
   virtual void update_values();
   virtual void transmit_can(unsigned long currentMillis);
 
+  BatteryHtmlRenderer& get_status_renderer() { return renderer; }
+
  private:
+  BoltAmperaHtmlRenderer renderer;
   static const int MAX_PACK_VOLTAGE_DV = 4150;  //5000 = 500.0V
   static const int MIN_PACK_VOLTAGE_DV = 2500;
   static const int MAX_CELL_DEVIATION_MV = 150;

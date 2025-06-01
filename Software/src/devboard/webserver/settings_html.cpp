@@ -1,5 +1,7 @@
 #include "settings_html.h"
 #include <Arduino.h>
+#include "../../battery/BATTERIES.h"
+#include "../../battery/Battery.h"
 #include "../../charger/CHARGERS.h"
 #include "../../datalayer/datalayer.h"
 
@@ -26,18 +28,13 @@ String settings_processor(const String& var) {
         "<h4 style='color: white;'>Password: ######## <span id='Password'></span> <button "
         "onclick='editPassword()'>Edit</button></h4>";
 
-#ifndef RS485_BATTERY_SELECTED
-    content += "<h4 style='color: white;'>Battery interface: <span id='Battery'>" +
-               String(getCANInterfaceName(can_config.battery)) + "</span></h4>";
-#endif
-#ifdef RS485_BATTERY_SELECTED
-    content += "<h4 style='color: white;'>Battery interface: RS485<span id='Battery'></span></h4>";
-#endif
+    content +=
+        "<h4 style='color: white;'>Battery interface: <span id='Battery'>" + battery->interface_name() + "</span></h4>";
 
-#ifdef DOUBLE_BATTERY
-    content += "<h4 style='color: white;'>Battery #2 interface: <span id='Battery'>" +
-               String(getCANInterfaceName(can_config.battery_double)) + "</span></h4>";
-#endif  // DOUBLE_BATTERY
+    if (battery2) {
+      content += "<h4 style='color: white;'>Battery #2 interface: <span id='Battery'>" + battery->interface_name() +
+                 "</span></h4>";
+    }
 
     if (inverter) {
       content += "<h4 style='color: white;'>Inverter interface: <span id='Inverter'>" +
@@ -93,53 +90,47 @@ String settings_processor(const String& var) {
     // Close the block
     content += "</div>";
 
-#ifdef TEST_FAKE_BATTERY
-    // Start a new block with blue background color
-    content += "<div style='background-color: #2E37AD; padding: 10px; margin-bottom: 10px;border-radius: 50px'>";
-    float voltageFloat =
-        static_cast<float>(datalayer.battery.status.voltage_dV) / 10.0;  // Convert to float and divide by 10
-    content += "<h4 style='color: white;'>Fake battery voltage: " + String(voltageFloat, 1) +
-               " V </span> <button onclick='editFakeBatteryVoltage()'>Edit</button></h4>";
+    if (battery->supports_set_voltage()) {
+      content += "<div style='background-color: #2E37AD; padding: 10px; margin-bottom: 10px;border-radius: 50px'>";
+      content += "<h4 style='color: white;'>Fake battery voltage: " + String(battery->get_voltage(), 1) +
+                 " V </span> <button onclick='editFakeBatteryVoltage()'>Edit</button></h4>";
+      content += "</div>";
+    }
 
-    // Close the block
-    content += "</div>";
-#endif
+    if (battery->supports_manual_balancing()) {
+      // Start a new block with grey background color
+      content += "<div style='background-color: #303E47; padding: 10px; margin-bottom: 10px;border-radius: 50px'>";
 
-#ifdef TESLA_MODEL_3Y_BATTERY
+      content +=
+          "<h4 style='color: white;'>Manual LFP balancing: <span id='TSL_BAL_ACT'>" +
+          String(datalayer.battery.settings.user_requests_balancing ? "<span>&#10003;</span>"
+                                                                    : "<span style='color: red;'>&#10005;</span>") +
+          "</span> <button onclick='editTeslaBalAct()'>Edit</button></h4>";
+      content +=
+          "<h4 style='color: " + String(datalayer.battery.settings.user_requests_balancing ? "white" : "darkgrey") +
+          ";'>Balancing max time: " + String(datalayer.battery.settings.balancing_time_ms / 60000.0, 1) +
+          " Minutes </span> <button onclick='editBalTime()'>Edit</button></h4>";
+      content +=
+          "<h4 style='color: " + String(datalayer.battery.settings.user_requests_balancing ? "white" : "darkgrey") +
+          ";'>Balancing float power: " + String(datalayer.battery.settings.balancing_float_power_W / 1.0, 0) +
+          " W </span> <button onclick='editBalFloatPower()'>Edit</button></h4>";
+      content +=
+          "<h4 style='color: " + String(datalayer.battery.settings.user_requests_balancing ? "white" : "darkgrey") +
+          ";'>Max battery voltage: " + String(datalayer.battery.settings.balancing_max_pack_voltage_dV / 10.0, 0) +
+          " V </span> <button onclick='editBalMaxPackV()'>Edit</button></h4>";
+      content +=
+          "<h4 style='color: " + String(datalayer.battery.settings.user_requests_balancing ? "white" : "darkgrey") +
+          ";'>Max cell voltage: " + String(datalayer.battery.settings.balancing_max_cell_voltage_mV / 1.0, 0) +
+          " mV </span> <button onclick='editBalMaxCellV()'>Edit</button></h4>";
+      content +=
+          "<h4 style='color: " + String(datalayer.battery.settings.user_requests_balancing ? "white" : "darkgrey") +
+          ";'>Max cell voltage deviation: " +
+          String(datalayer.battery.settings.balancing_max_deviation_cell_voltage_mV / 1.0, 0) +
+          " mV </span> <button onclick='editBalMaxDevCellV()'>Edit</button></h4>";
 
-    // Start a new block with grey background color
-    content += "<div style='background-color: #303E47; padding: 10px; margin-bottom: 10px;border-radius: 50px'>";
-
-    content +=
-        "<h4 style='color: white;'>Manual LFP balancing: <span id='TSL_BAL_ACT'>" +
-        String(datalayer.battery.settings.user_requests_balancing ? "<span>&#10003;</span>"
-                                                                  : "<span style='color: red;'>&#10005;</span>") +
-        "</span> <button onclick='editTeslaBalAct()'>Edit</button></h4>";
-    content +=
-        "<h4 style='color: " + String(datalayer.battery.settings.user_requests_balancing ? "white" : "darkgrey") +
-        ";'>Balancing max time: " + String(datalayer.battery.settings.balancing_time_ms / 60000.0, 1) +
-        " Minutes </span> <button onclick='editBalTime()'>Edit</button></h4>";
-    content +=
-        "<h4 style='color: " + String(datalayer.battery.settings.user_requests_balancing ? "white" : "darkgrey") +
-        ";'>Balancing float power: " + String(datalayer.battery.settings.balancing_float_power_W / 1.0, 0) +
-        " W </span> <button onclick='editBalFloatPower()'>Edit</button></h4>";
-    content +=
-        "<h4 style='color: " + String(datalayer.battery.settings.user_requests_balancing ? "white" : "darkgrey") +
-        ";'>Max battery voltage: " + String(datalayer.battery.settings.balancing_max_pack_voltage_dV / 10.0, 0) +
-        " V </span> <button onclick='editBalMaxPackV()'>Edit</button></h4>";
-    content +=
-        "<h4 style='color: " + String(datalayer.battery.settings.user_requests_balancing ? "white" : "darkgrey") +
-        ";'>Max cell voltage: " + String(datalayer.battery.settings.balancing_max_cell_voltage_mV / 1.0, 0) +
-        " mV </span> <button onclick='editBalMaxCellV()'>Edit</button></h4>";
-    content +=
-        "<h4 style='color: " + String(datalayer.battery.settings.user_requests_balancing ? "white" : "darkgrey") +
-        ";'>Max cell voltage deviation: " +
-        String(datalayer.battery.settings.balancing_max_deviation_cell_voltage_mV / 1.0, 0) +
-        " mV </span> <button onclick='editBalMaxDevCellV()'>Edit</button></h4>";
-
-    // Close the block
-    content += "</div>";
-#endif
+      // Close the block
+      content += "</div>";
+    }
 
     if (charger) {
       // Start a new block with orange background color
@@ -252,7 +243,6 @@ String settings_processor(const String& var) {
         "between 0 "
         "and 1000.0');}}}";
 
-#ifdef TESLA_MODEL_3Y_BATTERY
     content +=
         "function editTeslaBalAct(){var value=prompt('Enable or disable forced LFP balancing. Makes the battery charge "
         "to 101percent. This should be performed once every month, to keep LFP batteries balanced. Ensure battery is "
@@ -291,16 +281,15 @@ String settings_processor(const String& var) {
         "XMLHttpRequest();xhr.onload=editComplete;xhr.onerror=editError;xhr.open('GET','/"
         "BalMaxDevCellV?value='+value,true);xhr.send();}else{alert('Invalid value. Please enter a value "
         "between 300 and 600');}}}";
-#endif
 
-#ifdef TEST_FAKE_BATTERY
-    content +=
-        "function editFakeBatteryVoltage(){var value=prompt('Enter new fake battery "
-        "voltage');if(value!==null){if(value>=0&&value<=5000){var xhr=new "
-        "XMLHttpRequest();xhr.onload=editComplete;xhr.onerror=editError;xhr.open('GET','/"
-        "updateFakeBatteryVoltage?value='+value,true);xhr.send();}else{alert('Invalid value. Please enter a value "
-        "between 0 and 1000');}}}";
-#endif
+    if (battery->supports_set_voltage()) {
+      content +=
+          "function editFakeBatteryVoltage(){var value=prompt('Enter new fake battery "
+          "voltage');if(value!==null){if(value>=0&&value<=5000){var xhr=new "
+          "XMLHttpRequest();xhr.onload=editComplete;xhr.onerror=editError;xhr.open('GET','/"
+          "updateFakeBatteryVoltage?value='+value,true);xhr.send();}else{alert('Invalid value. Please enter a value "
+          "between 0 and 1000');}}}";
+    }
 
     if (charger) {
       content +=

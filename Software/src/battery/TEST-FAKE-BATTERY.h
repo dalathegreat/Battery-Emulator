@@ -10,16 +10,14 @@
 class TestFakeBattery : public CanBattery {
  public:
   // Use this constructor for the second battery.
-  TestFakeBattery(DATALAYER_BATTERY_TYPE* datalayer_ptr, int targetCan) {
+  TestFakeBattery(DATALAYER_BATTERY_TYPE* datalayer_ptr, CAN_Interface targetCan) : CanBattery(targetCan) {
     datalayer_battery = datalayer_ptr;
-    can_interface = targetCan;
     allows_contactor_closing = nullptr;
   }
 
   // Use the default constructor to create the first or single battery.
   TestFakeBattery() {
     datalayer_battery = &datalayer.battery;
-    can_interface = can_config.battery;
     allows_contactor_closing = &datalayer.system.status.battery_allows_contactor_closing;
   }
 
@@ -28,9 +26,11 @@ class TestFakeBattery : public CanBattery {
   virtual void update_values();
   virtual void transmit_can(unsigned long currentMillis);
 
+  bool supports_set_voltage() { return true; }
+  void set_voltage(float val) { datalayer.battery.status.voltage_dV = val * 10; }
+
  private:
   DATALAYER_BATTERY_TYPE* datalayer_battery;
-  int can_interface;
   // If not null, this battery decides when the contactor can be closed and writes the value here.
   bool* allows_contactor_closing;
 
