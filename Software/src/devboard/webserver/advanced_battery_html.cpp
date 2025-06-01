@@ -5,6 +5,7 @@
 #include "../../datalayer/datalayer_extended.h"
 #include "../../include.h"
 
+// Available generic battery commands that are taken into use based on what the selected battery supports.
 std::vector<BatteryCommand> battery_commands = {
     {"clearIsolation", "Clear isolation fault", "clear any active isolation fault?",
      [](Battery* b) { return b && b->supports_clear_isolation(); },

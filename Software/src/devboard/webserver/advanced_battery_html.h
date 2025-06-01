@@ -15,6 +15,9 @@ String advanced_battery_processor(const String& var);
 
 class Battery;
 
+// Each BatteryCommand defines a command that can be performed by a battery.
+// Whether the selected battery supports the command is determined at run-time
+// by calling the condition callback.
 struct BatteryCommand {
   // The unique name of the route in the API to execute the command or a function in Javascript
   const char* identifier;
