@@ -112,6 +112,10 @@ void RenaultZoeGen2Battery::handle_incoming_can_frame(CAN_frame rx_frame) {
       if (rx_frame.data.u8[0] == 0x10) {  //First frame of a group
         transmit_can_frame(&ZOE_POLL_FLOW_CONTROL, can_config.battery);
         //frame 2 & 3 contains which PID is sent
+        reply_poll = (rx_frame.data.u8[3] << 8) | rx_frame.data.u8[4];
+      }
+
+      if (rx_frame.data.u8[0] < 0x10) {  //One line responses
         reply_poll = (rx_frame.data.u8[2] << 8) | rx_frame.data.u8[3];
       }
 
