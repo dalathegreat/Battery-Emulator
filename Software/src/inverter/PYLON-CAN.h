@@ -20,12 +20,6 @@ class PylonInverter : public CanInverterProtocol {
   void send_system_data();
   void send_setup_info();
 
-#define SEND_0  //If defined, the messages will have ID ending with 0 (useful for some inverters)
-//#define SEND_1 //If defined, the messages will have ID ending with 1 (useful for some inverters)
-#define INVERT_LOW_HIGH_BYTES  //If defined, certain frames will have inverted low/high bytes \
-                                    //useful for some inverters like Sofar that report the voltages incorrect otherwise
-  //#define SET_30K_OFFSET  //If defined, current values are sent with a 30k offest (useful for ferroamp)
-
   /* Some inverters need to see a specific amount of cells/modules to emulate a specific Pylon battery.
      Change the following only if your inverter is generating fault codes about voltage range */
   static const int TOTAL_CELL_AMOUNT = 120;

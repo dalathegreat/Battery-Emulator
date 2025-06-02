@@ -3,6 +3,12 @@
 #include "../datalayer/datalayer.h"
 #include "../include.h"
 
+#define SEND_0  //If defined, the messages will have ID ending with 0 (useful for some inverters)
+//#define SEND_1 //If defined, the messages will have ID ending with 1 (useful for some inverters)
+#define INVERT_LOW_HIGH_BYTES  //If defined, certain frames will have inverted low/high bytes \
+                                    //useful for some inverters like Sofar that report the voltages incorrect otherwise
+//#define SET_30K_OFFSET  //If defined, current values are sent with a 30k offest (useful for ferroamp)
+
 void PylonInverter::
     update_values() {  //This function maps all the values fetched from battery CAN to the correct CAN messages
 
