@@ -81,6 +81,11 @@ typedef struct {
    * Use with battery.info.number_of_cells to get valid data.
    */
   uint16_t cell_voltages_mV[MAX_AMOUNT_CELLS];
+  /** All balancing resistors status inside the pack, either on(1) or off(0).
+   * Use with battery.info.number_of_cells to get valid data.
+   * Not available for all battery manufacturers.
+   */
+  bool cell_balancing_status[MAX_AMOUNT_CELLS];
   /** The "real" SOC reported from the battery, in integer-percent x 100. 9550 = 95.50% */
   uint16_t real_soc;
   /** The SOC reported to the inverter, in integer-percent x 100. 9550 = 95.50%.

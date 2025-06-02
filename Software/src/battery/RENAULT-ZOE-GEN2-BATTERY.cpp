@@ -108,8 +108,16 @@ void RenaultZoeGen2Battery::handle_incoming_can_frame(CAN_frame rx_frame) {
   datalayer.battery.status.CAN_battery_still_alive = CAN_STILL_ALIVE;
   switch (rx_frame.ID) {
     case 0x18DAF1DB:  // LBC Reply from active polling
-      //frame 2 & 3 contains
-      reply_poll = (rx_frame.data.u8[2] << 8) | rx_frame.data.u8[3];
+
+      if (rx_frame.data.u8[0] == 0x10) {  //First frame of a group
+        transmit_can_frame(&ZOE_POLL_FLOW_CONTROL, can_config.battery);
+        //frame 2 & 3 contains which PID is sent
+        reply_poll = (rx_frame.data.u8[3] << 8) | rx_frame.data.u8[4];
+      }
+
+      if (rx_frame.data.u8[0] < 0x10) {  //One line responses
+        reply_poll = (rx_frame.data.u8[2] << 8) | rx_frame.data.u8[3];
+      }
 
       switch (reply_poll) {
         case POLL_SOC:
@@ -200,6 +208,29 @@ void RenaultZoeGen2Battery::handle_incoming_can_frame(CAN_frame rx_frame) {
           battery_bms_state = (rx_frame.data.u8[4] << 8) | rx_frame.data.u8[5];
           break;
         case POLL_BALANCE_SWITCHES:
+          if (rx_frame.data.u8[0] == 0x10) {
+            for (int i = 0; i < 8; i++) {
+              // Byte 4 - 7 (bits 0-31)
+              for (int byte_i = 0; byte_i < 4; byte_i++) {
+                battery_balancing_shunts[byte_i * 8 + i] = (rx_frame.data.u8[4 + byte_i] & (1 << i)) >> i;
+              }
+            }
+          }
+          if (rx_frame.data.u8[0] == 0x21) {
+            for (int i = 0; i < 8; i++) {
+              // Byte 1 to 7 (bits 32-87)
+              for (int byte_i = 0; byte_i < 7; byte_i++) {
+                battery_balancing_shunts[32 + byte_i * 8 + i] = (rx_frame.data.u8[1 + byte_i] & (1 << i)) >> i;
+              }
+            }
+          }
+          if (rx_frame.data.u8[0] == 0x22) {
+            for (int i = 0; i < 8; i++) {
+              // Byte 1 (bits 88-95)
+              battery_balancing_shunts[88 + i] = (rx_frame.data.u8[1] & (1 << i)) >> i;
+            }
+            memcpy(datalayer.battery.status.cell_balancing_status, battery_balancing_shunts, 96 * sizeof(bool));
+          }
           battery_balance_switches = (rx_frame.data.u8[4] << 8) | rx_frame.data.u8[5];
           break;
         case POLL_ENERGY_COMPLETE:

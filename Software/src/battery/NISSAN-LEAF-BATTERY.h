@@ -93,7 +93,7 @@ class NissanLeafBattery : public CanBattery {
                         .ID = 0x1D4,
                         .data = {0x6E, 0x6E, 0x00, 0x04, 0x07, 0x46, 0xE0, 0x44}};
   // Active polling messages
-  uint8_t PIDgroups[6] = {0x01, 0x02, 0x04, 0x83, 0x84, 0x90};
+  uint8_t PIDgroups[7] = {0x01, 0x02, 0x04, 0x06, 0x83, 0x84, 0x90};
   uint8_t PIDindex = 0;
   CAN_frame LEAF_GROUP_REQUEST = {.FD = false,
                                   .ext_ID = false,
@@ -163,7 +163,8 @@ class NissanLeafBattery : public CanBattery {
   uint8_t group_7bb = 0;
   bool stop_battery_query = true;
   uint8_t hold_off_with_polling_10seconds = 2;  //Paused for 20 seconds on startup
-  uint16_t battery_cell_voltages[97];           //array with all the cellvoltages
+  uint16_t battery_cell_voltages[96];           //array with all the cellvoltages
+  bool battery_balancing_shunts[96];            //array with all the balancing resistors
   uint8_t battery_cellcounter = 0;
   uint16_t battery_min_max_voltage[2];  //contains cell min[0] and max[1] values in mV
   uint16_t battery_HX = 0;              //Internal resistance

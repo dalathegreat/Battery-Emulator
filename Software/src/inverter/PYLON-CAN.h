@@ -20,12 +20,6 @@ class PylonInverter : public CanInverterProtocol {
   void send_system_data();
   void send_setup_info();
 
-#define SEND_0  //If defined, the messages will have ID ending with 0 (useful for some inverters)
-//#define SEND_1 //If defined, the messages will have ID ending with 1 (useful for some inverters)
-#define INVERT_LOW_HIGH_BYTES  //If defined, certain frames will have inverted low/high bytes \
-                                    //useful for some inverters like Sofar that report the voltages incorrect otherwise
-  //#define SET_30K_OFFSET  //If defined, current values are sent with a 30k offest (useful for ferroamp)
-
   /* Some inverters need to see a specific amount of cells/modules to emulate a specific Pylon battery.
      Change the following only if your inverter is generating fault codes about voltage range */
   static const int TOTAL_CELL_AMOUNT = 120;
@@ -52,14 +46,14 @@ class PylonInverter : public CanInverterProtocol {
                           .ID = 0x7320,
                           .data = {TOTAL_CELL_AMOUNT, (uint8_t)(TOTAL_CELL_AMOUNT >> 8), MODULES_IN_SERIES,
                                    CELLS_PER_MODULE, (uint8_t)(VOLTAGE_LEVEL & 0x00FF), (uint8_t)(VOLTAGE_LEVEL >> 8),
-                                   AH_CAPACITY, (uint8_t)(AH_CAPACITY >> 8)}};
+                                   (uint8_t)(AH_CAPACITY & 0x00FF), (uint8_t)(AH_CAPACITY >> 8)}};
   CAN_frame PYLON_7321 = {.FD = false,
                           .ext_ID = true,
                           .DLC = 8,
                           .ID = 0x7321,
                           .data = {TOTAL_CELL_AMOUNT, (uint8_t)(TOTAL_CELL_AMOUNT >> 8), MODULES_IN_SERIES,
                                    CELLS_PER_MODULE, (uint8_t)(VOLTAGE_LEVEL & 0x00FF), (uint8_t)(VOLTAGE_LEVEL >> 8),
-                                   AH_CAPACITY, (uint8_t)(AH_CAPACITY >> 8)}};
+                                   (uint8_t)(AH_CAPACITY & 0x00FF), (uint8_t)(AH_CAPACITY >> 8)}};
   CAN_frame PYLON_4210 = {.FD = false,
                           .ext_ID = true,
                           .DLC = 8,
