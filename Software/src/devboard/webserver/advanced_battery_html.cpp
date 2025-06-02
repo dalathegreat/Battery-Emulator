@@ -486,6 +486,49 @@ String advanced_battery_processor(const String& var) {
     } else {  //4 Invalid, 5-7 illegal, wrap em under one text
       content += "Not sampled yet</h4>";
     }
+    content += "<h4>PID0: " + String(datalayer_extended.stellantisECMP.pid_0) + "</h4>";
+    content += "<h4>PID1: " + String(datalayer_extended.stellantisECMP.pid_1) + "</h4>";
+    content += "<h4>PID2: " + String(datalayer_extended.stellantisECMP.pid_2) + "</h4>";
+    content += "<h4>PID3: " + String(datalayer_extended.stellantisECMP.pid_3) + "</h4>";
+    content += "<h4>PID4: " + String(datalayer_extended.stellantisECMP.pid_4) + "</h4>";
+    content += "<h4>PID5: " + String(datalayer_extended.stellantisECMP.pid_5) + "</h4>";
+    content += "<h4>PID6: " + String(datalayer_extended.stellantisECMP.pid_6) + "</h4>";
+    content += "<h4>PID7: " + String(datalayer_extended.stellantisECMP.pid_7) + "</h4>";
+    content += "<h4>PID8: " + String(datalayer_extended.stellantisECMP.pid_8) + "</h4>";
+    content += "<h4>PID9: " + String(datalayer_extended.stellantisECMP.pid_9) + "</h4>";
+    content += "<h4>PID10: " + String(datalayer_extended.stellantisECMP.pid_10) + "</h4>";
+    content += "<h4>PID11: " + String(datalayer_extended.stellantisECMP.pid_11) + "</h4>";
+    content += "<h4>PID12: " + String(datalayer_extended.stellantisECMP.pid_12) + "</h4>";
+    content += "<h4>PID13: " + String(datalayer_extended.stellantisECMP.pid_13) + "</h4>";
+    content += "<h4>PID14: " + String(datalayer_extended.stellantisECMP.pid_14) + "</h4>";
+    content += "<h4>PID15: " + String(datalayer_extended.stellantisECMP.pid_15) + "</h4>";
+    content += "<h4>PID16: " + String(datalayer_extended.stellantisECMP.pid_16) + "</h4>";
+    content += "<h4>PID17: " + String(datalayer_extended.stellantisECMP.pid_17) + "</h4>";
+    content += "<h4>PID18: " + String(datalayer_extended.stellantisECMP.pid_18) + "</h4>";
+    content += "<h4>PID19: " + String(datalayer_extended.stellantisECMP.pid_19) + "</h4>";
+    content += "<h4>PID20: " + String(datalayer_extended.stellantisECMP.pid_20) + "</h4>";
+    content += "<h4>PID21: " + String(datalayer_extended.stellantisECMP.pid_21) + "</h4>";
+    content += "<h4>PID22: " + String(datalayer_extended.stellantisECMP.pid_22) + "</h4>";
+    content += "<h4>PID23: " + String(datalayer_extended.stellantisECMP.pid_23) + "</h4>";
+    content += "<h4>PID24: " + String(datalayer_extended.stellantisECMP.pid_24) + "</h4>";
+    content += "<h4>PID25: " + String(datalayer_extended.stellantisECMP.pid_25) + "</h4>";
+    content += "<h4>PID26: " + String(datalayer_extended.stellantisECMP.pid_26) + "</h4>";
+    content += "<h4>PID27: " + String(datalayer_extended.stellantisECMP.pid_27) + "</h4>";
+    content += "<h4>PID28: " + String(datalayer_extended.stellantisECMP.pid_28) + "</h4>";
+    content += "<h4>PID29: " + String(datalayer_extended.stellantisECMP.pid_29) + "</h4>";
+    content += "<h4>PID30: " + String(datalayer_extended.stellantisECMP.pid_30) + "</h4>";
+    content += "<h4>PID31: " + String(datalayer_extended.stellantisECMP.pid_31) + "</h4>";
+    content += "<h4>PID32: " + String(datalayer_extended.stellantisECMP.pid_32) + "</h4>";
+    content += "<h4>PID33: " + String(datalayer_extended.stellantisECMP.pid_33) + "</h4>";
+    content += "<h4>PID34: " + String(datalayer_extended.stellantisECMP.pid_34) + "</h4>";
+    content += "<h4>PID35: " + String(datalayer_extended.stellantisECMP.pid_35) + "</h4>";
+    content += "<h4>PID37: " + String(datalayer_extended.stellantisECMP.pid_37) + "</h4>";
+    content += "<h4>PID38: " + String(datalayer_extended.stellantisECMP.pid_38) + "</h4>";
+    content +=
+        "<h4>Collision information Counter recieved by CAN: " + String(datalayer_extended.stellantisECMP.pid_40) +
+        "</h4>";
+    content += "<h4>Collision Counter recieved by Wire: " + String(datalayer_extended.stellantisECMP.pid_41) + "</h4>";
+    content += "<h4>Detection of a Vehicle Impact: " + String(datalayer_extended.stellantisECMP.pid_42) + "</h4>";
 #endif  //STELLANTIS_ECMP_BATTERY
 
 #ifdef GEELY_GEOMETRY_C_BATTERY

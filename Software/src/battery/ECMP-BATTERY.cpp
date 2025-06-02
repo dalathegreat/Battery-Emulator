@@ -8,7 +8,7 @@
 
 /* TODO:
 This integration is still ongoing. Here is what still needs to be done in order to use this battery type
-- Figure out contactor closing
+- Figure out why contactors open under loads higher than 1A
 */
 
 /* Do not change code below unless you are sure what you are doing */
@@ -58,6 +58,47 @@ void EcmpBattery::update_values() {
   datalayer_extended.stellantisECMP.InsulationResistance = battery_insulationResistanceKOhm;
   datalayer_extended.stellantisECMP.InsulationDiag = battery_insulation_failure_diag;
   datalayer_extended.stellantisECMP.InterlockOpen = battery_InterlockOpen;
+  datalayer_extended.stellantisECMP.pid_0 = pid_0;
+  datalayer_extended.stellantisECMP.pid_1 = pid_1;
+  datalayer_extended.stellantisECMP.pid_2 = pid_2;
+  datalayer_extended.stellantisECMP.pid_3 = pid_3;
+  datalayer_extended.stellantisECMP.pid_4 = pid_4;
+  datalayer_extended.stellantisECMP.pid_5 = pid_5;
+  datalayer_extended.stellantisECMP.pid_6 = pid_6;
+  datalayer_extended.stellantisECMP.pid_7 = pid_7;
+  datalayer_extended.stellantisECMP.pid_8 = pid_8;
+  datalayer_extended.stellantisECMP.pid_9 = pid_9;
+  datalayer_extended.stellantisECMP.pid_10 = pid_10;
+  datalayer_extended.stellantisECMP.pid_11 = pid_11;
+  datalayer_extended.stellantisECMP.pid_12 = pid_12;
+  datalayer_extended.stellantisECMP.pid_13 = pid_13;
+  datalayer_extended.stellantisECMP.pid_14 = pid_14;
+  datalayer_extended.stellantisECMP.pid_15 = pid_15;
+  datalayer_extended.stellantisECMP.pid_16 = pid_16;
+  datalayer_extended.stellantisECMP.pid_17 = pid_17;
+  datalayer_extended.stellantisECMP.pid_18 = pid_18;
+  datalayer_extended.stellantisECMP.pid_19 = pid_19;
+  datalayer_extended.stellantisECMP.pid_20 = pid_20;
+  datalayer_extended.stellantisECMP.pid_21 = pid_21;
+  datalayer_extended.stellantisECMP.pid_22 = pid_22;
+  datalayer_extended.stellantisECMP.pid_23 = pid_23;
+  datalayer_extended.stellantisECMP.pid_24 = pid_24;
+  datalayer_extended.stellantisECMP.pid_25 = pid_25;
+  datalayer_extended.stellantisECMP.pid_26 = pid_26;
+  datalayer_extended.stellantisECMP.pid_27 = pid_27;
+  datalayer_extended.stellantisECMP.pid_28 = pid_28;
+  datalayer_extended.stellantisECMP.pid_29 = pid_29;
+  datalayer_extended.stellantisECMP.pid_30 = pid_30;
+  datalayer_extended.stellantisECMP.pid_31 = pid_31;
+  datalayer_extended.stellantisECMP.pid_32 = pid_32;
+  datalayer_extended.stellantisECMP.pid_33 = pid_33;
+  datalayer_extended.stellantisECMP.pid_34 = pid_34;
+  datalayer_extended.stellantisECMP.pid_35 = pid_35;
+  datalayer_extended.stellantisECMP.pid_37 = pid_37;
+  datalayer_extended.stellantisECMP.pid_38 = pid_38;
+  datalayer_extended.stellantisECMP.pid_40 = pid_40;
+  datalayer_extended.stellantisECMP.pid_41 = pid_41;
+  datalayer_extended.stellantisECMP.pid_42 = pid_42;
 
   if (battery_InterlockOpen) {
     set_event(EVENT_HVIL_FAILURE, 0);
@@ -296,6 +337,8 @@ void EcmpBattery::handle_incoming_can_frame(CAN_frame rx_frame) {
       memcpy(datalayer.battery.status.cell_voltages_mV, cellvoltages, 108 * sizeof(uint16_t));
       break;
     case 0x694:  // Poll reply
+
+      // Handle user requested functionality first if ongoing
       if (datalayer_extended.stellantisECMP.UserRequestContactorReset) {
         if (rx_frame.data.u8[5] == 0x01) {  //Reset in progress
           transmit_can_frame(&ECMP_CONTACTOR_RESET_PROGRESS, can_config.battery);
@@ -323,11 +366,213 @@ void EcmpBattery::handle_incoming_can_frame(CAN_frame rx_frame) {
           datalayer_extended.stellantisECMP.UserRequestIsolationReset = false;
           IsolationResetStatemachine = STOPPED;
         }
-      }
+      } else {  //Normal PID polling ongoing
 
-      break;
-    default:
-      break;
+        if (rx_frame.data.u8[0] == 0x10) {  //Multiframe response, send ACK
+          transmit_can_frame(&ECMP_ACK, can_config.battery);
+          //Multiframe has the poll reply slightly different location
+          incoming_poll = (rx_frame.data.u8[3] << 8) | rx_frame.data.u8[4];
+        }
+        if (rx_frame.data.u8[0] < 0x10) {  //One line responses
+          incoming_poll = (rx_frame.data.u8[2] << 8) | rx_frame.data.u8[3];
+
+          switch (incoming_poll) {  //One line responses
+            case PID_0:
+              pid_0 = (rx_frame.data.u8[4]);
+              break;
+            case PID_1:
+              pid_1 = (rx_frame.data.u8[4]);
+              break;
+            case PID_2:
+              pid_2 = (rx_frame.data.u8[4]);
+              break;
+            case PID_3:
+              pid_3 = (rx_frame.data.u8[4]);
+              break;
+            case PID_4:
+              pid_4 = (rx_frame.data.u8[4]);
+              break;
+            case PID_5:
+              pid_5 = (rx_frame.data.u8[4]);
+              break;
+            case PID_6:
+              pid_6 = (rx_frame.data.u8[4]);
+              break;
+            case PID_7:
+              pid_7 = (rx_frame.data.u8[4]);
+              break;
+            case PID_8:
+              pid_8 = (rx_frame.data.u8[4]);
+              break;
+            case PID_9:
+              pid_9 = (rx_frame.data.u8[4]);
+              break;
+            case PID_10:
+              pid_10 = (rx_frame.data.u8[4]);
+              break;
+            case PID_11:
+              pid_11 = (rx_frame.data.u8[4]);
+              break;
+            case PID_12:
+              pid_12 = (rx_frame.data.u8[4]);
+              break;
+            case PID_13:
+              pid_13 = (rx_frame.data.u8[4]);
+              break;
+            case PID_14:
+              pid_14 = (rx_frame.data.u8[4]);
+              break;
+            case PID_15:
+              pid_15 = (rx_frame.data.u8[4]);
+              break;
+            case PID_16:
+              pid_16 = (rx_frame.data.u8[4]);
+              break;
+            case PID_17:
+              pid_17 = (rx_frame.data.u8[4]);
+              break;
+            case PID_18:
+              pid_18 = (rx_frame.data.u8[4] << 8) | rx_frame.data.u8[5];
+              break;
+            case PID_19:
+              pid_19 = ((rx_frame.data.u8[4] << 24) | (rx_frame.data.u8[5] << 16) | (rx_frame.data.u8[6] << 8) |
+                        rx_frame.data.u8[7]);
+              break;
+            case PID_20:
+              pid_20 = ((rx_frame.data.u8[4] << 24) | (rx_frame.data.u8[5] << 16) | (rx_frame.data.u8[6] << 8) |
+                        rx_frame.data.u8[7]);
+              break;
+            case PID_21:
+              pid_21 = ((rx_frame.data.u8[4] << 24) | (rx_frame.data.u8[5] << 16) | (rx_frame.data.u8[6] << 8) |
+                        rx_frame.data.u8[7]);
+              break;
+            case PID_22:
+              pid_22 = ((rx_frame.data.u8[4] << 24) | (rx_frame.data.u8[5] << 16) | (rx_frame.data.u8[6] << 8) |
+                        rx_frame.data.u8[7]);
+              break;
+            case PID_23:
+              pid_23 = ((rx_frame.data.u8[4] << 24) | (rx_frame.data.u8[5] << 16) | (rx_frame.data.u8[6] << 8) |
+                        rx_frame.data.u8[7]);
+              break;
+            case PID_24:
+              pid_24 = ((rx_frame.data.u8[4] << 24) | (rx_frame.data.u8[5] << 16) | (rx_frame.data.u8[6] << 8) |
+                        rx_frame.data.u8[7]);
+              break;
+            case PID_25:
+              pid_25 = ((rx_frame.data.u8[4] << 24) | (rx_frame.data.u8[5] << 16) | (rx_frame.data.u8[6] << 8) |
+                        rx_frame.data.u8[7]);
+              break;
+            case PID_26:
+              pid_26 = ((rx_frame.data.u8[4] << 24) | (rx_frame.data.u8[5] << 16) | (rx_frame.data.u8[6] << 8) |
+                        rx_frame.data.u8[7]);
+              break;
+            case PID_27:
+              pid_27 = ((rx_frame.data.u8[4] << 24) | (rx_frame.data.u8[5] << 16) | (rx_frame.data.u8[6] << 8) |
+                        rx_frame.data.u8[7]);
+              break;
+            case PID_28:
+              pid_28 = (rx_frame.data.u8[4] << 8) | rx_frame.data.u8[5];
+              break;
+            case PID_29:
+              pid_29 = (rx_frame.data.u8[4]);
+              break;
+            case PID_30:
+              pid_30 = (rx_frame.data.u8[4] << 8) | rx_frame.data.u8[5];
+              break;
+            case PID_31:
+              pid_31 = (rx_frame.data.u8[4] << 8) | rx_frame.data.u8[5];
+              break;
+            case PID_32:
+              pid_32 = ((rx_frame.data.u8[4] << 24) | (rx_frame.data.u8[5] << 16) | (rx_frame.data.u8[6] << 8) |
+                        rx_frame.data.u8[7]);
+              break;
+            case PID_33:
+              pid_33 = ((rx_frame.data.u8[4] << 24) | (rx_frame.data.u8[5] << 16) | (rx_frame.data.u8[6] << 8) |
+                        rx_frame.data.u8[7]);
+              break;
+            case PID_34:
+              pid_34 = (rx_frame.data.u8[4] << 8) | rx_frame.data.u8[5];
+              break;
+            case PID_35:
+              pid_35 = (rx_frame.data.u8[4] << 8) | rx_frame.data.u8[5];
+              break;
+            case PID_36:
+              //Multi frame, handled in other function
+              break;
+            case PID_37:
+              pid_37 = (rx_frame.data.u8[4] << 8) | rx_frame.data.u8[5];
+              break;
+            case PID_38:
+              pid_38 = (rx_frame.data.u8[4]);
+              break;
+            case PID_39:
+              //Multi frame, handled in other function
+              break;
+            case PID_40:
+              pid_40 = ((rx_frame.data.u8[4] << 24) | (rx_frame.data.u8[5] << 16) | (rx_frame.data.u8[6] << 8) |
+                        rx_frame.data.u8[7]);
+              break;
+            case PID_41:
+              pid_41 = (rx_frame.data.u8[4]);
+              break;
+            case PID_42:
+              pid_42 = (rx_frame.data.u8[4]);
+              break;
+            default:
+              break;
+          }
+        }
+
+        switch (incoming_poll)  //Multiframe responses
+        {
+          case PID_36:
+            switch (rx_frame.data.u8[0]) {
+              case 0x10:
+                break;
+              case 0x21:
+                break;
+              case 0x22:
+                break;
+              case 0x23:
+                break;
+              case 0x24:
+                break;
+              case 0x25:
+                break;
+              case 0x26:
+                break;
+              case 0x27:
+                break;
+              case 0x28:
+                break;
+              case 0x29:
+                break;
+              default:
+                break;
+            }
+            break;
+          case PID_39:
+            switch (rx_frame.data.u8[0]) {
+              case 0x10:
+                break;
+              case 0x21:
+                break;
+              case 0x22:
+                break;
+              case 0x23:
+                break;
+              default:
+                break;
+            }
+            break;
+          default:
+            //Not a multiframe response, do nothing
+            break;
+        }
+        break;
+        default:
+          break;
+      }
   }
 }
 
@@ -384,9 +629,6 @@ void EcmpBattery::transmit_can(unsigned long currentMillis) {
     ECMP_0F0.data.u8[7] = counter_20ms << 4 | checksum_calc(counter_20ms, ECMP_0F0);
 
     transmit_can_frame(&ECMP_0F0, can_config.battery);  //Common!
-    transmit_can_frame(&ECMP_125, can_config.battery);  //Not in all CAN logs, might be unnecessary
-    transmit_can_frame(&ECMP_127, can_config.battery);  //Not in all CAN logs, might be unnecessary
-    transmit_can_frame(&ECMP_129, can_config.battery);  //Not in all CAN logs, might be unnecessary
   }
   // Send 50ms CAN Message
   if (currentMillis - previousMillis50 >= INTERVAL_50_MS) {
@@ -478,6 +720,227 @@ void EcmpBattery::transmit_can(unsigned long currentMillis) {
 
     } else {
       //Normal PID polling goes here
+      switch (poll_state) {
+        case PID_0:
+          ECMP_POLL.data.u8[2] = (uint8_t)((PID_0 & 0xFF00) >> 8);
+          ECMP_POLL.data.u8[3] = (uint8_t)(PID_0 & 0x00FF);
+          poll_state = PID_1;
+          break;
+        case PID_1:
+          ECMP_POLL.data.u8[2] = (uint8_t)((PID_1 & 0xFF00) >> 8);
+          ECMP_POLL.data.u8[3] = (uint8_t)(PID_1 & 0x00FF);
+          poll_state = PID_2;
+          break;
+        case PID_2:
+          ECMP_POLL.data.u8[2] = (uint8_t)((PID_2 & 0xFF00) >> 8);
+          ECMP_POLL.data.u8[3] = (uint8_t)(PID_2 & 0x00FF);
+          poll_state = PID_3;
+          break;
+        case PID_3:
+          ECMP_POLL.data.u8[2] = (uint8_t)((PID_3 & 0xFF00) >> 8);
+          ECMP_POLL.data.u8[3] = (uint8_t)(PID_3 & 0x00FF);
+          poll_state = PID_4;
+          break;
+        case PID_4:
+          ECMP_POLL.data.u8[2] = (uint8_t)((PID_4 & 0xFF00) >> 8);
+          ECMP_POLL.data.u8[3] = (uint8_t)(PID_4 & 0x00FF);
+          poll_state = PID_5;
+          break;
+        case PID_5:
+          ECMP_POLL.data.u8[2] = (uint8_t)((PID_5 & 0xFF00) >> 8);
+          ECMP_POLL.data.u8[3] = (uint8_t)(PID_5 & 0x00FF);
+          poll_state = PID_6;
+          break;
+        case PID_6:
+          ECMP_POLL.data.u8[2] = (uint8_t)((PID_6 & 0xFF00) >> 8);
+          ECMP_POLL.data.u8[3] = (uint8_t)(PID_6 & 0x00FF);
+          poll_state = PID_7;
+          break;
+        case PID_7:
+          ECMP_POLL.data.u8[2] = (uint8_t)((PID_7 & 0xFF00) >> 8);
+          ECMP_POLL.data.u8[3] = (uint8_t)(PID_7 & 0x00FF);
+          poll_state = PID_8;
+          break;
+        case PID_8:
+          ECMP_POLL.data.u8[2] = (uint8_t)((PID_8 & 0xFF00) >> 8);
+          ECMP_POLL.data.u8[3] = (uint8_t)(PID_8 & 0x00FF);
+          poll_state = PID_9;
+          break;
+        case PID_9:
+          ECMP_POLL.data.u8[2] = (uint8_t)((PID_9 & 0xFF00) >> 8);
+          ECMP_POLL.data.u8[3] = (uint8_t)(PID_9 & 0x00FF);
+          poll_state = PID_10;
+          break;
+        case PID_10:
+          ECMP_POLL.data.u8[2] = (uint8_t)((PID_10 & 0xFF00) >> 8);
+          ECMP_POLL.data.u8[3] = (uint8_t)(PID_10 & 0x00FF);
+          poll_state = PID_11;
+          break;
+        case PID_11:
+          ECMP_POLL.data.u8[2] = (uint8_t)((PID_11 & 0xFF00) >> 8);
+          ECMP_POLL.data.u8[3] = (uint8_t)(PID_11 & 0x00FF);
+          poll_state = PID_12;
+          break;
+        case PID_12:
+          ECMP_POLL.data.u8[2] = (uint8_t)((PID_12 & 0xFF00) >> 8);
+          ECMP_POLL.data.u8[3] = (uint8_t)(PID_12 & 0x00FF);
+          poll_state = PID_13;
+          break;
+        case PID_13:
+          ECMP_POLL.data.u8[2] = (uint8_t)((PID_13 & 0xFF00) >> 8);
+          ECMP_POLL.data.u8[3] = (uint8_t)(PID_13 & 0x00FF);
+          poll_state = PID_14;
+          break;
+        case PID_14:
+          ECMP_POLL.data.u8[2] = (uint8_t)((PID_14 & 0xFF00) >> 8);
+          ECMP_POLL.data.u8[3] = (uint8_t)(PID_14 & 0x00FF);
+          poll_state = PID_15;
+          break;
+        case PID_15:
+          ECMP_POLL.data.u8[2] = (uint8_t)((PID_15 & 0xFF00) >> 8);
+          ECMP_POLL.data.u8[3] = (uint8_t)(PID_15 & 0x00FF);
+          poll_state = PID_16;
+          break;
+        case PID_16:
+          ECMP_POLL.data.u8[2] = (uint8_t)((PID_16 & 0xFF00) >> 8);
+          ECMP_POLL.data.u8[3] = (uint8_t)(PID_16 & 0x00FF);
+          poll_state = PID_17;
+          break;
+        case PID_17:
+          ECMP_POLL.data.u8[2] = (uint8_t)((PID_17 & 0xFF00) >> 8);
+          ECMP_POLL.data.u8[3] = (uint8_t)(PID_17 & 0x00FF);
+          poll_state = PID_18;
+          break;
+        case PID_18:
+          ECMP_POLL.data.u8[2] = (uint8_t)((PID_18 & 0xFF00) >> 8);
+          ECMP_POLL.data.u8[3] = (uint8_t)(PID_18 & 0x00FF);
+          poll_state = PID_19;
+          break;
+        case PID_19:
+          ECMP_POLL.data.u8[2] = (uint8_t)((PID_19 & 0xFF00) >> 8);
+          ECMP_POLL.data.u8[3] = (uint8_t)(PID_19 & 0x00FF);
+          poll_state = PID_20;
+          break;
+        case PID_20:
+          ECMP_POLL.data.u8[2] = (uint8_t)((PID_20 & 0xFF00) >> 8);
+          ECMP_POLL.data.u8[3] = (uint8_t)(PID_20 & 0x00FF);
+          poll_state = PID_21;
+          break;
+        case PID_21:
+          ECMP_POLL.data.u8[2] = (uint8_t)((PID_21 & 0xFF00) >> 8);
+          ECMP_POLL.data.u8[3] = (uint8_t)(PID_21 & 0x00FF);
+          poll_state = PID_22;
+          break;
+        case PID_22:
+          ECMP_POLL.data.u8[2] = (uint8_t)((PID_22 & 0xFF00) >> 8);
+          ECMP_POLL.data.u8[3] = (uint8_t)(PID_22 & 0x00FF);
+          poll_state = PID_23;
+          break;
+        case PID_23:
+          ECMP_POLL.data.u8[2] = (uint8_t)((PID_23 & 0xFF00) >> 8);
+          ECMP_POLL.data.u8[3] = (uint8_t)(PID_23 & 0x00FF);
+          poll_state = PID_24;
+          break;
+        case PID_24:
+          ECMP_POLL.data.u8[2] = (uint8_t)((PID_24 & 0xFF00) >> 8);
+          ECMP_POLL.data.u8[3] = (uint8_t)(PID_24 & 0x00FF);
+          poll_state = PID_25;
+          break;
+        case PID_25:
+          ECMP_POLL.data.u8[2] = (uint8_t)((PID_25 & 0xFF00) >> 8);
+          ECMP_POLL.data.u8[3] = (uint8_t)(PID_25 & 0x00FF);
+          poll_state = PID_26;
+          break;
+        case PID_26:
+          ECMP_POLL.data.u8[2] = (uint8_t)((PID_26 & 0xFF00) >> 8);
+          ECMP_POLL.data.u8[3] = (uint8_t)(PID_26 & 0x00FF);
+          poll_state = PID_27;
+          break;
+        case PID_27:
+          ECMP_POLL.data.u8[2] = (uint8_t)((PID_27 & 0xFF00) >> 8);
+          ECMP_POLL.data.u8[3] = (uint8_t)(PID_27 & 0x00FF);
+          poll_state = PID_28;
+          break;
+        case PID_28:
+          ECMP_POLL.data.u8[2] = (uint8_t)((PID_28 & 0xFF00) >> 8);
+          ECMP_POLL.data.u8[3] = (uint8_t)(PID_28 & 0x00FF);
+          poll_state = PID_29;
+          break;
+        case PID_29:
+          ECMP_POLL.data.u8[2] = (uint8_t)((PID_29 & 0xFF00) >> 8);
+          ECMP_POLL.data.u8[3] = (uint8_t)(PID_29 & 0x00FF);
+          poll_state = PID_30;
+          break;
+        case PID_30:
+          ECMP_POLL.data.u8[2] = (uint8_t)((PID_30 & 0xFF00) >> 8);
+          ECMP_POLL.data.u8[3] = (uint8_t)(PID_30 & 0x00FF);
+          poll_state = PID_31;
+          break;
+        case PID_31:
+          ECMP_POLL.data.u8[2] = (uint8_t)((PID_31 & 0xFF00) >> 8);
+          ECMP_POLL.data.u8[3] = (uint8_t)(PID_31 & 0x00FF);
+          poll_state = PID_32;
+          break;
+        case PID_32:
+          ECMP_POLL.data.u8[2] = (uint8_t)((PID_32 & 0xFF00) >> 8);
+          ECMP_POLL.data.u8[3] = (uint8_t)(PID_32 & 0x00FF);
+          poll_state = PID_33;
+          break;
+        case PID_33:
+          ECMP_POLL.data.u8[2] = (uint8_t)((PID_33 & 0xFF00) >> 8);
+          ECMP_POLL.data.u8[3] = (uint8_t)(PID_33 & 0x00FF);
+          poll_state = PID_34;
+          break;
+        case PID_34:
+          ECMP_POLL.data.u8[2] = (uint8_t)((PID_34 & 0xFF00) >> 8);
+          ECMP_POLL.data.u8[3] = (uint8_t)(PID_34 & 0x00FF);
+          poll_state = PID_35;
+          break;
+        case PID_35:
+          ECMP_POLL.data.u8[2] = (uint8_t)((PID_35 & 0xFF00) >> 8);
+          ECMP_POLL.data.u8[3] = (uint8_t)(PID_35 & 0x00FF);
+          poll_state = PID_36;
+          break;
+        case PID_36:
+          ECMP_POLL.data.u8[2] = (uint8_t)((PID_36 & 0xFF00) >> 8);
+          ECMP_POLL.data.u8[3] = (uint8_t)(PID_36 & 0x00FF);
+          poll_state = PID_37;
+          break;
+        case PID_37:
+          ECMP_POLL.data.u8[2] = (uint8_t)((PID_37 & 0xFF00) >> 8);
+          ECMP_POLL.data.u8[3] = (uint8_t)(PID_37 & 0x00FF);
+          poll_state = PID_38;
+          break;
+        case PID_38:
+          ECMP_POLL.data.u8[2] = (uint8_t)((PID_38 & 0xFF00) >> 8);
+          ECMP_POLL.data.u8[3] = (uint8_t)(PID_38 & 0x00FF);
+          poll_state = PID_39;
+          break;
+        case PID_39:
+          ECMP_POLL.data.u8[2] = (uint8_t)((PID_39 & 0xFF00) >> 8);
+          ECMP_POLL.data.u8[3] = (uint8_t)(PID_39 & 0x00FF);
+          poll_state = PID_40;
+          break;
+        case PID_40:
+          ECMP_POLL.data.u8[2] = (uint8_t)((PID_40 & 0xFF00) >> 8);
+          ECMP_POLL.data.u8[3] = (uint8_t)(PID_40 & 0x00FF);
+          poll_state = PID_41;
+          break;
+        case PID_41:
+          ECMP_POLL.data.u8[2] = (uint8_t)((PID_41 & 0xFF00) >> 8);
+          ECMP_POLL.data.u8[3] = (uint8_t)(PID_41 & 0x00FF);
+          poll_state = PID_42;
+          break;
+        case PID_42:
+          ECMP_POLL.data.u8[2] = (uint8_t)((PID_42 & 0xFF00) >> 8);
+          ECMP_POLL.data.u8[3] = (uint8_t)(PID_42 & 0x00FF);
+          poll_state = PID_0;
+          break;
+        default:
+          //We should not end up here. Reset poll_state to PID0
+          poll_state = PID_0;
+          break;
+      }
     }
   }
   // Send 1s CAN Message

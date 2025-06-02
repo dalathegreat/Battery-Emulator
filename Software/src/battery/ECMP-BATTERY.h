@@ -44,6 +44,47 @@ class EcmpBattery : public CanBattery {
   uint8_t battery_insulation_failure_diag = 0;
   int16_t battery_highestTemperature = 0;
   int16_t battery_lowestTemperature = 0;
+  uint8_t pid_0 = 0;
+  uint8_t pid_1 = 0;
+  uint8_t pid_2 = 0;
+  uint8_t pid_3 = 0;
+  uint8_t pid_4 = 0;
+  uint8_t pid_5 = 0;
+  uint8_t pid_6 = 0;
+  uint8_t pid_7 = 0;
+  uint8_t pid_8 = 0;
+  uint8_t pid_9 = 0;
+  uint8_t pid_10 = 0;
+  uint8_t pid_11 = 0;
+  uint8_t pid_12 = 0;
+  uint8_t pid_13 = 0;
+  uint8_t pid_14 = 0;
+  uint8_t pid_15 = 0;
+  uint8_t pid_16 = 0;
+  uint8_t pid_17 = 0;
+  uint16_t pid_18 = 0;
+  uint32_t pid_19 = 0;
+  uint32_t pid_20 = 0;
+  uint32_t pid_21 = 0;
+  uint32_t pid_22 = 0;
+  uint32_t pid_23 = 0;
+  uint32_t pid_24 = 0;
+  uint32_t pid_25 = 0;
+  uint32_t pid_26 = 0;
+  uint32_t pid_27 = 0;
+  uint8_t pid_28 = 0;
+  uint8_t pid_29 = 0;
+  uint16_t pid_30 = 0;
+  uint16_t pid_31 = 0;
+  uint8_t pid_32 = 0;
+  uint32_t pid_33 = 0;
+  uint16_t pid_34 = 0;
+  uint16_t pid_35 = 0;
+  uint16_t pid_37 = 0;
+  uint8_t pid_38 = 0;
+  uint32_t pid_40 = 0;
+  uint8_t pid_41 = 0;
+  uint8_t pid_42 = 0;
 
   unsigned long previousMillis10 = 0;    // will store last time a 10ms CAN Message was sent
   unsigned long previousMillis20 = 0;    // will store last time a 20ms CAN Message was sent
@@ -51,6 +92,57 @@ class EcmpBattery : public CanBattery {
   unsigned long previousMillis100 = 0;   // will store last time a 100ms CAN Message was sent
   unsigned long previousMillis200 = 0;   // will store last time a 200ms CAN Message was sent
   unsigned long previousMillis1000 = 0;  // will store last time a 1000ms CAN Message was sent
+
+#define PID_0 0xD814
+#define PID_1 0xD812
+#define PID_2 0xD813
+#define PID_3 0xD44F
+#define PID_4 0xD453
+#define PID_5 0xD44E
+#define PID_6 0xD452
+#define PID_7 0xD44C
+#define PID_8 0xD44D
+#define PID_9 0xD44B
+#define PID_10 0xD451
+#define PID_11 0xD864
+#define PID_12 0xD878
+#define PID_13 0xD446
+#define PID_14 0xD87D
+#define PID_15 0xD877
+#define PID_16 0xD817
+#define PID_17 0xD445
+
+#define PID_18 0xD43D
+#define PID_19 0xD816
+#define PID_20 0xD87C
+#define PID_21 0xD87B
+#define PID_22 0xD876
+#define PID_23 0xD873
+#define PID_24 0xD874
+#define PID_25 0xD871
+#define PID_26 0xD872
+#define PID_27 0xD860
+
+#define PID_28 0xD43B
+#define PID_29 0xD43C
+#define PID_30 0xD438
+#define PID_31 0xD413
+
+#define PID_32 0xD48A
+#define PID_33 0xD47A
+#define PID_34 0xD815
+#define PID_35 0xD870
+#define PID_36 0xD440  //Multi-frame
+#define PID_37 0xD86F
+#define PID_38 0xD865
+#define PID_39 0xD470  //Multi-frame (State of Cell1 Of Module 11 of the Traction Battery?)
+
+#define PID_40 0xD42F  //Collision information Counter recieved by CAN
+#define PID_41 0xD87F  //Collision Counter recieved by Wire
+#define PID_42 0xD48D  //Detection of a Vehicle Impact
+
+  uint16_t poll_state = PID_0;
+  uint16_t incoming_poll = 0;
 
   CAN_frame ECMP_010 = {.FD = false, .ext_ID = false, .DLC = 1, .ID = 0x010, .data = {0xB4}};
   CAN_frame ECMP_041 = {.FD = false, .ext_ID = false, .DLC = 1, .ID = 0x041, .data = {0x00}};
@@ -90,21 +182,6 @@ class EcmpBattery : public CanBattery {
                         .DLC = 8,
                         .ID = 0x0C5,
                         .data = {0x00, 0x00, 0x00, 0x0A, 0x00, 0x00, 0x00, 0x00}};
-  CAN_frame ECMP_125 = {.FD = false,
-                        .ext_ID = false,
-                        .DLC = 8,
-                        .ID = 0x125,
-                        .data = {0x0E, 0x50, 0x0E, 0xB9, 0x92, 0x45, 0x20, 0x00}};
-  CAN_frame ECMP_127 = {.FD = false,
-                        .ext_ID = false,
-                        .DLC = 8,
-                        .ID = 0x127,
-                        .data = {0x6D, 0x59, 0xF4, 0x9B, 0xE2, 0xCD, 0xC7, 0xD0}};
-  CAN_frame ECMP_129 = {.FD = false,
-                        .ext_ID = false,
-                        .DLC = 8,
-                        .ID = 0x129,
-                        .data = {0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0}};
   CAN_frame ECMP_17B = {.FD = false,
                         .ext_ID = false,
                         .DLC = 8,
@@ -200,11 +277,12 @@ class EcmpBattery : public CanBattery {
                         .DLC = 8,
                         .ID = 0x794,
                         .data = {0x38, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0}};
-  CAN_frame ECMP_POLL = {.FD = false,
-                         .ext_ID = false,
-                         .DLC = 8,
-                         .ID = 0x6B4,
-                         .data = {0x03, 0x22, 0xD8, 0x66, 0x00, 0x00, 0x00, 0x00}};
+  CAN_frame ECMP_POLL = {.FD = false, .ext_ID = false, .DLC = 4, .ID = 0x6B4, .data = {0x03, 0x22, 0xD8, 0x66}};
+  CAN_frame ECMP_ACK = {.FD = false,  //Ack frame
+                        .ext_ID = false,
+                        .DLC = 3,
+                        .ID = 0x6B4,
+                        .data = {0x30, 0x00, 0x00}};
   CAN_frame ECMP_DIAG_START = {.FD = false,
                                .ext_ID = false,
                                .DLC = 8,
