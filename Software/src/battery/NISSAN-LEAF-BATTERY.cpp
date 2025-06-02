@@ -34,11 +34,7 @@ void NissanLeafBattery::
   datalayer_battery->status.current_dA =
       (battery_Current2 * 5);  //0.5A/bit, multiply by 5 to get Amp+1decimal (5,5A = 11)
 
-  if (battery_Max_GIDS == 273) {  //battery_Max_GIDS is stuck at 273 on ZE0
-    datalayer_battery->info.total_capacity_Wh = ((battery_Max_GIDS * WH_PER_GID * battery_StateOfHealth) / 100);
-  } else {  //battery_Max_GIDS updates on newer generations, making for a total_capacity_Wh value that makes sense
-    datalayer_battery->info.total_capacity_Wh = (battery_Max_GIDS * WH_PER_GID);
-  }
+  datalayer_battery->info.total_capacity_Wh = ((battery_Max_GIDS * WH_PER_GID * battery_StateOfHealth) / 100);
 
   datalayer_battery->status.remaining_capacity_Wh = battery_Wh_Remaining;
 
