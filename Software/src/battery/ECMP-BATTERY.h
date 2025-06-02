@@ -74,12 +74,12 @@ class EcmpBattery : public CanBattery {
   uint32_t pid_26 = NOT_SAMPLED_YET;
   uint32_t pid_27 = NOT_SAMPLED_YET;
   uint8_t pid_28 = NOT_SAMPLED_YET;
-  uint8_t pid_29 = NOT_SAMPLED_YET;
-  uint16_t pid_30 = NOT_SAMPLED_YET;
+  uint8_t pid_lowest_cell_voltage_num = NOT_SAMPLED_YET;
+  uint16_t pid_sum_of_cells = NOT_SAMPLED_YET;
   uint16_t pid_31 = NOT_SAMPLED_YET;
   uint8_t pid_32 = NOT_SAMPLED_YET;
   uint32_t pid_insulation_res = NOT_SAMPLED_YET;
-  uint16_t pid_34 = NOT_SAMPLED_YET;
+  uint16_t pid_pack_voltage = NOT_SAMPLED_YET;
   uint16_t pid_high_cell_voltage = NOT_SAMPLED_YET;
   uint16_t pid_low_cell_voltage = NOT_SAMPLED_YET;
   uint8_t pid_38 = NOT_SAMPLED_YET;
@@ -125,13 +125,13 @@ class EcmpBattery : public CanBattery {
 #define PID_27 0xD860
 
 #define PID_28 0xD43B
-#define PID_29 0xD43C
-#define PID_30 0xD438
+#define PID_LOW_CELL_NUM 0xD43C
+#define PID_SUM_OF_CELLS 0xD438
 #define PID_31 0xD413
 
 #define PID_32 0xD48A
 #define PID_INSULATION_RES 0xD47A
-#define PID_34 0xD815
+#define PID_PACK_VOLTAGE 0xD815
 #define PID_HIGH_CELL_VOLTAGE 0xD870
 #define PID_36 0xD440  //Multi-frame
 #define PID_LOW_CELL_VOLTAGE 0xD86F

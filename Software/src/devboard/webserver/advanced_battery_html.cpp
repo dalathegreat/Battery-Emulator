@@ -606,14 +606,16 @@ String advanced_battery_processor(const String& var) {
         "<h4>PID28: " +
         (datalayer_extended.stellantisECMP.pid_28 == 255 ? "N/A" : String(datalayer_extended.stellantisECMP.pid_28)) +
         "</h4>";
-    content +=
-        "<h4>PID29: " +
-        (datalayer_extended.stellantisECMP.pid_29 == 255 ? "N/A" : String(datalayer_extended.stellantisECMP.pid_29)) +
-        "</h4>";
-    content +=
-        "<h4>PID30: " +
-        (datalayer_extended.stellantisECMP.pid_30 == 255 ? "N/A" : String(datalayer_extended.stellantisECMP.pid_30)) +
-        "</h4>";
+    content += "<h4>Lowest cell voltage number: " +
+               (datalayer_extended.stellantisECMP.pid_lowest_cell_voltage_num == 255
+                    ? "N/A"
+                    : String(datalayer_extended.stellantisECMP.pid_lowest_cell_voltage_num)) +
+               "</h4>";
+    content += "<h4>Sum of all cell voltages: " +
+               (datalayer_extended.stellantisECMP.pid_sum_of_cells == 255
+                    ? "N/A"
+                    : String(datalayer_extended.stellantisECMP.pid_sum_of_cells)) +
+               " dV</h4>";
     content +=
         "<h4>PID31: " +
         (datalayer_extended.stellantisECMP.pid_31 == 255 ? "N/A" : String(datalayer_extended.stellantisECMP.pid_31)) +
@@ -627,10 +629,11 @@ String advanced_battery_processor(const String& var) {
                     ? "N/A"
                     : String(datalayer_extended.stellantisECMP.pid_insulation_res)) +
                " kOhm</h4>";
-    content +=
-        "<h4>PID34: " +
-        (datalayer_extended.stellantisECMP.pid_34 == 255 ? "N/A" : String(datalayer_extended.stellantisECMP.pid_34)) +
-        "</h4>";
+    content += "<h4>Pack voltage: " +
+               (datalayer_extended.stellantisECMP.pid_pack_voltage == 255
+                    ? "N/A"
+                    : String(datalayer_extended.stellantisECMP.pid_pack_voltage)) +
+               " dV</h4>";
     content += "<h4>Highest cell voltage: " +
                (datalayer_extended.stellantisECMP.pid_high_cell_voltage == 255
                     ? "N/A"

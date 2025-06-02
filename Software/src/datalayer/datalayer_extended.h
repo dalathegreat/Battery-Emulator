@@ -331,12 +331,12 @@ typedef struct {
   uint32_t pid_26 = 0;
   uint32_t pid_27 = 0;
   uint8_t pid_28 = 0;
-  uint8_t pid_29 = 0;
-  uint16_t pid_30 = 0;
+  uint8_t pid_lowest_cell_voltage_num = 0;
+  uint16_t pid_sum_of_cells = 0;
   uint16_t pid_31 = 0;
   uint8_t pid_32 = 0;
   uint32_t pid_insulation_res = 0;
-  uint16_t pid_34 = 0;
+  uint16_t pid_pack_voltage = 0;
   uint16_t pid_high_cell_voltage = 0;
   uint16_t pid_low_cell_voltage = 0;
   uint8_t pid_38 = 0;
