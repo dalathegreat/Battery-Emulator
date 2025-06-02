@@ -478,6 +478,14 @@ String advanced_battery_processor(const String& var) {
     } else {
       content += "Seated OK</h4>";
     }
+    content += "<h4>Insulation Diag: ";
+    if (datalayer_extended.stellantisECMP.InsulationDiag == 0) {
+      content += "No failure</h4>";
+    } else if (datalayer_extended.stellantisECMP.InsulationDiag == 1) {
+      content += "Symmetric failure</h4>";
+    } else {  //4 Invalid, 5-7 illegal, wrap em under one text
+      content += "Not sampled yet</h4>";
+    }
 #endif  //STELLANTIS_ECMP_BATTERY
 
 #ifdef GEELY_GEOMETRY_C_BATTERY

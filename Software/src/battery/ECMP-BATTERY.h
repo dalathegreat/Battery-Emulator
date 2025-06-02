@@ -41,6 +41,7 @@ class EcmpBattery : public CanBattery {
   uint16_t battery_AllowedMaxChargeCurrent = 0;
   uint16_t battery_AllowedMaxDischargeCurrent = 0;
   uint16_t battery_insulationResistanceKOhm = 0;
+  uint8_t battery_insulation_failure_diag = 0;
   int16_t battery_highestTemperature = 0;
   int16_t battery_lowestTemperature = 0;
 

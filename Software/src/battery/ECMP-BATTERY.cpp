@@ -56,6 +56,7 @@ void EcmpBattery::update_values() {
   // Update extended datalayer (More Battery Info page)
   datalayer_extended.stellantisECMP.MainConnectorState = battery_MainConnectorState;
   datalayer_extended.stellantisECMP.InsulationResistance = battery_insulationResistanceKOhm;
+  datalayer_extended.stellantisECMP.InsulationDiag = battery_insulation_failure_diag;
   datalayer_extended.stellantisECMP.InterlockOpen = battery_InterlockOpen;
 
   if (battery_InterlockOpen) {
@@ -71,8 +72,8 @@ void EcmpBattery::handle_incoming_can_frame(CAN_frame rx_frame) {
     case 0x125:  //Common
       battery_soc = (rx_frame.data.u8[0] << 2) |
                     (rx_frame.data.u8[1] >> 6);  // Byte1, bit 7 length 10 (0x3FE when abnormal) (0-1000 ppt)
-      battery_MainConnectorState = ((rx_frame.data.u8[2] & 0x30) >>
-                                    4);  //Byte2 , bit 4, length 2 ((00 contactors open, 01 precharged, 11 invalid))
+      battery_MainConnectorState = ((rx_frame.data.u8[2] & 0x18) >>
+                                    3);  //Byte2 , bit 4, length 2 ((00 contactors open, 01 precharged, 11 invalid))
       battery_voltage =
           (rx_frame.data.u8[3] << 1) | (rx_frame.data.u8[4] >> 7);  //Byte 4, bit 7, length 9 (0x1FE if invalid)
       battery_current = (((rx_frame.data.u8[4] & 0x0F) << 8) | rx_frame.data.u8[5]) - 600;  // TODO: Test
@@ -106,6 +107,9 @@ void EcmpBattery::handle_incoming_can_frame(CAN_frame rx_frame) {
     case 0x494:
       break;
     case 0x594:
+      battery_insulation_failure_diag = ((rx_frame.data.u8[6] & 0xE0) >> 5);  //Unsure if this is right position
+      //byte pos 6, bit pos 7, signal lenth 3
+      //0 = no failure, 1 = symmetric failure, 4 = invalid value , forbidden value 5-7
       break;
     case 0x6D0:  //Common
       battery_insulationResistanceKOhm =

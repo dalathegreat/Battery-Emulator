@@ -297,6 +297,7 @@ typedef struct {
 typedef struct {
   uint8_t MainConnectorState = 0;
   uint16_t InsulationResistance = 0;
+  uint8_t InsulationDiag = 0;
   bool InterlockOpen = false;
   bool UserRequestContactorReset = false;
   bool UserRequestCollisionReset = false;
