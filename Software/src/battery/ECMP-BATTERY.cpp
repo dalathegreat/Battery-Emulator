@@ -510,6 +510,8 @@ void EcmpBattery::setup(void) {  // Performs one time setup at startup
   datalayer.battery.info.max_design_voltage_dV = MAX_PACK_VOLTAGE_DV;
   datalayer.battery.info.min_design_voltage_dV = MIN_PACK_VOLTAGE_DV;
   datalayer.system.status.battery_allows_contactor_closing = true;
+  ledcAttachChannel(CRASH_SIGNAL_PWM_PIN, 20000, 10, 0);  //20khz, 10ADC, ch0
+  ledcWrite(CRASH_SIGNAL_PWM_PIN, 971);                   //0.95*1023=971   // Set pin to 95% PWM
 }
 
 #endif
