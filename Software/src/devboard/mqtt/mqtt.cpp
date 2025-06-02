@@ -62,38 +62,47 @@ struct SensorConfig {
   const char* value_template;
   const char* unit;
   const char* device_class;
+
+  // A function that returns true for the battery if it supports this config
+  std::function<bool(Battery*)> condition;
+};
+
+static std::function<bool(Battery*)> always = [](Battery* b) {
+  return true;
+};
+static std::function<bool(Battery*)> supports_charged = [](Battery* b) {
+  return b->supports_charged_energy();
 };
 
 SensorConfig sensorConfigTemplate[] = {
-    {"SOC", "SOC (Scaled)", "", "%", "battery"},
-    {"SOC_real", "SOC (real)", "", "%", "battery"},
-    {"state_of_health", "State Of Health", "", "%", "battery"},
-    {"temperature_min", "Temperature Min", "", "°C", "temperature"},
-    {"temperature_max", "Temperature Max", "", "°C", "temperature"},
-    {"cpu_temp", "CPU Temperature", "", "°C", "temperature"},
-    {"stat_batt_power", "Stat Batt Power", "", "W", "power"},
-    {"battery_current", "Battery Current", "", "A", "current"},
-    {"cell_max_voltage", "Cell Max Voltage", "", "V", "voltage"},
-    {"cell_min_voltage", "Cell Min Voltage", "", "V", "voltage"},
-    {"cell_voltage_delta", "Cell Voltage Delta", "", "mV", "voltage"},
-    {"battery_voltage", "Battery Voltage", "", "V", "voltage"},
-    {"total_capacity", "Battery Total Capacity", "", "Wh", "energy"},
-    {"remaining_capacity", "Battery Remaining Capacity (scaled)", "", "Wh", "energy"},
-    {"remaining_capacity_real", "Battery Remaining Capacity (real)", "", "Wh", "energy"},
-    {"max_discharge_power", "Battery Max Discharge Power", "", "W", "power"},
-    {"max_charge_power", "Battery Max Charge Power", "", "W", "power"},
-#if defined(MEB_BATTERY) || defined(TESLA_BATTERY)
-    {"charged_energy", "Battery Charged Energy", "", "Wh", "energy"},
-    {"discharged_energy", "Battery Discharged Energy", "", "Wh", "energy"},
-#endif
-    {"bms_status", "BMS Status", "", "", ""},
-    {"pause_status", "Pause Status", "", "", ""}};
+    {"SOC", "SOC (Scaled)", "", "%", "battery", always},
+    {"SOC_real", "SOC (real)", "", "%", "battery", always},
+    {"state_of_health", "State Of Health", "", "%", "battery", always},
+    {"temperature_min", "Temperature Min", "", "°C", "temperature", always},
+    {"temperature_max", "Temperature Max", "", "°C", "temperature", always},
+    {"cpu_temp", "CPU Temperature", "", "°C", "temperature", always},
+    {"stat_batt_power", "Stat Batt Power", "", "W", "power", always},
+    {"battery_current", "Battery Current", "", "A", "current", always},
+    {"cell_max_voltage", "Cell Max Voltage", "", "V", "voltage", always},
+    {"cell_min_voltage", "Cell Min Voltage", "", "V", "voltage", always},
+    {"cell_voltage_delta", "Cell Voltage Delta", "", "mV", "voltage", always},
+    {"battery_voltage", "Battery Voltage", "", "V", "voltage", always},
+    {"total_capacity", "Battery Total Capacity", "", "Wh", "energy", always},
+    {"remaining_capacity", "Battery Remaining Capacity (scaled)", "", "Wh", "energy", always},
+    {"remaining_capacity_real", "Battery Remaining Capacity (real)", "", "Wh", "energy", always},
+    {"max_discharge_power", "Battery Max Discharge Power", "", "W", "power", always},
+    {"max_charge_power", "Battery Max Charge Power", "", "W", "power", always},
+    {"charged_energy", "Battery Charged Energy", "", "Wh", "energy", supports_charged},
+    {"discharged_energy", "Battery Discharged Energy", "", "Wh", "energy", supports_charged},
+    {"bms_status", "BMS Status", "", "", "", always},
+    {"pause_status", "Pause Status", "", "", "", always}};
 
 // Enough space for two batteries
 SensorConfig sensorConfigs[((sizeof(sensorConfigTemplate) / sizeof(sensorConfigTemplate[0])) * 2) - 2];
 
 void create_sensor_configs() {
   int number_of_templates = sizeof(sensorConfigTemplate) / sizeof(sensorConfigTemplate[0]);
+
   for (int i = 0; i < number_of_templates; i++) {
     SensorConfig config = sensorConfigTemplate[i];
     config.value_template = strdup(("{{ value_json." + std::string(config.object_id) + " }}").c_str());
@@ -203,13 +212,19 @@ static bool publish_common_info(void) {
   if (ha_common_info_published == false) {
     for (int i = 0; i < sizeof(sensorConfigs) / sizeof(sensorConfigs[0]); i++) {
       SensorConfig& config = sensorConfigs[i];
+
+      if (!config.condition(battery)) {
+        continue;
+      }
+
       doc["name"] = config.name;
       doc["state_topic"] = state_topic;
       doc["unique_id"] = topic_name + "_" + String(config.object_id);
       doc["object_id"] = object_id_prefix + String(config.object_id);
       doc["value_template"] = config.value_template;
-      if (config.unit != nullptr && strlen(config.unit) > 0)
+      if (config.unit != nullptr && strlen(config.unit) > 0) {
         doc["unit_of_measurement"] = config.unit;
+      }
       if (config.device_class != nullptr && strlen(config.device_class) > 0) {
         doc["device_class"] = config.device_class;
         doc["state_class"] = "measurement";
