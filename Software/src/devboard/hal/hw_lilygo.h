@@ -60,6 +60,9 @@
 // SMA CAN contactor pins
 #define INVERTER_CONTACTOR_ENABLE_PIN 5
 
+// Crash signal generator pin (Stellantis ECMP)
+#define CRASH_SIGNAL_PWM_PIN 25
+
 // SD card
 #define SD_MISO_PIN 2
 #define SD_MOSI_PIN 15

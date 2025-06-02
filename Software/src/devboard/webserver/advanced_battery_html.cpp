@@ -460,6 +460,9 @@ String advanced_battery_processor(const String& var) {
 #endif  //CMFA_EV_BATTERY
 
 #ifdef STELLANTIS_ECMP_BATTERY
+    content += "<button onclick='askContactorResetStellantis()'>Contactor reset</button>";
+    content += "<button onclick='askCollisionResetStellantis()'>Collision reset</button>";
+    content += "<button onclick='askInsulationResetStellantis()'>Insulation reset</button>";
     content += "<h4>Main Connector State: ";
     if (datalayer_extended.stellantisECMP.MainConnectorState == 0) {
       content += "Contactors open</h4>";
@@ -470,6 +473,229 @@ String advanced_battery_processor(const String& var) {
     }
     content +=
         "<h4>Insulation Resistance: " + String(datalayer_extended.stellantisECMP.InsulationResistance) + "kOhm</h4>";
+    content += "<h4>Interlock:  ";
+    if (datalayer_extended.stellantisECMP.InterlockOpen == true) {
+      content += "BROKEN!</h4>";
+    } else {
+      content += "Seated OK</h4>";
+    }
+    content += "<h4>Insulation Diag: ";
+    if (datalayer_extended.stellantisECMP.InsulationDiag == 0) {
+      content += "No failure</h4>";
+    } else if (datalayer_extended.stellantisECMP.InsulationDiag == 1) {
+      content += "Symmetric failure</h4>";
+    } else {  //4 Invalid, 5-7 illegal, wrap em under one text
+      content += "N/A</h4>";
+    }
+    content += "<h4>Contactor weld check: ";
+    if (datalayer_extended.stellantisECMP.pid_welding_detection == 0) {
+      content += "OK</h4>";
+    } else if (datalayer_extended.stellantisECMP.pid_welding_detection == 255) {
+      content += "N/A</h4>";
+    } else {  //Problem
+      content += "WELDED!" + String(datalayer_extended.stellantisECMP.pid_welding_detection) + "</h4>";
+    }
+
+    content += "<h4>Contactor opening reason: ";
+    if (datalayer_extended.stellantisECMP.pid_reason_open == 7) {
+      content += "Invalid Status</h4>";
+    } else if (datalayer_extended.stellantisECMP.pid_reason_open == 255) {
+      content += "N/A</h4>";
+    } else {  //Problem (Also status 0 might be OK?)
+      content += "Unknown" + String(datalayer_extended.stellantisECMP.pid_reason_open) + "</h4>";
+    }
+
+    content += "<h4>Status of power switch: " +
+               (datalayer_extended.stellantisECMP.pid_contactor_status == 255
+                    ? "N/A"
+                    : String(datalayer_extended.stellantisECMP.pid_contactor_status)) +
+               "</h4>";
+    content += "<h4>Negative power switch control: " +
+               (datalayer_extended.stellantisECMP.pid_negative_contactor_control == 255
+                    ? "N/A"
+                    : String(datalayer_extended.stellantisECMP.pid_negative_contactor_control)) +
+               "</h4>";
+    content += "<h4>Negative power switch status: " +
+               (datalayer_extended.stellantisECMP.pid_negative_contactor_status == 255
+                    ? "N/A"
+                    : String(datalayer_extended.stellantisECMP.pid_negative_contactor_status)) +
+               "</h4>";
+    content += "<h4>Positive power switch control: " +
+               (datalayer_extended.stellantisECMP.pid_positive_contactor_control == 255
+                    ? "N/A"
+                    : String(datalayer_extended.stellantisECMP.pid_positive_contactor_control)) +
+               "</h4>";
+    content += "<h4>Positive power switch status: " +
+               (datalayer_extended.stellantisECMP.pid_positive_contactor_status == 255
+                    ? "N/A"
+                    : String(datalayer_extended.stellantisECMP.pid_positive_contactor_status)) +
+               "</h4>";
+    content += "<h4>Contactor negative: " +
+               (datalayer_extended.stellantisECMP.pid_contactor_negative == 255
+                    ? "N/A"
+                    : String(datalayer_extended.stellantisECMP.pid_contactor_negative)) +
+               "</h4>";
+    content += "<h4>Contactor positive: " +
+               (datalayer_extended.stellantisECMP.pid_contactor_positive == 255
+                    ? "N/A"
+                    : String(datalayer_extended.stellantisECMP.pid_contactor_positive)) +
+               "</h4>";
+    content += "<h4>Precharge control: " +
+               (datalayer_extended.stellantisECMP.pid_precharge_relay_control == 255
+                    ? "N/A"
+                    : String(datalayer_extended.stellantisECMP.pid_precharge_relay_control)) +
+               "</h4>";
+    content += "<h4>Precharge status: " +
+               (datalayer_extended.stellantisECMP.pid_precharge_relay_status == 255
+                    ? "N/A"
+                    : String(datalayer_extended.stellantisECMP.pid_precharge_relay_status)) +
+               "</h4>";
+    content += "<h4>Recharge Status: " +
+               (datalayer_extended.stellantisECMP.pid_recharge_status == 255
+                    ? "N/A"
+                    : String(datalayer_extended.stellantisECMP.pid_recharge_status)) +
+               "</h4>";
+    content += "<h4>Delta temperature: " +
+               (datalayer_extended.stellantisECMP.pid_delta_temperature == 255
+                    ? "N/A"
+                    : String(datalayer_extended.stellantisECMP.pid_delta_temperature)) +
+               "</h4>";
+    content += "<h4>Coldest module: " +
+               (datalayer_extended.stellantisECMP.pid_coldest_module == 255
+                    ? "N/A"
+                    : String(datalayer_extended.stellantisECMP.pid_coldest_module)) +
+               "</h4>";
+    content += "<h4>Lowest temperature: " +
+               (datalayer_extended.stellantisECMP.pid_lowest_temperature == 255
+                    ? "N/A"
+                    : String(datalayer_extended.stellantisECMP.pid_lowest_temperature)) +
+               "</h4>";
+    content += "<h4>Average temperature: " +
+               (datalayer_extended.stellantisECMP.pid_average_temperature == 255
+                    ? "N/A"
+                    : String(datalayer_extended.stellantisECMP.pid_average_temperature)) +
+               "</h4>";
+    content += "<h4>Highest temperature: " +
+               (datalayer_extended.stellantisECMP.pid_highest_temperature == 255
+                    ? "N/A"
+                    : String(datalayer_extended.stellantisECMP.pid_highest_temperature)) +
+               "</h4>";
+    content += "<h4>Hottest module: " +
+               (datalayer_extended.stellantisECMP.pid_hottest_module == 255
+                    ? "N/A"
+                    : String(datalayer_extended.stellantisECMP.pid_hottest_module)) +
+               "</h4>";
+    content += "<h4>Average cell voltage: " +
+               (datalayer_extended.stellantisECMP.pid_avg_cell_voltage == 255
+                    ? "N/A"
+                    : String(datalayer_extended.stellantisECMP.pid_avg_cell_voltage)) +
+               " mV</h4>";
+    content +=
+        "<h4>High precision current: " +
+        (datalayer_extended.stellantisECMP.pid_current == 255 ? "N/A"
+                                                              : String(datalayer_extended.stellantisECMP.pid_current)) +
+        " mA</h4>";
+    content += "<h4>Insulation resistance neg-gnd: " +
+               (datalayer_extended.stellantisECMP.pid_insulation_res_neg == 255
+                    ? "N/A"
+                    : String(datalayer_extended.stellantisECMP.pid_insulation_res_neg)) +
+               " kOhm</h4>";
+    content += "<h4>Insulation resistance pos-gnd: " +
+               (datalayer_extended.stellantisECMP.pid_insulation_res_pos == 255
+                    ? "N/A"
+                    : String(datalayer_extended.stellantisECMP.pid_insulation_res_pos)) +
+               " kOhm</h4>";
+    content +=
+        "<h4>PID22: " +
+        (datalayer_extended.stellantisECMP.pid_22 == 255 ? "N/A" : String(datalayer_extended.stellantisECMP.pid_22)) +
+        "</h4>";
+    content += "<h4>Max discharge power 10s: " +
+               (datalayer_extended.stellantisECMP.pid_max_discharge_10s == 255
+                    ? "N/A"
+                    : String(datalayer_extended.stellantisECMP.pid_max_discharge_10s)) +
+               "</h4>";
+    content += "<h4>Max discharge power 30s: " +
+               (datalayer_extended.stellantisECMP.pid_max_discharge_30s == 255
+                    ? "N/A"
+                    : String(datalayer_extended.stellantisECMP.pid_max_discharge_30s)) +
+               "</h4>";
+    content += "<h4>Max charge power 10s: " +
+               (datalayer_extended.stellantisECMP.pid_max_charge_10s == 255
+                    ? "N/A"
+                    : String(datalayer_extended.stellantisECMP.pid_max_charge_10s)) +
+               "</h4>";
+    content += "<h4>Max charge power 30s: " +
+               (datalayer_extended.stellantisECMP.pid_max_charge_30s == 255
+                    ? "N/A"
+                    : String(datalayer_extended.stellantisECMP.pid_max_charge_30s)) +
+               "</h4>";
+    content += "<h4>Energy capacity: " +
+               (datalayer_extended.stellantisECMP.pid_energy_capacity == 255
+                    ? "N/A"
+                    : String(datalayer_extended.stellantisECMP.pid_energy_capacity)) +
+               "</h4>";
+    content += "<h4>Highest cell number: " +
+               (datalayer_extended.stellantisECMP.pid_highest_cell_voltage_num == 255
+                    ? "N/A"
+                    : String(datalayer_extended.stellantisECMP.pid_highest_cell_voltage_num)) +
+               "</h4>";
+    content += "<h4>Lowest cell voltage number: " +
+               (datalayer_extended.stellantisECMP.pid_lowest_cell_voltage_num == 255
+                    ? "N/A"
+                    : String(datalayer_extended.stellantisECMP.pid_lowest_cell_voltage_num)) +
+               "</h4>";
+    content += "<h4>Sum of all cell voltages: " +
+               (datalayer_extended.stellantisECMP.pid_sum_of_cells == 255
+                    ? "N/A"
+                    : String(datalayer_extended.stellantisECMP.pid_sum_of_cells)) +
+               " dV</h4>";
+    content += "<h4>Cell min capacity: " +
+               (datalayer_extended.stellantisECMP.pid_cell_min_capacity == 255
+                    ? "N/A"
+                    : String(datalayer_extended.stellantisECMP.pid_cell_min_capacity)) +
+               "</h4>";
+    content += "<h4>Cell voltage measurement status: " +
+               (datalayer_extended.stellantisECMP.pid_cell_voltage_measurement_status == 255
+                    ? "N/A"
+                    : String(datalayer_extended.stellantisECMP.pid_cell_voltage_measurement_status)) +
+               "</h4>";
+    content += "<h4>Battery Insulation Resistance: " +
+               (datalayer_extended.stellantisECMP.pid_insulation_res == 255
+                    ? "N/A"
+                    : String(datalayer_extended.stellantisECMP.pid_insulation_res)) +
+               " kOhm</h4>";
+    content += "<h4>Pack voltage: " +
+               (datalayer_extended.stellantisECMP.pid_pack_voltage == 255
+                    ? "N/A"
+                    : String(datalayer_extended.stellantisECMP.pid_pack_voltage)) +
+               " dV</h4>";
+    content += "<h4>Highest cell voltage: " +
+               (datalayer_extended.stellantisECMP.pid_high_cell_voltage == 255
+                    ? "N/A"
+                    : String(datalayer_extended.stellantisECMP.pid_high_cell_voltage)) +
+               " mV</h4>";
+    content += "<h4>Lowest cell voltage: " +
+               (datalayer_extended.stellantisECMP.pid_low_cell_voltage == 255
+                    ? "N/A"
+                    : String(datalayer_extended.stellantisECMP.pid_low_cell_voltage)) +
+               " mV</h4>";
+    content += "<h4>Battery Energy: " +
+               (datalayer_extended.stellantisECMP.pid_battery_energy == 255
+                    ? "N/A"
+                    : String(datalayer_extended.stellantisECMP.pid_battery_energy)) +
+               "</h4>";
+    content +=
+        "<h4>Collision information Counter recieved by CAN: " +
+        (datalayer_extended.stellantisECMP.pid_40 == 255 ? "N/A" : String(datalayer_extended.stellantisECMP.pid_40)) +
+        "</h4>";
+    content +=
+        "<h4>Collision Counter recieved by Wire: " +
+        (datalayer_extended.stellantisECMP.pid_41 == 255 ? "N/A" : String(datalayer_extended.stellantisECMP.pid_41)) +
+        "</h4>";
+    content +=
+        "<h4>Detection of a Vehicle Impact: " +
+        (datalayer_extended.stellantisECMP.pid_42 == 255 ? "N/A" : String(datalayer_extended.stellantisECMP.pid_42)) +
+        "</h4>";
 #endif  //STELLANTIS_ECMP_BATTERY
 
 #ifdef GEELY_GEOMETRY_C_BATTERY
@@ -1610,12 +1836,51 @@ String advanced_battery_processor(const String& var) {
 
     content += "<script>";
     content +=
-        "function askContactorClose() { if (window.confirm('Are you sure you want to tirgger "
+        "function askContactorClose() { if (window.confirm('Are you sure you want to trigger "
         "a contactor close request?')) { "
         "bmwIxCloseContactorRequest(); } }";
     content += "function bmwIxCloseContactorRequest() {";
     content += "  var xhr = new XMLHttpRequest();";
     content += "  xhr.open('GET', '/bmwIxCloseContactorRequest', true);";
+    content += "  xhr.send();";
+    content += "}";
+    content += "function goToMainPage() { window.location.href = '/'; }";
+    content += "</script>";
+
+    content += "<script>";
+    content +=
+        "function askContactorResetStellantis() { if (window.confirm('Are you sure you want to trigger "
+        "contactor reset procedure?')) { "
+        "ContactorResetStellantis(); } }";
+    content += "function ContactorResetStellantis() {";
+    content += "  var xhr = new XMLHttpRequest();";
+    content += "  xhr.open('GET', '/ContactorResetStellantis', true);";
+    content += "  xhr.send();";
+    content += "}";
+    content += "function goToMainPage() { window.location.href = '/'; }";
+    content += "</script>";
+
+    content += "<script>";
+    content +=
+        "function askCollisionResetStellantis() { if (window.confirm('Are you sure you want to trigger "
+        "collision reset procedure?')) { "
+        "CollisionResetStellantis(); } }";
+    content += "function CollisionResetStellantis() {";
+    content += "  var xhr = new XMLHttpRequest();";
+    content += "  xhr.open('GET', '/CollisionResetStellantis', true);";
+    content += "  xhr.send();";
+    content += "}";
+    content += "function goToMainPage() { window.location.href = '/'; }";
+    content += "</script>";
+
+    content += "<script>";
+    content +=
+        "function askInsulationResetStellantis() { if (window.confirm('Are you sure you want to trigger "
+        "insulation reset procedure?')) { "
+        "InsulationResetStellantis(); } }";
+    content += "function InsulationResetStellantis() {";
+    content += "  var xhr = new XMLHttpRequest();";
+    content += "  xhr.open('GET', '/InsulationResetStellantis', true);";
     content += "  xhr.send();";
     content += "}";
     content += "function goToMainPage() { window.location.href = '/'; }";
