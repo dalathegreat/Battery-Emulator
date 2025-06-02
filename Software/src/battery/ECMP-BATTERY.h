@@ -22,6 +22,7 @@ class EcmpBattery : public CanBattery {
   static const int MAX_CELL_VOLTAGE_MV = 4250;
   static const int MIN_CELL_VOLTAGE_MV = 2700;
 #define STOPPED 0
+#define NOT_SAMPLED_YET 255
   bool battery_RelayOpenRequest = false;
   bool battery_InterlockOpen = false;
   uint8_t ContactorResetStatemachine = 0;
@@ -44,47 +45,47 @@ class EcmpBattery : public CanBattery {
   uint8_t battery_insulation_failure_diag = 0;
   int16_t battery_highestTemperature = 0;
   int16_t battery_lowestTemperature = 0;
-  uint8_t pid_0 = 0;
-  uint8_t pid_1 = 0;
-  uint8_t pid_2 = 0;
-  uint8_t pid_3 = 0;
-  uint8_t pid_4 = 0;
-  uint8_t pid_5 = 0;
-  uint8_t pid_6 = 0;
-  uint8_t pid_7 = 0;
-  uint8_t pid_8 = 0;
-  uint8_t pid_9 = 0;
-  uint8_t pid_10 = 0;
-  uint8_t pid_11 = 0;
-  uint8_t pid_12 = 0;
-  uint8_t pid_13 = 0;
-  uint8_t pid_14 = 0;
-  uint8_t pid_15 = 0;
-  uint8_t pid_16 = 0;
-  uint8_t pid_17 = 0;
-  uint16_t pid_18 = 0;
-  uint32_t pid_19 = 0;
-  uint32_t pid_20 = 0;
-  uint32_t pid_21 = 0;
-  uint32_t pid_22 = 0;
-  uint32_t pid_23 = 0;
-  uint32_t pid_24 = 0;
-  uint32_t pid_25 = 0;
-  uint32_t pid_26 = 0;
-  uint32_t pid_27 = 0;
-  uint8_t pid_28 = 0;
-  uint8_t pid_29 = 0;
-  uint16_t pid_30 = 0;
-  uint16_t pid_31 = 0;
-  uint8_t pid_32 = 0;
-  uint32_t pid_33 = 0;
-  uint16_t pid_34 = 0;
-  uint16_t pid_35 = 0;
-  uint16_t pid_37 = 0;
-  uint8_t pid_38 = 0;
-  uint32_t pid_40 = 0;
-  uint8_t pid_41 = 0;
-  uint8_t pid_42 = 0;
+  uint8_t pid_0 = NOT_SAMPLED_YET;
+  uint8_t pid_1 = NOT_SAMPLED_YET;
+  uint8_t pid_2 = NOT_SAMPLED_YET;
+  uint8_t pid_3 = NOT_SAMPLED_YET;
+  uint8_t pid_4 = NOT_SAMPLED_YET;
+  uint8_t pid_5 = NOT_SAMPLED_YET;
+  uint8_t pid_6 = NOT_SAMPLED_YET;
+  uint8_t pid_7 = NOT_SAMPLED_YET;
+  uint8_t pid_8 = NOT_SAMPLED_YET;
+  uint8_t pid_9 = NOT_SAMPLED_YET;
+  uint8_t pid_10 = NOT_SAMPLED_YET;
+  uint8_t pid_11 = NOT_SAMPLED_YET;
+  uint8_t pid_12 = NOT_SAMPLED_YET;
+  uint8_t pid_13 = NOT_SAMPLED_YET;
+  uint8_t pid_14 = NOT_SAMPLED_YET;
+  uint8_t pid_15 = NOT_SAMPLED_YET;
+  uint8_t pid_16 = NOT_SAMPLED_YET;
+  uint8_t pid_17 = NOT_SAMPLED_YET;
+  uint16_t pid_avg_cell_voltage = NOT_SAMPLED_YET;
+  int32_t pid_current = NOT_SAMPLED_YET;
+  uint32_t pid_insulation_res_neg = NOT_SAMPLED_YET;
+  uint32_t pid_insulation_res_pos = NOT_SAMPLED_YET;
+  uint32_t pid_22 = NOT_SAMPLED_YET;
+  uint32_t pid_23 = NOT_SAMPLED_YET;
+  uint32_t pid_24 = NOT_SAMPLED_YET;
+  uint32_t pid_25 = NOT_SAMPLED_YET;
+  uint32_t pid_26 = NOT_SAMPLED_YET;
+  uint32_t pid_27 = NOT_SAMPLED_YET;
+  uint8_t pid_28 = NOT_SAMPLED_YET;
+  uint8_t pid_29 = NOT_SAMPLED_YET;
+  uint16_t pid_30 = NOT_SAMPLED_YET;
+  uint16_t pid_31 = NOT_SAMPLED_YET;
+  uint8_t pid_32 = NOT_SAMPLED_YET;
+  uint32_t pid_insulation_res = NOT_SAMPLED_YET;
+  uint16_t pid_34 = NOT_SAMPLED_YET;
+  uint16_t pid_high_cell_voltage = NOT_SAMPLED_YET;
+  uint16_t pid_low_cell_voltage = NOT_SAMPLED_YET;
+  uint8_t pid_38 = NOT_SAMPLED_YET;
+  uint32_t pid_40 = NOT_SAMPLED_YET;
+  uint8_t pid_41 = NOT_SAMPLED_YET;
+  uint8_t pid_42 = NOT_SAMPLED_YET;
 
   unsigned long previousMillis10 = 0;    // will store last time a 10ms CAN Message was sent
   unsigned long previousMillis20 = 0;    // will store last time a 20ms CAN Message was sent
@@ -112,10 +113,10 @@ class EcmpBattery : public CanBattery {
 #define PID_16 0xD817
 #define PID_17 0xD445
 
-#define PID_18 0xD43D
-#define PID_19 0xD816
-#define PID_20 0xD87C
-#define PID_21 0xD87B
+#define PID_AVG_CELL_VOLTAGE 0xD43D
+#define PID_CURRENT 0xD816
+#define PID_INSULATION_NEG 0xD87C
+#define PID_INSULATION_POS 0xD87B
 #define PID_22 0xD876
 #define PID_23 0xD873
 #define PID_24 0xD874
@@ -129,17 +130,17 @@ class EcmpBattery : public CanBattery {
 #define PID_31 0xD413
 
 #define PID_32 0xD48A
-#define PID_33 0xD47A
+#define PID_INSULATION_RES 0xD47A
 #define PID_34 0xD815
-#define PID_35 0xD870
+#define PID_HIGH_CELL_VOLTAGE 0xD870
 #define PID_36 0xD440  //Multi-frame
-#define PID_37 0xD86F
+#define PID_LOW_CELL_VOLTAGE 0xD86F
 #define PID_38 0xD865
 #define PID_39 0xD470  //Multi-frame (State of Cell1 Of Module 11 of the Traction Battery?)
 
-#define PID_40 0xD42F  //Collision information Counter recieved by CAN
-#define PID_41 0xD87F  //Collision Counter recieved by Wire
-#define PID_42 0xD48D  //Detection of a Vehicle Impact
+#define PID_40 0xD42F  //?Collision information Counter recieved by CAN (Order unsure on these)
+#define PID_41 0xD87F  //?Collision Counter recieved by Wire
+#define PID_42 0xD48D  //?Detection of a Vehicle Impact
 
   uint16_t poll_state = PID_0;
   uint16_t incoming_poll = 0;

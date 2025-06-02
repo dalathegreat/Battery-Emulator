@@ -76,10 +76,10 @@ void EcmpBattery::update_values() {
   datalayer_extended.stellantisECMP.pid_15 = pid_15;
   datalayer_extended.stellantisECMP.pid_16 = pid_16;
   datalayer_extended.stellantisECMP.pid_17 = pid_17;
-  datalayer_extended.stellantisECMP.pid_18 = pid_18;
-  datalayer_extended.stellantisECMP.pid_19 = pid_19;
-  datalayer_extended.stellantisECMP.pid_20 = pid_20;
-  datalayer_extended.stellantisECMP.pid_21 = pid_21;
+  datalayer_extended.stellantisECMP.pid_avg_cell_voltage = pid_avg_cell_voltage;
+  datalayer_extended.stellantisECMP.pid_current = pid_current;
+  datalayer_extended.stellantisECMP.pid_insulation_res_neg = pid_insulation_res_neg;
+  datalayer_extended.stellantisECMP.pid_insulation_res_pos = pid_insulation_res_pos;
   datalayer_extended.stellantisECMP.pid_22 = pid_22;
   datalayer_extended.stellantisECMP.pid_23 = pid_23;
   datalayer_extended.stellantisECMP.pid_24 = pid_24;
@@ -91,10 +91,10 @@ void EcmpBattery::update_values() {
   datalayer_extended.stellantisECMP.pid_30 = pid_30;
   datalayer_extended.stellantisECMP.pid_31 = pid_31;
   datalayer_extended.stellantisECMP.pid_32 = pid_32;
-  datalayer_extended.stellantisECMP.pid_33 = pid_33;
+  datalayer_extended.stellantisECMP.pid_insulation_res = pid_insulation_res;
   datalayer_extended.stellantisECMP.pid_34 = pid_34;
-  datalayer_extended.stellantisECMP.pid_35 = pid_35;
-  datalayer_extended.stellantisECMP.pid_37 = pid_37;
+  datalayer_extended.stellantisECMP.pid_high_cell_voltage = pid_high_cell_voltage;
+  datalayer_extended.stellantisECMP.pid_low_cell_voltage = pid_low_cell_voltage;
   datalayer_extended.stellantisECMP.pid_38 = pid_38;
   datalayer_extended.stellantisECMP.pid_40 = pid_40;
   datalayer_extended.stellantisECMP.pid_41 = pid_41;
@@ -431,20 +431,22 @@ void EcmpBattery::handle_incoming_can_frame(CAN_frame rx_frame) {
             case PID_17:
               pid_17 = (rx_frame.data.u8[4]);
               break;
-            case PID_18:
-              pid_18 = (rx_frame.data.u8[4] << 8) | rx_frame.data.u8[5];
+            case PID_AVG_CELL_VOLTAGE:
+              pid_avg_cell_voltage = (rx_frame.data.u8[4] << 8) | rx_frame.data.u8[5];
               break;
-            case PID_19:
-              pid_19 = ((rx_frame.data.u8[4] << 24) | (rx_frame.data.u8[5] << 16) | (rx_frame.data.u8[6] << 8) |
-                        rx_frame.data.u8[7]);
+            case PID_CURRENT:
+              pid_current = (((rx_frame.data.u8[4] << 24) | (rx_frame.data.u8[5] << 16) | (rx_frame.data.u8[6] << 8) |
+                              rx_frame.data.u8[7]) -
+                             76800) *
+                            10;
               break;
-            case PID_20:
-              pid_20 = ((rx_frame.data.u8[4] << 24) | (rx_frame.data.u8[5] << 16) | (rx_frame.data.u8[6] << 8) |
-                        rx_frame.data.u8[7]);
+            case PID_INSULATION_NEG:
+              pid_insulation_res_neg = ((rx_frame.data.u8[4] << 24) | (rx_frame.data.u8[5] << 16) |
+                                        (rx_frame.data.u8[6] << 8) | rx_frame.data.u8[7]);
               break;
-            case PID_21:
-              pid_21 = ((rx_frame.data.u8[4] << 24) | (rx_frame.data.u8[5] << 16) | (rx_frame.data.u8[6] << 8) |
-                        rx_frame.data.u8[7]);
+            case PID_INSULATION_POS:
+              pid_insulation_res_pos = ((rx_frame.data.u8[4] << 24) | (rx_frame.data.u8[5] << 16) |
+                                        (rx_frame.data.u8[6] << 8) | rx_frame.data.u8[7]);
               break;
             case PID_22:
               pid_22 = ((rx_frame.data.u8[4] << 24) | (rx_frame.data.u8[5] << 16) | (rx_frame.data.u8[6] << 8) |
@@ -486,21 +488,21 @@ void EcmpBattery::handle_incoming_can_frame(CAN_frame rx_frame) {
               pid_32 = ((rx_frame.data.u8[4] << 24) | (rx_frame.data.u8[5] << 16) | (rx_frame.data.u8[6] << 8) |
                         rx_frame.data.u8[7]);
               break;
-            case PID_33:
-              pid_33 = ((rx_frame.data.u8[4] << 24) | (rx_frame.data.u8[5] << 16) | (rx_frame.data.u8[6] << 8) |
-                        rx_frame.data.u8[7]);
+            case PID_INSULATION_RES:
+              pid_insulation_res = ((rx_frame.data.u8[4] << 24) | (rx_frame.data.u8[5] << 16) |
+                                    (rx_frame.data.u8[6] << 8) | rx_frame.data.u8[7]);
               break;
             case PID_34:
               pid_34 = (rx_frame.data.u8[4] << 8) | rx_frame.data.u8[5];
               break;
-            case PID_35:
-              pid_35 = (rx_frame.data.u8[4] << 8) | rx_frame.data.u8[5];
+            case PID_HIGH_CELL_VOLTAGE:
+              pid_high_cell_voltage = (rx_frame.data.u8[4] << 8) | rx_frame.data.u8[5];
               break;
             case PID_36:
               //Multi frame, handled in other function
               break;
-            case PID_37:
-              pid_37 = (rx_frame.data.u8[4] << 8) | rx_frame.data.u8[5];
+            case PID_LOW_CELL_VOLTAGE:
+              pid_low_cell_voltage = (rx_frame.data.u8[4] << 8) | rx_frame.data.u8[5];
               break;
             case PID_38:
               pid_38 = (rx_frame.data.u8[4]);
@@ -809,26 +811,26 @@ void EcmpBattery::transmit_can(unsigned long currentMillis) {
         case PID_17:
           ECMP_POLL.data.u8[2] = (uint8_t)((PID_17 & 0xFF00) >> 8);
           ECMP_POLL.data.u8[3] = (uint8_t)(PID_17 & 0x00FF);
-          poll_state = PID_18;
+          poll_state = PID_AVG_CELL_VOLTAGE;
           break;
-        case PID_18:
-          ECMP_POLL.data.u8[2] = (uint8_t)((PID_18 & 0xFF00) >> 8);
-          ECMP_POLL.data.u8[3] = (uint8_t)(PID_18 & 0x00FF);
-          poll_state = PID_19;
+        case PID_AVG_CELL_VOLTAGE:
+          ECMP_POLL.data.u8[2] = (uint8_t)((PID_AVG_CELL_VOLTAGE & 0xFF00) >> 8);
+          ECMP_POLL.data.u8[3] = (uint8_t)(PID_AVG_CELL_VOLTAGE & 0x00FF);
+          poll_state = PID_CURRENT;
           break;
-        case PID_19:
-          ECMP_POLL.data.u8[2] = (uint8_t)((PID_19 & 0xFF00) >> 8);
-          ECMP_POLL.data.u8[3] = (uint8_t)(PID_19 & 0x00FF);
-          poll_state = PID_20;
+        case PID_CURRENT:
+          ECMP_POLL.data.u8[2] = (uint8_t)((PID_CURRENT & 0xFF00) >> 8);
+          ECMP_POLL.data.u8[3] = (uint8_t)(PID_CURRENT & 0x00FF);
+          poll_state = PID_INSULATION_NEG;
           break;
-        case PID_20:
-          ECMP_POLL.data.u8[2] = (uint8_t)((PID_20 & 0xFF00) >> 8);
-          ECMP_POLL.data.u8[3] = (uint8_t)(PID_20 & 0x00FF);
-          poll_state = PID_21;
+        case PID_INSULATION_NEG:
+          ECMP_POLL.data.u8[2] = (uint8_t)((PID_INSULATION_NEG & 0xFF00) >> 8);
+          ECMP_POLL.data.u8[3] = (uint8_t)(PID_INSULATION_NEG & 0x00FF);
+          poll_state = PID_INSULATION_POS;
           break;
-        case PID_21:
-          ECMP_POLL.data.u8[2] = (uint8_t)((PID_21 & 0xFF00) >> 8);
-          ECMP_POLL.data.u8[3] = (uint8_t)(PID_21 & 0x00FF);
+        case PID_INSULATION_POS:
+          ECMP_POLL.data.u8[2] = (uint8_t)((PID_INSULATION_POS & 0xFF00) >> 8);
+          ECMP_POLL.data.u8[3] = (uint8_t)(PID_INSULATION_POS & 0x00FF);
           poll_state = PID_22;
           break;
         case PID_22:
@@ -884,31 +886,31 @@ void EcmpBattery::transmit_can(unsigned long currentMillis) {
         case PID_32:
           ECMP_POLL.data.u8[2] = (uint8_t)((PID_32 & 0xFF00) >> 8);
           ECMP_POLL.data.u8[3] = (uint8_t)(PID_32 & 0x00FF);
-          poll_state = PID_33;
+          poll_state = PID_INSULATION_RES;
           break;
-        case PID_33:
-          ECMP_POLL.data.u8[2] = (uint8_t)((PID_33 & 0xFF00) >> 8);
-          ECMP_POLL.data.u8[3] = (uint8_t)(PID_33 & 0x00FF);
+        case PID_INSULATION_RES:
+          ECMP_POLL.data.u8[2] = (uint8_t)((PID_INSULATION_RES & 0xFF00) >> 8);
+          ECMP_POLL.data.u8[3] = (uint8_t)(PID_INSULATION_RES & 0x00FF);
           poll_state = PID_34;
           break;
         case PID_34:
           ECMP_POLL.data.u8[2] = (uint8_t)((PID_34 & 0xFF00) >> 8);
           ECMP_POLL.data.u8[3] = (uint8_t)(PID_34 & 0x00FF);
-          poll_state = PID_35;
+          poll_state = PID_HIGH_CELL_VOLTAGE;
           break;
-        case PID_35:
-          ECMP_POLL.data.u8[2] = (uint8_t)((PID_35 & 0xFF00) >> 8);
-          ECMP_POLL.data.u8[3] = (uint8_t)(PID_35 & 0x00FF);
+        case PID_HIGH_CELL_VOLTAGE:
+          ECMP_POLL.data.u8[2] = (uint8_t)((PID_HIGH_CELL_VOLTAGE & 0xFF00) >> 8);
+          ECMP_POLL.data.u8[3] = (uint8_t)(PID_HIGH_CELL_VOLTAGE & 0x00FF);
           poll_state = PID_36;
           break;
         case PID_36:
           ECMP_POLL.data.u8[2] = (uint8_t)((PID_36 & 0xFF00) >> 8);
           ECMP_POLL.data.u8[3] = (uint8_t)(PID_36 & 0x00FF);
-          poll_state = PID_37;
+          poll_state = PID_LOW_CELL_VOLTAGE;
           break;
-        case PID_37:
-          ECMP_POLL.data.u8[2] = (uint8_t)((PID_37 & 0xFF00) >> 8);
-          ECMP_POLL.data.u8[3] = (uint8_t)(PID_37 & 0x00FF);
+        case PID_LOW_CELL_VOLTAGE:
+          ECMP_POLL.data.u8[2] = (uint8_t)((PID_LOW_CELL_VOLTAGE & 0xFF00) >> 8);
+          ECMP_POLL.data.u8[3] = (uint8_t)(PID_LOW_CELL_VOLTAGE & 0x00FF);
           poll_state = PID_38;
           break;
         case PID_38:
