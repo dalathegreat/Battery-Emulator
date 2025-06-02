@@ -16,16 +16,15 @@
 //This function maps all the values fetched via CAN to the correct parameters used for the inverter
 void ChademoBattery::update_values() {
 
-  datalayer.battery.status.real_soc = x102_chg_session.StateOfCharge;
+  datalayer.battery.status.real_soc = x102_chg_session.StateOfCharge * 100;  //Convert % to pptt
 
   datalayer.battery.status.max_discharge_power_W =
       (x200_discharge_limits.MaximumDischargeCurrent * x100_chg_lim.MaximumBatteryVoltage);  //In Watts, Convert A to P
 
   datalayer.battery.status.voltage_dV = get_measured_voltage() * 10;
 
-  datalayer.battery.info.total_capacity_Wh =
-      ((x101_chg_est.RatedBatteryCapacity / 0.1) *
-       1000);  //(Added in CHAdeMO v1.0.1), maybe handle hardcoded on lower protocol version?
+  datalayer.battery.info.total_capacity_Wh = (x101_chg_est.RatedBatteryCapacity * 100);
+  //(Added in CHAdeMO v1.0.1), maybe handle hardcoded on lower protocol version?
 
   /* TODO max charging rate = 
    * 	x200_discharge_limits.MaxRemainingCapacityForCharging /
