@@ -41,26 +41,11 @@ void setup_battery() {
 #endif
 }
 
-void update_values_battery() {
-  battery->update_values();
-}
-
 // transmit_can_battery is called once and we need to
 // call both batteries.
-void transmit_can_battery(unsigned long currentMillis) {
-  ((CanBattery*)battery)->transmit_can(currentMillis);
-
-  if (battery2) {
-    ((CanBattery*)battery2)->transmit_can(currentMillis);
-  }
-}
 
 void handle_incoming_can_frame_battery(CAN_frame rx_frame) {
   ((CanBattery*)battery)->handle_incoming_can_frame(rx_frame);
-}
-
-void update_values_battery2() {
-  battery2->update_values();
 }
 
 void handle_incoming_can_frame_battery2(CAN_frame rx_frame) {
@@ -68,14 +53,9 @@ void handle_incoming_can_frame_battery2(CAN_frame rx_frame) {
 }
 
 #ifdef RS485_BATTERY_SELECTED
-void transmit_rs485() {
-  ((RS485Battery*)battery)->transmit_rs485();
-}
-
 void receive_RS485() {
   ((RS485Battery*)battery)->receive_RS485();
 }
-
 #endif
 
 #endif

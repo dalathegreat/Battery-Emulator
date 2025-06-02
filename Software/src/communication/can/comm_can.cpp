@@ -104,30 +104,6 @@ void init_CAN() {
 #endif  // CANFD_ADDON
 }
 
-// Transmit functions
-void transmit_can(unsigned long currentMillis) {
-
-  if (!allowed_to_send_CAN) {
-    return;  //Global block of CAN messages
-  }
-
-#ifndef RS485_BATTERY_SELECTED
-  transmit_can_battery(currentMillis);
-#endif
-
-#ifdef CAN_INVERTER_SELECTED
-  transmit_can_inverter(currentMillis);
-#endif  // CAN_INVERTER_SELECTED
-
-  if (charger) {
-    charger->transmit_can(currentMillis);
-  }
-
-#ifdef CAN_SHUNT_SELECTED
-  transmit_can_shunt(currentMillis);
-#endif  // CAN_SHUNT_SELECTED
-}
-
 void transmit_can_frame(CAN_frame* tx_frame, int interface) {
   if (!allowed_to_send_CAN) {
     return;

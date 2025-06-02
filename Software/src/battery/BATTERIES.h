@@ -12,7 +12,6 @@ extern Battery* battery2;
 #ifdef BMW_SBOX
 #include "BMW-SBOX.h"
 void handle_incoming_can_frame_shunt(CAN_frame rx_frame);
-void transmit_can_shunt(unsigned long currentMillis);
 void setup_can_shunt();
 #endif
 
