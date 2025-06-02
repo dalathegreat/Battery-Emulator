@@ -208,6 +208,11 @@ class EcmpBattery : public CanBattery {
                         .DLC = 8,
                         .ID = 0x31D,
                         .data = {0x00, 0x80, 0x00, 0x00, 0x00, 0x00, 0x00, 0x42}};
+  CAN_frame ECMP_3D0 = {.FD = false,  //Not in logs, but makes speed go to 0km/h
+                        .ext_ID = false,
+                        .DLC = 8,
+                        .ID = 0x3D0,
+                        .data = {0x00, 0x00, 0x01, 0x00, 0x00, 0x00, 0x00, 0x00}};
   CAN_frame ECMP_345 = {.FD = false,
                         .ext_ID = false,
                         .DLC = 8,

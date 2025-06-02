@@ -654,6 +654,7 @@ void EcmpBattery::transmit_can(unsigned long currentMillis) {
     ECMP_345.data.u8[7] = (uint8_t)(0x3 << 4 | (data_345_content[counter_100ms] & 0X0F));
     ECMP_351.data.u8[7] = counter_100ms << 4 | checksum_calc(counter_100ms, ECMP_351);
     ECMP_31D.data.u8[7] = counter_100ms << 4 | checksum_calc(counter_100ms, ECMP_31D);
+    ECMP_3D0.data.u8[7] = counter_100ms << 4 | checksum_calc(counter_100ms, ECMP_3D0);
 
     transmit_can_frame(&ECMP_382, can_config.battery);  //PSA Specific!
     transmit_can_frame(&ECMP_31E, can_config.battery);
@@ -667,6 +668,7 @@ void EcmpBattery::transmit_can(unsigned long currentMillis) {
     transmit_can_frame(&ECMP_345, can_config.battery);
     transmit_can_frame(&ECMP_351, can_config.battery);
     transmit_can_frame(&ECMP_31D, can_config.battery);
+    transmit_can_frame(&ECMP_3D0, can_config.battery);  //Not in logs, but makes speed go to 0km/h
   }
   // Send 200ms CAN Message
   if (currentMillis - previousMillis200 >= INTERVAL_200_MS) {
