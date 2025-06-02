@@ -484,80 +484,106 @@ String advanced_battery_processor(const String& var) {
     } else if (datalayer_extended.stellantisECMP.InsulationDiag == 1) {
       content += "Symmetric failure</h4>";
     } else {  //4 Invalid, 5-7 illegal, wrap em under one text
-      content += "Not sampled yet</h4>";
+      content += "N/A</h4>";
     }
-    content +=
-        "<h4>PID0: " +
-        (datalayer_extended.stellantisECMP.pid_0 == 255 ? "N/A" : String(datalayer_extended.stellantisECMP.pid_0)) +
-        "</h4>";
-    content +=
-        "<h4>PID1: " +
-        (datalayer_extended.stellantisECMP.pid_1 == 255 ? "N/A" : String(datalayer_extended.stellantisECMP.pid_1)) +
-        "</h4>";
-    content +=
-        "<h4>PID2: " +
-        (datalayer_extended.stellantisECMP.pid_2 == 255 ? "N/A" : String(datalayer_extended.stellantisECMP.pid_2)) +
-        "</h4>";
-    content +=
-        "<h4>PID3: " +
-        (datalayer_extended.stellantisECMP.pid_3 == 255 ? "N/A" : String(datalayer_extended.stellantisECMP.pid_3)) +
-        "</h4>";
-    content +=
-        "<h4>PID4: " +
-        (datalayer_extended.stellantisECMP.pid_4 == 255 ? "N/A" : String(datalayer_extended.stellantisECMP.pid_4)) +
-        "</h4>";
-    content +=
-        "<h4>PID5: " +
-        (datalayer_extended.stellantisECMP.pid_5 == 255 ? "N/A" : String(datalayer_extended.stellantisECMP.pid_5)) +
-        "</h4>";
-    content +=
-        "<h4>PID6: " +
-        (datalayer_extended.stellantisECMP.pid_6 == 255 ? "N/A" : String(datalayer_extended.stellantisECMP.pid_6)) +
-        "</h4>";
-    content +=
-        "<h4>PID7: " +
-        (datalayer_extended.stellantisECMP.pid_7 == 255 ? "N/A" : String(datalayer_extended.stellantisECMP.pid_7)) +
-        "</h4>";
-    content +=
-        "<h4>PID8: " +
-        (datalayer_extended.stellantisECMP.pid_8 == 255 ? "N/A" : String(datalayer_extended.stellantisECMP.pid_8)) +
-        "</h4>";
-    content +=
-        "<h4>PID9: " +
-        (datalayer_extended.stellantisECMP.pid_9 == 255 ? "N/A" : String(datalayer_extended.stellantisECMP.pid_9)) +
-        "</h4>";
-    content +=
-        "<h4>PID10: " +
-        (datalayer_extended.stellantisECMP.pid_10 == 255 ? "N/A" : String(datalayer_extended.stellantisECMP.pid_10)) +
-        "</h4>";
-    content +=
-        "<h4>PID11: " +
-        (datalayer_extended.stellantisECMP.pid_11 == 255 ? "N/A" : String(datalayer_extended.stellantisECMP.pid_11)) +
-        "</h4>";
-    content +=
-        "<h4>PID12: " +
-        (datalayer_extended.stellantisECMP.pid_12 == 255 ? "N/A" : String(datalayer_extended.stellantisECMP.pid_12)) +
-        "</h4>";
-    content +=
-        "<h4>PID13: " +
-        (datalayer_extended.stellantisECMP.pid_13 == 255 ? "N/A" : String(datalayer_extended.stellantisECMP.pid_13)) +
-        "</h4>";
-    content +=
-        "<h4>PID14: " +
-        (datalayer_extended.stellantisECMP.pid_14 == 255 ? "N/A" : String(datalayer_extended.stellantisECMP.pid_14)) +
-        "</h4>";
-    content +=
-        "<h4>PID15: " +
-        (datalayer_extended.stellantisECMP.pid_15 == 255 ? "N/A" : String(datalayer_extended.stellantisECMP.pid_15)) +
-        "</h4>";
-    content +=
-        "<h4>PID16: " +
-        (datalayer_extended.stellantisECMP.pid_16 == 255 ? "N/A" : String(datalayer_extended.stellantisECMP.pid_16)) +
-        "</h4>";
-    content +=
-        "<h4>PID17: " +
-        (datalayer_extended.stellantisECMP.pid_17 == 255 ? "N/A" : String(datalayer_extended.stellantisECMP.pid_17)) +
-        "</h4>";
+    content += "<h4>Contactor weld check: ";
+    if (datalayer_extended.stellantisECMP.pid_welding_detection == 0) {
+      content += "OK</h4>";
+    } else if (datalayer_extended.stellantisECMP.pid_welding_detection == 255) {
+      content += "N/A</h4>";
+    } else {  //Problem
+      content += "WELDED!" + String(datalayer_extended.stellantisECMP.pid_welding_detection) + "</h4>";
+    }
+
+    content += "<h4>Contactor opening reason: ";
+    if (datalayer_extended.stellantisECMP.pid_reason_open == 7) {
+      content += "Invalid Status</h4>";
+    } else if (datalayer_extended.stellantisECMP.pid_reason_open == 255) {
+      content += "N/A</h4>";
+    } else {  //Problem (Also status 0 might be OK?)
+      content += "Unknown" + String(datalayer_extended.stellantisECMP.pid_reason_open) + "</h4>";
+    }
+
+    content += "<h4>Status of power switch: " +
+               (datalayer_extended.stellantisECMP.pid_contactor_status == 255
+                    ? "N/A"
+                    : String(datalayer_extended.stellantisECMP.pid_contactor_status)) +
+               "</h4>";
+    content += "<h4>Negative power switch control: " +
+               (datalayer_extended.stellantisECMP.pid_negative_contactor_control == 255
+                    ? "N/A"
+                    : String(datalayer_extended.stellantisECMP.pid_negative_contactor_control)) +
+               "</h4>";
+    content += "<h4>Negative power switch status: " +
+               (datalayer_extended.stellantisECMP.pid_negative_contactor_status == 255
+                    ? "N/A"
+                    : String(datalayer_extended.stellantisECMP.pid_negative_contactor_status)) +
+               "</h4>";
+    content += "<h4>Positive power switch control: " +
+               (datalayer_extended.stellantisECMP.pid_positive_contactor_control == 255
+                    ? "N/A"
+                    : String(datalayer_extended.stellantisECMP.pid_positive_contactor_control)) +
+               "</h4>";
+    content += "<h4>Positive power switch status: " +
+               (datalayer_extended.stellantisECMP.pid_positive_contactor_status == 255
+                    ? "N/A"
+                    : String(datalayer_extended.stellantisECMP.pid_positive_contactor_status)) +
+               "</h4>";
+    content += "<h4>Contactor negative: " +
+               (datalayer_extended.stellantisECMP.pid_contactor_negative == 255
+                    ? "N/A"
+                    : String(datalayer_extended.stellantisECMP.pid_contactor_negative)) +
+               "</h4>";
+    content += "<h4>Contactor positive: " +
+               (datalayer_extended.stellantisECMP.pid_contactor_positive == 255
+                    ? "N/A"
+                    : String(datalayer_extended.stellantisECMP.pid_contactor_positive)) +
+               "</h4>";
+    content += "<h4>Precharge control: " +
+               (datalayer_extended.stellantisECMP.pid_precharge_relay_control == 255
+                    ? "N/A"
+                    : String(datalayer_extended.stellantisECMP.pid_precharge_relay_control)) +
+               "</h4>";
+    content += "<h4>Precharge status: " +
+               (datalayer_extended.stellantisECMP.pid_precharge_relay_status == 255
+                    ? "N/A"
+                    : String(datalayer_extended.stellantisECMP.pid_precharge_relay_status)) +
+               "</h4>";
+    content += "<h4>Recharge Status: " +
+               (datalayer_extended.stellantisECMP.pid_recharge_status == 255
+                    ? "N/A"
+                    : String(datalayer_extended.stellantisECMP.pid_recharge_status)) +
+               "</h4>";
+    content += "<h4>Delta temperature: " +
+               (datalayer_extended.stellantisECMP.pid_delta_temperature == 255
+                    ? "N/A"
+                    : String(datalayer_extended.stellantisECMP.pid_delta_temperature)) +
+               "</h4>";
+    content += "<h4>Coldest module: " +
+               (datalayer_extended.stellantisECMP.pid_coldest_module == 255
+                    ? "N/A"
+                    : String(datalayer_extended.stellantisECMP.pid_coldest_module)) +
+               "</h4>";
+    content += "<h4>Lowest temperature: " +
+               (datalayer_extended.stellantisECMP.pid_lowest_temperature == 255
+                    ? "N/A"
+                    : String(datalayer_extended.stellantisECMP.pid_lowest_temperature)) +
+               "</h4>";
+    content += "<h4>Average temperature: " +
+               (datalayer_extended.stellantisECMP.pid_average_temperature == 255
+                    ? "N/A"
+                    : String(datalayer_extended.stellantisECMP.pid_average_temperature)) +
+               "</h4>";
+    content += "<h4>Highest temperature: " +
+               (datalayer_extended.stellantisECMP.pid_highest_temperature == 255
+                    ? "N/A"
+                    : String(datalayer_extended.stellantisECMP.pid_highest_temperature)) +
+               "</h4>";
+    content += "<h4>Hottest module: " +
+               (datalayer_extended.stellantisECMP.pid_hottest_module == 255
+                    ? "N/A"
+                    : String(datalayer_extended.stellantisECMP.pid_hottest_module)) +
+               "</h4>";
     content += "<h4>Average cell voltage: " +
                (datalayer_extended.stellantisECMP.pid_avg_cell_voltage == 255
                     ? "N/A"
@@ -582,30 +608,36 @@ String advanced_battery_processor(const String& var) {
         "<h4>PID22: " +
         (datalayer_extended.stellantisECMP.pid_22 == 255 ? "N/A" : String(datalayer_extended.stellantisECMP.pid_22)) +
         "</h4>";
-    content +=
-        "<h4>PID23: " +
-        (datalayer_extended.stellantisECMP.pid_23 == 255 ? "N/A" : String(datalayer_extended.stellantisECMP.pid_23)) +
-        "</h4>";
-    content +=
-        "<h4>PID24: " +
-        (datalayer_extended.stellantisECMP.pid_24 == 255 ? "N/A" : String(datalayer_extended.stellantisECMP.pid_24)) +
-        "</h4>";
-    content +=
-        "<h4>PID25: " +
-        (datalayer_extended.stellantisECMP.pid_25 == 255 ? "N/A" : String(datalayer_extended.stellantisECMP.pid_25)) +
-        "</h4>";
-    content +=
-        "<h4>PID26: " +
-        (datalayer_extended.stellantisECMP.pid_26 == 255 ? "N/A" : String(datalayer_extended.stellantisECMP.pid_26)) +
-        "</h4>";
-    content +=
-        "<h4>PID27: " +
-        (datalayer_extended.stellantisECMP.pid_27 == 255 ? "N/A" : String(datalayer_extended.stellantisECMP.pid_27)) +
-        "</h4>";
-    content +=
-        "<h4>PID28: " +
-        (datalayer_extended.stellantisECMP.pid_28 == 255 ? "N/A" : String(datalayer_extended.stellantisECMP.pid_28)) +
-        "</h4>";
+    content += "<h4>Max discharge power 10s: " +
+               (datalayer_extended.stellantisECMP.pid_max_discharge_10s == 255
+                    ? "N/A"
+                    : String(datalayer_extended.stellantisECMP.pid_max_discharge_10s)) +
+               "</h4>";
+    content += "<h4>Max discharge power 30s: " +
+               (datalayer_extended.stellantisECMP.pid_max_discharge_30s == 255
+                    ? "N/A"
+                    : String(datalayer_extended.stellantisECMP.pid_max_discharge_30s)) +
+               "</h4>";
+    content += "<h4>Max charge power 10s: " +
+               (datalayer_extended.stellantisECMP.pid_max_charge_10s == 255
+                    ? "N/A"
+                    : String(datalayer_extended.stellantisECMP.pid_max_charge_10s)) +
+               "</h4>";
+    content += "<h4>Max charge power 30s: " +
+               (datalayer_extended.stellantisECMP.pid_max_charge_30s == 255
+                    ? "N/A"
+                    : String(datalayer_extended.stellantisECMP.pid_max_charge_30s)) +
+               "</h4>";
+    content += "<h4>Energy capacity: " +
+               (datalayer_extended.stellantisECMP.pid_energy_capacity == 255
+                    ? "N/A"
+                    : String(datalayer_extended.stellantisECMP.pid_energy_capacity)) +
+               "</h4>";
+    content += "<h4>Highest cell number: " +
+               (datalayer_extended.stellantisECMP.pid_highest_cell_voltage_num == 255
+                    ? "N/A"
+                    : String(datalayer_extended.stellantisECMP.pid_highest_cell_voltage_num)) +
+               "</h4>";
     content += "<h4>Lowest cell voltage number: " +
                (datalayer_extended.stellantisECMP.pid_lowest_cell_voltage_num == 255
                     ? "N/A"
@@ -616,14 +648,16 @@ String advanced_battery_processor(const String& var) {
                     ? "N/A"
                     : String(datalayer_extended.stellantisECMP.pid_sum_of_cells)) +
                " dV</h4>";
-    content +=
-        "<h4>PID31: " +
-        (datalayer_extended.stellantisECMP.pid_31 == 255 ? "N/A" : String(datalayer_extended.stellantisECMP.pid_31)) +
-        "</h4>";
-    content +=
-        "<h4>PID32: " +
-        (datalayer_extended.stellantisECMP.pid_32 == 255 ? "N/A" : String(datalayer_extended.stellantisECMP.pid_32)) +
-        "</h4>";
+    content += "<h4>Cell min capacity: " +
+               (datalayer_extended.stellantisECMP.pid_cell_min_capacity == 255
+                    ? "N/A"
+                    : String(datalayer_extended.stellantisECMP.pid_cell_min_capacity)) +
+               "</h4>";
+    content += "<h4>Cell voltage measurement status: " +
+               (datalayer_extended.stellantisECMP.pid_cell_voltage_measurement_status == 255
+                    ? "N/A"
+                    : String(datalayer_extended.stellantisECMP.pid_cell_voltage_measurement_status)) +
+               "</h4>";
     content += "<h4>Battery Insulation Resistance: " +
                (datalayer_extended.stellantisECMP.pid_insulation_res == 255
                     ? "N/A"
@@ -644,10 +678,11 @@ String advanced_battery_processor(const String& var) {
                     ? "N/A"
                     : String(datalayer_extended.stellantisECMP.pid_low_cell_voltage)) +
                " mV</h4>";
-    content +=
-        "<h4>PID38: " +
-        (datalayer_extended.stellantisECMP.pid_38 == 255 ? "N/A" : String(datalayer_extended.stellantisECMP.pid_38)) +
-        "</h4>";
+    content += "<h4>Battery Energy: " +
+               (datalayer_extended.stellantisECMP.pid_battery_energy == 255
+                    ? "N/A"
+                    : String(datalayer_extended.stellantisECMP.pid_battery_energy)) +
+               "</h4>";
     content +=
         "<h4>Collision information Counter recieved by CAN: " +
         (datalayer_extended.stellantisECMP.pid_40 == 255 ? "N/A" : String(datalayer_extended.stellantisECMP.pid_40)) +
