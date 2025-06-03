@@ -111,7 +111,6 @@ void EcmpBattery::handle_incoming_can_frame(CAN_frame rx_frame) {
   datalayer.battery.status.CAN_battery_still_alive = CAN_STILL_ALIVE;
   switch (rx_frame.ID) {
     case 0x125:  //Common
-      battery_started_up = true;
       battery_soc = (rx_frame.data.u8[0] << 2) |
                     (rx_frame.data.u8[1] >> 6);  // Byte1, bit 7 length 10 (0x3FE when abnormal) (0-1000 ppt)
       battery_MainConnectorState = ((rx_frame.data.u8[2] & 0x18) >>
@@ -301,36 +300,42 @@ void EcmpBattery::handle_incoming_can_frame(CAN_frame rx_frame) {
       cellvoltages[83] = (rx_frame.data.u8[6] << 8) | rx_frame.data.u8[7];
       break;
     case 0x6FA:
+      battery_started_up = true;
       cellvoltages[84] = (rx_frame.data.u8[0] << 8) | rx_frame.data.u8[1];
       cellvoltages[85] = (rx_frame.data.u8[2] << 8) | rx_frame.data.u8[3];
       cellvoltages[86] = (rx_frame.data.u8[4] << 8) | rx_frame.data.u8[5];
       cellvoltages[87] = (rx_frame.data.u8[6] << 8) | rx_frame.data.u8[7];
       break;
     case 0x6FB:
+      battery_started_up = true;
       cellvoltages[88] = (rx_frame.data.u8[0] << 8) | rx_frame.data.u8[1];
       cellvoltages[89] = (rx_frame.data.u8[2] << 8) | rx_frame.data.u8[3];
       cellvoltages[90] = (rx_frame.data.u8[4] << 8) | rx_frame.data.u8[5];
       cellvoltages[91] = (rx_frame.data.u8[6] << 8) | rx_frame.data.u8[7];
       break;
     case 0x6FC:
+      battery_started_up = true;
       cellvoltages[92] = (rx_frame.data.u8[0] << 8) | rx_frame.data.u8[1];
       cellvoltages[93] = (rx_frame.data.u8[2] << 8) | rx_frame.data.u8[3];
       cellvoltages[94] = (rx_frame.data.u8[4] << 8) | rx_frame.data.u8[5];
       cellvoltages[95] = (rx_frame.data.u8[6] << 8) | rx_frame.data.u8[7];
       break;
     case 0x6FD:
+      battery_started_up = true;
       cellvoltages[96] = (rx_frame.data.u8[0] << 8) | rx_frame.data.u8[1];
       cellvoltages[97] = (rx_frame.data.u8[2] << 8) | rx_frame.data.u8[3];
       cellvoltages[98] = (rx_frame.data.u8[4] << 8) | rx_frame.data.u8[5];
       cellvoltages[99] = (rx_frame.data.u8[6] << 8) | rx_frame.data.u8[7];
       break;
     case 0x6FE:
+      battery_started_up = true;
       cellvoltages[100] = (rx_frame.data.u8[0] << 8) | rx_frame.data.u8[1];
       cellvoltages[101] = (rx_frame.data.u8[2] << 8) | rx_frame.data.u8[3];
       cellvoltages[102] = (rx_frame.data.u8[4] << 8) | rx_frame.data.u8[5];
       cellvoltages[103] = (rx_frame.data.u8[6] << 8) | rx_frame.data.u8[7];
       break;
     case 0x6FF:
+      battery_started_up = true;
       cellvoltages[104] = (rx_frame.data.u8[0] << 8) | rx_frame.data.u8[1];
       cellvoltages[105] = (rx_frame.data.u8[2] << 8) | rx_frame.data.u8[3];
       cellvoltages[106] = (rx_frame.data.u8[4] << 8) | rx_frame.data.u8[5];

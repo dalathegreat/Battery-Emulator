@@ -288,11 +288,7 @@ class EcmpBattery : public CanBattery {
                         .DLC = 3,
                         .ID = 0x6B4,
                         .data = {0x30, 0x00, 0x00}};
-  CAN_frame ECMP_DIAG_START = {.FD = false,
-                               .ext_ID = false,
-                               .DLC = 8,
-                               .ID = 0x6B4,
-                               .data = {0x02, 0x10, 0x03, 0x00, 0x00, 0x00, 0x00, 0x00}};
+  CAN_frame ECMP_DIAG_START = {.FD = false, .ext_ID = false, .DLC = 3, .ID = 0x6B4, .data = {0x02, 0x10, 0x03}};
   CAN_frame ECMP_CONTACTOR_RESET_START = {.FD = false,
                                           .ext_ID = false,
                                           .DLC = 8,
@@ -330,14 +326,14 @@ class EcmpBattery : public CanBattery {
                                .data = {0x02, 0x3E, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00}};
   CAN_frame ECMP_FACTORY_MODE_ACTIVATION = {.FD = false,
                                             .ext_ID = false,
-                                            .DLC = 8,
+                                            .DLC = 5,
                                             .ID = 0x6B4,
-                                            .data = {0x04, 0x2E, 0xD9, 0x00, 0x01, 0x00, 0x00, 0x00}};
+                                            .data = {0x04, 0x2E, 0xD9, 0x00, 0x01}};
   CAN_frame ECMP_DISABLE_ISOLATION_REQ = {.FD = false,
                                           .ext_ID = false,
-                                          .DLC = 8,
+                                          .DLC = 5,
                                           .ID = 0x6B4,
-                                          .data = {0x04, 0x31, 0x02, 0xDF, 0xE1, 0x00, 0x00, 0x00}};
+                                          .data = {0x04, 0x31, 0x02, 0xDF, 0xE1}};
   uint8_t data_010_CRC[8] = {0xB4, 0x96, 0x78, 0x5A, 0x3C, 0x1E, 0xF0, 0xD2};
   uint8_t data_3A2_CRC[16] = {0x08, 0x17, 0x26, 0x35, 0x44, 0x53, 0x62, 0x71,
                               0x80, 0x9F, 0xAE, 0xBD, 0xCC, 0xDB, 0xEA, 0xF9};
