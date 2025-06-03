@@ -291,39 +291,35 @@ class EcmpBattery : public CanBattery {
   CAN_frame ECMP_DIAG_START = {.FD = false, .ext_ID = false, .DLC = 3, .ID = 0x6B4, .data = {0x02, 0x10, 0x03}};
   CAN_frame ECMP_CONTACTOR_RESET_START = {.FD = false,
                                           .ext_ID = false,
-                                          .DLC = 8,
+                                          .DLC = 5,
                                           .ID = 0x6B4,
-                                          .data = {0x04, 0x31, 0x01, 0xDD, 0x35, 0x00, 0x00, 0x00}};
+                                          .data = {0x04, 0x31, 0x01, 0xDD, 0x35}};
   CAN_frame ECMP_CONTACTOR_RESET_PROGRESS = {.FD = false,
                                              .ext_ID = false,
-                                             .DLC = 8,
+                                             .DLC = 5,
                                              .ID = 0x6B4,
-                                             .data = {0x04, 0x31, 0x03, 0xDD, 0x35, 0x00, 0x00, 0x00}};
+                                             .data = {0x04, 0x31, 0x03, 0xDD, 0x35}};
   CAN_frame ECMP_COLLISION_RESET_START = {.FD = false,
                                           .ext_ID = false,
-                                          .DLC = 8,
+                                          .DLC = 5,
                                           .ID = 0x6B4,
-                                          .data = {0x04, 0x31, 0x01, 0xDF, 0x60, 0x00, 0x00, 0x00}};
+                                          .data = {0x04, 0x31, 0x01, 0xDF, 0x60}};
   CAN_frame ECMP_COLLISION_RESET_PROGRESS = {.FD = false,
                                              .ext_ID = false,
-                                             .DLC = 8,
+                                             .DLC = 5,
                                              .ID = 0x6B4,
-                                             .data = {0x04, 0x31, 0x03, 0xDF, 0x60, 0x00, 0x00, 0x00}};
+                                             .data = {0x04, 0x31, 0x03, 0xDF, 0x60}};
   CAN_frame ECMP_ISOLATION_RESET_START = {.FD = false,
                                           .ext_ID = false,
-                                          .DLC = 8,
+                                          .DLC = 5,
                                           .ID = 0x6B4,
-                                          .data = {0x04, 0x31, 0x01, 0xDF, 0x46, 0x00, 0x00, 0x00}};
+                                          .data = {0x04, 0x31, 0x01, 0xDF, 0x46}};
   CAN_frame ECMP_ISOLATION_RESET_PROGRESS = {.FD = false,
                                              .ext_ID = false,
                                              .DLC = 8,
                                              .ID = 0x6B4,
-                                             .data = {0x04, 0x31, 0x03, 0xDF, 0x46, 0x00, 0x00, 0x00}};
-  CAN_frame ECMP_RESET_DONE = {.FD = false,
-                               .ext_ID = false,
-                               .DLC = 8,
-                               .ID = 0x6B4,
-                               .data = {0x02, 0x3E, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00}};
+                                             .data = {0x04, 0x31, 0x03, 0xDF, 0x46}};
+  CAN_frame ECMP_RESET_DONE = {.FD = false, .ext_ID = false, .DLC = 3, .ID = 0x6B4, .data = {0x02, 0x3E, 0x00}};
   CAN_frame ECMP_FACTORY_MODE_ACTIVATION = {.FD = false,
                                             .ext_ID = false,
                                             .DLC = 5,
