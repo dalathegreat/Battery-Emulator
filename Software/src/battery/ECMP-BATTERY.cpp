@@ -346,7 +346,7 @@ void EcmpBattery::handle_incoming_can_frame(CAN_frame rx_frame) {
 
       // Handle user requested functionality first if ongoing
       if (datalayer_extended.stellantisECMP.UserRequestContactorReset) {
-        if (rx_frame.data.u8[5] == 0x01) {  //Reset in progress
+        if (rx_frame.data.u8[0] == 0x06) {  //Reset in progress (we should listen to more bits)
           transmit_can_frame(&ECMP_CONTACTOR_RESET_PROGRESS, can_config.battery);
         }
         if (rx_frame.data.u8[5] == 0x02) {  //Completed
@@ -355,7 +355,7 @@ void EcmpBattery::handle_incoming_can_frame(CAN_frame rx_frame) {
           ContactorResetStatemachine = STOPPED;
         }
       } else if (datalayer_extended.stellantisECMP.UserRequestCollisionReset) {
-        if (rx_frame.data.u8[5] == 0x01) {  //Reset in progress
+        if (rx_frame.data.u8[0] == 0x06) {  //Reset in progress (we should listen to more bits)
           transmit_can_frame(&ECMP_COLLISION_RESET_PROGRESS, can_config.battery);
         }
         if (rx_frame.data.u8[5] == 0x02) {  //Completed
@@ -364,7 +364,7 @@ void EcmpBattery::handle_incoming_can_frame(CAN_frame rx_frame) {
           CollisionResetStatemachine = STOPPED;
         }
       } else if (datalayer_extended.stellantisECMP.UserRequestIsolationReset) {
-        if (rx_frame.data.u8[5] == 0x01) {  //Reset in progress
+        if (rx_frame.data.u8[0] == 0x06) {  //Reset in progress (we should listen to more bits)
           transmit_can_frame(&ECMP_ISOLATION_RESET_PROGRESS, can_config.battery);
         }
         if (rx_frame.data.u8[5] == 0x02) {  //Completed
@@ -680,7 +680,9 @@ void EcmpBattery::transmit_can(unsigned long currentMillis) {
   if (currentMillis - previousMillis200 >= INTERVAL_200_MS) {
     previousMillis200 = currentMillis;
 
-    if (battery_started_up && (FactoryModeStatemachine < COMPLETED)) {
+    //To be able to use the battery, isolation monitoring needs to be disabled
+    //Failure to do this results in the contactors opening after 30 seconds with load
+    if (battery_started_up && (FactoryModeStatemachine < COMPLETED_STATE)) {
       if (FactoryModeStatemachine == 0) {
         transmit_can_frame(&ECMP_DIAG_START, can_config.battery);
       }
@@ -690,7 +692,6 @@ void EcmpBattery::transmit_can(unsigned long currentMillis) {
       if (FactoryModeStatemachine == 2) {
         transmit_can_frame(&ECMP_DISABLE_ISOLATION_REQ, can_config.battery);
       }
-
       FactoryModeStatemachine++;
     }
 
@@ -744,7 +745,7 @@ void EcmpBattery::transmit_can(unsigned long currentMillis) {
 
     } else {
 
-      if (FactoryModeStatemachine >= COMPLETED) {
+      if (FactoryModeStatemachine >= COMPLETED_STATE) {
         //Normal PID polling goes here
         switch (poll_state) {
           case PID_WELD_CHECK:

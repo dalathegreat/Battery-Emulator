@@ -23,7 +23,7 @@ class EcmpBattery : public CanBattery {
   static const int MIN_CELL_VOLTAGE_MV = 2700;
 #define STOPPED 0
 #define NOT_SAMPLED_YET 255
-#define COMPLETED 5
+#define COMPLETED_STATE 5
   bool battery_started_up = false;
   bool battery_RelayOpenRequest = false;
   bool battery_InterlockOpen = false;
