@@ -23,7 +23,7 @@ class EcmpBattery : public CanBattery {
   static const int MIN_CELL_VOLTAGE_MV = 2700;
 #define STOPPED 0
 #define NOT_SAMPLED_YET 255
-#define COMPLETED_STATE 5
+#define COMPLETED_STATE 25
   bool battery_started_up = false;
   bool battery_RelayOpenRequest = false;
   bool battery_InterlockOpen = false;
@@ -90,12 +90,13 @@ class EcmpBattery : public CanBattery {
   uint8_t pid_41 = NOT_SAMPLED_YET;
   uint8_t pid_42 = NOT_SAMPLED_YET;
 
-  unsigned long previousMillis10 = 0;    // will store last time a 10ms CAN Message was sent
-  unsigned long previousMillis20 = 0;    // will store last time a 20ms CAN Message was sent
-  unsigned long previousMillis50 = 0;    // will store last time a 50ms CAN Message was sent
-  unsigned long previousMillis100 = 0;   // will store last time a 100ms CAN Message was sent
-  unsigned long previousMillis200 = 0;   // will store last time a 200ms CAN Message was sent
-  unsigned long previousMillis1000 = 0;  // will store last time a 1000ms CAN Message was sent
+  unsigned long previousMillis10 = 0;     // will store last time a 10ms CAN Message was sent
+  unsigned long previousMillis20 = 0;     // will store last time a 20ms CAN Message was sent
+  unsigned long previousMillis50 = 0;     // will store last time a 50ms CAN Message was sent
+  unsigned long previousMillis100 = 0;    // will store last time a 100ms CAN Message was sent
+  unsigned long previousMillis250 = 0;    // will store last time a 250ms CAN Message was sent
+  unsigned long previousMillis1000 = 0;   // will store last time a 1000ms CAN Message was sent
+  unsigned long previousMillis10000 = 0;  // will store last time a 1000ms CAN Message was sent
 
 #define PID_WELD_CHECK 0xD814
 #define PID_CONT_REASON_OPEN 0xD812

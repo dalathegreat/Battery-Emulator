@@ -676,9 +676,9 @@ void EcmpBattery::transmit_can(unsigned long currentMillis) {
     transmit_can_frame(&ECMP_31D, can_config.battery);
     transmit_can_frame(&ECMP_3D0, can_config.battery);  //Not in logs, but makes speed go to 0km/h
   }
-  // Send 200ms CAN Message
-  if (currentMillis - previousMillis200 >= INTERVAL_200_MS) {
-    previousMillis200 = currentMillis;
+  // Send 250ms CAN Message
+  if (currentMillis - previousMillis250 >= INTERVAL_250_MS) {
+    previousMillis250 = currentMillis;
 
     //To be able to use the battery, isolation monitoring needs to be disabled
     //Failure to do this results in the contactors opening after 30 seconds with load
@@ -989,6 +989,12 @@ void EcmpBattery::transmit_can(unsigned long currentMillis) {
     transmit_can_frame(&ECMP_591, can_config.battery);  //Not in all logs
     transmit_can_frame(&ECMP_552, can_config.battery);  //Not in all logs
     transmit_can_frame(&ECMP_794, can_config.battery);  //Not in all logs
+  }
+  // Send 10s CAN Message
+  if (currentMillis - previousMillis10000 >= INTERVAL_10_S) {
+    previousMillis10000 = currentMillis;
+
+    FactoryModeStatemachine = 0;  //Test, forcing sending of turning off this every 10s
   }
 }
 
