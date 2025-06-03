@@ -28,10 +28,10 @@ At the same time, EV manufacturers have been putting high capacity battery packs
 2. Connect your Battery Emulator hardware to your inverter
 3. Wire up high voltage cable between the inverter and the battery
 4. Add a low voltage power supply to your Battery Emulator hardware
-5. Configure any additional requirements to allow Battery Emulator to switch on your EV battery
+5. Configure any additional requirements to allow Battery Emulator to switch on your EV battery (also referred to as 'closing contactors')
 6. Enjoy a big cheap grid connected battery!
 
-For examples showing wiring, see each battery types own Wiki page. For instance the [Nissan LEAF page](https://github.com/dalathegreat/Battery-Emulator/wiki/Battery:-Nissan-LEAF---e%E2%80%90NV200)
+For examples showing wiring, see each battery type's own Wiki page. For instance the [Nissan LEAF page](https://github.com/dalathegreat/Battery-Emulator/wiki/Battery:-Nissan-LEAF---e%E2%80%90NV200)
 
 ## How to compile the software 💻
 
