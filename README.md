@@ -5,37 +5,33 @@
 ![GitHub actions](https://img.shields.io/github/actions/workflow/status/dalathegreat/BYD-Battery-Emulator-For-Gen24/compile-all-batteries.yml?color=0E810E)
 ![Static Badge](https://img.shields.io/badge/made-with_love-blue?color=%23008000)
 
-This software enables EV battery packs to be used for stationary storage. It achieves this by converting the EV battery CAN data into a brand battery format that solar inverters can understand. This makes it extremely cheap and easy to use large EV batteries in a true plug'n'play fashion!
+## What is Battery Emulator?
+
+Many manufacturers sell home battery systems to enable homeowners to store power collected from the grid, or renewable sources, to use at times when electricity demand is higher. However almost all of these home battery systems charge a high cost for every kilowatt hour (kWh) of capacity you buy.
+
+At the same time, EV manufacturers have been putting high capacity battery packs into their cars, with no firm plan for what should happen to those batteries if the car is damaged in a crash, or reaches the end of its life as a vehicle.
+
+**Battery Emulator** enables EV battery packs to be repurposed for stationary storage. It acts as a translation layer between the EV battery and the home inverter. This makes it extremely cheap and easy to use large EV batteries in a true plug'n'play fashion!
 
 > [!CAUTION]
 > Working with high voltage is dangerous. Always follow local laws and regulations regarding high voltage work. If you are unsure about the rules in your country, consult a licensed electrician for more information.
 
-![Fronius](https://github.com/dalathegreat/Battery-Emulator/assets/26695010/741c3237-8074-4891-9cd1-f47f0fe45cb5)
-
 
 ## Quickstart guide 📜
-- Pick a [supported solar inverter](https://github.com/dalathegreat/Battery-Emulator/wiki#supported-inverters-list) (solar panels optional) :sun_with_face: 
+- Pick a [supported inverter](https://github.com/dalathegreat/Battery-Emulator/wiki#supported-inverters-list) (solar panels optional) :sun_with_face: 
 - Pick a [supported battery](https://github.com/dalathegreat/Battery-Emulator/wiki#supported-batteries-list) :battery: 
 - Order the Battery-Emulator [compatible hardware](https://github.com/dalathegreat/Battery-Emulator/wiki#where-do-i-get-the-hardware-needed) :robot: 
 - Follow the [installation guidelines](https://github.com/dalathegreat/Battery-Emulator/wiki/Installation-guidelines) section for how to install and commission your battery properly :notebook: 
 
 ## Installation basics 🪛
-1. Connect one end of the LilyGo RS485 to the Gen24 Modbus
-2. Connect the other end of the LilyGo to the CAN side of the battery
-3. Wire up high voltage cable between the Gen24 and the battery
-4. Add a 5-12V power source to power the LilyGo and 12V to the battery (uninterruptible PSU or 12V lead acid recommended in parallel)
-5. Some batteries need manual pre-charge circuit and positive/negative contactor control. Others are automatic. See the wiki for more info.
+1. Connect your Battery Emulator hardware to your EV battery
+2. Connect your Battery Emulator hardware to your inverter
+3. Wire up high voltage cable between the inverter and the battery
+4. Add a low voltage power supply to your Battery Emulator hardware
+5. Configure any additional requirements to allow Battery Emulator to switch on your EV battery
 6. Enjoy a big cheap grid connected battery!
 
-## Wiring example, LEAF battery 💡
-Here's how to wire up the communication between the components.
-![Wiring](https://github.com/dalathegreat/Battery-Emulator/assets/26695010/29edeeda-1002-4826-9183-39a027b3b9ed)
-
-
-Here's how to connect the high voltage lines
-![HighVoltageWiring](https://github.com/dalathegreat/Battery-Emulator/assets/26695010/f70e6262-d630-4148-9a39-dad32e79b3d6)
-
-For more examples showing wiring, see each battery types own Wiki page. For instance the [Nissan LEAF page](https://github.com/dalathegreat/Battery-Emulator/wiki/Battery:-Nissan-LEAF---e%E2%80%90NV200)
+For examples showing wiring, see each battery types own Wiki page. For instance the [Nissan LEAF page](https://github.com/dalathegreat/Battery-Emulator/wiki/Battery:-Nissan-LEAF---e%E2%80%90NV200)
 
 ## How to compile the software 💻
 
