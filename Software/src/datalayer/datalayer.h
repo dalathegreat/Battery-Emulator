@@ -310,12 +310,12 @@ typedef struct {
 
   /** True if the inverter allows for the contactors to close */
   bool inverter_allows_contactor_closing = true;
-#ifdef CONTACTOR_CONTROL
+
   /** True if the contactor controlled by battery-emulator is closed */
   bool contactors_engaged = false;
   /** True if the contactor controlled by battery-emulator is closed. Determined by check_interconnect_available(); if voltage is OK */
   bool contactors_battery2_engaged = false;
-#endif
+
   /** True if the BMS is being reset, by cutting power towards it */
   bool BMS_reset_in_progress = false;
   /** True if the BMS is starting up */

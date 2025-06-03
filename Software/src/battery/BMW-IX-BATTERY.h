@@ -2,6 +2,7 @@
 #define BMW_IX_BATTERY_H
 #include <Arduino.h>
 #include "../include.h"
+#include "BMW-IX-HTML.h"
 #include "CanBattery.h"
 
 #define BATTERY_SELECTED
@@ -13,8 +14,15 @@ class BmwIXBattery : public CanBattery {
   virtual void handle_incoming_can_frame(CAN_frame rx_frame);
   virtual void update_values();
   virtual void transmit_can(unsigned long currentMillis);
+  BatteryHtmlRenderer& get_status_renderer() { return renderer; }
+
+  bool supports_contactor_close() { return true; }
+
+  void request_open_contactors() { datalayer_extended.bmwix.UserRequestContactorOpen = true; }
+  void request_close_contactors() { datalayer_extended.bmwix.UserRequestContactorClose = true; }
 
  private:
+  BmwIXHtmlRenderer renderer;
   static const int MAX_PACK_VOLTAGE_DV = 4650;  //4650 = 465.0V
   static const int MIN_PACK_VOLTAGE_DV = 3000;
   static const int MAX_CELL_DEVIATION_MV = 250;

@@ -5,6 +5,7 @@
 #include "../datalayer/datalayer_extended.h"
 #include "../include.h"
 
+#include "BYD-ATTO-3-HTML.h"
 #include "CanBattery.h"
 
 #define USE_ESTIMATED_SOC  // If enabled, SOC is estimated from pack voltage. Useful for locked packs. \
@@ -33,18 +34,17 @@
 class BydAttoBattery : public CanBattery {
  public:
   // Use this constructor for the second battery.
-  BydAttoBattery(DATALAYER_BATTERY_TYPE* datalayer_ptr, DATALAYER_INFO_BYDATTO3* extended, int targetCan) {
+  BydAttoBattery(DATALAYER_BATTERY_TYPE* datalayer_ptr, DATALAYER_INFO_BYDATTO3* extended, CAN_Interface targetCan)
+      : CanBattery(targetCan), renderer(extended) {
     datalayer_battery = datalayer_ptr;
     datalayer_bydatto = extended;
     allows_contactor_closing = nullptr;
-    can_interface = targetCan;
   }
 
   // Use the default constructor to create the first or single battery.
-  BydAttoBattery() {
+  BydAttoBattery() : renderer(&datalayer_extended.bydAtto3) {
     datalayer_battery = &datalayer.battery;
     allows_contactor_closing = &datalayer.system.status.battery_allows_contactor_closing;
-    can_interface = can_config.battery;
     datalayer_bydatto = &datalayer_extended.bydAtto3;
   }
 
@@ -53,12 +53,17 @@ class BydAttoBattery : public CanBattery {
   virtual void update_values();
   virtual void transmit_can(unsigned long currentMillis);
 
+  bool supports_reset_crash() { return true; }
+
+  void reset_crash() { datalayer_bydatto->UserRequestCrashReset = true; }
+
+  BatteryHtmlRenderer& get_status_renderer() { return renderer; }
+
  private:
+  BydAtto3HtmlRenderer renderer;
   DATALAYER_BATTERY_TYPE* datalayer_battery;
   DATALAYER_INFO_BYDATTO3* datalayer_bydatto;
   bool* allows_contactor_closing;
-
-  int can_interface;
 
   static const int POLL_FOR_BATTERY_SOC = 0x0005;
   static const uint8_t NOT_DETERMINED_YET = 0;

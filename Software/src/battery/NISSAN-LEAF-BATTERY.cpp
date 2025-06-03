@@ -20,6 +20,11 @@ short ShortMaskedSumAndProduct(short param_1, short param_2);
 unsigned int MaskedBitwiseRotateMultiply(unsigned int param_1, unsigned int param_2);
 unsigned int CryptAlgo(unsigned int param_1, unsigned int param_2, unsigned int param_3);
 
+// Note this should only be allowed/used on 2011-2017 24/30kWh batteries!
+bool NissanLeafBattery::supports_reset_SOH() {
+  return LEAF_battery_Type != ZE1_BATTERY;
+}
+
 void NissanLeafBattery::
     update_values() { /* This function maps all the values fetched via CAN to the correct parameters used for modbus */
   /* Start with mapping all values */

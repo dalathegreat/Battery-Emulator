@@ -4,6 +4,7 @@
 #include "../include.h"
 
 #include "CanBattery.h"
+#include "VOLVO-SPA-HYBRID-HTML.h"
 
 #define BATTERY_SELECTED
 #define SELECTED_BATTERY_CLASS VolvoSpaHybridBattery
@@ -15,7 +16,19 @@ class VolvoSpaHybridBattery : public CanBattery {
   virtual void update_values();
   virtual void transmit_can(unsigned long currentMillis);
 
+  bool supports_reset_DTC() { return true; }
+  void reset_DTC() { datalayer_extended.VolvoHybrid.UserRequestDTCreset = true; }
+
+  bool supports_read_DTC() { return true; }
+  void read_DTC() { datalayer_extended.VolvoHybrid.UserRequestDTCreadout = true; }
+
+  bool supports_reset_BECM() { return true; }
+  void reset_BECM() { datalayer_extended.VolvoHybrid.UserRequestBECMecuReset = true; }
+
+  BatteryHtmlRenderer& get_status_renderer() { return renderer; }
+
  private:
+  VolvoSpaHybridHtmlRenderer renderer;
   void readCellVoltages();
 
   static const int MAX_PACK_VOLTAGE_DV = 4294;  //5000 = 500.0V

@@ -4,6 +4,7 @@
 #include "../datalayer/datalayer_extended.h"
 #include "../include.h"
 #include "CanBattery.h"
+#include "GEELY-GEOMETRY-C-HTML.h"
 
 #define BATTERY_SELECTED
 #define SELECTED_BATTERY_CLASS GeelyGeometryCBattery
@@ -36,7 +37,10 @@ class GeelyGeometryCBattery : public CanBattery {
   virtual void update_values();
   virtual void transmit_can(unsigned long currentMillis);
 
+  BatteryHtmlRenderer& get_status_renderer() { return renderer; }
+
  private:
+  GeelyGeometryCHtmlRenderer renderer;
   const int MAX_PACK_VOLTAGE_70_DV 4420                                            //70kWh
       const int MIN_PACK_VOLTAGE_70_DV 2860 const int MAX_PACK_VOLTAGE_53_DV 4160  //53kWh
       const int MIN_PACK_VOLTAGE_53_DV 2700 const int MAX_CELL_DEVIATION_MV 150 const int

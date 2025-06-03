@@ -5,6 +5,7 @@
 #include "../datalayer/datalayer_extended.h"
 #include "../include.h"
 #include "CanBattery.h"
+#include "NISSAN-LEAF-HTML.h"
 
 #define BATTERY_SELECTED
 #define SELECTED_BATTERY_CLASS NissanLeafBattery
@@ -19,11 +20,12 @@
 class NissanLeafBattery : public CanBattery {
  public:
   // Use this constructor for the second battery.
-  NissanLeafBattery(DATALAYER_BATTERY_TYPE* datalayer_ptr, DATALAYER_INFO_NISSAN_LEAF* extended, int targetCan) {
+  NissanLeafBattery(DATALAYER_BATTERY_TYPE* datalayer_ptr, DATALAYER_INFO_NISSAN_LEAF* extended,
+                    CAN_Interface targetCan)
+      : CanBattery(targetCan) {
     datalayer_battery = datalayer_ptr;
     allows_contactor_closing = nullptr;
     datalayer_nissan = extended;
-    can_interface = targetCan;
 
     battery_Total_Voltage2 = 0;
   }
@@ -33,7 +35,6 @@ class NissanLeafBattery : public CanBattery {
     datalayer_battery = &datalayer.battery;
     allows_contactor_closing = &datalayer.system.status.battery_allows_contactor_closing;
     datalayer_nissan = &datalayer_extended.nissanleaf;
-    can_interface = can_config.battery;
   }
 
   virtual void setup(void);
@@ -41,7 +42,15 @@ class NissanLeafBattery : public CanBattery {
   virtual void update_values();
   virtual void transmit_can(unsigned long currentMillis);
 
+  bool supports_reset_SOH();
+
+  void reset_SOH() { datalayer_extended.nissanleaf.UserRequestSOHreset = true; }
+
+  BatteryHtmlRenderer& get_status_renderer() { return renderer; }
+
  private:
+  NissanLeafHtmlRenderer renderer;
+
   bool is_message_corrupt(CAN_frame rx_frame);
   void clearSOH(void);
 
@@ -51,14 +60,16 @@ class NissanLeafBattery : public CanBattery {
   // If not null, this battery decides when the contactor can be closed and writes the value here.
   bool* allows_contactor_closing;
 
-  int can_interface;
-
   unsigned long previousMillis10 = 0;   // will store last time a 10ms CAN Message was send
   unsigned long previousMillis100 = 0;  // will store last time a 100ms CAN Message was send
   unsigned long previousMillis10s = 0;  // will store last time a 1s CAN Message was send
   uint8_t mprun10r = 0;                 //counter 0-20 for 0x1F2 message
   uint8_t mprun10 = 0;                  //counter 0-3
   uint8_t mprun100 = 0;                 //counter 0-3
+
+  static const int ZE0_BATTERY = 0;
+  static const int AZE0_BATTERY = 1;
+  static const int ZE1_BATTERY = 2;
 
   // These CAN messages need to be sent towards the battery to keep it alive
   CAN_frame LEAF_1F2 = {.FD = false,
@@ -116,10 +127,7 @@ class NissanLeafBattery : public CanBattery {
       196, 65,  75,  206, 76,  201, 195, 70,  215, 82,  88,  221, 255, 122, 112, 245, 100, 225, 235, 110, 175, 42,
       32,  165, 52,  177, 187, 62,  28,  153, 147, 22,  135, 2,   8,   141};
 
-//Nissan LEAF battery parameters from constantly sent CAN
-#define ZE0_BATTERY 0
-#define AZE0_BATTERY 1
-#define ZE1_BATTERY 2
+  //Nissan LEAF battery parameters from constantly sent CAN
   uint8_t LEAF_battery_Type = ZE0_BATTERY;
   bool battery_can_alive = false;
 #define WH_PER_GID 77                          //One GID is this amount of Watt hours

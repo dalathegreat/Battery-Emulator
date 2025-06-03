@@ -2,6 +2,7 @@
 #define CELLPOWER_BMS_H
 #include <Arduino.h>
 #include "../include.h"
+#include "CELLPOWER-HTML.h"
 #include "CanBattery.h"
 
 #define BATTERY_SELECTED
@@ -14,7 +15,10 @@ class CellPowerBms : public CanBattery {
   virtual void update_values();
   virtual void transmit_can(unsigned long currentMillis);
 
+  BatteryHtmlRenderer& get_status_renderer() { return renderer; }
+
  private:
+  CellpowerHtmlRenderer renderer;
   /* Tweak these according to your battery build */
   static const int MAX_PACK_VOLTAGE_DV = 5000;  //5000 = 500.0V
   static const int MIN_PACK_VOLTAGE_DV = 1500;

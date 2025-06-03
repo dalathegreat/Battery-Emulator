@@ -4,6 +4,7 @@
 #include "../include.h"
 
 #include "CanBattery.h"
+#include "ECMP-HTML.h"
 
 #define BATTERY_SELECTED
 #define SELECTED_BATTERY_CLASS EcmpBattery
@@ -15,7 +16,10 @@ class EcmpBattery : public CanBattery {
   virtual void update_values();
   virtual void transmit_can(unsigned long currentMillis);
 
+  BatteryHtmlRenderer& get_status_renderer() { return renderer; }
+
  private:
+  EcmpHtmlRenderer renderer;
   static const int MAX_PACK_VOLTAGE_DV = 4546;
   static const int MIN_PACK_VOLTAGE_DV = 3210;
   static const int MAX_CELL_DEVIATION_MV = 100;
