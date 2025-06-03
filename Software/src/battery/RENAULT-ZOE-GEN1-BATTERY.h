@@ -2,6 +2,7 @@
 #define RENAULT_ZOE_GEN1_BATTERY_H
 
 #include "CanBattery.h"
+#include "RENAULT-ZOE-GEN1-HTML.h"
 
 #define BATTERY_SELECTED
 #define SELECTED_BATTERY_CLASS RenaultZoeGen1Battery
@@ -18,6 +19,11 @@ class RenaultZoeGen1Battery : public CanBattery {
   virtual void handle_incoming_can_frame(CAN_frame rx_frame);
   virtual void update_values();
   virtual void transmit_can(unsigned long currentMillis);
+
+  BatteryHtmlRenderer& get_status_renderer() { return renderer; }
+
+ private:
+  RenaultZoeGen1HtmlRenderer renderer;
 };
 
 #endif

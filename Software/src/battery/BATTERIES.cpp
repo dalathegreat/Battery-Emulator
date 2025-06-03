@@ -11,11 +11,8 @@
 // to support battery class selection at compile-time
 #ifdef SELECTED_BATTERY_CLASS
 
-static Battery* battery = nullptr;
-
-#ifdef DOUBLE_BATTERY
-static Battery* battery2 = nullptr;
-#endif
+Battery* battery = nullptr;
+Battery* battery2 = nullptr;
 
 void setup_battery() {
   // Instantiate the battery only once just in case this function gets called multiple times.

@@ -2,6 +2,7 @@
 #define CMFA_EV_BATTERY_H
 #include "../include.h"
 
+#include "CMFA-EV-HTML.h"
 #include "CanBattery.h"
 
 #define BATTERY_SELECTED
@@ -14,7 +15,11 @@ class CmfaEvBattery : public CanBattery {
   virtual void update_values();
   virtual void transmit_can(unsigned long currentMillis);
 
+  BatteryHtmlRenderer& get_status_renderer() { return renderer; }
+
  private:
+  CmfaEvHtmlRenderer renderer;
+
   uint16_t rescale_raw_SOC(uint32_t raw_SOC);
 
   static const int MAX_PACK_VOLTAGE_DV = 3040;  // 5000 = 500.0V

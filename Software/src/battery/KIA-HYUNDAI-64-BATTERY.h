@@ -5,6 +5,7 @@
 #include "../datalayer/datalayer_extended.h"
 #include "../include.h"
 #include "CanBattery.h"
+#include "KIA-HYUNDAI-64-HTML.h"
 
 #define BATTERY_SELECTED
 #define SELECTED_BATTERY_CLASS KiaHyundai64Battery
@@ -13,20 +14,19 @@ class KiaHyundai64Battery : public CanBattery {
  public:
   // Use this constructor for the second battery.
   KiaHyundai64Battery(DATALAYER_BATTERY_TYPE* datalayer_ptr, DATALAYER_INFO_KIAHYUNDAI64* extended_ptr,
-                      bool* contactor_closing_allowed_ptr, int targetCan) {
+                      bool* contactor_closing_allowed_ptr, CAN_Interface targetCan)
+      : CanBattery(targetCan), renderer(extended_ptr) {
     datalayer_battery = datalayer_ptr;
     contactor_closing_allowed = contactor_closing_allowed_ptr;
     allows_contactor_closing = nullptr;
-    can_interface = targetCan;
     datalayer_battery_extended = extended_ptr;
   }
 
   // Use the default constructor to create the first or single battery.
-  KiaHyundai64Battery() {
+  KiaHyundai64Battery() : renderer(&datalayer_extended.KiaHyundai64) {
     datalayer_battery = &datalayer.battery;
     allows_contactor_closing = &datalayer.system.status.battery_allows_contactor_closing;
     contactor_closing_allowed = nullptr;
-    can_interface = can_config.battery;
     datalayer_battery_extended = &datalayer_extended.KiaHyundai64;
   }
 
@@ -35,7 +35,11 @@ class KiaHyundai64Battery : public CanBattery {
   virtual void update_values();
   virtual void transmit_can(unsigned long currentMillis);
 
+  BatteryHtmlRenderer& get_status_renderer() { return renderer; }
+
  private:
+  KiaHyundai64HtmlRenderer renderer;
+
   DATALAYER_BATTERY_TYPE* datalayer_battery;
   DATALAYER_INFO_KIAHYUNDAI64* datalayer_battery_extended;
 
@@ -44,8 +48,6 @@ class KiaHyundai64Battery : public CanBattery {
 
   // If not null, this battery listens to this boolean to determine whether contactor closing is allowed
   bool* contactor_closing_allowed;
-
-  int can_interface;
 
   void update_number_of_cells();
 

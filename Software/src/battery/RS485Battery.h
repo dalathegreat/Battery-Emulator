@@ -10,6 +10,8 @@ class RS485Battery : public Battery {
  public:
   virtual void receive_RS485() = 0;
   virtual void transmit_rs485(unsigned long currentMillis) = 0;
+  String interface_name() { return "RS485"; }
+
 };
 
 #endif

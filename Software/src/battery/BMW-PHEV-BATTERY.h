@@ -2,6 +2,7 @@
 #define BMW_PHEV_BATTERY_H
 #include <Arduino.h>
 #include "../include.h"
+#include "BMW-PHEV-HTML.h"
 #include "CanBattery.h"
 
 #define BATTERY_SELECTED
@@ -14,7 +15,11 @@ class BmwPhevBattery : public CanBattery {
   virtual void update_values();
   virtual void transmit_can(unsigned long currentMillis);
 
+  BatteryHtmlRenderer& get_status_renderer() { return renderer; }
+
  private:
+  BmwPhevHtmlRenderer renderer;
+
   static const int MAX_PACK_VOLTAGE_DV = 4650;  //4650 = 465.0V
   static const int MIN_PACK_VOLTAGE_DV = 3000;
   static const int MAX_CELL_DEVIATION_MV = 250;

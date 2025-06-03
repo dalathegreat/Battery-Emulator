@@ -3,6 +3,7 @@
 #include "../include.h"
 
 #include "CanBattery.h"
+#include "RENAULT-ZOE-GEN2-HTML.h"
 
 #define BATTERY_SELECTED
 #define SELECTED_BATTERY_CLASS RenaultZoeGen2Battery
@@ -14,7 +15,14 @@ class RenaultZoeGen2Battery : public CanBattery {
   virtual void update_values();
   virtual void transmit_can(unsigned long currentMillis);
 
+  bool supports_reset_NVROL() { return true; }
+
+  void reset_NVROL() { datalayer_extended.zoePH2.UserRequestNVROLReset = true; }
+
+  BatteryHtmlRenderer& get_status_renderer() { return renderer; }
+
  private:
+  RenaultZoeGen2HtmlRenderer renderer;
   static const int MAX_PACK_VOLTAGE_DV = 4100;  //5000 = 500.0V
   static const int MIN_PACK_VOLTAGE_DV = 3000;
   static const int MAX_CELL_DEVIATION_MV = 150;
