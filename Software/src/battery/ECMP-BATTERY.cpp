@@ -350,7 +350,8 @@ void EcmpBattery::handle_incoming_can_frame(CAN_frame rx_frame) {
         }
         if ((rx_frame.data.u8[0] == 0x03) && (rx_frame.data.u8[1] == 0x7F) && (rx_frame.data.u8[2] == 0x31)) {
           //UNKNOWN? 03,7F,31,24 (or 7F?)
-          DisableIsoMonitoringStatemachine = 4;  //Send ECMP_DISABLE_ISOLATION_REQ next loop
+          DisableIsoMonitoringStatemachine = COMPLETED_STATE;
+          datalayer_extended.stellantisECMP.UserRequestDisableIsoMonitoring = false;
         }
 
       } else if (datalayer_extended.stellantisECMP.UserRequestContactorReset) {
