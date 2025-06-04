@@ -462,6 +462,7 @@ String advanced_battery_processor(const String& var) {
     content += "<button onclick='askContactorResetStellantis()'>Contactor reset</button>";
     content += "<button onclick='askCollisionResetStellantis()'>Collision reset</button>";
     content += "<button onclick='askInsulationResetStellantis()'>Insulation reset</button>";
+    content += "<button onclick='askFactoryModeStellantis()'>Factory mode</button>";
     content += "<h4>Main Connector State: ";
     if (datalayer_extended.stellantisECMP.MainConnectorState == 0) {
       content += "Contactors open</h4>";
@@ -1880,6 +1881,19 @@ String advanced_battery_processor(const String& var) {
     content += "function InsulationResetStellantis() {";
     content += "  var xhr = new XMLHttpRequest();";
     content += "  xhr.open('GET', '/InsulationResetStellantis', true);";
+    content += "  xhr.send();";
+    content += "}";
+    content += "function goToMainPage() { window.location.href = '/'; }";
+    content += "</script>";
+
+    content += "<script>";
+    content +=
+        "function askFactoryModeStellantis() { if (window.confirm('Are you sure you want to disable "
+        "isolation monitoring and enter factory mode?')) { "
+        "FactoryModeStellantis(); } }";
+    content += "function FactoryModeStellantis() {";
+    content += "  var xhr = new XMLHttpRequest();";
+    content += "  xhr.open('GET', '/FactoryModeStellantis', true);";
     content += "  xhr.send();";
     content += "}";
     content += "function goToMainPage() { window.location.href = '/'; }";

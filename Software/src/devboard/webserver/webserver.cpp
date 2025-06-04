@@ -626,6 +626,15 @@ void init_webserver() {
     request->send(200, "text/plain", "Updated successfully");
   });
 
+  // Route for factory mode on Stellantis eCMP
+  server.on("/FactoryModeStellantis", HTTP_GET, [](AsyncWebServerRequest* request) {
+    if (WEBSERVER_AUTH_REQUIRED && !request->authenticate(http_username, http_password)) {
+      return request->requestAuthentication();
+    }
+    datalayer_extended.stellantisECMP.UserRequestDisableIsoMonitoring = true;
+    request->send(200, "text/plain", "Updated successfully");
+  });
+
   // Route for closing BMW iX Contactors
   server.on("/bmwIxCloseContactorRequest", HTTP_GET, [](AsyncWebServerRequest* request) {
     if (WEBSERVER_AUTH_REQUIRED && !request->authenticate(http_username, http_password)) {

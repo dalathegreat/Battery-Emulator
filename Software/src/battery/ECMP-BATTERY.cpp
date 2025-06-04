@@ -345,33 +345,77 @@ void EcmpBattery::handle_incoming_can_frame(CAN_frame rx_frame) {
     case 0x694:  // Poll reply
 
       // Handle user requested functionality first if ongoing
-      if (datalayer_extended.stellantisECMP.UserRequestContactorReset) {
-        if (rx_frame.data.u8[0] == 0x06) {  //Reset in progress (we should listen to more bits)
-          transmit_can_frame(&ECMP_CONTACTOR_RESET_PROGRESS, can_config.battery);
+      if (datalayer_extended.stellantisECMP.UserRequestDisableIsoMonitoring) {
+        if ((rx_frame.data.u8[0] == 0x06) && (rx_frame.data.u8[1] == 0x50) && (rx_frame.data.u8[2] == 0x03)) {
+          //06,50,03,00,C8,00,14,00,
+          DisableIsoMonitoringStatemachine = 2;  //Send ECMP_FACTORY_MODE_ACTIVATION next loop
         }
-        if (rx_frame.data.u8[5] == 0x02) {  //Completed
-          transmit_can_frame(&ECMP_RESET_DONE, can_config.battery);
+        if ((rx_frame.data.u8[0] == 0x03) && (rx_frame.data.u8[1] == 0x7F) && (rx_frame.data.u8[2] == 0x2E)) {
+          //UNKNOWN? 03,7F,2E,22 (or 7F?)
+          DisableIsoMonitoringStatemachine = 4;  //Send ECMP_DISABLE_ISOLATION_REQ next loop
+        }
+        if ((rx_frame.data.u8[0] == 0x03) && (rx_frame.data.u8[1] == 0x7F) && (rx_frame.data.u8[2] == 0x31)) {
+          //UNKNOWN? 03,7F,31,24 (or 7F?)
+          DisableIsoMonitoringStatemachine = 4;  //Send ECMP_DISABLE_ISOLATION_REQ next loop
+        }
+
+      } else if (datalayer_extended.stellantisECMP.UserRequestContactorReset) {
+        if ((rx_frame.data.u8[0] == 0x06) && (rx_frame.data.u8[1] == 0x50) && (rx_frame.data.u8[2] == 0x03)) {
+          //06,50,03,00,C8,00,14,00,
+          ContactorResetStatemachine = 2;  //Send ECMP_CONTACTOR_RESET_START next loop
+        }
+        if ((rx_frame.data.u8[0] == 0x05) && (rx_frame.data.u8[1] == 0x71) && (rx_frame.data.u8[2] == 0x01)) {
+          //05,71,01,DD,35,01,00,00,
+          ContactorResetStatemachine = 4;  //Send ECMP_CONTACTOR_RESET_PROGRESS next loop
+        }
+        if ((rx_frame.data.u8[0] == 0x05) && (rx_frame.data.u8[1] == 0x71) && (rx_frame.data.u8[2] == 0x03)) {
+          //05,71,03,DD,35,02,00,00,
+          ContactorResetStatemachine = COMPLETED_STATE;
           datalayer_extended.stellantisECMP.UserRequestContactorReset = false;
-          ContactorResetStatemachine = STOPPED;
         }
+
       } else if (datalayer_extended.stellantisECMP.UserRequestCollisionReset) {
-        if (rx_frame.data.u8[0] == 0x06) {  //Reset in progress (we should listen to more bits)
-          transmit_can_frame(&ECMP_COLLISION_RESET_PROGRESS, can_config.battery);
+        if ((rx_frame.data.u8[0] == 0x06) && (rx_frame.data.u8[1] == 0x50) && (rx_frame.data.u8[2] == 0x03)) {
+          //06,50,03,00,C8,00,14,00,
+          CollisionResetStatemachine = 2;  //Send ECMP_COLLISION_RESET_START next loop
         }
-        if (rx_frame.data.u8[5] == 0x02) {  //Completed
-          transmit_can_frame(&ECMP_RESET_DONE, can_config.battery);
-          datalayer_extended.stellantisECMP.UserRequestCollisionReset = false;
-          CollisionResetStatemachine = STOPPED;
+        if ((rx_frame.data.u8[0] == 0x05) && (rx_frame.data.u8[1] == 0x71) && (rx_frame.data.u8[2] == 0x01)) {
+          //05,71,01,DF,60,01,00,00,
+          CollisionResetStatemachine = 4;  //Send ECMP_COLLISION_RESET_PROGRESS next loop
         }
+        if ((rx_frame.data.u8[0] == 0x05) && (rx_frame.data.u8[1] == 0x71) && (rx_frame.data.u8[2] == 0x03)) {
+          if (rx_frame.data.u8[5] == 0x01) {
+            //05,71,03,DF,60,01,00,00,
+            CollisionResetStatemachine = 4;  //Send ECMP_COLLISION_RESET_PROGRESS next loop
+          }
+          if (rx_frame.data.u8[5] == 0x02) {
+            //05,71,03,DF,60,02,00,00,
+            CollisionResetStatemachine = COMPLETED_STATE;
+            datalayer_extended.stellantisECMP.UserRequestCollisionReset = false;
+          }
+        }
+
       } else if (datalayer_extended.stellantisECMP.UserRequestIsolationReset) {
-        if (rx_frame.data.u8[0] == 0x06) {  //Reset in progress (we should listen to more bits)
-          transmit_can_frame(&ECMP_ISOLATION_RESET_PROGRESS, can_config.battery);
+        if ((rx_frame.data.u8[0] == 0x06) && (rx_frame.data.u8[1] == 0x50) && (rx_frame.data.u8[2] == 0x03)) {
+          //06,50,03,00,C8,00,14,00,
+          IsolationResetStatemachine = 2;  //Send ECMP_ISOLATION_RESET_START next loop
         }
-        if (rx_frame.data.u8[5] == 0x02) {  //Completed
-          transmit_can_frame(&ECMP_RESET_DONE, can_config.battery);
-          datalayer_extended.stellantisECMP.UserRequestIsolationReset = false;
-          IsolationResetStatemachine = STOPPED;
+        if ((rx_frame.data.u8[0] == 0x05) && (rx_frame.data.u8[1] == 0x71) && (rx_frame.data.u8[2] == 0x01)) {
+          //05,71,01,DF,46,01,00,00,
+          IsolationResetStatemachine = 4;  //Send ECMP_ISOLATION_RESET_PROGRESS next loop
         }
+        if ((rx_frame.data.u8[0] == 0x05) && (rx_frame.data.u8[1] == 0x71) && (rx_frame.data.u8[2] == 0x03)) {
+          if (rx_frame.data.u8[5] == 0x01) {
+            //05,71,03,DF,46,01,00,00,
+            IsolationResetStatemachine = 4;  //Send ECMP_ISOLATION_RESET_PROGRESS next loop
+          }
+          if (rx_frame.data.u8[5] == 0x02) {
+            //05,71,03,DF,46,02,00,00,
+            IsolationResetStatemachine = COMPLETED_STATE;
+            datalayer_extended.stellantisECMP.UserRequestIsolationReset = false;
+          }
+        }
+
       } else {  //Normal PID polling ongoing
 
         if (rx_frame.data.u8[0] == 0x10) {  //Multiframe response, send ACK
@@ -682,70 +726,64 @@ void EcmpBattery::transmit_can(unsigned long currentMillis) {
 
     //To be able to use the battery, isolation monitoring needs to be disabled
     //Failure to do this results in the contactors opening after 30 seconds with load
-    if (battery_started_up && (FactoryModeStatemachine < COMPLETED_STATE)) {
-      if (FactoryModeStatemachine == 0) {
+    if (battery_started_up && datalayer_extended.stellantisECMP.UserRequestDisableIsoMonitoring) {
+      if (DisableIsoMonitoringStatemachine == 0) {
         transmit_can_frame(&ECMP_DIAG_START, can_config.battery);
+        DisableIsoMonitoringStatemachine = 1;
       }
-      if (FactoryModeStatemachine == 1) {
+      if (DisableIsoMonitoringStatemachine == 2) {
         transmit_can_frame(&ECMP_FACTORY_MODE_ACTIVATION, can_config.battery);
       }
-      if (FactoryModeStatemachine == 2) {
+      if (DisableIsoMonitoringStatemachine == 4) {
         transmit_can_frame(&ECMP_DISABLE_ISOLATION_REQ, can_config.battery);
       }
-      FactoryModeStatemachine++;
-    }
-
-    if (datalayer_extended.stellantisECMP.UserRequestContactorReset) {
-
+    } else if (datalayer_extended.stellantisECMP.UserRequestContactorReset) {
       if (ContactorResetStatemachine == 0) {
         transmit_can_frame(&ECMP_DIAG_START, can_config.battery);
+        ContactorResetStatemachine = 1;
       }
-      if (ContactorResetStatemachine == 1) {
+      if (ContactorResetStatemachine == 2) {
         transmit_can_frame(&ECMP_CONTACTOR_RESET_START, can_config.battery);
+        ContactorResetStatemachine = 3;
       }
-
-      ContactorResetStatemachine++;
-
-      if (ContactorResetStatemachine > 200) {  //Timeout, should never trigger
-        datalayer_extended.stellantisECMP.UserRequestContactorReset = false;
-        ContactorResetStatemachine = STOPPED;
+      if (ContactorResetStatemachine == 4) {
+        transmit_can_frame(&ECMP_CONTACTOR_RESET_PROGRESS, can_config.battery);
+        ContactorResetStatemachine = 5;
       }
 
     } else if (datalayer_extended.stellantisECMP.UserRequestCollisionReset) {
 
       if (CollisionResetStatemachine == 0) {
         transmit_can_frame(&ECMP_DIAG_START, can_config.battery);
+        CollisionResetStatemachine = 1;
       }
-      if (CollisionResetStatemachine == 1) {
+      if (CollisionResetStatemachine == 2) {
         transmit_can_frame(&ECMP_COLLISION_RESET_START, can_config.battery);
+        CollisionResetStatemachine = 3;
       }
-
-      CollisionResetStatemachine++;
-
-      if (CollisionResetStatemachine > 200) {  //Timeout, should never trigger
-        datalayer_extended.stellantisECMP.UserRequestCollisionReset = false;
-        CollisionResetStatemachine = STOPPED;
+      if (CollisionResetStatemachine == 4) {
+        transmit_can_frame(&ECMP_COLLISION_RESET_PROGRESS, can_config.battery);
+        CollisionResetStatemachine = 5;
       }
 
     } else if (datalayer_extended.stellantisECMP.UserRequestIsolationReset) {
 
       if (IsolationResetStatemachine == 0) {
         transmit_can_frame(&ECMP_DIAG_START, can_config.battery);
+        IsolationResetStatemachine = 1;
       }
-      if (IsolationResetStatemachine == 1) {
+      if (IsolationResetStatemachine == 2) {
         transmit_can_frame(&ECMP_ISOLATION_RESET_START, can_config.battery);
+        IsolationResetStatemachine = 3;
+      }
+      if (IsolationResetStatemachine == 4) {
+        transmit_can_frame(&ECMP_ISOLATION_RESET_PROGRESS, can_config.battery);
+        IsolationResetStatemachine = 5;
       }
 
-      IsolationResetStatemachine++;
+    } else {  //Normal PID polling goes here
 
-      if (IsolationResetStatemachine > 200) {  //Timeout, should never trigger
-        datalayer_extended.stellantisECMP.UserRequestIsolationReset = false;
-        IsolationResetStatemachine = STOPPED;
-      }
-
-    } else {
-
-      if (FactoryModeStatemachine >= COMPLETED_STATE) {
+      if (DisableIsoMonitoringStatemachine >= COMPLETED_STATE) {
         //Normal PID polling goes here
         switch (poll_state) {
           case PID_WELD_CHECK:
@@ -990,11 +1028,17 @@ void EcmpBattery::transmit_can(unsigned long currentMillis) {
     transmit_can_frame(&ECMP_552, can_config.battery);  //Not in all logs
     transmit_can_frame(&ECMP_794, can_config.battery);  //Not in all logs
   }
-  // Send 10s CAN Message
-  if (currentMillis - previousMillis10000 >= INTERVAL_10_S) {
-    previousMillis10000 = currentMillis;
+  // Send 10min CAN Message
+  if (currentMillis - previousMillis10min >= INTERVAL_10_MIN) {
+    previousMillis10min = currentMillis;
 
-    FactoryModeStatemachine = 0;  //Test, forcing sending of turning off this every 10s
+    //Crude error handler, reset these events if they get stuck and block normal PID polling
+    ContactorResetStatemachine = COMPLETED_STATE;
+    CollisionResetStatemachine = COMPLETED_STATE;
+    IsolationResetStatemachine = COMPLETED_STATE;
+    datalayer_extended.stellantisECMP.UserRequestContactorReset = false;
+    datalayer_extended.stellantisECMP.UserRequestCollisionReset = false;
+    datalayer_extended.stellantisECMP.UserRequestIsolationReset = false;
   }
 }
 

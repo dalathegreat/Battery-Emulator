@@ -21,16 +21,15 @@ class EcmpBattery : public CanBattery {
   static const int MAX_CELL_DEVIATION_MV = 100;
   static const int MAX_CELL_VOLTAGE_MV = 4250;
   static const int MIN_CELL_VOLTAGE_MV = 2700;
-#define STOPPED 0
 #define NOT_SAMPLED_YET 255
-#define COMPLETED_STATE 25
+#define COMPLETED_STATE 0
   bool battery_started_up = false;
   bool battery_RelayOpenRequest = false;
   bool battery_InterlockOpen = false;
   uint8_t ContactorResetStatemachine = 0;
   uint8_t CollisionResetStatemachine = 0;
   uint8_t IsolationResetStatemachine = 0;
-  uint8_t FactoryModeStatemachine = 0;
+  uint8_t DisableIsoMonitoringStatemachine = 0;
   uint8_t counter_10ms = 0;
   uint8_t counter_20ms = 0;
   uint8_t counter_50ms = 0;
@@ -96,7 +95,7 @@ class EcmpBattery : public CanBattery {
   unsigned long previousMillis100 = 0;    // will store last time a 100ms CAN Message was sent
   unsigned long previousMillis250 = 0;    // will store last time a 250ms CAN Message was sent
   unsigned long previousMillis1000 = 0;   // will store last time a 1000ms CAN Message was sent
-  unsigned long previousMillis10000 = 0;  // will store last time a 1000ms CAN Message was sent
+  unsigned long previousMillis10min = 0;  // will store last time a 10min CAN Message was sent
 
 #define PID_WELD_CHECK 0xD814
 #define PID_CONT_REASON_OPEN 0xD812
@@ -141,6 +140,8 @@ class EcmpBattery : public CanBattery {
 #define PID_40 0xD42F  //?Collision information Counter recieved by CAN (Order unsure on these)
 #define PID_41 0xD87F  //?Collision Counter recieved by Wire
 #define PID_42 0xD48D  //?Detection of a Vehicle Impact
+#define PID_43 0xD465  //Unknown Multi Frame
+#define PID_44 0xD492  //Unknown
 
   uint16_t poll_state = PID_WELD_CHECK;
   uint16_t incoming_poll = 0;
