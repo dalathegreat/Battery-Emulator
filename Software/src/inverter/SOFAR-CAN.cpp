@@ -9,29 +9,29 @@ void SofarInverter::
     update_values() {  //This function maps all the values fetched from battery CAN to the correct CAN messages
 
   //Maxvoltage (eg 400.0V = 4000 , 16bits long) Charge Cutoff Voltage
-  SOFAR_351.data.u8[0] = (datalayer.battery.info.max_design_voltage_dV >> 8);
-  SOFAR_351.data.u8[1] = (datalayer.battery.info.max_design_voltage_dV & 0x00FF);
-  SOFAR_351.data.u8[2] = (datalayer.battery.status.max_charge_current_dA >> 8);
-  SOFAR_351.data.u8[3] = (datalayer.battery.status.max_charge_current_dA & 0x00FF);
-  SOFAR_351.data.u8[4] = (datalayer.battery.status.max_discharge_current_dA >> 8);
-  SOFAR_351.data.u8[5] = (datalayer.battery.status.max_discharge_current_dA & 0x00FF);
+  SOFAR_351.data.u8[0] = (datalayer.battery.info.max_design_voltage_dV & 0x00FF);
+  SOFAR_351.data.u8[1] = (datalayer.battery.info.max_design_voltage_dV >> 8);
+  SOFAR_351.data.u8[2] = (datalayer.battery.status.max_charge_current_dA & 0x00FF);
+  SOFAR_351.data.u8[3] = (datalayer.battery.status.max_charge_current_dA >> 8);
+  SOFAR_351.data.u8[4] = (datalayer.battery.status.max_discharge_current_dA & 0x00FF);
+  SOFAR_351.data.u8[5] = (datalayer.battery.status.max_discharge_current_dA >> 8);
   //Minvoltage (eg 300.0V = 3000 , 16bits long) Discharge Cutoff Voltage
-  SOFAR_351.data.u8[6] = (datalayer.battery.info.min_design_voltage_dV >> 8);
-  SOFAR_351.data.u8[7] = (datalayer.battery.info.min_design_voltage_dV & 0x00FF);
+  SOFAR_351.data.u8[6] = (datalayer.battery.info.min_design_voltage_dV & 0x00FF);
+  SOFAR_351.data.u8[7] = (datalayer.battery.info.min_design_voltage_dV >> 8);
 
   //SOC
   SOFAR_355.data.u8[0] = (datalayer.battery.status.reported_soc / 100);
   SOFAR_355.data.u8[2] = (datalayer.battery.status.soh_pptt / 100);
-  //SOFAR_355.data.u8[6] = (AH_remaining >> 8);
-  //SOFAR_355.data.u8[7] = (AH_remaining & 0x00FF);
-
+  //SOFAR_355.data.u8[6] = (AH_remaining & 0x00FF);
+  //SOFAR_355.data.u8[7] = (AH_remaining >> 8);
+  
   //Voltage (370.0)
-  SOFAR_356.data.u8[0] = (datalayer.battery.status.voltage_dV >> 8);
-  SOFAR_356.data.u8[1] = (datalayer.battery.status.voltage_dV & 0x00FF);
-  SOFAR_356.data.u8[2] = (datalayer.battery.status.current_dA >> 8);
-  SOFAR_356.data.u8[3] = (datalayer.battery.status.current_dA & 0x00FF);
-  SOFAR_356.data.u8[2] = (datalayer.battery.status.temperature_max_dC >> 8);
-  SOFAR_356.data.u8[3] = (datalayer.battery.status.temperature_max_dC & 0x00FF);
+  SOFAR_356.data.u8[0] = (datalayer.battery.status.voltage_dV & 0x00FF);
+  SOFAR_356.data.u8[1] = (datalayer.battery.status.voltage_dV >> 8);
+  SOFAR_356.data.u8[2] = (datalayer.battery.status.current_dA & 0x00FF);
+  SOFAR_356.data.u8[3] = (datalayer.battery.status.current_dA >> 8);
+  SOFAR_356.data.u8[4] = (datalayer.battery.status.temperature_max_dC & 0x00FF);
+  SOFAR_356.data.u8[5] = (datalayer.battery.status.temperature_max_dC >> 8);
 }
 
 void SofarInverter::map_can_frame_to_variable(CAN_frame rx_frame) {
