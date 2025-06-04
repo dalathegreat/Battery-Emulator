@@ -9,10 +9,11 @@ class Battery;
 extern Battery* battery;
 extern Battery* battery2;
 
+void setup_can_shunt();
+
 #ifdef BMW_SBOX
 #include "BMW-SBOX.h"
 void handle_incoming_can_frame_shunt(CAN_frame rx_frame);
-void setup_can_shunt();
 #endif
 
 #ifdef BMW_I3_BATTERY
