@@ -302,7 +302,7 @@ typedef struct {
   bool UserRequestContactorReset = false;
   bool UserRequestCollisionReset = false;
   bool UserRequestIsolationReset = false;
-  bool UserRequestDisableIsoMonitoring = true;  //Trigger on bootup once automatically
+  bool UserRequestDisableIsoMonitoring = false;
   uint8_t pid_welding_detection = 0;
   uint8_t pid_reason_open = 0;
   uint8_t pid_contactor_status = 0;

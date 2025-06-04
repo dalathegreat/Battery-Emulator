@@ -300,42 +300,36 @@ void EcmpBattery::handle_incoming_can_frame(CAN_frame rx_frame) {
       cellvoltages[83] = (rx_frame.data.u8[6] << 8) | rx_frame.data.u8[7];
       break;
     case 0x6FA:
-      battery_started_up = true;
       cellvoltages[84] = (rx_frame.data.u8[0] << 8) | rx_frame.data.u8[1];
       cellvoltages[85] = (rx_frame.data.u8[2] << 8) | rx_frame.data.u8[3];
       cellvoltages[86] = (rx_frame.data.u8[4] << 8) | rx_frame.data.u8[5];
       cellvoltages[87] = (rx_frame.data.u8[6] << 8) | rx_frame.data.u8[7];
       break;
     case 0x6FB:
-      battery_started_up = true;
       cellvoltages[88] = (rx_frame.data.u8[0] << 8) | rx_frame.data.u8[1];
       cellvoltages[89] = (rx_frame.data.u8[2] << 8) | rx_frame.data.u8[3];
       cellvoltages[90] = (rx_frame.data.u8[4] << 8) | rx_frame.data.u8[5];
       cellvoltages[91] = (rx_frame.data.u8[6] << 8) | rx_frame.data.u8[7];
       break;
     case 0x6FC:
-      battery_started_up = true;
       cellvoltages[92] = (rx_frame.data.u8[0] << 8) | rx_frame.data.u8[1];
       cellvoltages[93] = (rx_frame.data.u8[2] << 8) | rx_frame.data.u8[3];
       cellvoltages[94] = (rx_frame.data.u8[4] << 8) | rx_frame.data.u8[5];
       cellvoltages[95] = (rx_frame.data.u8[6] << 8) | rx_frame.data.u8[7];
       break;
     case 0x6FD:
-      battery_started_up = true;
       cellvoltages[96] = (rx_frame.data.u8[0] << 8) | rx_frame.data.u8[1];
       cellvoltages[97] = (rx_frame.data.u8[2] << 8) | rx_frame.data.u8[3];
       cellvoltages[98] = (rx_frame.data.u8[4] << 8) | rx_frame.data.u8[5];
       cellvoltages[99] = (rx_frame.data.u8[6] << 8) | rx_frame.data.u8[7];
       break;
     case 0x6FE:
-      battery_started_up = true;
       cellvoltages[100] = (rx_frame.data.u8[0] << 8) | rx_frame.data.u8[1];
       cellvoltages[101] = (rx_frame.data.u8[2] << 8) | rx_frame.data.u8[3];
       cellvoltages[102] = (rx_frame.data.u8[4] << 8) | rx_frame.data.u8[5];
       cellvoltages[103] = (rx_frame.data.u8[6] << 8) | rx_frame.data.u8[7];
       break;
     case 0x6FF:
-      battery_started_up = true;
       cellvoltages[104] = (rx_frame.data.u8[0] << 8) | rx_frame.data.u8[1];
       cellvoltages[105] = (rx_frame.data.u8[2] << 8) | rx_frame.data.u8[3];
       cellvoltages[106] = (rx_frame.data.u8[4] << 8) | rx_frame.data.u8[5];
@@ -726,16 +720,18 @@ void EcmpBattery::transmit_can(unsigned long currentMillis) {
 
     //To be able to use the battery, isolation monitoring needs to be disabled
     //Failure to do this results in the contactors opening after 30 seconds with load
-    if (battery_started_up && datalayer_extended.stellantisECMP.UserRequestDisableIsoMonitoring) {
+    if (datalayer_extended.stellantisECMP.UserRequestDisableIsoMonitoring) {
       if (DisableIsoMonitoringStatemachine == 0) {
         transmit_can_frame(&ECMP_DIAG_START, can_config.battery);
         DisableIsoMonitoringStatemachine = 1;
       }
       if (DisableIsoMonitoringStatemachine == 2) {
         transmit_can_frame(&ECMP_FACTORY_MODE_ACTIVATION, can_config.battery);
+        DisableIsoMonitoringStatemachine = 3;
       }
       if (DisableIsoMonitoringStatemachine == 4) {
         transmit_can_frame(&ECMP_DISABLE_ISOLATION_REQ, can_config.battery);
+        DisableIsoMonitoringStatemachine = 5;
       }
     } else if (datalayer_extended.stellantisECMP.UserRequestContactorReset) {
       if (ContactorResetStatemachine == 0) {
@@ -1036,9 +1032,11 @@ void EcmpBattery::transmit_can(unsigned long currentMillis) {
     ContactorResetStatemachine = COMPLETED_STATE;
     CollisionResetStatemachine = COMPLETED_STATE;
     IsolationResetStatemachine = COMPLETED_STATE;
+    DisableIsoMonitoringStatemachine = COMPLETED_STATE;
     datalayer_extended.stellantisECMP.UserRequestContactorReset = false;
     datalayer_extended.stellantisECMP.UserRequestCollisionReset = false;
     datalayer_extended.stellantisECMP.UserRequestIsolationReset = false;
+    datalayer_extended.stellantisECMP.UserRequestDisableIsoMonitoring = false;
   }
 }
 
