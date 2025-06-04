@@ -24,7 +24,7 @@ void SofarInverter::
   SOFAR_355.data.u8[2] = (datalayer.battery.status.soh_pptt / 100);
   //SOFAR_355.data.u8[6] = (AH_remaining & 0x00FF);
   //SOFAR_355.data.u8[7] = (AH_remaining >> 8);
-  
+
   //Voltage (370.0)
   SOFAR_356.data.u8[0] = (datalayer.battery.status.voltage_dV & 0x00FF);
   SOFAR_356.data.u8[1] = (datalayer.battery.status.voltage_dV >> 8);
