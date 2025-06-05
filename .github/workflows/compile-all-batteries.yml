@@ -56,6 +56,7 @@ jobs:
           - CELLPOWER_BMS
           - CHADEMO_BATTERY
           - CMFA_EV_BATTERY
+          - DALY_BMS
           - FOXESS_BATTERY
           - IMIEV_CZERO_ION_BATTERY
           - JAGUAR_IPACE_BATTERY
