@@ -668,11 +668,11 @@ void EcmpBattery::transmit_can(unsigned long currentMillis) {
         DisableIsoMonitoringStatemachine = 3;
       }
       if (DisableIsoMonitoringStatemachine == 4) {
-        transmit_can_frame(&ECMP_FACTORY_MODE_ACTIVATION_NEW, can_config.battery);
+        transmit_can_frame(&ECMP_DISABLE_ISOLATION_REQ, can_config.battery);
         DisableIsoMonitoringStatemachine = 5;
       }
       if (DisableIsoMonitoringStatemachine == 6) {
-        transmit_can_frame(&ECMP_DISABLE_ISOLATION_REQ, can_config.battery);
+        transmit_can_frame(&ECMP_FACTORY_MODE_ACTIVATION_NEW, can_config.battery);
         DisableIsoMonitoringStatemachine = 7;
       }
       timeSpentDisableIsoMonitoring++;
@@ -976,6 +976,10 @@ void EcmpBattery::transmit_can(unsigned long currentMillis) {
     }
   }
 
+  if (startup_commands_completed) {
+    return;
+  }
+
   // Normal CAN sending routine towards the battery, not started before Factory Mode process OK
   // Send 10ms CAN Message
   if (currentMillis - previousMillis10 >= INTERVAL_10_MS) {
@@ -1007,10 +1011,8 @@ void EcmpBattery::transmit_can(unsigned long currentMillis) {
       ECMP_0F0.data.u8[1] = 0x20;
     }
 
-    if (!startup_commands_completed) {
-      //Open contactors!
-      ECMP_0F0.data.u8[1] = 0x00;
-    }
+    //Open contactors! HARDCODED FOR TESTING TODO!
+    ECMP_0F0.data.u8[1] = 0x00;
 
     counter_20ms = (counter_20ms + 1) % 16;
 
@@ -1023,7 +1025,7 @@ void EcmpBattery::transmit_can(unsigned long currentMillis) {
     previousMillis50 = currentMillis;
 
     transmit_can_frame(&ECMP_27A, can_config.battery);  //Not in all CAN logs, might be unnecessary
-    transmit_can_frame(&ECMP_230, can_config.battery);
+    //transmit_can_frame(&ECMP_230, can_config.battery);  //Not in all CAN logs, might be unnecessary TODO: REMOVED DURING TESTING
   }
   // Send 100ms CAN Message
   if (currentMillis - previousMillis100 >= INTERVAL_100_MS) {
@@ -1054,7 +1056,7 @@ void EcmpBattery::transmit_can(unsigned long currentMillis) {
     transmit_can_frame(&ECMP_345, can_config.battery);
     transmit_can_frame(&ECMP_351, can_config.battery);
     transmit_can_frame(&ECMP_31D, can_config.battery);
-    transmit_can_frame(&ECMP_3D0, can_config.battery);  //Not in logs, but makes speed go to 0km/h
+    //transmit_can_frame(&ECMP_3D0, can_config.battery);  //Not in logs, but makes speed go to 0km/h
   }
   // Send 1s CAN Message
   if (currentMillis - previousMillis1000 >= INTERVAL_1_S) {
