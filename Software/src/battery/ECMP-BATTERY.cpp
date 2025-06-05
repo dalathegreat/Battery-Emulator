@@ -346,11 +346,14 @@ void EcmpBattery::handle_incoming_can_frame(CAN_frame rx_frame) {
         }
         //if ((rx_frame.data.u8[0] == 0x03) && (rx_frame.data.u8[1] == 0x7F) && (rx_frame.data.u8[2] == 0x2E)) {
         if (DisableIsoMonitoringStatemachine == 3) {
-          //UNKNOWN? 03,7F,2E,22 (or 7F?)
-          DisableIsoMonitoringStatemachine = 4;  //Send ECMP_DISABLE_ISOLATION_REQ next loop
+          DisableIsoMonitoringStatemachine = 4;
+        }
+        //if ((rx_frame.data.u8[0] == 0x03) && (rx_frame.data.u8[1] == 0x7F) && (rx_frame.data.u8[2] == 0x2E)) {
+        if (DisableIsoMonitoringStatemachine == 5) {
+          DisableIsoMonitoringStatemachine = 6;
         }
         //if ((rx_frame.data.u8[0] == 0x03) && (rx_frame.data.u8[1] == 0x7F) && (rx_frame.data.u8[2] == 0x31)) {
-        if (DisableIsoMonitoringStatemachine == 5) {
+        if (DisableIsoMonitoringStatemachine == 7) {
           //UNKNOWN? 03,7F,31,24 (or 7F?)
           DisableIsoMonitoringStatemachine = COMPLETED_STATE;
           datalayer_extended.stellantisECMP.UserRequestDisableIsoMonitoring = false;
@@ -664,8 +667,12 @@ void EcmpBattery::transmit_can(unsigned long currentMillis) {
         DisableIsoMonitoringStatemachine = 3;
       }
       if (DisableIsoMonitoringStatemachine == 4) {
-        transmit_can_frame(&ECMP_DISABLE_ISOLATION_REQ, can_config.battery);
+        transmit_can_frame(&ECMP_FACTORY_MODE_ACTIVATION, can_config.battery);
         DisableIsoMonitoringStatemachine = 5;
+      }
+      if (DisableIsoMonitoringStatemachine == 6) {
+        transmit_can_frame(&ECMP_DISABLE_ISOLATION_REQ, can_config.battery);
+        DisableIsoMonitoringStatemachine = 7;
         startup_commands_completed = true;
       }
       timeSpentDisableIsoMonitoring++;
