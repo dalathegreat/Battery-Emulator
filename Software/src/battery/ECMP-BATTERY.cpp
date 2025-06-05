@@ -358,6 +358,7 @@ void EcmpBattery::handle_incoming_can_frame(CAN_frame rx_frame) {
           DisableIsoMonitoringStatemachine = COMPLETED_STATE;
           datalayer_extended.stellantisECMP.UserRequestDisableIsoMonitoring = false;
           timeSpentDisableIsoMonitoring = COMPLETED_STATE;
+          startup_commands_completed = true;
         }
 
       } else if (datalayer_extended.stellantisECMP.UserRequestContactorReset) {
@@ -673,7 +674,6 @@ void EcmpBattery::transmit_can(unsigned long currentMillis) {
       if (DisableIsoMonitoringStatemachine == 6) {
         transmit_can_frame(&ECMP_DISABLE_ISOLATION_REQ, can_config.battery);
         DisableIsoMonitoringStatemachine = 7;
-        startup_commands_completed = true;
       }
       timeSpentDisableIsoMonitoring++;
       if (timeSpentDisableIsoMonitoring > 40) {  //Timeout, if command takes more than 10s to complete
