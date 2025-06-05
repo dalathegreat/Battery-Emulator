@@ -664,11 +664,11 @@ void EcmpBattery::transmit_can(unsigned long currentMillis) {
         DisableIsoMonitoringStatemachine = 1;
       }
       if (DisableIsoMonitoringStatemachine == 2) {
-        transmit_can_frame(&ECMP_FACTORY_MODE_ACTIVATION, can_config.battery);
+        transmit_can_frame(&ECMP_DISABLE_ISOLATION_REQ, can_config.battery);
         DisableIsoMonitoringStatemachine = 3;
       }
       if (DisableIsoMonitoringStatemachine == 4) {
-        transmit_can_frame(&ECMP_DISABLE_ISOLATION_REQ, can_config.battery);
+        transmit_can_frame(&ECMP_FACTORY_MODE_ACTIVATION, can_config.battery);
         DisableIsoMonitoringStatemachine = 5;
       }
       if (DisableIsoMonitoringStatemachine == 6) {
