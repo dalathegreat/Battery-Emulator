@@ -1007,6 +1007,11 @@ void EcmpBattery::transmit_can(unsigned long currentMillis) {
       ECMP_0F0.data.u8[1] = 0x20;
     }
 
+    if (!startup_commands_completed) {
+      //Open contactors!
+      ECMP_0F0.data.u8[1] = 0x00;
+    }
+
     counter_20ms = (counter_20ms + 1) % 16;
 
     ECMP_0F0.data.u8[7] = counter_20ms << 4 | checksum_calc(counter_20ms, ECMP_0F0);
