@@ -29,6 +29,10 @@ class EcmpBattery : public CanBattery {
   uint8_t CollisionResetStatemachine = 0;
   uint8_t IsolationResetStatemachine = 0;
   uint8_t DisableIsoMonitoringStatemachine = 0;
+  uint8_t timeSpentDisableIsoMonitoring = 0;
+  uint8_t timeSpentContactorReset = 0;
+  uint8_t timeSpentCollisionReset = 0;
+  uint8_t timeSpentIsolationReset = 0;
   uint8_t counter_10ms = 0;
   uint8_t counter_20ms = 0;
   uint8_t counter_50ms = 0;
@@ -88,13 +92,12 @@ class EcmpBattery : public CanBattery {
   uint8_t pid_41 = NOT_SAMPLED_YET;
   uint8_t pid_42 = NOT_SAMPLED_YET;
 
-  unsigned long previousMillis10 = 0;     // will store last time a 10ms CAN Message was sent
-  unsigned long previousMillis20 = 0;     // will store last time a 20ms CAN Message was sent
-  unsigned long previousMillis50 = 0;     // will store last time a 50ms CAN Message was sent
-  unsigned long previousMillis100 = 0;    // will store last time a 100ms CAN Message was sent
-  unsigned long previousMillis250 = 0;    // will store last time a 250ms CAN Message was sent
-  unsigned long previousMillis1000 = 0;   // will store last time a 1000ms CAN Message was sent
-  unsigned long previousMillis10min = 0;  // will store last time a 10min CAN Message was sent
+  unsigned long previousMillis10 = 0;    // will store last time a 10ms CAN Message was sent
+  unsigned long previousMillis20 = 0;    // will store last time a 20ms CAN Message was sent
+  unsigned long previousMillis50 = 0;    // will store last time a 50ms CAN Message was sent
+  unsigned long previousMillis100 = 0;   // will store last time a 100ms CAN Message was sent
+  unsigned long previousMillis250 = 0;   // will store last time a 250ms CAN Message was sent
+  unsigned long previousMillis1000 = 0;  // will store last time a 1000ms CAN Message was sent
 
 #define PID_WELD_CHECK 0xD814
 #define PID_CONT_REASON_OPEN 0xD812
