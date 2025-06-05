@@ -609,7 +609,7 @@ void init_webserver() {
   });
 
   // Route for resetting collision data on Stellantis eCMP
-  server.on("/ContactorResetStellantis", HTTP_GET, [](AsyncWebServerRequest* request) {
+  server.on("/CollisionResetStellantis", HTTP_GET, [](AsyncWebServerRequest* request) {
     if (WEBSERVER_AUTH_REQUIRED && !request->authenticate(http_username, http_password)) {
       return request->requestAuthentication();
     }
