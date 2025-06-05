@@ -664,15 +664,15 @@ void EcmpBattery::transmit_can(unsigned long currentMillis) {
         DisableIsoMonitoringStatemachine = 1;
       }
       if (DisableIsoMonitoringStatemachine == 2) {
-        transmit_can_frame(&ECMP_DISABLE_ISOLATION_REQ, can_config.battery);
+        transmit_can_frame(&ECMP_FACTORY_MODE_ACTIVATION_NEW, can_config.battery);
         DisableIsoMonitoringStatemachine = 3;
       }
       if (DisableIsoMonitoringStatemachine == 4) {
-        transmit_can_frame(&ECMP_FACTORY_MODE_ACTIVATION, can_config.battery);
+        transmit_can_frame(&ECMP_DISABLE_ISOLATION_REQ, can_config.battery);
         DisableIsoMonitoringStatemachine = 5;
       }
       if (DisableIsoMonitoringStatemachine == 6) {
-        transmit_can_frame(&ECMP_FACTORY_MODE_ACTIVATION_NEW, can_config.battery);
+        transmit_can_frame(&ECMP_FACTORY_MODE_ACTIVATION, can_config.battery);
         DisableIsoMonitoringStatemachine = 7;
       }
       timeSpentDisableIsoMonitoring++;
@@ -741,9 +741,15 @@ void EcmpBattery::transmit_can(unsigned long currentMillis) {
 
       timeSpentIsolationReset++;
       if (timeSpentIsolationReset > 40) {  //Timeout, if command takes more than 10s to complete
-        datalayer_extended.stellantisECMP.UserRequestIsolationReset = false;
-        IsolationResetStatemachine = COMPLETED_STATE;
-        timeSpentIsolationReset = COMPLETED_STATE;
+        if (countIsolationReset < 4) {
+          countIsolationReset++;
+          IsolationResetStatemachine = COMPLETED_STATE;  //Reset state machine to start over
+        } else {
+          datalayer_extended.stellantisECMP.UserRequestIsolationReset = false;
+          IsolationResetStatemachine = COMPLETED_STATE;
+          timeSpentIsolationReset = COMPLETED_STATE;
+          countIsolationReset = COMPLETED_STATE;
+        }
       }
 
     } else {  //Normal PID polling goes here
@@ -976,7 +982,7 @@ void EcmpBattery::transmit_can(unsigned long currentMillis) {
     }
   }
 
-  if (startup_commands_completed) {
+  if (!startup_commands_completed) {
     return;
   }
 

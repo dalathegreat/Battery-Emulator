@@ -34,6 +34,7 @@ class EcmpBattery : public CanBattery {
   uint8_t timeSpentContactorReset = 0;
   uint8_t timeSpentCollisionReset = 0;
   uint8_t timeSpentIsolationReset = 0;
+  uint8_t countIsolationReset = 0;
   uint8_t counter_10ms = 0;
   uint8_t counter_20ms = 0;
   uint8_t counter_50ms = 0;
