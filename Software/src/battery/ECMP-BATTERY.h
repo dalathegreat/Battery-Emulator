@@ -23,6 +23,7 @@ class EcmpBattery : public CanBattery {
   static const int MIN_CELL_VOLTAGE_MV = 2700;
 #define NOT_SAMPLED_YET 255
 #define COMPLETED_STATE 0
+  bool startup_commands_completed = false;
   bool battery_RelayOpenRequest = false;
   bool battery_InterlockOpen = false;
   uint8_t ContactorResetStatemachine = 0;
@@ -329,6 +330,11 @@ class EcmpBattery : public CanBattery {
                                             .DLC = 5,
                                             .ID = 0x6B4,
                                             .data = {0x04, 0x2E, 0xD9, 0x00, 0x01}};
+  CAN_frame ECMP_FACTORY_MODE_ACTIVATION_NEW = {.FD = false,
+                                                .ext_ID = false,
+                                                .DLC = 4,
+                                                .ID = 0x6B4,
+                                                .data = {0x04, 0x2E, 0x19, 0x01}};
   CAN_frame ECMP_DISABLE_ISOLATION_REQ = {.FD = false,
                                           .ext_ID = false,
                                           .DLC = 5,

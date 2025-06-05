@@ -344,11 +344,13 @@ void EcmpBattery::handle_incoming_can_frame(CAN_frame rx_frame) {
           //06,50,03,00,C8,00,14,00,
           DisableIsoMonitoringStatemachine = 2;  //Send ECMP_FACTORY_MODE_ACTIVATION next loop
         }
-        if ((rx_frame.data.u8[0] == 0x03) && (rx_frame.data.u8[1] == 0x7F) && (rx_frame.data.u8[2] == 0x2E)) {
+        //if ((rx_frame.data.u8[0] == 0x03) && (rx_frame.data.u8[1] == 0x7F) && (rx_frame.data.u8[2] == 0x2E)) {
+        if (DisableIsoMonitoringStatemachine == 3) {
           //UNKNOWN? 03,7F,2E,22 (or 7F?)
           DisableIsoMonitoringStatemachine = 4;  //Send ECMP_DISABLE_ISOLATION_REQ next loop
         }
-        if ((rx_frame.data.u8[0] == 0x03) && (rx_frame.data.u8[1] == 0x7F) && (rx_frame.data.u8[2] == 0x31)) {
+        //if ((rx_frame.data.u8[0] == 0x03) && (rx_frame.data.u8[1] == 0x7F) && (rx_frame.data.u8[2] == 0x31)) {
+        if (DisableIsoMonitoringStatemachine == 5) {
           //UNKNOWN? 03,7F,31,24 (or 7F?)
           DisableIsoMonitoringStatemachine = COMPLETED_STATE;
           datalayer_extended.stellantisECMP.UserRequestDisableIsoMonitoring = false;
@@ -645,80 +647,7 @@ uint8_t checksum_calc(uint8_t counter, CAN_frame rx_frame) {
 }
 
 void EcmpBattery::transmit_can(unsigned long currentMillis) {
-  // Send 10ms CAN Message
-  if (currentMillis - previousMillis10 >= INTERVAL_10_MS) {
-    previousMillis10 = currentMillis;
 
-    counter_10ms = (counter_10ms + 1) % 16;
-
-    ECMP_0F2.data.u8[7] = counter_10ms << 4 | checksum_calc(counter_10ms, ECMP_0F2);
-    ECMP_17B.data.u8[7] = counter_10ms << 4 | checksum_calc(counter_10ms, ECMP_17B);
-    ECMP_112.data.u8[7] = counter_10ms << 4 | checksum_calc(counter_10ms, ECMP_112);
-
-    transmit_can_frame(&ECMP_111, can_config.battery);
-    transmit_can_frame(&ECMP_112, can_config.battery);
-    transmit_can_frame(&ECMP_110, can_config.battery);
-    transmit_can_frame(&ECMP_114, can_config.battery);
-    transmit_can_frame(&ECMP_0F2, can_config.battery);
-    transmit_can_frame(&ECMP_0C5, can_config.battery);
-    transmit_can_frame(&ECMP_17B, can_config.battery);
-  }
-
-  // Send 20ms CAN Message
-  if (currentMillis - previousMillis20 >= INTERVAL_20_MS) {
-    previousMillis20 = currentMillis;
-
-    if (datalayer.battery.status.bms_status == FAULT) {
-      //Open contactors!
-      ECMP_0F0.data.u8[1] = 0x00;
-    } else {  // Not in faulted mode, Close contactors!
-      ECMP_0F0.data.u8[1] = 0x20;
-    }
-
-    counter_20ms = (counter_20ms + 1) % 16;
-
-    ECMP_0F0.data.u8[7] = counter_20ms << 4 | checksum_calc(counter_20ms, ECMP_0F0);
-
-    transmit_can_frame(&ECMP_0F0, can_config.battery);  //Common!
-  }
-  // Send 50ms CAN Message
-  if (currentMillis - previousMillis50 >= INTERVAL_50_MS) {
-    previousMillis50 = currentMillis;
-
-    transmit_can_frame(&ECMP_27A, can_config.battery);  //Not in all CAN logs, might be unnecessary
-    transmit_can_frame(&ECMP_230, can_config.battery);
-  }
-  // Send 100ms CAN Message
-  if (currentMillis - previousMillis100 >= INTERVAL_100_MS) {
-    previousMillis100 = currentMillis;
-
-    counter_100ms = (counter_100ms + 1) % 16;
-    counter_010 = (counter_010 + 1) % 8;
-
-    ECMP_31E.data.u8[7] = counter_100ms << 4 | checksum_calc(counter_100ms, ECMP_31E);
-    ECMP_3A2.data.u8[6] = data_3A2_CRC[counter_100ms];
-    ECMP_3A3.data.u8[7] = counter_100ms << 4 | checksum_calc(counter_100ms, ECMP_3A3);
-    ECMP_010.data.u8[0] = data_010_CRC[counter_010];
-    ECMP_345.data.u8[3] = (uint8_t)((data_345_content[counter_100ms] & 0XF0) | 0x4);
-    ECMP_345.data.u8[7] = (uint8_t)(0x3 << 4 | (data_345_content[counter_100ms] & 0X0F));
-    ECMP_351.data.u8[7] = counter_100ms << 4 | checksum_calc(counter_100ms, ECMP_351);
-    ECMP_31D.data.u8[7] = counter_100ms << 4 | checksum_calc(counter_100ms, ECMP_31D);
-    ECMP_3D0.data.u8[7] = counter_100ms << 4 | checksum_calc(counter_100ms, ECMP_3D0);
-
-    transmit_can_frame(&ECMP_382, can_config.battery);  //PSA Specific!
-    transmit_can_frame(&ECMP_31E, can_config.battery);
-    transmit_can_frame(&ECMP_383, can_config.battery);
-    transmit_can_frame(&ECMP_3A2, can_config.battery);
-    transmit_can_frame(&ECMP_3A3, can_config.battery);
-    transmit_can_frame(&ECMP_010, can_config.battery);
-    transmit_can_frame(&ECMP_0A6, can_config.battery);  //Not in all logs
-    transmit_can_frame(&ECMP_37F, can_config.battery);
-    transmit_can_frame(&ECMP_372, can_config.battery);
-    transmit_can_frame(&ECMP_345, can_config.battery);
-    transmit_can_frame(&ECMP_351, can_config.battery);
-    transmit_can_frame(&ECMP_31D, can_config.battery);
-    transmit_can_frame(&ECMP_3D0, can_config.battery);  //Not in logs, but makes speed go to 0km/h
-  }
   // Send 250ms CAN Message
   if (currentMillis - previousMillis250 >= INTERVAL_250_MS) {
     previousMillis250 = currentMillis;
@@ -731,12 +660,13 @@ void EcmpBattery::transmit_can(unsigned long currentMillis) {
         DisableIsoMonitoringStatemachine = 1;
       }
       if (DisableIsoMonitoringStatemachine == 2) {
-        transmit_can_frame(&ECMP_FACTORY_MODE_ACTIVATION, can_config.battery);
+        transmit_can_frame(&ECMP_FACTORY_MODE_ACTIVATION_NEW, can_config.battery);
         DisableIsoMonitoringStatemachine = 3;
       }
       if (DisableIsoMonitoringStatemachine == 4) {
         transmit_can_frame(&ECMP_DISABLE_ISOLATION_REQ, can_config.battery);
         DisableIsoMonitoringStatemachine = 5;
+        startup_commands_completed = true;
       }
       timeSpentDisableIsoMonitoring++;
       if (timeSpentDisableIsoMonitoring > 40) {  //Timeout, if command takes more than 10s to complete
@@ -811,7 +741,7 @@ void EcmpBattery::transmit_can(unsigned long currentMillis) {
 
     } else {  //Normal PID polling goes here
 
-      if (DisableIsoMonitoringStatemachine >= COMPLETED_STATE) {
+      if (startup_commands_completed) {
         //Normal PID polling goes here
         switch (poll_state) {
           case PID_WELD_CHECK:
@@ -1037,6 +967,85 @@ void EcmpBattery::transmit_can(unsigned long currentMillis) {
         transmit_can_frame(&ECMP_POLL, can_config.battery);
       }
     }
+  }
+
+  if (!startup_commands_completed) {
+    return;  //Hmm, is this OK or should we just wrap the contactor closing message?
+  }
+  // Normal CAN sending routine towards the battery, not started before Factory Mode process OK
+  // Send 10ms CAN Message
+  if (currentMillis - previousMillis10 >= INTERVAL_10_MS) {
+    previousMillis10 = currentMillis;
+
+    counter_10ms = (counter_10ms + 1) % 16;
+
+    ECMP_0F2.data.u8[7] = counter_10ms << 4 | checksum_calc(counter_10ms, ECMP_0F2);
+    ECMP_17B.data.u8[7] = counter_10ms << 4 | checksum_calc(counter_10ms, ECMP_17B);
+    ECMP_112.data.u8[7] = counter_10ms << 4 | checksum_calc(counter_10ms, ECMP_112);
+
+    transmit_can_frame(&ECMP_111, can_config.battery);
+    transmit_can_frame(&ECMP_112, can_config.battery);
+    transmit_can_frame(&ECMP_110, can_config.battery);
+    transmit_can_frame(&ECMP_114, can_config.battery);
+    transmit_can_frame(&ECMP_0F2, can_config.battery);
+    transmit_can_frame(&ECMP_0C5, can_config.battery);
+    transmit_can_frame(&ECMP_17B, can_config.battery);
+  }
+
+  // Send 20ms CAN Message
+  if (currentMillis - previousMillis20 >= INTERVAL_20_MS) {
+    previousMillis20 = currentMillis;
+
+    if (datalayer.battery.status.bms_status == FAULT) {
+      //Open contactors!
+      ECMP_0F0.data.u8[1] = 0x00;
+    } else {  // Not in faulted mode, Close contactors!
+      ECMP_0F0.data.u8[1] = 0x20;
+    }
+
+    counter_20ms = (counter_20ms + 1) % 16;
+
+    ECMP_0F0.data.u8[7] = counter_20ms << 4 | checksum_calc(counter_20ms, ECMP_0F0);
+
+    transmit_can_frame(&ECMP_0F0, can_config.battery);  //Common!
+  }
+  // Send 50ms CAN Message
+  if (currentMillis - previousMillis50 >= INTERVAL_50_MS) {
+    previousMillis50 = currentMillis;
+
+    transmit_can_frame(&ECMP_27A, can_config.battery);  //Not in all CAN logs, might be unnecessary
+    transmit_can_frame(&ECMP_230, can_config.battery);
+  }
+  // Send 100ms CAN Message
+  if (currentMillis - previousMillis100 >= INTERVAL_100_MS) {
+    previousMillis100 = currentMillis;
+
+    counter_100ms = (counter_100ms + 1) % 16;
+    counter_010 = (counter_010 + 1) % 8;
+
+    ECMP_31E.data.u8[7] = counter_100ms << 4 | checksum_calc(counter_100ms, ECMP_31E);
+    ECMP_3A2.data.u8[6] = data_3A2_CRC[counter_100ms];
+    ECMP_3A3.data.u8[7] = counter_100ms << 4 | checksum_calc(counter_100ms, ECMP_3A3);
+    ECMP_010.data.u8[0] = data_010_CRC[counter_010];
+    ECMP_345.data.u8[3] = (uint8_t)((data_345_content[counter_100ms] & 0XF0) | 0x4);
+    ECMP_345.data.u8[7] = (uint8_t)(0x3 << 4 | (data_345_content[counter_100ms] & 0X0F));
+    ECMP_351.data.u8[7] = counter_100ms << 4 | checksum_calc(counter_100ms, ECMP_351);
+    ECMP_31D.data.u8[7] = counter_100ms << 4 | checksum_calc(counter_100ms, ECMP_31D);
+    ECMP_3D0.data.u8[7] = counter_100ms << 4 | checksum_calc(counter_100ms, ECMP_3D0);
+
+    transmit_can_frame(&ECMP_382, can_config.battery);  //PSA Specific!
+    transmit_can_frame(&ECMP_31E, can_config.battery);
+    transmit_can_frame(&ECMP_383, can_config.battery);
+    transmit_can_frame(&ECMP_3A2, can_config.battery);
+    transmit_can_frame(&ECMP_3A3, can_config.battery);
+    transmit_can_frame(&ECMP_010, can_config.battery);
+    transmit_can_frame(&ECMP_0A6, can_config.battery);  //Not in all logs
+    transmit_can_frame(&ECMP_37F, can_config.battery);
+    transmit_can_frame(&ECMP_372, can_config.battery);
+    transmit_can_frame(&ECMP_345, can_config.battery);
+    transmit_can_frame(&ECMP_351, can_config.battery);
+    transmit_can_frame(&ECMP_31D, can_config.battery);
+    transmit_can_frame(&ECMP_3D0, can_config.battery);  //Not in logs, but makes speed go to 0km/h
   }
   // Send 1s CAN Message
   if (currentMillis - previousMillis1000 >= INTERVAL_1_S) {
