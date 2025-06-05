@@ -294,6 +294,7 @@ class EcmpBattery : public CanBattery {
                         .ID = 0x6B4,
                         .data = {0x30, 0x00, 0x00}};
   CAN_frame ECMP_DIAG_START = {.FD = false, .ext_ID = false, .DLC = 3, .ID = 0x6B4, .data = {0x02, 0x10, 0x03}};
+  //Start diagnostic session (extended diagnostic session, mode 0x10 with sub-mode 0x03)
   CAN_frame ECMP_CONTACTOR_RESET_START = {.FD = false,
                                           .ext_ID = false,
                                           .DLC = 5,
