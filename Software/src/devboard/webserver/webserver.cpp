@@ -478,7 +478,7 @@ void init_webserver() {
     if (request->hasParam("stop")) {
       String valueStr = request->getParam("stop")->value();
       if (valueStr == "true" || valueStr == "1") {
-        setBatteryPause(true, false, true); //Pause battery, do not pause CAN, equipment stop on (store to flash)
+        setBatteryPause(true, false, true);  //Pause battery, do not pause CAN, equipment stop on (store to flash)
       } else {
         setBatteryPause(false, false, false);
       }
@@ -1556,7 +1556,8 @@ String processor(const String& var) {
           "<br/><br/><button style=\"background:green;color:white;cursor:pointer;\""
           "20px;font-size:16px;font-weight:bold;cursor:pointer;border-radius:5px; margin:10px;"
           " onclick=\""
-          "if(confirm('This action will attempt to close contactors and enable power transfer. Are you sure?')) { estop(false); }\""
+          "if(confirm('This action will attempt to close contactors and enable power transfer. Are you sure?')) { "
+          "estop(false); }\""
           ">Close Contactors</button><br/>";
     content += "<script>";
     content += "function OTA() { window.location.href = '/update'; }";
