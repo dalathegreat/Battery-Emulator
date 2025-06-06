@@ -30,6 +30,8 @@ class TeslaBattery : public CanBattery {
   bool supports_reset_BMS() { return true; }
   void reset_BMS() { datalayer.battery.settings.user_requests_tesla_bms_reset = true; }
 
+  bool supports_charged_energy() { return true; }
+
   BatteryHtmlRenderer& get_status_renderer() { return renderer; }
 
  private:

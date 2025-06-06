@@ -156,18 +156,9 @@ void update_machineryprotection() {
     clear_event(EVENT_SOH_LOW);
   }
 
-#ifdef NISSAN_LEAF_BATTERY
-  // Check if SOC% is plausible
-  if (datalayer.battery.status.voltage_dV >
-      (datalayer.battery.info.max_design_voltage_dV -
-       100)) {  // When pack voltage is close to max, and SOC% is still low, raise event
-    if (datalayer.battery.status.real_soc < 6500) {  // 65.00%
-      set_event(EVENT_SOC_PLAUSIBILITY_ERROR, datalayer.battery.status.real_soc);
-    } else {
-      clear_event(EVENT_SOC_PLAUSIBILITY_ERROR);
-    }
+  if (!battery->soc_plausible()) {
+    set_event(EVENT_SOC_PLAUSIBILITY_ERROR, datalayer.battery.status.real_soc);
   }
-#endif  //NISSAN_LEAF_BATTERY
 
   // Check diff between highest and lowest cell
   cell_deviation_mV =

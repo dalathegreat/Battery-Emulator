@@ -47,6 +47,9 @@ class Battery {
   // This allows for battery specific SOC plausibility calculations to be performed.
   virtual bool soc_plausible() { return true; }
 
+  // Battery reports total_charged_battery_Wh and total_discharged_battery_Wh
+  virtual bool supports_charged_energy() { return false; }
+
   virtual BatteryHtmlRenderer& get_status_renderer() { return defaultRenderer; }
 
  private:

@@ -15,6 +15,7 @@ class MebBattery : public CanBattery {
   virtual void update_values();
   virtual void transmit_can(unsigned long currentMillis);
   bool supports_real_BMS_status() { return true; }
+  bool supports_charged_energy() { return true; }
 
   BatteryHtmlRenderer& get_status_renderer() { return renderer; }
 

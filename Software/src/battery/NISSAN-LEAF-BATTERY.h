@@ -43,8 +43,13 @@ class NissanLeafBattery : public CanBattery {
   virtual void transmit_can(unsigned long currentMillis);
 
   bool supports_reset_SOH();
-
   void reset_SOH() { datalayer_extended.nissanleaf.UserRequestSOHreset = true; }
+
+  bool soc_plausible() {
+    // When pack voltage is close to max, and SOC% is still low, SOC is not plausible
+    return !((datalayer.battery.status.voltage_dV > (datalayer.battery.info.max_design_voltage_dV - 100)) &&
+             (datalayer.battery.status.real_soc < 6500));
+  }
 
   BatteryHtmlRenderer& get_status_renderer() { return renderer; }
 
