@@ -1850,7 +1850,7 @@ String advanced_battery_processor(const String& var) {
     content += "<script>";
     content +=
         "function askContactorResetStellantis() { if (window.confirm('Are you sure you want to trigger "
-        "contactor reset procedure?')) { "
+        "contactor reset procedure? Remember to run the OPEN CONTACTORS from main page first! ')) { "
         "ContactorResetStellantis(); } }";
     content += "function ContactorResetStellantis() {";
     content += "  var xhr = new XMLHttpRequest();";
@@ -1863,7 +1863,7 @@ String advanced_battery_processor(const String& var) {
     content += "<script>";
     content +=
         "function askCollisionResetStellantis() { if (window.confirm('Are you sure you want to trigger "
-        "collision reset procedure?')) { "
+        "collision reset procedure? Remember to run the OPEN CONTACTORS from main page first!')) { "
         "CollisionResetStellantis(); } }";
     content += "function CollisionResetStellantis() {";
     content += "  var xhr = new XMLHttpRequest();";
@@ -1876,7 +1876,7 @@ String advanced_battery_processor(const String& var) {
     content += "<script>";
     content +=
         "function askInsulationResetStellantis() { if (window.confirm('Are you sure you want to trigger "
-        "insulation reset procedure?')) { "
+        "insulation reset procedure? Remember to run the OPEN CONTACTORS from main page first!')) { "
         "InsulationResetStellantis(); } }";
     content += "function InsulationResetStellantis() {";
     content += "  var xhr = new XMLHttpRequest();";
@@ -1889,7 +1889,7 @@ String advanced_battery_processor(const String& var) {
     content += "<script>";
     content +=
         "function askFactoryModeStellantis() { if (window.confirm('Are you sure you want to disable "
-        "isolation monitoring and enter factory mode?')) { "
+        "isolation monitoring and enter factory mode? Remember to run the OPEN CONTACTORS from main page first!')) { "
         "FactoryModeStellantis(); } }";
     content += "function FactoryModeStellantis() {";
     content += "  var xhr = new XMLHttpRequest();";
