@@ -139,7 +139,7 @@ void EcmpBattery::handle_incoming_can_frame(CAN_frame rx_frame) {
       break;
     case 0x359:
       break;
-    case 0x361:
+    case 0x361:  //BMS6_361 , removed on batteries newer than 5/7/2022
       break;
     case 0x362:
       break;
@@ -1041,7 +1041,7 @@ void EcmpBattery::transmit_can(unsigned long currentMillis) {
       ECMP_27A.data = {0x4F, 0x58, 0x00, 0x02, 0x24, 0x00, 0x00, 0x00};
     }
 
-    transmit_can_frame(&ECMP_27A, can_config.battery);  //Not in all CAN logs, might be unnecessary
+    transmit_can_frame(&ECMP_27A, can_config.battery);  //PSA specific VCU message
     //transmit_can_frame(&ECMP_230, can_config.battery);  //Not in all CAN logs, might be unnecessary TODO: REMOVED DURING TESTING
   }
   // Send 100ms periodic CAN Message simulating the car still being attached
@@ -1147,7 +1147,7 @@ void EcmpBattery::transmit_can(unsigned long currentMillis) {
     ECMP_31D.data.u8[7] = counter_100ms << 4 | checksum_calc(counter_100ms, ECMP_31D);
     ECMP_3D0.data.u8[7] = counter_100ms << 4 | checksum_calc(counter_100ms, ECMP_3D0);
 
-    transmit_can_frame(&ECMP_382, can_config.battery);  //PSA Specific!
+    transmit_can_frame(&ECMP_382, can_config.battery);  //PSA Specific VCU
     transmit_can_frame(&ECMP_31E, can_config.battery);
     transmit_can_frame(&ECMP_383, can_config.battery);
     transmit_can_frame(&ECMP_3A2, can_config.battery);
@@ -1168,27 +1168,26 @@ void EcmpBattery::transmit_can(unsigned long currentMillis) {
     if (datalayer.battery.status.bms_status == FAULT) {
       //Make vehicle appear as in idle HV state. Useful for clearing DTCs
       ECMP_486.data = {0x80, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0};
-      ECMP_552.data = {0x00, 0x02, 0x95, 0x6D, 0x00, 0xD7, 0xB5, 0xFE};
-      ECMP_794.data = {0xB8, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0};
+      ECMP_794.data.u8[0] = 0xB8;  //Not sure if needed, could be static?
     } else {
       //Normal operation for contactor closing
       ECMP_486.data = {0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0};
-      ECMP_552.data = {0x0B, 0xC8, 0xEC, 0x4D, 0x00, 0xD4, 0x2C, 0xFE};
-      ECMP_794.data = {0x38, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0};
+      ECMP_794.data.u8[0] = 0x38;  //Not sure if needed, could be static?
     }
 
-    //552 seems to be tracking time in byte 2 & 3 (also byte 1? not long enough logs studied)
-
+    //552 seems to be tracking time in byte 0-3 , distance in km in byte 4-6, temporal reset counter in byte 7
     ticks_552 = (ticks_552 + 10);
-    ECMP_552.data.u8[2] = ((ticks_552 & 0xFF00) >> 8);
-    ECMP_552.data.u8[3] = (ticks_552 & 0x00FF);
+    ECMP_552.data.u8[0] = ((ticks_552 & 0xFF000000) >> 24);
+    ECMP_552.data.u8[1] = ((ticks_552 & 0x00FF0000) >> 16);
+    ECMP_552.data.u8[2] = ((ticks_552 & 0x0000FF00) >> 8);
+    ECMP_552.data.u8[3] = (ticks_552 & 0x000000FF);
 
     transmit_can_frame(&ECMP_439, can_config.battery);  //PSA Specific? Not in all logs
     transmit_can_frame(&ECMP_486, can_config.battery);  //Not in all logs
     transmit_can_frame(&ECMP_041, can_config.battery);  //Not in all logs
     transmit_can_frame(&ECMP_786, can_config.battery);  //Not in all logs
     transmit_can_frame(&ECMP_591, can_config.battery);  //Not in all logs
-    transmit_can_frame(&ECMP_552, can_config.battery);  //Not in all logs
+    transmit_can_frame(&ECMP_552, can_config.battery);  //VCU timetracking
     transmit_can_frame(&ECMP_794, can_config.battery);  //Not in all logs
   }
 }

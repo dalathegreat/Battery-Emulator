@@ -39,7 +39,7 @@ class EcmpBattery : public CanBattery {
   uint8_t counter_50ms = 0;
   uint8_t counter_100ms = 0;
   uint8_t counter_010 = 0;
-  uint16_t ticks_552 = 60513;  //Hmm, will overflow a while after start
+  uint32_t ticks_552 = 0x0BC8CFC6;
   uint8_t battery_MainConnectorState = 0;
   int16_t battery_current = 0;
   uint16_t battery_voltage = 370;
@@ -163,7 +163,7 @@ class EcmpBattery : public CanBattery {
                         .ID = 0x0F2,
                         .data = {0x7D, 0x00, 0x4E, 0x20, 0x00, 0x00, 0x60, 0x0D}};  // NOTE. Changes on BMS state
   CAN_frame ECMP_110 = {.FD = false,
-                        .ext_ID = false,
+                        .ext_ID = false,  //EVSE
                         .DLC = 8,
                         .ID = 0x110,
                         .data = {0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x87, 0x05}};  // NOTE. Changes on BMS state
@@ -197,10 +197,10 @@ class EcmpBattery : public CanBattery {
                         .DLC = 8,
                         .ID = 0x230,  //TODO; removed during testing
                         .data = {0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00}};
-  CAN_frame ECMP_27A = {.FD = false,
+  CAN_frame ECMP_27A = {.FD = false,  //VCU message
                         .ext_ID = false,
-                        .DLC = 8,
-                        .ID = 0x27A,
+                        .DLC = 8,     //Contains SEV main state, position of the BSI shunt park, ACC status
+                        .ID = 0x27A,  // electricnetwork state, powetrain status, Wakeuips, diagmux, APC activation
                         .data = {0x4F, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00}};  // NOTE. Changes on BMS state
   CAN_frame ECMP_31E = {.FD = false,
                         .ext_ID = false,
@@ -238,11 +238,12 @@ class EcmpBattery : public CanBattery {
                         .DLC = 8,
                         .ID = 0x37F,
                         .data = {0x45, 0x49, 0x51, 0x45, 0x45, 0x00, 0x45, 0x45}};  // NOTE. Changes on BMS state
-  CAN_frame ECMP_382 = {.FD = false,                                                //BSI_Info (VCU) PSA specific
-                        .ext_ID = false,
-                        .DLC = 8,
-                        .ID = 0x382,
-                        .data = {0x02, 0xE0, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00}};
+  CAN_frame ECMP_382 = {
+      .FD = false,  //BSI_Info (VCU) PSA specific
+      .ext_ID = false,
+      .DLC = 8,
+      .ID = 0x382,  //Frame1 has rollerbenchmode request, frame2 has generic powertrain cycle sync status
+      .data = {0x02, 0xE0, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00}};
   CAN_frame ECMP_383 = {.FD = false,
                         .ext_ID = false,
                         .DLC = 8,
@@ -268,11 +269,11 @@ class EcmpBattery : public CanBattery {
                         .DLC = 8,
                         .ID = 0x486,
                         .data = {0x80, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0}};  // NOTE. Changes on BMS state
-  CAN_frame ECMP_552 = {.FD = false,
+  CAN_frame ECMP_552 = {.FD = false,  //VCU 1s periodic (Perfectly handled in Battery-Emulator)
                         .ext_ID = false,
-                        .DLC = 8,
-                        .ID = 0x552,
-                        .data = {0x00, 0x02, 0x95, 0x6D, 0x00, 0xD7, 0xB5, 0xFE}};  // NOTE. Changes on BMS state
+                        .DLC = 8,     //552 seems to be tracking time in byte 0-3
+                        .ID = 0x552,  // distance in km in byte 4-6, temporal reset counter in byte 7
+                        .data = {0x00, 0x02, 0x95, 0x6D, 0x00, 0xD7, 0xB5, 0xFE}};
   CAN_frame ECMP_591 = {.FD = false,
                         .ext_ID = false,
                         .DLC = 8,
@@ -283,7 +284,7 @@ class EcmpBattery : public CanBattery {
                         .DLC = 8,
                         .ID = 0x786,
                         .data = {0x38, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0}};
-  CAN_frame ECMP_794 = {.FD = false,
+  CAN_frame ECMP_794 = {.FD = false,  //Unsure who sends this. Could it be BMU?
                         .ext_ID = false,
                         .DLC = 8,
                         .ID = 0x794,
