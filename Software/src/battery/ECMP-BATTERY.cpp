@@ -990,12 +990,14 @@ void EcmpBattery::transmit_can(unsigned long currentMillis) {
     if (datalayer.battery.status.bms_status == FAULT) {
       //Make vehicle appear as in idle HV state. Useful for clearing DTCs
       ECMP_0F2.data = {0x7D, 0x00, 0x4E, 0x20, 0x00, 0x00, 0x60, 0x0D};
-      ECMP_110.data = {0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x87, 0x05};
       ECMP_17B.data = {0x00, 0x00, 0x00, 0x7E, 0x78, 0x00, 0x00, 0x0F};
+      ECMP_110.data.u8[6] = 0x87;
+      ECMP_110.data.u8[7] = 0x05;
     } else {
       //Normal operation for contactor closing
       ECMP_0F2.data = {0x7D, 0x00, 0x4E, 0x20, 0x00, 0x00, 0x90, 0x0D};
-      ECMP_110.data = {0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x4E, 0x20};
+      ECMP_110.data.u8[6] = 0x4E;
+      ECMP_110.data.u8[7] = 0x20;
       ECMP_17B.data = {0x00, 0x00, 0x00, 0x7F, 0x98, 0x00, 0x00, 0x0F};
     }
 
@@ -1039,10 +1041,10 @@ void EcmpBattery::transmit_can(unsigned long currentMillis) {
     } else {
       //Normal operation for contactor closing
       ECMP_27A.data = {0x4F, 0x58, 0x00, 0x02, 0x24, 0x00, 0x00, 0x00};
+      transmit_can_frame(&ECMP_230, can_config.battery);  //Might be unecessary, in some logs when active
     }
 
     transmit_can_frame(&ECMP_27A, can_config.battery);  //PSA specific VCU message
-    //transmit_can_frame(&ECMP_230, can_config.battery);  //Not in all CAN logs, might be unnecessary TODO: REMOVED DURING TESTING
   }
   // Send 100ms periodic CAN Message simulating the car still being attached
   if (currentMillis - previousMillis100 >= INTERVAL_100_MS) {
@@ -1053,12 +1055,11 @@ void EcmpBattery::transmit_can(unsigned long currentMillis) {
 
     if (datalayer.battery.status.bms_status == FAULT) {
       //Make vehicle appear as in idle HV state. Useful for clearing DTCs
-      ECMP_31E.data = {0x48, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x08};
+      ECMP_31E.data.u8[0] = 0x48;
       ECMP_345.data = {0x45, 0x57, 0x00, 0x04, 0x00, 0x00, 0x06, 0x31};
       ECMP_351.data = {0x00, 0x00, 0x00, 0x00, 0x08, 0x00, 0x00, 0x0E};
       ECMP_372.data = {0x00, 0x60, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00};
-      ECMP_37F.data = {0x45, 0x49, 0x51, 0x45, 0x45, 0x00, 0x45, 0x45};
-      ECMP_383.data = {0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00};
+      ECMP_383.data.u8[0] = 0x00;
       ECMP_3A2.data = {0x03, 0xE8, 0x00, 0x00, 0x81, 0x00, 0x08, 0x02};
       ECMP_3A3.data = {0x4A, 0x4A, 0x40, 0x00, 0x00, 0x08, 0x00, 0x0F};
       data_345_content[0] = 0x04;  // Allows for DTCs to clear
@@ -1093,48 +1094,48 @@ void EcmpBattery::transmit_can(unsigned long currentMillis) {
       data_3A2_CRC[13] = 0xDF;
       data_3A2_CRC[14] = 0xEE;
       data_3A2_CRC[15] = 0xFD;
+      transmit_can_frame(&ECMP_3D0, can_config.battery);  //Not in logs, but makes speed go to 0km/h
     } else {
       //Normal operation for contactor closing
-      ECMP_31E.data = {0x50, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x08};
-      ECMP_345.data = {0x45, 0x51, 0x00, 0x04, 0xDD, 0x00, 0x02, 0x31};
-      ECMP_351.data = {0x00, 0x00, 0x00, 0x00, 0x0E, 0xA0, 0x00, 0x0E};
+      ECMP_31E.data.u8[0] = 0x50;
+      ECMP_345.data = {0x45, 0x52, 0x00, 0x04, 0xDD, 0x00, 0x02, 0x30};
+      ECMP_351.data = {0x00, 0x00, 0x00, 0x00, 0x0E, 0xA0, 0x00, 0xE0};
       ECMP_372.data = {0x9A, 0x80, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00};
-      ECMP_37F.data = {0x42, 0x45, 0x4E, 0x43, 0x42, 0x00, 0x43, 0x42};
-      ECMP_383.data = {0x40, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00};
-      ECMP_3A2.data = {0x01, 0x48, 0x00, 0x00, 0x81, 0x00, 0x08, 0x02};
+      ECMP_383.data.u8[0] = 0x40;
+      ECMP_3A2.data = {0x01, 0x68, 0x00, 0x00, 0x81, 0x00, 0x08, 0x02};
       ECMP_3A3.data = {0x49, 0x49, 0x40, 0x00, 0xDD, 0x08, 0x00, 0x0F};
-      data_345_content[0] = 0x01;  // Allows for contactor closing
-      data_345_content[1] = 0xF2;
-      data_345_content[2] = 0xE3;
-      data_345_content[3] = 0xD4;
-      data_345_content[4] = 0xC5;
-      data_345_content[5] = 0xB6;
-      data_345_content[6] = 0xA7;
-      data_345_content[7] = 0x98;
-      data_345_content[8] = 0x89;
-      data_345_content[9] = 0x7A;
-      data_345_content[10] = 0x6B;
-      data_345_content[11] = 0x5C;
-      data_345_content[12] = 0x4D;
-      data_345_content[13] = 0x3E;
-      data_345_content[14] = 0x2F;
-      data_345_content[15] = 0x10;
-      data_3A2_CRC[0] = 0x08;  // Allows for contactor closing
-      data_3A2_CRC[1] = 0x17;
-      data_3A2_CRC[2] = 0x26;
-      data_3A2_CRC[3] = 0x35;
-      data_3A2_CRC[4] = 0x44;
-      data_3A2_CRC[5] = 0x53;
-      data_3A2_CRC[6] = 0x62;
-      data_3A2_CRC[7] = 0x71;
-      data_3A2_CRC[8] = 0x80;
-      data_3A2_CRC[9] = 0x9F;
-      data_3A2_CRC[10] = 0xAE;
-      data_3A2_CRC[11] = 0xBD;
-      data_3A2_CRC[12] = 0xCC;
-      data_3A2_CRC[13] = 0xD8;
-      data_3A2_CRC[14] = 0xEA;
-      data_3A2_CRC[15] = 0xF9;
+      data_345_content[0] = 0x00;  // Allows for contactor closing
+      data_345_content[1] = 0xF1;
+      data_345_content[2] = 0xE2;
+      data_345_content[3] = 0xD3;
+      data_345_content[4] = 0xC4;
+      data_345_content[5] = 0xB5;
+      data_345_content[6] = 0xA6;
+      data_345_content[7] = 0x97;
+      data_345_content[8] = 0x88;
+      data_345_content[9] = 0x79;
+      data_345_content[10] = 0x6A;
+      data_345_content[11] = 0x5B;
+      data_345_content[12] = 0x4C;
+      data_345_content[13] = 0x3D;
+      data_345_content[14] = 0x2E;
+      data_345_content[15] = 0x1F;
+      data_3A2_CRC[0] = 0x06;  // Allows for contactor closing
+      data_3A2_CRC[1] = 0x15;
+      data_3A2_CRC[2] = 0x24;
+      data_3A2_CRC[3] = 0x33;
+      data_3A2_CRC[4] = 0x42;
+      data_3A2_CRC[5] = 0x51;
+      data_3A2_CRC[6] = 0x60;
+      data_3A2_CRC[7] = 0x7F;
+      data_3A2_CRC[8] = 0x8E;
+      data_3A2_CRC[9] = 0x9D;
+      data_3A2_CRC[10] = 0xAC;
+      data_3A2_CRC[11] = 0xBB;
+      data_3A2_CRC[12] = 0xCA;
+      data_3A2_CRC[13] = 0xD9;
+      data_3A2_CRC[14] = 0xE8;
+      data_3A2_CRC[15] = 0xF7;
     }
 
     ECMP_31E.data.u8[7] = counter_100ms << 4 | checksum_calc(counter_100ms, ECMP_31E);
@@ -1154,12 +1155,17 @@ void EcmpBattery::transmit_can(unsigned long currentMillis) {
     transmit_can_frame(&ECMP_3A3, can_config.battery);
     transmit_can_frame(&ECMP_010, can_config.battery);
     transmit_can_frame(&ECMP_0A6, can_config.battery);  //Not in all logs
-    transmit_can_frame(&ECMP_37F, can_config.battery);
+    transmit_can_frame(&ECMP_37F, can_config.battery);  //Seems to be temperatures of some sort
     transmit_can_frame(&ECMP_372, can_config.battery);
     transmit_can_frame(&ECMP_345, can_config.battery);
     transmit_can_frame(&ECMP_351, can_config.battery);
     transmit_can_frame(&ECMP_31D, can_config.battery);
-    //transmit_can_frame(&ECMP_3D0, can_config.battery);  //Not in logs, but makes speed go to 0km/h
+  }
+  // Send 500ms periodic CAN Message simulating the car still being attached
+  if (currentMillis - previousMillis500 >= INTERVAL_500_MS) {
+    previousMillis500 = currentMillis;
+
+    transmit_can_frame(&ECMP_0AE, can_config.battery);
   }
   // Send 1s CAN Message
   if (currentMillis - previousMillis1000 >= INTERVAL_1_S) {
@@ -1167,11 +1173,11 @@ void EcmpBattery::transmit_can(unsigned long currentMillis) {
 
     if (datalayer.battery.status.bms_status == FAULT) {
       //Make vehicle appear as in idle HV state. Useful for clearing DTCs
-      ECMP_486.data = {0x80, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0};
+      ECMP_486.data.u8[0] = 0x80;
       ECMP_794.data.u8[0] = 0xB8;  //Not sure if needed, could be static?
     } else {
       //Normal operation for contactor closing
-      ECMP_486.data = {0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0};
+      ECMP_486.data.u8[0] = 0x00;
       ECMP_794.data.u8[0] = 0x38;  //Not sure if needed, could be static?
     }
 
@@ -1189,6 +1195,12 @@ void EcmpBattery::transmit_can(unsigned long currentMillis) {
     transmit_can_frame(&ECMP_591, can_config.battery);  //Not in all logs
     transmit_can_frame(&ECMP_552, can_config.battery);  //VCU timetracking
     transmit_can_frame(&ECMP_794, can_config.battery);  //Not in all logs
+  }
+  // Send 5s periodic CAN Message simulating the car still being attached
+  if (currentMillis - previousMillis5000 >= INTERVAL_5_S) {
+    previousMillis5000 = currentMillis;
+
+    transmit_can_frame(&ECMP_55F, can_config.battery);
   }
 }
 
