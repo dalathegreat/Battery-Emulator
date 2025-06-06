@@ -28,16 +28,6 @@ void transmit_can_frame(CAN_frame* tx_frame, int interface);
 void init_CAN();
 
 /**
- * @brief Transmit one CAN frame
- *
- * @param[in] CAN_frame* tx_frame
- * @param[in] int interface
- *
- * @return void
- */
-void transmit_can_frame();
-
-/**
  * @brief Receive CAN messages from all interfaces 
  *
  * @param[in] void
@@ -81,15 +71,5 @@ void receive_frame_canfd_addon();
  * @return void
  */
 void print_can_frame(CAN_frame frame, frameDirection msgDir);
-
-/**
- * @brief Map CAN frame from specified interface to variable
- *
- * @param[in] CAN_frame* rx_frame
- * @param[in] int interface
- *
- * @return void
- */
-void map_can_frame_to_variable(CAN_frame* rx_frame, int interface);
 
 #endif

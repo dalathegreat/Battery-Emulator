@@ -5,6 +5,7 @@
 
 #include "../datalayer/datalayer.h"
 #include "src/communication/Transmitter.h"
+#include "src/communication/can/CanReceiver.h"
 
 enum class ChargerType { NissanLeaf, ChevyVolt };
 
@@ -37,7 +38,7 @@ class Charger {
 };
 
 // Base class for chargers on a CAN bus
-class CanCharger : public Charger, Transmitter {
+class CanCharger : public Charger, Transmitter, CanReceiver {
  public:
   virtual void map_can_frame_to_variable(CAN_frame rx_frame) = 0;
   virtual void transmit_can(unsigned long currentMillis) = 0;
@@ -48,8 +49,13 @@ class CanCharger : public Charger, Transmitter {
     }
   }
 
+  void receive_can_frame(CAN_frame* frame) { map_can_frame_to_variable(*frame); }
+
  protected:
-  CanCharger(ChargerType type) : Charger(type) { register_transmitter(this); }
+  CanCharger(ChargerType type) : Charger(type) {
+    register_transmitter(this);
+    register_can_receiver(this, can_config.charger);
+  }
 };
 
 #endif

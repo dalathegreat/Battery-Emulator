@@ -203,7 +203,7 @@ void KostalInverterProtocol::update_values() {
   }
 }
 
-void KostalInverterProtocol::receive_RS485()  // Runs as fast as possible to handle the serial stream
+void KostalInverterProtocol::receive()  // Runs as fast as possible to handle the serial stream
 {
   currentMillis = millis();
 

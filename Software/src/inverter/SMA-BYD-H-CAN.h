@@ -5,7 +5,6 @@
 #include "CanInverterProtocol.h"
 
 #ifdef SMA_BYD_H_CAN
-#define CAN_INVERTER_SELECTED
 #define SELECTED_INVERTER_CLASS SmaBydHInverter
 #endif
 
