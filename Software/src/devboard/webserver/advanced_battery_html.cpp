@@ -56,11 +56,11 @@ std::vector<BatteryCommand> battery_commands = {
      [](Battery* b) {
        b->reset_SOH();
      }},
-    {"changeSOC", "Change SOC method",
-     "change SOC method? This will toggle between ESTIMATED and MEASURED SOC methods.",
-     [](Battery* b) { return b && b->supports_change_SOC_method(); },
+    {"toggleSOC", "Toggle SOC method",
+     "toggle SOC method? This will toggle between ESTIMATED and MEASURED SOC methods.",
+     [](Battery* b) { return b && b->supports_toggle_SOC_method(); },
      [](Battery* b) {
-       b->change_SOC_method();
+       b->toggle_SOC_method();
      }},
 };
 

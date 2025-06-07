@@ -291,12 +291,6 @@ void BydAttoBattery::
       stateMachineClearCrash = STARTED;
       datalayer_bydatto->UserRequestCrashReset = false;
     }
-
-    // Change SOC method if requested from webserver datalayer
-    if (datalayer_bydatto->ChangeSOCMethod) {
-      SOC_method = !SOC_method;  // Toggle the SOC method
-      datalayer_bydatto->ChangeSOCMethod = false;
-    }
   }
 }
 

@@ -171,9 +171,6 @@ typedef struct {
   /** User requesting crash reset via WebUI*/
   bool UserRequestCrashReset = false;
   /** bool */
-  /** User changing SOC method via WebUI*/
-  bool ChangeSOCMethod = false;
-  /** bool */
   /** Which SOC method currently used. 0 = Estimated, 1 = Measured */
   bool SOC_method = 0;
   /** uint16_t */

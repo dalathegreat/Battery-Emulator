@@ -58,11 +58,11 @@ class BydAttoBattery : public CanBattery {
   void reset_crash() { datalayer_bydatto->UserRequestCrashReset = true; }
 
 #ifndef USE_ESTIMATED_SOC
-  // Changing SOC method in UI is only enabled if we initially use measured SOC
-  bool supports_change_SOC_method() { return true; }
+  // Toggle SOC method in UI is only enabled if we initially use measured SOC
+  bool supports_toggle_SOC_method() { return true; }
 #endif
 
-  void change_SOC_method() { datalayer_bydatto->ChangeSOCMethod = true; }
+  void toggle_SOC_method() { SOC_method = !SOC_method; }
 
   BatteryHtmlRenderer& get_status_renderer() { return renderer; }
 
@@ -88,7 +88,6 @@ class BydAttoBattery : public CanBattery {
   unsigned long previousMillis100 = 0;  // will store last time a 100ms CAN Message was send
   unsigned long previousMillis200 = 0;  // will store last time a 200ms CAN Message was send
   bool SOC_method = false;
-  bool ChangeSOCMethod = false;
   uint8_t counter_50ms = 0;
   uint8_t counter_100ms = 0;
   uint8_t frame6_counter = 0xB;

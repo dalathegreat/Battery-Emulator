@@ -29,7 +29,7 @@ class Battery {
   virtual bool supports_set_fake_voltage() { return false; }
   virtual bool supports_manual_balancing() { return false; }
   virtual bool supports_real_BMS_status() { return false; }
-  virtual bool supports_change_SOC_method() { return false; }
+  virtual bool supports_toggle_SOC_method() { return false; }
 
   virtual void clear_isolation() {}
   virtual void reset_BMS() {}
@@ -41,7 +41,7 @@ class Battery {
   virtual void reset_BECM() {}
   virtual void request_open_contactors() {}
   virtual void request_close_contactors() {}
-  virtual void change_SOC_method() {}
+  virtual void toggle_SOC_method() {}
 
   virtual void set_fake_voltage(float v) {}
   virtual float get_voltage() { static_cast<float>(datalayer.battery.status.voltage_dV) / 10.0; }
