@@ -151,21 +151,22 @@ void BydAttoBattery::
     datalayer_battery->status.voltage_dV = BMS_voltage * 10;
   }
 
-#ifdef USE_ESTIMATED_SOC
-  // When the battery is crashed hard, it locks itself and SOC becomes unavailable.
-  // We instead estimate the SOC% based on the battery voltage.
-  // This is a bad solution, you wont be able to use 100% of the battery
-  if (battery_type == EXTENDED_RANGE) {
-    datalayer_battery->status.real_soc = estimateSOCextended(datalayer_battery->status.voltage_dV);
+  if (SOC_method == MEASURED) {
+    // Pack is not crashed, we can use periodically transmitted SOC
+    datalayer_battery->status.real_soc = battery_highprecision_SOC * 10;
   }
-  if (battery_type == STANDARD_RANGE) {
-    datalayer_battery->status.real_soc = estimateSOCstandard(datalayer_battery->status.voltage_dV);
+  else
+  {
+    // When the battery is crashed hard, it locks itself and SOC becomes unavailable.
+    // We instead estimate the SOC% based on the battery voltage.
+    // This is a bad solution, you wont be able to use 100% of the battery
+    if (battery_type == EXTENDED_RANGE) {
+      datalayer_battery->status.real_soc = estimateSOCextended(datalayer_battery->status.voltage_dV);
+    }
+    if (battery_type == STANDARD_RANGE) {
+      datalayer_battery->status.real_soc = estimateSOCstandard(datalayer_battery->status.voltage_dV);
+    }
   }
-  SOC_method = ESTIMATED;
-#else  // Pack is not crashed, we can use periodically transmitted SOC
-  datalayer_battery->status.real_soc = battery_highprecision_SOC * 10;
-  SOC_method = MEASURED;
-#endif
 
   datalayer_battery->status.current_dA = -BMS_current;
 
@@ -291,6 +292,12 @@ void BydAttoBattery::
     if (datalayer_bydatto->UserRequestCrashReset && stateMachineClearCrash == NOT_RUNNING) {
       stateMachineClearCrash = STARTED;
       datalayer_bydatto->UserRequestCrashReset = false;
+    }
+
+    // Change SOC method if requested from webserver datalayer
+    if (datalayer_bydatto->ChangeSOCMethod) {
+      SOC_method = !SOC_method;  // Toggle the SOC method
+      datalayer_bydatto->ChangeSOCMethod = false;
     }
   }
 }
@@ -691,6 +698,11 @@ void BydAttoBattery::setup(void) {  // Performs one time setup at startup
   datalayer_battery->info.max_cell_voltage_mV = MAX_CELL_VOLTAGE_MV;
   datalayer_battery->info.min_cell_voltage_mV = MIN_CELL_VOLTAGE_MV;
   datalayer_battery->info.max_cell_voltage_deviation_mV = MAX_CELL_DEVIATION_MV;
+  #ifdef USE_ESTIMATED_SOC // Initial setup for selected SOC method
+    SOC_method = ESTIMATED;
+  #else
+    SOC_method = MEASURED;
+  #endif
 }
 
 #endif
