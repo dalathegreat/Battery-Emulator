@@ -56,6 +56,12 @@ std::vector<BatteryCommand> battery_commands = {
      [](Battery* b) {
        b->reset_SOH();
      }},
+    {"toggleSOC", "Toggle SOC method",
+     "toggle SOC method? This will toggle between ESTIMATED and MEASURED SOC methods.",
+     [](Battery* b) { return b && b->supports_toggle_SOC_method(); },
+     [](Battery* b) {
+       b->toggle_SOC_method();
+     }},
 };
 
 String advanced_battery_processor(const String& var) {

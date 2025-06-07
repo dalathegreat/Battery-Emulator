@@ -57,6 +57,13 @@ class BydAttoBattery : public CanBattery {
 
   void reset_crash() { datalayer_bydatto->UserRequestCrashReset = true; }
 
+#ifndef USE_ESTIMATED_SOC
+  // Toggle SOC method in UI is only enabled if we initially use measured SOC
+  bool supports_toggle_SOC_method() { return true; }
+#endif
+
+  void toggle_SOC_method() { SOC_method = !SOC_method; }
+
   BatteryHtmlRenderer& get_status_renderer() { return renderer; }
 
  private:
