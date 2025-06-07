@@ -154,9 +154,7 @@ void BydAttoBattery::
   if (SOC_method == MEASURED) {
     // Pack is not crashed, we can use periodically transmitted SOC
     datalayer_battery->status.real_soc = battery_highprecision_SOC * 10;
-  }
-  else
-  {
+  } else {
     // When the battery is crashed hard, it locks itself and SOC becomes unavailable.
     // We instead estimate the SOC% based on the battery voltage.
     // This is a bad solution, you wont be able to use 100% of the battery
@@ -698,11 +696,11 @@ void BydAttoBattery::setup(void) {  // Performs one time setup at startup
   datalayer_battery->info.max_cell_voltage_mV = MAX_CELL_VOLTAGE_MV;
   datalayer_battery->info.min_cell_voltage_mV = MIN_CELL_VOLTAGE_MV;
   datalayer_battery->info.max_cell_voltage_deviation_mV = MAX_CELL_DEVIATION_MV;
-  #ifdef USE_ESTIMATED_SOC // Initial setup for selected SOC method
-    SOC_method = ESTIMATED;
-  #else
-    SOC_method = MEASURED;
-  #endif
+#ifdef USE_ESTIMATED_SOC  // Initial setup for selected SOC method
+  SOC_method = ESTIMATED;
+#else
+  SOC_method = MEASURED;
+#endif
 }
 
 #endif
