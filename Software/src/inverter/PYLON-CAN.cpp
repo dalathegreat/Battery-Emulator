@@ -24,15 +24,30 @@ void PylonInverter::
   //There are more mappings that could be added, but this should be enough to use as a starting point
   // Note we map both 0 and 1 messages
 
-  //Charge / Discharge allowed
-  PYLON_4280.data.u8[0] = 0;
-  PYLON_4280.data.u8[1] = 0;
-  PYLON_4280.data.u8[2] = 0;
-  PYLON_4280.data.u8[3] = 0;
-  PYLON_4281.data.u8[0] = 0;
-  PYLON_4281.data.u8[1] = 0;
-  PYLON_4281.data.u8[2] = 0;
-  PYLON_4281.data.u8[3] = 0;
+  //Charge / Discharge allowed flags
+  if (datalayer.battery.status.max_charge_current_dA == 0) {
+    PYLON_4280.data.u8[0] = 0xAA;  //Charge forbidden
+    PYLON_4281.data.u8[0] = 0xAA;
+  } else {
+    PYLON_4280.data.u8[0] = 0;  //Charge allowed
+    PYLON_4281.data.u8[0] = 0;
+  }
+
+  if (datalayer.battery.status.max_discharge_current_dA == 0) {
+    PYLON_4280.data.u8[1] = 0xAA;  //Discharge forbidden
+    PYLON_4281.data.u8[1] = 0xAA;
+  } else {
+    PYLON_4280.data.u8[1] = 0;  //Discharge allowed
+    PYLON_4281.data.u8[1] = 0;
+  }
+
+  //In case run into a FAULT state, let inverter know to stop any charge/discharge
+  if (datalayer.battery.status.bms_status == FAULT) {
+    PYLON_4280.data.u8[0] = 0xAA;  //Charge forbidden
+    PYLON_4280.data.u8[1] = 0xAA;  //Discharge forbidden
+    PYLON_4281.data.u8[0] = 0xAA;  //Charge forbidden
+    PYLON_4281.data.u8[1] = 0xAA;  //Discharge forbidden
+  }
 
   //Voltage (370.0)
   PYLON_4210.data.u8[0] = (datalayer.battery.status.voltage_dV >> 8);
@@ -280,18 +295,6 @@ void PylonInverter::
   PYLON_4271.data.u8[2] = (datalayer.battery.status.temperature_min_dC >> 8);
   PYLON_4271.data.u8[3] = (datalayer.battery.status.temperature_min_dC & 0x00FF);
 #endif  // Not INVERT_LOW_HIGH_BYTES
-
-  //In case we run into any errors/faults, we can set charge / discharge forbidden
-  if (datalayer.battery.status.bms_status == FAULT) {
-    PYLON_4280.data.u8[0] = 0xAA;
-    PYLON_4280.data.u8[1] = 0xAA;
-    PYLON_4280.data.u8[2] = 0xAA;
-    PYLON_4280.data.u8[3] = 0xAA;
-    PYLON_4281.data.u8[0] = 0xAA;
-    PYLON_4281.data.u8[1] = 0xAA;
-    PYLON_4281.data.u8[2] = 0xAA;
-    PYLON_4281.data.u8[3] = 0xAA;
-  }
 }
 
 void PylonInverter::map_can_frame_to_variable(CAN_frame rx_frame) {
