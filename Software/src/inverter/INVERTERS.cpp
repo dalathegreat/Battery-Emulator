@@ -34,16 +34,9 @@ void setup_inverter() {
 }
 
 #ifdef CAN_INVERTER_SELECTED
-void update_values_can_inverter() {
-  can_inverter->update_values();
-}
 
 void map_can_frame_to_variable_inverter(CAN_frame rx_frame) {
   can_inverter->map_can_frame_to_variable(rx_frame);
-}
-
-void transmit_can_inverter(unsigned long currentMillis) {
-  can_inverter->transmit_can(currentMillis);
 }
 #endif
 

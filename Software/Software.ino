@@ -9,6 +9,7 @@
 #include "freertos/FreeRTOS.h"
 #include "freertos/task.h"
 
+#include "src/communication/Transmitter.h"
 #include "src/communication/can/comm_can.h"
 #include "src/communication/contactorcontrol/comm_contactorcontrol.h"
 #include "src/communication/equipmentstopbutton/comm_equipmentstopbutton.h"
@@ -88,11 +89,6 @@ void setup() {
                           &logging_loop_task, WIFI_CORE);
 #endif
 
-#ifdef MQTT
-  xTaskCreatePinnedToCore((TaskFunction_t)&mqtt_loop, "mqtt_loop", 4096, NULL, TASK_MQTT_PRIO, &mqtt_loop_task,
-                          WIFI_CORE);
-#endif
-
   init_CAN();
 
   init_contactors();
@@ -110,9 +106,8 @@ void setup() {
 #ifdef EQUIPMENT_STOP_BUTTON
   init_equipment_stop_button();
 #endif
-#ifdef CAN_SHUNT_SELECTED
+
   setup_can_shunt();
-#endif
   // BOOT button at runtime is used as an input for various things
   pinMode(0, INPUT_PULLUP);
 
@@ -126,6 +121,12 @@ void setup() {
   };
 
   // Start tasks
+
+#ifdef MQTT
+  xTaskCreatePinnedToCore((TaskFunction_t)&mqtt_loop, "mqtt_loop", 4096, NULL, TASK_MQTT_PRIO, &mqtt_loop_task,
+                          WIFI_CORE);
+#endif
+
   xTaskCreatePinnedToCore((TaskFunction_t)&core_loop, "core_loop", 4096, NULL, TASK_CORE_PRIO, &main_loop_task,
                           CORE_FUNCTION_CORE);
 #ifdef PERIODIC_BMS_RESET_AT
@@ -202,6 +203,12 @@ void mqtt_loop(void*) {
 }
 #endif
 
+static std::list<Transmitter*> transmitters;
+
+void register_transmitter(Transmitter* transmitter) {
+  transmitters.push_back(transmitter);
+}
+
 void core_loop(void*) {
   esp_task_wdt_add(NULL);  // Register this task with WDT
   TickType_t xLastWakeTime = xTaskGetTickCount();
@@ -253,15 +260,25 @@ void core_loop(void*) {
 #ifdef FUNCTION_TIME_MEASUREMENT
       START_TIME_MEASUREMENT(time_values);
 #endif
-      update_pause_state();     // Check if we are OK to send CAN or need to pause
-      update_values_battery();  // Fetch battery values
-#ifdef DOUBLE_BATTERY
-      update_values_battery2();
-      check_interconnect_available();
-#endif  // DOUBLE_BATTERY
+      update_pause_state();  // Check if we are OK to send CAN or need to pause
+
+      // Fetch battery values
+      if (battery) {
+        battery->update_values();
+      }
+
+      if (battery2) {
+        battery2->update_values();
+        check_interconnect_available();
+      }
       update_calculated_values();
       update_machineryprotection();  // Check safeties
-      update_values_inverter();      // Update values heading towards inverter
+
+      // Update values heading towards inverter
+      if (inverter) {
+        inverter->update_values();
+      }
+
 #ifdef FUNCTION_TIME_MEASUREMENT
       END_TIME_MEASUREMENT_MAX(time_values, datalayer.system.status.time_values_us);
 #endif
@@ -269,12 +286,12 @@ void core_loop(void*) {
 #ifdef FUNCTION_TIME_MEASUREMENT
     START_TIME_MEASUREMENT(cantx);
 #endif
-    // Output
-    transmit_can(currentMillis);  // Send CAN messages to all components
 
-#ifdef RS485_BATTERY_SELECTED
-    transmit_rs485(currentMillis);
-#endif  // RS485_BATTERY_SELECTED
+    // Let all transmitter objects send their messages
+    for (auto& transmitter : transmitters) {
+      transmitter->transmit(currentMillis);
+    }
+
 #ifdef FUNCTION_TIME_MEASUREMENT
     END_TIME_MEASUREMENT_MAX(cantx, datalayer.system.status.time_cantx_us);
     END_TIME_MEASUREMENT_MAX(all, datalayer.system.status.core_task_10s_max_us);
@@ -504,12 +521,6 @@ void update_calculated_values() {
     datalayer.system.status.millisrolloverCount++;
   }
   lastMillisOverflowCheck = currentMillis;
-}
-
-void update_values_inverter() {
-  if (inverter) {
-    inverter->update_values();
-  }
 }
 
 void check_reset_reason() {

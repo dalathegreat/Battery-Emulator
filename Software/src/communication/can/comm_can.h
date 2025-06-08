@@ -38,16 +38,6 @@ void init_CAN();
 void transmit_can_frame();
 
 /**
- * @brief Send CAN messages to all components 
- *
- * @param[in] void
- * @param[in] unsigned long currentMillis
- *
- * @return void
- */
-void transmit_can(unsigned long currentMillis);
-
-/**
  * @brief Receive CAN messages from all interfaces 
  *
  * @param[in] void
