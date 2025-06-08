@@ -325,7 +325,7 @@ typedef struct {
   int32_t pid_current = 0;
   uint32_t pid_insulation_res_neg = 0;
   uint32_t pid_insulation_res_pos = 0;
-  uint32_t pid_22 = 0;
+  uint32_t pid_max_current_10s = 0;
   uint32_t pid_max_discharge_10s = 0;
   uint32_t pid_max_discharge_30s = 0;
   uint32_t pid_max_charge_10s = 0;
@@ -341,9 +341,35 @@ typedef struct {
   uint16_t pid_high_cell_voltage = 0;
   uint16_t pid_low_cell_voltage = 0;
   uint8_t pid_battery_energy = 0;
-  uint32_t pid_40 = 0;
-  uint8_t pid_41 = 0;
-  uint8_t pid_42 = 0;
+  uint32_t pid_crash_counter = 0;
+  uint8_t pid_wire_crash = 0;
+  uint8_t pid_CAN_crash = 0;
+  uint32_t pid_history_data = 0;
+  uint32_t pid_lowsoc_counter = 0;
+  uint32_t pid_last_can_failure_detail = 0;
+  uint32_t pid_hw_version_num = 0;
+  uint32_t pid_sw_version_num = 0;
+  uint32_t pid_factory_mode_control = 0;
+  uint8_t pid_battery_serial[13] = {0};
+  uint32_t pid_all_cell_soh = 0;
+  uint32_t pid_aux_fuse_state = 0;
+  uint32_t pid_battery_state = 0;
+  uint32_t pid_precharge_short_circuit = 0;
+  uint32_t pid_eservice_plug_state = 0;
+  uint32_t pid_mainfuse_state = 0;
+  uint32_t pid_most_critical_fault = 0;
+  uint32_t pid_current_time = 0;
+  uint32_t pid_time_sent_by_car = 0;
+  uint32_t pid_12v = 0;
+  uint32_t pid_12v_abnormal = 0;
+  uint32_t pid_hvil_in_voltage = 0;
+  uint32_t pid_hvil_out_voltage = 0;
+  uint32_t pid_hvil_state = 0;
+  uint32_t pid_bms_state = 0;
+  uint32_t pid_vehicle_speed = 0;
+  uint32_t pid_time_spent_over_55c = 0;
+  uint32_t pid_contactor_closing_counter = 0;
+  uint32_t pid_date_of_manufacture = 0;
 } DATALAYER_INFO_ECMP;
 
 typedef struct {

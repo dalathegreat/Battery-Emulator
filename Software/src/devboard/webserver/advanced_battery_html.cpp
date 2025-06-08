@@ -459,6 +459,10 @@ String advanced_battery_processor(const String& var) {
 #endif  //CMFA_EV_BATTERY
 
 #ifdef STELLANTIS_ECMP_BATTERY
+    char readableSerialNumber[14];  // One extra space for null terminator
+    memcpy(readableSerialNumber, datalayer_extended.stellantisECMP.pid_battery_serial,
+           sizeof(datalayer_extended.stellantisECMP.pid_battery_serial));
+    readableSerialNumber[13] = '\0';  // Null terminate the string
     content += "<button onclick='askContactorResetStellantis()'>Contactor reset</button>";
     content += "<button onclick='askCollisionResetStellantis()'>Collision reset</button>";
     content += "<button onclick='askInsulationResetStellantis()'>Insulation reset</button>";
@@ -605,10 +609,11 @@ String advanced_battery_processor(const String& var) {
                     ? "N/A"
                     : String(datalayer_extended.stellantisECMP.pid_insulation_res_pos)) +
                " kOhm</h4>";
-    content +=
-        "<h4>PID22: " +
-        (datalayer_extended.stellantisECMP.pid_22 == 255 ? "N/A" : String(datalayer_extended.stellantisECMP.pid_22)) +
-        "</h4>";
+    content += "<h4>Max current 10s: " +
+               (datalayer_extended.stellantisECMP.pid_max_current_10s == 255
+                    ? "N/A"
+                    : String(datalayer_extended.stellantisECMP.pid_max_current_10s)) +
+               "</h4>";
     content += "<h4>Max discharge power 10s: " +
                (datalayer_extended.stellantisECMP.pid_max_discharge_10s == 255
                     ? "N/A"
@@ -684,18 +689,142 @@ String advanced_battery_processor(const String& var) {
                     ? "N/A"
                     : String(datalayer_extended.stellantisECMP.pid_battery_energy)) +
                "</h4>";
+    content += "<h4>Collision information Counter: " +
+               (datalayer_extended.stellantisECMP.pid_crash_counter == 255
+                    ? "N/A"
+                    : String(datalayer_extended.stellantisECMP.pid_crash_counter)) +
+               "</h4>";
+    content += "<h4>Collision Counter recieved by Wire: " +
+               (datalayer_extended.stellantisECMP.pid_wire_crash == 255
+                    ? "N/A"
+                    : String(datalayer_extended.stellantisECMP.pid_wire_crash)) +
+               "</h4>";
+    content += "<h4>Collision data sent from car to battery: " +
+               (datalayer_extended.stellantisECMP.pid_CAN_crash == 255
+                    ? "N/A"
+                    : String(datalayer_extended.stellantisECMP.pid_CAN_crash)) +
+               "</h4>";
+    content += "<h4>History data: " +
+               (datalayer_extended.stellantisECMP.pid_history_data == 255
+                    ? "N/A"
+                    : String(datalayer_extended.stellantisECMP.pid_history_data)) +
+               "</h4>";
+    content += "<h4>Low SOC counter: " +
+               (datalayer_extended.stellantisECMP.pid_lowsoc_counter == 255
+                    ? "N/A"
+                    : String(datalayer_extended.stellantisECMP.pid_lowsoc_counter)) +
+               "</h4>";
+    content += "<h4>Last CAN failure detail: " +
+               (datalayer_extended.stellantisECMP.pid_last_can_failure_detail == 255
+                    ? "N/A"
+                    : String(datalayer_extended.stellantisECMP.pid_last_can_failure_detail)) +
+               "</h4>";
+    content += "<h4>HW version number: " +
+               (datalayer_extended.stellantisECMP.pid_hw_version_num == 255
+                    ? "N/A"
+                    : String(datalayer_extended.stellantisECMP.pid_hw_version_num)) +
+               "</h4>";
+    content += "<h4>SW version number: " +
+               (datalayer_extended.stellantisECMP.pid_sw_version_num == 255
+                    ? "N/A"
+                    : String(datalayer_extended.stellantisECMP.pid_sw_version_num)) +
+               "</h4>";
+    content += "<h4>Factory mode: " +
+               (datalayer_extended.stellantisECMP.pid_factory_mode_control == 255
+                    ? "N/A"
+                    : String(datalayer_extended.stellantisECMP.pid_factory_mode_control)) +
+               "</h4>";
+    content += "<h4>Battery serial: " + String(readableSerialNumber) + "</h4>";
+    content += "<h4>Date of manufacture: " +
+               (datalayer_extended.stellantisECMP.pid_contactor_closing_counter == 255
+                    ? "N/A"
+                    : String(datalayer_extended.stellantisECMP.pid_contactor_closing_counter)) +
+               "</h4>";
+    content += "<h4>Aux fuse state: " +
+               (datalayer_extended.stellantisECMP.pid_aux_fuse_state == 255
+                    ? "N/A"
+                    : String(datalayer_extended.stellantisECMP.pid_aux_fuse_state)) +
+               "</h4>";
+    content += "<h4>Battery state: " +
+               (datalayer_extended.stellantisECMP.pid_battery_state == 255
+                    ? "N/A"
+                    : String(datalayer_extended.stellantisECMP.pid_battery_state)) +
+               "</h4>";
+    content += "<h4>Precharge short circuit: " +
+               (datalayer_extended.stellantisECMP.pid_precharge_short_circuit == 255
+                    ? "N/A"
+                    : String(datalayer_extended.stellantisECMP.pid_precharge_short_circuit)) +
+               "</h4>";
+    content += "<h4>Service plug state: " +
+               (datalayer_extended.stellantisECMP.pid_eservice_plug_state == 255
+                    ? "N/A"
+                    : String(datalayer_extended.stellantisECMP.pid_eservice_plug_state)) +
+               "</h4>";
+    content += "<h4>Main fuse state: " +
+               (datalayer_extended.stellantisECMP.pid_mainfuse_state == 255
+                    ? "N/A"
+                    : String(datalayer_extended.stellantisECMP.pid_mainfuse_state)) +
+               "</h4>";
+    content += "<h4>Most critical fault: " +
+               (datalayer_extended.stellantisECMP.pid_most_critical_fault == 255
+                    ? "N/A"
+                    : String(datalayer_extended.stellantisECMP.pid_most_critical_fault)) +
+               "</h4>";
+    content += "<h4>Current time: " +
+               (datalayer_extended.stellantisECMP.pid_current_time == 255
+                    ? "N/A"
+                    : String(datalayer_extended.stellantisECMP.pid_current_time)) +
+               "</h4>";
+    content += "<h4>Time sent by car: " +
+               (datalayer_extended.stellantisECMP.pid_time_sent_by_car == 255
+                    ? "N/A"
+                    : String(datalayer_extended.stellantisECMP.pid_time_sent_by_car)) +
+               "</h4>";
     content +=
-        "<h4>Collision information Counter recieved by CAN: " +
-        (datalayer_extended.stellantisECMP.pid_40 == 255 ? "N/A" : String(datalayer_extended.stellantisECMP.pid_40)) +
+        "<h4>12V: " +
+        (datalayer_extended.stellantisECMP.pid_12v == 255 ? "N/A" : String(datalayer_extended.stellantisECMP.pid_12v)) +
         "</h4>";
-    content +=
-        "<h4>Collision Counter recieved by Wire: " +
-        (datalayer_extended.stellantisECMP.pid_41 == 255 ? "N/A" : String(datalayer_extended.stellantisECMP.pid_41)) +
-        "</h4>";
-    content +=
-        "<h4>Detection of a Vehicle Impact: " +
-        (datalayer_extended.stellantisECMP.pid_42 == 255 ? "N/A" : String(datalayer_extended.stellantisECMP.pid_42)) +
-        "</h4>";
+    content += "<h4>12V abnormal: " +
+               (datalayer_extended.stellantisECMP.pid_12v_abnormal == 255
+                    ? "N/A"
+                    : String(datalayer_extended.stellantisECMP.pid_12v_abnormal)) +
+               "</h4>";
+    content += "<h4>HVIL IN Voltage: " +
+               (datalayer_extended.stellantisECMP.pid_hvil_in_voltage == 255
+                    ? "N/A"
+                    : String(datalayer_extended.stellantisECMP.pid_hvil_in_voltage)) +
+               "</h4>";
+    content += "<h4>HVIL Out Voltage: " +
+               (datalayer_extended.stellantisECMP.pid_hvil_out_voltage == 255
+                    ? "N/A"
+                    : String(datalayer_extended.stellantisECMP.pid_hvil_out_voltage)) +
+               "</h4>";
+    content += "<h4>HVIL State: " +
+               (datalayer_extended.stellantisECMP.pid_hvil_state == 255
+                    ? "N/A"
+                    : String(datalayer_extended.stellantisECMP.pid_hvil_state)) +
+               "</h4>";
+    content += "<h4>BMS State: " +
+               (datalayer_extended.stellantisECMP.pid_bms_state == 255
+                    ? "N/A"
+                    : String(datalayer_extended.stellantisECMP.pid_bms_state)) +
+               "</h4>";
+    content += "<h4>Vehicle speed: " +
+               (datalayer_extended.stellantisECMP.pid_vehicle_speed == 255
+                    ? "N/A"
+                    : String(datalayer_extended.stellantisECMP.pid_vehicle_speed)) +
+               "</h4>";
+    content += "<h4>Time spent over 55c: " +
+               (datalayer_extended.stellantisECMP.pid_time_spent_over_55c == 255
+                    ? "N/A"
+                    : String(datalayer_extended.stellantisECMP.pid_time_spent_over_55c)) +
+               "</h4>";
+    content += "<h4>Contactor lifetime closing counter: " +
+               (datalayer_extended.stellantisECMP.pid_contactor_closing_counter == 255
+                    ? "N/A"
+                    : String(datalayer_extended.stellantisECMP.pid_contactor_closing_counter)) +
+               "</h4>";
+
 #endif  //STELLANTIS_ECMP_BATTERY
 
 #ifdef GEELY_GEOMETRY_C_BATTERY

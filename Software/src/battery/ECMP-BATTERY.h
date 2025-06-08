@@ -73,7 +73,7 @@ class EcmpBattery : public CanBattery {
   int32_t pid_current = NOT_SAMPLED_YET;
   uint32_t pid_insulation_res_neg = NOT_SAMPLED_YET;
   uint32_t pid_insulation_res_pos = NOT_SAMPLED_YET;
-  uint32_t pid_22 = NOT_SAMPLED_YET;
+  uint32_t pid_max_current_10s = NOT_SAMPLED_YET;
   uint32_t pid_max_discharge_10s = NOT_SAMPLED_YET;
   uint32_t pid_max_discharge_30s = NOT_SAMPLED_YET;
   uint32_t pid_max_charge_10s = NOT_SAMPLED_YET;
@@ -89,9 +89,35 @@ class EcmpBattery : public CanBattery {
   uint16_t pid_high_cell_voltage = NOT_SAMPLED_YET;
   uint16_t pid_low_cell_voltage = NOT_SAMPLED_YET;
   uint8_t pid_battery_energy = NOT_SAMPLED_YET;
-  uint32_t pid_40 = NOT_SAMPLED_YET;
-  uint8_t pid_41 = NOT_SAMPLED_YET;
-  uint8_t pid_42 = NOT_SAMPLED_YET;
+  uint32_t pid_crash_counter = NOT_SAMPLED_YET;
+  uint8_t pid_wire_crash = NOT_SAMPLED_YET;
+  uint8_t pid_CAN_crash = NOT_SAMPLED_YET;
+  uint32_t pid_history_data = NOT_SAMPLED_YET;
+  uint32_t pid_lowsoc_counter = NOT_SAMPLED_YET;
+  uint32_t pid_last_can_failure_detail = NOT_SAMPLED_YET;
+  uint32_t pid_hw_version_num = NOT_SAMPLED_YET;
+  uint32_t pid_sw_version_num = NOT_SAMPLED_YET;
+  uint32_t pid_factory_mode_control = NOT_SAMPLED_YET;
+  uint8_t pid_battery_serial[13] = {0};
+  uint32_t pid_all_cell_soh = NOT_SAMPLED_YET;
+  uint32_t pid_aux_fuse_state = NOT_SAMPLED_YET;
+  uint32_t pid_battery_state = NOT_SAMPLED_YET;
+  uint32_t pid_precharge_short_circuit = NOT_SAMPLED_YET;
+  uint32_t pid_eservice_plug_state = NOT_SAMPLED_YET;
+  uint32_t pid_mainfuse_state = NOT_SAMPLED_YET;
+  uint32_t pid_most_critical_fault = NOT_SAMPLED_YET;
+  uint32_t pid_current_time = NOT_SAMPLED_YET;
+  uint32_t pid_time_sent_by_car = NOT_SAMPLED_YET;
+  uint32_t pid_12v = NOT_SAMPLED_YET;
+  uint32_t pid_12v_abnormal = NOT_SAMPLED_YET;
+  uint32_t pid_hvil_in_voltage = NOT_SAMPLED_YET;
+  uint32_t pid_hvil_out_voltage = NOT_SAMPLED_YET;
+  uint32_t pid_hvil_state = NOT_SAMPLED_YET;
+  uint32_t pid_bms_state = NOT_SAMPLED_YET;
+  uint32_t pid_vehicle_speed = NOT_SAMPLED_YET;
+  uint32_t pid_time_spent_over_55c = NOT_SAMPLED_YET;
+  uint32_t pid_contactor_closing_counter = NOT_SAMPLED_YET;
+  uint32_t pid_date_of_manufacture = NOT_SAMPLED_YET;
 
   unsigned long previousMillis10 = 0;    // will store last time a 10ms CAN Message was sent
   unsigned long previousMillis20 = 0;    // will store last time a 20ms CAN Message was sent
@@ -123,7 +149,7 @@ class EcmpBattery : public CanBattery {
 #define PID_CURRENT 0xD816
 #define PID_INSULATION_NEG 0xD87C
 #define PID_INSULATION_POS 0xD87B
-#define PID_22 0xD876
+#define PID_MAX_CURRENT_10S 0xD876
 #define PID_MAX_DISCHARGE_10S 0xD873
 #define PID_MAX_DISCHARGE_30S 0xD874
 #define PID_MAX_CHARGE_10S 0xD871
@@ -133,19 +159,45 @@ class EcmpBattery : public CanBattery {
 #define PID_LOW_CELL_NUM 0xD43C
 #define PID_SUM_OF_CELLS 0xD438
 #define PID_CELL_MIN_CAPACITY 0xD413
-#define PID_32 0xD48A
+#define PID_CELL_VOLTAGE_MEAS_STATUS 0xD48A
 #define PID_INSULATION_RES 0xD47A
 #define PID_PACK_VOLTAGE 0xD815
 #define PID_HIGH_CELL_VOLTAGE 0xD870
-#define PID_36 0xD440  //Multi-frame
+#define PID_ALL_CELL_VOLTAGES 0xD440  //Multi-frame
 #define PID_LOW_CELL_VOLTAGE 0xD86F
 #define PID_BATTERY_ENERGY 0xD865
-#define PID_39 0xD470  //Multi-frame (State of Cell1 Of Module 11 of the Traction Battery?)
-#define PID_40 0xD42F  //?Collision information Counter recieved by CAN (Order unsure on these)
-#define PID_41 0xD87F  //?Collision Counter recieved by Wire
-#define PID_42 0xD48D  //?Detection of a Vehicle Impact
-#define PID_43 0xD465  //Unknown Multi Frame
-#define PID_44 0xD492  //Unknown
+#define PID_BATTERY_ENERGY 0xD865
+#define PID_CELLBALANCE_STATUS 0xD46F      //Multi-frame?
+#define PID_CELLBALANCE_HWERR_MASK 0xD470  //Multi-frame
+#define PID_CRASH_COUNTER 0xD42F
+#define PID_WIRE_CRASH 0xD87F
+#define PID_CAN_CRASH 0xD48D
+#define PID_HISTORY_DATA 0xD465
+#define PID_LOWSOC_COUNTER 0xD492
+#define PID_LAST_CAN_FAILURE_DETAIL 0xD89E
+#define PID_HW_VERSION_NUM 0xF193
+#define PID_SW_VERSION_NUM 0xF195
+#define PID_FACTORY_MODE_CONTROL 0xD900
+#define PID_BATTERY_SERIAL 0xD901
+#define PID_ALL_CELL_SOH 0xD4B5
+#define PID_AUX_FUSE_STATE 0xD86C
+#define PID_BATTERY_STATE 0xD811
+#define PID_PRECHARGE_SHORT_CIRCUIT 0xD4D8
+#define PID_ESERVICE_PLUG_STATE 0xD86A
+#define PID_MAINFUSE_STATE 0xD86B
+#define PID_MOST_CRITICAL_FAULT 0xD481
+#define PID_CURRENT_TIME 0xD47F
+#define PID_TIME_SENT_BY_CAR 0xD4CA
+#define PID_12V 0xD822
+#define PID_12V_ABNORMAL 0xD42B
+#define PID_HVIL_IN_VOLTAGE 0xD46B
+#define PID_HVIL_OUT_VOLTAGE 0xD46A
+#define PID_HVIL_STATE 0xD869
+#define PID_BMS_STATE 0xD45A
+#define PID_VEHICLE_SPEED 0xD802
+#define PID_TIME_SPENT_OVER_55C 0xE082
+#define PID_CONTACTOR_CLOSING_COUNTER 0xD416
+#define PID_DATE_OF_MANUFACTURE 0xF18B
 
   uint16_t poll_state = PID_WELD_CHECK;
   uint16_t incoming_poll = 0;
@@ -157,12 +209,12 @@ class EcmpBattery : public CanBattery {
                         .DLC = 2,
                         .ID = 0x0A6,
                         .data = {0x02, 0x00}};  //Content changes after 12minutes of runtime (not emulated)
-  CAN_frame ECMP_0F0 = {.FD = false,            //VCU (Common) 20ms periodic (Perfectly emulated in Battery-Emulator)
+  CAN_frame ECMP_0F0 = {.FD = false,  //VCU2_0F0 (Common) 20ms periodic (Perfectly emulated in Battery-Emulator)
                         .ext_ID = false,
                         .DLC = 8,
                         .ID = 0x0F0,
                         .data = {0x00, 0x20, 0x00, 0x00, 0x00, 0x00, 0x00, 0xFF}};
-  CAN_frame ECMP_0F2 = {.FD = false,      //??? 10ms periodic (Perfectly emulated in Battery-Emulator)
+  CAN_frame ECMP_0F2 = {.FD = false,      //CtrlMCU1_0F2 10ms periodic (Perfectly emulated in Battery-Emulator)
                         .ext_ID = false,  // NOTE. Changes on BMS state
                         .DLC = 8,
                         .ID = 0x0F2,
@@ -178,7 +230,7 @@ class EcmpBattery : public CanBattery {
                         .DLC = 8,
                         .ID = 0x111,
                         .data = {0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00}};
-  CAN_frame ECMP_112 = {.FD = false,      //??? 10ms periodic (Perfectly emulated in Battery-Emulator)
+  CAN_frame ECMP_112 = {.FD = false,      //MCU1_112 10ms periodic (Perfectly emulated in Battery-Emulator)
                         .ext_ID = false,  //Same content always, only CRC changes at end
                         .DLC = 8,
                         .ID = 0x112,
@@ -188,26 +240,27 @@ class EcmpBattery : public CanBattery {
                         .DLC = 8,
                         .ID = 0x114,
                         .data = {0x00, 0x00, 0x00, 0x7D, 0x07, 0xD0, 0x7D, 0x00}};
-  CAN_frame ECMP_0C5 = {.FD = false,      //??? 10ms periodic (Perfectly emulated in Battery-Emulator)
+  CAN_frame ECMP_0C5 = {.FD = false,      //DC2_0C5 10ms periodic (Perfectly emulated in Battery-Emulator)
                         .ext_ID = false,  //Same content always, fully static
                         .DLC = 8,
                         .ID = 0x0C5,
                         .data = {0x00, 0x00, 0x00, 0x0A, 0x00, 0x00, 0x00, 0x00}};
-  CAN_frame ECMP_17B = {.FD = false,      //??? 10ms periodic (Perfectly emulated in Battery-Emulator)
+  CAN_frame ECMP_17B = {.FD = false,      //VCU_PCANInfo_17B 10ms periodic (Perfectly emulated in Battery-Emulator)
                         .ext_ID = false,  // NOTE. Changes on BMS state
                         .DLC = 8,
                         .ID = 0x17B,
                         .data = {0x00, 0x00, 0x00, 0x7E, 0x78, 0x00, 0x00, 0x0F}};  // NOTE. Changes on BMS state
-  CAN_frame ECMP_230 = {.FD = false,      //??? 50ms periodic (Perfectly emulated in Battery-Emulator)
+  CAN_frame ECMP_230 = {.FD = false,      //OBC3_230 50ms periodic (Perfectly emulated in Battery-Emulator)
                         .ext_ID = false,  //Same content always, fully static
                         .DLC = 8,
                         .ID = 0x230,
                         .data = {0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00}};
-  CAN_frame ECMP_27A = {.FD = false,      //VCU message 50ms periodic (Perfectly emulated in Battery-Emulator)
-                        .ext_ID = false,  // NOTE. Changes on BMS state
-                        .DLC = 8,         //Contains SEV main state, position of the BSI shunt park, ACC status
-                        .ID = 0x27A,      // electric network state, powetrain status, Wakeups, diagmux, APC activation
-                        .data = {0x4F, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00}};
+  CAN_frame ECMP_27A = {
+      .FD = false,      //VCU_BSI_Wakeup_27A message 50ms periodic (Perfectly emulated in Battery-Emulator)
+      .ext_ID = false,  // NOTE. Changes on BMS state
+      .DLC = 8,         //Contains SEV main state, position of the BSI shunt park, ACC status
+      .ID = 0x27A,      // electric network state, powetrain status, Wakeups, diagmux, APC activation
+      .data = {0x4F, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00}};
   CAN_frame ECMP_31E = {.FD = false,      //??? 100ms periodic (Perfectly emulated in Battery-Emulator)
                         .ext_ID = false,  // NOTE. Changes on BMS state
                         .DLC = 8,
@@ -223,7 +276,7 @@ class EcmpBattery : public CanBattery {
                         .DLC = 8,
                         .ID = 0x3D0,
                         .data = {0x00, 0x00, 0x01, 0x00, 0x00, 0x00, 0x00, 0x00}};
-  CAN_frame ECMP_345 = {.FD = false,      //??? 100ms periodic (Perfectly emulated in Battery-Emulator)
+  CAN_frame ECMP_345 = {.FD = false,      //DC1_345 100ms periodic (Perfectly emulated in Battery-Emulator)
                         .ext_ID = false,  // NOTE. Changes on BMS state
                         .DLC = 8,
                         .ID = 0x345,
@@ -244,7 +297,7 @@ class EcmpBattery : public CanBattery {
                         .ID = 0x37F,
                         .data = {0x45, 0x49, 0x51, 0x45, 0x45, 0x00, 0x45, 0x45}};
   CAN_frame ECMP_382 = {
-      //BSI_Info (VCU) PSA specific 100ms periodic (Perfectly emulated in Battery-Emulator)
+      //BSIInfo_382 (VCU) PSA specific 100ms periodic (Perfectly emulated in Battery-Emulator)
       .FD = false,  //Same content always, fully static
       .ext_ID = false,
       .DLC = 8,
@@ -255,12 +308,12 @@ class EcmpBattery : public CanBattery {
                         .DLC = 8,
                         .ID = 0x383,
                         .data = {0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00}};
-  CAN_frame ECMP_3A2 = {.FD = false,      //??? 100ms periodic (Perfectly emulated in Battery-Emulator)
+  CAN_frame ECMP_3A2 = {.FD = false,      //OBC2_3A2 100ms periodic (Perfectly emulated in Battery-Emulator)
                         .ext_ID = false,  // NOTE. Changes on BMS state
                         .DLC = 8,
                         .ID = 0x3A2,
                         .data = {0x03, 0xE8, 0x00, 0x00, 0x81, 0x00, 0x08, 0x02}};
-  CAN_frame ECMP_3A3 = {.FD = false,      //??? 100ms periodic (Perfectly emulated in Battery-Emulator)
+  CAN_frame ECMP_3A3 = {.FD = false,      //OBC1_3A3 100ms periodic (Perfectly emulated in Battery-Emulator)
                         .ext_ID = false,  // NOTE. Changes on BMS state
                         .DLC = 8,
                         .ID = 0x3A3,
@@ -275,7 +328,7 @@ class EcmpBattery : public CanBattery {
                         .DLC = 8,
                         .ID = 0x486,
                         .data = {0x80, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0}};
-  CAN_frame ECMP_552 = {.FD = false,  //VCU 1s periodic (Perfectly handled in Battery-Emulator)
+  CAN_frame ECMP_552 = {.FD = false,  //VCU_552 1s periodic (Perfectly handled in Battery-Emulator)
                         .ext_ID = false,
                         .DLC = 8,     //552 seems to be tracking time in byte 0-3
                         .ID = 0x552,  // distance in km in byte 4-6, temporal reset counter in byte 7
