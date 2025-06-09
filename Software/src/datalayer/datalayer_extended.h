@@ -351,7 +351,6 @@ typedef struct {
   uint32_t pid_sw_version_num = 0;
   uint32_t pid_factory_mode_control = 0;
   uint8_t pid_battery_serial[13] = {0};
-  uint32_t pid_all_cell_soh = 0;
   uint32_t pid_aux_fuse_state = 0;
   uint32_t pid_battery_state = 0;
   uint32_t pid_precharge_short_circuit = 0;

@@ -108,7 +108,6 @@ void EcmpBattery::update_values() {
   datalayer_extended.stellantisECMP.pid_factory_mode_control = pid_factory_mode_control;
   memcpy(datalayer_extended.stellantisECMP.pid_battery_serial, pid_battery_serial, sizeof(pid_battery_serial));
   uint8_t pid_battery_serial[13] = {0};
-  datalayer_extended.stellantisECMP.pid_all_cell_soh = pid_all_cell_soh;
   datalayer_extended.stellantisECMP.pid_aux_fuse_state = pid_aux_fuse_state;
   datalayer_extended.stellantisECMP.pid_battery_state = pid_battery_state;
   datalayer_extended.stellantisECMP.pid_precharge_short_circuit = pid_precharge_short_circuit;
@@ -132,6 +131,12 @@ void EcmpBattery::update_values() {
     set_event(EVENT_HVIL_FAILURE, 0);
   } else {
     clear_event(EVENT_HVIL_FAILURE);
+  }
+
+  if (pid_12v < 110000) {
+    set_event(EVENT_12V_LOW, 11);
+  } else {
+    clear_event(EVENT_12V_LOW);
   }
 }
 
@@ -455,6 +460,19 @@ void EcmpBattery::handle_incoming_can_frame(CAN_frame rx_frame) {
           //Multiframe has the poll reply slightly different location
           incoming_poll = (rx_frame.data.u8[3] << 8) | rx_frame.data.u8[4];
         }
+
+        if (rx_frame.data.u8[0] == 0x11) {  //One line response, with special handling
+          incoming_poll = (rx_frame.data.u8[3] << 8) | rx_frame.data.u8[4];
+
+          switch (incoming_poll) {  //One line responses, special
+            case PID_HISTORY_DATA:
+              pid_history_data = ((rx_frame.data.u8[5] << 16) | (rx_frame.data.u8[6] << 8) | rx_frame.data.u8[7]);
+              break;
+            default:
+              break;
+          }
+        }
+
         if (rx_frame.data.u8[0] < 0x10) {  //One line responses
           incoming_poll = (rx_frame.data.u8[2] << 8) | rx_frame.data.u8[3];
 
@@ -606,8 +624,7 @@ void EcmpBattery::handle_incoming_can_frame(CAN_frame rx_frame) {
               pid_CAN_crash = (rx_frame.data.u8[4]);
               break;
             case PID_HISTORY_DATA:
-              pid_history_data = ((rx_frame.data.u8[4] << 24) | (rx_frame.data.u8[5] << 16) |
-                                  (rx_frame.data.u8[6] << 8) | rx_frame.data.u8[7]);
+              //handled in 0x11 handler
               break;
             case PID_LOWSOC_COUNTER:
               pid_lowsoc_counter = (rx_frame.data.u8[4] << 8) | rx_frame.data.u8[5];
@@ -617,20 +634,16 @@ void EcmpBattery::handle_incoming_can_frame(CAN_frame rx_frame) {
                                              (rx_frame.data.u8[6] << 8) | rx_frame.data.u8[7]);
               break;
             case PID_HW_VERSION_NUM:
-              //pid_hw_version_num = rx_frame.data.u8[4]; TODO Most likely multifram
+              //pid_hw_version_num = rx_frame.data.u8[4]; Not available on all batteries
               break;
             case PID_SW_VERSION_NUM:
-              //pid_sw_version_num = rx_frame.data.u8[4]; TODO
+              //pid_sw_version_num = rx_frame.data.u8[4]; Not available on all batteries
               break;
             case PID_FACTORY_MODE_CONTROL:
-              pid_factory_mode_control = ((rx_frame.data.u8[4] << 24) | (rx_frame.data.u8[5] << 16) |
-                                          (rx_frame.data.u8[6] << 8) | rx_frame.data.u8[7]);
+              pid_factory_mode_control = rx_frame.data.u8[4];
               break;
             case PID_BATTERY_SERIAL:
-              // Assuming this one is a multiframe, handled later
-              break;
-            case PID_ALL_CELL_SOH:
-              // Assuming this one is a multiframe, handled later  TODO
+              // Multiframe, handled separately down below
               break;
             case PID_AUX_FUSE_STATE:
               pid_aux_fuse_state = rx_frame.data.u8[4];
@@ -648,12 +661,10 @@ void EcmpBattery::handle_incoming_can_frame(CAN_frame rx_frame) {
               pid_mainfuse_state = rx_frame.data.u8[4];
               break;
             case PID_MOST_CRITICAL_FAULT:
-              pid_most_critical_fault = ((rx_frame.data.u8[4] << 24) | (rx_frame.data.u8[5] << 16) |
-                                         (rx_frame.data.u8[6] << 8) | rx_frame.data.u8[7]);
+              pid_most_critical_fault = ((rx_frame.data.u8[4] << 8) | rx_frame.data.u8[5]);
               break;
             case PID_CURRENT_TIME:
-              pid_current_time = ((rx_frame.data.u8[4] << 24) | (rx_frame.data.u8[5] << 16) |
-                                  (rx_frame.data.u8[6] << 8) | rx_frame.data.u8[7]);
+              //Multiframe, handled separately down below
               break;
             case PID_TIME_SENT_BY_CAR:
               pid_time_sent_by_car = ((rx_frame.data.u8[4] << 24) | (rx_frame.data.u8[5] << 16) |
@@ -754,15 +765,14 @@ void EcmpBattery::handle_incoming_can_frame(CAN_frame rx_frame) {
                 break;
             }
             break;
-          case PID_ALL_CELL_SOH:
+          case PID_CURRENT_TIME:
             switch (rx_frame.data.u8[0]) {
               case 0x10:
+                pid_current_time = (pid_current_time | rx_frame.data.u8[7]);
                 break;
               case 0x21:
-                break;
-              case 0x22:
-                break;
-              case 0x23:
+                pid_current_time = (rx_frame.data.u8[3] << 24) | (rx_frame.data.u8[2] << 16) |
+                                   (rx_frame.data.u8[1] << 8) | pid_current_time;
                 break;
               default:
                 break;
@@ -1182,11 +1192,6 @@ void EcmpBattery::transmit_can(unsigned long currentMillis) {
           case PID_BATTERY_SERIAL:
             ECMP_POLL.data.u8[2] = (uint8_t)((PID_BATTERY_SERIAL & 0xFF00) >> 8);
             ECMP_POLL.data.u8[3] = (uint8_t)(PID_BATTERY_SERIAL & 0x00FF);
-            poll_state = PID_ALL_CELL_SOH;
-            break;
-          case PID_ALL_CELL_SOH:
-            ECMP_POLL.data.u8[2] = (uint8_t)((PID_ALL_CELL_SOH & 0xFF00) >> 8);
-            ECMP_POLL.data.u8[3] = (uint8_t)(PID_ALL_CELL_SOH & 0x00FF);
             poll_state = PID_AUX_FUSE_STATE;
             break;
           case PID_AUX_FUSE_STATE:

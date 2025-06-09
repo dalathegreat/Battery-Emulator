@@ -735,11 +735,10 @@ String advanced_battery_processor(const String& var) {
                     : String(datalayer_extended.stellantisECMP.pid_factory_mode_control)) +
                "</h4>";
     content += "<h4>Battery serial: " + String(readableSerialNumber) + "</h4>";
-    content += "<h4>Date of manufacture: " +
-               (datalayer_extended.stellantisECMP.pid_contactor_closing_counter == 255
-                    ? "N/A"
-                    : String(datalayer_extended.stellantisECMP.pid_contactor_closing_counter)) +
-               "</h4>";
+    uint8_t day = (datalayer_extended.stellantisECMP.pid_date_of_manufacture >> 16) & 0xFF;
+    uint8_t month = (datalayer_extended.stellantisECMP.pid_date_of_manufacture >> 8) & 0xFF;
+    uint8_t year = datalayer_extended.stellantisECMP.pid_date_of_manufacture & 0xFF;
+    content += "<h4>Date of manufacture: " + String(day) + "/" + String(month) + "/" + String(year) + "</h4>";
     content += "<h4>Aux fuse state: " +
                (datalayer_extended.stellantisECMP.pid_aux_fuse_state == 255
                     ? "N/A"
@@ -774,56 +773,63 @@ String advanced_battery_processor(const String& var) {
                (datalayer_extended.stellantisECMP.pid_current_time == 255
                     ? "N/A"
                     : String(datalayer_extended.stellantisECMP.pid_current_time)) +
-               "</h4>";
+               " ticks</h4>";
     content += "<h4>Time sent by car: " +
                (datalayer_extended.stellantisECMP.pid_time_sent_by_car == 255
                     ? "N/A"
                     : String(datalayer_extended.stellantisECMP.pid_time_sent_by_car)) +
-               "</h4>";
+               " ticks</h4>";
     content +=
         "<h4>12V: " +
         (datalayer_extended.stellantisECMP.pid_12v == 255 ? "N/A" : String(datalayer_extended.stellantisECMP.pid_12v)) +
         "</h4>";
-    content += "<h4>12V abnormal: " +
-               (datalayer_extended.stellantisECMP.pid_12v_abnormal == 255
-                    ? "N/A"
-                    : String(datalayer_extended.stellantisECMP.pid_12v_abnormal)) +
-               "</h4>";
+    content += "<h4>12V abnormal: ";
+    if (datalayer_extended.stellantisECMP.pid_12v_abnormal == 255) {
+      content += "N/A</h4>";
+    } else if (datalayer_extended.stellantisECMP.pid_12v_abnormal == 0) {
+      content += "No</h4>";
+    } else {
+      content += "Yes</h4>";
+    }
     content += "<h4>HVIL IN Voltage: " +
                (datalayer_extended.stellantisECMP.pid_hvil_in_voltage == 255
                     ? "N/A"
                     : String(datalayer_extended.stellantisECMP.pid_hvil_in_voltage)) +
-               "</h4>";
+               "mV</h4>";
     content += "<h4>HVIL Out Voltage: " +
                (datalayer_extended.stellantisECMP.pid_hvil_out_voltage == 255
                     ? "N/A"
                     : String(datalayer_extended.stellantisECMP.pid_hvil_out_voltage)) +
-               "</h4>";
+               "mV</h4>";
     content += "<h4>HVIL State: " +
                (datalayer_extended.stellantisECMP.pid_hvil_state == 255
                     ? "N/A"
-                    : String(datalayer_extended.stellantisECMP.pid_hvil_state)) +
+                    : (datalayer_extended.stellantisECMP.pid_hvil_state == 0
+                           ? "OK"
+                           : String(datalayer_extended.stellantisECMP.pid_hvil_state))) +
                "</h4>";
     content += "<h4>BMS State: " +
                (datalayer_extended.stellantisECMP.pid_bms_state == 255
                     ? "N/A"
-                    : String(datalayer_extended.stellantisECMP.pid_bms_state)) +
+                    : (datalayer_extended.stellantisECMP.pid_bms_state == 0
+                           ? "OK"
+                           : String(datalayer_extended.stellantisECMP.pid_bms_state))) +
                "</h4>";
     content += "<h4>Vehicle speed: " +
                (datalayer_extended.stellantisECMP.pid_vehicle_speed == 255
                     ? "N/A"
                     : String(datalayer_extended.stellantisECMP.pid_vehicle_speed)) +
-               "</h4>";
+               " km/h</h4>";
     content += "<h4>Time spent over 55c: " +
                (datalayer_extended.stellantisECMP.pid_time_spent_over_55c == 255
                     ? "N/A"
                     : String(datalayer_extended.stellantisECMP.pid_time_spent_over_55c)) +
-               "</h4>";
+               " minutes</h4>";
     content += "<h4>Contactor lifetime closing counter: " +
                (datalayer_extended.stellantisECMP.pid_contactor_closing_counter == 255
                     ? "N/A"
                     : String(datalayer_extended.stellantisECMP.pid_contactor_closing_counter)) +
-               "</h4>";
+               " cycles</h4>";
 
 #endif  //STELLANTIS_ECMP_BATTERY
 

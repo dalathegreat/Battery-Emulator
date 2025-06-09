@@ -99,7 +99,6 @@ class EcmpBattery : public CanBattery {
   uint32_t pid_sw_version_num = NOT_SAMPLED_YET;
   uint32_t pid_factory_mode_control = NOT_SAMPLED_YET;
   uint8_t pid_battery_serial[13] = {0};
-  uint32_t pid_all_cell_soh = NOT_SAMPLED_YET;
   uint32_t pid_aux_fuse_state = NOT_SAMPLED_YET;
   uint32_t pid_battery_state = NOT_SAMPLED_YET;
   uint32_t pid_precharge_short_circuit = NOT_SAMPLED_YET;
@@ -108,7 +107,7 @@ class EcmpBattery : public CanBattery {
   uint32_t pid_most_critical_fault = NOT_SAMPLED_YET;
   uint32_t pid_current_time = NOT_SAMPLED_YET;
   uint32_t pid_time_sent_by_car = NOT_SAMPLED_YET;
-  uint32_t pid_12v = NOT_SAMPLED_YET;
+  uint32_t pid_12v = 12345;  //Initialized to over 12V to not trigger low 12V event
   uint32_t pid_12v_abnormal = NOT_SAMPLED_YET;
   uint32_t pid_hvil_in_voltage = NOT_SAMPLED_YET;
   uint32_t pid_hvil_out_voltage = NOT_SAMPLED_YET;
@@ -173,13 +172,13 @@ class EcmpBattery : public CanBattery {
 #define PID_WIRE_CRASH 0xD87F
 #define PID_CAN_CRASH 0xD48D
 #define PID_HISTORY_DATA 0xD465
-#define PID_LOWSOC_COUNTER 0xD492
-#define PID_LAST_CAN_FAILURE_DETAIL 0xD89E
-#define PID_HW_VERSION_NUM 0xF193
-#define PID_SW_VERSION_NUM 0xF195
+#define PID_LOWSOC_COUNTER 0xD492           //Not supported on all batteris
+#define PID_LAST_CAN_FAILURE_DETAIL 0xD89E  //Not supported on all batteris
+#define PID_HW_VERSION_NUM 0xF193           //Not supported on all batteris
+#define PID_SW_VERSION_NUM 0xF195           //Not supported on all batteris
 #define PID_FACTORY_MODE_CONTROL 0xD900
 #define PID_BATTERY_SERIAL 0xD901
-#define PID_ALL_CELL_SOH 0xD4B5
+#define PID_ALL_CELL_SOH 0xD4B5  //Very long message reply, too much data for this integration
 #define PID_AUX_FUSE_STATE 0xD86C
 #define PID_BATTERY_STATE 0xD811
 #define PID_PRECHARGE_SHORT_CIRCUIT 0xD4D8
