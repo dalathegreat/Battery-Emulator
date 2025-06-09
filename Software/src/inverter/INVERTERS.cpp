@@ -8,9 +8,11 @@ void setup_inverter() {
     return;
   }
 
+#ifdef SELECTED_INVERTER_CLASS
   inverter = new SELECTED_INVERTER_CLASS();
 
   if (inverter) {
     inverter->setup();
   }
+#endif
 }
