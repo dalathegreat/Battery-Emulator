@@ -7,7 +7,6 @@
 #include "CanBattery.h"
 #include "KIA-HYUNDAI-64-HTML.h"
 
-#define BATTERY_SELECTED
 #define SELECTED_BATTERY_CLASS KiaHyundai64Battery
 
 class KiaHyundai64Battery : public CanBattery {

@@ -5,7 +5,6 @@
 #include "CanBattery.h"
 #include "RENAULT-ZOE-GEN2-HTML.h"
 
-#define BATTERY_SELECTED
 #define SELECTED_BATTERY_CLASS RenaultZoeGen2Battery
 
 class RenaultZoeGen2Battery : public CanBattery {

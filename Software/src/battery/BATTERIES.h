@@ -11,29 +11,12 @@ extern Battery* battery2;
 
 void setup_can_shunt();
 
-#ifdef BMW_SBOX
-#include "BMW-SBOX.h"
-#endif
-
-#ifdef BMW_I3_BATTERY
 #include "BMW-I3-BATTERY.h"
-#endif
-
-#ifdef BMW_IX_BATTERY
 #include "BMW-IX-BATTERY.h"
-#endif
-
-#ifdef BMW_PHEV_BATTERY
 #include "BMW-PHEV-BATTERY.h"
-#endif
-
-#ifdef BOLT_AMPERA_BATTERY
+#include "BMW-SBOX.h"
 #include "BOLT-AMPERA-BATTERY.h"
-#endif
-
-#ifdef BYD_ATTO_3_BATTERY
 #include "BYD-ATTO-3-BATTERY.h"
-#endif
 
 #ifdef CELLPOWER_BMS
 #include "CELLPOWER-BMS.h"

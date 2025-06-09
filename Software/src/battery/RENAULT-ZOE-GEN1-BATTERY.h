@@ -4,7 +4,6 @@
 #include "CanBattery.h"
 #include "RENAULT-ZOE-GEN1-HTML.h"
 
-#define BATTERY_SELECTED
 #define SELECTED_BATTERY_CLASS RenaultZoeGen1Battery
 
 #define MAX_PACK_VOLTAGE_DV 4200  //5000 = 500.0V

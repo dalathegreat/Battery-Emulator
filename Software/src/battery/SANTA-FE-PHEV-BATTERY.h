@@ -5,7 +5,6 @@
 #include "../include.h"
 #include "CanBattery.h"
 
-#define BATTERY_SELECTED
 #define SELECTED_BATTERY_CLASS SantaFePhevBattery
 
 class SantaFePhevBattery : public CanBattery {

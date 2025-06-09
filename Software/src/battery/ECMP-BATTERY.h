@@ -6,7 +6,6 @@
 #include "CanBattery.h"
 #include "ECMP-HTML.h"
 
-#define BATTERY_SELECTED
 #define SELECTED_BATTERY_CLASS EcmpBattery
 
 class EcmpBattery : public CanBattery {

@@ -9,7 +9,6 @@ extern ACAN2517FD canfd;
 
 #define ESTIMATE_SOC_FROM_CELLVOLTAGE
 
-#define BATTERY_SELECTED
 #define SELECTED_BATTERY_CLASS KiaEGmpBattery
 
 class KiaEGmpBattery : public CanBattery {

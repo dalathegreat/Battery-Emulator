@@ -3,7 +3,6 @@
 
 #include "CanBattery.h"
 
-#define BATTERY_SELECTED
 #define SELECTED_BATTERY_CLASS JaguarIpaceBattery
 
 #define MAX_PACK_VOLTAGE_DV 4546  //5000 = 500.0V

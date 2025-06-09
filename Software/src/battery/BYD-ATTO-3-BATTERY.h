@@ -18,8 +18,9 @@
 //#define SKIP_TEMPERATURE_SENSOR_NUMBER 1
 
 /* Do not modify the rows below */
-#define BATTERY_SELECTED
+#ifdef BYD_ATTO_3_BATTERY
 #define SELECTED_BATTERY_CLASS BydAttoBattery
+#endif
 
 #define CELLCOUNT_EXTENDED 126
 #define CELLCOUNT_STANDARD 104

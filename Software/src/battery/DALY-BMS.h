@@ -13,9 +13,6 @@
 #define POWER_PER_DEGREE_C 60    // max power added/removed per degree above/below 0°C
 #define POWER_AT_0_DEGREE_C 800  // power at 0°C
 
-/* Do not modify any rows below*/
-#define BATTERY_SELECTED
-#define RS485_BATTERY_SELECTED
 #define SELECTED_BATTERY_CLASS DalyBms
 
 class DalyBms : public RS485Battery {

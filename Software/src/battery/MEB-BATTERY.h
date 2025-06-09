@@ -5,7 +5,6 @@
 #include "CanBattery.h"
 #include "MEB-HTML.h"
 
-#define BATTERY_SELECTED
 #define SELECTED_BATTERY_CLASS MebBattery
 
 class MebBattery : public CanBattery {

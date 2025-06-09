@@ -6,7 +6,6 @@
 #include "CanBattery.h"
 #include "GEELY-GEOMETRY-C-HTML.h"
 
-#define BATTERY_SELECTED
 #define SELECTED_BATTERY_CLASS GeelyGeometryCBattery
 
 #define POLL_SOC 0x4B35

@@ -11,7 +11,6 @@
 // other measurement sources may be added in the future
 #define ISA_SHUNT
 
-#define BATTERY_SELECTED
 #define SELECTED_BATTERY_CLASS ChademoBattery
 
 class ChademoBattery : public CanBattery {

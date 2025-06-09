@@ -5,7 +5,6 @@
 #include "CMFA-EV-HTML.h"
 #include "CanBattery.h"
 
-#define BATTERY_SELECTED
 #define SELECTED_BATTERY_CLASS CmfaEvBattery
 
 class CmfaEvBattery : public CanBattery {

@@ -39,7 +39,7 @@
 #endif
 #endif
 
-#ifndef BATTERY_SELECTED
+#if !defined(COMMON_IMAGE) && !defined(SELECTED_BATTERY_CLASS)
 #error No battery selected! Choose one from the USER_SETTINGS.h file
 #endif
 

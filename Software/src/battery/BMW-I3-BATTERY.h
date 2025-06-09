@@ -7,8 +7,9 @@
 #include "BMW-I3-HTML.h"
 #include "CanBattery.h"
 
-#define BATTERY_SELECTED
+#ifdef BMW_I3_BATTERY
 #define SELECTED_BATTERY_CLASS BmwI3Battery
+#endif
 
 class BmwI3Battery : public CanBattery {
  public:

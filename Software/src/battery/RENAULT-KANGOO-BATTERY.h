@@ -5,7 +5,6 @@
 
 #include "CanBattery.h"
 
-#define BATTERY_SELECTED
 #define SELECTED_BATTERY_CLASS RenaultKangooBattery
 
 class RenaultKangooBattery : public CanBattery {

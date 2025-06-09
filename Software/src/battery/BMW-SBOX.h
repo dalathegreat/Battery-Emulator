@@ -2,7 +2,9 @@
 #define BMW_SBOX_CONTROL_H
 #include "../include.h"
 
+#ifdef BMW_SBOX
 #define SELECTED_SHUNT_CLASS BmwSbox
+#endif
 
 #include "Shunt.h"
 

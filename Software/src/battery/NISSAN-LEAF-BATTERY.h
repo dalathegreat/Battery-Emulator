@@ -7,7 +7,6 @@
 #include "CanBattery.h"
 #include "NISSAN-LEAF-HTML.h"
 
-#define BATTERY_SELECTED
 #define SELECTED_BATTERY_CLASS NissanLeafBattery
 #define EXTENDED_DATA_PTR (&datalayer_extended.nissanleaf)
 

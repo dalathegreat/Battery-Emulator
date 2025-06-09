@@ -6,7 +6,6 @@
 #include "CanBattery.h"
 #include "VOLVO-SPA-HTML.h"
 
-#define BATTERY_SELECTED
 #define SELECTED_BATTERY_CLASS VolvoSpaBattery
 
 class VolvoSpaBattery : public CanBattery {

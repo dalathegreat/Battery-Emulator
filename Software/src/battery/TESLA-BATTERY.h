@@ -5,7 +5,6 @@
 #include "CanBattery.h"
 #include "TESLA-HTML.h"
 
-#define BATTERY_SELECTED
 #ifdef TESLA_MODEL_3Y_BATTERY
 #define SELECTED_BATTERY_CLASS TeslaModel3YBattery
 #endif
