@@ -40,10 +40,10 @@ String settings_processor(const String& var) {
                  String(inverter->interface_name()) + "</span></h4>";
     }
 
-#ifdef CAN_SHUNT_SELECTED
-    content += "<h4 style='color: white;'>Shunt Interface: <span id='Shunt'>" +
-               String(getCANInterfaceName(can_config.shunt)) + "</span></h4>";
-#endif  //CAN_SHUNT_SELECTED
+    if (shunt) {
+      content +=
+          "<h4 style='color: white;'>Shunt Interface: <span id='Shunt'>" + shunt->interface_name() + "</span></h4>";
+    }
 
     // Close the block
     content += "</div>";
