@@ -4,14 +4,16 @@
 #include "../include.h"
 #include "CanBattery.h"
 
+#ifdef CHADEMO_BATTERY
+#define SELECTED_BATTERY_CLASS ChademoBattery
+
 //Contactor control is required for CHADEMO support
 #define CONTACTOR_CONTROL
 
 //ISA shunt is currently required for CHADEMO support
 // other measurement sources may be added in the future
 #define ISA_SHUNT
-
-#define SELECTED_BATTERY_CLASS ChademoBattery
+#endif
 
 class ChademoBattery : public CanBattery {
  public:

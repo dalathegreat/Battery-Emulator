@@ -5,7 +5,9 @@
 #include "CELLPOWER-HTML.h"
 #include "CanBattery.h"
 
+#ifdef CELLPOWER_BMS
 #define SELECTED_BATTERY_CLASS CellPowerBms
+#endif
 
 class CellPowerBms : public CanBattery {
  public:

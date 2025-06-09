@@ -6,7 +6,9 @@
 #include "CanBattery.h"
 #include "GEELY-GEOMETRY-C-HTML.h"
 
+#ifdef GEELY_GEOMETRY_C_BATTERY
 #define SELECTED_BATTERY_CLASS GeelyGeometryCBattery
+#endif
 
 #define POLL_SOC 0x4B35
 #define POLL_CC2_VOLTAGE 0x4BCF
@@ -212,7 +214,10 @@ class GeelyGeometryCBattery : public CanBattery {
   uint16_t poll_unknown7 = 0;
   uint16_t poll_unknown8 = 0;
   int16_t poll_temperature[6] = {0};
-#define TEMP_OFFSET 30  //TODO, not calibrated yet, best guess
+
+  //TODO, not calibrated yet, best guess
+  static const int TEMP_OFFSET = 30;
+
   uint8_t poll_software_version[16] = {0};
   uint8_t poll_hardware_version[16] = {0};
 };

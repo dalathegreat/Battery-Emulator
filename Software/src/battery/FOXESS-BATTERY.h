@@ -5,7 +5,9 @@
 
 #include "CanBattery.h"
 
+#ifdef FOXESS_BATTERY
 #define SELECTED_BATTERY_CLASS FoxessBattery
+#endif
 
 class FoxessBattery : public CanBattery {
  public:
