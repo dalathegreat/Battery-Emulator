@@ -101,6 +101,7 @@ void init_events(void) {
   events.entries[EVENT_SERIAL_RX_FAILURE].level = EVENT_LEVEL_ERROR;
   events.entries[EVENT_SERIAL_TX_FAILURE].level = EVENT_LEVEL_ERROR;
   events.entries[EVENT_SERIAL_TRANSMITTER_FAILURE].level = EVENT_LEVEL_ERROR;
+  events.entries[EVENT_SMA_PAIRING].level = EVENT_LEVEL_INFO;
   events.entries[EVENT_RESET_UNKNOWN].level = EVENT_LEVEL_INFO;
   events.entries[EVENT_RESET_POWERON].level = EVENT_LEVEL_INFO;
   events.entries[EVENT_RESET_EXT].level = EVENT_LEVEL_INFO;
@@ -305,6 +306,8 @@ const char* get_event_message_string(EVENTS_ENUM_TYPE event) {
       return "Error in serial function: No ACK from receiver!";
     case EVENT_SERIAL_TRANSMITTER_FAILURE:
       return "Error in serial function: Some ERROR level fault in transmitter, received by receiver";
+    case EVENT_SMA_PAIRING:
+      return "SMA inverter trying to pair, contactors will close and open according to Enable line";
     case EVENT_OTA_UPDATE:
       return "OTA update started!";
     case EVENT_OTA_UPDATE_TIMEOUT:
