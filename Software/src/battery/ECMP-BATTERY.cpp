@@ -133,7 +133,7 @@ void EcmpBattery::update_values() {
     clear_event(EVENT_HVIL_FAILURE);
   }
 
-  if (pid_12v < 110000) {
+  if (pid_12v < 11000) {
     set_event(EVENT_12V_LOW, 11);
   } else {
     clear_event(EVENT_12V_LOW);
