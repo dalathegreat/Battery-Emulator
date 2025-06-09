@@ -151,6 +151,13 @@ void BydAttoBattery::
     datalayer_battery->status.voltage_dV = BMS_voltage * 10;
   }
 
+  if (battery_type == EXTENDED_RANGE) {
+    battery_estimated_SOC = estimateSOCextended(datalayer_battery->status.voltage_dV);
+  }
+  if (battery_type == STANDARD_RANGE) {
+    battery_estimated_SOC = estimateSOCstandard(datalayer_battery->status.voltage_dV);
+  }
+
   if (SOC_method == MEASURED) {
     // Pack is not crashed, we can use periodically transmitted SOC
     datalayer_battery->status.real_soc = battery_highprecision_SOC * 10;
@@ -158,12 +165,7 @@ void BydAttoBattery::
     // When the battery is crashed hard, it locks itself and SOC becomes unavailable.
     // We instead estimate the SOC% based on the battery voltage.
     // This is a bad solution, you wont be able to use 100% of the battery
-    if (battery_type == EXTENDED_RANGE) {
-      datalayer_battery->status.real_soc = estimateSOCextended(datalayer_battery->status.voltage_dV);
-    }
-    if (battery_type == STANDARD_RANGE) {
-      datalayer_battery->status.real_soc = estimateSOCstandard(datalayer_battery->status.voltage_dV);
-    }
+    datalayer_battery->status.real_soc = battery_estimated_SOC;
   }
 
   datalayer_battery->status.current_dA = -BMS_current;
@@ -255,8 +257,7 @@ void BydAttoBattery::
   // Update webserver datalayer
   if (datalayer_bydatto) {
     datalayer_bydatto->SOC_method = SOC_method;
-    datalayer_bydatto->SOC_estimated = datalayer_battery->status.real_soc;
-    //Once we implement switching logic, remember to change from where the estimated is taken
+    datalayer_bydatto->SOC_estimated = battery_estimated_SOC;
     datalayer_bydatto->SOC_highprec = battery_highprecision_SOC;
     datalayer_bydatto->SOC_polled = BMS_SOC;
     datalayer_bydatto->voltage_periodic = battery_voltage;
