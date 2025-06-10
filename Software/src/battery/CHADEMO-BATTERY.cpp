@@ -341,6 +341,8 @@ void ChademoBattery::handle_incoming_can_frame(CAN_frame rx_frame) {
   }
 
   handle_chademo_sequence();
+
+  ISA_handleFrame(&rx_frame);
 }
 
 /* (re)initialize evse structures to pre-charge/discharge states */

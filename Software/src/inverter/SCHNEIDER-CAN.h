@@ -5,7 +5,6 @@
 #include "CanInverterProtocol.h"
 
 #ifdef SCHNEIDER_CAN
-#define CAN_INVERTER_SELECTED
 #define SELECTED_INVERTER_CLASS SchneiderInverter
 #endif
 
