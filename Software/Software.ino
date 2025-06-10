@@ -50,7 +50,7 @@
 volatile unsigned long long bmsResetTimeOffset = 0;
 
 // The current software version, shown on webserver
-const char* version_number = "8.14.0";
+const char* version_number = "8.15.dev";
 
 // Interval timers
 volatile unsigned long currentMillis = 0;
