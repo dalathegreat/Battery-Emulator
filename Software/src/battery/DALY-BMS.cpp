@@ -178,7 +178,7 @@ void DalyBms::transmit_rs485(unsigned long currentMillis) {
   }
 }
 
-void DalyBms::receive_RS485() {
+void DalyBms::receive() {
   static uint8_t recv_buff[13] = {0};
   static uint8_t recv_len = 0;
 

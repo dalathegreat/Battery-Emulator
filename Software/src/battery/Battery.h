@@ -44,7 +44,7 @@ class Battery {
   virtual void toggle_SOC_method() {}
 
   virtual void set_fake_voltage(float v) {}
-  virtual float get_voltage() { static_cast<float>(datalayer.battery.status.voltage_dV) / 10.0; }
+  virtual float get_voltage() { return static_cast<float>(datalayer.battery.status.voltage_dV) / 10.0; }
 
   // This allows for battery specific SOC plausibility calculations to be performed.
   virtual bool soc_plausible() { return true; }

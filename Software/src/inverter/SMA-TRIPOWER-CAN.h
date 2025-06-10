@@ -5,7 +5,6 @@
 #include "CanInverterProtocol.h"
 
 #ifdef SMA_TRIPOWER_CAN
-#define CAN_INVERTER_SELECTED
 #define SELECTED_INVERTER_CLASS SmaTripowerInverter
 #endif
 

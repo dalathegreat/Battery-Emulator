@@ -1,6 +1,8 @@
 #include "comm_rs485.h"
 #include "../../include.h"
 
+#include <list>
+
 void init_rs485() {
 #ifdef RS485_EN_PIN
   pinMode(RS485_EN_PIN, OUTPUT);
@@ -17,4 +19,16 @@ void init_rs485() {
 
   // Inverters and batteries are expected to initialize their serial port in their setup-function
   // for RS485 or Modbus comms.
+}
+
+static std::list<Rs485Receiver*> receivers;
+
+void receive_rs485() {
+  for (auto& receiver : receivers) {
+    receiver->receive();
+  }
+}
+
+void register_receiver(Rs485Receiver* receiver) {
+  receivers.push_back(receiver);
 }
