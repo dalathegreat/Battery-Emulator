@@ -10,7 +10,7 @@ class NissanLeafHtmlRenderer : public BatteryHtmlRenderer {
   String get_status_html() {
     String content;
 
-   content += "<h4>LEAF generation: ";
+    content += "<h4>LEAF generation: ";
     switch (datalayer_extended.nissanleaf.LEAF_gen) {
       case 0:
         content += String("ZE0</h4>");
