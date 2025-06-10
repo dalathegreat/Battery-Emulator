@@ -100,6 +100,11 @@ void SmaTripowerInverter::map_can_frame_to_variable(CAN_frame rx_frame) {
       //Inverter brand (frame1-3 = 0x53 0x4D 0x41) = SMA
       break;
     case 0x660:  //Message originating from SMA inverter - Pairing request
+#ifdef DEBUG_LOG
+      logging.println("Received 0x660: SMA pairing request");
+#endif  // DEBUG_LOG
+      pairing_events++;
+      set_event(EVENT_SMA_PAIRING, pairing_events);
       datalayer.system.status.CAN_inverter_still_alive = CAN_STILL_ALIVE;
       transmit_can_init();
       break;
