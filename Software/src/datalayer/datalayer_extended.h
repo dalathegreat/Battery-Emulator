@@ -788,7 +788,6 @@ typedef struct {
   uint16_t battery_balance_capacity_wake = 0;
   uint16_t battery_balance_time_wake = 0;
   uint16_t battery_bms_state = 0;
-  uint16_t battery_balance_switches = 0;
   uint16_t battery_energy_complete = 0;
   uint16_t battery_energy_partial = 0;
   uint16_t battery_slave_failures = 0;

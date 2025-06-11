@@ -88,7 +88,6 @@ void RenaultZoeGen2Battery::update_values() {
   datalayer_extended.zoePH2.battery_balance_capacity_wake = battery_balance_capacity_wake;
   datalayer_extended.zoePH2.battery_balance_time_wake = battery_balance_time_wake;
   datalayer_extended.zoePH2.battery_bms_state = battery_bms_state;
-  datalayer_extended.zoePH2.battery_balance_switches = battery_balance_switches;
   datalayer_extended.zoePH2.battery_energy_complete = battery_energy_complete;
   datalayer_extended.zoePH2.battery_energy_partial = battery_energy_partial;
   datalayer_extended.zoePH2.battery_slave_failures = battery_slave_failures;
@@ -208,30 +207,119 @@ void RenaultZoeGen2Battery::handle_incoming_can_frame(CAN_frame rx_frame) {
           battery_bms_state = (rx_frame.data.u8[4] << 8) | rx_frame.data.u8[5];
           break;
         case POLL_BALANCE_SWITCHES:
-          if (rx_frame.data.u8[0] == 0x10) {
-            for (int i = 0; i < 8; i++) {
-              // Byte 4 - 7 (bits 0-31)
-              for (int byte_i = 0; byte_i < 4; byte_i++) {
-                battery_balancing_shunts[byte_i * 8 + i] = (rx_frame.data.u8[4 + byte_i] & (1 << i)) >> i;
-              }
-            }
+          if (rx_frame.data.u8[0] == 0x23) {
+            battery_balancing_shunts[0] = (rx_frame.data.u8[4] & 0x80) >> 7;
+            battery_balancing_shunts[1] = (rx_frame.data.u8[4] & 0x40) >> 6;
+            battery_balancing_shunts[2] = (rx_frame.data.u8[4] & 0x20) >> 5;
+            battery_balancing_shunts[3] = (rx_frame.data.u8[4] & 0x10) >> 4;
+            battery_balancing_shunts[4] = (rx_frame.data.u8[4] & 0x08) >> 3;
+            battery_balancing_shunts[5] = (rx_frame.data.u8[4] & 0x04) >> 2;
+            battery_balancing_shunts[6] = (rx_frame.data.u8[4] & 0x02) >> 1;
+            battery_balancing_shunts[7] = (rx_frame.data.u8[4] & 0x01);
+
+            battery_balancing_shunts[8] = (rx_frame.data.u8[5] & 0x80) >> 7;
+            battery_balancing_shunts[9] = (rx_frame.data.u8[5] & 0x40) >> 6;
+            battery_balancing_shunts[10] = (rx_frame.data.u8[5] & 0x20) >> 5;
+            battery_balancing_shunts[11] = (rx_frame.data.u8[5] & 0x10) >> 4;
+            battery_balancing_shunts[12] = (rx_frame.data.u8[5] & 0x08) >> 3;
+            battery_balancing_shunts[13] = (rx_frame.data.u8[5] & 0x04) >> 2;
+            battery_balancing_shunts[14] = (rx_frame.data.u8[5] & 0x02) >> 1;
+            battery_balancing_shunts[15] = (rx_frame.data.u8[5] & 0x01);
+
+            battery_balancing_shunts[16] = (rx_frame.data.u8[6] & 0x80) >> 7;
+            battery_balancing_shunts[17] = (rx_frame.data.u8[6] & 0x40) >> 6;
+            battery_balancing_shunts[18] = (rx_frame.data.u8[6] & 0x20) >> 5;
+            battery_balancing_shunts[19] = (rx_frame.data.u8[6] & 0x10) >> 4;
+            battery_balancing_shunts[20] = (rx_frame.data.u8[6] & 0x08) >> 3;
+            battery_balancing_shunts[21] = (rx_frame.data.u8[6] & 0x04) >> 2;
+            battery_balancing_shunts[22] = (rx_frame.data.u8[6] & 0x02) >> 1;
+            battery_balancing_shunts[23] = (rx_frame.data.u8[6] & 0x01);
+
+            battery_balancing_shunts[24] = (rx_frame.data.u8[7] & 0x80) >> 7;
+            battery_balancing_shunts[25] = (rx_frame.data.u8[7] & 0x40) >> 6;
+            battery_balancing_shunts[26] = (rx_frame.data.u8[7] & 0x20) >> 5;
+            battery_balancing_shunts[27] = (rx_frame.data.u8[7] & 0x10) >> 4;
+            battery_balancing_shunts[28] = (rx_frame.data.u8[7] & 0x08) >> 3;
+            battery_balancing_shunts[29] = (rx_frame.data.u8[7] & 0x04) >> 2;
+            battery_balancing_shunts[30] = (rx_frame.data.u8[7] & 0x02) >> 1;
+            battery_balancing_shunts[31] = (rx_frame.data.u8[7] & 0x01);
           }
-          if (rx_frame.data.u8[0] == 0x21) {
-            for (int i = 0; i < 8; i++) {
-              // Byte 1 to 7 (bits 32-87)
-              for (int byte_i = 0; byte_i < 7; byte_i++) {
-                battery_balancing_shunts[32 + byte_i * 8 + i] = (rx_frame.data.u8[1 + byte_i] & (1 << i)) >> i;
-              }
-            }
+          if (rx_frame.data.u8[0] == 0x24) {
+            battery_balancing_shunts[32] = (rx_frame.data.u8[1] & 0x80) >> 7;
+            battery_balancing_shunts[33] = (rx_frame.data.u8[1] & 0x40) >> 6;
+            battery_balancing_shunts[34] = (rx_frame.data.u8[1] & 0x20) >> 5;
+            battery_balancing_shunts[35] = (rx_frame.data.u8[1] & 0x10) >> 4;
+            battery_balancing_shunts[36] = (rx_frame.data.u8[1] & 0x08) >> 3;
+            battery_balancing_shunts[37] = (rx_frame.data.u8[1] & 0x04) >> 2;
+            battery_balancing_shunts[38] = (rx_frame.data.u8[1] & 0x02) >> 1;
+            battery_balancing_shunts[39] = (rx_frame.data.u8[1] & 0x01);
+
+            battery_balancing_shunts[40] = (rx_frame.data.u8[2] & 0x80) >> 7;
+            battery_balancing_shunts[41] = (rx_frame.data.u8[2] & 0x40) >> 6;
+            battery_balancing_shunts[42] = (rx_frame.data.u8[2] & 0x20) >> 5;
+            battery_balancing_shunts[43] = (rx_frame.data.u8[2] & 0x10) >> 4;
+            battery_balancing_shunts[44] = (rx_frame.data.u8[2] & 0x08) >> 3;
+            battery_balancing_shunts[45] = (rx_frame.data.u8[2] & 0x04) >> 2;
+            battery_balancing_shunts[46] = (rx_frame.data.u8[2] & 0x02) >> 1;
+            battery_balancing_shunts[47] = (rx_frame.data.u8[2] & 0x01);
+
+            battery_balancing_shunts[48] = (rx_frame.data.u8[3] & 0x80) >> 7;
+            battery_balancing_shunts[49] = (rx_frame.data.u8[3] & 0x40) >> 6;
+            battery_balancing_shunts[50] = (rx_frame.data.u8[3] & 0x20) >> 5;
+            battery_balancing_shunts[51] = (rx_frame.data.u8[3] & 0x10) >> 4;
+            battery_balancing_shunts[52] = (rx_frame.data.u8[3] & 0x08) >> 3;
+            battery_balancing_shunts[53] = (rx_frame.data.u8[3] & 0x04) >> 2;
+            battery_balancing_shunts[54] = (rx_frame.data.u8[3] & 0x02) >> 1;
+            battery_balancing_shunts[55] = (rx_frame.data.u8[3] & 0x01);
+
+            battery_balancing_shunts[56] = (rx_frame.data.u8[4] & 0x80) >> 7;
+            battery_balancing_shunts[57] = (rx_frame.data.u8[4] & 0x40) >> 6;
+            battery_balancing_shunts[58] = (rx_frame.data.u8[4] & 0x20) >> 5;
+            battery_balancing_shunts[59] = (rx_frame.data.u8[4] & 0x10) >> 4;
+            battery_balancing_shunts[60] = (rx_frame.data.u8[4] & 0x08) >> 3;
+            battery_balancing_shunts[61] = (rx_frame.data.u8[4] & 0x04) >> 2;
+            battery_balancing_shunts[62] = (rx_frame.data.u8[4] & 0x02) >> 1;
+            battery_balancing_shunts[63] = (rx_frame.data.u8[4] & 0x01);
+
+            battery_balancing_shunts[64] = (rx_frame.data.u8[5] & 0x80) >> 7;
+            battery_balancing_shunts[65] = (rx_frame.data.u8[5] & 0x40) >> 6;
+            battery_balancing_shunts[66] = (rx_frame.data.u8[5] & 0x20) >> 5;
+            battery_balancing_shunts[67] = (rx_frame.data.u8[5] & 0x10) >> 4;
+            battery_balancing_shunts[68] = (rx_frame.data.u8[5] & 0x08) >> 3;
+            battery_balancing_shunts[69] = (rx_frame.data.u8[5] & 0x04) >> 2;
+            battery_balancing_shunts[70] = (rx_frame.data.u8[5] & 0x02) >> 1;
+            battery_balancing_shunts[71] = (rx_frame.data.u8[5] & 0x01);
+
+            battery_balancing_shunts[72] = (rx_frame.data.u8[6] & 0x80) >> 7;
+            battery_balancing_shunts[73] = (rx_frame.data.u8[6] & 0x40) >> 6;
+            battery_balancing_shunts[74] = (rx_frame.data.u8[6] & 0x20) >> 5;
+            battery_balancing_shunts[75] = (rx_frame.data.u8[6] & 0x10) >> 4;
+            battery_balancing_shunts[76] = (rx_frame.data.u8[6] & 0x08) >> 3;
+            battery_balancing_shunts[77] = (rx_frame.data.u8[6] & 0x04) >> 2;
+            battery_balancing_shunts[78] = (rx_frame.data.u8[6] & 0x02) >> 1;
+            battery_balancing_shunts[79] = (rx_frame.data.u8[6] & 0x01);
+
+            battery_balancing_shunts[80] = (rx_frame.data.u8[7] & 0x80) >> 7;
+            battery_balancing_shunts[81] = (rx_frame.data.u8[7] & 0x40) >> 6;
+            battery_balancing_shunts[82] = (rx_frame.data.u8[7] & 0x20) >> 5;
+            battery_balancing_shunts[83] = (rx_frame.data.u8[7] & 0x10) >> 4;
+            battery_balancing_shunts[84] = (rx_frame.data.u8[7] & 0x08) >> 3;
+            battery_balancing_shunts[85] = (rx_frame.data.u8[7] & 0x04) >> 2;
+            battery_balancing_shunts[86] = (rx_frame.data.u8[7] & 0x02) >> 1;
+            battery_balancing_shunts[87] = (rx_frame.data.u8[7] & 0x01);
           }
-          if (rx_frame.data.u8[0] == 0x22) {
-            for (int i = 0; i < 8; i++) {
-              // Byte 1 (bits 88-95)
-              battery_balancing_shunts[88 + i] = (rx_frame.data.u8[1] & (1 << i)) >> i;
-            }
+          if (rx_frame.data.u8[0] == 0x25) {
+            battery_balancing_shunts[88] = (rx_frame.data.u8[1] & 0x80) >> 7;
+            battery_balancing_shunts[89] = (rx_frame.data.u8[1] & 0x40) >> 6;
+            battery_balancing_shunts[90] = (rx_frame.data.u8[1] & 0x20) >> 5;
+            battery_balancing_shunts[91] = (rx_frame.data.u8[1] & 0x10) >> 4;
+            battery_balancing_shunts[92] = (rx_frame.data.u8[1] & 0x08) >> 3;
+            battery_balancing_shunts[93] = (rx_frame.data.u8[1] & 0x04) >> 2;
+            battery_balancing_shunts[94] = (rx_frame.data.u8[1] & 0x02) >> 1;
+            battery_balancing_shunts[95] = (rx_frame.data.u8[1] & 0x01);
+
             memcpy(datalayer.battery.status.cell_balancing_status, battery_balancing_shunts, 96 * sizeof(bool));
           }
-          battery_balance_switches = (rx_frame.data.u8[4] << 8) | rx_frame.data.u8[5];
           break;
         case POLL_ENERGY_COMPLETE:
           battery_energy_complete = (rx_frame.data.u8[4] << 8) | rx_frame.data.u8[5];
