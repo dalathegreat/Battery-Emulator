@@ -1,12 +1,36 @@
-#include "BYD-CAN.h"
+#include "DEYE-BYD-CAN.h"
 #include "../communication/can/comm_can.h"
 #include "../datalayer/datalayer.h"
 #include "../include.h"
 
 /* Do not change code below unless you are sure what you are doing */
+/* Deye uses a non-standard implementation of the BYD CAN protocol. Deye can never accept 0A under normal circumstances, 
+and needs to instead have a voltage target if max SOC is reached. This implementation differs significantly from BYD-CAN
+when it comes to charge/discharge allowed values and SOC% writing. Bonus, offgrid Deye inverters will overdischarge the battery
+if you do not set SOC% to 0 when battery is empty.
+*/
 
-void BydCanInverter::
-    update_values() {  //This function maps all the values fetched from battery CAN to the correct CAN messages
+void DeyeBydCanInverter::update_values() {
+
+  // Fix for avoiding offgrid Deye inverters to underdischarge batteries
+  capped_SOC_pptt = datalayer.battery.status.reported_soc;
+  if (datalayer.battery.status.max_charge_current_dA == 0) {
+    //Force to 100.00% incase battery no longer wants to charge
+    capped_SOC_pptt = 10000;
+  }
+  if (datalayer.battery.status.max_discharge_current_dA == 0) {
+    //Force to 0% incase battery no longer wants to discharge
+    capped_SOC_pptt = 0;
+  }
+
+  //Deye does not handle this value going to 0A allowed, it needs to float voltage charge at 1A minimum.
+  capped_allowed_charge_current_dA = datalayer.battery.status.max_charge_current_dA;
+  if (datalayer.battery.status.max_charge_current_dA < 10) {
+    capped_allowed_charge_current_dA = 10;
+  }
+  //Only when the battery is in a pack overvoltage state, or cell overvoltage, we can write the allowed A to 0A.
+  //This will instantly trigger a discharge of the max power of the battery.
+  //TODO: Add check for this?
 
   /* Calculate temperature */
   temperature_average =
@@ -40,13 +64,14 @@ void BydCanInverter::
   //Maximum discharge power allowed (Unit: A+1)
   BYD_110.data.u8[4] = (datalayer.battery.status.max_discharge_current_dA >> 8);
   BYD_110.data.u8[5] = (datalayer.battery.status.max_discharge_current_dA & 0x00FF);
+
   //Maximum charge power allowed (Unit: A+1)
-  BYD_110.data.u8[6] = (datalayer.battery.status.max_charge_current_dA >> 8);
-  BYD_110.data.u8[7] = (datalayer.battery.status.max_charge_current_dA & 0x00FF);
+  BYD_110.data.u8[6] = (capped_allowed_charge_current_dA >> 8);
+  BYD_110.data.u8[7] = (capped_allowed_charge_current_dA & 0x00FF);
 
   //SOC (100.00%)
-  BYD_150.data.u8[0] = (datalayer.battery.status.reported_soc >> 8);
-  BYD_150.data.u8[1] = (datalayer.battery.status.reported_soc & 0x00FF);
+  BYD_150.data.u8[0] = (capped_SOC_pptt >> 8);
+  BYD_150.data.u8[1] = (capped_SOC_pptt & 0x00FF);
 
   //StateOfHealth (100.00%)
   BYD_150.data.u8[2] = (datalayer.battery.status.soh_pptt >> 8);
@@ -76,7 +101,7 @@ void BydCanInverter::
   BYD_210.data.u8[3] = (datalayer.battery.status.temperature_min_dC & 0x00FF);
 }
 
-void BydCanInverter::map_can_frame_to_variable(CAN_frame rx_frame) {
+void DeyeBydCanInverter::map_can_frame_to_variable(CAN_frame rx_frame) {
   switch (rx_frame.ID) {
     case 0x151:  //Message originating from BYD HVS compatible inverter. Reply with CAN identifier!
       inverterStartedUp = true;
@@ -113,7 +138,7 @@ void BydCanInverter::map_can_frame_to_variable(CAN_frame rx_frame) {
   }
 }
 
-void BydCanInverter::transmit_can(unsigned long currentMillis) {
+void DeyeBydCanInverter::transmit_can(unsigned long currentMillis) {
 
   if (!inverterStartedUp) {
     //Avoid sending messages towards inverter, unless it has woken up and sent something to us first
@@ -148,7 +173,7 @@ void BydCanInverter::transmit_can(unsigned long currentMillis) {
   }
 }
 
-void BydCanInverter::send_initial_data() {
+void DeyeBydCanInverter::send_initial_data() {
   transmit_can_frame(&BYD_250, can_config.inverter);
   transmit_can_frame(&BYD_290, can_config.inverter);
   transmit_can_frame(&BYD_2D0, can_config.inverter);
@@ -158,7 +183,7 @@ void BydCanInverter::send_initial_data() {
   transmit_can_frame(&BYD_3D0_3, can_config.inverter);
 }
 
-void BydCanInverter::setup(void) {  // Performs one time setup at startup over CAN bus
-  strncpy(datalayer.system.info.inverter_protocol, "BYD Battery-Box Premium HVS over CAN Bus", 63);
+void DeyeBydCanInverter::setup(void) {  // Performs one time setup at startup over CAN bus
+  strncpy(datalayer.system.info.inverter_protocol, "Deye compatible BYD Battery-Box Premium HVS over CAN Bus", 63);
   datalayer.system.info.inverter_protocol[63] = '\0';
 }
