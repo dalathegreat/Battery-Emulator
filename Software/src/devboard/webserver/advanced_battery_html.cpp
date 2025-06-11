@@ -563,26 +563,26 @@ String advanced_battery_processor(const String& var) {
                (datalayer_extended.stellantisECMP.pid_delta_temperature == 255
                     ? "N/A"
                     : String(datalayer_extended.stellantisECMP.pid_delta_temperature)) +
-               "</h4>";
-    content += "<h4>Coldest module: " +
-               (datalayer_extended.stellantisECMP.pid_coldest_module == 255
-                    ? "N/A"
-                    : String(datalayer_extended.stellantisECMP.pid_coldest_module)) +
-               "</h4>";
+               "&deg;C</h4>";
     content += "<h4>Lowest temperature: " +
                (datalayer_extended.stellantisECMP.pid_lowest_temperature == 255
                     ? "N/A"
                     : String(datalayer_extended.stellantisECMP.pid_lowest_temperature)) +
-               "</h4>";
+               "&deg;C</h4>";
     content += "<h4>Average temperature: " +
                (datalayer_extended.stellantisECMP.pid_average_temperature == 255
                     ? "N/A"
                     : String(datalayer_extended.stellantisECMP.pid_average_temperature)) +
-               "</h4>";
+               "&deg;C</h4>";
     content += "<h4>Highest temperature: " +
                (datalayer_extended.stellantisECMP.pid_highest_temperature == 255
                     ? "N/A"
                     : String(datalayer_extended.stellantisECMP.pid_highest_temperature)) +
+               "&deg;C</h4>";
+    content += "<h4>Coldest module: " +
+               (datalayer_extended.stellantisECMP.pid_coldest_module == 255
+                    ? "N/A"
+                    : String(datalayer_extended.stellantisECMP.pid_coldest_module)) +
                "</h4>";
     content += "<h4>Hottest module: " +
                (datalayer_extended.stellantisECMP.pid_hottest_module == 255

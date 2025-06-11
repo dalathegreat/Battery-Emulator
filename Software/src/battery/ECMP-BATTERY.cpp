@@ -520,13 +520,13 @@ void EcmpBattery::handle_incoming_can_frame(CAN_frame rx_frame) {
               pid_coldest_module = (rx_frame.data.u8[4]);
               break;
             case PID_LOWEST_TEMPERATURE:
-              pid_lowest_temperature = (rx_frame.data.u8[4]);
+              pid_lowest_temperature = (rx_frame.data.u8[4] - 40);
               break;
             case PID_AVERAGE_TEMPERATURE:
-              pid_average_temperature = (rx_frame.data.u8[4]);
+              pid_average_temperature = (rx_frame.data.u8[4] - 40);
               break;
             case PID_HIGHEST_TEMPERATURE:
-              pid_highest_temperature = (rx_frame.data.u8[4]);
+              pid_highest_temperature = (rx_frame.data.u8[4] - 40);
               break;
             case PID_HOTTEST_MODULE:
               pid_hottest_module = (rx_frame.data.u8[4]);
@@ -936,7 +936,7 @@ void EcmpBattery::transmit_can(unsigned long currentMillis) {
 
     } else {  //Normal PID polling goes here
 
-      if (currentMillis > 300000) {  //5 minutes after boot, we start PID polling
+      if (datalayer.battery.status.bms_status != FAULT) {  //Stop PID polling if battery is in FAULT mode
 
         switch (poll_state) {
           case PID_WELD_CHECK:
@@ -1526,9 +1526,6 @@ void EcmpBattery::setup(void) {  // Performs one time setup at startup
   datalayer.battery.info.max_design_voltage_dV = MAX_PACK_VOLTAGE_DV;
   datalayer.battery.info.min_design_voltage_dV = MIN_PACK_VOLTAGE_DV;
   datalayer.system.status.battery_allows_contactor_closing = true;
-  ledcAttachChannel(CRASH_SIGNAL_PWM_PIN, 20000, 10,
-                    0);                  //20khz, 10ADC, ch0 TODO: Remove completely if not needed from HAL also
-  ledcWrite(CRASH_SIGNAL_PWM_PIN, 971);  //0.95*1023=971   // Set pin to 95% PWM
 }
 
 #endif

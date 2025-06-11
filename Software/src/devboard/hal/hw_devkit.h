@@ -66,9 +66,6 @@ The pin layout below supports the following:
 #define HIA4V1_PIN GPIO_NUM_17
 #define INVERTER_DISCONNECT_CONTACTOR_PIN GPIO_NUM_5
 
-// Crash signal generator pin (Stellantis ECMP)
-#define CRASH_SIGNAL_PWM_PIN 17
-
 // BMW_I3_BATTERY wake up pin
 #ifdef BMW_I3_BATTERY
 #define WUP_PIN1 GPIO_NUM_25  // Wake up pin for battery 1

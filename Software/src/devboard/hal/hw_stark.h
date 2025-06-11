@@ -58,9 +58,6 @@ GPIOs on extra header
 // SMA CAN contactor pins
 #define INVERTER_CONTACTOR_ENABLE_PIN 2
 
-// Crash signal generator pin (Stellantis ECMP)
-#define CRASH_SIGNAL_PWM_PIN 19
-
 // LED
 #define LED_PIN 4
 #define LED_MAX_BRIGHTNESS 40
