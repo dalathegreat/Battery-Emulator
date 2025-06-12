@@ -20,7 +20,7 @@
 class KostalInverterProtocol : public Rs485InverterProtocol {
  public:
   void setup();
-  void receive_RS485();
+  void receive();
   void update_values();
 
  private:

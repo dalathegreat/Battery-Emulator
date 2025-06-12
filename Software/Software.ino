@@ -50,7 +50,7 @@
 volatile unsigned long long bmsResetTimeOffset = 0;
 
 // The current software version, shown on webserver
-const char* version_number = "8.14.dev";
+const char* version_number = "8.15.dev";
 
 // Interval timers
 volatile unsigned long currentMillis = 0;
@@ -224,10 +224,9 @@ void core_loop(void*) {
 #endif
 
     // Input, Runs as fast as possible
-    receive_can();  // Receive CAN messages
-#if defined(RS485_INVERTER_SELECTED) || defined(RS485_BATTERY_SELECTED)
-    receive_RS485();  // Process serial2 RS485 interface
-#endif                // RS485_INVERTER_SELECTED
+    receive_can();    // Receive CAN messages
+    receive_rs485();  // Process serial2 RS485 interface
+
     END_TIME_MEASUREMENT_MAX(comm, datalayer.system.status.time_comm_us);
 #ifdef WEBSERVER
     START_TIME_MEASUREMENT(ota);

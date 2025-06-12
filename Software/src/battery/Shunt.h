@@ -1,11 +1,11 @@
 #ifndef _SHUNT_H
 #define _SHUNT_H
 
-#include "../communication/can/comm_can.h"
 #include "src/communication/Transmitter.h"
+#include "src/communication/can/CanReceiver.h"
 #include "src/devboard/utils/types.h"
 
-class CanShunt : public Transmitter {
+class CanShunt : public Transmitter, CanReceiver {
  public:
   virtual void setup() = 0;
   virtual void transmit_can(unsigned long currentMillis) = 0;
@@ -17,12 +17,15 @@ class CanShunt : public Transmitter {
     }
   }
 
+  void receive_can_frame(CAN_frame* frame) { handle_incoming_can_frame(*frame); }
+
  protected:
   CAN_Interface can_interface;
 
   CanShunt() {
     can_interface = can_config.battery;
     register_transmitter(this);
+    register_can_receiver(this, can_interface);
   }
 };
 

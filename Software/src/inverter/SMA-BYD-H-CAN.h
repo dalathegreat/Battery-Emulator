@@ -5,7 +5,6 @@
 #include "CanInverterProtocol.h"
 
 #ifdef SMA_BYD_H_CAN
-#define CAN_INVERTER_SELECTED
 #define SELECTED_INVERTER_CLASS SmaBydHInverter
 #endif
 
@@ -24,6 +23,7 @@ class SmaBydHInverter : public CanInverterProtocol {
 
   unsigned long previousMillis100ms = 0;
 
+  uint8_t pairing_events = 0;
   uint32_t inverter_time = 0;
   uint16_t inverter_voltage = 0;
   int16_t inverter_current = 0;

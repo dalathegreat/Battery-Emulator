@@ -5,7 +5,6 @@
 #include "CanInverterProtocol.h"
 
 #ifdef SMA_TRIPOWER_CAN
-#define CAN_INVERTER_SELECTED
 #define SELECTED_INVERTER_CLASS SmaTripowerInverter
 #endif
 
@@ -42,6 +41,7 @@ class SmaTripowerInverter : public CanInverterProtocol {
   uint32_t inverter_time = 0;
   uint16_t inverter_voltage = 0;
   int16_t inverter_current = 0;
+  uint8_t pairing_events = 0;
   bool pairing_completed = false;
   int16_t temperature_average = 0;
   uint16_t ampere_hours_remaining = 0;

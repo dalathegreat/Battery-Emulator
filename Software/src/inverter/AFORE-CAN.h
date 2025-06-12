@@ -3,7 +3,6 @@
 #include "../include.h"
 
 #ifdef AFORE_CAN
-#define CAN_INVERTER_SELECTED
 #define SELECTED_INVERTER_CLASS AforeCanInverter
 #endif
 
