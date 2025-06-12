@@ -1338,8 +1338,8 @@ String processor(const String& var) {
       }
       content += "</h4>";
 #ifdef CONTACTOR_CONTROL_DOUBLE_BATTERY
-      content += "<h4>Cont. Neg.: ";
 #ifdef PWM_CONTACTOR_CONTROL
+      content += "<h4>Cont. Neg.: ";
       if (datalayer.system.status.contactors_battery2_engaged) {
         content += "<span style='color: green;'>Economized</span>";
         content += " Cont. Pos.: ";
@@ -1349,16 +1349,9 @@ String processor(const String& var) {
         content += " Cont. Pos.: ";
         content += "<span style='color: red;'>&#10005;</span>";
       }
-
 #else   // No PWM_CONTACTOR_CONTROL , we can read the pin and see feedback. Helpful if channel overloaded
-      if (digitalRead(SECOND_NEGATIVE_CONTACTOR_PIN) == HIGH) {
-        content += "<span style='color: green;'>&#10003;</span>";
-      } else {
-        content += "<span style='color: red;'>&#10005;</span>";
-      }
-
-      content += " Cont. Pos.: ";
-      if (digitalRead(SECOND_POSITIVE_CONTACTOR_PIN) == HIGH) {
+      content += "<h4>Cont. Neg.: ";
+      if (digitalRead(SECOND_BATTERY_CONTACTORS_PIN) == HIGH) {
         content += "<span style='color: green;'>&#10003;</span>";
       } else {
         content += "<span style='color: red;'>&#10005;</span>";

@@ -82,27 +82,17 @@ void init_contactors() {
   set(PRECHARGE_PIN, OFF);
 #endif  // CONTACTOR_CONTROL
 #ifdef CONTACTOR_CONTROL_DOUBLE_BATTERY
-  pinMode(SECOND_POSITIVE_CONTACTOR_PIN, OUTPUT);
-  set(SECOND_POSITIVE_CONTACTOR_PIN, OFF);
-  pinMode(SECOND_NEGATIVE_CONTACTOR_PIN, OUTPUT);
-  set(SECOND_NEGATIVE_CONTACTOR_PIN, OFF);
+  pinMode(SECOND_BATTERY_CONTACTORS_PIN, OUTPUT);
+  set(SECOND_BATTERY_CONTACTORS_PIN, OFF);
 #endif  // CONTACTOR_CONTROL_DOUBLE_BATTERY
 // Init BMS contactor
 #if defined HW_STARK || defined HW_3LB  // This hardware has dedicated pin, always enable on start
   pinMode(BMS_POWER, OUTPUT);           //LilyGo is omitted from this, only enabled if user selects PERIODIC_BMS_RESET
   digitalWrite(BMS_POWER, HIGH);
-#ifdef BMS_2_POWER  //Hardware supports 2x BMS
-  pinMode(BMS_2_POWER, OUTPUT);
-  digitalWrite(BMS_2_POWER, HIGH);
-#endif                                                        //BMS_2_POWER
 #endif                                                        // HW with dedicated BMS pins
 #if defined(PERIODIC_BMS_RESET) || defined(REMOTE_BMS_RESET)  // User has enabled BMS reset, turn on output on start
   pinMode(BMS_POWER, OUTPUT);
   digitalWrite(BMS_POWER, HIGH);
-#ifdef BMS_2_POWER  //Hardware supports 2x BMS
-  pinMode(BMS_2_POWER, OUTPUT);
-  digitalWrite(BMS_2_POWER, HIGH);
-#endif  //BMS_2_POWER
 #endif  //PERIODIC_BMS_RESET
 }
 
@@ -226,12 +216,10 @@ void handle_contactors() {
 #ifdef CONTACTOR_CONTROL_DOUBLE_BATTERY
 void handle_contactors_battery2() {
   if ((contactorStatus == COMPLETED) && datalayer.system.status.battery2_allowed_contactor_closing) {
-    set(SECOND_NEGATIVE_CONTACTOR_PIN, ON);
-    set(SECOND_POSITIVE_CONTACTOR_PIN, ON);
+    set(SECOND_BATTERY_CONTACTORS_PIN, ON);
     datalayer.system.status.contactors_battery2_engaged = true;
   } else {  // Closing contactors on secondary battery not allowed
-    set(SECOND_NEGATIVE_CONTACTOR_PIN, OFF);
-    set(SECOND_POSITIVE_CONTACTOR_PIN, OFF);
+    set(SECOND_BATTERY_CONTACTORS_PIN, OFF);
     datalayer.system.status.contactors_battery2_engaged = false;
   }
 }
