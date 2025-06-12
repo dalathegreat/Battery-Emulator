@@ -28,6 +28,11 @@ std::vector<BatteryCommand> battery_commands = {
      [](Battery* b) {
        b->reset_NVROL();
      }},
+    {"resetContactor", "Perform contactor reset", "reset contactors?",
+     [](Battery* b) { return b && b->supports_contactor_reset(); },
+     [](Battery* b) {
+       b->reset_contactor();
+     }},
     {"resetDTC", "Erase DTC", "erase DTCs?", [](Battery* b) { return b && b->supports_reset_DTC(); },
      [](Battery* b) {
        b->reset_DTC();
@@ -55,6 +60,11 @@ std::vector<BatteryCommand> battery_commands = {
      [](Battery* b) { return b && b->supports_reset_SOH(); },
      [](Battery* b) {
        b->reset_SOH();
+     }},
+    {"setFactoryMode", "Set Factory Mode", "set factory mode and disable isolation measurement?",
+     [](Battery* b) { return b && b->supports_factory_mode_method(); },
+     [](Battery* b) {
+       b->set_factory_mode();
      }},
     {"toggleSOC", "Toggle SOC method",
      "toggle SOC method? This will toggle between ESTIMATED and MEASURED SOC methods.",
