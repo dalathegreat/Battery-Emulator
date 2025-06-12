@@ -6,7 +6,6 @@
 
 #define BATTERY_SELECTED
 #define SELECTED_BATTERY_CLASS RenaultZoeGen1Battery
-#define EXTENDED_DATA_PTR (&datalayer_extended.zoe)
 
 #define MAX_PACK_VOLTAGE_DV 4200  //5000 = 500.0V
 #define MIN_PACK_VOLTAGE_DV 3000
