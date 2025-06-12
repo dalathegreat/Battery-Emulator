@@ -74,6 +74,7 @@
   XX(EVENT_SERIAL_RX_FAILURE)                  \
   XX(EVENT_SERIAL_TX_FAILURE)                  \
   XX(EVENT_SERIAL_TRANSMITTER_FAILURE)         \
+  XX(EVENT_SMA_PAIRING)                        \
   XX(EVENT_TASK_OVERRUN)                       \
   XX(EVENT_RESET_UNKNOWN)                      \
   XX(EVENT_RESET_POWERON)                      \

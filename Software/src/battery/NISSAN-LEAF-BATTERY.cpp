@@ -20,6 +20,11 @@ short ShortMaskedSumAndProduct(short param_1, short param_2);
 unsigned int MaskedBitwiseRotateMultiply(unsigned int param_1, unsigned int param_2);
 unsigned int CryptAlgo(unsigned int param_1, unsigned int param_2, unsigned int param_3);
 
+// Note this should only be allowed/used on 2011-2017 24/30kWh batteries!
+bool NissanLeafBattery::supports_reset_SOH() {
+  return LEAF_battery_Type != ZE1_BATTERY;
+}
+
 void NissanLeafBattery::
     update_values() { /* This function maps all the values fetched via CAN to the correct parameters used for modbus */
   /* Start with mapping all values */
@@ -34,11 +39,7 @@ void NissanLeafBattery::
   datalayer_battery->status.current_dA =
       (battery_Current2 * 5);  //0.5A/bit, multiply by 5 to get Amp+1decimal (5,5A = 11)
 
-  if (battery_Max_GIDS == 273) {  //battery_Max_GIDS is stuck at 273 on ZE0
-    datalayer_battery->info.total_capacity_Wh = ((battery_Max_GIDS * WH_PER_GID * battery_StateOfHealth) / 100);
-  } else {  //battery_Max_GIDS updates on newer generations, making for a total_capacity_Wh value that makes sense
-    datalayer_battery->info.total_capacity_Wh = (battery_Max_GIDS * WH_PER_GID);
-  }
+  datalayer_battery->info.total_capacity_Wh = ((battery_Max_GIDS * WH_PER_GID * battery_StateOfHealth) / 100);
 
   datalayer_battery->status.remaining_capacity_Wh = battery_Wh_Remaining;
 
@@ -453,6 +454,36 @@ void NissanLeafBattery::handle_incoming_can_frame(CAN_frame rx_frame) {
         }
       }
 
+      if (group_7bb == 0x06)  //Balancing resistor status
+      {
+        if (rx_frame.data.u8[0] == 0x10) {  //First frame (10 1A 61 06 [14 55 55 51])
+          for (int i = 0; i < 8; i++) {
+            // Byte 4 - 7 (bits 0-31)
+            for (int byte_i = 0; byte_i < 4; byte_i++) {
+              battery_balancing_shunts[byte_i * 8 + i] = (rx_frame.data.u8[4 + byte_i] & (1 << i)) >> i;
+            }
+          }
+        }
+        if (rx_frame.data.u8[0] == 0x21) {  // Second frame (21 [50 55 41 2B 56 54 15])
+          for (int i = 0; i < 8; i++) {
+            // Byte 1 to 7 (bits 32-87)
+            for (int byte_i = 0; byte_i < 7; byte_i++) {
+              battery_balancing_shunts[32 + byte_i * 8 + i] = (rx_frame.data.u8[1 + byte_i] & (1 << i)) >> i;
+            }
+          }
+        }
+        if (rx_frame.data.u8[0] == 0x22) {  //Third frame (22 51 FF FF FF FF FF FF)
+          for (int i = 0; i < 8; i++) {
+            // Byte 1 (bits 88-95)
+            battery_balancing_shunts[88 + i] = (rx_frame.data.u8[1] & (1 << i)) >> i;
+          }
+          memcpy(datalayer_battery->status.cell_balancing_status, battery_balancing_shunts, 96 * sizeof(bool));
+        }
+
+        if (rx_frame.data.u8[0] == 0x23) {  //Fourth frame (23 FF FF FF FF FF FF FF)
+        }
+      }
+
       if (group_7bb == 0x83)  //BatteryPartNumber
       {
         if (rx_frame.data.u8[0] == 0x10) {  //First frame (101A6183334E4B32)
@@ -704,7 +735,7 @@ void NissanLeafBattery::transmit_can(unsigned long currentMillis) {
       if (!stop_battery_query) {
 
         // Move to the next group
-        PIDindex = (PIDindex + 1) % 6;  // 6 = amount of elements in the PIDgroups[]
+        PIDindex = (PIDindex + 1) % 7;  // 7 = amount of elements in the PIDgroups[]
         LEAF_GROUP_REQUEST.data.u8[2] = PIDgroups[PIDindex];
 
         transmit_can_frame(&LEAF_GROUP_REQUEST, can_interface);

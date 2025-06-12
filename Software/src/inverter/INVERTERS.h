@@ -33,14 +33,4 @@ extern InverterProtocol* inverter;
 // Call to initialize the build-time selected inverter. Safe to call even though inverter was not selected.
 void setup_inverter();
 
-#ifdef CAN_INVERTER_SELECTED
-void update_values_can_inverter();
-void map_can_frame_to_variable_inverter(CAN_frame rx_frame);
-void transmit_can_inverter(unsigned long currentMillis);
-#endif
-
-#ifdef RS485_INVERTER_SELECTED
-void receive_RS485();
-#endif
-
 #endif

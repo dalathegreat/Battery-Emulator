@@ -4,6 +4,7 @@
 #include "../datalayer/datalayer_extended.h"
 #include "../include.h"
 #include "CanBattery.h"
+#include "GEELY-GEOMETRY-C-HTML.h"
 
 #define BATTERY_SELECTED
 #define SELECTED_BATTERY_CLASS GeelyGeometryCBattery
@@ -36,13 +37,20 @@ class GeelyGeometryCBattery : public CanBattery {
   virtual void update_values();
   virtual void transmit_can(unsigned long currentMillis);
 
+  BatteryHtmlRenderer& get_status_renderer() { return renderer; }
+
  private:
-  const int MAX_PACK_VOLTAGE_70_DV 4420                                            //70kWh
-      const int MIN_PACK_VOLTAGE_70_DV 2860 const int MAX_PACK_VOLTAGE_53_DV 4160  //53kWh
-      const int MIN_PACK_VOLTAGE_53_DV 2700 const int MAX_CELL_DEVIATION_MV 150 const int
-          MAX_CELL_VOLTAGE_MV 4250        //Battery is put into emergency stop if one cell goes over this value
-      const int MIN_CELL_VOLTAGE_MV 2700  //Battery is put into emergency stop if one cell goes below this value
-      DATALAYER_BATTERY_TYPE* datalayer_battery;
+  GeelyGeometryCHtmlRenderer renderer;
+
+  static const int MAX_PACK_VOLTAGE_70_DV = 4420;  //70kWh
+  static const int MIN_PACK_VOLTAGE_70_DV = 2860;
+  static const int MAX_PACK_VOLTAGE_53_DV = 4160;  //53kWh
+  static const int MIN_PACK_VOLTAGE_53_DV = 2700;
+  static const int MAX_CELL_DEVIATION_MV = 150;
+  static const int MAX_CELL_VOLTAGE_MV = 4250;  //Battery is put into emergency stop if one cell goes over this value
+  static const int MIN_CELL_VOLTAGE_MV = 2700;  //Battery is put into emergency stop if one cell goes below this value
+
+  DATALAYER_BATTERY_TYPE* datalayer_battery;
   DATALAYER_INFO_GEELY_GEOMETRY_C* datalayer_geometryc;
 
   CAN_frame GEELY_191 = {.FD = false,  //PAS_APA_Status , 10ms
@@ -209,7 +217,7 @@ class GeelyGeometryCBattery : public CanBattery {
   uint16_t poll_unknown7 = 0;
   uint16_t poll_unknown8 = 0;
   int16_t poll_temperature[6] = {0};
-#define TEMP_OFFSET 30  //TODO, not calibrated yet, best guess
+  static const int TEMP_OFFSET = 30;  //TODO, not calibrated yet, best guess
   uint8_t poll_software_version[16] = {0};
   uint8_t poll_hardware_version[16] = {0};
 };

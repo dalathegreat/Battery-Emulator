@@ -3,6 +3,7 @@
 #include "../datalayer/datalayer.h"
 #include "../include.h"
 #include "CanBattery.h"
+#include "TESLA-HTML.h"
 
 #define BATTERY_SELECTED
 #ifdef TESLA_MODEL_3Y_BATTERY
@@ -22,6 +23,19 @@ class TeslaBattery : public CanBattery {
   virtual void handle_incoming_can_frame(CAN_frame rx_frame);
   virtual void update_values();
   virtual void transmit_can(unsigned long currentMillis);
+
+  bool supports_clear_isolation() { return true; }
+  void clear_isolation() { datalayer.battery.settings.user_requests_tesla_isolation_clear = true; }
+
+  bool supports_reset_BMS() { return true; }
+  void reset_BMS() { datalayer.battery.settings.user_requests_tesla_bms_reset = true; }
+
+  bool supports_charged_energy() { return true; }
+
+  BatteryHtmlRenderer& get_status_renderer() { return renderer; }
+
+ private:
+  TeslaHtmlRenderer renderer;
 
  protected:
   /* Modify these if needed */

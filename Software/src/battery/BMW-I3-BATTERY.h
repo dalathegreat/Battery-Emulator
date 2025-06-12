@@ -4,6 +4,7 @@
 #include "../datalayer/datalayer.h"
 #include "../datalayer/datalayer_extended.h"
 #include "../include.h"
+#include "BMW-I3-HTML.h"
 #include "CanBattery.h"
 
 #define BATTERY_SELECTED
@@ -12,11 +13,12 @@
 class BmwI3Battery : public CanBattery {
  public:
   // Use this constructor for the second battery.
-  BmwI3Battery(DATALAYER_BATTERY_TYPE* datalayer_ptr, bool* contactor_closing_allowed_ptr, int targetCan, int wakeup) {
+  BmwI3Battery(DATALAYER_BATTERY_TYPE* datalayer_ptr, bool* contactor_closing_allowed_ptr, CAN_Interface targetCan,
+               int wakeup)
+      : CanBattery(targetCan) {
     datalayer_battery = datalayer_ptr;
     contactor_closing_allowed = contactor_closing_allowed_ptr;
     allows_contactor_closing = nullptr;
-    can_interface = targetCan;
     wakeup_pin = wakeup;
     *allows_contactor_closing = true;
 
@@ -29,7 +31,6 @@ class BmwI3Battery : public CanBattery {
     datalayer_battery = &datalayer.battery;
     allows_contactor_closing = &datalayer.system.status.battery_allows_contactor_closing;
     contactor_closing_allowed = nullptr;
-    can_interface = can_config.battery;
     wakeup_pin = WUP_PIN1;
   }
 
@@ -37,6 +38,11 @@ class BmwI3Battery : public CanBattery {
   virtual void handle_incoming_can_frame(CAN_frame rx_frame);
   virtual void update_values();
   virtual void transmit_can(unsigned long currentMillis);
+
+  BatteryHtmlRenderer& get_status_renderer() { return renderer; }
+
+ private:
+  BmwI3HtmlRenderer renderer;
 
  private:
   const int MAX_CELL_VOLTAGE_60AH = 4110;   // Battery is put into emergency stop if one cell goes over this value
@@ -63,7 +69,6 @@ class BmwI3Battery : public CanBattery {
   bool* contactor_closing_allowed;
 
   int wakeup_pin;
-  int can_interface;
 
   unsigned long previousMillis20 = 0;     // will store last time a 20ms CAN Message was send
   unsigned long previousMillis100 = 0;    // will store last time a 100ms CAN Message was send

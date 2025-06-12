@@ -4,6 +4,7 @@
 #include "../include.h"
 
 #include "CanBattery.h"
+#include "VOLVO-SPA-HTML.h"
 
 #define BATTERY_SELECTED
 #define SELECTED_BATTERY_CLASS VolvoSpaBattery
@@ -14,6 +15,15 @@ class VolvoSpaBattery : public CanBattery {
   virtual void handle_incoming_can_frame(CAN_frame rx_frame);
   virtual void update_values();
   virtual void transmit_can(unsigned long currentMillis);
+
+  bool supports_reset_DTC() { return true; }
+  void reset_DTC() { datalayer_extended.VolvoPolestar.UserRequestDTCreset = true; }
+
+  bool supports_read_DTC() { return true; }
+  void read_DTC() { datalayer_extended.VolvoPolestar.UserRequestDTCreadout = true; }
+
+  bool supports_reset_BECM() { return true; }
+  void reset_BECM() { datalayer_extended.VolvoPolestar.UserRequestBECMecuReset = true; }
 
  private:
   void readCellVoltages();

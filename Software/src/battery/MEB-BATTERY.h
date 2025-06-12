@@ -3,6 +3,7 @@
 #include <Arduino.h>
 #include "../include.h"
 #include "CanBattery.h"
+#include "MEB-HTML.h"
 
 #define BATTERY_SELECTED
 #define SELECTED_BATTERY_CLASS MebBattery
@@ -13,8 +14,13 @@ class MebBattery : public CanBattery {
   virtual void handle_incoming_can_frame(CAN_frame rx_frame);
   virtual void update_values();
   virtual void transmit_can(unsigned long currentMillis);
+  bool supports_real_BMS_status() { return true; }
+  bool supports_charged_energy() { return true; }
+
+  BatteryHtmlRenderer& get_status_renderer() { return renderer; }
 
  private:
+  MebHtmlRenderer renderer;
   static const int MAX_PACK_VOLTAGE_84S_DV = 3528;  //5000 = 500.0V
   static const int MIN_PACK_VOLTAGE_84S_DV = 2520;
   static const int MAX_PACK_VOLTAGE_96S_DV = 4032;

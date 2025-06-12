@@ -203,7 +203,7 @@ void KostalInverterProtocol::update_values() {
   }
 }
 
-void KostalInverterProtocol::receive_RS485()  // Runs as fast as possible to handle the serial stream
+void KostalInverterProtocol::receive()  // Runs as fast as possible to handle the serial stream
 {
   currentMillis = millis();
 
@@ -251,7 +251,10 @@ void KostalInverterProtocol::receive_RS485()  // Runs as fast as possible to han
                 int code = RS485_RXFRAME[6] + RS485_RXFRAME[7] * 0x100;
                 if (code == 0x44a) {
                   //Send cyclic data
-                  update_values_battery();
+                  // TODO: Probably not a good idea to use the battery object here like this.
+                  if (battery) {
+                    battery->update_values();
+                  }
                   update_values();
                   if (f2_startup_count < 15) {
                     f2_startup_count++;

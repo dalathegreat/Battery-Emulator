@@ -5,7 +5,6 @@
 #include "CanInverterProtocol.h"
 
 #ifdef SOLAX_CAN
-#define CAN_INVERTER_SELECTED
 #define SELECTED_INVERTER_CLASS SolaxInverter
 #endif
 

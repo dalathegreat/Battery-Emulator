@@ -1,4 +1,5 @@
 #include "comm_can.h"
+#include <map>
 #include "../../include.h"
 #include "src/devboard/sdcard/sdcard.h"
 
@@ -9,6 +10,8 @@ volatile bool send_ok_native = 0;
 volatile bool send_ok_2515 = 0;
 volatile bool send_ok_2518 = 0;
 static unsigned long previousMillis10 = 0;
+
+void map_can_frame_to_variable(CAN_frame* rx_frame, CAN_Interface interface);
 
 #ifdef CAN_ADDON
 static const uint32_t QUARTZ_FREQUENCY = CRYSTAL_FREQUENCY_MHZ * 1000000UL;  //MHZ configured in USER_SETTINGS.h
@@ -102,30 +105,6 @@ void init_CAN() {
     set_event(EVENT_CANMCP2517FD_INIT_FAILURE, (uint8_t)errorCode2517);
   }
 #endif  // CANFD_ADDON
-}
-
-// Transmit functions
-void transmit_can(unsigned long currentMillis) {
-
-  if (!allowed_to_send_CAN) {
-    return;  //Global block of CAN messages
-  }
-
-#ifndef RS485_BATTERY_SELECTED
-  transmit_can_battery(currentMillis);
-#endif
-
-#ifdef CAN_INVERTER_SELECTED
-  transmit_can_inverter(currentMillis);
-#endif  // CAN_INVERTER_SELECTED
-
-  if (charger) {
-    charger->transmit_can(currentMillis);
-  }
-
-#ifdef CAN_SHUNT_SELECTED
-  transmit_can_shunt(currentMillis);
-#endif  // CAN_SHUNT_SELECTED
 }
 
 void transmit_can_frame(CAN_frame* tx_frame, int interface) {
@@ -297,7 +276,13 @@ void print_can_frame(CAN_frame frame, frameDirection msgDir) {
   }
 }
 
-void map_can_frame_to_variable(CAN_frame* rx_frame, int interface) {
+static std::multimap<CAN_Interface, CanReceiver*> can_receivers;
+
+void register_can_receiver(CanReceiver* receiver, CAN_Interface interface) {
+  can_receivers.insert({interface, receiver});
+}
+
+void map_can_frame_to_variable(CAN_frame* rx_frame, CAN_Interface interface) {
   if (interface !=
       CANFD_NATIVE) {  //Avoid printing twice due to receive_frame_canfd_addon sending to both FD interfaces
     //TODO: This check can be removed later when refactored to use inline functions for logging
@@ -312,33 +297,15 @@ void map_can_frame_to_variable(CAN_frame* rx_frame, int interface) {
   }
 #endif
 
-  if (interface == can_config.battery) {
-#ifndef RS485_BATTERY_SELECTED
-    handle_incoming_can_frame_battery(*rx_frame);
-#endif
-#ifdef CHADEMO_BATTERY
-    ISA_handleFrame(rx_frame);
-#endif
-  }
-  if (interface == can_config.inverter) {
-#ifdef CAN_INVERTER_SELECTED
-    map_can_frame_to_variable_inverter(*rx_frame);
-#endif
-  }
-  if (interface == can_config.battery_double) {
-#ifdef DOUBLE_BATTERY
-    handle_incoming_can_frame_battery2(*rx_frame);
-#endif
-  }
-  if (interface == can_config.charger && charger) {
-    charger->map_can_frame_to_variable(*rx_frame);
-  }
-  if (interface == can_config.shunt) {
-#ifdef CAN_SHUNT_SELECTED
-    handle_incoming_can_frame_shunt(*rx_frame);
-#endif
+  // Send the frame to all the receivers registered for this interface.
+  auto receivers = can_receivers.equal_range(interface);
+
+  for (auto it = receivers.first; it != receivers.second; ++it) {
+    auto& receiver = it->second;
+    receiver->receive_can_frame(rx_frame);
   }
 }
+
 void dump_can_frame(CAN_frame& frame, frameDirection msgDir) {
   char* message_string = datalayer.system.info.logged_can_messages;
   int offset = datalayer.system.info.logged_can_messages_offset;  // Keeps track of the current position in the buffer

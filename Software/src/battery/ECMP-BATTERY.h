@@ -4,6 +4,7 @@
 #include "../include.h"
 
 #include "CanBattery.h"
+#include "ECMP-HTML.h"
 
 #define BATTERY_SELECTED
 #define SELECTED_BATTERY_CLASS EcmpBattery
@@ -15,7 +16,22 @@ class EcmpBattery : public CanBattery {
   virtual void update_values();
   virtual void transmit_can(unsigned long currentMillis);
 
+  bool supports_clear_isolation() { return true; }
+  void clear_isolation() { datalayer_extended.stellantisECMP.UserRequestIsolationReset = true; }
+
+  bool supports_factory_mode_method() { return true; }
+  void set_factory_mode() { datalayer_extended.stellantisECMP.UserRequestDisableIsoMonitoring = true; }
+
+  bool supports_reset_crash() { return true; }
+  void reset_crash() { datalayer_extended.stellantisECMP.UserRequestCollisionReset = true; }
+
+  bool supports_contactor_reset() { return true; }
+  void reset_contactor() { datalayer_extended.stellantisECMP.UserRequestContactorReset = true; }
+
+  BatteryHtmlRenderer& get_status_renderer() { return renderer; }
+
  private:
+  EcmpHtmlRenderer renderer;
   static const int MAX_PACK_VOLTAGE_DV = 4546;
   static const int MIN_PACK_VOLTAGE_DV = 3210;
   static const int MAX_CELL_DEVIATION_MV = 100;

@@ -206,6 +206,8 @@ void SmaBydHvsInverter::map_can_frame_to_variable(CAN_frame rx_frame) {
 #ifdef DEBUG_LOG
       logging.println("Received 0x5E7: SMA pairing request");
 #endif  // DEBUG_LOG
+      pairing_events++;
+      set_event(EVENT_SMA_PAIRING, pairing_events);
       datalayer.system.status.CAN_inverter_still_alive = CAN_STILL_ALIVE;
       transmit_can_init = true;
       break;

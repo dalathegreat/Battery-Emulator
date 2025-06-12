@@ -81,6 +81,11 @@ typedef struct {
    * Use with battery.info.number_of_cells to get valid data.
    */
   uint16_t cell_voltages_mV[MAX_AMOUNT_CELLS];
+  /** All balancing resistors status inside the pack, either on(1) or off(0).
+   * Use with battery.info.number_of_cells to get valid data.
+   * Not available for all battery manufacturers.
+   */
+  bool cell_balancing_status[MAX_AMOUNT_CELLS];
   /** The "real" SOC reported from the battery, in integer-percent x 100. 9550 = 95.50% */
   uint16_t real_soc;
   /** The SOC reported to the inverter, in integer-percent x 100. 9550 = 95.50%.
@@ -305,12 +310,12 @@ typedef struct {
 
   /** True if the inverter allows for the contactors to close */
   bool inverter_allows_contactor_closing = true;
-#ifdef CONTACTOR_CONTROL
+
   /** True if the contactor controlled by battery-emulator is closed */
   bool contactors_engaged = false;
   /** True if the contactor controlled by battery-emulator is closed. Determined by check_interconnect_available(); if voltage is OK */
   bool contactors_battery2_engaged = false;
-#endif
+
   /** True if the BMS is being reset, by cutting power towards it */
   bool BMS_reset_in_progress = false;
   /** True if the BMS is starting up */
