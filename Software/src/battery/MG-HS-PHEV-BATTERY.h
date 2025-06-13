@@ -28,10 +28,10 @@ class MgHsPHEVBattery : public CanBattery {
   int BMS_SOC = 0;
 
   CAN_frame MG_HS_100 = {.FD = false,
-                        .ext_ID = false,
-                        .DLC = 8,
-                        .ID = 0x100,
-                        .data = {0x00, 0x00, 0x00, 0x00, 0x80, 0x10, 0x00, 0x00}};
+                         .ext_ID = false,
+                         .DLC = 8,
+                         .ID = 0x100,
+                         .data = {0x00, 0x00, 0x00, 0x00, 0x80, 0x10, 0x00, 0x00}};
 };
 
 #endif
