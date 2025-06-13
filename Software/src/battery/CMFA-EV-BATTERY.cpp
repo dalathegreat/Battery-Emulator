@@ -28,68 +28,68 @@ uint16_t CmfaEvBattery::rescale_raw_SOC(uint32_t raw_SOC) {
 
 void CmfaEvBattery::
     update_values() {  //This function maps all the values fetched via CAN to the correct parameters used for modbus
-  datalayer.battery.status.soh_pptt = (SOH * 100);
+  datalayer_battery->status.soh_pptt = (SOH * 100);
 
-  datalayer.battery.status.real_soc = rescale_raw_SOC(SOC_raw);
+  datalayer_battery->status.real_soc = rescale_raw_SOC(SOC_raw);
 
-  datalayer.battery.status.current_dA = current * 10;
+  datalayer_battery->status.current_dA = current * 10;
 
-  datalayer.battery.status.voltage_dV = average_voltage_of_cells / 100;
+  datalayer_battery->status.voltage_dV = average_voltage_of_cells / 100;
 
-  datalayer.battery.info.total_capacity_Wh = 27000;
+  datalayer_battery->info.total_capacity_Wh = 27000;
 
   //Calculate the remaining Wh amount from SOC% and max Wh value.
-  datalayer.battery.status.remaining_capacity_Wh = static_cast<uint32_t>(
-      (static_cast<double>(datalayer.battery.status.real_soc) / 10000) * datalayer.battery.info.total_capacity_Wh);
+  datalayer_battery->status.remaining_capacity_Wh = static_cast<uint32_t>(
+      (static_cast<double>(datalayer_battery->status.real_soc) / 10000) * datalayer_battery->info.total_capacity_Wh);
 
-  datalayer.battery.status.max_discharge_power_W = discharge_power_w;
+  datalayer_battery->status.max_discharge_power_W = discharge_power_w;
 
-  datalayer.battery.status.max_charge_power_W = charge_power_w;
+  datalayer_battery->status.max_charge_power_W = charge_power_w;
 
-  datalayer.battery.status.temperature_min_dC = (lowest_cell_temperature * 10);
+  datalayer_battery->status.temperature_min_dC = (lowest_cell_temperature * 10);
 
-  datalayer.battery.status.temperature_max_dC = (highest_cell_temperature * 10);
+  datalayer_battery->status.temperature_max_dC = (highest_cell_temperature * 10);
 
-  datalayer.battery.status.cell_min_voltage_mV = lowest_cell_voltage_mv;
+  datalayer_battery->status.cell_min_voltage_mV = lowest_cell_voltage_mv;
 
-  datalayer.battery.status.cell_max_voltage_mV = highest_cell_voltage_mv;
+  datalayer_battery->status.cell_max_voltage_mV = highest_cell_voltage_mv;
 
   //Map all cell voltages to the global array
-  memcpy(datalayer.battery.status.cell_voltages_mV, cellvoltages_mv, 72 * sizeof(uint16_t));
+  memcpy(datalayer_battery->status.cell_voltages_mV, cellvoltages_mv, 72 * sizeof(uint16_t));
 
   if (lead_acid_voltage < 11000) {  //11.000V
     set_event(EVENT_12V_LOW, lead_acid_voltage);
   }
 
   // Update webserver datalayer
-  datalayer_extended.CMFAEV.soc_u = soc_u;
-  datalayer_extended.CMFAEV.soc_z = soc_z;
-  datalayer_extended.CMFAEV.lead_acid_voltage = lead_acid_voltage;
-  datalayer_extended.CMFAEV.highest_cell_voltage_number = highest_cell_voltage_number;
-  datalayer_extended.CMFAEV.lowest_cell_voltage_number = lowest_cell_voltage_number;
-  datalayer_extended.CMFAEV.max_regen_power = max_regen_power;
-  datalayer_extended.CMFAEV.max_discharge_power = max_discharge_power;
-  datalayer_extended.CMFAEV.average_temperature = average_temperature;
-  datalayer_extended.CMFAEV.minimum_temperature = minimum_temperature;
-  datalayer_extended.CMFAEV.maximum_temperature = maximum_temperature;
-  datalayer_extended.CMFAEV.maximum_charge_power = maximum_charge_power;
-  datalayer_extended.CMFAEV.SOH_available_power = SOH_available_power;
-  datalayer_extended.CMFAEV.SOH_generated_power = SOH_generated_power;
-  datalayer_extended.CMFAEV.cumulative_energy_when_discharging = cumulative_energy_when_discharging;
-  datalayer_extended.CMFAEV.cumulative_energy_when_charging = cumulative_energy_when_charging;
-  datalayer_extended.CMFAEV.cumulative_energy_in_regen = cumulative_energy_in_regen;
-  datalayer_extended.CMFAEV.soh_average = soh_average;
+  datalayer_cmfa->soc_u = soc_u;
+  datalayer_cmfa->soc_z = soc_z;
+  datalayer_cmfa->lead_acid_voltage = lead_acid_voltage;
+  datalayer_cmfa->highest_cell_voltage_number = highest_cell_voltage_number;
+  datalayer_cmfa->lowest_cell_voltage_number = lowest_cell_voltage_number;
+  datalayer_cmfa->max_regen_power = max_regen_power;
+  datalayer_cmfa->max_discharge_power = max_discharge_power;
+  datalayer_cmfa->average_temperature = average_temperature;
+  datalayer_cmfa->minimum_temperature = minimum_temperature;
+  datalayer_cmfa->maximum_temperature = maximum_temperature;
+  datalayer_cmfa->maximum_charge_power = maximum_charge_power;
+  datalayer_cmfa->SOH_available_power = SOH_available_power;
+  datalayer_cmfa->SOH_generated_power = SOH_generated_power;
+  datalayer_cmfa->cumulative_energy_when_discharging = cumulative_energy_when_discharging;
+  datalayer_cmfa->cumulative_energy_when_charging = cumulative_energy_when_charging;
+  datalayer_cmfa->cumulative_energy_in_regen = cumulative_energy_in_regen;
+  datalayer_cmfa->soh_average = soh_average;
 }
 
 void CmfaEvBattery::handle_incoming_can_frame(CAN_frame rx_frame) {
   switch (rx_frame.ID) {  //These frames are transmitted by the battery
     case 0x127:           //10ms , Same structure as old Zoe 0x155 message!
-      datalayer.battery.status.CAN_battery_still_alive = CAN_STILL_ALIVE;
+      datalayer_battery->status.CAN_battery_still_alive = CAN_STILL_ALIVE;
       current = (((((rx_frame.data.u8[1] & 0x0F) << 8) | rx_frame.data.u8[2]) * 0.25) - 500);
       SOC_raw = ((rx_frame.data.u8[4] << 8) | rx_frame.data.u8[5]);
       break;
     case 0x3D6:  //100ms, Same structure as old Zoe 0x424 message!
-      datalayer.battery.status.CAN_battery_still_alive = CAN_STILL_ALIVE;
+      datalayer_battery->status.CAN_battery_still_alive = CAN_STILL_ALIVE;
       charge_power_w = rx_frame.data.u8[2] * 500;
       discharge_power_w = rx_frame.data.u8[3] * 500;
       lowest_cell_temperature = (rx_frame.data.u8[4] - 40);
@@ -98,34 +98,34 @@ void CmfaEvBattery::handle_incoming_can_frame(CAN_frame rx_frame) {
       highest_cell_temperature = (rx_frame.data.u8[7] - 40);
       break;
     case 0x3D7:  //100ms
-      datalayer.battery.status.CAN_battery_still_alive = CAN_STILL_ALIVE;
+      datalayer_battery->status.CAN_battery_still_alive = CAN_STILL_ALIVE;
       pack_voltage = ((rx_frame.data.u8[6] << 4 | (rx_frame.data.u8[5] & 0x0F)));
       break;
     case 0x3D8:  //100ms
-      datalayer.battery.status.CAN_battery_still_alive = CAN_STILL_ALIVE;
+      datalayer_battery->status.CAN_battery_still_alive = CAN_STILL_ALIVE;
       //counter_3D8 = rx_frame.data.u8[3]; //?
       //CRC_3D8 = rx_frame.data.u8[4]; //?
       break;
     case 0x43C:  //100ms
-      datalayer.battery.status.CAN_battery_still_alive = CAN_STILL_ALIVE;
+      datalayer_battery->status.CAN_battery_still_alive = CAN_STILL_ALIVE;
       heartbeat2 = rx_frame.data.u8[2];  //Alternates between 0x55 and 0xAA every 5th frame
       break;
     case 0x431:  //100ms
-      datalayer.battery.status.CAN_battery_still_alive = CAN_STILL_ALIVE;
+      datalayer_battery->status.CAN_battery_still_alive = CAN_STILL_ALIVE;
       //byte0 9C always
       //byte1 40 always
       break;
     case 0x5A9:
-      datalayer.battery.status.CAN_battery_still_alive = CAN_STILL_ALIVE;
+      datalayer_battery->status.CAN_battery_still_alive = CAN_STILL_ALIVE;
       break;
     case 0x5AB:
-      datalayer.battery.status.CAN_battery_still_alive = CAN_STILL_ALIVE;
+      datalayer_battery->status.CAN_battery_still_alive = CAN_STILL_ALIVE;
       break;
     case 0x5C8:
-      datalayer.battery.status.CAN_battery_still_alive = CAN_STILL_ALIVE;
+      datalayer_battery->status.CAN_battery_still_alive = CAN_STILL_ALIVE;
       break;
     case 0x5E1:
-      datalayer.battery.status.CAN_battery_still_alive = CAN_STILL_ALIVE;
+      datalayer_battery->status.CAN_battery_still_alive = CAN_STILL_ALIVE;
       break;
     case 0x7BB:                           // Reply from battery
       if (rx_frame.data.u8[0] == 0x10) {  //PID header
@@ -944,12 +944,12 @@ void CmfaEvBattery::setup(void) {  // Performs one time setup at startup
   strncpy(datalayer.system.info.battery_protocol, "CMFA platform, 27 kWh battery", 63);
   datalayer.system.info.battery_protocol[63] = '\0';
   datalayer.system.status.battery_allows_contactor_closing = true;
-  datalayer.battery.info.number_of_cells = 72;
-  datalayer.battery.info.max_design_voltage_dV = MAX_PACK_VOLTAGE_DV;
-  datalayer.battery.info.min_design_voltage_dV = MIN_PACK_VOLTAGE_DV;
-  datalayer.battery.info.max_cell_voltage_mV = MAX_CELL_VOLTAGE_MV;
-  datalayer.battery.info.min_cell_voltage_mV = MIN_CELL_VOLTAGE_MV;
-  datalayer.battery.info.max_cell_voltage_deviation_mV = MAX_CELL_DEVIATION_MV;
+  datalayer_battery->info.number_of_cells = 72;
+  datalayer_battery->info.max_design_voltage_dV = MAX_PACK_VOLTAGE_DV;
+  datalayer_battery->info.min_design_voltage_dV = MIN_PACK_VOLTAGE_DV;
+  datalayer_battery->info.max_cell_voltage_mV = MAX_CELL_VOLTAGE_MV;
+  datalayer_battery->info.min_cell_voltage_mV = MIN_CELL_VOLTAGE_MV;
+  datalayer_battery->info.max_cell_voltage_deviation_mV = MAX_CELL_DEVIATION_MV;
 }
 
 #endif  //CMFA_EV_BATTERY
