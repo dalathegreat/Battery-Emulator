@@ -195,7 +195,7 @@ class RenaultZoeGen2Battery : public CanBattery {
   uint16_t battery_soc = 0;
   uint16_t battery_usable_soc = 5000;
   uint16_t battery_soh = 10000;
-  uint16_t battery_pack_voltage = 370;
+  uint16_t battery_pack_voltage = 3700;
   uint16_t battery_max_cell_voltage = 3700;
   uint16_t battery_min_cell_voltage = 3700;
   uint16_t battery_12v = 12000;
