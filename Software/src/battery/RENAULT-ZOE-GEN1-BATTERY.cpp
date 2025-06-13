@@ -85,14 +85,14 @@ void RenaultZoeGen1Battery::
   datalayer_battery->status.voltage_dV = ((calculated_total_pack_voltage_mV / 100));  // mV to dV
 
   //Update extended datalayer
-  datalayer_extended.zoe.CUV = LB_CUV;
-  datalayer_extended.zoe.HVBIR = LB_HVBIR;
-  datalayer_extended.zoe.HVBUV = LB_HVBUV;
-  datalayer_extended.zoe.EOCR = LB_EOCR;
-  datalayer_extended.zoe.HVBOC = LB_HVBOC;
-  datalayer_extended.zoe.HVBOT = LB_HVBOT;
-  datalayer_extended.zoe.HVBOV = LB_HVBOV;
-  datalayer_extended.zoe.COV = LB_COV;
+  datalayer_zoe->CUV = LB_CUV;
+  datalayer_zoe->HVBIR = LB_HVBIR;
+  datalayer_zoe->HVBUV = LB_HVBUV;
+  datalayer_zoe->EOCR = LB_EOCR;
+  datalayer_zoe->HVBOC = LB_HVBOC;
+  datalayer_zoe->HVBOT = LB_HVBOT;
+  datalayer_zoe->HVBOV = LB_HVBOV;
+  datalayer_zoe->COV = LB_COV;
 }
 
 void RenaultZoeGen1Battery::handle_incoming_can_frame(CAN_frame rx_frame) {
