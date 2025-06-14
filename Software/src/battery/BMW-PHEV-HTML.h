@@ -15,90 +15,203 @@ class BmwPhevHtmlRenderer : public BatteryHtmlRenderer {
         " dV</h4>";
     content += "<h4>Allowed Discharge Power: " + String(datalayer.battery.status.max_discharge_power_W) + " W</h4>";
     content += "<h4>Allowed Charge Power: " + String(datalayer.battery.status.max_charge_power_W) + " W</h4>";
-    static const char* balanceText[5] = {"0 Balancing Inactive - Balancing not needed", "1 Balancing Active",
-                                         "2 Balancing Inactive - Cells not in rest break wait 10mins",
-                                         "3 Balancing Inactive", "4 Unknown"};
-    content += "<h4>Balancing: " + String((balanceText[datalayer_extended.bmwphev.balancing_status])) + "</h4>";
-    static const char* pyroText[5] = {"0 Value Invalid", "1 Successfully Blown", "2 Disconnected",
-                                      "3 Not Activated - Pyro Intact", "4 Unknown"};
-    static const char* statusText[16] = {
-        "Not evaluated", "OK", "Error!", "Invalid signal", "", "", "", "", "", "", "", "", "", "", "", ""};
-    content += "<h4>Interlock: " + String(statusText[datalayer_extended.bmwphev.ST_interlock]) + "</h4>";
-    content += "<h4>Isolation external: " + String(statusText[datalayer_extended.bmwphev.ST_iso_ext]) + "</h4>";
-    content += "<h4>Isolation internal: " + String(statusText[datalayer_extended.bmwphev.ST_iso_int]) + "</h4>";
-    content += "<h4>Isolation: " + String(statusText[datalayer_extended.bmwphev.ST_isolation]) + "</h4>";
-    content += "<h4>Cooling valve: " + String(statusText[datalayer_extended.bmwphev.ST_valve_cooling]) + "</h4>";
-    content += "<h4>Emergency: " + String(statusText[datalayer_extended.bmwphev.ST_EMG]) + "</h4>";
-    static const char* prechargeText[16] = {"Not evaluated",
-                                            "Not active, closing not blocked",
-                                            "Error precharge blocked",
-                                            "Invalid signal",
-                                            "",
-                                            "",
-                                            "",
-                                            "",
-                                            "",
-                                            "",
-                                            "",
-                                            "",
-                                            "",
-                                            "",
-                                            "",
-                                            ""};
-    content += "<h4>Precharge: " + String(prechargeText[datalayer_extended.bmwphev.ST_precharge]) +
-               "</h4>";  //Still unclear of enum
-    static const char* DCSWText[16] = {"Contactors open",
-                                       "Precharge ongoing",
-                                       "Contactors engaged",
-                                       "Invalid signal",
-                                       "",
-                                       "",
-                                       "",
-                                       "",
-                                       "",
-                                       "",
-                                       "",
-                                       "",
-                                       "",
-                                       "",
-                                       "",
-                                       ""};
-    content += "<h4>Contactor status: " + String(DCSWText[datalayer_extended.bmwphev.ST_DCSW]) + "</h4>";
-    static const char* contText[16] = {"Contactors OK",
-                                       "One contactor welded!",
-                                       "Two contactors welded!",
-                                       "Invalid signal",
-                                       "",
-                                       "",
-                                       "",
-                                       "",
-                                       "",
-                                       "",
-                                       "",
-                                       "",
-                                       "",
-                                       "",
-                                       "",
-                                       ""};
-    content += "<h4>Contactor weld: " + String(contText[datalayer_extended.bmwphev.ST_WELD]) + "</h4>";
-    static const char* valveText[16] = {"OK",
-                                        "Short circuit to GND",
-                                        "Short circuit to 12V",
-                                        "Line break",
-                                        "",
-                                        "",
-                                        "Driver error",
-                                        "",
-                                        "",
-                                        "",
-                                        "",
-                                        "",
-                                        "Stuck",
-                                        "Stuck",
-                                        "",
-                                        "Invalid Signal"};
-    content +=
-        "<h4>Cold shutoff valve: " + String(valveText[datalayer_extended.bmwphev.ST_cold_shutoff_valve]) + "</h4>";
+    content += "<h4>Balancing: ";
+    switch (datalayer_extended.bmwphev.balancing_status) {
+      case 0:
+        content += String("0 Balancing Inactive - Balancing not needed</h4>");
+        break;
+      case 1:
+        content += String("1 Balancing Active</h4>");
+        break;
+      case 2:
+        content += String("2 Balancing Inactive - Cells not in rest break wait 10mins</h4>");
+        break;
+      case 3:
+        content += String("3 Balancing Inactive</h4>");
+        break;
+      case 4:
+        content += String("4 Unknown</h4>");
+        break;
+      default:
+        content += String("Unknown</h4>");
+    }
+    content += "<h4>Interlock: ";
+    switch (datalayer_extended.bmwphev.ST_interlock) {
+      case 0:
+        content += String("Not Evaluated</h4>");
+        break;
+      case 1:
+        content += String("OK</h4>");
+        break;
+      case 2:
+        content += String("Error! Not seated!</h4>");
+        break;
+      case 3:
+        content += String("Invalid signal</h4>");
+        break;
+      default:
+        content += String("Unknown</h4>");
+    }
+    content += "<h4>Isolation external: ";
+    switch (datalayer_extended.bmwphev.ST_iso_ext) {
+      case 0:
+        content += String("Not Evaluated</h4>");
+        break;
+      case 1:
+        content += String("OK</h4>");
+        break;
+      case 2:
+        content += String("Error!</h4>");
+        break;
+      case 3:
+        content += String("Invalid signal</h4>");
+        break;
+      default:
+        content += String("Unknown</h4>");
+    }
+    content += "<h4>Isolation internal: ";
+    switch (datalayer_extended.bmwphev.ST_iso_int) {
+      case 0:
+        content += String("Not Evaluated</h4>");
+        break;
+      case 1:
+        content += String("OK</h4>");
+        break;
+      case 2:
+        content += String("Error!</h4>");
+        break;
+      case 3:
+        content += String("Invalid signal</h4>");
+        break;
+      default:
+        content += String("Unknown</h4>");
+    }
+    content += "<h4>Isolation: ";
+    switch (datalayer_extended.bmwphev.ST_isolation) {
+      case 0:
+        content += String("Not Evaluated</h4>");
+        break;
+      case 1:
+        content += String("OK</h4>");
+        break;
+      case 2:
+        content += String("Error!</h4>");
+        break;
+      case 3:
+        content += String("Invalid signal</h4>");
+        break;
+      default:
+        content += String("Unknown</h4>");
+    }
+    content += "<h4>Cooling valve: ";
+    switch (datalayer_extended.bmwphev.ST_valve_cooling) {
+      case 0:
+        content += String("Not Evaluated</h4>");
+        break;
+      case 1:
+        content += String("OK</h4>");
+        break;
+      case 2:
+        content += String("Error!</h4>");
+        break;
+      case 3:
+        content += String("Invalid signal</h4>");
+        break;
+      default:
+        content += String("Unknown</h4>");
+    }
+    content += "<h4>Emergency: ";
+    switch (datalayer_extended.bmwphev.ST_EMG) {
+      case 0:
+        content += String("Not Evaluated</h4>");
+        break;
+      case 1:
+        content += String("OK</h4>");
+        break;
+      case 2:
+        content += String("Error!</h4>");
+        break;
+      case 3:
+        content += String("Invalid signal</h4>");
+        break;
+      default:
+        content += String("Unknown</h4>");
+    }
+    content += "<h4>Precharge: ";
+    switch (datalayer_extended.bmwphev.ST_precharge) {
+      case 0:
+        content += String("Not Evaluated</h4>");
+        break;
+      case 1:
+        content += String("Not active, closing not blocked</h4>");
+        break;
+      case 2:
+        content += String("Error precharge blocked</h4>");
+        break;
+      case 3:
+        content += String("Invalid signal</h4>");
+        break;
+      default:
+        content += String("Unknown</h4>");  //Still unclear of enum
+    }
+    content += "<h4>Contactor status: ";
+    switch (datalayer_extended.bmwphev.ST_DCSW) {
+      case 0:
+        content += String("Contactors open</h4>");
+        break;
+      case 1:
+        content += String("Precharge ongoing</h4>");
+        break;
+      case 2:
+        content += String("Contactors engaged</h4>");
+        break;
+      case 3:
+        content += String("Invalid signal</h4>");
+        break;
+      default:
+        content += String("Unknown</h4>");
+    }
+    content += "<h4>Contactor weld: ";
+    switch (datalayer_extended.bmwphev.ST_WELD) {
+      case 0:
+        content += String("Contactors OK</h4>");
+        break;
+      case 1:
+        content += String("One contactor welded!</h4>");
+        break;
+      case 2:
+        content += String("Two contactors welded!</h4>");
+        break;
+      case 3:
+        content += String("Invalid signal</h4>");
+        break;
+      default:
+        content += String("Unknown</h4>");
+    }
+    content += "<h4>Cold shutoff valve: ";
+    switch (datalayer_extended.bmwphev.ST_cold_shutoff_valve) {
+      case 0:
+        content += String("OK</h4>");
+        break;
+      case 1:
+        content += String("Short circuit to GND</h4>");
+        break;
+      case 2:
+        content += String("Short circuit to 12V</h4>");
+        break;
+      case 3:
+        content += String("Line break</h4>");
+        break;
+      case 6:
+        content += String("Driver error</h4>");
+        break;
+      case 12:
+      case 13:
+        content += String("Stuck</h4>");
+        break;
+      default:
+        content += String("Invalid Signal</h4>");
+    }
     content +=
         "<h4>Min Cell Voltage Data Age: " + String(datalayer_extended.bmwphev.min_cell_voltage_data_age) + " ms</h4>";
     content +=
