@@ -51,7 +51,8 @@
 #define POSITIVE_CONTACTOR_PIN 32
 #define NEGATIVE_CONTACTOR_PIN 33
 #define PRECHARGE_PIN 25
-#define BMS_POWER 18  // Note, this pin collides with CAN add-ons and Chademo
+#define BMS_POWER 18                      // Note, this pin collides with CAN add-ons and Chademo
+#define SECOND_BATTERY_CONTACTORS_PIN 15  //Note, this pin collides with SD card pins
 
 // Automatic precharging
 #define HIA4V1_PIN 25
