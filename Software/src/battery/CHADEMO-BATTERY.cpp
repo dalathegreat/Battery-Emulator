@@ -21,7 +21,9 @@ void ChademoBattery::update_values() {
   datalayer.battery.status.max_discharge_power_W =
       (x200_discharge_limits.MaximumDischargeCurrent * x100_chg_lim.MaximumBatteryVoltage);  //In Watts, Convert A to P
 
-  datalayer.battery.status.voltage_dV = get_measured_voltage() * 10;
+  if (vehicle_can_received) {  // Only update the value sent towards inverter if vehicle is connected (avoids false positive events)
+    datalayer.battery.status.voltage_dV = get_measured_voltage() * 10;
+  }
 
   datalayer.battery.info.total_capacity_Wh = (x101_chg_est.RatedBatteryCapacity * 100);
   //(Added in CHAdeMO v1.0.1), maybe handle hardcoded on lower protocol version?
