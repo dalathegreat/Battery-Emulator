@@ -28,33 +28,33 @@ class BmwIXHtmlRenderer : public BatteryHtmlRenderer {
     content += "<h4>Balancing: ";
     switch (datalayer_extended.bmwix.balancing_status) {
       case 0:
-        content += String("0 No balancing mode active</h4>");
+        content += "0 No balancing mode active</h4>";
         break;
       case 1:
-        content += String("1 Voltage-Controlled Balancing Mode</h4>");
+        content += "1 Voltage-Controlled Balancing Mode</h4>";
         break;
       case 2:
-        content += String("2 Time-Controlled Balancing Mode with Demand Calculation at End of Charging</h4>");
+        content += "2 Time-Controlled Balancing Mode with Demand Calculation at End of Charging</h4>";
         break;
       case 3:
-        content += String("3 Time-Controlled Balancing Mode with Demand Calculation at Resting Voltage</h4>");
+        content += "3 Time-Controlled Balancing Mode with Demand Calculation at Resting Voltage</h4>";
         break;
       case 4:
-        content += String("4 No balancing mode active, qualifier invalid</h4>");
+        content += "4 No balancing mode active, qualifier invalid</h4>";
         break;
       default:
-        content += String("Unknown</h4>");
+        content += "Unknown</h4>";
     }
     content += "<h4>HVIL Status: ";
     switch (datalayer_extended.bmwix.hvil_status) {
       case 0:
-        content += String("Error (Loop Open)</h4>");
+        content += "Error (Loop Open)</h4>";
         break;
       case 1:
-        content += String("OK (Loop Closed)</h4>");
+        content += "OK (Loop Closed)</h4>";
         break;
       default:
-        content += String("Unknown</h4>");
+        content += "Unknown</h4>";
     }
     content += "<h4>BMS Uptime: " + String(datalayer_extended.bmwix.bms_uptime) + " seconds</h4>";
     content += "<h4>BMS Allowed Charge Amps: " + String(datalayer_extended.bmwix.allowable_charge_amps) + " A</h4>";
@@ -68,62 +68,62 @@ class BmwIXHtmlRenderer : public BatteryHtmlRenderer {
     content += "<h4>Pyro Status PSS1: ";
     switch (datalayer_extended.bmwix.pyro_status_pss1) {
       case 0:
-        content += String("0 Value Invalid</h4>");
+        content += "0 Value Invalid</h4>";
         break;
       case 1:
-        content += String("1 Successfully Blown</h4>");
+        content += "1 Successfully Blown</h4>";
         break;
       case 2:
-        content += String("2 Disconnected</h4>");
+        content += "2 Disconnected</h4>";
         break;
       case 3:
-        content += String("3 Not Activated - Pyro Intact</h4>");
+        content += "3 Not Activated - Pyro Intact</h4>";
         break;
       case 4:
-        content += String("4 Unknown</h4>");
+        content += "4 Unknown</h4>";
         break;
       default:
-        content += String("Unknown</h4>");
+        content += "Unknown</h4>";
     }
     content += "<h4>Pyro Status PSS4: ";
     switch (datalayer_extended.bmwix.pyro_status_pss4) {
       case 0:
-        content += String("0 Value Invalid</h4>");
+        content += "0 Value Invalid</h4>";
         break;
       case 1:
-        content += String("1 Successfully Blown</h4>");
+        content += "1 Successfully Blown</h4>";
         break;
       case 2:
-        content += String("2 Disconnected</h4>");
+        content += "2 Disconnected</h4>";
         break;
       case 3:
-        content += String("3 Not Activated - Pyro Intact</h4>");
+        content += "3 Not Activated - Pyro Intact</h4>";
         break;
       case 4:
-        content += String("4 Unknown</h4>");
+        content += "4 Unknown</h4>";
         break;
       default:
-        content += String("Unknown</h4>");
+        content += "Unknown</h4>";
     }
     content += "<h4>Pyro Status PSS6: ";
     switch (datalayer_extended.bmwix.pyro_status_pss6) {
       case 0:
-        content += String("0 Value Invalid</h4>");
+        content += "0 Value Invalid</h4>";
         break;
       case 1:
-        content += String("1 Successfully Blown</h4>");
+        content += "1 Successfully Blown</h4>";
         break;
       case 2:
-        content += String("2 Disconnected</h4>");
+        content += "2 Disconnected</h4>";
         break;
       case 3:
-        content += String("3 Not Activated - Pyro Intact</h4>");
+        content += "3 Not Activated - Pyro Intact</h4>";
         break;
       case 4:
-        content += String("4 Unknown</h4>");
+        content += "4 Unknown</h4>";
         break;
       default:
-        content += String("Unknown</h4>");
+        content += "Unknown</h4>";
     }
 
     return content;
