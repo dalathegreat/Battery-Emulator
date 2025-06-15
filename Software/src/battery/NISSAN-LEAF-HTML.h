@@ -10,8 +10,20 @@ class NissanLeafHtmlRenderer : public BatteryHtmlRenderer {
   String get_status_html() {
     String content;
 
-    static const char* LEAFgen[] = {"ZE0", "AZE0", "ZE1"};
-    content += "<h4>LEAF generation: " + String(LEAFgen[datalayer_extended.nissanleaf.LEAF_gen]) + "</h4>";
+    content += "<h4>LEAF generation: ";
+    switch (datalayer_extended.nissanleaf.LEAF_gen) {
+      case 0:
+        content += String("ZE0</h4>");
+        break;
+      case 1:
+        content += String("AZE0</h4>");
+        break;
+      case 2:
+        content += String("ZE1</h4>");
+        break;
+      default:
+        content += String("Unknown</h4>");
+    }
     char readableSerialNumber[16];  // One extra space for null terminator
     memcpy(readableSerialNumber, datalayer_extended.nissanleaf.BatterySerialNumber,
            sizeof(datalayer_extended.nissanleaf.BatterySerialNumber));
