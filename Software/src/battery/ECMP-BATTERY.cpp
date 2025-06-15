@@ -534,10 +534,10 @@ void EcmpBattery::handle_incoming_can_frame(CAN_frame rx_frame) {
               pid_avg_cell_voltage = (rx_frame.data.u8[4] << 8) | rx_frame.data.u8[5];
               break;
             case PID_CURRENT:
-              pid_current = (((rx_frame.data.u8[4] << 24) | (rx_frame.data.u8[5] << 16) | (rx_frame.data.u8[6] << 8) |
-                              rx_frame.data.u8[7]) -
-                             76800) *
-                            10;
+              pid_current = -(((rx_frame.data.u8[4] << 24) | (rx_frame.data.u8[5] << 16) | (rx_frame.data.u8[6] << 8) |
+                               rx_frame.data.u8[7]) -
+                              76800) *
+                            20;
               break;
             case PID_INSULATION_NEG:
               pid_insulation_res_neg = ((rx_frame.data.u8[4] << 24) | (rx_frame.data.u8[5] << 16) |
@@ -578,7 +578,7 @@ void EcmpBattery::handle_incoming_can_frame(CAN_frame rx_frame) {
               pid_lowest_cell_voltage_num = (rx_frame.data.u8[4]);
               break;
             case PID_SUM_OF_CELLS:
-              pid_sum_of_cells = (rx_frame.data.u8[4] << 8) | rx_frame.data.u8[5];
+              pid_sum_of_cells = ((rx_frame.data.u8[4] << 8) | rx_frame.data.u8[5]) / 2;
               break;
             case PID_CELL_MIN_CAPACITY:
               pid_cell_min_capacity = (rx_frame.data.u8[4] << 8) | rx_frame.data.u8[5];
