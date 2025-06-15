@@ -39,6 +39,8 @@ class EcmpBattery : public CanBattery {
   static const int MIN_CELL_VOLTAGE_MV = 2700;
 #define NOT_SAMPLED_YET 255
 #define COMPLETED_STATE 0
+  bool simulateEntireCar =
+      false;  //Set this to true to simulate the whole car (useful for when using external diagnostic tools)
   bool battery_RelayOpenRequest = false;
   bool battery_InterlockOpen = false;
   uint8_t ContactorResetStatemachine = 0;
@@ -217,7 +219,7 @@ class EcmpBattery : public CanBattery {
   uint16_t poll_state = PID_WELD_CHECK;
   uint16_t incoming_poll = 0;
 
-  CAN_frame ECMP_010 = {.FD = false, .ext_ID = false, .DLC = 1, .ID = 0x010, .data = {0xB4}};
+  CAN_frame ECMP_010 = {.FD = false, .ext_ID = false, .DLC = 1, .ID = 0x010, .data = {0xB4}};  //VCU_BCM_Crash 100ms
   CAN_frame ECMP_041 = {.FD = false, .ext_ID = false, .DLC = 1, .ID = 0x041, .data = {0x00}};
   CAN_frame ECMP_0A6 = {.FD = false,
                         .ext_ID = false,
@@ -333,7 +335,7 @@ class EcmpBattery : public CanBattery {
                         .DLC = 8,
                         .ID = 0x3A3,
                         .data = {0x4A, 0x4A, 0x40, 0x00, 0x00, 0x08, 0x00, 0x0F}};
-  CAN_frame ECMP_439 = {.FD = false,      //??? 1s periodic (Perfectly emulated in Battery-Emulator)
+  CAN_frame ECMP_439 = {.FD = false,      //OBC4 1s periodic (Perfectly emulated in Battery-Emulator)
                         .ext_ID = false,  //Same content always, fully static
                         .DLC = 8,
                         .ID = 0x439,

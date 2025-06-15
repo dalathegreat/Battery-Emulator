@@ -1321,9 +1321,11 @@ void EcmpBattery::transmit_can(unsigned long currentMillis) {
     transmit_can_frame(&ECMP_0C5, can_config.battery);  //DC2_0C5
     transmit_can_frame(&ECMP_17B, can_config.battery);  //VCU_PCANInfo_17B
     transmit_can_frame(&ECMP_0F2, can_config.battery);  //CtrlMCU1_0F2
-    transmit_can_frame(&ECMP_111, can_config.battery);
-    transmit_can_frame(&ECMP_110, can_config.battery);
-    transmit_can_frame(&ECMP_114, can_config.battery);
+    if (simulateEntireCar) {
+      transmit_can_frame(&ECMP_111, can_config.battery);
+      transmit_can_frame(&ECMP_110, can_config.battery);
+      transmit_can_frame(&ECMP_114, can_config.battery);
+    }
   }
 
   // Send 20ms periodic CAN Message simulating the car still being attached
@@ -1355,7 +1357,7 @@ void EcmpBattery::transmit_can(unsigned long currentMillis) {
       ECMP_27A.data = {0x4F, 0x58, 0x00, 0x02, 0x24, 0x00, 0x00, 0x00};
     }
     transmit_can_frame(&ECMP_230, can_config.battery);  //OBC3_230
-    transmit_can_frame(&ECMP_27A, can_config.battery);  //PSA specific VCU message (VCU_BSI_Wakeup_27A)
+    transmit_can_frame(&ECMP_27A, can_config.battery);  //VCU_BSI_Wakeup_27A
   }
   // Send 100ms periodic CAN Message simulating the car still being attached
   if (currentMillis - previousMillis100 >= INTERVAL_100_MS) {
@@ -1463,20 +1465,23 @@ void EcmpBattery::transmit_can(unsigned long currentMillis) {
     transmit_can_frame(&ECMP_345, can_config.battery);  //DC1_345
     transmit_can_frame(&ECMP_3A2, can_config.battery);  //OBC2_3A2
     transmit_can_frame(&ECMP_3A3, can_config.battery);  //OBC1_3A3
-    transmit_can_frame(&ECMP_31E, can_config.battery);
-    transmit_can_frame(&ECMP_383, can_config.battery);
-    transmit_can_frame(&ECMP_010, can_config.battery);
-    transmit_can_frame(&ECMP_0A6, can_config.battery);  //Not in all logs
-    transmit_can_frame(&ECMP_37F, can_config.battery);  //Seems to be temperatures of some sort
-    transmit_can_frame(&ECMP_372, can_config.battery);
-    transmit_can_frame(&ECMP_351, can_config.battery);
-    transmit_can_frame(&ECMP_31D, can_config.battery);
+    transmit_can_frame(&ECMP_010, can_config.battery);  //VCU_BCM_Crash
+    if (simulateEntireCar) {
+      transmit_can_frame(&ECMP_31E, can_config.battery);
+      transmit_can_frame(&ECMP_383, can_config.battery);
+      transmit_can_frame(&ECMP_0A6, can_config.battery);  //Not in all logs
+      transmit_can_frame(&ECMP_37F, can_config.battery);  //Seems to be temperatures of some sort
+      transmit_can_frame(&ECMP_372, can_config.battery);
+      transmit_can_frame(&ECMP_351, can_config.battery);
+      transmit_can_frame(&ECMP_31D, can_config.battery);
+    }
   }
   // Send 500ms periodic CAN Message simulating the car still being attached
   if (currentMillis - previousMillis500 >= INTERVAL_500_MS) {
     previousMillis500 = currentMillis;
-
-    transmit_can_frame(&ECMP_0AE, can_config.battery);
+    if (simulateEntireCar) {
+      transmit_can_frame(&ECMP_0AE, can_config.battery);
+    }
   }
   // Send 1s CAN Message
   if (currentMillis - previousMillis1000 >= INTERVAL_1_S) {
@@ -1499,19 +1504,22 @@ void EcmpBattery::transmit_can(unsigned long currentMillis) {
     ECMP_552.data.u8[2] = ((ticks_552 & 0x0000FF00) >> 8);
     ECMP_552.data.u8[3] = (ticks_552 & 0x000000FF);
 
-    transmit_can_frame(&ECMP_439, can_config.battery);  //PSA Specific? Not in all logs
-    transmit_can_frame(&ECMP_486, can_config.battery);  //Not in all logs
-    transmit_can_frame(&ECMP_041, can_config.battery);  //Not in all logs
-    transmit_can_frame(&ECMP_786, can_config.battery);  //Not in all logs
-    transmit_can_frame(&ECMP_591, can_config.battery);  //Not in all logs
+    transmit_can_frame(&ECMP_439, can_config.battery);  //OBC4
     transmit_can_frame(&ECMP_552, can_config.battery);  //VCU_552 timetracking
-    transmit_can_frame(&ECMP_794, can_config.battery);  //Not in all logs
+    if (simulateEntireCar) {
+      transmit_can_frame(&ECMP_486, can_config.battery);  //Not in all logs
+      transmit_can_frame(&ECMP_041, can_config.battery);  //Not in all logs
+      transmit_can_frame(&ECMP_786, can_config.battery);  //Not in all logs
+      transmit_can_frame(&ECMP_591, can_config.battery);  //Not in all logs
+      transmit_can_frame(&ECMP_794, can_config.battery);  //Not in all logs
+    }
   }
   // Send 5s periodic CAN Message simulating the car still being attached
   if (currentMillis - previousMillis5000 >= INTERVAL_5_S) {
     previousMillis5000 = currentMillis;
-
-    transmit_can_frame(&ECMP_55F, can_config.battery);
+    if (simulateEntireCar) {
+      transmit_can_frame(&ECMP_55F, can_config.battery);
+    }
   }
 }
 
