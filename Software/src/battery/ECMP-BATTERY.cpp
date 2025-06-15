@@ -8,8 +8,7 @@
 
 /* TODO:
 This integration is still ongoing. Here is what still needs to be done in order to use this battery type
-- Disable the isolation resistance requirement that opens contactors after 30s
-- Battery says it might need 37E and 485, but no logs of this?
+- Disable the isolation resistance requirement that opens contactors after 30s under load. Factory mode?
 */
 
 /* Do not change code below unless you are sure what you are doing */
@@ -21,7 +20,7 @@ void EcmpBattery::update_values() {
 
   datalayer.battery.status.voltage_dV = battery_voltage * 10;
 
-  datalayer.battery.status.current_dA = battery_current * 10;
+  datalayer.battery.status.current_dA = -(battery_current * 10);
 
   datalayer.battery.status.active_power_W =  //Power in watts, Negative = charging batt
       ((datalayer.battery.status.voltage_dV * datalayer.battery.status.current_dA) / 100);
