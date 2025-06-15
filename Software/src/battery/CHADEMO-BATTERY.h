@@ -127,7 +127,7 @@ uint8_t CHADEMO_seq = 0x0;
       } status;
     } s;
 
-    uint8_t StateOfCharge = 0;  //6 state of charge?
+    uint8_t StateOfCharge = 50;  //6 state of charge?
   };
 
   /* ---------- CHARGING: EVSE Data structures */
