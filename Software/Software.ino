@@ -120,6 +120,8 @@ void setup() {
       .trigger_panic = true                                            // Enable panic reset on timeout
   };
 
+  init_mqtt();
+
   // Start tasks
 
 #ifdef MQTT
@@ -190,8 +192,6 @@ void connectivity_loop(void*) {
 #ifdef MQTT
 void mqtt_loop(void*) {
   esp_task_wdt_add(NULL);  // Register this task with WDT
-
-  init_mqtt();
 
   while (true) {
     START_TIME_MEASUREMENT(mqtt);
