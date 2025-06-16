@@ -120,11 +120,11 @@ void setup() {
       .trigger_panic = true                                            // Enable panic reset on timeout
   };
 
-  init_mqtt();
-
   // Start tasks
 
 #ifdef MQTT
+  init_mqtt();
+
   xTaskCreatePinnedToCore((TaskFunction_t)&mqtt_loop, "mqtt_loop", 4096, NULL, TASK_MQTT_PRIO, &mqtt_loop_task,
                           WIFI_CORE);
 #endif
