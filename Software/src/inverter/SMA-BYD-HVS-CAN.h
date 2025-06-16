@@ -27,6 +27,7 @@ class SmaBydHvsInverter : public CanInverterProtocol {
       7;  //TODO, tweak to as low as possible before performance issues/crashes appear
   bool transmit_can_init = false;
 
+  uint8_t pairing_events = 0;
   uint32_t inverter_time = 0;
   uint16_t inverter_voltage = 0;
   int16_t inverter_current = 0;
