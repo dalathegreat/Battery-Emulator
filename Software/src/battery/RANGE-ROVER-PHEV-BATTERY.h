@@ -5,7 +5,9 @@
 
 #include "CanBattery.h"
 
+#ifdef RANGE_ROVER_PHEV_BATTERY
 #define SELECTED_BATTERY_CLASS RangeRoverPhevBattery
+#endif
 
 class RangeRoverPhevBattery : public CanBattery {
  public:

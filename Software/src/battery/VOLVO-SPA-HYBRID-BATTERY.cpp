@@ -1,10 +1,9 @@
-#include "../include.h"
-#ifdef VOLVO_SPA_HYBRID_BATTERY
+#include "VOLVO-SPA-HYBRID-BATTERY.h"
 #include "../communication/can/comm_can.h"
 #include "../datalayer/datalayer.h"
 #include "../datalayer/datalayer_extended.h"  //For "More battery info" webpage
 #include "../devboard/utils/events.h"
-#include "VOLVO-SPA-HYBRID-BATTERY.h"
+#include "../include.h"
 
 void VolvoSpaHybridBattery::
     update_values() {  //This function maps all the values fetched via CAN to the correct parameters used for the inverter
@@ -563,4 +562,3 @@ void VolvoSpaHybridBattery::setup(void) {                                     //
   datalayer.battery.info.min_cell_voltage_mV = MIN_CELL_VOLTAGE_MV;
   datalayer.battery.info.max_cell_voltage_deviation_mV = MAX_CELL_DEVIATION_MV;
 }
-#endif

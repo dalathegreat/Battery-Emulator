@@ -5,7 +5,9 @@
 
 #include "CanBattery.h"
 
+#ifdef IMIEV_CZERO_ION_BATTERY
 #define SELECTED_BATTERY_CLASS ImievCZeroIonBattery
+#endif
 
 class ImievCZeroIonBattery : public CanBattery {
  public:

@@ -58,6 +58,7 @@ jobs:
           - CMFA_EV_BATTERY
           - DALY_BMS
           - FOXESS_BATTERY
+          - GEELY_GEOMETRY_C_BATTERY
           - IMIEV_CZERO_ION_BATTERY
           - JAGUAR_IPACE_BATTERY
           - KIA_E_GMP_BATTERY

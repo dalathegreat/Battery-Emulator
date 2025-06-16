@@ -1,10 +1,9 @@
-#include "../include.h"
-#ifdef GEELY_GEOMETRY_C_BATTERY
+#include "GEELY-GEOMETRY-C-BATTERY.h"
 #include "../communication/can/comm_can.h"
 #include "../datalayer/datalayer.h"
 #include "../datalayer/datalayer_extended.h"  //For "More battery info" webpage
 #include "../devboard/utils/events.h"
-#include "GEELY-GEOMETRY-C-BATTERY.h"
+#include "../include.h"
 
 /* TODO
 - Contactor closing: CAN log needed from complete H-CAN of Geely Geometry C vehicle. We are not sure what needs to be sent towards the battery yet to get contactor closing working. DTC readout complains that a "Power CAN BUS Data Missing" message is still missing
@@ -671,5 +670,3 @@ void GeelyGeometryCBattery::setup(void) {  // Performs one time setup at startup
   datalayer_battery->info.min_cell_voltage_mV = MIN_CELL_VOLTAGE_MV;
   datalayer_battery->info.max_cell_voltage_deviation_mV = MAX_CELL_DEVIATION_MV;
 }
-
-#endif

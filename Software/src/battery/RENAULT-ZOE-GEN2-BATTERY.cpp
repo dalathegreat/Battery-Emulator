@@ -1,10 +1,9 @@
-#include "../include.h"
-#ifdef RENAULT_ZOE_GEN2_BATTERY
+#include "RENAULT-ZOE-GEN2-BATTERY.h"
 #include "../communication/can/comm_can.h"
 #include "../datalayer/datalayer.h"
 #include "../datalayer/datalayer_extended.h"  //For "More battery info" webpage
 #include "../devboard/utils/events.h"
-#include "RENAULT-ZOE-GEN2-BATTERY.h"
+#include "../include.h"
 
 /* TODO
 - Add //NVROL Reset
@@ -688,5 +687,3 @@ void RenaultZoeGen2Battery::wait_ms(int duration_ms) {
     // Do nothing - just wait
   }
 }
-
-#endif

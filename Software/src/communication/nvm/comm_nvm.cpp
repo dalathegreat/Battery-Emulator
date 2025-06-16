@@ -1,15 +1,20 @@
 #include "comm_nvm.h"
 #include "../../include.h"
+#include "../contactorcontrol/comm_contactorcontrol.h"
 
 // Parameters
 Preferences settings;  // Store user settings
 
 // Initialization functions
 
+static void begin() {
+  settings.begin("batterySettings", false);
+}
+
 void init_stored_settings() {
   static uint32_t temp = 0;
   //  ATTENTION ! The maximum length for settings keys is 15 characters
-  settings.begin("batterySettings", false);
+  begin();
 
   // Always get the equipment stop status
   datalayer.system.settings.equipment_stop_active = settings.getBool("EQUIPMENT_STOP", false);
@@ -69,6 +74,18 @@ void init_stored_settings() {
     datalayer.battery.settings.max_user_set_discharge_voltage_dV = temp;
   }
   datalayer.battery.settings.user_set_voltage_limits_active = settings.getBool("USEVOLTLIMITS", false);
+
+#ifdef COMMON_IMAGE
+  user_selected_battery_type = (BatteryType)settings.getUInt("BATTTYPE", (int)BatteryType::None);
+  user_selected_inverter_protocol = (InverterProtocolType)settings.getUInt("INVTYPE", (int)InverterProtocolType::None);
+  user_selected_charger_type = (ChargerType)settings.getUInt("CHGTYPE", (int)ChargerType::None);
+  user_selected_second_battery = settings.getBool("DBLBTR", false);
+  contactor_control_enabled = settings.getBool("CNTCTRL", false);
+  pwm_contactor_control = settings.getBool("PWMCNTCTRL", false);
+  periodic_bms_reset = settings.getBool("PERBMSRESET", false);
+  remote_bms_reset = settings.getBool("REMBMSRESET", false);
+#endif
+
   settings.end();
 }
 
@@ -121,5 +138,26 @@ void store_settings() {
   if (!settings.putUInt("TARGETDISCHVOLT", datalayer.battery.settings.max_user_set_discharge_voltage_dV)) {
     set_event(EVENT_PERSISTENT_SAVE_INFO, 11);
   }
+
   settings.end();  // Close preferences handle
+}
+
+void store_uint(const char* key, uint32_t value) {
+  begin();
+  settings.putUInt(key, value);
+}
+
+void store_bool(const char* key, bool value) {
+  begin();
+  settings.putBool(key, value);
+}
+
+uint32_t get_uint(const char* key, uint32_t defaultValue) {
+  begin();
+  return settings.getUInt(key, defaultValue);
+}
+
+bool get_bool(const char* key) {
+  begin();
+  return settings.getBool(key, false);
 }

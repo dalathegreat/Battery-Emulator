@@ -6,7 +6,9 @@
 #include "CanBattery.h"
 #include "VOLVO-SPA-HYBRID-HTML.h"
 
+#ifdef VOLVO_SPA_HYBRID_BATTERY
 #define SELECTED_BATTERY_CLASS VolvoSpaHybridBattery
+#endif
 
 class VolvoSpaHybridBattery : public CanBattery {
  public:

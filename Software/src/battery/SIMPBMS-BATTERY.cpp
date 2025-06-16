@@ -1,8 +1,7 @@
-#include "../include.h"
-#ifdef SIMPBMS_BATTERY
+#include "SIMPBMS-BATTERY.h"
 #include "../datalayer/datalayer.h"
 #include "../devboard/utils/events.h"
-#include "SIMPBMS-BATTERY.h"
+#include "../include.h"
 
 void SimpBmsBattery::update_values() {
 
@@ -102,5 +101,3 @@ void SimpBmsBattery::setup(void) {  // Performs one time setup at startup
   datalayer.battery.info.min_cell_voltage_mV = MIN_CELL_VOLTAGE_MV;
   datalayer.system.status.battery_allows_contactor_closing = true;
 }
-
-#endif

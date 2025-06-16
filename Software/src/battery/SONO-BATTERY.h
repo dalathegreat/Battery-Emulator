@@ -5,7 +5,9 @@
 
 #include "CanBattery.h"
 
+#ifdef SONO_BATTERY
 #define SELECTED_BATTERY_CLASS SonoBattery
+#endif
 
 class SonoBattery : public CanBattery {
  public:

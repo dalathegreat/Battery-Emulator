@@ -1,9 +1,8 @@
-#include "../include.h"
-#ifdef RANGE_ROVER_PHEV_BATTERY
+#include "RANGE-ROVER-PHEV-BATTERY.h"
 #include "../communication/can/comm_can.h"
 #include "../datalayer/datalayer.h"
 #include "../devboard/utils/events.h"
-#include "RANGE-ROVER-PHEV-BATTERY.h"
+#include "../include.h"
 
 /* TODO
 - LOG files from vehicle needed to determine CAN content needed to send towards battery!
@@ -216,5 +215,3 @@ void RangeRoverPhevBattery::setup(void) {  // Performs one time setup at startup
   datalayer.battery.info.max_cell_voltage_mV = MAX_CELL_VOLTAGE_MV;
   datalayer.battery.info.min_cell_voltage_mV = MIN_CELL_VOLTAGE_MV;
 }
-
-#endif  //RANGE_ROVER_PHEV_BATTERY

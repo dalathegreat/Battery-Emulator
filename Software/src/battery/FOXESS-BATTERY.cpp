@@ -1,9 +1,8 @@
-#include "../include.h"
-#ifdef FOXESS_BATTERY
+#include "FOXESS-BATTERY.h"
 #include "../communication/can/comm_can.h"
 #include "../datalayer/datalayer.h"
 #include "../devboard/utils/events.h"
-#include "FOXESS-BATTERY.h"
+#include "../include.h"
 
 /*
 Can bus @ 500k - all Extended ID, little endian
@@ -583,5 +582,3 @@ void FoxessBattery::setup(void) {  // Performs one time setup at startup
   datalayer.battery.info.max_cell_voltage_deviation_mV = MAX_CELL_DEVIATION_MV;
   datalayer.system.status.battery_allows_contactor_closing = true;
 }
-
-#endif

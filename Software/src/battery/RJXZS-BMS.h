@@ -5,7 +5,9 @@
 
 #include "CanBattery.h"
 
+#ifdef RJXZS_BMS
 #define SELECTED_BATTERY_CLASS RjxzsBms
+#endif
 
 class RjxzsBms : public CanBattery {
  public:

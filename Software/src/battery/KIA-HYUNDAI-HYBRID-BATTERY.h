@@ -5,7 +5,9 @@
 
 #include "CanBattery.h"
 
+#ifdef KIA_HYUNDAI_HYBRID_BATTERY
 #define SELECTED_BATTERY_CLASS KiaHyundaiHybridBattery
+#endif
 
 class KiaHyundaiHybridBattery : public CanBattery {
  public:

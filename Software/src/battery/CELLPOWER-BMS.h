@@ -16,6 +16,8 @@ class CellPowerBms : public CanBattery {
   virtual void update_values();
   virtual void transmit_can(unsigned long currentMillis);
 
+  static constexpr char* Name = "Cellpower BMS";
+
   BatteryHtmlRenderer& get_status_renderer() { return renderer; }
 
  private:

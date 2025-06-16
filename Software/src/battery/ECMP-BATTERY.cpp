@@ -1,10 +1,9 @@
-#include "../include.h"
-#ifdef STELLANTIS_ECMP_BATTERY
+#include "ECMP-BATTERY.h"
 #include "../communication/can/comm_can.h"
 #include "../datalayer/datalayer.h"
 #include "../datalayer/datalayer_extended.h"  //For More Battery Info page
 #include "../devboard/utils/events.h"
-#include "ECMP-BATTERY.h"
+#include "../include.h"
 
 /* TODO:
 This integration is still ongoing. Here is what still needs to be done in order to use this battery type
@@ -331,5 +330,3 @@ void EcmpBattery::setup(void) {  // Performs one time setup at startup
   datalayer.battery.info.min_design_voltage_dV = MIN_PACK_VOLTAGE_DV;
   datalayer.system.status.battery_allows_contactor_closing = true;
 }
-
-#endif

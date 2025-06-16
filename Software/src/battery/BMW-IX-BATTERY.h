@@ -22,6 +22,8 @@ class BmwIXBattery : public CanBattery {
   void request_open_contactors() { datalayer_extended.bmwix.UserRequestContactorOpen = true; }
   void request_close_contactors() { datalayer_extended.bmwix.UserRequestContactorClose = true; }
 
+  static constexpr char* Name = "BMW iX and i4-7 platform";
+
  private:
   BmwIXHtmlRenderer renderer;
   static const int MAX_PACK_VOLTAGE_DV = 4650;  //4650 = 465.0V

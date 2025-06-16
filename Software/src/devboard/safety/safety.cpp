@@ -156,7 +156,7 @@ void update_machineryprotection() {
     clear_event(EVENT_SOH_LOW);
   }
 
-  if (!battery->soc_plausible()) {
+  if (battery && !battery->soc_plausible()) {
     set_event(EVENT_SOC_PLAUSIBILITY_ERROR, datalayer.battery.status.real_soc);
   }
 

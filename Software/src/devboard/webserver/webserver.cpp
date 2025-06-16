@@ -4,6 +4,7 @@
 #include "../../../USER_SECRETS.h"
 #include "../../battery/BATTERIES.h"
 #include "../../battery/Battery.h"
+#include "../../communication/nvm/comm_nvm.h"
 #include "../../datalayer/datalayer.h"
 #include "../../datalayer/datalayer_extended.h"
 #include "../../lib/bblanchon-ArduinoJson/ArduinoJson.h"
@@ -37,6 +38,9 @@ const char get_firmware_info_html[] = R"rawliteral(%X%)rawliteral";
 
 String importedLogs = "";      // Store the uploaded logfile contents in RAM
 bool isReplayRunning = false;  // Global flag to track replay state
+
+// True when user has updated settings and a reboot is needed.
+bool settingsUpdated = false;
 
 CAN_frame currentFrame = {.FD = true, .ext_ID = false, .DLC = 64, .ID = 0x12F, .data = {0}};
 
@@ -381,6 +385,41 @@ void init_webserver() {
     response += "</body></html>";
     request->send(200, "text/html", response);
   });
+
+#ifdef COMMON_IMAGE
+  // Handles the form POST from UI to save certain settings: battery/inverter type and double battery on/off
+  server.on("/saveSettings", HTTP_POST, [](AsyncWebServerRequest* request) {
+    int params = request->params();
+    // dblbtr not present in form content if not checked.
+    bool secondBattery = false;
+    for (int i = 0; i < params; i++) {
+      auto p = request->getParam(i);
+      if (p->name() == "inverter") {
+        auto type = static_cast<InverterProtocolType>(atoi(p->value().c_str()));
+        store_uint("INVTYPE", (int)type);
+      } else if (p->name() == "battery") {
+        auto type = static_cast<BatteryType>(atoi(p->value().c_str()));
+        store_uint("BATTTYPE", (int)type);
+      } else if (p->name() == "charger") {
+        auto type = static_cast<ChargerType>(atoi(p->value().c_str()));
+        store_uint("CHGTYPE", (int)type);
+      } else if (p->name() == "dblbtr") {
+        store_bool("DBLBTR", p->value() == "on");
+      } else if (p->name() == "contctrl") {
+        store_bool("CNTCTRL", p->value() == "on");
+      } else if (p->name() == "pwmcontctrl") {
+        store_bool("PWMCNTCTRL", p->value() == "on");
+      } else if (p->name() == "PERBMSRESET") {
+        store_bool("PERBMSRESET", p->value() == "on");
+      } else if (p->name() == "REMBMSRESET") {
+        store_bool("REMBMSRESET", p->value() == "on");
+      }
+    }
+
+    settingsUpdated = true;
+    request->redirect("/settings");
+  });
+#endif
 
   // Route for editing SSID
   server.on("/updateSSID", HTTP_GET, [](AsyncWebServerRequest* request) {
@@ -945,20 +984,25 @@ String processor(const String& var) {
     content += "<div style='background-color: #333; padding: 10px; margin-bottom: 10px; border-radius: 50px'>";
 
     // Display which components are used
-    content += "<h4 style='color: white;'>Inverter protocol: ";
-    content += datalayer.system.info.inverter_protocol;
-    content += " ";
-    content += datalayer.system.info.inverter_brand;
-    content += "</h4>";
-    content += "<h4 style='color: white;'>Battery protocol: ";
-    content += datalayer.system.info.battery_protocol;
-    if (battery2) {
-      content += " (Double battery)";
+    if (inverter) {
+      content += "<h4 style='color: white;'>Inverter protocol: ";
+      content += datalayer.system.info.inverter_protocol;
+      content += " ";
+      content += datalayer.system.info.inverter_brand;
+      content += "</h4>";
     }
-    if (datalayer.battery.info.chemistry == battery_chemistry_enum::LFP) {
-      content += " (LFP)";
+
+    if (battery) {
+      content += "<h4 style='color: white;'>Battery protocol: ";
+      content += datalayer.system.info.battery_protocol;
+      if (battery2) {
+        content += " (Double battery)";
+      }
+      if (datalayer.battery.info.chemistry == battery_chemistry_enum::LFP) {
+        content += " (LFP)";
+      }
+      content += "</h4>";
     }
-    content += "</h4>";
 
     if (shunt) {
       content += "<h4 style='color: white;'>Shunt protocol: ";
@@ -1106,7 +1150,7 @@ String processor(const String& var) {
     }
     content += "</h4>";
 
-    if (battery->supports_real_BMS_status()) {
+    if (battery && battery->supports_real_BMS_status()) {
       content += "<h4>Battery BMS status: ";
       switch (datalayer.battery.status.real_bms_status) {
         case BMS_ACTIVE:

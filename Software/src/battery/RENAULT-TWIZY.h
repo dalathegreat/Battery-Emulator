@@ -3,7 +3,9 @@
 #include "../include.h"
 #include "CanBattery.h"
 
+#ifdef RENAULT_TWIZY_BATTERY
 #define SELECTED_BATTERY_CLASS RenaultTwizyBattery
+#endif
 
 class RenaultTwizyBattery : public CanBattery {
  public:

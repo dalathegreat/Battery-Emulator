@@ -34,4 +34,24 @@ void store_settings_equipment_stop();
  */
 void store_settings();
 
+class BatteryEmulatorSettingsStore {
+ public:
+  BatteryEmulatorSettingsStore() { settings.begin("batterySettings", false); }
+
+  ~BatteryEmulatorSettingsStore() { settings.end(); }
+
+  BatteryType get_batterytype() { return (BatteryType)settings.getUInt("BATTTYPE", (int)BatteryType::None); }
+
+  void set_batterytype(BatteryType type) { settings.putUInt("BATTTYPE", (int)type); }
+
+  InverterProtocolType get_invertertype() {
+    return (InverterProtocolType)settings.getUInt("INVTYPE", (int)InverterProtocolType::None);
+  }
+
+  void set_invertertype(InverterProtocolType type) { settings.putUInt("INVTYPE", (int)type); }
+
+ private:
+  Preferences settings;
+};
+
 #endif

@@ -6,7 +6,9 @@
 #include "../include.h"
 #include "CanBattery.h"
 
+#ifdef PYLON_BATTERY
 #define SELECTED_BATTERY_CLASS PylonBattery
+#endif
 
 class PylonBattery : public CanBattery {
  public:

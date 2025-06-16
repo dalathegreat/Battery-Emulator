@@ -1,9 +1,8 @@
+#include "RENAULT-TWIZY.h"
 #include <cstdint>
-#include "../include.h"
-#ifdef RENAULT_TWIZY_BATTERY
 #include "../datalayer/datalayer.h"
 #include "../devboard/utils/events.h"
-#include "RENAULT-TWIZY.h"
+#include "../include.h"
 
 int16_t max_value(int16_t* entries, size_t len) {
   int result = INT16_MIN;
@@ -129,5 +128,3 @@ void RenaultTwizyBattery::setup(void) {  // Performs one time setup at startup
   datalayer.battery.info.total_capacity_Wh = 6600;
   datalayer.system.status.battery_allows_contactor_closing = true;
 }
-
-#endif

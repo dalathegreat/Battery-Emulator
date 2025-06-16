@@ -1,9 +1,8 @@
-#include "../include.h"
-#ifdef RENAULT_ZOE_GEN1_BATTERY
+#include "RENAULT-ZOE-GEN1-BATTERY.h"
 #include "../datalayer/datalayer.h"
 #include "../datalayer/datalayer_extended.h"
 #include "../devboard/utils/events.h"
-#include "RENAULT-ZOE-GEN1-BATTERY.h"
+#include "../include.h"
 
 void transmit_can_frame(CAN_frame* tx_frame, int interface);
 
@@ -567,5 +566,3 @@ void RenaultZoeGen1Battery::setup(void) {  // Performs one time setup at startup
   datalayer.battery.info.min_cell_voltage_mV = MIN_CELL_VOLTAGE_MV;
   datalayer.battery.info.max_cell_voltage_deviation_mV = MAX_CELL_DEVIATION_MV;
 }
-
-#endif

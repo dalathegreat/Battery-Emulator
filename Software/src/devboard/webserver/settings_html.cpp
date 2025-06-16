@@ -1,8 +1,76 @@
 #include "settings_html.h"
 #include <Arduino.h>
+#include "../../../src/communication/contactorcontrol/comm_contactorcontrol.h"
 #include "../../charger/CHARGERS.h"
+#include "../../communication/nvm/comm_nvm.h"
 #include "../../datalayer/datalayer.h"
 #include "../../include.h"
+
+extern bool settingsUpdated;
+
+#ifdef COMMON_IMAGE
+String battery_options(BatteryType selected) {
+  String options;
+
+  auto batteries = supported_battery_types();
+  for (BatteryType type : batteries) {
+    auto name = name_for_type(type);
+    if (name != nullptr) {
+      options +=
+          ("<option value=\"" + String(static_cast<int>(type)) + "\"" + (selected == type ? " selected" : "") + ">");
+      options += name;
+      options += "</option>";
+    }
+  }
+
+  return options;
+}
+
+String inverter_options(InverterProtocolType selected) {
+  String options;
+
+  auto inverters = supported_inverter_protocols();
+
+  for (InverterProtocolType type : inverters) {
+    auto name = name_for_type(type);
+    if (name != nullptr) {
+      options +=
+          ("<option value=\"" + String(static_cast<int>(type)) + "\"" + (selected == type ? "selected" : "") + ">");
+      options += name;
+      options += "</option>";
+    }
+  }
+
+  return options;
+}
+
+String charger_options(ChargerType selected) {
+  String options;
+
+  auto chargers = supported_charger_types();
+
+  for (ChargerType type : chargers) {
+    auto name = name_for_type(type);
+    if (name != nullptr) {
+      options +=
+          ("<option value=\"" + String(static_cast<int>(type)) + "\"" + (selected == type ? "selected" : "") + ">");
+      options += name;
+      options += "</option>";
+    }
+  }
+
+  return options;
+}
+#endif
+
+void render_checkbox(String& content, const char* label, bool enabled, const char* name) {
+  content += "<label>" + String(label) + "</label>";
+  content += "<input id='" + String(name) + "' name='" + String(name) +
+             "' type='checkbox' "
+             "style=\"margin-left: 0;\"";
+  content += (enabled ? " checked" : "");
+  content += " value='on'/>";
+}
 
 String settings_processor(const String& var) {
   if (var == "X") {
@@ -27,11 +95,59 @@ String settings_processor(const String& var) {
         "<h4 style='color: white;'>Password: ######## <span id='Password'></span> <button "
         "onclick='editPassword()'>Edit</button></h4>";
 
+#ifdef COMMON_IMAGE
+    BatteryEmulatorSettingsStore settings;
+
+    // It's important that we read/write settings directly to settings store instead of the run-time values
+    // since the run-time values may have direct effect on operation.
     content +=
-        "<h4 style='color: white;'>Battery interface: <span id='Battery'>" + battery->interface_name() + "</span></h4>";
+        "<div style='background-color: #404E47; padding: 10px; margin-bottom: 10px;border-radius: 50px;'><div "
+        "style='max-width: 500px;'>";
+    content +=
+        "<form action='saveSettings' method='post' style='display: grid; grid-template-columns: 1fr 2fr; gap: 10px; "
+        "align-items: center;'>";
+    content += "<label>Battery: </label><select style='max-width: 250px;' name='battery'>";
+    content += battery_options(settings.get_batterytype());
+    content += "</select>";
+    content += "<label>Inverter protocol: </label><select style='max-width: 250px;' name='inverter'>";
+    content += inverter_options(settings.get_invertertype());
+    content += "</select>";
+    content += "<label>Charger: </label><select style='max-width: 250px;' name='charger'>";
+    content += charger_options((ChargerType)("CHGTYPE", 0));
+    content += "</select>";
+    //content += "<label>Double battery:</label>";
+
+    // TODO: Generalize settings: define settings in one place and use the definitions to render
+    // UI and handle load/save
+    render_checkbox(content, "Double battery", settings.get_doublebattery(), "dblbtr");
+    render_checkbox(content, "Contactor control", get_bool("CNTCTRL"), "contctrl");
+    render_checkbox(content, "PWM contactor control", get_bool("PWMCNTCTRL"), "pwmcontctrl");
+    render_checkbox(content, "Periodic BMS reset", get_bool("PERBMSRESET"), "PERBMSRESET");
+    render_checkbox(content, "Remote BMS reset", get_bool("REMBMSRESET"), "REMBMSRESET");
+
+    /*    content +=
+        "<div style=\"display: flex; justify-content: flex-start;\"><input id='dblbtr' name='dblbtr' type='checkbox' "
+        "style=\"margin-left: 0;\"";
+    content += (user_selected_second_battery ? " checked" : "");
+    content += " value='on'/></div>";*/
+    content +=
+        "<div style='grid-column: span 2; text-align: center; padding-top: 10px;'><button "
+        "type='submit'>Save</button></div>";
+
+    if (settingsUpdated) {
+      content += "<p>Settings saved. Reboot to take the settings into use.</p>";
+    }
+
+    content += "</form></div></div>";
+#endif
+
+    if (battery) {
+      content += "<h4 style='color: white;'>Battery interface: <span id='Battery'>" + battery->interface_name() +
+                 "</span></h4>";
+    }
 
     if (battery2) {
-      content += "<h4 style='color: white;'>Battery #2 interface: <span id='Battery'>" + battery->interface_name() +
+      content += "<h4 style='color: white;'>Battery #2 interface: <span id='Battery'>" + battery2->interface_name() +
                  "</span></h4>";
     }
 
@@ -89,14 +205,14 @@ String settings_processor(const String& var) {
     // Close the block
     content += "</div>";
 
-    if (battery->supports_set_fake_voltage()) {
+    if (battery && battery->supports_set_fake_voltage()) {
       content += "<div style='background-color: #2E37AD; padding: 10px; margin-bottom: 10px;border-radius: 50px'>";
       content += "<h4 style='color: white;'>Fake battery voltage: " + String(battery->get_voltage(), 1) +
                  " V </span> <button onclick='editFakeBatteryVoltage()'>Edit</button></h4>";
       content += "</div>";
     }
 
-    if (battery->supports_manual_balancing()) {
+    if (battery && battery->supports_manual_balancing()) {
       // Start a new block with grey background color
       content += "<div style='background-color: #303E47; padding: 10px; margin-bottom: 10px;border-radius: 50px'>";
 
@@ -281,7 +397,7 @@ String settings_processor(const String& var) {
         "BalMaxDevCellV?value='+value,true);xhr.send();}else{alert('Invalid value. Please enter a value "
         "between 300 and 600');}}}";
 
-    if (battery->supports_set_fake_voltage()) {
+    if (battery && battery->supports_set_fake_voltage()) {
       content +=
           "function editFakeBatteryVoltage(){var value=prompt('Enter new fake battery "
           "voltage');if(value!==null){if(value>=0&&value<=5000){var xhr=new "

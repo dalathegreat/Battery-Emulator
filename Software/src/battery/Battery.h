@@ -4,6 +4,53 @@
 #include "../datalayer/datalayer.h"
 #include "src/devboard/webserver/BatteryHtmlRenderer.h"
 
+enum class BatteryType {
+  None = 0,
+  BmwSbox,
+  BmwI3,
+  BmwIx,
+  BoltAmpera,
+  BydAtto3,
+  CellPowerBms,
+  Chademo,
+  CmfaEv,
+  Foxess,
+  GeelyGeometryC,
+  OrionBms,
+  Sono,
+  StellantisEcmp,
+  ImievCZeroIon,
+  JaguarIpace,
+  KiaEGmp,
+  KiaHyundai64,
+  KiaHyundaiHybrid,
+  Meb,
+  Mg5,
+  NissanLeaf,
+  Pylon,
+  DalyBms,
+  RjxzsBms,
+  RangeRoverPhev,
+  RenaultKangoo,
+  RenaultTwizy,
+  RenaultZoe1,
+  RenaultZoe2,
+  SantaFePhev,
+  SimpBms,
+  TeslaModel3Y,
+  TeslaModelSX,
+  TestFake,
+  VolvoSpa,
+  VolvoSpaHybrid,
+  Highest
+};
+
+extern std::vector<BatteryType> supported_battery_types();
+extern const char* name_for_type(BatteryType type);
+
+extern BatteryType user_selected_battery_type;
+extern bool user_selected_second_battery;
+
 // Abstract base class for next-generation battery implementations.
 // Defines the interface to call battery specific functionality.
 class Battery {

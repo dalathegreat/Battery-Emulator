@@ -1,9 +1,8 @@
-#include "../include.h"
-#ifdef IMIEV_CZERO_ION_BATTERY
+#include "IMIEV-CZERO-ION-BATTERY.h"
 #include "../communication/can/comm_can.h"
 #include "../datalayer/datalayer.h"
 #include "../devboard/utils/events.h"
-#include "IMIEV-CZERO-ION-BATTERY.h"
+#include "../include.h"
 
 //Code still work in progress, TODO:
 //Figure out if CAN messages need to be sent to keep the system happy?
@@ -200,5 +199,3 @@ void ImievCZeroIonBattery::setup(void) {  // Performs one time setup at startup
   datalayer.battery.info.max_cell_voltage_deviation_mV = MAX_CELL_DEVIATION_MV;
   datalayer.system.status.battery_allows_contactor_closing = true;
 }
-
-#endif

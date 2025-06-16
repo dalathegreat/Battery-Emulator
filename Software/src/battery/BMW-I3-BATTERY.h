@@ -39,6 +39,7 @@ class BmwI3Battery : public CanBattery {
   virtual void handle_incoming_can_frame(CAN_frame rx_frame);
   virtual void update_values();
   virtual void transmit_can(unsigned long currentMillis);
+  static constexpr char* Name = "BMW i3";
 
   BatteryHtmlRenderer& get_status_renderer() { return renderer; }
 
@@ -80,7 +81,9 @@ class BmwI3Battery : public CanBattery {
   unsigned long previousMillis5000 = 0;   // will store last time a 5000ms CAN Message was send
   unsigned long previousMillis10000 = 0;  // will store last time a 10000ms CAN Message was send
 
-#define ALIVE_MAX_VALUE 14  // BMW CAN messages contain alive counter, goes from 0...14
+  static const int ALIVE_MAX_VALUE = 14;  // BMW CAN messages contain alive counter, goes from 0...14
+
+  uint8_t increment_alive_counter(uint8_t counter);
 
   enum BatterySize { BATTERY_60AH, BATTERY_94AH, BATTERY_120AH };
   BatterySize detectedBattery = BATTERY_60AH;

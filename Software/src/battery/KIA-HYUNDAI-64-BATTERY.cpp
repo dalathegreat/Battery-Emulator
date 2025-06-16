@@ -1,10 +1,9 @@
-#include "../include.h"
-#ifdef KIA_HYUNDAI_64_BATTERY
+#include "KIA-HYUNDAI-64-BATTERY.h"
 #include "../communication/can/comm_can.h"
 #include "../datalayer/datalayer.h"
 #include "../datalayer/datalayer_extended.h"
 #include "../devboard/utils/events.h"
-#include "KIA-HYUNDAI-64-BATTERY.h"
+#include "../include.h"
 
 void KiaHyundai64Battery::
     update_values() {  //This function maps all the values fetched via CAN to the correct parameters used for modbus
@@ -475,5 +474,3 @@ void KiaHyundai64Battery::setup(void) {  // Performs one time setup at startup
     *allows_contactor_closing = true;
   }
 }
-
-#endif

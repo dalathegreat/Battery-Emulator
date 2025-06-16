@@ -1,12 +1,11 @@
-#include "../include.h"
-#ifdef MEB_BATTERY
+#include "MEB-BATTERY.h"
 #include <algorithm>  // For std::min and std::max
 #include "../communication/can/comm_can.h"
 #include "../communication/can/obd.h"
 #include "../datalayer/datalayer.h"
 #include "../datalayer/datalayer_extended.h"  //For "More battery info" webpage
 #include "../devboard/utils/events.h"
-#include "MEB-BATTERY.h"
+#include "../include.h"
 
 /*
 TODO list
@@ -2045,5 +2044,3 @@ void MebBattery::setup(void) {  // Performs one time setup at startup
   datalayer.battery.info.min_cell_voltage_mV = MIN_CELL_VOLTAGE_MV;
   datalayer.battery.info.max_cell_voltage_deviation_mV = MAX_CELL_DEVIATION_MV;
 }
-
-#endif

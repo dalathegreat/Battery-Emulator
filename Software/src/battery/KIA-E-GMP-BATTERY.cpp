@@ -1,10 +1,9 @@
-#include "../include.h"
-#ifdef KIA_E_GMP_BATTERY
+#include "KIA-E-GMP-BATTERY.h"
 #include "../communication/can/comm_can.h"
 #include "../datalayer/datalayer.h"
 #include "../devboard/utils/events.h"
+#include "../include.h"
 #include "../lib/pierremolinaro-ACAN2517FD/ACAN2517FD.h"
-#include "KIA-E-GMP-BATTERY.h"
 
 const unsigned char crc8_table[256] =
     {  // CRC8_SAE_J1850_ZER0 formula,0x1D Poly,initial value 0x3F,Final XOR value varies
@@ -1101,5 +1100,3 @@ void KiaEGmpBattery::setup(void) {  // Performs one time setup at startup
   datalayer.battery.info.min_cell_voltage_mV = MIN_CELL_VOLTAGE_MV;
   datalayer.battery.info.max_cell_voltage_deviation_mV = MAX_CELL_DEVIATION_MV;
 }
-
-#endif

@@ -1,8 +1,7 @@
-#include "../include.h"
-#ifdef CHADEMO_BATTERY
+#include "CHADEMO-BATTERY.h"
 #include "../datalayer/datalayer.h"
 #include "../devboard/utils/events.h"
-#include "CHADEMO-BATTERY.h"
+#include "../include.h"
 #include "CHADEMO-SHUNTS.h"
 
 /* CHADEMO handling runs at 6.25 times the rate of most other code, so, rather than the
@@ -939,7 +938,7 @@ void ChademoBattery::setup(void) {  // Performs one time setup at startup
   pinMode(CHADEMO_PIN_4, INPUT);
   pinMode(CHADEMO_PIN_7, INPUT);
 
-  strncpy(datalayer.system.info.battery_protocol, "Chademo V2X mode", 63);
+  strncpy(datalayer.system.info.battery_protocol, Name, 63);
   datalayer.system.info.battery_protocol[63] = '\0';
 
   CHADEMO_Status = CHADEMO_IDLE;
@@ -988,4 +987,3 @@ void ChademoBattery::setup(void) {  // Performs one time setup at startup
 
   setupMillis = millis();
 }
-#endif

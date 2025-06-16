@@ -1,9 +1,8 @@
-#include "../include.h"
-#ifdef SANTA_FE_PHEV_BATTERY
+#include "SANTA-FE-PHEV-BATTERY.h"
 #include "../communication/can/comm_can.h"
 #include "../datalayer/datalayer.h"
 #include "../devboard/utils/events.h"
-#include "SANTA-FE-PHEV-BATTERY.h"
+#include "../include.h"
 
 /* Credits go to maciek16c for these findings!
 https://github.com/maciek16c/hyundai-santa-fe-phev-battery
@@ -333,5 +332,3 @@ void SantaFePhevBattery::setup(void) {  // Performs one time setup at startup
     *allows_contactor_closing = true;
   }
 }
-
-#endif

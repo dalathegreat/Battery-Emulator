@@ -1,9 +1,8 @@
-#include "../include.h"
-#ifdef RJXZS_BMS
+#include "RJXZS-BMS.h"
 #include "../communication/can/comm_can.h"
 #include "../datalayer/datalayer.h"
 #include "../devboard/utils/events.h"
-#include "RJXZS-BMS.h"
+#include "../include.h"
 
 void RjxzsBms::update_values() {
 
@@ -525,5 +524,3 @@ void RjxzsBms::setup(void) {  // Performs one time setup at startup
   datalayer.battery.info.min_cell_voltage_mV = MIN_CELL_VOLTAGE_MV;
   datalayer.system.status.battery_allows_contactor_closing = true;
 }
-
-#endif  // RJXZS_BMS
