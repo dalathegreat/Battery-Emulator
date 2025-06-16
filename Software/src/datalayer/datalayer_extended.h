@@ -826,6 +826,8 @@ typedef struct {
   uint8_t HVBOT = 0;
   uint8_t HVBOV = 0;
   uint8_t COV = 0;
+  uint16_t mileage_km = 0;
+  uint16_t alltime_kWh = 0;
 } DATALAYER_INFO_ZOE;
 
 typedef struct {
