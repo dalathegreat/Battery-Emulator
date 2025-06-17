@@ -18,7 +18,8 @@ class RenaultZoeGen1HtmlRenderer : public BatteryHtmlRenderer {
     content += "<h4>HVBOT " + String(datalayer_extended.zoe.HVBOT) + "</h4>";
     content += "<h4>HVBOV " + String(datalayer_extended.zoe.HVBOV) + "</h4>";
     content += "<h4>COV " + String(datalayer_extended.zoe.COV) + "</h4>";
-
+    content += "<h4>Battery mileage " + String(datalayer_extended.zoe.mileage_km) + " km</h4>";
+    content += "<h4>Alltime energy " + String(datalayer_extended.zoe.alltime_kWh) + " kWh</h4>";
     return content;
   }
 };
