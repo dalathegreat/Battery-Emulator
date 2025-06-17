@@ -231,6 +231,10 @@ void ChademoBattery::process_vehicle_charging_limits(CAN_frame rx_frame) {
   if (get_measured_voltage() <= x200_discharge_limits.MinimumDischargeVoltage && CHADEMO_Status > CHADEMO_NEGOTIATE) {
 #ifdef DEBUG_LOG
     logging.println("x200 minimum discharge voltage met or exceeded, stopping.");
+    logging.print("Measured: ");
+    logging.print(get_measured_voltage());
+    logging.print("Minimum voltage: ");
+    logging.print(x200_discharge_limits.MinimumDischargeVoltage);
 #endif
     CHADEMO_Status = CHADEMO_STOP;
   }
