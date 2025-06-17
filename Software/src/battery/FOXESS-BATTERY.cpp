@@ -572,7 +572,7 @@ void FoxessBattery::transmit_can(unsigned long currentMillis) {
 }
 
 void FoxessBattery::setup(void) {  // Performs one time setup at startup
-  strncpy(datalayer.system.info.battery_protocol, "FoxESS HV2600/ECS4100 OEM battery", 63);
+  strncpy(datalayer.system.info.battery_protocol, Name, 63);
   datalayer.system.info.battery_protocol[63] = '\0';
   datalayer.battery.info.number_of_cells = 0;  //Startup with no cells, populates later when we know packsize
   datalayer.battery.info.max_design_voltage_dV = MAX_PACK_VOLTAGE_DV;

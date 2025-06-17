@@ -178,6 +178,6 @@ void BmwSbox::transmit_can(unsigned long currentMillis) {
 }
 
 void BmwSbox::setup() {
-  strncpy(datalayer.system.info.shunt_protocol, "BMW SBOX", 63);
+  strncpy(datalayer.system.info.shunt_protocol, Name, 63);
   datalayer.system.info.shunt_protocol[63] = '\0';
 }

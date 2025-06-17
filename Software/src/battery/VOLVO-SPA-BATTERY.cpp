@@ -377,7 +377,7 @@ void VolvoSpaBattery::transmit_can(unsigned long currentMillis) {
 }
 
 void VolvoSpaBattery::setup(void) {  // Performs one time setup at startup
-  strncpy(datalayer.system.info.battery_protocol, "Volvo / Polestar 69/78kWh SPA battery", 63);
+  strncpy(datalayer.system.info.battery_protocol, Name, 63);
   datalayer.system.info.battery_protocol[63] = '\0';
   datalayer.battery.info.number_of_cells = 0;        // Initializes when all cells have been read
   datalayer.battery.info.total_capacity_Wh = 78200;  //Startout in 78kWh mode (This value used for SOC calc)

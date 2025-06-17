@@ -34,21 +34,25 @@ void store_settings_equipment_stop();
  */
 void store_settings();
 
+// Wraps the Preferences object begin/end calls, so that the scope of this object
+// runs them automatically (via constructor/destructor).
 class BatteryEmulatorSettingsStore {
  public:
-  BatteryEmulatorSettingsStore() { settings.begin("batterySettings", false); }
+  BatteryEmulatorSettingsStore(bool readOnly = false) {
+    if (!settings.begin("batterySettings", readOnly)) {
+      set_event(EVENT_PERSISTENT_SAVE_INFO, 0);
+    }
+  }
 
   ~BatteryEmulatorSettingsStore() { settings.end(); }
 
-  BatteryType get_batterytype() { return (BatteryType)settings.getUInt("BATTTYPE", (int)BatteryType::None); }
+  uint32_t getUInt(const char* name, uint32_t defaultValue) { return settings.getUInt(name, defaultValue); }
 
-  void set_batterytype(BatteryType type) { settings.putUInt("BATTTYPE", (int)type); }
+  void saveUInt(const char* name, uint32_t value) { settings.putUInt(name, value); }
 
-  InverterProtocolType get_invertertype() {
-    return (InverterProtocolType)settings.getUInt("INVTYPE", (int)InverterProtocolType::None);
-  }
+  bool getBool(const char* name) { return settings.getBool(name, false); }
 
-  void set_invertertype(InverterProtocolType type) { settings.putUInt("INVTYPE", (int)type); }
+  void saveBool(const char* name, bool value) { settings.putBool(name, value); }
 
  private:
   Preferences settings;

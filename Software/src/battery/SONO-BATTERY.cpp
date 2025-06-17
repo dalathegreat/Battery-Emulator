@@ -140,7 +140,7 @@ void SonoBattery::transmit_can(unsigned long currentMillis) {
 }
 
 void SonoBattery::setup(void) {  // Performs one time setup at startup
-  strncpy(datalayer.system.info.battery_protocol, "Sono Motors Sion 64kWh LFP ", 63);
+  strncpy(datalayer.system.info.battery_protocol, Name, 63);
   datalayer.system.info.battery_protocol[63] = '\0';
   datalayer.battery.info.number_of_cells = 96;
   datalayer.system.status.battery_allows_contactor_closing = true;

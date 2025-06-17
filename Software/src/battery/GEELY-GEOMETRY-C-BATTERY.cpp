@@ -660,7 +660,7 @@ void GeelyGeometryCBattery::transmit_can(unsigned long currentMillis) {
 }
 
 void GeelyGeometryCBattery::setup(void) {  // Performs one time setup at startup
-  strncpy(datalayer.system.info.battery_protocol, "Geely Geometry C", 63);
+  strncpy(datalayer.system.info.battery_protocol, Name, 63);
   datalayer.system.info.battery_protocol[63] = '\0';
   datalayer.system.status.battery_allows_contactor_closing = true;
   datalayer_battery->info.number_of_cells = 102;                           //70kWh pack has 102S, startup in this mode

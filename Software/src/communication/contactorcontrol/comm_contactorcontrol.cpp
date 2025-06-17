@@ -29,6 +29,13 @@ const bool remote_bms_reset_default = true;
 #endif
 bool remote_bms_reset = remote_bms_reset_default;
 
+#ifdef CONTACTOR_CONTROL_DOUBLE_BATTERY
+const bool contactor_control_enabled_double_battery_default = true;
+#else
+const bool contactor_control_enabled_double_battery_default = false;
+#endif
+bool contactor_control_enabled_double_battery = contactor_control_enabled_double_battery_default;
+
 // TODO: Ensure valid values at run-time
 
 // Parameters
@@ -105,12 +112,15 @@ void init_contactors() {
     set(PRECHARGE_PIN, OFF);
   }
 
-#ifdef CONTACTOR_CONTROL_DOUBLE_BATTERY
-  pinMode(SECOND_POSITIVE_CONTACTOR_PIN, OUTPUT);
-  set(SECOND_POSITIVE_CONTACTOR_PIN, OFF);
-  pinMode(SECOND_NEGATIVE_CONTACTOR_PIN, OUTPUT);
-  set(SECOND_NEGATIVE_CONTACTOR_PIN, OFF);
-#endif  // CONTACTOR_CONTROL_DOUBLE_BATTERY
+#if defined(SECOND_POSITIVE_CONTACTOR_PIN) && defined(SECOND_NEGATIVE_CONTACTOR_PIN)
+  if (contactor_control_enabled_double_battery) {
+    pinMode(SECOND_POSITIVE_CONTACTOR_PIN, OUTPUT);
+    set(SECOND_POSITIVE_CONTACTOR_PIN, OFF);
+    pinMode(SECOND_NEGATIVE_CONTACTOR_PIN, OUTPUT);
+    set(SECOND_NEGATIVE_CONTACTOR_PIN, OFF);
+  }
+#endif
+
 // Init BMS contactor
 #if defined HW_STARK || defined HW_3LB  // This hardware has dedicated pin, always enable on start
   pinMode(BMS_POWER, OUTPUT);           //LilyGo is omitted from this, only enabled if user selects PERIODIC_BMS_RESET

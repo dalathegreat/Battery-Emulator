@@ -107,29 +107,24 @@ String settings_processor(const String& var) {
         "<form action='saveSettings' method='post' style='display: grid; grid-template-columns: 1fr 2fr; gap: 10px; "
         "align-items: center;'>";
     content += "<label>Battery: </label><select style='max-width: 250px;' name='battery'>";
-    content += battery_options(settings.get_batterytype());
+    content += battery_options((BatteryType)settings.getUInt("BATTTYPE", (int)BatteryType::None));
     content += "</select>";
     content += "<label>Inverter protocol: </label><select style='max-width: 250px;' name='inverter'>";
-    content += inverter_options(settings.get_invertertype());
+    content += inverter_options((InverterProtocolType)settings.getUInt("INVTYPE", (int)InverterProtocolType::None));
     content += "</select>";
     content += "<label>Charger: </label><select style='max-width: 250px;' name='charger'>";
-    content += charger_options((ChargerType)("CHGTYPE", 0));
+    content += charger_options((ChargerType)settings.getUInt("CHGTYPE", 0));
     content += "</select>";
-    //content += "<label>Double battery:</label>";
 
     // TODO: Generalize settings: define settings in one place and use the definitions to render
     // UI and handle load/save
-    render_checkbox(content, "Double battery", settings.get_doublebattery(), "dblbtr");
-    render_checkbox(content, "Contactor control", get_bool("CNTCTRL"), "contctrl");
-    render_checkbox(content, "PWM contactor control", get_bool("PWMCNTCTRL"), "pwmcontctrl");
-    render_checkbox(content, "Periodic BMS reset", get_bool("PERBMSRESET"), "PERBMSRESET");
-    render_checkbox(content, "Remote BMS reset", get_bool("REMBMSRESET"), "REMBMSRESET");
+    render_checkbox(content, "Double battery", settings.getBool("DBLBTR"), "dblbtr");
+    render_checkbox(content, "Contactor control", settings.getBool("CNTCTRL"), "contctrl");
+    render_checkbox(content, "Contactor control double battery", settings.getBool("CNTCTRLDBL"), "contctrldbl");
+    render_checkbox(content, "PWM contactor control", settings.getBool("PWMCNTCTRL"), "pwmcontctrl");
+    render_checkbox(content, "Periodic BMS reset", settings.getBool("PERBMSRESET"), "PERBMSRESET");
+    render_checkbox(content, "Remote BMS reset", settings.getBool("REMBMSRESET"), "REMBMSRESET");
 
-    /*    content +=
-        "<div style=\"display: flex; justify-content: flex-start;\"><input id='dblbtr' name='dblbtr' type='checkbox' "
-        "style=\"margin-left: 0;\"";
-    content += (user_selected_second_battery ? " checked" : "");
-    content += " value='on'/></div>";*/
     content +=
         "<div style='grid-column: span 2; text-align: center; padding-top: 10px;'><button "
         "type='submit'>Save</button></div>";

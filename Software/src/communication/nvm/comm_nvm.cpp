@@ -81,6 +81,7 @@ void init_stored_settings() {
   user_selected_charger_type = (ChargerType)settings.getUInt("CHGTYPE", (int)ChargerType::None);
   user_selected_second_battery = settings.getBool("DBLBTR", false);
   contactor_control_enabled = settings.getBool("CNTCTRL", false);
+  contactor_control_enabled_double_battery = settings.getBool("CNTCTRLDBL", false);
   pwm_contactor_control = settings.getBool("PWMCNTCTRL", false);
   periodic_bms_reset = settings.getBool("PERBMSRESET", false);
   remote_bms_reset = settings.getBool("REMBMSRESET", false);

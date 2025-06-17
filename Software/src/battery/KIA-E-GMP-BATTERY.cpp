@@ -1090,7 +1090,7 @@ void KiaEGmpBattery::transmit_can(unsigned long currentMillis) {
 }
 
 void KiaEGmpBattery::setup(void) {  // Performs one time setup at startup
-  strncpy(datalayer.system.info.battery_protocol, "Kia/Hyundai EGMP platform", 63);
+  strncpy(datalayer.system.info.battery_protocol, Name, 63);
   datalayer.system.info.battery_protocol[63] = '\0';
   datalayer.system.status.battery_allows_contactor_closing = true;
   datalayer.battery.info.number_of_cells = 192;  // TODO: will vary depending on battery

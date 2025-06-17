@@ -704,7 +704,7 @@ void RenaultZoeGen2Battery::transmit_can(unsigned long currentMillis) {
 }
 
 void RenaultZoeGen2Battery::setup(void) {  // Performs one time setup at startup
-  strncpy(datalayer.system.info.battery_protocol, "Renault Zoe Gen2 50kWh", 63);
+  strncpy(datalayer.system.info.battery_protocol, Name, 63);
   datalayer.system.info.battery_protocol[63] = '\0';
   datalayer.system.status.battery_allows_contactor_closing = true;
   datalayer.battery.info.number_of_cells = 96;

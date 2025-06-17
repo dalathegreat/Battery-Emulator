@@ -2035,7 +2035,7 @@ void MebBattery::transmit_can(unsigned long currentMillis) {
 }
 
 void MebBattery::setup(void) {  // Performs one time setup at startup
-  strncpy(datalayer.system.info.battery_protocol, "Volkswagen Group MEB platform via CAN-FD", 63);
+  strncpy(datalayer.system.info.battery_protocol, Name, 63);
   datalayer.system.info.battery_protocol[63] = '\0';
   datalayer.battery.info.number_of_cells = 108;  //Startup in 108S mode. We figure out the actual count later.
   datalayer.battery.info.max_design_voltage_dV = MAX_PACK_VOLTAGE_108S_DV;  //Defined later to correct pack size

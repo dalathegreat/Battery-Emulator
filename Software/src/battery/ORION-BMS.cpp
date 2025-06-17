@@ -114,7 +114,7 @@ void OrionBms::transmit_can(unsigned long currentMillis) {
 }
 
 void OrionBms::setup(void) {  // Performs one time setup at startup
-  strncpy(datalayer.system.info.battery_protocol, "DIY battery with Orion BMS (Victron setting)", 63);
+  strncpy(datalayer.system.info.battery_protocol, Name, 63);
   datalayer.system.info.battery_protocol[63] = '\0';
   datalayer.battery.info.number_of_cells = NUMBER_OF_CELLS;
   datalayer.battery.info.max_design_voltage_dV = MAX_PACK_VOLTAGE_DV;

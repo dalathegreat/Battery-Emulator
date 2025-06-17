@@ -319,7 +319,7 @@ void SantaFePhevBattery::transmit_can(unsigned long currentMillis) {
 }
 
 void SantaFePhevBattery::setup(void) {  // Performs one time setup at startup
-  strncpy(datalayer.system.info.battery_protocol, "Santa Fe PHEV", 63);
+  strncpy(datalayer.system.info.battery_protocol, Name, 63);
   datalayer.system.info.battery_protocol[63] = '\0';
   datalayer_battery->info.number_of_cells = 96;
   datalayer_battery->info.max_design_voltage_dV = MAX_PACK_VOLTAGE_DV;

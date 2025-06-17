@@ -940,7 +940,7 @@ void CmfaEvBattery::transmit_can(unsigned long currentMillis) {
 }
 
 void CmfaEvBattery::setup(void) {  // Performs one time setup at startup
-  strncpy(datalayer.system.info.battery_protocol, "CMFA platform, 27 kWh battery", 63);
+  strncpy(datalayer.system.info.battery_protocol, Name, 63);
   datalayer.system.info.battery_protocol[63] = '\0';
   datalayer.system.status.battery_allows_contactor_closing = true;
   datalayer.battery.info.number_of_cells = 72;

@@ -118,7 +118,7 @@ void RenaultTwizyBattery::transmit_can(unsigned long currentMillis) {
 }
 
 void RenaultTwizyBattery::setup(void) {  // Performs one time setup at startup
-  strncpy(datalayer.system.info.battery_protocol, "Renault Twizy", 63);
+  strncpy(datalayer.system.info.battery_protocol, Name, 63);
   datalayer.system.info.battery_protocol[63] = '\0';
   datalayer.battery.info.number_of_cells = 14;
   datalayer.battery.info.max_design_voltage_dV = MAX_PACK_VOLTAGE_DV;
