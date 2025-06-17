@@ -204,7 +204,7 @@ void ChademoBattery::process_vehicle_charging_session(CAN_frame rx_frame) {
   }
 
 #ifdef DEBUG_LOG
-  logging.println("UNHANDLED STATE IN process_vehicle_charging_session()");
+  logging.println("UNHANDLED CHADEMO STATE, try unplugging chademo cable, reboot emulator, and retry!");
 #endif
   return;
 }
