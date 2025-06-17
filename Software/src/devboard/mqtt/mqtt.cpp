@@ -2,6 +2,7 @@
 #include <Arduino.h>
 #include <WiFi.h>
 #include <freertos/FreeRTOS.h>
+#include <list>
 #include "../../../USER_SECRETS.h"
 #include "../../../USER_SETTINGS.h"
 #include "../../battery/BATTERIES.h"
@@ -74,7 +75,7 @@ static std::function<bool(Battery*)> supports_charged = [](Battery* b) {
   return b->supports_charged_energy();
 };
 
-SensorConfig sensorConfigTemplate[] = {
+SensorConfig batterySensorConfigTemplate[] = {
     {"SOC", "SOC (Scaled)", "", "%", "battery", always},
     {"SOC_real", "SOC (real)", "", "%", "battery", always},
     {"state_of_health", "State Of Health", "", "%", "battery", always},
@@ -93,31 +94,33 @@ SensorConfig sensorConfigTemplate[] = {
     {"max_discharge_power", "Battery Max Discharge Power", "", "W", "power", always},
     {"max_charge_power", "Battery Max Charge Power", "", "W", "power", always},
     {"charged_energy", "Battery Charged Energy", "", "Wh", "energy", supports_charged},
-    {"discharged_energy", "Battery Discharged Energy", "", "Wh", "energy", supports_charged},
-    {"bms_status", "BMS Status", "", "", "", always},
-    {"pause_status", "Pause Status", "", "", "", always}};
+    {"discharged_energy", "Battery Discharged Energy", "", "Wh", "energy", supports_charged}};
 
-// Enough space for two batteries
-SensorConfig sensorConfigs[((sizeof(sensorConfigTemplate) / sizeof(sensorConfigTemplate[0])) * 2) - 2];
+SensorConfig globalSensorConfigTemplate[] = {{"bms_status", "BMS Status", "", "", "", always},
+                                             {"pause_status", "Pause Status", "", "", "", always}};
 
-void create_sensor_configs() {
-  int number_of_templates = sizeof(sensorConfigTemplate) / sizeof(sensorConfigTemplate[0]);
+static std::list<SensorConfig> sensorConfigs;
 
-  for (int i = 0; i < number_of_templates; i++) {
-    SensorConfig config = sensorConfigTemplate[i];
+void create_battery_sensor_configs() {
+  for (auto& config : batterySensorConfigTemplate) {
     config.value_template = strdup(("{{ value_json." + std::string(config.object_id) + " }}").c_str());
-    sensorConfigs[i] = config;
+
+    sensorConfigs.push_back(config);
 
     if (battery2) {
-      if (config.object_id == "pause_status" || config.object_id == "bms_status") {
-        continue;
-      }
-      sensorConfigs[i + number_of_templates] = config;
-      sensorConfigs[i + number_of_templates].name = strdup(String(config.name + String(" 2")).c_str());
-      sensorConfigs[i + number_of_templates].object_id = strdup(String(config.object_id + String("_2")).c_str());
-      sensorConfigs[i + number_of_templates].value_template =
-          strdup(("{{ value_json." + std::string(config.object_id) + "_2 }}").c_str());
+      config.value_template = strdup(("{{ value_json." + std::string(config.object_id) + "_2 }}").c_str());
+      config.name = strdup(String(config.name + String(" 2")).c_str());
+      config.object_id = strdup(String(config.object_id + String("_2")).c_str());
+
+      sensorConfigs.push_back(config);
     }
+  }
+}
+
+void create_global_sensor_configs() {
+  for (auto& config : globalSensorConfigTemplate) {
+    config.value_template = strdup(("{{ value_json." + std::string(config.object_id) + " }}").c_str());
+    sensorConfigs.push_back(config);
   }
 }
 
@@ -210,9 +213,7 @@ static bool publish_common_info(void) {
   static String state_topic = topic_name + "/info";
 #ifdef HA_AUTODISCOVERY
   if (ha_common_info_published == false) {
-    for (int i = 0; i < sizeof(sensorConfigs) / sizeof(sensorConfigs[0]); i++) {
-      SensorConfig& config = sensorConfigs[i];
-
+    for (auto& config : sensorConfigs) {
       if (!config.condition(battery)) {
         continue;
       }
@@ -542,9 +543,9 @@ static void mqtt_event_handler(void* handler_args, esp_event_base_t base, int32_
 }
 
 void init_mqtt(void) {
-
 #ifdef HA_AUTODISCOVERY
-  create_sensor_configs();
+  create_battery_sensor_configs();
+  create_global_sensor_configs();
 #endif  // HA_AUTODISCOVERY
 #ifdef MQTT_MANUAL_TOPIC_OBJECT_NAME
   // Use custom topic name, object ID prefix, and device name from user settings
@@ -560,12 +561,12 @@ void init_mqtt(void) {
   device_id = "battery-emulator";
 #endif
 
-  char clientId[64];  // Adjust the size as needed
-  snprintf(clientId, sizeof(clientId), "BatteryEmulatorClient-%s", WiFi.getHostname());
+  String clientId = String("BatteryEmulatorClient-") + WiFi.getHostname();
+
   mqtt_cfg.broker.address.transport = MQTT_TRANSPORT_OVER_TCP;
   mqtt_cfg.broker.address.hostname = MQTT_SERVER;
   mqtt_cfg.broker.address.port = MQTT_PORT;
-  mqtt_cfg.credentials.client_id = clientId;
+  mqtt_cfg.credentials.client_id = clientId.c_str();
   mqtt_cfg.credentials.username = MQTT_USER;
   mqtt_cfg.credentials.authentication.password = MQTT_PASSWORD;
   lwt_topic = topic_name + "/status";

@@ -9,7 +9,6 @@
 
 #define BATTERY_SELECTED
 #define SELECTED_BATTERY_CLASS NissanLeafBattery
-#define EXTENDED_DATA_PTR (&datalayer_extended.nissanleaf)
 
 #define MAX_PACK_VOLTAGE_DV 4040  //5000 = 500.0V
 #define MIN_PACK_VOLTAGE_DV 2600
