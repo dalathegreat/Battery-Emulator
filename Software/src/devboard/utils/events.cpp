@@ -121,6 +121,7 @@ void init_events(void) {
   events.entries[EVENT_RJXZS_LOG].level = EVENT_LEVEL_INFO;
   events.entries[EVENT_PAUSE_BEGIN].level = EVENT_LEVEL_WARNING;
   events.entries[EVENT_PAUSE_END].level = EVENT_LEVEL_INFO;
+  events.entries[EVENT_PID_FAILED].level = EVENT_LEVEL_INFO;
   events.entries[EVENT_WIFI_CONNECT].level = EVENT_LEVEL_INFO;
   events.entries[EVENT_WIFI_DISCONNECT].level = EVENT_LEVEL_INFO;
   events.entries[EVENT_MQTT_CONNECT].level = EVENT_LEVEL_INFO;
@@ -351,6 +352,8 @@ const char* get_event_message_string(EVENTS_ENUM_TYPE event) {
       return "The emulator is trying to pause the battery.";
     case EVENT_PAUSE_END:
       return "The emulator is attempting to resume battery operation from pause.";
+    case EVENT_PID_FAILED:
+      return "Failed to write PID request to battery";
     case EVENT_WIFI_CONNECT:
       return "Wifi connected.";
     case EVENT_WIFI_DISCONNECT:

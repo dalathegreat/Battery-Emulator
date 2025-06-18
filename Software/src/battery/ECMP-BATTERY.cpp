@@ -374,19 +374,31 @@ void EcmpBattery::handle_incoming_can_frame(CAN_frame rx_frame) {
       if (datalayer_extended.stellantisECMP.UserRequestDisableIsoMonitoring) {
         if ((rx_frame.data.u8[0] == 0x06) && (rx_frame.data.u8[1] == 0x50) && (rx_frame.data.u8[2] == 0x03)) {
           //06,50,03,00,C8,00,14,00,
-          DisableIsoMonitoringStatemachine = 2;  //Send ECMP_FACTORY_MODE_ACTIVATION next loop
+          DisableIsoMonitoringStatemachine = 2;  //Send ECMP_ACK_MESSAGE (02 3e 00)
         }
-        //if ((rx_frame.data.u8[0] == 0x03) && (rx_frame.data.u8[1] == 0x7F) && (rx_frame.data.u8[2] == 0x2E)) {
-        if (DisableIsoMonitoringStatemachine == 3) {
-          DisableIsoMonitoringStatemachine = 4;
+        if ((rx_frame.data.u8[0] == 0x02) && (rx_frame.data.u8[1] == 0x7E) && (rx_frame.data.u8[2] == 0x00)) {
+          //Expected 02,7E,00
+          DisableIsoMonitoringStatemachine = 4;  //Send ECMP_FACTORY_MODE_ACTIVATION next loop
         }
-        //if ((rx_frame.data.u8[0] == 0x03) && (rx_frame.data.u8[1] == 0x7F) && (rx_frame.data.u8[2] == 0x2E)) {
-        if (DisableIsoMonitoringStatemachine == 5) {
-          DisableIsoMonitoringStatemachine = 6;
+        if ((rx_frame.data.u8[0] == 0x03) && (rx_frame.data.u8[1] == 0x6E) && (rx_frame.data.u8[2] == 0xD9)) {
+          //Factory mode ENTRY: 2E.D9.00.01
+          DisableIsoMonitoringStatemachine = 6;  //Send ECMP_DISABLE_ISOLATION_REQ next loop
         }
-        //if ((rx_frame.data.u8[0] == 0x03) && (rx_frame.data.u8[1] == 0x7F) && (rx_frame.data.u8[2] == 0x31)) {
-        if (DisableIsoMonitoringStatemachine == 7) {
-          //UNKNOWN? 03,7F,31,24 (or 7F?)
+        if ((rx_frame.data.u8[0] == 0x03) && (rx_frame.data.u8[1] == 0x7F) && (rx_frame.data.u8[2] == 0x2E)) {
+          //Factory mode fails to enter with 7F
+          set_event(EVENT_PID_FAILED, rx_frame.data.u8[2]);
+          DisableIsoMonitoringStatemachine =
+              6;  //Send ECMP_DISABLE_ISOLATION_REQ next loop (pointless, since it will fail)
+        }
+        if ((rx_frame.data.u8[0] == 0x04) && (rx_frame.data.u8[1] == 0x31) && (rx_frame.data.u8[2] == 0x02)) {
+          //Disable isolation successful 04 31 02 df e1
+          DisableIsoMonitoringStatemachine = COMPLETED_STATE;
+          datalayer_extended.stellantisECMP.UserRequestDisableIsoMonitoring = false;
+          timeSpentDisableIsoMonitoring = COMPLETED_STATE;
+        }
+        if ((rx_frame.data.u8[0] == 0x03) && (rx_frame.data.u8[1] == 0x7F) && (rx_frame.data.u8[2] == 0x31)) {
+          //Disable Isolation fails to enter with 7F
+          set_event(EVENT_PID_FAILED, rx_frame.data.u8[2]);
           DisableIsoMonitoringStatemachine = COMPLETED_STATE;
           datalayer_extended.stellantisECMP.UserRequestDisableIsoMonitoring = false;
           timeSpentDisableIsoMonitoring = COMPLETED_STATE;
@@ -845,15 +857,15 @@ void EcmpBattery::transmit_can(unsigned long currentMillis) {
         DisableIsoMonitoringStatemachine = 1;
       }
       if (DisableIsoMonitoringStatemachine == 2) {
-        transmit_can_frame(&ECMP_FACTORY_MODE_ACTIVATION_NEW, can_config.battery);
+        transmit_can_frame(&ECMP_ACK_MESSAGE, can_config.battery);
         DisableIsoMonitoringStatemachine = 3;
       }
       if (DisableIsoMonitoringStatemachine == 4) {
-        transmit_can_frame(&ECMP_DISABLE_ISOLATION_REQ, can_config.battery);
+        transmit_can_frame(&ECMP_FACTORY_MODE_ACTIVATION, can_config.battery);
         DisableIsoMonitoringStatemachine = 5;
       }
       if (DisableIsoMonitoringStatemachine == 6) {
-        transmit_can_frame(&ECMP_FACTORY_MODE_ACTIVATION, can_config.battery);
+        transmit_can_frame(&ECMP_DISABLE_ISOLATION_REQ, can_config.battery);
         DisableIsoMonitoringStatemachine = 7;
       }
       timeSpentDisableIsoMonitoring++;
