@@ -952,20 +952,21 @@ String get_firmware_info_processor(const String& var) {
 String processor(const String& var) {
   if (var == "X") {
     String content = "";
-    content += "<h2>" + String(ssidAP) + "</h2>";  // ssidAP name is used as header name
-    //Page format
     content += "<style>";
     content += "body { background-color: black; color: white; }";
     content +=
         "button { background-color: #505E67; color: white; border: none; padding: 10px 20px; margin-bottom: 20px; "
         "cursor: pointer; border-radius: 10px; }";
     content += "button:hover { background-color: #3A4A52; }";
+    content += "h2 { font-size: 1.2em; margin: 0.3em 0 0.5em 0; }";
+    content += "h4 { margin: 0.6em 0; line-height: 1.2; }";
     content += "</style>";
 
-    // Start a new block with a specific background color
-    content += "<div style='background-color: #303E47; padding: 10px; margin-bottom: 10px;border-radius: 50px'>";
+    // Compact header
+    content += "<h2>" + String(ssidAP) + "</h2>";
 
-    // Show version number
+    // Start content block
+    content += "<div style='background-color: #303E47; padding: 10px; margin-bottom: 10px; border-radius: 50px'>";
     content += "<h4>Software: " + String(version_number);
 
 #ifdef COMMON_IMAGE
@@ -1528,14 +1529,14 @@ String processor(const String& var) {
       content += "<button onclick='logout()'>Logout</button>";
     if (!datalayer.system.settings.equipment_stop_active)
       content +=
-          "<br/><br/><button style=\"background:red;color:white;cursor:pointer;\""
+          "<br/><button style=\"background:red;color:white;cursor:pointer;\""
           " onclick=\""
           "if(confirm('This action will attempt to open contactors on the battery. Are you "
           "sure?')) { estop(true); }\""
           ">Open Contactors</button><br/>";
     else
       content +=
-          "<br/><br/><button style=\"background:green;color:white;cursor:pointer;\""
+          "<br/><button style=\"background:green;color:white;cursor:pointer;\""
           "20px;font-size:16px;font-weight:bold;cursor:pointer;border-radius:5px; margin:10px;"
           " onclick=\""
           "if(confirm('This action will attempt to close contactors and enable power transfer. Are you sure?')) { "

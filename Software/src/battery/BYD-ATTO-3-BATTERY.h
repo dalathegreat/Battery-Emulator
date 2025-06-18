@@ -103,6 +103,7 @@ class BydAttoBattery : public CanBattery {
   int16_t battery_calc_min_temperature = 0;
   int16_t battery_calc_max_temperature = 0;
   uint16_t battery_highprecision_SOC = 0;
+  uint16_t battery_estimated_SOC = 0;
   uint16_t BMS_SOC = 0;
   uint16_t BMS_voltage = 0;
   int16_t BMS_current = 0;
