@@ -12,7 +12,7 @@ enum class ChargerType { None, NissanLeaf, ChevyVolt, Highest };
 extern ChargerType user_selected_charger_type;
 
 extern std::vector<ChargerType> supported_charger_types();
-extern const char* name_for_type(ChargerType type);
+extern const char* name_for_charger_type(ChargerType type);
 
 // Generic base class for all chargers
 class Charger {

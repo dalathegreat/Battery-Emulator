@@ -1,12 +1,33 @@
 #ifndef INVERTER_PROTOCOL_H
 #define INVERTER_PROTOCOL_H
 
-enum class InverterProtocolType { None = 0, BydCan, BydModbus, FerroampCan, Highest };
+enum class InverterProtocolType {
+  None = 0,
+  AforeCan,
+  BydCan,
+  BydModbus,
+  FerroampCan,
+  Foxess,
+  GrowattHv,
+  GrowattLv,
+  Kostal,
+  Pylon,
+  PylonLv,
+  Schneider,
+  SmaBydH,
+  SmaBydHvs,
+  SmaLv,
+  SmaTripower,
+  Sofar,
+  Solax,
+  Sungrow,
+  Highest
+};
 
 extern InverterProtocolType user_selected_inverter_protocol;
 
 extern std::vector<InverterProtocolType> supported_inverter_protocols();
-extern const char* name_for_type(InverterProtocolType type);
+extern const char* name_for_inverter_type(InverterProtocolType type);
 
 enum class InverterInterfaceType { Can, Rs485, Modbus };
 

@@ -14,7 +14,7 @@ std::vector<ChargerType> supported_charger_types() {
   return types;
 }
 
-extern const char* name_for_type(ChargerType type) {
+extern const char* name_for_charger_type(ChargerType type) {
   switch (type) {
     case ChargerType::ChevyVolt:
       return ChevyVoltCharger::Name;

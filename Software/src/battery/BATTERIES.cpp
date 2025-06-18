@@ -17,7 +17,7 @@ std::vector<BatteryType> supported_battery_types() {
   return types;
 }
 
-extern const char* name_for_type(BatteryType type) {
+extern const char* name_for_battery_type(BatteryType type) {
   switch (type) {
     case BatteryType::None:
       return "None";

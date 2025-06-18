@@ -8,60 +8,55 @@
 
 extern bool settingsUpdated;
 
-#ifdef COMMON_IMAGE
-String battery_options(BatteryType selected) {
-  String options;
+template <typename E>
+constexpr auto to_underlying(E e) noexcept {
+  return static_cast<std::underlying_type_t<E>>(e);
+}
 
-  auto batteries = supported_battery_types();
-  for (BatteryType type : batteries) {
+template <typename EnumType>
+std::vector<EnumType> enum_values() {
+  static_assert(std::is_enum_v<EnumType>, "Template argument must be an enum type.");
+
+  constexpr auto count = to_underlying(EnumType::Highest);
+  std::vector<EnumType> values;
+  for (int i = 1; i < count; ++i) {
+    values.push_back(static_cast<EnumType>(i));
+  }
+  return values;
+}
+
+template <typename EnumType, typename Func>
+std::vector<std::pair<String, EnumType>> enum_values_and_names(Func name_for_type) {
+  auto values = enum_values<EnumType>();
+
+  std::vector<std::pair<String, EnumType>> pairs;
+
+  for (auto& type : values) {
     auto name = name_for_type(type);
     if (name != nullptr) {
-      options +=
-          ("<option value=\"" + String(static_cast<int>(type)) + "\"" + (selected == type ? " selected" : "") + ">");
-      options += name;
-      options += "</option>";
+      pairs.push_back(std::pair(String(name), type));
     }
   }
 
-  return options;
+  std::sort(pairs.begin(), pairs.end(), [](const auto& a, const auto& b) { return a.first < b.first; });
+
+  pairs.insert(pairs.begin(), std::pair(name_for_type(EnumType::None), EnumType::None));
+
+  return pairs;
 }
 
-String inverter_options(InverterProtocolType selected) {
+template <typename TEnum, typename Func>
+String options_for_enum(TEnum selected, Func name_for_type) {
   String options;
-
-  auto inverters = supported_inverter_protocols();
-
-  for (InverterProtocolType type : inverters) {
-    auto name = name_for_type(type);
-    if (name != nullptr) {
-      options +=
-          ("<option value=\"" + String(static_cast<int>(type)) + "\"" + (selected == type ? "selected" : "") + ">");
-      options += name;
-      options += "</option>";
-    }
+  auto values = enum_values_and_names<TEnum>(name_for_type);
+  for (const auto& [name, type] : values) {
+    options +=
+        ("<option value=\"" + String(static_cast<int>(type)) + "\"" + (selected == type ? " selected" : "") + ">");
+    options += name;
+    options += "</option>";
   }
-
   return options;
 }
-
-String charger_options(ChargerType selected) {
-  String options;
-
-  auto chargers = supported_charger_types();
-
-  for (ChargerType type : chargers) {
-    auto name = name_for_type(type);
-    if (name != nullptr) {
-      options +=
-          ("<option value=\"" + String(static_cast<int>(type)) + "\"" + (selected == type ? "selected" : "") + ">");
-      options += name;
-      options += "</option>";
-    }
-  }
-
-  return options;
-}
-#endif
 
 void render_checkbox(String& content, const char* label, bool enabled, const char* name) {
   content += "<label>" + String(label) + "</label>";
@@ -107,21 +102,25 @@ String settings_processor(const String& var) {
         "<form action='saveSettings' method='post' style='display: grid; grid-template-columns: 1fr 2fr; gap: 10px; "
         "align-items: center;'>";
     content += "<label>Battery: </label><select style='max-width: 250px;' name='battery'>";
-    content += battery_options((BatteryType)settings.getUInt("BATTTYPE", (int)BatteryType::None));
+
+    content +=
+        options_for_enum((BatteryType)settings.getUInt("BATTTYPE", (int)BatteryType::None), name_for_battery_type);
     content += "</select>";
     content += "<label>Inverter protocol: </label><select style='max-width: 250px;' name='inverter'>";
-    content += inverter_options((InverterProtocolType)settings.getUInt("INVTYPE", (int)InverterProtocolType::None));
+    content += options_for_enum((InverterProtocolType)settings.getUInt("INVTYPE", (int)InverterProtocolType::None),
+                                name_for_inverter_type);
     content += "</select>";
     content += "<label>Charger: </label><select style='max-width: 250px;' name='charger'>";
-    content += charger_options((ChargerType)settings.getUInt("CHGTYPE", 0));
+    content +=
+        options_for_enum((ChargerType)settings.getUInt("CHGTYPE", (int)ChargerType::None), name_for_charger_type);
     content += "</select>";
 
     // TODO: Generalize settings: define settings in one place and use the definitions to render
     // UI and handle load/save
-    render_checkbox(content, "Double battery", settings.getBool("DBLBTR"), "dblbtr");
-    render_checkbox(content, "Contactor control", settings.getBool("CNTCTRL"), "contctrl");
-    render_checkbox(content, "Contactor control double battery", settings.getBool("CNTCTRLDBL"), "contctrldbl");
-    render_checkbox(content, "PWM contactor control", settings.getBool("PWMCNTCTRL"), "pwmcontctrl");
+    render_checkbox(content, "Double battery", settings.getBool("DBLBTR"), "DBLBTR");
+    render_checkbox(content, "Contactor control", settings.getBool("CNTCTRL"), "CNTCTRL");
+    render_checkbox(content, "Contactor control double battery", settings.getBool("CNTCTRLDBL"), "CNTCTRLDBL");
+    render_checkbox(content, "PWM contactor control", settings.getBool("PWMCNTCTRL"), "PWMCNTCTRL");
     render_checkbox(content, "Periodic BMS reset", settings.getBool("PERBMSRESET"), "PERBMSRESET");
     render_checkbox(content, "Remote BMS reset", settings.getBool("REMBMSRESET"), "REMBMSRESET");
 

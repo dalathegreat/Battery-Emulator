@@ -46,7 +46,7 @@ enum class BatteryType {
 };
 
 extern std::vector<BatteryType> supported_battery_types();
-extern const char* name_for_type(BatteryType type);
+extern const char* name_for_battery_type(BatteryType type);
 
 extern BatteryType user_selected_battery_type;
 extern bool user_selected_second_battery;

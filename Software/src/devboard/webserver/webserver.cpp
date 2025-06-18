@@ -1,6 +1,7 @@
 #include "webserver.h"
 #include <Preferences.h>
 #include <ctime>
+#include <vector>
 #include "../../../USER_SECRETS.h"
 #include "../../battery/BATTERIES.h"
 #include "../../battery/Battery.h"
@@ -387,13 +388,27 @@ void init_webserver() {
     request->send(200, "text/html", response);
   });
 
+  struct BoolSetting {
+    const char* name;
+    bool existingValue;
+    bool newValue;
+  };
+
+  const char* boolSettingNames[] = {"DBLBTR", "CNTCTRL", "CNTCTRLDBL", "PWMCNTCTRL", "PERBMSRESET", "REMBMSRESET"};
+
 #ifdef COMMON_IMAGE
   // Handles the form POST from UI to save certain settings: battery/inverter type and double battery on/off
-  server.on("/saveSettings", HTTP_POST, [](AsyncWebServerRequest* request) {
+  server.on("/saveSettings", HTTP_POST, [boolSettingNames](AsyncWebServerRequest* request) {
     BatteryEmulatorSettingsStore settings;
 
-    int params = request->params();
-    for (int i = 0; i < params; i++) {
+    std::vector<BoolSetting> boolSettings;
+
+    for (auto& name : boolSettingNames) {
+      boolSettings.push_back({name, settings.getBool(name), false});
+    }
+
+    int numParams = request->params();
+    for (int i = 0; i < numParams; i++) {
       auto p = request->getParam(i);
       if (p->name() == "inverter") {
         auto type = static_cast<InverterProtocolType>(atoi(p->value().c_str()));
@@ -404,8 +419,8 @@ void init_webserver() {
       } else if (p->name() == "charger") {
         auto type = static_cast<ChargerType>(atoi(p->value().c_str()));
         settings.saveUInt("CHGTYPE", (int)type);
-      } else if (p->name() == "dblbtr") {
-        settings.saveBool("DBLBTR", p->value() == "on");
+      } /*else if (p->name() == "dblbtr") {
+        newDoubleBattery = p->value() == "on";
       } else if (p->name() == "contctrl") {
         settings.saveBool("CNTCTRL", p->value() == "on");
       } else if (p->name() == "contctrldbl") {
@@ -416,6 +431,18 @@ void init_webserver() {
         settings.saveBool("PERBMSRESET", p->value() == "on");
       } else if (p->name() == "REMBMSRESET") {
         settings.saveBool("REMBMSRESET", p->value() == "on");
+      }*/
+
+      for (auto& boolSetting : boolSettings) {
+        if (p->name() == boolSetting.name) {
+          boolSetting.newValue = p->value() == "on";
+        }
+      }
+    }
+
+    for (auto& boolSetting : boolSettings) {
+      if (boolSetting.existingValue != boolSetting.newValue) {
+        settings.saveBool(boolSetting.name, boolSetting.newValue);
       }
     }
 
