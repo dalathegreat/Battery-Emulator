@@ -14,6 +14,7 @@ String settings_processor(const String& var) {
         "button { background-color: #505E67; color: white; border: none; padding: 10px 20px; margin-bottom: 20px; "
         "cursor: pointer; border-radius: 10px; }";
     content += "button:hover { background-color: #3A4A52; }";
+    content += "h4 { margin: 0.6em 0; line-height: 1.2; }";
     content += "</style>";
 
     content += "<button onclick='goToMainPage()'>Back to main page</button>";
