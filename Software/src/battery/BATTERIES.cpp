@@ -35,8 +35,10 @@ extern const char* name_for_battery_type(BatteryType type) {
       return BydAttoBattery::Name;
     case BatteryType::CellPowerBms:
       return CellPowerBms::Name;
+#ifdef CHADEMO_PIN_2  // Only support chademo for certain platforms
     case BatteryType::Chademo:
       return ChademoBattery::Name;
+#endif
     case BatteryType::CmfaEv:
       return CmfaEvBattery::Name;
     case BatteryType::Foxess:
@@ -122,8 +124,10 @@ Battery* create_battery(BatteryType type) {
       return new BydAttoBattery();
     case BatteryType::CellPowerBms:
       return new CellPowerBms();
+#ifdef CHADEMO_PIN_2  // Only support chademo for certain platforms
     case BatteryType::Chademo:
       return new ChademoBattery();
+#endif
     case BatteryType::CmfaEv:
       return new CmfaEvBattery();
     case BatteryType::Foxess:

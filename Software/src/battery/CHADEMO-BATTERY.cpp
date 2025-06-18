@@ -4,6 +4,8 @@
 #include "../include.h"
 #include "CHADEMO-SHUNTS.h"
 
+#ifdef CHADEMO_PIN_2  // Only support chademo for certain platforms
+
 /* CHADEMO handling runs at 6.25 times the rate of most other code, so, rather than the
  *  default value of 12 (for 12 iterations of the 5s value update loop) * 5 for a 60s timeout,
  *  instead use 75 for 75*0.8s = 60s
@@ -987,3 +989,5 @@ void ChademoBattery::setup(void) {  // Performs one time setup at startup
 
   setupMillis = millis();
 }
+
+#endif

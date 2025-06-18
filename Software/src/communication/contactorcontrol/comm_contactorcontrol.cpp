@@ -130,6 +130,7 @@ void init_contactors() {
   digitalWrite(BMS_2_POWER, HIGH);
 #endif  //BMS_2_POWER
 #endif  // HW with dedicated BMS pins
+#ifdef BMS_POWER
   if (periodic_bms_reset || remote_bms_reset) {
     pinMode(BMS_POWER, OUTPUT);
     digitalWrite(BMS_POWER, HIGH);
@@ -138,6 +139,7 @@ void init_contactors() {
     digitalWrite(BMS_2_POWER, HIGH);
 #endif  //BMS_2_POWER
   }
+#endif
 }
 
 static void dbg_contactors(const char* state) {
@@ -156,7 +158,9 @@ void handle_contactors() {
   datalayer.system.status.inverter_allows_contactor_closing = digitalRead(INVERTER_CONTACTOR_ENABLE_PIN);
 #endif
 
+#ifdef BMS_POWER
   handle_BMSpower();  // Some batteries need to be periodically power cycled
+#endif
 
 #ifdef CONTACTOR_CONTROL_DOUBLE_BATTERY
   handle_contactors_battery2();
@@ -281,6 +285,7 @@ This makes the BMS recalculate all SOC% and avoid memory leaks
 During that time we also set the emulator state to paused in order to not try and send CAN messages towards the battery
 Feature is only used if user has enabled PERIODIC_BMS_RESET in the USER_SETTINGS */
 
+#ifdef BMS_POWER
 void handle_BMSpower() {
   if (periodic_bms_reset || remote_bms_reset) {
     // Get current time
@@ -314,6 +319,7 @@ void handle_BMSpower() {
     }
   }
 }
+#endif
 
 void start_bms_reset() {
   if (periodic_bms_reset || remote_bms_reset) {
@@ -329,7 +335,9 @@ void start_bms_reset() {
       // We try to keep contactors engaged during this pause, and just ramp power down to 0.
       setBatteryPause(true, false, false, false);
 
+#ifdef BMS_POWER
       digitalWrite(BMS_POWER, LOW);  // Remove power by setting the BMS power pin to LOW
+#endif
 #ifdef BMS_2_POWER
       digitalWrite(BMS_2_POWER, LOW);  // Same for battery 2
 #endif
