@@ -49,9 +49,9 @@ jobs:
           arduino-cli core install esp32:esp32
 
       - name: Compile Sketch
-        run: arduino-cli compile --fqbn esp32:esp32:esp32 --build-property build.partitions=min_spiffs --build-property upload.maximum_size=1966080 --build-property "build.extra_flags=-Wall -Wextra -Wpedantic -Werror -DESP32 -DCOMMON_IMAGE -DHW_LILYGO" ./Software
+        run: arduino-cli compile --output-dir ./ --fqbn esp32:esp32:esp32 --build-property build.partitions=min_spiffs --build-property upload.maximum_size=1966080 --build-property "build.extra_flags=-Wall -Wextra -Wpedantic -Werror -DESP32 -DCOMMON_IMAGE -DHW_LILYGO" ./Software
 
       - name: Upload artifact
         uses: actions/upload-artifact@v4
         with:
-          path: esp32.esp32.esp32/Software.ino.bin
+          path: Software.ino.bin
