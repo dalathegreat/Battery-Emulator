@@ -123,6 +123,8 @@ void setup() {
   // Start tasks
 
 #ifdef MQTT
+  init_mqtt();
+
   xTaskCreatePinnedToCore((TaskFunction_t)&mqtt_loop, "mqtt_loop", 4096, NULL, TASK_MQTT_PRIO, &mqtt_loop_task,
                           WIFI_CORE);
 #endif
@@ -190,8 +192,6 @@ void connectivity_loop(void*) {
 #ifdef MQTT
 void mqtt_loop(void*) {
   esp_task_wdt_add(NULL);  // Register this task with WDT
-
-  init_mqtt();
 
   while (true) {
     START_TIME_MEASUREMENT(mqtt);

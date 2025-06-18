@@ -661,8 +661,6 @@ void RenaultZoeGen2Battery::transmit_can(unsigned long currentMillis) {
   if (datalayer_extended.zoePH2.UserRequestNVROLReset) {
     // Send NVROL reset frames
     transmit_reset_nvrol_frames();
-    // after transmitting the NVROL reset frames, set the nvrol reset flag to false, to continue normal operation
-    datalayer_extended.zoePH2.UserRequestNVROLReset = false;
   } else {
     // Send 100ms CAN Message
     if (currentMillis - previousMillis100 >= INTERVAL_100_MS) {
@@ -697,7 +695,6 @@ void RenaultZoeGen2Battery::transmit_can(unsigned long currentMillis) {
       transmit_can_frame(&ZOE_POLL_18DADBF1, can_config.battery);
     }
 
-    // 1000mss
     if (currentMillis - previousMillis1000 >= INTERVAL_1_S) {
       previousMillis1000 = currentMillis;
 
@@ -741,39 +738,54 @@ void RenaultZoeGen2Battery::transmit_can_frame_376(void) {
 }
 
 void RenaultZoeGen2Battery::transmit_reset_nvrol_frames(void) {
-  // NVROL reset, part 1: send 0x021003AAAAAAAAAA
-  ZOE_POLL_18DADBF1.data = {0x02, 0x10, 0x03, 0xAA, 0xAA, 0xAA, 0xAA, 0xAA};
-  transmit_can_frame(&ZOE_POLL_18DADBF1, can_config.battery);
-  // wait 100 ms
-  wait_ms(100);
-  // NVROL reset, part 2: send 0x043101B00900AAAA
-  ZOE_POLL_18DADBF1.data = {0x04, 0x31, 0x01, 0xB0, 0x09, 0x00, 0xAA, 0xAA};
-  transmit_can_frame(&ZOE_POLL_18DADBF1, can_config.battery);
-
-  // wait 1 s
-  wait_ms(1000);
-
-  // Enable temporisation before sleep, part 1: send 0x021003AAAAAAAAAA
-  ZOE_POLL_18DADBF1.data = {0x02, 0x10, 0x03, 0xAA, 0xAA, 0xAA, 0xAA, 0xAA};
-  transmit_can_frame(&ZOE_POLL_18DADBF1, can_config.battery);
-  // wait 100 ms
-  wait_ms(100);
-  // Enable temporisation before sleep, part 2: send 0x042E928101AAAAAA
-  ZOE_POLL_18DADBF1.data = {0x04, 0x2E, 0x92, 0x81, 0x01, 0xAA, 0xAA, 0xAA};
-  transmit_can_frame(&ZOE_POLL_18DADBF1, can_config.battery);
-
-  // Set data back to init values
-  ZOE_POLL_18DADBF1.data = {0x03, 0x22, 0x90, 0x00, 0x00, 0x00, 0x00, 0x00};
-  poll_index = 0;
-
-  // after transmitting these frames, wait 30 s
-  wait_ms(30000);
-}
-
-void RenaultZoeGen2Battery::wait_ms(int duration_ms) {
-  unsigned long freezeMillis = millis();
-  while (millis() - freezeMillis < duration_ms) {
-    // Do nothing - just wait
+  switch (NVROLstateMachine) {
+    case 0:
+      startTimeNVROL = millis();
+      // NVROL reset, part 1: send 0x021003AAAAAAAAAA
+      ZOE_POLL_18DADBF1.data = {0x02, 0x10, 0x03, 0xAA, 0xAA, 0xAA, 0xAA, 0xAA};
+      transmit_can_frame(&ZOE_POLL_18DADBF1, can_config.battery);
+      NVROLstateMachine = 1;
+      break;
+    case 1:  // wait 100 ms
+      if ((millis() - startTimeNVROL) > INTERVAL_100_MS) {
+        // NVROL reset, part 2: send 0x043101B00900AAAA
+        ZOE_POLL_18DADBF1.data = {0x04, 0x31, 0x01, 0xB0, 0x09, 0x00, 0xAA, 0xAA};
+        transmit_can_frame(&ZOE_POLL_18DADBF1, can_config.battery);
+        startTimeNVROL = millis();  //Reset time start, so we can check time for next step
+        NVROLstateMachine = 2;
+      }
+      break;
+    case 2:  // wait 1 s
+      if ((millis() - startTimeNVROL) > INTERVAL_1_S) {
+        // Enable temporisation before sleep, part 1: send 0x021003AAAAAAAAAA
+        ZOE_POLL_18DADBF1.data = {0x02, 0x10, 0x03, 0xAA, 0xAA, 0xAA, 0xAA, 0xAA};
+        transmit_can_frame(&ZOE_POLL_18DADBF1, can_config.battery);
+        startTimeNVROL = millis();  //Reset time start, so we can check time for next step
+        NVROLstateMachine = 3;
+      }
+      break;
+    case 3:  //Wait 100ms
+      if ((millis() - startTimeNVROL) > INTERVAL_100_MS) {
+        // Enable temporisation before sleep, part 2: send 0x042E928101AAAAAA
+        ZOE_POLL_18DADBF1.data = {0x04, 0x2E, 0x92, 0x81, 0x01, 0xAA, 0xAA, 0xAA};
+        transmit_can_frame(&ZOE_POLL_18DADBF1, can_config.battery);
+        // Set data back to init values, we are done with the ZOE_POLL_18DADBF1 frame
+        ZOE_POLL_18DADBF1.data = {0x03, 0x22, 0x90, 0x00, 0x00, 0x00, 0x00, 0x00};
+        poll_index = 0;
+        NVROLstateMachine = 4;
+      }
+      break;
+    case 4:  //Wait 30s
+      if ((millis() - startTimeNVROL) > INTERVAL_30_S) {
+        // after sleeping, set the nvrol reset flag to false, to continue normal operation of sending CAN messages
+        datalayer_extended.zoePH2.UserRequestNVROLReset = false;
+        // reset state machine, we are done!
+        NVROLstateMachine = 0;
+      }
+      break;
+    default:  //Something went catastrophically wrong. Reset state machine
+      NVROLstateMachine = 0;
+      break;
   }
 }
 
