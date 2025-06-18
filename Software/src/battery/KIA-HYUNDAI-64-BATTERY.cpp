@@ -112,21 +112,18 @@ void KiaHyundai64Battery::
 }
 
 void KiaHyundai64Battery::update_number_of_cells() {
-  //If we have cell values and number_of_cells not initialized yet
-  if (cellvoltages_mv[0] > 0 && datalayer_battery->info.number_of_cells == 0) {
-    // Check if we have 98S or 90S battery. If the 98th cell is valid range, we are on a 98S battery
-    if ((datalayer_battery->status.cell_voltages_mV[97] > 2000) &&
-        (datalayer_battery->status.cell_voltages_mV[97] < 4300)) {
-      datalayer_battery->info.number_of_cells = 98;
-      datalayer_battery->info.max_design_voltage_dV = MAX_PACK_VOLTAGE_98S_DV;
-      datalayer_battery->info.min_design_voltage_dV = MIN_PACK_VOLTAGE_98S_DV;
-      datalayer_battery->info.total_capacity_Wh = 64000;
-    } else {
-      datalayer_battery->info.number_of_cells = 90;
-      datalayer_battery->info.max_design_voltage_dV = MAX_PACK_VOLTAGE_90S_DV;
-      datalayer_battery->info.min_design_voltage_dV = MIN_PACK_VOLTAGE_90S_DV;
-      datalayer_battery->info.total_capacity_Wh = 40000;
-    }
+  // Check if we have 98S or 90S battery. If the 98th cell is valid range, we are on a 98S battery
+  if ((datalayer_battery->status.cell_voltages_mV[97] > 2000) &&
+      (datalayer_battery->status.cell_voltages_mV[97] < 4500)) {
+    datalayer_battery->info.number_of_cells = 98;
+    datalayer_battery->info.max_design_voltage_dV = MAX_PACK_VOLTAGE_98S_DV;
+    datalayer_battery->info.min_design_voltage_dV = MIN_PACK_VOLTAGE_98S_DV;
+    datalayer_battery->info.total_capacity_Wh = 64000;
+  } else {
+    datalayer_battery->info.number_of_cells = 90;
+    datalayer_battery->info.max_design_voltage_dV = MAX_PACK_VOLTAGE_90S_DV;
+    datalayer_battery->info.min_design_voltage_dV = MIN_PACK_VOLTAGE_90S_DV;
+    datalayer_battery->info.total_capacity_Wh = 40000;
   }
 }
 
