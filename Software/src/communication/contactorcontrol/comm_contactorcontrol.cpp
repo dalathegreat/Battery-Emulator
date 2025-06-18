@@ -65,7 +65,7 @@ const int OFF = 0;
 #define PWM_ON_DUTY 1023
 #define PWM_Positive_Channel 0
 #define PWM_Negative_Channel 1
-unsigned long prechargeStartTime = 0;
+static unsigned long prechargeStartTime = 0;
 unsigned long negativeStartTime = 0;
 unsigned long prechargeCompletedTime = 0;
 unsigned long timeSpentInFaultedMode = 0;
