@@ -362,16 +362,18 @@ void KiaHyundai64Battery::handle_incoming_can_frame(CAN_frame rx_frame) {
           }
           break;
         case 0x26:  //Sixth datarow in PID group
-          //We have read all cells, check that content is valid:
-          for (uint8_t i = 85; i < 97; ++i) {
-            if (cellvoltages_mv[i] < 300) {  // Zero the value if it's below 300
-              cellvoltages_mv[i] = 0;        // Some packs incorrectly report the last unpopulated cells as 20-60mV
+          if (poll_data_pid == 5) {
+            //We have read all cells, check that content is valid:
+            for (uint8_t i = 85; i < 97; ++i) {
+              if (cellvoltages_mv[i] < 300) {  // Zero the value if it's below 300
+                cellvoltages_mv[i] = 0;        // Some packs incorrectly report the last unpopulated cells as 20-60mV
+              }
             }
+            //Map all cell voltages to the global array
+            memcpy(datalayer_battery->status.cell_voltages_mV, cellvoltages_mv, 98 * sizeof(uint16_t));
+            //Update number of cells
+            update_number_of_cells();
           }
-          //Map all cell voltages to the global array
-          memcpy(datalayer_battery->status.cell_voltages_mV, cellvoltages_mv, 98 * sizeof(uint16_t));
-          //Update number of cells
-          update_number_of_cells();
           break;
         case 0x27:  //Seventh datarow in PID group
           if (poll_data_pid == 1) {
