@@ -22,8 +22,8 @@ After battery has been unlocked, you can remove the "USE_ESTIMATED_SOC" from the
 #define UNKNOWN_POLL_0 0x1FFE  //0x64 19 C4 3B
 #define UNKNOWN_POLL_1 0x1FFC  //0x72 1F C4 3B
 #define POLL_MAX_CHARGE_POWER 0x000A
-#define UNKNOWN_POLL_3 0x000B   //0x00B1 (177 interesting!)
-#define UNKNOWN_POLL_4 0x000E   //0x0B27 (2855 interesting!)
+#define UNKNOWN_POLL_3 0x000B  //0x00B1 (177 interesting!)
+#define UNKNOWN_POLL_4 0x000E  //0x0B27 (2855 interesting!)
 #define POLL_TOTAL_CHARGED_AH 0x000F
 #define POLL_TOTAL_DISCHARGED_AH 0x0010
 #define POLL_TOTAL_CHARGED_KWH 0x0011
