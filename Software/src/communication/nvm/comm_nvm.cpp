@@ -7,14 +7,10 @@ Preferences settings;  // Store user settings
 
 // Initialization functions
 
-static void begin() {
-  settings.begin("batterySettings", false);
-}
-
 void init_stored_settings() {
   static uint32_t temp = 0;
   //  ATTENTION ! The maximum length for settings keys is 15 characters
-  begin();
+  settings.begin("batterySettings", false);
 
   // Always get the equipment stop status
   datalayer.system.settings.equipment_stop_active = settings.getBool("EQUIPMENT_STOP", false);
@@ -141,24 +137,4 @@ void store_settings() {
   }
 
   settings.end();  // Close preferences handle
-}
-
-void store_uint(const char* key, uint32_t value) {
-  begin();
-  settings.putUInt(key, value);
-}
-
-void store_bool(const char* key, bool value) {
-  begin();
-  settings.putBool(key, value);
-}
-
-uint32_t get_uint(const char* key, uint32_t defaultValue) {
-  begin();
-  return settings.getUInt(key, defaultValue);
-}
-
-bool get_bool(const char* key) {
-  begin();
-  return settings.getBool(key, false);
 }
