@@ -50,6 +50,7 @@ GPIOs on extra header
 #define NEGATIVE_CONTACTOR_PIN 33
 #define PRECHARGE_PIN 25
 #define BMS_POWER 23
+#define SECOND_BATTERY_CONTACTORS_PIN 19  //Available as extra GPIO via pin header
 
 // Automatic precharging
 #define HIA4V1_PIN 19  //Available as extra GPIO via pin header
