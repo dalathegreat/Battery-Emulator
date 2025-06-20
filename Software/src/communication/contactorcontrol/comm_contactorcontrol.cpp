@@ -153,8 +153,6 @@ static void dbg_contactors(const char* state) {
 
 // Main functions of the handle_contactors include checking if inverter allows for closing, checking battery 2, checking BMS power output, and actual contactor closing/precharge via GPIO
 void handle_contactors() {
-  // TODO: This must be determined at run-time!
-
   if (inverter && inverter->controls_contactor()) {
     datalayer.system.status.inverter_allows_contactor_closing = inverter->allows_contactor_closing();
   }
