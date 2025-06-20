@@ -154,9 +154,10 @@ static void dbg_contactors(const char* state) {
 // Main functions of the handle_contactors include checking if inverter allows for closing, checking battery 2, checking BMS power output, and actual contactor closing/precharge via GPIO
 void handle_contactors() {
   // TODO: This must be determined at run-time!
-#if defined(SMA_BYD_H_CAN) || defined(SMA_BYD_HVS_CAN) || defined(SMA_TRIPOWER_CAN)
-  datalayer.system.status.inverter_allows_contactor_closing = digitalRead(INVERTER_CONTACTOR_ENABLE_PIN);
-#endif
+
+  if (inverter && inverter->controls_contactor()) {
+    datalayer.system.status.inverter_allows_contactor_closing = inverter->allows_contactor_closing();
+  }
 
 #ifdef BMS_POWER
   handle_BMSpower();  // Some batteries need to be periodically power cycled

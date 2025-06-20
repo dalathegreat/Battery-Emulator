@@ -40,6 +40,11 @@ class InverterProtocol {
 
   // This function maps all the values fetched from battery to the correct battery emulator data structures
   virtual void update_values() = 0;
+
+  // If true, this inverter supports a signal to control contactor (allows_contactor_closing)
+  virtual bool controls_contactor() { return false; }
+
+  virtual bool allows_contactor_closing() { return false; }
 };
 
 extern InverterProtocol* inverter;
