@@ -95,6 +95,7 @@
   XX(EVENT_RJXZS_LOG)                          \
   XX(EVENT_PAUSE_BEGIN)                        \
   XX(EVENT_PAUSE_END)                          \
+  XX(EVENT_PID_FAILED)                         \
   XX(EVENT_WIFI_CONNECT)                       \
   XX(EVENT_WIFI_DISCONNECT)                    \
   XX(EVENT_MQTT_CONNECT)                       \
