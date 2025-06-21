@@ -102,7 +102,7 @@ void init_contactors() {
       // Set all pins OFF (0% PWM)
       ledcWrite(POSITIVE_CONTACTOR_PIN, PWM_OFF_DUTY);
       ledcWrite(NEGATIVE_CONTACTOR_PIN, PWM_OFF_DUTY);
-    } else {
+    } else {  //Normal CONTACTOR_CONTROL
       pinMode(POSITIVE_CONTACTOR_PIN, OUTPUT);
       set(POSITIVE_CONTACTOR_PIN, OFF);
       pinMode(NEGATIVE_CONTACTOR_PIN, OUTPUT);
@@ -111,33 +111,20 @@ void init_contactors() {
     pinMode(PRECHARGE_PIN, OUTPUT);
     set(PRECHARGE_PIN, OFF);
   }
-
-#if defined(SECOND_POSITIVE_CONTACTOR_PIN) && defined(SECOND_NEGATIVE_CONTACTOR_PIN)
   if (contactor_control_enabled_double_battery) {
-    pinMode(SECOND_POSITIVE_CONTACTOR_PIN, OUTPUT);
-    set(SECOND_POSITIVE_CONTACTOR_PIN, OFF);
-    pinMode(SECOND_NEGATIVE_CONTACTOR_PIN, OUTPUT);
-    set(SECOND_NEGATIVE_CONTACTOR_PIN, OFF);
+    pinMode(SECOND_BATTERY_CONTACTORS_PIN, OUTPUT);
+    set(SECOND_BATTERY_CONTACTORS_PIN, OFF);
   }
-#endif
-
 // Init BMS contactor
 #if defined HW_STARK || defined HW_3LB  // This hardware has dedicated pin, always enable on start
   pinMode(BMS_POWER, OUTPUT);           //LilyGo is omitted from this, only enabled if user selects PERIODIC_BMS_RESET
   digitalWrite(BMS_POWER, HIGH);
-#ifdef BMS_2_POWER  //Hardware supports 2x BMS
-  pinMode(BMS_2_POWER, OUTPUT);
-  digitalWrite(BMS_2_POWER, HIGH);
-#endif  //BMS_2_POWER
 #endif  // HW with dedicated BMS pins
+
 #ifdef BMS_POWER
   if (periodic_bms_reset || remote_bms_reset) {
     pinMode(BMS_POWER, OUTPUT);
     digitalWrite(BMS_POWER, HIGH);
-#ifdef BMS_2_POWER  //Hardware supports 2x BMS
-    pinMode(BMS_2_POWER, OUTPUT);
-    digitalWrite(BMS_2_POWER, HIGH);
-#endif  //BMS_2_POWER
   }
 #endif
 }
@@ -266,12 +253,10 @@ void handle_contactors() {
 #ifdef CONTACTOR_CONTROL_DOUBLE_BATTERY
 void handle_contactors_battery2() {
   if ((contactorStatus == COMPLETED) && datalayer.system.status.battery2_allowed_contactor_closing) {
-    set(SECOND_NEGATIVE_CONTACTOR_PIN, ON);
-    set(SECOND_POSITIVE_CONTACTOR_PIN, ON);
+    set(SECOND_BATTERY_CONTACTORS_PIN, ON);
     datalayer.system.status.contactors_battery2_engaged = true;
   } else {  // Closing contactors on secondary battery not allowed
-    set(SECOND_NEGATIVE_CONTACTOR_PIN, OFF);
-    set(SECOND_POSITIVE_CONTACTOR_PIN, OFF);
+    set(SECOND_BATTERY_CONTACTORS_PIN, OFF);
     datalayer.system.status.contactors_battery2_engaged = false;
   }
 }

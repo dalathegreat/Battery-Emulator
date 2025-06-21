@@ -1258,42 +1258,34 @@ String processor(const String& var) {
 
       if (contactor_control_enabled) {
         content += "<h4>Contactors controlled by emulator, state: ";
-        if (datalayer.system.status.contactors_engaged) {
+        if (datalayer.system.status.contactors_battery2_engaged) {
           content += "<span style='color: green;'>ON</span>";
         } else {
           content += "<span style='color: red;'>OFF</span>";
         }
         content += "</h4>";
-
-        content += "<h4>Precharge: (";
-        content += PRECHARGE_TIME_MS;
-        content += " ms) Cont. Neg.: ";
-
-        if (pwm_contactor_control) {
-          if (datalayer.system.status.contactors_engaged) {
-            content += "<span style='color: green;'>Economized</span>";
-            content += " Cont. Pos.: ";
-            content += "<span style='color: green;'>Economized</span>";
-          } else {
-            content += "<span style='color: red;'>&#10005;</span>";
-            content += " Cont. Pos.: ";
-            content += "<span style='color: red;'>&#10005;</span>";
-          }
-        } else {  // No PWM_CONTACTOR_CONTROL , we can read the pin and see feedback. Helpful if channel overloaded
-          if (digitalRead(NEGATIVE_CONTACTOR_PIN) == HIGH) {
-            content += "<span style='color: green;'>&#10003;</span>";
-          } else {
-            content += "<span style='color: red;'>&#10005;</span>";
-          }
-
-          content += " Cont. Pos.: ";
-          if (digitalRead(POSITIVE_CONTACTOR_PIN) == HIGH) {
-            content += "<span style='color: green;'>&#10003;</span>";
-          } else {
-            content += "<span style='color: red;'>&#10005;</span>";
-          }
+        if (contactor_control_enabled_double_battery) {
+          if (pwm_contactor_control) {
+            content += "<h4>Cont. Neg.: ";
+            if (datalayer.system.status.contactors_battery2_engaged) {
+              content += "<span style='color: green;'>Economized</span>";
+              content += " Cont. Pos.: ";
+              content += "<span style='color: green;'>Economized</span>";
+            } else {
+              content += "<span style='color: red;'>&#10005;</span>";
+              content += " Cont. Pos.: ";
+              content += "<span style='color: red;'>&#10005;</span>";
+            }
+          } else {  // No PWM_CONTACTOR_CONTROL , we can read the pin and see feedback. Helpful if channel overloaded
+            content += "<h4>Cont. Neg.: ";
+            if (digitalRead(SECOND_BATTERY_CONTACTORS_PIN) == HIGH) {
+              content += "<span style='color: green;'>&#10003;</span>";
+            } else {
+              content += "<span style='color: red;'>&#10005;</span>";
+            }
+          }  //no PWM_CONTACTOR_CONTROL
+          content += "</h4>";
         }
-        content += "</h4>";
       }
 
       // Close the block
