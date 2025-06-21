@@ -53,6 +53,7 @@ class BydAttoBattery : public CanBattery {
   virtual void update_values();
   virtual void transmit_can(unsigned long currentMillis);
 
+  bool supports_charged_energy() { return true; }
   bool supports_reset_crash() { return true; }
 
   void reset_crash() { datalayer_bydatto->UserRequestCrashReset = true; }
@@ -114,10 +115,10 @@ class BydAttoBattery : public CanBattery {
   uint16_t BMS_allowed_charge_power = 0;
   uint16_t BMS_unknown3 = 0;
   uint16_t BMS_unknown4 = 0;
-  uint16_t BMS_unknown5 = 0;
-  uint16_t BMS_unknown6 = 0;
-  uint16_t BMS_unknown7 = 0;
-  uint16_t BMS_unknown8 = 0;
+  uint16_t BMS_total_charged_ah = 0;
+  uint16_t BMS_total_discharged_ah = 0;
+  uint16_t BMS_total_charged_kwh = 0;
+  uint16_t BMS_total_discharged_kwh = 0;
   uint16_t BMS_unknown9 = 0;
   uint8_t BMS_unknown10 = 0;
   uint8_t BMS_unknown11 = 0;
