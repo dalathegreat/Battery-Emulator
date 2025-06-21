@@ -1,10 +1,9 @@
-#include "../include.h"
-#ifdef BMW_I3_BATTERY
+#include "BMW-I3-BATTERY.h"
 #include "../communication/can/comm_can.h"
 #include "../datalayer/datalayer.h"
 #include "../datalayer/datalayer_extended.h"
 #include "../devboard/utils/events.h"
-#include "BMW-I3-BATTERY.h"
+#include "../include.h"
 
 /* Do not change code below unless you are sure what you are doing */
 
@@ -34,7 +33,7 @@ static uint8_t calculateCRC(CAN_frame rx_frame, uint8_t length, uint8_t initial_
   return crc;
 }
 
-static uint8_t increment_alive_counter(uint8_t counter) {
+uint8_t BmwI3Battery::increment_alive_counter(uint8_t counter) {
   counter++;
   if (counter > ALIVE_MAX_VALUE) {
     counter = 0;
@@ -509,7 +508,7 @@ void BmwI3Battery::transmit_can(unsigned long currentMillis) {
 }
 
 void BmwI3Battery::setup(void) {  // Performs one time setup at startup
-  strncpy(datalayer.system.info.battery_protocol, "BMW i3", 63);
+  strncpy(datalayer.system.info.battery_protocol, Name, 63);
   datalayer.system.info.battery_protocol[63] = '\0';
 
   //Before we have started up and detected which battery is in use, use 60AH values
@@ -525,5 +524,3 @@ void BmwI3Battery::setup(void) {  // Performs one time setup at startup
   pinMode(wakeup_pin, OUTPUT);
   digitalWrite(wakeup_pin, HIGH);  // Wake up the battery
 }
-
-#endif

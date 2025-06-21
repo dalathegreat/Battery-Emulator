@@ -1,8 +1,7 @@
-#include "../include.h"
-#ifdef BMW_SBOX
+#include "BMW-SBOX.h"
 #include "../communication/can/comm_can.h"
 #include "../datalayer/datalayer.h"
-#include "BMW-SBOX.h"
+#include "../include.h"
 
 uint8_t reverse_bits(uint8_t byte) {
   uint8_t reversed = 0;
@@ -179,7 +178,6 @@ void BmwSbox::transmit_can(unsigned long currentMillis) {
 }
 
 void BmwSbox::setup() {
-  strncpy(datalayer.system.info.shunt_protocol, "BMW SBOX", 63);
+  strncpy(datalayer.system.info.shunt_protocol, Name, 63);
   datalayer.system.info.shunt_protocol[63] = '\0';
 }
-#endif

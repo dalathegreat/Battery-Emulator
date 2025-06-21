@@ -1,8 +1,7 @@
-#include "../include.h"
-#ifdef SIMPBMS_BATTERY
+#include "SIMPBMS-BATTERY.h"
 #include "../datalayer/datalayer.h"
 #include "../devboard/utils/events.h"
-#include "SIMPBMS-BATTERY.h"
+#include "../include.h"
 
 void SimpBmsBattery::update_values() {
 
@@ -93,7 +92,7 @@ void SimpBmsBattery::transmit_can(unsigned long currentMillis) {
 }
 
 void SimpBmsBattery::setup(void) {  // Performs one time setup at startup
-  strncpy(datalayer.system.info.battery_protocol, "SIMPBMS battery", 63);
+  strncpy(datalayer.system.info.battery_protocol, Name, 63);
   datalayer.system.info.battery_protocol[63] = '\0';
   datalayer.battery.info.number_of_cells = CELL_COUNT;
   datalayer.battery.info.max_design_voltage_dV = MAX_PACK_VOLTAGE_DV;
@@ -102,5 +101,3 @@ void SimpBmsBattery::setup(void) {  // Performs one time setup at startup
   datalayer.battery.info.min_cell_voltage_mV = MIN_CELL_VOLTAGE_MV;
   datalayer.system.status.battery_allows_contactor_closing = true;
 }
-
-#endif

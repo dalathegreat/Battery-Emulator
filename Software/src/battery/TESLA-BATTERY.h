@@ -5,7 +5,6 @@
 #include "CanBattery.h"
 #include "TESLA-HTML.h"
 
-#define BATTERY_SELECTED
 #ifdef TESLA_MODEL_3Y_BATTERY
 #define SELECTED_BATTERY_CLASS TeslaModel3YBattery
 #endif
@@ -514,12 +513,14 @@ class TeslaModel3YBattery : public TeslaBattery {
     operate_contactors = true;
 #endif
   }
+  static constexpr char* Name = "Tesla Model 3/Y";
   virtual void setup(void);
 };
 
 class TeslaModelSXBattery : public TeslaBattery {
  public:
   TeslaModelSXBattery() { operate_contactors = true; }
+  static constexpr char* Name = "Tesla Model S/X";
   virtual void setup(void);
 };
 

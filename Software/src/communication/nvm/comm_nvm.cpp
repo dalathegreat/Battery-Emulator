@@ -1,5 +1,6 @@
 #include "comm_nvm.h"
 #include "../../include.h"
+#include "../contactorcontrol/comm_contactorcontrol.h"
 
 // Parameters
 Preferences settings;  // Store user settings
@@ -69,6 +70,19 @@ void init_stored_settings() {
     datalayer.battery.settings.max_user_set_discharge_voltage_dV = temp;
   }
   datalayer.battery.settings.user_set_voltage_limits_active = settings.getBool("USEVOLTLIMITS", false);
+
+#ifdef COMMON_IMAGE
+  user_selected_battery_type = (BatteryType)settings.getUInt("BATTTYPE", (int)BatteryType::None);
+  user_selected_inverter_protocol = (InverterProtocolType)settings.getUInt("INVTYPE", (int)InverterProtocolType::None);
+  user_selected_charger_type = (ChargerType)settings.getUInt("CHGTYPE", (int)ChargerType::None);
+  user_selected_second_battery = settings.getBool("DBLBTR", false);
+  contactor_control_enabled = settings.getBool("CNTCTRL", false);
+  contactor_control_enabled_double_battery = settings.getBool("CNTCTRLDBL", false);
+  pwm_contactor_control = settings.getBool("PWMCNTCTRL", false);
+  periodic_bms_reset = settings.getBool("PERBMSRESET", false);
+  remote_bms_reset = settings.getBool("REMBMSRESET", false);
+#endif
+
   settings.end();
 }
 
@@ -121,5 +135,6 @@ void store_settings() {
   if (!settings.putUInt("TARGETDISCHVOLT", datalayer.battery.settings.max_user_set_discharge_voltage_dV)) {
     set_event(EVENT_PERSISTENT_SAVE_INFO, 11);
   }
+
   settings.end();  // Close preferences handle
 }

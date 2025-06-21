@@ -227,6 +227,6 @@ void SchneiderInverter::transmit_can(unsigned long currentMillis) {
 }
 
 void SchneiderInverter::setup(void) {  // Performs one time setup
-  strncpy(datalayer.system.info.inverter_protocol, "Schneider V2 SE BMS CAN", 63);
+  strncpy(datalayer.system.info.inverter_protocol, Name, 63);
   datalayer.system.info.inverter_protocol[63] = '\0';
 }

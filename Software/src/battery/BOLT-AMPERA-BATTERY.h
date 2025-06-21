@@ -6,8 +6,9 @@
 #include "BOLT-AMPERA-HTML.h"
 #include "CanBattery.h"
 
-#define BATTERY_SELECTED
+#ifdef BOLT_AMPERA_BATTERY
 #define SELECTED_BATTERY_CLASS BoltAmperaBattery
+#endif
 
 class BoltAmperaBattery : public CanBattery {
  public:
@@ -15,6 +16,8 @@ class BoltAmperaBattery : public CanBattery {
   virtual void handle_incoming_can_frame(CAN_frame rx_frame);
   virtual void update_values();
   virtual void transmit_can(unsigned long currentMillis);
+
+  static constexpr char* Name = "Chevrolet Bolt EV/Opel Ampera-e";
 
   BatteryHtmlRenderer& get_status_renderer() { return renderer; }
 

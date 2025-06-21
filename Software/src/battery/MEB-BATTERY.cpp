@@ -1,12 +1,11 @@
-#include "../include.h"
-#ifdef MEB_BATTERY
+#include "MEB-BATTERY.h"
 #include <algorithm>  // For std::min and std::max
 #include "../communication/can/comm_can.h"
 #include "../communication/can/obd.h"
 #include "../datalayer/datalayer.h"
 #include "../datalayer/datalayer_extended.h"  //For "More battery info" webpage
 #include "../devboard/utils/events.h"
-#include "MEB-BATTERY.h"
+#include "../include.h"
 
 /*
 TODO list
@@ -2036,7 +2035,7 @@ void MebBattery::transmit_can(unsigned long currentMillis) {
 }
 
 void MebBattery::setup(void) {  // Performs one time setup at startup
-  strncpy(datalayer.system.info.battery_protocol, "Volkswagen Group MEB platform via CAN-FD", 63);
+  strncpy(datalayer.system.info.battery_protocol, Name, 63);
   datalayer.system.info.battery_protocol[63] = '\0';
   datalayer.battery.info.number_of_cells = 108;  //Startup in 108S mode. We figure out the actual count later.
   datalayer.battery.info.max_design_voltage_dV = MAX_PACK_VOLTAGE_108S_DV;  //Defined later to correct pack size
@@ -2045,5 +2044,3 @@ void MebBattery::setup(void) {  // Performs one time setup at startup
   datalayer.battery.info.min_cell_voltage_mV = MIN_CELL_VOLTAGE_MV;
   datalayer.battery.info.max_cell_voltage_deviation_mV = MAX_CELL_DEVIATION_MV;
 }
-
-#endif

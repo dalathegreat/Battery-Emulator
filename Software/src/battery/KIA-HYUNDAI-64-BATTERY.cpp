@@ -1,10 +1,9 @@
-#include "../include.h"
-#ifdef KIA_HYUNDAI_64_BATTERY
+#include "KIA-HYUNDAI-64-BATTERY.h"
 #include "../communication/can/comm_can.h"
 #include "../datalayer/datalayer.h"
 #include "../datalayer/datalayer_extended.h"
 #include "../devboard/utils/events.h"
-#include "KIA-HYUNDAI-64-BATTERY.h"
+#include "../include.h"
 
 void KiaHyundai64Battery::
     update_values() {  //This function maps all the values fetched via CAN to the correct parameters used for modbus
@@ -464,7 +463,7 @@ void KiaHyundai64Battery::transmit_can(unsigned long currentMillis) {
 }
 
 void KiaHyundai64Battery::setup(void) {  // Performs one time setup at startup
-  strncpy(datalayer.system.info.battery_protocol, "Kia/Hyundai 64/40kWh battery", 63);
+  strncpy(datalayer.system.info.battery_protocol, Name, 63);
   datalayer.system.info.battery_protocol[63] = '\0';
   datalayer_battery->info.max_design_voltage_dV = MAX_PACK_VOLTAGE_98S_DV;  //Start with 98S value. Precised later
   datalayer_battery->info.min_design_voltage_dV = MIN_PACK_VOLTAGE_90S_DV;  //Start with 90S value. Precised later
@@ -475,5 +474,3 @@ void KiaHyundai64Battery::setup(void) {  // Performs one time setup at startup
     *allows_contactor_closing = true;
   }
 }
-
-#endif

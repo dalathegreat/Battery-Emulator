@@ -18,9 +18,9 @@
 #define ON 1
 #define OFF 0
 #endif
-unsigned long prechargeStartTime = 0;
+static unsigned long prechargeStartTime = 0;
 static uint32_t freq = Precharge_default_PWM_Freq;
-uint16_t delta_freq = 1;
+static uint16_t delta_freq = 1;
 static int32_t prev_external_voltage = 20000;
 
 // Initialization functions

@@ -260,7 +260,7 @@ void SmaBydHInverter::transmit_can_init() {
 }
 
 void SmaBydHInverter::setup(void) {  // Performs one time setup at startup over CAN bus
-  strncpy(datalayer.system.info.inverter_protocol, "BYD over SMA CAN", 63);
+  strncpy(datalayer.system.info.inverter_protocol, Name, 63);
   datalayer.system.info.inverter_protocol[63] = '\0';
   datalayer.system.status.inverter_allows_contactor_closing = false;  // The inverter needs to allow first
   pinMode(INVERTER_CONTACTOR_ENABLE_PIN, INPUT);

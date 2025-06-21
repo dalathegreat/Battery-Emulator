@@ -1,9 +1,8 @@
-#include "../include.h"
-#ifdef PYLON_BATTERY
+#include "PYLON-BATTERY.h"
 #include "../communication/can/comm_can.h"
 #include "../datalayer/datalayer.h"
 #include "../devboard/utils/events.h"
-#include "PYLON-BATTERY.h"
+#include "../include.h"
 
 void PylonBattery::update_values() {
 
@@ -144,5 +143,3 @@ void PylonBattery::setup(void) {  // Performs one time setup at startup
     *allows_contactor_closing = true;
   }
 }
-
-#endif

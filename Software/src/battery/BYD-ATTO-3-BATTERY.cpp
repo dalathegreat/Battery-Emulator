@@ -1,10 +1,9 @@
-#include "../include.h"
-#ifdef BYD_ATTO_3_BATTERY
+#include "BYD-ATTO-3-BATTERY.h"
 #include "../communication/can/comm_can.h"
 #include "../datalayer/datalayer.h"
 #include "../datalayer/datalayer_extended.h"
 #include "../devboard/utils/events.h"
-#include "BYD-ATTO-3-BATTERY.h"
+#include "../include.h"
 
 /* Notes
 SOC% by default is now ESTIMATED.
@@ -685,7 +684,7 @@ void BydAttoBattery::transmit_can(unsigned long currentMillis) {
 }
 
 void BydAttoBattery::setup(void) {  // Performs one time setup at startup
-  strncpy(datalayer.system.info.battery_protocol, "BYD Atto 3", 63);
+  strncpy(datalayer.system.info.battery_protocol, Name, 63);
   datalayer.system.info.battery_protocol[63] = '\0';
   datalayer_battery->info.number_of_cells = CELLCOUNT_STANDARD;
   datalayer_battery->info.chemistry = battery_chemistry_enum::LFP;
@@ -700,5 +699,3 @@ void BydAttoBattery::setup(void) {  // Performs one time setup at startup
   SOC_method = MEASURED;
 #endif
 }
-
-#endif

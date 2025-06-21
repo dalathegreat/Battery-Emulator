@@ -1,9 +1,8 @@
-#include "../include.h"
-#ifdef DALY_BMS
+#include "DALY-BMS.h"
 #include <cstdint>
 #include "../datalayer/datalayer.h"
 #include "../devboard/utils/events.h"
-#include "DALY-BMS.h"
+#include "../include.h"
 
 /* Do not change code below unless you are sure what you are doing */
 
@@ -61,7 +60,7 @@ void DalyBms::update_values() {
 }
 
 void DalyBms::setup(void) {  // Performs one time setup at startup
-  strncpy(datalayer.system.info.battery_protocol, "DALY RS485", 63);
+  strncpy(datalayer.system.info.battery_protocol, Name, 63);
   datalayer.system.info.battery_protocol[63] = '\0';
   datalayer.battery.info.number_of_cells = CELL_COUNT;
   datalayer.battery.info.max_design_voltage_dV = MAX_PACK_VOLTAGE_DV;
@@ -207,5 +206,3 @@ void DalyBms::receive() {
     }
   }
 }
-
-#endif

@@ -1,9 +1,8 @@
-#include "../include.h"
-#ifdef JAGUAR_IPACE_BATTERY
+#include "JAGUAR-IPACE-BATTERY.h"
 #include "../communication/can/comm_can.h"
 #include "../datalayer/datalayer.h"
 #include "../devboard/utils/events.h"
-#include "JAGUAR-IPACE-BATTERY.h"
+#include "../include.h"
 
 /* Do not change code below unless you are sure what you are doing */
 static unsigned long previousMillisKeepAlive = 0;
@@ -57,7 +56,7 @@ CAN_frame ipace_keep_alive = {.FD = false,
                               .ID = 0x59e,
                               .data = {0x9E, 0x00, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF}};*/
 
-void print_units(char* header, int value, char* units) {
+static void print_units(char* header, int value, char* units) {
   logging.print(header);
   logging.print(value);
   logging.print(units);
@@ -237,5 +236,3 @@ void JaguarIpaceBattery::setup(void) {  // Performs one time setup at startup
   datalayer.battery.info.max_cell_voltage_deviation_mV = MAX_CELL_DEVIATION_MV;
   datalayer.system.status.battery_allows_contactor_closing = true;
 }
-
-#endif

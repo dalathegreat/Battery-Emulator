@@ -171,6 +171,6 @@ void BydCanInverter::send_initial_data() {
 }
 
 void BydCanInverter::setup(void) {  // Performs one time setup at startup over CAN bus
-  strncpy(datalayer.system.info.inverter_protocol, "BYD Battery-Box Premium HVS over CAN Bus", 63);
+  strncpy(datalayer.system.info.inverter_protocol, Name, 63);
   datalayer.system.info.inverter_protocol[63] = '\0';
 }

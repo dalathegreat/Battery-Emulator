@@ -6,8 +6,9 @@
 #include "CanBattery.h"
 #include "VOLVO-SPA-HTML.h"
 
-#define BATTERY_SELECTED
+#ifdef VOLVO_SPA_BATTERY
 #define SELECTED_BATTERY_CLASS VolvoSpaBattery
+#endif
 
 class VolvoSpaBattery : public CanBattery {
  public:
@@ -15,6 +16,7 @@ class VolvoSpaBattery : public CanBattery {
   virtual void handle_incoming_can_frame(CAN_frame rx_frame);
   virtual void update_values();
   virtual void transmit_can(unsigned long currentMillis);
+  static constexpr char* Name = "Volvo / Polestar 69/78kWh SPA battery";
 
   bool supports_reset_DTC() { return true; }
   void reset_DTC() { datalayer_extended.VolvoPolestar.UserRequestDTCreset = true; }

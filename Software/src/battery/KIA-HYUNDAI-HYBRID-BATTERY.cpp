@@ -1,9 +1,8 @@
-#include "../include.h"
-#ifdef KIA_HYUNDAI_HYBRID_BATTERY
+#include "KIA-HYUNDAI-HYBRID-BATTERY.h"
 #include "../communication/can/comm_can.h"
 #include "../datalayer/datalayer.h"
 #include "../devboard/utils/events.h"
-#include "KIA-HYUNDAI-HYBRID-BATTERY.h"
+#include "../include.h"
 
 /* TODO: 
 - The HEV battery seems to turn off after 1 minute of use. When this happens SOC% stops updating.
@@ -215,7 +214,7 @@ void KiaHyundaiHybridBattery::transmit_can(unsigned long currentMillis) {
 }
 
 void KiaHyundaiHybridBattery::setup(void) {  // Performs one time setup at startup
-  strncpy(datalayer.system.info.battery_protocol, "Kia/Hyundai Hybrid", 63);
+  strncpy(datalayer.system.info.battery_protocol, Name, 63);
   datalayer.system.info.battery_protocol[63] = '\0';
   datalayer.system.status.battery_allows_contactor_closing = true;
   datalayer.battery.info.number_of_cells = 56;  // HEV , TODO: Make dynamic according to HEV/PHEV
@@ -224,5 +223,3 @@ void KiaHyundaiHybridBattery::setup(void) {  // Performs one time setup at start
   datalayer.battery.info.max_cell_voltage_mV = MAX_CELL_VOLTAGE_MV;
   datalayer.battery.info.min_cell_voltage_mV = MIN_CELL_VOLTAGE_MV;
 }
-
-#endif

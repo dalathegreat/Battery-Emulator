@@ -1,10 +1,9 @@
-#include "../include.h"
-#ifdef TESLA_BATTERY
+#include "TESLA-BATTERY.h"
 #include "../communication/can/comm_can.h"
 #include "../datalayer/datalayer.h"
 #include "../datalayer/datalayer_extended.h"  //For Advanced Battery Insights webpage
 #include "../devboard/utils/events.h"
-#include "TESLA-BATTERY.h"
+#include "../include.h"
 
 /* Credits: Most of the code comes from Per Carlen's bms_comms_tesla_model3.py (https://gitlab.com/pelle8/batt2gen24/) */
 
@@ -1764,8 +1763,7 @@ void TeslaModel3YBattery::setup(void) {  // Performs one time setup at startup
     *allows_contactor_closing = true;
   }
 
-#ifdef TESLA_MODEL_3Y_BATTERY  // Model 3/Y can be either LFP or NCM/A
-  strncpy(datalayer.system.info.battery_protocol, "Tesla Model 3/Y", 63);
+  strncpy(datalayer.system.info.battery_protocol, Name, 63);
   datalayer.system.info.battery_protocol[63] = '\0';
 #ifdef LFP_CHEMISTRY
   datalayer.battery.info.chemistry = battery_chemistry_enum::LFP;
@@ -1781,7 +1779,6 @@ void TeslaModel3YBattery::setup(void) {  // Performs one time setup at startup
   datalayer.battery.info.min_cell_voltage_mV = MIN_CELL_VOLTAGE_NCA_NCM;
   datalayer.battery.info.max_cell_voltage_deviation_mV = MAX_CELL_DEVIATION_NCA_NCM;
 #endif  // !LFP_CHEMISTRY
-#endif  // TESLA_MODEL_3Y_BATTERY
 }
 
 void TeslaModelSXBattery::setup(void) {
@@ -1789,7 +1786,7 @@ void TeslaModelSXBattery::setup(void) {
     *allows_contactor_closing = true;
   }
 
-  strncpy(datalayer.system.info.battery_protocol, "Tesla Model S/X", 63);
+  strncpy(datalayer.system.info.battery_protocol, Name, 63);
   datalayer.system.info.battery_protocol[63] = '\0';
   datalayer.battery.info.max_design_voltage_dV = MAX_PACK_VOLTAGE_SX_NCMA;
   datalayer.battery.info.min_design_voltage_dV = MIN_PACK_VOLTAGE_SX_NCMA;
@@ -1797,5 +1794,3 @@ void TeslaModelSXBattery::setup(void) {
   datalayer.battery.info.min_cell_voltage_mV = MIN_CELL_VOLTAGE_NCA_NCM;
   datalayer.battery.info.max_cell_voltage_deviation_mV = MAX_CELL_DEVIATION_NCA_NCM;
 }
-
-#endif  // TESLA_BATTERY

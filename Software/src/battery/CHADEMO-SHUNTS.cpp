@@ -18,12 +18,11 @@
  *            by NJbubo
  *
  */
-#include "../include.h"
-#ifdef CHADEMO_BATTERY
+#include "CHADEMO-SHUNTS.h"
 #include "../datalayer/datalayer.h"
 #include "../devboard/utils/events.h"
+#include "../include.h"
 #include "CHADEMO-BATTERY.h"
-#include "CHADEMO-SHUNTS.h"
 
 /* Initial frames received from ISA shunts provide invalid during initialization */
 static int framecount = 0;
@@ -429,4 +428,3 @@ void ISA_getINFO(uint8_t i) {
 
   transmit_can_frame(&outframe, can_config.battery);
 }
-#endif

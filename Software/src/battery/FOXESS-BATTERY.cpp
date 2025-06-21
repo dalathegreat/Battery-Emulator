@@ -1,9 +1,8 @@
-#include "../include.h"
-#ifdef FOXESS_BATTERY
+#include "FOXESS-BATTERY.h"
 #include "../communication/can/comm_can.h"
 #include "../datalayer/datalayer.h"
 #include "../devboard/utils/events.h"
-#include "FOXESS-BATTERY.h"
+#include "../include.h"
 
 /*
 Can bus @ 500k - all Extended ID, little endian
@@ -573,7 +572,7 @@ void FoxessBattery::transmit_can(unsigned long currentMillis) {
 }
 
 void FoxessBattery::setup(void) {  // Performs one time setup at startup
-  strncpy(datalayer.system.info.battery_protocol, "FoxESS HV2600/ECS4100 OEM battery", 63);
+  strncpy(datalayer.system.info.battery_protocol, Name, 63);
   datalayer.system.info.battery_protocol[63] = '\0';
   datalayer.battery.info.number_of_cells = 0;  //Startup with no cells, populates later when we know packsize
   datalayer.battery.info.max_design_voltage_dV = MAX_PACK_VOLTAGE_DV;
@@ -583,5 +582,3 @@ void FoxessBattery::setup(void) {  // Performs one time setup at startup
   datalayer.battery.info.max_cell_voltage_deviation_mV = MAX_CELL_DEVIATION_MV;
   datalayer.system.status.battery_allows_contactor_closing = true;
 }
-
-#endif

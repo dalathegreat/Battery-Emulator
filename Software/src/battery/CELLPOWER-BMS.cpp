@@ -1,10 +1,9 @@
-#include "../include.h"
-#ifdef CELLPOWER_BMS
+#include "CELLPOWER-BMS.h"
 #include "../communication/can/comm_can.h"
 #include "../datalayer/datalayer.h"
 #include "../datalayer/datalayer_extended.h"  //For "More battery info" webpage
 #include "../devboard/utils/events.h"
-#include "CELLPOWER-BMS.h"
+#include "../include.h"
 
 void CellPowerBms::update_values() {
 
@@ -230,7 +229,7 @@ void CellPowerBms::transmit_can(unsigned long currentMillis) {
 }
 
 void CellPowerBms::setup(void) {  // Performs one time setup at startup
-  strncpy(datalayer.system.info.battery_protocol, "Cellpower BMS", 63);
+  strncpy(datalayer.system.info.battery_protocol, Name, 63);
   datalayer.system.info.battery_protocol[63] = '\0';
   datalayer.system.status.battery_allows_contactor_closing = true;
   datalayer.battery.info.max_design_voltage_dV = MAX_PACK_VOLTAGE_DV;
@@ -238,5 +237,3 @@ void CellPowerBms::setup(void) {  // Performs one time setup at startup
   datalayer.battery.info.max_cell_voltage_mV = MAX_CELL_VOLTAGE_MV;
   datalayer.battery.info.min_cell_voltage_mV = MIN_CELL_VOLTAGE_MV;
 }
-
-#endif  // CELLPOWER_BMS

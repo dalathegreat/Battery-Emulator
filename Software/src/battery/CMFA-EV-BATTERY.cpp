@@ -1,10 +1,9 @@
-#include "../include.h"
-#ifdef CMFA_EV_BATTERY
+#include "CMFA-EV-BATTERY.h"
 #include "../communication/can/comm_can.h"
 #include "../datalayer/datalayer.h"
 #include "../datalayer/datalayer_extended.h"
 #include "../devboard/utils/events.h"
-#include "CMFA-EV-BATTERY.h"
+#include "../include.h"
 
 /* The raw SOC value sits at 90% when the battery is full, so we should report back 100% once this value is reached
 Same goes for low point, when 10% is reached we report 0% */
@@ -941,7 +940,7 @@ void CmfaEvBattery::transmit_can(unsigned long currentMillis) {
 }
 
 void CmfaEvBattery::setup(void) {  // Performs one time setup at startup
-  strncpy(datalayer.system.info.battery_protocol, "CMFA platform, 27 kWh battery", 63);
+  strncpy(datalayer.system.info.battery_protocol, Name, 63);
   datalayer.system.info.battery_protocol[63] = '\0';
   datalayer.system.status.battery_allows_contactor_closing = true;
   datalayer.battery.info.number_of_cells = 72;
@@ -951,5 +950,3 @@ void CmfaEvBattery::setup(void) {  // Performs one time setup at startup
   datalayer.battery.info.min_cell_voltage_mV = MIN_CELL_VOLTAGE_MV;
   datalayer.battery.info.max_cell_voltage_deviation_mV = MAX_CELL_DEVIATION_MV;
 }
-
-#endif  //CMFA_EV_BATTERY

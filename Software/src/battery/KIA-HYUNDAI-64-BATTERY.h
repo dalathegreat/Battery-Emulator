@@ -7,8 +7,9 @@
 #include "CanBattery.h"
 #include "KIA-HYUNDAI-64-HTML.h"
 
-#define BATTERY_SELECTED
+#ifdef KIA_HYUNDAI_64_BATTERY
 #define SELECTED_BATTERY_CLASS KiaHyundai64Battery
+#endif
 
 class KiaHyundai64Battery : public CanBattery {
  public:
@@ -34,6 +35,7 @@ class KiaHyundai64Battery : public CanBattery {
   virtual void handle_incoming_can_frame(CAN_frame rx_frame);
   virtual void update_values();
   virtual void transmit_can(unsigned long currentMillis);
+  static constexpr char* Name = "Kia/Hyundai 64/40kWh battery";
 
   BatteryHtmlRenderer& get_status_renderer() { return renderer; }
 

@@ -6,8 +6,9 @@
 #include "CanBattery.h"
 #include "ECMP-HTML.h"
 
-#define BATTERY_SELECTED
+#ifdef STELLANTIS_ECMP_BATTERY
 #define SELECTED_BATTERY_CLASS EcmpBattery
+#endif
 
 class EcmpBattery : public CanBattery {
  public:
@@ -15,6 +16,7 @@ class EcmpBattery : public CanBattery {
   virtual void handle_incoming_can_frame(CAN_frame rx_frame);
   virtual void update_values();
   virtual void transmit_can(unsigned long currentMillis);
+  static constexpr char* Name = "Stellantis ECMP battery";
 
   bool supports_clear_isolation() { return true; }
   void clear_isolation() { datalayer_extended.stellantisECMP.UserRequestIsolationReset = true; }
@@ -37,8 +39,8 @@ class EcmpBattery : public CanBattery {
   static const int MAX_CELL_DEVIATION_MV = 100;
   static const int MAX_CELL_VOLTAGE_MV = 4250;
   static const int MIN_CELL_VOLTAGE_MV = 2700;
-#define NOT_SAMPLED_YET 255
-#define COMPLETED_STATE 0
+  static const int NOT_SAMPLED_YET = 255;
+  static const int COMPLETED_STATE = 0;
   bool battery_RelayOpenRequest = false;
   bool battery_InterlockOpen = false;
   uint8_t ContactorResetStatemachine = 0;
@@ -142,77 +144,77 @@ class EcmpBattery : public CanBattery {
   unsigned long previousMillis500 = 0;   // will store last time a 500ms CAN Message was sent
   unsigned long previousMillis1000 = 0;  // will store last time a 1000ms CAN Message was sent
   unsigned long previousMillis5000 = 0;  // will store last time a 1000ms CAN Message was sent
-#define PID_WELD_CHECK 0xD814
-#define PID_CONT_REASON_OPEN 0xD812
-#define PID_CONTACTOR_STATUS 0xD813
-#define PID_NEG_CONT_CONTROL 0xD44F
-#define PID_NEG_CONT_STATUS 0xD453
-#define PID_POS_CONT_CONTROL 0xD44E
-#define PID_POS_CONT_STATUS 0xD452
-#define PID_CONTACTOR_NEGATIVE 0xD44C
-#define PID_CONTACTOR_POSITIVE 0xD44D
-#define PID_PRECHARGE_RELAY_CONTROL 0xD44B
-#define PID_PRECHARGE_RELAY_STATUS 0xD451
-#define PID_RECHARGE_STATUS 0xD864
-#define PID_DELTA_TEMPERATURE 0xD878
-#define PID_COLDEST_MODULE 0xD446
-#define PID_LOWEST_TEMPERATURE 0xD87D
-#define PID_AVERAGE_TEMPERATURE 0xD877
-#define PID_HIGHEST_TEMPERATURE 0xD817
-#define PID_HOTTEST_MODULE 0xD445
-#define PID_AVG_CELL_VOLTAGE 0xD43D
-#define PID_CURRENT 0xD816
-#define PID_INSULATION_NEG 0xD87C
-#define PID_INSULATION_POS 0xD87B
-#define PID_MAX_CURRENT_10S 0xD876
-#define PID_MAX_DISCHARGE_10S 0xD873
-#define PID_MAX_DISCHARGE_30S 0xD874
-#define PID_MAX_CHARGE_10S 0xD871
-#define PID_MAX_CHARGE_30S 0xD872
-#define PID_ENERGY_CAPACITY 0xD860
-#define PID_HIGH_CELL_NUM 0xD43B
-#define PID_LOW_CELL_NUM 0xD43C
-#define PID_SUM_OF_CELLS 0xD438
-#define PID_CELL_MIN_CAPACITY 0xD413
-#define PID_CELL_VOLTAGE_MEAS_STATUS 0xD48A
-#define PID_INSULATION_RES 0xD47A
-#define PID_PACK_VOLTAGE 0xD815
-#define PID_HIGH_CELL_VOLTAGE 0xD870
-#define PID_ALL_CELL_VOLTAGES 0xD440  //Multi-frame
-#define PID_LOW_CELL_VOLTAGE 0xD86F
-#define PID_BATTERY_ENERGY 0xD865
-#define PID_BATTERY_ENERGY 0xD865
-#define PID_CELLBALANCE_STATUS 0xD46F      //Multi-frame?
-#define PID_CELLBALANCE_HWERR_MASK 0xD470  //Multi-frame
-#define PID_CRASH_COUNTER 0xD42F
-#define PID_WIRE_CRASH 0xD87F
-#define PID_CAN_CRASH 0xD48D
-#define PID_HISTORY_DATA 0xD465
-#define PID_LOWSOC_COUNTER 0xD492           //Not supported on all batteris
-#define PID_LAST_CAN_FAILURE_DETAIL 0xD89E  //Not supported on all batteris
-#define PID_HW_VERSION_NUM 0xF193           //Not supported on all batteris
-#define PID_SW_VERSION_NUM 0xF195           //Not supported on all batteris
-#define PID_FACTORY_MODE_CONTROL 0xD900
-#define PID_BATTERY_SERIAL 0xD901
-#define PID_ALL_CELL_SOH 0xD4B5  //Very long message reply, too much data for this integration
-#define PID_AUX_FUSE_STATE 0xD86C
-#define PID_BATTERY_STATE 0xD811
-#define PID_PRECHARGE_SHORT_CIRCUIT 0xD4D8
-#define PID_ESERVICE_PLUG_STATE 0xD86A
-#define PID_MAINFUSE_STATE 0xD86B
-#define PID_MOST_CRITICAL_FAULT 0xD481
-#define PID_CURRENT_TIME 0xD47F
-#define PID_TIME_SENT_BY_CAR 0xD4CA
-#define PID_12V 0xD822
-#define PID_12V_ABNORMAL 0xD42B
-#define PID_HVIL_IN_VOLTAGE 0xD46B
-#define PID_HVIL_OUT_VOLTAGE 0xD46A
-#define PID_HVIL_STATE 0xD869
-#define PID_BMS_STATE 0xD45A
-#define PID_VEHICLE_SPEED 0xD802
-#define PID_TIME_SPENT_OVER_55C 0xE082
-#define PID_CONTACTOR_CLOSING_COUNTER 0xD416
-#define PID_DATE_OF_MANUFACTURE 0xF18B
+
+  static const uint16_t PID_WELD_CHECK = 0xD814;
+  static const uint16_t PID_CONT_REASON_OPEN = 0xD812;
+  static const uint16_t PID_CONTACTOR_STATUS = 0xD813;
+  static const uint16_t PID_NEG_CONT_CONTROL = 0xD44F;
+  static const uint16_t PID_NEG_CONT_STATUS = 0xD453;
+  static const uint16_t PID_POS_CONT_CONTROL = 0xD44E;
+  static const uint16_t PID_POS_CONT_STATUS = 0xD452;
+  static const uint16_t PID_CONTACTOR_NEGATIVE = 0xD44C;
+  static const uint16_t PID_CONTACTOR_POSITIVE = 0xD44D;
+  static const uint16_t PID_PRECHARGE_RELAY_CONTROL = 0xD44B;
+  static const uint16_t PID_PRECHARGE_RELAY_STATUS = 0xD451;
+  static const uint16_t PID_RECHARGE_STATUS = 0xD864;
+  static const uint16_t PID_DELTA_TEMPERATURE = 0xD878;
+  static const uint16_t PID_COLDEST_MODULE = 0xD446;
+  static const uint16_t PID_LOWEST_TEMPERATURE = 0xD87D;
+  static const uint16_t PID_AVERAGE_TEMPERATURE = 0xD877;
+  static const uint16_t PID_HIGHEST_TEMPERATURE = 0xD817;
+  static const uint16_t PID_HOTTEST_MODULE = 0xD445;
+  static const uint16_t PID_AVG_CELL_VOLTAGE = 0xD43D;
+  static const uint16_t PID_CURRENT = 0xD816;
+  static const uint16_t PID_INSULATION_NEG = 0xD87C;
+  static const uint16_t PID_INSULATION_POS = 0xD87B;
+  static const uint16_t PID_MAX_CURRENT_10S = 0xD876;
+  static const uint16_t PID_MAX_DISCHARGE_10S = 0xD873;
+  static const uint16_t PID_MAX_DISCHARGE_30S = 0xD874;
+  static const uint16_t PID_MAX_CHARGE_10S = 0xD871;
+  static const uint16_t PID_MAX_CHARGE_30S = 0xD872;
+  static const uint16_t PID_ENERGY_CAPACITY = 0xD860;
+  static const uint16_t PID_HIGH_CELL_NUM = 0xD43B;
+  static const uint16_t PID_LOW_CELL_NUM = 0xD43C;
+  static const uint16_t PID_SUM_OF_CELLS = 0xD438;
+  static const uint16_t PID_CELL_MIN_CAPACITY = 0xD413;
+  static const uint16_t PID_CELL_VOLTAGE_MEAS_STATUS = 0xD48A;
+  static const uint16_t PID_INSULATION_RES = 0xD47A;
+  static const uint16_t PID_PACK_VOLTAGE = 0xD815;
+  static const uint16_t PID_HIGH_CELL_VOLTAGE = 0xD870;
+  static const uint16_t PID_ALL_CELL_VOLTAGES = 0xD440;  //Multi-frame
+  static const uint16_t PID_LOW_CELL_VOLTAGE = 0xD86F;
+  static const uint16_t PID_BATTERY_ENERGY = 0xD865;
+  static const uint16_t PID_CELLBALANCE_STATUS = 0xD46F;      //Multi-frame?
+  static const uint16_t PID_CELLBALANCE_HWERR_MASK = 0xD470;  //Multi-frame
+  static const uint16_t PID_CRASH_COUNTER = 0xD42F;
+  static const uint16_t PID_WIRE_CRASH = 0xD87F;
+  static const uint16_t PID_CAN_CRASH = 0xD48D;
+  static const uint16_t PID_HISTORY_DATA = 0xD465;
+  static const uint16_t PID_LOWSOC_COUNTER = 0xD492;           //Not supported on all batteris
+  static const uint16_t PID_LAST_CAN_FAILURE_DETAIL = 0xD89E;  //Not supported on all batteris
+  static const uint16_t PID_HW_VERSION_NUM = 0xF193;           //Not supported on all batteris
+  static const uint16_t PID_SW_VERSION_NUM = 0xF195;           //Not supported on all batteris
+  static const uint16_t PID_FACTORY_MODE_CONTROL = 0xD900;
+  static const uint16_t PID_BATTERY_SERIAL = 0xD901;
+  static const uint16_t PID_ALL_CELL_SOH = 0xD4B5;  //Very long message reply, too much data for this integration
+  static const uint16_t PID_AUX_FUSE_STATE = 0xD86C;
+  static const uint16_t PID_BATTERY_STATE = 0xD811;
+  static const uint16_t PID_PRECHARGE_SHORT_CIRCUIT = 0xD4D8;
+  static const uint16_t PID_ESERVICE_PLUG_STATE = 0xD86A;
+  static const uint16_t PID_MAINFUSE_STATE = 0xD86B;
+  static const uint16_t PID_MOST_CRITICAL_FAULT = 0xD481;
+  static const uint16_t PID_CURRENT_TIME = 0xD47F;
+  static const uint16_t PID_TIME_SENT_BY_CAR = 0xD4CA;
+  static const uint16_t PID_12V = 0xD822;
+  static const uint16_t PID_12V_ABNORMAL = 0xD42B;
+  static const uint16_t PID_HVIL_IN_VOLTAGE = 0xD46B;
+  static const uint16_t PID_HVIL_OUT_VOLTAGE = 0xD46A;
+  static const uint16_t PID_HVIL_STATE = 0xD869;
+  static const uint16_t PID_BMS_STATE = 0xD45A;
+  static const uint16_t PID_VEHICLE_SPEED = 0xD802;
+  static const uint16_t PID_TIME_SPENT_OVER_55C = 0xE082;
+  static const uint16_t PID_CONTACTOR_CLOSING_COUNTER = 0xD416;
+  static const uint16_t PID_DATE_OF_MANUFACTURE = 0xF18B;
 
   uint16_t poll_state = PID_WELD_CHECK;
   uint16_t incoming_poll = 0;

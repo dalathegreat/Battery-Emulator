@@ -1,9 +1,8 @@
-#include "../include.h"
-#ifdef ORION_BMS
+#include "ORION-BMS.h"
 #include "../communication/can/comm_can.h"
 #include "../datalayer/datalayer.h"
 #include "../devboard/utils/events.h"
-#include "ORION-BMS.h"
+#include "../include.h"
 
 void findMinMaxCellvoltages(const uint16_t arr[], size_t size, uint16_t& Minimum_Cell_Voltage,
                             uint16_t& Maximum_Cell_Voltage) {
@@ -115,7 +114,7 @@ void OrionBms::transmit_can(unsigned long currentMillis) {
 }
 
 void OrionBms::setup(void) {  // Performs one time setup at startup
-  strncpy(datalayer.system.info.battery_protocol, "DIY battery with Orion BMS (Victron setting)", 63);
+  strncpy(datalayer.system.info.battery_protocol, Name, 63);
   datalayer.system.info.battery_protocol[63] = '\0';
   datalayer.battery.info.number_of_cells = NUMBER_OF_CELLS;
   datalayer.battery.info.max_design_voltage_dV = MAX_PACK_VOLTAGE_DV;
@@ -124,5 +123,3 @@ void OrionBms::setup(void) {  // Performs one time setup at startup
   datalayer.battery.info.min_cell_voltage_mV = MIN_CELL_VOLTAGE_MV;
   datalayer.system.status.battery_allows_contactor_closing = true;
 }
-
-#endif

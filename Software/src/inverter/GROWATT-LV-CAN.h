@@ -14,6 +14,7 @@ class GrowattLvInverter : public CanInverterProtocol {
   void update_values();
   void transmit_can(unsigned long currentMillis);
   void map_can_frame_to_variable(CAN_frame rx_frame);
+  static constexpr char* Name = "Growatt Low Voltage (48V) protocol via CAN";
 
  private:
   //Actual content messages

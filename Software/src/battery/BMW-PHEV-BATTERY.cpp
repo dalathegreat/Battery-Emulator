@@ -1,10 +1,9 @@
-#include "../include.h"
-#ifdef BMW_PHEV_BATTERY
+#include "BMW-PHEV-BATTERY.h"
 #include "../communication/can/comm_can.h"
 #include "../datalayer/datalayer.h"
 #include "../datalayer/datalayer_extended.h"
 #include "../devboard/utils/events.h"
-#include "BMW-PHEV-BATTERY.h"
+#include "../include.h"
 
 const unsigned char crc8_table[256] =
     {  // CRC8_SAE_J1850_ZER0 formula,0x1D Poly,initial value 0x3F,Final XOR value varies
@@ -714,5 +713,3 @@ void BmwPhevBattery::setup(void) {  // Performs one time setup at startup
   datalayer.battery.info.max_cell_voltage_deviation_mV = MAX_CELL_DEVIATION_MV;
   datalayer.system.status.battery_allows_contactor_closing = true;
 }
-
-#endif
