@@ -2,6 +2,7 @@
 #include <Arduino.h>
 #include "../../../src/communication/contactorcontrol/comm_contactorcontrol.h"
 #include "../../charger/CHARGERS.h"
+#include "../../communication/can/comm_can.h"
 #include "../../communication/nvm/comm_nvm.h"
 #include "../../datalayer/datalayer.h"
 #include "../../include.h"
@@ -67,6 +68,19 @@ void render_checkbox(String& content, const char* label, bool enabled, const cha
   content += " value='on'/>";
 }
 
+const char* name_for_button_type(STOP_BUTTON_BEHAVIOR behavior) {
+  switch (behavior) {
+    case STOP_BUTTON_BEHAVIOR::LATCHING_SWITCH:
+      return "Latching";
+    case STOP_BUTTON_BEHAVIOR::MOMENTARY_SWITCH:
+      return "Momentary";
+    case STOP_BUTTON_BEHAVIOR::NOT_CONNECTED:
+      return "Not connected";
+    default:
+      return nullptr;
+  }
+}
+
 String settings_processor(const String& var) {
   if (var == "X") {
     String content = "";
@@ -116,6 +130,12 @@ String settings_processor(const String& var) {
         options_for_enum((ChargerType)settings.getUInt("CHGTYPE", (int)ChargerType::None), name_for_charger_type);
     content += "</select>";
 
+    content += "<label>Equipment stop button: </label><select style='max-width: 250px;' name='EQSTOP'>";
+    content +=
+        options_for_enum((STOP_BUTTON_BEHAVIOR)settings.getUInt("EQSTOP", (int)STOP_BUTTON_BEHAVIOR::NOT_CONNECTED),
+                         name_for_button_type);
+    content += "</select>";
+
     // TODO: Generalize settings: define settings in one place and use the definitions to render
     // UI and handle load/save
     render_checkbox(content, "Double battery", settings.getBool("DBLBTR"), "DBLBTR");
@@ -124,6 +144,7 @@ String settings_processor(const String& var) {
     render_checkbox(content, "PWM contactor control", settings.getBool("PWMCNTCTRL"), "PWMCNTCTRL");
     render_checkbox(content, "Periodic BMS reset", settings.getBool("PERBMSRESET"), "PERBMSRESET");
     render_checkbox(content, "Remote BMS reset", settings.getBool("REMBMSRESET"), "REMBMSRESET");
+    render_checkbox(content, "Use CanFD as classic CAN", settings.getBool("CANFDASCAN"), "CANFDASCAN");
 
     content +=
         "<div style='grid-column: span 2; text-align: center; padding-top: 10px;'><button "
@@ -454,19 +475,19 @@ const char* getCANInterfaceName(CAN_Interface interface) {
     case CAN_NATIVE:
       return "CAN";
     case CANFD_NATIVE:
-#ifdef USE_CANFD_INTERFACE_AS_CLASSIC_CAN
-      return "CAN-FD Native (Classic CAN)";
-#else
-      return "CAN-FD Native";
-#endif
+      if (use_canfd_as_can) {
+        return "CAN-FD Native (Classic CAN)";
+      } else {
+        return "CAN-FD Native";
+      }
     case CAN_ADDON_MCP2515:
       return "Add-on CAN via GPIO MCP2515";
     case CANFD_ADDON_MCP2518:
-#ifdef USE_CANFD_INTERFACE_AS_CLASSIC_CAN
-      return "Add-on CAN-FD via GPIO MCP2518 (Classic CAN)";
-#else
-      return "Add-on CAN-FD via GPIO MCP2518";
-#endif
+      if (use_canfd_as_can) {
+        return "Add-on CAN-FD via GPIO MCP2518 (Classic CAN)";
+      } else {
+        return "Add-on CAN-FD via GPIO MCP2518";
+      }
     default:
       return "UNKNOWN";
   }

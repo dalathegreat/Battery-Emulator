@@ -1,15 +1,16 @@
 #ifndef __HW_3LB_H__
 #define __HW_3LB_H__
 
-// Board boot-up time
-#define BOOTUP_TIME 1000  // Time in ms it takes before system is considered fully started up
+#include "hal.h"
 
-// Core assignment
-#define CORE_FUNCTION_CORE 1
-#define MODBUS_CORE 0
-#define WIFI_CORE 0
+class ThreeLBHal : public Esp32Hal {
+ public:
+  const char* name() { return "3LB board"; }
+  // Board boot-up time
+  duration BOOTUP_TIME() { return milliseconds(1000); }
+};
 
-// RS485
+/*// RS485
 //#define PIN_5V_EN 16
 //#define RS485_EN_PIN 17  // 17 /RE
 #define RS485_TX_PIN 1  // 21
@@ -78,7 +79,7 @@
 #define WUP_PIN1 GPIO_NUM_25  // Wake up pin for battery 1
 #define WUP_PIN2 GPIO_NUM_32  // Wake up pin for battery 2
 
-/* ----- Error checks below, don't change (can't be moved to separate file) ----- */
+// ----- Error checks below, don't change (can't be moved to separate file) ----- 
 #ifndef HW_CONFIGURED
 #define HW_CONFIGURED
 #else
@@ -91,18 +92,6 @@
 #endif
 #endif
 
-#ifdef EQUIPMENT_STOP_BUTTON
-#ifdef CAN_ADDON
-#error EQUIPMENT_STOP_BUTTON and CAN_ADDON cannot coexist due to overlapping GPIO pin usage
-#endif
-#ifdef CANFD_ADDON
-#error EQUIPMENT_STOP_BUTTON and CANFD_ADDON cannot coexist due to overlapping GPIO pin usage
-#endif
-#ifdef CHADEMO_BATTERY
-#error EQUIPMENT_STOP_BUTTON and CHADEMO_BATTERY cannot coexist due to overlapping GPIO pin usage
-#endif
-#endif
-
 #ifdef BMW_I3_BATTERY
 #if defined(CONTACTOR_CONTROL) && defined(WUP_PIN1)
 #error GPIO PIN 25 cannot be used for both BMWi3 Wakeup and contactor control. Disable CONTACTOR_CONTROL
@@ -111,5 +100,5 @@
 #error GPIO PIN 32 cannot be used for both BMWi3 Wakeup and contactor control. Disable CONTACTOR_CONTROL
 #endif
 #endif
-
+*/
 #endif

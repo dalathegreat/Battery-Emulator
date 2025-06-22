@@ -70,7 +70,14 @@ void DalyBms::setup(void) {  // Performs one time setup at startup
   datalayer.battery.info.total_capacity_Wh = BATTERY_WH_MAX;
   datalayer.system.status.battery_allows_contactor_closing = true;
 
-  Serial2.begin(baud_rate(), SERIAL_8N1, RS485_RX_PIN, RS485_TX_PIN);
+  auto rx_pin = esp32hal->RS485_RX_PIN();
+  auto tx_pin = esp32hal->RS485_TX_PIN();
+
+  if (!esp32hal->alloc_pins(Name, rx_pin, tx_pin)) {
+    return;
+  }
+
+  Serial2.begin(baud_rate(), SERIAL_8N1, rx_pin, tx_pin);
 }
 
 uint8_t calculate_checksum(uint8_t buff[12]) {

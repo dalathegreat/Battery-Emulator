@@ -1,6 +1,8 @@
 #ifndef __HW_STARK_H__
 #define __HW_STARK_H__
 
+#include "hal.h"
+
 /*
 Stark CMR v1 - DIN-rail module with 4 power outputs, 1 x rs485, 1 x can and 1 x can-fd channel.
 For more information on this board visit the project discord or contact johan@redispose.se
@@ -15,15 +17,13 @@ GPIOs on extra header
 * GPIO 15 (JTAG TDO)
 */
 
-// Board boot-up time
-#define BOOTUP_TIME 5000  // Time in ms it takes before system is considered fully started up
+class StarkHal : public Esp32Hal {
+ public:
+  const char* name() { return "Stark CMR Module"; }
+  duration BOOTUP_TIME() { return milliseconds(5000); }
+};
 
-// Core assignment
-#define CORE_FUNCTION_CORE 1
-#define MODBUS_CORE 0
-#define WIFI_CORE 0
-
-// RS485
+/*// RS485
 // #define PIN_5V_EN 16     // Not needed, GPIO 16 has hardware pullup for PSRAM compatibility
 // #define RS485_EN_PIN 17  // Not needed, GPIO 17 is used as SCK input of MCP2517
 #define RS485_TX_PIN 22
@@ -70,7 +70,7 @@ GPIOs on extra header
 #define WUP_PIN1 GPIO_NUM_25  // Wake up pin for battery 1
 #define WUP_PIN2 GPIO_NUM_32  // Wake up pin for battery 2
 
-/* ----- Error checks below, don't change (can't be moved to separate file) ----- */
+// ----- Error checks below, don't change (can't be moved to separate file) ----- 
 #ifndef HW_CONFIGURED
 #define HW_CONFIGURED
 #else
@@ -85,5 +85,6 @@ GPIOs on extra header
 #error GPIO PIN 32 cannot be used for both BMWi3 Wakeup and contactor control. Disable CONTACTOR_CONTROL
 #endif
 #endif  // BMW_I3_BATTERY
+*/
 
 #endif  // __HW_STARK_H__

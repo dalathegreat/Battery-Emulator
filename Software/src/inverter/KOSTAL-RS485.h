@@ -19,7 +19,8 @@
 
 class KostalInverterProtocol : public Rs485InverterProtocol {
  public:
-  void setup();
+  const char* name() override { return Name; }
+  bool setup() override;
   void receive();
   void update_values();
   static constexpr char* Name = "BYD battery via Kostal RS485";

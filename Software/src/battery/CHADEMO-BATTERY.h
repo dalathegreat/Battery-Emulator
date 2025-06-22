@@ -13,6 +13,18 @@
 
 class ChademoBattery : public CanBattery {
  public:
+  ChademoBattery() {
+    pin2 = esp32hal->CHADEMO_PIN_2();
+    pin10 = esp32hal->CHADEMO_PIN_10();
+    pin4 = esp32hal->CHADEMO_PIN_4();
+    pin7 = esp32hal->CHADEMO_PIN_7();
+    pin_lock = esp32hal->CHADEMO_LOCK();
+
+    // Assuming these are initialized by contactor control module.
+    precharge = esp32hal->PRECHARGE_PIN();
+    positive_contactor = esp32hal->POSITIVE_CONTACTOR_PIN();
+  }
+
   virtual void setup(void);
   virtual void handle_incoming_can_frame(CAN_frame rx_frame);
   virtual void update_values();
@@ -21,6 +33,8 @@ class ChademoBattery : public CanBattery {
   static constexpr char* Name = "Chademo V2X mode";
 
  private:
+  gpio_num_t pin2, pin10, pin4, pin7, pin_lock, precharge, positive_contactor;
+
   void process_vehicle_charging_minimums(CAN_frame rx_frame);
   void process_vehicle_charging_maximums(CAN_frame rx_frame);
   void process_vehicle_charging_session(CAN_frame rx_frame);

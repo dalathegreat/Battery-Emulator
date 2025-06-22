@@ -14,10 +14,11 @@ The pin layout below supports the following:
 // Board boot-up time
 #define BOOTUP_TIME 1000  // Time in ms it takes before system is considered fully started up
 
-// Core assignment
-#define CORE_FUNCTION_CORE 1
-#define MODBUS_CORE 0
-#define WIFI_CORE 0
+class DevKitHal : public Esp32Hal {
+ public:
+  const char* name() { return "ESP32 DevKit V1"; }
+  duration BOOTUP_TIME() { return milliseconds(1000); }
+};
 
 // RS485
 #define RS485_TX_PIN GPIO_NUM_1

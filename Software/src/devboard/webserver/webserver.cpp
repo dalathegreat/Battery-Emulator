@@ -394,7 +394,8 @@ void init_webserver() {
     bool newValue;
   };
 
-  const char* boolSettingNames[] = {"DBLBTR", "CNTCTRL", "CNTCTRLDBL", "PWMCNTCTRL", "PERBMSRESET", "REMBMSRESET"};
+  const char* boolSettingNames[] = {"DBLBTR",      "CNTCTRL",     "CNTCTRLDBL", "PWMCNTCTRL",
+                                    "PERBMSRESET", "REMBMSRESET", "CANFDASCAN"};
 
 #ifdef COMMON_IMAGE
   // Handles the form POST from UI to save certain settings: battery/inverter type and double battery on/off
@@ -419,19 +420,10 @@ void init_webserver() {
       } else if (p->name() == "charger") {
         auto type = static_cast<ChargerType>(atoi(p->value().c_str()));
         settings.saveUInt("CHGTYPE", (int)type);
-      } /*else if (p->name() == "dblbtr") {
-        newDoubleBattery = p->value() == "on";
-      } else if (p->name() == "contctrl") {
-        settings.saveBool("CNTCTRL", p->value() == "on");
-      } else if (p->name() == "contctrldbl") {
-        settings.saveBool("CNTCTRLDBL", p->value() == "on");
-      } else if (p->name() == "pwmcontctrl") {
-        settings.saveBool("PWMCNTCTRL", p->value() == "on");
-      } else if (p->name() == "PERBMSRESET") {
-        settings.saveBool("PERBMSRESET", p->value() == "on");
-      } else if (p->name() == "REMBMSRESET") {
-        settings.saveBool("REMBMSRESET", p->value() == "on");
-      }*/
+      } else if (p->name() == "EQSTOP") {
+        auto type = static_cast<STOP_BUTTON_BEHAVIOR>(atoi(p->value().c_str()));
+        settings.saveUInt("EQSTOP", (int)type);
+      }
 
       for (auto& boolSetting : boolSettings) {
         if (p->name() == boolSetting.name) {
@@ -929,19 +921,8 @@ String get_firmware_info_processor(const String& var) {
   if (var == "X") {
     String content = "";
     static JsonDocument doc;
-#ifdef HW_LILYGO
-    doc["hardware"] = "LilyGo T-CAN485";
-#endif  // HW_LILYGO
-#ifdef HW_STARK
-    doc["hardware"] = "Stark CMR Module";
-#endif  // HW_STARK
-#ifdef HW_3LB
-    doc["hardware"] = "3LB board";
-#endif  // HW_3LB
-#ifdef HW_DEVKIT
-    doc["hardware"] = "ESP32 DevKit V1";
-#endif  // HW_DEVKIT
 
+    doc["hardware"] = esp32hal->name();
     doc["firmware"] = String(version_number);
     serializeJson(doc, content);
     return content;
@@ -1022,7 +1003,7 @@ String processor(const String& var) {
       // Display which components are used
       if (inverter) {
         content += "<h4 style='color: white;'>Inverter protocol: ";
-        content += datalayer.system.info.inverter_protocol;
+        content += inverter->name();
         content += " ";
         content += datalayer.system.info.inverter_brand;
         content += "</h4>";

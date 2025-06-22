@@ -1,0 +1,30 @@
+#include "hal.h"
+
+#include "../../../USER_SETTINGS.h"
+
+#include "hw_3LB.h"
+#include "hw_devkit.h"
+#include "hw_lilygo.h"
+#include "hw_stark.h"
+
+extern Esp32Hal* esp32hal;
+
+void init_hal() {
+#if defined(HW_LILYGO)
+  esp32hal = new LilyGoHal();
+#elif defined(HW_STARK)
+  esp32hal = new StarkHal();
+#elif defined(HW_3LB)
+  esp32hal = new ThreeLBHal();
+#elif defined(HW_DEVKIT)
+  esp32hal = new DevKitHal();
+#else
+#error "No HW defined."
+#endif
+}
+
+unsigned long millis();
+
+bool Esp32Hal::system_booted_up() {
+  return milliseconds(millis()) > BOOTUP_TIME();
+}

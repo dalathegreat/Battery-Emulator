@@ -246,13 +246,13 @@ static bool publish_common_info(void) {
     doc["pause_status"] = get_emulator_pause_status();
 
     //only publish these values if BMS is active and we are comunication  with the battery (can send CAN messages to the battery)
-    if (datalayer.battery.status.CAN_battery_still_alive && allowed_to_send_CAN && millis() > BOOTUP_TIME) {
+    if (datalayer.battery.status.CAN_battery_still_alive && allowed_to_send_CAN && esp32hal->system_booted_up()) {
       set_battery_attributes(doc, datalayer.battery, "", battery->supports_charged_energy());
     }
 
     if (battery2) {
       //only publish these values if BMS is active and we are comunication  with the battery (can send CAN messages to the battery)
-      if (datalayer.battery2.status.CAN_battery_still_alive && allowed_to_send_CAN && millis() > BOOTUP_TIME) {
+      if (datalayer.battery2.status.CAN_battery_still_alive && allowed_to_send_CAN && esp32hal->system_booted_up()) {
         set_battery_attributes(doc, datalayer.battery2, "_2", battery2->supports_charged_energy());
       }
     }

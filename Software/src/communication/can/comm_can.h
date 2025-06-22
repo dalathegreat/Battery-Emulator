@@ -8,24 +8,23 @@
 #include "../../devboard/utils/value_mapping.h"
 #include "../../lib/ESP32Async-ESPAsyncWebServer/src/ESPAsyncWebServer.h"
 #include "../../lib/miwagner-ESP32-Arduino-CAN/ESP32CAN.h"
-#ifdef CAN_ADDON
-#include "../../lib/pierremolinaro-acan2515/ACAN2515.h"
-#endif  //CAN_ADDON
-#ifdef CANFD_ADDON
-#include "../../lib/pierremolinaro-ACAN2517FD/ACAN2517FD.h"
-#endif  //CANFD_ADDON
+
+extern bool use_canfd_as_can;
 
 void dump_can_frame(CAN_frame& frame, frameDirection msgDir);
 void transmit_can_frame(CAN_frame* tx_frame, int interface);
 
+// Register a receiver object for a given CAN interface
+void register_can_receiver(CanReceiver* receiver, CAN_Interface interface);
+
 /**
- * @brief Initialization function for CAN.
+ * @brief Initializes all CAN interfaces requested earlier by other modules (see register_can_receiver)
  *
  * @param[in] void
  *
- * @return void
+ * @return true if CAN interfaces were initialized successfully, false otherwise.
  */
-void init_CAN();
+bool init_CAN();
 
 /**
  * @brief Receive CAN messages from all interfaces 

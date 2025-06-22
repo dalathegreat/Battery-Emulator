@@ -1,7 +1,11 @@
 #ifndef _TYPES_H_
 #define _TYPES_H_
 
+#include <chrono>
 #include <string>
+
+using milliseconds = std::chrono::milliseconds;
+using duration = std::chrono::duration<unsigned long, std::ratio<1, 1000>>;
 
 enum bms_status_enum { STANDBY = 0, INACTIVE = 1, DARKSTART = 2, ACTIVE = 3, FAULT = 4, UPDATING = 5 };
 enum real_bms_status_enum { BMS_DISCONNECTED = 0, BMS_STANDBY = 1, BMS_ACTIVE = 2, BMS_FAULT = 3 };
@@ -42,7 +46,20 @@ enum PrechargeState {
 #define CAN_STILL_ALIVE 60
 // Set by battery each time we get a CAN message. Decrements every second. When reaching 0, sets event
 
-typedef enum { CAN_NATIVE = 0, CANFD_NATIVE = 1, CAN_ADDON_MCP2515 = 2, CANFD_ADDON_MCP2518 = 3 } CAN_Interface;
+enum CAN_Interface {
+  // Native CAN port on the LilyGo & Stark hardware
+  CAN_NATIVE = 0,
+
+  // Native CANFD port on the Stark CMR hardware
+  CANFD_NATIVE = 1,
+
+  // Add-on CAN MCP2515 connected to GPIO pins
+  CAN_ADDON_MCP2515 = 2,
+
+  // Add-on CAN-FD MCP2518 connected to GPIO pins
+  CANFD_ADDON_MCP2518 = 3
+};
+
 extern const char* getCANInterfaceName(CAN_Interface interface);
 
 /* CAN Frame structure */

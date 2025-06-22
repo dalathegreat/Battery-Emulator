@@ -31,6 +31,6 @@ extern InverterProtocol* inverter;
 #include "SUNGROW-CAN.h"
 
 // Call to initialize the build-time selected inverter. Safe to call even though inverter was not selected.
-void setup_inverter();
+bool setup_inverter();
 
 #endif

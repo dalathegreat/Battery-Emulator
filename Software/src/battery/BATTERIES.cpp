@@ -35,10 +35,8 @@ extern const char* name_for_battery_type(BatteryType type) {
       return BydAttoBattery::Name;
     case BatteryType::CellPowerBms:
       return CellPowerBms::Name;
-#ifdef CHADEMO_PIN_2  // Only support chademo for certain platforms
     case BatteryType::Chademo:
       return ChademoBattery::Name;
-#endif
     case BatteryType::CmfaEv:
       return CmfaEvBattery::Name;
     case BatteryType::Foxess:
@@ -124,10 +122,8 @@ Battery* create_battery(BatteryType type) {
       return new BydAttoBattery();
     case BatteryType::CellPowerBms:
       return new CellPowerBms();
-#ifdef CHADEMO_PIN_2  // Only support chademo for certain platforms
     case BatteryType::Chademo:
       return new ChademoBattery();
-#endif
     case BatteryType::CmfaEv:
       return new CmfaEvBattery();
     case BatteryType::Foxess:
@@ -210,7 +206,7 @@ void setup_battery() {
         break;
       case BatteryType::BmwI3:
         battery2 = new BmwI3Battery(&datalayer.battery2, &datalayer.system.status.battery2_allowed_contactor_closing,
-                                    can_config.battery_double, WUP_PIN2);
+                                    can_config.battery_double, esp32hal->WUP_PIN2());
         break;
       case BatteryType::KiaHyundai64:
         battery2 = new KiaHyundai64Battery(&datalayer.battery2, &datalayer_extended.KiaHyundai64_2,

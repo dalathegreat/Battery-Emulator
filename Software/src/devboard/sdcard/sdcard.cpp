@@ -1,9 +1,6 @@
 #include "sdcard.h"
 #include "freertos/ringbuf.h"
 
-#if defined(SD_CS_PIN) && defined(SD_SCLK_PIN) && defined(SD_MOSI_PIN) && \
-    defined(SD_MISO_PIN)  // ensure code is only compiled if all SD card pins are defined
-
 File can_log_file;
 File log_file;
 RingbufHandle_t can_bufferHandle;
@@ -185,11 +182,20 @@ void init_logging_buffers() {
 #endif  // defined(LOG_TO_SD)
 }
 
-void init_sdcard() {
+bool init_sdcard() {
 
-  pinMode(SD_MISO_PIN, INPUT_PULLUP);
+  auto miso_pin = esp32hal->SD_MISO_PIN();
+  auto mosi_pin = esp32hal->SD_MOSI_PIN();
+  auto miso_pin = esp32hal->SD_MISO_PIN();
+  auto sclk_pin = esp32hal->SD_SCLK_PIN();
 
-  SD_MMC.setPins(SD_SCLK_PIN, SD_MOSI_PIN, SD_MISO_PIN);
+  if (!esp32hal->alloc_pins("SD Card", miso_pin, mosi_pin)) {
+    return false;
+  }
+
+  pinMode(miso_pin, INPUT_PULLUP);
+
+  SD_MMC.setPins(sclk_pin, mosi_pin, miso_pin);
   if (!SD_MMC.begin("/root", true, true, SDMMC_FREQ_HIGHSPEED)) {
     set_event_latched(EVENT_SD_INIT_FAILED, 0);
 #ifdef DEBUG_LOG
@@ -208,6 +214,8 @@ void init_sdcard() {
 #ifdef DEBUG_LOG
   log_sdcard_details();
 #endif  // DEBUG_LOG
+
+  return true;
 }
 
 void log_sdcard_details() {
@@ -245,4 +253,3 @@ void log_sdcard_details() {
     logging.println(" MB");
   }
 }
-#endif  // defined(SD_CS_PIN) && defined(SD_SCLK_PIN) && defined(SD_MOSI_PIN) && defined(SD_MISO_PIN)

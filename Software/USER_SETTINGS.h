@@ -9,6 +9,8 @@
 /* There are also some options for battery limits and extra functionality */
 /* To edit battery specific limits, see also the USER_SETTINGS.cpp file*/
 
+#define COMMON_IMAGE
+
 /* Select battery used */
 //#define BMW_I3_BATTERY
 //#define BMW_IX_BATTERY
@@ -70,18 +72,18 @@
 //#define SUNGROW_CAN      //Enable this line to emulate a "Sungrow SBR064" over CAN bus
 
 /* Select hardware used for Battery-Emulator */
-//#define HW_LILYGO
+#define HW_LILYGO
 //#define HW_STARK
 //#define HW_3LB
 //#define HW_DEVKIT
 
 /* Contactor settings. If you have a battery that does not activate contactors via CAN, configure this section */
 #define PRECHARGE_TIME_MS 500  //Precharge time in milliseconds. Modify to suit your inverter (See wiki for more info)
-//#define CONTACTOR_CONTROL     //Enable this line to have the emulator handle automatic precharge/contactor+/contactor- closing sequence (See wiki for pins)
+#define CONTACTOR_CONTROL  //Enable this line to have the emulator handle automatic precharge/contactor+/contactor- closing sequence (See wiki for pins)
 //#define CONTACTOR_CONTROL_DOUBLE_BATTERY //Enable this line to have the emulator hardware control secondary set of contactors for double battery setups (See wiki for pins)
 //#define PWM_CONTACTOR_CONTROL //Enable this line to use PWM for CONTACTOR_CONTROL, which lowers power consumption and heat generation. CONTACTOR_CONTROL must be enabled.
 //#define NC_CONTACTORS         //Enable this line to control normally closed contactors. CONTACTOR_CONTROL must be enabled for this option. Extremely rare setting!
-//#define PERIODIC_BMS_RESET    //Enable to have the emulator powercycle the connected battery every 24hours via GPIO. Useful for some batteries like Nissan LEAF
+#define PERIODIC_BMS_RESET  //Enable to have the emulator powercycle the connected battery every 24hours via GPIO. Useful for some batteries like Nissan LEAF
 //#define REMOTE_BMS_RESET      //Enable to allow the emulator to remotely trigger a powercycle of the battery via MQTT. Useful for some batteries like Nissan LEAF
 // PERIODIC_BMS_RESET_AT Uses NTP server, internet required. In 24 Hour format WITHOUT leading 0. e.g 0230 should be 230. Time Zone is set in USER_SETTINGS.cpp
 //#define PERIODIC_BMS_RESET_AT 525
@@ -101,6 +103,7 @@
 //#define EQUIPMENT_STOP_BUTTON    // Enable this to allow an equipment stop button connected to the Battery-Emulator to disengage the battery
 //#define LFP_CHEMISTRY          //Tesla specific setting, enable this line to startup in LFP mode
 //#define INTERLOCK_REQUIRED     //Nissan LEAF specific setting, if enabled requires both high voltage conenctors to be seated before starting
+
 //#define LOG_TO_SD              //Enable this line to log diagnostic data to SD card (WARNING, raises CPU load, do not use for production)
 //#define LOG_CAN_TO_SD          //Enable this line to log incoming/outgoing CAN & CAN-FD messages to SD card (WARNING, raises CPU load, do not use for production)
 //#define DEBUG_VIA_USB          //Enable this line to have the USB port output serial diagnostic data while program runs (WARNING, raises CPU load, do not use for production)
@@ -193,9 +196,16 @@ extern volatile float CHARGER_END_A;
 
 extern volatile unsigned long long bmsResetTimeOffset;
 
+#include "src/communication/equipmentstopbutton/comm_equipmentstopbutton.h"
+
+// Equipment stop button behavior. Use NC button for safety reasons.
+//LATCHING_SWITCH  - Normally closed (NC), latching switch. When pressed it activates e-stop
+//MOMENTARY_SWITCH - Short press to activate e-stop, long 15s press to deactivate. E-stop is persistent between reboots
+
 #ifdef EQUIPMENT_STOP_BUTTON
-typedef enum { LATCHING_SWITCH = 0, MOMENTARY_SWITCH = 1 } STOP_BUTTON_BEHAVIOR;
-extern volatile STOP_BUTTON_BEHAVIOR equipment_stop_behavior;
+const STOP_BUTTON_BEHAVIOR stop_button_default_behavior = STOP_BUTTON_BEHAVIOR::MOMENTARY_SWITCH;
+#else
+const STOP_BUTTON_BEHAVIOR stop_button_default_behavior = STOP_BUTTON_BEHAVIOR::NOT_CONNECTED;
 #endif
 
 #ifdef WIFICONFIG

@@ -508,6 +508,10 @@ void BmwI3Battery::transmit_can(unsigned long currentMillis) {
 }
 
 void BmwI3Battery::setup(void) {  // Performs one time setup at startup
+  if (!esp32hal->alloc_pins(Name, wakeup_pin)) {
+    return;
+  }
+
   strncpy(datalayer.system.info.battery_protocol, Name, 63);
   datalayer.system.info.battery_protocol[63] = '\0';
 

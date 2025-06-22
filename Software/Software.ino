@@ -70,6 +70,12 @@ Logging logging;
 
 // Initialization
 void setup() {
+  init_hal();
+
+  if (!led_init()) {
+    return;
+  }
+
   init_serial();
 
   // We print this after setting up serial, such that is also printed to serial with DEBUG_VIA_USB set.
@@ -89,23 +95,32 @@ void setup() {
                           &logging_loop_task, WIFI_CORE);
 #endif
 
-  init_CAN();
+  if (!init_CAN()) {
+    return;
+  }
 
-  init_contactors();
+  if (!init_contactors()) {
+    return;
+  }
 
-#ifdef PRECHARGE_CONTROL
-  init_precharge_control();
-#endif  // PRECHARGE_CONTROL
+  if (!init_precharge_control()) {
+    return;
+  }
 
   setup_charger();
-  setup_inverter();
+
+  if (!setup_inverter()) {
+    return;
+  }
   setup_battery();
 
-  init_rs485();
+  if (!init_rs485()) {
+    return;
+  }
 
-#ifdef EQUIPMENT_STOP_BUTTON
-  init_equipment_stop_button();
-#endif
+  if (!init_equipment_stop_button()) {
+    return;
+  }
 
   setup_can_shunt();
   // BOOT button at runtime is used as an input for various things
@@ -115,9 +130,9 @@ void setup() {
 
   // Initialize Task Watchdog for subscribed tasks
   esp_task_wdt_config_t wdt_config = {
-      .timeout_ms = INTERVAL_5_S,                                      // If task hangs for longer than this, reboot
-      .idle_core_mask = (1 << CORE_FUNCTION_CORE) | (1 << WIFI_CORE),  // Watch both cores
-      .trigger_panic = true                                            // Enable panic reset on timeout
+      .timeout_ms = INTERVAL_5_S,  // If task hangs for longer than this, reboot
+      .idle_core_mask = (1 << esp32hal->CORE_FUNCTION_CORE()) | (1 << esp32hal->WIFI_CORE()),  // Watch both cores
+      .trigger_panic = true  // Enable panic reset on timeout
   };
 
   // Start tasks
@@ -126,11 +141,11 @@ void setup() {
   init_mqtt();
 
   xTaskCreatePinnedToCore((TaskFunction_t)&mqtt_loop, "mqtt_loop", 4096, NULL, TASK_MQTT_PRIO, &mqtt_loop_task,
-                          WIFI_CORE);
+                          esp32hal->WIFI_CORE());
 #endif
 
   xTaskCreatePinnedToCore((TaskFunction_t)&core_loop, "core_loop", 4096, NULL, TASK_CORE_PRIO, &main_loop_task,
-                          CORE_FUNCTION_CORE);
+                          esp32hal->CORE_FUNCTION_CORE());
 #ifdef PERIODIC_BMS_RESET_AT
   bmsResetTimeOffset = getTimeOffsetfromNowUntil(PERIODIC_BMS_RESET_AT);
   if (bmsResetTimeOffset == 0) {
@@ -213,15 +228,13 @@ void core_loop(void*) {
   esp_task_wdt_add(NULL);  // Register this task with WDT
   TickType_t xLastWakeTime = xTaskGetTickCount();
   const TickType_t xFrequency = pdMS_TO_TICKS(1);  // Convert 1ms to ticks
-  led_init();
 
   while (true) {
 
     START_TIME_MEASUREMENT(all);
     START_TIME_MEASUREMENT(comm);
-#ifdef EQUIPMENT_STOP_BUTTON
+
     monitor_equipment_stop_button();
-#endif
 
     // Input, Runs as fast as possible
     receive_can();    // Receive CAN messages
@@ -237,7 +250,8 @@ void core_loop(void*) {
     // Process
     currentMillis = millis();
     if (currentMillis - previousMillis10ms >= INTERVAL_10_MS) {
-      if ((currentMillis - previousMillis10ms >= INTERVAL_10_MS_DELAYED) && (currentMillis > BOOTUP_TIME)) {
+      if ((currentMillis - previousMillis10ms >= INTERVAL_10_MS_DELAYED) &&
+          (milliseconds(currentMillis) > esp32hal->BOOTUP_TIME())) {
         set_event(EVENT_TASK_OVERRUN, (currentMillis - previousMillis10ms));
       }
       previousMillis10ms = currentMillis;

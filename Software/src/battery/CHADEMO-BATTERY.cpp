@@ -4,8 +4,6 @@
 #include "../include.h"
 #include "CHADEMO-SHUNTS.h"
 
-#ifdef CHADEMO_PIN_2  // Only support chademo for certain platforms
-
 /* CHADEMO handling runs at 6.25 times the rate of most other code, so, rather than the
  *  default value of 12 (for 12 iterations of the 5s value update loop) * 5 for a 60s timeout,
  *  instead use 75 for 75*0.8s = 60s
@@ -644,10 +642,11 @@ void ChademoBattery::transmit_can(unsigned long currentMillis) {
  */
 void ChademoBattery::handle_chademo_sequence() {
 
-  precharge_low = digitalRead(PRECHARGE_PIN) == LOW;
-  positive_high = digitalRead(POSITIVE_CONTACTOR_PIN) == HIGH;
+  precharge_low = digitalRead(precharge) == LOW;
+  positive_high = digitalRead(positive_contactor) == HIGH;
   contactors_ready = precharge_low && positive_high;
-  vehicle_permission = digitalRead(CHADEMO_PIN_4);
+
+  vehicle_permission = digitalRead(pin4);
 
   /* -------------------    State override conditions checks	------------------- */
   /* ------------------------------------------------------------------------------ */
@@ -670,8 +669,8 @@ void ChademoBattery::handle_chademo_sequence() {
   switch (CHADEMO_Status) {
     case CHADEMO_IDLE:
       /* this is where we can unlock connector */
-      digitalWrite(CHADEMO_LOCK, LOW);
-      plug_inserted = digitalRead(CHADEMO_PIN_7);
+      digitalWrite(pin_lock, LOW);
+      plug_inserted = digitalRead(pin7);
 
       if (!plug_inserted) {
 #ifdef DEBUG_LOG
@@ -698,7 +697,7 @@ void ChademoBattery::handle_chademo_sequence() {
         /* If connection is detectable, jumpstart handshake by 
 			 * indicate that the EVSE is ready to begin
 			 */
-        digitalWrite(CHADEMO_PIN_2, HIGH);
+        digitalWrite(pin2, HIGH);
 
         /* State change to initializing. We will re-enter the handler upon receipt of CAN */
         CHADEMO_Status = CHADEMO_INIT;
@@ -744,7 +743,7 @@ void ChademoBattery::handle_chademo_sequence() {
       // that pin 4 (j) reads high
       if (vehicle_permission) {
         //lock connector here
-        digitalWrite(CHADEMO_LOCK, HIGH);
+        digitalWrite(pin_lock, HIGH);
 
         //TODO spec requires test to validate solenoid has indeed engaged.
         // example uses a comparator/current consumption check around solenoid
@@ -774,7 +773,7 @@ void ChademoBattery::handle_chademo_sequence() {
       if (x102_chg_session.s.status.StatusVehicleChargingEnabled) {
         if (get_measured_voltage() < 20) {
 
-          digitalWrite(CHADEMO_PIN_10, HIGH);
+          digitalWrite(pin10, HIGH);
           evse_permission = true;
         } else {
           logging.println("Insulation check measures > 20v ");
@@ -892,8 +891,8 @@ void ChademoBattery::handle_chademo_sequence() {
        */
       if (get_measured_current() <= 5 && get_measured_voltage() <= 10) {
         /* welding detection ideally here */
-        digitalWrite(CHADEMO_PIN_10, LOW);
-        digitalWrite(CHADEMO_PIN_2, LOW);
+        digitalWrite(pin10, LOW);
+        digitalWrite(pin2, LOW);
         CHADEMO_Status = CHADEMO_IDLE;
       }
 
@@ -910,8 +909,8 @@ void ChademoBattery::handle_chademo_sequence() {
 #ifdef DEBUG_LOG
       logging.println("CHADEMO fault encountered, tearing down to make safe");
 #endif
-      digitalWrite(CHADEMO_PIN_10, LOW);
-      digitalWrite(CHADEMO_PIN_2, LOW);
+      digitalWrite(pin10, LOW);
+      digitalWrite(pin2, LOW);
       evse_permission = false;
       vehicle_permission = false;
       x209_sent = false;
@@ -931,14 +930,18 @@ void ChademoBattery::handle_chademo_sequence() {
 
 void ChademoBattery::setup(void) {  // Performs one time setup at startup
 
-  pinMode(CHADEMO_PIN_2, OUTPUT);
-  digitalWrite(CHADEMO_PIN_2, LOW);
-  pinMode(CHADEMO_PIN_10, OUTPUT);
-  digitalWrite(CHADEMO_PIN_10, LOW);
-  pinMode(CHADEMO_LOCK, OUTPUT);
-  digitalWrite(CHADEMO_LOCK, LOW);
-  pinMode(CHADEMO_PIN_4, INPUT);
-  pinMode(CHADEMO_PIN_7, INPUT);
+  if (!esp32hal->alloc_pins("CHADEMO", pin2, pin10, pin4, pin7, pin_lock)) {
+    return;
+  }
+
+  pinMode(pin2, OUTPUT);
+  digitalWrite(pin2, LOW);
+  pinMode(pin10, OUTPUT);
+  digitalWrite(pin10, LOW);
+  pinMode(pin_lock, OUTPUT);
+  digitalWrite(pin_lock, LOW);
+  pinMode(pin4, INPUT);
+  pinMode(pin7, INPUT);
 
   strncpy(datalayer.system.info.battery_protocol, Name, 63);
   datalayer.system.info.battery_protocol[63] = '\0';
@@ -989,5 +992,3 @@ void ChademoBattery::setup(void) {  // Performs one time setup at startup
 
   setupMillis = millis();
 }
-
-#endif
