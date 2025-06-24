@@ -398,13 +398,13 @@ void update_pause_state() {
     logging.printf("Safety: Pausing CAN sending\n");
 #endif
     //completely force stop the CAN communication
-    ESP32Can.CANStop();  //Note: This only stops the NATIVE_CAN port, it will no longer ACK messages
+    stop_can();
   } else if (!previous_allowed_to_send_CAN && allowed_to_send_CAN) {
     //resume CAN communication
 #ifdef DEBUG_LOG
     logging.printf("Safety: Resuming CAN sending\n");
 #endif
-    ESP32Can.CANInit();  //Note: This only resumes the NATIVE_CAN port
+    restart_can();
   }
 }
 

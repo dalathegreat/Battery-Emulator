@@ -5,6 +5,9 @@
 #include <chrono>
 #include "../../../src/devboard/utils/types.h"
 
+// Hardware Abstraction Layer base class.
+// Derive a class to define board-specific parameters such as GPIO pin numbers
+// This base class implements a mechanism for allocating GPIOs.
 class Esp32Hal {
  public:
   virtual const char* name() = 0;

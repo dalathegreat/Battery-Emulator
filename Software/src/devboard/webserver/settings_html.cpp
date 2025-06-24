@@ -116,15 +116,22 @@ String settings_processor(const String& var) {
     content +=
         "<form action='saveSettings' method='post' style='display: grid; grid-template-columns: 1fr 2fr; gap: 10px; "
         "align-items: center;'>";
-    content += "<label>Battery: </label><select style='max-width: 250px;' name='battery'>";
 
+    content += "<label>Battery: </label><select style='max-width: 250px;' name='battery'>";
     content +=
         options_for_enum((BatteryType)settings.getUInt("BATTTYPE", (int)BatteryType::None), name_for_battery_type);
     content += "</select>";
+
+    content += "<label>Battery chemistry: </label><select style='max-width: 250px;' name='battery'>";
+    content += options_for_enum((battery_chemistry_enum)settings.getUInt("BATTCHEM", (int)battery_chemistry_enum::NCA),
+                                name_for_chemistry);
+    content += "</select>";
+
     content += "<label>Inverter protocol: </label><select style='max-width: 250px;' name='inverter'>";
     content += options_for_enum((InverterProtocolType)settings.getUInt("INVTYPE", (int)InverterProtocolType::None),
                                 name_for_inverter_type);
     content += "</select>";
+
     content += "<label>Charger: </label><select style='max-width: 250px;' name='charger'>";
     content +=
         options_for_enum((ChargerType)settings.getUInt("CHGTYPE", (int)ChargerType::None), name_for_charger_type);

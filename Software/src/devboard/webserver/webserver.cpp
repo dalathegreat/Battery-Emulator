@@ -1257,9 +1257,11 @@ String processor(const String& var) {
               content += " Cont. Pos.: ";
               content += "<span style='color: red;'>&#10005;</span>";
             }
-          } else {  // No PWM_CONTACTOR_CONTROL , we can read the pin and see feedback. Helpful if channel overloaded
+          } else if (
+              esp32hal->SECOND_BATTERY_CONTACTORS_PIN() !=
+              GPIO_NUM_NC) {  // No PWM_CONTACTOR_CONTROL , we can read the pin and see feedback. Helpful if channel overloaded
             content += "<h4>Cont. Neg.: ";
-            if (digitalRead(SECOND_BATTERY_CONTACTORS_PIN) == HIGH) {
+            if (digitalRead(esp32hal->SECOND_BATTERY_CONTACTORS_PIN()) == HIGH) {
               content += "<span style='color: green;'>&#10003;</span>";
             } else {
               content += "<span style='color: red;'>&#10005;</span>";

@@ -14,6 +14,8 @@ extern bool use_canfd_as_can;
 void dump_can_frame(CAN_frame& frame, frameDirection msgDir);
 void transmit_can_frame(CAN_frame* tx_frame, int interface);
 
+class CanReceiver;
+
 // Register a receiver object for a given CAN interface
 void register_can_receiver(CanReceiver* receiver, CAN_Interface interface);
 
@@ -70,5 +72,11 @@ void receive_frame_canfd_addon();
  * @return void
  */
 void print_can_frame(CAN_frame frame, frameDirection msgDir);
+
+// Stop/pause CAN communication for all interfaces
+void stop_can();
+
+// Restart CAN communication for all interfaces
+void restart_can();
 
 #endif

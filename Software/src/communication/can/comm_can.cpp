@@ -32,13 +32,13 @@ static const uint32_t QUARTZ_FREQUENCY = CRYSTAL_FREQUENCY_MHZ * 1000000UL;  //M
 SPIClass SPI2515;
 
 ACAN2515* can2515;
+ACAN2515Settings* settings2515;
 
-//ACAN2515 can(MCP2515_CS, SPI2515, MCP2515_INT);
 static ACAN2515_Buffer16 gBuffer;
 
 SPIClass SPI2517;
-//ACAN2517FD canfd(MCP2517_CS, SPI2517, MCP2517_INT);
 ACAN2517FD* canfd;
+ACAN2517FDSettings* settings2517;
 
 // Initialization functions
 
@@ -92,9 +92,9 @@ bool init_CAN() {
     can2515 = new ACAN2515(cs_pin, SPI2515, int_pin);
 
     SPI2515.begin(sck_pin, miso_pin, mosi_pin);
-    ACAN2515Settings settings2515(QUARTZ_FREQUENCY, 500UL * 1000UL);  // CAN bit rate 500 kb/s
-    settings2515.mRequestedMode = ACAN2515Settings::NormalMode;
-    const uint16_t errorCode2515 = can2515->begin(settings2515, [] { can2515->isr(); });
+    settings2515 = new ACAN2515Settings(QUARTZ_FREQUENCY, 500UL * 1000UL);  // CAN bit rate 500 kb/s
+    settings2515->mRequestedMode = ACAN2515Settings::NormalMode;
+    const uint16_t errorCode2515 = can2515->begin(*settings2515, [] { can2515->isr(); });
     if (errorCode2515 == 0) {
 #ifdef DEBUG_LOG
       logging.println("Can ok");
@@ -127,32 +127,32 @@ bool init_CAN() {
     logging.println("CAN FD add-on (ESP32+MCP2517) selected");
 #endif  // DEBUG_LOG
     SPI2517.begin(sck_pin, sdo_pin, sdi_pin);
-    ACAN2517FDSettings settings2517(
-        CANFD_ADDON_CRYSTAL_FREQUENCY_MHZ, 500 * 1000,
-        DataBitRateFactor::x4);  // Arbitration bit rate: 500 kbit/s, data bit rate: 2 Mbit/s
+    settings2517 =
+        new ACAN2517FDSettings(CANFD_ADDON_CRYSTAL_FREQUENCY_MHZ, 500 * 1000,
+                               DataBitRateFactor::x4);  // Arbitration bit rate: 500 kbit/s, data bit rate: 2 Mbit/s
 
     // ListenOnly / Normal20B / NormalFD
-    settings2517.mRequestedMode = use_canfd_as_can ? ACAN2517FDSettings::Normal20B : ACAN2517FDSettings::NormalFD;
+    settings2517->mRequestedMode = use_canfd_as_can ? ACAN2517FDSettings::Normal20B : ACAN2517FDSettings::NormalFD;
 
-    const uint32_t errorCode2517 = canfd->begin(settings2517, [] { canfd->isr(); });
+    const uint32_t errorCode2517 = canfd->begin(*settings2517, [] { canfd->isr(); });
     canfd->poll();
     if (errorCode2517 == 0) {
 #ifdef DEBUG_LOG
       logging.print("Bit Rate prescaler: ");
-      logging.println(settings2517.mBitRatePrescaler);
+      logging.println(settings2517->mBitRatePrescaler);
       logging.print("Arbitration Phase segment 1: ");
-      logging.print(settings2517.mArbitrationPhaseSegment1);
+      logging.print(settings2517->mArbitrationPhaseSegment1);
       logging.print(" segment 2: ");
-      logging.print(settings2517.mArbitrationPhaseSegment2);
+      logging.print(settings2517->mArbitrationPhaseSegment2);
       logging.print(" SJW: ");
-      logging.println(settings2517.mArbitrationSJW);
+      logging.println(settings2517->mArbitrationSJW);
       logging.print("Actual Arbitration Bit Rate: ");
-      logging.print(settings2517.actualArbitrationBitRate());
+      logging.print(settings2517->actualArbitrationBitRate());
       logging.print(" bit/s");
       logging.print(" (Exact:");
-      logging.println(settings2517.exactArbitrationBitRate() ? "yes)" : "no)");
+      logging.println(settings2517->exactArbitrationBitRate() ? "yes)" : "no)");
       logging.print("Arbitration Sample point: ");
-      logging.print(settings2517.arbitrationSamplePointFromBitStart());
+      logging.print(settings2517->arbitrationSamplePointFromBitStart());
       logging.println("%");
 #endif  // DEBUG_LOG
     } else {
@@ -383,4 +383,36 @@ void dump_can_frame(CAN_frame& frame, frameDirection msgDir) {
   offset += snprintf(message_string + offset, message_string_size - offset, "\n");
 
   datalayer.system.info.logged_can_messages_offset = offset;  // Update offset in buffer
+}
+
+void stop_can() {
+  if (can_receivers.find(CAN_NATIVE) != can_receivers.end()) {
+    ESP32Can.CANStop();
+  }
+
+  if (can2515) {
+    can2515->end();
+    SPI2515.end();
+  }
+
+  if (canfd) {
+    canfd->end();
+    SPI2517.end();
+  }
+}
+
+void restart_can() {
+  if (can_receivers.find(CAN_NATIVE) != can_receivers.end()) {
+    ESP32Can.CANInit();
+  }
+
+  if (can2515) {
+    SPI2515.begin();
+    can2515->begin(*settings2515, [] { can2515->isr(); });
+  }
+
+  if (canfd) {
+    SPI2517.begin();
+    canfd->begin(*settings2517, [] { can2515->isr(); });
+  }
 }

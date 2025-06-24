@@ -508,7 +508,8 @@ class TeslaBattery : public CanBattery {
 
 class TeslaModel3YBattery : public TeslaBattery {
  public:
-  TeslaModel3YBattery() {
+  TeslaModel3YBattery(battery_chemistry_enum chemistry) {
+    datalayer.battery.info.chemistry = chemistry;
 #ifdef EXP_TESLA_BMS_DIGITAL_HVIL
     operate_contactors = true;
 #endif

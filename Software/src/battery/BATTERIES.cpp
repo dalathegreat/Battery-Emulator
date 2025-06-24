@@ -21,6 +21,19 @@ std::vector<BatteryType> supported_battery_types() {
   return types;
 }
 
+extern const char* name_for_chemistry(battery_chemistry_enum chem) {
+  switch (chem) {
+    case battery_chemistry_enum::LFP:
+      return "LFP";
+    case battery_chemistry_enum::NCA:
+      return "NCA";
+    case battery_chemistry_enum::NMC:
+      return "NMC";
+    default:
+      return nullptr;
+  }
+}
+
 extern const char* name_for_battery_type(BatteryType type) {
   switch (type) {
     case BatteryType::None:
@@ -100,6 +113,14 @@ extern const char* name_for_battery_type(BatteryType type) {
   }
 }
 
+#ifdef LFP_CHEMISTRY
+const battery_chemistry_enum battery_chemistry_default = battery_chemistry_enum::LFP;
+#else
+const battery_chemistry_enum battery_chemistry_default = battery_chemistry_enum::NMC;
+#endif
+
+extern battery_chemistry_enum user_selected_battery_chemistry;
+
 #ifdef COMMON_IMAGE
 #ifdef SELECTED_BATTERY_CLASS
 #error "Compile time SELECTED_BATTERY_CLASS should not be defined with COMMON_IMAGE"
@@ -173,7 +194,7 @@ Battery* create_battery(BatteryType type) {
     case BatteryType::SimpBms:
       return new SimpBmsBattery();
     case BatteryType::TeslaModel3Y:
-      return new TeslaModel3YBattery();
+      return new TeslaModel3YBattery(user_selected_battery_chemistry);
     case BatteryType::TeslaModelSX:
       return new TeslaModelSXBattery();
     case BatteryType::TestFake:
@@ -230,7 +251,11 @@ void setup_battery() {
 void setup_battery() {
   // Instantiate the battery only once just in case this function gets called multiple times.
   if (battery == nullptr) {
+#ifdef TESLA_MODEL_3Y_BATTERY
+    battery = new SELECTED_BATTERY_CLASS(user_selected_battery_chemistry);
+#else
     battery = new SELECTED_BATTERY_CLASS();
+#endif
   }
   battery->setup();
 
