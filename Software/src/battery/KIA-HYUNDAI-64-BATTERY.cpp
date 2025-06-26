@@ -28,12 +28,19 @@ void KiaHyundai64Battery::
 
   datalayer_battery->status.temperature_max_dC = (int8_t)temperatureMax * 10;  //Increase decimals, 18C -> 18.0C
 
-  datalayer_battery->status.cell_max_voltage_mV = CellVoltMax_mV;
+  if (CellVoltMax_mV > 2000) {  //28kWh packs do not send valid data, fix properly later
+    datalayer_battery->status.cell_max_voltage_mV = CellVoltMax_mV;
+  }
 
-  datalayer_battery->status.cell_min_voltage_mV = CellVoltMin_mV;
+  if (CellVoltMin_mV > 2000) {  //28kWh packs do not send valid data, fix properly later
+    datalayer_battery->status.cell_min_voltage_mV = CellVoltMin_mV;
+  }
 
-  if (waterleakageSensor == 0) {
-    set_event(EVENT_WATER_INGRESS, 0);
+  if (datalayer_battery->info.total_capacity_Wh > 39000) {
+    //Water leakage only present on 40/62kWh batteries. Skip checking this on 28kWh packs
+    if (waterleakageSensor == 0) {
+      set_event(EVENT_WATER_INGRESS, 0);
+    }
   }
 
   if (leadAcidBatteryVoltage < 110) {
@@ -132,6 +139,9 @@ void KiaHyundai64Battery::handle_incoming_can_frame(CAN_frame rx_frame) {
     case 0x4DE:
       startedUp = true;
       break;
+    case 0x4E2:  //Kia28 exclusive?
+      startedUp = true;
+      break;
     case 0x542:  //BMS SOC
       startedUp = true;
       datalayer_battery->status.CAN_battery_still_alive = CAN_STILL_ALIVE;
@@ -159,6 +169,15 @@ void KiaHyundai64Battery::handle_incoming_can_frame(CAN_frame rx_frame) {
       temperatureMax = rx_frame.data.u8[7];          //Highest temp in battery
       break;
     case 0x598:
+      startedUp = true;
+      break;
+    case 0x599:  //Kia28exclusive?
+      startedUp = true;
+      break;
+    case 0x59C:  //Kia28exclusive?
+      startedUp = true;
+      break;
+    case 0x59E:  //Kia28exclusive?
       startedUp = true;
       break;
     case 0x5D5:
@@ -464,7 +483,7 @@ void KiaHyundai64Battery::transmit_can(unsigned long currentMillis) {
 }
 
 void KiaHyundai64Battery::setup(void) {  // Performs one time setup at startup
-  strncpy(datalayer.system.info.battery_protocol, "Kia/Hyundai 64/40kWh battery", 63);
+  strncpy(datalayer.system.info.battery_protocol, "Kia/Hyundai 64/40/28kWh battery", 63);
   datalayer.system.info.battery_protocol[63] = '\0';
   datalayer_battery->info.max_design_voltage_dV = MAX_PACK_VOLTAGE_98S_DV;  //Start with 98S value. Precised later
   datalayer_battery->info.min_design_voltage_dV = MIN_PACK_VOLTAGE_90S_DV;  //Start with 90S value. Precised later
