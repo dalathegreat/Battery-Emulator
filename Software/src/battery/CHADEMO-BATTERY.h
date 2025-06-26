@@ -1,7 +1,10 @@
 #ifndef CHADEMO_BATTERY_H
 #define CHADEMO_BATTERY_H
 #include <Arduino.h>
+#include "../datalayer/datalayer.h"
+#include "../datalayer/datalayer_extended.h"
 #include "../include.h"
+#include "CHADEMO-BATTERY-HTML.h"
 #include "CanBattery.h"
 
 //Contactor control is required for CHADEMO support
@@ -20,6 +23,12 @@ class ChademoBattery : public CanBattery {
   virtual void handle_incoming_can_frame(CAN_frame rx_frame);
   virtual void update_values();
   virtual void transmit_can(unsigned long currentMillis);
+
+  bool supports_chademo_restart() { return true; }
+  bool supports_chademo_stop() { return true; }
+
+  void chademo_restart() { datalayer_extended.chademo.UserRequestRestart = true; }
+  void chademo_stop() { datalayer_extended.chademo.UserRequestStop = true; }
 
  private:
   void process_vehicle_charging_minimums(CAN_frame rx_frame);
@@ -40,19 +49,17 @@ class ChademoBattery : public CanBattery {
   static const int MAX_EVSE_OUTPUT_VOLTAGE = 410;
   static const int MAX_EVSE_OUTPUT_CURRENT = 11;
 
-  enum CHADEMO_STATE {
-    CHADEMO_FAULT,
-    CHADEMO_STOP,
-    CHADEMO_IDLE,
-    CHADEMO_CONNECTED,
-    CHADEMO_INIT,  // intermediate state indicating CAN from Vehicle not yet received after connection
-    CHADEMO_NEGOTIATE,
-    CHADEMO_EV_ALLOWED,
-    CHADEMO_EVSE_PREPARE,
-    CHADEMO_EVSE_START,
-    CHADEMO_EVSE_CONTACTORS_ENABLED,
-    CHADEMO_POWERFLOW,
-  };
+#define CHADEMO_FAULT 0
+#define CHADEMO_STOP 1
+#define CHADEMO_IDLE 2
+#define CHADEMO_CONNECTED 3
+#define CHADEMO_INIT 4  // intermediate state indicating CAN from Vehicle not yet received after connection
+#define CHADEMO_NEGOTIATE 5
+#define CHADEMO_EV_ALLOWED 6
+#define CHADEMO_EVSE_PREPARE 7
+#define CHADEMO_EVSE_START 8
+#define CHADEMO_EVSE_CONTACTORS_ENABLED 9
+#define CHADEMO_POWERFLOW 10
 
   enum Mode { CHADEMO_CHARGE, CHADEMO_DISCHARGE, CHADEMO_BIDIRECTIONAL };
 
@@ -291,7 +298,7 @@ should determine that the other is the EVSE or the vehicle of the model before t
                                               //  permissible rate of change is -20A/s to 20A/s relative to 102.3
 
   Mode EVSE_mode = CHADEMO_DISCHARGE;
-  CHADEMO_STATE CHADEMO_Status = CHADEMO_IDLE;
+  uint8_t CHADEMO_Status = CHADEMO_IDLE;
 
   /* Charge/discharge sequence, indicating applicable V2H guideline 
  * If sequence number is not agreed upon via H201/H209 between EVSE and Vehicle,

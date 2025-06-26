@@ -275,6 +275,19 @@ typedef struct {
 } DATALAYER_INFO_CELLPOWER;
 
 typedef struct {
+  bool UserRequestRestart = false;
+  bool UserRequestStop = false;
+  bool FaultBatteryVoltageDeviation = false;
+  bool FaultHighBatteryTemperature = false;
+  bool FaultBatteryCurrentDeviation = false;
+  bool FaultBatteryUnderVoltage = false;
+  bool FaultBatteryOverVoltage = false;
+  uint8_t CHADEMO_Status = 0;
+  uint8_t ControlProtocolNumberEV = 0;
+
+} DATALAYER_INFO_CHADEMO;
+
+typedef struct {
   uint16_t soc_z = 0;
   uint16_t soc_u = 0;
   uint16_t soh_average = 0;
@@ -885,6 +898,7 @@ class DataLayerExtended {
   DATALAYER_INFO_BMWI3 bmwi3;
   DATALAYER_INFO_BYDATTO3 bydAtto3;
   DATALAYER_INFO_CELLPOWER cellpower;
+  DATALAYER_INFO_CHADEMO chademo;
   DATALAYER_INFO_CMFAEV CMFAEV;
   DATALAYER_INFO_ECMP stellantisECMP;
   DATALAYER_INFO_GEELY_GEOMETRY_C geometryC;
