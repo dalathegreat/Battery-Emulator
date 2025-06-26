@@ -1,10 +1,9 @@
-#include "../include.h"
-#ifdef VOLVO_SPA_HYBRID_BATTERY
+#include "VOLVO-SPA-HYBRID-BATTERY.h"
 #include "../communication/can/comm_can.h"
 #include "../datalayer/datalayer.h"
 #include "../datalayer/datalayer_extended.h"  //For "More battery info" webpage
 #include "../devboard/utils/events.h"
-#include "VOLVO-SPA-HYBRID-BATTERY.h"
+#include "../include.h"
 
 void VolvoSpaHybridBattery::
     update_values() {  //This function maps all the values fetched via CAN to the correct parameters used for the inverter
@@ -553,8 +552,8 @@ void VolvoSpaHybridBattery::transmit_can(unsigned long currentMillis) {
   }
 }
 
-void VolvoSpaHybridBattery::setup(void) {                                     // Performs one time setup at startup
-  strncpy(datalayer.system.info.battery_protocol, "Volvo PHEV battery", 63);  //changed
+void VolvoSpaHybridBattery::setup(void) {                     // Performs one time setup at startup
+  strncpy(datalayer.system.info.battery_protocol, Name, 63);  //changed
   datalayer.system.info.battery_protocol[63] = '\0';
   datalayer.battery.info.number_of_cells = 102;  //was 108, changed
   datalayer.battery.info.max_design_voltage_dV = MAX_PACK_VOLTAGE_DV;
@@ -563,4 +562,3 @@ void VolvoSpaHybridBattery::setup(void) {                                     //
   datalayer.battery.info.min_cell_voltage_mV = MIN_CELL_VOLTAGE_MV;
   datalayer.battery.info.max_cell_voltage_deviation_mV = MAX_CELL_DEVIATION_MV;
 }
-#endif

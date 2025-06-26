@@ -22,11 +22,7 @@ class CanBattery : public Battery, Transmitter, CanReceiver {
  protected:
   CAN_Interface can_interface;
 
-  CanBattery() {
-    can_interface = can_config.battery;
-    register_transmitter(this);
-    register_can_receiver(this, can_interface);
-  }
+  CanBattery();
 
   CanBattery(CAN_Interface interface) {
     can_interface = interface;

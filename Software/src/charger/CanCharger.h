@@ -7,7 +7,12 @@
 #include "src/communication/Transmitter.h"
 #include "src/communication/can/CanReceiver.h"
 
-enum class ChargerType { NissanLeaf, ChevyVolt };
+enum class ChargerType { None, NissanLeaf, ChevyVolt, Highest };
+
+extern ChargerType user_selected_charger_type;
+
+extern std::vector<ChargerType> supported_charger_types();
+extern const char* name_for_charger_type(ChargerType type);
 
 // Generic base class for all chargers
 class Charger {

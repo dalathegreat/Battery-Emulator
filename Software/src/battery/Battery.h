@@ -1,8 +1,55 @@
 #ifndef BATTERY_H
 #define BATTERY_H
 
-#include "../datalayer/datalayer.h"
+#include <vector>
 #include "src/devboard/webserver/BatteryHtmlRenderer.h"
+
+enum class BatteryType {
+  None = 0,
+  BmwSbox = 1,
+  BmwI3 = 2,
+  BmwIx = 3,
+  BoltAmpera = 4,
+  BydAtto3 = 5,
+  CellPowerBms = 6,
+  Chademo = 7,
+  CmfaEv = 8,
+  Foxess = 9,
+  GeelyGeometryC = 10,
+  OrionBms = 11,
+  Sono = 12,
+  StellantisEcmp = 13,
+  ImievCZeroIon = 14,
+  JaguarIpace = 15,
+  KiaEGmp = 16,
+  KiaHyundai64 = 17,
+  KiaHyundaiHybrid = 18,
+  Meb = 19,
+  Mg5 = 20,
+  NissanLeaf = 21,
+  Pylon = 22,
+  DalyBms = 23,
+  RjxzsBms = 24,
+  RangeRoverPhev = 25,
+  RenaultKangoo = 26,
+  RenaultTwizy = 27,
+  RenaultZoe1 = 28,
+  RenaultZoe2 = 29,
+  SantaFePhev = 30,
+  SimpBms = 31,
+  TeslaModel3Y = 32,
+  TeslaModelSX = 33,
+  TestFake = 34,
+  VolvoSpa = 35,
+  VolvoSpaHybrid = 36,
+  Highest
+};
+
+extern std::vector<BatteryType> supported_battery_types();
+extern const char* name_for_battery_type(BatteryType type);
+
+extern BatteryType user_selected_battery_type;
+extern bool user_selected_second_battery;
 
 // Abstract base class for next-generation battery implementations.
 // Defines the interface to call battery specific functionality.
@@ -48,7 +95,7 @@ class Battery {
   virtual void set_factory_mode() {}
 
   virtual void set_fake_voltage(float v) {}
-  virtual float get_voltage() { return static_cast<float>(datalayer.battery.status.voltage_dV) / 10.0; }
+  virtual float get_voltage();
 
   // This allows for battery specific SOC plausibility calculations to be performed.
   virtual bool soc_plausible() { return true; }

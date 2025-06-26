@@ -1,10 +1,9 @@
-#include "../include.h"
-#ifdef BOLT_AMPERA_BATTERY
+#include "BOLT-AMPERA-BATTERY.h"
 #include "../communication/can/comm_can.h"
 #include "../datalayer/datalayer.h"
 #include "../datalayer/datalayer_extended.h"
 #include "../devboard/utils/events.h"
-#include "BOLT-AMPERA-BATTERY.h"
+#include "../include.h"
 
 /*
 TODOs left for this implementation
@@ -645,7 +644,7 @@ void BoltAmperaBattery::transmit_can(unsigned long currentMillis) {
 }
 
 void BoltAmperaBattery::setup(void) {  // Performs one time setup at startup
-  strncpy(datalayer.system.info.battery_protocol, "Chevrolet Bolt EV/Opel Ampera-e", 63);
+  strncpy(datalayer.system.info.battery_protocol, Name, 63);
   datalayer.system.info.battery_protocol[63] = '\0';
   datalayer.battery.info.number_of_cells = 96;
   datalayer.battery.info.max_design_voltage_dV = MAX_PACK_VOLTAGE_DV;
@@ -655,5 +654,3 @@ void BoltAmperaBattery::setup(void) {  // Performs one time setup at startup
   datalayer.battery.info.max_cell_voltage_deviation_mV = MAX_CELL_DEVIATION_MV;
   datalayer.system.status.battery_allows_contactor_closing = true;
 }
-
-#endif

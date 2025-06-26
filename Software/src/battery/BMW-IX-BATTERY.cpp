@@ -1,10 +1,9 @@
-#include "../include.h"
-#ifdef BMW_IX_BATTERY
+#include "BMW-IX-BATTERY.h"
 #include "../communication/can/comm_can.h"
 #include "../datalayer/datalayer.h"
 #include "../datalayer/datalayer_extended.h"
 #include "../devboard/utils/events.h"
-#include "BMW-IX-BATTERY.h"
+#include "../include.h"
 
 // Function to check if a value has gone stale over a specified time period
 bool BmwIXBattery::isStale(int16_t currentValue, uint16_t& lastValue, unsigned long& lastChangeTime) {
@@ -475,7 +474,7 @@ void BmwIXBattery::transmit_can(unsigned long currentMillis) {
 }
 
 void BmwIXBattery::setup(void) {  // Performs one time setup at startup
-  strncpy(datalayer.system.info.battery_protocol, "BMW iX and i4-7 platform", 63);
+  strncpy(datalayer.system.info.battery_protocol, Name, 63);
   datalayer.system.info.battery_protocol[63] = '\0';
 
   //Reset Battery at bootup
@@ -696,5 +695,3 @@ void BmwIXBattery::HandleBmwIxOpenContactorsRequest(uint16_t counter_10ms) {
     }
   }
 }
-
-#endif  // BMW_IX_BATTERY

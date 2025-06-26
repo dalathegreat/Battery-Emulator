@@ -5,8 +5,9 @@
 #include "CMFA-EV-HTML.h"
 #include "CanBattery.h"
 
-#define BATTERY_SELECTED
+#ifdef CMFA_EV_BATTERY
 #define SELECTED_BATTERY_CLASS CmfaEvBattery
+#endif
 
 class CmfaEvBattery : public CanBattery {
  public:
@@ -14,6 +15,7 @@ class CmfaEvBattery : public CanBattery {
   virtual void handle_incoming_can_frame(CAN_frame rx_frame);
   virtual void update_values();
   virtual void transmit_can(unsigned long currentMillis);
+  static constexpr char* Name = "CMFA platform, 27 kWh battery";
 
   BatteryHtmlRenderer& get_status_renderer() { return renderer; }
 
