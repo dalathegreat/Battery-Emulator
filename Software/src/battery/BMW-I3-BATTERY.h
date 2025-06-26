@@ -20,7 +20,6 @@ class BmwI3Battery : public CanBattery {
     contactor_closing_allowed = contactor_closing_allowed_ptr;
     allows_contactor_closing = nullptr;
     wakeup_pin = wakeup;
-    *allows_contactor_closing = true;
 
     //Init voltage to 0 to allow contactor check to operate without fear of default values colliding
     battery_volts = 0;
