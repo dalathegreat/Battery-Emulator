@@ -1,10 +1,9 @@
-#include "../include.h"
-#ifdef RENAULT_ZOE_GEN2_BATTERY
+#include "RENAULT-ZOE-GEN2-BATTERY.h"
 #include "../communication/can/comm_can.h"
 #include "../datalayer/datalayer.h"
 #include "../datalayer/datalayer_extended.h"  //For "More battery info" webpage
 #include "../devboard/utils/events.h"
-#include "RENAULT-ZOE-GEN2-BATTERY.h"
+#include "../include.h"
 
 /* TODO
 - Add //NVROL Reset
@@ -705,7 +704,7 @@ void RenaultZoeGen2Battery::transmit_can(unsigned long currentMillis) {
 }
 
 void RenaultZoeGen2Battery::setup(void) {  // Performs one time setup at startup
-  strncpy(datalayer.system.info.battery_protocol, "Renault Zoe Gen2 50kWh", 63);
+  strncpy(datalayer.system.info.battery_protocol, Name, 63);
   datalayer.system.info.battery_protocol[63] = '\0';
   datalayer.system.status.battery_allows_contactor_closing = true;
   datalayer.battery.info.number_of_cells = 96;
@@ -788,5 +787,3 @@ void RenaultZoeGen2Battery::transmit_reset_nvrol_frames(void) {
       break;
   }
 }
-
-#endif

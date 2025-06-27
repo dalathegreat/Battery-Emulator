@@ -7,8 +7,9 @@
 #include "CanBattery.h"
 #include "NISSAN-LEAF-HTML.h"
 
-#define BATTERY_SELECTED
+#ifdef NISSAN_LEAF_BATTERY
 #define SELECTED_BATTERY_CLASS NissanLeafBattery
+#endif
 
 class NissanLeafBattery : public CanBattery {
  public:
@@ -45,6 +46,7 @@ class NissanLeafBattery : public CanBattery {
   }
 
   BatteryHtmlRenderer& get_status_renderer() { return renderer; }
+  static constexpr char* Name = "Nissan LEAF battery";
 
  private:
   static const int MAX_PACK_VOLTAGE_DV = 4040;  //5000 = 500.0V

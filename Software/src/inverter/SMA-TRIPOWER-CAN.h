@@ -3,6 +3,7 @@
 #include "../include.h"
 
 #include "CanInverterProtocol.h"
+#include "src/devboard/hal/hal.h"
 
 #ifdef SMA_TRIPOWER_CAN
 #define SELECTED_INVERTER_CLASS SmaTripowerInverter
@@ -14,6 +15,10 @@ class SmaTripowerInverter : public CanInverterProtocol {
   void update_values();
   void transmit_can(unsigned long currentMillis);
   void map_can_frame_to_variable(CAN_frame rx_frame);
+  static constexpr char* Name = "SMA Tripower CAN";
+
+  virtual bool controls_contactor() { return true; }
+  virtual bool allows_contactor_closing() { return digitalRead(INVERTER_CONTACTOR_ENABLE_PIN) == 1; }
 
  private:
   const int READY_STATE = 0x03;

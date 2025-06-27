@@ -1,0 +1,57 @@
+# This is the name of the workflow, visible on GitHub UI.
+name: 🔋 Compile Common Image for Lilygo
+
+# Here we tell GitHub when to run the workflow.
+on:
+  # The workflow is run when a commit is pushed or for a
+  # Pull Request.
+  - push
+  - pull_request
+
+# This is the list of jobs that will be run concurrently.
+jobs:
+  # This pre-job is run to skip workflows in case a workflow is already run, i.e. because the workflow is triggered by both push and pull_request
+  skip-duplicate-actions:
+    runs-on: ubuntu-latest
+    # Map a step output to a job output
+    outputs:
+      should_skip: ${{ steps.skip_check.outputs.should_skip }}
+    steps:
+      - id: skip_check
+        uses: fkirc/skip-duplicate-actions@v5
+        with:
+          # All of these options are optional, so you can remove them if you are happy with the defaults
+          concurrent_skipping: 'never'
+          skip_after_successful_duplicate: 'true'
+          do_not_skip: '["pull_request", "workflow_dispatch", "schedule"]'
+
+  build-common-image:
+    # This is the platform GitHub will use to run our workflow.
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+      
+      # Copy USER_SECRETS.TEMPLATE.h to USER_SECRETS.h
+      - name: Copy USER_SECRETS.TEMPLATE.h to USER_SECRETS.h
+        run: cp ./Software/USER_SECRETS.TEMPLATE.h ./Software/USER_SECRETS.h
+
+      # We use the `arduino/setup-arduino-cli` action to install and
+      # configure the Arduino CLI on the system.
+      - name: Setup Arduino CLI
+        uses: arduino/setup-arduino-cli@v2
+
+      # We then install the platform.
+      - name: Install platform
+        run: |
+          arduino-cli core update-index
+          arduino-cli core install esp32:esp32
+
+      - name: Compile Sketch
+        run: arduino-cli compile --output-dir ./ --fqbn esp32:esp32:esp32 --build-property build.partitions=min_spiffs --build-property upload.maximum_size=1966080 --build-property "build.extra_flags=-Wall -Wextra -Wpedantic -Werror -DESP32 -DCOMMON_IMAGE -DHW_LILYGO" ./Software
+
+      - name: Upload artifact
+        uses: actions/upload-artifact@v4
+        with:
+          path: Software.ino.bin

@@ -6,8 +6,9 @@
 #include "BMW-I3-HTML.h"
 #include "CanBattery.h"
 
-#define BATTERY_SELECTED
+#ifdef BMW_I3_BATTERY
 #define SELECTED_BATTERY_CLASS BmwI3Battery
+#endif
 
 class BmwI3Battery : public CanBattery {
  public:
@@ -19,7 +20,6 @@ class BmwI3Battery : public CanBattery {
     contactor_closing_allowed = contactor_closing_allowed_ptr;
     allows_contactor_closing = nullptr;
     wakeup_pin = wakeup;
-    *allows_contactor_closing = true;
 
     //Init voltage to 0 to allow contactor check to operate without fear of default values colliding
     battery_volts = 0;
@@ -37,6 +37,7 @@ class BmwI3Battery : public CanBattery {
   virtual void handle_incoming_can_frame(CAN_frame rx_frame);
   virtual void update_values();
   virtual void transmit_can(unsigned long currentMillis);
+  static constexpr char* Name = "BMW i3";
 
   // SOC% raw battery value. Might not always reach 100%
   uint16_t SOC_raw() { return (battery_HVBatt_SOC * 10); }
@@ -105,7 +106,9 @@ class BmwI3Battery : public CanBattery {
   unsigned long previousMillis5000 = 0;   // will store last time a 5000ms CAN Message was send
   unsigned long previousMillis10000 = 0;  // will store last time a 10000ms CAN Message was send
 
-#define ALIVE_MAX_VALUE 14  // BMW CAN messages contain alive counter, goes from 0...14
+  static const int ALIVE_MAX_VALUE = 14;  // BMW CAN messages contain alive counter, goes from 0...14
+
+  uint8_t increment_alive_counter(uint8_t counter);
 
   enum BatterySize { BATTERY_60AH, BATTERY_94AH, BATTERY_120AH };
   BatterySize detectedBattery = BATTERY_60AH;
