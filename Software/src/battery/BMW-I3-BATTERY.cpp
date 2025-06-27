@@ -104,21 +104,6 @@ void BmwI3Battery::update_values() {  //This function maps all the values fetche
   } else {
     clear_event(EVENT_CONTACTOR_WELDED);
   }
-
-  // Update webserver datalayer
-  datalayer_extended.bmwi3.SOC_raw = (battery_HVBatt_SOC * 10);
-  datalayer_extended.bmwi3.SOC_dash = (battery_display_SOC * 50);
-  datalayer_extended.bmwi3.SOC_OBD2 = battery_soc;
-  datalayer_extended.bmwi3.ST_iso_ext = battery_status_error_isolation_external_Bordnetz;
-  datalayer_extended.bmwi3.ST_iso_int = battery_status_error_isolation_internal_Bordnetz;
-  datalayer_extended.bmwi3.ST_valve_cooling = battery_status_valve_cooling;
-  datalayer_extended.bmwi3.ST_interlock = battery_status_error_locking;
-  datalayer_extended.bmwi3.ST_precharge = battery_status_precharge_locked;
-  datalayer_extended.bmwi3.ST_DCSW = battery_status_disconnecting_switch;
-  datalayer_extended.bmwi3.ST_EMG = battery_status_emergency_mode;
-  datalayer_extended.bmwi3.ST_WELD = battery_status_error_disconnecting_switch;
-  datalayer_extended.bmwi3.ST_isolation = battery_status_warning_isolation;
-  datalayer_extended.bmwi3.ST_cold_shutoff_valve = battery_status_cold_shutoff_valve;
 }
 
 void BmwI3Battery::handle_incoming_can_frame(CAN_frame rx_frame) {
