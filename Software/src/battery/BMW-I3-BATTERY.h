@@ -2,7 +2,6 @@
 #define BMW_I3_BATTERY_H
 
 #include "../datalayer/datalayer.h"
-#include "../datalayer/datalayer_extended.h"
 #include "../include.h"
 #include "BMW-I3-HTML.h"
 #include "CanBattery.h"
