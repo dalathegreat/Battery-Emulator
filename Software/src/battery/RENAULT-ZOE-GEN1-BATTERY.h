@@ -7,12 +7,6 @@
 #define BATTERY_SELECTED
 #define SELECTED_BATTERY_CLASS RenaultZoeGen1Battery
 
-#define MAX_PACK_VOLTAGE_DV 4200  //5000 = 500.0V
-#define MIN_PACK_VOLTAGE_DV 3000
-#define MAX_CELL_DEVIATION_MV 150
-#define MAX_CELL_VOLTAGE_MV 4250  //Battery is put into emergency stop if one cell goes over this value
-#define MIN_CELL_VOLTAGE_MV 2700  //Battery is put into emergency stop if one cell goes below this value
-
 class RenaultZoeGen1Battery : public CanBattery {
  public:
   // Use this constructor for the second battery.
@@ -41,6 +35,12 @@ class RenaultZoeGen1Battery : public CanBattery {
 
  private:
   RenaultZoeGen1HtmlRenderer renderer;
+
+  static const int MAX_PACK_VOLTAGE_DV = 4200;  //5000 = 500.0V
+  static const int MIN_PACK_VOLTAGE_DV = 3000;
+  static const int MAX_CELL_DEVIATION_MV = 150;
+  static const int MAX_CELL_VOLTAGE_MV = 4250;  //Battery is put into emergency stop if one cell goes over this value
+  static const int MIN_CELL_VOLTAGE_MV = 2700;  //Battery is put into emergency stop if one cell goes below this value
 
   DATALAYER_BATTERY_TYPE* datalayer_battery;
   DATALAYER_INFO_ZOE* datalayer_zoe;
