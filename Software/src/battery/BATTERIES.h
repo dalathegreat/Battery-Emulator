@@ -56,6 +56,10 @@ void setup_can_shunt();
 #include "GEELY-GEOMETRY-C-BATTERY.h"
 #endif
 
+#ifdef HYUNDAI_IONIQ_28_BATTERY
+#include "HYUNDAI-IONIQ-28-BATTERY.h"
+#endif
+
 #ifdef ORION_BMS
 #include "ORION-BMS.h"
 #endif
