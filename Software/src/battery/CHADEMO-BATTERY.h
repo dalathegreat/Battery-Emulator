@@ -30,7 +30,11 @@ class ChademoBattery : public CanBattery {
   void chademo_restart() { datalayer_extended.chademo.UserRequestRestart = true; }
   void chademo_stop() { datalayer_extended.chademo.UserRequestStop = true; }
 
+  BatteryHtmlRenderer& get_status_renderer() { return renderer; }
+
  private:
+  ChademoBatteryHtmlRenderer renderer;
+
   void process_vehicle_charging_minimums(CAN_frame rx_frame);
   void process_vehicle_charging_maximums(CAN_frame rx_frame);
   void process_vehicle_charging_session(CAN_frame rx_frame);
