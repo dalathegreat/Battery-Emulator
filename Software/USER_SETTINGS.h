@@ -139,7 +139,7 @@
 #define HA_AUTODISCOVERY  // Enable this line to send Home Assistant autodiscovery messages. If not enabled manual configuration of Home Assitant is required
 
 /* Battery settings */
-// Predefined total energy capacity of the battery in Watt-hours
+// Predefined total energy capacity of the battery in Watt-hours (updates automatically from battery data when available)
 #define BATTERY_WH_MAX 30000
 // Increases battery life. If true will rescale SOC between the configured min/max-percentage
 #define BATTERY_USE_SCALED_SOC true
