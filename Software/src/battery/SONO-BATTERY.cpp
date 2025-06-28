@@ -1,9 +1,8 @@
-#include "../include.h"
-#ifdef SONO_BATTERY
+#include "SONO-BATTERY.h"
 #include "../communication/can/comm_can.h"
 #include "../datalayer/datalayer.h"
 #include "../devboard/utils/events.h"
-#include "SONO-BATTERY.h"
+#include "../include.h"
 
 void SonoBattery::
     update_values() {  //This function maps all the values fetched via CAN to the correct parameters used for modbus
@@ -141,7 +140,7 @@ void SonoBattery::transmit_can(unsigned long currentMillis) {
 }
 
 void SonoBattery::setup(void) {  // Performs one time setup at startup
-  strncpy(datalayer.system.info.battery_protocol, "Sono Motors Sion 64kWh LFP ", 63);
+  strncpy(datalayer.system.info.battery_protocol, Name, 63);
   datalayer.system.info.battery_protocol[63] = '\0';
   datalayer.battery.info.number_of_cells = 96;
   datalayer.system.status.battery_allows_contactor_closing = true;
@@ -152,5 +151,3 @@ void SonoBattery::setup(void) {  // Performs one time setup at startup
   datalayer.battery.info.max_cell_voltage_deviation_mV = MAX_CELL_DEVIATION_MV;
   datalayer.battery.info.chemistry = battery_chemistry_enum::LFP;
 }
-
-#endif

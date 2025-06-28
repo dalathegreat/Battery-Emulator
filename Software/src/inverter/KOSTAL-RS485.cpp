@@ -304,7 +304,7 @@ void KostalInverterProtocol::receive()  // Runs as fast as possible to handle th
 void KostalInverterProtocol::setup(void) {  // Performs one time setup at startup
   datalayer.system.status.inverter_allows_contactor_closing = false;
   dbg_message("inverter_allows_contactor_closing -> false");
-  strncpy(datalayer.system.info.inverter_protocol, "BYD battery via Kostal RS485", 63);
+  strncpy(datalayer.system.info.inverter_protocol, Name, 63);
   datalayer.system.info.inverter_protocol[63] = '\0';
 
   Serial2.begin(baud_rate(), SERIAL_8N1, RS485_RX_PIN, RS485_TX_PIN);

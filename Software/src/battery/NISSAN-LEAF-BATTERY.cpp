@@ -1,6 +1,5 @@
-#include "../include.h"
-#ifdef NISSAN_LEAF_BATTERY
 #include "NISSAN-LEAF-BATTERY.h"
+#include "../include.h"
 #ifdef MQTT
 #include "../devboard/mqtt/mqtt.h"
 #endif
@@ -970,7 +969,7 @@ void decodeChallengeData(unsigned int incomingChallenge, unsigned char* solvedCh
 }
 
 void NissanLeafBattery::setup(void) {  // Performs one time setup at startup
-  strncpy(datalayer.system.info.battery_protocol, "Nissan LEAF battery", 63);
+  strncpy(datalayer.system.info.battery_protocol, Name, 63);
   datalayer.system.info.battery_protocol[63] = '\0';
   datalayer_battery->info.number_of_cells = 96;
   datalayer_battery->info.max_design_voltage_dV = MAX_PACK_VOLTAGE_DV;
@@ -979,5 +978,3 @@ void NissanLeafBattery::setup(void) {  // Performs one time setup at startup
   datalayer_battery->info.min_cell_voltage_mV = MIN_CELL_VOLTAGE_MV;
   datalayer_battery->info.max_cell_voltage_deviation_mV = MAX_CELL_DEVIATION_MV;
 }
-
-#endif  //NISSAN_LEAF_BATTERY

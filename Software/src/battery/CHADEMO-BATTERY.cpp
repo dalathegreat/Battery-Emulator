@@ -1,9 +1,10 @@
-#include "../include.h"
-#ifdef CHADEMO_BATTERY
+#include "CHADEMO-BATTERY.h"
 #include "../datalayer/datalayer.h"
 #include "../devboard/utils/events.h"
-#include "CHADEMO-BATTERY.h"
+#include "../include.h"
 #include "CHADEMO-SHUNTS.h"
+
+#ifdef CHADEMO_PIN_2  // Only support chademo for certain platforms
 
 /* CHADEMO handling runs at 6.25 times the rate of most other code, so, rather than the
  *  default value of 12 (for 12 iterations of the 5s value update loop) * 5 for a 60s timeout,
@@ -21,7 +22,9 @@ void ChademoBattery::update_values() {
   datalayer.battery.status.max_discharge_power_W =
       (x200_discharge_limits.MaximumDischargeCurrent * x100_chg_lim.MaximumBatteryVoltage);  //In Watts, Convert A to P
 
-  datalayer.battery.status.voltage_dV = get_measured_voltage() * 10;
+  if (vehicle_can_received) {  // Only update the value sent towards inverter if vehicle is connected (avoids false positive events)
+    datalayer.battery.status.voltage_dV = get_measured_voltage() * 10;
+  }
 
   datalayer.battery.info.total_capacity_Wh = (x101_chg_est.RatedBatteryCapacity * 100);
   //(Added in CHAdeMO v1.0.1), maybe handle hardcoded on lower protocol version?
@@ -202,7 +205,7 @@ void ChademoBattery::process_vehicle_charging_session(CAN_frame rx_frame) {
   }
 
 #ifdef DEBUG_LOG
-  logging.println("UNHANDLED STATE IN process_vehicle_charging_session()");
+  logging.println("UNHANDLED CHADEMO STATE, try unplugging chademo cable, reboot emulator, and retry!");
 #endif
   return;
 }
@@ -229,6 +232,10 @@ void ChademoBattery::process_vehicle_charging_limits(CAN_frame rx_frame) {
   if (get_measured_voltage() <= x200_discharge_limits.MinimumDischargeVoltage && CHADEMO_Status > CHADEMO_NEGOTIATE) {
 #ifdef DEBUG_LOG
     logging.println("x200 minimum discharge voltage met or exceeded, stopping.");
+    logging.print("Measured: ");
+    logging.print(get_measured_voltage());
+    logging.print("Minimum voltage: ");
+    logging.print(x200_discharge_limits.MinimumDischargeVoltage);
 #endif
     CHADEMO_Status = CHADEMO_STOP;
   }
@@ -939,7 +946,7 @@ void ChademoBattery::setup(void) {  // Performs one time setup at startup
   pinMode(CHADEMO_PIN_4, INPUT);
   pinMode(CHADEMO_PIN_7, INPUT);
 
-  strncpy(datalayer.system.info.battery_protocol, "Chademo V2X mode", 63);
+  strncpy(datalayer.system.info.battery_protocol, Name, 63);
   datalayer.system.info.battery_protocol[63] = '\0';
 
   CHADEMO_Status = CHADEMO_IDLE;
@@ -988,4 +995,5 @@ void ChademoBattery::setup(void) {  // Performs one time setup at startup
 
   setupMillis = millis();
 }
+
 #endif

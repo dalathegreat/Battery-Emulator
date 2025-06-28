@@ -18,18 +18,9 @@
 //#define SKIP_TEMPERATURE_SENSOR_NUMBER 1
 
 /* Do not modify the rows below */
-#define BATTERY_SELECTED
+#ifdef BYD_ATTO_3_BATTERY
 #define SELECTED_BATTERY_CLASS BydAttoBattery
-
-#define CELLCOUNT_EXTENDED 126
-#define CELLCOUNT_STANDARD 104
-#define MAX_PACK_VOLTAGE_EXTENDED_DV 4410  //Extended range
-#define MIN_PACK_VOLTAGE_EXTENDED_DV 3800  //Extended range
-#define MAX_PACK_VOLTAGE_STANDARD_DV 3640  //Standard range
-#define MIN_PACK_VOLTAGE_STANDARD_DV 3136  //Standard range
-#define MAX_CELL_DEVIATION_MV 230
-#define MAX_CELL_VOLTAGE_MV 3650  //Charging stops if one cell exceeds this value
-#define MIN_CELL_VOLTAGE_MV 2800  //Discharging stops if one cell goes below this value
+#endif
 
 class BydAttoBattery : public CanBattery {
  public:
@@ -53,6 +44,9 @@ class BydAttoBattery : public CanBattery {
   virtual void update_values();
   virtual void transmit_can(unsigned long currentMillis);
 
+  static constexpr char* Name = "BYD Atto 3";
+
+  bool supports_charged_energy() { return true; }
   bool supports_reset_crash() { return true; }
 
   void reset_crash() { datalayer_bydatto->UserRequestCrashReset = true; }
@@ -67,6 +61,16 @@ class BydAttoBattery : public CanBattery {
   BatteryHtmlRenderer& get_status_renderer() { return renderer; }
 
  private:
+  static const int CELLCOUNT_EXTENDED = 126;
+  static const int CELLCOUNT_STANDARD = 104;
+  static const int MAX_PACK_VOLTAGE_EXTENDED_DV = 4410;  //Extended range
+  static const int MIN_PACK_VOLTAGE_EXTENDED_DV = 3800;  //Extended range
+  static const int MAX_PACK_VOLTAGE_STANDARD_DV = 3640;  //Standard range
+  static const int MIN_PACK_VOLTAGE_STANDARD_DV = 3136;  //Standard range
+  static const int MAX_CELL_DEVIATION_MV = 230;
+  static const int MAX_CELL_VOLTAGE_MV = 3650;  //Charging stops if one cell exceeds this value
+  static const int MIN_CELL_VOLTAGE_MV = 2800;  //Discharging stops if one cell goes below this value
+
   BydAtto3HtmlRenderer renderer;
   DATALAYER_BATTERY_TYPE* datalayer_battery;
   DATALAYER_INFO_BYDATTO3* datalayer_bydatto;
@@ -100,6 +104,7 @@ class BydAttoBattery : public CanBattery {
   int16_t battery_calc_min_temperature = 0;
   int16_t battery_calc_max_temperature = 0;
   uint16_t battery_highprecision_SOC = 0;
+  uint16_t battery_estimated_SOC = 0;
   uint16_t BMS_SOC = 0;
   uint16_t BMS_voltage = 0;
   int16_t BMS_current = 0;
@@ -113,10 +118,10 @@ class BydAttoBattery : public CanBattery {
   uint16_t BMS_allowed_charge_power = 0;
   uint16_t BMS_unknown3 = 0;
   uint16_t BMS_unknown4 = 0;
-  uint16_t BMS_unknown5 = 0;
-  uint16_t BMS_unknown6 = 0;
-  uint16_t BMS_unknown7 = 0;
-  uint16_t BMS_unknown8 = 0;
+  uint16_t BMS_total_charged_ah = 0;
+  uint16_t BMS_total_discharged_ah = 0;
+  uint16_t BMS_total_charged_kwh = 0;
+  uint16_t BMS_total_discharged_kwh = 0;
   uint16_t BMS_unknown9 = 0;
   uint8_t BMS_unknown10 = 0;
   uint8_t BMS_unknown11 = 0;

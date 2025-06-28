@@ -4,15 +4,12 @@
 #include "../include.h"
 #include "CanBattery.h"
 
+#ifdef CHADEMO_BATTERY
+#define SELECTED_BATTERY_CLASS ChademoBattery
+
 //Contactor control is required for CHADEMO support
 #define CONTACTOR_CONTROL
-
-//ISA shunt is currently required for CHADEMO support
-// other measurement sources may be added in the future
-#define ISA_SHUNT
-
-#define BATTERY_SELECTED
-#define SELECTED_BATTERY_CLASS ChademoBattery
+#endif
 
 class ChademoBattery : public CanBattery {
  public:
@@ -20,6 +17,8 @@ class ChademoBattery : public CanBattery {
   virtual void handle_incoming_can_frame(CAN_frame rx_frame);
   virtual void update_values();
   virtual void transmit_can(unsigned long currentMillis);
+
+  static constexpr char* Name = "Chademo V2X mode";
 
  private:
   void process_vehicle_charging_minimums(CAN_frame rx_frame);
@@ -127,7 +126,7 @@ uint8_t CHADEMO_seq = 0x0;
       } status;
     } s;
 
-    uint8_t StateOfCharge = 0;  //6 state of charge?
+    uint8_t StateOfCharge = 50;  //6 state of charge?
   };
 
   /* ---------- CHARGING: EVSE Data structures */
@@ -180,7 +179,7 @@ uint8_t CHADEMO_seq = 0x0;
   //H200 - Vehicle - Discharge limits
   struct x200_Vehicle_Discharge_Limits {
     uint8_t MaximumDischargeCurrent = 0xFF;
-    uint16_t MinimumDischargeVoltage = 0;
+    uint16_t MinimumDischargeVoltage = 260;  //Initialized to a semi-sane value, updates via CAN later
     uint16_t MinimumBatteryDischargeLevel = 0;
     uint16_t MaxRemainingCapacityForCharging = 0;
   };

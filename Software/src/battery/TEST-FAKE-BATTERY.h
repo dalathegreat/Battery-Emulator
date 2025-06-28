@@ -4,8 +4,9 @@
 #include "../include.h"
 #include "CanBattery.h"
 
-#define BATTERY_SELECTED
+#ifdef TEST_FAKE_BATTERY
 #define SELECTED_BATTERY_CLASS TestFakeBattery
+#endif
 
 class TestFakeBattery : public CanBattery {
  public:
@@ -20,6 +21,8 @@ class TestFakeBattery : public CanBattery {
     datalayer_battery = &datalayer.battery;
     allows_contactor_closing = &datalayer.system.status.battery_allows_contactor_closing;
   }
+
+  static constexpr char* Name = "Fake battery for testing purposes";
 
   virtual void setup();
   virtual void handle_incoming_can_frame(CAN_frame rx_frame);
