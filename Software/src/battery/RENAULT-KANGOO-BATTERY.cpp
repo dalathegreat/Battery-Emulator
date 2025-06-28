@@ -1,9 +1,8 @@
-#include "../include.h"
-#ifdef RENAULT_KANGOO_BATTERY
+#include "RENAULT-KANGOO-BATTERY.h"
 #include "../communication/can/comm_can.h"
 #include "../datalayer/datalayer.h"
 #include "../devboard/utils/events.h"
-#include "RENAULT-KANGOO-BATTERY.h"
+#include "../include.h"
 
 /* TODO:
 There seems to be some values on the Kangoo that differ between the 22/33 kWh version
@@ -182,7 +181,7 @@ void RenaultKangooBattery::transmit_can(unsigned long currentMillis) {
 }
 
 void RenaultKangooBattery::setup(void) {  // Performs one time setup at startup
-  strncpy(datalayer.system.info.battery_protocol, "Renault Kangoo", 63);
+  strncpy(datalayer.system.info.battery_protocol, Name, 63);
   datalayer.system.info.battery_protocol[63] = '\0';
   datalayer.system.status.battery_allows_contactor_closing = true;
   datalayer.battery.info.max_design_voltage_dV = MAX_PACK_VOLTAGE_DV;
@@ -191,5 +190,3 @@ void RenaultKangooBattery::setup(void) {  // Performs one time setup at startup
   datalayer.battery.info.min_cell_voltage_mV = MIN_CELL_VOLTAGE_MV;
   datalayer.battery.info.max_cell_voltage_deviation_mV = MAX_CELL_DEVIATION_MV;
 }
-
-#endif

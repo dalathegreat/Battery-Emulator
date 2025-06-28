@@ -197,10 +197,10 @@ typedef struct {
   uint16_t chargePower = 0;
   uint16_t unknown3 = 0;
   uint16_t unknown4 = 0;
-  uint16_t unknown5 = 0;
-  uint16_t unknown6 = 0;
-  uint16_t unknown7 = 0;
-  uint16_t unknown8 = 0;
+  uint16_t total_charged_ah = 0;
+  uint16_t total_discharged_ah = 0;
+  uint16_t total_charged_kwh = 0;
+  uint16_t total_discharged_kwh = 0;
   uint16_t unknown9 = 0;
   uint8_t unknown10 = 0;
   uint8_t unknown11 = 0;
@@ -826,6 +826,8 @@ typedef struct {
   uint8_t HVBOT = 0;
   uint8_t HVBOV = 0;
   uint8_t COV = 0;
+  uint16_t mileage_km = 0;
+  uint16_t alltime_kWh = 0;
 } DATALAYER_INFO_ZOE;
 
 typedef struct {
@@ -860,7 +862,6 @@ typedef struct {
   uint16_t battery_balance_capacity_wake = 0;
   uint16_t battery_balance_time_wake = 0;
   uint16_t battery_bms_state = 0;
-  uint16_t battery_balance_switches = 0;
   uint16_t battery_energy_complete = 0;
   uint16_t battery_energy_partial = 0;
   uint16_t battery_slave_failures = 0;

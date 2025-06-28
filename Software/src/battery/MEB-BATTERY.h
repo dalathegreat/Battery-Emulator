@@ -5,8 +5,9 @@
 #include "CanBattery.h"
 #include "MEB-HTML.h"
 
-#define BATTERY_SELECTED
+#ifdef MEB_BATTERY
 #define SELECTED_BATTERY_CLASS MebBattery
+#endif
 
 class MebBattery : public CanBattery {
  public:
@@ -16,6 +17,7 @@ class MebBattery : public CanBattery {
   virtual void transmit_can(unsigned long currentMillis);
   bool supports_real_BMS_status() { return true; }
   bool supports_charged_energy() { return true; }
+  static constexpr char* Name = "Volkswagen Group MEB platform via CAN-FD";
 
   BatteryHtmlRenderer& get_status_renderer() { return renderer; }
 

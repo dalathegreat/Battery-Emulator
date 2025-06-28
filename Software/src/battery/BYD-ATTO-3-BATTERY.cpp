@@ -1,10 +1,9 @@
-#include "../include.h"
-#ifdef BYD_ATTO_3_BATTERY
+#include "BYD-ATTO-3-BATTERY.h"
 #include "../communication/can/comm_can.h"
 #include "../datalayer/datalayer.h"
 #include "../datalayer/datalayer_extended.h"
 #include "../devboard/utils/events.h"
-#include "BYD-ATTO-3-BATTERY.h"
+#include "../include.h"
 
 /* Notes
 SOC% by default is now ESTIMATED.
@@ -22,12 +21,12 @@ After battery has been unlocked, you can remove the "USE_ESTIMATED_SOC" from the
 #define UNKNOWN_POLL_0 0x1FFE  //0x64 19 C4 3B
 #define UNKNOWN_POLL_1 0x1FFC  //0x72 1F C4 3B
 #define POLL_MAX_CHARGE_POWER 0x000A
-#define UNKNOWN_POLL_3 0x000B   //0x00B1 (177 interesting!)
-#define UNKNOWN_POLL_4 0x000E   //0x0B27 (2855 interesting!)
-#define UNKNOWN_POLL_5 0x000F   //0x00237B (9083 interesting!)
-#define UNKNOWN_POLL_6 0x0010   //0x00231B (8987 interesting!)
-#define UNKNOWN_POLL_7 0x0011   //0x0E4E (3662 interesting!)
-#define UNKNOWN_POLL_8 0x0012   //0x0E27 (3623 interesting)
+#define UNKNOWN_POLL_3 0x000B  //0x00B1 (177 interesting!)
+#define UNKNOWN_POLL_4 0x000E  //0x0B27 (2855 interesting!)
+#define POLL_TOTAL_CHARGED_AH 0x000F
+#define POLL_TOTAL_DISCHARGED_AH 0x0010
+#define POLL_TOTAL_CHARGED_KWH 0x0011
+#define POLL_TOTAL_DISCHARGED_KWH 0x0012
 #define UNKNOWN_POLL_9 0x0004   //0x0034 (52 interesting!)
 #define UNKNOWN_POLL_10 0x002A  //0x5B
 #define UNKNOWN_POLL_11 0x002E  //0x08 (probably module number, or cell number?)
@@ -151,6 +150,13 @@ void BydAttoBattery::
     datalayer_battery->status.voltage_dV = BMS_voltage * 10;
   }
 
+  if (battery_type == EXTENDED_RANGE) {
+    battery_estimated_SOC = estimateSOCextended(datalayer_battery->status.voltage_dV);
+  }
+  if (battery_type == STANDARD_RANGE) {
+    battery_estimated_SOC = estimateSOCstandard(datalayer_battery->status.voltage_dV);
+  }
+
   if (SOC_method == MEASURED) {
     // Pack is not crashed, we can use periodically transmitted SOC
     datalayer_battery->status.real_soc = battery_highprecision_SOC * 10;
@@ -158,12 +164,7 @@ void BydAttoBattery::
     // When the battery is crashed hard, it locks itself and SOC becomes unavailable.
     // We instead estimate the SOC% based on the battery voltage.
     // This is a bad solution, you wont be able to use 100% of the battery
-    if (battery_type == EXTENDED_RANGE) {
-      datalayer_battery->status.real_soc = estimateSOCextended(datalayer_battery->status.voltage_dV);
-    }
-    if (battery_type == STANDARD_RANGE) {
-      datalayer_battery->status.real_soc = estimateSOCstandard(datalayer_battery->status.voltage_dV);
-    }
+    datalayer_battery->status.real_soc = battery_estimated_SOC;
   }
 
   datalayer_battery->status.current_dA = -BMS_current;
@@ -178,6 +179,9 @@ void BydAttoBattery::
   datalayer_battery->status.cell_max_voltage_mV = BMS_highest_cell_voltage_mV;
 
   datalayer_battery->status.cell_min_voltage_mV = BMS_lowest_cell_voltage_mV;
+
+  datalayer_battery->status.total_discharged_battery_Wh = BMS_total_discharged_kwh * 1000;
+  datalayer_battery->status.total_charged_battery_Wh = BMS_total_charged_kwh * 1000;
 
   //Map all cell voltages to the global array
   memcpy(datalayer_battery->status.cell_voltages_mV, battery_cellvoltages, CELLCOUNT_EXTENDED * sizeof(uint16_t));
@@ -255,8 +259,7 @@ void BydAttoBattery::
   // Update webserver datalayer
   if (datalayer_bydatto) {
     datalayer_bydatto->SOC_method = SOC_method;
-    datalayer_bydatto->SOC_estimated = datalayer_battery->status.real_soc;
-    //Once we implement switching logic, remember to change from where the estimated is taken
+    datalayer_bydatto->SOC_estimated = battery_estimated_SOC;
     datalayer_bydatto->SOC_highprec = battery_highprecision_SOC;
     datalayer_bydatto->SOC_polled = BMS_SOC;
     datalayer_bydatto->voltage_periodic = battery_voltage;
@@ -276,10 +279,10 @@ void BydAttoBattery::
     datalayer_bydatto->chargePower = BMS_allowed_charge_power;
     datalayer_bydatto->unknown3 = BMS_unknown3;
     datalayer_bydatto->unknown4 = BMS_unknown4;
-    datalayer_bydatto->unknown5 = BMS_unknown5;
-    datalayer_bydatto->unknown6 = BMS_unknown6;
-    datalayer_bydatto->unknown7 = BMS_unknown7;
-    datalayer_bydatto->unknown8 = BMS_unknown8;
+    datalayer_bydatto->total_charged_ah = BMS_total_charged_ah;
+    datalayer_bydatto->total_discharged_ah = BMS_total_discharged_ah;
+    datalayer_bydatto->total_charged_kwh = BMS_total_charged_kwh;
+    datalayer_bydatto->total_discharged_kwh = BMS_total_discharged_kwh;
     datalayer_bydatto->unknown9 = BMS_unknown9;
     datalayer_bydatto->unknown10 = BMS_unknown10;
     datalayer_bydatto->unknown11 = BMS_unknown11;
@@ -442,17 +445,17 @@ void BydAttoBattery::handle_incoming_can_frame(CAN_frame rx_frame) {
         case UNKNOWN_POLL_4:
           BMS_unknown4 = (rx_frame.data.u8[5] << 8) | rx_frame.data.u8[4];
           break;
-        case UNKNOWN_POLL_5:
-          BMS_unknown5 = (rx_frame.data.u8[5] << 8) | rx_frame.data.u8[4];
+        case POLL_TOTAL_CHARGED_AH:
+          BMS_total_charged_ah = (rx_frame.data.u8[5] << 8) | rx_frame.data.u8[4];
           break;
-        case UNKNOWN_POLL_6:
-          BMS_unknown6 = (rx_frame.data.u8[5] << 8) | rx_frame.data.u8[4];
+        case POLL_TOTAL_DISCHARGED_AH:
+          BMS_total_discharged_ah = (rx_frame.data.u8[5] << 8) | rx_frame.data.u8[4];
           break;
-        case UNKNOWN_POLL_7:
-          BMS_unknown7 = (rx_frame.data.u8[5] << 8) | rx_frame.data.u8[4];
+        case POLL_TOTAL_CHARGED_KWH:
+          BMS_total_charged_kwh = (rx_frame.data.u8[5] << 8) | rx_frame.data.u8[4];
           break;
-        case UNKNOWN_POLL_8:
-          BMS_unknown8 = (rx_frame.data.u8[5] << 8) | rx_frame.data.u8[4];
+        case POLL_TOTAL_DISCHARGED_KWH:
+          BMS_total_discharged_kwh = (rx_frame.data.u8[5] << 8) | rx_frame.data.u8[4];
           break;
         case UNKNOWN_POLL_9:
           BMS_unknown9 = (rx_frame.data.u8[5] << 8) | rx_frame.data.u8[4];
@@ -622,26 +625,26 @@ void BydAttoBattery::transmit_can(unsigned long currentMillis) {
       case UNKNOWN_POLL_4:
         ATTO_3_7E7_POLL.data.u8[2] = (uint8_t)((UNKNOWN_POLL_4 & 0xFF00) >> 8);
         ATTO_3_7E7_POLL.data.u8[3] = (uint8_t)(UNKNOWN_POLL_4 & 0x00FF);
-        poll_state = UNKNOWN_POLL_5;
+        poll_state = POLL_TOTAL_CHARGED_AH;
         break;
-      case UNKNOWN_POLL_5:
-        ATTO_3_7E7_POLL.data.u8[2] = (uint8_t)((UNKNOWN_POLL_5 & 0xFF00) >> 8);
-        ATTO_3_7E7_POLL.data.u8[3] = (uint8_t)(UNKNOWN_POLL_5 & 0x00FF);
-        poll_state = UNKNOWN_POLL_6;
+      case POLL_TOTAL_CHARGED_AH:
+        ATTO_3_7E7_POLL.data.u8[2] = (uint8_t)((POLL_TOTAL_CHARGED_AH & 0xFF00) >> 8);
+        ATTO_3_7E7_POLL.data.u8[3] = (uint8_t)(POLL_TOTAL_CHARGED_AH & 0x00FF);
+        poll_state = POLL_TOTAL_DISCHARGED_AH;
         break;
-      case UNKNOWN_POLL_6:
-        ATTO_3_7E7_POLL.data.u8[2] = (uint8_t)((UNKNOWN_POLL_6 & 0xFF00) >> 8);
-        ATTO_3_7E7_POLL.data.u8[3] = (uint8_t)(UNKNOWN_POLL_6 & 0x00FF);
-        poll_state = UNKNOWN_POLL_7;
+      case POLL_TOTAL_DISCHARGED_AH:
+        ATTO_3_7E7_POLL.data.u8[2] = (uint8_t)((POLL_TOTAL_DISCHARGED_AH & 0xFF00) >> 8);
+        ATTO_3_7E7_POLL.data.u8[3] = (uint8_t)(POLL_TOTAL_DISCHARGED_AH & 0x00FF);
+        poll_state = POLL_TOTAL_CHARGED_KWH;
         break;
-      case UNKNOWN_POLL_7:
-        ATTO_3_7E7_POLL.data.u8[2] = (uint8_t)((UNKNOWN_POLL_7 & 0xFF00) >> 8);
-        ATTO_3_7E7_POLL.data.u8[3] = (uint8_t)(UNKNOWN_POLL_7 & 0x00FF);
-        poll_state = UNKNOWN_POLL_8;
+      case POLL_TOTAL_CHARGED_KWH:
+        ATTO_3_7E7_POLL.data.u8[2] = (uint8_t)((POLL_TOTAL_CHARGED_KWH & 0xFF00) >> 8);
+        ATTO_3_7E7_POLL.data.u8[3] = (uint8_t)(POLL_TOTAL_CHARGED_KWH & 0x00FF);
+        poll_state = POLL_TOTAL_DISCHARGED_KWH;
         break;
-      case UNKNOWN_POLL_8:
-        ATTO_3_7E7_POLL.data.u8[2] = (uint8_t)((UNKNOWN_POLL_8 & 0xFF00) >> 8);
-        ATTO_3_7E7_POLL.data.u8[3] = (uint8_t)(UNKNOWN_POLL_8 & 0x00FF);
+      case POLL_TOTAL_DISCHARGED_KWH:
+        ATTO_3_7E7_POLL.data.u8[2] = (uint8_t)((POLL_TOTAL_DISCHARGED_KWH & 0xFF00) >> 8);
+        ATTO_3_7E7_POLL.data.u8[3] = (uint8_t)(POLL_TOTAL_DISCHARGED_KWH & 0x00FF);
         poll_state = UNKNOWN_POLL_9;
         break;
       case UNKNOWN_POLL_9:
@@ -681,7 +684,7 @@ void BydAttoBattery::transmit_can(unsigned long currentMillis) {
 }
 
 void BydAttoBattery::setup(void) {  // Performs one time setup at startup
-  strncpy(datalayer.system.info.battery_protocol, "BYD Atto 3", 63);
+  strncpy(datalayer.system.info.battery_protocol, Name, 63);
   datalayer.system.info.battery_protocol[63] = '\0';
   datalayer_battery->info.number_of_cells = CELLCOUNT_STANDARD;
   datalayer_battery->info.chemistry = battery_chemistry_enum::LFP;
@@ -696,5 +699,3 @@ void BydAttoBattery::setup(void) {  // Performs one time setup at startup
   SOC_method = MEASURED;
 #endif
 }
-
-#endif

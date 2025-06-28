@@ -5,8 +5,9 @@
 #include "CanBattery.h"
 #include "RENAULT-ZOE-GEN2-HTML.h"
 
-#define BATTERY_SELECTED
+#ifdef RENAULT_ZOE_GEN2_BATTERY
 #define SELECTED_BATTERY_CLASS RenaultZoeGen2Battery
+#endif
 
 class RenaultZoeGen2Battery : public CanBattery {
  public:
@@ -31,6 +32,7 @@ class RenaultZoeGen2Battery : public CanBattery {
   virtual void handle_incoming_can_frame(CAN_frame rx_frame);
   virtual void update_values();
   virtual void transmit_can(unsigned long currentMillis);
+  static constexpr char* Name = "Renault Zoe Gen2 50kWh";
 
   bool supports_reset_NVROL() { return true; }
 
@@ -191,7 +193,8 @@ class RenaultZoeGen2Battery : public CanBattery {
   static const int POLL_CELL_93 = 0x9081;
   static const int POLL_CELL_94 = 0x9082;
   static const int POLL_CELL_95 = 0x9083;
-
+  volatile unsigned long startTimeNVROL = 0;
+  uint8_t NVROLstateMachine = 0;
   uint16_t battery_soc = 0;
   uint16_t battery_usable_soc = 5000;
   uint16_t battery_soh = 10000;
