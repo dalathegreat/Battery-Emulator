@@ -165,6 +165,11 @@ String settings_processor(const String& var) {
                                           name_for_charger_type, ChargerType::None);
     content += "</select>";
 
+    content += "<label>Charger comm I/F: </label><select style='max-width: 250px;' name='CHGCOMM'>";
+    content += options_for_enum((comm_interface)settings.getUInt("CHGCOMM", (int)comm_interface::CanNative),
+                                name_for_comm_interface);
+    content += "</select>";
+
     content += "<label>Equipment stop button: </label><select style='max-width: 250px;' name='EQSTOP'>";
     content += options_for_enum_with_none(
         (STOP_BUTTON_BEHAVIOR)settings.getUInt("EQSTOP", (int)STOP_BUTTON_BEHAVIOR::NOT_CONNECTED),
@@ -174,6 +179,12 @@ String settings_processor(const String& var) {
     // TODO: Generalize settings: define settings in one place and use the definitions to render
     // UI and handle load/save
     render_checkbox(content, "Double battery", settings.getBool("DBLBTR"), "DBLBTR");
+
+    content += "<label>Battery 2 comm I/F: </label><select style='max-width: 250px;' name='BATT2COMM'>";
+    content += options_for_enum((comm_interface)settings.getUInt("BATT2COMM", (int)comm_interface::CanNative),
+                                name_for_comm_interface);
+    content += "</select>";
+
     render_checkbox(content, "Contactor control", settings.getBool("CNTCTRL"), "CNTCTRL");
     render_checkbox(content, "Contactor control double battery", settings.getBool("CNTCTRLDBL"), "CNTCTRLDBL");
     render_checkbox(content, "PWM contactor control", settings.getBool("PWMCNTCTRL"), "PWMCNTCTRL");
