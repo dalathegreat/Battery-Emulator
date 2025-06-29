@@ -5,6 +5,7 @@
 #include <chrono>
 #include <unordered_map>
 #include "../../../src/devboard/utils/events.h"
+#include "../../../src/devboard/utils/logging.h"
 #include "../../../src/devboard/utils/types.h"
 
 // Hardware Abstraction Layer base class.
@@ -30,14 +31,13 @@ class Esp32Hal {
     for (gpio_num_t pin : requested_pins) {
       if (pin < 0) {
         set_event(EVENT_GPIO_NOT_DEFINED, (int)pin);
-        // Event: {name} attempted to allocate pin that wasn't defined for the selected HW.
+        LOG_PRINT("%s attempted to allocate pin %d that wasn't defined for the selected HW.\n", name, (int)pin);
         return false;
       }
 
       auto it = allocated_pins.find(pin);
       if (it != allocated_pins.end()) {
-        // Event: GPIO conflict for pin {pin} between name and it->second.
-        //std::cerr << "Pin " << pin << " already allocated to \"" << it->second << "\".\n";
+        LOG_PRINT("GPIO conflict for pin %d between %s and %s.\n", (int)pin, name, it->second.c_str());
         set_event(EVENT_GPIO_CONFLICT, (int)pin);
         return false;
       }

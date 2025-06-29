@@ -25,7 +25,7 @@ bool periodic_bms_reset = periodic_bms_reset_default;
 #ifdef REMOTE_BMS_RESET
 const bool remote_bms_reset_default = true;
 #else
-const bool remote_bms_reset_default = true;
+const bool remote_bms_reset_default = false;
 #endif
 bool remote_bms_reset = remote_bms_reset_default;
 

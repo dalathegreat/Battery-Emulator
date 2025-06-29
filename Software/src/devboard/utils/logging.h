@@ -17,4 +17,17 @@ class Logging : public Print {
 };
 
 extern Logging logging;
+
+#ifdef DEBUG_LOG
+#define LOG_PRINT(fmt, ...) logging.printf(fmt, ##__VA_ARGS__)
+#define LOG_PRINTLN(str) logging.println(str)
+#else
+#define LOG_PRINT(fmt, ...) \
+  do {                      \
+  } while (0)
+#define LOG_PRINTLN(str) \
+  do {                   \
+  } while (0)
+#endif
+
 #endif  // __LOGGING_H__
