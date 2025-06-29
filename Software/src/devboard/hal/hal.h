@@ -3,6 +3,8 @@
 
 #include <soc/gpio_num.h>
 #include <chrono>
+#include <unordered_map>
+#include "../../../src/devboard/utils/events.h"
 #include "../../../src/devboard/utils/types.h"
 
 // Hardware Abstraction Layer base class.
@@ -19,7 +21,7 @@ class Esp32Hal {
   // Core assignment
   virtual int CORE_FUNCTION_CORE() { return 1; }
   virtual int MODBUS_CORE() { return 0; }
-  virtual int WIFI_CORE() { return 0; }
+  virtual int WIFICORE() { return 0; }
 
   template <typename... Pins>
   bool alloc_pins(const char* name, Pins... pins) {
@@ -27,6 +29,7 @@ class Esp32Hal {
 
     for (gpio_num_t pin : requested_pins) {
       if (pin < 0) {
+        set_event(EVENT_GPIO_NOT_DEFINED, (int)pin);
         // Event: {name} attempted to allocate pin that wasn't defined for the selected HW.
         return false;
       }
@@ -35,6 +38,7 @@ class Esp32Hal {
       if (it != allocated_pins.end()) {
         // Event: GPIO conflict for pin {pin} between name and it->second.
         //std::cerr << "Pin " << pin << " already allocated to \"" << it->second << "\".\n";
+        set_event(EVENT_GPIO_CONFLICT, (int)pin);
         return false;
       }
     }
@@ -136,11 +140,17 @@ class Esp32Hal {
   virtual gpio_num_t WUP_PIN1() { return GPIO_NUM_NC; }
   virtual gpio_num_t WUP_PIN2() { return GPIO_NUM_NC; }
 
+  // Returns the available comm interfaces on this HW
+  virtual std::vector<comm_interface> available_interfaces() = 0;
+
  private:
   std::unordered_map<gpio_num_t, std::string> allocated_pins;
 };
 
 extern Esp32Hal* esp32hal;
+
+// Needed for AsyncTCPSock library.
+#define WIFI_CORE (esp32hal->WIFICORE())
 
 void init_hal();
 

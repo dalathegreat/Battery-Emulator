@@ -11,8 +11,6 @@
 
 class SmaBydHInverter : public SmaInverterBase {
  public:
-  SmaBydHInverter();
-
   const char* name() override { return Name; }
   void update_values();
   void transmit_can(unsigned long currentMillis);

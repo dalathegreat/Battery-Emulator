@@ -7,7 +7,7 @@
 #include "hw_lilygo.h"
 #include "hw_stark.h"
 
-extern Esp32Hal* esp32hal;
+Esp32Hal* esp32hal = nullptr;
 
 void init_hal() {
 #if defined(HW_LILYGO)

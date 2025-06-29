@@ -5,7 +5,7 @@
 #include "RS485Battery.h"
 
 #if !defined(COMMON_IMAGE) && !defined(SELECTED_BATTERY_CLASS)
-#error No battery selected! Choose one from the USER_SETTINGS.h file
+#error No battery selected! Choose one from the USER_SETTINGS.h file or build COMMON_IMAGE.
 #endif
 
 Battery* battery = nullptr;
@@ -21,7 +21,7 @@ std::vector<BatteryType> supported_battery_types() {
   return types;
 }
 
-extern const char* name_for_chemistry(battery_chemistry_enum chem) {
+const char* name_for_chemistry(battery_chemistry_enum chem) {
   switch (chem) {
     case battery_chemistry_enum::LFP:
       return "LFP";
@@ -34,7 +34,26 @@ extern const char* name_for_chemistry(battery_chemistry_enum chem) {
   }
 }
 
-extern const char* name_for_battery_type(BatteryType type) {
+const char* name_for_comm_interface(comm_interface comm) {
+  switch (comm) {
+    case comm_interface::Modbus:
+      return "Modbus";
+    case comm_interface::RS485:
+      return "RS485";
+    case comm_interface::CanNative:
+      return "Native CAN";
+    case comm_interface::CanFdNative:
+      return "Native CAN FD";
+    case comm_interface::CanAddonMcp2515:
+      return "CAN MCP 2515 add-on";
+    case comm_interface::CanFdAddonMcp2518:
+      return "CAN FD MCP 2518 add-on";
+    default:
+      return nullptr;
+  }
+}
+
+const char* name_for_battery_type(BatteryType type) {
   switch (type) {
     case BatteryType::None:
       return "None";
@@ -119,7 +138,7 @@ const battery_chemistry_enum battery_chemistry_default = battery_chemistry_enum:
 const battery_chemistry_enum battery_chemistry_default = battery_chemistry_enum::NMC;
 #endif
 
-extern battery_chemistry_enum user_selected_battery_chemistry;
+battery_chemistry_enum user_selected_battery_chemistry = battery_chemistry_default;
 
 #ifdef COMMON_IMAGE
 #ifdef SELECTED_BATTERY_CLASS

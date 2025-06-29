@@ -9,7 +9,18 @@ using duration = std::chrono::duration<unsigned long, std::ratio<1, 1000>>;
 
 enum bms_status_enum { STANDBY = 0, INACTIVE = 1, DARKSTART = 2, ACTIVE = 3, FAULT = 4, UPDATING = 5 };
 enum real_bms_status_enum { BMS_DISCONNECTED = 0, BMS_STANDBY = 1, BMS_ACTIVE = 2, BMS_FAULT = 3 };
-enum battery_chemistry_enum { NCA, NMC, LFP };
+enum battery_chemistry_enum { NCA = 1, NMC = 2, LFP = 3, Highest };
+
+enum class comm_interface {
+  Modbus = 1,
+  RS485 = 2,
+  CanNative = 3,
+  CanFdNative = 4,
+  CanAddonMcp2515 = 5,
+  CanFdAddonMcp2518 = 6,
+  Highest
+};
+
 enum led_color { GREEN, YELLOW, RED, BLUE };
 enum led_mode_enum { CLASSIC, FLOW, HEARTBEAT };
 enum PrechargeState {

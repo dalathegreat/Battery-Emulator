@@ -1,6 +1,8 @@
 #include "comm_can.h"
+#include <algorithm>
 #include <map>
 #include "../../include.h"
+#include "../../lib/miwagner-ESP32-Arduino-CAN/ESP32CAN.h"
 #include "../../lib/pierremolinaro-ACAN2517FD/ACAN2517FD.h"
 #include "../../lib/pierremolinaro-acan2515/ACAN2515.h"
 #include "src/devboard/sdcard/sdcard.h"
@@ -295,7 +297,7 @@ void receive_frame_canfd_addon() {  // This section checks if we have a complete
     rx_frame.ID = MCP2518frame.id;
     rx_frame.ext_ID = MCP2518frame.ext;
     rx_frame.DLC = MCP2518frame.len;
-    memcpy(rx_frame.data.u8, MCP2518frame.data, MIN(rx_frame.DLC, 64));
+    memcpy(rx_frame.data.u8, MCP2518frame.data, std::min(rx_frame.DLC, (uint8_t)64));
     //message incoming, pass it on to the handler
     map_can_frame_to_variable(&rx_frame, CANFD_ADDON_MCP2518);
     map_can_frame_to_variable(&rx_frame, CANFD_NATIVE);
@@ -414,5 +416,19 @@ void restart_can() {
   if (canfd) {
     SPI2517.begin();
     canfd->begin(*settings2517, [] { can2515->isr(); });
+  }
+}
+
+void slow_down_can(CAN_Interface interface) {
+  if (interface == CAN_Interface::CAN_NATIVE) {
+    CAN_cfg.speed = CAN_SPEED_100KBPS;  //Slow down canbus to achieve wakeup timings
+    ESP32Can.CANInit();                 // ReInit native CAN module at new speed
+  }
+}
+
+void resume_full_speed(CAN_Interface interface) {
+  if (interface == CAN_Interface::CAN_NATIVE) {
+    CAN_cfg.speed = CAN_SPEED_500KBPS;  //Resume fullspeed
+    ESP32Can.CANInit();                 // ReInit native CAN module at new speed
   }
 }

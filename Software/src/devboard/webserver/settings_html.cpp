@@ -27,7 +27,8 @@ std::vector<EnumType> enum_values() {
 }
 
 template <typename EnumType, typename Func>
-std::vector<std::pair<String, EnumType>> enum_values_and_names(Func name_for_type) {
+std::vector<std::pair<String, EnumType>> enum_values_and_names(Func name_for_type,
+                                                               const EnumType* noneValue = nullptr) {
   auto values = enum_values<EnumType>();
 
   std::vector<std::pair<String, EnumType>> pairs;
@@ -41,15 +42,31 @@ std::vector<std::pair<String, EnumType>> enum_values_and_names(Func name_for_typ
 
   std::sort(pairs.begin(), pairs.end(), [](const auto& a, const auto& b) { return a.first < b.first; });
 
-  pairs.insert(pairs.begin(), std::pair(name_for_type(EnumType::None), EnumType::None));
+  if (noneValue) {
+    pairs.insert(pairs.begin(), std::pair(name_for_type(*noneValue), *noneValue));
+  }
 
   return pairs;
 }
 
 template <typename TEnum, typename Func>
+String options_for_enum_with_none(TEnum selected, Func name_for_type, TEnum noneValue) {
+  String options;
+  TEnum none = noneValue;
+  auto values = enum_values_and_names<TEnum>(name_for_type, &none);
+  for (const auto& [name, type] : values) {
+    options +=
+        ("<option value=\"" + String(static_cast<int>(type)) + "\"" + (selected == type ? " selected" : "") + ">");
+    options += name;
+    options += "</option>";
+  }
+  return options;
+}
+
+template <typename TEnum, typename Func>
 String options_for_enum(TEnum selected, Func name_for_type) {
   String options;
-  auto values = enum_values_and_names<TEnum>(name_for_type);
+  auto values = enum_values_and_names<TEnum>(name_for_type, nullptr);
   for (const auto& [name, type] : values) {
     options +=
         ("<option value=\"" + String(static_cast<int>(type)) + "\"" + (selected == type ? " selected" : "") + ">");
@@ -106,7 +123,7 @@ String settings_processor(const String& var) {
         "onclick='editPassword()'>Edit</button></h4>";
 
 #ifdef COMMON_IMAGE
-    BatteryEmulatorSettingsStore settings;
+    BatteryEmulatorSettingsStore settings(true);
 
     // It's important that we read/write settings directly to settings store instead of the run-time values
     // since the run-time values may have direct effect on operation.
@@ -118,29 +135,40 @@ String settings_processor(const String& var) {
         "align-items: center;'>";
 
     content += "<label>Battery: </label><select style='max-width: 250px;' name='battery'>";
-    content +=
-        options_for_enum((BatteryType)settings.getUInt("BATTTYPE", (int)BatteryType::None), name_for_battery_type);
+    content += options_for_enum_with_none((BatteryType)settings.getUInt("BATTTYPE", (int)BatteryType::None),
+                                          name_for_battery_type, BatteryType::None);
     content += "</select>";
 
-    content += "<label>Battery chemistry: </label><select style='max-width: 250px;' name='battery'>";
+    content += "<label>Battery comm I/F: </label><select style='max-width: 250px;' name='BATTCOMM'>";
+    content += options_for_enum((comm_interface)settings.getUInt("BATTCOMM", (int)comm_interface::CanNative),
+                                name_for_comm_interface);
+    content += "</select>";
+
+    content += "<label>Battery chemistry: </label><select style='max-width: 250px;' name='BATTCHEM'>";
     content += options_for_enum((battery_chemistry_enum)settings.getUInt("BATTCHEM", (int)battery_chemistry_enum::NCA),
                                 name_for_chemistry);
     content += "</select>";
 
     content += "<label>Inverter protocol: </label><select style='max-width: 250px;' name='inverter'>";
-    content += options_for_enum((InverterProtocolType)settings.getUInt("INVTYPE", (int)InverterProtocolType::None),
-                                name_for_inverter_type);
+    content +=
+        options_for_enum_with_none((InverterProtocolType)settings.getUInt("INVTYPE", (int)InverterProtocolType::None),
+                                   name_for_inverter_type, InverterProtocolType::None);
+    content += "</select>";
+
+    content += "<label>Inverter comm I/F: </label><select style='max-width: 250px;' name='INVCOMM'>";
+    content += options_for_enum((comm_interface)settings.getUInt("INVCOMM", (int)comm_interface::CanNative),
+                                name_for_comm_interface);
     content += "</select>";
 
     content += "<label>Charger: </label><select style='max-width: 250px;' name='charger'>";
-    content +=
-        options_for_enum((ChargerType)settings.getUInt("CHGTYPE", (int)ChargerType::None), name_for_charger_type);
+    content += options_for_enum_with_none((ChargerType)settings.getUInt("CHGTYPE", (int)ChargerType::None),
+                                          name_for_charger_type, ChargerType::None);
     content += "</select>";
 
     content += "<label>Equipment stop button: </label><select style='max-width: 250px;' name='EQSTOP'>";
-    content +=
-        options_for_enum((STOP_BUTTON_BEHAVIOR)settings.getUInt("EQSTOP", (int)STOP_BUTTON_BEHAVIOR::NOT_CONNECTED),
-                         name_for_button_type);
+    content += options_for_enum_with_none(
+        (STOP_BUTTON_BEHAVIOR)settings.getUInt("EQSTOP", (int)STOP_BUTTON_BEHAVIOR::NOT_CONNECTED),
+        name_for_button_type, STOP_BUTTON_BEHAVIOR::NOT_CONNECTED);
     content += "</select>";
 
     // TODO: Generalize settings: define settings in one place and use the definitions to render

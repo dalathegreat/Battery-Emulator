@@ -19,7 +19,7 @@
 
 /* - ERROR CHECKS BELOW, DON'T TOUCH - */
 
-#if !defined(HW_LILYGO) || !defined(HW_STARK) || !defined(HW_3LB) || !defined(HW_DEVKIT)
+#if !defined(HW_LILYGO) && !defined(HW_STARK) && !defined(HW_3LB) && !defined(HW_DEVKIT)
 #error You must select a target hardware in the USER_SETTINGS.h file!
 #endif
 

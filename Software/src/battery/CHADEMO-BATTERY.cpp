@@ -75,7 +75,7 @@ void ChademoBattery::process_vehicle_charging_session(CAN_frame rx_frame) {
 
   vehicle_can_initialized = true;
 
-  vehicle_permission = digitalRead(CHADEMO_PIN_4);
+  vehicle_permission = digitalRead(pin4);
 
   x102_chg_session.ControlProtocolNumberEV = rx_frame.data.u8[0];
 
@@ -936,7 +936,7 @@ void ChademoBattery::handle_chademo_sequence() {
 
 void ChademoBattery::setup(void) {  // Performs one time setup at startup
 
-  if (!esp32hal->alloc_pins("CHADEMO", pin2, pin10, pin4, pin7, pin_lock)) {
+  if (!esp32hal->alloc_pins(Name, pin2, pin10, pin4, pin7, pin_lock)) {
     return;
   }
 

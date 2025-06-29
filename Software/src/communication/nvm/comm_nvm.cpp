@@ -79,6 +79,28 @@ void init_stored_settings() {
   user_selected_inverter_protocol = (InverterProtocolType)settings.getUInt("INVTYPE", (int)InverterProtocolType::None);
   user_selected_charger_type = (ChargerType)settings.getUInt("CHGTYPE", (int)ChargerType::None);
 
+  auto readIf = [](const char* settingName) {
+    auto batt1If = (comm_interface)settings.getUInt(settingName, (int)comm_interface::CanNative);
+    switch (batt1If) {
+      case comm_interface::CanNative:
+        return CAN_Interface::CAN_NATIVE;
+      case comm_interface::CanFdNative:
+        return CAN_Interface::CANFD_NATIVE;
+      case comm_interface::CanAddonMcp2515:
+        return CAN_Interface::CAN_ADDON_MCP2515;
+      case comm_interface::CanFdAddonMcp2518:
+        return CAN_Interface::CANFD_ADDON_MCP2518;
+    }
+
+    return CAN_Interface::CAN_NATIVE;
+  };
+
+  can_config.battery = readIf("BATTCOMM");
+  can_config.battery_double = readIf("BATT2COMM");
+  can_config.inverter = readIf("INVCOMM");
+  can_config.charger = readIf("CHGCOMM");
+  can_config.shunt = readIf("SHUNTCOMM");
+
   equipment_stop_behavior = (STOP_BUTTON_BEHAVIOR)settings.getUInt("EQSTOP", (int)STOP_BUTTON_BEHAVIOR::NOT_CONNECTED);
   user_selected_second_battery = settings.getBool("DBLBTR", false);
   contactor_control_enabled = settings.getBool("CNTCTRL", false);

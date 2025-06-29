@@ -1,13 +1,7 @@
 #ifndef _COMM_CAN_H_
 #define _COMM_CAN_H_
 
-#include "../../include.h"
-
-#include "../../datalayer/datalayer.h"
-#include "../../devboard/utils/events.h"
-#include "../../devboard/utils/value_mapping.h"
-#include "../../lib/ESP32Async-ESPAsyncWebServer/src/ESPAsyncWebServer.h"
-#include "../../lib/miwagner-ESP32-Arduino-CAN/ESP32CAN.h"
+#include "../../devboard/utils/types.h"
 
 extern bool use_canfd_as_can;
 
@@ -78,5 +72,8 @@ void stop_can();
 
 // Restart CAN communication for all interfaces
 void restart_can();
+
+void slow_down_can(CAN_Interface interface);
+void resume_full_speed(CAN_Interface interface);
 
 #endif

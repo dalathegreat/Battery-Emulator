@@ -72,10 +72,6 @@ Logging logging;
 void setup() {
   init_hal();
 
-  if (!led_init()) {
-    return;
-  }
-
   init_serial();
 
   // We print this after setting up serial, such that is also printed to serial with DEBUG_VIA_USB set.
@@ -87,17 +83,17 @@ void setup() {
 
 #ifdef WIFI
   xTaskCreatePinnedToCore((TaskFunction_t)&connectivity_loop, "connectivity_loop", 4096, NULL, TASK_CONNECTIVITY_PRIO,
-                          &connectivity_loop_task, WIFI_CORE);
+                          &connectivity_loop_task, esp32hal->WIFICORE());
 #endif
+
+  if (!led_init()) {
+    return;
+  }
 
 #if defined(LOG_CAN_TO_SD) || defined(LOG_TO_SD)
   xTaskCreatePinnedToCore((TaskFunction_t)&logging_loop, "logging_loop", 4096, NULL, TASK_CONNECTIVITY_PRIO,
-                          &logging_loop_task, WIFI_CORE);
+                          &logging_loop_task, esp32hal->WIFICORE());
 #endif
-
-  if (!init_CAN()) {
-    return;
-  }
 
   if (!init_contactors()) {
     return;
@@ -114,6 +110,12 @@ void setup() {
   }
   setup_battery();
 
+  setup_can_shunt();
+
+  if (!init_CAN()) {
+    return;
+  }
+
   if (!init_rs485()) {
     return;
   }
@@ -122,7 +124,6 @@ void setup() {
     return;
   }
 
-  setup_can_shunt();
   // BOOT button at runtime is used as an input for various things
   pinMode(0, INPUT_PULLUP);
 
@@ -131,7 +132,7 @@ void setup() {
   // Initialize Task Watchdog for subscribed tasks
   esp_task_wdt_config_t wdt_config = {
       .timeout_ms = INTERVAL_5_S,  // If task hangs for longer than this, reboot
-      .idle_core_mask = (1 << esp32hal->CORE_FUNCTION_CORE()) | (1 << esp32hal->WIFI_CORE()),  // Watch both cores
+      .idle_core_mask = (1 << esp32hal->CORE_FUNCTION_CORE()) | (1 << esp32hal->WIFICORE()),  // Watch both cores
       .trigger_panic = true  // Enable panic reset on timeout
   };
 
@@ -141,7 +142,7 @@ void setup() {
   init_mqtt();
 
   xTaskCreatePinnedToCore((TaskFunction_t)&mqtt_loop, "mqtt_loop", 4096, NULL, TASK_MQTT_PRIO, &mqtt_loop_task,
-                          esp32hal->WIFI_CORE());
+                          esp32hal->WIFICORE());
 #endif
 
   xTaskCreatePinnedToCore((TaskFunction_t)&core_loop, "core_loop", 4096, NULL, TASK_CORE_PRIO, &main_loop_task,

@@ -1,5 +1,6 @@
 #include "events.h"
 #include "../../datalayer/datalayer.h"
+#include "../../include.h"
 
 #include "../../../USER_SETTINGS.h"
 
@@ -131,6 +132,9 @@ void init_events(void) {
   events.entries[EVENT_PERIODIC_BMS_RESET].level = EVENT_LEVEL_INFO;
   events.entries[EVENT_PERIODIC_BMS_RESET_AT_INIT_SUCCESS].level = EVENT_LEVEL_INFO;
   events.entries[EVENT_PERIODIC_BMS_RESET_AT_INIT_FAILED].level = EVENT_LEVEL_WARNING;
+  events.entries[EVENT_BATTERY_TEMP_DEVIATION_HIGH].level = EVENT_LEVEL_WARNING;
+  events.entries[EVENT_GPIO_CONFLICT].level = EVENT_LEVEL_ERROR;
+  events.entries[EVENT_GPIO_NOT_DEFINED].level = EVENT_LEVEL_ERROR;
   events.entries[EVENT_BATTERY_TEMP_DEVIATION_HIGH].level = EVENT_LEVEL_WARNING;
 }
 
@@ -373,6 +377,10 @@ const char* get_event_message_string(EVENTS_ENUM_TYPE event) {
     case EVENT_PERIODIC_BMS_RESET_AT_INIT_FAILED:
       return "Failed to syncronise with the NTP Server. BMS will reset every 24 hours from when the emulator was "
              "powered on";
+    case EVENT_GPIO_CONFLICT:
+      return "There is a GPIO pin conflict between SW components.";
+    case EVENT_GPIO_NOT_DEFINED:
+      return "SW module requires GPIO that is not defined for this hardware.";
     default:
       return "";
   }

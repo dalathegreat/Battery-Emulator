@@ -69,6 +69,10 @@ class StarkHal : public Esp32Hal {
   // Battery wake up pins
   virtual gpio_num_t WUP_PIN1() { return GPIO_NUM_25; }
   virtual gpio_num_t WUP_PIN2() { return GPIO_NUM_32; }
+
+  std::vector<comm_interface> available_interfaces() {
+    return {comm_interface::Modbus, comm_interface::RS485, comm_interface::CanNative, comm_interface::CanFdNative};
+  }
 };
 
 #endif  // __HW_STARK_H__

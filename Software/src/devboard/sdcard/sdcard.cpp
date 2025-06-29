@@ -1,4 +1,5 @@
 #include "sdcard.h"
+#include "../../include.h"
 #include "freertos/ringbuf.h"
 
 File can_log_file;
@@ -183,13 +184,11 @@ void init_logging_buffers() {
 }
 
 bool init_sdcard() {
-
   auto miso_pin = esp32hal->SD_MISO_PIN();
   auto mosi_pin = esp32hal->SD_MOSI_PIN();
-  auto miso_pin = esp32hal->SD_MISO_PIN();
   auto sclk_pin = esp32hal->SD_SCLK_PIN();
 
-  if (!esp32hal->alloc_pins("SD Card", miso_pin, mosi_pin)) {
+  if (!esp32hal->alloc_pins("SD Card", miso_pin, mosi_pin, sclk_pin)) {
     return false;
   }
 
@@ -201,7 +200,7 @@ bool init_sdcard() {
 #ifdef DEBUG_LOG
     logging.println("SD Card initialization failed!");
 #endif  // DEBUG_LOG
-    return;
+    return false;
   }
 
   clear_event(EVENT_SD_INIT_FAILED);
