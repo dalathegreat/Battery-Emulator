@@ -27,7 +27,11 @@ class VolvoSpaBattery : public CanBattery {
   bool supports_reset_BECM() { return true; }
   void reset_BECM() { datalayer_extended.VolvoPolestar.UserRequestBECMecuReset = true; }
 
+  BatteryHtmlRenderer& get_status_renderer() { return renderer; }
+
  private:
+  VolvoSpaHtmlRenderer renderer;
+
   void readCellVoltages();
 
   static const int MAX_PACK_VOLTAGE_108S_DV = 4540;

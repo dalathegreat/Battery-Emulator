@@ -34,10 +34,10 @@ class BydAtto3HtmlRenderer : public BatteryHtmlRenderer {
     content += "<h4>Charge power raw: " + String(byd_datalayer->chargePower) + "</h4>";
     content += "<h4>Unknown3: " + String(byd_datalayer->unknown3) + "</h4>";
     content += "<h4>Unknown4: " + String(byd_datalayer->unknown4) + "</h4>";
-    content += "<h4>Unknown5: " + String(byd_datalayer->unknown5) + "</h4>";
-    content += "<h4>Unknown6: " + String(byd_datalayer->unknown6) + "</h4>";
-    content += "<h4>Unknown7: " + String(byd_datalayer->unknown7) + "</h4>";
-    content += "<h4>Unknown8: " + String(byd_datalayer->unknown8) + "</h4>";
+    content += "<h4>Total charged Ah: " + String(byd_datalayer->total_charged_ah) + "</h4>";
+    content += "<h4>Total discharged Ah: " + String(byd_datalayer->total_discharged_ah) + "</h4>";
+    content += "<h4>Total charged kWh: " + String(byd_datalayer->total_charged_kwh) + "</h4>";
+    content += "<h4>Total discharged kWh: " + String(byd_datalayer->total_discharged_kwh) + "</h4>";
     content += "<h4>Unknown9: " + String(byd_datalayer->unknown9) + "</h4>";
     content += "<h4>Unknown10: " + String(byd_datalayer->unknown10) + "</h4>";
     content += "<h4>Unknown11: " + String(byd_datalayer->unknown11) + "</h4>";
