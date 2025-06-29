@@ -10,8 +10,10 @@ void transmit_can_frame(CAN_frame* tx_frame, int interface);
 
 class CanReceiver;
 
-// Register a receiver object for a given CAN interface
-void register_can_receiver(CanReceiver* receiver, CAN_Interface interface);
+// Register a receiver object for a given CAN interface.
+// By default receivers expect the CAN interface to be operated at "fast" speed.
+// If low_speed is true, half speed is used.
+void register_can_receiver(CanReceiver* receiver, CAN_Interface interface, bool low_speed = false);
 
 /**
  * @brief Initializes all CAN interfaces requested earlier by other modules (see register_can_receiver)
@@ -23,7 +25,7 @@ void register_can_receiver(CanReceiver* receiver, CAN_Interface interface);
 bool init_CAN();
 
 /**
- * @brief Receive CAN messages from all interfaces 
+ * @brief Receive CAN messages from all interfaces. Respective CanReceivers are called.
  *
  * @param[in] void
  *

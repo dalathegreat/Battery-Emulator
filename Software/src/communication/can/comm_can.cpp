@@ -22,12 +22,17 @@ const bool use_canfd_as_can_default = false;
 #endif
 bool use_canfd_as_can = use_canfd_as_can_default;
 
+struct CanInterfaceRegistration {
+  CanReceiver* receiver;
+  bool lowSpeed;
+};
+
 void map_can_frame_to_variable(CAN_frame* rx_frame, CAN_Interface interface);
 
-static std::multimap<CAN_Interface, CanReceiver*> can_receivers;
+static std::multimap<CAN_Interface, CanInterfaceRegistration> can_receivers;
 
-void register_can_receiver(CanReceiver* receiver, CAN_Interface interface) {
-  can_receivers.insert({interface, receiver});
+void register_can_receiver(CanReceiver* receiver, CAN_Interface interface, bool low_speed) {
+  can_receivers.insert({interface, {receiver, low_speed}});
 }
 
 static const uint32_t QUARTZ_FREQUENCY = CRYSTAL_FREQUENCY_MHZ * 1000000UL;  //MHZ configured in USER_SETTINGS.h
@@ -46,7 +51,8 @@ ACAN2517FDSettings* settings2517;
 
 bool init_CAN() {
 
-  if (can_receivers.find(CAN_NATIVE) != can_receivers.end()) {
+  auto nativeIt = can_receivers.find(CAN_NATIVE);
+  if (nativeIt != can_receivers.end()) {
     auto se_pin = esp32hal->CAN_SE_PIN();
     auto tx_pin = esp32hal->CAN_TX_PIN();
     auto rx_pin = esp32hal->CAN_RX_PIN();
@@ -59,10 +65,11 @@ bool init_CAN() {
       digitalWrite(se_pin, LOW);
     }
 
-    CAN_cfg.speed = CAN_SPEED_500KBPS;
-#ifdef NATIVECAN_250KBPS  // Some component is requesting lower CAN speed
-    CAN_cfg.speed = CAN_SPEED_250KBPS;
-#endif  // NATIVECAN_250KBPS
+    if (nativeIt->second.lowSpeed) {
+      CAN_cfg.speed = CAN_SPEED_250KBPS;
+    } else {
+      CAN_cfg.speed = CAN_SPEED_500KBPS;
+    }
 
     if (!esp32hal->alloc_pins("CAN", tx_pin, rx_pin)) {
       return false;
@@ -75,7 +82,8 @@ bool init_CAN() {
     ESP32Can.CANInit();
   }
 
-  if (can_receivers.find(CAN_ADDON_MCP2515) != can_receivers.end()) {
+  auto addonIt = can_receivers.find(CAN_ADDON_MCP2515);
+  if (addonIt != can_receivers.end()) {
     auto cs_pin = esp32hal->MCP2515_CS();
     auto int_pin = esp32hal->MCP2515_INT();
     auto sck_pin = esp32hal->MCP2515_SCK();
@@ -94,7 +102,11 @@ bool init_CAN() {
     can2515 = new ACAN2515(cs_pin, SPI2515, int_pin);
 
     SPI2515.begin(sck_pin, miso_pin, mosi_pin);
-    settings2515 = new ACAN2515Settings(QUARTZ_FREQUENCY, 500UL * 1000UL);  // CAN bit rate 500 kb/s
+
+    // CAN bit rate 250 or 500 kb/s
+    auto bitRate = addonIt->second.lowSpeed ? 250UL * 1000UL : 500UL * 1000UL;
+
+    settings2515 = new ACAN2515Settings(QUARTZ_FREQUENCY, bitRate);
     settings2515->mRequestedMode = ACAN2515Settings::NormalMode;
     const uint16_t errorCode2515 = can2515->begin(*settings2515, [] { can2515->isr(); });
     if (errorCode2515 == 0) {
@@ -111,8 +123,14 @@ bool init_CAN() {
     }
   }
 
-  if (can_receivers.find(CANFD_NATIVE) != can_receivers.end() ||
-      can_receivers.find(CANFD_ADDON_MCP2518) != can_receivers.end()) {
+  auto fdNativeIt = can_receivers.find(CANFD_NATIVE);
+  auto fdAddonIt = can_receivers.find(CANFD_ADDON_MCP2518);
+
+  if (fdNativeIt != can_receivers.end() || fdAddonIt != can_receivers.end()) {
+
+    auto slow = (fdNativeIt != can_receivers.end() && fdNativeIt->second.lowSpeed) ||
+                (fdAddonIt != can_receivers.end() && fdAddonIt->second.lowSpeed);
+
     auto cs_pin = esp32hal->MCP2517_CS();
     auto int_pin = esp32hal->MCP2517_INT();
     auto sck_pin = esp32hal->MCP2517_SCK();
@@ -129,9 +147,10 @@ bool init_CAN() {
     logging.println("CAN FD add-on (ESP32+MCP2517) selected");
 #endif  // DEBUG_LOG
     SPI2517.begin(sck_pin, sdo_pin, sdi_pin);
-    settings2517 =
-        new ACAN2517FDSettings(CANFD_ADDON_CRYSTAL_FREQUENCY_MHZ, 500 * 1000,
-                               DataBitRateFactor::x4);  // Arbitration bit rate: 500 kbit/s, data bit rate: 2 Mbit/s
+    auto bitRate = slow ? 250UL * 1000UL : 500UL * 1000UL;
+    settings2517 = new ACAN2517FDSettings(
+        CANFD_ADDON_CRYSTAL_FREQUENCY_MHZ, bitRate,
+        DataBitRateFactor::x4);  // Arbitration bit rate: 250/500 kbit/s, data bit rate: 1/2 Mbit/s
 
     // ListenOnly / Normal20B / NormalFD
     settings2517->mRequestedMode = use_canfd_as_can ? ACAN2517FDSettings::Normal20B : ACAN2517FDSettings::NormalFD;
@@ -349,7 +368,7 @@ void map_can_frame_to_variable(CAN_frame* rx_frame, CAN_Interface interface) {
 
   for (auto it = receivers.first; it != receivers.second; ++it) {
     auto& receiver = it->second;
-    receiver->receive_can_frame(rx_frame);
+    receiver.receiver->receive_can_frame(rx_frame);
   }
 }
 
