@@ -61,6 +61,11 @@ class BydAttoBattery : public CanBattery {
   BatteryHtmlRenderer& get_status_renderer() { return renderer; }
 
  private:
+  BydAtto3HtmlRenderer renderer;
+  DATALAYER_BATTERY_TYPE* datalayer_battery;
+  DATALAYER_INFO_BYDATTO3* datalayer_bydatto;
+  bool* allows_contactor_closing;
+
   static const int CELLCOUNT_EXTENDED = 126;
   static const int CELLCOUNT_STANDARD = 104;
   static const int MAX_PACK_VOLTAGE_EXTENDED_DV = 4410;  //Extended range
@@ -70,11 +75,6 @@ class BydAttoBattery : public CanBattery {
   static const int MAX_CELL_DEVIATION_MV = 230;
   static const int MAX_CELL_VOLTAGE_MV = 3650;  //Charging stops if one cell exceeds this value
   static const int MIN_CELL_VOLTAGE_MV = 2800;  //Discharging stops if one cell goes below this value
-
-  BydAtto3HtmlRenderer renderer;
-  DATALAYER_BATTERY_TYPE* datalayer_battery;
-  DATALAYER_INFO_BYDATTO3* datalayer_bydatto;
-  bool* allows_contactor_closing;
 
   static const int POLL_FOR_BATTERY_SOC = 0x0005;
   static const uint8_t NOT_DETERMINED_YET = 0;
