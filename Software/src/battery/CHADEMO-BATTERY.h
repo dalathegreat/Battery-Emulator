@@ -18,7 +18,7 @@ class ChademoBattery : public CanBattery {
   virtual void update_values();
   virtual void transmit_can(unsigned long currentMillis);
 
-  static constexpr char* Name = "Chademo V2X mode";
+  static constexpr const char* Name = "Chademo V2X mode";
 
  private:
   void process_vehicle_charging_minimums(CAN_frame rx_frame);

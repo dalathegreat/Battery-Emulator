@@ -13,7 +13,7 @@ class BmwSbox : public CanShunt {
   void setup();
   void transmit_can(unsigned long currentMillis);
   void handle_incoming_can_frame(CAN_frame rx_frame);
-  static constexpr char* Name = "BMW SBOX";
+  static constexpr const char* Name = "BMW SBOX";
 
  private:
   /** Minimum input voltage required to enable relay control **/

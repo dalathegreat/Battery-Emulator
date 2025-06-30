@@ -22,7 +22,7 @@ class TestFakeBattery : public CanBattery {
     allows_contactor_closing = &datalayer.system.status.battery_allows_contactor_closing;
   }
 
-  static constexpr char* Name = "Fake battery for testing purposes";
+  static constexpr const char* Name = "Fake battery for testing purposes";
 
   virtual void setup();
   virtual void handle_incoming_can_frame(CAN_frame rx_frame);

@@ -14,7 +14,7 @@ class NissanLeafCharger : public CanCharger {
   NissanLeafCharger() : CanCharger(ChargerType::NissanLeaf) {}
 
   const char* name() { return Name; }
-  static constexpr char* Name = "Nissan LEAF 2013-2024 PDM charger";
+  static constexpr const char* Name = "Nissan LEAF 2013-2024 PDM charger";
 
   void map_can_frame_to_variable(CAN_frame rx_frame);
   void transmit_can(unsigned long currentMillis);
