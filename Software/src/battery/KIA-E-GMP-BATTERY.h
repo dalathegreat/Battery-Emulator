@@ -9,8 +9,9 @@ extern ACAN2517FD canfd;
 
 #define ESTIMATE_SOC_FROM_CELLVOLTAGE
 
-#define BATTERY_SELECTED
+#ifdef KIA_E_GMP_BATTERY
 #define SELECTED_BATTERY_CLASS KiaEGmpBattery
+#endif
 
 class KiaEGmpBattery : public CanBattery {
  public:
@@ -18,6 +19,7 @@ class KiaEGmpBattery : public CanBattery {
   virtual void handle_incoming_can_frame(CAN_frame rx_frame);
   virtual void update_values();
   virtual void transmit_can(unsigned long currentMillis);
+  static constexpr const char* Name = "Kia/Hyundai EGMP platform";
 
  private:
   uint16_t estimateSOC(uint16_t packVoltage, uint16_t cellCount, int16_t currentAmps);

@@ -14,6 +14,7 @@ class SofarInverter : public CanInverterProtocol {
   void update_values();
   void transmit_can(unsigned long currentMillis);
   void map_can_frame_to_variable(CAN_frame rx_frame);
+  static constexpr const char* Name = "Sofar BMS (Extended Frame) over CAN bus";
 
  private:
   unsigned long previousMillis100 = 0;  // will store last time a 100ms CAN Message was send

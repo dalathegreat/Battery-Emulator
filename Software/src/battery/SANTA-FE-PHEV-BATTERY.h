@@ -5,8 +5,9 @@
 #include "../include.h"
 #include "CanBattery.h"
 
-#define BATTERY_SELECTED
+#ifdef SANTA_FE_PHEV_BATTERY
 #define SELECTED_BATTERY_CLASS SantaFePhevBattery
+#endif
 
 class SantaFePhevBattery : public CanBattery {
  public:
@@ -26,6 +27,7 @@ class SantaFePhevBattery : public CanBattery {
   virtual void handle_incoming_can_frame(CAN_frame rx_frame);
   virtual void update_values();
   virtual void transmit_can(unsigned long currentMillis);
+  static constexpr const char* Name = "Santa Fe PHEV";
 
  private:
   DATALAYER_BATTERY_TYPE* datalayer_battery;

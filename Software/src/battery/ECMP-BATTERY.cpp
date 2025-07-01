@@ -1,15 +1,13 @@
-#include "../include.h"
-#ifdef STELLANTIS_ECMP_BATTERY
+#include "ECMP-BATTERY.h"
 #include "../communication/can/comm_can.h"
 #include "../datalayer/datalayer.h"
 #include "../datalayer/datalayer_extended.h"  //For More Battery Info page
 #include "../devboard/utils/events.h"
-#include "ECMP-BATTERY.h"
+#include "../include.h"
 
 /* TODO:
 This integration is still ongoing. Here is what still needs to be done in order to use this battery type
-- Disable the isolation resistance requirement that opens contactors after 30s
-- Battery says it might need 37E and 485, but no logs of this?
+- Disable the isolation resistance requirement that opens contactors after 30s under load. Factory mode?
 */
 
 /* Do not change code below unless you are sure what you are doing */
@@ -21,7 +19,7 @@ void EcmpBattery::update_values() {
 
   datalayer.battery.status.voltage_dV = battery_voltage * 10;
 
-  datalayer.battery.status.current_dA = battery_current * 10;
+  datalayer.battery.status.current_dA = -(battery_current * 10);
 
   datalayer.battery.status.active_power_W =  //Power in watts, Negative = charging batt
       ((datalayer.battery.status.voltage_dV * datalayer.battery.status.current_dA) / 100);
@@ -375,19 +373,31 @@ void EcmpBattery::handle_incoming_can_frame(CAN_frame rx_frame) {
       if (datalayer_extended.stellantisECMP.UserRequestDisableIsoMonitoring) {
         if ((rx_frame.data.u8[0] == 0x06) && (rx_frame.data.u8[1] == 0x50) && (rx_frame.data.u8[2] == 0x03)) {
           //06,50,03,00,C8,00,14,00,
-          DisableIsoMonitoringStatemachine = 2;  //Send ECMP_FACTORY_MODE_ACTIVATION next loop
+          DisableIsoMonitoringStatemachine = 2;  //Send ECMP_ACK_MESSAGE (02 3e 00)
         }
-        //if ((rx_frame.data.u8[0] == 0x03) && (rx_frame.data.u8[1] == 0x7F) && (rx_frame.data.u8[2] == 0x2E)) {
-        if (DisableIsoMonitoringStatemachine == 3) {
-          DisableIsoMonitoringStatemachine = 4;
+        if ((rx_frame.data.u8[0] == 0x02) && (rx_frame.data.u8[1] == 0x7E) && (rx_frame.data.u8[2] == 0x00)) {
+          //Expected 02,7E,00
+          DisableIsoMonitoringStatemachine = 4;  //Send ECMP_FACTORY_MODE_ACTIVATION next loop
         }
-        //if ((rx_frame.data.u8[0] == 0x03) && (rx_frame.data.u8[1] == 0x7F) && (rx_frame.data.u8[2] == 0x2E)) {
-        if (DisableIsoMonitoringStatemachine == 5) {
-          DisableIsoMonitoringStatemachine = 6;
+        if ((rx_frame.data.u8[0] == 0x03) && (rx_frame.data.u8[1] == 0x6E) && (rx_frame.data.u8[2] == 0xD9)) {
+          //Factory mode ENTRY: 2E.D9.00.01
+          DisableIsoMonitoringStatemachine = 6;  //Send ECMP_DISABLE_ISOLATION_REQ next loop
         }
-        //if ((rx_frame.data.u8[0] == 0x03) && (rx_frame.data.u8[1] == 0x7F) && (rx_frame.data.u8[2] == 0x31)) {
-        if (DisableIsoMonitoringStatemachine == 7) {
-          //UNKNOWN? 03,7F,31,24 (or 7F?)
+        if ((rx_frame.data.u8[0] == 0x03) && (rx_frame.data.u8[1] == 0x7F) && (rx_frame.data.u8[2] == 0x2E)) {
+          //Factory mode fails to enter with 7F
+          set_event(EVENT_PID_FAILED, rx_frame.data.u8[2]);
+          DisableIsoMonitoringStatemachine =
+              6;  //Send ECMP_DISABLE_ISOLATION_REQ next loop (pointless, since it will fail)
+        }
+        if ((rx_frame.data.u8[0] == 0x04) && (rx_frame.data.u8[1] == 0x31) && (rx_frame.data.u8[2] == 0x02)) {
+          //Disable isolation successful 04 31 02 df e1
+          DisableIsoMonitoringStatemachine = COMPLETED_STATE;
+          datalayer_extended.stellantisECMP.UserRequestDisableIsoMonitoring = false;
+          timeSpentDisableIsoMonitoring = COMPLETED_STATE;
+        }
+        if ((rx_frame.data.u8[0] == 0x03) && (rx_frame.data.u8[1] == 0x7F) && (rx_frame.data.u8[2] == 0x31)) {
+          //Disable Isolation fails to enter with 7F
+          set_event(EVENT_PID_FAILED, rx_frame.data.u8[2]);
           DisableIsoMonitoringStatemachine = COMPLETED_STATE;
           datalayer_extended.stellantisECMP.UserRequestDisableIsoMonitoring = false;
           timeSpentDisableIsoMonitoring = COMPLETED_STATE;
@@ -535,10 +545,10 @@ void EcmpBattery::handle_incoming_can_frame(CAN_frame rx_frame) {
               pid_avg_cell_voltage = (rx_frame.data.u8[4] << 8) | rx_frame.data.u8[5];
               break;
             case PID_CURRENT:
-              pid_current = (((rx_frame.data.u8[4] << 24) | (rx_frame.data.u8[5] << 16) | (rx_frame.data.u8[6] << 8) |
-                              rx_frame.data.u8[7]) -
-                             76800) *
-                            10;
+              pid_current = -(((rx_frame.data.u8[4] << 24) | (rx_frame.data.u8[5] << 16) | (rx_frame.data.u8[6] << 8) |
+                               rx_frame.data.u8[7]) -
+                              76800) *
+                            20;
               break;
             case PID_INSULATION_NEG:
               pid_insulation_res_neg = ((rx_frame.data.u8[4] << 24) | (rx_frame.data.u8[5] << 16) |
@@ -579,7 +589,7 @@ void EcmpBattery::handle_incoming_can_frame(CAN_frame rx_frame) {
               pid_lowest_cell_voltage_num = (rx_frame.data.u8[4]);
               break;
             case PID_SUM_OF_CELLS:
-              pid_sum_of_cells = (rx_frame.data.u8[4] << 8) | rx_frame.data.u8[5];
+              pid_sum_of_cells = ((rx_frame.data.u8[4] << 8) | rx_frame.data.u8[5]) / 2;
               break;
             case PID_CELL_MIN_CAPACITY:
               pid_cell_min_capacity = (rx_frame.data.u8[4] << 8) | rx_frame.data.u8[5];
@@ -846,15 +856,15 @@ void EcmpBattery::transmit_can(unsigned long currentMillis) {
         DisableIsoMonitoringStatemachine = 1;
       }
       if (DisableIsoMonitoringStatemachine == 2) {
-        transmit_can_frame(&ECMP_FACTORY_MODE_ACTIVATION_NEW, can_config.battery);
+        transmit_can_frame(&ECMP_ACK_MESSAGE, can_config.battery);
         DisableIsoMonitoringStatemachine = 3;
       }
       if (DisableIsoMonitoringStatemachine == 4) {
-        transmit_can_frame(&ECMP_DISABLE_ISOLATION_REQ, can_config.battery);
+        transmit_can_frame(&ECMP_FACTORY_MODE_ACTIVATION, can_config.battery);
         DisableIsoMonitoringStatemachine = 5;
       }
       if (DisableIsoMonitoringStatemachine == 6) {
-        transmit_can_frame(&ECMP_FACTORY_MODE_ACTIVATION, can_config.battery);
+        transmit_can_frame(&ECMP_DISABLE_ISOLATION_REQ, can_config.battery);
         DisableIsoMonitoringStatemachine = 7;
       }
       timeSpentDisableIsoMonitoring++;
@@ -1322,9 +1332,11 @@ void EcmpBattery::transmit_can(unsigned long currentMillis) {
     transmit_can_frame(&ECMP_0C5, can_config.battery);  //DC2_0C5
     transmit_can_frame(&ECMP_17B, can_config.battery);  //VCU_PCANInfo_17B
     transmit_can_frame(&ECMP_0F2, can_config.battery);  //CtrlMCU1_0F2
-    transmit_can_frame(&ECMP_111, can_config.battery);
-    transmit_can_frame(&ECMP_110, can_config.battery);
-    transmit_can_frame(&ECMP_114, can_config.battery);
+    if (simulateEntireCar) {
+      transmit_can_frame(&ECMP_111, can_config.battery);
+      transmit_can_frame(&ECMP_110, can_config.battery);
+      transmit_can_frame(&ECMP_114, can_config.battery);
+    }
   }
 
   // Send 20ms periodic CAN Message simulating the car still being attached
@@ -1356,7 +1368,7 @@ void EcmpBattery::transmit_can(unsigned long currentMillis) {
       ECMP_27A.data = {0x4F, 0x58, 0x00, 0x02, 0x24, 0x00, 0x00, 0x00};
     }
     transmit_can_frame(&ECMP_230, can_config.battery);  //OBC3_230
-    transmit_can_frame(&ECMP_27A, can_config.battery);  //PSA specific VCU message (VCU_BSI_Wakeup_27A)
+    transmit_can_frame(&ECMP_27A, can_config.battery);  //VCU_BSI_Wakeup_27A
   }
   // Send 100ms periodic CAN Message simulating the car still being attached
   if (currentMillis - previousMillis100 >= INTERVAL_100_MS) {
@@ -1464,20 +1476,23 @@ void EcmpBattery::transmit_can(unsigned long currentMillis) {
     transmit_can_frame(&ECMP_345, can_config.battery);  //DC1_345
     transmit_can_frame(&ECMP_3A2, can_config.battery);  //OBC2_3A2
     transmit_can_frame(&ECMP_3A3, can_config.battery);  //OBC1_3A3
-    transmit_can_frame(&ECMP_31E, can_config.battery);
-    transmit_can_frame(&ECMP_383, can_config.battery);
-    transmit_can_frame(&ECMP_010, can_config.battery);
-    transmit_can_frame(&ECMP_0A6, can_config.battery);  //Not in all logs
-    transmit_can_frame(&ECMP_37F, can_config.battery);  //Seems to be temperatures of some sort
-    transmit_can_frame(&ECMP_372, can_config.battery);
-    transmit_can_frame(&ECMP_351, can_config.battery);
-    transmit_can_frame(&ECMP_31D, can_config.battery);
+    transmit_can_frame(&ECMP_010, can_config.battery);  //VCU_BCM_Crash
+    if (simulateEntireCar) {
+      transmit_can_frame(&ECMP_31E, can_config.battery);
+      transmit_can_frame(&ECMP_383, can_config.battery);
+      transmit_can_frame(&ECMP_0A6, can_config.battery);  //Not in all logs
+      transmit_can_frame(&ECMP_37F, can_config.battery);  //Seems to be temperatures of some sort
+      transmit_can_frame(&ECMP_372, can_config.battery);
+      transmit_can_frame(&ECMP_351, can_config.battery);
+      transmit_can_frame(&ECMP_31D, can_config.battery);
+    }
   }
   // Send 500ms periodic CAN Message simulating the car still being attached
   if (currentMillis - previousMillis500 >= INTERVAL_500_MS) {
     previousMillis500 = currentMillis;
-
-    transmit_can_frame(&ECMP_0AE, can_config.battery);
+    if (simulateEntireCar) {
+      transmit_can_frame(&ECMP_0AE, can_config.battery);
+    }
   }
   // Send 1s CAN Message
   if (currentMillis - previousMillis1000 >= INTERVAL_1_S) {
@@ -1500,24 +1515,27 @@ void EcmpBattery::transmit_can(unsigned long currentMillis) {
     ECMP_552.data.u8[2] = ((ticks_552 & 0x0000FF00) >> 8);
     ECMP_552.data.u8[3] = (ticks_552 & 0x000000FF);
 
-    transmit_can_frame(&ECMP_439, can_config.battery);  //PSA Specific? Not in all logs
-    transmit_can_frame(&ECMP_486, can_config.battery);  //Not in all logs
-    transmit_can_frame(&ECMP_041, can_config.battery);  //Not in all logs
-    transmit_can_frame(&ECMP_786, can_config.battery);  //Not in all logs
-    transmit_can_frame(&ECMP_591, can_config.battery);  //Not in all logs
+    transmit_can_frame(&ECMP_439, can_config.battery);  //OBC4
     transmit_can_frame(&ECMP_552, can_config.battery);  //VCU_552 timetracking
-    transmit_can_frame(&ECMP_794, can_config.battery);  //Not in all logs
+    if (simulateEntireCar) {
+      transmit_can_frame(&ECMP_486, can_config.battery);  //Not in all logs
+      transmit_can_frame(&ECMP_041, can_config.battery);  //Not in all logs
+      transmit_can_frame(&ECMP_786, can_config.battery);  //Not in all logs
+      transmit_can_frame(&ECMP_591, can_config.battery);  //Not in all logs
+      transmit_can_frame(&ECMP_794, can_config.battery);  //Not in all logs
+    }
   }
   // Send 5s periodic CAN Message simulating the car still being attached
   if (currentMillis - previousMillis5000 >= INTERVAL_5_S) {
     previousMillis5000 = currentMillis;
-
-    transmit_can_frame(&ECMP_55F, can_config.battery);
+    if (simulateEntireCar) {
+      transmit_can_frame(&ECMP_55F, can_config.battery);
+    }
   }
 }
 
 void EcmpBattery::setup(void) {  // Performs one time setup at startup
-  strncpy(datalayer.system.info.battery_protocol, "Stellantis ECMP battery", 63);
+  strncpy(datalayer.system.info.battery_protocol, Name, 63);
   datalayer.system.info.battery_protocol[63] = '\0';
   datalayer.battery.info.number_of_cells = 108;
   datalayer.battery.info.max_cell_voltage_mV = MAX_CELL_VOLTAGE_MV;
@@ -1527,5 +1545,3 @@ void EcmpBattery::setup(void) {  // Performs one time setup at startup
   datalayer.battery.info.min_design_voltage_dV = MIN_PACK_VOLTAGE_DV;
   datalayer.system.status.battery_allows_contactor_closing = true;
 }
-
-#endif

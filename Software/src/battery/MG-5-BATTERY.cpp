@@ -1,9 +1,8 @@
-#include "../include.h"
-#ifdef MG_5_BATTERY_H
+#include "MG-5-BATTERY.h"
 #include "../communication/can/comm_can.h"
 #include "../datalayer/datalayer.h"
 #include "../devboard/utils/events.h"
-#include "MG-5-BATTERY.h"
+#include "../include.h"
 
 /* TODO: 
 - Get contactor closing working
@@ -122,5 +121,3 @@ void Mg5Battery::setup(void) {  // Performs one time setup at startup
   datalayer.battery.info.max_cell_voltage_mV = MAX_CELL_VOLTAGE_MV;
   datalayer.battery.info.min_cell_voltage_mV = MIN_CELL_VOLTAGE_MV;
 }
-
-#endif

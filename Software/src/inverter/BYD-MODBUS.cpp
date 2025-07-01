@@ -146,7 +146,7 @@ void BydModbusInverter::verify_inverter_modbus() {
 }
 
 void BydModbusInverter::setup(void) {  // Performs one time setup at startup over CAN bus
-  strncpy(datalayer.system.info.inverter_protocol, "BYD 11kWh HVM battery over Modbus RTU", 63);
+  strncpy(datalayer.system.info.inverter_protocol, Name, 63);
   datalayer.system.info.inverter_protocol[63] = '\0';
 
   // Init Static data to the RTU Modbus

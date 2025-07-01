@@ -1,9 +1,8 @@
-#include "../include.h"
-#ifdef RENAULT_ZOE_GEN1_BATTERY
+#include "RENAULT-ZOE-GEN1-BATTERY.h"
 #include "../datalayer/datalayer.h"
 #include "../datalayer/datalayer_extended.h"
 #include "../devboard/utils/events.h"
-#include "RENAULT-ZOE-GEN1-BATTERY.h"
+#include "../include.h"
 
 void transmit_can_frame(CAN_frame* tx_frame, int interface);
 
@@ -167,7 +166,7 @@ void RenaultZoeGen1Battery::handle_incoming_can_frame(CAN_frame rx_frame) {
       switch (frame0) {
         case 0x10:  //PID HEADER, datarow 0
           requested_poll = rx_frame.data.u8[3];
-          transmit_can_frame(&ZOE_ACK_79B, can_config.battery);
+          transmit_can_frame(&ZOE_ACK_79B, can_interface);
 
           if (requested_poll == GROUP1_CELLVOLTAGES_1_POLL) {
             cellvoltages[0] = (rx_frame.data.u8[4] << 8) | rx_frame.data.u8[5];
@@ -470,7 +469,7 @@ void RenaultZoeGen1Battery::transmit_can(unsigned long currentMillis) {
   // Send 100ms CAN Message
   if (currentMillis - previousMillis100 >= INTERVAL_100_MS) {
     previousMillis100 = currentMillis;
-    transmit_can_frame(&ZOE_423, can_config.battery);
+    transmit_can_frame(&ZOE_423, can_interface);
 
     if ((counter_423 / 5) % 2 == 0) {  // Alternate every 5 messages between these two
       ZOE_423.data.u8[4] = 0xB2;
@@ -509,12 +508,12 @@ void RenaultZoeGen1Battery::transmit_can(unsigned long currentMillis) {
 
     ZOE_POLL_79B.data.u8[2] = current_poll;
 
-    transmit_can_frame(&ZOE_POLL_79B, can_config.battery);
+    transmit_can_frame(&ZOE_POLL_79B, can_interface);
   }
 }
 
 void RenaultZoeGen1Battery::setup(void) {  // Performs one time setup at startup
-  strncpy(datalayer.system.info.battery_protocol, "Renault Zoe Gen1 22/40kWh", 63);
+  strncpy(datalayer.system.info.battery_protocol, Name, 63);
   datalayer.system.info.battery_protocol[63] = '\0';
   datalayer.system.status.battery_allows_contactor_closing = true;
   datalayer_battery->info.number_of_cells = 96;
@@ -524,5 +523,3 @@ void RenaultZoeGen1Battery::setup(void) {  // Performs one time setup at startup
   datalayer_battery->info.min_cell_voltage_mV = MIN_CELL_VOLTAGE_MV;
   datalayer_battery->info.max_cell_voltage_deviation_mV = MAX_CELL_DEVIATION_MV;
 }
-
-#endif

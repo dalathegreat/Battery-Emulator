@@ -368,7 +368,7 @@ void HyundaiIoniq28Battery::transmit_can(unsigned long currentMillis) {
 }
 
 void HyundaiIoniq28Battery::setup(void) {  // Performs one time setup at startup
-  strncpy(datalayer.system.info.battery_protocol, "Hyundai Ioniq Electric 28kWh", 63);
+  strncpy(datalayer.system.info.battery_protocol, Name, 63);
   datalayer.system.info.battery_protocol[63] = '\0';
   datalayer_battery->info.total_capacity_Wh = 28000;
   datalayer_battery->info.number_of_cells = 96;

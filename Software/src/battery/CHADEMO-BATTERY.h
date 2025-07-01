@@ -4,15 +4,12 @@
 #include "../include.h"
 #include "CanBattery.h"
 
+#ifdef CHADEMO_BATTERY
+#define SELECTED_BATTERY_CLASS ChademoBattery
+
 //Contactor control is required for CHADEMO support
 #define CONTACTOR_CONTROL
-
-//ISA shunt is currently required for CHADEMO support
-// other measurement sources may be added in the future
-#define ISA_SHUNT
-
-#define BATTERY_SELECTED
-#define SELECTED_BATTERY_CLASS ChademoBattery
+#endif
 
 class ChademoBattery : public CanBattery {
  public:
@@ -20,6 +17,8 @@ class ChademoBattery : public CanBattery {
   virtual void handle_incoming_can_frame(CAN_frame rx_frame);
   virtual void update_values();
   virtual void transmit_can(unsigned long currentMillis);
+
+  static constexpr const char* Name = "Chademo V2X mode";
 
  private:
   void process_vehicle_charging_minimums(CAN_frame rx_frame);

@@ -109,6 +109,6 @@ void SmaLvInverter::transmit_can(unsigned long currentMillis) {
 }
 
 void SmaLvInverter::setup(void) {  // Performs one time setup at startup over CAN bus
-  strncpy(datalayer.system.info.inverter_protocol, "SMA Low Voltage (48V) protocol via CAN", 63);
+  strncpy(datalayer.system.info.inverter_protocol, Name, 63);
   datalayer.system.info.inverter_protocol[63] = '\0';
 }
