@@ -7,8 +7,9 @@
 #include "CanBattery.h"
 #include "HYUNDAI-IONIQ-28-BATTERY-HTML.h"
 
-#define BATTERY_SELECTED
+#ifdef HYUNDAI_IONIQ_28_BATTERY
 #define SELECTED_BATTERY_CLASS HyundaiIoniq28Battery
+#endif
 
 class HyundaiIoniq28Battery : public CanBattery {
  public:
