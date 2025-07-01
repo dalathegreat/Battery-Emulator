@@ -14,7 +14,7 @@ class SolaxInverter : public CanInverterProtocol {
   void update_values();
   void transmit_can(unsigned long currentMillis);
   void map_can_frame_to_variable(CAN_frame rx_frame);
-  static constexpr char* Name = "SolaX Triple Power LFP over CAN bus";
+  static constexpr const char* Name = "SolaX Triple Power LFP over CAN bus";
 
  private:
   // Timeout in milliseconds

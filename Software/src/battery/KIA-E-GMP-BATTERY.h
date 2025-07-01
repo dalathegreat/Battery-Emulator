@@ -19,7 +19,7 @@ class KiaEGmpBattery : public CanBattery {
   virtual void handle_incoming_can_frame(CAN_frame rx_frame);
   virtual void update_values();
   virtual void transmit_can(unsigned long currentMillis);
-  static constexpr char* Name = "Kia/Hyundai EGMP platform";
+  static constexpr const char* Name = "Kia/Hyundai EGMP platform";
 
  private:
   uint16_t estimateSOC(uint16_t packVoltage, uint16_t cellCount, int16_t currentAmps);

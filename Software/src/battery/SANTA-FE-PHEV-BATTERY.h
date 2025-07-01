@@ -27,7 +27,7 @@ class SantaFePhevBattery : public CanBattery {
   virtual void handle_incoming_can_frame(CAN_frame rx_frame);
   virtual void update_values();
   virtual void transmit_can(unsigned long currentMillis);
-  static constexpr char* Name = "Santa Fe PHEV";
+  static constexpr const char* Name = "Santa Fe PHEV";
 
  private:
   DATALAYER_BATTERY_TYPE* datalayer_battery;

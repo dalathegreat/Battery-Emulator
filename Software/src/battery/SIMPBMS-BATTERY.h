@@ -15,7 +15,7 @@ class SimpBmsBattery : public CanBattery {
   virtual void handle_incoming_can_frame(CAN_frame rx_frame);
   virtual void update_values();
   virtual void transmit_can(unsigned long currentMillis);
-  static constexpr char* Name = "SIMPBMS battery";
+  static constexpr const char* Name = "SIMPBMS battery";
 
  private:
   /* DEFAULT VALUES BMS will send configured */

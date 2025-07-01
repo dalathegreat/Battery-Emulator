@@ -12,7 +12,7 @@ class BydModbusInverter : public ModbusInverterProtocol {
  public:
   void setup();
   void update_values();
-  static constexpr char* Name = "BYD 11kWh HVM battery over Modbus RTU";
+  static constexpr const char* Name = "BYD 11kWh HVM battery over Modbus RTU";
 
  private:
   void handle_static_data();

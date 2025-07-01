@@ -15,7 +15,7 @@ class RjxzsBms : public CanBattery {
   virtual void handle_incoming_can_frame(CAN_frame rx_frame);
   virtual void update_values();
   virtual void transmit_can(unsigned long currentMillis);
-  static constexpr char* Name = "RJXZS BMS, DIY battery";
+  static constexpr const char* Name = "RJXZS BMS, DIY battery";
 
  private:
   /* Tweak these according to your battery build */
