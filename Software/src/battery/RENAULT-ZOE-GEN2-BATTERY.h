@@ -32,7 +32,7 @@ class RenaultZoeGen2Battery : public CanBattery {
   virtual void handle_incoming_can_frame(CAN_frame rx_frame);
   virtual void update_values();
   virtual void transmit_can(unsigned long currentMillis);
-  static constexpr char* Name = "Renault Zoe Gen2 50kWh";
+  static constexpr const char* Name = "Renault Zoe Gen2 50kWh";
 
   bool supports_reset_NVROL() { return true; }
 

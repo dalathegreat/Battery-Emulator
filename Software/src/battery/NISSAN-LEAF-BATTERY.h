@@ -46,7 +46,7 @@ class NissanLeafBattery : public CanBattery {
   }
 
   BatteryHtmlRenderer& get_status_renderer() { return renderer; }
-  static constexpr char* Name = "Nissan LEAF battery";
+  static constexpr const char* Name = "Nissan LEAF battery";
 
  private:
   static const int MAX_PACK_VOLTAGE_DV = 4040;  //5000 = 500.0V

@@ -15,7 +15,7 @@ class ImievCZeroIonBattery : public CanBattery {
   virtual void handle_incoming_can_frame(CAN_frame rx_frame);
   virtual void update_values();
   virtual void transmit_can(unsigned long currentMillis);
-  static constexpr char* Name = "I-Miev / C-Zero / Ion Triplet";
+  static constexpr const char* Name = "I-Miev / C-Zero / Ion Triplet";
 
  private:
   static const int MAX_PACK_VOLTAGE_DV = 3696;  //5000 = 500.0V
