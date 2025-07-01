@@ -1,9 +1,7 @@
 #ifndef __MYTIMER_H__
 #define __MYTIMER_H__
 
-#ifndef UNIT_TEST
 #include <Arduino.h>
-#endif
 
 class MyTimer {
  public:

@@ -68,6 +68,8 @@ TaskHandle_t mqtt_loop_task;
 
 Logging logging;
 
+#ifndef PIO_UNIT_TESTING
+
 // Initialization
 void setup() {
   init_serial();
@@ -161,6 +163,8 @@ void logging_loop(void*) {
 }
 #endif
 
+#endif  // PIO_UNIT_TESTING
+
 #ifdef WIFI
 void connectivity_loop(void*) {
   esp_task_wdt_add(NULL);  // Register this task with WDT
@@ -207,122 +211,6 @@ static std::list<Transmitter*> transmitters;
 
 void register_transmitter(Transmitter* transmitter) {
   transmitters.push_back(transmitter);
-}
-
-void core_loop(void*) {
-  esp_task_wdt_add(NULL);  // Register this task with WDT
-  TickType_t xLastWakeTime = xTaskGetTickCount();
-  const TickType_t xFrequency = pdMS_TO_TICKS(1);  // Convert 1ms to ticks
-  led_init();
-
-  while (true) {
-
-    START_TIME_MEASUREMENT(all);
-    START_TIME_MEASUREMENT(comm);
-#ifdef EQUIPMENT_STOP_BUTTON
-    monitor_equipment_stop_button();
-#endif
-
-    // Input, Runs as fast as possible
-    receive_can();    // Receive CAN messages
-    receive_rs485();  // Process serial2 RS485 interface
-
-    END_TIME_MEASUREMENT_MAX(comm, datalayer.system.status.time_comm_us);
-#ifdef WEBSERVER
-    START_TIME_MEASUREMENT(ota);
-    ElegantOTA.loop();
-    END_TIME_MEASUREMENT_MAX(ota, datalayer.system.status.time_ota_us);
-#endif  // WEBSERVER
-
-    // Process
-    currentMillis = millis();
-    if (currentMillis - previousMillis10ms >= INTERVAL_10_MS) {
-      if ((currentMillis - previousMillis10ms >= INTERVAL_10_MS_DELAYED) && (currentMillis > BOOTUP_TIME)) {
-        set_event(EVENT_TASK_OVERRUN, (currentMillis - previousMillis10ms));
-      }
-      previousMillis10ms = currentMillis;
-#ifdef FUNCTION_TIME_MEASUREMENT
-      START_TIME_MEASUREMENT(time_10ms);
-#endif
-      led_exe();
-      handle_contactors();  // Take care of startup precharge/contactor closing
-#ifdef PRECHARGE_CONTROL
-      handle_precharge_control(currentMillis);
-#endif  // PRECHARGE_CONTROL
-#ifdef FUNCTION_TIME_MEASUREMENT
-      END_TIME_MEASUREMENT_MAX(time_10ms, datalayer.system.status.time_10ms_us);
-#endif
-    }
-
-    if (currentMillis - previousMillisUpdateVal >= INTERVAL_1_S) {
-      previousMillisUpdateVal = currentMillis;  // Order matters on the update_loop!
-#ifdef FUNCTION_TIME_MEASUREMENT
-      START_TIME_MEASUREMENT(time_values);
-#endif
-      update_pause_state();  // Check if we are OK to send CAN or need to pause
-
-      // Fetch battery values
-      if (battery) {
-        battery->update_values();
-      }
-
-      if (battery2) {
-        battery2->update_values();
-        check_interconnect_available();
-      }
-      update_calculated_values();
-      update_machineryprotection();  // Check safeties
-
-      // Update values heading towards inverter
-      if (inverter) {
-        inverter->update_values();
-      }
-
-#ifdef FUNCTION_TIME_MEASUREMENT
-      END_TIME_MEASUREMENT_MAX(time_values, datalayer.system.status.time_values_us);
-#endif
-    }
-#ifdef FUNCTION_TIME_MEASUREMENT
-    START_TIME_MEASUREMENT(cantx);
-#endif
-
-    // Let all transmitter objects send their messages
-    for (auto& transmitter : transmitters) {
-      transmitter->transmit(currentMillis);
-    }
-
-#ifdef FUNCTION_TIME_MEASUREMENT
-    END_TIME_MEASUREMENT_MAX(cantx, datalayer.system.status.time_cantx_us);
-    END_TIME_MEASUREMENT_MAX(all, datalayer.system.status.core_task_10s_max_us);
-#endif
-#ifdef FUNCTION_TIME_MEASUREMENT
-    if (datalayer.system.status.core_task_10s_max_us > datalayer.system.status.core_task_max_us) {
-      // Update worst case total time
-      datalayer.system.status.core_task_max_us = datalayer.system.status.core_task_10s_max_us;
-      // Record snapshots of task times
-      datalayer.system.status.time_snap_comm_us = datalayer.system.status.time_comm_us;
-      datalayer.system.status.time_snap_10ms_us = datalayer.system.status.time_10ms_us;
-      datalayer.system.status.time_snap_values_us = datalayer.system.status.time_values_us;
-      datalayer.system.status.time_snap_cantx_us = datalayer.system.status.time_cantx_us;
-      datalayer.system.status.time_snap_ota_us = datalayer.system.status.time_ota_us;
-    }
-
-    datalayer.system.status.core_task_max_us =
-        MAX(datalayer.system.status.core_task_10s_max_us, datalayer.system.status.core_task_max_us);
-    if (core_task_timer_10s.elapsed()) {
-      datalayer.system.status.time_ota_us = 0;
-      datalayer.system.status.time_comm_us = 0;
-      datalayer.system.status.time_10ms_us = 0;
-      datalayer.system.status.time_values_us = 0;
-      datalayer.system.status.time_cantx_us = 0;
-      datalayer.system.status.core_task_10s_max_us = 0;
-      datalayer.system.status.wifi_task_10s_max_us = 0;
-      datalayer.system.status.mqtt_task_10s_max_us = 0;
-    }
-#endif                     // FUNCTION_TIME_MEASUREMENT
-    esp_task_wdt_reset();  // Reset watchdog to prevent reset
-    vTaskDelayUntil(&xLastWakeTime, xFrequency);
-  }
 }
 
 // Initialization functions
@@ -575,5 +463,121 @@ void check_reset_reason() {
       break;
     default:
       break;
+  }
+}
+
+void core_loop(void*) {
+  esp_task_wdt_add(NULL);  // Register this task with WDT
+  TickType_t xLastWakeTime = xTaskGetTickCount();
+  const TickType_t xFrequency = pdMS_TO_TICKS(1);  // Convert 1ms to ticks
+  led_init();
+
+  while (true) {
+
+    START_TIME_MEASUREMENT(all);
+    START_TIME_MEASUREMENT(comm);
+#ifdef EQUIPMENT_STOP_BUTTON
+    monitor_equipment_stop_button();
+#endif
+
+    // Input, Runs as fast as possible
+    receive_can();    // Receive CAN messages
+    receive_rs485();  // Process serial2 RS485 interface
+
+    END_TIME_MEASUREMENT_MAX(comm, datalayer.system.status.time_comm_us);
+#ifdef WEBSERVER
+    START_TIME_MEASUREMENT(ota);
+    ElegantOTA.loop();
+    END_TIME_MEASUREMENT_MAX(ota, datalayer.system.status.time_ota_us);
+#endif  // WEBSERVER
+
+    // Process
+    currentMillis = millis();
+    if (currentMillis - previousMillis10ms >= INTERVAL_10_MS) {
+      if ((currentMillis - previousMillis10ms >= INTERVAL_10_MS_DELAYED) && (currentMillis > BOOTUP_TIME)) {
+        set_event(EVENT_TASK_OVERRUN, (currentMillis - previousMillis10ms));
+      }
+      previousMillis10ms = currentMillis;
+#ifdef FUNCTION_TIME_MEASUREMENT
+      START_TIME_MEASUREMENT(time_10ms);
+#endif
+      led_exe();
+      handle_contactors();  // Take care of startup precharge/contactor closing
+#ifdef PRECHARGE_CONTROL
+      handle_precharge_control(currentMillis);
+#endif  // PRECHARGE_CONTROL
+#ifdef FUNCTION_TIME_MEASUREMENT
+      END_TIME_MEASUREMENT_MAX(time_10ms, datalayer.system.status.time_10ms_us);
+#endif
+    }
+
+    if (currentMillis - previousMillisUpdateVal >= INTERVAL_1_S) {
+      previousMillisUpdateVal = currentMillis;  // Order matters on the update_loop!
+#ifdef FUNCTION_TIME_MEASUREMENT
+      START_TIME_MEASUREMENT(time_values);
+#endif
+      update_pause_state();  // Check if we are OK to send CAN or need to pause
+
+      // Fetch battery values
+      if (battery) {
+        battery->update_values();
+      }
+
+      if (battery2) {
+        battery2->update_values();
+        check_interconnect_available();
+      }
+      update_calculated_values();
+      update_machineryprotection();  // Check safeties
+
+      // Update values heading towards inverter
+      if (inverter) {
+        inverter->update_values();
+      }
+
+#ifdef FUNCTION_TIME_MEASUREMENT
+      END_TIME_MEASUREMENT_MAX(time_values, datalayer.system.status.time_values_us);
+#endif
+    }
+#ifdef FUNCTION_TIME_MEASUREMENT
+    START_TIME_MEASUREMENT(cantx);
+#endif
+
+    // Let all transmitter objects send their messages
+    for (auto& transmitter : transmitters) {
+      transmitter->transmit(currentMillis);
+    }
+
+#ifdef FUNCTION_TIME_MEASUREMENT
+    END_TIME_MEASUREMENT_MAX(cantx, datalayer.system.status.time_cantx_us);
+    END_TIME_MEASUREMENT_MAX(all, datalayer.system.status.core_task_10s_max_us);
+#endif
+#ifdef FUNCTION_TIME_MEASUREMENT
+    if (datalayer.system.status.core_task_10s_max_us > datalayer.system.status.core_task_max_us) {
+      // Update worst case total time
+      datalayer.system.status.core_task_max_us = datalayer.system.status.core_task_10s_max_us;
+      // Record snapshots of task times
+      datalayer.system.status.time_snap_comm_us = datalayer.system.status.time_comm_us;
+      datalayer.system.status.time_snap_10ms_us = datalayer.system.status.time_10ms_us;
+      datalayer.system.status.time_snap_values_us = datalayer.system.status.time_values_us;
+      datalayer.system.status.time_snap_cantx_us = datalayer.system.status.time_cantx_us;
+      datalayer.system.status.time_snap_ota_us = datalayer.system.status.time_ota_us;
+    }
+
+    datalayer.system.status.core_task_max_us =
+        MAX(datalayer.system.status.core_task_10s_max_us, datalayer.system.status.core_task_max_us);
+    if (core_task_timer_10s.elapsed()) {
+      datalayer.system.status.time_ota_us = 0;
+      datalayer.system.status.time_comm_us = 0;
+      datalayer.system.status.time_10ms_us = 0;
+      datalayer.system.status.time_values_us = 0;
+      datalayer.system.status.time_cantx_us = 0;
+      datalayer.system.status.core_task_10s_max_us = 0;
+      datalayer.system.status.wifi_task_10s_max_us = 0;
+      datalayer.system.status.mqtt_task_10s_max_us = 0;
+    }
+#endif                     // FUNCTION_TIME_MEASUREMENT
+    esp_task_wdt_reset();  // Reset watchdog to prevent reset
+    vTaskDelayUntil(&xLastWakeTime, xFrequency);
   }
 }

@@ -1,8 +1,6 @@
 #ifndef __EVENTS_H__
 #define __EVENTS_H__
-#ifndef UNIT_TEST
 #include "../../include.h"
-#endif
 
 #define GENERATE_ENUM(ENUM) ENUM,
 #define GENERATE_STRING(STRING) #STRING,
@@ -156,6 +154,7 @@ void set_event(EVENTS_ENUM_TYPE event, uint8_t data);
 void clear_event(EVENTS_ENUM_TYPE event);
 void reset_all_events();
 void set_event_MQTTpublished(EVENTS_ENUM_TYPE event);
+bool is_event_set(EVENTS_ENUM_TYPE event);
 
 const EVENTS_STRUCT_TYPE* get_event_pointer(EVENTS_ENUM_TYPE event);
 
