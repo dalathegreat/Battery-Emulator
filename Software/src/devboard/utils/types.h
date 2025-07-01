@@ -42,6 +42,9 @@ enum PrechargeState {
 #define CAN_STILL_ALIVE 60
 // Set by battery each time we get a CAN message. Decrements every second. When reaching 0, sets event
 
+typedef enum { CAN_NATIVE = 0, CANFD_NATIVE = 1, CAN_ADDON_MCP2515 = 2, CANFD_ADDON_MCP2518 = 3 } CAN_Interface;
+extern const char* getCANInterfaceName(CAN_Interface interface);
+
 /* CAN Frame structure */
 typedef struct {
   bool FD;

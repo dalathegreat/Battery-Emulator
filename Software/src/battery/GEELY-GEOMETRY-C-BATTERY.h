@@ -6,29 +6,9 @@
 #include "CanBattery.h"
 #include "GEELY-GEOMETRY-C-HTML.h"
 
-#define BATTERY_SELECTED
+#ifdef GEELY_GEOMETRY_C_BATTERY
 #define SELECTED_BATTERY_CLASS GeelyGeometryCBattery
-
-#define POLL_SOC 0x4B35
-#define POLL_CC2_VOLTAGE 0x4BCF
-#define POLL_CELL_MAX_VOLTAGE_NUMBER 0x4B1E
-#define POLL_CELL_MIN_VOLTAGE_NUMBER 0x4B20
-#define POLL_AMOUNT_CELLS 0x4B07
-#define POLL_SPECIFICIAL_VOLTAGE 0x4B05
-#define POLL_UNKNOWN_1 0x4BDA  //245 on two batteries
-#define POLL_RAW_SOC_MAX 0x4BC3
-#define POLL_RAW_SOC_MIN 0x4BC4
-#define POLL_UNKNOWN_4 0xDF00  //144 (the other battery 143)
-#define POLL_CAPACITY_MODULE_MAX 0x4B3D
-#define POLL_CAPACITY_MODULE_MIN 0x4B3E
-#define POLL_UNKNOWN_7 0x4B24  //1 (the other battery 23)
-#define POLL_UNKNOWN_8 0x4B26  //16 (the other battery 33)
-#define POLL_MULTI_TEMPS 0x4B0F
-#define POLL_MULTI_UNKNOWN_2 0x4B10
-#define POLL_MULTI_UNKNOWN_3 0x4B53
-#define POLL_MULTI_UNKNOWN_4 0x4B54
-#define POLL_MULTI_HARDWARE_VERSION 0x4B6B
-#define POLL_MULTI_SOFTWARE_VERSION 0x4B6C
+#endif
 
 class GeelyGeometryCBattery : public CanBattery {
  public:
@@ -36,10 +16,32 @@ class GeelyGeometryCBattery : public CanBattery {
   virtual void handle_incoming_can_frame(CAN_frame rx_frame);
   virtual void update_values();
   virtual void transmit_can(unsigned long currentMillis);
+  static constexpr const char* Name = "Geely Geometry C";
 
   BatteryHtmlRenderer& get_status_renderer() { return renderer; }
 
  private:
+  static const int POLL_SOC = 0x4B35;
+  static const int POLL_CC2_VOLTAGE = 0x4BCF;
+  static const int POLL_CELL_MAX_VOLTAGE_NUMBER = 0x4B1E;
+  static const int POLL_CELL_MIN_VOLTAGE_NUMBER = 0x4B20;
+  static const int POLL_AMOUNT_CELLS = 0x4B07;
+  static const int POLL_SPECIFICIAL_VOLTAGE = 0x4B05;
+  static const int POLL_UNKNOWN_1 = 0x4BDA;  //245 on two batteries
+  static const int POLL_RAW_SOC_MAX = 0x4BC3;
+  static const int POLL_RAW_SOC_MIN = 0x4BC4;
+  static const int POLL_UNKNOWN_4 = 0xDF00;  //144 (the other battery 143)
+  static const int POLL_CAPACITY_MODULE_MAX = 0x4B3D;
+  static const int POLL_CAPACITY_MODULE_MIN = 0x4B3E;
+  static const int POLL_UNKNOWN_7 = 0x4B24;  //1 (the other battery 23)
+  static const int POLL_UNKNOWN_8 = 0x4B26;  //16 (the other battery 33)
+  static const int POLL_MULTI_TEMPS = 0x4B0F;
+  static const int POLL_MULTI_UNKNOWN_2 = 0x4B10;
+  static const int POLL_MULTI_UNKNOWN_3 = 0x4B53;
+  static const int POLL_MULTI_UNKNOWN_4 = 0x4B54;
+  static const int POLL_MULTI_HARDWARE_VERSION = 0x4B6B;
+  static const int POLL_MULTI_SOFTWARE_VERSION = 0x4B6C;
+
   GeelyGeometryCHtmlRenderer renderer;
 
   static const int MAX_PACK_VOLTAGE_70_DV = 4420;  //70kWh

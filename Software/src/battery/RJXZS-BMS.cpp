@@ -1,9 +1,8 @@
-#include "../include.h"
-#ifdef RJXZS_BMS
+#include "RJXZS-BMS.h"
 #include "../communication/can/comm_can.h"
 #include "../datalayer/datalayer.h"
 #include "../devboard/utils/events.h"
-#include "RJXZS-BMS.h"
+#include "../include.h"
 
 void RjxzsBms::update_values() {
 
@@ -517,7 +516,7 @@ void RjxzsBms::transmit_can(unsigned long currentMillis) {
 }
 
 void RjxzsBms::setup(void) {  // Performs one time setup at startup
-  strncpy(datalayer.system.info.battery_protocol, "RJXZS BMS, DIY battery", 63);
+  strncpy(datalayer.system.info.battery_protocol, Name, 63);
   datalayer.system.info.battery_protocol[63] = '\0';
   datalayer.battery.info.max_design_voltage_dV = MAX_PACK_VOLTAGE_DV;
   datalayer.battery.info.min_design_voltage_dV = MIN_PACK_VOLTAGE_DV;
@@ -525,5 +524,3 @@ void RjxzsBms::setup(void) {  // Performs one time setup at startup
   datalayer.battery.info.min_cell_voltage_mV = MIN_CELL_VOLTAGE_MV;
   datalayer.system.status.battery_allows_contactor_closing = true;
 }
-
-#endif  // RJXZS_BMS

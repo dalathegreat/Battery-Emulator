@@ -55,161 +55,166 @@ void update_machineryprotection() {
   }
 
   // Start checking that the battery is within reason. Incase we see any funny business, raise an event!
+  // Don't check any battery issues if battery is not configured
+  if (battery) {
 
-  // Pause function is on OR we have a critical fault event active
-  if (emulator_pause_request_ON || (datalayer.battery.status.bms_status == FAULT)) {
-    datalayer.battery.status.max_discharge_power_W = 0;
-    datalayer.battery.status.max_charge_power_W = 0;
-  }
-
-  // Battery is overheated!
-  if (datalayer.battery.status.temperature_max_dC > BATTERY_MAXTEMPERATURE) {
-    set_event(EVENT_BATTERY_OVERHEAT, datalayer.battery.status.temperature_max_dC);
-  } else {
-    clear_event(EVENT_BATTERY_OVERHEAT);
-  }
-
-  // Battery is frozen!
-  if (datalayer.battery.status.temperature_min_dC < BATTERY_MINTEMPERATURE) {
-    set_event(EVENT_BATTERY_FROZEN, datalayer.battery.status.temperature_min_dC);
-  } else {
-    clear_event(EVENT_BATTERY_FROZEN);
-  }
-
-  if (labs(datalayer.battery.status.temperature_max_dC - datalayer.battery.status.temperature_min_dC) >
-      BATTERY_MAX_TEMPERATURE_DEVIATION) {
-    set_event_latched(EVENT_BATTERY_TEMP_DEVIATION_HIGH,
-                      datalayer.battery.status.temperature_max_dC - datalayer.battery.status.temperature_min_dC);
-  } else {
-    clear_event(EVENT_BATTERY_TEMP_DEVIATION_HIGH);
-  }
-
-  // Battery voltage is over designed max voltage!
-  if (datalayer.battery.status.voltage_dV > datalayer.battery.info.max_design_voltage_dV) {
-    set_event(EVENT_BATTERY_OVERVOLTAGE, datalayer.battery.status.voltage_dV);
-    datalayer.battery.status.max_charge_power_W = 0;
-  } else {
-    clear_event(EVENT_BATTERY_OVERVOLTAGE);
-  }
-
-  // Battery voltage is under designed min voltage!
-  if (datalayer.battery.status.voltage_dV < datalayer.battery.info.min_design_voltage_dV) {
-    set_event(EVENT_BATTERY_UNDERVOLTAGE, datalayer.battery.status.voltage_dV);
-    datalayer.battery.status.max_discharge_power_W = 0;
-  } else {
-    clear_event(EVENT_BATTERY_UNDERVOLTAGE);
-  }
-
-  // Cell overvoltage, further charging not possible. Battery might be imbalanced.
-  if (datalayer.battery.status.cell_max_voltage_mV >= datalayer.battery.info.max_cell_voltage_mV) {
-    set_event(EVENT_CELL_OVER_VOLTAGE, 0);
-    datalayer.battery.status.max_charge_power_W = 0;
-  }
-  // Cell CRITICAL overvoltage, critical latching error without automatic reset. Requires user action to inspect battery.
-  if (datalayer.battery.status.cell_max_voltage_mV >= (datalayer.battery.info.max_cell_voltage_mV + CELL_CRITICAL_MV)) {
-    set_event(EVENT_CELL_CRITICAL_OVER_VOLTAGE, 0);
-  }
-
-  // Cell undervoltage. Further discharge not possible. Battery might be imbalanced.
-  if (datalayer.battery.status.cell_min_voltage_mV <= datalayer.battery.info.min_cell_voltage_mV) {
-    set_event(EVENT_CELL_UNDER_VOLTAGE, 0);
-    datalayer.battery.status.max_discharge_power_W = 0;
-  }
-  //Cell CRITICAL undervoltage. critical latching error without automatic reset. Requires user action to inspect battery.
-  if (datalayer.battery.status.cell_min_voltage_mV <= (datalayer.battery.info.min_cell_voltage_mV - CELL_CRITICAL_MV)) {
-    set_event(EVENT_CELL_CRITICAL_UNDER_VOLTAGE, 0);
-  }
-
-  // Battery is fully charged. Dont allow any more power into it
-  // Normally the BMS will send 0W allowed, but this acts as an additional layer of safety
-  if (datalayer.battery.status.reported_soc == 10000)  //Scaled SOC% value is 100.00%
-  {
-    if (!battery_full_event_fired) {
-      set_event(EVENT_BATTERY_FULL, 0);
-      battery_full_event_fired = true;
+    // Pause function is on OR we have a critical fault event active
+    if (emulator_pause_request_ON || (datalayer.battery.status.bms_status == FAULT)) {
+      datalayer.battery.status.max_discharge_power_W = 0;
+      datalayer.battery.status.max_charge_power_W = 0;
     }
-    datalayer.battery.status.max_charge_power_W = 0;
-  } else {
-    clear_event(EVENT_BATTERY_FULL);
-    battery_full_event_fired = false;
-  }
 
-  // Battery is empty. Do not allow further discharge.
-  // Normally the BMS will send 0W allowed, but this acts as an additional layer of safety
-  if (datalayer.battery.status.bms_status == ACTIVE) {
-    if (datalayer.battery.status.reported_soc == 0) {  //Scaled SOC% value is 0.00%
-      if (!battery_empty_event_fired) {
-        set_event(EVENT_BATTERY_EMPTY, 0);
-        battery_empty_event_fired = true;
-      }
+    // Battery is overheated!
+    if (datalayer.battery.status.temperature_max_dC > BATTERY_MAXTEMPERATURE) {
+      set_event(EVENT_BATTERY_OVERHEAT, datalayer.battery.status.temperature_max_dC);
+    } else {
+      clear_event(EVENT_BATTERY_OVERHEAT);
+    }
+
+    // Battery is frozen!
+    if (datalayer.battery.status.temperature_min_dC < BATTERY_MINTEMPERATURE) {
+      set_event(EVENT_BATTERY_FROZEN, datalayer.battery.status.temperature_min_dC);
+    } else {
+      clear_event(EVENT_BATTERY_FROZEN);
+    }
+
+    if (labs(datalayer.battery.status.temperature_max_dC - datalayer.battery.status.temperature_min_dC) >
+        BATTERY_MAX_TEMPERATURE_DEVIATION) {
+      set_event_latched(EVENT_BATTERY_TEMP_DEVIATION_HIGH,
+                        datalayer.battery.status.temperature_max_dC - datalayer.battery.status.temperature_min_dC);
+    } else {
+      clear_event(EVENT_BATTERY_TEMP_DEVIATION_HIGH);
+    }
+
+    // Battery voltage is over designed max voltage!
+    if (datalayer.battery.status.voltage_dV > datalayer.battery.info.max_design_voltage_dV) {
+      set_event(EVENT_BATTERY_OVERVOLTAGE, datalayer.battery.status.voltage_dV);
+      datalayer.battery.status.max_charge_power_W = 0;
+    } else {
+      clear_event(EVENT_BATTERY_OVERVOLTAGE);
+    }
+
+    // Battery voltage is under designed min voltage!
+    if (datalayer.battery.status.voltage_dV < datalayer.battery.info.min_design_voltage_dV) {
+      set_event(EVENT_BATTERY_UNDERVOLTAGE, datalayer.battery.status.voltage_dV);
       datalayer.battery.status.max_discharge_power_W = 0;
     } else {
-      clear_event(EVENT_BATTERY_EMPTY);
-      battery_empty_event_fired = false;
+      clear_event(EVENT_BATTERY_UNDERVOLTAGE);
     }
-  }
 
-  // Battery is extremely degraded, not fit for secondlifestorage!
-  if (datalayer.battery.status.soh_pptt < 2500) {
-    set_event(EVENT_SOH_LOW, datalayer.battery.status.soh_pptt);
-  } else {
-    clear_event(EVENT_SOH_LOW);
-  }
+    // Cell overvoltage, further charging not possible. Battery might be imbalanced.
+    if (datalayer.battery.status.cell_max_voltage_mV >= datalayer.battery.info.max_cell_voltage_mV) {
+      set_event(EVENT_CELL_OVER_VOLTAGE, 0);
+      datalayer.battery.status.max_charge_power_W = 0;
+    }
+    // Cell CRITICAL overvoltage, critical latching error without automatic reset. Requires user action to inspect battery.
+    if (datalayer.battery.status.cell_max_voltage_mV >=
+        (datalayer.battery.info.max_cell_voltage_mV + CELL_CRITICAL_MV)) {
+      set_event(EVENT_CELL_CRITICAL_OVER_VOLTAGE, 0);
+    }
 
-  if (!battery->soc_plausible()) {
-    set_event(EVENT_SOC_PLAUSIBILITY_ERROR, datalayer.battery.status.real_soc);
-  }
+    // Cell undervoltage. Further discharge not possible. Battery might be imbalanced.
+    if (datalayer.battery.status.cell_min_voltage_mV <= datalayer.battery.info.min_cell_voltage_mV) {
+      set_event(EVENT_CELL_UNDER_VOLTAGE, 0);
+      datalayer.battery.status.max_discharge_power_W = 0;
+    }
+    //Cell CRITICAL undervoltage. critical latching error without automatic reset. Requires user action to inspect battery.
+    if (datalayer.battery.status.cell_min_voltage_mV <=
+        (datalayer.battery.info.min_cell_voltage_mV - CELL_CRITICAL_MV)) {
+      set_event(EVENT_CELL_CRITICAL_UNDER_VOLTAGE, 0);
+    }
 
-  // Check diff between highest and lowest cell
-  cell_deviation_mV =
-      std::abs(datalayer.battery.status.cell_max_voltage_mV - datalayer.battery.status.cell_min_voltage_mV);
-  if (cell_deviation_mV > datalayer.battery.info.max_cell_voltage_deviation_mV) {
-    set_event(EVENT_CELL_DEVIATION_HIGH, (cell_deviation_mV / 20));
-  } else {
-    clear_event(EVENT_CELL_DEVIATION_HIGH);
-  }
-
-  // Inverter is charging with more power than battery wants!
-  if (datalayer.battery.status.active_power_W > 0) {  // Charging
-    if (datalayer.battery.status.active_power_W > (datalayer.battery.status.max_charge_power_W + 2000)) {
-      if (charge_limit_failures > MAX_CHARGE_DISCHARGE_LIMIT_FAILURES) {
-        set_event(EVENT_CHARGE_LIMIT_EXCEEDED, 0);  // Alert when 2kW over requested max
-      } else {
-        charge_limit_failures++;
+    // Battery is fully charged. Dont allow any more power into it
+    // Normally the BMS will send 0W allowed, but this acts as an additional layer of safety
+    if (datalayer.battery.status.reported_soc == 10000)  //Scaled SOC% value is 100.00%
+    {
+      if (!battery_full_event_fired) {
+        set_event(EVENT_BATTERY_FULL, 0);
+        battery_full_event_fired = true;
       }
+      datalayer.battery.status.max_charge_power_W = 0;
     } else {
-      clear_event(EVENT_CHARGE_LIMIT_EXCEEDED);
-      charge_limit_failures = 0;
+      clear_event(EVENT_BATTERY_FULL);
+      battery_full_event_fired = false;
     }
-  }
 
-  // Inverter is pulling too much power from battery!
-  if (datalayer.battery.status.active_power_W < 0) {  // Discharging
-    if (-datalayer.battery.status.active_power_W > (datalayer.battery.status.max_discharge_power_W + 2000)) {
-      if (discharge_limit_failures > MAX_CHARGE_DISCHARGE_LIMIT_FAILURES) {
-        set_event(EVENT_DISCHARGE_LIMIT_EXCEEDED, 0);  // Alert when 2kW over requested max
+    // Battery is empty. Do not allow further discharge.
+    // Normally the BMS will send 0W allowed, but this acts as an additional layer of safety
+    if (datalayer.battery.status.bms_status == ACTIVE) {
+      if (datalayer.battery.status.reported_soc == 0) {  //Scaled SOC% value is 0.00%
+        if (!battery_empty_event_fired) {
+          set_event(EVENT_BATTERY_EMPTY, 0);
+          battery_empty_event_fired = true;
+        }
+        datalayer.battery.status.max_discharge_power_W = 0;
       } else {
-        discharge_limit_failures++;
+        clear_event(EVENT_BATTERY_EMPTY);
+        battery_empty_event_fired = false;
       }
-    } else {
-      clear_event(EVENT_DISCHARGE_LIMIT_EXCEEDED);
-      discharge_limit_failures = 0;
     }
-  }
 
-  // Check if the BMS is still sending CAN messages. If we go 60s without messages we raise an error
-  if (!datalayer.battery.status.CAN_battery_still_alive) {
-    set_event(EVENT_CAN_BATTERY_MISSING, can_config.battery);
-  } else {
-    datalayer.battery.status.CAN_battery_still_alive--;
-    clear_event(EVENT_CAN_BATTERY_MISSING);
-  }
+    // Battery is extremely degraded, not fit for secondlifestorage!
+    if (datalayer.battery.status.soh_pptt < 2500) {
+      set_event(EVENT_SOH_LOW, datalayer.battery.status.soh_pptt);
+    } else {
+      clear_event(EVENT_SOH_LOW);
+    }
 
-  // Too many malformed CAN messages recieved!
-  if (datalayer.battery.status.CAN_error_counter > MAX_CAN_FAILURES) {
-    set_event(EVENT_CAN_CORRUPTED_WARNING, can_config.battery);
-  } else {
-    clear_event(EVENT_CAN_CORRUPTED_WARNING);
+    if (battery && !battery->soc_plausible()) {
+      set_event(EVENT_SOC_PLAUSIBILITY_ERROR, datalayer.battery.status.real_soc);
+    }
+
+    // Check diff between highest and lowest cell
+    cell_deviation_mV =
+        std::abs(datalayer.battery.status.cell_max_voltage_mV - datalayer.battery.status.cell_min_voltage_mV);
+    if (cell_deviation_mV > datalayer.battery.info.max_cell_voltage_deviation_mV) {
+      set_event(EVENT_CELL_DEVIATION_HIGH, (cell_deviation_mV / 20));
+    } else {
+      clear_event(EVENT_CELL_DEVIATION_HIGH);
+    }
+
+    // Inverter is charging with more power than battery wants!
+    if (datalayer.battery.status.active_power_W > 0) {  // Charging
+      if (datalayer.battery.status.active_power_W > (datalayer.battery.status.max_charge_power_W + 2000)) {
+        if (charge_limit_failures > MAX_CHARGE_DISCHARGE_LIMIT_FAILURES) {
+          set_event(EVENT_CHARGE_LIMIT_EXCEEDED, 0);  // Alert when 2kW over requested max
+        } else {
+          charge_limit_failures++;
+        }
+      } else {
+        clear_event(EVENT_CHARGE_LIMIT_EXCEEDED);
+        charge_limit_failures = 0;
+      }
+    }
+
+    // Inverter is pulling too much power from battery!
+    if (datalayer.battery.status.active_power_W < 0) {  // Discharging
+      if (-datalayer.battery.status.active_power_W > (datalayer.battery.status.max_discharge_power_W + 2000)) {
+        if (discharge_limit_failures > MAX_CHARGE_DISCHARGE_LIMIT_FAILURES) {
+          set_event(EVENT_DISCHARGE_LIMIT_EXCEEDED, 0);  // Alert when 2kW over requested max
+        } else {
+          discharge_limit_failures++;
+        }
+      } else {
+        clear_event(EVENT_DISCHARGE_LIMIT_EXCEEDED);
+        discharge_limit_failures = 0;
+      }
+    }
+
+    // Check if the BMS is still sending CAN messages. If we go 60s without messages we raise an error
+    if (!datalayer.battery.status.CAN_battery_still_alive) {
+      set_event(EVENT_CAN_BATTERY_MISSING, can_config.battery);
+    } else {
+      datalayer.battery.status.CAN_battery_still_alive--;
+      clear_event(EVENT_CAN_BATTERY_MISSING);
+    }
+
+    // Too many malformed CAN messages recieved!
+    if (datalayer.battery.status.CAN_error_counter > MAX_CAN_FAILURES) {
+      set_event(EVENT_CAN_CORRUPTED_WARNING, can_config.battery);
+    } else {
+      clear_event(EVENT_CAN_CORRUPTED_WARNING);
+    }
   }
 
   if (inverter && inverter->interface_type() == InverterInterfaceType::Can) {

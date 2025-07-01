@@ -2,6 +2,7 @@
 #define __USER_SETTINGS_H__
 #include <WiFi.h>
 #include <stdint.h>
+#include "src/devboard/utils/types.h"
 
 /* This file contains all the battery/inverter protocol settings Battery-Emulator software */
 /* To switch between batteries/inverters, uncomment a line to enable, comment out to disable. */
@@ -138,7 +139,7 @@
 #define HA_AUTODISCOVERY  // Enable this line to send Home Assistant autodiscovery messages. If not enabled manual configuration of Home Assitant is required
 
 /* Battery settings */
-// Predefined total energy capacity of the battery in Watt-hours
+// Predefined total energy capacity of the battery in Watt-hours (updates automatically from battery data when available)
 #define BATTERY_WH_MAX 30000
 // Increases battery life. If true will rescale SOC between the configured min/max-percentage
 #define BATTERY_USE_SCALED_SOC true
@@ -173,7 +174,6 @@
 
 /* Do not change any code below this line */
 /* Only change battery specific settings above and in "USER_SETTINGS.cpp" */
-typedef enum { CAN_NATIVE = 0, CANFD_NATIVE = 1, CAN_ADDON_MCP2515 = 2, CANFD_ADDON_MCP2518 = 3 } CAN_Interface;
 typedef struct {
   CAN_Interface battery;
   CAN_Interface inverter;
@@ -181,7 +181,6 @@ typedef struct {
   CAN_Interface charger;
   CAN_Interface shunt;
 } CAN_Configuration;
-extern const char* getCANInterfaceName(CAN_Interface interface);
 extern volatile CAN_Configuration can_config;
 extern volatile uint8_t AccessPointEnabled;
 extern const uint8_t wifi_channel;
