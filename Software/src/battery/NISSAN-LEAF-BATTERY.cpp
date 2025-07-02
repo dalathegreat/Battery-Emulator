@@ -206,8 +206,6 @@ void NissanLeafBattery::
 }
 
 void NissanLeafBattery::handle_incoming_can_frame(CAN_frame rx_frame) {
-  DEBUG_PRINTF("Leaf frame %x", rx_frame.ID);
-
   switch (rx_frame.ID) {
     case 0x1DB:
       if (is_message_corrupt(rx_frame)) {
