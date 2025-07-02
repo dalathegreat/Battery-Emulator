@@ -285,7 +285,7 @@ void setup_battery() {
 #if defined(BMW_I3_BATTERY)
     battery2 =
         new SELECTED_BATTERY_CLASS(&datalayer.battery2, &datalayer.system.status.battery2_allowed_contactor_closing,
-                                   can_config.battery_double, WUP_PIN2);
+                                   can_config.battery_double, esp32hal->WUP_PIN2());
 #elif defined(KIA_HYUNDAI_64_BATTERY)
     battery2 = new SELECTED_BATTERY_CLASS(&datalayer.battery2, &datalayer_extended.KiaHyundai64_2,
                                           &datalayer.system.status.battery2_allowed_contactor_closing,

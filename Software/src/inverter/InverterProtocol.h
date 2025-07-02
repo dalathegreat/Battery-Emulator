@@ -35,7 +35,7 @@ enum class InverterInterfaceType { Can, Rs485, Modbus };
 class InverterProtocol {
  public:
   virtual const char* name() = 0;
-  virtual bool setup() {}
+  virtual bool setup() { return true; }
   virtual const char* interface_name() = 0;
   virtual InverterInterfaceType interface_type() = 0;
 

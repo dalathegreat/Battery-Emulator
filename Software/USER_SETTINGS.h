@@ -9,8 +9,6 @@
 /* There are also some options for battery limits and extra functionality */
 /* To edit battery specific limits, see also the USER_SETTINGS.cpp file*/
 
-#define COMMON_IMAGE
-
 /* Select battery used */
 //#define BMW_I3_BATTERY
 //#define BMW_IX_BATTERY
@@ -72,18 +70,18 @@
 //#define SUNGROW_CAN      //Enable this line to emulate a "Sungrow SBR064" over CAN bus
 
 /* Select hardware used for Battery-Emulator */
-#define HW_LILYGO
+//#define HW_LILYGO
 //#define HW_STARK
 //#define HW_3LB
 //#define HW_DEVKIT
 
 /* Contactor settings. If you have a battery that does not activate contactors via CAN, configure this section */
 #define PRECHARGE_TIME_MS 500  //Precharge time in milliseconds. Modify to suit your inverter (See wiki for more info)
-#define CONTACTOR_CONTROL  //Enable this line to have the emulator handle automatic precharge/contactor+/contactor- closing sequence (See wiki for pins)
+//#define CONTACTOR_CONTROL  //Enable this line to have the emulator handle automatic precharge/contactor+/contactor- closing sequence (See wiki for pins)
 //#define CONTACTOR_CONTROL_DOUBLE_BATTERY //Enable this line to have the emulator hardware control secondary set of contactors for double battery setups (See wiki for pins)
 //#define PWM_CONTACTOR_CONTROL //Enable this line to use PWM for CONTACTOR_CONTROL, which lowers power consumption and heat generation. CONTACTOR_CONTROL must be enabled.
 //#define NC_CONTACTORS         //Enable this line to control normally closed contactors. CONTACTOR_CONTROL must be enabled for this option. Extremely rare setting!
-#define PERIODIC_BMS_RESET  //Enable to have the emulator powercycle the connected battery every 24hours via GPIO. Useful for some batteries like Nissan LEAF
+//#define PERIODIC_BMS_RESET  //Enable to have the emulator powercycle the connected battery every 24hours via GPIO. Useful for some batteries like Nissan LEAF
 //#define REMOTE_BMS_RESET      //Enable to allow the emulator to remotely trigger a powercycle of the battery via MQTT. Useful for some batteries like Nissan LEAF
 // PERIODIC_BMS_RESET_AT Uses NTP server, internet required. In 24 Hour format WITHOUT leading 0. e.g 0230 should be 230. Time Zone is set in USER_SETTINGS.cpp
 //#define PERIODIC_BMS_RESET_AT 525
@@ -111,7 +109,7 @@
 //#define DEBUG_CAN_DATA  //Enable this line to print incoming/outgoing CAN & CAN-FD messages to USB serial (WARNING, raises CPU load, do not use for production)
 
 /* CAN options */
-//#define CAN_ADDON              //Enable this line to activate an isolated secondary CAN Bus using add-on MCP2515 chip (Needed for some inverters / double battery)
+#define CAN_ADDON  //Enable this line to activate an isolated secondary CAN Bus using add-on MCP2515 chip (Needed for some inverters / double battery)
 #define CRYSTAL_FREQUENCY_MHZ 8  //CAN_ADDON option, what is your MCP2515 add-on boards crystal frequency?
 //#define CANFD_ADDON           //Enable this line to activate an isolated secondary CAN-FD bus using add-on MCP2518FD chip / Native CANFD on Stark board
 #define CANFD_ADDON_CRYSTAL_FREQUENCY_MHZ \
@@ -128,7 +126,7 @@
 //#define FUNCTION_TIME_MEASUREMENT  // Enable this to record execution times and present them in the web UI (WARNING, raises CPU load, do not use for production)
 
 /* MQTT options */
-// #define MQTT     // Enable this line to enable MQTT
+//#define MQTT     // Enable this line to enable MQTT
 #define MQTT_QOS 0                  // MQTT Quality of Service (0, 1, or 2)
 #define MQTT_PUBLISH_CELL_VOLTAGES  // Enable this line to publish cell voltages to MQTT
 #define MQTT_TIMEOUT 2000           // MQTT timeout in milliseconds
