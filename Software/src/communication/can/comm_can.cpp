@@ -130,7 +130,6 @@ void init_CAN() {
 }
 
 void transmit_can_frame(CAN_frame* tx_frame, int interface) {
-  DEBUG_PRINTF("transmit can %d", interface);
   if (!allowed_to_send_CAN) {
     return;
   }
@@ -306,7 +305,6 @@ void register_can_receiver(CanReceiver* receiver, CAN_Interface interface, bool 
 }
 
 void map_can_frame_to_variable(CAN_frame* rx_frame, CAN_Interface interface) {
-  DEBUG_PRINTF("map_can_frame_to_variable %d\n", interface);
   if (interface !=
       CANFD_NATIVE) {  //Avoid printing twice due to receive_frame_canfd_addon sending to both FD interfaces
     //TODO: This check can be removed later when refactored to use inline functions for logging
