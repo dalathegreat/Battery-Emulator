@@ -11,6 +11,8 @@
 
 class CellPowerBms : public CanBattery {
  public:
+  CellPowerBms() : CanBattery(true) {}
+
   virtual void setup(void);
   virtual void handle_incoming_can_frame(CAN_frame rx_frame);
   virtual void update_values();
@@ -131,8 +133,5 @@ class CellPowerBms : public CanBattery {
   bool requested_exceeding_average_current = 0;
   bool error_state = false;
 };
-
-/* Do not modify any rows below*/
-#define NATIVECAN_250KBPS
 
 #endif

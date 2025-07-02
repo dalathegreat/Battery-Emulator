@@ -11,6 +11,7 @@
 Battery* battery = nullptr;
 Battery* battery2 = nullptr;
 
+#ifdef COMMON_IMAGE
 std::vector<BatteryType> supported_battery_types() {
   std::vector<BatteryType> types;
 
@@ -101,6 +102,7 @@ extern const char* name_for_battery_type(BatteryType type) {
       return nullptr;
   }
 }
+#endif
 
 #ifdef COMMON_IMAGE
 #ifdef SELECTED_BATTERY_CLASS

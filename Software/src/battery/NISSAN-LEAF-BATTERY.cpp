@@ -7,6 +7,7 @@
 #include "../datalayer/datalayer.h"
 #include "../datalayer/datalayer_extended.h"  //For "More battery info" webpage
 #include "../devboard/utils/events.h"
+#include "../devboard/utils/logging.h"
 
 #include "../charger/CanCharger.h"
 
@@ -205,6 +206,8 @@ void NissanLeafBattery::
 }
 
 void NissanLeafBattery::handle_incoming_can_frame(CAN_frame rx_frame) {
+  DEBUG_PRINTF("Leaf frame %x", rx_frame.ID);
+
   switch (rx_frame.ID) {
     case 0x1DB:
       if (is_message_corrupt(rx_frame)) {
