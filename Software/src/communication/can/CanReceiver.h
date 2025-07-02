@@ -9,6 +9,6 @@ class CanReceiver {
 };
 
 // Register a receiver object for a given CAN interface
-void register_can_receiver(CanReceiver* receiver, CAN_Interface interface);
+void register_can_receiver(CanReceiver* receiver, CAN_Interface interface, bool halfSpeed = false);
 
 #endif
